@@ -8,6 +8,8 @@ import (
 	"cmd/internal/obj"
 	"fmt"
 	"iter"
+	"math"
+	"math/bits"
 )
 
 // instEncoder represents an instruction encoder.
@@ -126,6 +128,9 @@ func aclass(a *obj.Addr) AClass {
 			return AC_SPZGREG
 		}
 	}
+	if a.Type == obj.TYPE_CONST || a.Type == obj.TYPE_FCONST {
+		return AC_IMM
+	}
 	panic("unknown AClass")
 }
 
@@ -197,6 +202,28 @@ func addrComponent(a *obj.Addr, acl AClass, index int) uint32 {
 		default:
 			panic(fmt.Errorf("unknown elm index at %d in AClass %d", index, acl))
 		}
+	//	AClass: AC_IMM
+	//	GNU mnemonic: <imm>, <shift>
+	//	Go mnemonic:
+	//		$imm<<shift
+	//	Encoding:
+	//		Type = TYPE_CONST or TYPE_FCONST
+	//		Offset = imm (shift already applied)
+	case AC_IMM:
+		switch index {
+		case 0:
+			if a.Type == obj.TYPE_FCONST {
+				switch v := a.Val.(type) {
+				case float64:
+					return math.Float32bits(float32(v))
+				default:
+					panic(fmt.Errorf("unknown float immediate value %v", a.Val))
+				}
+			}
+			return uint32(a.Offset)
+		default:
+			panic(fmt.Errorf("unknown elm index at %d in AClass %d", index, acl))
+		}
 	}
 	// TODO: handle more AClasses.
 	panic(fmt.Errorf("unknown AClass %d", acl))
@@ -204,6 +231,11 @@ func addrComponent(a *obj.Addr, acl AClass, index int) uint32 {
 
 var codeI1Tsz uint32 = 0xffffffff
 var codeImm2Tsz uint32 = 0xfffffffe
+var codeShift161919212223 uint32 = 0xfffffffd
+var codeShift161919212224 uint32 = 0xfffffffc
+var codeShift588102224 uint32 = 0xfffffffb
+var codeLogicalImmArrEncoding uint32 = 0xfffffffa
+var codeNoOp uint32 = 0xfffffff9
 
 // encodeI1Tsz is the implementation of the following encoding logic:
 // Is the immediate index, in the range 0 to one less than the number of elements in 128 bits, encoded in "i1:tsz".
@@ -292,6 +324,203 @@ func encodeImm2Tsz(v, arr uint32) (uint32, bool) {
 	}
 }
 
+type arrAlignType int
+
+const (
+	arrAlignBHSD arrAlignType = iota
+	arrAlignHSD
+	arrAlignBHS
+)
+
+// encodeShiftTriple encodes an shift immediate value in "tszh:tszl:imm3".
+// tszh, tszl, imm3 are in ranges, sorted by bit position.
+// These shifts are also bounded by arrangement element size.
+func encodeShiftTriple(v uint32, r [6]int, prevAddr *obj.Addr, op obj.As) (uint32, bool) {
+	// The previous op must be a scalable vector, and we need its arrangement.
+	acl := aclass(prevAddr)
+	if acl != AC_ARNG {
+		return 0, false
+	}
+	arr := addrComponent(prevAddr, acl, 1) // Get arrangement
+	elemBits := uint32(0)
+	switch arr {
+	case ARNG_B:
+		elemBits = 8
+	case ARNG_H:
+		elemBits = 16
+	case ARNG_S:
+		elemBits = 32
+	case ARNG_D:
+		elemBits = 64
+	default:
+		return 0, false
+	}
+	if v >= elemBits {
+		return 0, false
+	}
+	var C uint32
+	// Unfortunately these information are in the decoding ASL.
+	// For these instructions, the esize (see comment in the switch below)
+	// is derived from the destination arrangement, however how this function is called is deriving
+	// the esize from one of the source.
+	// We need to address this discrepancy.
+	effectiveEsize := elemBits
+	switch op {
+	case AZRSHRNB, AZRSHRNT, AZSHRNB, AZSHRNT, AZSQRSHRNB, AZSQRSHRNT, AZSQRSHRUNB, AZSQRSHRUNT,
+		AZSQSHRNB, AZSQSHRNT, AZSQSHRUNB, AZSQSHRUNT, AZUQRSHRNB, AZUQRSHRNT, AZUQSHRNB, AZUQSHRNT:
+		effectiveEsize = elemBits / 2
+	}
+	switch op {
+	case AZASR, AZLSR, AZURSHR, AZASRD,
+		AZRSHRNB, AZRSHRNT, AZSHRNB, AZSHRNT, AZSQRSHRNB, AZSQRSHRNT, AZSQRSHRUNB, AZSQRSHRUNT,
+		AZSQSHRNB, AZSQSHRNT, AZSQSHRUNB, AZSQSHRUNT, AZSRSHR, AZUQRSHRNB, AZUQRSHRNT, AZUQSHRNB, AZUQSHRNT,
+		AZURSRA, AZUSRA, AZXAR, AZSRI, AZSRSRA, AZSSRA:
+		// ASL: let shift : integer = (2 * esize) - UInt(tsize::imm3);
+		if v == 0 {
+			return 0, false
+		}
+		C = (2 * effectiveEsize) - v
+	default:
+		// ASL: let shift : integer = UInt(tsize::imm3) - esize;
+		C = effectiveEsize + v
+	}
+	var chunks [3]uint32
+	for i := 0; i < 6; i += 2 {
+		chunks[i/2] = C & ((1 << (r[i+1] - r[i])) - 1)
+		C >>= (r[i+1] - r[i])
+	}
+	return uint32((chunks[0] << r[0]) |
+		(chunks[1] << r[2]) |
+		(chunks[2] << r[4])), true
+}
+
+// encodeLogicalImmEncoding is the implementation of the following encoding logic:
+// Is the size specifier,
+// imm13	<T>
+// 0xxxxxx0xxxxx	S
+// 0xxxxxx10xxxx	H
+// 0xxxxxx110xxx	B
+// 0xxxxxx1110xx	B
+// 0xxxxxx11110x	B
+// 0xxxxxx11111x	RESERVED
+// 1xxxxxxxxxxxx	D
+// At the meantime:
+// Is a 64, 32, 16 or 8-bit bitmask consisting of replicated 2, 4, 8, 16, 32 or 64 bit fields,
+// each field containing a rotated run of non-zero bits, encoded in the "imm13" field.
+//
+// bit range mappings:
+// imm13: [5:18)
+//
+// ARM created a "clever" recipe that can generate useful repeating 8-64 bit bitmasks.
+// Instead of storing the literal binary number, the processor reads a 13-bit recipe
+// using three fields (bits from high to low):
+// N (1 bit), immr (6 bits), and imms (6 bits).
+//
+// How the recipe works:
+// Every logical immediate represents a repeating pattern (like repeating tiles). The processor
+// uses the three fields to figure out the size of the tile, how many 1s are in the tile, and
+// how far to rotate it.
+// The N bit combined with the upper bits of imms determines the width of the repeating block.
+// Depending on these bits, the fundamental block can be 2, 4, 8, 16, 32, or 64 bits wide.
+// The lower bits of imms dictate exactly how many contiguous 1s exist inside that block.
+// The immr value tells the processor how many bits to rotate that block to the right.
+// Finally, the resulting block is duplicated to fill a standard 64-bit lane.
+func encodeLogicalImmArrEncoding(v uint32, adjacentAddr *obj.Addr) (uint32, bool) {
+	acl := aclass(adjacentAddr)
+	if acl != AC_ARNG {
+		return 0, false
+	}
+	arr := addrComponent(adjacentAddr, acl, 1)
+
+	// Replicate the given immediate to fill a full 64-bit lane.
+	// This ensures our pattern-shrinking logic naturally respects the vector lane bounds.
+	var val uint64
+	switch arr {
+	case ARNG_B: // 8-bit lane
+		v8 := uint64(v & 0xFF)
+		val = v8 * 0x0101010101010101
+	case ARNG_H: // 16-bit lane
+		v16 := uint64(v & 0xFFFF)
+		val = v16 * 0x0001000100010001
+	case ARNG_S: // 32-bit lane
+		v32 := uint64(v)
+		val = v32 | (v32 << 32)
+	case ARNG_D: // 64-bit lane
+		val = uint64(v) // Top 32 bits are implicitly 0
+	default:
+		return 0, false
+	}
+
+	// Reject all zeros or all ones (handled by MOV/EOR, invalid for AND/ORR immediates)
+	if val == 0 || val == ^uint64(0) {
+		return 0, false
+	}
+
+	// Find the absolute smallest repeating pattern size (64 down to 2)
+	size := uint64(64)
+	for size > 2 {
+		half := size / 2
+		mask := (uint64(1) << half) - 1
+		lower := val & mask
+		upper := (val >> half) & mask
+
+		// If the top half matches the bottom half, shrink our window
+		if lower == upper {
+			size = half
+			val = lower
+		} else {
+			break
+		}
+	}
+
+	// Count the contiguous ones in this minimal pattern
+	mask := (uint64(1) << size) - 1
+	val &= mask
+	ones := bits.OnesCount64(val)
+
+	// Find the right-rotation (rot) needed to align the 1s at the bottom
+	expected := (uint64(1) << ones) - 1
+	rot := -1
+	for r := 0; r < int(size); r++ {
+		// Right rotate 'val' by 'r' bits within a 'size'-bit window
+		rotated := ((val >> r) | (val << (int(size) - r))) & mask
+		if rotated == expected {
+			rot = r
+			break
+		}
+	}
+
+	if rot == -1 {
+		return 0, false
+	}
+
+	// immr is the amount the hardware must right-rotate the base pattern.
+	// Since 'rot' is how much we right-rotated the target to find the base,
+	// the hardware needs the inverse rotation.
+	immr := uint32((int(size) - rot) % int(size))
+
+	// If we couldn't find a rotation that forms a perfect contiguous block of 1s, it's invalid.
+	if rot == -1 {
+		return 0, false
+	}
+
+	// Encode N, immr, and imms
+	n := uint32(0)
+	if size == 64 {
+		n = 1
+	}
+
+	// The imms prefix is mathematically generated by (~(size*2 - 1) & 0x3F).
+	// We then OR it with the number of ones (minus 1).
+	imms := (uint32(^(size*2 - 1)) & 0x3F) | uint32(ones-1)
+
+	// Construct the final 13-bit field: N (1) | immr (6) | imms (6)
+	imm13 := (n << 12) | (immr << 6) | imms
+
+	// Shift by 5 to place imm13 into instruction bits [5:17]
+	return imm13 << 5, true
+}
+
 // tryEncode tries to encode p with i, it returns the encoded binary and ok signal.
 func (i *instEncoder) tryEncode(p *obj.Prog) (uint32, bool) {
 	bin := i.fixedBits
@@ -300,7 +529,11 @@ func (i *instEncoder) tryEncode(p *obj.Prog) (uint32, bool) {
 	// The 2 instances of <Tb> must encode to the same value.
 	encoded := map[component]uint32{}
 	opIdx := 0
+	var addrs []*obj.Addr
 	for addr := range opsInProg(p) {
+		addrs = append(addrs, addr)
+	}
+	for ii, addr := range addrs {
 		if opIdx >= len(i.args) {
 			return 0, false
 		}
@@ -312,13 +545,36 @@ func (i *instEncoder) tryEncode(p *obj.Prog) (uint32, bool) {
 		}
 		for i, enc := range op.elemEncoders {
 			val := addrComponent(addr, acl, i)
+			if (p.As == AZFCPY || p.As == AZFDUP) && acl == AC_IMM {
+				// These instructions expects ARM's 8-bit float encoding.
+				// Reinterpret the uint32 bits back as a float32, then convert to float64 for chipfloat7
+				fval := float64(math.Float32frombits(val))
+				encode := (&ctxt7{}).chipfloat7(fval)
+				if encode == -1 {
+					// Handle error or return false to indicate mismatch
+					return 0, false
+				}
+				val = uint32(encode)
+			}
 			if b, ok := enc.fn(val); ok || b != 0 {
+				specialB := uint32(b)
 				if !ok {
+					specialB = b
 					switch b {
 					case codeI1Tsz:
 						b, ok = encodeI1Tsz(val, addrComponent(addr, acl, i-1))
 					case codeImm2Tsz:
 						b, ok = encodeImm2Tsz(val, addrComponent(addr, acl, i-1))
+					case codeShift161919212223:
+						b, ok = encodeShiftTriple(val, [6]int{16, 19, 19, 21, 22, 23}, addrs[ii+1], p.As)
+					case codeShift161919212224:
+						b, ok = encodeShiftTriple(val, [6]int{16, 19, 19, 21, 22, 24}, addrs[ii+1], p.As)
+					case codeShift588102224:
+						b, ok = encodeShiftTriple(val, [6]int{5, 8, 8, 10, 22, 24}, addrs[ii+1], p.As)
+					case codeLogicalImmArrEncoding:
+						b, ok = encodeLogicalImmArrEncoding(val, addrs[ii+1])
+					case codeNoOp:
+						b, ok = 0, true
 					default:
 						panic(fmt.Errorf("unknown encoding function code %d", b))
 					}
@@ -328,6 +584,10 @@ func (i *instEncoder) tryEncode(p *obj.Prog) (uint32, bool) {
 				}
 				bin |= b
 				if _, ok := encoded[enc.comp]; ok && b != encoded[enc.comp] {
+					if specialB == codeNoOp {
+						// NoOp encodings don't need checks.
+						continue
+					}
 					return 0, false
 				}
 				if enc.comp != enc_NIL {

@@ -808,4 +808,114 @@ TEXT asmtest(SB),DUPOK|NOSPLIT,$-8
 	ZUMULLT Z6.H[3], Z23.H, Z13.S                     // eddeae44
 	ZUMULLT Z6.S[3], Z23.S, Z13.D                     // eddef644
 	ZUSDOT Z6.B[3], Z23.B, Z13.S                      // ed1abe44
+	ADDPL $9, R11, RSP                                // 3f516b04
+	ADDVL $9, R11, RSP                                // 3f512b04
+	RDVL $1, R27                                      // 3b50bf04
+	ZADD $6, Z7.D, Z7.D                               // c7c0e025
+	ZAND $6, Z7.D, Z7.D                               // 27f88305
+	ZASR $6, Z23.B, P1.M, Z23.B                       // 57850004
+	ZASR $6, Z7.D, Z23.D                              // f790fa04
+	ZASRD $6, Z23.B, P1.M, Z23.B                      // 57850404
+	ZCADD $270, Z25.S, Z22.S, Z22.S                   // 36df8045
+	ZCDOT $0, Z5.B[3], Z16.B, Z26.S                   // 1a42bd44
+	ZCDOT $270, Z3.H[0], Z2.H, Z23.D                  // 574ce344
+	ZCDOT $270, Z28.B, Z1.B, Z9.S                     // 291c9c44
+	ZCMLA $0, Z5.H[3], Z16.H, Z26.H                   // 1a62bd44
+	ZCMLA $270, Z3.S[0], Z2.S, Z23.S                  // 576ce344
+	ZCMLA $180, Z19.S, Z20.S, Z9.S                    // 892a9344
+	ZCMPEQ $6, Z23.B, P1.Z, P14.B                     // ee860625
+	ZCMPGE $6, Z23.B, P1.Z, P14.B                     // ee060625
+	ZCMPGT $6, Z23.B, P1.Z, P14.B                     // fe060625
+	ZCMPHI $6, Z23.B, P1.Z, P14.B                     // fe862124
+	ZCMPHS $6, Z23.B, P1.Z, P14.B                     // ee862124
+	// TODO: CMPLE
+	// TODO: CMPLO
+	// TODO: CMPLS
+	// TODO: CMPLT
+	ZCMPNE $6, Z23.B, P1.Z, P14.B                     // fe860625
+	ZCPY $6, P5.M, Z6.H                               // c6405505
+	ZCPY $6, P5.Z, Z6.H                               // c6005505
+	ZDUP $9, Z11.B                                    // 2bc13825
+	ZDUPM $7, Z6.H                                    // 4604c005
+	ZEOR $6, Z7.D, Z7.D                               // 27f84305
+	ZEXT $6, Z23.B, Z13.B, Z13.B                      // ed1a2005
+	ZEXTQ $6, Z23.B, Z13.B, Z13.B                     // ed266605
+	ZFADD $(1.0), Z5.D, P5.M, Z5.D                    // 2594d865
+	ZFCADD $90, Z13.S, Z4.S, P4.M, Z4.S               // a4918064
+	ZFCMEQ $(0.0), Z7.D, P4.Z, P2.D                   // e230d265
+	ZFCMGE $(0.0), Z7.D, P4.Z, P2.D                   // e230d065
+	ZFCMGT $(0.0), Z7.D, P4.Z, P2.D                   // f230d065
+	ZFCMLA $0, Z5.H[3], Z16.H, Z26.H                  // 1a12bd64
+	ZFCMLA $270, Z3.S[0], Z2.S, Z23.S                 // 571ce364
+	ZFCMLA $180, Z30.D, Z29.D, P7.M, Z25.D            // b95fde64
+	ZFCMLE $(0.0), Z7.D, P4.Z, P2.D                   // f230d165
+	ZFCMLT $(0.0), Z7.D, P4.Z, P2.D                   // e230d165
+	ZFCMNE $(0.0), Z7.D, P4.Z, P2.D                   // e230d365
+	ZFCPY $(2.0), P6.M, Z23.H                         // 17c05605
+	ZFDUP $(2.0), Z4.S                                // 04c0b925
+	ZFMAX $(0.0), Z3.D, P1.M, Z3.D                    // 0384de65
+	ZFMAXNM $(0.0), Z3.D, P1.M, Z3.D                  // 0384dc65
+	ZFMIN $(0.0), Z3.D, P1.M, Z3.D                    // 0384df65
+	ZFMINNM $(0.0), Z3.D, P1.M, Z3.D                  // 0384dd65
+	ZFMUL $(2.0), Z16.S, P1.M, Z16.S                  // 30849a65
+	ZFSUB $(1.0), Z5.D, P5.M, Z5.D                    // 2594d965
+	ZFSUBR $(1.0), Z5.D, P5.M, Z5.D                   // 2594db65
+	ZFTMAD $3, Z13.S, Z9.S, Z9.S                      // a9819365
+	ZINDEX R11, $6, Z7.D                              // c748eb04
+	ZINDEX $1, $11, Z26.S                             // 7a41a104
+	ZINDEX $8, R24, Z14.D                             // 0e47e804
+	ZINDEXW R2, $10, Z8.H                             // 48496204
+	ZINDEXW $1, R27, Z26.S                            // 7a47a104
+	ZLSL $6, Z23.B, P1.M, Z23.B                       // d7850304
+	ZLSL $6, Z7.D, Z23.D                              // f79ca604
+	ZLSR $6, Z23.B, P1.M, Z23.B                       // 57850104
+	ZLSR $6, Z7.D, Z23.D                              // f794fa04
+	ZMUL $6, Z7.D, Z7.D                               // c7c0f025
+	ZORR $6, Z7.D, Z7.D                               // 27f80305
+	ZRSHRNB $9, Z7.S, Z23.H                           // f7183745
+	ZRSHRNT $9, Z7.S, Z23.H                           // f71c3745
+	ZSHRNB $9, Z7.S, Z23.H                            // f7103745
+	ZSHRNT $9, Z7.S, Z23.H                            // f7143745
+	ZSLI $6, Z7.D, Z23.D                              // f7f48645
+	ZSMAX $6, Z7.D, Z7.D                              // c7c0e825
+	ZSMIN $6, Z7.D, Z7.D                              // c7c0ea25
+	ZSQADD $6, Z7.D, Z7.D                             // c7c0e425
+	ZSQCADD $270, Z25.S, Z22.S, Z22.S                 // 36df8145
+	ZSQRDCMLAH $0, Z5.H[3], Z16.H, Z26.H              // 1a72bd44
+	ZSQRDCMLAH $270, Z3.S[0], Z2.S, Z23.S             // 577ce344
+	ZSQRDCMLAH $180, Z19.S, Z20.S, Z9.S               // 893a9344
+	ZSQRSHRNB $9, Z7.S, Z23.H                         // f7283745
+	ZSQRSHRNT $9, Z7.S, Z23.H                         // f72c3745
+	ZSQRSHRUNB $9, Z7.S, Z23.H                        // f7083745
+	ZSQRSHRUNT $9, Z7.S, Z23.H                        // f70c3745
+	ZSQSHL $6, Z23.B, P1.M, Z23.B                     // d7850604
+	ZSQSHLU $6, Z23.B, P1.M, Z23.B                    // d7850f04
+	ZSQSHRNB $9, Z7.S, Z23.H                          // f7203745
+	ZSQSHRNT $9, Z7.S, Z23.H                          // f7243745
+	ZSQSHRUNB $9, Z7.S, Z23.H                         // f7003745
+	ZSQSHRUNT $9, Z7.S, Z23.H                         // f7043745
+	ZSQSUB $6, Z7.D, Z7.D                             // c7c0e625
+	ZSRI $6, Z7.D, Z23.D                              // f7f0da45
+	ZSRSHR $6, Z23.B, P1.M, Z23.B                     // 57850c04
+	ZSRSRA $6, Z7.D, Z23.D                            // f7e8da45
+	ZSSHLLB $5, Z22.S, Z10.D                          // caa24545
+	ZSSHLLT $5, Z22.S, Z10.D                          // caa64545
+	ZSSRA $6, Z7.D, Z23.D                             // f7e0da45
+	ZSUB $6, Z7.D, Z7.D                               // c7c0e125
+	ZSUBR $6, Z7.D, Z7.D                              // c7c0e325
+	ZUMAX $6, Z7.D, Z7.D                              // c7c0e925
+	ZUMIN $6, Z7.D, Z7.D                              // c7c0eb25
+	ZUQADD $6, Z7.D, Z7.D                             // c7c0e525
+	ZUQRSHRNB $9, Z7.S, Z23.H                         // f7383745
+	ZUQRSHRNT $9, Z7.S, Z23.H                         // f73c3745
+	ZUQSHL $6, Z23.B, P1.M, Z23.B                     // d7850704
+	ZUQSHRNB $9, Z7.S, Z23.H                          // f7303745
+	ZUQSHRNT $9, Z7.S, Z23.H                          // f7343745
+	ZUQSUB $6, Z7.D, Z7.D                             // c7c0e725
+	ZURSHR $6, Z23.B, P1.M, Z23.B                     // 57850d04
+	ZURSRA $6, Z7.D, Z23.D                            // f7ecda45
+	ZUSHLLB $5, Z22.S, Z10.D                          // caaa4545
+	ZUSHLLT $5, Z22.S, Z10.D                          // caae4545
+	ZUSRA $6, Z7.D, Z23.D                             // f7e4da45
+	ZXAR $6, Z23.B, Z21.B, Z21.B                      // f5362a04
 	RET

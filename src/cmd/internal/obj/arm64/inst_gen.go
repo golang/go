@@ -6,6 +6,24 @@ package arm64
 
 // insts are grouped by [goOp].
 var insts = [][]instEncoder{
+	// ADDPL
+	{
+		// ADDPL #<imm>, <Xn|SP>, <Xd|SP>
+		{
+			goOp:      AADDPL,
+			fixedBits: 0x4605000,
+			args:      cimm__XnSP__XdSP,
+		},
+	},
+	// ADDVL
+	{
+		// ADDVL #<imm>, <Xn|SP>, <Xd|SP>
+		{
+			goOp:      AADDVL,
+			fixedBits: 0x4205000,
+			args:      cimm__XnSP__XdSP,
+		},
+	},
 	// CTERMEQ
 	{
 		// CTERMEQ <R><m>, <R><n>
@@ -714,6 +732,15 @@ var insts = [][]instEncoder{
 			args:      Pm_T__Pn_T__Pd_T,
 		},
 	},
+	// RDVL
+	{
+		// RDVL #<imm>, <Xd>
+		{
+			goOp:      ARDVL,
+			fixedBits: 0x4bf5000,
+			args:      cimm__Xd,
+		},
+	},
 	// SETFFR
 	{
 		// SETFFR
@@ -769,6 +796,12 @@ var insts = [][]instEncoder{
 			goOp:      AZADD,
 			fixedBits: 0x4200000,
 			args:      Zm_T__Zn_T__Zd_T__1,
+		},
+		// ZADD #<imm>{, <shift>}, <Zdn>.<T>, <Zdn>.<T>
+		{
+			goOp:      AZADD,
+			fixedBits: 0x2520c000,
+			args:      cimm__shift__Zdn_T__Zdn_T,
 		},
 	},
 	// ZADDHNB
@@ -878,17 +911,23 @@ var insts = [][]instEncoder{
 	},
 	// ZAND
 	{
+		// ZAND <Zm>.D, <Zn>.D, <Zd>.D
+		{
+			goOp:      AZAND,
+			fixedBits: 0x4203000,
+			args:      Zm_D__Zn_D__Zd_D,
+		},
 		// ZAND <Zm>.<T>, <Zdn>.<T>, <Pg>/M, <Zdn>.<T>
 		{
 			goOp:      AZAND,
 			fixedBits: 0x41a0000,
 			args:      Zm_T__Zdn_T__PgM__Zdn_T__1,
 		},
-		// ZAND <Zm>.D, <Zn>.D, <Zd>.D
+		// ZAND #<const>, <Zdn>.<T>, <Zdn>.<T>
 		{
 			goOp:      AZAND,
-			fixedBits: 0x4203000,
-			args:      Zm_D__Zn_D__Zd_D,
+			fixedBits: 0x5800000,
+			args:      cconst__Zdn_T__Zdn_T,
 		},
 	},
 	// ZANDQV
@@ -938,12 +977,6 @@ var insts = [][]instEncoder{
 	},
 	// ZASR
 	{
-		// ZASR <Zm>.<T>, <Zdn>.<T>, <Pg>/M, <Zdn>.<T>
-		{
-			goOp:      AZASR,
-			fixedBits: 0x4108000,
-			args:      Zm_T__Zdn_T__PgM__Zdn_T__1,
-		},
 		// ZASR <Zm>.D, <Zdn>.<T>, <Pg>/M, <Zdn>.<T>
 		{
 			goOp:      AZASR,
@@ -955,6 +988,33 @@ var insts = [][]instEncoder{
 			goOp:      AZASR,
 			fixedBits: 0x4208000,
 			args:      Zm_D__Zn_T__Zd_T,
+		},
+		// ZASR <Zm>.<T>, <Zdn>.<T>, <Pg>/M, <Zdn>.<T>
+		{
+			goOp:      AZASR,
+			fixedBits: 0x4108000,
+			args:      Zm_T__Zdn_T__PgM__Zdn_T__1,
+		},
+		// ZASR #<const>, <Zdn>.<T>, <Pg>/M, <Zdn>.<T>
+		{
+			goOp:      AZASR,
+			fixedBits: 0x4008000,
+			args:      cconst__Zdn_T__PgM__Zdn_T__1,
+		},
+		// ZASR #<const>, <Zn>.<T>, <Zd>.<T>
+		{
+			goOp:      AZASR,
+			fixedBits: 0x4209000,
+			args:      cconst__Zn_T__Zd_T__1,
+		},
+	},
+	// ZASRD
+	{
+		// ZASRD #<const>, <Zdn>.<T>, <Pg>/M, <Zdn>.<T>
+		{
+			goOp:      AZASRD,
+			fixedBits: 0x4048000,
+			args:      cconst__Zdn_T__PgM__Zdn_T__1,
 		},
 	},
 	// ZASRR
@@ -1085,17 +1145,17 @@ var insts = [][]instEncoder{
 	},
 	// ZBFDOT
 	{
-		// ZBFDOT <Zm>.H[<imm>], <Zn>.H, <Zda>.S
-		{
-			goOp:      AZBFDOT,
-			fixedBits: 0x64604000,
-			args:      Zm_H_imm___Zn_H__Zda_S__3,
-		},
 		// ZBFDOT <Zm>.H, <Zn>.H, <Zda>.S
 		{
 			goOp:      AZBFDOT,
 			fixedBits: 0x64608000,
 			args:      Zm_H__Zn_H__Zda_S,
+		},
+		// ZBFDOT <Zm>.H[<imm>], <Zn>.H, <Zda>.S
+		{
+			goOp:      AZBFDOT,
+			fixedBits: 0x64604000,
+			args:      Zm_H_imm___Zn_H__Zda_S__3,
 		},
 	},
 	// ZBFMAX
@@ -1136,92 +1196,92 @@ var insts = [][]instEncoder{
 	},
 	// ZBFMLA
 	{
-		// ZBFMLA <Zm>.H[<imm>], <Zn>.H, <Zda>.H
-		{
-			goOp:      AZBFMLA,
-			fixedBits: 0x64200800,
-			args:      Zm_H_imm___Zn_H__Zda_H__2,
-		},
 		// ZBFMLA <Zm>.H, <Zn>.H, <Pg>/M, <Zda>.H
 		{
 			goOp:      AZBFMLA,
 			fixedBits: 0x65200000,
 			args:      Zm_H__Zn_H__PgM__Zda_H,
 		},
+		// ZBFMLA <Zm>.H[<imm>], <Zn>.H, <Zda>.H
+		{
+			goOp:      AZBFMLA,
+			fixedBits: 0x64200800,
+			args:      Zm_H_imm___Zn_H__Zda_H__2,
+		},
 	},
 	// ZBFMLALB
 	{
-		// ZBFMLALB <Zm>.H[<imm>], <Zn>.H, <Zda>.S
-		{
-			goOp:      AZBFMLALB,
-			fixedBits: 0x64e04000,
-			args:      Zm_H_imm___Zn_H__Zda_S__2,
-		},
 		// ZBFMLALB <Zm>.H, <Zn>.H, <Zda>.S
 		{
 			goOp:      AZBFMLALB,
 			fixedBits: 0x64e08000,
 			args:      Zm_H__Zn_H__Zda_S,
 		},
+		// ZBFMLALB <Zm>.H[<imm>], <Zn>.H, <Zda>.S
+		{
+			goOp:      AZBFMLALB,
+			fixedBits: 0x64e04000,
+			args:      Zm_H_imm___Zn_H__Zda_S__2,
+		},
 	},
 	// ZBFMLALT
 	{
-		// ZBFMLALT <Zm>.H[<imm>], <Zn>.H, <Zda>.S
-		{
-			goOp:      AZBFMLALT,
-			fixedBits: 0x64e04400,
-			args:      Zm_H_imm___Zn_H__Zda_S__2,
-		},
 		// ZBFMLALT <Zm>.H, <Zn>.H, <Zda>.S
 		{
 			goOp:      AZBFMLALT,
 			fixedBits: 0x64e08400,
 			args:      Zm_H__Zn_H__Zda_S,
 		},
+		// ZBFMLALT <Zm>.H[<imm>], <Zn>.H, <Zda>.S
+		{
+			goOp:      AZBFMLALT,
+			fixedBits: 0x64e04400,
+			args:      Zm_H_imm___Zn_H__Zda_S__2,
+		},
 	},
 	// ZBFMLS
 	{
-		// ZBFMLS <Zm>.H[<imm>], <Zn>.H, <Zda>.H
-		{
-			goOp:      AZBFMLS,
-			fixedBits: 0x64200c00,
-			args:      Zm_H_imm___Zn_H__Zda_H__2,
-		},
 		// ZBFMLS <Zm>.H, <Zn>.H, <Pg>/M, <Zda>.H
 		{
 			goOp:      AZBFMLS,
 			fixedBits: 0x65202000,
 			args:      Zm_H__Zn_H__PgM__Zda_H,
 		},
+		// ZBFMLS <Zm>.H[<imm>], <Zn>.H, <Zda>.H
+		{
+			goOp:      AZBFMLS,
+			fixedBits: 0x64200c00,
+			args:      Zm_H_imm___Zn_H__Zda_H__2,
+		},
 	},
 	// ZBFMLSLB
 	{
-		// ZBFMLSLB <Zm>.H[<imm>], <Zn>.H, <Zda>.S
-		{
-			goOp:      AZBFMLSLB,
-			fixedBits: 0x64e06000,
-			args:      Zm_H_imm___Zn_H__Zda_S__2,
-		},
 		// ZBFMLSLB <Zm>.H, <Zn>.H, <Zda>.S
 		{
 			goOp:      AZBFMLSLB,
 			fixedBits: 0x64e0a000,
 			args:      Zm_H__Zn_H__Zda_S,
 		},
+		// ZBFMLSLB <Zm>.H[<imm>], <Zn>.H, <Zda>.S
+		{
+			goOp:      AZBFMLSLB,
+			fixedBits: 0x64e06000,
+			args:      Zm_H_imm___Zn_H__Zda_S__2,
+		},
 	},
 	// ZBFMLSLT
 	{
-		// ZBFMLSLT <Zm>.H[<imm>], <Zn>.H, <Zda>.S
-		{
-			goOp:      AZBFMLSLT,
-			fixedBits: 0x64e06400,
-			args:      Zm_H_imm___Zn_H__Zda_S__2,
-		},
 		// ZBFMLSLT <Zm>.H, <Zn>.H, <Zda>.S
 		{
 			goOp:      AZBFMLSLT,
 			fixedBits: 0x64e0a400,
 			args:      Zm_H__Zn_H__Zda_S,
+		},
+		// ZBFMLSLT <Zm>.H[<imm>], <Zn>.H, <Zda>.S
+		{
+			goOp:      AZBFMLSLT,
+			fixedBits: 0x64e06400,
+			args:      Zm_H_imm___Zn_H__Zda_S__2,
 		},
 	},
 	// ZBFMMLA
@@ -1241,12 +1301,6 @@ var insts = [][]instEncoder{
 	},
 	// ZBFMUL
 	{
-		// ZBFMUL <Zm>.H[<imm>], <Zn>.H, <Zd>.H
-		{
-			goOp:      AZBFMUL,
-			fixedBits: 0x64202800,
-			args:      Zm_H_imm___Zn_H__Zd_H__2,
-		},
 		// ZBFMUL <Zm>.H, <Zdn>.H, <Pg>/M, <Zdn>.H
 		{
 			goOp:      AZBFMUL,
@@ -1258,6 +1312,12 @@ var insts = [][]instEncoder{
 			goOp:      AZBFMUL,
 			fixedBits: 0x65000800,
 			args:      Zm_H__Zn_H__Zd_H,
+		},
+		// ZBFMUL <Zm>.H[<imm>], <Zn>.H, <Zd>.H
+		{
+			goOp:      AZBFMUL,
+			fixedBits: 0x64202800,
+			args:      Zm_H_imm___Zn_H__Zd_H__2,
 		},
 	},
 	// ZBFSCALE
@@ -1295,17 +1355,17 @@ var insts = [][]instEncoder{
 	},
 	// ZBIC
 	{
-		// ZBIC <Zm>.<T>, <Zdn>.<T>, <Pg>/M, <Zdn>.<T>
-		{
-			goOp:      AZBIC,
-			fixedBits: 0x41b0000,
-			args:      Zm_T__Zdn_T__PgM__Zdn_T__1,
-		},
 		// ZBIC <Zm>.D, <Zn>.D, <Zd>.D
 		{
 			goOp:      AZBIC,
 			fixedBits: 0x4e03000,
 			args:      Zm_D__Zn_D__Zd_D,
+		},
+		// ZBIC <Zm>.<T>, <Zdn>.<T>, <Pg>/M, <Zdn>.<T>
+		{
+			goOp:      AZBIC,
+			fixedBits: 0x41b0000,
+			args:      Zm_T__Zdn_T__PgM__Zdn_T__1,
 		},
 	},
 	// ZBSL
@@ -1335,19 +1395,49 @@ var insts = [][]instEncoder{
 			args:      Zk_D__Zm_D__Zdn_D__Zdn_D,
 		},
 	},
+	// ZCADD
+	{
+		// ZCADD <const>, <Zm>.<T>, <Zdn>.<T>, <Zdn>.<T>
+		{
+			goOp:      AZCADD,
+			fixedBits: 0x4500d800,
+			args:      const__Zm_T__Zdn_T__Zdn_T,
+		},
+	},
+	// ZCDOT
+	{
+		// ZCDOT <const>, <Zm>.B[<imm>], <Zn>.B, <Zda>.S
+		{
+			goOp:      AZCDOT,
+			fixedBits: 0x44a04000,
+			args:      const__Zm_B_imm___Zn_B__Zda_S,
+		},
+		// ZCDOT <const>, <Zm>.H[<imm>], <Zn>.H, <Zda>.D
+		{
+			goOp:      AZCDOT,
+			fixedBits: 0x44e04000,
+			args:      const__Zm_H_imm___Zn_H__Zda_D,
+		},
+		// ZCDOT <const>, <Zm>.<Tb>, <Zn>.<Tb>, <Zda>.<T>
+		{
+			goOp:      AZCDOT,
+			fixedBits: 0x44801000,
+			args:      const__Zm_Tb__Zn_Tb__Zda_T,
+		},
+	},
 	// ZCLASTA
 	{
-		// ZCLASTA <Zm>.<T>, <R><dn>, <Pg>, <R><dn>
-		{
-			goOp:      AZCLASTA,
-			fixedBits: 0x5f0a000,
-			args:      Zm_T__Rdn__Pg__Rdn,
-		},
 		// ZCLASTA <Zm>.<T>, <Zdn>.<T>, <Pg>, <Zdn>.<T>
 		{
 			goOp:      AZCLASTA,
 			fixedBits: 0x5288000,
 			args:      Zm_T__Zdn_T__Pg__Zdn_T,
+		},
+		// ZCLASTA <Zm>.<T>, <R><dn>, <Pg>, <R><dn>
+		{
+			goOp:      AZCLASTA,
+			fixedBits: 0x5f0a000,
+			args:      Zm_T__Rdn__Pg__Rdn,
 		},
 	},
 	// ZCLASTAB
@@ -1397,17 +1487,17 @@ var insts = [][]instEncoder{
 	},
 	// ZCLASTB
 	{
-		// ZCLASTB <Zm>.<T>, <R><dn>, <Pg>, <R><dn>
-		{
-			goOp:      AZCLASTB,
-			fixedBits: 0x5f1a000,
-			args:      Zm_T__Rdn__Pg__Rdn,
-		},
 		// ZCLASTB <Zm>.<T>, <Zdn>.<T>, <Pg>, <Zdn>.<T>
 		{
 			goOp:      AZCLASTB,
 			fixedBits: 0x5298000,
 			args:      Zm_T__Zdn_T__Pg__Zdn_T,
+		},
+		// ZCLASTB <Zm>.<T>, <R><dn>, <Pg>, <R><dn>
+		{
+			goOp:      AZCLASTB,
+			fixedBits: 0x5f1a000,
+			args:      Zm_T__Rdn__Pg__Rdn,
 		},
 	},
 	// ZCLASTBB
@@ -1485,19 +1575,46 @@ var insts = [][]instEncoder{
 			args:      Zn_T__PgZ__Zd_T__2,
 		},
 	},
+	// ZCMLA
+	{
+		// ZCMLA <const>, <Zm>.H[<imm>], <Zn>.H, <Zda>.H
+		{
+			goOp:      AZCMLA,
+			fixedBits: 0x44a06000,
+			args:      const__Zm_H_imm___Zn_H__Zda_H__1,
+		},
+		// ZCMLA <const>, <Zm>.S[<imm>], <Zn>.S, <Zda>.S
+		{
+			goOp:      AZCMLA,
+			fixedBits: 0x44e06000,
+			args:      const__Zm_S_imm___Zn_S__Zda_S__1,
+		},
+		// ZCMLA <const>, <Zm>.<T>, <Zn>.<T>, <Zda>.<T>
+		{
+			goOp:      AZCMLA,
+			fixedBits: 0x44002000,
+			args:      const__Zm_T__Zn_T__Zda_T,
+		},
+	},
 	// ZCMPEQ
 	{
+		// ZCMPEQ <Zm>.D, <Zn>.<T>, <Pg>/Z, <Pd>.<T>
+		{
+			goOp:      AZCMPEQ,
+			fixedBits: 0x24002000,
+			args:      Zm_D__Zn_T__PgZ__Pd_T,
+		},
 		// ZCMPEQ <Zm>.<T>, <Zn>.<T>, <Pg>/Z, <Pd>.<T>
 		{
 			goOp:      AZCMPEQ,
 			fixedBits: 0x2400a000,
 			args:      Zm_T__Zn_T__PgZ__Pd_T__2,
 		},
-		// ZCMPEQ <Zm>.D, <Zn>.<T>, <Pg>/Z, <Pd>.<T>
+		// ZCMPEQ #<imm>, <Zn>.<T>, <Pg>/Z, <Pd>.<T>
 		{
 			goOp:      AZCMPEQ,
-			fixedBits: 0x24002000,
-			args:      Zm_D__Zn_T__PgZ__Pd_T,
+			fixedBits: 0x25008000,
+			args:      cimm__Zn_T__PgZ__Pd_T__1,
 		},
 	},
 	// ZCMPGE
@@ -1514,50 +1631,74 @@ var insts = [][]instEncoder{
 			fixedBits: 0x24008000,
 			args:      Zm_T__Zn_T__PgZ__Pd_T__2,
 		},
+		// ZCMPGE #<imm>, <Zn>.<T>, <Pg>/Z, <Pd>.<T>
+		{
+			goOp:      AZCMPGE,
+			fixedBits: 0x25000000,
+			args:      cimm__Zn_T__PgZ__Pd_T__1,
+		},
 	},
 	// ZCMPGT
 	{
-		// ZCMPGT <Zm>.<T>, <Zn>.<T>, <Pg>/Z, <Pd>.<T>
-		{
-			goOp:      AZCMPGT,
-			fixedBits: 0x24008010,
-			args:      Zm_T__Zn_T__PgZ__Pd_T__2,
-		},
 		// ZCMPGT <Zm>.D, <Zn>.<T>, <Pg>/Z, <Pd>.<T>
 		{
 			goOp:      AZCMPGT,
 			fixedBits: 0x24004010,
 			args:      Zm_D__Zn_T__PgZ__Pd_T,
 		},
+		// ZCMPGT <Zm>.<T>, <Zn>.<T>, <Pg>/Z, <Pd>.<T>
+		{
+			goOp:      AZCMPGT,
+			fixedBits: 0x24008010,
+			args:      Zm_T__Zn_T__PgZ__Pd_T__2,
+		},
+		// ZCMPGT #<imm>, <Zn>.<T>, <Pg>/Z, <Pd>.<T>
+		{
+			goOp:      AZCMPGT,
+			fixedBits: 0x25000010,
+			args:      cimm__Zn_T__PgZ__Pd_T__1,
+		},
 	},
 	// ZCMPHI
 	{
-		// ZCMPHI <Zm>.<T>, <Zn>.<T>, <Pg>/Z, <Pd>.<T>
-		{
-			goOp:      AZCMPHI,
-			fixedBits: 0x24000010,
-			args:      Zm_T__Zn_T__PgZ__Pd_T__2,
-		},
 		// ZCMPHI <Zm>.D, <Zn>.<T>, <Pg>/Z, <Pd>.<T>
 		{
 			goOp:      AZCMPHI,
 			fixedBits: 0x2400c010,
 			args:      Zm_D__Zn_T__PgZ__Pd_T,
 		},
+		// ZCMPHI <Zm>.<T>, <Zn>.<T>, <Pg>/Z, <Pd>.<T>
+		{
+			goOp:      AZCMPHI,
+			fixedBits: 0x24000010,
+			args:      Zm_T__Zn_T__PgZ__Pd_T__2,
+		},
+		// ZCMPHI #<imm>, <Zn>.<T>, <Pg>/Z, <Pd>.<T>
+		{
+			goOp:      AZCMPHI,
+			fixedBits: 0x24200010,
+			args:      cimm__Zn_T__PgZ__Pd_T__2,
+		},
 	},
 	// ZCMPHS
 	{
+		// ZCMPHS <Zm>.D, <Zn>.<T>, <Pg>/Z, <Pd>.<T>
+		{
+			goOp:      AZCMPHS,
+			fixedBits: 0x2400c000,
+			args:      Zm_D__Zn_T__PgZ__Pd_T,
+		},
 		// ZCMPHS <Zm>.<T>, <Zn>.<T>, <Pg>/Z, <Pd>.<T>
 		{
 			goOp:      AZCMPHS,
 			fixedBits: 0x24000000,
 			args:      Zm_T__Zn_T__PgZ__Pd_T__2,
 		},
-		// ZCMPHS <Zm>.D, <Zn>.<T>, <Pg>/Z, <Pd>.<T>
+		// ZCMPHS #<imm>, <Zn>.<T>, <Pg>/Z, <Pd>.<T>
 		{
 			goOp:      AZCMPHS,
-			fixedBits: 0x2400c000,
-			args:      Zm_D__Zn_T__PgZ__Pd_T,
+			fixedBits: 0x24200000,
+			args:      cimm__Zn_T__PgZ__Pd_T__2,
 		},
 	},
 	// ZCMPLE
@@ -1568,6 +1709,12 @@ var insts = [][]instEncoder{
 			fixedBits: 0x24006010,
 			args:      Zm_D__Zn_T__PgZ__Pd_T,
 		},
+		// ZCMPLE #<imm>, <Zn>.<T>, <Pg>/Z, <Pd>.<T>
+		{
+			goOp:      AZCMPLE,
+			fixedBits: 0x25002010,
+			args:      cimm__Zn_T__PgZ__Pd_T__1,
+		},
 	},
 	// ZCMPLO
 	{
@@ -1576,6 +1723,12 @@ var insts = [][]instEncoder{
 			goOp:      AZCMPLO,
 			fixedBits: 0x2400e000,
 			args:      Zm_D__Zn_T__PgZ__Pd_T,
+		},
+		// ZCMPLO #<imm>, <Zn>.<T>, <Pg>/Z, <Pd>.<T>
+		{
+			goOp:      AZCMPLO,
+			fixedBits: 0x24202000,
+			args:      cimm__Zn_T__PgZ__Pd_T__2,
 		},
 	},
 	// ZCMPLS
@@ -1586,6 +1739,12 @@ var insts = [][]instEncoder{
 			fixedBits: 0x2400e010,
 			args:      Zm_D__Zn_T__PgZ__Pd_T,
 		},
+		// ZCMPLS #<imm>, <Zn>.<T>, <Pg>/Z, <Pd>.<T>
+		{
+			goOp:      AZCMPLS,
+			fixedBits: 0x24202010,
+			args:      cimm__Zn_T__PgZ__Pd_T__2,
+		},
 	},
 	// ZCMPLT
 	{
@@ -1594,6 +1753,12 @@ var insts = [][]instEncoder{
 			goOp:      AZCMPLT,
 			fixedBits: 0x24006000,
 			args:      Zm_D__Zn_T__PgZ__Pd_T,
+		},
+		// ZCMPLT #<imm>, <Zn>.<T>, <Pg>/Z, <Pd>.<T>
+		{
+			goOp:      AZCMPLT,
+			fixedBits: 0x25002000,
+			args:      cimm__Zn_T__PgZ__Pd_T__1,
 		},
 	},
 	// ZCMPNE
@@ -1610,20 +1775,26 @@ var insts = [][]instEncoder{
 			fixedBits: 0x2400a010,
 			args:      Zm_T__Zn_T__PgZ__Pd_T__2,
 		},
+		// ZCMPNE #<imm>, <Zn>.<T>, <Pg>/Z, <Pd>.<T>
+		{
+			goOp:      AZCMPNE,
+			fixedBits: 0x25008010,
+			args:      cimm__Zn_T__PgZ__Pd_T__1,
+		},
 	},
 	// ZCNOT
 	{
-		// ZCNOT <Zn>.<T>, <Pg>/Z, <Zd>.<T>
-		{
-			goOp:      AZCNOT,
-			fixedBits: 0x40ba000,
-			args:      Zn_T__PgZ__Zd_T__2,
-		},
 		// ZCNOT <Zn>.<T>, <Pg>/M, <Zd>.<T>
 		{
 			goOp:      AZCNOT,
 			fixedBits: 0x41ba000,
 			args:      Zn_T__PgM__Zd_T__2,
+		},
+		// ZCNOT <Zn>.<T>, <Pg>/Z, <Zd>.<T>
+		{
+			goOp:      AZCNOT,
+			fixedBits: 0x40ba000,
+			args:      Zn_T__PgZ__Zd_T__2,
 		},
 	},
 	// ZCNT
@@ -1646,14 +1817,14 @@ var insts = [][]instEncoder{
 		// ZCOMPACT <Zn>.<T>, <Pg>, <Zd>.<T>
 		{
 			goOp:      AZCOMPACT,
-			fixedBits: 0x5a18000,
-			args:      Zn_T__Pg__Zd_T__2,
+			fixedBits: 0x5218000,
+			args:      Zn_T__Pg__Zd_T__1,
 		},
 		// ZCOMPACT <Zn>.<T>, <Pg>, <Zd>.<T>
 		{
 			goOp:      AZCOMPACT,
-			fixedBits: 0x5218000,
-			args:      Zn_T__Pg__Zd_T__1,
+			fixedBits: 0x5a18000,
+			args:      Zn_T__Pg__Zd_T__2,
 		},
 	},
 	// ZCPY
@@ -1663,6 +1834,18 @@ var insts = [][]instEncoder{
 			goOp:      AZCPY,
 			fixedBits: 0x5e8a000,
 			args:      RnSP__PgM__Zd_T,
+		},
+		// ZCPY #<imm>{, <shift>}, <Pg>/M, <Zd>.<T>
+		{
+			goOp:      AZCPY,
+			fixedBits: 0x5104000,
+			args:      cimm__shift__PgM__Zd_T,
+		},
+		// ZCPY #<imm>{, <shift>}, <Pg>/Z, <Zd>.<T>
+		{
+			goOp:      AZCPY,
+			fixedBits: 0x5100000,
+			args:      cimm__shift__PgZ__Zd_T,
 		},
 	},
 	// ZCPYB
@@ -1733,6 +1916,21 @@ var insts = [][]instEncoder{
 			fixedBits: 0x5202000,
 			args:      Zn_T_imm___Zd_T__1,
 		},
+		// ZDUP #<imm>{, <shift>}, <Zd>.<T>
+		{
+			goOp:      AZDUP,
+			fixedBits: 0x2538c000,
+			args:      cimm__shift__Zd_T,
+		},
+	},
+	// ZDUPM
+	{
+		// ZDUPM #<const>, <Zd>.<T>
+		{
+			goOp:      AZDUPM,
+			fixedBits: 0x5c00000,
+			args:      cconst__Zd_T__1,
+		},
 	},
 	// ZDUPQ
 	{
@@ -1754,17 +1952,23 @@ var insts = [][]instEncoder{
 	},
 	// ZEOR
 	{
+		// ZEOR <Zm>.D, <Zn>.D, <Zd>.D
+		{
+			goOp:      AZEOR,
+			fixedBits: 0x4a03000,
+			args:      Zm_D__Zn_D__Zd_D,
+		},
 		// ZEOR <Zm>.<T>, <Zdn>.<T>, <Pg>/M, <Zdn>.<T>
 		{
 			goOp:      AZEOR,
 			fixedBits: 0x4190000,
 			args:      Zm_T__Zdn_T__PgM__Zdn_T__1,
 		},
-		// ZEOR <Zm>.D, <Zn>.D, <Zd>.D
+		// ZEOR #<const>, <Zdn>.<T>, <Zdn>.<T>
 		{
 			goOp:      AZEOR,
-			fixedBits: 0x4a03000,
-			args:      Zm_D__Zn_D__Zd_D,
+			fixedBits: 0x5400000,
+			args:      cconst__Zdn_T__Zdn_T,
 		},
 	},
 	// ZEOR3
@@ -1848,6 +2052,24 @@ var insts = [][]instEncoder{
 			args:      Zn_T__Pg__Zd_T__3,
 		},
 	},
+	// ZEXT
+	{
+		// ZEXT #<imm>, <Zm>.B, <Zdn>.B, <Zdn>.B
+		{
+			goOp:      AZEXT,
+			fixedBits: 0x5200000,
+			args:      cimm__Zm_B__Zdn_B__Zdn_B__1,
+		},
+	},
+	// ZEXTQ
+	{
+		// ZEXTQ #<imm>, <Zm>.B, <Zdn>.B, <Zdn>.B
+		{
+			goOp:      AZEXTQ,
+			fixedBits: 0x5602400,
+			args:      cimm__Zm_B__Zdn_B__Zdn_B__2,
+		},
+	},
 	// ZF1CVT
 	{
 		// ZF1CVT <Zn>.B, <Zd>.H
@@ -1895,17 +2117,17 @@ var insts = [][]instEncoder{
 	},
 	// ZFABS
 	{
-		// ZFABS <Zn>.<T>, <Pg>/Z, <Zd>.<T>
-		{
-			goOp:      AZFABS,
-			fixedBits: 0x40ca000,
-			args:      Zn_T__PgZ__Zd_T__1,
-		},
 		// ZFABS <Zn>.<T>, <Pg>/M, <Zd>.<T>
 		{
 			goOp:      AZFABS,
 			fixedBits: 0x41ca000,
 			args:      Zn_T__PgM__Zd_T__1,
+		},
+		// ZFABS <Zn>.<T>, <Pg>/Z, <Zd>.<T>
+		{
+			goOp:      AZFABS,
+			fixedBits: 0x40ca000,
+			args:      Zn_T__PgZ__Zd_T__1,
 		},
 	},
 	// ZFACGE
@@ -1928,17 +2150,23 @@ var insts = [][]instEncoder{
 	},
 	// ZFADD
 	{
+		// ZFADD <Zm>.<T>, <Zdn>.<T>, <Pg>/M, <Zdn>.<T>
+		{
+			goOp:      AZFADD,
+			fixedBits: 0x65008000,
+			args:      Zm_T__Zdn_T__PgM__Zdn_T__3,
+		},
 		// ZFADD <Zm>.<T>, <Zn>.<T>, <Zd>.<T>
 		{
 			goOp:      AZFADD,
 			fixedBits: 0x65000000,
 			args:      Zm_T__Zn_T__Zd_T__2,
 		},
-		// ZFADD <Zm>.<T>, <Zdn>.<T>, <Pg>/M, <Zdn>.<T>
+		// ZFADD <const>, <Zdn>.<T>, <Pg>/M, <Zdn>.<T>
 		{
 			goOp:      AZFADD,
-			fixedBits: 0x65008000,
-			args:      Zm_T__Zdn_T__PgM__Zdn_T__3,
+			fixedBits: 0x65188000,
+			args:      const__Zdn_T__PgM__Zdn_T__2,
 		},
 	},
 	// ZFADDAD
@@ -2031,6 +2259,15 @@ var insts = [][]instEncoder{
 			args:      Zm_T__Zdn_T__PgM__Zdn_T__2,
 		},
 	},
+	// ZFCADD
+	{
+		// ZFCADD <const>, <Zm>.<T>, <Zdn>.<T>, <Pg>/M, <Zdn>.<T>
+		{
+			goOp:      AZFCADD,
+			fixedBits: 0x64008000,
+			args:      const__Zm_T__Zdn_T__PgM__Zdn_T,
+		},
+	},
 	// ZFCLAMP
 	{
 		// ZFCLAMP <Zm>.<T>, <Zn>.<T>, <Zd>.<T>
@@ -2048,6 +2285,12 @@ var insts = [][]instEncoder{
 			fixedBits: 0x65006000,
 			args:      Zm_T__Zn_T__PgZ__Pd_T__1,
 		},
+		// ZFCMEQ #0.0, <Zn>.<T>, <Pg>/Z, <Pd>.<T>
+		{
+			goOp:      AZFCMEQ,
+			fixedBits: 0x65122000,
+			args:      c0_0__Zn_T__PgZ__Pd_T,
+		},
 	},
 	// ZFCMGE
 	{
@@ -2056,6 +2299,12 @@ var insts = [][]instEncoder{
 			goOp:      AZFCMGE,
 			fixedBits: 0x65004000,
 			args:      Zm_T__Zn_T__PgZ__Pd_T__1,
+		},
+		// ZFCMGE #0.0, <Zn>.<T>, <Pg>/Z, <Pd>.<T>
+		{
+			goOp:      AZFCMGE,
+			fixedBits: 0x65102000,
+			args:      c0_0__Zn_T__PgZ__Pd_T,
 		},
 	},
 	// ZFCMGT
@@ -2066,6 +2315,51 @@ var insts = [][]instEncoder{
 			fixedBits: 0x65004010,
 			args:      Zm_T__Zn_T__PgZ__Pd_T__1,
 		},
+		// ZFCMGT #0.0, <Zn>.<T>, <Pg>/Z, <Pd>.<T>
+		{
+			goOp:      AZFCMGT,
+			fixedBits: 0x65102010,
+			args:      c0_0__Zn_T__PgZ__Pd_T,
+		},
+	},
+	// ZFCMLA
+	{
+		// ZFCMLA <const>, <Zm>.H[<imm>], <Zn>.H, <Zda>.H
+		{
+			goOp:      AZFCMLA,
+			fixedBits: 0x64a01000,
+			args:      const__Zm_H_imm___Zn_H__Zda_H__2,
+		},
+		// ZFCMLA <const>, <Zm>.S[<imm>], <Zn>.S, <Zda>.S
+		{
+			goOp:      AZFCMLA,
+			fixedBits: 0x64e01000,
+			args:      const__Zm_S_imm___Zn_S__Zda_S__2,
+		},
+		// ZFCMLA <const>, <Zm>.<T>, <Zn>.<T>, <Pg>/M, <Zda>.<T>
+		{
+			goOp:      AZFCMLA,
+			fixedBits: 0x64000000,
+			args:      const__Zm_T__Zn_T__PgM__Zda_T,
+		},
+	},
+	// ZFCMLE
+	{
+		// ZFCMLE #0.0, <Zn>.<T>, <Pg>/Z, <Pd>.<T>
+		{
+			goOp:      AZFCMLE,
+			fixedBits: 0x65112010,
+			args:      c0_0__Zn_T__PgZ__Pd_T,
+		},
+	},
+	// ZFCMLT
+	{
+		// ZFCMLT #0.0, <Zn>.<T>, <Pg>/Z, <Pd>.<T>
+		{
+			goOp:      AZFCMLT,
+			fixedBits: 0x65112000,
+			args:      c0_0__Zn_T__PgZ__Pd_T,
+		},
 	},
 	// ZFCMNE
 	{
@@ -2074,6 +2368,12 @@ var insts = [][]instEncoder{
 			goOp:      AZFCMNE,
 			fixedBits: 0x65006010,
 			args:      Zm_T__Zn_T__PgZ__Pd_T__1,
+		},
+		// ZFCMNE #0.0, <Zn>.<T>, <Pg>/Z, <Pd>.<T>
+		{
+			goOp:      AZFCMNE,
+			fixedBits: 0x65132000,
+			args:      c0_0__Zn_T__PgZ__Pd_T,
 		},
 	},
 	// ZFCMUO
@@ -2085,73 +2385,22 @@ var insts = [][]instEncoder{
 			args:      Zm_T__Zn_T__PgZ__Pd_T__1,
 		},
 	},
+	// ZFCPY
+	{
+		// ZFCPY #<const>, <Pg>/M, <Zd>.<T>
+		{
+			goOp:      AZFCPY,
+			fixedBits: 0x510c000,
+			args:      cconst__PgM__Zd_T,
+		},
+	},
 	// ZFCVT
 	{
-		// ZFCVT <Zn>.S, <Pg>/Z, <Zd>.H
-		{
-			goOp:      AZFCVT,
-			fixedBits: 0x649a8000,
-			args:      Zn_S__PgZ__Zd_H,
-		},
-		// ZFCVT <Zn>.S, <Pg>/M, <Zd>.D
-		{
-			goOp:      AZFCVT,
-			fixedBits: 0x65cba000,
-			args:      Zn_S__PgM__Zd_D,
-		},
-		// ZFCVT <Zn>.H, <Pg>/Z, <Zd>.S
-		{
-			goOp:      AZFCVT,
-			fixedBits: 0x649aa000,
-			args:      Zn_H__PgZ__Zd_S,
-		},
-		// ZFCVT <Zn>.H, <Pg>/M, <Zd>.D
-		{
-			goOp:      AZFCVT,
-			fixedBits: 0x65c9a000,
-			args:      Zn_H__PgM__Zd_D,
-		},
-		// ZFCVT <Zn>.H, <Pg>/Z, <Zd>.D
-		{
-			goOp:      AZFCVT,
-			fixedBits: 0x64daa000,
-			args:      Zn_H__PgZ__Zd_D,
-		},
-		// ZFCVT <Zn>.S, <Pg>/M, <Zd>.H
-		{
-			goOp:      AZFCVT,
-			fixedBits: 0x6588a000,
-			args:      Zn_S__PgM__Zd_H,
-		},
-		// ZFCVT <Zn>.D, <Pg>/Z, <Zd>.S
-		{
-			goOp:      AZFCVT,
-			fixedBits: 0x64dac000,
-			args:      Zn_D__PgZ__Zd_S,
-		},
-		// ZFCVT <Zn>.H, <Pg>/M, <Zd>.S
-		{
-			goOp:      AZFCVT,
-			fixedBits: 0x6589a000,
-			args:      Zn_H__PgM__Zd_S,
-		},
-		// ZFCVT <Zn>.S, <Pg>/Z, <Zd>.D
-		{
-			goOp:      AZFCVT,
-			fixedBits: 0x64dae000,
-			args:      Zn_S__PgZ__Zd_D,
-		},
 		// ZFCVT <Zn>.D, <Pg>/M, <Zd>.H
 		{
 			goOp:      AZFCVT,
 			fixedBits: 0x65c8a000,
 			args:      Zn_D__PgM__Zd_H,
-		},
-		// ZFCVT <Zn>.D, <Pg>/Z, <Zd>.H
-		{
-			goOp:      AZFCVT,
-			fixedBits: 0x64da8000,
-			args:      Zn_D__PgZ__Zd_H,
 		},
 		// ZFCVT <Zn>.D, <Pg>/M, <Zd>.S
 		{
@@ -2159,15 +2408,69 @@ var insts = [][]instEncoder{
 			fixedBits: 0x65caa000,
 			args:      Zn_D__PgM__Zd_S,
 		},
+		// ZFCVT <Zn>.D, <Pg>/Z, <Zd>.H
+		{
+			goOp:      AZFCVT,
+			fixedBits: 0x64da8000,
+			args:      Zn_D__PgZ__Zd_H,
+		},
+		// ZFCVT <Zn>.D, <Pg>/Z, <Zd>.S
+		{
+			goOp:      AZFCVT,
+			fixedBits: 0x64dac000,
+			args:      Zn_D__PgZ__Zd_S,
+		},
+		// ZFCVT <Zn>.H, <Pg>/M, <Zd>.D
+		{
+			goOp:      AZFCVT,
+			fixedBits: 0x65c9a000,
+			args:      Zn_H__PgM__Zd_D,
+		},
+		// ZFCVT <Zn>.H, <Pg>/M, <Zd>.S
+		{
+			goOp:      AZFCVT,
+			fixedBits: 0x6589a000,
+			args:      Zn_H__PgM__Zd_S,
+		},
+		// ZFCVT <Zn>.H, <Pg>/Z, <Zd>.D
+		{
+			goOp:      AZFCVT,
+			fixedBits: 0x64daa000,
+			args:      Zn_H__PgZ__Zd_D,
+		},
+		// ZFCVT <Zn>.H, <Pg>/Z, <Zd>.S
+		{
+			goOp:      AZFCVT,
+			fixedBits: 0x649aa000,
+			args:      Zn_H__PgZ__Zd_S,
+		},
+		// ZFCVT <Zn>.S, <Pg>/M, <Zd>.D
+		{
+			goOp:      AZFCVT,
+			fixedBits: 0x65cba000,
+			args:      Zn_S__PgM__Zd_D,
+		},
+		// ZFCVT <Zn>.S, <Pg>/M, <Zd>.H
+		{
+			goOp:      AZFCVT,
+			fixedBits: 0x6588a000,
+			args:      Zn_S__PgM__Zd_H,
+		},
+		// ZFCVT <Zn>.S, <Pg>/Z, <Zd>.D
+		{
+			goOp:      AZFCVT,
+			fixedBits: 0x64dae000,
+			args:      Zn_S__PgZ__Zd_D,
+		},
+		// ZFCVT <Zn>.S, <Pg>/Z, <Zd>.H
+		{
+			goOp:      AZFCVT,
+			fixedBits: 0x649a8000,
+			args:      Zn_S__PgZ__Zd_H,
+		},
 	},
 	// ZFCVTLT
 	{
-		// ZFCVTLT <Zn>.S, <Pg>/Z, <Zd>.D
-		{
-			goOp:      AZFCVTLT,
-			fixedBits: 0x64c3a000,
-			args:      Zn_S__PgZ__Zd_D,
-		},
 		// ZFCVTLT <Zn>.H, <Pg>/M, <Zd>.S
 		{
 			goOp:      AZFCVTLT,
@@ -2186,21 +2489,15 @@ var insts = [][]instEncoder{
 			fixedBits: 0x64cba000,
 			args:      Zn_S__PgM__Zd_D,
 		},
+		// ZFCVTLT <Zn>.S, <Pg>/Z, <Zd>.D
+		{
+			goOp:      AZFCVTLT,
+			fixedBits: 0x64c3a000,
+			args:      Zn_S__PgZ__Zd_D,
+		},
 	},
 	// ZFCVTNT
 	{
-		// ZFCVTNT <Zn>.S, <Pg>/Z, <Zd>.H
-		{
-			goOp:      AZFCVTNT,
-			fixedBits: 0x6480a000,
-			args:      Zn_S__PgZ__Zd_H,
-		},
-		// ZFCVTNT <Zn>.S, <Pg>/M, <Zd>.H
-		{
-			goOp:      AZFCVTNT,
-			fixedBits: 0x6488a000,
-			args:      Zn_S__PgM__Zd_H,
-		},
 		// ZFCVTNT <Zn>.D, <Pg>/M, <Zd>.S
 		{
 			goOp:      AZFCVTNT,
@@ -2212,6 +2509,18 @@ var insts = [][]instEncoder{
 			goOp:      AZFCVTNT,
 			fixedBits: 0x64c2a000,
 			args:      Zn_D__PgZ__Zd_S,
+		},
+		// ZFCVTNT <Zn>.S, <Pg>/M, <Zd>.H
+		{
+			goOp:      AZFCVTNT,
+			fixedBits: 0x6488a000,
+			args:      Zn_S__PgM__Zd_H,
+		},
+		// ZFCVTNT <Zn>.S, <Pg>/Z, <Zd>.H
+		{
+			goOp:      AZFCVTNT,
+			fixedBits: 0x6480a000,
+			args:      Zn_S__PgZ__Zd_H,
 		},
 	},
 	// ZFCVTX
@@ -2231,86 +2540,26 @@ var insts = [][]instEncoder{
 	},
 	// ZFCVTXNT
 	{
-		// ZFCVTXNT <Zn>.D, <Pg>/Z, <Zd>.S
-		{
-			goOp:      AZFCVTXNT,
-			fixedBits: 0x6402a000,
-			args:      Zn_D__PgZ__Zd_S,
-		},
 		// ZFCVTXNT <Zn>.D, <Pg>/M, <Zd>.S
 		{
 			goOp:      AZFCVTXNT,
 			fixedBits: 0x640aa000,
 			args:      Zn_D__PgM__Zd_S,
 		},
+		// ZFCVTXNT <Zn>.D, <Pg>/Z, <Zd>.S
+		{
+			goOp:      AZFCVTXNT,
+			fixedBits: 0x6402a000,
+			args:      Zn_D__PgZ__Zd_S,
+		},
 	},
 	// ZFCVTZS
 	{
-		// ZFCVTZS <Zn>.H, <Pg>/M, <Zd>.S
+		// ZFCVTZS <Zn>.D, <Pg>/M, <Zd>.D
 		{
 			goOp:      AZFCVTZS,
-			fixedBits: 0x655ca000,
-			args:      Zn_H__PgM__Zd_S,
-		},
-		// ZFCVTZS <Zn>.S, <Pg>/M, <Zd>.S
-		{
-			goOp:      AZFCVTZS,
-			fixedBits: 0x659ca000,
-			args:      Zn_S__PgM__Zd_S,
-		},
-		// ZFCVTZS <Zn>.H, <Pg>/Z, <Zd>.H
-		{
-			goOp:      AZFCVTZS,
-			fixedBits: 0x645ec000,
-			args:      Zn_H__PgZ__Zd_H,
-		},
-		// ZFCVTZS <Zn>.D, <Pg>/Z, <Zd>.D
-		{
-			goOp:      AZFCVTZS,
-			fixedBits: 0x64dfc000,
-			args:      Zn_D__PgZ__Zd_D,
-		},
-		// ZFCVTZS <Zn>.H, <Pg>/Z, <Zd>.S
-		{
-			goOp:      AZFCVTZS,
-			fixedBits: 0x645f8000,
-			args:      Zn_H__PgZ__Zd_S,
-		},
-		// ZFCVTZS <Zn>.H, <Pg>/M, <Zd>.D
-		{
-			goOp:      AZFCVTZS,
-			fixedBits: 0x655ea000,
-			args:      Zn_H__PgM__Zd_D,
-		},
-		// ZFCVTZS <Zn>.H, <Pg>/Z, <Zd>.D
-		{
-			goOp:      AZFCVTZS,
-			fixedBits: 0x645fc000,
-			args:      Zn_H__PgZ__Zd_D,
-		},
-		// ZFCVTZS <Zn>.H, <Pg>/M, <Zd>.H
-		{
-			goOp:      AZFCVTZS,
-			fixedBits: 0x655aa000,
-			args:      Zn_H__PgM__Zd_H,
-		},
-		// ZFCVTZS <Zn>.S, <Pg>/Z, <Zd>.S
-		{
-			goOp:      AZFCVTZS,
-			fixedBits: 0x649f8000,
-			args:      Zn_S__PgZ__Zd_S,
-		},
-		// ZFCVTZS <Zn>.S, <Pg>/M, <Zd>.D
-		{
-			goOp:      AZFCVTZS,
-			fixedBits: 0x65dca000,
-			args:      Zn_S__PgM__Zd_D,
-		},
-		// ZFCVTZS <Zn>.S, <Pg>/Z, <Zd>.D
-		{
-			goOp:      AZFCVTZS,
-			fixedBits: 0x64df8000,
-			args:      Zn_S__PgZ__Zd_D,
+			fixedBits: 0x65dea000,
+			args:      Zn_D__PgM__Zd_D,
 		},
 		// ZFCVTZS <Zn>.D, <Pg>/M, <Zd>.S
 		{
@@ -2318,32 +2567,128 @@ var insts = [][]instEncoder{
 			fixedBits: 0x65d8a000,
 			args:      Zn_D__PgM__Zd_S,
 		},
+		// ZFCVTZS <Zn>.D, <Pg>/Z, <Zd>.D
+		{
+			goOp:      AZFCVTZS,
+			fixedBits: 0x64dfc000,
+			args:      Zn_D__PgZ__Zd_D,
+		},
 		// ZFCVTZS <Zn>.D, <Pg>/Z, <Zd>.S
 		{
 			goOp:      AZFCVTZS,
 			fixedBits: 0x64de8000,
 			args:      Zn_D__PgZ__Zd_S,
 		},
-		// ZFCVTZS <Zn>.D, <Pg>/M, <Zd>.D
+		// ZFCVTZS <Zn>.H, <Pg>/M, <Zd>.D
 		{
 			goOp:      AZFCVTZS,
-			fixedBits: 0x65dea000,
-			args:      Zn_D__PgM__Zd_D,
+			fixedBits: 0x655ea000,
+			args:      Zn_H__PgM__Zd_D,
+		},
+		// ZFCVTZS <Zn>.H, <Pg>/M, <Zd>.H
+		{
+			goOp:      AZFCVTZS,
+			fixedBits: 0x655aa000,
+			args:      Zn_H__PgM__Zd_H,
+		},
+		// ZFCVTZS <Zn>.H, <Pg>/M, <Zd>.S
+		{
+			goOp:      AZFCVTZS,
+			fixedBits: 0x655ca000,
+			args:      Zn_H__PgM__Zd_S,
+		},
+		// ZFCVTZS <Zn>.H, <Pg>/Z, <Zd>.D
+		{
+			goOp:      AZFCVTZS,
+			fixedBits: 0x645fc000,
+			args:      Zn_H__PgZ__Zd_D,
+		},
+		// ZFCVTZS <Zn>.H, <Pg>/Z, <Zd>.H
+		{
+			goOp:      AZFCVTZS,
+			fixedBits: 0x645ec000,
+			args:      Zn_H__PgZ__Zd_H,
+		},
+		// ZFCVTZS <Zn>.H, <Pg>/Z, <Zd>.S
+		{
+			goOp:      AZFCVTZS,
+			fixedBits: 0x645f8000,
+			args:      Zn_H__PgZ__Zd_S,
+		},
+		// ZFCVTZS <Zn>.S, <Pg>/M, <Zd>.D
+		{
+			goOp:      AZFCVTZS,
+			fixedBits: 0x65dca000,
+			args:      Zn_S__PgM__Zd_D,
+		},
+		// ZFCVTZS <Zn>.S, <Pg>/M, <Zd>.S
+		{
+			goOp:      AZFCVTZS,
+			fixedBits: 0x659ca000,
+			args:      Zn_S__PgM__Zd_S,
+		},
+		// ZFCVTZS <Zn>.S, <Pg>/Z, <Zd>.D
+		{
+			goOp:      AZFCVTZS,
+			fixedBits: 0x64df8000,
+			args:      Zn_S__PgZ__Zd_D,
+		},
+		// ZFCVTZS <Zn>.S, <Pg>/Z, <Zd>.S
+		{
+			goOp:      AZFCVTZS,
+			fixedBits: 0x649f8000,
+			args:      Zn_S__PgZ__Zd_S,
 		},
 	},
 	// ZFCVTZU
 	{
+		// ZFCVTZU <Zn>.D, <Pg>/M, <Zd>.D
+		{
+			goOp:      AZFCVTZU,
+			fixedBits: 0x65dfa000,
+			args:      Zn_D__PgM__Zd_D,
+		},
+		// ZFCVTZU <Zn>.D, <Pg>/M, <Zd>.S
+		{
+			goOp:      AZFCVTZU,
+			fixedBits: 0x65d9a000,
+			args:      Zn_D__PgM__Zd_S,
+		},
+		// ZFCVTZU <Zn>.D, <Pg>/Z, <Zd>.D
+		{
+			goOp:      AZFCVTZU,
+			fixedBits: 0x64dfe000,
+			args:      Zn_D__PgZ__Zd_D,
+		},
+		// ZFCVTZU <Zn>.D, <Pg>/Z, <Zd>.S
+		{
+			goOp:      AZFCVTZU,
+			fixedBits: 0x64dea000,
+			args:      Zn_D__PgZ__Zd_S,
+		},
+		// ZFCVTZU <Zn>.H, <Pg>/M, <Zd>.D
+		{
+			goOp:      AZFCVTZU,
+			fixedBits: 0x655fa000,
+			args:      Zn_H__PgM__Zd_D,
+		},
+		// ZFCVTZU <Zn>.H, <Pg>/M, <Zd>.H
+		{
+			goOp:      AZFCVTZU,
+			fixedBits: 0x655ba000,
+			args:      Zn_H__PgM__Zd_H,
+		},
 		// ZFCVTZU <Zn>.H, <Pg>/M, <Zd>.S
 		{
 			goOp:      AZFCVTZU,
 			fixedBits: 0x655da000,
 			args:      Zn_H__PgM__Zd_S,
 		},
-		// ZFCVTZU <Zn>.S, <Pg>/Z, <Zd>.S
+		// ZFCVTZU <Zn>.H, <Pg>/Z, <Zd>.D
 		{
 			goOp:      AZFCVTZU,
-			fixedBits: 0x649fa000,
-			args:      Zn_S__PgZ__Zd_S,
+			fixedBits: 0x645fe000,
+			args:      Zn_H__PgZ__Zd_D,
 		},
 		// ZFCVTZU <Zn>.H, <Pg>/Z, <Zd>.H
 		{
@@ -2357,17 +2702,11 @@ var insts = [][]instEncoder{
 			fixedBits: 0x645fa000,
 			args:      Zn_H__PgZ__Zd_S,
 		},
-		// ZFCVTZU <Zn>.H, <Pg>/M, <Zd>.D
+		// ZFCVTZU <Zn>.S, <Pg>/M, <Zd>.D
 		{
 			goOp:      AZFCVTZU,
-			fixedBits: 0x655fa000,
-			args:      Zn_H__PgM__Zd_D,
-		},
-		// ZFCVTZU <Zn>.H, <Pg>/Z, <Zd>.D
-		{
-			goOp:      AZFCVTZU,
-			fixedBits: 0x645fe000,
-			args:      Zn_H__PgZ__Zd_D,
+			fixedBits: 0x65dda000,
+			args:      Zn_S__PgM__Zd_D,
 		},
 		// ZFCVTZU <Zn>.S, <Pg>/M, <Zd>.S
 		{
@@ -2375,47 +2714,17 @@ var insts = [][]instEncoder{
 			fixedBits: 0x659da000,
 			args:      Zn_S__PgM__Zd_S,
 		},
-		// ZFCVTZU <Zn>.H, <Pg>/M, <Zd>.H
-		{
-			goOp:      AZFCVTZU,
-			fixedBits: 0x655ba000,
-			args:      Zn_H__PgM__Zd_H,
-		},
-		// ZFCVTZU <Zn>.S, <Pg>/M, <Zd>.D
-		{
-			goOp:      AZFCVTZU,
-			fixedBits: 0x65dda000,
-			args:      Zn_S__PgM__Zd_D,
-		},
 		// ZFCVTZU <Zn>.S, <Pg>/Z, <Zd>.D
 		{
 			goOp:      AZFCVTZU,
 			fixedBits: 0x64dfa000,
 			args:      Zn_S__PgZ__Zd_D,
 		},
-		// ZFCVTZU <Zn>.D, <Pg>/M, <Zd>.S
+		// ZFCVTZU <Zn>.S, <Pg>/Z, <Zd>.S
 		{
 			goOp:      AZFCVTZU,
-			fixedBits: 0x65d9a000,
-			args:      Zn_D__PgM__Zd_S,
-		},
-		// ZFCVTZU <Zn>.D, <Pg>/Z, <Zd>.S
-		{
-			goOp:      AZFCVTZU,
-			fixedBits: 0x64dea000,
-			args:      Zn_D__PgZ__Zd_S,
-		},
-		// ZFCVTZU <Zn>.D, <Pg>/M, <Zd>.D
-		{
-			goOp:      AZFCVTZU,
-			fixedBits: 0x65dfa000,
-			args:      Zn_D__PgM__Zd_D,
-		},
-		// ZFCVTZU <Zn>.D, <Pg>/Z, <Zd>.D
-		{
-			goOp:      AZFCVTZU,
-			fixedBits: 0x64dfe000,
-			args:      Zn_D__PgZ__Zd_D,
+			fixedBits: 0x649fa000,
+			args:      Zn_S__PgZ__Zd_S,
 		},
 	},
 	// ZFDIV
@@ -2438,17 +2747,17 @@ var insts = [][]instEncoder{
 	},
 	// ZFDOT
 	{
-		// ZFDOT <Zm>.B[<imm>], <Zn>.B, <Zda>.H
+		// ZFDOT <Zm>.B, <Zn>.B, <Zda>.H
 		{
 			goOp:      AZFDOT,
-			fixedBits: 0x64204400,
-			args:      Zm_B_imm___Zn_B__Zda_H__3,
+			fixedBits: 0x64208400,
+			args:      Zm_B__Zn_B__Zda_H,
 		},
-		// ZFDOT <Zm>.H[<imm>], <Zn>.H, <Zda>.S
+		// ZFDOT <Zm>.B, <Zn>.B, <Zda>.S
 		{
 			goOp:      AZFDOT,
-			fixedBits: 0x64204000,
-			args:      Zm_H_imm___Zn_H__Zda_S__3,
+			fixedBits: 0x64608400,
+			args:      Zm_B__Zn_B__Zda_S,
 		},
 		// ZFDOT <Zm>.H, <Zn>.H, <Zda>.S
 		{
@@ -2456,11 +2765,11 @@ var insts = [][]instEncoder{
 			fixedBits: 0x64208000,
 			args:      Zm_H__Zn_H__Zda_S,
 		},
-		// ZFDOT <Zm>.B, <Zn>.B, <Zda>.H
+		// ZFDOT <Zm>.B[<imm>], <Zn>.B, <Zda>.H
 		{
 			goOp:      AZFDOT,
-			fixedBits: 0x64208400,
-			args:      Zm_B__Zn_B__Zda_H,
+			fixedBits: 0x64204400,
+			args:      Zm_B_imm___Zn_B__Zda_H__3,
 		},
 		// ZFDOT <Zm>.B[<imm>], <Zn>.B, <Zda>.S
 		{
@@ -2468,11 +2777,20 @@ var insts = [][]instEncoder{
 			fixedBits: 0x64604400,
 			args:      Zm_B_imm___Zn_B__Zda_S__2,
 		},
-		// ZFDOT <Zm>.B, <Zn>.B, <Zda>.S
+		// ZFDOT <Zm>.H[<imm>], <Zn>.H, <Zda>.S
 		{
 			goOp:      AZFDOT,
-			fixedBits: 0x64608400,
-			args:      Zm_B__Zn_B__Zda_S,
+			fixedBits: 0x64204000,
+			args:      Zm_H_imm___Zn_H__Zda_S__3,
+		},
+	},
+	// ZFDUP
+	{
+		// ZFDUP #<const>, <Zd>.<T>
+		{
+			goOp:      AZFDUP,
+			fixedBits: 0x2539c000,
+			args:      cconst__Zd_T__2,
 		},
 	},
 	// ZFEXPA
@@ -2516,6 +2834,12 @@ var insts = [][]instEncoder{
 			fixedBits: 0x65068000,
 			args:      Zm_T__Zdn_T__PgM__Zdn_T__3,
 		},
+		// ZFMAX <const>, <Zdn>.<T>, <Pg>/M, <Zdn>.<T>
+		{
+			goOp:      AZFMAX,
+			fixedBits: 0x651e8000,
+			args:      const__Zdn_T__PgM__Zdn_T__1,
+		},
 	},
 	// ZFMAXNM
 	{
@@ -2524,6 +2848,12 @@ var insts = [][]instEncoder{
 			goOp:      AZFMAXNM,
 			fixedBits: 0x65048000,
 			args:      Zm_T__Zdn_T__PgM__Zdn_T__3,
+		},
+		// ZFMAXNM <const>, <Zdn>.<T>, <Pg>/M, <Zdn>.<T>
+		{
+			goOp:      AZFMAXNM,
+			fixedBits: 0x651c8000,
+			args:      const__Zdn_T__PgM__Zdn_T__1,
 		},
 	},
 	// ZFMAXNMP
@@ -2624,6 +2954,12 @@ var insts = [][]instEncoder{
 			fixedBits: 0x65078000,
 			args:      Zm_T__Zdn_T__PgM__Zdn_T__3,
 		},
+		// ZFMIN <const>, <Zdn>.<T>, <Pg>/M, <Zdn>.<T>
+		{
+			goOp:      AZFMIN,
+			fixedBits: 0x651f8000,
+			args:      const__Zdn_T__PgM__Zdn_T__1,
+		},
 	},
 	// ZFMINNM
 	{
@@ -2632,6 +2968,12 @@ var insts = [][]instEncoder{
 			goOp:      AZFMINNM,
 			fixedBits: 0x65058000,
 			args:      Zm_T__Zdn_T__PgM__Zdn_T__3,
+		},
+		// ZFMINNM <const>, <Zdn>.<T>, <Pg>/M, <Zdn>.<T>
+		{
+			goOp:      AZFMINNM,
+			fixedBits: 0x651d8000,
+			args:      const__Zdn_T__PgM__Zdn_T__1,
 		},
 	},
 	// ZFMINNMP
@@ -2726,17 +3068,17 @@ var insts = [][]instEncoder{
 	},
 	// ZFMLA
 	{
-		// ZFMLA <Zm>.D[<imm>], <Zn>.D, <Zda>.D
-		{
-			goOp:      AZFMLA,
-			fixedBits: 0x64e00000,
-			args:      Zm_D_imm___Zn_D__Zda_D__2,
-		},
 		// ZFMLA <Zm>.<T>, <Zn>.<T>, <Pg>/M, <Zda>.<T>
 		{
 			goOp:      AZFMLA,
 			fixedBits: 0x65200000,
 			args:      Zm_T__Zn_T__PgM__Zda_T__1,
+		},
+		// ZFMLA <Zm>.D[<imm>], <Zn>.D, <Zda>.D
+		{
+			goOp:      AZFMLA,
+			fixedBits: 0x64e00000,
+			args:      Zm_D_imm___Zn_D__Zda_D__2,
 		},
 		// ZFMLA <Zm>.H[<imm>], <Zn>.H, <Zda>.H
 		{
@@ -2753,29 +3095,29 @@ var insts = [][]instEncoder{
 	},
 	// ZFMLALB
 	{
-		// ZFMLALB <Zm>.H, <Zn>.H, <Zda>.S
-		{
-			goOp:      AZFMLALB,
-			fixedBits: 0x64a08000,
-			args:      Zm_H__Zn_H__Zda_S,
-		},
 		// ZFMLALB <Zm>.B, <Zn>.B, <Zda>.H
 		{
 			goOp:      AZFMLALB,
 			fixedBits: 0x64a08800,
 			args:      Zm_B__Zn_B__Zda_H,
 		},
-		// ZFMLALB <Zm>.H[<imm>], <Zn>.H, <Zda>.S
+		// ZFMLALB <Zm>.H, <Zn>.H, <Zda>.S
 		{
 			goOp:      AZFMLALB,
-			fixedBits: 0x64a04000,
-			args:      Zm_H_imm___Zn_H__Zda_S__2,
+			fixedBits: 0x64a08000,
+			args:      Zm_H__Zn_H__Zda_S,
 		},
 		// ZFMLALB <Zm>.B[<imm>], <Zn>.B, <Zda>.H
 		{
 			goOp:      AZFMLALB,
 			fixedBits: 0x64205000,
 			args:      Zm_B_imm___Zn_B__Zda_H__1,
+		},
+		// ZFMLALB <Zm>.H[<imm>], <Zn>.H, <Zda>.S
+		{
+			goOp:      AZFMLALB,
+			fixedBits: 0x64a04000,
+			args:      Zm_H_imm___Zn_H__Zda_S__2,
 		},
 	},
 	// ZFMLALLBB
@@ -2795,32 +3137,32 @@ var insts = [][]instEncoder{
 	},
 	// ZFMLALLBT
 	{
-		// ZFMLALLBT <Zm>.B[<imm>], <Zn>.B, <Zda>.S
-		{
-			goOp:      AZFMLALLBT,
-			fixedBits: 0x6460c000,
-			args:      Zm_B_imm___Zn_B__Zda_S__1,
-		},
 		// ZFMLALLBT <Zm>.B, <Zn>.B, <Zda>.S
 		{
 			goOp:      AZFMLALLBT,
 			fixedBits: 0x64209800,
 			args:      Zm_B__Zn_B__Zda_S,
 		},
+		// ZFMLALLBT <Zm>.B[<imm>], <Zn>.B, <Zda>.S
+		{
+			goOp:      AZFMLALLBT,
+			fixedBits: 0x6460c000,
+			args:      Zm_B_imm___Zn_B__Zda_S__1,
+		},
 	},
 	// ZFMLALLTB
 	{
-		// ZFMLALLTB <Zm>.B[<imm>], <Zn>.B, <Zda>.S
-		{
-			goOp:      AZFMLALLTB,
-			fixedBits: 0x64a0c000,
-			args:      Zm_B_imm___Zn_B__Zda_S__1,
-		},
 		// ZFMLALLTB <Zm>.B, <Zn>.B, <Zda>.S
 		{
 			goOp:      AZFMLALLTB,
 			fixedBits: 0x6420a800,
 			args:      Zm_B__Zn_B__Zda_S,
+		},
+		// ZFMLALLTB <Zm>.B[<imm>], <Zn>.B, <Zda>.S
+		{
+			goOp:      AZFMLALLTB,
+			fixedBits: 0x64a0c000,
+			args:      Zm_B_imm___Zn_B__Zda_S__1,
 		},
 	},
 	// ZFMLALLTT
@@ -2840,6 +3182,18 @@ var insts = [][]instEncoder{
 	},
 	// ZFMLALT
 	{
+		// ZFMLALT <Zm>.B, <Zn>.B, <Zda>.H
+		{
+			goOp:      AZFMLALT,
+			fixedBits: 0x64a09800,
+			args:      Zm_B__Zn_B__Zda_H,
+		},
+		// ZFMLALT <Zm>.H, <Zn>.H, <Zda>.S
+		{
+			goOp:      AZFMLALT,
+			fixedBits: 0x64a08400,
+			args:      Zm_H__Zn_H__Zda_S,
+		},
 		// ZFMLALT <Zm>.B[<imm>], <Zn>.B, <Zda>.H
 		{
 			goOp:      AZFMLALT,
@@ -2852,21 +3206,21 @@ var insts = [][]instEncoder{
 			fixedBits: 0x64a04400,
 			args:      Zm_H_imm___Zn_H__Zda_S__2,
 		},
-		// ZFMLALT <Zm>.H, <Zn>.H, <Zda>.S
-		{
-			goOp:      AZFMLALT,
-			fixedBits: 0x64a08400,
-			args:      Zm_H__Zn_H__Zda_S,
-		},
-		// ZFMLALT <Zm>.B, <Zn>.B, <Zda>.H
-		{
-			goOp:      AZFMLALT,
-			fixedBits: 0x64a09800,
-			args:      Zm_B__Zn_B__Zda_H,
-		},
 	},
 	// ZFMLS
 	{
+		// ZFMLS <Zm>.<T>, <Zn>.<T>, <Pg>/M, <Zda>.<T>
+		{
+			goOp:      AZFMLS,
+			fixedBits: 0x65202000,
+			args:      Zm_T__Zn_T__PgM__Zda_T__1,
+		},
+		// ZFMLS <Zm>.D[<imm>], <Zn>.D, <Zda>.D
+		{
+			goOp:      AZFMLS,
+			fixedBits: 0x64e00400,
+			args:      Zm_D_imm___Zn_D__Zda_D__2,
+		},
 		// ZFMLS <Zm>.H[<imm>], <Zn>.H, <Zda>.H
 		{
 			goOp:      AZFMLS,
@@ -2879,32 +3233,20 @@ var insts = [][]instEncoder{
 			fixedBits: 0x64a00400,
 			args:      Zm_S_imm___Zn_S__Zda_S__2,
 		},
-		// ZFMLS <Zm>.D[<imm>], <Zn>.D, <Zda>.D
-		{
-			goOp:      AZFMLS,
-			fixedBits: 0x64e00400,
-			args:      Zm_D_imm___Zn_D__Zda_D__2,
-		},
-		// ZFMLS <Zm>.<T>, <Zn>.<T>, <Pg>/M, <Zda>.<T>
-		{
-			goOp:      AZFMLS,
-			fixedBits: 0x65202000,
-			args:      Zm_T__Zn_T__PgM__Zda_T__1,
-		},
 	},
 	// ZFMLSLB
 	{
-		// ZFMLSLB <Zm>.H[<imm>], <Zn>.H, <Zda>.S
-		{
-			goOp:      AZFMLSLB,
-			fixedBits: 0x64a06000,
-			args:      Zm_H_imm___Zn_H__Zda_S__2,
-		},
 		// ZFMLSLB <Zm>.H, <Zn>.H, <Zda>.S
 		{
 			goOp:      AZFMLSLB,
 			fixedBits: 0x64a0a000,
 			args:      Zm_H__Zn_H__Zda_S,
+		},
+		// ZFMLSLB <Zm>.H[<imm>], <Zn>.H, <Zda>.S
+		{
+			goOp:      AZFMLSLB,
+			fixedBits: 0x64a06000,
+			args:      Zm_H_imm___Zn_H__Zda_S__2,
 		},
 	},
 	// ZFMLSLT
@@ -2930,11 +3272,11 @@ var insts = [][]instEncoder{
 			fixedBits: 0x6460e000,
 			args:      Zm_B__Zn_B__Zda_H,
 		},
-		// ZFMMLA <Zm>.S, <Zn>.S, <Zda>.S
+		// ZFMMLA <Zm>.B, <Zn>.B, <Zda>.S
 		{
 			goOp:      AZFMMLA,
-			fixedBits: 0x64a0e400,
-			args:      Zm_S__Zn_S__Zda_S,
+			fixedBits: 0x6420e000,
+			args:      Zm_B__Zn_B__Zda_S,
 		},
 		// ZFMMLA <Zm>.D, <Zn>.D, <Zda>.D
 		{
@@ -2942,23 +3284,23 @@ var insts = [][]instEncoder{
 			fixedBits: 0x64e0e400,
 			args:      Zm_D__Zn_D__Zda_D,
 		},
-		// ZFMMLA <Zm>.H, <Zn>.H, <Zda>.S
-		{
-			goOp:      AZFMMLA,
-			fixedBits: 0x6420e400,
-			args:      Zm_H__Zn_H__Zda_S,
-		},
 		// ZFMMLA <Zm>.H, <Zn>.H, <Zda>.H
 		{
 			goOp:      AZFMMLA,
 			fixedBits: 0x64a0e000,
 			args:      Zm_H__Zn_H__Zda_H,
 		},
-		// ZFMMLA <Zm>.B, <Zn>.B, <Zda>.S
+		// ZFMMLA <Zm>.H, <Zn>.H, <Zda>.S
 		{
 			goOp:      AZFMMLA,
-			fixedBits: 0x6420e000,
-			args:      Zm_B__Zn_B__Zda_S,
+			fixedBits: 0x6420e400,
+			args:      Zm_H__Zn_H__Zda_S,
+		},
+		// ZFMMLA <Zm>.S, <Zn>.S, <Zda>.S
+		{
+			goOp:      AZFMMLA,
+			fixedBits: 0x64a0e400,
+			args:      Zm_S__Zn_S__Zda_S,
 		},
 	},
 	// ZFMSB
@@ -2978,6 +3320,18 @@ var insts = [][]instEncoder{
 			fixedBits: 0x65028000,
 			args:      Zm_T__Zdn_T__PgM__Zdn_T__3,
 		},
+		// ZFMUL <Zm>.<T>, <Zn>.<T>, <Zd>.<T>
+		{
+			goOp:      AZFMUL,
+			fixedBits: 0x65000800,
+			args:      Zm_T__Zn_T__Zd_T__2,
+		},
+		// ZFMUL <Zm>.D[<imm>], <Zn>.D, <Zd>.D
+		{
+			goOp:      AZFMUL,
+			fixedBits: 0x64e02000,
+			args:      Zm_D_imm___Zn_D__Zd_D__2,
+		},
 		// ZFMUL <Zm>.H[<imm>], <Zn>.H, <Zd>.H
 		{
 			goOp:      AZFMUL,
@@ -2990,17 +3344,11 @@ var insts = [][]instEncoder{
 			fixedBits: 0x64a02000,
 			args:      Zm_S_imm___Zn_S__Zd_S__2,
 		},
-		// ZFMUL <Zm>.D[<imm>], <Zn>.D, <Zd>.D
+		// ZFMUL <const>, <Zdn>.<T>, <Pg>/M, <Zdn>.<T>
 		{
 			goOp:      AZFMUL,
-			fixedBits: 0x64e02000,
-			args:      Zm_D_imm___Zn_D__Zd_D__2,
-		},
-		// ZFMUL <Zm>.<T>, <Zn>.<T>, <Zd>.<T>
-		{
-			goOp:      AZFMUL,
-			fixedBits: 0x65000800,
-			args:      Zm_T__Zn_T__Zd_T__2,
+			fixedBits: 0x651a8000,
+			args:      const__Zdn_T__PgM__Zdn_T__3,
 		},
 	},
 	// ZFMULX
@@ -3083,17 +3431,17 @@ var insts = [][]instEncoder{
 	},
 	// ZFRECPX
 	{
-		// ZFRECPX <Zn>.<T>, <Pg>/Z, <Zd>.<T>
-		{
-			goOp:      AZFRECPX,
-			fixedBits: 0x641b8000,
-			args:      Zn_T__PgZ__Zd_T__1,
-		},
 		// ZFRECPX <Zn>.<T>, <Pg>/M, <Zd>.<T>
 		{
 			goOp:      AZFRECPX,
 			fixedBits: 0x650ca000,
 			args:      Zn_T__PgM__Zd_T__1,
+		},
+		// ZFRECPX <Zn>.<T>, <Pg>/Z, <Zd>.<T>
+		{
+			goOp:      AZFRECPX,
+			fixedBits: 0x641b8000,
+			args:      Zn_T__PgZ__Zd_T__1,
 		},
 	},
 	// ZFRINT32X
@@ -3113,17 +3461,17 @@ var insts = [][]instEncoder{
 	},
 	// ZFRINT32Z
 	{
-		// ZFRINT32Z <Zn>.<T>, <Pg>/Z, <Zd>.<T>
-		{
-			goOp:      AZFRINT32Z,
-			fixedBits: 0x641c8000,
-			args:      Zn_T__PgZ__Zd_T__3,
-		},
 		// ZFRINT32Z <Zn>.<T>, <Pg>/M, <Zd>.<T>
 		{
 			goOp:      AZFRINT32Z,
 			fixedBits: 0x6510a000,
 			args:      Zn_T__PgM__Zd_T__3,
+		},
+		// ZFRINT32Z <Zn>.<T>, <Pg>/Z, <Zd>.<T>
+		{
+			goOp:      AZFRINT32Z,
+			fixedBits: 0x641c8000,
+			args:      Zn_T__PgZ__Zd_T__3,
 		},
 	},
 	// ZFRINT64X
@@ -3158,17 +3506,17 @@ var insts = [][]instEncoder{
 	},
 	// ZFRINTA
 	{
-		// ZFRINTA <Zn>.<T>, <Pg>/Z, <Zd>.<T>
-		{
-			goOp:      AZFRINTA,
-			fixedBits: 0x64198000,
-			args:      Zn_T__PgZ__Zd_T__1,
-		},
 		// ZFRINTA <Zn>.<T>, <Pg>/M, <Zd>.<T>
 		{
 			goOp:      AZFRINTA,
 			fixedBits: 0x6504a000,
 			args:      Zn_T__PgM__Zd_T__1,
+		},
+		// ZFRINTA <Zn>.<T>, <Pg>/Z, <Zd>.<T>
+		{
+			goOp:      AZFRINTA,
+			fixedBits: 0x64198000,
+			args:      Zn_T__PgZ__Zd_T__1,
 		},
 	},
 	// ZFRINTI
@@ -3188,17 +3536,17 @@ var insts = [][]instEncoder{
 	},
 	// ZFRINTM
 	{
-		// ZFRINTM <Zn>.<T>, <Pg>/Z, <Zd>.<T>
-		{
-			goOp:      AZFRINTM,
-			fixedBits: 0x6418c000,
-			args:      Zn_T__PgZ__Zd_T__1,
-		},
 		// ZFRINTM <Zn>.<T>, <Pg>/M, <Zd>.<T>
 		{
 			goOp:      AZFRINTM,
 			fixedBits: 0x6502a000,
 			args:      Zn_T__PgM__Zd_T__1,
+		},
+		// ZFRINTM <Zn>.<T>, <Pg>/Z, <Zd>.<T>
+		{
+			goOp:      AZFRINTM,
+			fixedBits: 0x6418c000,
+			args:      Zn_T__PgZ__Zd_T__1,
 		},
 	},
 	// ZFRINTN
@@ -3218,32 +3566,32 @@ var insts = [][]instEncoder{
 	},
 	// ZFRINTP
 	{
-		// ZFRINTP <Zn>.<T>, <Pg>/Z, <Zd>.<T>
-		{
-			goOp:      AZFRINTP,
-			fixedBits: 0x6418a000,
-			args:      Zn_T__PgZ__Zd_T__1,
-		},
 		// ZFRINTP <Zn>.<T>, <Pg>/M, <Zd>.<T>
 		{
 			goOp:      AZFRINTP,
 			fixedBits: 0x6501a000,
 			args:      Zn_T__PgM__Zd_T__1,
 		},
+		// ZFRINTP <Zn>.<T>, <Pg>/Z, <Zd>.<T>
+		{
+			goOp:      AZFRINTP,
+			fixedBits: 0x6418a000,
+			args:      Zn_T__PgZ__Zd_T__1,
+		},
 	},
 	// ZFRINTX
 	{
-		// ZFRINTX <Zn>.<T>, <Pg>/Z, <Zd>.<T>
-		{
-			goOp:      AZFRINTX,
-			fixedBits: 0x6419c000,
-			args:      Zn_T__PgZ__Zd_T__1,
-		},
 		// ZFRINTX <Zn>.<T>, <Pg>/M, <Zd>.<T>
 		{
 			goOp:      AZFRINTX,
 			fixedBits: 0x6506a000,
 			args:      Zn_T__PgM__Zd_T__1,
+		},
+		// ZFRINTX <Zn>.<T>, <Pg>/Z, <Zd>.<T>
+		{
+			goOp:      AZFRINTX,
+			fixedBits: 0x6419c000,
+			args:      Zn_T__PgZ__Zd_T__1,
 		},
 	},
 	// ZFRINTZ
@@ -3317,6 +3665,12 @@ var insts = [][]instEncoder{
 			fixedBits: 0x65000400,
 			args:      Zm_T__Zn_T__Zd_T__2,
 		},
+		// ZFSUB <const>, <Zdn>.<T>, <Pg>/M, <Zdn>.<T>
+		{
+			goOp:      AZFSUB,
+			fixedBits: 0x65198000,
+			args:      const__Zdn_T__PgM__Zdn_T__2,
+		},
 	},
 	// ZFSUBR
 	{
@@ -3325,6 +3679,21 @@ var insts = [][]instEncoder{
 			goOp:      AZFSUBR,
 			fixedBits: 0x65038000,
 			args:      Zm_T__Zdn_T__PgM__Zdn_T__2,
+		},
+		// ZFSUBR <const>, <Zdn>.<T>, <Pg>/M, <Zdn>.<T>
+		{
+			goOp:      AZFSUBR,
+			fixedBits: 0x651b8000,
+			args:      const__Zdn_T__PgM__Zdn_T__2,
+		},
+	},
+	// ZFTMAD
+	{
+		// ZFTMAD #<imm>, <Zm>.<T>, <Zdn>.<T>, <Zdn>.<T>
+		{
+			goOp:      AZFTMAD,
+			fixedBits: 0x65108000,
+			args:      cimm__Zm_T__Zdn_T__Zdn_T,
 		},
 	},
 	// ZFTSMUL
@@ -3380,6 +3749,24 @@ var insts = [][]instEncoder{
 			fixedBits: 0x4e04c00,
 			args:      Rm__Rn__Zd_T,
 		},
+		// ZINDEX <R><m>, #<imm>, <Zd>.<T>
+		{
+			goOp:      AZINDEX,
+			fixedBits: 0x4e04800,
+			args:      Rm__cimm__Zd_T,
+		},
+		// ZINDEX #<imm2>, #<imm1>, <Zd>.<T>
+		{
+			goOp:      AZINDEX,
+			fixedBits: 0x4204000,
+			args:      cimm2__cimm1__Zd_T,
+		},
+		// ZINDEX #<imm>, <R><n>, <Zd>.<T>
+		{
+			goOp:      AZINDEX,
+			fixedBits: 0x4e04400,
+			args:      cimm__Rn__Zd_T,
+		},
 	},
 	// ZINDEXW
 	{
@@ -3388,6 +3775,18 @@ var insts = [][]instEncoder{
 			goOp:      AZINDEXW,
 			fixedBits: 0x4204c00,
 			args:      Rm__Rn__Zd_T,
+		},
+		// ZINDEXW <R><m>, #<imm>, <Zd>.<T>
+		{
+			goOp:      AZINDEXW,
+			fixedBits: 0x4204800,
+			args:      Rm__cimm__Zd_T,
+		},
+		// ZINDEXW #<imm>, <R><n>, <Zd>.<T>
+		{
+			goOp:      AZINDEXW,
+			fixedBits: 0x4204400,
+			args:      cimm__Rn__Zd_T,
 		},
 	},
 	// ZINSR
@@ -3554,12 +3953,6 @@ var insts = [][]instEncoder{
 	},
 	// ZLSL
 	{
-		// ZLSL <Zm>.<T>, <Zdn>.<T>, <Pg>/M, <Zdn>.<T>
-		{
-			goOp:      AZLSL,
-			fixedBits: 0x4138000,
-			args:      Zm_T__Zdn_T__PgM__Zdn_T__1,
-		},
 		// ZLSL <Zm>.D, <Zdn>.<T>, <Pg>/M, <Zdn>.<T>
 		{
 			goOp:      AZLSL,
@@ -3571,6 +3964,24 @@ var insts = [][]instEncoder{
 			goOp:      AZLSL,
 			fixedBits: 0x4208c00,
 			args:      Zm_D__Zn_T__Zd_T,
+		},
+		// ZLSL <Zm>.<T>, <Zdn>.<T>, <Pg>/M, <Zdn>.<T>
+		{
+			goOp:      AZLSL,
+			fixedBits: 0x4138000,
+			args:      Zm_T__Zdn_T__PgM__Zdn_T__1,
+		},
+		// ZLSL #<const>, <Zdn>.<T>, <Pg>/M, <Zdn>.<T>
+		{
+			goOp:      AZLSL,
+			fixedBits: 0x4038000,
+			args:      cconst__Zdn_T__PgM__Zdn_T__2,
+		},
+		// ZLSL #<const>, <Zn>.<T>, <Zd>.<T>
+		{
+			goOp:      AZLSL,
+			fixedBits: 0x4209c00,
+			args:      cconst__Zn_T__Zd_T__2,
 		},
 	},
 	// ZLSLR
@@ -3584,12 +3995,6 @@ var insts = [][]instEncoder{
 	},
 	// ZLSR
 	{
-		// ZLSR <Zm>.<T>, <Zdn>.<T>, <Pg>/M, <Zdn>.<T>
-		{
-			goOp:      AZLSR,
-			fixedBits: 0x4118000,
-			args:      Zm_T__Zdn_T__PgM__Zdn_T__1,
-		},
 		// ZLSR <Zm>.D, <Zdn>.<T>, <Pg>/M, <Zdn>.<T>
 		{
 			goOp:      AZLSR,
@@ -3601,6 +4006,24 @@ var insts = [][]instEncoder{
 			goOp:      AZLSR,
 			fixedBits: 0x4208400,
 			args:      Zm_D__Zn_T__Zd_T,
+		},
+		// ZLSR <Zm>.<T>, <Zdn>.<T>, <Pg>/M, <Zdn>.<T>
+		{
+			goOp:      AZLSR,
+			fixedBits: 0x4118000,
+			args:      Zm_T__Zdn_T__PgM__Zdn_T__1,
+		},
+		// ZLSR #<const>, <Zdn>.<T>, <Pg>/M, <Zdn>.<T>
+		{
+			goOp:      AZLSR,
+			fixedBits: 0x4018000,
+			args:      cconst__Zdn_T__PgM__Zdn_T__1,
+		},
+		// ZLSR #<const>, <Zn>.<T>, <Zd>.<T>
+		{
+			goOp:      AZLSR,
+			fixedBits: 0x4209400,
+			args:      cconst__Zn_T__Zd_T__1,
 		},
 	},
 	// ZLSRR
@@ -3641,6 +4064,18 @@ var insts = [][]instEncoder{
 	},
 	// ZMLA
 	{
+		// ZMLA <Zm>.<T>, <Zn>.<T>, <Pg>/M, <Zda>.<T>
+		{
+			goOp:      AZMLA,
+			fixedBits: 0x4004000,
+			args:      Zm_T__Zn_T__PgM__Zda_T__2,
+		},
+		// ZMLA <Zm>.D[<imm>], <Zn>.D, <Zda>.D
+		{
+			goOp:      AZMLA,
+			fixedBits: 0x44e00800,
+			args:      Zm_D_imm___Zn_D__Zda_D__1,
+		},
 		// ZMLA <Zm>.H[<imm>], <Zn>.H, <Zda>.H
 		{
 			goOp:      AZMLA,
@@ -3652,18 +4087,6 @@ var insts = [][]instEncoder{
 			goOp:      AZMLA,
 			fixedBits: 0x44a00800,
 			args:      Zm_S_imm___Zn_S__Zda_S__1,
-		},
-		// ZMLA <Zm>.D[<imm>], <Zn>.D, <Zda>.D
-		{
-			goOp:      AZMLA,
-			fixedBits: 0x44e00800,
-			args:      Zm_D_imm___Zn_D__Zda_D__1,
-		},
-		// ZMLA <Zm>.<T>, <Zn>.<T>, <Pg>/M, <Zda>.<T>
-		{
-			goOp:      AZMLA,
-			fixedBits: 0x4004000,
-			args:      Zm_T__Zn_T__PgM__Zda_T__2,
 		},
 	},
 	// ZMLAPT
@@ -3683,6 +4106,12 @@ var insts = [][]instEncoder{
 			fixedBits: 0x4006000,
 			args:      Zm_T__Zn_T__PgM__Zda_T__2,
 		},
+		// ZMLS <Zm>.D[<imm>], <Zn>.D, <Zda>.D
+		{
+			goOp:      AZMLS,
+			fixedBits: 0x44e00c00,
+			args:      Zm_D_imm___Zn_D__Zda_D__1,
+		},
 		// ZMLS <Zm>.H[<imm>], <Zn>.H, <Zda>.H
 		{
 			goOp:      AZMLS,
@@ -3694,12 +4123,6 @@ var insts = [][]instEncoder{
 			goOp:      AZMLS,
 			fixedBits: 0x44a00c00,
 			args:      Zm_S_imm___Zn_S__Zda_S__1,
-		},
-		// ZMLS <Zm>.D[<imm>], <Zn>.D, <Zda>.D
-		{
-			goOp:      AZMLS,
-			fixedBits: 0x44e00c00,
-			args:      Zm_D_imm___Zn_D__Zda_D__1,
 		},
 	},
 	// ZMOVPRFX
@@ -3734,11 +4157,11 @@ var insts = [][]instEncoder{
 			fixedBits: 0x4100000,
 			args:      Zm_T__Zdn_T__PgM__Zdn_T__1,
 		},
-		// ZMUL <Zm>.S[<imm>], <Zn>.S, <Zd>.S
+		// ZMUL <Zm>.<T>, <Zn>.<T>, <Zd>.<T>
 		{
 			goOp:      AZMUL,
-			fixedBits: 0x44a0f800,
-			args:      Zm_S_imm___Zn_S__Zd_S__1,
+			fixedBits: 0x4206000,
+			args:      Zm_T__Zn_T__Zd_T__1,
 		},
 		// ZMUL <Zm>.D[<imm>], <Zn>.D, <Zd>.D
 		{
@@ -3752,11 +4175,17 @@ var insts = [][]instEncoder{
 			fixedBits: 0x4420f800,
 			args:      Zm_H_imm___Zn_H__Zd_H__1,
 		},
-		// ZMUL <Zm>.<T>, <Zn>.<T>, <Zd>.<T>
+		// ZMUL <Zm>.S[<imm>], <Zn>.S, <Zd>.S
 		{
 			goOp:      AZMUL,
-			fixedBits: 0x4206000,
-			args:      Zm_T__Zn_T__Zd_T__1,
+			fixedBits: 0x44a0f800,
+			args:      Zm_S_imm___Zn_S__Zd_S__1,
+		},
+		// ZMUL #<imm>, <Zdn>.<T>, <Zdn>.<T>
+		{
+			goOp:      AZMUL,
+			fixedBits: 0x2530c000,
+			args:      cimm__Zdn_T__Zdn_T__1,
 		},
 	},
 	// ZNBSL
@@ -3818,17 +4247,23 @@ var insts = [][]instEncoder{
 	},
 	// ZORR
 	{
+		// ZORR <Zm>.D, <Zn>.D, <Zd>.D
+		{
+			goOp:      AZORR,
+			fixedBits: 0x4603000,
+			args:      Zm_D__Zn_D__Zd_D,
+		},
 		// ZORR <Zm>.<T>, <Zdn>.<T>, <Pg>/M, <Zdn>.<T>
 		{
 			goOp:      AZORR,
 			fixedBits: 0x4180000,
 			args:      Zm_T__Zdn_T__PgM__Zdn_T__1,
 		},
-		// ZORR <Zm>.D, <Zn>.D, <Zd>.D
+		// ZORR #<const>, <Zdn>.<T>, <Zdn>.<T>
 		{
 			goOp:      AZORR,
-			fixedBits: 0x4603000,
-			args:      Zm_D__Zn_D__Zd_D,
+			fixedBits: 0x5000000,
+			args:      cconst__Zdn_T__Zdn_T,
 		},
 	},
 	// ZORVB
@@ -3869,23 +4304,11 @@ var insts = [][]instEncoder{
 	},
 	// ZPMOV
 	{
-		// ZPMOV <Pn>.S, <Zd>{[<imm>]}
+		// ZPMOV <Pn>.B, <Zd>
 		{
 			goOp:      AZPMOV,
-			fixedBits: 0x5693800,
-			args:      Pn_S__Zd_imm_,
-		},
-		// ZPMOV <Zn>{[<imm>]}, <Pd>.H
-		{
-			goOp:      AZPMOV,
-			fixedBits: 0x52c3800,
-			args:      Zn_imm___Pd_H,
-		},
-		// ZPMOV <Zn>{[<imm>]}, <Pd>.D
-		{
-			goOp:      AZPMOV,
-			fixedBits: 0x5a83800,
-			args:      Zn_imm___Pd_D,
+			fixedBits: 0x52b3800,
+			args:      Pn_B__Zd,
 		},
 		// ZPMOV <Zn>, <Pd>.B
 		{
@@ -3893,17 +4316,11 @@ var insts = [][]instEncoder{
 			fixedBits: 0x52a3800,
 			args:      Zn__Pd_B,
 		},
-		// ZPMOV <Pn>.B, <Zd>
+		// ZPMOV <Pn>.D, <Zd>{[<imm>]}
 		{
 			goOp:      AZPMOV,
-			fixedBits: 0x52b3800,
-			args:      Pn_B__Zd,
-		},
-		// ZPMOV <Zn>{[<imm>]}, <Pd>.S
-		{
-			goOp:      AZPMOV,
-			fixedBits: 0x5683800,
-			args:      Zn_imm___Pd_S,
+			fixedBits: 0x5a93800,
+			args:      Pn_D__Zd_imm_,
 		},
 		// ZPMOV <Pn>.H, <Zd>{[<imm>]}
 		{
@@ -3911,11 +4328,29 @@ var insts = [][]instEncoder{
 			fixedBits: 0x52d3800,
 			args:      Pn_H__Zd_imm_,
 		},
-		// ZPMOV <Pn>.D, <Zd>{[<imm>]}
+		// ZPMOV <Pn>.S, <Zd>{[<imm>]}
 		{
 			goOp:      AZPMOV,
-			fixedBits: 0x5a93800,
-			args:      Pn_D__Zd_imm_,
+			fixedBits: 0x5693800,
+			args:      Pn_S__Zd_imm_,
+		},
+		// ZPMOV <Zn>{[<imm>]}, <Pd>.D
+		{
+			goOp:      AZPMOV,
+			fixedBits: 0x5a83800,
+			args:      Zn_imm___Pd_D,
+		},
+		// ZPMOV <Zn>{[<imm>]}, <Pd>.H
+		{
+			goOp:      AZPMOV,
+			fixedBits: 0x52c3800,
+			args:      Zn_imm___Pd_H,
+		},
+		// ZPMOV <Zn>{[<imm>]}, <Pd>.S
+		{
+			goOp:      AZPMOV,
+			fixedBits: 0x5683800,
+			args:      Zn_imm___Pd_S,
 		},
 	},
 	// ZPMUL
@@ -3929,17 +4364,17 @@ var insts = [][]instEncoder{
 	},
 	// ZPMULLB
 	{
-		// ZPMULLB <Zm>.<Tb>, <Zn>.<Tb>, <Zd>.<T>
-		{
-			goOp:      AZPMULLB,
-			fixedBits: 0x45006800,
-			args:      Zm_Tb__Zn_Tb__Zd_T__3,
-		},
 		// ZPMULLB <Zm>.D, <Zn>.D, <Zd>.Q
 		{
 			goOp:      AZPMULLB,
 			fixedBits: 0x45006800,
 			args:      Zm_D__Zn_D__Zd_Q,
+		},
+		// ZPMULLB <Zm>.<Tb>, <Zn>.<Tb>, <Zd>.<T>
+		{
+			goOp:      AZPMULLB,
+			fixedBits: 0x45006800,
+			args:      Zm_Tb__Zn_Tb__Zd_T__3,
 		},
 	},
 	// ZPMULLT
@@ -4010,17 +4445,17 @@ var insts = [][]instEncoder{
 	},
 	// ZREVB
 	{
-		// ZREVB <Zn>.<T>, <Pg>/Z, <Zd>.<T>
-		{
-			goOp:      AZREVB,
-			fixedBits: 0x524a000,
-			args:      Zn_T__PgZ__Zd_T__4,
-		},
 		// ZREVB <Zn>.<T>, <Pg>/M, <Zd>.<T>
 		{
 			goOp:      AZREVB,
 			fixedBits: 0x5248000,
 			args:      Zn_T__PgM__Zd_T__4,
+		},
+		// ZREVB <Zn>.<T>, <Pg>/Z, <Zd>.<T>
+		{
+			goOp:      AZREVB,
+			fixedBits: 0x524a000,
+			args:      Zn_T__PgZ__Zd_T__4,
 		},
 	},
 	// ZREVD
@@ -4055,17 +4490,35 @@ var insts = [][]instEncoder{
 	},
 	// ZREVW
 	{
+		// ZREVW <Zn>.D, <Pg>/M, <Zd>.D
+		{
+			goOp:      AZREVW,
+			fixedBits: 0x5e68000,
+			args:      Zn_D__PgM__Zd_D,
+		},
 		// ZREVW <Zn>.D, <Pg>/Z, <Zd>.D
 		{
 			goOp:      AZREVW,
 			fixedBits: 0x5e6a000,
 			args:      Zn_D__PgZ__Zd_D,
 		},
-		// ZREVW <Zn>.D, <Pg>/M, <Zd>.D
+	},
+	// ZRSHRNB
+	{
+		// ZRSHRNB #<const>, <Zn>.<Tb>, <Zd>.<T>
 		{
-			goOp:      AZREVW,
-			fixedBits: 0x5e68000,
-			args:      Zn_D__PgM__Zd_D,
+			goOp:      AZRSHRNB,
+			fixedBits: 0x45201800,
+			args:      cconst__Zn_Tb__Zd_T__1,
+		},
+	},
+	// ZRSHRNT
+	{
+		// ZRSHRNT #<const>, <Zn>.<Tb>, <Zd>.<T>
+		{
+			goOp:      AZRSHRNT,
+			fixedBits: 0x45201c00,
+			args:      cconst__Zn_Tb__Zd_T__1,
 		},
 	},
 	// ZRSUBHNB
@@ -4241,59 +4694,11 @@ var insts = [][]instEncoder{
 	},
 	// ZSCVTF
 	{
-		// ZSCVTF <Zn>.H, <Pg>/M, <Zd>.H
-		{
-			goOp:      AZSCVTF,
-			fixedBits: 0x6552a000,
-			args:      Zn_H__PgM__Zd_H,
-		},
-		// ZSCVTF <Zn>.S, <Pg>/M, <Zd>.H
-		{
-			goOp:      AZSCVTF,
-			fixedBits: 0x6554a000,
-			args:      Zn_S__PgM__Zd_H,
-		},
-		// ZSCVTF <Zn>.<Tb>, <Zd>.<T>
-		{
-			goOp:      AZSCVTF,
-			fixedBits: 0x650c3000,
-			args:      Zn_Tb__Zd_T__1,
-		},
-		// ZSCVTF <Zn>.H, <Pg>/Z, <Zd>.H
-		{
-			goOp:      AZSCVTF,
-			fixedBits: 0x645cc000,
-			args:      Zn_H__PgZ__Zd_H,
-		},
-		// ZSCVTF <Zn>.D, <Pg>/Z, <Zd>.D
-		{
-			goOp:      AZSCVTF,
-			fixedBits: 0x64ddc000,
-			args:      Zn_D__PgZ__Zd_D,
-		},
 		// ZSCVTF <Zn>.D, <Pg>/M, <Zd>.D
 		{
 			goOp:      AZSCVTF,
 			fixedBits: 0x65d6a000,
 			args:      Zn_D__PgM__Zd_D,
-		},
-		// ZSCVTF <Zn>.D, <Pg>/Z, <Zd>.S
-		{
-			goOp:      AZSCVTF,
-			fixedBits: 0x64dd8000,
-			args:      Zn_D__PgZ__Zd_S,
-		},
-		// ZSCVTF <Zn>.D, <Pg>/M, <Zd>.S
-		{
-			goOp:      AZSCVTF,
-			fixedBits: 0x65d4a000,
-			args:      Zn_D__PgM__Zd_S,
-		},
-		// ZSCVTF <Zn>.D, <Pg>/Z, <Zd>.H
-		{
-			goOp:      AZSCVTF,
-			fixedBits: 0x645dc000,
-			args:      Zn_D__PgZ__Zd_H,
 		},
 		// ZSCVTF <Zn>.D, <Pg>/M, <Zd>.H
 		{
@@ -4301,11 +4706,41 @@ var insts = [][]instEncoder{
 			fixedBits: 0x6556a000,
 			args:      Zn_D__PgM__Zd_H,
 		},
-		// ZSCVTF <Zn>.S, <Pg>/Z, <Zd>.D
+		// ZSCVTF <Zn>.D, <Pg>/M, <Zd>.S
 		{
 			goOp:      AZSCVTF,
-			fixedBits: 0x64dc8000,
-			args:      Zn_S__PgZ__Zd_D,
+			fixedBits: 0x65d4a000,
+			args:      Zn_D__PgM__Zd_S,
+		},
+		// ZSCVTF <Zn>.D, <Pg>/Z, <Zd>.D
+		{
+			goOp:      AZSCVTF,
+			fixedBits: 0x64ddc000,
+			args:      Zn_D__PgZ__Zd_D,
+		},
+		// ZSCVTF <Zn>.D, <Pg>/Z, <Zd>.H
+		{
+			goOp:      AZSCVTF,
+			fixedBits: 0x645dc000,
+			args:      Zn_D__PgZ__Zd_H,
+		},
+		// ZSCVTF <Zn>.D, <Pg>/Z, <Zd>.S
+		{
+			goOp:      AZSCVTF,
+			fixedBits: 0x64dd8000,
+			args:      Zn_D__PgZ__Zd_S,
+		},
+		// ZSCVTF <Zn>.H, <Pg>/M, <Zd>.H
+		{
+			goOp:      AZSCVTF,
+			fixedBits: 0x6552a000,
+			args:      Zn_H__PgM__Zd_H,
+		},
+		// ZSCVTF <Zn>.H, <Pg>/Z, <Zd>.H
+		{
+			goOp:      AZSCVTF,
+			fixedBits: 0x645cc000,
+			args:      Zn_H__PgZ__Zd_H,
 		},
 		// ZSCVTF <Zn>.S, <Pg>/M, <Zd>.D
 		{
@@ -4313,11 +4748,11 @@ var insts = [][]instEncoder{
 			fixedBits: 0x65d0a000,
 			args:      Zn_S__PgM__Zd_D,
 		},
-		// ZSCVTF <Zn>.S, <Pg>/Z, <Zd>.S
+		// ZSCVTF <Zn>.S, <Pg>/M, <Zd>.H
 		{
 			goOp:      AZSCVTF,
-			fixedBits: 0x649d8000,
-			args:      Zn_S__PgZ__Zd_S,
+			fixedBits: 0x6554a000,
+			args:      Zn_S__PgM__Zd_H,
 		},
 		// ZSCVTF <Zn>.S, <Pg>/M, <Zd>.S
 		{
@@ -4325,11 +4760,29 @@ var insts = [][]instEncoder{
 			fixedBits: 0x6594a000,
 			args:      Zn_S__PgM__Zd_S,
 		},
+		// ZSCVTF <Zn>.S, <Pg>/Z, <Zd>.D
+		{
+			goOp:      AZSCVTF,
+			fixedBits: 0x64dc8000,
+			args:      Zn_S__PgZ__Zd_D,
+		},
 		// ZSCVTF <Zn>.S, <Pg>/Z, <Zd>.H
 		{
 			goOp:      AZSCVTF,
 			fixedBits: 0x645d8000,
 			args:      Zn_S__PgZ__Zd_H,
+		},
+		// ZSCVTF <Zn>.S, <Pg>/Z, <Zd>.S
+		{
+			goOp:      AZSCVTF,
+			fixedBits: 0x649d8000,
+			args:      Zn_S__PgZ__Zd_S,
+		},
+		// ZSCVTF <Zn>.<Tb>, <Zd>.<T>
+		{
+			goOp:      AZSCVTF,
+			fixedBits: 0x650c3000,
+			args:      Zn_Tb__Zd_T__1,
 		},
 	},
 	// ZSCVTFLT
@@ -4367,17 +4820,11 @@ var insts = [][]instEncoder{
 			fixedBits: 0x44400000,
 			args:      Zm_B__Zn_B__Zda_H,
 		},
-		// ZSDOT <Zm>.B[<imm>], <Zn>.B, <Zda>.H
+		// ZSDOT <Zm>.H, <Zn>.H, <Zda>.S
 		{
 			goOp:      AZSDOT,
-			fixedBits: 0x44200000,
-			args:      Zm_B_imm___Zn_B__Zda_H__2,
-		},
-		// ZSDOT <Zm>.H[<imm>], <Zn>.H, <Zda>.S
-		{
-			goOp:      AZSDOT,
-			fixedBits: 0x4480c800,
-			args:      Zm_H_imm___Zn_H__Zda_S__4,
+			fixedBits: 0x4400c800,
+			args:      Zm_H__Zn_H__Zda_S,
 		},
 		// ZSDOT <Zm>.<Tb>, <Zn>.<Tb>, <Zda>.<T>
 		{
@@ -4385,11 +4832,11 @@ var insts = [][]instEncoder{
 			fixedBits: 0x44800000,
 			args:      Zm_Tb__Zn_Tb__Zda_T__2,
 		},
-		// ZSDOT <Zm>.H, <Zn>.H, <Zda>.S
+		// ZSDOT <Zm>.B[<imm>], <Zn>.B, <Zda>.H
 		{
 			goOp:      AZSDOT,
-			fixedBits: 0x4400c800,
-			args:      Zm_H__Zn_H__Zda_S,
+			fixedBits: 0x44200000,
+			args:      Zm_B_imm___Zn_B__Zda_H__2,
 		},
 		// ZSDOT <Zm>.B[<imm>], <Zn>.B, <Zda>.S
 		{
@@ -4402,6 +4849,12 @@ var insts = [][]instEncoder{
 			goOp:      AZSDOT,
 			fixedBits: 0x44e00000,
 			args:      Zm_H_imm___Zn_H__Zda_D,
+		},
+		// ZSDOT <Zm>.H[<imm>], <Zn>.H, <Zda>.S
+		{
+			goOp:      AZSDOT,
+			fixedBits: 0x4480c800,
+			args:      Zm_H_imm___Zn_H__Zda_S__4,
 		},
 	},
 	// ZSEL
@@ -4422,6 +4875,24 @@ var insts = [][]instEncoder{
 			args:      Zm_T__Zdn_T__PgM__Zdn_T__1,
 		},
 	},
+	// ZSHRNB
+	{
+		// ZSHRNB #<const>, <Zn>.<Tb>, <Zd>.<T>
+		{
+			goOp:      AZSHRNB,
+			fixedBits: 0x45201000,
+			args:      cconst__Zn_Tb__Zd_T__1,
+		},
+	},
+	// ZSHRNT
+	{
+		// ZSHRNT #<const>, <Zn>.<Tb>, <Zd>.<T>
+		{
+			goOp:      AZSHRNT,
+			fixedBits: 0x45201400,
+			args:      cconst__Zn_Tb__Zd_T__1,
+		},
+	},
 	// ZSHSUB
 	{
 		// ZSHSUB <Zm>.<T>, <Zdn>.<T>, <Pg>/M, <Zdn>.<T>
@@ -4438,6 +4909,15 @@ var insts = [][]instEncoder{
 			goOp:      AZSHSUBR,
 			fixedBits: 0x44168000,
 			args:      Zm_T__Zdn_T__PgM__Zdn_T__1,
+		},
+	},
+	// ZSLI
+	{
+		// ZSLI #<const>, <Zn>.<T>, <Zd>.<T>
+		{
+			goOp:      AZSLI,
+			fixedBits: 0x4500f400,
+			args:      cconst__Zn_T__Zd_T__2,
 		},
 	},
 	// ZSM4E
@@ -4465,6 +4945,12 @@ var insts = [][]instEncoder{
 			goOp:      AZSMAX,
 			fixedBits: 0x4080000,
 			args:      Zm_T__Zdn_T__PgM__Zdn_T__1,
+		},
+		// ZSMAX #<imm>, <Zdn>.<T>, <Zdn>.<T>
+		{
+			goOp:      AZSMAX,
+			fixedBits: 0x2528c000,
+			args:      cimm__Zdn_T__Zdn_T__1,
 		},
 	},
 	// ZSMAXP
@@ -4529,6 +5015,12 @@ var insts = [][]instEncoder{
 			fixedBits: 0x40a0000,
 			args:      Zm_T__Zdn_T__PgM__Zdn_T__1,
 		},
+		// ZSMIN #<imm>, <Zdn>.<T>, <Zdn>.<T>
+		{
+			goOp:      AZSMIN,
+			fixedBits: 0x252ac000,
+			args:      cimm__Zdn_T__Zdn_T__1,
+		},
 	},
 	// ZSMINP
 	{
@@ -4586,11 +5078,11 @@ var insts = [][]instEncoder{
 	},
 	// ZSMLALB
 	{
-		// ZSMLALB <Zm>.S[<imm>], <Zn>.S, <Zda>.D
+		// ZSMLALB <Zm>.<Tb>, <Zn>.<Tb>, <Zda>.<T>
 		{
 			goOp:      AZSMLALB,
-			fixedBits: 0x44e08000,
-			args:      Zm_S_imm___Zn_S__Zda_D,
+			fixedBits: 0x44004000,
+			args:      Zm_Tb__Zn_Tb__Zda_T__1,
 		},
 		// ZSMLALB <Zm>.H[<imm>], <Zn>.H, <Zda>.S
 		{
@@ -4598,11 +5090,11 @@ var insts = [][]instEncoder{
 			fixedBits: 0x44a08000,
 			args:      Zm_H_imm___Zn_H__Zda_S__1,
 		},
-		// ZSMLALB <Zm>.<Tb>, <Zn>.<Tb>, <Zda>.<T>
+		// ZSMLALB <Zm>.S[<imm>], <Zn>.S, <Zda>.D
 		{
 			goOp:      AZSMLALB,
-			fixedBits: 0x44004000,
-			args:      Zm_Tb__Zn_Tb__Zda_T__1,
+			fixedBits: 0x44e08000,
+			args:      Zm_S_imm___Zn_S__Zda_D,
 		},
 	},
 	// ZSMLALT
@@ -4649,6 +5141,12 @@ var insts = [][]instEncoder{
 	},
 	// ZSMLSLT
 	{
+		// ZSMLSLT <Zm>.<Tb>, <Zn>.<Tb>, <Zda>.<T>
+		{
+			goOp:      AZSMLSLT,
+			fixedBits: 0x44005400,
+			args:      Zm_Tb__Zn_Tb__Zda_T__1,
+		},
 		// ZSMLSLT <Zm>.H[<imm>], <Zn>.H, <Zda>.S
 		{
 			goOp:      AZSMLSLT,
@@ -4660,12 +5158,6 @@ var insts = [][]instEncoder{
 			goOp:      AZSMLSLT,
 			fixedBits: 0x44e0a400,
 			args:      Zm_S_imm___Zn_S__Zda_D,
-		},
-		// ZSMLSLT <Zm>.<Tb>, <Zn>.<Tb>, <Zda>.<T>
-		{
-			goOp:      AZSMLSLT,
-			fixedBits: 0x44005400,
-			args:      Zm_Tb__Zn_Tb__Zda_T__1,
 		},
 	},
 	// ZSMMLA
@@ -4715,6 +5207,12 @@ var insts = [][]instEncoder{
 	},
 	// ZSMULLT
 	{
+		// ZSMULLT <Zm>.<Tb>, <Zn>.<Tb>, <Zd>.<T>
+		{
+			goOp:      AZSMULLT,
+			fixedBits: 0x45007400,
+			args:      Zm_Tb__Zn_Tb__Zd_T__1,
+		},
 		// ZSMULLT <Zm>.H[<imm>], <Zn>.H, <Zd>.S
 		{
 			goOp:      AZSMULLT,
@@ -4726,12 +5224,6 @@ var insts = [][]instEncoder{
 			goOp:      AZSMULLT,
 			fixedBits: 0x44e0c400,
 			args:      Zm_S_imm___Zn_S__Zd_D,
-		},
-		// ZSMULLT <Zm>.<Tb>, <Zn>.<Tb>, <Zd>.<T>
-		{
-			goOp:      AZSMULLT,
-			fixedBits: 0x45007400,
-			args:      Zm_Tb__Zn_Tb__Zd_T__1,
 		},
 	},
 	// ZSPLICE
@@ -4772,6 +5264,21 @@ var insts = [][]instEncoder{
 			fixedBits: 0x4201000,
 			args:      Zm_T__Zn_T__Zd_T__1,
 		},
+		// ZSQADD #<imm>{, <shift>}, <Zdn>.<T>, <Zdn>.<T>
+		{
+			goOp:      AZSQADD,
+			fixedBits: 0x2524c000,
+			args:      cimm__shift__Zdn_T__Zdn_T,
+		},
+	},
+	// ZSQCADD
+	{
+		// ZSQCADD <const>, <Zm>.<T>, <Zdn>.<T>, <Zdn>.<T>
+		{
+			goOp:      AZSQCADD,
+			fixedBits: 0x4501d800,
+			args:      const__Zm_T__Zdn_T__Zdn_T,
+		},
 	},
 	// ZSQDECP
 	{
@@ -4784,11 +5291,11 @@ var insts = [][]instEncoder{
 	},
 	// ZSQDMLALB
 	{
-		// ZSQDMLALB <Zm>.S[<imm>], <Zn>.S, <Zda>.D
+		// ZSQDMLALB <Zm>.<Tb>, <Zn>.<Tb>, <Zda>.<T>
 		{
 			goOp:      AZSQDMLALB,
-			fixedBits: 0x44e02000,
-			args:      Zm_S_imm___Zn_S__Zda_D,
+			fixedBits: 0x44006000,
+			args:      Zm_Tb__Zn_Tb__Zda_T__1,
 		},
 		// ZSQDMLALB <Zm>.H[<imm>], <Zn>.H, <Zda>.S
 		{
@@ -4796,11 +5303,11 @@ var insts = [][]instEncoder{
 			fixedBits: 0x44a02000,
 			args:      Zm_H_imm___Zn_H__Zda_S__1,
 		},
-		// ZSQDMLALB <Zm>.<Tb>, <Zn>.<Tb>, <Zda>.<T>
+		// ZSQDMLALB <Zm>.S[<imm>], <Zn>.S, <Zda>.D
 		{
 			goOp:      AZSQDMLALB,
-			fixedBits: 0x44006000,
-			args:      Zm_Tb__Zn_Tb__Zda_T__1,
+			fixedBits: 0x44e02000,
+			args:      Zm_S_imm___Zn_S__Zda_D,
 		},
 	},
 	// ZSQDMLALBT
@@ -4814,6 +5321,12 @@ var insts = [][]instEncoder{
 	},
 	// ZSQDMLALT
 	{
+		// ZSQDMLALT <Zm>.<Tb>, <Zn>.<Tb>, <Zda>.<T>
+		{
+			goOp:      AZSQDMLALT,
+			fixedBits: 0x44006400,
+			args:      Zm_Tb__Zn_Tb__Zda_T__1,
+		},
 		// ZSQDMLALT <Zm>.H[<imm>], <Zn>.H, <Zda>.S
 		{
 			goOp:      AZSQDMLALT,
@@ -4826,15 +5339,15 @@ var insts = [][]instEncoder{
 			fixedBits: 0x44e02400,
 			args:      Zm_S_imm___Zn_S__Zda_D,
 		},
-		// ZSQDMLALT <Zm>.<Tb>, <Zn>.<Tb>, <Zda>.<T>
-		{
-			goOp:      AZSQDMLALT,
-			fixedBits: 0x44006400,
-			args:      Zm_Tb__Zn_Tb__Zda_T__1,
-		},
 	},
 	// ZSQDMLSLB
 	{
+		// ZSQDMLSLB <Zm>.<Tb>, <Zn>.<Tb>, <Zda>.<T>
+		{
+			goOp:      AZSQDMLSLB,
+			fixedBits: 0x44006800,
+			args:      Zm_Tb__Zn_Tb__Zda_T__1,
+		},
 		// ZSQDMLSLB <Zm>.H[<imm>], <Zn>.H, <Zda>.S
 		{
 			goOp:      AZSQDMLSLB,
@@ -4846,12 +5359,6 @@ var insts = [][]instEncoder{
 			goOp:      AZSQDMLSLB,
 			fixedBits: 0x44e03000,
 			args:      Zm_S_imm___Zn_S__Zda_D,
-		},
-		// ZSQDMLSLB <Zm>.<Tb>, <Zn>.<Tb>, <Zda>.<T>
-		{
-			goOp:      AZSQDMLSLB,
-			fixedBits: 0x44006800,
-			args:      Zm_Tb__Zn_Tb__Zda_T__1,
 		},
 	},
 	// ZSQDMLSLBT
@@ -4886,29 +5393,29 @@ var insts = [][]instEncoder{
 	},
 	// ZSQDMULH
 	{
-		// ZSQDMULH <Zm>.H[<imm>], <Zn>.H, <Zd>.H
-		{
-			goOp:      AZSQDMULH,
-			fixedBits: 0x4420f000,
-			args:      Zm_H_imm___Zn_H__Zd_H__1,
-		},
 		// ZSQDMULH <Zm>.<T>, <Zn>.<T>, <Zd>.<T>
 		{
 			goOp:      AZSQDMULH,
 			fixedBits: 0x4207000,
 			args:      Zm_T__Zn_T__Zd_T__1,
 		},
-		// ZSQDMULH <Zm>.S[<imm>], <Zn>.S, <Zd>.S
-		{
-			goOp:      AZSQDMULH,
-			fixedBits: 0x44a0f000,
-			args:      Zm_S_imm___Zn_S__Zd_S__1,
-		},
 		// ZSQDMULH <Zm>.D[<imm>], <Zn>.D, <Zd>.D
 		{
 			goOp:      AZSQDMULH,
 			fixedBits: 0x44e0f000,
 			args:      Zm_D_imm___Zn_D__Zd_D__1,
+		},
+		// ZSQDMULH <Zm>.H[<imm>], <Zn>.H, <Zd>.H
+		{
+			goOp:      AZSQDMULH,
+			fixedBits: 0x4420f000,
+			args:      Zm_H_imm___Zn_H__Zd_H__1,
+		},
+		// ZSQDMULH <Zm>.S[<imm>], <Zn>.S, <Zd>.S
+		{
+			goOp:      AZSQDMULH,
+			fixedBits: 0x44a0f000,
+			args:      Zm_S_imm___Zn_S__Zd_S__1,
 		},
 	},
 	// ZSQDMULLB
@@ -4919,21 +5426,27 @@ var insts = [][]instEncoder{
 			fixedBits: 0x45006000,
 			args:      Zm_Tb__Zn_Tb__Zd_T__1,
 		},
-		// ZSQDMULLB <Zm>.S[<imm>], <Zn>.S, <Zd>.D
-		{
-			goOp:      AZSQDMULLB,
-			fixedBits: 0x44e0e000,
-			args:      Zm_S_imm___Zn_S__Zd_D,
-		},
 		// ZSQDMULLB <Zm>.H[<imm>], <Zn>.H, <Zd>.S
 		{
 			goOp:      AZSQDMULLB,
 			fixedBits: 0x44a0e000,
 			args:      Zm_H_imm___Zn_H__Zd_S,
 		},
+		// ZSQDMULLB <Zm>.S[<imm>], <Zn>.S, <Zd>.D
+		{
+			goOp:      AZSQDMULLB,
+			fixedBits: 0x44e0e000,
+			args:      Zm_S_imm___Zn_S__Zd_D,
+		},
 	},
 	// ZSQDMULLT
 	{
+		// ZSQDMULLT <Zm>.<Tb>, <Zn>.<Tb>, <Zd>.<T>
+		{
+			goOp:      AZSQDMULLT,
+			fixedBits: 0x45006400,
+			args:      Zm_Tb__Zn_Tb__Zd_T__1,
+		},
 		// ZSQDMULLT <Zm>.H[<imm>], <Zn>.H, <Zd>.S
 		{
 			goOp:      AZSQDMULLT,
@@ -4945,12 +5458,6 @@ var insts = [][]instEncoder{
 			goOp:      AZSQDMULLT,
 			fixedBits: 0x44e0e400,
 			args:      Zm_S_imm___Zn_S__Zd_D,
-		},
-		// ZSQDMULLT <Zm>.<Tb>, <Zn>.<Tb>, <Zd>.<T>
-		{
-			goOp:      AZSQDMULLT,
-			fixedBits: 0x45006400,
-			args:      Zm_Tb__Zn_Tb__Zd_T__1,
 		},
 	},
 	// ZSQINCP
@@ -4977,19 +5484,34 @@ var insts = [][]instEncoder{
 			args:      Zn_T__PgZ__Zd_T__2,
 		},
 	},
+	// ZSQRDCMLAH
+	{
+		// ZSQRDCMLAH <const>, <Zm>.H[<imm>], <Zn>.H, <Zda>.H
+		{
+			goOp:      AZSQRDCMLAH,
+			fixedBits: 0x44a07000,
+			args:      const__Zm_H_imm___Zn_H__Zda_H__1,
+		},
+		// ZSQRDCMLAH <const>, <Zm>.S[<imm>], <Zn>.S, <Zda>.S
+		{
+			goOp:      AZSQRDCMLAH,
+			fixedBits: 0x44e07000,
+			args:      const__Zm_S_imm___Zn_S__Zda_S__1,
+		},
+		// ZSQRDCMLAH <const>, <Zm>.<T>, <Zn>.<T>, <Zda>.<T>
+		{
+			goOp:      AZSQRDCMLAH,
+			fixedBits: 0x44003000,
+			args:      const__Zm_T__Zn_T__Zda_T,
+		},
+	},
 	// ZSQRDMLAH
 	{
-		// ZSQRDMLAH <Zm>.S[<imm>], <Zn>.S, <Zda>.S
+		// ZSQRDMLAH <Zm>.<T>, <Zn>.<T>, <Zda>.<T>
 		{
 			goOp:      AZSQRDMLAH,
-			fixedBits: 0x44a01000,
-			args:      Zm_S_imm___Zn_S__Zda_S__1,
-		},
-		// ZSQRDMLAH <Zm>.H[<imm>], <Zn>.H, <Zda>.H
-		{
-			goOp:      AZSQRDMLAH,
-			fixedBits: 0x44201000,
-			args:      Zm_H_imm___Zn_H__Zda_H__1,
+			fixedBits: 0x44007000,
+			args:      Zm_T__Zn_T__Zda_T__2,
 		},
 		// ZSQRDMLAH <Zm>.D[<imm>], <Zn>.D, <Zda>.D
 		{
@@ -4997,15 +5519,33 @@ var insts = [][]instEncoder{
 			fixedBits: 0x44e01000,
 			args:      Zm_D_imm___Zn_D__Zda_D__1,
 		},
-		// ZSQRDMLAH <Zm>.<T>, <Zn>.<T>, <Zda>.<T>
+		// ZSQRDMLAH <Zm>.H[<imm>], <Zn>.H, <Zda>.H
 		{
 			goOp:      AZSQRDMLAH,
-			fixedBits: 0x44007000,
-			args:      Zm_T__Zn_T__Zda_T__2,
+			fixedBits: 0x44201000,
+			args:      Zm_H_imm___Zn_H__Zda_H__1,
+		},
+		// ZSQRDMLAH <Zm>.S[<imm>], <Zn>.S, <Zda>.S
+		{
+			goOp:      AZSQRDMLAH,
+			fixedBits: 0x44a01000,
+			args:      Zm_S_imm___Zn_S__Zda_S__1,
 		},
 	},
 	// ZSQRDMLSH
 	{
+		// ZSQRDMLSH <Zm>.<T>, <Zn>.<T>, <Zda>.<T>
+		{
+			goOp:      AZSQRDMLSH,
+			fixedBits: 0x44007400,
+			args:      Zm_T__Zn_T__Zda_T__2,
+		},
+		// ZSQRDMLSH <Zm>.D[<imm>], <Zn>.D, <Zda>.D
+		{
+			goOp:      AZSQRDMLSH,
+			fixedBits: 0x44e01400,
+			args:      Zm_D_imm___Zn_D__Zda_D__1,
+		},
 		// ZSQRDMLSH <Zm>.H[<imm>], <Zn>.H, <Zda>.H
 		{
 			goOp:      AZSQRDMLSH,
@@ -5018,18 +5558,6 @@ var insts = [][]instEncoder{
 			fixedBits: 0x44a01400,
 			args:      Zm_S_imm___Zn_S__Zda_S__1,
 		},
-		// ZSQRDMLSH <Zm>.D[<imm>], <Zn>.D, <Zda>.D
-		{
-			goOp:      AZSQRDMLSH,
-			fixedBits: 0x44e01400,
-			args:      Zm_D_imm___Zn_D__Zda_D__1,
-		},
-		// ZSQRDMLSH <Zm>.<T>, <Zn>.<T>, <Zda>.<T>
-		{
-			goOp:      AZSQRDMLSH,
-			fixedBits: 0x44007400,
-			args:      Zm_T__Zn_T__Zda_T__2,
-		},
 	},
 	// ZSQRDMULH
 	{
@@ -5038,6 +5566,12 @@ var insts = [][]instEncoder{
 			goOp:      AZSQRDMULH,
 			fixedBits: 0x4207400,
 			args:      Zm_T__Zn_T__Zd_T__1,
+		},
+		// ZSQRDMULH <Zm>.D[<imm>], <Zn>.D, <Zd>.D
+		{
+			goOp:      AZSQRDMULH,
+			fixedBits: 0x44e0f400,
+			args:      Zm_D_imm___Zn_D__Zd_D__1,
 		},
 		// ZSQRDMULH <Zm>.H[<imm>], <Zn>.H, <Zd>.H
 		{
@@ -5050,12 +5584,6 @@ var insts = [][]instEncoder{
 			goOp:      AZSQRDMULH,
 			fixedBits: 0x44a0f400,
 			args:      Zm_S_imm___Zn_S__Zd_S__1,
-		},
-		// ZSQRDMULH <Zm>.D[<imm>], <Zn>.D, <Zd>.D
-		{
-			goOp:      AZSQRDMULH,
-			fixedBits: 0x44e0f400,
-			args:      Zm_D_imm___Zn_D__Zd_D__1,
 		},
 	},
 	// ZSQRSHL
@@ -5076,6 +5604,42 @@ var insts = [][]instEncoder{
 			args:      Zm_T__Zdn_T__PgM__Zdn_T__1,
 		},
 	},
+	// ZSQRSHRNB
+	{
+		// ZSQRSHRNB #<const>, <Zn>.<Tb>, <Zd>.<T>
+		{
+			goOp:      AZSQRSHRNB,
+			fixedBits: 0x45202800,
+			args:      cconst__Zn_Tb__Zd_T__1,
+		},
+	},
+	// ZSQRSHRNT
+	{
+		// ZSQRSHRNT #<const>, <Zn>.<Tb>, <Zd>.<T>
+		{
+			goOp:      AZSQRSHRNT,
+			fixedBits: 0x45202c00,
+			args:      cconst__Zn_Tb__Zd_T__1,
+		},
+	},
+	// ZSQRSHRUNB
+	{
+		// ZSQRSHRUNB #<const>, <Zn>.<Tb>, <Zd>.<T>
+		{
+			goOp:      AZSQRSHRUNB,
+			fixedBits: 0x45200800,
+			args:      cconst__Zn_Tb__Zd_T__1,
+		},
+	},
+	// ZSQRSHRUNT
+	{
+		// ZSQRSHRUNT #<const>, <Zn>.<Tb>, <Zd>.<T>
+		{
+			goOp:      AZSQRSHRUNT,
+			fixedBits: 0x45200c00,
+			args:      cconst__Zn_Tb__Zd_T__1,
+		},
+	},
 	// ZSQSHL
 	{
 		// ZSQSHL <Zm>.<T>, <Zdn>.<T>, <Pg>/M, <Zdn>.<T>
@@ -5083,6 +5647,12 @@ var insts = [][]instEncoder{
 			goOp:      AZSQSHL,
 			fixedBits: 0x44088000,
 			args:      Zm_T__Zdn_T__PgM__Zdn_T__1,
+		},
+		// ZSQSHL #<const>, <Zdn>.<T>, <Pg>/M, <Zdn>.<T>
+		{
+			goOp:      AZSQSHL,
+			fixedBits: 0x4068000,
+			args:      cconst__Zdn_T__PgM__Zdn_T__2,
 		},
 	},
 	// ZSQSHLR
@@ -5092,6 +5662,51 @@ var insts = [][]instEncoder{
 			goOp:      AZSQSHLR,
 			fixedBits: 0x440c8000,
 			args:      Zm_T__Zdn_T__PgM__Zdn_T__1,
+		},
+	},
+	// ZSQSHLU
+	{
+		// ZSQSHLU #<const>, <Zdn>.<T>, <Pg>/M, <Zdn>.<T>
+		{
+			goOp:      AZSQSHLU,
+			fixedBits: 0x40f8000,
+			args:      cconst__Zdn_T__PgM__Zdn_T__2,
+		},
+	},
+	// ZSQSHRNB
+	{
+		// ZSQSHRNB #<const>, <Zn>.<Tb>, <Zd>.<T>
+		{
+			goOp:      AZSQSHRNB,
+			fixedBits: 0x45202000,
+			args:      cconst__Zn_Tb__Zd_T__1,
+		},
+	},
+	// ZSQSHRNT
+	{
+		// ZSQSHRNT #<const>, <Zn>.<Tb>, <Zd>.<T>
+		{
+			goOp:      AZSQSHRNT,
+			fixedBits: 0x45202400,
+			args:      cconst__Zn_Tb__Zd_T__1,
+		},
+	},
+	// ZSQSHRUNB
+	{
+		// ZSQSHRUNB #<const>, <Zn>.<Tb>, <Zd>.<T>
+		{
+			goOp:      AZSQSHRUNB,
+			fixedBits: 0x45200000,
+			args:      cconst__Zn_Tb__Zd_T__1,
+		},
+	},
+	// ZSQSHRUNT
+	{
+		// ZSQSHRUNT #<const>, <Zn>.<Tb>, <Zd>.<T>
+		{
+			goOp:      AZSQSHRUNT,
+			fixedBits: 0x45200400,
+			args:      cconst__Zn_Tb__Zd_T__1,
 		},
 	},
 	// ZSQSUB
@@ -5107,6 +5722,12 @@ var insts = [][]instEncoder{
 			goOp:      AZSQSUB,
 			fixedBits: 0x4201800,
 			args:      Zm_T__Zn_T__Zd_T__1,
+		},
+		// ZSQSUB #<imm>{, <shift>}, <Zdn>.<T>, <Zdn>.<T>
+		{
+			goOp:      AZSQSUB,
+			fixedBits: 0x2526c000,
+			args:      cimm__shift__Zdn_T__Zdn_T,
 		},
 	},
 	// ZSQSUBR
@@ -5163,6 +5784,15 @@ var insts = [][]instEncoder{
 			args:      Zm_T__Zdn_T__PgM__Zdn_T__1,
 		},
 	},
+	// ZSRI
+	{
+		// ZSRI #<const>, <Zn>.<T>, <Zd>.<T>
+		{
+			goOp:      AZSRI,
+			fixedBits: 0x4500f000,
+			args:      cconst__Zn_T__Zd_T__1,
+		},
+	},
 	// ZSRSHL
 	{
 		// ZSRSHL <Zm>.<T>, <Zdn>.<T>, <Pg>/M, <Zdn>.<T>
@@ -5179,6 +5809,51 @@ var insts = [][]instEncoder{
 			goOp:      AZSRSHLR,
 			fixedBits: 0x44068000,
 			args:      Zm_T__Zdn_T__PgM__Zdn_T__1,
+		},
+	},
+	// ZSRSHR
+	{
+		// ZSRSHR #<const>, <Zdn>.<T>, <Pg>/M, <Zdn>.<T>
+		{
+			goOp:      AZSRSHR,
+			fixedBits: 0x40c8000,
+			args:      cconst__Zdn_T__PgM__Zdn_T__1,
+		},
+	},
+	// ZSRSRA
+	{
+		// ZSRSRA #<const>, <Zn>.<T>, <Zda>.<T>
+		{
+			goOp:      AZSRSRA,
+			fixedBits: 0x4500e800,
+			args:      cconst__Zn_T__Zda_T,
+		},
+	},
+	// ZSSHLLB
+	{
+		// ZSSHLLB #<const>, <Zn>.<Tb>, <Zd>.<T>
+		{
+			goOp:      AZSSHLLB,
+			fixedBits: 0x4500a000,
+			args:      cconst__Zn_Tb__Zd_T__2,
+		},
+	},
+	// ZSSHLLT
+	{
+		// ZSSHLLT #<const>, <Zn>.<Tb>, <Zd>.<T>
+		{
+			goOp:      AZSSHLLT,
+			fixedBits: 0x4500a400,
+			args:      cconst__Zn_Tb__Zd_T__2,
+		},
+	},
+	// ZSSRA
+	{
+		// ZSSRA #<const>, <Zn>.<T>, <Zda>.<T>
+		{
+			goOp:      AZSSRA,
+			fixedBits: 0x4500e000,
+			args:      cconst__Zn_T__Zda_T,
 		},
 	},
 	// ZSSUBLB
@@ -5237,17 +5912,23 @@ var insts = [][]instEncoder{
 	},
 	// ZSUB
 	{
+		// ZSUB <Zm>.<T>, <Zdn>.<T>, <Pg>/M, <Zdn>.<T>
+		{
+			goOp:      AZSUB,
+			fixedBits: 0x4010000,
+			args:      Zm_T__Zdn_T__PgM__Zdn_T__1,
+		},
 		// ZSUB <Zm>.<T>, <Zn>.<T>, <Zd>.<T>
 		{
 			goOp:      AZSUB,
 			fixedBits: 0x4200400,
 			args:      Zm_T__Zn_T__Zd_T__1,
 		},
-		// ZSUB <Zm>.<T>, <Zdn>.<T>, <Pg>/M, <Zdn>.<T>
+		// ZSUB #<imm>{, <shift>}, <Zdn>.<T>, <Zdn>.<T>
 		{
 			goOp:      AZSUB,
-			fixedBits: 0x4010000,
-			args:      Zm_T__Zdn_T__PgM__Zdn_T__1,
+			fixedBits: 0x2521c000,
+			args:      cimm__shift__Zdn_T__Zdn_T,
 		},
 	},
 	// ZSUBHNB
@@ -5299,6 +5980,12 @@ var insts = [][]instEncoder{
 			goOp:      AZSUBR,
 			fixedBits: 0x4030000,
 			args:      Zm_T__Zdn_T__PgM__Zdn_T__1,
+		},
+		// ZSUBR #<imm>{, <shift>}, <Zdn>.<T>, <Zdn>.<T>
+		{
+			goOp:      AZSUBR,
+			fixedBits: 0x2523c000,
+			args:      cimm__shift__Zdn_T__Zdn_T,
 		},
 	},
 	// ZSUDOT
@@ -5402,32 +6089,32 @@ var insts = [][]instEncoder{
 	},
 	// ZTRN1
 	{
-		// ZTRN1 <Zm>.<T>, <Zn>.<T>, <Zd>.<T>
-		{
-			goOp:      AZTRN1,
-			fixedBits: 0x5207000,
-			args:      Zm_T__Zn_T__Zd_T__1,
-		},
 		// ZTRN1 <Zm>.Q, <Zn>.Q, <Zd>.Q
 		{
 			goOp:      AZTRN1,
 			fixedBits: 0x5a01800,
 			args:      Zm_Q__Zn_Q__Zd_Q,
 		},
+		// ZTRN1 <Zm>.<T>, <Zn>.<T>, <Zd>.<T>
+		{
+			goOp:      AZTRN1,
+			fixedBits: 0x5207000,
+			args:      Zm_T__Zn_T__Zd_T__1,
+		},
 	},
 	// ZTRN2
 	{
-		// ZTRN2 <Zm>.<T>, <Zn>.<T>, <Zd>.<T>
-		{
-			goOp:      AZTRN2,
-			fixedBits: 0x5207400,
-			args:      Zm_T__Zn_T__Zd_T__1,
-		},
 		// ZTRN2 <Zm>.Q, <Zn>.Q, <Zd>.Q
 		{
 			goOp:      AZTRN2,
 			fixedBits: 0x5a01c00,
 			args:      Zm_Q__Zn_Q__Zd_Q,
+		},
+		// ZTRN2 <Zm>.<T>, <Zn>.<T>, <Zd>.<T>
+		{
+			goOp:      AZTRN2,
+			fixedBits: 0x5207400,
+			args:      Zm_T__Zn_T__Zd_T__1,
 		},
 	},
 	// ZUABA
@@ -5558,65 +6245,23 @@ var insts = [][]instEncoder{
 	},
 	// ZUCVTF
 	{
+		// ZUCVTF <Zn>.D, <Pg>/M, <Zd>.D
+		{
+			goOp:      AZUCVTF,
+			fixedBits: 0x65d7a000,
+			args:      Zn_D__PgM__Zd_D,
+		},
 		// ZUCVTF <Zn>.D, <Pg>/M, <Zd>.H
 		{
 			goOp:      AZUCVTF,
 			fixedBits: 0x6557a000,
 			args:      Zn_D__PgM__Zd_H,
 		},
-		// ZUCVTF <Zn>.S, <Pg>/Z, <Zd>.S
+		// ZUCVTF <Zn>.D, <Pg>/M, <Zd>.S
 		{
 			goOp:      AZUCVTF,
-			fixedBits: 0x649da000,
-			args:      Zn_S__PgZ__Zd_S,
-		},
-		// ZUCVTF <Zn>.H, <Pg>/Z, <Zd>.H
-		{
-			goOp:      AZUCVTF,
-			fixedBits: 0x645ce000,
-			args:      Zn_H__PgZ__Zd_H,
-		},
-		// ZUCVTF <Zn>.H, <Pg>/M, <Zd>.H
-		{
-			goOp:      AZUCVTF,
-			fixedBits: 0x6553a000,
-			args:      Zn_H__PgM__Zd_H,
-		},
-		// ZUCVTF <Zn>.<Tb>, <Zd>.<T>
-		{
-			goOp:      AZUCVTF,
-			fixedBits: 0x650c3400,
-			args:      Zn_Tb__Zd_T__1,
-		},
-		// ZUCVTF <Zn>.S, <Pg>/Z, <Zd>.H
-		{
-			goOp:      AZUCVTF,
-			fixedBits: 0x645da000,
-			args:      Zn_S__PgZ__Zd_H,
-		},
-		// ZUCVTF <Zn>.S, <Pg>/M, <Zd>.S
-		{
-			goOp:      AZUCVTF,
-			fixedBits: 0x6595a000,
-			args:      Zn_S__PgM__Zd_S,
-		},
-		// ZUCVTF <Zn>.S, <Pg>/M, <Zd>.H
-		{
-			goOp:      AZUCVTF,
-			fixedBits: 0x6555a000,
-			args:      Zn_S__PgM__Zd_H,
-		},
-		// ZUCVTF <Zn>.S, <Pg>/M, <Zd>.D
-		{
-			goOp:      AZUCVTF,
-			fixedBits: 0x65d1a000,
-			args:      Zn_S__PgM__Zd_D,
-		},
-		// ZUCVTF <Zn>.S, <Pg>/Z, <Zd>.D
-		{
-			goOp:      AZUCVTF,
-			fixedBits: 0x64dca000,
-			args:      Zn_S__PgZ__Zd_D,
+			fixedBits: 0x65d5a000,
+			args:      Zn_D__PgM__Zd_S,
 		},
 		// ZUCVTF <Zn>.D, <Pg>/Z, <Zd>.D
 		{
@@ -5630,23 +6275,65 @@ var insts = [][]instEncoder{
 			fixedBits: 0x645de000,
 			args:      Zn_D__PgZ__Zd_H,
 		},
-		// ZUCVTF <Zn>.D, <Pg>/M, <Zd>.S
-		{
-			goOp:      AZUCVTF,
-			fixedBits: 0x65d5a000,
-			args:      Zn_D__PgM__Zd_S,
-		},
 		// ZUCVTF <Zn>.D, <Pg>/Z, <Zd>.S
 		{
 			goOp:      AZUCVTF,
 			fixedBits: 0x64dda000,
 			args:      Zn_D__PgZ__Zd_S,
 		},
-		// ZUCVTF <Zn>.D, <Pg>/M, <Zd>.D
+		// ZUCVTF <Zn>.H, <Pg>/M, <Zd>.H
 		{
 			goOp:      AZUCVTF,
-			fixedBits: 0x65d7a000,
-			args:      Zn_D__PgM__Zd_D,
+			fixedBits: 0x6553a000,
+			args:      Zn_H__PgM__Zd_H,
+		},
+		// ZUCVTF <Zn>.H, <Pg>/Z, <Zd>.H
+		{
+			goOp:      AZUCVTF,
+			fixedBits: 0x645ce000,
+			args:      Zn_H__PgZ__Zd_H,
+		},
+		// ZUCVTF <Zn>.S, <Pg>/M, <Zd>.D
+		{
+			goOp:      AZUCVTF,
+			fixedBits: 0x65d1a000,
+			args:      Zn_S__PgM__Zd_D,
+		},
+		// ZUCVTF <Zn>.S, <Pg>/M, <Zd>.H
+		{
+			goOp:      AZUCVTF,
+			fixedBits: 0x6555a000,
+			args:      Zn_S__PgM__Zd_H,
+		},
+		// ZUCVTF <Zn>.S, <Pg>/M, <Zd>.S
+		{
+			goOp:      AZUCVTF,
+			fixedBits: 0x6595a000,
+			args:      Zn_S__PgM__Zd_S,
+		},
+		// ZUCVTF <Zn>.S, <Pg>/Z, <Zd>.D
+		{
+			goOp:      AZUCVTF,
+			fixedBits: 0x64dca000,
+			args:      Zn_S__PgZ__Zd_D,
+		},
+		// ZUCVTF <Zn>.S, <Pg>/Z, <Zd>.H
+		{
+			goOp:      AZUCVTF,
+			fixedBits: 0x645da000,
+			args:      Zn_S__PgZ__Zd_H,
+		},
+		// ZUCVTF <Zn>.S, <Pg>/Z, <Zd>.S
+		{
+			goOp:      AZUCVTF,
+			fixedBits: 0x649da000,
+			args:      Zn_S__PgZ__Zd_S,
+		},
+		// ZUCVTF <Zn>.<Tb>, <Zd>.<T>
+		{
+			goOp:      AZUCVTF,
+			fixedBits: 0x650c3400,
+			args:      Zn_Tb__Zd_T__1,
 		},
 	},
 	// ZUCVTFLT
@@ -5678,18 +6365,6 @@ var insts = [][]instEncoder{
 	},
 	// ZUDOT
 	{
-		// ZUDOT <Zm>.B[<imm>], <Zn>.B, <Zda>.H
-		{
-			goOp:      AZUDOT,
-			fixedBits: 0x44200400,
-			args:      Zm_B_imm___Zn_B__Zda_H__2,
-		},
-		// ZUDOT <Zm>.H[<imm>], <Zn>.H, <Zda>.S
-		{
-			goOp:      AZUDOT,
-			fixedBits: 0x4480cc00,
-			args:      Zm_H_imm___Zn_H__Zda_S__4,
-		},
 		// ZUDOT <Zm>.B, <Zn>.B, <Zda>.H
 		{
 			goOp:      AZUDOT,
@@ -5701,6 +6376,18 @@ var insts = [][]instEncoder{
 			goOp:      AZUDOT,
 			fixedBits: 0x4400cc00,
 			args:      Zm_H__Zn_H__Zda_S,
+		},
+		// ZUDOT <Zm>.<Tb>, <Zn>.<Tb>, <Zda>.<T>
+		{
+			goOp:      AZUDOT,
+			fixedBits: 0x44800400,
+			args:      Zm_Tb__Zn_Tb__Zda_T__2,
+		},
+		// ZUDOT <Zm>.B[<imm>], <Zn>.B, <Zda>.H
+		{
+			goOp:      AZUDOT,
+			fixedBits: 0x44200400,
+			args:      Zm_B_imm___Zn_B__Zda_H__2,
 		},
 		// ZUDOT <Zm>.B[<imm>], <Zn>.B, <Zda>.S
 		{
@@ -5714,11 +6401,11 @@ var insts = [][]instEncoder{
 			fixedBits: 0x44e00400,
 			args:      Zm_H_imm___Zn_H__Zda_D,
 		},
-		// ZUDOT <Zm>.<Tb>, <Zn>.<Tb>, <Zda>.<T>
+		// ZUDOT <Zm>.H[<imm>], <Zn>.H, <Zda>.S
 		{
 			goOp:      AZUDOT,
-			fixedBits: 0x44800400,
-			args:      Zm_Tb__Zn_Tb__Zda_T__2,
+			fixedBits: 0x4480cc00,
+			args:      Zm_H_imm___Zn_H__Zda_S__4,
 		},
 	},
 	// ZUHADD
@@ -5755,6 +6442,12 @@ var insts = [][]instEncoder{
 			goOp:      AZUMAX,
 			fixedBits: 0x4090000,
 			args:      Zm_T__Zdn_T__PgM__Zdn_T__1,
+		},
+		// ZUMAX #<imm>, <Zdn>.<T>, <Zdn>.<T>
+		{
+			goOp:      AZUMAX,
+			fixedBits: 0x2529c000,
+			args:      cimm__Zdn_T__Zdn_T__2,
 		},
 	},
 	// ZUMAXP
@@ -5818,6 +6511,12 @@ var insts = [][]instEncoder{
 			goOp:      AZUMIN,
 			fixedBits: 0x40b0000,
 			args:      Zm_T__Zdn_T__PgM__Zdn_T__1,
+		},
+		// ZUMIN #<imm>, <Zdn>.<T>, <Zdn>.<T>
+		{
+			goOp:      AZUMIN,
+			fixedBits: 0x252bc000,
+			args:      cimm__Zdn_T__Zdn_T__2,
 		},
 	},
 	// ZUMINP
@@ -5897,6 +6596,12 @@ var insts = [][]instEncoder{
 	},
 	// ZUMLALT
 	{
+		// ZUMLALT <Zm>.<Tb>, <Zn>.<Tb>, <Zda>.<T>
+		{
+			goOp:      AZUMLALT,
+			fixedBits: 0x44004c00,
+			args:      Zm_Tb__Zn_Tb__Zda_T__1,
+		},
 		// ZUMLALT <Zm>.H[<imm>], <Zn>.H, <Zda>.S
 		{
 			goOp:      AZUMLALT,
@@ -5909,15 +6614,15 @@ var insts = [][]instEncoder{
 			fixedBits: 0x44e09400,
 			args:      Zm_S_imm___Zn_S__Zda_D,
 		},
-		// ZUMLALT <Zm>.<Tb>, <Zn>.<Tb>, <Zda>.<T>
-		{
-			goOp:      AZUMLALT,
-			fixedBits: 0x44004c00,
-			args:      Zm_Tb__Zn_Tb__Zda_T__1,
-		},
 	},
 	// ZUMLSLB
 	{
+		// ZUMLSLB <Zm>.<Tb>, <Zn>.<Tb>, <Zda>.<T>
+		{
+			goOp:      AZUMLSLB,
+			fixedBits: 0x44005800,
+			args:      Zm_Tb__Zn_Tb__Zda_T__1,
+		},
 		// ZUMLSLB <Zm>.H[<imm>], <Zn>.H, <Zda>.S
 		{
 			goOp:      AZUMLSLB,
@@ -5930,15 +6635,15 @@ var insts = [][]instEncoder{
 			fixedBits: 0x44e0b000,
 			args:      Zm_S_imm___Zn_S__Zda_D,
 		},
-		// ZUMLSLB <Zm>.<Tb>, <Zn>.<Tb>, <Zda>.<T>
-		{
-			goOp:      AZUMLSLB,
-			fixedBits: 0x44005800,
-			args:      Zm_Tb__Zn_Tb__Zda_T__1,
-		},
 	},
 	// ZUMLSLT
 	{
+		// ZUMLSLT <Zm>.<Tb>, <Zn>.<Tb>, <Zda>.<T>
+		{
+			goOp:      AZUMLSLT,
+			fixedBits: 0x44005c00,
+			args:      Zm_Tb__Zn_Tb__Zda_T__1,
+		},
 		// ZUMLSLT <Zm>.H[<imm>], <Zn>.H, <Zda>.S
 		{
 			goOp:      AZUMLSLT,
@@ -5950,12 +6655,6 @@ var insts = [][]instEncoder{
 			goOp:      AZUMLSLT,
 			fixedBits: 0x44e0b400,
 			args:      Zm_S_imm___Zn_S__Zda_D,
-		},
-		// ZUMLSLT <Zm>.<Tb>, <Zn>.<Tb>, <Zda>.<T>
-		{
-			goOp:      AZUMLSLT,
-			fixedBits: 0x44005c00,
-			args:      Zm_Tb__Zn_Tb__Zda_T__1,
 		},
 	},
 	// ZUMMLA
@@ -5984,6 +6683,12 @@ var insts = [][]instEncoder{
 	},
 	// ZUMULLB
 	{
+		// ZUMULLB <Zm>.<Tb>, <Zn>.<Tb>, <Zd>.<T>
+		{
+			goOp:      AZUMULLB,
+			fixedBits: 0x45007800,
+			args:      Zm_Tb__Zn_Tb__Zd_T__1,
+		},
 		// ZUMULLB <Zm>.H[<imm>], <Zn>.H, <Zd>.S
 		{
 			goOp:      AZUMULLB,
@@ -5996,15 +6701,15 @@ var insts = [][]instEncoder{
 			fixedBits: 0x44e0d000,
 			args:      Zm_S_imm___Zn_S__Zd_D,
 		},
-		// ZUMULLB <Zm>.<Tb>, <Zn>.<Tb>, <Zd>.<T>
-		{
-			goOp:      AZUMULLB,
-			fixedBits: 0x45007800,
-			args:      Zm_Tb__Zn_Tb__Zd_T__1,
-		},
 	},
 	// ZUMULLT
 	{
+		// ZUMULLT <Zm>.<Tb>, <Zn>.<Tb>, <Zd>.<T>
+		{
+			goOp:      AZUMULLT,
+			fixedBits: 0x45007c00,
+			args:      Zm_Tb__Zn_Tb__Zd_T__1,
+		},
 		// ZUMULLT <Zm>.H[<imm>], <Zn>.H, <Zd>.S
 		{
 			goOp:      AZUMULLT,
@@ -6016,12 +6721,6 @@ var insts = [][]instEncoder{
 			goOp:      AZUMULLT,
 			fixedBits: 0x44e0d400,
 			args:      Zm_S_imm___Zn_S__Zd_D,
-		},
-		// ZUMULLT <Zm>.<Tb>, <Zn>.<Tb>, <Zd>.<T>
-		{
-			goOp:      AZUMULLT,
-			fixedBits: 0x45007c00,
-			args:      Zm_Tb__Zn_Tb__Zd_T__1,
 		},
 	},
 	// ZUQADD
@@ -6037,6 +6736,12 @@ var insts = [][]instEncoder{
 			goOp:      AZUQADD,
 			fixedBits: 0x4201400,
 			args:      Zm_T__Zn_T__Zd_T__1,
+		},
+		// ZUQADD #<imm>{, <shift>}, <Zdn>.<T>, <Zdn>.<T>
+		{
+			goOp:      AZUQADD,
+			fixedBits: 0x2525c000,
+			args:      cimm__shift__Zdn_T__Zdn_T,
 		},
 	},
 	// ZUQDECP
@@ -6075,6 +6780,24 @@ var insts = [][]instEncoder{
 			args:      Zm_T__Zdn_T__PgM__Zdn_T__1,
 		},
 	},
+	// ZUQRSHRNB
+	{
+		// ZUQRSHRNB #<const>, <Zn>.<Tb>, <Zd>.<T>
+		{
+			goOp:      AZUQRSHRNB,
+			fixedBits: 0x45203800,
+			args:      cconst__Zn_Tb__Zd_T__1,
+		},
+	},
+	// ZUQRSHRNT
+	{
+		// ZUQRSHRNT #<const>, <Zn>.<Tb>, <Zd>.<T>
+		{
+			goOp:      AZUQRSHRNT,
+			fixedBits: 0x45203c00,
+			args:      cconst__Zn_Tb__Zd_T__1,
+		},
+	},
 	// ZUQSHL
 	{
 		// ZUQSHL <Zm>.<T>, <Zdn>.<T>, <Pg>/M, <Zdn>.<T>
@@ -6082,6 +6805,12 @@ var insts = [][]instEncoder{
 			goOp:      AZUQSHL,
 			fixedBits: 0x44098000,
 			args:      Zm_T__Zdn_T__PgM__Zdn_T__1,
+		},
+		// ZUQSHL #<const>, <Zdn>.<T>, <Pg>/M, <Zdn>.<T>
+		{
+			goOp:      AZUQSHL,
+			fixedBits: 0x4078000,
+			args:      cconst__Zdn_T__PgM__Zdn_T__2,
 		},
 	},
 	// ZUQSHLR
@@ -6091,6 +6820,24 @@ var insts = [][]instEncoder{
 			goOp:      AZUQSHLR,
 			fixedBits: 0x440d8000,
 			args:      Zm_T__Zdn_T__PgM__Zdn_T__1,
+		},
+	},
+	// ZUQSHRNB
+	{
+		// ZUQSHRNB #<const>, <Zn>.<Tb>, <Zd>.<T>
+		{
+			goOp:      AZUQSHRNB,
+			fixedBits: 0x45203000,
+			args:      cconst__Zn_Tb__Zd_T__1,
+		},
+	},
+	// ZUQSHRNT
+	{
+		// ZUQSHRNT #<const>, <Zn>.<Tb>, <Zd>.<T>
+		{
+			goOp:      AZUQSHRNT,
+			fixedBits: 0x45203400,
+			args:      cconst__Zn_Tb__Zd_T__1,
 		},
 	},
 	// ZUQSUB
@@ -6106,6 +6853,12 @@ var insts = [][]instEncoder{
 			goOp:      AZUQSUB,
 			fixedBits: 0x4201c00,
 			args:      Zm_T__Zn_T__Zd_T__1,
+		},
+		// ZUQSUB #<imm>{, <shift>}, <Zdn>.<T>, <Zdn>.<T>
+		{
+			goOp:      AZUQSUB,
+			fixedBits: 0x2527c000,
+			args:      cimm__shift__Zdn_T__Zdn_T,
 		},
 	},
 	// ZUQSUBR
@@ -6177,19 +6930,37 @@ var insts = [][]instEncoder{
 			args:      Zm_T__Zdn_T__PgM__Zdn_T__1,
 		},
 	},
+	// ZURSHR
+	{
+		// ZURSHR #<const>, <Zdn>.<T>, <Pg>/M, <Zdn>.<T>
+		{
+			goOp:      AZURSHR,
+			fixedBits: 0x40d8000,
+			args:      cconst__Zdn_T__PgM__Zdn_T__1,
+		},
+	},
 	// ZURSQRTE
 	{
+		// ZURSQRTE <Zn>.S, <Pg>/M, <Zd>.S
+		{
+			goOp:      AZURSQRTE,
+			fixedBits: 0x4481a000,
+			args:      Zn_S__PgM__Zd_S,
+		},
 		// ZURSQRTE <Zn>.S, <Pg>/Z, <Zd>.S
 		{
 			goOp:      AZURSQRTE,
 			fixedBits: 0x4483a000,
 			args:      Zn_S__PgZ__Zd_S,
 		},
-		// ZURSQRTE <Zn>.S, <Pg>/M, <Zd>.S
+	},
+	// ZURSRA
+	{
+		// ZURSRA #<const>, <Zn>.<T>, <Zda>.<T>
 		{
-			goOp:      AZURSQRTE,
-			fixedBits: 0x4481a000,
-			args:      Zn_S__PgM__Zd_S,
+			goOp:      AZURSRA,
+			fixedBits: 0x4500ec00,
+			args:      cconst__Zn_T__Zda_T,
 		},
 	},
 	// ZUSDOT
@@ -6205,6 +6976,24 @@ var insts = [][]instEncoder{
 			goOp:      AZUSDOT,
 			fixedBits: 0x44a01800,
 			args:      Zm_B_imm___Zn_B__Zda_S__2,
+		},
+	},
+	// ZUSHLLB
+	{
+		// ZUSHLLB #<const>, <Zn>.<Tb>, <Zd>.<T>
+		{
+			goOp:      AZUSHLLB,
+			fixedBits: 0x4500a800,
+			args:      cconst__Zn_Tb__Zd_T__2,
+		},
+	},
+	// ZUSHLLT
+	{
+		// ZUSHLLT #<const>, <Zn>.<Tb>, <Zd>.<T>
+		{
+			goOp:      AZUSHLLT,
+			fixedBits: 0x4500ac00,
+			args:      cconst__Zn_Tb__Zd_T__2,
 		},
 	},
 	// ZUSMMLA
@@ -6223,6 +7012,15 @@ var insts = [][]instEncoder{
 			goOp:      AZUSQADD,
 			fixedBits: 0x441d8000,
 			args:      Zm_T__Zdn_T__PgM__Zdn_T__1,
+		},
+	},
+	// ZUSRA
+	{
+		// ZUSRA #<const>, <Zn>.<T>, <Zda>.<T>
+		{
+			goOp:      AZUSRA,
+			fixedBits: 0x4500e400,
+			args:      cconst__Zn_T__Zda_T,
 		},
 	},
 	// ZUSUBLB
@@ -6281,32 +7079,32 @@ var insts = [][]instEncoder{
 	},
 	// ZUXTB
 	{
-		// ZUXTB <Zn>.<T>, <Pg>/Z, <Zd>.<T>
-		{
-			goOp:      AZUXTB,
-			fixedBits: 0x401a000,
-			args:      Zn_T__PgZ__Zd_T__4,
-		},
 		// ZUXTB <Zn>.<T>, <Pg>/M, <Zd>.<T>
 		{
 			goOp:      AZUXTB,
 			fixedBits: 0x411a000,
 			args:      Zn_T__PgM__Zd_T__4,
 		},
+		// ZUXTB <Zn>.<T>, <Pg>/Z, <Zd>.<T>
+		{
+			goOp:      AZUXTB,
+			fixedBits: 0x401a000,
+			args:      Zn_T__PgZ__Zd_T__4,
+		},
 	},
 	// ZUXTH
 	{
-		// ZUXTH <Zn>.<T>, <Pg>/Z, <Zd>.<T>
-		{
-			goOp:      AZUXTH,
-			fixedBits: 0x483a000,
-			args:      Zn_T__PgZ__Zd_T__5,
-		},
 		// ZUXTH <Zn>.<T>, <Pg>/M, <Zd>.<T>
 		{
 			goOp:      AZUXTH,
 			fixedBits: 0x493a000,
 			args:      Zn_T__PgM__Zd_T__5,
+		},
+		// ZUXTH <Zn>.<T>, <Pg>/Z, <Zd>.<T>
+		{
+			goOp:      AZUXTH,
+			fixedBits: 0x483a000,
+			args:      Zn_T__PgZ__Zd_T__5,
 		},
 	},
 	// ZUXTW
@@ -6341,17 +7139,17 @@ var insts = [][]instEncoder{
 	},
 	// ZUZP2
 	{
-		// ZUZP2 <Zm>.<T>, <Zn>.<T>, <Zd>.<T>
-		{
-			goOp:      AZUZP2,
-			fixedBits: 0x5206c00,
-			args:      Zm_T__Zn_T__Zd_T__1,
-		},
 		// ZUZP2 <Zm>.Q, <Zn>.Q, <Zd>.Q
 		{
 			goOp:      AZUZP2,
 			fixedBits: 0x5a00c00,
 			args:      Zm_Q__Zn_Q__Zd_Q,
+		},
+		// ZUZP2 <Zm>.<T>, <Zn>.<T>, <Zd>.<T>
+		{
+			goOp:      AZUZP2,
+			fixedBits: 0x5206c00,
+			args:      Zm_T__Zn_T__Zd_T__1,
 		},
 	},
 	// ZUZPQ1
@@ -6372,34 +7170,43 @@ var insts = [][]instEncoder{
 			args:      Zm_T__Zn_T__Zd_T__1,
 		},
 	},
+	// ZXAR
+	{
+		// ZXAR #<const>, <Zm>.<T>, <Zdn>.<T>, <Zdn>.<T>
+		{
+			goOp:      AZXAR,
+			fixedBits: 0x4203400,
+			args:      cconst__Zm_T__Zdn_T__Zdn_T,
+		},
+	},
 	// ZZIP1
 	{
-		// ZZIP1 <Zm>.<T>, <Zn>.<T>, <Zd>.<T>
-		{
-			goOp:      AZZIP1,
-			fixedBits: 0x5206000,
-			args:      Zm_T__Zn_T__Zd_T__1,
-		},
 		// ZZIP1 <Zm>.Q, <Zn>.Q, <Zd>.Q
 		{
 			goOp:      AZZIP1,
 			fixedBits: 0x5a00000,
 			args:      Zm_Q__Zn_Q__Zd_Q,
 		},
+		// ZZIP1 <Zm>.<T>, <Zn>.<T>, <Zd>.<T>
+		{
+			goOp:      AZZIP1,
+			fixedBits: 0x5206000,
+			args:      Zm_T__Zn_T__Zd_T__1,
+		},
 	},
 	// ZZIP2
 	{
-		// ZZIP2 <Zm>.<T>, <Zn>.<T>, <Zd>.<T>
-		{
-			goOp:      AZZIP2,
-			fixedBits: 0x5206400,
-			args:      Zm_T__Zn_T__Zd_T__1,
-		},
 		// ZZIP2 <Zm>.Q, <Zn>.Q, <Zd>.Q
 		{
 			goOp:      AZZIP2,
 			fixedBits: 0x5a00400,
 			args:      Zm_Q__Zn_Q__Zd_Q,
+		},
+		// ZZIP2 <Zm>.<T>, <Zn>.<T>, <Zd>.<T>
+		{
+			goOp:      AZZIP2,
+			fixedBits: 0x5206400,
+			args:      Zm_T__Zn_T__Zd_T__1,
 		},
 	},
 	// ZZIPQ1
@@ -6502,67 +7309,99 @@ var a_ARNGIDX_Zm1620_DoublePrecision_ArngDCheck_I1_2021_DoublePrecision = operan
 	},
 }
 
-var a_ARNGIDX_Zm_1619_Range0_7_ArngBCheck_I2_1921_8BitGroup = operand{
+var a_ARNGIDX_Zm_1619_Half_ArngHCheck_I2_1921_Half = operand{
 	class: AC_ARNGIDX, elemEncoders: []elemEncoder{
-		{encodeZm_1619_Range0_7, enc_Zm},
+		{encodeZm_1619_Half, enc_Zm},
+		{encodeArngHCheck, enc_NIL},
+		{encodeI2_1921_Half, enc_i2},
+	},
+}
+
+var a_ARNGIDX_Zm_1619_Range0_7V1_ArngHCheck_I2_1921_16bit = operand{
+	class: AC_ARNGIDX, elemEncoders: []elemEncoder{
+		{encodeZm_1619_Range0_7V1, enc_Zm},
+		{encodeArngHCheck, enc_NIL},
+		{encodeI2_1921_16bit, enc_i2},
+	},
+}
+
+var a_ARNGIDX_Zm_1619_Range0_7V2_ArngBCheck_I2_1921_8BitGroup = operand{
+	class: AC_ARNGIDX, elemEncoders: []elemEncoder{
+		{encodeZm_1619_Range0_7V2, enc_Zm},
 		{encodeArngBCheck, enc_NIL},
 		{encodeI2_1921_8BitGroup, enc_i2},
 	},
 }
 
-var a_ARNGIDX_Zm_1619_Range0_7_ArngBCheck_I3hI3l_1119_Pair8Bit = operand{
+var a_ARNGIDX_Zm_1619_Range0_7V2_ArngBCheck_I3hI3l_1119_Pair8Bit = operand{
 	class: AC_ARNGIDX, elemEncoders: []elemEncoder{
-		{encodeZm_1619_Range0_7, enc_Zm},
+		{encodeZm_1619_Range0_7V2, enc_Zm},
 		{encodeArngBCheck, enc_NIL},
 		{encodeI3hI3l_1119_Pair8Bit, enc_i3h_i3l},
 	},
 }
 
-var a_ARNGIDX_Zm_1619_Range0_7_ArngBCheck_I3hI3l_1923_8To16Bit = operand{
+var a_ARNGIDX_Zm_1619_Range0_7V2_ArngBCheck_I3hI3l_1923_8To16Bit = operand{
 	class: AC_ARNGIDX, elemEncoders: []elemEncoder{
-		{encodeZm_1619_Range0_7, enc_Zm},
+		{encodeZm_1619_Range0_7V2, enc_Zm},
 		{encodeArngBCheck, enc_NIL},
 		{encodeI3hI3l_1923_8To16Bit, enc_i3h_i3l},
 	},
 }
 
-var a_ARNGIDX_Zm_1619_Range0_7_ArngBCheck_I4hI4l_1019 = operand{
+var a_ARNGIDX_Zm_1619_Range0_7V2_ArngBCheck_I4hI4l_1019 = operand{
 	class: AC_ARNGIDX, elemEncoders: []elemEncoder{
-		{encodeZm_1619_Range0_7, enc_Zm},
+		{encodeZm_1619_Range0_7V2, enc_Zm},
 		{encodeArngBCheck, enc_NIL},
 		{encodeI4hI4l_1019, enc_i4h_i4l},
 	},
 }
 
-var a_ARNGIDX_Zm_1619_Range0_7_ArngHCheck_I2_1921_16To32Bit = operand{
+var a_ARNGIDX_Zm_1619_Range0_7V2_ArngHCheck_I2_1921_16To32Bit = operand{
 	class: AC_ARNGIDX, elemEncoders: []elemEncoder{
-		{encodeZm_1619_Range0_7, enc_Zm},
+		{encodeZm_1619_Range0_7V2, enc_Zm},
 		{encodeArngHCheck, enc_NIL},
 		{encodeI2_1921_16To32Bit, enc_i2},
 	},
 }
 
-var a_ARNGIDX_Zm_1619_Range0_7_ArngHCheck_I2_1921_Pair16Bit = operand{
+var a_ARNGIDX_Zm_1619_Range0_7V2_ArngHCheck_I2_1921_Pair16Bit = operand{
 	class: AC_ARNGIDX, elemEncoders: []elemEncoder{
-		{encodeZm_1619_Range0_7, enc_Zm},
+		{encodeZm_1619_Range0_7V2, enc_Zm},
 		{encodeArngHCheck, enc_NIL},
 		{encodeI2_1921_Pair16Bit, enc_i2},
 	},
 }
 
-var a_ARNGIDX_Zm_1619_Range0_7_ArngHCheck_I3hI3l_1119 = operand{
+var a_ARNGIDX_Zm_1619_Range0_7V2_ArngHCheck_I3hI3l_1119 = operand{
 	class: AC_ARNGIDX, elemEncoders: []elemEncoder{
-		{encodeZm_1619_Range0_7, enc_Zm},
+		{encodeZm_1619_Range0_7V2, enc_Zm},
 		{encodeArngHCheck, enc_NIL},
 		{encodeI3hI3l_1119, enc_i3h_i3l},
 	},
 }
 
-var a_ARNGIDX_Zm_1619_Range0_7_ArngHCheck_I3hI3l_1922 = operand{
+var a_ARNGIDX_Zm_1619_Range0_7V2_ArngHCheck_I3hI3l_1922 = operand{
 	class: AC_ARNGIDX, elemEncoders: []elemEncoder{
-		{encodeZm_1619_Range0_7, enc_Zm},
+		{encodeZm_1619_Range0_7V2, enc_Zm},
 		{encodeArngHCheck, enc_NIL},
 		{encodeI3hI3l_1922, enc_i3h_i3l},
+	},
+}
+
+var a_ARNGIDX_Zm_1620_Range0_15_ArngSCheck_I1_2021_32bit = operand{
+	class: AC_ARNGIDX, elemEncoders: []elemEncoder{
+		{encodeZm_1620_Range0_15, enc_Zm},
+		{encodeArngSCheck, enc_NIL},
+		{encodeI1_2021_32bit, enc_i1},
+	},
+}
+
+var a_ARNGIDX_Zm_1620_Single_ArngSCheck_I1_2021_Single = operand{
+	class: AC_ARNGIDX, elemEncoders: []elemEncoder{
+		{encodeZm_1620_Single, enc_Zm},
+		{encodeArngSCheck, enc_NIL},
+		{encodeI1_2021_Single, enc_i1},
 	},
 }
 
@@ -6848,6 +7687,20 @@ var a_ARNG_Zd_SizeBHSD2224 = operand{
 	},
 }
 
+var a_ARNG_Zd_SizeBhsTsz1921 = operand{
+	class: AC_ARNG, elemEncoders: []elemEncoder{
+		{encodeZd, enc_Zd},
+		{encodeSizeBhsTsz1921, enc_tszh_tszl},
+	},
+}
+
+var a_ARNG_Zd_SizeBhsdTsz1921 = operand{
+	class: AC_ARNG, elemEncoders: []elemEncoder{
+		{encodeZd, enc_Zd},
+		{encodeSizeBhsdTsz1921, enc_tszh_tszl},
+	},
+}
+
 var a_ARNG_Zd_SizeByteMergeZero = operand{
 	class: AC_ARNG, elemEncoders: []elemEncoder{
 		{encodeZd, enc_Zd},
@@ -6887,6 +7740,20 @@ var a_ARNG_Zd_SizeHSD2224No00 = operand{
 	class: AC_ARNG, elemEncoders: []elemEncoder{
 		{encodeZd, enc_Zd},
 		{encodeSizeHSD2224No00, enc_size},
+	},
+}
+
+var a_ARNG_Zd_SizeHsdTsz1921 = operand{
+	class: AC_ARNG, elemEncoders: []elemEncoder{
+		{encodeZd, enc_Zd},
+		{encodeSizeHsdTsz1921, enc_tszh_tszl},
+	},
+}
+
+var a_ARNG_Zd_SizeImm13NoOp = operand{
+	class: AC_ARNG, elemEncoders: []elemEncoder{
+		{encodeZd, enc_Zd},
+		{encodeSizeImm13NoOp, enc_imm13},
 	},
 }
 
@@ -6974,6 +7841,13 @@ var a_ARNG_Zda3RdSrcDst_SizeBHSD2224 = operand{
 	},
 }
 
+var a_ARNG_Zda3RdSrcDst_SizeBhsdTsz1921 = operand{
+	class: AC_ARNG, elemEncoders: []elemEncoder{
+		{encodeZda3RdSrcDst, enc_Zda},
+		{encodeSizeBhsdTsz1921, enc_tszh_tszl},
+	},
+}
+
 var a_ARNG_Zda3RdSrcDst_SizeHSD2224 = operand{
 	class: AC_ARNG, elemEncoders: []elemEncoder{
 		{encodeZda3RdSrcDst, enc_Zda},
@@ -7051,6 +7925,13 @@ var a_ARNG_ZdnDest_SizeBHSD2224 = operand{
 	},
 }
 
+var a_ARNG_ZdnDest_SizeBhsdTsz1921 = operand{
+	class: AC_ARNG, elemEncoders: []elemEncoder{
+		{encodeZdnDest, enc_Zdn},
+		{encodeSizeBhsdTsz1921, enc_tszh_tszl},
+	},
+}
+
 var a_ARNG_ZdnDest_SizeHSD2224 = operand{
 	class: AC_ARNG, elemEncoders: []elemEncoder{
 		{encodeZdnDest, enc_Zdn},
@@ -7079,10 +7960,24 @@ var a_ARNG_ZdnSrcDst_SizeBHSD2224 = operand{
 	},
 }
 
+var a_ARNG_ZdnSrcDst_SizeBhsdTsz810 = operand{
+	class: AC_ARNG, elemEncoders: []elemEncoder{
+		{encodeZdnSrcDst, enc_Zdn},
+		{encodeSizeBhsdTsz810, enc_tszh_tszl},
+	},
+}
+
 var a_ARNG_ZdnSrcDst_SizeHSD2224 = operand{
 	class: AC_ARNG, elemEncoders: []elemEncoder{
 		{encodeZdnSrcDst, enc_Zdn},
 		{encodeSizeHSD2224, enc_size},
+	},
+}
+
+var a_ARNG_ZdnSrcDst_SizeImm13NoOp = operand{
+	class: AC_ARNG, elemEncoders: []elemEncoder{
+		{encodeZdnSrcDst, enc_Zdn},
+		{encodeSizeImm13NoOp, enc_imm13},
 	},
 }
 
@@ -7240,6 +8135,13 @@ var a_ARNG_Zm510V1_SizeBHSD2224 = operand{
 	},
 }
 
+var a_ARNG_Zm510V1_SizeBhsdTsz1921 = operand{
+	class: AC_ARNG, elemEncoders: []elemEncoder{
+		{encodeZm510V1, enc_Zm},
+		{encodeSizeBhsdTsz1921, enc_tszh_tszl},
+	},
+}
+
 var a_ARNG_Zm510V1_SizeHSD2224 = operand{
 	class: AC_ARNG, elemEncoders: []elemEncoder{
 		{encodeZm510V1, enc_Zm},
@@ -7324,6 +8226,20 @@ var a_ARNG_Zn510Src_SizeBHSD2224 = operand{
 	},
 }
 
+var a_ARNG_Zn510Src_SizeBhsTsz1921Unique = operand{
+	class: AC_ARNG, elemEncoders: []elemEncoder{
+		{encodeZn510Src, enc_Zn},
+		{encodeSizeBhsTsz1921Unique, enc_tszh_tszl},
+	},
+}
+
+var a_ARNG_Zn510Src_SizeBhsdTsz1921 = operand{
+	class: AC_ARNG, elemEncoders: []elemEncoder{
+		{encodeZn510Src, enc_Zn},
+		{encodeSizeBhsdTsz1921, enc_tszh_tszl},
+	},
+}
+
 var a_ARNG_Zn510Src_SizeByteMergeZero = operand{
 	class: AC_ARNG, elemEncoders: []elemEncoder{
 		{encodeZn510Src, enc_Zn},
@@ -7349,6 +8265,13 @@ var a_ARNG_Zn510Src_SizeHSD2224 = operand{
 	class: AC_ARNG, elemEncoders: []elemEncoder{
 		{encodeZn510Src, enc_Zn},
 		{encodeSizeHSD2224, enc_size},
+	},
+}
+
+var a_ARNG_Zn510Src_SizeHsdTsz1921Unique = operand{
+	class: AC_ARNG, elemEncoders: []elemEncoder{
+		{encodeZn510Src, enc_Zn},
+		{encodeSizeHsdTsz1921Unique, enc_tszh_tszl},
 	},
 }
 
@@ -7478,6 +8401,13 @@ var a_ARNG_Zn510_SizeBHSD2224 = operand{
 	},
 }
 
+var a_ARNG_Zn510_SizeBhsdTsz1921 = operand{
+	class: AC_ARNG, elemEncoders: []elemEncoder{
+		{encodeZn510, enc_Zn},
+		{encodeSizeBhsdTsz1921, enc_tszh_tszl},
+	},
+}
+
 var a_ARNG_Zn510_SizeHSD2224 = operand{
 	class: AC_ARNG, elemEncoders: []elemEncoder{
 		{encodeZn510, enc_Zn},
@@ -7520,6 +8450,186 @@ var a_ARNG_Zn510_SzSD2223 = operand{
 	},
 }
 
+var a_IMM_Fimm0_0_1_0_56 = operand{
+	class: AC_IMM, elemEncoders: []elemEncoder{
+		{encodeFimm0_0_1_0_56, enc_i1},
+	},
+}
+
+var a_IMM_Fimm0_0_56 = operand{
+	class: AC_IMM, elemEncoders: []elemEncoder{
+		{encodeFimm0_0_56, enc_NIL},
+	},
+}
+
+var a_IMM_Fimm0_5_1_0_56 = operand{
+	class: AC_IMM, elemEncoders: []elemEncoder{
+		{encodeFimm0_5_1_0_56, enc_i1},
+	},
+}
+
+var a_IMM_Fimm0_5_2_0_56 = operand{
+	class: AC_IMM, elemEncoders: []elemEncoder{
+		{encodeFimm0_5_2_0_56, enc_i1},
+	},
+}
+
+var a_IMM_Imm13_518 = operand{
+	class: AC_IMM, elemEncoders: []elemEncoder{
+		{encodeImm13_518, enc_imm13},
+	},
+}
+
+var a_IMM_Imm3Unsigned_1619 = operand{
+	class: AC_IMM, elemEncoders: []elemEncoder{
+		{encodeImm3Unsigned_1619, enc_imm3},
+	},
+}
+
+var a_IMM_Imm4Unsigned_1620 = operand{
+	class: AC_IMM, elemEncoders: []elemEncoder{
+		{encodeImm4Unsigned_1620, enc_imm4},
+	},
+}
+
+var a_IMM_Imm5Signed510Unique = operand{
+	class: AC_IMM, elemEncoders: []elemEncoder{
+		{encodeImm5Signed510Unique, enc_imm5},
+	},
+}
+
+var a_IMM_Imm5Signed_1621V1 = operand{
+	class: AC_IMM, elemEncoders: []elemEncoder{
+		{encodeImm5Signed_1621V1, enc_imm5},
+	},
+}
+
+var a_IMM_Imm5Signed_1621V2 = operand{
+	class: AC_IMM, elemEncoders: []elemEncoder{
+		{encodeImm5Signed_1621V2, enc_imm5},
+	},
+}
+
+var a_IMM_Imm5Signed_510 = operand{
+	class: AC_IMM, elemEncoders: []elemEncoder{
+		{encodeImm5Signed_510, enc_imm5},
+	},
+}
+
+var a_IMM_Imm5bSigned_1621 = operand{
+	class: AC_IMM, elemEncoders: []elemEncoder{
+		{encodeImm5bSigned_1621, enc_imm5b},
+	},
+}
+
+var a_IMM_Imm6Signed_511 = operand{
+	class: AC_IMM, elemEncoders: []elemEncoder{
+		{encodeImm6Signed_511, enc_imm6},
+	},
+}
+
+var a_IMM_Imm7Unsigned_1421 = operand{
+	class: AC_IMM, elemEncoders: []elemEncoder{
+		{encodeImm7Unsigned_1421, enc_imm7},
+	},
+}
+
+var a_IMM_Imm8SignedLsl8 = operand{
+	class: AC_IMM, elemEncoders: []elemEncoder{
+		{encodeImm8SignedLsl8, enc_imm8},
+	},
+}
+
+var a_IMM_Imm8Signed_513 = operand{
+	class: AC_IMM, elemEncoders: []elemEncoder{
+		{encodeImm8Signed_513, enc_imm8},
+	},
+}
+
+var a_IMM_Imm8UnsignedLsl8 = operand{
+	class: AC_IMM, elemEncoders: []elemEncoder{
+		{encodeImm8UnsignedLsl8, enc_imm8},
+	},
+}
+
+var a_IMM_Imm8Unsigned_513 = operand{
+	class: AC_IMM, elemEncoders: []elemEncoder{
+		{encodeImm8Unsigned_513, enc_imm8},
+	},
+}
+
+var a_IMM_Imm8_513_Fimm = operand{
+	class: AC_IMM, elemEncoders: []elemEncoder{
+		{encodeImm8_513_Fimm, enc_imm8},
+	},
+}
+
+var a_IMM_Imm8hImm8l_Unsigned = operand{
+	class: AC_IMM, elemEncoders: []elemEncoder{
+		{encodeImm8hImm8l_Unsigned, enc_imm8h_imm8l},
+	},
+}
+
+var a_IMM_Rot0_90_180_270_1012 = operand{
+	class: AC_IMM, elemEncoders: []elemEncoder{
+		{encodeRot0_90_180_270_1012, enc_rot},
+	},
+}
+
+var a_IMM_Rot0_90_180_270_1315 = operand{
+	class: AC_IMM, elemEncoders: []elemEncoder{
+		{encodeRot0_90_180_270_1315, enc_rot},
+	},
+}
+
+var a_IMM_Rot90_270_1011 = operand{
+	class: AC_IMM, elemEncoders: []elemEncoder{
+		{encodeRot90_270_1011, enc_rot},
+	},
+}
+
+var a_IMM_Rot90_270_1617 = operand{
+	class: AC_IMM, elemEncoders: []elemEncoder{
+		{encodeRot90_270_1617, enc_rot},
+	},
+}
+
+var a_IMM_ShiftTsz1619Range0V1 = operand{
+	class: AC_IMM, elemEncoders: []elemEncoder{
+		{encodeShiftTsz1619Range0V1, enc_tszh_tszl_imm3},
+	},
+}
+
+var a_IMM_ShiftTsz1619Range0V2 = operand{
+	class: AC_IMM, elemEncoders: []elemEncoder{
+		{encodeShiftTsz1619Range0V2, enc_tszh_tszl_imm3},
+	},
+}
+
+var a_IMM_ShiftTsz1619Range1V1 = operand{
+	class: AC_IMM, elemEncoders: []elemEncoder{
+		{encodeShiftTsz1619Range1V1, enc_tszh_tszl_imm3},
+	},
+}
+
+var a_IMM_ShiftTsz1619Range1V2 = operand{
+	class: AC_IMM, elemEncoders: []elemEncoder{
+		{encodeShiftTsz1619Range1V2, enc_tszh_tszl_imm3},
+	},
+}
+
+var a_IMM_ShiftTsz58Range0 = operand{
+	class: AC_IMM, elemEncoders: []elemEncoder{
+		{encodeShiftTsz58Range0, enc_tszh_tszl_imm3},
+	},
+}
+
+var a_IMM_ShiftTsz58Range1 = operand{
+	class: AC_IMM, elemEncoders: []elemEncoder{
+		{encodeShiftTsz58Range1, enc_tszh_tszl_imm3},
+	},
+}
+
 var a_PREGIDX_PnN_58_Noop_Imm2_810 = operand{
 	class: AC_PREGIDX, elemEncoders: []elemEncoder{
 		{encodePnN_58, enc_PNn},
@@ -7559,6 +8669,20 @@ var a_PREGZM_Pg1014_PredQualM45 = operand{
 var a_PREGZM_Pg1014_ZeroPredCheck = operand{
 	class: AC_PREGZM, elemEncoders: []elemEncoder{
 		{encodePg1014, enc_Pg},
+		{encodeZeroPredCheck, enc_NIL},
+	},
+}
+
+var a_PREGZM_Pg1620_MergePredCheck = operand{
+	class: AC_PREGZM, elemEncoders: []elemEncoder{
+		{encodePg1620, enc_Pg},
+		{encodeMergePredCheck, enc_NIL},
+	},
+}
+
+var a_PREGZM_Pg1620_ZeroPredCheck = operand{
+	class: AC_PREGZM, elemEncoders: []elemEncoder{
+		{encodePg1620, enc_Pg},
 		{encodeZeroPredCheck, enc_NIL},
 	},
 }
@@ -7686,6 +8810,20 @@ var a_SPZGREG_Noop_Xdn05 = operand{
 	class: AC_SPZGREG, elemEncoders: []elemEncoder{
 		{encodeNoop, enc_NIL},
 		{encodeXdn05, enc_Rdn},
+	},
+}
+
+var a_SPZGREG_XCheck_Rd05_SPAllowed = operand{
+	class: AC_SPZGREG, elemEncoders: []elemEncoder{
+		{encodeXCheck, enc_NIL},
+		{encodeRd05_SPAllowed, enc_Rd},
+	},
+}
+
+var a_SPZGREG_XCheck_Rn1621_SPAllowed = operand{
+	class: AC_SPZGREG, elemEncoders: []elemEncoder{
+		{encodeXCheck, enc_NIL},
+		{encodeRn1621_SPAllowed, enc_Rn},
 	},
 }
 
@@ -7937,6 +9075,12 @@ var Rm__Zdn_T = []operand{
 	a_ARNG_ZdnSrcDst_SizeBHSD2224,
 }
 
+var Rm__cimm__Zd_T = []operand{
+	a_SPZGREG_Noop_Rm1621ZR,
+	a_IMM_Imm5Signed510Unique,
+	a_ARNG_Zd_SizeBHSD2224,
+}
+
 var RnSP__PgM__Zd_T = []operand{
 	a_SPZGREG_Noop_Rn510SP,
 	a_PREGZM_Pg1013_MergePredCheck,
@@ -8028,31 +9172,31 @@ var Zm_B__Zn_B__Zda_S = []operand{
 }
 
 var Zm_B_imm___Zn_B__Zda_H__1 = []operand{
-	a_ARNGIDX_Zm_1619_Range0_7_ArngBCheck_I4hI4l_1019,
+	a_ARNGIDX_Zm_1619_Range0_7V2_ArngBCheck_I4hI4l_1019,
 	a_ARNG_Zn510_ArngBCheck,
 	a_ARNG_Zda3RdSrcDst_ArngHCheck,
 }
 
 var Zm_B_imm___Zn_B__Zda_H__2 = []operand{
-	a_ARNGIDX_Zm_1619_Range0_7_ArngBCheck_I3hI3l_1923_8To16Bit,
+	a_ARNGIDX_Zm_1619_Range0_7V2_ArngBCheck_I3hI3l_1923_8To16Bit,
 	a_ARNG_Zn510_ArngBCheck,
 	a_ARNG_Zda3RdSrcDst_ArngHCheck,
 }
 
 var Zm_B_imm___Zn_B__Zda_H__3 = []operand{
-	a_ARNGIDX_Zm_1619_Range0_7_ArngBCheck_I3hI3l_1119_Pair8Bit,
+	a_ARNGIDX_Zm_1619_Range0_7V2_ArngBCheck_I3hI3l_1119_Pair8Bit,
 	a_ARNG_Zn510_ArngBCheck,
 	a_ARNG_Zda3RdSrcDst_ArngHCheck,
 }
 
 var Zm_B_imm___Zn_B__Zda_S__1 = []operand{
-	a_ARNGIDX_Zm_1619_Range0_7_ArngBCheck_I4hI4l_1019,
+	a_ARNGIDX_Zm_1619_Range0_7V2_ArngBCheck_I4hI4l_1019,
 	a_ARNG_Zn510_ArngBCheck,
 	a_ARNG_Zda3RdSrcDst_ArngSCheck,
 }
 
 var Zm_B_imm___Zn_B__Zda_S__2 = []operand{
-	a_ARNGIDX_Zm_1619_Range0_7_ArngBCheck_I2_1921_8BitGroup,
+	a_ARNGIDX_Zm_1619_Range0_7V2_ArngBCheck_I2_1921_8BitGroup,
 	a_ARNG_Zn510_ArngBCheck,
 	a_ARNG_Zda3RdSrcDst_ArngSCheck,
 }
@@ -8171,7 +9315,7 @@ var Zm_H_imm___Zn_H__Zd_H__1 = []operand{
 }
 
 var Zm_H_imm___Zn_H__Zd_H__2 = []operand{
-	a_ARNGIDX_Zm_1619_Range0_7_ArngHCheck_I3hI3l_1922,
+	a_ARNGIDX_Zm_1619_Range0_7V2_ArngHCheck_I3hI3l_1922,
 	a_ARNG_Zn510_ArngHCheck,
 	a_ARNG_Zd_ArngHCheck,
 }
@@ -8201,7 +9345,7 @@ var Zm_H_imm___Zn_H__Zda_H__1 = []operand{
 }
 
 var Zm_H_imm___Zn_H__Zda_H__2 = []operand{
-	a_ARNGIDX_Zm_1619_Range0_7_ArngHCheck_I3hI3l_1922,
+	a_ARNGIDX_Zm_1619_Range0_7V2_ArngHCheck_I3hI3l_1922,
 	a_ARNG_Zn510_ArngHCheck,
 	a_ARNG_Zda3RdSrcDst_ArngHCheck,
 }
@@ -8219,19 +9363,19 @@ var Zm_H_imm___Zn_H__Zda_S__1 = []operand{
 }
 
 var Zm_H_imm___Zn_H__Zda_S__2 = []operand{
-	a_ARNGIDX_Zm_1619_Range0_7_ArngHCheck_I3hI3l_1119,
+	a_ARNGIDX_Zm_1619_Range0_7V2_ArngHCheck_I3hI3l_1119,
 	a_ARNG_Zn510_ArngHCheck,
 	a_ARNG_Zda3RdSrcDst_ArngSCheck,
 }
 
 var Zm_H_imm___Zn_H__Zda_S__3 = []operand{
-	a_ARNGIDX_Zm_1619_Range0_7_ArngHCheck_I2_1921_Pair16Bit,
+	a_ARNGIDX_Zm_1619_Range0_7V2_ArngHCheck_I2_1921_Pair16Bit,
 	a_ARNG_Zn510_ArngHCheck,
 	a_ARNG_Zda3RdSrcDst_ArngSCheck,
 }
 
 var Zm_H_imm___Zn_H__Zda_S__4 = []operand{
-	a_ARNGIDX_Zm_1619_Range0_7_ArngHCheck_I2_1921_16To32Bit,
+	a_ARNGIDX_Zm_1619_Range0_7V2_ArngHCheck_I2_1921_16To32Bit,
 	a_ARNG_Zn510_ArngHCheck,
 	a_ARNG_Zda3RdSrcDst_ArngSCheck,
 }
@@ -8796,6 +9940,279 @@ var Zn_imm___Pd_H = []operand{
 var Zn_imm___Pd_S = []operand{
 	a_ZREGIDX_Zn510Src_Noop_I2_1719_Word,
 	a_ARNG_Pd_ArngSCheck,
+}
+
+var c0_0__Zn_T__PgZ__Pd_T = []operand{
+	a_IMM_Fimm0_0_56,
+	a_ARNG_Zn510Src_SizeHSD2224,
+	a_PREGZM_Pg1013_ZeroPredCheck,
+	a_ARNG_Pd_SizeHSD2224,
+}
+
+var cconst__PgM__Zd_T = []operand{
+	a_IMM_Imm8_513_Fimm,
+	a_PREGZM_Pg1620_MergePredCheck,
+	a_ARNG_Zd_SizeHSD2224,
+}
+
+var cconst__Zd_T__1 = []operand{
+	a_IMM_Imm13_518,
+	a_ARNG_Zd_SizeImm13NoOp,
+}
+
+var cconst__Zd_T__2 = []operand{
+	a_IMM_Imm8_513_Fimm,
+	a_ARNG_Zd_SizeHSD2224,
+}
+
+var cconst__Zdn_T__PgM__Zdn_T__1 = []operand{
+	a_IMM_ShiftTsz58Range1,
+	a_ARNG_ZdnSrcDst_SizeBhsdTsz810,
+	a_PREGZM_Pg1013_MergePredCheck,
+	a_ARNG_ZdnSrcDst_SizeBhsdTsz810,
+}
+
+var cconst__Zdn_T__PgM__Zdn_T__2 = []operand{
+	a_IMM_ShiftTsz58Range0,
+	a_ARNG_ZdnSrcDst_SizeBhsdTsz810,
+	a_PREGZM_Pg1013_MergePredCheck,
+	a_ARNG_ZdnSrcDst_SizeBhsdTsz810,
+}
+
+var cconst__Zdn_T__Zdn_T = []operand{
+	a_IMM_Imm13_518,
+	a_ARNG_ZdnSrcDst_SizeImm13NoOp,
+	a_ARNG_ZdnSrcDst_SizeImm13NoOp,
+}
+
+var cconst__Zm_T__Zdn_T__Zdn_T = []operand{
+	a_IMM_ShiftTsz1619Range1V2,
+	a_ARNG_Zm510V1_SizeBhsdTsz1921,
+	a_ARNG_ZdnDest_SizeBhsdTsz1921,
+	a_ARNG_ZdnDest_SizeBhsdTsz1921,
+}
+
+var cconst__Zn_T__Zd_T__1 = []operand{
+	a_IMM_ShiftTsz1619Range1V2,
+	a_ARNG_Zn510Src_SizeBhsdTsz1921,
+	a_ARNG_Zd_SizeBhsdTsz1921,
+}
+
+var cconst__Zn_T__Zd_T__2 = []operand{
+	a_IMM_ShiftTsz1619Range0V2,
+	a_ARNG_Zn510Src_SizeBhsdTsz1921,
+	a_ARNG_Zd_SizeBhsdTsz1921,
+}
+
+var cconst__Zn_T__Zda_T = []operand{
+	a_IMM_ShiftTsz1619Range1V2,
+	a_ARNG_Zn510_SizeBhsdTsz1921,
+	a_ARNG_Zda3RdSrcDst_SizeBhsdTsz1921,
+}
+
+var cconst__Zn_Tb__Zd_T__1 = []operand{
+	a_IMM_ShiftTsz1619Range1V1,
+	a_ARNG_Zn510Src_SizeHsdTsz1921Unique,
+	a_ARNG_Zd_SizeBhsTsz1921,
+}
+
+var cconst__Zn_Tb__Zd_T__2 = []operand{
+	a_IMM_ShiftTsz1619Range0V1,
+	a_ARNG_Zn510Src_SizeBhsTsz1921Unique,
+	a_ARNG_Zd_SizeHsdTsz1921,
+}
+
+var cimm2__cimm1__Zd_T = []operand{
+	a_IMM_Imm5bSigned_1621,
+	a_IMM_Imm5Signed_510,
+	a_ARNG_Zd_SizeBHSD2224,
+}
+
+var cimm__Rn__Zd_T = []operand{
+	a_IMM_Imm5Signed_1621V1,
+	a_SPZGREG_Noop_Rn510ZR,
+	a_ARNG_Zd_SizeBHSD2224,
+}
+
+var cimm__Xd = []operand{
+	a_IMM_Imm6Signed_511,
+	a_SPZGREG_Noop_Rd05,
+}
+
+var cimm__XnSP__XdSP = []operand{
+	a_IMM_Imm6Signed_511,
+	a_SPZGREG_XCheck_Rn1621_SPAllowed,
+	a_SPZGREG_XCheck_Rd05_SPAllowed,
+}
+
+var cimm__Zdn_T__Zdn_T__1 = []operand{
+	a_IMM_Imm8Signed_513,
+	a_ARNG_ZdnSrcDst_SizeBHSD2224,
+	a_ARNG_ZdnSrcDst_SizeBHSD2224,
+}
+
+var cimm__Zdn_T__Zdn_T__2 = []operand{
+	a_IMM_Imm8Unsigned_513,
+	a_ARNG_ZdnSrcDst_SizeBHSD2224,
+	a_ARNG_ZdnSrcDst_SizeBHSD2224,
+}
+
+var cimm__Zm_B__Zdn_B__Zdn_B__1 = []operand{
+	a_IMM_Imm8hImm8l_Unsigned,
+	a_ARNG_Zm510V1_ArngBCheck,
+	a_ARNG_ZdnDest_ArngBCheck,
+	a_ARNG_ZdnDest_ArngBCheck,
+}
+
+var cimm__Zm_B__Zdn_B__Zdn_B__2 = []operand{
+	a_IMM_Imm4Unsigned_1620,
+	a_ARNG_Zm510V1_ArngBCheck,
+	a_ARNG_ZdnDest_ArngBCheck,
+	a_ARNG_ZdnDest_ArngBCheck,
+}
+
+var cimm__Zm_T__Zdn_T__Zdn_T = []operand{
+	a_IMM_Imm3Unsigned_1619,
+	a_ARNG_Zm510V1_SizeHSD2224,
+	a_ARNG_ZdnDest_SizeHSD2224,
+	a_ARNG_ZdnDest_SizeHSD2224,
+}
+
+var cimm__Zn_T__PgZ__Pd_T__1 = []operand{
+	a_IMM_Imm5Signed_1621V2,
+	a_ARNG_Zn510Src_SizeBHSD2224,
+	a_PREGZM_Pg1013_ZeroPredCheck,
+	a_ARNG_Pd_SizeBHSD2224,
+}
+
+var cimm__Zn_T__PgZ__Pd_T__2 = []operand{
+	a_IMM_Imm7Unsigned_1421,
+	a_ARNG_Zn510Src_SizeBHSD2224,
+	a_PREGZM_Pg1013_ZeroPredCheck,
+	a_ARNG_Pd_SizeBHSD2224,
+}
+
+var cimm__shift__PgM__Zd_T = []operand{
+	a_IMM_Imm8SignedLsl8,
+	a_PREGZM_Pg1620_MergePredCheck,
+	a_ARNG_Zd_SizeBHSD2224,
+}
+
+var cimm__shift__PgZ__Zd_T = []operand{
+	a_IMM_Imm8SignedLsl8,
+	a_PREGZM_Pg1620_ZeroPredCheck,
+	a_ARNG_Zd_SizeBHSD2224,
+}
+
+var cimm__shift__Zd_T = []operand{
+	a_IMM_Imm8SignedLsl8,
+	a_ARNG_Zd_SizeBHSD2224,
+}
+
+var cimm__shift__Zdn_T__Zdn_T = []operand{
+	a_IMM_Imm8UnsignedLsl8,
+	a_ARNG_ZdnSrcDst_SizeBHSD2224,
+	a_ARNG_ZdnSrcDst_SizeBHSD2224,
+}
+
+var const__Zdn_T__PgM__Zdn_T__1 = []operand{
+	a_IMM_Fimm0_0_1_0_56,
+	a_ARNG_ZdnSrcDst_SizeHSD2224,
+	a_PREGZM_Pg1013_MergePredCheck,
+	a_ARNG_ZdnSrcDst_SizeHSD2224,
+}
+
+var const__Zdn_T__PgM__Zdn_T__2 = []operand{
+	a_IMM_Fimm0_5_1_0_56,
+	a_ARNG_ZdnSrcDst_SizeHSD2224,
+	a_PREGZM_Pg1013_MergePredCheck,
+	a_ARNG_ZdnSrcDst_SizeHSD2224,
+}
+
+var const__Zdn_T__PgM__Zdn_T__3 = []operand{
+	a_IMM_Fimm0_5_2_0_56,
+	a_ARNG_ZdnSrcDst_SizeHSD2224,
+	a_PREGZM_Pg1013_MergePredCheck,
+	a_ARNG_ZdnSrcDst_SizeHSD2224,
+}
+
+var const__Zm_B_imm___Zn_B__Zda_S = []operand{
+	a_IMM_Rot0_90_180_270_1012,
+	a_ARNGIDX_Zm1619_8To32Bit_ArngBCheck_I2_1921_8To32Bit,
+	a_ARNG_Zn510_ArngBCheck,
+	a_ARNG_Zda3RdSrcDst_ArngSCheck,
+}
+
+var const__Zm_H_imm___Zn_H__Zda_D = []operand{
+	a_IMM_Rot0_90_180_270_1012,
+	a_ARNGIDX_Zm1620_16To64Bit_ArngHCheck_I1_2021_16To64Bit,
+	a_ARNG_Zn510_ArngHCheck,
+	a_ARNG_Zda3RdSrcDst_ArngDCheck,
+}
+
+var const__Zm_H_imm___Zn_H__Zda_H__1 = []operand{
+	a_IMM_Rot0_90_180_270_1012,
+	a_ARNGIDX_Zm_1619_Range0_7V1_ArngHCheck_I2_1921_16bit,
+	a_ARNG_Zn510_ArngHCheck,
+	a_ARNG_Zda3RdSrcDst_ArngHCheck,
+}
+
+var const__Zm_H_imm___Zn_H__Zda_H__2 = []operand{
+	a_IMM_Rot0_90_180_270_1012,
+	a_ARNGIDX_Zm_1619_Half_ArngHCheck_I2_1921_Half,
+	a_ARNG_Zn510_ArngHCheck,
+	a_ARNG_Zda3RdSrcDst_ArngHCheck,
+}
+
+var const__Zm_S_imm___Zn_S__Zda_S__1 = []operand{
+	a_IMM_Rot0_90_180_270_1012,
+	a_ARNGIDX_Zm_1620_Range0_15_ArngSCheck_I1_2021_32bit,
+	a_ARNG_Zn510_ArngSCheck,
+	a_ARNG_Zda3RdSrcDst_ArngSCheck,
+}
+
+var const__Zm_S_imm___Zn_S__Zda_S__2 = []operand{
+	a_IMM_Rot0_90_180_270_1012,
+	a_ARNGIDX_Zm_1620_Single_ArngSCheck_I1_2021_Single,
+	a_ARNG_Zn510_ArngSCheck,
+	a_ARNG_Zda3RdSrcDst_ArngSCheck,
+}
+
+var const__Zm_T__Zdn_T__PgM__Zdn_T = []operand{
+	a_IMM_Rot90_270_1617,
+	a_ARNG_Zm510V1_SizeHSD2224,
+	a_ARNG_ZdnDest_SizeHSD2224,
+	a_PREGZM_Pg1013_MergePredCheck,
+	a_ARNG_ZdnDest_SizeHSD2224,
+}
+
+var const__Zm_T__Zdn_T__Zdn_T = []operand{
+	a_IMM_Rot90_270_1011,
+	a_ARNG_Zm510V1_SizeBHSD2224,
+	a_ARNG_ZdnDest_SizeBHSD2224,
+	a_ARNG_ZdnDest_SizeBHSD2224,
+}
+
+var const__Zm_T__Zn_T__PgM__Zda_T = []operand{
+	a_IMM_Rot0_90_180_270_1315,
+	a_ARNG_Zm1621_SizeHSD2224,
+	a_ARNG_Zn510_SizeHSD2224,
+	a_PREGZM_Pg1013_MergePredCheck,
+	a_ARNG_Zda3RdSrcDst_SizeHSD2224,
+}
+
+var const__Zm_T__Zn_T__Zda_T = []operand{
+	a_IMM_Rot0_90_180_270_1012,
+	a_ARNG_Zm1621_SizeBHSD2224,
+	a_ARNG_Zn510_SizeBHSD2224,
+	a_ARNG_Zda3RdSrcDst_SizeBHSD2224,
+}
+
+var const__Zm_Tb__Zn_Tb__Zda_T = []operand{
+	a_IMM_Rot0_90_180_270_1012,
+	a_ARNG_Zm1621_Size0TbBH2223,
+	a_ARNG_Zn510_Size0TbBH2223,
+	a_ARNG_Zda3RdSrcDst_Size0SD2223,
 }
 
 var oc = []operand{}
