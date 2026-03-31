@@ -34,6 +34,9 @@ const (
 	// - a negative struct field index indicates an embedded field
 	V3
 
+	// V4: encodes generic methods as standalone function objects
+	V4
+
 	numVersions = iota
 )
 
@@ -70,6 +73,9 @@ const (
 	// Composite literals use a more compact format for element lists.
 	CompactCompLiterals
 
+	// Generic methods may appear as standalone function objects.
+	GenericMethods
+
 	numFields = iota
 )
 
@@ -78,6 +84,7 @@ var introduced = [numFields]Version{
 	Flags:               V1,
 	AliasTypeParamNames: V2,
 	CompactCompLiterals: V3,
+	GenericMethods:      V4,
 }
 
 // removed is the version a field was removed in or 0 for fields
