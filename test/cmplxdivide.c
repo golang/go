@@ -43,15 +43,17 @@ char* fmt(double g) {
 		n = 0;
 	}
 
-	sprintf(p, "%g", g);
+	snprintf(p, sizeof(buf[0]), "%g", g);
 
 	if(strcmp(p, "0") == 0) {
-		strcpy(p, "zero");
+		strncpy(p, "zero", sizeof(buf[0]) - 1);
+		p[sizeof(buf[0]) - 1] = '\0';
 		return p;
 	}
 
 	if(strcmp(p, "-0") == 0) {
-		strcpy(p, "-zero");
+		strncpy(p, "-zero", sizeof(buf[0]) - 1);
+		p[sizeof(buf[0]) - 1] = '\0';
 		return p;
 	}
 
