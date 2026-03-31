@@ -1807,7 +1807,8 @@ main(int argc, char** argv)
 					if (test & TEST_EXPAND)
 						escape(re);
 					re = expand(re, patbuf);
-					strcpy(ppat = pat, re);
+					ppat = pat;
+					snprintf(pat, sizeof(pat), "%s", re);
 				}
 			}
 			else
