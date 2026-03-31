@@ -467,7 +467,7 @@ func NewState() *State {
 	return s
 }
 
-func DisabledState() *State {
+func NewDisabledState() *State {
 	fips140.Init()
 	return &State{initialized: true, modulesEnabled: false}
 }

@@ -373,7 +373,7 @@ func parseArgs(ctx context.Context, flagSet *flag.FlagSet, args []string) (pkg *
 	}
 	loader := modload.NewState()
 	if testGOPATH {
-		loader = modload.DisabledState()
+		loader = modload.NewDisabledState()
 	}
 	if len(args) > 0 && strings.Index(args[0], "@") >= 0 {
 		// Version query: force no root
