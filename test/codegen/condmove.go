@@ -514,10 +514,10 @@ func cmovmathor(a uint, b bool) uint {
 	if b {
 		a |= 1
 	}
-	// amd64:"ORQ", -"CMOV"
-	// arm64:"ORR", -"CSEL"
-	// ppc64x:"OR", -"ISEL"
-	// wasm:"I64Or", -"Select"
+	// amd64:"ORQ" -"CMOV"
+	// arm64:"ORR" -"CSEL"
+	// ppc64x:"OR" -"ISEL"
+	// wasm:"I64Or" -"Select"
 	return a
 }
 
@@ -525,10 +525,10 @@ func cmovmathxor(a uint, b bool) uint {
 	if b {
 		a ^= 1
 	}
-	// amd64:"XORQ", -"CMOV"
-	// arm64:"EOR", -"CSEL"
-	// ppc64x:"XOR", -"ISEL"
-	// wasm:"I64Xor", -"Select"
+	// amd64:"XORQ" -"CMOV"
+	// arm64:"EOR" -"CSEL"
+	// ppc64x:"XOR" -"ISEL"
+	// wasm:"I64Xor" -"Select"
 	return a
 }
 
