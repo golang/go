@@ -1,6 +1,6 @@
 <!--{
 	"Title": "The Go Programming Language Specification",
-	"Subtitle": "Language version go1.27 (March 20, 2026)",
+	"Subtitle": "Language version go1.27 (April 1, 2026)",
 	"Path": "/ref/spec"
 }-->
 
@@ -6738,9 +6738,9 @@ string              s  string type                     index    i  int          
 map                 m  map[K]V                         key      k  K            m[k]       V
 channel             c  chan E, &lt;-chan E                element  e  E
 integer value       n  integer type, or untyped int    value    i  see below
-function, 0 values  f  func(func() bool)
-function, 1 value   f  func(func(V) bool)              value    v  V
-function, 2 values  f  func(func(K, V) bool)           key      k  K            v          V
+function, 0 values  f  func(yield func() bool)
+function, 1 value   f  func(yield func(V) bool)        value    v  V                               yield cannot be variadic
+function, 2 values  f  func(yield func(K, V) bool)     key      k  K            v          V       yield cannot be variadic
 </pre>
 
 <ol>
