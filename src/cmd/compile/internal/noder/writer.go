@@ -852,6 +852,19 @@ func (w *writer) doObj(wext *writer, obj types2.Object) pkgbits.CodeObj {
 		sig := obj.Type().(*types2.Signature)
 
 		w.pos(obj)
+		if isGenericMethod(sig) {
+			// otherwise the reader won't know to expect the flag
+			assert(w.Version().Has(pkgbits.GenericMethods))
+			w.Bool(true) // generic method
+
+			w.selector(obj)
+			w.typeParamNames(sig.RecvTypeParams())
+			w.param(sig.Recv())
+		} else {
+			if w.Version().Has(pkgbits.GenericMethods) {
+				w.Bool(false) // function
+			}
+		}
 		w.typeParamNames(sig.TypeParams())
 		w.signature(sig)
 		w.pos(decl)
