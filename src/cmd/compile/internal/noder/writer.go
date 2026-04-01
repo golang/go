@@ -230,8 +230,7 @@ type itabInfo struct {
 
 // typeParamIndex returns the index of the given type parameter within
 // the dictionary. This may differ from typ.Index() when there are
-// implicit type parameters due to defined types declared within a
-// generic function or method.
+// implicit or receiver type parameters.
 func (dict *writerDict) typeParamIndex(typ *types2.TypeParam) int {
 	for idx, implicit := range dict.implicits {
 		if implicit == typ {
@@ -239,7 +238,13 @@ func (dict *writerDict) typeParamIndex(typ *types2.TypeParam) int {
 		}
 	}
 
-	return len(dict.implicits) + typ.Index()
+	for idx, receiver := range dict.receivers {
+		if receiver == typ {
+			return len(dict.implicits) + idx
+		}
+	}
+
+	return len(dict.implicits) + len(dict.receivers) + typ.Index()
 }
 
 // A derivedInfo represents a reference to an encoded generic Go type.
