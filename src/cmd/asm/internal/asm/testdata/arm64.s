@@ -154,6 +154,26 @@ TEXT	foo(SB), DUPOK|NOSPLIT, $-8
 	VUSHR	$8, V1.H8, V2.H8                // 2204186f
 	VUSHR	$2, V1.B8, V2.B8                // 22040e2f
 	VUSHR	$2, V1.B16, V2.B16              // 22040e6f
+	VSHRN	$7, V1.H8, V0.B8                // 2084090f
+	VSHRN	$15, V1.S4, V0.H4               // 2084110f
+	VSHRN	$31, V1.D2, V0.S2               // 2084210f
+	VSHRN2	$7, V1.H8, V0.B16               // 2084094f
+	VSHRN2	$15, V1.S4, V0.H8               // 2084114f
+	VSHRN2	$31, V1.D2, V0.S4               // 2084214f
+	VSSHR	$2, V0.B8, V1.B8                // 01040e0f
+	VSSHR	$2, V0.B16, V1.B16              // 01040e4f
+	VSSHR	$8, V0.H4, V1.H4                // 0104180f
+	VSSHR	$8, V0.H8, V1.H8                // 0104184f
+	VSSHR	$16, V0.S2, V1.S2               // 0104300f
+	VSSHR	$16, V0.S4, V1.S4               // 0104304f
+	VSSHR	$32, V0.D2, V1.D2               // 0104604f
+	VSRSHR	$2, V0.B8, V1.B8                // 01240e0f
+	VSRSHR	$2, V0.B16, V1.B16              // 01240e4f
+	VSRSHR	$8, V0.H4, V1.H4                // 0124180f
+	VSRSHR	$8, V0.H8, V1.H8                // 0124184f
+	VSRSHR	$16, V0.S2, V1.S2               // 0124300f
+	VSRSHR	$16, V0.S4, V1.S4               // 0124304f
+	VSRSHR	$32, V0.D2, V1.D2               // 0124604f
 	VSHL	$56, V1.D2, V2.D2               // 2254784f
 	VSHL	$24, V1.S4, V2.S4               // 2254384f
 	VSHL	$24, V1.S2, V2.S2               // 2254380f
@@ -161,6 +181,48 @@ TEXT	foo(SB), DUPOK|NOSPLIT, $-8
 	VSHL	$8, V1.H8, V2.H8                // 2254184f
 	VSHL	$2, V1.B8, V2.B8                // 22540a0f
 	VSHL	$2, V1.B16, V2.B16              // 22540a4f
+	VSQSHL	$56, V1.D2, V2.D2               // 2274784f
+	VSQSHL	$24, V1.S4, V2.S4               // 2274384f
+	VSQSHL	$24, V1.S2, V2.S2               // 2274380f
+	VSQSHL	$8, V1.H4, V2.H4                // 2274180f
+	VSQSHL	$8, V1.H8, V2.H8                // 2274184f
+	VSQSHL	$2, V1.B8, V2.B8                // 22740a0f
+	VSQSHL	$2, V1.B16, V2.B16              // 22740a4f
+	VUQSHL	$56, V1.D2, V2.D2               // 2274786f
+	VUQSHL	$24, V1.S4, V2.S4               // 2274386f
+	VUQSHL	$24, V1.S2, V2.S2               // 2274382f
+	VUQSHL	$8, V1.H4, V2.H4                // 2274182f
+	VUQSHL	$8, V1.H8, V2.H8                // 2274186f
+	VUQSHL	$2, V1.B8, V2.B8                // 22740a2f
+	VUQSHL	$2, V1.B16, V2.B16              // 22740a6f
+	VSSHL	V1.D2, V2.D2, V3.D2             // 4344e14e
+	VSSHL	V1.S4, V2.S4, V3.S4             // 4344a14e
+	VSSHL	V1.S2, V2.S2, V3.S2             // 4344a10e
+	VSSHL	V1.H4, V2.H4, V3.H4             // 4344610e
+	VSSHL	V1.H8, V2.H8, V3.H8             // 4344614e
+	VSSHL	V1.B8, V2.B8, V3.B8             // 4344210e
+	VSSHL	V1.B16, V2.B16, V3.B16           // 4344214e
+	VUSHL	V1.D2, V2.D2, V3.D2             // 4344e16e
+	VUSHL	V1.S4, V2.S4, V3.S4             // 4344a16e
+	VUSHL	V1.S2, V2.S2, V3.S2             // 4344a12e
+	VUSHL	V1.H4, V2.H4, V3.H4             // 4344612e
+	VUSHL	V1.H8, V2.H8, V3.H8             // 4344616e
+	VUSHL	V1.B8, V2.B8, V3.B8             // 4344212e
+	VUSHL	V1.B16, V2.B16, V3.B16           // 4344216e
+	VSQSHL	V1.D2, V2.D2, V3.D2             // 434ce14e
+	VSQSHL	V1.S4, V2.S4, V3.S4             // 434ca14e
+	VSQSHL	V1.S2, V2.S2, V3.S2             // 434ca10e
+	VSQSHL	V1.H4, V2.H4, V3.H4             // 434c610e
+	VSQSHL	V1.H8, V2.H8, V3.H8             // 434c614e
+	VSQSHL	V1.B8, V2.B8, V3.B8             // 434c210e
+	VSQSHL	V1.B16, V2.B16, V3.B16           // 434c214e
+	VUQSHL	V1.D2, V2.D2, V3.D2             // 434ce16e
+	VUQSHL	V1.S4, V2.S4, V3.S4             // 434ca16e
+	VUQSHL	V1.S2, V2.S2, V3.S2             // 434ca12e
+	VUQSHL	V1.H4, V2.H4, V3.H4             // 434c612e
+	VUQSHL	V1.H8, V2.H8, V3.H8             // 434c616e
+	VUQSHL	V1.B8, V2.B8, V3.B8             // 434c212e
+	VUQSHL	V1.B16, V2.B16, V3.B16           // 434c216e
 	VSRI	$56, V1.D2, V2.D2               // 2244486f
 	VSRI	$24, V1.S4, V2.S4               // 2244286f
 	VSRI	$24, V1.S2, V2.S2               // 2244282f

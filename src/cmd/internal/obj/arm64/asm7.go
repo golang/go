@@ -542,7 +542,9 @@ var optab = []Optab{
 	{AVEXT, C_VCON, C_ARNG, C_ARNG, C_ARNG, C_NONE, 94, 4, 0, 0, 0},
 	{AVTBL, C_ARNG, C_NONE, C_LIST, C_ARNG, C_NONE, 100, 4, 0, 0, 0},
 	{AVUSHR, C_VCON, C_ARNG, C_NONE, C_ARNG, C_NONE, 95, 4, 0, 0, 0},
+	{AVSQSHL, C_VCON, C_ARNG, C_NONE, C_ARNG, C_NONE, 95, 4, 0, 0, 0},
 	{AVZIP1, C_ARNG, C_ARNG, C_NONE, C_ARNG, C_NONE, 72, 4, 0, 0, 0},
+	{AVSQSHL, C_ARNG, C_ARNG, C_NONE, C_ARNG, C_NONE, 72, 4, 0, 0, 0},
 	{AVUSHLL, C_VCON, C_ARNG, C_NONE, C_ARNG, C_NONE, 102, 4, 0, 0, 0},
 	{AVUXTL, C_ARNG, C_NONE, C_NONE, C_ARNG, C_NONE, 102, 4, 0, 0, 0},
 	{AVUADDW, C_ARNG, C_ARNG, C_NONE, C_ARNG, C_NONE, 105, 4, 0, 0, 0},
@@ -3217,6 +3219,8 @@ func buildop(ctxt *obj.Link) {
 			oprangeset(AVBIT, t)
 			oprangeset(AVCMTST, t)
 			oprangeset(AVCMHI, t)
+			oprangeset(AVSSHL, t)
+			oprangeset(AVUSHL, t)
 			oprangeset(AVCMHS, t)
 			oprangeset(AVUMAX, t)
 			oprangeset(AVUMIN, t)
@@ -3277,6 +3281,13 @@ func buildop(ctxt *obj.Link) {
 			oprangeset(AVSRI, t)
 			oprangeset(AVSLI, t)
 			oprangeset(AVUSRA, t)
+			oprangeset(AVSSHR, t)
+			oprangeset(AVSRSHR, t)
+			oprangeset(AVSHRN, t)
+			oprangeset(AVSHRN2, t)
+
+		case AVSQSHL:
+			oprangeset(AVUQSHL, t)
 
 		case AVREV32:
 			oprangeset(AVCNT, t)
@@ -5431,14 +5442,15 @@ func (c *ctxt7) asmout(p *obj.Prog, out []uint32) (count int) {
 		af := int((p.Reg >> 5) & 15)
 		shift := int(p.From.Offset)
 
-		if af != at {
+		if af != at && p.As != AVSHRN && p.As != AVSHRN2 {
 			c.ctxt.Diag("invalid arrangement on op Vn.<T>, Vd.<T>: %v", p)
+			at = af
 		}
 
 		var Q uint32
 		var imax, esize int
 
-		switch af {
+		switch at {
 		case ARNG_8B, ARNG_4H, ARNG_2S:
 			Q = 0
 		case ARNG_16B, ARNG_8H, ARNG_4S, ARNG_2D:
@@ -5447,29 +5459,44 @@ func (c *ctxt7) asmout(p *obj.Prog, out []uint32) (count int) {
 			c.ctxt.Diag("invalid arrangement on op Vn.<T>, Vd.<T>: %v", p)
 		}
 
-		switch af {
+		atwice := -1
+		switch at {
 		case ARNG_8B, ARNG_16B:
 			imax = 15
 			esize = 8
+			atwice = ARNG_8H
 		case ARNG_4H, ARNG_8H:
 			imax = 31
 			esize = 16
+			atwice = ARNG_4S
 		case ARNG_2S, ARNG_4S:
 			imax = 63
 			esize = 32
+			atwice = ARNG_2D
 		case ARNG_2D:
 			imax = 127
 			esize = 64
 		}
 
+		switch p.As {
+		case AVSHRN:
+			if Q != 0 || atwice != af {
+				c.ctxt.Diag("invalid arrangement on op: %v", p)
+			}
+		case AVSHRN2:
+			if Q != 1 || atwice != af {
+				c.ctxt.Diag("invalid arrangement on op: %v", p)
+			}
+		}
+
 		imm := 0
 		switch p.As {
-		case AVUSHR, AVSRI, AVUSRA:
+		case AVUSHR, AVSRI, AVUSRA, AVSSHR, AVSRSHR, AVSHRN, AVSHRN2:
 			imm = esize*2 - shift
 			if imm < esize || imm > imax {
 				c.ctxt.Diag("shift out of range: %v", p)
 			}
-		case AVSHL, AVSLI:
+		case AVSHL, AVSLI, AVSQSHL, AVUQSHL:
 			imm = esize + shift
 			if imm > imax {
 				c.ctxt.Diag("shift out of range: %v", p)
@@ -6538,8 +6565,20 @@ func (c *ctxt7) oprrr(p *obj.Prog, a obj.As, rd, rn, rm int16) uint32 {
 	case AVSUB:
 		op = ASIMDSAME(1, 0, 0x10)
 
+	case AVSSHL:
+		op = ASIMDSAME(0, 0, 0x8)
+
+	case AVUSHL:
+		op = ASIMDSAME(1, 0, 0x8)
+
 	case AVADDP:
 		op = ASIMDSAME(0, 0, 0x17)
+
+	case AVSQSHL:
+		op = ASIMDSAME(0, 0, 0x9)
+
+	case AVUQSHL:
+		op = ASIMDSAME(1, 0, 0x9)
 
 	case AVAND:
 		op = ASIMDSAME(0, 0, 0x03)
@@ -6895,8 +6934,23 @@ func (c *ctxt7) opirr(p *obj.Prog, a obj.As) uint32 {
 	case AVUSHR:
 		return ASIMDSHF(1, 0x00)
 
+	case AVSSHR:
+		return ASIMDSHF(0, 0x00)
+
+	case AVSRSHR:
+		return ASIMDSHF(0, 0x04)
+
 	case AVSHL:
 		return ASIMDSHF(0, 0x0A)
+
+	case AVSQSHL:
+		return ASIMDSHF(0, 0xE)
+
+	case AVUQSHL:
+		return ASIMDSHF(1, 0xE)
+
+	case AVSHRN, AVSHRN2:
+		return ASIMDSHF(0, 0x10)
 
 	case AVSRI:
 		return ASIMDSHF(1, 0x08)
