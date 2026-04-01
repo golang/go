@@ -784,6 +784,10 @@ func (pw *pkgWriter) objIdx(obj types2.Object) index {
 		dict.implicits = decl.implicits
 	}
 
+	if isGenericMethod(obj.Type()) {
+		dict.receivers = asTypeParamSlice(obj.Type().(*types2.Signature).RecvTypeParams())
+	}
+
 	// We encode objects into 4 elements across different sections, all
 	// sharing the same index:
 	//
