@@ -501,10 +501,9 @@ func (pr *pkgReader) objDictIdx(idx pkgbits.Index) *readerDict {
 func (r *reader) typeParamNames(isLazy bool) []*types2.TypeParam {
 	r.Sync(pkgbits.SyncTypeParamNames)
 
-	// Note: This code assumes it only processes objects without
-	// implement type parameters. This is currently fine, because
-	// reader is only used to read in exported declarations, which are
-	// always package scoped.
+	// Note: This code assumes there are no implicit type parameters.
+	// This is fine since it only reads exported declarations, which
+	// never have implicits.
 
 	if len(r.dict.bounds) == 0 {
 		return nil
