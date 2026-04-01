@@ -203,9 +203,10 @@ type writer struct {
 
 // A writerDict tracks types and objects that are used by a declaration.
 type writerDict struct {
-	// implicits is a slice of type parameters from the enclosing
-	// declarations.
+	// implicits contains type parameters from enclosing declarations.
 	implicits []*types2.TypeParam
+	// receivers contains receiver type parameters of the declaration.
+	receivers []*types2.TypeParam
 
 	// derived is a slice of type indices for computing derived types
 	// (i.e., types that depend on the declaration's type parameters).
@@ -934,11 +935,21 @@ func (w *writer) objDict(obj types2.Object, dict *writerDict) {
 	// doesn't care about referenced functions.
 
 	w.dict = dict // TODO(mdempsky): This is a bit sketchy.
-
 	w.Len(len(dict.implicits))
 
+	rtparams := objRecvTypeParams(obj)
 	tparams := objTypeParams(obj)
+
+	if w.Version().Has(pkgbits.GenericMethods) {
+		w.Len(len(rtparams))
+	} else {
+		assert(len(rtparams) == 0)
+	}
 	w.Len(len(tparams))
+
+	for _, rtparam := range rtparams {
+		w.typ(rtparam.Constraint())
+	}
 	for _, tparam := range tparams {
 		w.typ(tparam.Constraint())
 	}
@@ -969,6 +980,9 @@ func (w *writer) objDict(obj types2.Object, dict *writerDict) {
 	// arithmetic/conversions/etc, we could shape those together.
 	for _, implicit := range dict.implicits {
 		w.Bool(implicit.Underlying().(*types2.Interface).IsMethodSet())
+	}
+	for _, rtparam := range rtparams {
+		w.Bool(rtparam.Underlying().(*types2.Interface).IsMethodSet())
 	}
 	for _, tparam := range tparams {
 		w.Bool(tparam.Underlying().(*types2.Interface).IsMethodSet())
