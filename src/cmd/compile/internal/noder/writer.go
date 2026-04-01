@@ -925,10 +925,9 @@ func (w *writer) objDict(obj types2.Object, dict *writerDict) {
 	w.Len(len(dict.implicits))
 
 	tparams := objTypeParams(obj)
-	ntparams := tparams.Len()
-	w.Len(ntparams)
-	for i := 0; i < ntparams; i++ {
-		w.typ(tparams.At(i).Constraint())
+	w.Len(len(tparams))
+	for _, tparam := range tparams {
+		w.typ(tparam.Constraint())
 	}
 
 	nderived := len(dict.derived)
@@ -958,8 +957,7 @@ func (w *writer) objDict(obj types2.Object, dict *writerDict) {
 	for _, implicit := range dict.implicits {
 		w.Bool(implicit.Underlying().(*types2.Interface).IsMethodSet())
 	}
-	for i := 0; i < ntparams; i++ {
-		tparam := tparams.At(i)
+	for _, tparam := range tparams {
 		w.Bool(tparam.Underlying().(*types2.Interface).IsMethodSet())
 	}
 
@@ -2707,16 +2705,15 @@ type declCollector struct {
 }
 
 func (c *declCollector) withTParams(obj types2.Object) *declCollector {
-	tparams := objTypeParams(obj)
-	n := tparams.Len()
-	if n == 0 {
+	tparams := slices.Concat(objRecvTypeParams(obj), objTypeParams(obj))
+	if len(tparams) == 0 {
 		return c
 	}
 
 	copy := *c
 	copy.implicits = copy.implicits[:len(copy.implicits):len(copy.implicits)]
-	for i := 0; i < n; i++ {
-		copy.implicits = append(copy.implicits, tparams.At(i))
+	for _, tparam := range tparams {
+		copy.implicits = append(copy.implicits, tparam)
 	}
 	return &copy
 }
@@ -3149,24 +3146,40 @@ func fieldIndex(info *types2.Info, str *types2.Struct, key *syntax.Name) int {
 	panic(fmt.Sprintf("%s: %v is not a field of %v", key.Pos(), field, str))
 }
 
+// objRecvTypeParams returns the receiver type parameters on the given object.
+func objRecvTypeParams(obj types2.Object) []*types2.TypeParam {
+	if f, ok := obj.(*types2.Func); ok {
+		return asTypeParamSlice(f.Signature().RecvTypeParams())
+	}
+	return nil
+}
+
 // objTypeParams returns the type parameters on the given object.
-func objTypeParams(obj types2.Object) *types2.TypeParamList {
-	switch obj := obj.(type) {
+func objTypeParams(obj types2.Object) []*types2.TypeParam {
+	switch t := obj.(type) {
 	case *types2.Func:
-		sig := obj.Type().(*types2.Signature)
-		if sig.Recv() != nil {
-			return sig.RecvTypeParams()
-		}
-		return sig.TypeParams()
+		return asTypeParamSlice(t.Signature().TypeParams())
 	case *types2.TypeName:
 		switch t := obj.Type().(type) {
 		case *types2.Named:
-			return t.TypeParams()
+			return asTypeParamSlice(t.TypeParams())
 		case *types2.Alias:
-			return t.TypeParams()
+			return asTypeParamSlice(t.TypeParams())
 		}
 	}
 	return nil
+}
+
+// asTypeParamSlice unpacks a types2.TypeParamList to a []types2.TypeParam
+func asTypeParamSlice(l *types2.TypeParamList) []*types2.TypeParam {
+	if l.Len() == 0 {
+		return nil
+	}
+	s := make([]*types2.TypeParam, l.Len())
+	for i := range l.Len() {
+		s[i] = l.At(i)
+	}
+	return s
 }
 
 // splitNamed decomposes a use of a defined type into its original
