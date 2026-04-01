@@ -25,128 +25,174 @@ TEXT ·IndexByte<ABIInternal>(SB),NOSPLIT,$0-40
 //   R0: result
 TEXT ·IndexByteString<ABIInternal>(SB),NOSPLIT,$0-32
 	// Core algorithm:
-	// For each 32-byte chunk we calculate a 64-bit syndrome value,
-	// with two bits per byte. For each tuple, bit 0 is set if the
-	// relevant byte matched the requested character and bit 1 is
-	// not used (faster than using a 32bit syndrome). Since the bits
-	// in the syndrome reflect exactly the order in which things occur
-	// in the original string, counting trailing zeros allows to
-	// identify exactly which byte has matched.
+	// We load chunks of data, 16 bytes at a time.
+	// We compare them with the target byte using
+	// a vector comparison. The vector comparison
+	// generates byte mask outputs. We convert the byte
+	// mask to a nibble mask and move it to an int register.
+	// The lowest bit index / 4 is the matching lane.
+	//
+	// An example (using 8 byte vectors for clarity -
+	// the real code uses 16 byte vectors):
+	//
+	// target:     [92 92 92 92 92 92 92 92] repeat of input byte
+	// data:       [3a 92 3c 47 21 03 92 b9] loaded from input string
+	// equalMask:  [00 ff 00 00 00 00 ff 00] comparison (VCMEQ)
+	// nibbleMask: [f0 00 00 0f .. .. .. ..] narrow to nibbles (VSHRN $4)
+	// register:   0x0f0000f0                move to int register
+	// idx:        1                         lowest set bit / 4
+	//
+	// If there is any match, the int register is nonzero and
+	// we can read the match index off from it. Otherwise, there
+	// is no match in those 16 bytes.
+	//
+	// For the small-input cases (<16 bytes), we have to be careful
+	// not to read outside 16-byte aligned chunks because of MTE.
+	// We use some additional masking to extract only matches that
+	// are valid for the input data.
 
-	CBZ	R1, fail
-#ifdef GOOS_android
-	ADD	R0, R1, R20   // R20 = end of data
-	BIC	$0xf, R0, R21 // R21 = earliest we can read
-#endif
-	MOVD	R0, R11
-	// Magic constant 0x40100401 allows us to identify
-	// which lane matches the requested byte.
-	// 0x40100401 = ((1<<0) + (4<<8) + (16<<16) + (64<<24))
-	// Different bytes have different bit masks (i.e: 1, 4, 16, 64)
-	MOVD	$0x40100401, R5
-	VMOV	R2, V0.B16
-	// Work with aligned 32-byte chunks
-	BIC	$0x1f, R0, R3
-	VMOV	R5, V5.S4
-	ANDS	$0x1f, R0, R9
-	AND	$0x1f, R1, R10
-	BEQ	loop
+#define	PTR	R0
+#define	LEN	R1
+#define	TARGET	R2
+#define	BASE	R3
+#define MASK	R4
+#define	VTARGET	V0.B16
 
-	// Input string is not 32-byte aligned. We calculate the
-	// syndrome value for the aligned 32 bytes block containing
-	// the first bytes and mask off the irrelevant part.
-#ifdef GOOS_android
-	// Android requires us to not read outside an aligned 16-byte
-	// region because MTE might be enforced.
-	CMP	R21, R3
-	BLO	2(PC)
-	VLD1	(R3), [V1.B16]
-	ADD	$0x10, R3
-	CMP	R3, R20
-	BLS	2(PC)
-	VLD1	(R3), [V2.B16]
-	ADD	$0x10, R3
-#else
-	VLD1.P	(R3), [V1.B16, V2.B16]
-#endif
-	SUB	$0x20, R9, R4
-	ADDS	R4, R1, R1
-	VCMEQ	V0.B16, V1.B16, V3.B16
-	VCMEQ	V0.B16, V2.B16, V4.B16
-	VAND	V5.B16, V3.B16, V3.B16
-	VAND	V5.B16, V4.B16, V4.B16
-	VADDP	V4.B16, V3.B16, V6.B16 // 256->128
-	VADDP	V6.B16, V6.B16, V6.B16 // 128->64
-	VMOV	V6.D[0], R6
-	// Clear the irrelevant lower bits
-	LSL	$1, R9, R4
-	LSR	R4, R6, R6
-	LSL	R4, R6, R6
-	// The first block can also be the last
-	BLS	masklast
-	// Have we found something already?
-	CBNZ	R6, tail
+	// Length 0, nothing to do.
+	CBZ	LEN, fail
 
-loop:
-#ifdef GOOS_android
-	CMP	R21, R3
-	BLO	2(PC)
-	VLD1	(R3), [V1.B16]
-	ADD	$0x10, R3
-	CMP	R3, R20
-	BLS	2(PC)
-	VLD1	(R3), [V2.B16]
-	ADD	$0x10, R3
-#else
-	VLD1.P	(R3), [V1.B16, V2.B16]
-#endif
-	SUBS	$0x20, R1, R1
-	VCMEQ	V0.B16, V1.B16, V3.B16
-	VCMEQ	V0.B16, V2.B16, V4.B16
-	// If we're out of data we finish regardless of the result
-	BLS	end
-	// Use a fast check for the termination condition
-	VORR	V4.B16, V3.B16, V6.B16
-	VADDP	V6.D2, V6.D2, V6.D2
-	VMOV	V6.D[0], R6
-	// We're not out of data, loop if we haven't found the character
-	CBZ	R6, loop
+	// Make vector containing the byte we're searching for in each lane.
+	VMOV	TARGET, VTARGET		// [c c c ... c c c]
 
-end:
-	// Termination condition found, let's calculate the syndrome value
-	VAND	V5.B16, V3.B16, V3.B16
-	VAND	V5.B16, V4.B16, V4.B16
-	VADDP	V4.B16, V3.B16, V6.B16
-	VADDP	V6.B16, V6.B16, V6.B16
-	VMOV	V6.D[0], R6
-	// Only do the clear for the last possible block with less than 32 bytes
-	// Condition flags come from SUBS in the loop
-	BHS	tail
+	// Small, need to be extra careful about out of bounds.
+	CMP	$16, LEN
+	BLT	small
 
-masklast:
-	// Clear the irrelevant upper bits
-	ADD	R9, R10, R4
-	AND	$0x1f, R4, R4
-	SUB	$0x20, R4, R4
-	NEG	R4<<1, R4
-	LSL	R4, R6, R6
-	LSR	R4, R6, R6
+	// Save original location (for computing result).
+	MOVD	PTR, BASE
 
-tail:
-	// Check that we have found a character
-	CBZ	R6, fail
-	// Count the trailing zeros using bit reversing
-	RBIT	R6, R6
-	// Compensate the last post-increment
-	SUB	$0x20, R3, R3
-	// And count the leading zeros
-	CLZ	R6, R6
-	// R6 is twice the offset into the fragment
-	ADD	R6>>1, R3, R0
-	// Compute the offset result
-	SUB	R11, R0, R0
-	RET
+	// Check low bits of length.
+	AND	$0xf, LEN, R9
+	CBZ	R9, multipleOf16
+
+	// Length is not a multiple of 16.
+	// Check 16 bytes, but then advance less to make length aligned.
+	VLD1	(PTR), [V2.B16]		// load data
+	VCMEQ	VTARGET, V2.B16, V2.B16	// compare each byte against the target byte
+	VSHRN	$4, V2.H8, V2.B8	// compact to one nibble per byte
+	VMOV	V2.D[0], MASK		// move to general purpose register
+	CBNZ	MASK, foundStart
+	ADD	R9, PTR
+	SUB	R9, LEN
+
+	// Length is a nonzero multiple of 16.
+multipleOf16:
+	TBZ	$4, LEN, multipleOf32
+	VLD1.P	(PTR), [V2.B16]
+	SUB	$16, LEN
+	VCMEQ	VTARGET, V2.B16, V2.B16
+	VSHRN	$4, V2.H8, V2.B8
+	VMOV	V2.D[0], MASK
+	CBNZ	MASK, found16
+	CBZ	LEN, fail
+
+	// Length is a nonzero multiple of 32.
+multipleOf32:
+	TBZ	$5, LEN, multipleOf64
+	VLD1.P	(PTR), [V2.B16, V3.B16]	// load data, PTR += 32
+	SUB	$32, LEN
+	VCMEQ	VTARGET, V2.B16, V2.B16
+	VCMEQ	VTARGET, V3.B16, V3.B16
+	VSHRN	$4, V2.H8, V2.B8
+	VSHRN	$4, V3.H8, V3.B8
+	VMOV	V2.D[0], MASK
+	CBNZ	MASK, found32
+	VMOV	V3.D[0], MASK
+	CBNZ	MASK, found16
+	CBZ	LEN, fail
+
+	// Length is a nonzero multiple of 64.
+multipleOf64:
+	VLD1.P	(PTR), [V2.B16, V3.B16, V4.B16, V5.B16]	// load data, PTR += 64
+	SUB	$64, LEN
+	VCMEQ	VTARGET, V2.B16, V2.B16
+	VCMEQ	VTARGET, V3.B16, V3.B16
+	VCMEQ	VTARGET, V4.B16, V4.B16
+	VCMEQ	VTARGET, V5.B16, V5.B16
+	VORR	V2.B16, V3.B16, V10.B16
+	VORR	V4.B16, V5.B16, V11.B16
+	VORR	V10.B16, V11.B16, V10.B16
+	VADDP	V10.D2, V10.D2, V10.D2
+	VMOV	V10.D[0], R10
+	CBNZ	R10, found64		// at least one lane matched
+	CBNZ	LEN, multipleOf64
 
 fail:
 	MOVD	$-1, R0
+	RET
+
+foundStart:
+	RBIT	MASK, MASK
+	CLZ	MASK, R9		// count trailing zeros
+	LSR	$2, R9, R0		// divide by 4
+	RET
+
+found16:
+	SUB	$16, PTR		// undo .P
+
+	// On entry to found0, MASK contains a nonzero nibble bitmask
+	// of matches starting at PTR.
+found0:
+	SUB	BASE, PTR		// convert pointer to offset
+	RBIT	MASK, MASK
+	CLZ	MASK, R9		// count trailing zeros
+	ADD	R9>>2, PTR, R0		// add nibble index to offset
+	RET
+
+found32:
+	SUB	$32, PTR		// undo .P
+	B	found0
+
+found64:
+	SUB	$64, PTR		// undo .P
+	VSHRN	$4, V2.H8, V2.B8
+	VMOV	V2.D[0], MASK
+	CBNZ	MASK, found0
+	ADD	$16, PTR		// redo 1/4 of .P
+	VSHRN	$4, V3.H8, V3.B8
+	VMOV	V3.D[0], MASK
+	CBNZ	MASK, found0
+	ADD	$16, PTR		// redo 1/4 of .P
+	VSHRN	$4, V4.H8, V4.B8
+	VMOV	V4.D[0], MASK
+	CBNZ	MASK, found0
+	ADD	$16, PTR		// redo 1/4 of .P
+	VSHRN	$4, V5.H8, V5.B8
+	VMOV	V5.D[0], MASK
+	B	found0
+
+	// 1-15 bytes
+	PCALIGN	$16
+small:
+	AND	$0xf, PTR, R8		// R8 = offset of start in 16-byte region
+	ADD	R8, LEN, R9		// R9 = offset of end (from start's 16-byte region boundary)
+	MOVD	$0, R10			// R10 = low bits of match data to throw away
+	CMP	$16, R9
+	BGT	noAdjust		// straddles two 16-byte regions - safe to load directly
+
+	// data is all within a single 16-byte region
+	BIC	$0xf, PTR, PTR		// round down to start of 16-byte region
+	LSL	$2, R8, R10		// throw away the match bits below original start
+
+noAdjust:
+	VLD1	(PTR), [V2.B16]
+	VCMEQ	VTARGET, V2.B16, V2.B16
+	VSHRN	$4, V2.H8, V2.B8	// compact to one nibble per byte
+	VMOV	V2.D[0], MASK		// move to general purpose register
+	LSR	R10, MASK, MASK		// discard matches before string start
+	RBIT	MASK, MASK
+	CLZ	MASK, R9
+	LSR	$2, R9, R9
+	CMP	LEN, R9
+	CSINV	LT, R9, ZR, R0		// if first match past end of string, set return value to -1
 	RET
