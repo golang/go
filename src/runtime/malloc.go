@@ -788,7 +788,7 @@ func (h *mheap) sysAlloc(n uintptr, hintList **arenaHint, arenaList *[]arenaIdx)
 		// particular, this is already how Windows behaves, so
 		// it would simplify things there.
 		if v != nil {
-			sysFreeOS(v, n)
+			sysUnreserve(v, n)
 		}
 		*hintList = hint.next
 		h.arenaHintAlloc.free(unsafe.Pointer(hint))
@@ -919,58 +919,6 @@ mapped:
 	}
 
 	return
-}
-
-// sysReserveAligned is like sysReserve, but the returned pointer is
-// aligned to align bytes. It may reserve either n or n+align bytes,
-// so it returns the size that was reserved.
-func sysReserveAligned(v unsafe.Pointer, size, align uintptr, vmaName string) (unsafe.Pointer, uintptr) {
-	if isSbrkPlatform {
-		if v != nil {
-			throw("unexpected heap arena hint on sbrk platform")
-		}
-		return sysReserveAlignedSbrk(size, align)
-	}
-	// Since the alignment is rather large in uses of this
-	// function, we're not likely to get it by chance, so we ask
-	// for a larger region and remove the parts we don't need.
-	retries := 0
-retry:
-	p := uintptr(sysReserve(v, size+align, vmaName))
-	switch {
-	case p == 0:
-		return nil, 0
-	case p&(align-1) == 0:
-		return unsafe.Pointer(p), size + align
-	case GOOS == "windows":
-		// On Windows we can't release pieces of a
-		// reservation, so we release the whole thing and
-		// re-reserve the aligned sub-region. This may race,
-		// so we may have to try again.
-		sysFreeOS(unsafe.Pointer(p), size+align)
-		p = alignUp(p, align)
-		p2 := sysReserve(unsafe.Pointer(p), size, vmaName)
-		if p != uintptr(p2) {
-			// Must have raced. Try again.
-			sysFreeOS(p2, size)
-			if retries++; retries == 100 {
-				throw("failed to allocate aligned heap memory; too many retries")
-			}
-			goto retry
-		}
-		// Success.
-		return p2, size
-	default:
-		// Trim off the unaligned parts.
-		pAligned := alignUp(p, align)
-		sysFreeOS(unsafe.Pointer(p), pAligned-p)
-		end := pAligned + size
-		endLen := (p + size + align) - end
-		if endLen > 0 {
-			sysFreeOS(unsafe.Pointer(end), endLen)
-		}
-		return unsafe.Pointer(pAligned), size
-	}
 }
 
 // enableMetadataHugePages enables huge pages for various sources of heap metadata.
