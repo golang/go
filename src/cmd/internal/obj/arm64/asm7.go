@@ -3288,6 +3288,14 @@ func buildop(ctxt *obj.Link) {
 
 		case AVADDV:
 			oprangeset(AVUADDLV, t)
+			oprangeset(AVFMAXV, t)
+			oprangeset(AVFMAXNMV, t)
+			oprangeset(AVFMINV, t)
+			oprangeset(AVFMINNMV, t)
+			oprangeset(AVSMAXV, t)
+			oprangeset(AVSMINV, t)
+			oprangeset(AVUMAXV, t)
+			oprangeset(AVUMINV, t)
 
 		case AVFMLA:
 			oprangeset(AVFMLS, t)
@@ -5312,6 +5320,14 @@ func (c *ctxt7) asmout(p *obj.Prog, out []uint32) (count int) {
 		default:
 			c.ctxt.Diag("invalid arrangement: %v\n", p)
 		}
+		switch p.As {
+		// Floating-point reduction instructions only support .S4 arrangement and don't have a size field.
+		case AVFMAXV, AVFMINV, AVFMAXNMV, AVFMINNMV:
+			if af != ARNG_4S {
+				c.ctxt.Diag("invalid arrangement: %v\n", p)
+			}
+			size = 0
+		}
 		o1 = c.oprrr(p, p.As, p.To.Reg, p.From.Reg, obj.REG_NONE)
 		o1 |= uint32(Q&1)<<30 | uint32(size&3)<<22
 
@@ -6799,6 +6815,30 @@ func (c *ctxt7) oprrr(p *obj.Prog, a obj.As, rd, rn, rm int16) uint32 {
 
 	case AVADDV:
 		op = ASIMDALL(0, 0, 0x1B)
+
+	case AVFMAXV:
+		op = ASIMDALL(1, 0, 0xF)
+
+	case AVFMAXNMV:
+		op = ASIMDALL(1, 0, 0xC)
+
+	case AVFMINV:
+		op = ASIMDALL(1, 2, 0xF)
+
+	case AVFMINNMV:
+		op = ASIMDALL(1, 2, 0xC)
+
+	case AVSMAXV:
+		op = ASIMDALL(0, 0, 0xA)
+
+	case AVSMINV:
+		op = ASIMDALL(0, 0, 0x1A)
+
+	case AVUMAXV:
+		op = ASIMDALL(1, 0, 0xA)
+
+	case AVUMINV:
+		op = ASIMDALL(1, 0, 0x1A)
 
 	case AVUADDLV:
 		op = ASIMDALL(1, 0, 0x03)

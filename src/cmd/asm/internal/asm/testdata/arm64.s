@@ -2100,4 +2100,30 @@ next:
 	AUTIA1716                                  // 9f2103d5
 	AUTIB1716                                  // df2103d5
 
+// Vector Reduction Instructions
+	VSMAXV	V0.B8, V0                          // 00a8300e
+	VSMAXV	V0.B16, V0                         // 00a8304e
+	VSMAXV	V0.H4, V0                          // 00a8700e
+	VSMAXV	V0.H8, V0                          // 00a8704e
+	VSMAXV	V0.S4, V0                          // 00a8b04e
+	VSMINV	V0.B8, V0                          // 00a8310e
+	VSMINV	V0.B16, V0                         // 00a8314e
+	VSMINV	V0.H4, V0                          // 00a8710e
+	VSMINV	V0.H8, V0                          // 00a8714e
+	VSMINV	V0.S4, V0                          // 00a8b14e
+	VUMAXV	V0.B8, V0                          // 00a8302e
+	VUMAXV	V0.B16, V0                         // 00a8306e
+	VUMAXV	V0.H4, V0                          // 00a8702e
+	VUMAXV	V0.H8, V0                          // 00a8706e
+	VUMAXV	V0.S4, V0                          // 00a8b06e
+	VUMINV	V0.B8, V0                          // 00a8312e
+	VUMINV	V0.B16, V0                         // 00a8316e
+	VUMINV	V0.H4, V0                          // 00a8712e
+	VUMINV	V0.H8, V0                          // 00a8716e
+	VUMINV	V0.S4, V0                          // 00a8b16e
+	VFMAXV	V0.S4, V0                          // 00f8306e
+	VFMINV	V0.S4, V0                          // 00f8b06e
+	VFMAXNMV V0.S4, V0                          // 00c8306e
+	VFMINNMV V0.S4, V0                          // 00c8b06e
+
 	END
