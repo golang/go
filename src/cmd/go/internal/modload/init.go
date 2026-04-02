@@ -1203,7 +1203,11 @@ func CreateModFile(ld *Loader, ctx context.Context, modPath string) {
 	}
 	checkModulePath(modPath)
 
-	fmt.Fprintf(os.Stderr, "go: creating new go.mod: module %s\n", modPath)
+	if cfg.ModFile != "" {
+		fmt.Fprintf(os.Stderr, "go: creating new go.mod (using -modfile path %s): module %s\n", base.ShortPath(modFilePath), modPath)
+	} else {
+		fmt.Fprintf(os.Stderr, "go: creating new go.mod: module %s\n", modPath)
+	}
 	modFile := new(modfile.File)
 	modFile.AddModuleStmt(modPath)
 	ld.MainModules = makeMainModules(ld, []module.Version{modFile.Module.Mod}, []string{modRoot}, []*modfile.File{modFile}, []*modFileIndex{nil}, nil)
