@@ -505,6 +505,7 @@ parseExtras:
 		// determining whether extended timestamps are present.
 		// This is necessary for users that need to do additional time
 		// calculations when dealing with legacy ZIP formats.
+		
 		if f.ModifiedTime != 0 || f.ModifiedDate != 0 {
 			f.Modified = modified.In(timeZone(msdosModified.Sub(modified)))
 		}
