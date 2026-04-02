@@ -426,7 +426,7 @@ TEXT asmtest(SB),DUPOK|NOSPLIT,$-8
 	YIELD                                      // 3f2003d5
 	//TODO FABD F0, F5, F11                    // abd4a07e
 	//TODO VFABD V30.S2, V8.S2, V24.S2         // 18d5be2e
-	//TODO VFABS V5.S4, V24.S4                 // b8f8a04e
+	VFABS V5.S4, V24.S4                        // b8f8a04e
 	FABSS F2, F28                              // 5cc0201e
 	FABSD F0, F14                              // 0ec0601e
 	//TODO FACGE F25, F16, F0                  // 00ee797e
@@ -603,7 +603,7 @@ TEXT asmtest(SB),DUPOK|NOSPLIT,$-8
 	//TODO VFMULX V12.D[1], V21.D2, V31.D2     // bf9acc6f
 	//TODO FMULX F16, F1, F31                  // 3fdc705e
 	//TODO VFMULX V29.S2, V13.S2, V31.S2       // bfdd3d0e
-	//TODO VFNEG V18.S2, V12.S2                // 4cfaa02e
+	VFNEG V18.S2, V12.S2                       // 4cfaa02e
 	FNEGS F16, F5                              // 0542211e
 	FNEGD F31, F31                             // ff43611e
 	FNMADDS F17, F22, F6, F20                  // d458311f
@@ -623,26 +623,26 @@ TEXT asmtest(SB),DUPOK|NOSPLIT,$-8
 	//TODO VFRINTI V21.D2, V31.D2              // bf9ae16e
 	FRINTIS F17, F17                           // 31c2271e
 	FRINTID F9, F15                            // 2fc1671e
-	//TODO VFRINTM V9.D2, V27.D2               // 3b99614e
+	VFRINTM V9.D2, V27.D2                      // 3b99614e
 	FRINTMS F24, F16                           // 1043251e
 	FRINTMD F5, F2                             // a240651e
-	//TODO VFRINTN V30.S4, V2.S4               // c28b214e
+	VFRINTN V30.S4, V2.S4                      // c28b214e
 	FRINTNS F26, F14                           // 4e43241e
 	FRINTND F28, F12                           // 8c43641e
-	//TODO VFRINTP V27.D2, V31.D2              // 7f8be14e
+	VFRINTP V27.D2, V31.D2                     // 7f8be14e
 	FRINTPS F27, F4                            // 64c3241e
 	FRINTPD F6, F22                            // d6c0641e
 	//TODO VFRINTX V25.D2, V0.D2               // 209b616e
 	FRINTXS F26, F10                           // 4a43271e
 	FRINTXD F16, F12                           // 0c42671e
-	//TODO VFRINTZ V25.S4, V27.S4              // 3b9ba14e
+	VFRINTZ V25.S4, V27.S4                     // 3b9ba14e
 	FRINTZS F3, F28                            // 7cc0251e
 	FRINTZD F24, F6                            // 06c3651e
 	//TODO FRSQRTE F29, F5                     // a5dbe17e
 	//TODO VFRSQRTE V18.S2, V1.S2              // 41daa12e
 	//TODO FRSQRTS F17, F7, F24                // f8fcf15e
 	//TODO VFRSQRTS V14.S2, V10.S2, V24.S2     // 58fdae0e
-	//TODO VFSQRT V2.D2, V21.D2                // 55f8e16e
+	VFSQRT V2.D2, V21.D2                       // 55f8e16e
 	FSQRTS F0, F9                              // 09c0211e
 	FSQRTD F14, F27                            // dbc1611e
 	FSUBS F25, F23, F0                         // e03a391e

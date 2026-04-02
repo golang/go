@@ -3323,9 +3323,23 @@ func buildop(ctxt *obj.Link) {
 
 		case AVREV32:
 			oprangeset(AVCNT, t)
+			oprangeset(AVCLS, t)
+			oprangeset(AVCLZ, t)
 			oprangeset(AVRBIT, t)
 			oprangeset(AVREV64, t)
 			oprangeset(AVREV16, t)
+			oprangeset(AVABS, t)
+			oprangeset(AVNEG, t)
+			oprangeset(AVFABS, t)
+			oprangeset(AVFNEG, t)
+			oprangeset(AVFSQRT, t)
+			oprangeset(AVFRINTN, t)
+			oprangeset(AVFRINTP, t)
+			oprangeset(AVFRINTM, t)
+			oprangeset(AVFRINTZ, t)
+			oprangeset(AVSQABS, t)
+			oprangeset(AVSQNEG, t)
+			oprangeset(AVNOT, t)
 
 		case AVZIP1:
 			oprangeset(AVZIP2, t)
@@ -5198,6 +5212,9 @@ func (c *ctxt7) asmout(p *obj.Prog, out []uint32) (count int) {
 		case ARNG_4S:
 			Q = 1
 			size = 2
+		case ARNG_2D:
+			Q = 1
+			size = 3
 		default:
 			c.ctxt.Diag("invalid arrangement: %v\n", p)
 		}
@@ -5212,6 +5229,30 @@ func (c *ctxt7) asmout(p *obj.Prog, out []uint32) (count int) {
 
 		if p.As == AVREV16 && af != ARNG_8B && af != ARNG_16B {
 			c.ctxt.Diag("invalid arrangement: %v", p)
+		}
+
+		if p.As == AVNOT && (af != ARNG_8B && af != ARNG_16B) {
+			c.ctxt.Diag("invalid arrangement: %v", p)
+		}
+
+		// VCLS and VCLZ only support integer arrangements (B, H, S), not D arrangements
+		if (p.As == AVCLS || p.As == AVCLZ) && (af == ARNG_1D || af == ARNG_2D) {
+			c.ctxt.Diag("invalid arrangement: %v", p)
+		}
+
+		// Floating-point instructions only allow floating-point arrangements
+		// and use 1-bit size field: 0 for S arrangements, 1 for D arrangements
+		if p.As == AVFABS || p.As == AVFNEG || p.As == AVFSQRT ||
+			p.As == AVFRINTN || p.As == AVFRINTP || p.As == AVFRINTM || p.As == AVFRINTZ {
+			if af != ARNG_2S && af != ARNG_4S && af != ARNG_2D {
+				c.ctxt.Diag("invalid arrangement: %v", p)
+			}
+			// Override size for floating-point instructions: 0 for S, 1 for D
+			if af == ARNG_2S || af == ARNG_4S {
+				size = 0
+			} else if af == ARNG_2D {
+				size = 1
+			}
 		}
 
 		if p.As == AVRBIT {
@@ -6681,6 +6722,12 @@ func (c *ctxt7) oprrr(p *obj.Prog, a obj.As, rd, rn, rm int16) uint32 {
 	case AVCNT:
 		op = ASIMDMISC(0, 0, 0x05)
 
+	case AVCLS:
+		op = ASIMDMISC(0, 0, 0x04)
+
+	case AVCLZ:
+		op = ASIMDMISC(1, 0, 0x04)
+
 	case AVZIP1:
 		op = ASIMDPERM(0x3)
 
@@ -6710,6 +6757,42 @@ func (c *ctxt7) oprrr(p *obj.Prog, a obj.As, rd, rn, rm int16) uint32 {
 
 	case AVREV64:
 		op = ASIMDMISC(0, 0, 0x00)
+
+	case AVABS:
+		op = ASIMDMISC(0, 0, 0xB)
+
+	case AVNEG:
+		op = ASIMDMISC(1, 0, 0xB)
+
+	case AVFABS:
+		op = ASIMDMISC(0, 2, 0xF)
+
+	case AVFNEG:
+		op = ASIMDMISC(1, 2, 0xF)
+
+	case AVFSQRT:
+		op = ASIMDMISC(1, 2, 0x1F)
+
+	case AVFRINTN:
+		op = ASIMDMISC(0, 0, 0x18)
+
+	case AVFRINTP:
+		op = ASIMDMISC(0, 2, 0x18)
+
+	case AVFRINTM:
+		op = ASIMDMISC(0, 0, 0x19)
+
+	case AVFRINTZ:
+		op = ASIMDMISC(0, 2, 0x19)
+
+	case AVSQABS:
+		op = ASIMDMISC(0, 0, 0x7)
+
+	case AVSQNEG:
+		op = ASIMDMISC(1, 0, 0x7)
+
+	case AVNOT:
+		op = ASIMDMISC(1, 0, 0x5)
 
 	case AVMOV:
 		op = 7<<25 | 5<<21 | 7<<10

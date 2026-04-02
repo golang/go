@@ -199,6 +199,21 @@ TEXT	foo(SB), DUPOK|NOSPLIT, $-8
 	VSRSHR	$16, V0.S2, V1.S2               // 0124300f
 	VSRSHR	$16, V0.S4, V1.S4               // 0124304f
 	VSRSHR	$32, V0.D2, V1.D2               // 0124604f
+	VFSQRT	V0.S2, V1.S2                   // 01f8a12e
+	VFSQRT	V0.S4, V1.S4                   // 01f8a16e
+	VFSQRT	V0.D2, V1.D2                   // 01f8e16e
+	VFRINTN	V0.S2, V1.S2                   // 0188210e
+	VFRINTN	V0.S4, V1.S4                   // 0188214e
+	VFRINTN	V0.D2, V1.D2                   // 0188614e
+	VFRINTP	V0.S2, V1.S2                   // 0188a10e
+	VFRINTP	V0.S4, V1.S4                   // 0188a14e
+	VFRINTP	V0.D2, V1.D2                   // 0188e14e
+	VFRINTM	V0.S2, V1.S2                   // 0198210e
+	VFRINTM	V0.S4, V1.S4                   // 0198214e
+	VFRINTM	V0.D2, V1.D2                   // 0198614e
+	VFRINTZ	V0.S2, V1.S2                   // 0198a10e
+	VFRINTZ	V0.S4, V1.S4                   // 0198a14e
+	VFRINTZ	V0.D2, V1.D2                   // 0198e14e
 	VSHL	$56, V1.D2, V2.D2               // 2254784f
 	VSHL	$24, V1.S4, V2.S4               // 2254384f
 	VSHL	$24, V1.S2, V2.S2               // 2254380f
@@ -438,6 +453,53 @@ TEXT	foo(SB), DUPOK|NOSPLIT, $-8
 	VREV64	V2.S4, V3.S4                    // 4308a04e
 	VREV16	V7.B16, V5.B16                  // e518204e
 	VREV16	V7.B8, V5.B8                    // e518200e
+
+	VABS	V0.B8, V1.B8                    // 01b8200e
+	VABS	V0.B16, V1.B16                  // 01b8204e
+	VABS	V0.H4, V1.H4                    // 01b8600e
+	VABS	V0.H8, V1.H8                    // 01b8604e
+	VABS	V0.S2, V1.S2                    // 01b8a00e
+	VABS	V0.S4, V1.S4                    // 01b8a04e
+	VABS	V0.D2, V1.D2                    // 01b8e04e
+	VCLS	V0.B8, V1.B8                    // 0148200e
+	VCLS	V0.B16, V1.B16                  // 0148204e
+	VCLS	V0.H4, V1.H4                    // 0148600e
+	VCLS	V0.H8, V1.H8                    // 0148604e
+	VCLS	V0.S2, V1.S2                    // 0148a00e
+	VCLS	V0.S4, V1.S4                    // 0148a04e
+	VCLZ	V0.B8, V1.B8                    // 0148202e
+	VCLZ	V0.B16, V1.B16                  // 0148206e
+	VCLZ	V0.H4, V1.H4                    // 0148602e
+	VCLZ	V0.H8, V1.H8                    // 0148606e
+	VCLZ	V0.S2, V1.S2                    // 0148a02e
+	VCLZ	V0.S4, V1.S4                    // 0148a06e
+	VNEG	V0.B8, V1.B8                    // 01b8202e
+	VNEG	V0.B16, V1.B16                  // 01b8206e
+	VNEG	V0.H4, V1.H4                    // 01b8602e
+	VNEG	V0.H8, V1.H8                    // 01b8606e
+	VNEG	V0.S2, V1.S2                    // 01b8a02e
+	VNEG	V0.S4, V1.S4                    // 01b8a06e
+	VNEG	V0.D2, V1.D2                    // 01b8e06e
+	VFABS	V0.S2, V1.S2                    // 01f8a00e
+	VFABS	V0.S4, V1.S4                    // 01f8a04e
+	VFABS	V0.D2, V1.D2                    // 01f8e04e
+	VFNEG	V0.S2, V1.S2                    // 01f8a02e
+	VFNEG	V0.S4, V1.S4                    // 01f8a06e
+	VFNEG	V0.D2, V1.D2                    // 01f8e06e
+	VSQABS	V0.B8, V1.B8                    // 0178200e
+	VSQABS	V0.B16, V1.B16                  // 0178204e
+	VSQABS	V0.H4, V1.H4                    // 0178600e
+	VSQABS	V0.H8, V1.H8                    // 0178604e
+	VSQABS	V0.S2, V1.S2                    // 0178a00e
+	VSQABS	V0.S4, V1.S4                    // 0178a04e
+	VSQNEG	V0.B8, V1.B8                    // 0178202e
+	VSQNEG	V0.B16, V1.B16                  // 0178206e
+	VSQNEG	V0.H4, V1.H4                    // 0178602e
+	VSQNEG	V0.H8, V1.H8                    // 0178606e
+	VSQNEG	V0.S2, V1.S2                    // 0178a02e
+	VSQNEG	V0.S4, V1.S4                    // 0178a06e
+	VNOT	V0.B8, V1.B8                    // 0158202e
+	VNOT	V0.B16, V1.B16                  // 0158206e
 
 // logical ops
 //
