@@ -2276,7 +2276,18 @@ func (w *writer) methodExpr(expr *syntax.SelectorExpr, recv types2.Type, sel *ty
 	sig := fun.Type().(*types2.Signature)
 
 	w.typ(recv)
-	w.typ(sig)
+
+	// only pass the signature if it's not a generic method
+	if isGenericMethod(sig) {
+		assert(w.Version().Has(pkgbits.GenericMethods))
+		w.Bool(true)
+	} else {
+		if w.Version().Has(pkgbits.GenericMethods) {
+			w.Bool(false)
+		}
+		w.typ(sig)
+	}
+
 	w.pos(expr)
 	w.selector(fun)
 
