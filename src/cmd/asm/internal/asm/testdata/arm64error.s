@@ -381,6 +381,20 @@ TEXT errors(SB),$0
 	VUMIN	V1.D2, V2.D2, V3.D2                              // ERROR "invalid arrangement"
 	VUMAX	V1.B8, V2.B8, V3.B16                             // ERROR "operand mismatch"
 	VUMIN	V1.H4, V2.S4, V3.H4                              // ERROR "operand mismatch"
+	VSMAX	V1.D2, V2.D2, V3.D2                              // ERROR "invalid arrangement"
+	VSMIN	V1.D2, V2.D2, V3.D2                              // ERROR "invalid arrangement"
+	VSMAX	V1.B8, V2.B8, V3.B16                             // ERROR "operand mismatch"
+	VSMIN	V1.H4, V2.S4, V3.H4                              // ERROR "operand mismatch"
+	VSMAXP	V1.D2, V2.D2, V3.D2                             // ERROR "invalid arrangement"
+	VSMINP	V1.D2, V2.D2, V3.D2                             // ERROR "invalid arrangement"
+	VUMAXP	V1.D2, V2.D2, V3.D2                             // ERROR "invalid arrangement"
+	VUMINP	V1.D2, V2.D2, V3.D2                             // ERROR "invalid arrangement"
+	VFMAX	V1.B8, V2.B8, V3.B8                              // ERROR "invalid arrangement"
+	VFMIN	V1.B16, V2.B16, V3.B16                           // ERROR "invalid arrangement"
+	VFADDP	V1.B8, V2.B8, V3.B8                              // ERROR "invalid arrangement"
+	VFADDP	V1.B16, V2.B16, V3.B16                           // ERROR "invalid arrangement"
+	VFADDP	V1.H4, V2.H4, V3.H4                              // ERROR "invalid arrangement"
+	VFADDP	V1.H8, V2.H8, V3.H8                              // ERROR "invalid arrangement"
 	VSLI	$64, V7.D2, V8.D2                                // ERROR "shift out of range"
 	VUSRA	$0, V7.D2, V8.D2                                 // ERROR "shift out of range"
 	VSSHL	V1.B8, V2.B8, V3.B16                             // ERROR "operand mismatch"
@@ -437,6 +451,22 @@ TEXT errors(SB),$0
 	AUTIA1716	$45                                      // ERROR "illegal combination"
 	AUTIB1716	R0                                       // ERROR "illegal combination"
 	SB	$1                                               // ERROR "illegal combination"
+
+	// VMUL family invalid arrangement tests
+	VMUL	V0.D2, V0.D2, V1.D2                             // ERROR "invalid arrangement"
+	VMLA	V0.D2, V0.D2, V1.D2                             // ERROR "invalid arrangement"
+	VMLS	V0.D2, V0.D2, V1.D2                             // ERROR "invalid arrangement"
+	// VMUL family operand mismatch tests
+	VMUL	V0.S4, V0.D2, V1.S4                             // ERROR "operand mismatch"
+	VMLA	V0.H4, V0.S4, V1.H4                             // ERROR "operand mismatch"
+	VMLS	V0.B8, V0.H4, V1.B8                             // ERROR "operand mismatch"
+	// VBIC/VORN family invalid arrangement tests
+	VBIC	V0.S4, V0.S4, V1.S4                             // ERROR "invalid arrangement"
+	VBIC	V0.H4, V0.H4, V1.H4                             // ERROR "invalid arrangement"
+	VBIC	V0.D2, V0.D2, V1.D2                             // ERROR "invalid arrangement"
+	VORN	V0.S4, V0.S4, V1.S4                             // ERROR "invalid arrangement"
+	VORN	V0.H4, V0.H4, V1.H4                             // ERROR "invalid arrangement"
+	VORN	V0.D2, V0.D2, V1.D2                             // ERROR "invalid arrangement"
 
 	// VSHRN/VSHRN2 error test cases - invalid arrangements
 	VSHRN	$8, V1.B8, V0.B8                             // ERROR "invalid arrangement"

@@ -3215,15 +3215,34 @@ func buildop(ctxt *obj.Link) {
 			oprangeset(AVAND, t)
 			oprangeset(AVORR, t)
 			oprangeset(AVEOR, t)
+			oprangeset(AVBIC, t)
+			oprangeset(AVORN, t)
 			oprangeset(AVBSL, t)
 			oprangeset(AVBIT, t)
 			oprangeset(AVCMTST, t)
 			oprangeset(AVCMHI, t)
+			oprangeset(AVSQADD, t)
+			oprangeset(AVUQADD, t)
+			oprangeset(AVSQSUB, t)
+			oprangeset(AVUQSUB, t)
+			oprangeset(AVMUL, t)
+			oprangeset(AVMLA, t)
+			oprangeset(AVMLS, t)
+			oprangeset(AVSHADD, t)
+			oprangeset(AVSRHADD, t)
 			oprangeset(AVSSHL, t)
 			oprangeset(AVUSHL, t)
+			oprangeset(AVUHADD, t)
+			oprangeset(AVURHADD, t)
 			oprangeset(AVCMHS, t)
 			oprangeset(AVUMAX, t)
 			oprangeset(AVUMIN, t)
+			oprangeset(AVSMAX, t)
+			oprangeset(AVSMIN, t)
+			oprangeset(AVSMAXP, t)
+			oprangeset(AVSMINP, t)
+			oprangeset(AVUMAXP, t)
+			oprangeset(AVUMINP, t)
 			oprangeset(AVUZP1, t)
 			oprangeset(AVUZP2, t)
 			oprangeset(AVBIF, t)
@@ -3272,6 +3291,19 @@ func buildop(ctxt *obj.Link) {
 
 		case AVFMLA:
 			oprangeset(AVFMLS, t)
+			oprangeset(AVFADD, t)
+			oprangeset(AVFSUB, t)
+			oprangeset(AVFMUL, t)
+			oprangeset(AVFDIV, t)
+			oprangeset(AVFMAX, t)
+			oprangeset(AVFMAXNM, t)
+			oprangeset(AVFMAXP, t)
+			oprangeset(AVFADDP, t)
+			oprangeset(AVFMIN, t)
+			oprangeset(AVFMINNM, t)
+			oprangeset(AVFMINP, t)
+			oprangeset(AVFMAXNMP, t)
+			oprangeset(AVFMINNMP, t)
 
 		case AVPMULL:
 			oprangeset(AVPMULL2, t)
@@ -4782,27 +4814,27 @@ func (c *ctxt7) asmout(p *obj.Prog, out []uint32) (count int) {
 		}
 
 		switch p.As {
-		case AVORR, AVAND, AVEOR, AVBIT, AVBSL, AVBIF:
+		case AVORR, AVAND, AVEOR, AVBIT, AVBSL, AVBIF, AVBIC, AVORN:
 			if af != ARNG_16B && af != ARNG_8B {
 				c.ctxt.Diag("invalid arrangement: %v", p)
 			}
-		case AVFMLA, AVFMLS, AVFCMEQ, AVFCMGE, AVFCMGT:
+		case AVFMLA, AVFMLS, AVFCMEQ, AVFCMGE, AVFCMGT, AVFADD, AVFSUB, AVFMUL, AVFDIV, AVFMAX, AVFMAXNM, AVFMAXP, AVFADDP, AVFMIN, AVFMINNM, AVFMINP, AVFMAXNMP, AVFMINNMP:
 			if af != ARNG_2D && af != ARNG_2S && af != ARNG_4S {
 				c.ctxt.Diag("invalid arrangement: %v", p)
 			}
-		case AVUMAX, AVUMIN:
+		case AVUMAX, AVUMIN, AVUMAXP, AVUMINP, AVMUL, AVMLA, AVMLS, AVSMAX, AVSMIN, AVSMAXP, AVSMINP:
 			if af == ARNG_2D {
 				c.ctxt.Diag("invalid arrangement: %v", p)
 			}
 		}
 		switch p.As {
-		case AVAND, AVEOR:
+		case AVAND, AVEOR, AVBIC, AVORN:
 			size = 0
 		case AVBSL:
 			size = 1
 		case AVORR, AVBIT, AVBIF:
 			size = 2
-		case AVFMLA, AVFMLS, AVFCMEQ, AVFCMGE, AVFCMGT:
+		case AVFMLA, AVFMLS, AVFCMEQ, AVFCMGE, AVFCMGT, AVFADD, AVFSUB, AVFMUL, AVFDIV, AVFMAX, AVFMAXNM, AVFMAXP, AVFADDP, AVFMIN, AVFMINNM, AVFMINP, AVFMAXNMP, AVFMINNMP:
 			if af == ARNG_2D {
 				size = 1
 			} else {
@@ -6565,14 +6597,32 @@ func (c *ctxt7) oprrr(p *obj.Prog, a obj.As, rd, rn, rm int16) uint32 {
 	case AVSUB:
 		op = ASIMDSAME(1, 0, 0x10)
 
+	case AVSHADD:
+		op = ASIMDSAME(0, 0, 0x0)
+
+	case AVSRHADD:
+		op = ASIMDSAME(0, 0, 0x2)
+
 	case AVSSHL:
 		op = ASIMDSAME(0, 0, 0x8)
 
 	case AVUSHL:
 		op = ASIMDSAME(1, 0, 0x8)
 
+	case AVUHADD:
+		op = ASIMDSAME(1, 0, 0x0)
+
+	case AVURHADD:
+		op = ASIMDSAME(1, 0, 0x2)
+
 	case AVADDP:
 		op = ASIMDSAME(0, 0, 0x17)
+
+	case AVSQADD:
+		op = ASIMDSAME(0, 0, 0x1)
+
+	case AVUQADD:
+		op = ASIMDSAME(1, 0, 0x1)
 
 	case AVSQSHL:
 		op = ASIMDSAME(0, 0, 0x9)
@@ -6580,8 +6630,26 @@ func (c *ctxt7) oprrr(p *obj.Prog, a obj.As, rd, rn, rm int16) uint32 {
 	case AVUQSHL:
 		op = ASIMDSAME(1, 0, 0x9)
 
+	case AVSQSUB:
+		op = ASIMDSAME(0, 0, 0x5)
+
+	case AVUQSUB:
+		op = ASIMDSAME(1, 0, 0x5)
+
+	case AVMUL:
+		op = ASIMDSAME(0, 0, 0x13)
+
+	case AVMLA:
+		op = ASIMDSAME(0, 0, 0x12)
+
+	case AVMLS:
+		op = ASIMDSAME(1, 0, 0x12)
+
 	case AVAND:
 		op = ASIMDSAME(0, 0, 0x03)
+
+	case AVBIC:
+		op = ASIMDSAME(0, 1, 0x03)
 
 	case AVBCAX:
 		op = 0xCE<<24 | 1<<21
@@ -6628,6 +6696,9 @@ func (c *ctxt7) oprrr(p *obj.Prog, a obj.As, rd, rn, rm int16) uint32 {
 	case AVORR:
 		op = ASIMDSAME(0, 2, 0x03)
 
+	case AVORN:
+		op = ASIMDSAME(0, 3, 0x03)
+
 	case AVRAX1:
 		op = 0xCE<<24 | 3<<21 | 1<<15 | 3<<10
 
@@ -6654,6 +6725,45 @@ func (c *ctxt7) oprrr(p *obj.Prog, a obj.As, rd, rn, rm int16) uint32 {
 
 	case AVFMLS:
 		op = ASIMDSAME(0, 2, 0x19)
+
+	case AVFADD:
+		op = ASIMDSAME(0, 0, 0x1A)
+
+	case AVFSUB:
+		op = ASIMDSAME(0, 2, 0x1A)
+
+	case AVFMUL:
+		op = ASIMDSAME(1, 0, 0x1B)
+
+	case AVFDIV:
+		op = ASIMDSAME(1, 0, 0x1F)
+
+	case AVFMAX:
+		op = ASIMDSAME(0, 0, 0x1E)
+
+	case AVFMAXNM:
+		op = ASIMDSAME(0, 0, 0x18)
+
+	case AVFMAXP:
+		op = ASIMDSAME(1, 0, 0x1E)
+
+	case AVFADDP:
+		op = ASIMDSAME(1, 0, 0x1A)
+
+	case AVFMIN:
+		op = ASIMDSAME(0, 2, 0x1E)
+
+	case AVFMINNM:
+		op = ASIMDSAME(0, 2, 0x18)
+
+	case AVFMINP:
+		op = ASIMDSAME(1, 2, 0x1E)
+
+	case AVFMAXNMP:
+		op = ASIMDSAME(1, 0, 0x18)
+
+	case AVFMINNMP:
+		op = ASIMDSAME(1, 2, 0x18)
 
 	case AVPMULL, AVPMULL2:
 		op = ASIMDDIFF(0, 0xE)
@@ -6687,6 +6797,24 @@ func (c *ctxt7) oprrr(p *obj.Prog, a obj.As, rd, rn, rm int16) uint32 {
 
 	case AVUMIN:
 		op = ASIMDSAME(1, 0, 0x0D)
+
+	case AVUMAXP:
+		op = ASIMDSAME(1, 0, 0x14)
+
+	case AVUMINP:
+		op = ASIMDSAME(1, 0, 0x15)
+
+	case AVSMAX:
+		op = ASIMDSAME(0, 0, 0x0C)
+
+	case AVSMIN:
+		op = ASIMDSAME(0, 0, 0x0D)
+
+	case AVSMAXP:
+		op = ASIMDSAME(0, 0, 0x14)
+
+	case AVSMINP:
+		op = ASIMDSAME(0, 0, 0x15)
 
 	case AVUZP1:
 		op = ASIMDPERM(0x1)

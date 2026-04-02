@@ -127,8 +127,33 @@ TEXT	foo(SB), DUPOK|NOSPLIT, $-8
 	VFCMGT  $(0.0), V2.S4, V3.S4            // 43c8a04e
 	VFCMLE  $(0.0), V2.S4, V3.S4            // 43d8a06e
 	VFCMLT  $(0.0), V2.S4, V3.S4            // 43e8a04e
+	VFADD	V0.S4, V0.S4, V1.S4             // 01d4204e
+	VFADD	V0.D2, V0.D2, V1.D2             // 01d4604e
+	VFSUB	V0.S4, V0.S4, V1.S4             // 01d4a04e
+	VFSUB	V0.D2, V0.D2, V1.D2             // 01d4e04e
+	VFMUL	V0.S4, V0.S4, V1.S4             // 01dc206e
+	VFMUL	V0.D2, V0.D2, V1.D2             // 01dc606e
+	VFDIV	V0.S4, V0.S4, V1.S4             // 01fc206e
+	VFDIV	V0.D2, V0.D2, V1.D2             // 01fc606e
+	VSQADD	V0.S4, V0.S4, V1.S4             // 010ca04e
+	VSQADD	V0.D2, V0.D2, V1.D2             // 010ce04e
+	VUQADD	V0.S4, V0.S4, V1.S4             // 010ca06e
+	VUQADD	V0.D2, V0.D2, V1.D2             // 010ce06e
+	VSQSUB	V0.S4, V0.S4, V1.S4             // 012ca04e
+	VSQSUB	V0.D2, V0.D2, V1.D2             // 012ce04e
+	VUQSUB	V0.S4, V0.S4, V1.S4             // 012ca06e
+	VUQSUB	V0.D2, V0.D2, V1.D2             // 012ce06e
+	VMUL	V0.S4, V0.S4, V1.S4             // 019ca04e
+	VMLA	V0.S4, V0.S4, V1.S4             // 0194a04e
+	VMLS	V0.S4, V0.S4, V1.S4             // 0194a06e
 	VORR	V5.B16, V4.B16, V3.B16          // 831ca54e
+	VBIC	V0.B8, V1.B8, V2.B8             // 221c600e
+	VORN	V0.B16, V1.B16, V2.B16          // 221ce04e
 	VADD	V16.S4, V5.S4, V9.S4            // a984b04e
+	VSHADD	V0.S4, V1.S4, V2.S4            // 2204a04e
+	VSRHADD	V0.S4, V1.S4, V2.S4            // 2214a04e
+	VUHADD	V0.S4, V1.S4, V2.S4            // 2204a06e
+	VURHADD	V0.S4, V1.S4, V2.S4            // 2214a06e
 	VEOR	V0.B16, V1.B16, V0.B16          // 201c206e
 	VADDV	V0.S4, V0                       // 00b8b14e
 	VMOVI	$82, V0.B16                     // 40e6024f
@@ -337,6 +362,23 @@ TEXT	foo(SB), DUPOK|NOSPLIT, $-8
 	VUMIN	V3.H8, V2.H8, V1.H8             // 416c636e
 	VUMIN	V3.S2, V2.S2, V1.S2             // 416ca32e
 	VUMIN	V3.S4, V2.S4, V1.S4             // 416ca36e
+	VSMAX	V3.S4, V2.S4, V1.S4             // 4164a34e
+	VSMIN	V3.S4, V2.S4, V1.S4             // 416ca34e
+	VSMAXP	V3.S4, V2.S4, V1.S4             // 41a4a34e
+	VSMINP	V3.S4, V2.S4, V1.S4             // 41aca34e
+	VUMAXP	V3.S4, V2.S4, V1.S4             // 41a4a36e
+	VUMINP	V3.S4, V2.S4, V1.S4             // 41aca36e
+	VFMAX	V3.S4, V2.S4, V1.S4             // 41f4234e
+	VFMIN	V3.S4, V2.S4, V1.S4             // 41f4a34e
+	VFMAXNM	V3.S4, V2.S4, V1.S4             // 41c4234e
+	VFMINNM	V3.S4, V2.S4, V1.S4             // 41c4a34e
+	VFMAXP	V3.S4, V2.S4, V1.S4             // 41f4236e
+	VFADDP	V3.S4, V2.S4, V1.S4             // 41d4236e
+	VFADDP	V3.S2, V2.S2, V1.S2             // 41d4232e
+	VFADDP	V3.D2, V2.D2, V1.D2             // 41d4636e
+	VFMINP	V3.S4, V2.S4, V1.S4             // 41f4a36e
+	VFMAXNMP	V3.S4, V2.S4, V1.S4             // 41c4236e
+	VFMINNMP	V3.S4, V2.S4, V1.S4             // 41c4a36e
 	FCCMPS	LT, F1, F2, $1	                // 41b4211e
 	FMADDS	F1, F3, F2, F4                  // 440c011f
 	FMADDD	F4, F5, F4, F4                  // 8414441f

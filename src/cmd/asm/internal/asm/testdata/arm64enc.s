@@ -433,11 +433,11 @@ TEXT asmtest(SB),DUPOK|NOSPLIT,$-8
 	//TODO VFACGE V11.S2, V15.S2, V9.S2        // e9ed2b2e
 	//TODO FACGT F20, F16, F27                 // 1beef47e
 	//TODO VFACGT V15.S4, V25.S4, V22.S4       // 36efaf6e
-	//TODO VFADD V21.D2, V10.D2, V21.D2        // 55d5754e
+	VFADD V21.D2, V10.D2, V21.D2              // 55d5754e
 	FADDS F12, F2, F10                         // 4a282c1e
 	FADDD F24, F14, F12                        // cc29781e
 	//TODO VFADDP V4.D2, F13                   // 8dd8707e
-	//TODO VFADDP V30.S4, V3.S4, V11.S4        // 6bd43e6e
+	VFADDP V30.S4, V3.S4, V11.S4              // 6bd43e6e
 	FCCMPS LE, F17, F12, $14                   // 8ed5311e
 	FCCMPD HI, F11, F15, $15                   // ef856b1e
 	FCCMPES HS, F28, F13, $13                  // bd253c1e
@@ -547,34 +547,34 @@ TEXT asmtest(SB),DUPOK|NOSPLIT,$-8
 	FCVTZUS F12, R29                           // 9d01399e
 	FCVTZUDW F27, R22                          // 7603791e
 	FCVTZUD F25, R22                           // 3603799e
-	//TODO VFDIV V6.D2, V1.D2, V27.D2          // 3bfc666e
+	VFDIV V6.D2, V1.D2, V27.D2                // 3bfc666e
 	FDIVS F16, F10, F20                        // 5419301e
 	FDIVD F11, F25, F30                        // 3e1b6b1e
 	FMADDS F15, F2, F8, F1                     // 01090f1f
 	FMADDD F15, F21, F25, F9                   // 29574f1f
-	//TODO VFMAX V23.D2, V27.D2, V14.D2        // 6ef7774e
+	VFMAX V23.D2, V27.D2, V14.D2              // 6ef7774e
 	FMAXS F5, F28, F27                         // 9b4b251e
 	FMAXD F12, F31, F31                        // ff4b6c1e
-	//TODO VFMAXNM V3.D2, V12.D2, V27.D2       // 9bc5634e
+	VFMAXNM V3.D2, V12.D2, V27.D2             // 9bc5634e
 	FMAXNMS F11, F24, F12                      // 0c6b2b1e
 	FMAXNMD F20, F6, F16                       // d068741e
 	//TODO VFMAXNMP V3.S2, F2                  // 62c8307e
-	//TODO VFMAXNMP V25.S2, V4.S2, V2.S2       // 82c4392e
+	VFMAXNMP V25.S2, V4.S2, V2.S2             // 82c4392e
 	//TODO VFMAXNMV V14.S4, F15                // cfc9306e
 	//TODO VFMAXP V3.S2, F27                   // 7bf8307e
-	//TODO VFMAXP V29.S2, V30.S2, V9.S2        // c9f73d2e
+	VFMAXP V29.S2, V30.S2, V9.S2              // c9f73d2e
 	//TODO VFMAXV V13.S4, F14                  // aef9306e
-	//TODO VFMIN V19.D2, V30.D2, V7.D2         // c7f7f34e
+	VFMIN V19.D2, V30.D2, V7.D2               // c7f7f34e
 	FMINS F26, F18, F30                        // 5e5a3a1e
 	FMIND F29, F4, F21                         // 95587d1e
-	//TODO VFMINNM V21.S4, V5.S4, V1.S4        // a1c4b54e
+	VFMINNM V21.S4, V5.S4, V1.S4              // a1c4b54e
 	FMINNMS F23, F20, F1                       // 817a371e
 	FMINNMD F8, F3, F24                        // 7878681e
 	//TODO VFMINNMP V16.D2, F12                // 0ccaf07e
-	//TODO VFMINNMP V10.S4, V25.S4, V27.S4     // 3bc7aa6e
+	VFMINNMP V10.S4, V25.S4, V27.S4           // 3bc7aa6e
 	//TODO VFMINNMV V8.S4, F3                  // 03c9b06e
 	//TODO VFMINP V10.S2, F20                  // 54f9b07e
-	//TODO VFMINP V1.D2, V10.D2, V3.D2         // 43f5e16e
+	VFMINP V1.D2, V10.D2, V3.D2               // 43f5e16e
 	//TODO VFMINV V11.S4, F9                   // 69f9b06e
 	//TODO VFMLA V6.S[0], F2, F14              // 4e10865f
 	//TODO VFMLA V28.S[2], V2.S2, V30.S2       // 5e189c0f
@@ -596,7 +596,7 @@ TEXT asmtest(SB),DUPOK|NOSPLIT,$-8
 	FMSUBD F11, F7, F15, F31                   // ff9d4b1f
 	//TODO VFMUL V9.S[2], F21, F19             // b39a895f
 	//TODO VFMUL V26.S[2], V26.S2, V2.S2       // 429b9a0f
-	//TODO VFMUL V21.D2, V17.D2, V25.D2        // 39de756e
+	VFMUL V21.D2, V17.D2, V25.D2              // 39de756e
 	FMULS F0, F6, F24                          // d808201e
 	FMULD F5, F29, F9                          // a90b651e
 	//TODO VFMULX V26.S[2], F20, F8            // 889a9a7f
