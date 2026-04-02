@@ -111,12 +111,8 @@ func sysHugePageCollapse(v unsafe.Pointer, n uintptr) {
 	sysHugePageCollapseOS(v, n)
 }
 
-// sysFree transitions a memory region from any state to None. Therefore, it
-// returns memory unconditionally. It is used if an out-of-memory error has been
-// detected midway through an allocation or to carve out an aligned section of
-// the address space. It is okay if sysFree is a no-op only if sysReserve always
-// returns a memory region aligned to the heap allocator's alignment
-// restrictions.
+// sysFree transitions a memory region from Ready to None. Therefore, it
+// returns memory unconditionally.
 //
 // sysStat must be non-nil.
 //
