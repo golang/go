@@ -1324,6 +1324,46 @@ func TestFSWalkBadFile(t *testing.T) {
 	}
 }
 
+func TestFSFileImplicitDirCollision(t *testing.T) {
+	t.Parallel()
+
+	var buf bytes.Buffer
+	zw := NewWriter(&buf)
+	for _, name := range []string{"a", "a/b"} {
+		w, err := zw.Create(name)
+		if err != nil {
+			t.Fatalf("zw.Create(%q): %v", name, err)
+		}
+		if _, err := io.WriteString(w, name); err != nil {
+			t.Fatalf("write %q: %v", name, err)
+		}
+	}
+	if err := zw.Close(); err != nil {
+		t.Fatalf("zw.Close(): %v", err)
+	}
+
+	zr, err := NewReader(bytes.NewReader(buf.Bytes()), int64(buf.Len()))
+	if err != nil {
+		t.Fatalf("NewReader(): %v", err)
+	}
+
+	f, err := zr.Open("a")
+	if err != nil {
+		t.Fatalf("Open(%q): %v", "a", err)
+	}
+	f.Close()
+
+	if _, err := fs.ReadDir(zr, "."); err == nil || !strings.Contains(err.Error(), "duplicate entries in zip file") {
+		t.Fatalf("ReadDir(.) error = %v, want duplicate entry error", err)
+	}
+
+	f, err = zr.Open("a/b")
+	if err != nil {
+		t.Fatalf("Open(%q): %v", "a/b", err)
+	}
+	f.Close()
+}
+
 func TestFSModTime(t *testing.T) {
 	t.Parallel()
 	z, err := OpenReader("testdata/subdir.zip")
