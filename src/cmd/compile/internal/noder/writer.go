@@ -1959,41 +1959,30 @@ func (w *writer) expr(expr syntax.Expr) {
 			w.selector(sel.Obj())
 
 		case types2.MethodVal:
-			w.Code(exprMethodVal)
-			typ := w.recvExpr(expr, sel)
-			w.pos(expr)
-			w.methodExpr(expr, typ, sel)
+			w.methVal(expr, sel)
 
 		case types2.MethodExpr:
-			w.Code(exprMethodExpr)
-
-			tv := w.p.typeAndValue(expr.X)
-			assert(tv.IsType())
-
-			index := sel.Index()
-			implicits := index[:len(index)-1]
-
-			typ := tv.Type
-			w.typ(typ)
-
-			w.Len(len(implicits))
-			for _, ix := range implicits {
-				w.Len(ix)
-				typ = deref2(typ).Underlying().(*types2.Struct).Field(ix).Type()
-			}
-
-			recv := sel.Obj().(*types2.Func).Type().(*types2.Signature).Recv().Type()
-			if w.Bool(isPtrTo(typ, recv)) { // need deref
-				typ = recv
-			} else if w.Bool(isPtrTo(recv, typ)) { // need addr
-				typ = recv
-			}
-
-			w.pos(expr)
-			w.methodExpr(expr, typ, sel)
+			w.methExpr(expr, sel)
 		}
 
 	case *syntax.IndexExpr:
+		// might be explicit instantiation of a generic method
+		if selector, ok := expr.X.(*syntax.SelectorExpr); ok {
+			if sel, ok := w.p.info.Selections[selector]; ok {
+				switch sel.Kind() {
+				default:
+					w.p.fatalf(selector, "unexpected selection kind: %v", sel.Kind())
+				case types2.FieldVal:
+					// not a method
+				case types2.MethodVal:
+					w.methVal(selector, sel)
+					return
+				case types2.MethodExpr:
+					w.methExpr(selector, sel)
+					return
+				}
+			}
+		}
 		_ = w.p.typeOf(expr.Index) // ensure this is an index expression, not an instantiation
 
 		xtyp := w.p.typeOf(expr.X)
@@ -2165,7 +2154,11 @@ func (w *writer) expr(expr syntax.Expr) {
 		writeFunExpr := func() {
 			fun := syntax.Unparen(expr.Fun)
 
-			if selector, ok := fun.(*syntax.SelectorExpr); ok {
+			expr := fun
+			if idx, ok := expr.(*syntax.IndexExpr); ok {
+				expr = idx.X
+			}
+			if selector, ok := expr.(*syntax.SelectorExpr); ok {
 				if sel, ok := w.p.info.Selections[selector]; ok && sel.Kind() == types2.MethodVal {
 					w.Bool(true) // method call
 					typ := w.recvExpr(selector, sel)
@@ -2217,6 +2210,42 @@ func (w *writer) optExpr(expr syntax.Expr) {
 	if w.Bool(expr != nil) {
 		w.expr(expr)
 	}
+}
+
+func (w *writer) methVal(expr *syntax.SelectorExpr, sel *types2.Selection) {
+	w.Code(exprMethodVal)
+	typ := w.recvExpr(expr, sel)
+	w.pos(expr)
+	w.methodExpr(expr, typ, sel)
+}
+
+func (w *writer) methExpr(expr *syntax.SelectorExpr, sel *types2.Selection) {
+	w.Code(exprMethodExpr)
+
+	tv := w.p.typeAndValue(expr.X)
+	assert(tv.IsType())
+
+	index := sel.Index()
+	implicits := index[:len(index)-1]
+
+	typ := tv.Type
+	w.typ(typ)
+
+	w.Len(len(implicits))
+	for _, ix := range implicits {
+		w.Len(ix)
+		typ = deref2(typ).Underlying().(*types2.Struct).Field(ix).Type()
+	}
+
+	recv := sel.Obj().(*types2.Func).Type().(*types2.Signature).Recv().Type()
+	if w.Bool(isPtrTo(typ, recv)) { // need deref
+		typ = recv
+	} else if w.Bool(isPtrTo(recv, typ)) { // need addr
+		typ = recv
+	}
+
+	w.pos(expr)
+	w.methodExpr(expr, typ, sel)
 }
 
 // recvExpr writes out expr.X, but handles any implicit addressing,
