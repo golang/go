@@ -643,12 +643,8 @@ func TestEscape(t *testing.T) {
 			`<input {{if .T}}{{"checked"}} {{end}}name=n>`,
 			`<input checked name=n>`,
 		},
-		{
-			"dynamic attribute name",
-			`<img on{{"load"}}="alert({{"loaded"}})">`,
-			// Treated as JS since quotes are inserted.
-			`<img onload="alert(&#34;loaded&#34;)">`,
-		},
+		// "dynamic attribute name" test moved to TestErrors: split
+		// attribute names are no longer allowed. See #19669.
 		{
 			"bad dynamic attribute name 1",
 			// Allow checked, selected, disabled, but not JS or
@@ -674,11 +670,8 @@ func TestEscape(t *testing.T) {
 			`<input checked {{""}}="Whose value am I?">`,
 			`<input checked ZgotmplZ="Whose value am I?">`,
 		},
-		{
-			"dynamic element name",
-			`<h{{3}}><table><t{{"head"}}>...</h{{3}}>`,
-			`<h3><table><thead>...</h3>`,
-		},
+		// "dynamic element name" test moved to TestErrors: split
+		// tag names are no longer allowed. See #19669.
 		{
 			"bad dynamic element name",
 			// Dynamic element names are typically used to switch
