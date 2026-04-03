@@ -39,6 +39,8 @@
 (Select1 (Sub64borrow x y c)) =>
 	(OR (SLTU <typ.UInt64> x s:(SUB <typ.UInt64> x y)) (SLTU <typ.UInt64> s (SUB <typ.UInt64> s c)))
 
+(JumpTable idx) => (JUMPTABLE {makeJumpTableSym(b)} idx (MOVaddr <typ.Uintptr> {makeJumpTableSym(b)} (SB)))
+
 // (x + y) / 2 => (x / 2) + (y / 2) + (x & y & 1)
 (Avg64u <t> x y) => (ADD (ADD <t> (SRLI <t> [1] x) (SRLI <t> [1] y)) (ANDI <t> [1] (AND <t> x y)))
 

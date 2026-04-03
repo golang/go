@@ -239,6 +239,7 @@ var ArchRISCV64 = &Arch{
 	MinLC:          2,
 	Alignment:      8, // riscv unaligned loads work, but are really slow (trap + simulated by OS)
 	CanMergeLoads:  false,
+	CanJumpTable:   true,
 	HasLR:          true,
 	FixedFrameSize: 8, // LR
 }

@@ -5063,6 +5063,13 @@ func assemble(ctxt *obj.Link, cursym *obj.LSym, newprog obj.ProgAlloc) {
 	}
 
 	obj.MarkUnsafePoints(ctxt, cursym.Func().Text, newprog, isUnsafePoint, nil)
+
+	// generate jump table entries.
+	for _, jt := range cursym.Func().JumpTables {
+		for i, p := range jt.Targets {
+			jt.Sym.WriteAddr(ctxt, int64(i)*8, 8, cursym, p.Pc)
+		}
+	}
 }
 
 func isUnsafePoint(p *obj.Prog) bool {
