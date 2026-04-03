@@ -1,0 +1,19 @@
+example.com/importcrypto contains a package that imports crypto/sha256
+It's used by the script test case mod_get_fips140_issue73649
+
+-- .info --
+{"Version":"v1.0.0"}
+-- .mod --
+module example.com/importcrypto
+
+go 1.27
+-- go.mod --
+module example.com/importcrypto
+
+go 1.27
+-- importcypto.go --
+package p
+
+import _ "crypto/sha256"
+
+func main() {}
