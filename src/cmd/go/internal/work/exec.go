@@ -2850,7 +2850,7 @@ func (pr *runCgoProvider) cxxflags() []string {
 }
 
 func (pr *runCgoProvider) fflags() []string {
-	return pr.CXXFLAGS
+	return pr.FFLAGS
 }
 
 func (pr *runCgoProvider) ldflags() []string {
