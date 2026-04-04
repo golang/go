@@ -6,6 +6,7 @@ package mail
 
 import (
 	"bytes"
+	"fmt"
 	"io"
 	"mime"
 	"reflect"
@@ -1258,5 +1259,23 @@ func TestEmptyAddress(t *testing.T) {
 	list, err = ParseAddressList("a@b c@d")
 	if len(list) > 0 || err == nil {
 		t.Errorf(`ParseAddressList("") = %v, %v, want nil, error`, list, err)
+	}
+}
+
+func BenchmarkConsumeComment(b *testing.B) {
+	for _, n := range []int{10, 100, 1000, 10000} {
+		b.Run(fmt.Sprintf("depth-%d", n), func(b *testing.B) {
+			// Build a deeply nested comment: (((...a...)))
+			open := strings.Repeat("(", n)
+			close := strings.Repeat(")", n)
+			// consumeComment expects the leading '(' already consumed,
+			// so we start with one fewer opening paren and the parser
+			// will handle nesting from there.
+			input := open[:n-1] + "a" + close
+			for b.Loop() {
+				p := addrParser{s: input}
+				p.consumeComment()
+			}
+		})
 	}
 }
