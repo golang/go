@@ -1160,7 +1160,8 @@ func relevantCaller() runtime.Frame {
 	frames := runtime.CallersFrames(pc[:n])
 	var frame runtime.Frame
 	for {
-		frame, more := frames.Next()
+		var more bool
+		frame, more = frames.Next()
 		if !strings.HasPrefix(frame.Function, "net/http.") {
 			return frame
 		}
