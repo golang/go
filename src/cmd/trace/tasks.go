@@ -431,7 +431,7 @@ func describeEvent(ev *trace.Event) string {
 		return "task end"
 	case trace.EventLog:
 		log := ev.Log()
-		if log.Category != "" {
+		if log.Category == "" {
 			return fmt.Sprintf("log %q", log.Message)
 		}
 		return fmt.Sprintf("log (category: %s): %q", log.Category, log.Message)
