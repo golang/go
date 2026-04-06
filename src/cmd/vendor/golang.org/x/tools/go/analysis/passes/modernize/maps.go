@@ -92,13 +92,14 @@ func mapsloop(pass *analysis.Pass) (any, error) {
 		// and can we replace its RHS with slices.{Clone,Collect}?
 		//
 		// Beware: if x may be nil, we cannot use Clone as it preserves nilness.
-		var mrhs ast.Expr // make(M) or M{}, or nil
+		var mrhs ast.Expr       // make(M) or M{}, or nil
+		var mAssign token.Token // token used to assign m
 		if curPrev, ok := curRange.PrevSibling(); ok {
 			if assign, ok := curPrev.Node().(*ast.AssignStmt); ok &&
 				len(assign.Lhs) == 1 &&
 				len(assign.Rhs) == 1 &&
 				astutil.EqualSyntax(assign.Lhs[0], m) {
-
+				mAssign = assign.Tok
 				// Have: m = rhs; for k, v := range x { m[k] = v }
 				var newMap bool
 				rhs := assign.Rhs[0]
@@ -175,12 +176,13 @@ func mapsloop(pass *analysis.Pass) (any, error) {
 			//   ->
 			//
 			//   /* comments */
-			//   m = maps.Copy(x)
+			//   m = maps.Collect(x)
 			curPrev, _ := curRange.PrevSibling()
 			start, end = curPrev.Node().Pos(), rng.End()
-			newText = fmt.Appendf(nil, "%s%s = %s%s(%s)",
+			newText = fmt.Appendf(nil, "%s%s %s %s%s(%s)",
 				allComments(file, start, end),
 				astutil.Format(pass.Fset, m),
+				mAssign.String(),
 				prefix,
 				funcName,
 				astutil.Format(pass.Fset, x))

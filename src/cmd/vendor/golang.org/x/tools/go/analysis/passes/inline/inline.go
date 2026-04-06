@@ -332,10 +332,33 @@ func (a *analyzer) inlineAlias(tn *types.TypeName, curId inspector.Cursor) {
 	// Given C[int], TypeOf(C) is generic but TypeOf(C[int]) is instantiated.
 	switch curId.ParentEdgeKind() {
 	case edge.IndexExpr_X:
-		expr = curId.Parent().Node().(*ast.IndexExpr)
+		curId = curId.Parent()
+		expr = curId.Node().(*ast.IndexExpr)
 	case edge.IndexListExpr_X:
-		expr = curId.Parent().Node().(*ast.IndexListExpr)
+		curId = curId.Parent()
+		expr = curId.Node().(*ast.IndexListExpr)
 	}
+
+	fieldType := curId
+	if fieldType.ParentEdgeKind() == edge.StarExpr_X {
+		fieldType = fieldType.Parent()
+	}
+	if fieldType.ParentEdgeKind() == edge.Field_Type {
+		field := fieldType.Parent().Node().(*ast.Field)
+		if len(field.Names) == 0 {
+			identicalName := false
+			if rhs, ok := alias.Rhs().(*types.Named); ok {
+				identicalName = alias.Obj().Name() == rhs.Obj().Name()
+			}
+			if !identicalName {
+				// Type is embedded, inlining the alias will cause
+				// the field name to be changed, which might break
+				// programs in terms of backwards compatibility.
+				return
+			}
+		}
+	}
+
 	t := a.pass.TypesInfo.TypeOf(expr).(*types.Alias) // type of entire identifier
 	if targs := t.TypeArgs(); targs.Len() > 0 {
 		// Instantiate the alias with the type args from this use.

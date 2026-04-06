@@ -524,7 +524,7 @@ func (f *finder) find(T types.Type, path []byte) []byte {
 		for i := 0; i < T.NumMethods(); i++ {
 			m := T.Method(i)
 			if f.seenMethods[m] {
-				return nil
+				continue // break cycles (see TestIssue70418)
 			}
 			path2 := appendOpArg(path, opMethod, i)
 			if m == f.obj {

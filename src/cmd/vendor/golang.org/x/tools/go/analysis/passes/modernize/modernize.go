@@ -47,6 +47,7 @@ var Suite = []*analysis.Analyzer{
 	plusBuildAnalyzer,
 	RangeIntAnalyzer,
 	ReflectTypeForAnalyzer,
+	slicesbackwardAnalyzer,
 	SlicesContainsAnalyzer,
 	// SlicesDeleteAnalyzer, // not nil-preserving!
 	SlicesSortAnalyzer,

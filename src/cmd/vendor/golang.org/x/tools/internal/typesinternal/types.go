@@ -194,3 +194,51 @@ func Imports(pkg *types.Package, path string) bool {
 	}
 	return false
 }
+
+// ObjectKind returns a description of the object's kind.
+//
+// from objectKind in go/types
+func ObjectKind(obj types.Object) string {
+	switch obj := obj.(type) {
+	case *types.PkgName:
+		return "package name"
+	case *types.Const:
+		return "constant"
+	case *types.TypeName:
+		if obj.IsAlias() {
+			return "type alias"
+		} else if _, ok := obj.Type().(*types.TypeParam); ok {
+			return "type parameter"
+		} else {
+			return "defined type"
+		}
+	case *types.Var:
+		switch obj.Kind() {
+		case PackageVar:
+			return "package-level variable"
+		case LocalVar:
+			return "local variable"
+		case RecvVar:
+			return "receiver"
+		case ParamVar:
+			return "parameter"
+		case ResultVar:
+			return "result variable"
+		case FieldVar:
+			return "struct field"
+		}
+	case *types.Func:
+		if obj.Signature().Recv() != nil {
+			return "method"
+		} else {
+			return "function"
+		}
+	case *types.Label:
+		return "label"
+	case *types.Builtin:
+		return "built-in function"
+	case *types.Nil:
+		return "untyped nil"
+	}
+	return "unknown symbol"
+}

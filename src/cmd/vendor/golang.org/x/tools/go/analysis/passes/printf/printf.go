@@ -770,16 +770,16 @@ func checkPrintf(pass *analysis.Pass, fileVersion string, kind Kind, call *ast.C
 			anyIndex = true
 		}
 		rng := opRange(formatArg, op)
-		if !okPrintfArg(pass, fileVersion, call, rng, &maxArgIndex, firstArg, name, op) {
-			// One error per format is enough.
-			return
-		}
 		if op.Verb.Verb == 'w' {
 			switch kind {
 			case KindNone, KindPrint, KindPrintf:
 				pass.ReportRangef(rng, "%s does not support error-wrapping directive %%w", name)
 				return
 			}
+		}
+		if !okPrintfArg(pass, fileVersion, call, rng, &maxArgIndex, firstArg, name, op) {
+			// One error per format is enough.
+			return
 		}
 	}
 	// Dotdotdot is hard.
@@ -966,6 +966,26 @@ func okPrintfArg(pass *analysis.Pass, fileVersion string, call *ast.CallExpr, rn
 		return false
 	}
 	arg := call.Args[verbArgIndex]
+	if verb == 'w' {
+		// Check if arg is of type *E where E implements error.
+		// This diagnostic will help prevent potential misuses of errors.As,
+		// errors.Is, etc. If the %w argument in fmt.Errorf is a pointer to an error
+		// type, where the pointer type also happens to implement error, then calls
+		// to errors.Is using the result of fmt.Errorf may behave unexpectedly.
+		// See golang/go#61342.
+		typ := pass.TypesInfo.Types[arg].Type
+		if t, ok := typ.Underlying().(*types.Pointer); ok && types.Implements(t.Elem(), errorType) && versions.AtLeast(fileVersion, versions.Go1_27) {
+			// qual is a qualifier that returns the package name if different from the current package.
+			qual := func(p *types.Package) string {
+				if p == pass.Pkg {
+					return ""
+				}
+				return p.Name()
+			}
+			pass.ReportRangef(rng, "%%w wants operand of error type %s, not pointer type %s (defeats errors.Is)", types.TypeString(t.Elem(), qual), types.TypeString(typ, qual))
+			return false
+		}
+	}
 	if isFunctionValue(pass, arg) && verb != 'p' && verb != 'T' {
 		pass.ReportRangef(rng, "%s format %s arg %s is a func value, not called", name, operation.Text, astutil.Format(pass.Fset, arg))
 		return false
