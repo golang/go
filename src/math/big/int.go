@@ -227,7 +227,7 @@ func (z *Int) MulRange(a, b int64) *Int {
 
 // Binomial sets z to the binomial coefficient C(n, k) and returns z.
 func (z *Int) Binomial(n, k int64) *Int {
-	if k > n {
+	if k > n || k < 0 {
 		return z.SetInt64(0)
 	}
 	// reduce the number of multiplications by reducing k
