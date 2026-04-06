@@ -403,7 +403,7 @@ func runBuiltTool(toolName string, env, cmdline []string) error {
 	err := toolCmd.Start()
 	if err == nil {
 		c := make(chan os.Signal, 100)
-		signal.Notify(c)
+		signal.Notify(c, signalsToForward...)
 		go func() {
 			for sig := range c {
 				toolCmd.Process.Signal(sig)
