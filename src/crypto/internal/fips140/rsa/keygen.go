@@ -14,6 +14,13 @@ import (
 
 // GenerateKey generates a new RSA key pair of the given bit size.
 // bits must be at least 32.
+//
+// It follows the process described at c2sp.org/det-keygen, which is compliant
+// with FIPS 186-5, Appendix A.1, IFC Key Pair Generation and FIPS 186-5,
+// Appendix A.1.3, Generation of Random Primes that are Probably Prime.
+// The prime candidates are drawn from rand, which in production will be the
+// global DRBG, while in tests can be an HMAC_DRBG as specified in
+// c2sp.org/det-keygen, to allow using its tests vectors.
 func GenerateKey(rand io.Reader, bits int) (*PrivateKey, error) {
 	if bits < 32 {
 		return nil, errors.New("rsa: key too small")
