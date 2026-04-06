@@ -6,14 +6,6 @@
 
 package os
 
-import (
-	"internal/syscall/unix"
-)
-
-func isErrNoFollow(err error) bool {
-	return err == unix.NoFollowErrno
-}
-
 func newDirFile(fd int, name string) (*File, error) {
 	// We use kindNoPoll because we know that this is a directory.
 	return newFile(fd, name, kindNoPoll, false), nil
