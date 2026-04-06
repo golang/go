@@ -1,0 +1,80 @@
+# Test that the test cache is invalidated when -coverpkg dependencies change,
+# even when -coverprofile is not specified. This exercises the else-if branch
+# in tryCacheWithID that checks covMeta without a cover profile file.
+
+[short] skip
+[GODEBUG:gocacheverify=1] skip
+
+# Start with a clean GOCACHE.
+env GOCACHE=$WORK/cache
+
+cd proj
+
+# Run tests with -cover and -coverpkg but without -coverprofile.
+go test -cover -coverpkg=proj/... ./...
+stdout 'coverage:'
+
+# Run again — should be served from cache.
+go test -cover -coverpkg=proj/... ./...
+stdout '\(cached\)'
+stdout 'coverage:'
+
+# Modify a covered package that is not directly under test.
+cp ../sub_modified.go sub/sub.go
+
+# Run again — the cache must be invalidated because a covered package changed.
+go test -cover -coverpkg=proj/... ./...
+! stdout '\(cached\)'
+stdout 'coverage:'
+
+-- proj/go.mod --
+module proj
+
+go 1.21
+
+-- proj/main.go --
+package proj
+
+import "proj/sub"
+
+func Add(a, b int) int {
+	return sub.Sub(a, -b)
+}
+
+-- proj/main_test.go --
+package proj
+
+import "testing"
+
+func TestAdd(t *testing.T) {
+	if Add(1, 2) != 3 {
+		t.Fatal("expected 3")
+	}
+}
+
+-- proj/sub/sub.go --
+package sub
+
+func Sub(a, b int) int {
+	return a - b
+}
+
+-- proj/sub/sub_test.go --
+package sub
+
+import "testing"
+
+func TestSub(t *testing.T) {
+	if Sub(3, 1) != 2 {
+		t.Fatal("expected 2")
+	}
+}
+
+-- sub_modified.go --
+package sub
+
+// Added a comment to change the source.
+
+func Sub(a, b int) int {
+	return a - b
+}
