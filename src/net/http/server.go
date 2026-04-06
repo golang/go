@@ -1947,14 +1947,21 @@ func (c *conn) serve(ctx context.Context) {
 		}
 	}()
 
-	if tlsConn, ok := c.rwc.(*tls.Conn); ok {
+	if connStater, ok := c.rwc.(connectionStater); ok {
 		tlsTO := c.server.tlsHandshakeTimeout()
 		if tlsTO > 0 {
 			dl := time.Now().Add(tlsTO)
 			c.rwc.SetReadDeadline(dl)
 			c.rwc.SetWriteDeadline(dl)
 		}
-		if err := tlsConn.HandshakeContext(ctx); err != nil {
+		type handshakeContexter interface {
+			HandshakeContext(ctx context.Context) error
+		}
+		var err error
+		if handshaker, ok := c.rwc.(handshakeContexter); ok {
+			err = handshaker.HandshakeContext(ctx)
+		}
+		if err != nil {
 			// If the handshake failed due to the client not speaking
 			// TLS, assume they're speaking plaintext HTTP and write a
 			// 400 response on the TLS conn's underlying net.Conn.
@@ -1975,13 +1982,25 @@ func (c *conn) serve(ctx context.Context) {
 			c.rwc.SetWriteDeadline(time.Time{})
 		}
 		c.tlsState = new(tls.ConnectionState)
-		*c.tlsState = tlsConn.ConnectionState()
-		if proto := c.tlsState.NegotiatedProtocol; validNextProto(proto) {
+		*c.tlsState = connStater.ConnectionState()
+		proto := c.tlsState.NegotiatedProtocol
+		if proto == "h2" && c.server.h2 != nil {
+			// net/http/internal/http2 path.
+			//
+			// Mark freshly created HTTP/2 as active and prevent any server state hooks
+			// from being run on these connections. This prevents closeIdleConns from
+			// closing such connections. See issue https://golang.org/issue/39776.
+			c.setState(c.rwc, StateActive, skipHooks)
+			const sawClientPreface = false
+			c.server.serveHTTP2Conn(ctx, c.rwc, serverHandler{c.server}, sawClientPreface)
+			return
+		}
+		tlsConn, tlsConnOK := c.rwc.(*tls.Conn)
+		if validNextProto(proto) && tlsConnOK {
+			// Legacy TLSNextProto path.
 			if fn := c.server.TLSNextProto[proto]; fn != nil {
 				h := initALPNRequest{ctx, tlsConn, serverHandler{c.server}}
-				// Mark freshly created HTTP/2 as active and prevent any server state hooks
-				// from being run on these connections. This prevents closeIdleConns from
-				// closing such connections. See issue https://golang.org/issue/39776.
+				// Mark freshly created HTTP/2 as active (see above).
 				c.setState(c.rwc, StateActive, skipHooks)
 				fn(c.server, tlsConn, h)
 			}
@@ -1989,7 +2008,7 @@ func (c *conn) serve(ctx context.Context) {
 		}
 	}
 
-	// HTTP/1.x from here on.
+	// HTTP/1.x or unencrypted HTTP/2.
 
 	// Set Request.TLS if the conn is not a *tls.Conn, but implements ConnectionState.
 	if c.tlsState == nil {
@@ -2016,6 +2035,8 @@ func (c *conn) serve(ctx context.Context) {
 	if !protos.HTTP1() {
 		return
 	}
+
+	// HTTP/1.x from here on.
 
 	for {
 		w, err := c.readRequest(ctx)
@@ -2182,9 +2203,13 @@ func unencryptedTLSConn(c net.Conn) *tls.Conn {
 const nextProtoUnencryptedHTTP2 = "unencrypted_http2"
 
 func (c *conn) maybeServeUnencryptedHTTP2(ctx context.Context) bool {
-	fn, ok := c.server.TLSNextProto[nextProtoUnencryptedHTTP2]
-	if !ok {
-		return false
+	var nextFunc func(*Server, *tls.Conn, Handler)
+	if c.server.h2 == nil {
+		var ok bool
+		nextFunc, ok = c.server.TLSNextProto[nextProtoUnencryptedHTTP2]
+		if !ok {
+			return false
+		}
 	}
 	hasPreface := func(c *conn, preface []byte) bool {
 		c.r.setReadLimit(int64(len(preface)) - int64(c.bufr.Buffered()))
@@ -2199,8 +2224,13 @@ func (c *conn) maybeServeUnencryptedHTTP2(ctx context.Context) bool {
 		return false
 	}
 	c.setState(c.rwc, StateActive, skipHooks)
-	h := unencryptedHTTP2Request{ctx, c.rwc, serverHandler{c.server}}
-	fn(c.server, unencryptedTLSConn(c.rwc), h)
+	if c.server.h2 != nil {
+		const sawClientPreface = true
+		c.server.serveHTTP2Conn(ctx, c.rwc, serverHandler{c.server}, sawClientPreface)
+	} else {
+		h := unencryptedHTTP2Request{ctx, c.rwc, serverHandler{c.server}}
+		nextFunc(c.server, unencryptedTLSConn(c.rwc), h)
+	}
 	return true
 }
 

@@ -18,7 +18,9 @@ func init() {
 
 const noHTTP2 = "no bundled HTTP/2" // should never see this
 
-func (s *Server) configureHTTP2()                       {}
+func (s *Server) configureHTTP2()                                                                   {}
+func (s *Server) serveHTTP2Conn(ctx context.Context, nc net.Conn, h Handler, sawClientPreface bool) {}
+
 func (t *Transport) configureHTTP2(protocols Protocols) {}
 func (t *Transport) http2AddConn(scheme, authority string, nc net.Conn) (RoundTripper, error) {
 	return nil, errors.ErrUnsupported

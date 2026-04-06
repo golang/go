@@ -73,42 +73,22 @@ func (s *Server) configureHTTP2() {
 	if s.TLSNextProto == nil {
 		s.TLSNextProto = make(map[string]func(*Server, *tls.Conn, Handler))
 	}
-	type baseContexter interface {
-		BaseContext() context.Context
-	}
+	// Historically, the presence of a TLSNextProto["h2"] key has been the signal to
+	// enable/disable HTTP/2 support. Set a value in the map, but we'll never use it.
 	s.TLSNextProto["h2"] = func(hs *Server, c *tls.Conn, h Handler) {
-		h2srv.ServeConn(c, &http2.ServeConnOpts{
-			Context:    h.(baseContexter).BaseContext(),
-			Handler:    http2Handler{h},
-			BaseConfig: http2ServerConfig{hs},
-		})
-	}
-	s.TLSNextProto[nextProtoUnencryptedHTTP2] = func(hs *Server, c *tls.Conn, h Handler) {
-		nc := c.NetConn().(interface {
-			UnencryptedNetConn() net.Conn
-		}).UnencryptedNetConn()
-		h2srv.ServeConn(nc, &http2.ServeConnOpts{
-			Context:          h.(baseContexter).BaseContext(),
-			Handler:          http2Handler{h},
-			BaseConfig:       http2ServerConfig{hs},
-			SawClientPreface: true,
-		})
+		c.Close()
 	}
 
 	s.h2 = h2srv
 }
 
-func serveHTTP2Conn(ctx context.Context, c *conn, h Handler) bool {
-	if c.server.h2 == nil {
-		return false
-	}
-	c.server.h2.ServeConn(c.rwc, &http2.ServeConnOpts{
+func (s *Server) serveHTTP2Conn(ctx context.Context, nc net.Conn, h Handler, sawClientPreface bool) {
+	s.h2.ServeConn(nc, &http2.ServeConnOpts{
 		Context:          ctx,
 		Handler:          http2Handler{h},
-		BaseConfig:       http2ServerConfig{c.server},
-		SawClientPreface: true,
+		BaseConfig:       http2ServerConfig{s},
+		SawClientPreface: sawClientPreface,
 	})
-	return true
 }
 
 type http2Handler struct {
