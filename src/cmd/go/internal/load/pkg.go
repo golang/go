@@ -308,7 +308,9 @@ func (p *Package) setLoadPackageDataError(err error, path string, stk *ImportSta
 		isScanErr = true // For stack push/pop below.
 
 		scanPos := scanErr[0].Pos
-		scanPos.Filename = base.ShortPath(scanPos.Filename)
+		if !cfg.BuildFullpath {
+			scanPos.Filename = base.ShortPath(scanPos.Filename)
+		}
 		pos = scanPos.String()
 		err = errors.New(scanErr[0].Msg)
 	}
@@ -507,7 +509,9 @@ func (p *PackageError) setPos(posList []token.Position) {
 		return
 	}
 	pos := posList[0]
-	pos.Filename = base.ShortPath(pos.Filename)
+	if !cfg.BuildFullpath {
+		pos.Filename = base.ShortPath(pos.Filename)
+	}
 	p.Pos = pos.String()
 }
 

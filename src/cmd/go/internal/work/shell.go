@@ -495,12 +495,14 @@ func (sh *Shell) reportCmd(desc, dir string, cmdOut []byte, cmdErr error) error 
 		// prefixes, the only way to find them is to look.
 		// This doesn't always produce a relative path --
 		// /foo is shorter than ../../.., for example.
-		if reldir := base.ShortPath(dir); reldir != dir {
-			out = replacePrefix(out, dir, reldir)
-			if filepath.Separator == '\\' {
-				// Don't know why, sometimes this comes out with slashes, not backslashes.
-				wdir := strings.ReplaceAll(dir, "\\", "/")
-				out = replacePrefix(out, wdir, reldir)
+		if !cfg.BuildFullpath {
+			if reldir := base.ShortPath(dir); reldir != dir {
+				out = replacePrefix(out, dir, reldir)
+				if filepath.Separator == '\\' {
+					// Don't know why, sometimes this comes out with slashes, not backslashes.
+					wdir := strings.ReplaceAll(dir, "\\", "/")
+					out = replacePrefix(out, wdir, reldir)
+				}
 			}
 		}
 		dirP := filepath.Dir(dir)
