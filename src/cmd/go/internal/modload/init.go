@@ -1420,7 +1420,7 @@ func makeMainModules(ld *Loader, ms []module.Version, rootDirs []string, modFile
 				if replacedByWorkFile[r.Old.Path] {
 					continue
 				}
-				var newV module.Version = r.New
+				newV := r.New
 				if WorkFilePath(ld) != "" && newV.Version == "" && !filepath.IsAbs(newV.Path) {
 					// Since we are in a workspace, we may be loading replacements from
 					// multiple go.mod files. Relative paths in those replacement are

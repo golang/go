@@ -332,7 +332,7 @@ func editRequirements(ld *Loader, ctx context.Context, rs *Requirements, tryUpgr
 				Err:  err,
 			}
 			if err == nil {
-				var last module.Version = path[len(path)-1]
+				last := path[len(path)-1]
 				mustV, ok := mustSelectVersion[last.Path]
 				if !ok {
 					fmt.Fprintf(os.Stderr, "go: %v\n", conflict)
