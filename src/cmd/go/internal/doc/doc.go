@@ -222,16 +222,16 @@ func do(ctx context.Context, writer io.Writer, flagSet *flag.FlagSet, args []str
 			mod, err := runCmd(append(os.Environ(), "GOWORK=off"), "go", "list", "-m")
 			if err == nil && mod != "" && mod != "command-line-arguments" {
 				// If there's a module, go to the module's doc page.
-				return doPkgsite(mod, "")
+				return doPkgsite(ctx, mod, "")
 			}
 			gowork, err := runCmd(nil, "go", "env", "GOWORK")
 			if err == nil && gowork != "" {
 				// Outside a module, but in a workspace, go to the home page
 				// with links to each of the modules' pages.
-				return doPkgsite("", "")
+				return doPkgsite(ctx, "", "")
 			}
 			// Outside a module or workspace, go to the documentation for the standard library.
-			return doPkgsite("std", "")
+			return doPkgsite(ctx, "std", "")
 		}
 
 		// If args are provided, we need to figure out which page to open on the pkgsite
@@ -296,7 +296,7 @@ func do(ctx context.Context, writer io.Writer, flagSet *flag.FlagSet, args []str
 				if err != nil {
 					return err
 				}
-				return doPkgsite(path, fragment)
+				return doPkgsite(ctx, path, fragment)
 			}
 			return nil
 		}
