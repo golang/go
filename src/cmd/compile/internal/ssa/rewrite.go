@@ -2834,6 +2834,9 @@ func rewriteCondSelectIntoMath(config *Config, op Op, constant int64) bool {
 				return true
 			}
 		}
+	default:
+		// TODO: fine tune for other architectures.
+		return constant == 1
 	}
 	return false
 }
