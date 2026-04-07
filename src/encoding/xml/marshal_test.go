@@ -2588,3 +2588,77 @@ func TestClose(t *testing.T) {
 		})
 	}
 }
+
+func TestEncodeTokenInvalidNames(t *testing.T) {
+	tests := []struct {
+		name  string
+		token Token
+	}{
+		{
+			name:  "start element with angle bracket in name",
+			token: StartElement{Name: Name{Local: `div><script>alert(1)</script><div`}},
+		},
+		{
+			name:  "start element with quote in name",
+			token: StartElement{Name: Name{Local: `x" onclick="alert(1)`}},
+		},
+		{
+			name:  "start element with space in name",
+			token: StartElement{Name: Name{Local: "has space"}},
+		},
+		{
+			name:  "start element with ampersand in name",
+			token: StartElement{Name: Name{Local: "a&b"}},
+		},
+		{
+			name: "start element with invalid attribute name",
+			token: StartElement{
+				Name: Name{Local: "div"},
+				Attr: []Attr{{Name: Name{Local: `x"><injected y="`}, Value: "val"}},
+			},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			var buf bytes.Buffer
+			enc := NewEncoder(&buf)
+
+			err := enc.EncodeToken(tt.token)
+			if err == nil {
+				t.Errorf("EncodeToken(%#v) succeeded, want error for invalid XML name", tt.token)
+				t.Logf("produced output: %s", buf.String())
+			}
+		})
+	}
+}
+
+func TestMarshalInvalidXMLName(t *testing.T) {
+	type Item struct {
+		XMLName Name
+		Value   string `xml:",chardata"`
+	}
+
+	tests := []struct {
+		name  string
+		input Item
+	}{
+		{
+			name:  "element name with script injection",
+			input: Item{XMLName: Name{Local: `x"><script>alert(1)</script><y`}, Value: "data"},
+		},
+		{
+			name:  "element name with angle brackets",
+			input: Item{XMLName: Name{Local: "foo>bar"}, Value: "data"},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			_, err := Marshal(tt.input)
+			if err == nil {
+				t.Errorf("Marshal with invalid XMLName.Local=%q succeeded, want error", tt.input.XMLName.Local)
+			}
+		})
+	}
+}

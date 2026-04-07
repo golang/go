@@ -733,6 +733,9 @@ func (p *printer) writeStart(start *StartElement) error {
 	if start.Name.Local == "" {
 		return fmt.Errorf("xml: start tag with no name")
 	}
+	if !isNameString(start.Name.Local) {
+		return fmt.Errorf("xml: start tag with invalid name: %s", start.Name.Local)
+	}
 
 	p.tags = append(p.tags, start.Name)
 	p.markPrefix()
@@ -753,9 +756,16 @@ func (p *printer) writeStart(start *StartElement) error {
 		if name.Local == "" {
 			continue
 		}
+		if !isNameString(name.Local) {
+			return fmt.Errorf("xml: attribute with invalid name: %s", name.Local)
+		}
 		p.WriteByte(' ')
 		if name.Space != "" {
-			p.WriteString(p.createAttrPrefix(name.Space))
+			prefix := p.createAttrPrefix(name.Space)
+			if !isNameString(prefix) {
+				return fmt.Errorf("xml: attribute prefix with invalid name: %s", prefix)
+			}
+			p.WriteString(prefix)
 			p.WriteByte(':')
 		}
 		p.WriteString(name.Local)
@@ -770,6 +780,9 @@ func (p *printer) writeStart(start *StartElement) error {
 func (p *printer) writeEnd(name Name) error {
 	if name.Local == "" {
 		return fmt.Errorf("xml: end tag with no name")
+	}
+	if !isNameString(name.Local) {
+		return fmt.Errorf("xml: end tag with invalid name: %s", name.Local)
 	}
 	if len(p.tags) == 0 || p.tags[len(p.tags)-1].Local == "" {
 		return fmt.Errorf("xml: end tag </%s> without start tag", name.Local)
