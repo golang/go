@@ -22,11 +22,11 @@
 #define RARG3 CX
 #endif
 
-// void runtime·libfuzzerCall4(fn, hookId int, s1, s2 unsafe.Pointer, result uintptr)
+// void runtime·libfuzzerCall4(fn *byte, fakePC uintptr, s1, s2 unsafe.Pointer, result uintptr)
 // Calls C function fn from libFuzzer and passes 4 arguments to it.
 TEXT	runtime·libfuzzerCall4(SB), NOSPLIT, $0-40
 	MOVQ	fn+0(FP), AX
-	MOVQ	hookId+8(FP), RARG0
+	MOVQ	fakePC+8(FP), RARG0
 	MOVQ	s1+16(FP), RARG1
 	MOVQ	s2+24(FP), RARG2
 	MOVQ	result+32(FP), RARG3
