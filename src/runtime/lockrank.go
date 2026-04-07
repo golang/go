@@ -22,8 +22,6 @@ const (
 	lockRankStrongFromWeakQueue
 	lockRankCleanupQueue
 	lockRankSweep
-	lockRankRaceliteR
-	lockRankRaceliteW
 	lockRankTestR
 	lockRankTestW
 	lockRankVgetrandom
@@ -87,7 +85,6 @@ const (
 	lockRankAllocmRInternal
 	lockRankExecRInternal
 	lockRankTestRInternal
-	lockRankRaceliteRInternal
 )
 
 // lockRankLeafRank is the rank of lock that does not have a declared rank,
@@ -107,8 +104,6 @@ var lockNames = []string{
 	lockRankStrongFromWeakQueue: "strongFromWeakQueue",
 	lockRankCleanupQueue:        "cleanupQueue",
 	lockRankSweep:               "sweep",
-	lockRankRaceliteR:           "raceliteR",
-	lockRankRaceliteW:           "raceliteW",
 	lockRankTestR:               "testR",
 	lockRankTestW:               "testW",
 	lockRankVgetrandom:          "vgetrandom",
@@ -165,7 +160,6 @@ var lockNames = []string{
 	lockRankAllocmRInternal:     "allocmRInternal",
 	lockRankExecRInternal:       "execRInternal",
 	lockRankTestRInternal:       "testRInternal",
-	lockRankRaceliteRInternal:   "raceliteRInternal",
 }
 
 func (rank lockRank) String() string {
@@ -198,8 +192,6 @@ var lockPartialOrder [][]lockRank = [][]lockRank{
 	lockRankStrongFromWeakQueue: {},
 	lockRankCleanupQueue:        {},
 	lockRankSweep:               {},
-	lockRankRaceliteR:           {},
-	lockRankRaceliteW:           {},
 	lockRankTestR:               {},
 	lockRankTestW:               {},
 	lockRankVgetrandom:          {},
@@ -256,5 +248,4 @@ var lockPartialOrder [][]lockRank = [][]lockRank{
 	lockRankAllocmRInternal:     {lockRankSysmon, lockRankScavenge, lockRankForcegc, lockRankComputeMaxProcs, lockRankUpdateMaxProcsG, lockRankSweepWaiters, lockRankAssistQueue, lockRankStrongFromWeakQueue, lockRankCleanupQueue, lockRankSweep, lockRankTestR, lockRankTimerSend, lockRankAllocmW, lockRankCpuprof, lockRankPollDesc, lockRankWakeableSleep, lockRankHchan, lockRankAllocmR},
 	lockRankExecRInternal:       {lockRankSysmon, lockRankScavenge, lockRankForcegc, lockRankComputeMaxProcs, lockRankUpdateMaxProcsG, lockRankSweepWaiters, lockRankAssistQueue, lockRankStrongFromWeakQueue, lockRankCleanupQueue, lockRankSweep, lockRankTestR, lockRankTimerSend, lockRankExecW, lockRankCpuprof, lockRankPollDesc, lockRankWakeableSleep, lockRankHchan, lockRankExecR},
 	lockRankTestRInternal:       {lockRankTestR, lockRankTestW},
-	lockRankRaceliteRInternal:   {lockRankRaceliteR, lockRankRaceliteW},
 }
