@@ -400,6 +400,51 @@ func d5() {
 	}
 }
 
+// Descending loops near MinInt with int32/int16/int8 limits (OpConst32/16/8, not OpConst64).
+// For step < 0 and a constant limit, loopbce uses v-minV < -step (lines 295-298) instead of
+// subWillUnderflow (lines 290-293): the subtraction is evaluated in int64 and is trusted for
+// narrow types (see comment on loopbce.go:296). Same init/limit/step shape as int64 d5 above;
+// expected Induction variable diagnostics differ by type width.
+func d5_narrow_int32() {
+	for i := int32(math.MinInt32 + 9); i > math.MinInt32+2; i -= 4 { // ERROR "Induction variable: limits \[-2147483643,-2147483639\], increment 4$"
+		useString("foo")
+	}
+
+	for i := int32(math.MinInt32 + 8); i > math.MinInt32+2; i -= 4 { // ERROR "Induction variable: limits \[-2147483644,-2147483640\], increment 4$"
+		useString("foo")
+	}
+
+	for i := int32(math.MinInt32 + 7); i > math.MinInt32+2; i -= 4 {
+		useString("foo")
+	}
+}
+
+func d5_narrow_int16() {
+	for i := int16(math.MinInt16 + 9); i > math.MinInt16+2; i -= 4 { // ERROR "Induction variable: limits \[-32763,-32759\], increment 4$"
+		useString("foo")
+	}
+
+	for i := int16(math.MinInt16 + 8); i > math.MinInt16+2; i -= 4 { // ERROR "Induction variable: limits \[-32764,-32760\], increment 4$"
+		useString("foo")
+	}
+
+	for i := int16(math.MinInt16 + 7); i > math.MinInt16+2; i -= 4 {
+		useString("foo")
+	}
+}
+
+func d5_narrow_int8() {
+	for i := int8(math.MinInt8 + 9); i > math.MinInt8+2; i -= 4 { // ERROR "Induction variable: limits \[-123,-119\], increment 4$"
+		useString("foo")
+	}
+	for i := int8(math.MinInt8 + 8); i > math.MinInt8+2; i -= 4 { // ERROR "Induction variable: limits \[-124,-120\], increment 4$"
+		useString("foo")
+	}
+	for i := int8(math.MinInt8 + 7); i > math.MinInt8+2; i -= 4 {
+		useString("foo")
+	}
+}
+
 func bce1() {
 	// tests overflow of max-min
 	a := int64(9223372036854774057)
@@ -467,6 +512,45 @@ func stride2(x *[7]int) int {
 		s += x[i] // ERROR "Proved IsInBounds$"
 	}
 	return s
+}
+
+// Descending loops with non-64-bit induction variables.
+// These test that the descending loop path handles all integer sizes,
+// not just 64-bit (see issue with limit.Op == OpConst64 vs isGenericIntConst).
+func k3neg_int32(a [100]int) [100]int {
+	for i := int32(89); i > -11; i-- { // ERROR "Induction variable: limits \(-11,89\], increment 1$"
+		if a[0] == 0xdeadbeef {
+			continue
+		}
+		a[i+9] = int(i)
+		a[i+10] = int(i) // ERROR "Proved IsInBounds$"
+		a[i+11] = int(i)
+	}
+	return a
+}
+
+func k3neg_int16(a [100]int) [100]int {
+	for i := int16(89); i > -11; i-- { // ERROR "Induction variable: limits \(-11,89\], increment 1$"
+		if a[0] == 0xdeadbeef {
+			continue
+		}
+		a[i+9] = int(i)
+		a[i+10] = int(i) // ERROR "Proved IsInBounds$"
+		a[i+11] = int(i)
+	}
+	return a
+}
+
+func k3neg_int8(a [100]int) [100]int {
+	for i := int8(89); i > -11; i-- { // ERROR "Induction variable: limits \(-11,89\], increment 1$"
+		if a[0] == 0xdeadbeef {
+			continue
+		}
+		a[i+9] = int(i)
+		a[i+10] = int(i) // ERROR "Proved IsInBounds$"
+		a[i+11] = int(i)
+	}
+	return a
 }
 
 //go:noinline

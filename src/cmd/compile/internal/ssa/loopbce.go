@@ -271,7 +271,7 @@ nextblock:
 					// for i := 0; i < KNN&^(k-1) ; i += k // k a power of 2
 					// for i := 0; i < KNN&(-k) ; i += k // k a power of 2
 				} else { // step < 0
-					if limit.Op == OpConst64 {
+					if limit.isGenericIntConst() {
 						// Figure out the actual smallest value.
 						v := limit.AuxInt
 						if !inclusive {
@@ -287,8 +287,15 @@ nextblock:
 							}
 							v = subU(init.AuxInt, diff(init.AuxInt, v)/uint64(-step)*uint64(-step))
 						}
-						if subWillUnderflow(v, -step) {
-							return false
+						if limit.Op == OpConst64 {
+							if subWillUnderflow(v, -step) {
+								return false
+							}
+						} else {
+							minV := minSignedValue(limit.Type)
+							if v-minV < -step { // int32 int16 int8 can't underflow, so we can trust the subtraction.
+								return false
+							}
 						}
 						if inclusive && v != limit.AuxInt || !inclusive && v-1 != limit.AuxInt {
 							// We know a better limit than the programmer did. Use our limit instead.
