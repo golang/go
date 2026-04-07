@@ -449,11 +449,12 @@ func editRequirements(ld *Loader, ctx context.Context, rs *Requirements, tryUpgr
 			// If this downgrade is potentially interesting, log the reason for it.
 			if conflict.Err != nil || cfg.BuildV {
 				var action string
-				if prev.Version == "none" {
+				switch prev.Version {
+				case "none":
 					action = fmt.Sprintf("removing %s", m)
-				} else if prev.Version == origV {
+				case origV:
 					action = fmt.Sprintf("restoring %s", prev)
-				} else {
+				default:
 					action = fmt.Sprintf("trying %s", prev)
 				}
 				fmt.Fprintf(os.Stderr, "go: %s\n\t%s\n", conflict.Summary(), action)
