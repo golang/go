@@ -917,4 +917,23 @@ TEXT asmtest(SB),DUPOK|NOSPLIT,$-8
 	ZUSHLLT $1, Z27.Q, Z25.Q                          // ERROR "illegal combination from SVE"
 	ZUSRA $1, Z27.Q, Z25.Q                            // ERROR "illegal combination from SVE"
 	ZXAR $1, Z27.Q, Z25.Q, Z6.H                       // ERROR "illegal combination from SVE"
+	PPEXT PN6[3], [P5.D, P6.D]                        // ERROR "illegal combination from SVE"
+	PWHILEGE RSP, R27, [P13.S, P14.S]                 // ERROR "illegal combination from SVE"
+	PWHILEGT RSP, R27, [P13.S, P14.S]                 // ERROR "illegal combination from SVE"
+	PWHILEHI RSP, R27, [P13.S, P14.S]                 // ERROR "illegal combination from SVE"
+	PWHILEHS RSP, R27, [P13.S, P14.S]                 // ERROR "illegal combination from SVE"
+	PWHILELE RSP, R27, [P13.S, P14.S]                 // ERROR "illegal combination from SVE"
+	PWHILELO RSP, R27, [P13.S, P14.S]                 // ERROR "illegal combination from SVE"
+	PWHILELS RSP, R27, [P13.S, P14.S]                 // ERROR "illegal combination from SVE"
+	PWHILELT RSP, R27, [P13.S, P14.S]                 // ERROR "illegal combination from SVE"
+	ZEXT $1, [Z27.Q, Z28.Q], Z25.Q                    // ERROR "illegal combination from SVE"
+	ZLUTI2 Z27[1], [Z26.S], Z11.B                     // ERROR "illegal combination from SVE"
+	ZLUTI2 Z27[1], [Z26.S], Z11.B                     // ERROR "illegal combination from SVE"
+	ZLUTI4 Z27[1], [Z26.S], Z11.B                     // ERROR "illegal combination from SVE"
+	ZLUTI4 Z27[1], [Z26.S, Z27.S], Z11.B              // ERROR "illegal combination from SVE"
+	ZLUTI4 Z27[1], [Z26.S], Z11.B                     // ERROR "illegal combination from SVE"
+	// TODO: LUTI6
+	// TODO: LUTI6
+	ZSPLICE [Z1.S, Z2.S], P13.Z, Z11.B                // ERROR "illegal combination from SVE"
+	ZTBLQ Z1.S, [Z26.S], Z11.B                        // ERROR "illegal combination from SVE"
 	RET

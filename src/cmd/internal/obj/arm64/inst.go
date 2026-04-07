@@ -131,6 +131,18 @@ func aclass(a *obj.Addr) AClass {
 	if a.Type == obj.TYPE_CONST || a.Type == obj.TYPE_FCONST {
 		return AC_IMM
 	}
+	if a.Type == obj.TYPE_REGLIST {
+		switch (a.Offset >> 12) & 0xf {
+		case 0x7:
+			return AC_REGLIST1
+		case 0xa:
+			return AC_REGLIST2
+		case 0x6:
+			return AC_REGLIST3
+		case 0x2:
+			return AC_REGLIST4
+		}
+	}
 	panic("unknown AClass")
 }
 
@@ -221,6 +233,99 @@ func addrComponent(a *obj.Addr, acl AClass, index int) uint32 {
 				}
 			}
 			return uint32(a.Offset)
+		default:
+			panic(fmt.Errorf("unknown elm index at %d in AClass %d", index, acl))
+		}
+	//	AClass: AC_REGLIST1, AC_REGLIST2, AC_REGLIST3, AC_REGLIST4
+	//	GNU mnemonic: {reg1.T, reg2.T, ...}
+	//	Go mnemonic:
+	//		[reg1.T, reg2.T, ...]
+	//	Encoding:
+	//		Type = TYPE_REGLIST
+	// 		Offset = register prefix | register count | arrangement (opcode) | first register
+	case AC_REGLIST1, AC_REGLIST2, AC_REGLIST3, AC_REGLIST4:
+		firstReg := int(a.Offset & 31)
+		prefix := a.Offset >> 32 & 0b11
+		sum := 32
+		if prefix == 2 {
+			sum = 16
+		}
+		switch acl {
+		case AC_REGLIST1:
+			if index > 2 {
+				panic(fmt.Errorf("unknown elm index at %d in AClass %d", index, acl))
+			}
+		case AC_REGLIST2:
+			if index > 4 {
+				panic(fmt.Errorf("unknown elm index at %d in AClass %d", index, acl))
+			}
+		case AC_REGLIST3:
+			if index > 6 {
+				panic(fmt.Errorf("unknown elm index at %d in AClass %d", index, acl))
+			}
+		case AC_REGLIST4:
+			if index > 8 {
+				panic(fmt.Errorf("unknown elm index at %d in AClass %d", index, acl))
+			}
+		}
+		switch index % 2 {
+		case 0:
+			// register
+			return uint32((firstReg + index/2) % sum)
+		case 1:
+			// arrangement
+			curQ := a.Offset >> 30 & 0b11
+			curSize := a.Offset >> 10 & 0b11
+			switch curQ {
+			case 0:
+				switch curSize {
+				case 0:
+					return ARNG_8B
+				case 1:
+					return ARNG_4H
+				case 2:
+					return ARNG_2S
+				case 3:
+					return ARNG_1D
+				default:
+					panic(fmt.Errorf("unknown size value at %d in AClass %d", index, acl))
+				}
+			case 1:
+				switch curSize {
+				case 0:
+					return ARNG_16B
+				case 1:
+					return ARNG_8H
+				case 2:
+					return ARNG_4S
+				case 3:
+					return ARNG_2D
+				default:
+					panic(fmt.Errorf("unknown size value at %d in AClass %d", index, acl))
+				}
+			case 2:
+				switch curSize {
+				case 1:
+					return ARNG_B
+				case 2:
+					return ARNG_H
+				case 3:
+					return ARNG_S
+				default:
+					panic(fmt.Errorf("unknown size value at %d in AClass %d", index, acl))
+				}
+			case 3:
+				switch curSize {
+				case 1:
+					return ARNG_D
+				case 2:
+					return ARNG_Q
+				default:
+					panic(fmt.Errorf("unknown size value at %d in AClass %d", index, acl))
+				}
+			default:
+				panic(fmt.Errorf("unknown Q value at %d in AClass %d", index, acl))
+			}
 		default:
 			panic(fmt.Errorf("unknown elm index at %d in AClass %d", index, acl))
 		}
@@ -528,17 +633,18 @@ func (i *instEncoder) tryEncode(p *obj.Prog) (uint32, bool) {
 	// For example { <Zn1>.<Tb>-<Zn2>.<Tb> }.
 	// The 2 instances of <Tb> must encode to the same value.
 	encoded := map[component]uint32{}
-	opIdx := 0
 	var addrs []*obj.Addr
 	for addr := range opsInProg(p) {
 		addrs = append(addrs, addr)
 	}
-	for ii, addr := range addrs {
+	if len(addrs) != len(i.args) {
+		return 0, false
+	}
+	for opIdx, addr := range addrs {
 		if opIdx >= len(i.args) {
 			return 0, false
 		}
 		op := i.args[opIdx]
-		opIdx++
 		acl := aclass(addr)
 		if acl != op.class {
 			return 0, false
@@ -566,13 +672,13 @@ func (i *instEncoder) tryEncode(p *obj.Prog) (uint32, bool) {
 					case codeImm2Tsz:
 						b, ok = encodeImm2Tsz(val, addrComponent(addr, acl, i-1))
 					case codeShift161919212223:
-						b, ok = encodeShiftTriple(val, [6]int{16, 19, 19, 21, 22, 23}, addrs[ii+1], p.As)
+						b, ok = encodeShiftTriple(val, [6]int{16, 19, 19, 21, 22, 23}, addrs[opIdx+1], p.As)
 					case codeShift161919212224:
-						b, ok = encodeShiftTriple(val, [6]int{16, 19, 19, 21, 22, 24}, addrs[ii+1], p.As)
+						b, ok = encodeShiftTriple(val, [6]int{16, 19, 19, 21, 22, 24}, addrs[opIdx+1], p.As)
 					case codeShift588102224:
-						b, ok = encodeShiftTriple(val, [6]int{5, 8, 8, 10, 22, 24}, addrs[ii+1], p.As)
+						b, ok = encodeShiftTriple(val, [6]int{5, 8, 8, 10, 22, 24}, addrs[opIdx+1], p.As)
 					case codeLogicalImmArrEncoding:
-						b, ok = encodeLogicalImmArrEncoding(val, addrs[ii+1])
+						b, ok = encodeLogicalImmArrEncoding(val, addrs[opIdx+1])
 					case codeNoOp:
 						b, ok = 0, true
 					default:
@@ -598,8 +704,6 @@ func (i *instEncoder) tryEncode(p *obj.Prog) (uint32, bool) {
 			}
 		}
 	}
-	if opIdx != len(i.args) {
-		return 0, false
-	}
+
 	return bin, true
 }

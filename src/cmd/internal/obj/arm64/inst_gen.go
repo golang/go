@@ -329,6 +329,12 @@ var insts = [][]instEncoder{
 			fixedBits: 0x25207010,
 			args:      PNn_imm___Pd_T,
 		},
+		// PPEXT <PNn>[<imm>], { <Pd1>.<T>, <Pd2>.<T> }
+		{
+			goOp:      APPEXT,
+			fixedBits: 0x25207410,
+			args:      PNn_imm____Pd1_T__Pd2_T_,
+		},
 	},
 	// PPFALSE
 	{
@@ -551,6 +557,12 @@ var insts = [][]instEncoder{
 			fixedBits: 0x25201000,
 			args:      Rm__Rn__Pd_T,
 		},
+		// PWHILEGE <Xm>, <Xn>, { <Pd1>.<T>, <Pd2>.<T> }
+		{
+			goOp:      APWHILEGE,
+			fixedBits: 0x25205010,
+			args:      Xm__Xn___Pd1_T__Pd2_T_,
+		},
 	},
 	// PWHILEGEW
 	{
@@ -568,6 +580,12 @@ var insts = [][]instEncoder{
 			goOp:      APWHILEGT,
 			fixedBits: 0x25201010,
 			args:      Rm__Rn__Pd_T,
+		},
+		// PWHILEGT <Xm>, <Xn>, { <Pd1>.<T>, <Pd2>.<T> }
+		{
+			goOp:      APWHILEGT,
+			fixedBits: 0x25205011,
+			args:      Xm__Xn___Pd1_T__Pd2_T_,
 		},
 	},
 	// PWHILEGTW
@@ -587,6 +605,12 @@ var insts = [][]instEncoder{
 			fixedBits: 0x25201810,
 			args:      Rm__Rn__Pd_T,
 		},
+		// PWHILEHI <Xm>, <Xn>, { <Pd1>.<T>, <Pd2>.<T> }
+		{
+			goOp:      APWHILEHI,
+			fixedBits: 0x25205811,
+			args:      Xm__Xn___Pd1_T__Pd2_T_,
+		},
 	},
 	// PWHILEHIW
 	{
@@ -604,6 +628,12 @@ var insts = [][]instEncoder{
 			goOp:      APWHILEHS,
 			fixedBits: 0x25201800,
 			args:      Rm__Rn__Pd_T,
+		},
+		// PWHILEHS <Xm>, <Xn>, { <Pd1>.<T>, <Pd2>.<T> }
+		{
+			goOp:      APWHILEHS,
+			fixedBits: 0x25205810,
+			args:      Xm__Xn___Pd1_T__Pd2_T_,
 		},
 	},
 	// PWHILEHSW
@@ -623,6 +653,12 @@ var insts = [][]instEncoder{
 			fixedBits: 0x25201410,
 			args:      Rm__Rn__Pd_T,
 		},
+		// PWHILELE <Xm>, <Xn>, { <Pd1>.<T>, <Pd2>.<T> }
+		{
+			goOp:      APWHILELE,
+			fixedBits: 0x25205411,
+			args:      Xm__Xn___Pd1_T__Pd2_T_,
+		},
 	},
 	// PWHILELEW
 	{
@@ -640,6 +676,12 @@ var insts = [][]instEncoder{
 			goOp:      APWHILELO,
 			fixedBits: 0x25201c00,
 			args:      Rm__Rn__Pd_T,
+		},
+		// PWHILELO <Xm>, <Xn>, { <Pd1>.<T>, <Pd2>.<T> }
+		{
+			goOp:      APWHILELO,
+			fixedBits: 0x25205c10,
+			args:      Xm__Xn___Pd1_T__Pd2_T_,
 		},
 	},
 	// PWHILELOW
@@ -659,6 +701,12 @@ var insts = [][]instEncoder{
 			fixedBits: 0x25201c10,
 			args:      Rm__Rn__Pd_T,
 		},
+		// PWHILELS <Xm>, <Xn>, { <Pd1>.<T>, <Pd2>.<T> }
+		{
+			goOp:      APWHILELS,
+			fixedBits: 0x25205c11,
+			args:      Xm__Xn___Pd1_T__Pd2_T_,
+		},
 	},
 	// PWHILELSW
 	{
@@ -676,6 +724,12 @@ var insts = [][]instEncoder{
 			goOp:      APWHILELT,
 			fixedBits: 0x25201400,
 			args:      Rm__Rn__Pd_T,
+		},
+		// PWHILELT <Xm>, <Xn>, { <Pd1>.<T>, <Pd2>.<T> }
+		{
+			goOp:      APWHILELT,
+			fixedBits: 0x25205410,
+			args:      Xm__Xn___Pd1_T__Pd2_T_,
 		},
 	},
 	// PWHILELTW
@@ -2059,6 +2113,12 @@ var insts = [][]instEncoder{
 			goOp:      AZEXT,
 			fixedBits: 0x5200000,
 			args:      cimm__Zm_B__Zdn_B__Zdn_B__1,
+		},
+		// ZEXT #<imm>, { <Zn1>.B, <Zn2>.B }, <Zd>.B
+		{
+			goOp:      AZEXT,
+			fixedBits: 0x5600000,
+			args:      cimm___Zn1_B__Zn2_B___Zd_B,
 		},
 	},
 	// ZEXTQ
@@ -4035,6 +4095,57 @@ var insts = [][]instEncoder{
 			args:      Zm_T__Zdn_T__PgM__Zdn_T__1,
 		},
 	},
+	// ZLUTI2
+	{
+		// ZLUTI2 <Zm>[<index>], { <Zn>.B }, <Zd>.B
+		{
+			goOp:      AZLUTI2,
+			fixedBits: 0x4520b000,
+			args:      Zm_index____Zn_B___Zd_B__1,
+		},
+		// ZLUTI2 <Zm>[<index>], { <Zn>.H }, <Zd>.H
+		{
+			goOp:      AZLUTI2,
+			fixedBits: 0x4520a800,
+			args:      Zm_index____Zn_H___Zd_H__1,
+		},
+	},
+	// ZLUTI4
+	{
+		// ZLUTI4 <Zm>[<index>], { <Zn1>.H, <Zn2>.H }, <Zd>.H
+		{
+			goOp:      AZLUTI4,
+			fixedBits: 0x4520b400,
+			args:      Zm_index____Zn1_H__Zn2_H___Zd_H__1,
+		},
+		// ZLUTI4 <Zm>[<index>], { <Zn>.B }, <Zd>.B
+		{
+			goOp:      AZLUTI4,
+			fixedBits: 0x4560a400,
+			args:      Zm_index____Zn_B___Zd_B__2,
+		},
+		// ZLUTI4 <Zm>[<index>], { <Zn>.H }, <Zd>.H
+		{
+			goOp:      AZLUTI4,
+			fixedBits: 0x4520bc00,
+			args:      Zm_index____Zn_H___Zd_H__2,
+		},
+	},
+	// ZLUTI6
+	{
+		// ZLUTI6 <Zm>, { <Zn1>.B, <Zn2>.B }, <Zd>.B
+		{
+			goOp:      AZLUTI6,
+			fixedBits: 0x4520ac00,
+			args:      Zm___Zn1_B__Zn2_B___Zd_B,
+		},
+		// ZLUTI6 <Zm>[<index>], { <Zn1>.H, <Zn2>.H }, <Zd>.H
+		{
+			goOp:      AZLUTI6,
+			fixedBits: 0x4560ac00,
+			args:      Zm_index____Zn1_H__Zn2_H___Zd_H__2,
+		},
+	},
 	// ZMAD
 	{
 		// ZMAD <Za>.<T>, <Zm>.<T>, <Pg>/M, <Zdn>.<T>
@@ -5234,6 +5345,12 @@ var insts = [][]instEncoder{
 			fixedBits: 0x52c8000,
 			args:      Zm_T__Zdn_T__Pv__Zdn_T,
 		},
+		// ZSPLICE { <Zn1>.<T>, <Zn2>.<T> }, <Pv>, <Zd>.<T>
+		{
+			goOp:      AZSPLICE,
+			fixedBits: 0x52d8000,
+			args:      _Zn1_T__Zn2_T___Pv__Zd_T,
+		},
 	},
 	// ZSQABS
 	{
@@ -6067,6 +6184,15 @@ var insts = [][]instEncoder{
 			goOp:      AZSXTW,
 			fixedBits: 0x4c4a000,
 			args:      Zn_D__PgZ__Zd_D,
+		},
+	},
+	// ZTBLQ
+	{
+		// ZTBLQ <Zm>.<T>, { <Zn>.<T> }, <Zd>.<T>
+		{
+			goOp:      AZTBLQ,
+			fixedBits: 0x4400f800,
+			args:      Zm_T___Zn_T___Zd_T,
 		},
 	},
 	// ZTBX
@@ -7988,107 +8114,107 @@ var a_ARNG_Zk5103Rd_ArngDCheck = operand{
 	},
 }
 
-var a_ARNG_Zm1621_ArngBCheck = operand{
+var a_ARNG_Zm1621V2_ArngBCheck = operand{
 	class: AC_ARNG, elemEncoders: []elemEncoder{
-		{encodeZm1621, enc_Zm},
+		{encodeZm1621V2, enc_Zm},
 		{encodeArngBCheck, enc_NIL},
 	},
 }
 
-var a_ARNG_Zm1621_ArngDCheck = operand{
+var a_ARNG_Zm1621V2_ArngDCheck = operand{
 	class: AC_ARNG, elemEncoders: []elemEncoder{
-		{encodeZm1621, enc_Zm},
+		{encodeZm1621V2, enc_Zm},
 		{encodeArngDCheck, enc_NIL},
 	},
 }
 
-var a_ARNG_Zm1621_ArngHCheck = operand{
+var a_ARNG_Zm1621V2_ArngHCheck = operand{
 	class: AC_ARNG, elemEncoders: []elemEncoder{
-		{encodeZm1621, enc_Zm},
+		{encodeZm1621V2, enc_Zm},
 		{encodeArngHCheck, enc_NIL},
 	},
 }
 
-var a_ARNG_Zm1621_ArngQCheck = operand{
+var a_ARNG_Zm1621V2_ArngQCheck = operand{
 	class: AC_ARNG, elemEncoders: []elemEncoder{
-		{encodeZm1621, enc_Zm},
+		{encodeZm1621V2, enc_Zm},
 		{encodeArngQCheck, enc_NIL},
 	},
 }
 
-var a_ARNG_Zm1621_ArngSCheck = operand{
+var a_ARNG_Zm1621V2_ArngSCheck = operand{
 	class: AC_ARNG, elemEncoders: []elemEncoder{
-		{encodeZm1621, enc_Zm},
+		{encodeZm1621V2, enc_Zm},
 		{encodeArngSCheck, enc_NIL},
 	},
 }
 
-var a_ARNG_Zm1621_Size0BH2223 = operand{
+var a_ARNG_Zm1621V2_Size0BH2223 = operand{
 	class: AC_ARNG, elemEncoders: []elemEncoder{
-		{encodeZm1621, enc_Zm},
+		{encodeZm1621V2, enc_Zm},
 		{encodeSize0BH2223, enc_size0},
 	},
 }
 
-var a_ARNG_Zm1621_Size0SD2223 = operand{
+var a_ARNG_Zm1621V2_Size0SD2223 = operand{
 	class: AC_ARNG, elemEncoders: []elemEncoder{
-		{encodeZm1621, enc_Zm},
+		{encodeZm1621V2, enc_Zm},
 		{encodeSize0SD2223, enc_size0},
 	},
 }
 
-var a_ARNG_Zm1621_Size0TbBH2223 = operand{
+var a_ARNG_Zm1621V2_Size0TbBH2223 = operand{
 	class: AC_ARNG, elemEncoders: []elemEncoder{
-		{encodeZm1621, enc_Zm},
+		{encodeZm1621V2, enc_Zm},
 		{encodeSize0TbBH2223, enc_size0},
 	},
 }
 
-var a_ARNG_Zm1621_SizeBHSD2224 = operand{
+var a_ARNG_Zm1621V2_SizeBHSD2224 = operand{
 	class: AC_ARNG, elemEncoders: []elemEncoder{
-		{encodeZm1621, enc_Zm},
+		{encodeZm1621V2, enc_Zm},
 		{encodeSizeBHSD2224, enc_size},
 	},
 }
 
-var a_ARNG_Zm1621_SizeHSD2224 = operand{
+var a_ARNG_Zm1621V2_SizeHSD2224 = operand{
 	class: AC_ARNG, elemEncoders: []elemEncoder{
-		{encodeZm1621, enc_Zm},
+		{encodeZm1621V2, enc_Zm},
 		{encodeSizeHSD2224, enc_size},
 	},
 }
 
-var a_ARNG_Zm1621_SizeHSD2224No00 = operand{
+var a_ARNG_Zm1621V2_SizeHSD2224No00 = operand{
 	class: AC_ARNG, elemEncoders: []elemEncoder{
-		{encodeZm1621, enc_Zm},
+		{encodeZm1621V2, enc_Zm},
 		{encodeSizeHSD2224No00, enc_size},
 	},
 }
 
-var a_ARNG_Zm1621_SizeTbBHS2224 = operand{
+var a_ARNG_Zm1621V2_SizeTbBHS2224 = operand{
 	class: AC_ARNG, elemEncoders: []elemEncoder{
-		{encodeZm1621, enc_Zm},
+		{encodeZm1621V2, enc_Zm},
 		{encodeSizeTbBHS2224, enc_size},
 	},
 }
 
-var a_ARNG_Zm1621_SizeTbBS2224 = operand{
+var a_ARNG_Zm1621V2_SizeTbBS2224 = operand{
 	class: AC_ARNG, elemEncoders: []elemEncoder{
-		{encodeZm1621, enc_Zm},
+		{encodeZm1621V2, enc_Zm},
 		{encodeSizeTbBS2224, enc_size},
 	},
 }
 
-var a_ARNG_Zm1621_SizeTbHSD2224Offset1 = operand{
+var a_ARNG_Zm1621V2_SizeTbHSD2224Offset1 = operand{
 	class: AC_ARNG, elemEncoders: []elemEncoder{
-		{encodeZm1621, enc_Zm},
+		{encodeZm1621V2, enc_Zm},
 		{encodeSizeTbHSD2224Offset1, enc_size},
 	},
 }
 
-var a_ARNG_Zm1621_SzSD2223 = operand{
+var a_ARNG_Zm1621V2_SzSD2223 = operand{
 	class: AC_ARNG, elemEncoders: []elemEncoder{
-		{encodeZm1621, enc_Zm},
+		{encodeZm1621V2, enc_Zm},
 		{encodeSzSD2223, enc_sz},
 	},
 }
@@ -8630,6 +8756,14 @@ var a_IMM_ShiftTsz58Range1 = operand{
 	},
 }
 
+var a_PREGIDX_PnN_58_Noop_I189 = operand{
+	class: AC_PREGIDX, elemEncoders: []elemEncoder{
+		{encodePnN_58, enc_PNn},
+		{encodeNoop, enc_NIL},
+		{encodeI189, enc_i1},
+	},
+}
+
 var a_PREGIDX_PnN_58_Noop_Imm2_810 = operand{
 	class: AC_PREGIDX, elemEncoders: []elemEncoder{
 		{encodePnN_58, enc_PNn},
@@ -8733,6 +8867,81 @@ var a_PREG_Pv59_Noop = operand{
 	class: AC_PREG, elemEncoders: []elemEncoder{
 		{encodePv59, enc_Pv},
 		{encodeNoop, enc_NIL},
+	},
+}
+
+var a_REGLIST1_Zn510Table3_ArngBCheck = operand{
+	class: AC_REGLIST1, elemEncoders: []elemEncoder{
+		{encodeZn510Table3, enc_Zn},
+		{encodeArngBCheck, enc_NIL},
+	},
+}
+
+var a_REGLIST1_Zn510Table3_ArngHCheck = operand{
+	class: AC_REGLIST1, elemEncoders: []elemEncoder{
+		{encodeZn510Table3, enc_Zn},
+		{encodeArngHCheck, enc_NIL},
+	},
+}
+
+var a_REGLIST1_Zn510_SizeBHSD2224 = operand{
+	class: AC_REGLIST1, elemEncoders: []elemEncoder{
+		{encodeZn510, enc_Zn},
+		{encodeSizeBHSD2224, enc_size},
+	},
+}
+
+var a_REGLIST2_Pd04_SizeBHSD2224_Pd04Plus1_SizeBHSD2224 = operand{
+	class: AC_REGLIST2, elemEncoders: []elemEncoder{
+		{encodePd04, enc_Pd},
+		{encodeSizeBHSD2224, enc_size},
+		{encodePd04Plus1, enc_Pd},
+		{encodeSizeBHSD2224, enc_size},
+	},
+}
+
+var a_REGLIST2_Pd14_SizeBHSD2224_Pd14Plus1_SizeBHSD2224 = operand{
+	class: AC_REGLIST2, elemEncoders: []elemEncoder{
+		{encodePd14, enc_Pd},
+		{encodeSizeBHSD2224, enc_size},
+		{encodePd14Plus1, enc_Pd},
+		{encodeSizeBHSD2224, enc_size},
+	},
+}
+
+var a_REGLIST2_Zn510MultiSrc1_ArngBCheck_Zn510MultiSrc2_ArngBCheck = operand{
+	class: AC_REGLIST2, elemEncoders: []elemEncoder{
+		{encodeZn510MultiSrc1, enc_Zn},
+		{encodeArngBCheck, enc_NIL},
+		{encodeZn510MultiSrc2, enc_Zn},
+		{encodeArngBCheck, enc_NIL},
+	},
+}
+
+var a_REGLIST2_Zn510MultiSrc1_SizeBHSD2224_Zn510MultiSrc2_SizeBHSD2224 = operand{
+	class: AC_REGLIST2, elemEncoders: []elemEncoder{
+		{encodeZn510MultiSrc1, enc_Zn},
+		{encodeSizeBHSD2224, enc_size},
+		{encodeZn510MultiSrc2, enc_Zn},
+		{encodeSizeBHSD2224, enc_size},
+	},
+}
+
+var a_REGLIST2_Zn510Table1_ArngBCheck_Zn510Table2_ArngBCheck = operand{
+	class: AC_REGLIST2, elemEncoders: []elemEncoder{
+		{encodeZn510Table1, enc_Zn},
+		{encodeArngBCheck, enc_NIL},
+		{encodeZn510Table2, enc_Zn},
+		{encodeArngBCheck, enc_NIL},
+	},
+}
+
+var a_REGLIST2_Zn510Table1_ArngHCheck_Zn510Table2_ArngHCheck = operand{
+	class: AC_REGLIST2, elemEncoders: []elemEncoder{
+		{encodeZn510Table1, enc_Zn},
+		{encodeArngHCheck, enc_NIL},
+		{encodeZn510Table2, enc_Zn},
+		{encodeArngHCheck, enc_NIL},
 	},
 }
 
@@ -8886,6 +9095,46 @@ var a_ZREGIDX_Zd_Noop_I3hI3l_1722_Doubleword = operand{
 	},
 }
 
+var a_ZREGIDX_Zm1621V1_Noop_I12324 = operand{
+	class: AC_ZREGIDX, elemEncoders: []elemEncoder{
+		{encodeZm1621V1, enc_Zm},
+		{encodeNoop, enc_NIL},
+		{encodeI12324, enc_i1},
+	},
+}
+
+var a_ZREGIDX_Zm1621V1_Noop_I12324B = operand{
+	class: AC_ZREGIDX, elemEncoders: []elemEncoder{
+		{encodeZm1621V1, enc_Zm},
+		{encodeNoop, enc_NIL},
+		{encodeI12324B, enc_i1},
+	},
+}
+
+var a_ZREGIDX_Zm1621V1_Noop_I22224 = operand{
+	class: AC_ZREGIDX, elemEncoders: []elemEncoder{
+		{encodeZm1621V1, enc_Zm},
+		{encodeNoop, enc_NIL},
+		{encodeI22224, enc_i2},
+	},
+}
+
+var a_ZREGIDX_Zm1621V1_Noop_I22224HW = operand{
+	class: AC_ZREGIDX, elemEncoders: []elemEncoder{
+		{encodeZm1621V1, enc_Zm},
+		{encodeNoop, enc_NIL},
+		{encodeI22224HW, enc_i2},
+	},
+}
+
+var a_ZREGIDX_Zm1621V1_Noop_I3224I31213 = operand{
+	class: AC_ZREGIDX, elemEncoders: []elemEncoder{
+		{encodeZm1621V1, enc_Zm},
+		{encodeNoop, enc_NIL},
+		{encodeI3224I31213, enc_i3h_i3l},
+	},
+}
+
 var a_ZREGIDX_Zn510Src_Noop_I1_1718_Halfword = operand{
 	class: AC_ZREGIDX, elemEncoders: []elemEncoder{
 		{encodeZn510Src, enc_Zn},
@@ -8917,6 +9166,13 @@ var a_ZREG_Zd_Noop = operand{
 	},
 }
 
+var a_ZREG_Zm1621V1_Noop = operand{
+	class: AC_ZREG, elemEncoders: []elemEncoder{
+		{encodeZm1621V1, enc_Zm},
+		{encodeNoop, enc_NIL},
+	},
+}
+
 var a_ZREG_Zn510Src_Noop = operand{
 	class: AC_ZREG, elemEncoders: []elemEncoder{
 		{encodeZn510Src, enc_Zn},
@@ -8931,6 +9187,11 @@ var PNd_T = []operand{
 var PNn_imm___Pd_T = []operand{
 	a_PREGIDX_PnN_58_Noop_Imm2_810,
 	a_ARNG_Pd_SizeBHSD2224,
+}
+
+var PNn_imm____Pd1_T__Pd2_T_ = []operand{
+	a_PREGIDX_PnN_58_Noop_I189,
+	a_REGLIST2_Pd04_SizeBHSD2224_Pd04Plus1_SizeBHSD2224,
 }
 
 var Pd_B = []operand{
@@ -9115,9 +9376,15 @@ var Xm__Xn__Pd_T = []operand{
 	a_ARNG_Pd_SizeBHSD2224,
 }
 
+var Xm__Xn___Pd1_T__Pd2_T_ = []operand{
+	a_SPZGREG_Noop_Rm1621,
+	a_SPZGREG_Noop_Rn510,
+	a_REGLIST2_Pd14_SizeBHSD2224_Pd14Plus1_SizeBHSD2224,
+}
+
 var Za_D__Zm_D__Zdn_D = []operand{
 	a_ARNG_Za5103Rd_ArngDCheck,
-	a_ARNG_Zm1621_ArngDCheck,
+	a_ARNG_Zm1621V2_ArngDCheck,
 	a_ARNG_ZdnDest_ArngDCheck,
 }
 
@@ -9130,7 +9397,7 @@ var Za_T__Zm_T__PgM__Zdn_T__1 = []operand{
 
 var Za_T__Zm_T__PgM__Zdn_T__2 = []operand{
 	a_ARNG_Za5103Rd_SizeBHSD2224,
-	a_ARNG_Zm1621_SizeBHSD2224,
+	a_ARNG_Zm1621V2_SizeBHSD2224,
 	a_PREGZM_Pg1013_MergePredCheck,
 	a_ARNG_ZdnDest_SizeBHSD2224,
 }
@@ -9142,7 +9409,7 @@ var Zdn_B__Zdn_B = []operand{
 
 var Zk_D__Zm_D__Zdn_D__Zdn_D = []operand{
 	a_ARNG_Zk5103Rd_ArngDCheck,
-	a_ARNG_Zm1621_ArngDCheck,
+	a_ARNG_Zm1621V2_ArngDCheck,
 	a_ARNG_ZdnDest_ArngDCheck,
 	a_ARNG_ZdnDest_ArngDCheck,
 }
@@ -9154,19 +9421,19 @@ var Zm_B__Zdn_B__Zdn_B = []operand{
 }
 
 var Zm_B__Zn_B__Zd_B = []operand{
-	a_ARNG_Zm1621_ArngBCheck,
+	a_ARNG_Zm1621V2_ArngBCheck,
 	a_ARNG_Zn510_ArngBCheck,
 	a_ARNG_Zd_ArngBCheck,
 }
 
 var Zm_B__Zn_B__Zda_H = []operand{
-	a_ARNG_Zm1621_ArngBCheck,
+	a_ARNG_Zm1621V2_ArngBCheck,
 	a_ARNG_Zn510_ArngBCheck,
 	a_ARNG_Zda3RdSrcDst_ArngHCheck,
 }
 
 var Zm_B__Zn_B__Zda_S = []operand{
-	a_ARNG_Zm1621_ArngBCheck,
+	a_ARNG_Zm1621V2_ArngBCheck,
 	a_ARNG_Zn510_ArngBCheck,
 	a_ARNG_Zda3RdSrcDst_ArngSCheck,
 }
@@ -9222,32 +9489,32 @@ var Zm_D__Zdn_T__PgM__Zdn_T = []operand{
 }
 
 var Zm_D__Zn_D__Zd_D = []operand{
-	a_ARNG_Zm1621_ArngDCheck,
+	a_ARNG_Zm1621V2_ArngDCheck,
 	a_ARNG_Zn510_ArngDCheck,
 	a_ARNG_Zd_ArngDCheck,
 }
 
 var Zm_D__Zn_D__Zd_Q = []operand{
-	a_ARNG_Zm1621_ArngDCheck,
+	a_ARNG_Zm1621V2_ArngDCheck,
 	a_ARNG_Zn510_ArngDCheck,
 	a_ARNG_Zd_ArngQCheck,
 }
 
 var Zm_D__Zn_D__Zda_D = []operand{
-	a_ARNG_Zm1621_ArngDCheck,
+	a_ARNG_Zm1621V2_ArngDCheck,
 	a_ARNG_Zn510_ArngDCheck,
 	a_ARNG_Zda3RdSrcDst_ArngDCheck,
 }
 
 var Zm_D__Zn_T__PgZ__Pd_T = []operand{
-	a_ARNG_Zm1621_ArngDCheck,
+	a_ARNG_Zm1621V2_ArngDCheck,
 	a_ARNG_Zn510_SizeBHS2224,
 	a_PREGZM_Pg1013_ZeroPredCheck,
 	a_ARNG_Pd_SizeBHS2224,
 }
 
 var Zm_D__Zn_T__Zd_T = []operand{
-	a_ARNG_Zm1621_ArngDCheck,
+	a_ARNG_Zm1621V2_ArngDCheck,
 	a_ARNG_Zn510_SizeBHS2224,
 	a_ARNG_Zd_SizeBHS2224,
 }
@@ -9284,26 +9551,26 @@ var Zm_H__Zdn_H__PgM__Zdn_H = []operand{
 }
 
 var Zm_H__Zn_H__PgM__Zda_H = []operand{
-	a_ARNG_Zm1621_ArngHCheck,
+	a_ARNG_Zm1621V2_ArngHCheck,
 	a_ARNG_Zn510_ArngHCheck,
 	a_PREGZM_Pg1013_MergePredCheck,
 	a_ARNG_Zda3RdSrcDst_ArngHCheck,
 }
 
 var Zm_H__Zn_H__Zd_H = []operand{
-	a_ARNG_Zm1621_ArngHCheck,
+	a_ARNG_Zm1621V2_ArngHCheck,
 	a_ARNG_Zn510_ArngHCheck,
 	a_ARNG_Zd_ArngHCheck,
 }
 
 var Zm_H__Zn_H__Zda_H = []operand{
-	a_ARNG_Zm1621_ArngHCheck,
+	a_ARNG_Zm1621V2_ArngHCheck,
 	a_ARNG_Zn510_ArngHCheck,
 	a_ARNG_Zda3RdSrcDst_ArngHCheck,
 }
 
 var Zm_H__Zn_H__Zda_S = []operand{
-	a_ARNG_Zm1621_ArngHCheck,
+	a_ARNG_Zm1621V2_ArngHCheck,
 	a_ARNG_Zn510_ArngHCheck,
 	a_ARNG_Zda3RdSrcDst_ArngSCheck,
 }
@@ -9381,7 +9648,7 @@ var Zm_H_imm___Zn_H__Zda_S__4 = []operand{
 }
 
 var Zm_Q__Zn_Q__Zd_Q = []operand{
-	a_ARNG_Zm1621_ArngQCheck,
+	a_ARNG_Zm1621V2_ArngQCheck,
 	a_ARNG_Zn510_ArngQCheck,
 	a_ARNG_Zd_ArngQCheck,
 }
@@ -9393,13 +9660,13 @@ var Zm_S__Zdn_S__Zdn_S = []operand{
 }
 
 var Zm_S__Zn_S__Zd_S = []operand{
-	a_ARNG_Zm1621_ArngSCheck,
+	a_ARNG_Zm1621V2_ArngSCheck,
 	a_ARNG_Zn510_ArngSCheck,
 	a_ARNG_Zd_ArngSCheck,
 }
 
 var Zm_S__Zn_S__Zda_S = []operand{
-	a_ARNG_Zm1621_ArngSCheck,
+	a_ARNG_Zm1621V2_ArngSCheck,
 	a_ARNG_Zn510_ArngSCheck,
 	a_ARNG_Zda3RdSrcDst_ArngSCheck,
 }
@@ -9504,118 +9771,166 @@ var Zm_T__Zdn_T__Pv__Zdn_T = []operand{
 }
 
 var Zm_T__Zn_T__PgM__Zda_T__1 = []operand{
-	a_ARNG_Zm1621_SizeHSD2224No00,
+	a_ARNG_Zm1621V2_SizeHSD2224No00,
 	a_ARNG_Zn510_SizeHSD2224No00,
 	a_PREGZM_Pg1013_MergePredCheck,
 	a_ARNG_Zda3RdSrcDst_SizeHSD2224No00,
 }
 
 var Zm_T__Zn_T__PgM__Zda_T__2 = []operand{
-	a_ARNG_Zm1621_SizeBHSD2224,
+	a_ARNG_Zm1621V2_SizeBHSD2224,
 	a_ARNG_Zn510_SizeBHSD2224,
 	a_PREGZM_Pg1013_MergePredCheck,
 	a_ARNG_Zda3RdSrcDst_SizeBHSD2224,
 }
 
 var Zm_T__Zn_T__PgZ__Pd_T__1 = []operand{
-	a_ARNG_Zm1621_SizeHSD2224,
+	a_ARNG_Zm1621V2_SizeHSD2224,
 	a_ARNG_Zn510_SizeHSD2224,
 	a_PREGZM_Pg1013_ZeroPredCheck,
 	a_ARNG_Pd_SizeHSD2224,
 }
 
 var Zm_T__Zn_T__PgZ__Pd_T__2 = []operand{
-	a_ARNG_Zm1621_SizeBHSD2224,
+	a_ARNG_Zm1621V2_SizeBHSD2224,
 	a_ARNG_Zn510_SizeBHSD2224,
 	a_PREGZM_Pg1013_ZeroPredCheck,
 	a_ARNG_Pd_SizeBHSD2224,
 }
 
 var Zm_T__Zn_T__PgZ__Pd_T__3 = []operand{
-	a_ARNG_Zm1621_Size0BH2223,
+	a_ARNG_Zm1621V2_Size0BH2223,
 	a_ARNG_Zn510_Size0BH2223,
 	a_PREGZM_Pg1013_ZeroPredCheck,
 	a_ARNG_Pd_Size0BH2223,
 }
 
 var Zm_T__Zn_T__PgZ__Zd_T = []operand{
-	a_ARNG_Zm1621_Size0SD2223,
+	a_ARNG_Zm1621V2_Size0SD2223,
 	a_ARNG_Zn510_Size0SD2223,
 	a_PREGZM_Pg1013_ZeroPredCheck,
 	a_ARNG_Zd_Size0SD2223,
 }
 
 var Zm_T__Zn_T__Pv__Zd_T = []operand{
-	a_ARNG_Zm1621_SizeBHSD2224,
+	a_ARNG_Zm1621V2_SizeBHSD2224,
 	a_ARNG_Zn510_SizeBHSD2224,
 	a_PREG_Pv1014_Noop,
 	a_ARNG_Zd_SizeBHSD2224,
 }
 
 var Zm_T__Zn_T__Zd_T__1 = []operand{
-	a_ARNG_Zm1621_SizeBHSD2224,
+	a_ARNG_Zm1621V2_SizeBHSD2224,
 	a_ARNG_Zn510_SizeBHSD2224,
 	a_ARNG_Zd_SizeBHSD2224,
 }
 
 var Zm_T__Zn_T__Zd_T__2 = []operand{
-	a_ARNG_Zm1621_SizeHSD2224No00,
+	a_ARNG_Zm1621V2_SizeHSD2224No00,
 	a_ARNG_Zn510_SizeHSD2224No00,
 	a_ARNG_Zd_SizeHSD2224No00,
 }
 
 var Zm_T__Zn_T__Zd_T__3 = []operand{
-	a_ARNG_Zm1621_SizeHSD2224,
+	a_ARNG_Zm1621V2_SizeHSD2224,
 	a_ARNG_Zn510_SizeHSD2224,
 	a_ARNG_Zd_SizeHSD2224,
 }
 
 var Zm_T__Zn_T__Zda_T__1 = []operand{
-	a_ARNG_Zm1621_SzSD2223,
+	a_ARNG_Zm1621V2_SzSD2223,
 	a_ARNG_Zn510_SzSD2223,
 	a_ARNG_Zda3RdSrcDst_SzSD2223,
 }
 
 var Zm_T__Zn_T__Zda_T__2 = []operand{
-	a_ARNG_Zm1621_SizeBHSD2224,
+	a_ARNG_Zm1621V2_SizeBHSD2224,
 	a_ARNG_Zn510_SizeBHSD2224,
 	a_ARNG_Zda3RdSrcDst_SizeBHSD2224,
 }
 
+var Zm_T___Zn_T___Zd_T = []operand{
+	a_ARNG_Zm1621V2_SizeBHSD2224,
+	a_REGLIST1_Zn510_SizeBHSD2224,
+	a_ARNG_Zd_SizeBHSD2224,
+}
+
 var Zm_Tb__Zn_T__Zd_T = []operand{
-	a_ARNG_Zm1621_SizeTbBHS2224,
+	a_ARNG_Zm1621V2_SizeTbBHS2224,
 	a_ARNG_Zn510_SizeHSD2224,
 	a_ARNG_Zd_SizeHSD2224,
 }
 
 var Zm_Tb__Zn_Tb__Zd_T__1 = []operand{
-	a_ARNG_Zm1621_SizeTbBHS2224,
+	a_ARNG_Zm1621V2_SizeTbBHS2224,
 	a_ARNG_Zn510_SizeTbBHS2224,
 	a_ARNG_Zd_SizeHSD2224,
 }
 
 var Zm_Tb__Zn_Tb__Zd_T__2 = []operand{
-	a_ARNG_Zm1621_SizeTbHSD2224Offset1,
+	a_ARNG_Zm1621V2_SizeTbHSD2224Offset1,
 	a_ARNG_Zn510_SizeTbHSD2224Offset1,
 	a_ARNG_Zd_SizeBHS2224Offset1,
 }
 
 var Zm_Tb__Zn_Tb__Zd_T__3 = []operand{
-	a_ARNG_Zm1621_SizeTbBS2224,
+	a_ARNG_Zm1621V2_SizeTbBS2224,
 	a_ARNG_Zn510_SizeTbBS2224,
 	a_ARNG_Zd_SizeHD2224,
 }
 
 var Zm_Tb__Zn_Tb__Zda_T__1 = []operand{
-	a_ARNG_Zm1621_SizeTbBHS2224,
+	a_ARNG_Zm1621V2_SizeTbBHS2224,
 	a_ARNG_Zn510_SizeTbBHS2224,
 	a_ARNG_Zda3RdSrcDst_SizeHSD2224,
 }
 
 var Zm_Tb__Zn_Tb__Zda_T__2 = []operand{
-	a_ARNG_Zm1621_Size0TbBH2223,
+	a_ARNG_Zm1621V2_Size0TbBH2223,
 	a_ARNG_Zn510_Size0TbBH2223,
 	a_ARNG_Zda3RdSrcDst_Size0SD2223,
+}
+
+var Zm___Zn1_B__Zn2_B___Zd_B = []operand{
+	a_ZREG_Zm1621V1_Noop,
+	a_REGLIST2_Zn510Table1_ArngBCheck_Zn510Table2_ArngBCheck,
+	a_ARNG_Zd_ArngBCheck,
+}
+
+var Zm_index____Zn1_H__Zn2_H___Zd_H__1 = []operand{
+	a_ZREGIDX_Zm1621V1_Noop_I22224HW,
+	a_REGLIST2_Zn510Table1_ArngHCheck_Zn510Table2_ArngHCheck,
+	a_ARNG_Zd_ArngHCheck,
+}
+
+var Zm_index____Zn1_H__Zn2_H___Zd_H__2 = []operand{
+	a_ZREGIDX_Zm1621V1_Noop_I12324,
+	a_REGLIST2_Zn510Table1_ArngHCheck_Zn510Table2_ArngHCheck,
+	a_ARNG_Zd_ArngHCheck,
+}
+
+var Zm_index____Zn_B___Zd_B__1 = []operand{
+	a_ZREGIDX_Zm1621V1_Noop_I22224,
+	a_REGLIST1_Zn510Table3_ArngBCheck,
+	a_ARNG_Zd_ArngBCheck,
+}
+
+var Zm_index____Zn_B___Zd_B__2 = []operand{
+	a_ZREGIDX_Zm1621V1_Noop_I12324B,
+	a_REGLIST1_Zn510Table3_ArngBCheck,
+	a_ARNG_Zd_ArngBCheck,
+}
+
+var Zm_index____Zn_H___Zd_H__1 = []operand{
+	a_ZREGIDX_Zm1621V1_Noop_I3224I31213,
+	a_REGLIST1_Zn510Table3_ArngHCheck,
+	a_ARNG_Zd_ArngHCheck,
+}
+
+var Zm_index____Zn_H___Zd_H__2 = []operand{
+	a_ZREGIDX_Zm1621V1_Noop_I22224HW,
+	a_REGLIST1_Zn510Table3_ArngHCheck,
+	a_ARNG_Zd_ArngHCheck,
 }
 
 var Zn_B__Zd_H = []operand{
@@ -9942,6 +10257,12 @@ var Zn_imm___Pd_S = []operand{
 	a_ARNG_Pd_ArngSCheck,
 }
 
+var _Zn1_T__Zn2_T___Pv__Zd_T = []operand{
+	a_REGLIST2_Zn510MultiSrc1_SizeBHSD2224_Zn510MultiSrc2_SizeBHSD2224,
+	a_PREG_Pv1013_Noop,
+	a_ARNG_Zd_SizeBHSD2224,
+}
+
 var c0_0__Zn_T__PgZ__Pd_T = []operand{
 	a_IMM_Fimm0_0_56,
 	a_ARNG_Zn510Src_SizeHSD2224,
@@ -10092,6 +10413,12 @@ var cimm__Zn_T__PgZ__Pd_T__2 = []operand{
 	a_ARNG_Pd_SizeBHSD2224,
 }
 
+var cimm___Zn1_B__Zn2_B___Zd_B = []operand{
+	a_IMM_Imm8hImm8l_Unsigned,
+	a_REGLIST2_Zn510MultiSrc1_ArngBCheck_Zn510MultiSrc2_ArngBCheck,
+	a_ARNG_Zd_ArngBCheck,
+}
+
 var cimm__shift__PgM__Zd_T = []operand{
 	a_IMM_Imm8SignedLsl8,
 	a_PREGZM_Pg1620_MergePredCheck,
@@ -10195,7 +10522,7 @@ var const__Zm_T__Zdn_T__Zdn_T = []operand{
 
 var const__Zm_T__Zn_T__PgM__Zda_T = []operand{
 	a_IMM_Rot0_90_180_270_1315,
-	a_ARNG_Zm1621_SizeHSD2224,
+	a_ARNG_Zm1621V2_SizeHSD2224,
 	a_ARNG_Zn510_SizeHSD2224,
 	a_PREGZM_Pg1013_MergePredCheck,
 	a_ARNG_Zda3RdSrcDst_SizeHSD2224,
@@ -10203,14 +10530,14 @@ var const__Zm_T__Zn_T__PgM__Zda_T = []operand{
 
 var const__Zm_T__Zn_T__Zda_T = []operand{
 	a_IMM_Rot0_90_180_270_1012,
-	a_ARNG_Zm1621_SizeBHSD2224,
+	a_ARNG_Zm1621V2_SizeBHSD2224,
 	a_ARNG_Zn510_SizeBHSD2224,
 	a_ARNG_Zda3RdSrcDst_SizeBHSD2224,
 }
 
 var const__Zm_Tb__Zn_Tb__Zda_T = []operand{
 	a_IMM_Rot0_90_180_270_1012,
-	a_ARNG_Zm1621_Size0TbBH2223,
+	a_ARNG_Zm1621V2_Size0TbBH2223,
 	a_ARNG_Zn510_Size0TbBH2223,
 	a_ARNG_Zda3RdSrcDst_Size0SD2223,
 }

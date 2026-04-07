@@ -229,10 +229,17 @@ func SPCconv(a int64) string {
 func rlconv(list int64) string {
 	str := ""
 
-	// ARM64 register list follows ARM64 instruction decode schema
+	// For SIMD&FP register list in ARM64, the conv
+	// follows the ARM64 instruction decode schema
 	// | 31 | 30 | ... | 15 - 12 | 11 - 10 | ... |
 	// +----+----+-----+---------+---------+-----+
 	// |    | Q  | ... | opcode  |   size  | ... |
+
+	// For Scalable Vector register lists, the conv
+	// follows:
+	// | 33 - 32 | 31 - 30 | ... | 15 - 12 | 11 - 10 | ... | 5 - 0 |
+	// +----+----+----+----+-----+---------+---------+-----+-------+
+	// |regprefix| class 1 | ... | reg cnt | class 2 | ... |  reg  |
 
 	firstReg := int(list & 31)
 	opcode := (list >> 12) & 15
@@ -251,7 +258,17 @@ func rlconv(list int64) string {
 		regCnt = -1
 	}
 	// Q:size
-	arng := ((list>>30)&1)<<2 | (list>>10)&3
+	var regPrefix string
+	regType := (list >> 32) & 3
+	switch regType {
+	case 0:
+		regPrefix = "V"
+	case 1:
+		regPrefix = "Z"
+	case 2:
+		regPrefix = "P"
+	}
+	arng := ((list>>30)&3)<<2 | (list>>10)&3
 	switch arng {
 	case 0:
 		t = "B8"
@@ -269,6 +286,16 @@ func rlconv(list int64) string {
 		t = "D1"
 	case 7:
 		t = "D2"
+	case 9:
+		t = "B"
+	case 10:
+		t = "H"
+	case 11:
+		t = "S"
+	case 13:
+		t = "D"
+	case 14:
+		t = "Q"
 	}
 	for i := 0; i < regCnt; i++ {
 		if str == "" {
@@ -276,7 +303,7 @@ func rlconv(list int64) string {
 		} else {
 			str += ","
 		}
-		str += fmt.Sprintf("V%d.", (firstReg+i)&31)
+		str += fmt.Sprintf("%s%d.", regPrefix, (firstReg+i)&31)
 		str += t
 	}
 	str += "]"

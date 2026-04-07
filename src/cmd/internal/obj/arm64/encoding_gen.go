@@ -352,6 +352,17 @@ func encodeSzByteHalfword(v uint32) (uint32, bool) {
 	return 0, false
 }
 
+// encodeI22224 is the implementation of the following encoding logic:
+// For the "Byte" variant: is the vector segment index, in the range 0 to 3, encoded in the "i2" field.
+// bit range mappings:
+// i2: [22:24)
+func encodeI22224(v uint32) (uint32, bool) {
+	if v > 3 {
+		return 0, false
+	}
+	return v << 22, true
+}
+
 // encodeSizeByteMergeZero is the implementation of the following encoding logic:
 // For the "Byte, merging" and "Byte, zeroing" variants: is the size specifier,
 // size	<T>
@@ -371,6 +382,17 @@ func encodeSizeByteMergeZero(v uint32) (uint32, bool) {
 		return 3 << 22, true
 	}
 	return 0, false
+}
+
+// encodeI12324B is the implementation of the following encoding logic:
+// For the "Byte, single register table" variant: is the vector segment index, in the range 0 to 1, encoded in the "i1" field.
+// bit range mappings:
+// i1: [23:24)
+func encodeI12324B(v uint32) (uint32, bool) {
+	if v > 1 {
+		return 0, false
+	}
+	return v << 23, true
 }
 
 // encodeI1_2021_DoublePrecision is the implementation of the following encoding logic:
@@ -474,6 +496,18 @@ func encodeI1_1718_Halfword(v uint32) (uint32, bool) {
 	return v << 17, true
 }
 
+// encodeI3224I31213 is the implementation of the following encoding logic:
+// For the "Halfword" variant: is the vector segment index, in the range 0 to 7, encoded in the "i3h:i3l" fields.
+// bit range mappings:
+// i3h: [22:24)
+// i3l: [12:13)
+func encodeI3224I31213(v uint32) (uint32, bool) {
+	if v > 7 {
+		return 0, false
+	}
+	return (v&1)<<12 | (v>>1)<<22, true
+}
+
 // encodeSize0HalfwordMergeZero is the implementation of the following encoding logic:
 // For the "Halfword, merging" and "Halfword, zeroing" variants: is the size specifier,
 // size[0]	<T>
@@ -489,6 +523,17 @@ func encodeSize0HalfwordMergeZero(v uint32) (uint32, bool) {
 		return 1 << 22, true
 	}
 	return 0, false
+}
+
+// encodeI22224HW is the implementation of the following encoding logic:
+// For the "Halfword, single register table" and "Halfword, two register table" variants: is the vector segment index, in the range 0 to 3, encoded in the "i2" field.
+// bit range mappings:
+// i2: [22:24)
+func encodeI22224HW(v uint32) (uint32, bool) {
+	if v > 3 {
+		return 0, false
+	}
+	return v << 22, true
 }
 
 // encodeImm7Unsigned_1421 is the implementation of the following encoding logic:
@@ -1098,6 +1143,36 @@ func encodeZd(v uint32) (uint32, bool) {
 	return v, true
 }
 
+// encodePd14 is the implementation of the following encoding logic:
+// Is the name of the first destination scalable predicate register, encoded as "Pd" times 2.
+// bit range mappings:
+// Pd: [1:4)
+func encodePd14(v uint32) (uint32, bool) {
+	if v > 14 {
+		return 0, false
+	}
+	if v&1 != 0 {
+		return 0, false
+	}
+	return v, true
+}
+
+// encodePd04 is the implementation of the following encoding logic:
+// Is the name of the first destination scalable predicate register, encoded in the "Pd" field.
+// bit range mappings:
+// Pd: [0:4)
+func encodePd04(v uint32) (uint32, bool) {
+	return v, true
+}
+
+// encodeZn510MultiSrc1 is the implementation of the following encoding logic:
+// Is the name of the first scalable vector register of the source multi-vector group, encoded in the "Zn" field.
+// bit range mappings:
+// Zn: [5:10)
+func encodeZn510MultiSrc1(v uint32) (uint32, bool) {
+	return v << 5, true
+}
+
 // encodePdnDest is the implementation of the following encoding logic:
 // Is the name of the first source and destination scalable predicate register, encoded in the "Pdn" field.
 // bit range mappings:
@@ -1142,6 +1217,14 @@ func encodeZn510(v uint32) (uint32, bool) {
 	return v << 5, true
 }
 
+// encodeZn510Table1 is the implementation of the following encoding logic:
+// Is the name of the first table vector register, encoded as "Zn".
+// bit range mappings:
+// Zn: [5:10)
+func encodeZn510Table1(v uint32) (uint32, bool) {
+	return v << 5, true
+}
+
 // encodePg1013 is the implementation of the following encoding logic:
 // Is the name of the governing scalable predicate register P0-P7, encoded in the "Pg" field.
 // bit range mappings:
@@ -1175,6 +1258,34 @@ func encodePg1620(v uint32) (uint32, bool) {
 // Pg: [5:9)
 func encodePg59(v uint32) (uint32, bool) {
 	return v << 5, true
+}
+
+// encodePd14Plus1 is the implementation of the following encoding logic:
+// Is the name of the second destination scalable predicate register, encoded as "Pd" times 2 plus 1.
+// bit range mappings:
+// Pd: [1:4)
+func encodePd14Plus1(v uint32) (uint32, bool) {
+	if v&1 == 0 {
+		return 0, false
+	}
+	return v - 1, true
+}
+
+// encodePd04Plus1 is the implementation of the following encoding logic:
+// Is the name of the second destination scalable predicate register, encoded in the "Pd" field.
+// bit range mappings:
+// Pd: [0:4)
+func encodePd04Plus1(v uint32) (uint32, bool) {
+	// This "second destination" incurs Pd + 1 == v
+	return v - 1, true
+}
+
+// encodeZn510MultiSrc2 is the implementation of the following encoding logic:
+// Is the name of the second scalable vector register of the source multi-vector group, encoded in the "Zn" field.
+// bit range mappings:
+// Zn: [5:10)
+func encodeZn510MultiSrc2(v uint32) (uint32, bool) {
+	return (v - 1) << 5, true
 }
 
 // encodePdmDest is the implementation of the following encoding logic:
@@ -1212,11 +1323,11 @@ func encodeZm_1619_Range0_7V2(v uint32) (uint32, bool) {
 	return 0, false
 }
 
-// encodeZm1621 is the implementation of the following encoding logic:
+// encodeZm1621V2 is the implementation of the following encoding logic:
 // Is the name of the second source scalable vector register, encoded in the "Zm" field.
 // bit range mappings:
 // Zm: [16:21)
-func encodeZm1621(v uint32) (uint32, bool) {
+func encodeZm1621V2(v uint32) (uint32, bool) {
 	return v << 16, true
 }
 
@@ -1226,6 +1337,14 @@ func encodeZm1621(v uint32) (uint32, bool) {
 // Zm: [5:10)
 func encodeZm510V1(v uint32) (uint32, bool) {
 	return (v & 31) << 5, true
+}
+
+// encodeZn510Table2 is the implementation of the following encoding logic:
+// Is the name of the second table vector register, encoded as "Zn" plus 1 modulo 32.
+// bit range mappings:
+// Zn: [5:10)
+func encodeZn510Table2(v uint32) (uint32, bool) {
+	return ((v - 1) & 0x1f) << 5, true
 }
 
 // encodePdnSrcDst is the implementation of the following encoding logic:
@@ -1260,6 +1379,14 @@ func encodePn59v2(v uint32) (uint32, bool) {
 	return v << 5, true
 }
 
+// encodeZm1621V1 is the implementation of the following encoding logic:
+// Is the name of the source scalable vector register, encoded in the "Zm" field.
+// bit range mappings:
+// Zm: [16:21)
+func encodeZm1621V1(v uint32) (uint32, bool) {
+	return v << 16, true
+}
+
 // encodeZm510V2 is the implementation of the following encoding logic:
 // Is the name of the source scalable vector register, encoded in the "Zm" field.
 // bit range mappings:
@@ -1274,6 +1401,14 @@ func encodeZm510V2(v uint32) (uint32, bool) {
 // Zn: [5:10)
 func encodeZn510Src(v uint32) (uint32, bool) {
 	return (v & 31) << 5, true
+}
+
+// encodeZn510Table3 is the implementation of the following encoding logic:
+// Is the name of the table vector register, encoded in the "Zn" field.
+// bit range mappings:
+// Zn: [5:10)
+func encodeZn510Table3(v uint32) (uint32, bool) {
+	return v << 5, true
 }
 
 // encodeZda3RdSrcDst is the implementation of the following encoding logic:
@@ -1432,6 +1567,17 @@ func encodeVn510(v uint32) (uint32, bool) {
 // Vdn: [0:5)
 func encodeVdn05(v uint32) (uint32, bool) {
 	return v & 31, true
+}
+
+// encodeI189 is the implementation of the following encoding logic:
+// Is the portion index, in the range 0 to 1, encoded in the "i1" field.
+// bit range mappings:
+// i1: [8:9)
+func encodeI189(v uint32) (uint32, bool) {
+	if v > 1 {
+		return 0, false
+	}
+	return v << 8, true
 }
 
 // encodeImm2_810 is the implementation of the following encoding logic:
@@ -2183,6 +2329,17 @@ func encodeImm3Unsigned_1619(v uint32) (uint32, bool) {
 		return v << 16, true
 	}
 	return 0, false
+}
+
+// encodeI12324 is the implementation of the following encoding logic:
+// Is the vector segment index, in the range 0 to 1, encoded in the "i1" field.
+// bit range mappings:
+// i1: [23:24)
+func encodeI12324(v uint32) (uint32, bool) {
+	if v > 1 {
+		return 0, false
+	}
+	return v << 23, true
 }
 
 // encodeNoop is the implementation of the following encoding logic:

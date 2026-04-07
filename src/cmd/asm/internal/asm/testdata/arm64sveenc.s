@@ -918,4 +918,23 @@ TEXT asmtest(SB),DUPOK|NOSPLIT,$-8
 	ZUSHLLT $5, Z22.S, Z10.D                          // caae4545
 	ZUSRA $6, Z7.D, Z23.D                             // f7e4da45
 	ZXAR $6, Z23.B, Z21.B, Z21.B                      // f5362a04
+	PPEXT PN11[1], [P13.S, P14.S]                     // 7d75a025
+	PWHILEGE R2, R10, [P10.H, P11.H]                  // 5a516225
+	PWHILEGT R2, R10, [P10.H, P11.H]                  // 5b516225
+	PWHILEHI R2, R10, [P10.H, P11.H]                  // 5b596225
+	PWHILEHS R2, R10, [P10.H, P11.H]                  // 5a596225
+	PWHILELE R2, R10, [P10.H, P11.H]                  // 5b556225
+	PWHILELO R2, R10, [P10.H, P11.H]                  // 5a5d6225
+	PWHILELS R2, R10, [P10.H, P11.H]                  // 5b5d6225
+	PWHILELT R2, R10, [P10.H, P11.H]                  // 5a556225
+	ZEXT $6, [Z7.B, Z8.B], Z6.B                       // e6186005
+	ZLUTI2 Z6[3], [Z23.B], Z13.B                      // edb2e645
+	ZLUTI2 Z6[3], [Z23.H], Z13.H                      // edba6645
+	ZLUTI4 Z22[1], [Z2.B], Z10.B                      // 4aa4f645
+	ZLUTI4 Z6[3], [Z23.H, Z24.H], Z13.H               // edb6e645
+	ZLUTI4 Z6[3], [Z23.H], Z13.H                      // edbee645
+	// TODO: LUTI6
+	// TODO: LUTI6
+	ZSPLICE [Z7.D, Z8.D], P4, Z13.D                   // ed90ed05
+	ZTBLQ Z7.D, [Z23.D], Z13.D                        // edfac744
 	RET

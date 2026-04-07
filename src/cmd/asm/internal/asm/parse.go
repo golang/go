@@ -1117,13 +1117,26 @@ ListLoop:
 		}
 		switch p.arch.Family {
 		case sys.ARM64:
-			// Vn.T
+			// Vn.T, Zn.T, Pn.T
 			name := tok.String()
 			r, ok := p.registerReference(name)
 			if !ok {
 				p.errorf("invalid register: %s", name)
 			}
-			reg := r - p.arch.Register["V0"]
+			var registerBase int16
+			registerCntMask := 31
+			switch name[0] {
+			case 'V':
+				registerBase = p.arch.Register["V0"]
+			case 'Z':
+				registerBase = p.arch.Register["Z0"]
+			case 'P':
+				registerBase = p.arch.Register["P0"]
+				registerCntMask = 15
+			default:
+				p.errorf("invalid register in register list: %s", name)
+			}
+			reg := r - registerBase
 			p.get('.')
 			tok := p.next()
 			ext := tok.String()
@@ -1142,7 +1155,7 @@ ListLoop:
 				p.errorf("incontiguous register in ARM64 register list: %s", name)
 			}
 			regCnt++
-			nextReg = (nextReg + 1) % 32
+			nextReg = (nextReg + 1) & registerCntMask
 		case sys.ARM:
 			// Parse the upper and lower bounds.
 			lo := p.registerNumber(tok.String())
