@@ -320,9 +320,9 @@ func (m *stackMap) profile() []traceviewer.ProfileRecord {
 // pcsForStack extracts the first pprofMaxStack PCs from stack into pcs.
 func pcsForStack(stack trace.Stack, pcs *[pprofMaxStack]uint64) {
 	for i, frame := range slices.Collect(stack.Frames()) {
-		pcs[i] = frame.PC
 		if i >= len(pcs) {
 			break
 		}
+		pcs[i] = frame.PC
 	}
 }
