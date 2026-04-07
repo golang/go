@@ -2313,9 +2313,41 @@ func TestJoinPath(t *testing.T) {
 			out:  "https://go.googlesource.com/a%2fb/c",
 		},
 		{
+			// %2F in an element is decoded to "/" (a real path separator) before
+			// joining, so the element "c%2fd" becomes two segments "c" and "d".
 			base: "https://go.googlesource.com/a%2fb",
 			elem: []string{"c%2fd"},
-			out:  "https://go.googlesource.com/a%2fb/c%2fd",
+			out:  "https://go.googlesource.com/a%2fb/c/d",
+		},
+		// Percent-encoded dot-dot traversal: "..%2F" decodes to "../" which
+		// path.Join must clean.  These cases verify the fix for the bug where
+		// JoinPath failed to clean traversal sequences hidden behind
+		// percent-encoding, contradicting the documented guarantee that the
+		// result is "cleaned of any ./ or ../ elements".
+		{
+			base: "https://example.com/v1/",
+			elem: []string{"..%2Fadmin"},
+			out:  "https://example.com/admin",
+		},
+		{
+			base: "https://example.com/api/v1/users/",
+			elem: []string{"..%2F..%2Fadmin"},
+			out:  "https://example.com/api/admin",
+		},
+		{
+			base: "https://example.com/v1/",
+			elem: []string{"%2E%2E%2Fadmin"},
+			out:  "https://example.com/admin",
+		},
+		{
+			base: "https://example.com/v1/",
+			elem: []string{"%2E.%2Fadmin"},
+			out:  "https://example.com/admin",
+		},
+		{
+			base: "https://example.com/v1/",
+			elem: []string{".%2E%2Fadmin"},
+			out:  "https://example.com/admin",
 		},
 		{
 			base: "https://go.googlesource.com/a/b",
