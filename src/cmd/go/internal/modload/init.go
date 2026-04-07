@@ -2078,7 +2078,7 @@ func commitRequirements(loaderstate *State, ctx context.Context, opts WriteOpts)
 // including any go.mod files needed to reconstruct the MVS result
 // or identify go versions,
 // in addition to the checksums for every module in keepMods.
-func keepSums(loaderstate *State, ctx context.Context, ld *packageLoader, rs *Requirements, which whichSums) map[module.Version]bool {
+func keepSums(loaderstate *State, ctx context.Context, pld *packageLoader, rs *Requirements, which whichSums) map[module.Version]bool {
 	// Every module in the full module graph contributes its requirements,
 	// so in order to ensure that the build list itself is reproducible,
 	// we need sums for every go.mod in the graph (regardless of whether
@@ -2090,17 +2090,17 @@ func keepSums(loaderstate *State, ctx context.Context, ld *packageLoader, rs *Re
 	// not just the modules containing the actual packages — in order to rule out
 	// ambiguous import errors the next time we load the package.
 	keepModSumsForZipSums := true
-	if ld == nil {
+	if pld == nil {
 		if gover.Compare(loaderstate.MainModules.GoVersion(loaderstate), gover.TidyGoModSumVersion) < 0 && cfg.BuildMod != "mod" {
 			keepModSumsForZipSums = false
 		}
 	} else {
 		keepPkgGoModSums := true
-		if gover.Compare(ld.requirements.GoVersion(loaderstate), gover.TidyGoModSumVersion) < 0 && (ld.Tidy || cfg.BuildMod != "mod") {
+		if gover.Compare(pld.requirements.GoVersion(loaderstate), gover.TidyGoModSumVersion) < 0 && (pld.Tidy || cfg.BuildMod != "mod") {
 			keepPkgGoModSums = false
 			keepModSumsForZipSums = false
 		}
-		for _, pkg := range ld.pkgs {
+		for _, pkg := range pld.pkgs {
 			// We check pkg.mod.Path here instead of pkg.inStd because the
 			// pseudo-package "C" is not in std, but not provided by any module (and
 			// shouldn't force loading the whole module graph).
