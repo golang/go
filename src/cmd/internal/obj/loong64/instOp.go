@@ -276,7 +276,7 @@ var oprrr = map[obj.As]uint32{
 	AXVSUBWODVW:    0x0e84a << 15,       // xvsubwod.d.w
 	AXVSUBWODQV:    0x0e84b << 15,       // xvsubwod.q.d
 	AVADDWEVHBU:    0x0e05c << 15,       // vaddwev.h.bu
-	AVADDWEVWHU:    0x0e05e << 15,       // vaddwev.w.hu
+	AVADDWEVWHU:    0x0e05d << 15,       // vaddwev.w.hu
 	AVADDWEVVWU:    0x0e05e << 15,       // vaddwev.d.wu
 	AVADDWEVQVU:    0x0e05f << 15,       // vaddwev.q.du
 	AVSUBWEVHBU:    0x0e060 << 15,       // vsubwev.h.bu
@@ -448,7 +448,7 @@ var oprrr = map[obj.As]uint32{
 	AXVSSUBW:       0x0e892 << 15,       // xvssub.w
 	AXVSSUBV:       0x0e893 << 15,       // xvssub.d
 	AXVSADDBU:      0x0e894 << 15,       // vxsadd.bu
-	AXVSADDHU:      0x0e896 << 15,       // vxsadd.hu
+	AXVSADDHU:      0x0e895 << 15,       // vxsadd.hu
 	AXVSADDWU:      0x0e896 << 15,       // vxsadd.wu
 	AXVSADDVU:      0x0e897 << 15,       // vxsadd.du
 	AXVSSUBBU:      0x0e898 << 15,       // xvssub.bu
@@ -917,297 +917,297 @@ var opiir = map[obj.As]uint32{
 }
 
 var atomicInst = map[obj.As]uint32{
-        AAMSWAPB:   0x070B8 << 15, // amswap.b
-        AAMSWAPH:   0x070B9 << 15, // amswap.h
-        AAMSWAPW:   0x070C0 << 15, // amswap.w
-        AAMSWAPV:   0x070C1 << 15, // amswap.d
-        AAMCASB:    0x070B0 << 15, // amcas.b
-        AAMCASH:    0x070B1 << 15, // amcas.h
-        AAMCASW:    0x070B2 << 15, // amcas.w
-        AAMCASV:    0x070B3 << 15, // amcas.d
-        AAMADDW:    0x070C2 << 15, // amadd.w
-        AAMADDV:    0x070C3 << 15, // amadd.d
-        AAMANDW:    0x070C4 << 15, // amand.w
-        AAMANDV:    0x070C5 << 15, // amand.d
-        AAMORW:     0x070C6 << 15, // amor.w
-        AAMORV:     0x070C7 << 15, // amor.d
-        AAMXORW:    0x070C8 << 15, // amxor.w
-        AAMXORV:    0x070C9 << 15, // amxor.d
-        AAMMAXW:    0x070CA << 15, // ammax.w
-        AAMMAXV:    0x070CB << 15, // ammax.d
-        AAMMINW:    0x070CC << 15, // ammin.w
-        AAMMINV:    0x070CD << 15, // ammin.d
-        AAMMAXWU:   0x070CE << 15, // ammax.wu
-        AAMMAXVU:   0x070CF << 15, // ammax.du
-        AAMMINWU:   0x070D0 << 15, // ammin.wu
-        AAMMINVU:   0x070D1 << 15, // ammin.du
-        AAMSWAPDBB: 0x070BC << 15, // amswap_db.b
-        AAMSWAPDBH: 0x070BD << 15, // amswap_db.h
-        AAMSWAPDBW: 0x070D2 << 15, // amswap_db.w
-        AAMSWAPDBV: 0x070D3 << 15, // amswap_db.d
-        AAMCASDBB:  0x070B4 << 15, // amcas_db.b
-        AAMCASDBH:  0x070B5 << 15, // amcas_db.h
-        AAMCASDBW:  0x070B6 << 15, // amcas_db.w
-        AAMCASDBV:  0x070B7 << 15, // amcas_db.d
-        AAMADDDBW:  0x070D4 << 15, // amadd_db.w
-        AAMADDDBV:  0x070D5 << 15, // amadd_db.d
-        AAMANDDBW:  0x070D6 << 15, // amand_db.w
-        AAMANDDBV:  0x070D7 << 15, // amand_db.d
-        AAMORDBW:   0x070D8 << 15, // amor_db.w
-        AAMORDBV:   0x070D9 << 15, // amor_db.d
-        AAMXORDBW:  0x070DA << 15, // amxor_db.w
-        AAMXORDBV:  0x070DB << 15, // amxor_db.d
-        AAMMAXDBW:  0x070DC << 15, // ammax_db.w
-        AAMMAXDBV:  0x070DD << 15, // ammax_db.d
-        AAMMINDBW:  0x070DE << 15, // ammin_db.w
-        AAMMINDBV:  0x070DF << 15, // ammin_db.d
-        AAMMAXDBWU: 0x070E0 << 15, // ammax_db.wu
-        AAMMAXDBVU: 0x070E1 << 15, // ammax_db.du
-        AAMMINDBWU: 0x070E2 << 15, // ammin_db.wu
-        AAMMINDBVU: 0x070E3 << 15, // ammin_db.du
+	AAMSWAPB:   0x070B8 << 15, // amswap.b
+	AAMSWAPH:   0x070B9 << 15, // amswap.h
+	AAMSWAPW:   0x070C0 << 15, // amswap.w
+	AAMSWAPV:   0x070C1 << 15, // amswap.d
+	AAMCASB:    0x070B0 << 15, // amcas.b
+	AAMCASH:    0x070B1 << 15, // amcas.h
+	AAMCASW:    0x070B2 << 15, // amcas.w
+	AAMCASV:    0x070B3 << 15, // amcas.d
+	AAMADDW:    0x070C2 << 15, // amadd.w
+	AAMADDV:    0x070C3 << 15, // amadd.d
+	AAMANDW:    0x070C4 << 15, // amand.w
+	AAMANDV:    0x070C5 << 15, // amand.d
+	AAMORW:     0x070C6 << 15, // amor.w
+	AAMORV:     0x070C7 << 15, // amor.d
+	AAMXORW:    0x070C8 << 15, // amxor.w
+	AAMXORV:    0x070C9 << 15, // amxor.d
+	AAMMAXW:    0x070CA << 15, // ammax.w
+	AAMMAXV:    0x070CB << 15, // ammax.d
+	AAMMINW:    0x070CC << 15, // ammin.w
+	AAMMINV:    0x070CD << 15, // ammin.d
+	AAMMAXWU:   0x070CE << 15, // ammax.wu
+	AAMMAXVU:   0x070CF << 15, // ammax.du
+	AAMMINWU:   0x070D0 << 15, // ammin.wu
+	AAMMINVU:   0x070D1 << 15, // ammin.du
+	AAMSWAPDBB: 0x070BC << 15, // amswap_db.b
+	AAMSWAPDBH: 0x070BD << 15, // amswap_db.h
+	AAMSWAPDBW: 0x070D2 << 15, // amswap_db.w
+	AAMSWAPDBV: 0x070D3 << 15, // amswap_db.d
+	AAMCASDBB:  0x070B4 << 15, // amcas_db.b
+	AAMCASDBH:  0x070B5 << 15, // amcas_db.h
+	AAMCASDBW:  0x070B6 << 15, // amcas_db.w
+	AAMCASDBV:  0x070B7 << 15, // amcas_db.d
+	AAMADDDBW:  0x070D4 << 15, // amadd_db.w
+	AAMADDDBV:  0x070D5 << 15, // amadd_db.d
+	AAMANDDBW:  0x070D6 << 15, // amand_db.w
+	AAMANDDBV:  0x070D7 << 15, // amand_db.d
+	AAMORDBW:   0x070D8 << 15, // amor_db.w
+	AAMORDBV:   0x070D9 << 15, // amor_db.d
+	AAMXORDBW:  0x070DA << 15, // amxor_db.w
+	AAMXORDBV:  0x070DB << 15, // amxor_db.d
+	AAMMAXDBW:  0x070DC << 15, // ammax_db.w
+	AAMMAXDBV:  0x070DD << 15, // ammax_db.d
+	AAMMINDBW:  0x070DE << 15, // ammin_db.w
+	AAMMINDBV:  0x070DF << 15, // ammin_db.d
+	AAMMAXDBWU: 0x070E0 << 15, // ammax_db.wu
+	AAMMAXDBVU: 0x070E1 << 15, // ammax_db.du
+	AAMMINDBWU: 0x070E2 << 15, // ammin_db.wu
+	AAMMINDBVU: 0x070E3 << 15, // ammin_db.du
 }
 
 func (c *ctxt0) specialFpMovInst(a obj.As, fclass int, tclass int) uint32 {
-        switch a {
-        case AMOVV:
-                switch fclass {
-                case C_REG:
-                        switch tclass {
-                        case C_FREG:
-                                return 0x452a << 10 // movgr2fr.d
-                        case C_FCCREG:
-                                return 0x4536 << 10 // movgr2cf
-                        case C_FCSRREG:
-                                return 0x4530 << 10 // movgr2fcsr
-                        }
-                case C_FREG:
-                        switch tclass {
-                        case C_REG:
-                                return 0x452e << 10 // movfr2gr.d
-                        case C_FCCREG:
-                                return 0x4534 << 10 // movfr2cf
-                        }
-                case C_FCCREG:
-                        switch tclass {
-                        case C_REG:
-                                return 0x4537 << 10 // movcf2gr
-                        case C_FREG:
-                                return 0x4535 << 10 // movcf2fr
-                        }
-                case C_FCSRREG:
-                        switch tclass {
-                        case C_REG:
-                                return 0x4532 << 10 // movfcsr2gr
-                        }
-                }
+	switch a {
+	case AMOVV:
+		switch fclass {
+		case C_REG:
+			switch tclass {
+			case C_FREG:
+				return 0x452a << 10 // movgr2fr.d
+			case C_FCCREG:
+				return 0x4536 << 10 // movgr2cf
+			case C_FCSRREG:
+				return 0x4530 << 10 // movgr2fcsr
+			}
+		case C_FREG:
+			switch tclass {
+			case C_REG:
+				return 0x452e << 10 // movfr2gr.d
+			case C_FCCREG:
+				return 0x4534 << 10 // movfr2cf
+			}
+		case C_FCCREG:
+			switch tclass {
+			case C_REG:
+				return 0x4537 << 10 // movcf2gr
+			case C_FREG:
+				return 0x4535 << 10 // movcf2fr
+			}
+		case C_FCSRREG:
+			switch tclass {
+			case C_REG:
+				return 0x4532 << 10 // movfcsr2gr
+			}
+		}
 
-        case AMOVW:
-                switch fclass {
-                case C_REG:
-                        switch tclass {
-                        case C_FREG:
-                                return 0x4529 << 10 // movgr2fr.w
-                        }
-                case C_FREG:
-                        switch tclass {
-                        case C_REG:
-                                return 0x452d << 10 // movfr2gr.s
-                        }
-                }
-        }
+	case AMOVW:
+		switch fclass {
+		case C_REG:
+			switch tclass {
+			case C_FREG:
+				return 0x4529 << 10 // movgr2fr.w
+			}
+		case C_FREG:
+			switch tclass {
+			case C_REG:
+				return 0x452d << 10 // movfr2gr.s
+			}
+		}
+	}
 
-        c.ctxt.Diag("bad class combination: %s %d,%d\n", a, fclass, tclass)
+	c.ctxt.Diag("bad class combination: %s %d,%d\n", a, fclass, tclass)
 
-        return 0
+	return 0
 }
 
 func (c *ctxt0) specialLsxMovInst(a obj.As, fReg, tReg int16, offset_flag bool) (op_code, index_mask uint32) {
-        farng := (fReg >> EXT_TYPE_SHIFT) & EXT_TYPE_MASK
-        tarng := (tReg >> EXT_TYPE_SHIFT) & EXT_TYPE_MASK
-        fclass := c.rclass(fReg)
-        tclass := c.rclass(tReg)
+	farng := (fReg >> EXT_TYPE_SHIFT) & EXT_TYPE_MASK
+	tarng := (tReg >> EXT_TYPE_SHIFT) & EXT_TYPE_MASK
+	fclass := c.rclass(fReg)
+	tclass := c.rclass(tReg)
 
-        switch fclass | (tclass << 16) {
-        case C_REG | (C_ELEM << 16):
-                // vmov Rn, Vd.<T>[index]
-                switch a {
-                case AVMOVQ:
-                        switch tarng {
-                        case ARNG_B:
-                                return (0x01CBAE << 14), 0xf // vinsgr2vr.b
-                        case ARNG_H:
-                                return (0x03975E << 13), 0x7 // vinsgr2vr.h
-                        case ARNG_W:
-                                return (0x072EBE << 12), 0x3 // vinsgr2vr.w
-                        case ARNG_V:
-                                return (0x0E5D7E << 11), 0x1 // vinsgr2vr.d
-                        }
-                case AXVMOVQ:
-                        switch tarng {
-                        case ARNG_W:
-                                return (0x03B75E << 13), 0x7 // xvinsgr2vr.w
-                        case ARNG_V:
-                                return (0x076EBE << 12), 0x3 // xvinsgr2vr.d
-                        }
-                }
+	switch fclass | (tclass << 16) {
+	case C_REG | (C_ELEM << 16):
+		// vmov Rn, Vd.<T>[index]
+		switch a {
+		case AVMOVQ:
+			switch tarng {
+			case ARNG_B:
+				return (0x01CBAE << 14), 0xf // vinsgr2vr.b
+			case ARNG_H:
+				return (0x03975E << 13), 0x7 // vinsgr2vr.h
+			case ARNG_W:
+				return (0x072EBE << 12), 0x3 // vinsgr2vr.w
+			case ARNG_V:
+				return (0x0E5D7E << 11), 0x1 // vinsgr2vr.d
+			}
+		case AXVMOVQ:
+			switch tarng {
+			case ARNG_W:
+				return (0x03B75E << 13), 0x7 // xvinsgr2vr.w
+			case ARNG_V:
+				return (0x076EBE << 12), 0x3 // xvinsgr2vr.d
+			}
+		}
 
-        case C_ELEM | (C_REG << 16):
-                // vmov Vd.<T>[index], Rn
-                switch a {
-                case AVMOVQ:
-                        switch farng {
-                        case ARNG_B:
-                                return (0x01CBBE << 14), 0xf // vpickve2gr.b
-                        case ARNG_H:
-                                return (0x03977E << 13), 0x7 // vpickve2gr.h
-                        case ARNG_W:
-                                return (0x072EFE << 12), 0x3 // vpickve2gr.w
-                        case ARNG_V:
-                                return (0x0E5DFE << 11), 0x1 // vpickve2gr.d
-                        case ARNG_BU:
-                                return (0x01CBCE << 14), 0xf // vpickve2gr.bu
-                        case ARNG_HU:
-                                return (0x03979E << 13), 0x7 // vpickve2gr.hu
-                        case ARNG_WU:
-                                return (0x072F3E << 12), 0x3 // vpickve2gr.wu
-                        case ARNG_VU:
-                                return (0x0E5E7E << 11), 0x1 // vpickve2gr.du
-                        }
-                case AXVMOVQ:
-                        switch farng {
-                        case ARNG_W:
-                                return (0x03B77E << 13), 0x7 // xvpickve2gr.w
-                        case ARNG_V:
-                                return (0x076EFE << 12), 0x3 // xvpickve2gr.d
-                        case ARNG_WU:
-                                return (0x03B79E << 13), 0x7 // xvpickve2gr.wu
-                        case ARNG_VU:
-                                return (0x076F3E << 12), 0x3 // xvpickve2gr.du
-                        }
-                }
+	case C_ELEM | (C_REG << 16):
+		// vmov Vd.<T>[index], Rn
+		switch a {
+		case AVMOVQ:
+			switch farng {
+			case ARNG_B:
+				return (0x01CBBE << 14), 0xf // vpickve2gr.b
+			case ARNG_H:
+				return (0x03977E << 13), 0x7 // vpickve2gr.h
+			case ARNG_W:
+				return (0x072EFE << 12), 0x3 // vpickve2gr.w
+			case ARNG_V:
+				return (0x0E5DFE << 11), 0x1 // vpickve2gr.d
+			case ARNG_BU:
+				return (0x01CBCE << 14), 0xf // vpickve2gr.bu
+			case ARNG_HU:
+				return (0x03979E << 13), 0x7 // vpickve2gr.hu
+			case ARNG_WU:
+				return (0x072F3E << 12), 0x3 // vpickve2gr.wu
+			case ARNG_VU:
+				return (0x0E5E7E << 11), 0x1 // vpickve2gr.du
+			}
+		case AXVMOVQ:
+			switch farng {
+			case ARNG_W:
+				return (0x03B77E << 13), 0x7 // xvpickve2gr.w
+			case ARNG_V:
+				return (0x076EFE << 12), 0x3 // xvpickve2gr.d
+			case ARNG_WU:
+				return (0x03B79E << 13), 0x7 // xvpickve2gr.wu
+			case ARNG_VU:
+				return (0x076F3E << 12), 0x3 // xvpickve2gr.du
+			}
+		}
 
-        case C_REG | (C_ARNG << 16):
-                switch {
-                case offset_flag:
-                        // vmov offset(vj), vd.<T>
-                        switch a {
-                        case AVMOVQ:
-                                switch tarng {
-                                case ARNG_16B:
-                                        return (0xC2 << 22), 0x0 // vldrepl.b
-                                case ARNG_8H:
-                                        return (0x182 << 21), 0x0 // vldrepl.h
-                                case ARNG_4W:
-                                        return (0x302 << 20), 0x0 // vldrepl.w
-                                case ARNG_2V:
-                                        return (0x602 << 19), 0x0 // vldrepl.d
-                                }
-                        case AXVMOVQ:
-                                switch tarng {
-                                case ARNG_32B:
-                                        return (0xCA << 22), 0x0 // xvldrepl.b
-                                case ARNG_16H:
-                                        return (0x192 << 21), 0x0 // xvldrepl.h
-                                case ARNG_8W:
-                                        return (0x322 << 20), 0x0 // xvldrepl.w
-                                case ARNG_4V:
-                                        return (0x642 << 19), 0x0 // xvldrepl.d
-                                }
-                        }
-                default:
-                        // vmov Rn, Vd.<T>
-                        switch a {
-                        case AVMOVQ:
-                                switch tarng {
-                                case ARNG_16B:
-                                        return (0x1CA7C0 << 10), 0x0 // vreplgr2vr.b
-                                case ARNG_8H:
-                                        return (0x1CA7C1 << 10), 0x0 // vreplgr2vr.h
-                                case ARNG_4W:
-                                        return (0x1CA7C2 << 10), 0x0 // vreplgr2vr.w
-                                case ARNG_2V:
-                                        return (0x1CA7C3 << 10), 0x0 // vreplgr2vr.d
-                                }
-                        case AXVMOVQ:
-                                switch tarng {
-                                case ARNG_32B:
-                                        return (0x1DA7C0 << 10), 0x0 // xvreplgr2vr.b
-                                case ARNG_16H:
-                                        return (0x1DA7C1 << 10), 0x0 // xvreplgr2vr.h
-                                case ARNG_8W:
-                                        return (0x1DA7C2 << 10), 0x0 // xvreplgr2vr.w
-                                case ARNG_4V:
-                                        return (0x1DA7C3 << 10), 0x0 // xvreplgr2vr.d
-                                }
-                        }
-                }
+	case C_REG | (C_ARNG << 16):
+		switch {
+		case offset_flag:
+			// vmov offset(vj), vd.<T>
+			switch a {
+			case AVMOVQ:
+				switch tarng {
+				case ARNG_16B:
+					return (0xC2 << 22), 0x0 // vldrepl.b
+				case ARNG_8H:
+					return (0x182 << 21), 0x0 // vldrepl.h
+				case ARNG_4W:
+					return (0x302 << 20), 0x0 // vldrepl.w
+				case ARNG_2V:
+					return (0x602 << 19), 0x0 // vldrepl.d
+				}
+			case AXVMOVQ:
+				switch tarng {
+				case ARNG_32B:
+					return (0xCA << 22), 0x0 // xvldrepl.b
+				case ARNG_16H:
+					return (0x192 << 21), 0x0 // xvldrepl.h
+				case ARNG_8W:
+					return (0x322 << 20), 0x0 // xvldrepl.w
+				case ARNG_4V:
+					return (0x642 << 19), 0x0 // xvldrepl.d
+				}
+			}
+		default:
+			// vmov Rn, Vd.<T>
+			switch a {
+			case AVMOVQ:
+				switch tarng {
+				case ARNG_16B:
+					return (0x1CA7C0 << 10), 0x0 // vreplgr2vr.b
+				case ARNG_8H:
+					return (0x1CA7C1 << 10), 0x0 // vreplgr2vr.h
+				case ARNG_4W:
+					return (0x1CA7C2 << 10), 0x0 // vreplgr2vr.w
+				case ARNG_2V:
+					return (0x1CA7C3 << 10), 0x0 // vreplgr2vr.d
+				}
+			case AXVMOVQ:
+				switch tarng {
+				case ARNG_32B:
+					return (0x1DA7C0 << 10), 0x0 // xvreplgr2vr.b
+				case ARNG_16H:
+					return (0x1DA7C1 << 10), 0x0 // xvreplgr2vr.h
+				case ARNG_8W:
+					return (0x1DA7C2 << 10), 0x0 // xvreplgr2vr.w
+				case ARNG_4V:
+					return (0x1DA7C3 << 10), 0x0 // xvreplgr2vr.d
+				}
+			}
+		}
 
-        case C_XREG | (C_ARNG << 16):
-                // vmov  xj, xd.<T>
-                switch a {
-                case AVMOVQ:
-                        return 0, 0 // unsupported op
-                case AXVMOVQ:
-                        switch tarng {
-                        case ARNG_32B:
-                                return (0x1DC1C0 << 10), 0x0 // xvreplve0.b
-                        case ARNG_16H:
-                                return (0x1DC1E0 << 10), 0x0 // xvreplve0.h
-                        case ARNG_8W:
-                                return (0x1DC1F0 << 10), 0x0 // xvreplve0.w
-                        case ARNG_4V:
-                                return (0x1DC1F8 << 10), 0x0 // xvreplve0.d
-                        case ARNG_2Q:
-                                return (0x1DC1FC << 10), 0x0 // xvreplve0.q
-                        }
-                }
+	case C_XREG | (C_ARNG << 16):
+		// vmov  xj, xd.<T>
+		switch a {
+		case AVMOVQ:
+			return 0, 0 // unsupported op
+		case AXVMOVQ:
+			switch tarng {
+			case ARNG_32B:
+				return (0x1DC1C0 << 10), 0x0 // xvreplve0.b
+			case ARNG_16H:
+				return (0x1DC1E0 << 10), 0x0 // xvreplve0.h
+			case ARNG_8W:
+				return (0x1DC1F0 << 10), 0x0 // xvreplve0.w
+			case ARNG_4V:
+				return (0x1DC1F8 << 10), 0x0 // xvreplve0.d
+			case ARNG_2Q:
+				return (0x1DC1FC << 10), 0x0 // xvreplve0.q
+			}
+		}
 
-        case C_XREG | (C_ELEM << 16):
-                // vmov  xj, xd.<T>[index]
-                switch a {
-                case AVMOVQ:
-                        return 0, 0 // unsupported op
-                case AXVMOVQ:
-                        switch tarng {
-                        case ARNG_W:
-                                return (0x03B7FE << 13), 0x7 // xvinsve0.w
-                        case ARNG_V:
-                                return (0x076FFE << 12), 0x3 // xvinsve0.d
-                        }
-                }
+	case C_XREG | (C_ELEM << 16):
+		// vmov  xj, xd.<T>[index]
+		switch a {
+		case AVMOVQ:
+			return 0, 0 // unsupported op
+		case AXVMOVQ:
+			switch tarng {
+			case ARNG_W:
+				return (0x03B7FE << 13), 0x7 // xvinsve0.w
+			case ARNG_V:
+				return (0x076FFE << 12), 0x3 // xvinsve0.d
+			}
+		}
 
-        case C_ELEM | (C_XREG << 16):
-                // vmov  xj.<T>[index], xd
-                switch a {
-                case AVMOVQ:
-                        return 0, 0 // unsupported op
-                case AXVMOVQ:
-                        switch farng {
-                        case ARNG_W:
-                                return (0x03B81E << 13), 0x7 // xvpickve.w
-                        case ARNG_V:
-                                return (0x07703E << 12), 0x3 // xvpickve.d
-                        }
-                }
+	case C_ELEM | (C_XREG << 16):
+		// vmov  xj.<T>[index], xd
+		switch a {
+		case AVMOVQ:
+			return 0, 0 // unsupported op
+		case AXVMOVQ:
+			switch farng {
+			case ARNG_W:
+				return (0x03B81E << 13), 0x7 // xvpickve.w
+			case ARNG_V:
+				return (0x07703E << 12), 0x3 // xvpickve.d
+			}
+		}
 
-        case C_ELEM | (C_ARNG << 16):
-                // vmov  vj.<T>[index], vd.<T>
-                switch a {
-                case AVMOVQ:
-                        switch int32(farng) | (int32(tarng) << 16) {
-                        case int32(ARNG_B) | (int32(ARNG_16B) << 16):
-                                return (0x01CBDE << 14), 0xf // vreplvei.b
-                        case int32(ARNG_H) | (int32(ARNG_8H) << 16):
-                                return (0x0397BE << 13), 0x7 // vreplvei.h
-                        case int32(ARNG_W) | (int32(ARNG_4W) << 16):
-                                return (0x072F7E << 12), 0x3 // vreplvei.w
-                        case int32(ARNG_V) | (int32(ARNG_2V) << 16):
-                                return (0x0E5EFE << 11), 0x1 // vreplvei.d
-                        }
-                case AXVMOVQ:
-                        return 0, 0 // unsupported op
-                }
-        }
+	case C_ELEM | (C_ARNG << 16):
+		// vmov  vj.<T>[index], vd.<T>
+		switch a {
+		case AVMOVQ:
+			switch int32(farng) | (int32(tarng) << 16) {
+			case int32(ARNG_B) | (int32(ARNG_16B) << 16):
+				return (0x01CBDE << 14), 0xf // vreplvei.b
+			case int32(ARNG_H) | (int32(ARNG_8H) << 16):
+				return (0x0397BE << 13), 0x7 // vreplvei.h
+			case int32(ARNG_W) | (int32(ARNG_4W) << 16):
+				return (0x072F7E << 12), 0x3 // vreplvei.w
+			case int32(ARNG_V) | (int32(ARNG_2V) << 16):
+				return (0x0E5EFE << 11), 0x1 // vreplvei.d
+			}
+		case AXVMOVQ:
+			return 0, 0 // unsupported op
+		}
+	}
 
-        return 0, 0
+	return 0, 0
 }
