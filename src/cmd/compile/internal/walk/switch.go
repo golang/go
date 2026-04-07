@@ -21,6 +21,7 @@ import (
 	"cmd/compile/internal/reflectdata"
 	"cmd/compile/internal/rttype"
 	"cmd/compile/internal/ssagen"
+	"cmd/compile/internal/staticdata"
 	"cmd/compile/internal/typecheck"
 	"cmd/compile/internal/types"
 	"cmd/internal/obj"
@@ -401,11 +402,6 @@ func tryLookupTable(sw *ir.SwitchStmt, cond ir.Node) {
 		return // only handle single return value
 	}
 	resultType := fn.Type().Results()[0].Type
-	if !resultType.IsInteger() {
-		// Only handle integer return types for now.
-		// TODO: generalize to other constant types, e.g. strings and bools.
-		return
-	}
 
 	// Classify each case as const-returning or not.
 	// TODO: support more complex bodies, like local variable assignments.
@@ -426,19 +422,17 @@ func tryLookupTable(sw *ir.SwitchStmt, cond ir.Node) {
 	//   var n int
 	//   if uint(x-1) < 4 { n = table[x-1] }
 	//   return n
-	constSet := make(map[int64]constant.Value) // case value → return constant
-	constCaseSet := make(map[int]bool)         // indices of const-returning non-default cases
-	var defaultVal constant.Value
-	var hasConstDefault bool
-	excludeSet := make(map[int64]bool) // case values with non-const bodies
+	constSet := make(map[int64]ir.Node) // case value → return constant literal
+	constCaseSet := make(map[int]bool)  // indices of const-returning non-default cases
+	excludeSet := make(map[int64]bool)  // case values with non-const bodies
+	var defaultVal ir.Node              // non-nil if default returns a constant
 	minVal, maxVal := int64(math.MaxInt64), int64(math.MinInt64)
 
 	for i, ncase := range sw.Cases {
 		if len(ncase.List) == 0 {
 			// Default case: check if it returns a constant (for gap filling).
-			if isConstIntReturn(ncase) {
-				hasConstDefault = true
-				defaultVal = ncase.Body[0].(*ir.ReturnStmt).Results[0].Val()
+			if isConstReturn(ncase) {
+				defaultVal = ncase.Body[0].(*ir.ReturnStmt).Results[0]
 			}
 			continue
 		}
@@ -457,7 +451,7 @@ func tryLookupTable(sw *ir.SwitchStmt, cond ir.Node) {
 			return
 		}
 
-		if !isConstIntReturn(ncase) {
+		if !isConstReturn(ncase) {
 			// Non-const case body: exclude these values from the table
 			// so the mask redirects them to the normal switch, preserving
 			// Go's top-to-bottom case evaluation order. For example:
@@ -468,7 +462,7 @@ func tryLookupTable(sw *ir.SwitchStmt, cond ir.Node) {
 			continue // will be handled by normal switch
 		}
 
-		retVal := ncase.Body[0].(*ir.ReturnStmt).Results[0].Val()
+		retVal := ncase.Body[0].(*ir.ReturnStmt).Results[0]
 		for _, v := range vals {
 			constSet[v] = retVal
 			minVal = min(minVal, v)
@@ -490,34 +484,33 @@ func tryLookupTable(sw *ir.SwitchStmt, cond ir.Node) {
 	// Also build the bitmask inline if the table is small enough.
 	tabType := types.NewArray(resultType, tableSize)
 	tabName := readonlystaticname(tabType)
-	lsym := tabName.Linksym()
 	elemSize := int(resultType.Size())
 	maxBitmaskSize := int64(types.PtrSize * 8) // 32 or 64
 
-	needMask := false
+	var needMask bool
 	var bitmask uint64
 	validSlots := make([]bool, tableSize)
+	// Pre-size the symbol to cover the full table.
+	tabName.Linksym().WriteInt(base.Ctxt, tableSize*int64(elemSize)-1, 1, 0)
 	for i := range tableSize {
 		caseVal := minVal + i
-		var v int64
-		switch {
-		case excludeSet[caseVal]:
+		if excludeSet[caseVal] {
 			// Non-const case in range: must fall through to normal switch.
 			needMask = true
-		case constSet[caseVal] != nil:
-			v = ir.IntVal(resultType, constSet[caseVal])
+		} else {
+			val := constSet[caseVal]
+			if val == nil {
+				if defaultVal == nil {
+					// Gap with no const default: must fall through to normal switch.
+					needMask = true
+					continue
+				}
+				val = defaultVal // gap filled with default constant value
+			}
+			staticdata.InitConst(tabName, i*int64(elemSize), val, elemSize)
 			validSlots[i] = true
 			bitmask |= 1 << uint(i)
-		case hasConstDefault:
-			// Gap filled with default constant value.
-			v = ir.IntVal(resultType, defaultVal)
-			validSlots[i] = true
-			bitmask |= 1 << uint(i)
-		default:
-			// Gap with no const default: must fall through.
-			needMask = true
 		}
-		lsym.WriteInt(base.Ctxt, i*int64(elemSize), elemSize, v)
 	}
 
 	// Build mask if some slots must fall through to normal switch.
@@ -630,9 +623,9 @@ func isSwitchDense(numCases, tableSize int64) bool {
 	return numCases*100 >= tableSize*minDensity
 }
 
-// isConstIntReturn reports whether ncase has a body that is a single
-// return statement returning one integer constant.
-func isConstIntReturn(ncase *ir.CaseClause) bool {
+// isConstReturn reports whether ncase has a body that is a single
+// return statement returning one constant.
+func isConstReturn(ncase *ir.CaseClause) bool {
 	if len(ncase.Body) != 1 {
 		return false
 	}
@@ -640,8 +633,7 @@ func isConstIntReturn(ncase *ir.CaseClause) bool {
 	if !ok || len(ret.Results) != 1 {
 		return false
 	}
-	r := ret.Results[0]
-	return r.Op() == ir.OLITERAL && r.Val().Kind() == constant.Int
+	return ret.Results[0].Op() == ir.OLITERAL
 }
 
 // constIntCaseVals returns the int64 values of all case expressions in
