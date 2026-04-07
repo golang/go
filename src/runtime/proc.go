@@ -329,6 +329,9 @@ func main() {
 	if raceenabled {
 		racefini() // does not return
 	}
+	if debug.racelite > 0 {
+		raceliteCount()
+	}
 
 	exit(0)
 	for {
@@ -344,6 +347,9 @@ func os_beforeExit(exitCode int) {
 	runExitHooks(exitCode)
 	if exitCode == 0 && raceenabled {
 		racefini()
+	}
+	if debug.racelite > 0 {
+		raceliteCount()
 	}
 
 	// See comment in main, above.

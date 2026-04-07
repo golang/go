@@ -134,6 +134,19 @@ func racelitetick(delay uint32) {
 	}
 }
 
+// raceliteCount reports how many data races were found during execution.
+//
+// It is called
+func raceliteCount() {
+	var count int32
+	for _, filled := range raceliteRecords {
+		if filled {
+			count++
+		}
+	}
+	print("Found ", count, " data race(s)\n")
+}
+
 // inStack checks if addr is in the current goroutine's stack.
 func inStack(addr uintptr) bool {
 	gp := getg()
@@ -145,6 +158,7 @@ func inStack(addr uintptr) bool {
 // whether another thread accessed the same address.
 // The pause probability is weighted by PC temperature.
 func racelitepause(temp uint16) {
+	// We stochastically skip the micropause if the given PC is too hot.
 	if !racelitehotskip(temp) {
 		usleep(5)
 	}
@@ -249,7 +263,6 @@ type raceliteVirtualRegister struct {
 	//
 	// TODO(vsaioc): Add more for experimentation purposes and remove
 	// for the polished release version.
-	count      uint64 // the number of times the virtual register has been claimed
 	identifier uint32 // the identifier of the virtual register
 }
 
@@ -501,7 +514,7 @@ func (rec raceliteRec) report() {
 //	Let A be the stored address and V the virtual register
 //
 //	if V is claimed for A:
-//		Report write-write race and exit
+//		Report write-write race and return
 //	claim V for A
 //	pause
 //	release V
@@ -512,10 +525,6 @@ func racelitewrite(addr uintptr) {
 	}
 
 	temp := racelitetemp()
-	if racelitehotskip(temp) {
-		// This PC is hot, so we skip instrumentation.
-		return
-	}
 
 	r := racelitegetvr(addr)
 	// Try to claim the virtual register.
@@ -538,10 +547,10 @@ func racelitewrite(addr uintptr) {
 //	Let A be the loaded address and V the virtual register
 //
 //	if V is claimed for A:
-//		Report write-read race and exit
+//		Report write-read race and return
 //	pause
 //	if V is claimed for A:
-//		Report read-write race and exit
+//		Report read-write race and return
 func raceliteread(addr uintptr) {
 	if !racelitesampled(addr) {
 		// We are not sampling this address.
@@ -549,10 +558,6 @@ func raceliteread(addr uintptr) {
 	}
 
 	temp := racelitetemp()
-	if racelitehotskip(temp) {
-		// This PC is hot, so we skip instrumentation.
-		return
-	}
 
 	r := racelitegetvr(addr)
 	// Check for a write-read race.
