@@ -140,7 +140,7 @@ func readVendorList(vendorDir string) {
 // checkVendorConsistency verifies that the vendor/modules.txt file matches (if
 // go 1.14) or at least does not contradict (go 1.13 or earlier) the
 // requirements and replacements listed in the main module's go.mod file.
-func checkVendorConsistency(ld *Loader, indexes []*modFileIndex, modFiles []*modfile.File, modRoots []string) {
+func checkVendorConsistency(ld *Loader, indexes []*modFileIndex, modFiles []*modfile.File) {
 	// readVendorList only needs the main module to get the directory
 	// the vendor directory is in.
 	readVendorList(VendorDir(ld))

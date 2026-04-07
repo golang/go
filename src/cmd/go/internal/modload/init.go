@@ -89,7 +89,7 @@ func EnterWorkspace(ld *Loader, ctx context.Context) (exit func(), err error) {
 
 	// Update the content of the previous main module, and recompute the requirements.
 	*ld.MainModules.ModFile(mm) = *updatedmodfile
-	ld.requirements = requirementsFromModFiles(ld, ctx, ld.MainModules.workFile, slices.Collect(maps.Values(ld.MainModules.modFiles)), nil)
+	ld.requirements = requirementsFromModFiles(ld, ld.MainModules.workFile, slices.Collect(maps.Values(ld.MainModules.modFiles)))
 
 	return func() {
 		ld.setState(oldstate)
@@ -1096,20 +1096,18 @@ func loadModFile(ld *Loader, ctx context.Context, opts *PackageOpts) (*Requireme
 
 	ld.MainModules = makeMainModules(ld, mainModules, ld.modRoots, modFiles, indices, workFile)
 	setDefaultBuildMod(ld) // possibly enable automatic vendoring
-	rs := requirementsFromModFiles(ld, ctx, workFile, modFiles, opts)
+	rs := requirementsFromModFiles(ld, workFile, modFiles)
 
 	if cfg.BuildMod == "vendor" {
 		readVendorList(VendorDir(ld))
 		versions := ld.MainModules.Versions()
 		indexes := make([]*modFileIndex, 0, len(versions))
 		modFiles := make([]*modfile.File, 0, len(versions))
-		modRoots := make([]string, 0, len(versions))
 		for _, m := range versions {
 			indexes = append(indexes, ld.MainModules.Index(m))
 			modFiles = append(modFiles, ld.MainModules.ModFile(m))
-			modRoots = append(modRoots, ld.MainModules.ModRoot(m))
 		}
-		checkVendorConsistency(ld, indexes, modFiles, modRoots)
+		checkVendorConsistency(ld, indexes, modFiles)
 		rs.initVendor(ld, vendorList)
 	}
 
@@ -1223,7 +1221,7 @@ func CreateModFile(ld *Loader, ctx context.Context, modPath string) {
 	ld.MainModules = makeMainModules(ld, []module.Version{modFile.Module.Mod}, []string{modRoot}, []*modfile.File{modFile}, []*modFileIndex{nil}, nil)
 	addGoStmt(modFile, modFile.Module.Mod, gover.Local()) // Add the go directive before converted module requirements.
 
-	rs := requirementsFromModFiles(ld, ctx, nil, []*modfile.File{modFile}, nil)
+	rs := requirementsFromModFiles(ld, nil, []*modfile.File{modFile})
 	rs, err := updateRoots(ld, ctx, rs.direct, rs, nil, nil, false)
 	if err != nil {
 		base.Fatal(err)
@@ -1463,7 +1461,7 @@ func makeMainModules(ld *Loader, ms []module.Version, rootDirs []string, modFile
 
 // requirementsFromModFiles returns the set of non-excluded requirements from
 // the global modFile.
-func requirementsFromModFiles(ld *Loader, ctx context.Context, workFile *modfile.WorkFile, modFiles []*modfile.File, opts *PackageOpts) *Requirements {
+func requirementsFromModFiles(ld *Loader, workFile *modfile.WorkFile, modFiles []*modfile.File) *Requirements {
 	var roots []module.Version
 	direct := map[string]bool{}
 	var pruning modPruning
