@@ -675,8 +675,7 @@ func shouldEmitDwarfVar(n *ir.Name) bool {
 	if n.Sym().Name == "_" {
 		return false
 	}
-	c := n.Sym().Name[0]
-	if c == '.' || n.Type().IsUntyped() {
+	if n.Type().IsUntyped() {
 		return false
 	}
 	return true
