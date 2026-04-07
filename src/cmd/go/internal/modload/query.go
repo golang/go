@@ -80,19 +80,19 @@ import (
 //
 // Query often returns a non-nil *RevInfo with a non-nil error,
 // to provide an info.Origin that can allow the error to be cached.
-func Query(loaderstate *State, ctx context.Context, path, query, current string, allowed AllowedFunc) (*modfetch.RevInfo, error) {
+func Query(ld *Loader, ctx context.Context, path, query, current string, allowed AllowedFunc) (*modfetch.RevInfo, error) {
 	ctx, span := trace.StartSpan(ctx, "modload.Query "+path)
 	defer span.Done()
 
-	return queryReuse(loaderstate, ctx, path, query, current, allowed, nil)
+	return queryReuse(ld, ctx, path, query, current, allowed, nil)
 }
 
 // queryReuse is like Query but also takes a map of module info that can be reused
 // if the validation criteria in Origin are met.
-func queryReuse(loaderstate *State, ctx context.Context, path, query, current string, allowed AllowedFunc, reuse map[module.Version]*modinfo.ModulePublic) (*modfetch.RevInfo, error) {
+func queryReuse(ld *Loader, ctx context.Context, path, query, current string, allowed AllowedFunc, reuse map[module.Version]*modinfo.ModulePublic) (*modfetch.RevInfo, error) {
 	var info *modfetch.RevInfo
 	err := modfetch.TryProxies(func(proxy string) (err error) {
-		info, err = queryProxy(loaderstate, ctx, proxy, path, query, current, allowed, reuse)
+		info, err = queryProxy(ld, ctx, proxy, path, query, current, allowed, reuse)
 		return err
 	})
 	return info, err
@@ -100,9 +100,9 @@ func queryReuse(loaderstate *State, ctx context.Context, path, query, current st
 
 // checkReuse checks whether a revision of a given module
 // for a given module may be reused, according to the information in origin.
-func checkReuse(loaderstate *State, ctx context.Context, m module.Version, old *codehost.Origin) error {
+func checkReuse(ld *Loader, ctx context.Context, m module.Version, old *codehost.Origin) error {
 	return modfetch.TryProxies(func(proxy string) error {
-		repo, err := lookupRepo(loaderstate, ctx, proxy, m.Path)
+		repo, err := lookupRepo(ld, ctx, proxy, m.Path)
 		if err != nil {
 			return err
 		}
@@ -197,7 +197,7 @@ func (queryDisabledError) Error() string {
 	return fmt.Sprintf("cannot query module due to -mod=%s\n\t(%s)", cfg.BuildMod, cfg.BuildModReason)
 }
 
-func queryProxy(loaderstate *State, ctx context.Context, proxy, path, query, current string, allowed AllowedFunc, reuse map[module.Version]*modinfo.ModulePublic) (*modfetch.RevInfo, error) {
+func queryProxy(ld *Loader, ctx context.Context, proxy, path, query, current string, allowed AllowedFunc, reuse map[module.Version]*modinfo.ModulePublic) (*modfetch.RevInfo, error) {
 	ctx, span := trace.StartSpan(ctx, "modload.queryProxy "+path+" "+query)
 	defer span.Done()
 
@@ -211,7 +211,7 @@ func queryProxy(loaderstate *State, ctx context.Context, proxy, path, query, cur
 		allowed = func(context.Context, module.Version) error { return nil }
 	}
 
-	if loaderstate.MainModules.Contains(path) && (query == "upgrade" || query == "patch") {
+	if ld.MainModules.Contains(path) && (query == "upgrade" || query == "patch") {
 		m := module.Version{Path: path}
 		if err := allowed(ctx, m); err != nil {
 			return nil, fmt.Errorf("internal error: main module version is not allowed: %w", err)
@@ -223,7 +223,7 @@ func queryProxy(loaderstate *State, ctx context.Context, proxy, path, query, cur
 		return nil, fmt.Errorf("can't query specific version (%q) of standard-library module %q", query, path)
 	}
 
-	repo, err := lookupRepo(loaderstate, ctx, proxy, path)
+	repo, err := lookupRepo(ld, ctx, proxy, path)
 	if err != nil {
 		return nil, err
 	}
@@ -296,7 +296,7 @@ func queryProxy(loaderstate *State, ctx context.Context, proxy, path, query, cur
 		return &clone
 	}
 
-	releases, prereleases, err := qm.filterVersions(loaderstate, ctx, versions.List)
+	releases, prereleases, err := qm.filterVersions(ld, ctx, versions.List)
 	if err != nil {
 		return revWithOrigin(nil), err
 	}
@@ -569,7 +569,7 @@ func (qm *queryMatcher) allowsVersion(ctx context.Context, v string) bool {
 //
 // If the allowed predicate returns an error not equivalent to ErrDisallowed,
 // filterVersions returns that error.
-func (qm *queryMatcher) filterVersions(loaderstate *State, ctx context.Context, versions []string) (releases, prereleases []string, err error) {
+func (qm *queryMatcher) filterVersions(ld *Loader, ctx context.Context, versions []string) (releases, prereleases []string, err error) {
 	needIncompatible := qm.preferIncompatible
 
 	var lastCompatible string
@@ -602,7 +602,7 @@ func (qm *queryMatcher) filterVersions(loaderstate *State, ctx context.Context, 
 				// ignore any version with a higher (+incompatible) major version. (See
 				// https://golang.org/issue/34165.) Note that we even prefer a
 				// compatible pre-release over an incompatible release.
-				ok, err := versionHasGoMod(loaderstate, ctx, module.Version{Path: qm.path, Version: lastCompatible})
+				ok, err := versionHasGoMod(ld, ctx, module.Version{Path: qm.path, Version: lastCompatible})
 				if err != nil {
 					return nil, nil, err
 				}
@@ -639,11 +639,11 @@ type QueryResult struct {
 
 // QueryPackages is like QueryPattern, but requires that the pattern match at
 // least one package and omits the non-package result (if any).
-func QueryPackages(loaderstate *State, ctx context.Context, pattern, query string, current func(string) string, allowed AllowedFunc) ([]QueryResult, error) {
-	pkgMods, modOnly, err := QueryPattern(loaderstate, ctx, pattern, query, current, allowed)
+func QueryPackages(ld *Loader, ctx context.Context, pattern, query string, current func(string) string, allowed AllowedFunc) ([]QueryResult, error) {
+	pkgMods, modOnly, err := QueryPattern(ld, ctx, pattern, query, current, allowed)
 
 	if len(pkgMods) == 0 && err == nil {
-		replacement := Replacement(loaderstate, modOnly.Mod)
+		replacement := Replacement(ld, modOnly.Mod)
 		return nil, &PackageNotInModuleError{
 			Mod:         modOnly.Mod,
 			Replacement: replacement,
@@ -670,7 +670,7 @@ func QueryPackages(loaderstate *State, ctx context.Context, pattern, query strin
 //
 // QueryPattern always returns at least one QueryResult (which may be only
 // modOnly) or a non-nil error.
-func QueryPattern(loaderstate *State, ctx context.Context, pattern, query string, current func(string) string, allowed AllowedFunc) (pkgMods []QueryResult, modOnly *QueryResult, err error) {
+func QueryPattern(ld *Loader, ctx context.Context, pattern, query string, current func(string) string, allowed AllowedFunc) (pkgMods []QueryResult, modOnly *QueryResult, err error) {
 	ctx, span := trace.StartSpan(ctx, "modload.QueryPattern "+pattern+" "+query)
 	defer span.Done()
 
@@ -693,15 +693,15 @@ func QueryPattern(loaderstate *State, ctx context.Context, pattern, query string
 		}
 		match = func(mod module.Version, roots []string, isLocal bool) *search.Match {
 			m := search.NewMatch(pattern)
-			matchPackages(loaderstate, ctx, m, imports.AnyTags(), omitStd, []module.Version{mod})
+			matchPackages(ld, ctx, m, imports.AnyTags(), omitStd, []module.Version{mod})
 			return m
 		}
 	} else {
 		match = func(mod module.Version, roots []string, isLocal bool) *search.Match {
 			m := search.NewMatch(pattern)
 			prefix := mod.Path
-			if loaderstate.MainModules.Contains(mod.Path) {
-				prefix = loaderstate.MainModules.PathPrefix(module.Version{Path: mod.Path})
+			if ld.MainModules.Contains(mod.Path) {
+				prefix = ld.MainModules.PathPrefix(module.Version{Path: mod.Path})
 			}
 			for _, root := range roots {
 				if _, ok, err := dirInModule(pattern, prefix, root, isLocal); err != nil {
@@ -715,8 +715,8 @@ func QueryPattern(loaderstate *State, ctx context.Context, pattern, query string
 	}
 
 	var mainModuleMatches []module.Version
-	for _, mainModule := range loaderstate.MainModules.Versions() {
-		m := match(mainModule, loaderstate.modRoots, true)
+	for _, mainModule := range ld.MainModules.Versions() {
+		m := match(mainModule, ld.modRoots, true)
 		if len(m.Pkgs) > 0 {
 			if query != "upgrade" && query != "patch" {
 				return nil, nil, &QueryMatchesPackagesInMainModuleError{
@@ -756,7 +756,7 @@ func QueryPattern(loaderstate *State, ctx context.Context, pattern, query string
 
 	var (
 		results          []QueryResult
-		candidateModules = modulePrefixesExcludingTarget(loaderstate, base)
+		candidateModules = modulePrefixesExcludingTarget(ld, base)
 	)
 	if len(candidateModules) == 0 {
 		if modOnly != nil {
@@ -766,7 +766,7 @@ func QueryPattern(loaderstate *State, ctx context.Context, pattern, query string
 				MainModules:     mainModuleMatches,
 				Pattern:         pattern,
 				Query:           query,
-				PatternIsModule: loaderstate.MainModules.Contains(pattern),
+				PatternIsModule: ld.MainModules.Contains(pattern),
 			}
 		} else {
 			return nil, nil, &PackageNotInModuleError{
@@ -784,7 +784,7 @@ func QueryPattern(loaderstate *State, ctx context.Context, pattern, query string
 
 			pathCurrent := current(path)
 			r.Mod.Path = path
-			r.Rev, err = queryProxy(loaderstate, ctx, proxy, path, query, pathCurrent, allowed, nil)
+			r.Rev, err = queryProxy(ld, ctx, proxy, path, query, pathCurrent, allowed, nil)
 			if err != nil {
 				return r, err
 			}
@@ -792,7 +792,7 @@ func QueryPattern(loaderstate *State, ctx context.Context, pattern, query string
 			if gover.IsToolchain(r.Mod.Path) {
 				return r, nil
 			}
-			root, isLocal, err := fetch(loaderstate, ctx, r.Mod)
+			root, isLocal, err := fetch(ld, ctx, r.Mod)
 			if err != nil {
 				return r, err
 			}
@@ -802,7 +802,7 @@ func QueryPattern(loaderstate *State, ctx context.Context, pattern, query string
 				if err := firstError(m); err != nil {
 					return r, err
 				}
-				replacement := Replacement(loaderstate, r.Mod)
+				replacement := Replacement(ld, r.Mod)
 				return r, &PackageNotInModuleError{
 					Mod:         r.Mod,
 					Replacement: replacement,
@@ -813,7 +813,7 @@ func QueryPattern(loaderstate *State, ctx context.Context, pattern, query string
 			return r, nil
 		}
 
-		allResults, err := queryPrefixModules(loaderstate, ctx, candidateModules, queryModule)
+		allResults, err := queryPrefixModules(ld, ctx, candidateModules, queryModule)
 		results = allResults[:0]
 		for _, r := range allResults {
 			if len(r.Packages) == 0 {
@@ -829,7 +829,7 @@ func QueryPattern(loaderstate *State, ctx context.Context, pattern, query string
 		return nil, nil, &QueryMatchesMainModulesError{
 			Pattern:         pattern,
 			Query:           query,
-			PatternIsModule: loaderstate.MainModules.Contains(pattern),
+			PatternIsModule: ld.MainModules.Contains(pattern),
 		}
 	}
 	return slices.Clip(results), modOnly, err
@@ -840,11 +840,11 @@ func QueryPattern(loaderstate *State, ctx context.Context, pattern, query string
 // itself, sorted by descending length. Prefixes that are not valid module paths
 // but are valid package paths (like "m" or "example.com/.gen") are included,
 // since they might be replaced.
-func modulePrefixesExcludingTarget(loaderstate *State, path string) []string {
+func modulePrefixesExcludingTarget(ld *Loader, path string) []string {
 	prefixes := make([]string, 0, strings.Count(path, "/")+1)
 
 	mainModulePrefixes := make(map[string]bool)
-	for _, m := range loaderstate.MainModules.Versions() {
+	for _, m := range ld.MainModules.Versions() {
 		mainModulePrefixes[m.Path] = true
 	}
 
@@ -865,7 +865,7 @@ func modulePrefixesExcludingTarget(loaderstate *State, path string) []string {
 	return prefixes
 }
 
-func queryPrefixModules(loaderstate *State, ctx context.Context, candidateModules []string, queryModule func(ctx context.Context, path string) (QueryResult, error)) (found []QueryResult, err error) {
+func queryPrefixModules(ld *Loader, ctx context.Context, candidateModules []string, queryModule func(ctx context.Context, path string) (QueryResult, error)) (found []QueryResult, err error) {
 	ctx, span := trace.StartSpan(ctx, "modload.queryPrefixModules")
 	defer span.Done()
 
@@ -907,7 +907,7 @@ func queryPrefixModules(loaderstate *State, ctx context.Context, candidateModule
 		case *PackageNotInModuleError:
 			// Given the option, prefer to attribute “package not in module”
 			// to modules other than the main one.
-			if noPackage == nil || loaderstate.MainModules.Contains(noPackage.Mod.Path) {
+			if noPackage == nil || ld.MainModules.Contains(noPackage.Mod.Path) {
 				noPackage = rErr
 			}
 		case *NoMatchingVersionError:
@@ -1098,8 +1098,8 @@ func (e *PackageNotInModuleError) ImportPath() string {
 // go.mod with different content. Second, if we don't fetch the .zip, then
 // we don't need to verify it in go.sum. This makes 'go list -m -u' faster
 // and simpler.
-func versionHasGoMod(loaderstate *State, _ context.Context, m module.Version) (bool, error) {
-	_, data, err := rawGoModData(loaderstate, m)
+func versionHasGoMod(ld *Loader, _ context.Context, m module.Version) (bool, error) {
+	_, data, err := rawGoModData(ld, m)
 	if err != nil {
 		return false, err
 	}
@@ -1119,20 +1119,20 @@ type versionRepo interface {
 
 var _ versionRepo = modfetch.Repo(nil)
 
-func lookupRepo(loaderstate *State, ctx context.Context, proxy, path string) (repo versionRepo, err error) {
+func lookupRepo(ld *Loader, ctx context.Context, proxy, path string) (repo versionRepo, err error) {
 	if path != "go" && path != "toolchain" {
 		err = module.CheckPath(path)
 	}
 	if err == nil {
-		repo = loaderstate.Fetcher().Lookup(ctx, proxy, path)
+		repo = ld.Fetcher().Lookup(ctx, proxy, path)
 	} else {
 		repo = emptyRepo{path: path, err: err}
 	}
 
-	if loaderstate.MainModules == nil {
+	if ld.MainModules == nil {
 		return repo, err
-	} else if _, ok := loaderstate.MainModules.HighestReplaced()[path]; ok {
-		return &replacementRepo{repo: repo, loaderstate: loaderstate}, nil
+	} else if _, ok := ld.MainModules.HighestReplaced()[path]; ok {
+		return &replacementRepo{repo: repo, ld: ld}, nil
 	}
 
 	return repo, err
@@ -1167,8 +1167,8 @@ func (er emptyRepo) Latest(ctx context.Context) (*modfetch.RevInfo, error) { ret
 // modules, so a replacementRepo should only be constructed for a module that
 // actually has one or more valid replacements.
 type replacementRepo struct {
-	repo        versionRepo
-	loaderstate *State
+	repo versionRepo
+	ld   *Loader
 }
 
 var _ versionRepo = (*replacementRepo)(nil)
@@ -1191,8 +1191,8 @@ func (rr *replacementRepo) Versions(ctx context.Context, prefix string) (*modfet
 	}
 
 	versions := repoVersions.List
-	for _, mm := range rr.loaderstate.MainModules.Versions() {
-		if index := rr.loaderstate.MainModules.Index(mm); index != nil && len(index.replace) > 0 {
+	for _, mm := range rr.ld.MainModules.Versions() {
+		if index := rr.ld.MainModules.Index(mm); index != nil && len(index.replace) > 0 {
 			path := rr.ModulePath()
 			for m := range index.replace {
 				if m.Path == path && strings.HasPrefix(m.Version, prefix) && m.Version != "" && !module.IsPseudoVersion(m.Version) {
@@ -1220,8 +1220,8 @@ func (rr *replacementRepo) Stat(ctx context.Context, rev string) (*modfetch.RevI
 		return info, err
 	}
 	var hasReplacements bool
-	for _, v := range rr.loaderstate.MainModules.Versions() {
-		if index := rr.loaderstate.MainModules.Index(v); index != nil && len(index.replace) > 0 {
+	for _, v := range rr.ld.MainModules.Versions() {
+		if index := rr.ld.MainModules.Index(v); index != nil && len(index.replace) > 0 {
 			hasReplacements = true
 		}
 	}
@@ -1244,7 +1244,7 @@ func (rr *replacementRepo) Stat(ctx context.Context, rev string) (*modfetch.RevI
 		}
 	}
 
-	if r := Replacement(rr.loaderstate, module.Version{Path: path, Version: v}); r.Path == "" {
+	if r := Replacement(rr.ld, module.Version{Path: path, Version: v}); r.Path == "" {
 		return info, err
 	}
 	return rr.replacementStat(v)
@@ -1254,7 +1254,7 @@ func (rr *replacementRepo) Latest(ctx context.Context) (*modfetch.RevInfo, error
 	info, err := rr.repo.Latest(ctx)
 	path := rr.ModulePath()
 
-	if v, ok := rr.loaderstate.MainModules.HighestReplaced()[path]; ok {
+	if v, ok := rr.ld.MainModules.HighestReplaced()[path]; ok {
 		if v == "" {
 			// The only replacement is a wildcard that doesn't specify a version, so
 			// synthesize a pseudo-version with an appropriate major version and a

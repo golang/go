@@ -3444,7 +3444,7 @@ func (b *Builder) swigDoIntSize(objdir string) (intsize string, err error) {
 	}
 	srcs := []string{src}
 
-	p := load.GoFilesPackage(modload.NewState(), context.TODO(), load.PackageOpts{}, srcs)
+	p := load.GoFilesPackage(modload.NewLoader(), context.TODO(), load.PackageOpts{}, srcs)
 
 	if _, _, e := BuildToolchain.gc(b, &Action{Mode: "swigDoIntSize", Package: p, Objdir: objdir}, "", nil, nil, "", false, "", srcs); e != nil {
 		return "32", nil

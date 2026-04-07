@@ -124,13 +124,13 @@ var (
 // run implements both "go vet" and "go fix".
 
 func run(ctx context.Context, cmd *base.Command, args []string) {
-	moduleLoaderState := modload.NewState()
+	moduleLoader := modload.NewLoader()
 	// Compute flags for the vet/fix tool (e.g. cmd/{vet,fix}).
 	toolFlags, pkgArgs := toolFlags(cmd, args)
 
 	// The vet/fix commands do custom flag processing;
 	// initialize workspaces after that.
-	moduleLoaderState.InitWorkfile()
+	moduleLoader.InitWorkfile()
 
 	if cfg.DebugTrace != "" {
 		var close func() error
@@ -149,7 +149,7 @@ func run(ctx context.Context, cmd *base.Command, args []string) {
 	ctx, span := trace.StartSpan(ctx, fmt.Sprint("Running ", cmd.Name(), " command"))
 	defer span.Done()
 
-	work.BuildInit(moduleLoaderState)
+	work.BuildInit(moduleLoader)
 
 	// Flag theory:
 	//
@@ -231,14 +231,14 @@ func run(ctx context.Context, cmd *base.Command, args []string) {
 	work.VetFlags = toolFlags
 
 	pkgOpts := load.PackageOpts{ModResolveTests: true}
-	pkgs := load.PackagesAndErrors(moduleLoaderState, ctx, pkgOpts, pkgArgs)
+	pkgs := load.PackagesAndErrors(moduleLoader, ctx, pkgOpts, pkgArgs)
 	load.CheckPackageErrors(pkgs)
 	if len(pkgs) == 0 {
 		base.Fatalf("no packages to %s", cmd.Name())
 	}
 
 	// Build action graph.
-	b := work.NewBuilder("", moduleLoaderState.VendorDirOrEmpty)
+	b := work.NewBuilder("", moduleLoader.VendorDirOrEmpty)
 	defer func() {
 		if err := b.Close(); err != nil {
 			base.Fatal(err)
@@ -248,7 +248,7 @@ func run(ctx context.Context, cmd *base.Command, args []string) {
 	root := &work.Action{Mode: "go " + cmd.Name()}
 
 	addVetAction := func(p *load.Package) {
-		act := b.VetAction(moduleLoaderState, work.ModeBuild, work.ModeBuild, applyFixes, p)
+		act := b.VetAction(moduleLoader, work.ModeBuild, work.ModeBuild, applyFixes, p)
 		root.Deps = append(root.Deps, act)
 	}
 
@@ -277,7 +277,7 @@ func run(ctx context.Context, cmd *base.Command, args []string) {
 				continue
 			}
 		}
-		_, ptest, pxtest, perr := load.TestPackagesFor(moduleLoaderState, ctx, pkgOpts, p, nil)
+		_, ptest, pxtest, perr := load.TestPackagesFor(moduleLoader, ctx, pkgOpts, p, nil)
 		if perr != nil {
 			base.Errorf("%v", perr.Error)
 			continue

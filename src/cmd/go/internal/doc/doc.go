@@ -371,7 +371,7 @@ func parseArgs(ctx context.Context, flagSet *flag.FlagSet, args []string) (pkg *
 	if err != nil {
 		log.Fatal(err)
 	}
-	loader := modload.NewState()
+	loader := modload.NewLoader()
 	if testGOPATH {
 		loader = modload.NewDisabledState()
 	}
@@ -556,7 +556,7 @@ func parseArgs(ctx context.Context, flagSet *flag.FlagSet, args []string) (pkg *
 	return mustLoadPackage(ctx, loader, wd), "", arg, false
 }
 
-func loadPackage(ctx context.Context, loader *modload.State, pattern string) (*load.Package, error) {
+func loadPackage(ctx context.Context, loader *modload.Loader, pattern string) (*load.Package, error) {
 	if !search.NewMatch(pattern).IsLiteral() {
 		return nil, fmt.Errorf("pattern %q does not specify a single package", pattern)
 	}
@@ -579,7 +579,7 @@ func loadPackage(ctx context.Context, loader *modload.State, pattern string) (*l
 	return p, nil
 }
 
-func mustLoadPackage(ctx context.Context, loader *modload.State, dir string) *load.Package {
+func mustLoadPackage(ctx context.Context, loader *modload.Loader, dir string) *load.Package {
 	pkg, err := loadPackage(ctx, loader, dir)
 	if err != nil {
 		log.Fatal(err)

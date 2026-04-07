@@ -42,12 +42,12 @@ func ParseGoDebug(text string) (key, value string, err error) {
 	return k, v, nil
 }
 
-func defaultGODEBUGGoVersion(loaderstate *modload.State, p *Package) string {
-	if !loaderstate.Enabled() {
+func defaultGODEBUGGoVersion(ld *modload.Loader, p *Package) string {
+	if !ld.Enabled() {
 		// GOPATH mode. Use Go 1.20.
 		return "1.20"
 	}
-	if loaderstate.RootMode == modload.NoRoot && p.Module != nil {
+	if ld.RootMode == modload.NoRoot && p.Module != nil {
 		// This is go install pkg@version or go run pkg@version.
 		// Use the Go version from the package.
 		// If there isn't one, then assume Go 1.20, the last
@@ -57,18 +57,18 @@ func defaultGODEBUGGoVersion(loaderstate *modload.State, p *Package) string {
 		}
 		return "1.20"
 	}
-	return loaderstate.MainModules.GoVersion(loaderstate)
+	return ld.MainModules.GoVersion(ld)
 }
 
 // defaultGODEBUG returns the default GODEBUG setting for the main package p.
 // When building a test binary, directives, testDirectives, and xtestDirectives
 // list additional directives from the package under test.
-func defaultGODEBUG(loaderstate *modload.State, p *Package, directives, testDirectives, xtestDirectives []build.Directive) string {
+func defaultGODEBUG(ld *modload.Loader, p *Package, directives, testDirectives, xtestDirectives []build.Directive) string {
 	if p.Name != "main" {
 		return ""
 	}
 
-	goVersion := defaultGODEBUGGoVersion(loaderstate, p)
+	goVersion := defaultGODEBUGGoVersion(ld, p)
 
 	var m map[string]string
 
@@ -79,7 +79,7 @@ func defaultGODEBUG(loaderstate *modload.State, p *Package, directives, testDire
 	}
 
 	// Add directives from main module go.mod.
-	for _, g := range loaderstate.MainModules.Godebugs(loaderstate) {
+	for _, g := range ld.MainModules.Godebugs(ld) {
 		if m == nil {
 			m = make(map[string]string)
 		}

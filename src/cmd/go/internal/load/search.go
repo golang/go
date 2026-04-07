@@ -14,7 +14,7 @@ import (
 )
 
 // MatchPackage(pattern, cwd)(p) reports whether package p matches pattern in the working directory cwd.
-func MatchPackage(pattern, cwd string) func(*modload.State, *Package) bool {
+func MatchPackage(pattern, cwd string) func(*modload.Loader, *Package) bool {
 	switch {
 	case search.IsRelativePath(pattern):
 		// Split pattern into leading pattern-free directory path
@@ -29,10 +29,10 @@ func MatchPackage(pattern, cwd string) func(*modload.State, *Package) bool {
 		}
 		dir = filepath.Join(cwd, dir)
 		if pattern == "" {
-			return func(_ *modload.State, p *Package) bool { return p.Dir == dir }
+			return func(_ *modload.Loader, p *Package) bool { return p.Dir == dir }
 		}
 		matchPath := pkgpattern.MatchPattern(pattern)
-		return func(_ *modload.State, p *Package) bool {
+		return func(_ *modload.Loader, p *Package) bool {
 			// Compute relative path to dir and see if it matches the pattern.
 			rel, err := filepath.Rel(dir, p.Dir)
 			if err != nil {
@@ -49,13 +49,13 @@ func MatchPackage(pattern, cwd string) func(*modload.State, *Package) bool {
 		// This is slightly inaccurate: it matches every package, which isn't the same
 		// as matching the "all" package pattern.
 		// TODO(matloob): Should we make this more accurate? Does anyone depend on this behavior?
-		return func(_ *modload.State, p *Package) bool { return true }
+		return func(_ *modload.Loader, p *Package) bool { return true }
 	case pattern == "std":
-		return func(_ *modload.State, p *Package) bool { return p.Standard }
+		return func(_ *modload.Loader, p *Package) bool { return p.Standard }
 	case pattern == "cmd":
-		return func(_ *modload.State, p *Package) bool { return p.Standard && strings.HasPrefix(p.ImportPath, "cmd/") }
+		return func(_ *modload.Loader, p *Package) bool { return p.Standard && strings.HasPrefix(p.ImportPath, "cmd/") }
 	default:
-		return func(s *modload.State, p *Package) bool {
+		return func(s *modload.Loader, p *Package) bool {
 			switch {
 			case pattern == "tool" && s.Enabled():
 				return s.MainModules.Tools()[p.ImportPath]

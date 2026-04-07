@@ -183,7 +183,7 @@ func findCodeRoots() []Dir {
 		// For now it's okay to use a new state because we're just
 		// using it to determine whether we're in module mode. But
 		// it would be good to avoid an extra run of modload.Init.
-		if state := modload.NewState(); state.WillBeEnabled() {
+		if state := modload.NewLoader(); state.WillBeEnabled() {
 			usingModules = state.HasModRoot()
 			if usingModules && cfg.GOROOT != "" {
 				list = append(list,

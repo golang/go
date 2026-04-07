@@ -64,10 +64,10 @@ func init() {
 }
 
 func runUse(ctx context.Context, cmd *base.Command, args []string) {
-	moduleLoaderState := modload.NewState()
-	moduleLoaderState.ForceUseModules = true
-	moduleLoaderState.InitWorkfile()
-	gowork := modload.WorkFilePath(moduleLoaderState)
+	moduleLoader := modload.NewLoader()
+	moduleLoader.ForceUseModules = true
+	moduleLoader.InitWorkfile()
+	gowork := modload.WorkFilePath(moduleLoader)
 	if gowork == "" {
 		base.Fatalf("go: no go.work file found\n\t(run 'go work init' first or specify path using GOWORK environment variable)")
 	}
@@ -75,11 +75,11 @@ func runUse(ctx context.Context, cmd *base.Command, args []string) {
 	if err != nil {
 		base.Fatal(err)
 	}
-	workUse(ctx, moduleLoaderState, gowork, wf, args)
+	workUse(ctx, moduleLoader, gowork, wf, args)
 	modload.WriteWorkFile(gowork, wf)
 }
 
-func workUse(ctx context.Context, s *modload.State, gowork string, wf *modfile.WorkFile, args []string) {
+func workUse(ctx context.Context, s *modload.Loader, gowork string, wf *modfile.WorkFile, args []string) {
 	workDir := filepath.Dir(gowork) // absolute, since gowork itself is absolute
 
 	haveDirs := make(map[string][]string) // absolute → original(s)

@@ -15,7 +15,7 @@ import (
 )
 
 // loadVersioned loads a package at a specific version.
-func loadVersioned(ctx context.Context, loader *modload.State, pkgPath, version string) (*load.Package, error) {
+func loadVersioned(ctx context.Context, loader *modload.Loader, pkgPath, version string) (*load.Package, error) {
 	var opts load.PackageOpts
 	args := []string{
 		fmt.Sprintf("%s@%s", pkgPath, version),
