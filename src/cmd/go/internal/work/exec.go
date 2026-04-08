@@ -510,7 +510,6 @@ const (
 	needCgoHdr
 	needVet
 	needCompiledGoFiles
-	needCovMetaFile
 	needStale
 )
 
@@ -518,7 +517,7 @@ const (
 // what work needs to be done by it and the actions preceding it. a is the action
 // currently being run, which has an actor of type *checkCacheActor and is a dependency
 // of the buildAction.
-func (b *Builder) checkCacheForBuild(a, buildAction *Action, covMetaFileName string) (_ *checkCacheProvider, err error) {
+func (b *Builder) checkCacheForBuild(a, buildAction *Action) (_ *checkCacheProvider, err error) {
 	p := buildAction.Package
 	sh := b.Shell(a)
 
@@ -530,11 +529,9 @@ func (b *Builder) checkCacheForBuild(a, buildAction *Action, covMetaFileName str
 	}
 
 	cachedBuild := false
-	needCovMeta := p.Internal.Cover.GenMeta
 	need := bit(needBuild, !b.IsCmdList && buildAction.needBuild || b.NeedExport) |
 		bit(needCgoHdr, b.needCgoHdr(buildAction)) |
 		bit(needVet, buildAction.needVet) |
-		bit(needCovMetaFile, needCovMeta) |
 		bit(needCompiledGoFiles, b.NeedCompiledGoFiles)
 
 	if !p.BinaryOnly {
@@ -617,14 +614,6 @@ func (b *Builder) checkCacheForBuild(a, buildAction *Action, covMetaFileName str
 		}
 	}
 
-	// Load cached coverage meta-data file fragment, but only if we're
-	// skipping the main build (cachedBuild==true).
-	if cachedBuild && need&needCovMetaFile != 0 {
-		if err := b.loadCachedObjdirFile(buildAction, cache.Default(), covMetaFileName); err == nil {
-			need &^= needCovMetaFile
-		}
-	}
-
 	// Load cached vet config, but only if that's all we have left
 	// (need == needVet, not testing just the one bit).
 	// If we are going to do a full build anyway,
@@ -638,31 +627,28 @@ func (b *Builder) checkCacheForBuild(a, buildAction *Action, covMetaFileName str
 	return &checkCacheProvider{need: need}, nil
 }
 
-func (b *Builder) runCover(a, buildAction *Action, objdir string, gofiles, cgofiles []string) (*coverProvider, error) {
+func (b *Builder) runCover(ctx context.Context, a *Action) error {
 	p := a.Package
 	sh := b.Shell(a)
 
-	var cacheProvider *checkCacheProvider
-	for _, dep := range a.Deps {
-		if pr, ok := dep.Provider.(*checkCacheProvider); ok {
-			cacheProvider = pr
-		}
-	}
-	if cacheProvider == nil {
-		base.Fatalf("internal error: could not find checkCacheProvider")
-	}
-	need := cacheProvider.need
-
-	if need == 0 {
-		return nil, nil
+	// Determine the covmeta file name.
+	var covMetaFileName string
+	if a.Package.Internal.Cover.GenMeta {
+		covMetaFileName = a.Objdir + covcmd.MetaFileForPackage(a.Package.ImportPath)
 	}
 
 	if err := sh.Mkdir(a.Objdir); err != nil {
-		return nil, err
+		return err
 	}
 
-	gofiles = slices.Clone(gofiles)
-	cgofiles = slices.Clone(cgofiles)
+	a.actionID = b.coverActionID(a, covMetaFileName)
+	if pr, err := b.loadCachedCoverOutputs(a); err == nil {
+		a.Provider = pr
+		return nil
+	}
+
+	gofiles := slices.Clone(a.Package.GoFiles)
+	cgofiles := slices.Clone(a.Package.CgoFiles)
 
 	outfiles := []string{}
 	infiles := []string{}
@@ -677,10 +663,10 @@ func (b *Builder) runCover(a, buildAction *Action, objdir string, gofiles, cgofi
 			// cgo files have absolute paths
 			base = filepath.Base(base)
 			sourceFile = file
-			coverFile = objdir + base + ".cgo1.go"
+			coverFile = a.Objdir + base + ".cgo1.go"
 		} else {
 			sourceFile = filepath.Join(p.Dir, file)
-			coverFile = objdir + file
+			coverFile = a.Objdir + file
 		}
 		coverFile = strings.TrimSuffix(coverFile, ".go") + ".cover.go"
 		infiles = append(infiles, sourceFile)
@@ -692,6 +678,7 @@ func (b *Builder) runCover(a, buildAction *Action, objdir string, gofiles, cgofi
 		}
 	}
 
+	var coverCfg string
 	if len(infiles) != 0 {
 		// Coverage instrumentation creates new top level
 		// variables in the target package for things like
@@ -708,17 +695,25 @@ func (b *Builder) runCover(a, buildAction *Action, objdir string, gofiles, cgofi
 		if mode == "" {
 			panic("covermode should be set at this point")
 		}
-		if newoutfiles, err := b.cover(a, infiles, outfiles, coverVar, mode); err != nil {
-			return nil, err
+		coverCfg = a.Objdir + "coveragecfg"
+		if newoutfiles, err := b.cover(a, infiles, outfiles, coverVar, mode, covMetaFileName, coverCfg); err != nil {
+			return err
 		} else {
 			outfiles = newoutfiles
 			gofiles = append([]string{newoutfiles[0]}, gofiles...)
 		}
-		if ca, ok := a.Actor.(*coverActor); ok && ca.covMetaFileName != "" {
-			b.cacheObjdirFile(buildAction, cache.Default(), ca.covMetaFileName)
+	}
+
+	pr := &coverProvider{covMetaFileName, coverCfg, gofiles, cgofiles}
+	a.Provider = pr
+
+	if !cfg.BuildN {
+		if err := b.cacheCoverOutputs(a, pr); err != nil {
+			return err
 		}
 	}
-	return &coverProvider{gofiles, cgofiles}, nil
+
+	return nil
 }
 
 // build is the action for building a single package.
@@ -745,8 +740,7 @@ func (b *Builder) build(ctx context.Context, a *Action) (err error) {
 	}
 
 	need := cacheProvider.need
-	need &^= needCovMetaFile // handled by cover action
-	need &^= needCgoHdr      // handled by run cgo action // TODO: accumulate "negative" need bits from actions
+	need &^= needCgoHdr // handled by run cgo action // TODO: accumulate "negative" need bits from actions
 
 	if need == 0 {
 		return
@@ -918,6 +912,11 @@ func (b *Builder) build(ctx context.Context, a *Action) (err error) {
 		pgoProfile = a1.built
 	}
 
+	var coverageConfig string
+	if coverPr != nil {
+		coverageConfig = coverPr.coverageConfig
+	}
+
 	if p.Internal.BuildInfo != nil && cfg.ModulesEnabled {
 		prog := modload.ModInfoProg(p.Internal.BuildInfo.String(), cfg.BuildToolchainName == "gccgo")
 		if len(prog) > 0 {
@@ -930,7 +929,7 @@ func (b *Builder) build(ctx context.Context, a *Action) (err error) {
 
 	// Compile Go.
 	objpkg := objdir + "_pkg_.a"
-	ofile, out, err := BuildToolchain.gc(b, a, objpkg, icfg.Bytes(), embedcfg, symabis, len(sfiles) > 0, pgoProfile, gofiles)
+	ofile, out, err := BuildToolchain.gc(b, a, objpkg, icfg.Bytes(), embedcfg, symabis, len(sfiles) > 0, pgoProfile, coverageConfig, gofiles)
 	if len(out) > 0 && (p.UsesCgo() || p.UsesSwig()) && !cfg.BuildX {
 		// Fix up output referring to cgo-generated code to be more readable.
 		// Replace *[100]_Ctype_foo with *[100]C.foo.
@@ -1132,11 +1131,134 @@ func (b *Builder) cacheSrcFiles(a *Action, srcfiles []string) {
 	cache.PutBytes(c, cache.Subkey(a.actionID, "srcfiles"), buf.Bytes())
 }
 
-func (b *Builder) loadCachedVet(a *Action, vetDeps []*Action) error {
+// coverProviderCached is the structure we'll use to represent a coverProvider
+// in the action cache. It has the same fields as a coverProvider but they'll contain
+// different contents: we replace the acutal objdir name with $OBJDIR so that
+// the cached provider doesn't depend on the objdir used.
+type coverProviderCached struct {
+	CovMetaFile           string
+	CoverageConfig        string
+	GoSources, CgoSources []string
+}
+
+func (b *Builder) cacheCoverOutputs(a *Action, pr *coverProvider) error {
+	c := cache.Default()
+
+	cacheSrcFileName := func(a *Action, file string) string {
+		if name, ok := strings.CutPrefix(file, a.Objdir); ok {
+			return name
+		}
+		return "./" + file
+	}
+
+	b.cacheSrcFiles(a, str.StringList(pr.goSources, pr.cgoSources))
+	var cached coverProviderCached
+	if pr.covMetaFileName != "" {
+		cached.CovMetaFile = strings.TrimPrefix(pr.covMetaFileName, a.Objdir)
+		if err := b.cacheObjdirFile(a, c, cached.CovMetaFile); err != nil {
+			return err
+		}
+	}
+	if pr.coverageConfig != "" {
+		cached.CoverageConfig = strings.TrimPrefix(pr.coverageConfig, a.Objdir)
+		if err := b.cacheObjdirFile(a, c, cached.CoverageConfig); err != nil {
+			return err
+		}
+	}
+
+	for _, fn := range pr.goSources {
+		cached.GoSources = append(cached.GoSources, cacheSrcFileName(a, fn))
+	}
+	for _, fn := range pr.cgoSources {
+		cached.CgoSources = append(cached.CgoSources, cacheSrcFileName(a, fn))
+	}
+	js, err := json.Marshal(cached)
+	if err != nil {
+		return err
+	}
+	cache.PutBytes(c, cache.Subkey(a.actionID, "coverprovider"), js)
+
+	return nil
+}
+
+func (b *Builder) loadCachedCoverOutputs(a *Action) (*coverProvider, error) {
+	c := cache.Default()
+
+	if _, err := b.loadCachedSrcFiles(a); err != nil {
+		return nil, err
+	}
+
+	var cached coverProviderCached
+	if js, _, err := cache.GetBytes(c, cache.Subkey(a.actionID, "coverprovider")); err != nil {
+		return nil, err
+	} else if err := json.Unmarshal(js, &cached); err != nil {
+		return nil, err
+	}
+
+	covMetaFile := cached.CovMetaFile
+	if covMetaFile != "" {
+		if err := b.loadCachedObjdirFile(a, c, covMetaFile); err != nil {
+			return nil, err
+		}
+		covMetaFile = a.Objdir + covMetaFile
+	}
+	coverageConfig := cached.CoverageConfig
+	if coverageConfig != "" {
+		if err := b.loadCachedObjdirFile(a, c, coverageConfig); err != nil {
+			return nil, err
+		}
+		coverageConfig = a.Objdir + coverageConfig
+	}
+
+	var goSources, cgoSources []string
+	for _, file := range cached.GoSources {
+		name, ok := strings.CutPrefix(file, "./")
+		if !ok {
+			name = a.Objdir + name
+		}
+		goSources = append(goSources, name)
+	}
+	for _, file := range cached.CgoSources {
+		name, ok := strings.CutPrefix(file, "./")
+		if !ok {
+			name = a.Objdir + name
+		}
+		cgoSources = append(cgoSources, name)
+	}
+
+	pr := &coverProvider{
+		covMetaFileName: covMetaFile,
+		coverageConfig:  coverageConfig,
+		goSources:       goSources,
+		cgoSources:      cgoSources,
+	}
+
+	return pr, nil
+}
+
+func (b *Builder) coverActionID(a *Action, covMetaFileName string) cache.ActionID {
+	p := a.Package
+	h := cache.NewHash("cover " + p.ImportPath)
+	fmt.Fprintf(h, "cover %q\n", b.toolID("cover"))
+
+	// Input files for cover.
+	fmt.Fprintf(h, "setup %s %v\n", p.Internal.Cover.Mode, p.Internal.Cover.GenMeta)
+	fmt.Fprintf(h, "config ")
+	if err := json.NewEncoder(h).Encode(coverConfig(p, filepath.Base(covMetaFileName), "")); err != nil {
+		base.Fatal(err)
+	}
+	for _, file := range str.StringList(p.GoFiles, p.CgoFiles) {
+		fmt.Fprintf(h, "file %s %s\n", file, b.fileHash(filepath.Join(p.Dir, file)))
+	}
+
+	return h.Sum()
+}
+
+func (b *Builder) loadCachedSrcFiles(a *Action) ([]string, error) {
 	c := cache.Default()
 	list, _, err := cache.GetBytes(c, cache.Subkey(a.actionID, "srcfiles"))
 	if err != nil {
-		return fmt.Errorf("reading srcfiles list: %w", err)
+		return nil, fmt.Errorf("reading srcfiles list: %w", err)
 	}
 	var srcfiles []string
 	for name := range strings.SplitSeq(string(list), "\n") {
@@ -1148,9 +1270,17 @@ func (b *Builder) loadCachedVet(a *Action, vetDeps []*Action) error {
 			continue
 		}
 		if err := b.loadCachedObjdirFile(a, c, name); err != nil {
-			return err
+			return nil, err
 		}
 		srcfiles = append(srcfiles, a.Objdir+name)
+	}
+	return srcfiles, nil
+}
+
+func (b *Builder) loadCachedVet(a *Action, vetDeps []*Action) error {
+	srcfiles, err := b.loadCachedSrcFiles(a)
+	if err != nil {
+		return err
 	}
 	buildVetConfig(a, srcfiles, vetDeps)
 	return nil
@@ -2090,13 +2220,13 @@ func (b *Builder) installHeader(ctx context.Context, a *Action) error {
 // regular outputs (instrumented source files) the cover tool also
 // writes a separate file (appearing first in the list of outputs)
 // that will contain coverage counters and meta-data.
-func (b *Builder) cover(a *Action, infiles, outfiles []string, varName string, mode string) ([]string, error) {
+func (b *Builder) cover(a *Action, infiles, outfiles []string, varName, mode, covMetaFileName, coverCfg string) ([]string, error) {
 	pkgcfg := a.Objdir + "pkgcfg.txt"
 	covoutputs := a.Objdir + "coveroutfiles.txt"
 	odir := filepath.Dir(outfiles[0])
 	cv := filepath.Join(odir, "covervars.go")
 	outfiles = append([]string{cv}, outfiles...)
-	if err := b.writeCoverPkgInputs(a, pkgcfg, covoutputs, outfiles); err != nil {
+	if err := b.writeCoverPkgInputs(a, pkgcfg, covMetaFileName, coverCfg, covoutputs, outfiles); err != nil {
 		return nil, err
 	}
 	args := []string{base.Tool("cover"),
@@ -2113,10 +2243,7 @@ func (b *Builder) cover(a *Action, infiles, outfiles []string, varName string, m
 	return outfiles, nil
 }
 
-func (b *Builder) writeCoverPkgInputs(a *Action, pconfigfile string, covoutputsfile string, outfiles []string) error {
-	sh := b.Shell(a)
-	p := a.Package
-	p.Internal.Cover.Cfg = a.Objdir + "coveragecfg"
+func coverConfig(p *load.Package, covMetaFileName, outConfig string) covcmd.CoverPkgConfig {
 	pcfg := covcmd.CoverPkgConfig{
 		PkgPath: p.ImportPath,
 		PkgName: p.Name,
@@ -2124,16 +2251,21 @@ func (b *Builder) writeCoverPkgInputs(a *Action, pconfigfile string, covoutputsf
 		// 'perblock'; there isn't a way using "go build -cover" or "go
 		// test -cover" to select it. This may change in the future
 		// depending on user demand.
-		Granularity: "perblock",
-		OutConfig:   p.Internal.Cover.Cfg,
-		Local:       p.Internal.Local,
+		Granularity:  "perblock",
+		OutConfig:    outConfig,
+		Local:        p.Internal.Local,
+		EmitMetaFile: covMetaFileName,
 	}
-	if ca, ok := a.Actor.(*coverActor); ok && ca.covMetaFileName != "" {
-		pcfg.EmitMetaFile = a.Objdir + ca.covMetaFileName
+	if p.Module != nil {
+		pcfg.ModulePath = p.Module.Path
 	}
-	if a.Package.Module != nil {
-		pcfg.ModulePath = a.Package.Module.Path
-	}
+	return pcfg
+}
+
+func (b *Builder) writeCoverPkgInputs(a *Action, pconfigfile, covMetaFileName, coverCfg, covoutputsfile string, outfiles []string) error {
+	sh := b.Shell(a)
+	p := a.Package
+	pcfg := coverConfig(p, covMetaFileName, coverCfg)
 	data, err := json.Marshal(pcfg)
 	if err != nil {
 		return err
@@ -2209,7 +2341,7 @@ func mkAbs(dir, f string) string {
 type toolchain interface {
 	// gc runs the compiler in a specific directory on a set of files
 	// and returns the name of the generated output file.
-	gc(b *Builder, a *Action, archive string, importcfg, embedcfg []byte, symabis string, asmhdr bool, pgoProfile string, gofiles []string) (ofile string, out []byte, err error)
+	gc(b *Builder, a *Action, archive string, importcfg, embedcfg []byte, symabis string, asmhdr bool, pgoProfile, coverCfg string, gofiles []string) (ofile string, out []byte, err error)
 	// cc runs the toolchain's C compiler in a directory on a C file
 	// to produce an output file.
 	cc(b *Builder, a *Action, ofile, cfile string) error
@@ -2249,7 +2381,7 @@ func (noToolchain) linker() string {
 	return ""
 }
 
-func (noToolchain) gc(b *Builder, a *Action, archive string, importcfg, embedcfg []byte, symabis string, asmhdr bool, pgoProfile string, gofiles []string) (ofile string, out []byte, err error) {
+func (noToolchain) gc(b *Builder, a *Action, archive string, importcfg, embedcfg []byte, symabis string, asmhdr bool, pgoProfile, coverCfg string, gofiles []string) (ofile string, out []byte, err error) {
 	return "", nil, noCompiler()
 }
 
@@ -3482,7 +3614,7 @@ func (b *Builder) swigDoIntSize(objdir string) (intsize string, err error) {
 
 	p := load.GoFilesPackage(modload.NewLoader(), context.TODO(), load.PackageOpts{}, srcs)
 
-	if _, _, e := BuildToolchain.gc(b, &Action{Mode: "swigDoIntSize", Package: p, Objdir: objdir}, "", nil, nil, "", false, "", srcs); e != nil {
+	if _, _, e := BuildToolchain.gc(b, &Action{Mode: "swigDoIntSize", Package: p, Objdir: objdir}, "", nil, nil, "", false, "", "", srcs); e != nil {
 		return "32", nil
 	}
 	return "64", nil

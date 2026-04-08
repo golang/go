@@ -377,7 +377,6 @@ func (p *Package) Resolve(s *modload.Loader, imports []string) []string {
 // CoverSetup holds parameters related to coverage setup for a given package (covermode, etc).
 type CoverSetup struct {
 	Mode    string // coverage mode for this package
-	Cfg     string // path to config file to pass to "go tool cover"
 	GenMeta bool   // ask cover tool to emit a static meta data if set
 }
 
