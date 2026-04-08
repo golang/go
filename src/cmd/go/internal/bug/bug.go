@@ -184,14 +184,14 @@ func firstLine(buf []byte) []byte {
 // printGlibcVersion prints information about the glibc version.
 // It ignores failures.
 func printGlibcVersion(w io.Writer) {
-	tempdir := os.TempDir()
-	if tempdir == "" {
+	tempdir, err := os.MkdirTemp("", "")
+	if err != nil {
 		return
 	}
 	src := []byte(`int main() {}`)
 	srcfile := filepath.Join(tempdir, "go-bug.c")
 	outfile := filepath.Join(tempdir, "go-bug")
-	err := os.WriteFile(srcfile, src, 0644)
+	err = os.WriteFile(srcfile, src, 0644)
 	if err != nil {
 		return
 	}
