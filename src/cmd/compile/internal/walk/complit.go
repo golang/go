@@ -246,19 +246,8 @@ func fixedlit(ctxt initContext, kind initKind, n *ir.CompLitExpr, var_ ir.Node, 
 		switch value.Op() {
 		case ir.OSLICELIT:
 			value := value.(*ir.CompLitExpr)
-			if (kind == initKindStatic && ctxt == inNonInitFunction) || (kind == initKindDynamic && ctxt == inInitFunction) {
-				var sinit ir.Nodes
-				slicelit(ctxt, value, a, &sinit)
-				if kind == initKindStatic {
-					// When doing static initialization, init statements may contain dynamic
-					// expression, which will be initialized later, causing liveness analysis
-					// confuses about variables lifetime. So making sure those expressions
-					// are ordered correctly here. See issue #52673.
-					orderBlock(&sinit, map[string][]*ir.Name{})
-					typecheck.Stmts(sinit)
-					walkStmtList(sinit)
-				}
-				init.Append(sinit...)
+			if kind == initKindDynamic && ctxt == inInitFunction {
+				slicelit(ctxt, value, a, init)
 				continue
 			}
 
@@ -301,23 +290,6 @@ func slicelit(ctxt initContext, n *ir.CompLitExpr, var_ ir.Node, init *ir.Nodes)
 	// make an array type corresponding the number of elements we have
 	t := types.NewArray(n.Type().Elem(), n.Len)
 	types.CalcSize(t)
-
-	if ctxt == inNonInitFunction {
-		// put everything into static array
-		vstat := staticinit.StaticName(t)
-
-		fixedlit(ctxt, initKindStatic, n, vstat, init)
-		fixedlit(ctxt, initKindDynamic, n, vstat, init)
-
-		// copy static to slice
-		var_ = typecheck.AssignExpr(var_)
-		name, offset, ok := staticinit.StaticLoc(var_)
-		if !ok || name.Class != ir.PEXTERN {
-			base.Fatalf("slicelit: %v", var_)
-		}
-		staticdata.InitSlice(name, offset, vstat.Linksym(), t.NumElem())
-		return
-	}
 
 	// recipe for var = []t{...}
 	// 1. make a static array
