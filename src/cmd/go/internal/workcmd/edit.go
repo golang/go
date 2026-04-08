@@ -35,7 +35,7 @@ The editing flags specify a sequence of editing operations.
 
 The -fmt flag reformats the go.work file without making other changes.
 This reformatting is also implied by any other modifications that use or
-rewrite the go.mod file. The only time this flag is needed is if no other
+rewrite the go.work file. The only time this flag is needed is if no other
 flags are specified, as in 'go work edit -fmt'.
 
 The -godebug=key=value flag adds a godebug key=value line,
