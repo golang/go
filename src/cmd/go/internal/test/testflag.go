@@ -175,9 +175,6 @@ func (f *vetFlag) Set(value string) error {
 	if len(f.flags) > 1 && single != "" {
 		return fmt.Errorf("-vet does not accept %q in a list with other analyzers", single)
 	}
-	if len(f.flags) > 1 && single != "" {
-		return fmt.Errorf("-vet does not accept %q in a list with other analyzers", single)
-	}
 	return nil
 }
 
