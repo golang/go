@@ -134,7 +134,6 @@ func floatLookup(x int) float64 {
 func stringLookup(x int) string {
 	// amd64:`LEAQ .*\(SB\)` -`JMP \(.*\)\(.*\)$`
 	// arm64:-`JMP \(R.*\)$`
-	// loong64:-`ALSLV`
 	switch x {
 	case 1:
 		return "a"
@@ -161,7 +160,6 @@ func stringLookup(x int) string {
 func complexLookup(x int) complex128 {
 	// amd64:`LEAQ .*\(SB\)` -`JMP \(.*\)\(.*\)$`
 	// arm64:-`JMP \(R.*\)$`
-	// loong64:-`ALSLV`
 	switch x {
 	case 1:
 		return 1 + 2i
