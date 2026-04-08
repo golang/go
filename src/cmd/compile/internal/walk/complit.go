@@ -23,36 +23,12 @@ func walkCompLit(n ir.Node, init *ir.Nodes) ir.Node {
 		// n can be directly represented in the read-only data section.
 		// Make direct reference to the static data. See issue 12841.
 		vstat := readonlystaticname(n.Type())
-		fixedlit(inInitFunction, initKindStatic, n, vstat, init)
+		fixedlit(initKindStatic, n, vstat, init)
 		return typecheck.Expr(vstat)
 	}
 	var_ := typecheck.TempAt(base.Pos, ir.CurFunc, n.Type())
 	anylit(n, var_, init)
 	return var_
-}
-
-// initContext is the context in which static data is populated.
-// It is either in an init function or in any other function.
-// Static data populated in an init function will be written either
-// zero times (as a readonly, static data symbol) or
-// one time (during init function execution).
-// Either way, there is no opportunity for races or further modification,
-// so the data can be written to a (possibly readonly) data symbol.
-// Static data populated in any other function needs to be local to
-// that function to allow multiple instances of that function
-// to execute concurrently without clobbering each others' data.
-type initContext uint8
-
-const (
-	inInitFunction initContext = iota
-	inNonInitFunction
-)
-
-func (c initContext) String() string {
-	if c == inInitFunction {
-		return "inInitFunction"
-	}
-	return "inNonInitFunction"
 }
 
 // readonlystaticname returns a name backed by a read-only static data symbol.
@@ -204,7 +180,7 @@ const (
 
 // fixedlit handles struct, array, and slice literals.
 // TODO: expand documentation.
-func fixedlit(ctxt initContext, kind initKind, n *ir.CompLitExpr, var_ ir.Node, init *ir.Nodes) {
+func fixedlit(kind initKind, n *ir.CompLitExpr, var_ ir.Node, init *ir.Nodes) {
 	isBlank := var_ == ir.BlankNode
 	var splitnode func(ir.Node) (a ir.Node, value ir.Node)
 	switch n.Op() {
@@ -246,14 +222,14 @@ func fixedlit(ctxt initContext, kind initKind, n *ir.CompLitExpr, var_ ir.Node, 
 		switch value.Op() {
 		case ir.OSLICELIT:
 			value := value.(*ir.CompLitExpr)
-			if kind == initKindDynamic && ctxt == inInitFunction {
-				slicelit(ctxt, value, a, init)
+			if kind == initKindDynamic {
+				slicelit(value, a, init)
 				continue
 			}
 
 		case ir.OARRAYLIT, ir.OSTRUCTLIT:
 			value := value.(*ir.CompLitExpr)
-			fixedlit(ctxt, kind, value, a, init)
+			fixedlit(kind, value, a, init)
 			continue
 		}
 
@@ -286,7 +262,7 @@ func isSmallSliceLit(n *ir.CompLitExpr) bool {
 	return n.Type().Elem().Size() == 0 || n.Len <= ir.MaxSmallArraySize/n.Type().Elem().Size()
 }
 
-func slicelit(ctxt initContext, n *ir.CompLitExpr, var_ ir.Node, init *ir.Nodes) {
+func slicelit(n *ir.CompLitExpr, var_ ir.Node, init *ir.Nodes) {
 	// make an array type corresponding the number of elements we have
 	t := types.NewArray(n.Type().Elem(), n.Len)
 	types.CalcSize(t)
@@ -316,12 +292,8 @@ func slicelit(ctxt initContext, n *ir.CompLitExpr, var_ ir.Node, init *ir.Nodes)
 
 	mode := getdyn(n, true)
 	if mode&initConst != 0 && !isSmallSliceLit(n) {
-		if ctxt == inInitFunction {
-			vstat = readonlystaticname(t)
-		} else {
-			vstat = staticinit.StaticName(t)
-		}
-		fixedlit(ctxt, initKindStatic, n, vstat, init)
+		vstat = readonlystaticname(t)
+		fixedlit(initKindStatic, n, vstat, init)
 	}
 
 	// make new auto *array (3 declare)
@@ -376,7 +348,7 @@ func slicelit(ctxt initContext, n *ir.CompLitExpr, var_ ir.Node, init *ir.Nodes)
 				// See issue #31987.
 				k = initKindLocalCode
 			}
-			fixedlit(ctxt, k, value, a, init)
+			fixedlit(k, value, a, init)
 			continue
 		}
 
@@ -438,8 +410,8 @@ func maplit(n *ir.CompLitExpr, m ir.Node, init *ir.Nodes) {
 			datak.List.Append(r.Key)
 			datae.List.Append(r.Value)
 		}
-		fixedlit(inInitFunction, initKindStatic, datak, vstatk, init)
-		fixedlit(inInitFunction, initKindStatic, datae, vstate, init)
+		fixedlit(initKindStatic, datak, vstatk, init)
+		fixedlit(initKindStatic, datae, vstate, init)
 
 		// loop adding structure elements to map
 		// for i = 0; i < len(vstatk); i++ {
@@ -549,13 +521,13 @@ func anylit(n ir.Node, var_ ir.Node, init *ir.Nodes) {
 			// lay out static data
 			vstat := readonlystaticname(t)
 
-			fixedlit(inInitFunction, initKindStatic, n, vstat, init)
+			fixedlit(initKindStatic, n, vstat, init)
 
 			// copy static to var
 			appendWalkStmt(init, ir.NewAssignStmt(base.Pos, var_, vstat))
 
 			// add expressions to automatic
-			fixedlit(inInitFunction, initKindDynamic, n, var_, init)
+			fixedlit(initKindDynamic, n, var_, init)
 			break
 		}
 
@@ -570,11 +542,11 @@ func anylit(n ir.Node, var_ ir.Node, init *ir.Nodes) {
 			appendWalkStmt(init, ir.NewAssignStmt(base.Pos, var_, nil))
 		}
 
-		fixedlit(inInitFunction, initKindLocalCode, n, var_, init)
+		fixedlit(initKindLocalCode, n, var_, init)
 
 	case ir.OSLICELIT:
 		n := n.(*ir.CompLitExpr)
-		slicelit(inInitFunction, n, var_, init)
+		slicelit(n, var_, init)
 
 	case ir.OMAPLIT:
 		n := n.(*ir.CompLitExpr)
