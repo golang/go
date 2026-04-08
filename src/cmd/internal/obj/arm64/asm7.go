@@ -8465,7 +8465,11 @@ func EncodeRegisterExtension(a *obj.Addr, ext string, reg, num int16, isAmount, 
 			a.Reg = REG_ZARNGELEM + (reg & 31) + int16((arng&15)<<5)
 			a.Index = num
 		} else {
-			a.Reg = REG_ZARNG + (reg & 31) + int16((arng&15)<<5)
+			if a.Type == obj.TYPE_MEM {
+				a.Index = REG_ZARNG + (reg & 31) + int16((arng&15)<<5)
+			} else {
+				a.Reg = REG_ZARNG + (reg & 31) + int16((arng&15)<<5)
+			}
 		}
 	} else if REG_P0 <= reg && reg <= REG_PN15 {
 		var arng int

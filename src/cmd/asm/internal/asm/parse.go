@@ -971,8 +971,133 @@ func (p *Parser) registerIndirect(a *obj.Addr, prefix rune) {
 	if !ok {
 		p.errorf("indirect through non-register %s", tok)
 	}
+	// SVE extended addressing support
+	var ext string
+	var mod int64
+	var amount int64
+	isSVEMemExt := false
+
+	if p.arch.Family == sys.ARM64 && (p.peek() == '.' || p.peek() == lex.LSH) {
+		// The index is a vector register, or contains a shift, then this is SVE extended addressing.
+		isSVEMemExt = true
+		if p.peek() == '.' {
+			p.get('.')
+			tok2 := p.next()
+			str := tok2.String()
+			if str == "UXTW" || str == "SXTW" {
+				switch str {
+				case "UXTW":
+					mod = 1
+				case "SXTW":
+					mod = 2
+				}
+			} else {
+				ext = str
+				if p.peek() == '.' {
+					p.get('.')
+					tok3 := p.next()
+					modStr := tok3.String()
+					switch modStr {
+					case "UXTW":
+						mod = 1
+					case "SXTW":
+						mod = 2
+					default:
+						p.errorf("unknown modifier %s", modStr)
+					}
+				}
+			}
+		}
+		if p.peek() == lex.LSH {
+			p.get(lex.LSH)
+			tok4 := p.get(scanner.Int)
+			amount, _ = strconv.ParseInt(tok4.String(), 10, 16)
+		}
+	}
 	p.get(')')
 	a.Type = obj.TYPE_MEM
+
+	if isSVEMemExt {
+		encodedR1 := r1
+		if ext != "" {
+			if r1 >= arm64.REG_Z0 && r1 <= arm64.REG_Z31 {
+				var arng int
+				switch ext {
+				case "B":
+					arng = arm64.ARNG_B
+				case "H":
+					arng = arm64.ARNG_H
+				case "S":
+					arng = arm64.ARNG_S
+				case "D":
+					arng = arm64.ARNG_D
+				case "Q":
+					arng = arm64.ARNG_Q
+				default:
+					p.errorf("unknown arrangement %s", ext)
+				}
+				if arng != 0 {
+					encodedR1 = arm64.REG_ZARNG + (r1 & 31) + int16((arng&15)<<5)
+				}
+			} else {
+				p.errorf("arrangement not allowed for this register")
+			}
+		}
+
+		if p.peek() != '(' {
+			p.errorf("expected second parenthesis for SVE extended addressing")
+			return
+		}
+		p.get('(')
+		tok5 := p.next()
+		r2, ok := p.registerReference(tok5.String())
+		if !ok {
+			p.errorf("expected register")
+		}
+		var ext2 string
+		if p.peek() == '.' {
+			p.get('.')
+			tok6 := p.next()
+			ext2 = tok6.String()
+		}
+		p.get(')')
+
+		encodedR2 := r2
+		if ext2 != "" {
+			if r2 >= arm64.REG_Z0 && r2 <= arm64.REG_Z31 {
+				var arng int
+				switch ext2 {
+				case "B":
+					arng = arm64.ARNG_B
+				case "H":
+					arng = arm64.ARNG_H
+				case "S":
+					arng = arm64.ARNG_S
+				case "D":
+					arng = arm64.ARNG_D
+				case "Q":
+					arng = arm64.ARNG_Q
+				default:
+					p.errorf("unknown arrangement %s", ext2)
+				}
+				if arng != 0 {
+					encodedR2 = arm64.REG_ZARNG + (r2 & 31) + int16((arng&15)<<5)
+				}
+			} else {
+				p.errorf("arrangement not allowed for this register")
+			}
+		}
+
+		a.Index = encodedR2 // Base
+		a.Reg = encodedR1   // Index
+		a.Offset = 0        // Ensure offset is 0
+
+		var scaleValue int16 = -32768 // Bit 15 set
+		scaleValue |= int16(amount << 12)
+		scaleValue |= int16(mod << 9)
+		a.Scale = scaleValue
+		return
+	}
 	if r1 < 0 {
 		// Pseudo-register reference.
 		if r2 != 0 {

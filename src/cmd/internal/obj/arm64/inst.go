@@ -143,6 +143,9 @@ func aclass(a *obj.Addr) AClass {
 			return AC_REGLIST4
 		}
 	}
+	if a.Type == obj.TYPE_MEM {
+		return AC_MEMEXT
+	}
 	panic("unknown AClass")
 }
 
@@ -326,6 +329,39 @@ func addrComponent(a *obj.Addr, acl AClass, index int) uint32 {
 			default:
 				panic(fmt.Errorf("unknown Q value at %d in AClass %d", index, acl))
 			}
+		default:
+			panic(fmt.Errorf("unknown elm index at %d in AClass %d", index, acl))
+		}
+	//	AClass: AC_MEMEXT
+	//	GNU mnemonic: [<reg1>.<T1>, <reg2>.<T2>, <mod> <amount>]
+	//	Go mnemonic:
+	//		(reg2.T2.mod<<amount)(reg1.T1)
+	//	Encoding:
+	//		Type = TYPE_MEM
+	//		Reg = Index register (with arrangement if applicable)
+	//		Index = Base register (with arrangement if applicable)
+	//		Scale = Packed mod and amount
+	case AC_MEMEXT:
+		switch index {
+		case 0:
+			return uint32(a.Index)
+		case 1:
+			return uint32((a.Index >> 5) & 15)
+		case 2:
+			return uint32(a.Reg)
+		case 3:
+			return uint32((a.Reg >> 5) & 15)
+		case 4:
+			// mod is either 1 (UXTW), 2 (SXTW), or 4 (LSL)
+			mod := uint32((a.Scale >> 9) & 0x7)
+			amount := uint32((a.Scale >> 12) & 0x7)
+			if mod == 0 && amount > 0 {
+				// LSL is implied when no extension is specified but amount > 0
+				mod |= 1 << 2
+			}
+			return mod
+		case 5:
+			return uint32((a.Scale >> 12) & 0x7)
 		default:
 			panic(fmt.Errorf("unknown elm index at %d in AClass %d", index, acl))
 		}
@@ -696,7 +732,8 @@ func (i *instEncoder) tryEncode(p *obj.Prog) (uint32, bool) {
 					}
 					return 0, false
 				}
-				if enc.comp != enc_NIL {
+				if enc.comp != enc_NIL && specialB != codeNoOp {
+					// NoOp encodings don't need bookkeeping.
 					encoded[enc.comp] = b
 				}
 			} else {
@@ -704,6 +741,5 @@ func (i *instEncoder) tryEncode(p *obj.Prog) (uint32, bool) {
 			}
 		}
 	}
-
 	return bin, true
 }

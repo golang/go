@@ -222,6 +222,11 @@ func (ctxt *Link) CanReuseProgs() bool {
 	return ctxt.Debugasm == 0
 }
 
+func isZReg(r int) bool {
+	return (r >= RBaseARM64+96 && r <= RBaseARM64+127) ||
+		(r >= RBaseARM64+2048 && r < RBaseARM64+3072)
+}
+
 // Dconv accepts an argument 'a' within a prog 'p' and returns a string
 // with a formatted version of the argument.
 func Dconv(p *Prog, a *Addr) string {
@@ -297,13 +302,35 @@ func writeDconv(w io.Writer, p *Prog, a *Addr, abiDetail bool) {
 		a.writeNameTo(w, abiDetail)
 
 	case TYPE_MEM:
-		a.WriteNameTo(w)
-		if a.Index != REG_NONE {
-			if a.Scale == 0 {
-				// arm64 shifted or extended register offset, scale = 0.
-				fmt.Fprintf(w, "(%v)", Rconv(int(a.Index)))
-			} else {
-				fmt.Fprintf(w, "(%v*%d)", Rconv(int(a.Index)), int(a.Scale))
+		if buildcfg.GOARCH == "arm64" && (a.Scale < 0 || isZReg(int(a.Reg)) || isZReg(int(a.Index))) {
+			// SVE extended addressing pattern
+			amount := 0
+			mod := 0
+			if a.Scale < 0 {
+				amount = int((a.Scale >> 12) & 0x7)
+				mod = int((a.Scale >> 9) & 0x7)
+			}
+			modStr := ""
+			switch mod {
+			case 1:
+				modStr = ".UXTW"
+			case 2:
+				modStr = ".SXTW"
+			}
+			amountStr := ""
+			if amount != 0 {
+				amountStr = fmt.Sprintf("<<%d", amount)
+			}
+			fmt.Fprintf(w, "(%v%s%s)(%v)", Rconv(int(a.Reg)), modStr, amountStr, Rconv(int(a.Index)))
+		} else {
+			a.WriteNameTo(w)
+			if a.Index != REG_NONE {
+				if a.Scale == 0 {
+					// arm64 shifted or extended register offset, scale = 0.
+					fmt.Fprintf(w, "(%v)", Rconv(int(a.Index)))
+				} else {
+					fmt.Fprintf(w, "(%v*%d)", Rconv(int(a.Index)), int(a.Scale))
+				}
 			}
 		}
 

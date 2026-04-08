@@ -2,6 +2,34 @@
 
 package arm64
 
+import "cmd/internal/obj"
+
+// stripRawZ first checks if v is a raw Z register, if so
+// it tries to verify that it's indeed a Z register, if it's not
+// it will return ok as false.
+// Otherwise, it will strip additional information and return ok as true.
+func stripRawZ(v *uint32) bool {
+	if *v >= obj.RBaseARM64 {
+		if !(*v >= REG_Z0 && *v <= REG_Z31) && !(*v >= REG_ZARNG && *v < REG_ZARNGELEM) {
+			return false
+		}
+	}
+	*v = *v & 31
+	return true
+}
+
+// checkIsR checks if v is a scalar register.
+// In the encoding scheme, R is always assumed to be passed in as raw, i.e.
+// starting at RBaseARM64. If it's not a raw R register, it will strip
+// additional information and return ok as true.
+// Otherwise, it will return ok as false.
+func checkIsR(v uint32) bool {
+	if v > REG_R31 && v != REG_RSP {
+		return false
+	}
+	return true
+}
+
 const (
 	enc_NIL component = iota
 	enc_i1_tsz
@@ -37,6 +65,7 @@ const (
 	enc_Zk
 	enc_Zm
 	enc_Zn
+	enc_Zt
 	enc_i1
 	enc_i2
 	enc_imm13
@@ -48,12 +77,26 @@ const (
 	enc_imm6
 	enc_imm7
 	enc_imm8
+	enc_msz
 	enc_rot
 	enc_size
 	enc_size0
 	enc_sz
 	enc_tsz
+	enc_xs
 )
+
+// encodeNoModCheck is the implementation of the following encoding logic:
+// Check that there is no modifier (UXTW, SXTW, LSL)
+func encodeNoModCheck(v uint32) (uint32, bool) {
+	return 0, v == 0
+}
+
+// encodeNoAmtCheck is the implementation of the following encoding logic:
+// Check that there is no modifier amount
+func encodeNoAmtCheck(v uint32) (uint32, bool) {
+	return 0, v == 0
+}
 
 // encodeXCheck is the implementation of the following encoding logic:
 // Check this is a 64-bit scalar register
@@ -133,6 +176,69 @@ func encodeFimm0_0_56(v uint32) (uint32, bool) {
 	return 0, true
 }
 
+// encodeModAmt1Check is the implementation of the following encoding logic:
+// Check this is mod amount and is 1
+func encodeModAmt1Check(v uint32) (uint32, bool) {
+	if v == 1 {
+		return 0, true
+	}
+	return 0, false
+}
+
+// encodeModAmt2Check is the implementation of the following encoding logic:
+// Check this is mod amount and is 2
+func encodeModAmt2Check(v uint32) (uint32, bool) {
+	if v == 2 {
+		return 0, true
+	}
+	return 0, false
+}
+
+// encodeModAmt3Check is the implementation of the following encoding logic:
+// Check this is mod amount and is 3
+func encodeModAmt3Check(v uint32) (uint32, bool) {
+	if v == 3 {
+		return 0, true
+	}
+	return 0, false
+}
+
+// encodeModAmt4Check is the implementation of the following encoding logic:
+// Check this is mod amount and is 4
+func encodeModAmt4Check(v uint32) (uint32, bool) {
+	if v == 4 {
+		return 0, true
+	}
+	return 0, false
+}
+
+// encodeModLSLCheck is the implementation of the following encoding logic:
+// Check this is mod and is LSL
+func encodeModLSLCheck(v uint32) (uint32, bool) {
+	if v&0b100 != 0 {
+		return 0, true
+	}
+	return 0, false
+}
+
+// encodeModSXTWCheck is the implementation of the following encoding logic:
+// Check this is mod and is SXTW
+func encodeModSXTWCheck(v uint32) (uint32, bool) {
+	if v&0b10 != 0 {
+		return 0, true
+	}
+	return 0, false
+}
+
+// encodeModUXTWCheck is the implementation of the following encoding logic:
+// Check this is mod and is UXTW
+func encodeModUXTWCheck(v uint32) (uint32, bool) {
+	if v&0b1 != 0 {
+		return 0, true
+	}
+	return 0, false
+}
+
 // encodeI2_1921_16To32Bit is the implementation of the following encoding logic:
 // For the "16-bit to 32-bit" variant: is the immediate index of a pair of 16-bit elements within each 128-bit vector segment, in the range 0 to 3, encoded in the "i2" field.
 // bit range mappings:
@@ -160,6 +266,9 @@ func encodeI1_2021_16To64Bit(v uint32) (uint32, bool) {
 // bit range mappings:
 // Zm: [16:20)
 func encodeZm1620_16To64Bit(v uint32) (uint32, bool) {
+	if !stripRawZ(&v) {
+		return 0, false
+	}
 	if v > 15 {
 		return 0, false
 	}
@@ -171,6 +280,9 @@ func encodeZm1620_16To64Bit(v uint32) (uint32, bool) {
 // bit range mappings:
 // Zm: [16:19)
 func encodeZm1619_16Bit32Bit(v uint32) (uint32, bool) {
+	if !stripRawZ(&v) {
+		return 0, false
+	}
 	if v > 7 {
 		return 0, false
 	}
@@ -205,6 +317,9 @@ func encodeI3hI3l_1923_16Bit(v uint32) (uint32, bool) {
 // bit range mappings:
 // Zm: [16:19)
 func encodeZm_1619_Range0_7V1(v uint32) (uint32, bool) {
+	if !stripRawZ(&v) {
+		return 0, false
+	}
 	if v <= 7 {
 		return v << 16, true
 	}
@@ -250,6 +365,9 @@ func encodeI3hI3l_1119_32Bit(v uint32) (uint32, bool) {
 // bit range mappings:
 // Zm: [16:20)
 func encodeZm_1620_Range0_15(v uint32) (uint32, bool) {
+	if !stripRawZ(&v) {
+		return 0, false
+	}
 	if v <= 15 {
 		return v << 16, true
 	}
@@ -261,6 +379,9 @@ func encodeZm_1620_Range0_15(v uint32) (uint32, bool) {
 // bit range mappings:
 // Zm: [16:19)
 func encodeZm1619_32Bit(v uint32) (uint32, bool) {
+	if !stripRawZ(&v) {
+		return 0, false
+	}
 	if v > 7 {
 		return 0, false
 	}
@@ -295,6 +416,9 @@ func encodeI2hI2l_1120_64Bit(v uint32) (uint32, bool) {
 // bit range mappings:
 // Zm: [16:20)
 func encodeZm1620_64Bit(v uint32) (uint32, bool) {
+	if !stripRawZ(&v) {
+		return 0, false
+	}
 	if v > 15 {
 		return 0, false
 	}
@@ -329,6 +453,9 @@ func encodeI2_1921_8To32Bit(v uint32) (uint32, bool) {
 // bit range mappings:
 // Zm: [16:19)
 func encodeZm1619_8To32Bit(v uint32) (uint32, bool) {
+	if !stripRawZ(&v) {
+		return 0, false
+	}
 	if v > 7 {
 		return 0, false
 	}
@@ -411,6 +538,9 @@ func encodeI1_2021_DoublePrecision(v uint32) (uint32, bool) {
 // bit range mappings:
 // Zm: [16:20)
 func encodeZm1620_DoublePrecision(v uint32) (uint32, bool) {
+	if !stripRawZ(&v) {
+		return 0, false
+	}
 	if v > 15 {
 		return 0, false
 	}
@@ -445,6 +575,9 @@ func encodeImm5Signed_1621V2(v uint32) (uint32, bool) {
 // bit range mappings:
 // Zm: [16:19)
 func encodeZm1619_HalfSinglePrecision(v uint32) (uint32, bool) {
+	if !stripRawZ(&v) {
+		return 0, false
+	}
 	if v > 7 {
 		return 0, false
 	}
@@ -479,6 +612,9 @@ func encodeI2_1921_Half(v uint32) (uint32, bool) {
 // bit range mappings:
 // Zm: [16:19)
 func encodeZm_1619_Half(v uint32) (uint32, bool) {
+	if !stripRawZ(&v) {
+		return 0, false
+	}
 	if v <= 7 {
 		return v << 16, true
 	}
@@ -574,6 +710,9 @@ func encodeI1_2021_Single(v uint32) (uint32, bool) {
 // bit range mappings:
 // Zm: [16:20)
 func encodeZm_1620_Single(v uint32) (uint32, bool) {
+	if !stripRawZ(&v) {
+		return 0, false
+	}
 	if v <= 15 {
 		return v << 16, true
 	}
@@ -727,6 +866,9 @@ func encodeImm8UnsignedLsl8(v uint32) (uint32, bool) {
 // bit range mappings:
 // Rdn: [0:5)
 func encodeWdn05(v uint32) (uint32, bool) {
+	if !checkIsR(v) {
+		return 0, false
+	}
 	if v == REG_RSP {
 		return 0, false
 	}
@@ -746,6 +888,9 @@ func encodeVd0564(v uint32) (uint32, bool) {
 // bit range mappings:
 // Rd: [0:5)
 func encodeRd05_SPAllowed(v uint32) (uint32, bool) {
+	if !checkIsR(v) {
+		return 0, false
+	}
 	if v == REG_R31 {
 		return 0, false
 	}
@@ -760,6 +905,9 @@ func encodeRd05_SPAllowed(v uint32) (uint32, bool) {
 // bit range mappings:
 // Rd: [0:5)
 func encodeRd05(v uint32) (uint32, bool) {
+	if !checkIsR(v) {
+		return 0, false
+	}
 	if v == REG_RSP {
 		return 0, false
 	}
@@ -771,17 +919,54 @@ func encodeRd05(v uint32) (uint32, bool) {
 // bit range mappings:
 // Rn: [5:10)
 func encodeRn510(v uint32) (uint32, bool) {
+	if !checkIsR(v) {
+		return 0, false
+	}
 	if v == REG_RSP {
 		return 0, false
 	}
 	return (v & 31) << 5, true
 }
 
-// encodeRm1621 is the implementation of the following encoding logic:
+// encodeRn510SPV2 is the implementation of the following encoding logic:
+// Is the 64-bit name of the general-purpose base register or stack pointer, encoded in the "Rn" field.
+// bit range mappings:
+// Rn: [5:10)
+func encodeRn510SPV2(v uint32) (uint32, bool) {
+	if !checkIsR(v) {
+		return 0, false
+	}
+	if v == REG_R31 {
+		return 0, false
+	}
+	if v == REG_RSP {
+		return 31 << 5, true
+	}
+	return (v & 31) << 5, true
+}
+
+// encodeRm1621V2 is the implementation of the following encoding logic:
+// Is the 64-bit name of the general-purpose offset register, encoded in the "Rm" field.
+// bit range mappings:
+// Rm: [16:21)
+func encodeRm1621V2(v uint32) (uint32, bool) {
+	if !checkIsR(v) {
+		return 0, false
+	}
+	if v == REG_RSP {
+		return 0, false
+	}
+	return (v & 31) << 16, true
+}
+
+// encodeRm1621V1 is the implementation of the following encoding logic:
 // Is the 64-bit name of the second source general-purpose register, encoded in the "Rm" field.
 // bit range mappings:
 // Rm: [16:21)
-func encodeRm1621(v uint32) (uint32, bool) {
+func encodeRm1621V1(v uint32) (uint32, bool) {
+	if !checkIsR(v) {
+		return 0, false
+	}
 	if v == REG_RSP {
 		return 0, false
 	}
@@ -793,6 +978,9 @@ func encodeRm1621(v uint32) (uint32, bool) {
 // bit range mappings:
 // Rdn: [0:5)
 func encodeXdn05(v uint32) (uint32, bool) {
+	if !checkIsR(v) {
+		return 0, false
+	}
 	if v == REG_RSP {
 		return 0, false
 	}
@@ -804,6 +992,9 @@ func encodeXdn05(v uint32) (uint32, bool) {
 // bit range mappings:
 // Rn: [16:21)
 func encodeRn1621_SPAllowed(v uint32) (uint32, bool) {
+	if !checkIsR(v) {
+		return 0, false
+	}
 	if v == REG_R31 {
 		return 0, false
 	}
@@ -1107,6 +1298,83 @@ func encodeShiftTsz58Range1(v uint32) (uint32, bool) {
 	return codeShift588102224, false
 }
 
+// encodeMsz1012 is the implementation of the following encoding logic:
+// Is the index extend and shift specifier,
+// msz	<mod>
+// 00	[absent]
+// x1	LSL
+// 10	LSL
+// bit range mappings:
+// msz: [10:12)
+func encodeMsz1012(v uint32) (uint32, bool) {
+	// This does not accept UXTW and SXTW, check that
+	if v&0b11 != 0 {
+		return 0, false
+	}
+	// Note: this encoding function's semantic is entailed by its peer that
+	// encode <amount>, so just do nothing.
+	return codeNoOp, false
+}
+
+// encodeXs1415 is the implementation of the following encoding logic:
+// Is the index extend and shift specifier,
+// xs	<mod>
+// 0	UXTW
+// 1	SXTW
+// bit range mappings:
+// xs: [14:15)
+func encodeXs1415(v uint32) (uint32, bool) {
+	if v&0b1 != 0 {
+		return 0, true
+	} else if v&0b10 != 0 {
+		return 1 << 14, true
+	}
+	return 0, false
+}
+
+// encodeXs2223 is the implementation of the following encoding logic:
+// Is the index extend and shift specifier,
+// xs	<mod>
+// 0	UXTW
+// 1	SXTW
+// bit range mappings:
+// xs: [22:23)
+func encodeXs2223(v uint32) (uint32, bool) {
+	if v&0b1 != 0 {
+		return 0, true
+	} else if v&0b10 != 0 {
+		return 1 << 22, true
+	}
+	return 0, false
+}
+
+// encodeMsz1012Amount is the implementation of the following encoding logic:
+// Is the index shift amount,
+// msz	<amount>
+// 00	[absent]
+// 01	#1
+// 10	#2
+// 11	#3
+// bit range mappings:
+// msz: [10:12)
+func encodeMsz1012Amount(v uint32) (uint32, bool) {
+	if v <= 3 {
+		return v << 10, true
+	}
+	return 0, false
+}
+
+// encodeZn510V2 is the implementation of the following encoding logic:
+// Is the name of the base scalable vector register, encoded in the "Zn" field.
+// bit range mappings:
+// Zn: [5:10)
+func encodeZn510V2(v uint32) (uint32, bool) {
+	if !stripRawZ(&v) {
+		return 0, false
+	}
+	return v << 5, true
+}
+
 // encodeVd is the implementation of the following encoding logic:
 // Is the name of the destination SIMD&FP register, encoded in the "Vd" field.
 // bit range mappings:
@@ -1140,6 +1408,9 @@ func encodePd(v uint32) (uint32, bool) {
 // bit range mappings:
 // Zd: [0:5)
 func encodeZd(v uint32) (uint32, bool) {
+	if !stripRawZ(&v) {
+		return 0, false
+	}
 	return v, true
 }
 
@@ -1170,7 +1441,21 @@ func encodePd04(v uint32) (uint32, bool) {
 // bit range mappings:
 // Zn: [5:10)
 func encodeZn510MultiSrc1(v uint32) (uint32, bool) {
+	if !stripRawZ(&v) {
+		return 0, false
+	}
 	return v << 5, true
+}
+
+// encodeZt051 is the implementation of the following encoding logic:
+// Is the name of the first scalable vector register to be transferred, encoded in the "Zt" field.
+// bit range mappings:
+// Zt: [0:5)
+func encodeZt051(v uint32) (uint32, bool) {
+	if !stripRawZ(&v) {
+		return 0, false
+	}
+	return v, true
 }
 
 // encodePdnDest is the implementation of the following encoding logic:
@@ -1186,6 +1471,9 @@ func encodePdnDest(v uint32) (uint32, bool) {
 // bit range mappings:
 // Zdn: [0:5)
 func encodeZdnDest(v uint32) (uint32, bool) {
+	if !stripRawZ(&v) {
+		return 0, false
+	}
 	return v, true
 }
 
@@ -1209,11 +1497,14 @@ func encodePn59(v uint32) (uint32, bool) {
 	return v << 5, true
 }
 
-// encodeZn510 is the implementation of the following encoding logic:
+// encodeZn510V1 is the implementation of the following encoding logic:
 // Is the name of the first source scalable vector register, encoded in the "Zn" field.
 // bit range mappings:
 // Zn: [5:10)
-func encodeZn510(v uint32) (uint32, bool) {
+func encodeZn510V1(v uint32) (uint32, bool) {
+	if !stripRawZ(&v) {
+		return 0, false
+	}
 	return v << 5, true
 }
 
@@ -1223,6 +1514,17 @@ func encodeZn510(v uint32) (uint32, bool) {
 // Zn: [5:10)
 func encodeZn510Table1(v uint32) (uint32, bool) {
 	return v << 5, true
+}
+
+// encodeZt054 is the implementation of the following encoding logic:
+// Is the name of the fourth scalable vector register to be transferred, encoded as "Zt" plus 3 modulo 32.
+// bit range mappings:
+// Zt: [0:5)
+func encodeZt054(v uint32) (uint32, bool) {
+	if !stripRawZ(&v) {
+		return 0, false
+	}
+	return (v - 3) % 32, true
 }
 
 // encodePg1013 is the implementation of the following encoding logic:
@@ -1260,6 +1562,28 @@ func encodePg59(v uint32) (uint32, bool) {
 	return v << 5, true
 }
 
+// encodeZm1621V3 is the implementation of the following encoding logic:
+// Is the name of the offset scalable vector register, encoded in the "Zm" field.
+// bit range mappings:
+// Zm: [16:21)
+func encodeZm1621V3(v uint32) (uint32, bool) {
+	if !stripRawZ(&v) {
+		return 0, false
+	}
+	return v << 16, true
+}
+
+// encodeZt05 is the implementation of the following encoding logic:
+// Is the name of the scalable vector register to be transferred, encoded in the "Zt" field.
+// bit range mappings:
+// Zt: [0:5)
+func encodeZt05(v uint32) (uint32, bool) {
+	if !stripRawZ(&v) {
+		return 0, false
+	}
+	return v, true
+}
+
 // encodePd14Plus1 is the implementation of the following encoding logic:
 // Is the name of the second destination scalable predicate register, encoded as "Pd" times 2 plus 1.
 // bit range mappings:
@@ -1285,7 +1609,21 @@ func encodePd04Plus1(v uint32) (uint32, bool) {
 // bit range mappings:
 // Zn: [5:10)
 func encodeZn510MultiSrc2(v uint32) (uint32, bool) {
+	if !stripRawZ(&v) {
+		return 0, false
+	}
 	return (v - 1) << 5, true
+}
+
+// encodeZt052 is the implementation of the following encoding logic:
+// Is the name of the second scalable vector register to be transferred, encoded as "Zt" plus 1 modulo 32.
+// bit range mappings:
+// Zt: [0:5)
+func encodeZt052(v uint32) (uint32, bool) {
+	if !stripRawZ(&v) {
+		return 0, false
+	}
+	return (v - 1) % 32, true
 }
 
 // encodePdmDest is the implementation of the following encoding logic:
@@ -1301,6 +1639,9 @@ func encodePdmDest(v uint32) (uint32, bool) {
 // bit range mappings:
 // Zda: [0:5)
 func encodeZdaDest(v uint32) (uint32, bool) {
+	if !stripRawZ(&v) {
+		return 0, false
+	}
 	return v, true
 }
 
@@ -1328,6 +1669,9 @@ func encodeZm_1619_Range0_7V2(v uint32) (uint32, bool) {
 // bit range mappings:
 // Zm: [16:21)
 func encodeZm1621V2(v uint32) (uint32, bool) {
+	if !stripRawZ(&v) {
+		return 0, false
+	}
 	return v << 16, true
 }
 
@@ -1336,6 +1680,9 @@ func encodeZm1621V2(v uint32) (uint32, bool) {
 // bit range mappings:
 // Zm: [5:10)
 func encodeZm510V1(v uint32) (uint32, bool) {
+	if !stripRawZ(&v) {
+		return 0, false
+	}
 	return (v & 31) << 5, true
 }
 
@@ -1360,6 +1707,9 @@ func encodePdnSrcDst(v uint32) (uint32, bool) {
 // bit range mappings:
 // Zdn: [0:5)
 func encodeZdnSrcDst(v uint32) (uint32, bool) {
+	if !stripRawZ(&v) {
+		return 0, false
+	}
 	return v, true
 }
 
@@ -1384,6 +1734,9 @@ func encodePn59v2(v uint32) (uint32, bool) {
 // bit range mappings:
 // Zm: [16:21)
 func encodeZm1621V1(v uint32) (uint32, bool) {
+	if !stripRawZ(&v) {
+		return 0, false
+	}
 	return v << 16, true
 }
 
@@ -1392,6 +1745,9 @@ func encodeZm1621V1(v uint32) (uint32, bool) {
 // bit range mappings:
 // Zm: [5:10)
 func encodeZm510V2(v uint32) (uint32, bool) {
+	if !stripRawZ(&v) {
+		return 0, false
+	}
 	return (v & 31) << 5, true
 }
 
@@ -1400,6 +1756,9 @@ func encodeZm510V2(v uint32) (uint32, bool) {
 // bit range mappings:
 // Zn: [5:10)
 func encodeZn510Src(v uint32) (uint32, bool) {
+	if !stripRawZ(&v) {
+		return 0, false
+	}
 	return (v & 31) << 5, true
 }
 
@@ -1411,11 +1770,25 @@ func encodeZn510Table3(v uint32) (uint32, bool) {
 	return v << 5, true
 }
 
+// encodeZt053 is the implementation of the following encoding logic:
+// Is the name of the third scalable vector register to be transferred, encoded as "Zt" plus 2 modulo 32.
+// bit range mappings:
+// Zt: [0:5)
+func encodeZt053(v uint32) (uint32, bool) {
+	if !stripRawZ(&v) {
+		return 0, false
+	}
+	return (v - 2) % 32, true
+}
+
 // encodeZda3RdSrcDst is the implementation of the following encoding logic:
 // Is the name of the third source and destination scalable vector register, encoded in the "Zda" field.
 // bit range mappings:
 // Zda: [0:5)
 func encodeZda3RdSrcDst(v uint32) (uint32, bool) {
+	if !stripRawZ(&v) {
+		return 0, false
+	}
 	return v, true
 }
 
@@ -1424,6 +1797,9 @@ func encodeZda3RdSrcDst(v uint32) (uint32, bool) {
 // bit range mappings:
 // Za: [16:21)
 func encodeZa16213Rd(v uint32) (uint32, bool) {
+	if !stripRawZ(&v) {
+		return 0, false
+	}
 	return v << 16, true
 }
 
@@ -1432,6 +1808,9 @@ func encodeZa16213Rd(v uint32) (uint32, bool) {
 // bit range mappings:
 // Za: [5:10)
 func encodeZa5103Rd(v uint32) (uint32, bool) {
+	if !stripRawZ(&v) {
+		return 0, false
+	}
 	return v << 5, true
 }
 
@@ -1440,6 +1819,9 @@ func encodeZa5103Rd(v uint32) (uint32, bool) {
 // bit range mappings:
 // Zk: [5:10)
 func encodeZk5103Rd(v uint32) (uint32, bool) {
+	if !stripRawZ(&v) {
+		return 0, false
+	}
 	return v << 5, true
 }
 
@@ -1472,6 +1854,9 @@ func encodePv59(v uint32) (uint32, bool) {
 // bit range mappings:
 // Rd: [0:5)
 func encodeRd05ZR(v uint32) (uint32, bool) {
+	if !checkIsR(v) {
+		return 0, false
+	}
 	if v == REG_RSP {
 		return 0, false
 	}
@@ -1479,11 +1864,14 @@ func encodeRd05ZR(v uint32) (uint32, bool) {
 	return v & 31, true
 }
 
-// encodeRn510SP is the implementation of the following encoding logic:
+// encodeRn510SPV1 is the implementation of the following encoding logic:
 // Is the number [0-30] of the general-purpose source register or the name SP (31), encoded in the "Rn" field.
 // bit range mappings:
 // Rn: [5:10)
-func encodeRn510SP(v uint32) (uint32, bool) {
+func encodeRn510SPV1(v uint32) (uint32, bool) {
+	if !checkIsR(v) {
+		return 0, false
+	}
 	if v == REG_R31 {
 		return 0, false
 	}
@@ -1498,6 +1886,9 @@ func encodeRn510SP(v uint32) (uint32, bool) {
 // bit range mappings:
 // Rdn: [0:5)
 func encodeRdn05ZR(v uint32) (uint32, bool) {
+	if !checkIsR(v) {
+		return 0, false
+	}
 	if v == REG_RSP {
 		return 0, false
 	}
@@ -1509,6 +1900,9 @@ func encodeRdn05ZR(v uint32) (uint32, bool) {
 // bit range mappings:
 // Rm: [16:21)
 func encodeRm1621ZR(v uint32) (uint32, bool) {
+	if !checkIsR(v) {
+		return 0, false
+	}
 	if v == REG_RSP {
 		return 0, false
 	}
@@ -1520,6 +1914,9 @@ func encodeRm1621ZR(v uint32) (uint32, bool) {
 // bit range mappings:
 // Rm: [5:10)
 func encodeRm510ZR(v uint32) (uint32, bool) {
+	if !checkIsR(v) {
+		return 0, false
+	}
 	if v == REG_RSP {
 		return 0, false
 	}
@@ -1531,6 +1928,9 @@ func encodeRm510ZR(v uint32) (uint32, bool) {
 // bit range mappings:
 // Rn: [5:10)
 func encodeRn510ZR(v uint32) (uint32, bool) {
+	if !checkIsR(v) {
+		return 0, false
+	}
 	if v == REG_RSP {
 		return 0, false
 	}
@@ -1567,6 +1967,21 @@ func encodeVn510(v uint32) (uint32, bool) {
 // Vdn: [0:5)
 func encodeVdn05(v uint32) (uint32, bool) {
 	return v & 31, true
+}
+
+// encodeRm1621XZR is the implementation of the following encoding logic:
+// Is the optional 64-bit name of the general-purpose offset register, defaulting to XZR, encoded in the "Rm" field.
+// bit range mappings:
+// Rm: [16:21)
+func encodeRm1621XZR(v uint32) (uint32, bool) {
+	if v == 0 {
+		// absent case, according to the spec this should be ZR (R31)
+		return 31, true
+	}
+	if !checkIsR(v) {
+		return 0, false
+	}
+	return (v & 31) << 16, true
 }
 
 // encodeI189 is the implementation of the following encoding logic:
@@ -1696,6 +2111,30 @@ func encodeSizeImm13NoOp(v uint32) (uint32, bool) {
 	return codeNoOp, false
 }
 
+// encodeSize2123V1 is the implementation of the following encoding logic:
+// Is the size specifier,
+// size	<T>
+// 00	B
+// 01	H
+// 10	S
+// 11	D
+// bit range mappings:
+// size: [21:23)
+func encodeSize2123V1(v uint32) (uint32, bool) {
+	switch v {
+	case ARNG_B:
+		return 0, true
+	case ARNG_H:
+		return 1 << 21, true
+	case ARNG_S:
+		return 2 << 21, true
+	case ARNG_D:
+		return 3 << 21, true
+	default:
+		return 0, false
+	}
+}
+
 // encodeSizeBHSD2224 is the implementation of the following encoding logic:
 // Is the size specifier,
 // size	<T>
@@ -1799,6 +2238,27 @@ func encodeSizeHSD1719(v uint32) (uint32, bool) {
 		return 2 << 17, true
 	case ARNG_D:
 		return 3 << 17, true
+	}
+	return 0, false
+}
+
+// encodeSize2123V2 is the implementation of the following encoding logic:
+// Is the size specifier,
+// size	<T>
+// 00	RESERVED
+// 01	H
+// 10	S
+// 11	D
+// bit range mappings:
+// size: [21:23)
+func encodeSize2123V2(v uint32) (uint32, bool) {
+	switch v {
+	case ARNG_H:
+		return 1 << 21, true
+	case ARNG_S:
+		return 2 << 21, true
+	case ARNG_D:
+		return 3 << 21, true
 	}
 	return 0, false
 }
