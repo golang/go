@@ -808,9 +808,14 @@ func (pkg *Package) symbolDoc(symbol string) bool {
 	for _, fun := range pkg.findFuncs(symbol) {
 		// Symbol is a function.
 		decl := fun.Decl
+		found = true
+		if short {
+			pkg.Printf("%s\n", pkg.oneLineNode(decl))
+			pkg.exampleSummary(fun.Examples, false)
+			continue
+		}
 		pkg.emit(fun.Doc, decl)
 		pkg.exampleSummary(fun.Examples, true)
-		found = true
 	}
 	for _, ex := range pkg.findExamples(symbol) {
 		pkg.emitExample(ex)
@@ -886,8 +891,12 @@ func (pkg *Package) valueDoc(value *doc.Value, printed map[*ast.GenDecl]bool) {
 		return
 	}
 	value.Decl.Specs = specs
-	pkg.emit(value.Doc, value.Decl)
 	printed[value.Decl] = true
+	if short {
+		pkg.Printf("%s\n", pkg.oneLineNode(value.Decl))
+		return
+	}
+	pkg.emit(value.Doc, value.Decl)
 }
 
 // typeDoc prints the docs for a type, including constructors and other items
@@ -899,6 +908,10 @@ func (pkg *Package) typeDoc(typ *doc.Type) {
 	// If there are multiple types defined, reduce to just this one.
 	if len(decl.Specs) > 1 {
 		decl.Specs = []ast.Spec{spec}
+	}
+	if short {
+		pkg.Printf("%s\n", pkg.oneLineNode(spec))
+		return
 	}
 	pkg.emit(typ.Doc, decl)
 	pkg.newlines(2)

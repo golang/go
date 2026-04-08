@@ -8,6 +8,13 @@ env GOFLAGS=-mod=mod
 go doc y
 stdout 'Package y is.*alphabet'
 stdout 'import "x/y"'
+go doc -short y.Yell
+stdout '^func Yell\(\) string$'
+! stdout 'Yell returns the final letter'
+go doc -short y.Letter
+stdout '^const Letter = "z"$'
+go doc -short y.Alphabet
+stdout '^type Alphabet struct\{\}$'
 go doc x/y
 stdout 'Package y is.*alphabet'
 ! go doc quote.Hello
@@ -74,6 +81,13 @@ require rsc.io/quote v1.5.2
 -- y/y.go --
 // Package y is the next to last package of the alphabet.
 package y
+
+// Yell returns the final letter of the alphabet.
+func Yell() string { return "z" }
+
+const Letter = "z"
+
+type Alphabet struct{}
 
 -- x.go --
 package x
