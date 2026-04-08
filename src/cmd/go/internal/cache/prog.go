@@ -240,7 +240,7 @@ func (c *ProgCache) writeToChild(req *cacheprog.Request, resc chan<- *cacheprog.
 			return err
 		}
 		if err := e.Close(); err != nil {
-			return nil
+			return err
 		}
 		if wrote != req.BodySize {
 			return fmt.Errorf("short write writing body to GOCACHEPROG for action %x, output %x: wrote %v; expected %v",
