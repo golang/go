@@ -751,6 +751,12 @@ var parseRequestURLTests = []struct {
 	{"http://[fe80::%31]:8080/", false},
 	{"http://[fe80::%31%25en0]/", false},
 	{"http://[fe80::%31%25en0]:8080/", false},
+	{"http://[::1%25]evil.com]", false},
+	{"http://[::1%25]evil.com]:80", false},
+	{"http://[fe80::1%25!]/", false},
+	{"http://[fe80::1%25$]/", false},
+	{"http://[fe80::1%25&]/", false},
+
 
 	// These two cases are valid as textual representations as
 	// described in RFC 4007, but are not valid as address
