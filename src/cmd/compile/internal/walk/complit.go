@@ -566,7 +566,7 @@ func anylit(n ir.Node, var_ ir.Node, init *ir.Nodes) {
 			components = int64(t.NumFields())
 		}
 		// initialization of an array or struct with unspecified components (missing fields or arrays)
-		if isSimpleName(var_) || int64(len(n.List)) < components {
+		if isSimpleName(var_) || int64(len(n.List)) < components || !compLitAllFieldsSet(n) {
 			appendWalkStmt(init, ir.NewAssignStmt(base.Pos, var_, nil))
 		}
 
@@ -597,19 +597,8 @@ func oaslit(n *ir.AssignStmt, init *ir.Nodes) bool {
 		// not a special composite literal assignment
 		return false
 	}
-	if !isSimpleName(n.X) {
-		// not a special composite literal assignment
-		return false
-	}
-	x := n.X.(*ir.Name)
 	if !types.Identical(n.X.Type(), n.Y.Type()) {
 		// not a special composite literal assignment
-		return false
-	}
-	if x.Addrtaken() {
-		// If x is address-taken, the RHS may (implicitly) uses LHS.
-		// Not safe to do a special composite literal assignment
-		// (which may expand to multiple assignments).
 		return false
 	}
 
@@ -617,15 +606,183 @@ func oaslit(n *ir.AssignStmt, init *ir.Nodes) bool {
 	default:
 		// not a special composite literal assignment
 		return false
-
 	case ir.OSTRUCTLIT, ir.OARRAYLIT, ir.OSLICELIT, ir.OMAPLIT:
+	}
+
+	// Case 1: LHS is a simple stack-local name (original path).
+	if isSimpleName(n.X) {
+		x := n.X.(*ir.Name)
+		if x.Addrtaken() {
+			// If x is address-taken, the RHS may (implicitly) uses LHS.
+			// Not safe to do a special composite literal assignment
+			// (which may expand to multiple assignments).
+			return false
+		}
 		if ir.Any(n.Y, func(y ir.Node) bool { return ir.Uses(y, x) }) {
 			// not safe to do a special composite literal assignment if RHS uses LHS.
 			return false
 		}
 		anylit(n.Y, n.X, init)
+		return true
 	}
 
+	// Case 2: LHS is an addressable non-name (slice index, array index,
+	// pointer deref, global, struct field through pointer, etc.).
+	// We decompose the struct/array literal into direct field stores
+	// through a pointer to the destination, avoiding a stack temporary
+	// and the associated SSA Zero + Move/Copy operations.
+	return oaslitAddr(n, init)
+}
+
+// oaslitAddr decomposes a composite literal assignment to an addressable
+// non-name target into direct stores through a pointer.
+//
+// For a fully-initialized literal, s[i] = S{A: a, B: b} becomes:
+//
+//	ptr := &s[i]      // bounds check happens once here
+//	(*ptr).A = a
+//	(*ptr).B = b
+//
+// For a partially-initialized literal, s[i] = S{A: a} becomes:
+//
+//	ptr := &s[i]
+//	*ptr = S{}        // zero the destination directly
+//	(*ptr).A = a
+//
+// In both cases this avoids creating a stack temporary. Without this
+// optimization the compiler would emit a Zero of the temp, fill fields
+// into the temp, then emit a Move (or wbMove for pointer-containing
+// types) to copy the temp to the destination. The direct path
+// eliminates the copy entirely; for partial initialization it zeroes
+// the destination in-place instead of zeroing a temp.
+//
+// Safety requirements:
+//   - Only struct/array literals (not slice/map which need runtime calls).
+//   - All RHS values must not alias with the destination. We conservatively
+//     require every RHS value to be a stack-local non-addrtaken name or a
+//     constant, which cannot alias with any addressable destination.
+func oaslitAddr(n *ir.AssignStmt, init *ir.Nodes) bool {
+	// Only decompose struct and array literals. Slice and map literals
+	// involve heap allocation / runtime calls and can't be decomposed
+	// into simple field stores.
+	if n.Y.Op() != ir.OSTRUCTLIT && n.Y.Op() != ir.OARRAYLIT {
+		return false
+	}
+
+	// The LHS must be addressable so we can take its address once.
+	if !ir.IsAddressable(n.X) {
+		return false
+	}
+
+	lit := n.Y.(*ir.CompLitExpr)
+
+	// Ensure no RHS value can alias with the destination. We accept
+	// only constants, nil, and stack-local non-addrtaken names
+	// (parameters, local variables). This guarantees that writing to
+	// the destination field-by-field cannot corrupt any RHS value
+	// that hasn't been read yet. For partial initialization, the
+	// destination is zeroed first (by anylit), so aliasing with a
+	// RHS value would cause that value to read zeroes instead of
+	// original data — still wrong. The same check covers both cases.
+	if !compLitFieldsSafe(lit) {
+		return false
+	}
+
+	// Take the address of the destination once. For slice/array
+	// indexing this evaluates the index and performs the bounds check
+	// exactly once.
+	addr := typecheck.NodAddr(n.X)
+	addr = typecheck.Expr(addr).(*ir.AddrExpr)
+
+	ptr := typecheck.TempAt(base.Pos, ir.CurFunc, addr.Type())
+	appendWalkStmt(init, ir.NewAssignStmt(base.Pos, ptr, addr))
+
+	// Dereference the pointer to use as the destination for anylit.
+	// This mirrors the pattern used in anylit's OPTRLIT case.
+	deref := ir.NewStarExpr(base.Pos, ptr)
+	deref = typecheck.AssignExpr(deref).(*ir.StarExpr)
+
+	anylit(n.Y, deref, init)
+	return true
+}
+
+// compLitFieldsSafe reports whether every field/element value in the
+// composite literal is safe from aliasing with an arbitrary addressable
+// destination. A value is safe if it is a constant, nil, or a stack-local
+// non-addrtaken name (e.g., function parameter), since such values cannot
+// alias with heap, global, or indirectly-addressed memory.
+func compLitFieldsSafe(lit *ir.CompLitExpr) bool {
+	for _, elem := range lit.List {
+		var val ir.Node
+		switch elem.Op() {
+		case ir.OSTRUCTKEY:
+			val = elem.(*ir.StructKeyExpr).Value
+		case ir.OKEY:
+			val = elem.(*ir.KeyExpr).Value
+		default:
+			val = elem
+		}
+		if !exprSafeForDirectStore(val) {
+			return false
+		}
+	}
+	return true
+}
+
+// exprSafeForDirectStore reports whether n is safe to use as a RHS value
+// when decomposing a composite literal assignment into field-by-field stores.
+// Safe expressions cannot alias with any addressable destination.
+func exprSafeForDirectStore(n ir.Node) bool {
+	switch n.Op() {
+	case ir.OLITERAL, ir.ONIL:
+		return true
+	case ir.ONAME:
+		name := n.(*ir.Name)
+		if name.Class == ir.PFUNC {
+			return true
+		}
+		return name.OnStack() && !name.Addrtaken()
+	case ir.OCONV, ir.OCONVNOP:
+		return exprSafeForDirectStore(n.(*ir.ConvExpr).X)
+	case ir.OSTRUCTLIT, ir.OARRAYLIT:
+		return compLitFieldsSafe(n.(*ir.CompLitExpr))
+	}
+	return false
+}
+
+// compLitAllFieldsSet reports whether the composite literal n and all
+// nested struct/array literals recursively have all fields/elements
+// specified. This is used to determine whether zeroing the destination
+// can be skipped: if any nested literal is partial, the destination
+// must be zeroed first since fixedlit only stores the specified fields.
+func compLitAllFieldsSet(n *ir.CompLitExpr) bool {
+	t := n.Type()
+	var components int64
+	if n.Op() == ir.OARRAYLIT {
+		components = t.NumElem()
+	} else {
+		components = int64(t.NumFields())
+	}
+	if int64(len(n.List)) < components {
+		return false
+	}
+	for _, elem := range n.List {
+		var val ir.Node
+		switch elem.Op() {
+		case ir.OSTRUCTKEY:
+			val = elem.(*ir.StructKeyExpr).Value
+		case ir.OKEY:
+			val = elem.(*ir.KeyExpr).Value
+		default:
+			val = elem
+		}
+		switch val.Op() {
+		case ir.OSTRUCTLIT, ir.OARRAYLIT:
+			if !compLitAllFieldsSet(val.(*ir.CompLitExpr)) {
+				return false
+			}
+		}
+	}
 	return true
 }
 

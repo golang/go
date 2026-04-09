@@ -180,6 +180,233 @@ func BenchmarkSimplifyNegDiv(b *testing.B) {
 
 var globbool bool
 
+// --- Struct literal assignment benchmarks ---
+
+// benchStruct is a large-ish struct (8 fields, 104 bytes on 64-bit)
+// used to benchmark struct literal assignment codegen.
+type benchStruct struct {
+	A int
+	B string
+	C float64
+	D int64
+	E bool
+	F string
+	G int
+	H string
+}
+
+var benchStructSink benchStruct
+
+// Nested/embedded struct types for benchmarking.
+type benchInner struct {
+	X int
+	Y string
+}
+
+type benchNested struct {
+	I benchInner
+	Z float64
+	W string
+}
+
+type benchEmbedded struct {
+	benchInner
+	Z float64
+	W string
+}
+
+
+// --- noinline helper functions for benchmarks ---
+
+//go:noinline
+func slAssignLiteral(s []benchStruct, idx int, a int, b string, c float64, d int64, e bool, f string, g int, h string) {
+	s[idx] = benchStruct{A: a, B: b, C: c, D: d, E: e, F: f, G: g, H: h}
+}
+
+//go:noinline
+func slAssignFieldByField(s []benchStruct, idx int, a int, b string, c float64, d int64, e bool, f string, g int, h string) {
+	s[idx].A = a
+	s[idx].B = b
+	s[idx].C = c
+	s[idx].D = d
+	s[idx].E = e
+	s[idx].F = f
+	s[idx].G = g
+	s[idx].H = h
+}
+
+//go:noinline
+func slAssignGlobal(a int, b string, c float64, d int64, e bool, f string, g int, h string) {
+	benchStructSink = benchStruct{A: a, B: b, C: c, D: d, E: e, F: f, G: g, H: h}
+}
+
+//go:noinline
+func slAssignPtr(p *benchStruct, a int, b string, c float64, d int64, e bool, f string, g int, h string) {
+	*p = benchStruct{A: a, B: b, C: c, D: d, E: e, F: f, G: g, H: h}
+}
+
+//go:noinline
+func slAssignNested(s []benchNested, idx int, x int, y string, z float64, w string) {
+	s[idx] = benchNested{I: benchInner{X: x, Y: y}, Z: z, W: w}
+}
+
+//go:noinline
+func slAssignEmbedded(s []benchEmbedded, idx int, x int, y string, z float64, w string) {
+	s[idx] = benchEmbedded{benchInner: benchInner{X: x, Y: y}, Z: z, W: w}
+}
+
+//go:noinline
+func slGetInt() int { return 42 }
+
+//go:noinline
+func slGetString() string { return "hello" }
+
+//go:noinline
+func slAssignFuncCall(s []benchStruct, idx int, c float64, d int64, e bool, g int) {
+	s[idx] = benchStruct{
+		A: slGetInt(), B: slGetString(), C: c, D: d,
+		E: e, F: slGetString(), G: g, H: slGetString(),
+	}
+}
+
+var slGlobalInt int = 99
+
+//go:noinline
+func slAssignAlias(s []benchStruct, idx int, b string, c float64, d int64) {
+	// RHS reads a global (slGlobalInt) — may alias with destination,
+	// so the compiler must use a stack temporary (not optimized).
+	s[idx] = benchStruct{A: slGlobalInt, B: b, C: c, D: d, E: true, F: b, G: 7, H: b}
+}
+
+//go:noinline
+func slAssignPartial(s []benchStruct, idx int, a int) {
+	// Only one field set — zero + one store.
+	s[idx] = benchStruct{A: a}
+}
+
+//go:noinline
+func slAssignPartialHalf(s []benchStruct, idx int, a int, b string, c float64, d int64) {
+	// Half the fields set — zero + four stores.
+	s[idx] = benchStruct{A: a, B: b, C: c, D: d}
+}
+
+//go:noinline
+func slAssignZeroValue(s []benchStruct, idx int) {
+	// Zero-value literal — just zero the destination.
+	s[idx] = benchStruct{}
+}
+
+//go:noinline
+func slAssignLHSAlias(s []benchStruct, idx int, a int, c float64, d int64) {
+	// RHS reads directly from the destination slice element.
+	// exprSafeForDirectStore rejects these (field access through slice index),
+	// so the compiler falls back to the stack temporary path.
+	s[idx] = benchStruct{A: a, B: s[idx].B, C: c, D: d, E: s[idx].E, F: s[idx].F, G: s[idx].G, H: s[idx].H}
+}
+
+//go:noinline
+func slAssignNestedPartial(s []benchNested, idx int, x int, z float64, w string) {
+	// Outer fully set, inner benchInner partial (only X, not Y).
+	// Optimization fires but must zero destination first (compLitAllFieldsSet).
+	s[idx] = benchNested{I: benchInner{X: x}, Z: z, W: w}
+}
+
+//go:noinline
+func slAssignRHSGrowsSlice(s *[]benchStruct, idx int, b string, c float64, d int64) {
+	// RHS lambda grows the slice via append.
+	// The order pass extracts the call to an autotemp, so the
+	// optimization fires (direct stores, no stack temporary).
+	(*s)[idx] = benchStruct{A: func() int { *s = append(*s, benchStruct{}); return 42 }(), B: b, C: c, D: d, E: true, F: b, G: 7, H: b}
+}
+
+// BenchmarkStructLitAssign measures the performance impact of struct literal
+// assignment codegen. When the compiler decomposes struct literals into direct
+// field stores (avoiding DUFFZERO+DUFFCOPY via a stack temporary), this should
+// match or beat field-by-field assignment.
+func BenchmarkStructLitAssign(b *testing.B) {
+	s := make([]benchStruct, 64)
+	str1 := fmt.Sprintf("%s", "hello")
+	str2 := fmt.Sprintf("%s", "world")
+	str3 := fmt.Sprintf("%s", "test!")
+
+	b.Run("SliceLiteral", func(b *testing.B) {
+		for b.Loop() {
+			slAssignLiteral(s, 0, 42, str1, 3.14, 100, true, str2, 7, str3)
+		}
+	})
+	b.Run("SliceFieldByField", func(b *testing.B) {
+		for b.Loop() {
+			slAssignFieldByField(s, 0, 42, str1, 3.14, 100, true, str2, 7, str3)
+		}
+	})
+	b.Run("Global", func(b *testing.B) {
+		for b.Loop() {
+			slAssignGlobal(42, str1, 3.14, 100, true, str2, 7, str3)
+		}
+	})
+	b.Run("PtrDeref", func(b *testing.B) {
+		p := &s[0]
+		for b.Loop() {
+			slAssignPtr(p, 42, str1, 3.14, 100, true, str2, 7, str3)
+		}
+	})
+	b.Run("Nested", func(b *testing.B) {
+		ns := make([]benchNested, 64)
+		for b.Loop() {
+			slAssignNested(ns, 0, 42, str1, 3.14, str2)
+		}
+	})
+	b.Run("Embedded", func(b *testing.B) {
+		es := make([]benchEmbedded, 64)
+		for b.Loop() {
+			slAssignEmbedded(es, 0, 42, str1, 3.14, str2)
+		}
+	})
+	b.Run("FuncCallRHS", func(b *testing.B) {
+		for b.Loop() {
+			slAssignFuncCall(s, 0, 3.14, 100, true, 7)
+		}
+	})
+	b.Run("AliasRHS", func(b *testing.B) {
+		for b.Loop() {
+			slAssignAlias(s, 0, str1, 3.14, 100)
+		}
+	})
+	b.Run("PartialOne", func(b *testing.B) {
+		for b.Loop() {
+			slAssignPartial(s, 0, 42)
+		}
+	})
+	b.Run("PartialHalf", func(b *testing.B) {
+		for b.Loop() {
+			slAssignPartialHalf(s, 0, 42, str1, 3.14, 100)
+		}
+	})
+	b.Run("ZeroValue", func(b *testing.B) {
+		for b.Loop() {
+			slAssignZeroValue(s, 0)
+		}
+	})
+	b.Run("LHSAlias", func(b *testing.B) {
+		for b.Loop() {
+			slAssignLHSAlias(s, 0, 42, 3.14, 100)
+		}
+	})
+	b.Run("NestedPartial", func(b *testing.B) {
+		ns := make([]benchNested, 64)
+		for b.Loop() {
+			slAssignNestedPartial(ns, 0, 42, 3.14, str1)
+		}
+	})
+	b.Run("RHSGrowsSlice", func(b *testing.B) {
+		ms := make([]benchStruct, 1, 1024)
+		for b.Loop() {
+			ms = ms[:1]
+			slAssignRHSGrowsSlice(&ms, 0, str1, 3.14, 100)
+		}
+	})
+}
+
 // containsRight compares strs[i] == str (slice element on left).
 //
 //go:noinline
