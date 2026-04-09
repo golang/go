@@ -2049,6 +2049,9 @@ func (state *dodataState) allocateDataSections(ctxt *Link) {
 	ldr.SetSymValue(gcmaskSym, int64(sect.Length))
 	ldr.SetSymSect(gcmaskSym, sect)
 	state.assignToSection(sect, sym.SGCMASK, sym.SNOPTRBSS)
+	if ctxt.HeadType == objabi.Haix {
+		xcoffUpdateOuterSize(ctxt, int64(sect.Length)-ldr.SymValue(gcmaskSym), sym.SGCMASK)
+	}
 
 	// Code coverage counters are assigned to the .noptrbss section.
 	// We assign them in a separate pass so that they stay aggregated

@@ -605,6 +605,8 @@ func xcoffUpdateOuterSize(ctxt *Link, size int64, stype sym.SymKind) {
 		fsize = Rnd(fsize, int64(symalign(ldr, fft)))
 		tsize := ldr.SymSize(fft)
 		outerSymSize["runtime.pclntab"] = size - (fsize + tsize)
+	case sym.SGCMASK:
+		outerSymSize["runtime.gcmask.*"] = size
 	}
 }
 
