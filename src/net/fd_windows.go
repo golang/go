@@ -217,7 +217,7 @@ func (fd *netFD) accept() (*netFD, error) {
 		return nil, err
 	}
 	if err := netfd.init(); err != nil {
-		fd.Close()
+		netfd.Close()
 		return nil, err
 	}
 
