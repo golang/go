@@ -6835,6 +6835,13 @@ If the loop body terminates (such as by a <code>break</code> statement),
 </ol>
 
 <p>
+If the type of the range expression is a <a href="#Type_parameter_declarations">type parameter</a>,
+all types in its type set must have the same underlying type and the range expression must be valid
+for that type, or, if the type set contains channel types, it must only contain channel types with
+identical element types, and all channel types must permit receive operations.
+</p>
+
+<p>
 The iteration variables may be declared by the "range" clause using a form of
 <a href="#Short_variable_declarations">short variable declaration</a>
 (<code>:=</code>).
@@ -6938,14 +6945,16 @@ var t Tree[string, int]
 for k, v := range t.Walk {
 	// process k, v
 }
-</pre>
 
-<p>
-If the type of the range expression is a <a href="#Type_parameter_declarations">type parameter</a>,
-all types in its type set must have the same underlying type and the range expression must be valid
-for that type, or, if the type set contains channel types, it must only contain channel types with
-identical element types, and all channel types must permit receive operations.
-</p>
+// xor returns the xor-ed bytes of S
+func xor[S ~[]byte](s S) byte {
+	var r byte
+	for _, b := range s {
+		r ^= b
+	}
+	return r
+}
+</pre>
 
 <h3 id="Go_statements">Go statements</h3>
 
