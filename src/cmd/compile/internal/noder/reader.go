@@ -3125,7 +3125,7 @@ func (r *reader) tempCopy(pos src.XPos, expr ir.Node, init *ir.Nodes) *ir.Name {
 
 	assign := ir.NewAssignStmt(pos, tmp, expr)
 	assign.Def = true
-	init.Append(typecheck.Stmt(ir.NewAssignStmt(pos, tmp, expr)))
+	init.Append(typecheck.Stmt(assign))
 
 	tmp.Defn = assign
 
