@@ -467,7 +467,14 @@ func NewFile(r io.ReaderAt) (*File, error) {
 	}
 
 	// Read program headers
-	f.Progs = make([]*Prog, phnum)
+	c := saferio.SliceCap[*Prog](uint64(phnum))
+	if c < 0 {
+		return nil, &FormatError{0, "too many segments", phnum}
+	}
+	if phnum > 0 && ((1<<64)-1)/uint64(phnum) < uint64(phentsize) {
+		return nil, &FormatError{0, "segment header overflow", phnum}
+	}
+	f.Progs = make([]*Prog, 0, c)
 	phdata, err := saferio.ReadDataAt(sr, uint64(phnum)*uint64(phentsize), phoff)
 	if err != nil {
 		return nil, err
@@ -509,7 +516,7 @@ func NewFile(r io.ReaderAt) (*File, error) {
 		}
 		p.sr = io.NewSectionReader(r, int64(p.Off), int64(p.Filesz))
 		p.ReaderAt = p.sr
-		f.Progs[i] = p
+		f.Progs = append(f.Progs, p)
 	}
 
 	if shnum > 0 && shentsize < wantShentsize {
@@ -517,7 +524,7 @@ func NewFile(r io.ReaderAt) (*File, error) {
 	}
 
 	// Read section headers
-	c := saferio.SliceCap[Section](uint64(shnum))
+	c = saferio.SliceCap[Section](uint64(shnum))
 	if c < 0 {
 		return nil, &FormatError{0, "too many sections", shnum}
 	}
