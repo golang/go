@@ -1,6 +1,6 @@
 <!--{
 	"Title": "The Go Programming Language Specification",
-	"Subtitle": "Language version go1.27 (April 7, 2026)",
+	"Subtitle": "Language version go1.27 (April 9, 2026)",
 	"Path": "/ref/spec"
 }-->
 
@@ -4398,8 +4398,8 @@ of the corresponding type parameter. Otherwise instantiation fails.
 </ol>
 
 <p>
-Instantiating a type results in a new non-generic <a href="#Types">named type</a>;
-instantiating a function or method produces a new non-generic function or method.
+Instantiating a generic type, function, or method results in a non-generic type, function,
+or method, respectively.
 </p>
 
 <pre>
@@ -4412,7 +4412,7 @@ type parameter list    type arguments    after substitution
 </pre>
 
 <p>
-When using a generic function, type arguments may be provided explicitly,
+When using a generic function or method, type arguments may be provided explicitly,
 or they may be partially or completely <a href="#Type_inference">inferred</a>
 from the context in which the function is used.
 Provided that they can be inferred, type argument lists may be omitted entirely if the function is:
