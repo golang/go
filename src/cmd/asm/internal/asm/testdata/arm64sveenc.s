@@ -1121,4 +1121,29 @@ TEXT asmtest(SB),DUPOK|NOSPLIT,$-8
 	ZSTNT1W (R6<<2)(R14), P4, [Z13.S]                 // cd7106e5
 	ZSTNT1W (R6)(Z7.S), P4, [Z13.S]                   // ed3046e5
 	ZSTNT1W (R6)(Z7.D), P4, [Z13.D]                   // ed3006e5
+	PCNTP VLx2, PN13.D, R5                            // a583e025
+	PPRFB (R8)(RSP), P3, PSTL3KEEP                    // eccf0884
+	PPRFD (R8<<3)(RSP), P3, PSTL3KEEP                 // eccf8885
+	PPRFH (R8<<1)(RSP), P3, PSTL3KEEP                 // eccf8884
+	PPRFW (R8<<2)(RSP), P3, PSTL3KEEP                 // eccf0885
+	PWHILEGE VLx4, R21, R9, PN12.H                    // 34617525
+	PWHILEGT VLx4, R21, R9, PN12.H                    // 3c617525
+	PWHILEHI VLx4, R21, R9, PN12.H                    // 3c697525
+	PWHILEHS VLx4, R21, R9, PN12.H                    // 34697525
+	PWHILELE VLx4, R21, R9, PN12.H                    // 3c657525
+	PWHILELO VLx4, R21, R9, PN12.H                    // 346d7525
+	PWHILELS VLx4, R21, R9, PN12.H                    // 3c6d7525
+	PWHILELT VLx4, R21, R9, PN12.H                    // 34657525
+	ZPRFB (Z6.S.SXTW)(R14), P2, PLDL1STRM             // c1096684
+	ZPRFB (Z6.D.SXTW)(R14), P2, PLDL1STRM             // c10966c4
+	ZPRFB (Z8.D)(RSP), P3, PSTL3KEEP                  // ec8f68c4
+	ZPRFD (Z6.S.SXTW<<3)(R14), P2, PLDL1STRM          // c1696684
+	ZPRFD (Z6.D.SXTW<<3)(R14), P2, PLDL1STRM          // c16966c4
+	ZPRFD (Z8.D<<3)(RSP), P3, PSTL3KEEP               // ecef68c4
+	ZPRFH (Z6.S.SXTW<<1)(R14), P2, PLDL1STRM          // c1296684
+	ZPRFH (Z6.D.SXTW<<1)(R14), P2, PLDL1STRM          // c12966c4
+	ZPRFH (Z8.D<<1)(RSP), P3, PSTL3KEEP               // ecaf68c4
+	ZPRFW (Z6.S.SXTW<<2)(R14), P2, PLDL1STRM          // c1496684
+	ZPRFW (Z6.D.SXTW<<2)(R14), P2, PLDL1STRM          // c14966c4
+	ZPRFW (Z8.D<<2)(RSP), P3, PSTL3KEEP               // eccf68c4
 	RET

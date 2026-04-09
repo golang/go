@@ -78,11 +78,13 @@ const (
 	enc_imm7
 	enc_imm8
 	enc_msz
+	enc_prfop
 	enc_rot
 	enc_size
 	enc_size0
 	enc_sz
 	enc_tsz
+	enc_vl
 	enc_xs
 )
 
@@ -1729,6 +1731,17 @@ func encodePn59v2(v uint32) (uint32, bool) {
 	return v << 5, true
 }
 
+// encodePNn59 is the implementation of the following encoding logic:
+// Is the name of the source scalable predicate register, with predicate-as-counter encoding, encoded in the "PNn" field.
+// bit range mappings:
+// PNn: [5:9)
+func encodePNn59(v uint32) (uint32, bool) {
+	if v > 15 {
+		return (v - 16) << 5, true
+	}
+	return 0, false
+}
+
 // encodeZm1621V1 is the implementation of the following encoding logic:
 // Is the name of the source scalable vector register, encoded in the "Zm" field.
 // bit range mappings:
@@ -2038,6 +2051,55 @@ func encodePredQualM45(v uint32) (uint32, bool) {
 		return 1 << 4, true
 	}
 	return 0, false
+}
+
+// encodePrfop04 is the implementation of the following encoding logic:
+// Is the prefetch operation specifier,
+// prfop	<prfop>
+// 0000	PLDL1KEEP
+// 0001	PLDL1STRM
+// 0010	PLDL2KEEP
+// 0011	PLDL2STRM
+// 0100	PLDL3KEEP
+// 0101	PLDL3STRM
+// x11x	#uimm4
+// 1000	PSTL1KEEP
+// 1001	PSTL1STRM
+// 1010	PSTL2KEEP
+// 1011	PSTL2STRM
+// 1100	PSTL3KEEP
+// 1101	PSTL3STRM
+// bit range mappings:
+// prfop: [0:4)
+func encodePrfop04(v uint32) (uint32, bool) {
+	switch SpecialOperand(v) {
+	case SPOP_PLDL1KEEP:
+		return 0, true
+	case SPOP_PLDL1STRM:
+		return 1, true
+	case SPOP_PLDL2KEEP:
+		return 2, true
+	case SPOP_PLDL2STRM:
+		return 3, true
+	case SPOP_PLDL3KEEP:
+		return 4, true
+	case SPOP_PLDL3STRM:
+		return 5, true
+	case SPOP_PSTL1KEEP:
+		return 8, true
+	case SPOP_PSTL1STRM:
+		return 9, true
+	case SPOP_PSTL2KEEP:
+		return 10, true
+	case SPOP_PSTL2STRM:
+		return 11, true
+	case SPOP_PSTL3KEEP:
+		return 12, true
+	case SPOP_PSTL3STRM:
+		return 13, true
+	default:
+		return 0, false
+	}
 }
 
 // encodeImm5bSigned_1621 is the implementation of the following encoding logic:
@@ -2800,6 +2862,42 @@ func encodeI12324(v uint32) (uint32, bool) {
 		return 0, false
 	}
 	return v << 23, true
+}
+
+// encodeVl1011 is the implementation of the following encoding logic:
+// Is the vl specifier,
+// vl	<vl>
+// 0	VLx2
+// 1	VLx4
+// bit range mappings:
+// vl: [10:11)
+func encodeVl1011(v uint32) (uint32, bool) {
+	switch SpecialOperand(v) {
+	case SPOP_VLx2:
+		return 0, true
+	case SPOP_VLx4:
+		return 1 << 10, true
+	default:
+		return 0, false
+	}
+}
+
+// encodeVl1314 is the implementation of the following encoding logic:
+// Is the vl specifier,
+// vl	<vl>
+// 0	VLx2
+// 1	VLx4
+// bit range mappings:
+// vl: [13:14)
+func encodeVl1314(v uint32) (uint32, bool) {
+	switch SpecialOperand(v) {
+	case SPOP_VLx2:
+		return 0, true
+	case SPOP_VLx4:
+		return 1 << 13, true
+	default:
+		return 0, false
+	}
 }
 
 // encodeNoop is the implementation of the following encoding logic:

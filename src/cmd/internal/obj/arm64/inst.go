@@ -146,6 +146,9 @@ func aclass(a *obj.Addr) AClass {
 	if a.Type == obj.TYPE_MEM {
 		return AC_MEMEXT
 	}
+	if a.Type == obj.TYPE_SPECIAL {
+		return AC_SPECIAL
+	}
 	panic("unknown AClass")
 }
 
@@ -329,6 +332,20 @@ func addrComponent(a *obj.Addr, acl AClass, index int) uint32 {
 			default:
 				panic(fmt.Errorf("unknown Q value at %d in AClass %d", index, acl))
 			}
+		default:
+			panic(fmt.Errorf("unknown elm index at %d in AClass %d", index, acl))
+		}
+	//	AClass: AC_SPECIAL
+	//	GNU mnemonic: <special>
+	//	Go mnemonic:
+	//		special
+	//	Encoding:
+	//		Type = TYPE_SPECIAL
+	//		Offset = SpecialOperand enum value
+	case AC_SPECIAL:
+		switch index {
+		case 0:
+			return uint32(a.Offset)
 		default:
 			panic(fmt.Errorf("unknown elm index at %d in AClass %d", index, acl))
 		}
