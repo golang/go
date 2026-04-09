@@ -10,6 +10,10 @@ func LEUint16(b []byte) uint16 {
 	return byteorder.LEUint16(b)
 }
 
+func LEUint32(b []byte) uint32 {
+	return byteorder.LEUint32(b)
+}
+
 func BEUint32(b []byte) uint32 {
 	return byteorder.BEUint32(b)
 }

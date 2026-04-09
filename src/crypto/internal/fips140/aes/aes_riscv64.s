@@ -1,0 +1,230 @@
+// Copyright 2026 The Go Authors. All rights reserved.
+// Use of this source code is governed by a BSD-style
+// license that can be found in the LICENSE file.
+
+//go:build !purego
+
+#include "textflag.h"
+
+// func encryptBlockAsm(nr int, xk *uint32, dst, src *byte)
+TEXT ·encryptBlockAsm(SB),NOSPLIT,$0
+	MOV	nr+0(FP), X10
+	MOV	xk+8(FP), X11
+	MOV	dst+16(FP), X12
+	MOV	src+24(FP), X13
+
+	VSETIVLI $4, E32, M1, TA, MA, X0
+
+	VLE32V	(X13), V2 // V2 = src
+
+	// Round 0
+	VLE32V	(X11), V10
+	VAESZVS	V10, V2
+	ADD	$16, X11
+
+	// Round middles 1 .. nr - 2
+	VLE32V	(X11), V11
+	VAESEMVS	V11, V2
+	ADD	$16, X11
+	VLE32V	(X11), V12
+	VAESEMVS	V12, V2
+	ADD	$16, X11
+	VLE32V	(X11), V13
+	VAESEMVS	V13, V2
+	ADD	$16, X11
+	VLE32V	(X11), V14
+	VAESEMVS	V14, V2
+	ADD	$16, X11
+	VLE32V	(X11), V15
+	VAESEMVS	V15, V2
+	ADD	$16, X11
+	VLE32V	(X11), V16
+	VAESEMVS	V16, V2
+	ADD	$16, X11
+	VLE32V	(X11), V17
+	VAESEMVS	V17, V2
+	ADD	$16, X11
+	VLE32V	(X11), V18
+	VAESEMVS	V18, V2
+	ADD	$16, X11
+	VLE32V	(X11), V19
+	VAESEMVS	V19, V2
+	ADD	$16, X11
+
+	SUB	$12, X10, X20
+	BLTZ	X20, encFinalRound
+	BEQZ	X20, encLastThreeRounds
+
+	VLE32V	(X11), V11
+	VAESEMVS	V11, V2
+	ADD	$16, X11
+
+	VLE32V	(X11), V12
+	VAESEMVS	V12, V2
+	ADD	$16, X11
+
+encLastThreeRounds:
+	VLE32V	(X11), V13
+	VAESEMVS	V13, V2
+	ADD	$16, X11
+
+	VLE32V	(X11), V14
+	VAESEMVS	V14, V2
+	ADD	$16, X11
+
+encFinalRound:
+	VLE32V	(X11), V10
+	VAESEFVS	V10, V2
+	VSE32V	V2, (X12)
+	RET
+
+// func decryptBlockAsm(nr int, xk *uint32, dst, src *byte)
+TEXT ·decryptBlockAsm(SB),NOSPLIT,$0
+	MOV	nr+0(FP), X10
+	MOV	xk+8(FP), X11
+	MOV	dst+16(FP), X12
+	MOV	src+24(FP), X13
+
+	VSETIVLI $4, E32, M1, TA, MA, X0
+
+	VLE32V	(X13), V2 // V2 = src
+
+	// Round 0
+	VLE32V	(X11), V10
+	VAESZVS	V10, V2
+	ADD	$16, X11
+
+	// Round middles 1 .. nr - 2
+	VLE32V	(X11), V11
+	VAESDMVS	V11, V2
+	ADD	$16, X11
+	VLE32V	(X11), V12
+	VAESDMVS	V12, V2
+	ADD	$16, X11
+	VLE32V	(X11), V13
+	VAESDMVS	V13, V2
+	ADD	$16, X11
+	VLE32V	(X11), V14
+	VAESDMVS	V14, V2
+	ADD	$16, X11
+	VLE32V	(X11), V15
+	VAESDMVS	V15, V2
+	ADD	$16, X11
+	VLE32V	(X11), V16
+	VAESDMVS	V16, V2
+	ADD	$16, X11
+	VLE32V	(X11), V17
+	VAESDMVS	V17, V2
+	ADD	$16, X11
+	VLE32V	(X11), V18
+	VAESDMVS	V18, V2
+	ADD	$16, X11
+	VLE32V	(X11), V19
+	VAESDMVS	V19, V2
+	ADD	$16, X11
+
+	SUB	$12, X10, X20
+	BLTZ	X20, decLastRound
+	BEQZ	X20, decLastThreeRounds
+
+	VLE32V	(X11), V11
+	VAESDMVS	V11, V2
+	ADD	$16, X11
+
+	VLE32V	(X11), V12
+	VAESDMVS	V12, V2
+	ADD	$16, X11
+decLastThreeRounds:
+	VLE32V	(X11), V13
+	VAESDMVS	V13, V2
+	ADD	$16, X11
+	VLE32V	(X11), V14
+	VAESDMVS	V14, V2
+	ADD	$16, X11
+
+decLastRound:
+	VLE32V	(X11), V10
+	VAESDFVS	V10, V2
+	VSE32V	V2, (X12)
+	RET
+
+#define KF1M(ROUND, CUR, NEXT) \
+	VAESKF1VI	ROUND, CUR, NEXT; \
+	VSE32V	NEXT, (X12);	\
+	ADD	$16, X12;	\
+	VSE32V	NEXT, (X13);	\
+	SUB	$16, X13;	\
+
+#define KF2M(ROUND, CUR, NEXT) \
+	VAESKF2VI	ROUND, CUR, NEXT;	\
+	VSE32V	NEXT, (X12);	\
+	ADD	$16, X12;	\
+	VSE32V	NEXT, (X13);	\
+	SUB	$16, X13;	\
+
+// func expandKeyAsm(nr int, key *byte, enc *uint32, dec *uint32)
+TEXT ·expandKeyAsm(SB),NOSPLIT,$0
+	MOV	nr+0(FP), X10
+	MOV	key+8(FP), X11
+	MOV	enc+16(FP), X12
+	MOV	dec+24(FP), X13
+
+	VSETIVLI	$4, E32, M1, TA, MA, X0
+
+	MOV	$14, X20
+	BEQ	X20, X10, expand256
+
+expand128:
+	ADD	$160, X13
+	VLE32V	(X11), V2
+	VSE32V	V2, (X12)
+	ADD	$16, X12
+	VSE32V	V2, (X13)
+	SUB	$16, X13
+
+	KF1M($1, V2, V3)
+	KF1M($2, V3, V4)
+	KF1M($3, V4, V5)
+	KF1M($4, V5, V6)
+	KF1M($5, V6, V7)
+	KF1M($6, V7, V8)
+	KF1M($7, V8, V9)
+	KF1M($8, V9, V10)
+	KF1M($9, V10, V11)
+
+	VAESKF1VI	$10, V11, V12
+	VSE32V	V12, (X12)
+	VSE32V	V12, (X13)
+	RET
+
+expand256:
+	ADD	$224, X13
+	VLE32V	(X11), V2
+	ADD	$16, X11
+	VLE32V	(X11), V3
+	VSE32V	V2, (X12)
+	ADD	$16, X12
+	VSE32V	V2, (X13)
+	SUB	$16, X13
+	VSE32V	V3, (X12)
+	ADD	$16, X12
+	VSE32V	V3, (X13)
+	SUB	$16, X13
+
+	KF2M($2, V3, V2)
+	KF2M($3, V2, V3)
+	KF2M($4, V3, V2)
+	KF2M($5, V2, V3)
+	KF2M($6, V3, V2)
+	KF2M($7, V2, V3)
+	KF2M($8, V3, V2)
+	KF2M($9, V2, V3)
+	KF2M($10, V3, V2)
+	KF2M($11, V2, V3)
+	KF2M($12, V3, V2)
+	KF2M($13, V2, V3)
+
+	VAESKF2VI	$14, V3, V2
+	VSE32V	V2, (X12)
+	VSE32V	V2, (X13)
+	RET
