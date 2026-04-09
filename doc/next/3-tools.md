@@ -13,5 +13,10 @@ This reports the use of standard library symbols that are too new
 for the Go version in force in the referring file,
 as determined by `go` directive in `go.mod` and build tags on the file.
 
+<!-- go.dev/issue/78090 -->
+
+The `go` command no longer has support for the bzr version control system.
+It will no longer be able to directly fetch modules hosted on bzr servers.
+
 ### Cgo {#cgo}
 

@@ -293,7 +293,6 @@ specifies the given repository, with or without the .vcs suffix,
 using the named version control system, and then the path inside
 that repository. The supported version control systems are:
 
-	Bazaar      .bzr
 	Fossil      .fossil
 	Git         .git
 	Mercurial   .hg
@@ -343,7 +342,7 @@ The meta tag should appear as early in the file as possible.
 In particular, it should appear before any raw JavaScript or CSS,
 to avoid confusing the go command's restricted parser.
 
-The vcs is one of "bzr", "fossil", "git", "hg", "svn".
+The vcs is one of "fossil", "git", "hg", "svn".
 
 The repo-root is the root of the version control system
 containing a scheme and not containing a .vcs qualifier.

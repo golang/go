@@ -3022,7 +3022,6 @@
 // using the named version control system, and then the path inside
 // that repository. The supported version control systems are:
 //
-//	Bazaar      .bzr
 //	Fossil      .fossil
 //	Git         .git
 //	Mercurial   .hg
@@ -3072,7 +3071,7 @@
 // In particular, it should appear before any raw JavaScript or CSS,
 // to avoid confusing the go command's restricted parser.
 //
-// The vcs is one of "bzr", "fossil", "git", "hg", "svn".
+// The vcs is one of "fossil", "git", "hg", "svn".
 //
 // The repo-root is the root of the version control system
 // containing a scheme and not containing a .vcs qualifier.
@@ -3711,7 +3710,7 @@
 //
 // To balance the functionality and security concerns, the go command
 // by default will only use git and hg to download code from public servers.
-// But it will use any known version control system (bzr, fossil, git, hg, svn)
+// But it will use any known version control system (fossil, git, hg, svn)
 // to download code from private servers, defined as those hosting packages
 // matching the GOPRIVATE variable (see 'go help private'). The rationale behind
 // allowing only Git and Mercurial is that these two systems have had the most

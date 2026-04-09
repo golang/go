@@ -2299,6 +2299,8 @@ func isBadEmbedName(name string) bool {
 	case "":
 		return true
 	// Version control directories won't be present in module.
+	// TODO(matloob): Keep .bzr for now since we previously disallowed it
+	// even though bzr is no longer supported.
 	case ".bzr", ".hg", ".git", ".svn":
 		return true
 	}

@@ -142,7 +142,7 @@ way to cause the invoked version control command to run unintended code.
 
 To balance the functionality and security concerns, the go command
 by default will only use git and hg to download code from public servers.
-But it will use any known version control system (bzr, fossil, git, hg, svn)
+But it will use any known version control system (fossil, git, hg, svn)
 to download code from private servers, defined as those hosting packages
 matching the GOPRIVATE variable (see 'go help private'). The rationale behind
 allowing only Git and Mercurial is that these two systems have had the most
