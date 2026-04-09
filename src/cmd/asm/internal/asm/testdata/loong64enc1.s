@@ -621,11 +621,11 @@ lable2:
 	XVSLTW		X1, X2, X3      // 43040774
 	XVSLTV		X1, X2, X3      // 43840774
 	VSLTB		$1, V2, V3      // 43048672
-	VSLTH		$16, V2, V3     // 43c08672
+	VSLTH		$-16, V2, V3    // 43c08672
 	VSLTW		$-16, V2, V3    // 43408772
 	VSLTV		$-15, V2, V3    // 43c48772
 	XVSLTB		$1, X2, X3      // 43048676
-	XVSLTH		$16, X2, X3     // 43c08676
+	XVSLTH		$-16, X2, X3    // 43c08676
 	XVSLTW		$-16, X2, X3    // 43408776
 	XVSLTV		$-16, X2, X3    // 43c08776
 
@@ -882,6 +882,7 @@ lable2:
 	XVSUBQ		X3, X2, X1	// 418c2d75
 
 	// [X]VADD{B,H,W,V}U, [X]VSUB{B,H,W,V}U instructions
+	VADDBU		$1, V2		// 42048a72
 	VADDBU		$1, V2, V1	// 41048a72
 	VADDHU		$2, V2, V1	// 41888a72
 	VADDWU		$3, V2, V1	// 410c8b72
