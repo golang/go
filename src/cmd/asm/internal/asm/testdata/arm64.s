@@ -446,6 +446,22 @@ TEXT	foo(SB), DUPOK|NOSPLIT, $-8
 	VPMULL2	V2.D2, V1.D2, V4.Q1             // 24e0e24e
 	VPMULL	V2.B8, V1.B8, V3.H8             // 23e0220e
 	VPMULL2	V2.B16, V1.B16, V4.H8           // 24e0224e
+	VUMULL	V0.H4, V1.H4, V21.S4            // 35c0602e
+	VUMULL2	V0.H8, V1.H8, V22.S4            // 36c0606e
+	VUMULL	V22.H4, V31.H4, V23.S4          // f7c3762e
+	VUMULL2	V22.H8, V31.H8, V24.S4          // f8c3766e
+	VUMLAL	V0.H4, V1.H4, V21.S4            // 3580602e
+	VUMLAL2	V0.H8, V1.H8, V22.S4            // 3680606e
+	VUMLSL	V0.H4, V1.H4, V21.S4            // 35a0602e
+	VUMLSL2	V0.H8, V1.H8, V22.S4            // 36a0606e
+	VSMULL	V0.B8, V1.B8, V5.H8             // 25c0200e
+	VSMULL2	V0.B16, V1.B16, V6.H8           // 26c0204e
+	VSMULL	V0.S2, V1.S2, V7.D2             // 27c0a00e
+	VSMULL2	V0.S4, V1.S4, V8.D2             // 28c0a04e
+	VSMLAL	V0.H4, V1.H4, V21.S4            // 3580600e
+	VSMLAL2	V0.H8, V1.H8, V22.S4            // 3680604e
+	VSMLSL	V0.H4, V1.H4, V21.S4            // 35a0600e
+	VSMLSL2	V0.H8, V1.H8, V22.S4            // 36a0604e
 	VEOR3	V2.B16, V7.B16, V12.B16, V25.B16            // 990907ce
 	VBCAX	V1.B16, V2.B16, V26.B16, V31.B16            // 5f0722ce
 	VREV32	V5.B16, V5.B16                  // a508206e
