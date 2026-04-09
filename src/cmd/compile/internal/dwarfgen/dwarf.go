@@ -434,10 +434,7 @@ func preInliningDcls(fnsym *obj.LSym) []*ir.Name {
 	fn := base.Ctxt.DwFixups.GetPrecursorFunc(fnsym).(*ir.Func)
 	var rdcl []*ir.Name
 	for _, n := range fn.Inl.Dcl {
-		c := n.Sym().Name[0]
-		// Avoid reporting "_" parameters, since if there are more than
-		// one, it can result in a collision later on, as in #23179.
-		if n.Sym().Name == "_" || c == '.' || n.Type().IsUntyped() {
+		if n.Sym().Name[0] == '.' || !shouldEmitDwarfVarSafe(n) {
 			continue
 		}
 		rdcl = append(rdcl, n)
@@ -669,6 +666,15 @@ func shouldEmitDwarfVar(n *ir.Name) bool {
 	if ir.IsAutoTmp(n) {
 		return false
 	}
+	return shouldEmitDwarfVarSafe(n)
+}
+
+// shouldEmitDwarfVarSafe is like shouldEmitDwarfVar but omits the ir.IsAutoTmp
+// check, making it safe to call during parallel compilation on shared ir.Name
+// nodes (e.g., in preInliningDcls). ir.IsAutoTmp reads the mutable flags bitset,
+// which can race with other goroutines writing different flags during compilation.
+// Auto temps have names starting with "." so callers must filter those separately.
+func shouldEmitDwarfVarSafe(n *ir.Name) bool {
 	if !ssa.IsVarWantedForDebug(n) {
 		return false
 	}
