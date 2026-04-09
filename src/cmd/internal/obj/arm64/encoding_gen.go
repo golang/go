@@ -1997,6 +1997,118 @@ func encodeRm1621XZR(v uint32) (uint32, bool) {
 	return (v & 31) << 16, true
 }
 
+// encodeImm41620V1 is the implementation of the following encoding logic:
+// Is the optional signed immediate byte offset, a multiple of 16 in the range -128 to 112, defaulting to 0, encoded in the "imm4" field.
+// bit range mappings:
+// imm4: [16:20)
+func encodeImm41620V1(v uint32) (uint32, bool) {
+	vi := int32(v)
+	if vi >= -128 && vi <= 112 && vi%16 == 0 {
+		return uint32((vi/16)&15) << 16, true
+	}
+	return 0, false
+}
+
+// encodeImm41620V2 is the implementation of the following encoding logic:
+// Is the optional signed immediate byte offset, a multiple of 32 in the range -256 to 224, defaulting to 0, encoded in the "imm4" field.
+// bit range mappings:
+// imm4: [16:20)
+func encodeImm41620V2(v uint32) (uint32, bool) {
+	vi := int32(v)
+	if vi >= -256 && vi <= 224 && vi%32 == 0 {
+		return uint32((vi/32)&15) << 16, true
+	}
+	return 0, false
+}
+
+// encodeImm61622V1 is the implementation of the following encoding logic:
+// Is the optional unsigned immediate byte offset, a multiple of 2 in the range 0 to 126, defaulting to 0, encoded in the "imm6" field.
+// bit range mappings:
+// imm6: [16:22)
+func encodeImm61622V1(v uint32) (uint32, bool) {
+	if v <= 126 && v%2 == 0 {
+		return (v / 2) << 16, true
+	}
+	return 0, false
+}
+
+// encodeImm51621V1 is the implementation of the following encoding logic:
+// Is the optional unsigned immediate byte offset, a multiple of 2 in the range 0 to 62, defaulting to 0, encoded in the "imm5" field.
+// bit range mappings:
+// imm5: [16:21)
+func encodeImm51621V1(v uint32) (uint32, bool) {
+	if v <= 62 && v%2 == 0 {
+		return (v / 2) << 16, true
+	}
+	return 0, false
+}
+
+// encodeImm51621V2 is the implementation of the following encoding logic:
+// Is the optional unsigned immediate byte offset, a multiple of 4 in the range 0 to 124, defaulting to 0, encoded in the "imm5" field.
+// bit range mappings:
+// imm5: [16:21)
+func encodeImm51621V2(v uint32) (uint32, bool) {
+	if v <= 124 && v%4 == 0 {
+		return (v / 4) << 16, true
+	}
+	return 0, false
+}
+
+// encodeImm61622V2 is the implementation of the following encoding logic:
+// Is the optional unsigned immediate byte offset, a multiple of 4 in the range 0 to 252, defaulting to 0, encoded in the "imm6" field.
+// bit range mappings:
+// imm6: [16:22)
+func encodeImm61622V2(v uint32) (uint32, bool) {
+	if v <= 252 && v%4 == 0 {
+		return (v / 4) << 16, true
+	}
+	return 0, false
+}
+
+// encodeImm51621V3 is the implementation of the following encoding logic:
+// Is the optional unsigned immediate byte offset, a multiple of 8 in the range 0 to 248, defaulting to 0, encoded in the "imm5" field.
+// bit range mappings:
+// imm5: [16:21)
+func encodeImm51621V3(v uint32) (uint32, bool) {
+	if v <= 248 && v%8 == 0 {
+		return (v / 8) << 16, true
+	}
+	return 0, false
+}
+
+// encodeImm61622V3 is the implementation of the following encoding logic:
+// Is the optional unsigned immediate byte offset, a multiple of 8 in the range 0 to 504, defaulting to 0, encoded in the "imm6" field.
+// bit range mappings:
+// imm6: [16:22)
+func encodeImm61622V3(v uint32) (uint32, bool) {
+	if v <= 504 && v%8 == 0 {
+		return (v / 8) << 16, true
+	}
+	return 0, false
+}
+
+// encodeImm51621V4 is the implementation of the following encoding logic:
+// Is the optional unsigned immediate byte offset, in the range 0 to 31, defaulting to 0, encoded in the "imm5" field.
+// bit range mappings:
+// imm5: [16:21)
+func encodeImm51621V4(v uint32) (uint32, bool) {
+	if v <= 31 {
+		return v << 16, true
+	}
+	return 0, false
+}
+
+// encodeImm61622V4 is the implementation of the following encoding logic:
+// Is the optional unsigned immediate byte offset, in the range 0 to 63, defaulting to 0, encoded in the "imm6" field.
+// bit range mappings:
+// imm6: [16:22)
+func encodeImm61622V4(v uint32) (uint32, bool) {
+	if v <= 63 {
+		return v << 16, true
+	}
+	return 0, false
+}
+
 // encodeI189 is the implementation of the following encoding logic:
 // Is the portion index, in the range 0 to 1, encoded in the "i1" field.
 // bit range mappings:

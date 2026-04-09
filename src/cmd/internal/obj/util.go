@@ -302,7 +302,7 @@ func writeDconv(w io.Writer, p *Prog, a *Addr, abiDetail bool) {
 		a.writeNameTo(w, abiDetail)
 
 	case TYPE_MEM:
-		if buildcfg.GOARCH == "arm64" && (a.Scale < 0 || isZReg(int(a.Reg)) || isZReg(int(a.Index))) {
+		if buildcfg.GOARCH == "arm64" && (a.Scale < 0 || (a.Index != REG_NONE && (isZReg(int(a.Reg)) || isZReg(int(a.Index))))) {
 			// SVE extended addressing pattern
 			amount := 0
 			mod := 0

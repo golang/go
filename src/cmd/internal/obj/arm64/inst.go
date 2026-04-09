@@ -144,6 +144,9 @@ func aclass(a *obj.Addr) AClass {
 		}
 	}
 	if a.Type == obj.TYPE_MEM {
+		if a.Index == 0 {
+			return AC_MEMOFF
+		}
 		return AC_MEMEXT
 	}
 	if a.Type == obj.TYPE_SPECIAL {
@@ -345,6 +348,25 @@ func addrComponent(a *obj.Addr, acl AClass, index int) uint32 {
 	case AC_SPECIAL:
 		switch index {
 		case 0:
+			return uint32(a.Offset)
+		default:
+			panic(fmt.Errorf("unknown elm index at %d in AClass %d", index, acl))
+		}
+	//	AClass: AC_MEMOFF
+	//	GNU mnemonic: [<reg>.<T>, #<imm>]
+	//	Go mnemonic:
+	//		imm(reg.T)
+	//	Encoding:
+	//		Type = TYPE_MEM
+	//		Reg = Base register (with arrangement if applicable)
+	//		Offset = Immediate offset
+	case AC_MEMOFF:
+		switch index {
+		case 0:
+			return uint32(a.Reg & 31)
+		case 1:
+			return uint32((a.Reg >> 5) & 15)
+		case 2:
 			return uint32(a.Offset)
 		default:
 			panic(fmt.Errorf("unknown elm index at %d in AClass %d", index, acl))
@@ -758,5 +780,6 @@ func (i *instEncoder) tryEncode(p *obj.Prog) (uint32, bool) {
 			}
 		}
 	}
+
 	return bin, true
 }

@@ -1045,7 +1045,7 @@ func (p *Parser) registerIndirect(a *obj.Addr, prefix rune) {
 		}
 
 		if p.peek() != '(' {
-			p.errorf("expected second parenthesis for SVE extended addressing")
+			a.Reg = encodedR1
 			return
 		}
 		p.get('(')
