@@ -212,7 +212,7 @@ func (fd *netFD) accept() (*netFD, error) {
 	// Associate our new socket with IOCP.
 	netfd := newFD(s, fd.family, fd.sotype, fd.net)
 	if err := netfd.init(); err != nil {
-		fd.Close()
+		netfd.Close()
 		return nil, err
 	}
 
