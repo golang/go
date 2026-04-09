@@ -451,7 +451,7 @@ Cname:
 			if !syscall.DnsNameCompare(name, p.Name) {
 				continue
 			}
-			name = (*syscall.DNSPTRData)(unsafe.Pointer(&r.Data[0])).Host
+			name = (*syscall.DNSPTRData)(unsafe.Pointer(&p.Data[0])).Host
 			continue Cname
 		}
 		break
