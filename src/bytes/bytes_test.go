@@ -1976,6 +1976,27 @@ func TestCut(t *testing.T) {
 	}
 }
 
+func TestCutLast(t *testing.T) {
+	tests := []struct {
+		s, sep        string
+		before, after string
+		found         bool
+	}{
+		{"a/b/c", "/", "a/b", "c", true},
+		{"a//b//c", "//", "a//b", "c", true},
+		{"abc", "/", "abc", "", false},
+		{"abc", "", "abc", "", true},
+		{"", "", "", "", true},
+		{"/abc", "/", "", "abc", true},
+		{"abc/", "/", "abc", "", true},
+	}
+	for _, tt := range tests {
+		if before, after, found := CutLast([]byte(tt.s), []byte(tt.sep)); string(before) != tt.before || string(after) != tt.after || found != tt.found {
+			t.Errorf("CutLast(%q, %q) = %q, %q, %v; want %q, %q, %v", tt.s, tt.sep, before, after, found, tt.before, tt.after, tt.found)
+		}
+	}
+}
+
 var cutPrefixTests = []struct {
 	s, sep string
 	after  string
