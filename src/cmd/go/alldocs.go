@@ -1446,6 +1446,9 @@
 // Vendor resets the main module's vendor directory to include all packages
 // needed to build and test all the main module's packages.
 // It does not include test code for vendored packages.
+// It copies package source files and files matched by //go:embed patterns,
+// not complete source trees, so directories that do not contain Go package
+// files are omitted unless they are needed for an embed pattern.
 //
 // The -v flag causes vendor to print the names of vendored
 // modules and packages to standard error.
