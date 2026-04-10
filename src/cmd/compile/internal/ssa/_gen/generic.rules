@@ -208,6 +208,10 @@
 (And(8|16|32|64) <t> (Com(8|16|32|64) x) (Com(8|16|32|64) y)) => (Com(8|16|32|64) (Or(8|16|32|64) <t> x y))
 (Or(8|16|32|64) <t> (Com(8|16|32|64) x) (Com(8|16|32|64) y)) => (Com(8|16|32|64) (And(8|16|32|64) <t> x y))
 
+// Absorption laws
+(And(8|16|32|64) x (Or(8|16|32|64) x y)) => x
+(Or(8|16|32|64) x (And(8|16|32|64) x y)) => x
+
 (Mod8  (Const8  [c]) (Const8  [d])) && d != 0 => (Const8  [c % d])
 (Mod16 (Const16 [c]) (Const16 [d])) && d != 0 => (Const16 [c % d])
 (Mod32 (Const32 [c]) (Const32 [d])) && d != 0 => (Const32 [c % d])

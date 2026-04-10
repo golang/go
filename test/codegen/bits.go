@@ -638,3 +638,35 @@ func bitsOpXor2(x, y uint32) uint32 {
 	// loong64: "ANDN" "OR "
 	return (x &^ y) | (^x & y)
 }
+
+// Absorption: x & (x | y) => x, x | (x & y) => x
+func absorptionAnd64(x, y uint64) uint64 {
+	// amd64:-"ORQ" -"ANDQ"
+	return x & (x | y)
+}
+
+func absorptionOr64(x, y uint64) uint64 {
+	// amd64:-"ORQ" -"ANDQ"
+	return x | (x & y)
+}
+
+func absorptionAnd32(x, y uint32) uint32 {
+	// amd64:-"ORL" -"ANDL"
+	return x & (x | y)
+}
+
+func absorptionOr32(x, y uint32) uint32 {
+	// amd64:-"ORL" -"ANDL"
+	return x | (x & y)
+}
+
+// Absorption with commuted arguments
+func absorptionAndCommuted64(x, y uint64) uint64 {
+	// amd64:-"ORQ" -"ANDQ"
+	return (x | y) & x
+}
+
+func absorptionOrCommuted64(x, y uint64) uint64 {
+	// amd64:-"ORQ" -"ANDQ"
+	return (x & y) | x
+}
