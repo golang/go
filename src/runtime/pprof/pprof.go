@@ -1003,7 +1003,7 @@ func writeProfileInternal(w io.Writer, debug int, name string, runtimeProfile fu
 	}
 
 	b := bufio.NewWriter(w)
-	tw := tabwriter.NewWriter(w, 1, 8, 1, '\t', 0)
+	tw := tabwriter.NewWriter(b, 1, 8, 1, '\t', 0)
 	w = tw
 
 	fmt.Fprintf(w, "--- %v:\n", name)
