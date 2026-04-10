@@ -136,8 +136,15 @@ TEXT runtime·rt0_go(SB),NOSPLIT|TOPFRAME,$0
 	SUB	$16, RSP		// reserve 16 bytes for sp-8 where fp may be saved.
 	BL	(R12)
 	ADD	$16, RSP
+	B	nosettls
 
 nocgo:
+#ifdef GOOS_linux
+	MOVD	$runtime·m0+m_tls(SB), R0
+	MSR_R0_TPIDR
+#endif
+
+nosettls:
 	BL	runtime·save_g(SB)
 	// update stackguard after _cgo_init
 	MOVD	(g_stack+stack_lo)(g), R0

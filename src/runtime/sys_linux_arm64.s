@@ -465,12 +465,10 @@ TEXT runtime·sigtramp(SB),NOSPLIT|TOPFRAME,$176
 	// where g is not set.
 	// first save R0, because runtime·load_g will clobber it
 	MOVW	R0, 8(RSP)
-	MOVBU	runtime·iscgo(SB), R0
-	CBZ	R0, 2(PC)
 	BL	runtime·load_g(SB)
-
 	// Restore signum to R0.
 	MOVW	8(RSP), R0
+
 	// R1 and R2 already contain info and ctx, respectively.
 	MOVD	$runtime·sigtrampgo<ABIInternal>(SB), R3
 	BL	(R3)
@@ -682,6 +680,21 @@ TEXT runtime·clone(SB),NOSPLIT|NOFRAME,$0
 	MOVD	$1234, R10
 	MOVD	R10, -32(R1)
 
+	// Clear unused clone args.
+	MOVD	$0, R2	// parent_tidptr
+	MOVD	$0, R3	// tls
+	MOVD	$0, R4	// child_tidptr
+
+	// If mp and gp are set, set up CLONE_SETTLS for the child thread.
+	MOVD	mp+16(FP), R10
+	CMP	$0, R10
+	BEQ	notls
+	CMP	$0, R11
+	BEQ	notls
+	ADD	$m_tls, R10, R3	// &mp.tls[0]
+	ORR	$0x00080000, R0	// CLONE_SETTLS
+notls:
+
 	MOVD	$SYS_clone, R8
 	SVC
 
@@ -716,12 +729,10 @@ good:
 
 	MOVD	R0, m_procid(R10)
 
-	// TODO: setup TLS.
-
 	// In child, set up new stack
 	MOVD	R10, g_m(R11)
 	MOVD	R11, g
-	//CALL	runtime·stackcheck(SB)
+	BL	runtime·save_g(SB)
 
 nog:
 	// Call fn
