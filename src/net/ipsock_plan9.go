@@ -249,8 +249,8 @@ func listenPlan9(ctx context.Context, net string, laddr Addr) (fd *netFD, err er
 	return newFD(proto, name, nil, f, nil, laddr, nil), nil
 }
 
-func (fd *netFD) netFD() (*netFD, error) {
-	return newFD(fd.net, fd.n, fd.listen, fd.ctl, fd.data, fd.laddr, fd.raddr), nil
+func (fd *netFD) netFD() *netFD {
+	return newFD(fd.net, fd.n, fd.listen, fd.ctl, fd.data, fd.laddr, fd.raddr)
 }
 
 func (fd *netFD) acceptPlan9() (nfd *netFD, err error) {
