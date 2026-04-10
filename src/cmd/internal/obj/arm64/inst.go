@@ -145,6 +145,9 @@ func aclass(a *obj.Addr) AClass {
 	}
 	if a.Type == obj.TYPE_MEM {
 		if a.Index == 0 {
+			if a.Scale&-32768 != 0 {
+				return AC_MEMOFFMULVL
+			}
 			return AC_MEMOFF
 		}
 		return AC_MEMEXT
@@ -352,7 +355,7 @@ func addrComponent(a *obj.Addr, acl AClass, index int) uint32 {
 		default:
 			panic(fmt.Errorf("unknown elm index at %d in AClass %d", index, acl))
 		}
-	//	AClass: AC_MEMOFF
+	//	AClass: AC_MEMOFF, AC_MEMOFFMULVL
 	//	GNU mnemonic: [<reg>.<T>, #<imm>]
 	//	Go mnemonic:
 	//		imm(reg.T)
@@ -360,7 +363,7 @@ func addrComponent(a *obj.Addr, acl AClass, index int) uint32 {
 	//		Type = TYPE_MEM
 	//		Reg = Base register (with arrangement if applicable)
 	//		Offset = Immediate offset
-	case AC_MEMOFF:
+	case AC_MEMOFF, AC_MEMOFFMULVL:
 		switch index {
 		case 0:
 			return uint32(a.Reg & 31)

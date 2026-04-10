@@ -472,6 +472,30 @@ func (p *Parser) operand(a *obj.Addr) {
 		return
 	}
 
+	// Detect (VL*imm) or (-VL*imm) pattern in ARM64
+	if p.arch.Family == sys.ARM64 && len(p.input) >= 5 && p.input[0].ScanToken == '(' {
+		pos := 1
+		sign := int64(1)
+		if p.input[pos].ScanToken == '-' {
+			sign = -1
+			pos++
+		} else if p.input[pos].ScanToken == '+' {
+			pos++
+		}
+		if pos+3 < len(p.input) && p.input[pos].String() == "VL" && p.input[pos+1].ScanToken == '*' && p.input[pos+2].ScanToken == scanner.Int && p.input[pos+3].ScanToken == ')' {
+			imm := int64(p.atoi(p.input[pos+2].String()))
+			imm *= sign
+			a.Offset = imm
+			a.Scale = -32768 // bit 15 signals multiple of Vector Length
+
+			// Remove the (VL*imm) tokens and let operand parse the remaining sequence (reg.T)
+			p.input = p.input[pos+4:]
+			p.inputPos = 0
+			p.operand(a)
+			return
+		}
+	}
+
 	// Constant.
 	haveConstant := false
 	switch tok.ScanToken {

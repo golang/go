@@ -38,6 +38,7 @@ const (
 	enc_i4h_i4l
 	enc_imm2_tsz
 	enc_imm8h_imm8l
+	enc_imm9h_imm9l
 	enc_tszh_tszl_imm3
 	enc_tszh_tszl
 	enc_M
@@ -49,6 +50,7 @@ const (
 	enc_Pg
 	enc_Pm
 	enc_Pn
+	enc_Pt
 	enc_Pv
 	enc_Rd
 	enc_Rdn
@@ -1405,6 +1407,17 @@ func encodePd(v uint32) (uint32, bool) {
 	return v, true
 }
 
+// encodePt04V1 is the implementation of the following encoding logic:
+// Is the name of the destination scalable predicate register, encoded in the "Pt" field.
+// bit range mappings:
+// Pt: [0:4)
+func encodePt04V1(v uint32) (uint32, bool) {
+	if v > 15 {
+		return 0, false
+	}
+	return v, true
+}
+
 // encodeZd is the implementation of the following encoding logic:
 // Is the name of the destination scalable vector register, encoded in the "Zd" field.
 // bit range mappings:
@@ -1573,6 +1586,17 @@ func encodeZm1621V3(v uint32) (uint32, bool) {
 		return 0, false
 	}
 	return v << 16, true
+}
+
+// encodePt04V2 is the implementation of the following encoding logic:
+// Is the name of the scalable predicate transfer register, encoded in the "Pt" field.
+// bit range mappings:
+// Pt: [0:4)
+func encodePt04V2(v uint32) (uint32, bool) {
+	if v > 15 {
+		return 0, false
+	}
+	return v, true
 }
 
 // encodeZt05 is the implementation of the following encoding logic:
@@ -2017,6 +2041,83 @@ func encodeImm41620V2(v uint32) (uint32, bool) {
 	vi := int32(v)
 	if vi >= -256 && vi <= 224 && vi%32 == 0 {
 		return uint32((vi/32)&15) << 16, true
+	}
+	return 0, false
+}
+
+// encodeImm41620V6 is the implementation of the following encoding logic:
+// Is the optional signed immediate vector offset, a multiple of 2 in the range -16 to 14, defaulting to 0, encoded in the "imm4" field.
+// bit range mappings:
+// imm4: [16:20)
+func encodeImm41620V6(v uint32) (uint32, bool) {
+	if v&1 != 0 {
+		return 0, false
+	}
+	vi := int32(v)
+	if vi >= -16 && vi <= 14 {
+		return (uint32(vi/2) & 15) << 16, true
+	}
+	return 0, false
+}
+
+// encodeImm41620V3 is the implementation of the following encoding logic:
+// Is the optional signed immediate vector offset, a multiple of 3 in the range -24 to 21, defaulting to 0, encoded in the "imm4" field.
+// bit range mappings:
+// imm4: [16:20)
+func encodeImm41620V3(v uint32) (uint32, bool) {
+	vi := int32(v)
+	if vi >= -24 && vi <= 21 && vi%3 == 0 {
+		return uint32((vi/3)&15) << 16, true
+	}
+	return 0, false
+}
+
+// encodeImm41620V4 is the implementation of the following encoding logic:
+// Is the optional signed immediate vector offset, a multiple of 4 in the range -32 to 28, defaulting to 0, encoded in the "imm4" field.
+// bit range mappings:
+// imm4: [16:20)
+func encodeImm41620V4(v uint32) (uint32, bool) {
+	vi := int32(v)
+	if vi >= -32 && vi <= 28 && vi%4 == 0 {
+		return uint32((vi/4)&15) << 16, true
+	}
+	return 0, false
+}
+
+// encodeImm9h1622L1013 is the implementation of the following encoding logic:
+// Is the optional signed immediate vector offset, in the range -256 to 255, defaulting to 0, encoded in the "imm9h:imm9l" fields.
+// bit range mappings:
+// imm9h: [16:22)
+// imm9l: [10:13)
+func encodeImm9h1622L1013(v uint32) (uint32, bool) {
+	vi := int32(v)
+	if vi >= -256 && vi <= 255 {
+		val := uint32(vi) & 0x1FF
+		return ((val & 7) << 10) | ((val >> 3) << 16), true
+	}
+	return 0, false
+}
+
+// encodeImm61622V5 is the implementation of the following encoding logic:
+// Is the optional signed immediate vector offset, in the range -32 to 31, defaulting to 0, encoded in the "imm6" field.
+// bit range mappings:
+// imm6: [16:22)
+func encodeImm61622V5(v uint32) (uint32, bool) {
+	vi := int32(v)
+	if vi >= -32 && vi <= 31 {
+		return (uint32(vi) & 0x3F) << 16, true
+	}
+	return 0, false
+}
+
+// encodeImm41620V5 is the implementation of the following encoding logic:
+// Is the optional signed immediate vector offset, in the range -8 to 7, defaulting to 0, encoded in the "imm4" field.
+// bit range mappings:
+// imm4: [16:20)
+func encodeImm41620V5(v uint32) (uint32, bool) {
+	vi := int32(v)
+	if vi >= -8 && vi <= 7 {
+		return (uint32(vi) & 0xF) << 16, true
 	}
 	return 0, false
 }

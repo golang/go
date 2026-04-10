@@ -304,24 +304,32 @@ func writeDconv(w io.Writer, p *Prog, a *Addr, abiDetail bool) {
 	case TYPE_MEM:
 		if buildcfg.GOARCH == "arm64" && (a.Scale < 0 || (a.Index != REG_NONE && (isZReg(int(a.Reg)) || isZReg(int(a.Index))))) {
 			// SVE extended addressing pattern
-			amount := 0
-			mod := 0
-			if a.Scale < 0 {
-				amount = int((a.Scale >> 12) & 0x7)
-				mod = int((a.Scale >> 9) & 0x7)
+			if a.Index == REG_NONE {
+				if a.Offset < 0 {
+					fmt.Fprintf(w, "(-VL*%d)(%v)", -a.Offset, Rconv(int(a.Reg)))
+				} else {
+					fmt.Fprintf(w, "(VL*%d)(%v)", a.Offset, Rconv(int(a.Reg)))
+				}
+			} else {
+				amount := 0
+				mod := 0
+				if a.Scale < 0 {
+					amount = int((a.Scale >> 12) & 0x7)
+					mod = int((a.Scale >> 9) & 0x7)
+				}
+				modStr := ""
+				switch mod {
+				case 1:
+					modStr = ".UXTW"
+				case 2:
+					modStr = ".SXTW"
+				}
+				amountStr := ""
+				if amount != 0 {
+					amountStr = fmt.Sprintf("<<%d", amount)
+				}
+				fmt.Fprintf(w, "(%v%s%s)(%v)", Rconv(int(a.Reg)), modStr, amountStr, Rconv(int(a.Index)))
 			}
-			modStr := ""
-			switch mod {
-			case 1:
-				modStr = ".UXTW"
-			case 2:
-				modStr = ".SXTW"
-			}
-			amountStr := ""
-			if amount != 0 {
-				amountStr = fmt.Sprintf("<<%d", amount)
-			}
-			fmt.Fprintf(w, "(%v%s%s)(%v)", Rconv(int(a.Reg)), modStr, amountStr, Rconv(int(a.Index)))
 		} else {
 			a.WriteNameTo(w)
 			if a.Index != REG_NONE {
