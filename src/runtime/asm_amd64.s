@@ -1105,25 +1105,23 @@ havem:
 	// will seamlessly trace back into the earlier calls.
 	MOVQ	m_curg(BX), SI
 	MOVQ	SI, g(CX)
+	MOVQ	SI, R14 // set the g register
 	MOVQ	(g_sched+gobuf_sp)(SI), DI  // prepare stack as DI
 	MOVQ	(g_sched+gobuf_pc)(SI), BX
 	MOVQ	BX, -8(DI)  // "push" return PC on the g stack
 	// Gather our arguments into registers.
-	MOVQ	fn+0(FP), BX
-	MOVQ	frame+8(FP), CX
-	MOVQ	ctxt+16(FP), DX
+	MOVQ	fn+0(FP), AX
+	MOVQ	frame+8(FP), BX
+	MOVQ	ctxt+16(FP), CX
 	// Compute the size of the frame, including return PC and, if
 	// GOEXPERIMENT=framepointer, the saved base pointer
-	LEAQ	fn+0(FP), AX
-	SUBQ	SP, AX   // AX is our actual frame size
-	SUBQ	AX, DI   // Allocate the same frame size on the g stack
+	LEAQ	fn+0(FP), R8
+	SUBQ	SP, R8   // R8 is our actual frame size
+	SUBQ	R8, DI   // Allocate the same frame size on the g stack
 	MOVQ	DI, SP
 
-	MOVQ	BX, 0(SP)
-	MOVQ	CX, 8(SP)
-	MOVQ	DX, 16(SP)
-	MOVQ	$runtime·cgocallbackg(SB), AX
-	CALL	AX	// indirect call to bypass nosplit check. We're on a different stack now.
+	MOVQ	$runtime·cgocallbackg<ABIInternal>(SB), DX
+	CALL	DX	// indirect call to bypass nosplit check. We're on a different stack now.
 
 	// Compute the size of the frame again. FP and SP have
 	// completely different values here than they did above,
