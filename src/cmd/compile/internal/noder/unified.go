@@ -25,8 +25,8 @@ import (
 )
 
 // uirVersion is the unified IR version to use for encoding/decoding.
-// Use V4 for generic methods.
-const uirVersion = pkgbits.V4
+// Use V4 for generic methods; keep at V3 while we refine and test.
+const uirVersion = pkgbits.V3
 
 // localPkgReader holds the package reader used for reading the local
 // package. It exists so the unified IR linker can refer back to it
