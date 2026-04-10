@@ -94,9 +94,13 @@ func (cc *clientConn) RoundTrip(req *http.Request) (_ *http.Response, err error)
 		return nil, err
 	}
 	rt := &roundTripState{
-		cc:    cc,
-		st:    st,
-		trace: httptrace.ContextClientTrace(req.Context()),
+		cc:      cc,
+		st:      st,
+		trace:   httptrace.ContextClientTrace(req.Context()),
+		reqBody: req.Body,
+	}
+	if rt.reqBody == nil {
+		rt.reqBody = http.NoBody
 	}
 	defer func() {
 		if err != nil {
@@ -244,16 +248,12 @@ func (cc *clientConn) writeBodyAndTrailer(rt *roundTripState, req *http.Request)
 
 	declaredTrailer := req.Trailer.Clone()
 
-	rt.reqBody = req.Body
 	rt.reqBodyWriter.st = rt.st
 	rt.reqBodyWriter.remain = actualContentLength(req)
 	rt.reqBodyWriter.flush = true
 	rt.reqBodyWriter.name = "request"
 	rt.reqBodyWriter.trailer = req.Trailer
 	rt.reqBodyWriter.enc = &cc.enc
-	if req.Body == nil {
-		rt.reqBody = http.NoBody
-	}
 
 	if _, err := io.Copy(&rt.reqBodyWriter, rt.reqBody); err != nil {
 		rt.abort(err)

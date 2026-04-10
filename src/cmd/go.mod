@@ -8,7 +8,7 @@ require (
 	golang.org/x/build v0.0.0-20260122183339-3ba88df37c64
 	golang.org/x/mod v0.34.0
 	golang.org/x/sync v0.20.0
-	golang.org/x/sys v0.42.1-0.20260320201212-a76ec62d6c53
+	golang.org/x/sys v0.43.0
 	golang.org/x/telemetry v0.0.0-20260311193753-579e4da9a98c
 	golang.org/x/term v0.39.0
 	golang.org/x/tools v0.43.1-0.20260407202037-f6476fbaabd3
@@ -16,6 +16,6 @@ require (
 
 require (
 	github.com/ianlancetaylor/demangle v0.0.0-20250417193237-f615e6bd150b // indirect
-	golang.org/x/text v0.35.0 // indirect
+	golang.org/x/text v0.36.0 // indirect
 	rsc.io/markdown v0.0.0-20240306144322-0bf8f97ee8ef // indirect
 )
