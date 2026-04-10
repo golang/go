@@ -484,7 +484,11 @@ func testClientRedirectUseResponse(t *testing.T, mode testMode) {
 		if strings.Contains(r.URL.Path, "/other") {
 			io.WriteString(w, "wrong body")
 		} else {
-			w.Header().Set("Location", ts.URL+"/other")
+			scheme := "http"
+			if r.TLS != nil {
+				scheme = "https"
+			}
+			w.Header().Set("Location", fmt.Sprintf("%s://%s/other", scheme, r.Host))
 			w.WriteHeader(StatusFound)
 			io.WriteString(w, body)
 		}
