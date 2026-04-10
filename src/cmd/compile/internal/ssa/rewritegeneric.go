@@ -3117,6 +3117,27 @@ func rewriteValuegeneric_OpAnd16(v *Value) bool {
 		}
 		break
 	}
+	// match: (And16 x (Or16 x y))
+	// result: x
+	for {
+		for _i0 := 0; _i0 <= 1; _i0, v_0, v_1 = _i0+1, v_1, v_0 {
+			x := v_0
+			if v_1.Op != OpOr16 {
+				continue
+			}
+			_ = v_1.Args[1]
+			v_1_0 := v_1.Args[0]
+			v_1_1 := v_1.Args[1]
+			for _i1 := 0; _i1 <= 1; _i1, v_1_0, v_1_1 = _i1+1, v_1_1, v_1_0 {
+				if x != v_1_0 {
+					continue
+				}
+				v.copyOf(x)
+				return true
+			}
+		}
+		break
+	}
 	// match: (And16 (Const16 [m]) (Rsh16Ux64 _ (Const64 [c])))
 	// cond: c >= int64(16-ntz16(m))
 	// result: (Const16 [0])
@@ -3350,6 +3371,27 @@ func rewriteValuegeneric_OpAnd32(v *Value) bool {
 			v0.AddArg2(x, y)
 			v.AddArg(v0)
 			return true
+		}
+		break
+	}
+	// match: (And32 x (Or32 x y))
+	// result: x
+	for {
+		for _i0 := 0; _i0 <= 1; _i0, v_0, v_1 = _i0+1, v_1, v_0 {
+			x := v_0
+			if v_1.Op != OpOr32 {
+				continue
+			}
+			_ = v_1.Args[1]
+			v_1_0 := v_1.Args[0]
+			v_1_1 := v_1.Args[1]
+			for _i1 := 0; _i1 <= 1; _i1, v_1_0, v_1_1 = _i1+1, v_1_1, v_1_0 {
+				if x != v_1_0 {
+					continue
+				}
+				v.copyOf(x)
+				return true
+			}
 		}
 		break
 	}
@@ -3589,6 +3631,27 @@ func rewriteValuegeneric_OpAnd64(v *Value) bool {
 		}
 		break
 	}
+	// match: (And64 x (Or64 x y))
+	// result: x
+	for {
+		for _i0 := 0; _i0 <= 1; _i0, v_0, v_1 = _i0+1, v_1, v_0 {
+			x := v_0
+			if v_1.Op != OpOr64 {
+				continue
+			}
+			_ = v_1.Args[1]
+			v_1_0 := v_1.Args[0]
+			v_1_1 := v_1.Args[1]
+			for _i1 := 0; _i1 <= 1; _i1, v_1_0, v_1_1 = _i1+1, v_1_1, v_1_0 {
+				if x != v_1_0 {
+					continue
+				}
+				v.copyOf(x)
+				return true
+			}
+		}
+		break
+	}
 	// match: (And64 (Const64 [m]) (Rsh64Ux64 _ (Const64 [c])))
 	// cond: c >= int64(64-ntz64(m))
 	// result: (Const64 [0])
@@ -3822,6 +3885,27 @@ func rewriteValuegeneric_OpAnd8(v *Value) bool {
 			v0.AddArg2(x, y)
 			v.AddArg(v0)
 			return true
+		}
+		break
+	}
+	// match: (And8 x (Or8 x y))
+	// result: x
+	for {
+		for _i0 := 0; _i0 <= 1; _i0, v_0, v_1 = _i0+1, v_1, v_0 {
+			x := v_0
+			if v_1.Op != OpOr8 {
+				continue
+			}
+			_ = v_1.Args[1]
+			v_1_0 := v_1.Args[0]
+			v_1_1 := v_1.Args[1]
+			for _i1 := 0; _i1 <= 1; _i1, v_1_0, v_1_1 = _i1+1, v_1_1, v_1_0 {
+				if x != v_1_0 {
+					continue
+				}
+				v.copyOf(x)
+				return true
+			}
 		}
 		break
 	}
@@ -21851,6 +21935,27 @@ func rewriteValuegeneric_OpOr16(v *Value) bool {
 		}
 		break
 	}
+	// match: (Or16 x (And16 x y))
+	// result: x
+	for {
+		for _i0 := 0; _i0 <= 1; _i0, v_0, v_1 = _i0+1, v_1, v_0 {
+			x := v_0
+			if v_1.Op != OpAnd16 {
+				continue
+			}
+			_ = v_1.Args[1]
+			v_1_0 := v_1.Args[0]
+			v_1_1 := v_1.Args[1]
+			for _i1 := 0; _i1 <= 1; _i1, v_1_0, v_1_1 = _i1+1, v_1_1, v_1_0 {
+				if x != v_1_0 {
+					continue
+				}
+				v.copyOf(x)
+				return true
+			}
+		}
+		break
+	}
 	// match: (Or16 x x)
 	// result: x
 	for {
@@ -22373,6 +22478,27 @@ func rewriteValuegeneric_OpOr32(v *Value) bool {
 			v0.AddArg2(x, y)
 			v.AddArg(v0)
 			return true
+		}
+		break
+	}
+	// match: (Or32 x (And32 x y))
+	// result: x
+	for {
+		for _i0 := 0; _i0 <= 1; _i0, v_0, v_1 = _i0+1, v_1, v_0 {
+			x := v_0
+			if v_1.Op != OpAnd32 {
+				continue
+			}
+			_ = v_1.Args[1]
+			v_1_0 := v_1.Args[0]
+			v_1_1 := v_1.Args[1]
+			for _i1 := 0; _i1 <= 1; _i1, v_1_0, v_1_1 = _i1+1, v_1_1, v_1_0 {
+				if x != v_1_0 {
+					continue
+				}
+				v.copyOf(x)
+				return true
+			}
 		}
 		break
 	}
@@ -22901,6 +23027,27 @@ func rewriteValuegeneric_OpOr64(v *Value) bool {
 		}
 		break
 	}
+	// match: (Or64 x (And64 x y))
+	// result: x
+	for {
+		for _i0 := 0; _i0 <= 1; _i0, v_0, v_1 = _i0+1, v_1, v_0 {
+			x := v_0
+			if v_1.Op != OpAnd64 {
+				continue
+			}
+			_ = v_1.Args[1]
+			v_1_0 := v_1.Args[0]
+			v_1_1 := v_1.Args[1]
+			for _i1 := 0; _i1 <= 1; _i1, v_1_0, v_1_1 = _i1+1, v_1_1, v_1_0 {
+				if x != v_1_0 {
+					continue
+				}
+				v.copyOf(x)
+				return true
+			}
+		}
+		break
+	}
 	// match: (Or64 x x)
 	// result: x
 	for {
@@ -23423,6 +23570,27 @@ func rewriteValuegeneric_OpOr8(v *Value) bool {
 			v0.AddArg2(x, y)
 			v.AddArg(v0)
 			return true
+		}
+		break
+	}
+	// match: (Or8 x (And8 x y))
+	// result: x
+	for {
+		for _i0 := 0; _i0 <= 1; _i0, v_0, v_1 = _i0+1, v_1, v_0 {
+			x := v_0
+			if v_1.Op != OpAnd8 {
+				continue
+			}
+			_ = v_1.Args[1]
+			v_1_0 := v_1.Args[0]
+			v_1_1 := v_1.Args[1]
+			for _i1 := 0; _i1 <= 1; _i1, v_1_0, v_1_1 = _i1+1, v_1_1, v_1_0 {
+				if x != v_1_0 {
+					continue
+				}
+				v.copyOf(x)
+				return true
+			}
 		}
 		break
 	}
