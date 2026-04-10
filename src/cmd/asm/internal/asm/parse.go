@@ -1303,8 +1303,33 @@ ListLoop:
 			} else if nextReg != int(reg) {
 				p.errorf("incontiguous register in ARM64 register list: %s", name)
 			}
-			regCnt++
-			nextReg = (nextReg + 1) & registerCntMask
+			if p.peek() == '-' && name[0] == 'Z' {
+				// register range in SVE
+				p.next()
+				nameHi := p.next().String()
+				if nameHi[0] != 'Z' {
+					p.errorf("invalid register in register range: %s", nameHi)
+				}
+				rHi, ok2 := p.registerReference(nameHi)
+				if !ok2 {
+					p.errorf("invalid register: %s", nameHi)
+				}
+				regHi := rHi - registerBase
+				p.get('.')
+				extHi := p.next().String()
+				hiArrangement, err := arch.ARM64RegisterArrangement(regHi, nameHi, extHi)
+				if err != nil {
+					p.errorf("%v", err)
+				}
+				if hiArrangement != arrangement {
+					p.errorf("inconsistent arrangement in ARM64 register list range")
+				}
+				// Scale stores the range size - 1.
+				a.Scale = regHi - reg
+			} else {
+				regCnt++
+				nextReg = (nextReg + 1) & registerCntMask
+			}
 		case sys.ARM:
 			// Parse the upper and lower bounds.
 			lo := p.registerNumber(tok.String())
@@ -1336,7 +1361,7 @@ ListLoop:
 	case sys.ARM:
 		a.Offset = int64(bits)
 	case sys.ARM64:
-		offset, err := arm64.RegisterListOffset(firstReg, regCnt, arrangement)
+		offset, err := arm64.RegisterListOffset(firstReg, regCnt, arrangement, a.Scale)
 		if err != nil {
 			p.errorf("%v", err)
 		}

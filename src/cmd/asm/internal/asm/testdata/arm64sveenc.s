@@ -1286,4 +1286,96 @@ TEXT asmtest(SB),DUPOK|NOSPLIT,$-8
 	ZSTNT1H (-VL*2)(R14), P4, [Z13.H]                 // cdf19ee4
 	ZSTNT1W (-VL*2)(R14), P4, [Z13.S]                 // cdf11ee5
 	ZSTR (-VL*2)(RSP), Z7                             // e75bbfe5
+	ZAESD Z21.Q[1], [Z22.B-Z23.B], [Z22.B-Z23.B]      // b6ee2a45
+	ZAESD Z10.Q[2], [Z8.B-Z11.B], [Z8.B-Z11.B]        // 48ed3645
+	ZAESDIMC Z21.Q[1], [Z22.B-Z23.B], [Z22.B-Z23.B]   // b6ee2b45
+	ZAESDIMC Z10.Q[2], [Z8.B-Z11.B], [Z8.B-Z11.B]     // 48ed3745
+	ZAESE Z21.Q[1], [Z22.B-Z23.B], [Z22.B-Z23.B]      // b6ea2a45
+	ZAESE Z10.Q[2], [Z8.B-Z11.B], [Z8.B-Z11.B]        // 48e93645
+	ZAESEMC Z21.Q[1], [Z22.B-Z23.B], [Z22.B-Z23.B]    // b6ea2b45
+	ZAESEMC Z10.Q[2], [Z8.B-Z11.B], [Z8.B-Z11.B]      // 48e93745
+	ZBFCVTN [Z2.H-Z3.H], Z10.B                        // 4a380a65
+	ZFCVTN [Z2.H-Z3.H], Z10.B                         // 4a300a65
+	ZFCVTNB [Z2.S-Z3.S], Z10.B                        // 4a340a65
+	ZFCVTNT [Z2.S-Z3.S], Z10.B                        // 4a3c0a65
+	// TODO: FCVTZSN
+	// TODO: FCVTZUN
+	ZLD1B (-VL*6)(R3), PN10.Z, [Z24.B-Z25.B]          // 78084da0
+	ZLD1B (VL*4)(RSP), PN10.Z, [Z16.B-Z19.B]          // f08b41a0
+	ZLD1B (R5)(R27), PN12.Z, [Z6.B-Z7.B]              // 661305a0
+	ZLD1B (R2)(R3), PN10.Z, [Z24.B-Z27.B]             // 788802a0
+	ZLD1D (-VL*6)(R3), PN10.Z, [Z24.D-Z25.D]          // 78684da0
+	ZLD1D (VL*4)(RSP), PN10.Z, [Z16.D-Z19.D]          // f0eb41a0
+	ZLD1D (R5<<3)(R27), PN12.Z, [Z6.D-Z7.D]           // 667305a0
+	ZLD1D (R2<<3)(R3), PN10.Z, [Z24.D-Z27.D]          // 78e802a0
+	ZLD1H (-VL*6)(R3), PN10.Z, [Z24.H-Z25.H]          // 78284da0
+	ZLD1H (VL*4)(RSP), PN10.Z, [Z16.H-Z19.H]          // f0ab41a0
+	ZLD1H (R5<<1)(R27), PN12.Z, [Z6.H-Z7.H]           // 663305a0
+	ZLD1H (R2<<1)(R3), PN10.Z, [Z24.H-Z27.H]          // 78a802a0
+	ZLD1W (-VL*6)(R3), PN10.Z, [Z24.S-Z25.S]          // 78484da0
+	ZLD1W (VL*4)(RSP), PN10.Z, [Z16.S-Z19.S]          // f0cb41a0
+	ZLD1W (R5<<2)(R27), PN12.Z, [Z6.S-Z7.S]           // 665305a0
+	ZLD1W (R2<<2)(R3), PN10.Z, [Z24.S-Z27.S]          // 78c802a0
+	ZLDNT1B (-VL*6)(R3), PN10.Z, [Z24.B-Z25.B]        // 79084da0
+	ZLDNT1B (VL*4)(RSP), PN10.Z, [Z16.B-Z19.B]        // f18b41a0
+	ZLDNT1B (R5)(R27), PN12.Z, [Z6.B-Z7.B]            // 671305a0
+	ZLDNT1B (R2)(R3), PN10.Z, [Z24.B-Z27.B]           // 798802a0
+	ZLDNT1D (-VL*6)(R3), PN10.Z, [Z24.D-Z25.D]        // 79684da0
+	ZLDNT1D (VL*4)(RSP), PN10.Z, [Z16.D-Z19.D]        // f1eb41a0
+	ZLDNT1D (R5<<3)(R27), PN12.Z, [Z6.D-Z7.D]         // 677305a0
+	ZLDNT1D (R2<<3)(R3), PN10.Z, [Z24.D-Z27.D]        // 79e802a0
+	ZLDNT1H (-VL*6)(R3), PN10.Z, [Z24.H-Z25.H]        // 79284da0
+	ZLDNT1H (VL*4)(RSP), PN10.Z, [Z16.H-Z19.H]        // f1ab41a0
+	ZLDNT1H (R5<<1)(R27), PN12.Z, [Z6.H-Z7.H]         // 673305a0
+	ZLDNT1H (R2<<1)(R3), PN10.Z, [Z24.H-Z27.H]        // 79a802a0
+	ZLDNT1W (-VL*6)(R3), PN10.Z, [Z24.S-Z25.S]        // 79484da0
+	ZLDNT1W (VL*4)(RSP), PN10.Z, [Z16.S-Z19.S]        // f1cb41a0
+	ZLDNT1W (R5<<2)(R27), PN12.Z, [Z6.S-Z7.S]         // 675305a0
+	ZLDNT1W (R2<<2)(R3), PN10.Z, [Z24.S-Z27.S]        // 79c802a0
+	ZPMLAL Z13.D, Z21.D, [Z22.Q-Z23.Q]                // b6fe2d45
+	ZPMULL Z13.D, Z21.D, [Z22.Q-Z23.Q]                // b6fa2d45
+	ZSQCVTN [Z2.S-Z3.S], Z10.H                        // 4a403145
+	ZSQCVTUN [Z2.S-Z3.S], Z10.H                       // 4a503145
+	// TODO: SQRSHRN  <Zd>.B, { <Zn1>.H-<Zn2>.H }, #<const>
+	ZSQRSHRN $6, [Z2.S-Z3.S], Z10.H                   // 4a28ba45
+	// TODO: SQRSHRUN  <Zd>.B, { <Zn1>.H-<Zn2>.H }, #<const>
+	ZSQRSHRUN $6, [Z2.S-Z3.S], Z10.H                  // 4a08ba45
+	// TODO: SQSHRN  <Zd>.<T>, { <Zn1>.<Tb>-<Zn2>.<Tb> }, #<const>
+	// TODO: SQSHRUN  <Zd>.<T>, { <Zn1>.<Tb>-<Zn2>.<Tb> }, #<const>
+	ZST1B (-VL*6)(R3), PN10, [Z24.B-Z25.B]            // 78086da0
+	ZST1B (VL*4)(RSP), PN10, [Z16.B-Z19.B]            // f08b61a0
+	ZST1B (R5)(R27), PN12, [Z6.B-Z7.B]                // 661325a0
+	ZST1B (R2)(R3), PN10, [Z24.B-Z27.B]               // 788822a0
+	ZST1D (-VL*6)(R3), PN10, [Z24.D-Z25.D]            // 78686da0
+	ZST1D (VL*4)(RSP), PN10, [Z16.D-Z19.D]            // f0eb61a0
+	ZST1D (R5<<3)(R27), PN12, [Z6.D-Z7.D]             // 667325a0
+	ZST1D (R2<<3)(R3), PN10, [Z24.D-Z27.D]            // 78e822a0
+	ZST1H (-VL*6)(R3), PN10, [Z24.H-Z25.H]            // 78286da0
+	ZST1H (VL*4)(RSP), PN10, [Z16.H-Z19.H]            // f0ab61a0
+	ZST1H (R5<<1)(R27), PN12, [Z6.H-Z7.H]             // 663325a0
+	ZST1H (R2<<1)(R3), PN10, [Z24.H-Z27.H]            // 78a822a0
+	ZST1W (-VL*6)(R3), PN10, [Z24.S-Z25.S]            // 78486da0
+	ZST1W (VL*4)(RSP), PN10, [Z16.S-Z19.S]            // f0cb61a0
+	ZST1W (R5<<2)(R27), PN12, [Z6.S-Z7.S]             // 665325a0
+	ZST1W (R2<<2)(R3), PN10, [Z24.S-Z27.S]            // 78c822a0
+	ZSTNT1B (-VL*6)(R3), PN10, [Z24.B-Z25.B]          // 79086da0
+	ZSTNT1B (VL*4)(RSP), PN10, [Z16.B-Z19.B]          // f18b61a0
+	ZSTNT1B (R5)(R27), PN12, [Z6.B-Z7.B]              // 671325a0
+	ZSTNT1B (R2)(R3), PN10, [Z24.B-Z27.B]             // 798822a0
+	ZSTNT1D (-VL*6)(R3), PN10, [Z24.D-Z25.D]          // 79686da0
+	ZSTNT1D (VL*4)(RSP), PN10, [Z16.D-Z19.D]          // f1eb61a0
+	ZSTNT1D (R5<<3)(R27), PN12, [Z6.D-Z7.D]           // 677325a0
+	ZSTNT1D (R2<<3)(R3), PN10, [Z24.D-Z27.D]          // 79e822a0
+	ZSTNT1H (-VL*6)(R3), PN10, [Z24.H-Z25.H]          // 79286da0
+	ZSTNT1H (VL*4)(RSP), PN10, [Z16.H-Z19.H]          // f1ab61a0
+	ZSTNT1H (R5<<1)(R27), PN12, [Z6.H-Z7.H]           // 673325a0
+	ZSTNT1H (R2<<1)(R3), PN10, [Z24.H-Z27.H]          // 79a822a0
+	ZSTNT1W (-VL*6)(R3), PN10, [Z24.S-Z25.S]          // 79486da0
+	ZSTNT1W (VL*4)(RSP), PN10, [Z16.S-Z19.S]          // f1cb61a0
+	ZSTNT1W (R5<<2)(R27), PN12, [Z6.S-Z7.S]           // 675325a0
+	ZSTNT1W (R2<<2)(R3), PN10, [Z24.S-Z27.S]          // 79c822a0
+	ZUQCVTN [Z2.S-Z3.S], Z10.H                        // 4a483145
+	// TODO: UQRSHRN  <Zd>.B, { <Zn1>.H-<Zn2>.H }, #<const>
+	ZUQRSHRN $6, [Z2.S-Z3.S], Z10.H                   // 4a38ba45
+	// TODO: UQSHRN  <Zd>.<T>, { <Zn1>.<Tb>-<Zn2>.<Tb> }, #<const>
 	RET

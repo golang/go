@@ -94,7 +94,7 @@ func aclass(a *obj.Addr) AClass {
 		if a.Reg >= REG_Z0 && a.Reg <= REG_Z31 {
 			return AC_ZREG
 		}
-		if a.Reg >= REG_P0 && a.Reg <= REG_P15 {
+		if a.Reg >= REG_P0 && a.Reg <= REG_PN15 {
 			return AC_PREG
 		}
 		if a.Reg >= REG_ARNG && a.Reg < REG_ELEM {
@@ -132,6 +132,9 @@ func aclass(a *obj.Addr) AClass {
 		return AC_IMM
 	}
 	if a.Type == obj.TYPE_REGLIST {
+		if a.Scale > 0 {
+			return AC_REGLIST_RANGE
+		}
 		switch (a.Offset >> 12) & 0xf {
 		case 0x7:
 			return AC_REGLIST1
@@ -155,7 +158,7 @@ func aclass(a *obj.Addr) AClass {
 	if a.Type == obj.TYPE_SPECIAL {
 		return AC_SPECIAL
 	}
-	panic("unknown AClass")
+	panic(fmt.Errorf("unknown AClass, addr = %v\n", a))
 }
 
 // addrComponent returns the binary (component) of the stored element in a at index, for operand
@@ -248,14 +251,15 @@ func addrComponent(a *obj.Addr, acl AClass, index int) uint32 {
 		default:
 			panic(fmt.Errorf("unknown elm index at %d in AClass %d", index, acl))
 		}
-	//	AClass: AC_REGLIST1, AC_REGLIST2, AC_REGLIST3, AC_REGLIST4
+	//	AClass: AC_REGLIST1, AC_REGLIST2, AC_REGLIST3, AC_REGLIST4, AC_REGLIST_RANGE
 	//	GNU mnemonic: {reg1.T, reg2.T, ...}
 	//	Go mnemonic:
 	//		[reg1.T, reg2.T, ...]
 	//	Encoding:
 	//		Type = TYPE_REGLIST
 	// 		Offset = register prefix | register count | arrangement (opcode) | first register
-	case AC_REGLIST1, AC_REGLIST2, AC_REGLIST3, AC_REGLIST4:
+	//		Scale = range size - 1 (if REGLIST_RANGE)
+	case AC_REGLIST1, AC_REGLIST2, AC_REGLIST3, AC_REGLIST4, AC_REGLIST_RANGE:
 		firstReg := int(a.Offset & 31)
 		prefix := a.Offset >> 32 & 0b11
 		sum := 32
@@ -279,10 +283,19 @@ func addrComponent(a *obj.Addr, acl AClass, index int) uint32 {
 			if index > 8 {
 				panic(fmt.Errorf("unknown elm index at %d in AClass %d", index, acl))
 			}
+		case AC_REGLIST_RANGE:
+			// It behaves just like a AC_REGLIST2
+			if index > 4 {
+				panic(fmt.Errorf("unknown elm index at %d in AClass %d", index, acl))
+			}
 		}
 		switch index % 2 {
 		case 0:
 			// register
+			if a.Scale > 0 {
+				// For register ranges in SVE we allow discontiguous registers.
+				return uint32((firstReg + (index/2)*int(a.Scale)) % sum)
+			}
 			return uint32((firstReg + index/2) % sum)
 		case 1:
 			// arrangement
@@ -418,7 +431,8 @@ var codeShift161919212223 uint32 = 0xfffffffd
 var codeShift161919212224 uint32 = 0xfffffffc
 var codeShift588102224 uint32 = 0xfffffffb
 var codeLogicalImmArrEncoding uint32 = 0xfffffffa
-var codeNoOp uint32 = 0xfffffff9
+var codeImm3Tsize1621 uint32 = 0xfffffff9
+var codeNoOp uint32 = 0xfffffff8
 
 // encodeI1Tsz is the implementation of the following encoding logic:
 // Is the immediate index, in the range 0 to one less than the number of elements in 128 bits, encoded in "i1:tsz".
@@ -704,6 +718,32 @@ func encodeLogicalImmArrEncoding(v uint32, adjacentAddr *obj.Addr) (uint32, bool
 	return imm13 << 5, true
 }
 
+// encodeImm3Tsize1621 is the implementation of the following encoding logic:
+// Is the immediate shift amount, in the range 1 to number of bits per element, encoded in "tsize:imm3".
+// bit range mappings:
+// imm3: [16:19)
+// tsize: [19:21)
+//
+// srcArr is the <Tb> in the source reglist (ranged).
+func encodeImm3Tsize1621(v uint32, srcArr uint32) (uint32, bool) {
+	// From ARM ASL: let shift : integer = (2 * esize) - UInt(tsize::imm3);
+	// Then tsize::imm3 = (2 * esize) - shift.
+	var size uint32
+	switch srcArr {
+	case ARNG_H:
+		// It's the destination size, which is half the source.
+		size = 8
+	case ARNG_S:
+		size = 16
+	default:
+		return 0, false
+	}
+	if v < 1 || v > size {
+		return 0, false
+	}
+	return (((2*size - v) & 0x1f) << 16), true
+}
+
 // tryEncode tries to encode p with i, it returns the encoded binary and ok signal.
 func (i *instEncoder) tryEncode(p *obj.Prog) (uint32, bool) {
 	bin := i.fixedBits
@@ -757,6 +797,8 @@ func (i *instEncoder) tryEncode(p *obj.Prog) (uint32, bool) {
 						b, ok = encodeShiftTriple(val, [6]int{5, 8, 8, 10, 22, 24}, addrs[opIdx+1], p.As)
 					case codeLogicalImmArrEncoding:
 						b, ok = encodeLogicalImmArrEncoding(val, addrs[opIdx+1])
+					case codeImm3Tsize1621:
+						b, ok = encodeImm3Tsize1621(val, addrComponent(addrs[opIdx+1], aclass(addrs[opIdx+1]), 1))
 					case codeNoOp:
 						b, ok = 0, true
 					default:
@@ -783,6 +825,5 @@ func (i *instEncoder) tryEncode(p *obj.Prog) (uint32, bool) {
 			}
 		}
 	}
-
 	return bin, true
 }

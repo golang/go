@@ -8578,19 +8578,24 @@ func EncodeRegisterExtension(a *obj.Addr, ext string, reg, num int16, isAmount, 
 }
 
 // RegisterListOffset generates offset encoding according to AArch64 specification.
-func RegisterListOffset(firstReg, regCnt int, arrangement int64) (int64, error) {
+func RegisterListOffset(firstReg, regCnt int, arrangement int64, scale int16) (int64, error) {
 	offset := int64(firstReg)
-	switch regCnt {
-	case 1:
-		offset |= 0x7 << 12
-	case 2:
-		offset |= 0xa << 12
-	case 3:
-		offset |= 0x6 << 12
-	case 4:
-		offset |= 0x2 << 12
-	default:
-		return 0, errors.New("invalid register numbers in ARM64 register list")
+	if scale == 0 {
+		switch regCnt {
+		case 1:
+			offset |= 0x7 << 12
+		case 2:
+			offset |= 0xa << 12
+		case 3:
+			offset |= 0x6 << 12
+		case 4:
+			offset |= 0x2 << 12
+		default:
+			return 0, errors.New("invalid register numbers in ARM64 register list")
+		}
+	} else {
+		// scale is either 1 or 3.
+		offset |= int64(scale) << 12
 	}
 	offset |= arrangement
 	offset |= obj.RegListARM64Lo

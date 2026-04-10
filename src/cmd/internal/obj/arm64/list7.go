@@ -254,6 +254,12 @@ func rlconv(list int64) string {
 		regCnt = 3
 	case 0x2:
 		regCnt = 4
+	case 0x1:
+		// 5 is the specifier for register range list, size is 1 register
+		regCnt = 5
+	case 0x3:
+		// 6 is the specifier for register range list, size is 4 register
+		regCnt = 6
 	default:
 		regCnt = -1
 	}
@@ -297,16 +303,21 @@ func rlconv(list int64) string {
 	case 14:
 		t = "Q"
 	}
-	for i := 0; i < regCnt; i++ {
-		if str == "" {
-			str += "["
-		} else {
-			str += ","
+	if regCnt > 4 {
+		rangeSize := 2 << (regCnt - 5)
+		str = fmt.Sprintf("[%s%d.%s-%s%d.%s]", regPrefix, firstReg, t, regPrefix, (firstReg+rangeSize-1)&31, t)
+	} else {
+		for i := 0; i < regCnt; i++ {
+			if str == "" {
+				str += "["
+			} else {
+				str += ","
+			}
+			str += fmt.Sprintf("%s%d.", regPrefix, (firstReg+i)&31)
+			str += t
 		}
-		str += fmt.Sprintf("%s%d.", regPrefix, (firstReg+i)&31)
-		str += t
+		str += "]"
 	}
-	str += "]"
 	return str
 }
 
