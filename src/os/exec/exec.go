@@ -516,7 +516,7 @@ func (c *Cmd) String() string {
 	// report the exact executable path (plus args)
 	b := new(strings.Builder)
 	b.WriteString(c.Path)
-	for _, a := range c.Args[1:] {
+	for _, a := range c.argv()[1:] {
 		b.WriteByte(' ')
 		b.WriteString(a)
 	}
