@@ -316,6 +316,56 @@ func Caller(skip int) (pc uintptr, file string, line int, ok bool) {
 	return frame.PC, frame.File, frame.Line, frame.PC != 0
 }
 
+//code position
+func P() (last string) {
+	rpc := make([]uintptr, 1)
+	lastz := []byte{}
+	var prefile string
+	for i := 0; i < 10000; i += 1 {
+		n := callers(i+1, rpc)
+		if n < 1 {
+			return string(lastz)
+		}
+		frame, _ := CallersFrames(rpc).Next()
+		if prefile!=frame.File {
+			j:=0
+			rsn:=0
+			for ; j <len(prefile); j += 1 {
+				if j>=len(frame.File) || frame.File[j] != prefile[j] {
+					for k:=j; k <len(prefile); k += 1 {
+						if prefile[k]=='/' || prefile[k]=='\\' {
+							rsn+=1
+						}
+					}
+					break
+				}
+			}
+			if rsn>0 {
+				if j>0 {
+					lastz = append(lastz, []byte("["+ita.Uitoa(uint(frame.Line))+"]"+ita.Uitoa(uint(rsn))+"*"+frame.File[j:])...)
+				}else{
+					lastz = append(lastz, []byte("["+ita.Uitoa(uint(frame.Line))+","+ita.Uitoa(uint(rsn))+"]"+frame.File)...)
+				}
+			}else{
+				if j>0 {
+					lastz = append(lastz, []byte("["+ita.Uitoa(uint(frame.Line))+"]*"+frame.File[j:])...)
+				}else{
+					lastz = append(lastz, []byte("["+ita.Uitoa(uint(frame.Line))+"]"+frame.File)...)
+				}
+			}
+			prefile=frame.File
+		}else{
+			lastz = append(lastz, []byte(","+ita.Uitoa(uint(frame.Line)))...)
+		}
+	}
+	return string(lastz)
+}
+
+//go routine id
+func GID() uint64 {
+	return getg().goid
+}
+
 // Callers fills the slice pc with the return program counters of function invocations
 // on the calling goroutine's stack. The argument skip is the number of stack frames
 // to skip before recording in pc, with 0 identifying the frame for Callers itself and
