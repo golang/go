@@ -282,6 +282,9 @@ func Sign[P Point[P], H hash.Hash](c *Curve[P], h func() H, priv *PrivateKey, ra
 	if priv.pub.curve != c.curve {
 		return nil, errors.New("ecdsa: private key does not match curve")
 	}
+	if len(hash) == 0 {
+		return nil, errors.New("ecdsa: hash cannot be empty")
+	}
 	fips140.RecordApproved()
 	fipsSelfTest()
 
@@ -314,6 +317,9 @@ func Sign[P Point[P], H hash.Hash](c *Curve[P], h func() H, priv *PrivateKey, ra
 func SignDeterministic[P Point[P], H hash.Hash](c *Curve[P], h func() H, priv *PrivateKey, hash []byte) (*Signature, error) {
 	if priv.pub.curve != c.curve {
 		return nil, errors.New("ecdsa: private key does not match curve")
+	}
+	if len(hash) == 0 {
+		return nil, errors.New("ecdsa: hash cannot be empty")
 	}
 	fips140.RecordApproved()
 	fipsSelfTestDeterministic()
@@ -446,6 +452,9 @@ func rightShift(b []byte, shift int) []byte {
 func Verify[P Point[P]](c *Curve[P], pub *PublicKey, hash []byte, sig *Signature) error {
 	if pub.curve != c.curve {
 		return errors.New("ecdsa: public key does not match curve")
+	}
+	if len(hash) == 0 {
+		return errors.New("ecdsa: hash cannot be empty")
 	}
 	fips140.RecordApproved()
 	fipsSelfTest()
