@@ -274,7 +274,7 @@ type Signature struct {
 	R, S []byte
 }
 
-// Sign signs a hash (which shall be the result of hashing a larger message with
+// Sign signs a hash (which should be the result of hashing a larger message with
 // the hash function H) using the private key, priv. If the hash is longer than
 // the bit-length of the private key's curve order, the hash will be truncated
 // to that length.

@@ -324,6 +324,11 @@ func (priv *PrivateKey) Sign(random io.Reader, digest []byte, opts crypto.Signer
 	if random == nil {
 		return signRFC6979(priv, digest, opts)
 	}
+	if opts != nil {
+		if hashSize := opts.HashFunc().Size(); hashSize != len(digest) {
+			return nil, errors.New("ecdsa: hash length does not match hash function")
+		}
+	}
 	random = rand.CustomReader(random)
 	return SignASN1(random, priv, digest)
 }
