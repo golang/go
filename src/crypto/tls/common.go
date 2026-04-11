@@ -637,7 +637,7 @@ type Config struct {
 	// SetSessionTicketKeys is called on the returned Config, those keys will
 	// be used. Otherwise, the original Config keys will be used (and possibly
 	// rotated if they are automatically managed). WARNING: this allows session
-	// resumtion of connections originally established with the parent (or a
+	// resumption of connections originally established with the parent (or a
 	// sibling) Config, which may bypass the [Config.VerifyPeerCertificate]
 	// value of the returned Config.
 	GetConfigForClient func(*ClientHelloInfo) (*Config, error)
