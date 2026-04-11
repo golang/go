@@ -2339,10 +2339,13 @@ func (state *dodataState) allocateSEHSections(ctxt *Link) {
 }
 
 type symNameSize struct {
-	name string
-	sz   int64
-	val  int64
-	sym  loader.Sym
+	name       string
+	sz         int64
+	val        int64
+	sym        loader.Sym
+	isTypelink bool
+	isItab     bool
+	typeStr    string
 }
 
 func (state *dodataState) dodataSect(ctxt *Link, symn sym.SymKind, syms []loader.Sym) (result []loader.Sym, maxAlign int32) {
@@ -2445,11 +2448,17 @@ func (state *dodataState) dodataSect(ctxt *Link, symn sym.SymKind, syms []loader
 		// We define type:* for some links.
 		typeStar := ldr.Lookup("type:*", 0)
 
-		// Compute all the type strings we need once.
-		typelinkStrings := make(map[loader.Sym]string)
-		for _, s := range syms {
-			if ldr.IsTypelink(s) {
-				typelinkStrings[s] = decodetypeStr(ldr, ctxt.Arch, s)
+		// Pre-compute per-symbol sort keys into sl so the comparison
+		// function does only field reads instead of map lookups and
+		// loader dispatches on every call.
+		for k := range sl {
+			s := sl[k].sym
+			sl[k].isItab = ldr.IsItab(s)
+			if !sl[k].isItab {
+				sl[k].isTypelink = ldr.IsTypelink(s)
+				if sl[k].isTypelink {
+					sl[k].typeStr = decodetypeStr(ldr, ctxt.Arch, s)
+				}
 			}
 		}
 
@@ -2469,15 +2478,15 @@ func (state *dodataState) dodataSect(ctxt *Link, symn sym.SymKind, syms []loader
 				}
 			}
 
-			iIsType := !ldr.IsItab(si)
-			jIsType := !ldr.IsItab(sj)
+			iIsType := !sl[i].isItab
+			jIsType := !sl[j].isItab
 			if iIsType && jIsType {
-				iTypestr, iIsTypelink := typelinkStrings[si]
-				jTypestr, jIsTypelink := typelinkStrings[sj]
+				iIsTypelink := sl[i].isTypelink
+				jIsTypelink := sl[j].isTypelink
 
 				if iIsTypelink && jIsTypelink {
 					// typelink symbols sort by type string
-					return iTypestr < jTypestr
+					return sl[i].typeStr < sl[j].typeStr
 				} else if iIsTypelink {
 					// typelink < non-typelink
 					return true
@@ -2512,7 +2521,7 @@ func (state *dodataState) dodataSect(ctxt *Link, symn sym.SymKind, syms []loader
 			if si == head || si == typeStar {
 				continue
 			}
-			if _, isTypelink := typelinkStrings[si]; !isTypelink {
+			if !sl[i].isTypelink {
 				break
 			}
 			typeLinkSize = Rnd(typeLinkSize, int64(symalign(ldr, si)))
@@ -2531,7 +2540,7 @@ func (state *dodataState) dodataSect(ctxt *Link, symn sym.SymKind, syms []loader
 		// Find the end of the type descriptors.
 		typeSize := typeLinkSize
 		for ; i < len(sl); i++ {
-			if ldr.IsItab(sl[i].sym) {
+			if sl[i].isItab {
 				break
 			}
 			typeSize = Rnd(typeSize, int64(symalign(ldr, sl[i].sym)))
