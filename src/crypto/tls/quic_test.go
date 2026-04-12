@@ -215,6 +215,59 @@ func TestQUICConnection(t *testing.T) {
 	}
 }
 
+func TestQUICVersions(t *testing.T) {
+	for _, tc := range []struct {
+		name      string
+		clientMin uint16
+		clientMax uint16
+		serverMin uint16
+		serverMax uint16
+		wantErr   bool
+	}{
+		{
+			name: "defaults",
+		},
+		{
+			name:      "MinVersion TLS 1.2",
+			clientMin: VersionTLS12,
+			serverMin: VersionTLS12,
+		},
+		{
+			name:      "MinVersion TLS 1.3",
+			clientMin: VersionTLS13,
+			serverMin: VersionTLS13,
+		},
+		{
+			name:      "client MaxVersion TLS 1.2",
+			clientMax: VersionTLS12,
+			wantErr:   true,
+		},
+		{
+			name:      "server MaxVersion TLS 1.2",
+			serverMax: VersionTLS12,
+			wantErr:   true,
+		},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			client := testConfig.Clone()
+			client.MinVersion = tc.clientMin
+			client.MaxVersion = tc.clientMax
+			server := testConfig.Clone()
+			server.MinVersion = tc.serverMin
+			server.MaxVersion = tc.serverMax
+
+			cli := newTestQUICClient(t, &QUICConfig{TLSConfig: client})
+			cli.conn.SetTransportParameters(nil)
+			srv := newTestQUICServer(t, &QUICConfig{TLSConfig: server})
+			srv.conn.SetTransportParameters(nil)
+			err := runTestQUICConnection(context.Background(), cli, srv, nil)
+			if tc.wantErr == (err == nil) {
+				t.Errorf("got err=%v, wantErr=%v", err, tc.wantErr)
+			}
+		})
+	}
+}
+
 func TestQUICSessionResumption(t *testing.T) {
 	clientConfig := &QUICConfig{TLSConfig: testConfigClient.Clone()}
 	clientConfig.TLSConfig.MinVersion = VersionTLS13
