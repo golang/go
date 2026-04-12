@@ -87,7 +87,10 @@ func TestSignAndVerify(t *testing.T) {
 func testSignAndVerify(t *testing.T, c elliptic.Curve) {
 	priv, _ := GenerateKey(c, rand.Reader)
 
-	hashed := []byte("testing")
+	hashed := func() []byte {
+		h := sha256.Sum256([]byte("testing"))
+		return h[:]
+	}()
 	r, s, err := Sign(rand.Reader, priv, hashed)
 	if err != nil {
 		t.Errorf("error signing: %s", err)
@@ -108,77 +111,133 @@ func TestSignAndVerifyASN1(t *testing.T) {
 	testAllCurves(t, testSignAndVerifyASN1)
 }
 
-func TestEmptyHashRejection(t *testing.T) {
-	testAllCurves(t, testEmptyHashRejection)
+func TestHashLengthRejection(t *testing.T) {
+	testAllCurves(t, testHashLengthRejection)
 }
 
-func testEmptyHashRejection(t *testing.T, c elliptic.Curve) {
+func testHashLengthRejection(t *testing.T, c elliptic.Curve) {
 	priv, err := GenerateKey(c, rand.Reader)
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	t.Run("SignASN1", func(t *testing.T) {
-		_, err := SignASN1(rand.Reader, priv, nil)
-		if err == nil {
-			t.Fatal("SignASN1 with nil hash should fail")
-		}
-		if !strings.Contains(err.Error(), "cannot be empty") {
-			t.Errorf("unexpected error: %v", err)
-		}
-
-		_, err = SignASN1(rand.Reader, priv, []byte{})
-		if err == nil {
-			t.Fatal("SignASN1 with empty hash should fail")
-		}
-		if !strings.Contains(err.Error(), "cannot be empty") {
-			t.Errorf("unexpected error: %v", err)
-		}
-	})
-
-	t.Run("Sign", func(t *testing.T) {
-		_, err := priv.Sign(rand.Reader, nil, nil)
-		if err == nil {
-			t.Fatal("Sign with nil hash should fail")
-		}
-		if !strings.Contains(err.Error(), "cannot be empty") {
-			t.Errorf("unexpected error: %v", err)
-		}
-
-		_, err = priv.Sign(rand.Reader, []byte{}, nil)
-		if err == nil {
-			t.Fatal("Sign with empty hash should fail")
-		}
-		if !strings.Contains(err.Error(), "cannot be empty") {
-			t.Errorf("unexpected error: %v", err)
-		}
-	})
-
-	t.Run("SignDeterministic", func(t *testing.T) {
-		if _, err := priv.Sign(nil, nil, nil); err == nil {
-			t.Error("deterministic Sign with nil hash should fail")
-		}
-		if _, err := priv.Sign(nil, []byte{}, nil); err == nil {
-			t.Error("deterministic Sign with empty hash should fail")
-		}
-	})
-
-	t.Run("VerifyASN1", func(t *testing.T) {
-		// Create a valid signature first
-		hash := []byte("test hash")
+	for _, n := range []int{16, 20, 32, 64} {
+		hash := make([]byte, n)
+		rand.Read(hash)
 		sig, err := SignASN1(rand.Reader, priv, hash)
+		if err != nil {
+			t.Errorf("SignASN1 with %d-byte hash: %v", n, err)
+			continue
+		}
+		if !VerifyASN1(&priv.PublicKey, hash, sig) {
+			t.Errorf("VerifyASN1 with %d-byte hash failed", n)
+		}
+		r, s, err := Sign(rand.Reader, priv, hash)
+		if err != nil {
+			t.Errorf("Sign with %d-byte hash: %v", n, err)
+			continue
+		}
+		if !Verify(&priv.PublicKey, hash, r, s) {
+			t.Errorf("Verify with %d-byte hash failed", n)
+		}
+		if _, err := priv.Sign(rand.Reader, hash, nil); err != nil {
+			t.Errorf("PrivateKey.Sign with %d-byte hash: %v", n, err)
+		}
+	}
+
+	validHash := sha256.Sum256([]byte("testing"))
+	validSig, err := SignASN1(rand.Reader, priv, validHash[:])
+	if err != nil {
+		t.Fatal(err)
+	}
+	validR, validS, err := Sign(rand.Reader, priv, validHash[:])
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	for _, tt := range []struct {
+		name string
+		hash []byte
+		want string
+	}{
+		{"nil", nil, "too short"},
+		{"empty", []byte{}, "too short"},
+		{"1 byte", make([]byte, 1), "too short"},
+		{"15 bytes", make([]byte, 15), "too short"},
+		{"65 bytes", make([]byte, 65), "too long"},
+		{"message", bytes.Repeat([]byte("testing"), 100), "too long"},
+	} {
+		t.Run(tt.name, func(t *testing.T) {
+			if _, err := SignASN1(rand.Reader, priv, tt.hash); err == nil {
+				t.Error("SignASN1 should fail")
+			} else if !strings.Contains(err.Error(), tt.want) {
+				t.Errorf("SignASN1: unexpected error: %v", err)
+			}
+			if _, _, err := Sign(rand.Reader, priv, tt.hash); err == nil {
+				t.Error("Sign should fail")
+			} else if !strings.Contains(err.Error(), tt.want) {
+				t.Errorf("Sign: unexpected error: %v", err)
+			}
+			if _, err := priv.Sign(rand.Reader, tt.hash, nil); err == nil {
+				t.Error("PrivateKey.Sign should fail")
+			} else if !strings.Contains(err.Error(), tt.want) {
+				t.Errorf("PrivateKey.Sign: unexpected error: %v", err)
+			}
+			if _, err := priv.Sign(nil, tt.hash, nil); err == nil {
+				t.Error("deterministic PrivateKey.Sign should fail")
+			}
+			if VerifyASN1(&priv.PublicKey, tt.hash, validSig) {
+				t.Error("VerifyASN1 should return false")
+			}
+			if Verify(&priv.PublicKey, tt.hash, validR, validS) {
+				t.Error("Verify should return false")
+			}
+		})
+	}
+
+	// Without the length check, these hashes would be interpreted as the same
+	// integer as the signed one, and the signatures would verify.
+	t.Run("Verify", func(t *testing.T) {
+		// A hash shorter than the curve order is not affected by leading zeroes.
+		short := make([]byte, 16)
+		rand.Read(short[1:])
+		sig, err := SignASN1(rand.Reader, priv, short)
 		if err != nil {
 			t.Fatal(err)
 		}
-
-		// Verify with nil hash should return false
-		if VerifyASN1(&priv.PublicKey, nil, sig) {
-			t.Error("VerifyASN1 with nil hash should return false")
+		r, s, err := Sign(rand.Reader, priv, short)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if VerifyASN1(&priv.PublicKey, short[1:], sig) {
+			t.Error("VerifyASN1 accepted a 15-byte hash")
+		}
+		if Verify(&priv.PublicKey, short[1:], r, s) {
+			t.Error("Verify accepted a 15-byte hash")
 		}
 
-		// Verify with empty hash should return false
-		if VerifyASN1(&priv.PublicKey, []byte{}, sig) {
-			t.Error("VerifyASN1 with empty hash should return false")
+		// A hash longer than the curve order is truncated, so it is not
+		// affected by trailing bytes. The P-521 order is longer than 65 bytes,
+		// so there the hash is not affected by leading zeroes instead.
+		long := make([]byte, 65)
+		hash := long[:64]
+		if c.Params().BitSize > 512 {
+			hash = long[1:]
+		}
+		rand.Read(hash)
+		sig, err = SignASN1(rand.Reader, priv, hash)
+		if err != nil {
+			t.Fatal(err)
+		}
+		r, s, err = Sign(rand.Reader, priv, hash)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if VerifyASN1(&priv.PublicKey, long, sig) {
+			t.Error("VerifyASN1 accepted a 65-byte hash")
+		}
+		if Verify(&priv.PublicKey, long, r, s) {
+			t.Error("Verify accepted a 65-byte hash")
 		}
 	})
 }
@@ -186,7 +245,10 @@ func testEmptyHashRejection(t *testing.T, c elliptic.Curve) {
 func testSignAndVerifyASN1(t *testing.T, c elliptic.Curve) {
 	priv, _ := GenerateKey(c, rand.Reader)
 
-	hashed := []byte("testing")
+	hashed := func() []byte {
+		h := sha256.Sum256([]byte("testing"))
+		return h[:]
+	}()
 	sig, err := SignASN1(rand.Reader, priv, hashed)
 	if err != nil {
 		t.Errorf("error signing: %s", err)
@@ -249,14 +311,17 @@ func TestNonceSafety(t *testing.T) {
 func testNonceSafety(t *testing.T, c elliptic.Curve) {
 	priv, _ := GenerateKey(c, rand.Reader)
 
-	hashed := []byte("testing")
+	hashed := func() []byte {
+		h := sha256.Sum256([]byte("testing"))
+		return h[:]
+	}()
 	r0, s0, err := Sign(zeroReader, priv, hashed)
 	if err != nil {
 		t.Errorf("error signing: %s", err)
 		return
 	}
 
-	hashed = []byte("testing...")
+	hashed[0] ^= 0xff
 	r1, s1, err := Sign(zeroReader, priv, hashed)
 	if err != nil {
 		t.Errorf("error signing: %s", err)
@@ -289,7 +354,10 @@ func TestINDCCA(t *testing.T) {
 func testINDCCA(t *testing.T, c elliptic.Curve) {
 	priv, _ := GenerateKey(c, rand.Reader)
 
-	hashed := []byte("testing")
+	hashed := func() []byte {
+		h := sha256.Sum256([]byte("testing"))
+		return h[:]
+	}()
 	r0, s0, err := Sign(rand.Reader, priv, hashed)
 	if err != nil {
 		t.Errorf("error signing: %s", err)
@@ -949,7 +1017,10 @@ func BenchmarkSign(b *testing.B) {
 		if err != nil {
 			b.Fatal(err)
 		}
-		hashed := []byte("testing")
+		hashed := func() []byte {
+			h := sha256.Sum256([]byte("testing"))
+			return h[:]
+		}()
 
 		b.ReportAllocs()
 		b.ResetTimer()
@@ -971,7 +1042,10 @@ func BenchmarkVerify(b *testing.B) {
 		if err != nil {
 			b.Fatal(err)
 		}
-		hashed := []byte("testing")
+		hashed := func() []byte {
+			h := sha256.Sum256([]byte("testing"))
+			return h[:]
+		}()
 		sig, err := SignASN1(r, priv, hashed)
 		if err != nil {
 			b.Fatal(err)

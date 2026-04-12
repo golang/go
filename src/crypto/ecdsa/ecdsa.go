@@ -389,8 +389,11 @@ func generateFIPS[P ecdsa.Point[P]](curve elliptic.Curve, c *ecdsa.Curve[P], ran
 // is set. This setting will be removed in a future Go release. Instead, use
 // [testing/cryptotest.SetGlobalRandom].
 func SignASN1(r io.Reader, priv *PrivateKey, hash []byte) ([]byte, error) {
-	if len(hash) == 0 {
-		return nil, errors.New("ecdsa: hash cannot be empty")
+	switch {
+	case len(hash) < 16:
+		return nil, errors.New("ecdsa: hash length too short")
+	case len(hash) > 64:
+		return nil, errors.New("ecdsa: hash too long, erroneously signing a message?")
 	}
 
 	if boring.Enabled && rand.IsDefaultReader(r) {
@@ -507,7 +510,7 @@ func addASN1IntBytes(b *cryptobyte.Builder, bytes []byte) {
 // The inputs are not considered confidential, and may leak through timing side
 // channels, or if an attacker has control of part of the inputs.
 func VerifyASN1(pub *PublicKey, hash, sig []byte) bool {
-	if len(hash) == 0 {
+	if len(hash) < 16 || len(hash) > 64 {
 		return false
 	}
 
