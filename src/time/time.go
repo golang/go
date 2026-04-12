@@ -1279,7 +1279,7 @@ func daysBefore(m Month) int {
 	// which is:
 	//	0  31  61  92 122 153 183 214 245 275 306 336 367
 	// This is almost exactly 367/12×(m-1) except for the
-	// occasonal off-by-one suggesting there may be an
+	// occasional off-by-one suggesting there may be an
 	// integer approximation of the form (a×m + b)/c.
 	// A brute force search over small a, b, c finds that
 	// (214×m - 211) / 7 computes the function perfectly.
@@ -1552,7 +1552,7 @@ func (t *Time) UnmarshalBinary(data []byte) error {
 	buf = buf[4:]
 	offset := int(int16(buf[1])|int16(buf[0])<<8) * 60
 	if version == timeBinaryVersionV2 {
-		offset += int(buf[2])
+		offset += int(int8(buf[2]))
 	}
 
 	*t = Time{}

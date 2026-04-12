@@ -32,14 +32,14 @@ import (
 //
 // See https://go.dev/doc/toolchain#switch.
 type Switcher struct {
-	TooNew      *gover.TooNewError // max go requirement observed
-	Errors      []error            // errors collected so far
-	loaderstate *modload.State     // temporarily here while we eliminate global module loader state
+	TooNew *gover.TooNewError // max go requirement observed
+	Errors []error            // errors collected so far
+	ld     *modload.Loader    // temporarily here while we eliminate global module loader state
 }
 
-func NewSwitcher(s *modload.State) *Switcher {
+func NewSwitcher(s *modload.Loader) *Switcher {
 	sw := new(Switcher)
-	sw.loaderstate = s
+	sw.ld = s
 	return sw
 }
 
@@ -97,7 +97,7 @@ func (s *Switcher) Switch(ctx context.Context) {
 	}
 
 	// Switch to newer Go toolchain if necessary and possible.
-	tv, err := NewerToolchain(ctx, s.loaderstate.Fetcher(), s.TooNew.GoVersion)
+	tv, err := NewerToolchain(ctx, s.ld.Fetcher(), s.TooNew.GoVersion)
 	if err != nil {
 		for _, err := range s.Errors {
 			base.Error(err)
@@ -108,7 +108,7 @@ func (s *Switcher) Switch(ctx context.Context) {
 
 	fmt.Fprintf(os.Stderr, "go: %v requires go >= %v; switching to %v\n", s.TooNew.What, s.TooNew.GoVersion, tv)
 	counterSwitchExec.Inc()
-	Exec(s.loaderstate, tv)
+	Exec(s.ld, tv)
 	panic("unreachable")
 }
 
@@ -116,8 +116,8 @@ var counterSwitchExec = counter.New("go/toolchain/switch-exec")
 
 // SwitchOrFatal attempts a toolchain switch based on the information in err
 // and otherwise falls back to base.Fatal(err).
-func SwitchOrFatal(loaderstate *modload.State, ctx context.Context, err error) {
-	s := NewSwitcher(loaderstate)
+func SwitchOrFatal(ld *modload.Loader, ctx context.Context, err error) {
+	s := NewSwitcher(ld)
 	s.Error(err)
 	s.Switch(ctx)
 	base.Exit()

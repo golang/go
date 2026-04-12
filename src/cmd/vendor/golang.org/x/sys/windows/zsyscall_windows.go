@@ -320,6 +320,7 @@ var (
 	procGetVolumePathNamesForVolumeNameW                     = modkernel32.NewProc("GetVolumePathNamesForVolumeNameW")
 	procGetWindowsDirectoryW                                 = modkernel32.NewProc("GetWindowsDirectoryW")
 	procInitializeProcThreadAttributeList                    = modkernel32.NewProc("InitializeProcThreadAttributeList")
+	procIsProcessorFeaturePresent                            = modkernel32.NewProc("IsProcessorFeaturePresent")
 	procIsWow64Process                                       = modkernel32.NewProc("IsWow64Process")
 	procIsWow64Process2                                      = modkernel32.NewProc("IsWow64Process2")
 	procLoadLibraryExW                                       = modkernel32.NewProc("LoadLibraryExW")
@@ -2783,6 +2784,12 @@ func initializeProcThreadAttributeList(attrlist *ProcThreadAttributeList, attrco
 	if r1 == 0 {
 		err = errnoErr(e1)
 	}
+	return
+}
+
+func IsProcessorFeaturePresent(ProcessorFeature uint32) (ret bool) {
+	r0, _, _ := syscall.SyscallN(procIsProcessorFeaturePresent.Addr(), uintptr(ProcessorFeature))
+	ret = r0 != 0
 	return
 }
 

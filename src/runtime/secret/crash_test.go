@@ -84,11 +84,15 @@ func TestCore(t *testing.T) {
 	}
 	// Copy our testing assembly files. Use the ones from the package
 	// to assure that they are always in sync
-	err = copyToDir("./asm_amd64.s", tmpDir, nil)
+	err = copyToDir("./asm_amd64.s", tmpDir, func(s string) string {
+		return strings.ReplaceAll(s, "runtime∕secret·", "main·")
+	})
 	if err != nil {
 		t.Fatalf("error copying file %v", err)
 	}
-	err = copyToDir("./asm_arm64.s", tmpDir, nil)
+	err = copyToDir("./asm_arm64.s", tmpDir, func(s string) string {
+		return strings.ReplaceAll(s, "runtime∕secret·", "main·")
+	})
 	if err != nil {
 		t.Fatalf("error copying file %v", err)
 	}

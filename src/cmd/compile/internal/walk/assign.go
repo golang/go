@@ -220,7 +220,7 @@ func walkAssignRecv(init *ir.Nodes, n *ir.AssignListStmt) ir.Node {
 	fn := chanfn("chanrecv2", 2, r.X.Type())
 	ok := n.Lhs[1]
 	call := mkcall1(fn, types.Types[types.TBOOL], init, r.X, n1)
-	return typecheck.Stmt(ir.NewAssignStmt(base.Pos, ok, call))
+	return walkAssign(init, typecheck.Stmt(ir.NewAssignStmt(base.Pos, ok, call)))
 }
 
 // walkReturn walks an ORETURN node.
@@ -718,7 +718,7 @@ func extendSlice(n *ir.CallExpr, init *ir.Nodes) ir.Node {
 	// hn := l2 * sizeof(elem(s))
 	hn := typecheck.Conv(ir.NewBinaryExpr(base.Pos, ir.OMUL, l2, ir.NewInt(base.Pos, elemtype.Size())), types.Types[types.TUINTPTR])
 
-	clrname := "memclrNoHeapPointersPreemptible"
+	clrname := "memclrNoHeapPointers"
 	hasPointers := elemtype.HasPointers()
 	if hasPointers {
 		clrname = "memclrHasPointers"

@@ -10,17 +10,6 @@ import (
 	"unsafe"
 )
 
-func libc_error_trampoline()
-
-// libc_error_addr puts the libc error
-// address into addr.
-//
-//go:nosplit
-//go:cgo_unsafe_args
-func libc_error_addr(addr **int32) {
-	libcCall(unsafe.Pointer(abi.FuncPCABI0(libc_error_trampoline)), unsafe.Pointer(&addr))
-}
-
 // libcCallInfo is a structure used to pass parameters to the system call.
 type libcCallInfo struct {
 	fn     uintptr
@@ -57,15 +46,8 @@ func syscall_rawsyscalln(fn uintptr, args ...uintptr) (r1, r2, err uintptr) {
 	if c.n != 0 {
 		c.args = uintptr(noescape(unsafe.Pointer(&args[0])))
 	}
-	libcCall(unsafe.Pointer(abi.FuncPCABI0(syscallN_trampoline)), unsafe.Pointer(c))
-	if gp := getg(); gp != nil && gp.m != nil && gp.m.errnoAddr != nil {
-		err = uintptr(*gp.m.errnoAddr)
-	} else {
-		var errnoAddr *int32
-		libc_error_addr(&errnoAddr)
-		err = uintptr(*errnoAddr)
-	}
-	return c.r1, c.r2, err
+	errno := libcCall(unsafe.Pointer(abi.FuncPCABI0(syscallN_trampoline)), unsafe.Pointer(c))
+	return c.r1, c.r2, uintptr(errno)
 }
 
 func syscallN_trampoline()

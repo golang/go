@@ -750,18 +750,11 @@ func semacreate(mp *m) {
 	}
 }
 
-// May run with m.p==nil, so write barriers are not allowed. This
-// function is called by newosproc0, so it is also required to
-// operate without stack guards.
+// May run with m.p==nil, so write barriers are not allowed.
 //
 //go:nowritebarrierrec
-//go:nosplit
 func newosproc(mp *m) {
-	// We pass 0 for the stack size to use the default for this binary.
-	thandle := stdcall(_CreateThread, 0, 0,
-		abi.FuncPCABI0(tstart_stdcall), uintptr(unsafe.Pointer(mp)),
-		0, 0)
-
+	thandle, err := createThread(0, unsafe.Pointer(abi.FuncPCABI0(tstart_stdcall)), unsafe.Pointer(mp))
 	if thandle == 0 {
 		if atomic.Load(&exiting) != 0 {
 			// CreateThread may fail if called
@@ -771,7 +764,7 @@ func newosproc(mp *m) {
 			lock(&deadlock)
 			lock(&deadlock)
 		}
-		print("runtime: failed to create new OS thread (have ", mcount(), " already; errno=", getlasterror(), ")\n")
+		print("runtime: failed to create new OS thread (have ", mcount(), " already; errno=", err, ")\n")
 		throw("runtime.newosproc")
 	}
 
@@ -785,8 +778,34 @@ func newosproc(mp *m) {
 //
 //go:nowritebarrierrec
 //go:nosplit
-func newosproc0(stacksize uintptr, fn uintptr) {
-	throw("bad newosproc0")
+func newosproc0(stacksize uintptr, fn unsafe.Pointer) {
+	thandle, err := createThread(stacksize, fn, nil)
+	if thandle == 0 {
+		print("runtime: failed to create new OS thread (errno=", err, ")\n")
+		throw("runtime: failed to create new OS thread\n")
+	}
+	stdcall_no_g(_CloseHandle, thandle)
+}
+
+// createThread calls CreateThread to create a new thread.
+//
+//go:nowritebarrierrec
+//go:nosplit
+func createThread(stackSize uintptr, fn unsafe.Pointer, arg unsafe.Pointer) (handle uintptr, err uint32) {
+	for tries := range 20 {
+		// We pass 0 for the stack size to use the default for this binary.
+		handle = stdcall_no_g(_CreateThread, 0, stackSize, uintptr(fn), uintptr(arg), 0, 0)
+		if handle == 0 {
+			err = getlasterror()
+		}
+		if handle == 0 && err == windows.ERROR_ACCESS_DENIED {
+			// "Insufficient resources". Yield, then back off a bit before retrying.
+			usleep_no_g(uint32(tries) * 1000)
+			continue
+		}
+		break
+	}
+	return handle, err
 }
 
 //go:nosplit

@@ -66,7 +66,6 @@ func TestZipSums(t *testing.T) {
 
 	testenv.MustHaveGoBuild(t)
 	testenv.MustHaveExternalNetwork(t)
-	testenv.MustHaveExecPath(t, "bzr")
 	testenv.MustHaveExecPath(t, "git")
 	// TODO(jayconrod): add hg, svn, and fossil modules to testdata.
 	// Could not find any for now.

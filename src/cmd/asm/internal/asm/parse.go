@@ -579,7 +579,7 @@ func (p *Parser) atRegisterExtension() bool {
 	switch p.arch.Family {
 	case sys.ARM64, sys.Loong64:
 		// R1.xxx
-		return p.peek() == '.'
+		return p.peek() == '.' || p.peek() == '['
 	default:
 		return false
 	}
@@ -743,7 +743,7 @@ func (p *Parser) registerExtension(a *obj.Addr, name string, prefix rune) {
 	if p.peek() == lex.LSH {
 		// (Rn)(Rm<<2), the shifted offset register.
 		ext = "LSL"
-	} else {
+	} else if p.peek() == '.' {
 		// (Rn)(Rm.UXTW<1), the extended offset register.
 		// Rm.UXTW<<3, the extended register.
 		p.get('.')

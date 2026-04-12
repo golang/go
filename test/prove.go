@@ -2493,6 +2493,58 @@ func issue75144ifNot(a, b []uint64) bool {
 	return false
 }
 
+func issue76269(a, b []byte) byte {
+	lenA := len(a)
+	lenB := len(b)
+	idxA := lenA - 1
+	idxB := lenB - 1
+
+	c := byte(0)
+
+	for idxA >= 0 && idxB >= 0 { // ERROR "Induction variable: limits \[0,\?\], increment 1$"
+		c ^= a[idxA] // ERROR "Proved IsInBounds$"
+		c ^= b[idxB] // ERROR "Proved IsInBounds$"
+		idxA--
+		idxB--
+	}
+	return c
+}
+
+func ex76269shouldNotIndVar() {
+	i, j := 0, 0
+	var a [4]byte
+	for {
+		if i >= 4 {
+			goto next
+		} // looks like a loop exit, but isn't!
+		if j >= 4 { // ERROR "Disproved Leq64$"
+			break
+		}
+	next:
+		_, _ = a[i], a[j] // ERROR "Proved IsInBounds$"
+		i++
+		j++
+	}
+}
+
+func issue45078reverse(s []int) {
+	for i, j := 0, len(s)-1; i < j; i, j = i+1, j-1 { // ERROR "Induction variable: limits \[0,\?\), increment 1$" "Induction variable: limits \(\?,\?\], increment 1$"
+		tmp := s[i] // ERROR "Proved IsInBounds$"
+		s[i] = s[j] // ERROR "Proved IsInBounds$"
+		s[j] = tmp  // ERROR "Proved IsInBounds$"
+	}
+}
+
+func ex45078reverse(s []int, low, high int) {
+	if low >= 0 && high < len(s) {
+		for i, j := low, high; i < j; i, j = i+1, j-1 { // ERROR "Induction variable: limits \[\?,\?\), increment 1$" "Induction variable: limits \(\?,\?\], increment 1$"
+			tmp := s[i] // ERROR "Proved IsInBounds$"
+			s[i] = s[j] // ERROR "Proved IsInBounds$"
+			s[j] = tmp  // ERROR "Proved IsInBounds$"
+		}
+	}
+}
+
 func mulIntoAnd(a, b uint) uint {
 	if a > 1 || b > 1 {
 		return 0
@@ -2766,6 +2818,66 @@ func booleanLikeEqWithOneToNeqWithZero(x uint64) uint64 {
 		return 42
 	}
 	return 1337
+}
+
+func noopAnd64(x uint64) uint64 {
+	x = max(x, 0x0f0f0)
+	x = min(x, 0x0f0ff)
+	x &= 0xff0ff // ERROR "Proved v[0-9]+ is a no-op And64"
+	return x
+}
+
+func noopAnd64DoNothingClearsFixed(x uint64) uint64 {
+	x = max(x, 0x0f0f0)
+	x = min(x, 0x0f0ff)
+	x &= 0xf80ff
+	return x
+}
+
+func noopAnd64DoNothingMayClearVarying(x uint64) uint64 {
+	x = max(x, 0x0f0f0)
+	x = min(x, 0x0f0ff)
+	x &= 0xff0f8
+	return x
+}
+
+func noopOr64(x uint64) uint64 {
+	x = max(x, 0x0f0f0)
+	x = min(x, 0x0f0ff)
+	x |= 0x0f0f0 // ERROR "Proved v[0-9]+ is a no-op Or64"
+	return x
+}
+
+func noopOr64DoNothingSetsFixed(x uint64) uint64 {
+	x = max(x, 0x0f0f0)
+	x = min(x, 0x0f0ff)
+	x |= 0x8f0f0
+	return x
+}
+func noopOr64DoNothingMaySetVarying(x uint64) uint64 {
+	x = max(x, 0x0f0f0)
+	x = min(x, 0x0f0ff)
+	x |= 0x0f0f8
+	return x
+}
+
+func limitFlowThroughAnd(x, y uint64, ensureAllBranchesCouldHappen func() bool) int {
+	x = min(x, 1337)
+	x &= y
+	if ensureAllBranchesCouldHappen() && x <= 1337 { // ERROR "Proved Leq64U$"
+		return 1
+	}
+	if ensureAllBranchesCouldHappen() && x < 1338 { // ERROR "Proved Less64U$"
+		return 2
+	}
+
+	if ensureAllBranchesCouldHappen() && x <= 1336 {
+		return 3
+	}
+	if ensureAllBranchesCouldHappen() && x < 1337 {
+		return 4
+	}
+	return 0
 }
 
 //go:noinline

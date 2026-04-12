@@ -167,10 +167,11 @@ func (v *Point) VarTimeDoubleScalarBaseMult(a *Scalar, A *Point, b *Scalar) *Poi
 
 	// Find the first nonzero coefficient.
 	i := 255
-	for j := i; j >= 0; j-- {
-		if aNaf[j] != 0 || bNaf[j] != 0 {
+	for i >= 0 {
+		if aNaf[i] != 0 || bNaf[i] != 0 {
 			break
 		}
+		i--
 	}
 
 	multA := &projCached{}

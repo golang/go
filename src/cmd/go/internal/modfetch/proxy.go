@@ -37,7 +37,7 @@ a site serving from a fixed file system (including a file:/// URL)
 can be a module proxy.
 
 For details on the GOPROXY protocol, see
-https://golang.org/ref/mod#goproxy-protocol.
+https://go.dev/ref/mod#goproxy-protocol.
 `,
 }
 

@@ -216,11 +216,49 @@ func preserveCallArgs(curFn *ir.Func, call *ir.CallExpr) ir.Node {
 func preserveStmt(curFn *ir.Func, stmt ir.Node) ir.Node {
 	switch n := stmt.(type) {
 	case *ir.AssignStmt:
+		// If the left hand side is blank, we need to assign it to a temp
+		// so that it can be kept alive.
+		if ir.IsBlank(n.X) {
+			tmp := typecheck.TempAt(n.Pos(), curFn, n.Y.Type())
+			n.X = tmp
+			n.Def = true
+			n.PtrInit().Append(typecheck.Stmt(ir.NewDecl(n.Pos(), ir.ODCL, tmp)))
+			stmt = typecheck.AssignExpr(n)
+			n = stmt.(*ir.AssignStmt)
+		}
 		return keepAliveAt(getKeepAliveNodes(n.Pos(), n.X), n)
 	case *ir.AssignListStmt:
 		var ns ir.Nodes
-		for _, lhs := range n.Lhs {
-			ns = append(ns, getKeepAliveNodes(n.Pos(), lhs)...)
+		hasBlank := false
+		for i, lhs := range n.Lhs {
+			if ir.IsBlank(lhs) {
+				// If the left hand side has blanks, we need to assign them to temps
+				// so that they can be kept alive.
+				var typ *types.Type
+				// AssignListStmt can have tuple or a list of expressions on the right hand side.
+				if len(n.Rhs) == 1 && n.Rhs[0].Type() != nil &&
+					n.Rhs[0].Type().IsTuple() &&
+					len(n.Lhs) == n.Rhs[0].Type().NumFields() {
+					typ = n.Rhs[0].Type().Field(i).Type
+				} else if len(n.Rhs) == len(n.Lhs) {
+					typ = n.Rhs[i].Type()
+				} else {
+					// Unrecognized shapes, skip?
+					base.WarnfAt(n.Pos(), "unrecognized shape for assign list stmt for blank assignment")
+					continue
+				}
+				tmp := typecheck.TempAt(n.Pos(), curFn, typ)
+				n.Lhs[i] = tmp
+				n.PtrInit().Append(typecheck.Stmt(ir.NewDecl(n.Pos(), ir.ODCL, tmp)))
+				hasBlank = true
+			}
+			ns = append(ns, getKeepAliveNodes(n.Pos(), n.Lhs[i])...)
+		}
+		if hasBlank {
+			// blank nodes are rewritten to temps, we need to typecheck the node again.
+			n.Def = true
+			stmt = typecheck.AssignExpr(n)
+			n = stmt.(*ir.AssignListStmt)
 		}
 		return keepAliveAt(ns, n)
 	case *ir.AssignOpStmt:

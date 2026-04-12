@@ -1,7 +1,7 @@
 # Test automatic setting of CGO_ENABLED based on $CC and what's in $PATH.
 
 [!cgo] skip
-[cross] skip
+[default-cgo] skip
 
 # Assume we're on a system that can enable cgo normally.
 env CGO_ENABLED=

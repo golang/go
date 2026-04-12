@@ -139,11 +139,11 @@ func progedit(ctxt *obj.Link, p *obj.Prog, newprog obj.ProgAlloc) {
 		p.As = AEBREAK
 
 	case AMOV:
-		if p.From.Type == obj.TYPE_CONST && p.From.Name == obj.NAME_NONE && p.From.Reg == obj.REG_NONE && int64(int32(p.From.Offset)) != p.From.Offset {
-			if isShiftConst(p.From.Offset) {
+		if p.From.Type == obj.TYPE_CONST && p.From.Name == obj.NAME_NONE && p.From.Reg == obj.REG_NONE {
+			if isMaterialisableConst(p.From.Offset) {
 				break
 			}
-			// Put >32-bit constants in memory and load them.
+			// Put non-materialisable constants in memory and load them.
 			p.From.Type = obj.TYPE_MEM
 			p.From.Sym = ctxt.Int64Sym(p.From.Offset)
 			p.From.Name = obj.NAME_EXTERN
@@ -2640,7 +2640,7 @@ var instructions = [ALAST & obj.AMask]instructionData{
 	AXNOR & obj.AMask:  {enc: rIIIEncoding, ternary: true},
 	AZEXTH & obj.AMask: {enc: rIIEncoding},
 
-	// 28.4.3: Bitwise Rotation (Zbb)
+	// 28.4.2: Bitwise Rotation (Zbb)
 	AROL & obj.AMask:   {enc: rIIIEncoding, ternary: true},
 	AROLW & obj.AMask:  {enc: rIIIEncoding, ternary: true},
 	AROR & obj.AMask:   {enc: rIIIEncoding, immForm: ARORI, ternary: true},
@@ -2649,6 +2649,11 @@ var instructions = [ALAST & obj.AMask]instructionData{
 	ARORW & obj.AMask:  {enc: rIIIEncoding, immForm: ARORIW, ternary: true},
 	AORCB & obj.AMask:  {enc: rIIEncoding},
 	AREV8 & obj.AMask:  {enc: rIIEncoding},
+
+	// 28.4.3: Carry-less Multiplication (Zbc)
+	ACLMUL & obj.AMask:  {enc: rIIIEncoding, ternary: true},
+	ACLMULH & obj.AMask: {enc: rIIIEncoding, ternary: true},
+	ACLMULR & obj.AMask: {enc: rIIIEncoding, ternary: true},
 
 	// 28.4.4: Single-bit Instructions (Zbs)
 	ABCLR & obj.AMask:  {enc: rIIIEncoding, immForm: ABCLRI, ternary: true},
@@ -3461,11 +3466,20 @@ func splitShiftConst(v int64) (imm int64, lsh int, rsh int, ok bool) {
 	// See if we can reconstruct this value from a small negative constant.
 	rsh = bits.LeadingZeros64(uint64(v))
 	ones := bits.OnesCount64((uint64(v) >> lsh) >> 11)
-	c = signExtend(1<<11|((v>>lsh)&0x7ff), 12)
 	if rsh+ones+lsh+11 == 64 {
+		c = signExtend(1<<11|((v>>lsh)&0x7ff), 12)
 		if lsh > 0 || c != -1 {
 			lsh += rsh
 		}
+		return c, lsh, rsh, true
+	}
+
+	// See if we can reconstruct this value from a zero extended signed
+	// 32 bit integer. This will require four instructions on rva20u64
+	// and three instructions on rva22u64 or higher.
+	if int64(uint32(c)) == c {
+		c = int64(int32(c))
+		lsh, rsh = 32, 32-lsh
 		return c, lsh, rsh, true
 	}
 
@@ -3473,10 +3487,21 @@ func splitShiftConst(v int64) (imm int64, lsh int, rsh int, ok bool) {
 }
 
 // isShiftConst indicates whether a constant can be represented as a signed
-// 32 bit integer that is left shifted.
+// 32 bit integer that is left and/or right shifted.
 func isShiftConst(v int64) bool {
 	_, lsh, rsh, ok := splitShiftConst(v)
 	return ok && (lsh > 0 || rsh > 0)
+}
+
+// isMaterialisableConst indicates whether a constant can be materialised
+// via a small sequence of instructions.
+func isMaterialisableConst(v int64) bool {
+	// Signed 32 bit value that can be constructed with one or two instructions
+	// (ADDIW or LUI+ADDIW).
+	if int64(int32(v)) == v {
+		return true
+	}
+	return isShiftConst(v)
 }
 
 type instruction struct {
@@ -3673,6 +3698,16 @@ func (ins *instruction) compress() {
 	case AEBREAK:
 		ins.as, ins.rd, ins.rs1 = ACEBREAK, obj.REG_NONE, obj.REG_NONE
 	}
+}
+
+func encodeFenceOperand(a *obj.Addr) (uint32, bool) {
+	if a.Type == obj.TYPE_SPECIAL && a.Offset > int64(SPOP_FENCE_BEGIN) && a.Offset < int64(SPOP_FENCE_END) {
+		return SpecialOperand(a.Offset).encode(), true
+	}
+	if a.Type == obj.TYPE_NONE {
+		return SPOP_FENCE_IORW.encode(), true
+	}
+	return 0, false
 }
 
 // instructionForProg returns the default *obj.Prog to instruction mapping.
@@ -3872,6 +3907,81 @@ func instructionsForTLSStore(p *obj.Prog) []*instruction {
 	return instructionsForTLS(p, ins)
 }
 
+func instructionsForMOVConst(p *obj.Prog) []*instruction {
+	ins := instructionForProg(p)
+	inss := []*instruction{ins}
+
+	// For constants larger than 32 bits in size that have trailing zeros,
+	// use the value with the trailing zeros removed and then use a SLLI
+	// instruction to restore the original constant.
+	//
+	// For example:
+	//     MOV $0x8000000000000000, X10
+	// becomes
+	//     MOV $1, X10
+	//     SLLI $63, X10, X10
+	//
+	// Similarly, we can construct large constants that have a consecutive
+	// sequence of ones from a small negative constant, with a right and/or
+	// left shift.
+	//
+	// For example:
+	//     MOV $0x000fffffffffffda, X10
+	// becomes
+	//     MOV $-19, X10
+	//     SLLI $13, X10
+	//     SRLI $12, X10
+	//
+	var insSLLI, insSRLI, insMOVWU *instruction
+	if err := immIFits(ins.imm, 32); err != nil {
+		if c, lsh, rsh, ok := splitShiftConst(ins.imm); ok {
+			ins.imm = c
+			if buildcfg.GORISCV64 >= 22 && lsh == 32 && rsh == 32 {
+				insMOVWU = &instruction{as: AADDUW, rd: ins.rd, rs1: ins.rd, rs2: REG_ZERO}
+				lsh, rsh = 0, 0
+			}
+			if lsh > 0 {
+				insSLLI = &instruction{as: ASLLI, rd: ins.rd, rs1: ins.rd, imm: int64(lsh)}
+			}
+			if rsh > 0 {
+				insSRLI = &instruction{as: ASRLI, rd: ins.rd, rs1: ins.rd, imm: int64(rsh)}
+			}
+		}
+	}
+
+	low, high, err := Split32BitImmediate(ins.imm)
+	if err != nil {
+		p.Ctxt.Diag("%v: constant %d too large: %v", p, ins.imm, err)
+		return nil
+	}
+
+	// MOV $c, R -> ADD $c, ZERO, R
+	ins.as, ins.rs1, ins.rs2, ins.imm = AADDI, REG_ZERO, obj.REG_NONE, low
+
+	// LUI is only necessary if the constant does not fit in 12 bits.
+	if high != 0 {
+		// LUI top20bits(c), R
+		// ADD bottom12bits(c), R, R
+		insLUI := &instruction{as: ALUI, rd: ins.rd, imm: high}
+		inss = []*instruction{insLUI}
+		if low != 0 {
+			ins.as, ins.rs1 = AADDIW, ins.rd
+			inss = append(inss, ins)
+		}
+	}
+	if insMOVWU != nil {
+		inss = append(inss, insMOVWU)
+	}
+	if insSLLI != nil {
+		inss = append(inss, insSLLI)
+	}
+	if insSRLI != nil {
+		inss = append(inss, insSRLI)
+	}
+
+	return inss
+}
+
 // instructionsForMOV returns the machine instructions for an *obj.Prog that
 // uses a MOV pseudo-instruction.
 func instructionsForMOV(p *obj.Prog) []*instruction {
@@ -3890,67 +4000,7 @@ func instructionsForMOV(p *obj.Prog) []*instruction {
 			p.Ctxt.Diag("%v: unsupported constant load", p)
 			return nil
 		}
-
-		// For constants larger than 32 bits in size that have trailing zeros,
-		// use the value with the trailing zeros removed and then use a SLLI
-		// instruction to restore the original constant.
-		//
-		// For example:
-		//     MOV $0x8000000000000000, X10
-		// becomes
-		//     MOV $1, X10
-		//     SLLI $63, X10, X10
-		//
-		// Similarly, we can construct large constants that have a consecutive
-		// sequence of ones from a small negative constant, with a right and/or
-		// left shift.
-		//
-		// For example:
-		//     MOV $0x000fffffffffffda, X10
-		// becomes
-		//     MOV $-19, X10
-		//     SLLI $13, X10
-		//     SRLI $12, X10
-		//
-		var insSLLI, insSRLI *instruction
-		if err := immIFits(ins.imm, 32); err != nil {
-			if c, lsh, rsh, ok := splitShiftConst(ins.imm); ok {
-				ins.imm = c
-				if lsh > 0 {
-					insSLLI = &instruction{as: ASLLI, rd: ins.rd, rs1: ins.rd, imm: int64(lsh)}
-				}
-				if rsh > 0 {
-					insSRLI = &instruction{as: ASRLI, rd: ins.rd, rs1: ins.rd, imm: int64(rsh)}
-				}
-			}
-		}
-
-		low, high, err := Split32BitImmediate(ins.imm)
-		if err != nil {
-			p.Ctxt.Diag("%v: constant %d too large: %v", p, ins.imm, err)
-			return nil
-		}
-
-		// MOV $c, R -> ADD $c, ZERO, R
-		ins.as, ins.rs1, ins.rs2, ins.imm = AADDI, REG_ZERO, obj.REG_NONE, low
-
-		// LUI is only necessary if the constant does not fit in 12 bits.
-		if high != 0 {
-			// LUI top20bits(c), R
-			// ADD bottom12bits(c), R, R
-			insLUI := &instruction{as: ALUI, rd: ins.rd, imm: high}
-			inss = []*instruction{insLUI}
-			if low != 0 {
-				ins.as, ins.rs1 = AADDIW, ins.rd
-				inss = append(inss, ins)
-			}
-		}
-		if insSLLI != nil {
-			inss = append(inss, insSLLI)
-		}
-		if insSRLI != nil {
-			inss = append(inss, insSRLI)
-		}
+		return instructionsForMOVConst(p)
 
 	case p.From.Type == obj.TYPE_CONST && p.To.Type != obj.TYPE_REG:
 		p.Ctxt.Diag("%v: constant load must target register", p)
@@ -4351,7 +4401,29 @@ func instructionsForProg(p *obj.Prog, compress bool) []*instruction {
 
 	case AFENCE:
 		ins.rd, ins.rs1, ins.rs2 = REG_ZERO, REG_ZERO, obj.REG_NONE
-		ins.imm = 0x0ff
+		if p.Scond == fenceTsoSuffixBit {
+			if p.From.Type != obj.TYPE_NONE || p.To.Type != obj.TYPE_NONE {
+				p.Ctxt.Diag("FENCE.TSO must not have operands: %v", p)
+			}
+			// FENCE.TSO is encoded as a FENCE instruction with fm=1000(8), pred=RW(3), succ=RW(3)
+			ins.imm = signExtend((8<<8)|(3<<4)|3, 12)
+		} else {
+			pred, ok := encodeFenceOperand(&p.From)
+			if !ok {
+				p.Ctxt.Diag("invalid FENCE predecessor operand: %v", p)
+			}
+			succ, ok := encodeFenceOperand(&p.To)
+			if !ok {
+				p.Ctxt.Diag("invalid FENCE successor operand: %v", p)
+			}
+			// FENCE pred, succ
+			// pred(4 bits), succ(4 bits)
+			ins.imm = int64((pred << 4) | succ)
+		}
+
+	case APAUSE:
+		ins.as, ins.rd, ins.rs1, ins.rs2 = AFENCE, REG_ZERO, REG_ZERO, obj.REG_NONE
+		ins.imm = 0x010
 
 	case AFCVTWS, AFCVTLS, AFCVTWUS, AFCVTLUS, AFCVTWD, AFCVTLD, AFCVTWUD, AFCVTLUD:
 		// Set the default rounding mode in funct3 to round to zero.
@@ -5002,9 +5074,20 @@ func isUnsafePoint(p *obj.Prog) bool {
 }
 
 func ParseSuffix(prog *obj.Prog, cond string) (err error) {
+	cond = strings.TrimPrefix(cond, ".")
 	switch prog.As {
 	case AFCVTWS, AFCVTLS, AFCVTWUS, AFCVTLUS, AFCVTWD, AFCVTLD, AFCVTWUD, AFCVTLUD:
-		prog.Scond, err = rmSuffixEncode(strings.TrimPrefix(cond, "."))
+		prog.Scond, err = rmSuffixEncode(cond)
+	case AFENCE:
+		if cond == "TSO" {
+			prog.Scond = fenceTsoSuffixBit
+		} else {
+			err = fmt.Errorf("unrecognized suffix .%q", cond)
+		}
+	default:
+		if cond != "" {
+			err = fmt.Errorf("unrecognized suffix .%q", cond)
+		}
 	}
 	return
 }

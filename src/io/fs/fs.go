@@ -155,8 +155,11 @@ var (
 	ErrPermission = errPermission() // "permission denied"
 	ErrExist      = errExist()      // "file already exists"
 	ErrNotExist   = errNotExist()   // "file does not exist"
-	ErrClosed     = errClosed()     // "file already closed"
 )
+
+// ErrClosed is returned when operations are attempted on a file that
+// has already been closed, including when Close is called more than once.
+var ErrClosed = errClosed()
 
 func errInvalid() error    { return oserror.ErrInvalid }
 func errPermission() error { return oserror.ErrPermission }

@@ -3444,7 +3444,7 @@ func (b *Builder) swigDoIntSize(objdir string) (intsize string, err error) {
 	}
 	srcs := []string{src}
 
-	p := load.GoFilesPackage(modload.NewState(), context.TODO(), load.PackageOpts{}, srcs)
+	p := load.GoFilesPackage(modload.NewLoader(), context.TODO(), load.PackageOpts{}, srcs)
 
 	if _, _, e := BuildToolchain.gc(b, &Action{Mode: "swigDoIntSize", Package: p, Objdir: objdir}, "", nil, nil, "", false, "", srcs); e != nil {
 		return "32", nil
@@ -3463,6 +3463,10 @@ func (b *Builder) swigIntSize(objdir string) (intsize string, err error) {
 
 // Run SWIG on one SWIG input file.
 func (b *Builder) swigOne(a *Action, file, objdir string, pcCFLAGS []string, cxx bool, intgosize string) error {
+	if strings.HasPrefix(file, "cgo") {
+		return errors.New("SWIG file must not use prefix 'cgo'")
+	}
+
 	p := a.Package
 	sh := b.Shell(a)
 
@@ -3649,7 +3653,7 @@ func useResponseFile(path string, argLen int) bool {
 	// TODO: Note that other toolchains like CC are missing here for now.
 	prog := strings.TrimSuffix(filepath.Base(path), ".exe")
 	switch prog {
-	case "compile", "link", "cgo", "asm", "cover":
+	case "compile", "link", "cgo", "asm", "cover", "pack":
 	default:
 		return false
 	}
@@ -3668,24 +3672,35 @@ func useResponseFile(path string, argLen int) bool {
 	return false
 }
 
-// encodeArg encodes an argument for response file writing.
+// encodeArg encodes an argument for response file writing using GCC-compatible format.
+// Arguments containing special characters are wrapped in double quotes with escapes.
 func encodeArg(arg string) string {
-	// If there aren't any characters we need to reencode, fastpath out.
-	if !strings.ContainsAny(arg, "\\\n") {
+	// Empty string must be quoted to preserve it.
+	if arg == "" {
+		return `""`
+	}
+	// If no special characters, return as-is.
+	if !strings.ContainsAny(arg, " \t\n\r'\"\\$`") {
 		return arg
 	}
+
+	// Use double quotes and escape special chars.
 	var b strings.Builder
+	b.WriteByte('"')
 	for _, r := range arg {
 		switch r {
 		case '\\':
-			b.WriteByte('\\')
-			b.WriteByte('\\')
-		case '\n':
-			b.WriteByte('\\')
-			b.WriteByte('n')
+			b.WriteString(`\\`)
+		case '"':
+			b.WriteString(`\"`)
+		case '$':
+			b.WriteString(`\$`)
+		case '`':
+			b.WriteString("\\`")
 		default:
 			b.WriteRune(r)
 		}
 	}
+	b.WriteByte('"')
 	return b.String()
 }

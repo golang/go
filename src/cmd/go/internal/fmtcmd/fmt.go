@@ -50,7 +50,7 @@ See also: go fix, go vet.
 }
 
 func runFmt(ctx context.Context, cmd *base.Command, args []string) {
-	moduleLoaderState := modload.NewState()
+	moduleLoader := modload.NewLoader()
 	printed := false
 	gofmt := gofmtPath()
 
@@ -60,8 +60,8 @@ func runFmt(ctx context.Context, cmd *base.Command, args []string) {
 	baseGofmtArgs := len(gofmtArgs)
 	baseGofmtArgLen := gofmtArgLen
 
-	for _, pkg := range load.PackagesAndErrors(moduleLoaderState, ctx, load.PackageOpts{}, args) {
-		if moduleLoaderState.Enabled() && pkg.Module != nil && !pkg.Module.Main {
+	for _, pkg := range load.PackagesAndErrors(moduleLoader, ctx, load.PackageOpts{}, args) {
+		if moduleLoader.Enabled() && pkg.Module != nil && !pkg.Module.Main {
 			if !printed {
 				fmt.Fprintf(os.Stderr, "go: not formatting packages in dependency modules\n")
 				printed = true

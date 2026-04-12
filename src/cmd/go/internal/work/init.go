@@ -50,14 +50,14 @@ func makeCfgChangedEnv() []string {
 	return slices.Clip(env)
 }
 
-func BuildInit(loaderstate *modload.State) {
+func BuildInit(ld *modload.Loader) {
 	if buildInitStarted {
 		base.Fatalf("go: internal error: work.BuildInit called more than once")
 	}
 	buildInitStarted = true
 	base.AtExit(closeBuilders)
 
-	modload.Init(loaderstate)
+	modload.Init(ld)
 	instrumentInit()
 	buildModeInit()
 	initCompilerConcurrencyPool()

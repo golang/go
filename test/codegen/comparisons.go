@@ -22,17 +22,17 @@ import (
 
 func CompareString1(s string) bool {
 	// amd64:`CMPW \(.*\), [$]`
-	// arm64:`MOVHU \(.*\), [R]`,`MOVD [$]`,`CMPW R`
-	// ppc64le:`MOVHZ \(.*\), [R]`,`CMPW .*, [$]`
-	// s390x:`MOVHBR \(.*\), [R]`,`CMPW .*, [$]`
+	// arm64:`MOVHU \(.*\), [R]` `MOVD [$]` `CMPW R`
+	// ppc64le:`MOVHZ \(.*\), [R]` `CMPW .*, [$]`
+	// s390x:`MOVHBR \(.*\), [R]` `CMPW .*, [$]`
 	return s == "xx"
 }
 
 func CompareString2(s string) bool {
 	// amd64:`CMPL \(.*\), [$]`
-	// arm64:`MOVWU \(.*\), [R]`,`CMPW .*, [R]`
-	// ppc64le:`MOVWZ \(.*\), [R]`,`CMPW .*, [R]`
-	// s390x:`MOVWBR \(.*\), [R]`,`CMPW .*, [$]`
+	// arm64:`MOVWU \(.*\), [R]` `CMPW .*, [R]`
+	// ppc64le:`MOVWZ \(.*\), [R]` `CMPW .*, [R]`
+	// s390x:`MOVWBR \(.*\), [R]` `CMPW .*, [$]`
 	return s == "xxxx"
 }
 
@@ -80,9 +80,9 @@ func CompareArray5(a, b [15]byte) bool {
 // This was a TODO in mapaccess1_faststr
 func CompareArray6(a, b unsafe.Pointer) bool {
 	// amd64:`CMPL \(.*\), [A-Z]`
-	// arm64:`MOVWU \(.*\), [R]`,`CMPW .*, [R]`
-	// ppc64le:`MOVWZ \(.*\), [R]`,`CMPW .*, [R]`
-	// s390x:`MOVWBR \(.*\), [R]`,`CMPW .*, [R]`
+	// arm64:`MOVWU \(.*\), [R]` `CMPW .*, [R]`
+	// ppc64le:`MOVWZ \(.*\), [R]` `CMPW .*, [R]`
+	// s390x:`MOVWBR \(.*\), [R]` `CMPW .*, [R]`
 	return *((*[4]byte)(a)) != *((*[4]byte)(b))
 }
 
@@ -173,8 +173,8 @@ func CmpMem5(p **int) {
 }
 
 func CmpMem6(a []int) int {
-	// 386:`CMPL\s8\([A-Z]+\),`
-	// amd64:`CMPQ\s16\([A-Z]+\),`
+	// 386:`CMPL 8\([A-Z]+\),`
+	// amd64:`CMPQ 16\([A-Z]+\),`
 	if a[1] > a[2] {
 		return 1
 	} else {
@@ -209,35 +209,35 @@ func CmpZero4(a int64, ptr *int) {
 }
 
 func CmpToZero(a, b, d int32, e, f int64, deOptC0, deOptC1 bool) int32 {
-	// arm:`TST`,-`AND`
-	// arm64:`TSTW`,-`AND`
-	// 386:`TESTL`,-`ANDL`
-	// amd64:`TESTL`,-`ANDL`
+	// arm:`TST` -`AND`
+	// arm64:`TSTW` -`AND`
+	// 386:`TESTL` -`ANDL`
+	// amd64:`TESTL` -`ANDL`
 	c0 := a&b < 0
-	// arm:`CMN`,-`ADD`
-	// arm64:`CMNW`,-`ADD`
+	// arm:`CMN` -`ADD`
+	// arm64:`CMNW` -`ADD`
 	c1 := a+b < 0
-	// arm:`TEQ`,-`XOR`
+	// arm:`TEQ` -`XOR`
 	c2 := a^b < 0
-	// arm64:`TST`,-`AND`
-	// amd64:`TESTQ`,-`ANDQ`
+	// arm64:`TST` -`AND`
+	// amd64:`TESTQ` -`ANDQ`
 	c3 := e&f < 0
-	// arm64:`CMN`,-`ADD`
+	// arm64:`CMN` -`ADD`
 	c4 := e+f < 0
 	// not optimized to single CMNW/CMN due to further use of b+d
-	// arm64:`ADD`,-`CMNW`
-	// arm:`ADD`,-`CMN`
+	// arm64:`ADD` -`CMNW`
+	// arm:`ADD` -`CMN`
 	c5 := b+d == 0
 	// not optimized to single TSTW/TST due to further use of a&d
-	// arm64:`AND`,-`TSTW`
-	// arm:`AND`,-`TST`
+	// arm64:`AND` -`TSTW`
+	// arm:`AND` -`TST`
 	// 386:`ANDL`
 	c6 := a&d >= 0
 	// For arm64, could be TST+BGE or AND+TBZ
 	c7 := e&(f<<3) < 0
 	// For arm64, could be CMN+BPL or ADD+TBZ
 	c8 := e+(f<<3) < 0
-	// arm64:`TST\sR[0-9],\sR[0-9]+`
+	// arm64:`TST R[0-9], R[0-9]+`
 	c9 := e&(-19) < 0
 	if c0 {
 		return 1
@@ -308,56 +308,56 @@ func CmpLogicalToZero(a, b, c uint32, d, e, f, g uint64) uint64 {
 // 'x-const' might be canonicalized to 'x+(-const)', so we check both
 // CMN and CMP for subtraction expressions to make the pattern robust.
 func CmpToZero_ex1(a int64, e int32) int {
-	// arm64:`CMN`,-`ADD`,`(BMI|BPL)`
+	// arm64:`CMN` -`ADD` `(BMI|BPL)`
 	if a+3 < 0 {
 		return 1
 	}
 
-	// arm64:`CMN`,-`ADD`,`BEQ`,`(BMI|BPL)`
+	// arm64:`CMN` -`ADD` `BEQ` `(BMI|BPL)`
 	if a+5 <= 0 {
 		return 1
 	}
 
-	// arm64:`CMN`,-`ADD`,`(BMI|BPL)`
+	// arm64:`CMN` -`ADD` `(BMI|BPL)`
 	if a+13 >= 0 {
 		return 2
 	}
 
-	// arm64:`CMP|CMN`,-`(ADD|SUB)`,`(BMI|BPL)`
+	// arm64:`CMP|CMN` -`(ADD|SUB)` `(BMI|BPL)`
 	if a-7 < 0 {
 		return 3
 	}
 
-	// arm64:`SUB`,`TBZ`
+	// arm64:`SUB` `TBZ`
 	if a-11 >= 0 {
 		return 4
 	}
 
-	// arm64:`SUB`,`CMP`,`BGT`
+	// arm64:`SUB` `CMP` `BGT`
 	if a-19 > 0 {
 		return 4
 	}
 
-	// arm64:`CMNW`,-`ADDW`,`(BMI|BPL)`
-	// arm:`CMN`,-`ADD`,`(BMI|BPL)`
+	// arm64:`CMNW` -`ADDW` `(BMI|BPL)`
+	// arm:`CMN` -`ADD` `(BMI|BPL)`
 	if e+3 < 0 {
 		return 5
 	}
 
-	// arm64:`CMNW`,-`ADDW`,`(BMI|BPL)`
-	// arm:`CMN`,-`ADD`,`(BMI|BPL)`
+	// arm64:`CMNW` -`ADDW` `(BMI|BPL)`
+	// arm:`CMN` -`ADD` `(BMI|BPL)`
 	if e+13 >= 0 {
 		return 6
 	}
 
-	// arm64:`CMPW|CMNW`,`(BMI|BPL)`
-	// arm:`CMP|CMN`, -`(ADD|SUB)`, `(BMI|BPL)`
+	// arm64:`CMPW|CMNW` `(BMI|BPL)`
+	// arm:`CMP|CMN` -`(ADD|SUB)` `(BMI|BPL)`
 	if e-7 < 0 {
 		return 7
 	}
 
-	// arm64:`SUB`,`TBNZ`
-	// arm:`CMP|CMN`, -`(ADD|SUB)`, `(BMI|BPL)`
+	// arm64:`SUB` `TBNZ`
+	// arm:`CMP|CMN` -`(ADD|SUB)` `(BMI|BPL)`
 	if e-11 >= 0 {
 		return 8
 	}
@@ -368,29 +368,29 @@ func CmpToZero_ex1(a int64, e int32) int {
 // var + var
 // TODO: optimize 'var - var'
 func CmpToZero_ex2(a, b, c int64, e, f, g int32) int {
-	// arm64:`CMN`,-`ADD`,`(BMI|BPL)`
+	// arm64:`CMN` -`ADD` `(BMI|BPL)`
 	if a+b < 0 {
 		return 1
 	}
 
-	// arm64:`CMN`,-`ADD`,`BEQ`,`(BMI|BPL)`
+	// arm64:`CMN` -`ADD` `BEQ` `(BMI|BPL)`
 	if a+c <= 0 {
 		return 1
 	}
 
-	// arm64:`CMN`,-`ADD`,`(BMI|BPL)`
+	// arm64:`CMN` -`ADD` `(BMI|BPL)`
 	if b+c >= 0 {
 		return 2
 	}
 
-	// arm64:`CMNW`,-`ADDW`,`(BMI|BPL)`
-	// arm:`CMN`,-`ADD`,`(BMI|BPL)`
+	// arm64:`CMNW` -`ADDW` `(BMI|BPL)`
+	// arm:`CMN` -`ADD` `(BMI|BPL)`
 	if e+f < 0 {
 		return 5
 	}
 
-	// arm64:`CMNW`,-`ADDW`,`(BMI|BPL)`
-	// arm:`CMN`,-`ADD`,`(BMI|BPL)`
+	// arm64:`CMNW` -`ADDW` `(BMI|BPL)`
+	// arm:`CMN` -`ADD` `(BMI|BPL)`
 	if f+g >= 0 {
 		return 6
 	}
@@ -399,24 +399,24 @@ func CmpToZero_ex2(a, b, c int64, e, f, g int32) int {
 
 // var + var*var
 func CmpToZero_ex3(a, b, c, d int64, e, f, g, h int32) int {
-	// arm64:`CMN`,-`MADD`,`MUL`,`(BMI|BPL)`
+	// arm64:`CMN` -`MADD` `MUL` `(BMI|BPL)`
 	if a+b*c < 0 {
 		return 1
 	}
 
-	// arm64:`CMN`,-`MADD`,`MUL`,`(BMI|BPL)`
+	// arm64:`CMN` -`MADD` `MUL` `(BMI|BPL)`
 	if b+c*d >= 0 {
 		return 2
 	}
 
-	// arm64:`CMNW`,-`MADDW`,`MULW`,`BEQ`,`(BMI|BPL)`
-	// arm:`CMN`,-`MULA`,`MUL`,`BEQ`,`(BMI|BPL)`
+	// arm64:`CMNW` -`MADDW` `MULW` `BEQ` `(BMI|BPL)`
+	// arm:`CMN` -`MULA` `MUL` `BEQ` `(BMI|BPL)`
 	if e+f*g > 0 {
 		return 5
 	}
 
-	// arm64:`CMNW`,-`MADDW`,`MULW`,`BEQ`,`(BMI|BPL)`
-	// arm:`CMN`,-`MULA`,`MUL`,`BEQ`,`(BMI|BPL)`
+	// arm64:`CMNW` -`MADDW` `MULW` `BEQ` `(BMI|BPL)`
+	// arm:`CMN` -`MULA` `MUL` `BEQ` `(BMI|BPL)`
 	if f+g*h <= 0 {
 		return 6
 	}
@@ -425,22 +425,22 @@ func CmpToZero_ex3(a, b, c, d int64, e, f, g, h int32) int {
 
 // var - var*var
 func CmpToZero_ex4(a, b, c, d int64, e, f, g, h int32) int {
-	// arm64:`CMP`,-`MSUB`,`MUL`,`BEQ`,`(BMI|BPL)`
+	// arm64:`CMP` -`MSUB` `MUL` `BEQ` `(BMI|BPL)`
 	if a-b*c > 0 {
 		return 1
 	}
 
-	// arm64:`CMP`,-`MSUB`,`MUL`,`(BMI|BPL)`
+	// arm64:`CMP` -`MSUB` `MUL` `(BMI|BPL)`
 	if b-c*d >= 0 {
 		return 2
 	}
 
-	// arm64:`CMPW`,-`MSUBW`,`MULW`,`(BMI|BPL)`
+	// arm64:`CMPW` -`MSUBW` `MULW` `(BMI|BPL)`
 	if e-f*g < 0 {
 		return 5
 	}
 
-	// arm64:`CMPW`,-`MSUBW`,`MULW`,`(BMI|BPL)`
+	// arm64:`CMPW` -`MSUBW` `MULW` `(BMI|BPL)`
 	if f-g*h >= 0 {
 		return 6
 	}
@@ -448,12 +448,12 @@ func CmpToZero_ex4(a, b, c, d int64, e, f, g, h int32) int {
 }
 
 func CmpToZero_ex5(e, f int32, u uint32) int {
-	// arm:`CMN`,-`ADD`,`BEQ`,`(BMI|BPL)`
+	// arm:`CMN` -`ADD` `BEQ` `(BMI|BPL)`
 	if e+f<<1 > 0 {
 		return 1
 	}
 
-	// arm:`CMP`,-`SUB`,`(BMI|BPL)`
+	// arm:`CMP` -`SUB` `(BMI|BPL)`
 	if f-int32(u>>2) >= 0 {
 		return 2
 	}
@@ -543,19 +543,19 @@ func ConditionalCompareInt64(a, b int64) int {
 }
 
 func CmpToZeroU_ex1(a uint8, b uint16, c uint32, d uint64) int {
-	// wasm:"I64Eqz"-"I64LtU"
+	// wasm:"I64Eqz" -"I64LtU"
 	if 0 < a {
 		return 1
 	}
-	// wasm:"I64Eqz"-"I64LtU"
+	// wasm:"I64Eqz" -"I64LtU"
 	if 0 < b {
 		return 1
 	}
-	// wasm:"I64Eqz"-"I64LtU"
+	// wasm:"I64Eqz" -"I64LtU"
 	if 0 < c {
 		return 1
 	}
-	// wasm:"I64Eqz"-"I64LtU"
+	// wasm:"I64Eqz" -"I64LtU"
 	if 0 < d {
 		return 1
 	}
@@ -563,19 +563,19 @@ func CmpToZeroU_ex1(a uint8, b uint16, c uint32, d uint64) int {
 }
 
 func CmpToZeroU_ex2(a uint8, b uint16, c uint32, d uint64) int {
-	// wasm:"I64Eqz"-"I64LeU"
+	// wasm:"I64Eqz" -"I64LeU"
 	if a <= 0 {
 		return 1
 	}
-	// wasm:"I64Eqz"-"I64LeU"
+	// wasm:"I64Eqz" -"I64LeU"
 	if b <= 0 {
 		return 1
 	}
-	// wasm:"I64Eqz"-"I64LeU"
+	// wasm:"I64Eqz" -"I64LeU"
 	if c <= 0 {
 		return 1
 	}
-	// wasm:"I64Eqz"-"I64LeU"
+	// wasm:"I64Eqz" -"I64LeU"
 	if d <= 0 {
 		return 1
 	}
@@ -583,19 +583,19 @@ func CmpToZeroU_ex2(a uint8, b uint16, c uint32, d uint64) int {
 }
 
 func CmpToOneU_ex1(a uint8, b uint16, c uint32, d uint64) int {
-	// wasm:"I64Eqz"-"I64LtU"
+	// wasm:"I64Eqz" -"I64LtU"
 	if a < 1 {
 		return 1
 	}
-	// wasm:"I64Eqz"-"I64LtU"
+	// wasm:"I64Eqz" -"I64LtU"
 	if b < 1 {
 		return 1
 	}
-	// wasm:"I64Eqz"-"I64LtU"
+	// wasm:"I64Eqz" -"I64LtU"
 	if c < 1 {
 		return 1
 	}
-	// wasm:"I64Eqz"-"I64LtU"
+	// wasm:"I64Eqz" -"I64LtU"
 	if d < 1 {
 		return 1
 	}
@@ -603,19 +603,19 @@ func CmpToOneU_ex1(a uint8, b uint16, c uint32, d uint64) int {
 }
 
 func CmpToOneU_ex2(a uint8, b uint16, c uint32, d uint64) int {
-	// wasm:"I64Eqz"-"I64LeU"
+	// wasm:"I64Eqz" -"I64LeU"
 	if 1 <= a {
 		return 1
 	}
-	// wasm:"I64Eqz"-"I64LeU"
+	// wasm:"I64Eqz" -"I64LeU"
 	if 1 <= b {
 		return 1
 	}
-	// wasm:"I64Eqz"-"I64LeU"
+	// wasm:"I64Eqz" -"I64LeU"
 	if 1 <= c {
 		return 1
 	}
-	// wasm:"I64Eqz"-"I64LeU"
+	// wasm:"I64Eqz" -"I64LeU"
 	if 1 <= d {
 		return 1
 	}
@@ -719,47 +719,47 @@ func equalVarString17(a string) bool {
 
 func cmpToCmn(a, b, c, d int) int {
 	var c1, c2, c3, c4, c5, c6, c7, c8, c9, c10, c11 int
-	// arm64:`CMN`,-`CMP`
+	// arm64:`CMN` -`CMP`
 	if a < -8 {
 		c1 = 1
 	}
-	// arm64:`CMN`,-`CMP`
+	// arm64:`CMN` -`CMP`
 	if a+1 == 0 {
 		c2 = 1
 	}
-	// arm64:`CMN`,-`CMP`
+	// arm64:`CMN` -`CMP`
 	if a+3 != 0 {
 		c3 = 1
 	}
-	// arm64:`CMN`,-`CMP`
+	// arm64:`CMN` -`CMP`
 	if a+b == 0 {
 		c4 = 1
 	}
-	// arm64:`CMN`,-`CMP`
+	// arm64:`CMN` -`CMP`
 	if b+c != 0 {
 		c5 = 1
 	}
-	// arm64:`CMN`,-`CMP`
+	// arm64:`CMN` -`CMP`
 	if a == -c {
 		c6 = 1
 	}
-	// arm64:`CMN`,-`CMP`
+	// arm64:`CMN` -`CMP`
 	if b != -d {
 		c7 = 1
 	}
-	// arm64:`CMN`,-`CMP`
+	// arm64:`CMN` -`CMP`
 	if a*b+c == 0 {
 		c8 = 1
 	}
-	// arm64:`CMN`,-`CMP`
+	// arm64:`CMN` -`CMP`
 	if a*c+b != 0 {
 		c9 = 1
 	}
-	// arm64:`CMP`,-`CMN`
+	// arm64:`CMP` -`CMN`
 	if b*c-a == 0 {
 		c10 = 1
 	}
-	// arm64:`CMP`,-`CMN`
+	// arm64:`CMP` -`CMN`
 	if a*d-b != 0 {
 		c11 = 1
 	}
@@ -768,19 +768,19 @@ func cmpToCmn(a, b, c, d int) int {
 
 func cmpToCmnLessThan(a, b, c, d int) int {
 	var c1, c2, c3, c4 int
-	// arm64:`CMN`,`CSET MI`,-`CMP`
+	// arm64:`CMN` `CSET MI` -`CMP`
 	if a+1 < 0 {
 		c1 = 1
 	}
-	// arm64:`CMN`,`CSET MI`,-`CMP`
+	// arm64:`CMN` `CSET MI` -`CMP`
 	if a+b < 0 {
 		c2 = 1
 	}
-	// arm64:`CMN`,`CSET MI`,-`CMP`
+	// arm64:`CMN` `CSET MI` -`CMP`
 	if a*b+c < 0 {
 		c3 = 1
 	}
-	// arm64:`CMP`,`CSET MI`,-`CMN`
+	// arm64:`CMP` `CSET MI` -`CMN`
 	if a-b*c < 0 {
 		c4 = 1
 	}
@@ -837,19 +837,19 @@ func ge128Signed64(x int64) bool {
 
 func cmpToCmnGreaterThanEqual(a, b, c, d int) int {
 	var c1, c2, c3, c4 int
-	// arm64:`CMN`,`CSET PL`,-`CMP`
+	// arm64:`CMN` `CSET PL` -`CMP`
 	if a+1 >= 0 {
 		c1 = 1
 	}
-	// arm64:`CMN`,`CSET PL`,-`CMP`
+	// arm64:`CMN` `CSET PL` -`CMP`
 	if a+b >= 0 {
 		c2 = 1
 	}
-	// arm64:`CMN`,`CSET PL`,-`CMP`
+	// arm64:`CMN` `CSET PL` -`CMP`
 	if a*b+c >= 0 {
 		c3 = 1
 	}
-	// arm64:`CMP`,`CSET PL`,-`CMN`
+	// arm64:`CMP` `CSET PL` -`CMN`
 	if a-b*c >= 0 {
 		c4 = 1
 	}
@@ -906,7 +906,7 @@ type Point struct {
 // certain conditions, see canonLessThan, so if the code below does not
 // generate an InvertFlags OP, this check may fail.
 func invertLessThanNoov(p1, p2, p3 Point) bool {
-	// arm64:`CMP`,`CSET`,`CSEL`
+	// arm64:`CMP` `CSET` `CSEL`
 	return (p1.X-p3.X)*(p2.Y-p3.Y)-(p2.X-p3.X)*(p1.Y-p3.Y) < 0
 }
 

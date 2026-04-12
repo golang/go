@@ -213,7 +213,7 @@ func DumpNodeHTML(fn *Func, why string, n Node) {
 	w.WritePhase(why, why)
 }
 
-// CloseHTMLWriter closes the HTML writer for fn, if one exists.
+// CloseHTMLWriters closes the HTML writer for fn, if one exists.
 func CloseHTMLWriters() {
 	mu.Lock()
 	defer mu.Unlock()

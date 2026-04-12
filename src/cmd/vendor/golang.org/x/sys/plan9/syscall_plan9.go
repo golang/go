@@ -19,13 +19,7 @@ import (
 
 // A Note is a string describing a process note.
 // It implements the os.Signal interface.
-type Note string
-
-func (n Note) Signal() {}
-
-func (n Note) String() string {
-	return string(n)
-}
+type Note = syscall.Note
 
 var (
 	Stdin  = 0

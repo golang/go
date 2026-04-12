@@ -294,3 +294,135 @@ func (r rng) next(predictable bool) rng {
 func (r rng) value() uint64 {
 	return uint64(r)
 }
+
+// Benchmarks for switch-to-lookup-table optimization.
+// These use functions that return constants, which is the pattern
+// the lookup table optimization targets.
+
+//go:noinline
+func switchLookup8(x int) int {
+	switch x {
+	case 0:
+		return 1
+	case 1:
+		return 2
+	case 2:
+		return 3
+	case 3:
+		return 5
+	case 4:
+		return 8
+	case 5:
+		return 13
+	case 6:
+		return 21
+	case 7:
+		return 34
+	default:
+		return 0
+	}
+}
+
+//go:noinline
+func switchLookup32(x int) int {
+	switch x {
+	case 0:
+		return 10
+	case 1:
+		return 20
+	case 2:
+		return 30
+	case 3:
+		return 40
+	case 4:
+		return 50
+	case 5:
+		return 60
+	case 6:
+		return 70
+	case 7:
+		return 80
+	case 8:
+		return 90
+	case 9:
+		return 100
+	case 10:
+		return 110
+	case 11:
+		return 120
+	case 12:
+		return 130
+	case 13:
+		return 140
+	case 14:
+		return 150
+	case 15:
+		return 160
+	case 16:
+		return 170
+	case 17:
+		return 180
+	case 18:
+		return 190
+	case 19:
+		return 200
+	case 20:
+		return 210
+	case 21:
+		return 220
+	case 22:
+		return 230
+	case 23:
+		return 240
+	case 24:
+		return 250
+	case 25:
+		return 260
+	case 26:
+		return 270
+	case 27:
+		return 280
+	case 28:
+		return 290
+	case 29:
+		return 300
+	case 30:
+		return 310
+	case 31:
+		return 320
+	default:
+		return 0
+	}
+}
+
+func BenchmarkSwitchLookup8Predictable(b *testing.B) {
+	benchmarkSwitchLookup8(b, true)
+}
+func BenchmarkSwitchLookup8Unpredictable(b *testing.B) {
+	benchmarkSwitchLookup8(b, false)
+}
+func benchmarkSwitchLookup8(b *testing.B, predictable bool) {
+	n := 0
+	rng := newRNG()
+	for i := 0; i < b.N; i++ {
+		rng = rng.next(predictable)
+		n += switchLookup8(int(rng.value() & 7))
+	}
+	sink = n
+}
+
+func BenchmarkSwitchLookup32Predictable(b *testing.B) {
+	benchmarkSwitchLookup32(b, true)
+}
+func BenchmarkSwitchLookup32Unpredictable(b *testing.B) {
+	benchmarkSwitchLookup32(b, false)
+}
+func benchmarkSwitchLookup32(b *testing.B, predictable bool) {
+	n := 0
+	rng := newRNG()
+	for i := 0; i < b.N; i++ {
+		rng = rng.next(predictable)
+		n += switchLookup32(int(rng.value() & 31))
+	}
+	sink = n
+}

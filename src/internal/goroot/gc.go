@@ -15,12 +15,12 @@ import (
 )
 
 // IsStandardPackage reports whether path is a standard package,
-// given goroot and compiler.
-func IsStandardPackage(goroot, compiler, path string) bool {
+// given goroot and compiler. readDir accepts OS filesystem paths.
+func IsStandardPackage(readDir func(string) ([]os.DirEntry, error), goroot, compiler, path string) bool {
 	switch compiler {
 	case "gc":
 		dir := filepath.Join(goroot, "src", path)
-		dirents, err := os.ReadDir(dir)
+		dirents, err := readDir(dir)
 		if err != nil {
 			return false
 		}

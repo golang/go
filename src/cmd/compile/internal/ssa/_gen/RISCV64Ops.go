@@ -463,6 +463,7 @@ func init() {
 		{name: "FNMADDS", argLength: 3, reg: fp31, asm: "FNMADDS", commutative: true, typ: "Float32"},                                       // -(arg0 * arg1) + arg2
 		{name: "FNMSUBS", argLength: 3, reg: fp31, asm: "FNMSUBS", commutative: true, typ: "Float32"},                                       // -(arg0 * arg1) - arg2
 		{name: "FSQRTS", argLength: 1, reg: fp11, asm: "FSQRTS", typ: "Float32"},                                                            // sqrt(arg0)
+		{name: "FABSS", argLength: 1, reg: fp11, asm: "FABSS", typ: "Float32"},                                                              // abs(arg0)
 		{name: "FNEGS", argLength: 1, reg: fp11, asm: "FNEGS", typ: "Float32"},                                                              // -arg0
 		{name: "FMVSX", argLength: 1, reg: gpfp, asm: "FMVSX", typ: "Float32"},                                                              // reinterpret arg0 as float32
 		{name: "FMVXS", argLength: 1, reg: fpgp, asm: "FMVXS", typ: "Int32"},                                                                // reinterpret arg0 as int32, sign extended to 64 bits

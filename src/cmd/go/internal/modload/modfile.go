@@ -138,11 +138,11 @@ func pruningForGoVersion(goVersion string) modPruning {
 // CheckAllowed returns an error equivalent to ErrDisallowed if m is excluded by
 // the main module's go.mod or retracted by its author. Most version queries use
 // this to filter out versions that should not be used.
-func (s *State) CheckAllowed(ctx context.Context, m module.Version) error {
-	if err := s.CheckExclusions(ctx, m); err != nil {
+func (ld *Loader) CheckAllowed(ctx context.Context, m module.Version) error {
+	if err := ld.CheckExclusions(ctx, m); err != nil {
 		return err
 	}
-	if err := s.CheckRetractions(ctx, m); err != nil {
+	if err := ld.CheckRetractions(ctx, m); err != nil {
 		return err
 	}
 	return nil
@@ -154,9 +154,9 @@ var ErrDisallowed = errors.New("disallowed module version")
 
 // CheckExclusions returns an error equivalent to ErrDisallowed if module m is
 // excluded by the main module's go.mod file.
-func (s *State) CheckExclusions(ctx context.Context, m module.Version) error {
-	for _, mainModule := range s.MainModules.Versions() {
-		if index := s.MainModules.Index(mainModule); index != nil && index.exclude[m] {
+func (ld *Loader) CheckExclusions(ctx context.Context, m module.Version) error {
+	for _, mainModule := range ld.MainModules.Versions() {
+		if index := ld.MainModules.Index(mainModule); index != nil && index.exclude[m] {
 			return module.VersionError(m, errExcluded)
 		}
 	}
@@ -172,7 +172,7 @@ func (e *excludedError) Is(err error) bool { return err == ErrDisallowed }
 
 // CheckRetractions returns an error if module m has been retracted by
 // its author.
-func (s *State) CheckRetractions(ctx context.Context, m module.Version) (err error) {
+func (ld *Loader) CheckRetractions(ctx context.Context, m module.Version) (err error) {
 	defer func() {
 		if err == nil {
 			return
@@ -193,7 +193,7 @@ func (s *State) CheckRetractions(ctx context.Context, m module.Version) (err err
 		// Cannot be retracted.
 		return nil
 	}
-	if repl := Replacement(s, module.Version{Path: m.Path}); repl.Path != "" {
+	if repl := Replacement(ld, module.Version{Path: m.Path}); repl.Path != "" {
 		// All versions of the module were replaced.
 		// Don't load retractions, since we'd just load the replacement.
 		return nil
@@ -210,11 +210,11 @@ func (s *State) CheckRetractions(ctx context.Context, m module.Version) (err err
 	// We load the raw file here: the go.mod file may have a different module
 	// path that we expect if the module or its repository was renamed.
 	// We still want to apply retractions to other aliases of the module.
-	rm, err := queryLatestVersionIgnoringRetractions(s, ctx, m.Path)
+	rm, err := queryLatestVersionIgnoringRetractions(ld, ctx, m.Path)
 	if err != nil {
 		return err
 	}
-	summary, err := rawGoModSummary(s, rm)
+	summary, err := rawGoModSummary(ld, rm)
 	if err != nil && !errors.Is(err, gover.ErrTooNew) {
 		return err
 	}
@@ -300,7 +300,7 @@ func ShortMessage(message, emptyDefault string) string {
 //
 // CheckDeprecation returns an error if the message can't be loaded.
 // CheckDeprecation returns "", nil if there is no deprecation message.
-func CheckDeprecation(loaderstate *State, ctx context.Context, m module.Version) (deprecation string, err error) {
+func CheckDeprecation(ld *Loader, ctx context.Context, m module.Version) (deprecation string, err error) {
 	defer func() {
 		if err != nil {
 			err = fmt.Errorf("loading deprecation for %s: %w", m.Path, err)
@@ -312,17 +312,17 @@ func CheckDeprecation(loaderstate *State, ctx context.Context, m module.Version)
 		// Don't look up deprecation.
 		return "", nil
 	}
-	if repl := Replacement(loaderstate, module.Version{Path: m.Path}); repl.Path != "" {
+	if repl := Replacement(ld, module.Version{Path: m.Path}); repl.Path != "" {
 		// All versions of the module were replaced.
 		// We'll look up deprecation separately for the replacement.
 		return "", nil
 	}
 
-	latest, err := queryLatestVersionIgnoringRetractions(loaderstate, ctx, m.Path)
+	latest, err := queryLatestVersionIgnoringRetractions(ld, ctx, m.Path)
 	if err != nil {
 		return "", err
 	}
-	summary, err := rawGoModSummary(loaderstate, latest)
+	summary, err := rawGoModSummary(ld, latest)
 	if err != nil && !errors.Is(err, gover.ErrTooNew) {
 		return "", err
 	}
@@ -342,28 +342,28 @@ func replacement(mod module.Version, replace map[module.Version]module.Version) 
 // Replacement returns the replacement for mod, if any. If the path in the
 // module.Version is relative it's relative to the single main module outside
 // workspace mode, or the workspace's directory in workspace mode.
-func Replacement(loaderstate *State, mod module.Version) module.Version {
-	r, foundModRoot, _ := replacementFrom(loaderstate, mod)
-	return canonicalizeReplacePath(loaderstate, r, foundModRoot)
+func Replacement(ld *Loader, mod module.Version) module.Version {
+	r, foundModRoot, _ := replacementFrom(ld, mod)
+	return canonicalizeReplacePath(ld, r, foundModRoot)
 }
 
 // replacementFrom returns the replacement for mod, if any, the modroot of the replacement if it appeared in a go.mod,
 // and the source of the replacement. The replacement is relative to the go.work or go.mod file it appears in.
-func replacementFrom(loaderstate *State, mod module.Version) (r module.Version, modroot string, fromFile string) {
+func replacementFrom(ld *Loader, mod module.Version) (r module.Version, modroot string, fromFile string) {
 	foundFrom, found, foundModRoot := "", module.Version{}, ""
-	if loaderstate.MainModules == nil {
+	if ld.MainModules == nil {
 		return module.Version{}, "", ""
-	} else if loaderstate.MainModules.Contains(mod.Path) && mod.Version == "" {
+	} else if ld.MainModules.Contains(mod.Path) && mod.Version == "" {
 		// Don't replace the workspace version of the main module.
 		return module.Version{}, "", ""
 	}
-	if _, r, ok := replacement(mod, loaderstate.MainModules.WorkFileReplaceMap()); ok {
-		return r, "", loaderstate.workFilePath
+	if _, r, ok := replacement(mod, ld.MainModules.WorkFileReplaceMap()); ok {
+		return r, "", ld.workFilePath
 	}
-	for _, v := range loaderstate.MainModules.Versions() {
-		if index := loaderstate.MainModules.Index(v); index != nil {
+	for _, v := range ld.MainModules.Versions() {
+		if index := ld.MainModules.Index(v); index != nil {
 			if from, r, ok := replacement(mod, index.replace); ok {
-				modRoot := loaderstate.MainModules.ModRoot(v)
+				modRoot := ld.MainModules.ModRoot(v)
 				if foundModRoot != "" && foundFrom != from && found != r {
 					base.Errorf("conflicting replacements found for %v in workspace modules defined by %v and %v",
 						mod, modFilePath(foundModRoot), modFilePath(modRoot))
@@ -376,21 +376,21 @@ func replacementFrom(loaderstate *State, mod module.Version) (r module.Version, 
 	return found, foundModRoot, modFilePath(foundModRoot)
 }
 
-func replaceRelativeTo(loaderstate *State) string {
-	if workFilePath := WorkFilePath(loaderstate); workFilePath != "" {
+func replaceRelativeTo(ld *Loader) string {
+	if workFilePath := WorkFilePath(ld); workFilePath != "" {
 		return filepath.Dir(workFilePath)
 	}
-	return loaderstate.MainModules.ModRoot(loaderstate.MainModules.mustGetSingleMainModule(loaderstate))
+	return ld.MainModules.ModRoot(ld.MainModules.mustGetSingleMainModule(ld))
 }
 
 // canonicalizeReplacePath ensures that relative, on-disk, replaced module paths
 // are relative to the workspace directory (in workspace mode) or to the module's
 // directory (in module mode, as they already are).
-func canonicalizeReplacePath(loaderstate *State, r module.Version, modRoot string) module.Version {
+func canonicalizeReplacePath(ld *Loader, r module.Version, modRoot string) module.Version {
 	if filepath.IsAbs(r.Path) || r.Version != "" || modRoot == "" {
 		return r
 	}
-	workFilePath := WorkFilePath(loaderstate)
+	workFilePath := WorkFilePath(ld)
 	if workFilePath == "" {
 		return r
 	}
@@ -407,8 +407,8 @@ func canonicalizeReplacePath(loaderstate *State, r module.Version, modRoot strin
 // for m: either m itself, or the replacement for m (iff m is replaced).
 // It also returns the modroot of the module providing the replacement if
 // one was found.
-func resolveReplacement(loaderstate *State, m module.Version) module.Version {
-	if r := Replacement(loaderstate, m); r.Path != "" {
+func resolveReplacement(ld *Loader, m module.Version) module.Version {
+	if r := Replacement(ld, m); r.Path != "" {
 		return r
 	}
 	return m
@@ -573,12 +573,12 @@ type retraction struct {
 // module versions.
 //
 // The caller must not modify the returned summary.
-func goModSummary(loaderstate *State, m module.Version) (*modFileSummary, error) {
-	if m.Version == "" && !loaderstate.inWorkspaceMode() && loaderstate.MainModules.Contains(m.Path) {
+func goModSummary(ld *Loader, m module.Version) (*modFileSummary, error) {
+	if m.Version == "" && !ld.inWorkspaceMode() && ld.MainModules.Contains(m.Path) {
 		panic("internal error: goModSummary called on a main module")
 	}
 	if gover.IsToolchain(m.Path) {
-		return rawGoModSummary(loaderstate, m)
+		return rawGoModSummary(ld, m)
 	}
 
 	if cfg.BuildMod == "vendor" {
@@ -586,7 +586,7 @@ func goModSummary(loaderstate *State, m module.Version) (*modFileSummary, error)
 			module: module.Version{Path: m.Path},
 		}
 
-		readVendorList(VendorDir(loaderstate))
+		readVendorList(VendorDir(ld))
 		if vendorVersion[m.Path] != m.Version {
 			// This module is not vendored, so packages cannot be loaded from it and
 			// it cannot be relevant to the build.
@@ -601,15 +601,15 @@ func goModSummary(loaderstate *State, m module.Version) (*modFileSummary, error)
 		return summary, nil
 	}
 
-	actual := resolveReplacement(loaderstate, m)
-	if mustHaveSums(loaderstate) && actual.Version != "" {
+	actual := resolveReplacement(ld, m)
+	if mustHaveSums(ld) && actual.Version != "" {
 		key := module.Version{Path: actual.Path, Version: actual.Version + "/go.mod"}
-		if !modfetch.HaveSum(loaderstate.Fetcher(), key) {
+		if !modfetch.HaveSum(ld.Fetcher(), key) {
 			suggestion := fmt.Sprintf(" for go.mod file; to add it:\n\tgo mod download %s", m.Path)
 			return nil, module.VersionError(actual, &sumMissingError{suggestion: suggestion})
 		}
 	}
-	summary, err := rawGoModSummary(loaderstate, actual)
+	summary, err := rawGoModSummary(ld, actual)
 	if err != nil {
 		return nil, err
 	}
@@ -641,8 +641,8 @@ func goModSummary(loaderstate *State, m module.Version) (*modFileSummary, error)
 		}
 	}
 
-	for _, mainModule := range loaderstate.MainModules.Versions() {
-		if index := loaderstate.MainModules.Index(mainModule); index != nil && len(index.exclude) > 0 {
+	for _, mainModule := range ld.MainModules.Versions() {
+		if index := ld.MainModules.Index(mainModule); index != nil && len(index.exclude) > 0 {
 			// Drop any requirements on excluded versions.
 			// Don't modify the cached summary though, since we might need the raw
 			// summary separately.
@@ -676,7 +676,7 @@ func goModSummary(loaderstate *State, m module.Version) (*modFileSummary, error)
 // rawGoModSummary cannot be used on the main module outside of workspace mode.
 // The modFileSummary can still be used for retractions and deprecations
 // even if a TooNewError is returned.
-func rawGoModSummary(loaderstate *State, m module.Version) (*modFileSummary, error) {
+func rawGoModSummary(ld *Loader, m module.Version) (*modFileSummary, error) {
 	if gover.IsToolchain(m.Path) {
 		if m.Path == "go" && gover.Compare(m.Version, gover.GoStrictVersion) >= 0 {
 			// Declare that go 1.21.3 requires toolchain 1.21.3,
@@ -686,7 +686,7 @@ func rawGoModSummary(loaderstate *State, m module.Version) (*modFileSummary, err
 		}
 		return &modFileSummary{module: m}, nil
 	}
-	if m.Version == "" && !loaderstate.inWorkspaceMode() && loaderstate.MainModules.Contains(m.Path) {
+	if m.Version == "" && !ld.inWorkspaceMode() && ld.MainModules.Contains(m.Path) {
 		// Calling rawGoModSummary implies that we are treating m as a module whose
 		// requirements aren't the roots of the module graph and can't be modified.
 		//
@@ -694,22 +694,22 @@ func rawGoModSummary(loaderstate *State, m module.Version) (*modFileSummary, err
 		// are the roots of the module graph and we expect them to be kept consistent.
 		panic("internal error: rawGoModSummary called on a main module")
 	}
-	if m.Version == "" && loaderstate.inWorkspaceMode() && m.Path == "command-line-arguments" {
+	if m.Version == "" && ld.inWorkspaceMode() && m.Path == "command-line-arguments" {
 		// "go work sync" calls LoadModGraph to make sure the module graph is valid.
 		// If there are no modules in the workspace, we synthesize an empty
 		// command-line-arguments module, which rawGoModData cannot read a go.mod for.
 		return &modFileSummary{module: m}, nil
-	} else if m.Version == "" && loaderstate.inWorkspaceMode() && loaderstate.MainModules.Contains(m.Path) {
+	} else if m.Version == "" && ld.inWorkspaceMode() && ld.MainModules.Contains(m.Path) {
 		// When go get uses EnterWorkspace to check that the workspace loads properly,
 		// it will update the contents of the workspace module's modfile in memory. To use the updated
 		// contents of the modfile when doing the load, don't read from disk and instead
 		// recompute a summary using the updated contents of the modfile.
-		if mf := loaderstate.MainModules.ModFile(m); mf != nil {
-			return summaryFromModFile(m, loaderstate.MainModules.modFiles[m])
+		if mf := ld.MainModules.ModFile(m); mf != nil {
+			return summaryFromModFile(m, ld.MainModules.modFiles[m])
 		}
 	}
 	return rawGoModSummaryCache.Do(m, func() (*modFileSummary, error) {
-		name, data, err := rawGoModData(loaderstate, m)
+		name, data, err := rawGoModData(ld, m)
 		if err != nil {
 			return nil, err
 		}
@@ -781,15 +781,15 @@ var rawGoModSummaryCache par.ErrCache[module.Version, *modFileSummary]
 //
 // Unlike rawGoModSummary, rawGoModData does not cache its results in memory.
 // Use rawGoModSummary instead unless you specifically need these bytes.
-func rawGoModData(loaderstate *State, m module.Version) (name string, data []byte, err error) {
+func rawGoModData(ld *Loader, m module.Version) (name string, data []byte, err error) {
 	if m.Version == "" {
 		dir := m.Path
 		if !filepath.IsAbs(dir) {
-			if loaderstate.inWorkspaceMode() && loaderstate.MainModules.Contains(m.Path) {
-				dir = loaderstate.MainModules.ModRoot(m)
+			if ld.inWorkspaceMode() && ld.MainModules.Contains(m.Path) {
+				dir = ld.MainModules.ModRoot(m)
 			} else {
 				// m is a replacement module with only a file path.
-				dir = filepath.Join(replaceRelativeTo(loaderstate), dir)
+				dir = filepath.Join(replaceRelativeTo(ld), dir)
 			}
 		}
 		name = filepath.Join(dir, "go.mod")
@@ -810,7 +810,7 @@ func rawGoModData(loaderstate *State, m module.Version) (name string, data []byt
 			base.Fatalf("go: internal error: %s@%s: unexpected invalid semantic version", m.Path, m.Version)
 		}
 		name = "go.mod"
-		data, err = loaderstate.Fetcher().GoMod(context.TODO(), m.Path, m.Version)
+		data, err = ld.Fetcher().GoMod(context.TODO(), m.Path, m.Version)
 	}
 	return name, data, err
 }
@@ -825,12 +825,12 @@ func rawGoModData(loaderstate *State, m module.Version) (name string, data []byt
 //
 // If the queried latest version is replaced,
 // queryLatestVersionIgnoringRetractions returns the replacement.
-func queryLatestVersionIgnoringRetractions(loaderstate *State, ctx context.Context, path string) (latest module.Version, err error) {
+func queryLatestVersionIgnoringRetractions(ld *Loader, ctx context.Context, path string) (latest module.Version, err error) {
 	return latestVersionIgnoringRetractionsCache.Do(path, func() (module.Version, error) {
 		ctx, span := trace.StartSpan(ctx, "queryLatestVersionIgnoringRetractions "+path)
 		defer span.Done()
 
-		if repl := Replacement(loaderstate, module.Version{Path: path}); repl.Path != "" {
+		if repl := Replacement(ld, module.Version{Path: path}); repl.Path != "" {
 			// All versions of the module were replaced.
 			// No need to query.
 			return repl, nil
@@ -840,12 +840,12 @@ func queryLatestVersionIgnoringRetractions(loaderstate *State, ctx context.Conte
 		// Ignore exclusions from the main module's go.mod.
 		const ignoreSelected = ""
 		var allowAll AllowedFunc
-		rev, err := Query(loaderstate, ctx, path, "latest", ignoreSelected, allowAll)
+		rev, err := Query(ld, ctx, path, "latest", ignoreSelected, allowAll)
 		if err != nil {
 			return module.Version{}, err
 		}
 		latest := module.Version{Path: path, Version: rev.Version}
-		if repl := resolveReplacement(loaderstate, latest); repl.Path != "" {
+		if repl := resolveReplacement(ld, latest); repl.Path != "" {
 			latest = repl
 		}
 		return latest, nil

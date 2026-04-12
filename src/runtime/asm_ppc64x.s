@@ -31,53 +31,26 @@ TEXT _rt0_ppc64x_lib(SB),NOSPLIT|NOFRAME,$0
 	MOVD	R12, CTR
 	BL	(CTR)
 
+	// Initialize g as nil in case of using g later e.g. sigaction in cgo_sigaction.go
+	MOVD	R0, g
+
 #ifdef GOOS_aix
 	// See runtime/cgo/gcc_aix_ppc64.c
 	MOVBZ	runtime·isarchive(SB), R3	// Check buildmode = c-archive
 	CMP		$0, R3
-	BEQ		done
+	BEQ		skipInit
 #endif
 
-	MOVD	$runtime·libpreinit(SB), R12
+	MOVD	$runtime·libInit(SB), R12
 	MOVD	R12, CTR
 	BL	(CTR)
 
-	// Create a new thread to do the runtime initialization and return.
-	// _cgo_sys_thread_create is a C function.
-	MOVD	_cgo_sys_thread_create(SB), R12
-	CMP	$0, R12
-	BEQ	nocgo
-	MOVD	$_rt0_ppc64x_lib_go(SB), R3
-	MOVD	$0, R4
-#ifdef GO_PPC64X_HAS_FUNCDESC
-	// Load the real entry address from the first slot of the function descriptor.
-	MOVD	8(R12), R2
-	MOVD	(R12), R12
-#endif
-	MOVD	R12, CTR
-	BL	(CTR)
-	MOVD	24(R1), R2 // Restore the old frame, and R2.
-	BR	done
-
-nocgo:
-	MOVD	$0x800000, R12                     // stacksize = 8192KB
-	MOVD	R12, 8+FIXED_FRAME(R1)
-	MOVD	$_rt0_ppc64x_lib_go(SB), R12
-	MOVD	R12, 16+FIXED_FRAME(R1)
-	MOVD	$runtime·newosproc0(SB),R12
-	MOVD	R12, CTR
-	BL	(CTR)
-
-done:
+skipInit:
+	// Restore and return to ELFv2 caller.
 	UNSTACK_AND_RESTORE_GO_TO_HOST_ABI(32)
 	RET
 
-#ifdef GO_PPC64X_HAS_FUNCDESC
-DEFINE_PPC64X_FUNCDESC(_rt0_ppc64x_lib_go, __rt0_ppc64x_lib_go)
-TEXT __rt0_ppc64x_lib_go(SB),NOSPLIT,$0
-#else
-TEXT _rt0_ppc64x_lib_go(SB),NOSPLIT,$0
-#endif
+TEXT runtime·rt0_lib_go<ABIInternal>(SB),NOSPLIT,$0
 	MOVD	_rt0_ppc64x_lib_argc<>(SB), R3
 	MOVD	_rt0_ppc64x_lib_argv<>(SB), R4
 	MOVD	$runtime·rt0_go(SB), R12
@@ -782,10 +755,6 @@ nosave:
 	// This code is like the above sequence but without saving/restoring g
 	// and without worrying about the stack moving out from under us
 	// (because we're on a system stack, not a goroutine stack).
-	// The above code could be used directly if already on a system stack,
-	// but then the only path through this code would be a rare case.
-	// Using this code for all "already on system stack" calls exercises it more,
-	// which should help keep it correct.
 
 	SUB	$(asmcgocallSaveOffset+8), R1, R10
 	RLDCR	$0, R10, $~15, R1		// 16-byte alignment for gcc ABI

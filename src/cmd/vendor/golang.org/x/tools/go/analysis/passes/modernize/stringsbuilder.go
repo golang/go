@@ -22,7 +22,6 @@ import (
 	typeindexanalyzer "golang.org/x/tools/internal/analysis/typeindex"
 	"golang.org/x/tools/internal/astutil"
 	"golang.org/x/tools/internal/refactor"
-	"golang.org/x/tools/internal/typesinternal"
 	"golang.org/x/tools/internal/typesinternal/typeindex"
 )
 
@@ -57,7 +56,7 @@ func stringsbuilder(pass *analysis.Pass) (any, error) {
 		assign := curAssign.Node().(*ast.AssignStmt)
 		if assign.Tok == token.ADD_ASSIGN && is[*ast.Ident](assign.Lhs[0]) {
 			if v, ok := pass.TypesInfo.Uses[assign.Lhs[0].(*ast.Ident)].(*types.Var); ok &&
-				!typesinternal.IsPackageLevel(v) && // TODO(adonovan): in go1.25, use v.Kind() == types.LocalVar &&
+				v.Kind() == types.LocalVar &&
 				types.Identical(v.Type(), builtinString.Type()) {
 				candidates[v] = true
 			}
@@ -102,7 +101,7 @@ nextcand:
 			continue
 		}
 
-		ek, _ := def.ParentEdge()
+		ek := def.ParentEdgeKind()
 		if ek == edge.AssignStmt_Lhs &&
 			len(def.Parent().Node().(*ast.AssignStmt).Lhs) == 1 {
 			// Have: s := expr
@@ -254,8 +253,8 @@ nextcand:
 		//    var s string
 		//    for ... { s += expr }
 		//
-		// - The final use of s must be as an rvalue (e.g. use(s), not &s).
-		//   This will become s.String().
+		// - All uses of s after the last += must be rvalue uses (e.g. use(s), not &s).
+		//   Each of these will become s.String().
 		//
 		//   Perhaps surprisingly, it is fine for there to be an
 		//   intervening loop or lambda w.r.t. the declaration of s:
@@ -270,19 +269,14 @@ nextcand:
 		var (
 			numLoopAssigns int             // number of += assignments within a loop
 			loopAssign     *ast.AssignStmt // first += assignment within a loop
-			seenRvalueUse  bool            // => we've seen the sole final use of s as an rvalue
+			seenRvalueUse  bool            // => we've seen at least one rvalue use of s
 		)
 		for curUse := range index.Uses(v) {
 			// Strip enclosing parens around Ident.
-			ek, _ := curUse.ParentEdge()
+			ek := curUse.ParentEdgeKind()
 			for ek == edge.ParenExpr_X {
 				curUse = curUse.Parent()
-				ek, _ = curUse.ParentEdge()
-			}
-
-			// The rvalueUse must be the lexically last use.
-			if seenRvalueUse {
-				continue nextcand
+				ek = curUse.ParentEdgeKind()
 			}
 
 			// intervening reports whether cur has an ancestor of
@@ -297,6 +291,11 @@ nextcand:
 			}
 
 			if ek == edge.AssignStmt_Lhs {
+				// After an rvalue use, no more assignments are allowed.
+				if seenRvalueUse {
+					continue nextcand
+				}
+
 				assign := curUse.Parent().Node().(*ast.AssignStmt)
 				if assign.Tok != token.ADD_ASSIGN {
 					continue nextcand
@@ -317,9 +316,9 @@ nextcand:
 				//  -------------    -
 				// s.WriteString(expr)
 				edits = append(edits, []analysis.TextEdit{
-					// replace += with .WriteString()
+					// replace " += " with ".WriteString("
 					{
-						Pos:     assign.TokPos,
+						Pos:     assign.Lhs[0].End(),
 						End:     assign.Rhs[0].Pos(),
 						NewText: []byte(".WriteString("),
 					},

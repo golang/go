@@ -13,9 +13,8 @@ import (
 type indVarFlags uint8
 
 const (
-	indVarMinExc    indVarFlags = 1 << iota // minimum value is exclusive (default: inclusive)
-	indVarMaxInc                            // maximum value is inclusive (default: exclusive)
-	indVarCountDown                         // if set the iteration starts at max and count towards min (default: min towards max)
+	indVarMinExc indVarFlags = 1 << iota // minimum value is exclusive (default: inclusive)
+	indVarMaxInc                         // maximum value is inclusive (default: exclusive)
 )
 
 type indVar struct {
@@ -23,9 +22,10 @@ type indVar struct {
 	nxt   *Value // the incremented variable
 	min   *Value // minimum value, inclusive/exclusive depends on flags
 	max   *Value // maximum value, inclusive/exclusive depends on flags
-	entry *Block // entry block in the loop.
+	entry *Block // the block where the edge from the succeeded comparison of the induction variable goes to, means when the bound check has passed.
+	step  int64
 	flags indVarFlags
-	// Invariant: for all blocks strictly dominated by entry:
+	// Invariant: for all blocks dominated by entry:
 	//	min <= ind <  max    [if flags == 0]
 	//	min <  ind <  max    [if flags == indVarMinExc]
 	//	min <= ind <= max    [if flags == indVarMaxInc]
@@ -83,259 +83,290 @@ func parseIndVar(ind *Value) (min, inc, nxt *Value, loopReturn Edge) {
 //		goto loop
 //
 //	 exit_loop:
+//
+// We may have more than one induction variables, the loop in the go
+// source code may looks like this:
+//
+//	for i >= 0 && j >= 0 {
+//		// use i and j
+//		i--
+//		j--
+//	}
+//
+// So, also look for variables and blocks that satisfy the following
+//
+//	loop:
+//	  i = (Phi maxi nxti)
+//	  j = (Phi maxj nxtj)
+//	  if i >= mini
+//	    then goto check_j
+//	    else goto exit_loop
+//
+//	check_j:
+//	  if j >= minj
+//	    then goto enter_loop
+//	    else goto exit_loop
+//
+//	enter_loop:
+//	  do something
+//	  nxti = i - di
+//	  nxtj = j - dj
+//	  goto loop
+//
+//	exit_loop:
 func findIndVar(f *Func) []indVar {
 	var iv []indVar
 	sdom := f.Sdom()
 
+nextblock:
 	for _, b := range f.Blocks {
-		if b.Kind != BlockIf || len(b.Preds) != 2 {
+		if b.Kind != BlockIf {
 			continue
 		}
-
-		var ind *Value   // induction variable
-		var init *Value  // starting value
-		var limit *Value // ending value
-
-		// Check that the control if it either ind </<= limit or limit </<= ind.
-		// TODO: Handle unsigned comparisons?
 		c := b.Controls[0]
-		inclusive := false
-		switch c.Op {
-		case OpLeq64, OpLeq32, OpLeq16, OpLeq8:
-			inclusive = true
-			fallthrough
-		case OpLess64, OpLess32, OpLess16, OpLess8:
-			ind, limit = c.Args[0], c.Args[1]
-		default:
-			continue
-		}
+		for idx := range 2 {
+			// Check that the control if it either ind </<= limit or limit </<= ind.
+			// TODO: Handle unsigned comparisons?
+			inclusive := false
+			switch c.Op {
+			case OpLeq64, OpLeq32, OpLeq16, OpLeq8:
+				inclusive = true
+			case OpLess64, OpLess32, OpLess16, OpLess8:
+			default:
+				continue nextblock
+			}
 
-		// See if this is really an induction variable
-		less := true
-		init, inc, nxt, loopReturn := parseIndVar(ind)
-		if init == nil {
-			// We failed to parse the induction variable. Before punting, we want to check
-			// whether the control op was written with the induction variable on the RHS
-			// instead of the LHS. This happens for the downwards case, like:
-			//     for i := len(n)-1; i >= 0; i--
-			init, inc, nxt, loopReturn = parseIndVar(limit)
+			less := idx == 0
+			// induction variable, ending value
+			ind, limit := c.Args[idx], c.Args[1-idx]
+			// starting value, increment value, next value, loop return edge
+			init, inc, nxt, loopReturn := parseIndVar(ind)
 			if init == nil {
-				// No recognized induction variable on either operand
+				continue // this is not an induction variable
+			}
+
+			// This is ind.Block.Preds, not b.Preds. That's a restriction on the loop header,
+			// not the comparison block.
+			if len(ind.Block.Preds) != 2 {
 				continue
 			}
 
-			// Ok, the arguments were reversed. Swap them, and remember that we're
-			// looking at an ind >/>= loop (so the induction must be decrementing).
-			ind, limit = limit, ind
-			less = false
-		}
-
-		if ind.Block != b {
-			// TODO: Could be extended to include disjointed loop headers.
-			// I don't think this is causing missed optimizations in real world code often.
-			// See https://go.dev/issue/63955
-			continue
-		}
-
-		// Expect the increment to be a nonzero constant.
-		if !inc.isGenericIntConst() {
-			continue
-		}
-		step := inc.AuxInt
-		if step == 0 {
-			continue
-		}
-
-		// startBody is the edge that eventually returns to the loop header.
-		var startBody Edge
-		switch {
-		case sdom.IsAncestorEq(b.Succs[0].b, loopReturn.b):
-			startBody = b.Succs[0]
-		case sdom.IsAncestorEq(b.Succs[1].b, loopReturn.b):
-			// if x { goto exit } else { goto entry } is identical to if !x { goto entry } else { goto exit }
-			startBody = b.Succs[1]
-			less = !less
-			inclusive = !inclusive
-		default:
-			continue
-		}
-
-		// Increment sign must match comparison direction.
-		// When incrementing, the termination comparison must be ind </<= limit.
-		// When decrementing, the termination comparison must be ind >/>= limit.
-		// See issue 26116.
-		if step > 0 && !less {
-			continue
-		}
-		if step < 0 && less {
-			continue
-		}
-
-		// Up to now we extracted the induction variable (ind),
-		// the increment delta (inc), the temporary sum (nxt),
-		// the initial value (init) and the limiting value (limit).
-		//
-		// We also know that ind has the form (Phi init nxt) where
-		// nxt is (Add inc nxt) which means: 1) inc dominates nxt
-		// and 2) there is a loop starting at inc and containing nxt.
-		//
-		// We need to prove that the induction variable is incremented
-		// only when it's smaller than the limiting value.
-		// Two conditions must happen listed below to accept ind
-		// as an induction variable.
-
-		// First condition: loop entry has a single predecessor, which
-		// is the header block.  This implies that b.Succs[0] is
-		// reached iff ind < limit.
-		if len(startBody.b.Preds) != 1 {
-			// the other successor must exit the loop.
-			continue
-		}
-
-		// Second condition: startBody.b dominates nxt so that
-		// nxt is computed when inc < limit.
-		if !sdom.IsAncestorEq(startBody.b, nxt.Block) {
-			// inc+ind can only be reached through the branch that enters the loop.
-			continue
-		}
-
-		// Check for overflow/underflow. We need to make sure that inc never causes
-		// the induction variable to wrap around.
-		// We use a function wrapper here for easy return true / return false / keep going logic.
-		// This function returns true if the increment will never overflow/underflow.
-		ok := func() bool {
-			if step > 0 {
-				if limit.isGenericIntConst() {
-					// Figure out the actual largest value.
-					v := limit.AuxInt
-					if !inclusive {
-						if v == minSignedValue(limit.Type) {
-							return false // < minint is never satisfiable.
-						}
-						v--
-					}
-					if init.isGenericIntConst() {
-						// Use stride to compute a better lower limit.
-						if init.AuxInt > v {
-							return false
-						}
-						v = addU(init.AuxInt, diff(v, init.AuxInt)/uint64(step)*uint64(step))
-					}
-					if addWillOverflow(v, step) {
-						return false
-					}
-					if inclusive && v != limit.AuxInt || !inclusive && v+1 != limit.AuxInt {
-						// We know a better limit than the programmer did. Use our limit instead.
-						limit = f.constVal(limit.Op, limit.Type, v, true)
-						inclusive = true
-					}
-					return true
-				}
-				if step == 1 && !inclusive {
-					// Can't overflow because maxint is never a possible value.
-					return true
-				}
-				// If the limit is not a constant, check to see if it is a
-				// negative offset from a known non-negative value.
-				knn, k := findKNN(limit)
-				if knn == nil || k < 0 {
-					return false
-				}
-				// limit == (something nonnegative) - k. That subtraction can't underflow, so
-				// we can trust it.
-				if inclusive {
-					// ind <= knn - k cannot overflow if step is at most k
-					return step <= k
-				}
-				// ind < knn - k cannot overflow if step is at most k+1
-				return step <= k+1 && k != maxSignedValue(limit.Type)
-			} else { // step < 0
-				if limit.Op == OpConst64 {
-					// Figure out the actual smallest value.
-					v := limit.AuxInt
-					if !inclusive {
-						if v == maxSignedValue(limit.Type) {
-							return false // > maxint is never satisfiable.
-						}
-						v++
-					}
-					if init.isGenericIntConst() {
-						// Use stride to compute a better lower limit.
-						if init.AuxInt < v {
-							return false
-						}
-						v = subU(init.AuxInt, diff(init.AuxInt, v)/uint64(-step)*uint64(-step))
-					}
-					if subWillUnderflow(v, -step) {
-						return false
-					}
-					if inclusive && v != limit.AuxInt || !inclusive && v-1 != limit.AuxInt {
-						// We know a better limit than the programmer did. Use our limit instead.
-						limit = f.constVal(limit.Op, limit.Type, v, true)
-						inclusive = true
-					}
-					return true
-				}
-				if step == -1 && !inclusive {
-					// Can't underflow because minint is never a possible value.
-					return true
-				}
+			// Expect the increment to be a nonzero constant.
+			if !inc.isGenericIntConst() {
+				continue
 			}
-			return false
+			step := inc.AuxInt
+			if step == 0 {
+				continue
+			}
 
-		}
+			// startBody is the edge that eventually returns to the loop header.
+			var startBody Edge
+			switch {
+			case sdom.IsAncestorEq(b.Succs[0].b, loopReturn.b):
+				startBody = b.Succs[0]
+			case sdom.IsAncestorEq(b.Succs[1].b, loopReturn.b):
+				// if x { goto exit } else { goto entry } is identical to if !x { goto entry } else { goto exit }
+				startBody = b.Succs[1]
+				less = !less
+				inclusive = !inclusive
+			default:
+				continue
+			}
 
-		if ok() {
-			flags := indVarFlags(0)
-			var min, max *Value
-			if step > 0 {
-				min = init
-				max = limit
-				if inclusive {
+			// Increment sign must match comparison direction.
+			// When incrementing, the termination comparison must be ind </<= limit.
+			// When decrementing, the termination comparison must be ind >/>= limit.
+			// See issue 26116.
+			if step > 0 && !less {
+				continue
+			}
+			if step < 0 && less {
+				continue
+			}
+
+			// Up to now we extracted the induction variable (ind),
+			// the increment delta (inc), the temporary sum (nxt),
+			// the initial value (init) and the limiting value (limit).
+			//
+			// We also know that ind has the form (Phi init nxt) where
+			// nxt is (Add inc nxt) which means: 1) inc dominates nxt
+			// and 2) there is a loop starting at inc and containing nxt.
+			//
+			// We need to prove that the induction variable is incremented
+			// only when it's smaller than the limiting value.
+			// Two conditions must happen listed below to accept ind
+			// as an induction variable.
+
+			// First condition: the entry block has a single predecessor.
+			// The entry now means the in-loop edge where the induction variable
+			// comparison succeeded. Its predecessor is not necessarily the header
+			// block. This implies that b.Succs[0] is reached iff ind < limit.
+			if len(startBody.b.Preds) != 1 {
+				// the other successor must exit the loop.
+				continue
+			}
+
+			// Second condition: startBody.b dominates nxt so that
+			// nxt is computed when inc < limit.
+			if !sdom.IsAncestorEq(startBody.b, nxt.Block) {
+				// inc+ind can only be reached through the branch that confirmed the
+				// induction variable is in bounds.
+				continue
+			}
+
+			// Check for overflow/underflow. We need to make sure that inc never causes
+			// the induction variable to wrap around.
+			// We use a function wrapper here for easy return true / return false / keep going logic.
+			// This function returns true if the increment will never overflow/underflow.
+			ok := func() bool {
+				if step > 0 {
+					if limit.isGenericIntConst() {
+						// Figure out the actual largest value.
+						v := limit.AuxInt
+						if !inclusive {
+							if v == minSignedValue(limit.Type) {
+								return false // < minint is never satisfiable.
+							}
+							v--
+						}
+						if init.isGenericIntConst() {
+							// Use stride to compute a better lower limit.
+							if init.AuxInt > v {
+								return false
+							}
+							// TODO(1.27): investigate passing a smaller-magnitude overflow limit to addU
+							// for addWillOverflow.
+							v = addU(init.AuxInt, diff(v, init.AuxInt)/uint64(step)*uint64(step))
+						}
+						if addWillOverflow(v, step, maxSignedValue(ind.Type)) {
+							return false
+						}
+						if inclusive && v != limit.AuxInt || !inclusive && v+1 != limit.AuxInt {
+							// We know a better limit than the programmer did. Use our limit instead.
+							limit = f.constVal(limit.Op, limit.Type, v, true)
+							inclusive = true
+						}
+						return true
+					}
+					if step == 1 && !inclusive {
+						// Can't overflow because maxint is never a possible value.
+						return true
+					}
+					// If the limit is not a constant, check to see if it is a
+					// negative offset from a known non-negative value.
+					knn, k := findKNN(limit)
+					if knn == nil || k < 0 {
+						return false
+					}
+					// limit == (something nonnegative) - k. That subtraction can't underflow, so
+					// we can trust it.
+					if inclusive {
+						// ind <= knn - k cannot overflow if step is at most k
+						return step <= k
+					}
+					// ind < knn - k cannot overflow if step is at most k+1
+					return step <= k+1 && k != maxSignedValue(limit.Type)
+
+					// TODO: other unrolling idioms
+					// for i := 0; i < KNN - KNN % k ; i += k
+					// for i := 0; i < KNN&^(k-1) ; i += k // k a power of 2
+					// for i := 0; i < KNN&(-k) ; i += k // k a power of 2
+				} else { // step < 0
+					if limit.isGenericIntConst() {
+						// Figure out the actual smallest value.
+						v := limit.AuxInt
+						if !inclusive {
+							if v == maxSignedValue(limit.Type) {
+								return false // > maxint is never satisfiable.
+							}
+							v++
+						}
+						if init.isGenericIntConst() {
+							// Use stride to compute a better lower limit.
+							if init.AuxInt < v {
+								return false
+							}
+							// TODO(1.27): investigate passing a smaller-magnitude underflow limit to subU
+							// for subWillUnderflow.
+							v = subU(init.AuxInt, diff(init.AuxInt, v)/uint64(-step)*uint64(-step))
+						}
+						if subWillUnderflow(v, -step, minSignedValue(ind.Type)) {
+							return false
+						}
+						if inclusive && v != limit.AuxInt || !inclusive && v-1 != limit.AuxInt {
+							// We know a better limit than the programmer did. Use our limit instead.
+							limit = f.constVal(limit.Op, limit.Type, v, true)
+							inclusive = true
+						}
+						return true
+					}
+					if step == -1 && !inclusive {
+						// Can't underflow because minint is never a possible value.
+						return true
+					}
+				}
+				return false
+			}
+
+			if ok() {
+				flags := indVarFlags(0)
+				var min, max *Value
+				if step > 0 {
+					min = init
+					max = limit
+					if inclusive {
+						flags |= indVarMaxInc
+					}
+				} else {
+					min = limit
+					max = init
 					flags |= indVarMaxInc
+					if !inclusive {
+						flags |= indVarMinExc
+					}
+					step = -step
 				}
-			} else {
-				min = limit
-				max = init
-				flags |= indVarMaxInc
-				if !inclusive {
-					flags |= indVarMinExc
+				if f.pass.debug >= 1 {
+					printIndVar(b, ind, min, max, step, flags)
 				}
-				flags |= indVarCountDown
-				step = -step
-			}
-			if f.pass.debug >= 1 {
-				printIndVar(b, ind, min, max, step, flags)
-			}
 
-			iv = append(iv, indVar{
-				ind:   ind,
-				nxt:   nxt,
-				min:   min,
-				max:   max,
-				entry: startBody.b,
-				flags: flags,
-			})
-			b.Logf("found induction variable %v (inc = %v, min = %v, max = %v)\n", ind, inc, min, max)
+				iv = append(iv, indVar{
+					ind: ind,
+					nxt: nxt,
+					min: min,
+					max: max,
+					// This is startBody.b, where startBody is the edge from the comparison for the
+					// induction variable, not necessarily the in-loop edge from the loop header.
+					// Induction variable bounds are not valid in the loop before this edge.
+					entry: startBody.b,
+					step:  step,
+					flags: flags,
+				})
+				b.Logf("found induction variable %v (inc = %v, min = %v, max = %v)\n", ind, inc, min, max)
+			}
 		}
-
-		// TODO: other unrolling idioms
-		// for i := 0; i < KNN - KNN % k ; i += k
-		// for i := 0; i < KNN&^(k-1) ; i += k // k a power of 2
-		// for i := 0; i < KNN&(-k) ; i += k // k a power of 2
 	}
 
 	return iv
 }
 
-// addWillOverflow reports whether x+y would result in a value more than maxint.
-func addWillOverflow(x, y int64) bool {
-	return x+y < x
+// subWillUnderflow checks if x - y underflows the min value.
+// y must be positive.
+func subWillUnderflow(x, y int64, min int64) bool {
+	if y < 0 {
+		base.Fatalf("expecting positive value")
+	}
+	return x < min+y
 }
 
-// subWillUnderflow reports whether x-y would result in a value less than minint.
-func subWillUnderflow(x, y int64) bool {
-	return x-y > x
+// addWillOverflow checks if x + y overflows the max value.
+// y must be positive.
+func addWillOverflow(x, y int64, max int64) bool {
+	if y < 0 {
+		base.Fatalf("expecting positive value")
+	}
+	return x > max-y
 }
 
 // diff returns x-y as a uint64. Requires x>=y.
@@ -356,7 +387,8 @@ func addU(x int64, y uint64) int64 {
 		x += 1
 		y -= 1 << 63
 	}
-	if addWillOverflow(x, int64(y)) {
+	// TODO(1.27): investigate passing a smaller-magnitude overflow limit in here.
+	if addWillOverflow(x, int64(y), maxSignedValue(types.Types[types.TINT64])) {
 		base.Fatalf("addU overflowed %d + %d", x, y)
 	}
 	return x + int64(y)
@@ -372,7 +404,8 @@ func subU(x int64, y uint64) int64 {
 		x -= 1
 		y -= 1 << 63
 	}
-	if subWillUnderflow(x, int64(y)) {
+	// TODO(1.27): investigate passing a smaller-magnitude underflow limit in here.
+	if subWillUnderflow(x, int64(y), minSignedValue(types.Types[types.TINT64])) {
 		base.Fatalf("subU underflowed %d - %d", x, y)
 	}
 	return x - int64(y)

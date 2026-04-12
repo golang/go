@@ -255,6 +255,7 @@ func TestBinomial(t *testing.T) {
 		{100, 90, "17310309456440"},
 		{1000, 10, "263409560461970212832400"},
 		{1000, 990, "263409560461970212832400"},
+		{5, -1, "0"},
 	} {
 		if got := z.Binomial(test.n, test.k).String(); got != test.want {
 			t.Errorf("Binomial(%d, %d) = %s; want %s", test.n, test.k, got, test.want)

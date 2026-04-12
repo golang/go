@@ -267,7 +267,7 @@ func (r *gitRepo) loadRefs(ctx context.Context) (map[string]string, error) {
 		if gitErr != nil {
 			if rerr, ok := gitErr.(*RunError); ok {
 				if bytes.Contains(rerr.Stderr, []byte("fatal: could not read Username")) {
-					rerr.HelpText = "Confirm the import path was entered correctly.\nIf this is a private repository, see https://golang.org/doc/faq#git_https for additional information."
+					rerr.HelpText = "Confirm the import path was entered correctly.\nIf this is a private repository, see https://go.dev/doc/faq#git_https for additional information."
 				}
 			}
 

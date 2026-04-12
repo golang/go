@@ -34,28 +34,12 @@ TEXT _rt0_s390x_lib(SB), NOSPLIT|NOFRAME, $0
 	FMOVD	F14, 64(R15)
 	FMOVD	F15, 72(R15)
 
-	// Synchronous initialization.
-	MOVD	$runtime·libpreinit(SB), R1
+	// Initialize g as nil in case of using g later e.g. sigaction in cgo_sigaction.go
+	XOR	g, g
+
+	MOVD	$runtime·libInit(SB), R1
 	BL	R1
 
-	// Create a new thread to finish Go runtime initialization.
-	MOVD	_cgo_sys_thread_create(SB), R1
-	CMP	R1, $0
-	BEQ	nocgo
-	MOVD	$_rt0_s390x_lib_go(SB), R2
-	MOVD	$0, R3
-	BL	R1
-	BR	restore
-
-nocgo:
-	MOVD	$0x800000, R1              // stacksize
-	MOVD	R1, 0(R15)
-	MOVD	$_rt0_s390x_lib_go(SB), R1
-	MOVD	R1, 8(R15)                 // fn
-	MOVD	$runtime·newosproc(SB), R1
-	BL	R1
-
-restore:
 	// Restore F8-F15 from our stack frame.
 	FMOVD	16(R15), F8
 	FMOVD	24(R15), F9
@@ -71,9 +55,9 @@ restore:
 	LMG	48(R15), R6, R15
 	RET
 
-// _rt0_s390x_lib_go initializes the Go runtime.
+// rt0_lib_go initializes the Go runtime.
 // This is started in a separate thread by _rt0_s390x_lib.
-TEXT _rt0_s390x_lib_go(SB), NOSPLIT|NOFRAME, $0
+TEXT runtime·rt0_lib_go<ABIInternal>(SB), NOSPLIT|NOFRAME, $0
 	MOVD	_rt0_s390x_lib_argc<>(SB), R2
 	MOVD	_rt0_s390x_lib_argv<>(SB), R3
 	MOVD	$runtime·rt0_go(SB), R1
@@ -81,7 +65,7 @@ TEXT _rt0_s390x_lib_go(SB), NOSPLIT|NOFRAME, $0
 
 DATA _rt0_s390x_lib_argc<>(SB)/8, $0
 GLOBL _rt0_s390x_lib_argc<>(SB), NOPTR, $8
-DATA _rt0_s90x_lib_argv<>(SB)/8, $0
+DATA _rt0_s390x_lib_argv<>(SB)/8, $0
 GLOBL _rt0_s390x_lib_argv<>(SB), NOPTR, $8
 
 TEXT runtime·rt0_go(SB),NOSPLIT|TOPFRAME,$0
@@ -552,6 +536,7 @@ TEXT ·asmcgocall(SB),NOSPLIT,$0-20
 	// We get called to create new OS threads too, and those
 	// come in on the m->g0 stack already. Or we might already
 	// be on the m->gsignal stack.
+	CMPBEQ	g, $0, nosave
 	MOVD	g_m(g), R6
 	MOVD	m_gsignal(R6), R7
 	CMPBEQ	R7, g, g0
@@ -587,6 +572,48 @@ g0:
 	MOVD	R5, R15
 
 	MOVW	R2, ret+16(FP)
+	RET
+
+nosave:
+	// Running on a system stack, perhaps even without a g.
+	// Having no g can happen during thread creation or thread teardown.
+	MOVD	fn+0(FP), R3
+	MOVD	arg+8(FP), R4
+	MOVD	R15, R2
+	SUB	$176, R15
+	MOVD	$~7, R6
+	AND	R6, R15
+	MOVD	$0, 168(R15)	// Where above code stores g, in case someone looks during debugging.
+	MOVD	R2, 160(R15)	// Save original stack pointer.
+	MOVD	$0, 0(R15)	// clear back chain pointer
+	MOVD	R4, R2		// arg in R2
+	BL	R3
+	XOR	R0, R0
+	MOVD	160(R15), R15	// Restore stack pointer.
+	MOVW	R2, ret+16(FP)
+	RET
+
+// func asmcgocall_no_g(fn, arg unsafe.Pointer)
+// Call fn(arg) aligned appropriately for the gcc ABI.
+// Called on a system stack, and there may be no g yet.
+TEXT ·asmcgocall_no_g(SB),NOSPLIT,$0-16
+	MOVD	fn+0(FP), R3
+	MOVD	arg+8(FP), R4
+
+	MOVD	R15, R2		// Save original stack pointer.
+
+	// Save room for the stack pointer, plus 160 bytes of callee
+	// save area that lives on the caller stack.
+	SUB	$168, R15
+	MOVD	$~7, R6
+	AND	R6, R15
+
+	MOVD	R2, 160(R15)	// Save original stack pointer.
+	MOVD	$0, 0(R15)	// clear back chain pointer
+	MOVD	R4, R2		// arg in R2
+	BL	R3
+	XOR	R0, R0
+	MOVD	160(R15), R15	// Restore stack pointer.
 	RET
 
 // cgocallback(fn, frame unsafe.Pointer, ctxt uintptr)

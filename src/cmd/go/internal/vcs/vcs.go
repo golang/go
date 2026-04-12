@@ -27,6 +27,7 @@ import (
 	"cmd/go/internal/str"
 	"cmd/go/internal/web"
 	"cmd/internal/pathcache"
+	"cmd/internal/telemetry/counter"
 
 	"golang.org/x/mod/module"
 )
@@ -71,7 +72,6 @@ var (
 var defaultSecureScheme = map[string]bool{
 	"https":   true,
 	"git+ssh": true,
-	"bzr+ssh": true,
 	"svn+ssh": true,
 	"ssh":     true,
 }
@@ -121,7 +121,6 @@ var vcsList = []*Cmd{
 	vcsHg,
 	vcsGit,
 	vcsSvn,
-	vcsBzr,
 	vcsFossil,
 }
 
@@ -130,7 +129,7 @@ var vcsList = []*Cmd{
 var vcsMod = &Cmd{Name: "mod"}
 
 // vcsByCmd returns the version control system for the given
-// command name (hg, git, svn, bzr).
+// command name (hg, git, svn).
 func vcsByCmd(cmd string) *Cmd {
 	for _, vcs := range vcsList {
 		if vcs.Cmd == cmd {
@@ -249,76 +248,6 @@ func gitStatus(vcsGit *Cmd, rootDir string) (Status, error) {
 			return Status{}, err
 		}
 	}
-
-	return Status{
-		Revision:    rev,
-		CommitTime:  commitTime,
-		Uncommitted: uncommitted,
-	}, nil
-}
-
-// vcsBzr describes how to use Bazaar.
-var vcsBzr = &Cmd{
-	Name: "Bazaar",
-	Cmd:  "bzr",
-	Roots: []isVCSRoot{
-		vcsDirRoot(".bzr"),
-	},
-
-	Scheme:  []string{"https", "http", "bzr", "bzr+ssh"},
-	PingCmd: "info -- {scheme}://{repo}",
-	Status:  bzrStatus,
-}
-
-func bzrStatus(vcsBzr *Cmd, rootDir string) (Status, error) {
-	outb, err := vcsBzr.runOutputVerboseOnly(rootDir, "version-info")
-	if err != nil {
-		return Status{}, err
-	}
-	out := string(outb)
-
-	// Expect (non-empty repositories only):
-	//
-	// revision-id: gopher@gopher.net-20211021072330-qshok76wfypw9lpm
-	// date: 2021-09-21 12:00:00 +1000
-	// ...
-	var rev string
-	var commitTime time.Time
-
-	for line := range strings.SplitSeq(out, "\n") {
-		i := strings.IndexByte(line, ':')
-		if i < 0 {
-			continue
-		}
-		key := line[:i]
-		value := strings.TrimSpace(line[i+1:])
-
-		switch key {
-		case "revision-id":
-			rev = value
-		case "date":
-			var err error
-			commitTime, err = time.Parse("2006-01-02 15:04:05 -0700", value)
-			if err != nil {
-				return Status{}, errors.New("unable to parse output of bzr version-info")
-			}
-		}
-	}
-
-	outb, err = vcsBzr.runOutputVerboseOnly(rootDir, "status")
-	if err != nil {
-		return Status{}, err
-	}
-
-	// Skip warning when working directory is set to an older revision.
-	if bytes.HasPrefix(outb, []byte("working tree is out of date")) {
-		i := bytes.IndexByte(outb, '\n')
-		if i < 0 {
-			i = len(outb)
-		}
-		outb = outb[:i]
-	}
-	uncommitted := len(outb) > 0
 
 	return Status{
 		Revision:    rev,
@@ -490,7 +419,7 @@ func (v *Cmd) run1(dir string, cmdline string, keyval []string, verbose bool) ([
 	_, err := pathcache.LookPath(v.Cmd)
 	if err != nil {
 		fmt.Fprintf(os.Stderr,
-			"go: missing %s command. See https://golang.org/s/gogetcmd\n",
+			"go: missing %s command. See https://go.dev/s/gogetcmd\n",
 			v.Name)
 		return nil, err
 	}
@@ -858,13 +787,6 @@ func RepoRootForImportPath(importPath string, mod ModuleMode, security web.Secur
 			err = importErrorf(importPath, "unrecognized import path %q: %v", importPath, err)
 		}
 	}
-	if err != nil {
-		rr1, err1 := repoRootFromVCSPaths(importPath, security, vcsPathsAfterDynamic)
-		if err1 == nil {
-			rr = rr1
-			err = nil
-		}
-	}
 
 	// Should have been taken care of above, but make sure.
 	if err == nil && strings.Contains(importPath, "...") && strings.Contains(rr.Root, "...") {
@@ -872,6 +794,12 @@ func RepoRootForImportPath(importPath string, mod ModuleMode, security web.Secur
 		rr = nil
 		err = importErrorf(importPath, "cannot expand ... in %q", importPath)
 	}
+
+	// Record telemetry about which VCS was used.
+	if err == nil {
+		counter.Inc("go/vcs:" + rr.VCS.Name)
+	}
+
 	return rr, err
 }
 
@@ -1370,23 +1298,8 @@ var vcsPaths = []*vcsPath{
 	// General syntax for any server.
 	// Must be last.
 	{
-		regexp:         lazyregexp.New(`(?P<root>(?P<repo>([a-z0-9.\-]+\.)+[a-z0-9.\-]+(:[0-9]+)?(/~?[\w.\-]+)+?)\.(?P<vcs>bzr|fossil|git|hg|svn))(/~?[\w.\-]+)*$`),
+		regexp:         lazyregexp.New(`(?P<root>(?P<repo>([a-z0-9.\-]+\.)+[a-z0-9.\-]+(:[0-9]+)?(/~?[\w.\-]+)+?)\.(?P<vcs>fossil|git|hg|svn))(/~?[\w.\-]+)*$`),
 		schemelessRepo: true,
-	},
-}
-
-// vcsPathsAfterDynamic gives additional vcsPaths entries
-// to try after the dynamic HTML check.
-// This gives those sites a chance to introduce <meta> tags
-// as part of a graceful transition away from the hard-coded logic.
-var vcsPathsAfterDynamic = []*vcsPath{
-	// Launchpad. See golang.org/issue/11436.
-	{
-		pathPrefix: "launchpad.net",
-		regexp:     lazyregexp.New(`^(?P<root>launchpad\.net/((?P<project>[\w.\-]+)(?P<series>/[\w.\-]+)?|~[\w.\-]+/(\+junk|[\w.\-]+)/[\w.\-]+))(/[\w.\-]+)*$`),
-		vcs:        "bzr",
-		repo:       "https://{root}",
-		check:      launchpadVCS,
 	},
 }
 
@@ -1399,27 +1312,6 @@ func noVCSSuffix(match map[string]string) error {
 		if strings.HasSuffix(repo, "."+vcs.Cmd) {
 			return fmt.Errorf("invalid version control suffix in %s path", match["prefix"])
 		}
-	}
-	return nil
-}
-
-// launchpadVCS solves the ambiguity for "lp.net/project/foo". In this case,
-// "foo" could be a series name registered in Launchpad with its own branch,
-// and it could also be the name of a directory within the main project
-// branch one level up.
-func launchpadVCS(match map[string]string) error {
-	if match["project"] == "" || match["series"] == "" {
-		return nil
-	}
-	url := &urlpkg.URL{
-		Scheme: "https",
-		Host:   "code.launchpad.net",
-		Path:   expand(match, "/{project}{series}/.bzr/branch-format"),
-	}
-	_, err := web.GetBytes(url)
-	if err != nil {
-		match["root"] = expand(match, "launchpad.net/{project}")
-		match["repo"] = expand(match, "https://{root}")
 	}
 	return nil
 }

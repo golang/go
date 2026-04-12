@@ -198,7 +198,7 @@ func checkFunc(f *Func) {
 				canHaveAux = true
 			case auxCCop:
 				if opcodeTable[Op(v.AuxInt)].name == "OpInvalid" {
-					f.Fatalf("value %v has an AuxInt value that is a valid opcode", v)
+					f.Fatalf("value %v has an AuxInt value that is not a valid opcode", v)
 				}
 				canHaveAuxInt = true
 			case auxS390XCCMask:

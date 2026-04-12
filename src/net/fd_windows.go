@@ -38,8 +38,8 @@ func canUseConnectEx(net string) bool {
 	return false
 }
 
-func newFD(sysfd syscall.Handle, family, sotype int, net string) (*netFD, error) {
-	ret := &netFD{
+func newFD(sysfd syscall.Handle, family, sotype int, net string) *netFD {
+	return &netFD{
 		pfd: poll.FD{
 			Sysfd:         sysfd,
 			IsStream:      sotype == syscall.SOCK_STREAM,
@@ -49,7 +49,6 @@ func newFD(sysfd syscall.Handle, family, sotype int, net string) (*netFD, error)
 		sotype: sotype,
 		net:    net,
 	}
-	return ret, nil
 }
 
 func (fd *netFD) init() error {
@@ -211,13 +210,9 @@ func (fd *netFD) accept() (*netFD, error) {
 	}
 
 	// Associate our new socket with IOCP.
-	netfd, err := newFD(s, fd.family, fd.sotype, fd.net)
-	if err != nil {
-		poll.CloseFunc(s)
-		return nil, err
-	}
+	netfd := newFD(s, fd.family, fd.sotype, fd.net)
 	if err := netfd.init(); err != nil {
-		fd.Close()
+		netfd.Close()
 		return nil, err
 	}
 

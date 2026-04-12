@@ -295,7 +295,6 @@ func Deleteat(dirfd syscall.Handle, name string, options uint32) error {
 		&IO_STATUS_BLOCK{},
 		unsafe.Pointer(&FILE_DISPOSITION_INFORMATION_EX{
 			Flags: FILE_DISPOSITION_DELETE |
-				FILE_DISPOSITION_FORCE_IMAGE_SECTION_CHECK |
 				FILE_DISPOSITION_POSIX_SEMANTICS |
 				// This differs from DeleteFileW, but matches os.Remove's
 				// behavior on Unix platforms of permitting deletion of

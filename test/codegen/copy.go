@@ -157,6 +157,6 @@ func ptrBothOffset() {
 
 // Verify #62698 on PPC64.
 func noMaskOnCopy(a []int, s string, x int) int {
-	// ppc64x:-"MOVD [$]-1", -"AND"
+	// ppc64x:-"MOVD [$]-1" -"AND"
 	return a[x&^copy([]byte{}, s)]
 }

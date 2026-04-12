@@ -85,7 +85,7 @@ func sched_yield_trampoline()
 
 //go:nosplit
 func osyield_no_g() {
-	asmcgocall_no_g(unsafe.Pointer(abi.FuncPCABI0(sched_yield_trampoline)), unsafe.Pointer(nil))
+	asmcgocall(unsafe.Pointer(abi.FuncPCABI0(sched_yield_trampoline)), unsafe.Pointer(nil))
 }
 
 // This is exported via linkname to assembly in runtime/cgo.

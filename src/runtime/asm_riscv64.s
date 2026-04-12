@@ -22,27 +22,9 @@ TEXT _rt0_riscv64_lib(SB),NOSPLIT,$224
 	MOV	A0, _rt0_riscv64_lib_argc<>(SB)
 	MOV	A1, _rt0_riscv64_lib_argv<>(SB)
 
-	// Synchronous initialization.
-	MOV	$runtime·libpreinit(SB), T1
+	MOV	$runtime·libInit(SB), T1
 	JALR	RA, T1
 
-	// Create a new thread to do the runtime initialization and return.
-	MOV	_cgo_sys_thread_create(SB), T1
-	BEQZ	T1, nocgo
-	MOV	$_rt0_riscv64_lib_go(SB), A0
-	MOV	$0, A1
-	JALR	RA, T1
-	JMP	restore
-
-nocgo:
-	MOV	$0x800000, A0                     // stacksize = 8192KB
-	MOV	$_rt0_riscv64_lib_go(SB), A1
-	MOV	A0, 8(X2)
-	MOV	A1, 16(X2)
-	MOV	$runtime·newosproc0(SB), T1
-	JALR	RA, T1
-
-restore:
 	// Restore callee-save registers, along with X1 (LR).
 	MOV	(8*3)(X2), X1
 	RESTORE_GPR((8*4))
@@ -50,7 +32,7 @@ restore:
 
 	RET
 
-TEXT _rt0_riscv64_lib_go(SB),NOSPLIT,$0
+TEXT runtime·rt0_lib_go<ABIInternal>(SB),NOSPLIT,$0
 	MOV	_rt0_riscv64_lib_argc<>(SB), A0
 	MOV	_rt0_riscv64_lib_argv<>(SB), A1
 	MOV	$runtime·rt0_go(SB), T0
@@ -398,6 +380,7 @@ TEXT ·asmcgocall(SB),NOSPLIT,$0-20
 	// We get called to create new OS threads too, and those
 	// come in on the m->g0 stack already. Or we might already
 	// be on the m->gsignal stack.
+	BEQZ	g, nosave
 	MOV	g_m(g), X6
 	MOV	m_gsignal(X6), X7
 	BEQ	X7, g, g0
@@ -428,6 +411,20 @@ g0:
 	SUB	X6, X5, X6
 	MOV	X6, X2
 
+	MOVW	X10, ret+16(FP)
+	RET
+
+nosave:
+	// Running on a system stack, perhaps even without a g.
+	// Having no g can happen during thread creation or thread teardown.
+	MOV	fn+0(FP), X11
+	MOV	arg+8(FP), X10
+	MOV	X2, X8
+	SUB	$16, X2
+	MOV	ZERO, 0(X2)	// Where above code stores g, in case someone looks during debugging.
+	MOV	X8, 8(X2)	// Save original stack pointer.
+	JALR	RA, (X11)
+	MOV	8(X2), X2	// Restore stack pointer.
 	MOVW	X10, ret+16(FP)
 	RET
 

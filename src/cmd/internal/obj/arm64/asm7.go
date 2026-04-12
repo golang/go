@@ -196,7 +196,7 @@ var atomicCASP = map[obj.As]uint32{
 	ACASPW: 0<<30 | 0x41<<21 | 0x1f<<10,
 }
 
-var oprange [ALAST & obj.AMask][]Optab
+var oprange [obj.AllowedOpCodes][]Optab
 
 var xcmp [C_NCLASS][C_NCLASS]bool
 
@@ -281,6 +281,30 @@ func MOVCONST(d int64, s int, rt int) uint32 {
 	return uint32(((d>>uint(s*16))&0xFFFF)<<5) | uint32(s)&3<<21 | uint32(rt&31)
 }
 
+func ASIMDALL(u, size, opcode uint32) uint32 {
+	return u<<29 | 0x7<<25 | size<<22 | 3<<20 | opcode<<12 | 1<<11
+}
+
+func ASIMDDIFF(u, opcode uint32) uint32 {
+	return u<<29 | 0x7<<25 | 1<<21 | opcode<<12
+}
+
+func ASIMDMISC(u, size, opcode uint32) uint32 {
+	return u<<29 | 0x7<<25 | size<<22 | 1<<21 | opcode<<12 | 1<<11
+}
+
+func ASIMDPERM(opcode uint32) uint32 {
+	return 0x7<<25 | opcode<<12 | 1<<11
+}
+
+func ASIMDSAME(u, size, opcode uint32) uint32 {
+	return u<<29 | 0x7<<25 | size<<22 | 1<<21 | opcode<<11 | 1<<10
+}
+
+func ASIMDSHF(u, opcode uint32) uint32 {
+	return u<<29 | 0xF<<24 | opcode<<11 | 1<<10
+}
+
 const (
 	// Optab.flag
 	LFROM        = 1 << iota // p.From uses constant pool
@@ -351,6 +375,13 @@ var optab = []Optab{
 	{AFCMPS, C_FREG, C_FREG, C_NONE, C_NONE, C_NONE, 56, 4, 0, 0, 0},
 	{AFCMPS, C_FCON, C_FREG, C_NONE, C_NONE, C_NONE, 56, 4, 0, 0, 0},
 	{AVADDP, C_ARNG, C_ARNG, C_NONE, C_ARNG, C_NONE, 72, 4, 0, 0, 0},
+	{AVCMEQ, C_ARNG, C_ARNG, C_NONE, C_ARNG, C_NONE, 72, 4, 0, 0, 0},
+	{AVCMEQ, C_ZCON, C_ARNG, C_NONE, C_ARNG, C_NONE, 109, 4, 0, 0, 0},
+	{AVCMLE, C_ZCON, C_ARNG, C_NONE, C_ARNG, C_NONE, 109, 4, 0, 0, 0},
+	{AVFCMEQ, C_ARNG, C_ARNG, C_NONE, C_ARNG, C_NONE, 72, 4, 0, 0, 0},
+	{AVFCMEQ, C_FCON, C_ARNG, C_NONE, C_ARNG, C_NONE, 109, 4, 0, 0, 0},
+	{AVFCMLE, C_FCON, C_ARNG, C_NONE, C_ARNG, C_NONE, 109, 4, 0, 0, 0},
+
 	{AVADD, C_ARNG, C_ARNG, C_NONE, C_ARNG, C_NONE, 72, 4, 0, 0, 0},
 	{AVADD, C_VREG, C_VREG, C_NONE, C_VREG, C_NONE, 89, 4, 0, 0, 0},
 	{AVADD, C_VREG, C_NONE, C_NONE, C_VREG, C_NONE, 89, 4, 0, 0, 0},
@@ -511,7 +542,9 @@ var optab = []Optab{
 	{AVEXT, C_VCON, C_ARNG, C_ARNG, C_ARNG, C_NONE, 94, 4, 0, 0, 0},
 	{AVTBL, C_ARNG, C_NONE, C_LIST, C_ARNG, C_NONE, 100, 4, 0, 0, 0},
 	{AVUSHR, C_VCON, C_ARNG, C_NONE, C_ARNG, C_NONE, 95, 4, 0, 0, 0},
+	{AVSQSHL, C_VCON, C_ARNG, C_NONE, C_ARNG, C_NONE, 95, 4, 0, 0, 0},
 	{AVZIP1, C_ARNG, C_ARNG, C_NONE, C_ARNG, C_NONE, 72, 4, 0, 0, 0},
+	{AVSQSHL, C_ARNG, C_ARNG, C_NONE, C_ARNG, C_NONE, 72, 4, 0, 0, 0},
 	{AVUSHLL, C_VCON, C_ARNG, C_NONE, C_ARNG, C_NONE, 102, 4, 0, 0, 0},
 	{AVUXTL, C_ARNG, C_NONE, C_NONE, C_ARNG, C_NONE, 102, 4, 0, 0, 0},
 	{AVUADDW, C_ARNG, C_ARNG, C_NONE, C_ARNG, C_NONE, 105, 4, 0, 0, 0},
@@ -1831,7 +1864,7 @@ func rclass(r int16) int {
 		return C_RSP
 	case r >= REG_ARNG && r < REG_ELEM:
 		return C_ARNG
-	case r >= REG_ELEM && r < REG_ELEM_END:
+	case r >= REG_ELEM && r < REG_ZARNG:
 		return C_ELEM
 	case r >= REG_UXTB && r < REG_SPECIAL,
 		r >= REG_LSL && r < REG_ARNG:
@@ -2183,7 +2216,23 @@ func (c *ctxt7) aclass(a *obj.Addr) int {
 	return C_GOK
 }
 
+// SVE instructions, type 127 is reserved for SVE instructions.
+// All SVE instructions are sized 4 bytes.
+var sveOptab = Optab{0, C_GOK, C_GOK, C_GOK, C_GOK, C_GOK, 127, 4, 0, 0, 0}
+
+func isSVE(as obj.As) bool {
+	// A64 opcodes are prefixed with AZ or AP for SVE/SVE2
+	// In goops_gen.go they are defined starting from ASVESTART + 1.
+	return as > ASVESTART
+}
+
 func (c *ctxt7) oplook(p *obj.Prog) *Optab {
+	if isSVE(p.As) {
+		// All SVE instructions are in the Insts table.
+		// Matching happens in asmout.
+		return &sveOptab
+	}
+
 	a1 := int(p.Optab)
 	if a1 != 0 {
 		return &optab[a1-1]
@@ -3164,17 +3213,53 @@ func buildop(ctxt *obj.Link) {
 
 		case AVADDP:
 			oprangeset(AVAND, t)
-			oprangeset(AVCMEQ, t)
 			oprangeset(AVORR, t)
 			oprangeset(AVEOR, t)
+			oprangeset(AVBIC, t)
+			oprangeset(AVORN, t)
 			oprangeset(AVBSL, t)
 			oprangeset(AVBIT, t)
 			oprangeset(AVCMTST, t)
+			oprangeset(AVCMHI, t)
+			oprangeset(AVSQADD, t)
+			oprangeset(AVUQADD, t)
+			oprangeset(AVSQSUB, t)
+			oprangeset(AVUQSUB, t)
+			oprangeset(AVMUL, t)
+			oprangeset(AVMLA, t)
+			oprangeset(AVMLS, t)
+			oprangeset(AVSHADD, t)
+			oprangeset(AVSRHADD, t)
+			oprangeset(AVSSHL, t)
+			oprangeset(AVUSHL, t)
+			oprangeset(AVUHADD, t)
+			oprangeset(AVURHADD, t)
+			oprangeset(AVCMHS, t)
 			oprangeset(AVUMAX, t)
 			oprangeset(AVUMIN, t)
+			oprangeset(AVSMAX, t)
+			oprangeset(AVSMIN, t)
+			oprangeset(AVSMAXP, t)
+			oprangeset(AVSMINP, t)
+			oprangeset(AVUMAXP, t)
+			oprangeset(AVUMINP, t)
 			oprangeset(AVUZP1, t)
 			oprangeset(AVUZP2, t)
 			oprangeset(AVBIF, t)
+
+		case AVCMEQ:
+			oprangeset(AVCMGE, t)
+			oprangeset(AVCMGT, t)
+
+		case AVCMLE:
+			oprangeset(AVCMLT, t)
+
+		case AVFCMEQ:
+			oprangeset(AVFCMGE, t)
+			oprangeset(AVFCMGT, t)
+
+		case AVFCMLE:
+			oprangeset(AVFCMLT, t)
 
 		case AVADD:
 			oprangeset(AVSUB, t)
@@ -3203,9 +3288,30 @@ func buildop(ctxt *obj.Link) {
 
 		case AVADDV:
 			oprangeset(AVUADDLV, t)
+			oprangeset(AVFMAXV, t)
+			oprangeset(AVFMAXNMV, t)
+			oprangeset(AVFMINV, t)
+			oprangeset(AVFMINNMV, t)
+			oprangeset(AVSMAXV, t)
+			oprangeset(AVSMINV, t)
+			oprangeset(AVUMAXV, t)
+			oprangeset(AVUMINV, t)
 
 		case AVFMLA:
 			oprangeset(AVFMLS, t)
+			oprangeset(AVFADD, t)
+			oprangeset(AVFSUB, t)
+			oprangeset(AVFMUL, t)
+			oprangeset(AVFDIV, t)
+			oprangeset(AVFMAX, t)
+			oprangeset(AVFMAXNM, t)
+			oprangeset(AVFMAXP, t)
+			oprangeset(AVFADDP, t)
+			oprangeset(AVFMIN, t)
+			oprangeset(AVFMINNM, t)
+			oprangeset(AVFMINP, t)
+			oprangeset(AVFMAXNMP, t)
+			oprangeset(AVFMINNMP, t)
 
 		case AVPMULL:
 			oprangeset(AVPMULL2, t)
@@ -3215,12 +3321,33 @@ func buildop(ctxt *obj.Link) {
 			oprangeset(AVSRI, t)
 			oprangeset(AVSLI, t)
 			oprangeset(AVUSRA, t)
+			oprangeset(AVSSHR, t)
+			oprangeset(AVSRSHR, t)
+			oprangeset(AVSHRN, t)
+			oprangeset(AVSHRN2, t)
+
+		case AVSQSHL:
+			oprangeset(AVUQSHL, t)
 
 		case AVREV32:
 			oprangeset(AVCNT, t)
+			oprangeset(AVCLS, t)
+			oprangeset(AVCLZ, t)
 			oprangeset(AVRBIT, t)
 			oprangeset(AVREV64, t)
 			oprangeset(AVREV16, t)
+			oprangeset(AVABS, t)
+			oprangeset(AVNEG, t)
+			oprangeset(AVFABS, t)
+			oprangeset(AVFNEG, t)
+			oprangeset(AVFSQRT, t)
+			oprangeset(AVFRINTN, t)
+			oprangeset(AVFRINTP, t)
+			oprangeset(AVFRINTM, t)
+			oprangeset(AVFRINTZ, t)
+			oprangeset(AVSQABS, t)
+			oprangeset(AVSQNEG, t)
+			oprangeset(AVNOT, t)
 
 		case AVZIP1:
 			oprangeset(AVZIP2, t)
@@ -4709,27 +4836,27 @@ func (c *ctxt7) asmout(p *obj.Prog, out []uint32) (count int) {
 		}
 
 		switch p.As {
-		case AVORR, AVAND, AVEOR, AVBIT, AVBSL, AVBIF:
+		case AVORR, AVAND, AVEOR, AVBIT, AVBSL, AVBIF, AVBIC, AVORN:
 			if af != ARNG_16B && af != ARNG_8B {
 				c.ctxt.Diag("invalid arrangement: %v", p)
 			}
-		case AVFMLA, AVFMLS:
+		case AVFMLA, AVFMLS, AVFCMEQ, AVFCMGE, AVFCMGT, AVFADD, AVFSUB, AVFMUL, AVFDIV, AVFMAX, AVFMAXNM, AVFMAXP, AVFADDP, AVFMIN, AVFMINNM, AVFMINP, AVFMAXNMP, AVFMINNMP:
 			if af != ARNG_2D && af != ARNG_2S && af != ARNG_4S {
 				c.ctxt.Diag("invalid arrangement: %v", p)
 			}
-		case AVUMAX, AVUMIN:
+		case AVUMAX, AVUMIN, AVUMAXP, AVUMINP, AVMUL, AVMLA, AVMLS, AVSMAX, AVSMIN, AVSMAXP, AVSMINP:
 			if af == ARNG_2D {
 				c.ctxt.Diag("invalid arrangement: %v", p)
 			}
 		}
 		switch p.As {
-		case AVAND, AVEOR:
+		case AVAND, AVEOR, AVBIC, AVORN:
 			size = 0
 		case AVBSL:
 			size = 1
 		case AVORR, AVBIT, AVBIF:
 			size = 2
-		case AVFMLA, AVFMLS:
+		case AVFMLA, AVFMLS, AVFCMEQ, AVFCMGE, AVFCMGT, AVFADD, AVFSUB, AVFMUL, AVFDIV, AVFMAX, AVFMAXNM, AVFMAXP, AVFADDP, AVFMIN, AVFMINNM, AVFMINP, AVFMAXNMP, AVFMINNMP:
 			if af == ARNG_2D {
 				size = 1
 			} else {
@@ -5093,6 +5220,9 @@ func (c *ctxt7) asmout(p *obj.Prog, out []uint32) (count int) {
 		case ARNG_4S:
 			Q = 1
 			size = 2
+		case ARNG_2D:
+			Q = 1
+			size = 3
 		default:
 			c.ctxt.Diag("invalid arrangement: %v\n", p)
 		}
@@ -5107,6 +5237,30 @@ func (c *ctxt7) asmout(p *obj.Prog, out []uint32) (count int) {
 
 		if p.As == AVREV16 && af != ARNG_8B && af != ARNG_16B {
 			c.ctxt.Diag("invalid arrangement: %v", p)
+		}
+
+		if p.As == AVNOT && (af != ARNG_8B && af != ARNG_16B) {
+			c.ctxt.Diag("invalid arrangement: %v", p)
+		}
+
+		// VCLS and VCLZ only support integer arrangements (B, H, S), not D arrangements
+		if (p.As == AVCLS || p.As == AVCLZ) && (af == ARNG_1D || af == ARNG_2D) {
+			c.ctxt.Diag("invalid arrangement: %v", p)
+		}
+
+		// Floating-point instructions only allow floating-point arrangements
+		// and use 1-bit size field: 0 for S arrangements, 1 for D arrangements
+		if p.As == AVFABS || p.As == AVFNEG || p.As == AVFSQRT ||
+			p.As == AVFRINTN || p.As == AVFRINTP || p.As == AVFRINTM || p.As == AVFRINTZ {
+			if af != ARNG_2S && af != ARNG_4S && af != ARNG_2D {
+				c.ctxt.Diag("invalid arrangement: %v", p)
+			}
+			// Override size for floating-point instructions: 0 for S, 1 for D
+			if af == ARNG_2S || af == ARNG_4S {
+				size = 0
+			} else if af == ARNG_2D {
+				size = 1
+			}
 		}
 
 		if p.As == AVRBIT {
@@ -5165,6 +5319,14 @@ func (c *ctxt7) asmout(p *obj.Prog, out []uint32) (count int) {
 			size = 2
 		default:
 			c.ctxt.Diag("invalid arrangement: %v\n", p)
+		}
+		switch p.As {
+		// Floating-point reduction instructions only support .S4 arrangement and don't have a size field.
+		case AVFMAXV, AVFMINV, AVFMAXNMV, AVFMINNMV:
+			if af != ARNG_4S {
+				c.ctxt.Diag("invalid arrangement: %v\n", p)
+			}
+			size = 0
 		}
 		o1 = c.oprrr(p, p.As, p.To.Reg, p.From.Reg, obj.REG_NONE)
 		o1 |= uint32(Q&1)<<30 | uint32(size&3)<<22
@@ -5369,14 +5531,15 @@ func (c *ctxt7) asmout(p *obj.Prog, out []uint32) (count int) {
 		af := int((p.Reg >> 5) & 15)
 		shift := int(p.From.Offset)
 
-		if af != at {
+		if af != at && p.As != AVSHRN && p.As != AVSHRN2 {
 			c.ctxt.Diag("invalid arrangement on op Vn.<T>, Vd.<T>: %v", p)
+			at = af
 		}
 
 		var Q uint32
 		var imax, esize int
 
-		switch af {
+		switch at {
 		case ARNG_8B, ARNG_4H, ARNG_2S:
 			Q = 0
 		case ARNG_16B, ARNG_8H, ARNG_4S, ARNG_2D:
@@ -5385,29 +5548,44 @@ func (c *ctxt7) asmout(p *obj.Prog, out []uint32) (count int) {
 			c.ctxt.Diag("invalid arrangement on op Vn.<T>, Vd.<T>: %v", p)
 		}
 
-		switch af {
+		atwice := -1
+		switch at {
 		case ARNG_8B, ARNG_16B:
 			imax = 15
 			esize = 8
+			atwice = ARNG_8H
 		case ARNG_4H, ARNG_8H:
 			imax = 31
 			esize = 16
+			atwice = ARNG_4S
 		case ARNG_2S, ARNG_4S:
 			imax = 63
 			esize = 32
+			atwice = ARNG_2D
 		case ARNG_2D:
 			imax = 127
 			esize = 64
 		}
 
+		switch p.As {
+		case AVSHRN:
+			if Q != 0 || atwice != af {
+				c.ctxt.Diag("invalid arrangement on op: %v", p)
+			}
+		case AVSHRN2:
+			if Q != 1 || atwice != af {
+				c.ctxt.Diag("invalid arrangement on op: %v", p)
+			}
+		}
+
 		imm := 0
 		switch p.As {
-		case AVUSHR, AVSRI, AVUSRA:
+		case AVUSHR, AVSRI, AVUSRA, AVSSHR, AVSRSHR, AVSHRN, AVSHRN2:
 			imm = esize*2 - shift
 			if imm < esize || imm > imax {
 				c.ctxt.Diag("shift out of range: %v", p)
 			}
-		case AVSHL, AVSLI:
+		case AVSHL, AVSLI, AVSQSHL, AVUQSHL:
 			imm = esize + shift
 			if imm > imax {
 				c.ctxt.Diag("shift out of range: %v", p)
@@ -5648,8 +5826,11 @@ func (c *ctxt7) asmout(p *obj.Prog, out []uint32) (count int) {
 			af = uint8((p.From.Reg >> 5) & 15)
 			shift = 0
 		}
+		var Q uint32
+		if p.As == AVUXTL2 || p.As == AVUSHLL2 {
+			Q = 1
+		}
 
-		Q := (o1 >> 30) & 1
 		var immh, width uint8
 		switch pack(Q, af, at) {
 		case pack(0, ARNG_8B, ARNG_8H):
@@ -5670,7 +5851,7 @@ func (c *ctxt7) asmout(p *obj.Prog, out []uint32) (count int) {
 		if !(0 <= shift && shift <= int(width-1)) {
 			c.ctxt.Diag("shift amount out of range: %v\n", p)
 		}
-		o1 |= uint32(immh)<<19 | uint32(shift)<<16 | uint32(rf&31)<<5 | uint32(p.To.Reg&31)
+		o1 |= Q<<30 | uint32(immh)<<19 | uint32(shift)<<16 | uint32(rf&31)<<5 | uint32(p.To.Reg&31)
 
 	case 103: /* VEOR3/VBCAX Va.B16, Vm.B16, Vn.B16, Vd.B16 */
 		ta := (p.From.Reg >> 5) & 15
@@ -5807,6 +5988,82 @@ func (c *ctxt7) asmout(p *obj.Prog, out []uint32) (count int) {
 		default:
 			c.ctxt.Diag("illegal argument: %v\n", p)
 			break
+		}
+
+	case 109: /* [cm|fcm][eq|ge|gt|le|lt] $0, Vn.<T>, Vd.<T> */
+		// Encoding is same as case 83 (this is a separate case because $0 occupies p.From)
+		if !(p.From.Type == obj.TYPE_CONST && p.From.Offset == 0) &&
+			!(p.From.Type == obj.TYPE_FCONST && p.From.Val.(float64) == 0.0) {
+			c.ctxt.Diag("expected a constant zero immediate operand: %v\n", p)
+		}
+		an := int((p.Reg >> 5) & 15)
+		ad := int((p.To.Reg >> 5) & 15)
+		if an != ad {
+			c.ctxt.Diag("operand mismatch: %v", p)
+			break
+		}
+		var Q, size uint32
+		if p.From.Type == obj.TYPE_FCONST {
+			switch an {
+			case ARNG_2D:
+				Q = 1
+				size = 1
+			case ARNG_2S:
+				Q = 0
+				size = 0
+			case ARNG_4S:
+				Q = 1
+				size = 0
+			default:
+				c.ctxt.Diag("invalid arrangement: %v", p)
+			}
+		} else {
+			switch an {
+			case ARNG_16B:
+				Q = 1
+				size = 0
+			case ARNG_2D:
+				Q = 1
+				size = 3
+			case ARNG_2S:
+				Q = 0
+				size = 2
+			case ARNG_4H:
+				Q = 0
+				size = 1
+			case ARNG_4S:
+				Q = 1
+				size = 2
+			case ARNG_8B:
+				Q = 0
+				size = 0
+			case ARNG_8H:
+				Q = 1
+				size = 1
+			default:
+				c.ctxt.Diag("invalid arrangement: %v", p)
+			}
+		}
+		o1 = c.opirr(p, p.As)
+		rd := uint32(p.To.Reg & 31)
+		rn := uint32(p.Reg & 31)
+		o1 |= Q<<30 | size<<22 | (rn << 5) | (rd)
+
+	case 127:
+		// Generic SVE instruction encoding
+		matched := false
+		groupIdx := int(p.As - ASVESTART - 1)
+		if groupIdx >= 0 && groupIdx < len(insts) {
+			for _, inst := range insts[groupIdx] {
+				if bin, ok := inst.tryEncode(p); ok {
+					o1 = bin
+					matched = true
+					break
+				}
+			}
+		}
+		if !matched {
+			c.ctxt.Diag("illegal combination from SVE: %v", p)
 		}
 	}
 	out[0] = o1
@@ -6392,73 +6649,250 @@ func (c *ctxt7) oprrr(p *obj.Prog, a obj.As, rd, rn, rm int16) uint32 {
 		op = FPOP1S(0, 0, 3, 5)
 
 	case AVADD:
-		op = 7<<25 | 1<<21 | 1<<15 | 1<<10
+		op = ASIMDSAME(0, 0, 0x10)
 
 	case AVSUB:
-		op = 0x17<<25 | 1<<21 | 1<<15 | 1<<10
+		op = ASIMDSAME(1, 0, 0x10)
+
+	case AVSHADD:
+		op = ASIMDSAME(0, 0, 0x0)
+
+	case AVSRHADD:
+		op = ASIMDSAME(0, 0, 0x2)
+
+	case AVSSHL:
+		op = ASIMDSAME(0, 0, 0x8)
+
+	case AVUSHL:
+		op = ASIMDSAME(1, 0, 0x8)
+
+	case AVUHADD:
+		op = ASIMDSAME(1, 0, 0x0)
+
+	case AVURHADD:
+		op = ASIMDSAME(1, 0, 0x2)
 
 	case AVADDP:
-		op = 7<<25 | 1<<21 | 1<<15 | 15<<10
+		op = ASIMDSAME(0, 0, 0x17)
+
+	case AVSQADD:
+		op = ASIMDSAME(0, 0, 0x1)
+
+	case AVUQADD:
+		op = ASIMDSAME(1, 0, 0x1)
+
+	case AVSQSHL:
+		op = ASIMDSAME(0, 0, 0x9)
+
+	case AVUQSHL:
+		op = ASIMDSAME(1, 0, 0x9)
+
+	case AVSQSUB:
+		op = ASIMDSAME(0, 0, 0x5)
+
+	case AVUQSUB:
+		op = ASIMDSAME(1, 0, 0x5)
+
+	case AVMUL:
+		op = ASIMDSAME(0, 0, 0x13)
+
+	case AVMLA:
+		op = ASIMDSAME(0, 0, 0x12)
+
+	case AVMLS:
+		op = ASIMDSAME(1, 0, 0x12)
 
 	case AVAND:
-		op = 7<<25 | 1<<21 | 7<<10
+		op = ASIMDSAME(0, 0, 0x03)
+
+	case AVBIC:
+		op = ASIMDSAME(0, 1, 0x03)
 
 	case AVBCAX:
 		op = 0xCE<<24 | 1<<21
 
 	case AVCMEQ:
-		op = 1<<29 | 0x71<<21 | 0x23<<10
+		op = ASIMDSAME(1, 0, 0x11)
+
+	case AVCMGE:
+		op = ASIMDSAME(0, 0, 0x07)
+
+	case AVCMGT:
+		op = ASIMDSAME(0, 0, 0x06)
+
+	case AVCMHI:
+		op = ASIMDSAME(1, 0, 0x06)
+
+	case AVCMHS:
+		op = ASIMDSAME(1, 0, 0x07)
+
+	case AVFCMEQ:
+		op = ASIMDSAME(0, 0, 0x1C)
+
+	case AVFCMGE:
+		op = ASIMDSAME(1, 0, 0x1C)
+
+	case AVFCMGT:
+		op = ASIMDSAME(1, 2, 0x1C)
 
 	case AVCNT:
-		op = 0xE<<24 | 0x10<<17 | 5<<12 | 2<<10
+		op = ASIMDMISC(0, 0, 0x05)
+
+	case AVCLS:
+		op = ASIMDMISC(0, 0, 0x04)
+
+	case AVCLZ:
+		op = ASIMDMISC(1, 0, 0x04)
 
 	case AVZIP1:
-		op = 0xE<<24 | 3<<12 | 2<<10
+		op = ASIMDPERM(0x3)
 
 	case AVZIP2:
-		op = 0xE<<24 | 1<<14 | 3<<12 | 2<<10
+		op = ASIMDPERM(0x7)
 
 	case AVEOR:
-		op = 1<<29 | 0x71<<21 | 7<<10
+		op = ASIMDSAME(1, 0, 0x03)
 
 	case AVEOR3:
 		op = 0xCE << 24
 
 	case AVORR:
-		op = 7<<25 | 5<<21 | 7<<10
+		op = ASIMDSAME(0, 2, 0x03)
 
-	case AVREV16:
-		op = 3<<26 | 2<<24 | 1<<21 | 3<<11
+	case AVORN:
+		op = ASIMDSAME(0, 3, 0x03)
 
 	case AVRAX1:
 		op = 0xCE<<24 | 3<<21 | 1<<15 | 3<<10
 
+	case AVREV16:
+		op = ASIMDMISC(0, 0, 0x01)
+
 	case AVREV32:
-		op = 11<<26 | 2<<24 | 1<<21 | 1<<11
+		op = ASIMDMISC(1, 0, 0x00)
 
 	case AVREV64:
-		op = 3<<26 | 2<<24 | 1<<21 | 1<<11
+		op = ASIMDMISC(0, 0, 0x00)
+
+	case AVABS:
+		op = ASIMDMISC(0, 0, 0xB)
+
+	case AVNEG:
+		op = ASIMDMISC(1, 0, 0xB)
+
+	case AVFABS:
+		op = ASIMDMISC(0, 2, 0xF)
+
+	case AVFNEG:
+		op = ASIMDMISC(1, 2, 0xF)
+
+	case AVFSQRT:
+		op = ASIMDMISC(1, 2, 0x1F)
+
+	case AVFRINTN:
+		op = ASIMDMISC(0, 0, 0x18)
+
+	case AVFRINTP:
+		op = ASIMDMISC(0, 2, 0x18)
+
+	case AVFRINTM:
+		op = ASIMDMISC(0, 0, 0x19)
+
+	case AVFRINTZ:
+		op = ASIMDMISC(0, 2, 0x19)
+
+	case AVSQABS:
+		op = ASIMDMISC(0, 0, 0x7)
+
+	case AVSQNEG:
+		op = ASIMDMISC(1, 0, 0x7)
+
+	case AVNOT:
+		op = ASIMDMISC(1, 0, 0x5)
 
 	case AVMOV:
 		op = 7<<25 | 5<<21 | 7<<10
 
 	case AVADDV:
-		op = 7<<25 | 3<<20 | 3<<15 | 7<<11
+		op = ASIMDALL(0, 0, 0x1B)
+
+	case AVFMAXV:
+		op = ASIMDALL(1, 0, 0xF)
+
+	case AVFMAXNMV:
+		op = ASIMDALL(1, 0, 0xC)
+
+	case AVFMINV:
+		op = ASIMDALL(1, 2, 0xF)
+
+	case AVFMINNMV:
+		op = ASIMDALL(1, 2, 0xC)
+
+	case AVSMAXV:
+		op = ASIMDALL(0, 0, 0xA)
+
+	case AVSMINV:
+		op = ASIMDALL(0, 0, 0x1A)
+
+	case AVUMAXV:
+		op = ASIMDALL(1, 0, 0xA)
+
+	case AVUMINV:
+		op = ASIMDALL(1, 0, 0x1A)
 
 	case AVUADDLV:
-		op = 1<<29 | 7<<25 | 3<<20 | 7<<11
+		op = ASIMDALL(1, 0, 0x03)
 
 	case AVFMLA:
-		op = 7<<25 | 0<<23 | 1<<21 | 3<<14 | 3<<10
+		op = ASIMDSAME(0, 0, 0x19)
 
 	case AVFMLS:
-		op = 7<<25 | 1<<23 | 1<<21 | 3<<14 | 3<<10
+		op = ASIMDSAME(0, 2, 0x19)
+
+	case AVFADD:
+		op = ASIMDSAME(0, 0, 0x1A)
+
+	case AVFSUB:
+		op = ASIMDSAME(0, 2, 0x1A)
+
+	case AVFMUL:
+		op = ASIMDSAME(1, 0, 0x1B)
+
+	case AVFDIV:
+		op = ASIMDSAME(1, 0, 0x1F)
+
+	case AVFMAX:
+		op = ASIMDSAME(0, 0, 0x1E)
+
+	case AVFMAXNM:
+		op = ASIMDSAME(0, 0, 0x18)
+
+	case AVFMAXP:
+		op = ASIMDSAME(1, 0, 0x1E)
+
+	case AVFADDP:
+		op = ASIMDSAME(1, 0, 0x1A)
+
+	case AVFMIN:
+		op = ASIMDSAME(0, 2, 0x1E)
+
+	case AVFMINNM:
+		op = ASIMDSAME(0, 2, 0x18)
+
+	case AVFMINP:
+		op = ASIMDSAME(1, 2, 0x1E)
+
+	case AVFMAXNMP:
+		op = ASIMDSAME(1, 0, 0x18)
+
+	case AVFMINNMP:
+		op = ASIMDSAME(1, 2, 0x18)
 
 	case AVPMULL, AVPMULL2:
-		op = 0xE<<24 | 1<<21 | 0x38<<10
+		op = ASIMDDIFF(0, 0xE)
 
 	case AVRBIT:
-		op = 0x2E<<24 | 1<<22 | 0x10<<17 | 5<<12 | 2<<10
+		op = ASIMDMISC(1, 1, 0x05)
 
 	case AVLD1, AVLD2, AVLD3, AVLD4:
 		op = 3<<26 | 1<<22
@@ -6470,37 +6904,55 @@ func (c *ctxt7) oprrr(p *obj.Prog, a obj.As, rd, rn, rm int16) uint32 {
 		op = 0xD<<24 | 3<<21
 
 	case AVBIF:
-		op = 1<<29 | 7<<25 | 7<<21 | 7<<10
+		op = ASIMDSAME(1, 3, 0x03)
 
 	case AVBIT:
-		op = 1<<29 | 0x75<<21 | 7<<10
+		op = ASIMDSAME(1, 2, 0x03)
 
 	case AVBSL:
-		op = 1<<29 | 0x73<<21 | 7<<10
+		op = ASIMDSAME(1, 1, 0x03)
 
 	case AVCMTST:
-		op = 0xE<<24 | 1<<21 | 0x23<<10
+		op = ASIMDSAME(0, 0, 0x11)
 
 	case AVUMAX:
-		op = 1<<29 | 7<<25 | 1<<21 | 0x19<<10
+		op = ASIMDSAME(1, 0, 0x0C)
 
 	case AVUMIN:
-		op = 1<<29 | 7<<25 | 1<<21 | 0x1b<<10
+		op = ASIMDSAME(1, 0, 0x0D)
+
+	case AVUMAXP:
+		op = ASIMDSAME(1, 0, 0x14)
+
+	case AVUMINP:
+		op = ASIMDSAME(1, 0, 0x15)
+
+	case AVSMAX:
+		op = ASIMDSAME(0, 0, 0x0C)
+
+	case AVSMIN:
+		op = ASIMDSAME(0, 0, 0x0D)
+
+	case AVSMAXP:
+		op = ASIMDSAME(0, 0, 0x14)
+
+	case AVSMINP:
+		op = ASIMDSAME(0, 0, 0x15)
 
 	case AVUZP1:
-		op = 7<<25 | 3<<11
+		op = ASIMDPERM(0x1)
 
 	case AVUZP2:
-		op = 7<<25 | 1<<14 | 3<<11
+		op = ASIMDPERM(0x5)
 
 	case AVUADDW, AVUADDW2:
-		op = 0x17<<25 | 1<<21 | 1<<12
+		op = ASIMDDIFF(1, 0x1)
 
 	case AVTRN1:
-		op = 7<<25 | 5<<11
+		op = ASIMDPERM(0x2)
 
 	case AVTRN2:
-		op = 7<<25 | 1<<14 | 5<<11
+		op = ASIMDPERM(0x6)
 
 	default:
 		c.ctxt.Diag("%v: bad rrr %d %v", p, a, a)
@@ -6697,32 +7149,74 @@ func (c *ctxt7) opirr(p *obj.Prog, a obj.As) uint32 {
 	case AHINT:
 		return SYSHINT(0)
 
+	case AVCMEQ:
+		return ASIMDMISC(0, 0, 0x09)
+
+	case AVCMGE:
+		return ASIMDMISC(1, 0, 0x08)
+
+	case AVCMGT:
+		return ASIMDMISC(0, 0, 0x08)
+
+	case AVCMLE:
+		return ASIMDMISC(1, 0, 0x09)
+
+	case AVCMLT:
+		return ASIMDMISC(0, 0, 0x0A)
+
+	case AVFCMEQ:
+		return ASIMDMISC(0, 2, 0x0D)
+
+	case AVFCMGE:
+		return ASIMDMISC(1, 2, 0x0C)
+
+	case AVFCMGT:
+		return ASIMDMISC(0, 2, 0x0C)
+
+	case AVFCMLE:
+		return ASIMDMISC(1, 2, 0x0D)
+
+	case AVFCMLT:
+		return ASIMDMISC(0, 2, 0x0E)
+
 	case AVEXT:
 		return 0x2E<<24 | 0<<23 | 0<<21 | 0<<15
 
 	case AVUSHR:
-		return 0x5E<<23 | 1<<10
+		return ASIMDSHF(1, 0x00)
+
+	case AVSSHR:
+		return ASIMDSHF(0, 0x00)
+
+	case AVSRSHR:
+		return ASIMDSHF(0, 0x04)
 
 	case AVSHL:
-		return 0x1E<<23 | 21<<10
+		return ASIMDSHF(0, 0x0A)
+
+	case AVSQSHL:
+		return ASIMDSHF(0, 0xE)
+
+	case AVUQSHL:
+		return ASIMDSHF(1, 0xE)
+
+	case AVSHRN, AVSHRN2:
+		return ASIMDSHF(0, 0x10)
 
 	case AVSRI:
-		return 0x5E<<23 | 17<<10
+		return ASIMDSHF(1, 0x08)
 
 	case AVSLI:
-		return 0x5E<<23 | 21<<10
+		return ASIMDSHF(1, 0x0A)
 
-	case AVUSHLL, AVUXTL:
-		return 1<<29 | 15<<24 | 0x29<<10
-
-	case AVUSHLL2, AVUXTL2:
-		return 3<<29 | 15<<24 | 0x29<<10
+	case AVUSHLL, AVUXTL, AVUSHLL2, AVUXTL2:
+		return ASIMDSHF(1, 0x14)
 
 	case AVXAR:
 		return 0xCE<<24 | 1<<23
 
 	case AVUSRA:
-		return 1<<29 | 15<<24 | 5<<10
+		return ASIMDSHF(1, 0x02)
 
 	case APRFM:
 		return 0xf9<<24 | 2<<22
@@ -7921,6 +8415,84 @@ func EncodeRegisterExtension(a *obj.Addr, ext string, reg, num int16, isAmount, 
 			return errors.New("unsupported general register extension type: " + ext)
 
 		}
+	} else if REG_Z0 <= reg && reg <= REG_Z31 {
+		var arng int
+		switch ext {
+		case "B":
+			if isIndex {
+				a.Reg = REG_ZARNGELEM + (reg & 31) + int16((ARNG_B&15)<<5)
+				a.Index = num
+				return nil
+			}
+			arng = ARNG_B
+		case "H":
+			if isIndex {
+				a.Reg = REG_ZARNGELEM + (reg & 31) + int16((ARNG_H&15)<<5)
+				a.Index = num
+				return nil
+			}
+			arng = ARNG_H
+		case "S":
+			if isIndex {
+				a.Reg = REG_ZARNGELEM + (reg & 31) + int16((ARNG_S&15)<<5)
+				a.Index = num
+				return nil
+			}
+			arng = ARNG_S
+		case "D":
+			if isIndex {
+				a.Reg = REG_ZARNGELEM + (reg & 31) + int16((ARNG_D&15)<<5)
+				a.Index = num
+				return nil
+			}
+			arng = ARNG_D
+		case "Q":
+			if isIndex {
+				a.Reg = REG_ZARNGELEM + (reg & 31) + int16((ARNG_Q&15)<<5)
+				a.Index = num
+				return nil
+			}
+			arng = ARNG_Q
+		default:
+			if isIndex && ext == "" {
+				a.Reg = REG_PZELEM + (reg & 31)
+				a.Index = num
+				return nil
+			}
+			return errors.New("invalid Z register arrangement: " + ext)
+		}
+		if isIndex {
+			a.Reg = REG_ZARNGELEM + (reg & 31) + int16((arng&15)<<5)
+			a.Index = num
+		} else {
+			a.Reg = REG_ZARNG + (reg & 31) + int16((arng&15)<<5)
+		}
+	} else if REG_P0 <= reg && reg <= REG_PN15 {
+		var arng int
+		switch ext {
+		case "B":
+			arng = ARNG_B
+		case "H":
+			arng = ARNG_H
+		case "S":
+			arng = ARNG_S
+		case "D":
+			arng = ARNG_D
+		case "Q":
+			arng = ARNG_Q
+		case "Z":
+			arng = PRED_Z
+		case "M":
+			arng = PRED_M
+		default:
+			if isIndex && ext == "" {
+				a.Reg = REG_PZELEM + (reg & 31) + (1 << 5)
+				a.Index = num
+				return nil
+			}
+			return errors.New("invalid P register arrangement: " + ext)
+		}
+		a.Reg = REG_PARNGZM + (reg & 31) + int16((arng&15)<<5)
 	} else if reg <= REG_V31 && reg >= REG_V0 {
 		switch ext {
 		case "B8":

@@ -717,7 +717,7 @@ func Utimes(path string, tv []Timeval) (err error) {
 	if tv[0].Nanoseconds() != 0 {
 		a = NsecToFiletime(tv[0].Nanoseconds())
 	}
-	if tv[0].Nanoseconds() != 0 {
+	if tv[1].Nanoseconds() != 0 {
 		w = NsecToFiletime(tv[1].Nanoseconds())
 	}
 	return SetFileTime(h, nil, &a, &w)

@@ -1,0 +1,16 @@
+module github.com/go-logr/logr@v1.4.3
+
+Original import done via `go run addmod.go`. Dependencies have been manually
+reduced to the minimum required by the test `get_tool_issue_74691`.
+-- .mod --
+module github.com/go-logr/logr
+
+go 1.18
+-- .info --
+{"Version":"v1.4.3","Time":"2025-05-19T04:56:57Z","Origin":{"VCS":"git","URL":"https://github.com/go-logr/logr","Hash":"38a1c47ef633fa6b2eee6b8f2e1371ba8626e557","Ref":"refs/tags/v1.4.3"}}
+-- go.mod --
+module github.com/go-logr/logr
+
+go 1.18
+-- logr.go --
+package logr

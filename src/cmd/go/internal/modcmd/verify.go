@@ -33,7 +33,7 @@ verify prints "all modules verified." Otherwise it reports which
 modules have been changed and causes 'go mod' to exit with a
 non-zero status.
 
-See https://golang.org/ref/mod#go-mod-verify for more about 'go mod verify'.
+See https://go.dev/ref/mod#go-mod-verify for more about 'go mod verify'.
 	`,
 	Run: runVerify,
 }
@@ -44,21 +44,21 @@ func init() {
 }
 
 func runVerify(ctx context.Context, cmd *base.Command, args []string) {
-	moduleLoaderState := modload.NewState()
-	moduleLoaderState.InitWorkfile()
+	moduleLoader := modload.NewLoader()
+	moduleLoader.InitWorkfile()
 
 	if len(args) != 0 {
 		// NOTE(rsc): Could take a module pattern.
 		base.Fatalf("go: verify takes no arguments")
 	}
-	moduleLoaderState.ForceUseModules = true
-	moduleLoaderState.RootMode = modload.NeedRoot
+	moduleLoader.ForceUseModules = true
+	moduleLoader.RootMode = modload.NeedRoot
 
 	// Only verify up to GOMAXPROCS zips at once.
 	type token struct{}
 	sem := make(chan token, runtime.GOMAXPROCS(0))
 
-	mg, err := modload.LoadModGraph(moduleLoaderState, ctx, "")
+	mg, err := modload.LoadModGraph(moduleLoader, ctx, "")
 	if err != nil {
 		base.Fatal(err)
 	}
@@ -72,7 +72,7 @@ func runVerify(ctx context.Context, cmd *base.Command, args []string) {
 		errsChans[i] = errsc
 		mod := mod // use a copy to avoid data races
 		go func() {
-			errsc <- verifyMod(moduleLoaderState, ctx, mod)
+			errsc <- verifyMod(moduleLoader, ctx, mod)
 			<-sem
 		}()
 	}
@@ -90,12 +90,12 @@ func runVerify(ctx context.Context, cmd *base.Command, args []string) {
 	}
 }
 
-func verifyMod(loaderstate *modload.State, ctx context.Context, mod module.Version) []error {
+func verifyMod(ld *modload.Loader, ctx context.Context, mod module.Version) []error {
 	if gover.IsToolchain(mod.Path) {
 		// "go" and "toolchain" have no disk footprint; nothing to verify.
 		return nil
 	}
-	if loaderstate.MainModules.Contains(mod.Path) {
+	if ld.MainModules.Contains(mod.Path) {
 		return nil
 	}
 	var errs []error

@@ -1,0 +1,30 @@
+module github.com/securego/gosec/v2@v2.23.0
+
+Original import done via `go run addmod.go`. Dependencies have been manually
+reduced to the minimum required by the test `get_tool_issue_74691`.
+-- .mod --
+module github.com/securego/gosec/v2
+
+require (
+  example.com v1.0.0
+)
+
+require (
+  github.com/go-logr/logr v1.4.3 // indirect
+)
+
+go 1.25.0
+-- .info --
+{"Version":"v2.23.0","Time":"2026-02-10T14:47:11Z","Origin":{"VCS":"git","URL":"https://github.com/securego/gosec","Hash":"398ad549bbf1a51dc978fd966169f660c59774de","Ref":"refs/tags/v2.23.0"}}
+-- go.mod --
+module github.com/securego/gosec/v2
+
+require example.com v1.0.0
+
+go 1.25.0
+-- rules/rules_a.go --
+package rules
+
+import _ "example.com" // pull in a pre-module-pruning module (doesn't declare go version in go.mod)
+
+

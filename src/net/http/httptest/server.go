@@ -20,6 +20,7 @@ import (
 	"strings"
 	"sync"
 	"time"
+	_ "unsafe" // for linkname
 )
 
 // A Server is an HTTP server listening on a system-chosen port on the
@@ -44,6 +45,9 @@ type Server struct {
 
 	// certificate is a parsed version of the TLS config certificate, if present.
 	certificate *x509.Certificate
+
+	// started indicates whether the server has been started.
+	started bool
 
 	// wg counts the number of outstanding HTTP requests on this server.
 	// Close blocks until all requests are finished.
@@ -124,30 +128,31 @@ func NewUnstartedServer(handler http.Handler) *Server {
 
 // Start starts a server from NewUnstartedServer.
 func (s *Server) Start() {
-	if s.URL != "" {
+	if s.started {
 		panic("Server already started")
 	}
+	s.started = true
+	s.wrap()
 
-	if s.client == nil {
-		tr := &http.Transport{}
-		dialer := net.Dialer{}
-		// User code may set either of Dial or DialContext, with DialContext taking precedence.
-		// We set DialContext here to preserve any context values that are passed in,
-		// but fall back to Dial if the user has set it.
-		tr.DialContext = func(ctx context.Context, network, addr string) (net.Conn, error) {
-			if tr.Dial != nil {
-				return tr.Dial(network, addr)
-			}
-			if addr == "example.com:80" || strings.HasSuffix(addr, ".example.com:80") {
-				addr = s.Listener.Addr().String()
-			}
-			return dialer.DialContext(ctx, network, addr)
+	tr := &http.Transport{}
+	s.client = &http.Client{Transport: tr}
+	if s.Listener == nil {
+		return
+	}
+	dialer := net.Dialer{}
+	// User code may set either of Dial or DialContext, with DialContext taking precedence.
+	// We set DialContext here to preserve any context values that are passed in,
+	// but fall back to Dial if the user has set it.
+	tr.DialContext = func(ctx context.Context, network, addr string) (net.Conn, error) {
+		if tr.Dial != nil {
+			return tr.Dial(network, addr)
 		}
-		s.client = &http.Client{Transport: tr}
-
+		if addr == "example.com:80" || strings.HasSuffix(addr, ".example.com:80") {
+			addr = s.Listener.Addr().String()
+		}
+		return dialer.DialContext(ctx, network, addr)
 	}
 	s.URL = "http://" + s.Listener.Addr().String()
-	s.wrap()
 	s.goServe()
 	if serveFlag != "" {
 		fmt.Fprintln(os.Stderr, "httptest: serving on", s.URL)
@@ -157,12 +162,13 @@ func (s *Server) Start() {
 
 // StartTLS starts TLS on a server from NewUnstartedServer.
 func (s *Server) StartTLS() {
-	if s.URL != "" {
+	if s.started {
 		panic("Server already started")
 	}
-	if s.client == nil {
-		s.client = &http.Client{}
-	}
+	s.started = true
+	s.wrap()
+
+	s.client = &http.Client{}
 	cert, err := tls.X509KeyPair(testcert.LocalhostCert, testcert.LocalhostKey)
 	if err != nil {
 		panic(fmt.Sprintf("httptest: NewTLSServer: %v", err))
@@ -190,11 +196,17 @@ func (s *Server) StartTLS() {
 	}
 	certpool := x509.NewCertPool()
 	certpool.AddCert(s.certificate)
+
 	tr := &http.Transport{
 		TLSClientConfig: &tls.Config{
 			RootCAs: certpool,
 		},
 		ForceAttemptHTTP2: s.EnableHTTP2,
+	}
+	s.client.Transport = tr
+
+	if s.Listener == nil {
+		return
 	}
 	dialer := net.Dialer{}
 	tr.DialContext = func(ctx context.Context, network, addr string) (net.Conn, error) {
@@ -206,10 +218,8 @@ func (s *Server) StartTLS() {
 		}
 		return dialer.DialContext(ctx, network, addr)
 	}
-	s.client.Transport = tr
 	s.Listener = tls.NewListener(s.Listener, s.TLS)
 	s.URL = "https://" + s.Listener.Addr().String()
-	s.wrap()
 	s.goServe()
 }
 
@@ -231,7 +241,9 @@ func (s *Server) Close() {
 	s.mu.Lock()
 	if !s.closed {
 		s.closed = true
-		s.Listener.Close()
+		if s.Listener != nil {
+			s.Listener.Close()
+		}
 		s.Config.SetKeepAlivesEnabled(false)
 		for c, st := range s.conns {
 			// Force-close any idle connections (those between
@@ -275,7 +287,6 @@ func (s *Server) Close() {
 			t.CloseIdleConnections()
 		}
 	}
-
 	s.wg.Wait()
 }
 

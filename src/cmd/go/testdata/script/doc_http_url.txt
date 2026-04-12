@@ -1,0 +1,31 @@
+env TEST_GODOC_URL_FILE=$WORK/url.txt
+
+# Outside of a module.
+go doc -http
+grep '/std' $TEST_GODOC_URL_FILE
+
+# Inside a module with a major version suffix.
+# We should use the major version suffix rather than
+# the location in the gopath (#75976).
+cd example.com/m
+go doc -http
+grep '/example.com/m/v5' $TEST_GODOC_URL_FILE
+go doc -http .
+grep '/example.com/m/v5' $TEST_GODOC_URL_FILE
+
+# In GOPATH mode, we should use the location in the GOPATH.
+env GO111MODULE=off
+go doc -http
+grep '/std' $TEST_GODOC_URL_FILE
+# TODO(matloob): This should probably this be the same as 'go doc -http .'
+! grep '/example.com/m' $TEST_GODOC_URL_FILE
+go doc -http .
+grep '/example.com/m' $TEST_GODOC_URL_FILE
+! grep '/example.com/m/v5' $TEST_GODOC_URL_FILE
+
+-- example.com/m/go.mod --
+module example.com/m/v5
+
+go 1.27
+-- example.com/m/m.go --
+package m

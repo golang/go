@@ -1,0 +1,10 @@
+[GOEXPERIMENT:boringcrypto] skip
+
+env GOFIPS140=v1.0.0
+env GOCACHE=$WORK/cache
+go get example.com/importcrypto
+
+-- go.mod --
+module m
+
+go 1.27

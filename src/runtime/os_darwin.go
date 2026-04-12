@@ -15,11 +15,6 @@ type mOS struct {
 	mutex       pthreadmutex
 	cond        pthreadcond
 	count       int
-
-	// address of errno variable for this thread.
-	// This is an optimization to avoid calling libc_error
-	// on every syscall_rawsyscalln.
-	errnoAddr *int32
 }
 
 func unimplemented(name string) {
@@ -273,7 +268,7 @@ func mstart_stub()
 // This function is not safe to use after initialization as it does not pass an M as fnarg.
 //
 //go:nosplit
-func newosproc0(stacksize uintptr, fn uintptr) {
+func newosproc0(stacksize uintptr, fn unsafe.Pointer) {
 	// Initialize an attribute object.
 	var attr pthreadattr
 	var err int32
@@ -305,7 +300,7 @@ func newosproc0(stacksize uintptr, fn uintptr) {
 	// setup and then calls mstart.
 	var oset sigset
 	sigprocmask(_SIG_SETMASK, &sigset_all, &oset)
-	err = pthread_create(&attr, fn, nil)
+	err = pthread_create(&attr, uintptr(fn), nil)
 	sigprocmask(_SIG_SETMASK, &oset, nil)
 	if err != 0 {
 		writeErrStr(failthreadcreate)
@@ -346,7 +341,6 @@ func minit() {
 	}
 	minitSignalMask()
 	getg().m.procid = uint64(pthread_self())
-	libc_error_addr(&getg().m.errnoAddr)
 }
 
 // Called from dropm to undo the effect of an minit.

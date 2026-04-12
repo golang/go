@@ -902,7 +902,7 @@ func Dump(s string, n Node) {
 	fmt.Printf("%s%+v\n", s, n)
 }
 
-// Fdump prints to w the message s followed by a debug dump of n.
+// FDump prints to w the message s followed by a debug dump of n.
 // This includes all the recursive structure under n.
 func FDump(w io.Writer, s string, n Node) {
 	fmt.Fprintf(w, "%s%+v\n", s, n)

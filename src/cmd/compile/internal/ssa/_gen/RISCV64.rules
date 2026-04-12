@@ -840,6 +840,9 @@
 (FLED x (FMOVDconst [-0x1p-1022])) => (SNEZ (ANDI <typ.Int64> [0b00_0000_0011] (FCLASSD x)))
 (FLTD (FMOVDconst [-0x1p-1022]) x) => (SNEZ (ANDI <typ.Int64> [0b00_1111_1100] (FCLASSD x)))
 
+// Absorb conversion between 32 bit and 64 bit if both src and dst are 32 bit.
+(FCVTSD (F(ABS|SQRT)D (FCVTDS X))) => (F(ABS|SQRT)S X)
+
 // Absorb unary sign bit operations into 64 bit classify instruction.
 (S(EQ|NE)Z (ANDI [c] (FCLASSD (FNEGD x)))) => (S(EQ|NE)Z (ANDI <typ.Int64> [(c&0b11_0000_0000)|int64(bits.Reverse8(uint8(c))&0b1111_1111)] (FCLASSD x)))
 (S(EQ|NE)Z (ANDI [c] (FCLASSD (FABSD x)))) => (S(EQ|NE)Z (ANDI <typ.Int64> [(c&0b11_1111_0000)|int64(bits.Reverse8(uint8(c))&0b0000_1111)] (FCLASSD x)))

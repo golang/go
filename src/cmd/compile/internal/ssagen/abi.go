@@ -168,6 +168,9 @@ func (s *SymABIs) GenABIWrappers() {
 			if sym.Linksym().IsLinkname() {
 				sym.LinksymABI(fn.ABI).Set(obj.AttrLinkname, true)
 			}
+			if sym.Linksym().IsLinknameStd() {
+				sym.LinksymABI(fn.ABI).Set(obj.AttrLinknameStd, true)
+			}
 		}
 
 		// If cgo-exported, add the definition ABI to the cgo

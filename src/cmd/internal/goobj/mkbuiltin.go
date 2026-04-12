@@ -50,7 +50,7 @@ func main() {
 }
 
 func mkbuiltin(w io.Writer) {
-	pkg := "runtime"
+	const pkg = "runtime"
 	fset := token.NewFileSet()
 	path := filepath.Join("..", "..", "compile", "internal", "typecheck", "_builtin", "runtime.go")
 	f, err := parser.ParseFile(fset, path, nil, 0)
@@ -149,7 +149,14 @@ var fextras = [...]extra{
 	{"sigpanic", 1},
 
 	// compiler backend inserted calls
-	{"gcWriteBarrier", 1},
+	{"gcWriteBarrier1", 1},
+	{"gcWriteBarrier2", 1},
+	{"gcWriteBarrier3", 1},
+	{"gcWriteBarrier4", 1},
+	{"gcWriteBarrier5", 1},
+	{"gcWriteBarrier6", 1},
+	{"gcWriteBarrier7", 1},
+	{"gcWriteBarrier8", 1},
 	{"duffzero", 1},
 	{"duffcopy", 1},
 
@@ -157,4 +164,20 @@ var fextras = [...]extra{
 	{"morestack", 0},        // asm function, ABI0
 	{"morestackc", 0},       // asm function, ABI0
 	{"morestack_noctxt", 0}, // asm function, ABI0
+	{"retpolineAX", 0},      // asm function, ABI0, amd64 only
+	{"retpolineCX", 0},      // asm function, ABI0, amd64 only
+	{"retpolineDX", 0},      // asm function, ABI0, amd64 only
+	{"retpolineBX", 0},      // asm function, ABI0, amd64 only
+	{"retpolineBP", 0},      // asm function, ABI0, amd64 only
+	{"retpolineSI", 0},      // asm function, ABI0, amd64 only
+	{"retpolineDI", 0},      // asm function, ABI0, amd64 only
+	{"retpolineR8", 0},      // asm function, ABI0, amd64 only
+	{"retpolineR9", 0},      // asm function, ABI0, amd64 only
+	{"retpolineR10", 0},     // asm function, ABI0, amd64 only
+	{"retpolineR11", 0},     // asm function, ABI0, amd64 only
+	{"retpolineR12", 0},     // asm function, ABI0, amd64 only
+	{"retpolineR13", 0},     // asm function, ABI0, amd64 only
+	{"retpolineR14", 0},     // asm function, ABI0, amd64 only
+	{"retpolineR15", 0},     // asm function, ABI0, amd64 only
+	{"tls_g", 0},            // asm variable, amd64 and 386 only
 }

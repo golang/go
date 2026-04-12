@@ -6,6 +6,7 @@ package maps
 
 import (
 	"internal/abi"
+	"internal/goexperiment"
 	"internal/race"
 	"internal/runtime/sys"
 	"unsafe"
@@ -40,14 +41,24 @@ func runtime_mapaccess2_fast64(typ *abi.MapType, m *Map, key uint64) (unsafe.Poi
 		}
 		full := g.ctrls().matchFull()
 		slotKey := g.key(typ, 0)
-		slotSize := typ.SlotSize
+		var keyStride uintptr
+		if goexperiment.MapSplitGroup {
+			keyStride = 8 // keys are contiguous in split layout
+		} else {
+			keyStride = typ.KeyStride // == SlotSize in interleaved layout
+		}
+		var i uintptr
 		for full != 0 {
 			if key == *(*uint64)(slotKey) && full.lowestSet() {
-				slotElem := unsafe.Pointer(uintptr(slotKey) + 8)
-				return slotElem, true
+				if goexperiment.MapSplitGroup {
+					return g.elem(typ, i), true
+				} else {
+					return unsafe.Pointer(uintptr(slotKey) + 8), true
+				}
 			}
-			slotKey = unsafe.Pointer(uintptr(slotKey) + slotSize)
+			slotKey = unsafe.Pointer(uintptr(slotKey) + keyStride)
 			full = full.shiftOutLowest()
+			i++
 		}
 		return unsafe.Pointer(&zeroVal[0]), false
 	}
@@ -75,8 +86,11 @@ func runtime_mapaccess2_fast64(typ *abi.MapType, m *Map, key uint64) (unsafe.Poi
 
 			slotKey := g.key(typ, i)
 			if key == *(*uint64)(slotKey) {
-				slotElem := unsafe.Pointer(uintptr(slotKey) + 8)
-				return slotElem, true
+				if goexperiment.MapSplitGroup {
+					return g.elem(typ, i), true
+				} else {
+					return unsafe.Pointer(uintptr(slotKey) + 8), true
+				}
 			}
 			match = match.removeFirst()
 		}

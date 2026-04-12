@@ -25,6 +25,11 @@ type traceStringTable struct {
 
 // put adds a string to the table, emits it, and returns a unique ID for it.
 func (t *traceStringTable) put(gen uintptr, s string) uint64 {
+	// Truncate the string now to avoid wasting space in the
+	// traceMap and to stay within traceRegionAlloc's block size limit.
+	if len(s) > tracev2.MaxEventTrailerDataSize {
+		s = s[:tracev2.MaxEventTrailerDataSize]
+	}
 	// Put the string in the table.
 	ss := stringStructOf(&s)
 	id, added := t.tab.put(ss.str, uintptr(ss.len))

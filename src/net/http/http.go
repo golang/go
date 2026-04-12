@@ -2,8 +2,6 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-//go:generate bundle -o=h2_bundle.go -prefix=http2 -tags=!nethttpomithttp2 -import=golang.org/x/net/internal/httpcommon=net/http/internal/httpcommon -import=golang.org/x/net/internal/httpsfv=net/http/internal/httpsfv golang.org/x/net/http2
-
 package http
 
 import (
@@ -89,6 +87,9 @@ func (p Protocols) String() string {
 	}
 	if p.UnencryptedHTTP2() {
 		s = append(s, "UnencryptedHTTP2")
+	}
+	if p.http3() {
+		s = append(s, "HTTP3")
 	}
 	return "{" + strings.Join(s, ",") + "}"
 }

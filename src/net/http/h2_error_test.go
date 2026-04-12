@@ -9,6 +9,7 @@ package http
 import (
 	"errors"
 	"fmt"
+	"net/http/internal/http2"
 	"testing"
 )
 
@@ -25,7 +26,7 @@ func (e externalStreamError) Error() string {
 }
 
 func TestStreamError(t *testing.T) {
-	streamErr := http2streamError(42, http2ErrCodeProtocol)
+	streamErr := http2.StreamError{StreamID: 42, Code: http2.ErrCodeProtocol}
 	extStreamErr, ok := errors.AsType[externalStreamError](streamErr)
 	if !ok {
 		t.Fatalf("errors.AsType failed")

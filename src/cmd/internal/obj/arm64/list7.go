@@ -90,6 +90,12 @@ func arrange(a int) string {
 		return "D"
 	case ARNG_1Q:
 		return "Q1"
+	case ARNG_Q:
+		return "Q"
+	case PRED_M:
+		return "M"
+	case PRED_Z:
+		return "Z"
 	default:
 		return ""
 	}
@@ -109,6 +115,12 @@ func rconv(r int) string {
 		return fmt.Sprintf("F%d", r-REG_F0)
 	case REG_V0 <= r && r <= REG_V31:
 		return fmt.Sprintf("V%d", r-REG_V0)
+	case REG_Z0 <= r && r <= REG_Z31:
+		return fmt.Sprintf("Z%d", r-REG_Z0)
+	case REG_P0 <= r && r <= REG_P15:
+		return fmt.Sprintf("P%d", r-REG_P0)
+	case REG_PN0 <= r && r <= REG_PN15:
+		return fmt.Sprintf("PN%d", r-REG_PN0)
 	case r == REGSP:
 		return "RSP"
 	case REG_UXTB <= r && r < REG_UXTH:
@@ -164,8 +176,32 @@ func rconv(r int) string {
 		return fmt.Sprintf("R%d<<%d", r&31, (r>>5)&7)
 	case REG_ARNG <= r && r < REG_ELEM:
 		return fmt.Sprintf("V%d.%s", r&31, arrange((r>>5)&15))
-	case REG_ELEM <= r && r < REG_ELEM_END:
+	case REG_ELEM <= r && r < REG_ZARNG:
 		return fmt.Sprintf("V%d.%s", r&31, arrange((r>>5)&15))
+	case REG_ZARNG <= r && r < REG_PZELEM:
+		return fmt.Sprintf("Z%d.%s", r&31, arrange((r>>5)&15))
+	case REG_PZELEM <= r && r < REG_PARNGZM:
+		regPrefix := "Z"
+		reg := r & 31
+		if r&(1<<5) != 0 {
+			regPrefix = "P"
+			if reg >= 16 {
+				regPrefix = "PN"
+				reg -= 16
+			}
+		}
+		return fmt.Sprintf("%s%d", regPrefix, reg)
+	case REG_PARNGZM <= r && r < REG_PARNGZM_END:
+		// SVE predicate register with arrangement.
+		// Pn.<T> or Pn/M, Pn/Z.
+		arng := (r >> 5) & 15
+		suffix := arrange(arng)
+		reg := r & 31
+		if reg >= 16 {
+			// PN registers
+			return fmt.Sprintf("PN%d.%s", reg-16, suffix)
+		}
+		return fmt.Sprintf("P%d.%s", reg, suffix)
 	}
 	// Return system register name.
 	name, _, _ := SysRegEnc(int16(r))

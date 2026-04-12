@@ -502,7 +502,7 @@ func TestInstall(t *testing.T) {
 
 func TestEarlySignalHandler(t *testing.T) {
 	switch GOOS {
-	case "darwin", "ios":
+	case "ios":
 		switch GOARCH {
 		case "arm64":
 			t.Skipf("skipping on %s/%s; see https://golang.org/issue/13701", GOOS, GOARCH)

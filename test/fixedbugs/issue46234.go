@@ -1,4 +1,4 @@
-// buildrun -t 45
+// buildrun
 
 //go:build !js && !wasip1
 

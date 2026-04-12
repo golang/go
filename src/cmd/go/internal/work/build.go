@@ -155,7 +155,7 @@ and test commands:
 		By default, if a vendor directory is present and the go version in go.mod
 		is 1.14 or higher, the go command acts as if -mod=vendor were set.
 		Otherwise, the go command acts as if -mod=readonly were set.
-		See https://golang.org/ref/mod#build-commands for details.
+		See https://go.dev/ref/mod#build-commands for details.
 	-modcacherw
 		leave newly-created directories in the module cache read-write
 		instead of making them read-only.
@@ -459,17 +459,17 @@ func oneMainPkg(pkgs []*load.Package) []*load.Package {
 var pkgsFilter = func(pkgs []*load.Package) []*load.Package { return pkgs }
 
 func runBuild(ctx context.Context, cmd *base.Command, args []string) {
-	moduleLoaderState := modload.NewState()
-	moduleLoaderState.InitWorkfile()
-	BuildInit(moduleLoaderState)
-	b := NewBuilder("", moduleLoaderState.VendorDirOrEmpty)
+	moduleLoader := modload.NewLoader()
+	moduleLoader.InitWorkfile()
+	BuildInit(moduleLoader)
+	b := NewBuilder("", moduleLoader.VendorDirOrEmpty)
 	defer func() {
 		if err := b.Close(); err != nil {
 			base.Fatal(err)
 		}
 	}()
 
-	pkgs := load.PackagesAndErrors(moduleLoaderState, ctx, load.PackageOpts{AutoVCS: true}, args)
+	pkgs := load.PackagesAndErrors(moduleLoader, ctx, load.PackageOpts{AutoVCS: true}, args)
 	load.CheckPackageErrors(pkgs)
 
 	explicitO := len(cfg.BuildO) > 0
@@ -504,7 +504,7 @@ func runBuild(ctx context.Context, cmd *base.Command, args []string) {
 	}
 
 	if cfg.BuildCover {
-		load.PrepareForCoverageBuild(moduleLoaderState, pkgs)
+		load.PrepareForCoverageBuild(moduleLoader, pkgs)
 	}
 
 	if cfg.BuildO != "" {
@@ -528,7 +528,7 @@ func runBuild(ctx context.Context, cmd *base.Command, args []string) {
 				p.Target += cfg.ExeSuffix
 				p.Stale = true
 				p.StaleReason = "build -o flag in use"
-				a.Deps = append(a.Deps, b.AutoAction(moduleLoaderState, ModeInstall, depMode, p))
+				a.Deps = append(a.Deps, b.AutoAction(moduleLoader, ModeInstall, depMode, p))
 			}
 			if len(a.Deps) == 0 {
 				base.Fatalf("go: no main packages to build")
@@ -545,17 +545,17 @@ func runBuild(ctx context.Context, cmd *base.Command, args []string) {
 		p.Target = cfg.BuildO
 		p.Stale = true // must build - not up to date
 		p.StaleReason = "build -o flag in use"
-		a := b.AutoAction(moduleLoaderState, ModeInstall, depMode, p)
+		a := b.AutoAction(moduleLoader, ModeInstall, depMode, p)
 		b.Do(ctx, a)
 		return
 	}
 
 	a := &Action{Mode: "go build"}
 	for _, p := range pkgs {
-		a.Deps = append(a.Deps, b.AutoAction(moduleLoaderState, ModeBuild, depMode, p))
+		a.Deps = append(a.Deps, b.AutoAction(moduleLoader, ModeBuild, depMode, p))
 	}
 	if cfg.BuildBuildmode == "shared" {
-		a = b.buildmodeShared(moduleLoaderState, ModeBuild, depMode, args, pkgs, a)
+		a = b.buildmodeShared(moduleLoader, ModeBuild, depMode, args, pkgs, a)
 	}
 	b.Do(ctx, a)
 }
@@ -688,18 +688,18 @@ func libname(args []string, pkgs []*load.Package) (string, error) {
 }
 
 func runInstall(ctx context.Context, cmd *base.Command, args []string) {
-	moduleLoaderState := modload.NewState()
+	moduleLoader := modload.NewLoader()
 	for _, arg := range args {
 		if strings.Contains(arg, "@") && !build.IsLocalImport(arg) && !filepath.IsAbs(arg) {
-			installOutsideModule(moduleLoaderState, ctx, args)
+			installOutsideModule(moduleLoader, ctx, args)
 			return
 		}
 	}
 
-	moduleLoaderState.InitWorkfile()
-	BuildInit(moduleLoaderState)
-	pkgs := load.PackagesAndErrors(moduleLoaderState, ctx, load.PackageOpts{AutoVCS: true}, args)
-	if cfg.ModulesEnabled && !moduleLoaderState.HasModRoot() {
+	moduleLoader.InitWorkfile()
+	BuildInit(moduleLoader)
+	pkgs := load.PackagesAndErrors(moduleLoader, ctx, load.PackageOpts{AutoVCS: true}, args)
+	if cfg.ModulesEnabled && !moduleLoader.HasModRoot() {
 		haveErrors := false
 		allMissingErrors := true
 		for _, pkg := range pkgs {
@@ -724,10 +724,10 @@ func runInstall(ctx context.Context, cmd *base.Command, args []string) {
 	load.CheckPackageErrors(pkgs)
 
 	if cfg.BuildCover {
-		load.PrepareForCoverageBuild(moduleLoaderState, pkgs)
+		load.PrepareForCoverageBuild(moduleLoader, pkgs)
 	}
 
-	InstallPackages(moduleLoaderState, ctx, args, pkgs)
+	InstallPackages(moduleLoader, ctx, args, pkgs)
 }
 
 // omitTestOnly returns pkgs with test-only packages removed.
@@ -747,7 +747,7 @@ func omitTestOnly(pkgs []*load.Package) []*load.Package {
 	return list
 }
 
-func InstallPackages(loaderstate *modload.State, ctx context.Context, patterns []string, pkgs []*load.Package) {
+func InstallPackages(ld *modload.Loader, ctx context.Context, patterns []string, pkgs []*load.Package) {
 	ctx, span := trace.StartSpan(ctx, "InstallPackages "+strings.Join(patterns, " "))
 	defer span.Done()
 
@@ -785,7 +785,7 @@ func InstallPackages(loaderstate *modload.State, ctx context.Context, patterns [
 	}
 	base.ExitIfErrors()
 
-	b := NewBuilder("", loaderstate.VendorDirOrEmpty)
+	b := NewBuilder("", ld.VendorDirOrEmpty)
 	defer func() {
 		if err := b.Close(); err != nil {
 			base.Fatal(err)
@@ -799,7 +799,7 @@ func InstallPackages(loaderstate *modload.State, ctx context.Context, patterns [
 		// If p is a tool, delay the installation until the end of the build.
 		// This avoids installing assemblers/compilers that are being executed
 		// by other steps in the build.
-		a1 := b.AutoAction(loaderstate, ModeInstall, depMode, p)
+		a1 := b.AutoAction(ld, ModeInstall, depMode, p)
 		if load.InstallTargetDir(p) == load.ToTool {
 			a.Deps = append(a.Deps, a1.Deps...)
 			a1.Deps = append(a1.Deps, a)
@@ -821,7 +821,7 @@ func InstallPackages(loaderstate *modload.State, ctx context.Context, patterns [
 		// tools above did not apply, and a is just a simple Action
 		// with a list of Deps, one per package named in pkgs,
 		// the same as in runBuild.
-		a = b.buildmodeShared(loaderstate, ModeInstall, ModeInstall, patterns, pkgs, a)
+		a = b.buildmodeShared(ld, ModeInstall, ModeInstall, patterns, pkgs, a)
 	}
 
 	b.Do(ctx, a)
@@ -860,12 +860,12 @@ func InstallPackages(loaderstate *modload.State, ctx context.Context, patterns [
 // in the current directory or parent directories.
 //
 // See golang.org/issue/40276 for details and rationale.
-func installOutsideModule(loaderstate *modload.State, ctx context.Context, args []string) {
-	loaderstate.ForceUseModules = true
-	loaderstate.RootMode = modload.NoRoot
-	loaderstate.AllowMissingModuleImports()
-	modload.Init(loaderstate)
-	BuildInit(loaderstate)
+func installOutsideModule(ld *modload.Loader, ctx context.Context, args []string) {
+	ld.ForceUseModules = true
+	ld.RootMode = modload.NoRoot
+	ld.AllowMissingModuleImports()
+	modload.Init(ld)
+	BuildInit(ld)
 
 	// Load packages. Ignore non-main packages.
 	// Print a warning if an argument contains "..." and matches no main packages.
@@ -874,7 +874,7 @@ func installOutsideModule(loaderstate *modload.State, ctx context.Context, args 
 	// TODO(golang.org/issue/40276): don't report errors loading non-main packages
 	// matched by a pattern.
 	pkgOpts := load.PackageOpts{MainOnly: true}
-	pkgs, err := load.PackagesAndErrorsOutsideModule(loaderstate, ctx, pkgOpts, args)
+	pkgs, err := load.PackagesAndErrorsOutsideModule(ld, ctx, pkgOpts, args)
 	if err != nil {
 		base.Fatal(err)
 	}
@@ -885,7 +885,7 @@ func installOutsideModule(loaderstate *modload.State, ctx context.Context, args 
 	}
 
 	// Build and install the packages.
-	InstallPackages(loaderstate, ctx, patterns, pkgs)
+	InstallPackages(ld, ctx, patterns, pkgs)
 }
 
 // ExecCmd is the command to use to run user binaries.

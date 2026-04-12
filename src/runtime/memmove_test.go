@@ -1374,28 +1374,3 @@ func BenchmarkMemmoveKnownSize1024(b *testing.B) {
 
 	memclrSink = p.x[:]
 }
-
-func BenchmarkSTWLatency(b *testing.B) {
-	const bufSize = 50 << 20 // 50 MiB
-
-	buf := make([]byte, bufSize)
-	var stop atomic.Bool
-	go func() {
-		for !stop.Load() {
-			clear(buf)
-		}
-	}()
-
-	var maxPause int64
-	for i := 0; i < b.N; i++ {
-		start := Nanotime()
-		GC()
-		elapsed := Nanotime() - start
-		if elapsed > maxPause {
-			maxPause = elapsed
-		}
-	}
-	stop.Store(true)
-
-	b.ReportMetric(float64(maxPause)/1e3, "max-pause-µs")
-}

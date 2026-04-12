@@ -161,11 +161,8 @@ func ExampleAfterFunc_cond() {
 	cond := sync.NewCond(new(sync.Mutex))
 
 	var wg sync.WaitGroup
-	for i := 0; i < 4; i++ {
-		wg.Add(1)
-		go func() {
-			defer wg.Done()
-
+	for range 4 {
+		wg.Go(func() {
 			ctx, cancel := context.WithTimeout(context.Background(), 1*time.Millisecond)
 			defer cancel()
 
@@ -174,7 +171,7 @@ func ExampleAfterFunc_cond() {
 
 			err := waitOnCond(ctx, cond, func() bool { return false })
 			fmt.Println(err)
-		}()
+		})
 	}
 	wg.Wait()
 

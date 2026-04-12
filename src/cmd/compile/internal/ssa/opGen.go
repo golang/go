@@ -4845,6 +4845,7 @@ const (
 	OpMIPS64NEGV
 	OpMIPS64NEGF
 	OpMIPS64NEGD
+	OpMIPS64ABSF
 	OpMIPS64ABSD
 	OpMIPS64SQRTD
 	OpMIPS64SQRTF
@@ -5331,6 +5332,7 @@ const (
 	OpRISCV64FNMADDS
 	OpRISCV64FNMSUBS
 	OpRISCV64FSQRTS
+	OpRISCV64FABSS
 	OpRISCV64FNEGS
 	OpRISCV64FMVSX
 	OpRISCV64FMVXS
@@ -72100,10 +72102,10 @@ var opcodeTable = [...]opInfo{
 		faultOnNilArg1: true,
 		reg: regInfo{
 			inputs: []inputInfo{
-				{0, 1071120376}, // R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15 R16 R17 R18 R19 R21 R23 R24 R25 R26 R27 R28 R29 R31
-				{1, 1071120376}, // R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15 R16 R17 R18 R19 R21 R23 R24 R25 R26 R27 R28 R29 R31
+				{0, 1067450360}, // R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15 R16 R17 R18 R19 R20 R21 R24 R25 R26 R27 R28 R29 R31
+				{1, 1067450360}, // R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15 R16 R17 R18 R19 R20 R21 R24 R25 R26 R27 R28 R29 R31
 			},
-			clobbers: 524288, // R20
+			clobbers: 4194304, // R23
 		},
 	},
 	{
@@ -72114,10 +72116,10 @@ var opcodeTable = [...]opInfo{
 		faultOnNilArg1: true,
 		reg: regInfo{
 			inputs: []inputInfo{
-				{0, 1070071800}, // R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15 R16 R17 R18 R19 R23 R24 R25 R26 R27 R28 R29 R31
-				{1, 1070071800}, // R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15 R16 R17 R18 R19 R23 R24 R25 R26 R27 R28 R29 R31
+				{0, 1059061752}, // R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15 R16 R17 R18 R19 R20 R21 R25 R26 R27 R28 R29 R31
+				{1, 1059061752}, // R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15 R16 R17 R18 R19 R20 R21 R25 R26 R27 R28 R29 R31
 			},
-			clobbers:     1572864, // R20 R21
+			clobbers:     12582912, // R23 R24
 			clobbersArg0: true,
 			clobbersArg1: true,
 		},
@@ -74577,6 +74579,19 @@ var opcodeTable = [...]opInfo{
 		},
 	},
 	{
+		name:   "ABSF",
+		argLen: 1,
+		asm:    mips.AABSF,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{0, 1152921504338411520}, // F0 F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15 F16 F17 F18 F19 F20 F21 F22 F23 F24 F25 F26 F27 F28 F29 F30 F31
+			},
+			outputs: []outputInfo{
+				{0, 1152921504338411520}, // F0 F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15 F16 F17 F18 F19 F20 F21 F22 F23 F24 F25 F26 F27 F28 F29 F30 F31
+			},
+		},
+	},
+	{
 		name:   "ABSD",
 		argLen: 1,
 		asm:    mips.AABSD,
@@ -75418,7 +75433,7 @@ var opcodeTable = [...]opInfo{
 	{
 		name:         "CALLtailinter",
 		auxType:      auxCallOff,
-		argLen:       1,
+		argLen:       2,
 		clobberFlags: true,
 		call:         true,
 		tailCall:     true,
@@ -81086,6 +81101,19 @@ var opcodeTable = [...]opInfo{
 		name:   "FSQRTS",
 		argLen: 1,
 		asm:    riscv.AFSQRTS,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{0, 9223372034707292160}, // F0 F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15 F16 F17 F18 F19 F20 F21 F22 F23 F24 F25 F26 F27 F28 F29 F30 F31
+			},
+			outputs: []outputInfo{
+				{0, 9223372034707292160}, // F0 F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15 F16 F17 F18 F19 F20 F21 F22 F23 F24 F25 F26 F27 F28 F29 F30 F31
+			},
+		},
+	},
+	{
+		name:   "FABSS",
+		argLen: 1,
+		asm:    riscv.AFABSS,
 		reg: regInfo{
 			inputs: []inputInfo{
 				{0, 9223372034707292160}, // F0 F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15 F16 F17 F18 F19 F20 F21 F22 F23 F24 F25 F26 F27 F28 F29 F30 F31
