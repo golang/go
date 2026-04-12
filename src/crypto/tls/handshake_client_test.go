@@ -1211,12 +1211,10 @@ func TestKeyLogTLS12(t *testing.T) {
 	clientConfig := testConfigClient.Clone()
 	clientConfig.KeyLogWriter = &clientBuf
 	clientConfig.MaxVersion = VersionTLS12
-	clientConfig.Rand = zeroSource{}
 
 	serverConfig := testConfigServer.Clone()
 	serverConfig.KeyLogWriter = &serverBuf
 	serverConfig.MaxVersion = VersionTLS12
-	serverConfig.Rand = zeroSource{}
 
 	c, s := localPipe(t)
 	done := make(chan bool)
@@ -1242,17 +1240,23 @@ func TestKeyLogTLS12(t *testing.T) {
 		if len(loggedLine) == 0 {
 			t.Fatalf("%s: no keylog line was produced", side)
 		}
-		const expectedLen = 13 /* "CLIENT_RANDOM" */ +
-			1 /* space */ +
-			32*2 /* hex client nonce */ +
-			1 /* space */ +
-			48*2 /* hex master secret */ +
-			1 /* new line */
-		if len(loggedLine) != expectedLen {
-			t.Fatalf("%s: keylog line has incorrect length (want %d, got %d): %q", side, expectedLen, len(loggedLine), loggedLine)
+		rest, ok := strings.CutSuffix(loggedLine, "\n")
+		if !ok {
+			t.Fatalf("%s: keylog line is missing trailing newline: %q", side, loggedLine)
 		}
-		if !strings.HasPrefix(loggedLine, "CLIENT_RANDOM "+strings.Repeat("0", 64)+" ") {
-			t.Fatalf("%s: keylog line has incorrect structure or nonce: %q", side, loggedLine)
+		label, rest, ok := strings.Cut(rest, " ")
+		if !ok || label != "CLIENT_RANDOM" {
+			t.Fatalf("%s: keylog line has incorrect label: %q", side, loggedLine)
+		}
+		clientRandom, masterSecret, ok := strings.Cut(rest, " ")
+		if !ok {
+			t.Fatalf("%s: keylog line is missing master secret: %q", side, loggedLine)
+		}
+		if b, err := hex.DecodeString(clientRandom); err != nil || len(b) != 32 {
+			t.Fatalf("%s: keylog line has invalid client random: %q", side, loggedLine)
+		}
+		if b, err := hex.DecodeString(masterSecret); err != nil || len(b) != 48 {
+			t.Fatalf("%s: keylog line has invalid master secret: %q", side, loggedLine)
 		}
 	}
 
@@ -1265,11 +1269,9 @@ func TestKeyLogTLS13(t *testing.T) {
 
 	clientConfig := testConfigClient.Clone()
 	clientConfig.KeyLogWriter = &clientBuf
-	clientConfig.Rand = zeroSource{}
 
 	serverConfig := testConfigServer.Clone()
 	serverConfig.KeyLogWriter = &serverBuf
-	serverConfig.Rand = zeroSource{}
 
 	c, s := localPipe(t)
 	done := make(chan bool)
