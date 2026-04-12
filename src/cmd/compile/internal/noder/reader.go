@@ -941,6 +941,16 @@ func shapify(targ *types.Type, basic bool) *types.Type {
 	if pointerShaping && !targ.Elem().IsShape() && targ.Elem().HasShape() {
 		return targ
 	}
+	// Another exception is when targ is a pointer shape type whose element
+	// is an array (e.g., go.shape.*[1]uint8). This happens when a shaped
+	// pointer type from an outer generic function is used to instantiate an
+	// inner generic function with a basic constraint. Pointer-shaping would
+	// change the element type (e.g., *[1]uint8 -> *uint8), losing the array
+	// type needed for slice operations.
+	// See issue #78297.
+	if pointerShaping && targ.IsShape() && targ.Elem().IsArray() {
+		return targ
+	}
 	under := targ.Underlying()
 	if pointerShaping {
 		under = types.NewPtr(types.Types[types.TUINT8])

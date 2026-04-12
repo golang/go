@@ -1,0 +1,65 @@
+go build main.go
+! stdout .
+! stderr .
+
+go build variants.go
+! stdout .
+! stderr .
+
+go build normalshaping.go
+! stdout .
+! stderr .
+
+-- main.go --
+package main
+
+func Z[U any]() (z U) { return }
+
+func F[T ~*[1]byte]() {
+	_ = Z[T]()[:]
+}
+
+var _ = F[*[1]byte]
+
+func main() {}
+
+-- variants.go --
+package main
+
+func identity[U any]() (z U) { return }
+
+func sliceArrayPtr2[T ~*[2]byte]() {
+	_ = identity[T]()[:]
+}
+
+func sliceArrayPtrInt[T ~*[1]int]() {
+	_ = identity[T]()[:]
+}
+
+func sliceArrayPtrLarge[T ~*[100]byte]() {
+	_ = identity[T]()[:]
+}
+
+var _ = sliceArrayPtr2[*[2]byte]
+var _ = sliceArrayPtrInt[*[1]int]
+var _ = sliceArrayPtrLarge[*[100]byte]
+
+func main() {}
+
+-- normalshaping.go --
+package main
+
+func echo[U any]() (z U) { return }
+
+func usePtr[T ~*int]() {
+	_ = echo[T]()
+}
+
+func useBasic[T ~int]() {
+	_ = echo[T]()
+}
+
+var _ = usePtr[*int]
+var _ = useBasic[int]
+
+func main() {}
