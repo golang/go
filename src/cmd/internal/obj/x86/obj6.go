@@ -821,6 +821,7 @@ func preprocess(ctxt *obj.Link, cursym *obj.LSym, newprog obj.ProgAlloc) {
 		}
 
 		if autoffset != 0 {
+			p.Pos = p.Pos.WithXlogue(src.PosEpilogueBegin)
 			to := p.To // Keep To attached to RET for retjmp below
 			p.To = obj.Addr{}
 			if localoffset != 0 {
