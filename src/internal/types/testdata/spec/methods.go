@@ -51,7 +51,30 @@ func (g G[F]) m[H interface{ convert(F) H }]() (r H) {
 
 // But the usual restrictions for type terms still apply.
 func (G[F]) m2[P F /* ERROR "cannot use a type parameter as constraint" */ ]() {}
-func (G[F]) m3[P *F]() {} // this is ok
+func (G[F]) m3[P *F](P) {} // this is ok
+
+// When the receiver is instantiated, the receiver type argument must be
+// substituted into the constraint of any method type parameter.
+func _() {
+	var i int
+	G[int]{}.m3(&i)
+	G[int]{}.m3[*int](&i)
+	_ = G[int].m3[*int]
+	_ = G[int]{}.m3[* /* ERROR "*string does not satisfy *int (*string missing in *int)" */ string]
+}
+
+// This includes calls from a sibling method, where the receiver type
+// parameters are distinct objects with the same names.
+func (g G[F]) m4() {
+	var f F
+	g.m3(&f)
+}
+
+// And calls from a generic function.
+func _[A any](g G[A]) {
+	var a A
+	g.m3(&a)
+}
 
 // Generic methods don't satisfy interfaces.
 type I[P any] interface {

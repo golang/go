@@ -2404,6 +2404,12 @@ type J = I[int]
 type Nested[P any] *interface{b(P)}
 
 type K = Nested[string]
+
+type G[T any] struct{}
+
+func (G[T]) M[P interface{ ~*T }](P) {}
+
+type GI = G[int]
 `
 	pkg := mustTypecheck(src, nil, nil)
 
@@ -2419,8 +2425,7 @@ type K = Nested[string]
 			methods [2][]string // method strings
 		)
 		var wg sync.WaitGroup
-		for i := 0; i < 2; i++ {
-			i := i
+		for i := range counts {
 			wg.Add(1)
 			go func() {
 				defer wg.Done()
@@ -2442,6 +2447,23 @@ type K = Nested[string]
 				t.Errorf("mismatching methods for %s: %s vs %s", inst, m0, m1)
 			}
 		}
+	}
+
+	// Expand a generic method on a Named instance concurrently.
+	named := Unalias(pkg.Scope().Lookup("GI").Type()).(*Named)
+	var bounds [2]string
+	var wg sync.WaitGroup
+	for i := range bounds {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			sig := named.Method(0).Type().(*Signature)
+			bounds[i] = sig.TypeParams().At(0).Underlying().String()
+		}()
+	}
+	wg.Wait()
+	if bounds[0] != bounds[1] || bounds[0] != "interface{~*int}" {
+		t.Errorf("mismatching bounds for GI.M: %s vs %s", bounds[0], bounds[1])
 	}
 }
 

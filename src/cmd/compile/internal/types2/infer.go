@@ -431,7 +431,7 @@ func (check *Checker) infer(pos syntax.Pos, tparams []*TypeParam, targs []Type, 
 				// TODO(gri) Consider doing this in Checker.subst.
 				//           Then this would fall out automatically here and also
 				//           in instantiation (where we also explicitly nil out
-				//           type parameters). See the *Signature TODO in subst.
+				//           type parameters).
 				if sig, _ := t1.(*Signature); sig != nil && sig.TypeParams().Len() > 0 && !isParameterized(tparams, sig) {
 					sig.tparams = nil
 				}

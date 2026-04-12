@@ -164,13 +164,89 @@ func (subst *subster) typ(typ Type) Type {
 		// recv->interface->recv->interface->...
 		recv := t.recv
 
-		params := subst.tuple(t.params)
-		results := subst.tuple(t.results)
-		if params != t.params || results != t.results {
+		// If t is a generic method signature whose own type parameters are not
+		// themselves the subject of this substitution, we are substituting the
+		// receiver type parameters (via Named.expandMethod). Because a method
+		// type parameter's bound may refer to a receiver type parameter
+		// (e.g. func (G[T]) M[P interface{ ~*T }]), we must create fresh type
+		// parameters with substituted bounds, and rename occurrences in params
+		// and results so they refer to the fresh parameters. Otherwise the
+		// resulting signature would retain a free reference to the original
+		// receiver type parameter.
+		//
+		// Fresh type parameters are always created, even when the bounds are
+		// unaffected by the substitution, so that the methods of distinct
+		// instances of the receiver type have distinct (method-specific) type
+		// parameters.
+		//
+		// When t's type parameters are the variables being substituted, we are
+		// instantiating t itself; the caller (Checker.instance for *Signature)
+		// sets tparams to nil afterward, so we leave them in place here.
+		tparams := t.tparams
+		s := subst
+		if n := tparams.Len(); n > 0 {
+			// If (any) one of the signature's type parameters is in the
+			// substitution map, this subst call is an instantiation of the
+			// signature.
+			_, instantiating := subst.smap[tparams.At(0)]
+			if debug {
+				// When calling subst on a signature, the substitution either
+				// applies to all of the type parameters (all are in the map)
+				// or none of them (none are in the map).
+				for _, tp := range tparams.list() {
+					_, ok := subst.smap[tp]
+					assert(ok == instantiating)
+				}
+			}
+			if !instantiating {
+				fresh := make([]*TypeParam, n)
+				// We're introducing a fresh set of method type parameters
+				// which appear elsewhere in the signature (parameter or
+				// result types, or the bounds of other type parameters).
+				// Create an updated substitution map containing the
+				// existing entries plus an entry for each fresh type
+				// parameter so that they are substituted simultaneously
+				// when we proceed with the outer substitution.
+				smap := make(substMap, len(subst.smap)+n)
+				for k, v := range subst.smap {
+					smap[k] = v
+				}
+				for i, tp := range tparams.list() {
+					tname := NewTypeName(tp.Obj().Pos(), tp.Obj().Pkg(), tp.Obj().Name(), nil)
+					ftp := subst.check.newTypeParam(tname, nil)
+					ftp.index = tp.index
+					fresh[i] = ftp
+					smap[tp] = ftp
+					// The fresh parameter stands in for tp in the mono graph,
+					// so that instantiations of (e.g.) G[int].M and G[A].M
+					// are tracked against the same vertex as the origin's tp.
+					if subst.check != nil {
+						subst.check.mono.recordCanon(ftp, tp)
+					}
+				}
+				// Now that we have the updated substitution map, use it to
+				// compute the constraints for the fresh type parameters.
+				for i, tp := range tparams.list() {
+					fresh[i].bound = subst.check.subst(subst.pos, tp.bound, smap, subst.expanding, subst.ctxt)
+				}
+				// Continue with the fresh type parameters and updated map.
+				tparams = &TypeParamList{tparams: fresh}
+				s = &subster{
+					pos:       subst.pos,
+					smap:      smap,
+					check:     subst.check,
+					expanding: subst.expanding,
+					ctxt:      subst.ctxt,
+				}
+			}
+		}
+
+		params := s.tuple(t.params)
+		results := s.tuple(t.results)
+		if params != t.params || results != t.results || tparams != t.tparams {
 			return &Signature{
 				rparams: t.rparams,
-				// TODO(gri) why can't we nil out tparams here, rather than in instantiate?
-				tparams: t.tparams,
+				tparams: tparams,
 				// instantiated signatures have a nil scope
 				recv:     recv,
 				params:   params,
