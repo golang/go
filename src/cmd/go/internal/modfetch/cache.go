@@ -498,7 +498,7 @@ func readDiskStat(ctx context.Context, path, rev string) (file string, info *Rev
 	// Remarshal and update the cache file if needed.
 	data2, err := json.Marshal(info)
 	if err == nil && !bytes.Equal(data2, data) {
-		writeDiskCache(ctx, file, data)
+		writeDiskCache(ctx, file, data2)
 	}
 	return file, info, nil
 }
