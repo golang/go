@@ -341,21 +341,21 @@ func flagEditworkDropReplace(arg string) {
 	})
 }
 
-type replaceJSON struct {
-	Old module.Version
-	New module.Version
-}
-
 // editPrintJSON prints the -json output.
 func editPrintJSON(workFile *modfile.WorkFile) {
 	var f workfileJSON
 	if workFile.Go != nil {
 		f.Go = workFile.Go.Version
 	}
+	if workFile.Toolchain != nil {
+		f.Toolchain = workFile.Toolchain.Name
+	}
+	for _, d := range workFile.Godebug {
+		f.Godebug = append(f.Godebug, godebugJSON{Key: d.Key, Value: d.Value})
+	}
 	for _, d := range workFile.Use {
 		f.Use = append(f.Use, useJSON{DiskPath: d.Path, ModPath: d.ModulePath})
 	}
-
 	for _, r := range workFile.Replace {
 		f.Replace = append(f.Replace, replaceJSON{r.Old, r.New})
 	}
@@ -369,12 +369,24 @@ func editPrintJSON(workFile *modfile.WorkFile) {
 
 // workfileJSON is the -json output data structure.
 type workfileJSON struct {
-	Go      string `json:",omitempty"`
-	Use     []useJSON
-	Replace []replaceJSON
+	Go        string        `json:",omitempty"`
+	Toolchain string        `json:",omitempty"`
+	Godebug   []godebugJSON `json:",omitempty"`
+	Use       []useJSON     `json:",omitempty"`
+	Replace   []replaceJSON `json:",omitempty"`
+}
+
+type godebugJSON struct {
+	Key   string
+	Value string
 }
 
 type useJSON struct {
 	DiskPath string
 	ModPath  string `json:",omitempty"`
+}
+
+type replaceJSON struct {
+	Old module.Version
+	New module.Version
 }
