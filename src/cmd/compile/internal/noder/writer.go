@@ -922,9 +922,12 @@ func (w *writer) doObj(wext *writer, obj types2.Object) pkgbits.CodeObj {
 		for _, m := range methods {
 			w.method(wext, m)
 		}
-		// encode generic methods elsewhere
-		for _, m := range gmethods {
-			w.p.objIdx(m)
+		// encode a pointer to each generic method
+		if w.Version().Has(pkgbits.GenericMethods) {
+			w.Len(len(gmethods))
+			for _, m := range gmethods {
+				w.Reloc(pkgbits.SectionObj, w.p.objIdx(m))
+			}
 		}
 
 		return pkgbits.ObjType
