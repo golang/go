@@ -280,8 +280,11 @@ func newClientServerTest(t testing.TB, mode testMode, h Handler, opts ...any) *c
 		listenAddr := <-listenAddrCh
 		cst.ts.URL = "https://" + listenAddr
 		t.Cleanup(func() {
-			// Same timeout as in HTTP/2 goAwayTimeout when shutting down in tests.
-			ctx, cancel := context.WithTimeout(t.Context(), 25*time.Millisecond)
+			// Give a relatively generous timeout. If the timeout is too short,
+			// the test might return before QUIC connections can finish closing
+			// asynchronously in some builders. The open connections will cause
+			// TestMain to detect a goroutine leak and fail.
+			ctx, cancel := context.WithTimeout(context.Background(), time.Second)
 			defer cancel()
 			cst.ts.Config.Shutdown(ctx)
 		})
