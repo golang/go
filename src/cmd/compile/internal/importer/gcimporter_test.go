@@ -720,3 +720,53 @@ var _ issue63285.A[issue63285.B[any]]
 		t.Errorf("Check failed: %v", err)
 	}
 }
+
+func TestGenMeth(t *testing.T) {
+	t.SkipNow() // TODO(mark): Turn on with UIR V4.
+	testenv.MustHaveGoBuild(t)
+
+	// This package only handles gc export data.
+	if runtime.Compiler != "gc" {
+		t.Skipf("gc-built packages not available (compiler = %s)", runtime.Compiler)
+	}
+
+	tmpdir := t.TempDir()
+	testoutdir := filepath.Join(tmpdir, "testdata")
+	if err := os.Mkdir(testoutdir, 0700); err != nil {
+		t.Fatalf("making output dir: %v", err)
+	}
+
+	compile(t, "testdata", "genmeth.go", testoutdir, nil)
+
+	genmeth, err := Import(make(map[string]*types2.Package), "./testdata/genmeth", tmpdir, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	check := func(pkgname, src string, imports importMap) (*types2.Package, error) {
+		f, err := syntax.Parse(syntax.NewFileBase(pkgname), strings.NewReader(src), nil, nil, 0)
+		if err != nil {
+			return nil, err
+		}
+		config := &types2.Config{
+			Importer: imports,
+		}
+		return config.Check(pkgname, []*syntax.File{f}, nil)
+	}
+
+	const pSrc = `package p
+
+import "genmeth"
+
+func _() {
+	genmeth.T{}.M[int]()
+}
+`
+
+	importer := importMap{
+		"genmeth": genmeth,
+	}
+	if _, err := check("p", pSrc, importer); err != nil {
+		t.Errorf("Check failed: %v", err)
+	}
+}

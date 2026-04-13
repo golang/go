@@ -440,15 +440,11 @@ func (pr *pkgReader) objIdx(idx pkgbits.Index) (*types2.Package, string) {
 
 		case pkgbits.ObjFunc:
 			pos := r.pos()
-			var rtparams []*types2.TypeParam
-			var recv *types2.Var
-			if r.Version().Has(pkgbits.GenericMethods) && r.Bool() {
-				r.selector()
-				rtparams = r.typeParamNames(false, true)
-				recv = r.param()
+			if r.Version().Has(pkgbits.GenericMethods) {
+				assert(!r.Bool()) // generic methods are read in their defining type
 			}
 			tparams := r.typeParamNames(false, false)
-			sig := r.signature(recv, rtparams, tparams)
+			sig := r.signature(nil, nil, tparams)
 			return types2.NewFunc(pos, objPkg, objName, sig)
 
 		case pkgbits.ObjType:
@@ -466,6 +462,31 @@ func (pr *pkgReader) objIdx(idx pkgbits.Index) (*types2.Package, string) {
 				methods := make([]*types2.Func, r.Len())
 				for i := range methods {
 					methods[i] = r.method(true)
+				}
+
+				if r.Version().Has(pkgbits.GenericMethods) {
+					for range r.Len() {
+						// Careful: objIdx is used to read in package-scoped declarations, which
+						// methods are not. Instead, decode it here. This makes it easier to
+						// associate it with the type and avoids the main objIdx loop.
+						idx := r.Reloc(pkgbits.SectionObj)
+
+						t := pr.tempReader(pkgbits.SectionObj, idx, pkgbits.SyncObject1)
+						t.dict = pr.objDictIdx(idx)
+
+						pos := t.pos()
+						assert(t.Bool()) // generic method
+						pkg, name := t.selector()
+						rtparams := t.typeParamNames(true, true)
+						recv := t.param()
+						tparams := t.typeParamNames(true, false)
+						sig := t.signature(recv, rtparams, tparams)
+
+						r.delayed = append(r.delayed, t.delayed...) // propagate before retiring
+
+						pr.retireReader(t)
+						methods = append(methods, types2.NewFunc(pos, pkg, name, sig))
+					}
 				}
 
 				return tparams, underlying, methods, r.delayed
