@@ -4,10 +4,12 @@ package arm64
 
 import "cmd/internal/obj"
 
-// stripRawZ first checks if v is a raw Z register, if so
-// it tries to verify that it's indeed a Z register, if it's not
-// it will return ok as false.
-// Otherwise, it will strip additional information and return ok as true.
+// stripRawZ first checks if v is a raw register number(0 to 31).
+// If v is not a raw Z register, it will check if it's a Z register in the ARM64 range:
+//   - if within the range, it returns true, and set v to be the raw Z register.
+//   - otherwise it returns false
+//
+// If v is a raw register number, it returns true and leaves v unchanged.
 func stripRawZ(v *uint32) bool {
 	if *v >= obj.RBaseARM64 {
 		if !(*v >= REG_Z0 && *v <= REG_Z31) && !(*v >= REG_ZARNG && *v < REG_ZARNGELEM) {
@@ -18,11 +20,10 @@ func stripRawZ(v *uint32) bool {
 	return true
 }
 
-// checkIsR checks if v is a scalar register.
-// In the encoding scheme, R is always assumed to be passed in as raw, i.e.
-// starting at RBaseARM64. If it's not a raw R register, it will strip
-// additional information and return ok as true.
-// Otherwise, it will return ok as false.
+// checkIsR checks if v is a scalar register:
+//   - if v is a raw register number or is within the ARM64 scalar register range,
+//     it returns true.
+//   - otherwise it returns false.
 func checkIsR(v uint32) bool {
 	if v > REG_R31 && v != REG_RSP {
 		return false

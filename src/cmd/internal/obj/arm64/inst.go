@@ -622,7 +622,7 @@ func encodeShiftTriple(v uint32, r [6]int, prevAddr *obj.Addr, op obj.As) (uint3
 // The lower bits of imms dictate exactly how many contiguous 1s exist inside that block.
 // The immr value tells the processor how many bits to rotate that block to the right.
 // Finally, the resulting block is duplicated to fill a standard 64-bit lane.
-func encodeLogicalImmArrEncoding(v uint32, adjacentAddr *obj.Addr) (uint32, bool) {
+func encodeLogicalImmArrEncoding(v uint64, adjacentAddr *obj.Addr) (uint32, bool) {
 	acl := aclass(adjacentAddr)
 	if acl != AC_ARNG {
 		return 0, false
@@ -643,7 +643,7 @@ func encodeLogicalImmArrEncoding(v uint32, adjacentAddr *obj.Addr) (uint32, bool
 		v32 := uint64(v)
 		val = v32 | (v32 << 32)
 	case ARNG_D: // 64-bit lane
-		val = uint64(v) // Top 32 bits are implicitly 0
+		val = uint64(v)
 	default:
 		return 0, false
 	}
@@ -796,7 +796,10 @@ func (i *instEncoder) tryEncode(p *obj.Prog) (uint32, bool) {
 					case codeShift588102224:
 						b, ok = encodeShiftTriple(val, [6]int{5, 8, 8, 10, 22, 24}, addrs[opIdx+1], p.As)
 					case codeLogicalImmArrEncoding:
-						b, ok = encodeLogicalImmArrEncoding(val, addrs[opIdx+1])
+						// Now that we know this is an immediate.
+						// ARM64 allows imm13 to encode up to 64 bits of immediates.
+						// addrComponent is not the right fit here, we need to extract [Offset] fields manually.
+						b, ok = encodeLogicalImmArrEncoding(uint64(addr.Offset), addrs[opIdx+1])
 					case codeImm3Tsize1621:
 						b, ok = encodeImm3Tsize1621(val, addrComponent(addrs[opIdx+1], aclass(addrs[opIdx+1]), 1))
 					case codeNoOp:
