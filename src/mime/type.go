@@ -246,7 +246,7 @@ func setExtensionType(extension, mimeType string) error {
 	}
 	if strings.HasPrefix(mimeType, "text/") && param["charset"] == "" {
 		param["charset"] = "utf-8"
-		mimeType = FormatMediaType(mimeType, param)
+		mimeType = FormatMediaType(justType, param)
 	}
 	extLower := strings.ToLower(extension)
 
