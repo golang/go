@@ -136,7 +136,7 @@ func racelitetick(delay uint32) {
 
 // raceliteCount reports how many data races were found during execution.
 //
-// It is called
+// It is called by main and os_beforeExit (proc.go).
 func raceliteCount() {
 	var count int32
 	for _, filled := range raceliteRecords {
