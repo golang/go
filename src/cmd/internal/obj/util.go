@@ -262,6 +262,30 @@ func writeDconv(w io.Writer, p *Prog, a *Addr, abiDetail bool) {
 		}
 
 	case TYPE_REG:
+		if buildcfg.GOARCH == "arm64" && a.Offset&(int64(1)<<62) != 0 {
+			preg := int((a.Offset)&31) + RBaseARM64 + 128
+			arng2 := (a.Offset >> 5) & 15
+			selreg := int((a.Offset>>9)&31) + RBaseARM64
+			idximm := (a.Offset >> 14) & 63
+
+			arngStr := ""
+			switch arng2 {
+			case 9:
+				arngStr = ".B"
+			case 10:
+				arngStr = ".H"
+			case 11:
+				arngStr = ".S"
+			case 12:
+				arngStr = ".D"
+			case 13:
+				arngStr = ".Q"
+			}
+
+			fmt.Fprintf(w, "[%s,$%d](%s%s)", Rconv(selreg), idximm, Rconv(preg), arngStr)
+			return
+		}
+
 		// TODO(rsc): This special case is for x86 instructions like
 		//	PINSRQ	CX,$1,X6
 		// where the $1 is included in the p->to Addr.

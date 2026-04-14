@@ -1377,4 +1377,5 @@ TEXT asmtest(SB),DUPOK|NOSPLIT,$-8
 	// TODO: UQRSHRN  <Zd>.B, { <Zn1>.H-<Zn2>.H }, #<const>
 	ZUQRSHRN $1, [Z27.Q-Z28.Q], Z25.Q                 // ERROR "illegal combination from SVE"
 	// TODO: UQSHRN  <Zd>.<T>, { <Zn1>.<Tb>-<Zn2>.<Tb> }, #<const>
+	PPSEL [R26, $1](P1.S), P14.M, P5.M                // ERROR "illegal combination from SVE"
 	RET

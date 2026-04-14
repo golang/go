@@ -423,6 +423,70 @@ func (p *Parser) operand(a *obj.Addr) {
 		}
 	}
 
+	// Detect AC_PREGSEL operand syntax: [selreg, $idximm](preg.T2)
+	if tok.ScanToken == '[' && p.arch.Family == sys.ARM64 {
+		pos := p.inputPos
+		if pos+5 < len(p.input) && p.input[pos].ScanToken == scanner.Ident &&
+			p.input[pos+1].ScanToken == ',' && p.input[pos+2].ScanToken == '$' &&
+			p.input[pos+3].ScanToken == scanner.Int && p.input[pos+4].ScanToken == ']' &&
+			p.input[pos+5].ScanToken == '(' {
+
+			selregStr := p.input[pos].String()
+			immStr := p.input[pos+3].String()
+
+			pos += 6 // past '('
+			if pos < len(p.input) && p.input[pos].ScanToken == scanner.Ident {
+				pregStr := p.input[pos].String()
+				pos++
+				ext := ""
+				if pos < len(p.input) && p.input[pos].ScanToken == '.' {
+					pos++
+					if pos < len(p.input) && p.input[pos].ScanToken == scanner.Ident {
+						ext = p.input[pos].String()
+						pos++
+					}
+				}
+				if pos < len(p.input) && p.input[pos].ScanToken == ')' {
+					// Matches AC_PREGSEL syntax!
+					p.inputPos = pos + 1 // consume the parsed tokens
+
+					// Encode components
+					selreg, ok1 := p.registerReference(selregStr)
+					preg, ok2 := p.registerReference(pregStr)
+					idximm := int64(p.atoi(immStr))
+
+					if !ok1 || !ok2 {
+						p.errorf("invalid registers in pregsel operand")
+						return
+					}
+
+					var arng2 int
+					switch ext {
+					case "B":
+						arng2 = arm64.ARNG_B
+					case "H":
+						arng2 = arm64.ARNG_H
+					case "S":
+						arng2 = arm64.ARNG_S
+					case "D":
+						arng2 = arm64.ARNG_D
+					case "Q":
+						arng2 = arm64.ARNG_Q
+					default:
+						p.errorf("invalid P register arrangement: %s", ext)
+						return
+					}
+
+					// Pack values into a.Offset
+					a.Type = obj.TYPE_REG
+					a.Offset = int64(preg&31) | int64((arng2&15)<<5) | int64((selreg&31)<<9) | (idximm << 14) | (int64(1) << 62)
+					p.expectOperandEnd()
+					return
+				}
+			}
+		}
+	}
+
 	// Special register list syntax for arm: [R1,R3-R7]
 	if tok.ScanToken == '[' {
 		if prefix != 0 {

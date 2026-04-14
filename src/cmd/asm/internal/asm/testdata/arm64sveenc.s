@@ -1378,4 +1378,5 @@ TEXT asmtest(SB),DUPOK|NOSPLIT,$-8
 	// TODO: UQRSHRN  <Zd>.B, { <Zn1>.H-<Zn2>.H }, #<const>
 	ZUQRSHRN $6, [Z2.S-Z3.S], Z10.H                   // 4a38ba45
 	// TODO: UQSHRN  <Zd>.<T>, { <Zn1>.<Tb>-<Zn2>.<Tb> }, #<const>
+	PPSEL [R15, $2](P8.H), P1, P3                     // 03456b25
 	RET
