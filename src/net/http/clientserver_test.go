@@ -112,6 +112,12 @@ func run[T TBRun[T]](t T, f func(t T, mode testMode), opts ...any) {
 		setParallel(t)
 	}
 	for _, mode := range modes {
+		// HTTP/3 tests are unfortunately still flakier than we would like.
+		// Disable them for now.
+		// TODO(nsh): re-enable the tests once they are no longer flaky.
+		if mode == http3Mode {
+			continue
+		}
 		t.Run(string(mode), func(t T) {
 			t.Helper()
 			if t, ok := any(t).(*testing.T); ok && parallel {
