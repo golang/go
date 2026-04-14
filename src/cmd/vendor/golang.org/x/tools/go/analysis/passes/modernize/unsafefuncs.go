@@ -203,8 +203,3 @@ func deleteConv(cur inspector.Cursor) []analysis.TextEdit {
 		},
 	}
 }
-
-func isInteger(t types.Type) bool {
-	basic, ok := t.Underlying().(*types.Basic)
-	return ok && basic.Info()&types.IsInteger != 0
-}
