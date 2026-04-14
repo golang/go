@@ -904,10 +904,13 @@ func reportXEDInconsistency(ops []Operation) error {
 
 func (o *Operation) hasMaskedMerging(maskType maskShape, outType outShape) bool {
 	if o.SpecialLower != nil {
-		// asmRule should not affect masked merging
+		// asmRule and argsMatchRule should not affect masked merging
 		ok, _, _ := parseAsmRule(*o.SpecialLower)
 		if !ok {
-			return false
+			ok, _, _, _ = parseArgsMatchRule(*o.SpecialLower)
+			if !ok {
+				return false
+			}
 		}
 	}
 	// BLEND and VMOVDQU are not user-facing ops so we should filter them out.

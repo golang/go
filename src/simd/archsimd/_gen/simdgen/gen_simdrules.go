@@ -27,8 +27,9 @@ type tplRuleData struct {
 	ArgsLoadAddr   string // [Args] with its last vreg arg being a concrete "(VMOVDQUload* ptr mem)", and might contain mask.
 	ArgsAddr       string // [Args] with its last vreg arg being replaced by "ptr", and might contain mask, and with a "mem" at the end.
 	FeatCheck      string // e.g. "v.Block.CPUfeatures.hasFeature(CPUavx512)" -- for a ssa/_gen rules file.
-	RuleCond       string // e.g. "a==0" -- condition for asmRule.
-	RuleOut        string // e.g. "y" -- output of an asmRule.
+	RuleCond       string // e.g. "a==0" -- condition for asmRule or argsMatchRule.
+	RuleOut        string // e.g. "y" -- output of an asmRule or argsMatchRule.
+	RuleArgs       string // custom args pattern for argsMatchRule.
 }
 
 var (
@@ -43,7 +44,9 @@ var (
 {{end}}
 {{define "sftimm"}}({{.Asm}} x (MOVQconst [c])) => ({{.Asm}}const [amd64CapAVXShift(c)] x)
 {{end}}
-{{define "asmRule"}}({{.Asm}} {{.Args}}) && {{.RuleCond}} => {{.RuleOut}}
+{{define "asmRule"}}({{.Asm}} {{.Args}}) {{.RuleCond}} => {{.RuleOut}}
+{{end}}
+{{define "argsMatchRule"}}({{.Asm}} {{.RuleArgs}}) {{.RuleCond}} => {{.RuleOut}}
 {{end}}
 {{define "masksftimm"}}({{.Asm}} x (MOVQconst [c]) mask) => ({{.Asm}}const [amd64CapAVXShift(c)] x mask)
 {{end}}
@@ -100,6 +103,7 @@ var tmplOrder = map[string]int{
 	"pureVreg":      5,
 	"vregMem":       6,
 	"asmRule":       7,
+	"argsMatchRule": 8,
 }
 
 func compareTplRuleData(x, y tplRuleData) int {
@@ -156,6 +160,63 @@ func parseAsmRule(rule string) (bool, string, string) {
 	}
 
 	return true, cond, out
+}
+
+// parseArgsMatchRule tries to parse given string as it would be asmRule with custom arguments to match:
+// match <args> [&& <cond>] => <out>
+// Return false, "", "", "" if not matched, otherwise true, args, cond, rule output.
+// For example:
+// rule:"match [0] (VMOV%sins [0] _ (MOVDconst [c])) && uint64(c)<= 255 => (VMOVI%a [uint8(c)])" can be used to provide addional
+// lowering for a broadcast to use immediate source:
+// (VDUPSbcast [0] (VMOVSins [0] _ (MOVDconst [c]))) && uint64(c)<= 255 => (VMOVI4S [uint8(c)])
+// The specifiers currently supported are only arm64-specific, it may be generalized in the expandFormatSpecifiers function in future.
+func parseArgsMatchRule(rule string) (bool, string, string, string) {
+	if !strings.HasPrefix(rule, "match ") {
+		return false, "", "", ""
+	}
+	rest := rule[len("match "):]
+
+	arrowIndex := strings.Index(rest, "=>")
+	if arrowIndex == -1 {
+		return false, "", "", ""
+	}
+
+	condPart := rest[:arrowIndex]
+	outPart := rest[arrowIndex+len("=>"):]
+
+	// Split args and optional condition on "&&".
+	args := condPart
+	cond := ""
+	if andIndex := strings.Index(condPart, "&&"); andIndex != -1 {
+		args = strings.TrimSpace(condPart[:andIndex])
+		cond = strings.TrimSpace(condPart[andIndex+len("&&"):])
+	} else {
+		args = strings.TrimSpace(args)
+	}
+
+	out := strings.TrimSpace(outPart)
+	if args == "" || out == "" {
+		return false, "", "", ""
+	}
+
+	return true, args, cond, out
+}
+
+// expandFormatSpecifiers replaces format specifiers in s with concrete values
+// derived from elemBits (the element size in bits for the current vector type).
+//
+// Supported specifiers:
+//
+//	%s - lane size letter (B, H, S, D)
+//	%a - arrangement suffix (16B, 8H, 4S, 2D) for neon instructions
+//	%b - bits per lane (8, 16, 32, 64)
+func expandFormatSpecifiers(s string, elemBits int) string {
+	elemLetters := map[int]string{8: "B", 16: "H", 32: "S", 64: "D"}
+	arrangements := map[int]string{8: "16B", 16: "8H", 32: "4S", 64: "2D"}
+	s = strings.ReplaceAll(s, "%s", elemLetters[elemBits])
+	s = strings.ReplaceAll(s, "%a", arrangements[elemBits])
+	s = strings.ReplaceAll(s, "%b", fmt.Sprintf("%d", elemBits))
+	return s
 }
 
 // writeSIMDRules generates the lowering and rewrite rules for ssa and writes it to simdAMD64.rules
@@ -286,10 +347,34 @@ func writeSIMDRules(ops []Operation) *bytes.Buffer {
 					optData := data
 					optData.tplName = "asmRule"
 					optData.RuleCond = cond
+					if cond != "" {
+						optData.RuleCond = "&& " + cond
+					}
 					optData.RuleOut = out
 					if maskType == OneMask {
 						optData.Args += " mask"
 					}
+					allData = append(allData, optData)
+				}
+			} else if ok, matchArgs, cond, out := parseArgsMatchRule(*gOp.SpecialLower); ok {
+				if _, done := ruleDone[data.Asm]; !done {
+					ruleDone[data.Asm] = struct{}{}
+					// Get elemBits from the operation's inputs.
+					elemBits := 0
+					for _, in := range gOp.In {
+						if in.ElemBits != nil {
+							elemBits = *in.ElemBits
+							break
+						}
+					}
+					optData := data
+					optData.tplName = "argsMatchRule"
+					optData.RuleArgs = expandFormatSpecifiers(matchArgs, elemBits)
+					optData.RuleCond = expandFormatSpecifiers(cond, elemBits)
+					if optData.RuleCond != "" {
+						optData.RuleCond = "&& " + optData.RuleCond
+					}
+					optData.RuleOut = expandFormatSpecifiers(out, elemBits)
 					allData = append(allData, optData)
 				}
 			} else {

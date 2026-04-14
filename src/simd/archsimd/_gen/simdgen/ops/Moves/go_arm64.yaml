@@ -65,6 +65,7 @@
   asm: "VDUP"
   SSAVariant: "bcast"
   constImm: 0
+  specialLower: !string "match [i] (VMOV%sins [j] _ (MOVDconst [c])) && i == j && c>=-128 && c<=255 => (VMOVI%a [uint8(c)])"
   in:
   - &immLane0
     name: "@" # tag "fully constant" (no aux field needed)

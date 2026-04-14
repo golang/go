@@ -57,4 +57,5 @@
 (broadcast1To8Int16x8 x) => (VDUPHbcast [0] x)
 (broadcast1To8Uint16x8 x) => (VDUPHbcast [0] x)
 (broadcast1To16Int8x16 x) => (VDUPBbcast [0] x)
+(VDUPBbcast [i] (VMOVBins [j] _ (MOVDconst [c]))) && i == j && c>=-128 && c<=255 => (VMOVI16B [uint8(c)])
 (broadcast1To16Uint8x16 x) => (VDUPBbcast [0] x)
