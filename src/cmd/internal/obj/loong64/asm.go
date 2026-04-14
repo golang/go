@@ -252,8 +252,8 @@ var optab = []Optab{
 	{AVMOVQ, C_VREG, C_NONE, C_NONE, C_VREG, C_NONE, 1, 4, 0, 0},
 	{AVMOVQ, C_REG, C_NONE, C_NONE, C_ELEM, C_NONE, 39, 4, 0, 0},  // vinsgr2vr.{b/h/w/d}
 	{AVMOVQ, C_ELEM, C_NONE, C_NONE, C_REG, C_NONE, 40, 4, 0, 0},  // vpickve2gr.{b/h/w/d}
+	{AVMOVQ, C_ELEM, C_NONE, C_NONE, C_ARNG, C_NONE, 40, 4, 0, 0}, // vreplvei.{b/h/w/d}
 	{AVMOVQ, C_REG, C_NONE, C_NONE, C_ARNG, C_NONE, 41, 4, 0, 0},  // vreplgr2vr.{b/h/w/d}
-	{AVMOVQ, C_ELEM, C_NONE, C_NONE, C_ARNG, C_NONE, 45, 4, 0, 0}, // vreplvei.{b/h/w/d}
 
 	// memory access
 	{AXVMOVQ, C_XREG, C_NONE, C_NONE, C_SOREG_12, C_NONE, 7, 4, REGZERO, 0},
@@ -266,11 +266,11 @@ var optab = []Optab{
 	// moving data between registers
 	{AXVMOVQ, C_XREG, C_NONE, C_NONE, C_XREG, C_NONE, 1, 4, 0, 0},
 	{AXVMOVQ, C_REG, C_NONE, C_NONE, C_ELEM, C_NONE, 39, 4, 0, 0},  // vinsgr2vr.{b/h/w/d}
+	{AXVMOVQ, C_XREG, C_NONE, C_NONE, C_ELEM, C_NONE, 39, 4, 0, 0}, // xvinsve0.{w/d}
 	{AXVMOVQ, C_ELEM, C_NONE, C_NONE, C_REG, C_NONE, 40, 4, 0, 0},  // vpickve2gr.{b/h/w/d}
+	{AXVMOVQ, C_ELEM, C_NONE, C_NONE, C_XREG, C_NONE, 40, 4, 0, 0}, // xvpickve.{w/d}
 	{AXVMOVQ, C_REG, C_NONE, C_NONE, C_ARNG, C_NONE, 41, 4, 0, 0},  // xvreplgr2vr.{b/h/w/d}
-	{AXVMOVQ, C_XREG, C_NONE, C_NONE, C_ARNG, C_NONE, 42, 4, 0, 0}, // xvreplve0.{b/h/w/d/q}
-	{AXVMOVQ, C_XREG, C_NONE, C_NONE, C_ELEM, C_NONE, 43, 4, 0, 0}, // xvinsve0.{w/d}
-	{AXVMOVQ, C_ELEM, C_NONE, C_NONE, C_XREG, C_NONE, 44, 4, 0, 0}, // xvpickve.{w/d}
+	{AXVMOVQ, C_XREG, C_NONE, C_NONE, C_ARNG, C_NONE, 41, 4, 0, 0}, // xvreplve0.{b/h/w/d/q}
 
 	// memory access
 	{AMOVWP, C_REG, C_NONE, C_NONE, C_SOREG_16, C_NONE, 73, 4, 0, 0},
@@ -2694,11 +2694,11 @@ func (c *ctxt0) asmout(p *obj.Prog, o *Optab, out []uint32) {
 			c.ctxt.Diag("illegal arng type combination: %v\n", p)
 		}
 
-		Rj := uint32(p.From.Reg & EXT_REG_MASK)
-		Vd := uint32(p.To.Reg & EXT_REG_MASK)
+		rj := uint32(p.From.Reg & EXT_REG_MASK)
+		rd := uint32(p.To.Reg & EXT_REG_MASK)
 		index := uint32(p.To.Index)
 		c.checkindex(p, index, m)
-		o1 = v | (index << 10) | (Rj << 5) | Vd
+		o1 = v | (index << 10) | (rj << 5) | rd
 
 	case 40: // vmov Vd.<T>[index], Rn
 		v, m := c.specialLsxMovInst(p.As, p.From.Reg, p.To.Reg, false)
@@ -2706,11 +2706,11 @@ func (c *ctxt0) asmout(p *obj.Prog, o *Optab, out []uint32) {
 			c.ctxt.Diag("illegal arng type combination: %v\n", p)
 		}
 
-		Vj := uint32(p.From.Reg & EXT_REG_MASK)
-		Rd := uint32(p.To.Reg & EXT_REG_MASK)
+		rj := uint32(p.From.Reg & EXT_REG_MASK)
+		rd := uint32(p.To.Reg & EXT_REG_MASK)
 		index := uint32(p.From.Index)
 		c.checkindex(p, index, m)
-		o1 = v | (index << 10) | (Vj << 5) | Rd
+		o1 = v | (index << 10) | (rj << 5) | rd
 
 	case 41: // vmov Rn, Vd.<T>
 		v, _ := c.specialLsxMovInst(p.As, p.From.Reg, p.To.Reg, false)
@@ -2718,55 +2718,9 @@ func (c *ctxt0) asmout(p *obj.Prog, o *Optab, out []uint32) {
 			c.ctxt.Diag("illegal arng type combination: %v\n", p)
 		}
 
-		Rj := uint32(p.From.Reg & EXT_REG_MASK)
-		Vd := uint32(p.To.Reg & EXT_REG_MASK)
-		o1 = v | (Rj << 5) | Vd
-
-	case 42: // vmov  xj, xd.<T>
-		v, _ := c.specialLsxMovInst(p.As, p.From.Reg, p.To.Reg, false)
-		if v == 0 {
-			c.ctxt.Diag("illegal arng type combination: %v\n", p)
-		}
-
-		Xj := uint32(p.From.Reg & EXT_REG_MASK)
-		Xd := uint32(p.To.Reg & EXT_REG_MASK)
-		o1 = v | (Xj << 5) | Xd
-
-	case 43: // vmov  xj, xd.<T>[index]
-		v, m := c.specialLsxMovInst(p.As, p.From.Reg, p.To.Reg, false)
-		if v == 0 {
-			c.ctxt.Diag("illegal arng type combination: %v\n", p)
-		}
-
-		Xj := uint32(p.From.Reg & EXT_REG_MASK)
-		Xd := uint32(p.To.Reg & EXT_REG_MASK)
-		index := uint32(p.To.Index)
-		c.checkindex(p, index, m)
-		o1 = v | (index << 10) | (Xj << 5) | Xd
-
-	case 44: // vmov  xj.<T>[index], xd
-		v, m := c.specialLsxMovInst(p.As, p.From.Reg, p.To.Reg, false)
-		if v == 0 {
-			c.ctxt.Diag("illegal arng type combination: %v\n", p)
-		}
-
-		Xj := uint32(p.From.Reg & EXT_REG_MASK)
-		Xd := uint32(p.To.Reg & EXT_REG_MASK)
-		index := uint32(p.From.Index)
-		c.checkindex(p, index, m)
-		o1 = v | (index << 10) | (Xj << 5) | Xd
-
-	case 45: // vmov  vj.<T>[index], vd.<T>
-		v, m := c.specialLsxMovInst(p.As, p.From.Reg, p.To.Reg, false)
-		if v == 0 {
-			c.ctxt.Diag("illegal arng type combination: %v\n", p)
-		}
-
-		vj := uint32(p.From.Reg & EXT_REG_MASK)
-		vd := uint32(p.To.Reg & EXT_REG_MASK)
-		index := uint32(p.From.Index)
-		c.checkindex(p, index, m)
-		o1 = v | (index << 10) | (vj << 5) | vd
+		rj := uint32(p.From.Reg & EXT_REG_MASK)
+		rd := uint32(p.To.Reg & EXT_REG_MASK)
+		o1 = v | (rj << 5) | rd
 
 	case 46: // vmov offset(vj), vd.<T>
 		v, _ := c.specialLsxMovInst(p.As, p.From.Reg, p.To.Reg, true)
