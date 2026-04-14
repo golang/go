@@ -144,7 +144,9 @@ func raceliteCount() {
 			count++
 		}
 	}
-	print("Found ", count, " data race(s)\n")
+	if count > 0 {
+		print("Found ", count, " data race(s)\n")
+	}
 }
 
 // inStack checks if addr is in the current goroutine's stack.
