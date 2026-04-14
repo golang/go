@@ -62,6 +62,7 @@ var amd64RegInfoKeys = []string{
 
 var arm64RegInfoKeys = []string{
 	"v11",
+	"v11Imm",
 	"v11ImmIn1",
 	"v11ScalarImmIn1",
 	"v21",

@@ -59,3 +59,13 @@ func broadcastConstImmFold(k int) {
 		sinkI8 = archsimd.BroadcastInt8x16(int8(k))
 	}
 }
+
+func shiftAllImmFold(k int) {
+	switch k {
+	case 100:
+		// arm64:`VMOVI [$]100,` `VSSHL` -`VDUP`
+		sinkI8 = sinkI8.ShiftAllLeft(100)
+		// arm64:`VMOVI [$]156,` `VUSHL` -`VDUP`
+		sinkU8 = sinkU8.ShiftAllRight(100)
+	}
+}

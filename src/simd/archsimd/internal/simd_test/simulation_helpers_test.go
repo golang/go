@@ -8,6 +8,7 @@ package simd_test
 
 import (
 	"math"
+	"unsafe"
 )
 
 func less[T number](x, y T) bool {
@@ -429,4 +430,122 @@ func satToUint32[T integer](x T) uint32 {
 		return M
 	}
 	return uint32(x)
+}
+
+// shiftAmount extracts the signed shift amount from the least significant byte of s.
+// ARM64 SSHL/USHL use only bits [7:0] of the shift amount element, sign-extended.
+func shiftAmount[T integer](s T) int8 {
+	return int8(uint8(s))
+}
+
+// shiftBy shifts x by signed amount: positive = left, negative = right.
+func shiftBy[T integer](x T, amt int8) T {
+	a := int(amt)
+	if a > 0 {
+		return x << uint(a)
+	}
+	if a < 0 {
+		return x >> uint(-a)
+	}
+	return x
+}
+
+// shiftSaturatingSigned shifts x by signed amount with signed saturation on overflow.
+func shiftSaturatingSigned[T signed](x T, amt int8) T {
+	a := int(amt)
+	if a > 0 {
+		r := x << uint(a)
+		if r>>uint(a) != x { // overflow
+			bits := uint(unsafe.Sizeof(x)) * 8
+			if x >= 0 {
+				return ^T(0) ^ (T(1) << (bits - 1)) // MaxSigned
+			}
+			return T(1) << (bits - 1) // MinSigned
+		}
+		return r
+	}
+	if a < 0 {
+		return x >> uint(-a)
+	}
+	return x
+}
+
+// shiftSaturatingUnsigned shifts x by signed amount with unsigned saturation on overflow.
+func shiftSaturatingUnsigned[T unsigned](x T, amt int8) T {
+	a := int(amt)
+	if a > 0 {
+		r := x << uint(a)
+		if r>>uint(a) != x { // overflow
+			return ^T(0) // MaxUnsigned
+		}
+		return r
+	}
+	if a < 0 {
+		return x >> uint(-a)
+	}
+	return x
+}
+
+// Slice versions for shift operations
+
+// shiftSlice applies shiftBy element-wise using same-type slices.
+func shiftSlice[T integer](x, y []T) []T {
+	return map2(func(a, b T) T { return shiftBy(a, shiftAmount(b)) })(x, y)
+}
+
+// shiftMixedSlice applies shiftBy element-wise using mixed-type slices (unsigned data, signed amounts).
+func shiftMixedSlice[D integer, S integer](x []D, y []S) []D {
+	r := make([]D, len(x))
+	for i := range r {
+		r[i] = shiftBy(x[i], shiftAmount(y[i]))
+	}
+	return r
+}
+
+// shiftSaturatingSignedSlice applies saturating shift element-wise (same-type).
+func shiftSaturatingSignedSlice[T signed](x, y []T) []T {
+	return map2(func(a, b T) T { return shiftSaturatingSigned(a, shiftAmount(b)) })(x, y)
+}
+
+// shiftSaturatingUnsignedSlice applies saturating shift element-wise (mixed-type).
+func shiftSaturatingUnsignedSlice[D unsigned, S integer](x []D, y []S) []D {
+	r := make([]D, len(x))
+	for i := range r {
+		r[i] = shiftSaturatingUnsigned(x[i], shiftAmount(y[i]))
+	}
+	return r
+}
+
+// Slice versions for const shift operations (same constant amount for all elements)
+
+// shiftLeftByConstSlice shifts all elements left by constant amount.
+func shiftLeftByConstSlice[T integer](x []T, amt uint8) []T {
+	return map1(func(a T) T { return a << amt })(x)
+}
+
+// shiftRightByConstSlice shifts all elements right by constant amount.
+// Signed types use arithmetic shift, unsigned types use logical shift.
+func shiftRightByConstSlice[T integer](x []T, amt uint8) []T {
+	return map1(func(a T) T { return a >> amt })(x)
+}
+
+// shiftLeftSaturatingByConstSlice shifts all elements left by constant amount with signed saturation.
+func shiftLeftSaturatingByConstSlice[T signed](x []T, amt uint8) []T {
+	return map1(func(a T) T { return shiftSaturatingSigned(a, int8(amt)) })(x)
+}
+
+// shiftLeftSaturatingUByConstSlice shifts all elements left by constant amount with unsigned saturation.
+func shiftLeftSaturatingUByConstSlice[T unsigned](x []T, amt uint8) []T {
+	return map1(func(a T) T { return shiftSaturatingUnsigned(a, int8(amt)) })(x)
+}
+
+// shiftAllLeftSlice shifts all elements left by the same amount.
+func shiftAllLeftSlice[T integer](x []T, amt uint64) []T {
+	return map1(func(a T) T { return a << amt })(x)
+}
+
+// shiftAllRightSlice shifts all elements right by the same amount.
+// Signed types use arithmetic shift, unsigned types use logical shift.
+func shiftAllRightSlice[T integer](x []T, amt uint64) []T {
+	return map1(func(a T) T { return a >> amt })(x)
 }

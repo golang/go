@@ -240,6 +240,396 @@ func (x Float32x4) SetElem(index uint8, v float32) Float32x4
 // Asm: VMOV, CPU Feature: NEON
 func (x Float64x2) SetElem(index uint8, v float64) Float64x2
 
+/* Shift */
+
+// Shift shifts each element in x by the signed value of the least significant byte
+// of y's corresponding element: positive values shift left, negative values shift right.
+//
+// Asm: VSSHL, CPU Feature: NEON
+func (x Int8x16) Shift(y Int8x16) Int8x16
+
+// Shift shifts each element in x by the signed value of the least significant byte
+// of y's corresponding element: positive values shift left, negative values shift right.
+//
+// Asm: VSSHL, CPU Feature: NEON
+func (x Int16x8) Shift(y Int16x8) Int16x8
+
+// Shift shifts each element in x by the signed value of the least significant byte
+// of y's corresponding element: positive values shift left, negative values shift right.
+//
+// Asm: VSSHL, CPU Feature: NEON
+func (x Int32x4) Shift(y Int32x4) Int32x4
+
+// Shift shifts each element in x by the signed value of the least significant byte
+// of y's corresponding element: positive values shift left, negative values shift right.
+//
+// Asm: VSSHL, CPU Feature: NEON
+func (x Int64x2) Shift(y Int64x2) Int64x2
+
+// Shift shifts each element in x by the signed value of the least significant byte
+// of y's corresponding element: positive values shift left, negative values shift right.
+//
+// Asm: VUSHL, CPU Feature: NEON
+func (x Uint8x16) Shift(y Int8x16) Uint8x16
+
+// Shift shifts each element in x by the signed value of the least significant byte
+// of y's corresponding element: positive values shift left, negative values shift right.
+//
+// Asm: VUSHL, CPU Feature: NEON
+func (x Uint16x8) Shift(y Int16x8) Uint16x8
+
+// Shift shifts each element in x by the signed value of the least significant byte
+// of y's corresponding element: positive values shift left, negative values shift right.
+//
+// Asm: VUSHL, CPU Feature: NEON
+func (x Uint32x4) Shift(y Int32x4) Uint32x4
+
+// Shift shifts each element in x by the signed value of the least significant byte
+// of y's corresponding element: positive values shift left, negative values shift right.
+//
+// Asm: VUSHL, CPU Feature: NEON
+func (x Uint64x2) Shift(y Int64x2) Uint64x2
+
+/* ShiftAllLeft */
+
+// ShiftAllLeft shifts each element of x left by y bits.
+// If y is greater than the element width, the result is 0.
+//
+// Asm: VSSHL, CPU Feature: NEON
+func (x Int8x16) ShiftAllLeft(y uint64) Int8x16
+
+// ShiftAllLeft shifts each element of x left by y bits.
+// If y is greater than the element width, the result is 0.
+//
+// Asm: VSSHL, CPU Feature: NEON
+func (x Int16x8) ShiftAllLeft(y uint64) Int16x8
+
+// ShiftAllLeft shifts each element of x left by y bits.
+// If y is greater than the element width, the result is 0.
+//
+// Asm: VSSHL, CPU Feature: NEON
+func (x Int32x4) ShiftAllLeft(y uint64) Int32x4
+
+// ShiftAllLeft shifts each element of x left by y bits.
+// If y is greater than the element width, the result is 0.
+//
+// Asm: VSSHL, CPU Feature: NEON
+func (x Int64x2) ShiftAllLeft(y uint64) Int64x2
+
+// ShiftAllLeft shifts each element of x left by y bits.
+// If y is greater than the element width, the result is 0.
+//
+// Asm: VUSHL, CPU Feature: NEON
+func (x Uint8x16) ShiftAllLeft(y uint64) Uint8x16
+
+// ShiftAllLeft shifts each element of x left by y bits.
+// If y is greater than the element width, the result is 0.
+//
+// Asm: VUSHL, CPU Feature: NEON
+func (x Uint16x8) ShiftAllLeft(y uint64) Uint16x8
+
+// ShiftAllLeft shifts each element of x left by y bits.
+// If y is greater than the element width, the result is 0.
+//
+// Asm: VUSHL, CPU Feature: NEON
+func (x Uint32x4) ShiftAllLeft(y uint64) Uint32x4
+
+// ShiftAllLeft shifts each element of x left by y bits.
+// If y is greater than the element width, the result is 0.
+//
+// Asm: VUSHL, CPU Feature: NEON
+func (x Uint64x2) ShiftAllLeft(y uint64) Uint64x2
+
+/* ShiftAllRight */
+
+// ShiftAllRight arithmetically shifts each element of x right by y bits.
+// If y is greater than the element width, the result is 0 or -1.
+//
+// Asm: VSSHL, CPU Feature: NEON
+func (x Int8x16) ShiftAllRight(y uint64) Int8x16
+
+// ShiftAllRight arithmetically shifts each element of x right by y bits.
+// If y is greater than the element width, the result is 0 or -1.
+//
+// Asm: VSSHL, CPU Feature: NEON
+func (x Int16x8) ShiftAllRight(y uint64) Int16x8
+
+// ShiftAllRight arithmetically shifts each element of x right by y bits.
+// If y is greater than the element width, the result is 0 or -1.
+//
+// Asm: VSSHL, CPU Feature: NEON
+func (x Int32x4) ShiftAllRight(y uint64) Int32x4
+
+// ShiftAllRight arithmetically shifts each element of x right by y bits.
+// If y is greater than the element width, the result is 0 or -1.
+//
+// Asm: VSSHL, CPU Feature: NEON
+func (x Int64x2) ShiftAllRight(y uint64) Int64x2
+
+// ShiftAllRight logically shifts each element of x right by y bits.
+// If y is greater than the element width, the result is 0.
+//
+// Asm: VUSHL, CPU Feature: NEON
+func (x Uint8x16) ShiftAllRight(y uint64) Uint8x16
+
+// ShiftAllRight logically shifts each element of x right by y bits.
+// If y is greater than the element width, the result is 0.
+//
+// Asm: VUSHL, CPU Feature: NEON
+func (x Uint16x8) ShiftAllRight(y uint64) Uint16x8
+
+// ShiftAllRight logically shifts each element of x right by y bits.
+// If y is greater than the element width, the result is 0.
+//
+// Asm: VUSHL, CPU Feature: NEON
+func (x Uint32x4) ShiftAllRight(y uint64) Uint32x4
+
+// ShiftAllRight logically shifts each element of x right by y bits.
+// If y is greater than the element width, the result is 0.
+//
+// Asm: VUSHL, CPU Feature: NEON
+func (x Uint64x2) ShiftAllRight(y uint64) Uint64x2
+
+/* ShiftLeftConst */
+
+// ShiftLeftConst performs a left shift on each element in x by the constant number of bits specified by y.
+//
+// A non-constant value of constant may result in significantly worse performance for this operation.
+//
+// Asm: VSHL, CPU Feature: NEON
+func (x Int8x16) ShiftLeftConst(constant uint8) Int8x16
+
+// ShiftLeftConst performs a left shift on each element in x by the constant number of bits specified by y.
+//
+// A non-constant value of constant may result in significantly worse performance for this operation.
+//
+// Asm: VSHL, CPU Feature: NEON
+func (x Int16x8) ShiftLeftConst(constant uint8) Int16x8
+
+// ShiftLeftConst performs a left shift on each element in x by the constant number of bits specified by y.
+//
+// A non-constant value of constant may result in significantly worse performance for this operation.
+//
+// Asm: VSHL, CPU Feature: NEON
+func (x Int32x4) ShiftLeftConst(constant uint8) Int32x4
+
+// ShiftLeftConst performs a left shift on each element in x by the constant number of bits specified by y.
+//
+// A non-constant value of constant may result in significantly worse performance for this operation.
+//
+// Asm: VSHL, CPU Feature: NEON
+func (x Int64x2) ShiftLeftConst(constant uint8) Int64x2
+
+// ShiftLeftConst performs a left shift on each element in x by the constant number of bits specified by y.
+//
+// A non-constant value of constant may result in significantly worse performance for this operation.
+//
+// Asm: VSHL, CPU Feature: NEON
+func (x Uint8x16) ShiftLeftConst(constant uint8) Uint8x16
+
+// ShiftLeftConst performs a left shift on each element in x by the constant number of bits specified by y.
+//
+// A non-constant value of constant may result in significantly worse performance for this operation.
+//
+// Asm: VSHL, CPU Feature: NEON
+func (x Uint16x8) ShiftLeftConst(constant uint8) Uint16x8
+
+// ShiftLeftConst performs a left shift on each element in x by the constant number of bits specified by y.
+//
+// A non-constant value of constant may result in significantly worse performance for this operation.
+//
+// Asm: VSHL, CPU Feature: NEON
+func (x Uint32x4) ShiftLeftConst(constant uint8) Uint32x4
+
+// ShiftLeftConst performs a left shift on each element in x by the constant number of bits specified by y.
+//
+// A non-constant value of constant may result in significantly worse performance for this operation.
+//
+// Asm: VSHL, CPU Feature: NEON
+func (x Uint64x2) ShiftLeftConst(constant uint8) Uint64x2
+
+/* ShiftLeftSaturatedConst */
+
+// ShiftLeftSaturatedConst performs a saturating left shift on each element in x by the constant number of bits specified by y.
+// Results are saturated to the signed range on overflow.
+//
+// A non-constant value of constant may result in significantly worse performance for this operation.
+//
+// Asm: VSQSHL, CPU Feature: NEON
+func (x Int8x16) ShiftLeftSaturatedConst(constant uint8) Int8x16
+
+// ShiftLeftSaturatedConst performs a saturating left shift on each element in x by the constant number of bits specified by y.
+// Results are saturated to the signed range on overflow.
+//
+// A non-constant value of constant may result in significantly worse performance for this operation.
+//
+// Asm: VSQSHL, CPU Feature: NEON
+func (x Int16x8) ShiftLeftSaturatedConst(constant uint8) Int16x8
+
+// ShiftLeftSaturatedConst performs a saturating left shift on each element in x by the constant number of bits specified by y.
+// Results are saturated to the signed range on overflow.
+//
+// A non-constant value of constant may result in significantly worse performance for this operation.
+//
+// Asm: VSQSHL, CPU Feature: NEON
+func (x Int32x4) ShiftLeftSaturatedConst(constant uint8) Int32x4
+
+// ShiftLeftSaturatedConst performs a saturating left shift on each element in x by the constant number of bits specified by y.
+// Results are saturated to the signed range on overflow.
+//
+// A non-constant value of constant may result in significantly worse performance for this operation.
+//
+// Asm: VSQSHL, CPU Feature: NEON
+func (x Int64x2) ShiftLeftSaturatedConst(constant uint8) Int64x2
+
+// ShiftLeftSaturatedConst performs a saturating left shift on each element in x by the constant number of bits specified by y.
+// Results are saturated to the unsigned range on overflow.
+//
+// A non-constant value of constant may result in significantly worse performance for this operation.
+//
+// Asm: VUQSHL, CPU Feature: NEON
+func (x Uint8x16) ShiftLeftSaturatedConst(constant uint8) Uint8x16
+
+// ShiftLeftSaturatedConst performs a saturating left shift on each element in x by the constant number of bits specified by y.
+// Results are saturated to the unsigned range on overflow.
+//
+// A non-constant value of constant may result in significantly worse performance for this operation.
+//
+// Asm: VUQSHL, CPU Feature: NEON
+func (x Uint16x8) ShiftLeftSaturatedConst(constant uint8) Uint16x8
+
+// ShiftLeftSaturatedConst performs a saturating left shift on each element in x by the constant number of bits specified by y.
+// Results are saturated to the unsigned range on overflow.
+//
+// A non-constant value of constant may result in significantly worse performance for this operation.
+//
+// Asm: VUQSHL, CPU Feature: NEON
+func (x Uint32x4) ShiftLeftSaturatedConst(constant uint8) Uint32x4
+
+// ShiftLeftSaturatedConst performs a saturating left shift on each element in x by the constant number of bits specified by y.
+// Results are saturated to the unsigned range on overflow.
+//
+// A non-constant value of constant may result in significantly worse performance for this operation.
+//
+// Asm: VUQSHL, CPU Feature: NEON
+func (x Uint64x2) ShiftLeftSaturatedConst(constant uint8) Uint64x2
+
+/* ShiftRightConst */
+
+// ShiftRightConst performs an arithmetic right shift on each element in x by the constant number of bits specified by y.
+//
+// A non-constant value of constant may result in significantly worse performance for this operation.
+//
+// Asm: VSSHR, CPU Feature: NEON
+func (x Int8x16) ShiftRightConst(constant uint8) Int8x16
+
+// ShiftRightConst performs an arithmetic right shift on each element in x by the constant number of bits specified by y.
+//
+// A non-constant value of constant may result in significantly worse performance for this operation.
+//
+// Asm: VSSHR, CPU Feature: NEON
+func (x Int16x8) ShiftRightConst(constant uint8) Int16x8
+
+// ShiftRightConst performs an arithmetic right shift on each element in x by the constant number of bits specified by y.
+//
+// A non-constant value of constant may result in significantly worse performance for this operation.
+//
+// Asm: VSSHR, CPU Feature: NEON
+func (x Int32x4) ShiftRightConst(constant uint8) Int32x4
+
+// ShiftRightConst performs an arithmetic right shift on each element in x by the constant number of bits specified by y.
+//
+// A non-constant value of constant may result in significantly worse performance for this operation.
+//
+// Asm: VSSHR, CPU Feature: NEON
+func (x Int64x2) ShiftRightConst(constant uint8) Int64x2
+
+// ShiftRightConst performs a logical right shift on each element in x by the constant number of bits specified by y.
+//
+// A non-constant value of constant may result in significantly worse performance for this operation.
+//
+// Asm: VUSHR, CPU Feature: NEON
+func (x Uint8x16) ShiftRightConst(constant uint8) Uint8x16
+
+// ShiftRightConst performs a logical right shift on each element in x by the constant number of bits specified by y.
+//
+// A non-constant value of constant may result in significantly worse performance for this operation.
+//
+// Asm: VUSHR, CPU Feature: NEON
+func (x Uint16x8) ShiftRightConst(constant uint8) Uint16x8
+
+// ShiftRightConst performs a logical right shift on each element in x by the constant number of bits specified by y.
+//
+// A non-constant value of constant may result in significantly worse performance for this operation.
+//
+// Asm: VUSHR, CPU Feature: NEON
+func (x Uint32x4) ShiftRightConst(constant uint8) Uint32x4
+
+// ShiftRightConst performs a logical right shift on each element in x by the constant number of bits specified by y.
+//
+// A non-constant value of constant may result in significantly worse performance for this operation.
+//
+// Asm: VUSHR, CPU Feature: NEON
+func (x Uint64x2) ShiftRightConst(constant uint8) Uint64x2
+
+/* ShiftSaturated */
+
+// ShiftSaturated shifts each element in x by the signed value of the least significant byte
+// of y's corresponding element (positive shifts left, negative shifts right).
+// Results are saturated to the signed range on overflow.
+//
+// Asm: VSQSHL, CPU Feature: NEON
+func (x Int8x16) ShiftSaturated(y Int8x16) Int8x16
+
+// ShiftSaturated shifts each element in x by the signed value of the least significant byte
+// of y's corresponding element (positive shifts left, negative shifts right).
+// Results are saturated to the signed range on overflow.
+//
+// Asm: VSQSHL, CPU Feature: NEON
+func (x Int16x8) ShiftSaturated(y Int16x8) Int16x8
+
+// ShiftSaturated shifts each element in x by the signed value of the least significant byte
+// of y's corresponding element (positive shifts left, negative shifts right).
+// Results are saturated to the signed range on overflow.
+//
+// Asm: VSQSHL, CPU Feature: NEON
+func (x Int32x4) ShiftSaturated(y Int32x4) Int32x4
+
+// ShiftSaturated shifts each element in x by the signed value of the least significant byte
+// of y's corresponding element (positive shifts left, negative shifts right).
+// Results are saturated to the signed range on overflow.
+//
+// Asm: VSQSHL, CPU Feature: NEON
+func (x Int64x2) ShiftSaturated(y Int64x2) Int64x2
+
+// ShiftSaturated shifts each element in x by the signed value of the least significant byte
+// of y's corresponding element (positive shifts left, negative shifts right).
+// Results are saturated to the unsigned range on overflow.
+//
+// Asm: VUQSHL, CPU Feature: NEON
+func (x Uint8x16) ShiftSaturated(y Int8x16) Uint8x16
+
+// ShiftSaturated shifts each element in x by the signed value of the least significant byte
+// of y's corresponding element (positive shifts left, negative shifts right).
+// Results are saturated to the unsigned range on overflow.
+//
+// Asm: VUQSHL, CPU Feature: NEON
+func (x Uint16x8) ShiftSaturated(y Int16x8) Uint16x8
+
+// ShiftSaturated shifts each element in x by the signed value of the least significant byte
+// of y's corresponding element (positive shifts left, negative shifts right).
+// Results are saturated to the unsigned range on overflow.
+//
+// Asm: VUQSHL, CPU Feature: NEON
+func (x Uint32x4) ShiftSaturated(y Int32x4) Uint32x4
+
+// ShiftSaturated shifts each element in x by the signed value of the least significant byte
+// of y's corresponding element (positive shifts left, negative shifts right).
+// Results are saturated to the unsigned range on overflow.
+//
+// Asm: VUQSHL, CPU Feature: NEON
+func (x Uint64x2) ShiftSaturated(y Int64x2) Uint64x2
+
 /* Sub */
 
 // Sub subtracts corresponding elements of two vectors.

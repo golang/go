@@ -48,6 +48,8 @@ var (
 {{end}}
 {{define "argsMatchRule"}}({{.Asm}} {{.RuleArgs}}) {{.RuleCond}} => {{.RuleOut}}
 {{end}}
+{{define "earlyMatchRule"}}({{.GoOp}}{{.GoType}} {{.RuleArgs}}) {{.RuleCond}}=> {{.RuleOut}}
+{{end}}
 {{define "masksftimm"}}({{.Asm}} x (MOVQconst [c]) mask) => ({{.Asm}}const [amd64CapAVXShift(c)] x mask)
 {{end}}
 {{define "vregMem"}}({{.Asm}} {{.ArgsLoadAddr}}) && canMergeLoad(v, l) && clobber(l) => ({{.Asm}}load {{.ArgsAddr}})
@@ -95,15 +97,16 @@ func (d tplRuleData) MaskOptimization(asmCheck map[string]bool) string {
 
 // SSA rewrite rules need to appear in a most-to-least-specific order.  This works for that.
 var tmplOrder = map[string]int{
-	"masksftimm":    0,
-	"sftimm":        1,
-	"maskInMaskOut": 2,
-	"maskOut":       3,
-	"maskIn":        4,
-	"pureVreg":      5,
-	"vregMem":       6,
-	"asmRule":       7,
-	"argsMatchRule": 8,
+	"masksftimm":     0,
+	"sftimm":         1,
+	"maskInMaskOut":  2,
+	"maskOut":        3,
+	"maskIn":         4,
+	"pureVreg":       5,
+	"vregMem":        6,
+	"asmRule":        7,
+	"argsMatchRule":  8,
+	"earlyMatchRule": 9,
 }
 
 func compareTplRuleData(x, y tplRuleData) int {
@@ -164,21 +167,29 @@ func parseAsmRule(rule string) (bool, string, string) {
 
 // parseArgsMatchRule tries to parse given string as it would be asmRule with custom arguments to match:
 // match <args> [&& <cond>] => <out>
-// Return false, "", "", "" if not matched, otherwise true, args, cond, rule output.
+// earlymatch <args> [&& <cond>] => <out>
+// Return false, "", "", "", false if not matched, otherwise true, args, cond, rule output, isEarly.
 // For example:
 // rule:"match [0] (VMOV%sins [0] _ (MOVDconst [c])) && uint64(c)<= 255 => (VMOVI%a [uint8(c)])" can be used to provide addional
 // lowering for a broadcast to use immediate source:
 // (VDUPSbcast [0] (VMOVSins [0] _ (MOVDconst [c]))) && uint64(c)<= 255 => (VMOVI4S [uint8(c)])
 // The specifiers currently supported are only arm64-specific, it may be generalized in the expandFormatSpecifiers function in future.
-func parseArgsMatchRule(rule string) (bool, string, string, string) {
-	if !strings.HasPrefix(rule, "match ") {
-		return false, "", "", ""
+// The "earlymatch" variant uses GoOp instead of Asm on the left-hand side, replacing the default lowering rule.
+func parseArgsMatchRule(rule string) (bool, string, string, string, bool) {
+	isEarly := false
+	rest := ""
+	if strings.HasPrefix(rule, "earlymatch ") {
+		isEarly = true
+		rest = rule[len("earlymatch "):]
+	} else if strings.HasPrefix(rule, "match ") {
+		rest = rule[len("match "):]
+	} else {
+		return false, "", "", "", false
 	}
-	rest := rule[len("match "):]
 
 	arrowIndex := strings.Index(rest, "=>")
 	if arrowIndex == -1 {
-		return false, "", "", ""
+		return false, "", "", "", false
 	}
 
 	condPart := rest[:arrowIndex]
@@ -196,10 +207,10 @@ func parseArgsMatchRule(rule string) (bool, string, string, string) {
 
 	out := strings.TrimSpace(outPart)
 	if args == "" || out == "" {
-		return false, "", "", ""
+		return false, "", "", "", false
 	}
 
-	return true, args, cond, out
+	return true, args, cond, out, isEarly
 }
 
 // expandFormatSpecifiers replaces format specifiers in s with concrete values
@@ -263,7 +274,7 @@ func writeSIMDRules(ops []Operation) *bytes.Buffer {
 		}
 		if immType == ConstImm {
 			data.ArgsOut = fmt.Sprintf("[%s] %s", *opr.In[0].Const, data.ArgsOut)
-		} else if immType == VarImm {
+		} else if immType == VarImm || immType == VarImmLim {
 			data.Args = fmt.Sprintf("[a] %s", data.Args)
 			data.ArgsOut = fmt.Sprintf("[a] %s", data.ArgsOut)
 		} else if immType == ConstVarImm {
@@ -356,9 +367,13 @@ func writeSIMDRules(ops []Operation) *bytes.Buffer {
 					}
 					allData = append(allData, optData)
 				}
-			} else if ok, matchArgs, cond, out := parseArgsMatchRule(*gOp.SpecialLower); ok {
-				if _, done := ruleDone[data.Asm]; !done {
-					ruleDone[data.Asm] = struct{}{}
+			} else if ok, matchArgs, cond, out, isEarly := parseArgsMatchRule(*gOp.SpecialLower); ok {
+				key := data.Asm
+				if isEarly {
+					key = data.GoOp + data.GoType
+				}
+				if _, done := ruleDone[key]; !done {
+					ruleDone[key] = struct{}{}
 					// Get elemBits from the operation's inputs.
 					elemBits := 0
 					for _, in := range gOp.In {
@@ -368,7 +383,11 @@ func writeSIMDRules(ops []Operation) *bytes.Buffer {
 						}
 					}
 					optData := data
-					optData.tplName = "argsMatchRule"
+					if isEarly {
+						optData.tplName = "earlyMatchRule"
+					} else {
+						optData.tplName = "argsMatchRule"
+					}
 					optData.RuleArgs = expandFormatSpecifiers(matchArgs, elemBits)
 					optData.RuleCond = expandFormatSpecifiers(cond, elemBits)
 					if optData.RuleCond != "" {
@@ -376,6 +395,9 @@ func writeSIMDRules(ops []Operation) *bytes.Buffer {
 					}
 					optData.RuleOut = expandFormatSpecifiers(out, elemBits)
 					allData = append(allData, optData)
+				}
+				if isEarly {
+					continue
 				}
 			} else {
 				panic("simdgen sees unknown special lower " + *gOp.SpecialLower + ", maybe implement it?")

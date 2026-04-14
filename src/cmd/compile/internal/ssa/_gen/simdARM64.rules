@@ -38,6 +38,82 @@
 (SetElemUint16x8 ...) => (VMOVHins ...)
 (SetElemUint32x4 ...) => (VMOVSins ...)
 (SetElemUint64x2 ...) => (VMOVDins ...)
+(ShiftInt8x16 ...) => (VSSHL16B ...)
+(ShiftInt16x8 ...) => (VSSHL8H ...)
+(ShiftInt32x4 ...) => (VSSHL4S ...)
+(ShiftInt64x2 ...) => (VSSHL2D ...)
+(ShiftUint8x16 ...) => (VUSHL16B ...)
+(ShiftUint16x8 ...) => (VUSHL8H ...)
+(ShiftUint32x4 ...) => (VUSHL4S ...)
+(ShiftUint64x2 ...) => (VUSHL2D ...)
+(ShiftAllLeftInt8x16 x y) => (VSSHL16B x (VDUPBbcast [0] (VMOVBins [0] x (CSEL <typ.UInt64> [OpARM64LessThanU] y (MOVDconst [127]) (CMPconst [127] y)))))
+(ShiftAllLeftInt16x8 x y) => (VSSHL8H x (VDUPHbcast [0] (VMOVHins [0] x (CSEL <typ.UInt64> [OpARM64LessThanU] y (MOVDconst [127]) (CMPconst [127] y)))))
+(ShiftAllLeftInt32x4 x y) => (VSSHL4S x (VDUPSbcast [0] (VMOVSins [0] x (CSEL <typ.UInt64> [OpARM64LessThanU] y (MOVDconst [127]) (CMPconst [127] y)))))
+(ShiftAllLeftInt64x2 x y) => (VSSHL2D x (VDUPDbcast [0] (VMOVDins [0] x (CSEL <typ.UInt64> [OpARM64LessThanU] y (MOVDconst [127]) (CMPconst [127] y)))))
+(ShiftAllLeftUint8x16 x y) => (VUSHL16B x (VDUPBbcast [0] (VMOVBins [0] x (CSEL <typ.UInt64> [OpARM64LessThanU] y (MOVDconst [127]) (CMPconst [127] y)))))
+(ShiftAllLeftUint16x8 x y) => (VUSHL8H x (VDUPHbcast [0] (VMOVHins [0] x (CSEL <typ.UInt64> [OpARM64LessThanU] y (MOVDconst [127]) (CMPconst [127] y)))))
+(ShiftAllLeftUint32x4 x y) => (VUSHL4S x (VDUPSbcast [0] (VMOVSins [0] x (CSEL <typ.UInt64> [OpARM64LessThanU] y (MOVDconst [127]) (CMPconst [127] y)))))
+(ShiftAllLeftUint64x2 x y) => (VUSHL2D x (VDUPDbcast [0] (VMOVDins [0] x (CSEL <typ.UInt64> [OpARM64LessThanU] y (MOVDconst [127]) (CMPconst [127] y)))))
+(ShiftAllRightInt8x16 x y) => (VSSHL16B x (VDUPBbcast [0] (VMOVBins [0] x (NEG <typ.Int64> (CSEL <typ.UInt64> [OpARM64LessThanU] y (MOVDconst [127]) (CMPconst [127] y))))))
+(ShiftAllRightInt16x8 x y) => (VSSHL8H x (VDUPHbcast [0] (VMOVHins [0] x (NEG <typ.Int64> (CSEL <typ.UInt64> [OpARM64LessThanU] y (MOVDconst [127]) (CMPconst [127] y))))))
+(ShiftAllRightInt32x4 x y) => (VSSHL4S x (VDUPSbcast [0] (VMOVSins [0] x (NEG <typ.Int64> (CSEL <typ.UInt64> [OpARM64LessThanU] y (MOVDconst [127]) (CMPconst [127] y))))))
+(ShiftAllRightInt64x2 x y) => (VSSHL2D x (VDUPDbcast [0] (VMOVDins [0] x (NEG <typ.Int64> (CSEL <typ.UInt64> [OpARM64LessThanU] y (MOVDconst [127]) (CMPconst [127] y))))))
+(ShiftAllRightUint8x16 x y) => (VUSHL16B x (VDUPBbcast [0] (VMOVBins [0] x (NEG <typ.Int64> (CSEL <typ.UInt64> [OpARM64LessThanU] y (MOVDconst [127]) (CMPconst [127] y))))))
+(ShiftAllRightUint16x8 x y) => (VUSHL8H x (VDUPHbcast [0] (VMOVHins [0] x (NEG <typ.Int64> (CSEL <typ.UInt64> [OpARM64LessThanU] y (MOVDconst [127]) (CMPconst [127] y))))))
+(ShiftAllRightUint32x4 x y) => (VUSHL4S x (VDUPSbcast [0] (VMOVSins [0] x (NEG <typ.Int64> (CSEL <typ.UInt64> [OpARM64LessThanU] y (MOVDconst [127]) (CMPconst [127] y))))))
+(ShiftAllRightUint64x2 x y) => (VUSHL2D x (VDUPDbcast [0] (VMOVDins [0] x (NEG <typ.Int64> (CSEL <typ.UInt64> [OpARM64LessThanU] y (MOVDconst [127]) (CMPconst [127] y))))))
+(ShiftLeftConstInt8x16 ...) => (VSHL16B ...)
+(VSHL16B [a] x) && a==0 => x
+(ShiftLeftConstInt16x8 ...) => (VSHL8H ...)
+(VSHL8H [a] x) && a==0 => x
+(ShiftLeftConstInt32x4 ...) => (VSHL4S ...)
+(VSHL4S [a] x) && a==0 => x
+(ShiftLeftConstInt64x2 ...) => (VSHL2D ...)
+(VSHL2D [a] x) && a==0 => x
+(ShiftLeftConstUint8x16 ...) => (VSHL16B ...)
+(ShiftLeftConstUint16x8 ...) => (VSHL8H ...)
+(ShiftLeftConstUint32x4 ...) => (VSHL4S ...)
+(ShiftLeftConstUint64x2 ...) => (VSHL2D ...)
+(ShiftLeftSaturatedConstInt8x16 ...) => (VSQSHL16Bconst ...)
+(VSQSHL16Bconst [a] x) && a==0 => x
+(ShiftLeftSaturatedConstInt16x8 ...) => (VSQSHL8Hconst ...)
+(VSQSHL8Hconst [a] x) && a==0 => x
+(ShiftLeftSaturatedConstInt32x4 ...) => (VSQSHL4Sconst ...)
+(VSQSHL4Sconst [a] x) && a==0 => x
+(ShiftLeftSaturatedConstInt64x2 ...) => (VSQSHL2Dconst ...)
+(VSQSHL2Dconst [a] x) && a==0 => x
+(ShiftLeftSaturatedConstUint8x16 ...) => (VUQSHL16Bconst ...)
+(VUQSHL16Bconst [a] x) && a==0 => x
+(ShiftLeftSaturatedConstUint16x8 ...) => (VUQSHL8Hconst ...)
+(VUQSHL8Hconst [a] x) && a==0 => x
+(ShiftLeftSaturatedConstUint32x4 ...) => (VUQSHL4Sconst ...)
+(VUQSHL4Sconst [a] x) && a==0 => x
+(ShiftLeftSaturatedConstUint64x2 ...) => (VUQSHL2Dconst ...)
+(VUQSHL2Dconst [a] x) && a==0 => x
+(ShiftRightConstInt8x16 ...) => (VSSHR16B ...)
+(VSSHR16B [a] x) && a==0 => x
+(ShiftRightConstInt16x8 ...) => (VSSHR8H ...)
+(VSSHR8H [a] x) && a==0 => x
+(ShiftRightConstInt32x4 ...) => (VSSHR4S ...)
+(VSSHR4S [a] x) && a==0 => x
+(ShiftRightConstInt64x2 ...) => (VSSHR2D ...)
+(VSSHR2D [a] x) && a==0 => x
+(ShiftRightConstUint8x16 ...) => (VUSHR16B ...)
+(VUSHR16B [a] x) && a==0 => x
+(ShiftRightConstUint16x8 ...) => (VUSHR8H ...)
+(VUSHR8H [a] x) && a==0 => x
+(ShiftRightConstUint32x4 ...) => (VUSHR4S ...)
+(VUSHR4S [a] x) && a==0 => x
+(ShiftRightConstUint64x2 ...) => (VUSHR2D ...)
+(VUSHR2D [a] x) && a==0 => x
+(ShiftSaturatedInt8x16 ...) => (VSQSHL16B ...)
+(ShiftSaturatedInt16x8 ...) => (VSQSHL8H ...)
+(ShiftSaturatedInt32x4 ...) => (VSQSHL4S ...)
+(ShiftSaturatedInt64x2 ...) => (VSQSHL2D ...)
+(ShiftSaturatedUint8x16 ...) => (VUQSHL16B ...)
+(ShiftSaturatedUint16x8 ...) => (VUQSHL8H ...)
+(ShiftSaturatedUint32x4 ...) => (VUQSHL4S ...)
+(ShiftSaturatedUint64x2 ...) => (VUQSHL2D ...)
 (SubFloat32x4 ...) => (VFSUB4S ...)
 (SubFloat64x2 ...) => (VFSUB2D ...)
 (SubInt8x16 ...) => (VSUB16B ...)

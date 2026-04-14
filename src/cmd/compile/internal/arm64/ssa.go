@@ -241,6 +241,18 @@ func simdV11(s *ssagen.State, v *ssa.Value, arrangement int16) *obj.Prog {
 	return simdV11Asm(s, v.Op.Asm(), v.Args[0].Reg(), v.Reg(), arrangement)
 }
 
+// simdV11Imm generates a unary vector operation with immediate constant,
+// e.g. VUSHR $3, V1.B16, V0.B16
+func simdV11Imm(s *ssagen.State, v *ssa.Value, arrangement int16) *obj.Prog {
+	p := s.Prog(v.Op.Asm())
+	p.From.Type = obj.TYPE_CONST
+	p.From.Offset = int64(v.AuxUInt8())
+	p.Reg = simdRegArng(v.Args[0].Reg(), arrangement)
+	p.To.Type = obj.TYPE_REG
+	p.To.Reg = simdRegArng(v.Reg(), arrangement)
+	return p
+}
+
 // simdV11ImmIn1 generates a broadcast1ToN instruction,
 // e.g. VDUP V1.S[0], V0.S4 (duplicate element 0 to all lanes)
 // The arrangement parameter specifies the element arrangement (e.g., ARNG_S, ARNG_D)

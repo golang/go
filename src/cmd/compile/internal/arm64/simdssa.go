@@ -12,6 +12,34 @@ import (
 func ssaGenSIMDValue(s *ssagen.State, v *ssa.Value) bool {
 	var p *obj.Prog
 	switch v.Op {
+	case ssa.OpARM64VSHL16B,
+		ssa.OpARM64VSQSHL16Bconst,
+		ssa.OpARM64VUQSHL16Bconst,
+		ssa.OpARM64VSSHR16B,
+		ssa.OpARM64VUSHR16B:
+		p = simdV11Imm(s, v, arm64.ARNG_16B)
+
+	case ssa.OpARM64VSHL2D,
+		ssa.OpARM64VSQSHL2Dconst,
+		ssa.OpARM64VUQSHL2Dconst,
+		ssa.OpARM64VSSHR2D,
+		ssa.OpARM64VUSHR2D:
+		p = simdV11Imm(s, v, arm64.ARNG_2D)
+
+	case ssa.OpARM64VSHL4S,
+		ssa.OpARM64VSQSHL4Sconst,
+		ssa.OpARM64VUQSHL4Sconst,
+		ssa.OpARM64VSSHR4S,
+		ssa.OpARM64VUSHR4S:
+		p = simdV11Imm(s, v, arm64.ARNG_4S)
+
+	case ssa.OpARM64VSHL8H,
+		ssa.OpARM64VSQSHL8Hconst,
+		ssa.OpARM64VUQSHL8Hconst,
+		ssa.OpARM64VSSHR8H,
+		ssa.OpARM64VUSHR8H:
+		p = simdV11Imm(s, v, arm64.ARNG_8H)
+
 	case ssa.OpARM64VDUPBbcast:
 		p = simdV11ImmIn1(s, v, arm64.ARNG_B)
 
@@ -32,12 +60,20 @@ func ssaGenSIMDValue(s *ssagen.State, v *ssa.Value) bool {
 
 	case ssa.OpARM64VADD16B,
 		ssa.OpARM64VMUL16B,
+		ssa.OpARM64VSSHL16B,
+		ssa.OpARM64VUSHL16B,
+		ssa.OpARM64VSQSHL16B,
+		ssa.OpARM64VUQSHL16B,
 		ssa.OpARM64VSUB16B:
 		p = simdV21(s, v, arm64.ARNG_16B)
 
 	case ssa.OpARM64VFADD2D,
 		ssa.OpARM64VADD2D,
 		ssa.OpARM64VFMUL2D,
+		ssa.OpARM64VSSHL2D,
+		ssa.OpARM64VUSHL2D,
+		ssa.OpARM64VSQSHL2D,
+		ssa.OpARM64VUQSHL2D,
 		ssa.OpARM64VFSUB2D,
 		ssa.OpARM64VSUB2D:
 		p = simdV21(s, v, arm64.ARNG_2D)
@@ -46,12 +82,20 @@ func ssaGenSIMDValue(s *ssagen.State, v *ssa.Value) bool {
 		ssa.OpARM64VADD4S,
 		ssa.OpARM64VFMUL4S,
 		ssa.OpARM64VMUL4S,
+		ssa.OpARM64VSSHL4S,
+		ssa.OpARM64VUSHL4S,
+		ssa.OpARM64VSQSHL4S,
+		ssa.OpARM64VUQSHL4S,
 		ssa.OpARM64VFSUB4S,
 		ssa.OpARM64VSUB4S:
 		p = simdV21(s, v, arm64.ARNG_4S)
 
 	case ssa.OpARM64VADD8H,
 		ssa.OpARM64VMUL8H,
+		ssa.OpARM64VSSHL8H,
+		ssa.OpARM64VUSHL8H,
+		ssa.OpARM64VSQSHL8H,
+		ssa.OpARM64VUQSHL8H,
 		ssa.OpARM64VSUB8H:
 		p = simdV21(s, v, arm64.ARNG_8H)
 

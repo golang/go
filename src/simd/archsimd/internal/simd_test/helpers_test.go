@@ -18,6 +18,10 @@ type signed interface {
 	~int | ~int8 | ~int16 | ~int32 | ~int64
 }
 
+type unsigned interface {
+	~uint | ~uint8 | ~uint16 | ~uint32 | ~uint64 | ~uintptr
+}
+
 type integer interface {
 	~int | ~int8 | ~int16 | ~int32 | ~int64 | ~uint | ~uint8 | ~uint16 | ~uint32 | ~uint64 | ~uintptr
 }
@@ -253,6 +257,17 @@ func forSliceTriple[T number](t *testing.T, s []T, n int, f func(a, b, c []T) bo
 				if !f(s[i:i+n], s[j:j+n], s[k:k+n]) {
 					return
 				}
+			}
+		}
+	}
+}
+
+func forSliceMixed[D, S number](t *testing.T, d []D, s []S, n int, f func(a []D, b []S) bool) {
+	t.Helper()
+	for i := 0; i < len(d)-n; i++ {
+		for j := 0; j < len(s)-n; j++ {
+			if !f(d[i:i+n], s[j:j+n]) {
+				return
 			}
 		}
 	}

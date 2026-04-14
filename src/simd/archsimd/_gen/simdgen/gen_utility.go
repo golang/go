@@ -904,10 +904,10 @@ func reportXEDInconsistency(ops []Operation) error {
 
 func (o *Operation) hasMaskedMerging(maskType maskShape, outType outShape) bool {
 	if o.SpecialLower != nil {
-		// asmRule and argsMatchRule should not affect masked merging
+		// asmRule and argsMatchRule/earlyMatchRule should not affect masked merging
 		ok, _, _ := parseAsmRule(*o.SpecialLower)
 		if !ok {
-			ok, _, _, _ = parseArgsMatchRule(*o.SpecialLower)
+			ok, _, _, _, _ = parseArgsMatchRule(*o.SpecialLower)
 			if !ok {
 				return false
 			}
