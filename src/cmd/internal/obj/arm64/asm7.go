@@ -1096,7 +1096,7 @@ const OP_NOOP = 0xd503201f
 func (o *Optab) size(ctxt *obj.Link, p *obj.Prog) int {
 	// Optimize adrp+add+ld/st to adrp+ld/st(offset).
 	sz := movesize(p.As)
-	if sz != -1 {
+	if 0 <= sz && sz <= 3 {
 		// Relocations R_AARCH64_LDST{64,32,16,8}_ABS_LO12_NC can only generate 8-byte, 4-byte,
 		// 2-byte and 1-byte aligned addresses, so the address of load/store must be aligned.
 		// Also symbols with prefix of "go:string." are Go strings, which will go into
@@ -1106,8 +1106,22 @@ func (o *Optab) size(ctxt *obj.Link, p *obj.Prog) int {
 		// to decide whether to use the unaligned/aligned forms, so o.size's result is always
 		// in sync with the code generation decisions, because it *is* the code generation decision.
 		align := int64(1 << sz)
-		if o.a1 == C_ADDR && p.From.Offset%align == 0 && int64(p.From.Sym.Align) >= align ||
-			o.a4 == C_ADDR && p.To.Offset%align == 0 && int64(p.To.Sym.Align) >= align {
+		ok := func(a *obj.Addr) bool {
+			if a.Offset%align != 0 {
+				return false
+			}
+			s := a.Sym
+			if s.Align != 0 {
+				return int64(s.Align) >= align
+			}
+			// When Align==0, the linker chooses a big enough alignment that this will
+			// always be ok. (It chooses the biggest alignment that fits in the object
+			// size. See cmd/link/internal/ld/data.go:symalign. That alignment will
+			// always be at least as big as this operation is, because this operation
+			// must fit in the object.) See issue 78585.
+			return true
+		}
+		if o.a1 == C_ADDR && ok(&p.From) || o.a4 == C_ADDR && ok(&p.To) {
 			return 8
 		}
 	}
