@@ -438,15 +438,6 @@ var insts = [][]instEncoder{
 			args:      XnSP__cimm__MUL_VL___Pg__prfop,
 		},
 	},
-	// PPSEL
-	{
-		// PPSEL <Pm>.<T>[<Wv>, <imm>], <Pn>, <Pd>
-		{
-			goOp:      APPSEL,
-			fixedBits: 0x25204000,
-			args:      Pm_T_Wv__imm___Pn__Pd,
-		},
-	},
 	// PPTEST
 	{
 		// PPTEST <Pn>.B, <Pg>
@@ -12355,16 +12346,6 @@ var a_PREGIDX_PnN_58_Noop_Imm2_810 = operand{
 	},
 }
 
-var a_PREGSEL_Pm59V2_TszhTszl1823_Rv1618_Noop_I1TszhTszl1824 = operand{
-	class: AC_PREGSEL, elemEncoders: []elemEncoder{
-		{encodePm59V2, enc_Pm},
-		{encodeTszhTszl1823, enc_tszh_tszl},
-		{encodeRv1618, enc_Rv},
-		{encodeNoop, enc_NIL},
-		{encodeI1TszhTszl1824, enc_i1_tszh_tszl},
-	},
-}
-
 var a_PREGZM_PNg1013_ZeroPredCheck = operand{
 	class: AC_PREGZM, elemEncoders: []elemEncoder{
 		{encodePNg1013, enc_PNg},
@@ -12435,13 +12416,6 @@ var a_PREG_PNg1013_Noop = operand{
 	},
 }
 
-var a_PREG_Pd_Noop = operand{
-	class: AC_PREG, elemEncoders: []elemEncoder{
-		{encodePd, enc_Pd},
-		{encodeNoop, enc_NIL},
-	},
-}
-
 var a_PREG_Pg1013_Noop = operand{
 	class: AC_PREG, elemEncoders: []elemEncoder{
 		{encodePg1013, enc_Pg},
@@ -12459,13 +12433,6 @@ var a_PREG_Pg1014_Noop = operand{
 var a_PREG_Pg59_Noop = operand{
 	class: AC_PREG, elemEncoders: []elemEncoder{
 		{encodePg59, enc_Pg},
-		{encodeNoop, enc_NIL},
-	},
-}
-
-var a_PREG_Pn1014_Noop = operand{
-	class: AC_PREG, elemEncoders: []elemEncoder{
-		{encodePn1014, enc_Pn},
 		{encodeNoop, enc_NIL},
 	},
 }
@@ -13252,12 +13219,6 @@ var Pm_B__Pn_B__Pg__Pd_B = []operand{
 	a_ARNG_Pn59_ArngBCheck,
 	a_PREG_Pg1014_Noop,
 	a_ARNG_Pd_ArngBCheck,
-}
-
-var Pm_T_Wv__imm___Pn__Pd = []operand{
-	a_PREGSEL_Pm59V2_TszhTszl1823_Rv1618_Noop_I1TszhTszl1824,
-	a_PREG_Pn1014_Noop,
-	a_PREG_Pd_Noop,
 }
 
 var Pm_T__Pn_T__Pd_T = []operand{

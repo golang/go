@@ -48,7 +48,6 @@ var sveAnames = []string{
 	"PPRFD",
 	"PPRFH",
 	"PPRFW",
-	"PPSEL",
 	"PPTEST",
 	"PPTRUE",
 	"PPUNPKHI",
