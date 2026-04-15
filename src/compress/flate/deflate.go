@@ -405,7 +405,7 @@ func (d *compressor) tryBetterMatchAtEnd(prevLength, prevOffset, lookahead int32
 
 	for i := int32(checkOff - 1); i >= 0; i-- {
 		if prevLength >= maxMatchLength || d.window[prevIndex+i] != d.window[ch2+i] {
-			for j := int32(0); j <= i; j++ {
+			for j := range i + 1 {
 				d.tokens.AddLiteral(d.window[prevIndex+j])
 				if d.tokens.n == maxFlateBlockTokens {
 					if d.err = d.writeBlock(&d.tokens, s.index, false); d.err != nil {
@@ -438,7 +438,7 @@ func (d *compressor) skipLiterals() bool {
 		return true
 	}
 	n = 1 + n>>6
-	for j := int32(0); j < n; j++ {
+	for range n {
 		if s.index >= d.windowEnd-1 {
 			break
 		}

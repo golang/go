@@ -168,6 +168,7 @@ func Example_synchronization() {
 	wg.Add(1)
 	go func() {
 		defer wg.Done()
+
 		zw, err := flate.NewWriter(wp, flate.BestSpeed)
 		if err != nil {
 			log.Fatal(err)
