@@ -364,9 +364,13 @@ func preprocess(ctxt *obj.Link, cursym *obj.LSym, newprog obj.ProgAlloc) {
 				break
 			}
 
-			retSym := p.To.Sym
+			retSym, retReg := p.To.Sym, p.To.Reg
+			if retReg == obj.REG_NONE {
+				retReg = REGLINK
+			}
 			p.To.Name = obj.NAME_NONE // clear fields as we may modify p to other instruction
 			p.To.Sym = nil
+			p.To.Reg = obj.REG_NONE
 
 			if c.cursym.Func().Text.Mark&LEAF != 0 {
 				if autosize == 0 {
@@ -378,7 +382,7 @@ func preprocess(ctxt *obj.Link, cursym *obj.LSym, newprog obj.ProgAlloc) {
 						p.To.Sym = retSym
 					} else {
 						p.To.Type = obj.TYPE_MEM
-						p.To.Reg = REGLINK
+						p.To.Reg = retReg
 						p.To.Offset = 0
 					}
 					p.Mark |= BRANCH
@@ -401,7 +405,7 @@ func preprocess(ctxt *obj.Link, cursym *obj.LSym, newprog obj.ProgAlloc) {
 					q.To.Sym = retSym
 				} else {
 					q.To.Type = obj.TYPE_MEM
-					q.To.Reg = REGLINK
+					q.To.Reg = retReg
 					q.To.Offset = 0
 				}
 				q.Mark |= BRANCH
@@ -443,7 +447,7 @@ func preprocess(ctxt *obj.Link, cursym *obj.LSym, newprog obj.ProgAlloc) {
 			} else {
 				q1.To.Type = obj.TYPE_MEM
 				q1.To.Offset = 0
-				q1.To.Reg = REGLINK
+				q1.To.Reg = retReg
 			}
 			q1.Mark |= BRANCH
 			q1.Spadj = +autosize

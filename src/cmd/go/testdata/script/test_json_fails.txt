@@ -1,0 +1,18 @@
+! go test -json
+
+stdout '"Action":"output","Package":"p","Test":"Test","Output":"=== RUN   Test\\n","OutputType":"frame"'
+stdout '"Action":"output","Package":"p","Test":"Test","Output":"    x_test.go:6: Error1\\n","OutputType":"error"'
+stdout '"Action":"output","Package":"p","Test":"Test","Output":"        Error2\\n","OutputType":"error-continue"'
+stdout '"Action":"output","Package":"p","Test":"Test","Output":"--- FAIL: Test \([\d.]+s\)\\n","OutputType":"frame"'
+
+-- go.mod --
+module p
+
+-- x_test.go --
+package p
+
+import "testing"
+
+func Test(t *testing.T) {
+	t.Error("Error1\nError2")
+}

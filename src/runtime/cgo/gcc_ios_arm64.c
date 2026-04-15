@@ -10,22 +10,8 @@
 
 #include "libcgo.h"
 
-#include <TargetConditionals.h>
-
-#if TARGET_OS_IPHONE
 #include <CoreFoundation/CFBundle.h>
 #include <CoreFoundation/CFString.h>
-#endif
-
-#if TARGET_OS_IPHONE
-
-static void
-threadentry_platform(void)
-{
-#if TARGET_OS_IPHONE
-	darwin_arm_init_thread_exception_port();
-#endif
-}
 
 // init_working_dir sets the current working directory to the app root.
 // By default ios/arm64 processes start in "/".
@@ -87,17 +73,10 @@ init_working_dir()
 	}
 }
 
-#endif // TARGET_OS_IPHONE
-
 static void
 init_platform()
 {
-#if TARGET_OS_IPHONE
-	darwin_arm_init_mach_exception_handler();
-	darwin_arm_init_thread_exception_port();
 	init_working_dir();
-#endif
 }
 
 void (*x_cgo_init_platform)(void) = init_platform;
-void (*x_cgo_threadentry_platform)(void) = threadentry_platform;

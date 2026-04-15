@@ -15,6 +15,7 @@ import (
 	"cmd/asm/internal/flags"
 	"cmd/asm/internal/lex"
 	"cmd/internal/obj"
+	"cmd/internal/obj/arm64"
 	"cmd/internal/obj/ppc64"
 	"cmd/internal/obj/riscv"
 	"cmd/internal/obj/x86"
@@ -593,6 +594,10 @@ func (p *Parser) branch(addr *obj.Addr, target *obj.Prog) {
 	addr.Val = target
 }
 
+func isARM64SVE(op obj.As) bool {
+	return op > arm64.ASVESTART
+}
+
 // asmInstruction assembles an instruction.
 // MOVW R9, (R10)
 func (p *Parser) asmInstruction(op obj.As, cond string, a []obj.Addr) {
@@ -741,6 +746,11 @@ func (p *Parser) asmInstruction(op obj.As, cond string, a []obj.Addr) {
 				// For ARM64 CASP-like instructions, its 2nd destination operand is register pair(Rt, Rt+1) that can
 				// not fit into prog.RegTo2, so save it to the prog.RestArgs.
 				prog.AddRestDest(a[2])
+			case isARM64SVE(op):
+				// SVE instructions, see arm64/goops_gen.go
+				prog.From = a[0]
+				prog.AddRestSource(a[1])
+				prog.To = a[2]
 			default:
 				prog.From = a[0]
 				prog.Reg = p.getRegister(prog, op, &a[1])
@@ -843,6 +853,13 @@ func (p *Parser) asmInstruction(op obj.As, cond string, a []obj.Addr) {
 			break
 		}
 		if p.arch.Family == sys.ARM64 {
+			if isARM64SVE(op) {
+				// SVE instructions, see arm64/goops_gen.go
+				prog.From = a[0]
+				prog.AddRestSourceArgs([]obj.Addr{a[1], a[2]})
+				prog.To = a[3]
+				break
+			}
 			prog.From = a[0]
 			prog.Reg = p.getRegister(prog, op, &a[1])
 			prog.AddRestSource(a[2])
@@ -891,6 +908,13 @@ func (p *Parser) asmInstruction(op obj.As, cond string, a []obj.Addr) {
 		p.errorf("can't handle %s instruction with 4 operands", op)
 		return
 	case 5:
+		if p.arch.Family == sys.ARM64 && isARM64SVE(op) {
+			// SVE instructions, see arm64/goops_gen.go
+			prog.From = a[0]
+			prog.AddRestSourceArgs([]obj.Addr{a[1], a[2], a[3]})
+			prog.To = a[4]
+			break
+		}
 		if p.arch.Family == sys.PPC64 {
 			prog.From = a[0]
 			// Second arg is always a register type on ppc64.
@@ -914,6 +938,13 @@ func (p *Parser) asmInstruction(op obj.As, cond string, a []obj.Addr) {
 		p.errorf("can't handle %s instruction with 5 operands", op)
 		return
 	case 6:
+		if p.arch.Family == sys.ARM64 && isARM64SVE(op) {
+			// SVE instructions, see arm64/goops_gen.go
+			prog.From = a[0]
+			prog.AddRestSourceArgs([]obj.Addr{a[1], a[2], a[3], a[4]})
+			prog.To = a[5]
+			break
+		}
 		if p.arch.Family == sys.ARM && arch.IsARMMRC(op) {
 			// Strange special case: MCR, MRC.
 			prog.To.Type = obj.TYPE_CONST

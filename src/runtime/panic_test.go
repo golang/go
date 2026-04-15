@@ -5,8 +5,10 @@
 package runtime_test
 
 import (
+	"slices"
 	"strings"
 	"testing"
+	"time"
 )
 
 // Test that panics print out the underlying value
@@ -46,5 +48,53 @@ func TestPanicWithDirectlyPrintableCustomTypes(t *testing.T) {
 				t.Fatalf("%q\nis not present in\n%s", tt.wantPanicPrefix, output)
 			}
 		})
+	}
+}
+
+func TestPanicRecoverSpeed(t *testing.T) {
+	// For issue 77062.
+	t.Skip("This test is too flaky at the moment. But it does normally pass. Suggestions for making it less flaky are welcome.")
+
+	// Recursive function that does defer/recover/repanic.
+	var f func(int)
+	f = func(n int) {
+		if n == 0 {
+			panic("done")
+		}
+		defer func() {
+			err := recover()
+			panic(err)
+		}()
+		f(n - 1)
+	}
+
+	time := func(f func()) time.Duration {
+		var times []time.Duration
+		for range 10 {
+			start := time.Now()
+			f()
+			times = append(times, time.Since(start))
+		}
+		slices.Sort(times)
+		times = times[1 : len(times)-1] // skip high and low, to reduce noise
+		var avg time.Duration
+		for _, v := range times {
+			avg += v / time.Duration(len(times))
+		}
+		return avg
+	}
+
+	a := time(func() {
+		defer func() { recover() }()
+		f(1024)
+	})
+	b := time(func() {
+		defer func() { recover() }()
+		f(2048)
+	})
+	m := b.Seconds() / a.Seconds()
+	t.Logf("a: %v, b: %v, m: %v", a, b, m)
+	if m > 3.5 {
+		t.Errorf("more than 2x time increase: %v", m)
 	}
 }

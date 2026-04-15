@@ -84,7 +84,7 @@ func coroexit(c *coro) {
 	mcall(coroswitch_m)
 }
 
-//go:linkname coroswitch
+//go:linknamestd coroswitch
 
 // coroswitch switches to the goroutine blocked on c
 // and then blocks the current goroutine on c.

@@ -6,7 +6,13 @@
 
 package runtime
 
+import _ "unsafe" // for linkname
+
 // Called from assembly only; declared for go vet.
+//
+// load_g is also called from runtime/cgo.
+//
+//go:linknamestd load_g
 func load_g()
 func save_g()
 

@@ -13,6 +13,7 @@ import (
 	"cmd/internal/objabi"
 	"cmd/internal/src"
 	"internal/abi"
+	"internal/buildcfg"
 )
 
 // MapGroupType makes the map slot group type given the type of the map.
@@ -26,14 +27,6 @@ func MapGroupType(t *types.Type) *types.Type {
 	// a correct GC program for it.
 	//
 	// Make sure this stays in sync with internal/runtime/maps/group.go.
-	//
-	// type group struct {
-	//     ctrl uint64
-	//     slots [abi.MapGroupSlots]struct {
-	//         key  keyType
-	//         elem elemType
-	//     }
-	// }
 
 	keytype := t.Key()
 	elemtype := t.Elem()
@@ -46,19 +39,48 @@ func MapGroupType(t *types.Type) *types.Type {
 		elemtype = types.NewPtr(elemtype)
 	}
 
-	slotFields := []*types.Field{
-		makefield("key", keytype),
-		makefield("elem", elemtype),
-	}
-	slot := types.NewStruct(slotFields)
-	slot.SetNoalg(true)
+	var fields []*types.Field
+	if buildcfg.Experiment.MapSplitGroup {
+		// Split layout (KKKKVVVV):
+		// type group struct {
+		//     ctrl  uint64
+		//     keys  [abi.MapGroupSlots]keyType
+		//     elems [abi.MapGroupSlots]elemType
+		// }
+		keyArr := types.NewArray(keytype, abi.MapGroupSlots)
+		keyArr.SetNoalg(true)
 
-	slotArr := types.NewArray(slot, abi.MapGroupSlots)
-	slotArr.SetNoalg(true)
+		elemArr := types.NewArray(elemtype, abi.MapGroupSlots)
+		elemArr.SetNoalg(true)
 
-	fields := []*types.Field{
-		makefield("ctrl", types.Types[types.TUINT64]),
-		makefield("slots", slotArr),
+		fields = []*types.Field{
+			makefield("ctrl", types.Types[types.TUINT64]),
+			makefield("keys", keyArr),
+			makefield("elems", elemArr),
+		}
+	} else {
+		// Interleaved slot layout (KVKVKVKV):
+		// type group struct {
+		//     ctrl  uint64
+		//     slots [abi.MapGroupSlots]struct {
+		//         key  keyType
+		//         elem elemType
+		//     }
+		// }
+		slotFields := []*types.Field{
+			makefield("key", keytype),
+			makefield("elem", elemtype),
+		}
+		slot := types.NewStruct(slotFields)
+		slot.SetNoalg(true)
+
+		slotArr := types.NewArray(slot, abi.MapGroupSlots)
+		slotArr.SetNoalg(true)
+
+		fields = []*types.Field{
+			makefield("ctrl", types.Types[types.TUINT64]),
+			makefield("slots", slotArr),
+		}
 	}
 
 	group := types.NewStruct(fields)
@@ -269,13 +291,30 @@ func writeMapType(t *types.Type, lsym *obj.LSym, c rttype.Cursor) {
 	s3 := writeType(gtyp)
 	hasher := genhash(t.Key())
 
-	slotTyp := gtyp.Field(1).Type.Elem()
-	elemOff := slotTyp.Field(1).Offset
-	if types.AlgType(t.Key()) == types.AMEM && t.Key().Size() == 8 && elemOff != 8 {
-		base.Fatalf("runtime assumes elemOff for 8-byte keys is 8, got %d", elemOff)
-	}
-	if types.AlgType(t.Key()) == types.ASTRING && elemOff != int64(2*types.PtrSize) {
-		base.Fatalf("runtime assumes elemOff for string keys is %d, got %d", 2*types.PtrSize, elemOff)
+	var keysOff int64
+	var keyStride int64
+	var elemsOff int64
+	var elemStride int64
+	var elemOff int64
+	if buildcfg.Experiment.MapSplitGroup {
+		// Split layout: field 1 is keys array, field 2 is elems array.
+		keysOff = gtyp.Field(1).Offset
+		keyStride = gtyp.Field(1).Type.Elem().Size()
+		elemsOff = gtyp.Field(2).Offset
+		elemStride = gtyp.Field(2).Type.Elem().Size()
+	} else {
+		// Interleaved layout: field 1 is slots array.
+		// KeysOff = offset of slots array (first key).
+		// KeyStride = ElemStride = slot stride.
+		// ElemsOff = offset of slots + offset of elem within slot.
+		keysOff = gtyp.Field(1).Offset
+		slotTyp := gtyp.Field(1).Type.Elem()
+		slotSize := slotTyp.Size()
+		elemOffInSlot := slotTyp.Field(1).Offset
+		keyStride = slotSize
+		elemsOff = keysOff + elemOffInSlot
+		elemStride = slotSize
+		elemOff = slotTyp.Field(1).Offset
 	}
 
 	c.Field("Key").WritePtr(s1)
@@ -283,7 +322,10 @@ func writeMapType(t *types.Type, lsym *obj.LSym, c rttype.Cursor) {
 	c.Field("Group").WritePtr(s3)
 	c.Field("Hasher").WritePtr(hasher)
 	c.Field("GroupSize").WriteUintptr(uint64(gtyp.Size()))
-	c.Field("SlotSize").WriteUintptr(uint64(slotTyp.Size()))
+	c.Field("KeysOff").WriteUintptr(uint64(keysOff))
+	c.Field("KeyStride").WriteUintptr(uint64(keyStride))
+	c.Field("ElemsOff").WriteUintptr(uint64(elemsOff))
+	c.Field("ElemStride").WriteUintptr(uint64(elemStride))
 	c.Field("ElemOff").WriteUintptr(uint64(elemOff))
 	var flags uint32
 	if needkeyupdate(t.Key()) {
@@ -295,7 +337,7 @@ func writeMapType(t *types.Type, lsym *obj.LSym, c rttype.Cursor) {
 	if t.Key().Size() > abi.MapMaxKeyBytes {
 		flags |= abi.MapIndirectKey
 	}
-	if t.Elem().Size() > abi.MapMaxKeyBytes {
+	if t.Elem().Size() > abi.MapMaxElemBytes {
 		flags |= abi.MapIndirectElem
 	}
 	c.Field("Flags").WriteUint32(flags)

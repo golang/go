@@ -1211,15 +1211,7 @@ var rootConsistencyTestCases = []rootConsistencyTest{{
 }}
 
 func tempDirWithUnixSocket(t *testing.T, name string) string {
-	dir, err := os.MkdirTemp("", "")
-	if err != nil {
-		t.Fatal(err)
-	}
-	t.Cleanup(func() {
-		if err := os.RemoveAll(dir); err != nil {
-			t.Error(err)
-		}
-	})
+	dir := t.TempDir()
 	addr, err := net.ResolveUnixAddr("unix", filepath.Join(dir, name))
 	if err != nil {
 		t.Skipf("net.ResolveUnixAddr: %v", err)

@@ -65,6 +65,26 @@ This analyzer is currently disabled by default as the
 transformation does not preserve the nilness of the base slice in
 all cases; see https://go.dev/issue/73557.
 
+# Analyzer atomictypes
+
+atomictypes: replace basic types in sync/atomic calls with atomic types
+
+The atomictypes analyzer suggests replacing the primitive sync/atomic functions with
+the strongly typed atomic wrapper types introduced in Go1.19 (e.g.
+atomic.Int32). For example,
+
+	var x int32
+	atomic.AddInt32(&x, 1)
+
+would become
+
+	var x atomic.Int32
+	x.Add(1)
+
+The atomic types are safer because they don't allow non-atomic access, which is
+a common source of bugs. These types also resolve memory alignment issues that
+plagued the old atomic functions on 32-bit architectures.
+
 # Analyzer bloop
 
 bloop: replace for-range over b.N with b.Loop
@@ -263,10 +283,14 @@ is known at compile time, for example:
 	reflect.TypeOf(uint32(0))        -> reflect.TypeFor[uint32]()
 	reflect.TypeOf((*ast.File)(nil)) -> reflect.TypeFor[*ast.File]()
 
-It also offers a fix to simplify the construction below, which uses
+It also offers a fix to simplify the constructions below, which use
 reflect.TypeOf to return the runtime type for an interface type,
 
 	reflect.TypeOf((*io.Reader)(nil)).Elem()
+
+or:
+
+	reflect.TypeOf([]io.Reader(nil)).Elem()
 
 to:
 
@@ -278,6 +302,28 @@ No fix is offered in cases when the runtime type is dynamic, such as:
 	reflect.TypeOf(r)
 
 or when the operand has potential side effects.
+
+# Analyzer slicesbackward
+
+slicesbackward: replace backward loops over slices with slices.Backward
+
+The slicesbackward analyzer suggests replacing manually-written backward
+loops of the form
+
+	for i := len(s) - 1; i >= 0; i-- {
+	    use(s[i])
+	}
+
+with the more readable Go 1.23 style using slices.Backward:
+
+	for _, v := range slices.Backward(s) {
+	    use(v)
+	}
+
+If the loop index is needed beyond just indexing into the slice, both
+the index and value variables are kept:
+
+	for i, v := range slices.Backward(s) { ... }
 
 # Analyzer slicescontains
 
@@ -460,14 +506,15 @@ is replaced by:
 
 This avoids quadratic memory allocation and improves performance.
 
-The analyzer requires that all references to s except the final one
+The analyzer requires that all references to s before the final uses
 are += operations. To avoid warning about trivial cases, at least one
 must appear within a loop. The variable s must be a local
 variable, not a global or parameter.
 
-The sole use of the finished string must be the last reference to the
-variable s. (It may appear within an intervening loop or function literal,
-since even s.String() is called repeatedly, it does not allocate memory.)
+All uses of the finished string must come after the last += operation.
+Each such use will be replaced by a call to strings.Builder's String method.
+(These may appear within an intervening loop or function literal, since even
+if s.String() is called repeatedly, it does not allocate memory.)
 
 Often the addend is a call to fmt.Sprintf, as in this example:
 
@@ -519,11 +566,11 @@ where ptr is an unsafe.Pointer, is replaced by:
 
 	unsafe.Add(ptr, n)
 
-# Analyzer waitgroup
+# Analyzer waitgroupgo
 
-waitgroup: replace wg.Add(1)/go/wg.Done() with wg.Go
+waitgroupgo: replace wg.Add(1)/go/wg.Done() with wg.Go
 
-The waitgroup analyzer simplifies goroutine management with `sync.WaitGroup`.
+The waitgroupgo analyzer simplifies goroutine management with `sync.WaitGroup`.
 It replaces the common pattern
 
 	wg.Add(1)

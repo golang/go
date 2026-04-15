@@ -637,6 +637,9 @@ func (ip Addr) IsGlobalUnicast() bool {
 // (IPv4 addresses) and RFC 4193 (IPv6 addresses). That is, it reports whether
 // ip is in 10.0.0.0/8, 172.16.0.0/12, 192.168.0.0/16, or fc00::/7. This is the
 // same as [net.IP.IsPrivate].
+//
+// IsPrivate does not describe a security property of addresses,
+// and should not be used for access control.
 func (ip Addr) IsPrivate() bool {
 	if ip.Is4In6() {
 		ip = ip.Unmap()

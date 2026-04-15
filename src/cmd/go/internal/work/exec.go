@@ -39,12 +39,15 @@ import (
 	"cmd/go/internal/fsys"
 	"cmd/go/internal/gover"
 	"cmd/go/internal/load"
+	"cmd/go/internal/modinfo"
 	"cmd/go/internal/modload"
 	"cmd/go/internal/str"
 	"cmd/go/internal/trace"
 	"cmd/internal/buildid"
 	"cmd/internal/quoted"
 	"cmd/internal/sys"
+
+	"golang.org/x/tools/go/analysis"
 )
 
 const DefaultCFlags = "-O2 -g"
@@ -1190,19 +1193,40 @@ type vetConfig struct {
 	NonGoFiles   []string // absolute paths to package non-Go files
 	IgnoredFiles []string // absolute paths to ignored source files
 
-	ModulePath    string            // module path (may be "" on module error)
-	ModuleVersion string            // module version (may be "" on main module or module error)
-	ImportMap     map[string]string // map import path in source code to package path
-	PackageFile   map[string]string // map package path to .a file with export data
-	Standard      map[string]bool   // map package path to whether it's in the standard library
-	PackageVetx   map[string]string // map package path to vetx data from earlier vet run
-	VetxOnly      bool              // only compute vetx data; don't report detected problems
-	VetxOutput    string            // write vetx data to this output file
-	Stdout        string            // write stdout (JSON, unified diff) to this output file
-	GoVersion     string            // Go version for package
-	FixArchive    string            // write fixed files to this zip archive, if non-empty
+	Module      *analysis.Module  // module information, if any
+	ImportMap   map[string]string // map import path in source code to package path
+	PackageFile map[string]string // map package path to .a file with export data
+	Standard    map[string]bool   // map package path to whether it's in the standard library
+	PackageVetx map[string]string // map package path to vetx data from earlier vet run
+	VetxOnly    bool              // only compute vetx data; don't report detected problems
+	VetxOutput  string            // write vetx data to this output file
+	Stdout      string            // write stdout (JSON, unified diff) to this output file
+	GoVersion   string            // Go version for package
+	FixArchive  string            // write fixed files to this zip archive, if non-empty
 
 	SucceedOnTypecheckFailure bool // awful hack; see #18395 and below
+}
+
+// analysisModuleFromModulePublic converts a modinfo.ModulePublic to a analysis.Module.
+func analysisModuleFromModulePublic(m *modinfo.ModulePublic) *analysis.Module {
+	if m == nil {
+		return nil
+	}
+	vm := &analysis.Module{
+		Path:      m.Path,
+		Version:   m.Version,
+		Replace:   analysisModuleFromModulePublic(m.Replace),
+		Time:      m.Time,
+		Main:      m.Main,
+		Indirect:  m.Indirect,
+		Dir:       m.Dir,
+		GoMod:     m.GoMod,
+		GoVersion: m.GoVersion,
+	}
+	if m.Error != nil {
+		vm.Error = &analysis.ModuleError{Err: m.Error.Err}
+	}
+	return vm
 }
 
 func buildVetConfig(a *Action, srcfiles []string, vetDeps []*Action) {
@@ -1242,11 +1266,7 @@ func buildVetConfig(a *Action, srcfiles []string, vetDeps []*Action) {
 			v = gover.DefaultGoModVersion
 		}
 		vcfg.GoVersion = "go" + v
-
-		if a.Package.Module.Error == nil {
-			vcfg.ModulePath = a.Package.Module.Path
-			vcfg.ModuleVersion = a.Package.Module.Version
-		}
+		vcfg.Module = analysisModuleFromModulePublic(a.Package.Module)
 	}
 	a.vetCfg = vcfg
 	for i, raw := range a.Package.Internal.RawImports {
@@ -2858,7 +2878,7 @@ func (pr *runCgoProvider) cxxflags() []string {
 }
 
 func (pr *runCgoProvider) fflags() []string {
-	return pr.CXXFLAGS
+	return pr.FFLAGS
 }
 
 func (pr *runCgoProvider) ldflags() []string {
@@ -3444,7 +3464,7 @@ func (b *Builder) swigDoIntSize(objdir string) (intsize string, err error) {
 	}
 	srcs := []string{src}
 
-	p := load.GoFilesPackage(modload.NewState(), context.TODO(), load.PackageOpts{}, srcs)
+	p := load.GoFilesPackage(modload.NewLoader(), context.TODO(), load.PackageOpts{}, srcs)
 
 	if _, _, e := BuildToolchain.gc(b, &Action{Mode: "swigDoIntSize", Package: p, Objdir: objdir}, "", nil, nil, "", false, "", srcs); e != nil {
 		return "32", nil
@@ -3463,6 +3483,10 @@ func (b *Builder) swigIntSize(objdir string) (intsize string, err error) {
 
 // Run SWIG on one SWIG input file.
 func (b *Builder) swigOne(a *Action, file, objdir string, pcCFLAGS []string, cxx bool, intgosize string) error {
+	if strings.HasPrefix(file, "cgo") {
+		return errors.New("SWIG file must not use prefix 'cgo'")
+	}
+
 	p := a.Package
 	sh := b.Shell(a)
 
@@ -3649,7 +3673,7 @@ func useResponseFile(path string, argLen int) bool {
 	// TODO: Note that other toolchains like CC are missing here for now.
 	prog := strings.TrimSuffix(filepath.Base(path), ".exe")
 	switch prog {
-	case "compile", "link", "cgo", "asm", "cover":
+	case "compile", "link", "cgo", "asm", "cover", "pack":
 	default:
 		return false
 	}
@@ -3668,24 +3692,35 @@ func useResponseFile(path string, argLen int) bool {
 	return false
 }
 
-// encodeArg encodes an argument for response file writing.
+// encodeArg encodes an argument for response file writing using GCC-compatible format.
+// Arguments containing special characters are wrapped in double quotes with escapes.
 func encodeArg(arg string) string {
-	// If there aren't any characters we need to reencode, fastpath out.
-	if !strings.ContainsAny(arg, "\\\n") {
+	// Empty string must be quoted to preserve it.
+	if arg == "" {
+		return `""`
+	}
+	// If no special characters, return as-is.
+	if !strings.ContainsAny(arg, " \t\n\r'\"\\$`") {
 		return arg
 	}
+
+	// Use double quotes and escape special chars.
 	var b strings.Builder
+	b.WriteByte('"')
 	for _, r := range arg {
 		switch r {
 		case '\\':
-			b.WriteByte('\\')
-			b.WriteByte('\\')
-		case '\n':
-			b.WriteByte('\\')
-			b.WriteByte('n')
+			b.WriteString(`\\`)
+		case '"':
+			b.WriteString(`\"`)
+		case '$':
+			b.WriteString(`\$`)
+		case '`':
+			b.WriteString("\\`")
 		default:
 			b.WriteRune(r)
 		}
 	}
+	b.WriteByte('"')
 	return b.String()
 }

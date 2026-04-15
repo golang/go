@@ -6,6 +6,7 @@ package tls
 
 import (
 	"encoding/hex"
+	"strings"
 	"testing"
 )
 
@@ -45,4 +46,57 @@ func TestSkipBadConfigs(t *testing.T) {
 	if config != nil {
 		t.Fatal("pickECHConfig picked an invalid config")
 	}
+}
+
+func TestECHPadding(t *testing.T) {
+	const maxNameLength = 64
+	for _, tc := range []struct {
+		name       string
+		serverName string
+	}{
+		{"Short", "a.test"},
+		{"Medium", strings.Repeat("a", 30) + ".test"},
+		{"MaxLength", strings.Repeat("a", maxNameLength) + ".test"},
+		{"NoSNI", ""},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			inner := &clientHelloMsg{
+				vers:               VersionTLS13,
+				random:             make([]byte, 32),
+				serverName:         tc.serverName,
+				cipherSuites:       []uint16{TLS_AES_128_GCM_SHA256},
+				compressionMethods: []uint8{0},
+				supportedVersions:  []uint16{VersionTLS13},
+			}
+			encoded, err := encodeInnerClientHello(inner, maxNameLength)
+			if err != nil {
+				t.Fatal(err)
+			}
+			if len(encoded)%32 != 0 {
+				t.Errorf("got %d, want multiple of 32", len(encoded))
+			}
+		})
+	}
+
+	t.Run("SetSizeReduction", func(t *testing.T) {
+		sizes := make(map[int]struct{})
+		for sniLen := 1; sniLen <= maxNameLength; sniLen++ {
+			inner := &clientHelloMsg{
+				vers:               VersionTLS13,
+				random:             make([]byte, 32),
+				serverName:         strings.Repeat("a", sniLen) + ".test",
+				cipherSuites:       []uint16{TLS_AES_128_GCM_SHA256},
+				compressionMethods: []uint8{0},
+				supportedVersions:  []uint16{VersionTLS13},
+			}
+			encoded, err := encodeInnerClientHello(inner, maxNameLength)
+			if err != nil {
+				t.Fatal(err)
+			}
+			sizes[len(encoded)] = struct{}{}
+		}
+		if len(sizes) > 4 {
+			t.Errorf("got %d distinct encoded sizes for SNI lengths 1..%d, want <= 4", len(sizes), maxNameLength)
+		}
+	})
 }

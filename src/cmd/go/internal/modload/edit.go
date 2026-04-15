@@ -43,7 +43,7 @@ import (
 // If pruning is enabled, the roots of the edited requirements include an
 // explicit entry for each module path in tryUpgrade, mustSelect, and the roots
 // of rs, unless the selected version for the module path is "none".
-func editRequirements(loaderstate *State, ctx context.Context, rs *Requirements, tryUpgrade, mustSelect []module.Version) (edited *Requirements, changed bool, err error) {
+func editRequirements(ld *Loader, ctx context.Context, rs *Requirements, tryUpgrade, mustSelect []module.Version) (edited *Requirements, changed bool, err error) {
 	if rs.pruning == workspace {
 		panic("editRequirements cannot edit workspace requirements")
 	}
@@ -83,7 +83,7 @@ func editRequirements(loaderstate *State, ctx context.Context, rs *Requirements,
 	}
 
 	if rootPruning != rs.pruning {
-		rs, err = convertPruning(loaderstate, ctx, rs, rootPruning)
+		rs, err = convertPruning(ld, ctx, rs, rootPruning)
 		if err != nil {
 			return orig, false, err
 		}
@@ -101,13 +101,13 @@ func editRequirements(loaderstate *State, ctx context.Context, rs *Requirements,
 		// dependencies, so we need to treat everything in the build list as
 		// potentially relevant — that is, as what would be a “root” in a module
 		// with graph pruning enabled.
-		mg, err := rs.Graph(loaderstate, ctx)
+		mg, err := rs.Graph(ld, ctx)
 		if err != nil {
 			// If we couldn't load the graph, we don't know what its requirements were
 			// to begin with, so we can't edit those requirements in a coherent way.
 			return orig, false, err
 		}
-		bl := mg.BuildList()[loaderstate.MainModules.Len():]
+		bl := mg.BuildList()[ld.MainModules.Len():]
 		selectedRoot = make(map[string]string, len(bl))
 		for _, m := range bl {
 			selectedRoot[m.Path] = m.Version
@@ -225,7 +225,7 @@ func editRequirements(loaderstate *State, ctx context.Context, rs *Requirements,
 		// of every root. The upgraded roots are in addition to the original
 		// roots, so we will have enough information to trace a path to each
 		// conflict we discover from one or more of the original roots.
-		mg, upgradedRoots, err := extendGraph(loaderstate, ctx, rootPruning, roots, selectedRoot)
+		mg, upgradedRoots, err := extendGraph(ld, ctx, rootPruning, roots, selectedRoot)
 		if err != nil {
 			if mg == nil {
 				return orig, false, err
@@ -392,7 +392,7 @@ func editRequirements(loaderstate *State, ctx context.Context, rs *Requirements,
 			// the edit. We want to make sure we consider keeping it as-is,
 			// even if it wouldn't normally be included. (For example, it might
 			// be a pseudo-version or pre-release.)
-			origMG, _ := orig.Graph(loaderstate, ctx)
+			origMG, _ := orig.Graph(ld, ctx)
 			origV := origMG.Selected(m.Path)
 
 			if conflict.Err != nil && origV == m.Version {
@@ -416,7 +416,7 @@ func editRequirements(loaderstate *State, ctx context.Context, rs *Requirements,
 			rejectedRoot[m] = true
 			prev := m
 			for {
-				prev, err = previousVersion(loaderstate, ctx, prev)
+				prev, err = previousVersion(ld, ctx, prev)
 				if gover.ModCompare(m.Path, m.Version, origV) > 0 && (gover.ModCompare(m.Path, prev.Version, origV) < 0 || err != nil) {
 					// previousVersion skipped over origV. Insert it into the order.
 					prev.Version = origV
@@ -516,13 +516,13 @@ func editRequirements(loaderstate *State, ctx context.Context, rs *Requirements,
 
 		// The modules in mustSelect are always promoted to be explicit.
 		for _, m := range mustSelect {
-			if m.Version != "none" && !loaderstate.MainModules.Contains(m.Path) {
+			if m.Version != "none" && !ld.MainModules.Contains(m.Path) {
 				rootPaths = append(rootPaths, m.Path)
 			}
 		}
 
 		for _, m := range roots {
-			if v, ok := rs.rootSelected(loaderstate, m.Path); ok && (v == m.Version || rs.direct[m.Path]) {
+			if v, ok := rs.rootSelected(ld, m.Path); ok && (v == m.Version || rs.direct[m.Path]) {
 				// m.Path was formerly a root, and either its version hasn't changed or
 				// we believe that it provides a package directly imported by a package
 				// or test in the main module. For now we'll assume that it is still
@@ -533,7 +533,7 @@ func editRequirements(loaderstate *State, ctx context.Context, rs *Requirements,
 			}
 		}
 
-		roots, err = mvs.Req(loaderstate.MainModules.mustGetSingleMainModule(loaderstate), rootPaths, &mvsReqs{loaderstate: loaderstate, roots: roots})
+		roots, err = mvs.Req(ld.MainModules.mustGetSingleMainModule(ld), rootPaths, &mvsReqs{ld: ld, roots: roots})
 		if err != nil {
 			return nil, false, err
 		}
@@ -564,7 +564,7 @@ func editRequirements(loaderstate *State, ctx context.Context, rs *Requirements,
 			direct[m.Path] = true
 		}
 	}
-	edited = newRequirements(loaderstate, rootPruning, roots, direct)
+	edited = newRequirements(ld, rootPruning, roots, direct)
 
 	// If we ended up adding a dependency that upgrades our go version far enough
 	// to activate pruning, we must convert the edited Requirements in order to
@@ -579,7 +579,7 @@ func editRequirements(loaderstate *State, ctx context.Context, rs *Requirements,
 	// those two modules will never be downgraded due to a conflict with any other
 	// constraint.
 	if rootPruning == unpruned {
-		if v, ok := edited.rootSelected(loaderstate, "go"); ok && pruningForGoVersion(v) == pruned {
+		if v, ok := edited.rootSelected(ld, "go"); ok && pruningForGoVersion(v) == pruned {
 			// Since we computed the edit with the unpruned graph, and the pruned
 			// graph is a strict subset of the unpruned graph, this conversion
 			// preserves the exact (edited) build list that we already computed.
@@ -588,7 +588,7 @@ func editRequirements(loaderstate *State, ctx context.Context, rs *Requirements,
 			// the graph. 'go get' will check for that sort of transition and log a
 			// message reminding the user how to clean up this mess we're about to
 			// make. 😅
-			edited, err = convertPruning(loaderstate, ctx, edited, pruned)
+			edited, err = convertPruning(ld, ctx, edited, pruned)
 			if err != nil {
 				return orig, false, err
 			}
@@ -608,9 +608,9 @@ func editRequirements(loaderstate *State, ctx context.Context, rs *Requirements,
 // The extended graph is useful for diagnosing version conflicts: for each
 // selected module version, it can provide a complete path of requirements from
 // some root to that version.
-func extendGraph(loaderstate *State, ctx context.Context, rootPruning modPruning, roots []module.Version, selectedRoot map[string]string) (mg *ModuleGraph, upgradedRoot map[module.Version]bool, err error) {
+func extendGraph(ld *Loader, ctx context.Context, rootPruning modPruning, roots []module.Version, selectedRoot map[string]string) (mg *ModuleGraph, upgradedRoot map[module.Version]bool, err error) {
 	for {
-		mg, err = readModGraph(loaderstate, ctx, rootPruning, roots, upgradedRoot)
+		mg, err = readModGraph(ld, ctx, rootPruning, roots, upgradedRoot)
 		// We keep on going even if err is non-nil until we reach a steady state.
 		// (Note that readModGraph returns a non-nil *ModuleGraph even in case of
 		// errors.) The caller may be able to fix the errors by adjusting versions,

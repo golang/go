@@ -207,7 +207,7 @@ func encodeInnerClientHello(inner *clientHelloMsg, maxNameLength int) ([]byte, e
 	} else {
 		paddingLen = maxNameLength + 9
 	}
-	paddingLen = 31 - ((len(h) + paddingLen - 1) % 32)
+	paddingLen += 31 - ((len(h) + paddingLen - 1) % 32)
 
 	return append(h, make([]byte, paddingLen)...), nil
 }

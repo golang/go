@@ -15,6 +15,9 @@ import (
 	"strings"
 	"sync"
 
+	"cmd/go/internal/cfg"
+	"cmd/go/internal/modload"
+
 	"golang.org/x/mod/semver"
 )
 
@@ -41,29 +44,18 @@ var dirs Dirs
 // dirsInit starts the scanning of package directories in GOROOT and GOPATH. Any
 // extra paths passed to it are included in the channel.
 func dirsInit(extra ...Dir) {
-	if buildCtx.GOROOT == "" {
-		stdout, err := exec.Command("go", "env", "GOROOT").Output()
-		if err != nil {
-			if ee, ok := err.(*exec.ExitError); ok && len(ee.Stderr) > 0 {
-				log.Fatalf("failed to determine GOROOT: $GOROOT is not set and 'go env GOROOT' failed:\n%s", ee.Stderr)
-			}
-			log.Fatalf("failed to determine GOROOT: $GOROOT is not set and could not run 'go env GOROOT':\n\t%s", err)
-		}
-		buildCtx.GOROOT = string(bytes.TrimSpace(stdout))
-	}
-
 	dirs.hist = make([]Dir, 0, 1000)
 	dirs.hist = append(dirs.hist, extra...)
 	dirs.scan = make(chan Dir)
 	go dirs.walk(codeRoots())
 }
 
-// goCmd returns the "go" command path corresponding to buildCtx.GOROOT.
+// goCmd returns the "go" command path corresponding to cfg.GOROOT.
 func goCmd() string {
-	if buildCtx.GOROOT == "" {
+	if cfg.GOROOT == "" {
 		return "go"
 	}
-	return filepath.Join(buildCtx.GOROOT, "bin", "go")
+	return filepath.Join(cfg.GOROOT, "bin", "go")
 }
 
 // Reset puts the scan back at the beginning.
@@ -187,30 +179,31 @@ var usingModules bool
 func findCodeRoots() []Dir {
 	var list []Dir
 	if !testGOPATH {
-		// Check for use of modules by 'go env GOMOD',
-		// which reports a go.mod file path if modules are enabled.
-		stdout, _ := exec.Command(goCmd(), "env", "GOMOD").Output()
-		gomod := string(bytes.TrimSpace(stdout))
+		// TODO: use the same state used to load the package.
+		// For now it's okay to use a new state because we're just
+		// using it to determine whether we're in module mode. But
+		// it would be good to avoid an extra run of modload.Init.
+		if state := modload.NewLoader(); state.WillBeEnabled() {
+			usingModules = state.HasModRoot()
+			if usingModules && cfg.GOROOT != "" {
+				list = append(list,
+					Dir{dir: filepath.Join(cfg.GOROOT, "src"), inModule: true},
+					Dir{importPath: "cmd", dir: filepath.Join(cfg.GOROOT, "src", "cmd"), inModule: true})
+			}
 
-		usingModules = len(gomod) > 0
-		if usingModules && buildCtx.GOROOT != "" {
-			list = append(list,
-				Dir{dir: filepath.Join(buildCtx.GOROOT, "src"), inModule: true},
-				Dir{importPath: "cmd", dir: filepath.Join(buildCtx.GOROOT, "src", "cmd"), inModule: true})
-		}
-
-		if gomod == os.DevNull {
-			// Modules are enabled, but the working directory is outside any module.
-			// We can still access std, cmd, and packages specified as source files
-			// on the command line, but there are no module roots.
-			// Avoid 'go list -m all' below, since it will not work.
-			return list
+			if !usingModules {
+				// Modules are enabled, but the working directory is outside any module.
+				// We can still access std, cmd, and packages specified as source files
+				// on the command line, but there are no module roots.
+				// Avoid 'go list -m all' below, since it will not work.
+				return list
+			}
 		}
 	}
 
 	if !usingModules {
-		if buildCtx.GOROOT != "" {
-			list = append(list, Dir{dir: filepath.Join(buildCtx.GOROOT, "src")})
+		if cfg.GOROOT != "" {
+			list = append(list, Dir{dir: filepath.Join(cfg.GOROOT, "src")})
 		}
 		for _, root := range splitGopath() {
 			list = append(list, Dir{dir: filepath.Join(root, "src")})

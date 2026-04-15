@@ -59,14 +59,14 @@ func DivPow2(f1, f2, f3 float64) (float64, float64, float64) {
 }
 
 func indexLoad(b0 []float32, b1 float32, idx int) float32 {
-	// arm64:`FMOVS\s\(R[0-9]+\)\(R[0-9]+<<2\),\sF[0-9]+`
-	// loong64:`MOVF\s\(R[0-9]+\)\(R[0-9]+\),\sF[0-9]+`
+	// arm64:`FMOVS \(R[0-9]+\)\(R[0-9]+<<2\), F[0-9]+`
+	// loong64:`MOVF \(R[0-9]+\)\(R[0-9]+\), F[0-9]+`
 	return b0[idx] * b1
 }
 
 func indexStore(b0 []float64, b1 float64, idx int) {
-	// arm64:`FMOVD\sF[0-9]+,\s\(R[0-9]+\)\(R[0-9]+<<3\)`
-	// loong64:`MOVD\sF[0-9]+,\s\(R[0-9]+\)\(R[0-9]+\)`
+	// arm64:`FMOVD F[0-9]+, \(R[0-9]+\)\(R[0-9]+<<3\)`
+	// loong64:`MOVD F[0-9]+, \(R[0-9]+\)\(R[0-9]+\)`
 	b0[idx] = b1
 }
 
@@ -281,17 +281,54 @@ func Float64ConstantStore(p *float64) {
 }
 
 func WideCeilNarrow(x float32) float32 {
-	// amd64/v3:"ROUNDSS"
-	// arm64:"FRINTPS"
-	// wasm:"F32Ceil"
+	// amd64/v3:"ROUNDSS" -"CVTSS2SD" -"CVTSD2SS"
+	// arm64:"FRINTPS" -"FCVTSD" -"FCVTDS"
+	// wasm:"F32Ceil" -"F64PromoteF32" -"F32DemoteF64"
 	return float32(math.Ceil(float64(x)))
 }
 
 func WideTruncNarrow(x float32) float32 {
-	// amd64/v3:"ROUNDSS"
-	// arm64:"FRINTZS"
-	// wasm:"F32Trunc"
+	// amd64/v3:"ROUNDSS" -"CVTSS2SD" -"CVTSD2SS"
+	// arm64:"FRINTZS" -"FCVTSD" -"FCVTDS"
+	// wasm:"F32Trunc" -"F64PromoteF32" -"F32DemoteF64"
 	return float32(math.Trunc(float64(x)))
+}
+
+func WideFloorNarrow(x float32) float32 {
+	// amd64/v3:"ROUNDSS" -"CVTSS2SD" -"CVTSD2SS"
+	// arm64:"FRINTMS" -"FCVTSD" -"FCVTDS"
+	// wasm:"F32Floor" -"F64PromoteF32" -"F32DemoteF64"
+	return float32(math.Floor(float64(x)))
+}
+
+func WideRoundNarrow(x float32) float32 {
+	// arm64:"FRINTAS" -"FCVTSD" -"FCVTDS"
+	return float32(math.Round(float64(x)))
+}
+
+func WideRoundToEvenNarrow(x float32) float32 {
+	// amd64/v3:"ROUNDSS" -"CVTSS2SD" -"CVTSD2SS"
+	// arm64:"FRINTNS" -"FCVTSD" -"FCVTDS"
+	// wasm:"F32Nearest" -"F64PromoteF32" -"F32DemoteF64"
+	return float32(math.RoundToEven(float64(x)))
+}
+
+func WideSqrtNarrow(x float32) float32 {
+	// arm64:"FSQRTS" -"FCVTSD" -"FCVTDS"
+	// loong64:"SQRTF" -"MOVFD" -"MOVDF"
+	// mips64/hardfloat:"SQRTF" -"MOVFD" -"MOVDF"
+	// riscv64:"FSQRTS" -"FCVTDS" -"FCVTSD"
+	// wasm:"F32Sqrt" -"F64PromoteF32" -"F32DemoteF64"
+	return float32(math.Sqrt(float64(x)))
+}
+
+func WideAbsNarrow(x float32) float32 {
+	// arm64:"FABSS" -"FCVTSD" -"FCVTDS"
+	// loong64:"ABSF" -"MOVFD" -"MOVDF"
+	// mips64/hardfloat:"ABSF" -"MOVFD" -"MOVDF"
+	// riscv64:"FABSS" -"FCVTDS" -"FCVTSD"
+	// wasm:"F32Abs" -"F64PromoteF32" -"F32DemoteF64"
+	return float32(math.Abs(float64(x)))
 }
 
 func WideCopysignNarrow(x, y float32) float32 {

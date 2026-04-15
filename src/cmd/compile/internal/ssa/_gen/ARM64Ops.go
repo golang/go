@@ -396,6 +396,7 @@ func init() {
 		{name: "MOVDload", argLength: 2, reg: gpload, aux: "SymOff", asm: "MOVD", typ: "UInt64", faultOnNilArg0: true, symEffect: "Read"},    // load from arg0 + auxInt + aux.  arg1=mem.
 		{name: "FMOVSload", argLength: 2, reg: fpload, aux: "SymOff", asm: "FMOVS", typ: "Float32", faultOnNilArg0: true, symEffect: "Read"}, // load from arg0 + auxInt + aux.  arg1=mem.
 		{name: "FMOVDload", argLength: 2, reg: fpload, aux: "SymOff", asm: "FMOVD", typ: "Float64", faultOnNilArg0: true, symEffect: "Read"}, // load from arg0 + auxInt + aux.  arg1=mem.
+		{name: "FMOVQload", argLength: 2, reg: fpload, aux: "SymOff", asm: "FMOVQ", typ: "Vec128", faultOnNilArg0: true, symEffect: "Read"},  // load from arg0 + auxInt + aux.  arg1=mem.
 
 		// LDP instructions load the contents of two adjacent locations in memory into registers.
 		// Address to start loading is addr = arg0 + auxInt + aux.
@@ -408,6 +409,7 @@ func init() {
 		{name: "LDPSW", argLength: 2, reg: gpload2, aux: "SymOff", asm: "LDPSW", typ: "(Int32,Int32)", faultOnNilArg0: true, symEffect: "Read"},     // T=int32 (gp reg destination) signed extension
 		{name: "FLDPD", argLength: 2, reg: fpload2, aux: "SymOff", asm: "FLDPD", typ: "(Float64,Float64)", faultOnNilArg0: true, symEffect: "Read"}, // T=float64 (fp reg destination)
 		{name: "FLDPS", argLength: 2, reg: fpload2, aux: "SymOff", asm: "FLDPS", typ: "(Float32,Float32)", faultOnNilArg0: true, symEffect: "Read"}, // T=float32 (fp reg destination)
+		{name: "FLDPQ", argLength: 2, reg: fpload2, aux: "SymOff", asm: "FLDPQ", typ: "(Vec128,Vec128)", faultOnNilArg0: true, symEffect: "Read"},   // T=vec128 (fp reg destination)
 
 		// register indexed load
 		{name: "MOVDloadidx", argLength: 3, reg: gp2load, asm: "MOVD", typ: "UInt64"},    // load 64-bit dword from arg0 + arg1, arg2 = mem.
@@ -435,6 +437,7 @@ func init() {
 		{name: "MOVDstore", argLength: 3, reg: gpstore, aux: "SymOff", asm: "MOVD", typ: "Mem", faultOnNilArg0: true, symEffect: "Write"},   // store 8 bytes of arg1 to arg0 + auxInt + aux.  arg2=mem.
 		{name: "FMOVSstore", argLength: 3, reg: fpstore, aux: "SymOff", asm: "FMOVS", typ: "Mem", faultOnNilArg0: true, symEffect: "Write"}, // store 4 bytes of arg1 to arg0 + auxInt + aux.  arg2=mem.
 		{name: "FMOVDstore", argLength: 3, reg: fpstore, aux: "SymOff", asm: "FMOVD", typ: "Mem", faultOnNilArg0: true, symEffect: "Write"}, // store 8 bytes of arg1 to arg0 + auxInt + aux.  arg2=mem.
+		{name: "FMOVQstore", argLength: 3, reg: fpstore, aux: "SymOff", asm: "FMOVQ", typ: "Mem", faultOnNilArg0: true, symEffect: "Write"}, // store 16 bytes of arg1 to arg0 + auxInt + aux.  arg2=mem.
 
 		// STP instructions store the contents of two registers to adjacent locations in memory.
 		// Address to start storing is addr = arg0 + auxInt + aux.
@@ -445,6 +448,7 @@ func init() {
 		{name: "STPW", argLength: 4, reg: gpstore2, aux: "SymOff", asm: "STPW", typ: "Mem", faultOnNilArg0: true, symEffect: "Write"},   // T=int32 (gp reg source)
 		{name: "FSTPD", argLength: 4, reg: fpstore2, aux: "SymOff", asm: "FSTPD", typ: "Mem", faultOnNilArg0: true, symEffect: "Write"}, // T=float64 (fp reg source)
 		{name: "FSTPS", argLength: 4, reg: fpstore2, aux: "SymOff", asm: "FSTPS", typ: "Mem", faultOnNilArg0: true, symEffect: "Write"}, // T=float32 (fp reg source)
+		{name: "FSTPQ", argLength: 4, reg: fpstore2, aux: "SymOff", asm: "FSTPQ", typ: "Mem", faultOnNilArg0: true, symEffect: "Write"}, // T=vec128 (fp reg source)
 
 		// register indexed store
 		{name: "MOVBstoreidx", argLength: 4, reg: gpstore2, asm: "MOVB", typ: "Mem"},     // store 1 byte of arg2 to arg0 + arg1, arg3 = mem.
@@ -537,6 +541,7 @@ func init() {
 		// function calls
 		{name: "CALLstatic", argLength: -1, reg: regInfo{clobbers: callerSave}, aux: "CallOff", clobberFlags: true, call: true},                                               // call static function aux.(*obj.LSym).  last arg=mem, auxint=argsize, returns mem
 		{name: "CALLtail", argLength: -1, reg: regInfo{clobbers: callerSave}, aux: "CallOff", clobberFlags: true, call: true, tailCall: true},                                 // tail call static function aux.(*obj.LSym).  last arg=mem, auxint=argsize, returns mem
+		{name: "CALLtailinter", argLength: -1, reg: regInfo{inputs: []regMask{gp}, clobbers: callerSave}, aux: "CallOff", clobberFlags: true, call: true, tailCall: true},     // tail call fn by pointer. arg0=codeptr, last arg=mem, auxint=argsize, returns mem
 		{name: "CALLclosure", argLength: -1, reg: regInfo{inputs: []regMask{gpsp, buildReg("R26"), 0}, clobbers: callerSave}, aux: "CallOff", clobberFlags: true, call: true}, // call function via closure.  arg0=codeptr, arg1=closure, last arg=mem, auxint=argsize, returns mem
 		{name: "CALLinter", argLength: -1, reg: regInfo{inputs: []regMask{gp}, clobbers: callerSave}, aux: "CallOff", clobberFlags: true, call: true},                         // call fn by pointer.  arg0=codeptr, last arg=mem, auxint=argsize, returns mem
 

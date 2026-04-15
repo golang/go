@@ -114,7 +114,7 @@ func (s *Schedule) tryStaticInit(n ir.Node) bool {
 		// "var a, b = f()" that needs type conversion, which is not static.
 		n := n.(*ir.AssignListStmt)
 		for _, rhs := range n.Rhs {
-			for rhs.Op() == ir.OCONVNOP {
+			for rhs.Op() == ir.OCONVNOP || rhs.Op() == ir.OCONVIFACE {
 				rhs = rhs.(*ir.ConvExpr).X
 			}
 			if name, ok := rhs.(*ir.Name); !ok || !name.AutoTemp() {

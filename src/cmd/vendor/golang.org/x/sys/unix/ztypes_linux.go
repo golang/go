@@ -593,110 +593,115 @@ const (
 )
 
 const (
-	NDA_UNSPEC         = 0x0
-	NDA_DST            = 0x1
-	NDA_LLADDR         = 0x2
-	NDA_CACHEINFO      = 0x3
-	NDA_PROBES         = 0x4
-	NDA_VLAN           = 0x5
-	NDA_PORT           = 0x6
-	NDA_VNI            = 0x7
-	NDA_IFINDEX        = 0x8
-	NDA_MASTER         = 0x9
-	NDA_LINK_NETNSID   = 0xa
-	NDA_SRC_VNI        = 0xb
-	NTF_USE            = 0x1
-	NTF_SELF           = 0x2
-	NTF_MASTER         = 0x4
-	NTF_PROXY          = 0x8
-	NTF_EXT_LEARNED    = 0x10
-	NTF_OFFLOADED      = 0x20
-	NTF_ROUTER         = 0x80
-	NUD_INCOMPLETE     = 0x1
-	NUD_REACHABLE      = 0x2
-	NUD_STALE          = 0x4
-	NUD_DELAY          = 0x8
-	NUD_PROBE          = 0x10
-	NUD_FAILED         = 0x20
-	NUD_NOARP          = 0x40
-	NUD_PERMANENT      = 0x80
-	NUD_NONE           = 0x0
-	IFA_UNSPEC         = 0x0
-	IFA_ADDRESS        = 0x1
-	IFA_LOCAL          = 0x2
-	IFA_LABEL          = 0x3
-	IFA_BROADCAST      = 0x4
-	IFA_ANYCAST        = 0x5
-	IFA_CACHEINFO      = 0x6
-	IFA_MULTICAST      = 0x7
-	IFA_FLAGS          = 0x8
-	IFA_RT_PRIORITY    = 0x9
-	IFA_TARGET_NETNSID = 0xa
-	IFAL_LABEL         = 0x2
-	IFAL_ADDRESS       = 0x1
-	RT_SCOPE_UNIVERSE  = 0x0
-	RT_SCOPE_SITE      = 0xc8
-	RT_SCOPE_LINK      = 0xfd
-	RT_SCOPE_HOST      = 0xfe
-	RT_SCOPE_NOWHERE   = 0xff
-	RT_TABLE_UNSPEC    = 0x0
-	RT_TABLE_COMPAT    = 0xfc
-	RT_TABLE_DEFAULT   = 0xfd
-	RT_TABLE_MAIN      = 0xfe
-	RT_TABLE_LOCAL     = 0xff
-	RT_TABLE_MAX       = 0xffffffff
-	RTA_UNSPEC         = 0x0
-	RTA_DST            = 0x1
-	RTA_SRC            = 0x2
-	RTA_IIF            = 0x3
-	RTA_OIF            = 0x4
-	RTA_GATEWAY        = 0x5
-	RTA_PRIORITY       = 0x6
-	RTA_PREFSRC        = 0x7
-	RTA_METRICS        = 0x8
-	RTA_MULTIPATH      = 0x9
-	RTA_FLOW           = 0xb
-	RTA_CACHEINFO      = 0xc
-	RTA_TABLE          = 0xf
-	RTA_MARK           = 0x10
-	RTA_MFC_STATS      = 0x11
-	RTA_VIA            = 0x12
-	RTA_NEWDST         = 0x13
-	RTA_PREF           = 0x14
-	RTA_ENCAP_TYPE     = 0x15
-	RTA_ENCAP          = 0x16
-	RTA_EXPIRES        = 0x17
-	RTA_PAD            = 0x18
-	RTA_UID            = 0x19
-	RTA_TTL_PROPAGATE  = 0x1a
-	RTA_IP_PROTO       = 0x1b
-	RTA_SPORT          = 0x1c
-	RTA_DPORT          = 0x1d
-	RTN_UNSPEC         = 0x0
-	RTN_UNICAST        = 0x1
-	RTN_LOCAL          = 0x2
-	RTN_BROADCAST      = 0x3
-	RTN_ANYCAST        = 0x4
-	RTN_MULTICAST      = 0x5
-	RTN_BLACKHOLE      = 0x6
-	RTN_UNREACHABLE    = 0x7
-	RTN_PROHIBIT       = 0x8
-	RTN_THROW          = 0x9
-	RTN_NAT            = 0xa
-	RTN_XRESOLVE       = 0xb
-	SizeofNlMsghdr     = 0x10
-	SizeofNlMsgerr     = 0x14
-	SizeofRtGenmsg     = 0x1
-	SizeofNlAttr       = 0x4
-	SizeofRtAttr       = 0x4
-	SizeofIfInfomsg    = 0x10
-	SizeofIfAddrmsg    = 0x8
-	SizeofIfAddrlblmsg = 0xc
-	SizeofIfaCacheinfo = 0x10
-	SizeofRtMsg        = 0xc
-	SizeofRtNexthop    = 0x8
-	SizeofNdUseroptmsg = 0x10
-	SizeofNdMsg        = 0xc
+	NDA_UNSPEC            = 0x0
+	NDA_DST               = 0x1
+	NDA_LLADDR            = 0x2
+	NDA_CACHEINFO         = 0x3
+	NDA_PROBES            = 0x4
+	NDA_VLAN              = 0x5
+	NDA_PORT              = 0x6
+	NDA_VNI               = 0x7
+	NDA_IFINDEX           = 0x8
+	NDA_MASTER            = 0x9
+	NDA_LINK_NETNSID      = 0xa
+	NDA_SRC_VNI           = 0xb
+	NTF_USE               = 0x1
+	NTF_SELF              = 0x2
+	NTF_MASTER            = 0x4
+	NTF_PROXY             = 0x8
+	NTF_EXT_LEARNED       = 0x10
+	NTF_OFFLOADED         = 0x20
+	NTF_ROUTER            = 0x80
+	NUD_INCOMPLETE        = 0x1
+	NUD_REACHABLE         = 0x2
+	NUD_STALE             = 0x4
+	NUD_DELAY             = 0x8
+	NUD_PROBE             = 0x10
+	NUD_FAILED            = 0x20
+	NUD_NOARP             = 0x40
+	NUD_PERMANENT         = 0x80
+	NUD_NONE              = 0x0
+	IFA_UNSPEC            = 0x0
+	IFA_ADDRESS           = 0x1
+	IFA_LOCAL             = 0x2
+	IFA_LABEL             = 0x3
+	IFA_BROADCAST         = 0x4
+	IFA_ANYCAST           = 0x5
+	IFA_CACHEINFO         = 0x6
+	IFA_MULTICAST         = 0x7
+	IFA_FLAGS             = 0x8
+	IFA_RT_PRIORITY       = 0x9
+	IFA_TARGET_NETNSID    = 0xa
+	IFAL_LABEL            = 0x2
+	IFAL_ADDRESS          = 0x1
+	RT_SCOPE_UNIVERSE     = 0x0
+	RT_SCOPE_SITE         = 0xc8
+	RT_SCOPE_LINK         = 0xfd
+	RT_SCOPE_HOST         = 0xfe
+	RT_SCOPE_NOWHERE      = 0xff
+	RT_TABLE_UNSPEC       = 0x0
+	RT_TABLE_COMPAT       = 0xfc
+	RT_TABLE_DEFAULT      = 0xfd
+	RT_TABLE_MAIN         = 0xfe
+	RT_TABLE_LOCAL        = 0xff
+	RT_TABLE_MAX          = 0xffffffff
+	RTA_UNSPEC            = 0x0
+	RTA_DST               = 0x1
+	RTA_SRC               = 0x2
+	RTA_IIF               = 0x3
+	RTA_OIF               = 0x4
+	RTA_GATEWAY           = 0x5
+	RTA_PRIORITY          = 0x6
+	RTA_PREFSRC           = 0x7
+	RTA_METRICS           = 0x8
+	RTA_MULTIPATH         = 0x9
+	RTA_FLOW              = 0xb
+	RTA_CACHEINFO         = 0xc
+	RTA_TABLE             = 0xf
+	RTA_MARK              = 0x10
+	RTA_MFC_STATS         = 0x11
+	RTA_VIA               = 0x12
+	RTA_NEWDST            = 0x13
+	RTA_PREF              = 0x14
+	RTA_ENCAP_TYPE        = 0x15
+	RTA_ENCAP             = 0x16
+	RTA_EXPIRES           = 0x17
+	RTA_PAD               = 0x18
+	RTA_UID               = 0x19
+	RTA_TTL_PROPAGATE     = 0x1a
+	RTA_IP_PROTO          = 0x1b
+	RTA_SPORT             = 0x1c
+	RTA_DPORT             = 0x1d
+	RTN_UNSPEC            = 0x0
+	RTN_UNICAST           = 0x1
+	RTN_LOCAL             = 0x2
+	RTN_BROADCAST         = 0x3
+	RTN_ANYCAST           = 0x4
+	RTN_MULTICAST         = 0x5
+	RTN_BLACKHOLE         = 0x6
+	RTN_UNREACHABLE       = 0x7
+	RTN_PROHIBIT          = 0x8
+	RTN_THROW             = 0x9
+	RTN_NAT               = 0xa
+	RTN_XRESOLVE          = 0xb
+	PREFIX_UNSPEC         = 0x0
+	PREFIX_ADDRESS        = 0x1
+	PREFIX_CACHEINFO      = 0x2
+	SizeofNlMsghdr        = 0x10
+	SizeofNlMsgerr        = 0x14
+	SizeofRtGenmsg        = 0x1
+	SizeofNlAttr          = 0x4
+	SizeofRtAttr          = 0x4
+	SizeofIfInfomsg       = 0x10
+	SizeofPrefixmsg       = 0xc
+	SizeofPrefixCacheinfo = 0x8
+	SizeofIfAddrmsg       = 0x8
+	SizeofIfAddrlblmsg    = 0xc
+	SizeofIfaCacheinfo    = 0x10
+	SizeofRtMsg           = 0xc
+	SizeofRtNexthop       = 0x8
+	SizeofNdUseroptmsg    = 0x10
+	SizeofNdMsg           = 0xc
 )
 
 type NlMsghdr struct {
@@ -733,6 +738,22 @@ type IfInfomsg struct {
 	Index  int32
 	Flags  uint32
 	Change uint32
+}
+
+type Prefixmsg struct {
+	Family  uint8
+	Pad1    uint8
+	Pad2    uint16
+	Ifindex int32
+	Type    uint8
+	Len     uint8
+	Flags   uint8
+	Pad3    uint8
+}
+
+type PrefixCacheinfo struct {
+	Preferred_time uint32
+	Valid_time     uint32
 }
 
 type IfAddrmsg struct {

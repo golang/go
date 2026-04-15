@@ -463,6 +463,10 @@ func Base(path string) string {
 // If the path is empty, Dir returns ".".
 // If the path consists entirely of separators, Dir returns a single separator.
 // The returned path does not end in a separator unless it is the root directory.
+//
+// On Windows, given a volume-only name such as "C:", Dir returns "C:.",
+// the current directory on drive C. To obtain the drive's root "C:\",
+// use [VolumeName] combined with a separator.
 func Dir(path string) string {
 	return filepathlite.Dir(path)
 }

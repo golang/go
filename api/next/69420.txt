@@ -1,0 +1,6 @@
+pkg go/types, method (Hasher) Equal(Type, Type) bool #69420
+pkg go/types, method (Hasher) Hash(*maphash.Hash, Type) #69420
+pkg go/types, method (HasherIgnoreTags) Equal(Type, Type) bool #69420
+pkg go/types, method (HasherIgnoreTags) Hash(*maphash.Hash, Type) #69420
+pkg go/types, type Hasher struct #69420
+pkg go/types, type HasherIgnoreTags struct #69420

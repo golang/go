@@ -7,15 +7,21 @@
 package doc
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"net"
 	"net/url"
 	"os"
 	"os/exec"
-	"os/signal"
 	"path/filepath"
 	"strings"
+
+	"cmd/go/internal/base"
+	"cmd/go/internal/cfg"
+	"cmd/go/internal/load"
+	"cmd/go/internal/modload"
+	"cmd/go/internal/work"
 )
 
 // pickUnusedPort finds an unused port by trying to listen on port 0
@@ -34,7 +40,49 @@ func pickUnusedPort() (int, error) {
 	return port, nil
 }
 
-func doPkgsite(urlPath, fragment string) error {
+// buildPkgsite builds a pkgsite binary whose build may be cached.
+func buildPkgsite(ctx context.Context) string {
+	loader := modload.NewLoader()
+
+	// Set the builder to have no module root so we can build a pkg@version pattern.
+	loader.ForceUseModules = true
+	loader.RootMode = modload.NoRoot
+	loader.AllowMissingModuleImports()
+	modload.Init(loader)
+
+	work.BuildInit(loader)
+	b := work.NewBuilder("", loader.VendorDirOrEmpty)
+	defer func() {
+		if err := b.Close(); err != nil {
+			base.Fatal(err)
+		}
+	}()
+
+	const version = "v0.0.0-20251223195805-1a3bd3c788fe"
+	pkgVers := "golang.org/x/pkgsite/cmd/internal/doc@" + version
+	pkgOpts := load.PackageOpts{MainOnly: true}
+	pkgs, err := load.PackagesAndErrorsOutsideModule(loader, ctx, pkgOpts, []string{pkgVers})
+	if err != nil {
+		base.Fatal(err)
+	}
+	if len(pkgs) == 0 {
+		base.Fatalf("go: internal error: no packages loaded for %s", pkgVers)
+	}
+	if len(pkgs) > 1 {
+		base.Fatalf("go: internal error: pattern %s matches multiple packages", pkgVers)
+	}
+	p := pkgs[0]
+	p.Internal.OmitDebug = true
+	p.Internal.ExeName = p.DefaultExecName()
+	load.CheckPackageErrors([]*load.Package{p})
+
+	a := b.LinkAction(loader, work.ModeBuild, work.ModeBuild, p)
+	a.CacheExecutable = true
+	b.Do(ctx, a)
+	return a.BuiltTarget()
+}
+
+func doPkgsite(ctx context.Context, urlPath, fragment string) error {
 	port, err := pickUnusedPort()
 	if err != nil {
 		return fmt.Errorf("failed to find port for documentation server: %v", err)
@@ -48,10 +96,14 @@ func doPkgsite(urlPath, fragment string) error {
 		path += "#" + fragment
 	}
 
+	if file := os.Getenv("TEST_GODOC_URL_FILE"); file != "" {
+		return os.WriteFile(file, []byte(path+"\n"), 0666)
+	}
+
 	// Turn off the default signal handler for SIGINT (and SIGQUIT on Unix)
 	// and instead wait for the child process to handle the signal and
 	// exit before exiting ourselves.
-	signal.Ignore(signalsToIgnore...)
+	base.StartSigHandlers()
 
 	// Prepend the local download cache to GOPROXY to get around deprecation checks.
 	env := os.Environ()
@@ -71,11 +123,8 @@ func doPkgsite(urlPath, fragment string) error {
 		env = append(env, "GOPROXY="+gomodcache+","+goproxy)
 	}
 
-	const version = "v0.0.0-20251223195805-1a3bd3c788fe"
-	cmd := exec.Command(goCmd(), "run", "golang.org/x/pkgsite/cmd/internal/doc@"+version,
-		"-gorepo", buildCtx.GOROOT,
-		"-http", addr,
-		"-open", path)
+	pkgsite := buildPkgsite(ctx)
+	cmd := exec.Command(pkgsite, "-gorepo", cfg.GOROOT, "-http", addr, "-open", path)
 	cmd.Env = env
 	cmd.Stdout = os.Stderr
 	cmd.Stderr = os.Stderr

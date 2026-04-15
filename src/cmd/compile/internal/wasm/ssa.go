@@ -216,7 +216,7 @@ func ssaGenBlock(s *ssagen.State, b, next *ssa.Block) {
 
 func ssaGenValue(s *ssagen.State, v *ssa.Value) {
 	switch v.Op {
-	case ssa.OpWasmLoweredStaticCall, ssa.OpWasmLoweredClosureCall, ssa.OpWasmLoweredInterCall, ssa.OpWasmLoweredTailCall:
+	case ssa.OpWasmLoweredStaticCall, ssa.OpWasmLoweredClosureCall, ssa.OpWasmLoweredInterCall, ssa.OpWasmLoweredTailCall, ssa.OpWasmLoweredTailCallInter:
 		s.PrepareCall(v)
 		if call, ok := v.Aux.(*ssa.AuxCall); ok && call.Fn == ir.Syms.Deferreturn {
 			// The runtime needs to inject jumps to
@@ -243,6 +243,9 @@ func ssaGenValue(s *ssagen.State, v *ssa.Value) {
 			p := s.Prog(obj.ACALL)
 			p.To = obj.Addr{Type: obj.TYPE_NONE}
 			p.Pos = v.Pos
+			if v.Op == ssa.OpWasmLoweredTailCallInter {
+				p.As = obj.ARET
+			}
 		}
 
 	case ssa.OpWasmLoweredMove:

@@ -965,7 +965,23 @@ func preprocess(ctxt *obj.Link, cursym *obj.LSym, newprog obj.ProgAlloc) {
 				break
 			}
 
-			retTarget := p.To.Sym
+			retTarget, retReg := p.To.Sym, p.To.Reg
+			if retReg == obj.REG_NONE {
+				retReg = REG_LR
+			} else {
+				// Move target address into REG_CTR.
+				// (Indirect branches can only go to REG_LR or REG_CTR.)
+				x := newprog()
+				*x = *p
+				p.As = AMOVD
+				p.From.Type = obj.TYPE_REG
+				p.From.Reg = retReg
+				p.To.Type = obj.TYPE_REG
+				p.To.Reg = REG_CTR
+				retReg = REG_CTR
+				p.Link = x
+				p = x
+			}
 
 			if c.cursym.Func().Text.Mark&LEAF != 0 {
 				if autosize == 0 {
@@ -973,7 +989,7 @@ func preprocess(ctxt *obj.Link, cursym *obj.LSym, newprog obj.ProgAlloc) {
 					p.From = obj.Addr{}
 					if retTarget == nil {
 						p.To.Type = obj.TYPE_REG
-						p.To.Reg = REG_LR
+						p.To.Reg = retReg
 					} else {
 						p.To.Type = obj.TYPE_BRANCH
 						p.To.Sym = retTarget
@@ -994,7 +1010,7 @@ func preprocess(ctxt *obj.Link, cursym *obj.LSym, newprog obj.ProgAlloc) {
 				q.Pos = p.Pos
 				if retTarget == nil {
 					q.To.Type = obj.TYPE_REG
-					q.To.Reg = REG_LR
+					q.To.Reg = retReg
 				} else {
 					q.To.Type = obj.TYPE_BRANCH
 					q.To.Sym = retTarget
@@ -1063,7 +1079,7 @@ func preprocess(ctxt *obj.Link, cursym *obj.LSym, newprog obj.ProgAlloc) {
 			q1.Pos = p.Pos
 			if retTarget == nil {
 				q1.To.Type = obj.TYPE_REG
-				q1.To.Reg = REG_LR
+				q1.To.Reg = retReg
 			} else {
 				q1.To.Type = obj.TYPE_BRANCH
 				q1.To.Sym = retTarget

@@ -510,14 +510,15 @@ func ssaGenValue(s *ssagen.State, v *ssa.Value) {
 		ssa.OpARM64MOVWUload,
 		ssa.OpARM64MOVDload,
 		ssa.OpARM64FMOVSload,
-		ssa.OpARM64FMOVDload:
+		ssa.OpARM64FMOVDload,
+		ssa.OpARM64FMOVQload:
 		p := s.Prog(v.Op.Asm())
 		p.From.Type = obj.TYPE_MEM
 		p.From.Reg = v.Args[0].Reg()
 		ssagen.AddAux(&p.From, v)
 		p.To.Type = obj.TYPE_REG
 		p.To.Reg = v.Reg()
-	case ssa.OpARM64LDP, ssa.OpARM64LDPW, ssa.OpARM64LDPSW, ssa.OpARM64FLDPD, ssa.OpARM64FLDPS:
+	case ssa.OpARM64LDP, ssa.OpARM64LDPW, ssa.OpARM64LDPSW, ssa.OpARM64FLDPD, ssa.OpARM64FLDPS, ssa.OpARM64FLDPQ:
 		p := s.Prog(v.Op.Asm())
 		p.From.Type = obj.TYPE_MEM
 		p.From.Reg = v.Args[0].Reg()
@@ -560,6 +561,7 @@ func ssaGenValue(s *ssagen.State, v *ssa.Value) {
 		ssa.OpARM64MOVDstore,
 		ssa.OpARM64FMOVSstore,
 		ssa.OpARM64FMOVDstore,
+		ssa.OpARM64FMOVQstore,
 		ssa.OpARM64STLRB,
 		ssa.OpARM64STLR,
 		ssa.OpARM64STLRW:
@@ -584,7 +586,7 @@ func ssaGenValue(s *ssagen.State, v *ssa.Value) {
 		p.To = genIndexedOperand(v.Op, v.Args[0].Reg(), v.Args[1].Reg())
 		p.From.Type = obj.TYPE_REG
 		p.From.Reg = v.Args[2].Reg()
-	case ssa.OpARM64STP, ssa.OpARM64STPW, ssa.OpARM64FSTPD, ssa.OpARM64FSTPS:
+	case ssa.OpARM64STP, ssa.OpARM64STPW, ssa.OpARM64FSTPD, ssa.OpARM64FSTPS, ssa.OpARM64FSTPQ:
 		p := s.Prog(v.Op.Asm())
 		p.From.Type = obj.TYPE_REGREG
 		p.From.Reg = v.Args[1].Reg()
@@ -1320,7 +1322,7 @@ func ssaGenValue(s *ssagen.State, v *ssa.Value) {
 
 	case ssa.OpARM64CALLstatic, ssa.OpARM64CALLclosure, ssa.OpARM64CALLinter:
 		s.Call(v)
-	case ssa.OpARM64CALLtail:
+	case ssa.OpARM64CALLtail, ssa.OpARM64CALLtailinter:
 		s.TailCall(v)
 	case ssa.OpARM64LoweredWB:
 		p := s.Prog(obj.ACALL)

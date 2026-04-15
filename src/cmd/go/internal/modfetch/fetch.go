@@ -1101,7 +1101,7 @@ hashes are stored in a file in the module root directory named go.sum. Hashes
 may also be downloaded from the checksum database depending on the values of
 GOSUMDB, GOPRIVATE, and GONOSUMDB.
 
-For details, see https://golang.org/ref/mod#authenticating.
+For details, see https://go.dev/ref/mod#authenticating.
 `,
 }
 
@@ -1146,6 +1146,6 @@ instead of module paths.
 The 'go env -w' command (see 'go help env') can be used to set these variables
 for future go command invocations.
 
-For more details, see https://golang.org/ref/mod#private-modules.
+For more details, see https://go.dev/ref/mod#private-modules.
 `,
 }

@@ -40,7 +40,14 @@ var CmdTool = &base.Command{
 Tool runs the go tool command identified by the arguments.
 
 Go ships with a number of builtin tools, and additional tools
-may be defined in the go.mod of the current module.
+may be defined in the go.mod of the current module. 'go get -tool'
+can be used to define additional tools in the current module's
+go.mod file. See 'go help get' for more information.
+
+The command can be specified using the full package path to the tool declared with
+a tool directive. The default binary name of the tool, which is the last component of
+the package path, excluding the major version suffix, can also be used if it is unique
+among declared tools.
 
 With no arguments it prints the list of known tools.
 
@@ -82,10 +89,10 @@ func init() {
 }
 
 func runTool(ctx context.Context, cmd *base.Command, args []string) {
-	moduleLoaderState := modload.NewState()
+	moduleLoader := modload.NewLoader()
 	if len(args) == 0 {
 		counter.Inc("go/subcommand:tool")
-		listTools(moduleLoaderState, ctx)
+		listTools(moduleLoader, ctx)
 		return
 	}
 	toolName := args[0]
@@ -113,14 +120,14 @@ func runTool(ctx context.Context, cmd *base.Command, args []string) {
 		if tool := loadBuiltinTool(toolName); tool != "" {
 			// Increment a counter for the tool subcommand with the tool name.
 			counter.Inc("go/subcommand:tool-" + toolName)
-			buildAndRunBuiltinTool(moduleLoaderState, ctx, toolName, tool, args[1:])
+			buildAndRunBuiltinTool(moduleLoader, ctx, toolName, tool, args[1:])
 			return
 		}
 
 		// Try to build and run mod tool.
-		tool := loadModTool(moduleLoaderState, ctx, toolName)
+		tool := loadModTool(moduleLoader, ctx, toolName)
 		if tool != "" {
-			buildAndRunModtool(moduleLoaderState, ctx, toolName, tool, args[1:])
+			buildAndRunModtool(moduleLoader, ctx, toolName, tool, args[1:])
 			return
 		}
 
@@ -137,7 +144,7 @@ func runTool(ctx context.Context, cmd *base.Command, args []string) {
 }
 
 // listTools prints a list of the available tools in the tools directory.
-func listTools(loaderstate *modload.State, ctx context.Context) {
+func listTools(ld *modload.Loader, ctx context.Context) {
 	f, err := os.Open(build.ToolDir)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "go: no tool directory: %s\n", err)
@@ -152,8 +159,11 @@ func listTools(loaderstate *modload.State, ctx context.Context) {
 		return
 	}
 
+	ambiguous := make(map[string]bool) // names that can't be used as aliases because they are ambiguous
 	sort.Strings(names)
 	for _, name := range names {
+		ambiguous[name] = true
+
 		// Unify presentation by going to lower case.
 		// If it's windows, don't show the .exe suffix.
 		name = strings.TrimSuffix(strings.ToLower(name), cfg.ToolExeSuffix())
@@ -166,10 +176,26 @@ func listTools(loaderstate *modload.State, ctx context.Context) {
 		fmt.Println(name)
 	}
 
-	loaderstate.InitWorkfile()
-	modload.LoadModFile(loaderstate, ctx)
-	modTools := slices.Sorted(maps.Keys(loaderstate.MainModules.Tools()))
+	ld.InitWorkfile()
+	modload.LoadModFile(ld, ctx)
+	modTools := slices.Sorted(maps.Keys(ld.MainModules.Tools()))
+	seen := make(map[string]bool) // aliases we've seen already
 	for _, tool := range modTools {
+		alias := defaultExecName(tool)
+		switch {
+		case ambiguous[alias]:
+			continue
+		case seen[alias]:
+			ambiguous[alias] = true
+		default:
+			seen[alias] = true
+		}
+	}
+	for _, tool := range modTools {
+		if alias := defaultExecName(tool); !ambiguous[alias] {
+			fmt.Printf("%s (%s)\n", alias, tool)
+			continue
+		}
 		fmt.Println(tool)
 	}
 }
@@ -256,12 +282,12 @@ func loadBuiltinTool(toolName string) string {
 	return cmdTool
 }
 
-func loadModTool(loaderstate *modload.State, ctx context.Context, name string) string {
-	loaderstate.InitWorkfile()
-	modload.LoadModFile(loaderstate, ctx)
+func loadModTool(ld *modload.Loader, ctx context.Context, name string) string {
+	ld.InitWorkfile()
+	modload.LoadModFile(ld, ctx)
 
 	matches := []string{}
-	for tool := range loaderstate.MainModules.Tools() {
+	for tool := range ld.MainModules.Tools() {
 		if tool == name || defaultExecName(tool) == name {
 			matches = append(matches, tool)
 		}
@@ -305,7 +331,7 @@ func builtTool(runAction *work.Action) string {
 	return linkAction.BuiltTarget()
 }
 
-func buildAndRunBuiltinTool(loaderstate *modload.State, ctx context.Context, toolName, tool string, args []string) {
+func buildAndRunBuiltinTool(ld *modload.Loader, ctx context.Context, toolName, tool string, args []string) {
 	// Override GOOS and GOARCH for the build to build the tool using
 	// the same GOOS and GOARCH as this go command.
 	cfg.ForceHost()
@@ -313,17 +339,17 @@ func buildAndRunBuiltinTool(loaderstate *modload.State, ctx context.Context, too
 	// Ignore go.mod and go.work: we don't need them, and we want to be able
 	// to run the tool even if there's an issue with the module or workspace the
 	// user happens to be in.
-	loaderstate.RootMode = modload.NoRoot
+	ld.RootMode = modload.NoRoot
 
 	runFunc := func(b *work.Builder, ctx context.Context, a *work.Action) error {
 		cmdline := str.StringList(builtTool(a), a.Args)
 		return runBuiltTool(toolName, nil, cmdline)
 	}
 
-	buildAndRunTool(loaderstate, ctx, tool, args, runFunc)
+	buildAndRunTool(ld, ctx, tool, args, runFunc)
 }
 
-func buildAndRunModtool(loaderstate *modload.State, ctx context.Context, toolName, tool string, args []string) {
+func buildAndRunModtool(ld *modload.Loader, ctx context.Context, toolName, tool string, args []string) {
 	runFunc := func(b *work.Builder, ctx context.Context, a *work.Action) error {
 		// Use the ExecCmd to run the binary, as go run does. ExecCmd allows users
 		// to provide a runner to run the binary, for example a simulator for binaries
@@ -337,12 +363,12 @@ func buildAndRunModtool(loaderstate *modload.State, ctx context.Context, toolNam
 		return runBuiltTool(toolName, env, cmdline)
 	}
 
-	buildAndRunTool(loaderstate, ctx, tool, args, runFunc)
+	buildAndRunTool(ld, ctx, tool, args, runFunc)
 }
 
-func buildAndRunTool(loaderstate *modload.State, ctx context.Context, tool string, args []string, runTool work.ActorFunc) {
-	work.BuildInit(loaderstate)
-	b := work.NewBuilder("", loaderstate.VendorDirOrEmpty)
+func buildAndRunTool(ld *modload.Loader, ctx context.Context, tool string, args []string, runTool work.ActorFunc) {
+	work.BuildInit(ld)
+	b := work.NewBuilder("", ld.VendorDirOrEmpty)
 	defer func() {
 		if err := b.Close(); err != nil {
 			base.Fatal(err)
@@ -350,11 +376,11 @@ func buildAndRunTool(loaderstate *modload.State, ctx context.Context, tool strin
 	}()
 
 	pkgOpts := load.PackageOpts{MainOnly: true}
-	p := load.PackagesAndErrors(loaderstate, ctx, pkgOpts, []string{tool})[0]
+	p := load.PackagesAndErrors(ld, ctx, pkgOpts, []string{tool})[0]
 	p.Internal.OmitDebug = true
 	p.Internal.ExeName = p.DefaultExecName()
 
-	a1 := b.LinkAction(loaderstate, work.ModeBuild, work.ModeBuild, p)
+	a1 := b.LinkAction(ld, work.ModeBuild, work.ModeBuild, p)
 	a1.CacheExecutable = true
 	a := &work.Action{Mode: "go tool", Actor: runTool, Args: args, Deps: []*work.Action{a1}}
 	b.Do(ctx, a)
@@ -377,7 +403,7 @@ func runBuiltTool(toolName string, env, cmdline []string) error {
 	err := toolCmd.Start()
 	if err == nil {
 		c := make(chan os.Signal, 100)
-		signal.Notify(c)
+		signal.Notify(c, signalsToForward...)
 		go func() {
 			for sig := range c {
 				toolCmd.Process.Signal(sig)

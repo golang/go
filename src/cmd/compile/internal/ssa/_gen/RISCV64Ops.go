@@ -281,10 +281,11 @@ func init() {
 		{name: "LoweredRound64F", argLength: 1, reg: fp11, resultInArg0: true},
 
 		// Calls
-		{name: "CALLstatic", argLength: -1, reg: call, aux: "CallOff", call: true},               // call static function aux.(*gc.Sym). last arg=mem, auxint=argsize, returns mem
-		{name: "CALLtail", argLength: -1, reg: call, aux: "CallOff", call: true, tailCall: true}, // tail call static function aux.(*gc.Sym). last arg=mem, auxint=argsize, returns mem
-		{name: "CALLclosure", argLength: -1, reg: callClosure, aux: "CallOff", call: true},       // call function via closure. arg0=codeptr, arg1=closure, last arg=mem, auxint=argsize, returns mem
-		{name: "CALLinter", argLength: -1, reg: callInter, aux: "CallOff", call: true},           // call fn by pointer. arg0=codeptr, last arg=mem, auxint=argsize, returns mem
+		{name: "CALLstatic", argLength: -1, reg: call, aux: "CallOff", call: true},                         // call static function aux.(*gc.Sym). last arg=mem, auxint=argsize, returns mem
+		{name: "CALLtail", argLength: -1, reg: call, aux: "CallOff", call: true, tailCall: true},           // tail call static function aux.(*gc.Sym). last arg=mem, auxint=argsize, returns mem
+		{name: "CALLtailinter", argLength: -1, reg: callInter, aux: "CallOff", call: true, tailCall: true}, // tail call fn by pointer. arg0=codeptr, last arg=mem, auxint=argsize, returns mem
+		{name: "CALLclosure", argLength: -1, reg: callClosure, aux: "CallOff", call: true},                 // call function via closure. arg0=codeptr, arg1=closure, last arg=mem, auxint=argsize, returns mem
+		{name: "CALLinter", argLength: -1, reg: callInter, aux: "CallOff", call: true},                     // call fn by pointer. arg0=codeptr, last arg=mem, auxint=argsize, returns mem
 
 		// Generic moves and zeros
 
@@ -462,6 +463,7 @@ func init() {
 		{name: "FNMADDS", argLength: 3, reg: fp31, asm: "FNMADDS", commutative: true, typ: "Float32"},                                       // -(arg0 * arg1) + arg2
 		{name: "FNMSUBS", argLength: 3, reg: fp31, asm: "FNMSUBS", commutative: true, typ: "Float32"},                                       // -(arg0 * arg1) - arg2
 		{name: "FSQRTS", argLength: 1, reg: fp11, asm: "FSQRTS", typ: "Float32"},                                                            // sqrt(arg0)
+		{name: "FABSS", argLength: 1, reg: fp11, asm: "FABSS", typ: "Float32"},                                                              // abs(arg0)
 		{name: "FNEGS", argLength: 1, reg: fp11, asm: "FNEGS", typ: "Float32"},                                                              // -arg0
 		{name: "FMVSX", argLength: 1, reg: gpfp, asm: "FMVSX", typ: "Float32"},                                                              // reinterpret arg0 as float32
 		{name: "FMVXS", argLength: 1, reg: fpgp, asm: "FMVXS", typ: "Int32"},                                                                // reinterpret arg0 as int32, sign extended to 64 bits

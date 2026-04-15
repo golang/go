@@ -58,24 +58,8 @@ skipfpsave:
 
 	MOVW	$0, g // Initialize g.
 
-	// Synchronous initialization.
-	CALL	runtime·libpreinit(SB)
+	CALL	runtime·libInit(SB)
 
-	// Create a new thread to do the runtime initialization.
-	MOVW	_cgo_sys_thread_create(SB), R2
-	CMP	$0, R2
-	BEQ	nocgo
-	MOVW	$_rt0_arm_lib_go<>(SB), R0
-	MOVW	$0, R1
-	BL	(R2)
-	B	rr
-nocgo:
-	MOVW	$0x800000, R0                     // stacksize = 8192KB
-	MOVW	$_rt0_arm_lib_go<>(SB), R1  // fn
-	MOVW	R0, 4(R13)
-	MOVW	R1, 8(R13)
-	BL	runtime·newosproc0(SB)
-rr:
 	// Restore callee-save registers and return.
 	MOVB    runtime·goarmsoftfp(SB), R11
 	CMP     $0, R11
@@ -98,9 +82,9 @@ skipfprest:
 	MOVW	36(R13), R11
 	RET
 
-// _rt0_arm_lib_go initializes the Go runtime.
+// rt0_lib_go initializes the Go runtime.
 // This is started in a separate thread by _rt0_arm_lib.
-TEXT _rt0_arm_lib_go<>(SB),NOSPLIT,$8
+TEXT runtime·rt0_lib_go<ABIInternal>(SB),NOSPLIT,$8
 	MOVW	_rt0_arm_lib_argc<>(SB), R0
 	MOVW	_rt0_arm_lib_argv<>(SB), R1
 	B	runtime·rt0_go(SB)
@@ -630,10 +614,6 @@ nosave:
 	// This code is like the above sequence but without saving/restoring g
 	// and without worrying about the stack moving out from under us
 	// (because we're on a system stack, not a goroutine stack).
-	// The above code could be used directly if already on a system stack,
-	// but then the only path through this code would be a rare case on Solaris.
-	// Using this code for all "already on system stack" calls exercises it more,
-	// which should help keep it correct.
 	SUB	$24, R13
 	BIC	$0x7, R13	// alignment for gcc ABI
 	// save null g in case someone looks during debugging.

@@ -151,9 +151,139 @@ const (
 	IMAGE_REL_BASED_DIR64   = 10
 )
 
+// IMAGE_LOAD_CONFIG_DIRECTORY64.GuardFlags and IMAGE_LOAD_CONFIG_DIRECTORY32.GuardFlags
+// values. These can be combined together.
 const (
-	PeMinimumTargetMajorVersion = 6
-	PeMinimumTargetMinorVersion = 1
+	IMAGE_GUARD_CF_INSTRUMENTED                    = 0x00000100 // Module performs control flow integrity checks using system-supplied support
+	IMAGE_GUARD_CFW_INSTRUMENTED                   = 0x00000200 // Module performs control flow and write integrity checks
+	IMAGE_GUARD_CF_FUNCTION_TABLE_PRESENT          = 0x00000400 // Module contains valid control flow target metadata
+	IMAGE_GUARD_SECURITY_COOKIE_UNUSED             = 0x00000800 // Module does not make use of the /GS security cookie
+	IMAGE_GUARD_PROTECT_DELAYLOAD_IAT              = 0x00001000 // Module supports read only delay load IAT
+	IMAGE_GUARD_DELAYLOAD_IAT_IN_ITS_OWN_SECTION   = 0x00002000 // Delayload import table in its own .didat section (with nothing else in it) that can be freely reprotected
+	IMAGE_GUARD_CF_EXPORT_SUPPRESSION_INFO_PRESENT = 0x00004000 // Module contains suppressed export information
+	IMAGE_GUARD_CF_ENABLE_EXPORT_SUPPRESSION       = 0x00008000 // Module enables suppression of exports
+	IMAGE_GUARD_CF_LONGJUMP_TABLE_PRESENT          = 0x00010000 // Module contains longjmp target information
+	IMAGE_GUARD_RF_INSTRUMENTED                    = 0x00020000 // Module contains return flow instrumentation and metadata
+	IMAGE_GUARD_RF_ENABLE                          = 0x00040000 // Module requests that the OS enable return flow protection
+	IMAGE_GUARD_RF_STRICT                          = 0x00080000 // Module requests that the OS enable return flow protection in strict mode
+	IMAGE_GUARD_CF_FUNCTION_TABLE_SIZE_MASK        = 0xF0000000 // Stride of Guard CF function table encoded in these bits (additional count of bytes per element)
+	IMAGE_GUARD_CF_FUNCTION_TABLE_SIZE_SHIFT       = 28         // Shift to right-justify Guard CF function table stride
+)
+
+type IMAGE_LOAD_CONFIG_CODE_INTEGRITY struct {
+	Flags         uint16
+	Catalog       uint16
+	CatalogOffset uint32
+	Reserved      uint32
+}
+
+type IMAGE_LOAD_CONFIG_DIRECTORY32 struct {
+	Size                                     uint32
+	TimeDateStamp                            uint32
+	MajorVersion                             uint16
+	MinorVersion                             uint16
+	GlobalFlagsClear                         uint32
+	GlobalFlagsSet                           uint32
+	CriticalSectionDefaultTimeout            uint32
+	DeCommitFreeBlockThreshold               uint32
+	DeCommitTotalFreeThreshold               uint32
+	LockPrefixTable                          uint32
+	MaximumAllocationSize                    uint32
+	VirtualMemoryThreshold                   uint32
+	ProcessHeapFlags                         uint32
+	ProcessAffinityMask                      uint32
+	CSDVersion                               uint16
+	DependentLoadFlags                       uint16
+	EditList                                 uint32
+	SecurityCookie                           uint32
+	SEHandlerTable                           uint32
+	SEHandlerCount                           uint32
+	GuardCFCheckFunctionPointer              uint32
+	GuardCFDispatchFunctionPointer           uint32
+	GuardCFFunctionTable                     uint32
+	GuardCFFunctionCount                     uint32
+	GuardFlags                               uint32
+	CodeIntegrity                            IMAGE_LOAD_CONFIG_CODE_INTEGRITY
+	GuardAddressTakenIatEntryTable           uint32
+	GuardAddressTakenIatEntryCount           uint32
+	GuardLongJumpTargetTable                 uint32
+	GuardLongJumpTargetCount                 uint32
+	DynamicValueRelocTable                   uint32
+	CHPEMetadataPointer                      uint32
+	GuardRFFailureRoutine                    uint32
+	GuardRFFailureRoutineFunctionPointer     uint32
+	DynamicValueRelocTableOffset             uint32
+	DynamicValueRelocTableSection            uint16
+	Reserved2                                uint16
+	GuardRFVerifyStackPointerFunctionPointer uint32
+	HotPatchTableOffset                      uint32
+	Reserved3                                uint32
+	EnclaveConfigurationPointer              uint32
+	VolatileMetadataPointer                  uint32
+	GuardEHContinuationTable                 uint32
+	GuardEHContinuationCount                 uint32
+	GuardXFGCheckFunctionPointer             uint32
+	GuardXFGDispatchFunctionPointer          uint32
+	GuardXFGTableDispatchFunctionPointer     uint32
+	CastGuardOsDeterminedFailureMode         uint32
+	GuardMemcpyFunctionPointer               uint32
+}
+
+type IMAGE_LOAD_CONFIG_DIRECTORY64 struct {
+	Size                                     uint32
+	TimeDateStamp                            uint32
+	MajorVersion                             uint16
+	MinorVersion                             uint16
+	GlobalFlagsClear                         uint32
+	GlobalFlagsSet                           uint32
+	CriticalSectionDefaultTimeout            uint32
+	DeCommitFreeBlockThreshold               uint64
+	DeCommitTotalFreeThreshold               uint64
+	LockPrefixTable                          uint64
+	MaximumAllocationSize                    uint64
+	VirtualMemoryThreshold                   uint64
+	ProcessAffinityMask                      uint64
+	ProcessHeapFlags                         uint32
+	CSDVersion                               uint16
+	DependentLoadFlags                       uint16
+	EditList                                 uint64
+	SecurityCookie                           uint64
+	SEHandlerTable                           uint64
+	SEHandlerCount                           uint64
+	GuardCFCheckFunctionPointer              uint64
+	GuardCFDispatchFunctionPointer           uint64
+	GuardCFFunctionTable                     uint64
+	GuardCFFunctionCount                     uint64
+	GuardFlags                               uint32
+	CodeIntegrity                            IMAGE_LOAD_CONFIG_CODE_INTEGRITY
+	GuardAddressTakenIatEntryTable           uint64
+	GuardAddressTakenIatEntryCount           uint64
+	GuardLongJumpTargetTable                 uint64
+	GuardLongJumpTargetCount                 uint64
+	DynamicValueRelocTable                   uint64
+	CHPEMetadataPointer                      uint64
+	GuardRFFailureRoutine                    uint64
+	GuardRFFailureRoutineFunctionPointer     uint64
+	DynamicValueRelocTableOffset             uint32
+	DynamicValueRelocTableSection            uint16
+	Reserved2                                uint16
+	GuardRFVerifyStackPointerFunctionPointer uint64
+	HotPatchTableOffset                      uint32
+	Reserved3                                uint32
+	EnclaveConfigurationPointer              uint64
+	VolatileMetadataPointer                  uint64
+	GuardEHContinuationTable                 uint64
+	GuardEHContinuationCount                 uint64
+	GuardXFGCheckFunctionPointer             uint64
+	GuardXFGDispatchFunctionPointer          uint64
+	GuardXFGTableDispatchFunctionPointer     uint64
+	CastGuardOsDeterminedFailureMode         uint64
+	GuardMemcpyFunctionPointer               uint64
+}
+
+const (
+	PeMinimumTargetMajorVersion = 10
+	PeMinimumTargetMinorVersion = 0
 )
 
 // DOS stub that prints out
@@ -1141,6 +1271,29 @@ func Peinit(ctxt *Link) {
 			ctxt.loader.SetAttrSpecial(sb.Sym(), true)
 			ctxt.loader.SetAttrLocal(sb.Sym(), true)
 		}
+
+		// The _load_config_used symbol is required to be present on modern
+		// Windows. We later wire this up to the PE data directory.
+		sb := ctxt.loader.CreateSymForUpdate("_load_config_used", 0)
+		sb.SetType(sym.SRODATA)
+		sb.SetAlign(int32(ctxt.Arch.PtrSize))
+		var buf bytes.Buffer
+		if pe64 {
+			lc := IMAGE_LOAD_CONFIG_DIRECTORY64{
+				Size:       uint32(binary.Size(&IMAGE_LOAD_CONFIG_DIRECTORY64{})),
+				GuardFlags: IMAGE_GUARD_SECURITY_COOKIE_UNUSED,
+			}
+			binary.Write(&buf, binary.LittleEndian, &lc)
+		} else {
+			lc := IMAGE_LOAD_CONFIG_DIRECTORY32{
+				Size:       uint32(binary.Size(&IMAGE_LOAD_CONFIG_DIRECTORY32{})),
+				GuardFlags: IMAGE_GUARD_SECURITY_COOKIE_UNUSED,
+			}
+			binary.Write(&buf, binary.LittleEndian, &lc)
+		}
+		sb.SetData(buf.Bytes())
+		sb.SetSize(int64(buf.Len()))
+		ctxt.loader.SetAttrReachable(sb.Sym(), true)
 	}
 
 	HEADR = PEFILEHEADR
@@ -1635,7 +1788,6 @@ func addPEBaseReloc(ctxt *Link) {
 func (ctxt *Link) dope() {
 	initdynimport(ctxt)
 	initdynexport(ctxt)
-	writeSEH(ctxt)
 }
 
 func setpersrc(ctxt *Link, syms []loader.Sym) {
@@ -1711,6 +1863,14 @@ func asmbPe(ctxt *Link) {
 	}
 	ro.checkSegment(&Segrodata)
 	pefile.rdataSect = ro
+
+	// This should have been added in Peinit and by now is part of the
+	// just-written .rdata section.
+	s := ctxt.loader.Lookup("_load_config_used", 0)
+	if s != 0 {
+		pefile.dataDirectory[pe.IMAGE_DIRECTORY_ENTRY_LOAD_CONFIG].VirtualAddress = uint32(ctxt.loader.SymValue(s) - PEBASE)
+		pefile.dataDirectory[pe.IMAGE_DIRECTORY_ENTRY_LOAD_CONFIG].Size = uint32(ctxt.loader.SymSize(s))
+	}
 
 	var d *peSection
 	if ctxt.LinkMode != LinkExternal {

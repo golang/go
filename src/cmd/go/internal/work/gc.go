@@ -338,6 +338,10 @@ func asmArgs(a *Action, p *load.Package) []any {
 		}
 	}
 
+	if p.Standard {
+		args = append(args, "-std")
+	}
+
 	if cfg.Goarch == "386" {
 		// Define GO386_value from cfg.GO386.
 		args = append(args, "-D", "GO386_"+cfg.GO386)

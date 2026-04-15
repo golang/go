@@ -1612,6 +1612,240 @@ var nameConstraintsTests = []nameConstraintsTest{
 			sans: []string{"dns:testexample.com"},
 		},
 	},
+	{
+		name: "excluded email constraint, multiple email with matching local portion",
+		roots: []constraintsSpec{
+			{
+				bad: []string{"email:a@example.com", "email:a@test.com"},
+			},
+		},
+		intermediates: [][]constraintsSpec{
+			{
+				{},
+			},
+		},
+		leaf: leafSpec{
+			sans: []string{"email:a@example.com"},
+		},
+		expectedError: "\"a@example.com\" is excluded by constraint \"a@example.com\"",
+	},
+	{
+		name: "email_case_check",
+		roots: []constraintsSpec{
+			{
+				ok: []string{"email:a@example.com"},
+			},
+		},
+		intermediates: [][]constraintsSpec{
+			{
+				{},
+			},
+		},
+		leaf: leafSpec{
+			sans: []string{"email:a@ExAmple.com"},
+		},
+	},
+	{
+		name: "excluded constraint, empty DNS san",
+		roots: []constraintsSpec{
+			{
+				bad: []string{"dns:example.com"},
+			},
+		},
+		leaf: leafSpec{
+			sans: []string{"dns:"},
+		},
+	},
+
+	{
+		name: "subdomain excluded constraints preclude outer wildcard names",
+		roots: []constraintsSpec{
+			{
+				bad: []string{"dns:foo.example.com"},
+			},
+		},
+		intermediates: [][]constraintsSpec{
+			{
+				{},
+			},
+		},
+		leaf: leafSpec{
+			sans: []string{"dns:*.example.com"},
+		},
+		expectedError: "\"*.example.com\" is excluded by constraint \"foo.example.com\"",
+	},
+	{
+		name: "subdomain excluded constraints do not preclude far outer wildcard names",
+		roots: []constraintsSpec{
+			{
+				bad: []string{"dns:foo.example.com"},
+			},
+		},
+		intermediates: [][]constraintsSpec{
+			{
+				{},
+			},
+		},
+		leaf: leafSpec{
+			sans: []string{"dns:*.com"},
+		},
+	},
+	{
+		name: "subdomain excluded constraints preclude inner wildcard names",
+		roots: []constraintsSpec{
+			{
+				bad: []string{"dns:foo.example.com"},
+			},
+		},
+		intermediates: [][]constraintsSpec{
+			{
+				{},
+			},
+		},
+		leaf: leafSpec{
+			sans: []string{"dns:*.foo.example.com"},
+		},
+		expectedError: "\"*.foo.example.com\" is excluded by constraint \"foo.example.com\"",
+	},
+	{
+		name: "subdomain excluded constraints preclude far inner wildcard names",
+		roots: []constraintsSpec{
+			{
+				bad: []string{"dns:foo.example.com"},
+			},
+		},
+		intermediates: [][]constraintsSpec{
+			{
+				{},
+			},
+		},
+		leaf: leafSpec{
+			sans: []string{"dns:*.bar.foo.example.com"},
+		},
+		expectedError: "\"*.bar.foo.example.com\" is excluded by constraint \"foo.example.com\"",
+	},
+	{
+		name: "outer wildcard names are not matched by subdomain permitted constraints",
+		roots: []constraintsSpec{
+			{
+				ok: []string{"dns:foo.example.com"},
+			},
+		},
+		intermediates: [][]constraintsSpec{
+			{
+				{},
+			},
+		},
+		leaf: leafSpec{
+			sans: []string{"dns:*.example.com"},
+		},
+		expectedError: "\"*.example.com\" is not permitted",
+	},
+	{
+		name: "far outer wildcard names are not matched by subdomain permitted constraints",
+		roots: []constraintsSpec{
+			{
+				ok: []string{"dns:foo.example.com"},
+			},
+		},
+		intermediates: [][]constraintsSpec{
+			{
+				{},
+			},
+		},
+		leaf: leafSpec{
+			sans: []string{"dns:*.com"},
+		},
+		expectedError: "\"*.com\" is not permitted",
+	},
+	{
+		name: "inner wildcard names are matched by subdomain permitted constraints",
+		roots: []constraintsSpec{
+			{
+				ok: []string{"dns:foo.example.com"},
+			},
+		},
+		intermediates: [][]constraintsSpec{
+			{
+				{},
+			},
+		},
+		leaf: leafSpec{
+			sans: []string{"dns:*.foo.example.com"},
+		},
+	},
+	{
+		name: "far inner wildcard names are matched by subdomain permitted constraints",
+		roots: []constraintsSpec{
+			{
+				ok: []string{"dns:foo.example.com"},
+			},
+		},
+		intermediates: [][]constraintsSpec{
+			{
+				{},
+			},
+		},
+		leaf: leafSpec{
+			sans: []string{"dns:*.bar.foo.example.com"},
+		},
+	},
+
+	{
+		name: "cross include should not match",
+		roots: []constraintsSpec{
+			{
+				ok: []string{"dns:foo.example.com"},
+			},
+		},
+		intermediates: [][]constraintsSpec{
+			{
+				{},
+			},
+		},
+		leaf: leafSpec{
+			sans: []string{"dns:*.bar.example.com"},
+		},
+		expectedError: "\"*.bar.example.com\" is not permitted by any constraint",
+	},
+	{
+		name: "cross exclude should not match",
+		roots: []constraintsSpec{
+			{
+				bad: []string{"dns:foo.example.com"},
+			},
+		},
+		intermediates: [][]constraintsSpec{
+			{
+				{},
+			},
+		},
+		leaf: leafSpec{
+			sans: []string{"dns:*.bar.example.com"},
+		},
+	},
+	{
+		name: "subdomain exclusion blocks uppercase wildcard",
+		roots: []constraintsSpec{{
+			bad: []string{"dns:sub.example.com"},
+		}},
+		intermediates: [][]constraintsSpec{{{}}},
+		leaf: leafSpec{
+			sans: []string{"dns:*.EXAMPLE.COM"},
+		},
+		expectedError: "\"*.EXAMPLE.COM\" is excluded by constraint \"sub.example.com\"",
+	},
+	{
+		name: "uppercase subdomain exclusion blocks lowercase wildcard",
+		roots: []constraintsSpec{{
+			bad: []string{"dns:SUB.EXAMPLE.COM"},
+		}},
+		intermediates: [][]constraintsSpec{{{}}},
+		leaf: leafSpec{
+			sans: []string{"dns:*.example.com"},
+		},
+		expectedError: "\"*.example.com\" is excluded by constraint \"sub.example.com\"",
+	},
 }
 
 func makeConstraintsCACert(constraints constraintsSpec, name string, key *ecdsa.PrivateKey, parent *Certificate, parentKey *ecdsa.PrivateKey) (*Certificate, error) {

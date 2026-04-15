@@ -166,7 +166,7 @@ use 'go list -m -json all'.
 
 Edit also provides the -C, -n, and -x build flags.
 
-See https://golang.org/ref/mod#go-mod-edit for more about 'go mod edit'.
+See https://go.dev/ref/mod#go-mod-edit for more about 'go mod edit'.
 	`,
 }
 
@@ -209,7 +209,7 @@ func init() {
 }
 
 func runEdit(ctx context.Context, cmd *base.Command, args []string) {
-	moduleLoaderState := modload.NewState()
+	moduleLoader := modload.NewLoader()
 	anyFlags := *editModule != "" ||
 		*editGo != "" ||
 		*editToolchain != "" ||
@@ -233,7 +233,7 @@ func runEdit(ctx context.Context, cmd *base.Command, args []string) {
 	if len(args) == 1 {
 		gomod = args[0]
 	} else {
-		gomod = moduleLoaderState.ModFilePath()
+		gomod = moduleLoader.ModFilePath()
 	}
 
 	if *editModule != "" {

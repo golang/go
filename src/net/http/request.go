@@ -558,6 +558,11 @@ const defaultUserAgent = "Go-http-client/1.1"
 // If Body is present, Content-Length is <= 0 and [Request.TransferEncoding]
 // hasn't been set to "identity", Write adds "Transfer-Encoding:
 // chunked" to the header. Body is closed after it is sent.
+//
+// Header values for Host, Content-Length, Transfer-Encoding,
+// and Trailer are not used; these are derived from other Request fields.
+// If the Header does not contain a User-Agent value, Write uses
+// "Go-http-client/1.1".
 func (r *Request) Write(w io.Writer) error {
 	return r.write(w, false, nil, nil)
 }

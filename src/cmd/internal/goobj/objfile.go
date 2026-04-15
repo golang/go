@@ -306,6 +306,7 @@ const (
 	SymFlagDict
 	SymFlagPkgInit
 	SymFlagLinkname
+	SymFlagLinknameStd
 	SymFlagABIWrapper
 	SymFlagWasmExport
 )
@@ -340,6 +341,7 @@ func (s *Sym) IsItab() bool        { return s.Flag2()&SymFlagItab != 0 }
 func (s *Sym) IsDict() bool        { return s.Flag2()&SymFlagDict != 0 }
 func (s *Sym) IsPkgInit() bool     { return s.Flag2()&SymFlagPkgInit != 0 }
 func (s *Sym) IsLinkname() bool    { return s.Flag2()&SymFlagLinkname != 0 }
+func (s *Sym) IsLinknameStd() bool { return s.Flag2()&SymFlagLinknameStd != 0 }
 func (s *Sym) ABIWrapper() bool    { return s.Flag2()&SymFlagABIWrapper != 0 }
 func (s *Sym) WasmExport() bool    { return s.Flag2()&SymFlagWasmExport != 0 }
 

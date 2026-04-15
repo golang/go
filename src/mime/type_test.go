@@ -102,6 +102,34 @@ func TestTypeByExtensionCase(t *testing.T) {
 	}
 }
 
+// Regression: setExtensionType must pass the parsed type (justType) to FormatMediaType
+// when defaulting charset for text/*. Passing the full MIME string breaks formatting
+// when the string already contains parameters (e.g. "text/foo; bar=baz"), and
+// FormatMediaType returns "".
+func TestAddExtensionType_TextMIMEWithParamsDefaultCharset(t *testing.T) {
+	cleanup := setMimeInit(func() {
+		clearMimeTypes()
+	})
+	defer cleanup()
+
+	const ext = ".regtxt"
+	const in = "text/x-reg; myparam=myvalue" // text/*, extra param, no charset
+	if err := AddExtensionType(ext, in); err != nil {
+		t.Fatal(err)
+	}
+	got := TypeByExtension(ext)
+	if got == "" {
+		t.Fatal("TypeByExtension: got empty string; want non-empty formatted text/* with default charset")
+	}
+	const wantSubstr = "charset=utf-8"
+	if !strings.Contains(got, wantSubstr) {
+		t.Fatalf("TypeByExtension(%q) = %q; want substring %q", ext, got, wantSubstr)
+	}
+	if !strings.HasPrefix(got, "text/x-reg") {
+		t.Fatalf("TypeByExtension(%q) = %q; want prefix text/x-reg", ext, got)
+	}
+}
+
 func TestExtensionsByType(t *testing.T) {
 	cleanup := setMimeInit(func() {
 		clearMimeTypes()

@@ -18,16 +18,16 @@ import (
 func vptest1() bool {
 	v1 := archsimd.LoadUint64x2Slice([]uint64{0, 1})
 	v2 := archsimd.LoadUint64x2Slice([]uint64{0, 0})
-	// amd64:`VPTEST\s(.*)(.*)$`
-	// amd64:`SETCS\s(.*)$`
+	// amd64:`VPTEST (.*)(.*)$`
+	// amd64:`SETCS (.*)$`
 	return v1.AndNot(v2).IsZero()
 }
 
 func vptest2() bool {
 	v1 := archsimd.LoadUint64x2Slice([]uint64{0, 1})
 	v2 := archsimd.LoadUint64x2Slice([]uint64{0, 0})
-	// amd64:`VPTEST\s(.*)(.*)$`
-	// amd64:`SETEQ\s(.*)$`
+	// amd64:`VPTEST (.*)(.*)$`
+	// amd64:`SETEQ (.*)$`
 	return v1.And(v2).IsZero()
 }
 
@@ -39,24 +39,24 @@ type Args2 struct {
 
 //go:noinline
 func simdStructNoSpill(a Args2) archsimd.Uint8x32 {
-	// amd64:-`VMOVDQU\s.*$`
+	// amd64:-`VMOVDQU .*$`
 	return a.V0.Xor(a.V1)
 }
 
 func simdStructWrapperNoSpill(a Args2) archsimd.Uint8x32 {
-	// amd64:-`VMOVDQU\s.*$`
+	// amd64:-`VMOVDQU .*$`
 	a.x = "test"
 	return simdStructNoSpill(a)
 }
 
 //go:noinline
 func simdArrayNoSpill(a [1]Args2) archsimd.Uint8x32 {
-	// amd64:-`VMOVDQU\s.*$`
+	// amd64:-`VMOVDQU .*$`
 	return a[0].V0.Xor(a[0].V1)
 }
 
 func simdArrayWrapperNoSpill(a [1]Args2) archsimd.Uint8x32 {
-	// amd64:-`VMOVDQU\s.*$`
+	// amd64:-`VMOVDQU .*$`
 	a[0].x = "test"
 	return simdArrayNoSpill(a)
 }
@@ -65,20 +65,20 @@ func simdFeatureGuardedMaskOpt() archsimd.Int16x16 {
 	var x, y archsimd.Int16x16
 	if archsimd.X86.AVX512() {
 		mask := archsimd.Mask16x16FromBits(5)
-		return x.Add(y).Masked(mask) // amd64:`VPADDW.Z\s.*$`
+		return x.Add(y).Masked(mask) // amd64:`VPADDW.Z .*$`
 	}
 	mask := archsimd.Mask16x16FromBits(5)
-	return x.Add(y).Masked(mask) // amd64:`VPAND\s.*$`
+	return x.Add(y).Masked(mask) // amd64:`VPAND .*$`
 }
 
 func simdMaskedMerge() archsimd.Int16x16 {
 	var x, y archsimd.Int16x16
 	if archsimd.X86.AVX512() {
 		mask := archsimd.Mask16x16FromBits(5)
-		return x.Add(y).Merge(x, mask) // amd64:-`VPBLENDVB\s.*$`
+		return x.Add(y).Merge(x, mask) // amd64:-`VPBLENDVB .*$`
 	}
 	mask := archsimd.Mask16x16FromBits(5)
-	return x.Add(y).Merge(x, mask) // amd64:`VPBLENDVB\s.*$`
+	return x.Add(y).Merge(x, mask) // amd64:`VPBLENDVB .*$`
 }
 
 var nan = math.NaN()
@@ -107,6 +107,6 @@ func simdIsNaN512() {
 
 func sftImmVPSRL() archsimd.Uint32x4 {
 	var x archsimd.Uint32x4
-	// amd64:`VPSRLD\s\$1,\s.*$`
+	// amd64:`VPSRLD \$1, .*$`
 	return x.ShiftAllRight(1)
 }

@@ -1515,6 +1515,17 @@ func valueInterface(v Value, safe bool) any {
 // TypeAssert is semantically equivalent to:
 //
 //	v2, ok := v.Interface().(T)
+//
+// Note that this function, just as the type assertion above, might return:
+//
+//   - ok == false when v.Type() == reflect.TypeFor[T]()
+//     For example, when both T and v are interface types and v.IsNil() == true.
+//     In that case v.Interface() returns a nil interface value, and the
+//     assertion .(T) fails with ok == false.
+//
+//   - ok == true when v.Type() != reflect.TypeFor[T]().
+//     For example, when T is an interface type and v holds a value whose
+//     concrete type implements T.
 func TypeAssert[T any](v Value) (T, bool) {
 	if v.flag == 0 {
 		panic(&ValueError{"reflect.TypeAssert", Invalid})

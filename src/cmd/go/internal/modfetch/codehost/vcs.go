@@ -88,6 +88,9 @@ type vcsRepo struct {
 
 	repoSumOnce sync.Once
 	repoSum     string
+
+	statCache     par.ErrCache[string, *RevInfo]  // cache key is revision
+	readFileCache par.ErrCache[[2]string, []byte] // cache key is revision and file path
 }
 
 func newVCSRepo(ctx context.Context, vcs, remote string, local bool) (Repo, error) {
@@ -261,36 +264,6 @@ var vcsCmds = map[string]*vcsCmd{
 			return []string{"svn", "cat", "--", remote + "/" + file + "@" + rev}
 		},
 		doReadZip: svnReadZip,
-	},
-
-	"bzr": {
-		vcs: "bzr",
-		init: func(remote string) []string {
-			return []string{"bzr", "branch", "--use-existing-dir", "--", remote, "."}
-		},
-		fetch: []string{
-			"bzr", "pull", "--overwrite-tags",
-		},
-		tags: func(remote string) []string {
-			return []string{"bzr", "tags"}
-		},
-		tagRE:         re(`(?m)^\S+`),
-		badLocalRevRE: re(`^revno:-`),
-		statLocal: func(rev, remote string) []string {
-			return []string{"bzr", "log", "-l1", "--long", "--show-ids", fmt.Sprintf("--revision=%s", rev)}
-		},
-		parseStat: bzrParseStat,
-		latest:    "revno:-1",
-		readFile: func(rev, file, remote string) []string {
-			return []string{"bzr", "cat", fmt.Sprintf("--revision=%s", rev), "--", file}
-		},
-		readZip: func(rev, subdir, remote, target string) []string {
-			extra := []string{}
-			if subdir != "" {
-				extra = []string{"./" + subdir}
-			}
-			return str.StringList("bzr", "export", "--format=zip", fmt.Sprintf("--revision=%s", rev), "--root=prefix/", "--", target, extra)
-		},
 	},
 
 	"fossil": {
@@ -471,40 +444,42 @@ func (r *vcsRepo) Tags(ctx context.Context, prefix string) (*Tags, error) {
 }
 
 func (r *vcsRepo) Stat(ctx context.Context, rev string) (*RevInfo, error) {
-	unlock, err := r.mu.Lock()
-	if err != nil {
-		return nil, err
-	}
-	defer unlock()
-
-	if rev == "latest" {
-		rev = r.cmd.latest
-	}
-	r.branchesOnce.Do(func() { r.loadBranches(ctx) })
-	if r.local {
-		// Ignore the badLocalRevRE precondition in local only mode.
-		// We cannot fetch latest upstream changes so only serve what's in the local cache.
-		return r.statLocal(ctx, rev)
-	}
-	revOK := (r.cmd.badLocalRevRE == nil || !r.cmd.badLocalRevRE.MatchString(rev)) && !r.branches[rev]
-	if revOK {
-		if info, err := r.statLocal(ctx, rev); err == nil {
-			return info, nil
+	return r.statCache.Do(rev, func() (*RevInfo, error) {
+		unlock, err := r.mu.Lock()
+		if err != nil {
+			return nil, err
 		}
-	}
+		defer unlock()
 
-	r.fetchOnce.Do(func() { r.fetch(ctx) })
-	if r.fetchErr != nil {
-		return nil, r.fetchErr
-	}
-	info, err := r.statLocal(ctx, rev)
-	if err != nil {
-		return info, err
-	}
-	if !revOK {
-		info.Version = info.Name
-	}
-	return info, nil
+		if rev == "latest" {
+			rev = r.cmd.latest
+		}
+		r.branchesOnce.Do(func() { r.loadBranches(ctx) })
+		if r.local {
+			// Ignore the badLocalRevRE precondition in local only mode.
+			// We cannot fetch latest upstream changes so only serve what's in the local cache.
+			return r.statLocal(ctx, rev)
+		}
+		revOK := (r.cmd.badLocalRevRE == nil || !r.cmd.badLocalRevRE.MatchString(rev)) && !r.branches[rev]
+		if revOK {
+			if info, err := r.statLocal(ctx, rev); err == nil {
+				return info, nil
+			}
+		}
+
+		r.fetchOnce.Do(func() { r.fetch(ctx) })
+		if r.fetchErr != nil {
+			return nil, r.fetchErr
+		}
+		info, err := r.statLocal(ctx, rev)
+		if err != nil {
+			return info, err
+		}
+		if !revOK {
+			info.Version = info.Name
+		}
+		return info, nil
+	})
 }
 
 func (r *vcsRepo) fetch(ctx context.Context) {
@@ -547,26 +522,28 @@ func (r *vcsRepo) Latest(ctx context.Context) (*RevInfo, error) {
 }
 
 func (r *vcsRepo) ReadFile(ctx context.Context, rev, file string, maxSize int64) ([]byte, error) {
-	if rev == "latest" {
-		rev = r.cmd.latest
-	}
-	_, err := r.Stat(ctx, rev) // download rev into local repo
-	if err != nil {
-		return nil, err
-	}
+	return r.readFileCache.Do([2]string{rev, file}, func() ([]byte, error) {
+		if rev == "latest" {
+			rev = r.cmd.latest
+		}
+		_, err := r.Stat(ctx, rev) // download rev into local repo
+		if err != nil {
+			return nil, err
+		}
 
-	// r.Stat acquires r.mu, so lock after that.
-	unlock, err := r.mu.Lock()
-	if err != nil {
-		return nil, err
-	}
-	defer unlock()
+		// r.Stat acquires r.mu, so lock after that.
+		unlock, err := r.mu.Lock()
+		if err != nil {
+			return nil, err
+		}
+		defer unlock()
 
-	out, err := Run(ctx, r.dir, r.cmd.readFile(rev, file, r.remote))
-	if err != nil {
-		return nil, fs.ErrNotExist
-	}
-	return out, nil
+		out, err := Run(ctx, r.dir, r.cmd.readFile(rev, file, r.remote))
+		if err != nil {
+			return nil, fs.ErrNotExist
+		}
+		return out, nil
+	})
 }
 
 func (r *vcsRepo) RecentTag(ctx context.Context, rev, prefix string, allowed func(string) bool) (tag string, err error) {
@@ -722,62 +699,6 @@ func hgParseStat(rev, out string) (*RevInfo, error) {
 		Short:   ShortenSHA1(hash),
 		Time:    time.Unix(t, 0).UTC(),
 		Version: version,
-		Tags:    tags,
-	}
-	return info, nil
-}
-
-func bzrParseStat(rev, out string) (*RevInfo, error) {
-	var revno int64
-	var tm time.Time
-	var tags []string
-	for line := range strings.SplitSeq(out, "\n") {
-		if line == "" || line[0] == ' ' || line[0] == '\t' {
-			// End of header, start of commit message.
-			break
-		}
-		if line[0] == '-' {
-			continue
-		}
-		before, after, found := strings.Cut(line, ":")
-		if !found {
-			// End of header, start of commit message.
-			break
-		}
-		key, val := before, strings.TrimSpace(after)
-		switch key {
-		case "revno":
-			if j := strings.Index(val, " "); j >= 0 {
-				val = val[:j]
-			}
-			i, err := strconv.ParseInt(val, 10, 64)
-			if err != nil {
-				return nil, vcsErrorf("unexpected revno from bzr log: %q", line)
-			}
-			revno = i
-		case "timestamp":
-			j := strings.Index(val, " ")
-			if j < 0 {
-				return nil, vcsErrorf("unexpected timestamp from bzr log: %q", line)
-			}
-			t, err := time.Parse("2006-01-02 15:04:05 -0700", val[j+1:])
-			if err != nil {
-				return nil, vcsErrorf("unexpected timestamp from bzr log: %q", line)
-			}
-			tm = t.UTC()
-		case "tags":
-			tags = strings.Split(val, ", ")
-		}
-	}
-	if revno == 0 || tm.IsZero() {
-		return nil, vcsErrorf("unexpected response from bzr log: %q", out)
-	}
-
-	info := &RevInfo{
-		Name:    strconv.FormatInt(revno, 10),
-		Short:   fmt.Sprintf("%012d", revno),
-		Time:    tm,
-		Version: rev,
 		Tags:    tags,
 	}
 	return info, nil

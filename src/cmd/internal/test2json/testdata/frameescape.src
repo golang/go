@@ -1,0 +1,24 @@
+! go test -v=test2json
+
+stdout '=== RUN   TestAscii'
+
+-- go.mod --
+module p
+
+-- x_test.go --
+package p
+
+import "testing"
+
+func TestAscii(t *testing.T) {
+	t.Run("Log", func(t *testing.T) {
+		for i := rune(0); i < 0x80; i++ {
+			t.Log(string(i))
+		}
+	})
+	t.Run("Error", func(t *testing.T) {
+		for i := rune(0); i < 0x80; i++ {
+			t.Error(string(i))
+		}
+	})
+}

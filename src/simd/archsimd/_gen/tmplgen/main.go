@@ -794,6 +794,8 @@ var unsafePATemplate = templateOf("unsafe PA helper", `
 // pa{{.VType}} returns a type-unsafe pointer to array that can
 // only be used with partial load/store operations that only
 // access the known-safe portions of the array.
+//
+//go:nocheckptr
 func pa{{.VType}}(s []{{.Etype}}) *[{{.Count}}]{{.Etype}} {
 	return (*[{{.Count}}]{{.Etype}})(unsafe.Pointer(&s[0]))
 }

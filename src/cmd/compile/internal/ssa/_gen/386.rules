@@ -326,6 +326,7 @@
 (ClosureCall ...) => (CALLclosure ...)
 (InterCall ...) => (CALLinter ...)
 (TailCall ...) => (CALLtail ...)
+(TailCallInter ...) => (CALLtailinter ...)
 
 // Miscellaneous
 (IsNonNil p) => (SETNE (TESTL p p))

@@ -434,42 +434,35 @@
 (Move [15] dst src mem) =>
 	(MOVDstore [7] dst (MOVDload [7] src mem)
 		(MOVDstore dst (MOVDload src mem) mem))
-(Move [16] dst src mem) =>
-	(STP dst (Select0 <typ.UInt64> (LDP src mem)) (Select1 <typ.UInt64> (LDP src mem)) mem)
+(Move [16] dst src mem) => (FMOVQstore dst (FMOVQload src mem) mem)
 
 (Move [s] dst src mem) && s > 16 && s <= 24 =>
 	(MOVDstore [int32(s-8)] dst (MOVDload [int32(s-8)] src mem)
-		(STP dst (Select0 <typ.UInt64> (LDP src mem)) (Select1 <typ.UInt64> (LDP src mem)) mem))
-(Move [s] dst src mem) && s > 24 && s <= 32 =>
-	(STP [int32(s-16)] dst (Select0 <typ.UInt64> (LDP [int32(s-16)] src mem)) (Select1 <typ.UInt64> (LDP [int32(s-16)] src mem))
-		(STP dst (Select0 <typ.UInt64> (LDP src mem)) (Select1 <typ.UInt64> (LDP src mem)) mem))
+		(FMOVQstore dst (FMOVQload src mem) mem))
+(Move [s] dst src mem) && s > 24 && s < 32 =>
+	(FMOVQstore [int32(s-16)] dst (FMOVQload [int32(s-16)] src mem)
+		(FMOVQstore dst (FMOVQload src mem) mem))
+(Move [32] dst src mem) =>
+	(FSTPQ dst (Select0 <typ.Vec128> (FLDPQ src mem)) (Select1 <typ.Vec128> (FLDPQ src mem)) mem)
 (Move [s] dst src mem) && s > 32 && s <= 40 =>
 	(MOVDstore [int32(s-8)] dst (MOVDload [int32(s-8)] src mem)
-		(STP [16] dst (Select0 <typ.UInt64> (LDP [16] src mem)) (Select1 <typ.UInt64> (LDP [16] src mem))
-			(STP dst (Select0 <typ.UInt64> (LDP src mem)) (Select1 <typ.UInt64> (LDP src mem)) mem)))
+		(FSTPQ dst (Select0 <typ.Vec128> (FLDPQ src mem)) (Select1 <typ.Vec128> (FLDPQ src mem)) mem))
 (Move [s] dst src mem) && s > 40 && s <= 48 =>
-	(STP [int32(s-16)] dst (Select0 <typ.UInt64> (LDP [int32(s-16)] src mem)) (Select1 <typ.UInt64> (LDP [int32(s-16)] src mem))
-		(STP [16] dst (Select0 <typ.UInt64> (LDP [16] src mem)) (Select1 <typ.UInt64> (LDP [16] src mem))
-			(STP dst (Select0 <typ.UInt64> (LDP src mem)) (Select1 <typ.UInt64> (LDP src mem)) mem)))
-(Move [s] dst src mem) && s > 48 && s <= 56 =>
-	(MOVDstore [int32(s-8)] dst (MOVDload [int32(s-8)] src mem)
-		(STP [32] dst (Select0 <typ.UInt64> (LDP [32] src mem)) (Select1 <typ.UInt64> (LDP [32] src mem))
-			(STP [16] dst (Select0 <typ.UInt64> (LDP [16] src mem)) (Select1 <typ.UInt64> (LDP [16] src mem))
-				(STP dst (Select0 <typ.UInt64> (LDP src mem)) (Select1 <typ.UInt64> (LDP src mem)) mem))))
-(Move [s] dst src mem) && s > 56 && s <= 64 =>
-	(STP [int32(s-16)] dst (Select0 <typ.UInt64> (LDP [int32(s-16)] src mem)) (Select1 <typ.UInt64> (LDP [int32(s-16)] src mem))
-		(STP [32] dst (Select0 <typ.UInt64> (LDP [32] src mem)) (Select1 <typ.UInt64> (LDP [32] src mem))
-			(STP [16] dst (Select0 <typ.UInt64> (LDP [16] src mem)) (Select1 <typ.UInt64> (LDP [16] src mem))
-				(STP dst (Select0 <typ.UInt64> (LDP src mem)) (Select1 <typ.UInt64> (LDP src mem)) mem))))
+	(FMOVQstore [int32(s-16)] dst (FMOVQload [int32(s-16)] src mem)
+		(FSTPQ dst (Select0 <typ.Vec128> (FLDPQ src mem)) (Select1 <typ.Vec128> (FLDPQ src mem)) mem))
+(Move [s] dst src mem) && s > 48 && s <= 64 =>
+	(FSTPQ [int32(s-32)] dst (Select0 <typ.Vec128> (FLDPQ [int32(s-32)] src mem)) (Select1 <typ.Vec128> (FLDPQ [int32(s-32)] src mem))
+		(FSTPQ dst (Select0 <typ.Vec128> (FLDPQ src mem)) (Select1 <typ.Vec128> (FLDPQ src mem)) mem))
 
 (Move [s] dst src mem) && s > 64 && s < 192 && logLargeCopy(v, s) => (LoweredMove [s] dst src mem)
 (Move [s] dst src mem) && s >= 192 && logLargeCopy(v, s) => (LoweredMoveLoop [s] dst src mem)
 
 // calls
-(StaticCall  ...) => (CALLstatic  ...)
-(ClosureCall ...) => (CALLclosure ...)
-(InterCall   ...) => (CALLinter   ...)
-(TailCall    ...) => (CALLtail    ...)
+(StaticCall    ...) => (CALLstatic    ...)
+(ClosureCall   ...) => (CALLclosure   ...)
+(InterCall     ...) => (CALLinter     ...)
+(TailCall      ...) => (CALLtail      ...)
+(TailCallInter ...) => (CALLtailinter ...)
 
 // checks
 (NilCheck ...) => (LoweredNilCheck ...)
@@ -649,6 +642,23 @@
 (EQ  (TSTWconst [c] x) yes no) && oneBit(int64(uint32(c))) => (TBZ  [int64(ntz64(int64(uint32(c))))] x yes no)
 (NE  (TSTWconst [c] x) yes no) && oneBit(int64(uint32(c))) => (TBNZ [int64(ntz64(int64(uint32(c))))] x yes no)
 
+((Z|NZ) s:(SRLconst [63] x) yes no) && s.Uses == 1 => (TB(Z|NZ) [63] x yes no)
+((Z|NZ) s:(SRAconst [63] x) yes no) && s.Uses == 1 => (TB(Z|NZ) [63] x yes no)
+
+// Merge more operations into TBZ & TBNZ
+(TB(Z|NZ) [t] sv:(SRLconst [s] x) yes no) && t+s <  64 && sv.Uses == 1 => (TB(Z|NZ) [t+s] x yes no )
+(TBZ      [t]    (SRLconst [s] x) yes no) && t+s >= 64                 => (First            yes no )
+(TBNZ     [t]    (SRLconst [s] x) yes no) && t+s >= 64                 => (First            no  yes)
+
+(TB(Z|NZ) [t] sv:(SLLconst [s] x) yes no) && t-s >= 0  && sv.Uses == 1 => (TB(Z|NZ) [t-s] x yes no )
+(TBZ      [t]    (SLLconst [s] x) yes no) && t-s <  0                  => (First            yes no )
+(TBNZ     [t]    (SLLconst [s] x) yes no) && t-s <  0                  => (First            no  yes)
+
+(TB(Z|NZ) [t] rv:(RORconst [r] x) yes no) && rv.Uses == 1 => (TB(Z|NZ) [int64(uint64(t+r)%64)] x yes no)
+
+(TB(Z|NZ) [t] sv:(SRAconst [s] x) yes no) && t+s <  64 && sv.Uses == 1 => (TB(Z|NZ) [t+s] x yes no)
+(TB(Z|NZ) [t] sv:(SRAconst [s] x) yes no) && t+s >= 64 && sv.Uses == 1 => (TB(Z|NZ) [63 ] x yes no)
+
 // Test sign-bit for signed comparisons against zero
 (GE (CMPWconst [0] x) yes no) => (TBZ  [31] x yes no)
 (GE (CMPconst [0] x)  yes no) => (TBZ  [63] x yes no)
@@ -693,6 +703,12 @@
 (FMOVDload [off1] {sym} (ADDconst [off2] ptr) mem) && is32Bit(int64(off1)+off2)
 	&& (ptr.Op != OpSB || !config.ctxt.Flag_dynlink) =>
 	(FMOVDload [off1+int32(off2)] {sym} ptr mem)
+(FMOVQload [off1] {sym} (ADDconst [off2] ptr) mem) && is32Bit(int64(off1)+off2)
+	&& (ptr.Op != OpSB || !config.ctxt.Flag_dynlink) =>
+	(FMOVQload [off1+int32(off2)] {sym} ptr mem)
+(FLDPQ [off1] {sym} (ADDconst [off2] ptr) mem) && is32Bit(int64(off1)+off2)
+	&& (ptr.Op != OpSB || !config.ctxt.Flag_dynlink) =>
+	(FLDPQ [off1+int32(off2)] {sym} ptr mem)
 
 // register indexed load
 (MOVDload  [off] {sym} (ADD ptr idx) mem) && off == 0 && sym == nil => (MOVDloadidx ptr idx mem)
@@ -778,6 +794,12 @@
 (FMOVDstore [off1] {sym} (ADDconst [off2] ptr) val mem) && is32Bit(int64(off1)+off2)
 	&& (ptr.Op != OpSB || !config.ctxt.Flag_dynlink) =>
 	(FMOVDstore [off1+int32(off2)] {sym} ptr val mem)
+(FMOVQstore [off1] {sym} (ADDconst [off2] ptr) val mem) && is32Bit(int64(off1)+off2)
+	&& (ptr.Op != OpSB || !config.ctxt.Flag_dynlink) =>
+	(FMOVQstore [off1+int32(off2)] {sym} ptr val mem)
+(FSTPQ [off1] {sym} (ADDconst [off2] ptr) val1 val2 mem) && is32Bit(int64(off1)+off2)
+	&& (ptr.Op != OpSB || !config.ctxt.Flag_dynlink) =>
+	(FSTPQ [off1+int32(off2)] {sym} ptr val1 val2 mem)
 
 // register indexed store
 (MOVDstore  [off] {sym} (ADD ptr idx) val mem) && off == 0 && sym == nil => (MOVDstoreidx ptr idx val mem)
@@ -864,6 +886,14 @@
 	&& canMergeSym(sym1,sym2) && is32Bit(int64(off1)+int64(off2))
 	&& (ptr.Op != OpSB || !config.ctxt.Flag_dynlink) =>
 	(FMOVDload [off1+off2] {mergeSym(sym1,sym2)} ptr mem)
+(FMOVQload [off1] {sym1} (MOVDaddr [off2] {sym2} ptr) mem)
+	&& canMergeSym(sym1,sym2) && is32Bit(int64(off1)+int64(off2))
+	&& (ptr.Op != OpSB || !config.ctxt.Flag_dynlink) =>
+	(FMOVQload [off1+off2] {mergeSym(sym1,sym2)} ptr mem)
+(FLDPQ [off1] {sym1} (MOVDaddr [off2] {sym2} ptr) mem)
+	&& canMergeSym(sym1,sym2) && is32Bit(int64(off1)+int64(off2))
+	&& (ptr.Op != OpSB || !config.ctxt.Flag_dynlink) =>
+	(FLDPQ [off1+off2] {mergeSym(sym1,sym2)} ptr mem)
 
 (MOVBstore [off1] {sym1} (MOVDaddr [off2] {sym2} ptr) val mem)
 	&& canMergeSym(sym1,sym2) && is32Bit(int64(off1)+int64(off2))
@@ -893,6 +923,14 @@
 	&& canMergeSym(sym1,sym2) && is32Bit(int64(off1)+int64(off2))
 	&& (ptr.Op != OpSB || !config.ctxt.Flag_dynlink) =>
 	(FMOVDstore [off1+off2] {mergeSym(sym1,sym2)} ptr val mem)
+(FMOVQstore [off1] {sym1} (MOVDaddr [off2] {sym2} ptr) val mem)
+	&& canMergeSym(sym1,sym2) && is32Bit(int64(off1)+int64(off2))
+	&& (ptr.Op != OpSB || !config.ctxt.Flag_dynlink) =>
+	(FMOVQstore [off1+off2] {mergeSym(sym1,sym2)} ptr val mem)
+(FSTPQ [off1] {sym1} (MOVDaddr [off2] {sym2} ptr) val1 val2 mem)
+	&& canMergeSym(sym1,sym2) && is32Bit(int64(off1)+int64(off2))
+	&& (ptr.Op != OpSB || !config.ctxt.Flag_dynlink) =>
+	(FSTPQ [off1+off2] {mergeSym(sym1,sym2)} ptr val1 val2 mem)
 
 // replace load from same location as preceding store with zero/sign extension (or copy in case of full width)
 // these seem to have bad interaction with other rules, resulting in slower code

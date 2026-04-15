@@ -516,7 +516,7 @@ func (c *Cmd) String() string {
 	// report the exact executable path (plus args)
 	b := new(strings.Builder)
 	b.WriteString(c.Path)
-	for _, a := range c.Args[1:] {
+	for _, a := range c.argv()[1:] {
 		b.WriteByte(' ')
 		b.WriteString(a)
 	}
@@ -929,6 +929,9 @@ func (e *ExitError) Error() string {
 // If any of c.Stdin, c.Stdout or c.Stderr are not an [*os.File], Wait also waits
 // for the respective I/O loop copying to or from the process to complete.
 //
+// Wait must not be called concurrently from multiple goroutines.
+// A custom Cmd.Cancel function should not call Wait.
+//
 // Wait releases any resources associated with the [Cmd].
 func (c *Cmd) Wait() error {
 	if c.Process == nil {
@@ -1265,7 +1268,7 @@ func dedupEnv(env []string) ([]string, error) {
 
 // dedupEnvCase is dedupEnv with a case option for testing.
 // If caseInsensitive is true, the case of keys is ignored.
-// If nulOK is false, items containing NUL characters are allowed.
+// If nulOK is false, items containing NUL characters are rejected.
 func dedupEnvCase(caseInsensitive, nulOK bool, env []string) ([]string, error) {
 	// Construct the output in reverse order, to preserve the
 	// last occurrence of each key.

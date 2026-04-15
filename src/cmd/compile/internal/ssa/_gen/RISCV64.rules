@@ -480,6 +480,7 @@
 (ClosureCall ...) => (CALLclosure ...)
 (InterCall   ...) => (CALLinter   ...)
 (TailCall ...) => (CALLtail ...)
+(TailCallInter ...) => (CALLtailinter ...)
 
 // Atomic Intrinsics
 (AtomicLoad(Ptr|64|32|8)  ...) => (LoweredAtomicLoad(64|64|32|8) ...)
@@ -839,6 +840,9 @@
 (FLED x (FMOVDconst [-0x1p-1022])) => (SNEZ (ANDI <typ.Int64> [0b00_0000_0011] (FCLASSD x)))
 (FLTD (FMOVDconst [-0x1p-1022]) x) => (SNEZ (ANDI <typ.Int64> [0b00_1111_1100] (FCLASSD x)))
 
+// Absorb conversion between 32 bit and 64 bit if both src and dst are 32 bit.
+(FCVTSD (F(ABS|SQRT)D (FCVTDS X))) => (F(ABS|SQRT)S X)
+
 // Absorb unary sign bit operations into 64 bit classify instruction.
 (S(EQ|NE)Z (ANDI [c] (FCLASSD (FNEGD x)))) => (S(EQ|NE)Z (ANDI <typ.Int64> [(c&0b11_0000_0000)|int64(bits.Reverse8(uint8(c))&0b1111_1111)] (FCLASSD x)))
 (S(EQ|NE)Z (ANDI [c] (FCLASSD (FABSD x)))) => (S(EQ|NE)Z (ANDI <typ.Int64> [(c&0b11_1111_0000)|int64(bits.Reverse8(uint8(c))&0b0000_1111)] (FCLASSD x)))
@@ -865,6 +869,7 @@
 	(OR (CZEROEQZ <t> x (MOVBUreg <typ.UInt64> cond)) (CZERONEZ <t> y (MOVBUreg <typ.UInt64> cond)))
 (CZERO(EQ|NE)Z x (SNEZ y)) => (CZERO(EQ|NE)Z x y)
 (CZERO(EQ|NE)Z x (SEQZ y)) => (CZERO(NE|EQ)Z x y)
+(CZERO(EQ|NE)Z x (NEG y)) => (CZERO(EQ|NE)Z x y)
 (CZEROEQZ x x) => x
 (CZERONEZ x x) => (MOVDconst [0])
 (CZERO(EQ|NE)Z (MOVDconst [0]) _) => (MOVDconst [0])

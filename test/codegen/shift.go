@@ -68,33 +68,33 @@ func rshConst64x64Overflow8(v int8) int64 {
 }
 
 func lshConst32x1(v int32) int32 {
-	// amd64:"ADDL", -"SHLL"
+	// amd64:"ADDL" -"SHLL"
 	return v << 1
 }
 
 func lshConst64x1(v int64) int64 {
-	// amd64:"ADDQ", -"SHLQ"
+	// amd64:"ADDQ" -"SHLQ"
 	return v << 1
 }
 
 func lshConst32x64(v int32) int32 {
 	// loong64:"SLL "
 	// ppc64x:"SLW"
-	// riscv64:"SLLI" -"AND" -"SLTIU", -"MOVW"
+	// riscv64:"SLLI" -"AND" -"SLTIU" -"MOVW"
 	return v << uint64(29)
 }
 
 func rshConst32Ux64(v uint32) uint32 {
 	// loong64:"SRL "
 	// ppc64x:"SRW"
-	// riscv64:"SRLIW" -"AND" -"SLTIU", -"MOVW"
+	// riscv64:"SRLIW" -"AND" -"SLTIU" -"MOVW"
 	return v >> uint64(29)
 }
 
 func rshConst32x64(v int32) int32 {
 	// loong64:"SRA "
 	// ppc64x:"SRAW"
-	// riscv64:"SRAIW" -"OR" -"SLTIU", -"MOVW"
+	// riscv64:"SRAIW" -"OR" -"SLTIU" -"MOVW"
 	return v >> uint64(29)
 }
 
@@ -123,6 +123,7 @@ func lshConst32x1Add(x int32) int32 {
 	// amd64:"SHLL [$]2"
 	// loong64:"SLL [$]2"
 	// riscv64:"SLLI [$]2"
+	// ppc64x:"SLW [$]2" -"ADD"
 	return (x + x) << 1
 }
 
@@ -130,6 +131,7 @@ func lshConst64x1Add(x int64) int64 {
 	// amd64:"SHLQ [$]2"
 	// loong64:"SLLV [$]2"
 	// riscv64:"SLLI [$]2"
+	// ppc64x:"SLD [$]2" -"ADD"
 	return (x + x) << 1
 }
 
@@ -137,6 +139,7 @@ func lshConst32x2Add(x int32) int32 {
 	// amd64:"SHLL [$]3"
 	// loong64:"SLL [$]3"
 	// riscv64:"SLLI [$]3"
+	// ppc64x:"SLW [$]3" -"ADD"
 	return (x + x) << 2
 }
 
@@ -144,12 +147,14 @@ func lshConst64x2Add(x int64) int64 {
 	// amd64:"SHLQ [$]3"
 	// loong64:"SLLV [$]3"
 	// riscv64:"SLLI [$]3"
+	// ppc64x:"SLD [$]3" -"ADD"
 	return (x + x) << 2
 }
 
 func lshConst32x31Add(x int32) int32 {
 	// loong64:-"SLL " "MOVV R0"
 	// riscv64:-"SLLI" "MOV [$]0"
+	// ppc64x:"ADD" "SLW [$]31" -"SLW [$]32"
 	return (x + x) << 31
 }
 
@@ -524,30 +529,30 @@ func checkShiftAndMask32(v []uint32) {
 }
 
 func checkMergedShifts32(a [256]uint32, b [256]uint64, u uint32, v uint32) {
-	// ppc64x: -"CLRLSLDI", "RLWNM [$]10, R[0-9]+, [$]22, [$]29, R[0-9]+"
+	// ppc64x: -"CLRLSLDI" "RLWNM [$]10, R[0-9]+, [$]22, [$]29, R[0-9]+"
 	a[0] = a[uint8(v>>24)]
-	// ppc64x: -"CLRLSLDI", "RLWNM [$]11, R[0-9]+, [$]21, [$]28, R[0-9]+"
+	// ppc64x: -"CLRLSLDI" "RLWNM [$]11, R[0-9]+, [$]21, [$]28, R[0-9]+"
 	b[0] = b[uint8(v>>24)]
-	// ppc64x: -"CLRLSLDI", "RLWNM [$]15, R[0-9]+, [$]21, [$]28, R[0-9]+"
+	// ppc64x: -"CLRLSLDI" "RLWNM [$]15, R[0-9]+, [$]21, [$]28, R[0-9]+"
 	b[1] = b[(v>>20)&0xFF]
-	// ppc64x: -"SLD", "RLWNM [$]10, R[0-9]+, [$]22, [$]28, R[0-9]+"
+	// ppc64x: -"SLD" "RLWNM [$]10, R[0-9]+, [$]22, [$]28, R[0-9]+"
 	b[2] = b[v>>25]
 }
 
 func checkMergedShifts64(a [256]uint32, b [256]uint64, c [256]byte, v uint64) {
-	// ppc64x: -"CLRLSLDI", "RLWNM [$]10, R[0-9]+, [$]22, [$]29, R[0-9]+"
+	// ppc64x: -"CLRLSLDI" "RLWNM [$]10, R[0-9]+, [$]22, [$]29, R[0-9]+"
 	a[0] = a[uint8(v>>24)]
-	// ppc64x: "SRD", "CLRLSLDI", -"RLWNM"
+	// ppc64x: "SRD" "CLRLSLDI" -"RLWNM"
 	a[1] = a[uint8(v>>25)]
-	// ppc64x: -"CLRLSLDI", "RLWNM [$]9, R[0-9]+, [$]23, [$]29, R[0-9]+"
+	// ppc64x: -"CLRLSLDI" "RLWNM [$]9, R[0-9]+, [$]23, [$]29, R[0-9]+"
 	a[2] = a[v>>25&0x7F]
-	// ppc64x: -"CLRLSLDI", "RLWNM [$]3, R[0-9]+, [$]29, [$]29, R[0-9]+"
+	// ppc64x: -"CLRLSLDI" "RLWNM [$]3, R[0-9]+, [$]29, [$]29, R[0-9]+"
 	a[3] = a[(v>>31)&0x01]
-	// ppc64x: -"CLRLSLDI", "RLWNM [$]12, R[0-9]+, [$]21, [$]28, R[0-9]+"
+	// ppc64x: -"CLRLSLDI" "RLWNM [$]12, R[0-9]+, [$]21, [$]28, R[0-9]+"
 	b[0] = b[uint8(v>>23)]
-	// ppc64x: -"CLRLSLDI", "RLWNM [$]15, R[0-9]+, [$]21, [$]28, R[0-9]+"
+	// ppc64x: -"CLRLSLDI" "RLWNM [$]15, R[0-9]+, [$]21, [$]28, R[0-9]+"
 	b[1] = b[(v>>20)&0xFF]
-	// ppc64x: "RLWNM", -"SLD"
+	// ppc64x: "RLWNM" -"SLD"
 	b[2] = b[((uint64((uint32(v) >> 21)) & 0x3f) << 4)]
 	// ppc64x: -"RLWNM"
 	b[3] = (b[3] << 24) & 0xFFFFFF000000
@@ -568,9 +573,9 @@ func checkMergedShifts64(a [256]uint32, b [256]uint64, c [256]byte, v uint64) {
 func checkShiftMask(a uint32, b uint64, z []uint32, y []uint64) {
 	_ = y[128]
 	_ = z[128]
-	// ppc64x: -"MOVBZ", -"SRW", "RLWNM"
+	// ppc64x: -"MOVBZ" -"SRW" "RLWNM"
 	z[0] = uint32(uint8(a >> 5))
-	// ppc64x: -"MOVBZ", -"SRW", "RLWNM"
+	// ppc64x: -"MOVBZ" -"SRW" "RLWNM"
 	z[1] = uint32(uint8((a >> 4) & 0x7e))
 	// ppc64x: "RLWNM [$]25, R[0-9]+, [$]27, [$]29, R[0-9]+"
 	z[2] = uint32(uint8(a>>7)) & 0x1c
@@ -578,9 +583,9 @@ func checkShiftMask(a uint32, b uint64, z []uint32, y []uint64) {
 	y[0] = uint64((a >> 6) & 0x1c)
 	// ppc64x: -"MOVWZ"
 	y[1] = uint64(uint32(b)<<6) + 1
-	// ppc64x: -"MOVHZ", -"MOVWZ"
+	// ppc64x: -"MOVHZ" -"MOVWZ"
 	y[2] = uint64((uint16(a) >> 9) & 0x1F)
-	// ppc64x: -"MOVHZ", -"MOVWZ", -"ANDCC"
+	// ppc64x: -"MOVHZ" -"MOVWZ" -"ANDCC"
 	y[3] = uint64(((uint16(a) & 0xFF0) >> 9) & 0x1F)
 }
 

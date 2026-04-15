@@ -13,7 +13,29 @@
 #include <stdlib.h>
 
 #include "libcgo.h"
-#include "libcgo_windows.h"
+
+#define IMAGE_GUARD_SECURITY_COOKIE_UNUSED 0x00000800
+// With modern mingw, we can use the normal struct:
+//
+// const IMAGE_LOAD_CONFIG_DIRECTORY _load_config_used = {
+// 	.Size = sizeof(_load_config_used),
+// 	.GuardFlags = IMAGE_GUARD_SECURITY_COOKIE_UNUSED
+// };
+//
+// But we support older toolchains, so instead, fix the offsets:
+#ifdef _WIN64
+const ULONGLONG _load_config_used[40] = {
+	sizeof(_load_config_used),
+	0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+	IMAGE_GUARD_SECURITY_COOKIE_UNUSED
+};
+#else
+const DWORD _load_config_used[48] = {
+	sizeof(_load_config_used),
+	0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+	IMAGE_GUARD_SECURITY_COOKIE_UNUSED
+};
+#endif
 
 static volatile LONG runtime_init_once_gate = 0;
 static volatile LONG runtime_init_once_done = 0;
@@ -26,6 +48,11 @@ static int runtime_init_done;
 // No pthreads on Windows, these are always zero.
 uintptr_t x_cgo_pthread_key_created;
 void (*x_crosscall2_ptr)(void (*fn)(void *), void *, int, size_t);
+void (*_cgo_init)(G*, void (*)(void*), void **, void **);
+void (*_cgo_thread_start)(ThreadStart *);
+void (*_cgo_sys_thread_create)(void* (*func)(void*));
+void (*_cgo_getstackbound)(uintptr[2]);
+void (*_cgo_bindm)(void*);
 
 // Pre-initialize the runtime synchronization objects
 void
@@ -56,11 +83,6 @@ _cgo_maybe_run_preinit() {
 	 }
 }
 
-void
-x_cgo_sys_thread_create(unsigned long (__stdcall *func)(void*), void* arg) {
-	_cgo_beginthread(func, arg);
-}
-
 int
 _cgo_is_runtime_initialized() {
 	 int status;
@@ -88,12 +110,6 @@ _cgo_wait_runtime_init_done(void) {
 		return arg.Context;
 	}
 	return 0;
-}
-
-// Should not be used since x_cgo_pthread_key_created will always be zero.
-void x_cgo_bindm(void* dummy) {
-	fprintf(stderr, "unexpected cgo_bindm on Windows\n");
-	abort();
 }
 
 void
@@ -189,28 +205,3 @@ void x_cgo_call_symbolizer_function(struct cgoSymbolizerArg* arg) {
 
 	(*pfn)(arg);
 }
-
-void _cgo_beginthread(unsigned long (__stdcall *func)(void*), void* arg) {
-	int tries;
-	HANDLE thandle;
-
-	for (tries = 0; tries < 20; tries++) {
-		thandle = CreateThread(NULL, 0, func, arg, 0, NULL);
-		if (thandle == 0 && GetLastError() == ERROR_ACCESS_DENIED) {
-			// "Insufficient resources", try again in a bit.
-			//
-			// Note that the first Sleep(0) is a yield.
-			Sleep(tries); // milliseconds
-			continue;
-		} else if (thandle == 0) {
-			break;
-		}
-		CloseHandle(thandle);
-		return; // Success!
-	}
-
-	fprintf(stderr, "runtime: failed to create new OS thread (%lu)\n", GetLastError());
-	abort();
-}
-
-void x_cgo_getstackbound(uintptr bounds[2]) {} // no-op for now

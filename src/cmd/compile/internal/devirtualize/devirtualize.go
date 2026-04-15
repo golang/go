@@ -182,6 +182,17 @@ const concreteTypeDebug = false
 // Returns nil when the concrete type could not be determined, or when there are multiple
 // (different) types assigned to an interface.
 func concreteType(s *State, n ir.Node) (typ *types.Type) {
+	if concreteTypeDebug {
+		base.Warn("concreteType(%v) - analyzing", n)
+		defer func() {
+			t := typ.String()
+			if typ == nil {
+				t = "<nil> (unknown static type)"
+			}
+			base.Warn("concreteType(%v) -> %v", n, t)
+		}()
+	}
+
 	typ = concreteType1(s, n, make(map[*ir.Name]struct{}))
 	if typ == &noType {
 		return nil
@@ -206,6 +217,9 @@ func concreteType1(s *State, n ir.Node, seen map[*ir.Name]struct{}) (outT *types
 			t := "&noType"
 			if outT != &noType {
 				t = outT.String()
+			}
+			if outT == nil {
+				t = "<nil> (unknown static type)"
 			}
 			base.Warn("concreteType1(%v) -> %v", nn, t)
 		}()
@@ -293,9 +307,22 @@ func concreteType1(s *State, n ir.Node, seen map[*ir.Name]struct{}) (outT *types
 				continue
 			}
 		}
-		if t == nil || (typ != nil && !types.Identical(typ, t)) {
-			return nil
+		if t == nil {
+			return nil // unknown concrete type
 		}
+
+		// Methods are only declared on named types, and each named type
+		// is represented by a unique [*types.Type], thus pointer comparison
+		// is fine here.
+		//
+		// The only scenario where [types.IdenticalStrict] could help here is with
+		// unnamed struct types that embed another type (e.g. foo = struct { Impl }{}).
+		// However, such patterns are uncommon and not worth the additional complexity
+		// in the devirtualizer.
+		if typ != nil && typ != t {
+			return nil // assigned with a different type
+		}
+
 		typ = t
 	}
 

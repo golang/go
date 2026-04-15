@@ -1,0 +1,12 @@
+go test -cover -n ./...
+[!GOOS:windows] stderr $GOROOT'/bin/go tool covdata'
+[GOOS:windows] stderr '\\\\bin\\\\go" tool covdata'
+
+-- go.mod --
+module example.com/m
+
+go 1.25.0
+-- m.go --
+package main
+
+func main() {}

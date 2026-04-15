@@ -14,12 +14,16 @@ func _mod()
 func _modu()
 
 // Called from assembly only; declared for go vet.
-func usplitR0()
+//
+// load_g is also called from runtime/cgo.
+//
+//go:linknamestd load_g
 func load_g()
 func save_g()
 func emptyfunc()
 func _initcgo()
 func read_tls_fallback()
+func usplitR0()
 
 //go:noescape
 func asmcgocall_no_g(fn, arg unsafe.Pointer)

@@ -11,6 +11,7 @@ import (
 	"encoding/hex"
 	"fmt"
 	"math/big"
+	"strings"
 	"time"
 )
 
@@ -38,15 +39,15 @@ var attributeTypeNames = map[string]string{
 // String returns a string representation of the sequence r,
 // roughly following the RFC 2253 Distinguished Names syntax.
 func (r RDNSequence) String() string {
-	s := ""
+	var buf strings.Builder
 	for i := 0; i < len(r); i++ {
 		rdn := r[len(r)-1-i]
 		if i > 0 {
-			s += ","
+			buf.WriteByte(',')
 		}
 		for j, tv := range rdn {
 			if j > 0 {
-				s += "+"
+				buf.WriteByte('+')
 			}
 
 			oidString := tv.Type.String()
@@ -54,7 +55,9 @@ func (r RDNSequence) String() string {
 			if !ok {
 				derBytes, err := asn1.Marshal(tv.Value)
 				if err == nil {
-					s += oidString + "=#" + hex.EncodeToString(derBytes)
+					buf.WriteString(oidString)
+					buf.WriteString("=#")
+					buf.WriteString(hex.EncodeToString(derBytes))
 					continue // No value escaping necessary.
 				}
 
@@ -85,11 +88,13 @@ func (r RDNSequence) String() string {
 				}
 			}
 
-			s += typeName + "=" + string(escaped)
+			buf.WriteString(typeName)
+			buf.WriteByte('=')
+			buf.WriteString(string(escaped))
 		}
 	}
 
-	return s
+	return buf.String()
 }
 
 type RelativeDistinguishedNameSET []AttributeTypeAndValue

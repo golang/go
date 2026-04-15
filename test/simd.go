@@ -150,8 +150,8 @@ func ternTricky3(x, y, z archsimd.Int32x8) archsimd.Int32x8 {
 func vpternlogdPanic() {
 	resultsMask := archsimd.Mask64x8{}
 
-	for { // ERROR "has features avx+avx2+avx512"
-		resultsMask = archsimd.Mask64x8FromBits(0).Or( // ERROR "has features avx+avx2+avx512"
+	for { // ERROR "has features avx[+]avx2[+]avx512"
+		resultsMask = archsimd.Mask64x8FromBits(0).Or( // ERROR "has features avx[+]avx2[+]avx512"
 			archsimd.Float64x8{}.Less(
 				archsimd.BroadcastFloat64x8(0))).Or(resultsMask) // ERROR "Rewriting.*ternInt" "Skipping rewrite"
 		fmt.Print(resultsMask.And(resultsMask.And(archsimd.Mask64x8{})))

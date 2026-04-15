@@ -572,7 +572,8 @@ func (d *Dialer) dialCtx(ctx context.Context) (context.Context, context.CancelFu
 		}
 	}
 	if oldCancel := d.Cancel; oldCancel != nil {
-		subCtx, cancel2 := context.WithCancel(ctx)
+		var subCtx context.Context
+		subCtx, cancel2 = context.WithCancel(ctx)
 		go func() {
 			select {
 			case <-oldCancel:

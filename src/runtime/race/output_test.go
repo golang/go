@@ -26,63 +26,63 @@ func TestOutput(t *testing.T) {
 	}
 
 	for _, test := range tests {
-		if test.goos != "" && test.goos != runtime.GOOS {
-			t.Logf("test %v runs only on %v, skipping: ", test.name, test.goos)
-			continue
-		}
-		dir := t.TempDir()
-		source := "main.go"
-		if test.run == "test" {
-			source = "main_test.go"
-		}
-		src := filepath.Join(dir, source)
-		f, err := os.Create(src)
-		if err != nil {
-			t.Fatalf("failed to create file: %v", err)
-		}
-		_, err = f.WriteString(test.source)
-		if err != nil {
-			f.Close()
-			t.Fatalf("failed to write: %v", err)
-		}
-		if err := f.Close(); err != nil {
-			t.Fatalf("failed to close file: %v", err)
-		}
+		t.Run(test.name, func(t *testing.T) {
+			if test.goos != "" && test.goos != runtime.GOOS {
+				t.Skipf("runs only on %v", test.goos)
+			}
+			dir := t.TempDir()
+			source := "main.go"
+			if test.run == "test" {
+				source = "main_test.go"
+			}
+			src := filepath.Join(dir, source)
+			f, err := os.Create(src)
+			if err != nil {
+				t.Fatalf("failed to create file: %v", err)
+			}
+			_, err = f.WriteString(test.source)
+			if err != nil {
+				f.Close()
+				t.Fatalf("failed to write: %v", err)
+			}
+			if err := f.Close(); err != nil {
+				t.Fatalf("failed to close file: %v", err)
+			}
 
-		cmd := exec.Command(testenv.GoToolPath(t), test.run, "-race", "-pkgdir="+pkgdir, src)
-		// GODEBUG spoils program output, GOMAXPROCS makes it flaky.
-		for _, env := range os.Environ() {
-			if strings.HasPrefix(env, "GODEBUG=") ||
-				strings.HasPrefix(env, "GOMAXPROCS=") ||
-				strings.HasPrefix(env, "GORACE=") {
-				continue
+			cmd := exec.Command(testenv.GoToolPath(t), test.run, "-race", "-pkgdir="+pkgdir, src)
+			// GODEBUG spoils program output, GOMAXPROCS makes it flaky.
+			for _, env := range os.Environ() {
+				if strings.HasPrefix(env, "GODEBUG=") ||
+					strings.HasPrefix(env, "GOMAXPROCS=") ||
+					strings.HasPrefix(env, "GORACE=") {
+					continue
+				}
+				cmd.Env = append(cmd.Env, env)
 			}
-			cmd.Env = append(cmd.Env, env)
-		}
-		cmd.Env = append(cmd.Env,
-			"GOMAXPROCS=1", // see comment in race_test.go
-			"GORACE="+test.gorace,
-		)
-		got, _ := cmd.CombinedOutput()
-		matched := false
-		for _, re := range test.re {
-			if regexp.MustCompile(re).MatchString(string(got)) {
-				matched = true
-				break
-			}
-		}
-		if !matched {
-			exp := fmt.Sprintf("expect:\n%v\n", test.re[0])
-			if len(test.re) > 1 {
-				exp = fmt.Sprintf("expected one of %d patterns:\n",
-					len(test.re))
-				for k, re := range test.re {
-					exp += fmt.Sprintf("pattern %d:\n%v\n", k, re)
+			cmd.Env = append(cmd.Env,
+				"GOMAXPROCS=1", // see comment in race_test.go
+				"GORACE="+test.gorace,
+			)
+			got, _ := cmd.CombinedOutput()
+			matched := false
+			for _, re := range test.re {
+				if regexp.MustCompile(re).MatchString(string(got)) {
+					matched = true
+					break
 				}
 			}
-			t.Fatalf("failed test case %v, %sgot:\n%s",
-				test.name, exp, got)
-		}
+			if !matched {
+				exp := fmt.Sprintf("expect:\n%v\n", test.re[0])
+				if len(test.re) > 1 {
+					exp = fmt.Sprintf("expected one of %d patterns:\n",
+						len(test.re))
+					for k, re := range test.re {
+						exp += fmt.Sprintf("pattern %d:\n%v\n", k, re)
+					}
+				}
+				t.Fatalf("failed test case: %sgot:\n%s", exp, got)
+			}
+		})
 	}
 }
 
@@ -119,7 +119,9 @@ func racer() {
 	store(xptr, 42)
 	donechan <- true
 }
-`, []string{`==================
+`, []string{
+	// Allow the race output in either order.
+	`==================
 WARNING: DATA RACE
 Write at 0x[0-9,a-f]+ by goroutine [0-9]:
   main\.store\(\)
@@ -132,6 +134,29 @@ Previous write at 0x[0-9,a-f]+ by main goroutine:
       .+/main\.go:14 \+0x[0-9,a-f]+
   main\.main\(\)
       .+/main\.go:10 \+0x[0-9,a-f]+
+
+Goroutine [0-9] \(running\) created at:
+  main\.startRacer\(\)
+      .+/main\.go:19 \+0x[0-9,a-f]+
+  main\.main\(\)
+      .+/main\.go:9 \+0x[0-9,a-f]+
+==================
+Found 1 data race\(s\)
+exit status 66
+`,
+	`==================
+WARNING: DATA RACE
+Write at 0x[0-9,a-f]+ by goroutine [0-9]:
+  main\.store\(\)
+      .+/main\.go:14 \+0x[0-9,a-f]+
+  main\.main\(\)
+      .+/main\.go:10 \+0x[0-9,a-f]+
+
+Previous write at 0x[0-9,a-f]+ by main goroutine:
+  main\.store\(\)
+      .+/main\.go:14 \+0x[0-9,a-f]+
+  main\.racer\(\)
+      .+/main\.go:23 \+0x[0-9,a-f]+
 
 Goroutine [0-9] \(running\) created at:
   main\.startRacer\(\)
@@ -253,7 +278,9 @@ func g(c chan int) {
 func h(c chan int) {
 	c <- x
 }
-`, []string{`==================
+`, []string{
+	// Allow the race output in either order.
+	`==================
 WARNING: DATA RACE
 Read at 0x[0-9,a-f]+ by goroutine [0-9]:
   main\.h\(\)
@@ -266,6 +293,27 @@ Read at 0x[0-9,a-f]+ by goroutine [0-9]:
 Previous write at 0x[0-9,a-f]+ by main goroutine:
   main\.main\(\)
       .+/main\.go:9 \+0x[0-9,a-f]+
+
+Goroutine [0-9] \(running\) created at:
+  main\.main\(\)
+      .+/main\.go:8 \+0x[0-9,a-f]+
+==================
+Found 1 data race\(s\)
+exit status 66
+`,
+	`==================
+WARNING: DATA RACE
+Write at 0x[0-9,a-f]+ by main goroutine:
+  main\.main\(\)
+      .+/main\.go:9 \+0x[0-9,a-f]+
+
+Previous read at 0x[0-9,a-f]+ by goroutine [0-9]:
+  main\.h\(\)
+      .+/main\.go:22 \+0x[0-9,a-f]+
+  main\.g\(\)
+      .+/main\.go:18 \+0x[0-9,a-f]+
+  main\.f\(\)
+      .+/main\.go:14 \+0x[0-9,a-f]+
 
 Goroutine [0-9] \(running\) created at:
   main\.main\(\)
@@ -312,7 +360,9 @@ func main() {
 	racy++
 	<- done
 }
-`, []string{`==================
+`, []string{
+	// Optionally allow ABI wrappers, and allow the race output in either order.
+	`==================
 WARNING: DATA RACE
 Read at 0x[0-9,a-f]+ by main goroutine:
   main\.main\(\)
@@ -325,6 +375,24 @@ Previous write at 0x[0-9,a-f]+ by goroutine [0-9]:
       .*_cgo_gotypes\.go:[0-9]+ \+0x[0-9,a-f]+
   _cgoexp_[0-9a-z]+_goCallback\(\)
       <autogenerated>:1 \+0x[0-9,a-f]+
+
+Goroutine [0-9] \(running\) created at:
+  runtime\.newextram\(\)
+      .*/runtime/proc.go:[0-9]+ \+0x[0-9,a-f]+
+==================`,
+	`==================
+WARNING: DATA RACE
+Write at 0x[0-9,a-f]+ by goroutine [0-9]:
+  main\.goCallback\(\)
+      .*/main\.go:27 \+0x[0-9,a-f]+
+  _cgoexp_[0-9a-z]+_goCallback\(\)
+      .*_cgo_gotypes\.go:[0-9]+ \+0x[0-9,a-f]+
+  _cgoexp_[0-9a-z]+_goCallback\(\)
+      <autogenerated>:1 \+0x[0-9,a-f]+
+
+Previous read at 0x[0-9,a-f]+ by main goroutine:
+  main\.main\(\)
+      .*/main\.go:34 \+0x[0-9,a-f]+
 
 Goroutine [0-9] \(running\) created at:
   runtime\.newextram\(\)
@@ -425,7 +493,9 @@ func main() {
 	wg.Wait()
 	_ = data
 }
-`, []string{`==================
+`, []string{
+	// Allow the race output in either order.
+	`==================
 WARNING: DATA RACE
 Write at 0x[0-9,a-f]+ by goroutine [0-9]:
   main\.main\.func2\(\)
@@ -434,6 +504,20 @@ Write at 0x[0-9,a-f]+ by goroutine [0-9]:
 Previous write at 0x[0-9,a-f]+ by main goroutine:
   main\.main\(\)
       .*/main\.go:23 \+0x[0-9,a-f]+
+
+Goroutine [0-9] \(running\) created at:
+  main\.main\(\)
+      .*/main.go:[0-9]+ \+0x[0-9,a-f]+
+==================`,
+	`==================
+WARNING: DATA RACE
+Write at 0x[0-9,a-f]+ by main goroutine:
+  main\.main\(\)
+      .*/main\.go:23 \+0x[0-9,a-f]+
+
+Previous write at 0x[0-9,a-f]+ by goroutine [0-9]:
+  main\.main\.func2\(\)
+      .*/main\.go:21 \+0x[0-9,a-f]+
 
 Goroutine [0-9] \(running\) created at:
   main\.main\(\)
@@ -458,7 +542,9 @@ func (t T) f() {
 	x = 42
 	wg.Done()
 }
-`, []string{`==================
+`, []string{
+	// Allow the race output in either order.
+	`==================
 WARNING: DATA RACE
 Write at 0x[0-9,a-f]+ by goroutine [0-9]:
   main\.T\.f\(\)
@@ -475,6 +561,25 @@ Previous write at 0x[0-9,a-f]+ by main goroutine:
       <autogenerated>:1 \+0x[0-9,a-f]+
   main\.main\(\)
       .*/main.go:10 \+0x[0-9,a-f]+
+
+`,
+	`==================
+WARNING: DATA RACE
+Write at 0x[0-9,a-f]+ by main goroutine:
+  main\.T\.f\(\)
+      .*/main.go:15 \+0x[0-9,a-f]+
+  main\.\(\*T\)\.f\(\)
+      <autogenerated>:1 \+0x[0-9,a-f]+
+  main\.main\(\)
+      .*/main.go:10 \+0x[0-9,a-f]+
+
+Previous write at 0x[0-9,a-f]+ by goroutine [0-9]:
+  main\.T\.f\(\)
+      .*/main.go:15 \+0x[0-9,a-f]+
+  main\.\(\*T\)\.f\(\)
+      <autogenerated>:1 \+0x[0-9,a-f]+
+  main\.main\.gowrap1\(\)
+      .*/main.go:9 \+0x[0-9,a-f]+
 
 `}},
 	{"non_inline_array_compare", "run", "", "atexit_sleep_ms=0", `

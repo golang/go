@@ -253,6 +253,10 @@ type rfc2821Mailbox struct {
 	local, domain string
 }
 
+func (s rfc2821Mailbox) String() string {
+	return fmt.Sprintf("%s@%s", s.local, s.domain)
+}
+
 // parseRFC2821Mailbox parses an email address into local and domain parts,
 // based on the ABNF for a “Mailbox” from RFC 2821. According to RFC 5280,
 // Section 4.2.1.6 that's correct for an rfc822Name from a certificate: “The
@@ -716,6 +720,8 @@ func alreadyInChain(candidate *Certificate, chain []*Certificate) bool {
 // for failed checks due to different intermediates having the same Subject.
 const maxChainSignatureChecks = 100
 
+var errSignatureLimit = errors.New("x509: signature check attempts limit reached while verifying certificate chain")
+
 func (c *Certificate) buildChains(currentChain []*Certificate, sigChecks *int, opts *VerifyOptions) (chains [][]*Certificate, err error) {
 	var (
 		hintErr  error
@@ -723,16 +729,16 @@ func (c *Certificate) buildChains(currentChain []*Certificate, sigChecks *int, o
 	)
 
 	considerCandidate := func(certType int, candidate potentialParent) {
-		if candidate.cert.PublicKey == nil || alreadyInChain(candidate.cert, currentChain) {
-			return
-		}
-
 		if sigChecks == nil {
 			sigChecks = new(int)
 		}
 		*sigChecks++
 		if *sigChecks > maxChainSignatureChecks {
-			err = errors.New("x509: signature check attempts limit reached while verifying certificate chain")
+			err = errSignatureLimit
+			return
+		}
+
+		if candidate.cert.PublicKey == nil || alreadyInChain(candidate.cert, currentChain) {
 			return
 		}
 
@@ -773,11 +779,20 @@ func (c *Certificate) buildChains(currentChain []*Certificate, sigChecks *int, o
 		}
 	}
 
-	for _, root := range opts.Roots.findPotentialParents(c) {
-		considerCandidate(rootCertificate, root)
-	}
-	for _, intermediate := range opts.Intermediates.findPotentialParents(c) {
-		considerCandidate(intermediateCertificate, intermediate)
+candidateLoop:
+	for _, parents := range []struct {
+		certType   int
+		potentials []potentialParent
+	}{
+		{rootCertificate, opts.Roots.findPotentialParents(c)},
+		{intermediateCertificate, opts.Intermediates.findPotentialParents(c)},
+	} {
+		for _, parent := range parents.potentials {
+			considerCandidate(parents.certType, parent)
+			if err == errSignatureLimit {
+				break candidateLoop
+			}
+		}
 	}
 
 	if len(chains) > 0 {
@@ -1280,11 +1295,11 @@ func policiesValid(chain []*Certificate, opts VerifyOptions) bool {
 						} else {
 							// 6.1.4 (b) (3) (i) -- as updated by RFC 9618
 							pg.deleteLeaf(mapping.IssuerDomainPolicy)
-
-							// 6.1.4 (b) (3) (ii) -- as updated by RFC 9618
-							pg.prune()
 						}
 					}
+
+					// 6.1.4 (b) (3) (ii) -- as updated by RFC 9618
+					pg.prune()
 
 					for issuerStr, subjectPolicies := range mappings {
 						// 6.1.4 (b) (1) -- as updated by RFC 9618

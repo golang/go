@@ -56,6 +56,11 @@ var errUnexpectedEnd = errors.New("unexpected end of JSON input")
 func transformSyntacticError(err error) error {
 	switch serr, ok := err.(*jsontext.SyntacticError); {
 	case serr != nil:
+		// If the SyntacticError wraps an IO error, unwrap it
+		// to match v1 behavior which returned IO errors directly.
+		if export.IsIOError(serr.Err) {
+			return errors.Unwrap(serr.Err)
+		}
 		if serr.Err == io.ErrUnexpectedEOF {
 			serr.Err = errUnexpectedEnd
 		}

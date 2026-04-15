@@ -52,7 +52,7 @@ func maybeRewriteLoopToDownwardCountingLoop(f *Func, v indVar) {
 	}
 
 	start, end := v.min, v.max
-	if v.flags&indVarCountDown != 0 {
+	if v.step < 0 {
 		start, end = end, start
 	}
 
@@ -76,32 +76,66 @@ func maybeRewriteLoopToDownwardCountingLoop(f *Func, v indVar) {
 		return
 	}
 
-	check := ind.Block.Controls[0]
-	// invert the check
-	check.Args[0], check.Args[1] = check.Args[1], check.Args[0]
+	check := v.entry.Preds[0].b.Controls[0]
+
+	neededRoom := -v.step
+
+	// The whole range of safe numbers to land in to stop the loop is shifted by one if the bounds are exclusive.
+	if neededRoom < 0 && v.flags&indVarMinExc == 1 {
+		neededRoom++ // safe because it is always against the number's sign
+	}
+	if neededRoom > 0 && v.flags&indVarMaxInc == 0 {
+		neededRoom-- // safe because it is always against the number's sign
+	}
+
+	switch check.Op {
+	case OpLess8, OpLess16, OpLess32, OpLess64, OpLeq8, OpLeq16, OpLeq32, OpLeq64:
+		if _, ok := safeAdd(start.AuxInt, neededRoom, uint(start.Type.Size())*8); !ok {
+			// We lack sufficient room after start to safely land without an overflow.
+			// See go.dev/issue/78303
+			return
+		}
+	case OpLess8U, OpLess16U, OpLess32U, OpLess64U, OpLeq8U, OpLeq16U, OpLeq32U, OpLeq64U:
+		panic(`parseIndVar didn't yet support unsigned induction variables, this code doesn't yet support them either.
+If you are seeing this it is probably because you've fixed https://go.dev/issue/65918.
+You need to update this code and add tests then.`)
+	case OpEq8, OpEq16, OpEq32, OpEq64, OpNeq8, OpNeq16, OpNeq32, OpNeq64:
+		panic(`parseIndVar didn't yet support induction variables using == or !=.
+If you are seeing this it is probably because you've added support for them.
+You need to update this code and add tests then.`)
+	default:
+		panic(fmt.Sprintf("unreachable; unexpected induction variable comparator %v %v", check, check.Op))
+	}
+
+	idxEnd, idxStart := -1, -1
+	for i, v := range check.Args {
+		if v == end {
+			idxEnd = i
+			break
+		}
+	}
+	for i, v := range ind.Args {
+		if v == start {
+			idxStart = i
+			break
+		}
+	}
+	if idxEnd < 0 || idxStart < 0 {
+		return
+	}
+
+	sdom := f.Sdom()
+	// the end may not dominate the ind after rewrite, check it first
+	if !sdom.IsAncestorEq(end.Block, ind.Block) {
+		return
+	}
 
 	// swap start and end in the loop
-	for i, v := range check.Args {
-		if v != end {
-			continue
-		}
+	check.SetArg(idxEnd, start)
+	ind.SetArg(idxStart, end)
 
-		check.SetArg(i, start)
-		goto replacedEnd
-	}
-	panic(fmt.Sprintf("unreachable, ind: %v, start: %v, end: %v", ind, start, end))
-replacedEnd:
-
-	for i, v := range ind.Args {
-		if v != start {
-			continue
-		}
-
-		ind.SetArg(i, end)
-		goto replacedStart
-	}
-	panic(fmt.Sprintf("unreachable, ind: %v, start: %v, end: %v", ind, start, end))
-replacedStart:
+	// invert the check
+	check.Args[0], check.Args[1] = check.Args[1], check.Args[0]
 
 	if nxt.Args[0] != ind {
 		// unlike additions subtractions are not commutative so be sure we get it right

@@ -7,6 +7,7 @@ package ld
 import (
 	"bytes"
 	"cmd/internal/codesign"
+	"cmd/internal/hash"
 	imacho "cmd/internal/macho"
 	"cmd/internal/objabi"
 	"cmd/internal/sys"
@@ -19,6 +20,7 @@ import (
 	"io"
 	"os"
 	"sort"
+	"strconv"
 	"strings"
 	"unsafe"
 )
@@ -404,6 +406,50 @@ func machowrite(ctxt *Link, arch *sys.Arch, out *OutBuf, linkmode LinkMode) int 
 	return int(out.Offset() - o1)
 }
 
+type macVersionFlag [3]byte
+
+func (f *macVersionFlag) String() string {
+	return fmt.Sprintf("%d.%d.%d", f[0], f[1], f[2])
+}
+
+func (f *macVersionFlag) Set(s string) error {
+	var parsed macVersionFlag
+	nums := strings.Split(s, ".")
+	if len(nums) > 3 {
+		goto Error
+	}
+	for i, num := range nums {
+		n, err := strconv.Atoi(num)
+		if err != nil || n < 0 || n > 0xFF {
+			goto Error
+		}
+		parsed[i] = byte(n)
+	}
+	// success, now modify f
+	*f = parsed
+	return nil
+
+Error:
+	return fmt.Errorf("invalid version %q", s)
+}
+
+func (f *macVersionFlag) version() uint32 {
+	return uint32(f[0])<<16 | uint32(f[1])<<8 | uint32(f[2])
+}
+
+var (
+	// On advice from Apple engineers, we keep macOS set to the
+	// oldest supported macOS version but keep macSDK to the newest
+	// tested OS/SDK version. If these defaults are not good enough,
+	// the -macos and -macsdk linker flags can override them.
+	// For past problems involving these values, see
+	//	go.dev/issue/30488
+	//	go.dev/issue/56784
+	//	go.dev/issue/77917
+	macOS  = macVersionFlag{13, 0, 0}
+	macSDK = macVersionFlag{26, 2, 0}
+)
+
 func (ctxt *Link) domacho() {
 	if *FlagD {
 		return
@@ -415,8 +461,7 @@ func (ctxt *Link) domacho() {
 		if err != nil {
 			Exitf("%v", err)
 		}
-		if load != nil {
-			machoPlatform = load.platform
+		if load != nil && load.platform != PLATFORM_MACOS {
 			ml := newMachoLoad(ctxt.Arch, load.cmd.type_, uint32(len(load.cmd.data)))
 			copy(ml.data, load.cmd.data)
 			break
@@ -427,23 +472,12 @@ func (ctxt *Link) domacho() {
 		if buildcfg.GOOS == "ios" {
 			machoPlatform = PLATFORM_IOS
 		}
-		if ctxt.LinkMode == LinkInternal && machoPlatform == PLATFORM_MACOS {
-			var version uint32
-			switch ctxt.Arch.Family {
-			case sys.ARM64, sys.AMD64:
-				// This must be fairly recent for Apple signing (go.dev/issue/30488).
-				// Having too old a version here was also implicated in some problems
-				// calling into macOS libraries (go.dev/issue/56784).
-				// CL 460476 noted that in general this can be the most recent supported
-				// macOS version, but we haven't tested if going higher than Go's oldest
-				// supported macOS version could cause new problems.
-				version = 12<<16 | 0<<8 | 0<<0 // 12.0.0
-			}
+		if load == nil && machoPlatform == PLATFORM_MACOS {
 			ml := newMachoLoad(ctxt.Arch, imacho.LC_BUILD_VERSION, 4)
 			ml.data[0] = uint32(machoPlatform)
-			ml.data[1] = version // OS version
-			ml.data[2] = version // SDK version
-			ml.data[3] = 0       // ntools
+			ml.data[1] = macOS.version()
+			ml.data[2] = macSDK.version()
+			ml.data[3] = 0 // ntools
 		}
 	}
 
@@ -806,18 +840,24 @@ func asmbMacho(ctxt *Link) {
 			}
 		}
 
-		if ctxt.IsInternal() && len(buildinfo) > 0 {
+		if ctxt.IsInternal() && *flagHostBuildid != "none" {
 			ml := newMachoLoad(ctxt.Arch, imacho.LC_UUID, 4)
-			// Mach-O UUID is 16 bytes
-			if len(buildinfo) < 16 {
-				buildinfo = append(buildinfo, make([]byte, 16)...)
+			var uuid [16]byte
+			if len(buildinfo) >= 16 {
+				copy(uuid[:], buildinfo)
+			} else {
+				// Note: When setting macSDK to 26.2, dyld refuses to run any
+				// binary without an LC_UUID, which makes bootstrap fail.
+				// To work around that situation, if buildinfo is missing we
+				// construct a hash of the binary written so far and use that.
+				// Using -B none will bypass this if desired,
+				// but the resulting binary may not be runnable.
+				copy(uuid[:], uuidFromHash(hash.Sum32(ctxt.Out.Data())))
 			}
-			// By default, buildinfo is already in UUIDv3 format
-			// (see uuidFromGoBuildId).
-			ml.data[0] = ctxt.Arch.ByteOrder.Uint32(buildinfo)
-			ml.data[1] = ctxt.Arch.ByteOrder.Uint32(buildinfo[4:])
-			ml.data[2] = ctxt.Arch.ByteOrder.Uint32(buildinfo[8:])
-			ml.data[3] = ctxt.Arch.ByteOrder.Uint32(buildinfo[12:])
+			ml.data[0] = ctxt.Arch.ByteOrder.Uint32(uuid[0:])
+			ml.data[1] = ctxt.Arch.ByteOrder.Uint32(uuid[4:])
+			ml.data[2] = ctxt.Arch.ByteOrder.Uint32(uuid[8:])
+			ml.data[3] = ctxt.Arch.ByteOrder.Uint32(uuid[12:])
 		}
 
 		if ctxt.IsInternal() && ctxt.NeedCodeSign() {

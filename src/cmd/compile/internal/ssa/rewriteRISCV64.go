@@ -524,6 +524,8 @@ func rewriteValueRISCV64(v *Value) bool {
 		return rewriteValueRISCV64_OpRISCV64FADDD(v)
 	case OpRISCV64FADDS:
 		return rewriteValueRISCV64_OpRISCV64FADDS(v)
+	case OpRISCV64FCVTSD:
+		return rewriteValueRISCV64_OpRISCV64FCVTSD(v)
 	case OpRISCV64FEQD:
 		return rewriteValueRISCV64_OpRISCV64FEQD(v)
 	case OpRISCV64FLED:
@@ -804,6 +806,9 @@ func rewriteValueRISCV64(v *Value) bool {
 		return true
 	case OpTailCall:
 		v.Op = OpRISCV64CALLtail
+		return true
+	case OpTailCallInter:
+		v.Op = OpRISCV64CALLtailinter
 		return true
 	case OpTrunc16to8:
 		v.Op = OpCopy
@@ -3585,6 +3590,18 @@ func rewriteValueRISCV64_OpRISCV64CZEROEQZ(v *Value) bool {
 		v.AddArg2(x, y)
 		return true
 	}
+	// match: (CZEROEQZ x (NEG y))
+	// result: (CZEROEQZ x y)
+	for {
+		x := v_0
+		if v_1.Op != OpRISCV64NEG {
+			break
+		}
+		y := v_1.Args[0]
+		v.reset(OpRISCV64CZEROEQZ)
+		v.AddArg2(x, y)
+		return true
+	}
 	// match: (CZEROEQZ x x)
 	// result: x
 	for {
@@ -3631,6 +3648,18 @@ func rewriteValueRISCV64_OpRISCV64CZERONEZ(v *Value) bool {
 		}
 		y := v_1.Args[0]
 		v.reset(OpRISCV64CZEROEQZ)
+		v.AddArg2(x, y)
+		return true
+	}
+	// match: (CZERONEZ x (NEG y))
+	// result: (CZERONEZ x y)
+	for {
+		x := v_0
+		if v_1.Op != OpRISCV64NEG {
+			break
+		}
+		y := v_1.Args[0]
+		v.reset(OpRISCV64CZERONEZ)
 		v.AddArg2(x, y)
 		return true
 	}
@@ -3704,6 +3733,40 @@ func rewriteValueRISCV64_OpRISCV64FADDS(v *Value) bool {
 			return true
 		}
 		break
+	}
+	return false
+}
+func rewriteValueRISCV64_OpRISCV64FCVTSD(v *Value) bool {
+	v_0 := v.Args[0]
+	// match: (FCVTSD (FABSD (FCVTDS X)))
+	// result: (FABSS X)
+	for {
+		if v_0.Op != OpRISCV64FABSD {
+			break
+		}
+		v_0_0 := v_0.Args[0]
+		if v_0_0.Op != OpRISCV64FCVTDS {
+			break
+		}
+		X := v_0_0.Args[0]
+		v.reset(OpRISCV64FABSS)
+		v.AddArg(X)
+		return true
+	}
+	// match: (FCVTSD (FSQRTD (FCVTDS X)))
+	// result: (FSQRTS X)
+	for {
+		if v_0.Op != OpRISCV64FSQRTD {
+			break
+		}
+		v_0_0 := v_0.Args[0]
+		if v_0_0.Op != OpRISCV64FCVTDS {
+			break
+		}
+		X := v_0_0.Args[0]
+		v.reset(OpRISCV64FSQRTS)
+		v.AddArg(X)
+		return true
 	}
 	return false
 }

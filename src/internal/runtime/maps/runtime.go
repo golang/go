@@ -7,6 +7,7 @@ package maps
 import (
 	"internal/abi"
 	"internal/asan"
+	"internal/goexperiment"
 	"internal/msan"
 	"internal/race"
 	"internal/runtime/sys"
@@ -14,6 +15,18 @@ import (
 )
 
 // Functions below pushed from runtime.
+//
+//go:noescape
+//go:linkname memhash32 runtime.memhash32
+func memhash32(p unsafe.Pointer, h uintptr) uintptr
+
+//go:noescape
+//go:linkname memhash64 runtime.memhash64
+func memhash64(p unsafe.Pointer, h uintptr) uintptr
+
+//go:noescape
+//go:linkname strhash runtime.strhash
+func strhash(a unsafe.Pointer, h uintptr) uintptr
 
 //go:linkname fatal
 func fatal(s string)
@@ -112,7 +125,12 @@ func runtime_mapaccess2(typ *abi.MapType, m *Map, key unsafe.Pointer) (unsafe.Po
 				slotKey = *((*unsafe.Pointer)(slotKey))
 			}
 			if typ.Key.Equal(key, slotKey) {
-				slotElem := unsafe.Pointer(uintptr(slotKeyOrig) + typ.ElemOff)
+				var slotElem unsafe.Pointer
+				if goexperiment.MapSplitGroup {
+					slotElem = g.elem(typ, i)
+				} else {
+					slotElem = unsafe.Pointer(uintptr(slotKeyOrig) + typ.ElemOff)
+				}
 				if typ.IndirectElem() {
 					slotElem = *((*unsafe.Pointer)(slotElem))
 				}
@@ -211,7 +229,11 @@ outer:
 						typedmemmove(typ.Key, slotKey, key)
 					}
 
-					slotElem = unsafe.Pointer(uintptr(slotKeyOrig) + typ.ElemOff)
+					if goexperiment.MapSplitGroup {
+						slotElem = g.elem(typ, i)
+					} else {
+						slotElem = unsafe.Pointer(uintptr(slotKeyOrig) + typ.ElemOff)
+					}
 					if typ.IndirectElem() {
 						slotElem = *((*unsafe.Pointer)(slotElem))
 					}
@@ -253,7 +275,11 @@ outer:
 					}
 					typedmemmove(typ.Key, slotKey, key)
 
-					slotElem = unsafe.Pointer(uintptr(slotKeyOrig) + typ.ElemOff)
+					if goexperiment.MapSplitGroup {
+						slotElem = g.elem(typ, i)
+					} else {
+						slotElem = unsafe.Pointer(uintptr(slotKeyOrig) + typ.ElemOff)
+					}
 					if typ.IndirectElem() {
 						emem := newobject(typ.Elem)
 						*(*unsafe.Pointer)(slotElem) = emem

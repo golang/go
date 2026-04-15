@@ -8,6 +8,7 @@ package json
 
 import (
 	"bytes"
+	"errors"
 	"io"
 	"log"
 	"net"
@@ -611,5 +612,28 @@ func TestDecoderInputOffset(t *testing.T) {
 
 	if len(wantOffsets)+len(wantMores) > 0 {
 		t.Fatal("unconsumed testdata")
+	}
+}
+
+func TestDecoderMaxBytesError(t *testing.T) {
+	// Verify that Decoder.Decode returns the underlying IO error
+	// (not wrapped in *SyntaxError) when http.MaxBytesReader
+	// triggers a read limit, matching v1 behavior.
+	oversized := strings.Repeat("x", 1<<20+1)
+	body := `{"name":"` + oversized + `"}`
+
+	req := httptest.NewRequest(http.MethodPost, "/", strings.NewReader(body))
+	rec := httptest.NewRecorder()
+	req.Body = http.MaxBytesReader(rec, req.Body, 1<<20)
+
+	var v map[string]any
+	err := NewDecoder(req.Body).Decode(&v)
+	if err == nil {
+		t.Fatal("expected error, got nil")
+	}
+
+	var maxBytesErr *http.MaxBytesError
+	if !errors.As(err, &maxBytesErr) {
+		t.Errorf("errors.As(err, *http.MaxBytesError) = false, want true\nerror type: %T\nerror: %v", err, err)
 	}
 }

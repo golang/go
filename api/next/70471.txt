@@ -1,0 +1,6 @@
+pkg hash/maphash, method (ComparableHasher[$0]) Equal($0, $0) bool #70471
+pkg hash/maphash, method (ComparableHasher[$0]) Hash(*Hash, $0) #70471
+pkg hash/maphash, type ComparableHasher[$0 comparable] struct #70471
+pkg hash/maphash, type Hasher[$0 interface{}] interface { Equal, Hash } #70471
+pkg hash/maphash, type Hasher[$0 interface{}] interface, Equal($0, $0) bool #70471
+pkg hash/maphash, type Hasher[$0 interface{}] interface, Hash(*Hash, $0) #70471

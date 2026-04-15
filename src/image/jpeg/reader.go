@@ -755,7 +755,27 @@ func (d *decoder) isRGB() bool {
 }
 
 func (d *decoder) convertToRGB() (image.Image, error) {
-	cScale := d.comp[0].h / d.comp[1].h
+	// Historically, we only supported 4:4:4, 4:4:0, 4:2:2, 4:2:0, 4:1:1 or
+	// 4:1:0 chroma subsampling ratios. Other configurations (including situations
+	// where Chroma-Blue and Chroma-Red have different subsampling) are very rare,
+	// but not impossible. That restriction was relaxed in Go 1.27 (2026).
+	//
+	// It's also very rare but not impossible for 3-channel JPEG images to be
+	// RGB instead of YCbCr, in which case this convertToRGB function will be
+	// called. Note that RGB-instead-of-YCbCr is a property of the JPEG file
+	// itself (in the SOF marker), not of the Go code decoding the image.
+	//
+	// convertToRGB still makes those historical assumptions and does not
+	// support the intersection of (1) atypical chroma subsampling and (2)
+	// RGB-instead-of-YCbCr. Both of those are very rare and the intersection
+	// is even more so.
+	h0, h1, h2 := d.comp[0].h, d.comp[1].h, d.comp[2].h
+	v0, v1, v2 := d.comp[0].v, d.comp[1].v, d.comp[2].v
+	if (h1 != h2) || (h0%h1 != 0) || (v1 != v2) || (v0%v1 != 0) {
+		return nil, errUnsupportedSubsamplingRatio
+	}
+
+	cScale := h0 / h1
 	bounds := d.img3.Bounds()
 	img := image.NewRGBA(bounds)
 	for y := bounds.Min.Y; y < bounds.Max.Y; y++ {

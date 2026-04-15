@@ -29,6 +29,8 @@ func init() {
 
 func plusbuild(pass *analysis.Pass) (any, error) {
 	check := func(f *ast.File) {
+		// "//go:build" directives were added in go1.17, but
+		// we didn't start eliminating +build directives till go1.18.
 		if !analyzerutil.FileUsesGoVersion(pass, f, versions.Go1_18) {
 			return
 		}

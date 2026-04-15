@@ -31,7 +31,7 @@ func Deprecation(doc *ast.CommentGroup) string {
 
 // -- plundered from the future (CL 605517, issue #68021) --
 
-// TODO(adonovan): replace with ast.Directive after go1.25 (#68021).
+// TODO(adonovan): replace with ast.Directive in go1.26 (#68021).
 // Beware of our local mods to handle analysistest
 // "want" comments on the same line.
 

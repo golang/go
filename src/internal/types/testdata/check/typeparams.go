@@ -326,11 +326,13 @@ func init() {}
 func init[_ /* ERROR "func init must have no type parameters" */ any]() {}
 func init[P /* ERROR "func init must have no type parameters" */ any]() {}
 
+// type parameters on concrete methods are permitted
+
 type T struct {}
 
 func (T) m1() {}
-func (T) m2[_ /* ERROR "method m2 must have no type parameters" */ any]() {}
-func (T) m3[P /* ERROR "method m3 must have no type parameters" */ any]() {}
+func (T) m2[_ any]() {}
+func (T) m3[P any]() {}
 
 // type inference across parameterized types
 

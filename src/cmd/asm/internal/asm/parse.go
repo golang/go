@@ -423,6 +423,70 @@ func (p *Parser) operand(a *obj.Addr) {
 		}
 	}
 
+	// Detect AC_PREGSEL operand syntax: [selreg, $idximm](preg.T2)
+	if tok.ScanToken == '[' && p.arch.Family == sys.ARM64 {
+		pos := p.inputPos
+		if pos+5 < len(p.input) && p.input[pos].ScanToken == scanner.Ident &&
+			p.input[pos+1].ScanToken == ',' && p.input[pos+2].ScanToken == '$' &&
+			p.input[pos+3].ScanToken == scanner.Int && p.input[pos+4].ScanToken == ']' &&
+			p.input[pos+5].ScanToken == '(' {
+
+			selregStr := p.input[pos].String()
+			immStr := p.input[pos+3].String()
+
+			pos += 6 // past '('
+			if pos < len(p.input) && p.input[pos].ScanToken == scanner.Ident {
+				pregStr := p.input[pos].String()
+				pos++
+				ext := ""
+				if pos < len(p.input) && p.input[pos].ScanToken == '.' {
+					pos++
+					if pos < len(p.input) && p.input[pos].ScanToken == scanner.Ident {
+						ext = p.input[pos].String()
+						pos++
+					}
+				}
+				if pos < len(p.input) && p.input[pos].ScanToken == ')' {
+					// Matches AC_PREGSEL syntax!
+					p.inputPos = pos + 1 // consume the parsed tokens
+
+					// Encode components
+					selreg, ok1 := p.registerReference(selregStr)
+					preg, ok2 := p.registerReference(pregStr)
+					idximm := int64(p.atoi(immStr))
+
+					if !ok1 || !ok2 {
+						p.errorf("invalid registers in pregsel operand")
+						return
+					}
+
+					var arng2 int
+					switch ext {
+					case "B":
+						arng2 = arm64.ARNG_B
+					case "H":
+						arng2 = arm64.ARNG_H
+					case "S":
+						arng2 = arm64.ARNG_S
+					case "D":
+						arng2 = arm64.ARNG_D
+					case "Q":
+						arng2 = arm64.ARNG_Q
+					default:
+						p.errorf("invalid P register arrangement: %s", ext)
+						return
+					}
+
+					// Pack values into a.Offset
+					a.Type = obj.TYPE_REG
+					a.Offset = int64(preg&31) | int64((arng2&15)<<5) | int64((selreg&31)<<9) | (idximm << 14) | (int64(1) << 62)
+					p.expectOperandEnd()
+					return
+				}
+			}
+		}
+	}
+
 	// Special register list syntax for arm: [R1,R3-R7]
 	if tok.ScanToken == '[' {
 		if prefix != 0 {
@@ -470,6 +534,30 @@ func (p *Parser) operand(a *obj.Addr) {
 		// fmt.Printf("REG %s\n", obj.Dconv(&emptyProg, 0, a))
 		p.expectOperandEnd()
 		return
+	}
+
+	// Detect (VL*imm) or (-VL*imm) pattern in ARM64
+	if p.arch.Family == sys.ARM64 && len(p.input) >= 5 && p.input[0].ScanToken == '(' {
+		pos := 1
+		sign := int64(1)
+		if p.input[pos].ScanToken == '-' {
+			sign = -1
+			pos++
+		} else if p.input[pos].ScanToken == '+' {
+			pos++
+		}
+		if pos+3 < len(p.input) && p.input[pos].String() == "VL" && p.input[pos+1].ScanToken == '*' && p.input[pos+2].ScanToken == scanner.Int && p.input[pos+3].ScanToken == ')' {
+			imm := int64(p.atoi(p.input[pos+2].String()))
+			imm *= sign
+			a.Offset = imm
+			a.Scale = -32768 // bit 15 signals multiple of Vector Length
+
+			// Remove the (VL*imm) tokens and let operand parse the remaining sequence (reg.T)
+			p.input = p.input[pos+4:]
+			p.inputPos = 0
+			p.operand(a)
+			return
+		}
 	}
 
 	// Constant.
@@ -579,7 +667,7 @@ func (p *Parser) atRegisterExtension() bool {
 	switch p.arch.Family {
 	case sys.ARM64, sys.Loong64:
 		// R1.xxx
-		return p.peek() == '.'
+		return p.peek() == '.' || p.peek() == '['
 	default:
 		return false
 	}
@@ -743,7 +831,7 @@ func (p *Parser) registerExtension(a *obj.Addr, name string, prefix rune) {
 	if p.peek() == lex.LSH {
 		// (Rn)(Rm<<2), the shifted offset register.
 		ext = "LSL"
-	} else {
+	} else if p.peek() == '.' {
 		// (Rn)(Rm.UXTW<1), the extended offset register.
 		// Rm.UXTW<<3, the extended register.
 		p.get('.')
@@ -971,8 +1059,133 @@ func (p *Parser) registerIndirect(a *obj.Addr, prefix rune) {
 	if !ok {
 		p.errorf("indirect through non-register %s", tok)
 	}
+	// SVE extended addressing support
+	var ext string
+	var mod int64
+	var amount int64
+	isSVEMemExt := false
+
+	if p.arch.Family == sys.ARM64 && (p.peek() == '.' || p.peek() == lex.LSH) {
+		// The index is a vector register, or contains a shift, then this is SVE extended addressing.
+		isSVEMemExt = true
+		if p.peek() == '.' {
+			p.get('.')
+			tok2 := p.next()
+			str := tok2.String()
+			if str == "UXTW" || str == "SXTW" {
+				switch str {
+				case "UXTW":
+					mod = 1
+				case "SXTW":
+					mod = 2
+				}
+			} else {
+				ext = str
+				if p.peek() == '.' {
+					p.get('.')
+					tok3 := p.next()
+					modStr := tok3.String()
+					switch modStr {
+					case "UXTW":
+						mod = 1
+					case "SXTW":
+						mod = 2
+					default:
+						p.errorf("unknown modifier %s", modStr)
+					}
+				}
+			}
+		}
+		if p.peek() == lex.LSH {
+			p.get(lex.LSH)
+			tok4 := p.get(scanner.Int)
+			amount, _ = strconv.ParseInt(tok4.String(), 10, 16)
+		}
+	}
 	p.get(')')
 	a.Type = obj.TYPE_MEM
+
+	if isSVEMemExt {
+		encodedR1 := r1
+		if ext != "" {
+			if r1 >= arm64.REG_Z0 && r1 <= arm64.REG_Z31 {
+				var arng int
+				switch ext {
+				case "B":
+					arng = arm64.ARNG_B
+				case "H":
+					arng = arm64.ARNG_H
+				case "S":
+					arng = arm64.ARNG_S
+				case "D":
+					arng = arm64.ARNG_D
+				case "Q":
+					arng = arm64.ARNG_Q
+				default:
+					p.errorf("unknown arrangement %s", ext)
+				}
+				if arng != 0 {
+					encodedR1 = arm64.REG_ZARNG + (r1 & 31) + int16((arng&15)<<5)
+				}
+			} else {
+				p.errorf("arrangement not allowed for this register")
+			}
+		}
+
+		if p.peek() != '(' {
+			a.Reg = encodedR1
+			return
+		}
+		p.get('(')
+		tok5 := p.next()
+		r2, ok := p.registerReference(tok5.String())
+		if !ok {
+			p.errorf("expected register")
+		}
+		var ext2 string
+		if p.peek() == '.' {
+			p.get('.')
+			tok6 := p.next()
+			ext2 = tok6.String()
+		}
+		p.get(')')
+
+		encodedR2 := r2
+		if ext2 != "" {
+			if r2 >= arm64.REG_Z0 && r2 <= arm64.REG_Z31 {
+				var arng int
+				switch ext2 {
+				case "B":
+					arng = arm64.ARNG_B
+				case "H":
+					arng = arm64.ARNG_H
+				case "S":
+					arng = arm64.ARNG_S
+				case "D":
+					arng = arm64.ARNG_D
+				case "Q":
+					arng = arm64.ARNG_Q
+				default:
+					p.errorf("unknown arrangement %s", ext2)
+				}
+				if arng != 0 {
+					encodedR2 = arm64.REG_ZARNG + (r2 & 31) + int16((arng&15)<<5)
+				}
+			} else {
+				p.errorf("arrangement not allowed for this register")
+			}
+		}
+
+		a.Index = encodedR2 // Base
+		a.Reg = encodedR1   // Index
+		a.Offset = 0        // Ensure offset is 0
+
+		var scaleValue int16 = -32768 // Bit 15 set
+		scaleValue |= int16(amount << 12)
+		scaleValue |= int16(mod << 9)
+		a.Scale = scaleValue
+		return
+	}
 	if r1 < 0 {
 		// Pseudo-register reference.
 		if r2 != 0 {
@@ -1117,13 +1330,26 @@ ListLoop:
 		}
 		switch p.arch.Family {
 		case sys.ARM64:
-			// Vn.T
+			// Vn.T, Zn.T, Pn.T
 			name := tok.String()
 			r, ok := p.registerReference(name)
 			if !ok {
 				p.errorf("invalid register: %s", name)
 			}
-			reg := r - p.arch.Register["V0"]
+			var registerBase int16
+			registerCntMask := 31
+			switch name[0] {
+			case 'V':
+				registerBase = p.arch.Register["V0"]
+			case 'Z':
+				registerBase = p.arch.Register["Z0"]
+			case 'P':
+				registerBase = p.arch.Register["P0"]
+				registerCntMask = 15
+			default:
+				p.errorf("invalid register in register list: %s", name)
+			}
+			reg := r - registerBase
 			p.get('.')
 			tok := p.next()
 			ext := tok.String()
@@ -1141,8 +1367,33 @@ ListLoop:
 			} else if nextReg != int(reg) {
 				p.errorf("incontiguous register in ARM64 register list: %s", name)
 			}
-			regCnt++
-			nextReg = (nextReg + 1) % 32
+			if p.peek() == '-' && name[0] == 'Z' {
+				// register range in SVE
+				p.next()
+				nameHi := p.next().String()
+				if nameHi[0] != 'Z' {
+					p.errorf("invalid register in register range: %s", nameHi)
+				}
+				rHi, ok2 := p.registerReference(nameHi)
+				if !ok2 {
+					p.errorf("invalid register: %s", nameHi)
+				}
+				regHi := rHi - registerBase
+				p.get('.')
+				extHi := p.next().String()
+				hiArrangement, err := arch.ARM64RegisterArrangement(regHi, nameHi, extHi)
+				if err != nil {
+					p.errorf("%v", err)
+				}
+				if hiArrangement != arrangement {
+					p.errorf("inconsistent arrangement in ARM64 register list range")
+				}
+				// Scale stores the range size - 1.
+				a.Scale = regHi - reg
+			} else {
+				regCnt++
+				nextReg = (nextReg + 1) & registerCntMask
+			}
 		case sys.ARM:
 			// Parse the upper and lower bounds.
 			lo := p.registerNumber(tok.String())
@@ -1174,7 +1425,7 @@ ListLoop:
 	case sys.ARM:
 		a.Offset = int64(bits)
 	case sys.ARM64:
-		offset, err := arm64.RegisterListOffset(firstReg, regCnt, arrangement)
+		offset, err := arm64.RegisterListOffset(firstReg, regCnt, arrangement, a.Scale)
 		if err != nil {
 			p.errorf("%v", err)
 		}

@@ -72,8 +72,10 @@ type reader struct {
 }
 
 type readerDict struct {
-	bounds []typeInfo
+	rtbounds []typeInfo
+	rtparams []*types2.TypeParam
 
+	tbounds []typeInfo
 	tparams []*types2.TypeParam
 
 	derived      []derivedInfo
@@ -262,7 +264,11 @@ func (r *reader) doTyp() (res types2.Type) {
 		return name.Type()
 
 	case pkgbits.TypeTypeParam:
-		return r.dict.tparams[r.Len()]
+		n := r.Len()
+		if n < len(r.dict.rtbounds) {
+			return r.dict.rtparams[n]
+		}
+		return r.dict.tparams[n-len(r.dict.rtbounds)]
 
 	case pkgbits.TypeArray:
 		len := int64(r.Uint64())
@@ -421,7 +427,7 @@ func (pr *pkgReader) objIdx(idx pkgbits.Index) (*types2.Package, string) {
 			pos := r.pos()
 			var tparams []*types2.TypeParam
 			if r.Version().Has(pkgbits.AliasTypeParamNames) {
-				tparams = r.typeParamNames(false)
+				tparams = r.typeParamNames(false, false)
 			}
 			typ := r.typ()
 			return newAliasTypeName(pr.enableAlias, pos, objPkg, objName, typ, tparams)
@@ -434,15 +440,22 @@ func (pr *pkgReader) objIdx(idx pkgbits.Index) (*types2.Package, string) {
 
 		case pkgbits.ObjFunc:
 			pos := r.pos()
-			tparams := r.typeParamNames(false)
-			sig := r.signature(nil, nil, tparams)
+			var rtparams []*types2.TypeParam
+			var recv *types2.Var
+			if r.Version().Has(pkgbits.GenericMethods) && r.Bool() {
+				r.selector()
+				rtparams = r.typeParamNames(false, true)
+				recv = r.param()
+			}
+			tparams := r.typeParamNames(false, false)
+			sig := r.signature(recv, rtparams, tparams)
 			return types2.NewFunc(pos, objPkg, objName, sig)
 
 		case pkgbits.ObjType:
 			pos := r.pos()
 
 			return types2.NewTypeNameLazy(pos, objPkg, objName, func(_ *types2.Named) ([]*types2.TypeParam, types2.Type, []*types2.Func, []func()) {
-				tparams := r.typeParamNames(true)
+				tparams := r.typeParamNames(true, false)
 
 				// TODO(mdempsky): Rewrite receiver types to underlying is an
 				// Interface? The go/types importer does this (I think because
@@ -477,9 +490,20 @@ func (pr *pkgReader) objDictIdx(idx pkgbits.Index) *readerDict {
 			base.Fatalf("unexpected object with %v implicit type parameter(s)", implicits)
 		}
 
-		dict.bounds = make([]typeInfo, r.Len())
-		for i := range dict.bounds {
-			dict.bounds[i] = r.typInfo()
+		nreceivers := 0
+		if r.Version().Has(pkgbits.GenericMethods) {
+			nreceivers = r.Len()
+		}
+		nexplicits := r.Len()
+
+		dict.rtbounds = make([]typeInfo, nreceivers)
+		for i := range dict.rtbounds {
+			dict.rtbounds[i] = r.typInfo()
+		}
+
+		dict.tbounds = make([]typeInfo, nexplicits)
+		for i := range dict.tbounds {
+			dict.tbounds[i] = r.typInfo()
 		}
 
 		dict.derived = make([]derivedInfo, r.Len())
@@ -498,15 +522,24 @@ func (pr *pkgReader) objDictIdx(idx pkgbits.Index) *readerDict {
 	return &dict
 }
 
-func (r *reader) typeParamNames(isLazy bool) []*types2.TypeParam {
+func (r *reader) typeParamNames(isLazy bool, isGenMeth bool) []*types2.TypeParam {
 	r.Sync(pkgbits.SyncTypeParamNames)
 
-	// Note: This code assumes it only processes objects without
-	// implement type parameters. This is currently fine, because
-	// reader is only used to read in exported declarations, which are
-	// always package scoped.
+	// Note: This code assumes there are no implicit type parameters.
+	// This is fine since it only reads exported declarations, which
+	// never have implicits.
 
-	if len(r.dict.bounds) == 0 {
+	var in []typeInfo
+	var out *[]*types2.TypeParam
+	if isGenMeth {
+		in = r.dict.rtbounds
+		out = &r.dict.rtparams
+	} else {
+		in = r.dict.tbounds
+		out = &r.dict.tparams
+	}
+
+	if len(in) == 0 {
 		return nil
 	}
 
@@ -515,39 +548,41 @@ func (r *reader) typeParamNames(isLazy bool) []*types2.TypeParam {
 	// create all the TypeNames and TypeParams, then we construct and
 	// set the bound type.
 
-	r.dict.tparams = make([]*types2.TypeParam, len(r.dict.bounds))
-	for i := range r.dict.bounds {
+	// We have to save tparams outside of the closure, because typeParamNames
+	// can be called multiple times with the same dictionary instance.
+	tparams := make([]*types2.TypeParam, len(in))
+	*out = tparams
+
+	for i := range in {
 		pos := r.pos()
 		pkg, name := r.localIdent()
 
 		tname := types2.NewTypeName(pos, pkg, name, nil)
-		r.dict.tparams[i] = types2.NewTypeParam(tname, nil)
+		tparams[i] = types2.NewTypeParam(tname, nil)
 	}
 
 	// Type parameters that are read by lazy loaders cannot have their
 	// constraints set eagerly; do them after loading (go.dev/issue/63285).
 	if isLazy {
 		// The reader dictionary will continue mutating before we have time
-		// to call delayed functions; must make a local copy of both the type
-		// parameters and their (unexpanded) constraints.
-		bounds := make([]types2.Type, len(r.dict.bounds))
-		for i, bound := range r.dict.bounds {
-			bounds[i] = r.p.typIdx(bound, r.dict)
+		// to call delayed functions; make a local copy of the constraints.
+		types := make([]types2.Type, len(in))
+		for i, info := range in {
+			types[i] = r.p.typIdx(info, r.dict)
 		}
 
-		tparams := r.dict.tparams
 		r.delayed = append(r.delayed, func() {
-			for i, bound := range bounds {
-				tparams[i].SetConstraint(bound)
+			for i, typ := range types {
+				tparams[i].SetConstraint(typ)
 			}
 		})
 	} else {
-		for i, bound := range r.dict.bounds {
-			r.dict.tparams[i].SetConstraint(r.p.typIdx(bound, r.dict))
+		for i, info := range in {
+			tparams[i].SetConstraint(r.p.typIdx(info, r.dict))
 		}
 	}
 
-	return r.dict.tparams
+	return tparams
 }
 
 func (r *reader) method(isLazy bool) *types2.Func {
@@ -555,7 +590,7 @@ func (r *reader) method(isLazy bool) *types2.Func {
 	pos := r.pos()
 	pkg, name := r.selector()
 
-	rtparams := r.typeParamNames(isLazy)
+	rtparams := r.typeParamNames(isLazy, false)
 	sig := r.signature(r.param(), rtparams, nil)
 
 	_ = r.pos() // TODO(mdempsky): Remove; this is a hacker for linker.go.

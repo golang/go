@@ -89,6 +89,7 @@ func ContainsRune(b []byte, r rune) bool {
 }
 
 // ContainsFunc reports whether any of the UTF-8-encoded code points r within b satisfy f(r).
+// It stops as soon as a call to f returns true.
 func ContainsFunc(b []byte, f func(rune) bool) bool {
 	return IndexFunc(b, f) >= 0
 }
@@ -96,15 +97,6 @@ func ContainsFunc(b []byte, f func(rune) bool) bool {
 // IndexByte returns the index of the first instance of c in b, or -1 if c is not present in b.
 func IndexByte(b []byte, c byte) int {
 	return bytealg.IndexByte(b, c)
-}
-
-func indexBytePortable(s []byte, c byte) int {
-	for i, b := range s {
-		if b == c {
-			return i
-		}
-	}
-	return -1
 }
 
 // LastIndex returns the index of the last instance of sep in s, or -1 if sep is not present in s.
@@ -1429,4 +1421,17 @@ func CutSuffix(s, suffix []byte) (before []byte, found bool) {
 		return s, false
 	}
 	return s[:len(s)-len(suffix)], true
+}
+
+// CutLast slices s around the last instance of sep,
+// returning the text before and after sep.
+// The found result reports whether sep appears in s.
+// If sep does not appear in s, CutLast returns s, nil, false.
+//
+// CutLast returns slices of the original slice s, not copies.
+func CutLast(s, sep []byte) (before, after []byte, found bool) {
+	if i := LastIndex(s, sep); i >= 0 {
+		return s[:i], s[i+len(sep):], true
+	}
+	return s, nil, false
 }

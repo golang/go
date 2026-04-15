@@ -2799,3 +2799,59 @@ func bool2int(x bool) int {
 	}
 	return b
 }
+
+// rewriteCondSelectIntoMath reports whether x OP (y * constant) should be used instead of a CondSelect.
+// x arbitrary, y in [0,1]
+func rewriteCondSelectIntoMath(config *Config, op Op, constant int64) bool {
+	switch config.arch {
+	case "amd64":
+		if constant == 1 {
+			return true
+		}
+		switch op {
+		case OpAdd64, OpAdd32, OpAdd16, OpAdd8:
+			switch constant {
+			case 2, 4, 8:
+				// Implemented with LEA a + b * displacement form
+				return true
+			}
+		}
+	case "arm64":
+		switch op {
+		case OpAdd64, OpAdd32, OpAdd16, OpAdd8:
+			if constant == 1 {
+				return false // better done as CSINC
+			}
+			fallthrough
+		case OpSub64, OpSub32, OpSub16, OpSub8,
+			OpAnd64, OpAnd32, OpAnd16, OpAnd8,
+			OpOr64, OpOr32, OpOr16, OpOr8,
+			OpXor64, OpXor32, OpXor16, OpXor8:
+			// Implemented using an inline LSL
+			return isPowerOfTwo(uint64(constant))
+		default:
+			if constant == 1 {
+				return true
+			}
+		}
+	default:
+		// TODO: fine tune for other architectures.
+		return constant == 1
+	}
+	return false
+}
+
+func addToSub(op Op) Op {
+	switch op {
+	case OpAdd64:
+		return OpSub64
+	case OpAdd32:
+		return OpSub32
+	case OpAdd16:
+		return OpSub16
+	case OpAdd8:
+		return OpSub8
+	default:
+		panic(fmt.Sprintf("unexpected op %v", op))
+	}
+}

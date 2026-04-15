@@ -1,0 +1,55 @@
+handle git
+
+env GIT_AUTHOR_NAME='Michael Matloob'
+env GIT_AUTHOR_EMAIL='matloob@golang.org'
+env GIT_COMMITTER_NAME=$GIT_AUTHOR_NAME
+env GIT_COMMITTER_EMAIL=$GIT_AUTHOR_EMAIL
+
+at 2017-09-15T03:28:32-00:00
+
+git init
+git commit --allow-empty -m 'initial commit'
+git branch -m main
+git tag v0.1.0
+git tag v3.1.0
+
+git add go.mod
+git commit -m 'create module invalid-version'
+
+git add unicode/unicode.go
+git commit -m 'add unicode package'
+
+at 2017-12-13T10:25:48-00:00
+
+git add unicode/unicode2.go
+git commit -m 'another commit with tag'
+git tag v0.2.0
+git tag v4.0.0
+
+git add 3.txt
+git commit -m 'yet another commit'
+
+git rm go.mod
+git commit -m 'remove go.mod'
+
+git tag v5.0.0
+
+git log --oneline --decorate=short
+cmp stdout .git-log
+
+-- .git-log --
+dbb861d (HEAD -> main, tag: v5.0.0) remove go.mod
+5213b9f yet another commit
+a72be5e (tag: v4.0.0, tag: v0.2.0) another commit with tag
+90ac26b add unicode package
+1732873 create module invalid-version
+d047a7b (tag: v3.1.0, tag: v0.1.0) initial commit
+-- go.mod --
+module vcs-test.golang.org/go/invalid-version
+
+go 1.26.0
+-- 3.txt --
+-- unicode/unicode.go --
+package unicode
+-- unicode/unicode2.go --
+package unicode

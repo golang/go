@@ -8,7 +8,6 @@ import (
 	"context"
 	"debug/buildinfo"
 	"fmt"
-	"go/build"
 	"os/exec"
 
 	"cmd/go/internal/load"
@@ -16,24 +15,19 @@ import (
 )
 
 // loadVersioned loads a package at a specific version.
-func loadVersioned(ctx context.Context, pkgPath, version string) (*build.Package, error) {
-	loaderState := modload.NewState()
-	loaderState.ForceUseModules = true
-	loaderState.RootMode = modload.NoRoot
-	modload.Init(loaderState)
-
+func loadVersioned(ctx context.Context, loader *modload.Loader, pkgPath, version string) (*load.Package, error) {
 	var opts load.PackageOpts
 	args := []string{
 		fmt.Sprintf("%s@%s", pkgPath, version),
 	}
-	pkgs, err := load.PackagesAndErrorsOutsideModule(loaderState, ctx, opts, args)
+	pkgs, err := load.PackagesAndErrorsOutsideModule(loader, ctx, opts, args)
 	if err != nil {
 		return nil, err
 	}
 	if len(pkgs) != 1 {
 		return nil, fmt.Errorf("incorrect number of packages: want 1, got %d", len(pkgs))
 	}
-	return pkgs[0].Internal.Build, nil
+	return pkgs[0], nil
 }
 
 // inferVersion checks if the argument matches a command on $PATH and returns its module path and version.

@@ -1654,6 +1654,16 @@ func (s *state) stmtList(l ir.Nodes) {
 	}
 }
 
+func peelConvNop(n ir.Node) ir.Node {
+	if n == nil {
+		return n
+	}
+	for n.Op() == ir.OCONVNOP {
+		n = n.(*ir.ConvExpr).X
+	}
+	return n
+}
+
 // stmt converts the statement n to SSA and adds it to s.
 func (s *state) stmt(n ir.Node) {
 	s.pushLine(n.Pos())
@@ -1829,12 +1839,10 @@ func (s *state) stmt(n ir.Node) {
 		// arrays referenced are strictly smaller parts of the same base array.
 		// If one side of the assignment is a full array, then partial overlap
 		// can't happen. (The arrays are either disjoint or identical.)
-		mayOverlap := n.X.Op() == ir.ODEREF && (n.Y != nil && n.Y.Op() == ir.ODEREF)
-		if n.Y != nil && n.Y.Op() == ir.ODEREF {
-			p := n.Y.(*ir.StarExpr).X
-			for p.Op() == ir.OCONVNOP {
-				p = p.(*ir.ConvExpr).X
-			}
+		ny := peelConvNop(n.Y)
+		mayOverlap := n.X.Op() == ir.ODEREF && (n.Y != nil && ny.Op() == ir.ODEREF)
+		if ny != nil && ny.Op() == ir.ODEREF {
+			p := peelConvNop(ny.(*ir.StarExpr).X)
 			if p.Op() == ir.OSPTR && p.(*ir.UnaryExpr).X.Type().IsString() {
 				// Pointer fields of strings point to unmodifiable memory.
 				// That memory can't overlap with the memory being written.
@@ -5014,7 +5022,7 @@ func (s *state) call(n *ir.CallExpr, k callKind, returnResultAddr bool, deferExt
 		fn := fn.(*ir.SelectorExpr)
 		var iclosure *ssa.Value
 		iclosure, rcvr = s.getClosureAndRcvr(fn)
-		if k == callNormal {
+		if k == callNormal || k == callTail {
 			codeptr = s.load(types.Types[types.TUINTPTR], iclosure)
 		} else {
 			closure = iclosure
@@ -5130,6 +5138,10 @@ func (s *state) call(n *ir.CallExpr, k callKind, returnResultAddr bool, deferExt
 			// Note that the "receiver" parameter is nil because the actual receiver is the first input parameter.
 			aux := ssa.InterfaceAuxCall(params)
 			call = s.newValue1A(ssa.OpInterLECall, aux.LateExpansionResultType(), aux, codeptr)
+			if k == callTail {
+				call.Op = ssa.OpTailLECallInter
+				stksize = 0 // Tail call does not use stack. We reuse caller's frame.
+			}
 		case calleeLSym != nil:
 			aux := ssa.StaticAuxCall(calleeLSym, params)
 			call = s.newValue0A(ssa.OpStaticLECall, aux.LateExpansionResultType(), aux)
@@ -5158,6 +5170,19 @@ func (s *state) call(n *ir.CallExpr, k callKind, returnResultAddr bool, deferExt
 		s.vars[memVar] = s.newValue1A(ssa.OpVarLive, types.TypeMem, v, s.mem())
 	}
 
+	// Build result value (before we might end the defer block, below).
+	var result *ssa.Value
+	if len(res) == 0 || k != callNormal {
+		result = nil
+	} else {
+		fp := res[0]
+		if returnResultAddr {
+			result = s.resultAddrOfCall(call, 0, fp.Type)
+		} else {
+			result = s.newValue1I(ssa.OpSelectN, fp.Type, 0, call)
+		}
+	}
+
 	// Finish block for defers
 	if k == callDefer || k == callDeferStack || isCallDeferRangeFunc {
 		b := s.endBlock()
@@ -5177,15 +5202,7 @@ func (s *state) call(n *ir.CallExpr, k callKind, returnResultAddr bool, deferExt
 		s.startBlock(bNext)
 	}
 
-	if len(res) == 0 || k != callNormal {
-		// call has no return value. Continue with the next statement.
-		return nil
-	}
-	fp := res[0]
-	if returnResultAddr {
-		return s.resultAddrOfCall(call, 0, fp.Type)
-	}
-	return s.newValue1I(ssa.OpSelectN, fp.Type, 0, call)
+	return result
 }
 
 // maybeNilCheckClosure checks if a nil check of a closure is needed in some

@@ -4,16 +4,6 @@
 
 //go:build mips || mipsle
 
-// Export some functions via linkname to assembly in sync/atomic.
-//
-//go:linkname Xadd64
-//go:linkname Xchg64
-//go:linkname Cas64
-//go:linkname Load64
-//go:linkname Store64
-//go:linkname Or64
-//go:linkname And64
-
 package atomic
 
 import (

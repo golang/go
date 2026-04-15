@@ -289,6 +289,9 @@ func TestListenIPv6WildcardAddr(t *testing.T) {
 	if !supportsIPv6() {
 		t.Skip("IPv6 not supported")
 	}
+	if !supportsIPv4map() {
+		t.Skip("dual-stack IPv6 sockets not supported")
+	}
 
 	ln, err := Listen("tcp", "[::]:0")
 	if err != nil {

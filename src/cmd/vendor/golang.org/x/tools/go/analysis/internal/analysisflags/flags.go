@@ -52,7 +52,7 @@ func Parse(analyzers []*analysis.Analyzer, multi bool) []*analysis.Analyzer {
 			prefix = a.Name + "."
 
 			enable := new(triState)
-			enableUsage := "enable " + a.Name + " analysis"
+			enableUsage := fmt.Sprintf("enable %q analysis", a.Name)
 			flag.Var(enable, a.Name, enableUsage)
 			enabled[a] = enable
 		}

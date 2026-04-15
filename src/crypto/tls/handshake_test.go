@@ -778,3 +778,51 @@ func concatHandshakeMessages(msgs ...handshakeMessage) ([]byte, error) {
 	outBuf = append(outBuf, marshalled...)
 	return outBuf, nil
 }
+
+func TestMultipleKeyUpdate(t *testing.T) {
+	for _, requestUpdate := range []bool{true, false} {
+		t.Run(fmt.Sprintf("requestUpdate=%t", requestUpdate), func(t *testing.T) {
+
+			c, s := localPipe(t)
+			cfg := testConfig.Clone()
+			cfg.MinVersion = VersionTLS13
+			cfg.MaxVersion = VersionTLS13
+			client := Client(c, testConfig)
+			server := Server(s, testConfig)
+
+			clientHandshakeDone := make(chan struct{})
+			go func() {
+				if err := client.Handshake(); err != nil {
+				}
+				close(clientHandshakeDone)
+				io.Copy(io.Discard, server)
+			}()
+
+			if err := server.Handshake(); err != nil {
+				t.Fatalf("server handshake failed: %v\n", err)
+			}
+			<-clientHandshakeDone
+
+			c.SetReadDeadline(time.Now().Add(1 * time.Second))
+			s.SetReadDeadline(time.Now().Add(1 * time.Second))
+
+			kuMsg, err := (&keyUpdateMsg{updateRequested: requestUpdate}).marshal()
+			if err != nil {
+				t.Fatalf("failed to marshal key update message: %v", err)
+			}
+
+			client.out.Lock()
+			if _, err := client.writeRecordLocked(recordTypeHandshake, append(kuMsg, kuMsg...)); err != nil {
+				t.Fatalf("failed to write key update messages: %v", err)
+			}
+			client.out.Unlock()
+
+			_, err = io.Copy(io.Discard, client)
+			if err == nil {
+				t.Fatal("expected multiple key update messages to cause an error, got nil")
+			} else if !strings.HasSuffix(err.Error(), "tls: unexpected message") {
+				t.Fatalf("unexpected error: %v", err)
+			}
+		})
+	}
+}

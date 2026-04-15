@@ -11,44 +11,9 @@ import (
 	"go/token"
 	"strings"
 
-	"golang.org/x/tools/go/ast/edge"
 	"golang.org/x/tools/go/ast/inspector"
 	"golang.org/x/tools/internal/moreiters"
 )
-
-// PreorderStack traverses the tree rooted at root,
-// calling f before visiting each node.
-//
-// Each call to f provides the current node and traversal stack,
-// consisting of the original value of stack appended with all nodes
-// from root to n, excluding n itself. (This design allows calls
-// to PreorderStack to be nested without double counting.)
-//
-// If f returns false, the traversal skips over that subtree. Unlike
-// [ast.Inspect], no second call to f is made after visiting node n.
-// In practice, the second call is nearly always used only to pop the
-// stack, and it is surprisingly tricky to do this correctly; see
-// https://go.dev/issue/73319.
-//
-// TODO(adonovan): replace with [ast.PreorderStack] when go1.25 is assured.
-func PreorderStack(root ast.Node, stack []ast.Node, f func(n ast.Node, stack []ast.Node) bool) {
-	before := len(stack)
-	ast.Inspect(root, func(n ast.Node) bool {
-		if n != nil {
-			if !f(n, stack) {
-				// Do not push, as there will be no corresponding pop.
-				return false
-			}
-			stack = append(stack, n) // push
-		} else {
-			stack = stack[:len(stack)-1] // pop
-		}
-		return true
-	})
-	if len(stack) != before {
-		panic("push/pop mismatch")
-	}
-}
 
 // NodeContains reports whether the Pos/End range of node n encloses
 // the given range.
@@ -71,14 +36,6 @@ func NodeContains(n ast.Node, rng Range) bool {
 // file's complete extent.
 func NodeContainsPos(n ast.Node, pos token.Pos) bool {
 	return NodeRange(n).ContainsPos(pos)
-}
-
-// IsChildOf reports whether cur.ParentEdge is ek.
-//
-// TODO(adonovan): promote to a method of Cursor.
-func IsChildOf(cur inspector.Cursor, ek edge.Kind) bool {
-	got, _ := cur.ParentEdge()
-	return got == ek
 }
 
 // EnclosingFile returns the syntax tree for the file enclosing c.
@@ -190,6 +147,10 @@ func (r Range) IsValid() bool { return r.Start.IsValid() && r.Start <= r.EndPos 
 // extraneous whitespace and comments. Use it in new code instead of
 // PathEnclosingInterval. When the exact extent of a node is known,
 // use [Cursor.FindByPos] instead.
+//
+// TODO(hxjiang): Consider refactoring the function signature. It is currently
+// confusing that an error is returned even when a valid enclosing node is
+// successfully found. Consider grouping all cursors into one struct.
 func Select(curFile inspector.Cursor, start, end token.Pos) (_enclosing, _start, _end inspector.Cursor, _ error) {
 	curEnclosing, ok := curFile.FindByPos(start, end)
 	if !ok {
@@ -204,19 +165,19 @@ func Select(curFile inspector.Cursor, start, end token.Pos) (_enclosing, _start,
 	for cur := range curEnclosing.Preorder() {
 		if rng.Contains(NodeRange(cur.Node())) {
 			// The start node has the least Pos.
-			if !CursorValid(curStart) {
+			if !curStart.Valid() {
 				curStart = cur
 			}
 			// The end node has the greatest End.
 			// End positions do not change monotonically,
 			// so we must compute the max.
-			if !CursorValid(curEnd) ||
+			if !curEnd.Valid() ||
 				cur.Node().End() > curEnd.Node().End() {
 				curEnd = cur
 			}
 		}
 	}
-	if !CursorValid(curStart) {
+	if !curStart.Valid() {
 		// The selection is valid (inside curEnclosing) but contains no
 		// complete nodes. This happens for point selections (start == end),
 		// or selections covering only only spaces, comments, and punctuation
@@ -227,15 +188,69 @@ func Select(curFile inspector.Cursor, start, end token.Pos) (_enclosing, _start,
 	return curEnclosing, curStart, curEnd, nil
 }
 
-// CursorValid reports whether the cursor is valid.
+var noCursor inspector.Cursor
+
+// MaybeParenthesize returns new, possibly wrapped in parens if needed
+// to preserve operator precedence when it replaces old, whose parent
+// is parentNode.
 //
-// A valid cursor may yet be the virtual root node,
-// cur.Inspector.Root(), which has no [Cursor.Node].
-//
-// TODO(adonovan): move to cursorutil package, and move that package into x/tools.
-// Ultimately, make this a method of Cursor. Needs a proposal.
-func CursorValid(cur inspector.Cursor) bool {
-	return cur.Inspector() != nil
+// (This would be more naturally written in terms of Cursor, but one of
+// the callers--the inliner--does not have cursors handy.)
+func MaybeParenthesize(parentNode ast.Node, old, new ast.Expr) ast.Expr {
+	if needsParens(parentNode, old, new) {
+		new = &ast.ParenExpr{X: new}
+	}
+	return new
 }
 
-var noCursor inspector.Cursor
+func needsParens(parentNode ast.Node, old, new ast.Expr) bool {
+	// An expression beneath a non-expression
+	// has no precedence ambiguity.
+	parent, ok := parentNode.(ast.Expr)
+	if !ok {
+		return false
+	}
+
+	precedence := func(n ast.Node) int {
+		switch n := n.(type) {
+		case *ast.UnaryExpr, *ast.StarExpr:
+			return token.UnaryPrec
+		case *ast.BinaryExpr:
+			return n.Op.Precedence()
+		}
+		return -1
+	}
+
+	// Parens are not required if the new node
+	// is not unary or binary.
+	newprec := precedence(new)
+	if newprec < 0 {
+		return false
+	}
+
+	// Parens are required if parent and child are both
+	// unary or binary and the parent has higher precedence.
+	if precedence(parent) > newprec {
+		return true
+	}
+
+	// Was the old node the operand of a postfix operator?
+	//  f().sel
+	//  f()[i:j]
+	//  f()[i]
+	//  f().(T)
+	//  f()(x)
+	switch parent := parent.(type) {
+	case *ast.SelectorExpr:
+		return parent.X == old
+	case *ast.IndexExpr:
+		return parent.X == old
+	case *ast.SliceExpr:
+		return parent.X == old
+	case *ast.TypeAssertExpr:
+		return parent.X == old
+	case *ast.CallExpr:
+		return parent.Fun == old
+	}
+	return false
+}

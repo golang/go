@@ -93,7 +93,7 @@ func Info(ctxt *obj.Link, fnsym *obj.LSym, infosym *obj.LSym, curfn obj.Func) (s
 			default:
 				continue
 			}
-			if !ssa.IsVarWantedForDebug(n) {
+			if !shouldEmitDwarfVar(n) {
 				continue
 			}
 			apdecls = append(apdecls, n)
@@ -178,18 +178,78 @@ func createDwarfVars(fnsym *obj.LSym, complexOK bool, fn *ir.Func, apDecls []*ir
 	// Collect a raw list of DWARF vars.
 	var vars []*dwarf.Var
 	var decls []*ir.Name
-	var selected ir.NameSet
 
-	if base.Ctxt.Flag_locationlists && base.Ctxt.Flag_optimize && fn.DebugInfo != nil && complexOK {
-		decls, vars, selected = createComplexVars(fnsym, fn, closureVars)
-	} else if fn.ABI == obj.ABIInternal && base.Flag.N != 0 && complexOK {
-		decls, vars, selected = createABIVars(fnsym, fn, apDecls, closureVars)
-	} else {
-		decls, vars, selected = createSimpleVars(fnsym, apDecls, closureVars)
-	}
+	// Build a VarID lookup map for SSA debug info if available.
+	var debug *ssa.FuncDebug
+	var varIDMap map[*ir.Name]ssa.VarID
 	if fn.DebugInfo != nil {
-		// Recover zero sized variables eliminated by the stackframe pass
-		for _, n := range fn.DebugInfo.(*ssa.FuncDebug).OptDcl {
+		debug = fn.DebugInfo.(*ssa.FuncDebug)
+		varIDMap = make(map[*ir.Name]ssa.VarID, len(debug.Vars))
+		for i, n := range debug.Vars {
+			varIDMap[n] = ssa.VarID(i)
+		}
+	}
+	canUseComplex := complexOK && debug != nil
+
+	// markVarSeen marks a variable and all its associated slot names as seen.
+	// This is needed because decomposed variables may have slots whose ir.Name
+	// differs from the variable itself (e.g., PAUTO vs PPARAMOUT for the same
+	// logical variable). Without this, the dcl loop could create duplicate
+	// conservative entries for names that are already covered by a complex var.
+	seen := make(map[*ir.Name]bool)
+	markVarSeen := func(n *ir.Name, varID ssa.VarID) {
+		seen[n] = true
+		if debug != nil && int(varID) < len(debug.VarSlots) {
+			for _, slot := range debug.VarSlots[varID] {
+				seen[debug.Slots[slot].N] = true
+			}
+		}
+	}
+
+	// Unified loop: for each variable in apDecls, try createComplexVar
+	// (SSA debug info) first, then fall back to createSimpleVar.
+	for _, n := range apDecls {
+		if !shouldEmitDwarfVar(n) {
+			continue
+		}
+		if canUseComplex {
+			if vid, ok := varIDMap[n]; ok {
+				if dvar := createComplexVar(fnsym, fn, vid, closureVars); dvar != nil {
+					decls = append(decls, n)
+					vars = append(vars, dvar)
+					markVarSeen(n, vid)
+					continue
+				}
+			}
+		}
+		seen[n] = true
+		decls = append(decls, n)
+		vars = append(vars, createSimpleVar(fnsym, n, closureVars))
+	}
+
+	// Add SSA-tracked vars not in apDecls.
+	if canUseComplex {
+		for i, n := range debug.Vars {
+			if seen[n] {
+				continue
+			}
+			if !shouldEmitDwarfVar(n) {
+				continue
+			}
+			if dvar := createComplexVar(fnsym, fn, ssa.VarID(i), closureVars); dvar != nil {
+				decls = append(decls, n)
+				vars = append(vars, dvar)
+				markVarSeen(n, ssa.VarID(i))
+			}
+		}
+	}
+
+	// Recover zero-sized variables eliminated by the stackframe pass.
+	if debug != nil {
+		for _, n := range debug.OptDcl {
+			if seen[n] {
+				continue
+			}
 			if n.Class != ir.PAUTO {
 				continue
 			}
@@ -199,21 +259,23 @@ func createDwarfVars(fnsym *obj.LSym, complexOK bool, fn *ir.Func, apDecls []*ir
 				vars = append(vars, createSimpleVar(fnsym, n, closureVars))
 				vars[len(vars)-1].StackOffset = 0
 				fnsym.Func().RecordAutoType(reflectdata.TypeLinksym(n.Type()))
+				seen[n] = true
 			}
 		}
 	}
 
+	// For inlined functions or functions with register output params,
+	// collect additional declarations that may not be in apDecls.
 	dcl := apDecls
 	if fnsym.WasInlined() {
 		dcl = preInliningDcls(fnsym)
-	} else {
+	} else if debug != nil {
 		// The backend's stackframe pass prunes away entries from the
 		// fn's Dcl list, including PARAMOUT nodes that correspond to
 		// output params passed in registers. Add back in these
 		// entries here so that we can process them properly during
 		// DWARF-gen. See issue 48573 for more details.
-		debugInfo := fn.DebugInfo.(*ssa.FuncDebug)
-		for _, n := range debugInfo.RegOutputParams {
+		for _, n := range debug.RegOutputParams {
 			if !ssa.IsVarWantedForDebug(n) {
 				continue
 			}
@@ -224,89 +286,93 @@ func createDwarfVars(fnsym *obj.LSym, complexOK bool, fn *ir.Func, apDecls []*ir
 		}
 	}
 
-	// If optimization is enabled, the list above will typically be
-	// missing some of the original pre-optimization variables in the
-	// function (they may have been promoted to registers, folded into
-	// constants, dead-coded away, etc).  Input arguments not eligible
-	// for SSA optimization are also missing.  Here we add back in entries
-	// for selected missing vars. Note that the recipe below creates a
-	// conservative location. The idea here is that we want to
-	// communicate to the user that "yes, there is a variable named X
-	// in this function, but no, I don't have enough information to
-	// reliably report its contents."
-	// For non-SSA-able arguments, however, the correct information
-	// is known -- they have a single home on the stack.
+	// Process remaining variables not yet handled. For each variable,
+	// try createComplexVar first, then fall back to createSimpleVar
+	// for non-SSA-able params, or createConservativeVar for the rest.
 	for _, n := range dcl {
-		if selected.Has(n) {
+		if seen[n] {
 			continue
 		}
-		c := n.Sym().Name[0]
-		if c == '.' || n.Type().IsUntyped() {
+		if !shouldEmitDwarfVar(n) {
 			continue
 		}
-		if n.Class == ir.PPARAM && !ssa.CanSSA(n.Type()) {
-			// SSA-able args get location lists, and may move in and
-			// out of registers, so those are handled elsewhere.
-			// Autos and named output params seem to get handled
-			// with VARDEF, which creates location lists.
-			// Args not of SSA-able type are treated here; they
-			// are homed on the stack in a single place for the
-			// entire call.
-			vars = append(vars, createSimpleVar(fnsym, n, closureVars))
-			decls = append(decls, n)
-			continue
-		}
-		typename := dwarf.InfoPrefix + types.TypeSymName(n.Type())
-		decls = append(decls, n)
-		tag := dwarf.DW_TAG_variable
-		isReturnValue := (n.Class == ir.PPARAMOUT)
-		if n.Class == ir.PPARAM || n.Class == ir.PPARAMOUT {
-			tag = dwarf.DW_TAG_formal_parameter
-		}
-		inlIndex := 0
-		if base.Flag.GenDwarfInl > 1 {
-			if n.InlFormal() || n.InlLocal() {
-				inlIndex = posInlIndex(n.Pos()) + 1
-				if n.InlFormal() {
-					tag = dwarf.DW_TAG_formal_parameter
+		seen[n] = true
+		if canUseComplex {
+			if vid, ok := varIDMap[n]; ok {
+				if dvar := createComplexVar(fnsym, fn, vid, closureVars); dvar != nil {
+					decls = append(decls, n)
+					vars = append(vars, dvar)
+					continue
 				}
 			}
 		}
-		declpos := base.Ctxt.InnermostPos(n.Pos())
-		dvar := &dwarf.Var{
-			Name:          n.Sym().Name,
-			IsReturnValue: isReturnValue,
-			Tag:           tag,
-			WithLoclist:   true,
-			StackOffset:   int32(n.FrameOffset()),
-			Type:          base.Ctxt.Lookup(typename),
-			DeclFile:      declpos.RelFilename(),
-			DeclLine:      declpos.RelLine(),
-			DeclCol:       declpos.RelCol(),
-			InlIndex:      int32(inlIndex),
-			ChildIndex:    -1,
-			DictIndex:     n.DictIndex,
-			ClosureOffset: closureOffset(n, closureVars),
+		if n.Class == ir.PPARAM && !ssa.CanSSA(n.Type()) {
+			decls = append(decls, n)
+			vars = append(vars, createSimpleVar(fnsym, n, closureVars))
+			continue
 		}
-		if n.Esc() == ir.EscHeap {
-			if n.Heapaddr == nil {
-				base.Fatalf("invalid heap allocated var without Heapaddr")
-			}
-			debug := fn.DebugInfo.(*ssa.FuncDebug)
-			list := createHeapDerefLocationList(n, debug.EntryID)
-			dvar.PutLocationList = func(listSym, startPC dwarf.Sym) {
-				debug.PutLocationList(list, base.Ctxt, listSym.(*obj.LSym), startPC.(*obj.LSym))
-			}
-		}
-		vars = append(vars, dvar)
-		// Record go type to ensure that it gets emitted by the linker.
-		fnsym.Func().RecordAutoType(reflectdata.TypeLinksym(n.Type()))
+		decls = append(decls, n)
+		vars = append(vars, createConservativeVar(fnsym, fn, n, closureVars))
 	}
 
 	// Sort decls and vars.
 	sortDeclsAndVars(fn, decls, vars)
 
 	return decls, vars
+}
+
+// createConservativeVar creates a DWARF variable with a conservative location
+// description. This is used for variables that were optimized away or otherwise
+// don't have precise location info. The intent is to communicate that "yes,
+// there is a variable named X in this function, but no, I don't have enough
+// information to reliably report its contents."
+// For heap-escaped variables, a location list is created that describes
+// dereferencing the pointer at the stack offset.
+func createConservativeVar(fnsym *obj.LSym, fn *ir.Func, n *ir.Name, closureVars map[*ir.Name]int64) *dwarf.Var {
+	typename := dwarf.InfoPrefix + types.TypeSymName(n.Type())
+	tag := dwarf.DW_TAG_variable
+	isReturnValue := (n.Class == ir.PPARAMOUT)
+	if n.Class == ir.PPARAM || n.Class == ir.PPARAMOUT {
+		tag = dwarf.DW_TAG_formal_parameter
+	}
+	inlIndex := 0
+	if base.Flag.GenDwarfInl > 1 {
+		if n.InlFormal() || n.InlLocal() {
+			inlIndex = posInlIndex(n.Pos()) + 1
+			if n.InlFormal() {
+				tag = dwarf.DW_TAG_formal_parameter
+			}
+		}
+	}
+	declpos := base.Ctxt.InnermostPos(n.Pos())
+	dvar := &dwarf.Var{
+		Name:          n.Sym().Name,
+		IsReturnValue: isReturnValue,
+		Tag:           tag,
+		WithLoclist:   true,
+		StackOffset:   int32(n.FrameOffset()),
+		Type:          base.Ctxt.Lookup(typename),
+		DeclFile:      declpos.RelFilename(),
+		DeclLine:      declpos.RelLine(),
+		DeclCol:       declpos.RelCol(),
+		InlIndex:      int32(inlIndex),
+		ChildIndex:    -1,
+		DictIndex:     n.DictIndex,
+		ClosureOffset: closureOffset(n, closureVars),
+	}
+	if n.Esc() == ir.EscHeap {
+		if n.Heapaddr == nil {
+			base.Fatalf("invalid heap allocated var without Heapaddr")
+		}
+		debug := fn.DebugInfo.(*ssa.FuncDebug)
+		list := createHeapDerefLocationList(n, debug.EntryID)
+		dvar.PutLocationList = func(listSym, startPC dwarf.Sym) {
+			debug.PutLocationList(list, base.Ctxt, listSym.(*obj.LSym), startPC.(*obj.LSym))
+		}
+	}
+	// Record go type to ensure that it gets emitted by the linker.
+	fnsym.Func().RecordAutoType(reflectdata.TypeLinksym(n.Type()))
+	return dvar
 }
 
 // sortDeclsAndVars sorts the decl and dwarf var lists according to
@@ -379,24 +445,6 @@ func preInliningDcls(fnsym *obj.LSym) []*ir.Name {
 	return rdcl
 }
 
-// createSimpleVars creates a DWARF entry for every variable declared in the
-// function, claiming that they are permanently on the stack.
-func createSimpleVars(fnsym *obj.LSym, apDecls []*ir.Name, closureVars map[*ir.Name]int64) ([]*ir.Name, []*dwarf.Var, ir.NameSet) {
-	var vars []*dwarf.Var
-	var decls []*ir.Name
-	var selected ir.NameSet
-	for _, n := range apDecls {
-		if ir.IsAutoTmp(n) {
-			continue
-		}
-
-		decls = append(decls, n)
-		vars = append(vars, createSimpleVar(fnsym, n, closureVars))
-		selected.Add(n)
-	}
-	return decls, vars, selected
-}
-
 func createSimpleVar(fnsym *obj.LSym, n *ir.Name, closureVars map[*ir.Name]int64) *dwarf.Var {
 	var tag int
 	var offs int64
@@ -455,63 +503,6 @@ func createSimpleVar(fnsym *obj.LSym, n *ir.Name, closureVars map[*ir.Name]int64
 		DictIndex:     n.DictIndex,
 		ClosureOffset: closureOffset(n, closureVars),
 	}
-}
-
-// createABIVars creates DWARF variables for functions in which the
-// register ABI is enabled but optimization is turned off. It uses a
-// hybrid approach in which register-resident input params are
-// captured with location lists, and all other vars use the "simple"
-// strategy.
-func createABIVars(fnsym *obj.LSym, fn *ir.Func, apDecls []*ir.Name, closureVars map[*ir.Name]int64) ([]*ir.Name, []*dwarf.Var, ir.NameSet) {
-
-	// Invoke createComplexVars to generate dwarf vars for input parameters
-	// that are register-allocated according to the ABI rules.
-	decls, vars, selected := createComplexVars(fnsym, fn, closureVars)
-
-	// Now fill in the remainder of the variables: input parameters
-	// that are not register-resident, output parameters, and local
-	// variables.
-	for _, n := range apDecls {
-		if ir.IsAutoTmp(n) {
-			continue
-		}
-		if _, ok := selected[n]; ok {
-			// already handled
-			continue
-		}
-
-		decls = append(decls, n)
-		vars = append(vars, createSimpleVar(fnsym, n, closureVars))
-		selected.Add(n)
-	}
-
-	return decls, vars, selected
-}
-
-// createComplexVars creates recomposed DWARF vars with location lists,
-// suitable for describing optimized code.
-func createComplexVars(fnsym *obj.LSym, fn *ir.Func, closureVars map[*ir.Name]int64) ([]*ir.Name, []*dwarf.Var, ir.NameSet) {
-	debugInfo := fn.DebugInfo.(*ssa.FuncDebug)
-
-	// Produce a DWARF variable entry for each user variable.
-	var decls []*ir.Name
-	var vars []*dwarf.Var
-	var ssaVars ir.NameSet
-
-	for varID, dvar := range debugInfo.Vars {
-		n := dvar
-		ssaVars.Add(n)
-		for _, slot := range debugInfo.VarSlots[varID] {
-			ssaVars.Add(debugInfo.Slots[slot].N)
-		}
-
-		if dvar := createComplexVar(fnsym, fn, ssa.VarID(varID), closureVars); dvar != nil {
-			decls = append(decls, n)
-			vars = append(vars, dvar)
-		}
-	}
-
-	return decls, vars, ssaVars
 }
 
 // createComplexVar builds a single DWARF variable entry and location list.
@@ -573,7 +564,7 @@ func createComplexVar(fnsym *obj.LSym, fn *ir.Func, varID ssa.VarID, closureVars
 
 // createHeapDerefLocationList creates a location list for a heap-escaped variable
 // that describes "dereference pointer at stack offset"
-func createHeapDerefLocationList(n *ir.Name, entryID ssa.ID) []byte {
+func createHeapDerefLocationList(n *ir.Name, entryID ssa.ID) []ssa.LocListEntry {
 	// Get the stack offset where the heap pointer is stored
 	heapPtrOffset := n.Heapaddr.FrameOffset()
 	if base.Ctxt.Arch.FixedFrameSize == 0 {
@@ -584,14 +575,18 @@ func createHeapDerefLocationList(n *ir.Name, entryID ssa.ID) []byte {
 	}
 
 	// Create a location expression: DW_OP_fbreg <offset> DW_OP_deref
-	var locExpr []byte
-	var sizeIdx int
-	locExpr, sizeIdx = ssa.SetupLocList(base.Ctxt, entryID, locExpr, ssa.BlockStart.ID, ssa.FuncEnd.ID)
-	locExpr = append(locExpr, dwarf.DW_OP_fbreg)
-	locExpr = dwarf.AppendSleb128(locExpr, heapPtrOffset)
-	locExpr = append(locExpr, dwarf.DW_OP_deref)
-	base.Ctxt.Arch.ByteOrder.PutUint16(locExpr[sizeIdx:], uint16(len(locExpr)-sizeIdx-2))
-	return locExpr
+	var expr []byte
+	expr = append(expr, dwarf.DW_OP_fbreg)
+	expr = dwarf.AppendSleb128(expr, heapPtrOffset)
+	expr = append(expr, dwarf.DW_OP_deref)
+
+	return []ssa.LocListEntry{{
+		StartBlock: entryID,
+		StartValue: ssa.BlockStart.ID,
+		EndBlock:   entryID,
+		EndValue:   ssa.FuncEnd.ID,
+		Expr:       expr,
+	}}
 }
 
 // RecordFlags records the specified command-line flags to be placed
@@ -665,6 +660,25 @@ func RecordPackageName() {
 	s.Set(obj.AttrDuplicateOK, true)
 	base.Ctxt.Data = append(base.Ctxt.Data, s)
 	s.P = []byte(types.LocalPkg.Name)
+}
+
+// shouldEmitDwarfVar reports whether n should have a DWARF variable entry.
+// This consolidates filtering that was previously spread across IR (AutoTemp),
+// SSA (IsVarWantedForDebug), and dwarfgen (symbol name checks).
+func shouldEmitDwarfVar(n *ir.Name) bool {
+	if ir.IsAutoTmp(n) {
+		return false
+	}
+	if !ssa.IsVarWantedForDebug(n) {
+		return false
+	}
+	if n.Sym().Name == "_" {
+		return false
+	}
+	if n.Type().IsUntyped() {
+		return false
+	}
+	return true
 }
 
 func closureOffset(n *ir.Name, closureVars map[*ir.Name]int64) int64 {

@@ -594,3 +594,13 @@ func walltime() (sec int64, nsec int32) {
 	readtime(&t[0], 1, 1)
 	return timesplit(frombe(t[0]))
 }
+
+//go:nowritebarrierrec
+//go:nosplit
+func libpreinit() {}
+
+//go:nowritebarrierrec
+//go:nosplit
+func newosproc0(stacksize uintptr, fn unsafe.Pointer) {
+	throw("bad newosproc0")
+}

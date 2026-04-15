@@ -680,7 +680,7 @@ func (rp *IndexPackage) Import(bctxt build.Context, mode build.ImportMode) (p *b
 // and otherwise falling back to internal/goroot.IsStandardPackage
 func IsStandardPackage(goroot_, compiler, path string) bool {
 	if !enabled || compiler != "gc" {
-		return goroot.IsStandardPackage(goroot_, compiler, path)
+		return goroot.IsStandardPackage(fsys.ReadDir, goroot_, compiler, path)
 	}
 
 	reldir := filepath.FromSlash(path) // relative dir path in module index for package
@@ -695,7 +695,7 @@ func IsStandardPackage(goroot_, compiler, path string) bool {
 	} else if errors.Is(err, ErrNotIndexed) {
 		// Fall back because package isn't indexable. (Probably because
 		// a file was modified recently)
-		return goroot.IsStandardPackage(goroot_, compiler, path)
+		return goroot.IsStandardPackage(fsys.ReadDir, goroot_, compiler, path)
 	}
 	return false
 }

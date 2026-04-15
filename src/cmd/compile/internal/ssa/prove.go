@@ -273,6 +273,15 @@ func convertIntWithBitsize[Target uint64 | int64, Source uint64 | int64](x Sourc
 	}
 }
 
+// unsignedFixedLeadingBits extracts the all the most significant fixed bits from the limit.
+// fixed and count are an other way to represent a limit, you can convert them to a limit as follows:
+//
+//	umin = fixed
+//	umax = fixed | (1<<(64-count) - 1)
+//
+// In order to be useful for bitmanip analysis fixed and count are a coarser tool than a limit:
+// 1. the varying section (umax-umin) is always one less than a power of two
+// 2. that section is naturally aligned inside the 64-bit space
 func (l limit) unsignedFixedLeadingBits() (fixed uint64, count uint) {
 	varying := uint(bits.Len64(l.umin ^ l.umax))
 	count = uint(bits.LeadingZeros64(l.umin ^ l.umax))
@@ -1562,9 +1571,8 @@ func getSliceInfo(vp *Value) (inf sliceInfo) {
 // its negation. If either leads to a contradiction, it can trim that
 // successor.
 func prove(f *Func) {
-	// Find induction variables. Currently, findIndVars
-	// is limited to one induction variable per block.
-	var indVars map[*Block]indVar
+	// Find induction variables.
+	var indVars map[*Block][]indVar
 	for _, v := range findIndVar(f) {
 		ind := v.ind
 		if len(ind.Args) != 2 {
@@ -1577,9 +1585,9 @@ func prove(f *Func) {
 			nxt.Uses == 1) { // 1 used by induction
 			// ind or nxt is used inside the loop, add it for the facts table
 			if indVars == nil {
-				indVars = make(map[*Block]indVar)
+				indVars = make(map[*Block][]indVar)
 			}
-			indVars[v.entry] = v
+			indVars[v.entry] = append(indVars[v.entry], v)
 			continue
 		} else {
 			// Since this induction variable is not used for anything but counting the iterations,
@@ -1669,7 +1677,7 @@ func prove(f *Func) {
 
 			// Entering the block, add facts about the induction variable
 			// that is bound to this block.
-			if iv, ok := indVars[node.block]; ok {
+			for _, iv := range indVars[node.block] {
 				addIndVarRestrictions(ft, parent, iv)
 			}
 
@@ -1876,11 +1884,6 @@ func (ft *factsTable) flowLimit(v *Value) {
 	// TODO: if y.umax and y.umin share a leading bit pattern, y also has that leading bit pattern.
 	// we could compare the patterns of always set bits in a and b and learn more about minimum and maximum.
 	// But I doubt this help any real world code.
-	case OpAnd64, OpAnd32, OpAnd16, OpAnd8:
-		// AND can only make the value smaller.
-		a := ft.limits[v.Args[0].ID]
-		b := ft.limits[v.Args[1].ID]
-		ft.unsignedMax(v, min(a.umax, b.umax))
 	case OpOr64, OpOr32, OpOr16, OpOr8:
 		// OR can only make the value bigger and can't flip bits proved to be zero in both inputs.
 		a := ft.limits[v.Args[0].ID]
@@ -2914,6 +2917,62 @@ func simplifyBlock(sdom SparseTree, ft *factsTable, b *Block) {
 				v.SetArg(yPos, zero)
 				if b.Func.pass.debug > 0 {
 					b.Func.Warnl(v.Pos, "Rewrote %v (%v) %v argument is boolean-like; rewrote to %v against 0", v, oldOp, x, v.Op)
+				}
+			}
+		case OpAnd64, OpAnd32, OpAnd16, OpAnd8:
+			x, y := v.Args[0], v.Args[1]
+			xl, yl := ft.limits[x.ID], ft.limits[y.ID]
+			xConst, xIsConst := xl.constValue()
+			yConst, yIsConst := yl.constValue()
+			// Remove no-op Ands
+			switch {
+			case xIsConst && yIsConst:
+			case xIsConst:
+				x, y = y, x
+				xl, yl = yl, xl
+				xConst, yConst = yConst, xConst
+				fallthrough
+			case yIsConst:
+				knownBits, fixedLen := xl.unsignedFixedLeadingBits()
+				varyingLen := 64 - fixedLen
+				wantBits := knownBits | (uint64(1)<<varyingLen - 1)
+				// wantBits has the fixed bits and the worst case bits (set) for the varying bits
+				// if after anding it with y it isn't modified we know the and is always a no-op.
+				if wantBits&uint64(yConst) != wantBits {
+					break
+				}
+
+				oldOp := v.Op
+				v.copyOf(x)
+				if b.Func.pass.debug > 0 {
+					b.Func.Warnl(v.Pos, "Proved %v is a no-op %v", v, oldOp)
+				}
+			}
+		case OpOr64, OpOr32, OpOr16, OpOr8:
+			x, y := v.Args[0], v.Args[1]
+			xl, yl := ft.limits[x.ID], ft.limits[y.ID]
+			xConst, xIsConst := xl.constValue()
+			yConst, yIsConst := yl.constValue()
+			// Remove no-op Ors
+			switch {
+			case xIsConst && yIsConst:
+			case xIsConst:
+				x, y = y, x
+				xl, yl = yl, xl
+				xConst, yConst = yConst, xConst
+				fallthrough
+			case yIsConst:
+				wantBits, _ := xl.unsignedFixedLeadingBits()
+				// wantBits has the fixed bits and the worst case bits (unset) for the varying bits
+				// if after oring it with y it isn't modified we know the or is always a no-op.
+				if wantBits|uint64(yConst) != wantBits {
+					break
+				}
+
+				oldOp := v.Op
+				v.copyOf(x)
+				if b.Func.pass.debug > 0 {
+					b.Func.Warnl(v.Pos, "Proved %v is a no-op %v", v, oldOp)
 				}
 			}
 		}

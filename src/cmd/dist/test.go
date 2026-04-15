@@ -30,6 +30,8 @@ func cmdtest() {
 
 	var t tester
 
+	t.asmflags = os.Getenv("GO_TEST_ASMFLAGS")
+
 	var noRebuild bool
 	flag.BoolVar(&t.listMode, "list", false, "list available tests")
 	flag.BoolVar(&t.rebuild, "rebuild", false, "rebuild everything first")
@@ -63,16 +65,16 @@ type tester struct {
 	failed      bool
 	keepGoing   bool
 	compileOnly bool // just try to compile all tests, but no need to run
+	short       bool
+	cgoEnabled  bool
+	asmflags    string
+	json        bool
 	runRxStr    string
 	runRx       *regexp.Regexp
 	runRxWant   bool     // want runRx to match (true) or not match (false)
 	runNames    []string // tests to run, exclusive with runRx; empty means all
 	banner      string   // prefix, or "" for none
 	lastHeading string   // last dir heading printed
-
-	short      bool
-	cgoEnabled bool
-	json       bool
 
 	tests        []distTest // use addTest to extend
 	testNames    map[string]bool
@@ -435,9 +437,6 @@ func (opts *goTest) buildArgs(t *tester) (build, run, pkgs, testFlags []string, 
 		run = append(run, "-short")
 	}
 	var tags []string
-	if t.iOS() {
-		tags = append(tags, "lldb")
-	}
 	if noOpt {
 		tags = append(tags, "noopt")
 	}
@@ -477,6 +476,9 @@ func (opts *goTest) buildArgs(t *tester) (build, run, pkgs, testFlags []string, 
 	}
 	if opts.ldflags != "" {
 		build = append(build, "-ldflags="+opts.ldflags)
+	}
+	if t.asmflags != "" {
+		build = append(build, "-asmflags="+t.asmflags)
 	}
 	if opts.buildmode != "" {
 		build = append(build, "-buildmode="+opts.buildmode)
@@ -699,14 +701,6 @@ func (t *tester) registerTests() {
 				tags:    []string{"osusergo"},
 				pkg:     "os/user",
 			})
-		t.registerTest("hash/maphash purego implementation",
-			&goTest{
-				variant: "purego",
-				timeout: 300 * time.Second,
-				tags:    []string{"purego"},
-				pkg:     "hash/maphash",
-				env:     []string{"GODEBUG=fips140=off"}, // FIPS 140-3 mode is incompatible with purego
-			})
 	}
 
 	// Check that all crypto packages compile with the purego build tag.
@@ -806,7 +800,7 @@ func (t *tester) registerTests() {
 	}
 
 	// Spectre mitigation smoke test.
-	if goos == "linux" && goarch == "amd64" {
+	if goos == "linux" && goarch == "amd64" && !(gogcflags == "-spectre=all" && t.asmflags == "all=-spectre=all") {
 		// Pick a bunch of packages known to have some assembly.
 		pkgs := []string{"internal/runtime/...", "reflect", "crypto/..."}
 		if !t.short {

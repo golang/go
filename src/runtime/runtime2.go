@@ -1177,16 +1177,17 @@ type _panic struct {
 	link *_panic // link to earlier panic
 
 	// startPC and startSP track where _panic.start was called.
+	// (These are the SP and PC of the gopanic frame itself.)
 	startPC uintptr
 	startSP unsafe.Pointer
 
 	// The current stack frame that we're running deferred calls for.
+	pc uintptr
 	sp unsafe.Pointer
-	lr uintptr
 	fp unsafe.Pointer
 
 	// retpc stores the PC where the panic should jump back to, if the
-	// function last returned by _panic.next() recovers the panic.
+	// function last returned by _panic.nextDefer() recovers the panic.
 	retpc uintptr
 
 	// Extra state for handling open-coded defers.
@@ -1197,8 +1198,6 @@ type _panic struct {
 	repanicked  bool // whether this panic repanicked
 	goexit      bool
 	deferreturn bool
-
-	gopanicFP unsafe.Pointer // frame pointer of the gopanic frame
 }
 
 // savedOpenDeferState tracks the extra state from _panic that's

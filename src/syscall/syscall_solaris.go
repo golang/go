@@ -22,7 +22,15 @@ func RawSyscall(trap, a1, a2, a3 uintptr) (r1, r2 uintptr, err Errno)
 func RawSyscall6(trap, a1, a2, a3, a4, a5, a6 uintptr) (r1, r2 uintptr, err Errno)
 
 // Implemented in asm_solaris_amd64.s.
+//
+// Accessed via assembly in x/sys/unix.
+//
+//go:linkname rawSysvicall6
 func rawSysvicall6(trap, nargs, a1, a2, a3, a4, a5, a6 uintptr) (r1, r2 uintptr, err Errno)
+
+// Accessed via assembly in x/sys/unix and x/net/lif.
+//
+//go:linkname sysvicall6
 func sysvicall6(trap, nargs, a1, a2, a3, a4, a5, a6 uintptr) (r1, r2 uintptr, err Errno)
 
 type SockaddrDatalink struct {
@@ -70,6 +78,9 @@ func Pipe2(p []int, flags int) error {
 	}
 	return err
 }
+
+//go:cgo_ldflag "-lxnet"
+//go:cgo_ldflag "-lsocket"
 
 //sys   accept4(s int, rsa *RawSockaddrAny, addrlen *_Socklen, flags int) (fd int, err error) = libsocket.accept4
 

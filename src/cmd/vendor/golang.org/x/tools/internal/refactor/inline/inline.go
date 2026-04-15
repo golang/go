@@ -132,8 +132,9 @@ func (st *state) inline() (*Result, error) {
 	// the x subtree is subject to precedence ambiguity
 	// (replacing x by p+q would give p+q[y:z] which is wrong)
 	// but the y and z subtrees are safe.
-	if needsParens(caller.path, res.old, res.new) {
-		res.new = &ast.ParenExpr{X: res.new.(ast.Expr)}
+	if new, ok := res.new.(ast.Expr); ok {
+		parent := caller.path[slices.Index(caller.path, res.old)+1]
+		res.new = internalastutil.MaybeParenthesize(parent, res.old.(ast.Expr), new)
 	}
 
 	// Some reduction strategies return a new block holding the
@@ -647,6 +648,9 @@ func (st *state) inlineCall() (*inlineCallResult, error) {
 				call.Ellipsis = token.NoPos
 				return
 			}
+		}
+		if len(path) > 0 {
+			repl = internalastutil.MaybeParenthesize(last(path), id, repl)
 		}
 		replaceNode(calleeDecl, id, repl)
 	}
@@ -1333,15 +1337,6 @@ func (st *state) typeArguments(call *ast.CallExpr) []*argument {
 	var args []*argument
 	for _, e := range exprs {
 		arg := &argument{expr: e, freevars: freeVars(st.caller.Info, e)}
-		// Wrap the instantiating type in parens when it's not an
-		// ident or qualified ident to prevent "if x == struct{}"
-		// parsing ambiguity, or "T(x)" where T = "*int" or "func()"
-		// from misparsing.
-		// TODO(adonovan): this fails in cases where parens are disallowed, such as
-		// in the composite literal expression T{k: v}.
-		if _, ok := arg.expr.(*ast.Ident); !ok {
-			arg.expr = &ast.ParenExpr{X: arg.expr}
-		}
 		args = append(args, arg)
 	}
 	return args
@@ -2027,8 +2022,7 @@ func resolveEffects(logf logger, args []*argument, effects []int, sg substGraph)
 		return string("RW"[btoi(effects)]) + i
 	}
 	removed := false
-	for i := len(args) - 1; i >= 0; i-- {
-		argi := args[i]
+	for i, argi := range slices.Backward(args) {
 		if sg.has(argi) && !argi.pure {
 			// i is not bound: check whether it must be bound due to hazards.
 			idx := slices.Index(effects, i)
@@ -3135,73 +3129,6 @@ func last[T any](slice []T) T {
 		return slice[n-1]
 	}
 	return *new(T)
-}
-
-// needsParens reports whether parens are required to avoid ambiguity
-// around the new node replacing the specified old node (which is some
-// ancestor of the CallExpr identified by its PathEnclosingInterval).
-func needsParens(callPath []ast.Node, old, new ast.Node) bool {
-	// Find enclosing old node and its parent.
-	i := slices.Index(callPath, old)
-	if i == -1 {
-		panic("not found")
-	}
-
-	// There is no precedence ambiguity when replacing
-	// (e.g.) a statement enclosing the call.
-	if !is[ast.Expr](old) {
-		return false
-	}
-
-	// An expression beneath a non-expression
-	// has no precedence ambiguity.
-	parent, ok := callPath[i+1].(ast.Expr)
-	if !ok {
-		return false
-	}
-
-	precedence := func(n ast.Node) int {
-		switch n := n.(type) {
-		case *ast.UnaryExpr, *ast.StarExpr:
-			return token.UnaryPrec
-		case *ast.BinaryExpr:
-			return n.Op.Precedence()
-		}
-		return -1
-	}
-
-	// Parens are not required if the new node
-	// is not unary or binary.
-	newprec := precedence(new)
-	if newprec < 0 {
-		return false
-	}
-
-	// Parens are required if parent and child are both
-	// unary or binary and the parent has higher precedence.
-	if precedence(parent) > newprec {
-		return true
-	}
-
-	// Was the old node the operand of a postfix operator?
-	//  f().sel
-	//  f()[i:j]
-	//  f()[i]
-	//  f().(T)
-	//  f()(x)
-	switch parent := parent.(type) {
-	case *ast.SelectorExpr:
-		return parent.X == old
-	case *ast.IndexExpr:
-		return parent.X == old
-	case *ast.SliceExpr:
-		return parent.X == old
-	case *ast.TypeAssertExpr:
-		return parent.X == old
-	case *ast.CallExpr:
-		return parent.Fun == old
-	}
-	return false
 }
 
 // declares returns the set of lexical names declared by a

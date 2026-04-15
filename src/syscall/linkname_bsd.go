@@ -15,3 +15,11 @@ import _ "unsafe"
 // Do not remove or change the type signature.
 //
 //go:linkname sysctl
+
+// golang.org/x/sys accesses these in assembly.
+//
+//go:linkname Syscall
+//go:linkname Syscall6
+//go:linkname Syscall9
+//go:linkname RawSyscall
+//go:linkname RawSyscall6

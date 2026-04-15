@@ -1,8 +1,8 @@
-golang.org/x/crypto v0.47.1-0.20260113154411-7d0074ccc6f1 h1:peTBrYsTa5Rr+jB2pbgd7X08cFAun6ME4So3jfEkYL4=
-golang.org/x/crypto v0.47.1-0.20260113154411-7d0074ccc6f1/go.mod h1:ff3Y9VzzKbwSSEzWqJsJVBnWmRwRSHt/6Op5n9bQc4A=
-golang.org/x/net v0.49.1-0.20260122225915-f2078620ee33 h1:pNHjOZ0w6qb8R9EDmEsBXmV4o2YKLvtRiEk4q5gN5Hg=
-golang.org/x/net v0.49.1-0.20260122225915-f2078620ee33/go.mod h1:/ysNB2EvaqvesRkuLAyjI1ycPZlQHM3q01F02UY/MV8=
-golang.org/x/sys v0.40.1-0.20260116220947-d25a7aaff8c2 h1:jUsftZdK5NYH1tUlaQUfascfiJtOm7qHnRPWsG6hb4w=
-golang.org/x/sys v0.40.1-0.20260116220947-d25a7aaff8c2/go.mod h1:OgkHotnGiDImocRcuBABYBEXf8A9a87e/uXjp9XT3ks=
-golang.org/x/text v0.33.1-0.20260122225119-3264de9174be h1:EwuAS7HtEmZVDSL0zq464yhyVIjdDETleE+K94kfwxg=
-golang.org/x/text v0.33.1-0.20260122225119-3264de9174be/go.mod h1:LuMebE6+rBincTi9+xWTY8TztLzKHc/9C1uBCG27+q8=
+golang.org/x/crypto v0.50.0 h1:zO47/JPrL6vsNkINmLoo/PH1gcxpls50DNogFvB5ZGI=
+golang.org/x/crypto v0.50.0/go.mod h1:3muZ7vA7PBCE6xgPX7nkzzjiUq87kRItoJQM1Yo8S+Q=
+golang.org/x/net v0.53.1-0.20260410192740-cd64923cd7f4 h1:YxvMAEWKTqJ1JPwbgY2r7MoIutOit7xTXgoxo887lWQ=
+golang.org/x/net v0.53.1-0.20260410192740-cd64923cd7f4/go.mod h1:JvMuJH7rrdiCfbeHoo3fCQU24Lf5JJwT9W3sJFulfgs=
+golang.org/x/sys v0.43.0 h1:Rlag2XtaFTxp19wS8MXlJwTvoh8ArU6ezoyFsMyCTNI=
+golang.org/x/sys v0.43.0/go.mod h1:4GL1E5IUh+htKOUEOaiffhrAeqysfVGipDYzABqnCmw=
+golang.org/x/text v0.36.0 h1:JfKh3XmcRPqZPKevfXVpI1wXPTqbkE5f7JA92a55Yxg=
+golang.org/x/text v0.36.0/go.mod h1:NIdBknypM8iqVmPiuco0Dh6P5Jcdk8lJL0CUebqK164=

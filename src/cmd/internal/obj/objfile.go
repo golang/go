@@ -360,6 +360,9 @@ func (w *writer) Sym(s *LSym) {
 		// The runtime linknames main.main.
 		flag2 |= goobj.SymFlagLinkname
 	}
+	if s.IsLinknameStd() {
+		flag2 |= goobj.SymFlagLinknameStd
+	}
 	if s.ABIWrapper() {
 		flag2 |= goobj.SymFlagABIWrapper
 	}

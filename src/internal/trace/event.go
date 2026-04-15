@@ -776,7 +776,7 @@ func makeStackSampleEvent(e Event, s Stack) (Event, error) {
 }
 
 func addStack(table *evTable, frames []StackFrame) stackID {
-	var pcs []uint64
+	pcs := make([]uint64, 0, len(frames))
 	for _, f := range frames {
 		table.pcs[f.PC] = frame{
 			pc:     f.PC,
