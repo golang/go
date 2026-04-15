@@ -205,7 +205,7 @@ func do(ctx context.Context, writer io.Writer, flagSet *flag.FlagSet, args []str
 	flagSet.BoolVar(&short, "short", false, "one-line representation for each symbol")
 	flagSet.BoolVar(&serveHTTP, "http", false, "serve HTML docs over HTTP")
 	flagSet.Parse(args)
-	counter.CountFlags("doc/flag:", *flag.CommandLine)
+	counter.CountFlags("doc/flag:", *flagSet)
 	if chdir != "" {
 		if err := os.Chdir(chdir); err != nil {
 			return err
