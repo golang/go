@@ -3211,7 +3211,7 @@ func (c *ctxt0) asmout(p *obj.Prog, o *Optab, out []uint32) {
 			o3 = OP_IR(c.opir(ALU32ID), uint32(v>>32), uint32(REGTMP))
 			o4 = OP_12IRR(c.opirr(ALU52ID), uint32(v>>52), uint32(REGTMP), uint32(REGTMP))
 			o5 = OP_RRR(c.oprrr(add), uint32(REGTMP), uint32(r), uint32(r))
-			o6 = OP_14IRR(c.opirr(p.As), uint32(0), uint32(r), uint32(p.To.Reg))
+			o6 = OP_14IRR(c.opirr(-p.As), uint32(0), uint32(r), uint32(p.To.Reg))
 		}
 
 	}
