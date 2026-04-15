@@ -496,7 +496,7 @@ func (v Value) New(args ...any) Value {
 	runtime.KeepAlive(argVals)
 	if !ok {
 		if vType := v.Type(); vType != TypeFunction { // check here to avoid overhead in success case
-			panic(&ValueError{"Value.Invoke", vType})
+			panic(&ValueError{"Value.New", vType})
 		}
 		panic(Error{makeValue(res)})
 	}
