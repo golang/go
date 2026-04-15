@@ -936,6 +936,8 @@ TEXT asmtest(SB),DUPOK|NOSPLIT,$-8
 	// TODO: LUTI6
 	// TODO: LUTI6
 	ZSPLICE [Z7.D, Z8.D], P4, Z13.D                   // ed90ed05
+	ZTBL Z7.D, [Z23.D], Z13.D                         // ed32e705
+	ZTBL Z7.D, [Z23.D, Z24.D], Z13.D                  // ed2ae705
 	ZTBLQ Z7.D, [Z23.D], Z13.D                        // edfac744
 	ZADR (Z16.S)(Z12.S), Z13.S                        // 8da1b004
 	ZADR (Z7.D.SXTW<<2)(Z6.D), Z23.D                  // d7a82704
@@ -947,6 +949,8 @@ TEXT asmtest(SB),DUPOK|NOSPLIT,$-8
 	ZLD1B (Z10.D)(R19), P3.Z, [Z15.D]                 // 6fce4ac4
 	ZLD1B (Z4.S.UXTW)(R3), P3.Z, [Z4.S]               // 644c0484
 	ZLD1B (Z6.D)(R14), P4.Z, [Z13.D]                  // cdd146c4
+	ZLD1D (R6<<3)(R14), P4.Z, [Z13.D]                 // cd51e6a5
+	ZLD1D (R6<<3)(R14), P4.Z, [Z13.Q]                 // cd9186a5
 	ZLD1D (Z23.D<<3)(R24), P1.Z, [Z22.D]              // 16c7f7c5
 	ZLD1D (Z10.D)(R19), P3.Z, [Z15.D]                 // 6fcecac5
 	ZLD1D (Z6.D<<3)(R14), P4.Z, [Z13.D]               // cdd1e6c5
@@ -988,6 +992,9 @@ TEXT asmtest(SB),DUPOK|NOSPLIT,$-8
 	ZLD1SW (Z10.D)(R19), P3.Z, [Z15.D]                // 6f8e4ac5
 	ZLD1SW (Z6.D<<2)(R14), P4.Z, [Z13.D]              // cd9166c5
 	ZLD1SW (Z6.D)(R14), P4.Z, [Z13.D]                 // cd9146c5
+	ZLD1W (R6<<2)(R14), P4.Z, [Z13.S]                 // cd5146a5
+	ZLD1W (R6<<2)(R14), P4.Z, [Z13.D]                 // cd5166a5
+	ZLD1W (R6<<2)(R14), P4.Z, [Z13.Q]                 // cd9106a5
 	ZLD1W (Z4.S.UXTW<<2)(R3), P3.Z, [Z4.S]            // 644c2485
 	ZLD1W (Z23.D<<2)(R24), P1.Z, [Z22.D]              // 16c777c5
 	ZLD1W (Z10.D)(R19), P3.Z, [Z15.D]                 // 6fce4ac5
@@ -1077,6 +1084,8 @@ TEXT asmtest(SB),DUPOK|NOSPLIT,$-8
 	ZST1B (Z10.D)(R19), P3, [Z15.D]                   // 6fae0ae4
 	ZST1B (Z4.S.UXTW)(R3), P3, [Z4.S]                 // 648c44e4
 	ZST1B (Z6.D)(R14), P4, [Z13.D]                    // cdb106e4
+	ZST1D (R6<<3)(R14), P4, [Z13.D]                   // cd51e6e5
+	ZST1D (R6<<3)(R14), P4, [Z13.Q]                   // cd51c6e5
 	ZST1D (Z23.D<<3)(R24), P1, [Z22.D]                // 16a7b7e5
 	ZST1D (Z10.D)(R19), P3, [Z15.D]                   // 6fae8ae5
 	ZST1D (Z6.D<<3)(R14), P4, [Z13.D]                 // cdb1a6e5
@@ -1089,6 +1098,8 @@ TEXT asmtest(SB),DUPOK|NOSPLIT,$-8
 	ZST1H (Z6.D<<1)(R14), P4, [Z13.D]                 // cdb1a6e4
 	ZST1H (Z6.D)(R14), P4, [Z13.D]                    // cdb186e4
 	ZST1Q (R6)(Z7.D), P4, [Z13.Q]                     // ed3026e4
+	ZST1W (R6<<2)(RSP), P1, [Z12.S]                   // ec4746e5
+	ZST1W (R6<<2)(R14), P4, [Z13.Q]                   // cd5106e5
 	ZST1W (Z4.S.UXTW<<2)(R3), P3, [Z4.S]              // 648c64e5
 	ZST1W (Z23.D<<2)(R24), P1, [Z22.D]                // 16a737e5
 	ZST1W (Z10.D)(R19), P3, [Z15.D]                   // 6fae0ae5
@@ -1219,6 +1230,8 @@ TEXT asmtest(SB),DUPOK|NOSPLIT,$-8
 	ZLD1B (-VL*2)(R14), P4.Z, [Z13.H]                 // cdb12ea4
 	ZLD1B (-VL*2)(R14), P4.Z, [Z13.S]                 // cdb14ea4
 	ZLD1B (-VL*2)(R14), P4.Z, [Z13.D]                 // cdb16ea4
+	ZLD1D (-VL*2)(R14), P4.Z, [Z13.D]                 // cdb1eea5
+	ZLD1D (-VL*2)(R14), P4.Z, [Z13.Q]                 // cd319ea5
 	ZLD1H (-VL*2)(R14), P4.Z, [Z13.H]                 // cdb1aea4
 	ZLD1H (-VL*2)(R14), P4.Z, [Z13.S]                 // cdb1cea4
 	ZLD1H (-VL*2)(R14), P4.Z, [Z13.D]                 // cdb1eea4
@@ -1228,6 +1241,9 @@ TEXT asmtest(SB),DUPOK|NOSPLIT,$-8
 	ZLD1SH (-VL*2)(R14), P4.Z, [Z13.S]                // cdb12ea5
 	ZLD1SH (-VL*2)(R14), P4.Z, [Z13.D]                // cdb10ea5
 	ZLD1SW (-VL*2)(R14), P4.Z, [Z13.D]                // cdb18ea4
+	ZLD1W (-VL*2)(R14), P4.Z, [Z13.S]                 // cdb14ea5
+	ZLD1W (-VL*2)(R14), P4.Z, [Z13.D]                 // cdb16ea5
+	ZLD1W (-VL*2)(R14), P4.Z, [Z13.Q]                 // cd311ea5
 	ZLD2B (-VL*2)(R14), P4.Z, [Z13.B, Z14.B]          // cdf12fa4
 	ZLD2D (-VL*2)(R14), P4.Z, [Z13.D, Z14.D]          // cdf1afa5
 	ZLD2H (-VL*2)(R14), P4.Z, [Z13.H, Z14.H]          // cdf1afa4
@@ -1265,7 +1281,11 @@ TEXT asmtest(SB),DUPOK|NOSPLIT,$-8
 	ZLDNT1W (-VL*2)(R14), P4.Z, [Z13.S]               // cdf10ea5
 	ZLDR (-VL*2)(RSP), Z7                             // e75bbf85
 	ZST1B (-VL*2)(R14), P4, [Z13.B]                   // cdf10ee4
+	ZST1D (-VL*2)(R14), P4, [Z13.D]                   // cdf1eee5
+	ZST1D (-VL*2)(R14), P4, [Z13.Q]                   // cdf1cee5
 	ZST1H (-VL*2)(RSP), P1, [Z12.S]                   // ece7cee4
+	ZST1W (-VL*2)(RSP), P1, [Z12.S]                   // ece74ee5
+	ZST1W (-VL*2)(R14), P4, [Z13.Q]                   // cdf10ee5
 	ZST2B (-VL*2)(R14), P4, [Z13.B, Z14.B]            // cdf13fe4
 	ZST2D (-VL*2)(R14), P4, [Z13.D, Z14.D]            // cdf1bfe5
 	ZST2H (-VL*2)(R14), P4, [Z13.H, Z14.H]            // cdf1bfe4

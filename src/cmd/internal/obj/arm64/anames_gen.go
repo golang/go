@@ -601,6 +601,7 @@ var sveAnames = []string{
 	"ZSXTB",
 	"ZSXTH",
 	"ZSXTW",
+	"ZTBL",
 	"ZTBLQ",
 	"ZTBX",
 	"ZTBXQ",

@@ -1598,6 +1598,17 @@ func encodeZda15V1(v uint32) (uint32, bool) {
 	return (v / 2) << 1, true
 }
 
+// encodeGenZn510V1 is the implementation of the following encoding logic:
+// Is the name of the first scalable vector register of the first source multi-vector group, encoded in the "Zn" field.
+// bit range mappings:
+// Zn: [5:10)
+func encodeGenZn510V1(v uint32) (uint32, bool) {
+	if !stripRawZ(&v) {
+		return 0, false
+	}
+	return v << 5, true
+}
+
 // encodeZn610V1 is the implementation of the following encoding logic:
 // Is the name of the first scalable vector register of the source multi-vector group, encoded as "Zn" times 2.
 // bit range mappings:
@@ -1870,6 +1881,17 @@ func encodeZda15V2(v uint32) (uint32, bool) {
 		return 0, false
 	}
 	return ((v - 1) / 2) << 1, true
+}
+
+// encodeGenZn510V2 is the implementation of the following encoding logic:
+// Is the name of the second scalable vector register of the first source multi-vector group, encoded in the "Zn" field.
+// bit range mappings:
+// Zn: [5:10)
+func encodeGenZn510V2(v uint32) (uint32, bool) {
+	if !stripRawZ(&v) {
+		return 0, false
+	}
+	return (v - 1) << 5, true
 }
 
 // encodeZn610V2 is the implementation of the following encoding logic:
@@ -3040,6 +3062,23 @@ func encodeSzSD1718(v uint32) (uint32, bool) {
 		return 0 << 17, true
 	case ARNG_D:
 		return 1 << 17, true
+	}
+	return 0, false
+}
+
+// encodeSz2122 is the implementation of the following encoding logic:
+// Is the size specifier,
+// sz	<T>
+// 0	S
+// 1	D
+// bit range mappings:
+// sz: [21:22)
+func encodeSz2122(v uint32) (uint32, bool) {
+	switch v {
+	case ARNG_S:
+		return 0, true
+	case ARNG_D:
+		return 1 << 21, true
 	}
 	return 0, false
 }
