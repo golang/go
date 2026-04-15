@@ -123,6 +123,35 @@ func ExampleBuffer_ReadByte() {
 	// bcde
 }
 
+func ExampleBuffer_Peek() {
+	var b bytes.Buffer
+	b.WriteString("Hello, Gophers!")
+
+	data, err := b.Peek(5)
+	if err != nil {
+		panic(err)
+	}
+	fmt.Printf("First peek: %s\n", data)
+
+	fmt.Printf("Buffer: %s\n", b.String())
+
+	// Advance past "Hello, ".
+	if _, err := b.Read(make([]byte, 7)); err != nil {
+		panic(err)
+	}
+
+	data, err = b.Peek(7)
+	if err != nil {
+		panic(err)
+	}
+	fmt.Printf("Second peek: %s\n", data)
+
+	// Output:
+	// First peek: Hello
+	// Buffer: Hello, Gophers!
+	// Second peek: Gophers
+}
+
 func ExampleClone() {
 	b := []byte("abc")
 	clone := bytes.Clone(b)
