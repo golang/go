@@ -489,7 +489,7 @@ func RunFuzzWorker(ctx context.Context, fn func(CorpusEntry) error) error {
 	srv := &workerServer{
 		workerComm: comm,
 		fuzzFn: func(e CorpusEntry) (time.Duration, error) {
-			timer := time.AfterFunc(10*time.Second, func() {
+			timer := time.AfterFunc(60*time.Second, func() {
 				panic("deadlocked!") // this error message won't be printed
 			})
 			defer timer.Stop()
