@@ -4907,6 +4907,57 @@ func testServerRFC9218PriorityAware(t testing.TB) {
 	}
 }
 
+func TestServerInvalidPathHeader(t *testing.T) {
+	synctestTest(t, testServerInvalidPathHeader)
+}
+func testServerInvalidPathHeader(t testing.TB) {
+	for _, path := range []string{
+		"",
+		"\x00",
+		"https://example.com/",
+	} {
+		testServerRejectsStream(t, ErrCodeProtocol, func(st *serverTester) {
+			st.fr.AllowIllegalWrites = true
+			st.writeHeaders(HeadersFrameParam{
+				StreamID: 1,
+				BlockFragment: st.encodeHeader(
+					":path", path,
+				),
+				EndStream:  true,
+				EndHeaders: true,
+			})
+		})
+	}
+}
+
+func TestServerPathInitialSlashes(t *testing.T) {
+	synctestTest(t, testServerPathInitialSlashes)
+}
+func testServerPathInitialSlashes(t testing.TB) {
+	st := newServerTester(t, nil)
+	st.greet()
+
+	// This path should be passed through unchanged,
+	// and not interpreted as a protocol-relative URL or have initial /s stripped.
+	const path = "//narf.com/path"
+	st.writeHeaders(HeadersFrameParam{
+		StreamID: 1,
+		BlockFragment: st.encodeHeader(
+			":path", path,
+		),
+		EndStream:  true,
+		EndHeaders: true,
+	})
+
+	call := st.nextHandlerCall()
+	if got, want := call.req.URL.Host, ""; got != want {
+		t.Errorf("got req.URL.Host %q, want %q", got, want)
+	}
+	if got, want := call.req.URL.Path, path; got != want {
+		t.Errorf("got req.URL.Path %q, want %q", got, want)
+	}
+}
+
 func TestConsistentConstants(t *testing.T) {
 	if h1, h2 := http.DefaultMaxHeaderBytes, http2.DefaultMaxHeaderBytes; h1 != h2 {
 		t.Errorf("DefaultMaxHeaderBytes: http (%v) != http2 (%v)", h1, h2)
