@@ -759,7 +759,26 @@ func TestGenMeth(t *testing.T) {
 import "genmeth"
 
 func _() {
-	genmeth.T{}.M[int]()
+	var ex func(int) genmeth.List[int]
+	var fl func(genmeth.List[int]) genmeth.List[int]
+
+	var l genmeth.List[int]
+	l = l.Map(ex).FlatMap(fl)
+
+	var bl genmeth.BiList[int, any]
+	bl = bl.MapKeys(ex).Flip().FlatMapValues(fl).Flip()
+
+	var id func(int) int
+
+	var op genmeth.Option[int]
+	var _ int = op.MapIfPresent(id).Get()
+
+	var ol genmeth.OrderedList[int]
+	var _ int = ol.Min().Get()
+
+	var b genmeth.Box[int]
+	b.Set(42)
+	var _ int = b.Get()
 }
 `
 
