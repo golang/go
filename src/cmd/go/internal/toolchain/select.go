@@ -626,7 +626,7 @@ func maybeSwitchForGoInstallVersion(ld *modload.Loader, minVers string) {
 			continue
 		}
 
-		f := run.CmdRun.Flag.Lookup(a)
+		f := cmdFlags.Lookup(a)
 		if f == nil {
 			// We don't know whether this flag is a boolean.
 			if os.Args[1] == "run" {
