@@ -590,15 +590,15 @@ func flagDropIgnore(arg string) {
 // fileJSON is the -json output data structure.
 type fileJSON struct {
 	Module    editModuleJSON
-	Go        string      `json:",omitempty"`
-	Toolchain string      `json:",omitempty"`
-	GoDebug   []debugJSON `json:",omitempty"`
-	Require   []requireJSON
-	Exclude   []module.Version
-	Replace   []replaceJSON
-	Retract   []retractJSON
-	Tool      []toolJSON
-	Ignore    []ignoreJSON
+	Go        string           `json:",omitempty"`
+	Toolchain string           `json:",omitempty"`
+	GoDebug   []debugJSON      `json:",omitempty"`
+	Require   []requireJSON    `json:",omitempty"`
+	Exclude   []module.Version `json:",omitempty"`
+	Replace   []replaceJSON    `json:",omitempty"`
+	Retract   []retractJSON    `json:",omitempty"`
+	Tool      []toolJSON       `json:",omitempty"`
+	Ignore    []ignoreJSON     `json:",omitempty"`
 }
 
 type editModuleJSON struct {
