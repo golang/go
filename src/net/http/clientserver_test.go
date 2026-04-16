@@ -309,7 +309,29 @@ func newClientServerTest(t testing.TB, mode testMode, h Handler, opts ...any) *c
 		cst.tr.Protocols = p
 	}
 	if mode == http3Mode {
-		registerHTTP3Transport(cst.tr)
+		endpointCh := registerHTTP3Transport(cst.tr)
+		testDoneCh := make(chan any)
+		var wg sync.WaitGroup
+		t.Cleanup(func() {
+			close(testDoneCh)
+			wg.Wait()
+		})
+		wg.Go(func() {
+			for {
+				select {
+				case e := <-endpointCh:
+					t.Cleanup(func() {
+						ctx, cancel := context.WithTimeout(context.Background(), time.Second)
+						defer cancel()
+						if e != nil {
+							e.Close(ctx)
+						}
+					})
+				case <-testDoneCh:
+					return
+				}
+			}
+		})
 	}
 
 	t.Cleanup(func() {
