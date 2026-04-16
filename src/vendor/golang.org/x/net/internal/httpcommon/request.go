@@ -448,6 +448,14 @@ func NewServerRequest(rp ServerRequestParam) ServerRequestResult {
 		url_ = &url.URL{Host: rp.Authority}
 		requestURI = rp.Authority // mimic HTTP/1 server behavior
 	} else {
+		// "[The :path] pseudo-header field MUST NOT be empty [...]"
+		// https://www.rfc-editor.org/rfc/rfc9113.html#section-8.3.1-2.4.2
+		if rp.Path == "" || (rp.Path[0] != '/' && rp.Path != "*") {
+			return ServerRequestResult{
+				InvalidReason: "bad_path",
+			}
+		}
+
 		var err error
 		url_, err = url.ParseRequestURI(rp.Path)
 		if err != nil {

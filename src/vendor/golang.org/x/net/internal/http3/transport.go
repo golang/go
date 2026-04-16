@@ -25,6 +25,8 @@ type transport struct {
 	// config is the QUIC configuration used for client connections.
 	config *quic.Config
 
+	listenQUIC func(addr string, config *quic.Config) (*quic.Endpoint, error)
+
 	mu sync.Mutex // Guards fields below.
 	// endpoint is the QUIC endpoint used by connections created by the
 	// transport. If CloseIdleConnections is called when activeConns is empty,
@@ -53,15 +55,37 @@ func (t netHTTPTransport) DialClientConn(ctx context.Context, addr string, _ *ur
 	return t.transport.dial(ctx, addr)
 }
 
+type TransportOpts struct {
+	// ListenQUIC determines how the transport will open a QUIC endpoint.
+	// By default, quic.Listen("udp", addr, config) is used.
+	// ListenQUIC might be called multiple times.
+	ListenQUIC func(addr string, config *quic.Config) (*quic.Endpoint, error)
+
+	// QUICConfig is the QUIC configuration used by the transport.
+	// QUICConfig may be nil and should not be modified after calling
+	// RegisterTransport.
+	// If QUICConfig.TLSConfig is nil, the TLSConfig of the net/http Transport
+	// given to RegisterTransport will be used.
+	QUICConfig *quic.Config
+}
+
 // RegisterTransport configures a net/http HTTP/1 Transport to use HTTP/3.
-//
-// TODO: most likely, add another arg for transport configuration.
-func RegisterTransport(tr *http.Transport) {
+func RegisterTransport(tr *http.Transport, opts TransportOpts) {
+	if opts.QUICConfig == nil {
+		opts.QUICConfig = &quic.Config{}
+	}
+	if opts.QUICConfig.TLSConfig == nil {
+		opts.QUICConfig.TLSConfig = tr.TLSClientConfig
+	}
+	if opts.ListenQUIC == nil {
+		opts.ListenQUIC = func(addr string, config *quic.Config) (*quic.Endpoint, error) {
+			return quic.Listen("udp", addr, config)
+		}
+	}
 	tr3 := &transport{
 		// initConfig will clone the tr.TLSClientConfig.
-		config: initConfig(&quic.Config{
-			TLSConfig: tr.TLSClientConfig,
-		}),
+		config:      initConfig(opts.QUICConfig),
+		listenQUIC:  opts.ListenQUIC,
 		activeConns: make(map[*clientConn]struct{}),
 	}
 	tr.RegisterProtocol("http/3", netHTTPTransport{tr3})
@@ -83,7 +107,7 @@ func (tr *transport) initEndpoint() (err error) {
 	tr.mu.Lock()
 	defer tr.mu.Unlock()
 	if tr.endpoint == nil {
-		tr.endpoint, err = quic.Listen("udp", ":0", nil)
+		tr.endpoint, err = tr.listenQUIC(":0", tr.config)
 	}
 	return err
 }

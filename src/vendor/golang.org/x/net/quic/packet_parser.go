@@ -4,7 +4,9 @@
 
 package quic
 
-import "golang.org/x/net/internal/quic/quicwire"
+import (
+	"golang.org/x/net/internal/quic/quicwire"
+)
 
 // parseLongHeaderPacket parses a QUIC long header packet.
 //
@@ -55,7 +57,7 @@ func parseLongHeaderPacket(pkt []byte, k fixedKeys, pnumMax packetNumber) (p lon
 	// Source Connection ID Length (8),
 	// Source Connection ID (0..160),
 	p.srcConnID, n = quicwire.ConsumeUint8Bytes(b)
-	if n < 0 || len(p.dstConnID) > maxConnIDLen {
+	if n < 0 || len(p.srcConnID) > maxConnIDLen {
 		return longPacket{}, -1
 	}
 	b = b[n:]

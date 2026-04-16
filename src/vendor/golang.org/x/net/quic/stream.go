@@ -10,6 +10,7 @@ import (
 	"fmt"
 	"io"
 	"math"
+	"sync"
 
 	"golang.org/x/net/internal/quic/quicwire"
 )
@@ -72,9 +73,12 @@ type Stream struct {
 	outresetcode uint64          // reset code to send in RESET_STREAM
 	outdone      chan struct{}   // closed when all data sent
 
-	// Unsynchronized buffers, used for lock-free fast path.
-	inbuf     []byte // received data
-	inbufoff  int    // bytes of inbuf which have been consumed
+	// Buffers used for fast path; mutex-guarded, but uncontended in normal operations.
+	inbufmu  sync.Mutex
+	inbuf    []byte // received data
+	inbufoff int    // bytes of inbuf which have been consumed
+
+	outbufmu  sync.Mutex
 	outbuf    []byte // written data
 	outbufoff int    // bytes of outbuf which contain data to write
 
@@ -238,22 +242,34 @@ func (s *Stream) Read(b []byte) (n int, err error) {
 	if s.IsWriteOnly() {
 		return 0, errors.New("read from write-only stream")
 	}
+
+	fastPath := false
+	s.inbufmu.Lock()
 	if len(s.inbuf) > s.inbufoff {
 		// Fast path: If s.inbuf contains unread bytes, return them immediately
 		// without taking a lock.
 		n = copy(b, s.inbuf[s.inbufoff:])
 		s.inbufoff += n
+		fastPath = true
+	}
+	s.inbufmu.Unlock()
+	if fastPath {
 		return n, nil
 	}
+
 	if err := s.ingate.waitAndLock(s.inctx); err != nil {
 		return 0, err
 	}
+
 	if s.inbufoff > 0 {
 		// Discard bytes consumed by the fast path above.
 		s.in.discardBefore(s.in.start + int64(s.inbufoff))
+		s.inbufmu.Lock()
 		s.inbufoff = 0
 		s.inbuf = nil
+		s.inbufmu.Unlock()
 	}
+
 	// bytesRead contains the number of bytes of connection-level flow control to return.
 	// We return flow control for bytes read by this Read call, as well as bytes moved
 	// to the fast-path read buffer (s.inbuf).
@@ -293,10 +309,13 @@ func (s *Stream) Read(b []byte) (n int, err error) {
 		// No need to update stream flow control.
 		return len(b), io.EOF
 	}
+
 	if len(s.inset) > 0 && s.inset[0].start <= s.in.start && s.inset[0].end > s.in.start {
 		// If we have more readable bytes available, put the next chunk of data
 		// in s.inbuf for lock-free reads.
+		s.inbufmu.Lock()
 		s.inbuf = s.in.peek(s.inset[0].end - s.in.start)
+		s.inbufmu.Unlock()
 		bytesRead += int64(len(s.inbuf))
 	}
 	if s.insize == -1 || s.insize > s.inwin {
@@ -307,6 +326,7 @@ func (s *Stream) Read(b []byte) (n int, err error) {
 			s.insendmax.setUnsent()
 		}
 	}
+
 	return len(b), nil
 }
 
@@ -314,11 +334,19 @@ func (s *Stream) Read(b []byte) (n int, err error) {
 //
 // It is not safe to call ReadByte concurrently.
 func (s *Stream) ReadByte() (byte, error) {
+	fastPath := false
+	s.inbufmu.Lock()
+	var readByte byte
 	if len(s.inbuf) > s.inbufoff {
-		b := s.inbuf[s.inbufoff]
+		readByte = s.inbuf[s.inbufoff]
 		s.inbufoff++
-		return b, nil
+		fastPath = true
 	}
+	s.inbufmu.Unlock()
+	if fastPath {
+		return readByte, nil
+	}
+
 	var b [1]byte
 	n, err := s.Read(b[:])
 	if n > 0 {
@@ -344,12 +372,20 @@ func (s *Stream) Write(b []byte) (n int, err error) {
 	if s.IsReadOnly() {
 		return 0, errors.New("write to read-only stream")
 	}
+
+	fastPath := false
+	s.outbufmu.Lock()
 	if len(b) > 0 && len(s.outbuf)-s.outbufoff >= len(b) {
 		// Fast path: The data to write fits in s.outbuf.
 		copy(s.outbuf[s.outbufoff:], b)
 		s.outbufoff += len(b)
+		fastPath = true
+	}
+	s.outbufmu.Unlock()
+	if fastPath {
 		return len(b), nil
 	}
+
 	canWrite := s.outgate.lock()
 	s.flushFastOutputBuffer()
 	for {
@@ -419,10 +455,12 @@ func (s *Stream) Write(b []byte) (n int, err error) {
 		// We set the limit to one less than the send buffer limit (the -1 above)
 		// so that a write which completely fills the buffer will overflow
 		// s.outbuf and trigger a flush.
+		s.outbufmu.Lock()
 		s.outbuf = s.out.availableBuffer()
 		if int64(len(s.outbuf)) > lim {
 			s.outbuf = s.outbuf[:lim]
 		}
+		s.outbufmu.Unlock()
 	}
 	s.outUnlock()
 	return n, nil
@@ -430,17 +468,26 @@ func (s *Stream) Write(b []byte) (n int, err error) {
 
 // WriteByte writes a single byte to the stream.
 func (s *Stream) WriteByte(c byte) error {
+	fastPath := false
+	s.outbufmu.Lock()
 	if s.outbufoff < len(s.outbuf) {
 		s.outbuf[s.outbufoff] = c
 		s.outbufoff++
+		fastPath = true
+	}
+	s.outbufmu.Unlock()
+	if fastPath {
 		return nil
 	}
+
 	b := [1]byte{c}
 	_, err := s.Write(b[:])
 	return err
 }
 
 func (s *Stream) flushFastOutputBuffer() {
+	s.outbufmu.Lock()
+	defer s.outbufmu.Unlock()
 	if s.outbuf == nil {
 		return
 	}
@@ -602,8 +649,10 @@ func (s *Stream) resetInternal(code uint64, userClosed bool) {
 	// extra RESET_STREAM in this case is harmless.
 	s.outreset.set()
 	s.outresetcode = code
+	s.outbufmu.Lock()
 	s.outbuf = nil
 	s.outbufoff = 0
+	s.outbufmu.Unlock()
 	s.out.discardBefore(s.out.end)
 	s.outunsent = rangeset[int64]{}
 	s.outblocked.clear()
@@ -754,6 +803,20 @@ func (s *Stream) handleData(off int64, b []byte, fin bool) error {
 		if err := s.conn.handleStreamBytesReceived(added); err != nil {
 			return err
 		}
+	}
+	if len(s.inset) > 0 && s.inset[0].contains(off) {
+		// We've received at least some of this data,
+		// and potentially moved it into s.inbuf
+		// (since it's part of the first range of received data).
+		// Avoid rewriting this data into s.in, since doing so could race
+		// with a reader reading the same data.
+		//
+		// (Note: We could apply additional checks here, to detect the peer
+		// sending us different data than we received the first time.
+		// We currently don't bother.)
+		newOff := min(end, s.inset[0].end)
+		b = b[end-newOff:]
+		off = newOff
 	}
 	s.in.writeAt(b, off)
 	s.inset.add(off, end)

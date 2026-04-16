@@ -108,7 +108,7 @@ func newConn(now time.Time, side connSide, cids newServerConnIDs, peerHostname s
 	c.msgc = make(chan any, 1)
 
 	if e.testHooks != nil {
-		e.testHooks.newConn(c)
+		e.testHooks.newConn(c, cids)
 	}
 
 	// initialConnID is the connection ID used to generate Initial packet protection keys.

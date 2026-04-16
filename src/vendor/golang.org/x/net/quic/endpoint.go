@@ -36,7 +36,7 @@ type Endpoint struct {
 }
 
 type endpointTestHooks interface {
-	newConn(c *Conn)
+	newConn(c *Conn, cids newServerConnIDs)
 }
 
 // A packetConn is the interface to sending and receiving UDP packets.
@@ -308,6 +308,12 @@ func (e *Endpoint) handleUnknownDestinationDatagram(m *datagram) {
 	}
 	if e.listenConfig == nil {
 		// We are not configured to accept connections.
+		return
+	}
+	if len(p.srcConnID) > maxConnIDLen || len(p.dstConnID) > maxConnIDLen {
+		// Enforce QUICv1 connection ID length limits.
+		// https://www.rfc-editor.org/rfc/rfc9000.html#section-17.2-3.12.1
+		// https://www.rfc-editor.org/rfc/rfc9000.html#section-17.2-3.16.1
 		return
 	}
 	cids := newServerConnIDs{

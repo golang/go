@@ -13,19 +13,27 @@ import (
 )
 
 //go:linkname registerHTTP3Server net/http_test.registerHTTP3Server
-func registerHTTP3Server(s *http.Server) <-chan string {
-	listenAddr := make(chan string)
+func registerHTTP3Server(s *http.Server) <-chan *quic.Endpoint {
+	endpointCh := make(chan *quic.Endpoint)
 	RegisterServer(s, ServerOpts{
 		ListenQUIC: func(addr string, config *quic.Config) (*quic.Endpoint, error) {
 			e, err := quic.Listen("udp", addr, config)
-			listenAddr <- e.LocalAddr().String()
+			endpointCh <- e
 			return e, err
 		},
 	})
-	return listenAddr
+	return endpointCh
 }
 
 //go:linkname registerHTTP3Transport net/http_test.registerHTTP3Transport
-func registerHTTP3Transport(tr *http.Transport) {
-	RegisterTransport(tr)
+func registerHTTP3Transport(tr *http.Transport) <-chan *quic.Endpoint {
+	endpointCh := make(chan *quic.Endpoint)
+	RegisterTransport(tr, TransportOpts{
+		ListenQUIC: func(addr string, config *quic.Config) (*quic.Endpoint, error) {
+			e, err := quic.Listen("udp", addr, config)
+			endpointCh <- e
+			return e, err
+		},
+	})
+	return endpointCh
 }

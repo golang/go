@@ -249,16 +249,16 @@ func parseGenericLongHeaderPacket(b []byte) (p genericLongPacket, ok bool) {
 	}
 	b = b[n:]
 	// Destination Connection ID Length (8),
-	// Destination Connection ID (0..2048),
+	// Destination Connection ID (0..2040),
 	p.dstConnID, n = quicwire.ConsumeUint8Bytes(b)
-	if n < 0 || len(p.dstConnID) > 2048/8 {
+	if n < 0 {
 		return genericLongPacket{}, false
 	}
 	b = b[n:]
 	// Source Connection ID Length (8),
-	// Source Connection ID (0..2048),
+	// Source Connection ID (0..2040),
 	p.srcConnID, n = quicwire.ConsumeUint8Bytes(b)
-	if n < 0 || len(p.dstConnID) > 2048/8 {
+	if n < 0 {
 		return genericLongPacket{}, false
 	}
 	b = b[n:]

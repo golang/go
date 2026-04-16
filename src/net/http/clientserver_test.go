@@ -36,16 +36,19 @@ import (
 	"testing"
 	"testing/synctest"
 	"time"
+
+	"golang.org/x/net/quic"
+
 	_ "unsafe" // for linkname
 
 	_ "golang.org/x/net/http3"
 )
 
 //go:linkname registerHTTP3Transport
-func registerHTTP3Transport(*http.Transport)
+func registerHTTP3Transport(*http.Transport) <-chan *quic.Endpoint
 
 //go:linkname registerHTTP3Server
-func registerHTTP3Server(*http.Server) <-chan string
+func registerHTTP3Server(*http.Server) <-chan *quic.Endpoint
 
 type testMode string
 
@@ -277,14 +280,14 @@ func newClientServerTest(t testing.TB, mode testMode, h Handler, opts ...any) *c
 		http.ProtocolSetHTTP3(p)
 		cst.ts.TLS = cst.ts.Config.TLSConfig
 		cst.ts.StartTLS()
-		listenAddrCh := registerHTTP3Server(cst.ts.Config)
+		endpointCh := registerHTTP3Server(cst.ts.Config)
 
 		cst.ts.Config.TLSConfig = cst.ts.TLS
 		cst.ts.Config.Addr = "localhost:0"
 		go cst.ts.Config.ListenAndServeTLS("", "")
 
-		listenAddr := <-listenAddrCh
-		cst.ts.URL = "https://" + listenAddr
+		endpoint := <-endpointCh
+		cst.ts.URL = "https://" + endpoint.LocalAddr().String()
 		t.Cleanup(func() {
 			// Give a relatively generous timeout. If the timeout is too short,
 			// the test might return before QUIC connections can finish closing
