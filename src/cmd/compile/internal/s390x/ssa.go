@@ -131,7 +131,7 @@ func moveByType(t *types.Type) obj.As {
 			return s390x.AMOVD
 		}
 	}
-	panic("bad load type")
+	panic("bad move type")
 }
 
 // opregreg emits instructions for
