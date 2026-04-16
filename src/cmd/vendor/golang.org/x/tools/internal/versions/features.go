@@ -19,6 +19,7 @@ const (
 	Go1_24 = "go1.24"
 	Go1_25 = "go1.25"
 	Go1_26 = "go1.26"
+	Go1_27 = "go1.27"
 )
 
 // Future is an invalid unknown Go version sometime in the future.

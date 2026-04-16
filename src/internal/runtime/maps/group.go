@@ -242,24 +242,28 @@ func ctrlGroupMatchFull(g ctrlGroup) bitset {
 // control word.
 type groupReference struct {
 	// data points to the group, which is described by typ.Group and has
-	// layout:
+	// layout depending on GOEXPERIMENT=mapsplitgroup:
 	//
+	// With mapsplitgroup (split arrays):
 	// type group struct {
 	// 	ctrls ctrlGroup
-	// 	slots [abi.MapGroupSlots]slot
+	// 	keys  [abi.MapGroupSlots]typ.Key
+	// 	elems [abi.MapGroupSlots]typ.Elem
 	// }
 	//
-	// type slot struct {
-	// 	key  typ.Key
-	// 	elem typ.Elem
+	// Without (interleaved slots):
+	// type group struct {
+	// 	ctrls ctrlGroup
+	// 	slots [abi.MapGroupSlots]struct {
+	// 		key  typ.Key
+	// 		elem typ.Elem
+	// 	}
 	// }
+	//
+	// In both cases, key(i) and elem(i) use the same formula via
+	// typ.KeysOff/KeyStride and typ.ElemsOff/ElemStride.
 	data unsafe.Pointer // data *typ.Group
 }
-
-const (
-	ctrlGroupsSize   = unsafe.Sizeof(ctrlGroup(0))
-	groupSlotsOffset = ctrlGroupsSize
-)
 
 // alignUp rounds n up to a multiple of a. a must be a power of 2.
 func alignUp(n, a uintptr) uintptr {
@@ -287,14 +291,14 @@ func (g *groupReference) ctrls() *ctrlGroup {
 
 // key returns a pointer to the key at index i.
 func (g *groupReference) key(typ *abi.MapType, i uintptr) unsafe.Pointer {
-	offset := groupSlotsOffset + i*typ.SlotSize
+	offset := typ.KeysOff + i*typ.KeyStride
 
 	return unsafe.Pointer(uintptr(g.data) + offset)
 }
 
 // elem returns a pointer to the element at index i.
 func (g *groupReference) elem(typ *abi.MapType, i uintptr) unsafe.Pointer {
-	offset := groupSlotsOffset + i*typ.SlotSize + typ.ElemOff
+	offset := typ.ElemsOff + i*typ.ElemStride
 
 	return unsafe.Pointer(uintptr(g.data) + offset)
 }

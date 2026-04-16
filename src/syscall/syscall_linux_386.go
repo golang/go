@@ -74,6 +74,10 @@ func mmap(addr uintptr, length uintptr, prot int, flags int, fd int, offset int6
 
 // Underlying system call writes to newoffset via pointer.
 // Implemented in assembly to avoid allocation.
+//
+// Accessed via assembly in x/sys/unix.
+//
+//go:linkname seek
 func seek(fd int, offset int64, whence int) (newoffset int64, err Errno)
 
 func Seek(fd int, offset int64, whence int) (newoffset int64, err error) {
@@ -121,7 +125,12 @@ const (
 	_SENDMMSG    = 20
 )
 
+// socketcall and rawsocketcall are accessed via assembly in x/sys/unix.
+//
+//go:linkname socketcall
 func socketcall(call int, a0, a1, a2, a3, a4, a5 uintptr) (n int, err Errno)
+
+//go:linkname rawsocketcall
 func rawsocketcall(call int, a0, a1, a2, a3, a4, a5 uintptr) (n int, err Errno)
 
 func accept4(s int, rsa *RawSockaddrAny, addrlen *_Socklen, flags int) (fd int, err error) {

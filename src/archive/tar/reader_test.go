@@ -1145,6 +1145,17 @@ func TestReadOldGNUSparseMap(t *testing.T) {
 		input: makeInput(FormatGNU, "",
 			makeSparseStrings(sparseDatas{{10 << 30, 512}, {20 << 30, 512}})...),
 		wantMap: sparseDatas{{10 << 30, 512}, {20 << 30, 512}},
+	}, {
+		input: makeInput(FormatGNU, "",
+			makeSparseStrings(func() sparseDatas {
+				var datas sparseDatas
+				// This is more than enough entries to exceed our limit.
+				for i := range int64(1 << 20) {
+					datas = append(datas, sparseEntry{i * 2, (i * 2) + 1})
+				}
+				return datas
+			}())...),
+		wantErr: errSparseTooLong,
 	}}
 
 	for i, v := range vectors {

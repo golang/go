@@ -141,6 +141,11 @@ func openArchive(name string, mode int, files []string) *Archive {
 	if err != nil {
 		log.Fatal(err)
 	}
+	for _, f := range a.Entries {
+		if !filepath.IsLocal(f.Name) || filepath.Base(f.Name) != f.Name {
+			log.Fatalf("%q: invalid name", f.Name)
+		}
+	}
 	return &Archive{
 		a:        a,
 		files:    files,

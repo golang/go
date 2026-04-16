@@ -144,14 +144,14 @@ func Example_dictionary() {
 	// </book>
 	//
 	// Substrings matched by the dictionary are marked with #:
-	// #####################
-	// ######
-	// 	############title###########The Go Programming Language"/#
-	// 	############authors###########Alan Donovan and Brian Kernighan"/#
-	// 	############published###########2015-10-26"/#
-	// 	############isbn###########978-0134190440"/#
-	// 	######...</#####
-	// </#####
+	//#####################
+	//######
+	//	############title" content="The Go Programming Language"/#
+	//	############authors" content="Alan Donovan and Brian Kernighan"/#
+	//	############published" content="2015-10-26"/#
+	//	############isbn" content="978-0134190440"/#
+	//	######...</#####
+	//</book>
 }
 
 // DEFLATE is suitable for transmitting compressed data across the network.

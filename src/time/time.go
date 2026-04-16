@@ -1552,7 +1552,7 @@ func (t *Time) UnmarshalBinary(data []byte) error {
 	buf = buf[4:]
 	offset := int(int16(buf[1])|int16(buf[0])<<8) * 60
 	if version == timeBinaryVersionV2 {
-		offset += int(buf[2])
+		offset += int(int8(buf[2]))
 	}
 
 	*t = Time{}

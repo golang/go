@@ -252,8 +252,8 @@ var optab = []Optab{
 	{AVMOVQ, C_VREG, C_NONE, C_NONE, C_VREG, C_NONE, 1, 4, 0, 0},
 	{AVMOVQ, C_REG, C_NONE, C_NONE, C_ELEM, C_NONE, 39, 4, 0, 0},  // vinsgr2vr.{b/h/w/d}
 	{AVMOVQ, C_ELEM, C_NONE, C_NONE, C_REG, C_NONE, 40, 4, 0, 0},  // vpickve2gr.{b/h/w/d}
+	{AVMOVQ, C_ELEM, C_NONE, C_NONE, C_ARNG, C_NONE, 40, 4, 0, 0}, // vreplvei.{b/h/w/d}
 	{AVMOVQ, C_REG, C_NONE, C_NONE, C_ARNG, C_NONE, 41, 4, 0, 0},  // vreplgr2vr.{b/h/w/d}
-	{AVMOVQ, C_ELEM, C_NONE, C_NONE, C_ARNG, C_NONE, 45, 4, 0, 0}, // vreplvei.{b/h/w/d}
 
 	// memory access
 	{AXVMOVQ, C_XREG, C_NONE, C_NONE, C_SOREG_12, C_NONE, 7, 4, REGZERO, 0},
@@ -266,11 +266,11 @@ var optab = []Optab{
 	// moving data between registers
 	{AXVMOVQ, C_XREG, C_NONE, C_NONE, C_XREG, C_NONE, 1, 4, 0, 0},
 	{AXVMOVQ, C_REG, C_NONE, C_NONE, C_ELEM, C_NONE, 39, 4, 0, 0},  // vinsgr2vr.{b/h/w/d}
+	{AXVMOVQ, C_XREG, C_NONE, C_NONE, C_ELEM, C_NONE, 39, 4, 0, 0}, // xvinsve0.{w/d}
 	{AXVMOVQ, C_ELEM, C_NONE, C_NONE, C_REG, C_NONE, 40, 4, 0, 0},  // vpickve2gr.{b/h/w/d}
+	{AXVMOVQ, C_ELEM, C_NONE, C_NONE, C_XREG, C_NONE, 40, 4, 0, 0}, // xvpickve.{w/d}
 	{AXVMOVQ, C_REG, C_NONE, C_NONE, C_ARNG, C_NONE, 41, 4, 0, 0},  // xvreplgr2vr.{b/h/w/d}
-	{AXVMOVQ, C_XREG, C_NONE, C_NONE, C_ARNG, C_NONE, 42, 4, 0, 0}, // xvreplve0.{b/h/w/d/q}
-	{AXVMOVQ, C_XREG, C_NONE, C_NONE, C_ELEM, C_NONE, 43, 4, 0, 0}, // xvinsve0.{w/d}
-	{AXVMOVQ, C_ELEM, C_NONE, C_NONE, C_XREG, C_NONE, 44, 4, 0, 0}, // xvpickve.{w/d}
+	{AXVMOVQ, C_XREG, C_NONE, C_NONE, C_ARNG, C_NONE, 41, 4, 0, 0}, // xvreplve0.{b/h/w/d/q}
 
 	// memory access
 	{AMOVWP, C_REG, C_NONE, C_NONE, C_SOREG_16, C_NONE, 73, 4, 0, 0},
@@ -358,27 +358,25 @@ var optab = []Optab{
 	{AXVSEQB, C_XREG, C_XREG, C_NONE, C_XREG, C_NONE, 2, 4, 0, 0},
 	{AXVSEQB, C_S5CON, C_XREG, C_NONE, C_XREG, C_NONE, 22, 4, 0, 0},
 
-	{AVSLTB, C_VREG, C_VREG, C_NONE, C_VREG, C_NONE, 2, 4, 0, 0},
-	{AVSLTB, C_S5CON, C_VREG, C_NONE, C_VREG, C_NONE, 22, 4, 0, 0},
-	{AVSLTB, C_U5CON, C_VREG, C_NONE, C_VREG, C_NONE, 31, 4, 0, 0},
-	{AXVSLTB, C_XREG, C_XREG, C_NONE, C_XREG, C_NONE, 2, 4, 0, 0},
-	{AXVSLTB, C_S5CON, C_XREG, C_NONE, C_XREG, C_NONE, 22, 4, 0, 0},
-	{AXVSLTB, C_U5CON, C_XREG, C_NONE, C_XREG, C_NONE, 31, 4, 0, 0},
+	{AVSLTBU, C_VREG, C_VREG, C_NONE, C_VREG, C_NONE, 2, 4, 0, 0},
+	{AVSLTBU, C_U5CON, C_VREG, C_NONE, C_VREG, C_NONE, 31, 4, 0, 0},
+	{AXVSLTBU, C_XREG, C_XREG, C_NONE, C_XREG, C_NONE, 2, 4, 0, 0},
+	{AXVSLTBU, C_U5CON, C_XREG, C_NONE, C_XREG, C_NONE, 31, 4, 0, 0},
 
 	{AVANDB, C_U8CON, C_VREG, C_NONE, C_VREG, C_NONE, 23, 4, 0, 0},
 	{AVANDB, C_U8CON, C_NONE, C_NONE, C_VREG, C_NONE, 23, 4, 0, 0},
 	{AXVANDB, C_U8CON, C_XREG, C_NONE, C_XREG, C_NONE, 23, 4, 0, 0},
 	{AXVANDB, C_U8CON, C_NONE, C_NONE, C_XREG, C_NONE, 23, 4, 0, 0},
 
-	{AVANDV, C_VREG, C_VREG, C_NONE, C_VREG, C_NONE, 2, 4, 0, 0},
-	{AVANDV, C_VREG, C_NONE, C_NONE, C_VREG, C_NONE, 2, 4, 0, 0},
-	{AXVANDV, C_XREG, C_XREG, C_NONE, C_XREG, C_NONE, 2, 4, 0, 0},
-	{AXVANDV, C_XREG, C_NONE, C_NONE, C_XREG, C_NONE, 2, 4, 0, 0},
-
 	{AVADDB, C_VREG, C_VREG, C_NONE, C_VREG, C_NONE, 2, 4, 0, 0},
 	{AVADDB, C_VREG, C_NONE, C_NONE, C_VREG, C_NONE, 2, 4, 0, 0},
 	{AXVADDB, C_XREG, C_XREG, C_NONE, C_XREG, C_NONE, 2, 4, 0, 0},
 	{AXVADDB, C_XREG, C_NONE, C_NONE, C_XREG, C_NONE, 2, 4, 0, 0},
+
+	{AVADDBU, C_U5CON, C_VREG, C_NONE, C_VREG, C_NONE, 31, 4, 0, 0},
+	{AVADDBU, C_U5CON, C_NONE, C_NONE, C_VREG, C_NONE, 31, 4, 0, 0},
+	{AXVADDBU, C_U5CON, C_XREG, C_NONE, C_XREG, C_NONE, 31, 4, 0, 0},
+	{AXVADDBU, C_U5CON, C_NONE, C_NONE, C_XREG, C_NONE, 31, 4, 0, 0},
 
 	{AVSLLB, C_VREG, C_VREG, C_NONE, C_VREG, C_NONE, 2, 4, 0, 0},
 	{AVSLLB, C_VREG, C_NONE, C_NONE, C_VREG, C_NONE, 2, 4, 0, 0},
@@ -1573,10 +1571,107 @@ func buildop(ctxt *obj.Link) {
 				opset(i, r0)
 			}
 
+		// vseq.b vd, vj, vk
+		// vseqi.b vd, vj, si5
 		case AVSEQB:
 			opset(AVSEQH, r0)
 			opset(AVSEQW, r0)
 			opset(AVSEQV, r0)
+			opset(AVSLTB, r0)
+			opset(AVSLTH, r0)
+			opset(AVSLTW, r0)
+			opset(AVSLTV, r0)
+
+		// xvseq.b xd, xj, xk
+		// xvseqi.b xd, xj, si5
+		case AXVSEQB:
+			opset(AXVSEQH, r0)
+			opset(AXVSEQW, r0)
+			opset(AXVSEQV, r0)
+			opset(AXVSLTB, r0)
+			opset(AXVSLTH, r0)
+			opset(AXVSLTW, r0)
+			opset(AXVSLTV, r0)
+
+		// vslt.bu vd, vj, vk
+		// vslti.bu vd, vj, ui5
+		case AVSLTBU:
+			opset(AVSLTHU, r0)
+			opset(AVSLTWU, r0)
+			opset(AVSLTVU, r0)
+
+		// xvslt.bu xd, xj, xk
+		// xvslti.bu xd, xj, ui5
+		case AXVSLTBU:
+			opset(AXVSLTHU, r0)
+			opset(AXVSLTWU, r0)
+			opset(AXVSLTVU, r0)
+
+		// vandi.b vd, vj, ui8
+		case AVANDB:
+			opset(AVORB, r0)
+			opset(AVXORB, r0)
+			opset(AVNORB, r0)
+			opset(AVSHUF4IB, r0)
+			opset(AVSHUF4IH, r0)
+			opset(AVSHUF4IW, r0)
+			opset(AVSHUF4IV, r0)
+			opset(AVPERMIW, r0)
+			opset(AVEXTRINSB, r0)
+			opset(AVEXTRINSH, r0)
+			opset(AVEXTRINSW, r0)
+			opset(AVEXTRINSV, r0)
+
+		// xvandi.b xd, xj, ui8
+		case AXVANDB:
+			opset(AXVORB, r0)
+			opset(AXVXORB, r0)
+			opset(AXVNORB, r0)
+			opset(AXVSHUF4IB, r0)
+			opset(AXVSHUF4IH, r0)
+			opset(AXVSHUF4IW, r0)
+			opset(AXVSHUF4IV, r0)
+			opset(AXVPERMIW, r0)
+			opset(AXVPERMIV, r0)
+			opset(AXVPERMIQ, r0)
+			opset(AXVEXTRINSB, r0)
+			opset(AXVEXTRINSH, r0)
+			opset(AXVEXTRINSW, r0)
+			opset(AXVEXTRINSV, r0)
+
+		// vadd.b vd, vj, vk
+		case AVADDB:
+			opset(AVADDH, r0)
+			opset(AVADDW, r0)
+			opset(AVADDV, r0)
+			opset(AVADDQ, r0)
+			opset(AVSUBB, r0)
+			opset(AVSUBH, r0)
+			opset(AVSUBW, r0)
+			opset(AVSUBV, r0)
+			opset(AVSUBQ, r0)
+			opset(AVSADDB, r0)
+			opset(AVSADDH, r0)
+			opset(AVSADDW, r0)
+			opset(AVSADDV, r0)
+			opset(AVSSUBB, r0)
+			opset(AVSSUBH, r0)
+			opset(AVSSUBW, r0)
+			opset(AVSSUBV, r0)
+			opset(AVSADDBU, r0)
+			opset(AVSADDHU, r0)
+			opset(AVSADDWU, r0)
+			opset(AVSADDVU, r0)
+			opset(AVSSUBBU, r0)
+			opset(AVSSUBHU, r0)
+			opset(AVSSUBWU, r0)
+			opset(AVSSUBVU, r0)
+			opset(AVANDV, r0)
+			opset(AVORV, r0)
+			opset(AVXORV, r0)
+			opset(AVNORV, r0)
+			opset(AVANDNV, r0)
+			opset(AVORNV, r0)
 			opset(AVILVLB, r0)
 			opset(AVILVLH, r0)
 			opset(AVILVLW, r0)
@@ -1648,11 +1743,104 @@ func buildop(ctxt *obj.Link) {
 			opset(AVSHUFH, r0)
 			opset(AVSHUFW, r0)
 			opset(AVSHUFV, r0)
+			opset(AVADDWEVHB, r0)
+			opset(AVADDWEVWH, r0)
+			opset(AVADDWEVVW, r0)
+			opset(AVADDWEVQV, r0)
+			opset(AVSUBWEVHB, r0)
+			opset(AVSUBWEVWH, r0)
+			opset(AVSUBWEVVW, r0)
+			opset(AVSUBWEVQV, r0)
+			opset(AVADDWODHB, r0)
+			opset(AVADDWODWH, r0)
+			opset(AVADDWODVW, r0)
+			opset(AVADDWODQV, r0)
+			opset(AVSUBWODHB, r0)
+			opset(AVSUBWODWH, r0)
+			opset(AVSUBWODVW, r0)
+			opset(AVSUBWODQV, r0)
+			opset(AVADDWEVHBU, r0)
+			opset(AVADDWEVWHU, r0)
+			opset(AVADDWEVVWU, r0)
+			opset(AVADDWEVQVU, r0)
+			opset(AVSUBWEVHBU, r0)
+			opset(AVSUBWEVWHU, r0)
+			opset(AVSUBWEVVWU, r0)
+			opset(AVSUBWEVQVU, r0)
+			opset(AVADDWODHBU, r0)
+			opset(AVADDWODWHU, r0)
+			opset(AVADDWODVWU, r0)
+			opset(AVADDWODQVU, r0)
+			opset(AVSUBWODHBU, r0)
+			opset(AVSUBWODWHU, r0)
+			opset(AVSUBWODVWU, r0)
+			opset(AVSUBWODQVU, r0)
+			opset(AVMADDB, r0)
+			opset(AVMADDH, r0)
+			opset(AVMADDW, r0)
+			opset(AVMADDV, r0)
+			opset(AVMSUBB, r0)
+			opset(AVMSUBH, r0)
+			opset(AVMSUBW, r0)
+			opset(AVMSUBV, r0)
+			opset(AVMADDWEVHB, r0)
+			opset(AVMADDWEVWH, r0)
+			opset(AVMADDWEVVW, r0)
+			opset(AVMADDWEVQV, r0)
+			opset(AVMADDWODHB, r0)
+			opset(AVMADDWODWH, r0)
+			opset(AVMADDWODVW, r0)
+			opset(AVMADDWODQV, r0)
+			opset(AVMADDWEVHBU, r0)
+			opset(AVMADDWEVWHU, r0)
+			opset(AVMADDWEVVWU, r0)
+			opset(AVMADDWEVQVU, r0)
+			opset(AVMADDWODHBU, r0)
+			opset(AVMADDWODWHU, r0)
+			opset(AVMADDWODVWU, r0)
+			opset(AVMADDWODQVU, r0)
+			opset(AVMADDWEVHBUB, r0)
+			opset(AVMADDWEVWHUH, r0)
+			opset(AVMADDWEVVWUW, r0)
+			opset(AVMADDWEVQVUV, r0)
+			opset(AVMADDWODHBUB, r0)
+			opset(AVMADDWODWHUH, r0)
+			opset(AVMADDWODVWUW, r0)
+			opset(AVMADDWODQVUV, r0)
 
-		case AXVSEQB:
-			opset(AXVSEQH, r0)
-			opset(AXVSEQW, r0)
-			opset(AXVSEQV, r0)
+		// xvadd.b xd, xj, xk
+		case AXVADDB:
+			opset(AXVADDH, r0)
+			opset(AXVADDW, r0)
+			opset(AXVADDV, r0)
+			opset(AXVADDQ, r0)
+			opset(AXVSUBB, r0)
+			opset(AXVSUBH, r0)
+			opset(AXVSUBW, r0)
+			opset(AXVSUBV, r0)
+			opset(AXVSUBQ, r0)
+			opset(AXVSADDB, r0)
+			opset(AXVSADDH, r0)
+			opset(AXVSADDW, r0)
+			opset(AXVSADDV, r0)
+			opset(AXVSSUBB, r0)
+			opset(AXVSSUBH, r0)
+			opset(AXVSSUBW, r0)
+			opset(AXVSSUBV, r0)
+			opset(AXVSADDBU, r0)
+			opset(AXVSADDHU, r0)
+			opset(AXVSADDWU, r0)
+			opset(AXVSADDVU, r0)
+			opset(AXVSSUBBU, r0)
+			opset(AXVSSUBHU, r0)
+			opset(AXVSSUBWU, r0)
+			opset(AXVSSUBVU, r0)
+			opset(AXVANDV, r0)
+			opset(AXVORV, r0)
+			opset(AXVXORV, r0)
+			opset(AXVNORV, r0)
+			opset(AXVANDNV, r0)
+			opset(AXVORNV, r0)
 			opset(AXVILVLB, r0)
 			opset(AXVILVLH, r0)
 			opset(AXVILVLW, r0)
@@ -1724,88 +1912,6 @@ func buildop(ctxt *obj.Link) {
 			opset(AXVSHUFH, r0)
 			opset(AXVSHUFW, r0)
 			opset(AXVSHUFV, r0)
-
-		case AVSLTB:
-			opset(AVSLTH, r0)
-			opset(AVSLTW, r0)
-			opset(AVSLTV, r0)
-			opset(AVSLTBU, r0)
-			opset(AVSLTHU, r0)
-			opset(AVSLTWU, r0)
-			opset(AVSLTVU, r0)
-			opset(AVADDWEVHB, r0)
-			opset(AVADDWEVWH, r0)
-			opset(AVADDWEVVW, r0)
-			opset(AVADDWEVQV, r0)
-			opset(AVSUBWEVHB, r0)
-			opset(AVSUBWEVWH, r0)
-			opset(AVSUBWEVVW, r0)
-			opset(AVSUBWEVQV, r0)
-			opset(AVADDWODHB, r0)
-			opset(AVADDWODWH, r0)
-			opset(AVADDWODVW, r0)
-			opset(AVADDWODQV, r0)
-			opset(AVSUBWODHB, r0)
-			opset(AVSUBWODWH, r0)
-			opset(AVSUBWODVW, r0)
-			opset(AVSUBWODQV, r0)
-			opset(AVADDWEVHBU, r0)
-			opset(AVADDWEVWHU, r0)
-			opset(AVADDWEVVWU, r0)
-			opset(AVADDWEVQVU, r0)
-			opset(AVSUBWEVHBU, r0)
-			opset(AVSUBWEVWHU, r0)
-			opset(AVSUBWEVVWU, r0)
-			opset(AVSUBWEVQVU, r0)
-			opset(AVADDWODHBU, r0)
-			opset(AVADDWODWHU, r0)
-			opset(AVADDWODVWU, r0)
-			opset(AVADDWODQVU, r0)
-			opset(AVSUBWODHBU, r0)
-			opset(AVSUBWODWHU, r0)
-			opset(AVSUBWODVWU, r0)
-			opset(AVSUBWODQVU, r0)
-			opset(AVMADDB, r0)
-			opset(AVMADDH, r0)
-			opset(AVMADDW, r0)
-			opset(AVMADDV, r0)
-			opset(AVMSUBB, r0)
-			opset(AVMSUBH, r0)
-			opset(AVMSUBW, r0)
-			opset(AVMSUBV, r0)
-			opset(AVMADDWEVHB, r0)
-			opset(AVMADDWEVWH, r0)
-			opset(AVMADDWEVVW, r0)
-			opset(AVMADDWEVQV, r0)
-			opset(AVMADDWODHB, r0)
-			opset(AVMADDWODWH, r0)
-			opset(AVMADDWODVW, r0)
-			opset(AVMADDWODQV, r0)
-			opset(AVMADDWEVHBU, r0)
-			opset(AVMADDWEVWHU, r0)
-			opset(AVMADDWEVVWU, r0)
-			opset(AVMADDWEVQVU, r0)
-			opset(AVMADDWODHBU, r0)
-			opset(AVMADDWODWHU, r0)
-			opset(AVMADDWODVWU, r0)
-			opset(AVMADDWODQVU, r0)
-			opset(AVMADDWEVHBUB, r0)
-			opset(AVMADDWEVWHUH, r0)
-			opset(AVMADDWEVVWUW, r0)
-			opset(AVMADDWEVQVUV, r0)
-			opset(AVMADDWODHBUB, r0)
-			opset(AVMADDWODWHUH, r0)
-			opset(AVMADDWODVWUW, r0)
-			opset(AVMADDWODQVUV, r0)
-
-		case AXVSLTB:
-			opset(AXVSLTH, r0)
-			opset(AXVSLTW, r0)
-			opset(AXVSLTV, r0)
-			opset(AXVSLTBU, r0)
-			opset(AXVSLTHU, r0)
-			opset(AXVSLTWU, r0)
-			opset(AXVSLTVU, r0)
 			opset(AXVADDWEVHB, r0)
 			opset(AXVADDWEVWH, r0)
 			opset(AXVADDWEVVW, r0)
@@ -1871,50 +1977,7 @@ func buildop(ctxt *obj.Link) {
 			opset(AXVMADDWODVWUW, r0)
 			opset(AXVMADDWODQVUV, r0)
 
-		case AVANDB:
-			opset(AVORB, r0)
-			opset(AVXORB, r0)
-			opset(AVNORB, r0)
-			opset(AVSHUF4IB, r0)
-			opset(AVSHUF4IH, r0)
-			opset(AVSHUF4IW, r0)
-			opset(AVSHUF4IV, r0)
-			opset(AVPERMIW, r0)
-			opset(AVEXTRINSB, r0)
-			opset(AVEXTRINSH, r0)
-			opset(AVEXTRINSW, r0)
-			opset(AVEXTRINSV, r0)
-
-		case AXVANDB:
-			opset(AXVORB, r0)
-			opset(AXVXORB, r0)
-			opset(AXVNORB, r0)
-			opset(AXVSHUF4IB, r0)
-			opset(AXVSHUF4IH, r0)
-			opset(AXVSHUF4IW, r0)
-			opset(AXVSHUF4IV, r0)
-			opset(AXVPERMIW, r0)
-			opset(AXVPERMIV, r0)
-			opset(AXVPERMIQ, r0)
-			opset(AXVEXTRINSB, r0)
-			opset(AXVEXTRINSH, r0)
-			opset(AXVEXTRINSW, r0)
-			opset(AXVEXTRINSV, r0)
-
-		case AVANDV:
-			opset(AVORV, r0)
-			opset(AVXORV, r0)
-			opset(AVNORV, r0)
-			opset(AVANDNV, r0)
-			opset(AVORNV, r0)
-
-		case AXVANDV:
-			opset(AXVORV, r0)
-			opset(AXVXORV, r0)
-			opset(AXVNORV, r0)
-			opset(AXVANDNV, r0)
-			opset(AXVORNV, r0)
-
+		// vpcnt.b vd, vj
 		case AVPCNTB:
 			opset(AVPCNTH, r0)
 			opset(AVPCNTW, r0)
@@ -1942,6 +2005,7 @@ func buildop(ctxt *obj.Link) {
 			opset(AVFCLASSF, r0)
 			opset(AVFCLASSD, r0)
 
+		// xvpcnt.b xd, xj
 		case AXVPCNTB:
 			opset(AXVPCNTH, r0)
 			opset(AXVPCNTW, r0)
@@ -1969,60 +2033,8 @@ func buildop(ctxt *obj.Link) {
 			opset(AXVFCLASSF, r0)
 			opset(AXVFCLASSD, r0)
 
-		case AVADDB:
-			opset(AVADDH, r0)
-			opset(AVADDW, r0)
-			opset(AVADDV, r0)
-			opset(AVADDQ, r0)
-			opset(AVSUBB, r0)
-			opset(AVSUBH, r0)
-			opset(AVSUBW, r0)
-			opset(AVSUBV, r0)
-			opset(AVSUBQ, r0)
-			opset(AVSADDB, r0)
-			opset(AVSADDH, r0)
-			opset(AVSADDW, r0)
-			opset(AVSADDV, r0)
-			opset(AVSSUBB, r0)
-			opset(AVSSUBH, r0)
-			opset(AVSSUBW, r0)
-			opset(AVSSUBV, r0)
-			opset(AVSADDBU, r0)
-			opset(AVSADDHU, r0)
-			opset(AVSADDWU, r0)
-			opset(AVSADDVU, r0)
-			opset(AVSSUBBU, r0)
-			opset(AVSSUBHU, r0)
-			opset(AVSSUBWU, r0)
-			opset(AVSSUBVU, r0)
-
-		case AXVADDB:
-			opset(AXVADDH, r0)
-			opset(AXVADDW, r0)
-			opset(AXVADDV, r0)
-			opset(AXVADDQ, r0)
-			opset(AXVSUBB, r0)
-			opset(AXVSUBH, r0)
-			opset(AXVSUBW, r0)
-			opset(AXVSUBV, r0)
-			opset(AXVSUBQ, r0)
-			opset(AXVSADDB, r0)
-			opset(AXVSADDH, r0)
-			opset(AXVSADDW, r0)
-			opset(AXVSADDV, r0)
-			opset(AXVSSUBB, r0)
-			opset(AXVSSUBH, r0)
-			opset(AXVSSUBW, r0)
-			opset(AXVSSUBV, r0)
-			opset(AXVSADDBU, r0)
-			opset(AXVSADDHU, r0)
-			opset(AXVSADDWU, r0)
-			opset(AXVSADDVU, r0)
-			opset(AXVSSUBBU, r0)
-			opset(AXVSSUBHU, r0)
-			opset(AXVSSUBWU, r0)
-			opset(AXVSSUBVU, r0)
-
+		// vsll.b vd, vj, vk
+		// vslli.b vd, vj, ui3
 		case AVSLLB:
 			opset(AVSRLB, r0)
 			opset(AVSRAB, r0)
@@ -2031,6 +2043,8 @@ func buildop(ctxt *obj.Link) {
 			opset(AVBITSETB, r0)
 			opset(AVBITREVB, r0)
 
+		// xvsll.b xd, xj, xk
+		// xvslli.b xd, xj, ui3
 		case AXVSLLB:
 			opset(AXVSRLB, r0)
 			opset(AXVSRAB, r0)
@@ -2039,6 +2053,8 @@ func buildop(ctxt *obj.Link) {
 			opset(AXVBITSETB, r0)
 			opset(AXVBITREVB, r0)
 
+		// vsll.h vd, vj, vk
+		// vslli.h vd, vj, ui4
 		case AVSLLH:
 			opset(AVSRLH, r0)
 			opset(AVSRAH, r0)
@@ -2047,6 +2063,8 @@ func buildop(ctxt *obj.Link) {
 			opset(AVBITSETH, r0)
 			opset(AVBITREVH, r0)
 
+		// xvsll.h xd, xj, xk
+		// xvslli.h xd, xj, ui4
 		case AXVSLLH:
 			opset(AXVSRLH, r0)
 			opset(AXVSRAH, r0)
@@ -2055,38 +2073,28 @@ func buildop(ctxt *obj.Link) {
 			opset(AXVBITSETH, r0)
 			opset(AXVBITREVH, r0)
 
+		// vsll.w vd, vj, vk
+		// vslli.w vd, vj, ui5
 		case AVSLLW:
 			opset(AVSRLW, r0)
 			opset(AVSRAW, r0)
 			opset(AVROTRW, r0)
-			opset(AVADDBU, r0)
-			opset(AVADDHU, r0)
-			opset(AVADDWU, r0)
-			opset(AVADDVU, r0)
-			opset(AVSUBBU, r0)
-			opset(AVSUBHU, r0)
-			opset(AVSUBWU, r0)
-			opset(AVSUBVU, r0)
 			opset(AVBITCLRW, r0)
 			opset(AVBITSETW, r0)
 			opset(AVBITREVW, r0)
 
+		// xvsll.w xd, xj, xk
+		// xvslli.w xd, xj, ui5
 		case AXVSLLW:
 			opset(AXVSRLW, r0)
 			opset(AXVSRAW, r0)
 			opset(AXVROTRW, r0)
-			opset(AXVADDBU, r0)
-			opset(AXVADDHU, r0)
-			opset(AXVADDWU, r0)
-			opset(AXVADDVU, r0)
-			opset(AXVSUBBU, r0)
-			opset(AXVSUBHU, r0)
-			opset(AXVSUBWU, r0)
-			opset(AXVSUBVU, r0)
 			opset(AXVBITCLRW, r0)
 			opset(AXVBITSETW, r0)
 			opset(AXVBITREVW, r0)
 
+		// vsll.d vd, vj, vk
+		// vslli.d vd, vj, ui6
 		case AVSLLV:
 			opset(AVSRLV, r0)
 			opset(AVSRAV, r0)
@@ -2095,6 +2103,8 @@ func buildop(ctxt *obj.Link) {
 			opset(AVBITSETV, r0)
 			opset(AVBITREVV, r0)
 
+		// xvsll.d xd, xj, xk
+		// xvslli.d xd, xj, ui6
 		case AXVSLLV:
 			opset(AXVSRLV, r0)
 			opset(AXVSRAV, r0)
@@ -2103,6 +2113,27 @@ func buildop(ctxt *obj.Link) {
 			opset(AXVBITSETV, r0)
 			opset(AXVBITREVV, r0)
 
+		// vaddi.bu vd, vj, ui5
+		case AVADDBU:
+			opset(AVADDHU, r0)
+			opset(AVADDWU, r0)
+			opset(AVADDVU, r0)
+			opset(AVSUBBU, r0)
+			opset(AVSUBHU, r0)
+			opset(AVSUBWU, r0)
+			opset(AVSUBVU, r0)
+
+		// xvaddi.bu xd, xj, ui5
+		case AXVADDBU:
+			opset(AXVADDHU, r0)
+			opset(AXVADDWU, r0)
+			opset(AXVADDVU, r0)
+			opset(AXVSUBBU, r0)
+			opset(AXVSUBHU, r0)
+			opset(AXVSUBWU, r0)
+			opset(AXVSUBVU, r0)
+
+		// vseteqz.v cd, vj
 		case AVSETEQV:
 			opset(AVSETNEV, r0)
 			opset(AVSETANYEQB, r0)
@@ -2114,6 +2145,7 @@ func buildop(ctxt *obj.Link) {
 			opset(AVSETALLNEW, r0)
 			opset(AVSETALLNEV, r0)
 
+		// xvseteqz.v cd, xj
 		case AXVSETEQV:
 			opset(AXVSETNEV, r0)
 			opset(AXVSETANYEQB, r0)
@@ -2662,11 +2694,11 @@ func (c *ctxt0) asmout(p *obj.Prog, o *Optab, out []uint32) {
 			c.ctxt.Diag("illegal arng type combination: %v\n", p)
 		}
 
-		Rj := uint32(p.From.Reg & EXT_REG_MASK)
-		Vd := uint32(p.To.Reg & EXT_REG_MASK)
+		rj := uint32(p.From.Reg & EXT_REG_MASK)
+		rd := uint32(p.To.Reg & EXT_REG_MASK)
 		index := uint32(p.To.Index)
 		c.checkindex(p, index, m)
-		o1 = v | (index << 10) | (Rj << 5) | Vd
+		o1 = v | (index << 10) | (rj << 5) | rd
 
 	case 40: // vmov Vd.<T>[index], Rn
 		v, m := c.specialLsxMovInst(p.As, p.From.Reg, p.To.Reg, false)
@@ -2674,11 +2706,11 @@ func (c *ctxt0) asmout(p *obj.Prog, o *Optab, out []uint32) {
 			c.ctxt.Diag("illegal arng type combination: %v\n", p)
 		}
 
-		Vj := uint32(p.From.Reg & EXT_REG_MASK)
-		Rd := uint32(p.To.Reg & EXT_REG_MASK)
+		rj := uint32(p.From.Reg & EXT_REG_MASK)
+		rd := uint32(p.To.Reg & EXT_REG_MASK)
 		index := uint32(p.From.Index)
 		c.checkindex(p, index, m)
-		o1 = v | (index << 10) | (Vj << 5) | Rd
+		o1 = v | (index << 10) | (rj << 5) | rd
 
 	case 41: // vmov Rn, Vd.<T>
 		v, _ := c.specialLsxMovInst(p.As, p.From.Reg, p.To.Reg, false)
@@ -2686,55 +2718,9 @@ func (c *ctxt0) asmout(p *obj.Prog, o *Optab, out []uint32) {
 			c.ctxt.Diag("illegal arng type combination: %v\n", p)
 		}
 
-		Rj := uint32(p.From.Reg & EXT_REG_MASK)
-		Vd := uint32(p.To.Reg & EXT_REG_MASK)
-		o1 = v | (Rj << 5) | Vd
-
-	case 42: // vmov  xj, xd.<T>
-		v, _ := c.specialLsxMovInst(p.As, p.From.Reg, p.To.Reg, false)
-		if v == 0 {
-			c.ctxt.Diag("illegal arng type combination: %v\n", p)
-		}
-
-		Xj := uint32(p.From.Reg & EXT_REG_MASK)
-		Xd := uint32(p.To.Reg & EXT_REG_MASK)
-		o1 = v | (Xj << 5) | Xd
-
-	case 43: // vmov  xj, xd.<T>[index]
-		v, m := c.specialLsxMovInst(p.As, p.From.Reg, p.To.Reg, false)
-		if v == 0 {
-			c.ctxt.Diag("illegal arng type combination: %v\n", p)
-		}
-
-		Xj := uint32(p.From.Reg & EXT_REG_MASK)
-		Xd := uint32(p.To.Reg & EXT_REG_MASK)
-		index := uint32(p.To.Index)
-		c.checkindex(p, index, m)
-		o1 = v | (index << 10) | (Xj << 5) | Xd
-
-	case 44: // vmov  xj.<T>[index], xd
-		v, m := c.specialLsxMovInst(p.As, p.From.Reg, p.To.Reg, false)
-		if v == 0 {
-			c.ctxt.Diag("illegal arng type combination: %v\n", p)
-		}
-
-		Xj := uint32(p.From.Reg & EXT_REG_MASK)
-		Xd := uint32(p.To.Reg & EXT_REG_MASK)
-		index := uint32(p.From.Index)
-		c.checkindex(p, index, m)
-		o1 = v | (index << 10) | (Xj << 5) | Xd
-
-	case 45: // vmov  vj.<T>[index], vd.<T>
-		v, m := c.specialLsxMovInst(p.As, p.From.Reg, p.To.Reg, false)
-		if v == 0 {
-			c.ctxt.Diag("illegal arng type combination: %v\n", p)
-		}
-
-		vj := uint32(p.From.Reg & EXT_REG_MASK)
-		vd := uint32(p.To.Reg & EXT_REG_MASK)
-		index := uint32(p.From.Index)
-		c.checkindex(p, index, m)
-		o1 = v | (index << 10) | (vj << 5) | vd
+		rj := uint32(p.From.Reg & EXT_REG_MASK)
+		rd := uint32(p.To.Reg & EXT_REG_MASK)
+		o1 = v | (rj << 5) | rd
 
 	case 46: // vmov offset(vj), vd.<T>
 		v, _ := c.specialLsxMovInst(p.As, p.From.Reg, p.To.Reg, true)

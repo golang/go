@@ -160,6 +160,19 @@ func GenerateKey(random io.Reader) (PublicKey, PrivateKey, error) {
 		}
 	}
 
+	if fips140only.Enforced() && !fips140only.ApprovedRandomReader(random) {
+		return nil, nil, errors.New("crypto/ed25519: only crypto/rand.Reader is allowed in FIPS 140-only mode")
+	}
+
+	if rand.IsDefaultReader(random) {
+		privateKey, err := ed25519.GenerateKey()
+		if err != nil {
+			return nil, nil, err
+		}
+		publicKey := PublicKey(privateKey.PublicKey())
+		return publicKey, PrivateKey(privateKey.Bytes()), nil
+	}
+
 	seed := make([]byte, SeedSize)
 	if _, err := io.ReadFull(random, seed); err != nil {
 		return nil, nil, err

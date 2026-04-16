@@ -116,6 +116,13 @@ var (
 // creation of IPv6 sockets to return [EAFNOSUPPORT].
 var SocketDisableIPv6 bool
 
+// x/sys/plan9 accesses these in assembly.
+//
+//go:linkname Syscall
+//go:linkname Syscall6
+//go:linkname RawSyscall
+//go:linkname RawSyscall6
+
 func Syscall(trap, a1, a2, a3 uintptr) (r1, r2 uintptr, err ErrorString)
 func Syscall6(trap, a1, a2, a3, a4, a5, a6 uintptr) (r1, r2 uintptr, err ErrorString)
 func RawSyscall(trap, a1, a2, a3 uintptr) (r1, r2, err uintptr)
@@ -227,6 +234,10 @@ func Pipe(p []int) (err error) {
 
 // Underlying system call writes to newoffset via pointer.
 // Implemented in assembly to avoid allocation.
+//
+// Accessed via assembly from x/sys/plan9.
+//
+//go:linkname seek
 func seek(placeholder uintptr, fd int, offset int64, whence int) (newoffset int64, err string)
 
 func Seek(fd int, offset int64, whence int) (newoffset int64, err error) {

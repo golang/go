@@ -1422,3 +1422,16 @@ func CutSuffix(s, suffix []byte) (before []byte, found bool) {
 	}
 	return s[:len(s)-len(suffix)], true
 }
+
+// CutLast slices s around the last instance of sep,
+// returning the text before and after sep.
+// The found result reports whether sep appears in s.
+// If sep does not appear in s, CutLast returns s, nil, false.
+//
+// CutLast returns slices of the original slice s, not copies.
+func CutLast(s, sep []byte) (before, after []byte, found bool) {
+	if i := LastIndex(s, sep); i >= 0 {
+		return s[:i], s[i+len(sep):], true
+	}
+	return s, nil, false
+}

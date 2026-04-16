@@ -21,24 +21,19 @@ const (
 	unwCodeSize        = 2 // Bytes per unwind code.
 )
 
-// processSEH walks all pdata relocations looking for exception handler function symbols.
-// We want to mark these as reachable if the function that they protect is reachable
-// in the final binary.
-func processSEH(ldr *loader.Loader, arch *sys.Arch, pdata sym.LoaderSym, xdata sym.LoaderSym) error {
+// processSEH walks host-object pdata relocations and returns the set of
+// per-entry pdata symbols created from the input section.
+func processSEH(ldr *loader.Loader, arch *sys.Arch, pdata sym.LoaderSym) ([]loader.Sym, error) {
 	switch arch.Family {
 	case sys.AMD64:
-		ldr.SetAttrReachable(pdata, true)
-		if xdata != 0 {
-			ldr.SetAttrReachable(xdata, true)
-		}
 		return processSEHAMD64(ldr, pdata)
 	default:
 		// TODO: support SEH on other architectures.
-		return fmt.Errorf("unsupported architecture for SEH: %v", arch.Family)
+		return nil, fmt.Errorf("unsupported architecture for SEH: %v", arch.Family)
 	}
 }
 
-func processSEHAMD64(ldr *loader.Loader, pdata sym.LoaderSym) error {
+func processSEHAMD64(ldr *loader.Loader, pdata sym.LoaderSym) ([]loader.Sym, error) {
 	// The following loop traverses a list of pdata entries,
 	// each entry being 3 relocations long. The first relocation
 	// is a pointer to the function symbol to which the pdata entry
@@ -48,18 +43,58 @@ func processSEHAMD64(ldr *loader.Loader, pdata sym.LoaderSym) error {
 	// https://learn.microsoft.com/en-us/cpp/build/exception-handling-x64#struct-runtime_function
 	rels := ldr.Relocs(pdata)
 	if rels.Count()%3 != 0 {
-		return fmt.Errorf(".pdata symbol %q has invalid relocation count", ldr.SymName(pdata))
+		return nil, fmt.Errorf(".pdata symbol %q has invalid relocation count", ldr.SymName(pdata))
 	}
+	data := ldr.Data(pdata)
+	entries := make([]loader.Sym, 0, rels.Count()/3)
+
 	for i := 0; i < rels.Count(); i += 3 {
-		xrel := rels.At(i + 2)
-		handler := findHandlerInXDataAMD64(ldr, xrel.Sym(), xrel.Add())
-		if handler != 0 {
-			sb := ldr.MakeSymbolUpdater(rels.At(i).Sym())
+		// Create a new symbol for the pdata entry.
+		entry := ldr.MakeSymbolBuilder("")
+		entry.SetType(sym.SSEHSECT)
+		entry.SetAlign(4)
+		entry.SetSize(12)
+		entryOff := int(rels.At(i).Off())
+		entryEnd := entryOff + 4*3
+		entry.SetData(data[entryOff:entryEnd:entryEnd])
+
+		// Add a relocation from the target function to the pdata entry
+		// and to the exception handler, if present, to ensure they are
+		// retained by dead code elimination.
+		if targetFunc := rels.At(i).Sym(); targetFunc != 0 {
+			sb := ldr.MakeSymbolUpdater(targetFunc)
 			r, _ := sb.AddRel(objabi.R_KEEP)
-			r.SetSym(handler)
+			r.SetSym(entry.Sym())
+			xrel := rels.At(i + 2)
+			if xrel.Sym() != 0 {
+				r, _ = sb.AddRel(objabi.R_KEEP)
+				r.SetSym(xrel.Sym())
+			}
+			handler := findHandlerInXDataAMD64(ldr, xrel.Sym(), xrel.Add())
+			if handler != 0 {
+				r, _ = sb.AddRel(objabi.R_KEEP)
+				r.SetSym(handler)
+			}
 		}
+
+		// Copy the relocations from the original .pdata entry to the new symbol,
+		// adjusting the offsets.
+		for j := range 3 {
+			rOld := rels.At(i + j)
+			typ := rOld.Type()
+			if rOld.Weak() {
+				typ |= objabi.R_WEAK
+			}
+			rel, _ := entry.AddRel(typ)
+			rel.SetOff(int32(j * 4))
+			rel.SetSiz(rOld.Siz())
+			rel.SetSym(rOld.Sym())
+			rel.SetAdd(rOld.Add())
+		}
+
+		entries = append(entries, entry.Sym())
 	}
-	return nil
+	return entries, nil
 }
 
 // findHandlerInXDataAMD64 finds the symbol in the .xdata section that

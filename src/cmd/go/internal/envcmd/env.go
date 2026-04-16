@@ -189,16 +189,16 @@ func findEnv(env []cfg.EnvVar, name string) string {
 }
 
 // ExtraEnvVars returns environment variables that should not leak into child processes.
-func ExtraEnvVars(loaderstate *modload.State) []cfg.EnvVar {
+func ExtraEnvVars(ld *modload.Loader) []cfg.EnvVar {
 	gomod := ""
-	modload.Init(loaderstate)
-	if loaderstate.HasModRoot() {
-		gomod = loaderstate.ModFilePath()
-	} else if loaderstate.Enabled() {
+	modload.Init(ld)
+	if ld.HasModRoot() {
+		gomod = ld.ModFilePath()
+	} else if ld.Enabled() {
 		gomod = os.DevNull
 	}
-	loaderstate.InitWorkfile()
-	gowork := modload.WorkFilePath(loaderstate)
+	ld.InitWorkfile()
+	gowork := modload.WorkFilePath(ld)
 	// As a special case, if a user set off explicitly, report that in GOWORK.
 	if cfg.Getenv("GOWORK") == "off" {
 		gowork = "off"
@@ -211,8 +211,8 @@ func ExtraEnvVars(loaderstate *modload.State) []cfg.EnvVar {
 
 // ExtraEnvVarsCostly returns environment variables that should not leak into child processes
 // but are costly to evaluate.
-func ExtraEnvVarsCostly(loaderstate *modload.State) []cfg.EnvVar {
-	b := work.NewBuilder("", loaderstate.VendorDirOrEmpty)
+func ExtraEnvVarsCostly(ld *modload.Loader) []cfg.EnvVar {
+	b := work.NewBuilder("", ld.VendorDirOrEmpty)
 	defer func() {
 		if err := b.Close(); err != nil {
 			base.Fatal(err)
@@ -272,7 +272,7 @@ func argKey(arg string) string {
 }
 
 func runEnv(ctx context.Context, cmd *base.Command, args []string) {
-	moduleLoaderState := modload.NewState()
+	moduleLoader := modload.NewLoader()
 	if *envJson && *envU {
 		base.Fatalf("go: cannot use -json with -u")
 	}
@@ -307,7 +307,7 @@ func runEnv(ctx context.Context, cmd *base.Command, args []string) {
 	}
 
 	env := cfg.CmdEnv
-	env = append(env, ExtraEnvVars(moduleLoaderState)...)
+	env = append(env, ExtraEnvVars(moduleLoader)...)
 
 	if err := fsys.Init(); err != nil {
 		base.Fatal(err)
@@ -337,8 +337,8 @@ func runEnv(ctx context.Context, cmd *base.Command, args []string) {
 		}
 	}
 	if needCostly {
-		work.BuildInit(moduleLoaderState)
-		env = append(env, ExtraEnvVarsCostly(moduleLoaderState)...)
+		work.BuildInit(moduleLoader)
+		env = append(env, ExtraEnvVarsCostly(moduleLoader)...)
 	}
 
 	if len(args) > 0 {

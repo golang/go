@@ -133,8 +133,7 @@ func (sl *sysListener) listenUDP(ctx context.Context, laddr *UDPAddr) (*UDPConn,
 	if err != nil {
 		return nil, err
 	}
-	fd, err := l.netFD()
-	return newUDPConn(fd), err
+	return newUDPConn(l.netFD()), nil
 }
 
 func (sl *sysListener) listenMulticastUDP(ctx context.Context, ifi *Interface, gaddr *UDPAddr) (*UDPConn, error) {
@@ -174,9 +173,5 @@ func (sl *sysListener) listenMulticastUDP(ctx context.Context, ifi *Interface, g
 	if err != nil {
 		return nil, err
 	}
-	fd, err := l.netFD()
-	if err != nil {
-		return nil, err
-	}
-	return newUDPConn(fd), nil
+	return newUDPConn(l.netFD()), nil
 }

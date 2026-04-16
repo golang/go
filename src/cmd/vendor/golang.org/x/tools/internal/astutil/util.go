@@ -147,6 +147,10 @@ func (r Range) IsValid() bool { return r.Start.IsValid() && r.Start <= r.EndPos 
 // extraneous whitespace and comments. Use it in new code instead of
 // PathEnclosingInterval. When the exact extent of a node is known,
 // use [Cursor.FindByPos] instead.
+//
+// TODO(hxjiang): Consider refactoring the function signature. It is currently
+// confusing that an error is returned even when a valid enclosing node is
+// successfully found. Consider grouping all cursors into one struct.
 func Select(curFile inspector.Cursor, start, end token.Pos) (_enclosing, _start, _end inspector.Cursor, _ error) {
 	curEnclosing, ok := curFile.FindByPos(start, end)
 	if !ok {

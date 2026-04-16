@@ -698,8 +698,6 @@ func extreloc(target *ld.Target, ldr *loader.Loader, r loader.Reloc, s loader.Sy
 
 	case objabi.R_LOONG64_TLS_LE_HI,
 		objabi.R_LOONG64_TLS_LE_LO,
-		objabi.R_CONST,
-		objabi.R_GOTOFF,
 		objabi.R_CALLLOONG64,
 		objabi.R_LOONG64_TLS_IE_HI,
 		objabi.R_LOONG64_TLS_IE_LO:

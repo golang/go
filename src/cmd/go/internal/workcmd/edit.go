@@ -67,10 +67,10 @@ The -go=version flag sets the expected Go language version.
 The -toolchain=name flag sets the Go toolchain to use.
 
 The -print flag prints the final go.work in its text format instead of
-writing it back to go.mod.
+writing it back to go.work.
 
 The -json flag prints the final go.work file in JSON format instead of
-writing it back to go.mod. The JSON output corresponds to these Go types:
+writing it back to go.work. The JSON output corresponds to these Go types:
 
 	type GoWork struct {
 		Go        string
@@ -132,7 +132,7 @@ func init() {
 }
 
 func runEditwork(ctx context.Context, cmd *base.Command, args []string) {
-	moduleLoaderState := modload.NewState()
+	moduleLoader := modload.NewLoader()
 	if *editJSON && *editPrint {
 		base.Fatalf("go: cannot use both -json and -print")
 	}
@@ -144,8 +144,8 @@ func runEditwork(ctx context.Context, cmd *base.Command, args []string) {
 	if len(args) == 1 {
 		gowork = args[0]
 	} else {
-		moduleLoaderState.InitWorkfile()
-		gowork = modload.WorkFilePath(moduleLoaderState)
+		moduleLoader.InitWorkfile()
+		gowork = modload.WorkFilePath(moduleLoader)
 	}
 	if gowork == "" {
 		base.Fatalf("go: no go.work file found\n\t(run 'go work init' first or specify path using GOWORK environment variable)")

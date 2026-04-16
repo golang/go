@@ -25318,6 +25318,38 @@ func rewriteBlockARM64(b *Block) bool {
 			b.AuxInt = int64ToAuxInt(int64(ntz64(c)))
 			return true
 		}
+		// match: (NZ s:(SRLconst [63] x) yes no)
+		// cond: s.Uses == 1
+		// result: (TBNZ [63] x yes no)
+		for b.Controls[0].Op == OpARM64SRLconst {
+			s := b.Controls[0]
+			if auxIntToInt64(s.AuxInt) != 63 {
+				break
+			}
+			x := s.Args[0]
+			if !(s.Uses == 1) {
+				break
+			}
+			b.resetWithControl(BlockARM64TBNZ, x)
+			b.AuxInt = int64ToAuxInt(63)
+			return true
+		}
+		// match: (NZ s:(SRAconst [63] x) yes no)
+		// cond: s.Uses == 1
+		// result: (TBNZ [63] x yes no)
+		for b.Controls[0].Op == OpARM64SRAconst {
+			s := b.Controls[0]
+			if auxIntToInt64(s.AuxInt) != 63 {
+				break
+			}
+			x := s.Args[0]
+			if !(s.Uses == 1) {
+				break
+			}
+			b.resetWithControl(BlockARM64TBNZ, x)
+			b.AuxInt = int64ToAuxInt(63)
+			return true
+		}
 		// match: (NZ (MOVDconst [0]) yes no)
 		// result: (First no yes)
 		for b.Controls[0].Op == OpARM64MOVDconst {
@@ -25582,6 +25614,109 @@ func rewriteBlockARM64(b *Block) bool {
 			b.AuxInt = int64ToAuxInt(0)
 			return true
 		}
+		// match: (TBNZ [t] sv:(SRLconst [s] x) yes no)
+		// cond: t+s < 64 && sv.Uses == 1
+		// result: (TBNZ [t+s] x yes no )
+		for b.Controls[0].Op == OpARM64SRLconst {
+			sv := b.Controls[0]
+			s := auxIntToInt64(sv.AuxInt)
+			x := sv.Args[0]
+			t := auxIntToInt64(b.AuxInt)
+			if !(t+s < 64 && sv.Uses == 1) {
+				break
+			}
+			b.resetWithControl(BlockARM64TBNZ, x)
+			b.AuxInt = int64ToAuxInt(t + s)
+			return true
+		}
+		// match: (TBNZ [t] (SRLconst [s] x) yes no)
+		// cond: t+s >= 64
+		// result: (First no yes)
+		for b.Controls[0].Op == OpARM64SRLconst {
+			v_0 := b.Controls[0]
+			s := auxIntToInt64(v_0.AuxInt)
+			t := auxIntToInt64(b.AuxInt)
+			if !(t+s >= 64) {
+				break
+			}
+			b.Reset(BlockFirst)
+			b.swapSuccessors()
+			return true
+		}
+		// match: (TBNZ [t] sv:(SLLconst [s] x) yes no)
+		// cond: t-s >= 0 && sv.Uses == 1
+		// result: (TBNZ [t-s] x yes no )
+		for b.Controls[0].Op == OpARM64SLLconst {
+			sv := b.Controls[0]
+			s := auxIntToInt64(sv.AuxInt)
+			x := sv.Args[0]
+			t := auxIntToInt64(b.AuxInt)
+			if !(t-s >= 0 && sv.Uses == 1) {
+				break
+			}
+			b.resetWithControl(BlockARM64TBNZ, x)
+			b.AuxInt = int64ToAuxInt(t - s)
+			return true
+		}
+		// match: (TBNZ [t] (SLLconst [s] x) yes no)
+		// cond: t-s < 0
+		// result: (First no yes)
+		for b.Controls[0].Op == OpARM64SLLconst {
+			v_0 := b.Controls[0]
+			s := auxIntToInt64(v_0.AuxInt)
+			t := auxIntToInt64(b.AuxInt)
+			if !(t-s < 0) {
+				break
+			}
+			b.Reset(BlockFirst)
+			b.swapSuccessors()
+			return true
+		}
+		// match: (TBNZ [t] rv:(RORconst [r] x) yes no)
+		// cond: rv.Uses == 1
+		// result: (TBNZ [int64(uint64(t+r)%64)] x yes no)
+		for b.Controls[0].Op == OpARM64RORconst {
+			rv := b.Controls[0]
+			r := auxIntToInt64(rv.AuxInt)
+			x := rv.Args[0]
+			t := auxIntToInt64(b.AuxInt)
+			if !(rv.Uses == 1) {
+				break
+			}
+			b.resetWithControl(BlockARM64TBNZ, x)
+			b.AuxInt = int64ToAuxInt(int64(uint64(t+r) % 64))
+			return true
+		}
+		// match: (TBNZ [t] sv:(SRAconst [s] x) yes no)
+		// cond: t+s < 64 && sv.Uses == 1
+		// result: (TBNZ [t+s] x yes no)
+		for b.Controls[0].Op == OpARM64SRAconst {
+			sv := b.Controls[0]
+			s := auxIntToInt64(sv.AuxInt)
+			x := sv.Args[0]
+			t := auxIntToInt64(b.AuxInt)
+			if !(t+s < 64 && sv.Uses == 1) {
+				break
+			}
+			b.resetWithControl(BlockARM64TBNZ, x)
+			b.AuxInt = int64ToAuxInt(t + s)
+			return true
+		}
+		// match: (TBNZ [t] sv:(SRAconst [s] x) yes no)
+		// cond: t+s >= 64 && sv.Uses == 1
+		// result: (TBNZ [63 ] x yes no)
+		for b.Controls[0].Op == OpARM64SRAconst {
+			sv := b.Controls[0]
+			s := auxIntToInt64(sv.AuxInt)
+			x := sv.Args[0]
+			t := auxIntToInt64(b.AuxInt)
+			if !(t+s >= 64 && sv.Uses == 1) {
+				break
+			}
+			b.resetWithControl(BlockARM64TBNZ, x)
+			b.AuxInt = int64ToAuxInt(63)
+			return true
+		}
 	case BlockARM64TBZ:
 		// match: (TBZ [0] (XORconst [1] x) yes no)
 		// result: (TBNZ [0] x yes no)
@@ -25596,6 +25731,107 @@ func rewriteBlockARM64(b *Block) bool {
 			}
 			b.resetWithControl(BlockARM64TBNZ, x)
 			b.AuxInt = int64ToAuxInt(0)
+			return true
+		}
+		// match: (TBZ [t] sv:(SRLconst [s] x) yes no)
+		// cond: t+s < 64 && sv.Uses == 1
+		// result: (TBZ [t+s] x yes no )
+		for b.Controls[0].Op == OpARM64SRLconst {
+			sv := b.Controls[0]
+			s := auxIntToInt64(sv.AuxInt)
+			x := sv.Args[0]
+			t := auxIntToInt64(b.AuxInt)
+			if !(t+s < 64 && sv.Uses == 1) {
+				break
+			}
+			b.resetWithControl(BlockARM64TBZ, x)
+			b.AuxInt = int64ToAuxInt(t + s)
+			return true
+		}
+		// match: (TBZ [t] (SRLconst [s] x) yes no)
+		// cond: t+s >= 64
+		// result: (First yes no )
+		for b.Controls[0].Op == OpARM64SRLconst {
+			v_0 := b.Controls[0]
+			s := auxIntToInt64(v_0.AuxInt)
+			t := auxIntToInt64(b.AuxInt)
+			if !(t+s >= 64) {
+				break
+			}
+			b.Reset(BlockFirst)
+			return true
+		}
+		// match: (TBZ [t] sv:(SLLconst [s] x) yes no)
+		// cond: t-s >= 0 && sv.Uses == 1
+		// result: (TBZ [t-s] x yes no )
+		for b.Controls[0].Op == OpARM64SLLconst {
+			sv := b.Controls[0]
+			s := auxIntToInt64(sv.AuxInt)
+			x := sv.Args[0]
+			t := auxIntToInt64(b.AuxInt)
+			if !(t-s >= 0 && sv.Uses == 1) {
+				break
+			}
+			b.resetWithControl(BlockARM64TBZ, x)
+			b.AuxInt = int64ToAuxInt(t - s)
+			return true
+		}
+		// match: (TBZ [t] (SLLconst [s] x) yes no)
+		// cond: t-s < 0
+		// result: (First yes no )
+		for b.Controls[0].Op == OpARM64SLLconst {
+			v_0 := b.Controls[0]
+			s := auxIntToInt64(v_0.AuxInt)
+			t := auxIntToInt64(b.AuxInt)
+			if !(t-s < 0) {
+				break
+			}
+			b.Reset(BlockFirst)
+			return true
+		}
+		// match: (TBZ [t] rv:(RORconst [r] x) yes no)
+		// cond: rv.Uses == 1
+		// result: (TBZ [int64(uint64(t+r)%64)] x yes no)
+		for b.Controls[0].Op == OpARM64RORconst {
+			rv := b.Controls[0]
+			r := auxIntToInt64(rv.AuxInt)
+			x := rv.Args[0]
+			t := auxIntToInt64(b.AuxInt)
+			if !(rv.Uses == 1) {
+				break
+			}
+			b.resetWithControl(BlockARM64TBZ, x)
+			b.AuxInt = int64ToAuxInt(int64(uint64(t+r) % 64))
+			return true
+		}
+		// match: (TBZ [t] sv:(SRAconst [s] x) yes no)
+		// cond: t+s < 64 && sv.Uses == 1
+		// result: (TBZ [t+s] x yes no)
+		for b.Controls[0].Op == OpARM64SRAconst {
+			sv := b.Controls[0]
+			s := auxIntToInt64(sv.AuxInt)
+			x := sv.Args[0]
+			t := auxIntToInt64(b.AuxInt)
+			if !(t+s < 64 && sv.Uses == 1) {
+				break
+			}
+			b.resetWithControl(BlockARM64TBZ, x)
+			b.AuxInt = int64ToAuxInt(t + s)
+			return true
+		}
+		// match: (TBZ [t] sv:(SRAconst [s] x) yes no)
+		// cond: t+s >= 64 && sv.Uses == 1
+		// result: (TBZ [63 ] x yes no)
+		for b.Controls[0].Op == OpARM64SRAconst {
+			sv := b.Controls[0]
+			s := auxIntToInt64(sv.AuxInt)
+			x := sv.Args[0]
+			t := auxIntToInt64(b.AuxInt)
+			if !(t+s >= 64 && sv.Uses == 1) {
+				break
+			}
+			b.resetWithControl(BlockARM64TBZ, x)
+			b.AuxInt = int64ToAuxInt(63)
 			return true
 		}
 	case BlockARM64UGE:
@@ -25834,6 +26070,38 @@ func rewriteBlockARM64(b *Block) bool {
 			}
 			b.resetWithControl(BlockARM64TBZ, x)
 			b.AuxInt = int64ToAuxInt(int64(ntz64(c)))
+			return true
+		}
+		// match: (Z s:(SRLconst [63] x) yes no)
+		// cond: s.Uses == 1
+		// result: (TBZ [63] x yes no)
+		for b.Controls[0].Op == OpARM64SRLconst {
+			s := b.Controls[0]
+			if auxIntToInt64(s.AuxInt) != 63 {
+				break
+			}
+			x := s.Args[0]
+			if !(s.Uses == 1) {
+				break
+			}
+			b.resetWithControl(BlockARM64TBZ, x)
+			b.AuxInt = int64ToAuxInt(63)
+			return true
+		}
+		// match: (Z s:(SRAconst [63] x) yes no)
+		// cond: s.Uses == 1
+		// result: (TBZ [63] x yes no)
+		for b.Controls[0].Op == OpARM64SRAconst {
+			s := b.Controls[0]
+			if auxIntToInt64(s.AuxInt) != 63 {
+				break
+			}
+			x := s.Args[0]
+			if !(s.Uses == 1) {
+				break
+			}
+			b.resetWithControl(BlockARM64TBZ, x)
+			b.AuxInt = int64ToAuxInt(63)
 			return true
 		}
 		// match: (Z (MOVDconst [0]) yes no)

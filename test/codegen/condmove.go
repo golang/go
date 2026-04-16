@@ -232,7 +232,7 @@ func cmovinc(cond bool, a, b, c int) {
 	} else {
 		x0 = b + 1
 	}
-	// arm64:"CSINC NE", -"CSEL"
+	// arm64:"CSINC NE" -"CSEL"
 	r0 = x0
 
 	if cond {
@@ -240,13 +240,13 @@ func cmovinc(cond bool, a, b, c int) {
 	} else {
 		x1 = a
 	}
-	// arm64:"CSINC EQ", -"CSEL"
+	// arm64:"CSINC EQ" -"CSEL"
 	r1 = x1
 
 	if cond {
 		c++
 	}
-	// arm64:"CSINC EQ", -"CSEL"
+	// arm64:"CSINC EQ" -"CSEL"
 	r2 = c
 }
 
@@ -258,7 +258,7 @@ func cmovinv(cond bool, a, b int) {
 	} else {
 		x0 = ^b
 	}
-	// arm64:"CSINV NE", -"CSEL"
+	// arm64:"CSINV NE" -"CSEL"
 	r0 = x0
 
 	if cond {
@@ -266,7 +266,7 @@ func cmovinv(cond bool, a, b int) {
 	} else {
 		x1 = a
 	}
-	// arm64:"CSINV EQ", -"CSEL"
+	// arm64:"CSINV EQ" -"CSEL"
 	r1 = x1
 }
 
@@ -278,7 +278,7 @@ func cmovneg(cond bool, a, b, c int) {
 	} else {
 		x0 = -b
 	}
-	// arm64:"CSNEG NE", -"CSEL"
+	// arm64:"CSNEG NE" -"CSEL"
 	r0 = x0
 
 	if cond {
@@ -286,7 +286,7 @@ func cmovneg(cond bool, a, b, c int) {
 	} else {
 		x1 = a
 	}
-	// arm64:"CSNEG EQ", -"CSEL"
+	// arm64:"CSNEG EQ" -"CSEL"
 	r1 = x1
 }
 
@@ -298,7 +298,7 @@ func cmovsetm(cond bool, x int) {
 	} else {
 		x0 = 0
 	}
-	// arm64:"CSETM NE", -"CSEL"
+	// arm64:"CSETM NE" -"CSEL"
 	r0 = x0
 
 	if cond {
@@ -306,7 +306,7 @@ func cmovsetm(cond bool, x int) {
 	} else {
 		x1 = -1
 	}
-	// arm64:"CSETM EQ", -"CSEL"
+	// arm64:"CSETM EQ" -"CSEL"
 	r1 = x1
 }
 
@@ -318,7 +318,7 @@ func cmovFcmp0(s, t float64, a, b int) {
 	} else {
 		x0 = b + 1
 	}
-	// arm64:"CSINC MI", -"CSEL"
+	// arm64:"CSINC MI" -"CSEL"
 	r0 = x0
 
 	if s <= t {
@@ -326,7 +326,7 @@ func cmovFcmp0(s, t float64, a, b int) {
 	} else {
 		x1 = ^b
 	}
-	// arm64:"CSINV LS", -"CSEL"
+	// arm64:"CSINV LS" -"CSEL"
 	r1 = x1
 
 	if s > t {
@@ -334,7 +334,7 @@ func cmovFcmp0(s, t float64, a, b int) {
 	} else {
 		x2 = -b
 	}
-	// arm64:"CSNEG MI", -"CSEL"
+	// arm64:"CSNEG MI" -"CSEL"
 	r2 = x2
 
 	if s >= t {
@@ -342,7 +342,7 @@ func cmovFcmp0(s, t float64, a, b int) {
 	} else {
 		x3 = 0
 	}
-	// arm64:"CSETM LS", -"CSEL"
+	// arm64:"CSETM LS" -"CSEL"
 	r3 = x3
 
 	if s == t {
@@ -350,7 +350,7 @@ func cmovFcmp0(s, t float64, a, b int) {
 	} else {
 		x4 = b + 1
 	}
-	// arm64:"CSINC EQ", -"CSEL"
+	// arm64:"CSINC EQ" -"CSEL"
 	r4 = x4
 
 	if s != t {
@@ -358,7 +358,7 @@ func cmovFcmp0(s, t float64, a, b int) {
 	} else {
 		x5 = b + 1
 	}
-	// arm64:"CSINC NE", -"CSEL"
+	// arm64:"CSINC NE" -"CSEL"
 	r5 = x5
 }
 
@@ -370,7 +370,7 @@ func cmovFcmp1(s, t float64, a, b int) {
 	} else {
 		x0 = a
 	}
-	// arm64:"CSINC PL", -"CSEL"
+	// arm64:"CSINC PL" -"CSEL"
 	r0 = x0
 
 	if s <= t {
@@ -378,7 +378,7 @@ func cmovFcmp1(s, t float64, a, b int) {
 	} else {
 		x1 = a
 	}
-	// arm64:"CSINV HI", -"CSEL"
+	// arm64:"CSINV HI" -"CSEL"
 	r1 = x1
 
 	if s > t {
@@ -386,7 +386,7 @@ func cmovFcmp1(s, t float64, a, b int) {
 	} else {
 		x2 = a
 	}
-	// arm64:"CSNEG PL", -"CSEL"
+	// arm64:"CSNEG PL" -"CSEL"
 	r2 = x2
 
 	if s >= t {
@@ -394,7 +394,7 @@ func cmovFcmp1(s, t float64, a, b int) {
 	} else {
 		x3 = -1
 	}
-	// arm64:"CSETM HI", -"CSEL"
+	// arm64:"CSETM HI" -"CSEL"
 	r3 = x3
 
 	if s == t {
@@ -402,7 +402,7 @@ func cmovFcmp1(s, t float64, a, b int) {
 	} else {
 		x4 = a
 	}
-	// arm64:"CSINC NE", -"CSEL"
+	// arm64:"CSINC NE" -"CSEL"
 	r4 = x4
 
 	if s != t {
@@ -410,7 +410,7 @@ func cmovFcmp1(s, t float64, a, b int) {
 	} else {
 		x5 = a
 	}
-	// arm64:"CSINC EQ", -"CSEL"
+	// arm64:"CSINC EQ" -"CSEL"
 	r5 = x5
 }
 
@@ -419,7 +419,7 @@ func cmovzero1(c bool) int {
 	if c {
 		x = 182
 	}
-	// loong64:"MASKEQZ", -"MASKNEZ"
+	// loong64:"MASKEQZ" -"MASKNEZ"
 	return x
 }
 
@@ -428,7 +428,7 @@ func cmovzero2(c bool) int {
 	if !c {
 		x = 182
 	}
-	// loong64:"MASKNEZ", -"MASKEQZ"
+	// loong64:"MASKNEZ" -"MASKEQZ"
 	return x
 }
 
@@ -458,10 +458,94 @@ func cmovmathadd(a uint, b bool) uint {
 	if b {
 		a++
 	}
-	// amd64:"ADDQ", -"CMOV"
-	// arm64:"CSINC", -"CSEL"
-	// ppc64x:"ADD", -"ISEL"
-	// wasm:"I64Add", -"Select"
+	// amd64:"ADDQ" -"CMOV"
+	// arm64:"CSINC" -"CSEL"
+	// ppc64x:"ADD" -"ISEL"
+	// wasm:"I64Add" -"Select"
+	return a
+}
+func cmovmathaddelse(a uint, b bool) uint {
+	if !b {
+		a++
+	}
+	// amd64:"ADDQ" -"CMOV"
+	// arm64:"CSINC" -"CSEL"
+	// ppc64x:"ADD" -"ISEL"
+	// wasm:"I64Add" -"Select"
+	return a
+}
+
+func cmovmathadd2(a uint, b bool) uint {
+	if b {
+		a += 2
+	}
+	// amd64:"LEAQ" -"CMOV" -"MUL"
+	// arm64:"ADD R[0-9]+<<1" -"CSEL" -"MUL"
+	// ppc64x: "ISEL" -"MUL"
+	return a
+}
+func cmovmathadd2else(a uint, b bool) uint {
+	if !b {
+		a += 2
+	}
+	// amd64:"LEAQ" -"CMOV" -"MUL"
+	// arm64:"ADD R[0-9]+<<1" -"CSEL" -"MUL"
+	// ppc64x: "ISEL" -"MUL"
+	return a
+}
+
+func cmovmathadd4(a uint, b bool) uint {
+	if b {
+		a += 4
+	}
+	// amd64:"LEAQ" -"CMOV" -"MUL"
+	// arm64:"ADD R[0-9]+<<2" -"CSEL" -"MUL"
+	// ppc64x: "ISEL" -"MUL"
+	return a
+}
+func cmovmathadd4else(a uint, b bool) uint {
+	if !b {
+		a += 4
+	}
+	// amd64:"LEAQ" -"CMOV" -"MUL"
+	// arm64:"ADD R[0-9]+<<2" -"CSEL" -"MUL"
+	// ppc64x: "ISEL" -"MUL"
+	return a
+}
+
+func cmovmathadd8(a uint, b bool) uint {
+	if b {
+		a += 8
+	}
+	// amd64:"LEAQ" -"CMOV" -"MUL"
+	// arm64:"ADD R[0-9]+<<3" -"CSEL" -"MUL"
+	// ppc64x: "ISEL" -"MUL"
+	return a
+}
+func cmovmathadd8else(a uint, b bool) uint {
+	if !b {
+		a += 8
+	}
+	// amd64:"LEAQ" -"CMOV" -"MUL"
+	// arm64:"ADD R[0-9]+<<3" -"CSEL" -"MUL"
+	// ppc64x: "ISEL" -"MUL"
+	return a
+}
+
+func cmovmathadd9223372036854775808(a uint, b bool) uint {
+	if b {
+		a += 1 << 63
+	}
+	// arm64:"ADD R[0-9]+<<63" -"CSEL" -"MUL"
+	// ppc64x: "ISEL" -"MUL"
+	return a
+}
+func cmovmathadd9223372036854775808else(a uint, b bool) uint {
+	if !b {
+		a += 1 << 63
+	}
+	// arm64:"ADD R[0-9]+<<63" -"CSEL" -"MUL"
+	// ppc64x: "ISEL" -"MUL"
 	return a
 }
 
@@ -469,10 +553,56 @@ func cmovmathsub(a uint, b bool) uint {
 	if b {
 		a--
 	}
-	// amd64:"SUBQ", -"CMOV"
-	// arm64:"SUB", -"CSEL"
-	// ppc64x:"SUB", -"ISEL"
-	// wasm:"I64Sub", -"Select"
+	// amd64:"SUBQ" -"CMOV"
+	// arm64:"SUB" -"CSEL"
+	// ppc64x:"SUB" -"ISEL"
+	// wasm:"I64Sub" -"Select"
+	return a
+}
+func cmovmathsubelse(a uint, b bool) uint {
+	if !b {
+		a--
+	}
+	// amd64:"SUBQ" -"CMOV"
+	// arm64:"SUB" -"CSEL"
+	// ppc64x:"SUB" -"ISEL"
+	// wasm:"I64Sub" -"Select"
+	return a
+}
+
+func cmovmathsub2(a uint, b bool) uint {
+	if b {
+		a -= 2
+	}
+	// arm64 :"SUB R[0-9]+<<1" -"CSEL" -"MUL"
+	// ppc64x: "ISEL" -"MUL"
+	return a
+}
+func cmovmathsub2else(a uint, b bool) uint {
+	if !b {
+		a -= 2
+	}
+	// arm64 :"SUB R[0-9]+<<1" -"CSEL" -"MUL"
+	// ppc64x: "ISEL" -"MUL"
+	return a
+}
+
+// Theses two are special because in fixed width two's complement -(1<<(size-1)) == 1<<(size-1).
+// It doesn't matter if they are implemented with SUB or ADD.
+func cmovmathsub9223372036854775808(a uint, b bool) uint {
+	if b {
+		a -= 1 << 63
+	}
+	// arm64:"(SUB|ADD) R[0-9]+<<63" -"CSEL" -"MUL"
+	// ppc64x: "ISEL" -"MUL"
+	return a
+}
+func cmovmathsub9223372036854775808else(a uint, b bool) uint {
+	if !b {
+		a -= 1 << 63
+	}
+	// arm64:"(SUB|ADD) R[0-9]+<<63" -"CSEL" -"MUL"
+	// ppc64x: "ISEL" -"MUL"
 	return a
 }
 
@@ -480,18 +610,39 @@ func cmovmathdouble(a uint, b bool) uint {
 	if b {
 		a *= 2
 	}
-	// amd64:"SHL", -"CMOV"
-	// amd64/v3:"SHL", -"CMOV", -"MOV"
-	// arm64:"LSL", -"CSEL"
-	// wasm:"I64Shl", -"Select"
+	// amd64:"SHL" -"CMOV"
+	// amd64/v3:"SHL" -"CMOV" -"MOV"
+	// arm64:"LSL" -"CSEL"
+	// wasm:"I64Shl" -"Select"
+	return a
+}
+func cmovmathdoubleelse(a uint, b bool) uint {
+	if !b {
+		a *= 2
+	}
+	// amd64:"SHL" -"CMOV"
+	// amd64/v3:"SHL" -"CMOV" -"MOV"
+	// arm64:"LSL" -"CSEL"
+	// wasm:"I64Shl" -"Select"
 	return a
 }
 
 func cmovmathhalvei(a int, b bool) int {
 	if b {
 		// For some reason the compiler attributes the shift to inside this block rather than where the Phi node is.
-		// arm64:"ASR", -"CSEL"
-		// wasm:"I64ShrS", -"Select"
+		// arm64:"ASR" -"CSEL"
+		// wasm:"I64ShrS" -"Select"
+		a /= 2
+	}
+	// arm64:-"CSEL"
+	// wasm:-"Select"
+	return a
+}
+func cmovmathhalveielse(a int, b bool) int {
+	if !b {
+		// For some reason the compiler attributes the shift to inside this block rather than where the Phi node is.
+		// arm64:"ASR" -"CSEL"
+		// wasm:"I64ShrS" -"Select"
 		a /= 2
 	}
 	// arm64:-"CSEL"
@@ -503,10 +654,130 @@ func cmovmathhalveu(a uint, b bool) uint {
 	if b {
 		a /= 2
 	}
-	// amd64:"SHR", -"CMOV"
-	// amd64/v3:"SHR", -"CMOV", -"MOV"
-	// arm64:"LSR", -"CSEL"
-	// wasm:"I64ShrU", -"Select"
+	// amd64:"SHR" -"CMOV"
+	// amd64/v3:"SHR" -"CMOV" -"MOV"
+	// arm64:"LSR" -"CSEL"
+	// wasm:"I64ShrU" -"Select"
+	return a
+}
+func cmovmathhalveuelse(a uint, b bool) uint {
+	if !b {
+		a /= 2
+	}
+	// amd64:"SHR" -"CMOV"
+	// amd64/v3:"SHR" -"CMOV" -"MOV"
+	// arm64:"LSR" -"CSEL"
+	// wasm:"I64ShrU" -"Select"
+	return a
+}
+
+func cmovmathor(a uint, b bool) uint {
+	if b {
+		a |= 1
+	}
+	// amd64:"ORQ" -"CMOV"
+	// arm64:"ORR" -"CSEL"
+	// ppc64x:"OR" -"ISEL"
+	// wasm:"I64Or" -"Select"
+	return a
+}
+func cmovmathorelse(a uint, b bool) uint {
+	if !b {
+		a |= 1
+	}
+	// amd64:"ORQ" -"CMOV"
+	// arm64:"ORR" -"CSEL"
+	// ppc64x:"OR" -"ISEL"
+	// wasm:"I64Or" -"Select"
+	return a
+}
+
+func cmovmathor2(a uint, b bool) uint {
+	if b {
+		a |= 2
+	}
+	// arm64:"ORR R[0-9]+<<1" -"CSEL" -"MUL"
+	// ppc64x:"ISEL" -"MUL"
+	return a
+}
+func cmovmathor2else(a uint, b bool) uint {
+	if !b {
+		a |= 2
+	}
+	// arm64:"ORR R[0-9]+<<1" -"CSEL" -"MUL"
+	// ppc64x:"ISEL" -"MUL"
+	return a
+}
+
+func cmovmathor9223372036854775808(a uint, b bool) uint {
+	if b {
+		a |= 1 << 63
+	}
+	// arm64:"ORR R[0-9]+<<63" -"CSEL" -"MUL"
+	// ppc64x:"ISEL" -"MUL"
+	return a
+}
+func cmovmathor9223372036854775808else(a uint, b bool) uint {
+	if !b {
+		a |= 1 << 63
+	}
+	// arm64:"ORR R[0-9]+<<63" -"CSEL" -"MUL"
+	// ppc64x:"ISEL" -"MUL"
+	return a
+}
+
+func cmovmathxor(a uint, b bool) uint {
+	if b {
+		a ^= 1
+	}
+	// amd64:"XORQ" -"CMOV"
+	// arm64:"EOR" -"CSEL"
+	// ppc64x:"XOR" -"ISEL"
+	// wasm:"I64Xor" -"Select"
+	return a
+}
+func cmovmathxorelse(a uint, b bool) uint {
+	if !b {
+		a ^= 1
+	}
+	// amd64:"XORQ" -"CMOV"
+	// arm64:"EOR" -"CSEL"
+	// ppc64x:"XOR" -"ISEL"
+	// wasm:"I64Xor" -"Select"
+	return a
+}
+
+func cmovmathxor2(a uint, b bool) uint {
+	if b {
+		a ^= 2
+	}
+	// arm64:"EOR R[0-9]+<<1" -"CSEL" -"MUL"
+	// ppc64x: "ISEL" -"MUL"
+	return a
+}
+func cmovmathxor2else(a uint, b bool) uint {
+	if !b {
+		a ^= 2
+	}
+	// arm64:"EOR R[0-9]+<<1" -"CSEL" -"MUL"
+	// ppc64x: "ISEL" -"MUL"
+	return a
+}
+
+func cmovmathxor9223372036854775808(a uint, b bool) uint {
+	if b {
+		a ^= 1 << 63
+	}
+	// arm64:"EOR R[0-9]+<<63" -"CSEL" -"MUL"
+	// ppc64x: "ISEL" -"MUL"
+	return a
+}
+func cmovmathxor9223372036854775808else(a uint, b bool) uint {
+	if !b {
+		a ^= 1 << 63
+	}
+	// arm64:"EOR R[0-9]+<<63" -"CSEL" -"MUL"
+	// ppc64x: "ISEL" -"MUL"
 	return a
 }
 
@@ -520,13 +791,13 @@ func branchlessBoolToUint8(b bool) (r uint8) {
 func cmovFromMulFromFlags64(x uint64, b bool) uint64 {
 	// amd64:-"MOVB.ZX"
 	r := uint64(branchlessBoolToUint8(b))
-	// amd64:"CMOV",-"MOVB.ZX",-"MUL"
+	// amd64:"CMOV" -"MOVB.ZX" -"MUL"
 	return x * r
 }
 func cmovFromMulFromFlags64sext(x int64, b bool) int64 {
 	// amd64:-"MOVB.ZX"
 	r := int64(int8(branchlessBoolToUint8(b)))
-	// amd64:"CMOV",-"MOVB.ZX",-"MUL"
+	// amd64:"CMOV" -"MOVB.ZX" -"MUL"
 	return x * r
 }
 

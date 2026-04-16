@@ -9,6 +9,7 @@ at 2017-09-15T03:28:32-00:00
 
 git init
 git commit --allow-empty -m 'initial commit'
+git branch -m main
 git tag v0.1.0
 git tag v3.1.0
 

@@ -25,7 +25,7 @@ import (
 )
 
 // uirVersion is the unified IR version to use for encoding/decoding.
-// Use V3 for promoted struct field support in composite literals.
+// Use V4 for generic methods; keep at V3 while we refine and test.
 const uirVersion = pkgbits.V3
 
 // localPkgReader holds the package reader used for reading the local

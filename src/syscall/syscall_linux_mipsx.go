@@ -15,6 +15,10 @@ const (
 	_SYS_fchmodat2  = 4452
 )
 
+// Syscall9 is accessed via assembly in x/sys/unix.
+//
+//go:linkname Syscall9
+
 func Syscall9(trap, a1, a2, a3, a4, a5, a6, a7, a8, a9 uintptr) (r1, r2 uintptr, err Errno)
 
 //sys	Dup2(oldfd int, newfd int) (err error)

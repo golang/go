@@ -452,10 +452,13 @@
 //			Treat a command (package main) like a regular package.
 //			Otherwise package main's exported symbols are hidden
 //			when showing the package's top-level documentation.
+//		-ex
+//			Include executable examples.
 //	  	-http
 //			Serve HTML docs over HTTP.
 //		-short
-//			One-line representation for each symbol.
+//			One-line representation for each symbol. Cannot be
+//			combined with -all.
 //		-src
 //			Show the full source code for the symbol. This will
 //			display the full Go source of its declaration and
@@ -509,7 +512,8 @@
 // It supports these flags:
 //
 //	  -diff
-//		instead of applying each fix, print the patch as a unified diff
+//		instead of applying each fix, print the patch as a unified diff;
+//		exit with a non-zero status if the diff is not empty
 //
 // The -fixtool=prog flag selects a different analysis tool with
 // alternative or additional fixers; see the documentation for go vet's
@@ -744,6 +748,7 @@
 //
 // The -tool flag instructs go to add a matching tool line to go.mod for each
 // listed package. If -tool is used with @none, the line will be removed.
+// See 'go help tool' for more information.
 //
 // The -x flag prints commands as they are executed. This is useful for
 // debugging version control commands when a module is downloaded directly
@@ -1549,7 +1554,9 @@
 //
 // The use directive specifies a module to be included in the workspace's
 // set of main modules. The argument to the use directive is the directory
-// containing the module's go.mod file.
+// containing the module's go.mod file. The go command does not resolve
+// symbolic links when matching use paths to module directories, so a
+// symlink to a directory is not interchangeable with its target.
 //
 // The go directive specifies the version of Go the file was written at. It
 // is possible there may be future changes in the semantics of workspaces
@@ -1627,10 +1634,10 @@
 // The -toolchain=name flag sets the Go toolchain to use.
 //
 // The -print flag prints the final go.work in its text format instead of
-// writing it back to go.mod.
+// writing it back to go.work.
 //
 // The -json flag prints the final go.work file in JSON format instead of
-// writing it back to go.mod. The JSON output corresponds to these Go types:
+// writing it back to go.work. The JSON output corresponds to these Go types:
 //
 //	type GoWork struct {
 //		Go        string
@@ -1730,7 +1737,12 @@
 //
 // The -r flag searches recursively for modules in the argument
 // directories, and the use command operates as if each of the directories
-// were specified as arguments.
+// were specified as arguments. When -r is used, symlinks to directories
+// within the argument tree are ignored.
+//
+// The go command matches use paths to module directories without resolving
+// symbolic links. A use directive that names a symlink to a directory is
+// not interchangeable with one that names the symlink's target.
 //
 // See the workspaces reference at https://go.dev/ref/mod#workspaces
 // for more information.
@@ -1981,7 +1993,14 @@
 // Tool runs the go tool command identified by the arguments.
 //
 // Go ships with a number of builtin tools, and additional tools
-// may be defined in the go.mod of the current module.
+// may be defined in the go.mod of the current module. 'go get -tool'
+// can be used to define additional tools in the current module's
+// go.mod file. See 'go help get' for more information.
+//
+// The command can be specified using the full package path to the tool declared with
+// a tool directive. The default binary name of the tool, which is the last component of
+// the package path, excluding the major version suffix, can also be used if it is unique
+// among declared tools.
 //
 // With no arguments it prints the list of known tools.
 //
@@ -2047,7 +2066,8 @@
 //	  -fix
 //		instead of printing each diagnostic, apply its first fix (if any)
 //	  -diff
-//		instead of applying each fix, print the patch as a unified diff
+//		instead of applying each fix, print the patch as a unified diff;
+//		exit with a non-zero status if the diff is not empty
 //
 // The -vettool=prog flag selects a different analysis tool with
 // alternative or additional checks. For example, the 'shadow' analyzer
@@ -2870,6 +2890,13 @@
 // Code in GOPATH mode vendor directories is not subject to
 // GOPATH mode import path checking (see 'go help importpath').
 //
+// In GOPATH mode, the default GODEBUG values built into a binary
+// will be the same GODEBUG values as when a module specifies
+// "godebug default=go1.20". To use different GODEBUG settings, the
+// GODEBUG environment variable must be set to override those values.
+// This also means that the standard library tests will not run
+// properly with GO111MODULE=off.
+//
 // See https://go.dev/s/go15vendor for details.
 //
 // See https://go.dev/ref/mod#vendoring for details about vendoring in
@@ -2995,7 +3022,6 @@
 // using the named version control system, and then the path inside
 // that repository. The supported version control systems are:
 //
-//	Bazaar      .bzr
 //	Fossil      .fossil
 //	Git         .git
 //	Mercurial   .hg
@@ -3045,7 +3071,7 @@
 // In particular, it should appear before any raw JavaScript or CSS,
 // to avoid confusing the go command's restricted parser.
 //
-// The vcs is one of "bzr", "fossil", "git", "hg", "svn".
+// The vcs is one of "fossil", "git", "hg", "svn".
 //
 // The repo-root is the root of the version control system
 // containing a scheme and not containing a .vcs qualifier.
@@ -3684,7 +3710,7 @@
 //
 // To balance the functionality and security concerns, the go command
 // by default will only use git and hg to download code from public servers.
-// But it will use any known version control system (bzr, fossil, git, hg, svn)
+// But it will use any known version control system (fossil, git, hg, svn)
 // to download code from private servers, defined as those hosting packages
 // matching the GOPRIVATE variable (see 'go help private'). The rationale behind
 // allowing only Git and Mercurial is that these two systems have had the most

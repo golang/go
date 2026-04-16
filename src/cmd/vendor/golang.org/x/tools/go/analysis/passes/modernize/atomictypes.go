@@ -114,7 +114,6 @@ func runAtomic(pass *analysis.Pass) (any, error) {
 	// appear in calls of the form atomic.AddInt32(&v, ...).
 nextvar:
 	for v, funcName := range vars {
-		var edits []analysis.TextEdit
 		fixFiles := make(map[*ast.File]bool) // unique files involved in the current fix
 
 		// Check the form of the declaration: var v int or struct { v int }
@@ -145,12 +144,15 @@ nextvar:
 		oldType := info.TypeOf(typ)                             // e.g. "int32"
 		newType := strings.Title(oldType.Underlying().String()) // e.g. "Int32"
 
-		// Get package prefix to avoid shadowing.
 		file := astutil.EnclosingFile(def)
-		pkgPrefix, impEdits := refactor.AddImport(pass.TypesInfo, file, "atomic", "sync/atomic", "", def.Node().Pos())
-		if len(impEdits) > 0 {
-			panic("unexpected import edits") // atomic PkgName should be in scope already
-		}
+		// Get package prefix to avoid shadowing, and import edits, which may be
+		// necessary if the fix spans files.
+		// For example: file "a" declares an int32, which doesn't require the
+		// sync/atomic import, while file "b" calls atomic.LoadInt32(v). After
+		// the fix, the need for the import will shift from the use in file "b"
+		// (which becomes a method call v.Load) to the declaration in file "a"
+		// (which becomes atomic.Int32).
+		pkgPrefix, edits := refactor.AddImport(pass.TypesInfo, file, "atomic", "sync/atomic", "", def.Node().Pos())
 		// Edit the type.
 		//
 		// var v int32

@@ -4,8 +4,8 @@
 #include "textflag.h"
 
 TEXT ·asyncPreempt(SB),NOSPLIT|NOFRAME,$0-0
-	MOVV R1, -224(R3)
-	SUBV $224, R3
+	MOVV R1, -232(R3)
+	SUBV $232, R3
 	// Save GPs
 	MOVV R4, 8(R3)
 	MOVV R5, 16(R3)
@@ -50,6 +50,8 @@ TEXT ·asyncPreempt(SB),NOSPLIT|NOFRAME,$0-0
 	MOVV FCC7, R4
 	BSTRINSV $63, R4, $56, R5
 	MOVV R5, 216(R3)
+	MOVV FCSR0, R5
+	MOVV R5, 224(R3)
 	// Save extended register state to p.xRegs.scratch
 	MOVV g_m(g), R4
 	MOVV m_p(R4), R4
@@ -272,6 +274,8 @@ restoreLASX:
 	XVMOVQ 0(R4), X0
 	// Restore GPs
 restoreGPs:
+	MOVV 224(R3), R5
+	MOVV R5, FCSR0
 	MOVV 216(R3), R5
 	BSTRPICKV $7, R5, $0, R4
 	MOVV R4, FCC0
@@ -315,7 +319,7 @@ restoreGPs:
 	MOVV 24(R3), R6
 	MOVV 16(R3), R5
 	MOVV 8(R3), R4
-	MOVV 224(R3), R1
+	MOVV 232(R3), R1
 	MOVV (R3), R30
-	ADDV $232, R3
+	ADDV $240, R3
 	JMP (R30)

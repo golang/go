@@ -1529,10 +1529,13 @@ func TestValidHostname(t *testing.T) {
 	}
 }
 
-func generateCert(cn string, isCA bool, issuer *Certificate, issuerKey crypto.PrivateKey) (*Certificate, crypto.PrivateKey, error) {
-	priv, err := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
-	if err != nil {
-		return nil, nil, err
+func generateCert(cn string, isCA bool, issuer *Certificate, issuerKey crypto.PrivateKey, priv crypto.PrivateKey) (*Certificate, crypto.PrivateKey, error) {
+	if priv == nil {
+		var err error
+		priv, err = ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
+		if err != nil {
+			return nil, nil, err
+		}
 	}
 
 	serialNumberLimit := new(big.Int).Lsh(big.NewInt(1), 128)
@@ -1543,6 +1546,7 @@ func generateCert(cn string, isCA bool, issuer *Certificate, issuerKey crypto.Pr
 		Subject:      pkix.Name{CommonName: cn},
 		NotBefore:    time.Now().Add(-1 * time.Hour),
 		NotAfter:     time.Now().Add(24 * time.Hour),
+		DNSNames:     []string{rand.Text()},
 
 		KeyUsage:              KeyUsageKeyEncipherment | KeyUsageDigitalSignature | KeyUsageCertSign,
 		ExtKeyUsage:           []ExtKeyUsage{ExtKeyUsageServerAuth},
@@ -1554,7 +1558,7 @@ func generateCert(cn string, isCA bool, issuer *Certificate, issuerKey crypto.Pr
 		issuerKey = priv
 	}
 
-	derBytes, err := CreateCertificate(rand.Reader, template, issuer, priv.Public(), issuerKey)
+	derBytes, err := CreateCertificate(rand.Reader, template, issuer, priv.(crypto.Signer).Public(), issuerKey)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -1566,81 +1570,77 @@ func generateCert(cn string, isCA bool, issuer *Certificate, issuerKey crypto.Pr
 	return cert, priv, nil
 }
 
-func TestPathologicalChain(t *testing.T) {
+func TestPathologicalChains(t *testing.T) {
 	if testing.Short() {
-		t.Skip("skipping generation of a long chain of certificates in short mode")
+		t.Skip("skipping generation of a long chains of certificates in short mode")
 	}
 
-	// Build a chain where all intermediates share the same subject, to hit the
-	// path building worst behavior.
-	roots, intermediates := NewCertPool(), NewCertPool()
+	// Test four pathological cases, where the intermediates in the chain have
+	// the same/different subjects and the same/different keys. This covers a
+	// number of cases where the chain building algorithm might be inefficient,
+	// such as when there are many intermediates with the same subject but
+	// different keys, many intermediates with the same key but different
+	// subjects, many intermediates with the same subject and key, or many
+	// intermediates with different subjects and keys.
+	//
+	// The worst case for our algorithm is when all of the intermediates share
+	// both subject and key, in which case all of the intermediates appear to
+	// have signed each other, causing us to see a large number of potential
+	// parents for each intermediate.
+	//
+	// All of these cases, Certificate.Verify should return errSignatureLimit.
+	//
+	// In all cases, don't have a root in the pool, so a valid chain cannot actually be built.
 
-	parent, parentKey, err := generateCert("Root CA", true, nil, nil)
-	if err != nil {
-		t.Fatal(err)
+	for _, test := range []struct {
+		sameSubject bool
+		sameKey     bool
+	}{
+		{sameSubject: false, sameKey: false},
+		{sameSubject: true, sameKey: false},
+		{sameSubject: false, sameKey: true},
+		{sameSubject: true, sameKey: true},
+	} {
+		t.Run(fmt.Sprintf("sameSubject=%t,sameKey=%t", test.sameSubject, test.sameKey), func(t *testing.T) {
+			intermediates := NewCertPool()
+
+			var intermediateKey crypto.PrivateKey
+			if test.sameKey {
+				var err error
+				intermediateKey, err = ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
+				if err != nil {
+					t.Fatal(err)
+				}
+			}
+
+			var leafSigner crypto.PrivateKey
+			var intermediate *Certificate
+			for i := range 100 {
+				cn := "Intermediate CA"
+				if !test.sameSubject {
+					cn += fmt.Sprintf(" #%d", i)
+				}
+				var err error
+				intermediate, leafSigner, err = generateCert(cn, true, intermediate, leafSigner, intermediateKey)
+				if err != nil {
+					t.Fatal(err)
+				}
+				intermediates.AddCert(intermediate)
+			}
+
+			leaf, _, err := generateCert("Leaf", false, intermediate, leafSigner, nil)
+			if err != nil {
+				t.Fatal(err)
+			}
+
+			start := time.Now()
+			_, err = leaf.Verify(VerifyOptions{
+				Roots:         NewCertPool(),
+				Intermediates: intermediates,
+			})
+			t.Logf("verification took %v", time.Since(start))
+		})
 	}
-	roots.AddCert(parent)
-
-	for i := 1; i < 100; i++ {
-		parent, parentKey, err = generateCert("Intermediate CA", true, parent, parentKey)
-		if err != nil {
-			t.Fatal(err)
-		}
-		intermediates.AddCert(parent)
-	}
-
-	leaf, _, err := generateCert("Leaf", false, parent, parentKey)
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	start := time.Now()
-	_, err = leaf.Verify(VerifyOptions{
-		Roots:         roots,
-		Intermediates: intermediates,
-	})
-	t.Logf("verification took %v", time.Since(start))
-
-	if err == nil || !strings.Contains(err.Error(), "signature check attempts limit") {
-		t.Errorf("expected verification to fail with a signature checks limit error; got %v", err)
-	}
-}
-
-func TestLongChain(t *testing.T) {
-	if testing.Short() {
-		t.Skip("skipping generation of a long chain of certificates in short mode")
-	}
-
-	roots, intermediates := NewCertPool(), NewCertPool()
-
-	parent, parentKey, err := generateCert("Root CA", true, nil, nil)
-	if err != nil {
-		t.Fatal(err)
-	}
-	roots.AddCert(parent)
-
-	for i := 1; i < 15; i++ {
-		name := fmt.Sprintf("Intermediate CA #%d", i)
-		parent, parentKey, err = generateCert(name, true, parent, parentKey)
-		if err != nil {
-			t.Fatal(err)
-		}
-		intermediates.AddCert(parent)
-	}
-
-	leaf, _, err := generateCert("Leaf", false, parent, parentKey)
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	start := time.Now()
-	if _, err := leaf.Verify(VerifyOptions{
-		Roots:         roots,
-		Intermediates: intermediates,
-	}); err != nil {
-		t.Error(err)
-	}
-	t.Logf("verification took %v", time.Since(start))
 }
 
 func TestSystemRootsError(t *testing.T) {

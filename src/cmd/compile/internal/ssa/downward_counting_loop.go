@@ -4,6 +4,8 @@
 
 package ssa
 
+import "fmt"
+
 // maybeRewriteLoopToDownwardCountingLoop tries to rewrite the loop to a
 // downward counting loop checking against start if the loop body does
 // not depend on ind or nxt and end is known before the loop.
@@ -50,7 +52,7 @@ func maybeRewriteLoopToDownwardCountingLoop(f *Func, v indVar) {
 	}
 
 	start, end := v.min, v.max
-	if v.flags&indVarCountDown != 0 {
+	if v.step < 0 {
 		start, end = end, start
 	}
 
@@ -75,6 +77,35 @@ func maybeRewriteLoopToDownwardCountingLoop(f *Func, v indVar) {
 	}
 
 	check := v.entry.Preds[0].b.Controls[0]
+
+	neededRoom := -v.step
+
+	// The whole range of safe numbers to land in to stop the loop is shifted by one if the bounds are exclusive.
+	if neededRoom < 0 && v.flags&indVarMinExc == 1 {
+		neededRoom++ // safe because it is always against the number's sign
+	}
+	if neededRoom > 0 && v.flags&indVarMaxInc == 0 {
+		neededRoom-- // safe because it is always against the number's sign
+	}
+
+	switch check.Op {
+	case OpLess8, OpLess16, OpLess32, OpLess64, OpLeq8, OpLeq16, OpLeq32, OpLeq64:
+		if _, ok := safeAdd(start.AuxInt, neededRoom, uint(start.Type.Size())*8); !ok {
+			// We lack sufficient room after start to safely land without an overflow.
+			// See go.dev/issue/78303
+			return
+		}
+	case OpLess8U, OpLess16U, OpLess32U, OpLess64U, OpLeq8U, OpLeq16U, OpLeq32U, OpLeq64U:
+		panic(`parseIndVar didn't yet support unsigned induction variables, this code doesn't yet support them either.
+If you are seeing this it is probably because you've fixed https://go.dev/issue/65918.
+You need to update this code and add tests then.`)
+	case OpEq8, OpEq16, OpEq32, OpEq64, OpNeq8, OpNeq16, OpNeq32, OpNeq64:
+		panic(`parseIndVar didn't yet support induction variables using == or !=.
+If you are seeing this it is probably because you've added support for them.
+You need to update this code and add tests then.`)
+	default:
+		panic(fmt.Sprintf("unreachable; unexpected induction variable comparator %v %v", check, check.Op))
+	}
 
 	idxEnd, idxStart := -1, -1
 	for i, v := range check.Args {

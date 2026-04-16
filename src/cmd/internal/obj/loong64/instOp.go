@@ -276,7 +276,7 @@ var oprrr = map[obj.As]uint32{
 	AXVSUBWODVW:    0x0e84a << 15,       // xvsubwod.d.w
 	AXVSUBWODQV:    0x0e84b << 15,       // xvsubwod.q.d
 	AVADDWEVHBU:    0x0e05c << 15,       // vaddwev.h.bu
-	AVADDWEVWHU:    0x0e05e << 15,       // vaddwev.w.hu
+	AVADDWEVWHU:    0x0e05d << 15,       // vaddwev.w.hu
 	AVADDWEVVWU:    0x0e05e << 15,       // vaddwev.d.wu
 	AVADDWEVQVU:    0x0e05f << 15,       // vaddwev.q.du
 	AVSUBWEVHBU:    0x0e060 << 15,       // vsubwev.h.bu
@@ -448,7 +448,7 @@ var oprrr = map[obj.As]uint32{
 	AXVSSUBW:       0x0e892 << 15,       // xvssub.w
 	AXVSSUBV:       0x0e893 << 15,       // xvssub.d
 	AXVSADDBU:      0x0e894 << 15,       // vxsadd.bu
-	AXVSADDHU:      0x0e896 << 15,       // vxsadd.hu
+	AXVSADDHU:      0x0e895 << 15,       // vxsadd.hu
 	AXVSADDWU:      0x0e896 << 15,       // vxsadd.wu
 	AXVSADDVU:      0x0e897 << 15,       // vxsadd.du
 	AXVSSUBBU:      0x0e898 << 15,       // xvssub.bu

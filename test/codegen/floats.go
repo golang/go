@@ -59,14 +59,14 @@ func DivPow2(f1, f2, f3 float64) (float64, float64, float64) {
 }
 
 func indexLoad(b0 []float32, b1 float32, idx int) float32 {
-	// arm64:`FMOVS\s\(R[0-9]+\)\(R[0-9]+<<2\),\sF[0-9]+`
-	// loong64:`MOVF\s\(R[0-9]+\)\(R[0-9]+\),\sF[0-9]+`
+	// arm64:`FMOVS \(R[0-9]+\)\(R[0-9]+<<2\), F[0-9]+`
+	// loong64:`MOVF \(R[0-9]+\)\(R[0-9]+\), F[0-9]+`
 	return b0[idx] * b1
 }
 
 func indexStore(b0 []float64, b1 float64, idx int) {
-	// arm64:`FMOVD\sF[0-9]+,\s\(R[0-9]+\)\(R[0-9]+<<3\)`
-	// loong64:`MOVD\sF[0-9]+,\s\(R[0-9]+\)\(R[0-9]+\)`
+	// arm64:`FMOVD F[0-9]+, \(R[0-9]+\)\(R[0-9]+<<3\)`
+	// loong64:`MOVD F[0-9]+, \(R[0-9]+\)\(R[0-9]+\)`
 	b0[idx] = b1
 }
 
@@ -316,7 +316,7 @@ func WideRoundToEvenNarrow(x float32) float32 {
 func WideSqrtNarrow(x float32) float32 {
 	// arm64:"FSQRTS" -"FCVTSD" -"FCVTDS"
 	// loong64:"SQRTF" -"MOVFD" -"MOVDF"
-	// mips64:"SQRTF" -"MOVFD" -"MOVDF"
+	// mips64/hardfloat:"SQRTF" -"MOVFD" -"MOVDF"
 	// riscv64:"FSQRTS" -"FCVTDS" -"FCVTSD"
 	// wasm:"F32Sqrt" -"F64PromoteF32" -"F32DemoteF64"
 	return float32(math.Sqrt(float64(x)))
@@ -325,7 +325,7 @@ func WideSqrtNarrow(x float32) float32 {
 func WideAbsNarrow(x float32) float32 {
 	// arm64:"FABSS" -"FCVTSD" -"FCVTDS"
 	// loong64:"ABSF" -"MOVFD" -"MOVDF"
-	// mips64:"ABSF" -"MOVFD" -"MOVDF"
+	// mips64/hardfloat:"ABSF" -"MOVFD" -"MOVDF"
 	// riscv64:"FABSS" -"FCVTDS" -"FCVTSD"
 	// wasm:"F32Abs" -"F64PromoteF32" -"F32DemoteF64"
 	return float32(math.Abs(float64(x)))

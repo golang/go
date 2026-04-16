@@ -7,7 +7,6 @@ package doc
 import (
 	"bytes"
 	"flag"
-	"go/build"
 	"internal/testenv"
 	"log"
 	"os"
@@ -16,18 +15,19 @@ import (
 	"runtime"
 	"strings"
 	"testing"
+
+	"cmd/go/internal/cfg"
 )
 
 func TestMain(m *testing.M) {
 	// Clear GOPATH so we don't access the user's own packages in the test.
-	buildCtx.GOPATH = ""
+	cfg.BuildContext.GOPATH = ""
 	testGOPATH = true // force GOPATH mode; module test is in cmd/go/testdata/script/mod_doc.txt
 
 	// Set GOROOT in case runtime.GOROOT is wrong (for example, if the test was
 	// built with -trimpath). dirsInit would identify it using 'go env GOROOT',
 	// but we can't be sure that the 'go' in $PATH is the right one either.
-	buildCtx.GOROOT = testenv.GOROOT(nil)
-	build.Default.GOROOT = testenv.GOROOT(nil)
+	cfg.GOROOT = testenv.GOROOT(nil)
 
 	// Add $GOROOT/src/cmd/go/internal/doc/testdata explicitly so we can access its contents in the test.
 	// Normally testdata directories are ignored, but sending it to dirs.scan directly is
@@ -37,9 +37,9 @@ func TestMain(m *testing.M) {
 		panic(err)
 	}
 	dirsInit(
-		Dir{importPath: "testdata", dir: testdataDir},
-		Dir{importPath: "testdata/nested", dir: filepath.Join(testdataDir, "nested")},
-		Dir{importPath: "testdata/nested/nested", dir: filepath.Join(testdataDir, "nested", "nested")})
+		Dir{importPath: "cmd/go/internal/doc/testdata", dir: testdataDir},
+		Dir{importPath: "cmd/go/internal/doc/testdata/nested", dir: filepath.Join(testdataDir, "nested")},
+		Dir{importPath: "cmd/go/internal/doc/testdata/nested/nested", dir: filepath.Join(testdataDir, "nested", "nested")})
 
 	os.Exit(m.Run())
 }
@@ -750,6 +750,143 @@ var tests = []test{
 		[]string{`other fields elided`},
 	},
 
+	// Package with -ex.
+	{
+		"package with -ex",
+		[]string{`-ex`, p},
+		[]string{
+			`func ExampleExportedFunc\(\)`,
+			`func ExampleExportedType\(\)`,
+			`func Example\(\)`,
+			`func Example_multiline\(\)`,
+			`func Example_playable\(\)`,
+		},
+		nil,
+	},
+
+	// Type with -ex.
+	{
+		"type with -ex",
+		[]string{`-ex`, p, `ExportedType`},
+		[]string{
+			`func ExampleExportedType\(\)`,
+			`func ExampleExportedType_ExportedMethod\(\)`,
+		},
+		nil,
+	},
+
+	// Function with -ex.
+	{
+		"function with -ex",
+		[]string{`-ex`, p, `ExportedFunc`},
+		[]string{
+			`func ExampleExportedFunc\(\)`,
+			`Function example.`,
+			`func ExampleExportedFunc_two\(\)`,
+			`Function example two.`,
+		},
+		nil,
+	},
+
+	// Method with -ex.
+	{
+		"method with -ex",
+		[]string{`-ex`, p, `ExportedType.ExportedMethod`},
+		[]string{
+			`func ExampleExportedType_ExportedMethod\(\)`,
+			`Method example.`,
+		},
+		nil,
+	},
+
+	// Package example.
+	{
+		"package example",
+		[]string{p, `Example`},
+		[]string{
+			`fmt.Println\("Package example output"\)`,
+			`Output: Package example output`,
+		},
+		[]string{`func Example\(\)`},
+	},
+
+	// Multiline output example.
+	{
+		"multiline output example",
+		[]string{p, `Example_multiline`},
+		[]string{
+			`fmt.Println\("Multiline\\nexample\\noutput"\)`,
+			"Output: \nMultiline\nexample\noutput",
+		},
+		[]string{`Output: Multiline example output`},
+	},
+
+	// Type example.
+	{
+		"type example",
+		[]string{p, `ExampleExportedType`},
+		[]string{
+			`fmt.Println\("Type example output"\)`,
+			`Output: Type example output`,
+		},
+		[]string{`func ExampleExportedType\(\)`},
+	},
+
+	// Function example.
+	{
+		"function example",
+		[]string{p, `ExampleExportedFunc`},
+		[]string{
+			`fmt.Println\("Function example output"\)`,
+			`Output: Function example output`,
+		},
+		[]string{
+			`func ExampleExportedFunc\(\)`,
+			`fmt.Println\("Function example two output"\)`,
+			`Output: Function example two output`,
+		},
+	},
+
+	// Function example two.
+	{
+		"function example",
+		[]string{p, `ExampleExportedFunc_two`},
+		[]string{
+			`fmt.Println\("Function example two output"\)`,
+			`Output: Function example two output`,
+		},
+		[]string{
+			`func ExampleExportedFunc_two\(\)`,
+			`fmt.Println\("Function example output"\)`,
+			`Output: Function example output`,
+		},
+	},
+
+	// Method example.
+	{
+		"method example",
+		[]string{p, `ExampleExportedType_ExportedMethod`},
+		[]string{
+			`fmt.Println\("Method example output"\)`,
+			`Output: Method example output`,
+		},
+		[]string{`func ExampleExportedType_ExportedMethod\(\)`},
+	},
+
+	// Playable example.
+	{
+		"playable example",
+		[]string{p, `Example_playable`},
+		[]string{
+			`package main`,
+			`func main\(\) {`,
+			`fmt.Println\("Playable example output"\)`,
+			`}`,
+			`Output: Playable example output`,
+		},
+		[]string{`func Example_playable\(\)`},
+	},
+
 	// Case matching off.
 	{
 		"case matching off",
@@ -1067,7 +1204,7 @@ func TestDotSlashLookup(t *testing.T) {
 		t.Skip("scanning file system takes too long")
 	}
 	maybeSkip(t)
-	t.Chdir(filepath.Join(buildCtx.GOROOT, "src", "text"))
+	t.Chdir(filepath.Join(cfg.GOROOT, "src", "text"))
 
 	var b strings.Builder
 	var flagSet flag.FlagSet

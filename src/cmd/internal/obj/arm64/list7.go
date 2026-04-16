@@ -176,14 +176,25 @@ func rconv(r int) string {
 		return fmt.Sprintf("R%d<<%d", r&31, (r>>5)&7)
 	case REG_ARNG <= r && r < REG_ELEM:
 		return fmt.Sprintf("V%d.%s", r&31, arrange((r>>5)&15))
-	case REG_ELEM <= r && r < REG_ELEM_END:
+	case REG_ELEM <= r && r < REG_ZARNG:
 		return fmt.Sprintf("V%d.%s", r&31, arrange((r>>5)&15))
-	case REG_ZARNG <= r && r < REG_PARNGZM:
+	case REG_ZARNG <= r && r < REG_PZELEM:
 		return fmt.Sprintf("Z%d.%s", r&31, arrange((r>>5)&15))
+	case REG_PZELEM <= r && r < REG_PARNGZM:
+		regPrefix := "Z"
+		reg := r & 31
+		if r&(1<<5) != 0 {
+			regPrefix = "P"
+			if reg >= 16 {
+				regPrefix = "PN"
+				reg -= 16
+			}
+		}
+		return fmt.Sprintf("%s%d", regPrefix, reg)
 	case REG_PARNGZM <= r && r < REG_PARNGZM_END:
 		// SVE predicate register with arrangement.
 		// Pn.<T> or Pn/M, Pn/Z.
-		arng := (r >> 5) & 31
+		arng := (r >> 5) & 15
 		suffix := arrange(arng)
 		reg := r & 31
 		if reg >= 16 {
@@ -218,10 +229,17 @@ func SPCconv(a int64) string {
 func rlconv(list int64) string {
 	str := ""
 
-	// ARM64 register list follows ARM64 instruction decode schema
+	// For SIMD&FP register list in ARM64, the conv
+	// follows the ARM64 instruction decode schema
 	// | 31 | 30 | ... | 15 - 12 | 11 - 10 | ... |
 	// +----+----+-----+---------+---------+-----+
 	// |    | Q  | ... | opcode  |   size  | ... |
+
+	// For Scalable Vector register lists, the conv
+	// follows:
+	// | 33 - 32 | 31 - 30 | ... | 15 - 12 | 11 - 10 | ... | 5 - 0 |
+	// +----+----+----+----+-----+---------+---------+-----+-------+
+	// |regprefix| class 1 | ... | reg cnt | class 2 | ... |  reg  |
 
 	firstReg := int(list & 31)
 	opcode := (list >> 12) & 15
@@ -236,11 +254,27 @@ func rlconv(list int64) string {
 		regCnt = 3
 	case 0x2:
 		regCnt = 4
+	case 0x1:
+		// 5 is the specifier for register range list, size is 1 register
+		regCnt = 5
+	case 0x3:
+		// 6 is the specifier for register range list, size is 4 register
+		regCnt = 6
 	default:
 		regCnt = -1
 	}
 	// Q:size
-	arng := ((list>>30)&1)<<2 | (list>>10)&3
+	var regPrefix string
+	regType := (list >> 32) & 3
+	switch regType {
+	case 0:
+		regPrefix = "V"
+	case 1:
+		regPrefix = "Z"
+	case 2:
+		regPrefix = "P"
+	}
+	arng := ((list>>30)&3)<<2 | (list>>10)&3
 	switch arng {
 	case 0:
 		t = "B8"
@@ -258,17 +292,32 @@ func rlconv(list int64) string {
 		t = "D1"
 	case 7:
 		t = "D2"
+	case 9:
+		t = "B"
+	case 10:
+		t = "H"
+	case 11:
+		t = "S"
+	case 13:
+		t = "D"
+	case 14:
+		t = "Q"
 	}
-	for i := 0; i < regCnt; i++ {
-		if str == "" {
-			str += "["
-		} else {
-			str += ","
+	if regCnt > 4 {
+		rangeSize := 2 << (regCnt - 5)
+		str = fmt.Sprintf("[%s%d.%s-%s%d.%s]", regPrefix, firstReg, t, regPrefix, (firstReg+rangeSize-1)&31, t)
+	} else {
+		for i := 0; i < regCnt; i++ {
+			if str == "" {
+				str += "["
+			} else {
+				str += ","
+			}
+			str += fmt.Sprintf("%s%d.", regPrefix, (firstReg+i)&31)
+			str += t
 		}
-		str += fmt.Sprintf("V%d.", (firstReg+i)&31)
-		str += t
+		str += "]"
 	}
-	str += "]"
 	return str
 }
 

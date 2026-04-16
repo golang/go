@@ -605,6 +605,8 @@ func xcoffUpdateOuterSize(ctxt *Link, size int64, stype sym.SymKind) {
 		fsize = Rnd(fsize, int64(symalign(ldr, fft)))
 		tsize := ldr.SymSize(fft)
 		outerSymSize["runtime.pclntab"] = size - (fsize + tsize)
+	case sym.SGCMASK:
+		outerSymSize["runtime.gcmask.*"] = size
 	}
 }
 
@@ -947,7 +949,7 @@ func putaixsym(ctxt *Link, x loader.Sym, t SymbolType) {
 			Xscnlenhi: uint32(size >> 32),
 		}
 
-		if ty := ldr.SymType(x); ty >= sym.SSTRING && ty <= sym.STYPELINK {
+		if ty := ldr.SymType(x); ty >= sym.SSTRING && ty <= sym.SPCLNTAB {
 			if ctxt.IsExternal() && strings.HasPrefix(ldr.SymSect(x).Name, ".data.rel.ro") {
 				// During external linking, read-only datas with relocation
 				// must be in .data.
@@ -1105,7 +1107,7 @@ func (f *xcoffFile) asmaixsym(ctxt *Link) {
 				putaixsym(ctxt, s, TLSSym)
 			}
 
-		case st == sym.SBSS, st == sym.SNOPTRBSS, st == sym.SLIBFUZZER_8BIT_COUNTER, st == sym.SCOVERAGE_COUNTER:
+		case st == sym.SBSS, st == sym.SNOPTRBSS, st == sym.SGCMASK, st == sym.SLIBFUZZER_8BIT_COUNTER, st == sym.SCOVERAGE_COUNTER:
 			if ldr.AttrReachable(s) {
 				data := ldr.Data(s)
 				if len(data) > 0 {
@@ -1256,7 +1258,7 @@ func Xcoffadddynrel(target *Target, ldr *loader.Loader, syms *ArchSyms, s loader
 			case &Segrodata:
 				xldr.symndx = 0 // .text
 			case &Segdata:
-				if targType == sym.SBSS || targType == sym.SNOPTRBSS {
+				if targType == sym.SBSS || targType == sym.SNOPTRBSS || targType == sym.SGCMASK {
 					xldr.symndx = 2 // .bss
 				} else {
 					xldr.symndx = 1 // .data

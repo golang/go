@@ -644,16 +644,16 @@ var (
 
 // shouldRetryRequest is called by RoundTrip when a request fails to get
 // response headers. It is always called with a non-nil error.
-// It returns either a request to retry (either the same request, or a
-// modified clone), or an error if the request can't be replayed.
+// It returns either a request to retry or an error if the request can't be replayed.
+// If the request is retried, it always clones the request (since requests
+// contain an unreusable clientStream).
 func shouldRetryRequest(req *ClientRequest, err error) (*ClientRequest, error) {
 	if !canRetryError(err) {
 		return nil, err
 	}
-	// If the Body is nil (or http.NoBody), it's safe to reuse
-	// this request and its Body.
+	// If the Body is nil (or http.NoBody), it's safe to reuse this request's Body.
 	if req.Body == nil || req.Body == NoBody {
-		return req, nil
+		return req.Clone(), nil
 	}
 
 	// If the request body can be reset back to its original
@@ -669,10 +669,9 @@ func shouldRetryRequest(req *ClientRequest, err error) (*ClientRequest, error) {
 	}
 
 	// The Request.Body can't reset back to the beginning, but we
-	// don't seem to have started to read from it yet, so reuse
-	// the request directly.
+	// don't seem to have started to read from it yet, so reuse the body.
 	if err == errClientConnUnusable {
-		return req, nil
+		return req.Clone(), nil
 	}
 
 	return nil, fmt.Errorf("http2: Transport: cannot retry err [%v] after Request.Body was written; define Request.GetBody to avoid this error", err)
@@ -2837,6 +2836,9 @@ func (rl *clientConnReadLoop) processSettingsNoWrite(f *SettingsFrame) error {
 
 	var seenMaxConcurrentStreams bool
 	err := f.ForeachSetting(func(s Setting) error {
+		if err := s.Valid(); err != nil {
+			return err
+		}
 		switch s.ID {
 		case SettingMaxFrameSize:
 			cc.maxFrameSize = s.Val
@@ -2868,9 +2870,6 @@ func (rl *clientConnReadLoop) processSettingsNoWrite(f *SettingsFrame) error {
 			cc.henc.SetMaxDynamicTableSize(s.Val)
 			cc.peerMaxHeaderTableSize = s.Val
 		case SettingEnableConnectProtocol:
-			if err := s.Valid(); err != nil {
-				return err
-			}
 			// If the peer wants to send us SETTINGS_ENABLE_CONNECT_PROTOCOL,
 			// we require that it do so in the first SETTINGS frame.
 			//

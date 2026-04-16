@@ -44,7 +44,8 @@ It supports these flags:
   -fix
 	instead of printing each diagnostic, apply its first fix (if any)
   -diff
-	instead of applying each fix, print the patch as a unified diff
+	instead of applying each fix, print the patch as a unified diff;
+	exit with a non-zero status if the diff is not empty
 
 The -vettool=prog flag selects a different analysis tool with
 alternative or additional checks. For example, the 'shadow' analyzer
@@ -81,7 +82,8 @@ and applies suggested fixes.
 It supports these flags:
 
   -diff
-	instead of applying each fix, print the patch as a unified diff
+	instead of applying each fix, print the patch as a unified diff;
+	exit with a non-zero status if the diff is not empty
 
 The -fixtool=prog flag selects a different analysis tool with
 alternative or additional fixers; see the documentation for go vet's
@@ -122,13 +124,13 @@ var (
 // run implements both "go vet" and "go fix".
 
 func run(ctx context.Context, cmd *base.Command, args []string) {
-	moduleLoaderState := modload.NewState()
+	moduleLoader := modload.NewLoader()
 	// Compute flags for the vet/fix tool (e.g. cmd/{vet,fix}).
 	toolFlags, pkgArgs := toolFlags(cmd, args)
 
 	// The vet/fix commands do custom flag processing;
 	// initialize workspaces after that.
-	moduleLoaderState.InitWorkfile()
+	moduleLoader.InitWorkfile()
 
 	if cfg.DebugTrace != "" {
 		var close func() error
@@ -147,7 +149,7 @@ func run(ctx context.Context, cmd *base.Command, args []string) {
 	ctx, span := trace.StartSpan(ctx, fmt.Sprint("Running ", cmd.Name(), " command"))
 	defer span.Done()
 
-	work.BuildInit(moduleLoaderState)
+	work.BuildInit(moduleLoader)
 
 	// Flag theory:
 	//
@@ -165,8 +167,8 @@ func run(ctx context.Context, cmd *base.Command, args []string) {
 	// command args                 tool args
 	// go vet               =>      cmd/vet -json           Parse stdout, print diagnostics to stderr.
 	// go vet -json         =>      cmd/vet -json           Pass stdout through.
-	// go vet -fix [-diff]  =>      cmd/vet -fix [-diff]    Pass stdout through.
-	// go fix [-diff]       =>      cmd/fix -fix [-diff]    Pass stdout through.
+	// go vet -fix [-diff]  =>      cmd/vet -fix [-diff]    Pass stdout through (and exit 1 if diffs).
+	// go fix [-diff]       =>      cmd/fix -fix [-diff]    Pass stdout through (and exit 1 if diffs).
 	// go fix -json         =>      cmd/fix -json           Pass stdout through.
 	//
 	// Notes:
@@ -189,6 +191,10 @@ func run(ctx context.Context, cmd *base.Command, args []string) {
 			toolFlags = append(toolFlags, "-fix")
 			if diffFlag {
 				toolFlags = append(toolFlags, "-diff")
+				// In -diff mode, the tool prints unified diffs to stdout.
+				// Copy stdout through and exit non-zero if diffs were printed,
+				// consistent with gofmt -d and go mod tidy -diff.
+				work.VetHandleStdout = copyAndDetectDiff
 			} else {
 				applyFixes = true
 			}
@@ -225,14 +231,14 @@ func run(ctx context.Context, cmd *base.Command, args []string) {
 	work.VetFlags = toolFlags
 
 	pkgOpts := load.PackageOpts{ModResolveTests: true}
-	pkgs := load.PackagesAndErrors(moduleLoaderState, ctx, pkgOpts, pkgArgs)
+	pkgs := load.PackagesAndErrors(moduleLoader, ctx, pkgOpts, pkgArgs)
 	load.CheckPackageErrors(pkgs)
 	if len(pkgs) == 0 {
 		base.Fatalf("no packages to %s", cmd.Name())
 	}
 
 	// Build action graph.
-	b := work.NewBuilder("", moduleLoaderState.VendorDirOrEmpty)
+	b := work.NewBuilder("", moduleLoader.VendorDirOrEmpty)
 	defer func() {
 		if err := b.Close(); err != nil {
 			base.Fatal(err)
@@ -242,7 +248,7 @@ func run(ctx context.Context, cmd *base.Command, args []string) {
 	root := &work.Action{Mode: "go " + cmd.Name()}
 
 	addVetAction := func(p *load.Package) {
-		act := b.VetAction(moduleLoaderState, work.ModeBuild, work.ModeBuild, applyFixes, p)
+		act := b.VetAction(moduleLoader, work.ModeBuild, work.ModeBuild, applyFixes, p)
 		root.Deps = append(root.Deps, act)
 	}
 
@@ -271,7 +277,7 @@ func run(ctx context.Context, cmd *base.Command, args []string) {
 				continue
 			}
 		}
-		_, ptest, pxtest, perr := load.TestPackagesFor(moduleLoaderState, ctx, pkgOpts, p, nil)
+		_, ptest, pxtest, perr := load.TestPackagesFor(moduleLoader, ctx, pkgOpts, p, nil)
 		if perr != nil {
 			base.Errorf("%v", perr.Error)
 			continue
@@ -343,6 +349,24 @@ func readZip(zipfile string, out map[string][]byte) error {
 	return nil
 }
 
+// copyAndDetectDiff copies the tool's stdout to the go command's stdout
+// and sets exit status 1 if any output was produced (meaning diffs exist).
+// This is used in -diff mode to implement the convention that "go fix -diff"
+// exits non-zero when the diff is not empty, consistent with gofmt -d
+// and go mod tidy -diff.
+func copyAndDetectDiff(r io.Reader) error {
+	stdouterrMu.Lock()
+	defer stdouterrMu.Unlock()
+	n, err := io.Copy(os.Stdout, r)
+	if err != nil {
+		return fmt.Errorf("copying diff output: %w", err)
+	}
+	if n > 0 {
+		base.SetExitStatus(1)
+	}
+	return nil
+}
+
 // printJSONDiagnostics parses JSON (from the tool's stdout) and
 // prints it (to stderr) in "file:line: message" form.
 // It also ensures that we exit nonzero if there were diagnostics.
@@ -386,11 +410,11 @@ func printJSONDiagnostics(r io.Reader) error {
 	return nil
 }
 
-var stderrMu sync.Mutex // serializes concurrent writes to stdout
+var stdouterrMu sync.Mutex // serializes concurrent writes to stdout and stderr
 
 func printJSONDiagnostic(analyzer string, diag jsonDiagnostic) {
-	stderrMu.Lock()
-	defer stderrMu.Unlock()
+	stdouterrMu.Lock()
+	defer stdouterrMu.Unlock()
 
 	type posn struct {
 		file      string

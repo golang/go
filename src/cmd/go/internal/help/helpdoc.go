@@ -293,7 +293,6 @@ specifies the given repository, with or without the .vcs suffix,
 using the named version control system, and then the path inside
 that repository. The supported version control systems are:
 
-	Bazaar      .bzr
 	Fossil      .fossil
 	Git         .git
 	Mercurial   .hg
@@ -343,7 +342,7 @@ The meta tag should appear as early in the file as possible.
 In particular, it should appear before any raw JavaScript or CSS,
 to avoid confusing the go command's restricted parser.
 
-The vcs is one of "bzr", "fossil", "git", "hg", "svn".
+The vcs is one of "fossil", "git", "hg", "svn".
 
 The repo-root is the root of the version control system
 containing a scheme and not containing a .vcs qualifier.
@@ -523,6 +522,13 @@ top-level "crash/bang".
 
 Code in GOPATH mode vendor directories is not subject to
 GOPATH mode import path checking (see 'go help importpath').
+
+In GOPATH mode, the default GODEBUG values built into a binary
+will be the same GODEBUG values as when a module specifies
+"godebug default=go1.20". To use different GODEBUG settings, the
+GODEBUG environment variable must be set to override those values.
+This also means that the standard library tests will not run
+properly with GO111MODULE=off.
 
 See https://go.dev/s/go15vendor for details.
 

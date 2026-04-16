@@ -88,6 +88,24 @@ func Init() {
 	if got, want := int64(abi.ITabTypeOff(ptrSize)), ITab.OffsetOf("Type"); got != want {
 		base.Fatalf("abi.ITabTypeOff() == %d, want %d", got, want)
 	}
+	for _, test := range []struct {
+		kind abi.Kind
+		typ  *types.Type
+		name string
+	}{
+		{abi.Struct, StructType, "Struct"},
+		{abi.Pointer, PtrType, "Pointer"},
+		{abi.Func, FuncType, "Func"},
+		{abi.Slice, SliceType, "Slice"},
+		{abi.Array, ArrayType, "Array"},
+		{abi.Chan, ChanType, "Chan"},
+		{abi.Map, MapType, "Map"},
+		{abi.Interface, InterfaceType, "Interface"},
+	} {
+		if got, want := int64(abi.RTypeSize(test.kind, ptrSize)), test.typ.Size(); got != want {
+			base.Fatalf("abi.RTypeSize(%s) == %d, want %d", test.name, got, want)
+		}
+	}
 }
 
 // FromReflect translates from a host type to the equivalent target type.

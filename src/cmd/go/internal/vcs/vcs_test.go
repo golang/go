@@ -24,7 +24,7 @@ func init() {
 }
 
 // Test that RepoRootForImportPath determines the correct RepoRoot for a given importPath.
-// TODO(cmang): Add tests for SVN and BZR.
+// TODO(cmang): Add tests for SVN.
 func TestRepoRootForImportPath(t *testing.T) {
 	testenv.MustHaveExternalNetwork(t)
 
@@ -223,7 +223,6 @@ func TestFromDir(t *testing.T) {
 		{"hg", "Mercurial", ".hg", mkdir},
 		{"git_dir", "Git", ".git", mkdir},
 		{"git_worktree", "Git", ".git", createGitWorktreeFile},
-		{"bzr", "Bazaar", ".bzr", mkdir},
 		{"svn", "Subversion", ".svn", mkdir},
 		{"fossil_fslckout", "Fossil", ".fslckout", touch},
 		{"fossil_FOSSIL_", "Fossil", "_FOSSIL_", touch},
@@ -279,8 +278,6 @@ func TestIsSecure(t *testing.T) {
 	}{
 		{vcsGit, "http://example.com/foo.git", false},
 		{vcsGit, "https://example.com/foo.git", true},
-		{vcsBzr, "http://example.com/foo.bzr", false},
-		{vcsBzr, "https://example.com/foo.bzr", true},
 		{vcsSvn, "http://example.com/svn", false},
 		{vcsSvn, "https://example.com/svn", true},
 		{vcsHg, "http://example.com/foo.hg", false},
@@ -314,8 +311,6 @@ func TestIsSecureGitAllowProtocol(t *testing.T) {
 		// Same as TestIsSecure to verify same behavior.
 		{vcsGit, "http://example.com/foo.git", false},
 		{vcsGit, "https://example.com/foo.git", true},
-		{vcsBzr, "http://example.com/foo.bzr", false},
-		{vcsBzr, "https://example.com/foo.bzr", true},
 		{vcsSvn, "http://example.com/svn", false},
 		{vcsSvn, "https://example.com/svn", true},
 		{vcsHg, "http://example.com/foo.hg", false},
@@ -332,7 +327,6 @@ func TestIsSecureGitAllowProtocol(t *testing.T) {
 		{vcsGit, "foo://example.com/bar.git", true},
 		{vcsHg, "foo://example.com/bar.hg", false},
 		{vcsSvn, "foo://example.com/svn", false},
-		{vcsBzr, "foo://example.com/bar.bzr", false},
 	}
 
 	defer os.Unsetenv("GIT_ALLOW_PROTOCOL")

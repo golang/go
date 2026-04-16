@@ -674,9 +674,9 @@ func writeHeapInternal(w io.Writer, debug int, defaultSampleType string) error {
 	var total runtime.MemProfileRecord
 	for i := range p {
 		r := &p[i]
-		total.AllocBytes += r.AllocBytes
+		total.AllocBytes += r.AllocObjects * r.ObjectSize
 		total.AllocObjects += r.AllocObjects
-		total.FreeBytes += r.FreeBytes
+		total.FreeBytes += r.FreeObjects * r.ObjectSize
 		total.FreeObjects += r.FreeObjects
 	}
 
@@ -706,7 +706,7 @@ func writeHeapInternal(w io.Writer, debug int, defaultSampleType string) error {
 		r := &p[i]
 		fmt.Fprintf(w, "%d: %d [%d: %d] @",
 			r.InUseObjects(), r.InUseBytes(),
-			r.AllocObjects, r.AllocBytes)
+			r.AllocObjects, r.AllocObjects*r.ObjectSize)
 		for _, pc := range r.Stack {
 			fmt.Fprintf(w, " %#x", pc)
 		}
@@ -1003,7 +1003,7 @@ func writeProfileInternal(w io.Writer, debug int, name string, runtimeProfile fu
 	}
 
 	b := bufio.NewWriter(w)
-	tw := tabwriter.NewWriter(w, 1, 8, 1, '\t', 0)
+	tw := tabwriter.NewWriter(b, 1, 8, 1, '\t', 0)
 	w = tw
 
 	fmt.Fprintf(w, "--- %v:\n", name)

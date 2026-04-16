@@ -458,11 +458,6 @@ func (x *elfExe) DataStart() (uint64, uint64) {
 			return s.Addr, s.Size
 		}
 	}
-	for _, p := range x.f.Progs {
-		if p.Type == elf.PT_LOAD && p.Flags&(elf.PF_X|elf.PF_W) == elf.PF_W {
-			return p.Vaddr, p.Memsz
-		}
-	}
 	return 0, 0
 }
 
@@ -541,14 +536,6 @@ func (x *machoExe) DataStart() (uint64, uint64) {
 	for _, sec := range x.f.Sections {
 		if sec.Name == "__go_buildinfo" {
 			return sec.Addr, sec.Size
-		}
-	}
-	// Try the first non-empty writable segment.
-	const RW = 3
-	for _, load := range x.f.Loads {
-		seg, ok := load.(*macho.Segment)
-		if ok && seg.Addr != 0 && seg.Filesz != 0 && seg.Prot == RW && seg.Maxprot == RW {
-			return seg.Addr, seg.Memsz
 		}
 	}
 	return 0, 0

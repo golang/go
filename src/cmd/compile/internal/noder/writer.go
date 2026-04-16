@@ -12,6 +12,7 @@ import (
 	"internal/buildcfg"
 	"internal/pkgbits"
 	"os"
+	"slices"
 	"strings"
 
 	"cmd/compile/internal/base"
@@ -85,8 +86,11 @@ type pkgWriter struct {
 	typDecls map[*types2.TypeName]typeDeclGen
 
 	// linknames maps package-scope objects to their linker symbol name,
-	// if specified by a //go:linkname directive.
-	linknames map[types2.Object]string
+	// if specified by a //go:linkname or //go:linknamestd directive.
+	linknames map[types2.Object]struct {
+		remote string
+		std    bool
+	}
 
 	// cgoPragmas accumulates any //go:cgo_* pragmas that need to be
 	// passed through to cmd/link.
@@ -113,7 +117,10 @@ func newPkgWriter(m posMap, pkg *types2.Package, info *types2.Info, otherInfo ma
 		funDecls: make(map[*types2.Func]*syntax.FuncDecl),
 		typDecls: make(map[*types2.TypeName]typeDeclGen),
 
-		linknames: make(map[types2.Object]string),
+		linknames: make(map[types2.Object]struct {
+			remote string
+			std    bool
+		}),
 	}
 }
 
@@ -196,9 +203,10 @@ type writer struct {
 
 // A writerDict tracks types and objects that are used by a declaration.
 type writerDict struct {
-	// implicits is a slice of type parameters from the enclosing
-	// declarations.
+	// implicits contains type parameters from enclosing declarations.
 	implicits []*types2.TypeParam
+	// receivers contains receiver type parameters of the declaration.
+	receivers []*types2.TypeParam
 
 	// derived is a slice of type indices for computing derived types
 	// (i.e., types that depend on the declaration's type parameters).
@@ -222,8 +230,7 @@ type itabInfo struct {
 
 // typeParamIndex returns the index of the given type parameter within
 // the dictionary. This may differ from typ.Index() when there are
-// implicit type parameters due to defined types declared within a
-// generic function or method.
+// implicit or receiver type parameters.
 func (dict *writerDict) typeParamIndex(typ *types2.TypeParam) int {
 	for idx, implicit := range dict.implicits {
 		if implicit == typ {
@@ -231,7 +238,13 @@ func (dict *writerDict) typeParamIndex(typ *types2.TypeParam) int {
 		}
 	}
 
-	return len(dict.implicits) + typ.Index()
+	for idx, receiver := range dict.receivers {
+		if receiver == typ {
+			return len(dict.implicits) + idx
+		}
+	}
+
+	return len(dict.implicits) + len(dict.receivers) + typ.Index()
 }
 
 // A derivedInfo represents a reference to an encoded generic Go type.
@@ -616,7 +629,7 @@ func (pw *pkgWriter) typIdx(typ types2.Type, dict *writerDict) typeInfo {
 }
 
 // namedType writes a use of the given named type into the bitstream.
-func (w *writer) namedType(obj *types2.TypeName, targs *types2.TypeList) {
+func (w *writer) namedType(obj *types2.TypeName, targs []types2.Type) {
 	// Named types that are declared within a generic function (and
 	// thus have implicit type parameters) are always derived types.
 	if w.p.hasImplicitTypeParams(obj) {
@@ -721,7 +734,7 @@ func (w *writer) param(param *types2.Var) {
 // If obj is a generic object, then explicits are the explicit type
 // arguments used to instantiate it (i.e., used to substitute the
 // object's own declared type parameters).
-func (w *writer) obj(obj types2.Object, explicits *types2.TypeList) {
+func (w *writer) obj(obj types2.Object, explicits []types2.Type) {
 	w.objInfo(w.p.objInstIdx(obj, explicits, w.dict))
 }
 
@@ -743,10 +756,10 @@ func (w *writer) objInfo(info objInfo) {
 // objInstIdx returns the indices for an object and a corresponding
 // list of type arguments used to instantiate it, adding them to the
 // export data as needed.
-func (pw *pkgWriter) objInstIdx(obj types2.Object, explicits *types2.TypeList, dict *writerDict) objInfo {
-	explicitInfos := make([]typeInfo, explicits.Len())
+func (pw *pkgWriter) objInstIdx(obj types2.Object, explicits []types2.Type, dict *writerDict) objInfo {
+	explicitInfos := make([]typeInfo, len(explicits))
 	for i := range explicitInfos {
-		explicitInfos[i] = pw.typIdx(explicits.At(i), dict)
+		explicitInfos[i] = pw.typIdx(explicits[i], dict)
 	}
 	return objInfo{idx: pw.objIdx(obj), explicits: explicitInfos}
 }
@@ -769,6 +782,10 @@ func (pw *pkgWriter) objIdx(obj types2.Object) index {
 		decl, ok := pw.typDecls[obj.(*types2.TypeName)]
 		assert(ok)
 		dict.implicits = decl.implicits
+	}
+
+	if isGenericMethod(obj.Type()) {
+		dict.receivers = asTypeParamSlice(obj.Type().(*types2.Signature).RecvTypeParams())
 	}
 
 	// We encode objects into 4 elements across different sections, all
@@ -845,6 +862,19 @@ func (w *writer) doObj(wext *writer, obj types2.Object) pkgbits.CodeObj {
 		sig := obj.Type().(*types2.Signature)
 
 		w.pos(obj)
+		if isGenericMethod(sig) {
+			// otherwise the reader won't know to expect the flag
+			assert(w.Version().Has(pkgbits.GenericMethods))
+			w.Bool(true) // generic method
+
+			w.selector(obj)
+			w.typeParamNames(sig.RecvTypeParams())
+			w.param(sig.Recv())
+		} else {
+			if w.Version().Has(pkgbits.GenericMethods) {
+				w.Bool(false) // function
+			}
+		}
 		w.typeParamNames(sig.TypeParams())
 		w.signature(sig)
 		w.pos(decl)
@@ -877,9 +907,27 @@ func (w *writer) doObj(wext *writer, obj types2.Object) pkgbits.CodeObj {
 		wext.typeExt(obj)
 		w.typ(named.Underlying())
 
-		w.Len(named.NumMethods())
-		for i := 0; i < named.NumMethods(); i++ {
-			w.method(wext, named.Method(i))
+		// separate generic and non-generic methods
+		var methods, gmethods []*types2.Func
+		for i := range named.NumMethods() {
+			m := named.Method(i)
+			if isGenericMethod(m.Type()) {
+				gmethods = append(gmethods, m)
+			} else {
+				methods = append(methods, m)
+			}
+		}
+		// encode non-generic methods inline
+		w.Len(len(methods))
+		for _, m := range methods {
+			w.method(wext, m)
+		}
+		// encode a pointer to each generic method
+		if w.Version().Has(pkgbits.GenericMethods) {
+			w.Len(len(gmethods))
+			for _, m := range gmethods {
+				w.Reloc(pkgbits.SectionObj, w.p.objIdx(m))
+			}
 		}
 
 		return pkgbits.ObjType
@@ -899,14 +947,23 @@ func (w *writer) objDict(obj types2.Object, dict *writerDict) {
 	// doesn't care about referenced functions.
 
 	w.dict = dict // TODO(mdempsky): This is a bit sketchy.
-
 	w.Len(len(dict.implicits))
 
+	rtparams := objRecvTypeParams(obj)
 	tparams := objTypeParams(obj)
-	ntparams := tparams.Len()
-	w.Len(ntparams)
-	for i := 0; i < ntparams; i++ {
-		w.typ(tparams.At(i).Constraint())
+
+	if w.Version().Has(pkgbits.GenericMethods) {
+		w.Len(len(rtparams))
+	} else {
+		assert(len(rtparams) == 0)
+	}
+	w.Len(len(tparams))
+
+	for _, rtparam := range rtparams {
+		w.typ(rtparam.Constraint())
+	}
+	for _, tparam := range tparams {
+		w.typ(tparam.Constraint())
 	}
 
 	nderived := len(dict.derived)
@@ -936,8 +993,10 @@ func (w *writer) objDict(obj types2.Object, dict *writerDict) {
 	for _, implicit := range dict.implicits {
 		w.Bool(implicit.Underlying().(*types2.Interface).IsMethodSet())
 	}
-	for i := 0; i < ntparams; i++ {
-		tparam := tparams.At(i)
+	for _, rtparam := range rtparams {
+		w.Bool(rtparam.Underlying().(*types2.Interface).IsMethodSet())
+	}
+	for _, tparam := range tparams {
 		w.Bool(tparam.Underlying().(*types2.Interface).IsMethodSet())
 	}
 
@@ -993,8 +1052,8 @@ func (w *writer) method(wext *writer, meth *types2.Func) {
 	wext.funcExt(meth)
 }
 
-// qualifiedIdent writes out the name of an object declared at package
-// scope. (For now, it's also used to refer to local defined types.)
+// qualifiedIdent writes out the name of an object typically declared at package
+// scope. It's also used to refer to generic methods and locally defined types.
 func (w *writer) qualifiedIdent(obj types2.Object) {
 	w.Sync(pkgbits.SyncSym)
 
@@ -1010,6 +1069,17 @@ func (w *writer) qualifiedIdent(obj types2.Object) {
 			// TODO(mdempsky): Find a better solution; this is terrible.
 			name = fmt.Sprintf("%s·%v", name, decl.gen)
 		}
+	}
+
+	// Generic methods are promoted to objects and thus need qualified identifiers.
+	// They must be contextualized by their defining type.
+	if isGenericMethod(obj.Type()) {
+		recv := obj.Type().(*types2.Signature).Recv().Type()
+		fstr := "%s.%s"
+		if _, ok := recv.(*types2.Pointer); ok {
+			fstr = "(*%s).%s"
+		}
+		name = fmt.Sprintf(fstr, types2.Unalias(deref2(recv)).(*types2.Named).Obj().Name(), name)
 	}
 
 	w.pkg(obj.Pkg())
@@ -1152,7 +1222,9 @@ func (w *writer) varExt(obj *types2.Var) {
 func (w *writer) linkname(obj types2.Object) {
 	w.Sync(pkgbits.SyncLinkname)
 	w.Int64(-1)
-	w.String(w.p.linknames[obj])
+	info := w.p.linknames[obj]
+	w.String(info.remote)
+	w.Bool(info.std)
 }
 
 func (w *writer) pragmaFlag(p ir.PragmaFlag) {
@@ -1799,7 +1871,7 @@ func (w *writer) expr(expr syntax.Expr) {
 	expr = syntax.Unparen(expr) // skip parens; unneeded after typecheck
 
 	obj, inst := lookupObj(w.p, expr)
-	targs := inst.TypeArgs
+	targs := asTypeSlice(inst.TypeArgs)
 
 	if tv, ok := w.p.maybeTypeAndValue(expr); ok {
 		if tv.IsRuntimeHelper() {
@@ -1844,7 +1916,7 @@ func (w *writer) expr(expr syntax.Expr) {
 	}
 
 	if obj != nil {
-		if targs.Len() != 0 {
+		if len(targs) != 0 {
 			obj := obj.(*types2.Func)
 
 			w.Code(exprFuncInst)
@@ -1894,41 +1966,30 @@ func (w *writer) expr(expr syntax.Expr) {
 			w.selector(sel.Obj())
 
 		case types2.MethodVal:
-			w.Code(exprMethodVal)
-			typ := w.recvExpr(expr, sel)
-			w.pos(expr)
-			w.methodExpr(expr, typ, sel)
+			w.methVal(expr, sel)
 
 		case types2.MethodExpr:
-			w.Code(exprMethodExpr)
-
-			tv := w.p.typeAndValue(expr.X)
-			assert(tv.IsType())
-
-			index := sel.Index()
-			implicits := index[:len(index)-1]
-
-			typ := tv.Type
-			w.typ(typ)
-
-			w.Len(len(implicits))
-			for _, ix := range implicits {
-				w.Len(ix)
-				typ = deref2(typ).Underlying().(*types2.Struct).Field(ix).Type()
-			}
-
-			recv := sel.Obj().(*types2.Func).Type().(*types2.Signature).Recv().Type()
-			if w.Bool(isPtrTo(typ, recv)) { // need deref
-				typ = recv
-			} else if w.Bool(isPtrTo(recv, typ)) { // need addr
-				typ = recv
-			}
-
-			w.pos(expr)
-			w.methodExpr(expr, typ, sel)
+			w.methExpr(expr, sel)
 		}
 
 	case *syntax.IndexExpr:
+		// might be explicit instantiation of a generic method
+		if selector, ok := expr.X.(*syntax.SelectorExpr); ok {
+			if sel, ok := w.p.info.Selections[selector]; ok {
+				switch sel.Kind() {
+				default:
+					w.p.fatalf(selector, "unexpected selection kind: %v", sel.Kind())
+				case types2.FieldVal:
+					// not a method
+				case types2.MethodVal:
+					w.methVal(selector, sel)
+					return
+				case types2.MethodExpr:
+					w.methExpr(selector, sel)
+					return
+				}
+			}
+		}
 		_ = w.p.typeOf(expr.Index) // ensure this is an index expression, not an instantiation
 
 		xtyp := w.p.typeOf(expr.X)
@@ -2100,7 +2161,11 @@ func (w *writer) expr(expr syntax.Expr) {
 		writeFunExpr := func() {
 			fun := syntax.Unparen(expr.Fun)
 
-			if selector, ok := fun.(*syntax.SelectorExpr); ok {
+			expr := fun
+			if idx, ok := expr.(*syntax.IndexExpr); ok {
+				expr = idx.X
+			}
+			if selector, ok := expr.(*syntax.SelectorExpr); ok {
 				if sel, ok := w.p.info.Selections[selector]; ok && sel.Kind() == types2.MethodVal {
 					w.Bool(true) // method call
 					typ := w.recvExpr(selector, sel)
@@ -2115,7 +2180,7 @@ func (w *writer) expr(expr syntax.Expr) {
 				obj := obj.(*types2.Func)
 
 				w.pos(fun)
-				w.funcInst(obj, inst.TypeArgs)
+				w.funcInst(obj, asTypeSlice(inst.TypeArgs))
 				return
 			}
 
@@ -2154,6 +2219,42 @@ func (w *writer) optExpr(expr syntax.Expr) {
 	}
 }
 
+func (w *writer) methVal(expr *syntax.SelectorExpr, sel *types2.Selection) {
+	w.Code(exprMethodVal)
+	typ := w.recvExpr(expr, sel)
+	w.pos(expr)
+	w.methodExpr(expr, typ, sel)
+}
+
+func (w *writer) methExpr(expr *syntax.SelectorExpr, sel *types2.Selection) {
+	w.Code(exprMethodExpr)
+
+	tv := w.p.typeAndValue(expr.X)
+	assert(tv.IsType())
+
+	index := sel.Index()
+	implicits := index[:len(index)-1]
+
+	typ := tv.Type
+	w.typ(typ)
+
+	w.Len(len(implicits))
+	for _, ix := range implicits {
+		w.Len(ix)
+		typ = deref2(typ).Underlying().(*types2.Struct).Field(ix).Type()
+	}
+
+	recv := sel.Obj().(*types2.Func).Type().(*types2.Signature).Recv().Type()
+	if w.Bool(isPtrTo(typ, recv)) { // need deref
+		typ = recv
+	} else if w.Bool(isPtrTo(recv, typ)) { // need addr
+		typ = recv
+	}
+
+	w.pos(expr)
+	w.methodExpr(expr, typ, sel)
+}
+
 // recvExpr writes out expr.X, but handles any implicit addressing,
 // dereferencing, and field selections appropriate for the method
 // selection.
@@ -2183,7 +2284,7 @@ func (w *writer) recvExpr(expr *syntax.SelectorExpr, sel *types2.Selection) type
 }
 
 // funcInst writes a reference to an instantiated function.
-func (w *writer) funcInst(obj *types2.Func, targs *types2.TypeList) {
+func (w *writer) funcInst(obj *types2.Func, targs []types2.Type) {
 	info := w.p.objInstIdx(obj, targs, w.dict)
 
 	// Type arguments list contains derived types; we can emit a static
@@ -2211,7 +2312,18 @@ func (w *writer) methodExpr(expr *syntax.SelectorExpr, recv types2.Type, sel *ty
 	sig := fun.Type().(*types2.Signature)
 
 	w.typ(recv)
-	w.typ(sig)
+
+	// only pass the signature if it's not a generic method
+	if isGenericMethod(sig) {
+		assert(w.Version().Has(pkgbits.GenericMethods))
+		w.Bool(true)
+	} else {
+		if w.Version().Has(pkgbits.GenericMethods) {
+			w.Bool(false)
+		}
+		w.typ(sig)
+	}
+
 	w.pos(expr)
 	w.selector(fun)
 
@@ -2229,31 +2341,37 @@ func (w *writer) methodExpr(expr *syntax.SelectorExpr, recv types2.Type, sel *ty
 		w.p.fatalf(expr, "isInterface inconsistency: %v and %v", recv, sig.Recv().Type())
 	}
 
-	if !isInterface(recv) {
-		if named, ok := types2.Unalias(deref2(recv)).(*types2.Named); ok {
-			obj, targs := splitNamed(named)
-			info := w.p.objInstIdx(obj, targs, w.dict)
-
-			// Method on a derived receiver type. These can be handled by a
-			// static call to the shaped method, but require dynamically
-			// looking up the appropriate dictionary argument in the current
-			// function's runtime dictionary.
-			if w.p.hasImplicitTypeParams(obj) || info.anyDerived() {
-				w.Bool(true) // dynamic subdictionary
-				w.Len(w.dict.subdictIdx(info))
-				return
-			}
-
-			// Method on a fully known receiver type. These can be handled
-			// by a static call to the shaped method, and with a static
-			// reference to the receiver type's dictionary.
-			if targs.Len() != 0 {
-				w.Bool(false) // no dynamic subdictionary
-				w.Bool(true)  // static dictionary
-				w.objInfo(info)
-				return
-			}
+	if isConcreteMethod(sig) {
+		tname, tExplicits := splitNamed(types2.Unalias(deref2(recv)).(*types2.Named))
+		var info objInfo
+		if isGenericMethod(sig) {
+			// For generic methods, the shaped object is the method itself.
+			mExplicits := asTypeSlice(w.p.info.Instances[expr.Sel].TypeArgs)
+			info = w.p.objInstIdx(fun.Origin(), slices.Concat(tExplicits, mExplicits), w.dict)
+		} else {
+			// For non-generic concrete methods on generic types, the shaped object
+			// is the type. The method must be looked up on the type by name.
+			info = w.p.objInstIdx(tname, tExplicits, w.dict)
 		}
+		// We don't know all of the type arguments statically. These can be
+		// handled by a static call to the shaped method, but require
+		// dynamically looking up the appropriate dictionary argument
+		// in the current function's runtime dictionary.
+		if info.anyDerived() {
+			w.Bool(true) // dynamic subdictionary
+			w.Len(w.dict.subdictIdx(info))
+			return
+		}
+		// We know all of the type arguments statically. These can be handled
+		// by a static call to the shaped method, and with a static reference
+		// to either the receiver type's or method's dictionary (see above).
+		if len(info.explicits) > 0 {
+			w.Bool(false) // no dynamic subdictionary
+			w.Bool(true)  // static dictionary
+			w.objInfo(info)
+			return
+		}
+		// no type arguments
 	}
 
 	w.Bool(false) // no dynamic subdictionary
@@ -2608,6 +2726,26 @@ func isInterface(typ types2.Type) bool {
 	return ok
 }
 
+// isConcreteMethod reports whether typ is a concrete method. That is,
+// it's a method with a receiver that isn't an interface type.
+func isConcreteMethod(typ types2.Type) bool {
+	sig, ok := typ.(*types2.Signature)
+	return ok && sig.Recv() != nil && !isInterface(sig.Recv().Type())
+}
+
+// TODO(mark): Use isGenericMethod. It is included now to help justify
+// the existence of isConcreteMethod.
+
+// isGenericMethod reports whether typ is a generic method. That is,
+// it's a method with type parameters apart from those which may or
+// may not appear on the receiver type.
+//
+// Note that generic methods are always concrete methods.
+func isGenericMethod(typ types2.Type) bool {
+	sig, ok := typ.(*types2.Signature)
+	return ok && sig.Recv() != nil && sig.TypeParams().Len() > 0
+}
+
 // op writes an Op into the bitstream.
 func (w *writer) op(op ir.Op) {
 	// TODO(mdempsky): Remove in favor of explicit codes? Would make
@@ -2650,16 +2788,15 @@ type declCollector struct {
 }
 
 func (c *declCollector) withTParams(obj types2.Object) *declCollector {
-	tparams := objTypeParams(obj)
-	n := tparams.Len()
-	if n == 0 {
+	tparams := slices.Concat(objRecvTypeParams(obj), objTypeParams(obj))
+	if len(tparams) == 0 {
 		return c
 	}
 
 	copy := *c
 	copy.implicits = copy.implicits[:len(copy.implicits):len(copy.implicits)]
-	for i := 0; i < n; i++ {
-		copy.implicits = append(copy.implicits, tparams.At(i))
+	for _, tparam := range tparams {
+		copy.implicits = append(copy.implicits, tparam)
 	}
 	return &copy
 }
@@ -2750,26 +2887,33 @@ func (pw *pkgWriter) collectDecls(noders []*noder) {
 		pw.cgoPragmas = append(pw.cgoPragmas, p.pragcgobuf...)
 
 		for _, l := range p.linknames {
+			directive := "go:linkname"
+			if l.std {
+				directive = "go:linknamestd"
+			}
 			if !file.importedUnsafe {
-				pw.errorf(l.pos, "//go:linkname only allowed in Go files that import \"unsafe\"")
+				pw.errorf(l.pos, "//%s only allowed in Go files that import \"unsafe\"", directive)
 				continue
 			}
 			if strings.Contains(l.remote, "[") && strings.Contains(l.remote, "]") {
-				pw.errorf(l.pos, "//go:linkname reference of an instantiation is not allowed")
+				pw.errorf(l.pos, "//%s reference of an instantiation is not allowed", directive)
 				continue
 			}
 
 			switch obj := pw.curpkg.Scope().Lookup(l.local).(type) {
 			case *types2.Func, *types2.Var:
 				if _, ok := pw.linknames[obj]; !ok {
-					pw.linknames[obj] = l.remote
+					pw.linknames[obj] = struct {
+						remote string
+						std    bool
+					}{l.remote, l.std}
 				} else {
-					pw.errorf(l.pos, "duplicate //go:linkname for %s", l.local)
+					pw.errorf(l.pos, "duplicate //%s for %s", directive, l.local)
 				}
 
 			default:
 				if types.AllowsGoVersion(1, 18) {
-					pw.errorf(l.pos, "//go:linkname must refer to declared function or variable")
+					pw.errorf(l.pos, "//%s must refer to declared function or variable", directive)
 				}
 			}
 		}
@@ -3085,44 +3229,72 @@ func fieldIndex(info *types2.Info, str *types2.Struct, key *syntax.Name) int {
 	panic(fmt.Sprintf("%s: %v is not a field of %v", key.Pos(), field, str))
 }
 
+// objRecvTypeParams returns the receiver type parameters on the given object.
+func objRecvTypeParams(obj types2.Object) []*types2.TypeParam {
+	if f, ok := obj.(*types2.Func); ok {
+		return asTypeParamSlice(f.Signature().RecvTypeParams())
+	}
+	return nil
+}
+
 // objTypeParams returns the type parameters on the given object.
-func objTypeParams(obj types2.Object) *types2.TypeParamList {
-	switch obj := obj.(type) {
+func objTypeParams(obj types2.Object) []*types2.TypeParam {
+	switch t := obj.(type) {
 	case *types2.Func:
-		sig := obj.Type().(*types2.Signature)
-		if sig.Recv() != nil {
-			return sig.RecvTypeParams()
-		}
-		return sig.TypeParams()
+		return asTypeParamSlice(t.Signature().TypeParams())
 	case *types2.TypeName:
 		switch t := obj.Type().(type) {
 		case *types2.Named:
-			return t.TypeParams()
+			return asTypeParamSlice(t.TypeParams())
 		case *types2.Alias:
-			return t.TypeParams()
+			return asTypeParamSlice(t.TypeParams())
 		}
 	}
 	return nil
 }
 
+// asTypeParamSlice unpacks a types2.TypeParamList to a []types2.TypeParam
+func asTypeParamSlice(l *types2.TypeParamList) []*types2.TypeParam {
+	if l.Len() == 0 {
+		return nil
+	}
+	s := make([]*types2.TypeParam, l.Len())
+	for i := range l.Len() {
+		s[i] = l.At(i)
+	}
+	return s
+}
+
 // splitNamed decomposes a use of a defined type into its original
 // type definition and the type arguments used to instantiate it.
-func splitNamed(typ *types2.Named) (*types2.TypeName, *types2.TypeList) {
+func splitNamed(typ *types2.Named) (*types2.TypeName, []types2.Type) {
 	base.Assertf(typ.TypeParams().Len() == typ.TypeArgs().Len(), "use of uninstantiated type: %v", typ)
 
 	orig := typ.Origin()
 	base.Assertf(orig.TypeArgs() == nil, "origin %v of %v has type arguments", orig, typ)
 	base.Assertf(typ.Obj() == orig.Obj(), "%v has object %v, but %v has object %v", typ, typ.Obj(), orig, orig.Obj())
 
-	return typ.Obj(), typ.TypeArgs()
+	return typ.Obj(), asTypeSlice(typ.TypeArgs())
 }
 
 // splitAlias is like splitNamed, but for an alias type.
-func splitAlias(typ *types2.Alias) (*types2.TypeName, *types2.TypeList) {
+func splitAlias(typ *types2.Alias) (*types2.TypeName, []types2.Type) {
 	orig := typ.Origin()
 	base.Assertf(typ.Obj() == orig.Obj(), "alias type %v has object %v, but %v has object %v", typ, typ.Obj(), orig, orig.Obj())
 
-	return typ.Obj(), typ.TypeArgs()
+	return typ.Obj(), asTypeSlice(typ.TypeArgs())
+}
+
+// asTypeSlice unpacks a types2.TypeList to a []types2.Type
+func asTypeSlice(l *types2.TypeList) []types2.Type {
+	if l.Len() == 0 {
+		return nil
+	}
+	s := make([]types2.Type, l.Len())
+	for i := range l.Len() {
+		s[i] = l.At(i)
+	}
+	return s
 }
 
 func asPragmaFlag(p syntax.Pragma) ir.PragmaFlag {

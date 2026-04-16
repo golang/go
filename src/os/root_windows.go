@@ -185,7 +185,7 @@ func rootOpenDir(parent syscall.Handle, name string) (syscall.Handle, error) {
 	h, err := openat(parent, name, syscall.O_RDONLY|syscall.O_CLOEXEC|windows.O_DIRECTORY, 0)
 	if err == syscall.ERROR_FILE_NOT_FOUND {
 		// Windows returns:
-		//   - ERROR_PATH_NOT_FOUND if any path compoenent before the leaf
+		//   - ERROR_PATH_NOT_FOUND if any path component before the leaf
 		//     does not exist or is not a directory.
 		//   - ERROR_FILE_NOT_FOUND if the leaf does not exist.
 		//

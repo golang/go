@@ -37,6 +37,7 @@ func checkScriptReadme(t *testing.T, engine *script.Engine, env []string, script
 
 	doc := new(strings.Builder)
 	cmd := testenv.Command(t, gotool, "doc", "cmd/internal/script")
+	cmd.Dir = t.TempDir() // make sure the test is not running inside the std or cmd module of another GOROOT
 	cmd.Env = env
 	cmd.Stdout = doc
 	if err := cmd.Run(); err != nil {

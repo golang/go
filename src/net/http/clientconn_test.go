@@ -16,7 +16,7 @@ import (
 	"time"
 )
 
-func TestTransportNewClientConnRoundTrip(t *testing.T) { run(t, testTransportNewClientConnRoundTrip) }
+func TestTransportNewClientConnRoundTrip(t *testing.T) { run(t, testTransportNewClientConnRoundTrip, http3SkippedMode) }
 func testTransportNewClientConnRoundTrip(t *testing.T, mode testMode) {
 	cst := newClientServerTest(t, mode, http.HandlerFunc(func(w http.ResponseWriter, req *http.Request) {
 		io.WriteString(w, req.Host)
@@ -82,7 +82,7 @@ func newClientConnTest(t testing.TB, mode testMode, h http.HandlerFunc, opts ...
 }
 
 // TestClientConnReserveAll reserves every concurrency slot on a connection.
-func TestClientConnReserveAll(t *testing.T) { runSynctest(t, testClientConnReserveAll) }
+func TestClientConnReserveAll(t *testing.T) { runSynctest(t, testClientConnReserveAll, http3SkippedMode) }
 func testClientConnReserveAll(t *testing.T, mode testMode) {
 	cst, cc := newClientConnTest(t, mode, nil, optFakeNet, func(s *http.Server) {
 		s.HTTP2 = &http.HTTP2Config{
@@ -121,7 +121,7 @@ func testClientConnReserveAll(t *testing.T, mode testMode) {
 
 // TestClientConnReserveParallel starts concurrent goroutines which reserve every
 // concurrency slot on a connection.
-func TestClientConnReserveParallel(t *testing.T) { runSynctest(t, testClientConnReserveParallel) }
+func TestClientConnReserveParallel(t *testing.T) { runSynctest(t, testClientConnReserveParallel, http3SkippedMode) }
 func testClientConnReserveParallel(t *testing.T, mode testMode) {
 	_, cc := newClientConnTest(t, mode, nil, optFakeNet, func(s *http.Server) {
 		s.HTTP2 = &http.HTTP2Config{
@@ -159,7 +159,7 @@ func testClientConnReserveParallel(t *testing.T, mode testMode) {
 }
 
 // TestClientConnReserveRelease repeatedly reserves and releases concurrency slots.
-func TestClientConnReserveRelease(t *testing.T) { runSynctest(t, testClientConnReserveRelease) }
+func TestClientConnReserveRelease(t *testing.T) { runSynctest(t, testClientConnReserveRelease, http3SkippedMode) }
 func testClientConnReserveRelease(t *testing.T, mode testMode) {
 	_, cc := newClientConnTest(t, mode, nil, optFakeNet, func(s *http.Server) {
 		s.HTTP2 = &http.HTTP2Config{
@@ -323,7 +323,7 @@ func TestClientConnReserveAndConsume(t *testing.T) {
 						t.Errorf("cc.Reserve() = %v, want success", err)
 					}
 				}
-			})
+			}, http3SkippedMode)
 		})
 	}
 
@@ -331,7 +331,7 @@ func TestClientConnReserveAndConsume(t *testing.T) {
 
 // TestClientConnRoundTripBlocks verifies that RoundTrip blocks until a concurrency
 // slot is available on a connection.
-func TestClientConnRoundTripBlocks(t *testing.T) { runSynctest(t, testClientConnRoundTripBlocks) }
+func TestClientConnRoundTripBlocks(t *testing.T) { runSynctest(t, testClientConnRoundTripBlocks, http3SkippedMode) }
 func testClientConnRoundTripBlocks(t *testing.T, mode testMode) {
 	var handlerCalls atomic.Int64
 	requestc := make(chan struct{})

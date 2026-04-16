@@ -15,7 +15,7 @@ type StatFS interface {
 
 // Stat returns a [FileInfo] describing the named file from the file system.
 //
-// If fs implements [StatFS], Stat calls fs.Stat.
+// If fsys implements [StatFS], Stat calls fsys.Stat.
 // Otherwise, Stat opens the [File] to stat it.
 func Stat(fsys FS, name string) (FileInfo, error) {
 	if fsys, ok := fsys.(StatFS); ok {

@@ -1855,3 +1855,9 @@ func TestStart_twice(t *testing.T) {
 		t.Fatalf("Start call returned err %q, want %q", got, want)
 	}
 }
+
+func TestNoStringPanic(t *testing.T) {
+	if s := fmt.Sprintf("%v", &exec.Cmd{}); strings.Contains(s, "PANIC") {
+		t.Fatalf("got %q, want no panic", s)
+	}
+}

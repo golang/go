@@ -162,6 +162,10 @@ func newosproc0(stacksize uintptr, fn unsafe.Pointer) {
 //go:nosplit
 //go:nowritebarrierrec
 func libpreinit() {
+	// On AIX, pthread_create expects a function descriptor pointer,
+	// not a raw code address. Set rt0LibGoFn to the descriptor
+	// so that libInit passes the right value.
+	rt0LibGoFn = uintptr(unsafe.Pointer(&rt0LibGoDesc))
 	initsig(true)
 }
 
@@ -202,6 +206,9 @@ func mdestroy(mp *m) {
 
 // tstart is a function descriptor to _tstart defined in assembly.
 var tstart funcDescriptor
+
+// rt0LibGoDesc is a function descriptor to rt0_lib_go defined in assembly.
+var rt0LibGoDesc funcDescriptor
 
 func newosproc(mp *m) {
 	var (

@@ -855,7 +855,13 @@ func (check *Checker) stmt(ctxt stmtContext, s ast.Stmt) {
 
 	case *ast.RangeStmt:
 		inner |= breakOk | continueOk
-		check.rangeStmt(inner, s, inNode(s, s.TokPos), s.Key, s.Value, nil, s.X, s.Tok == token.DEFINE)
+		// s.TokPos is invalid when there are no range variables (for range x {});
+		// noNewVarPos is unused in that case, but inNode asserts a valid pos.
+		tokPos := s.TokPos
+		if !tokPos.IsValid() {
+			tokPos = s.For
+		}
+		check.rangeStmt(inner, s, inNode(s, tokPos), s.Key, s.Value, nil, s.X, s.Tok == token.DEFINE)
 
 	default:
 		check.error(s, InvalidSyntaxTree, "invalid statement")

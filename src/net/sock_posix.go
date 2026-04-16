@@ -24,10 +24,7 @@ func socket(ctx context.Context, net string, family, sotype, proto int, ipv6only
 		poll.CloseFunc(s)
 		return nil, err
 	}
-	if fd, err = newFD(s, family, sotype, net); err != nil {
-		poll.CloseFunc(s)
-		return nil, err
-	}
+	fd = newFD(s, family, sotype, net)
 
 	// This function makes a network file descriptor for the
 	// following applications:

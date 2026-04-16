@@ -649,6 +649,9 @@ func (st *state) inlineCall() (*inlineCallResult, error) {
 				return
 			}
 		}
+		if len(path) > 0 {
+			repl = internalastutil.MaybeParenthesize(last(path), id, repl)
+		}
 		replaceNode(calleeDecl, id, repl)
 	}
 
@@ -1334,15 +1337,6 @@ func (st *state) typeArguments(call *ast.CallExpr) []*argument {
 	var args []*argument
 	for _, e := range exprs {
 		arg := &argument{expr: e, freevars: freeVars(st.caller.Info, e)}
-		// Wrap the instantiating type in parens when it's not an
-		// ident or qualified ident to prevent "if x == struct{}"
-		// parsing ambiguity, or "T(x)" where T = "*int" or "func()"
-		// from misparsing.
-		// TODO(adonovan): this fails in cases where parens are disallowed, such as
-		// in the composite literal expression T{k: v}.
-		if _, ok := arg.expr.(*ast.Ident); !ok {
-			arg.expr = &ast.ParenExpr{X: arg.expr}
-		}
 		args = append(args, arg)
 	}
 	return args
@@ -2028,8 +2022,7 @@ func resolveEffects(logf logger, args []*argument, effects []int, sg substGraph)
 		return string("RW"[btoi(effects)]) + i
 	}
 	removed := false
-	for i := len(args) - 1; i >= 0; i-- {
-		argi := args[i]
+	for i, argi := range slices.Backward(args) {
 		if sg.has(argi) && !argi.pure {
 			// i is not bound: check whether it must be bound due to hazards.
 			idx := slices.Index(effects, i)

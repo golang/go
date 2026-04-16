@@ -400,8 +400,81 @@ func NewFile(r io.ReaderAt) (*File, error) {
 		return nil, &FormatError{0, "invalid ELF phentsize", phentsize}
 	}
 
+	// If the number of sections is greater than or equal to SHN_LORESERVE
+	// (0xff00), shnum has the value zero and the actual number of section
+	// header table entries is contained in the sh_size field of the section
+	// header at index 0.
+	//
+	// If the number of segments is greater than or equal to 0xffff,
+	// phnum has the value 0xffff, and the actual number of segments
+	// is contained in the sh_info field of the section header at
+	// index 0.
+	const pnXnum = 0xffff
+	if shoff > 0 && (shnum == 0 || phnum == pnXnum) {
+		var typ, link, info uint32
+		var size uint64
+		sr.Seek(shoff, io.SeekStart)
+		switch f.Class {
+		case ELFCLASS32:
+			sh := new(Section32)
+			if err := binary.Read(sr, bo, sh); err != nil {
+				return nil, err
+			}
+			size = uint64(sh.Size)
+			typ = sh.Type
+			link = sh.Link
+			info = sh.Info
+		case ELFCLASS64:
+			sh := new(Section64)
+			if err := binary.Read(sr, bo, sh); err != nil {
+				return nil, err
+			}
+			size = sh.Size
+			typ = sh.Type
+			link = sh.Link
+			info = sh.Info
+		}
+
+		if SectionType(typ) != SHT_NULL {
+			return nil, &FormatError{shoff, "invalid type of the initial section", SectionType(typ)}
+		}
+
+		if shnum == 0 {
+			if size < uint64(SHN_LORESERVE) {
+				return nil, &FormatError{shoff, "invalid ELF shnum contained in sh_size", shnum}
+			}
+			shnum = int(size)
+		}
+
+		if phnum == pnXnum {
+			if info < 0xffff {
+				return nil, &FormatError{shoff, "invalid ELF phnum contained in sh_info", info}
+			}
+			phnum = int(info)
+		}
+
+		// If the section name string table section index is greater than or
+		// equal to SHN_LORESERVE (0xff00), this member has the value
+		// SHN_XINDEX (0xffff) and the actual index of the section name
+		// string table section is contained in the sh_link field of the
+		// section header at index 0.
+		if shstrndx == int(SHN_XINDEX) {
+			shstrndx = int(link)
+			if shstrndx < int(SHN_LORESERVE) {
+				return nil, &FormatError{shoff, "invalid ELF shstrndx contained in sh_link", shstrndx}
+			}
+		}
+	}
+
 	// Read program headers
-	f.Progs = make([]*Prog, phnum)
+	c := saferio.SliceCap[*Prog](uint64(phnum))
+	if c < 0 {
+		return nil, &FormatError{0, "too many segments", phnum}
+	}
+	if phnum > 0 && ((1<<64)-1)/uint64(phnum) < uint64(phentsize) {
+		return nil, &FormatError{0, "segment header overflow", phnum}
+	}
+	f.Progs = make([]*Prog, 0, c)
 	phdata, err := saferio.ReadDataAt(sr, uint64(phnum)*uint64(phentsize), phoff)
 	if err != nil {
 		return nil, err
@@ -443,53 +516,7 @@ func NewFile(r io.ReaderAt) (*File, error) {
 		}
 		p.sr = io.NewSectionReader(r, int64(p.Off), int64(p.Filesz))
 		p.ReaderAt = p.sr
-		f.Progs[i] = p
-	}
-
-	// If the number of sections is greater than or equal to SHN_LORESERVE
-	// (0xff00), shnum has the value zero and the actual number of section
-	// header table entries is contained in the sh_size field of the section
-	// header at index 0.
-	if shoff > 0 && shnum == 0 {
-		var typ, link uint32
-		sr.Seek(shoff, io.SeekStart)
-		switch f.Class {
-		case ELFCLASS32:
-			sh := new(Section32)
-			if err := binary.Read(sr, bo, sh); err != nil {
-				return nil, err
-			}
-			shnum = int(sh.Size)
-			typ = sh.Type
-			link = sh.Link
-		case ELFCLASS64:
-			sh := new(Section64)
-			if err := binary.Read(sr, bo, sh); err != nil {
-				return nil, err
-			}
-			shnum = int(sh.Size)
-			typ = sh.Type
-			link = sh.Link
-		}
-		if SectionType(typ) != SHT_NULL {
-			return nil, &FormatError{shoff, "invalid type of the initial section", SectionType(typ)}
-		}
-
-		if shnum < int(SHN_LORESERVE) {
-			return nil, &FormatError{shoff, "invalid ELF shnum contained in sh_size", shnum}
-		}
-
-		// If the section name string table section index is greater than or
-		// equal to SHN_LORESERVE (0xff00), this member has the value
-		// SHN_XINDEX (0xffff) and the actual index of the section name
-		// string table section is contained in the sh_link field of the
-		// section header at index 0.
-		if shstrndx == int(SHN_XINDEX) {
-			shstrndx = int(link)
-			if shstrndx < int(SHN_LORESERVE) {
-				return nil, &FormatError{shoff, "invalid ELF shstrndx contained in sh_link", shstrndx}
-			}
-		}
+		f.Progs = append(f.Progs, p)
 	}
 
 	if shnum > 0 && shentsize < wantShentsize {
@@ -497,7 +524,7 @@ func NewFile(r io.ReaderAt) (*File, error) {
 	}
 
 	// Read section headers
-	c := saferio.SliceCap[Section](uint64(shnum))
+	c = saferio.SliceCap[Section](uint64(shnum))
 	if c < 0 {
 		return nil, &FormatError{0, "too many sections", shnum}
 	}

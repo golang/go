@@ -293,7 +293,7 @@ func walkExpr1(n ir.Node, init *ir.Nodes) ir.Node {
 
 	case ir.OCLEAR:
 		n := n.(*ir.UnaryExpr)
-		return walkClear(n)
+		return walkClear(n, init)
 
 	case ir.OCLOSE:
 		n := n.(*ir.UnaryExpr)

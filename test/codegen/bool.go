@@ -242,52 +242,52 @@ func TestSetInvGeFp64(x float64, y float64) bool {
 	return b
 }
 func TestLogicalCompareZero(x *[64]uint64) {
-	// ppc64x:"ANDCC",^"AND"
+	// ppc64x:"ANDCC" -"AND "
 	b := x[0] & 3
 	if b != 0 {
 		x[0] = b
 	}
-	// ppc64x:"ANDCC",^"AND"
+	// ppc64x:"ANDCC" -"AND "
 	b = x[1] & x[2]
 	if b != 0 {
 		x[1] = b
 	}
-	// ppc64x:"ANDNCC",^"ANDN"
+	// ppc64x:"ANDNCC" -"ANDN "
 	b = x[1] &^ x[2]
 	if b != 0 {
 		x[1] = b
 	}
-	// ppc64x:"ORCC",^"OR"
+	// ppc64x:"ORCC" -"OR "
 	b = x[3] | x[4]
 	if b != 0 {
 		x[3] = b
 	}
-	// ppc64x:"SUBCC",^"SUB"
+	// ppc64x:"SUBCC" -"SUB "
 	b = x[5] - x[6]
 	if b != 0 {
 		x[5] = b
 	}
-	// ppc64x:"NORCC",^"NOR"
+	// ppc64x:"NORCC" -"NOR "
 	b = ^(x[5] | x[6])
 	if b != 0 {
 		x[5] = b
 	}
-	// ppc64x:"XORCC",^"XOR"
+	// ppc64x:"XORCC" -"XOR "
 	b = x[7] ^ x[8]
 	if b != 0 {
 		x[7] = b
 	}
-	// ppc64x:"ADDCC",^"ADD"
+	// ppc64x:"ADDCC" -"ADD "
 	b = x[9] + x[10]
 	if b != 0 {
 		x[9] = b
 	}
-	// ppc64x:"NEGCC",^"NEG"
+	// ppc64x:"NEGCC" -"NEG "
 	b = -x[11]
 	if b != 0 {
 		x[11] = b
 	}
-	// ppc64x:"CNTLZDCC",^"CNTLZD"
+	// ppc64x:"CNTLZDCC" -"CNTLZD "
 	b = uint64(bits.LeadingZeros64(x[12]))
 	if b != 0 {
 		x[12] = b
@@ -299,7 +299,7 @@ func TestLogicalCompareZero(x *[64]uint64) {
 		x[12] = uint64(c)
 	}
 
-	// ppc64x:"MULHDUCC",^"MULHDU"
+	// ppc64x:"MULHDUCC" -"MULHDU "
 	hi, _ := bits.Mul64(x[13], x[14])
 	if hi != 0 {
 		x[14] = hi

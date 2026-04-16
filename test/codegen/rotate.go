@@ -140,14 +140,14 @@ func rot64nc(x uint64, z uint) uint64 {
 	// amd64:"ROLQ" -"AND"
 	// arm64:"ROR" "NEG" -"AND"
 	// ppc64x:"ROTL" -"NEG" -"AND"
-	// loong64: "ROTRV", -"AND"
+	// loong64: "ROTRV" -"AND"
 	// riscv64: "ROL" -"AND"
 	a += x<<z | x>>(64-z)
 
 	// amd64:"RORQ" -"AND"
 	// arm64:"ROR" -"NEG" -"AND"
 	// ppc64x:"ROTL" "NEG" -"AND"
-	// loong64: "ROTRV", -"AND"
+	// loong64: "ROTRV" -"AND"
 	// riscv64: "ROR" -"AND"
 	a += x>>z | x<<(64-z)
 
@@ -162,14 +162,14 @@ func rot32nc(x uint32, z uint) uint32 {
 	// amd64:"ROLL" -"AND"
 	// arm64:"ROR" "NEG" -"AND"
 	// ppc64x:"ROTLW" -"NEG" -"AND"
-	// loong64: "ROTR", -"AND"
+	// loong64: "ROTR" -"AND"
 	// riscv64: "ROLW" -"AND"
 	a += x<<z | x>>(32-z)
 
 	// amd64:"RORL" -"AND"
 	// arm64:"ROR" -"NEG" -"AND"
 	// ppc64x:"ROTLW" "NEG" -"AND"
-	// loong64: "ROTR", -"AND"
+	// loong64: "ROTR" -"AND"
 	// riscv64: "RORW" -"AND"
 	a += x>>z | x<<(32-z)
 

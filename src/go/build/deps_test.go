@@ -54,7 +54,6 @@ var depsRules = `
 	  internal/goexperiment,
 	  internal/goos,
 	  internal/goversion,
-	  internal/itoa,
 	  internal/nettrace,
 	  internal/platform,
 	  internal/profilerecord,
@@ -84,7 +83,6 @@ var depsRules = `
 	internal/godebugs,
 	internal/goexperiment,
 	internal/goos,
-	internal/itoa,
 	internal/profilerecord,
 	internal/runtime/pprof/label,
 	internal/strconv,
@@ -291,7 +289,7 @@ var depsRules = `
 	# hashes
 	io
 	< hash
-	< hash/adler32, hash/crc32, hash/crc64, hash/fnv;
+	< hash/adler32, hash/crc32, hash/crc64, hash/fnv, hash/maphash;
 
 	# math/big
 	FMT, math/rand
@@ -364,9 +362,6 @@ var depsRules = `
 
 	FMT, internal/goexperiment
 	< internal/buildcfg;
-
-	container/heap, go/constant, go/parser, internal/buildcfg, internal/goversion, internal/types/errors
-	< go/types;
 
 	# The vast majority of standard library packages should not be resorting to regexp.
 	# go/types is a good chokepoint. It shouldn't use regexp, nor should anything
@@ -574,6 +569,9 @@ var depsRules = `
 	  crypto/mlkem
 	< CRYPTO;
 
+	CRYPTO
+	< golang.org/x/crypto/hkdf;
+
 	CGO, fmt, net !< CRYPTO;
 
 	# CRYPTO-MATH is crypto that exposes math/big APIs - no cgo, net; fmt now ok.
@@ -617,6 +615,12 @@ var depsRules = `
 
 	# crypto-aware packages
 
+	FMT, hash/maphash
+	< container/hash;
+
+	hash/maphash, container/heap, go/constant, go/parser, internal/buildcfg, internal/goversion, internal/types/errors
+	< go/types;
+
 	DEBUG, go/build, go/types, text/scanner, crypto/sha256
 	< internal/pkgbits, internal/exportdata
 	< go/internal/gcimporter, go/internal/gccgoimporter, go/internal/srcimporter
@@ -627,9 +631,6 @@ var depsRules = `
 
 	crypto/tls
 	< net/smtp;
-
-	crypto/rand
-	< hash/maphash; # for purego implementation
 
 	# HTTP, King of Dependencies.
 
@@ -664,6 +665,12 @@ var depsRules = `
 	< net/http/internal/httpcommon, net/http/internal/httpsfv
 	< net/http/internal/http2
 	< net/http;
+
+	net/http, golang.org/x/crypto/hkdf, log/slog
+	< golang.org/x/net/internal/quic/quicwire
+	< golang.org/x/net/quic, golang.org/x/net/internal/httpcommon
+	< golang.org/x/net/internal/http3
+	< golang.org/x/net/http3;
 
 	# HTTP-aware packages
 

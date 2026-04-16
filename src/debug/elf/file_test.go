@@ -5,9 +5,9 @@
 package elf
 
 import (
+	"bufio"
 	"bytes"
 	"compress/gzip"
-	"compress/zlib"
 	"debug/dwarf"
 	"encoding/binary"
 	"errors"
@@ -16,6 +16,7 @@ import (
 	"math/rand"
 	"net"
 	"os"
+	"os/exec"
 	"path"
 	"path/filepath"
 	"reflect"
@@ -1560,18 +1561,9 @@ func TestIssue59208(t *testing.T) {
 	zoffset := sec.Offset + uint64(sec.compressionOffset)
 	copy(dn, data[:zoffset])
 
-	ozd, err := sec.Data()
-	if err != nil {
-		t.Fatal(err)
-	}
-	buf := bytes.NewBuffer(nil)
-	wr := zlib.NewWriter(buf)
 	// corrupt origin data same as COMPRESS_ZLIB
-	copy(ozd, []byte{1, 0, 0, 0})
-	wr.Write(ozd)
-	wr.Close()
-
-	copy(dn[zoffset:], buf.Bytes())
+	// Insert zlib compressed sec.Data() block with `[]byte{1, 0, 0, 0}` as the first 4 bytes
+	copy(dn[zoffset:], []byte{0x78, 0x9c, 0x5c, 0x4d, 0xb9, 0xd, 0x80, 0x30, 0xc, 0x3c, 0x7, 0x27, 0xdc, 0xe, 0xc, 0x46, 0x4b, 0x8b, 0x14, 0x51, 0x20, 0x16, 0xa1, 0x67, 0x8b, 0x2c, 0x88, 0xec, 0x44, 0xc2, 0xe2, 0x8a, 0xdc, 0x1b, 0x59, 0x0, 0x28, 0xc, 0x34, 0x9, 0x7f, 0x22, 0x96, 0xa0, 0x13, 0x67, 0x27, 0xa1, 0x53, 0xea, 0x4e, 0x47, 0x58, 0x7a, 0x98, 0x8d, 0x26, 0xcd, 0xfb, 0x71, 0x21, 0x31, 0x87, 0x7f, 0xca, 0xf3, 0x1b, 0x7a, 0x21, 0xfa, 0x3f, 0x23, 0x4f, 0x3, 0x50, 0x7a, 0xb9, 0xda, 0xfc, 0xae, 0xc3, 0x35, 0x77, 0x1b, 0x94, 0xd5, 0x82, 0x37, 0x0, 0x0, 0xff, 0xff, 0x65, 0xfb, 0x7, 0x6e})
 	copy(dn[sec.Offset+sec.FileSize:], data[sec.Offset+sec.FileSize:])
 
 	nf, err := NewFile(bytes.NewReader(dn))
@@ -1665,4 +1657,87 @@ func TestNewFileShortReader(t *testing.T) {
 			}
 		})
 	}
+}
+
+func TestLargeNumberOfSegments(t *testing.T) {
+	switch runtime.GOOS {
+	case "dragonfly", "freebsd", "linux", "netbsd", "openbsd", "solaris":
+	default:
+		t.Skipf("ELF binaries not generated on %s", runtime.GOOS)
+	}
+
+	if testing.Short() {
+		// The GNU linker takes a long time to run this test.
+		t.Skip("skipping slow test in short mode")
+	}
+
+	t.Parallel()
+
+	tempDir := t.TempDir()
+	scriptFile := filepath.Join(tempDir, "script")
+	f, err := os.Create(scriptFile)
+	if err != nil {
+		t.Fatal(err)
+	}
+	b := bufio.NewWriter(f)
+
+	// These script segments work for GNU ld.
+	const scriptStart = `
+PHDRS {
+	headers PT_PHDR PHDRS;
+	text PT_LOAD FILEHDR PHDRS;
+	dynamic PT_DYNAMIC;
+`
+	const scriptEnd = `
+}
+SECTIONS {
+	.sec1 : { *(.sec1) } :hdr1
+}
+`
+
+	fmt.Fprintf(b, scriptStart)
+	const phdrCount = 70000
+	for i := range phdrCount {
+		fmt.Fprintf(b, "\thdr%d PT_LOAD;", i)
+	}
+	fmt.Fprintf(b, scriptEnd)
+
+	if err := b.Flush(); err != nil {
+		t.Fatal(err)
+	}
+	if err := f.Close(); err != nil {
+		t.Fatal(err)
+	}
+
+	const cCode = `
+int main(int argc, char **argv) { return 0; }
+`
+	cFile := filepath.Join(tempDir, "x.c")
+	if err := os.WriteFile(cFile, []byte(cCode), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	cc := os.Getenv("CC")
+	if cc == "" {
+		cc = "gcc"
+	}
+	oFile := filepath.Join(tempDir, "x.exe")
+
+	out, err := exec.Command(cc, "-o", oFile, "-T", scriptFile, cFile).CombinedOutput()
+	if len(out) > 0 {
+		t.Logf("%s", out)
+	}
+	if err != nil {
+		t.Skipf("skipping test because generating test case failed: %v", err)
+	}
+
+	ef, err := Open(oFile)
+	if err != nil {
+		t.Fatalf("failed to open test file: %v", err)
+	}
+	got := len(ef.Progs)
+	if got < phdrCount {
+		t.Errorf("got %d program headers, expected at least %d", got, phdrCount)
+	}
+	t.Logf("output file has %d segments", got)
 }

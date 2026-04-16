@@ -209,9 +209,17 @@ func ARM64RegisterShift(reg, op, count int16) (int64, error) {
 
 // ARM64RegisterArrangement constructs an ARM64 vector register arrangement.
 func ARM64RegisterArrangement(reg int16, name, arng string) (int64, error) {
-	var curQ, curSize uint16
-	if name[0] != 'V' {
-		return 0, errors.New("expect V0 through V31; found: " + name)
+	var curQ, curSize, prefix uint16
+	if name[0] != 'V' && name[0] != 'Z' && name[0] != 'P' {
+		return 0, errors.New("expect V0-V31, Z0-Z31, or P0-P15; found: " + name)
+	}
+	switch name[0] {
+	case 'V':
+		prefix = 0
+	case 'Z':
+		prefix = 1
+	case 'P':
+		prefix = 2
 	}
 	if reg < 0 {
 		return 0, errors.New("invalid register number: " + name)
@@ -241,8 +249,23 @@ func ARM64RegisterArrangement(reg int16, name, arng string) (int64, error) {
 	case "D2":
 		curSize = 3
 		curQ = 1
+	case "B":
+		curSize = 1
+		curQ = 2
+	case "H":
+		curSize = 2
+		curQ = 2
+	case "S":
+		curSize = 3
+		curQ = 2
+	case "D":
+		curSize = 1
+		curQ = 3
+	case "Q":
+		curSize = 2
+		curQ = 3
 	default:
 		return 0, errors.New("invalid arrangement in ARM64 register list")
 	}
-	return (int64(curQ) & 1 << 30) | (int64(curSize&3) << 10), nil
+	return (int64(prefix) << 32) | (int64(curQ) & 3 << 30) | (int64(curSize&3) << 10), nil
 }

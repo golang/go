@@ -43,8 +43,8 @@ func store_shifted(t *tile3, x uint32) {
 
 func store_const(t *tile3) {
 	// 0x00030201
-	// amd64:`MOVL\s\$197121`
+	// amd64:`MOVL \$197121`
 	// 0x01020003
-	// ppc64:`MOVD\s\$16908291`
+	// ppc64:`MOVD \$16908291`
 	t.a, t.b, t.c = 1, 2, 3
 }

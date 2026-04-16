@@ -34,6 +34,7 @@ import (
 	"bytes"
 	"debug/elf"
 	"debug/macho"
+	"debug/pe"
 	"encoding/base64"
 	"encoding/binary"
 	"fmt"
@@ -1461,7 +1462,7 @@ func (ctxt *Link) hostlink() {
 	// Only macOS supports unmapped segments such as our __DWARF segment.
 	combineDwarf := ctxt.IsDarwin() && !*FlagW && machoPlatform == PLATFORM_MACOS
 
-	var isMSVC bool // used on Windows
+	var isMSVC, isLLD bool // used on Windows
 	wlPrefix := "-Wl,--"
 
 	switch ctxt.HeadType {
@@ -1515,6 +1516,9 @@ func (ctxt *Link) hostlink() {
 		}
 	case objabi.Hwindows:
 		isMSVC = ctxt.isMSVC()
+		if !isMSVC {
+			isLLD = ctxt.isLLD()
+		}
 		if isMSVC {
 			// For various options, MSVC lld-link only accepts one dash.
 			// TODO: It seems mingw clang supports one or two dashes,
@@ -1537,10 +1541,22 @@ func (ctxt *Link) hostlink() {
 		argv = append(argv, wlPrefix+"nxcompat")
 
 		if !isMSVC {
-			argv = append(argv, fmt.Sprintf("-Wl,--major-os-version=%d", PeMinimumTargetMajorVersion))
-			argv = append(argv, fmt.Sprintf("-Wl,--minor-os-version=%d", PeMinimumTargetMinorVersion))
-			argv = append(argv, fmt.Sprintf("-Wl,--major-subsystem-version=%d", PeMinimumTargetMajorVersion))
-			argv = append(argv, fmt.Sprintf("-Wl,--minor-subsystem-version=%d", PeMinimumTargetMinorVersion))
+			peMajorVersion := PeMinimumTargetMajorVersion
+			peMinorVersion := PeMinimumTargetMinorVersion
+			if peMajorVersion >= 10 && !isLLD &&
+				!peHasLoadConfigDirectorySupport(ctxt.Arch, argv[0]) {
+				// The external linker doesn't support wiring up
+				// _load_config_used to the PE Load Configuration
+				// Directory. Windows 10+ validates this directory,
+				// so fall back to an older version to avoid
+				// load failures.
+				peMajorVersion = 6
+				peMinorVersion = 1
+			}
+			argv = append(argv, fmt.Sprintf("-Wl,--major-os-version=%d", peMajorVersion))
+			argv = append(argv, fmt.Sprintf("-Wl,--minor-os-version=%d", peMinorVersion))
+			argv = append(argv, fmt.Sprintf("-Wl,--major-subsystem-version=%d", peMajorVersion))
+			argv = append(argv, fmt.Sprintf("-Wl,--minor-subsystem-version=%d", peMinorVersion))
 		}
 	case objabi.Haix:
 		argv = append(argv, "-pthread")
@@ -1965,23 +1981,9 @@ func (ctxt *Link) hostlink() {
 		checkStatic(p)
 	}
 	if ctxt.HeadType == objabi.Hwindows {
-		// Determine which linker we're using. Add in the extldflags in
-		// case used has specified "-fuse-ld=...".
-		extld := ctxt.extld()
-		name, args := extld[0], extld[1:]
-		args = append(args, trimLinkerArgv(flagExtldflags)...)
-		args = append(args, "-Wl,--version")
-		cmd := exec.Command(name, args...)
-		usingLLD := false
-		if out, err := cmd.CombinedOutput(); err == nil {
-			if bytes.Contains(out, []byte("LLD ")) {
-				usingLLD = true
-			}
-		}
-
 		// use gcc linker script to work around gcc bug
 		// (see https://golang.org/issue/20183 for details).
-		if !usingLLD {
+		if !isLLD {
 			p := writeGDBLinkerScript()
 			argv = append(argv, "-Wl,-T,"+p)
 		}
@@ -2234,6 +2236,54 @@ func linkerFlagSupported(arch *sys.Arch, linker, altLinker, flag string) bool {
 	return err == nil && !bytes.Contains(out, []byte("unrecognized")) && !bytes.Contains(out, []byte("unknown"))
 }
 
+// peHasLoadConfigDirectorySupport checks whether the external linker
+// populates the PE Load Configuration Directory data directory entry
+// when it encounters a _load_config_used symbol.
+//
+// GNU ld gained this support in binutils 2.45. MSVC link.exe and
+// LLVM lld-link have always supported it.
+func peHasLoadConfigDirectorySupport(arch *sys.Arch, linker string) bool {
+	src := filepath.Join(*flagTmpdir, "loadcfg_test.c")
+	if err := os.WriteFile(src, []byte(`
+#ifdef _WIN64
+typedef unsigned long long uintptr;
+#else
+typedef unsigned long uintptr;
+#endif
+const uintptr _load_config_used[2] = { sizeof(_load_config_used), 0 };
+int main() { return 0; }
+`), 0666); err != nil {
+		return false
+	}
+
+	outPath := filepath.Join(*flagTmpdir, "loadcfg_test.exe")
+	flags := hostlinkArchArgs(arch)
+	flags = append(flags, "-o", outPath, src)
+	cmd := exec.Command(linker, flags...)
+	cmd.Env = append([]string{"LC_ALL=C"}, os.Environ()...)
+	if err := cmd.Run(); err != nil {
+		return false
+	}
+
+	f, err := pe.Open(outPath)
+	if err != nil {
+		return false
+	}
+	defer f.Close()
+
+	switch oh := f.OptionalHeader.(type) {
+	case *pe.OptionalHeader64:
+		if int(pe.IMAGE_DIRECTORY_ENTRY_LOAD_CONFIG) < len(oh.DataDirectory) {
+			return oh.DataDirectory[pe.IMAGE_DIRECTORY_ENTRY_LOAD_CONFIG].VirtualAddress != 0
+		}
+	case *pe.OptionalHeader32:
+		if int(pe.IMAGE_DIRECTORY_ENTRY_LOAD_CONFIG) < len(oh.DataDirectory) {
+			return oh.DataDirectory[pe.IMAGE_DIRECTORY_ENTRY_LOAD_CONFIG].VirtualAddress != 0
+		}
+	}
+	return false
+}
+
 // trimLinkerArgv returns a new copy of argv that does not include flags
 // that are not relevant for testing whether some linker option works.
 func trimLinkerArgv(argv []string) []string {
@@ -2411,9 +2461,7 @@ func ldobj(ctxt *Link, f *bio.Reader, lib *sym.Library, length int64, pn string,
 			if len(ls.Resources) != 0 {
 				setpersrc(ctxt, ls.Resources)
 			}
-			if ls.PData != 0 {
-				sehp.pdata = append(sehp.pdata, ls.PData)
-			}
+			sehp.pdata = append(sehp.pdata, ls.PData...)
 			if ls.XData != 0 {
 				sehp.xdata = append(sehp.xdata, ls.XData)
 			}
@@ -3130,6 +3178,21 @@ func (ctxt *Link) isMSVC() bool {
 	cmd := exec.Command(name, args...)
 	if out, err := cmd.CombinedOutput(); err == nil {
 		if bytes.Contains(out, []byte("-msvc\n")) || bytes.Contains(out, []byte("-msvc\r")) {
+			return true
+		}
+	}
+	return false
+}
+
+// isLLD reports whether the C toolchain is using LLD as the linker.
+func (ctxt *Link) isLLD() bool {
+	extld := ctxt.extld()
+	name, args := extld[0], extld[1:]
+	args = append(args, trimLinkerArgv(flagExtldflags)...)
+	args = append(args, "-Wl,--version")
+	cmd := exec.Command(name, args...)
+	if out, err := cmd.CombinedOutput(); err == nil {
+		if bytes.Contains(out, []byte("LLD ")) {
 			return true
 		}
 	}

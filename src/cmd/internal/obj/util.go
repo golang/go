@@ -222,6 +222,11 @@ func (ctxt *Link) CanReuseProgs() bool {
 	return ctxt.Debugasm == 0
 }
 
+func isZReg(r int) bool {
+	return (r >= RBaseARM64+96 && r <= RBaseARM64+127) ||
+		(r >= RBaseARM64+2048 && r < RBaseARM64+3072)
+}
+
 // Dconv accepts an argument 'a' within a prog 'p' and returns a string
 // with a formatted version of the argument.
 func Dconv(p *Prog, a *Addr) string {
@@ -257,6 +262,30 @@ func writeDconv(w io.Writer, p *Prog, a *Addr, abiDetail bool) {
 		}
 
 	case TYPE_REG:
+		if buildcfg.GOARCH == "arm64" && a.Offset&(int64(1)<<62) != 0 {
+			preg := int((a.Offset)&31) + RBaseARM64 + 128
+			arng2 := (a.Offset >> 5) & 15
+			selreg := int((a.Offset>>9)&31) + RBaseARM64
+			idximm := (a.Offset >> 14) & 63
+
+			arngStr := ""
+			switch arng2 {
+			case 9:
+				arngStr = ".B"
+			case 10:
+				arngStr = ".H"
+			case 11:
+				arngStr = ".S"
+			case 12:
+				arngStr = ".D"
+			case 13:
+				arngStr = ".Q"
+			}
+
+			fmt.Fprintf(w, "[%s,$%d](%s%s)", Rconv(selreg), idximm, Rconv(preg), arngStr)
+			return
+		}
+
 		// TODO(rsc): This special case is for x86 instructions like
 		//	PINSRQ	CX,$1,X6
 		// where the $1 is included in the p->to Addr.
@@ -273,8 +302,8 @@ func writeDconv(w io.Writer, p *Prog, a *Addr, abiDetail bool) {
 			io.WriteString(w, Rconv(int(a.Reg)))
 		}
 
-		if (RBaseARM64+1<<10+1<<9) /* arm64.REG_ELEM */ <= a.Reg &&
-			a.Reg < (RBaseARM64+1<<11) /* arm64.REG_ELEM_END */ {
+		if ((RBaseARM64+1<<10+1<<9) /* arm64.REG_ELEM */ <= a.Reg && a.Reg < (RBaseARM64+1<<11) /* arm64.REG_ZARNG */) ||
+			((RBaseARM64+1<<11+1<<9) /* arm64.REG_ZARNGELEM */ <= a.Reg && a.Reg < (RBaseARM64+1<<11+1<<10+1<<9) /* arm64.REG_PARNGZM */) {
 			fmt.Fprintf(w, "[%d]", a.Index)
 		}
 
@@ -297,13 +326,43 @@ func writeDconv(w io.Writer, p *Prog, a *Addr, abiDetail bool) {
 		a.writeNameTo(w, abiDetail)
 
 	case TYPE_MEM:
-		a.WriteNameTo(w)
-		if a.Index != REG_NONE {
-			if a.Scale == 0 {
-				// arm64 shifted or extended register offset, scale = 0.
-				fmt.Fprintf(w, "(%v)", Rconv(int(a.Index)))
+		if buildcfg.GOARCH == "arm64" && (a.Scale < 0 || (a.Index != REG_NONE && (isZReg(int(a.Reg)) || isZReg(int(a.Index))))) {
+			// SVE extended addressing pattern
+			if a.Index == REG_NONE {
+				if a.Offset < 0 {
+					fmt.Fprintf(w, "(-VL*%d)(%v)", -a.Offset, Rconv(int(a.Reg)))
+				} else {
+					fmt.Fprintf(w, "(VL*%d)(%v)", a.Offset, Rconv(int(a.Reg)))
+				}
 			} else {
-				fmt.Fprintf(w, "(%v*%d)", Rconv(int(a.Index)), int(a.Scale))
+				amount := 0
+				mod := 0
+				if a.Scale < 0 {
+					amount = int((a.Scale >> 12) & 0x7)
+					mod = int((a.Scale >> 9) & 0x7)
+				}
+				modStr := ""
+				switch mod {
+				case 1:
+					modStr = ".UXTW"
+				case 2:
+					modStr = ".SXTW"
+				}
+				amountStr := ""
+				if amount != 0 {
+					amountStr = fmt.Sprintf("<<%d", amount)
+				}
+				fmt.Fprintf(w, "(%v%s%s)(%v)", Rconv(int(a.Reg)), modStr, amountStr, Rconv(int(a.Index)))
+			}
+		} else {
+			a.WriteNameTo(w)
+			if a.Index != REG_NONE {
+				if a.Scale == 0 {
+					// arm64 shifted or extended register offset, scale = 0.
+					fmt.Fprintf(w, "(%v)", Rconv(int(a.Index)))
+				} else {
+					fmt.Fprintf(w, "(%v*%d)", Rconv(int(a.Index)), int(a.Scale))
+				}
 			}
 		}
 

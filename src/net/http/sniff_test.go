@@ -166,7 +166,7 @@ func (b *byteAtATimeReader) Read(p []byte) (n int, err error) {
 	return 1, nil
 }
 
-func TestContentTypeWithVariousSources(t *testing.T) { run(t, testContentTypeWithVariousSources) }
+func TestContentTypeWithVariousSources(t *testing.T) { run(t, testContentTypeWithVariousSources, http3SkippedMode) }
 func testContentTypeWithVariousSources(t *testing.T, mode testMode) {
 	const (
 		input    = "\n<html>\n\t<head>\n"

@@ -92,6 +92,7 @@ var bootstrapDirs = []string{
 	"internal/race",
 	"internal/runtime/gc",
 	"internal/saferio",
+	"internal/strconv",
 	"internal/syscall/unix",
 	"internal/types/errors",
 	"internal/unsafeheader",

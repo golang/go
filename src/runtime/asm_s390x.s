@@ -593,6 +593,29 @@ nosave:
 	MOVW	R2, ret+16(FP)
 	RET
 
+// func asmcgocall_no_g(fn, arg unsafe.Pointer)
+// Call fn(arg) aligned appropriately for the gcc ABI.
+// Called on a system stack, and there may be no g yet.
+TEXT ·asmcgocall_no_g(SB),NOSPLIT,$0-16
+	MOVD	fn+0(FP), R3
+	MOVD	arg+8(FP), R4
+
+	MOVD	R15, R2		// Save original stack pointer.
+
+	// Save room for the stack pointer, plus 160 bytes of callee
+	// save area that lives on the caller stack.
+	SUB	$168, R15
+	MOVD	$~7, R6
+	AND	R6, R15
+
+	MOVD	R2, 160(R15)	// Save original stack pointer.
+	MOVD	$0, 0(R15)	// clear back chain pointer
+	MOVD	R4, R2		// arg in R2
+	BL	R3
+	XOR	R0, R0
+	MOVD	160(R15), R15	// Restore stack pointer.
+	RET
+
 // cgocallback(fn, frame unsafe.Pointer, ctxt uintptr)
 // See cgocall.go for more details.
 TEXT ·cgocallback(SB),NOSPLIT,$24-24

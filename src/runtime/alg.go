@@ -80,8 +80,12 @@ var useAeshash bool
 //go:linkname memhash
 func memhash(p unsafe.Pointer, h, s uintptr) uintptr
 
+// Accessed in internal/runtime/maps.
+//
+//go:linknamestd memhash32
 func memhash32(p unsafe.Pointer, h uintptr) uintptr
 
+//go:linknamestd memhash64
 func memhash64(p unsafe.Pointer, h uintptr) uintptr
 
 // strhash should be an internal detail,

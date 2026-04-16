@@ -21,7 +21,6 @@ import (
 	"net"
 	"os"
 	"slices"
-	"strconv"
 	"strings"
 	"sync"
 	"time"
@@ -213,16 +212,6 @@ func validWireHeaderFieldName(v string) bool {
 		}
 	}
 	return true
-}
-
-func httpCodeString(code int) string {
-	switch code {
-	case 200:
-		return "200"
-	case 404:
-		return "404"
-	}
-	return strconv.Itoa(code)
 }
 
 // A closeWaiter is like a sync.WaitGroup but only goes 1 to 0 (open to closed).

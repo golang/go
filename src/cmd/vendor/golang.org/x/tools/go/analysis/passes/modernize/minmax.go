@@ -55,6 +55,10 @@ var MinMaxAnalyzer = &analysis.Analyzer{
 // - "x := a" or "x = a" or "var x = a" in pattern 2
 // - "x < b" or "a < b" in pattern 2
 func minmax(pass *analysis.Pass) (any, error) {
+	var (
+		inspect = pass.ResultOf[inspect.Analyzer].(*inspector.Inspector)
+		info    = pass.TypesInfo
+	)
 	// Check for user-defined min/max functions that can be removed
 	checkUserDefinedMinMax(pass)
 
@@ -103,6 +107,9 @@ func minmax(pass *analysis.Pass) (any, error) {
 
 				if !is[*types.Builtin](lookup(pass.TypesInfo, curIfStmt, sym)) {
 					return // min/max function is shadowed
+				}
+				if !analyzerutil.FileUsesGoVersion(pass, file, versions.Go1_21) {
+					return // min/max is too new
 				}
 
 				// pattern 1
@@ -177,6 +184,10 @@ func minmax(pass *analysis.Pass) (any, error) {
 					b = rhs0
 				}
 
+				if !analyzerutil.FileUsesGoVersion(pass, file, versions.Go1_21) {
+					return // min/max is too new
+				}
+
 				// pattern 2
 				pass.Report(analysis.Diagnostic{
 					// Highlight the condition a < b.
@@ -204,31 +215,26 @@ func minmax(pass *analysis.Pass) (any, error) {
 	}
 
 	// Find all "if a < b { lhs = rhs }" statements.
-	info := pass.TypesInfo
-	for curFile := range filesUsingGoVersion(pass, versions.Go1_21) {
-		astFile := curFile.Node().(*ast.File)
-		for curIfStmt := range curFile.Preorder((*ast.IfStmt)(nil)) {
-			ifStmt := curIfStmt.Node().(*ast.IfStmt)
+	for curIfStmt := range inspect.Root().Preorder((*ast.IfStmt)(nil)) {
+		ifStmt := curIfStmt.Node().(*ast.IfStmt)
+		// Don't bother handling "if a < b { lhs = rhs }" when it appears
+		// as the "else" branch of another if-statement.
+		//    if cond { ... } else if a < b { lhs = rhs }
+		// (This case would require introducing another block
+		//    if cond { ... } else { if a < b { lhs = rhs } }
+		// and checking that there is no following "else".)
+		if curIfStmt.ParentEdgeKind() == edge.IfStmt_Else {
+			continue
+		}
 
-			// Don't bother handling "if a < b { lhs = rhs }" when it appears
-			// as the "else" branch of another if-statement.
-			//    if cond { ... } else if a < b { lhs = rhs }
-			// (This case would require introducing another block
-			//    if cond { ... } else { if a < b { lhs = rhs } }
-			// and checking that there is no following "else".)
-			if curIfStmt.ParentEdgeKind() == edge.IfStmt_Else {
-				continue
-			}
-
-			if compare, ok := ifStmt.Cond.(*ast.BinaryExpr); ok &&
-				ifStmt.Init == nil &&
-				isInequality(compare.Op) != 0 &&
-				isAssignBlock(ifStmt.Body) {
-				// a blank var has no type.
-				if tLHS := info.TypeOf(ifStmt.Body.List[0].(*ast.AssignStmt).Lhs[0]); tLHS != nil && !maybeNaN(tLHS) {
-					// Have: if a < b { lhs = rhs }
-					check(astFile, curIfStmt, compare)
-				}
+		if compare, ok := ifStmt.Cond.(*ast.BinaryExpr); ok &&
+			ifStmt.Init == nil &&
+			isInequality(compare.Op) != 0 &&
+			isAssignBlock(ifStmt.Body) {
+			// a blank var has no type.
+			if tLHS := info.TypeOf(ifStmt.Body.List[0].(*ast.AssignStmt).Lhs[0]); tLHS != nil && !maybeNaN(tLHS) {
+				// Have: if a < b { lhs = rhs }
+				check(astutil.EnclosingFile(curIfStmt), curIfStmt, compare)
 			}
 		}
 	}
@@ -300,8 +306,10 @@ func checkUserDefinedMinMax(pass *analysis.Pass) {
 			// Use typeindex to get the FuncDecl directly
 			if def, ok := index.Def(fn); ok {
 				decl := def.Parent().Node().(*ast.FuncDecl)
-				// Check if this function matches the built-in min/max signature and behavior
-				if canUseBuiltinMinMax(fn, decl.Body) {
+				// Check if this function matches the built-in min/max signature
+				// and behavior, and verify that we have go1.21.
+				if canUseBuiltinMinMax(fn, decl.Body) &&
+					analyzerutil.FileUsesGoVersion(pass, astutil.EnclosingFile(def), versions.Go1_21) {
 					// Expand to include leading doc comment
 					pos := decl.Pos()
 					if docs := astutil.DocComment(decl); docs != nil {

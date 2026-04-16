@@ -642,6 +642,23 @@
 (EQ  (TSTWconst [c] x) yes no) && oneBit(int64(uint32(c))) => (TBZ  [int64(ntz64(int64(uint32(c))))] x yes no)
 (NE  (TSTWconst [c] x) yes no) && oneBit(int64(uint32(c))) => (TBNZ [int64(ntz64(int64(uint32(c))))] x yes no)
 
+((Z|NZ) s:(SRLconst [63] x) yes no) && s.Uses == 1 => (TB(Z|NZ) [63] x yes no)
+((Z|NZ) s:(SRAconst [63] x) yes no) && s.Uses == 1 => (TB(Z|NZ) [63] x yes no)
+
+// Merge more operations into TBZ & TBNZ
+(TB(Z|NZ) [t] sv:(SRLconst [s] x) yes no) && t+s <  64 && sv.Uses == 1 => (TB(Z|NZ) [t+s] x yes no )
+(TBZ      [t]    (SRLconst [s] x) yes no) && t+s >= 64                 => (First            yes no )
+(TBNZ     [t]    (SRLconst [s] x) yes no) && t+s >= 64                 => (First            no  yes)
+
+(TB(Z|NZ) [t] sv:(SLLconst [s] x) yes no) && t-s >= 0  && sv.Uses == 1 => (TB(Z|NZ) [t-s] x yes no )
+(TBZ      [t]    (SLLconst [s] x) yes no) && t-s <  0                  => (First            yes no )
+(TBNZ     [t]    (SLLconst [s] x) yes no) && t-s <  0                  => (First            no  yes)
+
+(TB(Z|NZ) [t] rv:(RORconst [r] x) yes no) && rv.Uses == 1 => (TB(Z|NZ) [int64(uint64(t+r)%64)] x yes no)
+
+(TB(Z|NZ) [t] sv:(SRAconst [s] x) yes no) && t+s <  64 && sv.Uses == 1 => (TB(Z|NZ) [t+s] x yes no)
+(TB(Z|NZ) [t] sv:(SRAconst [s] x) yes no) && t+s >= 64 && sv.Uses == 1 => (TB(Z|NZ) [63 ] x yes no)
+
 // Test sign-bit for signed comparisons against zero
 (GE (CMPWconst [0] x) yes no) => (TBZ  [31] x yes no)
 (GE (CMPconst [0] x)  yes no) => (TBZ  [63] x yes no)

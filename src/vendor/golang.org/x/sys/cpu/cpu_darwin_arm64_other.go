@@ -6,6 +6,8 @@
 
 package cpu
 
+import "runtime"
+
 func doinit() {
 	setMinimalFeatures()
 

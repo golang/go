@@ -1,0 +1,2 @@
+pkg bytes, func CutLast([]uint8, []uint8) ([]uint8, []uint8, bool) #71151
+pkg strings, func CutLast(string, string) (string, string, bool) #71151

@@ -6,6 +6,7 @@ package hpack
 
 import (
 	"fmt"
+	"strings"
 )
 
 // headerFieldTable implements a list of HeaderFields.
@@ -54,10 +55,16 @@ func (t *headerFieldTable) len() int {
 
 // addEntry adds a new entry.
 func (t *headerFieldTable) addEntry(f HeaderField) {
+	// Prevent f from escaping to the heap.
+	f2 := HeaderField{
+		Name:      strings.Clone(f.Name),
+		Value:     strings.Clone(f.Value),
+		Sensitive: f.Sensitive,
+	}
 	id := uint64(t.len()) + t.evictCount + 1
-	t.byName[f.Name] = id
-	t.byNameValue[pairNameValue{f.Name, f.Value}] = id
-	t.ents = append(t.ents, f)
+	t.byName[f2.Name] = id
+	t.byNameValue[pairNameValue{f2.Name, f2.Value}] = id
+	t.ents = append(t.ents, f2)
 }
 
 // evictOldest evicts the n oldest entries in the table.

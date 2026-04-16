@@ -442,6 +442,7 @@ func (ctxt *Link) symtab(pcln *pclntab) []sym.SymKind {
 	ctxt.xdefine("runtime.ebss", sym.SBSS, 0)
 	ctxt.xdefine("runtime.noptrbss", sym.SNOPTRBSS, 0)
 	ctxt.xdefine("runtime.enoptrbss", sym.SNOPTRBSS, 0)
+	ctxt.xdefine("runtime.gcmask.*", sym.SNOPTRBSS, 0)
 	ctxt.xdefine("runtime.covctrs", sym.SNOPTRBSS, 0)
 	ctxt.xdefine("runtime.ecovctrs", sym.SNOPTRBSS, 0)
 	ctxt.xdefine("runtime.end", sym.SBSS, 0)
@@ -479,6 +480,7 @@ func (ctxt *Link) symtab(pcln *pclntab) []sym.SymKind {
 		symgostring = groupSym("go:string.*", sym.SGOSTRING)
 		symgofunc   = groupSym("go:funcdesc", sym.SGOFUNC)
 		symgcbits   = groupSym("runtime.gcbits.*", sym.SGCBITS)
+		symgcmask   = groupSym("runtime.gcmask.*", sym.SGCMASK)
 	)
 
 	// assign specific types so that they sort together.
@@ -493,7 +495,19 @@ func (ctxt *Link) symtab(pcln *pclntab) []sym.SymKind {
 		if (!ctxt.IsExternal() && ldr.IsFileLocal(s) && !ldr.IsFromAssembly(s) && ldr.SymPkg(s) != "") || (ctxt.LinkMode == LinkInternal && ldr.SymType(s) == sym.SCOVERAGE_COUNTER) {
 			ldr.SetAttrNotInSymbolTable(s, true)
 		}
-		if !ldr.AttrReachable(s) || ldr.AttrSpecial(s) || (ldr.SymType(s) != sym.SRODATA && ldr.SymType(s) != sym.SGOFUNC) {
+
+		if !ldr.AttrReachable(s) || ldr.AttrSpecial(s) {
+			continue
+		}
+
+		if ldr.SymType(s) == sym.SNOPTRBSS && strings.HasPrefix(ldr.SymName(s), "type:.gcmask.") {
+			symGroupType[s] = sym.SGCMASK
+			ldr.SetAttrNotInSymbolTable(s, true)
+			ldr.SetCarrierSym(s, symgcmask)
+			continue
+		}
+
+		if ldr.SymType(s) != sym.SRODATA && ldr.SymType(s) != sym.SGOFUNC {
 			continue
 		}
 
@@ -504,8 +518,7 @@ func (ctxt *Link) symtab(pcln *pclntab) []sym.SymKind {
 			ldr.SetAttrNotInSymbolTable(s, true)
 			ldr.SetCarrierSym(s, symgostring)
 
-		case strings.HasPrefix(name, "runtime.gcbits."),
-			strings.HasPrefix(name, "type:.gcprog."):
+		case strings.HasPrefix(name, "runtime.gcbits."):
 			symGroupType[s] = sym.SGCBITS
 			ldr.SetAttrNotInSymbolTable(s, true)
 			ldr.SetCarrierSym(s, symgcbits)
@@ -623,6 +636,10 @@ func (ctxt *Link) symtab(pcln *pclntab) []sym.SymKind {
 	ctxt.moduledataTypeDescOffset = moduledata.Size()
 	moduledata.AddUint(ctxt.Arch, 0) // filled in by dodataSect
 	moduledata.AddAddr(ctxt.Arch, ldr.Lookup("runtime.etypes", 0))
+	ctxt.moduledataItabOffset = moduledata.Size()
+	moduledata.AddUint(ctxt.Arch, 0) // filled in by dodataSect
+	ctxt.moduledataItabSizeOffset = moduledata.Size()
+	moduledata.AddUint(ctxt.Arch, 0) // filled in by dodataSect
 	moduledata.AddAddr(ctxt.Arch, ldr.Lookup("runtime.rodata", 0))
 	moduledata.AddAddr(ctxt.Arch, ldr.Lookup("go:func.*", 0))
 	moduledata.AddAddr(ctxt.Arch, ldr.Lookup("runtime.epclntab", 0))
@@ -664,11 +681,6 @@ func (ctxt *Link) symtab(pcln *pclntab) []sym.SymKind {
 
 	// text section information
 	slice(textsectionmapSym, uint64(nsections))
-
-	// The itablinks slice
-	itablinkSym := ldr.Lookup("runtime.itablink", 0)
-	nitablinks := uint64(ldr.SymSize(itablinkSym)) / uint64(ctxt.Arch.PtrSize)
-	slice(itablinkSym, nitablinks)
 
 	// The ptab slice
 	if ptab := ldr.Lookup("go:plugin.tabs", 0); ptab != 0 && ldr.AttrReachable(ptab) {

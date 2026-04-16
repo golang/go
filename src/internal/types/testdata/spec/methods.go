@@ -77,6 +77,14 @@ func (V) m[_ any]() {}
 
 var _ J = V /* ERROR "wrong type for method m)\n\t\thave m[_ any]()\n\t\twant m()" */ {}
 
+// In particular, interface inference must not unify a generic method's
+// own type parameter into an inference variable.
+func need[X any](I[X]) {}
+
+func _() {
+	need(T /* ERROR "type T of T{} does not match I[X] (cannot infer X)" */ {})
+}
+
 // Test case from parser smoke test.
 
 type List[E any] []E

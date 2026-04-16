@@ -28,7 +28,7 @@ golang.org/x/arch/x86/x86asm
 # golang.org/x/build v0.0.0-20260122183339-3ba88df37c64
 ## explicit; go 1.24.9
 golang.org/x/build/relnote
-# golang.org/x/mod v0.34.0
+# golang.org/x/mod v0.35.0
 ## explicit; go 1.25.0
 golang.org/x/mod/internal/lazyregexp
 golang.org/x/mod/modfile
@@ -43,12 +43,12 @@ golang.org/x/mod/zip
 ## explicit; go 1.25.0
 golang.org/x/sync/errgroup
 golang.org/x/sync/semaphore
-# golang.org/x/sys v0.42.1-0.20260320201212-a76ec62d6c53
+# golang.org/x/sys v0.43.0
 ## explicit; go 1.25.0
 golang.org/x/sys/plan9
 golang.org/x/sys/unix
 golang.org/x/sys/windows
-# golang.org/x/telemetry v0.0.0-20260311193753-579e4da9a98c
+# golang.org/x/telemetry v0.0.0-20260409153401-be6f6cb8b1fa
 ## explicit; go 1.25.0
 golang.org/x/telemetry
 golang.org/x/telemetry/counter
@@ -63,8 +63,8 @@ golang.org/x/telemetry/internal/upload
 # golang.org/x/term v0.39.0
 ## explicit; go 1.24.0
 golang.org/x/term
-# golang.org/x/text v0.33.1-0.20260122225119-3264de9174be
-## explicit; go 1.24.0
+# golang.org/x/text v0.36.0
+## explicit; go 1.25.0
 golang.org/x/text/cases
 golang.org/x/text/internal
 golang.org/x/text/internal/language
@@ -73,7 +73,7 @@ golang.org/x/text/internal/tag
 golang.org/x/text/language
 golang.org/x/text/transform
 golang.org/x/text/unicode/norm
-# golang.org/x/tools v0.43.1-0.20260319213245-5d7afbc08aec
+# golang.org/x/tools v0.44.1-0.20260414062052-55fb96ff894f
 ## explicit; go 1.25.0
 golang.org/x/tools/cmd/bisect
 golang.org/x/tools/cover

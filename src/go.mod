@@ -3,11 +3,11 @@ module std
 go 1.27
 
 require (
-	golang.org/x/crypto v0.47.1-0.20260113154411-7d0074ccc6f1
-	golang.org/x/net v0.49.1-0.20260122225915-f2078620ee33
+	golang.org/x/crypto v0.50.0
+	golang.org/x/net v0.53.1-0.20260410192740-cd64923cd7f4
 )
 
 require (
-	golang.org/x/sys v0.42.1-0.20260320201212-a76ec62d6c53 // indirect
-	golang.org/x/text v0.33.1-0.20260122225119-3264de9174be // indirect
+	golang.org/x/sys v0.43.0 // indirect
+	golang.org/x/text v0.36.0 // indirect
 )

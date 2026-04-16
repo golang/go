@@ -47,6 +47,7 @@ func init() {
 }
 
 type http2Server = http2.Server
+type http2Transport = http2.Transport
 
 func (s *Server) configureHTTP2() {
 	h2srv := &http2.Server{}
@@ -199,29 +200,18 @@ func (t *Transport) configureHTTP2(protocols Protocols) {
 	}
 	t2 := http2.NewTransport(transportConfig{t})
 	t2.AllowHTTP = true
-	t.h2transport = t2
+	t.http2Transport = t2
 
 	t.registerProtocol("https", http2RoundTripper{t2, true})
 	if t.TLSNextProto == nil {
 		t.TLSNextProto = make(map[string]func(authority string, c *tls.Conn) RoundTripper)
 	}
+	// Historically, the presence of a TLSNextProto["h2"] key has been the signal to
+	// enable/disable HTTP/2 support. Set a value in the map, but we'll never use it.
 	t.TLSNextProto["h2"] = func(authority string, c *tls.Conn) RoundTripper {
-		err := t2.AddConn("https", authority, c)
-		if err != nil {
-			return http2ErringRoundTripper{err}
+		return http2ErringRoundTripper{
+			errors.New("unexpected use of stub RoundTripper"),
 		}
-		return http2RoundTripper{t2, false}
-	}
-	t.TLSNextProto[nextProtoUnencryptedHTTP2] = func(authority string, c *tls.Conn) RoundTripper {
-		unencrypted, ok := c.NetConn().(unencryptedNetConnInTLSConn)
-		if !ok {
-			return http2ErringRoundTripper{errors.New("http: *tls.Conn expected to wrap an unencrypted conn, but does not (BUG)")}
-		}
-		err := t2.AddConn("http", authority, unencrypted.conn)
-		if err != nil {
-			return http2ErringRoundTripper{err}
-		}
-		return http2RoundTripper{t2, false}
 	}
 
 	// Auto-configure the http2.Transport's MaxHeaderListSize from
@@ -283,6 +273,33 @@ func http2RoundTrip(req *Request, rt func(*http2.ClientRequest) (*http2.ClientRe
 	return resp, nil
 }
 
+// http2AddConn adds nc to the HTTP/2 connection pool.
+func (t *Transport) http2AddConn(scheme, authority string, nc net.Conn) (RoundTripper, error) {
+	if t.http2Transport == nil {
+		return nil, errors.ErrUnsupported
+	}
+	err := t.http2Transport.AddConn(scheme, authority, nc)
+	if err != nil {
+		return nil, err
+	}
+	return http2RoundTripper{t.http2Transport, false}, nil
+}
+
+// http2NewClientConn creates an HTTP/2 genericClientConn (used to implement ClientConn) from nc.
+// The connection is not added to the HTTP/2 connection pool.
+func (t *Transport) http2NewClientConn(nc net.Conn, internalStateHook func()) (RoundTripper, error) {
+	if t.http2Transport == nil {
+		return nil, errors.ErrUnsupported
+	}
+	cc, err := t.http2Transport.NewClientConn(nc, internalStateHook)
+	if err != nil {
+		return nil, err
+	}
+	return http2ClientConn{cc}, nil
+}
+
+// http2RoundTripper translates from the http.RoundTripper interface
+// to the http2.Transport.RoundTrip function.
 type http2RoundTripper struct {
 	t                *http2.Transport
 	mapCachedConnErr bool
@@ -297,14 +314,6 @@ func (rt http2RoundTripper) RoundTrip(req *Request) (*Response, error) {
 		return nil, err
 	}
 	return resp, nil
-}
-
-func (rt http2RoundTripper) NewClientConn(nc net.Conn, internalStateHook func()) (RoundTripper, error) {
-	cc, err := rt.t.NewClientConn(nc, internalStateHook)
-	if err != nil {
-		return nil, err
-	}
-	return http2ClientConn{cc}, nil
 }
 
 type http2ClientConn struct {
@@ -336,5 +345,5 @@ func (t transportConfig) HTTP2Config() http2.Config {
 //go:linkname transportFromH1Transport net/http/internal/http2_test.transportFromH1Transport
 func transportFromH1Transport(t *Transport) any {
 	t.nextProtoOnce.Do(t.onceSetNextProtoDefaults)
-	return t.h2transport
+	return t.http2Transport
 }

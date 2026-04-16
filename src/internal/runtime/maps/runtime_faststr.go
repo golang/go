@@ -7,6 +7,7 @@ package maps
 import (
 	"internal/abi"
 	"internal/goarch"
+	"internal/goexperiment"
 	"internal/race"
 	"internal/runtime/sys"
 	"unsafe"
@@ -19,7 +20,12 @@ func (m *Map) getWithoutKeySmallFastStr(typ *abi.MapType, key string) unsafe.Poi
 
 	ctrls := *g.ctrls()
 	slotKey := g.key(typ, 0)
-	slotSize := typ.SlotSize
+	var keyStride uintptr
+	if goexperiment.MapSplitGroup {
+		keyStride = 2 * goarch.PtrSize // keys are contiguous in split layout
+	} else {
+		keyStride = typ.KeyStride // == SlotSize in interleaved layout
+	}
 
 	// The 64 threshold was chosen based on performance of BenchmarkMapStringKeysEight,
 	// where there are 8 keys to check, all of which don't quick-match the lookup key.
@@ -37,7 +43,7 @@ func (m *Map) getWithoutKeySmallFastStr(typ *abi.MapType, key string) unsafe.Poi
 				}
 				j = i
 			}
-			slotKey = unsafe.Pointer(uintptr(slotKey) + slotSize)
+			slotKey = unsafe.Pointer(uintptr(slotKey) + keyStride)
 			ctrls >>= 8
 		}
 		if j == abi.MapGroupSlots {
@@ -47,7 +53,11 @@ func (m *Map) getWithoutKeySmallFastStr(typ *abi.MapType, key string) unsafe.Poi
 		// There's exactly one slot that passed the quick test. Do the single expensive comparison.
 		slotKey = g.key(typ, uintptr(j))
 		if key == *(*string)(slotKey) {
-			return unsafe.Pointer(uintptr(slotKey) + 2*goarch.PtrSize)
+			if goexperiment.MapSplitGroup {
+				return g.elem(typ, uintptr(j))
+			} else {
+				return unsafe.Pointer(uintptr(slotKey) + 2*goarch.PtrSize)
+			}
 		}
 		return nil
 	}
@@ -63,11 +73,15 @@ dohash:
 	ctrls = *g.ctrls()
 	slotKey = g.key(typ, 0)
 
-	for range abi.MapGroupSlots {
+	for i := range uintptr(abi.MapGroupSlots) {
 		if uint8(ctrls) == h2 && key == *(*string)(slotKey) {
-			return unsafe.Pointer(uintptr(slotKey) + 2*goarch.PtrSize)
+			if goexperiment.MapSplitGroup {
+				return g.elem(typ, i)
+			} else {
+				return unsafe.Pointer(uintptr(slotKey) + 2*goarch.PtrSize)
+			}
 		}
-		slotKey = unsafe.Pointer(uintptr(slotKey) + slotSize)
+		slotKey = unsafe.Pointer(uintptr(slotKey) + keyStride)
 		ctrls >>= 8
 	}
 	return nil
@@ -154,8 +168,11 @@ func runtime_mapaccess2_faststr(typ *abi.MapType, m *Map, key string) (unsafe.Po
 
 			slotKey := g.key(typ, i)
 			if key == *(*string)(slotKey) {
-				slotElem := unsafe.Pointer(uintptr(slotKey) + 2*goarch.PtrSize)
-				return slotElem, true
+				if goexperiment.MapSplitGroup {
+					return g.elem(typ, i), true
+				} else {
+					return unsafe.Pointer(uintptr(slotKey) + 2*goarch.PtrSize), true
+				}
 			}
 			match = match.removeFirst()
 		}

@@ -2640,7 +2640,7 @@ var instructions = [ALAST & obj.AMask]instructionData{
 	AXNOR & obj.AMask:  {enc: rIIIEncoding, ternary: true},
 	AZEXTH & obj.AMask: {enc: rIIEncoding},
 
-	// 28.4.3: Bitwise Rotation (Zbb)
+	// 28.4.2: Bitwise Rotation (Zbb)
 	AROL & obj.AMask:   {enc: rIIIEncoding, ternary: true},
 	AROLW & obj.AMask:  {enc: rIIIEncoding, ternary: true},
 	AROR & obj.AMask:   {enc: rIIIEncoding, immForm: ARORI, ternary: true},
@@ -2649,6 +2649,11 @@ var instructions = [ALAST & obj.AMask]instructionData{
 	ARORW & obj.AMask:  {enc: rIIIEncoding, immForm: ARORIW, ternary: true},
 	AORCB & obj.AMask:  {enc: rIIEncoding},
 	AREV8 & obj.AMask:  {enc: rIIEncoding},
+
+	// 28.4.3: Carry-less Multiplication (Zbc)
+	ACLMUL & obj.AMask:  {enc: rIIIEncoding, ternary: true},
+	ACLMULH & obj.AMask: {enc: rIIIEncoding, ternary: true},
+	ACLMULR & obj.AMask: {enc: rIIIEncoding, ternary: true},
 
 	// 28.4.4: Single-bit Instructions (Zbs)
 	ABCLR & obj.AMask:  {enc: rIIIEncoding, immForm: ABCLRI, ternary: true},
@@ -3695,6 +3700,16 @@ func (ins *instruction) compress() {
 	}
 }
 
+func encodeFenceOperand(a *obj.Addr) (uint32, bool) {
+	if a.Type == obj.TYPE_SPECIAL && a.Offset > int64(SPOP_FENCE_BEGIN) && a.Offset < int64(SPOP_FENCE_END) {
+		return SpecialOperand(a.Offset).encode(), true
+	}
+	if a.Type == obj.TYPE_NONE {
+		return SPOP_FENCE_IORW.encode(), true
+	}
+	return 0, false
+}
+
 // instructionForProg returns the default *obj.Prog to instruction mapping.
 func instructionForProg(p *obj.Prog) *instruction {
 	ins := &instruction{
@@ -4386,7 +4401,29 @@ func instructionsForProg(p *obj.Prog, compress bool) []*instruction {
 
 	case AFENCE:
 		ins.rd, ins.rs1, ins.rs2 = REG_ZERO, REG_ZERO, obj.REG_NONE
-		ins.imm = 0x0ff
+		if p.Scond == fenceTsoSuffixBit {
+			if p.From.Type != obj.TYPE_NONE || p.To.Type != obj.TYPE_NONE {
+				p.Ctxt.Diag("FENCE.TSO must not have operands: %v", p)
+			}
+			// FENCE.TSO is encoded as a FENCE instruction with fm=1000(8), pred=RW(3), succ=RW(3)
+			ins.imm = signExtend((8<<8)|(3<<4)|3, 12)
+		} else {
+			pred, ok := encodeFenceOperand(&p.From)
+			if !ok {
+				p.Ctxt.Diag("invalid FENCE predecessor operand: %v", p)
+			}
+			succ, ok := encodeFenceOperand(&p.To)
+			if !ok {
+				p.Ctxt.Diag("invalid FENCE successor operand: %v", p)
+			}
+			// FENCE pred, succ
+			// pred(4 bits), succ(4 bits)
+			ins.imm = int64((pred << 4) | succ)
+		}
+
+	case APAUSE:
+		ins.as, ins.rd, ins.rs1, ins.rs2 = AFENCE, REG_ZERO, REG_ZERO, obj.REG_NONE
+		ins.imm = 0x010
 
 	case AFCVTWS, AFCVTLS, AFCVTWUS, AFCVTLUS, AFCVTWD, AFCVTLD, AFCVTWUD, AFCVTLUD:
 		// Set the default rounding mode in funct3 to round to zero.
@@ -5037,9 +5074,20 @@ func isUnsafePoint(p *obj.Prog) bool {
 }
 
 func ParseSuffix(prog *obj.Prog, cond string) (err error) {
+	cond = strings.TrimPrefix(cond, ".")
 	switch prog.As {
 	case AFCVTWS, AFCVTLS, AFCVTWUS, AFCVTLUS, AFCVTWD, AFCVTLD, AFCVTWUD, AFCVTLUD:
-		prog.Scond, err = rmSuffixEncode(strings.TrimPrefix(cond, "."))
+		prog.Scond, err = rmSuffixEncode(cond)
+	case AFENCE:
+		if cond == "TSO" {
+			prog.Scond = fenceTsoSuffixBit
+		} else {
+			err = fmt.Errorf("unrecognized suffix .%q", cond)
+		}
+	default:
+		if cond != "" {
+			err = fmt.Errorf("unrecognized suffix .%q", cond)
+		}
 	}
 	return
 }

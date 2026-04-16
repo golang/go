@@ -280,15 +280,17 @@ AT_SECURE flag in the auxiliary vector, on the BSDs and Solaris/Illumos it is
 determined by checking the issetugid syscall, and on AIX it is determined by
 checking if the uid/gid match the effective uid/gid.
 
-When the runtime determines the binary is setuid/setgid-like, it does three main
+When the runtime determines the binary is setuid/setgid-like, it does two main
 things:
-  - The standard input/output file descriptors (0, 1, 2) are checked to be open.
-    If any of them are closed, they are opened pointing at /dev/null.
   - The value of the GOTRACEBACK environment variable is set to 'none'.
   - When a signal is received that terminates the program, or the program
     encounters an unrecoverable panic that would otherwise override the value
     of GOTRACEBACK, the goroutine stack, registers, and other memory related
     information are omitted.
+
+Additinally on Unix platforms the Go runtime automatically checks whether
+the standard input/output file descriptors (0, 1, 2) are open. If any of them are
+closed, they are opened pointing at /dev/null.
 
 [Race Detector article]: https://go.dev/doc/articles/race_detector
 */

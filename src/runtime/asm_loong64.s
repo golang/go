@@ -568,6 +568,15 @@ nosave:
 	MOVW	R4, ret+16(FP)
 	RET
 
+// func asmcgocall_no_g(fn, arg unsafe.Pointer)
+// Call fn(arg) aligned appropriately for the gcc ABI.
+// Called on a system stack, and there may be no g yet.
+TEXT ·asmcgocall_no_g(SB),NOSPLIT,$0-16
+	MOVV	fn+0(FP), R25
+	MOVV	arg+8(FP), R4
+	JAL	(R25)
+	RET
+
 // func cgocallback(fn, frame unsafe.Pointer, ctxt uintptr)
 // See cgocall.go for more details.
 TEXT ·cgocallback(SB),NOSPLIT,$24-24

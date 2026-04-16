@@ -96,11 +96,11 @@ var (
 // It must be called early in startup.
 // See https://go.dev/doc/toolchain#select.
 func Select() {
-	moduleLoaderState := modload.NewState()
+	moduleLoader := modload.NewLoader()
 	log.SetPrefix("go: ")
 	defer log.SetPrefix("")
 
-	if !moduleLoaderState.WillBeEnabled() {
+	if !moduleLoader.WillBeEnabled() {
 		return
 	}
 
@@ -173,7 +173,7 @@ func Select() {
 	gotoolchain = minToolchain
 	if mode == "auto" || mode == "path" {
 		// Read go.mod to find new minimum and suggested toolchain.
-		file, goVers, toolchain := modGoToolchain(moduleLoaderState)
+		file, goVers, toolchain := modGoToolchain(moduleLoader)
 		gover.Startup.AutoFile = file
 		if toolchain == "default" {
 			// "default" means always use the default toolchain,
@@ -233,7 +233,7 @@ func Select() {
 				}
 			}
 		}
-		maybeSwitchForGoInstallVersion(moduleLoaderState, minVers)
+		maybeSwitchForGoInstallVersion(moduleLoader, minVers)
 	}
 
 	// If we are invoked as a target toolchain, confirm that
@@ -285,7 +285,7 @@ func Select() {
 	}
 
 	counterSelectExec.Inc()
-	Exec(moduleLoaderState, gotoolchain)
+	Exec(moduleLoader, gotoolchain)
 	panic("unreachable")
 }
 
@@ -303,7 +303,7 @@ var TestVersionSwitch string
 // If $GOTOOLCHAIN is set to path or min+path, Exec only considers the PATH
 // as a source of Go toolchains. Otherwise Exec tries the PATH but then downloads
 // a toolchain if necessary.
-func Exec(s *modload.State, gotoolchain string) {
+func Exec(s *modload.Loader, gotoolchain string) {
 	log.SetPrefix("go: ")
 
 	writeBits = sysWriteBits()
@@ -524,9 +524,9 @@ func raceSafeCopy(old, new string) error {
 // modGoToolchain finds the enclosing go.work or go.mod file
 // and returns the go version and toolchain lines from the file.
 // The toolchain line overrides the version line
-func modGoToolchain(loaderstate *modload.State) (file, goVers, toolchain string) {
+func modGoToolchain(ld *modload.Loader) (file, goVers, toolchain string) {
 	wd := base.UncachedCwd()
-	file = loaderstate.FindGoWork(wd)
+	file = ld.FindGoWork(wd)
 	// $GOWORK can be set to a file that does not yet exist, if we are running 'go work init'.
 	// Do not try to load the file in that case
 	if _, err := os.Stat(file); err != nil {
@@ -548,7 +548,7 @@ func modGoToolchain(loaderstate *modload.State) (file, goVers, toolchain string)
 
 // maybeSwitchForGoInstallVersion reports whether the command line is go install m@v or go run m@v.
 // If so, switch to the go version required to build m@v if it's higher than minVers.
-func maybeSwitchForGoInstallVersion(loaderstate *modload.State, minVers string) {
+func maybeSwitchForGoInstallVersion(ld *modload.Loader, minVers string) {
 	// Note: We assume there are no flags between 'go' and 'install' or 'run'.
 	// During testing there are some debugging flags that are accepted
 	// in that position, but in production go binaries there are not.
@@ -695,27 +695,27 @@ func maybeSwitchForGoInstallVersion(loaderstate *modload.State, minVers string) 
 	// command lines if we add new flags in the future.
 
 	// Set up modules without an explicit go.mod, to download go.mod.
-	loaderstate.ForceUseModules = true
-	loaderstate.RootMode = modload.NoRoot
-	modload.Init(loaderstate)
-	defer loaderstate.Reset()
+	ld.ForceUseModules = true
+	ld.RootMode = modload.NoRoot
+	modload.Init(ld)
+	defer ld.Reset()
 
 	// See internal/load.PackagesAndErrorsOutsideModule
 	ctx := context.Background()
-	allowed := loaderstate.CheckAllowed
+	allowed := ld.CheckAllowed
 	if modload.IsRevisionQuery(path, version) {
 		// Don't check for retractions if a specific revision is requested.
 		allowed = nil
 	}
 	noneSelected := func(path string) (version string) { return "none" }
-	_, err = modload.QueryPackages(loaderstate, ctx, path, version, noneSelected, allowed)
+	_, err = modload.QueryPackages(ld, ctx, path, version, noneSelected, allowed)
 	if errors.Is(err, gover.ErrTooNew) {
 		// Run early switch, same one go install or go run would eventually do,
 		// if it understood all the command-line flags.
-		s := NewSwitcher(loaderstate)
+		s := NewSwitcher(ld)
 		s.Error(err)
 		if s.TooNew != nil && gover.Compare(s.TooNew.GoVersion, minVers) > 0 {
-			SwitchOrFatal(loaderstate, ctx, err)
+			SwitchOrFatal(ld, ctx, err)
 		}
 	}
 }

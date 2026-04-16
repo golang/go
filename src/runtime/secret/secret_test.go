@@ -14,6 +14,7 @@
 package secret
 
 import (
+	"encoding/hex"
 	"runtime"
 	"strings"
 	"testing"
@@ -238,11 +239,17 @@ func checkStackForSecret(t *testing.T) {
 }
 func checkRangeForSecret(t *testing.T, lo, hi uintptr) {
 	t.Helper()
+	found := false
 	for p := lo; p < hi; p += unsafe.Sizeof(secretType(0)) {
 		v := *(*secretType)(unsafe.Pointer(p))
 		if v == secretValue {
+			found = true
 			t.Errorf("secret found in [%x,%x] at %x", lo, hi, p)
 		}
+	}
+	if found {
+		s := unsafe.Slice((*byte)(unsafe.Pointer(lo)), hi-lo)
+		t.Logf("%s", hex.Dump(s))
 	}
 }
 

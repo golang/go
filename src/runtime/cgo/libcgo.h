@@ -86,16 +86,6 @@ void crosscall1(void (*fn)(void), void (*setg_gcc)(void*), void *g);
 void fatalf(const char* format, ...) __attribute__ ((noreturn));
 
 /*
- * Registers the current mach thread port for EXC_BAD_ACCESS processing.
- */
-void darwin_arm_init_thread_exception_port(void);
-
-/*
- * Starts a mach message server processing EXC_BAD_ACCESS.
- */
-void darwin_arm_init_mach_exception_handler(void);
-
-/*
  * The cgo traceback callback. See runtime.SetCgoTraceback.
  */
 struct cgoTracebackArg {
