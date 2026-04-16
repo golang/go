@@ -2820,7 +2820,7 @@ func (c *ctxt0) asmout(p *obj.Prog, o *Optab, out []uint32) {
 		}
 
 		if blkNums > 256 {
-			c.ctxt.Diag("%v: block_nums amount out of range[1, 256]: %v\n", p, blkSize)
+			c.ctxt.Diag("%v: block_nums amount out of range[1, 256]: %v\n", p, blkNums)
 		}
 
 		v := (uint64(offs) & 0xffff)
