@@ -115,7 +115,7 @@ var codeRepoTests = []codeRepoTest{
 			"pkg/p.go",
 		},
 		zipSum:      "h1:zVEjciLdlk/TPWCOyZo7k24T+tOKRQC+u8MKq/xS80I=",
-		zipFileHash: "738a00ddbfe8c329dce6b48e1f23c8e22a92db50f3cfb2653caa0d62676bc09c",
+		zipFileHash: "f2a1cc87156efcb18e6b2822aba5173da336bf0e9b6b627b764a93a950240e50",
 	},
 	{
 		vcs:     "git",
@@ -131,7 +131,7 @@ var codeRepoTests = []codeRepoTest{
 			"pkg/p.go",
 		},
 		zipSum:      "h1:nOznk2xKsLGkTnXe0q9t1Ewt9jxK+oadtafSUqHM3Ec=",
-		zipFileHash: "bacb08f391e29d2eaaef8281b5c129ee6d890e608ee65877e0003c0181a766c8",
+		zipFileHash: "aba60ce70cfc0bb8d58d717f2cfdce227725bc574549b10120b24541c780a8e8",
 	},
 	{
 		vcs:  "git",
@@ -153,7 +153,7 @@ var codeRepoTests = []codeRepoTest{
 			"pkg/p.go",
 		},
 		zipSum:      "h1:e040hOoWGeuJLawDjK9DW6med+cz9FxMFYDMOVG8ctQ=",
-		zipFileHash: "74caab65cfbea427c341fa815f3bb0378681d8f0e3cf62a7f207014263ec7be3",
+		zipFileHash: "76fa92777b77fabd24c421ce209f383bca782efbca61c4ebd82564a7acdf502c",
 	},
 	{
 		vcs:     "git",
@@ -179,7 +179,7 @@ var codeRepoTests = []codeRepoTest{
 			"pkg/p.go",
 		},
 		zipSum:      "h1:e040hOoWGeuJLawDjK9DW6med+cz9FxMFYDMOVG8ctQ=",
-		zipFileHash: "74caab65cfbea427c341fa815f3bb0378681d8f0e3cf62a7f207014263ec7be3",
+		zipFileHash: "76fa92777b77fabd24c421ce209f383bca782efbca61c4ebd82564a7acdf502c",
 	},
 	{
 		vcs:     "git",
@@ -242,7 +242,7 @@ var codeRepoTests = []codeRepoTest{
 			"LICENSE",
 		},
 		zipSum:      "h1:iMsJ/9uQsk6MnZNnJK311f11QiSlmN92Q2aSjCywuJY=",
-		zipFileHash: "95801bfa69c5197ae809af512946d22f22850068527cd78100ae3f176bc8043b",
+		zipFileHash: "f3e031695245e3f5603df37e78e8779387e08235fede90c4a5a5816cb56337dd",
 	},
 	{
 		vcs:     "git",
@@ -260,7 +260,7 @@ var codeRepoTests = []codeRepoTest{
 			"pkg/p.go",
 		},
 		zipSum:      "h1:M69k7q+8bQ+QUpHov45Z/NoR8rj3DsQJUnXLWvf01+Q=",
-		zipFileHash: "58af45fb248d320ea471f568e006379e2b8d71d6d1663f9b19b2e00fd9ac9265",
+		zipFileHash: "daedaf1cc4b9d2ec2570accec696dcd6846acd83c18d5b8e70e3b56f9db6d0a2",
 	},
 	{
 		vcs:         "git",
@@ -272,7 +272,7 @@ var codeRepoTests = []codeRepoTest{
 		time:        time.Date(2018, 2, 19, 23, 14, 23, 0, time.UTC),
 		gomod:       "module \"github.com/rsc/vgotest1/v2\" // root go.mod\n",
 		zipSum:      "h1:QmgYy/zt+uoWhDpcsgrSVzYFvKtBEjl5zT/FRz9GTzA=",
-		zipFileHash: "1aedf1546d322a0121879ddfd6d0e8bfbd916d2cafbeb538ddb440e04b04b9ef",
+		zipFileHash: "94edcb6035aa5666b1e69896c885ea1615ac33b8dc6dda848a4554db54497e59",
 	},
 	{
 		vcs:     "git",
@@ -304,7 +304,7 @@ var codeRepoTests = []codeRepoTest{
 		time:        time.Date(2018, 2, 20, 0, 3, 59, 0, time.UTC),
 		gomod:       "module \"github.com/rsc/vgotest1/v2\" // v2/go.mod\n",
 		zipSum:      "h1:RIEb9q1SUSEQOzMn0zfl/LQxGFWlhWEAdeEguf1MLGU=",
-		zipFileHash: "7d92c2c328c5e9b0694101353705d5843746ec1d93a1e986d0da54c8a14dfe6d",
+		zipFileHash: "1025fed3207f0e276d0c22b683c31127086a318b9b7a988d02eb44a0d9fb37c8",
 	},
 	{
 		// redirect to github
@@ -317,7 +317,7 @@ var codeRepoTests = []codeRepoTest{
 		time:        time.Date(2018, 2, 14, 0, 45, 20, 0, time.UTC),
 		gomod:       "module \"rsc.io/quote\"\n",
 		zipSum:      "h1:haUSojyo3j2M9g7CEUFG8Na09dtn7QKxvPGaPVQdGwM=",
-		zipFileHash: "5c08ba2c09a364f93704aaa780e7504346102c6ef4fe1333a11f09904a732078",
+		zipFileHash: "da4f6166581725af8622e28d77791121f35ce86f8e1f96b4eb4730a9d21280d1",
 	},
 	{
 		// redirect to static hosting proxy
@@ -339,7 +339,7 @@ var codeRepoTests = []codeRepoTest{
 		short:       "4e4a3210bb54",
 		time:        time.Date(2018, 2, 8, 4, 12, 48, 0, time.UTC),
 		zipSum:      "h1:Yxu6pHX9X2RECiuw/Q5/4uvajuaowck8zOFKXgbfNBk=",
-		zipFileHash: "ac2c165a5c10aa5a7545dea60a08e019270b982fa6c8bdcb5943931de64922fe",
+		zipFileHash: "8977f765f19f226ca9d59ebc23dc0710368b05d39eeb8379a634b6d9960a9749",
 	},
 	{
 		vcs:         "git",
@@ -350,7 +350,7 @@ var codeRepoTests = []codeRepoTest{
 		short:       "645ef00459ed",
 		time:        time.Date(2016, 9, 29, 1, 48, 1, 0, time.UTC),
 		zipSum:      "h1:WdK/asTD0HN+q6hsWO3/vpuAkAr+tw6aNJNDFFf0+qw=",
-		zipFileHash: "e4fa69ba057356614edbc1da881a7d3ebb688505be49f65965686bcb859e2fae",
+		zipFileHash: "4058869b083e374236200ac34308ed0e19ae25c84f4319e46ccbb15a1d71baa0",
 	},
 	{
 		// package in subdirectory - custom domain
@@ -378,7 +378,7 @@ var codeRepoTests = []codeRepoTest{
 		time:        time.Date(2018, 1, 9, 11, 43, 31, 0, time.UTC),
 		gomod:       "module gopkg.in/yaml.v2\n",
 		zipSum:      "h1:uUkhRGrsEyx/laRdeS6YIQKIys8pg+lRSRdVMTYjivs=",
-		zipFileHash: "7b0a141b1b0b49772ab4eecfd11dfd6609a94a5e868cab04a3abb1861ffaa877",
+		zipFileHash: "c3a03a46ec4ddb2595622e90f867ca61c4c04051cce1973f2aa13523b67e09f7",
 	},
 	{
 		vcs:         "git",
@@ -390,7 +390,7 @@ var codeRepoTests = []codeRepoTest{
 		time:        time.Date(2016, 12, 8, 18, 13, 25, 0, time.UTC),
 		gomod:       "module gopkg.in/check.v1\n",
 		zipSum:      "h1:829vOVxxusYHC+IqBtkX5mbKtsY9fheQiQn0MZRVLfQ=",
-		zipFileHash: "9e7cb3f4f1e66d722306442b0dbe1f6f43d74d1736d54c510537bdfb1d6f432f",
+		zipFileHash: "a9476695abf2135504f33e5f76fd46492723cb3dd8f9cbe0270882090df043a5",
 	},
 	{
 		vcs:         "git",
@@ -402,7 +402,7 @@ var codeRepoTests = []codeRepoTest{
 		time:        time.Date(2018, 4, 17, 19, 43, 22, 0, time.UTC),
 		gomod:       "module vcs-test.golang.org/go/mod/gitrepo1\n",
 		zipSum:      "h1:YJYZRsM9BHFTlVr8YADjT0cJH8uFIDtoc5NLiVqZEx8=",
-		zipFileHash: "c15e49d58b7a4c37966cbe5bc01a0330cd5f2927e990e1839bda1d407766d9c5",
+		zipFileHash: "1fef2c2388778e6db76820237a91af3d95ef5995e594a4a8967cfc8205261094",
 	},
 	{
 		vcs:  "git",
@@ -430,7 +430,7 @@ var codeRepoTests = []codeRepoTest{
 		time:        time.Date(2019, 4, 3, 15, 52, 15, 0, time.UTC),
 		gomod:       "module vcs-test.golang.org/go/v2module/v2\n\ngo 1.12\n",
 		zipSum:      "h1:JItBZ+gwA5WvtZEGEbuDL4lUttGtLrs53lmdurq3bOg=",
-		zipFileHash: "9ea9ae1673cffcc44b7fdd3cc89953d68c102449b46c982dbf085e4f2e394da5",
+		zipFileHash: "5d1a9e8ae8a02f90f044343a485346c155b0b565a11cc27be6e0e304812d2c1f",
 	},
 	{
 		// Git branch with a semver name, +incompatible version, and no go.mod file.
