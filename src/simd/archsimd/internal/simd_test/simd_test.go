@@ -1118,6 +1118,19 @@ func TestString(t *testing.T) {
 	t.Logf("z=%s", z)
 }
 
+func TestMaskString(t *testing.T) {
+	x := archsimd.LoadUint32x4Slice([]uint32{0, 1, 2, 3})
+	var y archsimd.Uint32x4
+
+	m := x.Equal(y)
+
+	w := "{1,0,0,0}"
+
+	if g := m.String(); g != w {
+		t.Errorf("got=%s wanted %s", g, w)
+	}
+}
+
 // a returns an slice of 16 int32
 func a() []int32 {
 	return make([]int32, 16, 16)

@@ -341,11 +341,27 @@ func (x Int8x16) Not() Int8x16 {
 	return x.Xor(x.Equal(x).ToInt8x16())
 }
 
+// Neg returns the elementwise negation of x.
+//
+// Emulated, CPU Feature: AVX
+func (x Int8x16) Neg() Int8x16 {
+	var zero Int8x16
+	return zero.Sub(x)
+}
+
 // Not returns the bitwise complement of x.
 //
 // Emulated, CPU Feature: AVX
 func (x Int16x8) Not() Int16x8 {
 	return x.Xor(x.Equal(x).ToInt16x8())
+}
+
+// Neg returns the elementwise negation of x.
+//
+// Emulated, CPU Feature: AVX
+func (x Int16x8) Neg() Int16x8 {
+	var zero Int16x8
+	return zero.Sub(x)
 }
 
 // Not returns the bitwise complement of x.
@@ -355,11 +371,27 @@ func (x Int32x4) Not() Int32x4 {
 	return x.Xor(x.Equal(x).ToInt32x4())
 }
 
+// Neg returns the elementwise negation of x.
+//
+// Emulated, CPU Feature: AVX
+func (x Int32x4) Neg() Int32x4 {
+	var zero Int32x4
+	return zero.Sub(x)
+}
+
 // Not returns the bitwise complement of x.
 //
 // Emulated, CPU Feature: AVX
 func (x Int64x2) Not() Int64x2 {
 	return x.Xor(x.Equal(x).ToInt64x2())
+}
+
+// Neg returns the elementwise negation of x.
+//
+// Emulated, CPU Feature: AVX
+func (x Int64x2) Neg() Int64x2 {
+	var zero Int64x2
+	return zero.Sub(x)
 }
 
 // Not returns the bitwise complement of x.
@@ -369,11 +401,27 @@ func (x Int8x32) Not() Int8x32 {
 	return x.Xor(x.Equal(x).ToInt8x32())
 }
 
+// Neg returns the elementwise negation of x.
+//
+// Emulated, CPU Feature: AVX2
+func (x Int8x32) Neg() Int8x32 {
+	var zero Int8x32
+	return zero.Sub(x)
+}
+
 // Not returns the bitwise complement of x.
 //
 // Emulated, CPU Feature: AVX2
 func (x Int16x16) Not() Int16x16 {
 	return x.Xor(x.Equal(x).ToInt16x16())
+}
+
+// Neg returns the elementwise negation of x.
+//
+// Emulated, CPU Feature: AVX2
+func (x Int16x16) Neg() Int16x16 {
+	var zero Int16x16
+	return zero.Sub(x)
 }
 
 // Not returns the bitwise complement of x.
@@ -383,11 +431,27 @@ func (x Int32x8) Not() Int32x8 {
 	return x.Xor(x.Equal(x).ToInt32x8())
 }
 
+// Neg returns the elementwise negation of x.
+//
+// Emulated, CPU Feature: AVX2
+func (x Int32x8) Neg() Int32x8 {
+	var zero Int32x8
+	return zero.Sub(x)
+}
+
 // Not returns the bitwise complement of x.
 //
 // Emulated, CPU Feature: AVX2
 func (x Int64x4) Not() Int64x4 {
 	return x.Xor(x.Equal(x).ToInt64x4())
+}
+
+// Neg returns the elementwise negation of x.
+//
+// Emulated, CPU Feature: AVX2
+func (x Int64x4) Neg() Int64x4 {
+	var zero Int64x4
+	return zero.Sub(x)
 }
 
 // Not returns the bitwise complement of x.
@@ -397,11 +461,27 @@ func (x Int8x64) Not() Int8x64 {
 	return x.Xor(x.Equal(x).ToInt8x64())
 }
 
+// Neg returns the elementwise negation of x.
+//
+// Emulated, CPU Feature: AVX512
+func (x Int8x64) Neg() Int8x64 {
+	var zero Int8x64
+	return zero.Sub(x)
+}
+
 // Not returns the bitwise complement of x.
 //
 // Emulated, CPU Feature: AVX512
 func (x Int16x32) Not() Int16x32 {
 	return x.Xor(x.Equal(x).ToInt16x32())
+}
+
+// Neg returns the elementwise negation of x.
+//
+// Emulated, CPU Feature: AVX512
+func (x Int16x32) Neg() Int16x32 {
+	var zero Int16x32
+	return zero.Sub(x)
 }
 
 // Not returns the bitwise complement of x.
@@ -411,11 +491,27 @@ func (x Int32x16) Not() Int32x16 {
 	return x.Xor(x.Equal(x).ToInt32x16())
 }
 
+// Neg returns the elementwise negation of x.
+//
+// Emulated, CPU Feature: AVX512
+func (x Int32x16) Neg() Int32x16 {
+	var zero Int32x16
+	return zero.Sub(x)
+}
+
 // Not returns the bitwise complement of x.
 //
 // Emulated, CPU Feature: AVX512
 func (x Int64x8) Not() Int64x8 {
 	return x.Xor(x.Equal(x).ToInt64x8())
+}
+
+// Neg returns the elementwise negation of x.
+//
+// Emulated, CPU Feature: AVX512
+func (x Int64x8) Neg() Int64x8 {
+	var zero Int64x8
+	return zero.Sub(x)
 }
 
 // Not returns the bitwise complement of x.
@@ -709,5 +805,89 @@ func (x Float32x16) String() string {
 func (x Float64x8) String() string {
 	var s [8]float64
 	x.Store(&s)
+	return sliceToString(s[:])
+}
+
+// String returns a string representation of SIMD mask x.
+func (x Mask8x16) String() string {
+	var s [16]int8
+	x.ToInt8x16().Neg().Store(&s)
+	return sliceToString(s[:])
+}
+
+// String returns a string representation of SIMD mask x.
+func (x Mask16x8) String() string {
+	var s [8]int16
+	x.ToInt16x8().Neg().Store(&s)
+	return sliceToString(s[:])
+}
+
+// String returns a string representation of SIMD mask x.
+func (x Mask32x4) String() string {
+	var s [4]int32
+	x.ToInt32x4().Neg().Store(&s)
+	return sliceToString(s[:])
+}
+
+// String returns a string representation of SIMD mask x.
+func (x Mask64x2) String() string {
+	var s [2]int64
+	x.ToInt64x2().Neg().Store(&s)
+	return sliceToString(s[:])
+}
+
+// String returns a string representation of SIMD mask x.
+func (x Mask8x32) String() string {
+	var s [32]int8
+	x.ToInt8x32().Neg().Store(&s)
+	return sliceToString(s[:])
+}
+
+// String returns a string representation of SIMD mask x.
+func (x Mask16x16) String() string {
+	var s [16]int16
+	x.ToInt16x16().Neg().Store(&s)
+	return sliceToString(s[:])
+}
+
+// String returns a string representation of SIMD mask x.
+func (x Mask32x8) String() string {
+	var s [8]int32
+	x.ToInt32x8().Neg().Store(&s)
+	return sliceToString(s[:])
+}
+
+// String returns a string representation of SIMD mask x.
+func (x Mask64x4) String() string {
+	var s [4]int64
+	x.ToInt64x4().Neg().Store(&s)
+	return sliceToString(s[:])
+}
+
+// String returns a string representation of SIMD mask x.
+func (x Mask8x64) String() string {
+	var s [64]int8
+	x.ToInt8x64().Neg().Store(&s)
+	return sliceToString(s[:])
+}
+
+// String returns a string representation of SIMD mask x.
+func (x Mask16x32) String() string {
+	var s [32]int16
+	x.ToInt16x32().Neg().Store(&s)
+	return sliceToString(s[:])
+}
+
+// String returns a string representation of SIMD mask x.
+func (x Mask32x16) String() string {
+	var s [16]int32
+	x.ToInt32x16().Neg().Store(&s)
+	return sliceToString(s[:])
+}
+
+// String returns a string representation of SIMD mask x.
+func (x Mask64x8) String() string {
+	var s [8]int64
+	x.ToInt64x8().Neg().Store(&s)
 	return sliceToString(s[:])
 }

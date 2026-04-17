@@ -700,6 +700,15 @@ var bitWiseIntTemplate = shapedTemplateOf(intShapes, "bitwise int complement", `
 func (x {{.VType}}) Not() {{.VType}} {
 	return x.Xor(x.Equal(x).ToInt{{.WxC}}())
 }
+
+// Neg returns the elementwise negation of x.
+//
+// Emulated, CPU Feature: {{.CPUfeature}}
+func (x {{.VType}}) Neg() {{.VType}} {
+	var zero {{.VType}}
+	return zero.Sub(x)
+}
+
 `)
 
 var bitWiseUintTemplate = shapedTemplateOf(uintShapes, "bitwise uint complement", `
@@ -903,6 +912,15 @@ func (x {{.VType}}) String() string {
 }
 `)
 
+var maskToString = shapedTemplateOf(intShapes, "maskToString", `
+// String returns a string representation of SIMD mask x.
+func (x Mask{{.WxC}}) String() string {
+	var s [{{.Count}}]{{.Etype}}
+	x.ToInt{{.WxC}}().Neg().Store(&s)
+	return sliceToString(s[:])
+}
+`)
+
 const SIMD = "../../"
 const TD = "../../internal/simd_test/"
 const SSA = "../../../../cmd/compile/internal/ssa/"
@@ -947,6 +965,7 @@ func main() {
 			bitWiseIntTemplate,
 			bitWiseUintTemplate,
 			stringTemplate,
+			maskToString,
 		)
 	}
 	if *ush != "" {
