@@ -10139,6 +10139,9 @@ func (rl *http2clientConnReadLoop) processSettingsNoWrite(f *http2SettingsFrame)
 
 	var seenMaxConcurrentStreams bool
 	err := f.ForeachSetting(func(s http2Setting) error {
+		if err := s.Valid(); err != nil {
+			return err
+		}
 		switch s.ID {
 		case http2SettingMaxFrameSize:
 			cc.maxFrameSize = s.Val
@@ -10170,9 +10173,6 @@ func (rl *http2clientConnReadLoop) processSettingsNoWrite(f *http2SettingsFrame)
 			cc.henc.SetMaxDynamicTableSize(s.Val)
 			cc.peerMaxHeaderTableSize = s.Val
 		case http2SettingEnableConnectProtocol:
-			if err := s.Valid(); err != nil {
-				return err
-			}
 			// If the peer wants to send us SETTINGS_ENABLE_CONNECT_PROTOCOL,
 			// we require that it do so in the first SETTINGS frame.
 			//
