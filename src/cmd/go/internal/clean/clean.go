@@ -272,13 +272,6 @@ func logFilesInGOMODCACHE() {
 
 var cleaned = map[*load.Package]bool{}
 
-// TODO: These are dregs left by Makefile-based builds.
-// Eventually, can stop deleting these.
-var cleanDir = map[string]bool{
-	"_test": true,
-	"_obj":  true,
-}
-
 var cleanFile = map[string]bool{
 	"_testmain.go": true,
 	"test.out":     true,
@@ -384,12 +377,6 @@ func clean(p *load.Package) {
 	for _, dir := range dirs {
 		name := dir.Name()
 		if dir.IsDir() {
-			// TODO: Remove once Makefiles are forgotten.
-			if cleanDir[name] {
-				if err := sh.RemoveAll(filepath.Join(p.Dir, name)); err != nil {
-					base.Error(err)
-				}
-			}
 			continue
 		}
 
