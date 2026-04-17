@@ -435,7 +435,7 @@ type Rows interface {
 	// the provided slice. The provided slice will be the same
 	// size as the Columns() are wide.
 	//
-	// Next should return io.EOF when there are no more rows.
+	// Next should return [io.EOF] when there are no more rows.
 	//
 	// The dest should not be written to outside of Next. Care
 	// should be taken when closing Rows not to modify
