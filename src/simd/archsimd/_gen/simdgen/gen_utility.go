@@ -753,6 +753,12 @@ func overwrite(ops []Operation) error {
 				*op[idx].Go = strings.ReplaceAll(*op[idx].Go, *op[idx].Base, oBase)
 			}
 			*op[idx].Base = oBase
+		} else if op[idx].OverwriteBits != nil {
+			if op[idx].Class != "greg" {
+				panic(fmt.Errorf("simdgen: [OverwriteBits] is only supported for greg int: %s", op[idx]))
+			}
+			*op[idx].Bits = *op[idx].OverwriteBits
+			*op[idx].Go = fmt.Sprintf("%s%d", *op[idx].Base, *op[idx].Bits)
 		}
 		return nil
 	}

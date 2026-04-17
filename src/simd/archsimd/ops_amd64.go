@@ -2824,14 +2824,14 @@ func (x Float64x2) GetElem(index uint8) float64
 //
 // index results in better performance when it's a constant, a non-constant value will be translated into a jump table.
 //
-// Asm: VPEXTRB, CPU Feature: AVX512
+// Asm: VPEXTRB, CPU Feature: AVX
 func (x Int8x16) GetElem(index uint8) int8
 
 // GetElem retrieves a single constant-indexed element's value.
 //
 // index results in better performance when it's a constant, a non-constant value will be translated into a jump table.
 //
-// Asm: VPEXTRW, CPU Feature: AVX512
+// Asm: VPEXTRW, CPU Feature: AVX
 func (x Int16x8) GetElem(index uint8) int16
 
 // GetElem retrieves a single constant-indexed element's value.
@@ -2852,14 +2852,14 @@ func (x Int64x2) GetElem(index uint8) int64
 //
 // index results in better performance when it's a constant, a non-constant value will be translated into a jump table.
 //
-// Asm: VPEXTRB, CPU Feature: AVX512
+// Asm: VPEXTRB, CPU Feature: AVX
 func (x Uint8x16) GetElem(index uint8) uint8
 
 // GetElem retrieves a single constant-indexed element's value.
 //
 // index results in better performance when it's a constant, a non-constant value will be translated into a jump table.
 //
-// Asm: VPEXTRW, CPU Feature: AVX512
+// Asm: VPEXTRW, CPU Feature: AVX
 func (x Uint16x8) GetElem(index uint8) uint16
 
 // GetElem retrieves a single constant-indexed element's value.

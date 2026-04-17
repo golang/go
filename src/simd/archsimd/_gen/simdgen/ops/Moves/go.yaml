@@ -33,8 +33,36 @@
   out:
   - *t
 
+- go: GetElem # VPEXTRB 128 bit
+  asm: VPEXTRB
+  in:
+    - bits: 128
+      base: $b
+      class: vreg
+      elemBits: 8
+    - *imm
+  out:
+    - bits: 32
+      base: $b
+      class: greg
+      overwriteBits: 8 # The XED data specification is wrong, correct it to the right bits
+
+- go: GetElem # VPEXTRW 128 bit
+  asm: VPEXTRW
+  in:
+    - bits: 128
+      base: $b
+      class: vreg
+      elemBits: 16
+    - *imm
+  out:
+    - bits: 32
+      base: $b
+      class: greg
+      overwriteBits: 16 # The XED data specification is wrong, correct it to the right bits
+
 - go: GetElem
-  asm: "VPEXTR[BWDQ]"
+  asm: "VPEXTR[DQ]"
   in:
   - class: vreg
     base: $b

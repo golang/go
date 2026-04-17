@@ -312,6 +312,9 @@ type Operand struct {
 	// because Intel's XED data is inconsistent. e.g. AVX512 VPMADDUBSW marks its operand
 	// elemBits 16, which should be 8.
 	OverwriteElementBits *int
+	// For greg only, specifically VPEXTR[BW], their results are specified by Intel as 32 bits,
+	// but they really are 8/16 bits.
+	OverwriteBits *int
 	// FixedReg is the name of the fixed registers
 	FixedReg *string
 }
