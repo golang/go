@@ -561,6 +561,26 @@
   out:
   - *256Or512any
 
+- go: permuteScalarsLo # For AVX
+  asm: VPSHUFLW
+  addDoc: !string |-
+    //
+    //   result = {x[indices[0:2]], x[indices[2:4]], x[indices[4:6]], x[indices[6:8]], x[4], x[5], x[6], x[7]}
+    //
+    // Indices is four 2-bit values packed into a byte, thus indices[0:2] is the first index.
+  in:
+  - &32x4To16x8
+    bits: 128
+    go: $t
+    elemBits: 32
+    OverwriteElementBits: 16 # XED data incorrectly specified this as 32-bit, we need to fix it.
+  - class: immediate
+    immOffset: 0
+    name: indices
+  hideMaskMethods: true
+  out:
+  - *32x4To16x8
+
 - go: permuteScalarsLo
   asm: VPSHUFLW
   addDoc: !string |-
@@ -616,6 +636,26 @@
   hideMaskMethods: true
   out:
   - *128lanes8
+
+- go: permuteScalarsHi # For AVX
+  asm: VPSHUFHW
+  addDoc: !string |-
+    //
+    //   result = {x[0], x[1], x[2], x[3], x[indices[0:2]+4], x[indices[2:4]+4], x[indices[4:6]+4], x[indices[6:8]+4]}
+    //
+    // Indices is four 2-bit values packed into a byte, thus indices[0:2] is the first index.
+  in:
+  - &32x4To16x8
+    bits: 128
+    go: $t
+    elemBits: 32
+    OverwriteElementBits: 16 # XED data incorrectly specified this as 32-bit, we need to fix it.
+  - class: immediate
+    immOffset: 0
+    name: indices
+  hideMaskMethods: true
+  out:
+  - *32x4To16x8
 
 - go: permuteScalarsHiGrouped
   asm: VPSHUFHW

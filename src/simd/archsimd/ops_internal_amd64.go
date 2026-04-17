@@ -463,7 +463,7 @@ func (x Uint32x16) permuteScalarsGrouped(indices uint8) Uint32x16
 //
 // indices results in better performance when it's a constant, a non-constant value will be translated into a jump table.
 //
-// Asm: VPSHUFHW, CPU Feature: AVX512
+// Asm: VPSHUFHW, CPU Feature: AVX
 func (x Int16x8) permuteScalarsHi(indices uint8) Int16x8
 
 // permuteScalarsHi performs a permutation of vector x using constant indices:
@@ -474,7 +474,7 @@ func (x Int16x8) permuteScalarsHi(indices uint8) Int16x8
 //
 // indices results in better performance when it's a constant, a non-constant value will be translated into a jump table.
 //
-// Asm: VPSHUFHW, CPU Feature: AVX512
+// Asm: VPSHUFHW, CPU Feature: AVX
 func (x Uint16x8) permuteScalarsHi(indices uint8) Uint16x8
 
 /* permuteScalarsHiGrouped */
@@ -545,7 +545,7 @@ func (x Uint16x32) permuteScalarsHiGrouped(indices uint8) Uint16x32
 //
 // indices results in better performance when it's a constant, a non-constant value will be translated into a jump table.
 //
-// Asm: VPSHUFLW, CPU Feature: AVX512
+// Asm: VPSHUFLW, CPU Feature: AVX
 func (x Int16x8) permuteScalarsLo(indices uint8) Int16x8
 
 // permuteScalarsLo performs a permutation of vector x using constant indices:
@@ -556,7 +556,7 @@ func (x Int16x8) permuteScalarsLo(indices uint8) Int16x8
 //
 // indices results in better performance when it's a constant, a non-constant value will be translated into a jump table.
 //
-// Asm: VPSHUFLW, CPU Feature: AVX512
+// Asm: VPSHUFLW, CPU Feature: AVX
 func (x Uint16x8) permuteScalarsLo(indices uint8) Uint16x8
 
 /* permuteScalarsLoGrouped */
