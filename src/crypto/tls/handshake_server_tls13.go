@@ -870,6 +870,7 @@ func (hs *serverHandshakeStateTLS13) sendServerCertificate() error {
 		if c.config.ClientCAs != nil {
 			certReq.certificateAuthorities = c.config.ClientCAs.Subjects()
 		}
+		certReq.raTLSChallenge = c.config.RATLSChallenge
 
 		if _, err := hs.c.writeHandshakeRecord(certReq, hs.transcript); err != nil {
 			return err

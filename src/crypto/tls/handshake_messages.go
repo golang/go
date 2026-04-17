@@ -97,6 +97,7 @@ type clientHelloMsg struct {
 	pskBinders                       [][]byte
 	quicTransportParameters          []byte
 	encryptedClientHello             []byte
+	raTLSChallenge                   []byte
 	// extensions are only populated on the server-side of a handshake
 	extensions []uint16
 }
@@ -315,6 +316,12 @@ func (m *clientHelloMsg) marshalMsg(echInner bool) ([]byte, error) {
 					exts.AddUint16(e)
 				}
 			})
+		})
+	}
+	if len(m.raTLSChallenge) > 0 {
+		exts.AddUint16(extensionRATLS)
+		exts.AddUint16LengthPrefixed(func(exts *cryptobyte.Builder) {
+			exts.AddBytes(m.raTLSChallenge)
 		})
 	}
 	if len(m.pskIdentities) > 0 { // pre_shared_key must be the last extension
@@ -664,6 +671,13 @@ func (m *clientHelloMsg) unmarshal(data []byte) bool {
 			}
 		case extensionEncryptedClientHello:
 			if !extData.ReadBytes(&m.encryptedClientHello, len(extData)) {
+				return false
+			}
+		case extensionRATLS:
+			if len(extData) < 8 || len(extData) > 64 {
+				return false
+			}
+			if !extData.ReadBytes(&m.raTLSChallenge, len(extData)) {
 				return false
 			}
 		default:
@@ -1248,6 +1262,7 @@ type certificateRequestMsgTLS13 struct {
 	supportedSignatureAlgorithms     []SignatureScheme
 	supportedSignatureAlgorithmsCert []SignatureScheme
 	certificateAuthorities           [][]byte
+	raTLSChallenge                   []byte
 }
 
 func (m *certificateRequestMsgTLS13) marshal() ([]byte, error) {
@@ -1302,6 +1317,12 @@ func (m *certificateRequestMsgTLS13) marshal() ([]byte, error) {
 							})
 						}
 					})
+				})
+			}
+			if len(m.raTLSChallenge) > 0 {
+				b.AddUint16(extensionRATLS)
+				b.AddUint16LengthPrefixed(func(b *cryptobyte.Builder) {
+					b.AddBytes(m.raTLSChallenge)
 				})
 			}
 		})
@@ -1372,6 +1393,13 @@ func (m *certificateRequestMsgTLS13) unmarshal(data []byte) bool {
 					return false
 				}
 				m.certificateAuthorities = append(m.certificateAuthorities, ca)
+			}
+		case extensionRATLS:
+			if len(extData) < 8 || len(extData) > 64 {
+				return false
+			}
+			if !extData.ReadBytes(&m.raTLSChallenge, len(extData)) {
+				return false
 			}
 		default:
 			// Ignore unknown extensions.
