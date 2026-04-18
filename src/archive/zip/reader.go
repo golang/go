@@ -43,10 +43,11 @@ type Reader struct {
 	// The baseOffset field is the start of the zip file proper.
 	baseOffset int64
 
-	// fileList is a list of files sorted by ename,
+	// fileList is a list of valid archive entries sorted by name,
 	// for use by the Open method.
 	fileListOnce sync.Once
 	fileList     []fileListEntry
+	fileIndex    map[string]int
 }
 
 // A ReadCloser is a [Reader] that must be closed when no longer needed.
@@ -504,6 +505,7 @@ parseExtras:
 		// determining whether extended timestamps are present.
 		// This is necessary for users that need to do additional time
 		// calculations when dealing with legacy ZIP formats.
+		
 		if f.ModifiedTime != 0 || f.ModifiedDate != 0 {
 			f.Modified = modified.In(timeZone(msdosModified.Sub(modified)))
 		}
@@ -748,6 +750,8 @@ func (b *readBuf) sub(n int) readBuf {
 // If file == nil, the fileListEntry describes a directory without metadata.
 type fileListEntry struct {
 	name  string
+	dir   string
+	elem  string
 	file  *File
 	isDir bool
 	isDup bool
@@ -769,7 +773,7 @@ func (f *fileListEntry) stat() (fileInfoDirEntry, error) {
 }
 
 // Only used for directories.
-func (f *fileListEntry) Name() string      { _, elem, _ := split(f.name); return elem }
+func (f *fileListEntry) Name() string      { return f.elem }
 func (f *fileListEntry) Size() int64       { return 0 }
 func (f *fileListEntry) Mode() fs.FileMode { return fs.ModeDir | 0555 }
 func (f *fileListEntry) Type() fs.FileMode { return fs.ModeDir }
@@ -803,20 +807,37 @@ func toValidName(name string) string {
 	return p
 }
 
+func newFileListEntry(name string, file *File, isDir bool) fileListEntry {
+	dir, elem, _ := split(name)
+	return fileListEntry{
+		name:  name,
+		dir:   dir,
+		elem:  elem,
+		file:  file,
+		isDir: isDir,
+	}
+}
+
+func newSyntheticDirEntry(name string) fileListEntry {
+	return newFileListEntry(name, nil, true)
+}
+
+func markFileDirCollisions(entries []fileListEntry) {
+	for i := 0; i+1 < len(entries); i++ {
+		if entries[i].isDir {
+			continue
+		}
+		prefix := entries[i].name + "/"
+		if strings.HasPrefix(entries[i+1].name, prefix) {
+			entries[i].isDup = true
+		}
+	}
+}
+
 func (r *Reader) initFileList() {
 	r.fileListOnce.Do(func() {
-		// Preallocate the minimum size of the index.
-		// We may also synthesize additional directory entries.
 		r.fileList = make([]fileListEntry, 0, len(r.File))
-		// files and knownDirs map from a file/directory name
-		// to an index into the r.fileList entry that we are
-		// building. They are used to mark duplicate entries.
-		files := make(map[string]int)
-		knownDirs := make(map[string]int)
-
-		// dirs[name] is true if name is known to be a directory,
-		// because it appears as a prefix in a path.
-		dirs := make(map[string]bool)
+		r.fileIndex = make(map[string]int, len(r.File))
 
 		for _, file := range r.File {
 			isDir := len(file.Name) > 0 && file.Name[len(file.Name)-1] == '/'
@@ -825,69 +846,26 @@ func (r *Reader) initFileList() {
 				continue
 			}
 
-			if idx, ok := files[name]; ok {
+			if idx, ok := r.fileIndex[name]; ok {
 				r.fileList[idx].isDup = true
 				continue
-			}
-			if idx, ok := knownDirs[name]; ok {
-				r.fileList[idx].isDup = true
-				continue
-			}
-
-			dir := name
-			for {
-				if idx := strings.LastIndex(dir, "/"); idx < 0 {
-					break
-				} else {
-					dir = dir[:idx]
-				}
-				if dirs[dir] {
-					break
-				}
-				dirs[dir] = true
 			}
 
 			idx := len(r.fileList)
-			entry := fileListEntry{
-				name:  name,
-				file:  file,
-				isDir: isDir,
-			}
+			entry := newFileListEntry(name, file, isDir)
 			r.fileList = append(r.fileList, entry)
-			if isDir {
-				knownDirs[name] = idx
-			} else {
-				files[name] = idx
-			}
-		}
-		for dir := range dirs {
-			if _, ok := knownDirs[dir]; !ok {
-				if idx, ok := files[dir]; ok {
-					r.fileList[idx].isDup = true
-				} else {
-					entry := fileListEntry{
-						name:  dir,
-						file:  nil,
-						isDir: true,
-					}
-					r.fileList = append(r.fileList, entry)
-				}
-			}
+			r.fileIndex[name] = idx
 		}
 
 		slices.SortFunc(r.fileList, func(a, b fileListEntry) int {
-			return fileEntryCompare(a.name, b.name)
+			return strings.Compare(a.name, b.name)
 		})
-	})
-}
+		markFileDirCollisions(r.fileList)
 
-func fileEntryCompare(x, y string) int {
-	xdir, xelem, _ := split(x)
-	ydir, yelem, _ := split(y)
-	if xdir != ydir {
-		return strings.Compare(xdir, ydir)
-	}
-	return strings.Compare(xelem, yelem)
+		for idx, entry := range r.fileList {
+			r.fileIndex[entry.name] = idx
+		}
+	})
 }
 
 // Open opens the named file in the ZIP archive,
@@ -923,50 +901,83 @@ func split(name string) (dir, elem string, isDir bool) {
 	return name[:i], name[i+1:], isDir
 }
 
-var dotFile = &fileListEntry{name: "./", isDir: true}
+var dotFile = &fileListEntry{name: "./", dir: ".", elem: ".", isDir: true}
+
+func (r *Reader) hasDirPrefix(name string) bool {
+	prefix := name + "/"
+	files := r.fileList
+	i, _ := slices.BinarySearchFunc(files, prefix, func(a fileListEntry, prefix string) int {
+		return strings.Compare(a.name, prefix)
+	})
+	return i < len(files) && strings.HasPrefix(files[i].name, prefix)
+}
 
 func (r *Reader) openLookup(name string) *fileListEntry {
 	if name == "." {
 		return dotFile
 	}
 
-	dir, elem, _ := split(name)
-	files := r.fileList
-	i, _ := slices.BinarySearchFunc(files, dir, func(a fileListEntry, dir string) (ret int) {
-		idir, ielem, _ := split(a.name)
-		if dir != idir {
-			return strings.Compare(idir, dir)
-		}
-		return strings.Compare(ielem, elem)
-	})
-	if i < len(files) {
-		fname := files[i].name
-		if fname == name || len(fname) == len(name)+1 && fname[len(name)] == '/' && fname[:len(name)] == name {
-			return &files[i]
-		}
+	if idx, ok := r.fileIndex[name]; ok {
+		return &r.fileList[idx]
+	}
+	if r.hasDirPrefix(name) {
+		entry := newSyntheticDirEntry(name)
+		return &entry
 	}
 	return nil
 }
 
 func (r *Reader) openReadDir(dir string) []fileListEntry {
+	prefix := ""
+	if dir != "." {
+		prefix = dir + "/"
+	}
 	files := r.fileList
-	i, _ := slices.BinarySearchFunc(files, dir, func(a fileListEntry, dir string) int {
-		idir, _, _ := split(a.name)
-		if dir != idir {
-			return strings.Compare(idir, dir)
+	i := 0
+	if prefix != "" {
+		i, _ = slices.BinarySearchFunc(files, prefix, func(a fileListEntry, prefix string) int {
+			return strings.Compare(a.name, prefix)
+		})
+	}
+
+	list := make([]fileListEntry, 0)
+	for i < len(files) {
+		name := files[i].name
+		if prefix != "" && !strings.HasPrefix(name, prefix) {
+			break
 		}
-		// find the first entry with dir
-		return +1
-	})
-	j, _ := slices.BinarySearchFunc(files, dir, func(a fileListEntry, dir string) int {
-		jdir, _, _ := split(a.name)
-		if dir != jdir {
-			return strings.Compare(jdir, dir)
+
+		rest := name[len(prefix):]
+		if rest == "" {
+			i++
+			continue
 		}
-		// find the last entry with dir
-		return -1
-	})
-	return files[i:j]
+
+		if slash := strings.IndexByte(rest, '/'); slash < 0 {
+			list = append(list, files[i])
+			i++
+			continue
+		} else {
+			child := prefix + rest[:slash]
+			childPrefix := child + "/"
+			if n := len(list); n > 0 && list[n-1].name == child {
+				if !list[n-1].isDir {
+					list[n-1].isDup = true
+				}
+			} else if idx, ok := r.fileIndex[child]; ok {
+				entry := r.fileList[idx]
+				if !entry.isDir {
+					entry.isDup = true
+				}
+				list = append(list, entry)
+			} else {
+				list = append(list, newSyntheticDirEntry(child))
+			}
+			for i++; i < len(files) && strings.HasPrefix(files[i].name, childPrefix); i++ {
+			}
+		}
+	}
+	return list
 }
 
 type openDir struct {
