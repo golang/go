@@ -1627,8 +1627,7 @@ func TestOpenEmptyFile(t *testing.T) {
 		t.Fatal("Open on empty file: got nil error, want non-nil")
 	}
 
-	var formatErr *FormatError
-	if !errors.As(err, &formatErr) {
+	if _, ok := errors.AsType[*FormatError](err); !ok {
 		t.Errorf("Open on empty file: got %T (%v), want *FormatError", err, err)
 	}
 }
@@ -1651,8 +1650,7 @@ func TestNewFileShortReader(t *testing.T) {
 				t.Fatal("NewFile with short data: got nil error, want non-nil")
 			}
 
-			var formatErr *FormatError
-			if !errors.As(err, &formatErr) {
+			if _, ok := errors.AsType[*FormatError](err); !ok {
 				t.Errorf("NewFile with short data: got %T (%v), want *FormatError", err, err)
 			}
 		})
