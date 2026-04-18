@@ -1308,3 +1308,85 @@ func (z *Int) Sqrt(x *Int) *Int {
 	z.abs = z.abs.sqrt(nil, x.abs)
 	return z
 }
+
+// Rounding modes that determine how the integer quotient is adjusted in an integer division.
+// See Daan Leijen, “Division and Modulus for Computer Scientists”, for details.
+const (
+	Trunc = ToZero        // T-division (same as Go division)
+	Floor = ToNegativeInf // F-division
+	Round = ToNearestEven // R-division
+	Ceil  = ToPositiveInf // C-division
+)
+
+// Divide computes the integer quotient q and remainder r such that
+//
+//	q = f(x/y)
+//	r = x - y*q
+//
+// where f is described by the rounding mode,
+// either [Trunc], [Floor], [Round] or [Ceil].
+// Divide sets z to q if z != nil, updates r if r != nil,
+// and returns the pair (z, r) if y != 0.
+// If y == 0, a division-by-zero run-time panic occurs.
+func (z *Int) Divide(x, y, r *Int, mode RoundingMode) (*Int, *Int) {
+	var z_abs nat
+	if z != nil {
+		z_abs = z.abs
+	}
+	var r_neg bool
+	var r_abs nat
+	if r != nil {
+		r_abs = r.abs
+	}
+	y_abs := y.abs // save y
+	if z == y || alias(z_abs, y.abs) {
+		y_abs = nat(nil).set(y.abs)
+	}
+	neg := x.neg != y.neg
+	z_abs, r_abs = z_abs.div(nil, r_abs, x.abs, y.abs)
+	if len(r_abs) > 0 {
+		switch mode {
+		case Trunc:
+			r_neg = x.neg
+		case Floor:
+			r_neg = y.neg
+			if neg {
+				z_abs = z_abs.add(z_abs, natOne)
+				r_abs = r_abs.sub(y_abs, r_abs)
+			}
+		case Ceil:
+			r_neg = !y.neg
+			if !neg {
+				z_abs = z_abs.add(z_abs, natOne)
+				r_abs = r_abs.sub(y_abs, r_abs)
+			}
+		case Round:
+			switch nat(nil).mul(nil, r_abs, natTwo).cmp(y_abs) {
+			case -1:
+				r_neg = x.neg
+			case 0:
+				even := len(z_abs) == 0 || z_abs[0]&1 == 0
+				if even {
+					r_neg = x.neg
+					break
+				}
+				fallthrough
+			case 1:
+				r_neg = !x.neg
+				z_abs = z_abs.add(z_abs, natOne)
+				r_abs = r_abs.sub(y_abs, r_abs)
+			}
+		default:
+			panic("unsupported rounding mode")
+		}
+	}
+	if z != nil {
+		z.abs = z_abs
+		z.neg = neg && len(z_abs) > 0 // 0 has no sign
+	}
+	if r != nil {
+		r.abs = r_abs
+		r.neg = r_neg
+	}
+	return z, r
+}

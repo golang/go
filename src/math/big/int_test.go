@@ -2011,3 +2011,43 @@ func TestFloat64(t *testing.T) {
 		}
 	}
 }
+
+func TestIntDivide(t *testing.T) {
+	for _, test := range intDivisionTests {
+		x := NewInt(test.x)
+		y := NewInt(test.y)
+		q := new(Int)
+		r := new(Int)
+		qExp := new(Int)
+		rExp := new(Int)
+		msg := "%v(%v/%v): got q = %v r = %v, want q = %v r = %v"
+
+		qExp.SetInt64(test.trunc)
+		rExp.SetInt64(test.x - test.y*test.trunc)
+		q, r = q.Divide(x, y, r, Trunc)
+		if q.Cmp(qExp) != 0 || r.Cmp(rExp) != 0 {
+			t.Errorf(msg, "trunc", test.x, test.y, q, r, qExp, rExp)
+		}
+
+		qExp.SetInt64(test.floor)
+		rExp.SetInt64(test.x - test.y*test.floor)
+		q, r = q.Divide(x, y, r, Floor)
+		if q.Cmp(qExp) != 0 || r.Cmp(rExp) != 0 {
+			t.Errorf(msg, "floor", test.x, test.y, q, r, qExp, rExp)
+		}
+
+		qExp.SetInt64(test.ceil)
+		rExp.SetInt64(test.x - test.y*test.ceil)
+		q, r = q.Divide(x, y, r, Ceil)
+		if q.Cmp(qExp) != 0 || r.Cmp(rExp) != 0 {
+			t.Errorf(msg, "ceil", test.x, test.y, q, r, qExp, rExp)
+		}
+
+		qExp.SetInt64(test.round)
+		rExp.SetInt64(test.x - test.y*test.round)
+		q, r = q.Divide(x, y, r, Round)
+		if q.Cmp(qExp) != 0 || r.Cmp(rExp) != 0 {
+			t.Errorf(msg, "round", test.x, test.y, q, r, qExp, rExp)
+		}
+	}
+}
