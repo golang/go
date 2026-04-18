@@ -62,7 +62,7 @@ static void *stackSwitchThread(void *arg) {
 	//
 	// Will be freed in stackSwitchThread2.
 	stack2 = malloc(STACK_SIZE);
-	if (stack1 == NULL) {
+	if (stack2 == NULL) {
 		perror("malloc");
 		exit(1);
 	}
