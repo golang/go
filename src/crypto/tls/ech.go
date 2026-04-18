@@ -571,9 +571,6 @@ func (c *Conn) processECHClientHello(outer *clientHelloMsg, echKeys []EncryptedC
 			c.sendAlert(alertInternalError)
 			return nil, nil, fmt.Errorf("tls: invalid EncryptedClientHelloKey Config: %s", err)
 		}
-		if skip {
-			continue
-		}
 		kem, err := hpke.NewKEM(config.KemID)
 		if err != nil {
 			c.sendAlert(alertInternalError)
