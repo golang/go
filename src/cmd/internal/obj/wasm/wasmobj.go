@@ -1331,7 +1331,7 @@ func assemble(ctxt *obj.Link, s *obj.LSym, newprog obj.ProgAlloc) {
 			if p.To.Offset < 0 {
 				panic("negative offset")
 			}
-			if p.From.Offset > math.MaxUint32 {
+			if p.To.Offset > math.MaxUint32 {
 				ctxt.Diag("bad offset in %v", p)
 			}
 			writeUleb128(w, align(p.As))
