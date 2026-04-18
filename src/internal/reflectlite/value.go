@@ -351,7 +351,7 @@ func (v Value) Len() int {
 		// String is bigger than a word; assume flagIndir.
 		return (*unsafeheader.String)(v.ptr).Len
 	}
-	panic(&ValueError{"reflect.Value.Len", v.kind()})
+	panic(&ValueError{"reflectlite.Value.Len", v.kind()})
 }
 
 // NumMethod returns the number of exported methods in the value's method set.
