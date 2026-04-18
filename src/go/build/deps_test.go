@@ -685,6 +685,9 @@ var depsRules = `
 	net/http, net/http/internal/ascii
 	< net/http/cookiejar, net/http/httputil;
 
+	NET, internal/gate
+	< internal/nettest;
+
 	net/http, flag
 	< net/http/httptest;
 
