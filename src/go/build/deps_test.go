@@ -685,12 +685,6 @@ var depsRules = `
 	net/http, net/http/internal/ascii
 	< net/http/cookiejar, net/http/httputil;
 
-	NET, internal/gate
-	< internal/nettest;
-
-	net/http, flag
-	< net/http/httptest;
-
 	net/http, regexp
 	< net/http/cgi
 	< net/http/fcgi;
@@ -734,6 +728,12 @@ var depsRules = `
 
 	testing, crypto/rand
 	< testing/cryptotest;
+
+	NET, internal/gate
+	< internal/nettest;
+
+	net/http, flag, internal/nettest, testing
+	< net/http/httptest;
 
 	FMT, crypto/sha256, encoding/binary, encoding/json,
 	go/ast, go/parser, go/token,
