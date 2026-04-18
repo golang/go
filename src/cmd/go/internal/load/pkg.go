@@ -343,6 +343,7 @@ func (p *Package) setLoadPackageDataError(err error, path string, stk *ImportSta
 	top, ok := stk.Top()
 	if ok && path != top.Pkg {
 		p.Error.setPos(importPos)
+		p.Error.setImporterPos(importPos)
 	}
 }
 
@@ -457,6 +458,7 @@ type PackageError struct {
 	Err              error       // the error itself
 	IsImportCycle    bool        // the error is an import cycle
 	alwaysPrintStack bool        // whether to always print the ImportStack
+	importerPos      bool        // Pos refers to the importer, not the imported package
 }
 
 func (p *PackageError) Error() string {
@@ -509,6 +511,18 @@ func (p *PackageError) setPos(posList []token.Position) {
 	pos := posList[0]
 	pos.Filename = base.ShortPath(pos.Filename)
 	p.Pos = pos.String()
+	p.importerPos = true
+}
+
+func (p *PackageError) setImporterPos(posList []token.Position) {
+	p.setPos(posList)
+	p.importerPos = true
+}
+
+// IsImporterPos reports whether Pos refers to the import statement
+// in the importing package, not to the imported package's source.
+func (p *PackageError) IsImporterPos() bool {
+	return p.importerPos
 }
 
 // ImportPathError is a type of error that prevents a package from being loaded
@@ -781,17 +795,20 @@ func loadImport(ld *modload.Loader, ctx context.Context, opts PackageOpts, pre *
 			}
 			p.Incomplete = true
 			p.Error.setPos(importPos)
+			p.Error.setImporterPos(importPos)
 		}
 	}
 
 	// Checked on every import because the rules depend on the code doing the importing.
 	if perr := disallowInternal(ld, ctx, srcDir, parent, parentPath, p, stk); perr != nil {
 		perr.setPos(importPos)
+		perr.setImporterPos(importPos)
 		return p, perr
 	}
 	if mode&ResolveImport != 0 {
 		if perr := disallowVendor(srcDir, path, parentPath, p, stk); perr != nil {
 			perr.setPos(importPos)
+			perr.setImporterPos(importPos)
 			return p, perr
 		}
 	}
@@ -802,6 +819,7 @@ func loadImport(ld *modload.Loader, ctx context.Context, opts PackageOpts, pre *
 			Err:         ImportErrorf(path, "import %q is a program, not an importable package", path),
 		}
 		perr.setPos(importPos)
+		perr.setImporterPos(importPos)
 		return p, perr
 	}
 
@@ -817,6 +835,7 @@ func loadImport(ld *modload.Loader, ctx context.Context, opts PackageOpts, pre *
 			Err:         err,
 		}
 		perr.setPos(importPos)
+		perr.setImporterPos(importPos)
 		return p, perr
 	}
 
@@ -1802,6 +1821,7 @@ func (p *Package) load(ld *modload.Loader, ctx context.Context, opts PackageOpts
 			top, ok := stk.Top()
 			if ok && path != top.Pkg && len(importPos) > 0 {
 				p.Error.setPos(importPos)
+				p.Error.setImporterPos(importPos)
 			}
 		}
 	}
