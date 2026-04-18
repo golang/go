@@ -1260,15 +1260,49 @@ func (u *URL) JoinPath(elem ...string) *URL {
 }
 
 func (u *URL) joinPath(elem ...string) (*URL, error) {
-	elem = append([]string{u.EscapedPath()}, elem...)
+	// Decode each caller-supplied element so that path.Join can see and clean
+	// any dot-dot sequences that were percent-encoded (e.g. "..%2Fadmin" or
+	// "%2E%2E/admin").  After joining we re-encode every segment with
+	// PathEscape so that the result round-trips correctly.
+	//
+	// The base path (elem[0]) comes from EscapedPath() and may legitimately
+	// contain %2F to represent a slash that is part of a segment name.  We
+	// leave it unchanged so that existing behaviour for the base URL is
+	// preserved; only the caller-supplied elements are decoded.
+	decodedElem := make([]string, len(elem))
+	for i, e := range elem {
+		d, err := PathUnescape(e)
+		if err != nil {
+			// Malformed percent-encoding – fall back to the original string
+			// so the later unescape in setPath can return a proper error.
+			d = e
+		}
+		decodedElem[i] = d
+	}
+
+	// Re-escape each decoded element with PathEscape so that slashes from
+	// a decoded %2F remain as real path separators (not re-encoded), while
+	// characters that need encoding are properly escaped.
+	reencoded := make([]string, len(decodedElem))
+	for i, d := range decodedElem {
+		// Split on "/" so each sub-segment is individually PathEscape'd,
+		// preserving the path structure introduced by decoded slashes.
+		parts := strings.Split(d, "/")
+		for j, part := range parts {
+			parts[j] = PathEscape(part)
+		}
+		reencoded[i] = strings.Join(parts, "/")
+	}
+
+	combined := append([]string{u.EscapedPath()}, reencoded...)
 	var p string
-	if !strings.HasPrefix(elem[0], "/") {
+	if !strings.HasPrefix(combined[0], "/") {
 		// Return a relative path if u is relative,
 		// but ensure that it contains no ../ elements.
-		elem[0] = "/" + elem[0]
-		p = path.Join(elem...)[1:]
+		combined[0] = "/" + combined[0]
+		p = path.Join(combined...)[1:]
 	} else {
-		p = path.Join(elem...)
+		p = path.Join(combined...)
 	}
 	// path.Join will remove any trailing slashes.
 	// Preserve at least one.
