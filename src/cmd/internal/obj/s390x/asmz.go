@@ -581,6 +581,9 @@ func (c *ctxtz) aclass(a *obj.Addr) int {
 			}
 			c.instoffset = a.Offset
 			if a.Sym.Type == objabi.STLSBSS {
+				if c.ctxt.Flag_tlsgd {
+					return C_TLS_IE // GD uses same class; linker emits GD relocs
+				}
 				if c.ctxt.Flag_shared {
 					return C_TLS_IE // initial exec model
 				}

@@ -1166,6 +1166,7 @@ type Link struct {
 	Debugpcln            string
 	Flag_shared          bool
 	Flag_dynlink         bool
+	Flag_tlsgd           bool
 	Flag_linkshared      bool
 	Flag_optimize        bool
 	Flag_locationlists   bool

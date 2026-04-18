@@ -16,6 +16,7 @@
 // this might as well result in another SIGSEGV.
 // Note: both functions will clobber R0 and R11 and
 // can be called from 5c ABI code.
+// With TLS_GD, these also clobber R12 and LR via the __tls_get_addr call.
 
 // On android, runtime.tls_g is a normal variable.
 // TLS offset is computed in x_cgo_inittls.
@@ -35,24 +36,50 @@ TEXT runtime·save_g(SB),NOSPLIT,$0
 	// The replacement function saves LR in R11 over the call to read_tls_fallback.
 	// To make stack unwinding work, this function should NOT be marked as NOFRAME,
 	// as it may contain a call, which clobbers LR even just temporarily.
+#ifdef TLS_GD
+	// General Dynamic TLS via __tls_get_addr.
+	// MOVW runtime·tls_g(SB), R0 generates:
+	//   LDR R0, [PC, #lit] + ADD R0, PC, R0 + BL __tls_get_addr
+	// Result: R0 = ADDRESS of TLS variable.
+	// __tls_get_addr follows C ABI: clobbers R0-R3, R12, LR.
+	// Callers expect R1 preserved. Use stack for save/restore
+	// since __tls_get_addr may clobber many registers.
+	// Ensure 8-byte stack alignment per ARM AAPCS.
+	MOVW.W	R14, -8(R13) // push LR, align stack to 8
+	MOVW	R1, 4(R13)   // save R1
+	MOVW	runtime·tls_g(SB), R0
+	MOVW	g, 0(R0)
+	MOVW	g, R0
+	MOVW	4(R13), R1   // restore R1
+	MOVW.P	8(R13), R14  // pop LR, restore stack
+#else
 	MRC	15, 0, R0, C13, C0, 3 // fetch TLS base pointer
 	BIC $3, R0 // Darwin/ARM might return unaligned pointer
 	MOVW	runtime·tls_g(SB), R11
 	ADD	R11, R0
 	MOVW	g, 0(R0)
 	MOVW	g, R0 // preserve R0 across call to setg<>
+#endif
 	RET
 
 // load_g loads the g register from pthread-provided
 // thread-local memory, for use after calling externally compiled
 // ARM code that overwrote those registers.
 TEXT runtime·load_g(SB),NOSPLIT,$0
-	// See save_g
+#ifdef TLS_GD
+	MOVW.W	R14, -8(R13)
+	MOVW	R1, 4(R13)
+	MOVW	runtime·tls_g(SB), R0
+	MOVW	0(R0), g
+	MOVW	4(R13), R1
+	MOVW.P	8(R13), R14
+#else
 	MRC	15, 0, R0, C13, C0, 3 // fetch TLS base pointer
 	BIC $3, R0 // Darwin/ARM might return unaligned pointer
 	MOVW	runtime·tls_g(SB), R11
 	ADD	R11, R0
 	MOVW	0(R0), g
+#endif
 	RET
 
 // This is called from rt0_go, which runs on the system stack

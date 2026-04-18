@@ -134,6 +134,7 @@ var optab = []Optab{
 	{AWORD, C_NONE, C_NONE, C_ADDR, 11, 4, 0, 0, 0, 0},
 	{AWORD, C_NONE, C_NONE, C_TLS_LE, 103, 4, 0, 0, 0, 0},
 	{AWORD, C_NONE, C_NONE, C_TLS_IE, 104, 4, 0, 0, 0, 0},
+	{AWORD, C_NONE, C_NONE, C_TLS_GD, 113, 4, 0, 0, 0, 0},
 	{AMOVW, C_NCON, C_NONE, C_REG, 12, 4, 0, 0, 0, 0},
 	{AMOVW, C_SCON, C_NONE, C_REG, 12, 4, 0, 0, 0, 0},
 	{AMOVW, C_LCON, C_NONE, C_REG, 12, 4, 0, LFROM, 0, 0},
@@ -218,6 +219,7 @@ var optab = []Optab{
 	{AMOVBU, C_REG, C_NONE, C_ADDR, 64, 8, 0, LTO | LPCREL, 4, C_PBIT | C_WBIT | C_UBIT},
 	{AMOVW, C_TLS_LE, C_NONE, C_REG, 101, 4, 0, LFROM, 0, 0},
 	{AMOVW, C_TLS_IE, C_NONE, C_REG, 102, 8, 0, LFROM, 0, 0},
+	{AMOVW, C_TLS_GD, C_NONE, C_REG, 112, 12, 0, LFROM, 0, 0},
 	{AMOVW, C_LAUTO, C_NONE, C_REG, 31, 8, REGSP, LFROM, 0, C_PBIT | C_WBIT | C_UBIT},
 	{AMOVW, C_LOREG, C_NONE, C_REG, 31, 8, 0, LFROM, 0, C_PBIT | C_WBIT | C_UBIT},
 	{AMOVW, C_ADDR, C_NONE, C_REG, 65, 8, 0, LFROM | LPCREL, 4, C_PBIT | C_WBIT | C_UBIT},
@@ -869,7 +871,9 @@ func (c *ctxt5) aclass(a *obj.Addr) int {
 
 			c.instoffset = 0 // s.b. unused but just in case
 			if a.Sym.Type == objabi.STLSBSS {
-				if c.ctxt.Flag_shared {
+				if c.ctxt.Flag_tlsgd {
+					return C_TLS_GD
+				} else if c.ctxt.Flag_shared {
 					return C_TLS_IE
 				} else {
 					return C_TLS_LE
@@ -2147,9 +2151,24 @@ func (c *ctxt5) asmout(p *obj.Prog, o *Optab, out []uint32) {
 	case 101: /* movw tlsvar,R, local exec*/
 		o1 = c.omvl(p, &p.From, int(p.To.Reg))
 
-	case 102: /* movw tlsvar,R, initial exec*/
+	case 102: /* movw tlsvar,R, initial exec */
 		o1 = c.omvl(p, &p.From, int(p.To.Reg))
 		o2 = c.olrr(int(p.To.Reg)&15, (REGPC & 15), int(p.To.Reg), int(p.Scond))
+
+	case 112: /* movw tlsvar,R, general dynamic (TLSGD + __tls_get_addr) */
+		// LDR R0, [PC, #literal]  — load PC-relative offset to GD GOT entry
+		o1 = c.omvl(p, &p.From, 0)
+		// ADD R0, PC, R0  — compute absolute address of GD GOT entry
+		o2 = c.oprrr(p, AADD, int(p.Scond)) | (0&15) | (REGPC&15)<<16 | (0&15)<<12
+		// BL __tls_get_addr  — call resolver, result: R0 = address of TLS var
+		o3 = 0xebfffffe // BL with -8 pipeline offset baked into imm24
+		c.cursym.AddRel(c.ctxt, obj.Reloc{
+			Type: objabi.R_CALLARM,
+			Off:  int32(c.pc + 8),
+			Siz:  4,
+			Sym:  c.ctxt.Lookup("__tls_get_addr"),
+			Add:  0xebfffffe, // instruction encoding with -2 (-8 bytes) pipeline offset
+		})
 
 	case 103: /* word tlsvar, local exec */
 		if p.To.Sym == nil {
@@ -2177,6 +2196,21 @@ func (c *ctxt5) asmout(p *obj.Prog, o *Optab, out []uint32) {
 		}
 		c.cursym.AddRel(c.ctxt, obj.Reloc{
 			Type: objabi.R_TLS_IE,
+			Off:  int32(c.pc),
+			Siz:  4,
+			Sym:  p.To.Sym,
+			Add:  c.pc - p.Rel.Pc - 8 - 4,
+		})
+
+	case 113: /* word tlsvar, general dynamic */
+		if p.To.Sym == nil {
+			c.ctxt.Diag("nil sym in tls %v", p)
+		}
+		if p.To.Offset != 0 {
+			c.ctxt.Diag("offset against tls var in %v", p)
+		}
+		c.cursym.AddRel(c.ctxt, obj.Reloc{
+			Type: objabi.R_TLS_GD,
 			Off:  int32(c.pc),
 			Siz:  4,
 			Sym:  p.To.Sym,

@@ -1,0 +1,12 @@
+FROM --platform=linux/riscv64 ubuntu:24.10
+RUN apt-get update && apt-get install -y --no-install-recommends build-essential ca-certificates git golang-go && rm -rf /var/lib/apt/lists/*
+COPY . /go-src/
+ENV GOROOT_BOOTSTRAP=/usr/lib/go
+RUN cd /go-src/src && ./make.bash
+ENV PATH="/go-src/bin:$PATH"
+ENV GOROOT="/go-src"
+WORKDIR /test
+COPY test/cshared-musl/testdata/ /test/
+RUN CGO_ENABLED=1 go build -buildmode=c-shared -o libtest.so libtest.go
+RUN gcc -o loader loader.c -ldl
+CMD ["./loader", "./libtest.so"]

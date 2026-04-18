@@ -701,7 +701,7 @@ func (c *ctxt0) aclass(a *obj.Addr) int {
 			}
 			c.instoffset = a.Offset
 			if a.Sym.Type == objabi.STLSBSS {
-				if c.ctxt.Flag_shared {
+				if c.ctxt.Flag_tlsgd || c.ctxt.Flag_shared {
 					return C_TLS_IE
 				} else {
 					return C_TLS_LE

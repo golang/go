@@ -12,6 +12,19 @@ void (*x_cgo_inittls)(void **tlsg, void **tlsbase) __attribute__((weak));
 void (*x_cgo_init_platform)(void) __attribute__((weak));
 void (*x_cgo_threadentry_platform)(void) __attribute__((weak));
 
+#ifdef __linux__
+// Weak reference to glibc-specific function. Resolves to the actual
+// function on glibc, NULL on musl/bionic/other libc implementations.
+// Used by the Go runtime to determine whether .init_array functions
+// receive argc/argv (glibc extension) or garbage (ELF ABI standard).
+extern const char *gnu_get_libc_version(void) __attribute__((weak));
+
+// Set to 1 during x_cgo_init if running on glibc.
+// Accessed by the Go runtime as _cgo_isglibc.
+// Use uint8 to match the Go-side byte declaration.
+uint8_t x_cgo_isglibc;
+#endif
+
 static void (*setg_gcc)(void*);
 
 // _cgo_set_stacklo sets g->stacklo based on the stack size.
@@ -39,6 +52,10 @@ x_cgo_init(G *g, void (*setg)(void*), void **tlsg, void **tlsbase)
 {
 	setg_gcc = setg;
 	_cgo_set_stacklo(g);
+
+#ifdef __linux__
+	x_cgo_isglibc = (gnu_get_libc_version != nil) ? 1 : 0;
+#endif
 
 	if (x_cgo_inittls) {
 		x_cgo_inittls(tlsg, tlsbase);

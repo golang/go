@@ -5143,25 +5143,64 @@ func (ab *AsmBuf) doasm(ctxt *obj.Link, cursym *obj.LSym, p *obj.Prog) {
 						if !ctxt.Flag_shared {
 							log.Fatalf("unknown TLS base location for linux/freebsd without -shared")
 						}
-						// Note that this is not generating the same insn as the other cases.
-						//     MOV TLS, R_to
-						// becomes
-						//     movq g@gottpoff(%rip), R_to
-						// which is encoded as
-						//     movq 0(%rip), R_to
-						// and a R_TLS_IE reloc. This all assumes the only tls variable we access
-						// is g, which we can't check here, but will when we assemble the second
-						// instruction.
-						ab.rexflag = Pw | (regrex[p.To.Reg] & Rxr)
+						if ctxt.Flag_tlsgd {
+							// General Dynamic TLS using TLSDESC.
+							//     MOV TLS, R_to
+							// becomes (when R_to != RAX):
+							//     pushq %rax                         (1 byte)
+							//     leaq sym@TLSDESC(%rip), %rax       (7 bytes)
+							//     call *sym@TLSCALL(%rax)             (2 bytes)
+							//     movq %rax, R_to                     (3 bytes)
+							//     popq %rax                           (1 byte)
+							// or (when R_to == RAX):
+							//     leaq sym@TLSDESC(%rip), %rax       (7 bytes)
+							//     call *sym@TLSCALL(%rax)             (2 bytes)
+							//
+							// TLSDESC clobbers %rax with the TLS offset result.
+							// The compiler's register allocator may have a live
+							// value in RAX, so we must save/restore it when the
+							// target register is not RAX. See go.dev/issue/13492.
+							if p.To.Reg != REG_AX {
+								ab.Put1(0x50) // pushq %rax
+							}
+							ab.Put3(0x48, 0x8D, 0x05) // REX.W leaq 0(%rip), %rax
+							cursym.AddRel(ctxt, obj.Reloc{
+								Type: objabi.R_TLS_GD,
+								Off:  int32(p.Pc + int64(ab.Len())),
+								Siz:  4,
+								Add:  -4,
+							})
+							ab.PutInt32(0)
+							// call *(%rax) — TLSDESC resolver
+							ab.Put2(0xFF, 0x10)
+							if p.To.Reg != REG_AX {
+								// movq %rax, R_to
+								ab.Put1(byte(0x48 | (regrex[p.To.Reg] & Rxr)))
+								ab.Put2(0x8B, byte(0xC0|(reg[p.To.Reg]<<3)))
+								ab.Put1(0x58) // popq %rax (restore original RAX)
+							}
+							ab.rexflag = 0
+						} else {
+							// Initial Exec TLS model.
+							//     MOV TLS, R_to
+							// becomes
+							//     movq g@gottpoff(%rip), R_to
+							// which is encoded as
+							//     movq 0(%rip), R_to
+							// and a R_TLS_IE reloc. This all assumes the only tls variable we access
+							// is g, which we can't check here, but will when we assemble the second
+							// instruction.
+							ab.rexflag = Pw | (regrex[p.To.Reg] & Rxr)
 
-						ab.Put2(0x8B, byte(0x05|(reg[p.To.Reg]<<3)))
-						cursym.AddRel(ctxt, obj.Reloc{
-							Type: objabi.R_TLS_IE,
-							Off:  int32(p.Pc + int64(ab.Len())),
-							Siz:  4,
-							Add:  -4,
-						})
-						ab.PutInt32(0)
+							ab.Put2(0x8B, byte(0x05|(reg[p.To.Reg]<<3)))
+							cursym.AddRel(ctxt, obj.Reloc{
+								Type: objabi.R_TLS_IE,
+								Off:  int32(p.Pc + int64(ab.Len())),
+								Siz:  4,
+								Add:  -4,
+							})
+							ab.PutInt32(0)
+						}
 
 					case objabi.Hplan9:
 						pp.From = obj.Addr{}

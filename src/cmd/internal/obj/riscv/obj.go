@@ -3864,7 +3864,22 @@ func instructionsForTLS(p *obj.Prog, ins *instruction) []*instruction {
 	insAddTP := &instruction{as: AADD, rd: REG_TMP, rs1: REG_TMP, rs2: REG_TP}
 
 	var inss []*instruction
-	if p.Ctxt.Flag_shared {
+	if p.Ctxt.Flag_tlsgd {
+		// TLS general-dynamic mode using __tls_get_addr.
+		// Generates: AUIPC a0,hi; ADDI a0,a0,lo; AUIPC ra,hi; JALR ra,ra,lo; ld/sd
+		// The AUIPC+ADDI pair computes the GOT GD entry address.
+		// The AUIPC+JALR pair calls __tls_get_addr.
+		// Result: A0 = address of TLS variable (not offset).
+		// See go.dev/issue/13492.
+		insAUIPC := &instruction{as: AAUIPC, rd: REG_A0}
+		insADDI := &instruction{as: AADDI, rd: REG_A0, rs1: REG_A0}
+		insCallAUIPC := &instruction{as: AAUIPC, rd: REG_RA}
+		insCallJALR := &instruction{as: AJALR, rd: REG_RA, rs1: REG_RA}
+		// The final load/store uses A0 as base (result of __tls_get_addr).
+		ins.rs1 = REG_A0
+		ins.imm = 0
+		inss = []*instruction{insAUIPC, insADDI, insCallAUIPC, insCallJALR, ins}
+	} else if p.Ctxt.Flag_shared {
 		// TLS initial-exec mode - load TLS offset from GOT, add the thread pointer
 		// register, then load from or store to the resulting memory location.
 		insAUIPC := &instruction{as: AAUIPC, rd: REG_TMP}
@@ -5020,7 +5035,9 @@ func assemble(ctxt *obj.Link, cursym *obj.LSym, newprog obj.ProgAlloc) {
 				break
 			}
 			if addr.Sym.Type == objabi.STLSBSS {
-				if ctxt.Flag_shared {
+				if ctxt.Flag_tlsgd {
+					rt = objabi.R_RISCV_TLS_GD
+				} else if ctxt.Flag_shared {
 					rt = objabi.R_RISCV_TLS_IE
 				} else {
 					rt = objabi.R_RISCV_TLS_LE

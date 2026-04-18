@@ -802,6 +802,13 @@ func getGodebugEarly() (string, bool) {
 		// Similar to goenv_unix but extracts the environment value for
 		// GODEBUG directly.
 		// TODO(moehrmann): remove when general goenvs() can be called before cpuinit()
+		if (islibrary || isarchive) && GOOS == "linux" {
+			// In library/archive mode on Linux, argv may contain
+			// garbage on non-glibc systems. Skip early GODEBUG
+			// parsing; it will be picked up later via goenvs().
+			// See go.dev/issue/13492.
+			return "", false
+		}
 		n := int32(0)
 		for argv_index(argv, argc+1+n) != nil {
 			n++
