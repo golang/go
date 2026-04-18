@@ -1319,24 +1319,26 @@ havem:
 	BL	runtime·save_g(SB)
 	MOVD	(g_sched+gobuf_sp)(g), R4 // prepare stack as R4
 	MOVD	(g_sched+gobuf_pc)(g), R5
-	MOVD	R5, -48(R4)
-	MOVD	(g_sched+gobuf_bp)(g), R5
-	MOVD	R5, -56(R4)
+	MOVD    (g_sched+gobuf_bp)(g), R6
+
 	// Gather our arguments into registers.
-	MOVD	fn+0(FP), R1
-	MOVD	frame+8(FP), R2
-	MOVD	ctxt+16(FP), R3
-	MOVD	$-48(R4), R0 // maintain 16-byte SP alignment
-	MOVD	R0, RSP	// switch stack
-	MOVD	R1, 8(RSP)
-	MOVD	R2, 16(RSP)
-	MOVD	R3, 24(RSP)
-	MOVD	$runtime·cgocallbackg(SB), R0
-	CALL	(R0) // indirect call to bypass nosplit check. We're on a different stack now.
+	MOVD	fn+0(FP), R0
+	MOVD	frame+8(FP), R1
+	MOVD	ctxt+16(FP), R2
+
+	SUB	$48, R4		// Allocate the same frame size on the g stack
+	MOVD	R4, RSP		// switch stack
+
+	MOVD	R5, 0(RSP)	// "saved LR"
+	MOVD	R6, 8(RSP)	// "saved BP"
+	MOVD	$runtime·cgocallbackg<ABIInternal>(SB), R11
+	CALL	(R11) // indirect call to bypass nosplit check. We're on a different stack now.
 
 	// Restore g->sched (== m->curg->sched) from saved values.
 	MOVD	0(RSP), R5
 	MOVD	R5, (g_sched+gobuf_pc)(g)
+	MOVD	8(RSP), R5
+	MOVD	R5, (g_sched+gobuf_bp)(g)
 	MOVD	RSP, R4
 	ADD	$48, R4, R4
 	MOVD	R4, (g_sched+gobuf_sp)(g)
