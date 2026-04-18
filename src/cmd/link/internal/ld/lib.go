@@ -1980,6 +1980,15 @@ func (ctxt *Link) hostlink() {
 		argv = append(argv, p)
 		checkStatic(p)
 	}
+
+	// this will add an info.Plist file, as segment __TEXT and section __info_plist.
+	// This is used when using the external linker. Search in data.go for __info_plist to find
+	// the internal linker handling of this. Adding a section with an info.plist file allows
+	// Go executables to be code-signed for macOS.
+	if ctxt.LinkMode == LinkExternal && ctxt.IsDarwin() && *flagPlist != "" {
+		argv = append(argv, "-extldflags", fmt.Sprintf(`-sectcreate __TEXT __info_plist %q`, *flagPlist))
+	}
+
 	if ctxt.HeadType == objabi.Hwindows {
 		// use gcc linker script to work around gcc bug
 		// (see https://golang.org/issue/20183 for details).
