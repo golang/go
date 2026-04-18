@@ -97,7 +97,7 @@ func MapOf(key, elem Type) Type {
 	if ktyp.Size_ > abi.MapMaxKeyBytes {
 		mt.Flags |= abi.MapIndirectKey
 	}
-	if etyp.Size_ > abi.MapMaxKeyBytes {
+	if etyp.Size_ > abi.MapMaxElemBytes {
 		mt.Flags |= abi.MapIndirectElem
 	}
 	mt.PtrToThis = 0
