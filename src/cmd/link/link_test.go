@@ -2472,3 +2472,75 @@ func TestTypePlacement(t *testing.T) {
 		}
 	}
 }
+
+func TestErratum843419(t *testing.T) {
+	// Test that the linker generates erratum 843419 veneers for ARM64 binaries.
+	// The erratum affects ADRP instructions at page offsets 0xFF8/0xFFC on
+	// Cortex-A53 cores. We use -debugtramp=2 to force veneer generation for
+	// all ADRP relocations so the test works regardless of binary layout.
+	if runtime.GOARCH != "arm64" {
+		t.Skipf("erratum 843419 only applies to arm64")
+	}
+
+	testenv.MustHaveGoBuild(t)
+	t.Parallel()
+
+	tmpdir := t.TempDir()
+	src := filepath.Join(tmpdir, "main.go")
+	err := os.WriteFile(src, []byte(testErratum843419Src), 0666)
+	if err != nil {
+		t.Fatal(err)
+	}
+	exe := filepath.Join(tmpdir, "main.exe")
+
+	// Build with -debugtramp=2 to force veneer generation for all ADRP
+	// relocations regardless of page offset, for testing purposes.
+	cmd := goCmd(t, "build", "-ldflags=-debugtramp=2", "-o", exe, src)
+	out, err := cmd.CombinedOutput()
+	if err != nil {
+		t.Fatalf("build failed: %v\n%s", err, out)
+	}
+
+	// Verify the binary runs correctly.
+	cmd = testenv.Command(t, exe)
+	out, err = cmd.CombinedOutput()
+	if err != nil {
+		t.Fatalf("executable failed to run: %v\n%s", err, out)
+	}
+	if string(out) != "OK\n" {
+		t.Errorf("unexpected output: %q, want %q", string(out), "OK\n")
+	}
+
+	// Check that erratum843419 veneers were generated.
+	out, err = testenv.Command(t, testenv.GoToolPath(t), "tool", "nm", exe).CombinedOutput()
+	if err != nil {
+		t.Fatalf("nm failed: %v\n%s", err, out)
+	}
+	if !bytes.Contains(out, []byte("erratum843419")) {
+		t.Errorf("no erratum843419 veneers found in binary; expected veneer symbols in nm output")
+	}
+}
+
+const testErratum843419Src = `
+package main
+
+import (
+	"crypto/ecdsa"
+	"crypto/elliptic"
+	"crypto/rand"
+	"crypto/sha256"
+)
+
+func main() {
+	key, err := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
+	if err != nil {
+		panic(err)
+	}
+	hash := sha256.Sum256([]byte("erratum 843419 test"))
+	_, err = ecdsa.SignASN1(rand.Reader, key, hash[:])
+	if err != nil {
+		panic(err)
+	}
+	println("OK")
+}
+`
