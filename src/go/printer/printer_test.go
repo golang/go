@@ -848,6 +848,31 @@ func TestSourcePosNewline(t *testing.T) {
 	}
 }
 
+func TestOneLineFieldListNamesSize(t *testing.T) {
+	const src = `package p
+
+type T struct{ FieldNameThatExceedsMaxSize28 int }
+`
+	// 28 (name size) + 1 (whitespace) + 3 (typeSize) == 32
+	// 32 > 30; so the struct should be formatted across multiple lines.
+	const want = "package p\n\ntype T struct {\n\tFieldNameThatExceedsMaxSize28 int\n}\n"
+
+	fset := token.NewFileSet()
+	f, err := parser.ParseFile(fset, "", src, 0)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	var buf bytes.Buffer
+	if err := (&Config{Mode: TabIndent, Tabwidth: 8}).Fprint(&buf, fset, f); err != nil {
+		t.Fatal(err)
+	}
+	got := buf.String()
+	if got != want {
+		t.Errorf("got:\n%s\nwant:\n%s", got, want)
+	}
+}
+
 // TestEmptyDecl tests that empty decls for const, var, import are printed with
 // valid syntax e.g "var ()" instead of just "var", which is invalid and cannot
 // be parsed.
