@@ -1378,6 +1378,92 @@ func TestIssue38192(t *testing.T) {
 	}
 }
 
+func TestEpilogueBegin(t *testing.T) {
+	testenv.MustHaveGoBuild(t)
+	mustHaveDWARF(t)
+	t.Parallel()
+
+	// Build a Go program with multiple return sites and verify that
+	// the DWARF line table contains epilogue_begin markers.
+	dir := t.TempDir()
+	f := gobuild(t, dir, `
+package main
+
+//go:noinline
+func multiReturn(x int) int {
+	if x > 10 {
+		return x + 1
+	}
+	if x < -10 {
+		return x - 1
+	}
+	return 0
+}
+
+func main() {
+	multiReturn(42)
+}
+`, NoOpt)
+	defer f.Close()
+
+	dw, err := f.DWARF()
+	if err != nil {
+		t.Fatalf("error parsing DWARF: %v", err)
+	}
+
+	var prologueEndCount, epilogueBeginCount int
+
+	rdr := dw.Reader()
+	for {
+		e, err := rdr.Next()
+		if err != nil {
+			t.Fatalf("error reading DWARF: %v", err)
+		}
+		if e == nil {
+			break
+		}
+		if e.Tag != dwarf.TagCompileUnit {
+			continue
+		}
+		lnrdr, err := dw.LineReader(e)
+		if err != nil {
+			t.Fatalf("error creating DWARF line reader: %v", err)
+		}
+		if lnrdr == nil {
+			continue
+		}
+		var lne dwarf.LineEntry
+		for {
+			err := lnrdr.Next(&lne)
+			if err == io.EOF {
+				break
+			}
+			if err != nil {
+				t.Fatalf("error reading next DWARF line: %v", err)
+			}
+			if !strings.HasSuffix(lne.File.Name, "test.go") {
+				continue
+			}
+			if lne.PrologueEnd {
+				prologueEndCount++
+			}
+			if lne.EpilogueBegin {
+				epilogueBeginCount++
+			}
+		}
+		rdr.SkipChildren()
+	}
+	f.Close()
+
+	if prologueEndCount == 0 {
+		t.Error("no prologue_end markers found in DWARF line table")
+	}
+	if epilogueBeginCount == 0 {
+		t.Error("no epilogue_begin markers found in DWARF line table")
+	}
+	t.Logf("found %d prologue_end and %d epilogue_begin markers", prologueEndCount, epilogueBeginCount)
+}
+
 func TestIssue39757(t *testing.T) {
 	testenv.MustHaveGoBuild(t)
 
