@@ -10,7 +10,7 @@ Our canonical Git repository is located at https://go.googlesource.com/go.
 There is a mirror of the repository at https://github.com/golang/go.
 
 Unless otherwise noted, the Go source files are distributed under the
-BSD-style license found in the LICENSE file.
+BSD-style license found in the [LICENSE](./LICENSE).
 
 ### Download and Install
 
@@ -32,11 +32,12 @@ for source installation instructions.
 
 Go is the work of thousands of contributors. We appreciate your help!
 
-To contribute, please read the contribution guidelines at https://go.dev/doc/contribute.
+To contribute, please read the [Contribution Guide][contribution-guide-url].
 
-Note that the Go project uses the issue tracker for bug reports and
+> Note that the Go project restricts the [Github issue tracker](https://github.com/golang/go/issues) for bug reports and
 proposals only. See https://go.dev/wiki/Questions for a list of
 places to ask questions about the Go language.
 
 [rf]: https://reneefrench.blogspot.com/
 [cc4-by]: https://creativecommons.org/licenses/by/4.0/
+[contribution-guide-url]: https://go.dev/doc/contribute
