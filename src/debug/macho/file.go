@@ -234,7 +234,7 @@ func NewFile(r io.ReaderAt) (*File, error) {
 	// Magic32 and Magic64 differ only in the bottom bit.
 	var ident [4]byte
 	if _, err := r.ReadAt(ident[0:], 0); err != nil {
-		return nil, err
+		return nil, &FormatError{0, "cannot read Mach-O identifier", err}
 	}
 	be := binary.BigEndian.Uint32(ident[0:])
 	le := binary.LittleEndian.Uint32(ident[0:])
@@ -251,7 +251,7 @@ func NewFile(r io.ReaderAt) (*File, error) {
 
 	// Read entire file header.
 	if err := binary.Read(sr, f.ByteOrder, &f.FileHeader); err != nil {
-		return nil, err
+		return nil, &FormatError{0, "cannot read Mach-O header", err}
 	}
 
 	// Then load commands.
