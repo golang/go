@@ -733,3 +733,19 @@ func TestGlobal(t *testing.T) {
 		t.Errorf("got %#v, want %#v", got, js.Global())
 	}
 }
+
+func TestScope(t *testing.T) {
+	ident := js.FuncOf(func(this js.Value, args []js.Value) any {
+		return args[0]
+	})
+	defer ident.Release()
+
+	js.Scope().Set("key", "value")
+	if js.Scope().Get("key").String() != "value" {
+		t.Errorf("get key %s: got %#v", "key", js.Scope().Get("key"))
+	}
+
+	if got := ident.Invoke(js.Scope()); got.Equal(js.Global()) {
+		t.Errorf("scope %#v mixed with global %#v", got, js.Global())
+	}
+}
