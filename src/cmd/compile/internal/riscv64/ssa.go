@@ -1042,6 +1042,46 @@ func ssaGenBlock(s *ssagen.State, b, next *ssa.Block) {
 			p.From.Reg = b.Controls[0].Reg()
 		}
 
+	case ssa.BlockRISCV64JUMPTABLE:
+		// Jump table:
+		// TMP = base + index*8 (SH3ADD if Zba else SLLI+ADD).
+		// Load slot into TMP, then indirect JMP through TMP.
+		var p *obj.Prog
+		if buildcfg.GORISCV64 >= 22 {
+			p = s.Prog(riscv.ASH3ADD)
+			p.From.Type = obj.TYPE_REG
+			p.From.Reg = b.Controls[1].Reg()
+			p.Reg = b.Controls[0].Reg()
+			p.To.Type = obj.TYPE_REG
+			p.To.Reg = riscv.REG_TMP
+		} else {
+			p = s.Prog(riscv.ASLLI)
+			p.From.Type = obj.TYPE_CONST
+			p.From.Offset = 3
+			p.Reg = b.Controls[0].Reg()
+			p.To.Type = obj.TYPE_REG
+			p.To.Reg = riscv.REG_TMP
+
+			p = s.Prog(riscv.AADD)
+			p.From.Type = obj.TYPE_REG
+			p.From.Reg = riscv.REG_TMP
+			p.Reg = b.Controls[1].Reg()
+			p.To.Type = obj.TYPE_REG
+			p.To.Reg = riscv.REG_TMP
+		}
+
+		p = s.Prog(riscv.AMOV)
+		p.From.Type = obj.TYPE_MEM
+		p.From.Reg = riscv.REG_TMP
+		p.To.Type = obj.TYPE_REG
+		p.To.Reg = riscv.REG_TMP
+
+		p = s.Prog(obj.AJMP)
+		p.To.Type = obj.TYPE_MEM
+		p.To.Reg = riscv.REG_TMP
+		// Save jump tables for later resolution of the target blocks.
+		s.JumpTables = append(s.JumpTables, b)
+
 	default:
 		b.Fatalf("Unhandled block: %s", b.LongString())
 	}
