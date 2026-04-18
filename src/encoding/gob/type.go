@@ -264,12 +264,12 @@ var (
 	tComplex   = bootstrapType("complex", (*complex128)(nil))
 	tInterface = bootstrapType("interface", (*any)(nil))
 	// Reserve some Ids for compatible expansion
-	tReserved7 = bootstrapType("_reserved1", (*struct{ r7 int })(nil))
-	tReserved6 = bootstrapType("_reserved1", (*struct{ r6 int })(nil))
-	tReserved5 = bootstrapType("_reserved1", (*struct{ r5 int })(nil))
-	tReserved4 = bootstrapType("_reserved1", (*struct{ r4 int })(nil))
-	tReserved3 = bootstrapType("_reserved1", (*struct{ r3 int })(nil))
-	tReserved2 = bootstrapType("_reserved1", (*struct{ r2 int })(nil))
+	tReserved7 = bootstrapType("_reserved7", (*struct{ r7 int })(nil))
+	tReserved6 = bootstrapType("_reserved6", (*struct{ r6 int })(nil))
+	tReserved5 = bootstrapType("_reserved5", (*struct{ r5 int })(nil))
+	tReserved4 = bootstrapType("_reserved4", (*struct{ r4 int })(nil))
+	tReserved3 = bootstrapType("_reserved3", (*struct{ r3 int })(nil))
+	tReserved2 = bootstrapType("_reserved2", (*struct{ r2 int })(nil))
 	tReserved1 = bootstrapType("_reserved1", (*struct{ r1 int })(nil))
 )
 
