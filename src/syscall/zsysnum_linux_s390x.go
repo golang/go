@@ -324,3 +324,7 @@ const (
 	SYS_SETFSGID               = 216
 	SYS_NEWFSTATAT             = 293
 )
+
+const (
+	_SYS_landlock_restrict_self = 446
+)
