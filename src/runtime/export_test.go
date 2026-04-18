@@ -228,6 +228,15 @@ func GostringW(w []uint16) (s string) {
 	return
 }
 
+// Findnull is an entry point for testing findnull.
+// It returns the index of the first NUL byte in a NUL-terminated byte slice.
+func Findnull(s []byte) int {
+	if len(s) == 0 {
+		return 0
+	}
+	return findnull(&s[0])
+}
+
 var Open = open
 var Close = closefd
 var Read = read
