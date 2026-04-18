@@ -36,7 +36,7 @@ var (
 
 var le = binary.LittleEndian
 
-// noEOF converts io.EOF to io.ErrUnexpectedEOF.
+// noEOF converts [io.EOF] to io.ErrUnexpectedEOF.
 func noEOF(err error) error {
 	if err == io.EOF {
 		return io.ErrUnexpectedEOF
