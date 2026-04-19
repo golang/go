@@ -499,9 +499,9 @@ func (m *Map) PutSlot(typ *abi.MapType, key unsafe.Pointer) unsafe.Pointer {
 	}
 
 	if m.dirLen == 0 {
-		if m.used < abi.MapGroupSlots {
-			elem := m.putSlotSmall(typ, hash, key)
-
+		elem := m.putSlotSmall(typ, hash, key)
+		if elem != nil {
+			// Found an existing slot.
 			if m.writing == 0 {
 				fatal("concurrent map writes")
 			}
@@ -511,9 +511,6 @@ func (m *Map) PutSlot(typ *abi.MapType, key unsafe.Pointer) unsafe.Pointer {
 		}
 
 		// Can't fit another entry, grow to full size map.
-		//
-		// TODO(prattmic): If this is an update to an existing key then
-		// we actually don't need to grow.
 		m.growToTable(typ)
 	}
 
@@ -568,7 +565,7 @@ func (m *Map) putSlotSmall(typ *abi.MapType, hash uintptr, key unsafe.Pointer) u
 	// more efficient than matchEmpty.
 	match = g.ctrls().matchEmptyOrDeleted()
 	if match == 0 {
-		fatal("small map with no empty slot (concurrent map writes?)")
+		// No empty slot found. Need to grow the map.
 		return nil
 	}
 

@@ -128,7 +128,8 @@ func (m *Map) putSlotSmallFast64(typ *abi.MapType, hash uintptr, key uint64) uns
 	// more efficient than matchEmpty.
 	match = g.ctrls().matchEmptyOrDeleted()
 	if match == 0 {
-		fatal("small map with no empty slot (concurrent map writes?)")
+		// No empty slot found. Need to grow the map.
+		return nil
 	}
 
 	i := match.first()
@@ -172,9 +173,9 @@ func runtime_mapassign_fast64(typ *abi.MapType, m *Map, key uint64) unsafe.Point
 	}
 
 	if m.dirLen == 0 {
-		if m.used < abi.MapGroupSlots {
-			elem := m.putSlotSmallFast64(typ, hash, key)
-
+		elem := m.putSlotSmallFast64(typ, hash, key)
+		if elem != nil {
+			// Found an existing slot.
 			if m.writing == 0 {
 				fatal("concurrent map writes")
 			}

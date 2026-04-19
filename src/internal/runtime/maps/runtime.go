@@ -180,9 +180,9 @@ func runtime_mapassign(typ *abi.MapType, m *Map, key unsafe.Pointer) unsafe.Poin
 	}
 
 	if m.dirLen == 0 {
-		if m.used < abi.MapGroupSlots {
-			elem := m.putSlotSmall(typ, hash, key)
-
+		elem := m.putSlotSmall(typ, hash, key)
+		if elem != nil {
+			// Found an existing slot.
 			if m.writing == 0 {
 				fatal("concurrent map writes")
 			}
