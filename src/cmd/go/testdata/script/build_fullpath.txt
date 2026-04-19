@@ -1,0 +1,17 @@
+[short] skip
+
+# Test go build without -fullpath.
+! go build ./y/...
+stderr '^y[/\\]y.go:3:9: undefined: mistake$'
+
+# Test go build with -fullpath.
+! go build -fullpath ./y/...
+stderr '^'$WORK'[/\\]gopath[/\\]src[/\\]y[/\\]y.go:3:9: undefined: mistake$'
+! stderr '^y[/\\]y.go:3:9: undefined: mistake$'
+
+-- go.mod --
+module example
+-- y/y.go --
+package y
+
+var _ = mistake

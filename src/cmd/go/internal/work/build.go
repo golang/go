@@ -135,6 +135,8 @@ and test commands:
 		arguments to pass on each gccgo compiler/linker invocation.
 	-gcflags '[pattern=]arg list'
 		arguments to pass on each go tool compile invocation.
+	-fullpath
+		show full file names in error messages.
 	-installsuffix suffix
 		a suffix to use in the name of the package installation directory,
 		in order to keep output separate from default builds.
@@ -323,6 +325,7 @@ func AddBuildFlags(cmd *base.Command, mask BuildFlagMask) {
 	cmd.Flag.Var(buildCompiler{}, "compiler", "")
 	cmd.Flag.StringVar(&cfg.BuildBuildmode, "buildmode", "default", "")
 	cmd.Flag.Var((*buildvcsFlag)(&cfg.BuildBuildvcs), "buildvcs", "")
+	cmd.Flag.BoolVar(&cfg.BuildFullpath, "fullpath", false, "")
 	cmd.Flag.Var(&load.BuildGcflags, "gcflags", "")
 	cmd.Flag.Var(&load.BuildGccgoflags, "gccgoflags", "")
 	if mask&OmitModFlag == 0 {
