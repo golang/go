@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-//go:build (amd64 || arm64 || loong64) && !purego
+//go:build (amd64 || arm64 || loong64 || riscv64) && !purego
 
 package gcm
 
@@ -32,7 +32,10 @@ func gcmAesFinish(productTable *[256]byte, tagMask, T *[16]byte, pLen, dLen uint
 
 // Keep in sync with crypto/tls.hasAESGCMHardwareSupport.
 var supportsAESGCM = cpu.X86HasAES && cpu.X86HasPCLMULQDQ && cpu.X86HasSSE41 && cpu.X86HasSSSE3 ||
-	cpu.ARM64HasAES && cpu.ARM64HasPMULL || cpu.LOONG64HasLSX
+	cpu.ARM64HasAES && cpu.ARM64HasPMULL ||
+	cpu.LOONG64HasLSX ||
+	cpu.RISCV64HasV && cpu.RISCV64HasZbb &&
+		cpu.RISCV64HasZvkned && cpu.RISCV64HasZvkg && cpu.RISCV64VLENB >= 16
 
 var supportsAESGCMEOR3 = supportsAESGCM && cpu.ARM64HasSHA3
 
@@ -46,6 +49,9 @@ func init() {
 	}
 	if cpu.LOONG64 {
 		impl.Register("gcm", "LSX", &supportsAESGCM)
+	}
+	if cpu.RISCV64 {
+		impl.Register("gcm", "Zvkned+Zvkg", &supportsAESGCM)
 	}
 }
 
