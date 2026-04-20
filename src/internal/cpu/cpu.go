@@ -157,6 +157,7 @@ var RISCV64 struct {
 	HasFastMisaligned bool // Fast misaligned accesses
 	HasV              bool // Vector extension compatible with RVV 1.0
 	HasZbb            bool // Basic bit-manipulation extension
+	HasZbc            bool // Carryless multiplication extension
 	HasZvbb           bool // Vector Basic Bit-manipulation
 	HasZvbc           bool // Vector Carryless Multiplication
 	HasZvkg           bool // Vector GCM/GMAC
