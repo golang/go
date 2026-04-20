@@ -1,5 +1,5 @@
 # golang.org/issue/34055
-# Starting in Go 1.25, go-import meta tag support an optional subdirectory paramater.
+# Starting in Go 1.25, go-import meta tag support an optional subdirectory parameter.
 # The corresponding go-import meta tag is specified as
 # <meta name="go-import" content="vcs-test.golang.org/go/gitreposubdir git https://vcs-test.golang.org/git/gitreposubdir foo/subdir">
 # and contains the module in vcs-test.golang.org/git/gitreposubdir/foo/subdir.
