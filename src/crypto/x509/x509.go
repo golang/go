@@ -1398,12 +1398,17 @@ func buildCertExtensions(template *Certificate, subjectIsEmpty bool, authorityKe
 		ret[n].Id = oidExtensionNameConstraints
 		ret[n].Critical = template.PermittedDNSDomainsCritical
 
-		ipAndMask := func(ipNet *net.IPNet) []byte {
+		ipAndMask := func(ipNet *net.IPNet) ([]byte, error) {
 			maskedIP := ipNet.IP.Mask(ipNet.Mask)
+			// This is extremely unlikely to actually happen, but lets save people from doing something they
+			// probably shouldn't.
+			if len(maskedIP) == net.IPv6len && maskedIP.To4() != nil {
+				return nil, errors.New("x509: IP constraint contained IPv4-mapped IPv6 address with a IPv6 mask")
+			}
 			ipAndMask := make([]byte, 0, len(maskedIP)+len(ipNet.Mask))
 			ipAndMask = append(ipAndMask, maskedIP...)
 			ipAndMask = append(ipAndMask, ipNet.Mask...)
-			return ipAndMask
+			return ipAndMask, nil
 		}
 
 		serialiseConstraints := func(dns []string, ips []*net.IPNet, emails []string, uriDomains []string) (der []byte, err error) {
@@ -1422,9 +1427,13 @@ func buildCertExtensions(template *Certificate, subjectIsEmpty bool, authorityKe
 			}
 
 			for _, ipNet := range ips {
+				encodedIPNet, err := ipAndMask(ipNet)
+				if err != nil {
+					return nil, err
+				}
 				b.AddASN1(cryptobyte_asn1.SEQUENCE, func(b *cryptobyte.Builder) {
 					b.AddASN1(cryptobyte_asn1.Tag(7).ContextSpecific(), func(b *cryptobyte.Builder) {
-						b.AddBytes(ipAndMask(ipNet))
+						b.AddBytes(encodedIPNet)
 					})
 				})
 			}
@@ -1792,6 +1801,9 @@ var emptyASN1Subject = []byte{0x30, 0}
 // be marshaled instead of the Policies field. This changed in Go 1.24. The Policies field can
 // be used to marshal policy OIDs which have components that are larger than 31
 // bits.
+//
+// IP addresses in IPAddresses which are in their IPv4-mapped IPv6 form will always be encoded
+// in their IPv4 form.
 func CreateCertificate(rand io.Reader, template, parent *Certificate, pub, priv any) ([]byte, error) {
 	key, ok := priv.(crypto.Signer)
 	if !ok {
