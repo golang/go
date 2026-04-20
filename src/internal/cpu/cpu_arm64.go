@@ -83,6 +83,11 @@ func parseARM64SystemRegisters(isar0, isa1, pfr0 uint64) {
 		ARM64.HasSB = true
 	}
 
+	switch extractBits(pfr0, 32, 35) {
+	case 1, 2:
+		ARM64.HasSVE = true
+	}
+
 	switch extractBits(pfr0, 48, 51) {
 	case 1:
 		ARM64.HasDIT = true

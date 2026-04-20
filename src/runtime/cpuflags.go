@@ -23,6 +23,7 @@ const (
 
 	offsetLOONG64HasLSX  = unsafe.Offsetof(cpu.Loong64.HasLSX)
 	offsetLOONG64HasLASX = unsafe.Offsetof(cpu.Loong64.HasLASX)
+	offsetARM64HasSVE    = unsafe.Offsetof(cpu.ARM64.HasSVE)
 )
 
 var (
