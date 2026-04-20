@@ -508,6 +508,12 @@ func CalcStructSize(t *Type) {
 			case "v512":
 				simdify(t, true)
 				return
+			case "vsve":
+				simdify(t, true)
+				return
+			case "psve":
+				simdify(t, true)
+				return
 			}
 		}
 	}
@@ -589,7 +595,15 @@ func CalcStructSize(t *Type) {
 
 	if len(t.Fields()) >= 1 && t.Fields()[0].Type.flags&typeIsSIMDTag != 0 {
 		// this catches `type Foo simd.Whatever` -- Foo is also SIMD.
-		simdify(t, false)
+		if t.Fields()[0].Type.Sym().Name == "psve" {
+			simdify(t, false)
+			// Force it to be passed via memory for now.
+			// TODO: support p registers in the ABI.
+			t.intRegs = math.MaxUint8
+			t.floatRegs = math.MaxUint8
+		} else {
+			simdify(t, false)
+		}
 	}
 }
 

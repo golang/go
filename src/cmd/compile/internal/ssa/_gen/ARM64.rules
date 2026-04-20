@@ -334,7 +334,7 @@
 (Store {t} ptr val mem) && t.Size() == 1 => (MOVBstore ptr val mem)
 (Store {t} ptr val mem) && t.Size() == 2 => (MOVHstore ptr val mem)
 (Store {t} ptr val mem) && t.Size() == 4 && !t.IsFloat() => (MOVWstore ptr val mem)
-(Store {t} ptr val mem) && t.Size() == 8 && !t.IsFloat() => (MOVDstore ptr val mem)
+(Store {t} ptr val mem) && t.Size() == 8 && !t.IsFloat() && !t.IsSIMD() => (MOVDstore ptr val mem)
 (Store {t} ptr val mem) && t.Size() == 4 &&  t.IsFloat() => (FMOVSstore ptr val mem)
 (Store {t} ptr val mem) && t.Size() == 8 &&  t.IsFloat() => (FMOVDstore ptr val mem)
 (Store {t} ptr val mem) && t.Size() == 16 => (FMOVQstore ptr val mem)
@@ -1881,3 +1881,18 @@
 
 // SIMD zero
 (ZeroSIMD <t>) && t.Size() == 16 => (VMOVI16B [0] <t>)
+
+// SVE
+(LoadMasked8 <t> ptr mask mem) && t.Size() == 32 => (ZLD1BPredload ptr mask mem)
+(StoreMasked8 {t} ptr mask val mem) && t.Size() == 32 => (ZST1BPredstore ptr val mask mem)
+(Count8s r) => (Select0 <types.TypeMask> (PWHILELTB (MOVDconst [0]) r))
+(GreaterInt8s x y) => (Select0 <types.TypeMask> (ZCMPGTB x y (Select0 <types.TypeMask> (PWHILELTB (MOVDconst [0]) (MOVDconst [32])))))
+(MergeInt8s ...) => (ZSELB ...)
+(AddInt8s x y) => (ZADDBPred x y (Select0 <types.TypeMask> (PWHILELTB (MOVDconst [0]) (MOVDconst [32]))))
+(ScalableVectorLen) => (RDVL [1])
+(ZeroSIMD <t>) && t.Size() == 8 && t.IsSIMD() => (PPFALSE)
+(ZeroSIMD <t>) && t.Size() == 32 && t.IsSIMD() => (ZDUPBconst [0])
+(Load <t> ptr mem) && t.Size() == 32 && t.IsSIMD() => (ZLDRload ptr mem)
+(Store {t} ptr val mem) && t.Size() == 32 && t.IsSIMD() => (ZSTRstore ptr val mem)
+(Load <t> ptr mem) && t.Size() == 8 && t.IsSIMD() => (PLDRload ptr mem)
+(Store {t} ptr val mem) && t.Size() == 8 && t.IsSIMD() => (PSTRstore ptr val mem)

@@ -23,8 +23,13 @@ import (
 // loadByType returns the load instruction of the given type.
 func loadByType(t *types.Type) obj.As {
 	if t.IsSIMD() {
-		if t.Size() == 16 {
+		switch t.Size() {
+		case 16:
 			return arm64.AFMOVQ // Use FMOVQ (LDR Q) for 128-bit SIMD loads
+		case 8:
+			return arm64.APLDR
+		case 32:
+			return arm64.AZLDR
 		}
 	} else if t.IsFloat() {
 		switch t.Size() {
@@ -63,8 +68,13 @@ func loadByType(t *types.Type) obj.As {
 // storeByType returns the store instruction of the given type.
 func storeByType(t *types.Type) obj.As {
 	if t.IsSIMD() {
-		if t.Size() == 16 {
+		switch t.Size() {
+		case 16:
 			return arm64.AFMOVQ // Use FMOVQ (STR Q) for 128-bit SIMD stores
+		case 8:
+			return arm64.APSTR
+		case 32:
+			return arm64.AZSTR
 		}
 	} else if t.IsFloat() {
 		switch t.Size() {
@@ -170,6 +180,8 @@ func genIndexedOperand(op ssa.Op, base, idx int16) obj.Addr {
 	}
 	return mop
 }
+
+const simdSVEVectorLengthScaled int16 = -32768
 
 // simdRegArng encodes ssa value's register with specified simd arrangement
 func simdRegArng(reg int16, arng int16) int16 {
@@ -600,6 +612,28 @@ func ssaGenValue(s *ssagen.State, v *ssa.Value) {
 			if v.Type.Size() == 16 {
 				simdV11Asm(s, arm64.AVMOV, x, y, arm64.ARNG_16B)
 				return
+			} else if v.Type.Size() == 32 {
+				// Z->Z
+				p := s.Prog(arm64.AZORR)
+				p.From.Type = obj.TYPE_REG
+				p.From.Reg = zregArng(x, arm64.ARNG_D)
+				p.AddRestSourceReg(zregArng(x, arm64.ARNG_D))
+				p.To.Type = obj.TYPE_REG
+				p.To.Reg = zregArng(y, arm64.ARNG_D)
+				return
+			} else if v.Type.Size() == 8 {
+				// P->P
+				p := s.Prog(arm64.APORR)
+				p.From.Type = obj.TYPE_REG
+				if x < arm64.REG_P0 || x > arm64.REG_P15 {
+					panic("bad P reg")
+				}
+				p.From.Reg = pregArng(x, arm64.ARNG_B)
+				p.AddRestSourceReg(pregArng(x, arm64.ARNG_B))
+				p.AddRestSourceReg(pregMask(x, arm64.PRED_Z))
+				p.To.Type = obj.TYPE_REG
+				p.To.Reg = pregArng(y, arm64.ARNG_B)
+				return
 			} else {
 				panic("bad simd size")
 			}
@@ -621,7 +655,12 @@ func ssaGenValue(s *ssagen.State, v *ssa.Value) {
 		p := s.Prog(loadByType(v.Type))
 		ssagen.AddrAuto(&p.From, v.Args[0])
 		p.To.Type = obj.TYPE_REG
-		p.To.Reg = v.Reg()
+		if v.Type.IsSIMD() && (v.Type.Size() == 32 || v.Type.Size() == 8) {
+			p.To.Reg = pzreg(v.Reg())
+			p.From.Scale = simdSVEVectorLengthScaled
+		} else {
+			p.To.Reg = v.Reg()
+		}
 	case ssa.OpStoreReg:
 		if v.Type.IsFlags() {
 			v.Fatalf("store flags not implemented: %v", v.LongString())
@@ -629,7 +668,12 @@ func ssaGenValue(s *ssagen.State, v *ssa.Value) {
 		}
 		p := s.Prog(storeByType(v.Type))
 		p.From.Type = obj.TYPE_REG
-		p.From.Reg = v.Args[0].Reg()
+		if v.Type.IsSIMD() && (v.Type.Size() == 32 || v.Type.Size() == 8) {
+			p.From.Reg = pzreg(v.Args[0].Reg())
+			p.To.Scale = simdSVEVectorLengthScaled
+		} else {
+			p.From.Reg = v.Args[0].Reg()
+		}
 		ssagen.AddrAuto(&p.To, v)
 	case ssa.OpArgIntReg, ssa.OpArgFloatReg:
 		ssagen.CheckArgReg(v)
@@ -660,8 +704,13 @@ func ssaGenValue(s *ssagen.State, v *ssa.Value) {
 					}
 				}
 			}
+			reg := a.Reg
+			if a.Type.IsSIMD() && (a.Type.Size() == 32 || a.Type.Size() == 8) {
+				reg = pzreg(reg)
+				addr.Scale = simdSVEVectorLengthScaled
+			}
 			// Pass the spill/unspill information along to the assembler.
-			s.FuncInfo().AddSpill(obj.RegSpill{Reg: a.Reg, Addr: addr, Unspill: loadByType(a.Type), Spill: storeByType(a.Type)})
+			s.FuncInfo().AddSpill(obj.RegSpill{Reg: reg, Addr: addr, Unspill: loadByType(a.Type), Spill: storeByType(a.Type)})
 		}
 
 	case ssa.OpARM64ADD,
@@ -716,6 +765,104 @@ func ssaGenValue(s *ssagen.State, v *ssa.Value) {
 		p.Reg = r1
 		p.To.Type = obj.TYPE_REG
 		p.To.Reg = r
+	case ssa.OpARM64ZADDBPred:
+		// TODO: maybe merge destructive args to be one register.
+		// Currently they are listed as both a source and the dest
+		// even though the assembler will reject it if they are not
+		// the same.
+		p := s.Prog(v.Op.Asm())
+		p.From.Type = obj.TYPE_REG
+		p.From.Reg = zregArng(v.Args[1].Reg(), arm64.ARNG_B)
+		p.AddRestSourceReg(zregArng(v.Args[0].Reg(), arm64.ARNG_B))
+		p.AddRestSourceReg(pregMask(v.Args[2].Reg(), arm64.PRED_M))
+		p.To.Type = obj.TYPE_REG
+		p.To.Reg = zregArng(v.Reg(), arm64.ARNG_B)
+	case ssa.OpARM64ZLD1BPredload:
+		// ASM expects: arg0=addr, arg1=pred, dst=[zreg]
+		// SSA op provides: arg0=addr, arg1=pred, dst=zreg
+		p := s.Prog(v.Op.Asm())
+		p.From.Type = obj.TYPE_MEM
+		p.From.Reg = v.Args[0].Reg()
+		p.From.Scale = simdSVEVectorLengthScaled
+		ssagen.AddAux(&p.From, v)
+		p.AddRestSourceReg(pregMask(v.Args[1].Reg(), arm64.PRED_Z))
+		p.To.Type = obj.TYPE_REGLIST
+		p.To.Offset, _ = arm64.RegisterListOffset(int(pzreg(v.Reg())), 1, regListArr("Z", "B"), 0)
+	case ssa.OpARM64ZST1BPredstore:
+		// ASM expects: arg0=[zreg], arg1=pred, dst=addr
+		// SSA op provides: arg0=addr, arg1=zreg, arg2=pred
+		p := s.Prog(v.Op.Asm())
+		p.From.Type = obj.TYPE_REGLIST
+		p.From.Offset, _ = arm64.RegisterListOffset(int(pzreg(v.Args[1].Reg())), 1, regListArr("Z", "B"), 0)
+		p.AddRestSourceReg(v.Args[2].Reg())
+		p.To.Type = obj.TYPE_MEM
+		p.To.Reg = v.Args[0].Reg()
+		p.To.Scale = simdSVEVectorLengthScaled
+		ssagen.AddAux(&p.To, v)
+	case ssa.OpARM64PWHILELTB:
+		// ASM expects: arg0=y, arg1=x, dst=preg
+		// preg enables y-x
+		// SSA op provides: arg0=x, arg1=y, dst=preg
+		p := s.Prog(v.Op.Asm())
+		p.From.Type = obj.TYPE_REG
+		p.From.Reg = v.Args[1].Reg()
+		p.AddRestSourceReg(v.Args[0].Reg())
+		p.To.Type = obj.TYPE_REG
+		p.To.Reg = pregArng(v.Reg0(), arm64.ARNG_B)
+	case ssa.OpARM64ZCMPGTB:
+		// Asm expects arg0=y, arg1=x, arg2=pred, dst=preg
+		// preg enables x > y
+		// SSA op provides arg0=x, arg1=y, arg2=pred, dst=preg
+		p := s.Prog(v.Op.Asm())
+		p.From.Type = obj.TYPE_REG
+		p.From.Reg = zregArng(v.Args[1].Reg(), arm64.ARNG_B)
+		p.AddRestSourceReg(zregArng(v.Args[0].Reg(), arm64.ARNG_B))
+		p.AddRestSourceReg(pregMask(v.Args[2].Reg(), arm64.PRED_Z))
+		p.To.Type = obj.TYPE_REG
+		p.To.Reg = pregArng(v.Reg0(), arm64.ARNG_B)
+	case ssa.OpARM64ZSELB:
+		// Asm expects: arg0=y, arg1=x, arg2=preg, dst=zreg
+		// preg true, dst is x, otherwise it's y
+		// SSA op provides: arg0=x, arg1=y, arg2=preg, dst=zreg
+		p := s.Prog(v.Op.Asm())
+		p.From.Type = obj.TYPE_REG
+		p.From.Reg = zregArng(v.Args[1].Reg(), arm64.ARNG_B)
+		p.AddRestSourceReg(zregArng(v.Args[0].Reg(), arm64.ARNG_B))
+		p.AddRestSourceReg(v.Args[2].Reg())
+		p.To.Type = obj.TYPE_REG
+		p.To.Reg = zregArng(v.Reg(), arm64.ARNG_B)
+	case ssa.OpARM64RDVL:
+		p := s.Prog(v.Op.Asm())
+		p.From.Type = obj.TYPE_CONST
+		p.From.Offset = v.AuxInt
+		p.To.Type = obj.TYPE_REG
+		p.To.Reg = v.Reg()
+	case ssa.OpARM64PPFALSE:
+		p := s.Prog(v.Op.Asm())
+		p.To.Type = obj.TYPE_REG
+		p.To.Reg = pregArng(v.Reg(), arm64.ARNG_B)
+	case ssa.OpARM64ZDUPBconst:
+		p := s.Prog(v.Op.Asm())
+		p.From.Type = obj.TYPE_CONST
+		p.From.Offset = v.AuxInt
+		p.To.Type = obj.TYPE_REG
+		p.To.Reg = zregArng(v.Reg(), arm64.ARNG_B)
+	case ssa.OpARM64ZLDRload, ssa.OpARM64PLDRload:
+		p := s.Prog(v.Op.Asm())
+		p.From.Type = obj.TYPE_MEM
+		p.From.Reg = v.Args[0].Reg()
+		p.From.Scale = simdSVEVectorLengthScaled
+		ssagen.AddAux(&p.From, v)
+		p.To.Type = obj.TYPE_REG
+		p.To.Reg = pzreg(v.Reg())
+	case ssa.OpARM64ZSTRstore, ssa.OpARM64PSTRstore:
+		p := s.Prog(v.Op.Asm())
+		p.From.Type = obj.TYPE_REG
+		p.From.Reg = pzreg(v.Args[1].Reg())
+		p.To.Type = obj.TYPE_MEM
+		p.To.Reg = v.Args[0].Reg()
+		p.To.Scale = simdSVEVectorLengthScaled
+		ssagen.AddAux(&p.To, v)
 	case ssa.OpARM64FMADDS,
 		ssa.OpARM64FMADDD,
 		ssa.OpARM64FNMADDS,
@@ -2234,4 +2381,97 @@ func move8(s *ssagen.State, src, dst, tmp int16, off int64) {
 	st.To.Type = obj.TYPE_MEM
 	st.To.Reg = dst
 	st.To.Offset = off
+}
+
+func zregArng(r int16, arng int16) int16 {
+	if r >= arm64.REG_F0 && r <= arm64.REG_F31 &&
+		arng >= arm64.ARNG_B && arng <= arm64.ARNG_Q {
+		return arm64.REG_ZARNG + (r - arm64.REG_F0) | (arng << 5)
+	}
+	panic("Bad Z reg with arrangement")
+}
+
+func pregArng(r int16, mode int16) int16 {
+	if r >= arm64.REG_P0 && r <= arm64.REG_P15 &&
+		mode >= arm64.ARNG_B && mode <= arm64.ARNG_Q {
+		return arm64.REG_PARNGZM + (r - arm64.REG_P0) | (mode << 5)
+	}
+	panic("Bad P reg with arrangement")
+}
+
+func pregMask(r int16, mode int16) int16 {
+	if r >= arm64.REG_P0 && r <= arm64.REG_P15 &&
+		mode >= arm64.PRED_M && mode <= arm64.PRED_Z {
+		return arm64.REG_PARNGZM + (r - arm64.REG_P0) | (mode << 5)
+	}
+	panic("Bad P reg with arrangement")
+}
+
+func pzreg(r int16) int16 {
+	if r >= arm64.REG_F0 && r <= arm64.REG_F31 {
+		return r - arm64.REG_F0 + arm64.REG_Z0
+	} else if r >= arm64.REG_P0 && r <= arm64.REG_P15 {
+		return r
+	}
+	panic("Bad P or Z reg")
+}
+
+// regListArr constructs an vector register arrangement in a register list.
+func regListArr(name, arng string) int64 {
+	var curQ, curSize, prefix uint16
+	if name[0] != 'V' && name[0] != 'Z' && name[0] != 'P' {
+		panic("expect V0-V31, Z0-Z31, or P0-P15; found: " + name)
+	}
+	switch name[0] {
+	case 'V':
+		prefix = 0
+	case 'Z':
+		prefix = 1
+	case 'P':
+		prefix = 2
+	}
+	switch arng {
+	case "B8":
+		curSize = 0
+		curQ = 0
+	case "B16":
+		curSize = 0
+		curQ = 1
+	case "H4":
+		curSize = 1
+		curQ = 0
+	case "H8":
+		curSize = 1
+		curQ = 1
+	case "S2":
+		curSize = 2
+		curQ = 0
+	case "S4":
+		curSize = 2
+		curQ = 1
+	case "D1":
+		curSize = 3
+		curQ = 0
+	case "D2":
+		curSize = 3
+		curQ = 1
+	case "B":
+		curSize = 1
+		curQ = 2
+	case "H":
+		curSize = 2
+		curQ = 2
+	case "S":
+		curSize = 3
+		curQ = 2
+	case "D":
+		curSize = 1
+		curQ = 3
+	case "Q":
+		curSize = 2
+		curQ = 3
+	default:
+		panic("invalid arrangement in ARM64 register list")
+	}
+	return (int64(prefix) << 32) | (int64(curQ) & 3 << 30) | (int64(curSize&3) << 10)
 }

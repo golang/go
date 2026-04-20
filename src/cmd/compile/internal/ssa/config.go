@@ -237,6 +237,7 @@ func NewConfig(arch string, types Types, ctxt *obj.Link, optimize, softfloat boo
 		c.gpRegMask = gpRegMaskARM64
 		c.fpRegMask = fpRegMaskARM64
 		c.simdRegMask = simdRegMaskARM64
+		c.specialRegMask = specialRegMaskARM64
 		c.intParamRegs = paramIntRegARM64
 		c.floatParamRegs = paramFloatRegARM64
 		c.FPReg = framepointerRegARM64

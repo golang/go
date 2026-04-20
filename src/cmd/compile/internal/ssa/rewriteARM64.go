@@ -567,6 +567,8 @@ func rewriteValueARM64(v *Value) bool {
 	case OpAddInt64x2:
 		v.Op = OpARM64VADD2D
 		return true
+	case OpAddInt8s:
+		return rewriteValueARM64_OpAddInt8s(v)
 	case OpAddInt8x16:
 		v.Op = OpARM64VADD16B
 		return true
@@ -970,6 +972,8 @@ func rewriteValueARM64(v *Value) bool {
 	case OpConvertToUint64Float64x2:
 		v.Op = OpARM64VFCVTZU2D
 		return true
+	case OpCount8s:
+		return rewriteValueARM64_OpCount8s(v)
 	case OpCtz16:
 		return rewriteValueARM64_OpCtz16(v)
 	case OpCtz16NonZero:
@@ -1236,6 +1240,8 @@ func rewriteValueARM64(v *Value) bool {
 	case OpGreaterInt64x2:
 		v.Op = OpARM64VCMGT2D
 		return true
+	case OpGreaterInt8s:
+		return rewriteValueARM64_OpGreaterInt8s(v)
 	case OpGreaterInt8x16:
 		v.Op = OpARM64VCMGT16B
 		return true
@@ -1444,6 +1450,8 @@ func rewriteValueARM64(v *Value) bool {
 		return rewriteValueARM64_OpLess8U(v)
 	case OpLoad:
 		return rewriteValueARM64_OpLoad(v)
+	case OpLoadMasked8:
+		return rewriteValueARM64_OpLoadMasked8(v)
 	case OpLocalAddr:
 		return rewriteValueARM64_OpLocalAddr(v)
 	case OpLookupOrZeroInt8x16:
@@ -1532,6 +1540,9 @@ func rewriteValueARM64(v *Value) bool {
 		return true
 	case OpMemEq:
 		v.Op = OpARM64LoweredMemEq
+		return true
+	case OpMergeInt8s:
+		v.Op = OpARM64ZSELB
 		return true
 	case OpMin32F:
 		v.Op = OpARM64FMINS
@@ -1948,6 +1959,8 @@ func rewriteValueARM64(v *Value) bool {
 	case OpSaturateToUint8Uint16x8:
 		v.Op = OpARM64VUQXTN8H
 		return true
+	case OpScalableVectorLen:
+		return rewriteValueARM64_OpScalableVectorLen(v)
 	case OpSelect0:
 		return rewriteValueARM64_OpSelect0(v)
 	case OpSelect1:
@@ -2101,6 +2114,8 @@ func rewriteValueARM64(v *Value) bool {
 		return true
 	case OpStore:
 		return rewriteValueARM64_OpStore(v)
+	case OpStoreMasked8:
+		return rewriteValueARM64_OpStoreMasked8(v)
 	case OpSub16:
 		v.Op = OpARM64SUB
 		return true
@@ -19620,6 +19635,29 @@ func rewriteValueARM64_OpARM64XORshiftRO(v *Value) bool {
 	}
 	return false
 }
+func rewriteValueARM64_OpAddInt8s(v *Value) bool {
+	v_1 := v.Args[1]
+	v_0 := v.Args[0]
+	b := v.Block
+	typ := &b.Func.Config.Types
+	// match: (AddInt8s x y)
+	// result: (ZADDBPred x y (Select0 <types.TypeMask> (PWHILELTB (MOVDconst [0]) (MOVDconst [32]))))
+	for {
+		x := v_0
+		y := v_1
+		v.reset(OpARM64ZADDBPred)
+		v0 := b.NewValue0(v.Pos, OpSelect0, types.TypeMask)
+		v1 := b.NewValue0(v.Pos, OpARM64PWHILELTB, types.NewTuple(typ.Mask, types.TypeFlags))
+		v2 := b.NewValue0(v.Pos, OpARM64MOVDconst, typ.UInt64)
+		v2.AuxInt = int64ToAuxInt(0)
+		v3 := b.NewValue0(v.Pos, OpARM64MOVDconst, typ.UInt64)
+		v3.AuxInt = int64ToAuxInt(32)
+		v1.AddArg2(v2, v3)
+		v0.AddArg(v1)
+		v.AddArg3(x, y, v0)
+		return true
+	}
+}
 func rewriteValueARM64_OpAddr(v *Value) bool {
 	v_0 := v.Args[0]
 	// match: (Addr {sym} base)
@@ -19865,6 +19903,24 @@ func rewriteValueARM64_OpConstNil(v *Value) bool {
 	for {
 		v.reset(OpARM64MOVDconst)
 		v.AuxInt = int64ToAuxInt(0)
+		return true
+	}
+}
+func rewriteValueARM64_OpCount8s(v *Value) bool {
+	v_0 := v.Args[0]
+	b := v.Block
+	typ := &b.Func.Config.Types
+	// match: (Count8s r)
+	// result: (Select0 <types.TypeMask> (PWHILELTB (MOVDconst [0]) r))
+	for {
+		r := v_0
+		v.reset(OpSelect0)
+		v.Type = types.TypeMask
+		v0 := b.NewValue0(v.Pos, OpARM64PWHILELTB, types.NewTuple(typ.Mask, types.TypeFlags))
+		v1 := b.NewValue0(v.Pos, OpARM64MOVDconst, typ.UInt64)
+		v1.AuxInt = int64ToAuxInt(0)
+		v0.AddArg2(v1, r)
+		v.AddArg(v0)
 		return true
 	}
 }
@@ -20205,6 +20261,32 @@ func rewriteValueARM64_OpFMA(v *Value) bool {
 		z := v_2
 		v.reset(OpARM64FMADDD)
 		v.AddArg3(z, x, y)
+		return true
+	}
+}
+func rewriteValueARM64_OpGreaterInt8s(v *Value) bool {
+	v_1 := v.Args[1]
+	v_0 := v.Args[0]
+	b := v.Block
+	typ := &b.Func.Config.Types
+	// match: (GreaterInt8s x y)
+	// result: (Select0 <types.TypeMask> (ZCMPGTB x y (Select0 <types.TypeMask> (PWHILELTB (MOVDconst [0]) (MOVDconst [32])))))
+	for {
+		x := v_0
+		y := v_1
+		v.reset(OpSelect0)
+		v.Type = types.TypeMask
+		v0 := b.NewValue0(v.Pos, OpARM64ZCMPGTB, types.NewTuple(typ.Mask, types.TypeFlags))
+		v1 := b.NewValue0(v.Pos, OpSelect0, types.TypeMask)
+		v2 := b.NewValue0(v.Pos, OpARM64PWHILELTB, types.NewTuple(typ.Mask, types.TypeFlags))
+		v3 := b.NewValue0(v.Pos, OpARM64MOVDconst, typ.UInt64)
+		v3.AuxInt = int64ToAuxInt(0)
+		v4 := b.NewValue0(v.Pos, OpARM64MOVDconst, typ.UInt64)
+		v4.AuxInt = int64ToAuxInt(32)
+		v2.AddArg2(v3, v4)
+		v1.AddArg(v2)
+		v0.AddArg3(x, y, v1)
+		v.AddArg(v0)
 		return true
 	}
 }
@@ -21010,6 +21092,55 @@ func rewriteValueARM64_OpLoad(v *Value) bool {
 		}
 		v.reset(OpARM64FMOVQload)
 		v.AddArg2(ptr, mem)
+		return true
+	}
+	// match: (Load <t> ptr mem)
+	// cond: t.Size() == 32 && t.IsSIMD()
+	// result: (ZLDRload ptr mem)
+	for {
+		t := v.Type
+		ptr := v_0
+		mem := v_1
+		if !(t.Size() == 32 && t.IsSIMD()) {
+			break
+		}
+		v.reset(OpARM64ZLDRload)
+		v.AddArg2(ptr, mem)
+		return true
+	}
+	// match: (Load <t> ptr mem)
+	// cond: t.Size() == 8 && t.IsSIMD()
+	// result: (PLDRload ptr mem)
+	for {
+		t := v.Type
+		ptr := v_0
+		mem := v_1
+		if !(t.Size() == 8 && t.IsSIMD()) {
+			break
+		}
+		v.reset(OpARM64PLDRload)
+		v.AddArg2(ptr, mem)
+		return true
+	}
+	return false
+}
+func rewriteValueARM64_OpLoadMasked8(v *Value) bool {
+	v_2 := v.Args[2]
+	v_1 := v.Args[1]
+	v_0 := v.Args[0]
+	// match: (LoadMasked8 <t> ptr mask mem)
+	// cond: t.Size() == 32
+	// result: (ZLD1BPredload ptr mask mem)
+	for {
+		t := v.Type
+		ptr := v_0
+		mask := v_1
+		mem := v_2
+		if !(t.Size() == 32) {
+			break
+		}
+		v.reset(OpARM64ZLD1BPredload)
+		v.AddArg3(ptr, mask, mem)
 		return true
 	}
 	return false
@@ -23256,6 +23387,15 @@ func rewriteValueARM64_OpRsh8x8(v *Value) bool {
 		return true
 	}
 }
+func rewriteValueARM64_OpScalableVectorLen(v *Value) bool {
+	// match: (ScalableVectorLen)
+	// result: (RDVL [1])
+	for {
+		v.reset(OpARM64RDVL)
+		v.AuxInt = int64ToAuxInt(1)
+		return true
+	}
+}
 func rewriteValueARM64_OpSelect0(v *Value) bool {
 	v_0 := v.Args[0]
 	b := v.Block
@@ -24031,14 +24171,14 @@ func rewriteValueARM64_OpStore(v *Value) bool {
 		return true
 	}
 	// match: (Store {t} ptr val mem)
-	// cond: t.Size() == 8 && !t.IsFloat()
+	// cond: t.Size() == 8 && !t.IsFloat() && !t.IsSIMD()
 	// result: (MOVDstore ptr val mem)
 	for {
 		t := auxToType(v.Aux)
 		ptr := v_0
 		val := v_1
 		mem := v_2
-		if !(t.Size() == 8 && !t.IsFloat()) {
+		if !(t.Size() == 8 && !t.IsFloat() && !t.IsSIMD()) {
 			break
 		}
 		v.reset(OpARM64MOVDstore)
@@ -24088,6 +24228,59 @@ func rewriteValueARM64_OpStore(v *Value) bool {
 		}
 		v.reset(OpARM64FMOVQstore)
 		v.AddArg3(ptr, val, mem)
+		return true
+	}
+	// match: (Store {t} ptr val mem)
+	// cond: t.Size() == 32 && t.IsSIMD()
+	// result: (ZSTRstore ptr val mem)
+	for {
+		t := auxToType(v.Aux)
+		ptr := v_0
+		val := v_1
+		mem := v_2
+		if !(t.Size() == 32 && t.IsSIMD()) {
+			break
+		}
+		v.reset(OpARM64ZSTRstore)
+		v.AddArg3(ptr, val, mem)
+		return true
+	}
+	// match: (Store {t} ptr val mem)
+	// cond: t.Size() == 8 && t.IsSIMD()
+	// result: (PSTRstore ptr val mem)
+	for {
+		t := auxToType(v.Aux)
+		ptr := v_0
+		val := v_1
+		mem := v_2
+		if !(t.Size() == 8 && t.IsSIMD()) {
+			break
+		}
+		v.reset(OpARM64PSTRstore)
+		v.AddArg3(ptr, val, mem)
+		return true
+	}
+	return false
+}
+func rewriteValueARM64_OpStoreMasked8(v *Value) bool {
+	v_3 := v.Args[3]
+	v_2 := v.Args[2]
+	v_1 := v.Args[1]
+	v_0 := v.Args[0]
+	// match: (StoreMasked8 {t} ptr mask val mem)
+	// cond: t.Size() == 32
+	// result: (ZST1BPredstore ptr val mask mem)
+	for {
+		t := auxToType(v.Aux)
+		ptr := v_0
+		mask := v_1
+		val := v_2
+		mem := v_3
+		if !(t.Size() == 32) {
+			break
+		}
+		v.reset(OpARM64ZST1BPredstore)
+		v.AddArg4(ptr, val, mask, mem)
 		return true
 	}
 	return false
@@ -24409,6 +24602,29 @@ func rewriteValueARM64_OpZeroSIMD(v *Value) bool {
 		v.reset(OpARM64VMOVI16B)
 		v.Type = t
 		v.AuxInt = uint8ToAuxInt(0)
+		return true
+	}
+	// match: (ZeroSIMD <t>)
+	// cond: t.Size() == 8 && t.IsSIMD()
+	// result: (PPFALSE)
+	for {
+		t := v.Type
+		if !(t.Size() == 8 && t.IsSIMD()) {
+			break
+		}
+		v.reset(OpARM64PPFALSE)
+		return true
+	}
+	// match: (ZeroSIMD <t>)
+	// cond: t.Size() == 32 && t.IsSIMD()
+	// result: (ZDUPBconst [0])
+	for {
+		t := v.Type
+		if !(t.Size() == 32 && t.IsSIMD()) {
+			break
+		}
+		v.reset(OpARM64ZDUPBconst)
+		v.AuxInt = int8ToAuxInt(0)
 		return true
 	}
 	return false

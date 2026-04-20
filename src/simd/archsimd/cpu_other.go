@@ -19,3 +19,7 @@ var ARM64 ARM64Features
 func (ARM64Features) PMULL() bool {
 	return cpu.ARM64.HasPMULL
 }
+
+func (ARM64Features) SVE() bool {
+	return cpu.ARM64.HasSVE
+}

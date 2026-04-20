@@ -1009,7 +1009,13 @@ func (s *regAllocState) compatRegs(t *types.Type) regMask {
 		if t.Size() > 8 {
 			return s.f.Config.simdRegMask.intersect(s.allocatable)
 		} else {
+			if !s.f.Config.specialRegMask.empty() {
+				// P predicates
+				// No instructions can move P <-> GP.
+				return s.f.Config.specialRegMask.intersect(s.allocatable)
+			}
 			// K mask
+			// We can move GP <-> K.
 			return s.f.Config.gpRegMask.intersect(s.allocatable)
 		}
 	}

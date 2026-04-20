@@ -37,3 +37,38 @@ func TestClMul(t *testing.T) {
 	foo(x.CarrylessMultiplyOdd(y), []uint64{45, 0})
 	foo(y.CarrylessMultiplyEven(y), []uint64{5, 0})
 }
+
+func TestAddSlice(t *testing.T) {
+	if !archsimd.ARM64.SVE() {
+		t.Skip("no sve")
+	}
+	testSize := 100
+	x := make([]int8, testSize)
+	y := make([]int8, testSize)
+	for i := 0; i < testSize; i++ {
+		x[i] = int8(i)
+		y[i] = int8(i + 1)
+	}
+	res := make([]int8, testSize)
+	expected := make([]int8, testSize)
+	for i := 0; i < testSize; i++ {
+		expected[i] = x[i] + y[i]
+	}
+	for i := 0; i < testSize; i += 5 {
+		// The user can actually choose whatever stride they like.
+		// as long as the stride is less than VL, the result
+		// won't miss anything.
+		p := archsimd.Mask8sFromCount(5)
+		xv0, _ := archsimd.LoadInt8sPart(x[i:])
+		xv := xv0.Masked(p)
+		yv0, _ := archsimd.LoadInt8sPart(y[i:])
+		yv := yv0.Masked(p)
+		zv := xv.Add(yv).Masked(p)
+		zv.Masked(p).StorePart(res[i:])
+	}
+	for i := range res {
+		if res[i] != expected[i] {
+			t.Errorf("res[%d] = %d; want %d", i, res[i], expected[i])
+		}
+	}
+}

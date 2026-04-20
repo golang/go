@@ -1677,6 +1677,7 @@ func initIntrinsics(cfg *intrinsicBuildConfig) {
 		simdAMD64Intrinsics(addF)
 		simdARM64Intrinsics(addF)
 		initWasmSIMD()
+		sveIntrinsics(addF)
 
 		addF(simdPackage, "ClearAVXUpperBits",
 			func(s *state, n *ir.CallExpr, args []*ssa.Value) *ssa.Value {
@@ -1903,6 +1904,12 @@ func select4FromPair(x, _a, _b, _c, _d, y *ssa.Value, s *state, op ssa.Op, t *ty
 // for representing AuxInt in ssa.
 func se(x uint8) int64 {
 	return int64(int8(x))
+}
+
+func opLen0(op ssa.Op, t *types.Type) func(s *state, n *ir.CallExpr, args []*ssa.Value) *ssa.Value {
+	return func(s *state, n *ir.CallExpr, args []*ssa.Value) *ssa.Value {
+		return s.newValue0(op, t)
+	}
 }
 
 func opLen1(op ssa.Op, t *types.Type) func(s *state, n *ir.CallExpr, args []*ssa.Value) *ssa.Value {
@@ -2433,6 +2440,16 @@ func IsIntrinsicCall(n *ir.CallExpr) bool {
 		return false
 	}
 	return IsIntrinsicSym(name.Sym())
+}
+
+func sveIntrinsics(addF func(pkg, fn string, b intrinsicBuilder, archFamilies ...sys.ArchFamily)) {
+	addF(simdPackage, "loadInt8sMasked", simdMaskedLoad(ssa.OpLoadMasked8), sys.ARM64)
+	addF(simdPackage, "Int8s.storeMasked", simdMaskedStore(ssa.OpStoreMasked8), sys.ARM64)
+	addF(simdPackage, "Mask8sFromCount", opLen1(ssa.OpCount8s, types.TypeMask), sys.ARM64)
+	addF(simdPackage, "Int8s.Greater", opLen2(ssa.OpGreaterInt8s, types.TypeMask), sys.ARM64)
+	addF(simdPackage, "Int8s.IfElse", opLen3(ssa.OpMergeInt8s, types.TypeVec256), sys.ARM64)
+	addF(simdPackage, "Int8s.Add", opLen2(ssa.OpAddInt8s, types.TypeVec256), sys.ARM64)
+	addF(simdPackage, "vl", opLen0(ssa.OpScalableVectorLen, types.Types[types.TINT]), sys.ARM64)
 }
 
 func IsIntrinsicSym(sym *types.Sym) bool {
