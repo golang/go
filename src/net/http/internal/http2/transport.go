@@ -2035,9 +2035,20 @@ func (cc *ClientConn) readLoop() {
 	defer rl.cleanup()
 	cc.readerErr = rl.run()
 	if ce, ok := cc.readerErr.(ConnectionError); ok {
-		cc.wmu.Lock()
-		cc.fr.WriteGoAway(0, ErrCode(ce), nil)
-		cc.wmu.Unlock()
+		// Try to send a GOAWAY frame, but if this blocks for too long
+		// give up and close the connection.
+		done := make(chan struct{})
+		go func() {
+			defer close(done)
+			cc.wmu.Lock()
+			cc.fr.WriteGoAway(0, ErrCode(ce), nil)
+			cc.bw.Flush()
+			cc.wmu.Unlock()
+		}()
+		select {
+		case <-done:
+		case <-time.After(250 * time.Millisecond):
+		}
 	}
 }
 

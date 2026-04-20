@@ -14,6 +14,7 @@ import (
 	"errors"
 	"flag"
 	"fmt"
+	"internal/nettest"
 	"io"
 	"log"
 	"maps"
@@ -74,7 +75,8 @@ func (sb *safeBuffer) Len() int {
 }
 
 type serverTester struct {
-	cc           net.Conn // client conn
+	cc           net.Conn      // client conn (might be a *tls.Conn)
+	testconn     *nettest.Conn // underlying client conn
 	t            *testing.T
 	h1server     *http.Server
 	h2server     *Server
@@ -216,23 +218,30 @@ func newServerTester(t *testing.T, handler http.HandlerFunc, opts ...any) *serve
 		h1server.TLSConfig = tlsConfig
 	}
 
-	var cli, srv net.Conn
+	var cli net.Conn
+	var srv net.Listener
 
-	cliPipe, srvPipe := synctestNetPipe()
+	srvListener := nettest.NewListener()
+	t.Cleanup(func() {
+		srvListener.Close()
+	})
+	cliPipe := srvListener.NewConn()
 
 	if h1server.Protocols != nil && h1server.Protocols.UnencryptedHTTP2() {
-		cli, srv = cliPipe, srvPipe
+		cli = cliPipe
+		srv = srvListener
 	} else {
 		cli = tls.Client(cliPipe, &tls.Config{
 			InsecureSkipVerify: true,
 			NextProtos:         []string{"h2"},
 		})
-		srv = tls.Server(srvPipe, tlsConfig)
+		srv = tls.NewListener(srvListener, tlsConfig)
 	}
 
 	st := &serverTester{
 		t:        t,
 		cc:       cli,
+		testconn: cliPipe,
 		h1server: h1server,
 	}
 	st.hpackEnc = hpack.NewEncoder(&st.headerBuf)
@@ -263,34 +272,52 @@ func newServerTester(t *testing.T, handler http.HandlerFunc, opts ...any) *serve
 		return ctx
 	}
 	go func() {
-		li := newOneConnListener(srv)
-		t.Cleanup(func() {
-			li.Close()
-		})
-		h1server.Serve(li)
+		h1server.Serve(srv)
 	}()
 	if cliTLS, ok := cli.(*tls.Conn); ok {
 		if err := cliTLS.Handshake(); err != nil {
 			t.Fatalf("client TLS handshake: %v", err)
 		}
-		cliTLS.SetReadDeadline(time.Now())
 	} else {
 		// Confusing but difficult to fix: Preface must be written
 		// before the conn appears on connc.
 		st.writePreface()
 		st.wrotePreface = true
-		cliPipe.SetReadDeadline(time.Now())
 	}
 	st.sc = <-connc
 
-	st.fr = NewFramer(st.cc, st.cc)
+	// Make the client-side part of the connection non-blocking.
+	//
+	// We use SetReadError rather than setting a deadline, because reads from a nettest.Conn
+	// prioritize deadlines, available data, and SetReadError errors in that order.
+	// We want data to take priority over the error.
+	//
+	// We use os.ErrDeadlineExceeded rather than some other error because
+	// crypto/tls understands timeouts as being non-permanent.
+	cliPipe.SetReadError(os.ErrDeadlineExceeded)
+
+	st.fr = NewFramer(cli, cli)
 	st.testConnFramer = testConnFramer{
-		t:   t,
-		fr:  NewFramer(cli, cli),
-		dec: hpack.NewDecoder(InitialHeaderTableSize, nil),
+		t:        t,
+		fr:       st.fr,
+		dec:      hpack.NewDecoder(InitialHeaderTableSize, nil),
+		testconn: st.testconn,
 	}
 	synctest.Wait()
 	return st
+}
+
+// blockServerWrites causes all writes by the server to block until
+// the test reads the frame.
+func (st *serverTester) blockServerWrites() {
+	st.testConnFramer.blockWrites = true
+	st.testconn.SetReadBufferSize(0)
+}
+
+// unblockServerWrites undoes blockServerWrites.
+func (st *serverTester) unblockServerWrites() {
+	st.testConnFramer.blockWrites = false
+	st.testconn.SetReadBufferSize(math.MaxInt)
 }
 
 type netConnWithConnectionState struct {
@@ -1233,7 +1260,7 @@ func testServer_MaxQueuedControlFrames(t *testing.T) {
 	st := newServerTester(t, nil)
 	st.greet()
 
-	st.cc.(*tls.Conn).NetConn().(*synctestNetConn).SetReadBufferSize(0) // all writes block
+	st.blockServerWrites()
 
 	// Send maxQueuedControlFrames pings, plus a few extra
 	// to account for ones that enter the server's write buffer.
@@ -1246,7 +1273,7 @@ func testServer_MaxQueuedControlFrames(t *testing.T) {
 
 	// Unblock the server.
 	// It should have closed the connection after exceeding the control frame limit.
-	st.cc.(*tls.Conn).NetConn().(*synctestNetConn).SetReadBufferSize(math.MaxInt)
+	st.unblockServerWrites()
 
 	st.advance(GoAwayTimeout)
 	// Some frames may have persisted in the server's buffers.
@@ -3926,9 +3953,10 @@ func testServerGracefulShutdown(t *testing.T) {
 		},
 	})
 
+	st.testconn.SetReadError(nil) // make conn blocking (was nonblocking)
 	n, err := st.cc.Read([]byte{0})
-	if n != 0 || err == nil {
-		t.Errorf("Read = %v, %v; want 0, non-nil", n, err)
+	if n != 0 || err != io.EOF {
+		t.Errorf("Read = %v, %v; want 0, EOF", n, err)
 	}
 
 	// Shutdown happens after GoAwayTimeout and net/http.Server polling delay.
@@ -4653,7 +4681,7 @@ func testServerWriteByteTimeout(t *testing.T) {
 	})
 	st.greet()
 
-	st.cc.(*synctestNetConn).SetReadBufferSize(1) // write one byte at a time
+	st.testconn.SetReadBufferSize(1) // write one byte at a time
 	st.writeHeaders(HeadersFrameParam{
 		StreamID:      1,
 		BlockFragment: st.encodeHeader(),
@@ -4832,11 +4860,7 @@ func testServerRFC9218PrioritySmallPayload(t *testing.T) {
 		s.Protocols = protocols("h2c")
 	})
 	st.greet()
-	if syncConn, ok := st.cc.(*synctestNetConn); ok {
-		syncConn.SetReadBufferSize(1)
-	} else {
-		t.Fatal("Server connection is not synctestNetConn")
-	}
+	st.blockServerWrites()
 	defer st.Close()
 	defer func() { endTest = true }()
 
@@ -4893,11 +4917,8 @@ func testServerRFC9218Priority(t *testing.T) {
 	})
 	defer st.Close()
 	st.greet()
-	if syncConn, ok := st.cc.(*synctestNetConn); ok {
-		syncConn.SetReadBufferSize(1)
-	} else {
-		t.Fatal("Server connection is not synctestNetConn")
-	}
+	st.blockServerWrites()
+
 	st.writeWindowUpdate(0, 1<<30)
 	synctest.Wait()
 
@@ -4948,11 +4969,7 @@ func testServerRFC9218PriorityIgnoredWhenProxied(t *testing.T) {
 	})
 	defer st.Close()
 	st.greet()
-	if syncConn, ok := st.cc.(*synctestNetConn); ok {
-		syncConn.SetReadBufferSize(1)
-	} else {
-		t.Fatal("Server connection is not synctestNetConn")
-	}
+	st.blockServerWrites()
 	st.writeWindowUpdate(0, 1<<30)
 	synctest.Wait()
 
@@ -4997,11 +5014,7 @@ func testServerRFC9218PriorityAware(t *testing.T) {
 	})
 	defer st.Close()
 	st.greet()
-	if syncConn, ok := st.cc.(*synctestNetConn); ok {
-		syncConn.SetReadBufferSize(1)
-	} else {
-		t.Fatal("Server connection is not synctestNetConn")
-	}
+	st.blockServerWrites()
 	st.writeWindowUpdate(0, 1<<30)
 	synctest.Wait()
 

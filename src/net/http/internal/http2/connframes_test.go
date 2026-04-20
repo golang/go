@@ -6,6 +6,8 @@ package http2_test
 
 import (
 	"bytes"
+	"errors"
+	"internal/nettest"
 	"io"
 	"net/http"
 	"os"
@@ -20,9 +22,11 @@ import (
 )
 
 type testConnFramer struct {
-	t   *testing.T
-	fr  *Framer
-	dec *hpack.Decoder
+	t           *testing.T
+	fr          *Framer
+	dec         *hpack.Decoder
+	blockWrites bool
+	testconn    *nettest.Conn
 }
 
 // readFrame reads the next frame.
@@ -30,8 +34,35 @@ type testConnFramer struct {
 func (tf *testConnFramer) readFrame() Frame {
 	tf.t.Helper()
 	synctest.Wait()
+
+	if tf.blockWrites {
+		// Unblock the server so it can write the frame header, and read it.
+		// Then unblock the server so it can write the rest of the frame, and read it.
+		// Finally, reset the server write buffer to 0.
+		const frameHeaderLen = 9
+		tf.testconn.SetReadBufferSize(frameHeaderLen)
+		synctest.Wait()
+		tf.testconn.SetReadBufferSize(0)
+		fh, err := tf.fr.ReadFrameHeader()
+		if err == io.EOF || errors.Is(err, os.ErrDeadlineExceeded) {
+			return nil
+		}
+		if err != nil {
+			tf.t.Fatalf("ReadFrameHeader: %v", err)
+		}
+
+		tf.testconn.SetReadBufferSize(int(fh.Length))
+		synctest.Wait()
+		tf.testconn.SetReadBufferSize(0)
+		fr, err := tf.fr.ReadFrameForHeader(fh)
+		if err != nil {
+			tf.t.Fatalf("ReadFrame: %v", err)
+		}
+		return fr
+	}
+
 	fr, err := tf.fr.ReadFrame()
-	if err == io.EOF || err == os.ErrDeadlineExceeded {
+	if err == io.EOF || errors.Is(err, os.ErrDeadlineExceeded) {
 		return nil
 	}
 	if err != nil {
@@ -266,6 +297,7 @@ func (tf *testConnFramer) wantRSTStream(streamID uint32, code ErrCode) {
 }
 
 func (tf *testConnFramer) wantSettings(want map[SettingID]uint32) {
+	tf.t.Helper()
 	fr := readFrame[*SettingsFrame](tf.t, tf)
 	if fr.Header().Flags.Has(FlagSettingsAck) {
 		tf.t.Errorf("got SETTINGS frame with ACK set, want no ACK")
@@ -317,7 +349,7 @@ func (tf *testConnFramer) wantClosed() {
 	if err == nil {
 		tf.t.Fatalf("got unexpected frame (want closed connection): %v", fr)
 	}
-	if err == os.ErrDeadlineExceeded {
+	if errors.Is(err, os.ErrDeadlineExceeded) {
 		tf.t.Fatalf("connection is not closed; want it to be")
 	}
 }
@@ -329,7 +361,7 @@ func (tf *testConnFramer) wantIdle() {
 	if err == nil {
 		tf.t.Fatalf("got unexpected frame (want idle connection): %v", fr)
 	}
-	if err != os.ErrDeadlineExceeded {
+	if !errors.Is(err, os.ErrDeadlineExceeded) {
 		tf.t.Fatalf("got unexpected frame error (want idle connection): %v", err)
 	}
 }

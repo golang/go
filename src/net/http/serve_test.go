@@ -18,6 +18,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"internal/nettest"
 	"internal/testenv"
 	"io"
 	"log"
@@ -824,14 +825,14 @@ func testServerTimeoutsWithTimeout(t *testing.T, timeout time.Duration, mode tes
 func TestServerUnencryptedHTTP2HeaderTimeout(t *testing.T) {
 	for _, test := range []struct {
 		name string
-		f    func(*fakeNetConn)
+		f    func(*nettest.Conn)
 	}{{
 		name: "client sends nothing",
-		f: func(conn *fakeNetConn) {
+		f: func(conn *nettest.Conn) {
 		},
 	}, {
 		name: "client sends slowly",
-		f: func(conn *fakeNetConn) {
+		f: func(conn *nettest.Conn) {
 			// Trickling out writes should not extend the deadline.
 			conn.Write([]byte("PRI"))
 			time.Sleep(100 * time.Millisecond)
@@ -842,7 +843,7 @@ func TestServerUnencryptedHTTP2HeaderTimeout(t *testing.T) {
 		},
 	}, {
 		name: "header read expires",
-		f: func(conn *fakeNetConn) {
+		f: func(conn *nettest.Conn) {
 			// Time spent waiting for the HTTP/2 preface should count against
 			// time spent waiting for HTTP/1 headers.
 			time.Sleep(100 * time.Millisecond)
@@ -851,7 +852,7 @@ func TestServerUnencryptedHTTP2HeaderTimeout(t *testing.T) {
 	}} {
 		t.Run(test.name, func(t *testing.T) {
 			synctest.Test(t, func(t *testing.T) {
-				listener := fakeNetListen()
+				listener := nettest.NewListener()
 				defer listener.Close()
 
 				srv := &Server{
@@ -862,7 +863,7 @@ func TestServerUnencryptedHTTP2HeaderTimeout(t *testing.T) {
 				srv.Protocols.SetUnencryptedHTTP2(true)
 				go srv.Serve(listener)
 
-				conn := listener.connect()
+				conn := listener.NewConn()
 				go test.f(conn)
 
 				start := time.Now()
@@ -6276,7 +6277,7 @@ func testServerShutdownStateNew(t *testing.T, mode testMode) {
 		t.Skip("test takes 5-6 seconds; skipping in short mode")
 	}
 
-	listener := fakeNetListen()
+	listener := nettest.NewListener()
 	defer listener.Close()
 
 	ts := newClientServerTest(t, mode, HandlerFunc(func(w ResponseWriter, r *Request) {
@@ -6289,7 +6290,7 @@ func testServerShutdownStateNew(t *testing.T, mode testMode) {
 	}).ts
 
 	// Start a connection but never write to it.
-	c := listener.connect()
+	c := listener.NewConn()
 	defer c.Close()
 	synctest.Wait()
 
@@ -6308,7 +6309,7 @@ func testServerShutdownStateNew(t *testing.T, mode testMode) {
 	if shutdownRes.done() {
 		t.Fatal("shutdown too soon")
 	}
-	if c.IsClosedByPeer() {
+	if c.Peer().IsClosed() {
 		t.Fatal("connection was closed by server too soon")
 	}
 
@@ -6321,7 +6322,7 @@ func testServerShutdownStateNew(t *testing.T, mode testMode) {
 	if _, err := shutdownRes.result(); err != nil {
 		t.Fatalf("Shutdown() = %v, want complete", err)
 	}
-	if !c.IsClosedByPeer() {
+	if !c.Peer().IsClosed() {
 		t.Fatalf("connection was not closed by server after shutdown")
 	}
 }
@@ -7954,7 +7955,7 @@ func testServerTLSNextProtos(t *testing.T, mode testMode) {
 // (Tests fix in CL 758560.)
 func TestServerHTTP2Disabled(t *testing.T) {
 	synctest.Test(t, func(t *testing.T) {
-		li := fakeNetListen()
+		li := nettest.NewListener()
 		srv := &Server{}
 		srv.Protocols = new(Protocols)
 		srv.Protocols.SetHTTP1(true)

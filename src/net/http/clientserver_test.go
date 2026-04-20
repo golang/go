@@ -84,10 +84,14 @@ func (m testMode) Scheme() string {
 	panic("unknown testMode")
 }
 
-type testNotParallelOpt struct{}
+type (
+	testNotParallelOpt struct{}
+	testFakeNetOpt     struct{}
+)
 
 var (
 	testNotParallel = testNotParallelOpt{}
+	optFakeNet      = testFakeNetOpt{}
 )
 
 type TBRun[T any] interface {
@@ -159,13 +163,13 @@ func runSynctest(t *testing.T, f func(t *testing.T, mode testMode), opts ...any)
 }
 
 type clientServerTest struct {
-	t  testing.TB
-	h2 bool
-	h  Handler
-	ts *httptest.Server
-	tr *Transport
-	c  *Client
-	li *fakeNetListener
+	t    testing.TB
+	h2   bool
+	h    Handler
+	ts   *httptest.Server
+	tr   *Transport
+	c    *Client
+	mode testMode
 }
 
 func (t *clientServerTest) close() {
@@ -203,8 +207,6 @@ func optWithServerLog(lg *log.Logger) func(*httptest.Server) {
 	}
 }
 
-var optFakeNet = new(struct{})
-
 // newClientServerTest creates and starts an httptest.Server.
 //
 // The mode parameter selects the implementation to test:
@@ -224,9 +226,10 @@ func newClientServerTest(t testing.TB, mode testMode, h Handler, opts ...any) *c
 		CondSkipHTTP2(t)
 	}
 	cst := &clientServerTest{
-		t:  t,
-		h2: mode == http2Mode,
-		h:  h,
+		t:    t,
+		h2:   mode == http2Mode,
+		h:    h,
+		mode: mode,
 	}
 
 	var transportFuncs []func(*Transport)
@@ -238,21 +241,11 @@ func newClientServerTest(t testing.TB, mode testMode, h Handler, opts ...any) *c
 
 	fakeNet := false
 	if idx := slices.Index(opts, any(optFakeNet)); idx >= 0 {
-		opts = slices.Delete(opts, idx, idx+1)
 		fakeNet = true
 	}
 	switch {
 	case fakeNet && mode != http3Mode:
-		cst.li = fakeNetListen()
-		cst.ts = &httptest.Server{
-			Config:   &Server{Handler: h},
-			Listener: cst.li,
-		}
-		transportFuncs = append(transportFuncs, func(tr *Transport) {
-			tr.DialContext = func(ctx context.Context, network, addr string) (net.Conn, error) {
-				return cst.li.connect(), nil
-			}
-		})
+		cst.ts = httptest.NewTestServer(t, h)
 	case mode == http3Mode:
 		cst.ts = &httptest.Server{
 			Config: &Server{Handler: h},
@@ -260,10 +253,14 @@ func newClientServerTest(t testing.TB, mode testMode, h Handler, opts ...any) *c
 		if fakeNet {
 			pnet := nettest.NewPacketNet()
 			srvAddr := net.UDPAddrFromAddrPort(netip.MustParseAddrPort("127.0.0.1:443"))
-			cliAddr := net.UDPAddrFromAddrPort(netip.MustParseAddrPort("127.0.0.1:100"))
+			var cliPort atomic.Uint32
+			cliPort.Store(100)
 			pconn, _ := pnet.NewConn(srvAddr)
 			cst.ts.Listener = http3ServeConn{conn: pconn}
 			http3TransportOpts.ListenPacket = func(network, addr string) (net.PacketConn, error) {
+				port := uint16(cliPort.Add(1))
+				cliAddr := net.UDPAddrFromAddrPort(netip.AddrPortFrom(
+					netip.MustParseAddr("127.0.0.1"), port))
 				return pnet.NewConn(cliAddr)
 			}
 		} else {
@@ -282,6 +279,7 @@ func newClientServerTest(t testing.TB, mode testMode, h Handler, opts ...any) *c
 			opt(cst.ts)
 		case func(*Server):
 			opt(cst.ts.Config)
+		case testFakeNetOpt:
 		default:
 			t.Fatalf("unhandled option type %T", opt)
 		}
@@ -298,18 +296,14 @@ func newClientServerTest(t testing.TB, mode testMode, h Handler, opts ...any) *c
 	switch mode {
 	case http1Mode:
 		p.SetHTTP1(true)
-		cst.ts.Start()
 	case https1Mode:
 		p.SetHTTP1(true)
-		cst.ts.StartTLS()
 	case http2UnencryptedMode:
 		p.SetUnencryptedHTTP2(true)
-		cst.ts.Start()
 	case http2Mode:
 		p.SetHTTP2(true)
 		cst.ts.EnableHTTP2 = true
 		cst.ts.TLS = cst.ts.Config.TLSConfig
-		cst.ts.StartTLS()
 	case http3Mode:
 		http.ProtocolSetHTTP3(p)
 		cst.ts.TLS = cst.ts.Config.TLSConfig
@@ -326,7 +320,24 @@ func newClientServerTest(t testing.TB, mode testMode, h Handler, opts ...any) *c
 	default:
 		t.Fatalf("unknown test mode %v", mode)
 	}
-	cst.c = cst.ts.Client()
+
+	if !fakeNet {
+		switch mode {
+		case http1Mode, http2UnencryptedMode:
+			cst.ts.Start()
+		case https1Mode, http2Mode:
+			cst.ts.StartTLS()
+		}
+	}
+
+	cst.c = cst.ts.Client() // sets cst.ts.URL if it wasn't already
+
+	// Fakenet httptest servers always set the URL scheme to "http".
+	// Override it in https tests.
+	if fakeNet {
+		cst.ts.URL = mode.Scheme() + "://example.com"
+	}
+
 	cst.tr = cst.c.Transport.(*Transport)
 	for _, f := range transportFuncs {
 		f(cst.tr)
@@ -363,6 +374,47 @@ func (c http3ServeConn) Addr() net.Addr            { return c.conn.LocalAddr() }
 
 func (c http3ServeConn) HTTP3PacketConn() net.PacketConn {
 	return c.conn
+}
+
+func (cst *clientServerTest) dialNettest() (net.Conn, *nettest.Conn) {
+	cst.t.Helper()
+	dial := cst.tr.DialContext
+	if cst.mode.Scheme() == "https" {
+		dial = cst.tr.DialTLSContext
+	}
+	if dial == nil {
+		cst.t.Fatalf("tr.Dial(TLS) is not set")
+	}
+	conn, err := dial(cst.t.Context(), "tcp", "example.tld:"+cst.mode.Scheme())
+	if err != nil {
+		cst.t.Fatal(err)
+	}
+	cst.t.Cleanup(func() {
+		conn.Close()
+	})
+	if tlsConn, ok := conn.(*tls.Conn); ok {
+		return tlsConn, tlsConn.NetConn().(*nettest.Conn)
+	}
+	return conn, conn.(*nettest.Conn)
+}
+
+func (cst *clientServerTest) setDialNettestHook(f func(*nettest.Conn)) {
+	dialContext := cst.tr.DialContext
+	cst.tr.DialContext = func(ctx context.Context, network, address string) (net.Conn, error) {
+		conn, err := dialContext(ctx, network, address)
+		if err == nil {
+			f(conn.(*nettest.Conn))
+		}
+		return conn, err
+	}
+	dialTLSContext := cst.tr.DialTLSContext
+	cst.tr.DialTLSContext = func(ctx context.Context, network, address string) (net.Conn, error) {
+		conn, err := dialTLSContext(ctx, network, address)
+		if err == nil {
+			f(conn.(*tls.Conn).NetConn().(*nettest.Conn))
+		}
+		return conn, err
+	}
 }
 
 type testLogWriter struct {
@@ -1964,7 +2016,7 @@ func TestClientServerTLSConnWrapper(t *testing.T) {
 		protocols.SetHTTP1(true)
 		protocols.SetHTTP2(true)
 
-		li := fakeNetListen()
+		li := nettest.NewListener()
 		server := &Server{
 			Handler: HandlerFunc(func(w ResponseWriter, r *Request) {
 				if r.TLS == nil {
@@ -1996,7 +2048,7 @@ func TestClientServerTLSConnWrapper(t *testing.T) {
 		tr := &Transport{
 			DialTLS: func(network, address string) (net.Conn, error) {
 				return &testTLSConn{
-					Conn: li.connect(),
+					Conn: li.NewConn(),
 					state: tls.ConnectionState{
 						Version:            tls.VersionTLS13,
 						CipherSuite:        tls.TLS_AES_128_GCM_SHA256,

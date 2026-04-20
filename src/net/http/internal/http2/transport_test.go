@@ -1810,6 +1810,7 @@ func testTransportWindowUpdateBeyondLimit(t *testing.T) {
 	tc.wantRSTStream(rt.streamID(), ErrCodeFlowControl)
 
 	tc.writeWindowUpdate(0, windowIncrease)
+	tc.wantGoAway(0, ErrCodeFlowControl)
 	tc.wantClosed()
 }
 
@@ -2864,28 +2865,34 @@ func testTransportCloseAfterLostPing(t *testing.T) {
 }
 
 func TestTransportPingWriteBlocks(t *testing.T) {
-	ts := newTestServer(t,
-		func(w http.ResponseWriter, r *http.Request) {},
-	)
+	// This test can't use synctest, because blocking the transport's writes
+	// causes it to block trying to acquire ClientConn.wmu.
+	// The blocked mutex acquisition prevents the synctest bubble from quiescing.
+	//
+	// This also means we can't use newTestClientConn, which assumes synctest.
 	tr := newTransport(t)
+	var wg sync.WaitGroup
+	defer wg.Wait()
 	tr.Dial = func(network, addr string) (net.Conn, error) {
 		s, c := net.Pipe() // unbuffered, unlike a TCP conn
-		go func() {
-			srv := tls.Server(s, tlsConfigInsecure)
-			srv.Handshake()
+		wg.Go(func() {
+			srv := tls.Server(s, testServerTLSConfig)
+			if err := srv.Handshake(); err != nil {
+				t.Error(err)
+			}
 
 			// Read initial handshake frames.
 			// Without this, we block indefinitely in newClientConn,
 			// and never get to the point of sending a PING.
 			var buf [1024]byte
 			s.Read(buf[:])
-		}()
+		})
 		return c, nil
 	}
 	tr.HTTP2.PingTimeout = 1 * time.Millisecond
 	tr.HTTP2.SendPingTimeout = 1 * time.Millisecond
 	c := &http.Client{Transport: tr}
-	_, err := c.Get(ts.URL)
+	_, err := c.Get("https://example.tld/")
 	if err == nil {
 		t.Fatalf("Get = nil, want error")
 	}
@@ -3157,7 +3164,7 @@ func testTransportRetryHasLimit(t *testing.T) {
 	rt := tt.roundTrip(req)
 
 	tc := tt.getConn()
-	tc.netconn.SetReadDeadline(time.Time{})
+	tc.netconn.SetReadError(nil)
 	tc.wantFrameType(FrameSettings)
 	tc.wantFrameType(FrameWindowUpdate)
 
@@ -3984,7 +3991,7 @@ func testTransportNewClientConnCloseOnWriteError(t *testing.T) {
 
 	synctest.Wait()
 	writeErr := errors.New("write error")
-	tc.netconn.loc.setWriteError(writeErr)
+	tc.netconn.Peer().SetWriteError(writeErr)
 
 	tc.writeSettings()
 	tc.wantIdle()
@@ -3995,7 +4002,7 @@ func testTransportNewClientConnCloseOnWriteError(t *testing.T) {
 	tc.wantIdle()
 
 	synctest.Wait()
-	if !tc.netconn.IsClosedByPeer() {
+	if !tc.netconn.Peer().IsClosed() {
 		t.Error("expected closed conn")
 	}
 }
@@ -4016,7 +4023,7 @@ func testTransportRoundtripCloseOnWriteError(t *testing.T) {
 	tc.closeWriteWithError(writeErr)
 
 	body.writeBytes(1)
-	if err := rt.err(); err != writeErr {
+	if err := rt.err(); !errors.Is(err, writeErr) {
 		t.Fatalf("RoundTrip error %v, want %v", err, writeErr)
 	}
 
@@ -4221,46 +4228,6 @@ func (rc *closeChecker) isClosed() error {
 		return fmt.Errorf("body not closed after %v", timeout)
 	}
 	return nil
-}
-
-// A blockingWriteConn is a net.Conn that blocks in Write after some number of bytes are written.
-type blockingWriteConn struct {
-	net.Conn
-	writeOnce    sync.Once
-	writec       chan struct{} // closed after the write limit is reached
-	unblockc     chan struct{} // closed to unblock writes
-	count, limit int
-}
-
-func newBlockingWriteConn(conn net.Conn, limit int) *blockingWriteConn {
-	return &blockingWriteConn{
-		Conn:     conn,
-		limit:    limit,
-		writec:   make(chan struct{}),
-		unblockc: make(chan struct{}),
-	}
-}
-
-// wait waits until the conn blocks writing the limit+1st byte.
-func (c *blockingWriteConn) wait() {
-	<-c.writec
-}
-
-// unblock unblocks writes to the conn.
-func (c *blockingWriteConn) unblock() {
-	close(c.unblockc)
-}
-
-func (c *blockingWriteConn) Write(b []byte) (n int, err error) {
-	if c.count+len(b) > c.limit {
-		c.writeOnce.Do(func() {
-			close(c.writec)
-		})
-		<-c.unblockc
-	}
-	n, err = c.Conn.Write(b)
-	c.count += n
-	return n, err
 }
 
 // Write several requests to a ClientConn at the same time, looking for race conditions.
@@ -5138,7 +5105,7 @@ func TestTransport1xxLimits(t *testing.T) {
 			tc.wantFrameType(FrameHeaders)
 
 			for i := 0; i < test.hcount; i++ {
-				if fr, err := tc.fr.ReadFrame(); err != os.ErrDeadlineExceeded {
+				if fr, err := tc.fr.ReadFrame(); !errors.Is(err, os.ErrDeadlineExceeded) {
 					t.Fatalf("after writing %v 1xx headers: read %v, %v; want idle", i, fr, err)
 				}
 				tc.writeHeaders(HeadersFrameParam{

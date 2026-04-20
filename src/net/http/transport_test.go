@@ -21,6 +21,7 @@ import (
 	"errors"
 	"fmt"
 	"go/token"
+	"internal/nettest"
 	"internal/nettrace"
 	"io"
 	"log"
@@ -4466,49 +4467,46 @@ func TestTransportIdleConnRacesRequest(t *testing.T) {
 	runSynctest(t, testTransportIdleConnRacesRequest, []testMode{http1Mode, http2UnencryptedMode})
 }
 func testTransportIdleConnRacesRequest(t *testing.T, mode testMode) {
-	if mode == http2UnencryptedMode {
-		t.Skip("remove skip when #70515 is fixed")
-	}
 	timeout := 1 * time.Millisecond
 	trFunc := func(tr *Transport) {
 		tr.IdleConnTimeout = timeout
 	}
 	cst := newClientServerTest(t, mode, HandlerFunc(func(w ResponseWriter, r *Request) {
 	}), trFunc, optFakeNet)
-	cst.li.trackConns = true
+
+	dialsBlocked := make(chan struct{})
+	closeBlocked := make(chan struct{})
+
+	dialContext := cst.tr.DialContext
+	cst.tr.DialContext = func(ctx context.Context, network, address string) (net.Conn, error) {
+		<-dialsBlocked
+		c, err := dialContext(ctx, network, address)
+		if err != nil {
+			return nil, err
+		}
+		return &blockCloseConn{closeBlocked, c}, nil
+	}
 
 	// We want to put a connection into the pool which has never had a request made on it.
 	//
 	// Make a request and cancel it before the dial completes.
 	// Then complete the dial.
-	dialc := make(chan struct{})
-	cst.li.onDial = func() {
-		<-dialc
-	}
-	closec := make(chan struct{})
-	cst.li.onClose = func(*fakeNetConn) {
-		<-closec
-	}
-	ctx, cancel := context.WithCancel(context.Background())
-	req1c := make(chan error)
+	ctx, cancel := context.WithCancel(t.Context())
 	go func() {
 		req, _ := NewRequestWithContext(ctx, "GET", cst.ts.URL, nil)
 		resp, err := cst.c.Do(req)
 		if err == nil {
+			t.Errorf("expected request to fail, but it succeeded")
 			resp.Body.Close()
 		}
-		req1c <- err
 	}()
 	// Wait for the connection attempt to start.
 	synctest.Wait()
 	// Cancel the request.
 	cancel()
 	synctest.Wait()
-	if err := <-req1c; err == nil {
-		t.Fatal("expected request to fail, but it succeeded")
-	}
 	// Unblock the dial, placing a new, unused connection into the Transport's pool.
-	close(dialc)
+	close(dialsBlocked)
 
 	// We want IdleConnTimeout to race with a new request.
 	//
@@ -4518,23 +4516,30 @@ func testTransportIdleConnRacesRequest(t *testing.T, mode testMode) {
 	//
 	// First: Wait for IdleConnTimeout. The net.Conn.Close blocks.
 	synctest.Wait()
-	time.Sleep(timeout)
-	synctest.Wait()
+	synctest.Sleep(timeout)
 	// Make a request, which will use a new connection (since the existing one is closing).
-	req2c := make(chan error)
 	go func() {
 		resp, err := cst.c.Get(cst.ts.URL)
-		if err == nil {
-			resp.Body.Close()
+		if err != nil {
+			t.Errorf("expected second request to succeed, but it failed: %v", err)
+			return
 		}
-		req2c <- err
+		resp.Body.Close()
 	}()
 	// Don't synctest.Wait here: The HTTP/1 transport closes the idle conn
 	// with a mutex held, and we'll end up in a deadlock.
-	close(closec)
-	if err := <-req2c; err != nil {
-		t.Fatalf("Get: %v", err)
-	}
+	close(closeBlocked)
+	synctest.Wait()
+}
+
+type blockCloseConn struct {
+	closeBlocked chan struct{}
+	net.Conn
+}
+
+func (c *blockCloseConn) Close() error {
+	<-c.closeBlocked
+	return c.Conn.Close()
 }
 
 func TestTransportRemovesConnsAfterIdle(t *testing.T) {
@@ -4598,7 +4603,11 @@ func testTransportRemovesConnsAfterBroken(t *testing.T, mode testMode) {
 	cst := newClientServerTest(t, mode, HandlerFunc(func(w ResponseWriter, r *Request) {
 		w.Header().Set("X-Addr", r.RemoteAddr)
 	}), trFunc, optFakeNet)
-	cst.li.trackConns = true
+
+	var conns []*nettest.Conn
+	cst.setDialNettestHook(func(c *nettest.Conn) {
+		conns = append(conns, c)
+	})
 
 	// makeRequest returns the local address a request was made from
 	// (unique for each connection).
@@ -4619,7 +4628,7 @@ func testTransportRemovesConnsAfterBroken(t *testing.T, mode testMode) {
 
 	// The connection breaks.
 	synctest.Wait()
-	cst.li.conns[0].peer.Close()
+	conns[0].Peer().Close()
 	synctest.Wait()
 	addr3 := makeRequest()
 	if addr1 == addr3 {
