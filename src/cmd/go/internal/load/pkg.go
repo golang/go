@@ -3241,11 +3241,6 @@ func setToolFlags(loaderstate *modload.State, pkgs ...*Package) {
 		p.Internal.Gcflags = BuildGcflags.For(loaderstate, p)
 		p.Internal.Ldflags = BuildLdflags.For(loaderstate, p)
 		p.Internal.Gccgoflags = BuildGccgoflags.For(loaderstate, p)
-		// TODO(vsaioc): Is there a more elegant way to do this
-		// check?
-		if cfg.BuildRacelite && !p.Standard {
-			p.Internal.Gcflags = append(p.Internal.Gcflags, "-racelite")
-		}
 	}
 }
 

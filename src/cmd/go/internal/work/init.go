@@ -194,14 +194,6 @@ func instrumentInit() {
 	mode := "race"
 	if cfg.BuildRacelite {
 		mode = "racelite"
-
-		if cfg.BuildContext.InstallSuffix != "" {
-			cfg.BuildContext.InstallSuffix += "_"
-		}
-		cfg.BuildContext.InstallSuffix += mode
-		cfg.BuildContext.ToolTags = append(cfg.BuildContext.ToolTags, mode)
-		return
-
 	}
 	if cfg.BuildMSan {
 		mode = "msan"
