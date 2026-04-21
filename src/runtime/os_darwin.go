@@ -148,6 +148,7 @@ func osinit() {
 	physPageSize = getPageSize()
 
 	osinit_hack()
+	initWorkingDir()
 }
 
 func sysctlbynameInt32(name []byte) (int32, int32) {
