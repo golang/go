@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-// TODO: //go:build racelite
+//go:build racelite
 
 package runtime
 
@@ -71,38 +71,18 @@ var (
 	raceliteRecords *[raceliteRecordNum]bool
 
 	// raceliteSamplingShift is log2(raceliteSamplingMask+1)
-	//
-	// Initialized in raceliteinit based on the value of debug.racelite.
 	raceliteSamplingShift uint8
 	// raceliteSamplingMask is used when determining whether to sample an address.
-	//
-	// Initialized in raceliteinit based on the value of debug.racelite.
 	raceliteSamplingMask uint32
 )
 
-func racelitediag() bool {
-	return debug.racelite >= 2
-}
-
 // Initialize Racelite tooling
 func raceliteinit() {
-	if debug.racelite <= 0 {
-		// No-op if racelite is not enabled.
-		return
-	}
-
 	// Initialize the random address sampler.
 	raceliteSamplingRand = cheaprand()
-	switch debug.racelite {
-	case 1:
-		// Standard Racelite
-		// Sample one address (8-byte aligned) in every 4096.
-		raceliteSamplingShift = 11
-	case 2:
-		// Debug Racelite
-		// Sample one address (8-byte aligned) in every 2.
-		raceliteSamplingShift = 1
-	}
+
+	// Sample one address (8-byte aligned) in every 4096.
+	raceliteSamplingShift = 11
 	raceliteSamplingMask = (1 << raceliteSamplingShift) - 1
 
 	// Initialize virtual registers.
@@ -134,10 +114,10 @@ func racelitetick(delay uint32) {
 	}
 }
 
-// raceliteCount reports how many data races were found during execution.
+// racelitecount reports how many data races were found during execution.
 //
 // It is called by main and os_beforeExit (proc.go).
-func raceliteCount() {
+func racelitecount() {
 	var count int32
 	for _, filled := range raceliteRecords {
 		if filled {
@@ -261,10 +241,11 @@ type raceliteVirtualRegister struct {
 	// that claimed the virtual register.
 	goid uint64
 
-	// Diagnostic information.
+	// Diagnostics used in experiments.
 	//
 	// TODO(vsaioc): Add more for experimentation purposes and remove
 	// for the polished release version.
+
 	identifier uint32 // the identifier of the virtual register
 }
 

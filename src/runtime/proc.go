@@ -329,9 +329,7 @@ func main() {
 	if raceenabled {
 		racefini() // does not return
 	}
-	if debug.racelite > 0 {
-		raceliteCount()
-	}
+	racelitecount()
 
 	exit(0)
 	for {
@@ -348,9 +346,7 @@ func os_beforeExit(exitCode int) {
 	if exitCode == 0 && raceenabled {
 		racefini()
 	}
-	if debug.racelite > 0 {
-		raceliteCount()
-	}
+	racelitecount()
 
 	// See comment in main, above.
 	if exitCode == 0 && asanenabled && (isarchive || islibrary || NumCgoCall() > 1) {
@@ -6544,10 +6540,8 @@ func sysmon() {
 		}
 		usleep(delay)
 
-		if debug.racelite > 0 {
-			// Refresh Racelite sampler and cool down PC.
-			racelitetick(delay)
-		}
+		// Refresh Racelite sampler and cool down PC.
+		racelitetick(delay)
 
 		// sysmon should not enter deep sleep if schedtrace is enabled so that
 		// it can print that information at the right time.

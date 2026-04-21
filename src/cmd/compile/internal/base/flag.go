@@ -119,7 +119,8 @@ type CmdFlags struct {
 	CoverageCfg        func(string) "help:\"read coverage configuration from `file`\""
 	Pack               bool         "help:\"write to file.a instead of file.o\""
 	Race               bool         "help:\"enable race detector\""
-	Racelite           string       "help:\"enable racelite for matching packages; must be a valid regular expression\""
+	Racelite           bool         "help:\"enable racelite detector\""
+	RaceliteMatch      string       "help:\"enable racelite detector only for packages that match the regular expression; has no effect if -racelite is not provided\""
 	Shared             *bool        "help:\"generate code that can be linked into a shared library\"" // &Ctxt.Flag_shared, set below
 	SmallFrames        bool         "help:\"reduce the size limit for stack allocated objects\""      // small stacks, to diagnose GC latency; see golang.org/issue/27732
 	Spectre            string       "help:\"enable spectre mitigations in `list` (all, index, ret)\""
@@ -214,12 +215,13 @@ func ParseFlags() {
 
 	// Check the racelite flag and update the Racelite configuration
 	// if the package matches the racelite pattern.
-	if Flag.Racelite != "" {
-		re, err := regexp.Compile(Flag.Racelite)
+	Flag.Cfg.Racelite = Flag.Racelite
+	if Flag.RaceliteMatch != "" {
+		re, err := regexp.Compile(Flag.RaceliteMatch)
 		if err != nil {
 			log.Fatalf("invalid -racelite pattern: %s\nerror: %v", Flag.Racelite, err)
 		}
-		Flag.Cfg.Racelite = re.MatchString(Ctxt.Pkgpath)
+		Flag.Cfg.Racelite = Flag.Racelite && re.MatchString(Ctxt.Pkgpath)
 	}
 
 	if Debug.Gossahash != "" {
