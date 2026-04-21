@@ -25,13 +25,13 @@
 //	install     compile and install packages and dependencies
 //	list        list packages or modules
 //	mod         module maintenance
-//	work        workspace maintenance
 //	run         compile and run Go program
 //	telemetry   manage telemetry data and settings
 //	test        test packages
 //	tool        run specified go tool
 //	version     print Go version
 //	vet         report likely mistakes in packages
+//	work        workspace maintenance
 //
 // Use "go help <command>" for more information about a command.
 //
@@ -1516,266 +1516,6 @@
 //
 // See https://go.dev/ref/mod#go-mod-why for more about 'go mod why'.
 //
-// # Workspace maintenance
-//
-// Work provides access to operations on workspaces.
-//
-// Note that support for workspaces is built into many other commands, not
-// just 'go work'.
-//
-// See 'go help modules' for information about Go's module system of which
-// workspaces are a part.
-//
-// See https://go.dev/ref/mod#workspaces for an in-depth reference on
-// workspaces.
-//
-// See https://go.dev/doc/tutorial/workspaces for an introductory
-// tutorial on workspaces.
-//
-// A workspace is specified by a go.work file that specifies a set of
-// module directories with the "use" directive. These modules are used as
-// root modules by the go command for builds and related operations.  A
-// workspace that does not specify modules to be used cannot be used to do
-// builds from local modules.
-//
-// go.work files are line-oriented. Each line holds a single directive,
-// made up of a keyword followed by arguments. For example:
-//
-//	go 1.18
-//
-//	use ../foo/bar
-//	use ./baz
-//
-//	replace example.com/foo v1.2.3 => example.com/bar v1.4.5
-//
-// The leading keyword can be factored out of adjacent lines to create a block,
-// like in Go imports.
-//
-//	use (
-//	  ../foo/bar
-//	  ./baz
-//	)
-//
-// The use directive specifies a module to be included in the workspace's
-// set of main modules. The argument to the use directive is the directory
-// containing the module's go.mod file. The go command does not resolve
-// symbolic links when matching use paths to module directories, so a
-// symlink to a directory is not interchangeable with its target.
-//
-// The go directive specifies the version of Go the file was written at. It
-// is possible there may be future changes in the semantics of workspaces
-// that could be controlled by this version, but for now the version
-// specified has no effect.
-//
-// The replace directive has the same syntax as the replace directive in a
-// go.mod file and takes precedence over replaces in go.mod files.  It is
-// primarily intended to override conflicting replaces in different workspace
-// modules.
-//
-// To determine whether the go command is operating in workspace mode, use
-// the "go env GOWORK" command. This will specify the workspace file being
-// used.
-//
-// Usage:
-//
-//	go work <command> [arguments]
-//
-// The commands are:
-//
-//	edit        edit go.work from tools or scripts
-//	init        initialize workspace file
-//	sync        sync workspace build list to modules
-//	use         add modules to workspace file
-//	vendor      make vendored copy of dependencies
-//
-// Use "go help work <command>" for more information about a command.
-//
-// # Edit go.work from tools or scripts
-//
-// Usage:
-//
-//	go work edit [editing flags] [go.work]
-//
-// Edit provides a command-line interface for editing go.work,
-// for use primarily by tools or scripts. It only reads go.work;
-// it does not look up information about the modules involved.
-// If no file is specified, Edit looks for a go.work file in the current
-// directory and its parent directories
-//
-// The editing flags specify a sequence of editing operations.
-//
-// The -fmt flag reformats the go.work file without making other changes.
-// This reformatting is also implied by any other modifications that use or
-// rewrite the go.work file. The only time this flag is needed is if no other
-// flags are specified, as in 'go work edit -fmt'.
-//
-// The -godebug=key=value flag adds a godebug key=value line,
-// replacing any existing godebug lines with the given key.
-//
-// The -dropgodebug=key flag drops any existing godebug lines
-// with the given key.
-//
-// The -use=path and -dropuse=path flags
-// add and drop a use directive from the go.work file's set of module directories.
-//
-// The -replace=old[@v]=new[@v] flag adds a replacement of the given
-// module path and version pair. If the @v in old@v is omitted, a
-// replacement without a version on the left side is added, which applies
-// to all versions of the old module path. If the @v in new@v is omitted,
-// the new path should be a local module root directory, not a module
-// path. Note that -replace overrides any redundant replacements for old[@v],
-// so omitting @v will drop existing replacements for specific versions.
-//
-// The -dropreplace=old[@v] flag drops a replacement of the given
-// module path and version pair. If the @v is omitted, a replacement without
-// a version on the left side is dropped.
-//
-// The -use, -dropuse, -replace, and -dropreplace,
-// editing flags may be repeated, and the changes are applied in the order given.
-//
-// The -go=version flag sets the expected Go language version.
-// It takes a version like "1.26" or "1.26.2".
-// Using "none" as the version removes the go directive.
-//
-// The -toolchain=name flag sets the Go toolchain to use.
-// It takes a toolchain name like "go1.26" or "go1.26.2".
-// Using "none" as the name removes the toolchain directive.
-//
-// The -print flag prints the final go.work in its text format instead of
-// writing it back to go.work.
-//
-// The -json flag prints the final go.work file in JSON format instead of
-// writing it back to go.work. The JSON output corresponds to these Go types:
-//
-//	type GoWork struct {
-//		Go        string
-//		Toolchain string
-//		Godebug   []Godebug
-//		Use       []Use
-//		Replace   []Replace
-//	}
-//
-//	type Godebug struct {
-//		Key   string
-//		Value string
-//	}
-//
-//	type Use struct {
-//		DiskPath   string
-//		ModulePath string
-//	}
-//
-//	type Replace struct {
-//		Old Module
-//		New Module
-//	}
-//
-//	type Module struct {
-//		Path    string
-//		Version string
-//	}
-//
-// See the workspaces reference at https://go.dev/ref/mod#workspaces
-// for more information.
-//
-// # Initialize workspace file
-//
-// Usage:
-//
-//	go work init [moddirs]
-//
-// Init initializes and writes a new go.work file in the
-// current directory, in effect creating a new workspace at the current
-// directory.
-//
-// go work init optionally accepts paths to the workspace modules as
-// arguments. If the argument is omitted, an empty workspace with no
-// modules will be created.
-//
-// Each argument path is added to a use directive in the go.work file. The
-// current go version will also be listed in the go.work file.
-//
-// See the workspaces reference at https://go.dev/ref/mod#workspaces
-// for more information.
-//
-// # Sync workspace build list to modules
-//
-// Usage:
-//
-//	go work sync
-//
-// Sync syncs the workspace's build list back to the
-// workspace's modules
-//
-// The workspace's build list is the set of versions of all the
-// (transitive) dependency modules used to do builds in the workspace. go
-// work sync generates that build list using the Minimal Version Selection
-// algorithm, and then syncs those versions back to each of modules
-// specified in the workspace (with use directives).
-//
-// The syncing is done by sequentially upgrading each of the dependency
-// modules specified in a workspace module to the version in the build list
-// if the dependency module's version is not already the same as the build
-// list's version. Note that Minimal Version Selection guarantees that the
-// build list's version of each module is always the same or higher than
-// that in each workspace module.
-//
-// See the workspaces reference at https://go.dev/ref/mod#workspaces
-// for more information.
-//
-// # Add modules to workspace file
-//
-// Usage:
-//
-//	go work use [-r] [moddirs]
-//
-// Use provides a command-line interface for adding
-// directories, optionally recursively, to a go.work file.
-//
-// A use directive will be added to the go.work file for each argument
-// directory listed on the command line go.work file, if it exists,
-// or removed from the go.work file if it does not exist.
-// Use fails if any remaining use directives refer to modules that
-// do not exist.
-//
-// Use updates the go line in go.work to specify a version at least as
-// new as all the go lines in the used modules, both preexisting ones
-// and newly added ones. With no arguments, this update is the only
-// thing that go work use does.
-//
-// The -r flag searches recursively for modules in the argument
-// directories, and the use command operates as if each of the directories
-// were specified as arguments. When -r is used, symlinks to directories
-// within the argument tree are ignored.
-//
-// The go command matches use paths to module directories without resolving
-// symbolic links. A use directive that names a symlink to a directory is
-// not interchangeable with one that names the symlink's target.
-//
-// See the workspaces reference at https://go.dev/ref/mod#workspaces
-// for more information.
-//
-// # Make vendored copy of dependencies
-//
-// Usage:
-//
-//	go work vendor [-e] [-v] [-o outdir]
-//
-// Vendor resets the workspace's vendor directory to include all packages
-// needed to build and test all the workspace's packages.
-// It does not include test code for vendored packages.
-//
-// The -v flag causes vendor to print the names of vendored
-// modules and packages to standard error.
-//
-// The -e flag causes vendor to attempt to proceed despite errors
-// encountered while loading packages.
-//
-// The -o flag causes vendor to create the vendor directory at the given
-// path instead of "vendor". The go command can only use a vendor directory
-// named "vendor" within the module root directory, so this flag is
-// primarily useful for other tools.
-//
 // # Compile and run Go program
 //
 // Usage:
@@ -2098,6 +1838,266 @@
 // For more about these flags, see 'go help build'.
 //
 // See also: go fmt, go fix.
+//
+// # Workspace maintenance
+//
+// Work provides access to operations on workspaces.
+//
+// Note that support for workspaces is built into many other commands, not
+// just 'go work'.
+//
+// See 'go help modules' for information about Go's module system of which
+// workspaces are a part.
+//
+// See https://go.dev/ref/mod#workspaces for an in-depth reference on
+// workspaces.
+//
+// See https://go.dev/doc/tutorial/workspaces for an introductory
+// tutorial on workspaces.
+//
+// A workspace is specified by a go.work file that specifies a set of
+// module directories with the "use" directive. These modules are used as
+// root modules by the go command for builds and related operations.  A
+// workspace that does not specify modules to be used cannot be used to do
+// builds from local modules.
+//
+// go.work files are line-oriented. Each line holds a single directive,
+// made up of a keyword followed by arguments. For example:
+//
+//	go 1.18
+//
+//	use ../foo/bar
+//	use ./baz
+//
+//	replace example.com/foo v1.2.3 => example.com/bar v1.4.5
+//
+// The leading keyword can be factored out of adjacent lines to create a block,
+// like in Go imports.
+//
+//	use (
+//	  ../foo/bar
+//	  ./baz
+//	)
+//
+// The use directive specifies a module to be included in the workspace's
+// set of main modules. The argument to the use directive is the directory
+// containing the module's go.mod file. The go command does not resolve
+// symbolic links when matching use paths to module directories, so a
+// symlink to a directory is not interchangeable with its target.
+//
+// The go directive specifies the version of Go the file was written at. It
+// is possible there may be future changes in the semantics of workspaces
+// that could be controlled by this version, but for now the version
+// specified has no effect.
+//
+// The replace directive has the same syntax as the replace directive in a
+// go.mod file and takes precedence over replaces in go.mod files.  It is
+// primarily intended to override conflicting replaces in different workspace
+// modules.
+//
+// To determine whether the go command is operating in workspace mode, use
+// the "go env GOWORK" command. This will specify the workspace file being
+// used.
+//
+// Usage:
+//
+//	go work <command> [arguments]
+//
+// The commands are:
+//
+//	edit        edit go.work from tools or scripts
+//	init        initialize workspace file
+//	sync        sync workspace build list to modules
+//	use         add modules to workspace file
+//	vendor      make vendored copy of dependencies
+//
+// Use "go help work <command>" for more information about a command.
+//
+// # Edit go.work from tools or scripts
+//
+// Usage:
+//
+//	go work edit [editing flags] [go.work]
+//
+// Edit provides a command-line interface for editing go.work,
+// for use primarily by tools or scripts. It only reads go.work;
+// it does not look up information about the modules involved.
+// If no file is specified, Edit looks for a go.work file in the current
+// directory and its parent directories
+//
+// The editing flags specify a sequence of editing operations.
+//
+// The -fmt flag reformats the go.work file without making other changes.
+// This reformatting is also implied by any other modifications that use or
+// rewrite the go.work file. The only time this flag is needed is if no other
+// flags are specified, as in 'go work edit -fmt'.
+//
+// The -godebug=key=value flag adds a godebug key=value line,
+// replacing any existing godebug lines with the given key.
+//
+// The -dropgodebug=key flag drops any existing godebug lines
+// with the given key.
+//
+// The -use=path and -dropuse=path flags
+// add and drop a use directive from the go.work file's set of module directories.
+//
+// The -replace=old[@v]=new[@v] flag adds a replacement of the given
+// module path and version pair. If the @v in old@v is omitted, a
+// replacement without a version on the left side is added, which applies
+// to all versions of the old module path. If the @v in new@v is omitted,
+// the new path should be a local module root directory, not a module
+// path. Note that -replace overrides any redundant replacements for old[@v],
+// so omitting @v will drop existing replacements for specific versions.
+//
+// The -dropreplace=old[@v] flag drops a replacement of the given
+// module path and version pair. If the @v is omitted, a replacement without
+// a version on the left side is dropped.
+//
+// The -use, -dropuse, -replace, and -dropreplace,
+// editing flags may be repeated, and the changes are applied in the order given.
+//
+// The -go=version flag sets the expected Go language version.
+// It takes a version like "1.26" or "1.26.2".
+// Using "none" as the version removes the go directive.
+//
+// The -toolchain=name flag sets the Go toolchain to use.
+// It takes a toolchain name like "go1.26" or "go1.26.2".
+// Using "none" as the name removes the toolchain directive.
+//
+// The -print flag prints the final go.work in its text format instead of
+// writing it back to go.work.
+//
+// The -json flag prints the final go.work file in JSON format instead of
+// writing it back to go.work. The JSON output corresponds to these Go types:
+//
+//	type GoWork struct {
+//		Go        string
+//		Toolchain string
+//		Godebug   []Godebug
+//		Use       []Use
+//		Replace   []Replace
+//	}
+//
+//	type Godebug struct {
+//		Key   string
+//		Value string
+//	}
+//
+//	type Use struct {
+//		DiskPath   string
+//		ModulePath string
+//	}
+//
+//	type Replace struct {
+//		Old Module
+//		New Module
+//	}
+//
+//	type Module struct {
+//		Path    string
+//		Version string
+//	}
+//
+// See the workspaces reference at https://go.dev/ref/mod#workspaces
+// for more information.
+//
+// # Initialize workspace file
+//
+// Usage:
+//
+//	go work init [moddirs]
+//
+// Init initializes and writes a new go.work file in the
+// current directory, in effect creating a new workspace at the current
+// directory.
+//
+// go work init optionally accepts paths to the workspace modules as
+// arguments. If the argument is omitted, an empty workspace with no
+// modules will be created.
+//
+// Each argument path is added to a use directive in the go.work file. The
+// current go version will also be listed in the go.work file.
+//
+// See the workspaces reference at https://go.dev/ref/mod#workspaces
+// for more information.
+//
+// # Sync workspace build list to modules
+//
+// Usage:
+//
+//	go work sync
+//
+// Sync syncs the workspace's build list back to the
+// workspace's modules
+//
+// The workspace's build list is the set of versions of all the
+// (transitive) dependency modules used to do builds in the workspace. go
+// work sync generates that build list using the Minimal Version Selection
+// algorithm, and then syncs those versions back to each of modules
+// specified in the workspace (with use directives).
+//
+// The syncing is done by sequentially upgrading each of the dependency
+// modules specified in a workspace module to the version in the build list
+// if the dependency module's version is not already the same as the build
+// list's version. Note that Minimal Version Selection guarantees that the
+// build list's version of each module is always the same or higher than
+// that in each workspace module.
+//
+// See the workspaces reference at https://go.dev/ref/mod#workspaces
+// for more information.
+//
+// # Add modules to workspace file
+//
+// Usage:
+//
+//	go work use [-r] [moddirs]
+//
+// Use provides a command-line interface for adding
+// directories, optionally recursively, to a go.work file.
+//
+// A use directive will be added to the go.work file for each argument
+// directory listed on the command line go.work file, if it exists,
+// or removed from the go.work file if it does not exist.
+// Use fails if any remaining use directives refer to modules that
+// do not exist.
+//
+// Use updates the go line in go.work to specify a version at least as
+// new as all the go lines in the used modules, both preexisting ones
+// and newly added ones. With no arguments, this update is the only
+// thing that go work use does.
+//
+// The -r flag searches recursively for modules in the argument
+// directories, and the use command operates as if each of the directories
+// were specified as arguments. When -r is used, symlinks to directories
+// within the argument tree are ignored.
+//
+// The go command matches use paths to module directories without resolving
+// symbolic links. A use directive that names a symlink to a directory is
+// not interchangeable with one that names the symlink's target.
+//
+// See the workspaces reference at https://go.dev/ref/mod#workspaces
+// for more information.
+//
+// # Make vendored copy of dependencies
+//
+// Usage:
+//
+//	go work vendor [-e] [-v] [-o outdir]
+//
+// Vendor resets the workspace's vendor directory to include all packages
+// needed to build and test all the workspace's packages.
+// It does not include test code for vendored packages.
+//
+// The -v flag causes vendor to print the names of vendored
+// modules and packages to standard error.
+//
+// The -e flag causes vendor to attempt to proceed despite errors
+// encountered while loading packages.
+//
+// The -o flag causes vendor to create the vendor directory at the given
+// path instead of "vendor". The go command can only use a vendor directory
+// named "vendor" within the module root directory, so this flag is
+// primarily useful for other tools.
 //
 // # Build constraints
 //
