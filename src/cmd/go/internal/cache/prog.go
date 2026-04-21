@@ -204,6 +204,7 @@ func (c *ProgCache) send(ctx context.Context, req *cacheprog.Request) (*cachepro
 func (c *ProgCache) writeToChild(req *cacheprog.Request, resc chan<- *cacheprog.Response) (err error) {
 	c.mu.Lock()
 	if c.inFlight == nil {
+		c.mu.Unlock()
 		return errCacheprogClosed
 	}
 	c.nextID++
