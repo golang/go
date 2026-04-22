@@ -1254,6 +1254,22 @@ const (
 	OpAMD64KMOVDi
 	OpAMD64KMOVWi
 	OpAMD64KMOVBi
+	OpAMD64KANDB
+	OpAMD64KANDW
+	OpAMD64KANDD
+	OpAMD64KANDQ
+	OpAMD64KORB
+	OpAMD64KORW
+	OpAMD64KORD
+	OpAMD64KORQ
+	OpAMD64KXORB
+	OpAMD64KXORW
+	OpAMD64KXORD
+	OpAMD64KXORQ
+	OpAMD64KXNORB
+	OpAMD64KXNORW
+	OpAMD64KXNORD
+	OpAMD64KXNORQ
 	OpAMD64VPTEST
 	OpAMD64SHA1MSG1128
 	OpAMD64SHA1MSG2128
@@ -20900,6 +20916,230 @@ var opcodeTable = [...]opInfo{
 			},
 			outputs: []outputInfo{
 				{0, 49135}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R15
+			},
+		},
+	},
+	{
+		name:   "KANDB",
+		argLen: 2,
+		asm:    x86.AKANDB,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{0, 71494644084506624}, // K1 K2 K3 K4 K5 K6 K7
+				{1, 71494644084506624}, // K1 K2 K3 K4 K5 K6 K7
+			},
+			outputs: []outputInfo{
+				{0, 71494644084506624}, // K1 K2 K3 K4 K5 K6 K7
+			},
+		},
+	},
+	{
+		name:   "KANDW",
+		argLen: 2,
+		asm:    x86.AKANDW,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{0, 71494644084506624}, // K1 K2 K3 K4 K5 K6 K7
+				{1, 71494644084506624}, // K1 K2 K3 K4 K5 K6 K7
+			},
+			outputs: []outputInfo{
+				{0, 71494644084506624}, // K1 K2 K3 K4 K5 K6 K7
+			},
+		},
+	},
+	{
+		name:   "KANDD",
+		argLen: 2,
+		asm:    x86.AKANDD,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{0, 71494644084506624}, // K1 K2 K3 K4 K5 K6 K7
+				{1, 71494644084506624}, // K1 K2 K3 K4 K5 K6 K7
+			},
+			outputs: []outputInfo{
+				{0, 71494644084506624}, // K1 K2 K3 K4 K5 K6 K7
+			},
+		},
+	},
+	{
+		name:   "KANDQ",
+		argLen: 2,
+		asm:    x86.AKANDQ,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{0, 71494644084506624}, // K1 K2 K3 K4 K5 K6 K7
+				{1, 71494644084506624}, // K1 K2 K3 K4 K5 K6 K7
+			},
+			outputs: []outputInfo{
+				{0, 71494644084506624}, // K1 K2 K3 K4 K5 K6 K7
+			},
+		},
+	},
+	{
+		name:   "KORB",
+		argLen: 2,
+		asm:    x86.AKORB,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{0, 71494644084506624}, // K1 K2 K3 K4 K5 K6 K7
+				{1, 71494644084506624}, // K1 K2 K3 K4 K5 K6 K7
+			},
+			outputs: []outputInfo{
+				{0, 71494644084506624}, // K1 K2 K3 K4 K5 K6 K7
+			},
+		},
+	},
+	{
+		name:   "KORW",
+		argLen: 2,
+		asm:    x86.AKORW,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{0, 71494644084506624}, // K1 K2 K3 K4 K5 K6 K7
+				{1, 71494644084506624}, // K1 K2 K3 K4 K5 K6 K7
+			},
+			outputs: []outputInfo{
+				{0, 71494644084506624}, // K1 K2 K3 K4 K5 K6 K7
+			},
+		},
+	},
+	{
+		name:   "KORD",
+		argLen: 2,
+		asm:    x86.AKORD,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{0, 71494644084506624}, // K1 K2 K3 K4 K5 K6 K7
+				{1, 71494644084506624}, // K1 K2 K3 K4 K5 K6 K7
+			},
+			outputs: []outputInfo{
+				{0, 71494644084506624}, // K1 K2 K3 K4 K5 K6 K7
+			},
+		},
+	},
+	{
+		name:   "KORQ",
+		argLen: 2,
+		asm:    x86.AKORQ,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{0, 71494644084506624}, // K1 K2 K3 K4 K5 K6 K7
+				{1, 71494644084506624}, // K1 K2 K3 K4 K5 K6 K7
+			},
+			outputs: []outputInfo{
+				{0, 71494644084506624}, // K1 K2 K3 K4 K5 K6 K7
+			},
+		},
+	},
+	{
+		name:   "KXORB",
+		argLen: 2,
+		asm:    x86.AKXORB,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{0, 71494644084506624}, // K1 K2 K3 K4 K5 K6 K7
+				{1, 71494644084506624}, // K1 K2 K3 K4 K5 K6 K7
+			},
+			outputs: []outputInfo{
+				{0, 71494644084506624}, // K1 K2 K3 K4 K5 K6 K7
+			},
+		},
+	},
+	{
+		name:   "KXORW",
+		argLen: 2,
+		asm:    x86.AKXORW,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{0, 71494644084506624}, // K1 K2 K3 K4 K5 K6 K7
+				{1, 71494644084506624}, // K1 K2 K3 K4 K5 K6 K7
+			},
+			outputs: []outputInfo{
+				{0, 71494644084506624}, // K1 K2 K3 K4 K5 K6 K7
+			},
+		},
+	},
+	{
+		name:   "KXORD",
+		argLen: 2,
+		asm:    x86.AKXORD,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{0, 71494644084506624}, // K1 K2 K3 K4 K5 K6 K7
+				{1, 71494644084506624}, // K1 K2 K3 K4 K5 K6 K7
+			},
+			outputs: []outputInfo{
+				{0, 71494644084506624}, // K1 K2 K3 K4 K5 K6 K7
+			},
+		},
+	},
+	{
+		name:   "KXORQ",
+		argLen: 2,
+		asm:    x86.AKXORQ,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{0, 71494644084506624}, // K1 K2 K3 K4 K5 K6 K7
+				{1, 71494644084506624}, // K1 K2 K3 K4 K5 K6 K7
+			},
+			outputs: []outputInfo{
+				{0, 71494644084506624}, // K1 K2 K3 K4 K5 K6 K7
+			},
+		},
+	},
+	{
+		name:   "KXNORB",
+		argLen: 2,
+		asm:    x86.AKXNORB,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{0, 71494644084506624}, // K1 K2 K3 K4 K5 K6 K7
+				{1, 71494644084506624}, // K1 K2 K3 K4 K5 K6 K7
+			},
+			outputs: []outputInfo{
+				{0, 71494644084506624}, // K1 K2 K3 K4 K5 K6 K7
+			},
+		},
+	},
+	{
+		name:   "KXNORW",
+		argLen: 2,
+		asm:    x86.AKXNORW,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{0, 71494644084506624}, // K1 K2 K3 K4 K5 K6 K7
+				{1, 71494644084506624}, // K1 K2 K3 K4 K5 K6 K7
+			},
+			outputs: []outputInfo{
+				{0, 71494644084506624}, // K1 K2 K3 K4 K5 K6 K7
+			},
+		},
+	},
+	{
+		name:   "KXNORD",
+		argLen: 2,
+		asm:    x86.AKXNORD,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{0, 71494644084506624}, // K1 K2 K3 K4 K5 K6 K7
+				{1, 71494644084506624}, // K1 K2 K3 K4 K5 K6 K7
+			},
+			outputs: []outputInfo{
+				{0, 71494644084506624}, // K1 K2 K3 K4 K5 K6 K7
+			},
+		},
+	},
+	{
+		name:   "KXNORQ",
+		argLen: 2,
+		asm:    x86.AKXNORQ,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{0, 71494644084506624}, // K1 K2 K3 K4 K5 K6 K7
+				{1, 71494644084506624}, // K1 K2 K3 K4 K5 K6 K7
+			},
+			outputs: []outputInfo{
+				{0, 71494644084506624}, // K1 K2 K3 K4 K5 K6 K7
 			},
 		},
 	},

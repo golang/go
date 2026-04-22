@@ -1824,6 +1824,17 @@ func ssaGenValue(s *ssagen.State, v *ssa.Value) {
 		p.AddRestSourceReg(v.Args[1].Reg()) // simd mask reg
 		x86.ParseSuffix(p, "Z")             // must be zero if not in mask
 
+	case ssa.OpAMD64KANDB, ssa.OpAMD64KANDW, ssa.OpAMD64KANDD, ssa.OpAMD64KANDQ,
+		ssa.OpAMD64KORB, ssa.OpAMD64KORW, ssa.OpAMD64KORD, ssa.OpAMD64KORQ,
+		ssa.OpAMD64KXORB, ssa.OpAMD64KXORW, ssa.OpAMD64KXORD, ssa.OpAMD64KXORQ,
+		ssa.OpAMD64KXNORB, ssa.OpAMD64KXNORW, ssa.OpAMD64KXNORD, ssa.OpAMD64KXNORQ: // XNOR == EQ
+		p := s.Prog(v.Op.Asm())
+		p.From.Type = obj.TYPE_REG
+		p.From.Reg = v.Args[0].Reg()
+		p.To.Type = obj.TYPE_REG
+		p.To.Reg = v.Reg()
+		p.AddRestSourceReg(v.Args[1].Reg()) // masking simd reg
+
 	case ssa.OpAMD64VPMASK64store512, ssa.OpAMD64VPMASK32store512, ssa.OpAMD64VPMASK16store512, ssa.OpAMD64VPMASK8store512:
 		p := s.Prog(v.Op.Asm())
 		p.From.Type = obj.TYPE_REG

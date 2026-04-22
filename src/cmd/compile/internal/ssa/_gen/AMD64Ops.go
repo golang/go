@@ -272,6 +272,7 @@ func init() {
 		kstore = regInfo{inputs: []regMask{gpspsb, mask, 0}}
 		gpk    = regInfo{inputs: gponly, outputs: maskonly}
 		kgp    = regInfo{inputs: maskonly, outputs: gponly}
+		k2k    = regInfo{inputs: []regMask{mask, mask}, outputs: maskonly}
 
 		x15only = regInfo{inputs: nil, outputs: []regMask{x15}}
 
@@ -1463,6 +1464,28 @@ func init() {
 		{name: "KMOVDi", argLength: 1, reg: kgp, asm: "KMOVD"},
 		{name: "KMOVWi", argLength: 1, reg: kgp, asm: "KMOVW"},
 		{name: "KMOVBi", argLength: 1, reg: kgp, asm: "KMOVB"},
+
+		// Mask logical operations
+		{name: "KANDB", argLength: 2, reg: k2k, asm: "KANDB", typ: "Mask"},
+		{name: "KANDW", argLength: 2, reg: k2k, asm: "KANDW", typ: "Mask"},
+		{name: "KANDD", argLength: 2, reg: k2k, asm: "KANDD", typ: "Mask"},
+		{name: "KANDQ", argLength: 2, reg: k2k, asm: "KANDQ", typ: "Mask"},
+
+		{name: "KORB", argLength: 2, reg: k2k, asm: "KORB", typ: "Mask"},
+		{name: "KORW", argLength: 2, reg: k2k, asm: "KORW", typ: "Mask"},
+		{name: "KORD", argLength: 2, reg: k2k, asm: "KORD", typ: "Mask"},
+		{name: "KORQ", argLength: 2, reg: k2k, asm: "KORQ", typ: "Mask"},
+
+		{name: "KXORB", argLength: 2, reg: k2k, asm: "KXORB", typ: "Mask"},
+		{name: "KXORW", argLength: 2, reg: k2k, asm: "KXORW", typ: "Mask"},
+		{name: "KXORD", argLength: 2, reg: k2k, asm: "KXORD", typ: "Mask"},
+		{name: "KXORQ", argLength: 2, reg: k2k, asm: "KXORQ", typ: "Mask"},
+
+		// Following Intel convention, we call it XNOR instead of EQ.
+		{name: "KXNORB", argLength: 2, reg: k2k, asm: "KXNORB", typ: "Mask"},
+		{name: "KXNORW", argLength: 2, reg: k2k, asm: "KXNORW", typ: "Mask"},
+		{name: "KXNORD", argLength: 2, reg: k2k, asm: "KXNORD", typ: "Mask"},
+		{name: "KXNORQ", argLength: 2, reg: k2k, asm: "KXNORQ", typ: "Mask"},
 
 		// VPTEST
 		{name: "VPTEST", asm: "VPTEST", argLength: 2, reg: v2flags, clobberFlags: true, typ: "Flags"},
