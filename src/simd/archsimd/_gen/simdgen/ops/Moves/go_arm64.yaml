@@ -47,6 +47,7 @@
 - go: SetElem
   asm: "VMOV"
   SSAVariant: "ins0"
+  specialLower: !string "match [0] (VMOVI16B [0]) y:(VDUP%sextr [i] _) => y"
   in:
   - *immIndex
   - &imm0

@@ -29,7 +29,9 @@
 (MulUint16x8 ...) => (VMUL8H ...)
 (MulUint32x4 ...) => (VMUL4S ...)
 (SetElemFloat32x4 ...) => (VMOVSins0 ...)
+(VMOVSins0 [0] (VMOVI16B [0]) y:(VDUPSextr [i] _))  => y
 (SetElemFloat64x2 ...) => (VMOVDins0 ...)
+(VMOVDins0 [0] (VMOVI16B [0]) y:(VDUPDextr [i] _))  => y
 (SetElemInt8x16 ...) => (VMOVBins ...)
 (SetElemInt16x8 ...) => (VMOVHins ...)
 (SetElemInt32x4 ...) => (VMOVSins ...)

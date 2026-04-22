@@ -1074,6 +1074,31 @@ func (x {{.VType}}) String() string {
 }
 `)
 
+var setHiTemplateArm64 = shapedTemplateOf(arm64Shapes, "arm64_SetHi methods", `
+// SetHi returns a vector with the lower 64 bits of x preserved and the upper
+// 64 bits replaced with the lower 64 bits of the parameter lo.
+func (x {{.VType}}) SetHi(lo {{.VType}}) {{.VType}} {
+{{- if and (eq .Base "Float") (eq .EWidth 64)}}
+	return x.SetElem(1, lo.GetElem(0))
+{{- else}}
+	return x.AsFloat64x2().SetElem(1, lo.AsFloat64x2().GetElem(0)).As{{.VType}}()
+{{- end}}
+}
+`)
+
+var getHiTemplateArm64 = shapedTemplateOf(arm64Shapes, "arm64_GetHi methods", `
+// GetHi returns a vector with the upper 64 bits zeroed and the lower
+// 64 bits replaced with the upper 64 bits of x.
+func (x {{.VType}}) GetHi() {{.VType}} {
+	var z {{.VType}}
+{{- if and (eq .Base "Float") (eq .EWidth 64)}}
+	return z.SetElem(0, x.GetElem(1))
+{{- else}}
+	return z.AsFloat64x2().SetElem(0, x.AsFloat64x2().GetElem(1)).As{{.VType}}()
+{{- end}}
+}
+`)
+
 var maskCvtTemplate = shapedTemplateOf(intShapes, "Mask conversions", `
 // ToMask returns a mask whose i'th element is set if x[i] is non-zero.
 func (from {{.Base}}{{.WxC}}) ToMask() (to Mask{{.WxC}}) {
@@ -1188,7 +1213,7 @@ func main() {
 		oneArch(*bhArm64, "arm64", curryTestPrologue("binary simd methods"), binaryTemplateArm64)
 	}
 	if *opArm64 != "" {
-		one(*opArm64, prologue, broadcastTemplateArm64, stringTemplateArm64)
+		one(*opArm64, prologue, broadcastTemplateArm64, stringTemplateArm64, setHiTemplateArm64, getHiTemplateArm64)
 	}
 	if *shArm64 != "" {
 		oneArch(*shArm64, "arm64", curryTestPrologue("shift simd methods"),

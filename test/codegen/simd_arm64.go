@@ -24,8 +24,11 @@ func spillAroundCall(a archsimd.Int8x16) archsimd.Int8x16 {
 }
 
 var (
-	sinkU8 archsimd.Uint8x16
-	sinkI8 archsimd.Int8x16
+	sinkU8  archsimd.Uint8x16
+	sinkI8  archsimd.Int8x16
+	sinkU32 archsimd.Uint32x4
+	sinkF32 archsimd.Float32x4
+	sinkF64 archsimd.Float64x2
 )
 
 func broadcastConstImmFold(k int) {
@@ -68,4 +71,24 @@ func shiftAllImmFold(k int) {
 		// arm64:`VMOVI [$]156,` `VUSHL` -`VDUP`
 		sinkU8 = sinkU8.ShiftAllRight(100)
 	}
+}
+
+func setHiUint32(x, lo archsimd.Uint32x4) {
+	// arm64:`VMOV V1.D\[0\], V0.D\[1\]`
+	sinkU32 = x.SetHi(lo)
+}
+
+func setHiFloat64(x, lo archsimd.Float64x2) {
+	// arm64:`VMOV V1.D\[0\], V0.D\[1\]`
+	sinkF64 = x.SetHi(lo)
+}
+
+func getHiFloat32(x archsimd.Float32x4) {
+	// arm64:`VDUP V0.D\[1\],`
+	sinkF32 = x.GetHi()
+}
+
+func getHiFloat64(x archsimd.Float64x2) {
+	// arm64:`VDUP V0.D\[1\],`
+	sinkF64 = x.GetHi()
 }
