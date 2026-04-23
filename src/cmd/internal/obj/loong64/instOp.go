@@ -588,6 +588,8 @@ var oprr = map[obj.As]uint32{
 	AFTINTVF:     0x46c9 << 10,          // ftint.l.s
 	AMOVDV:       0x46ca << 10,          // ftint.l.d
 	AFTINTVD:     0x46ca << 10,          // ftint.l.d
+	AFRINTF:      0x4791 << 10,          // frint.s
+	AFRINTD:      0x4792 << 10,          // frint.d
 	AMOVDF:       0x4646 << 10,          // fcvt.s.d
 	AMOVFD:       0x4649 << 10,          // fcvt.d.s
 	AABSF:        0x4501 << 10,          // fabs.s

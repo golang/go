@@ -1332,6 +1332,8 @@ func buildop(ctxt *obj.Link) {
 			opset(AFTINTWD, r0)
 			opset(AFTINTVF, r0)
 			opset(AFTINTVD, r0)
+			opset(AFRINTF, r0)
+			opset(AFRINTD, r0)
 			opset(ANEGF, r0)
 			opset(ANEGD, r0)
 			opset(AABSD, r0)

@@ -395,6 +395,10 @@ lable2:
 	FTINTVF		F0, F1		// 01241b01
 	FTINTVD		F0, F1		// 01281b01
 
+	// FRINT{F,D} instructions
+	FRINTF		F0, F1		// 01441e01
+	FRINTD		F0, F1		// 01481e01
+
 	FMAXAF		F4, F5, F6	// a6900c01
 	FMAXAF		F4, F5		// a5900c01
 	FMAXAD		F4, F5, F6	// a6100d01
