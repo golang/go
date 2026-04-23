@@ -60,6 +60,7 @@ func BuildInit(ld *modload.Loader) {
 	modload.Init(ld)
 	instrumentInit()
 	buildModeInit()
+	staticInit()
 	initCompilerConcurrencyPool()
 	cfgChangedEnv = makeCfgChangedEnv()
 
@@ -210,6 +211,24 @@ func instrumentInit() {
 	}
 	cfg.BuildContext.InstallSuffix += mode
 	cfg.BuildContext.ToolTags = append(cfg.BuildContext.ToolTags, mode)
+}
+
+func staticInit() {
+	if !cfg.BuildStatic {
+		return
+	}
+	// When -static is set, produce a statically linked binary.
+	//
+	// If the user explicitly requested CGO (CGO_ENABLED=1), keep it enabled
+	// and pass -extldflags "-static" to the external linker.
+	// Otherwise, disable CGO to produce a pure Go static binary.
+	if v := cfg.Getenv("CGO_ENABLED"); v == "1" {
+		// User explicitly enabled CGO; use external linker with -static.
+		forcedLdflags = append(forcedLdflags, `-extldflags=-static`)
+	} else {
+		// Disable CGO for a fully static pure-Go binary.
+		cfg.BuildContext.CgoEnabled = false
+	}
 }
 
 func buildModeInit() {

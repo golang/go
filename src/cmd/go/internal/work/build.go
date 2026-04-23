@@ -189,6 +189,10 @@ and test commands:
 		install and load all packages from dir instead of the usual locations.
 		For example, when building with a non-standard configuration,
 		use -pkgdir to keep generated packages in a separate location.
+	-static
+		produce a statically linked binary.
+		When CGO is not required by the package, this sets CGO_ENABLED=0.
+		When CGO is required, this adds -extldflags "-static" to the linker flags.
 	-tags tag,list
 		a comma-separated list of additional build tags to consider satisfied
 		during the build. For more information about build tags, see
@@ -350,6 +354,7 @@ func AddBuildFlags(cmd *base.Command, mask BuildFlagMask) {
 	cmd.Flag.StringVar(&cfg.BuildPGO, "pgo", "auto", "")
 	cmd.Flag.StringVar(&cfg.BuildPkgdir, "pkgdir", "", "")
 	cmd.Flag.BoolVar(&cfg.BuildRace, "race", false, "")
+	cmd.Flag.BoolVar(&cfg.BuildStatic, "static", false, "")
 	cmd.Flag.Var((*tagsFlag)(&cfg.BuildContext.BuildTags), "tags", "")
 	cmd.Flag.Var((*base.StringsFlag)(&cfg.BuildToolexec), "toolexec", "")
 	cmd.Flag.BoolVar(&cfg.BuildTrimpath, "trimpath", false, "")
