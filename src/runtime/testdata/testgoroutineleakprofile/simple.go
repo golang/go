@@ -23,6 +23,7 @@ func init() {
 	register("NilRecv", NilRecv)
 	register("NilSend", NilSend)
 	register("SelectNoCases", SelectNoCases)
+	register("SelectNoCasesMain", SelectNoCasesMain)
 	register("ChanRecv", ChanRecv)
 	register("ChanSend", ChanSend)
 	register("Select", Select)
@@ -88,6 +89,27 @@ func SelectNoCases() {
 		runtime.Gosched()
 	}
 	prof.WriteTo(os.Stdout, 2)
+}
+
+func SelectNoCasesMain() {
+	prof := pprof.Lookup("goroutineleak")
+	ch := make(chan int)
+	go func() {
+		// Should be reported as a leak.
+		<-ch
+	}()
+	go func() {
+		for i := 0; i < yieldCount; i++ {
+			runtime.Gosched()
+		}
+		// Write a goroutine leak profile from
+		// the child goroutine.
+		prof.WriteTo(os.Stdout, 2)
+		// Forcefully exit the program.
+		os.Exit(0)
+	}()
+	// Should not be reported as a leak.
+	select {}
 }
 
 func ChanSend() {

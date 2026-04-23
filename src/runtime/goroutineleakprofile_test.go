@@ -194,6 +194,12 @@ func TestGoroutineLeakProfile(t *testing.T) {
 			`Mixed\.func1.1\(.* \[chan send\]`,
 		),
 		makeTest("NoLeakGlobal"),
+		// If the main goroutine is waiting on select{}, it should not be reported as a leak.
+		makeTest("SelectNoCasesMain",
+			// However, any goroutine leaking on a channel that is reachable from the main
+			// goroutine should be reported.
+			`SelectNoCasesMain\.func1\(.* \[chan receive\]`,
+		),
 	}
 
 	// Stress tests are flaky and we do not strictly care about their output.
