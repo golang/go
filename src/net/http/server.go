@@ -2675,6 +2675,13 @@ func stripHostPort(h string) string {
 	}
 	host, _, err := net.SplitHostPort(h)
 	if err != nil {
+		// "[hostname]:port" is not a valid host (IPv6 uses [::1]:port).
+		// Strip brackets and recurse to strip the port.
+		if strings.HasPrefix(h, "[") {
+			if j := strings.IndexByte(h, ']'); j >= 0 {
+				return stripHostPort(h[1:j])
+			}
+		}
 		return h // on error, return unchanged
 	}
 	return host
