@@ -431,10 +431,11 @@ func tconv2(b *bytes.Buffer, t *Type, verb rune, mode fmtMode, visited map[*Type
 			case IsExported(f.Sym.Name):
 				sconv2(b, f.Sym, 'S', mode)
 			default:
+				smode := mode
 				if mode != fmtTypeIDName {
-					mode = fmtTypeID
+					smode = fmtTypeID
 				}
-				sconv2(b, f.Sym, 'v', mode)
+				sconv2(b, f.Sym, 'v', smode)
 			}
 			tconv2(b, f.Type, 'S', mode, visited)
 		}
