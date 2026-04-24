@@ -769,6 +769,7 @@ func TestLookupPort(t *testing.T) {
 		{"udp", "-1", 0, false},
 		{"udp", "65536", 0, false},
 		{"tcp", "123456789", 0, false},
+		{"tcp", "bad\x00port", 0, false},
 
 		// Issue 13610: LookupPort("tcp", "")
 		{"tcp", "", 0, true},
