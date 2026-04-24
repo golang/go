@@ -1153,8 +1153,8 @@ func extendedGCD(a, m *Nat) (u, A *Nat, err error) {
 	//      u = A*a - B*m
 	//      v = D*m - C*a
 	//
-	// After each loop iteration, u + v only get smaller, and at least one of
-	// them shrinks by at least a factor of two.=
+	// After each loop iteration, u + v only gets smaller, and at least one of
+	// u and v shrinks by at least a factor of two.
 	for {
 		// If both u and v are odd, subtract the smaller from the larger.
 		// If u = v, we need to subtract from v to hit the modified exit condition.
