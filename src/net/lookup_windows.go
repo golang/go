@@ -215,8 +215,13 @@ func (r *Resolver) lookupPort(ctx context.Context, network, service string) (int
 		hints.Family = syscall.AF_INET6
 	}
 
+	servicep, err := syscall.UTF16PtrFromString(service)
+	if err != nil {
+		return 0, newDNSError(err, network+"/"+service, "")
+	}
+
 	var result *syscall.AddrinfoW
-	e := syscall.GetAddrInfoW(nil, syscall.StringToUTF16Ptr(service), &hints, &result)
+	e := syscall.GetAddrInfoW(nil, servicep, &hints, &result)
 	if e != nil {
 		if port, err := lookupPortMap(network, service); err == nil {
 			return port, nil
@@ -269,7 +274,12 @@ func (r *Resolver) lookupCNAME(ctx context.Context, name string) (string, error)
 	}
 	defer syscall.DnsRecordListFree(rec, 1)
 
-	resolved := resolveCNAME(syscall.StringToUTF16Ptr(name), rec)
+	namep, err := syscall.UTF16PtrFromString(name)
+	if err != nil {
+		return "", newDNSError(err, name, "")
+	}
+
+	resolved := resolveCNAME(namep, rec)
 	cname := windows.UTF16PtrToString(resolved)
 	return absDomainName(cname), nil
 }
@@ -415,7 +425,10 @@ const dnsSectionMask = 0x0003
 
 // returns only results applicable to name and resolves CNAME entries.
 func validRecs(r *syscall.DNSRecord, dnstype uint16, name string) []*syscall.DNSRecord {
-	cname := syscall.StringToUTF16Ptr(name)
+	cname, err := syscall.UTF16PtrFromString(name)
+	if err != nil {
+		return nil
+	}
 	if dnstype != syscall.DNS_TYPE_CNAME {
 		cname = resolveCNAME(cname, r)
 	}
