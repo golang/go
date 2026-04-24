@@ -2678,9 +2678,10 @@ func (v Value) Fields() iter.Seq2[StructField, Value] {
 // Calling this method will force the linker to retain all exported methods in all packages.
 // This may make the executable binary larger but will not affect execution time.
 func (v Value) Methods() iter.Seq2[Method, Value] {
+	rtype := v.Type()
+	n := v.NumMethod()
 	return func(yield func(Method, Value) bool) {
-		rtype := v.Type()
-		for i := range v.NumMethod() {
+		for i := range n {
 			if !yield(rtype.Method(i), v.Method(i)) {
 				return
 			}
