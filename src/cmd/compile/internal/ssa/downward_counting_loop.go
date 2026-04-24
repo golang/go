@@ -52,9 +52,6 @@ func maybeRewriteLoopToDownwardCountingLoop(f *Func, v indVar) {
 	}
 
 	start, end := v.min, v.max
-	if v.step < 0 {
-		start, end = end, start
-	}
 
 	if !start.isGenericIntConst() {
 		// if start is not a constant we would be winning nothing from inverting the loop

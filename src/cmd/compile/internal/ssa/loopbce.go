@@ -23,7 +23,7 @@ type indVar struct {
 	min   *Value // minimum value, inclusive/exclusive depends on flags
 	max   *Value // maximum value, inclusive/exclusive depends on flags
 	entry *Block // the block where the edge from the succeeded comparison of the induction variable goes to, means when the bound check has passed.
-	step  int64
+	step  int64  // it will always be positive.
 	flags indVarFlags
 	// Invariant: for all blocks dominated by entry:
 	//	min <= ind <  max    [if flags == 0]
