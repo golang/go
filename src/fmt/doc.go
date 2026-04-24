@@ -44,6 +44,10 @@ Integer:
 	%o	base 8
 	%O	base 8 with 0o prefix
 	%q	a single-quoted character literal safely escaped with Go syntax.
+		For integers, %q is accepted but the value is interpreted as a Unicode code point,
+		and the formatted result is the character with that code.
+		Since Go 1.26, using %q with an integer that does not implement error or Stringer
+		will fail vet checks.
 	%x	base 16, with lower-case letters for a-f
 	%X	base 16, with upper-case letters for A-F
 	%U	Unicode format: U+1234; same as "U+%04X"
