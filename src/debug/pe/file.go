@@ -81,7 +81,9 @@ func NewFile(r io.ReaderAt) (*File, error) {
 	if dosheader[0] == 'M' && dosheader[1] == 'Z' {
 		signoff := int64(binary.LittleEndian.Uint32(dosheader[0x3c:]))
 		var sign [4]byte
-		r.ReadAt(sign[:], signoff)
+		if _, err := r.ReadAt(sign[:], signoff); err != nil {
+			return nil, err
+		}
 		if !(sign[0] == 'P' && sign[1] == 'E' && sign[2] == 0 && sign[3] == 0) {
 			return nil, fmt.Errorf("invalid PE file signature: % x", sign)
 		}
