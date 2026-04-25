@@ -6,6 +6,7 @@ package net
 
 import (
 	"context"
+	"net/netip"
 	"internal/bytealg"
 	"runtime"
 	"sync"
@@ -200,6 +201,10 @@ func SplitHostPort(hostport string) (host, port string, err error) {
 		}
 		host = hostport[1:end]
 		j, k = 1, end+1 // there can't be a '[' resp. ']' before these positions
+		// Brackets are only valid for IPv6 addresses.
+		if _, err := netip.ParseAddr(host); err != nil {
+			return addrErr(hostport, "invalid brackets")
+		}
 	} else {
 		host = hostport[:i]
 		if bytealg.IndexByteString(host, ':') >= 0 {
