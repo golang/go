@@ -4547,7 +4547,7 @@ func (c *ctxtz) zopload(a obj.As) uint32 {
 		return op_LRVH
 	}
 
-	c.ctxt.Diag("unknown store opcode %v", a)
+	c.ctxt.Diag("unknown zopload opcode %v", a)
 	return 0
 }
 
