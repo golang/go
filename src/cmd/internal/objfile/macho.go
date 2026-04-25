@@ -55,6 +55,10 @@ func (f *machoFile) symbols() ([]Sym, error) {
 		i := sort.Search(len(addrs), func(x int) bool { return addrs[x] > s.Value })
 		if i < len(addrs) {
 			sym.Size = int64(addrs[i] - s.Value)
+		} else if s.Sect != 0 && int(s.Sect) <= len(f.macho.Sections) {
+			// Last symbol in file: use end of section.
+			sect := f.macho.Sections[s.Sect-1]
+			sym.Size = int64(sect.Addr + sect.Size - s.Value)
 		}
 		if s.Sect == 0 {
 			sym.Code = 'U'
