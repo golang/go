@@ -262,7 +262,7 @@ func flagEditworkUse(arg string) {
 func flagEditworkDropUse(arg string) {
 	workedits = append(workedits, func(f *modfile.WorkFile) {
 		if err := f.DropUse(modload.ToDirectoryPath(arg)); err != nil {
-			base.Fatalf("go: -dropdirectory=%s: %v", arg, err)
+			base.Fatalf("go: -dropuse=%s: %v", arg, err)
 		}
 	})
 }
