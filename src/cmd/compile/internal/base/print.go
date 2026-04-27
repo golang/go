@@ -28,6 +28,11 @@ type errorMsg struct {
 // printed by Errorf, ErrorfLang, Fatalf, and Warnf.
 var Pos src.XPos
 
+// maxErrors is the default number of errors to print before giving up.
+// To print all errors set the -e flag (to a non-zero value).
+// Note: Update doc.go when changing this value.
+const maxErrors = 20
+
 var (
 	errorMsgs       []errorMsg
 	numErrors       int // number of entries in errorMsgs that are errors (as opposed to warnings)
@@ -142,7 +147,7 @@ func ErrorfAt(pos src.XPos, code errors.Code, format string, args ...any) {
 	numErrors++
 
 	hcrash()
-	if numErrors >= 10 && Flag.LowerE == 0 {
+	if numErrors >= maxErrors && Flag.LowerE == 0 {
 		FlushErrors()
 		fmt.Printf("%v: too many errors\n", FmtPos(pos))
 		ErrorExit()

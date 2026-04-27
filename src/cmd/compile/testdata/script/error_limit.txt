@@ -1,0 +1,49 @@
+# Test that the compiler limits the number of reported errors by default (maxErrors=20),
+# and that the -e flag removes this limit.
+
+# Without -e, should stop at 20 errors and print "too many errors".
+! go tool compile main.go
+stdout 'too many errors'
+stdout -count=20 'undefined: e'
+
+# With -e, should report all errors (31 in this case).
+! go tool compile -e main.go
+! stdout 'too many errors'
+stdout -count=31 'undefined: e'
+
+-- main.go --
+package main
+
+func main() {
+	_ = e
+	_ = e
+	_ = e
+	_ = e
+	_ = e
+	_ = e
+	_ = e
+	_ = e
+	_ = e
+	_ = e
+	_ = e
+	_ = e
+	_ = e
+	_ = e
+	_ = e
+	_ = e
+	_ = e
+	_ = e
+	_ = e
+	_ = e
+	_ = e
+	_ = e
+	_ = e
+	_ = e
+	_ = e
+	_ = e
+	_ = e
+	_ = e
+	_ = e
+	_ = e
+	_ = e
+}

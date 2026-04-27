@@ -59,7 +59,7 @@ Flags:
 	-dynlink
 		Allow references to Go symbols in shared libraries (experimental).
 	-e
-		Remove the limit on the number of errors reported (default limit is 10).
+		Remove the limit on the number of errors reported (default limit is 20).
 	-embedcfg file
 		Read go:embed configuration from file.
 		This is required if any //go:embed directives are used.
