@@ -1,4 +1,4 @@
-env snap=v1.0.0-c2097c7c
+env snap=v1.26.0
 env alias=inprocess
 
 env GOFIPS140=$snap
