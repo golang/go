@@ -47,7 +47,8 @@ func (e *escape) call(ks []hole, call ir.Node) {
 			if fn := ir.StaticCalleeName(v); fn != nil {
 				fns = []*ir.Name{fn}
 			} else if name, ok := v.(*ir.Name); ok {
-				fns = resolveAssignedCallees(ir.FuncAssignments(name.Canonical()))
+				ro := e.reassignOracle(e.curfn)
+				fns = resolveAssignedCallees(ro.FuncAssignments(name.Canonical()))
 			}
 		}
 
