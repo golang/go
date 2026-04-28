@@ -575,8 +575,10 @@ func (p *addrParser) consumeAddrSpec() (spec string, err error) {
 func (p *addrParser) consumePhrase() (phrase string, err error) {
 	debug.Printf("consumePhrase: [%s]", p.s)
 	// phrase = 1*word
-	var words []string
-	var isPrevEncoded bool
+	var (
+		words []string
+		sb    strings.Builder
+	)
 	for {
 		// obs-phrase allows CFWS after one word
 		if len(words) > 0 {
@@ -608,13 +610,22 @@ func (p *addrParser) consumePhrase() (phrase string, err error) {
 			break
 		}
 		debug.Printf("consumePhrase: consumed %q", word)
-		if isPrevEncoded && isEncoded {
-			words[len(words)-1] += word
-		} else {
+		switch {
+		case isEncoded:
+			sb.WriteString(word)
+		case !isEncoded && sb.Len() > 0:
+			words = append(words, sb.String())
+			sb.Reset()
+			words = append(words, word)
+		default:
 			words = append(words, word)
 		}
-		isPrevEncoded = isEncoded
 	}
+
+	if sb.Len() > 0 {
+		words = append(words, sb.String())
+	}
+
 	// Ignore any error if we got at least one word.
 	if err != nil && len(words) == 0 {
 		debug.Printf("consumePhrase: hit err: %v", err)
