@@ -752,8 +752,10 @@ func ssaGenValue(s *ssagen.State, v *ssa.Value) {
 		if dstReg == srcReg {
 			break
 		}
+
 		srcEndReg := int16(loong64.REG_R23)
 		tmpReg := int16(loong64.REG_R24)
+
 		var off int64
 		n := v.AuxInt
 		loopSize := int64(64)
@@ -770,14 +772,24 @@ func ssaGenValue(s *ssagen.State, v *ssa.Value) {
 		}
 
 		//    ADDV    n - n%loopSize, srcReg, srcEndReg
-		// Loop8:
+		//    MOVBU   ir.Syms.Loong64HasLASX, tmpReg
+		//    BNE     tmpReg, loop32
+		// loop8:
 		//    for off = 0; off < loopSize; off += 8 {
 		//            move8(s, srcReg, dstReg, tmpReg, off)
 		//    }
 		//    ADDV    $loopSize, srcReg
 		//    ADDV    $loopSize, dstReg
-		//    BNE     srcEndReg, srcReg, Loop8
-		//
+		//    BNE     srcEndReg, srcReg, loop8
+		//    JMP     tail
+		// loop32:
+		//    for off = 0; off < loopSize; off =+ 32 {
+		//    	      move32(s, srcReg, dstReg, loong64.REG_X30, off)
+		//    }
+		//    ADDV    $loopSize, srcReg
+		//    ADDV    $loopSize, dstReg
+		//    BNE     srcEndReg, srcReg, loop32
+		// tail:
 		//    n %= loopSize
 		//    for off = 0; n >= 8; off += 8 {
 		//           move8(s, srcReg, dstReg, tmpReg, off)
@@ -795,28 +807,74 @@ func ssaGenValue(s *ssagen.State, v *ssa.Value) {
 		p1.To.Type = obj.TYPE_REG
 		p1.To.Reg = srcEndReg
 
+		p2 := s.Prog(loong64.AMOVBU)
+		p2.From.Type = obj.TYPE_MEM
+		p2.From.Name = obj.NAME_EXTERN
+		p2.From.Sym = ir.Syms.Loong64HasLASX
+		p2.To.Type = obj.TYPE_REG
+		p2.To.Reg = tmpReg
+
+		p3 := s.Prog(loong64.ABNE)
+		p3.From.Type = obj.TYPE_REG
+		p3.From.Reg = tmpReg
+		p3.To.Type = obj.TYPE_BRANCH
+
+		loop8 := s.Prog(obj.ANOP)
+
 		for off = 0; off < loopSize; off += 8 {
 			move8(s, srcReg, dstReg, tmpReg, off)
 		}
 
-		p2 := s.Prog(loong64.AADDV)
-		p2.From.Type = obj.TYPE_CONST
-		p2.From.Offset = loopSize
-		p2.To.Type = obj.TYPE_REG
-		p2.To.Reg = srcReg
+		p4 := s.Prog(loong64.AADDV)
+		p4.From.Type = obj.TYPE_CONST
+		p4.From.Offset = loopSize
+		p4.To.Type = obj.TYPE_REG
+		p4.To.Reg = srcReg
 
-		p3 := s.Prog(loong64.AADDV)
-		p3.From.Type = obj.TYPE_CONST
-		p3.From.Offset = loopSize
-		p3.To.Type = obj.TYPE_REG
-		p3.To.Reg = dstReg
+		p5 := s.Prog(loong64.AADDV)
+		p5.From.Type = obj.TYPE_CONST
+		p5.From.Offset = loopSize
+		p5.To.Type = obj.TYPE_REG
+		p5.To.Reg = dstReg
 
-		p4 := s.Prog(loong64.ABNE)
-		p4.From.Type = obj.TYPE_REG
-		p4.From.Reg = srcEndReg
-		p4.Reg = srcReg
-		p4.To.Type = obj.TYPE_BRANCH
-		p4.To.SetTarget(p1.Link)
+		p6 := s.Prog(loong64.ABNE)
+		p6.From.Type = obj.TYPE_REG
+		p6.From.Reg = srcEndReg
+		p6.Reg = srcReg
+		p6.To.Type = obj.TYPE_BRANCH
+		p6.To.SetTarget(loop8)
+
+		p7 := s.Prog(obj.AJMP)
+		p7.To.Type = obj.TYPE_BRANCH
+
+		loop32 := s.Prog(obj.ANOP)
+		p3.To.SetTarget(loop32)
+
+		for off = 0; off < loopSize; off += 32 {
+			move32(s, srcReg, dstReg, loong64.REG_X30, off)
+		}
+
+		p8 := s.Prog(loong64.AADDV)
+		p8.From.Type = obj.TYPE_CONST
+		p8.From.Offset = loopSize
+		p8.To.Type = obj.TYPE_REG
+		p8.To.Reg = srcReg
+
+		p9 := s.Prog(loong64.AADDV)
+		p9.From.Type = obj.TYPE_CONST
+		p9.From.Offset = loopSize
+		p9.To.Type = obj.TYPE_REG
+		p9.To.Reg = dstReg
+
+		p10 := s.Prog(loong64.ABNE)
+		p10.From.Type = obj.TYPE_REG
+		p10.From.Reg = srcEndReg
+		p10.Reg = srcReg
+		p10.To.Type = obj.TYPE_BRANCH
+		p10.To.SetTarget(loop32)
+
+		tail := s.Prog(obj.ANOP)
+		p7.To.SetTarget(tail)
 
 		// Multiples of the loop size are now done.
 		n %= loopSize
@@ -1411,6 +1469,25 @@ func spillArgReg(pp *objw.Progs, p *obj.Prog, f *ssa.Func, t *types.Type, reg in
 	p.To.Sym = n.Linksym()
 	p.Pos = p.Pos.WithNotStmt()
 	return p
+}
+
+// move32 copies 32 bytes at src+off to dst+off.
+func move32(s *ssagen.State, src, dst, tmp int16, off int64) {
+	// XVMOVQ     off(src), tmp
+	ld := s.Prog(loong64.AXVMOVQ)
+	ld.From.Type = obj.TYPE_MEM
+	ld.From.Reg = src
+	ld.From.Offset = off
+	ld.To.Type = obj.TYPE_REG
+	ld.To.Reg = tmp
+
+	// XVMOVQ     tmp, off(dst)
+	st := s.Prog(loong64.AXVMOVQ)
+	st.From.Type = obj.TYPE_REG
+	st.From.Reg = tmp
+	st.To.Type = obj.TYPE_MEM
+	st.To.Reg = dst
+	st.To.Offset = off
 }
 
 // move8 copies 8 bytes at src+off to dst+off.

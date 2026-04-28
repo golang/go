@@ -25,7 +25,8 @@ const (
 
 	offsetLOONG64HasLSX  = unsafe.Offsetof(cpu.Loong64.HasLSX)
 	offsetLOONG64HasLASX = unsafe.Offsetof(cpu.Loong64.HasLASX)
-	offsetARM64HasSVE    = unsafe.Offsetof(cpu.ARM64.HasSVE)
+
+	offsetARM64HasSVE = unsafe.Offsetof(cpu.ARM64.HasSVE)
 )
 
 var (
@@ -44,6 +45,7 @@ var (
 	loong64HasLAM_BH     bool
 	loong64HasDBAR_HINTS bool
 	loong64HasLSX        bool
+	loong64HasLASX       bool
 
 	riscv64HasV   bool
 	riscv64HasZbb bool

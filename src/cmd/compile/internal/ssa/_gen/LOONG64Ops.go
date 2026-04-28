@@ -440,7 +440,7 @@ func init() {
 			argLength: 3,
 			reg: regInfo{
 				inputs:       []regMask{gp.minus(buildReg("R23 R24")), gp.minus(buildReg("R23 R24"))},
-				clobbers:     buildReg("R23 R24"),
+				clobbers:     buildReg("R23 R24 F30"),
 				clobbersArg0: true,
 				clobbersArg1: true,
 			},
