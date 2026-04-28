@@ -500,18 +500,22 @@ func (m *Map) PutSlot(typ *abi.MapType, key unsafe.Pointer) unsafe.Pointer {
 
 	if m.dirLen == 0 {
 		elem := m.putSlotSmall(typ, hash, key)
-		if elem != nil {
-			// Found an existing slot.
-			if m.writing == 0 {
-				fatal("concurrent map writes")
-			}
-			m.writing ^= 1
+		if elem == nil {
+			// Can't fit another entry, grow to full size map.
+			tab := m.growToTable(typ)
 
-			return elem
+			elem = tab.uncheckedPutSlotForAssign(typ, hash, key)
+			m.used++
+
+			tab.checkInvariants(typ, m)
 		}
 
-		// Can't fit another entry, grow to full size map.
-		m.growToTable(typ)
+		if m.writing == 0 {
+			fatal("concurrent map writes")
+		}
+		m.writing ^= 1
+
+		return elem
 	}
 
 	for {
@@ -602,7 +606,7 @@ func (m *Map) growToSmall(typ *abi.MapType) {
 	g.ctrls().setEmpty()
 }
 
-func (m *Map) growToTable(typ *abi.MapType) {
+func (m *Map) growToTable(typ *abi.MapType) *table {
 	tab := newTable(typ, 2*abi.MapGroupSlots, 0, 0)
 
 	g := groupReference{
@@ -639,6 +643,7 @@ func (m *Map) growToTable(typ *abi.MapType) {
 
 	m.globalDepth = 0
 	m.globalShift = depthToShift(m.globalDepth)
+	return tab
 }
 
 func (m *Map) Delete(typ *abi.MapType, key unsafe.Pointer) {

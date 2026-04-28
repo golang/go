@@ -153,6 +153,36 @@ func (m *Map) putSlotSmallFast32(typ *abi.MapType, hash uintptr, key uint32) uns
 	return slotElem
 }
 
+func (t *table) uncheckedPutSlotForAssignFast32(typ *abi.MapType, hash uintptr, key uint32) unsafe.Pointer {
+	if t.growthLeft == 0 {
+		panic("invariant failed: growthLeft is unexpectedly 0")
+	}
+
+	// Given key and its hash hash(key), to insert it, we construct a
+	// probeSeq, and use it to find the first group with an unoccupied (empty
+	// or deleted) slot. We place the key/value into the first such slot in
+	// the group and mark it as full with key's H2.
+	seq := makeProbeSeq(h1(hash), t.groups.lengthMask)
+	for ; ; seq = seq.next() {
+		g := t.groups.group(typ, seq.offset)
+
+		match := g.ctrls().matchEmptyOrDeleted()
+		if match != 0 {
+			i := match.first()
+
+			slotKey := g.key(typ, i)
+			*(*uint32)(slotKey) = key
+
+			slotElem := g.elem(typ, i)
+
+			t.growthLeft--
+			t.used++
+			g.ctrls().set(i, ctrl(h2(hash)))
+			return slotElem
+		}
+	}
+}
+
 //go:linkname runtime_mapassign_fast32 runtime.mapassign_fast32
 func runtime_mapassign_fast32(typ *abi.MapType, m *Map, key uint32) unsafe.Pointer {
 	if m == nil {
@@ -182,18 +212,22 @@ func runtime_mapassign_fast32(typ *abi.MapType, m *Map, key uint32) unsafe.Point
 
 	if m.dirLen == 0 {
 		elem := m.putSlotSmallFast32(typ, hash, key)
-		if elem != nil {
-			// Found an existing slot.
-			if m.writing == 0 {
-				fatal("concurrent map writes")
-			}
-			m.writing ^= 1
+		if elem == nil {
+			// Can't fit another entry, grow to full size map.
+			tab := m.growToTable(typ)
 
-			return elem
+			elem = tab.uncheckedPutSlotForAssignFast32(typ, hash, key)
+			m.used++
+
+			tab.checkInvariants(typ, m)
 		}
 
-		// Can't fit another entry, grow to full size map.
-		m.growToTable(typ)
+		if m.writing == 0 {
+			fatal("concurrent map writes")
+		}
+		m.writing ^= 1
+
+		return elem
 	}
 
 	var slotElem unsafe.Pointer
@@ -323,19 +357,23 @@ func runtime_mapassign_fast32ptr(typ *abi.MapType, m *Map, key unsafe.Pointer) u
 	}
 
 	if m.dirLen == 0 {
-		if m.used < abi.MapGroupSlots {
-			elem := m.putSlotSmallFastPtr(typ, hash, key)
+		elem := m.putSlotSmallFastPtr(typ, hash, key)
+		if elem == nil {
+			// Can't fit another entry, grow to full size map.
+			tab := m.growToTable(typ)
 
-			if m.writing == 0 {
-				fatal("concurrent map writes")
-			}
-			m.writing ^= 1
+			elem = tab.uncheckedPutSlotForAssignFastPtr(typ, hash, key)
+			m.used++
 
-			return elem
+			tab.checkInvariants(typ, m)
 		}
 
-		// Can't fit another entry, grow to full size map.
-		m.growToTable(typ)
+		if m.writing == 0 {
+			fatal("concurrent map writes")
+		}
+		m.writing ^= 1
+
+		return elem
 	}
 
 	var slotElem unsafe.Pointer
