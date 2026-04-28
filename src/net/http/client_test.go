@@ -1302,11 +1302,7 @@ func testClientTimeout(t *testing.T, mode testMode) {
 }
 
 // Client.Timeout firing before getting to the body
-func TestClientTimeout_Headers(t *testing.T) {
-	// Running this test against our HTTP/3 implementation with race detector
-	// trips off TestMain's goroutine leak detection.
-	run(t, testClientTimeout_Headers, http3SkippedMode)
-}
+func TestClientTimeout_Headers(t *testing.T) { run(t, testClientTimeout_Headers) }
 func testClientTimeout_Headers(t *testing.T, mode testMode) {
 	donec := make(chan bool, 1)
 	cst := newClientServerTest(t, mode, HandlerFunc(func(w ResponseWriter, r *Request) {
@@ -2226,10 +2222,7 @@ func TestClientPopulatesNilResponseBody(t *testing.T) {
 }
 
 // Issue 40382: Client calls Close multiple times on Request.Body.
-func TestClientCallsCloseOnlyOnce(t *testing.T) {
-	// Trips off race detector for HTTP/3.
-	run(t, testClientCallsCloseOnlyOnce, http3SkippedMode)
-}
+func TestClientCallsCloseOnlyOnce(t *testing.T) { run(t, testClientCallsCloseOnlyOnce) }
 func testClientCallsCloseOnlyOnce(t *testing.T, mode testMode) {
 	cst := newClientServerTest(t, mode, HandlerFunc(func(w ResponseWriter, r *Request) {
 		w.WriteHeader(StatusNoContent)

@@ -17,6 +17,7 @@ import (
 	"unicode"
 	"unicode/utf8"
 	_ "unsafe" // for linkname
+	"uuid"
 )
 
 var errNilPtr = errors.New("destination pointer is nil") // embedded in descriptive error
@@ -250,6 +251,16 @@ func convertAssignRows(dest, src any, rows *Rows) error {
 			}
 			*d = rows.setrawbuf(append(rows.rawbuf(), s...))
 			return nil
+		case *uuid.UUID:
+			if d == nil {
+				return errNilPtr
+			}
+			u, err := uuid.Parse(s)
+			if err != nil {
+				return fmt.Errorf("converting driver.Value type string (%q) to a UUID: %v", s, err)
+			}
+			*d = u
+			return nil
 		}
 	case []byte:
 		switch d := dest.(type) {
@@ -276,6 +287,21 @@ func convertAssignRows(dest, src any, rows *Rows) error {
 				return errNilPtr
 			}
 			*d = s
+			return nil
+		case *uuid.UUID:
+			if d == nil {
+				return errNilPtr
+			}
+			if len(s) == len(*d) {
+				copy((*d)[:], s)
+				return nil
+			}
+			var u uuid.UUID
+			err := u.UnmarshalText(s)
+			if err != nil {
+				return fmt.Errorf("converting driver.Value type []byte (%q) to a UUID: %v", s, err)
+			}
+			*d = u
 			return nil
 		}
 	case time.Time:

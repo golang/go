@@ -157,9 +157,10 @@ func init() {
 				outputs:  []regMask{buildReg("R0"), buildReg("R1")},
 				clobbers: buildReg("R2 R3 R12 R14"), // R14 is LR, R12 is linker trampoline scratch register
 			},
-			clobberFlags: true,
-			typ:          "(UInt32,UInt32)",
-			call:         false, // TODO(mdempsky): Should this be true?
+			clobberFlags:   true,
+			typ:            "(UInt32,UInt32)",
+			call:           false, // TODO(mdempsky): Should this be true?
+			hasSideEffects: true,
 		},
 
 		{name: "ADDS", argLength: 2, reg: gp21carry, asm: "ADD", commutative: true},      // arg0 + arg1, set carry flag

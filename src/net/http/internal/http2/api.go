@@ -115,6 +115,7 @@ type ServerConfig interface {
 	ReadTimeout() time.Duration
 	HTTP2Config() Config
 	DisableClientPriority() bool
+	IdleTimeout() time.Duration
 }
 
 type Handler interface {

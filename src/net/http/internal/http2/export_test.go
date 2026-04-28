@@ -67,7 +67,7 @@ func (s *Server) TestServeConn(c net.Conn, opts *ServeConnOpts, newf func(*serve
 }
 
 func (sc *serverConn) TestFlowControlConsumed() (consumed int32) {
-	conf := configFromServer(sc.hs, sc.srv)
+	conf := configFromServer(sc.hs)
 	donec := make(chan struct{})
 	sc.sendServeMsg(func(sc *serverConn) {
 		defer close(donec)
@@ -220,10 +220,6 @@ func DisableGoroutineTracking(t testing.TB) {
 
 func InvalidHTTP1LookingFrameHeader() FrameHeader {
 	return invalidHTTP1LookingFrameHeader()
-}
-
-func NewNoDialClientConnPool() ClientConnPool {
-	return noDialClientConnPool{new(clientConnPool)}
 }
 
 func EncodeRequestHeaders(req *ClientRequest, addGzipHeader bool, peerMaxHeaderListSize uint64, headerf func(name, value string)) (httpcommon.EncodeHeadersResult, error) {

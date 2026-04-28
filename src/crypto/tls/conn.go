@@ -816,7 +816,7 @@ func (c *Conn) readFromUntil(r io.Reader, n int) error {
 	// for how much to read ahead.
 	c.rawInput.Grow(needs + bytes.MinRead)
 	for {
-		buf := c.rawInput.AvailableBuffer()[:needs+bytes.MinRead]
+		buf := c.rawInput.AvailableBuffer()[:c.rawInput.Available()]
 		n, err := r.Read(buf)
 		// This write is just to update the internal state of the
 		// rawInput bytes.Buffer. It cannot fail.

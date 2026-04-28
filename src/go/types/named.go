@@ -623,7 +623,7 @@ func (t *Named) String() string { return TypeString(t, nil) }
 // any, they were broken (by setting the respective types to invalid) during
 // the directCycles check phase.
 func (n *Named) resolveUnderlying() {
-	assert(n.stateHas(unpacked))
+	assert(n.stateHas(lazyLoaded | unpacked))
 
 	var seen map[*Named]bool // for debugging only
 	if debug {

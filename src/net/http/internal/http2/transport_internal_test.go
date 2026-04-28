@@ -7,11 +7,9 @@ package http2
 import (
 	"bytes"
 	"compress/gzip"
-	"crypto/tls"
 	"fmt"
 	"io"
 	"io/fs"
-	"reflect"
 	"strings"
 	"testing"
 	"time"
@@ -92,76 +90,6 @@ func TestGzipReader_ReadAfterClose(t *testing.T) {
 	n, err = gz.Read(buf[:])
 	if n != 0 || err != fs.ErrClosed {
 		t.Fatalf("Read after close = %v, %v; want 0, fs.ErrClosed", n, err)
-	}
-}
-
-func TestTransportNewTLSConfig(t *testing.T) {
-	tests := [...]struct {
-		conf *tls.Config
-		host string
-		want *tls.Config
-	}{
-		// Normal case.
-		0: {
-			conf: nil,
-			host: "foo.com",
-			want: &tls.Config{
-				ServerName: "foo.com",
-				NextProtos: []string{NextProtoTLS},
-			},
-		},
-
-		// User-provided name (bar.com) takes precedence:
-		1: {
-			conf: &tls.Config{
-				ServerName: "bar.com",
-			},
-			host: "foo.com",
-			want: &tls.Config{
-				ServerName: "bar.com",
-				NextProtos: []string{NextProtoTLS},
-			},
-		},
-
-		// NextProto is prepended:
-		2: {
-			conf: &tls.Config{
-				NextProtos: []string{"foo", "bar"},
-			},
-			host: "example.com",
-			want: &tls.Config{
-				ServerName: "example.com",
-				NextProtos: []string{NextProtoTLS, "foo", "bar"},
-			},
-		},
-
-		// NextProto is not duplicated:
-		3: {
-			conf: &tls.Config{
-				NextProtos: []string{"foo", "bar", NextProtoTLS},
-			},
-			host: "example.com",
-			want: &tls.Config{
-				ServerName: "example.com",
-				NextProtos: []string{"foo", "bar", NextProtoTLS},
-			},
-		},
-	}
-	for i, tt := range tests {
-		// Ignore the session ticket keys part, which ends up populating
-		// unexported fields in the Config:
-		if tt.conf != nil {
-			tt.conf.SessionTicketsDisabled = true
-		}
-
-		tr := &Transport{TLSClientConfig: tt.conf}
-		got := tr.newTLSConfig(tt.host)
-
-		got.SessionTicketsDisabled = false
-
-		if !reflect.DeepEqual(got, tt.want) {
-			t.Errorf("%d. got %#v; want %#v", i, got, tt.want)
-		}
 	}
 }
 

@@ -2281,7 +2281,7 @@ func StructOf(fields []StructField) Type {
 			if pkgpath == "" {
 				pkgpath = fpkgpath
 			} else if pkgpath != fpkgpath {
-				panic("reflect.Struct: fields with different PkgPath " + pkgpath + " and " + fpkgpath)
+				panic("reflect.StructOf: fields with different PkgPath " + pkgpath + " and " + fpkgpath)
 			}
 		}
 

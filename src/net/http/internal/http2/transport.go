@@ -66,123 +66,8 @@ const (
 // A Transport internally caches connections to servers. It is safe
 // for concurrent use by multiple goroutines.
 type Transport struct {
-	// DialTLSContext specifies an optional dial function with context for
-	// creating TLS connections for requests.
-	//
-	// If DialTLSContext and DialTLS is nil, tls.Dial is used.
-	//
-	// If the returned net.Conn has a ConnectionState method like tls.Conn,
-	// it will be used to set http.Response.TLS.
-	DialTLSContext func(ctx context.Context, network, addr string, cfg *tls.Config) (net.Conn, error)
-
-	// DialTLS specifies an optional dial function for creating
-	// TLS connections for requests.
-	//
-	// If DialTLSContext and DialTLS is nil, tls.Dial is used.
-	//
-	// Deprecated: Use DialTLSContext instead, which allows the transport
-	// to cancel dials as soon as they are no longer needed.
-	// If both are set, DialTLSContext takes priority.
-	DialTLS func(network, addr string, cfg *tls.Config) (net.Conn, error)
-
-	// TLSClientConfig specifies the TLS configuration to use with
-	// tls.Client. If nil, the default configuration is used.
-	TLSClientConfig *tls.Config
-
-	// ConnPool optionally specifies an alternate connection pool to use.
-	// If nil, the default is used.
-	ConnPool ClientConnPool
-
-	// DisableCompression, if true, prevents the Transport from
-	// requesting compression with an "Accept-Encoding: gzip"
-	// request header when the Request contains no existing
-	// Accept-Encoding value. If the Transport requests gzip on
-	// its own and gets a gzipped response, it's transparently
-	// decoded in the Response.Body. However, if the user
-	// explicitly requested gzip it is not automatically
-	// uncompressed.
-	DisableCompression bool
-
-	// AllowHTTP, if true, permits HTTP/2 requests using the insecure,
-	// plain-text "http" scheme. Note that this does not enable h2c support.
-	AllowHTTP bool
-
-	// MaxHeaderListSize is the http2 SETTINGS_MAX_HEADER_LIST_SIZE to
-	// send in the initial settings frame. It is how many bytes
-	// of response headers are allowed. Unlike the http2 spec, zero here
-	// means to use a default limit (currently 10MB). If you actually
-	// want to advertise an unlimited value to the peer, Transport
-	// interprets the highest possible value here (0xffffffff or 1<<32-1)
-	// to mean no limit.
-	MaxHeaderListSize uint32
-
-	// MaxReadFrameSize is the http2 SETTINGS_MAX_FRAME_SIZE to send in the
-	// initial settings frame. It is the size in bytes of the largest frame
-	// payload that the sender is willing to receive. If 0, no setting is
-	// sent, and the value is provided by the peer, which should be 16384
-	// according to the spec:
-	// https://datatracker.ietf.org/doc/html/rfc7540#section-6.5.2.
-	// Values are bounded in the range 16k to 16M.
-	MaxReadFrameSize uint32
-
-	// MaxDecoderHeaderTableSize optionally specifies the http2
-	// SETTINGS_HEADER_TABLE_SIZE to send in the initial settings frame. It
-	// informs the remote endpoint of the maximum size of the header compression
-	// table used to decode header blocks, in octets. If zero, the default value
-	// of 4096 is used.
-	MaxDecoderHeaderTableSize uint32
-
-	// MaxEncoderHeaderTableSize optionally specifies an upper limit for the
-	// header compression table used for encoding request headers. Received
-	// SETTINGS_HEADER_TABLE_SIZE settings are capped at this limit. If zero,
-	// the default value of 4096 is used.
-	MaxEncoderHeaderTableSize uint32
-
-	// StrictMaxConcurrentStreams controls whether the server's
-	// SETTINGS_MAX_CONCURRENT_STREAMS should be respected
-	// globally. If false, new TCP connections are created to the
-	// server as needed to keep each under the per-connection
-	// SETTINGS_MAX_CONCURRENT_STREAMS limit. If true, the
-	// server's SETTINGS_MAX_CONCURRENT_STREAMS is interpreted as
-	// a global limit and callers of RoundTrip block when needed,
-	// waiting for their turn.
-	StrictMaxConcurrentStreams bool
-
-	// IdleConnTimeout is the maximum amount of time an idle
-	// (keep-alive) connection will remain idle before closing
-	// itself.
-	// Zero means no limit.
-	IdleConnTimeout time.Duration
-
-	// ReadIdleTimeout is the timeout after which a health check using ping
-	// frame will be carried out if no frame is received on the connection.
-	// Note that a ping response will is considered a received frame, so if
-	// there is no other traffic on the connection, the health check will
-	// be performed every ReadIdleTimeout interval.
-	// If zero, no health check is performed.
-	ReadIdleTimeout time.Duration
-
-	// PingTimeout is the timeout after which the connection will be closed
-	// if a response to Ping is not received.
-	// Defaults to 15s.
-	PingTimeout time.Duration
-
-	// WriteByteTimeout is the timeout after which the connection will be
-	// closed no data can be written to it. The timeout begins when data is
-	// available to write, and is extended whenever any bytes are written.
-	WriteByteTimeout time.Duration
-
-	// CountError, if non-nil, is called on HTTP/2 transport errors.
-	// It's intended to increment a metric for monitoring, such
-	// as an expvar or Prometheus metric.
-	// The errType consists of only ASCII word characters.
-	CountError func(errType string)
-
-	t1 TransportConfig
-
-	connPoolOnce  sync.Once
-	connPoolOrDef ClientConnPool // non-nil version of ConnPool
-
+	t1       TransportConfig
+	connPool noDialClientConnPool
 	*transportTestHooks
 }
 
@@ -212,13 +97,13 @@ func (t *Transport) maxHeaderListSize() uint32 {
 }
 
 func (t *Transport) disableCompression() bool {
-	return t.DisableCompression || (t.t1 != nil && t.t1.DisableCompression())
+	return t.t1 != nil && t.t1.DisableCompression()
 }
 
 func NewTransport(t1 TransportConfig) *Transport {
 	connPool := new(clientConnPool)
 	t2 := &Transport{
-		ConnPool: noDialClientConnPool{connPool},
+		connPool: noDialClientConnPool{connPool},
 		t1:       t1,
 	}
 	connPool.t = t2
@@ -226,13 +111,8 @@ func NewTransport(t1 TransportConfig) *Transport {
 }
 
 func (t *Transport) AddConn(scheme, authority string, c net.Conn) error {
-	connPool, ok := t.ConnPool.(noDialClientConnPool)
-	if !ok {
-		go c.Close()
-		return nil
-	}
 	addr := authorityAddr(scheme, authority)
-	used, err := connPool.addConnIfNeeded(addr, t, c)
+	used, err := t.connPool.addConnIfNeeded(addr, t, c)
 	if !used {
 		go c.Close()
 	}
@@ -244,20 +124,7 @@ func (t *Transport) AddConn(scheme, authority string, c net.Conn) error {
 type unencryptedTransport Transport
 
 func (t *unencryptedTransport) RoundTrip(req *ClientRequest) (*ClientResponse, error) {
-	return (*Transport)(t).RoundTripOpt(req, RoundTripOpt{allowHTTP: true})
-}
-
-func (t *Transport) connPool() ClientConnPool {
-	t.connPoolOnce.Do(t.initConnPool)
-	return t.connPoolOrDef
-}
-
-func (t *Transport) initConnPool() {
-	if t.ConnPool != nil {
-		t.connPoolOrDef = t.ConnPool
-	} else {
-		t.connPoolOrDef = &clientConnPool{t: t}
-	}
+	return (*Transport)(t).RoundTripOpt(req, RoundTripOpt{})
 }
 
 // ClientConn is the state of a single HTTP/2 client connection to an
@@ -507,8 +374,6 @@ type RoundTripOpt struct {
 	// no cached connection is available, RoundTripOpt
 	// will return ErrNoCachedConn.
 	OnlyCachedConn bool
-
-	allowHTTP bool // allow http:// URLs
 }
 
 func (t *Transport) RoundTrip(req *ClientRequest) (*ClientResponse, error) {
@@ -543,18 +408,14 @@ func authorityAddr(scheme string, authority string) (addr string) {
 func (t *Transport) RoundTripOpt(req *ClientRequest, opt RoundTripOpt) (*ClientResponse, error) {
 	switch req.URL.Scheme {
 	case "https":
-		// Always okay.
 	case "http":
-		if !t.AllowHTTP && !opt.allowHTTP {
-			return nil, errors.New("http2: unencrypted HTTP/2 not enabled")
-		}
 	default:
 		return nil, errors.New("http2: unsupported scheme")
 	}
 
 	addr := authorityAddr(req.URL.Scheme, req.URL.Host)
 	for retry := 0; ; retry++ {
-		cc, err := t.connPool().GetClientConn(req, addr)
+		cc, err := t.connPool.GetClientConn(req, addr)
 		if err != nil {
 			t.vlogf("http2: Transport failed to get client conn for %s: %v", addr, err)
 			return nil, err
@@ -598,7 +459,7 @@ func (t *Transport) RoundTripOpt(req *ClientRequest, opt RoundTripOpt) (*ClientR
 			if cc.idleTimer != nil {
 				cc.idleTimer.Stop()
 			}
-			t.connPool().MarkDead(cc)
+			t.connPool.MarkDead(cc)
 		}
 		if err != nil {
 			t.vlogf("RoundTrip failure: %v", err)
@@ -609,15 +470,10 @@ func (t *Transport) RoundTripOpt(req *ClientRequest, opt RoundTripOpt) (*ClientR
 }
 
 func (t *Transport) IdleConnStrsForTesting() []string {
-	pool, ok := t.connPool().(noDialClientConnPool)
-	if !ok {
-		return nil
-	}
-
 	var ret []string
-	pool.mu.Lock()
-	defer pool.mu.Unlock()
-	for k, ccs := range pool.conns {
+	t.connPool.mu.Lock()
+	defer t.connPool.mu.Unlock()
+	for k, ccs := range t.connPool.conns {
 		for _, cc := range ccs {
 			if cc.idleState().canTakeNewRequest {
 				ret = append(ret, k)
@@ -632,9 +488,7 @@ func (t *Transport) IdleConnStrsForTesting() []string {
 // connected from previous requests but are now sitting idle.
 // It does not interrupt any connections currently in use.
 func (t *Transport) CloseIdleConnections() {
-	if cp, ok := t.connPool().(clientConnPoolIdleCloser); ok {
-		cp.closeIdleConnections()
-	}
+	t.connPool.closeIdleConnections()
 }
 
 var (
@@ -707,9 +561,6 @@ func (t *Transport) dialClientConn(ctx context.Context, addr string, singleUse b
 
 func (t *Transport) newTLSConfig(host string) *tls.Config {
 	cfg := new(tls.Config)
-	if t.TLSClientConfig != nil {
-		*cfg = *t.TLSClientConfig.Clone()
-	}
 	if !slices.Contains(cfg.NextProtos, NextProtoTLS) {
 		cfg.NextProtos = append([]string{NextProtoTLS}, cfg.NextProtos...)
 	}
@@ -720,12 +571,6 @@ func (t *Transport) newTLSConfig(host string) *tls.Config {
 }
 
 func (t *Transport) dialTLS(ctx context.Context, network, addr string, tlsCfg *tls.Config) (net.Conn, error) {
-	if t.DialTLSContext != nil {
-		return t.DialTLSContext(ctx, network, addr, tlsCfg)
-	} else if t.DialTLS != nil {
-		return t.DialTLS(network, addr, tlsCfg)
-	}
-
 	tlsCn, err := t.dialTLSWithContext(ctx, network, addr, tlsCfg)
 	if err != nil {
 		return nil, err
@@ -811,8 +656,8 @@ func (t *Transport) newClientConn(c net.Conn, singleUse bool, internalStateHook 
 	cc.br = bufio.NewReader(c)
 	cc.fr = NewFramer(cc.bw, cc.br)
 	cc.fr.SetMaxReadFrameSize(uint32(conf.MaxReadFrameSize))
-	if t.CountError != nil {
-		cc.fr.countError = t.CountError
+	if conf.CountError != nil {
+		cc.fr.countError = conf.CountError
 	}
 	maxHeaderTableSize := uint32(conf.MaxDecoderHeaderTableSize)
 	cc.fr.ReadMetaHeaders = hpack.NewDecoder(maxHeaderTableSize, nil)
@@ -1240,7 +1085,7 @@ func (cc *ClientConn) Close() error {
 // closes the client connection immediately. In-flight requests are interrupted.
 func (cc *ClientConn) closeForLostPing() {
 	err := errors.New("http2: client connection lost")
-	if f := cc.t.CountError; f != nil {
+	if f := cc.fr.countError; f != nil {
 		f("conn_close_lost_ping")
 	}
 	cc.closeForError(err)
@@ -2167,11 +2012,11 @@ func (rl *clientConnReadLoop) cleanup() {
 	idleTime := time.Now().Sub(cc.lastActive)
 	if atomic.LoadUint32(&cc.atomicReused) == 0 && idleTime < unusedWaitTime && !cc.closedOnIdle {
 		cc.idleTimer = time.AfterFunc(unusedWaitTime-idleTime, func() {
-			cc.t.connPool().MarkDead(cc)
+			cc.t.connPool.MarkDead(cc)
 		})
 	} else {
 		cc.mu.Unlock() // avoid any deadlocks in MarkDead
-		cc.t.connPool().MarkDead(cc)
+		cc.t.connPool.MarkDead(cc)
 		cc.mu.Lock()
 	}
 
@@ -2195,10 +2040,10 @@ func (rl *clientConnReadLoop) cleanup() {
 	}
 }
 
-// countReadFrameError calls Transport.CountError with a string
+// countReadFrameError calls ClientConn.fr.countError with a string
 // representing err.
 func (cc *ClientConn) countReadFrameError(err error) {
-	f := cc.t.CountError
+	f := cc.fr.countError
 	if f == nil || err == nil {
 		return
 	}
@@ -2794,11 +2639,11 @@ func (cs *clientStream) copyTrailers() {
 
 func (rl *clientConnReadLoop) processGoAway(f *GoAwayFrame) error {
 	cc := rl.cc
-	cc.t.connPool().MarkDead(cc)
+	cc.t.connPool.MarkDead(cc)
 	if f.ErrCode != 0 {
 		// TODO: deal with GOAWAY more. particularly the error code
 		cc.vlogf("transport got GOAWAY with error code = %v", f.ErrCode)
-		if fn := cc.t.CountError; fn != nil {
+		if fn := cc.fr.countError; fn != nil {
 			fn("recv_goaway_" + f.ErrCode.stringToken())
 		}
 	}
@@ -2949,7 +2794,7 @@ func (rl *clientConnReadLoop) processResetStream(f *RSTStreamFrame) error {
 	if f.ErrCode == ErrCodeProtocol {
 		rl.cc.SetDoNotReuse()
 	}
-	if fn := cs.cc.t.CountError; fn != nil {
+	if fn := cs.cc.fr.countError; fn != nil {
 		fn("recv_rststream_" + f.ErrCode.stringToken())
 	}
 	cs.abortStream(serr)
@@ -3267,13 +3112,6 @@ func (cc *ClientConn) maybeCallStateHook() {
 }
 
 func (t *Transport) idleConnTimeout() time.Duration {
-	// to keep things backwards compatible, we use non-zero values of
-	// IdleConnTimeout, followed by using the IdleConnTimeout on the underlying
-	// http1 transport, followed by 0
-	if t.IdleConnTimeout != 0 {
-		return t.IdleConnTimeout
-	}
-
 	if t.t1 != nil {
 		return t.t1.IdleConnTimeout()
 	}

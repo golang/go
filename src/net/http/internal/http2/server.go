@@ -90,95 +90,6 @@ var (
 
 // Server is an HTTP/2 server.
 type Server struct {
-	// MaxHandlers limits the number of http.Handler ServeHTTP goroutines
-	// which may run at a time over all connections.
-	// Negative or zero no limit.
-	// TODO: implement
-	MaxHandlers int
-
-	// MaxConcurrentStreams optionally specifies the number of
-	// concurrent streams that each client may have open at a
-	// time. This is unrelated to the number of http.Handler goroutines
-	// which may be active globally, which is MaxHandlers.
-	// If zero, MaxConcurrentStreams defaults to at least 100, per
-	// the HTTP/2 spec's recommendations.
-	MaxConcurrentStreams uint32
-
-	// MaxDecoderHeaderTableSize optionally specifies the http2
-	// SETTINGS_HEADER_TABLE_SIZE to send in the initial settings frame. It
-	// informs the remote endpoint of the maximum size of the header compression
-	// table used to decode header blocks, in octets. If zero, the default value
-	// of 4096 is used.
-	MaxDecoderHeaderTableSize uint32
-
-	// MaxEncoderHeaderTableSize optionally specifies an upper limit for the
-	// header compression table used for encoding request headers. Received
-	// SETTINGS_HEADER_TABLE_SIZE settings are capped at this limit. If zero,
-	// the default value of 4096 is used.
-	MaxEncoderHeaderTableSize uint32
-
-	// MaxReadFrameSize optionally specifies the largest frame
-	// this server is willing to read. A valid value is between
-	// 16k and 16M, inclusive. If zero or otherwise invalid, a
-	// default value is used.
-	MaxReadFrameSize uint32
-
-	// PermitProhibitedCipherSuites, if true, permits the use of
-	// cipher suites prohibited by the HTTP/2 spec.
-	PermitProhibitedCipherSuites bool
-
-	// IdleTimeout specifies how long until idle clients should be
-	// closed with a GOAWAY frame. PING frames are not considered
-	// activity for the purposes of IdleTimeout.
-	// If zero or negative, there is no timeout.
-	IdleTimeout time.Duration
-
-	// ReadIdleTimeout is the timeout after which a health check using a ping
-	// frame will be carried out if no frame is received on the connection.
-	// If zero, no health check is performed.
-	ReadIdleTimeout time.Duration
-
-	// PingTimeout is the timeout after which the connection will be closed
-	// if a response to a ping is not received.
-	// If zero, a default of 15 seconds is used.
-	PingTimeout time.Duration
-
-	// WriteByteTimeout is the timeout after which a connection will be
-	// closed if no data can be written to it. The timeout begins when data is
-	// available to write, and is extended whenever any bytes are written.
-	// If zero or negative, there is no timeout.
-	WriteByteTimeout time.Duration
-
-	// MaxUploadBufferPerConnection is the size of the initial flow
-	// control window for each connections. The HTTP/2 spec does not
-	// allow this to be smaller than 65535 or larger than 2^32-1.
-	// If the value is outside this range, a default value will be
-	// used instead.
-	MaxUploadBufferPerConnection int32
-
-	// MaxUploadBufferPerStream is the size of the initial flow control
-	// window for each stream. The HTTP/2 spec does not allow this to
-	// be larger than 2^32-1. If the value is zero or larger than the
-	// maximum, a default value will be used instead.
-	MaxUploadBufferPerStream int32
-
-	// NewWriteScheduler constructs a write scheduler for a connection.
-	// If nil, a default scheduler is chosen.
-	NewWriteScheduler func() WriteScheduler
-
-	// CountError, if non-nil, is called on HTTP/2 server errors.
-	// It's intended to increment a metric for monitoring, such
-	// as an expvar or Prometheus metric.
-	// The errType consists of only ASCII word characters.
-	CountError func(errType string)
-
-	// Internal state. This is a pointer (rather than embedded directly)
-	// so that we don't embed a Mutex in this struct, which will make the
-	// struct non-copyable, which might break some callers.
-	state *serverInternalState
-}
-
-type serverInternalState struct {
 	mu          sync.Mutex
 	activeConns map[*serverConn]struct{}
 
@@ -187,7 +98,7 @@ type serverInternalState struct {
 	errChanPool sync.Pool
 }
 
-func (s *serverInternalState) registerConn(sc *serverConn) {
+func (s *Server) registerConn(sc *serverConn) {
 	if s == nil {
 		return // if the Server was used without calling ConfigureServer
 	}
@@ -196,7 +107,7 @@ func (s *serverInternalState) registerConn(sc *serverConn) {
 	s.mu.Unlock()
 }
 
-func (s *serverInternalState) unregisterConn(sc *serverConn) {
+func (s *Server) unregisterConn(sc *serverConn) {
 	if s == nil {
 		return // if the Server was used without calling ConfigureServer
 	}
@@ -205,7 +116,7 @@ func (s *serverInternalState) unregisterConn(sc *serverConn) {
 	s.mu.Unlock()
 }
 
-func (s *serverInternalState) startGracefulShutdown() {
+func (s *Server) startGracefulShutdown() {
 	if s == nil {
 		return // if the Server was used without calling ConfigureServer
 	}
@@ -222,14 +133,14 @@ var errChanPool = sync.Pool{
 	New: func() any { return make(chan error, 1) },
 }
 
-func (s *serverInternalState) getErrChan() chan error {
+func (s *Server) getErrChan() chan error {
 	if s == nil {
 		return errChanPool.Get().(chan error) // Server used without calling ConfigureServer
 	}
 	return s.errChanPool.Get().(chan error)
 }
 
-func (s *serverInternalState) putErrChan(ch chan error) {
+func (s *Server) putErrChan(ch chan error) {
 	if s == nil {
 		errChanPool.Put(ch) // Server used without calling ConfigureServer
 		return
@@ -238,10 +149,8 @@ func (s *serverInternalState) putErrChan(ch chan error) {
 }
 
 func (s *Server) Configure(conf ServerConfig, tcfg *tls.Config) error {
-	s.state = &serverInternalState{
-		activeConns: make(map[*serverConn]struct{}),
-		errChanPool: sync.Pool{New: func() any { return make(chan error, 1) }},
-	}
+	s.activeConns = make(map[*serverConn]struct{})
+	s.errChanPool = sync.Pool{New: func() any { return make(chan error, 1) }}
 
 	if tcfg.CipherSuites != nil && tcfg.MinVersion < tls.VersionTLS13 {
 		// If they already provided a TLS 1.0–1.2 CipherSuite list, return an
@@ -273,7 +182,7 @@ func (s *Server) Configure(conf ServerConfig, tcfg *tls.Config) error {
 }
 
 func (s *Server) GracefulShutdown() {
-	s.state.startGracefulShutdown()
+	s.startGracefulShutdown()
 }
 
 // ServeConnOpts are options for the Server.ServeConn method.
@@ -294,6 +203,8 @@ type ServeConnOpts struct {
 	// Settings is the decoded contents of the HTTP2-Settings header
 	// in an h2c upgrade request.
 	Settings []byte
+
+	UpgradeRequest *ServerRequest
 
 	// SawClientPreface is set if the HTTP/2 connection preface
 	// has already been read from the connection.
@@ -346,7 +257,7 @@ func (s *Server) serveConn(c net.Conn, opts *ServeConnOpts, newf func(*serverCon
 	baseCtx, cancel := serverConnBaseContext(c, opts)
 	defer cancel()
 
-	conf := configFromServer(opts.BaseConfig, s)
+	conf := configFromServer(opts.BaseConfig)
 	sc := &serverConn{
 		srv:                         s,
 		hs:                          opts.BaseConfig,
@@ -377,8 +288,8 @@ func (s *Server) serveConn(c net.Conn, opts *ServeConnOpts, newf func(*serverCon
 		newf(sc)
 	}
 
-	s.state.registerConn(sc)
-	defer s.state.unregisterConn(sc)
+	s.registerConn(sc)
+	defer s.unregisterConn(sc)
 
 	// The net/http package sets the write deadline from the
 	// http.Server.WriteTimeout during the TLS handshake, but then
@@ -390,8 +301,6 @@ func (s *Server) serveConn(c net.Conn, opts *ServeConnOpts, newf func(*serverCon
 	}
 
 	switch {
-	case s.NewWriteScheduler != nil:
-		sc.writeSched = s.NewWriteScheduler()
 	case sc.hs.DisableClientPriority():
 		sc.writeSched = newRoundRobinWriteScheduler()
 	default:
@@ -480,6 +389,11 @@ func (s *Server) serveConn(c net.Conn, opts *ServeConnOpts, newf func(*serverCon
 			return
 		}
 		opts.Settings = nil
+	}
+
+	if opts.UpgradeRequest != nil {
+		sc.upgradeRequest(opts.UpgradeRequest)
+		opts.UpgradeRequest = nil
 	}
 
 	sc.serve(conf)
@@ -893,8 +807,8 @@ func (sc *serverConn) serve(conf Config) {
 	sc.setConnState(ConnStateActive)
 	sc.setConnState(ConnStateIdle)
 
-	if sc.srv.IdleTimeout > 0 {
-		sc.idleTimer = time.AfterFunc(sc.srv.IdleTimeout, sc.onIdleTimer)
+	if idle := sc.hs.IdleTimeout(); idle > 0 {
+		sc.idleTimer = time.AfterFunc(idle, sc.onIdleTimer)
 		defer sc.idleTimer.Stop()
 	}
 
@@ -1092,7 +1006,7 @@ var writeDataPool = sync.Pool{
 // writeDataFromHandler writes DATA response frames from a handler on
 // the given stream.
 func (sc *serverConn) writeDataFromHandler(stream *stream, data []byte, endStream bool) error {
-	ch := sc.srv.state.getErrChan()
+	ch := sc.srv.getErrChan()
 	writeArg := writeDataPool.Get().(*writeData)
 	*writeArg = writeData{stream.id, data, endStream}
 	err := sc.writeFrameFromHandler(FrameWriteRequest{
@@ -1124,7 +1038,7 @@ func (sc *serverConn) writeDataFromHandler(stream *stream, data []byte, endStrea
 			return errStreamClosed
 		}
 	}
-	sc.srv.state.putErrChan(ch)
+	sc.srv.putErrChan(ch)
 	if frameWriteDone {
 		writeDataPool.Put(writeArg)
 	}
@@ -1659,8 +1573,9 @@ func (sc *serverConn) closeStream(st *stream, err error) {
 	delete(sc.streams, st.id)
 	if len(sc.streams) == 0 {
 		sc.setConnState(ConnStateIdle)
-		if sc.srv.IdleTimeout > 0 && sc.idleTimer != nil {
-			sc.idleTimer.Reset(sc.srv.IdleTimeout)
+		idleTimeout := sc.hs.IdleTimeout()
+		if idleTimeout > 0 && sc.idleTimer != nil {
+			sc.idleTimer.Reset(idleTimeout)
 		}
 		if h1ServerKeepAlivesDisabled(sc.hs) {
 			sc.startGracefulShutdownInternal()
@@ -2075,6 +1990,32 @@ func (sc *serverConn) processHeaders(f *MetaHeadersFrame) error {
 	return sc.scheduleHandler(id, rw, req, handler)
 }
 
+func (sc *serverConn) upgradeRequest(req *ServerRequest) {
+	sc.serveG.check()
+	id := uint32(1)
+	sc.maxClientStreamID = id
+	st := sc.newStream(id, 0, stateHalfClosedRemote, defaultRFC9218Priority(sc.priorityAware && !sc.hasIntermediary))
+	st.reqTrailer = req.Trailer
+	if st.reqTrailer != nil {
+		st.trailer = make(Header)
+	}
+	rw := sc.newResponseWriter(st)
+	rw.rws.req = *req
+	req = &rw.rws.req
+
+	// Disable any read deadline set by the net/http package
+	// prior to the upgrade.
+	if sc.hs.ReadTimeout() > 0 {
+		sc.conn.SetReadDeadline(time.Time{})
+	}
+
+	// This is the first request on the connection,
+	// so start the handler directly rather than going
+	// through scheduleHandler.
+	sc.curHandlers++
+	go sc.runHandler(rw, req, sc.handler.ServeHTTP)
+}
+
 func (st *stream) processTrailerHeaders(f *MetaHeadersFrame) error {
 	sc := st.sc
 	sc.serveG.check()
@@ -2401,7 +2342,7 @@ func (sc *serverConn) writeHeaders(st *stream, headerData *writeResHeaders) erro
 		// waiting for this frame to be written, so an http.Flush mid-handler
 		// writes out the correct value of keys, before a handler later potentially
 		// mutates it.
-		errc = sc.srv.state.getErrChan()
+		errc = sc.srv.getErrChan()
 	}
 	if err := sc.writeFrameFromHandler(FrameWriteRequest{
 		write:  headerData,
@@ -2413,7 +2354,7 @@ func (sc *serverConn) writeHeaders(st *stream, headerData *writeResHeaders) erro
 	if errc != nil {
 		select {
 		case err := <-errc:
-			sc.srv.state.putErrChan(errc)
+			sc.srv.putErrChan(errc)
 			return err
 		case <-sc.doneServing:
 			return errClientDisconnected
@@ -3081,7 +3022,7 @@ func (w *responseWriter) Push(target, method string, header Header) error {
 		method: method,
 		url:    u,
 		header: cloneHeader(header),
-		done:   sc.srv.state.getErrChan(),
+		done:   sc.srv.getErrChan(),
 	}
 
 	select {
@@ -3098,7 +3039,7 @@ func (w *responseWriter) Push(target, method string, header Header) error {
 	case <-st.cw:
 		return errStreamClosed
 	case err := <-msg.done:
-		sc.srv.state.putErrChan(msg.done)
+		sc.srv.putErrChan(msg.done)
 		return err
 	}
 }

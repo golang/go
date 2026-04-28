@@ -20,3 +20,10 @@ It will no longer be able to directly fetch modules hosted on bzr servers.
 
 ### Cgo {#cgo}
 
+### Trace
+
+<!-- go.dev/issue/78921 -->
+
+`go tool trace`'s `-http` argument now restricts the listen address to localhost when passed only a port (e.g., `-http=:6060`).
+This change makes `go tool trace` consistent with the behavior of `go tool pprof`'s `-http` flag.
+To listen on all addresses, explicitly include the specified address (e.g., `-http=0.0.0.0:6060`).

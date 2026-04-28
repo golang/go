@@ -1,0 +1,13 @@
+pkg uuid, func Max() UUID #62026
+pkg uuid, func MustParse(string) UUID #62026
+pkg uuid, func New() UUID #62026
+pkg uuid, func NewV4() UUID #62026
+pkg uuid, func NewV7() UUID #62026
+pkg uuid, func Nil() UUID #62026
+pkg uuid, func Parse(string) (UUID, error) #62026
+pkg uuid, method (*UUID) UnmarshalText([]uint8) error #62026
+pkg uuid, method (UUID) AppendText([]uint8) ([]uint8, error) #62026
+pkg uuid, method (UUID) Compare(UUID) int #62026
+pkg uuid, method (UUID) MarshalText() ([]uint8, error) #62026
+pkg uuid, method (UUID) String() string #62026
+pkg uuid, type UUID [16]uint8 #62026

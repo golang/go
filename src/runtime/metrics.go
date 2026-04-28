@@ -862,9 +862,10 @@ func (a *schedStatsAggregate) compute() {
 	// include system goroutines in this count because we included
 	// them above.
 	a.gTotal = uint64(gcount(true))
-	a.gWaiting = a.gTotal - (a.gRunning + a.gRunnable + a.gNonGo)
-	if a.gWaiting < 0 {
+	if a.gTotal < a.gRunning+a.gRunnable+a.gNonGo {
 		a.gWaiting = 0
+	} else {
+		a.gWaiting = a.gTotal - (a.gRunning + a.gRunnable + a.gNonGo)
 	}
 
 	unlock(&sched.lock)

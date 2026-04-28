@@ -357,3 +357,29 @@ func (c *Cache) freeUintSlice(s []uint) {
 	}
 	c.freeLimitSlice(*(*[]limit)(unsafe.Pointer(&b)))
 }
+func (c *Cache) allocKnownBitsEntriesSlice(n int) []knownBitsEntry {
+	var base limit
+	var derived knownBitsEntry
+	if unsafe.Sizeof(base)%unsafe.Sizeof(derived) != 0 {
+		panic("bad")
+	}
+	scale := unsafe.Sizeof(base) / unsafe.Sizeof(derived)
+	b := c.allocLimitSlice(int((uintptr(n) + scale - 1) / scale))
+	s := unsafeheader.Slice{
+		Data: unsafe.Pointer(&b[0]),
+		Len:  n,
+		Cap:  cap(b) * int(scale),
+	}
+	return *(*[]knownBitsEntry)(unsafe.Pointer(&s))
+}
+func (c *Cache) freeKnownBitsEntriesSlice(s []knownBitsEntry) {
+	var base limit
+	var derived knownBitsEntry
+	scale := unsafe.Sizeof(base) / unsafe.Sizeof(derived)
+	b := unsafeheader.Slice{
+		Data: unsafe.Pointer(&s[0]),
+		Len:  int((uintptr(len(s)) + scale - 1) / scale),
+		Cap:  int((uintptr(cap(s)) + scale - 1) / scale),
+	}
+	c.freeLimitSlice(*(*[]limit)(unsafe.Pointer(&b)))
+}

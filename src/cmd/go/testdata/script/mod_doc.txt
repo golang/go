@@ -74,6 +74,17 @@ stdout '// import "vendor/golang.org/x/crypto/cryptobyte"'
 go doc cmd/vendor/golang.org/x/mod/modfile
 stdout '// import "cmd/vendor/golang.org/x/mod/modfile"'
 
+# Not in a module and not in GOPATH
+cd $WORK
+go env GOMOD
+stdout '(/dev/null|NUL)'
+
+go doc encoding/json
+stdout '// import "encoding/json"'
+
+go doc json
+stdout '// import "encoding/json"'
+
 -- go.mod --
 module x
 require rsc.io/quote v1.5.2

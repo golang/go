@@ -374,13 +374,6 @@ var depsRules = `
 	go/build/constraint, go/doc, go/parser, internal/buildcfg, internal/goroot, internal/goversion, internal/platform, internal/syslist
 	< go/build;
 
-	# databases
-	FMT
-	< database/sql/internal
-	< database/sql/driver;
-
-	database/sql/driver, math/rand/v2 < database/sql;
-
 	# images
 	FMT, compress/lzw, compress/zlib
 	< image/color
@@ -589,6 +582,17 @@ var depsRules = `
 	< CRYPTO-MATH;
 
 	CGO, net !< CRYPTO-MATH;
+
+	# uuids
+	crypto/rand, errors, encoding/binary, encoding/hex
+	< uuid;
+
+	# databases
+	FMT, uuid
+	< database/sql/internal
+	< database/sql/driver;
+
+	database/sql/driver, math/rand/v2 < database/sql;
 
 	# TLS, Prince of Dependencies.
 

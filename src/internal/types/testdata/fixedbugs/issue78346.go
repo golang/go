@@ -2,6 +2,8 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
+//go:build !386 && !arm && !mips && !mipsle && !wasm
+
 package p
 
 const (
@@ -29,6 +31,13 @@ const (
 	v = u + u
 	w = v + v
 	x = w + w
-	y = x + /* ERROR "constant string too long" */ x
+	y = x + x
 	z = y + y
+	A = z + z
+	B = A + A
+	C = B + B
+	D = C + C
+	E = D + D
+	F = E + /* ERROR "constant string too long" */ E
+	G = F + F
 )

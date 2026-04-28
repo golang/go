@@ -742,6 +742,7 @@ func loadImport(ld *modload.Loader, ctx context.Context, opts PackageOpts, pre *
 			defer stk.Pop()
 		}
 		p.setLoadPackageDataError(err, path, stk, nil)
+		setToolFlags(ld, p)
 		return p, nil
 	}
 
@@ -768,6 +769,7 @@ func loadImport(ld *modload.Loader, ctx context.Context, opts PackageOpts, pre *
 		packageCache[importPath] = p
 
 		setCmdline(p)
+		setToolFlags(ld, p)
 
 		// Load package.
 		// loadPackageData may return bp != nil even if an error occurs,
@@ -2838,17 +2840,6 @@ func TestPackageList(ld *modload.Loader, ctx context.Context, opts PackageOpts, 
 	return all
 }
 
-// LoadImportWithFlags loads the package with the given import path and
-// sets tool flags on that package. This function is useful loading implicit
-// dependencies (like sync/atomic for coverage).
-// TODO(jayconrod): delete this function and set flags automatically
-// in LoadImport instead.
-func LoadImportWithFlags(ld *modload.Loader, path, srcDir string, parent *Package, stk *ImportStack, importPos []token.Position, mode int) (*Package, *PackageError) {
-	p, err := loadImport(ld, context.TODO(), PackageOpts{}, nil, path, srcDir, parent, stk, importPos, mode)
-	setToolFlags(ld, p)
-	return p, err
-}
-
 // LoadPackageWithFlags is the same as LoadImportWithFlags but without a parent.
 // It's then guaranteed to not return an error
 func LoadPackageWithFlags(ld *modload.Loader, path, srcDir string, stk *ImportStack, importPos []token.Position, mode int) *Package {
@@ -3481,7 +3472,7 @@ func EnsureImport(s *modload.Loader, p *Package, pkg string) {
 		}
 	}
 
-	p1, err := LoadImportWithFlags(s, pkg, p.Dir, p, &ImportStack{}, nil, 0)
+	p1, err := loadImport(s, context.TODO(), PackageOpts{}, nil, pkg, p.Dir, p, &ImportStack{}, nil, 0)
 	if err != nil {
 		base.Fatalf("load %s: %v", pkg, err)
 	}

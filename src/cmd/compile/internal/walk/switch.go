@@ -388,15 +388,6 @@ func tryLookupTable(sw *ir.SwitchStmt, cond ir.Node) {
 		return // 64-bit switches on 32-bit archs
 	}
 
-	// Bail out if any case uses fallthrough. Removing cases from the switch
-	// would break fallthrough chains between adjacent cases.
-	// TODO: we could still optimize cases that don't fall through, even if some cases do.
-	for _, ncase := range sw.Cases {
-		if fall, _ := endsInFallthrough(ncase.Body); fall {
-			return
-		}
-	}
-
 	fn := ir.CurFunc
 	if fn == nil || fn.Type().NumResults() != 1 {
 		return // only handle single return value
@@ -427,11 +418,17 @@ func tryLookupTable(sw *ir.SwitchStmt, cond ir.Node) {
 	excludeSet := make(map[int64]bool)  // case values with non-const bodies
 	var defaultVal ir.Node              // non-nil if default returns a constant
 	minVal, maxVal := int64(math.MaxInt64), int64(math.MinInt64)
+	var excludeNextCase bool // true if the previous case ends in fallthrough
 
 	for i, ncase := range sw.Cases {
+		// A case that is the target of a fallthrough must be excluded,
+		// since removing it would break the fallthrough chain.
+		isFallthroughTarget := excludeNextCase
+		excludeNextCase, _ = endsInFallthrough(ncase.Body)
+
 		if len(ncase.List) == 0 {
 			// Default case: check if it returns a constant (for gap filling).
-			if isConstReturn(ncase) {
+			if isConstReturn(ncase) && !isFallthroughTarget {
 				defaultVal = ncase.Body[0].(*ir.ReturnStmt).Results[0]
 			}
 			continue
@@ -451,11 +448,11 @@ func tryLookupTable(sw *ir.SwitchStmt, cond ir.Node) {
 			return
 		}
 
-		if !isConstReturn(ncase) {
-			// Non-const case body: exclude these values from the table
-			// so the mask redirects them to the normal switch, preserving
-			// Go's top-to-bottom case evaluation order. For example:
-			//   case 3: sideEffect(); return 30  → exclude slot 3
+		if !isConstReturn(ncase) || isFallthroughTarget || excludeNextCase {
+			// Non-const body, fallthrough source, or fallthrough target:
+			// exclude these values from the table so the mask redirects
+			// them to the normal switch, preserving Go's top-to-bottom
+			// case evaluation order.
 			for _, v := range vals {
 				excludeSet[v] = true
 			}

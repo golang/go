@@ -2299,6 +2299,7 @@ var rfc2821Tests = []struct {
 	{".foo.bar@example.com", "", ""},
 	{"foo.bar.@example.com", "", ""},
 	{"|{}?'@example.com", "|{}?'", "example.com"},
+	{"a@b@c.com", "", ""},
 
 	// Examples from RFC 3696
 	{"Abc\\@def@example.com", "Abc@def", "example.com"},

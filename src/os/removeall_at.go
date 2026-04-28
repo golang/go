@@ -93,9 +93,13 @@ func removeAllFrom(parentFd sysfdType, base string) error {
 			if IsNotExist(err) {
 				return nil
 			}
-			if err == syscall.ENOTDIR || isErrNoFollow(err) {
-				// Not a directory; return the error from the unix.Unlinkat.
+			if err == syscall.ENOTDIR {
+				// Not a directory; return the error from the removefileat.
 				return &PathError{Op: "unlinkat", Path: base, Err: uErr}
+			}
+			if _, ok := err.(errSymlink); ok {
+				// Not a user-visible error.
+				err = uErr
 			}
 			recurseErr = &PathError{Op: "openfdat", Path: base, Err: err}
 			break

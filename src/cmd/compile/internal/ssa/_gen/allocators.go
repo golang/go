@@ -127,6 +127,11 @@ func genAllocators() {
 			typ:  "[]uint",
 			base: "LimitSlice",
 		},
+		{
+			name: "KnownBitsEntriesSlice",
+			typ:  "[]knownBitsEntry",
+			base: "LimitSlice",
+		},
 	}
 
 	w := new(bytes.Buffer)

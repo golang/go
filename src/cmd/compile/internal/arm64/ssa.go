@@ -162,6 +162,38 @@ func genIndexedOperand(op ssa.Op, base, idx int16) obj.Addr {
 	return mop
 }
 
+// simdRegArng encodes ssa value's register with specified simd arrangement
+func simdRegArng(reg int16, arng int16) int16 {
+	if reg < arm64.REG_F0 || arm64.REG_F31 < reg {
+		base.Fatalf("expected fp register: r%d", reg)
+	}
+	var err error
+	if reg, err = arm64.RegisterArrangement(reg, arng, false); err != nil {
+		base.Fatalf("bad simd register arrangement: %v", err)
+	}
+	return reg
+}
+
+// simdV11 generates element-wise unary vector operations, e.g. VCNT V1.B8, V0.B8
+func simdV11(s *ssagen.State, v *ssa.Value, arrangement int16) *obj.Prog {
+	p := s.Prog(v.Op.Asm())
+	p.From.Type = obj.TYPE_REG
+	p.From.Reg = simdRegArng(v.Args[0].Reg(), arrangement)
+	p.To.Type = obj.TYPE_REG
+	p.To.Reg = simdRegArng(v.Reg(), arrangement)
+	return p
+}
+
+// simdV11Scalar generates vector-to-scalar reduction operations, e.g. VUADDLV V1.B8, V0
+func simdV11Scalar(s *ssagen.State, v *ssa.Value, arrangement int16) *obj.Prog {
+	p := s.Prog(v.Op.Asm())
+	p.From.Type = obj.TYPE_REG
+	p.From.Reg = simdRegArng(v.Args[0].Reg(), arrangement)
+	p.To.Type = obj.TYPE_REG
+	p.To.Reg = v.Reg() - arm64.REG_F0 + arm64.REG_V0
+	return p
+}
+
 func ssaGenValue(s *ssagen.State, v *ssa.Value) {
 	switch v.Op {
 	case ssa.OpCopy, ssa.OpARM64MOVDreg:
@@ -1018,17 +1050,9 @@ func ssaGenValue(s *ssagen.State, v *ssa.Value) {
 	case ssa.OpARM64LoweredRound32F, ssa.OpARM64LoweredRound64F:
 		// input is already rounded
 	case ssa.OpARM64VCNT:
-		p := s.Prog(v.Op.Asm())
-		p.From.Type = obj.TYPE_REG
-		p.From.Reg = (v.Args[0].Reg()-arm64.REG_F0)&31 + arm64.REG_ARNG + ((arm64.ARNG_8B & 15) << 5)
-		p.To.Type = obj.TYPE_REG
-		p.To.Reg = (v.Reg()-arm64.REG_F0)&31 + arm64.REG_ARNG + ((arm64.ARNG_8B & 15) << 5)
+		simdV11(s, v, arm64.ARNG_8B)
 	case ssa.OpARM64VUADDLV:
-		p := s.Prog(v.Op.Asm())
-		p.From.Type = obj.TYPE_REG
-		p.From.Reg = (v.Args[0].Reg()-arm64.REG_F0)&31 + arm64.REG_ARNG + ((arm64.ARNG_8B & 15) << 5)
-		p.To.Type = obj.TYPE_REG
-		p.To.Reg = v.Reg() - arm64.REG_F0 + arm64.REG_V0
+		simdV11Scalar(s, v, arm64.ARNG_8B)
 	case ssa.OpARM64CSEL, ssa.OpARM64CSEL0:
 		r1 := int16(arm64.REGZERO)
 		if v.Op != ssa.OpARM64CSEL0 {

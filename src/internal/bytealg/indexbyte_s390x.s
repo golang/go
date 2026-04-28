@@ -7,26 +7,12 @@
 
 
 TEXT ·IndexByte<ABIInternal>(SB),NOSPLIT|NOFRAME,$0-40
-#ifndef GOEXPERIMENT_regabiargs
-	MOVD    b_base+0(FP), R2// b_base => R2
-	MOVD    b_len+8(FP), R3 // b_len => R3
-	MOVBZ   c+24(FP), R4    // c => R4
-	MOVD    $ret+32(FP), R5 // &ret => R5
-#else
 	MOVD    R5, R4
 	AND	$0xff, R4
-#endif
 	BR      indexbytebody<>(SB)
 
 TEXT ·IndexByteString<ABIInternal>(SB),NOSPLIT|NOFRAME,$0-32
-#ifndef GOEXPERIMENT_regabiargs
-	MOVD    s_base+0(FP), R2 // s_base => R2
-	MOVD    s_len+8(FP), R3 // s_len => R3
-	MOVBZ   c+16(FP), R4    // c => R4
-	MOVD    $ret+24(FP), R5 // &ret => R5
-#else
 	AND	$0xff, R4
-#endif
 	BR      indexbytebody<>(SB)
 
 // input:
@@ -51,17 +37,10 @@ residual:
 found:
         SUB     R6, R2
         SUB     $1, R2
-#ifndef GOEXPERIMENT_regabiargs
-        MOVD    R2, 0(R5)
-#endif
         RET
 
 notfound:
-#ifndef GOEXPERIMENT_regabiargs
-        MOVD    $-1, 0(R5)
-#else
         MOVD    $-1, R2
-#endif
         RET
 
 large:
@@ -77,19 +56,11 @@ srstloop:
 foundr0:
         XOR     R0, R0          // reset R0
         SUB     R6, R8          // remove base
-#ifndef GOEXPERIMENT_regabiargs
-        MOVD    R8, 0(R5)
-#else
         MOVD    R8, R2
-#endif
         RET
 notfoundr0:
         XOR     R0, R0          // reset R0
-#ifndef GOEXPERIMENT_regabiargs
-        MOVD    $-1, 0(R5)
-#else
         MOVD    $-1, R2
-#endif
         RET
 
 vectorimpl:
@@ -118,11 +89,7 @@ vectorloop:
         SUB     $16, R2
         SUB     R6, R2
         ADD     R2, R7
-#ifndef GOEXPERIMENT_regabiargs
-        MOVD    R7, 0(R5)
-#else
         MOVD    R7, R2
-#endif
         RET
 
 notaligned:

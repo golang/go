@@ -62,10 +62,8 @@ func ParseGOEXPERIMENT(goos, goarch, goexp string) (*ExperimentFlags, error) {
 	// always on.
 	var regabiSupported, regabiAlwaysOn bool
 	switch goarch {
-	case "amd64", "arm64", "loong64", "ppc64le", "ppc64", "riscv64":
+	case "amd64", "arm64", "loong64", "ppc64le", "ppc64", "riscv64", "s390x":
 		regabiAlwaysOn = true
-		regabiSupported = true
-	case "s390x":
 		regabiSupported = true
 	}
 

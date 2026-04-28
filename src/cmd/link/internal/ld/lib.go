@@ -1516,9 +1516,7 @@ func (ctxt *Link) hostlink() {
 		}
 	case objabi.Hwindows:
 		isMSVC = ctxt.isMSVC()
-		if !isMSVC {
-			isLLD = ctxt.isLLD()
-		}
+		isLLD = ctxt.isLLD()
 		if isMSVC {
 			// For various options, MSVC lld-link only accepts one dash.
 			// TODO: It seems mingw clang supports one or two dashes,
