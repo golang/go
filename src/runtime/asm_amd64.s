@@ -942,6 +942,11 @@ TEXT ·asmcgocall(SB),NOSPLIT,$0-20
 	JEQ	nosecret
 	CALL	·secretEraseRegisters(SB)
 
+	get_tls(CX)
+	MOVQ    g(CX), DI
+	MOVQ    g_m(DI), R8
+	MOVQ    m_g0(R8), SI
+
 nosecret:
 #endif
 	MOVQ	fn+0(FP), AX
