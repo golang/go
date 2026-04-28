@@ -2,6 +2,12 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
+// Package fips140 provides information about the FIPS 140-3 Go Cryptographic
+// Module and FIPS 140-3 mode.
+//
+// For more details, see the [FIPS 140-3 documentation].
+//
+// [FIPS 140-3 documentation]: https://go.dev/doc/security/fips140
 package fips140
 
 import (
