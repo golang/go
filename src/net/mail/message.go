@@ -577,6 +577,7 @@ func (p *addrParser) consumePhrase() (phrase string, err error) {
 	// phrase = 1*word
 	var words []string
 	var isPrevEncoded bool
+	var sb strings.Builder
 	for {
 		// obs-phrase allows CFWS after one word
 		if len(words) > 0 {
@@ -609,19 +610,24 @@ func (p *addrParser) consumePhrase() (phrase string, err error) {
 		}
 		debug.Printf("consumePhrase: consumed %q", word)
 		if isPrevEncoded && isEncoded {
-			words[len(words)-1] += word
+			// Append to previous word without space (RFC 2047 encoded words concatenated)
+			if sb.Len() > 0 {
+				sb.WriteString(word)
+			}
 		} else {
-			words = append(words, word)
+			if sb.Len() > 0 {
+				sb.WriteString(" ")
+			}
+			sb.WriteString(word)
 		}
 		isPrevEncoded = isEncoded
 	}
 	// Ignore any error if we got at least one word.
-	if err != nil && len(words) == 0 {
+	if err != nil && sb.Len() == 0 {
 		debug.Printf("consumePhrase: hit err: %v", err)
 		return "", fmt.Errorf("mail: missing word in phrase: %v", err)
 	}
-	phrase = strings.Join(words, " ")
-	return phrase, nil
+	return strings.TrimSpace(sb.String()), nil
 }
 
 // consumeQuotedString parses the quoted string at the start of p.
