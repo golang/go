@@ -397,6 +397,10 @@ outer:
 				t.growthLeft++ // will be decremented below to become a no-op.
 			}
 
+			if t.growthLeft == 0 {
+				t.pruneTombstones(typ, m)
+			}
+
 			// If there is room left to grow, just insert the new entry.
 			if t.growthLeft > 0 {
 				slotKey := g.key(typ, i)
