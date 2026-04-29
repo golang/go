@@ -105,7 +105,7 @@ func (check *Checker) builtin(x *operand, call *ast.CallExpr, id builtinId) (_ b
 					if s, _ := u.(*Slice); s != nil && Identical(s.elem, universeByte) {
 						return true
 					}
-					if isString(u) {
+					if u != nil && isString(u) {
 						hasString = true
 						return true
 					}
@@ -375,7 +375,7 @@ func (check *Checker) builtin(x *operand, call *ast.CallExpr, id builtinId) (_ b
 				if s, _ := u.(*Slice); s != nil && Identical(s.elem, universeByte) {
 					return true
 				}
-				if isString(u) {
+				if u != nil && isString(u) {
 					return true
 				}
 				special = false

@@ -50,6 +50,9 @@ func NewSignatureType(recv *Var, recvTypeParams, typeParams []*TypeParam, params
 		last := params.At(n - 1).typ
 		var S *Slice
 		typeset(last, func(t, _ Type) bool {
+			if t == nil {
+				return false
+			}
 			var s *Slice
 			if isString(t) {
 				s = NewSlice(universeByte)
@@ -58,7 +61,7 @@ func NewSignatureType(recv *Var, recvTypeParams, typeParams []*TypeParam, params
 			}
 			if S == nil {
 				S = s
-			} else if !Identical(S, s) {
+			} else if s == nil || !Identical(S, s) {
 				S = nil
 				return false
 			}
