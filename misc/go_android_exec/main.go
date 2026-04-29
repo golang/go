@@ -299,7 +299,7 @@ func pkgPath() (importPath string, isStd bool, modPath, modDir string, err error
 	if err != nil {
 		return errorf("%w", err)
 	}
-	cmd := exec.Command(goTool, "list", "-e", "-f", "{{.ImportPath}}:{{.Standard}}{{with .Module}}:{{.Path}}:{{.Dir}}{{end}}", ".")
+	cmd := exec.Command(goTool, "list", "-e", "-f", "{{.ImportPath}}:{{.Standard}}{{with .Module}}:{{.Path}}:{{.Dir}}{{end}}", ".") // nosemgrep: go.lang.security.audit.dangerous-exec-command.dangerous-exec-command
 	out, err := cmd.Output()
 	if err != nil {
 		if ee, ok := err.(*exec.ExitError); ok && len(ee.Stderr) > 0 {
@@ -368,7 +368,7 @@ func adbCopyGoroot() error {
 	if err != nil {
 		return err
 	}
-	cmd := exec.Command(goTool, "version")
+	cmd := exec.Command(goTool, "version") // nosemgrep: go.lang.security.audit.dangerous-exec-command.dangerous-exec-command
 	cmd.Stderr = os.Stderr
 	out, err := cmd.Output()
 	if err != nil {
@@ -407,7 +407,7 @@ func adbCopyGoroot() error {
 	}
 
 	// Build Go for Android.
-	cmd = exec.Command(goTool, "install", "cmd")
+	cmd = exec.Command(goTool, "install", "cmd") // nosemgrep: go.lang.security.audit.dangerous-exec-command.dangerous-exec-command
 	out, err = cmd.CombinedOutput()
 	if err != nil {
 		if len(bytes.TrimSpace(out)) > 0 {
@@ -420,7 +420,7 @@ func adbCopyGoroot() error {
 	}
 
 	// Copy the Android tools from the relevant bin subdirectory to GOROOT/bin.
-	cmd = exec.Command(goTool, "list", "-f", "{{.Target}}", "cmd/go")
+	cmd = exec.Command(goTool, "list", "-f", "{{.Target}}", "cmd/go") // nosemgrep: go.lang.security.audit.dangerous-exec-command.dangerous-exec-command
 	cmd.Stderr = os.Stderr
 	out, err = cmd.Output()
 	if err != nil {
@@ -443,7 +443,7 @@ func adbCopyGoroot() error {
 		return err
 	}
 
-	cmd = exec.Command(goTool, "list", "-f", "{{.Target}}", "cmd/compile")
+	cmd = exec.Command(goTool, "list", "-f", "{{.Target}}", "cmd/compile") // nosemgrep: go.lang.security.audit.dangerous-exec-command.dangerous-exec-command
 	cmd.Stderr = os.Stderr
 	out, err = cmd.Output()
 	if err != nil {
@@ -517,7 +517,11 @@ func goTool() (string, error) {
 	if err != nil {
 		return "", err
 	}
-	return filepath.Join(goroot, "bin", "go"), nil
+	tool := filepath.Join(goroot, "bin", "go")
+	if !filepath.IsAbs(tool) {
+		return "", fmt.Errorf("GOROOT is not an absolute path: %q", goroot)
+	}
+	return tool, nil
 }
 
 var (
