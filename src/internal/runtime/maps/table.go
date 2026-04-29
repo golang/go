@@ -426,6 +426,9 @@ func (t *table) uncheckedPutSlot(typ *abi.MapType, hash uintptr, key, elem unsaf
 //
 // Requires that the entry does not exist in the table, and that the table has
 // room for another element without rehashing.
+// 
+// Before calling this method, you must ensure that the necessary check has 
+// been performed in advance.
 //
 // For indirect keys, memory is allocated and the key is copied into it.
 // For indirect elements, memory is pre-allocated and the slot is returned
