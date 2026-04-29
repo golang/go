@@ -22,6 +22,7 @@ import (
 	"testing"
 	"testing/synctest"
 	"time"
+	"uuid"
 )
 
 func init() {
@@ -1990,6 +1991,23 @@ func TestNullTimeParam(t *testing.T) {
 		{NullTime{t1, true}, t2, NullTime{t1, true}},
 		{NullTime{t1, false}, t2, NullTime{t0, false}},
 		{t2, NullTime{t1, false}, nil},
+	}}
+	synctest.Test(t, func(t *testing.T) {
+		nullTestRun(t, spec)
+	})
+}
+
+func TestNullUUIDParam(t *testing.T) {
+	u0 := uuid.UUID{}
+	u1 := uuid.MustParse("46cd2740-6081-4289-a659-03b61ebb92f7")
+	u2 := uuid.MustParse("46cd2740-6081-4289-a659-03b61ebb92f7")
+	spec := nullTestSpec{"nulluuid", "uuid", [6]nullTestRow{
+		{Null[uuid.UUID]{u1, true}, u2, Null[uuid.UUID]{u1, true}},
+		{Null[uuid.UUID]{u1, false}, u2, Null[uuid.UUID]{u0, false}},
+		{u1, u2, Null[uuid.UUID]{u1, true}},
+		{Null[uuid.UUID]{u1, true}, u2, Null[uuid.UUID]{u1, true}},
+		{Null[uuid.UUID]{u1, false}, u2, Null[uuid.UUID]{u0, false}},
+		{u2, Null[uuid.UUID]{u1, false}, nil},
 	}}
 	synctest.Test(t, func(t *testing.T) {
 		nullTestRun(t, spec)

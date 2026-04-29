@@ -190,11 +190,7 @@ TEXT gogo<>(SB), NOSPLIT|NOFRAME, $0
 // Fn must never return.  It should gogo(&g->sched)
 // to keep running g.
 TEXT runtime·mcall<ABIInternal>(SB), NOSPLIT, $-8-8
-#ifdef GOEXPERIMENT_regabiargs
 	MOVD	R2, R12				// context
-#else
-	MOVD	fn+0(FP), R12			// context
-#endif
 	// Save caller state in g->sched
 	MOVD	R15, (g_sched+gobuf_sp)(g)
 	MOVD	LR, (g_sched+gobuf_pc)(g)
@@ -790,7 +786,6 @@ TEXT runtime·cputicks(SB),NOSPLIT,$0-8
 	MOVD	R3, ret+0(FP)
 	RET
 
-#ifdef GOEXPERIMENT_regabiargs
 // spillArgs stores return values from registers to a *internal/abi.RegArgs in R10.
 TEXT runtime·spillArgs(SB),NOSPLIT,$0-0
 	MOVD	R2, 0(R10)
@@ -846,14 +841,6 @@ TEXT runtime·unspillArgs(SB),NOSPLIT,$0-0
 	FMOVD	176(R10), F14
 	FMOVD	184(R10), F15
 	RET
-#else
-
-TEXT runtime·spillArgs(SB),NOSPLIT,$0-0
-        RET
-
-TEXT runtime·unspillArgs(SB),NOSPLIT,$0-0
-        RET
-#endif
 
 // AES hashing not implemented for s390x
 TEXT runtime·memhash<ABIInternal>(SB),NOSPLIT|NOFRAME,$0-32

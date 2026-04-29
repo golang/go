@@ -18,8 +18,10 @@ func init() {
 
 const noHTTP2 = "no bundled HTTP/2" // should never see this
 
-func (s *Server) configureHTTP2()                                                                   {}
-func (s *Server) serveHTTP2Conn(ctx context.Context, nc net.Conn, h Handler, sawClientPreface bool) {}
+func (s *Server) configureHTTP2()                               {}
+func (s *Server) setHTTP2Config(conf http2ExternalServerConfig) {}
+func (s *Server) serveHTTP2Conn(ctx context.Context, nc net.Conn, h Handler, sawClientPreface bool, upgradeReq *Request, settings []byte) {
+}
 
 func (t *Transport) configureHTTP2(protocols Protocols) {}
 func (t *Transport) http2AddConn(scheme, authority string, nc net.Conn) (RoundTripper, error) {
@@ -36,6 +38,9 @@ func (t *Transport) http2NewClientConnFromContext(ctx context.Context) (*ClientC
 }
 
 type http2Server struct{}
+type http2ExternalServerConfig interface {
+	unimplementable()
+}
 
 type http2Transport struct{}
 type http2ExternalTransportConfig interface {

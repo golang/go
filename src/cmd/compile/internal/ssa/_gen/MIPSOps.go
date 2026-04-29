@@ -154,8 +154,8 @@ func init() {
 		{name: "MUL", argLength: 2, reg: regInfo{inputs: []regMask{gpg, gpg}, outputs: []regMask{gp}, clobbers: hi | lo}, asm: "MUL", commutative: true}, // arg0 * arg1
 		{name: "MULT", argLength: 2, reg: gp2hilo, asm: "MUL", commutative: true, typ: "(Int32,Int32)"},                                                  // arg0 * arg1, signed, results hi,lo
 		{name: "MULTU", argLength: 2, reg: gp2hilo, asm: "MULU", commutative: true, typ: "(UInt32,UInt32)"},                                              // arg0 * arg1, unsigned, results hi,lo
-		{name: "DIV", argLength: 2, reg: gp2hilo, asm: "DIV", typ: "(Int32,Int32)"},                                                                      // arg0 / arg1, signed, results hi=arg0%arg1,lo=arg0/arg1
-		{name: "DIVU", argLength: 2, reg: gp2hilo, asm: "DIVU", typ: "(UInt32,UInt32)"},                                                                  // arg0 / arg1, signed, results hi=arg0%arg1,lo=arg0/arg1
+		{name: "DIV", argLength: 2, reg: gp2hilo, asm: "DIV", typ: "(Int32,Int32)", hasSideEffects: true},                                                // arg0 / arg1, signed, results hi=arg0%arg1,lo=arg0/arg1
+		{name: "DIVU", argLength: 2, reg: gp2hilo, asm: "DIVU", typ: "(UInt32,UInt32)", hasSideEffects: true},                                            // arg0 / arg1, signed, results hi=arg0%arg1,lo=arg0/arg1
 
 		{name: "ADDF", argLength: 2, reg: fp21, asm: "ADDF", commutative: true}, // arg0 + arg1
 		{name: "ADDD", argLength: 2, reg: fp21, asm: "ADDD", commutative: true}, // arg0 + arg1

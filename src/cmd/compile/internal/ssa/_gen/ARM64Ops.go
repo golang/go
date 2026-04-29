@@ -212,14 +212,14 @@ func init() {
 		{name: "UMULH", argLength: 2, reg: gp21, asm: "UMULH", commutative: true},                                     // (arg0 * arg1) >> 64, unsigned
 		{name: "MULL", argLength: 2, reg: gp21, asm: "SMULL", commutative: true},                                      // arg0 * arg1, signed, 32-bit mult results in 64-bit
 		{name: "UMULL", argLength: 2, reg: gp21, asm: "UMULL", commutative: true},                                     // arg0 * arg1, unsigned, 32-bit mult results in 64-bit
-		{name: "DIV", argLength: 2, reg: gp21, asm: "SDIV"},                                                           // arg0 / arg1, signed
-		{name: "UDIV", argLength: 2, reg: gp21, asm: "UDIV"},                                                          // arg0 / arg1, unsigned
-		{name: "DIVW", argLength: 2, reg: gp21, asm: "SDIVW"},                                                         // arg0 / arg1, signed, 32 bit
-		{name: "UDIVW", argLength: 2, reg: gp21, asm: "UDIVW"},                                                        // arg0 / arg1, unsigned, 32 bit
-		{name: "MOD", argLength: 2, reg: gp21, asm: "REM"},                                                            // arg0 % arg1, signed
-		{name: "UMOD", argLength: 2, reg: gp21, asm: "UREM"},                                                          // arg0 % arg1, unsigned
-		{name: "MODW", argLength: 2, reg: gp21, asm: "REMW"},                                                          // arg0 % arg1, signed, 32 bit
-		{name: "UMODW", argLength: 2, reg: gp21, asm: "UREMW"},                                                        // arg0 % arg1, unsigned, 32 bit
+		{name: "DIV", argLength: 2, reg: gp21, asm: "SDIV", hasSideEffects: true},                                     // arg0 / arg1, signed
+		{name: "UDIV", argLength: 2, reg: gp21, asm: "UDIV", hasSideEffects: true},                                    // arg0 / arg1, unsigned
+		{name: "DIVW", argLength: 2, reg: gp21, asm: "SDIVW", hasSideEffects: true},                                   // arg0 / arg1, signed, 32 bit
+		{name: "UDIVW", argLength: 2, reg: gp21, asm: "UDIVW", hasSideEffects: true},                                  // arg0 / arg1, unsigned, 32 bit
+		{name: "MOD", argLength: 2, reg: gp21, asm: "REM", hasSideEffects: true},                                      // arg0 % arg1, signed
+		{name: "UMOD", argLength: 2, reg: gp21, asm: "UREM", hasSideEffects: true},                                    // arg0 % arg1, unsigned
+		{name: "MODW", argLength: 2, reg: gp21, asm: "REMW", hasSideEffects: true},                                    // arg0 % arg1, signed, 32 bit
+		{name: "UMODW", argLength: 2, reg: gp21, asm: "UREMW", hasSideEffects: true},                                  // arg0 % arg1, unsigned, 32 bit
 
 		{name: "FADDS", argLength: 2, reg: fp21, asm: "FADDS", commutative: true},   // arg0 + arg1
 		{name: "FADDD", argLength: 2, reg: fp21, asm: "FADDD", commutative: true},   // arg0 + arg1

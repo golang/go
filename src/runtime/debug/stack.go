@@ -13,7 +13,7 @@ import (
 	_ "unsafe" // for linkname
 )
 
-// PrintStack prints to standard error the stack trace returned by runtime.Stack.
+// PrintStack prints to standard error the stack trace returned by [runtime.Stack].
 func PrintStack() {
 	os.Stderr.Write(Stack())
 }

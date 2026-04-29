@@ -1992,7 +1992,7 @@ func (c *conn) serve(ctx context.Context) {
 			// closing such connections. See issue https://golang.org/issue/39776.
 			c.setState(c.rwc, StateActive, skipHooks)
 			const sawClientPreface = false
-			c.server.serveHTTP2Conn(ctx, c.rwc, serverHandler{c.server}, sawClientPreface)
+			c.server.serveHTTP2Conn(ctx, c.rwc, serverHandler{c.server}, sawClientPreface, nil, nil)
 			return
 		}
 		tlsConn, tlsConnOK := c.rwc.(*tls.Conn)
@@ -2226,7 +2226,7 @@ func (c *conn) maybeServeUnencryptedHTTP2(ctx context.Context) bool {
 	c.setState(c.rwc, StateActive, skipHooks)
 	if c.server.h2 != nil {
 		const sawClientPreface = true
-		c.server.serveHTTP2Conn(ctx, c.rwc, serverHandler{c.server}, sawClientPreface)
+		c.server.serveHTTP2Conn(ctx, c.rwc, serverHandler{c.server}, sawClientPreface, nil, nil)
 	} else {
 		h := unencryptedHTTP2Request{ctx, c.rwc, serverHandler{c.server}}
 		nextFunc(c.server, unencryptedTLSConn(c.rwc), h)
@@ -3147,12 +3147,14 @@ type Server struct {
 	nextProtoOnce     sync.Once // guards setupHTTP2_* init
 	nextProtoErr      error     // result of http2.ConfigureServer if used
 
-	mu         sync.Mutex
-	listeners  map[*net.Listener]struct{}
-	activeConn map[*conn]struct{}
-	onShutdown []func()
-	h2         *http2Server
-	h3         *http3ServerHandler
+	mu            sync.Mutex
+	listeners     map[*net.Listener]struct{}
+	activeConn    map[*conn]struct{}
+	onShutdown    []func()
+	h2            *http2Server
+	h2Config      http2ExternalServerConfig
+	h2IdleTimeout time.Duration
+	h3            *http3ServerHandler
 
 	listenerGroup sync.WaitGroup
 }
@@ -3474,6 +3476,21 @@ var ErrServerClosed = errors.New("http: Server closed")
 // Serve always returns a non-nil error and closes l.
 // After [Server.Shutdown] or [Server.Close], the returned error is [ErrServerClosed].
 func (s *Server) Serve(l net.Listener) error {
+	if conf, ok := l.(http2ExternalServerConfig); ok {
+		// This is the sneaky path we use to let x/net/http2 wrap an http.Server:
+		// http2.ConfigureServer calls http.Server.Serve with a net.Listener that
+		// implements a certain interface, which we recognize here as an attempt
+		// to associate an http2.Server with us.
+		//
+		// (This is about as principled as the way we (ab)use Transport.RegisterProtocol,
+		// which is to say not at all. It's worth it.)
+		s.setHTTP2Config(conf)
+		// Server.Serve never returns a nil error under normal circumstances.
+		// Returning nil here informs our caller that we support this sneaky
+		// registration mechanism.
+		return nil
+	}
+
 	if fn := testHookServerServe; fn != nil {
 		fn(s, l) // call hook with unwrapped listener
 	}

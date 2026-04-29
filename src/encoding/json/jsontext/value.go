@@ -17,7 +17,24 @@ import (
 	"encoding/json/internal/jsonwire"
 )
 
-// NOTE: Value is analogous to v1 json.RawMessage.
+// AppendFloat appends src to dst as a JSON number per RFC 8259, section 6.
+//
+// Except for -0, which is formatted as -0 instead of 0,
+// the output is identical to ECMA-262, 10th edition, section 7.1.12.1
+// and (for 64-bit precision) identical to RFC 8785, section 3.2.2.3.
+// The values NaN, +Inf, and -Inf will be represented as a JSON string
+// with the values "NaN", "Infinity", and "-Infinity".
+//
+// Note that most JSON libraries and standards assume that JSON numbers
+// are 64-bit floating-point numbers. As such, prefer using 64 bits
+// of precision unless the recipient can know from other context
+// that the encoded number uses 32 bits of precision.
+func AppendFloat(dst []byte, src float64, bits int) []byte {
+	if bits != 32 && bits != 64 {
+		panic("illegal AppendFloat bit size")
+	}
+	return jsonwire.AppendFloat(dst, src, bits)
+}
 
 // AppendFormat formats the JSON value in src and appends it to dst
 // according to the specified options.
@@ -34,6 +51,8 @@ func AppendFormat(dst, src []byte, opts ...Options) ([]byte, error) {
 	}
 	return append(dst, e.s.Buf...), nil
 }
+
+// NOTE: Value is analogous to v1 json.RawMessage.
 
 // Value represents a single raw JSON value, which may be one of the following:
 //   - a JSON literal (i.e., null, true, or false)

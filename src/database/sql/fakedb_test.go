@@ -1225,6 +1225,10 @@ func converterForType(typ string) driver.ValueConverter {
 		return driver.NotNull{Converter: driver.DefaultParameterConverter}
 	case "nulldatetime":
 		return driver.Null{Converter: driver.DefaultParameterConverter}
+	case "uuid":
+		return driver.NotNull{Converter: driver.DefaultParameterConverter}
+	case "nulluuid":
+		return driver.Null{Converter: driver.DefaultParameterConverter}
 	case "any":
 		return anyTypeConverter{}
 	}

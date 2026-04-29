@@ -55,9 +55,9 @@ func (s *Server) configureHTTP2() {
 	// Historically, we've configured the HTTP/2 idle timeout in this fashion:
 	// Set once at configuration time.
 	if s.IdleTimeout != 0 {
-		h2srv.IdleTimeout = s.IdleTimeout
+		s.h2IdleTimeout = s.IdleTimeout
 	} else {
-		h2srv.IdleTimeout = s.ReadTimeout
+		s.h2IdleTimeout = s.ReadTimeout
 	}
 
 	if s.TLSConfig == nil {
@@ -82,13 +82,48 @@ func (s *Server) configureHTTP2() {
 	s.h2 = h2srv
 }
 
-func (s *Server) serveHTTP2Conn(ctx context.Context, nc net.Conn, h Handler, sawClientPreface bool) {
+func (s *Server) setHTTP2Config(conf http2ExternalServerConfig) {
+	if s.h2Config != nil {
+		panic("http: HTTP/2 Server already registered")
+	}
+	s.h2Config = conf
+	s.h2Config.ServeConnFunc(s.serveHTTP2Conn)
+}
+
+func (s *Server) serveHTTP2Conn(ctx context.Context, nc net.Conn, h Handler, sawClientPreface bool, upgradeReq *Request, settings []byte) {
+	s.setupHTTP2_ServeTLS()
+	var serverUpgradeReq *http2.ServerRequest
+	if upgradeReq != nil {
+		serverUpgradeReq = http2ServerRequestFromRequest(upgradeReq)
+	}
 	s.h2.ServeConn(nc, &http2.ServeConnOpts{
 		Context:          ctx,
 		Handler:          http2Handler{h},
 		BaseConfig:       http2ServerConfig{s},
 		SawClientPreface: sawClientPreface,
+		UpgradeRequest:   serverUpgradeReq,
+		Settings:         settings,
 	})
+}
+
+func http2ServerRequestFromRequest(req *Request) *http2.ServerRequest {
+	return &http2.ServerRequest{
+		Context:       req.Context(),
+		Proto:         req.Proto,
+		ProtoMajor:    req.ProtoMajor,
+		ProtoMinor:    req.ProtoMinor,
+		Method:        req.Method,
+		URL:           req.URL,
+		Header:        http2.Header(req.Header),
+		Trailer:       http2.Header(req.Trailer),
+		Body:          req.Body,
+		Host:          req.Host,
+		ContentLength: req.ContentLength,
+		RemoteAddr:    req.RemoteAddr,
+		RequestURI:    req.RequestURI,
+		TLS:           req.TLS,
+		MultipartForm: req.MultipartForm,
+	}
 }
 
 type http2Handler struct {
@@ -161,14 +196,42 @@ func (s http2ServerConfig) DoKeepAlives() bool             { return s.s.doKeepAl
 func (s http2ServerConfig) WriteTimeout() time.Duration    { return s.s.WriteTimeout }
 func (s http2ServerConfig) SendPingTimeout() time.Duration { return s.s.ReadTimeout }
 func (s http2ServerConfig) ErrorLog() *log.Logger          { return s.s.ErrorLog }
-func (s http2ServerConfig) IdleTimeout() time.Duration     { return s.s.IdleTimeout }
 func (s http2ServerConfig) ReadTimeout() time.Duration     { return s.s.ReadTimeout }
 func (s http2ServerConfig) DisableClientPriority() bool    { return s.s.DisableClientPriority }
-func (s http2ServerConfig) HTTP2Config() http2.Config {
-	if s.s.HTTP2 == nil {
-		return http2.Config{}
+
+func (s http2ServerConfig) IdleTimeout() time.Duration {
+	if s.s.h2Config != nil {
+		return s.s.h2Config.IdleTimeout()
 	}
-	return (http2.Config)(*s.s.HTTP2)
+	return s.s.h2IdleTimeout
+}
+
+func (s http2ServerConfig) HTTP2Config() http2.Config {
+	return mergeHTTP2Config(s.s.HTTP2, s.s.h2Config)
+}
+
+// http2ExternalServerConfig is an HTTP/2 configuration provided by x/net/http2.
+//
+// When a x/net/http2.Server wraps a net/http.Server, we need to support the user
+// setting configuration settings on the x/net Server:
+//
+//	s1 := &http.Server{}
+//	s2 := &http2.Server{}
+//	http2.ConfigureServer(s1, s2)
+//
+//	// This setting needs to affect s1:
+//	s2.MaxReadFrameSize = 10000
+//
+// We handle this by having http2.ConfigureServer pass us an http2ExternalServerConfig
+// (see http.Server.Serve) which we can use to query the current state of the http2.Server.
+type http2ExternalServerConfig interface {
+	// Various configuration settings:
+	HTTP2Config() HTTP2Config
+	IdleTimeout() time.Duration
+
+	// ServeConnFunc provides a function to the x/net/http2.Server which it
+	// can use to serve a new connection.
+	ServeConnFunc(func(ctx context.Context, nc net.Conn, h Handler, sawClientPreface bool, upgradeReq *Request, settings []byte))
 }
 
 // http2ExternalTransportConfig is an HTTP/2 configuration provided by x/net/http2.
@@ -222,7 +285,6 @@ func (t *Transport) configureHTTP2(protocols Protocols) {
 		t.HTTP2 = &HTTP2Config{}
 	}
 	t2 := http2.NewTransport(transportConfig{t})
-	t2.AllowHTTP = true
 	t.h2Transport = t2
 
 	t.registerProtocol("https", http2RoundTripper{t2, true})
@@ -234,18 +296,6 @@ func (t *Transport) configureHTTP2(protocols Protocols) {
 	t.TLSNextProto["h2"] = func(authority string, c *tls.Conn) RoundTripper {
 		return http2ErringRoundTripper{
 			errors.New("unexpected use of stub RoundTripper"),
-		}
-	}
-
-	// Auto-configure the http2.Transport's MaxHeaderListSize from
-	// the http.Transport's MaxResponseHeaderBytes. They don't
-	// exactly mean the same thing, but they're close.
-	if limit1 := t.MaxResponseHeaderBytes; limit1 != 0 && t2.MaxHeaderListSize == 0 {
-		const h2max = 1<<32 - 1
-		if limit1 >= h2max {
-			t2.MaxHeaderListSize = h2max
-		} else {
-			t2.MaxHeaderListSize = uint32(limit1)
 		}
 	}
 
@@ -438,12 +488,22 @@ func (t transportConfig) IdleConnTimeout() time.Duration {
 	return t.t.IdleConnTimeout
 }
 
-func (t transportConfig) HTTP2Config() http2.Config {
-	if t.t.h2Config == nil {
-		return (http2.Config)(*t.t.HTTP2)
+type http2Configer interface {
+	HTTP2Config() HTTP2Config
+}
+
+func mergeHTTP2Config(c1 *HTTP2Config, confer http2Configer) http2.Config {
+	if c1 == nil && confer == nil {
+		return http2.Config{}
 	}
-	c := (http2.Config)(*t.t.HTTP2)
-	c2 := t.t.h2Config.HTTP2Config()
+	var c http2.Config
+	if c1 != nil {
+		c = (http2.Config)(*c1)
+	}
+	var c2 HTTP2Config
+	if confer != nil {
+		c2 = confer.HTTP2Config()
+	}
 	if c.MaxConcurrentStreams == 0 {
 		c.MaxConcurrentStreams = c2.MaxConcurrentStreams
 	}
@@ -481,6 +541,10 @@ func (t transportConfig) HTTP2Config() http2.Config {
 		c.CountError = c2.CountError
 	}
 	return c
+}
+
+func (t transportConfig) HTTP2Config() http2.Config {
+	return mergeHTTP2Config(t.t.HTTP2, t.t.h2Config)
 }
 
 // transportFromH1Transport provides a way for HTTP/2 tests to extract

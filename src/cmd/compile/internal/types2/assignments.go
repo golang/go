@@ -91,9 +91,8 @@ func (check *Checker) assignment(x *operand, T Type, context string) {
 	// x.typ is typed
 
 	// A generic (non-instantiated) function value cannot be assigned to a variable.
-	if sig, _ := x.typ_.Underlying().(*Signature); sig != nil && sig.TypeParams().Len() > 0 {
-		check.errorf(x, WrongTypeArgCount, "cannot use generic function %s without instantiation in %s", x, context)
-		x.mode_ = invalid
+	check.nonGeneric(newTarget(T, context), x)
+	if !x.isValid() {
 		return
 	}
 

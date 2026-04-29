@@ -4362,12 +4362,41 @@ func instructionsForProg(p *obj.Prog, compress bool) []*instruction {
 			ins.imm = -1022
 		}
 
-	case ACSRRC, ACSRRCI, ACSRRS, ACSRRSI, ACSRRW, ACSRRWI:
+	case ACSRC, ACSRRC, ACSRCI, ACSRRCI, ACSRR, ACSRS, ACSRSI, ACSRRS, ACSRRSI, ACSRRW, ACSRRWI, ACSRW, ACSRWI:
+		switch {
+		case ins.as == ACSRCI || (ins.as == ACSRC && p.From.Type == obj.TYPE_CONST):
+			ins.as = ACSRRCI
+			ins.rd = REG_ZERO
+		case ins.as == ACSRC:
+			ins.as = ACSRRC
+			ins.rd = REG_ZERO
+		case ins.as == ACSRSI || (ins.as == ACSRS && p.From.Type == obj.TYPE_CONST):
+			ins.as = ACSRRSI
+			ins.rd = REG_ZERO
+		case ins.as == ACSRS:
+			ins.as = ACSRRS
+			ins.rd = REG_ZERO
+		case ins.as == ACSRWI || (ins.as == ACSRW && p.From.Type == obj.TYPE_CONST):
+			ins.as = ACSRRWI
+			ins.rd = REG_ZERO
+		case ins.as == ACSRW:
+			ins.as = ACSRRW
+			ins.rd = REG_ZERO
+		default:
+			if p.To.Type != obj.TYPE_REG {
+				p.Ctxt.Diag("%v: needs an integer register output", p)
+				return nil
+			}
+		}
+
 		if len(p.RestArgs) == 0 || p.RestArgs[0].Type != obj.TYPE_SPECIAL {
 			p.Ctxt.Diag("%v: missing CSR name", p)
 			return nil
 		}
-		if p.From.Type == obj.TYPE_CONST {
+		if ins.as == ACSRR {
+			ins.as = ACSRRS
+			ins.rs1 = REG_ZERO
+		} else if p.From.Type == obj.TYPE_CONST {
 			imm := p.From.Offset
 			if imm < 0 || imm >= 32 {
 				p.Ctxt.Diag("%v: immediate out of range 0 to 31", p)
@@ -4378,10 +4407,6 @@ func instructionsForProg(p *obj.Prog, compress bool) []*instruction {
 			ins.rs1 = uint32(p.From.Reg)
 		} else {
 			p.Ctxt.Diag("%v: integer register or immediate expected for 1st operand", p)
-			return nil
-		}
-		if p.To.Type != obj.TYPE_REG {
-			p.Ctxt.Diag("%v: needs an integer register output", p)
 			return nil
 		}
 		csrNum := SpecialOperand(p.RestArgs[0].Offset).encode()

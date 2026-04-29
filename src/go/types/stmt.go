@@ -464,7 +464,7 @@ func (check *Checker) stmt(ctxt stmtContext, s ast.Stmt) {
 	case *ast.SendStmt:
 		var ch, val operand
 		check.expr(nil, &ch, s.Chan)
-		check.expr(nil, &val, s.Value)
+		check.genericExpr(&val, s.Value, nil)
 		if !ch.isValid() || !val.isValid() {
 			return
 		}

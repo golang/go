@@ -208,7 +208,7 @@ func (check *Checker) callExpr(x *operand, call *syntax.CallExpr) exprKind {
 		case 0:
 			check.errorf(call, WrongArgCount, "missing argument in conversion to %s", T)
 		case 1:
-			check.expr(nil, x, call.ArgList[0])
+			check.expr(newTarget(T, "conversion"), x, call.ArgList[0])
 			if x.isValid() {
 				if t, _ := T.Underlying().(*Interface); t != nil && !isTypeParam(T) {
 					if !t.IsMethodSet() {
@@ -449,7 +449,7 @@ func (check *Checker) genericExprList(elist []syntax.Expr) (resList []*operand, 
 				}
 			} else {
 				// x is exactly one value (possibly invalid or uninstantiated generic function).
-				check.genericExpr(&x, e)
+				check.genericExpr(&x, e, nil)
 			}
 			resList[i] = &x
 		}

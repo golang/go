@@ -103,6 +103,18 @@ func TestCgoCallbackPprof(t *testing.T) {
 	}
 }
 
+func TestCgoCallbackX15(t *testing.T) {
+	t.Parallel()
+	if runtime.GOARCH != "amd64" {
+		t.Skipf("X15 test only relevant on amd64")
+	}
+
+	got := runTestProg(t, "testprogcgo", "CgoCallbackX15")
+	if want := "OK\n"; got != want {
+		t.Fatalf("expected %q, but got:\n%s", want, got)
+	}
+}
+
 func TestCgoExternalThreadPanic(t *testing.T) {
 	t.Parallel()
 	if runtime.GOOS == "plan9" {

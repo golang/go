@@ -2805,7 +2805,12 @@ func (b *Builder) gccArchArgs() []string {
 			return append(args, "-msoft-float")
 		}
 	case "loong64":
-		return []string{"-mabi=lp64d"}
+		// On loong64, gcc and clang enable relaxation optimization by default, forcing
+		// Go to handle corresponding relocations. Otherwise, it can lead to unreachable
+		// jump instructions and an excessive number of temporary symbols in the findfunc
+		// table. We added the -mno-relax option to disable relaxation optimization in the
+		// cgo code to ensure that Go doesn't encounter errors without additional processing.
+		return []string{"-mabi=lp64d", "-mno-relax"}
 	case "ppc64":
 		if cfg.Goos == "aix" {
 			return []string{"-maix64"}

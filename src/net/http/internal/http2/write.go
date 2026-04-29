@@ -10,8 +10,6 @@ import (
 	"log"
 	"net/http/internal/httpcommon"
 	"net/url"
-	"strconv"
-	"strings"
 
 	"golang.org/x/net/http/httpguts"
 	"golang.org/x/net/http2/hpack"
@@ -202,7 +200,7 @@ type writeResHeaders struct {
 
 func encKV(enc *hpack.Encoder, k, v string) {
 	if VerboseLogs {
-		log.Printf("http2: server encoding header %q = %q", strings.Clone(k), strings.Clone(v))
+		log.Printf("http2: server encoding header %q = %q", k, v)
 	}
 	enc.WriteField(hpack.HeaderField{Name: k, Value: v})
 }
@@ -223,8 +221,7 @@ func (w *writeResHeaders) writeFrame(ctx writeContext) error {
 	buf.Reset()
 
 	if w.httpResCode != 0 {
-		codeBuf := strconv.AppendInt(make([]byte, 0, 3), int64(w.httpResCode), 10)
-		encKV(enc, ":status", string(codeBuf))
+		encKV(enc, ":status", httpCodeString(w.httpResCode))
 	}
 
 	encodeHeaders(enc, w.h, w.trailers)

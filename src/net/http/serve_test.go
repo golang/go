@@ -965,10 +965,7 @@ func testServerWriteTimeout(t *testing.T, mode testMode) {
 	}
 }
 
-func TestServerNoWriteTimeout(t *testing.T) {
-	// Trips off race detector for HTTP/3.
-	run(t, testServerNoWriteTimeout, http3SkippedMode)
-}
+func TestServerNoWriteTimeout(t *testing.T) { run(t, testServerNoWriteTimeout) }
 func testServerNoWriteTimeout(t *testing.T, mode testMode) {
 	for _, timeout := range []time.Duration{0, -1} {
 		cst := newClientServerTest(t, mode, HandlerFunc(func(res ResponseWriter, req *Request) {
@@ -3365,10 +3362,7 @@ func (r *bodyLimitReader) Close() error {
 	return nil
 }
 
-func TestRequestBodyLimit(t *testing.T) {
-	// Trips off race detector for HTTP/3.
-	run(t, testRequestBodyLimit, http3SkippedMode)
-}
+func TestRequestBodyLimit(t *testing.T) { run(t, testRequestBodyLimit) }
 func testRequestBodyLimit(t *testing.T, mode testMode) {
 	const limit = 1 << 20
 	cst := newClientServerTest(t, mode, HandlerFunc(func(w ResponseWriter, r *Request) {

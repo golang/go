@@ -964,8 +964,10 @@ type target struct {
 // The result is nil if typ is not a signature.
 func newTarget(typ Type, desc string) *target {
 	if typ != nil {
-		if sig, _ := typ.Underlying().(*Signature); sig != nil {
-			return &target{sig, desc}
+		if u, _ := commonUnder(typ, nil); u != nil {
+			if sig, _ := u.(*Signature); sig != nil {
+				return &target{sig, desc}
+			}
 		}
 	}
 	return nil
@@ -1317,8 +1319,8 @@ func (check *Checker) expr(T *target, x *operand, e syntax.Expr) {
 }
 
 // genericExpr is like expr but the result may also be generic.
-func (check *Checker) genericExpr(x *operand, e syntax.Expr) {
-	check.rawExpr(nil, x, e, nil, true)
+func (check *Checker) genericExpr(x *operand, e syntax.Expr, hint Type) {
+	check.rawExpr(nil, x, e, hint, true)
 	check.exclude(x, 1<<novalue|1<<builtin|1<<typexpr)
 	check.singleValue(x)
 }
@@ -1354,16 +1356,6 @@ func (check *Checker) multiExpr(e syntax.Expr, allowCommaOk bool) (list []*opera
 	}
 
 	return
-}
-
-// exprWithHint typechecks expression e and initializes x with the expression value;
-// hint is the type of a composite literal element.
-// If an error occurred, x.mode is set to invalid.
-func (check *Checker) exprWithHint(x *operand, e syntax.Expr, hint Type) {
-	assert(hint != nil)
-	check.rawExpr(nil, x, e, hint, false)
-	check.exclude(x, 1<<novalue|1<<builtin|1<<typexpr)
-	check.singleValue(x)
 }
 
 // exprOrType typechecks expression or type e and initializes x with the expression value or type.

@@ -170,14 +170,14 @@ func init() {
 		{name: "LoweredMuluhilo", argLength: 2, reg: gp22, resultNotInArgs: true}, // arg0 * arg1, return (hi, lo)
 		{name: "LoweredMuluover", argLength: 2, reg: gp22, resultNotInArgs: true}, // arg0 * arg1, return (64 bits of arg0*arg1, overflow)
 
-		{name: "DIV", argLength: 2, reg: gp21, asm: "DIV", typ: "Int64"}, // arg0 / arg1
-		{name: "DIVU", argLength: 2, reg: gp21, asm: "DIVU", typ: "UInt64"},
-		{name: "DIVW", argLength: 2, reg: gp21, asm: "DIVW", typ: "Int32"},
-		{name: "DIVUW", argLength: 2, reg: gp21, asm: "DIVUW", typ: "UInt32"},
-		{name: "REM", argLength: 2, reg: gp21, asm: "REM", typ: "Int64"}, // arg0 % arg1
-		{name: "REMU", argLength: 2, reg: gp21, asm: "REMU", typ: "UInt64"},
-		{name: "REMW", argLength: 2, reg: gp21, asm: "REMW", typ: "Int32"},
-		{name: "REMUW", argLength: 2, reg: gp21, asm: "REMUW", typ: "UInt32"},
+		{name: "DIV", argLength: 2, reg: gp21, asm: "DIV", typ: "Int64", hasSideEffects: true}, // arg0 / arg1
+		{name: "DIVU", argLength: 2, reg: gp21, asm: "DIVU", typ: "UInt64", hasSideEffects: true},
+		{name: "DIVW", argLength: 2, reg: gp21, asm: "DIVW", typ: "Int32", hasSideEffects: true},
+		{name: "DIVUW", argLength: 2, reg: gp21, asm: "DIVUW", typ: "UInt32", hasSideEffects: true},
+		{name: "REM", argLength: 2, reg: gp21, asm: "REM", typ: "Int64", hasSideEffects: true}, // arg0 % arg1
+		{name: "REMU", argLength: 2, reg: gp21, asm: "REMU", typ: "UInt64", hasSideEffects: true},
+		{name: "REMW", argLength: 2, reg: gp21, asm: "REMW", typ: "Int32", hasSideEffects: true},
+		{name: "REMUW", argLength: 2, reg: gp21, asm: "REMUW", typ: "UInt32", hasSideEffects: true},
 
 		{name: "MOVaddr", argLength: 1, reg: gp11sb, asm: "MOV", aux: "SymOff", rematerializeable: true, symEffect: "Addr"}, // arg0 + auxint + offset encoded in aux
 		// auxint+aux == add auxint and the offset of the symbol in aux (if any) to the effective address

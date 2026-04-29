@@ -51,7 +51,7 @@ func (check *Checker) overflow(x *operand, opPos token.Pos) {
 		return
 	}
 
-	const maxLen = 10 * 1024 * 1024
+	const maxLen = 1 * 1024 * 1024 * 1024
 	if x.val.Kind() == constant.String && len(constant.StringVal(x.val)) > maxLen {
 		check.error(atPos(opPos), InvalidConstVal, "constant string too long")
 		x.val = constant.MakeUnknown()

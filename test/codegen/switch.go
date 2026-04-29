@@ -76,6 +76,35 @@ func squareLookup(x int) int {
 	}
 }
 
+// lookup tables work even when some cases use fallthrough,
+// as long as enough non-fallthrough cases return constants.
+func fallthroughLookup(x int) int {
+	// amd64:`LEAQ .*\(SB\)` `MOVQ .*\(.*\)\(.*\*8\)` -`JMP \(.*\)\(.*\)$`
+	// arm64:`MOVD \(R.*\)\(R.*<<3\)` -`JMP \(R.*\)$`
+	switch x {
+	case 1:
+		return 1
+	case 2:
+		return 2
+	case 3:
+		fallthrough
+	case 4:
+		return 40
+	case 5:
+		return 5
+	case 6:
+		return 6
+	case 7:
+		return 7
+	case 8:
+		return 8
+	case 9:
+		fallthrough
+	default:
+		return x * x
+	}
+}
+
 // use lookup tables for 8+ bool-returning cases
 func boolLookup(x int) bool {
 	// amd64:`LEAQ .*\(SB\)` `MOVBLZX .*\(.*\)` -`JMP \(.*\)\(.*\)$`

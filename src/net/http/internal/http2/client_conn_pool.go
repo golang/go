@@ -14,30 +14,6 @@ import (
 	"sync"
 )
 
-// ClientConnPool manages a pool of HTTP/2 client connections.
-type ClientConnPool interface {
-	// GetClientConn returns a specific HTTP/2 connection (usually
-	// a TLS-TCP connection) to an HTTP/2 server. On success, the
-	// returned ClientConn accounts for the upcoming RoundTrip
-	// call, so the caller should not omit it. If the caller needs
-	// to, ClientConn.RoundTrip can be called with a bogus
-	// new(ClientRequest) to release the stream reservation.
-	GetClientConn(req *ClientRequest, addr string) (*ClientConn, error)
-	MarkDead(*ClientConn)
-}
-
-// clientConnPoolIdleCloser is the interface implemented by ClientConnPool
-// implementations which can close their idle connections.
-type clientConnPoolIdleCloser interface {
-	ClientConnPool
-	closeIdleConnections()
-}
-
-var (
-	_ clientConnPoolIdleCloser = (*clientConnPool)(nil)
-	_ clientConnPoolIdleCloser = noDialClientConnPool{}
-)
-
 // TODO: use singleflight for dialing and addConnCalls?
 type clientConnPool struct {
 	t *Transport

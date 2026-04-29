@@ -414,7 +414,7 @@ func storeArgs(args []any, argValsDst []Value, argRefsDst []ref) {
 // It panics if v is not a JavaScript object.
 func (v Value) Length() int {
 	if vType := v.Type(); !vType.isObject() {
-		panic(&ValueError{"Value.SetIndex", vType})
+		panic(&ValueError{"Value.Length", vType})
 	}
 	r := valueLength(v.ref)
 	runtime.KeepAlive(v)
@@ -496,7 +496,7 @@ func (v Value) New(args ...any) Value {
 	runtime.KeepAlive(argVals)
 	if !ok {
 		if vType := v.Type(); vType != TypeFunction { // check here to avoid overhead in success case
-			panic(&ValueError{"Value.Invoke", vType})
+			panic(&ValueError{"Value.New", vType})
 		}
 		panic(Error{makeValue(res)})
 	}

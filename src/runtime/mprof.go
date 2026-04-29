@@ -120,7 +120,6 @@ type memRecord struct {
 	// of the events from that cycle must be done. Specifically:
 	//
 	// Mallocs are accounted to cycle C+2.
-	// Explicit frees are accounted to cycle C+2.
 	// GC frees (done during sweeping) are accounted to cycle C+1.
 	//
 	// After mark termination, we increment the global heap
