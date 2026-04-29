@@ -51,16 +51,15 @@ func (check *Checker) overflow(x *operand, opPos token.Pos) {
 		return
 	}
 
-	const maxLen = int(2e9) // cmd/internal/obj.MaxSymSize
-	// Disable the length check for now, as calling constant.StringVal
-	// eagerly constructs the string and can lead to significant memory
-	// usage increase. We may want a StringLen function.
-	// TODO(go.dev/issue/78346): reenable the check.
-	if false && x.val.Kind() == constant.String && len(constant.StringVal(x.val)) > maxLen {
-		check.errorf(atPos(opPos), InvalidConstVal, "constant string too long (%d bytes > %d bytes)",
-			len(constant.StringVal(x.val)), maxLen)
-		x.val = constant.MakeUnknown()
-		return
+	// String values must not become arbitrarily long (go.dev/issue/78346).
+	const maxLen = int64(2e9) // cmd/internal/obj.MaxSymSize
+	if x.val.Kind() == constant.String {
+		len := constant.StringLen(x.val)
+		if len > maxLen {
+			check.errorf(atPos(opPos), InvalidConstVal, "constant string too long (%d bytes > %d bytes)", len, maxLen)
+			x.val = constant.MakeUnknown()
+			return
+		}
 	}
 }
 

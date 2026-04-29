@@ -153,7 +153,7 @@ func (check *Checker) builtin(x *operand, call *syntax.CallExpr, id builtinId) (
 			if isString(t) && id == _Len {
 				if x.mode() == constant_ {
 					mode = constant_
-					val = constant.MakeInt64(int64(len(constant.StringVal(x.val))))
+					val = constant.MakeInt64(constant.StringLen(x.val))
 				} else {
 					mode = value
 				}
