@@ -363,3 +363,60 @@ func Example_formats() {
 	// [97 226 140 152] [97 226 140 152] a⌘ "a⌘" 61e28c98 61 e2 8c 98
 	// 1973-11-29 21:33:09 +0000 UTC "1973-11-29 21:33:09 +0000 UTC"
 }
+
+func ExampleAppend() {
+	b := []byte("Hello ")
+	b = fmt.Append(b, "World", "!")
+	fmt.Println(string(b))
+	// Output:
+	// Hello World!
+}
+
+func ExampleAppend_builder() {
+	// Building a message incrementally
+	b := make([]byte, 0, 64)
+	b = fmt.Append(b, "Status:")
+	b = fmt.Append(b, "OK")
+	b = fmt.Append(b, "(", 200, ")")
+	fmt.Println(string(b))
+	// Output:
+	// Status: OK ( 200 )
+}
+
+func ExampleAppendf() {
+	b := []byte("Error: ")
+	b = fmt.Appendf(b, "user %q (id %d) not found", "alice", 42)
+	fmt.Println(string(b))
+	// Output:
+	// Error: user "alice" (id 42) not found
+}
+
+func ExampleAppendf_log() {
+	// Building a log entry with timestamp
+	b := []byte("[2024-01-15 10:30:00] ")
+	b = fmt.Appendf(b, "Request from %s took %dms", "192.168.1.1", 150)
+	fmt.Println(string(b))
+	// Output:
+	// [2024-01-15 10:30:00] Request from 192.168.1.1 took 150ms
+}
+
+func ExampleAppendln() {
+	b := []byte("Log entry: ")
+	b = fmt.Appendln(b, "User", "logged in", "successfully")
+	fmt.Print(string(b))
+	// Output:
+	// Log entry: User logged in successfully
+}
+
+func ExampleAppendln_multiple() {
+	// Building multiple lines
+	b := make([]byte, 0, 128)
+	b = fmt.Appendln(b, "Line", 1)
+	b = fmt.Appendln(b, "Line", 2)
+	b = fmt.Appendln(b, "Line", 3)
+	fmt.Print(string(b))
+	// Output:
+	// Line 1
+	// Line 2
+	// Line 3
+}
