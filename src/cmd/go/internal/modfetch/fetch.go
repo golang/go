@@ -870,7 +870,7 @@ func checkSumDB(mod module.Version, h string) error {
 			return module.VersionError(modWithoutSuffix, fmt.Errorf("verifying %s: checksum mismatch\n\tdownloaded: %v\n\t%s: %v"+sumdbMismatch, noun, h, db, line[len(prefix)-len("h1:"):]))
 		}
 	}
-	return nil
+	return module.VersionError(modWithoutSuffix, fmt.Errorf("verifying %s: checksum missing from sumdb response"+sumdbAbsent, noun))
 }
 
 // Sum returns the checksum for the downloaded copy of the given module,
@@ -1076,6 +1076,19 @@ SECURITY ERROR
 This download does NOT match the one reported by the checksum server.
 The bits may have been replaced on the origin server, or an attacker may
 have intercepted the download attempt.
+
+For more information, see 'go help module-auth'.
+`
+
+const sumdbAbsent = `
+
+SECURITY ERROR
+This download does NOT match one reported by the checksum server.
+The checksum server has provided checksums, but the checksums do
+not contain an entry for the download.
+The checksum server may be malfunctioning, or an attacker may have
+intercepted the checksum request.
+The download cannot be verified.
 
 For more information, see 'go help module-auth'.
 `
