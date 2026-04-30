@@ -684,6 +684,12 @@ func (check *Checker) funcDecl(obj *Func, decl *declInfo) {
 	fdecl := decl.fdecl
 	check.funcType(sig, fdecl.Recv, fdecl.TParamList, fdecl.Type)
 
+	if fdecl.Pragma != nil {
+		if p, ok := fdecl.Pragma.(interface{ Nointerface() bool }); ok && p.Nointerface() {
+			obj.nointerface = true
+		}
+	}
+
 	// Set the scope's extent to the complete "func (...) { ... }"
 	// so that Scope.Innermost works correctly.
 	sig.scope.pos = fdecl.Pos()
