@@ -17,6 +17,8 @@ import (
 	"path/filepath"
 	"strconv"
 	"strings"
+
+	"golang.org/x/sys/cpu"
 )
 
 var (
@@ -73,8 +75,23 @@ func goamd64() int {
 		return 3
 	case "v4":
 		return 4
+	case "local":
+		switch {
+		case !(cpu.X86.HasCX16 && cpu.X86.HasLAHF && cpu.X86.HasPOPCNT &&
+			cpu.X86.HasSSE3 && cpu.X86.HasSSE41 && cpu.X86.HasSSE42 && cpu.X86.HasSSSE3):
+			return 1
+		case !(cpu.X86.HasAVX && cpu.X86.HasAVX2 && cpu.X86.HasBMI1 && cpu.X86.HasBMI2 &&
+			cpu.X86.HasF16C && cpu.X86.HasFMA && cpu.X86.HasLZCNT && cpu.X86.HasMOVBE &&
+			cpu.X86.HasOSXSAVE):
+			return 2
+		case !(cpu.X86.HasAVX512F && cpu.X86.HasAVX512BW && cpu.X86.HasAVX512CD &&
+			cpu.X86.HasAVX512DQ && cpu.X86.HasAVX512VL):
+			return 3
+		default:
+			return 4
+		}
 	}
-	Error = fmt.Errorf("invalid GOAMD64: must be v1, v2, v3, v4")
+	Error = fmt.Errorf("invalid GOAMD64: must be v1, v2, v3, v4, local")
 	return int(DefaultGOAMD64[len("v")] - '0')
 }
 

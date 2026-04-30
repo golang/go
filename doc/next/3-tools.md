@@ -7,6 +7,9 @@ The `GOFIPS140=certified` alias now selects v1.26.0 of the
 [FIPS 140-3 Go Cryptographic Module](/doc/security/fips140), which obtained
 [CMVP Certificate #5581](https://csrc.nist.gov/projects/cryptographic-module-validation-program/certificate/5581).
 
+Support GOAMD64=local, like GOAMD64=vx,
+where x is the value for the local micro-architecture.
+
 ### Cgo {#cgo}
 
 ### Vet {#vet}

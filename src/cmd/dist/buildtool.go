@@ -170,6 +170,7 @@ var bootstrapDirs = []string{
 	"internal/zstd",
 	"math/bits",
 	"sort",
+	"vendor/golang.org/x/sys/...",
 }
 
 // File prefixes that are ignored by go/build anyway, and cause
@@ -261,7 +262,7 @@ func bootstrapBuildTools() {
 
 			name := filepath.Base(path)
 			src := pathf("%s/src/%s", goroot, path)
-			dst := pathf("%s/%s", base, strings.TrimPrefix(filepath.ToSlash(path), "cmd/vendor/"))
+			dst := pathf("%s/%s", base, strings.TrimPrefix(strings.TrimPrefix(filepath.ToSlash(path), "cmd/vendor/"), "vendor/"))
 
 			if info.IsDir() {
 				if !recurse && path != dir || name == "testdata" {
@@ -494,7 +495,7 @@ func bootstrapFixImports(srcFile string) string {
 		}
 
 		path := m[2]
-		if strings.HasPrefix(path, "cmd/") {
+		if strings.HasPrefix(path, "cmd/") || strings.HasPrefix(path, "golang.org") {
 			path = "bootstrap/" + path
 		} else {
 			for _, dir := range bootstrapDirs {

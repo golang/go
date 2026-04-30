@@ -370,7 +370,7 @@ var depsRules = `
 	math/big, go/token
 	< go/constant;
 
-	FMT, internal/goexperiment
+	FMT, internal/goexperiment, golang.org/x/sys/cpu
 	< internal/buildcfg;
 
 	# The vast majority of standard library packages should not be resorting to regexp.
