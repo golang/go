@@ -274,8 +274,6 @@ func TestLineDirectives(t *testing.T) {
 		{"//line foo:123\n   foo", valid, "foo", 123, 0},
 		{"//line  foo:123\n   foo", valid, " foo", 123, 0},
 		{"//line foo:123\n//line bar:345\nfoo", valid, "bar", 345, 0},
-		{"//line C:foo:123\n", valid, "C:foo", 123, 0},
-		{"//line /src/a/a.go:123\n   foo", valid, "/src/a/a.go", 123, 0},
 		{"//line :x:1\n", valid, ":x", 1, 0},
 		{"//line foo ::1\n", valid, "foo :", 1, 0},
 		{"//line foo:123abc:1\n", valid, "foo:123abc", 1, 0},
@@ -326,8 +324,6 @@ func TestLineDirectives(t *testing.T) {
 		// effect of valid /*line directives on lines
 		{"/*line foo:123*/   foo", valid, "foo", 123, 0},
 		{"/*line foo:123*/\n//line bar:345\nfoo", valid, "bar", 345, 0},
-		{"/*line C:foo:123*/", valid, "C:foo", 123, 0},
-		{"/*line /src/a/a.go:123*/   foo", valid, "/src/a/a.go", 123, 0},
 		{"/*line :x:1*/", valid, ":x", 1, 0},
 		{"/*line foo ::1*/", valid, "foo :", 1, 0},
 		{"/*line foo:123abc:1*/", valid, "foo:123abc", 1, 0},
@@ -371,6 +367,106 @@ func TestLineDirectives(t *testing.T) {
 		}
 		if col := pos.RelCol(); col != test.col {
 			t.Errorf("%s: got col = %d; want %d", test.src, col, test.col)
+		}
+	}
+}
+
+func TestLineDirectivesWithDir(t *testing.T) {
+	const valid = "syntax error: package statement must be first"
+	srcFile := filepath.Join("dir", "directives.go")
+
+	check := func(src, want string) {
+		t.Helper()
+		base := NewFileBase(srcFile)
+		_, err := Parse(base, strings.NewReader(src), nil, nil, 0)
+		if err == nil {
+			t.Errorf("%s: no error reported", src)
+			return
+		}
+		perr, ok := err.(Error)
+		if !ok {
+			t.Errorf("%s: got %v; want parser error", src, err)
+			return
+		}
+		if perr.Msg != valid {
+			t.Errorf("%s: got msg = %q; want %q", src, perr.Msg, valid)
+			return
+		}
+		if got := perr.Pos.RelFilename(); got != want {
+			t.Errorf("%s: got filename = %q; want %q", src, got, want)
+		}
+	}
+
+	for _, test := range []struct {
+		src      string
+		filename string
+	}{
+		{"//line foo:1\n   x", filepath.Join("dir", "foo")},
+		{"//line ./foo:1\n   x", filepath.Join("dir", "foo")},
+		{"//line ../foo:1\n   x", "foo"},
+		{"//line sub/foo:1\n   x", filepath.Join("dir", "sub", "foo")},
+		{"/*line foo:1*/   x", filepath.Join("dir", "foo")},
+		{"//line bar:1\n//line :2:1\n   x", filepath.Join("dir", "bar")},
+	} {
+		check(test.src, test.filename)
+	}
+
+	var absCases []struct {
+		src, filename string
+	}
+	if runtime.GOOS == "windows" {
+		absCases = append(absCases, struct{ src, filename string }{
+			"//line c:\\bar:1\n   x", "c:\\bar",
+		})
+	} else {
+		absCases = append(absCases,
+			struct{ src, filename string }{"//line /abs/foo:1\n   x", "/abs/foo"},
+			struct{ src, filename string }{"//line /src/a/a.go:1\n   x", "/src/a/a.go"},
+		)
+	}
+	for _, test := range absCases {
+		check(test.src, test.filename)
+	}
+}
+
+func TestLineDirectivesPaths(t *testing.T) {
+	const valid = "syntax error: package statement must be first"
+	const filename = "directives.go"
+
+	type tc struct {
+		src      string
+		filename string
+		line     uint
+	}
+	var cases []tc
+	cases = []tc{
+		{"//line C:foo:123\n", "C:foo", 123},
+		{"//line /src/a/a.go:123\n   foo", filepath.Clean("/src/a/a.go"), 123},
+		{"/*line C:foo:123*/", "C:foo", 123},
+		{"/*line /src/a/a.go:123*/   foo", filepath.Clean("/src/a/a.go"), 123},
+		{"//line foo/../bar:1\n   x", "bar", 1},
+	}
+	for _, test := range cases {
+		base := NewFileBase(filename)
+		_, err := Parse(base, strings.NewReader(test.src), nil, nil, 0)
+		if err == nil {
+			t.Errorf("%s: no error reported", test.src)
+			continue
+		}
+		perr, ok := err.(Error)
+		if !ok {
+			t.Errorf("%s: got %v; want parser error", test.src, err)
+			continue
+		}
+		if perr.Msg != valid {
+			t.Errorf("%s: got msg = %q; want %q", test.src, perr.Msg, valid)
+			continue
+		}
+		if got := perr.Pos.RelFilename(); got != test.filename {
+			t.Errorf("%s: got filename = %q; want %q", test.src, got, test.filename)
+		}
+		if got := perr.Pos.RelLine(); got != test.line {
+			t.Errorf("%s: got line = %d; want %d", test.src, got, test.line)
 		}
 	}
 }

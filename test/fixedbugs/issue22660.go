@@ -27,7 +27,9 @@ func main() {
 	f.Close()
 	defer os.Remove(f.Name())
 
-	// path must appear in error messages even if we strip them with -trimpath
+	// path components from the //line directive must survive -trimpath and
+	// appear in error messages (since go.dev/issue/70478, as a path-component
+	// suffix of the resolved path, not as the bare prefix).
 	path := filepath.Join("users", "xxx", "go")
 	var src bytes.Buffer
 	fmt.Fprintf(&src, "//line %s:1\n", filepath.Join(path, "foo.go"))
@@ -41,7 +43,10 @@ func main() {
 		log.Fatalf("expected compiling %s to fail", f.Name())
 	}
 
-	if !strings.HasPrefix(string(out), path) {
-		log.Fatalf("expected full path (%s) in error message, got:\n%s", path, out)
+	// After #70478 the resolved path is <tempdir>/users/xxx/go/foo.go,
+	// so the directive's components must appear as a path suffix.
+	want := filepath.Join(path, "foo.go")
+	if !strings.Contains(string(out), string(filepath.Separator)+want) {
+		log.Fatalf("expected path component (%s) in error message, got:\n%s", want, out)
 	}
 }
