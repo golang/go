@@ -1342,12 +1342,10 @@ func findGoroutineLeaks() bool {
 	// The main goroutine is blocked by select{}, but holds a reference to "ch".
 	// Not treating the main goroutine as leaked would cause the analysis to
 	// miss the legitimate leak at the child goroutine.
-	if gp0 := allgs[0]; gp0.goid == 1 &&
-		gp0.waitreason == waitReasonSelectNoCases {
-		// proc.go comments state that the main goroutine always has goid=1
-		// and is placed at allgs[0].
-		// The goid check is only added to prevent slipping a bug in if that
-		// invariant no longer holds in future versions.
+	//
+	// The main goroutine should always be allgs[0], but double check
+	// in case that invariant changes in the future.
+	if gp0 := allgs[0]; gp0.goid == 1 && gp0.waitreason == waitReasonSelectNoCases {
 		casgstatus(gp0, _Gleaked, _Gwaiting)
 	}
 
