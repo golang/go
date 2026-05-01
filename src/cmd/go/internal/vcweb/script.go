@@ -53,6 +53,7 @@ func newScriptEngine() *script.Engine {
 	cmds["handle"] = scriptHandle()
 	cmds["modzip"] = scriptModzip()
 	cmds["skip"] = scriptSkip()
+	cmds["status"] = scriptStatus()
 	cmds["svnadmin"] = script.Program("svnadmin", interrupt, gracePeriod)
 	cmds["svn"] = script.Program("svn", interrupt, gracePeriod)
 	cmds["unquote"] = scriptUnquote()
@@ -345,6 +346,50 @@ func scriptSkip() script.Cmd {
 				return nil, SkipError{""}
 			}
 			return nil, SkipError{args[0]}
+		})
+}
+
+type statusWriter struct {
+	http.ResponseWriter
+	status int
+}
+
+func (w *statusWriter) WriteHeader(code int) {
+	w.ResponseWriter.WriteHeader(w.status)
+}
+
+type statusCodeHandler struct {
+	handler    http.Handler
+	statusCode int
+}
+
+func (h *statusCodeHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
+	h.handler.ServeHTTP(&statusWriter{ResponseWriter: w, status: h.statusCode}, r)
+}
+
+func scriptStatus() script.Cmd {
+	return script.Command(
+		script.CmdUsage{
+			Summary: "set the HTTP status code for the handler",
+			Args:    "code",
+		},
+		func(st *script.State, args ...string) (script.WaitFunc, error) {
+			if len(args) != 1 {
+				return nil, script.ErrUsage
+			}
+			sc, err := getScriptCtx(st)
+			if err != nil {
+				return nil, err
+			}
+			if sc.handler == nil {
+				return nil, errors.New("status command must be called after handle")
+			}
+			code, err := strconv.Atoi(args[0])
+			if err != nil {
+				return nil, err
+			}
+			sc.handler = &statusCodeHandler{handler: sc.handler, statusCode: code}
+			return nil, nil
 		})
 }
 
