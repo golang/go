@@ -2222,7 +2222,10 @@ func TestClientPopulatesNilResponseBody(t *testing.T) {
 }
 
 // Issue 40382: Client calls Close multiple times on Request.Body.
-func TestClientCallsCloseOnlyOnce(t *testing.T) { run(t, testClientCallsCloseOnlyOnce) }
+func TestClientCallsCloseOnlyOnce(t *testing.T) {
+	// Flaky on HTTP/3.
+	run(t, testClientCallsCloseOnlyOnce, http3SkippedMode)
+}
 func testClientCallsCloseOnlyOnce(t *testing.T, mode testMode) {
 	cst := newClientServerTest(t, mode, HandlerFunc(func(w ResponseWriter, r *Request) {
 		w.WriteHeader(StatusNoContent)

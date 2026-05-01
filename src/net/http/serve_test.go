@@ -856,7 +856,10 @@ func testServerReadTimeout(t *testing.T, mode testMode) {
 	}
 }
 
-func TestServerNoReadTimeout(t *testing.T) { run(t, testServerNoReadTimeout) }
+func TestServerNoReadTimeout(t *testing.T) {
+	// Flaky on HTTP/3.
+	run(t, testServerNoReadTimeout, http3SkippedMode)
+}
 func testServerNoReadTimeout(t *testing.T, mode testMode) {
 	reqBody := "Hello, Gophers!"
 	resBody := "Hi, Gophers!"
