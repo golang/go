@@ -241,3 +241,42 @@ func ExampleCrossOriginProtection() {
 
 	log.Fatal(srv.ListenAndServe())
 }
+
+// ExampleServer_DisableClientPriority demonstrates how to disable HTTP/2 client
+// priority signals and serve requests in round-robin order instead.
+func ExampleServer_DisableClientPriority() {
+	mux := http.NewServeMux()
+	mux.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
+		io.WriteString(w, "Hello, HTTP/2!\n")
+	})
+
+	srv := &http.Server{
+		Addr:    ":8443",
+		Handler: mux,
+		// Disable HTTP/2 client priority signals (RFC 9218).
+		// When set to true, all HTTP/2 streams are served in round-robin
+		// order regardless of client-specified priorities.
+		DisableClientPriority: true,
+	}
+
+	log.Fatal(srv.ListenAndServeTLS("cert.pem", "key.pem"))
+}
+
+// ExampleServer_DisableClientPriority_default demonstrates the default behavior
+// where HTTP/2 client priority signals are respected.
+func ExampleServer_DisableClientPriority_default() {
+	mux := http.NewServeMux()
+	mux.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
+		io.WriteString(w, "Hello, HTTP/2 with priorities!\n")
+	})
+
+	srv := &http.Server{
+		Addr:    ":8443",
+		Handler: mux,
+		// DisableClientPriority is false by default.
+		// The server will respect HTTP/2 client priority signals (RFC 9218)
+		// and prioritize serving streams with higher priority.
+	}
+
+	log.Fatal(srv.ListenAndServeTLS("cert.pem", "key.pem"))
+}
