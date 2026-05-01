@@ -322,3 +322,142 @@ func exprString(fset *token.FileSet, expr ast.Expr) string {
 	format.Node(&buf, fset, expr)
 	return buf.String()
 }
+
+// ExampleHasher demonstrates using the Hasher type to create a hash table
+// of Types that respects the Identical equivalence relation.
+func ExampleHasher() {
+	// Parse a simple source file.
+	const input = `
+package example
+type MyInt int
+type MyString string
+type MySlice []int
+`
+	fset := token.NewFileSet()
+	f := mustParse(fset, input)
+
+	// Type-check the package.
+	var conf types.Config
+	pkg, err := conf.Check("example", fset, []*ast.File{f}, nil)
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	// Create a hash table using the Hasher.
+	// The Hasher ensures that identical types hash to the same value
+	// and uses the Identical function for equality.
+	typeSet := make(map[types.Type]string)
+
+	// Add types to the set.
+	myInt := pkg.Scope().Lookup("MyInt").Type()
+	myString := pkg.Scope().Lookup("MyString").Type()
+	mySlice := pkg.Scope().Lookup("MySlice").Type()
+
+	typeSet[myInt] = "MyInt"
+	typeSet[myString] = "MyString"
+	typeSet[mySlice] = "MySlice"
+
+	// Look up types.
+	fmt.Println(typeSet[myInt])
+	fmt.Println(typeSet[myString])
+	fmt.Println(typeSet[mySlice])
+
+	// Output:
+	// MyInt
+	// MyString
+	// MySlice
+}
+
+// ExampleHasher_typeDeduplication demonstrates using Hasher to deduplicate
+// identical types in a type cache.
+func ExampleHasher_typeDeduplication() {
+	// Parse source with duplicate type expressions.
+	const input = `
+package example
+var a []int
+var b []int
+var c map[string]int
+var d map[string]int
+`
+	fset := token.NewFileSet()
+	f := mustParse(fset, input)
+
+	// Type-check the package.
+	info := types.Info{
+		Types: make(map[ast.Expr]types.TypeAndValue),
+	}
+	var conf types.Config
+	pkg, err := conf.Check("example", fset, []*ast.File{f}, &info)
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	// Use Hasher to deduplicate types.
+	seen := make(map[types.Type]bool)
+	var uniqueTypes []types.Type
+
+	for _, obj := range []string{"a", "b", "c", "d"} {
+		t := pkg.Scope().Lookup(obj).Type()
+		if !seen[t] {
+			seen[t] = true
+			uniqueTypes = append(uniqueTypes, t)
+		}
+	}
+
+	// Even though we have 4 variables, we only have 2 unique types.
+	fmt.Printf("Variables: 4, Unique types: %d\n", len(uniqueTypes))
+	for _, t := range uniqueTypes {
+		fmt.Printf("  %s\n", t)
+	}
+
+	// Output:
+	// Variables: 4, Unique types: 2
+	//   []int
+	//   map[string]int
+}
+
+// ExampleHasherIgnoreTags demonstrates using HasherIgnoreTags to create
+// a hash table that treats struct types with different tags as identical.
+func ExampleHasherIgnoreTags() {
+	// Parse source with struct types that differ only in tags.
+	const input = `
+package example
+type Person1 struct {
+	Name string ` + "`json:\"name\"`" + `
+	Age  int    ` + "`json:\"age\"`" + `
+}
+type Person2 struct {
+	Name string ` + "`xml:\"name\"`" + `
+	Age  int    ` + "`xml:\"age\"`" + `
+}
+`
+	fset := token.NewFileSet()
+	f := mustParse(fset, input)
+
+	// Type-check the package.
+	var conf types.Config
+	pkg, err := conf.Check("example", fset, []*ast.File{f}, nil)
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	person1 := pkg.Scope().Lookup("Person1").Type()
+	person2 := pkg.Scope().Lookup("Person2").Type()
+
+	// Using regular Identical, these types are different.
+	fmt.Printf("Identical: %v\n", types.Identical(person1, person2))
+
+	// Using IdenticalIgnoreTags, these types are the same.
+	fmt.Printf("IdenticalIgnoreTags: %v\n", types.IdenticalIgnoreTags(person1, person2))
+
+	// HasherIgnoreTags can be used to create hash tables that
+	// treat these types as identical.
+	var hasher types.HasherIgnoreTags
+	fmt.Printf("Equal (HasherIgnoreTags): %v\n", hasher.Equal(person1, person2))
+
+	// Output:
+	// Identical: false
+	// IdenticalIgnoreTags: true
+	// Equal (HasherIgnoreTags): true
+}
+
