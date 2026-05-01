@@ -11408,6 +11408,7 @@ var opcodeTable = [...]opInfo{
 		argLen:       2,
 		commutative:  true,
 		resultInArg0: true,
+		earlyOk:      true,
 		asm:          x86.AADDSS,
 		reg: regInfo{
 			inputs: []inputInfo{
@@ -11424,6 +11425,7 @@ var opcodeTable = [...]opInfo{
 		argLen:       2,
 		commutative:  true,
 		resultInArg0: true,
+		earlyOk:      true,
 		asm:          x86.AADDSD,
 		reg: regInfo{
 			inputs: []inputInfo{
@@ -11439,6 +11441,7 @@ var opcodeTable = [...]opInfo{
 		name:         "SUBSS",
 		argLen:       2,
 		resultInArg0: true,
+		earlyOk:      true,
 		asm:          x86.ASUBSS,
 		reg: regInfo{
 			inputs: []inputInfo{
@@ -11454,6 +11457,7 @@ var opcodeTable = [...]opInfo{
 		name:         "SUBSD",
 		argLen:       2,
 		resultInArg0: true,
+		earlyOk:      true,
 		asm:          x86.ASUBSD,
 		reg: regInfo{
 			inputs: []inputInfo{
@@ -11470,6 +11474,7 @@ var opcodeTable = [...]opInfo{
 		argLen:       2,
 		commutative:  true,
 		resultInArg0: true,
+		earlyOk:      true,
 		asm:          x86.AMULSS,
 		reg: regInfo{
 			inputs: []inputInfo{
@@ -11486,6 +11491,7 @@ var opcodeTable = [...]opInfo{
 		argLen:       2,
 		commutative:  true,
 		resultInArg0: true,
+		earlyOk:      true,
 		asm:          x86.AMULSD,
 		reg: regInfo{
 			inputs: []inputInfo{
@@ -11501,6 +11507,7 @@ var opcodeTable = [...]opInfo{
 		name:         "DIVSS",
 		argLen:       2,
 		resultInArg0: true,
+		earlyOk:      true,
 		asm:          x86.ADIVSS,
 		reg: regInfo{
 			inputs: []inputInfo{
@@ -11516,6 +11523,7 @@ var opcodeTable = [...]opInfo{
 		name:         "DIVSD",
 		argLen:       2,
 		resultInArg0: true,
+		earlyOk:      true,
 		asm:          x86.ADIVSD,
 		reg: regInfo{
 			inputs: []inputInfo{
@@ -11564,6 +11572,7 @@ var opcodeTable = [...]opInfo{
 		auxType:           auxFloat32,
 		argLen:            0,
 		rematerializeable: true,
+		earlyOk:           true,
 		asm:               x86.AMOVSS,
 		reg: regInfo{
 			outputs: []outputInfo{
@@ -11576,6 +11585,7 @@ var opcodeTable = [...]opInfo{
 		auxType:           auxFloat64,
 		argLen:            0,
 		rematerializeable: true,
+		earlyOk:           true,
 		asm:               x86.AMOVSD,
 		reg: regInfo{
 			outputs: []outputInfo{
@@ -12192,6 +12202,7 @@ var opcodeTable = [...]opInfo{
 		argLen:       2,
 		commutative:  true,
 		clobberFlags: true,
+		earlyOk:      true,
 		asm:          x86.AADDQ,
 		reg: regInfo{
 			inputs: []inputInfo{
@@ -12208,6 +12219,7 @@ var opcodeTable = [...]opInfo{
 		argLen:       2,
 		commutative:  true,
 		clobberFlags: true,
+		earlyOk:      true,
 		asm:          x86.AADDL,
 		reg: regInfo{
 			inputs: []inputInfo{
@@ -12224,6 +12236,7 @@ var opcodeTable = [...]opInfo{
 		auxType:      auxInt32,
 		argLen:       1,
 		clobberFlags: true,
+		earlyOk:      true,
 		asm:          x86.AADDQ,
 		reg: regInfo{
 			inputs: []inputInfo{
@@ -12239,6 +12252,7 @@ var opcodeTable = [...]opInfo{
 		auxType:      auxInt32,
 		argLen:       1,
 		clobberFlags: true,
+		earlyOk:      true,
 		asm:          x86.AADDL,
 		reg: regInfo{
 			inputs: []inputInfo{
@@ -12282,6 +12296,7 @@ var opcodeTable = [...]opInfo{
 		argLen:       2,
 		resultInArg0: true,
 		clobberFlags: true,
+		earlyOk:      true,
 		asm:          x86.ASUBQ,
 		reg: regInfo{
 			inputs: []inputInfo{
@@ -12298,6 +12313,7 @@ var opcodeTable = [...]opInfo{
 		argLen:       2,
 		resultInArg0: true,
 		clobberFlags: true,
+		earlyOk:      true,
 		asm:          x86.ASUBL,
 		reg: regInfo{
 			inputs: []inputInfo{
@@ -12315,6 +12331,7 @@ var opcodeTable = [...]opInfo{
 		argLen:       1,
 		resultInArg0: true,
 		clobberFlags: true,
+		earlyOk:      true,
 		asm:          x86.ASUBQ,
 		reg: regInfo{
 			inputs: []inputInfo{
@@ -12331,6 +12348,7 @@ var opcodeTable = [...]opInfo{
 		argLen:       1,
 		resultInArg0: true,
 		clobberFlags: true,
+		earlyOk:      true,
 		asm:          x86.ASUBL,
 		reg: regInfo{
 			inputs: []inputInfo{
@@ -12347,6 +12365,7 @@ var opcodeTable = [...]opInfo{
 		commutative:  true,
 		resultInArg0: true,
 		clobberFlags: true,
+		earlyOk:      true,
 		asm:          x86.AIMULQ,
 		reg: regInfo{
 			inputs: []inputInfo{
@@ -12364,6 +12383,7 @@ var opcodeTable = [...]opInfo{
 		commutative:  true,
 		resultInArg0: true,
 		clobberFlags: true,
+		earlyOk:      true,
 		asm:          x86.AIMULL,
 		reg: regInfo{
 			inputs: []inputInfo{
@@ -12380,6 +12400,7 @@ var opcodeTable = [...]opInfo{
 		auxType:      auxInt32,
 		argLen:       1,
 		clobberFlags: true,
+		earlyOk:      true,
 		asm:          x86.AIMUL3Q,
 		reg: regInfo{
 			inputs: []inputInfo{
@@ -12395,6 +12416,7 @@ var opcodeTable = [...]opInfo{
 		auxType:      auxInt32,
 		argLen:       1,
 		clobberFlags: true,
+		earlyOk:      true,
 		asm:          x86.AIMUL3L,
 		reg: regInfo{
 			inputs: []inputInfo{
@@ -12445,6 +12467,7 @@ var opcodeTable = [...]opInfo{
 		name:         "HMULQ",
 		argLen:       2,
 		clobberFlags: true,
+		earlyOk:      true,
 		asm:          x86.AIMULQ,
 		reg: regInfo{
 			inputs: []inputInfo{
@@ -12461,6 +12484,7 @@ var opcodeTable = [...]opInfo{
 		name:         "HMULL",
 		argLen:       2,
 		clobberFlags: true,
+		earlyOk:      true,
 		asm:          x86.AIMULL,
 		reg: regInfo{
 			inputs: []inputInfo{
@@ -12477,6 +12501,7 @@ var opcodeTable = [...]opInfo{
 		name:         "HMULQU",
 		argLen:       2,
 		clobberFlags: true,
+		earlyOk:      true,
 		asm:          x86.AMULQ,
 		reg: regInfo{
 			inputs: []inputInfo{
@@ -12493,6 +12518,7 @@ var opcodeTable = [...]opInfo{
 		name:         "HMULLU",
 		argLen:       2,
 		clobberFlags: true,
+		earlyOk:      true,
 		asm:          x86.AMULL,
 		reg: regInfo{
 			inputs: []inputInfo{
@@ -12511,6 +12537,7 @@ var opcodeTable = [...]opInfo{
 		commutative:  true,
 		resultInArg0: true,
 		clobberFlags: true,
+		earlyOk:      true,
 		reg: regInfo{
 			inputs: []inputInfo{
 				{0, regMask{v1: 49135, v2: 0}}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R15
@@ -12808,6 +12835,7 @@ var opcodeTable = [...]opInfo{
 		argLen:       2,
 		commutative:  true,
 		clobberFlags: true,
+		earlyOk:      true,
 		asm:          x86.AMULQ,
 		reg: regInfo{
 			inputs: []inputInfo{
@@ -12844,6 +12872,7 @@ var opcodeTable = [...]opInfo{
 		commutative:  true,
 		resultInArg0: true,
 		clobberFlags: true,
+		earlyOk:      true,
 		asm:          x86.AANDQ,
 		reg: regInfo{
 			inputs: []inputInfo{
@@ -12861,6 +12890,7 @@ var opcodeTable = [...]opInfo{
 		commutative:  true,
 		resultInArg0: true,
 		clobberFlags: true,
+		earlyOk:      true,
 		asm:          x86.AANDL,
 		reg: regInfo{
 			inputs: []inputInfo{
@@ -12878,6 +12908,7 @@ var opcodeTable = [...]opInfo{
 		argLen:       1,
 		resultInArg0: true,
 		clobberFlags: true,
+		earlyOk:      true,
 		asm:          x86.AANDQ,
 		reg: regInfo{
 			inputs: []inputInfo{
@@ -12894,6 +12925,7 @@ var opcodeTable = [...]opInfo{
 		argLen:       1,
 		resultInArg0: true,
 		clobberFlags: true,
+		earlyOk:      true,
 		asm:          x86.AANDL,
 		reg: regInfo{
 			inputs: []inputInfo{
@@ -12938,6 +12970,7 @@ var opcodeTable = [...]opInfo{
 		commutative:  true,
 		resultInArg0: true,
 		clobberFlags: true,
+		earlyOk:      true,
 		asm:          x86.AORQ,
 		reg: regInfo{
 			inputs: []inputInfo{
@@ -12955,6 +12988,7 @@ var opcodeTable = [...]opInfo{
 		commutative:  true,
 		resultInArg0: true,
 		clobberFlags: true,
+		earlyOk:      true,
 		asm:          x86.AORL,
 		reg: regInfo{
 			inputs: []inputInfo{
@@ -12972,6 +13006,7 @@ var opcodeTable = [...]opInfo{
 		argLen:       1,
 		resultInArg0: true,
 		clobberFlags: true,
+		earlyOk:      true,
 		asm:          x86.AORQ,
 		reg: regInfo{
 			inputs: []inputInfo{
@@ -12988,6 +13023,7 @@ var opcodeTable = [...]opInfo{
 		argLen:       1,
 		resultInArg0: true,
 		clobberFlags: true,
+		earlyOk:      true,
 		asm:          x86.AORL,
 		reg: regInfo{
 			inputs: []inputInfo{
@@ -13032,6 +13068,7 @@ var opcodeTable = [...]opInfo{
 		commutative:  true,
 		resultInArg0: true,
 		clobberFlags: true,
+		earlyOk:      true,
 		asm:          x86.AXORQ,
 		reg: regInfo{
 			inputs: []inputInfo{
@@ -13049,6 +13086,7 @@ var opcodeTable = [...]opInfo{
 		commutative:  true,
 		resultInArg0: true,
 		clobberFlags: true,
+		earlyOk:      true,
 		asm:          x86.AXORL,
 		reg: regInfo{
 			inputs: []inputInfo{
@@ -13066,6 +13104,7 @@ var opcodeTable = [...]opInfo{
 		argLen:       1,
 		resultInArg0: true,
 		clobberFlags: true,
+		earlyOk:      true,
 		asm:          x86.AXORQ,
 		reg: regInfo{
 			inputs: []inputInfo{
@@ -13082,6 +13121,7 @@ var opcodeTable = [...]opInfo{
 		argLen:       1,
 		resultInArg0: true,
 		clobberFlags: true,
+		earlyOk:      true,
 		asm:          x86.AXORL,
 		reg: regInfo{
 			inputs: []inputInfo{
@@ -13576,6 +13616,7 @@ var opcodeTable = [...]opInfo{
 		argLen:       2,
 		resultInArg0: true,
 		clobberFlags: true,
+		earlyOk:      true,
 		asm:          x86.ABTCL,
 		reg: regInfo{
 			inputs: []inputInfo{
@@ -13592,6 +13633,7 @@ var opcodeTable = [...]opInfo{
 		argLen:       2,
 		resultInArg0: true,
 		clobberFlags: true,
+		earlyOk:      true,
 		asm:          x86.ABTCQ,
 		reg: regInfo{
 			inputs: []inputInfo{
@@ -13608,6 +13650,7 @@ var opcodeTable = [...]opInfo{
 		argLen:       2,
 		resultInArg0: true,
 		clobberFlags: true,
+		earlyOk:      true,
 		asm:          x86.ABTRL,
 		reg: regInfo{
 			inputs: []inputInfo{
@@ -13624,6 +13667,7 @@ var opcodeTable = [...]opInfo{
 		argLen:       2,
 		resultInArg0: true,
 		clobberFlags: true,
+		earlyOk:      true,
 		asm:          x86.ABTRQ,
 		reg: regInfo{
 			inputs: []inputInfo{
@@ -13640,6 +13684,7 @@ var opcodeTable = [...]opInfo{
 		argLen:       2,
 		resultInArg0: true,
 		clobberFlags: true,
+		earlyOk:      true,
 		asm:          x86.ABTSL,
 		reg: regInfo{
 			inputs: []inputInfo{
@@ -13656,6 +13701,7 @@ var opcodeTable = [...]opInfo{
 		argLen:       2,
 		resultInArg0: true,
 		clobberFlags: true,
+		earlyOk:      true,
 		asm:          x86.ABTSQ,
 		reg: regInfo{
 			inputs: []inputInfo{
@@ -13671,6 +13717,7 @@ var opcodeTable = [...]opInfo{
 		name:    "BTLconst",
 		auxType: auxInt8,
 		argLen:  1,
+		earlyOk: true,
 		asm:     x86.ABTL,
 		reg: regInfo{
 			inputs: []inputInfo{
@@ -13682,6 +13729,7 @@ var opcodeTable = [...]opInfo{
 		name:    "BTQconst",
 		auxType: auxInt8,
 		argLen:  1,
+		earlyOk: true,
 		asm:     x86.ABTQ,
 		reg: regInfo{
 			inputs: []inputInfo{
@@ -13695,6 +13743,7 @@ var opcodeTable = [...]opInfo{
 		argLen:       1,
 		resultInArg0: true,
 		clobberFlags: true,
+		earlyOk:      true,
 		asm:          x86.ABTCQ,
 		reg: regInfo{
 			inputs: []inputInfo{
@@ -13711,6 +13760,7 @@ var opcodeTable = [...]opInfo{
 		argLen:       1,
 		resultInArg0: true,
 		clobberFlags: true,
+		earlyOk:      true,
 		asm:          x86.ABTRQ,
 		reg: regInfo{
 			inputs: []inputInfo{
@@ -13727,6 +13777,7 @@ var opcodeTable = [...]opInfo{
 		argLen:       1,
 		resultInArg0: true,
 		clobberFlags: true,
+		earlyOk:      true,
 		asm:          x86.ABTSQ,
 		reg: regInfo{
 			inputs: []inputInfo{
@@ -13876,6 +13927,7 @@ var opcodeTable = [...]opInfo{
 		argLen:       2,
 		resultInArg0: true,
 		clobberFlags: true,
+		earlyOk:      true,
 		asm:          x86.ASHLQ,
 		reg: regInfo{
 			inputs: []inputInfo{
@@ -13892,6 +13944,7 @@ var opcodeTable = [...]opInfo{
 		argLen:       2,
 		resultInArg0: true,
 		clobberFlags: true,
+		earlyOk:      true,
 		asm:          x86.ASHLL,
 		reg: regInfo{
 			inputs: []inputInfo{
@@ -13909,6 +13962,7 @@ var opcodeTable = [...]opInfo{
 		argLen:       1,
 		resultInArg0: true,
 		clobberFlags: true,
+		earlyOk:      true,
 		asm:          x86.ASHLQ,
 		reg: regInfo{
 			inputs: []inputInfo{
@@ -13925,6 +13979,7 @@ var opcodeTable = [...]opInfo{
 		argLen:       1,
 		resultInArg0: true,
 		clobberFlags: true,
+		earlyOk:      true,
 		asm:          x86.ASHLL,
 		reg: regInfo{
 			inputs: []inputInfo{
@@ -13940,6 +13995,7 @@ var opcodeTable = [...]opInfo{
 		argLen:       2,
 		resultInArg0: true,
 		clobberFlags: true,
+		earlyOk:      true,
 		asm:          x86.ASHRQ,
 		reg: regInfo{
 			inputs: []inputInfo{
@@ -13956,6 +14012,7 @@ var opcodeTable = [...]opInfo{
 		argLen:       2,
 		resultInArg0: true,
 		clobberFlags: true,
+		earlyOk:      true,
 		asm:          x86.ASHRL,
 		reg: regInfo{
 			inputs: []inputInfo{
@@ -13972,6 +14029,7 @@ var opcodeTable = [...]opInfo{
 		argLen:       2,
 		resultInArg0: true,
 		clobberFlags: true,
+		earlyOk:      true,
 		asm:          x86.ASHRW,
 		reg: regInfo{
 			inputs: []inputInfo{
@@ -13988,6 +14046,7 @@ var opcodeTable = [...]opInfo{
 		argLen:       2,
 		resultInArg0: true,
 		clobberFlags: true,
+		earlyOk:      true,
 		asm:          x86.ASHRB,
 		reg: regInfo{
 			inputs: []inputInfo{
@@ -14005,6 +14064,7 @@ var opcodeTable = [...]opInfo{
 		argLen:       1,
 		resultInArg0: true,
 		clobberFlags: true,
+		earlyOk:      true,
 		asm:          x86.ASHRQ,
 		reg: regInfo{
 			inputs: []inputInfo{
@@ -14021,6 +14081,7 @@ var opcodeTable = [...]opInfo{
 		argLen:       1,
 		resultInArg0: true,
 		clobberFlags: true,
+		earlyOk:      true,
 		asm:          x86.ASHRL,
 		reg: regInfo{
 			inputs: []inputInfo{
@@ -14037,6 +14098,7 @@ var opcodeTable = [...]opInfo{
 		argLen:       1,
 		resultInArg0: true,
 		clobberFlags: true,
+		earlyOk:      true,
 		asm:          x86.ASHRW,
 		reg: regInfo{
 			inputs: []inputInfo{
@@ -14053,6 +14115,7 @@ var opcodeTable = [...]opInfo{
 		argLen:       1,
 		resultInArg0: true,
 		clobberFlags: true,
+		earlyOk:      true,
 		asm:          x86.ASHRB,
 		reg: regInfo{
 			inputs: []inputInfo{
@@ -14068,6 +14131,7 @@ var opcodeTable = [...]opInfo{
 		argLen:       2,
 		resultInArg0: true,
 		clobberFlags: true,
+		earlyOk:      true,
 		asm:          x86.ASARQ,
 		reg: regInfo{
 			inputs: []inputInfo{
@@ -14084,6 +14148,7 @@ var opcodeTable = [...]opInfo{
 		argLen:       2,
 		resultInArg0: true,
 		clobberFlags: true,
+		earlyOk:      true,
 		asm:          x86.ASARL,
 		reg: regInfo{
 			inputs: []inputInfo{
@@ -14100,6 +14165,7 @@ var opcodeTable = [...]opInfo{
 		argLen:       2,
 		resultInArg0: true,
 		clobberFlags: true,
+		earlyOk:      true,
 		asm:          x86.ASARW,
 		reg: regInfo{
 			inputs: []inputInfo{
@@ -14116,6 +14182,7 @@ var opcodeTable = [...]opInfo{
 		argLen:       2,
 		resultInArg0: true,
 		clobberFlags: true,
+		earlyOk:      true,
 		asm:          x86.ASARB,
 		reg: regInfo{
 			inputs: []inputInfo{
@@ -14133,6 +14200,7 @@ var opcodeTable = [...]opInfo{
 		argLen:       1,
 		resultInArg0: true,
 		clobberFlags: true,
+		earlyOk:      true,
 		asm:          x86.ASARQ,
 		reg: regInfo{
 			inputs: []inputInfo{
@@ -14149,6 +14217,7 @@ var opcodeTable = [...]opInfo{
 		argLen:       1,
 		resultInArg0: true,
 		clobberFlags: true,
+		earlyOk:      true,
 		asm:          x86.ASARL,
 		reg: regInfo{
 			inputs: []inputInfo{
@@ -14165,6 +14234,7 @@ var opcodeTable = [...]opInfo{
 		argLen:       1,
 		resultInArg0: true,
 		clobberFlags: true,
+		earlyOk:      true,
 		asm:          x86.ASARW,
 		reg: regInfo{
 			inputs: []inputInfo{
@@ -14181,6 +14251,7 @@ var opcodeTable = [...]opInfo{
 		argLen:       1,
 		resultInArg0: true,
 		clobberFlags: true,
+		earlyOk:      true,
 		asm:          x86.ASARB,
 		reg: regInfo{
 			inputs: []inputInfo{
@@ -14196,6 +14267,7 @@ var opcodeTable = [...]opInfo{
 		argLen:       3,
 		resultInArg0: true,
 		clobberFlags: true,
+		earlyOk:      true,
 		asm:          x86.ASHRQ,
 		reg: regInfo{
 			inputs: []inputInfo{
@@ -14213,6 +14285,7 @@ var opcodeTable = [...]opInfo{
 		argLen:       3,
 		resultInArg0: true,
 		clobberFlags: true,
+		earlyOk:      true,
 		asm:          x86.ASHLQ,
 		reg: regInfo{
 			inputs: []inputInfo{
@@ -14230,6 +14303,7 @@ var opcodeTable = [...]opInfo{
 		argLen:       2,
 		resultInArg0: true,
 		clobberFlags: true,
+		earlyOk:      true,
 		asm:          x86.AROLQ,
 		reg: regInfo{
 			inputs: []inputInfo{
@@ -14246,6 +14320,7 @@ var opcodeTable = [...]opInfo{
 		argLen:       2,
 		resultInArg0: true,
 		clobberFlags: true,
+		earlyOk:      true,
 		asm:          x86.AROLL,
 		reg: regInfo{
 			inputs: []inputInfo{
@@ -14262,6 +14337,7 @@ var opcodeTable = [...]opInfo{
 		argLen:       2,
 		resultInArg0: true,
 		clobberFlags: true,
+		earlyOk:      true,
 		asm:          x86.AROLW,
 		reg: regInfo{
 			inputs: []inputInfo{
@@ -14278,6 +14354,7 @@ var opcodeTable = [...]opInfo{
 		argLen:       2,
 		resultInArg0: true,
 		clobberFlags: true,
+		earlyOk:      true,
 		asm:          x86.AROLB,
 		reg: regInfo{
 			inputs: []inputInfo{
@@ -14294,6 +14371,7 @@ var opcodeTable = [...]opInfo{
 		argLen:       2,
 		resultInArg0: true,
 		clobberFlags: true,
+		earlyOk:      true,
 		asm:          x86.ARORQ,
 		reg: regInfo{
 			inputs: []inputInfo{
@@ -14310,6 +14388,7 @@ var opcodeTable = [...]opInfo{
 		argLen:       2,
 		resultInArg0: true,
 		clobberFlags: true,
+		earlyOk:      true,
 		asm:          x86.ARORL,
 		reg: regInfo{
 			inputs: []inputInfo{
@@ -14326,6 +14405,7 @@ var opcodeTable = [...]opInfo{
 		argLen:       2,
 		resultInArg0: true,
 		clobberFlags: true,
+		earlyOk:      true,
 		asm:          x86.ARORW,
 		reg: regInfo{
 			inputs: []inputInfo{
@@ -14342,6 +14422,7 @@ var opcodeTable = [...]opInfo{
 		argLen:       2,
 		resultInArg0: true,
 		clobberFlags: true,
+		earlyOk:      true,
 		asm:          x86.ARORB,
 		reg: regInfo{
 			inputs: []inputInfo{
@@ -14359,6 +14440,7 @@ var opcodeTable = [...]opInfo{
 		argLen:       1,
 		resultInArg0: true,
 		clobberFlags: true,
+		earlyOk:      true,
 		asm:          x86.AROLQ,
 		reg: regInfo{
 			inputs: []inputInfo{
@@ -14375,6 +14457,7 @@ var opcodeTable = [...]opInfo{
 		argLen:       1,
 		resultInArg0: true,
 		clobberFlags: true,
+		earlyOk:      true,
 		asm:          x86.AROLL,
 		reg: regInfo{
 			inputs: []inputInfo{
@@ -14391,6 +14474,7 @@ var opcodeTable = [...]opInfo{
 		argLen:       1,
 		resultInArg0: true,
 		clobberFlags: true,
+		earlyOk:      true,
 		asm:          x86.AROLW,
 		reg: regInfo{
 			inputs: []inputInfo{
@@ -14407,6 +14491,7 @@ var opcodeTable = [...]opInfo{
 		argLen:       1,
 		resultInArg0: true,
 		clobberFlags: true,
+		earlyOk:      true,
 		asm:          x86.AROLB,
 		reg: regInfo{
 			inputs: []inputInfo{
@@ -15962,6 +16047,7 @@ var opcodeTable = [...]opInfo{
 		argLen:       1,
 		resultInArg0: true,
 		clobberFlags: true,
+		earlyOk:      true,
 		asm:          x86.ANEGQ,
 		reg: regInfo{
 			inputs: []inputInfo{
@@ -15977,6 +16063,7 @@ var opcodeTable = [...]opInfo{
 		argLen:       1,
 		resultInArg0: true,
 		clobberFlags: true,
+		earlyOk:      true,
 		asm:          x86.ANEGL,
 		reg: regInfo{
 			inputs: []inputInfo{
@@ -15991,6 +16078,7 @@ var opcodeTable = [...]opInfo{
 		name:         "NOTQ",
 		argLen:       1,
 		resultInArg0: true,
+		earlyOk:      true,
 		asm:          x86.ANOTQ,
 		reg: regInfo{
 			inputs: []inputInfo{
@@ -16005,6 +16093,7 @@ var opcodeTable = [...]opInfo{
 		name:         "NOTL",
 		argLen:       1,
 		resultInArg0: true,
+		earlyOk:      true,
 		asm:          x86.ANOTL,
 		reg: regInfo{
 			inputs: []inputInfo{
@@ -16016,9 +16105,10 @@ var opcodeTable = [...]opInfo{
 		},
 	},
 	{
-		name:   "BSFQ",
-		argLen: 1,
-		asm:    x86.ABSFQ,
+		name:    "BSFQ",
+		argLen:  1,
+		earlyOk: true,
+		asm:     x86.ABSFQ,
 		reg: regInfo{
 			inputs: []inputInfo{
 				{0, regMask{v1: 49135, v2: 0}}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R15
@@ -16033,6 +16123,7 @@ var opcodeTable = [...]opInfo{
 		name:         "BSFL",
 		argLen:       1,
 		clobberFlags: true,
+		earlyOk:      true,
 		asm:          x86.ABSFL,
 		reg: regInfo{
 			inputs: []inputInfo{
@@ -16044,9 +16135,10 @@ var opcodeTable = [...]opInfo{
 		},
 	},
 	{
-		name:   "BSRQ",
-		argLen: 1,
-		asm:    x86.ABSRQ,
+		name:    "BSRQ",
+		argLen:  1,
+		earlyOk: true,
+		asm:     x86.ABSRQ,
 		reg: regInfo{
 			inputs: []inputInfo{
 				{0, regMask{v1: 49135, v2: 0}}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R15
@@ -16061,6 +16153,7 @@ var opcodeTable = [...]opInfo{
 		name:         "BSRL",
 		argLen:       1,
 		clobberFlags: true,
+		earlyOk:      true,
 		asm:          x86.ABSRL,
 		reg: regInfo{
 			inputs: []inputInfo{
@@ -16075,6 +16168,7 @@ var opcodeTable = [...]opInfo{
 		name:         "CMOVQEQ",
 		argLen:       3,
 		resultInArg0: true,
+		earlyOk:      true,
 		asm:          x86.ACMOVQEQ,
 		reg: regInfo{
 			inputs: []inputInfo{
@@ -16090,6 +16184,7 @@ var opcodeTable = [...]opInfo{
 		name:         "CMOVQNE",
 		argLen:       3,
 		resultInArg0: true,
+		earlyOk:      true,
 		asm:          x86.ACMOVQNE,
 		reg: regInfo{
 			inputs: []inputInfo{
@@ -16105,6 +16200,7 @@ var opcodeTable = [...]opInfo{
 		name:         "CMOVQLT",
 		argLen:       3,
 		resultInArg0: true,
+		earlyOk:      true,
 		asm:          x86.ACMOVQLT,
 		reg: regInfo{
 			inputs: []inputInfo{
@@ -16120,6 +16216,7 @@ var opcodeTable = [...]opInfo{
 		name:         "CMOVQGT",
 		argLen:       3,
 		resultInArg0: true,
+		earlyOk:      true,
 		asm:          x86.ACMOVQGT,
 		reg: regInfo{
 			inputs: []inputInfo{
@@ -16135,6 +16232,7 @@ var opcodeTable = [...]opInfo{
 		name:         "CMOVQLE",
 		argLen:       3,
 		resultInArg0: true,
+		earlyOk:      true,
 		asm:          x86.ACMOVQLE,
 		reg: regInfo{
 			inputs: []inputInfo{
@@ -16150,6 +16248,7 @@ var opcodeTable = [...]opInfo{
 		name:         "CMOVQGE",
 		argLen:       3,
 		resultInArg0: true,
+		earlyOk:      true,
 		asm:          x86.ACMOVQGE,
 		reg: regInfo{
 			inputs: []inputInfo{
@@ -16165,6 +16264,7 @@ var opcodeTable = [...]opInfo{
 		name:         "CMOVQLS",
 		argLen:       3,
 		resultInArg0: true,
+		earlyOk:      true,
 		asm:          x86.ACMOVQLS,
 		reg: regInfo{
 			inputs: []inputInfo{
@@ -16180,6 +16280,7 @@ var opcodeTable = [...]opInfo{
 		name:         "CMOVQHI",
 		argLen:       3,
 		resultInArg0: true,
+		earlyOk:      true,
 		asm:          x86.ACMOVQHI,
 		reg: regInfo{
 			inputs: []inputInfo{
@@ -16195,6 +16296,7 @@ var opcodeTable = [...]opInfo{
 		name:         "CMOVQCC",
 		argLen:       3,
 		resultInArg0: true,
+		earlyOk:      true,
 		asm:          x86.ACMOVQCC,
 		reg: regInfo{
 			inputs: []inputInfo{
@@ -16210,6 +16312,7 @@ var opcodeTable = [...]opInfo{
 		name:         "CMOVQCS",
 		argLen:       3,
 		resultInArg0: true,
+		earlyOk:      true,
 		asm:          x86.ACMOVQCS,
 		reg: regInfo{
 			inputs: []inputInfo{
@@ -16225,6 +16328,7 @@ var opcodeTable = [...]opInfo{
 		name:         "CMOVLEQ",
 		argLen:       3,
 		resultInArg0: true,
+		earlyOk:      true,
 		asm:          x86.ACMOVLEQ,
 		reg: regInfo{
 			inputs: []inputInfo{
@@ -16240,6 +16344,7 @@ var opcodeTable = [...]opInfo{
 		name:         "CMOVLNE",
 		argLen:       3,
 		resultInArg0: true,
+		earlyOk:      true,
 		asm:          x86.ACMOVLNE,
 		reg: regInfo{
 			inputs: []inputInfo{
@@ -16255,6 +16360,7 @@ var opcodeTable = [...]opInfo{
 		name:         "CMOVLLT",
 		argLen:       3,
 		resultInArg0: true,
+		earlyOk:      true,
 		asm:          x86.ACMOVLLT,
 		reg: regInfo{
 			inputs: []inputInfo{
@@ -16270,6 +16376,7 @@ var opcodeTable = [...]opInfo{
 		name:         "CMOVLGT",
 		argLen:       3,
 		resultInArg0: true,
+		earlyOk:      true,
 		asm:          x86.ACMOVLGT,
 		reg: regInfo{
 			inputs: []inputInfo{
@@ -16285,6 +16392,7 @@ var opcodeTable = [...]opInfo{
 		name:         "CMOVLLE",
 		argLen:       3,
 		resultInArg0: true,
+		earlyOk:      true,
 		asm:          x86.ACMOVLLE,
 		reg: regInfo{
 			inputs: []inputInfo{
@@ -16300,6 +16408,7 @@ var opcodeTable = [...]opInfo{
 		name:         "CMOVLGE",
 		argLen:       3,
 		resultInArg0: true,
+		earlyOk:      true,
 		asm:          x86.ACMOVLGE,
 		reg: regInfo{
 			inputs: []inputInfo{
@@ -16315,6 +16424,7 @@ var opcodeTable = [...]opInfo{
 		name:         "CMOVLLS",
 		argLen:       3,
 		resultInArg0: true,
+		earlyOk:      true,
 		asm:          x86.ACMOVLLS,
 		reg: regInfo{
 			inputs: []inputInfo{
@@ -16330,6 +16440,7 @@ var opcodeTable = [...]opInfo{
 		name:         "CMOVLHI",
 		argLen:       3,
 		resultInArg0: true,
+		earlyOk:      true,
 		asm:          x86.ACMOVLHI,
 		reg: regInfo{
 			inputs: []inputInfo{
@@ -16345,6 +16456,7 @@ var opcodeTable = [...]opInfo{
 		name:         "CMOVLCC",
 		argLen:       3,
 		resultInArg0: true,
+		earlyOk:      true,
 		asm:          x86.ACMOVLCC,
 		reg: regInfo{
 			inputs: []inputInfo{
@@ -16360,6 +16472,7 @@ var opcodeTable = [...]opInfo{
 		name:         "CMOVLCS",
 		argLen:       3,
 		resultInArg0: true,
+		earlyOk:      true,
 		asm:          x86.ACMOVLCS,
 		reg: regInfo{
 			inputs: []inputInfo{
@@ -16375,6 +16488,7 @@ var opcodeTable = [...]opInfo{
 		name:         "CMOVWEQ",
 		argLen:       3,
 		resultInArg0: true,
+		earlyOk:      true,
 		asm:          x86.ACMOVWEQ,
 		reg: regInfo{
 			inputs: []inputInfo{
@@ -16390,6 +16504,7 @@ var opcodeTable = [...]opInfo{
 		name:         "CMOVWNE",
 		argLen:       3,
 		resultInArg0: true,
+		earlyOk:      true,
 		asm:          x86.ACMOVWNE,
 		reg: regInfo{
 			inputs: []inputInfo{
@@ -16405,6 +16520,7 @@ var opcodeTable = [...]opInfo{
 		name:         "CMOVWLT",
 		argLen:       3,
 		resultInArg0: true,
+		earlyOk:      true,
 		asm:          x86.ACMOVWLT,
 		reg: regInfo{
 			inputs: []inputInfo{
@@ -16420,6 +16536,7 @@ var opcodeTable = [...]opInfo{
 		name:         "CMOVWGT",
 		argLen:       3,
 		resultInArg0: true,
+		earlyOk:      true,
 		asm:          x86.ACMOVWGT,
 		reg: regInfo{
 			inputs: []inputInfo{
@@ -16435,6 +16552,7 @@ var opcodeTable = [...]opInfo{
 		name:         "CMOVWLE",
 		argLen:       3,
 		resultInArg0: true,
+		earlyOk:      true,
 		asm:          x86.ACMOVWLE,
 		reg: regInfo{
 			inputs: []inputInfo{
@@ -16450,6 +16568,7 @@ var opcodeTable = [...]opInfo{
 		name:         "CMOVWGE",
 		argLen:       3,
 		resultInArg0: true,
+		earlyOk:      true,
 		asm:          x86.ACMOVWGE,
 		reg: regInfo{
 			inputs: []inputInfo{
@@ -16465,6 +16584,7 @@ var opcodeTable = [...]opInfo{
 		name:         "CMOVWLS",
 		argLen:       3,
 		resultInArg0: true,
+		earlyOk:      true,
 		asm:          x86.ACMOVWLS,
 		reg: regInfo{
 			inputs: []inputInfo{
@@ -16480,6 +16600,7 @@ var opcodeTable = [...]opInfo{
 		name:         "CMOVWHI",
 		argLen:       3,
 		resultInArg0: true,
+		earlyOk:      true,
 		asm:          x86.ACMOVWHI,
 		reg: regInfo{
 			inputs: []inputInfo{
@@ -16495,6 +16616,7 @@ var opcodeTable = [...]opInfo{
 		name:         "CMOVWCC",
 		argLen:       3,
 		resultInArg0: true,
+		earlyOk:      true,
 		asm:          x86.ACMOVWCC,
 		reg: regInfo{
 			inputs: []inputInfo{
@@ -16510,6 +16632,7 @@ var opcodeTable = [...]opInfo{
 		name:         "CMOVWCS",
 		argLen:       3,
 		resultInArg0: true,
+		earlyOk:      true,
 		asm:          x86.ACMOVWCS,
 		reg: regInfo{
 			inputs: []inputInfo{
@@ -16526,6 +16649,7 @@ var opcodeTable = [...]opInfo{
 		argLen:       3,
 		resultInArg0: true,
 		needIntTemp:  true,
+		earlyOk:      true,
 		asm:          x86.ACMOVQNE,
 		reg: regInfo{
 			inputs: []inputInfo{
@@ -16541,6 +16665,7 @@ var opcodeTable = [...]opInfo{
 		name:         "CMOVQNEF",
 		argLen:       3,
 		resultInArg0: true,
+		earlyOk:      true,
 		asm:          x86.ACMOVQNE,
 		reg: regInfo{
 			inputs: []inputInfo{
@@ -16556,6 +16681,7 @@ var opcodeTable = [...]opInfo{
 		name:         "CMOVQGTF",
 		argLen:       3,
 		resultInArg0: true,
+		earlyOk:      true,
 		asm:          x86.ACMOVQHI,
 		reg: regInfo{
 			inputs: []inputInfo{
@@ -16571,6 +16697,7 @@ var opcodeTable = [...]opInfo{
 		name:         "CMOVQGEF",
 		argLen:       3,
 		resultInArg0: true,
+		earlyOk:      true,
 		asm:          x86.ACMOVQCC,
 		reg: regInfo{
 			inputs: []inputInfo{
@@ -16587,6 +16714,7 @@ var opcodeTable = [...]opInfo{
 		argLen:       3,
 		resultInArg0: true,
 		needIntTemp:  true,
+		earlyOk:      true,
 		asm:          x86.ACMOVLNE,
 		reg: regInfo{
 			inputs: []inputInfo{
@@ -16602,6 +16730,7 @@ var opcodeTable = [...]opInfo{
 		name:         "CMOVLNEF",
 		argLen:       3,
 		resultInArg0: true,
+		earlyOk:      true,
 		asm:          x86.ACMOVLNE,
 		reg: regInfo{
 			inputs: []inputInfo{
@@ -16617,6 +16746,7 @@ var opcodeTable = [...]opInfo{
 		name:         "CMOVLGTF",
 		argLen:       3,
 		resultInArg0: true,
+		earlyOk:      true,
 		asm:          x86.ACMOVLHI,
 		reg: regInfo{
 			inputs: []inputInfo{
@@ -16632,6 +16762,7 @@ var opcodeTable = [...]opInfo{
 		name:         "CMOVLGEF",
 		argLen:       3,
 		resultInArg0: true,
+		earlyOk:      true,
 		asm:          x86.ACMOVLCC,
 		reg: regInfo{
 			inputs: []inputInfo{
@@ -16648,6 +16779,7 @@ var opcodeTable = [...]opInfo{
 		argLen:       3,
 		resultInArg0: true,
 		needIntTemp:  true,
+		earlyOk:      true,
 		asm:          x86.ACMOVWNE,
 		reg: regInfo{
 			inputs: []inputInfo{
@@ -16663,6 +16795,7 @@ var opcodeTable = [...]opInfo{
 		name:         "CMOVWNEF",
 		argLen:       3,
 		resultInArg0: true,
+		earlyOk:      true,
 		asm:          x86.ACMOVWNE,
 		reg: regInfo{
 			inputs: []inputInfo{
@@ -16678,6 +16811,7 @@ var opcodeTable = [...]opInfo{
 		name:         "CMOVWGTF",
 		argLen:       3,
 		resultInArg0: true,
+		earlyOk:      true,
 		asm:          x86.ACMOVWHI,
 		reg: regInfo{
 			inputs: []inputInfo{
@@ -16693,6 +16827,7 @@ var opcodeTable = [...]opInfo{
 		name:         "CMOVWGEF",
 		argLen:       3,
 		resultInArg0: true,
+		earlyOk:      true,
 		asm:          x86.ACMOVWCC,
 		reg: regInfo{
 			inputs: []inputInfo{
@@ -16708,6 +16843,7 @@ var opcodeTable = [...]opInfo{
 		name:         "BSWAPQ",
 		argLen:       1,
 		resultInArg0: true,
+		earlyOk:      true,
 		asm:          x86.ABSWAPQ,
 		reg: regInfo{
 			inputs: []inputInfo{
@@ -16722,6 +16858,7 @@ var opcodeTable = [...]opInfo{
 		name:         "BSWAPL",
 		argLen:       1,
 		resultInArg0: true,
+		earlyOk:      true,
 		asm:          x86.ABSWAPL,
 		reg: regInfo{
 			inputs: []inputInfo{
@@ -16761,9 +16898,10 @@ var opcodeTable = [...]opInfo{
 		},
 	},
 	{
-		name:   "SQRTSD",
-		argLen: 1,
-		asm:    x86.ASQRTSD,
+		name:    "SQRTSD",
+		argLen:  1,
+		earlyOk: true,
+		asm:     x86.ASQRTSD,
 		reg: regInfo{
 			inputs: []inputInfo{
 				{0, regMask{v1: 2147418112, v2: 0}}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
@@ -16774,9 +16912,10 @@ var opcodeTable = [...]opInfo{
 		},
 	},
 	{
-		name:   "SQRTSS",
-		argLen: 1,
-		asm:    x86.ASQRTSS,
+		name:    "SQRTSS",
+		argLen:  1,
+		earlyOk: true,
+		asm:     x86.ASQRTSS,
 		reg: regInfo{
 			inputs: []inputInfo{
 				{0, regMask{v1: 2147418112, v2: 0}}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
@@ -16819,6 +16958,7 @@ var opcodeTable = [...]opInfo{
 		argLen:       1,
 		resultInArg0: true,
 		zeroWidth:    true,
+		earlyOk:      true,
 		reg: regInfo{
 			inputs: []inputInfo{
 				{0, regMask{v1: 2147418112, v2: 0}}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
@@ -16833,6 +16973,7 @@ var opcodeTable = [...]opInfo{
 		argLen:       1,
 		resultInArg0: true,
 		zeroWidth:    true,
+		earlyOk:      true,
 		reg: regInfo{
 			inputs: []inputInfo{
 				{0, regMask{v1: 2147418112, v2: 0}}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
@@ -16878,6 +17019,7 @@ var opcodeTable = [...]opInfo{
 		name:         "MINSD",
 		argLen:       2,
 		resultInArg0: true,
+		earlyOk:      true,
 		asm:          x86.AMINSD,
 		reg: regInfo{
 			inputs: []inputInfo{
@@ -16893,6 +17035,7 @@ var opcodeTable = [...]opInfo{
 		name:         "MINSS",
 		argLen:       2,
 		resultInArg0: true,
+		earlyOk:      true,
 		asm:          x86.AMINSS,
 		reg: regInfo{
 			inputs: []inputInfo{
@@ -16905,9 +17048,10 @@ var opcodeTable = [...]opInfo{
 		},
 	},
 	{
-		name:   "SBBQcarrymask",
-		argLen: 1,
-		asm:    x86.ASBBQ,
+		name:    "SBBQcarrymask",
+		argLen:  1,
+		earlyOk: true,
+		asm:     x86.ASBBQ,
 		reg: regInfo{
 			outputs: []outputInfo{
 				{0, regMask{v1: 49135, v2: 0}}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R15
@@ -16915,9 +17059,10 @@ var opcodeTable = [...]opInfo{
 		},
 	},
 	{
-		name:   "SBBLcarrymask",
-		argLen: 1,
-		asm:    x86.ASBBL,
+		name:    "SBBLcarrymask",
+		argLen:  1,
+		earlyOk: true,
+		asm:     x86.ASBBL,
 		reg: regInfo{
 			outputs: []outputInfo{
 				{0, regMask{v1: 49135, v2: 0}}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R15
@@ -16925,9 +17070,10 @@ var opcodeTable = [...]opInfo{
 		},
 	},
 	{
-		name:   "SETEQ",
-		argLen: 1,
-		asm:    x86.ASETEQ,
+		name:    "SETEQ",
+		argLen:  1,
+		earlyOk: true,
+		asm:     x86.ASETEQ,
 		reg: regInfo{
 			outputs: []outputInfo{
 				{0, regMask{v1: 49135, v2: 0}}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R15
@@ -16935,9 +17081,10 @@ var opcodeTable = [...]opInfo{
 		},
 	},
 	{
-		name:   "SETNE",
-		argLen: 1,
-		asm:    x86.ASETNE,
+		name:    "SETNE",
+		argLen:  1,
+		earlyOk: true,
+		asm:     x86.ASETNE,
 		reg: regInfo{
 			outputs: []outputInfo{
 				{0, regMask{v1: 49135, v2: 0}}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R15
@@ -16945,9 +17092,10 @@ var opcodeTable = [...]opInfo{
 		},
 	},
 	{
-		name:   "SETL",
-		argLen: 1,
-		asm:    x86.ASETLT,
+		name:    "SETL",
+		argLen:  1,
+		earlyOk: true,
+		asm:     x86.ASETLT,
 		reg: regInfo{
 			outputs: []outputInfo{
 				{0, regMask{v1: 49135, v2: 0}}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R15
@@ -16955,9 +17103,10 @@ var opcodeTable = [...]opInfo{
 		},
 	},
 	{
-		name:   "SETLE",
-		argLen: 1,
-		asm:    x86.ASETLE,
+		name:    "SETLE",
+		argLen:  1,
+		earlyOk: true,
+		asm:     x86.ASETLE,
 		reg: regInfo{
 			outputs: []outputInfo{
 				{0, regMask{v1: 49135, v2: 0}}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R15
@@ -16965,9 +17114,10 @@ var opcodeTable = [...]opInfo{
 		},
 	},
 	{
-		name:   "SETG",
-		argLen: 1,
-		asm:    x86.ASETGT,
+		name:    "SETG",
+		argLen:  1,
+		earlyOk: true,
+		asm:     x86.ASETGT,
 		reg: regInfo{
 			outputs: []outputInfo{
 				{0, regMask{v1: 49135, v2: 0}}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R15
@@ -16975,9 +17125,10 @@ var opcodeTable = [...]opInfo{
 		},
 	},
 	{
-		name:   "SETGE",
-		argLen: 1,
-		asm:    x86.ASETGE,
+		name:    "SETGE",
+		argLen:  1,
+		earlyOk: true,
+		asm:     x86.ASETGE,
 		reg: regInfo{
 			outputs: []outputInfo{
 				{0, regMask{v1: 49135, v2: 0}}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R15
@@ -16985,9 +17136,10 @@ var opcodeTable = [...]opInfo{
 		},
 	},
 	{
-		name:   "SETB",
-		argLen: 1,
-		asm:    x86.ASETCS,
+		name:    "SETB",
+		argLen:  1,
+		earlyOk: true,
+		asm:     x86.ASETCS,
 		reg: regInfo{
 			outputs: []outputInfo{
 				{0, regMask{v1: 49135, v2: 0}}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R15
@@ -16995,9 +17147,10 @@ var opcodeTable = [...]opInfo{
 		},
 	},
 	{
-		name:   "SETBE",
-		argLen: 1,
-		asm:    x86.ASETLS,
+		name:    "SETBE",
+		argLen:  1,
+		earlyOk: true,
+		asm:     x86.ASETLS,
 		reg: regInfo{
 			outputs: []outputInfo{
 				{0, regMask{v1: 49135, v2: 0}}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R15
@@ -17005,9 +17158,10 @@ var opcodeTable = [...]opInfo{
 		},
 	},
 	{
-		name:   "SETA",
-		argLen: 1,
-		asm:    x86.ASETHI,
+		name:    "SETA",
+		argLen:  1,
+		earlyOk: true,
+		asm:     x86.ASETHI,
 		reg: regInfo{
 			outputs: []outputInfo{
 				{0, regMask{v1: 49135, v2: 0}}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R15
@@ -17015,9 +17169,10 @@ var opcodeTable = [...]opInfo{
 		},
 	},
 	{
-		name:   "SETAE",
-		argLen: 1,
-		asm:    x86.ASETCC,
+		name:    "SETAE",
+		argLen:  1,
+		earlyOk: true,
+		asm:     x86.ASETCC,
 		reg: regInfo{
 			outputs: []outputInfo{
 				{0, regMask{v1: 49135, v2: 0}}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R15
@@ -17025,9 +17180,10 @@ var opcodeTable = [...]opInfo{
 		},
 	},
 	{
-		name:   "SETO",
-		argLen: 1,
-		asm:    x86.ASETOS,
+		name:    "SETO",
+		argLen:  1,
+		earlyOk: true,
+		asm:     x86.ASETOS,
 		reg: regInfo{
 			outputs: []outputInfo{
 				{0, regMask{v1: 49135, v2: 0}}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R15
@@ -17319,6 +17475,7 @@ var opcodeTable = [...]opInfo{
 		argLen:       1,
 		clobberFlags: true,
 		needIntTemp:  true,
+		earlyOk:      true,
 		asm:          x86.ASETEQ,
 		reg: regInfo{
 			outputs: []outputInfo{
@@ -17331,6 +17488,7 @@ var opcodeTable = [...]opInfo{
 		argLen:       1,
 		clobberFlags: true,
 		needIntTemp:  true,
+		earlyOk:      true,
 		asm:          x86.ASETNE,
 		reg: regInfo{
 			outputs: []outputInfo{
@@ -17339,9 +17497,10 @@ var opcodeTable = [...]opInfo{
 		},
 	},
 	{
-		name:   "SETORD",
-		argLen: 1,
-		asm:    x86.ASETPC,
+		name:    "SETORD",
+		argLen:  1,
+		earlyOk: true,
+		asm:     x86.ASETPC,
 		reg: regInfo{
 			outputs: []outputInfo{
 				{0, regMask{v1: 49135, v2: 0}}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R15
@@ -17349,9 +17508,10 @@ var opcodeTable = [...]opInfo{
 		},
 	},
 	{
-		name:   "SETNAN",
-		argLen: 1,
-		asm:    x86.ASETPS,
+		name:    "SETNAN",
+		argLen:  1,
+		earlyOk: true,
+		asm:     x86.ASETPS,
 		reg: regInfo{
 			outputs: []outputInfo{
 				{0, regMask{v1: 49135, v2: 0}}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R15
@@ -17359,9 +17519,10 @@ var opcodeTable = [...]opInfo{
 		},
 	},
 	{
-		name:   "SETGF",
-		argLen: 1,
-		asm:    x86.ASETHI,
+		name:    "SETGF",
+		argLen:  1,
+		earlyOk: true,
+		asm:     x86.ASETHI,
 		reg: regInfo{
 			outputs: []outputInfo{
 				{0, regMask{v1: 49135, v2: 0}}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R15
@@ -17369,9 +17530,10 @@ var opcodeTable = [...]opInfo{
 		},
 	},
 	{
-		name:   "SETGEF",
-		argLen: 1,
-		asm:    x86.ASETCC,
+		name:    "SETGEF",
+		argLen:  1,
+		earlyOk: true,
+		asm:     x86.ASETCC,
 		reg: regInfo{
 			outputs: []outputInfo{
 				{0, regMask{v1: 49135, v2: 0}}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R15
@@ -17379,22 +17541,10 @@ var opcodeTable = [...]opInfo{
 		},
 	},
 	{
-		name:   "MOVBQSX",
-		argLen: 1,
-		asm:    x86.AMOVBQSX,
-		reg: regInfo{
-			inputs: []inputInfo{
-				{0, regMask{v1: 49135, v2: 0}}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R15
-			},
-			outputs: []outputInfo{
-				{0, regMask{v1: 49135, v2: 0}}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R15
-			},
-		},
-	},
-	{
-		name:   "MOVBQZX",
-		argLen: 1,
-		asm:    x86.AMOVBLZX,
+		name:    "MOVBQSX",
+		argLen:  1,
+		earlyOk: true,
+		asm:     x86.AMOVBQSX,
 		reg: regInfo{
 			inputs: []inputInfo{
 				{0, regMask{v1: 49135, v2: 0}}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R15
@@ -17405,9 +17555,10 @@ var opcodeTable = [...]opInfo{
 		},
 	},
 	{
-		name:   "MOVWQSX",
-		argLen: 1,
-		asm:    x86.AMOVWQSX,
+		name:    "MOVBQZX",
+		argLen:  1,
+		earlyOk: true,
+		asm:     x86.AMOVBLZX,
 		reg: regInfo{
 			inputs: []inputInfo{
 				{0, regMask{v1: 49135, v2: 0}}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R15
@@ -17418,9 +17569,10 @@ var opcodeTable = [...]opInfo{
 		},
 	},
 	{
-		name:   "MOVWQZX",
-		argLen: 1,
-		asm:    x86.AMOVWLZX,
+		name:    "MOVWQSX",
+		argLen:  1,
+		earlyOk: true,
+		asm:     x86.AMOVWQSX,
 		reg: regInfo{
 			inputs: []inputInfo{
 				{0, regMask{v1: 49135, v2: 0}}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R15
@@ -17431,9 +17583,10 @@ var opcodeTable = [...]opInfo{
 		},
 	},
 	{
-		name:   "MOVLQSX",
-		argLen: 1,
-		asm:    x86.AMOVLQSX,
+		name:    "MOVWQZX",
+		argLen:  1,
+		earlyOk: true,
+		asm:     x86.AMOVWLZX,
 		reg: regInfo{
 			inputs: []inputInfo{
 				{0, regMask{v1: 49135, v2: 0}}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R15
@@ -17444,9 +17597,24 @@ var opcodeTable = [...]opInfo{
 		},
 	},
 	{
-		name:   "MOVLQZX",
-		argLen: 1,
-		asm:    x86.AMOVL,
+		name:    "MOVLQSX",
+		argLen:  1,
+		earlyOk: true,
+		asm:     x86.AMOVLQSX,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{0, regMask{v1: 49135, v2: 0}}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R15
+			},
+			outputs: []outputInfo{
+				{0, regMask{v1: 49135, v2: 0}}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R15
+			},
+		},
+	},
+	{
+		name:    "MOVLQZX",
+		argLen:  1,
+		earlyOk: true,
+		asm:     x86.AMOVL,
 		reg: regInfo{
 			inputs: []inputInfo{
 				{0, regMask{v1: 49135, v2: 0}}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R15
@@ -17461,6 +17629,7 @@ var opcodeTable = [...]opInfo{
 		auxType:           auxInt32,
 		argLen:            0,
 		rematerializeable: true,
+		earlyOk:           true,
 		asm:               x86.AMOVL,
 		reg: regInfo{
 			outputs: []outputInfo{
@@ -17473,6 +17642,7 @@ var opcodeTable = [...]opInfo{
 		auxType:           auxInt64,
 		argLen:            0,
 		rematerializeable: true,
+		earlyOk:           true,
 		asm:               x86.AMOVQ,
 		reg: regInfo{
 			outputs: []outputInfo{
@@ -17481,9 +17651,10 @@ var opcodeTable = [...]opInfo{
 		},
 	},
 	{
-		name:   "CVTTSD2SL",
-		argLen: 1,
-		asm:    x86.ACVTTSD2SL,
+		name:    "CVTTSD2SL",
+		argLen:  1,
+		earlyOk: true,
+		asm:     x86.ACVTTSD2SL,
 		reg: regInfo{
 			inputs: []inputInfo{
 				{0, regMask{v1: 2147418112, v2: 0}}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
@@ -17494,9 +17665,10 @@ var opcodeTable = [...]opInfo{
 		},
 	},
 	{
-		name:   "CVTTSD2SQ",
-		argLen: 1,
-		asm:    x86.ACVTTSD2SQ,
+		name:    "CVTTSD2SQ",
+		argLen:  1,
+		earlyOk: true,
+		asm:     x86.ACVTTSD2SQ,
 		reg: regInfo{
 			inputs: []inputInfo{
 				{0, regMask{v1: 2147418112, v2: 0}}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
@@ -17507,9 +17679,10 @@ var opcodeTable = [...]opInfo{
 		},
 	},
 	{
-		name:   "CVTTSS2SL",
-		argLen: 1,
-		asm:    x86.ACVTTSS2SL,
+		name:    "CVTTSS2SL",
+		argLen:  1,
+		earlyOk: true,
+		asm:     x86.ACVTTSS2SL,
 		reg: regInfo{
 			inputs: []inputInfo{
 				{0, regMask{v1: 2147418112, v2: 0}}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
@@ -17520,9 +17693,10 @@ var opcodeTable = [...]opInfo{
 		},
 	},
 	{
-		name:   "CVTTSS2SQ",
-		argLen: 1,
-		asm:    x86.ACVTTSS2SQ,
+		name:    "CVTTSS2SQ",
+		argLen:  1,
+		earlyOk: true,
+		asm:     x86.ACVTTSS2SQ,
 		reg: regInfo{
 			inputs: []inputInfo{
 				{0, regMask{v1: 2147418112, v2: 0}}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
@@ -17533,9 +17707,10 @@ var opcodeTable = [...]opInfo{
 		},
 	},
 	{
-		name:   "CVTSL2SS",
-		argLen: 1,
-		asm:    x86.ACVTSL2SS,
+		name:    "CVTSL2SS",
+		argLen:  1,
+		earlyOk: true,
+		asm:     x86.ACVTSL2SS,
 		reg: regInfo{
 			inputs: []inputInfo{
 				{0, regMask{v1: 49135, v2: 0}}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R15
@@ -17546,9 +17721,10 @@ var opcodeTable = [...]opInfo{
 		},
 	},
 	{
-		name:   "CVTSL2SD",
-		argLen: 1,
-		asm:    x86.ACVTSL2SD,
+		name:    "CVTSL2SD",
+		argLen:  1,
+		earlyOk: true,
+		asm:     x86.ACVTSL2SD,
 		reg: regInfo{
 			inputs: []inputInfo{
 				{0, regMask{v1: 49135, v2: 0}}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R15
@@ -17559,9 +17735,10 @@ var opcodeTable = [...]opInfo{
 		},
 	},
 	{
-		name:   "CVTSQ2SS",
-		argLen: 1,
-		asm:    x86.ACVTSQ2SS,
+		name:    "CVTSQ2SS",
+		argLen:  1,
+		earlyOk: true,
+		asm:     x86.ACVTSQ2SS,
 		reg: regInfo{
 			inputs: []inputInfo{
 				{0, regMask{v1: 49135, v2: 0}}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R15
@@ -17572,9 +17749,10 @@ var opcodeTable = [...]opInfo{
 		},
 	},
 	{
-		name:   "CVTSQ2SD",
-		argLen: 1,
-		asm:    x86.ACVTSQ2SD,
+		name:    "CVTSQ2SD",
+		argLen:  1,
+		earlyOk: true,
+		asm:     x86.ACVTSQ2SD,
 		reg: regInfo{
 			inputs: []inputInfo{
 				{0, regMask{v1: 49135, v2: 0}}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R15
@@ -17585,9 +17763,10 @@ var opcodeTable = [...]opInfo{
 		},
 	},
 	{
-		name:   "CVTSD2SS",
-		argLen: 1,
-		asm:    x86.ACVTSD2SS,
+		name:    "CVTSD2SS",
+		argLen:  1,
+		earlyOk: true,
+		asm:     x86.ACVTSD2SS,
 		reg: regInfo{
 			inputs: []inputInfo{
 				{0, regMask{v1: 2147418112, v2: 0}}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
@@ -17598,9 +17777,10 @@ var opcodeTable = [...]opInfo{
 		},
 	},
 	{
-		name:   "CVTSS2SD",
-		argLen: 1,
-		asm:    x86.ACVTSS2SD,
+		name:    "CVTSS2SD",
+		argLen:  1,
+		earlyOk: true,
+		asm:     x86.ACVTSS2SD,
 		reg: regInfo{
 			inputs: []inputInfo{
 				{0, regMask{v1: 2147418112, v2: 0}}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
@@ -17611,32 +17791,9 @@ var opcodeTable = [...]opInfo{
 		},
 	},
 	{
-		name:   "MOVQi2f",
-		argLen: 1,
-		reg: regInfo{
-			inputs: []inputInfo{
-				{0, regMask{v1: 49135, v2: 0}}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R15
-			},
-			outputs: []outputInfo{
-				{0, regMask{v1: 2147418112, v2: 0}}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
-			},
-		},
-	},
-	{
-		name:   "MOVQf2i",
-		argLen: 1,
-		reg: regInfo{
-			inputs: []inputInfo{
-				{0, regMask{v1: 2147418112, v2: 0}}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
-			},
-			outputs: []outputInfo{
-				{0, regMask{v1: 49135, v2: 0}}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R15
-			},
-		},
-	},
-	{
-		name:   "MOVLi2f",
-		argLen: 1,
+		name:    "MOVQi2f",
+		argLen:  1,
+		earlyOk: true,
 		reg: regInfo{
 			inputs: []inputInfo{
 				{0, regMask{v1: 49135, v2: 0}}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R15
@@ -17647,8 +17804,35 @@ var opcodeTable = [...]opInfo{
 		},
 	},
 	{
-		name:   "MOVLf2i",
-		argLen: 1,
+		name:    "MOVQf2i",
+		argLen:  1,
+		earlyOk: true,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{0, regMask{v1: 2147418112, v2: 0}}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+			outputs: []outputInfo{
+				{0, regMask{v1: 49135, v2: 0}}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R15
+			},
+		},
+	},
+	{
+		name:    "MOVLi2f",
+		argLen:  1,
+		earlyOk: true,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{0, regMask{v1: 49135, v2: 0}}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R15
+			},
+			outputs: []outputInfo{
+				{0, regMask{v1: 2147418112, v2: 0}}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+		},
+	},
+	{
+		name:    "MOVLf2i",
+		argLen:  1,
+		earlyOk: true,
 		reg: regInfo{
 			inputs: []inputInfo{
 				{0, regMask{v1: 2147418112, v2: 0}}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
@@ -17663,6 +17847,7 @@ var opcodeTable = [...]opInfo{
 		argLen:       2,
 		commutative:  true,
 		resultInArg0: true,
+		earlyOk:      true,
 		asm:          x86.APXOR,
 		reg: regInfo{
 			inputs: []inputInfo{
@@ -17679,6 +17864,7 @@ var opcodeTable = [...]opInfo{
 		argLen:       2,
 		commutative:  true,
 		resultInArg0: true,
+		earlyOk:      true,
 		asm:          x86.APOR,
 		reg: regInfo{
 			inputs: []inputInfo{
@@ -17695,6 +17881,7 @@ var opcodeTable = [...]opInfo{
 		auxType:           auxSymOff,
 		argLen:            1,
 		rematerializeable: true,
+		earlyOk:           true,
 		symEffect:         SymAddr,
 		asm:               x86.ALEAQ,
 		reg: regInfo{
@@ -17711,6 +17898,7 @@ var opcodeTable = [...]opInfo{
 		auxType:           auxSymOff,
 		argLen:            1,
 		rematerializeable: true,
+		earlyOk:           true,
 		symEffect:         SymAddr,
 		asm:               x86.ALEAL,
 		reg: regInfo{
@@ -17727,6 +17915,7 @@ var opcodeTable = [...]opInfo{
 		auxType:           auxSymOff,
 		argLen:            1,
 		rematerializeable: true,
+		earlyOk:           true,
 		symEffect:         SymAddr,
 		asm:               x86.ALEAW,
 		reg: regInfo{
@@ -17743,6 +17932,7 @@ var opcodeTable = [...]opInfo{
 		auxType:     auxSymOff,
 		argLen:      2,
 		commutative: true,
+		earlyOk:     true,
 		symEffect:   SymAddr,
 		asm:         x86.ALEAQ,
 		scale:       1,
@@ -17761,6 +17951,7 @@ var opcodeTable = [...]opInfo{
 		auxType:     auxSymOff,
 		argLen:      2,
 		commutative: true,
+		earlyOk:     true,
 		symEffect:   SymAddr,
 		asm:         x86.ALEAL,
 		scale:       1,
@@ -17779,6 +17970,7 @@ var opcodeTable = [...]opInfo{
 		auxType:     auxSymOff,
 		argLen:      2,
 		commutative: true,
+		earlyOk:     true,
 		symEffect:   SymAddr,
 		asm:         x86.ALEAW,
 		scale:       1,
@@ -17796,6 +17988,7 @@ var opcodeTable = [...]opInfo{
 		name:      "LEAQ2",
 		auxType:   auxSymOff,
 		argLen:    2,
+		earlyOk:   true,
 		symEffect: SymAddr,
 		asm:       x86.ALEAQ,
 		scale:     2,
@@ -17813,6 +18006,7 @@ var opcodeTable = [...]opInfo{
 		name:      "LEAL2",
 		auxType:   auxSymOff,
 		argLen:    2,
+		earlyOk:   true,
 		symEffect: SymAddr,
 		asm:       x86.ALEAL,
 		scale:     2,
@@ -17830,6 +18024,7 @@ var opcodeTable = [...]opInfo{
 		name:      "LEAW2",
 		auxType:   auxSymOff,
 		argLen:    2,
+		earlyOk:   true,
 		symEffect: SymAddr,
 		asm:       x86.ALEAW,
 		scale:     2,
@@ -17847,6 +18042,7 @@ var opcodeTable = [...]opInfo{
 		name:      "LEAQ4",
 		auxType:   auxSymOff,
 		argLen:    2,
+		earlyOk:   true,
 		symEffect: SymAddr,
 		asm:       x86.ALEAQ,
 		scale:     4,
@@ -17864,6 +18060,7 @@ var opcodeTable = [...]opInfo{
 		name:      "LEAL4",
 		auxType:   auxSymOff,
 		argLen:    2,
+		earlyOk:   true,
 		symEffect: SymAddr,
 		asm:       x86.ALEAL,
 		scale:     4,
@@ -17881,6 +18078,7 @@ var opcodeTable = [...]opInfo{
 		name:      "LEAW4",
 		auxType:   auxSymOff,
 		argLen:    2,
+		earlyOk:   true,
 		symEffect: SymAddr,
 		asm:       x86.ALEAW,
 		scale:     4,
@@ -17898,6 +18096,7 @@ var opcodeTable = [...]opInfo{
 		name:      "LEAQ8",
 		auxType:   auxSymOff,
 		argLen:    2,
+		earlyOk:   true,
 		symEffect: SymAddr,
 		asm:       x86.ALEAQ,
 		scale:     8,
@@ -17915,6 +18114,7 @@ var opcodeTable = [...]opInfo{
 		name:      "LEAL8",
 		auxType:   auxSymOff,
 		argLen:    2,
+		earlyOk:   true,
 		symEffect: SymAddr,
 		asm:       x86.ALEAL,
 		scale:     8,
@@ -17932,6 +18132,7 @@ var opcodeTable = [...]opInfo{
 		name:      "LEAW8",
 		auxType:   auxSymOff,
 		argLen:    2,
+		earlyOk:   true,
 		symEffect: SymAddr,
 		asm:       x86.ALEAW,
 		scale:     8,
