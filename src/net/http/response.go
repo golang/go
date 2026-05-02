@@ -259,6 +259,10 @@ func (r *Response) Write(w io.Writer) error {
 		text = strings.TrimPrefix(text, strconv.Itoa(r.StatusCode)+" ")
 	}
 
+	if stringContainsCTLByte(text) {
+		return errors.New("net/http: can't write control character in Response.Status")
+	}
+
 	if _, err := fmt.Fprintf(w, "HTTP/%d.%d %03d %s\r\n", r.ProtoMajor, r.ProtoMinor, r.StatusCode, text); err != nil {
 		return err
 	}
