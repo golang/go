@@ -274,62 +274,62 @@ func BroadcastFloat64x8(x float64) Float64x8 {
 	return z.SetElem(0, x).Broadcast1To8()
 }
 
-// ToMask converts from Int8x16 to Mask8x16, mask element is set to true when the corresponding vector element is non-zero.
+// ToMask returns a mask whose i'th element is set if x[i] is non-zero.
 func (from Int8x16) ToMask() (to Mask8x16) {
 	return from.NotEqual(Int8x16{})
 }
 
-// ToMask converts from Int16x8 to Mask16x8, mask element is set to true when the corresponding vector element is non-zero.
+// ToMask returns a mask whose i'th element is set if x[i] is non-zero.
 func (from Int16x8) ToMask() (to Mask16x8) {
 	return from.NotEqual(Int16x8{})
 }
 
-// ToMask converts from Int32x4 to Mask32x4, mask element is set to true when the corresponding vector element is non-zero.
+// ToMask returns a mask whose i'th element is set if x[i] is non-zero.
 func (from Int32x4) ToMask() (to Mask32x4) {
 	return from.NotEqual(Int32x4{})
 }
 
-// ToMask converts from Int64x2 to Mask64x2, mask element is set to true when the corresponding vector element is non-zero.
+// ToMask returns a mask whose i'th element is set if x[i] is non-zero.
 func (from Int64x2) ToMask() (to Mask64x2) {
 	return from.NotEqual(Int64x2{})
 }
 
-// ToMask converts from Int8x32 to Mask8x32, mask element is set to true when the corresponding vector element is non-zero.
+// ToMask returns a mask whose i'th element is set if x[i] is non-zero.
 func (from Int8x32) ToMask() (to Mask8x32) {
 	return from.NotEqual(Int8x32{})
 }
 
-// ToMask converts from Int16x16 to Mask16x16, mask element is set to true when the corresponding vector element is non-zero.
+// ToMask returns a mask whose i'th element is set if x[i] is non-zero.
 func (from Int16x16) ToMask() (to Mask16x16) {
 	return from.NotEqual(Int16x16{})
 }
 
-// ToMask converts from Int32x8 to Mask32x8, mask element is set to true when the corresponding vector element is non-zero.
+// ToMask returns a mask whose i'th element is set if x[i] is non-zero.
 func (from Int32x8) ToMask() (to Mask32x8) {
 	return from.NotEqual(Int32x8{})
 }
 
-// ToMask converts from Int64x4 to Mask64x4, mask element is set to true when the corresponding vector element is non-zero.
+// ToMask returns a mask whose i'th element is set if x[i] is non-zero.
 func (from Int64x4) ToMask() (to Mask64x4) {
 	return from.NotEqual(Int64x4{})
 }
 
-// ToMask converts from Int8x64 to Mask8x64, mask element is set to true when the corresponding vector element is non-zero.
+// ToMask returns a mask whose i'th element is set if x[i] is non-zero.
 func (from Int8x64) ToMask() (to Mask8x64) {
 	return from.NotEqual(Int8x64{})
 }
 
-// ToMask converts from Int16x32 to Mask16x32, mask element is set to true when the corresponding vector element is non-zero.
+// ToMask returns a mask whose i'th element is set if x[i] is non-zero.
 func (from Int16x32) ToMask() (to Mask16x32) {
 	return from.NotEqual(Int16x32{})
 }
 
-// ToMask converts from Int32x16 to Mask32x16, mask element is set to true when the corresponding vector element is non-zero.
+// ToMask returns a mask whose i'th element is set if x[i] is non-zero.
 func (from Int32x16) ToMask() (to Mask32x16) {
 	return from.NotEqual(Int32x16{})
 }
 
-// ToMask converts from Int64x8 to Mask64x8, mask element is set to true when the corresponding vector element is non-zero.
+// ToMask returns a mask whose i'th element is set if x[i] is non-zero.
 func (from Int64x8) ToMask() (to Mask64x8) {
 	return from.NotEqual(Int64x8{})
 }
@@ -341,7 +341,7 @@ func (x Int8x16) Not() Int8x16 {
 	return x.Xor(x.Equal(x).ToInt8x16())
 }
 
-// Neg returns the elementwise negation of x.
+// Neg returns the element-wise negation of x.
 //
 // Emulated, CPU Feature: AVX
 func (x Int8x16) Neg() Int8x16 {
@@ -356,7 +356,7 @@ func (x Int16x8) Not() Int16x8 {
 	return x.Xor(x.Equal(x).ToInt16x8())
 }
 
-// Neg returns the elementwise negation of x.
+// Neg returns the element-wise negation of x.
 //
 // Emulated, CPU Feature: AVX
 func (x Int16x8) Neg() Int16x8 {
@@ -371,7 +371,7 @@ func (x Int32x4) Not() Int32x4 {
 	return x.Xor(x.Equal(x).ToInt32x4())
 }
 
-// Neg returns the elementwise negation of x.
+// Neg returns the element-wise negation of x.
 //
 // Emulated, CPU Feature: AVX
 func (x Int32x4) Neg() Int32x4 {
@@ -386,7 +386,7 @@ func (x Int64x2) Not() Int64x2 {
 	return x.Xor(x.Equal(x).ToInt64x2())
 }
 
-// Neg returns the elementwise negation of x.
+// Neg returns the element-wise negation of x.
 //
 // Emulated, CPU Feature: AVX
 func (x Int64x2) Neg() Int64x2 {
@@ -401,7 +401,7 @@ func (x Int8x32) Not() Int8x32 {
 	return x.Xor(x.Equal(x).ToInt8x32())
 }
 
-// Neg returns the elementwise negation of x.
+// Neg returns the element-wise negation of x.
 //
 // Emulated, CPU Feature: AVX2
 func (x Int8x32) Neg() Int8x32 {
@@ -416,7 +416,7 @@ func (x Int16x16) Not() Int16x16 {
 	return x.Xor(x.Equal(x).ToInt16x16())
 }
 
-// Neg returns the elementwise negation of x.
+// Neg returns the element-wise negation of x.
 //
 // Emulated, CPU Feature: AVX2
 func (x Int16x16) Neg() Int16x16 {
@@ -431,7 +431,7 @@ func (x Int32x8) Not() Int32x8 {
 	return x.Xor(x.Equal(x).ToInt32x8())
 }
 
-// Neg returns the elementwise negation of x.
+// Neg returns the element-wise negation of x.
 //
 // Emulated, CPU Feature: AVX2
 func (x Int32x8) Neg() Int32x8 {
@@ -446,7 +446,7 @@ func (x Int64x4) Not() Int64x4 {
 	return x.Xor(x.Equal(x).ToInt64x4())
 }
 
-// Neg returns the elementwise negation of x.
+// Neg returns the element-wise negation of x.
 //
 // Emulated, CPU Feature: AVX2
 func (x Int64x4) Neg() Int64x4 {
@@ -461,7 +461,7 @@ func (x Int8x64) Not() Int8x64 {
 	return x.Xor(x.Equal(x).ToInt8x64())
 }
 
-// Neg returns the elementwise negation of x.
+// Neg returns the element-wise negation of x.
 //
 // Emulated, CPU Feature: AVX512
 func (x Int8x64) Neg() Int8x64 {
@@ -476,7 +476,7 @@ func (x Int16x32) Not() Int16x32 {
 	return x.Xor(x.Equal(x).ToInt16x32())
 }
 
-// Neg returns the elementwise negation of x.
+// Neg returns the element-wise negation of x.
 //
 // Emulated, CPU Feature: AVX512
 func (x Int16x32) Neg() Int16x32 {
@@ -491,7 +491,7 @@ func (x Int32x16) Not() Int32x16 {
 	return x.Xor(x.Equal(x).ToInt32x16())
 }
 
-// Neg returns the elementwise negation of x.
+// Neg returns the element-wise negation of x.
 //
 // Emulated, CPU Feature: AVX512
 func (x Int32x16) Neg() Int32x16 {
@@ -506,7 +506,7 @@ func (x Int64x8) Not() Int64x8 {
 	return x.Xor(x.Equal(x).ToInt64x8())
 }
 
-// Neg returns the elementwise negation of x.
+// Neg returns the element-wise negation of x.
 //
 // Emulated, CPU Feature: AVX512
 func (x Int64x8) Neg() Int64x8 {

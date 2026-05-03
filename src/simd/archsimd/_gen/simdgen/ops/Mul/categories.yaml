@@ -2,7 +2,7 @@
 - go: Mul
   commutative: true
   documentation: !string |-
-    // NAME multiplies corresponding elements of two vectors.
+    // NAME multiplies corresponding elements of two vectors, modulo 2ⁿ.
 - go: MulEvenWiden
   commutative: true
   documentation: !string |-

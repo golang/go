@@ -2,7 +2,7 @@
 - go: Div
   commutative: false
   documentation: !string |-
-    // NAME divides elements of two vectors.
+    // NAME divides elements of two vectors. Division by zero follows IEEE 754 and does not panic.
 - go: Sqrt
   commutative: false
   documentation: !string |-

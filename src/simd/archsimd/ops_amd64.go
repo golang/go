@@ -127,7 +127,7 @@ func (x Uint32x4) AESInvMixColumns() Uint32x4
 // result[2] = XOR(SubWord(RotWord(x[2])), r)
 // result[3] = SubWord(x[3])
 //
-// rconVal results in better performance when it's a constant, a non-constant value will be translated into a jump table.
+// A non-constant value of rconVal may result in significantly worse performance for this operation.
 //
 // Asm: VAESKEYGENASSIST, CPU Feature: AVXAES
 func (x Uint32x4) AESRoundKeyGenAssist(rconVal uint8) Uint32x4
@@ -531,122 +531,122 @@ func (x Float64x4) AddSub(y Float64x4) Float64x4
 
 /* And */
 
-// And performs a bitwise AND operation between two vectors.
+// And performs a bitwise x & y.
 //
 // Asm: VPAND, CPU Feature: AVX
 func (x Int8x16) And(y Int8x16) Int8x16
 
-// And performs a bitwise AND operation between two vectors.
+// And performs a bitwise x & y.
 //
 // Asm: VPAND, CPU Feature: AVX2
 func (x Int8x32) And(y Int8x32) Int8x32
 
-// And performs a bitwise AND operation between two vectors.
+// And performs a bitwise x & y.
 //
 // Asm: VPANDD, CPU Feature: AVX512
 func (x Int8x64) And(y Int8x64) Int8x64
 
-// And performs a bitwise AND operation between two vectors.
+// And performs a bitwise x & y.
 //
 // Asm: VPAND, CPU Feature: AVX
 func (x Int16x8) And(y Int16x8) Int16x8
 
-// And performs a bitwise AND operation between two vectors.
+// And performs a bitwise x & y.
 //
 // Asm: VPAND, CPU Feature: AVX2
 func (x Int16x16) And(y Int16x16) Int16x16
 
-// And performs a bitwise AND operation between two vectors.
+// And performs a bitwise x & y.
 //
 // Asm: VPANDD, CPU Feature: AVX512
 func (x Int16x32) And(y Int16x32) Int16x32
 
-// And performs a bitwise AND operation between two vectors.
+// And performs a bitwise x & y.
 //
 // Asm: VPAND, CPU Feature: AVX
 func (x Int32x4) And(y Int32x4) Int32x4
 
-// And performs a bitwise AND operation between two vectors.
+// And performs a bitwise x & y.
 //
 // Asm: VPAND, CPU Feature: AVX2
 func (x Int32x8) And(y Int32x8) Int32x8
 
-// And performs a bitwise AND operation between two vectors.
+// And performs a bitwise x & y.
 //
 // Asm: VPANDD, CPU Feature: AVX512
 func (x Int32x16) And(y Int32x16) Int32x16
 
-// And performs a bitwise AND operation between two vectors.
+// And performs a bitwise x & y.
 //
 // Asm: VPAND, CPU Feature: AVX
 func (x Int64x2) And(y Int64x2) Int64x2
 
-// And performs a bitwise AND operation between two vectors.
+// And performs a bitwise x & y.
 //
 // Asm: VPAND, CPU Feature: AVX2
 func (x Int64x4) And(y Int64x4) Int64x4
 
-// And performs a bitwise AND operation between two vectors.
+// And performs a bitwise x & y.
 //
 // Asm: VPANDQ, CPU Feature: AVX512
 func (x Int64x8) And(y Int64x8) Int64x8
 
-// And performs a bitwise AND operation between two vectors.
+// And performs a bitwise x & y.
 //
 // Asm: VPAND, CPU Feature: AVX
 func (x Uint8x16) And(y Uint8x16) Uint8x16
 
-// And performs a bitwise AND operation between two vectors.
+// And performs a bitwise x & y.
 //
 // Asm: VPAND, CPU Feature: AVX2
 func (x Uint8x32) And(y Uint8x32) Uint8x32
 
-// And performs a bitwise AND operation between two vectors.
+// And performs a bitwise x & y.
 //
 // Asm: VPANDD, CPU Feature: AVX512
 func (x Uint8x64) And(y Uint8x64) Uint8x64
 
-// And performs a bitwise AND operation between two vectors.
+// And performs a bitwise x & y.
 //
 // Asm: VPAND, CPU Feature: AVX
 func (x Uint16x8) And(y Uint16x8) Uint16x8
 
-// And performs a bitwise AND operation between two vectors.
+// And performs a bitwise x & y.
 //
 // Asm: VPAND, CPU Feature: AVX2
 func (x Uint16x16) And(y Uint16x16) Uint16x16
 
-// And performs a bitwise AND operation between two vectors.
+// And performs a bitwise x & y.
 //
 // Asm: VPANDD, CPU Feature: AVX512
 func (x Uint16x32) And(y Uint16x32) Uint16x32
 
-// And performs a bitwise AND operation between two vectors.
+// And performs a bitwise x & y.
 //
 // Asm: VPAND, CPU Feature: AVX
 func (x Uint32x4) And(y Uint32x4) Uint32x4
 
-// And performs a bitwise AND operation between two vectors.
+// And performs a bitwise x & y.
 //
 // Asm: VPAND, CPU Feature: AVX2
 func (x Uint32x8) And(y Uint32x8) Uint32x8
 
-// And performs a bitwise AND operation between two vectors.
+// And performs a bitwise x & y.
 //
 // Asm: VPANDD, CPU Feature: AVX512
 func (x Uint32x16) And(y Uint32x16) Uint32x16
 
-// And performs a bitwise AND operation between two vectors.
+// And performs a bitwise x & y.
 //
 // Asm: VPAND, CPU Feature: AVX
 func (x Uint64x2) And(y Uint64x2) Uint64x2
 
-// And performs a bitwise AND operation between two vectors.
+// And performs a bitwise x & y.
 //
 // Asm: VPAND, CPU Feature: AVX2
 func (x Uint64x4) And(y Uint64x4) Uint64x4
 
-// And performs a bitwise AND operation between two vectors.
+// And performs a bitwise x & y.
 //
 // Asm: VPANDQ, CPU Feature: AVX512
 func (x Uint64x8) And(y Uint64x8) Uint64x8
@@ -1023,42 +1023,42 @@ func (x Float64x4) Ceil() Float64x4
 
 // CeilScaled rounds elements up with specified precision.
 //
-// prec results in better performance when it's a constant, a non-constant value will be translated into a jump table.
+// A non-constant value of prec may result in significantly worse performance for this operation.
 //
 // Asm: VRNDSCALEPS, CPU Feature: AVX512
 func (x Float32x4) CeilScaled(prec uint8) Float32x4
 
 // CeilScaled rounds elements up with specified precision.
 //
-// prec results in better performance when it's a constant, a non-constant value will be translated into a jump table.
+// A non-constant value of prec may result in significantly worse performance for this operation.
 //
 // Asm: VRNDSCALEPS, CPU Feature: AVX512
 func (x Float32x8) CeilScaled(prec uint8) Float32x8
 
 // CeilScaled rounds elements up with specified precision.
 //
-// prec results in better performance when it's a constant, a non-constant value will be translated into a jump table.
+// A non-constant value of prec may result in significantly worse performance for this operation.
 //
 // Asm: VRNDSCALEPS, CPU Feature: AVX512
 func (x Float32x16) CeilScaled(prec uint8) Float32x16
 
 // CeilScaled rounds elements up with specified precision.
 //
-// prec results in better performance when it's a constant, a non-constant value will be translated into a jump table.
+// A non-constant value of prec may result in significantly worse performance for this operation.
 //
 // Asm: VRNDSCALEPD, CPU Feature: AVX512
 func (x Float64x2) CeilScaled(prec uint8) Float64x2
 
 // CeilScaled rounds elements up with specified precision.
 //
-// prec results in better performance when it's a constant, a non-constant value will be translated into a jump table.
+// A non-constant value of prec may result in significantly worse performance for this operation.
 //
 // Asm: VRNDSCALEPD, CPU Feature: AVX512
 func (x Float64x4) CeilScaled(prec uint8) Float64x4
 
 // CeilScaled rounds elements up with specified precision.
 //
-// prec results in better performance when it's a constant, a non-constant value will be translated into a jump table.
+// A non-constant value of prec may result in significantly worse performance for this operation.
 //
 // Asm: VRNDSCALEPD, CPU Feature: AVX512
 func (x Float64x8) CeilScaled(prec uint8) Float64x8
@@ -1067,224 +1067,224 @@ func (x Float64x8) CeilScaled(prec uint8) Float64x8
 
 // CeilScaledResidue computes the difference after ceiling with specified precision.
 //
-// prec results in better performance when it's a constant, a non-constant value will be translated into a jump table.
+// A non-constant value of prec may result in significantly worse performance for this operation.
 //
 // Asm: VREDUCEPS, CPU Feature: AVX512
 func (x Float32x4) CeilScaledResidue(prec uint8) Float32x4
 
 // CeilScaledResidue computes the difference after ceiling with specified precision.
 //
-// prec results in better performance when it's a constant, a non-constant value will be translated into a jump table.
+// A non-constant value of prec may result in significantly worse performance for this operation.
 //
 // Asm: VREDUCEPS, CPU Feature: AVX512
 func (x Float32x8) CeilScaledResidue(prec uint8) Float32x8
 
 // CeilScaledResidue computes the difference after ceiling with specified precision.
 //
-// prec results in better performance when it's a constant, a non-constant value will be translated into a jump table.
+// A non-constant value of prec may result in significantly worse performance for this operation.
 //
 // Asm: VREDUCEPS, CPU Feature: AVX512
 func (x Float32x16) CeilScaledResidue(prec uint8) Float32x16
 
 // CeilScaledResidue computes the difference after ceiling with specified precision.
 //
-// prec results in better performance when it's a constant, a non-constant value will be translated into a jump table.
+// A non-constant value of prec may result in significantly worse performance for this operation.
 //
 // Asm: VREDUCEPD, CPU Feature: AVX512
 func (x Float64x2) CeilScaledResidue(prec uint8) Float64x2
 
 // CeilScaledResidue computes the difference after ceiling with specified precision.
 //
-// prec results in better performance when it's a constant, a non-constant value will be translated into a jump table.
+// A non-constant value of prec may result in significantly worse performance for this operation.
 //
 // Asm: VREDUCEPD, CPU Feature: AVX512
 func (x Float64x4) CeilScaledResidue(prec uint8) Float64x4
 
 // CeilScaledResidue computes the difference after ceiling with specified precision.
 //
-// prec results in better performance when it's a constant, a non-constant value will be translated into a jump table.
+// A non-constant value of prec may result in significantly worse performance for this operation.
 //
 // Asm: VREDUCEPD, CPU Feature: AVX512
 func (x Float64x8) CeilScaledResidue(prec uint8) Float64x8
 
 /* Compress */
 
-// Compress performs a compression on vector x using mask by
-// selecting elements as indicated by mask, and pack them to lower indexed elements.
+// Compress packs the masked elements of x into the lower indexed elements of z,
+// zeroing any remaining elements.
 //
 // Asm: VCOMPRESSPS, CPU Feature: AVX512
 func (x Float32x4) Compress(mask Mask32x4) Float32x4
 
-// Compress performs a compression on vector x using mask by
-// selecting elements as indicated by mask, and pack them to lower indexed elements.
+// Compress packs the masked elements of x into the lower indexed elements of z,
+// zeroing any remaining elements.
 //
 // Asm: VCOMPRESSPS, CPU Feature: AVX512
 func (x Float32x8) Compress(mask Mask32x8) Float32x8
 
-// Compress performs a compression on vector x using mask by
-// selecting elements as indicated by mask, and pack them to lower indexed elements.
+// Compress packs the masked elements of x into the lower indexed elements of z,
+// zeroing any remaining elements.
 //
 // Asm: VCOMPRESSPS, CPU Feature: AVX512
 func (x Float32x16) Compress(mask Mask32x16) Float32x16
 
-// Compress performs a compression on vector x using mask by
-// selecting elements as indicated by mask, and pack them to lower indexed elements.
+// Compress packs the masked elements of x into the lower indexed elements of z,
+// zeroing any remaining elements.
 //
 // Asm: VCOMPRESSPD, CPU Feature: AVX512
 func (x Float64x2) Compress(mask Mask64x2) Float64x2
 
-// Compress performs a compression on vector x using mask by
-// selecting elements as indicated by mask, and pack them to lower indexed elements.
+// Compress packs the masked elements of x into the lower indexed elements of z,
+// zeroing any remaining elements.
 //
 // Asm: VCOMPRESSPD, CPU Feature: AVX512
 func (x Float64x4) Compress(mask Mask64x4) Float64x4
 
-// Compress performs a compression on vector x using mask by
-// selecting elements as indicated by mask, and pack them to lower indexed elements.
+// Compress packs the masked elements of x into the lower indexed elements of z,
+// zeroing any remaining elements.
 //
 // Asm: VCOMPRESSPD, CPU Feature: AVX512
 func (x Float64x8) Compress(mask Mask64x8) Float64x8
 
-// Compress performs a compression on vector x using mask by
-// selecting elements as indicated by mask, and pack them to lower indexed elements.
+// Compress packs the masked elements of x into the lower indexed elements of z,
+// zeroing any remaining elements.
 //
 // Asm: VPCOMPRESSB, CPU Feature: AVX512VBMI2
 func (x Int8x16) Compress(mask Mask8x16) Int8x16
 
-// Compress performs a compression on vector x using mask by
-// selecting elements as indicated by mask, and pack them to lower indexed elements.
+// Compress packs the masked elements of x into the lower indexed elements of z,
+// zeroing any remaining elements.
 //
 // Asm: VPCOMPRESSB, CPU Feature: AVX512VBMI2
 func (x Int8x32) Compress(mask Mask8x32) Int8x32
 
-// Compress performs a compression on vector x using mask by
-// selecting elements as indicated by mask, and pack them to lower indexed elements.
+// Compress packs the masked elements of x into the lower indexed elements of z,
+// zeroing any remaining elements.
 //
 // Asm: VPCOMPRESSB, CPU Feature: AVX512VBMI2
 func (x Int8x64) Compress(mask Mask8x64) Int8x64
 
-// Compress performs a compression on vector x using mask by
-// selecting elements as indicated by mask, and pack them to lower indexed elements.
+// Compress packs the masked elements of x into the lower indexed elements of z,
+// zeroing any remaining elements.
 //
 // Asm: VPCOMPRESSW, CPU Feature: AVX512VBMI2
 func (x Int16x8) Compress(mask Mask16x8) Int16x8
 
-// Compress performs a compression on vector x using mask by
-// selecting elements as indicated by mask, and pack them to lower indexed elements.
+// Compress packs the masked elements of x into the lower indexed elements of z,
+// zeroing any remaining elements.
 //
 // Asm: VPCOMPRESSW, CPU Feature: AVX512VBMI2
 func (x Int16x16) Compress(mask Mask16x16) Int16x16
 
-// Compress performs a compression on vector x using mask by
-// selecting elements as indicated by mask, and pack them to lower indexed elements.
+// Compress packs the masked elements of x into the lower indexed elements of z,
+// zeroing any remaining elements.
 //
 // Asm: VPCOMPRESSW, CPU Feature: AVX512VBMI2
 func (x Int16x32) Compress(mask Mask16x32) Int16x32
 
-// Compress performs a compression on vector x using mask by
-// selecting elements as indicated by mask, and pack them to lower indexed elements.
+// Compress packs the masked elements of x into the lower indexed elements of z,
+// zeroing any remaining elements.
 //
 // Asm: VPCOMPRESSD, CPU Feature: AVX512
 func (x Int32x4) Compress(mask Mask32x4) Int32x4
 
-// Compress performs a compression on vector x using mask by
-// selecting elements as indicated by mask, and pack them to lower indexed elements.
+// Compress packs the masked elements of x into the lower indexed elements of z,
+// zeroing any remaining elements.
 //
 // Asm: VPCOMPRESSD, CPU Feature: AVX512
 func (x Int32x8) Compress(mask Mask32x8) Int32x8
 
-// Compress performs a compression on vector x using mask by
-// selecting elements as indicated by mask, and pack them to lower indexed elements.
+// Compress packs the masked elements of x into the lower indexed elements of z,
+// zeroing any remaining elements.
 //
 // Asm: VPCOMPRESSD, CPU Feature: AVX512
 func (x Int32x16) Compress(mask Mask32x16) Int32x16
 
-// Compress performs a compression on vector x using mask by
-// selecting elements as indicated by mask, and pack them to lower indexed elements.
+// Compress packs the masked elements of x into the lower indexed elements of z,
+// zeroing any remaining elements.
 //
 // Asm: VPCOMPRESSQ, CPU Feature: AVX512
 func (x Int64x2) Compress(mask Mask64x2) Int64x2
 
-// Compress performs a compression on vector x using mask by
-// selecting elements as indicated by mask, and pack them to lower indexed elements.
+// Compress packs the masked elements of x into the lower indexed elements of z,
+// zeroing any remaining elements.
 //
 // Asm: VPCOMPRESSQ, CPU Feature: AVX512
 func (x Int64x4) Compress(mask Mask64x4) Int64x4
 
-// Compress performs a compression on vector x using mask by
-// selecting elements as indicated by mask, and pack them to lower indexed elements.
+// Compress packs the masked elements of x into the lower indexed elements of z,
+// zeroing any remaining elements.
 //
 // Asm: VPCOMPRESSQ, CPU Feature: AVX512
 func (x Int64x8) Compress(mask Mask64x8) Int64x8
 
-// Compress performs a compression on vector x using mask by
-// selecting elements as indicated by mask, and pack them to lower indexed elements.
+// Compress packs the masked elements of x into the lower indexed elements of z,
+// zeroing any remaining elements.
 //
 // Asm: VPCOMPRESSB, CPU Feature: AVX512VBMI2
 func (x Uint8x16) Compress(mask Mask8x16) Uint8x16
 
-// Compress performs a compression on vector x using mask by
-// selecting elements as indicated by mask, and pack them to lower indexed elements.
+// Compress packs the masked elements of x into the lower indexed elements of z,
+// zeroing any remaining elements.
 //
 // Asm: VPCOMPRESSB, CPU Feature: AVX512VBMI2
 func (x Uint8x32) Compress(mask Mask8x32) Uint8x32
 
-// Compress performs a compression on vector x using mask by
-// selecting elements as indicated by mask, and pack them to lower indexed elements.
+// Compress packs the masked elements of x into the lower indexed elements of z,
+// zeroing any remaining elements.
 //
 // Asm: VPCOMPRESSB, CPU Feature: AVX512VBMI2
 func (x Uint8x64) Compress(mask Mask8x64) Uint8x64
 
-// Compress performs a compression on vector x using mask by
-// selecting elements as indicated by mask, and pack them to lower indexed elements.
+// Compress packs the masked elements of x into the lower indexed elements of z,
+// zeroing any remaining elements.
 //
 // Asm: VPCOMPRESSW, CPU Feature: AVX512VBMI2
 func (x Uint16x8) Compress(mask Mask16x8) Uint16x8
 
-// Compress performs a compression on vector x using mask by
-// selecting elements as indicated by mask, and pack them to lower indexed elements.
+// Compress packs the masked elements of x into the lower indexed elements of z,
+// zeroing any remaining elements.
 //
 // Asm: VPCOMPRESSW, CPU Feature: AVX512VBMI2
 func (x Uint16x16) Compress(mask Mask16x16) Uint16x16
 
-// Compress performs a compression on vector x using mask by
-// selecting elements as indicated by mask, and pack them to lower indexed elements.
+// Compress packs the masked elements of x into the lower indexed elements of z,
+// zeroing any remaining elements.
 //
 // Asm: VPCOMPRESSW, CPU Feature: AVX512VBMI2
 func (x Uint16x32) Compress(mask Mask16x32) Uint16x32
 
-// Compress performs a compression on vector x using mask by
-// selecting elements as indicated by mask, and pack them to lower indexed elements.
+// Compress packs the masked elements of x into the lower indexed elements of z,
+// zeroing any remaining elements.
 //
 // Asm: VPCOMPRESSD, CPU Feature: AVX512
 func (x Uint32x4) Compress(mask Mask32x4) Uint32x4
 
-// Compress performs a compression on vector x using mask by
-// selecting elements as indicated by mask, and pack them to lower indexed elements.
+// Compress packs the masked elements of x into the lower indexed elements of z,
+// zeroing any remaining elements.
 //
 // Asm: VPCOMPRESSD, CPU Feature: AVX512
 func (x Uint32x8) Compress(mask Mask32x8) Uint32x8
 
-// Compress performs a compression on vector x using mask by
-// selecting elements as indicated by mask, and pack them to lower indexed elements.
+// Compress packs the masked elements of x into the lower indexed elements of z,
+// zeroing any remaining elements.
 //
 // Asm: VPCOMPRESSD, CPU Feature: AVX512
 func (x Uint32x16) Compress(mask Mask32x16) Uint32x16
 
-// Compress performs a compression on vector x using mask by
-// selecting elements as indicated by mask, and pack them to lower indexed elements.
+// Compress packs the masked elements of x into the lower indexed elements of z,
+// zeroing any remaining elements.
 //
 // Asm: VPCOMPRESSQ, CPU Feature: AVX512
 func (x Uint64x2) Compress(mask Mask64x2) Uint64x2
 
-// Compress performs a compression on vector x using mask by
-// selecting elements as indicated by mask, and pack them to lower indexed elements.
+// Compress packs the masked elements of x into the lower indexed elements of z,
+// zeroing any remaining elements.
 //
 // Asm: VPCOMPRESSQ, CPU Feature: AVX512
 func (x Uint64x4) Compress(mask Mask64x4) Uint64x4
 
-// Compress performs a compression on vector x using mask by
-// selecting elements as indicated by mask, and pack them to lower indexed elements.
+// Compress packs the masked elements of x into the lower indexed elements of z,
+// zeroing any remaining elements.
 //
 // Asm: VPCOMPRESSQ, CPU Feature: AVX512
 func (x Uint64x8) Compress(mask Mask64x8) Uint64x8
@@ -1593,30 +1593,30 @@ func (x Uint64x8) ConcatPermute(y Uint64x8, indices Uint64x8) Uint64x8
 
 /* ConcatShiftBytesRight */
 
-// ConcatShiftBytesRight concatenates x and y and shift it right by shift bytes.
+// ConcatShiftBytesRight concatenates x and y and shifts it right by shift bytes.
 // The result vector will be the lower half of the concatenated vector.
 //
-// shift results in better performance when it's a constant, a non-constant value will be translated into a jump table.
+// A non-constant value of shift may result in significantly worse performance for this operation.
 //
 // Asm: VPALIGNR, CPU Feature: AVX
 func (x Uint8x16) ConcatShiftBytesRight(shift uint8, y Uint8x16) Uint8x16
 
 /* ConcatShiftBytesRightGrouped */
 
-// ConcatShiftBytesRightGrouped concatenates x and y and shift it right by shift bytes.
+// ConcatShiftBytesRightGrouped concatenates x and y and shifts it right by shift bytes.
 // The result vector will be the lower half of the concatenated vector.
 // This operation is performed grouped by each 16 byte.
 //
-// shift results in better performance when it's a constant, a non-constant value will be translated into a jump table.
+// A non-constant value of shift may result in significantly worse performance for this operation.
 //
 // Asm: VPALIGNR, CPU Feature: AVX2
 func (x Uint8x32) ConcatShiftBytesRightGrouped(shift uint8, y Uint8x32) Uint8x32
 
-// ConcatShiftBytesRightGrouped concatenates x and y and shift it right by shift bytes.
+// ConcatShiftBytesRightGrouped concatenates x and y and shifts it right by shift bytes.
 // The result vector will be the lower half of the concatenated vector.
 // This operation is performed grouped by each 16 byte.
 //
-// shift results in better performance when it's a constant, a non-constant value will be translated into a jump table.
+// A non-constant value of shift may result in significantly worse performance for this operation.
 //
 // Asm: VPALIGNR, CPU Feature: AVX512
 func (x Uint8x64) ConcatShiftBytesRightGrouped(shift uint8, y Uint8x64) Uint8x64
@@ -1987,32 +1987,32 @@ func (x Int32x8) CopySign(y Int32x8) Int32x8
 
 /* Div */
 
-// Div divides elements of two vectors.
+// Div divides elements of two vectors. Division by zero follows IEEE 754 and does not panic.
 //
 // Asm: VDIVPS, CPU Feature: AVX
 func (x Float32x4) Div(y Float32x4) Float32x4
 
-// Div divides elements of two vectors.
+// Div divides elements of two vectors. Division by zero follows IEEE 754 and does not panic.
 //
 // Asm: VDIVPS, CPU Feature: AVX
 func (x Float32x8) Div(y Float32x8) Float32x8
 
-// Div divides elements of two vectors.
+// Div divides elements of two vectors. Division by zero follows IEEE 754 and does not panic.
 //
 // Asm: VDIVPS, CPU Feature: AVX512
 func (x Float32x16) Div(y Float32x16) Float32x16
 
-// Div divides elements of two vectors.
+// Div divides elements of two vectors. Division by zero follows IEEE 754 and does not panic.
 //
 // Asm: VDIVPD, CPU Feature: AVX
 func (x Float64x2) Div(y Float64x2) Float64x2
 
-// Div divides elements of two vectors.
+// Div divides elements of two vectors. Division by zero follows IEEE 754 and does not panic.
 //
 // Asm: VDIVPD, CPU Feature: AVX
 func (x Float64x4) Div(y Float64x4) Float64x4
 
-// Div divides elements of two vectors.
+// Div divides elements of two vectors. Division by zero follows IEEE 754 and does not panic.
 //
 // Asm: VDIVPD, CPU Feature: AVX512
 func (x Float64x8) Div(y Float64x8) Float64x8
@@ -2211,182 +2211,152 @@ func (x Float64x8) Equal(y Float64x8) Mask64x8
 
 /* Expand */
 
-// Expand performs an expansion on a vector x whose elements are packed to lower parts.
-// The expansion is to distribute elements as indexed by mask, from lower mask elements to upper in order.
+// Expand expands the lower elements of x into the masked elements of z.
 //
 // Asm: VEXPANDPS, CPU Feature: AVX512
 func (x Float32x4) Expand(mask Mask32x4) Float32x4
 
-// Expand performs an expansion on a vector x whose elements are packed to lower parts.
-// The expansion is to distribute elements as indexed by mask, from lower mask elements to upper in order.
+// Expand expands the lower elements of x into the masked elements of z.
 //
 // Asm: VEXPANDPS, CPU Feature: AVX512
 func (x Float32x8) Expand(mask Mask32x8) Float32x8
 
-// Expand performs an expansion on a vector x whose elements are packed to lower parts.
-// The expansion is to distribute elements as indexed by mask, from lower mask elements to upper in order.
+// Expand expands the lower elements of x into the masked elements of z.
 //
 // Asm: VEXPANDPS, CPU Feature: AVX512
 func (x Float32x16) Expand(mask Mask32x16) Float32x16
 
-// Expand performs an expansion on a vector x whose elements are packed to lower parts.
-// The expansion is to distribute elements as indexed by mask, from lower mask elements to upper in order.
+// Expand expands the lower elements of x into the masked elements of z.
 //
 // Asm: VEXPANDPD, CPU Feature: AVX512
 func (x Float64x2) Expand(mask Mask64x2) Float64x2
 
-// Expand performs an expansion on a vector x whose elements are packed to lower parts.
-// The expansion is to distribute elements as indexed by mask, from lower mask elements to upper in order.
+// Expand expands the lower elements of x into the masked elements of z.
 //
 // Asm: VEXPANDPD, CPU Feature: AVX512
 func (x Float64x4) Expand(mask Mask64x4) Float64x4
 
-// Expand performs an expansion on a vector x whose elements are packed to lower parts.
-// The expansion is to distribute elements as indexed by mask, from lower mask elements to upper in order.
+// Expand expands the lower elements of x into the masked elements of z.
 //
 // Asm: VEXPANDPD, CPU Feature: AVX512
 func (x Float64x8) Expand(mask Mask64x8) Float64x8
 
-// Expand performs an expansion on a vector x whose elements are packed to lower parts.
-// The expansion is to distribute elements as indexed by mask, from lower mask elements to upper in order.
+// Expand expands the lower elements of x into the masked elements of z.
 //
 // Asm: VPEXPANDB, CPU Feature: AVX512VBMI2
 func (x Int8x16) Expand(mask Mask8x16) Int8x16
 
-// Expand performs an expansion on a vector x whose elements are packed to lower parts.
-// The expansion is to distribute elements as indexed by mask, from lower mask elements to upper in order.
+// Expand expands the lower elements of x into the masked elements of z.
 //
 // Asm: VPEXPANDB, CPU Feature: AVX512VBMI2
 func (x Int8x32) Expand(mask Mask8x32) Int8x32
 
-// Expand performs an expansion on a vector x whose elements are packed to lower parts.
-// The expansion is to distribute elements as indexed by mask, from lower mask elements to upper in order.
+// Expand expands the lower elements of x into the masked elements of z.
 //
 // Asm: VPEXPANDB, CPU Feature: AVX512VBMI2
 func (x Int8x64) Expand(mask Mask8x64) Int8x64
 
-// Expand performs an expansion on a vector x whose elements are packed to lower parts.
-// The expansion is to distribute elements as indexed by mask, from lower mask elements to upper in order.
+// Expand expands the lower elements of x into the masked elements of z.
 //
 // Asm: VPEXPANDW, CPU Feature: AVX512VBMI2
 func (x Int16x8) Expand(mask Mask16x8) Int16x8
 
-// Expand performs an expansion on a vector x whose elements are packed to lower parts.
-// The expansion is to distribute elements as indexed by mask, from lower mask elements to upper in order.
+// Expand expands the lower elements of x into the masked elements of z.
 //
 // Asm: VPEXPANDW, CPU Feature: AVX512VBMI2
 func (x Int16x16) Expand(mask Mask16x16) Int16x16
 
-// Expand performs an expansion on a vector x whose elements are packed to lower parts.
-// The expansion is to distribute elements as indexed by mask, from lower mask elements to upper in order.
+// Expand expands the lower elements of x into the masked elements of z.
 //
 // Asm: VPEXPANDW, CPU Feature: AVX512VBMI2
 func (x Int16x32) Expand(mask Mask16x32) Int16x32
 
-// Expand performs an expansion on a vector x whose elements are packed to lower parts.
-// The expansion is to distribute elements as indexed by mask, from lower mask elements to upper in order.
+// Expand expands the lower elements of x into the masked elements of z.
 //
 // Asm: VPEXPANDD, CPU Feature: AVX512
 func (x Int32x4) Expand(mask Mask32x4) Int32x4
 
-// Expand performs an expansion on a vector x whose elements are packed to lower parts.
-// The expansion is to distribute elements as indexed by mask, from lower mask elements to upper in order.
+// Expand expands the lower elements of x into the masked elements of z.
 //
 // Asm: VPEXPANDD, CPU Feature: AVX512
 func (x Int32x8) Expand(mask Mask32x8) Int32x8
 
-// Expand performs an expansion on a vector x whose elements are packed to lower parts.
-// The expansion is to distribute elements as indexed by mask, from lower mask elements to upper in order.
+// Expand expands the lower elements of x into the masked elements of z.
 //
 // Asm: VPEXPANDD, CPU Feature: AVX512
 func (x Int32x16) Expand(mask Mask32x16) Int32x16
 
-// Expand performs an expansion on a vector x whose elements are packed to lower parts.
-// The expansion is to distribute elements as indexed by mask, from lower mask elements to upper in order.
+// Expand expands the lower elements of x into the masked elements of z.
 //
 // Asm: VPEXPANDQ, CPU Feature: AVX512
 func (x Int64x2) Expand(mask Mask64x2) Int64x2
 
-// Expand performs an expansion on a vector x whose elements are packed to lower parts.
-// The expansion is to distribute elements as indexed by mask, from lower mask elements to upper in order.
+// Expand expands the lower elements of x into the masked elements of z.
 //
 // Asm: VPEXPANDQ, CPU Feature: AVX512
 func (x Int64x4) Expand(mask Mask64x4) Int64x4
 
-// Expand performs an expansion on a vector x whose elements are packed to lower parts.
-// The expansion is to distribute elements as indexed by mask, from lower mask elements to upper in order.
+// Expand expands the lower elements of x into the masked elements of z.
 //
 // Asm: VPEXPANDQ, CPU Feature: AVX512
 func (x Int64x8) Expand(mask Mask64x8) Int64x8
 
-// Expand performs an expansion on a vector x whose elements are packed to lower parts.
-// The expansion is to distribute elements as indexed by mask, from lower mask elements to upper in order.
+// Expand expands the lower elements of x into the masked elements of z.
 //
 // Asm: VPEXPANDB, CPU Feature: AVX512VBMI2
 func (x Uint8x16) Expand(mask Mask8x16) Uint8x16
 
-// Expand performs an expansion on a vector x whose elements are packed to lower parts.
-// The expansion is to distribute elements as indexed by mask, from lower mask elements to upper in order.
+// Expand expands the lower elements of x into the masked elements of z.
 //
 // Asm: VPEXPANDB, CPU Feature: AVX512VBMI2
 func (x Uint8x32) Expand(mask Mask8x32) Uint8x32
 
-// Expand performs an expansion on a vector x whose elements are packed to lower parts.
-// The expansion is to distribute elements as indexed by mask, from lower mask elements to upper in order.
+// Expand expands the lower elements of x into the masked elements of z.
 //
 // Asm: VPEXPANDB, CPU Feature: AVX512VBMI2
 func (x Uint8x64) Expand(mask Mask8x64) Uint8x64
 
-// Expand performs an expansion on a vector x whose elements are packed to lower parts.
-// The expansion is to distribute elements as indexed by mask, from lower mask elements to upper in order.
+// Expand expands the lower elements of x into the masked elements of z.
 //
 // Asm: VPEXPANDW, CPU Feature: AVX512VBMI2
 func (x Uint16x8) Expand(mask Mask16x8) Uint16x8
 
-// Expand performs an expansion on a vector x whose elements are packed to lower parts.
-// The expansion is to distribute elements as indexed by mask, from lower mask elements to upper in order.
+// Expand expands the lower elements of x into the masked elements of z.
 //
 // Asm: VPEXPANDW, CPU Feature: AVX512VBMI2
 func (x Uint16x16) Expand(mask Mask16x16) Uint16x16
 
-// Expand performs an expansion on a vector x whose elements are packed to lower parts.
-// The expansion is to distribute elements as indexed by mask, from lower mask elements to upper in order.
+// Expand expands the lower elements of x into the masked elements of z.
 //
 // Asm: VPEXPANDW, CPU Feature: AVX512VBMI2
 func (x Uint16x32) Expand(mask Mask16x32) Uint16x32
 
-// Expand performs an expansion on a vector x whose elements are packed to lower parts.
-// The expansion is to distribute elements as indexed by mask, from lower mask elements to upper in order.
+// Expand expands the lower elements of x into the masked elements of z.
 //
 // Asm: VPEXPANDD, CPU Feature: AVX512
 func (x Uint32x4) Expand(mask Mask32x4) Uint32x4
 
-// Expand performs an expansion on a vector x whose elements are packed to lower parts.
-// The expansion is to distribute elements as indexed by mask, from lower mask elements to upper in order.
+// Expand expands the lower elements of x into the masked elements of z.
 //
 // Asm: VPEXPANDD, CPU Feature: AVX512
 func (x Uint32x8) Expand(mask Mask32x8) Uint32x8
 
-// Expand performs an expansion on a vector x whose elements are packed to lower parts.
-// The expansion is to distribute elements as indexed by mask, from lower mask elements to upper in order.
+// Expand expands the lower elements of x into the masked elements of z.
 //
 // Asm: VPEXPANDD, CPU Feature: AVX512
 func (x Uint32x16) Expand(mask Mask32x16) Uint32x16
 
-// Expand performs an expansion on a vector x whose elements are packed to lower parts.
-// The expansion is to distribute elements as indexed by mask, from lower mask elements to upper in order.
+// Expand expands the lower elements of x into the masked elements of z.
 //
 // Asm: VPEXPANDQ, CPU Feature: AVX512
 func (x Uint64x2) Expand(mask Mask64x2) Uint64x2
 
-// Expand performs an expansion on a vector x whose elements are packed to lower parts.
-// The expansion is to distribute elements as indexed by mask, from lower mask elements to upper in order.
+// Expand expands the lower elements of x into the masked elements of z.
 //
 // Asm: VPEXPANDQ, CPU Feature: AVX512
 func (x Uint64x4) Expand(mask Mask64x4) Uint64x4
 
-// Expand performs an expansion on a vector x whose elements are packed to lower parts.
-// The expansion is to distribute elements as indexed by mask, from lower mask elements to upper in order.
+// Expand expands the lower elements of x into the masked elements of z.
 //
 // Asm: VPEXPANDQ, CPU Feature: AVX512
 func (x Uint64x8) Expand(mask Mask64x8) Uint64x8
@@ -2633,42 +2603,42 @@ func (x Float64x4) Floor() Float64x4
 
 // FloorScaled rounds elements down with specified precision.
 //
-// prec results in better performance when it's a constant, a non-constant value will be translated into a jump table.
+// A non-constant value of prec may result in significantly worse performance for this operation.
 //
 // Asm: VRNDSCALEPS, CPU Feature: AVX512
 func (x Float32x4) FloorScaled(prec uint8) Float32x4
 
 // FloorScaled rounds elements down with specified precision.
 //
-// prec results in better performance when it's a constant, a non-constant value will be translated into a jump table.
+// A non-constant value of prec may result in significantly worse performance for this operation.
 //
 // Asm: VRNDSCALEPS, CPU Feature: AVX512
 func (x Float32x8) FloorScaled(prec uint8) Float32x8
 
 // FloorScaled rounds elements down with specified precision.
 //
-// prec results in better performance when it's a constant, a non-constant value will be translated into a jump table.
+// A non-constant value of prec may result in significantly worse performance for this operation.
 //
 // Asm: VRNDSCALEPS, CPU Feature: AVX512
 func (x Float32x16) FloorScaled(prec uint8) Float32x16
 
 // FloorScaled rounds elements down with specified precision.
 //
-// prec results in better performance when it's a constant, a non-constant value will be translated into a jump table.
+// A non-constant value of prec may result in significantly worse performance for this operation.
 //
 // Asm: VRNDSCALEPD, CPU Feature: AVX512
 func (x Float64x2) FloorScaled(prec uint8) Float64x2
 
 // FloorScaled rounds elements down with specified precision.
 //
-// prec results in better performance when it's a constant, a non-constant value will be translated into a jump table.
+// A non-constant value of prec may result in significantly worse performance for this operation.
 //
 // Asm: VRNDSCALEPD, CPU Feature: AVX512
 func (x Float64x4) FloorScaled(prec uint8) Float64x4
 
 // FloorScaled rounds elements down with specified precision.
 //
-// prec results in better performance when it's a constant, a non-constant value will be translated into a jump table.
+// A non-constant value of prec may result in significantly worse performance for this operation.
 //
 // Asm: VRNDSCALEPD, CPU Feature: AVX512
 func (x Float64x8) FloorScaled(prec uint8) Float64x8
@@ -2677,201 +2647,207 @@ func (x Float64x8) FloorScaled(prec uint8) Float64x8
 
 // FloorScaledResidue computes the difference after flooring with specified precision.
 //
-// prec results in better performance when it's a constant, a non-constant value will be translated into a jump table.
+// A non-constant value of prec may result in significantly worse performance for this operation.
 //
 // Asm: VREDUCEPS, CPU Feature: AVX512
 func (x Float32x4) FloorScaledResidue(prec uint8) Float32x4
 
 // FloorScaledResidue computes the difference after flooring with specified precision.
 //
-// prec results in better performance when it's a constant, a non-constant value will be translated into a jump table.
+// A non-constant value of prec may result in significantly worse performance for this operation.
 //
 // Asm: VREDUCEPS, CPU Feature: AVX512
 func (x Float32x8) FloorScaledResidue(prec uint8) Float32x8
 
 // FloorScaledResidue computes the difference after flooring with specified precision.
 //
-// prec results in better performance when it's a constant, a non-constant value will be translated into a jump table.
+// A non-constant value of prec may result in significantly worse performance for this operation.
 //
 // Asm: VREDUCEPS, CPU Feature: AVX512
 func (x Float32x16) FloorScaledResidue(prec uint8) Float32x16
 
 // FloorScaledResidue computes the difference after flooring with specified precision.
 //
-// prec results in better performance when it's a constant, a non-constant value will be translated into a jump table.
+// A non-constant value of prec may result in significantly worse performance for this operation.
 //
 // Asm: VREDUCEPD, CPU Feature: AVX512
 func (x Float64x2) FloorScaledResidue(prec uint8) Float64x2
 
 // FloorScaledResidue computes the difference after flooring with specified precision.
 //
-// prec results in better performance when it's a constant, a non-constant value will be translated into a jump table.
+// A non-constant value of prec may result in significantly worse performance for this operation.
 //
 // Asm: VREDUCEPD, CPU Feature: AVX512
 func (x Float64x4) FloorScaledResidue(prec uint8) Float64x4
 
 // FloorScaledResidue computes the difference after flooring with specified precision.
 //
-// prec results in better performance when it's a constant, a non-constant value will be translated into a jump table.
+// A non-constant value of prec may result in significantly worse performance for this operation.
 //
 // Asm: VREDUCEPD, CPU Feature: AVX512
 func (x Float64x8) FloorScaledResidue(prec uint8) Float64x8
 
 /* GaloisFieldAffineTransform */
 
-// GaloisFieldAffineTransform computes an affine transformation in GF(2^8):
-// x is a vector of 8-bit vectors, with each adjacent 8 as a group; y is a vector of 8x8 1-bit matrixes;
-// b is an 8-bit vector. The affine transformation is y * x + b, with each element of y
-// corresponding to a group of 8 elements in x.
+// GaloisFieldAffineTransform returns the affine transformation A * x + b in GF(2^8).
+// Each element of A is interpreted as an 8x8 matrix of bits.
+// Each element of x is interpreted as an 8-element vector of bits.
+// The b argument is likewise an 8-element vector of bits.
+// The result is z[i] = A[i/8] * x[i] + b, where * and + are performed in GF2.
 //
-// b results in better performance when it's a constant, a non-constant value will be translated into a jump table.
+// A non-constant value of b may result in significantly worse performance for this operation.
 //
 // Asm: VGF2P8AFFINEQB, CPU Feature: AVX512GFNI
-func (x Uint8x16) GaloisFieldAffineTransform(y Uint64x2, b uint8) Uint8x16
+func (x Uint8x16) GaloisFieldAffineTransform(A Uint64x2, b uint8) Uint8x16
 
-// GaloisFieldAffineTransform computes an affine transformation in GF(2^8):
-// x is a vector of 8-bit vectors, with each adjacent 8 as a group; y is a vector of 8x8 1-bit matrixes;
-// b is an 8-bit vector. The affine transformation is y * x + b, with each element of y
-// corresponding to a group of 8 elements in x.
+// GaloisFieldAffineTransform returns the affine transformation A * x + b in GF(2^8).
+// Each element of A is interpreted as an 8x8 matrix of bits.
+// Each element of x is interpreted as an 8-element vector of bits.
+// The b argument is likewise an 8-element vector of bits.
+// The result is z[i] = A[i/8] * x[i] + b, where * and + are performed in GF2.
 //
-// b results in better performance when it's a constant, a non-constant value will be translated into a jump table.
+// A non-constant value of b may result in significantly worse performance for this operation.
 //
 // Asm: VGF2P8AFFINEQB, CPU Feature: AVX512GFNI
-func (x Uint8x32) GaloisFieldAffineTransform(y Uint64x4, b uint8) Uint8x32
+func (x Uint8x32) GaloisFieldAffineTransform(A Uint64x4, b uint8) Uint8x32
 
-// GaloisFieldAffineTransform computes an affine transformation in GF(2^8):
-// x is a vector of 8-bit vectors, with each adjacent 8 as a group; y is a vector of 8x8 1-bit matrixes;
-// b is an 8-bit vector. The affine transformation is y * x + b, with each element of y
-// corresponding to a group of 8 elements in x.
+// GaloisFieldAffineTransform returns the affine transformation A * x + b in GF(2^8).
+// Each element of A is interpreted as an 8x8 matrix of bits.
+// Each element of x is interpreted as an 8-element vector of bits.
+// The b argument is likewise an 8-element vector of bits.
+// The result is z[i] = A[i/8] * x[i] + b, where * and + are performed in GF2.
 //
-// b results in better performance when it's a constant, a non-constant value will be translated into a jump table.
+// A non-constant value of b may result in significantly worse performance for this operation.
 //
 // Asm: VGF2P8AFFINEQB, CPU Feature: AVX512GFNI
-func (x Uint8x64) GaloisFieldAffineTransform(y Uint64x8, b uint8) Uint8x64
+func (x Uint8x64) GaloisFieldAffineTransform(A Uint64x8, b uint8) Uint8x64
 
 /* GaloisFieldAffineTransformInverse */
 
-// GaloisFieldAffineTransformInverse computes an affine transformation in GF(2^8),
-// with x inverted with respect to reduction polynomial x^8 + x^4 + x^3 + x + 1:
-// x is a vector of 8-bit vectors, with each adjacent 8 as a group; y is a vector of 8x8 1-bit matrixes;
-// b is an 8-bit vector. The affine transformation is y * x + b, with each element of y
-// corresponding to a group of 8 elements in x.
+// GaloisFieldAffineTransformInverse returns the affine transformation A * (x⁻¹ mod P) + b in GF(2^8),
+// where the characteristic polynomial P is x^8 + x^4 + x^3 + x + 1.
+// Each element of A is interpreted as an 8x8 matrix of bits.
+// Each element of x is interpreted as an 8-element vector of bits.
+// The b argument is likewise an 8-element vector of bits.
+// The result is z[i] = A[i/8] * inv(x[i]) + b, where * and + are performed in GF2.
 //
-// b results in better performance when it's a constant, a non-constant value will be translated into a jump table.
+// A non-constant value of b may result in significantly worse performance for this operation.
 //
 // Asm: VGF2P8AFFINEINVQB, CPU Feature: AVX512GFNI
-func (x Uint8x16) GaloisFieldAffineTransformInverse(y Uint64x2, b uint8) Uint8x16
+func (x Uint8x16) GaloisFieldAffineTransformInverse(A Uint64x2, b uint8) Uint8x16
 
-// GaloisFieldAffineTransformInverse computes an affine transformation in GF(2^8),
-// with x inverted with respect to reduction polynomial x^8 + x^4 + x^3 + x + 1:
-// x is a vector of 8-bit vectors, with each adjacent 8 as a group; y is a vector of 8x8 1-bit matrixes;
-// b is an 8-bit vector. The affine transformation is y * x + b, with each element of y
-// corresponding to a group of 8 elements in x.
+// GaloisFieldAffineTransformInverse returns the affine transformation A * (x⁻¹ mod P) + b in GF(2^8),
+// where the characteristic polynomial P is x^8 + x^4 + x^3 + x + 1.
+// Each element of A is interpreted as an 8x8 matrix of bits.
+// Each element of x is interpreted as an 8-element vector of bits.
+// The b argument is likewise an 8-element vector of bits.
+// The result is z[i] = A[i/8] * inv(x[i]) + b, where * and + are performed in GF2.
 //
-// b results in better performance when it's a constant, a non-constant value will be translated into a jump table.
+// A non-constant value of b may result in significantly worse performance for this operation.
 //
 // Asm: VGF2P8AFFINEINVQB, CPU Feature: AVX512GFNI
-func (x Uint8x32) GaloisFieldAffineTransformInverse(y Uint64x4, b uint8) Uint8x32
+func (x Uint8x32) GaloisFieldAffineTransformInverse(A Uint64x4, b uint8) Uint8x32
 
-// GaloisFieldAffineTransformInverse computes an affine transformation in GF(2^8),
-// with x inverted with respect to reduction polynomial x^8 + x^4 + x^3 + x + 1:
-// x is a vector of 8-bit vectors, with each adjacent 8 as a group; y is a vector of 8x8 1-bit matrixes;
-// b is an 8-bit vector. The affine transformation is y * x + b, with each element of y
-// corresponding to a group of 8 elements in x.
+// GaloisFieldAffineTransformInverse returns the affine transformation A * (x⁻¹ mod P) + b in GF(2^8),
+// where the characteristic polynomial P is x^8 + x^4 + x^3 + x + 1.
+// Each element of A is interpreted as an 8x8 matrix of bits.
+// Each element of x is interpreted as an 8-element vector of bits.
+// The b argument is likewise an 8-element vector of bits.
+// The result is z[i] = A[i/8] * inv(x[i]) + b, where * and + are performed in GF2.
 //
-// b results in better performance when it's a constant, a non-constant value will be translated into a jump table.
+// A non-constant value of b may result in significantly worse performance for this operation.
 //
 // Asm: VGF2P8AFFINEINVQB, CPU Feature: AVX512GFNI
-func (x Uint8x64) GaloisFieldAffineTransformInverse(y Uint64x8, b uint8) Uint8x64
+func (x Uint8x64) GaloisFieldAffineTransformInverse(A Uint64x8, b uint8) Uint8x64
 
 /* GaloisFieldMul */
 
-// GaloisFieldMul computes element-wise GF(2^8) multiplication with
-// reduction polynomial x^8 + x^4 + x^3 + x + 1.
+// GaloisFieldMul returns (x * y) mod P, performed in GF(2^8),
+// where the characteristic polynomial P is x^8 + x^4 + x^3 + x + 1.
 //
 // Asm: VGF2P8MULB, CPU Feature: AVX512GFNI
 func (x Uint8x16) GaloisFieldMul(y Uint8x16) Uint8x16
 
-// GaloisFieldMul computes element-wise GF(2^8) multiplication with
-// reduction polynomial x^8 + x^4 + x^3 + x + 1.
+// GaloisFieldMul returns (x * y) mod P, performed in GF(2^8),
+// where the characteristic polynomial P is x^8 + x^4 + x^3 + x + 1.
 //
 // Asm: VGF2P8MULB, CPU Feature: AVX512GFNI
 func (x Uint8x32) GaloisFieldMul(y Uint8x32) Uint8x32
 
-// GaloisFieldMul computes element-wise GF(2^8) multiplication with
-// reduction polynomial x^8 + x^4 + x^3 + x + 1.
+// GaloisFieldMul returns (x * y) mod P, performed in GF(2^8),
+// where the characteristic polynomial P is x^8 + x^4 + x^3 + x + 1.
 //
 // Asm: VGF2P8MULB, CPU Feature: AVX512GFNI
 func (x Uint8x64) GaloisFieldMul(y Uint8x64) Uint8x64
 
 /* GetElem */
 
-// GetElem retrieves a single constant-indexed element's value.
+// GetElem returns the index'th element of x.
 //
-// index results in better performance when it's a constant, a non-constant value will be translated into a jump table.
+// A non-constant value of index may result in significantly worse performance for this operation.
 //
 // Asm: VPEXTRD, CPU Feature: AVX
 func (x Float32x4) GetElem(index uint8) float32
 
-// GetElem retrieves a single constant-indexed element's value.
+// GetElem returns the index'th element of x.
 //
-// index results in better performance when it's a constant, a non-constant value will be translated into a jump table.
+// A non-constant value of index may result in significantly worse performance for this operation.
 //
 // Asm: VPEXTRQ, CPU Feature: AVX
 func (x Float64x2) GetElem(index uint8) float64
 
-// GetElem retrieves a single constant-indexed element's value.
+// GetElem returns the index'th element of x.
 //
-// index results in better performance when it's a constant, a non-constant value will be translated into a jump table.
+// A non-constant value of index may result in significantly worse performance for this operation.
 //
 // Asm: VPEXTRB, CPU Feature: AVX
 func (x Int8x16) GetElem(index uint8) int8
 
-// GetElem retrieves a single constant-indexed element's value.
+// GetElem returns the index'th element of x.
 //
-// index results in better performance when it's a constant, a non-constant value will be translated into a jump table.
+// A non-constant value of index may result in significantly worse performance for this operation.
 //
 // Asm: VPEXTRW, CPU Feature: AVX
 func (x Int16x8) GetElem(index uint8) int16
 
-// GetElem retrieves a single constant-indexed element's value.
+// GetElem returns the index'th element of x.
 //
-// index results in better performance when it's a constant, a non-constant value will be translated into a jump table.
+// A non-constant value of index may result in significantly worse performance for this operation.
 //
 // Asm: VPEXTRD, CPU Feature: AVX
 func (x Int32x4) GetElem(index uint8) int32
 
-// GetElem retrieves a single constant-indexed element's value.
+// GetElem returns the index'th element of x.
 //
-// index results in better performance when it's a constant, a non-constant value will be translated into a jump table.
+// A non-constant value of index may result in significantly worse performance for this operation.
 //
 // Asm: VPEXTRQ, CPU Feature: AVX
 func (x Int64x2) GetElem(index uint8) int64
 
-// GetElem retrieves a single constant-indexed element's value.
+// GetElem returns the index'th element of x.
 //
-// index results in better performance when it's a constant, a non-constant value will be translated into a jump table.
+// A non-constant value of index may result in significantly worse performance for this operation.
 //
 // Asm: VPEXTRB, CPU Feature: AVX
 func (x Uint8x16) GetElem(index uint8) uint8
 
-// GetElem retrieves a single constant-indexed element's value.
+// GetElem returns the index'th element of x.
 //
-// index results in better performance when it's a constant, a non-constant value will be translated into a jump table.
+// A non-constant value of index may result in significantly worse performance for this operation.
 //
 // Asm: VPEXTRW, CPU Feature: AVX
 func (x Uint16x8) GetElem(index uint8) uint16
 
-// GetElem retrieves a single constant-indexed element's value.
+// GetElem returns the index'th element of x.
 //
-// index results in better performance when it's a constant, a non-constant value will be translated into a jump table.
+// A non-constant value of index may result in significantly worse performance for this operation.
 //
 // Asm: VPEXTRD, CPU Feature: AVX
 func (x Uint32x4) GetElem(index uint8) uint32
 
-// GetElem retrieves a single constant-indexed element's value.
+// GetElem returns the index'th element of x.
 //
-// index results in better performance when it's a constant, a non-constant value will be translated into a jump table.
+// A non-constant value of index may result in significantly worse performance for this operation.
 //
 // Asm: VPEXTRQ, CPU Feature: AVX
 func (x Uint64x2) GetElem(index uint8) uint64
@@ -3964,122 +3940,122 @@ func (x Uint64x8) Min(y Uint64x8) Uint64x8
 
 /* Mul */
 
-// Mul multiplies corresponding elements of two vectors.
+// Mul multiplies corresponding elements of two vectors, modulo 2ⁿ.
 //
 // Asm: VMULPS, CPU Feature: AVX
 func (x Float32x4) Mul(y Float32x4) Float32x4
 
-// Mul multiplies corresponding elements of two vectors.
+// Mul multiplies corresponding elements of two vectors, modulo 2ⁿ.
 //
 // Asm: VMULPS, CPU Feature: AVX
 func (x Float32x8) Mul(y Float32x8) Float32x8
 
-// Mul multiplies corresponding elements of two vectors.
+// Mul multiplies corresponding elements of two vectors, modulo 2ⁿ.
 //
 // Asm: VMULPS, CPU Feature: AVX512
 func (x Float32x16) Mul(y Float32x16) Float32x16
 
-// Mul multiplies corresponding elements of two vectors.
+// Mul multiplies corresponding elements of two vectors, modulo 2ⁿ.
 //
 // Asm: VMULPD, CPU Feature: AVX
 func (x Float64x2) Mul(y Float64x2) Float64x2
 
-// Mul multiplies corresponding elements of two vectors.
+// Mul multiplies corresponding elements of two vectors, modulo 2ⁿ.
 //
 // Asm: VMULPD, CPU Feature: AVX
 func (x Float64x4) Mul(y Float64x4) Float64x4
 
-// Mul multiplies corresponding elements of two vectors.
+// Mul multiplies corresponding elements of two vectors, modulo 2ⁿ.
 //
 // Asm: VMULPD, CPU Feature: AVX512
 func (x Float64x8) Mul(y Float64x8) Float64x8
 
-// Mul multiplies corresponding elements of two vectors.
+// Mul multiplies corresponding elements of two vectors, modulo 2ⁿ.
 //
 // Asm: VPMULLW, CPU Feature: AVX
 func (x Int16x8) Mul(y Int16x8) Int16x8
 
-// Mul multiplies corresponding elements of two vectors.
+// Mul multiplies corresponding elements of two vectors, modulo 2ⁿ.
 //
 // Asm: VPMULLW, CPU Feature: AVX2
 func (x Int16x16) Mul(y Int16x16) Int16x16
 
-// Mul multiplies corresponding elements of two vectors.
+// Mul multiplies corresponding elements of two vectors, modulo 2ⁿ.
 //
 // Asm: VPMULLW, CPU Feature: AVX512
 func (x Int16x32) Mul(y Int16x32) Int16x32
 
-// Mul multiplies corresponding elements of two vectors.
+// Mul multiplies corresponding elements of two vectors, modulo 2ⁿ.
 //
 // Asm: VPMULLD, CPU Feature: AVX
 func (x Int32x4) Mul(y Int32x4) Int32x4
 
-// Mul multiplies corresponding elements of two vectors.
+// Mul multiplies corresponding elements of two vectors, modulo 2ⁿ.
 //
 // Asm: VPMULLD, CPU Feature: AVX2
 func (x Int32x8) Mul(y Int32x8) Int32x8
 
-// Mul multiplies corresponding elements of two vectors.
+// Mul multiplies corresponding elements of two vectors, modulo 2ⁿ.
 //
 // Asm: VPMULLD, CPU Feature: AVX512
 func (x Int32x16) Mul(y Int32x16) Int32x16
 
-// Mul multiplies corresponding elements of two vectors.
+// Mul multiplies corresponding elements of two vectors, modulo 2ⁿ.
 //
 // Asm: VPMULLQ, CPU Feature: AVX512
 func (x Int64x2) Mul(y Int64x2) Int64x2
 
-// Mul multiplies corresponding elements of two vectors.
+// Mul multiplies corresponding elements of two vectors, modulo 2ⁿ.
 //
 // Asm: VPMULLQ, CPU Feature: AVX512
 func (x Int64x4) Mul(y Int64x4) Int64x4
 
-// Mul multiplies corresponding elements of two vectors.
+// Mul multiplies corresponding elements of two vectors, modulo 2ⁿ.
 //
 // Asm: VPMULLQ, CPU Feature: AVX512
 func (x Int64x8) Mul(y Int64x8) Int64x8
 
-// Mul multiplies corresponding elements of two vectors.
+// Mul multiplies corresponding elements of two vectors, modulo 2ⁿ.
 //
 // Asm: VPMULLW, CPU Feature: AVX
 func (x Uint16x8) Mul(y Uint16x8) Uint16x8
 
-// Mul multiplies corresponding elements of two vectors.
+// Mul multiplies corresponding elements of two vectors, modulo 2ⁿ.
 //
 // Asm: VPMULLW, CPU Feature: AVX2
 func (x Uint16x16) Mul(y Uint16x16) Uint16x16
 
-// Mul multiplies corresponding elements of two vectors.
+// Mul multiplies corresponding elements of two vectors, modulo 2ⁿ.
 //
 // Asm: VPMULLW, CPU Feature: AVX512
 func (x Uint16x32) Mul(y Uint16x32) Uint16x32
 
-// Mul multiplies corresponding elements of two vectors.
+// Mul multiplies corresponding elements of two vectors, modulo 2ⁿ.
 //
 // Asm: VPMULLD, CPU Feature: AVX
 func (x Uint32x4) Mul(y Uint32x4) Uint32x4
 
-// Mul multiplies corresponding elements of two vectors.
+// Mul multiplies corresponding elements of two vectors, modulo 2ⁿ.
 //
 // Asm: VPMULLD, CPU Feature: AVX2
 func (x Uint32x8) Mul(y Uint32x8) Uint32x8
 
-// Mul multiplies corresponding elements of two vectors.
+// Mul multiplies corresponding elements of two vectors, modulo 2ⁿ.
 //
 // Asm: VPMULLD, CPU Feature: AVX512
 func (x Uint32x16) Mul(y Uint32x16) Uint32x16
 
-// Mul multiplies corresponding elements of two vectors.
+// Mul multiplies corresponding elements of two vectors, modulo 2ⁿ.
 //
 // Asm: VPMULLQ, CPU Feature: AVX512
 func (x Uint64x2) Mul(y Uint64x2) Uint64x2
 
-// Mul multiplies corresponding elements of two vectors.
+// Mul multiplies corresponding elements of two vectors, modulo 2ⁿ.
 //
 // Asm: VPMULLQ, CPU Feature: AVX512
 func (x Uint64x4) Mul(y Uint64x4) Uint64x4
 
-// Mul multiplies corresponding elements of two vectors.
+// Mul multiplies corresponding elements of two vectors, modulo 2ⁿ.
 //
 // Asm: VPMULLQ, CPU Feature: AVX512
 func (x Uint64x8) Mul(y Uint64x8) Uint64x8
@@ -4434,408 +4410,366 @@ func (x Uint64x8) OnesCount() Uint64x8
 
 /* Or */
 
-// Or performs a bitwise OR operation between two vectors.
+// Or performs a bitwise x | y.
 //
 // Asm: VPOR, CPU Feature: AVX
 func (x Int8x16) Or(y Int8x16) Int8x16
 
-// Or performs a bitwise OR operation between two vectors.
+// Or performs a bitwise x | y.
 //
 // Asm: VPOR, CPU Feature: AVX2
 func (x Int8x32) Or(y Int8x32) Int8x32
 
-// Or performs a bitwise OR operation between two vectors.
+// Or performs a bitwise x | y.
 //
 // Asm: VPORD, CPU Feature: AVX512
 func (x Int8x64) Or(y Int8x64) Int8x64
 
-// Or performs a bitwise OR operation between two vectors.
+// Or performs a bitwise x | y.
 //
 // Asm: VPOR, CPU Feature: AVX
 func (x Int16x8) Or(y Int16x8) Int16x8
 
-// Or performs a bitwise OR operation between two vectors.
+// Or performs a bitwise x | y.
 //
 // Asm: VPOR, CPU Feature: AVX2
 func (x Int16x16) Or(y Int16x16) Int16x16
 
-// Or performs a bitwise OR operation between two vectors.
+// Or performs a bitwise x | y.
 //
 // Asm: VPORD, CPU Feature: AVX512
 func (x Int16x32) Or(y Int16x32) Int16x32
 
-// Or performs a bitwise OR operation between two vectors.
+// Or performs a bitwise x | y.
 //
 // Asm: VPOR, CPU Feature: AVX
 func (x Int32x4) Or(y Int32x4) Int32x4
 
-// Or performs a bitwise OR operation between two vectors.
+// Or performs a bitwise x | y.
 //
 // Asm: VPOR, CPU Feature: AVX2
 func (x Int32x8) Or(y Int32x8) Int32x8
 
-// Or performs a bitwise OR operation between two vectors.
+// Or performs a bitwise x | y.
 //
 // Asm: VPORD, CPU Feature: AVX512
 func (x Int32x16) Or(y Int32x16) Int32x16
 
-// Or performs a bitwise OR operation between two vectors.
+// Or performs a bitwise x | y.
 //
 // Asm: VPOR, CPU Feature: AVX
 func (x Int64x2) Or(y Int64x2) Int64x2
 
-// Or performs a bitwise OR operation between two vectors.
+// Or performs a bitwise x | y.
 //
 // Asm: VPOR, CPU Feature: AVX2
 func (x Int64x4) Or(y Int64x4) Int64x4
 
-// Or performs a bitwise OR operation between two vectors.
+// Or performs a bitwise x | y.
 //
 // Asm: VPORQ, CPU Feature: AVX512
 func (x Int64x8) Or(y Int64x8) Int64x8
 
-// Or performs a bitwise OR operation between two vectors.
+// Or performs a bitwise x | y.
 //
 // Asm: VPOR, CPU Feature: AVX
 func (x Uint8x16) Or(y Uint8x16) Uint8x16
 
-// Or performs a bitwise OR operation between two vectors.
+// Or performs a bitwise x | y.
 //
 // Asm: VPOR, CPU Feature: AVX2
 func (x Uint8x32) Or(y Uint8x32) Uint8x32
 
-// Or performs a bitwise OR operation between two vectors.
+// Or performs a bitwise x | y.
 //
 // Asm: VPORD, CPU Feature: AVX512
 func (x Uint8x64) Or(y Uint8x64) Uint8x64
 
-// Or performs a bitwise OR operation between two vectors.
+// Or performs a bitwise x | y.
 //
 // Asm: VPOR, CPU Feature: AVX
 func (x Uint16x8) Or(y Uint16x8) Uint16x8
 
-// Or performs a bitwise OR operation between two vectors.
+// Or performs a bitwise x | y.
 //
 // Asm: VPOR, CPU Feature: AVX2
 func (x Uint16x16) Or(y Uint16x16) Uint16x16
 
-// Or performs a bitwise OR operation between two vectors.
+// Or performs a bitwise x | y.
 //
 // Asm: VPORD, CPU Feature: AVX512
 func (x Uint16x32) Or(y Uint16x32) Uint16x32
 
-// Or performs a bitwise OR operation between two vectors.
+// Or performs a bitwise x | y.
 //
 // Asm: VPOR, CPU Feature: AVX
 func (x Uint32x4) Or(y Uint32x4) Uint32x4
 
-// Or performs a bitwise OR operation between two vectors.
+// Or performs a bitwise x | y.
 //
 // Asm: VPOR, CPU Feature: AVX2
 func (x Uint32x8) Or(y Uint32x8) Uint32x8
 
-// Or performs a bitwise OR operation between two vectors.
+// Or performs a bitwise x | y.
 //
 // Asm: VPORD, CPU Feature: AVX512
 func (x Uint32x16) Or(y Uint32x16) Uint32x16
 
-// Or performs a bitwise OR operation between two vectors.
+// Or performs a bitwise x | y.
 //
 // Asm: VPOR, CPU Feature: AVX
 func (x Uint64x2) Or(y Uint64x2) Uint64x2
 
-// Or performs a bitwise OR operation between two vectors.
+// Or performs a bitwise x | y.
 //
 // Asm: VPOR, CPU Feature: AVX2
 func (x Uint64x4) Or(y Uint64x4) Uint64x4
 
-// Or performs a bitwise OR operation between two vectors.
+// Or performs a bitwise x | y.
 //
 // Asm: VPORQ, CPU Feature: AVX512
 func (x Uint64x8) Or(y Uint64x8) Uint64x8
 
 /* Permute */
 
-// Permute performs a full permutation of vector x using indices:
+// Permute permutes x.
 //
-//	result = {x[indices[0]], x[indices[1]], ..., x[indices[n]]}
-//
-// The low 4 bits (values 0-15) of each element of indices is used.
+//	z[i] = x[indices[i] % len(x)]
 //
 // Asm: VPERMB, CPU Feature: AVX512VBMI
 func (x Int8x16) Permute(indices Uint8x16) Int8x16
 
-// Permute performs a full permutation of vector x using indices:
+// Permute permutes x.
 //
-//	result = {x[indices[0]], x[indices[1]], ..., x[indices[n]]}
-//
-// The low 4 bits (values 0-15) of each element of indices is used.
+//	z[i] = x[indices[i] % len(x)]
 //
 // Asm: VPERMB, CPU Feature: AVX512VBMI
 func (x Uint8x16) Permute(indices Uint8x16) Uint8x16
 
-// Permute performs a full permutation of vector x using indices:
+// Permute permutes x.
 //
-//	result = {x[indices[0]], x[indices[1]], ..., x[indices[n]]}
-//
-// The low 5 bits (values 0-31) of each element of indices is used.
+//	z[i] = x[indices[i] % len(x)]
 //
 // Asm: VPERMB, CPU Feature: AVX512VBMI
 func (x Int8x32) Permute(indices Uint8x32) Int8x32
 
-// Permute performs a full permutation of vector x using indices:
+// Permute permutes x.
 //
-//	result = {x[indices[0]], x[indices[1]], ..., x[indices[n]]}
-//
-// The low 5 bits (values 0-31) of each element of indices is used.
+//	z[i] = x[indices[i] % len(x)]
 //
 // Asm: VPERMB, CPU Feature: AVX512VBMI
 func (x Uint8x32) Permute(indices Uint8x32) Uint8x32
 
-// Permute performs a full permutation of vector x using indices:
+// Permute permutes x.
 //
-//	result = {x[indices[0]], x[indices[1]], ..., x[indices[n]]}
-//
-// The low 6 bits (values 0-63) of each element of indices is used.
+//	z[i] = x[indices[i] % len(x)]
 //
 // Asm: VPERMB, CPU Feature: AVX512VBMI
 func (x Int8x64) Permute(indices Uint8x64) Int8x64
 
-// Permute performs a full permutation of vector x using indices:
+// Permute permutes x.
 //
-//	result = {x[indices[0]], x[indices[1]], ..., x[indices[n]]}
-//
-// The low 6 bits (values 0-63) of each element of indices is used.
+//	z[i] = x[indices[i] % len(x)]
 //
 // Asm: VPERMB, CPU Feature: AVX512VBMI
 func (x Uint8x64) Permute(indices Uint8x64) Uint8x64
 
-// Permute performs a full permutation of vector x using indices:
+// Permute permutes x.
 //
-//	result = {x[indices[0]], x[indices[1]], ..., x[indices[n]]}
-//
-// The low 3 bits (values 0-7) of each element of indices is used.
+//	z[i] = x[indices[i] % len(x)]
 //
 // Asm: VPERMW, CPU Feature: AVX512
 func (x Int16x8) Permute(indices Uint16x8) Int16x8
 
-// Permute performs a full permutation of vector x using indices:
+// Permute permutes x.
 //
-//	result = {x[indices[0]], x[indices[1]], ..., x[indices[n]]}
-//
-// The low 3 bits (values 0-7) of each element of indices is used.
+//	z[i] = x[indices[i] % len(x)]
 //
 // Asm: VPERMW, CPU Feature: AVX512
 func (x Uint16x8) Permute(indices Uint16x8) Uint16x8
 
-// Permute performs a full permutation of vector x using indices:
+// Permute permutes x.
 //
-//	result = {x[indices[0]], x[indices[1]], ..., x[indices[n]]}
-//
-// The low 4 bits (values 0-15) of each element of indices is used.
+//	z[i] = x[indices[i] % len(x)]
 //
 // Asm: VPERMW, CPU Feature: AVX512
 func (x Int16x16) Permute(indices Uint16x16) Int16x16
 
-// Permute performs a full permutation of vector x using indices:
+// Permute permutes x.
 //
-//	result = {x[indices[0]], x[indices[1]], ..., x[indices[n]]}
-//
-// The low 4 bits (values 0-15) of each element of indices is used.
+//	z[i] = x[indices[i] % len(x)]
 //
 // Asm: VPERMW, CPU Feature: AVX512
 func (x Uint16x16) Permute(indices Uint16x16) Uint16x16
 
-// Permute performs a full permutation of vector x using indices:
+// Permute permutes x.
 //
-//	result = {x[indices[0]], x[indices[1]], ..., x[indices[n]]}
-//
-// The low 5 bits (values 0-31) of each element of indices is used.
+//	z[i] = x[indices[i] % len(x)]
 //
 // Asm: VPERMW, CPU Feature: AVX512
 func (x Int16x32) Permute(indices Uint16x32) Int16x32
 
-// Permute performs a full permutation of vector x using indices:
+// Permute permutes x.
 //
-//	result = {x[indices[0]], x[indices[1]], ..., x[indices[n]]}
-//
-// The low 5 bits (values 0-31) of each element of indices is used.
+//	z[i] = x[indices[i] % len(x)]
 //
 // Asm: VPERMW, CPU Feature: AVX512
 func (x Uint16x32) Permute(indices Uint16x32) Uint16x32
 
-// Permute performs a full permutation of vector x using indices:
+// Permute permutes x.
 //
-//	result = {x[indices[0]], x[indices[1]], ..., x[indices[n]]}
-//
-// The low 3 bits (values 0-7) of each element of indices is used.
+//	z[i] = x[indices[i] % len(x)]
 //
 // Asm: VPERMPS, CPU Feature: AVX2
 func (x Float32x8) Permute(indices Uint32x8) Float32x8
 
-// Permute performs a full permutation of vector x using indices:
+// Permute permutes x.
 //
-//	result = {x[indices[0]], x[indices[1]], ..., x[indices[n]]}
-//
-// The low 3 bits (values 0-7) of each element of indices is used.
+//	z[i] = x[indices[i] % len(x)]
 //
 // Asm: VPERMD, CPU Feature: AVX2
 func (x Int32x8) Permute(indices Uint32x8) Int32x8
 
-// Permute performs a full permutation of vector x using indices:
+// Permute permutes x.
 //
-//	result = {x[indices[0]], x[indices[1]], ..., x[indices[n]]}
-//
-// The low 3 bits (values 0-7) of each element of indices is used.
+//	z[i] = x[indices[i] % len(x)]
 //
 // Asm: VPERMD, CPU Feature: AVX2
 func (x Uint32x8) Permute(indices Uint32x8) Uint32x8
 
-// Permute performs a full permutation of vector x using indices:
+// Permute permutes x.
 //
-//	result = {x[indices[0]], x[indices[1]], ..., x[indices[n]]}
-//
-// The low 4 bits (values 0-15) of each element of indices is used.
+//	z[i] = x[indices[i] % len(x)]
 //
 // Asm: VPERMPS, CPU Feature: AVX512
 func (x Float32x16) Permute(indices Uint32x16) Float32x16
 
-// Permute performs a full permutation of vector x using indices:
+// Permute permutes x.
 //
-//	result = {x[indices[0]], x[indices[1]], ..., x[indices[n]]}
-//
-// The low 4 bits (values 0-15) of each element of indices is used.
+//	z[i] = x[indices[i] % len(x)]
 //
 // Asm: VPERMD, CPU Feature: AVX512
 func (x Int32x16) Permute(indices Uint32x16) Int32x16
 
-// Permute performs a full permutation of vector x using indices:
+// Permute permutes x.
 //
-//	result = {x[indices[0]], x[indices[1]], ..., x[indices[n]]}
-//
-// The low 4 bits (values 0-15) of each element of indices is used.
+//	z[i] = x[indices[i] % len(x)]
 //
 // Asm: VPERMD, CPU Feature: AVX512
 func (x Uint32x16) Permute(indices Uint32x16) Uint32x16
 
-// Permute performs a full permutation of vector x using indices:
+// Permute permutes x.
 //
-//	result = {x[indices[0]], x[indices[1]], ..., x[indices[n]]}
-//
-// The low 2 bits (values 0-3) of each element of indices is used.
+//	z[i] = x[indices[i] % len(x)]
 //
 // Asm: VPERMPD, CPU Feature: AVX512
 func (x Float64x4) Permute(indices Uint64x4) Float64x4
 
-// Permute performs a full permutation of vector x using indices:
+// Permute permutes x.
 //
-//	result = {x[indices[0]], x[indices[1]], ..., x[indices[n]]}
-//
-// The low 2 bits (values 0-3) of each element of indices is used.
+//	z[i] = x[indices[i] % len(x)]
 //
 // Asm: VPERMQ, CPU Feature: AVX512
 func (x Int64x4) Permute(indices Uint64x4) Int64x4
 
-// Permute performs a full permutation of vector x using indices:
+// Permute permutes x.
 //
-//	result = {x[indices[0]], x[indices[1]], ..., x[indices[n]]}
-//
-// The low 2 bits (values 0-3) of each element of indices is used.
+//	z[i] = x[indices[i] % len(x)]
 //
 // Asm: VPERMQ, CPU Feature: AVX512
 func (x Uint64x4) Permute(indices Uint64x4) Uint64x4
 
-// Permute performs a full permutation of vector x using indices:
+// Permute permutes x.
 //
-//	result = {x[indices[0]], x[indices[1]], ..., x[indices[n]]}
-//
-// The low 3 bits (values 0-7) of each element of indices is used.
+//	z[i] = x[indices[i] % len(x)]
 //
 // Asm: VPERMPD, CPU Feature: AVX512
 func (x Float64x8) Permute(indices Uint64x8) Float64x8
 
-// Permute performs a full permutation of vector x using indices:
+// Permute permutes x.
 //
-//	result = {x[indices[0]], x[indices[1]], ..., x[indices[n]]}
-//
-// The low 3 bits (values 0-7) of each element of indices is used.
+//	z[i] = x[indices[i] % len(x)]
 //
 // Asm: VPERMQ, CPU Feature: AVX512
 func (x Int64x8) Permute(indices Uint64x8) Int64x8
 
-// Permute performs a full permutation of vector x using indices:
+// Permute permutes x.
 //
-//	result = {x[indices[0]], x[indices[1]], ..., x[indices[n]]}
-//
-// The low 3 bits (values 0-7) of each element of indices is used.
+//	z[i] = x[indices[i] % len(x)]
 //
 // Asm: VPERMQ, CPU Feature: AVX512
 func (x Uint64x8) Permute(indices Uint64x8) Uint64x8
 
 /* PermuteOrZero */
 
-// PermuteOrZero performs a full permutation of vector x using indices:
+// PermuteOrZero permutes x. If an index is negative, the result is 0.
 //
-//	result = {x[indices[0]], x[indices[1]], ..., x[indices[n]]}
-//
-// The lower four bits of each byte-sized index in indices select an element from x,
-// unless the index's sign bit is set in which case zero is used instead.
+//	if indices[i] >= 0 {
+//	    z[i] = x[indices[i] % len(x)]
+//	} else {
+//	    z[i] = 0
+//	}
 //
 // Asm: VPSHUFB, CPU Feature: AVX
 func (x Int8x16) PermuteOrZero(indices Int8x16) Int8x16
 
-// PermuteOrZero performs a full permutation of vector x using indices:
+// PermuteOrZero permutes x. If an index is negative, the result is 0.
 //
-//	result = {x[indices[0]], x[indices[1]], ..., x[indices[n]]}
-//
-// The lower four bits of each byte-sized index in indices select an element from x,
-// unless the index's sign bit is set in which case zero is used instead.
+//	if indices[i] >= 0 {
+//	    z[i] = x[indices[i] % len(x)]
+//	} else {
+//	    z[i] = 0
+//	}
 //
 // Asm: VPSHUFB, CPU Feature: AVX
 func (x Uint8x16) PermuteOrZero(indices Int8x16) Uint8x16
 
 /* PermuteOrZeroGrouped */
 
-// PermuteOrZeroGrouped performs a grouped permutation of vector x using indices:
+// PermuteOrZeroGrouped permutes x within each 128-bit group. If an index is negative, the result is 0.
 //
-//	result = {x_group0[indices[0]], x_group0[indices[1]], ..., x_group1[indices[16]], x_group1[indices[17]], ...}
-//
-// The lower four bits of each byte-sized index in indices select an element from its corresponding group in x,
-// unless the index's sign bit is set in which case zero is used instead.
-// Each group is of size 128-bit.
+//	let vₙ be the n'th 128-bit group of vector v
+//	if indicesₙ[i] >= 0 {
+//	    zₙ[i] = xₙ[indicesₙ[i] % len(xₙ)]
+//	} else {
+//	    zₙ[i] = 0
+//	}
 //
 // Asm: VPSHUFB, CPU Feature: AVX2
 func (x Int8x32) PermuteOrZeroGrouped(indices Int8x32) Int8x32
 
-// PermuteOrZeroGrouped performs a grouped permutation of vector x using indices:
+// PermuteOrZeroGrouped permutes x within each 128-bit group. If an index is negative, the result is 0.
 //
-//	result = {x_group0[indices[0]], x_group0[indices[1]], ..., x_group1[indices[16]], x_group1[indices[17]], ...}
-//
-// The lower four bits of each byte-sized index in indices select an element from its corresponding group in x,
-// unless the index's sign bit is set in which case zero is used instead.
-// Each group is of size 128-bit.
+//	let vₙ be the n'th 128-bit group of vector v
+//	if indicesₙ[i] >= 0 {
+//	    zₙ[i] = xₙ[indicesₙ[i] % len(xₙ)]
+//	} else {
+//	    zₙ[i] = 0
+//	}
 //
 // Asm: VPSHUFB, CPU Feature: AVX512
 func (x Int8x64) PermuteOrZeroGrouped(indices Int8x64) Int8x64
 
-// PermuteOrZeroGrouped performs a grouped permutation of vector x using indices:
+// PermuteOrZeroGrouped permutes x within each 128-bit group. If an index is negative, the result is 0.
 //
-//	result = {x_group0[indices[0]], x_group0[indices[1]], ..., x_group1[indices[16]], x_group1[indices[17]], ...}
-//
-// The lower four bits of each byte-sized index in indices select an element from its corresponding group in x,
-// unless the index's sign bit is set in which case zero is used instead.
-// Each group is of size 128-bit.
+//	let vₙ be the n'th 128-bit group of vector v
+//	if indicesₙ[i] >= 0 {
+//	    zₙ[i] = xₙ[indicesₙ[i] % len(xₙ)]
+//	} else {
+//	    zₙ[i] = 0
+//	}
 //
 // Asm: VPSHUFB, CPU Feature: AVX2
 func (x Uint8x32) PermuteOrZeroGrouped(indices Int8x32) Uint8x32
 
-// PermuteOrZeroGrouped performs a grouped permutation of vector x using indices:
+// PermuteOrZeroGrouped permutes x within each 128-bit group. If an index is negative, the result is 0.
 //
-//	result = {x_group0[indices[0]], x_group0[indices[1]], ..., x_group1[indices[16]], x_group1[indices[17]], ...}
-//
-// The lower four bits of each byte-sized index in indices select an element from its corresponding group in x,
-// unless the index's sign bit is set in which case zero is used instead.
-// Each group is of size 128-bit.
+//	let vₙ be the n'th 128-bit group of vector v
+//	if indicesₙ[i] >= 0 {
+//	    zₙ[i] = xₙ[indicesₙ[i] % len(xₙ)]
+//	} else {
+//	    zₙ[i] = 0
+//	}
 //
 // Asm: VPSHUFB, CPU Feature: AVX512
 func (x Uint8x64) PermuteOrZeroGrouped(indices Int8x64) Uint8x64
@@ -4908,84 +4842,84 @@ func (x Float64x8) ReciprocalSqrt() Float64x8
 
 // RotateAllLeft rotates each element to the left by the number of bits specified by shift.
 //
-// shift results in better performance when it's a constant, a non-constant value will be translated into a jump table.
+// A non-constant value of shift may result in significantly worse performance for this operation.
 //
 // Asm: VPROLD, CPU Feature: AVX512
 func (x Int32x4) RotateAllLeft(shift uint8) Int32x4
 
 // RotateAllLeft rotates each element to the left by the number of bits specified by shift.
 //
-// shift results in better performance when it's a constant, a non-constant value will be translated into a jump table.
+// A non-constant value of shift may result in significantly worse performance for this operation.
 //
 // Asm: VPROLD, CPU Feature: AVX512
 func (x Int32x8) RotateAllLeft(shift uint8) Int32x8
 
 // RotateAllLeft rotates each element to the left by the number of bits specified by shift.
 //
-// shift results in better performance when it's a constant, a non-constant value will be translated into a jump table.
+// A non-constant value of shift may result in significantly worse performance for this operation.
 //
 // Asm: VPROLD, CPU Feature: AVX512
 func (x Int32x16) RotateAllLeft(shift uint8) Int32x16
 
 // RotateAllLeft rotates each element to the left by the number of bits specified by shift.
 //
-// shift results in better performance when it's a constant, a non-constant value will be translated into a jump table.
+// A non-constant value of shift may result in significantly worse performance for this operation.
 //
 // Asm: VPROLQ, CPU Feature: AVX512
 func (x Int64x2) RotateAllLeft(shift uint8) Int64x2
 
 // RotateAllLeft rotates each element to the left by the number of bits specified by shift.
 //
-// shift results in better performance when it's a constant, a non-constant value will be translated into a jump table.
+// A non-constant value of shift may result in significantly worse performance for this operation.
 //
 // Asm: VPROLQ, CPU Feature: AVX512
 func (x Int64x4) RotateAllLeft(shift uint8) Int64x4
 
 // RotateAllLeft rotates each element to the left by the number of bits specified by shift.
 //
-// shift results in better performance when it's a constant, a non-constant value will be translated into a jump table.
+// A non-constant value of shift may result in significantly worse performance for this operation.
 //
 // Asm: VPROLQ, CPU Feature: AVX512
 func (x Int64x8) RotateAllLeft(shift uint8) Int64x8
 
 // RotateAllLeft rotates each element to the left by the number of bits specified by shift.
 //
-// shift results in better performance when it's a constant, a non-constant value will be translated into a jump table.
+// A non-constant value of shift may result in significantly worse performance for this operation.
 //
 // Asm: VPROLD, CPU Feature: AVX512
 func (x Uint32x4) RotateAllLeft(shift uint8) Uint32x4
 
 // RotateAllLeft rotates each element to the left by the number of bits specified by shift.
 //
-// shift results in better performance when it's a constant, a non-constant value will be translated into a jump table.
+// A non-constant value of shift may result in significantly worse performance for this operation.
 //
 // Asm: VPROLD, CPU Feature: AVX512
 func (x Uint32x8) RotateAllLeft(shift uint8) Uint32x8
 
 // RotateAllLeft rotates each element to the left by the number of bits specified by shift.
 //
-// shift results in better performance when it's a constant, a non-constant value will be translated into a jump table.
+// A non-constant value of shift may result in significantly worse performance for this operation.
 //
 // Asm: VPROLD, CPU Feature: AVX512
 func (x Uint32x16) RotateAllLeft(shift uint8) Uint32x16
 
 // RotateAllLeft rotates each element to the left by the number of bits specified by shift.
 //
-// shift results in better performance when it's a constant, a non-constant value will be translated into a jump table.
+// A non-constant value of shift may result in significantly worse performance for this operation.
 //
 // Asm: VPROLQ, CPU Feature: AVX512
 func (x Uint64x2) RotateAllLeft(shift uint8) Uint64x2
 
 // RotateAllLeft rotates each element to the left by the number of bits specified by shift.
 //
-// shift results in better performance when it's a constant, a non-constant value will be translated into a jump table.
+// A non-constant value of shift may result in significantly worse performance for this operation.
 //
 // Asm: VPROLQ, CPU Feature: AVX512
 func (x Uint64x4) RotateAllLeft(shift uint8) Uint64x4
 
 // RotateAllLeft rotates each element to the left by the number of bits specified by shift.
 //
-// shift results in better performance when it's a constant, a non-constant value will be translated into a jump table.
+// A non-constant value of shift may result in significantly worse performance for this operation.
 //
 // Asm: VPROLQ, CPU Feature: AVX512
 func (x Uint64x8) RotateAllLeft(shift uint8) Uint64x8
@@ -4994,84 +4928,84 @@ func (x Uint64x8) RotateAllLeft(shift uint8) Uint64x8
 
 // RotateAllRight rotates each element to the right by the number of bits specified by shift.
 //
-// shift results in better performance when it's a constant, a non-constant value will be translated into a jump table.
+// A non-constant value of shift may result in significantly worse performance for this operation.
 //
 // Asm: VPRORD, CPU Feature: AVX512
 func (x Int32x4) RotateAllRight(shift uint8) Int32x4
 
 // RotateAllRight rotates each element to the right by the number of bits specified by shift.
 //
-// shift results in better performance when it's a constant, a non-constant value will be translated into a jump table.
+// A non-constant value of shift may result in significantly worse performance for this operation.
 //
 // Asm: VPRORD, CPU Feature: AVX512
 func (x Int32x8) RotateAllRight(shift uint8) Int32x8
 
 // RotateAllRight rotates each element to the right by the number of bits specified by shift.
 //
-// shift results in better performance when it's a constant, a non-constant value will be translated into a jump table.
+// A non-constant value of shift may result in significantly worse performance for this operation.
 //
 // Asm: VPRORD, CPU Feature: AVX512
 func (x Int32x16) RotateAllRight(shift uint8) Int32x16
 
 // RotateAllRight rotates each element to the right by the number of bits specified by shift.
 //
-// shift results in better performance when it's a constant, a non-constant value will be translated into a jump table.
+// A non-constant value of shift may result in significantly worse performance for this operation.
 //
 // Asm: VPRORQ, CPU Feature: AVX512
 func (x Int64x2) RotateAllRight(shift uint8) Int64x2
 
 // RotateAllRight rotates each element to the right by the number of bits specified by shift.
 //
-// shift results in better performance when it's a constant, a non-constant value will be translated into a jump table.
+// A non-constant value of shift may result in significantly worse performance for this operation.
 //
 // Asm: VPRORQ, CPU Feature: AVX512
 func (x Int64x4) RotateAllRight(shift uint8) Int64x4
 
 // RotateAllRight rotates each element to the right by the number of bits specified by shift.
 //
-// shift results in better performance when it's a constant, a non-constant value will be translated into a jump table.
+// A non-constant value of shift may result in significantly worse performance for this operation.
 //
 // Asm: VPRORQ, CPU Feature: AVX512
 func (x Int64x8) RotateAllRight(shift uint8) Int64x8
 
 // RotateAllRight rotates each element to the right by the number of bits specified by shift.
 //
-// shift results in better performance when it's a constant, a non-constant value will be translated into a jump table.
+// A non-constant value of shift may result in significantly worse performance for this operation.
 //
 // Asm: VPRORD, CPU Feature: AVX512
 func (x Uint32x4) RotateAllRight(shift uint8) Uint32x4
 
 // RotateAllRight rotates each element to the right by the number of bits specified by shift.
 //
-// shift results in better performance when it's a constant, a non-constant value will be translated into a jump table.
+// A non-constant value of shift may result in significantly worse performance for this operation.
 //
 // Asm: VPRORD, CPU Feature: AVX512
 func (x Uint32x8) RotateAllRight(shift uint8) Uint32x8
 
 // RotateAllRight rotates each element to the right by the number of bits specified by shift.
 //
-// shift results in better performance when it's a constant, a non-constant value will be translated into a jump table.
+// A non-constant value of shift may result in significantly worse performance for this operation.
 //
 // Asm: VPRORD, CPU Feature: AVX512
 func (x Uint32x16) RotateAllRight(shift uint8) Uint32x16
 
 // RotateAllRight rotates each element to the right by the number of bits specified by shift.
 //
-// shift results in better performance when it's a constant, a non-constant value will be translated into a jump table.
+// A non-constant value of shift may result in significantly worse performance for this operation.
 //
 // Asm: VPRORQ, CPU Feature: AVX512
 func (x Uint64x2) RotateAllRight(shift uint8) Uint64x2
 
 // RotateAllRight rotates each element to the right by the number of bits specified by shift.
 //
-// shift results in better performance when it's a constant, a non-constant value will be translated into a jump table.
+// A non-constant value of shift may result in significantly worse performance for this operation.
 //
 // Asm: VPRORQ, CPU Feature: AVX512
 func (x Uint64x4) RotateAllRight(shift uint8) Uint64x4
 
 // RotateAllRight rotates each element to the right by the number of bits specified by shift.
 //
-// shift results in better performance when it's a constant, a non-constant value will be translated into a jump table.
+// A non-constant value of shift may result in significantly worse performance for this operation.
 //
 // Asm: VPRORQ, CPU Feature: AVX512
 func (x Uint64x8) RotateAllRight(shift uint8) Uint64x8
@@ -5226,42 +5160,42 @@ func (x Float64x4) RoundToEven() Float64x4
 
 // RoundToEvenScaled rounds elements with specified precision.
 //
-// prec results in better performance when it's a constant, a non-constant value will be translated into a jump table.
+// A non-constant value of prec may result in significantly worse performance for this operation.
 //
 // Asm: VRNDSCALEPS, CPU Feature: AVX512
 func (x Float32x4) RoundToEvenScaled(prec uint8) Float32x4
 
 // RoundToEvenScaled rounds elements with specified precision.
 //
-// prec results in better performance when it's a constant, a non-constant value will be translated into a jump table.
+// A non-constant value of prec may result in significantly worse performance for this operation.
 //
 // Asm: VRNDSCALEPS, CPU Feature: AVX512
 func (x Float32x8) RoundToEvenScaled(prec uint8) Float32x8
 
 // RoundToEvenScaled rounds elements with specified precision.
 //
-// prec results in better performance when it's a constant, a non-constant value will be translated into a jump table.
+// A non-constant value of prec may result in significantly worse performance for this operation.
 //
 // Asm: VRNDSCALEPS, CPU Feature: AVX512
 func (x Float32x16) RoundToEvenScaled(prec uint8) Float32x16
 
 // RoundToEvenScaled rounds elements with specified precision.
 //
-// prec results in better performance when it's a constant, a non-constant value will be translated into a jump table.
+// A non-constant value of prec may result in significantly worse performance for this operation.
 //
 // Asm: VRNDSCALEPD, CPU Feature: AVX512
 func (x Float64x2) RoundToEvenScaled(prec uint8) Float64x2
 
 // RoundToEvenScaled rounds elements with specified precision.
 //
-// prec results in better performance when it's a constant, a non-constant value will be translated into a jump table.
+// A non-constant value of prec may result in significantly worse performance for this operation.
 //
 // Asm: VRNDSCALEPD, CPU Feature: AVX512
 func (x Float64x4) RoundToEvenScaled(prec uint8) Float64x4
 
 // RoundToEvenScaled rounds elements with specified precision.
 //
-// prec results in better performance when it's a constant, a non-constant value will be translated into a jump table.
+// A non-constant value of prec may result in significantly worse performance for this operation.
 //
 // Asm: VRNDSCALEPD, CPU Feature: AVX512
 func (x Float64x8) RoundToEvenScaled(prec uint8) Float64x8
@@ -5270,42 +5204,42 @@ func (x Float64x8) RoundToEvenScaled(prec uint8) Float64x8
 
 // RoundToEvenScaledResidue computes the difference after rounding with specified precision.
 //
-// prec results in better performance when it's a constant, a non-constant value will be translated into a jump table.
+// A non-constant value of prec may result in significantly worse performance for this operation.
 //
 // Asm: VREDUCEPS, CPU Feature: AVX512
 func (x Float32x4) RoundToEvenScaledResidue(prec uint8) Float32x4
 
 // RoundToEvenScaledResidue computes the difference after rounding with specified precision.
 //
-// prec results in better performance when it's a constant, a non-constant value will be translated into a jump table.
+// A non-constant value of prec may result in significantly worse performance for this operation.
 //
 // Asm: VREDUCEPS, CPU Feature: AVX512
 func (x Float32x8) RoundToEvenScaledResidue(prec uint8) Float32x8
 
 // RoundToEvenScaledResidue computes the difference after rounding with specified precision.
 //
-// prec results in better performance when it's a constant, a non-constant value will be translated into a jump table.
+// A non-constant value of prec may result in significantly worse performance for this operation.
 //
 // Asm: VREDUCEPS, CPU Feature: AVX512
 func (x Float32x16) RoundToEvenScaledResidue(prec uint8) Float32x16
 
 // RoundToEvenScaledResidue computes the difference after rounding with specified precision.
 //
-// prec results in better performance when it's a constant, a non-constant value will be translated into a jump table.
+// A non-constant value of prec may result in significantly worse performance for this operation.
 //
 // Asm: VREDUCEPD, CPU Feature: AVX512
 func (x Float64x2) RoundToEvenScaledResidue(prec uint8) Float64x2
 
 // RoundToEvenScaledResidue computes the difference after rounding with specified precision.
 //
-// prec results in better performance when it's a constant, a non-constant value will be translated into a jump table.
+// A non-constant value of prec may result in significantly worse performance for this operation.
 //
 // Asm: VREDUCEPD, CPU Feature: AVX512
 func (x Float64x4) RoundToEvenScaledResidue(prec uint8) Float64x4
 
 // RoundToEvenScaledResidue computes the difference after rounding with specified precision.
 //
-// prec results in better performance when it's a constant, a non-constant value will be translated into a jump table.
+// A non-constant value of prec may result in significantly worse performance for this operation.
 //
 // Asm: VREDUCEPD, CPU Feature: AVX512
 func (x Float64x8) RoundToEvenScaledResidue(prec uint8) Float64x8
@@ -5318,7 +5252,7 @@ func (x Float64x8) RoundToEvenScaledResidue(prec uint8) Float64x8
 // result = the state variables a', b', c', d' updated after 4 rounds.
 // constant = 0 for the first 20 rounds of the loop, 1 for the next 20 rounds of the loop..., 3 for the last 20 rounds of the loop.
 //
-// constant results in better performance when it's a constant, a non-constant value will be translated into a jump table.
+// A non-constant value of constant may result in significantly worse performance for this operation.
 //
 // Asm: SHA1RNDS4, CPU Feature: SHA
 func (x Uint32x4) SHA1FourRounds(constant uint8, y Uint32x4) Uint32x4
@@ -5707,8 +5641,9 @@ func (x Float64x8) Scale(y Float64x8) Float64x8
 //
 // returns {70, 71, 72, 73, 40, 41, 42, 43}.
 //
-// lo, hi result in better performance when they are constants, non-constant values will be translated into a jump table.
 // lo, hi should be between 0 and 3, inclusive; other values may result in a runtime panic.
+//
+// A non-constant value of lo, hi may result in significantly worse performance for this operation.
 //
 // Asm: VPERM2F128, CPU Feature: AVX
 func (x Float32x8) Select128FromPair(lo, hi uint8, y Float32x8) Float32x8
@@ -5722,8 +5657,9 @@ func (x Float32x8) Select128FromPair(lo, hi uint8, y Float32x8) Float32x8
 //
 // returns {70, 71, 40, 41}.
 //
-// lo, hi result in better performance when they are constants, non-constant values will be translated into a jump table.
 // lo, hi should be between 0 and 3, inclusive; other values may result in a runtime panic.
+//
+// A non-constant value of lo, hi may result in significantly worse performance for this operation.
 //
 // Asm: VPERM2F128, CPU Feature: AVX
 func (x Float64x4) Select128FromPair(lo, hi uint8, y Float64x4) Float64x4
@@ -5738,8 +5674,9 @@ func (x Float64x4) Select128FromPair(lo, hi uint8, y Float64x4) Float64x4
 //
 // returns {0x70, 0x71, ..., 0x7f, 0x40, 0x41, ..., 0x4f}.
 //
-// lo, hi result in better performance when they are constants, non-constant values will be translated into a jump table.
 // lo, hi should be between 0 and 3, inclusive; other values may result in a runtime panic.
+//
+// A non-constant value of lo, hi may result in significantly worse performance for this operation.
 //
 // Asm: VPERM2I128, CPU Feature: AVX2
 func (x Int8x32) Select128FromPair(lo, hi uint8, y Int8x32) Int8x32
@@ -5754,8 +5691,9 @@ func (x Int8x32) Select128FromPair(lo, hi uint8, y Int8x32) Int8x32
 //
 // returns {70, 71, 72, 73, 74, 75, 76, 77, 40, 41, 42, 43, 44, 45, 46, 47}.
 //
-// lo, hi result in better performance when they are constants, non-constant values will be translated into a jump table.
 // lo, hi should be between 0 and 3, inclusive; other values may result in a runtime panic.
+//
+// A non-constant value of lo, hi may result in significantly worse performance for this operation.
 //
 // Asm: VPERM2I128, CPU Feature: AVX2
 func (x Int16x16) Select128FromPair(lo, hi uint8, y Int16x16) Int16x16
@@ -5769,8 +5707,9 @@ func (x Int16x16) Select128FromPair(lo, hi uint8, y Int16x16) Int16x16
 //
 // returns {70, 71, 72, 73, 40, 41, 42, 43}.
 //
-// lo, hi result in better performance when they are constants, non-constant values will be translated into a jump table.
 // lo, hi should be between 0 and 3, inclusive; other values may result in a runtime panic.
+//
+// A non-constant value of lo, hi may result in significantly worse performance for this operation.
 //
 // Asm: VPERM2I128, CPU Feature: AVX2
 func (x Int32x8) Select128FromPair(lo, hi uint8, y Int32x8) Int32x8
@@ -5784,8 +5723,9 @@ func (x Int32x8) Select128FromPair(lo, hi uint8, y Int32x8) Int32x8
 //
 // returns {70, 71, 40, 41}.
 //
-// lo, hi result in better performance when they are constants, non-constant values will be translated into a jump table.
 // lo, hi should be between 0 and 3, inclusive; other values may result in a runtime panic.
+//
+// A non-constant value of lo, hi may result in significantly worse performance for this operation.
 //
 // Asm: VPERM2I128, CPU Feature: AVX2
 func (x Int64x4) Select128FromPair(lo, hi uint8, y Int64x4) Int64x4
@@ -5800,8 +5740,9 @@ func (x Int64x4) Select128FromPair(lo, hi uint8, y Int64x4) Int64x4
 //
 // returns {0x70, 0x71, ..., 0x7f, 0x40, 0x41, ..., 0x4f}.
 //
-// lo, hi result in better performance when they are constants, non-constant values will be translated into a jump table.
 // lo, hi should be between 0 and 3, inclusive; other values may result in a runtime panic.
+//
+// A non-constant value of lo, hi may result in significantly worse performance for this operation.
 //
 // Asm: VPERM2I128, CPU Feature: AVX2
 func (x Uint8x32) Select128FromPair(lo, hi uint8, y Uint8x32) Uint8x32
@@ -5816,8 +5757,9 @@ func (x Uint8x32) Select128FromPair(lo, hi uint8, y Uint8x32) Uint8x32
 //
 // returns {70, 71, 72, 73, 74, 75, 76, 77, 40, 41, 42, 43, 44, 45, 46, 47}.
 //
-// lo, hi result in better performance when they are constants, non-constant values will be translated into a jump table.
 // lo, hi should be between 0 and 3, inclusive; other values may result in a runtime panic.
+//
+// A non-constant value of lo, hi may result in significantly worse performance for this operation.
 //
 // Asm: VPERM2I128, CPU Feature: AVX2
 func (x Uint16x16) Select128FromPair(lo, hi uint8, y Uint16x16) Uint16x16
@@ -5831,8 +5773,9 @@ func (x Uint16x16) Select128FromPair(lo, hi uint8, y Uint16x16) Uint16x16
 //
 // returns {70, 71, 72, 73, 40, 41, 42, 43}.
 //
-// lo, hi result in better performance when they are constants, non-constant values will be translated into a jump table.
 // lo, hi should be between 0 and 3, inclusive; other values may result in a runtime panic.
+//
+// A non-constant value of lo, hi may result in significantly worse performance for this operation.
 //
 // Asm: VPERM2I128, CPU Feature: AVX2
 func (x Uint32x8) Select128FromPair(lo, hi uint8, y Uint32x8) Uint32x8
@@ -5846,80 +5789,81 @@ func (x Uint32x8) Select128FromPair(lo, hi uint8, y Uint32x8) Uint32x8
 //
 // returns {70, 71, 40, 41}.
 //
-// lo, hi result in better performance when they are constants, non-constant values will be translated into a jump table.
 // lo, hi should be between 0 and 3, inclusive; other values may result in a runtime panic.
+//
+// A non-constant value of lo, hi may result in significantly worse performance for this operation.
 //
 // Asm: VPERM2I128, CPU Feature: AVX2
 func (x Uint64x4) Select128FromPair(lo, hi uint8, y Uint64x4) Uint64x4
 
 /* SetElem */
 
-// SetElem sets a single constant-indexed element's value.
+// SetElem returns x with the index'th element set to y.
 //
-// index results in better performance when it's a constant, a non-constant value will be translated into a jump table.
+// A non-constant value of index may result in significantly worse performance for this operation.
 //
 // Asm: VPINSRD, CPU Feature: AVX
 func (x Float32x4) SetElem(index uint8, y float32) Float32x4
 
-// SetElem sets a single constant-indexed element's value.
+// SetElem returns x with the index'th element set to y.
 //
-// index results in better performance when it's a constant, a non-constant value will be translated into a jump table.
+// A non-constant value of index may result in significantly worse performance for this operation.
 //
 // Asm: VPINSRQ, CPU Feature: AVX
 func (x Float64x2) SetElem(index uint8, y float64) Float64x2
 
-// SetElem sets a single constant-indexed element's value.
+// SetElem returns x with the index'th element set to y.
 //
-// index results in better performance when it's a constant, a non-constant value will be translated into a jump table.
+// A non-constant value of index may result in significantly worse performance for this operation.
 //
 // Asm: VPINSRB, CPU Feature: AVX
 func (x Int8x16) SetElem(index uint8, y int8) Int8x16
 
-// SetElem sets a single constant-indexed element's value.
+// SetElem returns x with the index'th element set to y.
 //
-// index results in better performance when it's a constant, a non-constant value will be translated into a jump table.
+// A non-constant value of index may result in significantly worse performance for this operation.
 //
 // Asm: VPINSRW, CPU Feature: AVX
 func (x Int16x8) SetElem(index uint8, y int16) Int16x8
 
-// SetElem sets a single constant-indexed element's value.
+// SetElem returns x with the index'th element set to y.
 //
-// index results in better performance when it's a constant, a non-constant value will be translated into a jump table.
+// A non-constant value of index may result in significantly worse performance for this operation.
 //
 // Asm: VPINSRD, CPU Feature: AVX
 func (x Int32x4) SetElem(index uint8, y int32) Int32x4
 
-// SetElem sets a single constant-indexed element's value.
+// SetElem returns x with the index'th element set to y.
 //
-// index results in better performance when it's a constant, a non-constant value will be translated into a jump table.
+// A non-constant value of index may result in significantly worse performance for this operation.
 //
 // Asm: VPINSRQ, CPU Feature: AVX
 func (x Int64x2) SetElem(index uint8, y int64) Int64x2
 
-// SetElem sets a single constant-indexed element's value.
+// SetElem returns x with the index'th element set to y.
 //
-// index results in better performance when it's a constant, a non-constant value will be translated into a jump table.
+// A non-constant value of index may result in significantly worse performance for this operation.
 //
 // Asm: VPINSRB, CPU Feature: AVX
 func (x Uint8x16) SetElem(index uint8, y uint8) Uint8x16
 
-// SetElem sets a single constant-indexed element's value.
+// SetElem returns x with the index'th element set to y.
 //
-// index results in better performance when it's a constant, a non-constant value will be translated into a jump table.
+// A non-constant value of index may result in significantly worse performance for this operation.
 //
 // Asm: VPINSRW, CPU Feature: AVX
 func (x Uint16x8) SetElem(index uint8, y uint16) Uint16x8
 
-// SetElem sets a single constant-indexed element's value.
+// SetElem returns x with the index'th element set to y.
 //
-// index results in better performance when it's a constant, a non-constant value will be translated into a jump table.
+// A non-constant value of index may result in significantly worse performance for this operation.
 //
 // Asm: VPINSRD, CPU Feature: AVX
 func (x Uint32x4) SetElem(index uint8, y uint32) Uint32x4
 
-// SetElem sets a single constant-indexed element's value.
+// SetElem returns x with the index'th element set to y.
 //
-// index results in better performance when it's a constant, a non-constant value will be translated into a jump table.
+// A non-constant value of index may result in significantly worse performance for this operation.
 //
 // Asm: VPINSRQ, CPU Feature: AVX
 func (x Uint64x2) SetElem(index uint8, y uint64) Uint64x2
@@ -6225,7 +6169,7 @@ func (x Uint64x8) ShiftAllLeft(y uint64) Uint64x8
 // ShiftAllLeftConcat shifts each element of x to the left by the number of bits specified by
 // shift (only the lower 5 bits are used), and then copies the upper bits of y to the emptied lower bits of the shifted x.
 //
-// shift results in better performance when it's a constant, a non-constant value will be translated into a jump table.
+// A non-constant value of shift may result in significantly worse performance for this operation.
 //
 // Asm: VPSHLDW, CPU Feature: AVX512VBMI2
 func (x Int16x8) ShiftAllLeftConcat(shift uint8, y Int16x8) Int16x8
@@ -6233,7 +6177,7 @@ func (x Int16x8) ShiftAllLeftConcat(shift uint8, y Int16x8) Int16x8
 // ShiftAllLeftConcat shifts each element of x to the left by the number of bits specified by
 // shift (only the lower 5 bits are used), and then copies the upper bits of y to the emptied lower bits of the shifted x.
 //
-// shift results in better performance when it's a constant, a non-constant value will be translated into a jump table.
+// A non-constant value of shift may result in significantly worse performance for this operation.
 //
 // Asm: VPSHLDW, CPU Feature: AVX512VBMI2
 func (x Int16x16) ShiftAllLeftConcat(shift uint8, y Int16x16) Int16x16
@@ -6241,7 +6185,7 @@ func (x Int16x16) ShiftAllLeftConcat(shift uint8, y Int16x16) Int16x16
 // ShiftAllLeftConcat shifts each element of x to the left by the number of bits specified by
 // shift (only the lower 5 bits are used), and then copies the upper bits of y to the emptied lower bits of the shifted x.
 //
-// shift results in better performance when it's a constant, a non-constant value will be translated into a jump table.
+// A non-constant value of shift may result in significantly worse performance for this operation.
 //
 // Asm: VPSHLDW, CPU Feature: AVX512VBMI2
 func (x Int16x32) ShiftAllLeftConcat(shift uint8, y Int16x32) Int16x32
@@ -6249,7 +6193,7 @@ func (x Int16x32) ShiftAllLeftConcat(shift uint8, y Int16x32) Int16x32
 // ShiftAllLeftConcat shifts each element of x to the left by the number of bits specified by
 // shift (only the lower 5 bits are used), and then copies the upper bits of y to the emptied lower bits of the shifted x.
 //
-// shift results in better performance when it's a constant, a non-constant value will be translated into a jump table.
+// A non-constant value of shift may result in significantly worse performance for this operation.
 //
 // Asm: VPSHLDD, CPU Feature: AVX512VBMI2
 func (x Int32x4) ShiftAllLeftConcat(shift uint8, y Int32x4) Int32x4
@@ -6257,7 +6201,7 @@ func (x Int32x4) ShiftAllLeftConcat(shift uint8, y Int32x4) Int32x4
 // ShiftAllLeftConcat shifts each element of x to the left by the number of bits specified by
 // shift (only the lower 5 bits are used), and then copies the upper bits of y to the emptied lower bits of the shifted x.
 //
-// shift results in better performance when it's a constant, a non-constant value will be translated into a jump table.
+// A non-constant value of shift may result in significantly worse performance for this operation.
 //
 // Asm: VPSHLDD, CPU Feature: AVX512VBMI2
 func (x Int32x8) ShiftAllLeftConcat(shift uint8, y Int32x8) Int32x8
@@ -6265,7 +6209,7 @@ func (x Int32x8) ShiftAllLeftConcat(shift uint8, y Int32x8) Int32x8
 // ShiftAllLeftConcat shifts each element of x to the left by the number of bits specified by
 // shift (only the lower 5 bits are used), and then copies the upper bits of y to the emptied lower bits of the shifted x.
 //
-// shift results in better performance when it's a constant, a non-constant value will be translated into a jump table.
+// A non-constant value of shift may result in significantly worse performance for this operation.
 //
 // Asm: VPSHLDD, CPU Feature: AVX512VBMI2
 func (x Int32x16) ShiftAllLeftConcat(shift uint8, y Int32x16) Int32x16
@@ -6273,7 +6217,7 @@ func (x Int32x16) ShiftAllLeftConcat(shift uint8, y Int32x16) Int32x16
 // ShiftAllLeftConcat shifts each element of x to the left by the number of bits specified by
 // shift (only the lower 5 bits are used), and then copies the upper bits of y to the emptied lower bits of the shifted x.
 //
-// shift results in better performance when it's a constant, a non-constant value will be translated into a jump table.
+// A non-constant value of shift may result in significantly worse performance for this operation.
 //
 // Asm: VPSHLDQ, CPU Feature: AVX512VBMI2
 func (x Int64x2) ShiftAllLeftConcat(shift uint8, y Int64x2) Int64x2
@@ -6281,7 +6225,7 @@ func (x Int64x2) ShiftAllLeftConcat(shift uint8, y Int64x2) Int64x2
 // ShiftAllLeftConcat shifts each element of x to the left by the number of bits specified by
 // shift (only the lower 5 bits are used), and then copies the upper bits of y to the emptied lower bits of the shifted x.
 //
-// shift results in better performance when it's a constant, a non-constant value will be translated into a jump table.
+// A non-constant value of shift may result in significantly worse performance for this operation.
 //
 // Asm: VPSHLDQ, CPU Feature: AVX512VBMI2
 func (x Int64x4) ShiftAllLeftConcat(shift uint8, y Int64x4) Int64x4
@@ -6289,7 +6233,7 @@ func (x Int64x4) ShiftAllLeftConcat(shift uint8, y Int64x4) Int64x4
 // ShiftAllLeftConcat shifts each element of x to the left by the number of bits specified by
 // shift (only the lower 5 bits are used), and then copies the upper bits of y to the emptied lower bits of the shifted x.
 //
-// shift results in better performance when it's a constant, a non-constant value will be translated into a jump table.
+// A non-constant value of shift may result in significantly worse performance for this operation.
 //
 // Asm: VPSHLDQ, CPU Feature: AVX512VBMI2
 func (x Int64x8) ShiftAllLeftConcat(shift uint8, y Int64x8) Int64x8
@@ -6297,7 +6241,7 @@ func (x Int64x8) ShiftAllLeftConcat(shift uint8, y Int64x8) Int64x8
 // ShiftAllLeftConcat shifts each element of x to the left by the number of bits specified by
 // shift (only the lower 5 bits are used), and then copies the upper bits of y to the emptied lower bits of the shifted x.
 //
-// shift results in better performance when it's a constant, a non-constant value will be translated into a jump table.
+// A non-constant value of shift may result in significantly worse performance for this operation.
 //
 // Asm: VPSHLDW, CPU Feature: AVX512VBMI2
 func (x Uint16x8) ShiftAllLeftConcat(shift uint8, y Uint16x8) Uint16x8
@@ -6305,7 +6249,7 @@ func (x Uint16x8) ShiftAllLeftConcat(shift uint8, y Uint16x8) Uint16x8
 // ShiftAllLeftConcat shifts each element of x to the left by the number of bits specified by
 // shift (only the lower 5 bits are used), and then copies the upper bits of y to the emptied lower bits of the shifted x.
 //
-// shift results in better performance when it's a constant, a non-constant value will be translated into a jump table.
+// A non-constant value of shift may result in significantly worse performance for this operation.
 //
 // Asm: VPSHLDW, CPU Feature: AVX512VBMI2
 func (x Uint16x16) ShiftAllLeftConcat(shift uint8, y Uint16x16) Uint16x16
@@ -6313,7 +6257,7 @@ func (x Uint16x16) ShiftAllLeftConcat(shift uint8, y Uint16x16) Uint16x16
 // ShiftAllLeftConcat shifts each element of x to the left by the number of bits specified by
 // shift (only the lower 5 bits are used), and then copies the upper bits of y to the emptied lower bits of the shifted x.
 //
-// shift results in better performance when it's a constant, a non-constant value will be translated into a jump table.
+// A non-constant value of shift may result in significantly worse performance for this operation.
 //
 // Asm: VPSHLDW, CPU Feature: AVX512VBMI2
 func (x Uint16x32) ShiftAllLeftConcat(shift uint8, y Uint16x32) Uint16x32
@@ -6321,7 +6265,7 @@ func (x Uint16x32) ShiftAllLeftConcat(shift uint8, y Uint16x32) Uint16x32
 // ShiftAllLeftConcat shifts each element of x to the left by the number of bits specified by
 // shift (only the lower 5 bits are used), and then copies the upper bits of y to the emptied lower bits of the shifted x.
 //
-// shift results in better performance when it's a constant, a non-constant value will be translated into a jump table.
+// A non-constant value of shift may result in significantly worse performance for this operation.
 //
 // Asm: VPSHLDD, CPU Feature: AVX512VBMI2
 func (x Uint32x4) ShiftAllLeftConcat(shift uint8, y Uint32x4) Uint32x4
@@ -6329,7 +6273,7 @@ func (x Uint32x4) ShiftAllLeftConcat(shift uint8, y Uint32x4) Uint32x4
 // ShiftAllLeftConcat shifts each element of x to the left by the number of bits specified by
 // shift (only the lower 5 bits are used), and then copies the upper bits of y to the emptied lower bits of the shifted x.
 //
-// shift results in better performance when it's a constant, a non-constant value will be translated into a jump table.
+// A non-constant value of shift may result in significantly worse performance for this operation.
 //
 // Asm: VPSHLDD, CPU Feature: AVX512VBMI2
 func (x Uint32x8) ShiftAllLeftConcat(shift uint8, y Uint32x8) Uint32x8
@@ -6337,7 +6281,7 @@ func (x Uint32x8) ShiftAllLeftConcat(shift uint8, y Uint32x8) Uint32x8
 // ShiftAllLeftConcat shifts each element of x to the left by the number of bits specified by
 // shift (only the lower 5 bits are used), and then copies the upper bits of y to the emptied lower bits of the shifted x.
 //
-// shift results in better performance when it's a constant, a non-constant value will be translated into a jump table.
+// A non-constant value of shift may result in significantly worse performance for this operation.
 //
 // Asm: VPSHLDD, CPU Feature: AVX512VBMI2
 func (x Uint32x16) ShiftAllLeftConcat(shift uint8, y Uint32x16) Uint32x16
@@ -6345,7 +6289,7 @@ func (x Uint32x16) ShiftAllLeftConcat(shift uint8, y Uint32x16) Uint32x16
 // ShiftAllLeftConcat shifts each element of x to the left by the number of bits specified by
 // shift (only the lower 5 bits are used), and then copies the upper bits of y to the emptied lower bits of the shifted x.
 //
-// shift results in better performance when it's a constant, a non-constant value will be translated into a jump table.
+// A non-constant value of shift may result in significantly worse performance for this operation.
 //
 // Asm: VPSHLDQ, CPU Feature: AVX512VBMI2
 func (x Uint64x2) ShiftAllLeftConcat(shift uint8, y Uint64x2) Uint64x2
@@ -6353,7 +6297,7 @@ func (x Uint64x2) ShiftAllLeftConcat(shift uint8, y Uint64x2) Uint64x2
 // ShiftAllLeftConcat shifts each element of x to the left by the number of bits specified by
 // shift (only the lower 5 bits are used), and then copies the upper bits of y to the emptied lower bits of the shifted x.
 //
-// shift results in better performance when it's a constant, a non-constant value will be translated into a jump table.
+// A non-constant value of shift may result in significantly worse performance for this operation.
 //
 // Asm: VPSHLDQ, CPU Feature: AVX512VBMI2
 func (x Uint64x4) ShiftAllLeftConcat(shift uint8, y Uint64x4) Uint64x4
@@ -6361,7 +6305,7 @@ func (x Uint64x4) ShiftAllLeftConcat(shift uint8, y Uint64x4) Uint64x4
 // ShiftAllLeftConcat shifts each element of x to the left by the number of bits specified by
 // shift (only the lower 5 bits are used), and then copies the upper bits of y to the emptied lower bits of the shifted x.
 //
-// shift results in better performance when it's a constant, a non-constant value will be translated into a jump table.
+// A non-constant value of shift may result in significantly worse performance for this operation.
 //
 // Asm: VPSHLDQ, CPU Feature: AVX512VBMI2
 func (x Uint64x8) ShiftAllLeftConcat(shift uint8, y Uint64x8) Uint64x8
@@ -6463,7 +6407,7 @@ func (x Uint64x8) ShiftAllRight(y uint64) Uint64x8
 // ShiftAllRightConcat shifts each element of x to the right by the number of bits specified by
 // shift (only the lower 5 bits are used), and then copies the lower bits of y to the emptied upper bits of the shifted x.
 //
-// shift results in better performance when it's a constant, a non-constant value will be translated into a jump table.
+// A non-constant value of shift may result in significantly worse performance for this operation.
 //
 // Asm: VPSHRDW, CPU Feature: AVX512VBMI2
 func (x Int16x8) ShiftAllRightConcat(shift uint8, y Int16x8) Int16x8
@@ -6471,7 +6415,7 @@ func (x Int16x8) ShiftAllRightConcat(shift uint8, y Int16x8) Int16x8
 // ShiftAllRightConcat shifts each element of x to the right by the number of bits specified by
 // shift (only the lower 5 bits are used), and then copies the lower bits of y to the emptied upper bits of the shifted x.
 //
-// shift results in better performance when it's a constant, a non-constant value will be translated into a jump table.
+// A non-constant value of shift may result in significantly worse performance for this operation.
 //
 // Asm: VPSHRDW, CPU Feature: AVX512VBMI2
 func (x Int16x16) ShiftAllRightConcat(shift uint8, y Int16x16) Int16x16
@@ -6479,7 +6423,7 @@ func (x Int16x16) ShiftAllRightConcat(shift uint8, y Int16x16) Int16x16
 // ShiftAllRightConcat shifts each element of x to the right by the number of bits specified by
 // shift (only the lower 5 bits are used), and then copies the lower bits of y to the emptied upper bits of the shifted x.
 //
-// shift results in better performance when it's a constant, a non-constant value will be translated into a jump table.
+// A non-constant value of shift may result in significantly worse performance for this operation.
 //
 // Asm: VPSHRDW, CPU Feature: AVX512VBMI2
 func (x Int16x32) ShiftAllRightConcat(shift uint8, y Int16x32) Int16x32
@@ -6487,7 +6431,7 @@ func (x Int16x32) ShiftAllRightConcat(shift uint8, y Int16x32) Int16x32
 // ShiftAllRightConcat shifts each element of x to the right by the number of bits specified by
 // shift (only the lower 5 bits are used), and then copies the lower bits of y to the emptied upper bits of the shifted x.
 //
-// shift results in better performance when it's a constant, a non-constant value will be translated into a jump table.
+// A non-constant value of shift may result in significantly worse performance for this operation.
 //
 // Asm: VPSHRDD, CPU Feature: AVX512VBMI2
 func (x Int32x4) ShiftAllRightConcat(shift uint8, y Int32x4) Int32x4
@@ -6495,7 +6439,7 @@ func (x Int32x4) ShiftAllRightConcat(shift uint8, y Int32x4) Int32x4
 // ShiftAllRightConcat shifts each element of x to the right by the number of bits specified by
 // shift (only the lower 5 bits are used), and then copies the lower bits of y to the emptied upper bits of the shifted x.
 //
-// shift results in better performance when it's a constant, a non-constant value will be translated into a jump table.
+// A non-constant value of shift may result in significantly worse performance for this operation.
 //
 // Asm: VPSHRDD, CPU Feature: AVX512VBMI2
 func (x Int32x8) ShiftAllRightConcat(shift uint8, y Int32x8) Int32x8
@@ -6503,7 +6447,7 @@ func (x Int32x8) ShiftAllRightConcat(shift uint8, y Int32x8) Int32x8
 // ShiftAllRightConcat shifts each element of x to the right by the number of bits specified by
 // shift (only the lower 5 bits are used), and then copies the lower bits of y to the emptied upper bits of the shifted x.
 //
-// shift results in better performance when it's a constant, a non-constant value will be translated into a jump table.
+// A non-constant value of shift may result in significantly worse performance for this operation.
 //
 // Asm: VPSHRDD, CPU Feature: AVX512VBMI2
 func (x Int32x16) ShiftAllRightConcat(shift uint8, y Int32x16) Int32x16
@@ -6511,7 +6455,7 @@ func (x Int32x16) ShiftAllRightConcat(shift uint8, y Int32x16) Int32x16
 // ShiftAllRightConcat shifts each element of x to the right by the number of bits specified by
 // shift (only the lower 5 bits are used), and then copies the lower bits of y to the emptied upper bits of the shifted x.
 //
-// shift results in better performance when it's a constant, a non-constant value will be translated into a jump table.
+// A non-constant value of shift may result in significantly worse performance for this operation.
 //
 // Asm: VPSHRDQ, CPU Feature: AVX512VBMI2
 func (x Int64x2) ShiftAllRightConcat(shift uint8, y Int64x2) Int64x2
@@ -6519,7 +6463,7 @@ func (x Int64x2) ShiftAllRightConcat(shift uint8, y Int64x2) Int64x2
 // ShiftAllRightConcat shifts each element of x to the right by the number of bits specified by
 // shift (only the lower 5 bits are used), and then copies the lower bits of y to the emptied upper bits of the shifted x.
 //
-// shift results in better performance when it's a constant, a non-constant value will be translated into a jump table.
+// A non-constant value of shift may result in significantly worse performance for this operation.
 //
 // Asm: VPSHRDQ, CPU Feature: AVX512VBMI2
 func (x Int64x4) ShiftAllRightConcat(shift uint8, y Int64x4) Int64x4
@@ -6527,7 +6471,7 @@ func (x Int64x4) ShiftAllRightConcat(shift uint8, y Int64x4) Int64x4
 // ShiftAllRightConcat shifts each element of x to the right by the number of bits specified by
 // shift (only the lower 5 bits are used), and then copies the lower bits of y to the emptied upper bits of the shifted x.
 //
-// shift results in better performance when it's a constant, a non-constant value will be translated into a jump table.
+// A non-constant value of shift may result in significantly worse performance for this operation.
 //
 // Asm: VPSHRDQ, CPU Feature: AVX512VBMI2
 func (x Int64x8) ShiftAllRightConcat(shift uint8, y Int64x8) Int64x8
@@ -6535,7 +6479,7 @@ func (x Int64x8) ShiftAllRightConcat(shift uint8, y Int64x8) Int64x8
 // ShiftAllRightConcat shifts each element of x to the right by the number of bits specified by
 // shift (only the lower 5 bits are used), and then copies the lower bits of y to the emptied upper bits of the shifted x.
 //
-// shift results in better performance when it's a constant, a non-constant value will be translated into a jump table.
+// A non-constant value of shift may result in significantly worse performance for this operation.
 //
 // Asm: VPSHRDW, CPU Feature: AVX512VBMI2
 func (x Uint16x8) ShiftAllRightConcat(shift uint8, y Uint16x8) Uint16x8
@@ -6543,7 +6487,7 @@ func (x Uint16x8) ShiftAllRightConcat(shift uint8, y Uint16x8) Uint16x8
 // ShiftAllRightConcat shifts each element of x to the right by the number of bits specified by
 // shift (only the lower 5 bits are used), and then copies the lower bits of y to the emptied upper bits of the shifted x.
 //
-// shift results in better performance when it's a constant, a non-constant value will be translated into a jump table.
+// A non-constant value of shift may result in significantly worse performance for this operation.
 //
 // Asm: VPSHRDW, CPU Feature: AVX512VBMI2
 func (x Uint16x16) ShiftAllRightConcat(shift uint8, y Uint16x16) Uint16x16
@@ -6551,7 +6495,7 @@ func (x Uint16x16) ShiftAllRightConcat(shift uint8, y Uint16x16) Uint16x16
 // ShiftAllRightConcat shifts each element of x to the right by the number of bits specified by
 // shift (only the lower 5 bits are used), and then copies the lower bits of y to the emptied upper bits of the shifted x.
 //
-// shift results in better performance when it's a constant, a non-constant value will be translated into a jump table.
+// A non-constant value of shift may result in significantly worse performance for this operation.
 //
 // Asm: VPSHRDW, CPU Feature: AVX512VBMI2
 func (x Uint16x32) ShiftAllRightConcat(shift uint8, y Uint16x32) Uint16x32
@@ -6559,7 +6503,7 @@ func (x Uint16x32) ShiftAllRightConcat(shift uint8, y Uint16x32) Uint16x32
 // ShiftAllRightConcat shifts each element of x to the right by the number of bits specified by
 // shift (only the lower 5 bits are used), and then copies the lower bits of y to the emptied upper bits of the shifted x.
 //
-// shift results in better performance when it's a constant, a non-constant value will be translated into a jump table.
+// A non-constant value of shift may result in significantly worse performance for this operation.
 //
 // Asm: VPSHRDD, CPU Feature: AVX512VBMI2
 func (x Uint32x4) ShiftAllRightConcat(shift uint8, y Uint32x4) Uint32x4
@@ -6567,7 +6511,7 @@ func (x Uint32x4) ShiftAllRightConcat(shift uint8, y Uint32x4) Uint32x4
 // ShiftAllRightConcat shifts each element of x to the right by the number of bits specified by
 // shift (only the lower 5 bits are used), and then copies the lower bits of y to the emptied upper bits of the shifted x.
 //
-// shift results in better performance when it's a constant, a non-constant value will be translated into a jump table.
+// A non-constant value of shift may result in significantly worse performance for this operation.
 //
 // Asm: VPSHRDD, CPU Feature: AVX512VBMI2
 func (x Uint32x8) ShiftAllRightConcat(shift uint8, y Uint32x8) Uint32x8
@@ -6575,7 +6519,7 @@ func (x Uint32x8) ShiftAllRightConcat(shift uint8, y Uint32x8) Uint32x8
 // ShiftAllRightConcat shifts each element of x to the right by the number of bits specified by
 // shift (only the lower 5 bits are used), and then copies the lower bits of y to the emptied upper bits of the shifted x.
 //
-// shift results in better performance when it's a constant, a non-constant value will be translated into a jump table.
+// A non-constant value of shift may result in significantly worse performance for this operation.
 //
 // Asm: VPSHRDD, CPU Feature: AVX512VBMI2
 func (x Uint32x16) ShiftAllRightConcat(shift uint8, y Uint32x16) Uint32x16
@@ -6583,7 +6527,7 @@ func (x Uint32x16) ShiftAllRightConcat(shift uint8, y Uint32x16) Uint32x16
 // ShiftAllRightConcat shifts each element of x to the right by the number of bits specified by
 // shift (only the lower 5 bits are used), and then copies the lower bits of y to the emptied upper bits of the shifted x.
 //
-// shift results in better performance when it's a constant, a non-constant value will be translated into a jump table.
+// A non-constant value of shift may result in significantly worse performance for this operation.
 //
 // Asm: VPSHRDQ, CPU Feature: AVX512VBMI2
 func (x Uint64x2) ShiftAllRightConcat(shift uint8, y Uint64x2) Uint64x2
@@ -6591,7 +6535,7 @@ func (x Uint64x2) ShiftAllRightConcat(shift uint8, y Uint64x2) Uint64x2
 // ShiftAllRightConcat shifts each element of x to the right by the number of bits specified by
 // shift (only the lower 5 bits are used), and then copies the lower bits of y to the emptied upper bits of the shifted x.
 //
-// shift results in better performance when it's a constant, a non-constant value will be translated into a jump table.
+// A non-constant value of shift may result in significantly worse performance for this operation.
 //
 // Asm: VPSHRDQ, CPU Feature: AVX512VBMI2
 func (x Uint64x4) ShiftAllRightConcat(shift uint8, y Uint64x4) Uint64x4
@@ -6599,7 +6543,7 @@ func (x Uint64x4) ShiftAllRightConcat(shift uint8, y Uint64x4) Uint64x4
 // ShiftAllRightConcat shifts each element of x to the right by the number of bits specified by
 // shift (only the lower 5 bits are used), and then copies the lower bits of y to the emptied upper bits of the shifted x.
 //
-// shift results in better performance when it's a constant, a non-constant value will be translated into a jump table.
+// A non-constant value of shift may result in significantly worse performance for this operation.
 //
 // Asm: VPSHRDQ, CPU Feature: AVX512VBMI2
 func (x Uint64x8) ShiftAllRightConcat(shift uint8, y Uint64x8) Uint64x8
@@ -7402,42 +7346,42 @@ func (x Float64x4) Trunc() Float64x4
 
 // TruncScaled truncates elements with specified precision.
 //
-// prec results in better performance when it's a constant, a non-constant value will be translated into a jump table.
+// A non-constant value of prec may result in significantly worse performance for this operation.
 //
 // Asm: VRNDSCALEPS, CPU Feature: AVX512
 func (x Float32x4) TruncScaled(prec uint8) Float32x4
 
 // TruncScaled truncates elements with specified precision.
 //
-// prec results in better performance when it's a constant, a non-constant value will be translated into a jump table.
+// A non-constant value of prec may result in significantly worse performance for this operation.
 //
 // Asm: VRNDSCALEPS, CPU Feature: AVX512
 func (x Float32x8) TruncScaled(prec uint8) Float32x8
 
 // TruncScaled truncates elements with specified precision.
 //
-// prec results in better performance when it's a constant, a non-constant value will be translated into a jump table.
+// A non-constant value of prec may result in significantly worse performance for this operation.
 //
 // Asm: VRNDSCALEPS, CPU Feature: AVX512
 func (x Float32x16) TruncScaled(prec uint8) Float32x16
 
 // TruncScaled truncates elements with specified precision.
 //
-// prec results in better performance when it's a constant, a non-constant value will be translated into a jump table.
+// A non-constant value of prec may result in significantly worse performance for this operation.
 //
 // Asm: VRNDSCALEPD, CPU Feature: AVX512
 func (x Float64x2) TruncScaled(prec uint8) Float64x2
 
 // TruncScaled truncates elements with specified precision.
 //
-// prec results in better performance when it's a constant, a non-constant value will be translated into a jump table.
+// A non-constant value of prec may result in significantly worse performance for this operation.
 //
 // Asm: VRNDSCALEPD, CPU Feature: AVX512
 func (x Float64x4) TruncScaled(prec uint8) Float64x4
 
 // TruncScaled truncates elements with specified precision.
 //
-// prec results in better performance when it's a constant, a non-constant value will be translated into a jump table.
+// A non-constant value of prec may result in significantly worse performance for this operation.
 //
 // Asm: VRNDSCALEPD, CPU Feature: AVX512
 func (x Float64x8) TruncScaled(prec uint8) Float64x8
@@ -7446,42 +7390,42 @@ func (x Float64x8) TruncScaled(prec uint8) Float64x8
 
 // TruncScaledResidue computes the difference after truncating with specified precision.
 //
-// prec results in better performance when it's a constant, a non-constant value will be translated into a jump table.
+// A non-constant value of prec may result in significantly worse performance for this operation.
 //
 // Asm: VREDUCEPS, CPU Feature: AVX512
 func (x Float32x4) TruncScaledResidue(prec uint8) Float32x4
 
 // TruncScaledResidue computes the difference after truncating with specified precision.
 //
-// prec results in better performance when it's a constant, a non-constant value will be translated into a jump table.
+// A non-constant value of prec may result in significantly worse performance for this operation.
 //
 // Asm: VREDUCEPS, CPU Feature: AVX512
 func (x Float32x8) TruncScaledResidue(prec uint8) Float32x8
 
 // TruncScaledResidue computes the difference after truncating with specified precision.
 //
-// prec results in better performance when it's a constant, a non-constant value will be translated into a jump table.
+// A non-constant value of prec may result in significantly worse performance for this operation.
 //
 // Asm: VREDUCEPS, CPU Feature: AVX512
 func (x Float32x16) TruncScaledResidue(prec uint8) Float32x16
 
 // TruncScaledResidue computes the difference after truncating with specified precision.
 //
-// prec results in better performance when it's a constant, a non-constant value will be translated into a jump table.
+// A non-constant value of prec may result in significantly worse performance for this operation.
 //
 // Asm: VREDUCEPD, CPU Feature: AVX512
 func (x Float64x2) TruncScaledResidue(prec uint8) Float64x2
 
 // TruncScaledResidue computes the difference after truncating with specified precision.
 //
-// prec results in better performance when it's a constant, a non-constant value will be translated into a jump table.
+// A non-constant value of prec may result in significantly worse performance for this operation.
 //
 // Asm: VREDUCEPD, CPU Feature: AVX512
 func (x Float64x4) TruncScaledResidue(prec uint8) Float64x4
 
 // TruncScaledResidue computes the difference after truncating with specified precision.
 //
-// prec results in better performance when it's a constant, a non-constant value will be translated into a jump table.
+// A non-constant value of prec may result in significantly worse performance for this operation.
 //
 // Asm: VREDUCEPD, CPU Feature: AVX512
 func (x Float64x8) TruncScaledResidue(prec uint8) Float64x8
@@ -7700,122 +7644,122 @@ func (x Uint64x8) TruncateToUint32() Uint32x8
 
 /* Xor */
 
-// Xor performs a bitwise XOR operation between two vectors.
+// Xor performs a bitwise x ^ y.
 //
 // Asm: VPXOR, CPU Feature: AVX
 func (x Int8x16) Xor(y Int8x16) Int8x16
 
-// Xor performs a bitwise XOR operation between two vectors.
+// Xor performs a bitwise x ^ y.
 //
 // Asm: VPXOR, CPU Feature: AVX2
 func (x Int8x32) Xor(y Int8x32) Int8x32
 
-// Xor performs a bitwise XOR operation between two vectors.
+// Xor performs a bitwise x ^ y.
 //
 // Asm: VPXORD, CPU Feature: AVX512
 func (x Int8x64) Xor(y Int8x64) Int8x64
 
-// Xor performs a bitwise XOR operation between two vectors.
+// Xor performs a bitwise x ^ y.
 //
 // Asm: VPXOR, CPU Feature: AVX
 func (x Int16x8) Xor(y Int16x8) Int16x8
 
-// Xor performs a bitwise XOR operation between two vectors.
+// Xor performs a bitwise x ^ y.
 //
 // Asm: VPXOR, CPU Feature: AVX2
 func (x Int16x16) Xor(y Int16x16) Int16x16
 
-// Xor performs a bitwise XOR operation between two vectors.
+// Xor performs a bitwise x ^ y.
 //
 // Asm: VPXORD, CPU Feature: AVX512
 func (x Int16x32) Xor(y Int16x32) Int16x32
 
-// Xor performs a bitwise XOR operation between two vectors.
+// Xor performs a bitwise x ^ y.
 //
 // Asm: VPXOR, CPU Feature: AVX
 func (x Int32x4) Xor(y Int32x4) Int32x4
 
-// Xor performs a bitwise XOR operation between two vectors.
+// Xor performs a bitwise x ^ y.
 //
 // Asm: VPXOR, CPU Feature: AVX2
 func (x Int32x8) Xor(y Int32x8) Int32x8
 
-// Xor performs a bitwise XOR operation between two vectors.
+// Xor performs a bitwise x ^ y.
 //
 // Asm: VPXORD, CPU Feature: AVX512
 func (x Int32x16) Xor(y Int32x16) Int32x16
 
-// Xor performs a bitwise XOR operation between two vectors.
+// Xor performs a bitwise x ^ y.
 //
 // Asm: VPXOR, CPU Feature: AVX
 func (x Int64x2) Xor(y Int64x2) Int64x2
 
-// Xor performs a bitwise XOR operation between two vectors.
+// Xor performs a bitwise x ^ y.
 //
 // Asm: VPXOR, CPU Feature: AVX2
 func (x Int64x4) Xor(y Int64x4) Int64x4
 
-// Xor performs a bitwise XOR operation between two vectors.
+// Xor performs a bitwise x ^ y.
 //
 // Asm: VPXORQ, CPU Feature: AVX512
 func (x Int64x8) Xor(y Int64x8) Int64x8
 
-// Xor performs a bitwise XOR operation between two vectors.
+// Xor performs a bitwise x ^ y.
 //
 // Asm: VPXOR, CPU Feature: AVX
 func (x Uint8x16) Xor(y Uint8x16) Uint8x16
 
-// Xor performs a bitwise XOR operation between two vectors.
+// Xor performs a bitwise x ^ y.
 //
 // Asm: VPXOR, CPU Feature: AVX2
 func (x Uint8x32) Xor(y Uint8x32) Uint8x32
 
-// Xor performs a bitwise XOR operation between two vectors.
+// Xor performs a bitwise x ^ y.
 //
 // Asm: VPXORD, CPU Feature: AVX512
 func (x Uint8x64) Xor(y Uint8x64) Uint8x64
 
-// Xor performs a bitwise XOR operation between two vectors.
+// Xor performs a bitwise x ^ y.
 //
 // Asm: VPXOR, CPU Feature: AVX
 func (x Uint16x8) Xor(y Uint16x8) Uint16x8
 
-// Xor performs a bitwise XOR operation between two vectors.
+// Xor performs a bitwise x ^ y.
 //
 // Asm: VPXOR, CPU Feature: AVX2
 func (x Uint16x16) Xor(y Uint16x16) Uint16x16
 
-// Xor performs a bitwise XOR operation between two vectors.
+// Xor performs a bitwise x ^ y.
 //
 // Asm: VPXORD, CPU Feature: AVX512
 func (x Uint16x32) Xor(y Uint16x32) Uint16x32
 
-// Xor performs a bitwise XOR operation between two vectors.
+// Xor performs a bitwise x ^ y.
 //
 // Asm: VPXOR, CPU Feature: AVX
 func (x Uint32x4) Xor(y Uint32x4) Uint32x4
 
-// Xor performs a bitwise XOR operation between two vectors.
+// Xor performs a bitwise x ^ y.
 //
 // Asm: VPXOR, CPU Feature: AVX2
 func (x Uint32x8) Xor(y Uint32x8) Uint32x8
 
-// Xor performs a bitwise XOR operation between two vectors.
+// Xor performs a bitwise x ^ y.
 //
 // Asm: VPXORD, CPU Feature: AVX512
 func (x Uint32x16) Xor(y Uint32x16) Uint32x16
 
-// Xor performs a bitwise XOR operation between two vectors.
+// Xor performs a bitwise x ^ y.
 //
 // Asm: VPXOR, CPU Feature: AVX
 func (x Uint64x2) Xor(y Uint64x2) Uint64x2
 
-// Xor performs a bitwise XOR operation between two vectors.
+// Xor performs a bitwise x ^ y.
 //
 // Asm: VPXOR, CPU Feature: AVX2
 func (x Uint64x4) Xor(y Uint64x4) Uint64x4
 
-// Xor performs a bitwise XOR operation between two vectors.
+// Xor performs a bitwise x ^ y.
 //
 // Asm: VPXORQ, CPU Feature: AVX512
 func (x Uint64x8) Xor(y Uint64x8) Uint64x8
@@ -8631,6 +8575,8 @@ func (x Uint64x8) AsUint16x32() Uint16x32
 func (x Uint64x8) AsUint32x16() Uint32x16
 
 // ToInt8x16 converts from Mask8x16 to Int8x16.
+// If element i in the mask is "true", all bits in element i of the resulting
+// vector will be set.
 func (from Mask8x16) ToInt8x16() (to Int8x16)
 
 // asMask converts from Int8x16 to Mask8x16.
@@ -8641,6 +8587,8 @@ func (x Mask8x16) And(y Mask8x16) Mask8x16
 func (x Mask8x16) Or(y Mask8x16) Mask8x16
 
 // ToInt8x32 converts from Mask8x32 to Int8x32.
+// If element i in the mask is "true", all bits in element i of the resulting
+// vector will be set.
 func (from Mask8x32) ToInt8x32() (to Int8x32)
 
 // asMask converts from Int8x32 to Mask8x32.
@@ -8651,6 +8599,8 @@ func (x Mask8x32) And(y Mask8x32) Mask8x32
 func (x Mask8x32) Or(y Mask8x32) Mask8x32
 
 // ToInt8x64 converts from Mask8x64 to Int8x64.
+// If element i in the mask is "true", all bits in element i of the resulting
+// vector will be set.
 func (from Mask8x64) ToInt8x64() (to Int8x64)
 
 // asMask converts from Int8x64 to Mask8x64.
@@ -8661,6 +8611,8 @@ func (x Mask8x64) And(y Mask8x64) Mask8x64
 func (x Mask8x64) Or(y Mask8x64) Mask8x64
 
 // ToInt16x8 converts from Mask16x8 to Int16x8.
+// If element i in the mask is "true", all bits in element i of the resulting
+// vector will be set.
 func (from Mask16x8) ToInt16x8() (to Int16x8)
 
 // asMask converts from Int16x8 to Mask16x8.
@@ -8671,6 +8623,8 @@ func (x Mask16x8) And(y Mask16x8) Mask16x8
 func (x Mask16x8) Or(y Mask16x8) Mask16x8
 
 // ToInt16x16 converts from Mask16x16 to Int16x16.
+// If element i in the mask is "true", all bits in element i of the resulting
+// vector will be set.
 func (from Mask16x16) ToInt16x16() (to Int16x16)
 
 // asMask converts from Int16x16 to Mask16x16.
@@ -8681,6 +8635,8 @@ func (x Mask16x16) And(y Mask16x16) Mask16x16
 func (x Mask16x16) Or(y Mask16x16) Mask16x16
 
 // ToInt16x32 converts from Mask16x32 to Int16x32.
+// If element i in the mask is "true", all bits in element i of the resulting
+// vector will be set.
 func (from Mask16x32) ToInt16x32() (to Int16x32)
 
 // asMask converts from Int16x32 to Mask16x32.
@@ -8691,6 +8647,8 @@ func (x Mask16x32) And(y Mask16x32) Mask16x32
 func (x Mask16x32) Or(y Mask16x32) Mask16x32
 
 // ToInt32x4 converts from Mask32x4 to Int32x4.
+// If element i in the mask is "true", all bits in element i of the resulting
+// vector will be set.
 func (from Mask32x4) ToInt32x4() (to Int32x4)
 
 // asMask converts from Int32x4 to Mask32x4.
@@ -8701,6 +8659,8 @@ func (x Mask32x4) And(y Mask32x4) Mask32x4
 func (x Mask32x4) Or(y Mask32x4) Mask32x4
 
 // ToInt32x8 converts from Mask32x8 to Int32x8.
+// If element i in the mask is "true", all bits in element i of the resulting
+// vector will be set.
 func (from Mask32x8) ToInt32x8() (to Int32x8)
 
 // asMask converts from Int32x8 to Mask32x8.
@@ -8711,6 +8671,8 @@ func (x Mask32x8) And(y Mask32x8) Mask32x8
 func (x Mask32x8) Or(y Mask32x8) Mask32x8
 
 // ToInt32x16 converts from Mask32x16 to Int32x16.
+// If element i in the mask is "true", all bits in element i of the resulting
+// vector will be set.
 func (from Mask32x16) ToInt32x16() (to Int32x16)
 
 // asMask converts from Int32x16 to Mask32x16.
@@ -8721,6 +8683,8 @@ func (x Mask32x16) And(y Mask32x16) Mask32x16
 func (x Mask32x16) Or(y Mask32x16) Mask32x16
 
 // ToInt64x2 converts from Mask64x2 to Int64x2.
+// If element i in the mask is "true", all bits in element i of the resulting
+// vector will be set.
 func (from Mask64x2) ToInt64x2() (to Int64x2)
 
 // asMask converts from Int64x2 to Mask64x2.
@@ -8731,6 +8695,8 @@ func (x Mask64x2) And(y Mask64x2) Mask64x2
 func (x Mask64x2) Or(y Mask64x2) Mask64x2
 
 // ToInt64x4 converts from Mask64x4 to Int64x4.
+// If element i in the mask is "true", all bits in element i of the resulting
+// vector will be set.
 func (from Mask64x4) ToInt64x4() (to Int64x4)
 
 // asMask converts from Int64x4 to Mask64x4.
@@ -8741,6 +8707,8 @@ func (x Mask64x4) And(y Mask64x4) Mask64x4
 func (x Mask64x4) Or(y Mask64x4) Mask64x4
 
 // ToInt64x8 converts from Mask64x8 to Int64x8.
+// If element i in the mask is "true", all bits in element i of the resulting
+// vector will be set.
 func (from Mask64x8) ToInt64x8() (to Int64x8)
 
 // asMask converts from Int64x8 to Mask64x8.

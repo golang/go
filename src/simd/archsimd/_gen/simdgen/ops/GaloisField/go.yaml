@@ -9,6 +9,7 @@
   - &uint8x8
     go: $t2
     base: uint
+    name: A
   - &pureImmVar
     class: immediate
     immOffset: 0

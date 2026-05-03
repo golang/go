@@ -61,7 +61,7 @@ func (x Int64x8) blendMasked(y Int64x8, mask Mask64x8) Int64x8
 // Bit 0 selects the low (0) or high (1) element of x and
 // bit 4 selects the low (0x00) or high (0x10) element of y.
 //
-// xyHiLo results in better performance when it's a constant, a non-constant value will be translated into a jump table.
+// A non-constant value of xyHiLo may result in significantly worse performance for this operation.
 //
 // Asm: VPCLMULQDQ, CPU Feature: AVX
 func (x Uint64x2) carrylessMultiply(xyHiLo uint8, y Uint64x2) Uint64x2
@@ -73,7 +73,7 @@ func (x Uint64x2) carrylessMultiply(xyHiLo uint8, y Uint64x2) Uint64x2
 // Bit 0 selects the low (0) or high (1) elements of x's lanes and
 // bit 4 selects the low (0x00) or high (0x10) elements of y's lanes.
 //
-// xyHiLo results in better performance when it's a constant, a non-constant value will be translated into a jump table.
+// A non-constant value of xyHiLo may result in significantly worse performance for this operation.
 //
 // Asm: VPCLMULQDQ, CPU Feature: AVX512VPCLMULQDQ
 func (x Uint64x4) carrylessMultiply(xyHiLo uint8, y Uint64x4) Uint64x4
@@ -85,7 +85,7 @@ func (x Uint64x4) carrylessMultiply(xyHiLo uint8, y Uint64x4) Uint64x4
 // Bit 0 selects the low (0) or high (1) elements of x's lanes and
 // bit 4 selects the low (0x00) or high (0x10) elements of y's lanes.
 //
-// xyHiLo results in better performance when it's a constant, a non-constant value will be translated into a jump table.
+// A non-constant value of xyHiLo may result in significantly worse performance for this operation.
 //
 // Asm: VPCLMULQDQ, CPU Feature: AVX512VPCLMULQDQ
 func (x Uint64x8) carrylessMultiply(xyHiLo uint8, y Uint64x8) Uint64x8
@@ -98,7 +98,7 @@ func (x Uint64x8) carrylessMultiply(xyHiLo uint8, y Uint64x8) Uint64x8
 // For example, {0,1,2,3}.concatSelectedConstant(0b_11_01_00_10, {4,5,6,7}) returns
 // {2, 0, 5, 7} (don't forget that the binary constant is written big-endian).
 //
-// h1h0l1l0 results in better performance when it's a constant, a non-constant value will be translated into a jump table.
+// A non-constant value of h1h0l1l0 may result in significantly worse performance for this operation.
 //
 // Asm: VSHUFPS, CPU Feature: AVX
 func (x Float32x4) concatSelectedConstant(h1h0l1l0 uint8, y Float32x4) Float32x4
@@ -110,7 +110,7 @@ func (x Float32x4) concatSelectedConstant(h1h0l1l0 uint8, y Float32x4) Float32x4
 // returns {4,7}; bit 0, selecting from x, is zero, and selects 4, and bit 1,
 // selecting from y, is 1, and selects 7.
 //
-// hilo results in better performance when it's a constant, a non-constant value will be translated into a jump table.
+// A non-constant value of hilo may result in significantly worse performance for this operation.
 //
 // Asm: VSHUFPD, CPU Feature: AVX
 func (x Float64x2) concatSelectedConstant(hilo uint8, y Float64x2) Float64x2
@@ -121,7 +121,7 @@ func (x Float64x2) concatSelectedConstant(hilo uint8, y Float64x2) Float64x2
 // For example, {0,1,2,3}.concatSelectedConstant(0b_11_01_00_10, {4,5,6,7}) returns
 // {2, 0, 5, 7} (don't forget that the binary constant is written big-endian).
 //
-// h1h0l1l0 results in better performance when it's a constant, a non-constant value will be translated into a jump table.
+// A non-constant value of h1h0l1l0 may result in significantly worse performance for this operation.
 //
 // Asm: VSHUFPS, CPU Feature: AVX
 func (x Int32x4) concatSelectedConstant(h1h0l1l0 uint8, y Int32x4) Int32x4
@@ -133,7 +133,7 @@ func (x Int32x4) concatSelectedConstant(h1h0l1l0 uint8, y Int32x4) Int32x4
 // returns {4,7}; bit 0, selecting from x, is zero, and selects 4, and bit 1,
 // selecting from y, is 1, and selects 7.
 //
-// hilo results in better performance when it's a constant, a non-constant value will be translated into a jump table.
+// A non-constant value of hilo may result in significantly worse performance for this operation.
 //
 // Asm: VSHUFPD, CPU Feature: AVX
 func (x Int64x2) concatSelectedConstant(hilo uint8, y Int64x2) Int64x2
@@ -144,7 +144,7 @@ func (x Int64x2) concatSelectedConstant(hilo uint8, y Int64x2) Int64x2
 // For example, {0,1,2,3}.concatSelectedConstant(0b_11_01_00_10, {4,5,6,7}) returns
 // {2, 0, 5, 7} (don't forget that the binary constant is written big-endian).
 //
-// h1h0l1l0 results in better performance when it's a constant, a non-constant value will be translated into a jump table.
+// A non-constant value of h1h0l1l0 may result in significantly worse performance for this operation.
 //
 // Asm: VSHUFPS, CPU Feature: AVX
 func (x Uint32x4) concatSelectedConstant(h1h0l1l0 uint8, y Uint32x4) Uint32x4
@@ -156,7 +156,7 @@ func (x Uint32x4) concatSelectedConstant(h1h0l1l0 uint8, y Uint32x4) Uint32x4
 // returns {4,7}; bit 0, selecting from x, is zero, and selects 4, and bit 1,
 // selecting from y, is 1, and selects 7.
 //
-// hilo results in better performance when it's a constant, a non-constant value will be translated into a jump table.
+// A non-constant value of hilo may result in significantly worse performance for this operation.
 //
 // Asm: VSHUFPD, CPU Feature: AVX
 func (x Uint64x2) concatSelectedConstant(hilo uint8, y Uint64x2) Uint64x2
@@ -172,7 +172,7 @@ func (x Uint64x2) concatSelectedConstant(hilo uint8, y Uint64x2) Uint64x2
 // returns {2,0,5,7,10,8,13,15}
 // (don't forget that the binary constant is written big-endian).
 //
-// h1h0l1l0 results in better performance when it's a constant, a non-constant value will be translated into a jump table.
+// A non-constant value of h1h0l1l0 may result in significantly worse performance for this operation.
 //
 // Asm: VSHUFPS, CPU Feature: AVX
 func (x Float32x8) concatSelectedConstantGrouped(h1h0l1l0 uint8, y Float32x8) Float32x8
@@ -190,7 +190,7 @@ func (x Float32x8) concatSelectedConstantGrouped(h1h0l1l0 uint8, y Float32x8) Fl
 //
 // (don't forget that the binary constant is written big-endian).
 //
-// h1h0l1l0 results in better performance when it's a constant, a non-constant value will be translated into a jump table.
+// A non-constant value of h1h0l1l0 may result in significantly worse performance for this operation.
 //
 // Asm: VSHUFPS, CPU Feature: AVX512
 func (x Float32x16) concatSelectedConstantGrouped(h1h0l1l0 uint8, y Float32x16) Float32x16
@@ -209,7 +209,7 @@ func (x Float32x16) concatSelectedConstantGrouped(h1h0l1l0 uint8, y Float32x16) 
 // This differs from the same method applied to a 32x8 vector, where
 // the 8-bit constant performs the same selection on both subvectors.
 //
-// hilos results in better performance when it's a constant, a non-constant value will be translated into a jump table.
+// A non-constant value of hilos may result in significantly worse performance for this operation.
 //
 // Asm: VSHUFPD, CPU Feature: AVX
 func (x Float64x4) concatSelectedConstantGrouped(hilos uint8, y Float64x4) Float64x4
@@ -230,7 +230,7 @@ func (x Float64x4) concatSelectedConstantGrouped(hilos uint8, y Float64x4) Float
 // This differs from the same method applied to a 32x8 or 32x16 vector, where
 // the 8-bit constant performs the same selection on all the subvectors.
 //
-// hilos results in better performance when it's a constant, a non-constant value will be translated into a jump table.
+// A non-constant value of hilos may result in significantly worse performance for this operation.
 //
 // Asm: VSHUFPD, CPU Feature: AVX512
 func (x Float64x8) concatSelectedConstantGrouped(hilos uint8, y Float64x8) Float64x8
@@ -244,7 +244,7 @@ func (x Float64x8) concatSelectedConstantGrouped(hilos uint8, y Float64x8) Float
 // returns {2,0,5,7,10,8,13,15}
 // (don't forget that the binary constant is written big-endian).
 //
-// h1h0l1l0 results in better performance when it's a constant, a non-constant value will be translated into a jump table.
+// A non-constant value of h1h0l1l0 may result in significantly worse performance for this operation.
 //
 // Asm: VSHUFPS, CPU Feature: AVX
 func (x Int32x8) concatSelectedConstantGrouped(h1h0l1l0 uint8, y Int32x8) Int32x8
@@ -262,7 +262,7 @@ func (x Int32x8) concatSelectedConstantGrouped(h1h0l1l0 uint8, y Int32x8) Int32x
 //
 // (don't forget that the binary constant is written big-endian).
 //
-// h1h0l1l0 results in better performance when it's a constant, a non-constant value will be translated into a jump table.
+// A non-constant value of h1h0l1l0 may result in significantly worse performance for this operation.
 //
 // Asm: VSHUFPS, CPU Feature: AVX512
 func (x Int32x16) concatSelectedConstantGrouped(h1h0l1l0 uint8, y Int32x16) Int32x16
@@ -281,7 +281,7 @@ func (x Int32x16) concatSelectedConstantGrouped(h1h0l1l0 uint8, y Int32x16) Int3
 // This differs from the same method applied to a 32x8 vector, where
 // the 8-bit constant performs the same selection on both subvectors.
 //
-// hilos results in better performance when it's a constant, a non-constant value will be translated into a jump table.
+// A non-constant value of hilos may result in significantly worse performance for this operation.
 //
 // Asm: VSHUFPD, CPU Feature: AVX
 func (x Int64x4) concatSelectedConstantGrouped(hilos uint8, y Int64x4) Int64x4
@@ -302,7 +302,7 @@ func (x Int64x4) concatSelectedConstantGrouped(hilos uint8, y Int64x4) Int64x4
 // This differs from the same method applied to a 32x8 or 32x16 vector, where
 // the 8-bit constant performs the same selection on all the subvectors.
 //
-// hilos results in better performance when it's a constant, a non-constant value will be translated into a jump table.
+// A non-constant value of hilos may result in significantly worse performance for this operation.
 //
 // Asm: VSHUFPD, CPU Feature: AVX512
 func (x Int64x8) concatSelectedConstantGrouped(hilos uint8, y Int64x8) Int64x8
@@ -316,7 +316,7 @@ func (x Int64x8) concatSelectedConstantGrouped(hilos uint8, y Int64x8) Int64x8
 // returns {2,0,5,7,10,8,13,15}
 // (don't forget that the binary constant is written big-endian).
 //
-// h1h0l1l0 results in better performance when it's a constant, a non-constant value will be translated into a jump table.
+// A non-constant value of h1h0l1l0 may result in significantly worse performance for this operation.
 //
 // Asm: VSHUFPS, CPU Feature: AVX
 func (x Uint32x8) concatSelectedConstantGrouped(h1h0l1l0 uint8, y Uint32x8) Uint32x8
@@ -334,7 +334,7 @@ func (x Uint32x8) concatSelectedConstantGrouped(h1h0l1l0 uint8, y Uint32x8) Uint
 //
 // (don't forget that the binary constant is written big-endian).
 //
-// h1h0l1l0 results in better performance when it's a constant, a non-constant value will be translated into a jump table.
+// A non-constant value of h1h0l1l0 may result in significantly worse performance for this operation.
 //
 // Asm: VSHUFPS, CPU Feature: AVX512
 func (x Uint32x16) concatSelectedConstantGrouped(h1h0l1l0 uint8, y Uint32x16) Uint32x16
@@ -353,7 +353,7 @@ func (x Uint32x16) concatSelectedConstantGrouped(h1h0l1l0 uint8, y Uint32x16) Ui
 // This differs from the same method applied to a 32x8 vector, where
 // the 8-bit constant performs the same selection on both subvectors.
 //
-// hilos results in better performance when it's a constant, a non-constant value will be translated into a jump table.
+// A non-constant value of hilos may result in significantly worse performance for this operation.
 //
 // Asm: VSHUFPD, CPU Feature: AVX
 func (x Uint64x4) concatSelectedConstantGrouped(hilos uint8, y Uint64x4) Uint64x4
@@ -374,7 +374,7 @@ func (x Uint64x4) concatSelectedConstantGrouped(hilos uint8, y Uint64x4) Uint64x
 // This differs from the same method applied to a 32x8 or 32x16 vector, where
 // the 8-bit constant performs the same selection on all the subvectors.
 //
-// hilos results in better performance when it's a constant, a non-constant value will be translated into a jump table.
+// A non-constant value of hilos may result in significantly worse performance for this operation.
 //
 // Asm: VSHUFPD, CPU Feature: AVX512
 func (x Uint64x8) concatSelectedConstantGrouped(hilos uint8, y Uint64x8) Uint64x8
@@ -387,7 +387,7 @@ func (x Uint64x8) concatSelectedConstantGrouped(hilos uint8, y Uint64x8) Uint64x
 //
 // Indices is four 2-bit values packed into a byte, thus indices[0:2] is the first index.
 //
-// indices results in better performance when it's a constant, a non-constant value will be translated into a jump table.
+// A non-constant value of indices may result in significantly worse performance for this operation.
 //
 // Asm: VPSHUFD, CPU Feature: AVX
 func (x Int32x4) permuteScalars(indices uint8) Int32x4
@@ -398,7 +398,7 @@ func (x Int32x4) permuteScalars(indices uint8) Int32x4
 //
 // Indices is four 2-bit values packed into a byte, thus indices[0:2] is the first index.
 //
-// indices results in better performance when it's a constant, a non-constant value will be translated into a jump table.
+// A non-constant value of indices may result in significantly worse performance for this operation.
 //
 // Asm: VPSHUFD, CPU Feature: AVX
 func (x Uint32x4) permuteScalars(indices uint8) Uint32x4
@@ -412,7 +412,7 @@ func (x Uint32x4) permuteScalars(indices uint8) Uint32x4
 // Indices is four 2-bit values packed into a byte, thus indices[0:2] is the first index.
 // Each group is of size 128-bit.
 //
-// indices results in better performance when it's a constant, a non-constant value will be translated into a jump table.
+// A non-constant value of indices may result in significantly worse performance for this operation.
 //
 // Asm: VPSHUFD, CPU Feature: AVX2
 func (x Int32x8) permuteScalarsGrouped(indices uint8) Int32x8
@@ -424,7 +424,7 @@ func (x Int32x8) permuteScalarsGrouped(indices uint8) Int32x8
 // Indices is four 2-bit values packed into a byte, thus indices[0:2] is the first index.
 // Each group is of size 128-bit.
 //
-// indices results in better performance when it's a constant, a non-constant value will be translated into a jump table.
+// A non-constant value of indices may result in significantly worse performance for this operation.
 //
 // Asm: VPSHUFD, CPU Feature: AVX512
 func (x Int32x16) permuteScalarsGrouped(indices uint8) Int32x16
@@ -436,7 +436,7 @@ func (x Int32x16) permuteScalarsGrouped(indices uint8) Int32x16
 // Indices is four 2-bit values packed into a byte, thus indices[0:2] is the first index.
 // Each group is of size 128-bit.
 //
-// indices results in better performance when it's a constant, a non-constant value will be translated into a jump table.
+// A non-constant value of indices may result in significantly worse performance for this operation.
 //
 // Asm: VPSHUFD, CPU Feature: AVX2
 func (x Uint32x8) permuteScalarsGrouped(indices uint8) Uint32x8
@@ -448,7 +448,7 @@ func (x Uint32x8) permuteScalarsGrouped(indices uint8) Uint32x8
 // Indices is four 2-bit values packed into a byte, thus indices[0:2] is the first index.
 // Each group is of size 128-bit.
 //
-// indices results in better performance when it's a constant, a non-constant value will be translated into a jump table.
+// A non-constant value of indices may result in significantly worse performance for this operation.
 //
 // Asm: VPSHUFD, CPU Feature: AVX512
 func (x Uint32x16) permuteScalarsGrouped(indices uint8) Uint32x16
@@ -461,7 +461,7 @@ func (x Uint32x16) permuteScalarsGrouped(indices uint8) Uint32x16
 //
 // Indices is four 2-bit values packed into a byte, thus indices[0:2] is the first index.
 //
-// indices results in better performance when it's a constant, a non-constant value will be translated into a jump table.
+// A non-constant value of indices may result in significantly worse performance for this operation.
 //
 // Asm: VPSHUFHW, CPU Feature: AVX
 func (x Int16x8) permuteScalarsHi(indices uint8) Int16x8
@@ -472,7 +472,7 @@ func (x Int16x8) permuteScalarsHi(indices uint8) Int16x8
 //
 // Indices is four 2-bit values packed into a byte, thus indices[0:2] is the first index.
 //
-// indices results in better performance when it's a constant, a non-constant value will be translated into a jump table.
+// A non-constant value of indices may result in significantly worse performance for this operation.
 //
 // Asm: VPSHUFHW, CPU Feature: AVX
 func (x Uint16x8) permuteScalarsHi(indices uint8) Uint16x8
@@ -488,7 +488,7 @@ func (x Uint16x8) permuteScalarsHi(indices uint8) Uint16x8
 // Indices is four 2-bit values packed into a byte, thus indices[0:2] is the first index.
 // Each group is of size 128-bit.
 //
-// indices results in better performance when it's a constant, a non-constant value will be translated into a jump table.
+// A non-constant value of indices may result in significantly worse performance for this operation.
 //
 // Asm: VPSHUFHW, CPU Feature: AVX2
 func (x Int16x16) permuteScalarsHiGrouped(indices uint8) Int16x16
@@ -502,7 +502,7 @@ func (x Int16x16) permuteScalarsHiGrouped(indices uint8) Int16x16
 // Indices is four 2-bit values packed into a byte, thus indices[0:2] is the first index.
 // Each group is of size 128-bit.
 //
-// indices results in better performance when it's a constant, a non-constant value will be translated into a jump table.
+// A non-constant value of indices may result in significantly worse performance for this operation.
 //
 // Asm: VPSHUFHW, CPU Feature: AVX512
 func (x Int16x32) permuteScalarsHiGrouped(indices uint8) Int16x32
@@ -516,7 +516,7 @@ func (x Int16x32) permuteScalarsHiGrouped(indices uint8) Int16x32
 // Indices is four 2-bit values packed into a byte, thus indices[0:2] is the first index.
 // Each group is of size 128-bit.
 //
-// indices results in better performance when it's a constant, a non-constant value will be translated into a jump table.
+// A non-constant value of indices may result in significantly worse performance for this operation.
 //
 // Asm: VPSHUFHW, CPU Feature: AVX2
 func (x Uint16x16) permuteScalarsHiGrouped(indices uint8) Uint16x16
@@ -530,7 +530,7 @@ func (x Uint16x16) permuteScalarsHiGrouped(indices uint8) Uint16x16
 // Indices is four 2-bit values packed into a byte, thus indices[0:2] is the first index.
 // Each group is of size 128-bit.
 //
-// indices results in better performance when it's a constant, a non-constant value will be translated into a jump table.
+// A non-constant value of indices may result in significantly worse performance for this operation.
 //
 // Asm: VPSHUFHW, CPU Feature: AVX512
 func (x Uint16x32) permuteScalarsHiGrouped(indices uint8) Uint16x32
@@ -543,7 +543,7 @@ func (x Uint16x32) permuteScalarsHiGrouped(indices uint8) Uint16x32
 //
 // Indices is four 2-bit values packed into a byte, thus indices[0:2] is the first index.
 //
-// indices results in better performance when it's a constant, a non-constant value will be translated into a jump table.
+// A non-constant value of indices may result in significantly worse performance for this operation.
 //
 // Asm: VPSHUFLW, CPU Feature: AVX
 func (x Int16x8) permuteScalarsLo(indices uint8) Int16x8
@@ -554,7 +554,7 @@ func (x Int16x8) permuteScalarsLo(indices uint8) Int16x8
 //
 // Indices is four 2-bit values packed into a byte, thus indices[0:2] is the first index.
 //
-// indices results in better performance when it's a constant, a non-constant value will be translated into a jump table.
+// A non-constant value of indices may result in significantly worse performance for this operation.
 //
 // Asm: VPSHUFLW, CPU Feature: AVX
 func (x Uint16x8) permuteScalarsLo(indices uint8) Uint16x8
@@ -569,7 +569,7 @@ func (x Uint16x8) permuteScalarsLo(indices uint8) Uint16x8
 // Indices is four 2-bit values packed into a byte, thus indices[0:2] is the first index.
 // Each group is of size 128-bit.
 //
-// indices results in better performance when it's a constant, a non-constant value will be translated into a jump table.
+// A non-constant value of indices may result in significantly worse performance for this operation.
 //
 // Asm: VPSHUFLW, CPU Feature: AVX2
 func (x Int16x16) permuteScalarsLoGrouped(indices uint8) Int16x16
@@ -582,7 +582,7 @@ func (x Int16x16) permuteScalarsLoGrouped(indices uint8) Int16x16
 // Indices is four 2-bit values packed into a byte, thus indices[0:2] is the first index.
 // Each group is of size 128-bit.
 //
-// indices results in better performance when it's a constant, a non-constant value will be translated into a jump table.
+// A non-constant value of indices may result in significantly worse performance for this operation.
 //
 // Asm: VPSHUFLW, CPU Feature: AVX512
 func (x Int16x32) permuteScalarsLoGrouped(indices uint8) Int16x32
@@ -595,7 +595,7 @@ func (x Int16x32) permuteScalarsLoGrouped(indices uint8) Int16x32
 // Indices is four 2-bit values packed into a byte, thus indices[0:2] is the first index.
 // Each group is of size 128-bit.
 //
-// indices results in better performance when it's a constant, a non-constant value will be translated into a jump table.
+// A non-constant value of indices may result in significantly worse performance for this operation.
 //
 // Asm: VPSHUFLW, CPU Feature: AVX2
 func (x Uint16x16) permuteScalarsLoGrouped(indices uint8) Uint16x16
@@ -608,7 +608,7 @@ func (x Uint16x16) permuteScalarsLoGrouped(indices uint8) Uint16x16
 // Indices is four 2-bit values packed into a byte, thus indices[0:2] is the first index.
 // Each group is of size 128-bit.
 //
-// indices results in better performance when it's a constant, a non-constant value will be translated into a jump table.
+// A non-constant value of indices may result in significantly worse performance for this operation.
 //
 // Asm: VPSHUFLW, CPU Feature: AVX512
 func (x Uint16x32) permuteScalarsLoGrouped(indices uint8) Uint16x32
@@ -618,7 +618,7 @@ func (x Uint16x32) permuteScalarsLoGrouped(indices uint8) Uint16x32
 // tern performs a logical operation on three vectors based on the 8-bit truth table.
 // Bitwise, the result is equal to 1 & (table >> (x<<2 + y<<1 + z))
 //
-// table results in better performance when it's a constant, a non-constant value will be translated into a jump table.
+// A non-constant value of table may result in significantly worse performance for this operation.
 //
 // Asm: VPTERNLOGD, CPU Feature: AVX512
 func (x Int32x4) tern(table uint8, y Int32x4, z Int32x4) Int32x4
@@ -626,7 +626,7 @@ func (x Int32x4) tern(table uint8, y Int32x4, z Int32x4) Int32x4
 // tern performs a logical operation on three vectors based on the 8-bit truth table.
 // Bitwise, the result is equal to 1 & (table >> (x<<2 + y<<1 + z))
 //
-// table results in better performance when it's a constant, a non-constant value will be translated into a jump table.
+// A non-constant value of table may result in significantly worse performance for this operation.
 //
 // Asm: VPTERNLOGD, CPU Feature: AVX512
 func (x Int32x8) tern(table uint8, y Int32x8, z Int32x8) Int32x8
@@ -634,7 +634,7 @@ func (x Int32x8) tern(table uint8, y Int32x8, z Int32x8) Int32x8
 // tern performs a logical operation on three vectors based on the 8-bit truth table.
 // Bitwise, the result is equal to 1 & (table >> (x<<2 + y<<1 + z))
 //
-// table results in better performance when it's a constant, a non-constant value will be translated into a jump table.
+// A non-constant value of table may result in significantly worse performance for this operation.
 //
 // Asm: VPTERNLOGD, CPU Feature: AVX512
 func (x Int32x16) tern(table uint8, y Int32x16, z Int32x16) Int32x16
@@ -642,7 +642,7 @@ func (x Int32x16) tern(table uint8, y Int32x16, z Int32x16) Int32x16
 // tern performs a logical operation on three vectors based on the 8-bit truth table.
 // Bitwise, the result is equal to 1 & (table >> (x<<2 + y<<1 + z))
 //
-// table results in better performance when it's a constant, a non-constant value will be translated into a jump table.
+// A non-constant value of table may result in significantly worse performance for this operation.
 //
 // Asm: VPTERNLOGQ, CPU Feature: AVX512
 func (x Int64x2) tern(table uint8, y Int64x2, z Int64x2) Int64x2
@@ -650,7 +650,7 @@ func (x Int64x2) tern(table uint8, y Int64x2, z Int64x2) Int64x2
 // tern performs a logical operation on three vectors based on the 8-bit truth table.
 // Bitwise, the result is equal to 1 & (table >> (x<<2 + y<<1 + z))
 //
-// table results in better performance when it's a constant, a non-constant value will be translated into a jump table.
+// A non-constant value of table may result in significantly worse performance for this operation.
 //
 // Asm: VPTERNLOGQ, CPU Feature: AVX512
 func (x Int64x4) tern(table uint8, y Int64x4, z Int64x4) Int64x4
@@ -658,7 +658,7 @@ func (x Int64x4) tern(table uint8, y Int64x4, z Int64x4) Int64x4
 // tern performs a logical operation on three vectors based on the 8-bit truth table.
 // Bitwise, the result is equal to 1 & (table >> (x<<2 + y<<1 + z))
 //
-// table results in better performance when it's a constant, a non-constant value will be translated into a jump table.
+// A non-constant value of table may result in significantly worse performance for this operation.
 //
 // Asm: VPTERNLOGQ, CPU Feature: AVX512
 func (x Int64x8) tern(table uint8, y Int64x8, z Int64x8) Int64x8
@@ -666,7 +666,7 @@ func (x Int64x8) tern(table uint8, y Int64x8, z Int64x8) Int64x8
 // tern performs a logical operation on three vectors based on the 8-bit truth table.
 // Bitwise, the result is equal to 1 & (table >> (x<<2 + y<<1 + z))
 //
-// table results in better performance when it's a constant, a non-constant value will be translated into a jump table.
+// A non-constant value of table may result in significantly worse performance for this operation.
 //
 // Asm: VPTERNLOGD, CPU Feature: AVX512
 func (x Uint32x4) tern(table uint8, y Uint32x4, z Uint32x4) Uint32x4
@@ -674,7 +674,7 @@ func (x Uint32x4) tern(table uint8, y Uint32x4, z Uint32x4) Uint32x4
 // tern performs a logical operation on three vectors based on the 8-bit truth table.
 // Bitwise, the result is equal to 1 & (table >> (x<<2 + y<<1 + z))
 //
-// table results in better performance when it's a constant, a non-constant value will be translated into a jump table.
+// A non-constant value of table may result in significantly worse performance for this operation.
 //
 // Asm: VPTERNLOGD, CPU Feature: AVX512
 func (x Uint32x8) tern(table uint8, y Uint32x8, z Uint32x8) Uint32x8
@@ -682,7 +682,7 @@ func (x Uint32x8) tern(table uint8, y Uint32x8, z Uint32x8) Uint32x8
 // tern performs a logical operation on three vectors based on the 8-bit truth table.
 // Bitwise, the result is equal to 1 & (table >> (x<<2 + y<<1 + z))
 //
-// table results in better performance when it's a constant, a non-constant value will be translated into a jump table.
+// A non-constant value of table may result in significantly worse performance for this operation.
 //
 // Asm: VPTERNLOGD, CPU Feature: AVX512
 func (x Uint32x16) tern(table uint8, y Uint32x16, z Uint32x16) Uint32x16
@@ -690,7 +690,7 @@ func (x Uint32x16) tern(table uint8, y Uint32x16, z Uint32x16) Uint32x16
 // tern performs a logical operation on three vectors based on the 8-bit truth table.
 // Bitwise, the result is equal to 1 & (table >> (x<<2 + y<<1 + z))
 //
-// table results in better performance when it's a constant, a non-constant value will be translated into a jump table.
+// A non-constant value of table may result in significantly worse performance for this operation.
 //
 // Asm: VPTERNLOGQ, CPU Feature: AVX512
 func (x Uint64x2) tern(table uint8, y Uint64x2, z Uint64x2) Uint64x2
@@ -698,7 +698,7 @@ func (x Uint64x2) tern(table uint8, y Uint64x2, z Uint64x2) Uint64x2
 // tern performs a logical operation on three vectors based on the 8-bit truth table.
 // Bitwise, the result is equal to 1 & (table >> (x<<2 + y<<1 + z))
 //
-// table results in better performance when it's a constant, a non-constant value will be translated into a jump table.
+// A non-constant value of table may result in significantly worse performance for this operation.
 //
 // Asm: VPTERNLOGQ, CPU Feature: AVX512
 func (x Uint64x4) tern(table uint8, y Uint64x4, z Uint64x4) Uint64x4
@@ -706,7 +706,7 @@ func (x Uint64x4) tern(table uint8, y Uint64x4, z Uint64x4) Uint64x4
 // tern performs a logical operation on three vectors based on the 8-bit truth table.
 // Bitwise, the result is equal to 1 & (table >> (x<<2 + y<<1 + z))
 //
-// table results in better performance when it's a constant, a non-constant value will be translated into a jump table.
+// A non-constant value of table may result in significantly worse performance for this operation.
 //
 // Asm: VPTERNLOGQ, CPU Feature: AVX512
 func (x Uint64x8) tern(table uint8, y Uint64x8, z Uint64x8) Uint64x8

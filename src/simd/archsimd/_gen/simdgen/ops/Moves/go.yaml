@@ -254,8 +254,6 @@
 
 - go: Permute
   asm: "VPERMQ|VPERMPD"
-  addDoc: !string |-
-    // The low 2 bits (values 0-3) of each element of indices is used.
   operandOrder: "21Type1"
   in:
   - &anyindices
@@ -271,8 +269,6 @@
 
 - go: Permute
   asm: "VPERM[WDQ]|VPERMP[SD]"
-  addDoc: !string |-
-    // The low 3 bits (values 0-7) of each element of indices is used.
   operandOrder: "21Type1"
   in:
   - *anyindices
@@ -284,8 +280,6 @@
 
 - go: Permute
   asm: "VPERM[BWD]|VPERMPS"
-  addDoc: !string |-
-    // The low 4 bits (values 0-15) of each element of indices is used.
   operandOrder: "21Type1"
   in:
   - *anyindices
@@ -297,8 +291,6 @@
 
 - go: Permute
   asm: "VPERM[BW]"
-  addDoc: !string |-
-    // The low 5 bits (values 0-31) of each element of indices is used.
   operandOrder: "21Type1"
   in:
   - *anyindices
@@ -310,8 +302,6 @@
 
 - go: Permute
   asm: "VPERMB"
-  addDoc: !string |-
-    // The low 6 bits (values 0-63) of each element of indices is used.
   operandOrder: "21Type1"
   in:
   - *anyindices

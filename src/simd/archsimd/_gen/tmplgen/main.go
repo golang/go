@@ -328,12 +328,14 @@ func shapedTemplateOf(s *shapes, name, temp string) shapeAndTemplate {
 }
 
 var sliceTemplate = templateOf("slice", `
-// Load{{.VType}}Slice loads {{.AOrAn}} {{.VType}} from a slice of at least {{.Count}} {{.Etype}}s.
+// Load{{.VType}}Slice loads {{.AOrAn}} {{.VType}} from a slice of elements.
+// If s does not have at least {{.Count}} elements, it panics.
 func Load{{.VType}}Slice(s []{{.Etype}}) {{.VType}} {
 	return Load{{.VType}}((*[{{.Count}}]{{.Etype}})(s))
 }
 
-// StoreSlice stores x into a slice of at least {{.Count}} {{.Etype}}s.
+// StoreSlice stores the elements of x into a slice.
+// If s does not have at least {{.Count}} elements, it panics.
 func (x {{.VType}}) StoreSlice(s []{{.Etype}}) {
 	x.Store((*[{{.Count}}]{{.Etype}})(s))
 }
@@ -701,7 +703,7 @@ func (x {{.VType}}) Not() {{.VType}} {
 	return x.Xor(x.Equal(x).ToInt{{.WxC}}())
 }
 
-// Neg returns the elementwise negation of x.
+// Neg returns the element-wise negation of x.
 //
 // Emulated, CPU Feature: {{.CPUfeature}}
 func (x {{.VType}}) Neg() {{.VType}} {
@@ -897,7 +899,7 @@ func Broadcast{{.VType}}(x {{.Etype}}) {{.VType}} {
 `)
 
 var maskCvtTemplate = shapedTemplateOf(intShapes, "Mask conversions", `
-// ToMask converts from {{.Base}}{{.WxC}} to Mask{{.WxC}}, mask element is set to true when the corresponding vector element is non-zero.
+// ToMask returns a mask whose i'th element is set if x[i] is non-zero.
 func (from {{.Base}}{{.WxC}}) ToMask() (to Mask{{.WxC}}) {
 	return from.NotEqual({{.Base}}{{.WxC}}{})
 }
