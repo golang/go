@@ -3032,24 +3032,6 @@ func rewriteValueAMD64(v *Value) bool {
 	case OpConvertToUint64Float64x8:
 		v.Op = OpAMD64VCVTTPD2UQQ512
 		return true
-	case OpCopySignInt16x16:
-		v.Op = OpAMD64VPSIGNW256
-		return true
-	case OpCopySignInt16x8:
-		v.Op = OpAMD64VPSIGNW128
-		return true
-	case OpCopySignInt32x4:
-		v.Op = OpAMD64VPSIGND128
-		return true
-	case OpCopySignInt32x8:
-		v.Op = OpAMD64VPSIGND256
-		return true
-	case OpCopySignInt8x16:
-		v.Op = OpAMD64VPSIGNB128
-		return true
-	case OpCopySignInt8x32:
-		v.Op = OpAMD64VPSIGNB256
-		return true
 	case OpCtz16:
 		return rewriteValueAMD64_OpCtz16(v)
 	case OpCtz16NonZero:
@@ -4392,6 +4374,24 @@ func rewriteValueAMD64(v *Value) bool {
 		return true
 	case OpMulInt64x8:
 		v.Op = OpAMD64VPMULLQ512
+		return true
+	case OpMulSignInt16x16:
+		v.Op = OpAMD64VPSIGNW256
+		return true
+	case OpMulSignInt16x8:
+		v.Op = OpAMD64VPSIGNW128
+		return true
+	case OpMulSignInt32x4:
+		v.Op = OpAMD64VPSIGND128
+		return true
+	case OpMulSignInt32x8:
+		v.Op = OpAMD64VPSIGND256
+		return true
+	case OpMulSignInt8x16:
+		v.Op = OpAMD64VPSIGNB128
+		return true
+	case OpMulSignInt8x32:
+		v.Op = OpAMD64VPSIGNB256
 		return true
 	case OpMulSubAddFloat32x16:
 		v.Op = OpAMD64VFMSUBADD213PS512

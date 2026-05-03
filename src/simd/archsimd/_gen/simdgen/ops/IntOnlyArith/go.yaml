@@ -23,12 +23,11 @@
   - *int_t # Output is magnitude, fits in the same signed type
 
 # Sign Operation (signed byte, word, dword)
-# Applies sign of second operand to the first.
 # Instructions: VPSIGNB, VPSIGNW, VPSIGND
-- go: CopySign
+- go: MulSign
   asm: "VPSIGN[BWD]" # Matches VPSIGNB, VPSIGNW, VPSIGND
   in:
-  - *int_t # value to apply sign to
+  - *int_t # value to multiply by sign
   - *int_t # value from which to take the sign
   out:
   - *int_t

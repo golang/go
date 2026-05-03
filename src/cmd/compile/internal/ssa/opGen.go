@@ -6487,12 +6487,6 @@ const (
 	OpConvertToUint64Float64x2
 	OpConvertToUint64Float64x4
 	OpConvertToUint64Float64x8
-	OpCopySignInt8x16
-	OpCopySignInt8x32
-	OpCopySignInt16x8
-	OpCopySignInt16x16
-	OpCopySignInt32x4
-	OpCopySignInt32x8
 	OpDivFloat32x4
 	OpDivFloat32x8
 	OpDivFloat32x16
@@ -6857,6 +6851,12 @@ const (
 	OpMulInt64x2
 	OpMulInt64x4
 	OpMulInt64x8
+	OpMulSignInt8x16
+	OpMulSignInt8x32
+	OpMulSignInt16x8
+	OpMulSignInt16x16
+	OpMulSignInt32x4
+	OpMulSignInt32x8
 	OpMulSubAddFloat32x4
 	OpMulSubAddFloat32x8
 	OpMulSubAddFloat32x16
@@ -91104,36 +91104,6 @@ var opcodeTable = [...]opInfo{
 		generic: true,
 	},
 	{
-		name:    "CopySignInt8x16",
-		argLen:  2,
-		generic: true,
-	},
-	{
-		name:    "CopySignInt8x32",
-		argLen:  2,
-		generic: true,
-	},
-	{
-		name:    "CopySignInt16x8",
-		argLen:  2,
-		generic: true,
-	},
-	{
-		name:    "CopySignInt16x16",
-		argLen:  2,
-		generic: true,
-	},
-	{
-		name:    "CopySignInt32x4",
-		argLen:  2,
-		generic: true,
-	},
-	{
-		name:    "CopySignInt32x8",
-		argLen:  2,
-		generic: true,
-	},
-	{
 		name:    "DivFloat32x4",
 		argLen:  2,
 		generic: true,
@@ -93067,6 +93037,36 @@ var opcodeTable = [...]opInfo{
 		argLen:      2,
 		commutative: true,
 		generic:     true,
+	},
+	{
+		name:    "MulSignInt8x16",
+		argLen:  2,
+		generic: true,
+	},
+	{
+		name:    "MulSignInt8x32",
+		argLen:  2,
+		generic: true,
+	},
+	{
+		name:    "MulSignInt16x8",
+		argLen:  2,
+		generic: true,
+	},
+	{
+		name:    "MulSignInt16x16",
+		argLen:  2,
+		generic: true,
+	},
+	{
+		name:    "MulSignInt32x4",
+		argLen:  2,
+		generic: true,
+	},
+	{
+		name:    "MulSignInt32x8",
+		argLen:  2,
+		generic: true,
 	},
 	{
 		name:    "MulSubAddFloat32x4",

@@ -1947,44 +1947,6 @@ func (x Float64x4) ConvertToUint64() Uint64x4
 // Asm: VCVTTPD2UQQ, CPU Feature: AVX512
 func (x Float64x8) ConvertToUint64() Uint64x8
 
-/* CopySign */
-
-// CopySign returns the product of x with -1, 0, or 1,
-// whichever constant is nearest to the value of y.
-//
-// Asm: VPSIGNB, CPU Feature: AVX
-func (x Int8x16) CopySign(y Int8x16) Int8x16
-
-// CopySign returns the product of x with -1, 0, or 1,
-// whichever constant is nearest to the value of y.
-//
-// Asm: VPSIGNB, CPU Feature: AVX2
-func (x Int8x32) CopySign(y Int8x32) Int8x32
-
-// CopySign returns the product of x with -1, 0, or 1,
-// whichever constant is nearest to the value of y.
-//
-// Asm: VPSIGNW, CPU Feature: AVX
-func (x Int16x8) CopySign(y Int16x8) Int16x8
-
-// CopySign returns the product of x with -1, 0, or 1,
-// whichever constant is nearest to the value of y.
-//
-// Asm: VPSIGNW, CPU Feature: AVX2
-func (x Int16x16) CopySign(y Int16x16) Int16x16
-
-// CopySign returns the product of x with -1, 0, or 1,
-// whichever constant is nearest to the value of y.
-//
-// Asm: VPSIGND, CPU Feature: AVX
-func (x Int32x4) CopySign(y Int32x4) Int32x4
-
-// CopySign returns the product of x with -1, 0, or 1,
-// whichever constant is nearest to the value of y.
-//
-// Asm: VPSIGND, CPU Feature: AVX2
-func (x Int32x8) CopySign(y Int32x8) Int32x8
-
 /* Div */
 
 // Div divides elements of two vectors. Division by zero follows IEEE 754 and does not panic.
@@ -4181,6 +4143,38 @@ func (x Uint16x16) MulHigh(y Uint16x16) Uint16x16
 //
 // Asm: VPMULHUW, CPU Feature: AVX512
 func (x Uint16x32) MulHigh(y Uint16x32) Uint16x32
+
+/* MulSign */
+
+// MulSign returns the product of x with the sign of y (-1, 0, or 1).
+//
+// Asm: VPSIGNB, CPU Feature: AVX
+func (x Int8x16) MulSign(y Int8x16) Int8x16
+
+// MulSign returns the product of x with the sign of y (-1, 0, or 1).
+//
+// Asm: VPSIGNB, CPU Feature: AVX2
+func (x Int8x32) MulSign(y Int8x32) Int8x32
+
+// MulSign returns the product of x with the sign of y (-1, 0, or 1).
+//
+// Asm: VPSIGNW, CPU Feature: AVX
+func (x Int16x8) MulSign(y Int16x8) Int16x8
+
+// MulSign returns the product of x with the sign of y (-1, 0, or 1).
+//
+// Asm: VPSIGNW, CPU Feature: AVX2
+func (x Int16x16) MulSign(y Int16x16) Int16x16
+
+// MulSign returns the product of x with the sign of y (-1, 0, or 1).
+//
+// Asm: VPSIGND, CPU Feature: AVX
+func (x Int32x4) MulSign(y Int32x4) Int32x4
+
+// MulSign returns the product of x with the sign of y (-1, 0, or 1).
+//
+// Asm: VPSIGND, CPU Feature: AVX2
+func (x Int32x8) MulSign(y Int32x8) Int32x8
 
 /* MulSubAdd */
 
