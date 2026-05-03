@@ -84,5 +84,5 @@
   - go: $t
     base: uint
   out:
-  - go: $t2
-    base: uint
+  - base: uint
+    overwriteElementBits: 64

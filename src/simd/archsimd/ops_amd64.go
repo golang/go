@@ -7299,26 +7299,23 @@ func (x Uint16x32) SubSaturated(y Uint16x32) Uint16x32
 
 /* SumAbsDiff */
 
-// SumAbsDiff sums the absolute distance of the two input vectors, each adjacent 8 bytes as a group. The output sum will
-// be a vector of word-sized elements whose each 4*n-th element contains the sum of the n-th input group. The other elements in the result vector are zeroed.
-// This method could be seen as the norm of the L1 distance of each adjacent 8-byte vector group of the two input vectors.
+// SumAbsDiff computes the absolute difference of x and y and sums each group of 8 results.
+// This method could be seen as the norm of the L1 distance of each 8-element group of the two input vectors.
 //
 // Asm: VPSADBW, CPU Feature: AVX
-func (x Uint8x16) SumAbsDiff(y Uint8x16) Uint16x8
+func (x Uint8x16) SumAbsDiff(y Uint8x16) Uint64x2
 
-// SumAbsDiff sums the absolute distance of the two input vectors, each adjacent 8 bytes as a group. The output sum will
-// be a vector of word-sized elements whose each 4*n-th element contains the sum of the n-th input group. The other elements in the result vector are zeroed.
-// This method could be seen as the norm of the L1 distance of each adjacent 8-byte vector group of the two input vectors.
+// SumAbsDiff computes the absolute difference of x and y and sums each group of 8 results.
+// This method could be seen as the norm of the L1 distance of each 8-element group of the two input vectors.
 //
 // Asm: VPSADBW, CPU Feature: AVX2
-func (x Uint8x32) SumAbsDiff(y Uint8x32) Uint16x16
+func (x Uint8x32) SumAbsDiff(y Uint8x32) Uint64x4
 
-// SumAbsDiff sums the absolute distance of the two input vectors, each adjacent 8 bytes as a group. The output sum will
-// be a vector of word-sized elements whose each 4*n-th element contains the sum of the n-th input group. The other elements in the result vector are zeroed.
-// This method could be seen as the norm of the L1 distance of each adjacent 8-byte vector group of the two input vectors.
+// SumAbsDiff computes the absolute difference of x and y and sums each group of 8 results.
+// This method could be seen as the norm of the L1 distance of each 8-element group of the two input vectors.
 //
 // Asm: VPSADBW, CPU Feature: AVX512
-func (x Uint8x64) SumAbsDiff(y Uint8x64) Uint16x32
+func (x Uint8x64) SumAbsDiff(y Uint8x64) Uint64x8
 
 /* Trunc */
 
