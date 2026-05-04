@@ -112,6 +112,12 @@ type SysProcAttr struct {
 	PidFD *int
 	// NoNewPrivs calls prctl(PR_SET_NO_NEW_PRIVS) before exec.
 	NoNewPrivs bool
+	// UseLandlock calls landlock_restrict_self(2) with the given arguments.
+	// Unless the process has the CAP_SYS_ADMIN capability,
+	// this requires the NoNewPrivs flag.
+	UseLandlock   bool   // Call landlock_restrict_self(LandlockFD, LandlockFlags) before exec.
+	LandlockFD    int    // Ruleset FD argument for landlock_restrict_self(2).
+	LandlockFlags uint32 // Flags argument for landlock_restrict_self(2).
 }
 
 var (
@@ -674,6 +680,14 @@ func forkAndExecInChild1(argv0 *byte, argv, envv []*byte, chroot, dir *byte, att
 	// Call prctl(PR_SET_NO_NEW_PRIVS).
 	if sys.NoNewPrivs {
 		_, _, err1 = RawSyscall6(SYS_PRCTL, _PR_SET_NO_NEW_PRIVS, 1, 0, 0, 0, 0)
+		if err1 != 0 {
+			goto childerror
+		}
+	}
+
+	// Enforce a Landlock policy if requested.
+	if sys.UseLandlock {
+		_, _, err1 = RawSyscall(_SYS_landlock_restrict_self, uintptr(sys.LandlockFD), uintptr(sys.LandlockFlags), 0)
 		if err1 != 0 {
 			goto childerror
 		}
