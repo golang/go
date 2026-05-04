@@ -135,6 +135,7 @@ func ssaGenValue(s *ssagen.State, v *ssa.Value) {
 		// AND/OR	Rarg1, Rtmp
 		// STBCCC/STWCCC Rtmp, (Rarg0)
 		// BNE		-3(PC)
+		// LWSYNC
 		ld := ppc64.ALBAR
 		st := ppc64.ASTBCCC
 		if v.Op == ssa.OpPPC64LoweredAtomicAnd32 || v.Op == ssa.OpPPC64LoweredAtomicOr32 {
@@ -170,6 +171,10 @@ func ssaGenValue(s *ssagen.State, v *ssa.Value) {
 		p3 := s.Prog(ppc64.ABNE)
 		p3.To.Type = obj.TYPE_BRANCH
 		p3.To.SetTarget(p)
+		// LWSYNC - Provide acquire ordering to pair with the
+		// release (pre-LWSYNC) above, making the operation
+		// sequentially consistent.
+		s.Prog(ppc64.ALWSYNC)
 
 	case ssa.OpPPC64LoweredAtomicAdd32,
 		ssa.OpPPC64LoweredAtomicAdd64:
@@ -179,6 +184,7 @@ func ssaGenValue(s *ssagen.State, v *ssa.Value) {
 		// STDCCC/STWCCC Rout, (Rarg0)
 		// BNE         -3(PC)
 		// MOVW		Rout,Rout (if Add32)
+		// LWSYNC
 		ld := ppc64.ALDAR
 		st := ppc64.ASTDCCC
 		if v.Op == ssa.OpPPC64LoweredAtomicAdd32 {
@@ -188,10 +194,10 @@ func ssaGenValue(s *ssagen.State, v *ssa.Value) {
 		r0 := v.Args[0].Reg()
 		r1 := v.Args[1].Reg()
 		out := v.Reg0()
-		// LWSYNC - Assuming shared data not write-through-required nor
-		// caching-inhibited. See Appendix B.2.2.2 in the ISA 2.07b.
-		plwsync := s.Prog(ppc64.ALWSYNC)
-		plwsync.To.Type = obj.TYPE_NONE
+		// LWSYNC - Provide acquire ordering to pair with the
+		// release (pre-LWSYNC) above, making the operation
+		// sequentially consistent.
+		s.Prog(ppc64.ALWSYNC)
 		// LDAR or LWAR
 		p := s.Prog(ld)
 		p.From.Type = obj.TYPE_MEM
@@ -223,6 +229,11 @@ func ssaGenValue(s *ssagen.State, v *ssa.Value) {
 			p5.From.Type = obj.TYPE_REG
 			p5.From.Reg = out
 		}
+		// LWSYNC - Provide acquire ordering to pair with the
+		// release (pre-LWSYNC) above, making the operation
+		// sequentially consistent.
+		plwsync2 := s.Prog(ppc64.ALWSYNC)
+		plwsync2.To.Type = obj.TYPE_NONE
 
 	case ssa.OpPPC64LoweredAtomicExchange8,
 		ssa.OpPPC64LoweredAtomicExchange32,
