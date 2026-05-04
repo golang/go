@@ -524,9 +524,6 @@
 # VPSHUFB for 128-bit byte shuffles will be picked with higher priority than VPERMB, given its lower CPU feature requirement. (It's AVX)
 - go: PermuteOrZero
   asm: VPSHUFB
-  addDoc: !string |-
-    // The lower four bits of each byte-sized index in indices select an element from x,
-    // unless the index's sign bit is set in which case zero is used instead.
   in:
   - &128any
     bits: 128
@@ -539,13 +536,6 @@
 
 - go: PermuteOrZeroGrouped
   asm: VPSHUFB
-  addDoc: !string |-
-    //
-    //   result = {x_group0[indices[0]], x_group0[indices[1]], ..., x_group1[indices[16]], x_group1[indices[17]], ...}
-    //
-    // The lower four bits of each byte-sized index in indices select an element from its corresponding group in x,
-    // unless the index's sign bit is set in which case zero is used instead.
-    // Each group is of size 128-bit.
   in:
   - &256Or512any
     bits: "256|512"
