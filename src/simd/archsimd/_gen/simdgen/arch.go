@@ -69,6 +69,14 @@ var arm64RegInfoKeys = []string{
 	"vgpImmIn1",
 	"vgpvResultInArg0ImmOutIn0",
 	"vfpvResultInArg0ImmOutIn1",
+	"v11Narrow",
+	"v11ImmNarrow",
+	"v11ImmLong",
+	"v21Long",
+	"v21Narrow2",
+	"v21ImmNarrow2",
+	"v11ImmLong2",
+	"v21Long2",
 }
 
 var amd64RegInfoSet = map[string]bool{
@@ -79,12 +87,20 @@ var amd64RegInfoSet = map[string]bool{
 }
 
 var arm64RegInfoSet = map[string]bool{
-	"v11":       true,
-	"v21":       true,
-	"vgp":       true,
-	"vgpv":      true,
-	"vfpv":      true,
-	"v11ImmIn1": true,
+	"v11":           true,
+	"v21":           true,
+	"vgp":           true,
+	"vgpv":          true,
+	"vfpv":          true,
+	"v11ImmIn1":     true,
+	"v11Narrow":     true,
+	"v11ImmNarrow":  true,
+	"v11ImmLong":    true,
+	"v21Long":       true,
+	"v21Narrow2":    true,
+	"v21ImmNarrow2": true,
+	"v11ImmLong2":   true,
+	"v21Long2":      true,
 }
 
 // arm64Arrangements contains the SIMD arrangement suffixes for ARM64 NEON.

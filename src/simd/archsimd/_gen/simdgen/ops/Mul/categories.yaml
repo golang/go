@@ -12,3 +12,7 @@
   commutative: true
   documentation: !string |-
     // NAME multiplies elements and stores the high part of the result.
+- go: MulLoLong
+  commutative: true
+  documentation: !string |-
+    // NAME multiplies corresponding low-indexed elements and produces a result with double the element width.

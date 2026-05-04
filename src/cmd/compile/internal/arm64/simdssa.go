@@ -129,6 +129,84 @@ func ssaGenSIMDValue(s *ssagen.State, v *ssa.Value) bool {
 	case ssa.OpARM64VMOVSins0:
 		p = simdVfpvResultInArg0ImmOutIn1(s, v, arm64.ARNG_S)
 
+	case ssa.OpARM64VXTN2D:
+		p = simdV11Narrow(s, v, arm64.ARNG_2D)
+
+	case ssa.OpARM64VXTN4S:
+		p = simdV11Narrow(s, v, arm64.ARNG_4S)
+
+	case ssa.OpARM64VXTN8H:
+		p = simdV11Narrow(s, v, arm64.ARNG_8H)
+
+	case ssa.OpARM64VSHRN2D:
+		p = simdV11ImmNarrow(s, v, arm64.ARNG_2D)
+
+	case ssa.OpARM64VSHRN4S:
+		p = simdV11ImmNarrow(s, v, arm64.ARNG_4S)
+
+	case ssa.OpARM64VSHRN8H:
+		p = simdV11ImmNarrow(s, v, arm64.ARNG_8H)
+
+	case ssa.OpARM64VUSHLL16B:
+		p = simdV11ImmLong(s, v, arm64.ARNG_16B)
+
+	case ssa.OpARM64VUSHLL4S:
+		p = simdV11ImmLong(s, v, arm64.ARNG_4S)
+
+	case ssa.OpARM64VUSHLL8H:
+		p = simdV11ImmLong(s, v, arm64.ARNG_8H)
+
+	case ssa.OpARM64VSMULL16B,
+		ssa.OpARM64VUMULL16B:
+		p = simdV21Long(s, v, arm64.ARNG_16B)
+
+	case ssa.OpARM64VSMULL4S,
+		ssa.OpARM64VUMULL4S:
+		p = simdV21Long(s, v, arm64.ARNG_4S)
+
+	case ssa.OpARM64VSMULL8H,
+		ssa.OpARM64VUMULL8H:
+		p = simdV21Long(s, v, arm64.ARNG_8H)
+
+	case ssa.OpARM64VXTN2_2D:
+		p = simdV21Narrow2(s, v, arm64.ARNG_2D)
+
+	case ssa.OpARM64VXTN2_4S:
+		p = simdV21Narrow2(s, v, arm64.ARNG_4S)
+
+	case ssa.OpARM64VXTN2_8H:
+		p = simdV21Narrow2(s, v, arm64.ARNG_8H)
+
+	case ssa.OpARM64VSHRN2_2D:
+		p = simdV21ImmNarrow2(s, v, arm64.ARNG_2D)
+
+	case ssa.OpARM64VSHRN2_4S:
+		p = simdV21ImmNarrow2(s, v, arm64.ARNG_4S)
+
+	case ssa.OpARM64VSHRN2_8H:
+		p = simdV21ImmNarrow2(s, v, arm64.ARNG_8H)
+
+	case ssa.OpARM64VUSHLL2_16B:
+		p = simdV11ImmLong2(s, v, arm64.ARNG_16B)
+
+	case ssa.OpARM64VUSHLL2_4S:
+		p = simdV11ImmLong2(s, v, arm64.ARNG_4S)
+
+	case ssa.OpARM64VUSHLL2_8H:
+		p = simdV11ImmLong2(s, v, arm64.ARNG_8H)
+
+	case ssa.OpARM64VSMULL2_16B,
+		ssa.OpARM64VUMULL2_16B:
+		p = simdV21Long2(s, v, arm64.ARNG_16B)
+
+	case ssa.OpARM64VSMULL2_4S,
+		ssa.OpARM64VUMULL2_4S:
+		p = simdV21Long2(s, v, arm64.ARNG_4S)
+
+	case ssa.OpARM64VSMULL2_8H,
+		ssa.OpARM64VUMULL2_8H:
+		p = simdV21Long2(s, v, arm64.ARNG_8H)
+
 	default:
 		// Unknown reg shape
 		return false

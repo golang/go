@@ -27,6 +27,7 @@ var (
 	sinkU8  archsimd.Uint8x16
 	sinkI8  archsimd.Int8x16
 	sinkU32 archsimd.Uint32x4
+	sinkU64 archsimd.Uint64x2
 	sinkF32 archsimd.Float32x4
 	sinkF64 archsimd.Float64x2
 )
@@ -91,4 +92,23 @@ func getHiFloat32(x archsimd.Float32x4) {
 func getHiFloat64(x archsimd.Float64x2) {
 	// arm64:`VDUP V0.D\[1\],`
 	sinkF64 = x.GetHi()
+}
+
+func foldGetHiSetHiShifts(x archsimd.Uint32x4) archsimd.Uint16x8 {
+	shrN := x.ShiftRightNarrowConst(16)        // arm64: `VSHRN [$]16, V0.S4, V[0-9]+.H4`
+	trunc := x.ShiftRightNarrowConst(0)        // arm64: `VXTN V0.S4, V[0-9]+.H4` -`VSHRN`
+	shlLo := x.ShiftLeftLoLongConst(1)         // arm64: `VUSHLL [$]1, V0.S2, V[0-9]+.D2`
+	shlHi := x.GetHi().ShiftLeftLoLongConst(1) // arm64: `VUSHLL2 [$]1, V0.S4, V[0-9]+.D2` -`VDUP`
+	sum := shrN.Add(trunc)
+	combined := sum.SetHi(x.ShiftRightNarrowConst(15)) // arm64: `VSHRN2 [$]15, V0.S4, V[0-9]+.H8` -`VMOV.*D\[`
+	sinkU64 = shlLo.Sub(shlHi)
+	return combined
+}
+
+func foldGetHiSetHiMuls(a, b archsimd.Uint16x8) archsimd.Uint16x8 {
+	wLo := a.MulLoLong(b)                     // arm64: `VUMULL V0.H4, V1.H4, V[0-9].S4`
+	wHi := a.GetHi().MulLoLong(b.GetHi())     // arm64: `VUMULL2 V1.H8, V0.H8, V[0-9].S4` -`VDUP`
+	wHiRight := wHi.ShiftRightNarrowConst(16) // arm64: -`.*`
+	wLoRight := wLo.ShiftRightNarrowConst(16) // arm64: `VSHRN [$]16, V[0-9]+.S4, V0.H4`
+	return wLoRight.SetHi(wHiRight)           // arm64: `VSHRN2 [$]16, V[0-9]+.S4, V0.H8` -`VMOV.*D\[`
 }

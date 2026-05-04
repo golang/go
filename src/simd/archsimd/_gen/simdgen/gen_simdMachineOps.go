@@ -224,6 +224,29 @@ func writeSIMDMachineOps(ops []Operation) *bytes.Buffer {
 				opsDataMerging = append(opsDataMerging, opData{asm, gOp.Asm, mergingLen, regInfoMerging, gOp.Commutative, outType, resultInArg0})
 			}
 		}
+		// Generate hi-half "2" variant machine op
+		if gOp.HiHalfAsm != nil {
+			opsDataTarget := &opsData
+			if shapeIn == OneImmIn || shapeIn == OneKmaskImmIn {
+				opsDataTarget = &opsDataImm
+			}
+			kind := op.hiHalfKind()
+			asm2Name := hiHalfOpName(*gOp.HiHalfAsm, gOp)
+			argLen2 := len(gOp.In)
+			regInfo2 := regInfo
+			resultInArg02 := false
+			if kind == "narrow" {
+				argLen2++ // extra vreg input for destination
+				regInfo2 = hiHalfRegShape2(regInfo, kind)
+				resultInArg02 = true
+			}
+			if _, ok := regInfoSet[regInfo2]; !ok {
+				regInfoErrs = append(regInfoErrs, fmt.Errorf("unsupported hi-half register constraint: %s for op %s", regInfo2, asm2Name))
+				regInfoMissing[regInfo2] = true
+			} else {
+				*opsDataTarget = append(*opsDataTarget, opData{asm2Name, *gOp.HiHalfAsm, argLen2, regInfo2, gOp.Commutative, outType, resultInArg02})
+			}
+		}
 	}
 	if len(regInfoErrs) != 0 {
 		for _, e := range regInfoErrs {

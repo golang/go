@@ -47,6 +47,18 @@
     // NAME performs a saturating left shift on each element in x by the constant number of bits specified by y.
     // Results are saturated to the unsigned range on overflow.
 
+- go: ShiftRightNarrowConst
+  commutative: false
+  documentation: !string |-
+    // NAME performs a right shift on each element in x by the constant number of bits
+    // and narrows the result to half the element width.
+- go: ShiftLeftLoLongConst
+  signed: false
+  commutative: false
+  documentation: !string |-
+    // NAME performs a left shift on each unsigned low-indexed element in x by the constant number of bits
+    // and widens the result to double the element width.
+
 # Shared ops (AMD64 + ARM64)
 - go: ShiftAllLeft
   commutative: false

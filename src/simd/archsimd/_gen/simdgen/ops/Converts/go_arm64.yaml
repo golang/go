@@ -1,0 +1,61 @@
+!sum
+
+- go: TruncateToInt8
+  asm: "VXTN"
+  hiHalfAsm: "VXTN2"
+  in:
+    - base: int
+      elemBits: 16
+  out:
+    - base: int
+      bits: 128
+
+- go: TruncateToUint8
+  asm: "VXTN"
+  hiHalfAsm: "VXTN2"
+  in:
+    - base: uint
+      elemBits: 16
+  out:
+    - base: uint
+      bits: 128
+
+- go: TruncateToInt16
+  asm: "VXTN"
+  hiHalfAsm: "VXTN2"
+  in:
+    - base: int
+      elemBits: 32
+  out:
+    - base: int
+      bits: 128
+
+- go: TruncateToUint16
+  asm: "VXTN"
+  hiHalfAsm: "VXTN2"
+  in:
+    - base: uint
+      elemBits: 32
+  out:
+    - base: uint
+      bits: 128
+
+- go: TruncateToInt32
+  asm: "VXTN"
+  hiHalfAsm: "VXTN2"
+  in:
+    - base: int
+      elemBits: 64
+  out:
+    - base: int
+      bits: 128
+
+- go: TruncateToUint32
+  asm: "VXTN"
+  hiHalfAsm: "VXTN2"
+  in:
+    - base: uint
+      elemBits: 64
+  out:
+    - base: uint
+      bits: 128

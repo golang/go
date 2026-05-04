@@ -933,3 +933,39 @@ func (o Operation) String() string {
 func (op Operand) String() string {
 	return pprints(op)
 }
+
+// hiHalfOpName constructs the SSA machine op name for a hi-half "2" variant.
+// For example: hiHalfAsm="VSHRN2", arrangement="4S" → "VSHRN2_4S".
+func hiHalfOpName(hiHalfAsm string, gOp Operation) string {
+	return hiHalfAsm + "_" + *gOp.Arrangement
+}
+
+// hiHalfRegShape derives the regShape for hi-half "2" variant ops from the base regShape.
+// For narrow "2": the "2" variant has an extra destination input (resultInArg0),
+// so vreg input count increases by 1 (e.g., "v11Imm" → "v21Imm").
+// For long "2": same shape as base.
+func hiHalfRegShape2(baseRegShape string, kind string) string {
+	if kind == "narrow" {
+		if len(baseRegShape) > 2 && baseRegShape[0] == 'v' {
+			inCnt := int(baseRegShape[1] - '0')
+			outCnt := int(baseRegShape[2] - '0')
+			rest := baseRegShape[3:]
+			return fmt.Sprintf("v%d%d%s", inCnt+1, outCnt, rest)
+		}
+		panic(fmt.Sprintf("hiHalfRegShape2: unexpected regShape %q for narrow kind", baseRegShape))
+	}
+	return baseRegShape
+}
+
+// hiHalfLoweringRegShape computes the lowering dispatch regShape for a hi-half operation.
+// Base ops get a suffix like "Narrow" or "Long" appended to their standard regShape.
+// "2" variant ops get a derived regShape + "2" suffix.
+func hiHalfLoweringRegShape(baseRegShape string, kind string, isVariant2 bool) string {
+	suffix := capitalizeFirst(kind)
+	if isVariant2 {
+		suffix += "2"
+		// For narrow "2", the regShape changes (extra vreg input for resultInArg0)
+		baseRegShape = hiHalfRegShape2(baseRegShape, kind)
+	}
+	return baseRegShape + suffix
+}

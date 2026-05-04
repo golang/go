@@ -82,21 +82,24 @@ func (op *Operand) instantiate(arrangement Arrangement, ashape ArngShape, vregPo
 		switch {
 		case ashape == NarrowArngs && vregPos == 0:
 			op.ElemBits = arrangement.elemBits / 2
-			op.Bits = arrangement.bits / 2
+			op.Bits = arrangement.bits
+			op.Lanes = arrangement.bits / (arrangement.elemBits / 2)
 		case ashape == LongArngs && vregPos == 0:
 			op.ElemBits = arrangement.elemBits * 2
 			op.Bits = arrangement.bits * 2
 			if op.Bits > 128 {
 				op.Bits = 128
 			}
+			op.Lanes = arrangement.bits / op.ElemBits
 		case ashape == WideArngs && vregPos == 2:
 			op.ElemBits = arrangement.elemBits / 2
 			op.Bits = arrangement.bits / 2
+			op.Lanes = arrangement.lanes
 		default:
 			op.ElemBits = arrangement.elemBits
 			op.Bits = arrangement.bits
+			op.Lanes = arrangement.lanes
 		}
-		op.Lanes = arrangement.lanes
 		op.BaseType = arrangement.baseType
 	case OperandImm:
 		// Update immediate operands based on arrangement
@@ -107,6 +110,9 @@ func (op *Operand) instantiate(arrangement Arrangement, ashape ArngShape, vregPo
 			if strings.HasSuffix(op.Role, "_i") {
 				// Vector element index: max = lanes - 1
 				op.ImmMax = arrangement.lanes - 1
+			} else if ashape == NarrowArngs {
+				// Narrow shift: max = destination element bits - 1 (half of source)
+				op.ImmMax = arrangement.elemBits/2 - 1
 			} else {
 				// Shift operation: max = element_bits - 1
 				op.ImmMax = arrangement.elemBits - 1

@@ -8,3 +8,31 @@
   - *any
   out:
   - *any
+
+# Multiply long signed (SMULL)
+- go: MulLoLong
+  signed: true
+  asm: "VSMULL"
+  hiHalfAsm: "VSMULL2"
+  in:
+  - go: $t
+    base: int
+  - go: $t
+    base: int
+  out:
+  - go: $u
+    base: int
+
+# Multiply long unsigned (UMULL)
+- go: MulLoLong
+  signed: false
+  asm: "VUMULL"
+  hiHalfAsm: "VUMULL2"
+  in:
+  - go: $t
+    base: uint
+  - go: $t
+    base: uint
+  out:
+  - go: $u
+    base: uint

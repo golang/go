@@ -162,3 +162,27 @@
   - *scalarShiftUnsigned
   out:
   - *uint
+
+- go: ShiftRightNarrowConst
+  asm: "VSHRN"
+  hiHalfAsm: "VSHRN2"
+  specialLower: !string "match [0] x => (VXTN%a x)"
+  in:
+  - *imm
+  - go: $t
+    base: uint
+  out:
+  - go: $u
+    base: uint
+
+- go: ShiftLeftLoLongConst
+  signed: false
+  asm: "VUSHLL"
+  hiHalfAsm: "VUSHLL2"
+  in:
+  - *imm
+  - go: $t
+    base: uint
+  out:
+  - go: $u
+    base: uint

@@ -170,6 +170,56 @@ func (x Uint16x8) Mul(y Uint16x8) Uint16x8
 // Asm: VMUL, CPU Feature: NEON
 func (x Uint32x4) Mul(y Uint32x4) Uint32x4
 
+/* MulLoLong */
+
+// MulLoLong multiplies corresponding low-indexed elements and produces a result with double the element width.
+// For the high-indexed elements, use GetHi:
+//
+//	x.GetHi().MulLoLong(y.GetHi())
+//
+// Asm: VSMULL, CPU Feature: NEON
+func (x Int8x16) MulLoLong(y Int8x16) Int16x8
+
+// MulLoLong multiplies corresponding low-indexed elements and produces a result with double the element width.
+// For the high-indexed elements, use GetHi:
+//
+//	x.GetHi().MulLoLong(y.GetHi())
+//
+// Asm: VSMULL, CPU Feature: NEON
+func (x Int16x8) MulLoLong(y Int16x8) Int32x4
+
+// MulLoLong multiplies corresponding low-indexed elements and produces a result with double the element width.
+// For the high-indexed elements, use GetHi:
+//
+//	x.GetHi().MulLoLong(y.GetHi())
+//
+// Asm: VSMULL, CPU Feature: NEON
+func (x Int32x4) MulLoLong(y Int32x4) Int64x2
+
+// MulLoLong multiplies corresponding low-indexed elements and produces a result with double the element width.
+// For the high-indexed elements, use GetHi:
+//
+//	x.GetHi().MulLoLong(y.GetHi())
+//
+// Asm: VUMULL, CPU Feature: NEON
+func (x Uint8x16) MulLoLong(y Uint8x16) Uint16x8
+
+// MulLoLong multiplies corresponding low-indexed elements and produces a result with double the element width.
+// For the high-indexed elements, use GetHi:
+//
+//	x.GetHi().MulLoLong(y.GetHi())
+//
+// Asm: VUMULL, CPU Feature: NEON
+func (x Uint16x8) MulLoLong(y Uint16x8) Uint32x4
+
+// MulLoLong multiplies corresponding low-indexed elements and produces a result with double the element width.
+// For the high-indexed elements, use GetHi:
+//
+//	x.GetHi().MulLoLong(y.GetHi())
+//
+// Asm: VUMULL, CPU Feature: NEON
+func (x Uint32x4) MulLoLong(y Uint32x4) Uint64x2
+
 /* SetElem */
 
 // SetElem returns x with the index'th element set to y.
@@ -448,6 +498,41 @@ func (x Uint32x4) ShiftLeftConst(constant uint8) Uint32x4
 // Asm: VSHL, CPU Feature: NEON
 func (x Uint64x2) ShiftLeftConst(constant uint8) Uint64x2
 
+/* ShiftLeftLoLongConst */
+
+// ShiftLeftLoLongConst performs a left shift on each unsigned low-indexed element in x by the constant number of bits
+// and widens the result to double the element width.
+// For the high-indexed elements, use GetHi:
+//
+//	x.GetHi().ShiftLeftLoLongConst(...)
+//
+// A non-constant value of constant may result in significantly worse performance for this operation.
+//
+// Asm: VUSHLL, CPU Feature: NEON
+func (x Uint8x16) ShiftLeftLoLongConst(constant uint8) Uint16x8
+
+// ShiftLeftLoLongConst performs a left shift on each unsigned low-indexed element in x by the constant number of bits
+// and widens the result to double the element width.
+// For the high-indexed elements, use GetHi:
+//
+//	x.GetHi().ShiftLeftLoLongConst(...)
+//
+// A non-constant value of constant may result in significantly worse performance for this operation.
+//
+// Asm: VUSHLL, CPU Feature: NEON
+func (x Uint16x8) ShiftLeftLoLongConst(constant uint8) Uint32x4
+
+// ShiftLeftLoLongConst performs a left shift on each unsigned low-indexed element in x by the constant number of bits
+// and widens the result to double the element width.
+// For the high-indexed elements, use GetHi:
+//
+//	x.GetHi().ShiftLeftLoLongConst(...)
+//
+// A non-constant value of constant may result in significantly worse performance for this operation.
+//
+// Asm: VUSHLL, CPU Feature: NEON
+func (x Uint32x4) ShiftLeftLoLongConst(constant uint8) Uint64x2
+
 /* ShiftLeftSaturatedConst */
 
 // ShiftLeftSaturatedConst performs a saturating left shift on each element in x by the constant number of bits specified by y.
@@ -572,6 +657,32 @@ func (x Uint32x4) ShiftRightConst(constant uint8) Uint32x4
 // Asm: VUSHR, CPU Feature: NEON
 func (x Uint64x2) ShiftRightConst(constant uint8) Uint64x2
 
+/* ShiftRightNarrowConst */
+
+// ShiftRightNarrowConst performs a right shift on each element in x by the constant number of bits
+// and narrows the result to half the element width.
+//
+// A non-constant value of constant may result in significantly worse performance for this operation.
+//
+// Asm: VSHRN, CPU Feature: NEON
+func (x Uint16x8) ShiftRightNarrowConst(constant uint8) Uint8x16
+
+// ShiftRightNarrowConst performs a right shift on each element in x by the constant number of bits
+// and narrows the result to half the element width.
+//
+// A non-constant value of constant may result in significantly worse performance for this operation.
+//
+// Asm: VSHRN, CPU Feature: NEON
+func (x Uint32x4) ShiftRightNarrowConst(constant uint8) Uint16x8
+
+// ShiftRightNarrowConst performs a right shift on each element in x by the constant number of bits
+// and narrows the result to half the element width.
+//
+// A non-constant value of constant may result in significantly worse performance for this operation.
+//
+// Asm: VSHRN, CPU Feature: NEON
+func (x Uint64x2) ShiftRightNarrowConst(constant uint8) Uint32x4
+
 /* ShiftSaturated */
 
 // ShiftSaturated shifts each element in x by the signed value of the least significant byte
@@ -681,6 +792,54 @@ func (x Uint32x4) Sub(y Uint32x4) Uint32x4
 //
 // Asm: VSUB, CPU Feature: NEON
 func (x Uint64x2) Sub(y Uint64x2) Uint64x2
+
+/* TruncateToInt8 */
+
+// TruncateToInt8 truncates element values to int8.
+// Results are packed to low elements in the returned vector, its upper elements are zeroed.
+//
+// Asm: VXTN, CPU Feature: NEON
+func (x Int16x8) TruncateToInt8() Int8x16
+
+/* TruncateToInt16 */
+
+// TruncateToInt16 truncates element values to int16.
+// Results are packed to low elements in the returned vector, its upper elements are zeroed.
+//
+// Asm: VXTN, CPU Feature: NEON
+func (x Int32x4) TruncateToInt16() Int16x8
+
+/* TruncateToInt32 */
+
+// TruncateToInt32 truncates element values to int32.
+// Results are packed to low elements in the returned vector, its upper elements are zeroed.
+//
+// Asm: VXTN, CPU Feature: NEON
+func (x Int64x2) TruncateToInt32() Int32x4
+
+/* TruncateToUint8 */
+
+// TruncateToUint8 truncates element values to uint8.
+// Results are packed to low elements in the returned vector, its upper elements are zeroed.
+//
+// Asm: VXTN, CPU Feature: NEON
+func (x Uint16x8) TruncateToUint8() Uint8x16
+
+/* TruncateToUint16 */
+
+// TruncateToUint16 truncates element values to uint16.
+// Results are packed to low elements in the returned vector, its upper elements are zeroed.
+//
+// Asm: VXTN, CPU Feature: NEON
+func (x Uint32x4) TruncateToUint16() Uint16x8
+
+/* TruncateToUint32 */
+
+// TruncateToUint32 truncates element values to uint32.
+// Results are packed to low elements in the returned vector, its upper elements are zeroed.
+//
+// Asm: VXTN, CPU Feature: NEON
+func (x Uint64x2) TruncateToUint32() Uint32x4
 
 // AsFloat64x2 reinterprets the bits of a Float32x4 vector as a Float64x2 vector
 //

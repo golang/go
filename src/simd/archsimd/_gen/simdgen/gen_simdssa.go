@@ -89,10 +89,11 @@ func writeSIMDSSA(ops []Operation) *bytes.Buffer {
 	seen := map[string]struct{}{}
 	allUnseen := make(map[string][]Operation)
 	allUnseenCaseStr := make(map[string][]string)
-	classifyOp := func(op Operation, maskType maskShape, shapeIn inShape, shapeOut outShape, caseStr string, mem memShape, immOpArg string, immType immShape) error {
+	// computeBaseRegShape computes the base regShape for an op.
+	computeBaseRegShape := func(op Operation, mem memShape, shapeIn inShape, shapeOut outShape, immOpArg string, immType immShape) (string, error) {
 		regShape, err := op.regShape(mem)
 		if err != nil {
-			return err
+			return "", err
 		}
 		if regShape == "v01load" {
 			regShape = "vload"
@@ -114,13 +115,30 @@ func writeSIMDSSA(ops []Operation) *bytes.Buffer {
 		}
 		regShape, err = rewriteVecAsScalarRegInfo(op, regShape)
 		if err != nil {
-			return err
+			return "", err
 		}
+		return regShape, nil
+	}
+	registerRegShape := func(regShape string, caseStr string, op Operation) {
 		if _, ok := regInfoSet[regShape]; !ok {
 			allUnseen[regShape] = append(allUnseen[regShape], op)
 			allUnseenCaseStr[regShape] = append(allUnseenCaseStr[regShape], caseStr)
 		}
 		regInfoSet[regShape] = append(regInfoSet[regShape], caseStr)
+	}
+	classifyOp := func(op Operation, maskType maskShape, shapeIn inShape, shapeOut outShape, caseStr string, mem memShape, immOpArg string, immType immShape) error {
+		regShape, err := computeBaseRegShape(op, mem, shapeIn, shapeOut, immOpArg, immType)
+		if err != nil {
+			return err
+		}
+		// For hi-half base ops, append the kind suffix for lowering dispatch.
+		if op.HiHalfAsm != nil {
+			kind := op.hiHalfKind()
+			if kind != "" {
+				regShape += capitalizeFirst(kind) // e.g., "v11Imm" + "Narrow" = "v11ImmNarrow"
+			}
+		}
+		registerRegShape(regShape, caseStr, op)
 		if mem == NoMem && op.hasMaskedMerging(maskType, shapeOut) {
 			regShapeMerging := regShape
 			if shapeOut != OneVregOutAtIn {
@@ -137,12 +155,20 @@ func writeSIMDSSA(ops []Operation) *bytes.Buffer {
 			if err != nil {
 				return err
 			}
-			if _, ok := regInfoSet[regShapeMerging]; !ok {
-				allUnseen[regShapeMerging] = append(allUnseen[regShapeMerging], op)
-				allUnseenCaseStr[regShapeMerging] = append(allUnseenCaseStr[regShapeMerging], caseStr+"Merging")
-			}
-			regInfoSet[regShapeMerging] = append(regInfoSet[regShapeMerging], caseStr+"Merging")
+			registerRegShape(regShapeMerging, caseStr+"Merging", op)
 		}
+		return nil
+	}
+	// classifyHiHalfOp computes the lowering dispatch regShape for a hi-half "2" variant.
+	// It derives the regShape from the base op's shape and applies hi-half transformation.
+	classifyHiHalfOp := func(op Operation, kind string, caseStr string, immOpArg string, immType immShape) error {
+		shapeIn, shapeOut, _, _, _, _ := op.shape()
+		regShape, err := computeBaseRegShape(op, NoMem, shapeIn, shapeOut, immOpArg, immType)
+		if err != nil {
+			return err
+		}
+		regShape = hiHalfLoweringRegShape(regShape, kind, true)
+		registerRegShape(regShape, caseStr, op)
 		return nil
 	}
 	for _, op := range ops {
@@ -163,6 +189,24 @@ func writeSIMDSSA(ops []Operation) *bytes.Buffer {
 		if err := classifyOp(op, maskType, shapeIn, shapeOut, caseStr, NoMem, immOpArg, immType); err != nil {
 			panic(err)
 		}
+
+		// Generate hi-half "2" variant SSA lowering case.
+		// The base op gets a suffixed regShape (e.g., "v11ImmNarrow"), and
+		// the "2" variant gets a derived regShape (e.g., "v21ImmNarrow2").
+		if gOp.HiHalfAsm != nil {
+			kind := op.hiHalfKind()
+			if kind != "" {
+				asm2 := hiHalfOpName(*gOp.HiHalfAsm, gOp)
+				caseStr2 := fmt.Sprintf("ssa.Op%s%s", archInfo.ArchUpper, asm2)
+				if _, ok2 := seen[asm2]; !ok2 {
+					seen[asm2] = struct{}{}
+					if err := classifyHiHalfOp(op, kind, caseStr2, immOpArg, immType); err != nil {
+						panic(err)
+					}
+				}
+			}
+		}
+
 		if op.MemFeatures != nil && *op.MemFeatures == "vbcst" {
 			// Make a full vec memory variant
 			op = rewriteLastVregToMem(op)

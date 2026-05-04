@@ -52,6 +52,10 @@ type rawOperation struct {
 	// Optional tag to indicate this operation is paired with special generic->machine ssa lowering rules.
 	// Should be paired with special templates in gen_simdrules.go
 	SpecialLower *string
+	// HiHalfAsm is the assembly mnemonic for the hi-half "2" variant of this operation,
+	// specified in go_arm64.yaml (e.g., "VSHRN2", "VUMULL2").
+	// When non-nil, simdgen generates the "2" variant machine op and folding rules.
+	HiHalfAsm *string
 
 	In              []Operand // Parameters
 	InVariant       []Operand // Optional parameters
@@ -99,6 +103,38 @@ func (o *Operation) SkipMaskedMethod() bool {
 	return false
 }
 
+// hiHalfKind returns "narrow" or "long" based on whether the operation narrows or widens its elements.
+// Returns "" if HiHalfAsm is nil or classification is ambiguous.
+func (o *Operation) hiHalfKind() string {
+	if o.HiHalfAsm == nil {
+		return ""
+	}
+	// Find the first vreg input and the first vreg output to compare elemBits.
+	var inElemBits, outElemBits *int
+	for i := range o.In {
+		if o.In[i].Class == "vreg" && o.In[i].ElemBits != nil {
+			inElemBits = o.In[i].ElemBits
+			break
+		}
+	}
+	for i := range o.Out {
+		if o.Out[i].Class == "vreg" && o.Out[i].ElemBits != nil {
+			outElemBits = o.Out[i].ElemBits
+			break
+		}
+	}
+	if inElemBits == nil || outElemBits == nil {
+		return ""
+	}
+	if *outElemBits < *inElemBits {
+		return "narrow"
+	}
+	if *outElemBits > *inElemBits {
+		return "long"
+	}
+	return ""
+}
+
 var reForName = regexp.MustCompile(`\bNAME\b`)
 
 func (o *Operation) DecodeUnified(v *unify.Value) error {
@@ -135,6 +171,26 @@ func (o *Operation) DecodeUnified(v *unify.Value) error {
 	}
 
 	o.In = append(o.rawOperation.In, o.rawOperation.InVariant...)
+
+	// For operations that read only the lower half of input registers (indicated by hiHalfAsm),
+	// add a doc note showing the compositional pattern for the upper half.
+	if o.rawOperation.HiHalfAsm != nil && o.hiHalfKind() == "long" {
+		// Count vector-register inputs (exclude immediates/scalars).
+		vregIns := 0
+		for _, in := range o.In {
+			if in.Class == "vreg" {
+				vregIns++
+			}
+		}
+		switch vregIns {
+		case 2:
+			// Binary: MulLong, AddLong, SubLong, etc.
+			o.Documentation += "\n// For the high-indexed elements, use GetHi:\n//\n//\tx.GetHi()." + o.Go + "(y.GetHi())"
+		case 1:
+			// Unary: ShiftLeftLongConst, etc.
+			o.Documentation += "\n// For the high-indexed elements, use GetHi:\n//\n//\tx.GetHi()." + o.Go + "(...)"
+		}
+	}
 
 	// For down conversions, the high elements are zeroed if the result has more elements.
 	// TODO: we should encode this logic in the YAML file, instead of hardcoding it here.

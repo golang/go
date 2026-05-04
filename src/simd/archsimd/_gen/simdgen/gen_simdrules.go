@@ -515,6 +515,11 @@ func writeSIMDRules(ops []Operation) *bytes.Buffer {
 
 	slices.SortFunc(allData, compareTplRuleData)
 
+	hiHalfRules := generateHiHalfFoldingRules(ops)
+	for _, rule := range hiHalfRules {
+		buffer.WriteString(rule)
+	}
+
 	for _, data := range allData {
 		if err := ruleTemplates.ExecuteTemplate(buffer, data.tplName, data); err != nil {
 			panic(fmt.Errorf("failed to execute template %s for %s: %w", data.tplName, data.GoOp+data.GoType, err))
@@ -553,4 +558,87 @@ func writeSIMDRules(ops []Operation) *bytes.Buffer {
 	}
 
 	return buffer
+}
+
+// generateHiHalfFoldingRules generates folding rules that combine SetHi/GetHi patterns
+// with narrow/long base operations into the hi-half "2" variant instruction.
+//
+// x.GetHi() is lowered as (VDUPDextr[1] x)
+//
+// x.SetHi(lo) is lowered as (VMOVDins0 [1] x (VDUPDextr [0] lo))
+//
+// Narrow (e.g., SHRN): SetHi wraps the narrow result.
+//
+//	(VMOVDins0 [1] dst y:(VSHRN4S [a] x)) => (VSHRN2_4S dst [a] x)
+//
+// Unary Long (e.g., USHLL) getting high half (GetHi) as input:
+//
+//	(VUSHLL4H [a] (VDUPDextr [1] x)) => (VUSHLL2_4H [a] x)
+//
+// Binary Long (e.g., UMULL, SMULL), both inputs from GetHi:
+//
+//	(VUMULL4H (VDUPDextr [1] x) (VDUPDextr [1] y)) => (VUMULL2_4H x y)
+func generateHiHalfFoldingRules(ops []Operation) []string {
+	seen := make(map[string]bool)
+	var rules []string
+
+	for _, opr := range ops {
+		if opr.HiHalfAsm == nil {
+			continue
+		}
+		kind := opr.hiHalfKind()
+		if kind == "" {
+			continue
+		}
+		_, _, maskType, immType, gOp, _ := opr.shape()
+		asm := machineOpName(maskType, gOp)
+		asm2 := hiHalfOpName(*gOp.HiHalfAsm, gOp)
+
+		if seen[asm] {
+			continue
+		}
+		seen[asm] = true
+
+		vregInCnt := 0
+		for _, in := range gOp.In {
+			if in.Class == "vreg" {
+				vregInCnt++
+			}
+		}
+		hasImm := immType == VarImm || immType == VarImmLim || immType == ConstVarImm
+
+		switch kind {
+		case "narrow":
+			switch vregInCnt {
+			case 1:
+				// Narrow: the value used by SetHi may be produced with asm2 (hiHalf) variant.
+				// TODO: Maybe have a separate rule: (VMOVDins0 [c] dst (VDUPDextr [0] src)) => (VMOVDins0 [c] dst src)
+				if hasImm {
+					rules = append(rules, fmt.Sprintf("(VMOVDins0 [1] dst (VDUPDextr [0] (%s [c] y))) => (%s dst [c] y)\n", asm, asm2))
+				} else {
+					rules = append(rules, fmt.Sprintf("(VMOVDins0 [1] dst (VDUPDextr [0] (%s y))) => (%s dst y)\n", asm, asm2))
+				}
+			default:
+				panic("unsupported yet folding narrow ops cases")
+			}
+		case "long":
+			switch vregInCnt {
+			case 1:
+				// Long: input from GetHi (VDUPDextr [1]), prefer hiHalf variant.
+				if hasImm {
+					rules = append(rules, fmt.Sprintf("(%s [a] (VDUPDextr [1] x)) => (%s [a] x)\n", asm, asm2))
+				} else {
+					rules = append(rules, fmt.Sprintf("(%s (VDUPDextr [1] x)) => (%s x)\n", asm, asm2))
+				}
+			case 2:
+				// Binary Long: both inputs are from GetHi, fold into hiHalf variant.
+				rules = append(rules, fmt.Sprintf("(%s (VDUPDextr [1] x) (VDUPDextr [1] y)) => (%s x y)\n", asm, asm2))
+			default:
+				panic("unsupported yet folding long ops cases")
+			}
+		}
+	}
+
+	slices.Sort(rules)
+	return rules
 }

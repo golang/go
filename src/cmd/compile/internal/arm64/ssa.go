@@ -216,6 +216,68 @@ func allLanes(arng int16) int16 {
 	}
 }
 
+// arngNarrow converts arng to its narrow (halved element width and vector width) arrangement.
+func arngNarrow(arng int16) int16 {
+	switch arng {
+	case arm64.ARNG_8H:
+		return arm64.ARNG_8B
+	case arm64.ARNG_4S:
+		return arm64.ARNG_4H
+	case arm64.ARNG_2D:
+		return arm64.ARNG_2S
+	default:
+		base.Fatalf("unsupported narrow input arrangement: %d", arng)
+		return 0
+	}
+}
+
+// arngLong converts a half-lane arrangement to its long (doubled element width and vector width) arrangement.
+func arngLong(arng int16) int16 {
+	switch arng {
+	case arm64.ARNG_8B:
+		return arm64.ARNG_8H
+	case arm64.ARNG_4H:
+		return arm64.ARNG_4S
+	case arm64.ARNG_2S:
+		return arm64.ARNG_2D
+	default:
+		base.Fatalf("unsupported long input arrangement: %d", arng)
+		return 0
+	}
+}
+
+// arngHalfLanes converts a full-width arrangement to its half-lane (64-bit) arrangement.
+// Same element width, half the lanes. Used for long base variant sources.
+func arngHalfLanes(arng int16) int16 {
+	switch arng {
+	case arm64.ARNG_16B:
+		return arm64.ARNG_8B
+	case arm64.ARNG_8H:
+		return arm64.ARNG_4H
+	case arm64.ARNG_4S:
+		return arm64.ARNG_2S
+	default:
+		base.Fatalf("unsupported halfLanes input arrangement: %d", arng)
+		return 0
+	}
+}
+
+// arngTwiceLanes converts a half-lane (64-bit) arrangement to its full-width arrangement.
+// Same element width, double the lanes. Inverse of arngHalfLanes.
+func arngTwiceLanes(arng int16) int16 {
+	switch arng {
+	case arm64.ARNG_8B:
+		return arm64.ARNG_16B
+	case arm64.ARNG_4H:
+		return arm64.ARNG_8H
+	case arm64.ARNG_2S:
+		return arm64.ARNG_4S
+	default:
+		base.Fatalf("unsupported twiceLanes input arrangement: %d", arng)
+		return 0
+	}
+}
+
 // simdV01Imm generates a VMOVI-like instruction, e.g. VMOVI $0, V0.B16
 func simdV01Imm(s *ssagen.State, v *ssa.Value, arrangement int16) *obj.Prog {
 	p := s.Prog(v.Op.Asm())
@@ -324,6 +386,103 @@ func simdVgpvResultInArg0ImmOutIn0(s *ssagen.State, v *ssa.Value, arrangement in
 	p.To = simdRegElem(v.Reg(), arrangement, int16(v.AuxUInt8()))
 	p.From.Reg = v.Args[1].Reg()
 	p.From.Type = obj.TYPE_REG
+	return p
+}
+
+// Narrow and long lowering helpers
+
+// simdV11Narrow generates a pure narrowing instruction, e.g. XTN Vn.8H, Vd.8B
+func simdV11Narrow(s *ssagen.State, v *ssa.Value, arrangement int16) *obj.Prog {
+	p := s.Prog(v.Op.Asm())
+	p.From.Type = obj.TYPE_REG
+	p.From.Reg = simdRegArng(v.Args[0].Reg(), arrangement)
+	p.To.Type = obj.TYPE_REG
+	p.To.Reg = simdRegArng(v.Reg(), arngNarrow(arrangement))
+	return p
+}
+
+// simdV21Narrow2 generates a a destructive (updating upper half only) narrow "2" instruction,
+// e.g. XTN2 V1.4S, V0.8H. The arrangement parameter specifies the source arrangement.
+func simdV21Narrow2(s *ssagen.State, v *ssa.Value, arrangement int16) *obj.Prog {
+	p := s.Prog(v.Op.Asm())
+	p.From.Type = obj.TYPE_REG
+	p.From.Reg = simdRegArng(v.Args[1].Reg(), arrangement)
+	p.To.Type = obj.TYPE_REG
+	p.To.Reg = simdRegArng(v.Reg(), arngTwiceLanes(arngNarrow(arrangement)))
+	return p
+}
+
+// simdV11ImmNarrow generates a pure narrowing instruction with immediate, e.g. SHRN $imm, V1.4S, V0.8B
+// The arrangement parameter specifies the source arrangement.
+func simdV11ImmNarrow(s *ssagen.State, v *ssa.Value, arrangement int16) *obj.Prog {
+	p := s.Prog(v.Op.Asm())
+	p.From.Type = obj.TYPE_CONST
+	p.From.Offset = int64(v.AuxUInt8())
+	p.Reg = simdRegArng(v.Args[0].Reg(), arrangement)
+	p.To.Type = obj.TYPE_REG
+	p.To.Reg = simdRegArng(v.Reg(), arngNarrow(arrangement))
+	return p
+}
+
+// simdV21ImmNarrow2 generates a destructive (updating upper half only) narrow "2" instruction
+// with immediate, e.g. SHRN2 $imm, V1.4S, V0.16B. The arrangement parameter specifies the source arrangement.
+func simdV21ImmNarrow2(s *ssagen.State, v *ssa.Value, arrangement int16) *obj.Prog {
+	p := s.Prog(v.Op.Asm())
+	p.From.Type = obj.TYPE_CONST
+	p.From.Offset = int64(v.AuxUInt8())
+	p.Reg = simdRegArng(v.Args[1].Reg(), arrangement)
+	p.To.Type = obj.TYPE_REG
+	p.To.Reg = simdRegArng(v.Reg(), arngTwiceLanes(arngNarrow(arrangement)))
+	return p
+}
+
+// simdV11ImmLong generates a long instruction with immediate, e.g. USHLL $imm, V1.4H, V0.8H
+// The instruction reads the lower half of the source, the destination has 2x element size.
+func simdV11ImmLong(s *ssagen.State, v *ssa.Value, arrangement int16) *obj.Prog {
+	src := arngHalfLanes(arrangement)
+	p := s.Prog(v.Op.Asm())
+	p.From.Type = obj.TYPE_CONST
+	p.From.Offset = int64(v.AuxUInt8())
+	p.Reg = simdRegArng(v.Args[0].Reg(), src)
+	p.To.Type = obj.TYPE_REG
+	p.To.Reg = simdRegArng(v.Reg(), arngLong(src))
+	return p
+}
+
+// simdV11ImmLong2 generates a long "2" instruction with immediate, e.g. USHLL2 $imm, V1.4S, V0.2D
+// The instruction reads the upper half of the source, the destination has 2x element size.
+func simdV11ImmLong2(s *ssagen.State, v *ssa.Value, arrangement int16) *obj.Prog {
+	p := s.Prog(v.Op.Asm())
+	p.From.Type = obj.TYPE_CONST
+	p.From.Offset = int64(v.AuxUInt8())
+	p.Reg = simdRegArng(v.Args[0].Reg(), arrangement)
+	p.To.Type = obj.TYPE_REG
+	p.To.Reg = simdRegArng(v.Reg(), arngLong(arngHalfLanes(arrangement)))
+	return p
+}
+
+// simdV21Long generates a binary long instruction, e.g. UMULL V1.4H, V2.4H, V0.8H
+// The instruction reads lower halves of its sources, the destination has 2x element size.
+func simdV21Long(s *ssagen.State, v *ssa.Value, arrangement int16) *obj.Prog {
+	src := arngHalfLanes(arrangement)
+	p := s.Prog(v.Op.Asm())
+	p.From.Type = obj.TYPE_REG
+	p.From.Reg = simdRegArng(v.Args[1].Reg(), src)
+	p.Reg = simdRegArng(v.Args[0].Reg(), src)
+	p.To.Type = obj.TYPE_REG
+	p.To.Reg = simdRegArng(v.Reg(), arngLong(src))
+	return p
+}
+
+// simdV21Long2 generates a binary long "2" instruction, e.g. UMULL2 V1.4S, V2.4S, V0.2D
+// The instruction reads upper halves of its sources, the destination has 2x element size.
+func simdV21Long2(s *ssagen.State, v *ssa.Value, arrangement int16) *obj.Prog {
+	p := s.Prog(v.Op.Asm())
+	p.From.Type = obj.TYPE_REG
+	p.From.Reg = simdRegArng(v.Args[1].Reg(), arrangement)
+	p.Reg = simdRegArng(v.Args[0].Reg(), arrangement)
+	p.To.Type = obj.TYPE_REG
+	p.To.Reg = simdRegArng(v.Reg(), arngLong(arngHalfLanes(arrangement)))
 	return p
 }
 
