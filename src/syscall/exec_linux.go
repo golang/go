@@ -111,6 +111,13 @@ type SysProcAttr struct {
 	// functionality is supported by the kernel, or -1. Note *PidFD is
 	// changed only if the process starts successfully.
 	PidFD *int
+	// UseLandlock places the child into a Landlock restriction by
+	// calling landlock_restrict_self(LandlockFD, LandlockFlags) before exec.
+	//
+	// Generally this should be combined with setting NoNewPrivs.
+	UseLandlock   bool
+	LandlockFD    int    // FD of a Landlock ruleset.
+	LandlockFlags uint32 // Flags to landlock_restrict_self.
 }
 
 var (
@@ -663,6 +670,14 @@ func forkAndExecInChild1(argv0 *byte, argv, envv []*byte, chroot, dir *byte, att
 	// Call prctl(PR_SET_NO_NEW_PRIVS).
 	if sys.NoNewPrivs {
 		_, _, err1 = RawSyscall6(SYS_PRCTL, _PR_SET_NO_NEW_PRIVS, 1, 0, 0, 0, 0)
+		if err1 != 0 {
+			goto childerror
+		}
+	}
+
+	// Enforce a Landlock policy if requested.
+	if sys.UseLandlock {
+		_, _, err1 = RawSyscall(_SYS_landlock_restrict_self, uintptr(sys.LandlockFD), uintptr(sys.LandlockFlags), 0)
 		if err1 != 0 {
 			goto childerror
 		}
