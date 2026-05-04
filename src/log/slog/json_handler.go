@@ -10,6 +10,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"internal/goexperiment"
 	"io"
 	"log/slog/internal/buffer"
 	"strconv"
@@ -220,7 +221,11 @@ func appendEscapedJSONString(buf []byte, s string) []byte {
 			if start < i {
 				str(s[start:i])
 			}
-			str(`\ufffd`)
+			if goexperiment.JSONv2 {
+				str("\ufffd") // see https://go.dev/cl/687116
+			} else {
+				str(`\ufffd`)
+			}
 			i += size
 			start = i
 			continue
