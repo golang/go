@@ -54,7 +54,7 @@ func (*wireFormat) parseInterfaceAddrMessage(b []byte) (Message, error) {
 	m := &InterfaceAddrMessage{
 		Version: int(b[2]),
 		Type:    int(b[3]),
-		Flags:   int(nativeEndian.Uint32(b[12:16])),
+		Flags:   int(nativeEndian.Uint32(b[16:20])),
 		Index:   int(nativeEndian.Uint16(b[6:8])),
 		raw:     b[:l],
 	}
