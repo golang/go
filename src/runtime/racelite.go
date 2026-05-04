@@ -129,12 +129,6 @@ func racelitecount() {
 	}
 }
 
-// inStack checks if addr is in the current goroutine's stack.
-func inStack(addr uintptr) bool {
-	gp := getg()
-	return gp.stack.lo <= addr && addr < gp.stack.hi
-}
-
 // racelitepause injects a small delay to a load
 // or store operation, allowing Racelite to see
 // whether another thread accessed the same address.
@@ -208,19 +202,29 @@ func racelitesampled(addr uintptr) bool {
 	}
 
 	// Check that this address is not on our stack.
-	if inStack(addr) {
+	gp := getg()
+	if gp.stack.lo <= addr && addr < gp.stack.hi {
 		// Ignore stack addresses
 		return false
 	}
 
-	// Extract heap object.
-	base, span, _ := findObject(uintptr(addr), 0, 0)
-	if span == nil && base == 0 {
-		// We got some bad pointer. We don't care.
-		return false
+	// Globals path: data/BSS segments of the main binary and any
+	// dynamically-loaded plugins. The four segments are not guaranteed
+	// to be contiguous under external linking (see mfinal.go), so we
+	// check each range explicitly per module.
+	for datap := &firstmoduledata; datap != nil; datap = datap.next {
+		if datap.noptrdata <= addr && addr < datap.enoptrdata ||
+			datap.data <= addr && addr < datap.edata ||
+			datap.bss <= addr && addr < datap.ebss ||
+			datap.noptrbss <= addr && addr < datap.enoptrbss {
+			return true
+		}
 	}
 
-	return true
+	// Heap path: most monitored addresses live here.
+	base, span, _ := findObject(uintptr(addr), 0, 0)
+	// Only return true if it is a valid object.
+	return base != 0 && span != nil
 }
 
 // raceliteVirtualRegister is a virtual register that can be used to
