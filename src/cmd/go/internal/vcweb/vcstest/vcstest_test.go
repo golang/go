@@ -140,6 +140,9 @@ func TestScripts(t *testing.T) {
 		if rel == "README" {
 			return nil
 		}
+		if strings.HasPrefix(filepath.Base(path), ".") {
+			return nil
+		}
 
 		t.Run(filepath.ToSlash(rel), func(t *testing.T) {
 			t.Parallel()
