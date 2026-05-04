@@ -253,63 +253,16 @@
   - *f64xN
 
 - go: Permute
-  asm: "VPERMQ|VPERMPD"
+  asm: "VPERM[BWDQ]|VPERMP[SD]"
   operandOrder: "21Type1"
   in:
   - &anyindices
-    go: $t
+    class: vreg
     name: indices
     overwriteBase: uint
-  - &any4
-    go: $t
-    lanes: 4
+  - go: $t
   out:
-  - &any
-    go: $t
-
-- go: Permute
-  asm: "VPERM[WDQ]|VPERMP[SD]"
-  operandOrder: "21Type1"
-  in:
-  - *anyindices
-  - &any8
-    go: $t
-    lanes: 8
-  out:
-  - *any
-
-- go: Permute
-  asm: "VPERM[BWD]|VPERMPS"
-  operandOrder: "21Type1"
-  in:
-  - *anyindices
-  - &any16
-    go: $t
-    lanes: 16
-  out:
-  - *any
-
-- go: Permute
-  asm: "VPERM[BW]"
-  operandOrder: "21Type1"
-  in:
-  - *anyindices
-  - &any32
-    go: $t
-    lanes: 32
-  out:
-  - *any
-
-- go: Permute
-  asm: "VPERMB"
-  operandOrder: "21Type1"
-  in:
-  - *anyindices
-  - &any64
-    go: $t
-    lanes: 64
-  out:
-  - *any
+  - go: $t
 
 - go: ConcatPermute
   asm: "VPERMI2[BWDQ]|VPERMI2P[SD]"
@@ -319,19 +272,19 @@
   operandOrder: "231Type1"
   in:
   - *anyindices # result in arg 0
-  - *any
-  - *any
+  - go: $t
+  - go: $t
   out:
-  - *any
+  - go: $t
 
 - go: Compress
   asm: "VPCOMPRESS[BWDQ]|VCOMPRESSP[SD]"
   in:
     # The mask in Compress is a control mask rather than a write mask, so it's not optional.
   - class: mask
-  - *any
+  - go: $t
   out:
-  - *any
+  - go: $t
 
 # For now a non-public method because
 # (1) [OverwriteClass] must be set together with [OverwriteBase]
@@ -390,9 +343,9 @@
   in:
     # The mask in Expand is a control mask rather than a write mask, so it's not optional.
   - class: mask
-  - *any
+  - go: $t
   out:
-  - *any
+  - go: $t
 
 - go: Broadcast1To2
   asm: VPBROADCASTQ
