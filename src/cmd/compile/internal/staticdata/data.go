@@ -110,7 +110,7 @@ func StringSymNoCommon(s string) (data *obj.LSym) {
 
 // maxFileSize is the maximum file size permitted by the linker
 // (see issue #9862).
-const maxFileSize = int64(2e9)
+const maxFileSize = obj.MaxSymSize
 
 // fileStringSym returns a symbol for the contents and the size of file.
 // If readonly is true, the symbol shares storage with any literal string

@@ -231,29 +231,40 @@ TEXT ·StoreRel64(SB), NOSPLIT, $0-16
 TEXT ·StoreReluintptr(SB), NOSPLIT, $0-16
 	JMP     ·Store64(SB)
 
-TEXT ·Store(SB), NOSPLIT, $0-12
-	MOVV	ptr+0(FP), R4
-	MOVW	val+8(FP), R5
-	AMSWAPDBW	R5, (R4), R0
-	RET
-
 TEXT ·Store8(SB), NOSPLIT, $0-9
 	MOVV	ptr+0(FP), R4
 	MOVB	val+8(FP), R5
-	MOVBU	internal∕cpu·Loong64+const_offsetLoong64HasLAM_BH(SB), R6
-	BEQ	R6, _legacy_store8_
-	AMSWAPDBB	R5, (R4), R0
-	RET
-_legacy_store8_:
 	// StoreRelease barrier
 	DBAR	$0x12
 	MOVB	R5, 0(R4)
 	DBAR	$0x18
 	RET
 
+TEXT ·Store(SB), NOSPLIT, $0-12
+	MOVV	ptr+0(FP), R4
+	MOVW	val+8(FP), R5
+	MOVBU	internal∕cpu·Loong64+const_offsetLoong64HasDBAR_HINTS(SB), R6
+	BEQ	R6, _variant_
+	// StoreRelease barrier
+	DBAR	$0x12
+	MOVW	R5, 0(R4)
+	DBAR	$0x18
+	RET
+_variant_:
+	AMSWAPDBW	R5, (R4), R0
+	RET
+
 TEXT ·Store64(SB), NOSPLIT, $0-16
 	MOVV	ptr+0(FP), R4
 	MOVV	val+8(FP), R5
+	MOVBU	internal∕cpu·Loong64+const_offsetLoong64HasDBAR_HINTS(SB), R6
+	BEQ	R6, _variant_
+	// StoreRelease barrier
+	DBAR	$0x12
+	MOVV	R5, 0(R4)
+	DBAR	$0x18
+	RET
+_variant_:
 	AMSWAPDBV	R5, (R4), R0
 	RET
 

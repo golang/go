@@ -34,6 +34,8 @@ import (
 	"flag"
 	"fmt"
 	"go/ast"
+	"go/build"
+	"go/build/constraint"
 	"go/parser"
 	"go/scanner"
 	"go/token"
@@ -45,6 +47,7 @@ import (
 	"reflect"
 	"regexp"
 	"runtime"
+	"slices"
 	"strconv"
 	"strings"
 	"testing"
@@ -461,13 +464,42 @@ func testDir(t *testing.T, dir string, manual bool) {
 }
 
 func testPkg(t *testing.T, filenames []string, manual bool) {
-	srcs := make([][]byte, len(filenames))
-	for i, filename := range filenames {
+	fs := filenames[:0]
+	srcs := make([][]byte, 0, len(filenames))
+	for _, filename := range filenames {
 		src, err := os.ReadFile(filename)
 		if err != nil {
 			t.Fatalf("could not read %s: %v", filename, err)
 		}
-		srcs[i] = src
+		if !shouldTest(src) {
+			continue
+		}
+		fs = append(fs, filename)
+		srcs = append(srcs, src)
+	}
+	if len(fs) == 0 {
+		t.Skip("all files skipped by build tags")
 	}
 	testFiles(t, filenames, srcs, manual)
+}
+
+// shouldTest checks build tags in src and returns whether the file
+// should be tested according to the tags.
+func shouldTest(src []byte) bool {
+	match := func(tag string) bool {
+		// We only care GOOS, GOARCH, and go version tags.
+		if slices.Contains(build.Default.ReleaseTags, tag) {
+			return true
+		}
+		return tag == runtime.GOOS || tag == runtime.GOARCH
+	}
+	for line := range strings.SplitSeq(string(src), "\n") {
+		if strings.HasPrefix(line, "package ") {
+			break
+		}
+		if expr, err := constraint.Parse(line); err == nil {
+			return expr.Eval(match)
+		}
+	}
+	return true
 }

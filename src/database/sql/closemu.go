@@ -92,7 +92,12 @@ func (m *closingMutex) Unlock() {
 func (m *closingMutex) TryRLock() bool {
 	for {
 		x := m.state.Load()
-		if x < 0 {
+		// Fail if the mutex is write locked (x < 0)
+		// or unlocked with a writer waiting (x == 1).
+		//
+		// If the mutex is read-locked (x > 1), try to add a reader
+		// even if this starves out a waiting writer.
+		if x < 0 || x == 1 {
 			return false
 		}
 		if m.state.CompareAndSwap(x, x+2) {

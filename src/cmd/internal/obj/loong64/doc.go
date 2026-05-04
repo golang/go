@@ -381,7 +381,7 @@ Note: In the following sections 3.1 to 3.6, "ui4" (4-bit unsigned int immediate)
             Go assembly      |      platform assembly
          MOVWP  8(R4), R5    |      ldptr.w r5, r4, $2
 
-6. Note of special add instrction
+6. Note of special add instruction
     Mapping between Go and platform assembly:
               Go assembly        |      platform assembly
       ADDV16  si16<<16, Rj, Rd   |    addu16i.d  rd, rj, si16

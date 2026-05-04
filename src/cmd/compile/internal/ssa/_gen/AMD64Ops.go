@@ -105,10 +105,10 @@ func init() {
 		num[name] = i
 	}
 	buildReg := func(s string) regMask {
-		m := regMask(0)
+		m := regMask{}
 		for _, r := range strings.Split(s, " ") {
 			if n, ok := num[r]; ok {
-				m |= regMask(1) << uint(n)
+				m = m.addReg(uint(n))
 				continue
 			}
 			panic("register " + r + " not found")
@@ -128,13 +128,13 @@ func init() {
 		w          = buildReg("X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X16 X17 X18 X19 X20 X21 X22 X23 X24 X25 X26 X27 X28 X29 X30 X31")
 		x15        = buildReg("X15")
 		mask       = buildReg("K1 K2 K3 K4 K5 K6 K7")
-		gpsp       = gp | buildReg("SP")
-		gpspsb     = gpsp | buildReg("SB")
-		gpspsbg    = gpspsb | g
-		callerSave = gp | fp | g // runtime.setg (and anything calling it) may clobber g
+		gpsp       = gp.union(buildReg("SP"))
+		gpspsb     = gpsp.union(buildReg("SB"))
+		gpspsbg    = gpspsb.union(g)
+		callerSave = gp.union(fp).union(g) // runtime.setg (and anything calling it) may clobber g
 
-		vz = v | x15
-		wz = w | x15
+		vz = v.union(x15)
+		wz = w.union(x15)
 		x0 = buildReg("X0")
 	)
 	// Common slices of register masks
@@ -160,63 +160,63 @@ func init() {
 		gp21sb         = regInfo{inputs: []regMask{gpspsbg, gpsp}, outputs: gponly}
 		gp21shift      = regInfo{inputs: []regMask{gp, cx}, outputs: []regMask{gp}}
 		gp31shift      = regInfo{inputs: []regMask{gp, gp, cx}, outputs: []regMask{gp}}
-		gp11div        = regInfo{inputs: []regMask{ax, gpsp &^ dx}, outputs: []regMask{ax, dx}}
+		gp11div        = regInfo{inputs: []regMask{ax, gpsp.minus(dx)}, outputs: []regMask{ax, dx}}
 		gp21hmul       = regInfo{inputs: []regMask{ax, gpsp}, outputs: []regMask{dx}, clobbers: ax}
-		gp21flags      = regInfo{inputs: []regMask{gp, gp}, outputs: []regMask{gp, 0}}
-		gp2flags1flags = regInfo{inputs: []regMask{gp, gp, 0}, outputs: []regMask{gp, 0}}
+		gp21flags      = regInfo{inputs: []regMask{gp, gp}, outputs: []regMask{gp, regMask{}}}
+		gp2flags1flags = regInfo{inputs: []regMask{gp, gp, regMask{}}, outputs: []regMask{gp, regMask{}}}
 
 		gp2flags     = regInfo{inputs: []regMask{gpsp, gpsp}}
 		gp1flags     = regInfo{inputs: []regMask{gpsp}}
-		gp0flagsLoad = regInfo{inputs: []regMask{gpspsbg, 0}}
-		gp1flagsLoad = regInfo{inputs: []regMask{gpspsbg, gpsp, 0}}
-		gp2flagsLoad = regInfo{inputs: []regMask{gpspsbg, gpsp, gpsp, 0}}
+		gp0flagsLoad = regInfo{inputs: []regMask{gpspsbg, regMask{}}}
+		gp1flagsLoad = regInfo{inputs: []regMask{gpspsbg, gpsp, regMask{}}}
+		gp2flagsLoad = regInfo{inputs: []regMask{gpspsbg, gpsp, gpsp, regMask{}}}
 		flagsgp      = regInfo{inputs: nil, outputs: gponly}
 
-		gp11flags      = regInfo{inputs: []regMask{gp}, outputs: []regMask{gp, 0}}
-		gp1flags1flags = regInfo{inputs: []regMask{gp, 0}, outputs: []regMask{gp, 0}}
+		gp11flags      = regInfo{inputs: []regMask{gp}, outputs: []regMask{gp, regMask{}}}
+		gp1flags1flags = regInfo{inputs: []regMask{gp, regMask{}}, outputs: []regMask{gp, regMask{}}}
 
 		readflags = regInfo{inputs: nil, outputs: gponly}
 
-		gpload         = regInfo{inputs: []regMask{gpspsbg, 0}, outputs: gponly}
-		gp21load       = regInfo{inputs: []regMask{gp, gpspsbg, 0}, outputs: gponly}
-		gploadidx      = regInfo{inputs: []regMask{gpspsbg, gpsp, 0}, outputs: gponly}
-		gp21loadidx    = regInfo{inputs: []regMask{gp, gpspsbg, gpsp, 0}, outputs: gponly}
-		gp21shxload    = regInfo{inputs: []regMask{gpspsbg, gp, 0}, outputs: gponly}
-		gp21shxloadidx = regInfo{inputs: []regMask{gpspsbg, gpsp, gp, 0}, outputs: gponly}
+		gpload         = regInfo{inputs: []regMask{gpspsbg, regMask{}}, outputs: gponly}
+		gp21load       = regInfo{inputs: []regMask{gp, gpspsbg, regMask{}}, outputs: gponly}
+		gploadidx      = regInfo{inputs: []regMask{gpspsbg, gpsp, regMask{}}, outputs: gponly}
+		gp21loadidx    = regInfo{inputs: []regMask{gp, gpspsbg, gpsp, regMask{}}, outputs: gponly}
+		gp21shxload    = regInfo{inputs: []regMask{gpspsbg, gp, regMask{}}, outputs: gponly}
+		gp21shxloadidx = regInfo{inputs: []regMask{gpspsbg, gpsp, gp, regMask{}}, outputs: gponly}
 
-		gpstore         = regInfo{inputs: []regMask{gpspsbg, gpsp, 0}}
-		gpstoreconst    = regInfo{inputs: []regMask{gpspsbg, 0}}
-		gpstoreidx      = regInfo{inputs: []regMask{gpspsbg, gpsp, gpsp, 0}}
-		gpstoreconstidx = regInfo{inputs: []regMask{gpspsbg, gpsp, 0}}
-		gpstorexchg     = regInfo{inputs: []regMask{gp, gpspsbg, 0}, outputs: []regMask{gp}}
-		cmpxchg         = regInfo{inputs: []regMask{gp, ax, gp, 0}, outputs: []regMask{gp, 0}, clobbers: ax}
-		atomicLogic     = regInfo{inputs: []regMask{gp &^ ax, gp &^ ax, 0}, outputs: []regMask{ax, 0}}
+		gpstore         = regInfo{inputs: []regMask{gpspsbg, gpsp, regMask{}}}
+		gpstoreconst    = regInfo{inputs: []regMask{gpspsbg, regMask{}}}
+		gpstoreidx      = regInfo{inputs: []regMask{gpspsbg, gpsp, gpsp, regMask{}}}
+		gpstoreconstidx = regInfo{inputs: []regMask{gpspsbg, gpsp, regMask{}}}
+		gpstorexchg     = regInfo{inputs: []regMask{gp, gpspsbg, regMask{}}, outputs: []regMask{gp}}
+		cmpxchg         = regInfo{inputs: []regMask{gp, ax, gp, regMask{}}, outputs: []regMask{gp, regMask{}}, clobbers: ax}
+		atomicLogic     = regInfo{inputs: []regMask{gp.minus(ax), gp.minus(ax), regMask{}}, outputs: []regMask{ax, regMask{}}}
 
 		fp01        = regInfo{inputs: nil, outputs: fponly}
 		fp21        = regInfo{inputs: []regMask{fp, fp}, outputs: fponly}
 		fp31        = regInfo{inputs: []regMask{fp, fp, fp}, outputs: fponly}
-		fp21load    = regInfo{inputs: []regMask{fp, gpspsbg, 0}, outputs: fponly}
-		fp21loadidx = regInfo{inputs: []regMask{fp, gpspsbg, gpspsb, 0}, outputs: fponly}
+		fp21load    = regInfo{inputs: []regMask{fp, gpspsbg, regMask{}}, outputs: fponly}
+		fp21loadidx = regInfo{inputs: []regMask{fp, gpspsbg, gpspsb, regMask{}}, outputs: fponly}
 		fpgp        = regInfo{inputs: fponly, outputs: gponly}
 		gpfp        = regInfo{inputs: gponly, outputs: fponly}
 		fp11        = regInfo{inputs: fponly, outputs: fponly}
 		fp2flags    = regInfo{inputs: []regMask{fp, fp}}
 
-		fpload    = regInfo{inputs: []regMask{gpspsb, 0}, outputs: fponly}
-		fploadidx = regInfo{inputs: []regMask{gpspsb, gpsp, 0}, outputs: fponly}
-		vload     = regInfo{inputs: []regMask{gpspsb, 0}, outputs: vonly}
-		wload     = regInfo{inputs: []regMask{gpspsb, 0}, outputs: wonly}
+		fpload    = regInfo{inputs: []regMask{gpspsb, {}}, outputs: fponly}
+		fploadidx = regInfo{inputs: []regMask{gpspsb, gpsp, {}}, outputs: fponly}
+		vload     = regInfo{inputs: []regMask{gpspsb, {}}, outputs: vonly}
+		wload     = regInfo{inputs: []regMask{gpspsb, {}}, outputs: wonly}
 
-		fpstore    = regInfo{inputs: []regMask{gpspsb, fp, 0}}
-		fpstoreidx = regInfo{inputs: []regMask{gpspsb, gpsp, fp, 0}}
-		vstore     = regInfo{inputs: []regMask{gpspsb, vz, 0}}
-		wstore     = regInfo{inputs: []regMask{gpspsb, wz, 0}}
+		fpstore    = regInfo{inputs: []regMask{gpspsb, fp, {}}}
+		fpstoreidx = regInfo{inputs: []regMask{gpspsb, gpsp, fp, {}}}
+		vstore     = regInfo{inputs: []regMask{gpspsb, vz, {}}}
+		wstore     = regInfo{inputs: []regMask{gpspsb, wz, {}}}
 
 		// masked loads/stores, vector register or mask register
-		vloadv  = regInfo{inputs: []regMask{gpspsb, v, 0}, outputs: vonly}
-		vstorev = regInfo{inputs: []regMask{gpspsb, v, vz, 0}}
-		wloadk  = regInfo{inputs: []regMask{gpspsb, mask, 0}, outputs: wonly}
-		wstorek = regInfo{inputs: []regMask{gpspsb, mask, wz, 0}}
+		vloadv  = regInfo{inputs: []regMask{gpspsb, v, {}}, outputs: vonly}
+		vstorev = regInfo{inputs: []regMask{gpspsb, v, vz, {}}}
+		wloadk  = regInfo{inputs: []regMask{gpspsb, mask, {}}, outputs: wonly}
+		wstorek = regInfo{inputs: []regMask{gpspsb, mask, wz, {}}}
 
 		v01     = regInfo{inputs: nil, outputs: vonly}
 		v11     = regInfo{inputs: vonly, outputs: vonly}            // used in resultInArg0 ops, arg0 must not be x15
@@ -255,21 +255,21 @@ func init() {
 
 		// These register masks are used by SIMD only, they follow the pattern:
 		// Mem last, k mask second to last (if any), address right before mem and k mask.
-		wkwload    = regInfo{inputs: []regMask{gpspsb, mask, 0}, outputs: wonly}
-		v21load    = regInfo{inputs: []regMask{v, gpspsb, 0}, outputs: vonly}     // used in resultInArg0 ops, arg0 must not be x15
-		v31load    = regInfo{inputs: []regMask{v, vz, gpspsb, 0}, outputs: vonly} // used in resultInArg0 ops, arg0 must not be x15
-		v11load    = regInfo{inputs: []regMask{gpspsb, 0}, outputs: vonly}
-		w21load    = regInfo{inputs: []regMask{wz, gpspsb, 0}, outputs: wonly}
-		w31load    = regInfo{inputs: []regMask{w, wz, gpspsb, 0}, outputs: wonly} // used in resultInArg0 ops, arg0 must not be x15
-		w2kload    = regInfo{inputs: []regMask{wz, gpspsb, 0}, outputs: maskonly}
-		w2kwload   = regInfo{inputs: []regMask{wz, gpspsb, mask, 0}, outputs: wonly}
-		w11load    = regInfo{inputs: []regMask{gpspsb, 0}, outputs: wonly}
-		w3kwload   = regInfo{inputs: []regMask{w, wz, gpspsb, mask, 0}, outputs: wonly} // used in resultInArg0 ops, arg0 must not be x15
-		w2kkload   = regInfo{inputs: []regMask{wz, gpspsb, mask, 0}, outputs: maskonly}
+		wkwload    = regInfo{inputs: []regMask{gpspsb, mask, regMask{}}, outputs: wonly}
+		v21load    = regInfo{inputs: []regMask{v, gpspsb, regMask{}}, outputs: vonly}     // used in resultInArg0 ops, arg0 must not be x15
+		v31load    = regInfo{inputs: []regMask{v, vz, gpspsb, regMask{}}, outputs: vonly} // used in resultInArg0 ops, arg0 must not be x15
+		v11load    = regInfo{inputs: []regMask{gpspsb, regMask{}}, outputs: vonly}
+		w21load    = regInfo{inputs: []regMask{wz, gpspsb, regMask{}}, outputs: wonly}
+		w31load    = regInfo{inputs: []regMask{w, wz, gpspsb, regMask{}}, outputs: wonly} // used in resultInArg0 ops, arg0 must not be x15
+		w2kload    = regInfo{inputs: []regMask{wz, gpspsb, regMask{}}, outputs: maskonly}
+		w2kwload   = regInfo{inputs: []regMask{wz, gpspsb, mask, regMask{}}, outputs: wonly}
+		w11load    = regInfo{inputs: []regMask{gpspsb, regMask{}}, outputs: wonly}
+		w3kwload   = regInfo{inputs: []regMask{w, wz, gpspsb, mask, regMask{}}, outputs: wonly} // used in resultInArg0 ops, arg0 must not be x15
+		w2kkload   = regInfo{inputs: []regMask{wz, gpspsb, mask, regMask{}}, outputs: maskonly}
 		v31x0AtIn2 = regInfo{inputs: []regMask{v, vz, x0}, outputs: vonly} // used in resultInArg0 ops, arg0 must not be x15
 
-		kload  = regInfo{inputs: []regMask{gpspsb, 0}, outputs: maskonly}
-		kstore = regInfo{inputs: []regMask{gpspsb, mask, 0}}
+		kload  = regInfo{inputs: []regMask{gpspsb, regMask{}}, outputs: maskonly}
+		kstore = regInfo{inputs: []regMask{gpspsb, mask, regMask{}}}
 		gpk    = regInfo{inputs: gponly, outputs: maskonly}
 		kgp    = regInfo{inputs: maskonly, outputs: gponly}
 		k2k    = regInfo{inputs: []regMask{mask, mask}, outputs: maskonly}
@@ -380,9 +380,9 @@ func init() {
 		{name: "MULLconst", argLength: 1, reg: gp11, asm: "IMUL3L", aux: "Int32", clobberFlags: true},
 
 		// Let x = arg0*arg1 (full 32x32->64  unsigned multiply). Returns uint32(x), and flags set to overflow if uint32(x) != x.
-		{name: "MULLU", argLength: 2, reg: regInfo{inputs: []regMask{ax, gpsp}, outputs: []regMask{ax, 0}, clobbers: dx}, typ: "(UInt32,Flags)", asm: "MULL", commutative: true, clobberFlags: true},
+		{name: "MULLU", argLength: 2, reg: regInfo{inputs: []regMask{ax, gpsp}, outputs: []regMask{ax, regMask{}}, clobbers: dx}, typ: "(UInt32,Flags)", asm: "MULL", commutative: true, clobberFlags: true},
 		// Let x = arg0*arg1 (full 64x64->128 unsigned multiply). Returns uint64(x), and flags set to overflow if uint64(x) != x.
-		{name: "MULQU", argLength: 2, reg: regInfo{inputs: []regMask{ax, gpsp}, outputs: []regMask{ax, 0}, clobbers: dx}, typ: "(UInt64,Flags)", asm: "MULQ", commutative: true, clobberFlags: true},
+		{name: "MULQU", argLength: 2, reg: regInfo{inputs: []regMask{ax, gpsp}, outputs: []regMask{ax, regMask{}}, clobbers: dx}, typ: "(UInt64,Flags)", asm: "MULQ", commutative: true, clobberFlags: true},
 
 		// HMULx[U]: computes the high bits of an integer multiply.
 		// computes arg0 * arg1 >> (x==L?32:64)
@@ -400,12 +400,12 @@ func init() {
 
 		// DIVx[U] computes [arg0 / arg1, arg0 % arg1]
 		// For signed versions, AuxInt non-zero means that the divisor has been proved to be not -1.
-		{name: "DIVQ", argLength: 2, reg: gp11div, typ: "(Int64,Int64)", asm: "IDIVQ", aux: "Bool", clobberFlags: true},
-		{name: "DIVL", argLength: 2, reg: gp11div, typ: "(Int32,Int32)", asm: "IDIVL", aux: "Bool", clobberFlags: true},
-		{name: "DIVW", argLength: 2, reg: gp11div, typ: "(Int16,Int16)", asm: "IDIVW", aux: "Bool", clobberFlags: true},
-		{name: "DIVQU", argLength: 2, reg: gp11div, typ: "(UInt64,UInt64)", asm: "DIVQ", clobberFlags: true},
-		{name: "DIVLU", argLength: 2, reg: gp11div, typ: "(UInt32,UInt32)", asm: "DIVL", clobberFlags: true},
-		{name: "DIVWU", argLength: 2, reg: gp11div, typ: "(UInt16,UInt16)", asm: "DIVW", clobberFlags: true},
+		{name: "DIVQ", argLength: 2, reg: gp11div, typ: "(Int64,Int64)", asm: "IDIVQ", aux: "Bool", clobberFlags: true, hasSideEffects: true},
+		{name: "DIVL", argLength: 2, reg: gp11div, typ: "(Int32,Int32)", asm: "IDIVL", aux: "Bool", clobberFlags: true, hasSideEffects: true},
+		{name: "DIVW", argLength: 2, reg: gp11div, typ: "(Int16,Int16)", asm: "IDIVW", aux: "Bool", clobberFlags: true, hasSideEffects: true},
+		{name: "DIVQU", argLength: 2, reg: gp11div, typ: "(UInt64,UInt64)", asm: "DIVQ", clobberFlags: true, hasSideEffects: true},
+		{name: "DIVLU", argLength: 2, reg: gp11div, typ: "(UInt32,UInt32)", asm: "DIVL", clobberFlags: true, hasSideEffects: true},
+		{name: "DIVWU", argLength: 2, reg: gp11div, typ: "(UInt16,UInt16)", asm: "DIVW", clobberFlags: true, hasSideEffects: true},
 
 		// computes -arg0, flags set for 0-arg0.
 		{name: "NEGLflags", argLength: 1, reg: gp11flags, typ: "(UInt32,Flags)", asm: "NEGL", resultInArg0: true},
@@ -429,8 +429,8 @@ func init() {
 		{name: "SUBQconstborrow", argLength: 1, reg: gp11flags, typ: "(UInt64,Flags)", asm: "SUBQ", aux: "Int32", resultInArg0: true}, // r = arg0-auxint
 		{name: "SBBQconst", argLength: 2, reg: gp1flags1flags, typ: "(UInt64,Flags)", asm: "SBBQ", aux: "Int32", resultInArg0: true},  // r = arg0-(auxint+carry(arg1))
 
-		{name: "MULQU2", argLength: 2, reg: regInfo{inputs: []regMask{ax, gpsp}, outputs: []regMask{dx, ax}}, commutative: true, asm: "MULQ", clobberFlags: true}, // arg0 * arg1, returns (hi, lo)
-		{name: "DIVQU2", argLength: 3, reg: regInfo{inputs: []regMask{dx, ax, gpsp}, outputs: []regMask{ax, dx}}, asm: "DIVQ", clobberFlags: true},                // arg0:arg1 / arg2 (128-bit divided by 64-bit), returns (q, r)
+		{name: "MULQU2", argLength: 2, reg: regInfo{inputs: []regMask{ax, gpsp}, outputs: []regMask{dx, ax}}, commutative: true, asm: "MULQ", clobberFlags: true},        // arg0 * arg1, returns (hi, lo)
+		{name: "DIVQU2", argLength: 3, reg: regInfo{inputs: []regMask{dx, ax, gpsp}, outputs: []regMask{ax, dx}}, asm: "DIVQ", clobberFlags: true, hasSideEffects: true}, // arg0:arg1 / arg2 (128-bit divided by 64-bit), returns (q, r)
 
 		{name: "ANDQ", argLength: 2, reg: gp21, asm: "ANDQ", commutative: true, resultInArg0: true, clobberFlags: true},                                                 // arg0 & arg1
 		{name: "ANDL", argLength: 2, reg: gp21, asm: "ANDL", commutative: true, resultInArg0: true, clobberFlags: true},                                                 // arg0 & arg1
@@ -1039,11 +1039,11 @@ func init() {
 		},
 
 		// With a register ABI, the actual register info for these instructions (i.e., what is used in regalloc) is augmented with per-call-site bindings of additional arguments to specific in and out registers.
-		{name: "CALLstatic", argLength: -1, reg: regInfo{clobbers: callerSave}, aux: "CallOff", clobberFlags: true, call: true},                                              // call static function aux.(*obj.LSym).  last arg=mem, auxint=argsize, returns mem
-		{name: "CALLtail", argLength: -1, reg: regInfo{clobbers: callerSave}, aux: "CallOff", clobberFlags: true, call: true, tailCall: true},                                // tail call static function aux.(*obj.LSym).  last arg=mem, auxint=argsize, returns mem
-		{name: "CALLtailinter", argLength: -1, reg: regInfo{inputs: []regMask{gp}, clobbers: callerSave}, aux: "CallOff", clobberFlags: true, call: true, tailCall: true},    // tail call fn by pointer. arg0=codeptr, last arg=mem, auxint=argsize, returns mem
-		{name: "CALLclosure", argLength: -1, reg: regInfo{inputs: []regMask{gpsp, buildReg("DX"), 0}, clobbers: callerSave}, aux: "CallOff", clobberFlags: true, call: true}, // call function via closure.  arg0=codeptr, arg1=closure, last arg=mem, auxint=argsize, returns mem
-		{name: "CALLinter", argLength: -1, reg: regInfo{inputs: []regMask{gp}, clobbers: callerSave}, aux: "CallOff", clobberFlags: true, call: true},                        // call fn by pointer.  arg0=codeptr, last arg=mem, auxint=argsize, returns mem
+		{name: "CALLstatic", argLength: -1, reg: regInfo{clobbers: callerSave}, aux: "CallOff", clobberFlags: true, call: true},                                                      // call static function aux.(*obj.LSym).  last arg=mem, auxint=argsize, returns mem
+		{name: "CALLtail", argLength: -1, reg: regInfo{clobbers: callerSave}, aux: "CallOff", clobberFlags: true, call: true, tailCall: true},                                        // tail call static function aux.(*obj.LSym).  last arg=mem, auxint=argsize, returns mem
+		{name: "CALLtailinter", argLength: -1, reg: regInfo{inputs: []regMask{gp}, clobbers: callerSave}, aux: "CallOff", clobberFlags: true, call: true, tailCall: true},            // tail call fn by pointer. arg0=codeptr, last arg=mem, auxint=argsize, returns mem
+		{name: "CALLclosure", argLength: -1, reg: regInfo{inputs: []regMask{gpsp, buildReg("DX"), regMask{}}, clobbers: callerSave}, aux: "CallOff", clobberFlags: true, call: true}, // call function via closure.  arg0=codeptr, arg1=closure, last arg=mem, auxint=argsize, returns mem
+		{name: "CALLinter", argLength: -1, reg: regInfo{inputs: []regMask{gp}, clobbers: callerSave}, aux: "CallOff", clobberFlags: true, call: true},                                // call fn by pointer.  arg0=codeptr, last arg=mem, auxint=argsize, returns mem
 
 		// arg0 = destination pointer
 		// arg1 = source pointer
@@ -1123,7 +1123,7 @@ func init() {
 		// LoweredWB invokes runtime.gcWriteBarrier{auxint}. arg0=mem, auxint=# of buffer entries needed.
 		// It saves all GP registers if necessary, but may clobber others.
 		// Returns a pointer to a write barrier buffer in R11.
-		{name: "LoweredWB", argLength: 1, reg: regInfo{clobbers: callerSave &^ (gp | g), outputs: []regMask{buildReg("R11")}}, clobberFlags: true, aux: "Int64"},
+		{name: "LoweredWB", argLength: 1, reg: regInfo{clobbers: callerSave.minus(gp.union(g)), outputs: []regMask{buildReg("R11")}}, clobberFlags: true, aux: "Int64"},
 
 		{name: "LoweredHasCPUFeature", argLength: 0, reg: gp01, rematerializeable: true, typ: "UInt64", aux: "Sym", symEffect: "None"},
 
@@ -1530,7 +1530,7 @@ func init() {
 		ParamFloatRegNames: "X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14",
 		gpregmask:          gp,
 		fpregmask:          fp,
-		specialregmask:     mask | (w &^ v),
+		specialregmask:     mask.union(w.minus(v)),
 		framepointerreg:    int8(num["BP"]),
 		linkreg:            -1, // not used
 	})

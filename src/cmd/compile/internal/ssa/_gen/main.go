@@ -96,19 +96,53 @@ type regInfo struct {
 	outputs []regMask
 }
 
-type regMask uint64
+type regMask struct {
+	v1, v2 uint64
+}
+
+func regMaskAt(i uint) regMask {
+	if i < 64 {
+		return regMask{v1: 1 << i}
+	}
+	return regMask{v2: 1 << (i - 64)}
+}
+
+func (r regMask) empty() bool {
+	return r.v1 == 0 && r.v2 == 0
+}
+
+func (r regMask) hasReg(i uint) bool {
+	if i < 64 {
+		return (r.v1>>i)&1 != 0
+	}
+	return (r.v2>>(i-64))&1 != 0
+}
+
+func (r regMask) addReg(i uint) regMask {
+	if i < 64 {
+		return regMask{r.v1 | 1<<i, r.v2}
+	}
+	return regMask{r.v1, r.v2 | 1<<(i-64)}
+}
+
+func (r regMask) union(s regMask) regMask {
+	return regMask{r.v1 | s.v1, r.v2 | s.v2}
+}
+
+func (r regMask) minus(s regMask) regMask {
+	return regMask{r.v1 &^ s.v1, r.v2 &^ s.v2}
+}
 
 func (a arch) regMaskComment(r regMask) string {
 	var buf strings.Builder
-	for i := uint64(0); r != 0; i++ {
-		if r&1 != 0 {
+	for i := uint(0); i < uint(len(a.regnames)); i++ {
+		if r.hasReg(i) {
 			if buf.Len() == 0 {
 				buf.WriteString(" //")
 			}
 			buf.WriteString(" ")
 			buf.WriteString(a.regnames[i])
 		}
-		r >>= 1
 	}
 	return buf.String()
 }
@@ -297,7 +331,7 @@ func genOp() {
 			fmt.Fprintf(w, "argLen: %d,\n", v.argLength)
 
 			if v.rematerializeable {
-				if v.reg.clobbers != 0 || v.reg.clobbersArg0 || v.reg.clobbersArg1 {
+				if !v.reg.clobbers.empty() || v.reg.clobbersArg0 || v.reg.clobbersArg1 {
 					log.Fatalf("%s is rematerializeable and clobbers registers", v.name)
 				}
 				if v.clobberFlags {
@@ -389,7 +423,7 @@ func genOp() {
 			// that we will always be able to find a register.
 			var s []intPair
 			for i, r := range v.reg.inputs {
-				if r != 0 {
+				if !r.empty() {
 					s = append(s, intPair{countRegs(r), i})
 				}
 			}
@@ -398,13 +432,13 @@ func genOp() {
 				fmt.Fprintln(w, "inputs: []inputInfo{")
 				for _, p := range s {
 					r := v.reg.inputs[p.val]
-					fmt.Fprintf(w, "{%d,%d},%s\n", p.val, r, a.regMaskComment(r))
+					fmt.Fprintf(w, "{%d,regMask{v1: %d, v2: %d}},%s\n", p.val, r.v1, r.v2, a.regMaskComment(r))
 				}
 				fmt.Fprintln(w, "},")
 			}
 
-			if v.reg.clobbers > 0 {
-				fmt.Fprintf(w, "clobbers: %d,%s\n", v.reg.clobbers, a.regMaskComment(v.reg.clobbers))
+			if !v.reg.clobbers.empty() {
+				fmt.Fprintf(w, "clobbers: regMask{v1: %d, v2: %d},%s\n", v.reg.clobbers.v1, v.reg.clobbers.v2, a.regMaskComment(v.reg.clobbers))
 			}
 			if v.reg.clobbersArg0 {
 				fmt.Fprintf(w, "clobbersArg0: true,\n")
@@ -423,7 +457,7 @@ func genOp() {
 				fmt.Fprintln(w, "outputs: []outputInfo{")
 				for _, p := range s {
 					r := v.reg.outputs[p.val]
-					fmt.Fprintf(w, "{%d,%d},%s\n", p.val, r, a.regMaskComment(r))
+					fmt.Fprintf(w, "{%d,regMask{v1: %d, v2: %d}},%s\n", p.val, r.v1, r.v2, a.regMaskComment(r))
 				}
 				fmt.Fprintln(w, "},")
 			}
@@ -500,15 +534,15 @@ func genOp() {
 		fmt.Fprintln(w, "}")
 		fmt.Fprintf(w, "var paramIntReg%s = %#v\n", a.name, paramIntRegs)
 		fmt.Fprintf(w, "var paramFloatReg%s = %#v\n", a.name, paramFloatRegs)
-		fmt.Fprintf(w, "var gpRegMask%s = regMask(%d)\n", a.name, a.gpregmask)
-		fmt.Fprintf(w, "var fpRegMask%s = regMask(%d)\n", a.name, a.fpregmask)
-		if a.fp32regmask != 0 {
-			fmt.Fprintf(w, "var fp32RegMask%s = regMask(%d)\n", a.name, a.fp32regmask)
+		fmt.Fprintf(w, "var gpRegMask%s = regMask{v1: %d, v2: %d}\n", a.name, a.gpregmask.v1, a.gpregmask.v2)
+		fmt.Fprintf(w, "var fpRegMask%s = regMask{v1: %d, v2: %d}\n", a.name, a.fpregmask.v1, a.fpregmask.v2)
+		if !a.fp32regmask.empty() {
+			fmt.Fprintf(w, "var fp32RegMask%s = regMask{v1: %d, v2: %d}\n", a.name, a.fp32regmask.v1, a.fp32regmask.v2)
 		}
-		if a.fp64regmask != 0 {
-			fmt.Fprintf(w, "var fp64RegMask%s = regMask(%d)\n", a.name, a.fp64regmask)
+		if !a.fp64regmask.empty() {
+			fmt.Fprintf(w, "var fp64RegMask%s = regMask{v1: %d, v2: %d}\n", a.name, a.fp64regmask.v1, a.fp64regmask.v2)
 		}
-		fmt.Fprintf(w, "var specialRegMask%s = regMask(%d)\n", a.name, a.specialregmask)
+		fmt.Fprintf(w, "var specialRegMask%s = regMask{v1: %d, v2: %d}\n", a.name, a.specialregmask.v1, a.specialregmask.v2)
 		fmt.Fprintf(w, "var framepointerReg%s = int8(%d)\n", a.name, a.framepointerreg)
 		fmt.Fprintf(w, "var linkReg%s = int8(%d)\n", a.name, a.linkreg)
 	}
@@ -579,7 +613,7 @@ func (a arch) Name() string {
 
 // countRegs returns the number of set bits in the register mask.
 func countRegs(r regMask) int {
-	return bits.OnesCount64(uint64(r))
+	return bits.OnesCount64(r.v1) + bits.OnesCount64(r.v2)
 }
 
 // for sorting a pair of integers by key

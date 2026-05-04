@@ -170,9 +170,9 @@ func (dst *Flags) Join(src Flags) {
 	// then copy over source value bits over to the destination (using OR).
 	//	e.g., dst := Flags{Presence: 0b_1100_0011, Values: 0b_1000_0011}
 	//	e.g., src := Flags{Presence: 0b_0101_1010, Values: 0b_1001_0010}
-	dst.Presence |= src.Presence // e.g., 0b_1100_0011 | 0b_0101_1010 -> 0b_110_11011
-	dst.Values &= ^src.Presence  // e.g., 0b_1000_0011 & 0b_1010_0101 -> 0b_100_00001
-	dst.Values |= src.Values     // e.g., 0b_1000_0001 | 0b_1001_0010 -> 0b_100_10011
+	dst.Presence |= src.Presence // e.g., 0b_1100_0011 | 0b_0101_1010 -> 0b_1101_1011
+	dst.Values &= ^src.Presence  // e.g., 0b_1000_0011 & 0b_1010_0101 -> 0b_1000_0001
+	dst.Values |= src.Values     // e.g., 0b_1000_0001 | 0b_1001_0010 -> 0b_1001_0011
 }
 
 // Set sets both the presence and value for the provided bool (or set of bools).
@@ -184,7 +184,7 @@ func (fs *Flags) Set(f Bools) {
 	//	e.g., fs := Flags{Presence: 0b_0101_0010, Values: 0b_0001_0010}
 	//	e.g., f := 0b_1001_0001
 	id := uint64(f) &^ uint64(1)  // e.g., 0b_1001_0001 & 0b_1111_1110 -> 0b_1001_0000
-	fs.Presence |= id             // e.g., 0b_0101_0010 | 0b_1001_0000 -> 0b_1101_0011
+	fs.Presence |= id             // e.g., 0b_0101_0010 | 0b_1001_0000 -> 0b_1101_0010
 	fs.Values &= ^id              // e.g., 0b_0001_0010 & 0b_0110_1111 -> 0b_0000_0010
 	fs.Values |= uint64(f&1) * id // e.g., 0b_0000_0010 | 0b_1001_0000 -> 0b_1001_0010
 }

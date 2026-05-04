@@ -57,7 +57,7 @@ func init() {
 	//
 	// If name is specified, use it rather than the riscv reg number.
 	addreg := func(r int, name string) regMask {
-		mask := regMask(1) << uint(len(regNamesRISCV64))
+		mask := regMaskAt(uint(len(regNamesRISCV64)))
 		if name == "" {
 			name = riscv64RegName(r)
 		}
@@ -81,20 +81,20 @@ func init() {
 		// ZERO, GP, TP and TMP are not in any gp mask.
 		case riscv64REG_ZERO, riscv64REG_GP, riscv64REG_TP, riscv64REG_TMP:
 		case riscv64REG_G:
-			gpgMask |= mask
-			gpspsbgMask |= mask
+			gpgMask = gpgMask.union(mask)
+			gpspsbgMask = gpspsbgMask.union(mask)
 		case riscv64REG_SP:
-			gpspMask |= mask
-			gpspsbMask |= mask
-			gpspsbgMask |= mask
+			gpspMask = gpspMask.union(mask)
+			gpspsbMask = gpspsbMask.union(mask)
+			gpspsbgMask = gpspsbgMask.union(mask)
 		default:
-			gpMask |= mask
-			gpgMask |= mask
-			gpspMask |= mask
-			gpspsbMask |= mask
-			gpspsbgMask |= mask
+			gpMask = gpMask.union(mask)
+			gpgMask = gpgMask.union(mask)
+			gpspMask = gpspMask.union(mask)
+			gpspsbMask = gpspsbMask.union(mask)
+			gpspsbgMask = gpspsbgMask.union(mask)
 			if r >= 5 && r < 5+16 {
-				first16Mask |= mask
+				first16Mask = first16Mask.union(mask)
 			}
 		}
 	}
@@ -102,13 +102,13 @@ func init() {
 	// Floating point registers.
 	for r := 32; r <= 63; r++ {
 		mask := addreg(r, "")
-		fpMask |= mask
+		fpMask = fpMask.union(mask)
 	}
 
 	// Pseudo-register: SB
 	mask := addreg(-1, "SB")
-	gpspsbMask |= mask
-	gpspsbgMask |= mask
+	gpspsbMask = gpspsbMask.union(mask)
+	gpspsbgMask = gpspsbgMask.union(mask)
 
 	if len(regNamesRISCV64) > 64 {
 		// regMask is only 64 bits.
@@ -116,18 +116,18 @@ func init() {
 	}
 
 	regCtxt := regNamed["X26"]
-	callerSave := gpMask | fpMask | regNamed["g"]
-	r5toR6 := regNamed["X5"] | regNamed["X6"]
+	callerSave := gpMask.union(fpMask).union(regNamed["g"])
+	r5toR6 := regNamed["X5"].union(regNamed["X6"])
 	regX5 := regNamed["X5"]
 
 	var (
-		gpstore  = regInfo{inputs: []regMask{gpspsbMask, gpspMask, 0}} // SB in first input so we can load from a global, but not in second to avoid using SB as a temporary register
+		gpstore  = regInfo{inputs: []regMask{gpspsbMask, gpspMask, regMask{}}} // SB in first input so we can load from a global, but not in second to avoid using SB as a temporary register
 		gpstore0 = regInfo{inputs: []regMask{gpspsbMask}}
 		gp01     = regInfo{outputs: []regMask{gpMask}}
 		gp11     = regInfo{inputs: []regMask{gpMask}, outputs: []regMask{gpMask}}
 		gp21     = regInfo{inputs: []regMask{gpMask, gpMask}, outputs: []regMask{gpMask}}
 		gp22     = regInfo{inputs: []regMask{gpMask, gpMask}, outputs: []regMask{gpMask, gpMask}}
-		gpload   = regInfo{inputs: []regMask{gpspsbMask, 0}, outputs: []regMask{gpMask}}
+		gpload   = regInfo{inputs: []regMask{gpspsbMask, regMask{}}, outputs: []regMask{gpMask}}
 		gp11sb   = regInfo{inputs: []regMask{gpspsbMask}, outputs: []regMask{gpMask}}
 		gpxchg   = regInfo{inputs: []regMask{gpspsbgMask, gpgMask}, outputs: []regMask{gpMask}}
 		gpcas    = regInfo{inputs: []regMask{gpspsbgMask, gpgMask, gpgMask}, outputs: []regMask{gpMask}}
@@ -139,8 +139,8 @@ func init() {
 		fp31    = regInfo{inputs: []regMask{fpMask, fpMask, fpMask}, outputs: []regMask{fpMask}}
 		gpfp    = regInfo{inputs: []regMask{gpMask}, outputs: []regMask{fpMask}}
 		fpgp    = regInfo{inputs: []regMask{fpMask}, outputs: []regMask{gpMask}}
-		fpstore = regInfo{inputs: []regMask{gpspsbMask, fpMask, 0}}
-		fpload  = regInfo{inputs: []regMask{gpspsbMask, 0}, outputs: []regMask{fpMask}}
+		fpstore = regInfo{inputs: []regMask{gpspsbMask, fpMask, regMask{}}}
+		fpload  = regInfo{inputs: []regMask{gpspsbMask, regMask{}}, outputs: []regMask{fpMask}}
 		fp2gp   = regInfo{inputs: []regMask{fpMask, fpMask}, outputs: []regMask{gpMask}}
 
 		call = regInfo{clobbers: callerSave}
@@ -148,8 +148,8 @@ func init() {
 		// RAS pop-then-push behavior which is not correct for function calls.
 		// Please refer to section 2.5.1 of the RISC-V ISA
 		// (https://docs.riscv.org/reference/isa/unpriv/rv32.html#rashints) for details.
-		callClosure = regInfo{inputs: []regMask{gpspMask ^ regX5, regCtxt, 0}, clobbers: callerSave}
-		callInter   = regInfo{inputs: []regMask{gpMask ^ regX5}, clobbers: callerSave}
+		callClosure = regInfo{inputs: []regMask{gpspMask.minus(regX5), regCtxt, regMask{}}, clobbers: callerSave}
+		callInter   = regInfo{inputs: []regMask{gpMask.minus(regX5)}, clobbers: callerSave}
 	)
 
 	RISCV64ops := []opData{
@@ -170,14 +170,14 @@ func init() {
 		{name: "LoweredMuluhilo", argLength: 2, reg: gp22, resultNotInArgs: true}, // arg0 * arg1, return (hi, lo)
 		{name: "LoweredMuluover", argLength: 2, reg: gp22, resultNotInArgs: true}, // arg0 * arg1, return (64 bits of arg0*arg1, overflow)
 
-		{name: "DIV", argLength: 2, reg: gp21, asm: "DIV", typ: "Int64"}, // arg0 / arg1
-		{name: "DIVU", argLength: 2, reg: gp21, asm: "DIVU", typ: "UInt64"},
-		{name: "DIVW", argLength: 2, reg: gp21, asm: "DIVW", typ: "Int32"},
-		{name: "DIVUW", argLength: 2, reg: gp21, asm: "DIVUW", typ: "UInt32"},
-		{name: "REM", argLength: 2, reg: gp21, asm: "REM", typ: "Int64"}, // arg0 % arg1
-		{name: "REMU", argLength: 2, reg: gp21, asm: "REMU", typ: "UInt64"},
-		{name: "REMW", argLength: 2, reg: gp21, asm: "REMW", typ: "Int32"},
-		{name: "REMUW", argLength: 2, reg: gp21, asm: "REMUW", typ: "UInt32"},
+		{name: "DIV", argLength: 2, reg: gp21, asm: "DIV", typ: "Int64", hasSideEffects: true}, // arg0 / arg1
+		{name: "DIVU", argLength: 2, reg: gp21, asm: "DIVU", typ: "UInt64", hasSideEffects: true},
+		{name: "DIVW", argLength: 2, reg: gp21, asm: "DIVW", typ: "Int32", hasSideEffects: true},
+		{name: "DIVUW", argLength: 2, reg: gp21, asm: "DIVUW", typ: "UInt32", hasSideEffects: true},
+		{name: "REM", argLength: 2, reg: gp21, asm: "REM", typ: "Int64", hasSideEffects: true}, // arg0 % arg1
+		{name: "REMU", argLength: 2, reg: gp21, asm: "REMU", typ: "UInt64", hasSideEffects: true},
+		{name: "REMW", argLength: 2, reg: gp21, asm: "REMW", typ: "Int32", hasSideEffects: true},
+		{name: "REMUW", argLength: 2, reg: gp21, asm: "REMUW", typ: "UInt32", hasSideEffects: true},
 
 		{name: "MOVaddr", argLength: 1, reg: gp11sb, asm: "MOV", aux: "SymOff", rematerializeable: true, symEffect: "Addr"}, // arg0 + auxint + offset encoded in aux
 		// auxint+aux == add auxint and the offset of the symbol in aux (if any) to the effective address
@@ -339,7 +339,7 @@ func init() {
 			symEffect: "Write",
 			argLength: 3,
 			reg: regInfo{
-				inputs:   []regMask{gpMask &^ regNamed["X5"], gpMask &^ regNamed["X5"]},
+				inputs:   []regMask{gpMask.minus(regNamed["X5"]), gpMask.minus(regNamed["X5"])},
 				clobbers: regNamed["X5"],
 			},
 			faultOnNilArg0: true,
@@ -366,7 +366,7 @@ func init() {
 			argLength: 3,
 			symEffect: "Write",
 			reg: regInfo{
-				inputs:       []regMask{gpMask &^ r5toR6, gpMask &^ r5toR6},
+				inputs:       []regMask{gpMask.minus(r5toR6), gpMask.minus(r5toR6)},
 				clobbers:     r5toR6,
 				clobbersArg0: true,
 				clobbersArg1: true,
@@ -438,7 +438,7 @@ func init() {
 		// but clobbers RA (LR) because it's a call
 		// and T6 (REG_TMP).
 		// Returns a pointer to a write barrier buffer in X24.
-		{name: "LoweredWB", argLength: 1, reg: regInfo{clobbers: (callerSave &^ (gpMask | regNamed["g"])) | regNamed["X1"], outputs: []regMask{regNamed["X24"]}}, clobberFlags: true, aux: "Int64"},
+		{name: "LoweredWB", argLength: 1, reg: regInfo{clobbers: callerSave.minus(gpMask.union(regNamed["g"])).union(regNamed["X1"]), outputs: []regMask{regNamed["X24"]}}, clobberFlags: true, aux: "Int64"},
 
 		// Do data barrier. arg0=memorys
 		{name: "LoweredPubBarrier", argLength: 1, asm: "FENCE", hasSideEffects: true},

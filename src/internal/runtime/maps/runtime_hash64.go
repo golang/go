@@ -7,7 +7,7 @@
 
 //go:build amd64 || arm64 || loong64 || mips64 || mips64le || ppc64 || ppc64le || riscv64 || s390x
 
-package runtime
+package maps
 
 import (
 	"math/bits"
@@ -18,7 +18,7 @@ const (
 	m5 = 0x1d8e4e27c47d124f
 )
 
-func memhashFallback(p unsafe.Pointer, seed, s uintptr) uintptr {
+func memHashFallback(p unsafe.Pointer, seed, s uintptr) uintptr {
 	var a, b uintptr
 	seed ^= hashkey[0]
 	switch {
@@ -64,12 +64,12 @@ func memhashFallback(p unsafe.Pointer, seed, s uintptr) uintptr {
 	return mix(m5^s, mix(a^hashkey[1], b^seed))
 }
 
-func memhash32Fallback(p unsafe.Pointer, seed uintptr) uintptr {
+func memHash32Fallback(p unsafe.Pointer, seed uintptr) uintptr {
 	a := r4(p)
 	return mix(m5^4, mix(a^hashkey[1], a^seed^hashkey[0]))
 }
 
-func memhash64Fallback(p unsafe.Pointer, seed uintptr) uintptr {
+func memHash64Fallback(p unsafe.Pointer, seed uintptr) uintptr {
 	a := r8(p)
 	return mix(m5^8, mix(a^hashkey[1], a^seed^hashkey[0]))
 }

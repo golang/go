@@ -915,6 +915,8 @@ func vop(as obj.As) (opcode, es, cs uint32) {
 		return op_VSTEB, 0, 0
 	case AVSTM:
 		return op_VSTM, 0, 0
+	case AVSTRL:
+		return op_VSTRL, 0, 0
 	case AVSTL:
 		return op_VSTL, 0, 0
 	case AVSTRC:

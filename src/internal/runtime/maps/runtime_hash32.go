@@ -7,11 +7,11 @@
 
 //go:build 386 || arm || mips || mipsle || wasm || (gccgo && (ppc || s390))
 
-package runtime
+package maps
 
 import "unsafe"
 
-func memhash32Fallback(p unsafe.Pointer, seed uintptr) uintptr {
+func memHash32Fallback(p unsafe.Pointer, seed uintptr) uintptr {
 	a, b := mix32(uint32(seed), uint32(4^hashkey[0]))
 	t := readUnaligned32(p)
 	a ^= t
@@ -21,7 +21,7 @@ func memhash32Fallback(p unsafe.Pointer, seed uintptr) uintptr {
 	return uintptr(a ^ b)
 }
 
-func memhash64Fallback(p unsafe.Pointer, seed uintptr) uintptr {
+func memHash64Fallback(p unsafe.Pointer, seed uintptr) uintptr {
 	a, b := mix32(uint32(seed), uint32(8^hashkey[0]))
 	a ^= readUnaligned32(p)
 	b ^= readUnaligned32(add(p, 4))
@@ -30,7 +30,7 @@ func memhash64Fallback(p unsafe.Pointer, seed uintptr) uintptr {
 	return uintptr(a ^ b)
 }
 
-func memhashFallback(p unsafe.Pointer, seed, s uintptr) uintptr {
+func memHashFallback(p unsafe.Pointer, seed, s uintptr) uintptr {
 
 	a, b := mix32(uint32(seed), uint32(s^hashkey[0]))
 	if s == 0 {

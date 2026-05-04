@@ -46,19 +46,25 @@ var Reader io.Reader = reader{}
 //
 //go:linkname SetTestingReader crypto/internal/rand.SetTestingReader
 func SetTestingReader(r io.Reader) {
+	testingReader = r
 	fips140SetTestingReader(r)
 }
+
+var testingReader io.Reader
 
 var cryptocustomrand = godebug.New("cryptocustomrand")
 
 // CustomReader returns [Reader] or, only if the GODEBUG setting
 // "cryptocustomrand=1" is set, the provided io.Reader.
 //
-// If returning a non-default Reader, it calls [randutil.MaybeReadByte] on it.
+// If returning a non-default Reader, it calls [randutil.MaybeReadByte] on it,
+// unless it's the global testing Reader set with [SetTestingReader].
 func CustomReader(r io.Reader) io.Reader {
 	if cryptocustomrand.Value() == "1" {
 		if !IsDefaultReader(r) {
-			randutil.MaybeReadByte(r)
+			if r != testingReader {
+				randutil.MaybeReadByte(r)
+			}
 			cryptocustomrand.IncNonDefault()
 		}
 		return r

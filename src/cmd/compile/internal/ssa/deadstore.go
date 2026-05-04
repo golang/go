@@ -50,7 +50,18 @@ func dse(f *Func) {
 				for _, a := range v.Args {
 					if a.Block == b && a.Type.IsMemory() {
 						storeUse.add(a.ID)
-						if v.Op != OpStore && v.Op != OpZero && v.Op != OpVarDef {
+						switch v.Op {
+						case OpStore, OpZero, OpVarDef:
+							// These ops never read from their memory input.
+						case OpMove:
+							// This op reads from its memory argument, but
+							// we can treat it as not doing so if we know
+							// the read is from read-only memory.
+							if v.Args[1].Op == OpAddr && symIsRO(auxToSym(v.Args[1].Aux)) {
+								break
+							}
+							fallthrough
+						default:
 							// CALL, DUFFCOPY, etc. are both
 							// reads and writes.
 							loadUse.add(a.ID)
@@ -111,7 +122,7 @@ func dse(f *Func) {
 			shadowed.clear()
 			shadowedRanges = shadowedRanges[:0]
 		}
-		if v.Op == OpStore || v.Op == OpZero {
+		if v.Op == OpStore || v.Op == OpZero || v.Op == OpMove {
 			ptr := v.Args[0]
 			var off int64
 			for ptr.Op == OpOffPtr { // Walk to base pointer
@@ -119,7 +130,7 @@ func dse(f *Func) {
 				ptr = ptr.Args[0]
 			}
 			var sz int64
-			if v.Op == OpStore {
+			if v.Op == OpStore || v.Op == OpMove {
 				sz = v.Aux.(*types.Type).Size()
 			} else { // OpZero
 				sz = v.AuxInt
@@ -137,13 +148,14 @@ func dse(f *Func) {
 			}
 
 			if si != nil && si.contains(off, off+sz) {
-				// Modify the store/zero into a copy of the memory state,
+				// Modify the store/zero/move into a copy of the memory state,
 				// effectively eliding the store operation.
-				if v.Op == OpStore {
-					// store addr value mem
+				if v.Op == OpStore || v.Op == OpMove {
+					//    Store addr value mem
+					// or  Move dst src mem
 					v.SetArgs1(v.Args[2])
 				} else {
-					// zero addr mem
+					// Zero addr mem
 					v.SetArgs1(v.Args[1])
 				}
 				v.Aux = nil

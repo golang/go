@@ -1351,7 +1351,7 @@ func TestDeepStack(t *testing.T) {
 }
 
 func BenchmarkCgoCallbackMainThread(b *testing.B) {
-	// Benchmark for calling into Go fron C main thread.
+	// Benchmark for calling into Go from C main thread.
 	// See issue #68587.
 	//
 	// It uses a subprocess, which is a C binary that calls

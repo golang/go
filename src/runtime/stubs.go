@@ -395,9 +395,6 @@ func divRoundUp(n, a uintptr) uintptr {
 	return (n + a - 1) / a
 }
 
-// checkASM reports whether assembly runtime checks have passed.
-func checkASM() bool
-
 func memequal_varlen(a, b unsafe.Pointer) bool
 
 // bool2int returns 0 if x is false or 1 if x is true.

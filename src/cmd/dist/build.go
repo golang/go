@@ -9,6 +9,7 @@ import (
 	"encoding/json"
 	"flag"
 	"fmt"
+	"go/build/constraint"
 	"io"
 	"io/fs"
 	"log"
@@ -1166,11 +1167,12 @@ func shouldbuild(file, pkg string) bool {
 			break
 		}
 		if strings.HasPrefix(p, "//go:build ") {
-			matched, err := matchexpr(p[len("//go:build "):])
+			c, err := constraint.Parse(p)
 			if err != nil {
-				errprintf("%s: %v", file, err)
+				errprintf("%s: parsing //go:build line: %v", file, err)
+				return false
 			}
-			return matched
+			return c.Eval(matchtag)
 		}
 	}
 

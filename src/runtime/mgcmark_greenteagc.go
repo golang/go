@@ -15,7 +15,7 @@
 // optimize the scan loop by size class (not yet completed) all the way to the
 // point of applying SIMD techniques to really tear through the heap.
 //
-// Naturally, this depends on being able to create opportunties to batch objects
+// Naturally, this depends on being able to create opportunities to batch objects
 // together. The basic idea here is to have two sets of mark bits. One set is the
 // regular set of mark bits ("marks"), while the other essentially says that the
 // objects have been scanned already ("scans"). When we see a pointer for the first

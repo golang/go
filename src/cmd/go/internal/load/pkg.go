@@ -742,6 +742,7 @@ func loadImport(ld *modload.Loader, ctx context.Context, opts PackageOpts, pre *
 			defer stk.Pop()
 		}
 		p.setLoadPackageDataError(err, path, stk, nil)
+		setToolFlags(ld, p)
 		return p, nil
 	}
 
@@ -768,6 +769,7 @@ func loadImport(ld *modload.Loader, ctx context.Context, opts PackageOpts, pre *
 		packageCache[importPath] = p
 
 		setCmdline(p)
+		setToolFlags(ld, p)
 
 		// Load package.
 		// loadPackageData may return bp != nil even if an error occurs,
@@ -2533,7 +2535,7 @@ func (p *Package) setBuildInfo(ctx context.Context, f *modfetch.Fetcher, autoVCS
 		}
 		if cfg.BuildBuildvcs == "auto" && vcsCmd != nil && vcsCmd.Cmd != "" {
 			if _, err := pathcache.LookPath(vcsCmd.Cmd); err != nil {
-				// We fould a repository, but the required VCS tool is not present.
+				// We found a repository, but the required VCS tool is not present.
 				// "-buildvcs=auto" means that we should silently drop the VCS metadata.
 				goto omitVCS
 			}
@@ -2836,17 +2838,6 @@ func TestPackageList(ld *modload.Loader, ctx context.Context, opts PackageOpts, 
 		}
 	}
 	return all
-}
-
-// LoadImportWithFlags loads the package with the given import path and
-// sets tool flags on that package. This function is useful loading implicit
-// dependencies (like sync/atomic for coverage).
-// TODO(jayconrod): delete this function and set flags automatically
-// in LoadImport instead.
-func LoadImportWithFlags(ld *modload.Loader, path, srcDir string, parent *Package, stk *ImportStack, importPos []token.Position, mode int) (*Package, *PackageError) {
-	p, err := loadImport(ld, context.TODO(), PackageOpts{}, nil, path, srcDir, parent, stk, importPos, mode)
-	setToolFlags(ld, p)
-	return p, err
 }
 
 // LoadPackageWithFlags is the same as LoadImportWithFlags but without a parent.
@@ -3481,7 +3472,7 @@ func EnsureImport(s *modload.Loader, p *Package, pkg string) {
 		}
 	}
 
-	p1, err := LoadImportWithFlags(s, pkg, p.Dir, p, &ImportStack{}, nil, 0)
+	p1, err := loadImport(s, context.TODO(), PackageOpts{}, nil, pkg, p.Dir, p, &ImportStack{}, nil, 0)
 	if err != nil {
 		base.Fatalf("load %s: %v", pkg, err)
 	}

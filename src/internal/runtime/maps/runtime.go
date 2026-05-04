@@ -16,20 +16,11 @@ import (
 
 // Functions below pushed from runtime.
 //
-//go:noescape
-//go:linkname memhash32 runtime.memhash32
-func memhash32(p unsafe.Pointer, h uintptr) uintptr
-
-//go:noescape
-//go:linkname memhash64 runtime.memhash64
-func memhash64(p unsafe.Pointer, h uintptr) uintptr
-
-//go:noescape
-//go:linkname strhash runtime.strhash
-func strhash(a unsafe.Pointer, h uintptr) uintptr
-
 //go:linkname fatal
 func fatal(s string)
+
+//go:linkname bootstrapRand runtime.bootstrapRand
+func bootstrapRand() uint64
 
 //go:linkname rand
 func rand() uint64

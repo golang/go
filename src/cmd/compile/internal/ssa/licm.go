@@ -71,6 +71,10 @@ func licm(f *Func) {
 			} else if opcodeTable[v.Op].nilCheck {
 				// NilCheck in case loop executes 0 times. (It has a memory arg anyway?)
 				loopDep = true
+			} else if opcodeTable[v.Op].hasSideEffects {
+				// Operations with side effects cannot be moved.
+				// (This includes divides that might fault, see issue 78892.)
+				loopDep = true
 			} else if v.MemoryArg() != nil {
 				// Because the state of memory might be different at the loop start. (Also handled by Phi?)
 				loopDep = true

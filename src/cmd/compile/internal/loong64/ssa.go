@@ -539,7 +539,11 @@ func ssaGenValue(s *ssagen.State, v *ssa.Value) {
 
 	case ssa.OpLOONG64VPCNT64,
 		ssa.OpLOONG64VPCNT32,
-		ssa.OpLOONG64VPCNT16:
+		ssa.OpLOONG64VPCNT16,
+		ssa.OpLOONG64FRINTND,
+		ssa.OpLOONG64FRINTZD,
+		ssa.OpLOONG64FRINTPD,
+		ssa.OpLOONG64FRINTMD:
 		p := s.Prog(v.Op.Asm())
 		p.From.Type = obj.TYPE_REG
 		p.From.Reg = ((v.Args[0].Reg() - loong64.REG_F0) & 31) + loong64.REG_V0

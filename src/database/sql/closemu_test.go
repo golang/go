@@ -87,7 +87,45 @@ func TestClosingMutex(t *testing.T) {
 			t.Fatalf("m.Lock(): still blocking after RUnlock")
 		}
 		m.Unlock()
+	})
+}
 
+func TestClosingMutexLockStarvation(t *testing.T) {
+	synctest.Test(t, func(t *testing.T) {
+		// Run this test for a few iterations, to avoid racy successes.
+		for range 100 {
+			var m closingMutex
+
+			// With the mutex RLocked, try to Lock it. Lock blocks.
+			m.RLock()
+			locked := false
+			go func() {
+				m.Lock()
+				locked = true
+				m.Unlock()
+			}()
+			synctest.Wait()
+			if locked {
+				t.Errorf("lock acquired while mutex is rlocked")
+			}
+
+			// Add and drop another RLock. Lock is still blocking.
+			m.RLock()
+			m.RUnlock()
+			if locked {
+				t.Errorf("lock acquired while mutex is double-rlocked")
+			}
+
+			// Drop and reacquire the RLock.
+			// The blocking Lock should always acquire the mutex
+			// before the RLock succeeds.
+			m.RUnlock()
+			m.RLock()
+			if !locked {
+				t.Errorf("lock not acquired when rlock dropped")
+			}
+			m.RUnlock()
+		}
 	})
 }
 

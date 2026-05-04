@@ -57,6 +57,10 @@ const (
 	// ExplicitModulesTxtImportVersion is the Go version at which vendored packages need to be present
 	// in modules.txt to be imported.
 	ExplicitModulesTxtImportVersion = "1.23"
+
+	// GoModToolVersion is the Go version required for the tool
+	// directive in go.mod.
+	GoModToolVersion = "1.24"
 )
 
 // FromGoMod returns the go version from the go.mod file.

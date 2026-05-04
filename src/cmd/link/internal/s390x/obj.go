@@ -55,7 +55,7 @@ func Init() (*sys.Arch, ld.Arch) {
 		TLSIEtoLE:        tlsIEtoLE,
 
 		ELF: ld.ELFArch{
-			Linuxdynld:     "/lib64/ld64.so.1",
+			Linuxdynld:     "/lib/ld64.so.1",
 			LinuxdynldMusl: "/lib/ld-musl-s390x.so.1",
 
 			// not relevant for s390x

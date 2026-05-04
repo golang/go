@@ -132,7 +132,7 @@ type AuxCall struct {
 // At this point (active development of register ABI) that is very premature,
 // but if this turns out to be a cost, we could do it.
 func (a *AuxCall) Reg(i *regInfo, c *Config) *regInfo {
-	if a.reg.clobbers != 0 {
+	if !a.reg.clobbers.empty() {
 		// Already updated
 		return a.reg
 	}
@@ -146,7 +146,7 @@ func (a *AuxCall) Reg(i *regInfo, c *Config) *regInfo {
 	for _, p := range a.abiInfo.InParams() {
 		for _, r := range p.Registers {
 			m := archRegForAbiReg(r, c)
-			a.reg.inputs = append(a.reg.inputs, inputInfo{idx: k, regs: (1 << m)})
+			a.reg.inputs = append(a.reg.inputs, inputInfo{idx: k, regs: regMaskAt(register(m))})
 			k++
 		}
 	}
@@ -155,7 +155,7 @@ func (a *AuxCall) Reg(i *regInfo, c *Config) *regInfo {
 	for _, p := range a.abiInfo.OutParams() {
 		for _, r := range p.Registers {
 			m := archRegForAbiReg(r, c)
-			a.reg.outputs = append(a.reg.outputs, outputInfo{idx: k, regs: (1 << m)})
+			a.reg.outputs = append(a.reg.outputs, outputInfo{idx: k, regs: regMaskAt(register(m))})
 			k++
 		}
 	}
@@ -180,7 +180,7 @@ func (a *AuxCall) ResultReg(c *Config) *regInfo {
 	for _, p := range a.abiInfo.OutParams() {
 		for _, r := range p.Registers {
 			m := archRegForAbiReg(r, c)
-			a.reg.inputs = append(a.reg.inputs, inputInfo{idx: k, regs: (1 << m)})
+			a.reg.inputs = append(a.reg.inputs, inputInfo{idx: k, regs: regMaskAt(register(m))})
 			k++
 		}
 	}

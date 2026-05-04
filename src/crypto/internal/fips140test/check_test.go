@@ -31,15 +31,7 @@ func TestIntegrityCheck(t *testing.T) {
 		t.Fatalf("GODEBUG=fips140=on but verification did not run")
 	}
 
-	cryptotest.MustSupportFIPS140(t)
-
-	cmd := testenv.Command(t, testenv.Executable(t), "-test.v", "-test.run=^TestIntegrityCheck$")
-	cmd.Env = append(cmd.Environ(), "GODEBUG=fips140=on")
-	out, err := cmd.CombinedOutput()
-	if err != nil {
-		t.Fatalf("GODEBUG=fips140=on %v failed: %v\n%s", cmd.Args, err, out)
-	}
-	t.Logf("exec'ed GODEBUG=fips140=on and succeeded:\n%s", out)
+	cryptotest.RerunWithFIPS140Enabled(t)
 }
 
 func TestIntegrityCheckFailure(t *testing.T) {

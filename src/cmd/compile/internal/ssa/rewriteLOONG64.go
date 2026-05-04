@@ -157,6 +157,9 @@ func rewriteValueLOONG64(v *Value) bool {
 	case OpBswap64:
 		v.Op = OpLOONG64REVBV
 		return true
+	case OpCeil:
+		v.Op = OpLOONG64FRINTPD
+		return true
 	case OpClosureCall:
 		v.Op = OpLOONG64CALLclosure
 		return true
@@ -285,6 +288,9 @@ func rewriteValueLOONG64(v *Value) bool {
 		return rewriteValueLOONG64_OpEqPtr(v)
 	case OpFMA:
 		v.Op = OpLOONG64FMADDD
+		return true
+	case OpFloor:
+		v.Op = OpLOONG64FRINTMD
 		return true
 	case OpGetCallerPC:
 		v.Op = OpLOONG64LoweredGetCallerPC
@@ -696,6 +702,9 @@ func rewriteValueLOONG64(v *Value) bool {
 	case OpRound64F:
 		v.Op = OpLOONG64LoweredRound64F
 		return true
+	case OpRoundToEven:
+		v.Op = OpLOONG64FRINTND
+		return true
 	case OpRsh16Ux16:
 		return rewriteValueLOONG64_OpRsh16Ux16(v)
 	case OpRsh16Ux32:
@@ -823,6 +832,9 @@ func rewriteValueLOONG64(v *Value) bool {
 		return true
 	case OpTailCallInter:
 		v.Op = OpLOONG64CALLtailinter
+		return true
+	case OpTrunc:
+		v.Op = OpLOONG64FRINTZD
 		return true
 	case OpTrunc16to8:
 		v.Op = OpCopy

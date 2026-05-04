@@ -7,8 +7,8 @@ package runtime
 import (
 	"internal/abi"
 	"internal/byteorder"
-	"internal/cpu"
 	"internal/goarch"
+	"internal/runtime/maps"
 	"internal/runtime/sys"
 	"unsafe"
 )
@@ -54,12 +54,11 @@ func memhash_varlen(p unsafe.Pointer, h uintptr) uintptr {
 	return memhash(p, h, size)
 }
 
-// runtime variable to check if the processor we're running on
-// actually supports the instructions used by the AES-based
-// hash implementation.
-var useAeshash bool
-
-// in asm_*.s
+// This is simple wrappers.
+// It's better to use maps.MemHash functions directly,
+// but we have reflection code that still calls hashing from runtime via LookupRuntime,
+// so we have to try to minimize overhead of an extra call.
+// For this add nosplit for performance
 
 // memhash should be an internal detail,
 // but widely used packages access it using linkname.
@@ -77,16 +76,21 @@ var useAeshash bool
 // Do not remove or change the type signature.
 // See go.dev/issue/67401.
 //
+//go:nosplit
 //go:linkname memhash
-func memhash(p unsafe.Pointer, h, s uintptr) uintptr
+func memhash(p unsafe.Pointer, h, s uintptr) uintptr {
+	return maps.MemHash(p, h, s)
+}
 
-// Accessed in internal/runtime/maps.
-//
-//go:linknamestd memhash32
-func memhash32(p unsafe.Pointer, h uintptr) uintptr
+//go:nosplit
+func memhash64(p unsafe.Pointer, seed uintptr) uintptr {
+	return maps.MemHash64(p, seed)
+}
 
-//go:linknamestd memhash64
-func memhash64(p unsafe.Pointer, h uintptr) uintptr
+//go:nosplit
+func memhash32(p unsafe.Pointer, seed uintptr) uintptr {
+	return maps.MemHash32(p, seed)
+}
 
 // strhash should be an internal detail,
 // but widely used packages access it using linkname.
@@ -101,11 +105,8 @@ func memhash64(p unsafe.Pointer, h uintptr) uintptr
 // See go.dev/issue/67401.
 //
 //go:linkname strhash
-func strhash(p unsafe.Pointer, h uintptr) uintptr
-
-func strhashFallback(a unsafe.Pointer, h uintptr) uintptr {
-	x := (*stringStruct)(a)
-	return memhashFallback(x.str, h, uintptr(x.len))
+func strhash(p unsafe.Pointer, h uintptr) uintptr {
+	return maps.StrHash(p, h)
 }
 
 // NOTE: Because NaN != NaN, a map can contain any
@@ -381,50 +382,6 @@ func ifaceHash(i interface {
 	F()
 }, seed uintptr) uintptr {
 	return interhash(noescape(unsafe.Pointer(&i)), seed)
-}
-
-const hashRandomBytes = goarch.PtrSize / 4 * 64
-
-// used in asm_{386,amd64,arm64}.s to seed the hash function
-var aeskeysched [hashRandomBytes]byte
-
-// used in hash{32,64}.go to seed the hash function
-var hashkey [4]uintptr
-
-func alginit() {
-	// Install AES hash algorithms if the instructions needed are present.
-	if (GOARCH == "386" || GOARCH == "amd64") &&
-		cpu.X86.HasAES && // AESENC
-		cpu.X86.HasSSSE3 && // PSHUFB
-		cpu.X86.HasSSE41 { // PINSR{D,Q}
-		initAlgAES()
-		return
-	}
-	if GOARCH == "arm64" && cpu.ARM64.HasAES {
-		initAlgAES()
-		return
-	}
-	for i := range hashkey {
-		hashkey[i] = uintptr(bootstrapRand())
-	}
-}
-
-func initAlgAES() {
-	useAeshash = true
-	// Initialize with random data so hash collisions will be hard to engineer.
-	key := (*[hashRandomBytes / 8]uint64)(unsafe.Pointer(&aeskeysched))
-	for i := range key {
-		key[i] = bootstrapRand()
-	}
-}
-
-// Note: These routines perform the read with a native endianness.
-func readUnaligned32(p unsafe.Pointer) uint32 {
-	q := (*[4]byte)(p)
-	if goarch.BigEndian {
-		return byteorder.BEUint32(q[:])
-	}
-	return byteorder.LEUint32(q[:])
 }
 
 func readUnaligned64(p unsafe.Pointer) uint64 {

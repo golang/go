@@ -160,10 +160,13 @@ type Dialer struct {
 	DualStack bool
 
 	// FallbackDelay specifies the length of time to wait before
-	// spawning a RFC 6555 Fast Fallback connection. That is, this
-	// is the amount of time to wait for IPv6 to succeed before
-	// assuming that IPv6 is misconfigured and falling back to
-	// IPv4.
+	// spawning a RFC 6555 Fast Fallback connection.
+	//
+	// When dialing "tcp" and both IPv6 and IPv4 addresses are
+	// available, the address family of the first resolved address
+	// is treated as the primary. After FallbackDelay, a connection
+	// attempt to the other address family is started if the primary
+	// connection has not yet succeeded.
 	//
 	// If zero, a default delay of 300ms is used.
 	// A negative value disables Fast Fallback support.

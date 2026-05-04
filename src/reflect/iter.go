@@ -68,12 +68,12 @@ func (v Value) Seq() iter.Seq[Value] {
 	case Uintptr:
 		return rangeNum[uintptr](v.Uint(), v.Type())
 	case Pointer:
-		if v.Elem().kind() != Array {
+		if v.Type().Elem().Kind() != Array {
 			break
 		}
+		n := v.Type().Elem().Len()
 		return func(yield func(Value) bool) {
-			v = v.Elem()
-			for i := range v.Len() {
+			for i := range n {
 				if !yield(ValueOf(i)) {
 					return
 				}

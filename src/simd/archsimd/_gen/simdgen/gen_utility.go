@@ -353,7 +353,7 @@ func (op *Operation) adjustAsm() {
 // does not return a vector, i.e., that returns a result in a general
 // register.  Currently there's only one family of Ops in Go's simd library
 // that does this (GetElem), and so this is specialized to work for that,
-// but the problem (mismatch betwen hardware register width and Go type
+// but the problem (mismatch between hardware register width and Go type
 // width) seems likely to recur if there are any other cases.
 func (op Operation) goNormalType() string {
 	if op.Go == "GetElem" {

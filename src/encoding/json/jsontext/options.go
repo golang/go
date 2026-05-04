@@ -17,7 +17,7 @@ import (
 // Options configures [NewEncoder], [Encoder.Reset], [NewDecoder],
 // and [Decoder.Reset] with specific features.
 // Each function takes in a variadic list of options, where properties
-// set in latter options override the value of previously set properties.
+// set in later options override the value of previously set properties.
 //
 // There is a single Options type, which is used with both encoding and decoding.
 // Some options affect both operations, while others only affect one operation:
@@ -224,7 +224,7 @@ func Multiline(v bool) Options {
 // followed by one or more copies of indent according to the nesting depth.
 // The indent must only be composed of space or tab characters.
 //
-// If the intent to emit indented output without a preference for
+// If the intent is to emit indented output without a preference for
 // the particular indent string, then use [Multiline] instead.
 //
 // This only affects encoding and is ignored when decoding.
@@ -249,7 +249,7 @@ func WithIndent(indent string) Options {
 
 	// Otherwise, allocate for this unique value.
 	if s := strings.Trim(indent, " \t"); len(s) > 0 {
-		panic("json: invalid character " + jsonwire.QuoteRune(s) + " in indent")
+		panic("json: invalid character " + jsonwire.QuoteRune([]byte(s)) + " in indent")
 	}
 	return jsonopts.Indent(indent)
 }
@@ -264,7 +264,7 @@ func WithIndent(indent string) Options {
 // Use of this option implies [Multiline] being set to true.
 func WithIndentPrefix(prefix string) Options {
 	if s := strings.Trim(prefix, " \t"); len(s) > 0 {
-		panic("json: invalid character " + jsonwire.QuoteRune(s) + " in indent prefix")
+		panic("json: invalid character " + jsonwire.QuoteRune([]byte(s)) + " in indent prefix")
 	}
 	return jsonopts.IndentPrefix(prefix)
 }

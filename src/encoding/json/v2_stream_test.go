@@ -516,7 +516,7 @@ func TestHTTPDecoding(t *testing.T) {
 	}
 }
 
-func TestTokenTruncation(t *testing.T) {
+func TestTokenError(t *testing.T) {
 	tests := []struct {
 		in  string
 		err error
@@ -537,13 +537,14 @@ func TestTokenTruncation(t *testing.T) {
 		{in: `nul`, err: io.ErrUnexpectedEOF},
 		{in: `fal `, err: &SyntaxError{"invalid character ' ' in literal false (expecting 's')", int64(len(`fal`))}},
 		{in: `false`, err: io.EOF},
+		{in: `  1e1000`, err: &UnmarshalTypeError{Value: "number 1e1000", Type: reflect.TypeFor[float64](), Offset: int64(len(`  `))}},
 	}
 	for _, tt := range tests {
 		d := NewDecoder(strings.NewReader(tt.in))
 		for i := 0; true; i++ {
 			if _, err := d.Token(); err != nil {
 				if !reflect.DeepEqual(err, tt.err) {
-					t.Errorf("`%s`: %d.Token error = %#v, want %v", tt.in, i, err, tt.err)
+					t.Errorf("`%s`: %d.Token error = %#v, want %#v", tt.in, i, err, tt.err)
 				}
 				break
 			}

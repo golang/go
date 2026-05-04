@@ -80,7 +80,7 @@ type Decoder struct {
 }
 
 // decoderState is the low-level state of Decoder.
-// It has exported fields and method for use by the "json" package.
+// It has exported fields and methods for use by the "json" package.
 type decoderState struct {
 	state
 	decodeBuffer
@@ -154,7 +154,7 @@ func (d *decoderState) reset(b []byte, r io.Reader, opts ...Options) {
 	d.Struct = opts2
 }
 
-// Options returns the options used to construct the encoder and
+// Options returns the options used to construct the decoder and
 // may additionally contain semantic options passed to a
 // [encoding/json/v2.UnmarshalDecode] call.
 //

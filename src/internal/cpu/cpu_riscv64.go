@@ -13,6 +13,7 @@ func doinit() {
 		{Name: "fastmisaligned", Feature: &RISCV64.HasFastMisaligned},
 		{Name: "v", Feature: &RISCV64.HasV},
 		{Name: "zbb", Feature: &RISCV64.HasZbb},
+		{Name: "zbc", Feature: &RISCV64.HasZbc},
 		{Name: "zvbb", Feature: &RISCV64.HasZvbb},
 		{Name: "zvbc", Feature: &RISCV64.HasZvbc},
 		{Name: "zvkg", Feature: &RISCV64.HasZvkg},

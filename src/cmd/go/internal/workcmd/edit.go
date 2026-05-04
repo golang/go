@@ -35,7 +35,7 @@ The editing flags specify a sequence of editing operations.
 
 The -fmt flag reformats the go.work file without making other changes.
 This reformatting is also implied by any other modifications that use or
-rewrite the go.mod file. The only time this flag is needed is if no other
+rewrite the go.work file. The only time this flag is needed is if no other
 flags are specified, as in 'go work edit -fmt'.
 
 The -godebug=key=value flag adds a godebug key=value line,
@@ -63,8 +63,12 @@ The -use, -dropuse, -replace, and -dropreplace,
 editing flags may be repeated, and the changes are applied in the order given.
 
 The -go=version flag sets the expected Go language version.
+It takes a version like "1.26" or "1.26.2".
+Using "none" as the version removes the go directive.
 
 The -toolchain=name flag sets the Go toolchain to use.
+It takes a toolchain name like "go1.26" or "go1.26.2".
+Using "none" as the name removes the toolchain directive.
 
 The -print flag prints the final go.work in its text format instead of
 writing it back to go.work.
@@ -262,7 +266,7 @@ func flagEditworkUse(arg string) {
 func flagEditworkDropUse(arg string) {
 	workedits = append(workedits, func(f *modfile.WorkFile) {
 		if err := f.DropUse(modload.ToDirectoryPath(arg)); err != nil {
-			base.Fatalf("go: -dropdirectory=%s: %v", arg, err)
+			base.Fatalf("go: -dropuse=%s: %v", arg, err)
 		}
 	})
 }

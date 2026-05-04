@@ -387,7 +387,7 @@ func NewConfig(arch string, types Types, ctxt *obj.Link, optimize, softfloat boo
 		// LoweredWB is secretly a CALL and CALLs on 386 in
 		// shared mode get rewritten by obj6.go to go through
 		// the GOT, which clobbers BX.
-		opcodeTable[Op386LoweredWB].reg.clobbers |= 1 << 3 // BX
+		opcodeTable[Op386LoweredWB].reg.clobbers = opcodeTable[Op386LoweredWB].reg.clobbers.addReg(3) // BX
 	}
 
 	c.buildRecipes(arch)

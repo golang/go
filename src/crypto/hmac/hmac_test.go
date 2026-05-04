@@ -7,9 +7,11 @@ package hmac
 import (
 	"crypto/internal/boring"
 	"crypto/internal/cryptotest"
+	"crypto/internal/fips140hash"
 	"crypto/md5"
 	"crypto/sha1"
 	"crypto/sha256"
+	"crypto/sha3"
 	"crypto/sha512"
 	"errors"
 	"fmt"
@@ -593,6 +595,24 @@ func TestNoClone(t *testing.T) {
 	_, err := h.(hash.Cloner).Clone()
 	if !errors.Is(err, errors.ErrUnsupported) {
 		t.Errorf("Clone() = %v, want ErrUnsupported", err)
+	}
+}
+
+func TestSHA3Hash(t *testing.T) {
+	for _, tc := range []struct {
+		name string
+		fn   func() hash.Hash
+	}{
+		{
+			"sha3 zero init hash",
+			func() hash.Hash { return justHash{&sha3.SHA3{}} },
+		},
+		{
+			"sha3 zero init hash by linkname",
+			func() hash.Hash { return justHash{fips140hash.Unwrap(&sha3.SHA3{})} },
+		},
+	} {
+		t.Run(tc.name, func(t *testing.T) { New(tc.fn, []byte("key")) })
 	}
 }
 

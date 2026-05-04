@@ -419,6 +419,12 @@ func (v *jsonFlag) needAny(fields ...string) bool {
 var nl = []byte{'\n'}
 
 func runList(ctx context.Context, cmd *base.Command, args []string) {
+	for _, arg := range args {
+		if arg == "" {
+			base.Fatalf("go: invalid package: %q", arg)
+		}
+	}
+
 	moduleLoader := modload.NewLoader()
 	moduleLoader.InitWorkfile()
 

@@ -8555,83 +8555,80 @@ func EncodeRegisterExtension(a *obj.Addr, ext string, reg, num int16, isAmount, 
 		}
 		a.Reg = REG_PARNGZM + (reg & 31) + int16((arng&15)<<5)
 	} else if reg <= REG_V31 && reg >= REG_V0 {
-		switch ext {
-		case "B8":
-			if isIndex {
-				return errors.New("invalid register extension")
-			}
-			a.Reg = REG_ARNG + (reg & 31) + ((ARNG_8B & 15) << 5)
-		case "B16":
-			if isIndex {
-				return errors.New("invalid register extension")
-			}
-			a.Reg = REG_ARNG + (reg & 31) + ((ARNG_16B & 15) << 5)
-		case "H4":
-			if isIndex {
-				return errors.New("invalid register extension")
-			}
-			a.Reg = REG_ARNG + (reg & 31) + ((ARNG_4H & 15) << 5)
-		case "H8":
-			if isIndex {
-				return errors.New("invalid register extension")
-			}
-			a.Reg = REG_ARNG + (reg & 31) + ((ARNG_8H & 15) << 5)
-		case "S2":
-			if isIndex {
-				return errors.New("invalid register extension")
-			}
-			a.Reg = REG_ARNG + (reg & 31) + ((ARNG_2S & 15) << 5)
-		case "S4":
-			if isIndex {
-				return errors.New("invalid register extension")
-			}
-			a.Reg = REG_ARNG + (reg & 31) + ((ARNG_4S & 15) << 5)
-		case "D1":
-			if isIndex {
-				return errors.New("invalid register extension")
-			}
-			a.Reg = REG_ARNG + (reg & 31) + ((ARNG_1D & 15) << 5)
-		case "D2":
-			if isIndex {
-				return errors.New("invalid register extension")
-			}
-			a.Reg = REG_ARNG + (reg & 31) + ((ARNG_2D & 15) << 5)
-		case "Q1":
-			if isIndex {
-				return errors.New("invalid register extension")
-			}
-			a.Reg = REG_ARNG + (reg & 31) + ((ARNG_1Q & 15) << 5)
-		case "B":
-			if !isIndex {
-				return nil
-			}
-			a.Reg = REG_ELEM + (reg & 31) + ((ARNG_B & 15) << 5)
-			a.Index = num
-		case "H":
-			if !isIndex {
-				return nil
-			}
-			a.Reg = REG_ELEM + (reg & 31) + ((ARNG_H & 15) << 5)
-			a.Index = num
-		case "S":
-			if !isIndex {
-				return nil
-			}
-			a.Reg = REG_ELEM + (reg & 31) + ((ARNG_S & 15) << 5)
-			a.Index = num
-		case "D":
-			if !isIndex {
-				return nil
-			}
-			a.Reg = REG_ELEM + (reg & 31) + ((ARNG_D & 15) << 5)
-			a.Index = num
-		default:
+		arng, elem := readArrangement(ext)
+		if arng == -1 {
 			return errors.New("unsupported simd register extension type: " + ext)
+		}
+		if elem && !isIndex {
+			return nil
+		}
+		var err error
+		if reg, err = RegisterArrangement(reg, arng, isIndex); err != nil {
+			return err
+		}
+		a.Reg = reg
+		if isIndex {
+			a.Index = num
 		}
 	} else {
 		return errors.New("invalid register and extension combination")
 	}
 	return nil
+}
+
+// readArrangement returns arrangement constant (or -1 for unknown arrangement)
+// and a boolean flag specifying whether it refers to a vector element.
+func readArrangement(name string) (arng int16, elem bool) {
+	switch name {
+	case "B8":
+		return ARNG_8B, false
+	case "B16":
+		return ARNG_16B, false
+	case "H4":
+		return ARNG_4H, false
+	case "H8":
+		return ARNG_8H, false
+	case "S2":
+		return ARNG_2S, false
+	case "S4":
+		return ARNG_4S, false
+	case "D1":
+		return ARNG_1D, false
+	case "D2":
+		return ARNG_2D, false
+	case "B":
+		return ARNG_B, true
+	case "H":
+		return ARNG_H, true
+	case "S":
+		return ARNG_S, true
+	case "D":
+		return ARNG_D, true
+	case "Q1":
+		return ARNG_1Q, false
+	default:
+		return -1, false
+	}
+}
+
+// RegisterArrangement encodes specified simd register number and arrangement.
+func RegisterArrangement(reg int16, arng int16, isIndex bool) (int16, error) {
+	arng &= 15
+	arrangement := arng << 5
+	switch arng {
+	case ARNG_B, ARNG_H, ARNG_S, ARNG_D:
+		if !isIndex {
+			return reg, nil
+		}
+		return REG_ELEM + (reg & 31) + arrangement, nil
+	case ARNG_16B, ARNG_8H, ARNG_4S, ARNG_2D,
+		ARNG_8B, ARNG_4H, ARNG_2S, ARNG_1D, ARNG_1Q:
+		if isIndex {
+			return 0, errors.New("invalid register extension")
+		}
+		return REG_ARNG + (reg & 31) + arrangement, nil
+	}
+	return 0, errors.New("unsupported simd register arrangement: " + fmt.Sprint(arng))
 }
 
 // RegisterListOffset generates offset encoding according to AArch64 specification.

@@ -1682,7 +1682,7 @@ func (t test) wantedAsmOpcodes(fn string) asmChecks {
 			// There was an asm spec in this comment. Check for possible syntax
 			// errors, which would leave some asm patterns unused. We want
 			//  to allow some tail, for example for English comments. The
-			// hueristic we use here is we look for two consecutive capital
+			// heuristic we use here is we look for two consecutive capital
 			// letters (or a wasm prefix). Those are probably assembly mnemonics
 			// that weren't used.
 			tail := comment[lastUsed:]

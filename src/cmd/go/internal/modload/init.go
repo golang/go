@@ -1944,10 +1944,31 @@ func UpdateGoModFromReqs(ld *Loader, ctx context.Context, opts WriteOpts) (befor
 			forceGoStmt(modFile, mainModule, goVersion)
 		}
 	}
+
+	// Add Go 1.24 requirement if we're running go get and there are tool directives.
+	tools := map[string]bool{}
+	for _, t := range modFile.Tool {
+		tools[t.Path] = true
+	}
+	for _, t := range opts.DropTools {
+		delete(tools, t)
+	}
+	for _, t := range opts.AddTools {
+		tools[t] = true
+	}
+	if len(tools) > 0 && gover.Compare(goVersion, gover.GoModToolVersion) < 0 && cfg.CmdName == "get" {
+		if opts.ExplicitToolchain {
+			return nil, nil, nil, errors.New(gover.GoModToolVersion + " is required for tool directives in go.mod: go get go@" + gover.GoModToolVersion + ".0")
+		}
+		// TODO: If we start enforcing that the go version is > 1.24 on modules
+		// that have tool directives, add a requirement instead of calling forceGoStmt.
+		goVersion = gover.GoModToolVersion
+		forceGoStmt(modFile, mainModule, gover.GoModToolVersion)
+	}
+
 	if toolchain == "" {
 		toolchain = "go" + goVersion
 	}
-
 	toolVers := gover.FromToolchain(toolchain)
 	if opts.DropToolchain || toolchain == "go"+goVersion || (gover.Compare(toolVers, gover.GoStrictVersion) < 0 && !opts.ExplicitToolchain) {
 		// go get toolchain@none or toolchain matches go line or isn't valid; drop it.

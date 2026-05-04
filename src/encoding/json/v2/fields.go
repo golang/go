@@ -80,7 +80,7 @@ func makeStructFields(root reflect.Type) (fs structFields, serr *SemanticError) 
 		return cmp.Or(serr, &SemanticError{GoType: t, Err: fmt.Errorf(f, a...)})
 	}
 
-	// Setup a queue for a breath-first search.
+	// Setup a queue for a breadth-first search.
 	var queueIndex int
 	type queueEntry struct {
 		typ           reflect.Type
@@ -320,7 +320,7 @@ func makeStructFields(root reflect.Type) (fs structFields, serr *SemanticError) 
 	}
 	for foldedName, fields := range fs.byFoldedName {
 		if len(fields) > 1 {
-			// The precedence order for conflicting ignoreCase names
+			// The precedence order for conflicting case-insensitive names
 			// is by breadth-first order, rather than depth-first order.
 			slices.SortFunc(fields, func(x, y *structField) int {
 				return cmp.Compare(x.id, y.id)
@@ -453,9 +453,9 @@ func parseFieldOptions(sf reflect.StructField) (out fieldOptions, ignored bool, 
 		}
 		tag = tag[n:]
 	}
-	b, _ := jsonwire.AppendQuote(nil, out.name, &jsonflags.Flags{})
+	b, _ := jsonwire.AppendQuote(nil, []byte(out.name), &jsonflags.Flags{})
 	out.quotedName = string(b)
-	out.nameNeedEscape = jsonwire.NeedEscape(out.name)
+	out.nameNeedEscape = jsonwire.NeedEscape([]byte(out.name))
 
 	// Handle any additional tag options (if any).
 	var wasFormat bool

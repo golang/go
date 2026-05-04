@@ -429,7 +429,7 @@ func (d *compressor) tryBetterMatchAtEnd(prevLength, prevOffset, lookahead int32
 	return prevLength, prevOffset
 }
 
-// skipLiterals emits extra literal bytes during long runs of uncompressible data,
+// skipLiterals emits extra literal bytes during long runs of incompressible data,
 // skipping ahead to avoid futile match searches. Returns false on write error.
 func (d *compressor) skipLiterals() bool {
 	s := d.state

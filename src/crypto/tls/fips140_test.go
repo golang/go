@@ -7,14 +7,14 @@ package tls
 import (
 	"crypto/ecdsa"
 	"crypto/elliptic"
+	"crypto/fips140"
 	"crypto/internal/boring"
+	"crypto/internal/cryptotest"
 	"crypto/rand"
 	"crypto/rsa"
 	"crypto/x509"
 	"crypto/x509/pkix"
-	"encoding/pem"
 	"fmt"
-	"internal/obscuretestdata"
 	"internal/testenv"
 	"math/big"
 	"net"
@@ -23,6 +23,13 @@ import (
 	"testing"
 	"time"
 )
+
+var testConfigFIPS140 = &Config{
+	Time:         testTime,
+	Certificates: []Certificate{testECDSAP256Cert, testRSAPSSCert, testEd25519Cert},
+	RootCAs:      testRootCertPool,
+	ServerName:   "test.golang.example",
+}
 
 func allCipherSuitesIncludingTLS13() []uint16 {
 	s := allCipherSuites()
@@ -56,9 +63,10 @@ func generateKeyShare(group CurveID) keyShare {
 func TestFIPSServerProtocolVersion(t *testing.T) {
 	test := func(t *testing.T, name string, v uint16, msg string) {
 		t.Run(name, func(t *testing.T) {
-			serverConfig := testConfig.Clone()
+			serverConfig := testConfigFIPS140.Clone()
 			serverConfig.MinVersion = VersionSSL30
-			clientConfig := testConfig.Clone()
+			serverConfig.MaxVersion = VersionTLS13
+			clientConfig := testConfigFIPS140.Clone()
 			clientConfig.MinVersion = v
 			clientConfig.MaxVersion = v
 			_, _, err := testHandshake(t, clientConfig, serverConfig)
@@ -90,6 +98,10 @@ func TestFIPSServerProtocolVersion(t *testing.T) {
 		test(t, "VersionTLS12", VersionTLS12, "")
 		test(t, "VersionTLS13", VersionTLS13, "")
 	})
+
+	if !fips140.Enforced() {
+		cryptotest.RerunWithFIPS140Enforced(t)
+	}
 }
 
 func isFIPSVersion(v uint16) bool {
@@ -177,25 +189,15 @@ func isFIPSSignatureScheme(alg SignatureScheme) bool {
 }
 
 func TestFIPSServerCipherSuites(t *testing.T) {
-	serverConfig := testConfig.Clone()
-	serverConfig.Certificates = make([]Certificate, 1)
-
 	for _, id := range allCipherSuitesIncludingTLS13() {
-		if isECDSA(id) {
-			serverConfig.Certificates[0].Certificate = [][]byte{testECDSACertificate}
-			serverConfig.Certificates[0].PrivateKey = testECDSAPrivateKey
-		} else {
-			serverConfig.Certificates[0].Certificate = [][]byte{testRSACertificate}
-			serverConfig.Certificates[0].PrivateKey = testRSAPrivateKey
-		}
-		serverConfig.BuildNameToCertificate()
 		t.Run(fmt.Sprintf("suite=%s", CipherSuiteName(id)), func(t *testing.T) {
+			serverConfig := testConfigFIPS140.Clone()
 			clientHello := &clientHelloMsg{
 				vers:                         VersionTLS12,
 				random:                       make([]byte, 32),
 				cipherSuites:                 []uint16{id},
 				compressionMethods:           []uint8{compressionNone},
-				supportedCurves:              defaultCurvePreferences(),
+				supportedCurves:              []CurveID{CurveP256},
 				keyShares:                    []keyShare{generateKeyShare(CurveP256)},
 				supportedPoints:              []uint8{pointFormatUncompressed},
 				supportedVersions:            []uint16{VersionTLS12},
@@ -203,6 +205,8 @@ func TestFIPSServerCipherSuites(t *testing.T) {
 			}
 			if isTLS13CipherSuite(id) {
 				clientHello.supportedVersions = []uint16{VersionTLS13}
+			} else {
+				serverConfig.CipherSuites = []uint16{id}
 			}
 
 			runWithFIPSDisabled(t, func(t *testing.T) {
@@ -218,27 +222,27 @@ func TestFIPSServerCipherSuites(t *testing.T) {
 			})
 		})
 	}
+
+	if !fips140.Enforced() {
+		cryptotest.RerunWithFIPS140Enforced(t)
+	}
 }
 
 func TestFIPSServerCurves(t *testing.T) {
-	serverConfig := testConfig.Clone()
-	serverConfig.CurvePreferences = nil
-	serverConfig.BuildNameToCertificate()
-
 	for _, curveid := range defaultCurvePreferences() {
 		t.Run(fmt.Sprintf("curve=%v", curveid), func(t *testing.T) {
-			clientConfig := testConfig.Clone()
-			clientConfig.CurvePreferences = []CurveID{curveid}
+			testConfig := testConfigFIPS140.Clone()
+			testConfig.CurvePreferences = []CurveID{curveid}
 
 			runWithFIPSDisabled(t, func(t *testing.T) {
-				if _, _, err := testHandshake(t, clientConfig, serverConfig); err != nil {
+				if _, _, err := testHandshake(t, testConfig, testConfig); err != nil {
 					t.Fatalf("got error: %v, expected success", err)
 				}
 			})
 
 			// With fipstls forced, bad curves should be rejected.
 			runWithFIPSEnabled(t, func(t *testing.T) {
-				_, _, err := testHandshake(t, clientConfig, serverConfig)
+				_, _, err := testHandshake(t, testConfig, testConfig)
 				if err != nil && isFIPSCurve(curveid) {
 					t.Fatalf("got error: %v, expected success", err)
 				} else if err == nil && !isFIPSCurve(curveid) {
@@ -246,6 +250,10 @@ func TestFIPSServerCurves(t *testing.T) {
 				}
 			})
 		})
+	}
+
+	if !fips140.Enforced() {
+		cryptotest.RerunWithFIPS140Enforced(t)
 	}
 }
 
@@ -272,33 +280,14 @@ func TestFIPSServerSignatureAndHash(t *testing.T) {
 
 	for _, sigHash := range defaultSupportedSignatureAlgorithms() {
 		t.Run(fmt.Sprintf("%v", sigHash), func(t *testing.T) {
-			serverConfig := testConfig.Clone()
-			serverConfig.Certificates = make([]Certificate, 1)
-
+			serverConfig := testConfigFIPS140.Clone()
 			testingOnlySupportedSignatureAlgorithms = []SignatureScheme{sigHash}
-
-			sigType, _, _ := typeAndHashFromSignatureScheme(sigHash)
-			switch sigType {
-			case signaturePKCS1v15, signatureRSAPSS:
-				serverConfig.CipherSuites = []uint16{TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256}
-				serverConfig.Certificates[0].Certificate = [][]byte{testRSAPSS2048Certificate}
-				serverConfig.Certificates[0].PrivateKey = testRSAPSS2048PrivateKey
-			case signatureEd25519:
-				serverConfig.CipherSuites = []uint16{TLS_ECDHE_ECDSA_WITH_AES_128_GCM_SHA256}
-				serverConfig.Certificates[0].Certificate = [][]byte{testEd25519Certificate}
-				serverConfig.Certificates[0].PrivateKey = testEd25519PrivateKey
-			case signatureECDSA:
-				serverConfig.CipherSuites = []uint16{TLS_ECDHE_ECDSA_WITH_AES_128_GCM_SHA256}
-				serverConfig.Certificates[0].Certificate = [][]byte{testECDSACertificate}
-				serverConfig.Certificates[0].PrivateKey = testECDSAPrivateKey
-			}
-			serverConfig.BuildNameToCertificate()
 			// PKCS#1 v1.5 signature algorithms can't be used standalone in TLS
 			// 1.3, and the ECDSA ones bind to the curve used.
 			serverConfig.MaxVersion = VersionTLS12
 
 			runWithFIPSDisabled(t, func(t *testing.T) {
-				clientErr, serverErr := fipsHandshake(t, testConfig, serverConfig)
+				clientErr, serverErr := fipsHandshake(t, testConfigFIPS140, serverConfig)
 				if clientErr != nil {
 					t.Fatalf("expected handshake with %v to succeed; client error: %v; server error: %v", sigHash, clientErr, serverErr)
 				}
@@ -306,7 +295,7 @@ func TestFIPSServerSignatureAndHash(t *testing.T) {
 
 			// With fipstls forced, bad curves should be rejected.
 			runWithFIPSEnabled(t, func(t *testing.T) {
-				clientErr, _ := fipsHandshake(t, testConfig, serverConfig)
+				clientErr, _ := fipsHandshake(t, testConfigFIPS140, serverConfig)
 				if isFIPSSignatureScheme(sigHash) {
 					if clientErr != nil {
 						t.Fatalf("expected handshake with %v to succeed; err=%v", sigHash, clientErr)
@@ -318,6 +307,10 @@ func TestFIPSServerSignatureAndHash(t *testing.T) {
 				}
 			})
 		})
+	}
+
+	if !fips140.Enforced() {
+		cryptotest.RerunWithFIPS140Enforced(t)
 	}
 }
 
@@ -333,7 +326,7 @@ func testFIPSClientHello(t *testing.T) {
 	defer c.Close()
 	defer s.Close()
 
-	clientConfig := testConfig.Clone()
+	clientConfig := testConfigFIPS140.Clone()
 	// All sorts of traps for the client to avoid.
 	clientConfig.MinVersion = VersionSSL30
 	clientConfig.MaxVersion = VersionTLS13
@@ -341,7 +334,7 @@ func testFIPSClientHello(t *testing.T) {
 	clientConfig.CurvePreferences = defaultCurvePreferences()
 
 	go Client(c, clientConfig).Handshake()
-	srv := Server(s, testConfig)
+	srv := Server(s, testConfigFIPS140)
 	msg, err := srv.readHandshake(nil)
 	if err != nil {
 		t.Fatal(err)
@@ -412,7 +405,6 @@ func TestFIPSCertAlgs(t *testing.T) {
 
 		serverConfig := testConfig.Clone()
 		serverConfig.Certificates = []Certificate{{Certificate: list, PrivateKey: key}}
-		serverConfig.BuildNameToCertificate()
 
 		clientErr, _ := fipsHandshake(t, clientConfig, serverConfig)
 
@@ -644,69 +636,4 @@ func fipsCert(t *testing.T, name string, key any, parent *fipsCertificate, mode 
 	})
 
 	return &fipsCertificate{name, org, parentOrg, der, cert, key, fipsOK}
-}
-
-// A self-signed test certificate with an RSA key of size 2048, for testing
-// RSA-PSS with SHA512. SAN of example.golang.
-var (
-	testRSAPSS2048Certificate []byte
-	testRSAPSS2048PrivateKey  *rsa.PrivateKey
-)
-
-func init() {
-	block, _ := pem.Decode(obscuretestdata.Rot13([]byte(`
------ORTVA PREGVSVPNGR-----
-ZVVP/mPPNrrtNjVONtVENYUUK/xu4+4mZH9QnemORpDjQDLWXbMVuipANDRYODNj
-RwRDZN4TN1HRPuZUDJAgMFOQomNrSj0kZGNkZQRkAGN0ZQInSj0lZQRlZwxkAGN0
-ZQInZOVkRQNBOtAIONbGO0SwoJHtD28jttRvZN0TPFdTFVo3QDRONDHNN4VOQjNj
-ttRXNbVONDPs8sx0A6vrPOK4VBIVsXvgg4xTpBDYrvzPsfwddUplfZVITRgSFZ6R
-4Nl141s/7VdqJ0HgVdAo4CKuEBVQ7lQkE284kY6KoPhi/g5uC3HpruLp3uzYvlIq
-ZxMDvMJgsHHWs/1dBgZ+buAt59YEJc4q+6vK0yn1WY3RjPVpxxAwW9uDoS7Co2PF
-+RF9Lb55XNnc8XBoycpE8ZOFA38odajwsDqPKiBRBwnz2UHkXmRSK5ZN+sN0zr4P
-vbPpPEYJXy+TbA9S8sNOsbM+G+2rny4QYhB95eKE8FeBVIOu3KSBe/EIuwgKpAIS
-MXpiQg6q68I6wNXNLXz5ayw9TCcq4i+eNtZONNTwHQOBZN4TN1HqQjRO/jDRNjVS
-bQNGOtAIUFHRQQNXOtteOtRSODpQNGNZOtAIUEZONs8RNwNNZOxTN1HqRDDFZOPP
-QzI4LJ1joTHhM29fLJ5aZN0TPFdTFVo3QDROPjHNN4VONDPBbLfIpSPOuobdr3JU
-qP6I7KKKRPzawu01e8u80li0AE379aFQ3pj2Z+UXinKlfJdey5uwTIXj0igjQ81e
-I4WmQh7VsVbt5z8+DAP+7YdQMfm88iQXBefblFIBzHPtzPXSKrj+YN+rB/vDRWGe
-7rafqqBrKWRc27Rq5iJ+xzJJ3Dztyp2Tjl8jSeZQVdaeaBmON4bPaQRtgKWg0mbt
-aEjosRZNJv1nDEl5qG9XN3FC9zb5FrGSFmTTUvR4f4tUHr7wifNSS2dtgQ6+jU6f
-m9o6fukaP7t5VyOXuV7FIO/Hdg2lqW+xU1LowZpVd6ANZ5rAZXtMhWe3+mjfFtju
-TAnR
------RAQ PREGVSVPNGR-----`)))
-	testRSAPSS2048Certificate = block.Bytes
-
-	block, _ = pem.Decode(obscuretestdata.Rot13([]byte(`
------ORTVA EFN CEVINGR XRL-----
-ZVVRcNVONNXPNDRNa/U5AQrbattI+PQyFUlbeorWOaQxP3bcta7V6du3ZeQPSEuY
-EHwBuBNZgrAK/+lXaIgSYFXwJ+Q14HGvN+8t8HqiBZF+y2jee/7rLG91UUbJUA4M
-v4fyKGWTHVzIeK1SPK/9nweGCdVGLBsF0IdrUshby9WJgFF9kZNvUWWQLlsLHTkr
-m29txiuRiJXBrFtTdsPwz5nKRsQNHwq/T6c8V30UDy7muQb2cgu1ZFfkOI+GNCaj
-AWahNbdNaNxF1vcsudQsEsUjNK6Tsx/gazcrNl7wirn10sRdmvSDLq1kGd/0ILL7
-I3QIEJFaYj7rariSrbjPtTPchM5L/Ew6KrY/djVQNDNONbVONDPAcZMvsq/it42u
-UqPiYhMnLF0E7FhaSycbKRfygTqYSfac0VsbWM/htSDOFNVVsYjZhzH6bKN1m7Hi
-98nVLI61QrCeGPQIQSOfUoAzC8WNb8JgohfRojq5mlbO7YLT2+pyxWxyJR73XdHd
-ezV+HWrlFpy2Tva7MGkOKm1JCOx9IjpajxrnKctNFVOJ23suRPZ9taLRRjnOrm5G
-6Zr8q1gUgLDi7ifXr7eb9j9/UXeEKrwdLXX1YkxusSevlI+z8YMWMa2aKBn6T3tS
-Ao8Dx1Hx5CHORAOzlZSWuG4Z/hhFd4LgZeeB2tv8D+sCuhTmp5FfuLXEOc0J4C5e
-zgIPgRSENbTONZRAOVSYeI2+UfTw0kLSnfXbi/DCr6UFGE1Uu2VMBAc+bX4bfmJR
-wOG4IpaVGzcy6gP1Jl4TpekwAtXVSMNw+1k1YHHYqbeKxhT8le0gNuT9mAlsJfFl
-CeFbiP0HIome8Wkkyn+xDIkRDDdJDkCyRIhY8xKnVQN6Ylg1Uchn2YiCNbTONADM
-p6Yd2G7+OkYkAqv2z8xMmrw5xtmOc/KqIfoSJEyroVK2XeSUfeUmG9CHx3QR1iMX
-Z6cmGg94aDuJFxQtPnj1FbuRyW3USVSjphfS1FWNp3cDrcq8ht6VLqycQZYgOw/C
-/5C6OIHgtb05R4+V/G3vLngztyDkGgyM0ExFI2yyNbTONYBKxXSK7nuCis0JxfQu
-hGshSBGCbbjtDT0RctJ0jEqPkrt/WYvp3yFQ0tfggDI2JfErpelJpknryEt10EzB
-38OobtzunS4kitfFihwBsvMGR8bX1G43Z+6AXfVyZY3LVYocH/9nWkCJl0f2QdQe
-pDWuMeyx+cmwON7Oas/HEqjkNbTNXE/PAj14Q+zeY3LYoovPKvlqdkIjki5cqMqm
-8guv3GApfJP4vTHEqpIdosHvaICqWvKr/Xnp3JTPrEWnSItoXNBkYgv1EO5ZxVut
-Q8rlhcOdx4J1Y1txekdfqw4GSykxjZljwy2R2F4LlD8COg6I04QbIEMfVXmdm+CS
-HvbaCd0PtLOPLKidvbWuCrjxBd/L5jeQOrMJ1SDX5DQ9J5Z8/5mkq4eqiWgwuoWc
-bBegiZqey6hcl9Um4OWQ3SKjISvCSR7wdrAdv0S21ivYkOCZZQ3HBQS6YY5RlYvE
-9I4kIZF8XKkit7ekfhdmZCfpIvnJHY6JAIOufQ2+92qUkFKmm5RWXD==
------RAQ EFN CEVINGR XRL-----`)))
-	var err error
-	testRSAPSS2048PrivateKey, err = x509.ParsePKCS1PrivateKey(block.Bytes)
-	if err != nil {
-		panic(err)
-	}
 }

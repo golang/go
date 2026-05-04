@@ -77,7 +77,7 @@ func testEncoder(t *testing.T, where jsontest.CasePos, formatName, typeName stri
 			default:
 				val := Value(tok.String())
 				if tok.Kind() == '"' {
-					val, _ = jsonwire.AppendQuote(nil, tok.String(), &jsonflags.Flags{})
+					val, _ = jsonwire.AppendQuote(nil, []byte(tok.String()), &jsonflags.Flags{})
 				}
 				if err := enc.WriteValue(val); err != nil {
 					t.Fatalf("%s: Encoder.WriteValue error: %v", where, err)

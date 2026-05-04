@@ -59,10 +59,10 @@ func init() {
 		num[name] = i
 	}
 	buildReg := func(s string) regMask {
-		m := regMask(0)
+		m := regMask{}
 		for _, r := range strings.Split(s, " ") {
 			if n, ok := num[r]; ok {
-				m |= regMask(1) << uint(n)
+				m = m.addReg(uint(n))
 				continue
 			}
 			panic("register " + r + " not found")
@@ -78,9 +78,9 @@ func init() {
 		bx         = buildReg("BX")
 		gp         = buildReg("AX CX DX BX BP SI DI")
 		fp         = buildReg("X0 X1 X2 X3 X4 X5 X6 X7")
-		gpsp       = gp | buildReg("SP")
-		gpspsb     = gpsp | buildReg("SB")
-		callerSave = gp | fp
+		gpsp       = gp.union(buildReg("SP"))
+		gpspsb     = gpsp.union(buildReg("SB"))
+		callerSave = gp.union(fp)
 	)
 	// Common slices of register masks
 	var (
@@ -95,51 +95,51 @@ func init() {
 		gp11sp         = regInfo{inputs: []regMask{gpsp}, outputs: gponly}
 		gp11sb         = regInfo{inputs: []regMask{gpspsb}, outputs: gponly}
 		gp21           = regInfo{inputs: []regMask{gp, gp}, outputs: gponly}
-		gp11carry      = regInfo{inputs: []regMask{gp}, outputs: []regMask{gp, 0}}
-		gp21carry      = regInfo{inputs: []regMask{gp, gp}, outputs: []regMask{gp, 0}}
+		gp11carry      = regInfo{inputs: []regMask{gp}, outputs: []regMask{gp, regMask{}}}
+		gp21carry      = regInfo{inputs: []regMask{gp, gp}, outputs: []regMask{gp, regMask{}}}
 		gp1carry1      = regInfo{inputs: []regMask{gp}, outputs: gponly}
 		gp2carry1      = regInfo{inputs: []regMask{gp, gp}, outputs: gponly}
-		gp2carry1carry = regInfo{inputs: []regMask{gp, gp}, outputs: []regMask{gp, 0}}
+		gp2carry1carry = regInfo{inputs: []regMask{gp, gp}, outputs: []regMask{gp, regMask{}}}
 		gp21sp         = regInfo{inputs: []regMask{gpsp, gp}, outputs: gponly}
 		gp21sb         = regInfo{inputs: []regMask{gpspsb, gpsp}, outputs: gponly}
 		gp21shift      = regInfo{inputs: []regMask{gp, cx}, outputs: []regMask{gp}}
-		gp11div        = regInfo{inputs: []regMask{ax, gpsp &^ dx}, outputs: []regMask{ax}, clobbers: dx}
+		gp11div        = regInfo{inputs: []regMask{ax, gpsp.minus(dx)}, outputs: []regMask{ax}, clobbers: dx}
 		gp21hmul       = regInfo{inputs: []regMask{ax, gpsp}, outputs: []regMask{dx}, clobbers: ax}
-		gp11mod        = regInfo{inputs: []regMask{ax, gpsp &^ dx}, outputs: []regMask{dx}, clobbers: ax}
+		gp11mod        = regInfo{inputs: []regMask{ax, gpsp.minus(dx)}, outputs: []regMask{dx}, clobbers: ax}
 		gp21mul        = regInfo{inputs: []regMask{ax, gpsp}, outputs: []regMask{dx, ax}}
 
 		gp2flags     = regInfo{inputs: []regMask{gpsp, gpsp}}
 		gp1flags     = regInfo{inputs: []regMask{gpsp}}
-		gp0flagsLoad = regInfo{inputs: []regMask{gpspsb, 0}}
-		gp1flagsLoad = regInfo{inputs: []regMask{gpspsb, gpsp, 0}}
+		gp0flagsLoad = regInfo{inputs: []regMask{gpspsb, regMask{}}}
+		gp1flagsLoad = regInfo{inputs: []regMask{gpspsb, gpsp, regMask{}}}
 		flagsgp      = regInfo{inputs: nil, outputs: gponly}
 
 		readflags = regInfo{inputs: nil, outputs: gponly}
-		flagsgpax = regInfo{inputs: nil, clobbers: ax, outputs: []regMask{gp &^ ax}}
+		flagsgpax = regInfo{inputs: nil, clobbers: ax, outputs: []regMask{gp.minus(ax)}}
 
-		gpload      = regInfo{inputs: []regMask{gpspsb, 0}, outputs: gponly}
-		gp21load    = regInfo{inputs: []regMask{gp, gpspsb, 0}, outputs: gponly}
-		gploadidx   = regInfo{inputs: []regMask{gpspsb, gpsp, 0}, outputs: gponly}
-		gp21loadidx = regInfo{inputs: []regMask{gp, gpspsb, gpsp, 0}, outputs: gponly}
+		gpload      = regInfo{inputs: []regMask{gpspsb, regMask{}}, outputs: gponly}
+		gp21load    = regInfo{inputs: []regMask{gp, gpspsb, regMask{}}, outputs: gponly}
+		gploadidx   = regInfo{inputs: []regMask{gpspsb, gpsp, regMask{}}, outputs: gponly}
+		gp21loadidx = regInfo{inputs: []regMask{gp, gpspsb, gpsp, regMask{}}, outputs: gponly}
 
-		gpstore         = regInfo{inputs: []regMask{gpspsb, gpsp, 0}}
-		gpstoreconst    = regInfo{inputs: []regMask{gpspsb, 0}}
-		gpstoreidx      = regInfo{inputs: []regMask{gpspsb, gpsp, gpsp, 0}}
-		gpstoreconstidx = regInfo{inputs: []regMask{gpspsb, gpsp, 0}}
+		gpstore         = regInfo{inputs: []regMask{gpspsb, gpsp, regMask{}}}
+		gpstoreconst    = regInfo{inputs: []regMask{gpspsb, regMask{}}}
+		gpstoreidx      = regInfo{inputs: []regMask{gpspsb, gpsp, gpsp, regMask{}}}
+		gpstoreconstidx = regInfo{inputs: []regMask{gpspsb, gpsp, regMask{}}}
 
 		fp01     = regInfo{inputs: nil, outputs: fponly}
 		fp21     = regInfo{inputs: []regMask{fp, fp}, outputs: fponly}
-		fp21load = regInfo{inputs: []regMask{fp, gpspsb, 0}, outputs: fponly}
+		fp21load = regInfo{inputs: []regMask{fp, gpspsb, regMask{}}, outputs: fponly}
 		fpgp     = regInfo{inputs: fponly, outputs: gponly}
 		gpfp     = regInfo{inputs: gponly, outputs: fponly}
 		fp11     = regInfo{inputs: fponly, outputs: fponly}
 		fp2flags = regInfo{inputs: []regMask{fp, fp}}
 
-		fpload    = regInfo{inputs: []regMask{gpspsb, 0}, outputs: fponly}
-		fploadidx = regInfo{inputs: []regMask{gpspsb, gpsp, 0}, outputs: fponly}
+		fpload    = regInfo{inputs: []regMask{gpspsb, regMask{}}, outputs: fponly}
+		fploadidx = regInfo{inputs: []regMask{gpspsb, gpsp, regMask{}}, outputs: fponly}
 
-		fpstore    = regInfo{inputs: []regMask{gpspsb, fp, 0}}
-		fpstoreidx = regInfo{inputs: []regMask{gpspsb, gpsp, fp, 0}}
+		fpstore    = regInfo{inputs: []regMask{gpspsb, fp, regMask{}}}
+		fpstoreidx = regInfo{inputs: []regMask{gpspsb, gpsp, fp, regMask{}}}
 	)
 
 	var _386ops = []opData{
@@ -199,7 +199,7 @@ func init() {
 		{name: "MULL", argLength: 2, reg: gp21, asm: "IMULL", commutative: true, resultInArg0: true, clobberFlags: true}, // arg0 * arg1
 		{name: "MULLconst", argLength: 1, reg: gp11, asm: "IMUL3L", aux: "Int32", clobberFlags: true},                    // arg0 * auxint
 
-		{name: "MULLU", argLength: 2, reg: regInfo{inputs: []regMask{ax, gpsp}, outputs: []regMask{ax, 0}, clobbers: dx}, typ: "(UInt32,Flags)", asm: "MULL", commutative: true, clobberFlags: true}, // Let x = arg0*arg1 (full 32x32->64  unsigned multiply). Returns uint32(x), and flags set to overflow if uint32(x) != x.
+		{name: "MULLU", argLength: 2, reg: regInfo{inputs: []regMask{ax, gpsp}, outputs: []regMask{ax, regMask{}}, clobbers: dx}, typ: "(UInt32,Flags)", asm: "MULL", commutative: true, clobberFlags: true}, // Let x = arg0*arg1 (full 32x32->64  unsigned multiply). Returns uint32(x), and flags set to overflow if uint32(x) != x.
 
 		{name: "HMULL", argLength: 2, reg: gp21hmul, commutative: true, asm: "IMULL", clobberFlags: true}, // (arg0 * arg1) >> width
 		{name: "HMULLU", argLength: 2, reg: gp21hmul, commutative: true, asm: "MULL", clobberFlags: true}, // (arg0 * arg1) >> width
@@ -209,15 +209,15 @@ func init() {
 		{name: "AVGLU", argLength: 2, reg: gp21, commutative: true, resultInArg0: true, clobberFlags: true}, // (arg0 + arg1) / 2 as unsigned, all 32 result bits
 
 		// For DIVL, DIVW, MODL and MODW, AuxInt non-zero means that the divisor has been proved to be not -1.
-		{name: "DIVL", argLength: 2, reg: gp11div, asm: "IDIVL", aux: "Bool", clobberFlags: true}, // arg0 / arg1
-		{name: "DIVW", argLength: 2, reg: gp11div, asm: "IDIVW", aux: "Bool", clobberFlags: true}, // arg0 / arg1
-		{name: "DIVLU", argLength: 2, reg: gp11div, asm: "DIVL", clobberFlags: true},              // arg0 / arg1
-		{name: "DIVWU", argLength: 2, reg: gp11div, asm: "DIVW", clobberFlags: true},              // arg0 / arg1
+		{name: "DIVL", argLength: 2, reg: gp11div, asm: "IDIVL", aux: "Bool", clobberFlags: true, hasSideEffects: true}, // arg0 / arg1
+		{name: "DIVW", argLength: 2, reg: gp11div, asm: "IDIVW", aux: "Bool", clobberFlags: true, hasSideEffects: true}, // arg0 / arg1
+		{name: "DIVLU", argLength: 2, reg: gp11div, asm: "DIVL", clobberFlags: true, hasSideEffects: true},              // arg0 / arg1
+		{name: "DIVWU", argLength: 2, reg: gp11div, asm: "DIVW", clobberFlags: true, hasSideEffects: true},              // arg0 / arg1
 
-		{name: "MODL", argLength: 2, reg: gp11mod, asm: "IDIVL", aux: "Bool", clobberFlags: true}, // arg0 % arg1
-		{name: "MODW", argLength: 2, reg: gp11mod, asm: "IDIVW", aux: "Bool", clobberFlags: true}, // arg0 % arg1
-		{name: "MODLU", argLength: 2, reg: gp11mod, asm: "DIVL", clobberFlags: true},              // arg0 % arg1
-		{name: "MODWU", argLength: 2, reg: gp11mod, asm: "DIVW", clobberFlags: true},              // arg0 % arg1
+		{name: "MODL", argLength: 2, reg: gp11mod, asm: "IDIVL", aux: "Bool", clobberFlags: true, hasSideEffects: true}, // arg0 % arg1
+		{name: "MODW", argLength: 2, reg: gp11mod, asm: "IDIVW", aux: "Bool", clobberFlags: true, hasSideEffects: true}, // arg0 % arg1
+		{name: "MODLU", argLength: 2, reg: gp11mod, asm: "DIVL", clobberFlags: true, hasSideEffects: true},              // arg0 % arg1
+		{name: "MODWU", argLength: 2, reg: gp11mod, asm: "DIVW", clobberFlags: true, hasSideEffects: true},              // arg0 % arg1
 
 		{name: "ANDL", argLength: 2, reg: gp21, asm: "ANDL", commutative: true, resultInArg0: true, clobberFlags: true}, // arg0 & arg1
 		{name: "ANDLconst", argLength: 1, reg: gp11, asm: "ANDL", aux: "Int32", resultInArg0: true, clobberFlags: true}, // arg0 & auxint
@@ -457,11 +457,11 @@ func init() {
 			faultOnNilArg0: true,
 		},
 
-		{name: "CALLstatic", argLength: 1, reg: regInfo{clobbers: callerSave}, aux: "CallOff", clobberFlags: true, call: true},                                              // call static function aux.(*obj.LSym).  arg0=mem, auxint=argsize, returns mem
-		{name: "CALLtail", argLength: 1, reg: regInfo{clobbers: callerSave}, aux: "CallOff", clobberFlags: true, call: true, tailCall: true},                                // tail call static function aux.(*obj.LSym).  arg0=mem, auxint=argsize, returns mem
-		{name: "CALLtailinter", argLength: 2, reg: regInfo{inputs: []regMask{gp}, clobbers: callerSave}, aux: "CallOff", clobberFlags: true, call: true, tailCall: true},    // tail call fn by pointer.  arg0=codeptr, arg1=mem, auxint=argsize, returns mem
-		{name: "CALLclosure", argLength: 3, reg: regInfo{inputs: []regMask{gpsp, buildReg("DX"), 0}, clobbers: callerSave}, aux: "CallOff", clobberFlags: true, call: true}, // call function via closure.  arg0=codeptr, arg1=closure, arg2=mem, auxint=argsize, returns mem
-		{name: "CALLinter", argLength: 2, reg: regInfo{inputs: []regMask{gp}, clobbers: callerSave}, aux: "CallOff", clobberFlags: true, call: true},                        // call fn by pointer.  arg0=codeptr, arg1=mem, auxint=argsize, returns mem
+		{name: "CALLstatic", argLength: 1, reg: regInfo{clobbers: callerSave}, aux: "CallOff", clobberFlags: true, call: true},                                                      // call static function aux.(*obj.LSym).  arg0=mem, auxint=argsize, returns mem
+		{name: "CALLtail", argLength: 1, reg: regInfo{clobbers: callerSave}, aux: "CallOff", clobberFlags: true, call: true, tailCall: true},                                        // tail call static function aux.(*obj.LSym).  arg0=mem, auxint=argsize, returns mem
+		{name: "CALLtailinter", argLength: 2, reg: regInfo{inputs: []regMask{gp}, clobbers: callerSave}, aux: "CallOff", clobberFlags: true, call: true, tailCall: true},            // tail call fn by pointer.  arg0=codeptr, arg1=mem, auxint=argsize, returns mem
+		{name: "CALLclosure", argLength: 3, reg: regInfo{inputs: []regMask{gpsp, buildReg("DX"), regMask{}}, clobbers: callerSave}, aux: "CallOff", clobberFlags: true, call: true}, // call function via closure.  arg0=codeptr, arg1=closure, arg2=mem, auxint=argsize, returns mem
+		{name: "CALLinter", argLength: 2, reg: regInfo{inputs: []regMask{gp}, clobbers: callerSave}, aux: "CallOff", clobberFlags: true, call: true},                                // call fn by pointer.  arg0=codeptr, arg1=mem, auxint=argsize, returns mem
 
 		// arg0 = destination pointer
 		// arg1 = source pointer
@@ -523,7 +523,7 @@ func init() {
 		// LoweredWB invokes runtime.gcWriteBarrier. arg0=mem, auxint=# of write barrier slots
 		// It saves all GP registers if necessary, but may clobber others.
 		// Returns a pointer to a write barrier buffer in DI.
-		{name: "LoweredWB", argLength: 1, reg: regInfo{clobbers: callerSave &^ gp, outputs: []regMask{buildReg("DI")}}, clobberFlags: true, aux: "Int64"},
+		{name: "LoweredWB", argLength: 1, reg: regInfo{clobbers: callerSave.minus(gp), outputs: []regMask{buildReg("DI")}}, clobberFlags: true, aux: "Int64"},
 
 		// LoweredPanicBoundsRR takes x and y, two values that caused a bounds check to fail.
 		// the RC and CR versions are used when one of the arguments is a constant. CC is used
@@ -536,8 +536,8 @@ func init() {
 		{name: "LoweredPanicBoundsCC", argLength: 1, aux: "PanicBoundsCC", reg: regInfo{}, typ: "Mem", call: true},                     // arg0=mem, returns memory.
 
 		// Same as above, but the x value is 64 bits.
-		{name: "LoweredPanicExtendRR", argLength: 4, aux: "Int64", reg: regInfo{inputs: []regMask{ax | cx | dx | bx, ax | cx | dx | bx, gp}}, typ: "Mem", call: true},    // arg0=x_hi, arg1=x_lo, arg2=y, arg3=mem, returns memory.
-		{name: "LoweredPanicExtendRC", argLength: 3, aux: "PanicBoundsC", reg: regInfo{inputs: []regMask{ax | cx | dx | bx, ax | cx | dx | bx}}, typ: "Mem", call: true}, // arg0=x_hi, arg1=x_lo, arg2=mem, returns memory.
+		{name: "LoweredPanicExtendRR", argLength: 4, aux: "Int64", reg: regInfo{inputs: []regMask{ax.union(cx).union(dx).union(bx), ax.union(cx).union(dx).union(bx), gp}}, typ: "Mem", call: true},    // arg0=x_hi, arg1=x_lo, arg2=y, arg3=mem, returns memory.
+		{name: "LoweredPanicExtendRC", argLength: 3, aux: "PanicBoundsC", reg: regInfo{inputs: []regMask{ax.union(cx).union(dx).union(bx), ax.union(cx).union(dx).union(bx)}}, typ: "Mem", call: true}, // arg0=x_hi, arg1=x_lo, arg2=mem, returns memory.
 
 		// Constant flag values. For any comparison, there are 5 possible
 		// outcomes: the three from the signed total order (<,==,>) and the

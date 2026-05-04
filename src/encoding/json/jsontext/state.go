@@ -131,7 +131,7 @@ func (p Pointer) LastToken() string {
 
 // AppendToken appends a token to the end of p and returns the full pointer.
 func (p Pointer) AppendToken(tok string) Pointer {
-	return Pointer(appendEscapePointerName([]byte(p+"/"), tok))
+	return Pointer(appendEscapePointerName([]byte(p+"/"), []byte(tok)))
 }
 
 // TODO: Add Pointer.AppendTokens,
@@ -202,7 +202,7 @@ func (s state) appendStackPointer(b []byte, where int) []byte {
 	return b
 }
 
-func appendEscapePointerName[Bytes ~[]byte | ~string](b []byte, name Bytes) []byte {
+func appendEscapePointerName(b, name []byte) []byte {
 	for _, r := range string(name) {
 		// Per RFC 6901, section 3, escape '~' and '/' characters.
 		switch r {

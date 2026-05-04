@@ -8,6 +8,7 @@
 package jsonwire
 
 import (
+	"bytes"
 	"cmp"
 	"errors"
 	"strconv"
@@ -59,8 +60,8 @@ func TrimSuffixByte(b []byte, c byte) []byte {
 }
 
 // QuoteRune quotes the first rune in the input.
-func QuoteRune[Bytes ~[]byte | ~string](b Bytes) string {
-	r, n := utf8.DecodeRuneInString(string(truncateMaxUTF8(b)))
+func QuoteRune(b []byte) string {
+	r, n := utf8.DecodeRune(b)
 	if r == utf8.RuneError && n == 1 {
 		return `'\x` + strconv.FormatUint(uint64(b[0]), 16) + `'`
 	}
@@ -70,7 +71,7 @@ func QuoteRune[Bytes ~[]byte | ~string](b Bytes) string {
 // CompareUTF16 lexicographically compares x to y according
 // to the UTF-16 codepoints of the UTF-8 encoded input strings.
 // This implements the ordering specified in RFC 8785, section 3.2.3.
-func CompareUTF16[Bytes ~[]byte | ~string](x, y Bytes) int {
+func CompareUTF16(x, y []byte) int {
 	// NOTE: This is an optimized, mostly allocation-free implementation
 	// of CompareUTF16Simple in wire_test.go. FuzzCompareUTF16 verifies that the
 	// two implementations agree on the result of comparing any two strings.
@@ -93,8 +94,8 @@ func CompareUTF16[Bytes ~[]byte | ~string](x, y Bytes) int {
 		}
 
 		// Decode next pair of runes as UTF-8.
-		rx, nx := utf8.DecodeRuneInString(string(truncateMaxUTF8(x)))
-		ry, ny := utf8.DecodeRuneInString(string(truncateMaxUTF8(y)))
+		rx, nx := utf8.DecodeRune(x)
+		ry, ny := utf8.DecodeRune(y)
 
 		selfx := isUTF16Self(rx)
 		selfy := isUTF16Self(ry)
@@ -123,33 +124,11 @@ func CompareUTF16[Bytes ~[]byte | ~string](x, y Bytes) int {
 	}
 }
 
-// truncateMaxUTF8 truncates b such it contains at least one rune.
-//
-// The utf8 package currently lacks generic variants, which complicates
-// generic functions that operates on either []byte or string.
-// As a hack, we always call the utf8 function operating on strings,
-// but always truncate the input such that the result is identical.
-//
-// Example usage:
-//
-//	utf8.DecodeRuneInString(string(truncateMaxUTF8(b)))
-//
-// Converting a []byte to a string is stack allocated since
-// truncateMaxUTF8 guarantees that the []byte is short.
-func truncateMaxUTF8[Bytes ~[]byte | ~string](b Bytes) Bytes {
-	// TODO(https://go.dev/issue/56948): Remove this function and
-	// instead directly call generic utf8 functions wherever used.
-	if len(b) > utf8.UTFMax {
-		return b[:utf8.UTFMax]
-	}
-	return b
-}
-
 // TODO(https://go.dev/issue/70547): Use utf8.ErrInvalid instead.
 var ErrInvalidUTF8 = errors.New("invalid UTF-8")
 
 func NewInvalidCharacterError[Bytes ~[]byte | ~string](prefix Bytes, where string) error {
-	what := QuoteRune(prefix)
+	what := QuoteRune([]byte(prefix))
 	return errors.New("invalid character " + what + " " + where)
 }
 
@@ -158,7 +137,7 @@ func NewInvalidEscapeSequenceError[Bytes ~[]byte | ~string](what Bytes) error {
 	if len(what) > 6 {
 		label = "surrogate pair"
 	}
-	needEscape := strings.IndexFunc(string(what), func(r rune) bool {
+	needEscape := bytes.IndexFunc([]byte(what), func(r rune) bool {
 		return r == '`' || r == utf8.RuneError || unicode.IsSpace(r) || !unicode.IsPrint(r)
 	}) >= 0
 	if needEscape {

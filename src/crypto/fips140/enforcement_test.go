@@ -8,7 +8,6 @@ import (
 	"crypto/des"
 	"crypto/fips140"
 	"crypto/internal/cryptotest"
-	"internal/testenv"
 	"testing"
 )
 
@@ -26,15 +25,8 @@ func isAllowed() bool {
 }
 
 func TestWithoutEnforcement(t *testing.T) {
-	cryptotest.MustSupportFIPS140(t)
 	if !fips140.Enforced() {
-		cmd := testenv.Command(t, testenv.Executable(t), "-test.run=^TestWithoutEnforcement$", "-test.v")
-		cmd.Env = append(cmd.Environ(), "GODEBUG=fips140=only")
-		out, err := cmd.CombinedOutput()
-		t.Logf("running with GODEBUG=fips140=only:\n%s", out)
-		if err != nil {
-			t.Errorf("fips140=only subprocess failed: %v", err)
-		}
+		cryptotest.RerunWithFIPS140Enforced(t)
 		return
 	}
 

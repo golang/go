@@ -809,16 +809,6 @@ TEXT runtime·armPublicationBarrier(SB),NOSPLIT|NOFRAME,$0-0
 	DMB	MB_ST
 	RET
 
-// AES hashing not implemented for ARM
-TEXT runtime·memhash(SB),NOSPLIT|NOFRAME,$0-16
-	JMP	runtime·memhashFallback(SB)
-TEXT runtime·strhash(SB),NOSPLIT|NOFRAME,$0-12
-	JMP	runtime·strhashFallback(SB)
-TEXT runtime·memhash32(SB),NOSPLIT|NOFRAME,$0-12
-	JMP	runtime·memhash32Fallback(SB)
-TEXT runtime·memhash64(SB),NOSPLIT|NOFRAME,$0-12
-	JMP	runtime·memhash64Fallback(SB)
-
 TEXT runtime·procyieldAsm(SB),NOSPLIT|NOFRAME,$0
 	MOVW	cycles+0(FP), R1
 	MOVW	$0, R0
@@ -885,11 +875,6 @@ TEXT runtime·addmoduledata(SB),NOSPLIT,$0-0
 	MOVW	R0, runtime·lastmoduledatap(SB)
 	MOVW	saver11-8(SP), R11
 	MOVW	saver9-4(SP), R9
-	RET
-
-TEXT ·checkASM(SB),NOSPLIT,$0-1
-	MOVW	$1, R3
-	MOVB	R3, ret+0(FP)
 	RET
 
 // gcWriteBarrier informs the GC about heap pointer writes.

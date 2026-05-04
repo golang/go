@@ -11,6 +11,7 @@ import (
 	"crypto/ecdh"
 	"crypto/ecdsa"
 	"crypto/elliptic"
+	"crypto/fips140"
 	"crypto/internal/boring"
 	"crypto/rand"
 	"crypto/tls/internal/fips140tls"
@@ -194,6 +195,13 @@ func runWithFIPSEnabled(t *testing.T, testFunc func(t *testing.T)) {
 }
 
 func runWithFIPSDisabled(t *testing.T, testFunc func(t *testing.T)) {
+	if fips140.Enforced() {
+		t.Run("no-fips140tls", func(t *testing.T) {
+			t.Skip("can't run no-fips140tls tests in fips140=only mode")
+		})
+		return
+	}
+
 	originalFIPS := fips140tls.Required()
 	defer func() {
 		if originalFIPS {
@@ -2325,9 +2333,9 @@ func TestECH(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	marshalECHConfig := func(id uint8, pubKey []byte, publicName string, maxNameLen uint8) []byte {
+	marshalECHConfig := func(version uint16, id uint8, pubKey []byte, publicName string, maxNameLen uint8) []byte {
 		builder := cryptobyte.NewBuilder(nil)
-		builder.AddUint16(extensionEncryptedClientHello)
+		builder.AddUint16(version)
 		builder.AddUint16LengthPrefixed(func(builder *cryptobyte.Builder) {
 			builder.AddUint8(id)
 			builder.AddUint16(0x0020 /* DHKEM(X25519, HKDF-SHA256) */)
@@ -2353,7 +2361,7 @@ func TestECH(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	echConfig := marshalECHConfig(123, echKey.PublicKey().Bytes(), "public.example", 32)
+	echConfig := marshalECHConfig(extensionEncryptedClientHello, 123, echKey.PublicKey().Bytes(), "public.example", 32)
 
 	builder := cryptobyte.NewBuilder(nil)
 	builder.AddUint16LengthPrefixed(func(builder *cryptobyte.Builder) {
@@ -2399,10 +2407,10 @@ func TestECH(t *testing.T) {
 			t.Fatalf("unexpected ConnectionState.ServerName, want %q, got server:%q, client: %q", "secret.example", ss.ServerName, cs.ServerName)
 		}
 		if len(cs.VerifiedChains) != 1 {
-			t.Fatal("unexpect number of certificate chains")
+			t.Fatal("unexpected number of certificate chains")
 		}
 		if len(cs.VerifiedChains[0]) != 1 {
-			t.Fatal("unexpect number of certificates")
+			t.Fatal("unexpected number of certificates")
 		}
 		if !cs.VerifiedChains[0][0].Equal(secretCert) {
 			t.Fatal("unexpected certificate")
@@ -2418,9 +2426,26 @@ func TestECH(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	randConfig := marshalECHConfig(32, randKey.PublicKey().Bytes(), "random.example", 32)
+	randConfig := marshalECHConfig(extensionEncryptedClientHello, 32, randKey.PublicKey().Bytes(), "random.example", 32)
 	serverConfig.EncryptedClientHelloKeys = []EncryptedClientHelloKey{
 		{Config: randConfig, PrivateKey: randKey.Bytes(), SendAsRetry: true},
+	}
+
+	check()
+
+	// A server configured with an unsupported-version ECHConfig ahead of a
+	// usable one must skip the unusable entry (per RFC 9849 §4) and
+	// trial-decrypt against the next key, rather than aborting the handshake
+	// on the first entry.
+	unsupportedKey, err := ecdh.X25519().GenerateKey(rand.Reader)
+	if err != nil {
+		t.Fatal(err)
+	}
+	unsupportedConfig := marshalECHConfig(0xbadd, 99, unsupportedKey.PublicKey().Bytes(), "public.example", 32)
+	serverConfig.GetEncryptedClientHelloKeys = nil
+	serverConfig.EncryptedClientHelloKeys = []EncryptedClientHelloKey{
+		{Config: unsupportedConfig, PrivateKey: unsupportedKey.Bytes(), SendAsRetry: true},
+		{Config: echConfig, PrivateKey: echKey.Bytes(), SendAsRetry: true},
 	}
 
 	check()

@@ -526,7 +526,7 @@ func newAddressableValue(t reflect.Type) addressableValue {
 // This can be directly accessed on the encoder or decoder.
 
 // All marshal and unmarshal behavior is implemented using these signatures.
-// The *jsonopts.Struct argument is guaranteed to identical to or at least
+// The *jsonopts.Struct argument is guaranteed to be identical to or at least
 // a strict super-set of the options in Encoder.Struct or Decoder.Struct.
 // It is identical for Marshal, Unmarshal, MarshalWrite, and UnmarshalRead.
 // It is a super-set for MarshalEncode and UnmarshalDecode.

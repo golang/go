@@ -185,10 +185,11 @@ func findCodeRoots() []Dir {
 		// it would be good to avoid an extra run of modload.Init.
 		if state := modload.NewLoader(); state.WillBeEnabled() {
 			usingModules = state.HasModRoot()
-			if usingModules && cfg.GOROOT != "" {
+
+			if cfg.GOROOT != "" {
 				list = append(list,
-					Dir{dir: filepath.Join(cfg.GOROOT, "src"), inModule: true},
-					Dir{importPath: "cmd", dir: filepath.Join(cfg.GOROOT, "src", "cmd"), inModule: true})
+					Dir{dir: filepath.Join(cfg.GOROOT, "src"), inModule: usingModules},
+					Dir{importPath: "cmd", dir: filepath.Join(cfg.GOROOT, "src", "cmd"), inModule: usingModules})
 			}
 
 			if !usingModules {

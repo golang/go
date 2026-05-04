@@ -66,7 +66,7 @@ func runtime_mapaccess2_fast64(typ *abi.MapType, m *Map, key uint64) (unsafe.Poi
 	// See the related comment in runtime_mapaccess2_fast32
 	// for why we pass local copy of key.
 	k := key
-	hash := memhash64(unsafe.Pointer(&k), m.seed)
+	hash := MemHash64(unsafe.Pointer(&k), m.seed)
 
 	// Select table.
 	idx := m.directoryIndex(hash)
@@ -161,7 +161,7 @@ func runtime_mapassign_fast64(typ *abi.MapType, m *Map, key uint64) unsafe.Point
 	// See the related comment in runtime_mapaccess2_fast32
 	// for why we pass local copy of key.
 	k := key
-	hash := memhash64(unsafe.Pointer(&k), m.seed)
+	hash := MemHash64(unsafe.Pointer(&k), m.seed)
 
 	// Set writing after calling Hasher, since Hasher may panic, in which
 	// case we have not actually done a write.
@@ -341,7 +341,7 @@ func runtime_mapassign_fast64ptr(typ *abi.MapType, m *Map, key unsafe.Pointer) u
 	// See the related comment in runtime_mapaccess2_fast32
 	// for why we pass local copy of key.
 	k := key
-	hash := memhash64(unsafe.Pointer(&k), m.seed)
+	hash := MemHash64(unsafe.Pointer(&k), m.seed)
 
 	// Set writing after calling Hasher, since Hasher may panic, in which
 	// case we have not actually done a write.
@@ -426,6 +426,10 @@ outer:
 				g = firstDeletedGroup
 				i = firstDeletedSlot
 				t.growthLeft++ // will be decremented below to become a no-op.
+			}
+
+			if t.growthLeft == 0 {
+				t.pruneTombstones(typ, m)
 			}
 
 			// If there is room left to grow, just insert the new entry.

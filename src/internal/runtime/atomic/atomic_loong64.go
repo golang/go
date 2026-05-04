@@ -12,8 +12,8 @@ import (
 )
 
 const (
-	offsetLOONG64HasLAMCAS = unsafe.Offsetof(cpu.Loong64.HasLAMCAS)
-	offsetLoong64HasLAM_BH = unsafe.Offsetof(cpu.Loong64.HasLAM_BH)
+	offsetLOONG64HasLAMCAS     = unsafe.Offsetof(cpu.Loong64.HasLAMCAS)
+	offsetLoong64HasDBAR_HINTS = unsafe.Offsetof(cpu.Loong64.HasDBAR_HINTS)
 )
 
 //go:noescape

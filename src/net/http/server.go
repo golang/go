@@ -3800,7 +3800,7 @@ func ListenAndServeTLS(addr, certFile, keyFile string, handler Handler) error {
 // via net/http. See https://go.dev/issue/77440 for details.
 //
 // This is currently only used with golang.org/x/net/internal/http3, to allow
-// us to test our HTTP/3 implementation againts tests in net/http. HTTP/3 is
+// us to test our HTTP/3 implementation against tests in net/http. HTTP/3 is
 // not yet accessible to end-users.
 type http3ServerHandler struct {
 	handler     serverHandler

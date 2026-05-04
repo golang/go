@@ -51,7 +51,7 @@ func isSyntacticError(err error) bool {
 	return ok
 }
 
-// isFatalError reports whether this error must terminate asharling.
+// isFatalError reports whether this error must terminate arshaling.
 // All errors are considered fatal unless operating under
 // [jsonflags.ReportErrorsWithLegacySemantics] in which case only
 // syntactic errors and I/O errors are considered fatal.

@@ -1080,58 +1080,58 @@ TEXT asmtest(SB),DUPOK|NOSPLIT,$-8
 	ZLDNT1W (R6<<2)(R14), P4.Z, [Z13.S]               // cdd106a5
 	ZLDNT1W (R6)(Z7.S), P4.Z, [Z13.S]                 // edb00685
 	ZLDNT1W (R6)(Z7.D), P4.Z, [Z13.D]                 // edd006c5
-	ZST1B (R6)(R14), P4, [Z13.B]                      // cd5106e4
-	ZST1B (Z10.D)(R19), P3, [Z15.D]                   // 6fae0ae4
-	ZST1B (Z4.S.UXTW)(R3), P3, [Z4.S]                 // 648c44e4
-	ZST1B (Z6.D)(R14), P4, [Z13.D]                    // cdb106e4
-	ZST1D (R6<<3)(R14), P4, [Z13.D]                   // cd51e6e5
-	ZST1D (R6<<3)(R14), P4, [Z13.Q]                   // cd51c6e5
-	ZST1D (Z23.D<<3)(R24), P1, [Z22.D]                // 16a7b7e5
-	ZST1D (Z10.D)(R19), P3, [Z15.D]                   // 6fae8ae5
-	ZST1D (Z6.D<<3)(R14), P4, [Z13.D]                 // cdb1a6e5
-	ZST1D (Z6.D)(R14), P4, [Z13.D]                    // cdb186e5
-	ZST1H (R6<<1)(RSP), P1, [Z12.S]                   // ec47c6e4
-	ZST1H (Z4.S.UXTW<<1)(R3), P3, [Z4.S]              // 648ce4e4
-	ZST1H (Z23.D<<1)(R24), P1, [Z22.D]                // 16a7b7e4
-	ZST1H (Z10.D)(R19), P3, [Z15.D]                   // 6fae8ae4
-	ZST1H (Z4.S.UXTW)(R3), P3, [Z4.S]                 // 648cc4e4
-	ZST1H (Z6.D<<1)(R14), P4, [Z13.D]                 // cdb1a6e4
-	ZST1H (Z6.D)(R14), P4, [Z13.D]                    // cdb186e4
-	ZST1Q (R6)(Z7.D), P4, [Z13.Q]                     // ed3026e4
-	ZST1W (R6<<2)(RSP), P1, [Z12.S]                   // ec4746e5
-	ZST1W (R6<<2)(R14), P4, [Z13.Q]                   // cd5106e5
-	ZST1W (Z4.S.UXTW<<2)(R3), P3, [Z4.S]              // 648c64e5
-	ZST1W (Z23.D<<2)(R24), P1, [Z22.D]                // 16a737e5
-	ZST1W (Z10.D)(R19), P3, [Z15.D]                   // 6fae0ae5
-	ZST1W (Z4.S.UXTW)(R3), P3, [Z4.S]                 // 648c44e5
-	ZST1W (Z6.D<<2)(R14), P4, [Z13.D]                 // cdb126e5
-	ZST1W (Z6.D)(R14), P4, [Z13.D]                    // cdb106e5
-	ZST2B (R6)(R14), P4, [Z13.B, Z14.B]               // cd7126e4
-	ZST2D (R6<<3)(R14), P4, [Z13.D, Z14.D]            // cd71a6e5
-	ZST2H (R6<<1)(R14), P4, [Z13.H, Z14.H]            // cd71a6e4
-	ZST2Q (R6<<4)(R14), P4, [Z13.Q, Z14.Q]            // cd1166e4
-	ZST2W (R6<<2)(R14), P4, [Z13.S, Z14.S]            // cd7126e5
-	ZST3B (R6)(R14), P4, [Z13.B, Z14.B, Z15.B]        // cd7146e4
-	ZST3D (R6<<3)(R14), P4, [Z13.D, Z14.D, Z15.D]     // cd71c6e5
-	ZST3H (R6<<1)(R14), P4, [Z13.H, Z14.H, Z15.H]     // cd71c6e4
-	ZST3Q (R6<<4)(R14), P4, [Z13.Q, Z14.Q, Z15.Q]     // cd11a6e4
-	ZST3W (R6<<2)(R14), P4, [Z13.S, Z14.S, Z15.S]     // cd7146e5
-	ZST4B (R6)(R14), P4, [Z13.B, Z14.B, Z15.B, Z16.B] // cd7166e4
-	ZST4D (R6<<3)(R14), P4, [Z13.D, Z14.D, Z15.D, Z16.D]// cd71e6e5
-	ZST4H (R6<<1)(R14), P4, [Z13.H, Z14.H, Z15.H, Z16.H]// cd71e6e4
-	ZST4Q (R6<<4)(R14), P4, [Z13.Q, Z14.Q, Z15.Q, Z16.Q]// cd11e6e4
-	ZST4W (R6<<2)(R14), P4, [Z13.S, Z14.S, Z15.S, Z16.S]// cd7166e5
-	ZSTNT1B (R6)(R14), P4, [Z13.B]                    // cd7106e4
-	ZSTNT1B (R6)(Z7.S), P4, [Z13.S]                   // ed3046e4
-	ZSTNT1B (R6)(Z7.D), P4, [Z13.D]                   // ed3006e4
-	ZSTNT1D (R6<<3)(R14), P4, [Z13.D]                 // cd7186e5
-	ZSTNT1D (R6)(Z7.D), P4, [Z13.D]                   // ed3086e5
-	ZSTNT1H (R6<<1)(R14), P4, [Z13.H]                 // cd7186e4
-	ZSTNT1H (R6)(Z7.S), P4, [Z13.S]                   // ed30c6e4
-	ZSTNT1H (R6)(Z7.D), P4, [Z13.D]                   // ed3086e4
-	ZSTNT1W (R6<<2)(R14), P4, [Z13.S]                 // cd7106e5
-	ZSTNT1W (R6)(Z7.S), P4, [Z13.S]                   // ed3046e5
-	ZSTNT1W (R6)(Z7.D), P4, [Z13.D]                   // ed3006e5
+	ZST1B [Z7.D], P4, (R21)(R7)                       // e75075e4
+	ZST1B [Z6.D], P4, (Z21.D.UXTW)(R7)                // e69015e4
+	ZST1B [Z6.S], P4, (Z21.S.UXTW)(R7)                // e69055e4
+	ZST1B [Z8.D], P3, (Z6.D)(RSP)                     // e8af06e4
+	ZST1D [Z8.D], P3, (R6<<3)(RSP)                    // e84fe6e5
+	ZST1D [Z8.Q], P3, (R6<<3)(RSP)                    // e84fc6e5
+	ZST1D [Z6.D], P4, (Z21.D.UXTW<<3)(R7)             // e690b5e5
+	ZST1D [Z6.D], P4, (Z21.D.UXTW)(R7)                // e69095e5
+	ZST1D [Z8.D], P3, (Z6.D<<3)(RSP)                  // e8afa6e5
+	ZST1D [Z8.D], P3, (Z6.D)(RSP)                     // e8af86e5
+	ZST1H [Z7.D], P4, (R21<<1)(R7)                    // e750f5e4
+	ZST1H [Z6.S], P4, (Z21.S.UXTW<<1)(R7)             // e690f5e4
+	ZST1H [Z6.D], P4, (Z21.D.UXTW<<1)(R7)             // e690b5e4
+	ZST1H [Z6.D], P4, (Z21.D.UXTW)(R7)                // e69095e4
+	ZST1H [Z6.S], P4, (Z21.S.UXTW)(R7)                // e690d5e4
+	ZST1H [Z8.D], P3, (Z6.D<<1)(RSP)                  // e8afa6e4
+	ZST1H [Z8.D], P3, (Z6.D)(RSP)                     // e8af86e4
+	ZST1Q [Z8.Q], P3, (R6)(Z15.D)                     // e82d26e4
+	ZST1W [Z7.D], P4, (R21<<2)(R7)                    // e75075e5
+	ZST1W [Z8.Q], P3, (R6<<2)(RSP)                    // e84f06e5
+	ZST1W [Z6.S], P4, (Z21.S.UXTW<<2)(R7)             // e69075e5
+	ZST1W [Z6.D], P4, (Z21.D.UXTW<<2)(R7)             // e69035e5
+	ZST1W [Z6.D], P4, (Z21.D.UXTW)(R7)                // e69015e5
+	ZST1W [Z6.S], P4, (Z21.S.UXTW)(R7)                // e69055e5
+	ZST1W [Z8.D], P3, (Z6.D<<2)(RSP)                  // e8af26e5
+	ZST1W [Z8.D], P3, (Z6.D)(RSP)                     // e8af06e5
+	ZST2B [Z8.B, Z9.B], P3, (R6)(RSP)                 // e86f26e4
+	ZST2D [Z8.D, Z9.D], P3, (R6<<3)(RSP)              // e86fa6e5
+	ZST2H [Z8.H, Z9.H], P3, (R6<<1)(RSP)              // e86fa6e4
+	ZST2Q [Z8.Q, Z9.Q], P3, (R6<<4)(RSP)              // e80f66e4
+	ZST2W [Z8.S, Z9.S], P3, (R6<<2)(RSP)              // e86f26e5
+	ZST3B [Z8.B, Z9.B, Z10.B], P3, (R6)(RSP)          // e86f46e4
+	ZST3D [Z8.D, Z9.D, Z10.D], P3, (R6<<3)(RSP)       // e86fc6e5
+	ZST3H [Z8.H, Z9.H, Z10.H], P3, (R6<<1)(RSP)       // e86fc6e4
+	ZST3Q [Z8.Q, Z9.Q, Z10.Q], P3, (R6<<4)(RSP)       // e80fa6e4
+	ZST3W [Z8.S, Z9.S, Z10.S], P3, (R6<<2)(RSP)       // e86f46e5
+	ZST4B [Z8.B, Z9.B, Z10.B, Z11.B], P3, (R6)(RSP)   // e86f66e4
+	ZST4D [Z8.D, Z9.D, Z10.D, Z11.D], P3, (R6<<3)(RSP)// e86fe6e5
+	ZST4H [Z8.H, Z9.H, Z10.H, Z11.H], P3, (R6<<1)(RSP)// e86fe6e4
+	ZST4Q [Z8.Q, Z9.Q, Z10.Q, Z11.Q], P3, (R6<<4)(RSP)// e80fe6e4
+	ZST4W [Z8.S, Z9.S, Z10.S, Z11.S], P3, (R6<<2)(RSP)// e86f66e5
+	ZSTNT1B [Z8.B], P3, (R6)(RSP)                     // e86f06e4
+	ZSTNT1B [Z8.S], P3, (R6)(Z15.S)                   // e82d46e4
+	ZSTNT1B [Z8.D], P3, (R6)(Z15.D)                   // e82d06e4
+	ZSTNT1D [Z8.D], P3, (R6<<3)(RSP)                  // e86f86e5
+	ZSTNT1D [Z8.D], P3, (R6)(Z15.D)                   // e82d86e5
+	ZSTNT1H [Z8.H], P3, (R6<<1)(RSP)                  // e86f86e4
+	ZSTNT1H [Z8.S], P3, (R6)(Z15.S)                   // e82dc6e4
+	ZSTNT1H [Z8.D], P3, (R6)(Z15.D)                   // e82d86e4
+	ZSTNT1W [Z8.S], P3, (R6<<2)(RSP)                  // e86f06e5
+	ZSTNT1W [Z8.S], P3, (R6)(Z15.S)                   // e82d46e5
+	ZSTNT1W [Z8.D], P3, (R6)(Z15.D)                   // e82d06e5
 	PCNTP VLx2, PN13.D, R5                            // a583e025
 	PPRFB (R8)(RSP), P3, PSTL3KEEP                    // eccf0884
 	PPRFD (R8<<3)(RSP), P3, PSTL3KEEP                 // eccf8885
@@ -1213,19 +1213,19 @@ TEXT asmtest(SB),DUPOK|NOSPLIT,$-8
 	ZPRFH 8(Z10.D), P3, PSTL3KEEP                     // 4ced84c4
 	ZPRFW 8(Z10.S), P3, PSTL3KEEP                     // 4ced0285
 	ZPRFW 8(Z10.D), P3, PSTL3KEEP                     // 4ced02c5
-	ZST1B 6(Z7.S), P4, [Z13.S]                        // edb066e4
-	ZST1B 6(Z7.D), P4, [Z13.D]                        // edb046e4
-	ZST1D 8(Z14.D), P6, [Z6.D]                        // c6b9c1e5
-	ZST1H 6(Z7.S), P4, [Z13.S]                        // edb0e3e4
-	ZST1H 6(Z7.D), P4, [Z13.D]                        // edb0c3e4
-	ZST1W 12(Z0.S), P6, [Z25.S]                       // 19b863e5
-	ZST1W 12(Z0.D), P6, [Z25.D]                       // 19b843e5
+	ZST1B [Z8.S], P3, 6(Z15.S)                        // e8ad66e4
+	ZST1B [Z8.D], P3, 6(Z15.D)                        // e8ad46e4
+	ZST1D [Z16.D], P2, (Z5.D)                         // b0a8c0e5
+	ZST1H [Z8.S], P3, 6(Z15.S)                        // e8ade3e4
+	ZST1H [Z8.D], P3, 6(Z15.D)                        // e8adc3e4
+	ZST1W [Z16.S], P2, (Z5.S)                         // b0a860e5
+	ZST1W [Z16.D], P2, (Z5.D)                         // b0a840e5
 	PLDR (-VL*2)(RSP), P5                             // e51bbf85
 	PPRFB (VL*1)(RSP), P3, PSTL3KEEP                  // ec0fc185
 	PPRFD (VL*1)(RSP), P3, PSTL3KEEP                  // ec6fc185
 	PPRFH (VL*1)(RSP), P3, PSTL3KEEP                  // ec2fc185
 	PPRFW (VL*1)(RSP), P3, PSTL3KEEP                  // ec4fc185
-	PSTR (-VL*2)(RSP), P5                             // e51bbfe5
+	PSTR P14, (-VL*1)(R0)                             // 0e1cbfe5
 	ZLD1B (-VL*2)(R14), P4.Z, [Z13.B]                 // cdb10ea4
 	ZLD1B (-VL*2)(R14), P4.Z, [Z13.H]                 // cdb12ea4
 	ZLD1B (-VL*2)(R14), P4.Z, [Z13.S]                 // cdb14ea4
@@ -1280,32 +1280,32 @@ TEXT asmtest(SB),DUPOK|NOSPLIT,$-8
 	ZLDNT1H (-VL*2)(R14), P4.Z, [Z13.H]               // cdf18ea4
 	ZLDNT1W (-VL*2)(R14), P4.Z, [Z13.S]               // cdf10ea5
 	ZLDR (-VL*2)(RSP), Z7                             // e75bbf85
-	ZST1B (-VL*2)(R14), P4, [Z13.B]                   // cdf10ee4
-	ZST1D (-VL*2)(R14), P4, [Z13.D]                   // cdf1eee5
-	ZST1D (-VL*2)(R14), P4, [Z13.Q]                   // cdf1cee5
-	ZST1H (-VL*2)(RSP), P1, [Z12.S]                   // ece7cee4
-	ZST1W (-VL*2)(RSP), P1, [Z12.S]                   // ece74ee5
-	ZST1W (-VL*2)(R14), P4, [Z13.Q]                   // cdf10ee5
-	ZST2B (-VL*2)(R14), P4, [Z13.B, Z14.B]            // cdf13fe4
-	ZST2D (-VL*2)(R14), P4, [Z13.D, Z14.D]            // cdf1bfe5
-	ZST2H (-VL*2)(R14), P4, [Z13.H, Z14.H]            // cdf1bfe4
-	ZST2Q (-VL*2)(R14), P4, [Z13.Q, Z14.Q]            // cd114fe4
-	ZST2W (-VL*2)(R14), P4, [Z13.S, Z14.S]            // cdf13fe5
-	ZST3B (-VL*3)(R10), P4, [Z21.B, Z22.B, Z23.B]     // 55f15fe4
-	ZST3D (-VL*3)(R10), P4, [Z21.D, Z22.D, Z23.D]     // 55f1dfe5
-	ZST3H (-VL*3)(R10), P4, [Z21.H, Z22.H, Z23.H]     // 55f1dfe4
-	ZST3Q (-VL*3)(R10), P4, [Z21.Q, Z22.Q, Z23.Q]     // 55118fe4
-	ZST3W (-VL*3)(R10), P4, [Z21.S, Z22.S, Z23.S]     // 55f15fe5
-	ZST4B (VL*4)(R4), P6, [Z25.B, Z26.B, Z27.B, Z28.B]// 99f871e4
-	ZST4D (VL*4)(R4), P6, [Z25.D, Z26.D, Z27.D, Z28.D]// 99f8f1e5
-	ZST4H (VL*4)(R4), P6, [Z25.H, Z26.H, Z27.H, Z28.H]// 99f8f1e4
-	ZST4Q (VL*4)(R4), P6, [Z25.Q, Z26.Q, Z27.Q, Z28.Q]// 9918c1e4
-	ZST4W (VL*4)(R4), P6, [Z25.S, Z26.S, Z27.S, Z28.S]// 99f871e5
-	ZSTNT1B (-VL*2)(R14), P4, [Z13.B]                 // cdf11ee4
-	ZSTNT1D (-VL*2)(R14), P4, [Z13.D]                 // cdf19ee5
-	ZSTNT1H (-VL*2)(R14), P4, [Z13.H]                 // cdf19ee4
-	ZSTNT1W (-VL*2)(R14), P4, [Z13.S]                 // cdf11ee5
-	ZSTR (-VL*2)(RSP), Z7                             // e75bbfe5
+	ZST1B [Z7.D], P4, (-VL*3)(R7)                     // e7f06de4
+	ZST1D [Z8.D], P3, (-VL*2)(RSP)                    // e8efeee5
+	ZST1D [Z8.Q], P3, (-VL*2)(RSP)                    // e8efcee5
+	ZST1H [Z7.D], P4, (-VL*3)(R7)                     // e7f0ede4
+	ZST1W [Z7.D], P4, (-VL*3)(R7)                     // e7f06de5
+	ZST1W [Z8.Q], P3, (-VL*2)(RSP)                    // e8ef0ee5
+	ZST2B [Z8.B, Z9.B], P3, (-VL*2)(RSP)              // e8ef3fe4
+	ZST2D [Z8.D, Z9.D], P3, (-VL*2)(RSP)              // e8efbfe5
+	ZST2H [Z8.H, Z9.H], P3, (-VL*2)(RSP)              // e8efbfe4
+	ZST2Q [Z8.Q, Z9.Q], P3, (-VL*2)(RSP)              // e80f4fe4
+	ZST2W [Z8.S, Z9.S], P3, (-VL*2)(RSP)              // e8ef3fe5
+	ZST3B [Z2.B, Z3.B, Z4.B], P1, (-VL*3)(R12)        // 82e55fe4
+	ZST3D [Z2.D, Z3.D, Z4.D], P1, (-VL*3)(R12)        // 82e5dfe5
+	ZST3H [Z2.H, Z3.H, Z4.H], P1, (-VL*3)(R12)        // 82e5dfe4
+	ZST3Q [Z2.Q, Z3.Q, Z4.Q], P1, (-VL*3)(R12)        // 82058fe4
+	ZST3W [Z2.S, Z3.S, Z4.S], P1, (-VL*3)(R12)        // 82e55fe5
+	ZST4B [Z16.B, Z17.B, Z18.B, Z19.B], P2, (-VL*8)(R9)// 30e97ee4
+	ZST4D [Z16.D, Z17.D, Z18.D, Z19.D], P2, (-VL*8)(R9)// 30e9fee5
+	ZST4H [Z16.H, Z17.H, Z18.H, Z19.H], P2, (-VL*8)(R9)// 30e9fee4
+	ZST4Q [Z16.Q, Z17.Q, Z18.Q, Z19.Q], P2, (-VL*8)(R9)// 3009cee4
+	ZST4W [Z16.S, Z17.S, Z18.S, Z19.S], P2, (-VL*8)(R9)// 30e97ee5
+	ZSTNT1B [Z8.B], P3, (-VL*2)(RSP)                  // e8ef1ee4
+	ZSTNT1D [Z8.D], P3, (-VL*2)(RSP)                  // e8ef9ee5
+	ZSTNT1H [Z8.H], P3, (-VL*2)(RSP)                  // e8ef9ee4
+	ZSTNT1W [Z8.S], P3, (-VL*2)(RSP)                  // e8ef1ee5
+	ZSTR Z11, (-VL*1)(R0)                             // 0b5cbfe5
 	ZAESD Z21.Q[1], [Z22.B-Z23.B], [Z22.B-Z23.B]      // b6ee2a45
 	ZAESD Z10.Q[2], [Z8.B-Z11.B], [Z8.B-Z11.B]        // 48ed3645
 	ZAESDIMC Z21.Q[1], [Z22.B-Z23.B], [Z22.B-Z23.B]   // b6ee2b45
@@ -1362,38 +1362,38 @@ TEXT asmtest(SB),DUPOK|NOSPLIT,$-8
 	ZSQRSHRUN $6, [Z2.S-Z3.S], Z10.H                  // 4a08ba45
 	// TODO: SQSHRN  <Zd>.<T>, { <Zn1>.<Tb>-<Zn2>.<Tb> }, #<const>
 	// TODO: SQSHRUN  <Zd>.<T>, { <Zn1>.<Tb>-<Zn2>.<Tb> }, #<const>
-	ZST1B (-VL*6)(R3), PN10, [Z24.B-Z25.B]            // 78086da0
-	ZST1B (VL*4)(RSP), PN10, [Z16.B-Z19.B]            // f08b61a0
-	ZST1B (R5)(R27), PN12, [Z6.B-Z7.B]                // 661325a0
-	ZST1B (R2)(R3), PN10, [Z24.B-Z27.B]               // 788822a0
-	ZST1D (-VL*6)(R3), PN10, [Z24.D-Z25.D]            // 78686da0
-	ZST1D (VL*4)(RSP), PN10, [Z16.D-Z19.D]            // f0eb61a0
-	ZST1D (R5<<3)(R27), PN12, [Z6.D-Z7.D]             // 667325a0
-	ZST1D (R2<<3)(R3), PN10, [Z24.D-Z27.D]            // 78e822a0
-	ZST1H (-VL*6)(R3), PN10, [Z24.H-Z25.H]            // 78286da0
-	ZST1H (VL*4)(RSP), PN10, [Z16.H-Z19.H]            // f0ab61a0
-	ZST1H (R5<<1)(R27), PN12, [Z6.H-Z7.H]             // 663325a0
-	ZST1H (R2<<1)(R3), PN10, [Z24.H-Z27.H]            // 78a822a0
-	ZST1W (-VL*6)(R3), PN10, [Z24.S-Z25.S]            // 78486da0
-	ZST1W (VL*4)(RSP), PN10, [Z16.S-Z19.S]            // f0cb61a0
-	ZST1W (R5<<2)(R27), PN12, [Z6.S-Z7.S]             // 665325a0
-	ZST1W (R2<<2)(R3), PN10, [Z24.S-Z27.S]            // 78c822a0
-	ZSTNT1B (-VL*6)(R3), PN10, [Z24.B-Z25.B]          // 79086da0
-	ZSTNT1B (VL*4)(RSP), PN10, [Z16.B-Z19.B]          // f18b61a0
-	ZSTNT1B (R5)(R27), PN12, [Z6.B-Z7.B]              // 671325a0
-	ZSTNT1B (R2)(R3), PN10, [Z24.B-Z27.B]             // 798822a0
-	ZSTNT1D (-VL*6)(R3), PN10, [Z24.D-Z25.D]          // 79686da0
-	ZSTNT1D (VL*4)(RSP), PN10, [Z16.D-Z19.D]          // f1eb61a0
-	ZSTNT1D (R5<<3)(R27), PN12, [Z6.D-Z7.D]           // 677325a0
-	ZSTNT1D (R2<<3)(R3), PN10, [Z24.D-Z27.D]          // 79e822a0
-	ZSTNT1H (-VL*6)(R3), PN10, [Z24.H-Z25.H]          // 79286da0
-	ZSTNT1H (VL*4)(RSP), PN10, [Z16.H-Z19.H]          // f1ab61a0
-	ZSTNT1H (R5<<1)(R27), PN12, [Z6.H-Z7.H]           // 673325a0
-	ZSTNT1H (R2<<1)(R3), PN10, [Z24.H-Z27.H]          // 79a822a0
-	ZSTNT1W (-VL*6)(R3), PN10, [Z24.S-Z25.S]          // 79486da0
-	ZSTNT1W (VL*4)(RSP), PN10, [Z16.S-Z19.S]          // f1cb61a0
-	ZSTNT1W (R5<<2)(R27), PN12, [Z6.S-Z7.S]           // 675325a0
-	ZSTNT1W (R2<<2)(R3), PN10, [Z24.S-Z27.S]          // 79c822a0
+	ZST1B [Z14.B-Z15.B], PN12, (-VL*4)(R17)           // 2e126ea0
+	ZST1B [Z4.B-Z7.B], PN12, (VL*4)(RSP)              // e49361a0
+	ZST1B [Z14.B-Z15.B], PN12, (R20)(R17)             // 2e1234a0
+	ZST1B [Z4.B-Z7.B], PN12, (R12)(RSP)               // e4932ca0
+	ZST1D [Z14.D-Z15.D], PN12, (-VL*4)(R17)           // 2e726ea0
+	ZST1D [Z4.D-Z7.D], PN12, (VL*4)(RSP)              // e4f361a0
+	ZST1D [Z14.D-Z15.D], PN12, (R20<<3)(R17)          // 2e7234a0
+	ZST1D [Z4.D-Z7.D], PN12, (R12<<3)(RSP)            // e4f32ca0
+	ZST1H [Z14.H-Z15.H], PN12, (-VL*4)(R17)           // 2e326ea0
+	ZST1H [Z4.H-Z7.H], PN12, (VL*4)(RSP)              // e4b361a0
+	ZST1H [Z14.H-Z15.H], PN12, (R20<<1)(R17)          // 2e3234a0
+	ZST1H [Z4.H-Z7.H], PN12, (R12<<1)(RSP)            // e4b32ca0
+	ZST1W [Z14.S-Z15.S], PN12, (-VL*4)(R17)           // 2e526ea0
+	ZST1W [Z4.S-Z7.S], PN12, (VL*4)(RSP)              // e4d361a0
+	ZST1W [Z14.S-Z15.S], PN12, (R20<<2)(R17)          // 2e5234a0
+	ZST1W [Z4.S-Z7.S], PN12, (R12<<2)(RSP)            // e4d32ca0
+	ZSTNT1B [Z14.B-Z15.B], PN12, (-VL*4)(R17)         // 2f126ea0
+	ZSTNT1B [Z4.B-Z7.B], PN12, (VL*4)(RSP)            // e59361a0
+	ZSTNT1B [Z14.B-Z15.B], PN12, (R20)(R17)           // 2f1234a0
+	ZSTNT1B [Z4.B-Z7.B], PN12, (R12)(RSP)             // e5932ca0
+	ZSTNT1D [Z14.D-Z15.D], PN12, (-VL*4)(R17)         // 2f726ea0
+	ZSTNT1D [Z4.D-Z7.D], PN12, (VL*4)(RSP)            // e5f361a0
+	ZSTNT1D [Z14.D-Z15.D], PN12, (R20<<3)(R17)        // 2f7234a0
+	ZSTNT1D [Z4.D-Z7.D], PN12, (R12<<3)(RSP)          // e5f32ca0
+	ZSTNT1H [Z14.H-Z15.H], PN12, (-VL*4)(R17)         // 2f326ea0
+	ZSTNT1H [Z4.H-Z7.H], PN12, (VL*4)(RSP)            // e5b361a0
+	ZSTNT1H [Z14.H-Z15.H], PN12, (R20<<1)(R17)        // 2f3234a0
+	ZSTNT1H [Z4.H-Z7.H], PN12, (R12<<1)(RSP)          // e5b32ca0
+	ZSTNT1W [Z14.S-Z15.S], PN12, (-VL*4)(R17)         // 2f526ea0
+	ZSTNT1W [Z4.S-Z7.S], PN12, (VL*4)(RSP)            // e5d361a0
+	ZSTNT1W [Z14.S-Z15.S], PN12, (R20<<2)(R17)        // 2f5234a0
+	ZSTNT1W [Z4.S-Z7.S], PN12, (R12<<2)(RSP)          // e5d32ca0
 	ZUQCVTN [Z2.S-Z3.S], Z10.H                        // 4a483145
 	// TODO: UQRSHRN  <Zd>.B, { <Zn1>.H-<Zn2>.H }, #<const>
 	ZUQRSHRN $6, [Z2.S-Z3.S], Z10.H                   // 4a38ba45

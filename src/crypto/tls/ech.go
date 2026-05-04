@@ -184,6 +184,11 @@ func pickECHConfig(list []echConfig) (*echConfig, hpke.PublicKey, hpke.KDF, hpke
 			if err != nil {
 				continue
 			}
+			// 0xFFFF is an export-only AEAD that cannot seal/open, making
+			// it an invalid choice for encrypting ClientHelloInner.
+			if cs.AEADID == 0xFFFF {
+				continue
+			}
 			aead, err := hpke.NewAEAD(cs.AEADID)
 			if err != nil {
 				continue
@@ -567,7 +572,7 @@ func (c *Conn) processECHClientHello(outer *clientHelloMsg, echKeys []EncryptedC
 
 	for _, echKey := range echKeys {
 		skip, config, err := parseECHConfig(echKey.Config)
-		if err != nil || skip {
+		if err != nil {
 			c.sendAlert(alertInternalError)
 			return nil, nil, fmt.Errorf("tls: invalid EncryptedClientHelloKey Config: %s", err)
 		}

@@ -45,6 +45,10 @@
 // This definition provides the same semantics as
 // C++'s sequentially consistent atomics and Java's volatile variables.
 //
+// Only a few integer sizes are supported: on many architectures,
+// atomic operations on non-word-sized integers are inefficient or
+// infeasible. For example, a [Bool] may be larger than a built-in bool.
+//
 // [the Go memory model]: https://go.dev/ref/mem
 package atomic
 

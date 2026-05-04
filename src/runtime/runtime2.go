@@ -785,7 +785,7 @@ type p struct {
 
 	// oldm is the previous m this p ran on.
 	//
-	// We are not assosciated with this m, so we have no control over its
+	// We are not associated with this m, so we have no control over its
 	// lifecycle. This value is an m.self object which points to the m
 	// until the m exits.
 	//

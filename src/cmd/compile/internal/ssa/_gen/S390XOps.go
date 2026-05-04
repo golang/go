@@ -97,10 +97,10 @@ func init() {
 		num[name] = i
 	}
 	buildReg := func(s string) regMask {
-		m := regMask(0)
+		m := regMask{}
 		for _, r := range strings.Split(s, " ") {
 			if n, ok := num[r]; ok {
-				m |= regMask(1) << uint(n)
+				m = m.addReg(uint(n))
 				continue
 			}
 			panic("register " + r + " not found")
@@ -118,16 +118,16 @@ func init() {
 
 		// R10 is reserved by the assembler.
 		gp   = buildReg("R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R11 R12 R14")
-		gpg  = gp | buildReg("g")
-		gpsp = gp | sp
+		gpg  = gp.union(buildReg("g"))
+		gpsp = gp.union(sp)
 
 		// R0 is considered to contain the value 0 in address calculations.
-		ptr     = gp &^ r0
-		ptrsp   = ptr | sp
-		ptrspsb = ptrsp | sb
+		ptr     = gp.minus(r0)
+		ptrsp   = ptr.union(sp)
+		ptrspsb = ptrsp.union(sb)
 
 		fp         = buildReg("F0 F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15")
-		callerSave = gp | fp | buildReg("g") // runtime.setg (and anything calling it) may clobber g
+		callerSave = gp.union(fp).union(buildReg("g")) // runtime.setg (and anything calling it) may clobber g
 		r1         = buildReg("R1")
 		r2         = buildReg("R2")
 		r3         = buildReg("R3")
@@ -146,14 +146,14 @@ func init() {
 		gp11sp  = regInfo{inputs: []regMask{gpsp}, outputs: gponly}
 		gp21    = regInfo{inputs: []regMask{gp, gp}, outputs: gponly}
 		gp21sp  = regInfo{inputs: []regMask{gpsp, gp}, outputs: gponly}
-		gp21tmp = regInfo{inputs: []regMask{gp &^ tmp, gp &^ tmp}, outputs: []regMask{gp &^ tmp}, clobbers: tmp}
+		gp21tmp = regInfo{inputs: []regMask{gp.minus(tmp), gp.minus(tmp)}, outputs: []regMask{gp.minus(tmp)}, clobbers: tmp}
 
 		// R0 evaluates to 0 when used as the number of bits to shift
 		// so we need to exclude it from that operand.
 		sh21 = regInfo{inputs: []regMask{gp, ptr}, outputs: gponly}
 
-		addr    = regInfo{inputs: []regMask{sp | sb}, outputs: gponly}
-		addridx = regInfo{inputs: []regMask{sp | sb, ptrsp}, outputs: gponly}
+		addr    = regInfo{inputs: []regMask{sp.union(sb)}, outputs: gponly}
+		addridx = regInfo{inputs: []regMask{sp.union(sb), ptrsp}, outputs: gponly}
 
 		gp2flags       = regInfo{inputs: []regMask{gpsp, gpsp}}
 		gp1flags       = regInfo{inputs: []regMask{gpsp}}
@@ -162,17 +162,17 @@ func init() {
 		gp21flags      = regInfo{inputs: []regMask{gp, gp}, outputs: gponly}
 		gp2flags1flags = regInfo{inputs: []regMask{gp, gp}, outputs: gponly}
 
-		gpload       = regInfo{inputs: []regMask{ptrspsb, 0}, outputs: gponly}
-		gploadidx    = regInfo{inputs: []regMask{ptrspsb, ptrsp, 0}, outputs: gponly}
-		gpopload     = regInfo{inputs: []regMask{gp, ptrsp, 0}, outputs: gponly}
-		gpstore      = regInfo{inputs: []regMask{ptrspsb, gpsp, 0}}
-		gpstoreconst = regInfo{inputs: []regMask{ptrspsb, 0}}
-		gpstoreidx   = regInfo{inputs: []regMask{ptrsp, ptrsp, gpsp, 0}}
-		gpstorebr    = regInfo{inputs: []regMask{ptrsp, gpsp, 0}}
-		gpstorelaa   = regInfo{inputs: []regMask{ptrspsb, gpsp, 0}, outputs: gponly}
-		gpstorelab   = regInfo{inputs: []regMask{r1, gpsp, 0}, clobbers: r1}
+		gpload       = regInfo{inputs: []regMask{ptrspsb, regMask{}}, outputs: gponly}
+		gploadidx    = regInfo{inputs: []regMask{ptrspsb, ptrsp, regMask{}}, outputs: gponly}
+		gpopload     = regInfo{inputs: []regMask{gp, ptrsp, regMask{}}, outputs: gponly}
+		gpstore      = regInfo{inputs: []regMask{ptrspsb, gpsp, regMask{}}}
+		gpstoreconst = regInfo{inputs: []regMask{ptrspsb, regMask{}}}
+		gpstoreidx   = regInfo{inputs: []regMask{ptrsp, ptrsp, gpsp, regMask{}}}
+		gpstorebr    = regInfo{inputs: []regMask{ptrsp, gpsp, regMask{}}}
+		gpstorelaa   = regInfo{inputs: []regMask{ptrspsb, gpsp, regMask{}}, outputs: gponly}
+		gpstorelab   = regInfo{inputs: []regMask{r1, gpsp, regMask{}}, clobbers: r1}
 
-		gpmvc = regInfo{inputs: []regMask{ptrsp, ptrsp, 0}}
+		gpmvc = regInfo{inputs: []regMask{ptrsp, ptrsp, regMask{}}}
 
 		fp01        = regInfo{inputs: []regMask{}, outputs: fponly}
 		fp21        = regInfo{inputs: []regMask{fp, fp}, outputs: fponly}
@@ -185,22 +185,22 @@ func init() {
 		fp11clobber = regInfo{inputs: fponly, outputs: fponly}
 		fp2flags    = regInfo{inputs: []regMask{fp, fp}}
 
-		fpload    = regInfo{inputs: []regMask{ptrspsb, 0}, outputs: fponly}
-		fploadidx = regInfo{inputs: []regMask{ptrsp, ptrsp, 0}, outputs: fponly}
+		fpload    = regInfo{inputs: []regMask{ptrspsb, regMask{}}, outputs: fponly}
+		fploadidx = regInfo{inputs: []regMask{ptrsp, ptrsp, regMask{}}, outputs: fponly}
 
-		fpstore    = regInfo{inputs: []regMask{ptrspsb, fp, 0}}
-		fpstoreidx = regInfo{inputs: []regMask{ptrsp, ptrsp, fp, 0}}
+		fpstore    = regInfo{inputs: []regMask{ptrspsb, fp, regMask{}}}
+		fpstoreidx = regInfo{inputs: []regMask{ptrsp, ptrsp, fp, regMask{}}}
 
-		sync = regInfo{inputs: []regMask{0}}
+		sync = regInfo{inputs: []regMask{regMask{}}}
 
 		// LoweredAtomicCas may overwrite arg1, so force it to R0 for now.
-		cas = regInfo{inputs: []regMask{ptrsp, r0, gpsp, 0}, outputs: []regMask{gp, 0}, clobbers: r0}
+		cas = regInfo{inputs: []regMask{ptrsp, r0, gpsp, regMask{}}, outputs: []regMask{gp, regMask{}}, clobbers: r0}
 
 		// LoweredAtomicExchange overwrites the output before executing
 		// CS{,G}, so the output register must not be the same as the
 		// input register. For now we just force the output register to
 		// R0.
-		exchange = regInfo{inputs: []regMask{ptrsp, gpsp &^ r0, 0}, outputs: []regMask{r0, 0}}
+		exchange = regInfo{inputs: []regMask{ptrsp, gpsp.minus(r0), regMask{}}, outputs: []regMask{r0, regMask{}}}
 	)
 
 	var S390Xops = []opData{
@@ -277,16 +277,16 @@ func init() {
 		{name: "MULHD", argLength: 2, reg: gp21tmp, asm: "MULHD", typ: "Int64", commutative: true, resultInArg0: true, clobberFlags: true},   // (arg0 * arg1) >> width
 		{name: "MULHDU", argLength: 2, reg: gp21tmp, asm: "MULHDU", typ: "Int64", commutative: true, resultInArg0: true, clobberFlags: true}, // (arg0 * arg1) >> width
 
-		{name: "DIVD", argLength: 2, reg: gp21tmp, asm: "DIVD", resultInArg0: true, clobberFlags: true},   // arg0 / arg1
-		{name: "DIVW", argLength: 2, reg: gp21tmp, asm: "DIVW", resultInArg0: true, clobberFlags: true},   // arg0 / arg1
-		{name: "DIVDU", argLength: 2, reg: gp21tmp, asm: "DIVDU", resultInArg0: true, clobberFlags: true}, // arg0 / arg1
-		{name: "DIVWU", argLength: 2, reg: gp21tmp, asm: "DIVWU", resultInArg0: true, clobberFlags: true}, // arg0 / arg1
+		{name: "DIVD", argLength: 2, reg: gp21tmp, asm: "DIVD", resultInArg0: true, clobberFlags: true, hasSideEffects: true},   // arg0 / arg1
+		{name: "DIVW", argLength: 2, reg: gp21tmp, asm: "DIVW", resultInArg0: true, clobberFlags: true, hasSideEffects: true},   // arg0 / arg1
+		{name: "DIVDU", argLength: 2, reg: gp21tmp, asm: "DIVDU", resultInArg0: true, clobberFlags: true, hasSideEffects: true}, // arg0 / arg1
+		{name: "DIVWU", argLength: 2, reg: gp21tmp, asm: "DIVWU", resultInArg0: true, clobberFlags: true, hasSideEffects: true}, // arg0 / arg1
 
-		{name: "MODD", argLength: 2, reg: gp21tmp, asm: "MODD", resultInArg0: true, clobberFlags: true}, // arg0 % arg1
-		{name: "MODW", argLength: 2, reg: gp21tmp, asm: "MODW", resultInArg0: true, clobberFlags: true}, // arg0 % arg1
+		{name: "MODD", argLength: 2, reg: gp21tmp, asm: "MODD", resultInArg0: true, clobberFlags: true, hasSideEffects: true}, // arg0 % arg1
+		{name: "MODW", argLength: 2, reg: gp21tmp, asm: "MODW", resultInArg0: true, clobberFlags: true, hasSideEffects: true}, // arg0 % arg1
 
-		{name: "MODDU", argLength: 2, reg: gp21tmp, asm: "MODDU", resultInArg0: true, clobberFlags: true}, // arg0 % arg1
-		{name: "MODWU", argLength: 2, reg: gp21tmp, asm: "MODWU", resultInArg0: true, clobberFlags: true}, // arg0 % arg1
+		{name: "MODDU", argLength: 2, reg: gp21tmp, asm: "MODDU", resultInArg0: true, clobberFlags: true, hasSideEffects: true}, // arg0 % arg1
+		{name: "MODWU", argLength: 2, reg: gp21tmp, asm: "MODWU", resultInArg0: true, clobberFlags: true, hasSideEffects: true}, // arg0 % arg1
 
 		{name: "AND", argLength: 2, reg: gp21, asm: "AND", commutative: true, clobberFlags: true},                                                                    // arg0 & arg1
 		{name: "ANDW", argLength: 2, reg: gp21, asm: "ANDW", commutative: true, clobberFlags: true},                                                                  // arg0 & arg1
@@ -482,13 +482,13 @@ func init() {
 		{name: "MOVWstoreconst", argLength: 2, reg: gpstoreconst, asm: "MOVW", aux: "SymValAndOff", typ: "Mem", faultOnNilArg0: true, symEffect: "Write"}, // store low 4 bytes of ...
 		{name: "MOVDstoreconst", argLength: 2, reg: gpstoreconst, asm: "MOVD", aux: "SymValAndOff", typ: "Mem", faultOnNilArg0: true, symEffect: "Write"}, // store 8 bytes of ...
 
-		{name: "CLEAR", argLength: 2, reg: regInfo{inputs: []regMask{ptr, 0}}, asm: "CLEAR", aux: "SymValAndOff", typ: "Mem", clobberFlags: true, faultOnNilArg0: true, symEffect: "Write"},
+		{name: "CLEAR", argLength: 2, reg: regInfo{inputs: []regMask{ptr, regMask{}}}, asm: "CLEAR", aux: "SymValAndOff", typ: "Mem", clobberFlags: true, faultOnNilArg0: true, symEffect: "Write"},
 
-		{name: "CALLstatic", argLength: -1, reg: regInfo{clobbers: callerSave}, aux: "CallOff", clobberFlags: true, call: true},                                                // call static function aux.(*obj.LSym).  last arg=mem, auxint=argsize, returns mem
-		{name: "CALLtail", argLength: -1, reg: regInfo{clobbers: callerSave}, aux: "CallOff", clobberFlags: true, call: true, tailCall: true},                                  // tail call static function aux.(*obj.LSym).  last arg=mem, auxint=argsize, returns mem
-		{name: "CALLtailinter", argLength: -1, reg: regInfo{inputs: []regMask{ptr}, clobbers: callerSave}, aux: "CallOff", clobberFlags: true, call: true, tailCall: true},     // tail call fn by pointer. arg0=codeptr, last arg=mem, auxint=argsize, returns mem
-		{name: "CALLclosure", argLength: -1, reg: regInfo{inputs: []regMask{ptrsp, buildReg("R12"), 0}, clobbers: callerSave}, aux: "CallOff", clobberFlags: true, call: true}, // call function via closure.  arg0=codeptr, arg1=closure, last arg=mem, auxint=argsize, returns mem
-		{name: "CALLinter", argLength: -1, reg: regInfo{inputs: []regMask{ptr}, clobbers: callerSave}, aux: "CallOff", clobberFlags: true, call: true},                         // call fn by pointer.  arg0=codeptr, last arg=mem, auxint=argsize, returns mem
+		{name: "CALLstatic", argLength: -1, reg: regInfo{clobbers: callerSave}, aux: "CallOff", clobberFlags: true, call: true},                                                        // call static function aux.(*obj.LSym).  last arg=mem, auxint=argsize, returns mem
+		{name: "CALLtail", argLength: -1, reg: regInfo{clobbers: callerSave}, aux: "CallOff", clobberFlags: true, call: true, tailCall: true},                                          // tail call static function aux.(*obj.LSym).  last arg=mem, auxint=argsize, returns mem
+		{name: "CALLtailinter", argLength: -1, reg: regInfo{inputs: []regMask{ptr}, clobbers: callerSave}, aux: "CallOff", clobberFlags: true, call: true, tailCall: true},             // tail call fn by pointer. arg0=codeptr, last arg=mem, auxint=argsize, returns mem
+		{name: "CALLclosure", argLength: -1, reg: regInfo{inputs: []regMask{ptrsp, buildReg("R12"), regMask{}}, clobbers: callerSave}, aux: "CallOff", clobberFlags: true, call: true}, // call function via closure.  arg0=codeptr, arg1=closure, last arg=mem, auxint=argsize, returns mem
+		{name: "CALLinter", argLength: -1, reg: regInfo{inputs: []regMask{ptr}, clobbers: callerSave}, aux: "CallOff", clobberFlags: true, call: true},                                 // call fn by pointer.  arg0=codeptr, last arg=mem, auxint=argsize, returns mem
 
 		// (InvertFlags (CMP a b)) == (CMP b a)
 		// InvertFlags is a pseudo-op which can't appear in assembly output.
@@ -518,17 +518,17 @@ func init() {
 		// but clobbers R14 (LR) because it's a call,
 		// and also clobbers R1 as the PLT stub does.
 		// Returns a pointer to a write barrier buffer in R9.
-		{name: "LoweredWB", argLength: 1, reg: regInfo{clobbers: (callerSave &^ gpg) | buildReg("R14") | r1, outputs: []regMask{r9}}, clobberFlags: true, aux: "Int64"},
+		{name: "LoweredWB", argLength: 1, reg: regInfo{clobbers: callerSave.minus(gpg).union(buildReg("R14")).union(r1), outputs: []regMask{r9}}, clobberFlags: true, aux: "Int64"},
 
 		// LoweredPanicBoundsRR takes x and y, two values that caused a bounds check to fail.
 		// the RC and CR versions are used when one of the arguments is a constant. CC is used
 		// when both are constant (normally both 0, as prove derives the fact that a [0] bounds
 		// failure means the length must have also been 0).
 		// AuxInt contains a report code (see PanicBounds in genericOps.go).
-		{name: "LoweredPanicBoundsRR", argLength: 3, aux: "Int64", reg: regInfo{inputs: []regMask{gp &^ lr, gp &^ lr}}, typ: "Mem", call: true}, // arg0=x, arg1=y, arg2=mem, returns memory.
-		{name: "LoweredPanicBoundsRC", argLength: 2, aux: "PanicBoundsC", reg: regInfo{inputs: []regMask{gp &^ lr}}, typ: "Mem", call: true},    // arg0=x, arg1=mem, returns memory.
-		{name: "LoweredPanicBoundsCR", argLength: 2, aux: "PanicBoundsC", reg: regInfo{inputs: []regMask{gp &^ lr}}, typ: "Mem", call: true},    // arg0=y, arg1=mem, returns memory.
-		{name: "LoweredPanicBoundsCC", argLength: 1, aux: "PanicBoundsCC", reg: regInfo{}, typ: "Mem", call: true},                              // arg0=mem, returns memory.
+		{name: "LoweredPanicBoundsRR", argLength: 3, aux: "Int64", reg: regInfo{inputs: []regMask{gp.minus(lr), gp.minus(lr)}}, typ: "Mem", call: true}, // arg0=x, arg1=y, arg2=mem, returns memory.
+		{name: "LoweredPanicBoundsRC", argLength: 2, aux: "PanicBoundsC", reg: regInfo{inputs: []regMask{gp.minus(lr)}}, typ: "Mem", call: true},        // arg0=x, arg1=mem, returns memory.
+		{name: "LoweredPanicBoundsCR", argLength: 2, aux: "PanicBoundsC", reg: regInfo{inputs: []regMask{gp.minus(lr)}}, typ: "Mem", call: true},        // arg0=y, arg1=mem, returns memory.
+		{name: "LoweredPanicBoundsCC", argLength: 1, aux: "PanicBoundsCC", reg: regInfo{}, typ: "Mem", call: true},                                      // arg0=mem, returns memory.
 
 		// Constant condition code values. The condition code can be 0, 1, 2 or 3.
 		{name: "FlagEQ"}, // CC=0 (equal)
@@ -643,7 +643,7 @@ func init() {
 		{
 			name:           "STMG2",
 			argLength:      4,
-			reg:            regInfo{inputs: []regMask{ptrsp, buildReg("R1"), buildReg("R2"), 0}},
+			reg:            regInfo{inputs: []regMask{ptrsp, buildReg("R1"), buildReg("R2"), regMask{}}},
 			aux:            "SymOff",
 			typ:            "Mem",
 			asm:            "STMG",
@@ -654,7 +654,7 @@ func init() {
 		{
 			name:           "STMG3",
 			argLength:      5,
-			reg:            regInfo{inputs: []regMask{ptrsp, buildReg("R1"), buildReg("R2"), buildReg("R3"), 0}},
+			reg:            regInfo{inputs: []regMask{ptrsp, buildReg("R1"), buildReg("R2"), buildReg("R3"), regMask{}}},
 			aux:            "SymOff",
 			typ:            "Mem",
 			asm:            "STMG",
@@ -671,7 +671,7 @@ func init() {
 				buildReg("R2"),
 				buildReg("R3"),
 				buildReg("R4"),
-				0,
+				regMask{},
 			}},
 			aux:            "SymOff",
 			typ:            "Mem",
@@ -683,7 +683,7 @@ func init() {
 		{
 			name:           "STM2",
 			argLength:      4,
-			reg:            regInfo{inputs: []regMask{ptrsp, buildReg("R1"), buildReg("R2"), 0}},
+			reg:            regInfo{inputs: []regMask{ptrsp, buildReg("R1"), buildReg("R2"), regMask{}}},
 			aux:            "SymOff",
 			typ:            "Mem",
 			asm:            "STMY",
@@ -694,7 +694,7 @@ func init() {
 		{
 			name:           "STM3",
 			argLength:      5,
-			reg:            regInfo{inputs: []regMask{ptrsp, buildReg("R1"), buildReg("R2"), buildReg("R3"), 0}},
+			reg:            regInfo{inputs: []regMask{ptrsp, buildReg("R1"), buildReg("R2"), buildReg("R3"), regMask{}}},
 			aux:            "SymOff",
 			typ:            "Mem",
 			asm:            "STMY",
@@ -711,7 +711,7 @@ func init() {
 				buildReg("R2"),
 				buildReg("R3"),
 				buildReg("R4"),
-				0,
+				regMask{},
 			}},
 			aux:            "SymOff",
 			typ:            "Mem",

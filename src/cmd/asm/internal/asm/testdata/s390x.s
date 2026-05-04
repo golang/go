@@ -456,6 +456,7 @@ TEXT main·foo(SB),DUPOK|NOSPLIT,$16-0 // TEXT main.foo(SB), DUPOK|NOSPLIT, $16-
 	VST	V1, (R15)               // e710f000000e
 	VL	(R15), V31              // e7f0f0000806
 	VST	V31, (R15)              // e7f0f000080e
+	VSTRL	V4, $6, 1(R4)           // e6064001403d
 	VESLB	$5, V14                 // e7ee00050030
 	VESRAG	$0, V15, V16            // e70f0000383a
 	VLM	(R15), V8, V23          // e787f0000436

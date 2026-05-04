@@ -261,7 +261,7 @@ var insts = [][]instEncoder{
 		{
 			goOp:      APLDR,
 			fixedBits: 0x85800000,
-			args:      XnSP__cimm__MUL_VL___Pt__1,
+			args:      XnSP__cimm__MUL_VL___Pt,
 		},
 	},
 	// PNAND
@@ -554,11 +554,11 @@ var insts = [][]instEncoder{
 	},
 	// PSTR
 	{
-		// PSTR [<Xn|SP>{, #<imm>, MUL VL}], <Pt>
+		// PSTR <Pt>, [<Xn|SP>{, #<imm>, MUL VL}]
 		{
 			goOp:      APSTR,
 			fixedBits: 0xe5800000,
-			args:      XnSP__cimm__MUL_VL___Pt__2,
+			args:      Pt___XnSP__cimm__MUL_VL_,
 		},
 	},
 	// PTRN1
@@ -8315,779 +8315,779 @@ var insts = [][]instEncoder{
 	},
 	// ZST1B
 	{
-		// ZST1B [<Xn|SP>, <Xm>], <Pg>, { <Zt>.<T> }
-		{
-			goOp:      AZST1B,
-			fixedBits: 0xe4004000,
-			args:      XnSP__Xm___Pg___Zt_T_,
-		},
-		// ZST1B [<Xn|SP>, <Zm>.D], <Pg>, { <Zt>.D }
+		// ZST1B { <Zt>.D }, <Pg>, [<Xn|SP>, <Zm>.D]
 		{
 			goOp:      AZST1B,
 			fixedBits: 0xe400a000,
-			args:      XnSP__Zm_D___Pg___Zt_D_,
+			args:      Zt_D___Pg___XnSP__Zm_D_,
 		},
-		// ZST1B [<Xn|SP>, <Zm>.D, <mod>], <Pg>, { <Zt>.D }
+		// ZST1B { <Zt>.D }, <Pg>, [<Xn|SP>, <Zm>.D, <mod>]
 		{
 			goOp:      AZST1B,
 			fixedBits: 0xe4008000,
-			args:      XnSP__Zm_D__mod___Pg___Zt_D_,
+			args:      Zt_D___Pg___XnSP__Zm_D__mod_,
 		},
-		// ZST1B [<Xn|SP>, <Zm>.S, <mod>], <Pg>, { <Zt>.S }
+		// ZST1B { <Zt>.S }, <Pg>, [<Xn|SP>, <Zm>.S, <mod>]
 		{
 			goOp:      AZST1B,
 			fixedBits: 0xe4408000,
-			args:      XnSP__Zm_S__mod___Pg___Zt_S_,
+			args:      Zt_S___Pg___XnSP__Zm_S__mod_,
 		},
-		// ZST1B [<Zn>.D{, #<imm>}], <Pg>, { <Zt>.D }
+		// ZST1B { <Zt>.<T> }, <Pg>, [<Xn|SP>, <Xm>]
+		{
+			goOp:      AZST1B,
+			fixedBits: 0xe4004000,
+			args:      Zt_T___Pg___XnSP__Xm_,
+		},
+		// ZST1B { <Zt>.D }, <Pg>, [<Zn>.D{, #<imm>}]
 		{
 			goOp:      AZST1B,
 			fixedBits: 0xe440a000,
-			args:      Zn_D__cimm___Pg___Zt_D___1,
+			args:      Zt_D___Pg___Zn_D__cimm___1,
 		},
-		// ZST1B [<Zn>.S{, #<imm>}], <Pg>, { <Zt>.S }
+		// ZST1B { <Zt>.S }, <Pg>, [<Zn>.S{, #<imm>}]
 		{
 			goOp:      AZST1B,
 			fixedBits: 0xe460a000,
-			args:      Zn_S__cimm___Pg___Zt_S___1,
+			args:      Zt_S___Pg___Zn_S__cimm___1,
 		},
-		// ZST1B [<Xn|SP>{, #<imm>, MUL VL}], <Pg>, { <Zt>.<T> }
+		// ZST1B { <Zt>.<T> }, <Pg>, [<Xn|SP>{, #<imm>, MUL VL}]
 		{
 			goOp:      AZST1B,
 			fixedBits: 0xe400e000,
-			args:      XnSP__cimm__MUL_VL___Pg___Zt_T___1,
+			args:      Zt_T___Pg___XnSP__cimm__MUL_VL___1,
 		},
-		// ZST1B [<Xn|SP>, <Xm>], <PNg>, { <Zt1>.B-<Zt2>.B }
+		// ZST1B { <Zt1>.B-<Zt2>.B }, <PNg>, [<Xn|SP>, <Xm>]
 		{
 			goOp:      AZST1B,
 			fixedBits: 0xa0200000,
-			args:      XnSP__Xm___PNg___Zt1_B_Zt2_B_,
+			args:      Zt1_B_Zt2_B___PNg___XnSP__Xm_,
 		},
-		// ZST1B [<Xn|SP>, <Xm>], <PNg>, { <Zt1>.B-<Zt4>.B }
-		{
-			goOp:      AZST1B,
-			fixedBits: 0xa0208000,
-			args:      XnSP__Xm___PNg___Zt1_B_Zt4_B_,
-		},
-		// ZST1B [<Xn|SP>{, #<imm>, MUL VL}], <PNg>, { <Zt1>.B-<Zt2>.B }
+		// ZST1B { <Zt1>.B-<Zt2>.B }, <PNg>, [<Xn|SP>{, #<imm>, MUL VL}]
 		{
 			goOp:      AZST1B,
 			fixedBits: 0xa0600000,
-			args:      XnSP__cimm__MUL_VL___PNg___Zt1_B_Zt2_B_,
+			args:      Zt1_B_Zt2_B___PNg___XnSP__cimm__MUL_VL_,
 		},
-		// ZST1B [<Xn|SP>{, #<imm>, MUL VL}], <PNg>, { <Zt1>.B-<Zt4>.B }
+		// ZST1B { <Zt1>.B-<Zt4>.B }, <PNg>, [<Xn|SP>, <Xm>]
+		{
+			goOp:      AZST1B,
+			fixedBits: 0xa0208000,
+			args:      Zt1_B_Zt4_B___PNg___XnSP__Xm_,
+		},
+		// ZST1B { <Zt1>.B-<Zt4>.B }, <PNg>, [<Xn|SP>{, #<imm>, MUL VL}]
 		{
 			goOp:      AZST1B,
 			fixedBits: 0xa0608000,
-			args:      XnSP__cimm__MUL_VL___PNg___Zt1_B_Zt4_B_,
+			args:      Zt1_B_Zt4_B___PNg___XnSP__cimm__MUL_VL_,
 		},
 	},
 	// ZST1D
 	{
-		// ZST1D [<Xn|SP>, <Xm>, LSL #3], <Pg>, { <Zt>.D }
+		// ZST1D { <Zt>.D }, <Pg>, [<Xn|SP>, <Xm>, LSL #3]
 		{
 			goOp:      AZST1D,
 			fixedBits: 0xe5e04000,
-			args:      XnSP__Xm__LSL_c3___Pg___Zt_D_,
+			args:      Zt_D___Pg___XnSP__Xm__LSL_c3_,
 		},
-		// ZST1D [<Xn|SP>, <Xm>, LSL #3], <Pg>, { <Zt>.Q }
-		{
-			goOp:      AZST1D,
-			fixedBits: 0xe5c04000,
-			args:      XnSP__Xm__LSL_c3___Pg___Zt_Q_,
-		},
-		// ZST1D [<Xn|SP>, <Zm>.D, LSL #3], <Pg>, { <Zt>.D }
-		{
-			goOp:      AZST1D,
-			fixedBits: 0xe5a0a000,
-			args:      XnSP__Zm_D__LSL_c3___Pg___Zt_D_,
-		},
-		// ZST1D [<Xn|SP>, <Zm>.D], <Pg>, { <Zt>.D }
+		// ZST1D { <Zt>.D }, <Pg>, [<Xn|SP>, <Zm>.D]
 		{
 			goOp:      AZST1D,
 			fixedBits: 0xe580a000,
-			args:      XnSP__Zm_D___Pg___Zt_D_,
+			args:      Zt_D___Pg___XnSP__Zm_D_,
 		},
-		// ZST1D [<Xn|SP>, <Zm>.D, <mod>], <Pg>, { <Zt>.D }
+		// ZST1D { <Zt>.D }, <Pg>, [<Xn|SP>, <Zm>.D, LSL #3]
+		{
+			goOp:      AZST1D,
+			fixedBits: 0xe5a0a000,
+			args:      Zt_D___Pg___XnSP__Zm_D__LSL_c3_,
+		},
+		// ZST1D { <Zt>.D }, <Pg>, [<Xn|SP>, <Zm>.D, <mod>]
 		{
 			goOp:      AZST1D,
 			fixedBits: 0xe5808000,
-			args:      XnSP__Zm_D__mod___Pg___Zt_D_,
+			args:      Zt_D___Pg___XnSP__Zm_D__mod_,
 		},
-		// ZST1D [<Xn|SP>, <Zm>.D, <mod> #3], <Pg>, { <Zt>.D }
+		// ZST1D { <Zt>.D }, <Pg>, [<Xn|SP>, <Zm>.D, <mod> #3]
 		{
 			goOp:      AZST1D,
 			fixedBits: 0xe5a08000,
-			args:      XnSP__Zm_D__mod_c3___Pg___Zt_D_,
+			args:      Zt_D___Pg___XnSP__Zm_D__mod_c3_,
 		},
-		// ZST1D [<Zn>.D{, #<imm>}], <Pg>, { <Zt>.D }
+		// ZST1D { <Zt>.Q }, <Pg>, [<Xn|SP>, <Xm>, LSL #3]
+		{
+			goOp:      AZST1D,
+			fixedBits: 0xe5c04000,
+			args:      Zt_Q___Pg___XnSP__Xm__LSL_c3_,
+		},
+		// ZST1D { <Zt>.D }, <Pg>, [<Zn>.D{, #<imm>}]
 		{
 			goOp:      AZST1D,
 			fixedBits: 0xe5c0a000,
-			args:      Zn_D__cimm___Pg___Zt_D___2,
+			args:      Zt_D___Pg___Zn_D__cimm___2,
 		},
-		// ZST1D [<Xn|SP>{, #<imm>, MUL VL}], <Pg>, { <Zt>.D }
+		// ZST1D { <Zt>.D }, <Pg>, [<Xn|SP>{, #<imm>, MUL VL}]
 		{
 			goOp:      AZST1D,
 			fixedBits: 0xe5e0e000,
-			args:      XnSP__cimm__MUL_VL___Pg___Zt_D_,
+			args:      Zt_D___Pg___XnSP__cimm__MUL_VL_,
 		},
-		// ZST1D [<Xn|SP>{, #<imm>, MUL VL}], <Pg>, { <Zt>.Q }
+		// ZST1D { <Zt>.Q }, <Pg>, [<Xn|SP>{, #<imm>, MUL VL}]
 		{
 			goOp:      AZST1D,
 			fixedBits: 0xe5c0e000,
-			args:      XnSP__cimm__MUL_VL___Pg___Zt_Q_,
+			args:      Zt_Q___Pg___XnSP__cimm__MUL_VL_,
 		},
-		// ZST1D [<Xn|SP>, <Xm>, LSL #3], <PNg>, { <Zt1>.D-<Zt2>.D }
+		// ZST1D { <Zt1>.D-<Zt2>.D }, <PNg>, [<Xn|SP>, <Xm>, LSL #3]
 		{
 			goOp:      AZST1D,
 			fixedBits: 0xa0206000,
-			args:      XnSP__Xm__LSL_c3___PNg___Zt1_D_Zt2_D_,
+			args:      Zt1_D_Zt2_D___PNg___XnSP__Xm__LSL_c3_,
 		},
-		// ZST1D [<Xn|SP>, <Xm>, LSL #3], <PNg>, { <Zt1>.D-<Zt4>.D }
-		{
-			goOp:      AZST1D,
-			fixedBits: 0xa020e000,
-			args:      XnSP__Xm__LSL_c3___PNg___Zt1_D_Zt4_D_,
-		},
-		// ZST1D [<Xn|SP>{, #<imm>, MUL VL}], <PNg>, { <Zt1>.D-<Zt2>.D }
+		// ZST1D { <Zt1>.D-<Zt2>.D }, <PNg>, [<Xn|SP>{, #<imm>, MUL VL}]
 		{
 			goOp:      AZST1D,
 			fixedBits: 0xa0606000,
-			args:      XnSP__cimm__MUL_VL___PNg___Zt1_D_Zt2_D_,
+			args:      Zt1_D_Zt2_D___PNg___XnSP__cimm__MUL_VL_,
 		},
-		// ZST1D [<Xn|SP>{, #<imm>, MUL VL}], <PNg>, { <Zt1>.D-<Zt4>.D }
+		// ZST1D { <Zt1>.D-<Zt4>.D }, <PNg>, [<Xn|SP>, <Xm>, LSL #3]
+		{
+			goOp:      AZST1D,
+			fixedBits: 0xa020e000,
+			args:      Zt1_D_Zt4_D___PNg___XnSP__Xm__LSL_c3_,
+		},
+		// ZST1D { <Zt1>.D-<Zt4>.D }, <PNg>, [<Xn|SP>{, #<imm>, MUL VL}]
 		{
 			goOp:      AZST1D,
 			fixedBits: 0xa060e000,
-			args:      XnSP__cimm__MUL_VL___PNg___Zt1_D_Zt4_D_,
+			args:      Zt1_D_Zt4_D___PNg___XnSP__cimm__MUL_VL_,
 		},
 	},
 	// ZST1H
 	{
-		// ZST1H [<Xn|SP>, <Xm>, LSL #1], <Pg>, { <Zt>.<T> }
-		{
-			goOp:      AZST1H,
-			fixedBits: 0xe4804000,
-			args:      XnSP__Xm__LSL_c1___Pg___Zt_T_,
-		},
-		// ZST1H [<Xn|SP>, <Zm>.D, LSL #1], <Pg>, { <Zt>.D }
-		{
-			goOp:      AZST1H,
-			fixedBits: 0xe4a0a000,
-			args:      XnSP__Zm_D__LSL_c1___Pg___Zt_D_,
-		},
-		// ZST1H [<Xn|SP>, <Zm>.D], <Pg>, { <Zt>.D }
+		// ZST1H { <Zt>.D }, <Pg>, [<Xn|SP>, <Zm>.D]
 		{
 			goOp:      AZST1H,
 			fixedBits: 0xe480a000,
-			args:      XnSP__Zm_D___Pg___Zt_D_,
+			args:      Zt_D___Pg___XnSP__Zm_D_,
 		},
-		// ZST1H [<Xn|SP>, <Zm>.D, <mod>], <Pg>, { <Zt>.D }
+		// ZST1H { <Zt>.D }, <Pg>, [<Xn|SP>, <Zm>.D, LSL #1]
+		{
+			goOp:      AZST1H,
+			fixedBits: 0xe4a0a000,
+			args:      Zt_D___Pg___XnSP__Zm_D__LSL_c1_,
+		},
+		// ZST1H { <Zt>.D }, <Pg>, [<Xn|SP>, <Zm>.D, <mod>]
 		{
 			goOp:      AZST1H,
 			fixedBits: 0xe4808000,
-			args:      XnSP__Zm_D__mod___Pg___Zt_D_,
+			args:      Zt_D___Pg___XnSP__Zm_D__mod_,
 		},
-		// ZST1H [<Xn|SP>, <Zm>.D, <mod> #1], <Pg>, { <Zt>.D }
+		// ZST1H { <Zt>.D }, <Pg>, [<Xn|SP>, <Zm>.D, <mod> #1]
 		{
 			goOp:      AZST1H,
 			fixedBits: 0xe4a08000,
-			args:      XnSP__Zm_D__mod_c1___Pg___Zt_D_,
+			args:      Zt_D___Pg___XnSP__Zm_D__mod_c1_,
 		},
-		// ZST1H [<Xn|SP>, <Zm>.S, <mod>], <Pg>, { <Zt>.S }
+		// ZST1H { <Zt>.S }, <Pg>, [<Xn|SP>, <Zm>.S, <mod>]
 		{
 			goOp:      AZST1H,
 			fixedBits: 0xe4c08000,
-			args:      XnSP__Zm_S__mod___Pg___Zt_S_,
+			args:      Zt_S___Pg___XnSP__Zm_S__mod_,
 		},
-		// ZST1H [<Xn|SP>, <Zm>.S, <mod> #1], <Pg>, { <Zt>.S }
+		// ZST1H { <Zt>.S }, <Pg>, [<Xn|SP>, <Zm>.S, <mod> #1]
 		{
 			goOp:      AZST1H,
 			fixedBits: 0xe4e08000,
-			args:      XnSP__Zm_S__mod_c1___Pg___Zt_S_,
+			args:      Zt_S___Pg___XnSP__Zm_S__mod_c1_,
 		},
-		// ZST1H [<Zn>.D{, #<imm>}], <Pg>, { <Zt>.D }
+		// ZST1H { <Zt>.<T> }, <Pg>, [<Xn|SP>, <Xm>, LSL #1]
+		{
+			goOp:      AZST1H,
+			fixedBits: 0xe4804000,
+			args:      Zt_T___Pg___XnSP__Xm__LSL_c1_,
+		},
+		// ZST1H { <Zt>.D }, <Pg>, [<Zn>.D{, #<imm>}]
 		{
 			goOp:      AZST1H,
 			fixedBits: 0xe4c0a000,
-			args:      Zn_D__cimm___Pg___Zt_D___3,
+			args:      Zt_D___Pg___Zn_D__cimm___3,
 		},
-		// ZST1H [<Zn>.S{, #<imm>}], <Pg>, { <Zt>.S }
+		// ZST1H { <Zt>.S }, <Pg>, [<Zn>.S{, #<imm>}]
 		{
 			goOp:      AZST1H,
 			fixedBits: 0xe4e0a000,
-			args:      Zn_S__cimm___Pg___Zt_S___2,
+			args:      Zt_S___Pg___Zn_S__cimm___2,
 		},
-		// ZST1H [<Xn|SP>{, #<imm>, MUL VL}], <Pg>, { <Zt>.<T> }
+		// ZST1H { <Zt>.<T> }, <Pg>, [<Xn|SP>{, #<imm>, MUL VL}]
 		{
 			goOp:      AZST1H,
 			fixedBits: 0xe480e000,
-			args:      XnSP__cimm__MUL_VL___Pg___Zt_T___2,
+			args:      Zt_T___Pg___XnSP__cimm__MUL_VL___2,
 		},
-		// ZST1H [<Xn|SP>, <Xm>, LSL #1], <PNg>, { <Zt1>.H-<Zt2>.H }
+		// ZST1H { <Zt1>.H-<Zt2>.H }, <PNg>, [<Xn|SP>, <Xm>, LSL #1]
 		{
 			goOp:      AZST1H,
 			fixedBits: 0xa0202000,
-			args:      XnSP__Xm__LSL_c1___PNg___Zt1_H_Zt2_H_,
+			args:      Zt1_H_Zt2_H___PNg___XnSP__Xm__LSL_c1_,
 		},
-		// ZST1H [<Xn|SP>, <Xm>, LSL #1], <PNg>, { <Zt1>.H-<Zt4>.H }
-		{
-			goOp:      AZST1H,
-			fixedBits: 0xa020a000,
-			args:      XnSP__Xm__LSL_c1___PNg___Zt1_H_Zt4_H_,
-		},
-		// ZST1H [<Xn|SP>{, #<imm>, MUL VL}], <PNg>, { <Zt1>.H-<Zt2>.H }
+		// ZST1H { <Zt1>.H-<Zt2>.H }, <PNg>, [<Xn|SP>{, #<imm>, MUL VL}]
 		{
 			goOp:      AZST1H,
 			fixedBits: 0xa0602000,
-			args:      XnSP__cimm__MUL_VL___PNg___Zt1_H_Zt2_H_,
+			args:      Zt1_H_Zt2_H___PNg___XnSP__cimm__MUL_VL_,
 		},
-		// ZST1H [<Xn|SP>{, #<imm>, MUL VL}], <PNg>, { <Zt1>.H-<Zt4>.H }
+		// ZST1H { <Zt1>.H-<Zt4>.H }, <PNg>, [<Xn|SP>, <Xm>, LSL #1]
+		{
+			goOp:      AZST1H,
+			fixedBits: 0xa020a000,
+			args:      Zt1_H_Zt4_H___PNg___XnSP__Xm__LSL_c1_,
+		},
+		// ZST1H { <Zt1>.H-<Zt4>.H }, <PNg>, [<Xn|SP>{, #<imm>, MUL VL}]
 		{
 			goOp:      AZST1H,
 			fixedBits: 0xa060a000,
-			args:      XnSP__cimm__MUL_VL___PNg___Zt1_H_Zt4_H_,
+			args:      Zt1_H_Zt4_H___PNg___XnSP__cimm__MUL_VL_,
 		},
 	},
 	// ZST1Q
 	{
-		// ZST1Q [<Zn>.D{, <Xm>}], <Pg>, { <Zt>.Q }
+		// ZST1Q { <Zt>.Q }, <Pg>, [<Zn>.D{, <Xm>}]
 		{
 			goOp:      AZST1Q,
 			fixedBits: 0xe4202000,
-			args:      Zn_D__Xm___Pg___Zt_Q_,
+			args:      Zt_Q___Pg___Zn_D__Xm_,
 		},
 	},
 	// ZST1W
 	{
-		// ZST1W [<Xn|SP>, <Xm>, LSL #2], <Pg>, { <Zt>.Q }
-		{
-			goOp:      AZST1W,
-			fixedBits: 0xe5004000,
-			args:      XnSP__Xm__LSL_c2___Pg___Zt_Q_,
-		},
-		// ZST1W [<Xn|SP>, <Xm>, LSL #2], <Pg>, { <Zt>.<T> }
-		{
-			goOp:      AZST1W,
-			fixedBits: 0xe5404000,
-			args:      XnSP__Xm__LSL_c2___Pg___Zt_T_,
-		},
-		// ZST1W [<Xn|SP>, <Zm>.D, LSL #2], <Pg>, { <Zt>.D }
-		{
-			goOp:      AZST1W,
-			fixedBits: 0xe520a000,
-			args:      XnSP__Zm_D__LSL_c2___Pg___Zt_D_,
-		},
-		// ZST1W [<Xn|SP>, <Zm>.D], <Pg>, { <Zt>.D }
+		// ZST1W { <Zt>.D }, <Pg>, [<Xn|SP>, <Zm>.D]
 		{
 			goOp:      AZST1W,
 			fixedBits: 0xe500a000,
-			args:      XnSP__Zm_D___Pg___Zt_D_,
+			args:      Zt_D___Pg___XnSP__Zm_D_,
 		},
-		// ZST1W [<Xn|SP>, <Zm>.D, <mod>], <Pg>, { <Zt>.D }
+		// ZST1W { <Zt>.D }, <Pg>, [<Xn|SP>, <Zm>.D, LSL #2]
+		{
+			goOp:      AZST1W,
+			fixedBits: 0xe520a000,
+			args:      Zt_D___Pg___XnSP__Zm_D__LSL_c2_,
+		},
+		// ZST1W { <Zt>.D }, <Pg>, [<Xn|SP>, <Zm>.D, <mod>]
 		{
 			goOp:      AZST1W,
 			fixedBits: 0xe5008000,
-			args:      XnSP__Zm_D__mod___Pg___Zt_D_,
+			args:      Zt_D___Pg___XnSP__Zm_D__mod_,
 		},
-		// ZST1W [<Xn|SP>, <Zm>.D, <mod> #2], <Pg>, { <Zt>.D }
+		// ZST1W { <Zt>.D }, <Pg>, [<Xn|SP>, <Zm>.D, <mod> #2]
 		{
 			goOp:      AZST1W,
 			fixedBits: 0xe5208000,
-			args:      XnSP__Zm_D__mod_c2___Pg___Zt_D_,
+			args:      Zt_D___Pg___XnSP__Zm_D__mod_c2_,
 		},
-		// ZST1W [<Xn|SP>, <Zm>.S, <mod>], <Pg>, { <Zt>.S }
+		// ZST1W { <Zt>.Q }, <Pg>, [<Xn|SP>, <Xm>, LSL #2]
+		{
+			goOp:      AZST1W,
+			fixedBits: 0xe5004000,
+			args:      Zt_Q___Pg___XnSP__Xm__LSL_c2_,
+		},
+		// ZST1W { <Zt>.S }, <Pg>, [<Xn|SP>, <Zm>.S, <mod>]
 		{
 			goOp:      AZST1W,
 			fixedBits: 0xe5408000,
-			args:      XnSP__Zm_S__mod___Pg___Zt_S_,
+			args:      Zt_S___Pg___XnSP__Zm_S__mod_,
 		},
-		// ZST1W [<Xn|SP>, <Zm>.S, <mod> #2], <Pg>, { <Zt>.S }
+		// ZST1W { <Zt>.S }, <Pg>, [<Xn|SP>, <Zm>.S, <mod> #2]
 		{
 			goOp:      AZST1W,
 			fixedBits: 0xe5608000,
-			args:      XnSP__Zm_S__mod_c2___Pg___Zt_S_,
+			args:      Zt_S___Pg___XnSP__Zm_S__mod_c2_,
 		},
-		// ZST1W [<Zn>.D{, #<imm>}], <Pg>, { <Zt>.D }
+		// ZST1W { <Zt>.<T> }, <Pg>, [<Xn|SP>, <Xm>, LSL #2]
+		{
+			goOp:      AZST1W,
+			fixedBits: 0xe5404000,
+			args:      Zt_T___Pg___XnSP__Xm__LSL_c2_,
+		},
+		// ZST1W { <Zt>.D }, <Pg>, [<Zn>.D{, #<imm>}]
 		{
 			goOp:      AZST1W,
 			fixedBits: 0xe540a000,
-			args:      Zn_D__cimm___Pg___Zt_D___4,
+			args:      Zt_D___Pg___Zn_D__cimm___4,
 		},
-		// ZST1W [<Zn>.S{, #<imm>}], <Pg>, { <Zt>.S }
+		// ZST1W { <Zt>.S }, <Pg>, [<Zn>.S{, #<imm>}]
 		{
 			goOp:      AZST1W,
 			fixedBits: 0xe560a000,
-			args:      Zn_S__cimm___Pg___Zt_S___3,
+			args:      Zt_S___Pg___Zn_S__cimm___3,
 		},
-		// ZST1W [<Xn|SP>{, #<imm>, MUL VL}], <Pg>, { <Zt>.Q }
+		// ZST1W { <Zt>.Q }, <Pg>, [<Xn|SP>{, #<imm>, MUL VL}]
 		{
 			goOp:      AZST1W,
 			fixedBits: 0xe500e000,
-			args:      XnSP__cimm__MUL_VL___Pg___Zt_Q_,
+			args:      Zt_Q___Pg___XnSP__cimm__MUL_VL_,
 		},
-		// ZST1W [<Xn|SP>{, #<imm>, MUL VL}], <Pg>, { <Zt>.<T> }
+		// ZST1W { <Zt>.<T> }, <Pg>, [<Xn|SP>{, #<imm>, MUL VL}]
 		{
 			goOp:      AZST1W,
 			fixedBits: 0xe540e000,
-			args:      XnSP__cimm__MUL_VL___Pg___Zt_T___3,
+			args:      Zt_T___Pg___XnSP__cimm__MUL_VL___3,
 		},
-		// ZST1W [<Xn|SP>, <Xm>, LSL #2], <PNg>, { <Zt1>.S-<Zt2>.S }
+		// ZST1W { <Zt1>.S-<Zt2>.S }, <PNg>, [<Xn|SP>, <Xm>, LSL #2]
 		{
 			goOp:      AZST1W,
 			fixedBits: 0xa0204000,
-			args:      XnSP__Xm__LSL_c2___PNg___Zt1_S_Zt2_S_,
+			args:      Zt1_S_Zt2_S___PNg___XnSP__Xm__LSL_c2_,
 		},
-		// ZST1W [<Xn|SP>, <Xm>, LSL #2], <PNg>, { <Zt1>.S-<Zt4>.S }
-		{
-			goOp:      AZST1W,
-			fixedBits: 0xa020c000,
-			args:      XnSP__Xm__LSL_c2___PNg___Zt1_S_Zt4_S_,
-		},
-		// ZST1W [<Xn|SP>{, #<imm>, MUL VL}], <PNg>, { <Zt1>.S-<Zt2>.S }
+		// ZST1W { <Zt1>.S-<Zt2>.S }, <PNg>, [<Xn|SP>{, #<imm>, MUL VL}]
 		{
 			goOp:      AZST1W,
 			fixedBits: 0xa0604000,
-			args:      XnSP__cimm__MUL_VL___PNg___Zt1_S_Zt2_S_,
+			args:      Zt1_S_Zt2_S___PNg___XnSP__cimm__MUL_VL_,
 		},
-		// ZST1W [<Xn|SP>{, #<imm>, MUL VL}], <PNg>, { <Zt1>.S-<Zt4>.S }
+		// ZST1W { <Zt1>.S-<Zt4>.S }, <PNg>, [<Xn|SP>, <Xm>, LSL #2]
+		{
+			goOp:      AZST1W,
+			fixedBits: 0xa020c000,
+			args:      Zt1_S_Zt4_S___PNg___XnSP__Xm__LSL_c2_,
+		},
+		// ZST1W { <Zt1>.S-<Zt4>.S }, <PNg>, [<Xn|SP>{, #<imm>, MUL VL}]
 		{
 			goOp:      AZST1W,
 			fixedBits: 0xa060c000,
-			args:      XnSP__cimm__MUL_VL___PNg___Zt1_S_Zt4_S_,
+			args:      Zt1_S_Zt4_S___PNg___XnSP__cimm__MUL_VL_,
 		},
 	},
 	// ZST2B
 	{
-		// ZST2B [<Xn|SP>, <Xm>], <Pg>, { <Zt1>.B, <Zt2>.B }
+		// ZST2B { <Zt1>.B, <Zt2>.B }, <Pg>, [<Xn|SP>, <Xm>]
 		{
 			goOp:      AZST2B,
 			fixedBits: 0xe4206000,
-			args:      XnSP__Xm___Pg___Zt1_B__Zt2_B_,
+			args:      Zt1_B__Zt2_B___Pg___XnSP__Xm_,
 		},
-		// ZST2B [<Xn|SP>{, #<imm>, MUL VL}], <Pg>, { <Zt1>.B, <Zt2>.B }
+		// ZST2B { <Zt1>.B, <Zt2>.B }, <Pg>, [<Xn|SP>{, #<imm>, MUL VL}]
 		{
 			goOp:      AZST2B,
 			fixedBits: 0xe430e000,
-			args:      XnSP__cimm__MUL_VL___Pg___Zt1_B__Zt2_B_,
+			args:      Zt1_B__Zt2_B___Pg___XnSP__cimm__MUL_VL_,
 		},
 	},
 	// ZST2D
 	{
-		// ZST2D [<Xn|SP>, <Xm>, LSL #3], <Pg>, { <Zt1>.D, <Zt2>.D }
+		// ZST2D { <Zt1>.D, <Zt2>.D }, <Pg>, [<Xn|SP>, <Xm>, LSL #3]
 		{
 			goOp:      AZST2D,
 			fixedBits: 0xe5a06000,
-			args:      XnSP__Xm__LSL_c3___Pg___Zt1_D__Zt2_D_,
+			args:      Zt1_D__Zt2_D___Pg___XnSP__Xm__LSL_c3_,
 		},
-		// ZST2D [<Xn|SP>{, #<imm>, MUL VL}], <Pg>, { <Zt1>.D, <Zt2>.D }
+		// ZST2D { <Zt1>.D, <Zt2>.D }, <Pg>, [<Xn|SP>{, #<imm>, MUL VL}]
 		{
 			goOp:      AZST2D,
 			fixedBits: 0xe5b0e000,
-			args:      XnSP__cimm__MUL_VL___Pg___Zt1_D__Zt2_D_,
+			args:      Zt1_D__Zt2_D___Pg___XnSP__cimm__MUL_VL_,
 		},
 	},
 	// ZST2H
 	{
-		// ZST2H [<Xn|SP>, <Xm>, LSL #1], <Pg>, { <Zt1>.H, <Zt2>.H }
+		// ZST2H { <Zt1>.H, <Zt2>.H }, <Pg>, [<Xn|SP>, <Xm>, LSL #1]
 		{
 			goOp:      AZST2H,
 			fixedBits: 0xe4a06000,
-			args:      XnSP__Xm__LSL_c1___Pg___Zt1_H__Zt2_H_,
+			args:      Zt1_H__Zt2_H___Pg___XnSP__Xm__LSL_c1_,
 		},
-		// ZST2H [<Xn|SP>{, #<imm>, MUL VL}], <Pg>, { <Zt1>.H, <Zt2>.H }
+		// ZST2H { <Zt1>.H, <Zt2>.H }, <Pg>, [<Xn|SP>{, #<imm>, MUL VL}]
 		{
 			goOp:      AZST2H,
 			fixedBits: 0xe4b0e000,
-			args:      XnSP__cimm__MUL_VL___Pg___Zt1_H__Zt2_H_,
+			args:      Zt1_H__Zt2_H___Pg___XnSP__cimm__MUL_VL_,
 		},
 	},
 	// ZST2Q
 	{
-		// ZST2Q [<Xn|SP>, <Xm>, LSL #4], <Pg>, { <Zt1>.Q, <Zt2>.Q }
+		// ZST2Q { <Zt1>.Q, <Zt2>.Q }, <Pg>, [<Xn|SP>, <Xm>, LSL #4]
 		{
 			goOp:      AZST2Q,
 			fixedBits: 0xe4600000,
-			args:      XnSP__Xm__LSL_c4___Pg___Zt1_Q__Zt2_Q_,
+			args:      Zt1_Q__Zt2_Q___Pg___XnSP__Xm__LSL_c4_,
 		},
-		// ZST2Q [<Xn|SP>{, #<imm>, MUL VL}], <Pg>, { <Zt1>.Q, <Zt2>.Q }
+		// ZST2Q { <Zt1>.Q, <Zt2>.Q }, <Pg>, [<Xn|SP>{, #<imm>, MUL VL}]
 		{
 			goOp:      AZST2Q,
 			fixedBits: 0xe4400000,
-			args:      XnSP__cimm__MUL_VL___Pg___Zt1_Q__Zt2_Q_,
+			args:      Zt1_Q__Zt2_Q___Pg___XnSP__cimm__MUL_VL_,
 		},
 	},
 	// ZST2W
 	{
-		// ZST2W [<Xn|SP>, <Xm>, LSL #2], <Pg>, { <Zt1>.S, <Zt2>.S }
+		// ZST2W { <Zt1>.S, <Zt2>.S }, <Pg>, [<Xn|SP>, <Xm>, LSL #2]
 		{
 			goOp:      AZST2W,
 			fixedBits: 0xe5206000,
-			args:      XnSP__Xm__LSL_c2___Pg___Zt1_S__Zt2_S_,
+			args:      Zt1_S__Zt2_S___Pg___XnSP__Xm__LSL_c2_,
 		},
-		// ZST2W [<Xn|SP>{, #<imm>, MUL VL}], <Pg>, { <Zt1>.S, <Zt2>.S }
+		// ZST2W { <Zt1>.S, <Zt2>.S }, <Pg>, [<Xn|SP>{, #<imm>, MUL VL}]
 		{
 			goOp:      AZST2W,
 			fixedBits: 0xe530e000,
-			args:      XnSP__cimm__MUL_VL___Pg___Zt1_S__Zt2_S_,
+			args:      Zt1_S__Zt2_S___Pg___XnSP__cimm__MUL_VL_,
 		},
 	},
 	// ZST3B
 	{
-		// ZST3B [<Xn|SP>, <Xm>], <Pg>, { <Zt1>.B, <Zt2>.B, <Zt3>.B }
+		// ZST3B { <Zt1>.B, <Zt2>.B, <Zt3>.B }, <Pg>, [<Xn|SP>, <Xm>]
 		{
 			goOp:      AZST3B,
 			fixedBits: 0xe4406000,
-			args:      XnSP__Xm___Pg___Zt1_B__Zt2_B__Zt3_B_,
+			args:      Zt1_B__Zt2_B__Zt3_B___Pg___XnSP__Xm_,
 		},
-		// ZST3B [<Xn|SP>{, #<imm>, MUL VL}], <Pg>, { <Zt1>.B, <Zt2>.B, <Zt3>.B }
+		// ZST3B { <Zt1>.B, <Zt2>.B, <Zt3>.B }, <Pg>, [<Xn|SP>{, #<imm>, MUL VL}]
 		{
 			goOp:      AZST3B,
 			fixedBits: 0xe450e000,
-			args:      XnSP__cimm__MUL_VL___Pg___Zt1_B__Zt2_B__Zt3_B_,
+			args:      Zt1_B__Zt2_B__Zt3_B___Pg___XnSP__cimm__MUL_VL_,
 		},
 	},
 	// ZST3D
 	{
-		// ZST3D [<Xn|SP>, <Xm>, LSL #3], <Pg>, { <Zt1>.D, <Zt2>.D, <Zt3>.D }
+		// ZST3D { <Zt1>.D, <Zt2>.D, <Zt3>.D }, <Pg>, [<Xn|SP>, <Xm>, LSL #3]
 		{
 			goOp:      AZST3D,
 			fixedBits: 0xe5c06000,
-			args:      XnSP__Xm__LSL_c3___Pg___Zt1_D__Zt2_D__Zt3_D_,
+			args:      Zt1_D__Zt2_D__Zt3_D___Pg___XnSP__Xm__LSL_c3_,
 		},
-		// ZST3D [<Xn|SP>{, #<imm>, MUL VL}], <Pg>, { <Zt1>.D, <Zt2>.D, <Zt3>.D }
+		// ZST3D { <Zt1>.D, <Zt2>.D, <Zt3>.D }, <Pg>, [<Xn|SP>{, #<imm>, MUL VL}]
 		{
 			goOp:      AZST3D,
 			fixedBits: 0xe5d0e000,
-			args:      XnSP__cimm__MUL_VL___Pg___Zt1_D__Zt2_D__Zt3_D_,
+			args:      Zt1_D__Zt2_D__Zt3_D___Pg___XnSP__cimm__MUL_VL_,
 		},
 	},
 	// ZST3H
 	{
-		// ZST3H [<Xn|SP>, <Xm>, LSL #1], <Pg>, { <Zt1>.H, <Zt2>.H, <Zt3>.H }
+		// ZST3H { <Zt1>.H, <Zt2>.H, <Zt3>.H }, <Pg>, [<Xn|SP>, <Xm>, LSL #1]
 		{
 			goOp:      AZST3H,
 			fixedBits: 0xe4c06000,
-			args:      XnSP__Xm__LSL_c1___Pg___Zt1_H__Zt2_H__Zt3_H_,
+			args:      Zt1_H__Zt2_H__Zt3_H___Pg___XnSP__Xm__LSL_c1_,
 		},
-		// ZST3H [<Xn|SP>{, #<imm>, MUL VL}], <Pg>, { <Zt1>.H, <Zt2>.H, <Zt3>.H }
+		// ZST3H { <Zt1>.H, <Zt2>.H, <Zt3>.H }, <Pg>, [<Xn|SP>{, #<imm>, MUL VL}]
 		{
 			goOp:      AZST3H,
 			fixedBits: 0xe4d0e000,
-			args:      XnSP__cimm__MUL_VL___Pg___Zt1_H__Zt2_H__Zt3_H_,
+			args:      Zt1_H__Zt2_H__Zt3_H___Pg___XnSP__cimm__MUL_VL_,
 		},
 	},
 	// ZST3Q
 	{
-		// ZST3Q [<Xn|SP>, <Xm>, LSL #4], <Pg>, { <Zt1>.Q, <Zt2>.Q, <Zt3>.Q }
+		// ZST3Q { <Zt1>.Q, <Zt2>.Q, <Zt3>.Q }, <Pg>, [<Xn|SP>, <Xm>, LSL #4]
 		{
 			goOp:      AZST3Q,
 			fixedBits: 0xe4a00000,
-			args:      XnSP__Xm__LSL_c4___Pg___Zt1_Q__Zt2_Q__Zt3_Q_,
+			args:      Zt1_Q__Zt2_Q__Zt3_Q___Pg___XnSP__Xm__LSL_c4_,
 		},
-		// ZST3Q [<Xn|SP>{, #<imm>, MUL VL}], <Pg>, { <Zt1>.Q, <Zt2>.Q, <Zt3>.Q }
+		// ZST3Q { <Zt1>.Q, <Zt2>.Q, <Zt3>.Q }, <Pg>, [<Xn|SP>{, #<imm>, MUL VL}]
 		{
 			goOp:      AZST3Q,
 			fixedBits: 0xe4800000,
-			args:      XnSP__cimm__MUL_VL___Pg___Zt1_Q__Zt2_Q__Zt3_Q_,
+			args:      Zt1_Q__Zt2_Q__Zt3_Q___Pg___XnSP__cimm__MUL_VL_,
 		},
 	},
 	// ZST3W
 	{
-		// ZST3W [<Xn|SP>, <Xm>, LSL #2], <Pg>, { <Zt1>.S, <Zt2>.S, <Zt3>.S }
+		// ZST3W { <Zt1>.S, <Zt2>.S, <Zt3>.S }, <Pg>, [<Xn|SP>, <Xm>, LSL #2]
 		{
 			goOp:      AZST3W,
 			fixedBits: 0xe5406000,
-			args:      XnSP__Xm__LSL_c2___Pg___Zt1_S__Zt2_S__Zt3_S_,
+			args:      Zt1_S__Zt2_S__Zt3_S___Pg___XnSP__Xm__LSL_c2_,
 		},
-		// ZST3W [<Xn|SP>{, #<imm>, MUL VL}], <Pg>, { <Zt1>.S, <Zt2>.S, <Zt3>.S }
+		// ZST3W { <Zt1>.S, <Zt2>.S, <Zt3>.S }, <Pg>, [<Xn|SP>{, #<imm>, MUL VL}]
 		{
 			goOp:      AZST3W,
 			fixedBits: 0xe550e000,
-			args:      XnSP__cimm__MUL_VL___Pg___Zt1_S__Zt2_S__Zt3_S_,
+			args:      Zt1_S__Zt2_S__Zt3_S___Pg___XnSP__cimm__MUL_VL_,
 		},
 	},
 	// ZST4B
 	{
-		// ZST4B [<Xn|SP>, <Xm>], <Pg>, { <Zt1>.B, <Zt2>.B, <Zt3>.B, <Zt4>.B }
+		// ZST4B { <Zt1>.B, <Zt2>.B, <Zt3>.B, <Zt4>.B }, <Pg>, [<Xn|SP>, <Xm>]
 		{
 			goOp:      AZST4B,
 			fixedBits: 0xe4606000,
-			args:      XnSP__Xm___Pg___Zt1_B__Zt2_B__Zt3_B__Zt4_B_,
+			args:      Zt1_B__Zt2_B__Zt3_B__Zt4_B___Pg___XnSP__Xm_,
 		},
-		// ZST4B [<Xn|SP>{, #<imm>, MUL VL}], <Pg>, { <Zt1>.B, <Zt2>.B, <Zt3>.B, <Zt4>.B }
+		// ZST4B { <Zt1>.B, <Zt2>.B, <Zt3>.B, <Zt4>.B }, <Pg>, [<Xn|SP>{, #<imm>, MUL VL}]
 		{
 			goOp:      AZST4B,
 			fixedBits: 0xe470e000,
-			args:      XnSP__cimm__MUL_VL___Pg___Zt1_B__Zt2_B__Zt3_B__Zt4_B_,
+			args:      Zt1_B__Zt2_B__Zt3_B__Zt4_B___Pg___XnSP__cimm__MUL_VL_,
 		},
 	},
 	// ZST4D
 	{
-		// ZST4D [<Xn|SP>, <Xm>, LSL #3], <Pg>, { <Zt1>.D, <Zt2>.D, <Zt3>.D, <Zt4>.D }
+		// ZST4D { <Zt1>.D, <Zt2>.D, <Zt3>.D, <Zt4>.D }, <Pg>, [<Xn|SP>, <Xm>, LSL #3]
 		{
 			goOp:      AZST4D,
 			fixedBits: 0xe5e06000,
-			args:      XnSP__Xm__LSL_c3___Pg___Zt1_D__Zt2_D__Zt3_D__Zt4_D_,
+			args:      Zt1_D__Zt2_D__Zt3_D__Zt4_D___Pg___XnSP__Xm__LSL_c3_,
 		},
-		// ZST4D [<Xn|SP>{, #<imm>, MUL VL}], <Pg>, { <Zt1>.D, <Zt2>.D, <Zt3>.D, <Zt4>.D }
+		// ZST4D { <Zt1>.D, <Zt2>.D, <Zt3>.D, <Zt4>.D }, <Pg>, [<Xn|SP>{, #<imm>, MUL VL}]
 		{
 			goOp:      AZST4D,
 			fixedBits: 0xe5f0e000,
-			args:      XnSP__cimm__MUL_VL___Pg___Zt1_D__Zt2_D__Zt3_D__Zt4_D_,
+			args:      Zt1_D__Zt2_D__Zt3_D__Zt4_D___Pg___XnSP__cimm__MUL_VL_,
 		},
 	},
 	// ZST4H
 	{
-		// ZST4H [<Xn|SP>, <Xm>, LSL #1], <Pg>, { <Zt1>.H, <Zt2>.H, <Zt3>.H, <Zt4>.H }
+		// ZST4H { <Zt1>.H, <Zt2>.H, <Zt3>.H, <Zt4>.H }, <Pg>, [<Xn|SP>, <Xm>, LSL #1]
 		{
 			goOp:      AZST4H,
 			fixedBits: 0xe4e06000,
-			args:      XnSP__Xm__LSL_c1___Pg___Zt1_H__Zt2_H__Zt3_H__Zt4_H_,
+			args:      Zt1_H__Zt2_H__Zt3_H__Zt4_H___Pg___XnSP__Xm__LSL_c1_,
 		},
-		// ZST4H [<Xn|SP>{, #<imm>, MUL VL}], <Pg>, { <Zt1>.H, <Zt2>.H, <Zt3>.H, <Zt4>.H }
+		// ZST4H { <Zt1>.H, <Zt2>.H, <Zt3>.H, <Zt4>.H }, <Pg>, [<Xn|SP>{, #<imm>, MUL VL}]
 		{
 			goOp:      AZST4H,
 			fixedBits: 0xe4f0e000,
-			args:      XnSP__cimm__MUL_VL___Pg___Zt1_H__Zt2_H__Zt3_H__Zt4_H_,
+			args:      Zt1_H__Zt2_H__Zt3_H__Zt4_H___Pg___XnSP__cimm__MUL_VL_,
 		},
 	},
 	// ZST4Q
 	{
-		// ZST4Q [<Xn|SP>, <Xm>, LSL #4], <Pg>, { <Zt1>.Q, <Zt2>.Q, <Zt3>.Q, <Zt4>.Q }
+		// ZST4Q { <Zt1>.Q, <Zt2>.Q, <Zt3>.Q, <Zt4>.Q }, <Pg>, [<Xn|SP>, <Xm>, LSL #4]
 		{
 			goOp:      AZST4Q,
 			fixedBits: 0xe4e00000,
-			args:      XnSP__Xm__LSL_c4___Pg___Zt1_Q__Zt2_Q__Zt3_Q__Zt4_Q_,
+			args:      Zt1_Q__Zt2_Q__Zt3_Q__Zt4_Q___Pg___XnSP__Xm__LSL_c4_,
 		},
-		// ZST4Q [<Xn|SP>{, #<imm>, MUL VL}], <Pg>, { <Zt1>.Q, <Zt2>.Q, <Zt3>.Q, <Zt4>.Q }
+		// ZST4Q { <Zt1>.Q, <Zt2>.Q, <Zt3>.Q, <Zt4>.Q }, <Pg>, [<Xn|SP>{, #<imm>, MUL VL}]
 		{
 			goOp:      AZST4Q,
 			fixedBits: 0xe4c00000,
-			args:      XnSP__cimm__MUL_VL___Pg___Zt1_Q__Zt2_Q__Zt3_Q__Zt4_Q_,
+			args:      Zt1_Q__Zt2_Q__Zt3_Q__Zt4_Q___Pg___XnSP__cimm__MUL_VL_,
 		},
 	},
 	// ZST4W
 	{
-		// ZST4W [<Xn|SP>, <Xm>, LSL #2], <Pg>, { <Zt1>.S, <Zt2>.S, <Zt3>.S, <Zt4>.S }
+		// ZST4W { <Zt1>.S, <Zt2>.S, <Zt3>.S, <Zt4>.S }, <Pg>, [<Xn|SP>, <Xm>, LSL #2]
 		{
 			goOp:      AZST4W,
 			fixedBits: 0xe5606000,
-			args:      XnSP__Xm__LSL_c2___Pg___Zt1_S__Zt2_S__Zt3_S__Zt4_S_,
+			args:      Zt1_S__Zt2_S__Zt3_S__Zt4_S___Pg___XnSP__Xm__LSL_c2_,
 		},
-		// ZST4W [<Xn|SP>{, #<imm>, MUL VL}], <Pg>, { <Zt1>.S, <Zt2>.S, <Zt3>.S, <Zt4>.S }
+		// ZST4W { <Zt1>.S, <Zt2>.S, <Zt3>.S, <Zt4>.S }, <Pg>, [<Xn|SP>{, #<imm>, MUL VL}]
 		{
 			goOp:      AZST4W,
 			fixedBits: 0xe570e000,
-			args:      XnSP__cimm__MUL_VL___Pg___Zt1_S__Zt2_S__Zt3_S__Zt4_S_,
+			args:      Zt1_S__Zt2_S__Zt3_S__Zt4_S___Pg___XnSP__cimm__MUL_VL_,
 		},
 	},
 	// ZSTNT1B
 	{
-		// ZSTNT1B [<Xn|SP>, <Xm>], <Pg>, { <Zt>.B }
+		// ZSTNT1B { <Zt>.B }, <Pg>, [<Xn|SP>, <Xm>]
 		{
 			goOp:      AZSTNT1B,
 			fixedBits: 0xe4006000,
-			args:      XnSP__Xm___Pg___Zt_B_,
+			args:      Zt_B___Pg___XnSP__Xm_,
 		},
-		// ZSTNT1B [<Zn>.D{, <Xm>}], <Pg>, { <Zt>.D }
+		// ZSTNT1B { <Zt>.D }, <Pg>, [<Zn>.D{, <Xm>}]
 		{
 			goOp:      AZSTNT1B,
 			fixedBits: 0xe4002000,
-			args:      Zn_D__Xm___Pg___Zt_D_,
+			args:      Zt_D___Pg___Zn_D__Xm_,
 		},
-		// ZSTNT1B [<Zn>.S{, <Xm>}], <Pg>, { <Zt>.S }
+		// ZSTNT1B { <Zt>.S }, <Pg>, [<Zn>.S{, <Xm>}]
 		{
 			goOp:      AZSTNT1B,
 			fixedBits: 0xe4402000,
-			args:      Zn_S__Xm___Pg___Zt_S_,
+			args:      Zt_S___Pg___Zn_S__Xm_,
 		},
-		// ZSTNT1B [<Xn|SP>{, #<imm>, MUL VL}], <Pg>, { <Zt>.B }
+		// ZSTNT1B { <Zt>.B }, <Pg>, [<Xn|SP>{, #<imm>, MUL VL}]
 		{
 			goOp:      AZSTNT1B,
 			fixedBits: 0xe410e000,
-			args:      XnSP__cimm__MUL_VL___Pg___Zt_B_,
+			args:      Zt_B___Pg___XnSP__cimm__MUL_VL_,
 		},
-		// ZSTNT1B [<Xn|SP>, <Xm>], <PNg>, { <Zt1>.B-<Zt2>.B }
+		// ZSTNT1B { <Zt1>.B-<Zt2>.B }, <PNg>, [<Xn|SP>, <Xm>]
 		{
 			goOp:      AZSTNT1B,
 			fixedBits: 0xa0200001,
-			args:      XnSP__Xm___PNg___Zt1_B_Zt2_B_,
+			args:      Zt1_B_Zt2_B___PNg___XnSP__Xm_,
 		},
-		// ZSTNT1B [<Xn|SP>, <Xm>], <PNg>, { <Zt1>.B-<Zt4>.B }
-		{
-			goOp:      AZSTNT1B,
-			fixedBits: 0xa0208001,
-			args:      XnSP__Xm___PNg___Zt1_B_Zt4_B_,
-		},
-		// ZSTNT1B [<Xn|SP>{, #<imm>, MUL VL}], <PNg>, { <Zt1>.B-<Zt2>.B }
+		// ZSTNT1B { <Zt1>.B-<Zt2>.B }, <PNg>, [<Xn|SP>{, #<imm>, MUL VL}]
 		{
 			goOp:      AZSTNT1B,
 			fixedBits: 0xa0600001,
-			args:      XnSP__cimm__MUL_VL___PNg___Zt1_B_Zt2_B_,
+			args:      Zt1_B_Zt2_B___PNg___XnSP__cimm__MUL_VL_,
 		},
-		// ZSTNT1B [<Xn|SP>{, #<imm>, MUL VL}], <PNg>, { <Zt1>.B-<Zt4>.B }
+		// ZSTNT1B { <Zt1>.B-<Zt4>.B }, <PNg>, [<Xn|SP>, <Xm>]
+		{
+			goOp:      AZSTNT1B,
+			fixedBits: 0xa0208001,
+			args:      Zt1_B_Zt4_B___PNg___XnSP__Xm_,
+		},
+		// ZSTNT1B { <Zt1>.B-<Zt4>.B }, <PNg>, [<Xn|SP>{, #<imm>, MUL VL}]
 		{
 			goOp:      AZSTNT1B,
 			fixedBits: 0xa0608001,
-			args:      XnSP__cimm__MUL_VL___PNg___Zt1_B_Zt4_B_,
+			args:      Zt1_B_Zt4_B___PNg___XnSP__cimm__MUL_VL_,
 		},
 	},
 	// ZSTNT1D
 	{
-		// ZSTNT1D [<Xn|SP>, <Xm>, LSL #3], <Pg>, { <Zt>.D }
+		// ZSTNT1D { <Zt>.D }, <Pg>, [<Xn|SP>, <Xm>, LSL #3]
 		{
 			goOp:      AZSTNT1D,
 			fixedBits: 0xe5806000,
-			args:      XnSP__Xm__LSL_c3___Pg___Zt_D_,
+			args:      Zt_D___Pg___XnSP__Xm__LSL_c3_,
 		},
-		// ZSTNT1D [<Zn>.D{, <Xm>}], <Pg>, { <Zt>.D }
+		// ZSTNT1D { <Zt>.D }, <Pg>, [<Zn>.D{, <Xm>}]
 		{
 			goOp:      AZSTNT1D,
 			fixedBits: 0xe5802000,
-			args:      Zn_D__Xm___Pg___Zt_D_,
+			args:      Zt_D___Pg___Zn_D__Xm_,
 		},
-		// ZSTNT1D [<Xn|SP>{, #<imm>, MUL VL}], <Pg>, { <Zt>.D }
+		// ZSTNT1D { <Zt>.D }, <Pg>, [<Xn|SP>{, #<imm>, MUL VL}]
 		{
 			goOp:      AZSTNT1D,
 			fixedBits: 0xe590e000,
-			args:      XnSP__cimm__MUL_VL___Pg___Zt_D_,
+			args:      Zt_D___Pg___XnSP__cimm__MUL_VL_,
 		},
-		// ZSTNT1D [<Xn|SP>, <Xm>, LSL #3], <PNg>, { <Zt1>.D-<Zt2>.D }
+		// ZSTNT1D { <Zt1>.D-<Zt2>.D }, <PNg>, [<Xn|SP>, <Xm>, LSL #3]
 		{
 			goOp:      AZSTNT1D,
 			fixedBits: 0xa0206001,
-			args:      XnSP__Xm__LSL_c3___PNg___Zt1_D_Zt2_D_,
+			args:      Zt1_D_Zt2_D___PNg___XnSP__Xm__LSL_c3_,
 		},
-		// ZSTNT1D [<Xn|SP>, <Xm>, LSL #3], <PNg>, { <Zt1>.D-<Zt4>.D }
-		{
-			goOp:      AZSTNT1D,
-			fixedBits: 0xa020e001,
-			args:      XnSP__Xm__LSL_c3___PNg___Zt1_D_Zt4_D_,
-		},
-		// ZSTNT1D [<Xn|SP>{, #<imm>, MUL VL}], <PNg>, { <Zt1>.D-<Zt2>.D }
+		// ZSTNT1D { <Zt1>.D-<Zt2>.D }, <PNg>, [<Xn|SP>{, #<imm>, MUL VL}]
 		{
 			goOp:      AZSTNT1D,
 			fixedBits: 0xa0606001,
-			args:      XnSP__cimm__MUL_VL___PNg___Zt1_D_Zt2_D_,
+			args:      Zt1_D_Zt2_D___PNg___XnSP__cimm__MUL_VL_,
 		},
-		// ZSTNT1D [<Xn|SP>{, #<imm>, MUL VL}], <PNg>, { <Zt1>.D-<Zt4>.D }
+		// ZSTNT1D { <Zt1>.D-<Zt4>.D }, <PNg>, [<Xn|SP>, <Xm>, LSL #3]
+		{
+			goOp:      AZSTNT1D,
+			fixedBits: 0xa020e001,
+			args:      Zt1_D_Zt4_D___PNg___XnSP__Xm__LSL_c3_,
+		},
+		// ZSTNT1D { <Zt1>.D-<Zt4>.D }, <PNg>, [<Xn|SP>{, #<imm>, MUL VL}]
 		{
 			goOp:      AZSTNT1D,
 			fixedBits: 0xa060e001,
-			args:      XnSP__cimm__MUL_VL___PNg___Zt1_D_Zt4_D_,
+			args:      Zt1_D_Zt4_D___PNg___XnSP__cimm__MUL_VL_,
 		},
 	},
 	// ZSTNT1H
 	{
-		// ZSTNT1H [<Xn|SP>, <Xm>, LSL #1], <Pg>, { <Zt>.H }
-		{
-			goOp:      AZSTNT1H,
-			fixedBits: 0xe4806000,
-			args:      XnSP__Xm__LSL_c1___Pg___Zt_H_,
-		},
-		// ZSTNT1H [<Zn>.D{, <Xm>}], <Pg>, { <Zt>.D }
+		// ZSTNT1H { <Zt>.D }, <Pg>, [<Zn>.D{, <Xm>}]
 		{
 			goOp:      AZSTNT1H,
 			fixedBits: 0xe4802000,
-			args:      Zn_D__Xm___Pg___Zt_D_,
+			args:      Zt_D___Pg___Zn_D__Xm_,
 		},
-		// ZSTNT1H [<Zn>.S{, <Xm>}], <Pg>, { <Zt>.S }
+		// ZSTNT1H { <Zt>.H }, <Pg>, [<Xn|SP>, <Xm>, LSL #1]
+		{
+			goOp:      AZSTNT1H,
+			fixedBits: 0xe4806000,
+			args:      Zt_H___Pg___XnSP__Xm__LSL_c1_,
+		},
+		// ZSTNT1H { <Zt>.S }, <Pg>, [<Zn>.S{, <Xm>}]
 		{
 			goOp:      AZSTNT1H,
 			fixedBits: 0xe4c02000,
-			args:      Zn_S__Xm___Pg___Zt_S_,
+			args:      Zt_S___Pg___Zn_S__Xm_,
 		},
-		// ZSTNT1H [<Xn|SP>{, #<imm>, MUL VL}], <Pg>, { <Zt>.H }
+		// ZSTNT1H { <Zt>.H }, <Pg>, [<Xn|SP>{, #<imm>, MUL VL}]
 		{
 			goOp:      AZSTNT1H,
 			fixedBits: 0xe490e000,
-			args:      XnSP__cimm__MUL_VL___Pg___Zt_H_,
+			args:      Zt_H___Pg___XnSP__cimm__MUL_VL_,
 		},
-		// ZSTNT1H [<Xn|SP>, <Xm>, LSL #1], <PNg>, { <Zt1>.H-<Zt2>.H }
+		// ZSTNT1H { <Zt1>.H-<Zt2>.H }, <PNg>, [<Xn|SP>, <Xm>, LSL #1]
 		{
 			goOp:      AZSTNT1H,
 			fixedBits: 0xa0202001,
-			args:      XnSP__Xm__LSL_c1___PNg___Zt1_H_Zt2_H_,
+			args:      Zt1_H_Zt2_H___PNg___XnSP__Xm__LSL_c1_,
 		},
-		// ZSTNT1H [<Xn|SP>, <Xm>, LSL #1], <PNg>, { <Zt1>.H-<Zt4>.H }
-		{
-			goOp:      AZSTNT1H,
-			fixedBits: 0xa020a001,
-			args:      XnSP__Xm__LSL_c1___PNg___Zt1_H_Zt4_H_,
-		},
-		// ZSTNT1H [<Xn|SP>{, #<imm>, MUL VL}], <PNg>, { <Zt1>.H-<Zt2>.H }
+		// ZSTNT1H { <Zt1>.H-<Zt2>.H }, <PNg>, [<Xn|SP>{, #<imm>, MUL VL}]
 		{
 			goOp:      AZSTNT1H,
 			fixedBits: 0xa0602001,
-			args:      XnSP__cimm__MUL_VL___PNg___Zt1_H_Zt2_H_,
+			args:      Zt1_H_Zt2_H___PNg___XnSP__cimm__MUL_VL_,
 		},
-		// ZSTNT1H [<Xn|SP>{, #<imm>, MUL VL}], <PNg>, { <Zt1>.H-<Zt4>.H }
+		// ZSTNT1H { <Zt1>.H-<Zt4>.H }, <PNg>, [<Xn|SP>, <Xm>, LSL #1]
+		{
+			goOp:      AZSTNT1H,
+			fixedBits: 0xa020a001,
+			args:      Zt1_H_Zt4_H___PNg___XnSP__Xm__LSL_c1_,
+		},
+		// ZSTNT1H { <Zt1>.H-<Zt4>.H }, <PNg>, [<Xn|SP>{, #<imm>, MUL VL}]
 		{
 			goOp:      AZSTNT1H,
 			fixedBits: 0xa060a001,
-			args:      XnSP__cimm__MUL_VL___PNg___Zt1_H_Zt4_H_,
+			args:      Zt1_H_Zt4_H___PNg___XnSP__cimm__MUL_VL_,
 		},
 	},
 	// ZSTNT1W
 	{
-		// ZSTNT1W [<Xn|SP>, <Xm>, LSL #2], <Pg>, { <Zt>.S }
-		{
-			goOp:      AZSTNT1W,
-			fixedBits: 0xe5006000,
-			args:      XnSP__Xm__LSL_c2___Pg___Zt_S_,
-		},
-		// ZSTNT1W [<Zn>.D{, <Xm>}], <Pg>, { <Zt>.D }
+		// ZSTNT1W { <Zt>.D }, <Pg>, [<Zn>.D{, <Xm>}]
 		{
 			goOp:      AZSTNT1W,
 			fixedBits: 0xe5002000,
-			args:      Zn_D__Xm___Pg___Zt_D_,
+			args:      Zt_D___Pg___Zn_D__Xm_,
 		},
-		// ZSTNT1W [<Zn>.S{, <Xm>}], <Pg>, { <Zt>.S }
+		// ZSTNT1W { <Zt>.S }, <Pg>, [<Xn|SP>, <Xm>, LSL #2]
+		{
+			goOp:      AZSTNT1W,
+			fixedBits: 0xe5006000,
+			args:      Zt_S___Pg___XnSP__Xm__LSL_c2_,
+		},
+		// ZSTNT1W { <Zt>.S }, <Pg>, [<Zn>.S{, <Xm>}]
 		{
 			goOp:      AZSTNT1W,
 			fixedBits: 0xe5402000,
-			args:      Zn_S__Xm___Pg___Zt_S_,
+			args:      Zt_S___Pg___Zn_S__Xm_,
 		},
-		// ZSTNT1W [<Xn|SP>{, #<imm>, MUL VL}], <Pg>, { <Zt>.S }
+		// ZSTNT1W { <Zt>.S }, <Pg>, [<Xn|SP>{, #<imm>, MUL VL}]
 		{
 			goOp:      AZSTNT1W,
 			fixedBits: 0xe510e000,
-			args:      XnSP__cimm__MUL_VL___Pg___Zt_S_,
+			args:      Zt_S___Pg___XnSP__cimm__MUL_VL_,
 		},
-		// ZSTNT1W [<Xn|SP>, <Xm>, LSL #2], <PNg>, { <Zt1>.S-<Zt2>.S }
+		// ZSTNT1W { <Zt1>.S-<Zt2>.S }, <PNg>, [<Xn|SP>, <Xm>, LSL #2]
 		{
 			goOp:      AZSTNT1W,
 			fixedBits: 0xa0204001,
-			args:      XnSP__Xm__LSL_c2___PNg___Zt1_S_Zt2_S_,
+			args:      Zt1_S_Zt2_S___PNg___XnSP__Xm__LSL_c2_,
 		},
-		// ZSTNT1W [<Xn|SP>, <Xm>, LSL #2], <PNg>, { <Zt1>.S-<Zt4>.S }
-		{
-			goOp:      AZSTNT1W,
-			fixedBits: 0xa020c001,
-			args:      XnSP__Xm__LSL_c2___PNg___Zt1_S_Zt4_S_,
-		},
-		// ZSTNT1W [<Xn|SP>{, #<imm>, MUL VL}], <PNg>, { <Zt1>.S-<Zt2>.S }
+		// ZSTNT1W { <Zt1>.S-<Zt2>.S }, <PNg>, [<Xn|SP>{, #<imm>, MUL VL}]
 		{
 			goOp:      AZSTNT1W,
 			fixedBits: 0xa0604001,
-			args:      XnSP__cimm__MUL_VL___PNg___Zt1_S_Zt2_S_,
+			args:      Zt1_S_Zt2_S___PNg___XnSP__cimm__MUL_VL_,
 		},
-		// ZSTNT1W [<Xn|SP>{, #<imm>, MUL VL}], <PNg>, { <Zt1>.S-<Zt4>.S }
+		// ZSTNT1W { <Zt1>.S-<Zt4>.S }, <PNg>, [<Xn|SP>, <Xm>, LSL #2]
+		{
+			goOp:      AZSTNT1W,
+			fixedBits: 0xa020c001,
+			args:      Zt1_S_Zt4_S___PNg___XnSP__Xm__LSL_c2_,
+		},
+		// ZSTNT1W { <Zt1>.S-<Zt4>.S }, <PNg>, [<Xn|SP>{, #<imm>, MUL VL}]
 		{
 			goOp:      AZSTNT1W,
 			fixedBits: 0xa060c001,
-			args:      XnSP__cimm__MUL_VL___PNg___Zt1_S_Zt4_S_,
+			args:      Zt1_S_Zt4_S___PNg___XnSP__cimm__MUL_VL_,
 		},
 	},
 	// ZSTR
 	{
-		// ZSTR [<Xn|SP>{, #<imm>, MUL VL}], <Zt>
+		// ZSTR <Zt>, [<Xn|SP>{, #<imm>, MUL VL}]
 		{
 			goOp:      AZSTR,
 			fixedBits: 0xe5804000,
-			args:      XnSP__cimm__MUL_VL___Zt,
+			args:      Zt___XnSP__cimm__MUL_VL_,
 		},
 	},
 	// ZSUB
@@ -13438,6 +13438,11 @@ var Pn_T__Pg__Xd = []operand{
 	a_SPZGREG_Noop_Rd05,
 }
 
+var Pt___XnSP__cimm__MUL_VL_ = []operand{
+	a_PREG_Pt04V2_Noop,
+	a_MEMOFFMULVL_Rn510SPV2_Noop_Imm9h1622L1013,
+}
+
 var Rm__Rn = []operand{
 	a_SPZGREG_Noop_Rm1621ZR,
 	a_SPZGREG_Noop_Rn510ZR,
@@ -13518,18 +13523,6 @@ var XnSP__Xm__LSL_c1___PNgZ___Zt1_H_Zt4_H_ = []operand{
 	a_REGLIST_RANGE_Zt25V1_ArngHCheck_Zt25V2_ArngHCheck,
 }
 
-var XnSP__Xm__LSL_c1___PNg___Zt1_H_Zt2_H_ = []operand{
-	a_MEMEXT_Rn510SPV2_Noop_Rm1621V2_Noop_ModLSLCheck_ModAmt1Check,
-	a_PREG_PNg1013_Noop,
-	a_REGLIST_RANGE_Zt15V1_ArngHCheck_Zt15V2_ArngHCheck,
-}
-
-var XnSP__Xm__LSL_c1___PNg___Zt1_H_Zt4_H_ = []operand{
-	a_MEMEXT_Rn510SPV2_Noop_Rm1621V2_Noop_ModLSLCheck_ModAmt1Check,
-	a_PREG_PNg1013_Noop,
-	a_REGLIST_RANGE_Zt25V1_ArngHCheck_Zt25V2_ArngHCheck,
-}
-
 var XnSP__Xm__LSL_c1___PgZ___Zt1_H__Zt2_H_ = []operand{
 	a_MEMEXT_Rn510SPV2_Noop_Rm1621V2_Noop_ModLSLCheck_ModAmt1Check,
 	a_PREGZM_Pg1013_ZeroPredCheck,
@@ -13584,36 +13577,6 @@ var XnSP__Xm__LSL_c1___PgZ___Zt_S__V2 = []operand{
 	a_REGLIST1_Zt05_ArngSCheck,
 }
 
-var XnSP__Xm__LSL_c1___Pg___Zt1_H__Zt2_H_ = []operand{
-	a_MEMEXT_Rn510SPV2_Noop_Rm1621V2_Noop_ModLSLCheck_ModAmt1Check,
-	a_PREG_Pg1013_Noop,
-	a_REGLIST2_Zt051_ArngHCheck_Zt052_ArngHCheck,
-}
-
-var XnSP__Xm__LSL_c1___Pg___Zt1_H__Zt2_H__Zt3_H_ = []operand{
-	a_MEMEXT_Rn510SPV2_Noop_Rm1621V2_Noop_ModLSLCheck_ModAmt1Check,
-	a_PREG_Pg1013_Noop,
-	a_REGLIST3_Zt051_ArngHCheck_Zt052_ArngHCheck_Zt053_ArngHCheck,
-}
-
-var XnSP__Xm__LSL_c1___Pg___Zt1_H__Zt2_H__Zt3_H__Zt4_H_ = []operand{
-	a_MEMEXT_Rn510SPV2_Noop_Rm1621V2_Noop_ModLSLCheck_ModAmt1Check,
-	a_PREG_Pg1013_Noop,
-	a_REGLIST4_Zt051_ArngHCheck_Zt052_ArngHCheck_Zt053_ArngHCheck_Zt054_ArngHCheck,
-}
-
-var XnSP__Xm__LSL_c1___Pg___Zt_H_ = []operand{
-	a_MEMEXT_Rn510SPV2_Noop_Rm1621V2_Noop_ModLSLCheck_ModAmt1Check,
-	a_PREG_Pg1013_Noop,
-	a_REGLIST1_Zt05_ArngHCheck,
-}
-
-var XnSP__Xm__LSL_c1___Pg___Zt_T_ = []operand{
-	a_MEMEXT_Rn510SPV2_Noop_Rm1621V2_Noop_ModLSLCheck_ModAmt1Check,
-	a_PREG_Pg1013_Noop,
-	a_REGLIST1_Zt05_Size2123V2,
-}
-
 var XnSP__Xm__LSL_c1___Pg__prfop = []operand{
 	a_MEMEXT_Rn510SPV2_Noop_Rm1621V2_Noop_ModLSLCheck_ModAmt1Check,
 	a_PREG_Pg1013_Noop,
@@ -13629,18 +13592,6 @@ var XnSP__Xm__LSL_c2___PNgZ___Zt1_S_Zt2_S_ = []operand{
 var XnSP__Xm__LSL_c2___PNgZ___Zt1_S_Zt4_S_ = []operand{
 	a_MEMEXT_Rn510SPV2_Noop_Rm1621V2_Noop_ModLSLCheck_ModAmt2Check,
 	a_PREGZM_PNg1013_ZeroPredCheck,
-	a_REGLIST_RANGE_Zt25V1_ArngSCheck_Zt25V2_ArngSCheck,
-}
-
-var XnSP__Xm__LSL_c2___PNg___Zt1_S_Zt2_S_ = []operand{
-	a_MEMEXT_Rn510SPV2_Noop_Rm1621V2_Noop_ModLSLCheck_ModAmt2Check,
-	a_PREG_PNg1013_Noop,
-	a_REGLIST_RANGE_Zt15V1_ArngSCheck_Zt15V2_ArngSCheck,
-}
-
-var XnSP__Xm__LSL_c2___PNg___Zt1_S_Zt4_S_ = []operand{
-	a_MEMEXT_Rn510SPV2_Noop_Rm1621V2_Noop_ModLSLCheck_ModAmt2Check,
-	a_PREG_PNg1013_Noop,
 	a_REGLIST_RANGE_Zt25V1_ArngSCheck_Zt25V2_ArngSCheck,
 }
 
@@ -13692,42 +13643,6 @@ var XnSP__Xm__LSL_c2___PgZ___Zt_S__V2 = []operand{
 	a_REGLIST1_Zt05_ArngSCheck,
 }
 
-var XnSP__Xm__LSL_c2___Pg___Zt1_S__Zt2_S_ = []operand{
-	a_MEMEXT_Rn510SPV2_Noop_Rm1621V2_Noop_ModLSLCheck_ModAmt2Check,
-	a_PREG_Pg1013_Noop,
-	a_REGLIST2_Zt051_ArngSCheck_Zt052_ArngSCheck,
-}
-
-var XnSP__Xm__LSL_c2___Pg___Zt1_S__Zt2_S__Zt3_S_ = []operand{
-	a_MEMEXT_Rn510SPV2_Noop_Rm1621V2_Noop_ModLSLCheck_ModAmt2Check,
-	a_PREG_Pg1013_Noop,
-	a_REGLIST3_Zt051_ArngSCheck_Zt052_ArngSCheck_Zt053_ArngSCheck,
-}
-
-var XnSP__Xm__LSL_c2___Pg___Zt1_S__Zt2_S__Zt3_S__Zt4_S_ = []operand{
-	a_MEMEXT_Rn510SPV2_Noop_Rm1621V2_Noop_ModLSLCheck_ModAmt2Check,
-	a_PREG_Pg1013_Noop,
-	a_REGLIST4_Zt051_ArngSCheck_Zt052_ArngSCheck_Zt053_ArngSCheck_Zt054_ArngSCheck,
-}
-
-var XnSP__Xm__LSL_c2___Pg___Zt_Q_ = []operand{
-	a_MEMEXT_Rn510SPV2_Noop_Rm1621V2_Noop_ModLSLCheck_ModAmt2Check,
-	a_PREG_Pg1013_Noop,
-	a_REGLIST1_Zt05_ArngQCheck,
-}
-
-var XnSP__Xm__LSL_c2___Pg___Zt_S_ = []operand{
-	a_MEMEXT_Rn510SPV2_Noop_Rm1621V2_Noop_ModLSLCheck_ModAmt2Check,
-	a_PREG_Pg1013_Noop,
-	a_REGLIST1_Zt05_ArngSCheck,
-}
-
-var XnSP__Xm__LSL_c2___Pg___Zt_T_ = []operand{
-	a_MEMEXT_Rn510SPV2_Noop_Rm1621V2_Noop_ModLSLCheck_ModAmt2Check,
-	a_PREG_Pg1013_Noop,
-	a_REGLIST1_Zt05_Sz2122,
-}
-
 var XnSP__Xm__LSL_c2___Pg__prfop = []operand{
 	a_MEMEXT_Rn510SPV2_Noop_Rm1621V2_Noop_ModLSLCheck_ModAmt2Check,
 	a_PREG_Pg1013_Noop,
@@ -13743,18 +13658,6 @@ var XnSP__Xm__LSL_c3___PNgZ___Zt1_D_Zt2_D_ = []operand{
 var XnSP__Xm__LSL_c3___PNgZ___Zt1_D_Zt4_D_ = []operand{
 	a_MEMEXT_Rn510SPV2_Noop_Rm1621V2_Noop_ModLSLCheck_ModAmt3Check,
 	a_PREGZM_PNg1013_ZeroPredCheck,
-	a_REGLIST_RANGE_Zt25V1_ArngDCheck_Zt25V2_ArngDCheck,
-}
-
-var XnSP__Xm__LSL_c3___PNg___Zt1_D_Zt2_D_ = []operand{
-	a_MEMEXT_Rn510SPV2_Noop_Rm1621V2_Noop_ModLSLCheck_ModAmt3Check,
-	a_PREG_PNg1013_Noop,
-	a_REGLIST_RANGE_Zt15V1_ArngDCheck_Zt15V2_ArngDCheck,
-}
-
-var XnSP__Xm__LSL_c3___PNg___Zt1_D_Zt4_D_ = []operand{
-	a_MEMEXT_Rn510SPV2_Noop_Rm1621V2_Noop_ModLSLCheck_ModAmt3Check,
-	a_PREG_PNg1013_Noop,
 	a_REGLIST_RANGE_Zt25V1_ArngDCheck_Zt25V2_ArngDCheck,
 }
 
@@ -13794,36 +13697,6 @@ var XnSP__Xm__LSL_c3___PgZ___Zt_Q_ = []operand{
 	a_REGLIST1_Zt05_ArngQCheck,
 }
 
-var XnSP__Xm__LSL_c3___Pg___Zt1_D__Zt2_D_ = []operand{
-	a_MEMEXT_Rn510SPV2_Noop_Rm1621V2_Noop_ModLSLCheck_ModAmt3Check,
-	a_PREG_Pg1013_Noop,
-	a_REGLIST2_Zt051_ArngDCheck_Zt052_ArngDCheck,
-}
-
-var XnSP__Xm__LSL_c3___Pg___Zt1_D__Zt2_D__Zt3_D_ = []operand{
-	a_MEMEXT_Rn510SPV2_Noop_Rm1621V2_Noop_ModLSLCheck_ModAmt3Check,
-	a_PREG_Pg1013_Noop,
-	a_REGLIST3_Zt051_ArngDCheck_Zt052_ArngDCheck_Zt053_ArngDCheck,
-}
-
-var XnSP__Xm__LSL_c3___Pg___Zt1_D__Zt2_D__Zt3_D__Zt4_D_ = []operand{
-	a_MEMEXT_Rn510SPV2_Noop_Rm1621V2_Noop_ModLSLCheck_ModAmt3Check,
-	a_PREG_Pg1013_Noop,
-	a_REGLIST4_Zt051_ArngDCheck_Zt052_ArngDCheck_Zt053_ArngDCheck_Zt054_ArngDCheck,
-}
-
-var XnSP__Xm__LSL_c3___Pg___Zt_D_ = []operand{
-	a_MEMEXT_Rn510SPV2_Noop_Rm1621V2_Noop_ModLSLCheck_ModAmt3Check,
-	a_PREG_Pg1013_Noop,
-	a_REGLIST1_Zt05_ArngDCheck,
-}
-
-var XnSP__Xm__LSL_c3___Pg___Zt_Q_ = []operand{
-	a_MEMEXT_Rn510SPV2_Noop_Rm1621V2_Noop_ModLSLCheck_ModAmt3Check,
-	a_PREG_Pg1013_Noop,
-	a_REGLIST1_Zt05_ArngQCheck,
-}
-
 var XnSP__Xm__LSL_c3___Pg__prfop = []operand{
 	a_MEMEXT_Rn510SPV2_Noop_Rm1621V2_Noop_ModLSLCheck_ModAmt3Check,
 	a_PREG_Pg1013_Noop,
@@ -13848,24 +13721,6 @@ var XnSP__Xm__LSL_c4___PgZ___Zt1_Q__Zt2_Q__Zt3_Q__Zt4_Q_ = []operand{
 	a_REGLIST4_Zt051_ArngQCheck_Zt052_ArngQCheck_Zt053_ArngQCheck_Zt054_ArngQCheck,
 }
 
-var XnSP__Xm__LSL_c4___Pg___Zt1_Q__Zt2_Q_ = []operand{
-	a_MEMEXT_Rn510SPV2_Noop_Rm1621V2_Noop_ModLSLCheck_ModAmt4Check,
-	a_PREG_Pg1013_Noop,
-	a_REGLIST2_Zt051_ArngQCheck_Zt052_ArngQCheck,
-}
-
-var XnSP__Xm__LSL_c4___Pg___Zt1_Q__Zt2_Q__Zt3_Q_ = []operand{
-	a_MEMEXT_Rn510SPV2_Noop_Rm1621V2_Noop_ModLSLCheck_ModAmt4Check,
-	a_PREG_Pg1013_Noop,
-	a_REGLIST3_Zt051_ArngQCheck_Zt052_ArngQCheck_Zt053_ArngQCheck,
-}
-
-var XnSP__Xm__LSL_c4___Pg___Zt1_Q__Zt2_Q__Zt3_Q__Zt4_Q_ = []operand{
-	a_MEMEXT_Rn510SPV2_Noop_Rm1621V2_Noop_ModLSLCheck_ModAmt4Check,
-	a_PREG_Pg1013_Noop,
-	a_REGLIST4_Zt051_ArngQCheck_Zt052_ArngQCheck_Zt053_ArngQCheck_Zt054_ArngQCheck,
-}
-
 var XnSP__Xm___PNgZ___Zt1_B_Zt2_B_ = []operand{
 	a_MEMEXT_Rn510SPV2_Noop_Rm1621V2_Noop_NoModCheck_NoAmtCheck,
 	a_PREGZM_PNg1013_ZeroPredCheck,
@@ -13875,18 +13730,6 @@ var XnSP__Xm___PNgZ___Zt1_B_Zt2_B_ = []operand{
 var XnSP__Xm___PNgZ___Zt1_B_Zt4_B_ = []operand{
 	a_MEMEXT_Rn510SPV2_Noop_Rm1621V2_Noop_NoModCheck_NoAmtCheck,
 	a_PREGZM_PNg1013_ZeroPredCheck,
-	a_REGLIST_RANGE_Zt25V1_ArngBCheck_Zt25V2_ArngBCheck,
-}
-
-var XnSP__Xm___PNg___Zt1_B_Zt2_B_ = []operand{
-	a_MEMEXT_Rn510SPV2_Noop_Rm1621V2_Noop_NoModCheck_NoAmtCheck,
-	a_PREG_PNg1013_Noop,
-	a_REGLIST_RANGE_Zt15V1_ArngBCheck_Zt15V2_ArngBCheck,
-}
-
-var XnSP__Xm___PNg___Zt1_B_Zt4_B_ = []operand{
-	a_MEMEXT_Rn510SPV2_Noop_Rm1621V2_Noop_NoModCheck_NoAmtCheck,
-	a_PREG_PNg1013_Noop,
 	a_REGLIST_RANGE_Zt25V1_ArngBCheck_Zt25V2_ArngBCheck,
 }
 
@@ -13956,36 +13799,6 @@ var XnSP__Xm___PgZ___Zt_S__V2 = []operand{
 	a_REGLIST1_Zt05_ArngSCheck,
 }
 
-var XnSP__Xm___Pg___Zt1_B__Zt2_B_ = []operand{
-	a_MEMEXT_Rn510SPV2_Noop_Rm1621V2_Noop_NoModCheck_NoAmtCheck,
-	a_PREG_Pg1013_Noop,
-	a_REGLIST2_Zt051_ArngBCheck_Zt052_ArngBCheck,
-}
-
-var XnSP__Xm___Pg___Zt1_B__Zt2_B__Zt3_B_ = []operand{
-	a_MEMEXT_Rn510SPV2_Noop_Rm1621V2_Noop_NoModCheck_NoAmtCheck,
-	a_PREG_Pg1013_Noop,
-	a_REGLIST3_Zt051_ArngBCheck_Zt052_ArngBCheck_Zt053_ArngBCheck,
-}
-
-var XnSP__Xm___Pg___Zt1_B__Zt2_B__Zt3_B__Zt4_B_ = []operand{
-	a_MEMEXT_Rn510SPV2_Noop_Rm1621V2_Noop_NoModCheck_NoAmtCheck,
-	a_PREG_Pg1013_Noop,
-	a_REGLIST4_Zt051_ArngBCheck_Zt052_ArngBCheck_Zt053_ArngBCheck_Zt054_ArngBCheck,
-}
-
-var XnSP__Xm___Pg___Zt_B_ = []operand{
-	a_MEMEXT_Rn510SPV2_Noop_Rm1621V2_Noop_NoModCheck_NoAmtCheck,
-	a_PREG_Pg1013_Noop,
-	a_REGLIST1_Zt05_ArngBCheck,
-}
-
-var XnSP__Xm___Pg___Zt_T_ = []operand{
-	a_MEMEXT_Rn510SPV2_Noop_Rm1621V2_Noop_NoModCheck_NoAmtCheck,
-	a_PREG_Pg1013_Noop,
-	a_REGLIST1_Zt05_Size2123V1,
-}
-
 var XnSP__Xm___Pg__prfop = []operand{
 	a_MEMEXT_Rn510SPV2_Noop_Rm1621V2_Noop_NoModCheck_NoAmtCheck,
 	a_PREG_Pg1013_Noop,
@@ -13995,12 +13808,6 @@ var XnSP__Xm___Pg__prfop = []operand{
 var XnSP__Zm_D__LSL_c1___PgZ___Zt_D_ = []operand{
 	a_MEMEXT_Rn510SPV2_Noop_Zm1621V3_ArngDCheck_ModLSLCheck_ModAmt1Check,
 	a_PREGZM_Pg1013_ZeroPredCheck,
-	a_REGLIST1_Zt05_ArngDCheck,
-}
-
-var XnSP__Zm_D__LSL_c1___Pg___Zt_D_ = []operand{
-	a_MEMEXT_Rn510SPV2_Noop_Zm1621V3_ArngDCheck_ModLSLCheck_ModAmt1Check,
-	a_PREG_Pg1013_Noop,
 	a_REGLIST1_Zt05_ArngDCheck,
 }
 
@@ -14016,12 +13823,6 @@ var XnSP__Zm_D__LSL_c2___PgZ___Zt_D_ = []operand{
 	a_REGLIST1_Zt05_ArngDCheck,
 }
 
-var XnSP__Zm_D__LSL_c2___Pg___Zt_D_ = []operand{
-	a_MEMEXT_Rn510SPV2_Noop_Zm1621V3_ArngDCheck_ModLSLCheck_ModAmt2Check,
-	a_PREG_Pg1013_Noop,
-	a_REGLIST1_Zt05_ArngDCheck,
-}
-
 var XnSP__Zm_D__LSL_c2___Pg__prfop = []operand{
 	a_MEMEXT_Rn510SPV2_Noop_Zm1621V3_ArngDCheck_ModLSLCheck_ModAmt2Check,
 	a_PREG_Pg1013_Noop,
@@ -14031,12 +13832,6 @@ var XnSP__Zm_D__LSL_c2___Pg__prfop = []operand{
 var XnSP__Zm_D__LSL_c3___PgZ___Zt_D_ = []operand{
 	a_MEMEXT_Rn510SPV2_Noop_Zm1621V3_ArngDCheck_ModLSLCheck_ModAmt3Check,
 	a_PREGZM_Pg1013_ZeroPredCheck,
-	a_REGLIST1_Zt05_ArngDCheck,
-}
-
-var XnSP__Zm_D__LSL_c3___Pg___Zt_D_ = []operand{
-	a_MEMEXT_Rn510SPV2_Noop_Zm1621V3_ArngDCheck_ModLSLCheck_ModAmt3Check,
-	a_PREG_Pg1013_Noop,
 	a_REGLIST1_Zt05_ArngDCheck,
 }
 
@@ -14052,12 +13847,6 @@ var XnSP__Zm_D___PgZ___Zt_D_ = []operand{
 	a_REGLIST1_Zt05_ArngDCheck,
 }
 
-var XnSP__Zm_D___Pg___Zt_D_ = []operand{
-	a_MEMEXT_Rn510SPV2_Noop_Zm1621V3_ArngDCheck_NoModCheck_NoAmtCheck,
-	a_PREG_Pg1013_Noop,
-	a_REGLIST1_Zt05_ArngDCheck,
-}
-
 var XnSP__Zm_D___Pg__prfop = []operand{
 	a_MEMEXT_Rn510SPV2_Noop_Zm1621V3_ArngDCheck_NoModCheck_NoAmtCheck,
 	a_PREG_Pg1013_Noop,
@@ -14067,12 +13856,6 @@ var XnSP__Zm_D___Pg__prfop = []operand{
 var XnSP__Zm_D__mod___PgZ___Zt_D_ = []operand{
 	a_MEMEXT_Rn510SPV2_Noop_Zm1621V3_ArngDCheck_Xs2223_NoAmtCheck,
 	a_PREGZM_Pg1013_ZeroPredCheck,
-	a_REGLIST1_Zt05_ArngDCheck,
-}
-
-var XnSP__Zm_D__mod___Pg___Zt_D_ = []operand{
-	a_MEMEXT_Rn510SPV2_Noop_Zm1621V3_ArngDCheck_Xs1415_NoAmtCheck,
-	a_PREG_Pg1013_Noop,
 	a_REGLIST1_Zt05_ArngDCheck,
 }
 
@@ -14088,12 +13871,6 @@ var XnSP__Zm_D__mod_c1___PgZ___Zt_D_ = []operand{
 	a_REGLIST1_Zt05_ArngDCheck,
 }
 
-var XnSP__Zm_D__mod_c1___Pg___Zt_D_ = []operand{
-	a_MEMEXT_Rn510SPV2_Noop_Zm1621V3_ArngDCheck_Xs1415_ModAmt1Check,
-	a_PREG_Pg1013_Noop,
-	a_REGLIST1_Zt05_ArngDCheck,
-}
-
 var XnSP__Zm_D__mod_c1___Pg__prfop = []operand{
 	a_MEMEXT_Rn510SPV2_Noop_Zm1621V3_ArngDCheck_Xs2223_ModAmt1Check,
 	a_PREG_Pg1013_Noop,
@@ -14103,12 +13880,6 @@ var XnSP__Zm_D__mod_c1___Pg__prfop = []operand{
 var XnSP__Zm_D__mod_c2___PgZ___Zt_D_ = []operand{
 	a_MEMEXT_Rn510SPV2_Noop_Zm1621V3_ArngDCheck_Xs2223_ModAmt2Check,
 	a_PREGZM_Pg1013_ZeroPredCheck,
-	a_REGLIST1_Zt05_ArngDCheck,
-}
-
-var XnSP__Zm_D__mod_c2___Pg___Zt_D_ = []operand{
-	a_MEMEXT_Rn510SPV2_Noop_Zm1621V3_ArngDCheck_Xs1415_ModAmt2Check,
-	a_PREG_Pg1013_Noop,
 	a_REGLIST1_Zt05_ArngDCheck,
 }
 
@@ -14124,12 +13895,6 @@ var XnSP__Zm_D__mod_c3___PgZ___Zt_D_ = []operand{
 	a_REGLIST1_Zt05_ArngDCheck,
 }
 
-var XnSP__Zm_D__mod_c3___Pg___Zt_D_ = []operand{
-	a_MEMEXT_Rn510SPV2_Noop_Zm1621V3_ArngDCheck_Xs1415_ModAmt3Check,
-	a_PREG_Pg1013_Noop,
-	a_REGLIST1_Zt05_ArngDCheck,
-}
-
 var XnSP__Zm_D__mod_c3___Pg__prfop = []operand{
 	a_MEMEXT_Rn510SPV2_Noop_Zm1621V3_ArngDCheck_Xs2223_ModAmt3Check,
 	a_PREG_Pg1013_Noop,
@@ -14139,12 +13904,6 @@ var XnSP__Zm_D__mod_c3___Pg__prfop = []operand{
 var XnSP__Zm_S__mod___PgZ___Zt_S_ = []operand{
 	a_MEMEXT_Rn510SPV2_Noop_Zm1621V3_ArngSCheck_Xs2223_NoAmtCheck,
 	a_PREGZM_Pg1013_ZeroPredCheck,
-	a_REGLIST1_Zt05_ArngSCheck,
-}
-
-var XnSP__Zm_S__mod___Pg___Zt_S_ = []operand{
-	a_MEMEXT_Rn510SPV2_Noop_Zm1621V3_ArngSCheck_Xs1415_NoAmtCheck,
-	a_PREG_Pg1013_Noop,
 	a_REGLIST1_Zt05_ArngSCheck,
 }
 
@@ -14160,12 +13919,6 @@ var XnSP__Zm_S__mod_c1___PgZ___Zt_S_ = []operand{
 	a_REGLIST1_Zt05_ArngSCheck,
 }
 
-var XnSP__Zm_S__mod_c1___Pg___Zt_S_ = []operand{
-	a_MEMEXT_Rn510SPV2_Noop_Zm1621V3_ArngSCheck_Xs1415_ModAmt1Check,
-	a_PREG_Pg1013_Noop,
-	a_REGLIST1_Zt05_ArngSCheck,
-}
-
 var XnSP__Zm_S__mod_c1___Pg__prfop = []operand{
 	a_MEMEXT_Rn510SPV2_Noop_Zm1621V3_ArngSCheck_Xs2223_ModAmt1Check,
 	a_PREG_Pg1013_Noop,
@@ -14175,12 +13928,6 @@ var XnSP__Zm_S__mod_c1___Pg__prfop = []operand{
 var XnSP__Zm_S__mod_c2___PgZ___Zt_S_ = []operand{
 	a_MEMEXT_Rn510SPV2_Noop_Zm1621V3_ArngSCheck_Xs2223_ModAmt2Check,
 	a_PREGZM_Pg1013_ZeroPredCheck,
-	a_REGLIST1_Zt05_ArngSCheck,
-}
-
-var XnSP__Zm_S__mod_c2___Pg___Zt_S_ = []operand{
-	a_MEMEXT_Rn510SPV2_Noop_Zm1621V3_ArngSCheck_Xs1415_ModAmt2Check,
-	a_PREG_Pg1013_Noop,
 	a_REGLIST1_Zt05_ArngSCheck,
 }
 
@@ -14241,54 +13988,6 @@ var XnSP__cimm__MUL_VL___PNgZ___Zt1_S_Zt2_S_ = []operand{
 var XnSP__cimm__MUL_VL___PNgZ___Zt1_S_Zt4_S_ = []operand{
 	a_MEMOFFMULVL_Rn510SPV2_Noop_Imm41620V8,
 	a_PREGZM_PNg1013_ZeroPredCheck,
-	a_REGLIST_RANGE_Zt25V1_ArngSCheck_Zt25V2_ArngSCheck,
-}
-
-var XnSP__cimm__MUL_VL___PNg___Zt1_B_Zt2_B_ = []operand{
-	a_MEMOFFMULVL_Rn510SPV2_Noop_Imm41620V9,
-	a_PREG_PNg1013_Noop,
-	a_REGLIST_RANGE_Zt15V1_ArngBCheck_Zt15V2_ArngBCheck,
-}
-
-var XnSP__cimm__MUL_VL___PNg___Zt1_B_Zt4_B_ = []operand{
-	a_MEMOFFMULVL_Rn510SPV2_Noop_Imm41620V8,
-	a_PREG_PNg1013_Noop,
-	a_REGLIST_RANGE_Zt25V1_ArngBCheck_Zt25V2_ArngBCheck,
-}
-
-var XnSP__cimm__MUL_VL___PNg___Zt1_D_Zt2_D_ = []operand{
-	a_MEMOFFMULVL_Rn510SPV2_Noop_Imm41620V9,
-	a_PREG_PNg1013_Noop,
-	a_REGLIST_RANGE_Zt15V1_ArngDCheck_Zt15V2_ArngDCheck,
-}
-
-var XnSP__cimm__MUL_VL___PNg___Zt1_D_Zt4_D_ = []operand{
-	a_MEMOFFMULVL_Rn510SPV2_Noop_Imm41620V8,
-	a_PREG_PNg1013_Noop,
-	a_REGLIST_RANGE_Zt25V1_ArngDCheck_Zt25V2_ArngDCheck,
-}
-
-var XnSP__cimm__MUL_VL___PNg___Zt1_H_Zt2_H_ = []operand{
-	a_MEMOFFMULVL_Rn510SPV2_Noop_Imm41620V9,
-	a_PREG_PNg1013_Noop,
-	a_REGLIST_RANGE_Zt15V1_ArngHCheck_Zt15V2_ArngHCheck,
-}
-
-var XnSP__cimm__MUL_VL___PNg___Zt1_H_Zt4_H_ = []operand{
-	a_MEMOFFMULVL_Rn510SPV2_Noop_Imm41620V8,
-	a_PREG_PNg1013_Noop,
-	a_REGLIST_RANGE_Zt25V1_ArngHCheck_Zt25V2_ArngHCheck,
-}
-
-var XnSP__cimm__MUL_VL___PNg___Zt1_S_Zt2_S_ = []operand{
-	a_MEMOFFMULVL_Rn510SPV2_Noop_Imm41620V9,
-	a_PREG_PNg1013_Noop,
-	a_REGLIST_RANGE_Zt15V1_ArngSCheck_Zt15V2_ArngSCheck,
-}
-
-var XnSP__cimm__MUL_VL___PNg___Zt1_S_Zt4_S_ = []operand{
-	a_MEMOFFMULVL_Rn510SPV2_Noop_Imm41620V8,
-	a_PREG_PNg1013_Noop,
 	a_REGLIST_RANGE_Zt25V1_ArngSCheck_Zt25V2_ArngSCheck,
 }
 
@@ -14412,158 +14111,15 @@ var XnSP__cimm__MUL_VL___PgZ___Zt_S_ = []operand{
 	a_REGLIST1_Zt05_ArngSCheck,
 }
 
-var XnSP__cimm__MUL_VL___Pg___Zt1_B__Zt2_B_ = []operand{
-	a_MEMOFFMULVL_Rn510SPV2_Noop_Imm41620V6,
-	a_PREG_Pg1013_Noop,
-	a_REGLIST2_Zt051_ArngBCheck_Zt052_ArngBCheck,
-}
-
-var XnSP__cimm__MUL_VL___Pg___Zt1_B__Zt2_B__Zt3_B_ = []operand{
-	a_MEMOFFMULVL_Rn510SPV2_Noop_Imm41620V3,
-	a_PREG_Pg1013_Noop,
-	a_REGLIST3_Zt051_ArngBCheck_Zt052_ArngBCheck_Zt053_ArngBCheck,
-}
-
-var XnSP__cimm__MUL_VL___Pg___Zt1_B__Zt2_B__Zt3_B__Zt4_B_ = []operand{
-	a_MEMOFFMULVL_Rn510SPV2_Noop_Imm41620V4,
-	a_PREG_Pg1013_Noop,
-	a_REGLIST4_Zt051_ArngBCheck_Zt052_ArngBCheck_Zt053_ArngBCheck_Zt054_ArngBCheck,
-}
-
-var XnSP__cimm__MUL_VL___Pg___Zt1_D__Zt2_D_ = []operand{
-	a_MEMOFFMULVL_Rn510SPV2_Noop_Imm41620V6,
-	a_PREG_Pg1013_Noop,
-	a_REGLIST2_Zt051_ArngDCheck_Zt052_ArngDCheck,
-}
-
-var XnSP__cimm__MUL_VL___Pg___Zt1_D__Zt2_D__Zt3_D_ = []operand{
-	a_MEMOFFMULVL_Rn510SPV2_Noop_Imm41620V3,
-	a_PREG_Pg1013_Noop,
-	a_REGLIST3_Zt051_ArngDCheck_Zt052_ArngDCheck_Zt053_ArngDCheck,
-}
-
-var XnSP__cimm__MUL_VL___Pg___Zt1_D__Zt2_D__Zt3_D__Zt4_D_ = []operand{
-	a_MEMOFFMULVL_Rn510SPV2_Noop_Imm41620V4,
-	a_PREG_Pg1013_Noop,
-	a_REGLIST4_Zt051_ArngDCheck_Zt052_ArngDCheck_Zt053_ArngDCheck_Zt054_ArngDCheck,
-}
-
-var XnSP__cimm__MUL_VL___Pg___Zt1_H__Zt2_H_ = []operand{
-	a_MEMOFFMULVL_Rn510SPV2_Noop_Imm41620V6,
-	a_PREG_Pg1013_Noop,
-	a_REGLIST2_Zt051_ArngHCheck_Zt052_ArngHCheck,
-}
-
-var XnSP__cimm__MUL_VL___Pg___Zt1_H__Zt2_H__Zt3_H_ = []operand{
-	a_MEMOFFMULVL_Rn510SPV2_Noop_Imm41620V3,
-	a_PREG_Pg1013_Noop,
-	a_REGLIST3_Zt051_ArngHCheck_Zt052_ArngHCheck_Zt053_ArngHCheck,
-}
-
-var XnSP__cimm__MUL_VL___Pg___Zt1_H__Zt2_H__Zt3_H__Zt4_H_ = []operand{
-	a_MEMOFFMULVL_Rn510SPV2_Noop_Imm41620V4,
-	a_PREG_Pg1013_Noop,
-	a_REGLIST4_Zt051_ArngHCheck_Zt052_ArngHCheck_Zt053_ArngHCheck_Zt054_ArngHCheck,
-}
-
-var XnSP__cimm__MUL_VL___Pg___Zt1_Q__Zt2_Q_ = []operand{
-	a_MEMOFFMULVL_Rn510SPV2_Noop_Imm41620V6,
-	a_PREG_Pg1013_Noop,
-	a_REGLIST2_Zt051_ArngQCheck_Zt052_ArngQCheck,
-}
-
-var XnSP__cimm__MUL_VL___Pg___Zt1_Q__Zt2_Q__Zt3_Q_ = []operand{
-	a_MEMOFFMULVL_Rn510SPV2_Noop_Imm41620V3,
-	a_PREG_Pg1013_Noop,
-	a_REGLIST3_Zt051_ArngQCheck_Zt052_ArngQCheck_Zt053_ArngQCheck,
-}
-
-var XnSP__cimm__MUL_VL___Pg___Zt1_Q__Zt2_Q__Zt3_Q__Zt4_Q_ = []operand{
-	a_MEMOFFMULVL_Rn510SPV2_Noop_Imm41620V4,
-	a_PREG_Pg1013_Noop,
-	a_REGLIST4_Zt051_ArngQCheck_Zt052_ArngQCheck_Zt053_ArngQCheck_Zt054_ArngQCheck,
-}
-
-var XnSP__cimm__MUL_VL___Pg___Zt1_S__Zt2_S_ = []operand{
-	a_MEMOFFMULVL_Rn510SPV2_Noop_Imm41620V6,
-	a_PREG_Pg1013_Noop,
-	a_REGLIST2_Zt051_ArngSCheck_Zt052_ArngSCheck,
-}
-
-var XnSP__cimm__MUL_VL___Pg___Zt1_S__Zt2_S__Zt3_S_ = []operand{
-	a_MEMOFFMULVL_Rn510SPV2_Noop_Imm41620V3,
-	a_PREG_Pg1013_Noop,
-	a_REGLIST3_Zt051_ArngSCheck_Zt052_ArngSCheck_Zt053_ArngSCheck,
-}
-
-var XnSP__cimm__MUL_VL___Pg___Zt1_S__Zt2_S__Zt3_S__Zt4_S_ = []operand{
-	a_MEMOFFMULVL_Rn510SPV2_Noop_Imm41620V4,
-	a_PREG_Pg1013_Noop,
-	a_REGLIST4_Zt051_ArngSCheck_Zt052_ArngSCheck_Zt053_ArngSCheck_Zt054_ArngSCheck,
-}
-
-var XnSP__cimm__MUL_VL___Pg___Zt_B_ = []operand{
-	a_MEMOFFMULVL_Rn510SPV2_Noop_Imm41620V5,
-	a_PREG_Pg1013_Noop,
-	a_REGLIST1_Zt05_ArngBCheck,
-}
-
-var XnSP__cimm__MUL_VL___Pg___Zt_D_ = []operand{
-	a_MEMOFFMULVL_Rn510SPV2_Noop_Imm41620V5,
-	a_PREG_Pg1013_Noop,
-	a_REGLIST1_Zt05_ArngDCheck,
-}
-
-var XnSP__cimm__MUL_VL___Pg___Zt_H_ = []operand{
-	a_MEMOFFMULVL_Rn510SPV2_Noop_Imm41620V5,
-	a_PREG_Pg1013_Noop,
-	a_REGLIST1_Zt05_ArngHCheck,
-}
-
-var XnSP__cimm__MUL_VL___Pg___Zt_Q_ = []operand{
-	a_MEMOFFMULVL_Rn510SPV2_Noop_Imm41620V5,
-	a_PREG_Pg1013_Noop,
-	a_REGLIST1_Zt05_ArngQCheck,
-}
-
-var XnSP__cimm__MUL_VL___Pg___Zt_S_ = []operand{
-	a_MEMOFFMULVL_Rn510SPV2_Noop_Imm41620V5,
-	a_PREG_Pg1013_Noop,
-	a_REGLIST1_Zt05_ArngSCheck,
-}
-
-var XnSP__cimm__MUL_VL___Pg___Zt_T___1 = []operand{
-	a_MEMOFFMULVL_Rn510SPV2_Noop_Imm41620V5,
-	a_PREG_Pg1013_Noop,
-	a_REGLIST1_Zt05_Size2123V1,
-}
-
-var XnSP__cimm__MUL_VL___Pg___Zt_T___2 = []operand{
-	a_MEMOFFMULVL_Rn510SPV2_Noop_Imm41620V5,
-	a_PREG_Pg1013_Noop,
-	a_REGLIST1_Zt05_Size2123V2,
-}
-
-var XnSP__cimm__MUL_VL___Pg___Zt_T___3 = []operand{
-	a_MEMOFFMULVL_Rn510SPV2_Noop_Imm41620V5,
-	a_PREG_Pg1013_Noop,
-	a_REGLIST1_Zt05_Sz2122,
-}
-
 var XnSP__cimm__MUL_VL___Pg__prfop = []operand{
 	a_MEMOFFMULVL_Rn510SPV2_Noop_Imm61622V5,
 	a_PREG_Pg1013_Noop,
 	a_SPECIAL_Prfop04,
 }
 
-var XnSP__cimm__MUL_VL___Pt__1 = []operand{
+var XnSP__cimm__MUL_VL___Pt = []operand{
 	a_MEMOFFMULVL_Rn510SPV2_Noop_Imm9h1622L1013,
 	a_PREG_Pt04V1_Noop,
-}
-
-var XnSP__cimm__MUL_VL___Pt__2 = []operand{
-	a_MEMOFFMULVL_Rn510SPV2_Noop_Imm9h1622L1013,
-	a_PREG_Pt04V2_Noop,
 }
 
 var XnSP__cimm__MUL_VL___Zt = []operand{
@@ -15339,18 +14895,6 @@ var Zn_D__Xm___PgZ___Zt_Q_ = []operand{
 	a_REGLIST1_Zt05_ArngQCheck,
 }
 
-var Zn_D__Xm___Pg___Zt_D_ = []operand{
-	a_MEMEXT_Zn510V2_ArngDCheck_Rm1621XZR_Noop_NoModCheck_NoAmtCheck,
-	a_PREG_Pg1013_Noop,
-	a_REGLIST1_Zt05_ArngDCheck,
-}
-
-var Zn_D__Xm___Pg___Zt_Q_ = []operand{
-	a_MEMEXT_Zn510V2_ArngDCheck_Rm1621XZR_Noop_NoModCheck_NoAmtCheck,
-	a_PREG_Pg1013_Noop,
-	a_REGLIST1_Zt05_ArngQCheck,
-}
-
 var Zn_D__Zm_D__SXTWamount___Zd_D = []operand{
 	a_MEMEXT_Zn510V2_ArngDCheck_Zm1621V3_ArngDCheck_ModSXTWCheck_Msz1012Amount,
 	a_ARNG_Zd_ArngDCheck,
@@ -15382,30 +14926,6 @@ var Zn_D__cimm___PgZ___Zt_D___3 = []operand{
 var Zn_D__cimm___PgZ___Zt_D___4 = []operand{
 	a_MEMOFF_Zn510V2_ArngDCheck_Imm51621V3,
 	a_PREGZM_Pg1013_ZeroPredCheck,
-	a_REGLIST1_Zt05_ArngDCheck,
-}
-
-var Zn_D__cimm___Pg___Zt_D___1 = []operand{
-	a_MEMOFF_Zn510V2_ArngDCheck_Imm51621V4,
-	a_PREG_Pg1013_Noop,
-	a_REGLIST1_Zt05_ArngDCheck,
-}
-
-var Zn_D__cimm___Pg___Zt_D___2 = []operand{
-	a_MEMOFF_Zn510V2_ArngDCheck_Imm51621V3,
-	a_PREG_Pg1013_Noop,
-	a_REGLIST1_Zt05_ArngDCheck,
-}
-
-var Zn_D__cimm___Pg___Zt_D___3 = []operand{
-	a_MEMOFF_Zn510V2_ArngDCheck_Imm51621V1,
-	a_PREG_Pg1013_Noop,
-	a_REGLIST1_Zt05_ArngDCheck,
-}
-
-var Zn_D__cimm___Pg___Zt_D___4 = []operand{
-	a_MEMOFF_Zn510V2_ArngDCheck_Imm51621V2,
-	a_PREG_Pg1013_Noop,
 	a_REGLIST1_Zt05_ArngDCheck,
 }
 
@@ -15523,12 +15043,6 @@ var Zn_S__Xm___PgZ___Zt_S_ = []operand{
 	a_REGLIST1_Zt05_ArngSCheck,
 }
 
-var Zn_S__Xm___Pg___Zt_S_ = []operand{
-	a_MEMEXT_Zn510V2_ArngSCheck_Rm1621XZR_Noop_NoModCheck_NoAmtCheck,
-	a_PREG_Pg1013_Noop,
-	a_REGLIST1_Zt05_ArngSCheck,
-}
-
 var Zn_S__cimm___PgZ___Zt_S___1 = []operand{
 	a_MEMOFF_Zn510V2_ArngSCheck_Imm51621V4,
 	a_PREGZM_Pg1013_ZeroPredCheck,
@@ -15544,24 +15058,6 @@ var Zn_S__cimm___PgZ___Zt_S___2 = []operand{
 var Zn_S__cimm___PgZ___Zt_S___3 = []operand{
 	a_MEMOFF_Zn510V2_ArngSCheck_Imm51621V2,
 	a_PREGZM_Pg1013_ZeroPredCheck,
-	a_REGLIST1_Zt05_ArngSCheck,
-}
-
-var Zn_S__cimm___Pg___Zt_S___1 = []operand{
-	a_MEMOFF_Zn510V2_ArngSCheck_Imm51621V4,
-	a_PREG_Pg1013_Noop,
-	a_REGLIST1_Zt05_ArngSCheck,
-}
-
-var Zn_S__cimm___Pg___Zt_S___2 = []operand{
-	a_MEMOFF_Zn510V2_ArngSCheck_Imm51621V1,
-	a_PREG_Pg1013_Noop,
-	a_REGLIST1_Zt05_ArngSCheck,
-}
-
-var Zn_S__cimm___Pg___Zt_S___3 = []operand{
-	a_MEMOFF_Zn510V2_ArngSCheck_Imm51621V2,
-	a_PREG_Pg1013_Noop,
 	a_REGLIST1_Zt05_ArngSCheck,
 }
 
@@ -15791,6 +15287,515 @@ var Zn_imm___Pd_H = []operand{
 var Zn_imm___Pd_S = []operand{
 	a_ZREGIDX_Zn510Src_Noop_I2_1719_Word,
 	a_ARNG_Pd_ArngSCheck,
+}
+
+var Zt1_B_Zt2_B___PNg___XnSP__Xm_ = []operand{
+	a_REGLIST_RANGE_Zt15V1_ArngBCheck_Zt15V2_ArngBCheck,
+	a_PREG_PNg1013_Noop,
+	a_MEMEXT_Rn510SPV2_Noop_Rm1621V2_Noop_NoModCheck_NoAmtCheck,
+}
+
+var Zt1_B_Zt2_B___PNg___XnSP__cimm__MUL_VL_ = []operand{
+	a_REGLIST_RANGE_Zt15V1_ArngBCheck_Zt15V2_ArngBCheck,
+	a_PREG_PNg1013_Noop,
+	a_MEMOFFMULVL_Rn510SPV2_Noop_Imm41620V9,
+}
+
+var Zt1_B_Zt4_B___PNg___XnSP__Xm_ = []operand{
+	a_REGLIST_RANGE_Zt25V1_ArngBCheck_Zt25V2_ArngBCheck,
+	a_PREG_PNg1013_Noop,
+	a_MEMEXT_Rn510SPV2_Noop_Rm1621V2_Noop_NoModCheck_NoAmtCheck,
+}
+
+var Zt1_B_Zt4_B___PNg___XnSP__cimm__MUL_VL_ = []operand{
+	a_REGLIST_RANGE_Zt25V1_ArngBCheck_Zt25V2_ArngBCheck,
+	a_PREG_PNg1013_Noop,
+	a_MEMOFFMULVL_Rn510SPV2_Noop_Imm41620V8,
+}
+
+var Zt1_B__Zt2_B__Zt3_B__Zt4_B___Pg___XnSP__Xm_ = []operand{
+	a_REGLIST4_Zt051_ArngBCheck_Zt052_ArngBCheck_Zt053_ArngBCheck_Zt054_ArngBCheck,
+	a_PREG_Pg1013_Noop,
+	a_MEMEXT_Rn510SPV2_Noop_Rm1621V2_Noop_NoModCheck_NoAmtCheck,
+}
+
+var Zt1_B__Zt2_B__Zt3_B__Zt4_B___Pg___XnSP__cimm__MUL_VL_ = []operand{
+	a_REGLIST4_Zt051_ArngBCheck_Zt052_ArngBCheck_Zt053_ArngBCheck_Zt054_ArngBCheck,
+	a_PREG_Pg1013_Noop,
+	a_MEMOFFMULVL_Rn510SPV2_Noop_Imm41620V4,
+}
+
+var Zt1_B__Zt2_B__Zt3_B___Pg___XnSP__Xm_ = []operand{
+	a_REGLIST3_Zt051_ArngBCheck_Zt052_ArngBCheck_Zt053_ArngBCheck,
+	a_PREG_Pg1013_Noop,
+	a_MEMEXT_Rn510SPV2_Noop_Rm1621V2_Noop_NoModCheck_NoAmtCheck,
+}
+
+var Zt1_B__Zt2_B__Zt3_B___Pg___XnSP__cimm__MUL_VL_ = []operand{
+	a_REGLIST3_Zt051_ArngBCheck_Zt052_ArngBCheck_Zt053_ArngBCheck,
+	a_PREG_Pg1013_Noop,
+	a_MEMOFFMULVL_Rn510SPV2_Noop_Imm41620V3,
+}
+
+var Zt1_B__Zt2_B___Pg___XnSP__Xm_ = []operand{
+	a_REGLIST2_Zt051_ArngBCheck_Zt052_ArngBCheck,
+	a_PREG_Pg1013_Noop,
+	a_MEMEXT_Rn510SPV2_Noop_Rm1621V2_Noop_NoModCheck_NoAmtCheck,
+}
+
+var Zt1_B__Zt2_B___Pg___XnSP__cimm__MUL_VL_ = []operand{
+	a_REGLIST2_Zt051_ArngBCheck_Zt052_ArngBCheck,
+	a_PREG_Pg1013_Noop,
+	a_MEMOFFMULVL_Rn510SPV2_Noop_Imm41620V6,
+}
+
+var Zt1_D_Zt2_D___PNg___XnSP__Xm__LSL_c3_ = []operand{
+	a_REGLIST_RANGE_Zt15V1_ArngDCheck_Zt15V2_ArngDCheck,
+	a_PREG_PNg1013_Noop,
+	a_MEMEXT_Rn510SPV2_Noop_Rm1621V2_Noop_ModLSLCheck_ModAmt3Check,
+}
+
+var Zt1_D_Zt2_D___PNg___XnSP__cimm__MUL_VL_ = []operand{
+	a_REGLIST_RANGE_Zt15V1_ArngDCheck_Zt15V2_ArngDCheck,
+	a_PREG_PNg1013_Noop,
+	a_MEMOFFMULVL_Rn510SPV2_Noop_Imm41620V9,
+}
+
+var Zt1_D_Zt4_D___PNg___XnSP__Xm__LSL_c3_ = []operand{
+	a_REGLIST_RANGE_Zt25V1_ArngDCheck_Zt25V2_ArngDCheck,
+	a_PREG_PNg1013_Noop,
+	a_MEMEXT_Rn510SPV2_Noop_Rm1621V2_Noop_ModLSLCheck_ModAmt3Check,
+}
+
+var Zt1_D_Zt4_D___PNg___XnSP__cimm__MUL_VL_ = []operand{
+	a_REGLIST_RANGE_Zt25V1_ArngDCheck_Zt25V2_ArngDCheck,
+	a_PREG_PNg1013_Noop,
+	a_MEMOFFMULVL_Rn510SPV2_Noop_Imm41620V8,
+}
+
+var Zt1_D__Zt2_D__Zt3_D__Zt4_D___Pg___XnSP__Xm__LSL_c3_ = []operand{
+	a_REGLIST4_Zt051_ArngDCheck_Zt052_ArngDCheck_Zt053_ArngDCheck_Zt054_ArngDCheck,
+	a_PREG_Pg1013_Noop,
+	a_MEMEXT_Rn510SPV2_Noop_Rm1621V2_Noop_ModLSLCheck_ModAmt3Check,
+}
+
+var Zt1_D__Zt2_D__Zt3_D__Zt4_D___Pg___XnSP__cimm__MUL_VL_ = []operand{
+	a_REGLIST4_Zt051_ArngDCheck_Zt052_ArngDCheck_Zt053_ArngDCheck_Zt054_ArngDCheck,
+	a_PREG_Pg1013_Noop,
+	a_MEMOFFMULVL_Rn510SPV2_Noop_Imm41620V4,
+}
+
+var Zt1_D__Zt2_D__Zt3_D___Pg___XnSP__Xm__LSL_c3_ = []operand{
+	a_REGLIST3_Zt051_ArngDCheck_Zt052_ArngDCheck_Zt053_ArngDCheck,
+	a_PREG_Pg1013_Noop,
+	a_MEMEXT_Rn510SPV2_Noop_Rm1621V2_Noop_ModLSLCheck_ModAmt3Check,
+}
+
+var Zt1_D__Zt2_D__Zt3_D___Pg___XnSP__cimm__MUL_VL_ = []operand{
+	a_REGLIST3_Zt051_ArngDCheck_Zt052_ArngDCheck_Zt053_ArngDCheck,
+	a_PREG_Pg1013_Noop,
+	a_MEMOFFMULVL_Rn510SPV2_Noop_Imm41620V3,
+}
+
+var Zt1_D__Zt2_D___Pg___XnSP__Xm__LSL_c3_ = []operand{
+	a_REGLIST2_Zt051_ArngDCheck_Zt052_ArngDCheck,
+	a_PREG_Pg1013_Noop,
+	a_MEMEXT_Rn510SPV2_Noop_Rm1621V2_Noop_ModLSLCheck_ModAmt3Check,
+}
+
+var Zt1_D__Zt2_D___Pg___XnSP__cimm__MUL_VL_ = []operand{
+	a_REGLIST2_Zt051_ArngDCheck_Zt052_ArngDCheck,
+	a_PREG_Pg1013_Noop,
+	a_MEMOFFMULVL_Rn510SPV2_Noop_Imm41620V6,
+}
+
+var Zt1_H_Zt2_H___PNg___XnSP__Xm__LSL_c1_ = []operand{
+	a_REGLIST_RANGE_Zt15V1_ArngHCheck_Zt15V2_ArngHCheck,
+	a_PREG_PNg1013_Noop,
+	a_MEMEXT_Rn510SPV2_Noop_Rm1621V2_Noop_ModLSLCheck_ModAmt1Check,
+}
+
+var Zt1_H_Zt2_H___PNg___XnSP__cimm__MUL_VL_ = []operand{
+	a_REGLIST_RANGE_Zt15V1_ArngHCheck_Zt15V2_ArngHCheck,
+	a_PREG_PNg1013_Noop,
+	a_MEMOFFMULVL_Rn510SPV2_Noop_Imm41620V9,
+}
+
+var Zt1_H_Zt4_H___PNg___XnSP__Xm__LSL_c1_ = []operand{
+	a_REGLIST_RANGE_Zt25V1_ArngHCheck_Zt25V2_ArngHCheck,
+	a_PREG_PNg1013_Noop,
+	a_MEMEXT_Rn510SPV2_Noop_Rm1621V2_Noop_ModLSLCheck_ModAmt1Check,
+}
+
+var Zt1_H_Zt4_H___PNg___XnSP__cimm__MUL_VL_ = []operand{
+	a_REGLIST_RANGE_Zt25V1_ArngHCheck_Zt25V2_ArngHCheck,
+	a_PREG_PNg1013_Noop,
+	a_MEMOFFMULVL_Rn510SPV2_Noop_Imm41620V8,
+}
+
+var Zt1_H__Zt2_H__Zt3_H__Zt4_H___Pg___XnSP__Xm__LSL_c1_ = []operand{
+	a_REGLIST4_Zt051_ArngHCheck_Zt052_ArngHCheck_Zt053_ArngHCheck_Zt054_ArngHCheck,
+	a_PREG_Pg1013_Noop,
+	a_MEMEXT_Rn510SPV2_Noop_Rm1621V2_Noop_ModLSLCheck_ModAmt1Check,
+}
+
+var Zt1_H__Zt2_H__Zt3_H__Zt4_H___Pg___XnSP__cimm__MUL_VL_ = []operand{
+	a_REGLIST4_Zt051_ArngHCheck_Zt052_ArngHCheck_Zt053_ArngHCheck_Zt054_ArngHCheck,
+	a_PREG_Pg1013_Noop,
+	a_MEMOFFMULVL_Rn510SPV2_Noop_Imm41620V4,
+}
+
+var Zt1_H__Zt2_H__Zt3_H___Pg___XnSP__Xm__LSL_c1_ = []operand{
+	a_REGLIST3_Zt051_ArngHCheck_Zt052_ArngHCheck_Zt053_ArngHCheck,
+	a_PREG_Pg1013_Noop,
+	a_MEMEXT_Rn510SPV2_Noop_Rm1621V2_Noop_ModLSLCheck_ModAmt1Check,
+}
+
+var Zt1_H__Zt2_H__Zt3_H___Pg___XnSP__cimm__MUL_VL_ = []operand{
+	a_REGLIST3_Zt051_ArngHCheck_Zt052_ArngHCheck_Zt053_ArngHCheck,
+	a_PREG_Pg1013_Noop,
+	a_MEMOFFMULVL_Rn510SPV2_Noop_Imm41620V3,
+}
+
+var Zt1_H__Zt2_H___Pg___XnSP__Xm__LSL_c1_ = []operand{
+	a_REGLIST2_Zt051_ArngHCheck_Zt052_ArngHCheck,
+	a_PREG_Pg1013_Noop,
+	a_MEMEXT_Rn510SPV2_Noop_Rm1621V2_Noop_ModLSLCheck_ModAmt1Check,
+}
+
+var Zt1_H__Zt2_H___Pg___XnSP__cimm__MUL_VL_ = []operand{
+	a_REGLIST2_Zt051_ArngHCheck_Zt052_ArngHCheck,
+	a_PREG_Pg1013_Noop,
+	a_MEMOFFMULVL_Rn510SPV2_Noop_Imm41620V6,
+}
+
+var Zt1_Q__Zt2_Q__Zt3_Q__Zt4_Q___Pg___XnSP__Xm__LSL_c4_ = []operand{
+	a_REGLIST4_Zt051_ArngQCheck_Zt052_ArngQCheck_Zt053_ArngQCheck_Zt054_ArngQCheck,
+	a_PREG_Pg1013_Noop,
+	a_MEMEXT_Rn510SPV2_Noop_Rm1621V2_Noop_ModLSLCheck_ModAmt4Check,
+}
+
+var Zt1_Q__Zt2_Q__Zt3_Q__Zt4_Q___Pg___XnSP__cimm__MUL_VL_ = []operand{
+	a_REGLIST4_Zt051_ArngQCheck_Zt052_ArngQCheck_Zt053_ArngQCheck_Zt054_ArngQCheck,
+	a_PREG_Pg1013_Noop,
+	a_MEMOFFMULVL_Rn510SPV2_Noop_Imm41620V4,
+}
+
+var Zt1_Q__Zt2_Q__Zt3_Q___Pg___XnSP__Xm__LSL_c4_ = []operand{
+	a_REGLIST3_Zt051_ArngQCheck_Zt052_ArngQCheck_Zt053_ArngQCheck,
+	a_PREG_Pg1013_Noop,
+	a_MEMEXT_Rn510SPV2_Noop_Rm1621V2_Noop_ModLSLCheck_ModAmt4Check,
+}
+
+var Zt1_Q__Zt2_Q__Zt3_Q___Pg___XnSP__cimm__MUL_VL_ = []operand{
+	a_REGLIST3_Zt051_ArngQCheck_Zt052_ArngQCheck_Zt053_ArngQCheck,
+	a_PREG_Pg1013_Noop,
+	a_MEMOFFMULVL_Rn510SPV2_Noop_Imm41620V3,
+}
+
+var Zt1_Q__Zt2_Q___Pg___XnSP__Xm__LSL_c4_ = []operand{
+	a_REGLIST2_Zt051_ArngQCheck_Zt052_ArngQCheck,
+	a_PREG_Pg1013_Noop,
+	a_MEMEXT_Rn510SPV2_Noop_Rm1621V2_Noop_ModLSLCheck_ModAmt4Check,
+}
+
+var Zt1_Q__Zt2_Q___Pg___XnSP__cimm__MUL_VL_ = []operand{
+	a_REGLIST2_Zt051_ArngQCheck_Zt052_ArngQCheck,
+	a_PREG_Pg1013_Noop,
+	a_MEMOFFMULVL_Rn510SPV2_Noop_Imm41620V6,
+}
+
+var Zt1_S_Zt2_S___PNg___XnSP__Xm__LSL_c2_ = []operand{
+	a_REGLIST_RANGE_Zt15V1_ArngSCheck_Zt15V2_ArngSCheck,
+	a_PREG_PNg1013_Noop,
+	a_MEMEXT_Rn510SPV2_Noop_Rm1621V2_Noop_ModLSLCheck_ModAmt2Check,
+}
+
+var Zt1_S_Zt2_S___PNg___XnSP__cimm__MUL_VL_ = []operand{
+	a_REGLIST_RANGE_Zt15V1_ArngSCheck_Zt15V2_ArngSCheck,
+	a_PREG_PNg1013_Noop,
+	a_MEMOFFMULVL_Rn510SPV2_Noop_Imm41620V9,
+}
+
+var Zt1_S_Zt4_S___PNg___XnSP__Xm__LSL_c2_ = []operand{
+	a_REGLIST_RANGE_Zt25V1_ArngSCheck_Zt25V2_ArngSCheck,
+	a_PREG_PNg1013_Noop,
+	a_MEMEXT_Rn510SPV2_Noop_Rm1621V2_Noop_ModLSLCheck_ModAmt2Check,
+}
+
+var Zt1_S_Zt4_S___PNg___XnSP__cimm__MUL_VL_ = []operand{
+	a_REGLIST_RANGE_Zt25V1_ArngSCheck_Zt25V2_ArngSCheck,
+	a_PREG_PNg1013_Noop,
+	a_MEMOFFMULVL_Rn510SPV2_Noop_Imm41620V8,
+}
+
+var Zt1_S__Zt2_S__Zt3_S__Zt4_S___Pg___XnSP__Xm__LSL_c2_ = []operand{
+	a_REGLIST4_Zt051_ArngSCheck_Zt052_ArngSCheck_Zt053_ArngSCheck_Zt054_ArngSCheck,
+	a_PREG_Pg1013_Noop,
+	a_MEMEXT_Rn510SPV2_Noop_Rm1621V2_Noop_ModLSLCheck_ModAmt2Check,
+}
+
+var Zt1_S__Zt2_S__Zt3_S__Zt4_S___Pg___XnSP__cimm__MUL_VL_ = []operand{
+	a_REGLIST4_Zt051_ArngSCheck_Zt052_ArngSCheck_Zt053_ArngSCheck_Zt054_ArngSCheck,
+	a_PREG_Pg1013_Noop,
+	a_MEMOFFMULVL_Rn510SPV2_Noop_Imm41620V4,
+}
+
+var Zt1_S__Zt2_S__Zt3_S___Pg___XnSP__Xm__LSL_c2_ = []operand{
+	a_REGLIST3_Zt051_ArngSCheck_Zt052_ArngSCheck_Zt053_ArngSCheck,
+	a_PREG_Pg1013_Noop,
+	a_MEMEXT_Rn510SPV2_Noop_Rm1621V2_Noop_ModLSLCheck_ModAmt2Check,
+}
+
+var Zt1_S__Zt2_S__Zt3_S___Pg___XnSP__cimm__MUL_VL_ = []operand{
+	a_REGLIST3_Zt051_ArngSCheck_Zt052_ArngSCheck_Zt053_ArngSCheck,
+	a_PREG_Pg1013_Noop,
+	a_MEMOFFMULVL_Rn510SPV2_Noop_Imm41620V3,
+}
+
+var Zt1_S__Zt2_S___Pg___XnSP__Xm__LSL_c2_ = []operand{
+	a_REGLIST2_Zt051_ArngSCheck_Zt052_ArngSCheck,
+	a_PREG_Pg1013_Noop,
+	a_MEMEXT_Rn510SPV2_Noop_Rm1621V2_Noop_ModLSLCheck_ModAmt2Check,
+}
+
+var Zt1_S__Zt2_S___Pg___XnSP__cimm__MUL_VL_ = []operand{
+	a_REGLIST2_Zt051_ArngSCheck_Zt052_ArngSCheck,
+	a_PREG_Pg1013_Noop,
+	a_MEMOFFMULVL_Rn510SPV2_Noop_Imm41620V6,
+}
+
+var Zt_B___Pg___XnSP__Xm_ = []operand{
+	a_REGLIST1_Zt05_ArngBCheck,
+	a_PREG_Pg1013_Noop,
+	a_MEMEXT_Rn510SPV2_Noop_Rm1621V2_Noop_NoModCheck_NoAmtCheck,
+}
+
+var Zt_B___Pg___XnSP__cimm__MUL_VL_ = []operand{
+	a_REGLIST1_Zt05_ArngBCheck,
+	a_PREG_Pg1013_Noop,
+	a_MEMOFFMULVL_Rn510SPV2_Noop_Imm41620V5,
+}
+
+var Zt_D___Pg___XnSP__Xm__LSL_c3_ = []operand{
+	a_REGLIST1_Zt05_ArngDCheck,
+	a_PREG_Pg1013_Noop,
+	a_MEMEXT_Rn510SPV2_Noop_Rm1621V2_Noop_ModLSLCheck_ModAmt3Check,
+}
+
+var Zt_D___Pg___XnSP__Zm_D_ = []operand{
+	a_REGLIST1_Zt05_ArngDCheck,
+	a_PREG_Pg1013_Noop,
+	a_MEMEXT_Rn510SPV2_Noop_Zm1621V3_ArngDCheck_NoModCheck_NoAmtCheck,
+}
+
+var Zt_D___Pg___XnSP__Zm_D__LSL_c1_ = []operand{
+	a_REGLIST1_Zt05_ArngDCheck,
+	a_PREG_Pg1013_Noop,
+	a_MEMEXT_Rn510SPV2_Noop_Zm1621V3_ArngDCheck_ModLSLCheck_ModAmt1Check,
+}
+
+var Zt_D___Pg___XnSP__Zm_D__LSL_c2_ = []operand{
+	a_REGLIST1_Zt05_ArngDCheck,
+	a_PREG_Pg1013_Noop,
+	a_MEMEXT_Rn510SPV2_Noop_Zm1621V3_ArngDCheck_ModLSLCheck_ModAmt2Check,
+}
+
+var Zt_D___Pg___XnSP__Zm_D__LSL_c3_ = []operand{
+	a_REGLIST1_Zt05_ArngDCheck,
+	a_PREG_Pg1013_Noop,
+	a_MEMEXT_Rn510SPV2_Noop_Zm1621V3_ArngDCheck_ModLSLCheck_ModAmt3Check,
+}
+
+var Zt_D___Pg___XnSP__Zm_D__mod_ = []operand{
+	a_REGLIST1_Zt05_ArngDCheck,
+	a_PREG_Pg1013_Noop,
+	a_MEMEXT_Rn510SPV2_Noop_Zm1621V3_ArngDCheck_Xs1415_NoAmtCheck,
+}
+
+var Zt_D___Pg___XnSP__Zm_D__mod_c1_ = []operand{
+	a_REGLIST1_Zt05_ArngDCheck,
+	a_PREG_Pg1013_Noop,
+	a_MEMEXT_Rn510SPV2_Noop_Zm1621V3_ArngDCheck_Xs1415_ModAmt1Check,
+}
+
+var Zt_D___Pg___XnSP__Zm_D__mod_c2_ = []operand{
+	a_REGLIST1_Zt05_ArngDCheck,
+	a_PREG_Pg1013_Noop,
+	a_MEMEXT_Rn510SPV2_Noop_Zm1621V3_ArngDCheck_Xs1415_ModAmt2Check,
+}
+
+var Zt_D___Pg___XnSP__Zm_D__mod_c3_ = []operand{
+	a_REGLIST1_Zt05_ArngDCheck,
+	a_PREG_Pg1013_Noop,
+	a_MEMEXT_Rn510SPV2_Noop_Zm1621V3_ArngDCheck_Xs1415_ModAmt3Check,
+}
+
+var Zt_D___Pg___XnSP__cimm__MUL_VL_ = []operand{
+	a_REGLIST1_Zt05_ArngDCheck,
+	a_PREG_Pg1013_Noop,
+	a_MEMOFFMULVL_Rn510SPV2_Noop_Imm41620V5,
+}
+
+var Zt_D___Pg___Zn_D__Xm_ = []operand{
+	a_REGLIST1_Zt05_ArngDCheck,
+	a_PREG_Pg1013_Noop,
+	a_MEMEXT_Zn510V2_ArngDCheck_Rm1621XZR_Noop_NoModCheck_NoAmtCheck,
+}
+
+var Zt_D___Pg___Zn_D__cimm___1 = []operand{
+	a_REGLIST1_Zt05_ArngDCheck,
+	a_PREG_Pg1013_Noop,
+	a_MEMOFF_Zn510V2_ArngDCheck_Imm51621V4,
+}
+
+var Zt_D___Pg___Zn_D__cimm___2 = []operand{
+	a_REGLIST1_Zt05_ArngDCheck,
+	a_PREG_Pg1013_Noop,
+	a_MEMOFF_Zn510V2_ArngDCheck_Imm51621V3,
+}
+
+var Zt_D___Pg___Zn_D__cimm___3 = []operand{
+	a_REGLIST1_Zt05_ArngDCheck,
+	a_PREG_Pg1013_Noop,
+	a_MEMOFF_Zn510V2_ArngDCheck_Imm51621V1,
+}
+
+var Zt_D___Pg___Zn_D__cimm___4 = []operand{
+	a_REGLIST1_Zt05_ArngDCheck,
+	a_PREG_Pg1013_Noop,
+	a_MEMOFF_Zn510V2_ArngDCheck_Imm51621V2,
+}
+
+var Zt_H___Pg___XnSP__Xm__LSL_c1_ = []operand{
+	a_REGLIST1_Zt05_ArngHCheck,
+	a_PREG_Pg1013_Noop,
+	a_MEMEXT_Rn510SPV2_Noop_Rm1621V2_Noop_ModLSLCheck_ModAmt1Check,
+}
+
+var Zt_H___Pg___XnSP__cimm__MUL_VL_ = []operand{
+	a_REGLIST1_Zt05_ArngHCheck,
+	a_PREG_Pg1013_Noop,
+	a_MEMOFFMULVL_Rn510SPV2_Noop_Imm41620V5,
+}
+
+var Zt_Q___Pg___XnSP__Xm__LSL_c2_ = []operand{
+	a_REGLIST1_Zt05_ArngQCheck,
+	a_PREG_Pg1013_Noop,
+	a_MEMEXT_Rn510SPV2_Noop_Rm1621V2_Noop_ModLSLCheck_ModAmt2Check,
+}
+
+var Zt_Q___Pg___XnSP__Xm__LSL_c3_ = []operand{
+	a_REGLIST1_Zt05_ArngQCheck,
+	a_PREG_Pg1013_Noop,
+	a_MEMEXT_Rn510SPV2_Noop_Rm1621V2_Noop_ModLSLCheck_ModAmt3Check,
+}
+
+var Zt_Q___Pg___XnSP__cimm__MUL_VL_ = []operand{
+	a_REGLIST1_Zt05_ArngQCheck,
+	a_PREG_Pg1013_Noop,
+	a_MEMOFFMULVL_Rn510SPV2_Noop_Imm41620V5,
+}
+
+var Zt_Q___Pg___Zn_D__Xm_ = []operand{
+	a_REGLIST1_Zt05_ArngQCheck,
+	a_PREG_Pg1013_Noop,
+	a_MEMEXT_Zn510V2_ArngDCheck_Rm1621XZR_Noop_NoModCheck_NoAmtCheck,
+}
+
+var Zt_S___Pg___XnSP__Xm__LSL_c2_ = []operand{
+	a_REGLIST1_Zt05_ArngSCheck,
+	a_PREG_Pg1013_Noop,
+	a_MEMEXT_Rn510SPV2_Noop_Rm1621V2_Noop_ModLSLCheck_ModAmt2Check,
+}
+
+var Zt_S___Pg___XnSP__Zm_S__mod_ = []operand{
+	a_REGLIST1_Zt05_ArngSCheck,
+	a_PREG_Pg1013_Noop,
+	a_MEMEXT_Rn510SPV2_Noop_Zm1621V3_ArngSCheck_Xs1415_NoAmtCheck,
+}
+
+var Zt_S___Pg___XnSP__Zm_S__mod_c1_ = []operand{
+	a_REGLIST1_Zt05_ArngSCheck,
+	a_PREG_Pg1013_Noop,
+	a_MEMEXT_Rn510SPV2_Noop_Zm1621V3_ArngSCheck_Xs1415_ModAmt1Check,
+}
+
+var Zt_S___Pg___XnSP__Zm_S__mod_c2_ = []operand{
+	a_REGLIST1_Zt05_ArngSCheck,
+	a_PREG_Pg1013_Noop,
+	a_MEMEXT_Rn510SPV2_Noop_Zm1621V3_ArngSCheck_Xs1415_ModAmt2Check,
+}
+
+var Zt_S___Pg___XnSP__cimm__MUL_VL_ = []operand{
+	a_REGLIST1_Zt05_ArngSCheck,
+	a_PREG_Pg1013_Noop,
+	a_MEMOFFMULVL_Rn510SPV2_Noop_Imm41620V5,
+}
+
+var Zt_S___Pg___Zn_S__Xm_ = []operand{
+	a_REGLIST1_Zt05_ArngSCheck,
+	a_PREG_Pg1013_Noop,
+	a_MEMEXT_Zn510V2_ArngSCheck_Rm1621XZR_Noop_NoModCheck_NoAmtCheck,
+}
+
+var Zt_S___Pg___Zn_S__cimm___1 = []operand{
+	a_REGLIST1_Zt05_ArngSCheck,
+	a_PREG_Pg1013_Noop,
+	a_MEMOFF_Zn510V2_ArngSCheck_Imm51621V4,
+}
+
+var Zt_S___Pg___Zn_S__cimm___2 = []operand{
+	a_REGLIST1_Zt05_ArngSCheck,
+	a_PREG_Pg1013_Noop,
+	a_MEMOFF_Zn510V2_ArngSCheck_Imm51621V1,
+}
+
+var Zt_S___Pg___Zn_S__cimm___3 = []operand{
+	a_REGLIST1_Zt05_ArngSCheck,
+	a_PREG_Pg1013_Noop,
+	a_MEMOFF_Zn510V2_ArngSCheck_Imm51621V2,
+}
+
+var Zt_T___Pg___XnSP__Xm_ = []operand{
+	a_REGLIST1_Zt05_Size2123V1,
+	a_PREG_Pg1013_Noop,
+	a_MEMEXT_Rn510SPV2_Noop_Rm1621V2_Noop_NoModCheck_NoAmtCheck,
+}
+
+var Zt_T___Pg___XnSP__Xm__LSL_c1_ = []operand{
+	a_REGLIST1_Zt05_Size2123V2,
+	a_PREG_Pg1013_Noop,
+	a_MEMEXT_Rn510SPV2_Noop_Rm1621V2_Noop_ModLSLCheck_ModAmt1Check,
+}
+
+var Zt_T___Pg___XnSP__Xm__LSL_c2_ = []operand{
+	a_REGLIST1_Zt05_Sz2122,
+	a_PREG_Pg1013_Noop,
+	a_MEMEXT_Rn510SPV2_Noop_Rm1621V2_Noop_ModLSLCheck_ModAmt2Check,
+}
+
+var Zt_T___Pg___XnSP__cimm__MUL_VL___1 = []operand{
+	a_REGLIST1_Zt05_Size2123V1,
+	a_PREG_Pg1013_Noop,
+	a_MEMOFFMULVL_Rn510SPV2_Noop_Imm41620V5,
+}
+
+var Zt_T___Pg___XnSP__cimm__MUL_VL___2 = []operand{
+	a_REGLIST1_Zt05_Size2123V2,
+	a_PREG_Pg1013_Noop,
+	a_MEMOFFMULVL_Rn510SPV2_Noop_Imm41620V5,
+}
+
+var Zt_T___Pg___XnSP__cimm__MUL_VL___3 = []operand{
+	a_REGLIST1_Zt05_Sz2122,
+	a_PREG_Pg1013_Noop,
+	a_MEMOFFMULVL_Rn510SPV2_Noop_Imm41620V5,
+}
+
+var Zt___XnSP__cimm__MUL_VL_ = []operand{
+	a_ZREG_Zt05_Noop,
+	a_MEMOFFMULVL_Rn510SPV2_Noop_Imm9h1622L1013,
 }
 
 var c0_0__Zn_T__PgZ__Pd_T = []operand{

@@ -6,13 +6,15 @@ package vcs
 
 import (
 	"errors"
-	"internal/testenv"
+	"net/http"
+	"net/http/httptest"
 	"os"
 	"path/filepath"
 	"strings"
 	"testing"
 
 	"cmd/go/internal/web"
+	"cmd/go/internal/web/intercept"
 )
 
 func init() {
@@ -26,7 +28,18 @@ func init() {
 // Test that RepoRootForImportPath determines the correct RepoRoot for a given importPath.
 // TODO(cmang): Add tests for SVN.
 func TestRepoRootForImportPath(t *testing.T) {
-	testenv.MustHaveExternalNetwork(t)
+	// Intercept requests to external servers to avoid making external network connections from the test.
+	ts := httptest.NewServer(http.NotFoundHandler())
+	t.Cleanup(ts.Close)
+	var interceptors []intercept.Interceptor
+	for _, d := range []string{"hub.jazz.net", "hubajazz.net", "hub2.jazz.net", "different.example.com"} {
+		interceptors = append(interceptors,
+			intercept.Interceptor{Scheme: "https", FromHost: d, ToHost: ts.Listener.Addr().String()},
+			intercept.Interceptor{Scheme: "http", FromHost: d, ToHost: ts.Listener.Addr().String()},
+		)
+	}
+	intercept.EnableTestHooks(interceptors)
+	t.Cleanup(intercept.DisableTestHooks)
 
 	tests := []struct {
 		path string

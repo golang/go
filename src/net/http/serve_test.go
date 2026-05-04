@@ -856,7 +856,10 @@ func testServerReadTimeout(t *testing.T, mode testMode) {
 	}
 }
 
-func TestServerNoReadTimeout(t *testing.T) { run(t, testServerNoReadTimeout) }
+func TestServerNoReadTimeout(t *testing.T) {
+	// Flaky on HTTP/3.
+	run(t, testServerNoReadTimeout, http3SkippedMode)
+}
 func testServerNoReadTimeout(t *testing.T, mode testMode) {
 	reqBody := "Hello, Gophers!"
 	resBody := "Hi, Gophers!"
@@ -965,10 +968,7 @@ func testServerWriteTimeout(t *testing.T, mode testMode) {
 	}
 }
 
-func TestServerNoWriteTimeout(t *testing.T) {
-	// Trips off race detector for HTTP/3.
-	run(t, testServerNoWriteTimeout, http3SkippedMode)
-}
+func TestServerNoWriteTimeout(t *testing.T) { run(t, testServerNoWriteTimeout) }
 func testServerNoWriteTimeout(t *testing.T, mode testMode) {
 	for _, timeout := range []time.Duration{0, -1} {
 		cst := newClientServerTest(t, mode, HandlerFunc(func(res ResponseWriter, req *Request) {
@@ -3365,10 +3365,7 @@ func (r *bodyLimitReader) Close() error {
 	return nil
 }
 
-func TestRequestBodyLimit(t *testing.T) {
-	// Trips off race detector for HTTP/3.
-	run(t, testRequestBodyLimit, http3SkippedMode)
-}
+func TestRequestBodyLimit(t *testing.T) { run(t, testRequestBodyLimit) }
 func testRequestBodyLimit(t *testing.T, mode testMode) {
 	const limit = 1 << 20
 	cst := newClientServerTest(t, mode, HandlerFunc(func(w ResponseWriter, r *Request) {
@@ -7123,7 +7120,6 @@ func testQuerySemicolon(t *testing.T, mode testMode, query string, wantX string,
 	}
 }
 
-// HTTP/3 trips off race detector.
 func TestMaxBytesHandler(t *testing.T) {
 	// Not parallel: modifies the global rstAvoidanceDelay.
 	defer afterTest(t)
@@ -7134,7 +7130,7 @@ func TestMaxBytesHandler(t *testing.T) {
 				func(t *testing.T) {
 					run(t, func(t *testing.T, mode testMode) {
 						testMaxBytesHandler(t, mode, maxSize, requestSize)
-					}, testNotParallel, http3SkippedMode)
+					}, testNotParallel)
 				})
 		}
 	}
@@ -7155,10 +7151,13 @@ func testMaxBytesHandler(t *testing.T, mode testMode, maxSize, requestSize int64
 		t.Logf("set RST avoidance delay to %v", timeout)
 
 		var (
+			mu         sync.Mutex // guards below
 			handlerN   int64
 			handlerErr error
 		)
 		echo := HandlerFunc(func(w ResponseWriter, r *Request) {
+			mu.Lock()
+			defer mu.Unlock()
 			var buf bytes.Buffer
 			handlerN, handlerErr = io.Copy(&buf, r.Body)
 			io.Copy(w, &buf)
@@ -7207,6 +7206,8 @@ func testMaxBytesHandler(t *testing.T, mode testMode, maxSize, requestSize int64
 		// to rstAvoidanceDelay being too short, so we use t.Errorf for those
 		// instead of returning a (retriable) error.
 
+		mu.Lock()
+		defer mu.Unlock()
 		if handlerN > maxSize {
 			t.Errorf("expected max request body %d; got %d", maxSize, handlerN)
 		}

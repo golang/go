@@ -472,10 +472,15 @@ func isMemUser(v *Value) (int, int, int64, bool) {
 
 // Query if the given "memory"-defining instruction's memory destination can be analyzed for aliasing with a memory "user" instructions.
 // Return index of pointer argument, index of "memory" argument, the access width and true on such instructions, otherwise return (-1, -1, 0, false).
+// If the access width is 0, the pointer index may be -1 (no pointer operand is needed).
 func isMemDef(v *Value) (int, int, int64, bool) {
 	switch v.Op {
 	case OpStore:
 		return 0, 2, auxToType(v.Aux).Size(), true
+	case OpVarDef:
+		return -1, 0, 0, true
+	case OpZero:
+		return 0, 1, v.AuxInt, true
 	default:
 		return -1, -1, 0, false
 	}
@@ -524,6 +529,10 @@ func skipDisjointMemDefs(user *Value, idxUserPtr, idxUserMem int, useWidth int64
 			if mem.Args[idxMem].Uses > 50 {
 				// Skipping a memory def with a lot of uses may potentially increase register pressure.
 				break
+			}
+			if width == 0 {
+				mem = mem.Args[idxMem]
+				continue
 			}
 			defPtr := mem.Args[idxPtr]
 			if disjoint(defPtr, width, usePtr, useWidth) {

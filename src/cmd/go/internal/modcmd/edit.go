@@ -60,10 +60,14 @@ constraints imposed by other modules.
 
 The -go=version flag sets the expected Go language version.
 This flag is mainly for tools that understand Go version dependencies.
+It takes a version like "1.26" or "1.26.2".
+Using the version "none" removes the go directive.
 Users should prefer 'go get go@version'.
 
-The -toolchain=version flag sets the Go toolchain to use.
+The -toolchain=name flag sets the Go toolchain to use.
 This flag is mainly for tools that understand Go version dependencies.
+It takes a toolchain name like "go1.26" or "go1.26.2".
+Using the name "none" removes the toolchain directive.
 Users should prefer 'go get toolchain@version'.
 
 The -exclude=path@version and -dropexclude=path@version flags

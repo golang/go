@@ -12,6 +12,7 @@ import (
 	"internal/goos"
 	"internal/runtime/atomic"
 	"internal/runtime/exithook"
+	"internal/runtime/maps"
 	"internal/runtime/sys"
 	"internal/strconv"
 	"internal/stringslite"
@@ -782,6 +783,7 @@ func cpuinit(env string) {
 	case "loong64":
 		loong64HasLAMCAS = cpu.Loong64.HasLAMCAS
 		loong64HasLAM_BH = cpu.Loong64.HasLAM_BH
+		loong64HasDBAR_HINTS = cpu.Loong64.HasDBAR_HINTS
 		loong64HasLSX = cpu.Loong64.HasLSX
 
 	case "riscv64":
@@ -877,10 +879,10 @@ func schedinit() {
 	ticks.init() // run as early as possible
 	moduledataverify()
 	stackinit()
-	randinit() // must run before mallocinit, alginit, mcommoninit
+	randinit() // must run before mallocinit, AlgInit, mcommoninit
 	mallocinit()
-	cpuinit(godebug) // must run before alginit
-	alginit()        // maps, hash, rand must not be used before this call
+	cpuinit(godebug) // must run before AlgInit
+	maps.AlgInit()   // maps, hash, rand must not be used before this call
 	mcommoninit(gp.m, -1)
 	modulesinit()   // provides activeModules
 	typelinksinit() // uses maps, activeModules

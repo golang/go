@@ -3153,8 +3153,8 @@ func getDependencyScore(scores []uint, v *Value) (score uint) {
 }
 
 // topoSortValuesInBlock ensure ranging over b.Values visit values before they are being used.
-// It does not consider dependencies with other blocks; thus Phi nodes are considered to not have any dependecies.
-// The result is always determistic and does not depend on the previous slice ordering.
+// It does not consider dependencies with other blocks; thus Phi nodes are considered to not have any dependencies.
+// The result is always deterministic and does not depend on the previous slice ordering.
 func (ft *factsTable) topoSortValuesInBlock(b *Block) {
 	f := b.Func
 	want := f.NumValues()

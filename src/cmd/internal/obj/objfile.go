@@ -309,9 +309,9 @@ func (w *writer) StringTable() {
 	}
 }
 
-// cutoff is the maximum data section size permitted by the linker
+// MaxSymSize is the maximum data section size permitted by the linker
 // (see issue #9862).
-const cutoff = int64(2e9) // 2 GB (or so; looks better in errors than 2^31)
+const MaxSymSize = int64(2e9) // 2 GB (or so; looks better in errors than 2^31)
 
 func (w *writer) Sym(s *LSym) {
 	name := s.Name
@@ -377,8 +377,8 @@ func (w *writer) Sym(s *LSym) {
 		// TODO: Check that alignment is set for all symbols.
 		w.ctxt.Diag("%s: is content-addressable but alignment is not set (size is %d)", s.Name, s.Size)
 	}
-	if s.Size > cutoff {
-		w.ctxt.Diag("%s: symbol too large (%d bytes > %d bytes)", s.Name, s.Size, cutoff)
+	if s.Size > MaxSymSize {
+		w.ctxt.Diag("%s: symbol too large (%d bytes > %d bytes)", s.Name, s.Size, MaxSymSize)
 	}
 	o := &w.tmpSym
 	o.SetName(name, w.Writer)

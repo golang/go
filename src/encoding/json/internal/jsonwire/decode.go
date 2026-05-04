@@ -254,7 +254,7 @@ func ConsumeStringResumable(flags *ValueFlags, b []byte, resumeOffset int, valid
 // Any invalid UTF-8 within the string will be replaced with utf8.RuneError,
 // but the error will be specified as having encountered such an error.
 // The input must be an entire JSON string with no surrounding whitespace.
-func AppendUnquote[Bytes ~[]byte | ~string](dst []byte, src Bytes) (v []byte, err error) {
+func AppendUnquote(dst, src []byte) (v []byte, err error) {
 	dst = slices.Grow(dst, len(src))
 
 	// Consume the leading double quote.
@@ -292,7 +292,7 @@ func AppendUnquote[Bytes ~[]byte | ~string](dst []byte, src Bytes) (v []byte, er
 			return dst, err
 		}
 
-		switch r, rn := utf8.DecodeRuneInString(string(truncateMaxUTF8(src[n:]))); {
+		switch r, rn := utf8.DecodeRune(src[n:]); {
 		// Handle UTF-8 encoded byte sequence.
 		// Due to specialized handling of ASCII above, we know that
 		// all normal sequences at this point must be 2 bytes or larger.
@@ -364,7 +364,7 @@ func AppendUnquote[Bytes ~[]byte | ~string](dst []byte, src Bytes) (v []byte, er
 		// Handle invalid UTF-8.
 		case r == utf8.RuneError:
 			dst = append(dst, src[i:n]...)
-			if !utf8.FullRuneInString(string(truncateMaxUTF8(src[n:]))) {
+			if !utf8.FullRune(src[n:]) {
 				return dst, io.ErrUnexpectedEOF
 			}
 			// NOTE: An unescaped string may be longer than the escaped string
@@ -387,7 +387,7 @@ func AppendUnquote[Bytes ~[]byte | ~string](dst []byte, src Bytes) (v []byte, er
 
 // hasEscapedUTF16Prefix reports whether b is possibly
 // the truncated prefix of a \uFFFF escape sequence.
-func hasEscapedUTF16Prefix[Bytes ~[]byte | ~string](b Bytes, lowerSurrogateHalf bool) bool {
+func hasEscapedUTF16Prefix(b []byte, lowerSurrogateHalf bool) bool {
 	for i := range len(b) {
 		switch c := b[i]; {
 		case i == 0 && c != '\\':
@@ -565,7 +565,7 @@ beforeExponent:
 // parseHexUint16 is similar to strconv.ParseUint,
 // but operates directly on []byte and is optimized for base-16.
 // See https://go.dev/issue/42429.
-func parseHexUint16[Bytes ~[]byte | ~string](b Bytes) (v uint16, ok bool) {
+func parseHexUint16(b []byte) (v uint16, ok bool) {
 	if len(b) != 4 {
 		return 0, false
 	}
@@ -603,27 +603,4 @@ func ParseUint(b []byte) (v uint64, ok bool) {
 		return math.MaxUint64, false
 	}
 	return v, true
-}
-
-// ParseFloat parses a floating point number according to the Go float grammar.
-// Note that the JSON number grammar is a strict subset.
-//
-// If the number overflows the finite representation of a float,
-// then we return MaxFloat since any finite value will always be infinitely
-// more accurate at representing another finite value than an infinite value.
-func ParseFloat(b []byte, bits int) (v float64, ok bool) {
-	fv, err := strconv.ParseFloat(string(b), bits)
-	if math.IsInf(fv, 0) {
-		switch {
-		case bits == 32 && math.IsInf(fv, +1):
-			fv = +math.MaxFloat32
-		case bits == 64 && math.IsInf(fv, +1):
-			fv = +math.MaxFloat64
-		case bits == 32 && math.IsInf(fv, -1):
-			fv = -math.MaxFloat32
-		case bits == 64 && math.IsInf(fv, -1):
-			fv = -math.MaxFloat64
-		}
-	}
-	return fv, err == nil
 }

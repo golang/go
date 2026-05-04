@@ -428,16 +428,11 @@ func testTransportIdleCacheKeys(t *testing.T, mode testMode) {
 
 // Tests that the HTTP transport re-uses connections when a client
 // reads to the end of a response Body without closing it.
-func TestTransportReadToEndReusesConn(t *testing.T) {
-	// HTTP/3 trips off race detector.
-	run(t, testTransportReadToEndReusesConn, http3SkippedMode)
-}
+func TestTransportReadToEndReusesConn(t *testing.T) { run(t, testTransportReadToEndReusesConn) }
 func testTransportReadToEndReusesConn(t *testing.T, mode testMode) {
 	const msg = "foobar"
-
-	var addrSeen map[string]int
 	ts := newClientServerTest(t, mode, HandlerFunc(func(w ResponseWriter, r *Request) {
-		addrSeen[r.RemoteAddr]++
+		w.Header().Set("Remote-Addr", r.RemoteAddr)
 		if r.URL.Path == "/chunked/" {
 			w.WriteHeader(200)
 			w.(Flusher).Flush()
@@ -450,18 +445,13 @@ func testTransportReadToEndReusesConn(t *testing.T, mode testMode) {
 
 	for pi, path := range []string{"/content-length/", "/chunked/"} {
 		wantLen := []int{len(msg), -1}[pi]
-		addrSeen = make(map[string]int)
-		for i := 0; i < 3; i++ {
+		addrSeen := make(map[string]int)
+		for range 3 {
 			res, err := ts.Client().Get(ts.URL + path)
 			if err != nil {
 				t.Errorf("Get %s: %v", path, err)
 				continue
 			}
-			// We want to close this body eventually (before the
-			// defer afterTest at top runs), but not before the
-			// len(addrSeen) check at the bottom of this test,
-			// since Closing this early in the loop would risk
-			// making connections be re-used for the wrong reason.
 			defer res.Body.Close()
 
 			if res.ContentLength != int64(wantLen) {
@@ -471,6 +461,7 @@ func testTransportReadToEndReusesConn(t *testing.T, mode testMode) {
 			if string(got) != msg || err != nil {
 				t.Errorf("%s ReadAll(Body) = %q, %v; want %q, nil", path, string(got), err, msg)
 			}
+			addrSeen[res.Header.Get("Remote-Addr")]++
 		}
 		if len(addrSeen) != 1 {
 			t.Errorf("for %s, server saw %d distinct client addresses; want 1", path, len(addrSeen))

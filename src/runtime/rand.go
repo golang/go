@@ -117,7 +117,10 @@ func allZero(b []byte) bool {
 	return acc == 0
 }
 
+// Used in internal/runtime/maps
 // bootstrapRand returns a random uint64 from the global random generator.
+//
+//go:linknamestd bootstrapRand
 func bootstrapRand() uint64 {
 	lock(&globalRand.lock)
 	if !globalRand.init {

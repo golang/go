@@ -118,7 +118,7 @@ func makeTestingCiphers(aesBlock cipher.Block, iv []byte) (genericCtr, multibloc
 	return cipher.NewCTR(wrap(aesBlock), iv), cipher.NewCTR(aesBlock, iv)
 }
 
-// TestCTR_AES_blocks8FastPathMatchesGeneric ensures the overlow aware branch
+// TestCTR_AES_blocks8FastPathMatchesGeneric ensures the overflow aware branch
 // produces identical keystreams to the generic counter walker across
 // representative IVs, including near-overflow cases.
 func TestCTR_AES_blocks8FastPathMatchesGeneric(t *testing.T) {

@@ -13,6 +13,7 @@ import (
 
 	"cmd/compile/internal/base"
 	"cmd/compile/internal/ir"
+	"cmd/compile/internal/noder"
 	"cmd/compile/internal/objw"
 	"cmd/compile/internal/reflectdata"
 	"cmd/compile/internal/rttype"
@@ -760,6 +761,51 @@ func walkDotType(n *ir.TypeAssertExpr, init *ir.Nodes) ir.Node {
 		n.Descriptor = makeTypeAssertDescriptor(n.Type(), n.Op() == ir.ODOTTYPE2)
 	}
 	return n
+}
+
+// shapeTypeAssertImpossible reports whether a type assertion from src
+// to concrete type dst can never succeed because they have
+// incompatible shape types.
+func shapeTypeAssertImpossible(src ir.Node, dst *types.Type) bool {
+	if dst.IsInterface() {
+		return false
+	}
+	srcShape := convIfaceShapeType(src)
+	if srcShape == nil {
+		return false
+	}
+	return !types.Identical(srcShape, noder.Shapify(dst, false)) &&
+		!types.Identical(srcShape, noder.Shapify(dst, true))
+}
+
+// convIfaceShapeType returns the shape type from which src was
+// created via OCONVIFACE, or nil.
+func convIfaceShapeType(src ir.Node) *types.Type {
+	for {
+		switch s := src.(type) {
+		case *ir.ParenExpr:
+			src = s.X
+			continue
+		case *ir.ConvExpr:
+			if s.Op() == ir.OCONVNOP {
+				src = s.X
+				continue
+			}
+			if s.Op() == ir.OCONVIFACE {
+				srcType := s.X.Type()
+				if srcType != nil && !srcType.IsInterface() && srcType.IsShape() {
+					return srcType
+				}
+				return nil
+			}
+		}
+		break
+	}
+
+	if name, ok := src.(*ir.Name); ok && shapeConvSources != nil {
+		return shapeConvSources[name.Canonical()]
+	}
+	return nil
 }
 
 func makeTypeAssertDescriptor(target *types.Type, canFail bool) *obj.LSym {

@@ -1051,13 +1051,13 @@ func (state *debugState) processValue(v *Value, vSlots []SlotID, vReg *Register)
 	// Handle any register clobbering. Call operations, for example,
 	// clobber all registers even though they don't explicitly write to
 	// them.
-	clobbers := uint64(opcodeTable[v.Op].reg.clobbers)
+	clobbers := opcodeTable[v.Op].reg.clobbers
 	for {
-		if clobbers == 0 {
+		if clobbers.empty() {
 			break
 		}
-		reg := uint8(bits.TrailingZeros64(clobbers))
-		clobbers &^= 1 << reg
+		reg := pickReg(clobbers)
+		clobbers = clobbers.removeReg(reg)
 
 		for _, slot := range locs.registers[reg] {
 			if state.loggingLevel > 1 {

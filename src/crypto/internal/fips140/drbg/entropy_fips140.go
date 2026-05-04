@@ -4,7 +4,7 @@
 
 //go:build !wasm
 
-// This file contains reading from from entropy sources in FIPS-140
+// This file contains reading from entropy sources in FIPS-140
 // mode. It uses a scratch buffer in the BSS section (see below),
 // which usually doesn't cost much, except on Wasm, due to the way
 // the linear memory works. FIPS-140 mode is not supported on Wasm,

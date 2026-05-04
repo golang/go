@@ -207,10 +207,16 @@
 (PopCount16 <t> x) => (MOVWfpgp <t> (VPCNT16 <typ.Float32> (MOVWgpfp <typ.Float32> (ZeroExt16to32 x))))
 
 // math package intrinsics
-(Sqrt ...) => (SQRTD ...)
+(Sqrt   ...) => (SQRTD ...)
 (Sqrt32 ...) => (SQRTF ...)
+
 (Abs ...) => (ABSD ...)
-(Copysign ...) => (FCOPYSGD ...)
+(Copysign    ...) => (FCOPYSGD ...)
+
+(RoundToEven ...) => (FRINTND ...)
+(Floor       ...) => (FRINTMD ...)
+(Ceil        ...) => (FRINTPD ...)
+(Trunc       ...) => (FRINTZD ...)
 
 (Min(64|32)F ...) => (FMIN(D|F) ...)
 (Max(64|32)F ...) => (FMAX(D|F) ...)

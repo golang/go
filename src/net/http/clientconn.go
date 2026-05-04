@@ -399,7 +399,7 @@ func (cc http1ClientConn) RoundTrip(req *Request) (*Response, error) {
 	ctx := req.Context()
 	trace := httptrace.ContextClientTrace(ctx)
 
-	// Convert Request.Cancel into context cancelation.
+	// Convert Request.Cancel into context cancellation.
 	ctx, cancel := context.WithCancelCause(req.Context())
 	if req.Cancel != nil {
 		go awaitLegacyCancel(ctx, cancel, req)

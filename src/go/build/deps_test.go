@@ -766,7 +766,7 @@ var depsRules = `
 	CRYPTO-MATH
 	< crypto/mlkem/mlkemtest;
 
-	CRYPTO-MATH, testing, internal/testenv, internal/testhash, encoding/json
+	CRYPTO-MATH, testing, internal/testenv, internal/testhash, encoding/json, regexp
 	< crypto/internal/cryptotest;
 
 	CGO, FMT

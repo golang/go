@@ -75,7 +75,7 @@ func runtime_mapaccess2_fast32(typ *abi.MapType, m *Map, key uint32) (unsafe.Poi
 	// However, from compiler's perspective, key is no longer address-taken and
 	// filled back in register before the loop.
 	k := key
-	hash := memhash32(unsafe.Pointer(&k), m.seed)
+	hash := MemHash32(unsafe.Pointer(&k), m.seed)
 
 	// Select table.
 	idx := m.directoryIndex(hash)
@@ -169,7 +169,7 @@ func runtime_mapassign_fast32(typ *abi.MapType, m *Map, key uint32) unsafe.Point
 	// See the related comment in runtime_mapaccess2_fast32
 	// for why we pass local copy of key.
 	k := key
-	hash := memhash32(unsafe.Pointer(&k), m.seed)
+	hash := MemHash32(unsafe.Pointer(&k), m.seed)
 
 	// Set writing after calling Hasher, since Hasher may panic, in which
 	// case we have not actually done a write.
@@ -311,7 +311,7 @@ func runtime_mapassign_fast32ptr(typ *abi.MapType, m *Map, key unsafe.Pointer) u
 	// See the related comment in runtime_mapaccess2_fast32
 	// for why we pass local copy of key.
 	k := key
-	hash := memhash32(unsafe.Pointer(&k), m.seed)
+	hash := MemHash32(unsafe.Pointer(&k), m.seed)
 
 	// Set writing after calling Hasher, since Hasher may panic, in which
 	// case we have not actually done a write.

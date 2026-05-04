@@ -1262,6 +1262,17 @@ func TestEmptyAddress(t *testing.T) {
 	}
 }
 
+func BenchmarkConsumePhrase(b *testing.B) {
+	for _, n := range []int{10, 100, 1000, 10000} {
+		b.Run(fmt.Sprintf("words-%d", n), func(b *testing.B) {
+			input := strings.Repeat("=?utf-8?q?hello?= ", n) + "<user@example.com>"
+			for b.Loop() {
+				(&addrParser{s: input}).consumePhrase()
+			}
+		})
+	}
+}
+
 func BenchmarkConsumeComment(b *testing.B) {
 	for _, n := range []int{10, 100, 1000, 10000} {
 		b.Run(fmt.Sprintf("depth-%d", n), func(b *testing.B) {

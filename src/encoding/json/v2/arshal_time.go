@@ -539,7 +539,7 @@ func parseDurationISO8601(b []byte) (time.Duration, error) {
 		}
 
 		// Parse the number.
-		// A fraction allowed for the accurate units in the last part.
+		// A fraction is allowed for the accurate units in the last part.
 		whole, frac, ok := cutBytes(number, '.', ',')
 		if ok {
 			sawFrac = true
