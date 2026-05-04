@@ -932,7 +932,8 @@
 (LEA(Q|L)2 [0] {s} (ADD(Q|L) x x) x) && s == nil => (SHL(Q|L)const [2] x)
 
 // (x + x) << 2 -> x << 3 and similar
-(SHL(Q|L)const [c] (ADD(Q|L) x x))  => (SHL(Q|L)const [c+1] x)
+(SHLQconst [c] (ADDQ x x)) && c < 63 => (SHLQconst [c+1] x)
+(SHLLconst [c] (ADDL x x)) && c < 31 => (SHLLconst [c+1] x)
 
 // reverse ordering of compare instruction
 (SETL (InvertFlags x)) => (SETG x)
