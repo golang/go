@@ -457,6 +457,25 @@ func gopark(unlockf func(*g, unsafe.Pointer) bool, lock unsafe.Pointer, reason w
 	if status != _Grunning && status != _Gscanrunning {
 		throw("gopark: bad g status")
 	}
+	// Executor goroutines (created via runtime/executor.Executor.Co)
+	// route parks back to their owning Executor instead of the global
+	// scheduler. The hook is installed by the runtime/executor package
+	// at init time via //go:linkname.
+	if gp.execOwner != nil && parkExecHook != nil {
+		gp.waitreason = reason
+		mp.waitTraceBlockReason = traceReason
+		mp.waitTraceSkip = traceskip
+		releasem(mp)
+		// Run unlockf on the running G's stack, mirroring what
+		// park_m would do via parkunlock_c. If unlockf returns
+		// false the runtime convention is to abandon the park; we
+		// honor the same convention by not invoking the executor
+		// hook in that case.
+		if unlockf == nil || unlockf(gp, lock) {
+			parkExecHook(unsafe.Pointer(gp))
+		}
+		return
+	}
 	mp.waitlock = lock
 	mp.waitunlockf = unlockf
 	gp.waitreason = reason
@@ -484,10 +503,51 @@ func goparkunlock(lock *mutex, reason waitReason, traceReason traceBlockReason, 
 //
 //go:linkname goready
 func goready(gp *g, traceskip int) {
+	// Executor goroutines route wakeups back to their owning Executor
+	// instead of onto a P runqueue. The hook is installed by
+	// runtime/executor at init time via //go:linkname.
+	if gp.execOwner != nil && readyExecHook != nil {
+		readyExecHook(unsafe.Pointer(gp))
+		return
+	}
 	systemstack(func() {
 		ready(gp, traceskip, true)
 	})
 }
+
+// parkExecHook and readyExecHook are installed by the
+// runtime/executor package via //go:linkname. While nil, executor
+// support is inert and gopark/goready behave exactly as they did
+// before runtime/executor existed.
+//
+// parkExecHook is invoked from gopark with releasem already called;
+// it is responsible for transitioning gp out of _Grunning into
+// _Gexecparked, recording it on the owning Executor's parked list,
+// and switching back to the Pulse caller (or to the inline Co
+// caller) via mcall.
+//
+// readyExecHook is invoked from goready when gp.execOwner != nil.
+// It must enqueue gp onto the owning Executor's wake queue. It may
+// be called from any M (a non-owner M wakes a parked executor task
+// when, for example, a channel send running on another goroutine
+// completes); the implementation must be safe for concurrent
+// invocation.
+var (
+	// parkExecHook receives the parking goroutine as unsafe.Pointer
+	// so runtime/executor can implement the hook without referencing
+	// runtime's *g type. The runtime invokes unlockf itself before
+	// calling the hook, so the hook only needs to suspend gp on the
+	// owning Executor and switch back to its driver.
+	parkExecHook  func(gp unsafe.Pointer)
+	readyExecHook func(gp unsafe.Pointer)
+)
+
+// nExec is the number of currently-live executor goroutines summed
+// across all Executor instances. It is maintained by the
+// runtime/executor package via //go:linkname helpers and subtracted
+// from gcount() so that runtime.NumGoroutine() does not observe
+// executor tasks.
+var nExec atomic.Int64
 
 //go:nosplit
 func acquireSudog() *sudog {
@@ -4533,6 +4593,7 @@ func gdestroy(gp *g) {
 	gp.bubble = nil
 	gp.fipsOnlyBypass = false
 	gp.secret = 0
+	gp.execOwner = nil
 
 	if gcBlackenEnabled != 0 && gp.gcAssistBytes > 0 {
 		// Flush assist credit to the global pool. This gives
@@ -5732,6 +5793,10 @@ func gcount(includeSys bool) int32 {
 	n := int32(atomic.Loaduintptr(&allglen)) - sched.gFree.stack.size - sched.gFree.noStack.size
 	if !includeSys {
 		n -= sched.ngsys.Load()
+		// Executor-owned goroutines are not counted by
+		// runtime.NumGoroutine; they are part of a private cooperative
+		// scheduler, not the global scheduler.
+		n -= int32(nExec.Load())
 	}
 	for _, pp := range allp {
 		n -= pp.gFree.size

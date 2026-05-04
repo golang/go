@@ -98,6 +98,13 @@ const (
 	// used for cgo callbacks.
 	_Gdeadextra // 11
 
+	// _Gexecparked means this goroutine is an executor-owned task
+	// (g.execOwner != nil) parked in the suspended set of its
+	// runtime/executor.Executor. The global scheduler treats it like
+	// _Gwaiting for visibility (allgs/GC stack scan) but never
+	// schedules or migrates it. It is excluded from runtime.NumGoroutine.
+	_Gexecparked // 12
+
 	// _Gscan combined with one of the above states other than
 	// _Grunning indicates that GC is scanning the stack. The
 	// goroutine is not executing user code and the stack is owned
@@ -593,6 +600,13 @@ type g struct {
 	// valgrindStackID is used to track what memory is used for stacks when a program is
 	// built with the "valgrind" build tag, otherwise it is unused.
 	valgrindStackID uintptr
+
+	// execOwner is non-nil if this G is owned by a runtime/executor.Executor.
+	// When non-nil, gopark and goready route this G's parks and wakeups to the
+	// owning Executor instead of the global scheduler. The pointer is opaque to
+	// the runtime; only runtime/executor dereferences it. See the package docs of
+	// runtime/executor for the cooperative-scheduling contract.
+	execOwner unsafe.Pointer
 }
 
 // gTrackingPeriod is the number of transitions out of _Grunning between

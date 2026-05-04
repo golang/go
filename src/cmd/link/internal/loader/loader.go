@@ -2410,7 +2410,7 @@ func abiToVer(abi uint16, localSymVersion int) int {
 // even if it has a linknamed definition.
 var blockedLinknames = map[string][]string{
 	// coroutines
-	"runtime.newcoro": {"iter"},
+	"runtime.newcoro": {"iter", "runtime/executor"},
 	// fips info
 	"go:fipsinfo": {"crypto/internal/fips140/check"},
 	// New internal linknames in Go 1.24
