@@ -46,6 +46,10 @@ func main() {
 		os.Exit(1)
 	}
 
+	if *flagSimdgen {
+		fmt.Fprintln(os.Stderr, "# This may take a few minutes...")
+	}
+
 	if *flagTmplgen {
 		doTmplgen()
 	}
@@ -70,6 +74,8 @@ func doSimdgen() {
 
 	// simdgen produces SSA rule files, so update the SSA files
 	goRun("-C", prettyPath(".", filepath.Join(goRoot, "src", "cmd", "compile", "internal", "ssa", "_gen")), ".")
+
+	fmt.Fprintln(os.Stderr, "# Compiler changed. Consider running \"go install cmd/compile\"")
 }
 
 func resolveXEDPath(pathList string) (xedPath string, err error) {
