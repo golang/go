@@ -207,24 +207,6 @@ func TestExpand(t *testing.T) {
 	}
 }
 
-var testShiftAllVal uint64 = 3
-
-func TestShiftAll(t *testing.T) {
-	got := make([]int32, 4)
-	archsimd.LoadInt32x4Slice([]int32{0b11, 0b11, 0b11, 0b11}).ShiftAllLeft(2).StoreSlice(got)
-	for _, v := range got {
-		if v != 0b1100 {
-			t.Errorf("expect 0b1100, got %b", v)
-		}
-	}
-	archsimd.LoadInt32x4Slice([]int32{0b11, 0b11, 0b11, 0b11}).ShiftAllLeft(testShiftAllVal).StoreSlice(got)
-	for _, v := range got {
-		if v != 0b11000 {
-			t.Errorf("expect 0b11000, got %b", v)
-		}
-	}
-}
-
 func TestSlicesInt8(t *testing.T) {
 	if !archsimd.X86.AVX2() {
 		t.Skip("Test requires X86.AVX2, not available on this hardware")

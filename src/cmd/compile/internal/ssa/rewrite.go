@@ -681,6 +681,9 @@ func auxIntToInt64(i int64) int64 {
 func auxIntToUint8(i int64) uint8 {
 	return uint8(i)
 }
+func auxIntToUint64(i int64) uint64 {
+	return uint64(i)
+}
 func auxIntToFloat32(i int64) float32 {
 	return float32(math.Float64frombits(uint64(i)))
 }
@@ -732,6 +735,9 @@ func int64ToAuxInt(i int64) int64 {
 }
 func uint8ToAuxInt(i uint8) int64 {
 	return int64(int8(i))
+}
+func uint64ToAuxInt(i uint64) int64 {
+	return int64(i)
 }
 func float32ToAuxInt(f float32) int64 {
 	return int64(math.Float64bits(float64(f)))
@@ -1103,6 +1109,20 @@ func flagArg(v *Value) *Value {
 		return nil
 	}
 	return v.Args[0]
+}
+
+// amd64CapAVXShift caps an AMD64 AVX vector shift amount c so that over-shifts
+// always result in 0.
+//
+// These instructions have room for an 8-bit immediate and any value larger than
+// the element width will result in 0 or -1 (for an arithmetic right shift).
+// Thus, we simply cap this at 255.
+func amd64CapAVXShift(auxInt int64) uint8 {
+	u := auxIntToUint64(auxInt)
+	if u > 255 {
+		return 255
+	}
+	return uint8(u)
 }
 
 // arm64Negate finds the complement to an ARM64 condition code,

@@ -9,6 +9,7 @@
   - &vecAsScalar64
     go: "Uint.*"
     treatLikeAScalarOfSize: 64
+    name: shift
   out:
   - *any
 - go: ShiftAllRight
@@ -42,14 +43,14 @@
   out:
   - *any
 - go: shiftAllRightConst
-  asm: "VPSRL[WDQ]"
+  asm: "VPSRA[WDQ]"
   in:
   - *int
   - *imm
   out:
   - *int
 - go: shiftAllRightConst
-  asm: "VPSRA[WDQ]"
+  asm: "VPSRL[WDQ]"
   in:
   - *uint
   - *imm
@@ -60,49 +61,66 @@
 - go: ShiftLeft
   asm: "VPSLLV[WD]"
   in:
-  - *any
-  - *any
+  - go: $t
+  - go: $t
+    overwriteBase: uint
+    name: shift
   out:
-  - *any
+  - go: $t
 # XED data of VPSLLVQ marks the element bits 32 which is off to the actual semantic, we need to overwrite
 # it to 64.
 - go: ShiftLeft
   asm: "VPSLLVQ"
   in:
-  - &anyOverwriteElemBits
-    go: $t
+  - go: $t
     overwriteElementBits: 64
-  - *anyOverwriteElemBits
+  - go: $t
+    overwriteElementBits: 64
+    overwriteBase: uint
+    name: shift
   out:
-  - *anyOverwriteElemBits
+  - go: $t
+    overwriteElementBits: 64
 - go: ShiftRight
   signed: false
   asm: "VPSRLV[WD]"
   in:
-  - *uint
-  - *uint
+  - go: $t
+    base: uint
+  - go: $t
+    overwriteBase: uint
+    name: shift
   out:
-  - *uint
+  - go: $t
+    base: uint
 # XED data of VPSRLVQ needs the same overwrite as VPSLLVQ.
 - go: ShiftRight
   signed: false
   asm: "VPSRLVQ"
   in:
-  - &uintOverwriteElemBits
-    go: $t
+  - go: $t
     base: uint
     overwriteElementBits: 64
-  - *uintOverwriteElemBits
+  - go: $t
+    overwriteElementBits: 64
+    overwriteBase: uint
+    name: shift
   out:
-  - *uintOverwriteElemBits
+  - go: $t
+    base: uint
+    overwriteElementBits: 64
 - go: ShiftRight
   signed: true
   asm: "VPSRAV[WDQ]"
   in:
-  - *int
-  - *int
+  - go: $t
+    base: int
+  - go: $t
+    overwriteBase: uint
+    name: shift
   out:
-  - *int
+  - go: $t
+    base: int
 
 # Rotate
 - go: RotateAllLeft
@@ -157,16 +175,18 @@
 - go: ShiftLeftConcat
   asm: "VPSHLDV[WDQ]"
   in:
-  - *any
-  - *any
-  - *any
+  - go: $t
+  - go: $t
+  - base: uint
+    name: shift
   out:
-  - *any
+  - go: $t
 - go: ShiftRightConcat
   asm: "VPSHRDV[WDQ]"
   in:
-  - *any
-  - *any
-  - *any
+  - go: $t
+  - go: $t
+  - base: uint
+    name: shift
   out:
-  - *any
+  - go: $t

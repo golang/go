@@ -4,21 +4,24 @@
   specialLower: sftimm
   commutative: false
   documentation: !string |-
-    // NAME shifts each element to the left by y bits.
+    // NAME shifts each element of x left by y bits.
+    // If y is greater than the element width, the result is 0.
 - go: ShiftAllRight
   signed: false
   nameAndSizeCheck: true
   specialLower: sftimm
   commutative: false
   documentation: !string |-
-    // NAME performs an unsigned right shift on each element by y bits.
+    // NAME logically shifts each element of x right by y bits.
+    // If y is greater than the element width, the result is 0.
 - go: ShiftAllRight
   signed: true
   specialLower: sftimm
   nameAndSizeCheck: true
   commutative: false
   documentation: !string |-
-    // NAME performs a signed right shift on each element by y bits.
+    // NAME arithmetically shifts each element of x right by y bits.
+    // If y is greater than the element width, the result is 0 or -1.
 - go: shiftAllLeftConst # no APIs, only ssa ops.
   noTypes: "true"
   noGenericOps: "true"
@@ -47,19 +50,22 @@
   nameAndSizeCheck: true
   commutative: false
   documentation: !string |-
-    // NAME shifts each element in x to the left by the number of bits specified in y's corresponding elements.
+    // NAME shifts x[i] left by y[i] bits.
+    // If y[i] is greater than the element width, the result is 0.
 - go: ShiftRight
   signed: false
   nameAndSizeCheck: true
   commutative: false
   documentation: !string |-
-    // NAME performs an unsigned right shift on each element in x by the number of bits specified in y's corresponding elements.
+    // NAME logically shifts x[i] right by y[i] bits.
+    // If y[i] is greater than the element width, the result is 0.
 - go: ShiftRight
   signed: true
   nameAndSizeCheck: true
   commutative: false
   documentation: !string |-
-    // NAME performs a signed right shift on each element in x by the number of bits specified in y's corresponding elements.
+    // NAME arithmetically shifts x[i] right by y[i] bits.
+    // If y[i] is greater than the element width, the result is 0 or -1.
 - go: RotateAllLeft
   nameAndSizeCheck: true
   commutative: false
@@ -84,23 +90,31 @@
   nameAndSizeCheck: true
   commutative: false
   documentation: !string |-
-    // NAME shifts each element of x to the left by the number of bits specified by
-    // shift (only the lower 5 bits are used), and then copies the upper bits of y to the emptied lower bits of the shifted x.
+    // NAME shifts x[i] left by shift%32, filing any empted lower bits
+    // with the high bits of y[i].
+    //
+    //    z[i] = concat(x[i], y[i]) << (shift%32 - 32)
 - go: ShiftAllRightConcat
   nameAndSizeCheck: true
   commutative: false
   documentation: !string |-
-    // NAME shifts each element of x to the right by the number of bits specified by
-    // shift (only the lower 5 bits are used), and then copies the lower bits of y to the emptied upper bits of the shifted x.
+    // NAME shifts x[i] right by shift%32, filling any emptied upper bits
+    // with the low bits of y[i].
+    //
+    //    z[i] = concat(y[i], x[i]) >> (shift%32)
 - go: ShiftLeftConcat
   nameAndSizeCheck: true
   commutative: false
   documentation: !string |-
-    // NAME shifts each element of x to the left by the number of bits specified by the
-    // corresponding elements in y (only the lower 5 bits are used), and then copies the upper bits of z to the emptied lower bits of the shifted x.
+    // NAME shifts x[i] left by shift[i]%32, filing any empted lower bits
+    // with the high bits of y[i].
+    //
+    //    z[i] = concat(x[i], y[i]) << (shift[i]%32 - 32)
 - go: ShiftRightConcat
   nameAndSizeCheck: true
   commutative: false
   documentation: !string |-
-    // NAME shifts each element of x to the right by the number of bits specified by the
-    // corresponding elements in y (only the lower 5 bits are used), and then copies the lower bits of z to the emptied upper bits of the shifted x.
+    // NAME shifts x[i] right by shift[i]%32, filling any emptied upper bits
+    // with the low bits of y[i].
+    //
+    //    z[i] = concat(y[i], x[i]) >> (shift[i]%32)

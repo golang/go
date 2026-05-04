@@ -995,23 +995,23 @@
 (SetLoUint64x4 x y) => (VINSERTI128256 [0] x y)
 (SetLoUint64x8 x y) => (VINSERTI64X4512 [0] x y)
 (ShiftAllLeftInt16x8 ...) => (VPSLLW128 ...)
-(VPSLLW128 x (MOVQconst [c])) => (VPSLLW128const [uint8(c)] x)
+(VPSLLW128 x (MOVQconst [c])) => (VPSLLW128const [amd64CapAVXShift(c)] x)
 (ShiftAllLeftInt16x16 ...) => (VPSLLW256 ...)
-(VPSLLW256 x (MOVQconst [c])) => (VPSLLW256const [uint8(c)] x)
+(VPSLLW256 x (MOVQconst [c])) => (VPSLLW256const [amd64CapAVXShift(c)] x)
 (ShiftAllLeftInt16x32 ...) => (VPSLLW512 ...)
-(VPSLLW512 x (MOVQconst [c])) => (VPSLLW512const [uint8(c)] x)
+(VPSLLW512 x (MOVQconst [c])) => (VPSLLW512const [amd64CapAVXShift(c)] x)
 (ShiftAllLeftInt32x4 ...) => (VPSLLD128 ...)
-(VPSLLD128 x (MOVQconst [c])) => (VPSLLD128const [uint8(c)] x)
+(VPSLLD128 x (MOVQconst [c])) => (VPSLLD128const [amd64CapAVXShift(c)] x)
 (ShiftAllLeftInt32x8 ...) => (VPSLLD256 ...)
-(VPSLLD256 x (MOVQconst [c])) => (VPSLLD256const [uint8(c)] x)
+(VPSLLD256 x (MOVQconst [c])) => (VPSLLD256const [amd64CapAVXShift(c)] x)
 (ShiftAllLeftInt32x16 ...) => (VPSLLD512 ...)
-(VPSLLD512 x (MOVQconst [c])) => (VPSLLD512const [uint8(c)] x)
+(VPSLLD512 x (MOVQconst [c])) => (VPSLLD512const [amd64CapAVXShift(c)] x)
 (ShiftAllLeftInt64x2 ...) => (VPSLLQ128 ...)
-(VPSLLQ128 x (MOVQconst [c])) => (VPSLLQ128const [uint8(c)] x)
+(VPSLLQ128 x (MOVQconst [c])) => (VPSLLQ128const [amd64CapAVXShift(c)] x)
 (ShiftAllLeftInt64x4 ...) => (VPSLLQ256 ...)
-(VPSLLQ256 x (MOVQconst [c])) => (VPSLLQ256const [uint8(c)] x)
+(VPSLLQ256 x (MOVQconst [c])) => (VPSLLQ256const [amd64CapAVXShift(c)] x)
 (ShiftAllLeftInt64x8 ...) => (VPSLLQ512 ...)
-(VPSLLQ512 x (MOVQconst [c])) => (VPSLLQ512const [uint8(c)] x)
+(VPSLLQ512 x (MOVQconst [c])) => (VPSLLQ512const [amd64CapAVXShift(c)] x)
 (ShiftAllLeftUint16x8 ...) => (VPSLLW128 ...)
 (ShiftAllLeftUint16x16 ...) => (VPSLLW256 ...)
 (ShiftAllLeftUint16x32 ...) => (VPSLLW512 ...)
@@ -1039,51 +1039,51 @@
 (ShiftAllLeftConcatUint64x2 ...) => (VPSHLDQ128 ...)
 (ShiftAllLeftConcatUint64x4 ...) => (VPSHLDQ256 ...)
 (ShiftAllLeftConcatUint64x8 ...) => (VPSHLDQ512 ...)
-(VPSLLWMasked128 x (MOVQconst [c]) mask) => (VPSLLWMasked128const [uint8(c)] x mask)
-(VPSLLWMasked256 x (MOVQconst [c]) mask) => (VPSLLWMasked256const [uint8(c)] x mask)
-(VPSLLWMasked512 x (MOVQconst [c]) mask) => (VPSLLWMasked512const [uint8(c)] x mask)
-(VPSLLDMasked128 x (MOVQconst [c]) mask) => (VPSLLDMasked128const [uint8(c)] x mask)
-(VPSLLDMasked256 x (MOVQconst [c]) mask) => (VPSLLDMasked256const [uint8(c)] x mask)
-(VPSLLDMasked512 x (MOVQconst [c]) mask) => (VPSLLDMasked512const [uint8(c)] x mask)
-(VPSLLQMasked128 x (MOVQconst [c]) mask) => (VPSLLQMasked128const [uint8(c)] x mask)
-(VPSLLQMasked256 x (MOVQconst [c]) mask) => (VPSLLQMasked256const [uint8(c)] x mask)
-(VPSLLQMasked512 x (MOVQconst [c]) mask) => (VPSLLQMasked512const [uint8(c)] x mask)
+(VPSLLWMasked128 x (MOVQconst [c]) mask) => (VPSLLWMasked128const [amd64CapAVXShift(c)] x mask)
+(VPSLLWMasked256 x (MOVQconst [c]) mask) => (VPSLLWMasked256const [amd64CapAVXShift(c)] x mask)
+(VPSLLWMasked512 x (MOVQconst [c]) mask) => (VPSLLWMasked512const [amd64CapAVXShift(c)] x mask)
+(VPSLLDMasked128 x (MOVQconst [c]) mask) => (VPSLLDMasked128const [amd64CapAVXShift(c)] x mask)
+(VPSLLDMasked256 x (MOVQconst [c]) mask) => (VPSLLDMasked256const [amd64CapAVXShift(c)] x mask)
+(VPSLLDMasked512 x (MOVQconst [c]) mask) => (VPSLLDMasked512const [amd64CapAVXShift(c)] x mask)
+(VPSLLQMasked128 x (MOVQconst [c]) mask) => (VPSLLQMasked128const [amd64CapAVXShift(c)] x mask)
+(VPSLLQMasked256 x (MOVQconst [c]) mask) => (VPSLLQMasked256const [amd64CapAVXShift(c)] x mask)
+(VPSLLQMasked512 x (MOVQconst [c]) mask) => (VPSLLQMasked512const [amd64CapAVXShift(c)] x mask)
 (ShiftAllRightInt16x8 ...) => (VPSRAW128 ...)
-(VPSRAW128 x (MOVQconst [c])) => (VPSRAW128const [uint8(c)] x)
+(VPSRAW128 x (MOVQconst [c])) => (VPSRAW128const [amd64CapAVXShift(c)] x)
 (ShiftAllRightInt16x16 ...) => (VPSRAW256 ...)
-(VPSRAW256 x (MOVQconst [c])) => (VPSRAW256const [uint8(c)] x)
+(VPSRAW256 x (MOVQconst [c])) => (VPSRAW256const [amd64CapAVXShift(c)] x)
 (ShiftAllRightInt16x32 ...) => (VPSRAW512 ...)
-(VPSRAW512 x (MOVQconst [c])) => (VPSRAW512const [uint8(c)] x)
+(VPSRAW512 x (MOVQconst [c])) => (VPSRAW512const [amd64CapAVXShift(c)] x)
 (ShiftAllRightInt32x4 ...) => (VPSRAD128 ...)
-(VPSRAD128 x (MOVQconst [c])) => (VPSRAD128const [uint8(c)] x)
+(VPSRAD128 x (MOVQconst [c])) => (VPSRAD128const [amd64CapAVXShift(c)] x)
 (ShiftAllRightInt32x8 ...) => (VPSRAD256 ...)
-(VPSRAD256 x (MOVQconst [c])) => (VPSRAD256const [uint8(c)] x)
+(VPSRAD256 x (MOVQconst [c])) => (VPSRAD256const [amd64CapAVXShift(c)] x)
 (ShiftAllRightInt32x16 ...) => (VPSRAD512 ...)
-(VPSRAD512 x (MOVQconst [c])) => (VPSRAD512const [uint8(c)] x)
+(VPSRAD512 x (MOVQconst [c])) => (VPSRAD512const [amd64CapAVXShift(c)] x)
 (ShiftAllRightInt64x2 ...) => (VPSRAQ128 ...)
-(VPSRAQ128 x (MOVQconst [c])) => (VPSRAQ128const [uint8(c)] x)
+(VPSRAQ128 x (MOVQconst [c])) => (VPSRAQ128const [amd64CapAVXShift(c)] x)
 (ShiftAllRightInt64x4 ...) => (VPSRAQ256 ...)
-(VPSRAQ256 x (MOVQconst [c])) => (VPSRAQ256const [uint8(c)] x)
+(VPSRAQ256 x (MOVQconst [c])) => (VPSRAQ256const [amd64CapAVXShift(c)] x)
 (ShiftAllRightInt64x8 ...) => (VPSRAQ512 ...)
-(VPSRAQ512 x (MOVQconst [c])) => (VPSRAQ512const [uint8(c)] x)
+(VPSRAQ512 x (MOVQconst [c])) => (VPSRAQ512const [amd64CapAVXShift(c)] x)
 (ShiftAllRightUint16x8 ...) => (VPSRLW128 ...)
-(VPSRLW128 x (MOVQconst [c])) => (VPSRLW128const [uint8(c)] x)
+(VPSRLW128 x (MOVQconst [c])) => (VPSRLW128const [amd64CapAVXShift(c)] x)
 (ShiftAllRightUint16x16 ...) => (VPSRLW256 ...)
-(VPSRLW256 x (MOVQconst [c])) => (VPSRLW256const [uint8(c)] x)
+(VPSRLW256 x (MOVQconst [c])) => (VPSRLW256const [amd64CapAVXShift(c)] x)
 (ShiftAllRightUint16x32 ...) => (VPSRLW512 ...)
-(VPSRLW512 x (MOVQconst [c])) => (VPSRLW512const [uint8(c)] x)
+(VPSRLW512 x (MOVQconst [c])) => (VPSRLW512const [amd64CapAVXShift(c)] x)
 (ShiftAllRightUint32x4 ...) => (VPSRLD128 ...)
-(VPSRLD128 x (MOVQconst [c])) => (VPSRLD128const [uint8(c)] x)
+(VPSRLD128 x (MOVQconst [c])) => (VPSRLD128const [amd64CapAVXShift(c)] x)
 (ShiftAllRightUint32x8 ...) => (VPSRLD256 ...)
-(VPSRLD256 x (MOVQconst [c])) => (VPSRLD256const [uint8(c)] x)
+(VPSRLD256 x (MOVQconst [c])) => (VPSRLD256const [amd64CapAVXShift(c)] x)
 (ShiftAllRightUint32x16 ...) => (VPSRLD512 ...)
-(VPSRLD512 x (MOVQconst [c])) => (VPSRLD512const [uint8(c)] x)
+(VPSRLD512 x (MOVQconst [c])) => (VPSRLD512const [amd64CapAVXShift(c)] x)
 (ShiftAllRightUint64x2 ...) => (VPSRLQ128 ...)
-(VPSRLQ128 x (MOVQconst [c])) => (VPSRLQ128const [uint8(c)] x)
+(VPSRLQ128 x (MOVQconst [c])) => (VPSRLQ128const [amd64CapAVXShift(c)] x)
 (ShiftAllRightUint64x4 ...) => (VPSRLQ256 ...)
-(VPSRLQ256 x (MOVQconst [c])) => (VPSRLQ256const [uint8(c)] x)
+(VPSRLQ256 x (MOVQconst [c])) => (VPSRLQ256const [amd64CapAVXShift(c)] x)
 (ShiftAllRightUint64x8 ...) => (VPSRLQ512 ...)
-(VPSRLQ512 x (MOVQconst [c])) => (VPSRLQ512const [uint8(c)] x)
+(VPSRLQ512 x (MOVQconst [c])) => (VPSRLQ512const [amd64CapAVXShift(c)] x)
 (ShiftAllRightConcatInt16x8 ...) => (VPSHRDW128 ...)
 (ShiftAllRightConcatInt16x16 ...) => (VPSHRDW256 ...)
 (ShiftAllRightConcatInt16x32 ...) => (VPSHRDW512 ...)
@@ -1102,24 +1102,24 @@
 (ShiftAllRightConcatUint64x2 ...) => (VPSHRDQ128 ...)
 (ShiftAllRightConcatUint64x4 ...) => (VPSHRDQ256 ...)
 (ShiftAllRightConcatUint64x8 ...) => (VPSHRDQ512 ...)
-(VPSRAWMasked128 x (MOVQconst [c]) mask) => (VPSRAWMasked128const [uint8(c)] x mask)
-(VPSRAWMasked256 x (MOVQconst [c]) mask) => (VPSRAWMasked256const [uint8(c)] x mask)
-(VPSRAWMasked512 x (MOVQconst [c]) mask) => (VPSRAWMasked512const [uint8(c)] x mask)
-(VPSRADMasked128 x (MOVQconst [c]) mask) => (VPSRADMasked128const [uint8(c)] x mask)
-(VPSRADMasked256 x (MOVQconst [c]) mask) => (VPSRADMasked256const [uint8(c)] x mask)
-(VPSRADMasked512 x (MOVQconst [c]) mask) => (VPSRADMasked512const [uint8(c)] x mask)
-(VPSRAQMasked128 x (MOVQconst [c]) mask) => (VPSRAQMasked128const [uint8(c)] x mask)
-(VPSRAQMasked256 x (MOVQconst [c]) mask) => (VPSRAQMasked256const [uint8(c)] x mask)
-(VPSRAQMasked512 x (MOVQconst [c]) mask) => (VPSRAQMasked512const [uint8(c)] x mask)
-(VPSRLWMasked128 x (MOVQconst [c]) mask) => (VPSRLWMasked128const [uint8(c)] x mask)
-(VPSRLWMasked256 x (MOVQconst [c]) mask) => (VPSRLWMasked256const [uint8(c)] x mask)
-(VPSRLWMasked512 x (MOVQconst [c]) mask) => (VPSRLWMasked512const [uint8(c)] x mask)
-(VPSRLDMasked128 x (MOVQconst [c]) mask) => (VPSRLDMasked128const [uint8(c)] x mask)
-(VPSRLDMasked256 x (MOVQconst [c]) mask) => (VPSRLDMasked256const [uint8(c)] x mask)
-(VPSRLDMasked512 x (MOVQconst [c]) mask) => (VPSRLDMasked512const [uint8(c)] x mask)
-(VPSRLQMasked128 x (MOVQconst [c]) mask) => (VPSRLQMasked128const [uint8(c)] x mask)
-(VPSRLQMasked256 x (MOVQconst [c]) mask) => (VPSRLQMasked256const [uint8(c)] x mask)
-(VPSRLQMasked512 x (MOVQconst [c]) mask) => (VPSRLQMasked512const [uint8(c)] x mask)
+(VPSRAWMasked128 x (MOVQconst [c]) mask) => (VPSRAWMasked128const [amd64CapAVXShift(c)] x mask)
+(VPSRAWMasked256 x (MOVQconst [c]) mask) => (VPSRAWMasked256const [amd64CapAVXShift(c)] x mask)
+(VPSRAWMasked512 x (MOVQconst [c]) mask) => (VPSRAWMasked512const [amd64CapAVXShift(c)] x mask)
+(VPSRADMasked128 x (MOVQconst [c]) mask) => (VPSRADMasked128const [amd64CapAVXShift(c)] x mask)
+(VPSRADMasked256 x (MOVQconst [c]) mask) => (VPSRADMasked256const [amd64CapAVXShift(c)] x mask)
+(VPSRADMasked512 x (MOVQconst [c]) mask) => (VPSRADMasked512const [amd64CapAVXShift(c)] x mask)
+(VPSRAQMasked128 x (MOVQconst [c]) mask) => (VPSRAQMasked128const [amd64CapAVXShift(c)] x mask)
+(VPSRAQMasked256 x (MOVQconst [c]) mask) => (VPSRAQMasked256const [amd64CapAVXShift(c)] x mask)
+(VPSRAQMasked512 x (MOVQconst [c]) mask) => (VPSRAQMasked512const [amd64CapAVXShift(c)] x mask)
+(VPSRLWMasked128 x (MOVQconst [c]) mask) => (VPSRLWMasked128const [amd64CapAVXShift(c)] x mask)
+(VPSRLWMasked256 x (MOVQconst [c]) mask) => (VPSRLWMasked256const [amd64CapAVXShift(c)] x mask)
+(VPSRLWMasked512 x (MOVQconst [c]) mask) => (VPSRLWMasked512const [amd64CapAVXShift(c)] x mask)
+(VPSRLDMasked128 x (MOVQconst [c]) mask) => (VPSRLDMasked128const [amd64CapAVXShift(c)] x mask)
+(VPSRLDMasked256 x (MOVQconst [c]) mask) => (VPSRLDMasked256const [amd64CapAVXShift(c)] x mask)
+(VPSRLDMasked512 x (MOVQconst [c]) mask) => (VPSRLDMasked512const [amd64CapAVXShift(c)] x mask)
+(VPSRLQMasked128 x (MOVQconst [c]) mask) => (VPSRLQMasked128const [amd64CapAVXShift(c)] x mask)
+(VPSRLQMasked256 x (MOVQconst [c]) mask) => (VPSRLQMasked256const [amd64CapAVXShift(c)] x mask)
+(VPSRLQMasked512 x (MOVQconst [c]) mask) => (VPSRLQMasked512const [amd64CapAVXShift(c)] x mask)
 (ShiftLeftInt16x8 ...) => (VPSLLVW128 ...)
 (ShiftLeftInt16x16 ...) => (VPSLLVW256 ...)
 (ShiftLeftInt16x32 ...) => (VPSLLVW512 ...)
@@ -1396,15 +1396,6 @@
 (VPSLLQMasked128const [a] x mask) && a==0 => x
 (VPSLLQMasked256const [a] x mask) && a==0 => x
 (VPSLLQMasked512const [a] x mask) && a==0 => x
-(VPSRLW128const [a] x) && a==0 => x
-(VPSRLW256const [a] x) && a==0 => x
-(VPSRLW512const [a] x) && a==0 => x
-(VPSRLD128const [a] x) && a==0 => x
-(VPSRLD256const [a] x) && a==0 => x
-(VPSRLD512const [a] x) && a==0 => x
-(VPSRLQ128const [a] x) && a==0 => x
-(VPSRLQ256const [a] x) && a==0 => x
-(VPSRLQ512const [a] x) && a==0 => x
 (VPSRAW128const [a] x) && a==0 => x
 (VPSRAW256const [a] x) && a==0 => x
 (VPSRAW512const [a] x) && a==0 => x
@@ -1414,15 +1405,15 @@
 (VPSRAQ128const [a] x) && a==0 => x
 (VPSRAQ256const [a] x) && a==0 => x
 (VPSRAQ512const [a] x) && a==0 => x
-(VPSRLWMasked128const [a] x mask) && a==0 => x
-(VPSRLWMasked256const [a] x mask) && a==0 => x
-(VPSRLWMasked512const [a] x mask) && a==0 => x
-(VPSRLDMasked128const [a] x mask) && a==0 => x
-(VPSRLDMasked256const [a] x mask) && a==0 => x
-(VPSRLDMasked512const [a] x mask) && a==0 => x
-(VPSRLQMasked128const [a] x mask) && a==0 => x
-(VPSRLQMasked256const [a] x mask) && a==0 => x
-(VPSRLQMasked512const [a] x mask) && a==0 => x
+(VPSRLW128const [a] x) && a==0 => x
+(VPSRLW256const [a] x) && a==0 => x
+(VPSRLW512const [a] x) && a==0 => x
+(VPSRLD128const [a] x) && a==0 => x
+(VPSRLD256const [a] x) && a==0 => x
+(VPSRLD512const [a] x) && a==0 => x
+(VPSRLQ128const [a] x) && a==0 => x
+(VPSRLQ256const [a] x) && a==0 => x
+(VPSRLQ512const [a] x) && a==0 => x
 (VPSRAWMasked128const [a] x mask) && a==0 => x
 (VPSRAWMasked256const [a] x mask) && a==0 => x
 (VPSRAWMasked512const [a] x mask) && a==0 => x
@@ -1432,6 +1423,15 @@
 (VPSRAQMasked128const [a] x mask) && a==0 => x
 (VPSRAQMasked256const [a] x mask) && a==0 => x
 (VPSRAQMasked512const [a] x mask) && a==0 => x
+(VPSRLWMasked128const [a] x mask) && a==0 => x
+(VPSRLWMasked256const [a] x mask) && a==0 => x
+(VPSRLWMasked512const [a] x mask) && a==0 => x
+(VPSRLDMasked128const [a] x mask) && a==0 => x
+(VPSRLDMasked256const [a] x mask) && a==0 => x
+(VPSRLDMasked512const [a] x mask) && a==0 => x
+(VPSRLQMasked128const [a] x mask) && a==0 => x
+(VPSRLQMasked256const [a] x mask) && a==0 => x
+(VPSRLQMasked512const [a] x mask) && a==0 => x
 (ternInt32x4 ...) => (VPTERNLOGD128 ...)
 (ternInt32x8 ...) => (VPTERNLOGD256 ...)
 (ternInt32x16 ...) => (VPTERNLOGD512 ...)
@@ -2032,15 +2032,6 @@
 (VMOVDQU64Masked128 (VPSLLQ128const [a] x) mask) => (VPSLLQMasked128const [a] x mask)
 (VMOVDQU64Masked256 (VPSLLQ256const [a] x) mask) => (VPSLLQMasked256const [a] x mask)
 (VMOVDQU64Masked512 (VPSLLQ512const [a] x) mask) => (VPSLLQMasked512const [a] x mask)
-(VMOVDQU16Masked128 (VPSRLW128const [a] x) mask) => (VPSRLWMasked128const [a] x mask)
-(VMOVDQU16Masked256 (VPSRLW256const [a] x) mask) => (VPSRLWMasked256const [a] x mask)
-(VMOVDQU16Masked512 (VPSRLW512const [a] x) mask) => (VPSRLWMasked512const [a] x mask)
-(VMOVDQU32Masked128 (VPSRLD128const [a] x) mask) => (VPSRLDMasked128const [a] x mask)
-(VMOVDQU32Masked256 (VPSRLD256const [a] x) mask) => (VPSRLDMasked256const [a] x mask)
-(VMOVDQU32Masked512 (VPSRLD512const [a] x) mask) => (VPSRLDMasked512const [a] x mask)
-(VMOVDQU64Masked128 (VPSRLQ128const [a] x) mask) => (VPSRLQMasked128const [a] x mask)
-(VMOVDQU64Masked256 (VPSRLQ256const [a] x) mask) => (VPSRLQMasked256const [a] x mask)
-(VMOVDQU64Masked512 (VPSRLQ512const [a] x) mask) => (VPSRLQMasked512const [a] x mask)
 (VMOVDQU16Masked128 (VPSRAW128const [a] x) mask) => (VPSRAWMasked128const [a] x mask)
 (VMOVDQU16Masked256 (VPSRAW256const [a] x) mask) => (VPSRAWMasked256const [a] x mask)
 (VMOVDQU16Masked512 (VPSRAW512const [a] x) mask) => (VPSRAWMasked512const [a] x mask)
@@ -2050,6 +2041,15 @@
 (VMOVDQU64Masked128 (VPSRAQ128const [a] x) mask) => (VPSRAQMasked128const [a] x mask)
 (VMOVDQU64Masked256 (VPSRAQ256const [a] x) mask) => (VPSRAQMasked256const [a] x mask)
 (VMOVDQU64Masked512 (VPSRAQ512const [a] x) mask) => (VPSRAQMasked512const [a] x mask)
+(VMOVDQU16Masked128 (VPSRLW128const [a] x) mask) => (VPSRLWMasked128const [a] x mask)
+(VMOVDQU16Masked256 (VPSRLW256const [a] x) mask) => (VPSRLWMasked256const [a] x mask)
+(VMOVDQU16Masked512 (VPSRLW512const [a] x) mask) => (VPSRLWMasked512const [a] x mask)
+(VMOVDQU32Masked128 (VPSRLD128const [a] x) mask) => (VPSRLDMasked128const [a] x mask)
+(VMOVDQU32Masked256 (VPSRLD256const [a] x) mask) => (VPSRLDMasked256const [a] x mask)
+(VMOVDQU32Masked512 (VPSRLD512const [a] x) mask) => (VPSRLDMasked512const [a] x mask)
+(VMOVDQU64Masked128 (VPSRLQ128const [a] x) mask) => (VPSRLQMasked128const [a] x mask)
+(VMOVDQU64Masked256 (VPSRLQ256const [a] x) mask) => (VPSRLQMasked256const [a] x mask)
+(VMOVDQU64Masked512 (VPSRLQ512const [a] x) mask) => (VPSRLQMasked512const [a] x mask)
 (VPBLENDMBMasked512 dst (VGF2P8MULB512 x y) mask) => (VGF2P8MULBMasked512Merging dst x y mask)
 (VPBLENDMBMasked512 dst (VPABSB512 x) mask) => (VPABSBMasked512Merging dst x mask)
 (VPBLENDMBMasked512 dst (VPADDB512 x y) mask) => (VPADDBMasked512Merging dst x y mask)
@@ -3141,24 +3141,24 @@
 (VPSLLQMasked128const [c]  l:(VMOVDQUload128 {sym} [off] ptr mem) mask) && canMergeLoad(v, l) && clobber(l) => (VPSLLQMasked128constload {sym} [makeValAndOff(int32(uint8(c)),off)]  ptr mask mem)
 (VPSLLQMasked256const [c]  l:(VMOVDQUload256 {sym} [off] ptr mem) mask) && canMergeLoad(v, l) && clobber(l) => (VPSLLQMasked256constload {sym} [makeValAndOff(int32(uint8(c)),off)]  ptr mask mem)
 (VPSLLQMasked512const [c]  l:(VMOVDQUload512 {sym} [off] ptr mem) mask) && canMergeLoad(v, l) && clobber(l) => (VPSLLQMasked512constload {sym} [makeValAndOff(int32(uint8(c)),off)]  ptr mask mem)
-(VPSRLD512const [c]  l:(VMOVDQUload512 {sym} [off] ptr mem)) && canMergeLoad(v, l) && clobber(l) => (VPSRLD512constload {sym} [makeValAndOff(int32(uint8(c)),off)]  ptr mem)
-(VPSRLQ512const [c]  l:(VMOVDQUload512 {sym} [off] ptr mem)) && canMergeLoad(v, l) && clobber(l) => (VPSRLQ512constload {sym} [makeValAndOff(int32(uint8(c)),off)]  ptr mem)
 (VPSRAD512const [c]  l:(VMOVDQUload512 {sym} [off] ptr mem)) && canMergeLoad(v, l) && clobber(l) => (VPSRAD512constload {sym} [makeValAndOff(int32(uint8(c)),off)]  ptr mem)
 (VPSRAQ128const [c]  l:(VMOVDQUload128 {sym} [off] ptr mem)) && canMergeLoad(v, l) && clobber(l) => (VPSRAQ128constload {sym} [makeValAndOff(int32(uint8(c)),off)]  ptr mem)
 (VPSRAQ256const [c]  l:(VMOVDQUload256 {sym} [off] ptr mem)) && canMergeLoad(v, l) && clobber(l) => (VPSRAQ256constload {sym} [makeValAndOff(int32(uint8(c)),off)]  ptr mem)
 (VPSRAQ512const [c]  l:(VMOVDQUload512 {sym} [off] ptr mem)) && canMergeLoad(v, l) && clobber(l) => (VPSRAQ512constload {sym} [makeValAndOff(int32(uint8(c)),off)]  ptr mem)
-(VPSRLDMasked128const [c]  l:(VMOVDQUload128 {sym} [off] ptr mem) mask) && canMergeLoad(v, l) && clobber(l) => (VPSRLDMasked128constload {sym} [makeValAndOff(int32(uint8(c)),off)]  ptr mask mem)
-(VPSRLDMasked256const [c]  l:(VMOVDQUload256 {sym} [off] ptr mem) mask) && canMergeLoad(v, l) && clobber(l) => (VPSRLDMasked256constload {sym} [makeValAndOff(int32(uint8(c)),off)]  ptr mask mem)
-(VPSRLDMasked512const [c]  l:(VMOVDQUload512 {sym} [off] ptr mem) mask) && canMergeLoad(v, l) && clobber(l) => (VPSRLDMasked512constload {sym} [makeValAndOff(int32(uint8(c)),off)]  ptr mask mem)
-(VPSRLQMasked128const [c]  l:(VMOVDQUload128 {sym} [off] ptr mem) mask) && canMergeLoad(v, l) && clobber(l) => (VPSRLQMasked128constload {sym} [makeValAndOff(int32(uint8(c)),off)]  ptr mask mem)
-(VPSRLQMasked256const [c]  l:(VMOVDQUload256 {sym} [off] ptr mem) mask) && canMergeLoad(v, l) && clobber(l) => (VPSRLQMasked256constload {sym} [makeValAndOff(int32(uint8(c)),off)]  ptr mask mem)
-(VPSRLQMasked512const [c]  l:(VMOVDQUload512 {sym} [off] ptr mem) mask) && canMergeLoad(v, l) && clobber(l) => (VPSRLQMasked512constload {sym} [makeValAndOff(int32(uint8(c)),off)]  ptr mask mem)
+(VPSRLD512const [c]  l:(VMOVDQUload512 {sym} [off] ptr mem)) && canMergeLoad(v, l) && clobber(l) => (VPSRLD512constload {sym} [makeValAndOff(int32(uint8(c)),off)]  ptr mem)
+(VPSRLQ512const [c]  l:(VMOVDQUload512 {sym} [off] ptr mem)) && canMergeLoad(v, l) && clobber(l) => (VPSRLQ512constload {sym} [makeValAndOff(int32(uint8(c)),off)]  ptr mem)
 (VPSRADMasked128const [c]  l:(VMOVDQUload128 {sym} [off] ptr mem) mask) && canMergeLoad(v, l) && clobber(l) => (VPSRADMasked128constload {sym} [makeValAndOff(int32(uint8(c)),off)]  ptr mask mem)
 (VPSRADMasked256const [c]  l:(VMOVDQUload256 {sym} [off] ptr mem) mask) && canMergeLoad(v, l) && clobber(l) => (VPSRADMasked256constload {sym} [makeValAndOff(int32(uint8(c)),off)]  ptr mask mem)
 (VPSRADMasked512const [c]  l:(VMOVDQUload512 {sym} [off] ptr mem) mask) && canMergeLoad(v, l) && clobber(l) => (VPSRADMasked512constload {sym} [makeValAndOff(int32(uint8(c)),off)]  ptr mask mem)
 (VPSRAQMasked128const [c]  l:(VMOVDQUload128 {sym} [off] ptr mem) mask) && canMergeLoad(v, l) && clobber(l) => (VPSRAQMasked128constload {sym} [makeValAndOff(int32(uint8(c)),off)]  ptr mask mem)
 (VPSRAQMasked256const [c]  l:(VMOVDQUload256 {sym} [off] ptr mem) mask) && canMergeLoad(v, l) && clobber(l) => (VPSRAQMasked256constload {sym} [makeValAndOff(int32(uint8(c)),off)]  ptr mask mem)
 (VPSRAQMasked512const [c]  l:(VMOVDQUload512 {sym} [off] ptr mem) mask) && canMergeLoad(v, l) && clobber(l) => (VPSRAQMasked512constload {sym} [makeValAndOff(int32(uint8(c)),off)]  ptr mask mem)
+(VPSRLDMasked128const [c]  l:(VMOVDQUload128 {sym} [off] ptr mem) mask) && canMergeLoad(v, l) && clobber(l) => (VPSRLDMasked128constload {sym} [makeValAndOff(int32(uint8(c)),off)]  ptr mask mem)
+(VPSRLDMasked256const [c]  l:(VMOVDQUload256 {sym} [off] ptr mem) mask) && canMergeLoad(v, l) && clobber(l) => (VPSRLDMasked256constload {sym} [makeValAndOff(int32(uint8(c)),off)]  ptr mask mem)
+(VPSRLDMasked512const [c]  l:(VMOVDQUload512 {sym} [off] ptr mem) mask) && canMergeLoad(v, l) && clobber(l) => (VPSRLDMasked512constload {sym} [makeValAndOff(int32(uint8(c)),off)]  ptr mask mem)
+(VPSRLQMasked128const [c]  l:(VMOVDQUload128 {sym} [off] ptr mem) mask) && canMergeLoad(v, l) && clobber(l) => (VPSRLQMasked128constload {sym} [makeValAndOff(int32(uint8(c)),off)]  ptr mask mem)
+(VPSRLQMasked256const [c]  l:(VMOVDQUload256 {sym} [off] ptr mem) mask) && canMergeLoad(v, l) && clobber(l) => (VPSRLQMasked256constload {sym} [makeValAndOff(int32(uint8(c)),off)]  ptr mask mem)
+(VPSRLQMasked512const [c]  l:(VMOVDQUload512 {sym} [off] ptr mem) mask) && canMergeLoad(v, l) && clobber(l) => (VPSRLQMasked512constload {sym} [makeValAndOff(int32(uint8(c)),off)]  ptr mask mem)
 (VPTERNLOGD128 [c]  x y l:(VMOVDQUload128 {sym} [off] ptr mem)) && canMergeLoad(v, l) && clobber(l) => (VPTERNLOGD128load {sym} [makeValAndOff(int32(uint8(c)),off)]  x y ptr mem)
 (VPTERNLOGD256 [c]  x y l:(VMOVDQUload256 {sym} [off] ptr mem)) && canMergeLoad(v, l) && clobber(l) => (VPTERNLOGD256load {sym} [makeValAndOff(int32(uint8(c)),off)]  x y ptr mem)
 (VPTERNLOGD512 [c]  x y l:(VMOVDQUload512 {sym} [off] ptr mem)) && canMergeLoad(v, l) && clobber(l) => (VPTERNLOGD512load {sym} [makeValAndOff(int32(uint8(c)),off)]  x y ptr mem)

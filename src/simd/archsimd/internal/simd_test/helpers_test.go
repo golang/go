@@ -7,9 +7,11 @@
 package simd_test
 
 import (
+	"fmt"
 	"math"
 	"simd/archsimd/internal/test_helpers"
 	"testing"
+	"unsafe"
 )
 
 type signed interface {
@@ -167,6 +169,23 @@ func nOf[T any](n int, s []T) []T {
 	return r
 }
 
+// grouped2 takes a function that applies to a 128-bit group and returns a
+// function that applies to arbitrary length vectors.
+func grouped2[T any](fg func(xg, yg []T) (zg []T)) func(x, y []T) []T {
+	return func(x, y []T) []T {
+		z := make([]T, len(x))
+		groupElems := 128 / int(8*unsafe.Sizeof(*new(T)))
+		for i := 0; i < len(z); i += groupElems {
+			zg := fg(x[i:][:groupElems], y[i:][:groupElems])
+			if len(zg) != groupElems {
+				panic(fmt.Sprintf("got %d elements, want %d", len(zg), groupElems))
+			}
+			copy(z[i:], zg)
+		}
+		return z
+	}
+}
+
 const (
 	PN22  = 1.0 / 1024 / 1024 / 4
 	PN24  = 1.0 / 1024 / 1024 / 16
@@ -252,4 +271,9 @@ func forSlicePairMasked[T number](t *testing.T, s []T, n int, f func(a, b []T, m
 			}
 		}
 	}
+}
+
+//go:noinline
+func hideConst[T number](x T) T {
+	return x
 }

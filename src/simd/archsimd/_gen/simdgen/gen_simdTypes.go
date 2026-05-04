@@ -336,14 +336,14 @@ func ({{.Op1NameAndType "x"}}) {{.Go}}({{.Op2NameAndType "y"}}, {{.Op0NameAndTyp
 {{if .Documentation}}{{.Documentation}}
 //{{end}}
 // Asm: {{.Asm}}, CPU Feature: {{.CPUFeature}}
-func ({{.Op0NameAndType "x"}}) {{.Go}}(y uint{{(index .In 1).TreatLikeAScalarOfSize}}) {{(index .Out 0).Go}}
+func ({{.Op0NameAndType "x"}}) {{.Go}}({{.Op1Name "y"}} uint{{(index .In 1).TreatLikeAScalarOfSize}}) {{(index .Out 0).Go}}
 {{end}}
 
 {{define "op3VecAsScalar"}}
 {{if .Documentation}}{{.Documentation}}
 //{{end}}
 // Asm: {{.Asm}}, CPU Feature: {{.CPUFeature}}
-func ({{.Op0NameAndType "x"}}) {{.Go}}(y uint{{(index .In 1).TreatLikeAScalarOfSize}}, {{.Op2NameAndType "z"}}) {{(index .Out 0).Go}}
+func ({{.Op0NameAndType "x"}}) {{.Go}}({{.Op1Name "y"}} uint{{(index .In 1).TreatLikeAScalarOfSize}}, {{.Op2NameAndType "z"}}) {{(index .Out 0).Go}}
 {{end}}
 
 {{define "op4"}}
