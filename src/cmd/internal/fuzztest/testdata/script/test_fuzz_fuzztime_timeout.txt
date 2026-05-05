@@ -1,0 +1,35 @@
+# Regression test for go.dev/issue/75804.
+# When -fuzztime expires, the coordinator must not report a spurious
+# "context deadline exceeded" error.
+
+[!fuzz] skip
+[short] skip
+env GOCACHE=$WORK/cache
+
+go test -c -o $devnull
+
+env GOMAXPROCS=2
+
+go test -fuzz=FuzzNoop -fuzztime=1000ms
+go test -fuzz=FuzzNoop -fuzztime=100ms
+go test -fuzz=FuzzNoop -fuzztime=100ms
+go test -fuzz=FuzzNoop -fuzztime=100ms
+go test -fuzz=FuzzNoop -fuzztime=100ms
+
+-- go.mod --
+module fuzz
+
+go 1.24
+-- fuzz_noop_test.go --
+package fuzz_test
+
+import (
+	"testing"
+	"time"
+)
+
+func FuzzNoop(f *testing.F) {
+	f.Fuzz(func(*testing.T, []byte) {
+		time.Sleep(time.Millisecond)
+	})
+}
