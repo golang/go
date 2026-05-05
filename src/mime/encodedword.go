@@ -275,8 +275,8 @@ func (d *WordDecoder) DecodeHeader(header string) (string, error) {
 		content, err := decode(encoding, text)
 		if err != nil {
 			betweenWords = false
-			buf.WriteString(header[:start+2])
-			header = header[start+2:]
+			buf.WriteString(header[:end])
+			header = header[end:]
 			continue
 		}
 
