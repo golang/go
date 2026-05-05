@@ -6,6 +6,6 @@
 
 package drbg
 
-func readFromEntropy(b []byte) {
-	panic("FIPS-140 entropy generation is not supported on Wasm")
+func getEntropy() *[SeedSize]byte {
+	panic("FIPS 140-3 entropy generation is not supported on Wasm")
 }
