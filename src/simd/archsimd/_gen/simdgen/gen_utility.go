@@ -16,7 +16,7 @@ import (
 	"slices"
 	"sort"
 	"strings"
-	"text/template"
+	"text/template" // NOLINT
 	"unicode"
 )
 
