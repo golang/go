@@ -567,11 +567,10 @@ func uninterlace(m *image.Paletted) {
 // Decode reads a GIF image from r and returns the first embedded
 // image as an [image.Image].
 //
-// Decoding allocates a paletted pixel buffer whose size is the product of the
-// frame width and height in each image descriptor (frames must fit within the
-// logical screen size from the GIF header). That allocation occurs before
-// compressed pixel data is fully read. For untrusted input, call [DecodeConfig]
-// first to verify dimensions.
+// When decoding images from untrusted sources, it is safest to
+// first call DecodeConfig and check the image size so
+// that unexpectedly large memory allocations may be safely
+// avoided.
 func Decode(r io.Reader) (image.Image, error) {
 	var d decoder
 	if err := d.decode(r, false, false); err != nil {

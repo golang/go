@@ -31,6 +31,9 @@ func Example_decodeConfig() {
 	fmt.Println("Width:", config.Width, "Height:", config.Height, "Format:", format)
 }
 
+// ExampleDecode_untrusted demonstrates decoding an untrusted
+// image file in two steps so that unexpectedly large
+// memory allocations can be safely avoided.
 func ExampleDecode_untrusted() {
 	// This GIF data is a valid 1x1 image (layout matches package gif tests).
 	gifData := []byte{
