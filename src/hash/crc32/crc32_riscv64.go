@@ -29,7 +29,7 @@ func archUpdateIEEE(crc uint32, p []byte) uint32 {
 		panic("arch-specific zbc instruction for IEEE not available")
 	}
 
-	if len(p) >= 64 {
+	if len(p) >= 16 {
 		left := len(p) & 15
 		do := len(p) - left
 		crc = ^ieeeUpdateCLMUL(^crc, p[:do])
@@ -60,7 +60,7 @@ func archUpdateCastagnoli(crc uint32, p []byte) uint32 {
 		panic("arch-specific zbc instruction for Castagnoli not available")
 	}
 
-	if len(p) >= 64 {
+	if len(p) >= 16 {
 		left := len(p) & 15
 		do := len(p) - left
 		crc = ^castagnoliUpdateCLMUL(^crc, p[:do])
