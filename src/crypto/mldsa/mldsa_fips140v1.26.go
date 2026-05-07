@@ -150,6 +150,10 @@ type PublicKey struct {
 
 // NewPublicKey creates a new ML-DSA public key from the given encoding.
 func NewPublicKey(params Parameters, encoding []byte) (*PublicKey, error) {
+	return newPublicKey(&PublicKey{}, params, encoding)
+}
+
+func newPublicKey(pub *PublicKey, params Parameters, encoding []byte) (*PublicKey, error) {
 	var err error
 	var pk *mldsa.PublicKey
 	switch params {
@@ -165,7 +169,8 @@ func NewPublicKey(params Parameters, encoding []byte) (*PublicKey, error) {
 	if err != nil {
 		return nil, err
 	}
-	return &PublicKey{p: *pk}, nil
+	pub.p = *pk
+	return pub, nil
 }
 
 // Bytes returns the public key encoding.

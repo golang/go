@@ -157,20 +157,25 @@ func testGenerateKey(t *testing.T, params Parameters) {
 func TestAllocations(t *testing.T) {
 	// We allocate
 	//
-	//   - the PrivateKey (k and kk) and PublicKey (pk) structs
-	//   - their temporary inner structs (3x)
+	//   - the PrivateKey (k and kk) structs
+	//   - their temporary inner structs (2x)
 	//   - the public key (pkBytes) and signature (sig) byte slices
-	//   - the k.PublicKey() return value
 	//   - the Options argument to Sign
 	//
 	// on the heap. The structs are too large for the stack, the byte slices are
 	// variable-sized, and Options is cast into an interface.
 	//
 	// Still, check we are not slipping more allocations in.
-	var expected float64 = 10
+	var expected float64 = 7
 	if fips140.Enabled() {
 		// The PCT does a sign/verify cycle, which allocates a signature slice.
 		expected += 1
+	}
+	if fips140.Version() == "v1.26.0" {
+		// The v1.26.0 implementation precomputes PublicKey, making it large
+		// enough to require heap allocation. Add pk, its inner struct, and the
+		// return value of k.PublicKey().
+		expected += 3
 	}
 	cryptotest.SkipTestAllocations(t)
 	if allocs := testing.AllocsPerRun(100, func() {
