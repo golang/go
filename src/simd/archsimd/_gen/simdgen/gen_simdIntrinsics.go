@@ -7,6 +7,7 @@ package main
 import (
 	"bytes"
 	"fmt"
+	"simd/archsimd/_gen/sgutil"
 	"slices"
 )
 
@@ -118,10 +119,24 @@ func writeSIMDIntrinsics(ops []Operation, typeMap simdTypeMap) *bytes.Buffer {
 		}
 	}
 
+	var FooIntrinsic = templateOf(`addF(simdPackage, "{{.Foo}}", func(s *state, n *ir.CallExpr, args []*ssa.Value) *ssa.Value { return args[0] }, sys.AMD64)
+	`, "amd64 foo intrinsics")
+
 	for _, conv := range vConvertFromTypeMap(typeMap) {
+		// Old As intrinsic
+		from, to := &conv.Tsrc, &conv.Tdst
 		if err := t.ExecuteTemplate(buffer, "vectorConversion", conv); err != nil {
 			panic(fmt.Errorf("failed to execute vectorConversion template: %w", err))
 		}
+		// New style factored conversion intrinsics always involve at least one unsigned type
+		if from.Name[0] != 'U' && to.Name[0] != 'U' {
+			continue
+		}
+		// Only emit the intrinsic if lanes are equal OR both are unsigned
+		if from.Lanes != to.Lanes && (from.Name[0] != 'U' || to.Name[0] != 'U') {
+			continue
+		}
+		sgutil.Conversion(from, to).ExecuteIntrinsicTemplateOfFoo(buffer, FooIntrinsic)
 	}
 
 	for _, typ := range typesFromTypeMap(typeMap) {

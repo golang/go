@@ -13,6 +13,8 @@ import (
 	"sort"
 	"strings"
 	"unicode"
+
+	"simd/archsimd/_gen/sgutil"
 )
 
 type simdType struct {
@@ -28,6 +30,10 @@ type simdType struct {
 
 func (x simdType) ElemBits() int {
 	return x.Size / x.Lanes
+}
+
+func (x *simdType) Name_() string {
+	return x.Name
 }
 
 func (x simdType) Article() string {
@@ -434,11 +440,6 @@ func ({{.Op1NameAndType "x"}}) {{.Go}}({{.Op2NameAndType "y"}}, {{.ImmName}} uin
 func ({{.Op1NameAndType "x"}}) {{.Go}}({{.ImmName}} uint8, {{.Op2NameAndType "y"}}, {{.Op3NameAndType "z"}}, {{.Op4NameAndType "u"}}) {{.GoType}}
 {{end}}
 
-{{define "vectorConversion"}}
-// As{{.Tdst.Name}} returns {{.Tdst.Article}} {{.Tdst.Name}} with the same bit representation as x.
-func (x {{.Tsrc.Name}}) As{{.Tdst.Name}}() {{.Tdst.Name}}
-{{end}}
-
 {{define "mask"}}
 // To{{.VectorCounterpart}} converts from {{.Name}} to {{.VectorCounterpart}}.
 // If element i in the mask is "true", all bits in element i of the resulting
@@ -766,8 +767,34 @@ func writeSIMDStubs(ops []Operation, typeMap simdTypeMap) (f, fI *bytes.Buffer) 
 
 	vectorConversions := vConvertFromTypeMap(typeMap)
 	for _, conv := range vectorConversions {
-		if err := t.ExecuteTemplate(f, "vectorConversion", conv); err != nil {
+		from, to := &conv.Tsrc, &conv.Tdst
+
+		if err := sgutil.AsOp.Execute(f, sgutil.Conversion(from, to)); err != nil {
 			panic(fmt.Errorf("failed to execute vectorConversion template: %w", err))
+		}
+
+		// New style factored conversion intrinsics
+		if from.Name[0] != 'U' && to.Name[0] != 'U' {
+			continue
+		}
+		// Only emit the intrinsic if lanes are equal OR both are unsigned
+		if from.Lanes != to.Lanes && (from.Name[0] != 'U' || to.Name[0] != 'U') {
+			continue
+		}
+		switch to.Name[0] {
+		case 'F': // U -> F
+			sgutil.ToFloatsDcl.Execute(f, sgutil.Conversion(from, to))
+			sgutil.ToBitsDcl.Execute(f, sgutil.Conversion(to, from))
+		case 'I': // U -> I
+			sgutil.ToIntsDcl.Execute(f, sgutil.Conversion(from, to))
+			sgutil.ToBitsDcl.Execute(f, sgutil.Conversion(to, from))
+		case 'U': // U -> U
+			if from.Name[0] != 'U' {
+				continue
+			}
+			sgutil.ReshapeDcl.Execute(f, sgutil.Conversion(from, to))
+		default:
+			panic("unexpected type in reinterpret-declaration")
 		}
 	}
 
