@@ -6069,91 +6069,109 @@ func (x Uint64x8) SetLo(y Uint64x4) Uint64x8
 /* ShiftAllLeft */
 
 // ShiftAllLeft shifts each element of x left by y bits.
+// If y is greater than the element width, the result is 0.
 //
 // Asm: VPSLLW, CPU Feature: AVX
 func (x Int16x8) ShiftAllLeft(shift uint64) Int16x8
 
 // ShiftAllLeft shifts each element of x left by y bits.
+// If y is greater than the element width, the result is 0.
 //
 // Asm: VPSLLW, CPU Feature: AVX2
 func (x Int16x16) ShiftAllLeft(shift uint64) Int16x16
 
 // ShiftAllLeft shifts each element of x left by y bits.
+// If y is greater than the element width, the result is 0.
 //
 // Asm: VPSLLW, CPU Feature: AVX512
 func (x Int16x32) ShiftAllLeft(shift uint64) Int16x32
 
 // ShiftAllLeft shifts each element of x left by y bits.
+// If y is greater than the element width, the result is 0.
 //
 // Asm: VPSLLD, CPU Feature: AVX
 func (x Int32x4) ShiftAllLeft(shift uint64) Int32x4
 
 // ShiftAllLeft shifts each element of x left by y bits.
+// If y is greater than the element width, the result is 0.
 //
 // Asm: VPSLLD, CPU Feature: AVX2
 func (x Int32x8) ShiftAllLeft(shift uint64) Int32x8
 
 // ShiftAllLeft shifts each element of x left by y bits.
+// If y is greater than the element width, the result is 0.
 //
 // Asm: VPSLLD, CPU Feature: AVX512
 func (x Int32x16) ShiftAllLeft(shift uint64) Int32x16
 
 // ShiftAllLeft shifts each element of x left by y bits.
+// If y is greater than the element width, the result is 0.
 //
 // Asm: VPSLLQ, CPU Feature: AVX
 func (x Int64x2) ShiftAllLeft(shift uint64) Int64x2
 
 // ShiftAllLeft shifts each element of x left by y bits.
+// If y is greater than the element width, the result is 0.
 //
 // Asm: VPSLLQ, CPU Feature: AVX2
 func (x Int64x4) ShiftAllLeft(shift uint64) Int64x4
 
 // ShiftAllLeft shifts each element of x left by y bits.
+// If y is greater than the element width, the result is 0.
 //
 // Asm: VPSLLQ, CPU Feature: AVX512
 func (x Int64x8) ShiftAllLeft(shift uint64) Int64x8
 
 // ShiftAllLeft shifts each element of x left by y bits.
+// If y is greater than the element width, the result is 0.
 //
 // Asm: VPSLLW, CPU Feature: AVX
 func (x Uint16x8) ShiftAllLeft(shift uint64) Uint16x8
 
 // ShiftAllLeft shifts each element of x left by y bits.
+// If y is greater than the element width, the result is 0.
 //
 // Asm: VPSLLW, CPU Feature: AVX2
 func (x Uint16x16) ShiftAllLeft(shift uint64) Uint16x16
 
 // ShiftAllLeft shifts each element of x left by y bits.
+// If y is greater than the element width, the result is 0.
 //
 // Asm: VPSLLW, CPU Feature: AVX512
 func (x Uint16x32) ShiftAllLeft(shift uint64) Uint16x32
 
 // ShiftAllLeft shifts each element of x left by y bits.
+// If y is greater than the element width, the result is 0.
 //
 // Asm: VPSLLD, CPU Feature: AVX
 func (x Uint32x4) ShiftAllLeft(shift uint64) Uint32x4
 
 // ShiftAllLeft shifts each element of x left by y bits.
+// If y is greater than the element width, the result is 0.
 //
 // Asm: VPSLLD, CPU Feature: AVX2
 func (x Uint32x8) ShiftAllLeft(shift uint64) Uint32x8
 
 // ShiftAllLeft shifts each element of x left by y bits.
+// If y is greater than the element width, the result is 0.
 //
 // Asm: VPSLLD, CPU Feature: AVX512
 func (x Uint32x16) ShiftAllLeft(shift uint64) Uint32x16
 
 // ShiftAllLeft shifts each element of x left by y bits.
+// If y is greater than the element width, the result is 0.
 //
 // Asm: VPSLLQ, CPU Feature: AVX
 func (x Uint64x2) ShiftAllLeft(shift uint64) Uint64x2
 
 // ShiftAllLeft shifts each element of x left by y bits.
+// If y is greater than the element width, the result is 0.
 //
 // Asm: VPSLLQ, CPU Feature: AVX2
 func (x Uint64x4) ShiftAllLeft(shift uint64) Uint64x4
 
 // ShiftAllLeft shifts each element of x left by y bits.
+// If y is greater than the element width, the result is 0.
 //
 // Asm: VPSLLQ, CPU Feature: AVX512
 func (x Uint64x8) ShiftAllLeft(shift uint64) Uint64x8
@@ -6343,91 +6361,109 @@ func (x Uint64x8) ShiftAllLeftConcat(shift uint8, y Uint64x8) Uint64x8
 /* ShiftAllRight */
 
 // ShiftAllRight arithmetically shifts each element of x right by y bits.
+// If y is greater than the element width, the result is 0 or -1.
 //
 // Asm: VPSRAW, CPU Feature: AVX
 func (x Int16x8) ShiftAllRight(shift uint64) Int16x8
 
 // ShiftAllRight arithmetically shifts each element of x right by y bits.
+// If y is greater than the element width, the result is 0 or -1.
 //
 // Asm: VPSRAW, CPU Feature: AVX2
 func (x Int16x16) ShiftAllRight(shift uint64) Int16x16
 
 // ShiftAllRight arithmetically shifts each element of x right by y bits.
+// If y is greater than the element width, the result is 0 or -1.
 //
 // Asm: VPSRAW, CPU Feature: AVX512
 func (x Int16x32) ShiftAllRight(shift uint64) Int16x32
 
 // ShiftAllRight arithmetically shifts each element of x right by y bits.
+// If y is greater than the element width, the result is 0 or -1.
 //
 // Asm: VPSRAD, CPU Feature: AVX
 func (x Int32x4) ShiftAllRight(shift uint64) Int32x4
 
 // ShiftAllRight arithmetically shifts each element of x right by y bits.
+// If y is greater than the element width, the result is 0 or -1.
 //
 // Asm: VPSRAD, CPU Feature: AVX2
 func (x Int32x8) ShiftAllRight(shift uint64) Int32x8
 
 // ShiftAllRight arithmetically shifts each element of x right by y bits.
+// If y is greater than the element width, the result is 0 or -1.
 //
 // Asm: VPSRAD, CPU Feature: AVX512
 func (x Int32x16) ShiftAllRight(shift uint64) Int32x16
 
 // ShiftAllRight arithmetically shifts each element of x right by y bits.
+// If y is greater than the element width, the result is 0 or -1.
 //
 // Asm: VPSRAQ, CPU Feature: AVX512
 func (x Int64x2) ShiftAllRight(shift uint64) Int64x2
 
 // ShiftAllRight arithmetically shifts each element of x right by y bits.
+// If y is greater than the element width, the result is 0 or -1.
 //
 // Asm: VPSRAQ, CPU Feature: AVX512
 func (x Int64x4) ShiftAllRight(shift uint64) Int64x4
 
 // ShiftAllRight arithmetically shifts each element of x right by y bits.
+// If y is greater than the element width, the result is 0 or -1.
 //
 // Asm: VPSRAQ, CPU Feature: AVX512
 func (x Int64x8) ShiftAllRight(shift uint64) Int64x8
 
 // ShiftAllRight logically shifts each element of x right by y bits.
+// If y is greater than the element width, the result is 0.
 //
 // Asm: VPSRLW, CPU Feature: AVX
 func (x Uint16x8) ShiftAllRight(shift uint64) Uint16x8
 
 // ShiftAllRight logically shifts each element of x right by y bits.
+// If y is greater than the element width, the result is 0.
 //
 // Asm: VPSRLW, CPU Feature: AVX2
 func (x Uint16x16) ShiftAllRight(shift uint64) Uint16x16
 
 // ShiftAllRight logically shifts each element of x right by y bits.
+// If y is greater than the element width, the result is 0.
 //
 // Asm: VPSRLW, CPU Feature: AVX512
 func (x Uint16x32) ShiftAllRight(shift uint64) Uint16x32
 
 // ShiftAllRight logically shifts each element of x right by y bits.
+// If y is greater than the element width, the result is 0.
 //
 // Asm: VPSRLD, CPU Feature: AVX
 func (x Uint32x4) ShiftAllRight(shift uint64) Uint32x4
 
 // ShiftAllRight logically shifts each element of x right by y bits.
+// If y is greater than the element width, the result is 0.
 //
 // Asm: VPSRLD, CPU Feature: AVX2
 func (x Uint32x8) ShiftAllRight(shift uint64) Uint32x8
 
 // ShiftAllRight logically shifts each element of x right by y bits.
+// If y is greater than the element width, the result is 0.
 //
 // Asm: VPSRLD, CPU Feature: AVX512
 func (x Uint32x16) ShiftAllRight(shift uint64) Uint32x16
 
 // ShiftAllRight logically shifts each element of x right by y bits.
+// If y is greater than the element width, the result is 0.
 //
 // Asm: VPSRLQ, CPU Feature: AVX
 func (x Uint64x2) ShiftAllRight(shift uint64) Uint64x2
 
 // ShiftAllRight logically shifts each element of x right by y bits.
+// If y is greater than the element width, the result is 0.
 //
 // Asm: VPSRLQ, CPU Feature: AVX2
 func (x Uint64x4) ShiftAllRight(shift uint64) Uint64x4
 
 // ShiftAllRight logically shifts each element of x right by y bits.
+// If y is greater than the element width, the result is 0.
 //
 // Asm: VPSRLQ, CPU Feature: AVX512
 func (x Uint64x8) ShiftAllRight(shift uint64) Uint64x8
@@ -6617,91 +6653,109 @@ func (x Uint64x8) ShiftAllRightConcat(shift uint8, y Uint64x8) Uint64x8
 /* ShiftLeft */
 
 // ShiftLeft shifts x[i] left by y[i] bits.
+// If y[i] is greater than the element width, the result is 0.
 //
 // Asm: VPSLLVW, CPU Feature: AVX512
 func (x Int16x8) ShiftLeft(shift Uint16x8) Int16x8
 
 // ShiftLeft shifts x[i] left by y[i] bits.
+// If y[i] is greater than the element width, the result is 0.
 //
 // Asm: VPSLLVW, CPU Feature: AVX512
 func (x Int16x16) ShiftLeft(shift Uint16x16) Int16x16
 
 // ShiftLeft shifts x[i] left by y[i] bits.
+// If y[i] is greater than the element width, the result is 0.
 //
 // Asm: VPSLLVW, CPU Feature: AVX512
 func (x Int16x32) ShiftLeft(shift Uint16x32) Int16x32
 
 // ShiftLeft shifts x[i] left by y[i] bits.
+// If y[i] is greater than the element width, the result is 0.
 //
 // Asm: VPSLLVD, CPU Feature: AVX2
 func (x Int32x4) ShiftLeft(shift Uint32x4) Int32x4
 
 // ShiftLeft shifts x[i] left by y[i] bits.
+// If y[i] is greater than the element width, the result is 0.
 //
 // Asm: VPSLLVD, CPU Feature: AVX2
 func (x Int32x8) ShiftLeft(shift Uint32x8) Int32x8
 
 // ShiftLeft shifts x[i] left by y[i] bits.
+// If y[i] is greater than the element width, the result is 0.
 //
 // Asm: VPSLLVD, CPU Feature: AVX512
 func (x Int32x16) ShiftLeft(shift Uint32x16) Int32x16
 
 // ShiftLeft shifts x[i] left by y[i] bits.
+// If y[i] is greater than the element width, the result is 0.
 //
 // Asm: VPSLLVQ, CPU Feature: AVX2
 func (x Int64x2) ShiftLeft(shift Uint64x2) Int64x2
 
 // ShiftLeft shifts x[i] left by y[i] bits.
+// If y[i] is greater than the element width, the result is 0.
 //
 // Asm: VPSLLVQ, CPU Feature: AVX2
 func (x Int64x4) ShiftLeft(shift Uint64x4) Int64x4
 
 // ShiftLeft shifts x[i] left by y[i] bits.
+// If y[i] is greater than the element width, the result is 0.
 //
 // Asm: VPSLLVQ, CPU Feature: AVX512
 func (x Int64x8) ShiftLeft(shift Uint64x8) Int64x8
 
 // ShiftLeft shifts x[i] left by y[i] bits.
+// If y[i] is greater than the element width, the result is 0.
 //
 // Asm: VPSLLVW, CPU Feature: AVX512
 func (x Uint16x8) ShiftLeft(shift Uint16x8) Uint16x8
 
 // ShiftLeft shifts x[i] left by y[i] bits.
+// If y[i] is greater than the element width, the result is 0.
 //
 // Asm: VPSLLVW, CPU Feature: AVX512
 func (x Uint16x16) ShiftLeft(shift Uint16x16) Uint16x16
 
 // ShiftLeft shifts x[i] left by y[i] bits.
+// If y[i] is greater than the element width, the result is 0.
 //
 // Asm: VPSLLVW, CPU Feature: AVX512
 func (x Uint16x32) ShiftLeft(shift Uint16x32) Uint16x32
 
 // ShiftLeft shifts x[i] left by y[i] bits.
+// If y[i] is greater than the element width, the result is 0.
 //
 // Asm: VPSLLVD, CPU Feature: AVX2
 func (x Uint32x4) ShiftLeft(shift Uint32x4) Uint32x4
 
 // ShiftLeft shifts x[i] left by y[i] bits.
+// If y[i] is greater than the element width, the result is 0.
 //
 // Asm: VPSLLVD, CPU Feature: AVX2
 func (x Uint32x8) ShiftLeft(shift Uint32x8) Uint32x8
 
 // ShiftLeft shifts x[i] left by y[i] bits.
+// If y[i] is greater than the element width, the result is 0.
 //
 // Asm: VPSLLVD, CPU Feature: AVX512
 func (x Uint32x16) ShiftLeft(shift Uint32x16) Uint32x16
 
 // ShiftLeft shifts x[i] left by y[i] bits.
+// If y[i] is greater than the element width, the result is 0.
 //
 // Asm: VPSLLVQ, CPU Feature: AVX2
 func (x Uint64x2) ShiftLeft(shift Uint64x2) Uint64x2
 
 // ShiftLeft shifts x[i] left by y[i] bits.
+// If y[i] is greater than the element width, the result is 0.
 //
 // Asm: VPSLLVQ, CPU Feature: AVX2
 func (x Uint64x4) ShiftLeft(shift Uint64x4) Uint64x4
 
 // ShiftLeft shifts x[i] left by y[i] bits.
+// If y[i] is greater than the element width, the result is 0.
 //
 // Asm: VPSLLVQ, CPU Feature: AVX512
 func (x Uint64x8) ShiftLeft(shift Uint64x8) Uint64x8
@@ -6855,91 +6909,109 @@ func (x Uint64x8) ShiftLeftConcat(y Uint64x8, shift Uint64x8) Uint64x8
 /* ShiftRight */
 
 // ShiftRight arithmetically shifts x[i] right by y[i] bits.
+// If y[i] is greater than the element width, the result is 0 or -1.
 //
 // Asm: VPSRAVW, CPU Feature: AVX512
 func (x Int16x8) ShiftRight(shift Uint16x8) Int16x8
 
 // ShiftRight arithmetically shifts x[i] right by y[i] bits.
+// If y[i] is greater than the element width, the result is 0 or -1.
 //
 // Asm: VPSRAVW, CPU Feature: AVX512
 func (x Int16x16) ShiftRight(shift Uint16x16) Int16x16
 
 // ShiftRight arithmetically shifts x[i] right by y[i] bits.
+// If y[i] is greater than the element width, the result is 0 or -1.
 //
 // Asm: VPSRAVW, CPU Feature: AVX512
 func (x Int16x32) ShiftRight(shift Uint16x32) Int16x32
 
 // ShiftRight arithmetically shifts x[i] right by y[i] bits.
+// If y[i] is greater than the element width, the result is 0 or -1.
 //
 // Asm: VPSRAVD, CPU Feature: AVX2
 func (x Int32x4) ShiftRight(shift Uint32x4) Int32x4
 
 // ShiftRight arithmetically shifts x[i] right by y[i] bits.
+// If y[i] is greater than the element width, the result is 0 or -1.
 //
 // Asm: VPSRAVD, CPU Feature: AVX2
 func (x Int32x8) ShiftRight(shift Uint32x8) Int32x8
 
 // ShiftRight arithmetically shifts x[i] right by y[i] bits.
+// If y[i] is greater than the element width, the result is 0 or -1.
 //
 // Asm: VPSRAVD, CPU Feature: AVX512
 func (x Int32x16) ShiftRight(shift Uint32x16) Int32x16
 
 // ShiftRight arithmetically shifts x[i] right by y[i] bits.
+// If y[i] is greater than the element width, the result is 0 or -1.
 //
 // Asm: VPSRAVQ, CPU Feature: AVX512
 func (x Int64x2) ShiftRight(shift Uint64x2) Int64x2
 
 // ShiftRight arithmetically shifts x[i] right by y[i] bits.
+// If y[i] is greater than the element width, the result is 0 or -1.
 //
 // Asm: VPSRAVQ, CPU Feature: AVX512
 func (x Int64x4) ShiftRight(shift Uint64x4) Int64x4
 
 // ShiftRight arithmetically shifts x[i] right by y[i] bits.
+// If y[i] is greater than the element width, the result is 0 or -1.
 //
 // Asm: VPSRAVQ, CPU Feature: AVX512
 func (x Int64x8) ShiftRight(shift Uint64x8) Int64x8
 
 // ShiftRight logically shifts x[i] right by y[i] bits.
+// If y[i] is greater than the element width, the result is 0.
 //
 // Asm: VPSRLVW, CPU Feature: AVX512
 func (x Uint16x8) ShiftRight(shift Uint16x8) Uint16x8
 
 // ShiftRight logically shifts x[i] right by y[i] bits.
+// If y[i] is greater than the element width, the result is 0.
 //
 // Asm: VPSRLVW, CPU Feature: AVX512
 func (x Uint16x16) ShiftRight(shift Uint16x16) Uint16x16
 
 // ShiftRight logically shifts x[i] right by y[i] bits.
+// If y[i] is greater than the element width, the result is 0.
 //
 // Asm: VPSRLVW, CPU Feature: AVX512
 func (x Uint16x32) ShiftRight(shift Uint16x32) Uint16x32
 
 // ShiftRight logically shifts x[i] right by y[i] bits.
+// If y[i] is greater than the element width, the result is 0.
 //
 // Asm: VPSRLVD, CPU Feature: AVX2
 func (x Uint32x4) ShiftRight(shift Uint32x4) Uint32x4
 
 // ShiftRight logically shifts x[i] right by y[i] bits.
+// If y[i] is greater than the element width, the result is 0.
 //
 // Asm: VPSRLVD, CPU Feature: AVX2
 func (x Uint32x8) ShiftRight(shift Uint32x8) Uint32x8
 
 // ShiftRight logically shifts x[i] right by y[i] bits.
+// If y[i] is greater than the element width, the result is 0.
 //
 // Asm: VPSRLVD, CPU Feature: AVX512
 func (x Uint32x16) ShiftRight(shift Uint32x16) Uint32x16
 
 // ShiftRight logically shifts x[i] right by y[i] bits.
+// If y[i] is greater than the element width, the result is 0.
 //
 // Asm: VPSRLVQ, CPU Feature: AVX2
 func (x Uint64x2) ShiftRight(shift Uint64x2) Uint64x2
 
 // ShiftRight logically shifts x[i] right by y[i] bits.
+// If y[i] is greater than the element width, the result is 0.
 //
 // Asm: VPSRLVQ, CPU Feature: AVX2
 func (x Uint64x4) ShiftRight(shift Uint64x4) Uint64x4
 
 // ShiftRight logically shifts x[i] right by y[i] bits.
+// If y[i] is greater than the element width, the result is 0.
 //
 // Asm: VPSRLVQ, CPU Feature: AVX512
 func (x Uint64x8) ShiftRight(shift Uint64x8) Uint64x8
