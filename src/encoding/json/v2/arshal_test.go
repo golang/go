@@ -9419,6 +9419,7 @@ func TestMarshalInvalidNamespace(t *testing.T) {
 	}{
 		{jsontest.Name("Map"), map[string]string{"X": "\xde\xad\xbe\xef"}},
 		{jsontest.Name("Struct"), struct{ X string }{"\xde\xad\xbe\xef"}},
+		{jsontest.Name("MapBadKey"), map[string]int{"\xde\xad\xbe\xef": 0}},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name.Name, func(t *testing.T) {
@@ -9439,6 +9440,25 @@ func TestMarshalInvalidNamespace(t *testing.T) {
 				}
 			}
 		})
+	}
+}
+
+// TestMarshalEncodeInvalidNamespaceAtName verifies that MarshalEncode at an
+// object-name position with an invalidated namespace surfaces the underlying
+// namespace error rather than wrapping nil.
+func TestMarshalEncodeInvalidNamespaceAtName(t *testing.T) {
+	enc := jsontext.NewEncoder(new(bytes.Buffer))
+
+	// The bad-UTF-8 key fails the map marshal at the key-write step,
+	// leaving the encoder at an object-name position with the namespace
+	// invalidated.
+	if err := MarshalEncode(enc, map[string]int{"\xde\xad\xbe\xef": 0}); err == nil {
+		t.Fatal("MarshalEncode error is nil, want non-nil")
+	}
+
+	var serr *jsontext.SyntacticError
+	if err := MarshalEncode(enc, 0); !errors.As(err, &serr) || serr.Err == nil {
+		t.Fatalf("MarshalEncode error = %v, want *jsontext.SyntacticError wrapping a non-nil error", err)
 	}
 }
 
