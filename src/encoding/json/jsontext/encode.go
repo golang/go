@@ -229,7 +229,7 @@ func (e *encoderState) Flush() error {
 
 	return nil
 }
-func (d *encodeBuffer) offsetAt(pos int) int64   { return d.baseOffset + int64(pos) }
+func (e *encodeBuffer) offsetAt(pos int) int64   { return e.baseOffset + int64(pos) }
 func (e *encodeBuffer) previousOffsetEnd() int64 { return e.baseOffset + int64(len(e.Buf)) }
 func (e *encodeBuffer) unflushedBuffer() []byte  { return e.Buf }
 
