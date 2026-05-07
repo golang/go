@@ -35,7 +35,7 @@ import (
 const optimizeCommon = true
 
 var (
-	// Most natural Go type that correspond with each JSON type.
+	// Most natural Go types that correspond with each JSON type.
 	anyType          = reflect.TypeFor[any]()            // JSON value
 	boolType         = reflect.TypeFor[bool]()           // JSON bool
 	stringType       = reflect.TypeFor[string]()         // JSON string
@@ -366,7 +366,7 @@ func makeBytesArshaler(t reflect.Type, fncs *arshaler) *arshaler {
 				return marshalArray(enc, va, mo)
 			}
 			if mo.Flags.Get(jsonflags.FormatNilSliceAsNull) && va.Kind() == reflect.Slice && va.IsNil() {
-				// TODO: Provide a "emitempty" format override?
+				// TODO: Provide an "emitempty" format override?
 				return enc.WriteToken(jsontext.Null)
 			}
 		}
@@ -446,7 +446,7 @@ func makeBytesArshaler(t reflect.Type, fncs *arshaler) *arshaler {
 
 			if va.Kind() == reflect.Array {
 				dst := va.Bytes()
-				clear(dst[copy(dst, b):]) // noop if len(b) <= len(dst)
+				clear(dst[copy(dst, b):]) // noop if len(b) >= len(dst)
 				if len(b) != len(dst) && !uo.Flags.Get(jsonflags.UnmarshalArrayFromAnyLength) {
 					err := fmt.Errorf("decoded length of %d mismatches array length of %d", len(b), len(dst))
 					return newUnmarshalErrorAfter(dec, t, err)

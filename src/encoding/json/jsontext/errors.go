@@ -68,7 +68,7 @@ type SyntacticError struct {
 // It takes a relative offset pos that can be resolved into
 // an absolute offset using state.offsetAt.
 //
-// It takes a where that specify how the JSON pointer is derived.
+// It takes a where that specifies how the JSON pointer is derived.
 // If the underlying error is a [pointerSuffixError],
 // then the suffix is appended to the derived pointer.
 func wrapSyntacticError(state interface {

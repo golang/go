@@ -46,7 +46,7 @@ const (
 		Unmarshalers |
 		FormatTag
 
-	// DefaultV1Flags is the set of booleans flags that default to true under
+	// DefaultV1Flags is the set of boolean flags that default to true under
 	// v1 semantics. None of the non-boolean flags differ between v1 and v2.
 	DefaultV1Flags = 0 |
 		AllowDuplicateNames |

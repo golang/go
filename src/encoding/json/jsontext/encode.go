@@ -41,7 +41,7 @@ import (
 //	e.WriteValue(Value(`{"k":"v"}`)) // {"k":"v"}
 //	e.WriteToken(EndObject)          // }
 //
-// The above is one of many possible sequence of calls and
+// The above is one of many possible sequences of calls and
 // may not represent the most sensible method to call for any given token/value.
 // For example, it is probably more common to call [Encoder.WriteToken] with a string
 // for object names.
@@ -96,7 +96,7 @@ func NewEncoder(w io.Writer, opts ...Options) *Encoder {
 
 // Reset resets an encoder such that it is writing afresh to w and
 // configured with the provided options. Reset must not be called on
-// a Encoder passed to the [encoding/json/v2.MarshalerTo.MarshalJSONTo] method
+// an Encoder passed to the [encoding/json/v2.MarshalerTo.MarshalJSONTo] method
 // or the [encoding/json/v2.MarshalToFunc] function.
 func (e *Encoder) Reset(w io.Writer, opts ...Options) {
 	switch {
@@ -171,7 +171,7 @@ func (e *encoderState) Flush() error {
 
 	// Specialize bytes.Buffer for better performance.
 	if bb, ok := e.wr.(*bytes.Buffer); ok {
-		// If e.buf already aliases the internal buffer of bb,
+		// If e.Buf already aliases the internal buffer of bb,
 		// then the Write call simply increments the internal offset,
 		// otherwise Write operates as expected.
 		// See https://go.dev/issue/42986.
@@ -206,7 +206,7 @@ func (e *encoderState) Flush() error {
 	e.Buf = e.Buf[:0]
 
 	// Check whether to grow the buffer.
-	// Note that cap(e.buf) may already exceed maxBufferSize since
+	// Note that cap(e.Buf) may already exceed maxBufferSize since
 	// an append elsewhere already grew it to store a large token.
 	const maxBufferSize = 4 << 10
 	const growthSizeFactor = 2 // higher value is faster
@@ -536,7 +536,7 @@ func (e *encoderState) WriteValue(v Value) error {
 	}
 	pos := len(b) // offset before the value
 
-	// Append the value the output.
+	// Append the value to the output.
 	var n int
 	n += jsonwire.ConsumeWhitespace(v[n:])
 	b, m, err := e.reformatValue(b, v[n:], e.Tokens.Depth())
@@ -710,7 +710,7 @@ func (e *encoderState) reformatValue(dst []byte, src Value, depth int) ([]byte, 
 }
 
 // reformatObject parses a JSON object from the start of src and
-// appends it to the end of src, reformatting whitespace and strings as needed.
+// appends it to the end of dst, reformatting whitespace and strings as needed.
 // It returns the extended dst buffer and the number of consumed input bytes.
 func (e *encoderState) reformatObject(dst []byte, src Value, depth int) ([]byte, int, error) {
 	// Append object begin.
@@ -906,19 +906,19 @@ func (e *Encoder) OutputOffset() int64 {
 //
 // Example usage:
 //
-//	b := d.AvailableBuffer()
+//	b := e.AvailableBuffer()
 //	b = append(b, '"')
 //	b = appendString(b, v) // append the string formatting of v
 //	b = append(b, '"')
-//	... := d.WriteValue(b)
+//	... := e.WriteValue(b)
 //
 // It is the user's responsibility to ensure that the value is valid JSON.
 func (e *Encoder) AvailableBuffer() []byte {
-	// NOTE: We don't return e.buf[len(e.buf):cap(e.buf)] since WriteValue would
+	// NOTE: We don't return e.Buf[len(e.Buf):cap(e.Buf)] since WriteValue would
 	// need to take special care to avoid mangling the data while reformatting.
-	// WriteValue can't easily identify whether the input Value aliases e.buf
+	// WriteValue can't easily identify whether the input Value aliases e.Buf
 	// without using unsafe.Pointer. Thus, we just return a different buffer.
-	// Should this ever alias e.buf, we need to consider how it operates with
+	// Should this ever alias e.Buf, we need to consider how it operates with
 	// the specialized performance optimization for bytes.Buffer.
 	n := 1 << bits.Len(uint(e.s.maxValue|63)) // fast approximation for max length
 	if cap(e.s.availBuffer) < n {

@@ -163,7 +163,7 @@ func makeStructFields(root reflect.Type) (fs structFields, serr *SemanticError) 
 				}
 
 				// Handle an inlined field that serializes to/from any number of
-				// JSON object members back by a Go map or jsontext.Value.
+				// JSON object members backed by a Go map or jsontext.Value.
 				switch {
 				case tf == jsontextValueType:
 					f.fncs = nil // specially handled in arshal_inlined.go

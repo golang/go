@@ -514,7 +514,7 @@ var errInaccurateDateUnits = errors.New("inaccurate year, month, week, or day un
 //     between the integer part and fraction part of a number,
 //     as specified in ISO 8601-1:2019, section 3.2.6.
 //     While ISO 8601 recommends comma as the default separator,
-//     most formatters uses a period.
+//     most formatters use a period.
 //
 //   - Leading zeros are ignored. This is not required by ISO 8601,
 //     but also not forbidden by the standard. Many parsers support this.
@@ -532,7 +532,7 @@ var errInaccurateDateUnits = errors.New("inaccurate year, month, week, or day un
 // We follow JavaScript's grammar as JSON itself is derived from JavaScript.
 // The Temporal.Duration.toJSON method is guaranteed to produce an output
 // that can be parsed by this function so long as arithmetic in JavaScript
-// do not use a largestUnit value higher than "hours" (which is the default).
+// does not use a largestUnit value higher than "hours" (which is the default).
 // Even if it does, this will do a best-effort parsing with inaccurate units,
 // but report [errInaccurateDateUnits].
 func parseDurationISO8601(b []byte) (time.Duration, error) {

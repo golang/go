@@ -34,11 +34,11 @@ import (
 //     return the end of the consumed JSON token as a position,
 //     also relative to the start of Decoder.buf.
 //
-//   - In the event of an I/O errors or state machine violations,
+//   - In the event of an I/O error or state machine violations,
 //     the implementation avoids mutating the state of Decoder
 //     (aside from the book-keeping needed to implement Decoder.fetch).
 //     For this reason, only Decoder.ReadToken and Decoder.ReadValue are
-//     responsible for updated Decoder.prevStart and Decoder.prevEnd.
+//     responsible for updating Decoder.prevStart and Decoder.prevEnd.
 //
 //   - For performance, much of the implementation uses the pattern of calling
 //     the inlinable consumeXXX functions first, and if more work is necessary,
@@ -71,7 +71,7 @@ import (
 //	d.ReadValue() // {"k":"v"}
 //	d.ReadToken() // }
 //
-// The above is one of many possible sequence of calls and
+// The above is one of many possible sequences of calls and
 // may not represent the most sensible method to call for any given token/value.
 // For example, it is probably more common to call [Decoder.ReadToken] to obtain a
 // string token for object names.
@@ -126,7 +126,7 @@ func NewDecoder(r io.Reader, opts ...Options) *Decoder {
 }
 
 // Reset resets a decoder such that it is reading afresh from r and
-// configured with the provided options. Reset must not be called on an
+// configured with the provided options. Reset must not be called on
 // a Decoder passed to the [encoding/json/v2.UnmarshalerFrom.UnmarshalJSONFrom] method
 // or the [encoding/json/v2.UnmarshalFromFunc] function.
 func (d *Decoder) Reset(r io.Reader, opts ...Options) {
@@ -195,7 +195,7 @@ func (d *decoderState) fetch() error {
 			// may overwrite the contents of the current buffer.
 			//
 			// The user is trying to use a bytes.Buffer as a pipe,
-			// but a bytes.Buffer is poor implementation of a pipe,
+			// but a bytes.Buffer is a poor implementation of a pipe,
 			// the purpose-built io.Pipe should be used instead.
 			return &ioError{action: "read", err: errBufferWriteAfterNext}
 		}

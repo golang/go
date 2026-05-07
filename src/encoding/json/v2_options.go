@@ -347,7 +347,7 @@ func FormatDurationAsNano(v bool) Options {
 // occurs under [jsonv2.MatchCaseInsensitiveNames] or the `case:ignore` tag option.
 // Thus, case-insensitive name matching is identical to [strings.EqualFold].
 // Use of this option diminishes the ability of case-insensitive matching
-// to be able to match common case variants (e.g, "foo_bar" with "fooBar").
+// to be able to match common case variants (e.g., "foo_bar" with "fooBar").
 //
 // This affects either marshaling or unmarshaling.
 // The v1 default is true.
@@ -399,7 +399,7 @@ func MergeWithLegacySemantics(v bool) Options {
 //
 // The v1 and v2 definitions of `omitempty` are practically the same for
 // Go strings, slices, arrays, and maps. Usages of `omitempty` on
-// Go bools, ints, uints floats, pointers, and interfaces should migrate to use
+// Go bools, ints, uints, floats, pointers, and interfaces should migrate to use
 // the `omitzero` tag option, which omits a field if it is the zero Go value.
 //
 // This only affects marshaling and is ignored when unmarshaling.

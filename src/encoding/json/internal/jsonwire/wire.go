@@ -17,7 +17,7 @@ import (
 	"unicode/utf8"
 )
 
-// TrimSuffixWhitespace trims JSON from the end of b.
+// TrimSuffixWhitespace trims JSON whitespace from the end of b.
 func TrimSuffixWhitespace(b []byte) []byte {
 	// NOTE: The arguments and logic are kept simple to keep this inlinable.
 	n := len(b) - 1

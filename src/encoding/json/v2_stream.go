@@ -33,7 +33,7 @@ type Decoder struct {
 // read data from r beyond the JSON values requested.
 func NewDecoder(r io.Reader) *Decoder {
 	// Hide bytes.Buffer from jsontext since it implements optimizations that
-	// also limits certain ways it could be used. For example, one cannot write
+	// also limit certain ways it could be used. For example, one cannot write
 	// to the bytes.Buffer while it is in use by jsontext.Decoder.
 	if _, ok := r.(*bytes.Buffer); ok {
 		r = struct{ io.Reader }{r}

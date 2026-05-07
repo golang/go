@@ -193,7 +193,7 @@ func ReformatString(dst, src []byte, flags *jsonflags.Flags) ([]byte, int, error
 	// The input contains characters that might need escaping,
 	// unnecessary escape sequences, or invalid UTF-8.
 	// Perform a round-trip unquote and quote to properly reformat
-	// these sequences according the current flags.
+	// these sequences according to the current flags.
 	b, _ := AppendUnquote(nil, src[:n])
 	dst, _ = AppendQuote(dst, b, flags)
 	return dst, n, nil

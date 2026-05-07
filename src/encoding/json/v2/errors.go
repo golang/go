@@ -99,9 +99,9 @@ type coder interface {
 	Options() Options
 }
 
-// newInvalidFormatError wraps err in a SemanticError because
+// newInvalidFormatError constructs a SemanticError because
 // the current type t cannot handle the provided options format.
-// This error must be called before producing or consuming the next value.
+// This function must be called before producing or consuming the next value.
 //
 // If [jsonflags.ReportErrorsWithLegacySemantics] is specified,
 // then this automatically skips the next value when unmarshaling
