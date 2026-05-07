@@ -69,11 +69,21 @@ func doSimdgen() {
 		os.Exit(1)
 	}
 
+	// If there is garbage in ssa/_gen/simdgenericOps.go, it can affect the merge in simdgen/wasmgen.
+	ssaGenPath := prettyPath(".", filepath.Join(goRoot, "src", "cmd", "compile", "internal", "ssa", "_gen"))
+	ssaSimdGenericOps := filepath.Join(ssaGenPath, "simdgenericOps.go")
+	if _, err := os.Stat(ssaSimdGenericOps); err == nil {
+		if err = os.Remove(ssaSimdGenericOps); err != nil {
+			fmt.Fprintf(os.Stderr, "Failed to delete %s before regenerating it, %v\n", ssaSimdGenericOps, err)
+			os.Exit(1)
+		}
+	}
+
 	// Regenerate the XED-derived SIMD files
 	goRun("-C", "simdgen", ".", "-o", "godefs", "-goroot", goRoot, "-xedPath", prettyPath("./simdgen", xedPath), "go.yaml", "types.yaml", "categories.yaml")
 
 	// simdgen produces SSA rule files, so update the SSA files
-	goRun("-C", prettyPath(".", filepath.Join(goRoot, "src", "cmd", "compile", "internal", "ssa", "_gen")), ".")
+	goRun("-C", ssaGenPath, ".")
 
 	fmt.Fprintln(os.Stderr, "# Compiler changed. Consider running \"go install cmd/compile\"")
 }
