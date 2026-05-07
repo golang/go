@@ -560,7 +560,8 @@ var depsRules = `
 	  crypto/hkdf,
 	  crypto/pbkdf2,
 	  crypto/ecdh,
-	  crypto/mlkem
+	  crypto/mlkem,
+	  crypto/mldsa
 	< CRYPTO;
 
 	CRYPTO

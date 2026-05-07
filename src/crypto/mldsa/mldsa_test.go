@@ -4,22 +4,27 @@
 
 //go:build !fips140v1.0
 
-package fipstest
+package mldsa_test
 
 import (
+	"bytes"
+	"crypto"
+	"crypto/fips140"
 	"crypto/internal/cryptotest"
-	"crypto/internal/fips140"
-	. "crypto/internal/fips140/mldsa"
-	"crypto/internal/fips140/sha3"
+	. "crypto/mldsa"
+	"crypto/sha3"
 	"encoding/hex"
 	"flag"
-	"math/rand"
+	"math/rand/v2"
+	"strings"
 	"testing"
 )
 
+var _ crypto.Signer = (*PrivateKey)(nil)
+
 var sixtyMillionFlag = flag.Bool("60million", false, "run 60M-iterations accumulated test")
 
-// TestMLDSAAccumulated accumulates 10k (or 100, or 60M) random vectors and checks
+// TestAccumulated accumulates 10k (or 100, or 60M) random vectors and checks
 // the hash of the result, to avoid checking in megabytes of test vectors.
 //
 // 60M in particular is enough to give a 99.9% chance of hitting every value in
@@ -28,111 +33,119 @@ var sixtyMillionFlag = flag.Bool("60million", false, "run 60M-iterations accumul
 //	1-((q-1)/q)^60000000 ~= 0.9992
 //
 // If setting -60million, remember to also set -timeout 0.
-func TestMLDSAAccumulated(t *testing.T) {
+func TestAccumulated(t *testing.T) {
 	t.Run("ML-DSA-44/100", func(t *testing.T) {
-		testMLDSAAccumulated(t, NewPrivateKey44, NewPublicKey44, 100,
+		testAccumulated(t, MLDSA44(), 100,
 			"d51148e1f9f4fa1a723a6cf42e25f2a99eb5c1b378b3d2dbbd561b1203beeae4")
 	})
 	t.Run("ML-DSA-65/100", func(t *testing.T) {
-		testMLDSAAccumulated(t, NewPrivateKey65, NewPublicKey65, 100,
+		testAccumulated(t, MLDSA65(), 100,
 			"8358a1843220194417cadbc2651295cd8fc65125b5a5c1a239a16dc8b57ca199")
 	})
 	t.Run("ML-DSA-87/100", func(t *testing.T) {
-		testMLDSAAccumulated(t, NewPrivateKey87, NewPublicKey87, 100,
+		testAccumulated(t, MLDSA87(), 100,
 			"8c3ad714777622b8f21ce31bb35f71394f23bc0fcf3c78ace5d608990f3b061b")
 	})
 	if !testing.Short() {
 		t.Run("ML-DSA-44/10k", func(t *testing.T) {
 			t.Parallel()
-			testMLDSAAccumulated(t, NewPrivateKey44, NewPublicKey44, 10000,
+			testAccumulated(t, MLDSA44(), 10000,
 				"e7fd21f6a59bcba60d65adc44404bb29a7c00e5d8d3ec06a732c00a306a7d143")
 		})
 		t.Run("ML-DSA-65/10k", func(t *testing.T) {
 			t.Parallel()
-			testMLDSAAccumulated(t, NewPrivateKey65, NewPublicKey65, 10000,
+			testAccumulated(t, MLDSA65(), 10000,
 				"5ff5e196f0b830c3b10a9eb5358e7c98a3a20136cb677f3ae3b90175c3ace329")
 		})
 		t.Run("ML-DSA-87/10k", func(t *testing.T) {
 			t.Parallel()
-			testMLDSAAccumulated(t, NewPrivateKey87, NewPublicKey87, 10000,
+			testAccumulated(t, MLDSA87(), 10000,
 				"80a8cf39317f7d0be0e24972c51ac152bd2a3e09bc0c32ce29dd82c4e7385e60")
 		})
 	}
 	if *sixtyMillionFlag {
 		t.Run("ML-DSA-44/60M", func(t *testing.T) {
 			t.Parallel()
-			testMLDSAAccumulated(t, NewPrivateKey44, NewPublicKey44, 60000000,
+			testAccumulated(t, MLDSA44(), 60000000,
 				"080b48049257f5cd30dee17d6aa393d6c42fe52a29099df84a460ebaf4b02330")
 		})
 		t.Run("ML-DSA-65/60M", func(t *testing.T) {
 			t.Parallel()
-			testMLDSAAccumulated(t, NewPrivateKey65, NewPublicKey65, 60000000,
+			testAccumulated(t, MLDSA65(), 60000000,
 				"0af0165db2b180f7a83dbecad1ccb758b9c2d834b7f801fc49dd572a9d4b1e83")
 		})
 		t.Run("ML-DSA-87/60M", func(t *testing.T) {
 			t.Parallel()
-			testMLDSAAccumulated(t, NewPrivateKey87, NewPublicKey87, 60000000,
+			testAccumulated(t, MLDSA87(), 60000000,
 				"011166e9d5032c9bdc5c9bbb5dbb6c86df1c3d9bf3570b65ebae942dd9830057")
 		})
 	}
 }
 
-func testMLDSAAccumulated(t *testing.T, newPrivateKey func([]byte) (*PrivateKey, error), newPublicKey func([]byte) (*PublicKey, error), n int, expected string) {
-	s := sha3.NewShake128()
-	o := sha3.NewShake128()
+func testAccumulated(t *testing.T, params Parameters, n int, expected string) {
+	s := sha3.NewSHAKE128()
+	o := sha3.NewSHAKE128()
 	seed := make([]byte, PrivateKeySize)
 	msg := make([]byte, 0)
 
 	for i := 0; i < n; i++ {
 		s.Read(seed)
-		dk, err := newPrivateKey(seed)
+		dk, err := NewPrivateKey(params, seed)
 		if err != nil {
 			t.Fatalf("NewPrivateKey: %v", err)
 		}
 		pk := dk.PublicKey().Bytes()
 		o.Write(pk)
-		sig, err := SignDeterministic(dk, msg, "")
+		sig, err := dk.SignDeterministic(msg, nil)
 		if err != nil {
 			t.Fatalf("SignDeterministic: %v", err)
 		}
 		o.Write(sig)
-		pub, err := newPublicKey(pk)
+		pub, err := NewPublicKey(params, pk)
 		if err != nil {
 			t.Fatalf("NewPublicKey: %v", err)
 		}
 		if *pub != *dk.PublicKey() {
 			t.Fatalf("public key mismatch")
 		}
-		if err := Verify(dk.PublicKey(), msg, sig, ""); err != nil {
+		if err := Verify(dk.PublicKey(), msg, sig, nil); err != nil {
 			t.Fatalf("Verify: %v", err)
 		}
 	}
 
-	got := hex.EncodeToString(o.Sum(nil))
+	sum := make([]byte, 32)
+	o.Read(sum)
+	got := hex.EncodeToString(sum)
 	if got != expected {
 		t.Errorf("got %s, expected %s", got, expected)
 	}
 }
 
-func TestMLDSAGenerateKey(t *testing.T) {
-	t.Run("ML-DSA-44", func(t *testing.T) {
-		testMLDSAGenerateKey(t, GenerateKey44, NewPrivateKey44)
-	})
-	t.Run("ML-DSA-65", func(t *testing.T) {
-		testMLDSAGenerateKey(t, GenerateKey65, NewPrivateKey65)
-	})
-	t.Run("ML-DSA-87", func(t *testing.T) {
-		testMLDSAGenerateKey(t, GenerateKey87, NewPrivateKey87)
-	})
+func testAllParameters(t *testing.T, f func(*testing.T, Parameters)) {
+	for _, params := range []Parameters{MLDSA44(), MLDSA65(), MLDSA87()} {
+		t.Run(params.String(), func(t *testing.T) {
+			f(t, params)
+		})
+	}
 }
 
-func testMLDSAGenerateKey(t *testing.T, generateKey func() *PrivateKey, newPrivateKey func([]byte) (*PrivateKey, error)) {
-	k1 := generateKey()
-	k2 := generateKey()
+func TestGenerateKey(t *testing.T) {
+	testAllParameters(t, testGenerateKey)
+}
+
+func testGenerateKey(t *testing.T, params Parameters) {
+	k1, err := GenerateKey(params)
+	if err != nil {
+		t.Fatalf("GenerateKey: %v", err)
+	}
+	k2, err := GenerateKey(params)
+	if err != nil {
+		t.Fatalf("GenerateKey: %v", err)
+	}
 	if k1.Equal(k2) {
 		t.Errorf("two generated keys are equal")
 	}
-	k1x, err := newPrivateKey(k1.Bytes())
+	k1x, err := NewPrivateKey(params, k1.Bytes())
 	if err != nil {
 		t.Fatalf("NewPrivateKey: %v", err)
 	}
@@ -141,39 +154,50 @@ func testMLDSAGenerateKey(t *testing.T, generateKey func() *PrivateKey, newPriva
 	}
 }
 
-func TestMLDSAAllocations(t *testing.T) {
-	// We allocate the PrivateKey (k and kk) and PublicKey (pk) structs and the
-	// public key (pkBytes) and signature (sig) byte slices on the heap. They
-	// are all large and for the byte slices variable-length. Still, check we
-	// are not slipping more allocations in.
-	var expected float64 = 5
-	if fips140.Enabled {
+func TestAllocations(t *testing.T) {
+	// We allocate
+	//
+	//   - the PrivateKey (k and kk) and PublicKey (pk) structs
+	//   - their temporary inner structs (3x)
+	//   - the public key (pkBytes) and signature (sig) byte slices
+	//   - the k.PublicKey() return value
+	//   - the Options argument to Sign
+	//
+	// on the heap. The structs are too large for the stack, the byte slices are
+	// variable-sized, and Options is cast into an interface.
+	//
+	// Still, check we are not slipping more allocations in.
+	var expected float64 = 10
+	if fips140.Enabled() {
 		// The PCT does a sign/verify cycle, which allocates a signature slice.
 		expected += 1
 	}
 	cryptotest.SkipTestAllocations(t)
 	if allocs := testing.AllocsPerRun(100, func() {
-		k := GenerateKey44()
-		seed := k.Bytes()
-		kk, err := NewPrivateKey44(seed)
+		k, err := GenerateKey(MLDSA44())
 		if err != nil {
-			t.Fatalf("NewPrivateKey44: %v", err)
+			t.Fatalf("GenerateKey: %v", err)
+		}
+		seed := k.Bytes()
+		kk, err := NewPrivateKey(MLDSA44(), seed)
+		if err != nil {
+			t.Fatalf("NewPrivateKey: %v", err)
 		}
 		if !k.Equal(kk) {
 			t.Fatalf("keys not equal")
 		}
 		pkBytes := k.PublicKey().Bytes()
-		pk, err := NewPublicKey44(pkBytes)
+		pk, err := NewPublicKey(MLDSA44(), pkBytes)
 		if err != nil {
-			t.Fatalf("NewPublicKey44: %v", err)
+			t.Fatalf("NewPublicKey: %v", err)
 		}
 		message := []byte("Hello, world!")
 		context := "test"
-		sig, err := Sign(k, message, context)
+		sig, err := k.Sign(nil, message, &Options{Context: context})
 		if err != nil {
 			t.Fatalf("Sign: %v", err)
 		}
-		if err := Verify(pk, message, sig, context); err != nil {
+		if err := Verify(pk, message, sig, &Options{Context: context}); err != nil {
 			t.Fatalf("Verify: %v", err)
 		}
 	}); allocs > expected {
@@ -181,26 +205,409 @@ func TestMLDSAAllocations(t *testing.T) {
 	}
 }
 
-func BenchmarkMLDSASign(b *testing.B) {
+func TestParametersIdentity(t *testing.T) {
+	// Per the MLDSA*() docs, repeated calls return the same value, suitable for
+	// equality checks and switch statements.
+	if MLDSA44() != MLDSA44() || MLDSA65() != MLDSA65() || MLDSA87() != MLDSA87() {
+		t.Errorf("MLDSA*() returned different values across calls")
+	}
+	if MLDSA44() == MLDSA65() || MLDSA65() == MLDSA87() || MLDSA44() == MLDSA87() {
+		t.Errorf("distinct parameter sets compare equal")
+	}
+}
+
+// computeMu reproduces μ = SHAKE256(SHAKE256(pk, 64) || 0x00 || ctxlen || ctx ||
+// msg, 64) per FIPS 204, used to drive the External μ signing path.
+func computeMu(pk, ctx, msg []byte) []byte {
+	tr := sha3.NewSHAKE256()
+	tr.Write(pk)
+	trOut := make([]byte, 64)
+	tr.Read(trOut)
+
+	h := sha3.NewSHAKE256()
+	h.Write(trOut)
+	h.Write([]byte{0x00, byte(len(ctx))})
+	h.Write(ctx)
+	h.Write(msg)
+	out := make([]byte, 64)
+	h.Read(out)
+	return out
+}
+
+// fakeSignerOpts is a [crypto.SignerOpts] whose [HashFunc] returns h, used to
+// exercise the opts-dispatch paths in [PrivateKey.Sign] without going through
+// [Options].
+type fakeSignerOpts struct{ h crypto.Hash }
+
+func (f fakeSignerOpts) HashFunc() crypto.Hash { return f.h }
+
+func TestSign(t *testing.T) {
+	testAllParameters(t, func(t *testing.T, params Parameters) {
+		sk, err := GenerateKey(params)
+		if err != nil {
+			t.Fatalf("GenerateKey: %v", err)
+		}
+		pk := sk.PublicKey()
+		msg := []byte("test message")
+
+		// nil opts and &Options{} must be equivalent (and both interoperable
+		// with a nil/zero Verify opts).
+		sig1, err := sk.Sign(nil, msg, nil)
+		if err != nil {
+			t.Fatalf("Sign(nil opts): %v", err)
+		}
+		if got := len(sig1); got != params.SignatureSize() {
+			t.Errorf("len(sig) = %d, want %d", got, params.SignatureSize())
+		}
+		if err := Verify(pk, msg, sig1, nil); err != nil {
+			t.Errorf("Verify of nil-opts signature with nil opts: %v", err)
+		}
+		if err := Verify(pk, msg, sig1, &Options{}); err != nil {
+			t.Errorf("Verify of nil-opts signature with empty Options: %v", err)
+		}
+
+		sig2, err := sk.Sign(nil, msg, &Options{})
+		if err != nil {
+			t.Fatalf("Sign(&Options{}): %v", err)
+		}
+		if err := Verify(pk, msg, sig2, nil); err != nil {
+			t.Errorf("Verify of empty-Options signature with nil opts: %v", err)
+		}
+
+		// A non-*Options crypto.SignerOpts whose HashFunc returns 0 must
+		// also sign directly, with empty context.
+		sig3, err := sk.Sign(nil, msg, fakeSignerOpts{h: 0})
+		if err != nil {
+			t.Fatalf("Sign(fakeSignerOpts{0}): %v", err)
+		}
+		if err := Verify(pk, msg, sig3, nil); err != nil {
+			t.Errorf("Verify of fake-opts signature: %v", err)
+		}
+
+		// crypto.Hash(0) similarly: HashFunc returns 0.
+		sig4, err := sk.Sign(nil, msg, crypto.Hash(0))
+		if err != nil {
+			t.Fatalf("Sign(crypto.Hash(0)): %v", err)
+		}
+		if err := Verify(pk, msg, sig4, nil); err != nil {
+			t.Errorf("Verify of Hash(0)-opts signature: %v", err)
+		}
+
+		// A wrong HashFunc must produce errInvalidSignerOpts.
+		if _, err := sk.Sign(nil, msg, crypto.SHA256); err == nil {
+			t.Errorf("Sign with crypto.SHA256 opts: want error, got nil")
+		}
+		if _, err := sk.SignDeterministic(msg, crypto.SHA256); err == nil {
+			t.Errorf("SignDeterministic with crypto.SHA256 opts: want error, got nil")
+		}
+
+		// SignDeterministic with nil and &Options{} must agree byte-for-byte.
+		detA, err := sk.SignDeterministic(msg, nil)
+		if err != nil {
+			t.Fatalf("SignDeterministic(nil): %v", err)
+		}
+		detB, err := sk.SignDeterministic(msg, &Options{})
+		if err != nil {
+			t.Fatalf("SignDeterministic(&Options{}): %v", err)
+		}
+		if !bytes.Equal(detA, detB) {
+			t.Errorf("SignDeterministic with nil and &Options{} differ")
+		}
+
+		// A different Context produces a different deterministic signature
+		// and verification with a mismatched context must fail.
+		detCtx, err := sk.SignDeterministic(msg, &Options{Context: "ctx"})
+		if err != nil {
+			t.Fatalf("SignDeterministic(ctx): %v", err)
+		}
+		if string(detCtx) == string(detA) {
+			t.Errorf("SignDeterministic with empty and non-empty context match")
+		}
+		if err := Verify(pk, msg, detCtx, nil); err == nil {
+			t.Errorf("Verify of context signature with empty context: want error, got nil")
+		}
+		if err := Verify(pk, msg, detCtx, &Options{Context: "ctx"}); err != nil {
+			t.Errorf("Verify with matching context: %v", err)
+		}
+
+		// Context >255 bytes is rejected by the underlying implementation.
+		longCtx := strings.Repeat("x", 256)
+		if _, err := sk.Sign(nil, msg, &Options{Context: longCtx}); err == nil {
+			t.Errorf("Sign with 256-byte context: want error, got nil")
+		}
+		if _, err := sk.SignDeterministic(msg, &Options{Context: longCtx}); err == nil {
+			t.Errorf("SignDeterministic with 256-byte context: want error, got nil")
+		}
+		if err := Verify(pk, msg, detA, &Options{Context: longCtx}); err == nil {
+			t.Errorf("Verify with 256-byte context: want error, got nil")
+		}
+
+		// Tampered signature must not verify.
+		sigTampered := bytes.Clone(sig1)
+		sigTampered[len(sigTampered)/2] ^= 0x01
+		if err := Verify(pk, msg, sigTampered, nil); err == nil {
+			t.Errorf("Verify of tampered signature: want error, got nil")
+		}
+
+		// Modified message must not verify against the original signature.
+		msgTampered := bytes.Clone(msg)
+		msgTampered[0] ^= 0x01
+		if err := Verify(pk, msgTampered, sig1, nil); err == nil {
+			t.Errorf("Verify of modified message: want error, got nil")
+		}
+
+		// Signature from a different key must not verify.
+		skOther, err := GenerateKey(params)
+		if err != nil {
+			t.Fatalf("GenerateKey: %v", err)
+		}
+		sigOther, err := skOther.SignDeterministic(msg, nil)
+		if err != nil {
+			t.Fatalf("SignDeterministic: %v", err)
+		}
+		if err := Verify(pk, msg, sigOther, nil); err == nil {
+			t.Errorf("Verify of signature from a different key: want error, got nil")
+		}
+	})
+}
+
+func TestExternalMu(t *testing.T) {
+	testAllParameters(t, func(t *testing.T, params Parameters) {
+		sk, err := GenerateKey(params)
+		if err != nil {
+			t.Fatalf("GenerateKey: %v", err)
+		}
+		pk := sk.PublicKey()
+		pkBytes := pk.Bytes()
+		msg := []byte("hello mu")
+
+		for _, ctx := range []string{"", "ctx"} {
+			μ := computeMu(pkBytes, []byte(ctx), msg)
+			sig, err := sk.Sign(nil, μ, crypto.MLDSAMu)
+			if err != nil {
+				t.Fatalf("Sign(MLDSAMu, ctx=%q): %v", ctx, err)
+			}
+			if err := Verify(pk, msg, sig, &Options{Context: ctx}); err != nil {
+				t.Errorf("Verify of MLDSAMu signature, ctx=%q: %v", ctx, err)
+			}
+
+			detSig, err := sk.SignDeterministic(μ, crypto.MLDSAMu)
+			if err != nil {
+				t.Fatalf("SignDeterministic(MLDSAMu, ctx=%q): %v", ctx, err)
+			}
+			if err := Verify(pk, msg, detSig, &Options{Context: ctx}); err != nil {
+				t.Errorf("Verify of deterministic MLDSAMu signature, ctx=%q: %v", ctx, err)
+			}
+			detSig2, err := sk.SignDeterministic(μ, crypto.MLDSAMu)
+			if err != nil {
+				t.Fatalf("SignDeterministic(MLDSAMu) second call: %v", err)
+			}
+			if string(detSig) != string(detSig2) {
+				t.Errorf("SignDeterministic(MLDSAMu) is not deterministic")
+			}
+		}
+
+		// Cross-context: μ computed under one ctx must not verify under another.
+		μA := computeMu(pkBytes, []byte("a"), msg)
+		sigA, err := sk.Sign(nil, μA, crypto.MLDSAMu)
+		if err != nil {
+			t.Fatalf("Sign(MLDSAMu, ctx=a): %v", err)
+		}
+		if err := Verify(pk, msg, sigA, &Options{Context: "b"}); err == nil {
+			t.Errorf("Verify of MLDSAMu(ctx=a) signature with ctx=b: want error, got nil")
+		}
+
+		// Tampered MLDSAMu signature must not verify.
+		sigTampered := bytes.Clone(sigA)
+		sigTampered[len(sigTampered)/2] ^= 0x01
+		if err := Verify(pk, msg, sigTampered, &Options{Context: "a"}); err == nil {
+			t.Errorf("Verify of tampered MLDSAMu signature: want error, got nil")
+		}
+
+		// Wrong-length μ must be rejected.
+		if _, err := sk.Sign(nil, make([]byte, 32), crypto.MLDSAMu); err == nil {
+			t.Errorf("Sign(MLDSAMu) with 32-byte input: want error, got nil")
+		}
+		if _, err := sk.SignDeterministic(make([]byte, 32), crypto.MLDSAMu); err == nil {
+			t.Errorf("SignDeterministic(MLDSAMu) with 32-byte input: want error, got nil")
+		}
+	})
+}
+
+func TestPublicKey(t *testing.T) {
+	cases := []struct {
+		params  Parameters
+		name    string
+		pkSize  int
+		sigSize int
+	}{
+		{MLDSA44(), "ML-DSA-44", MLDSA44PublicKeySize, MLDSA44SignatureSize},
+		{MLDSA65(), "ML-DSA-65", MLDSA65PublicKeySize, MLDSA65SignatureSize},
+		{MLDSA87(), "ML-DSA-87", MLDSA87PublicKeySize, MLDSA87SignatureSize},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			if got := tc.params.String(); got != tc.name {
+				t.Errorf("Parameters.String() = %q, want %q", got, tc.name)
+			}
+			if got := tc.params.PublicKeySize(); got != tc.pkSize {
+				t.Errorf("Parameters.PublicKeySize() = %d, want %d", got, tc.pkSize)
+			}
+			if got := tc.params.SignatureSize(); got != tc.sigSize {
+				t.Errorf("Parameters.SignatureSize() = %d, want %d", got, tc.sigSize)
+			}
+
+			sk, err := GenerateKey(tc.params)
+			if err != nil {
+				t.Fatalf("GenerateKey: %v", err)
+			}
+			pk := sk.PublicKey()
+			if got := pk.Parameters(); got != tc.params {
+				t.Errorf("PublicKey.Parameters() = %v, want %v", got, tc.params)
+			}
+			if got := len(pk.Bytes()); got != tc.params.PublicKeySize() {
+				t.Errorf("len(PublicKey.Bytes()) = %d, want %d", got, tc.params.PublicKeySize())
+			}
+			if got := len(sk.Bytes()); got != PrivateKeySize {
+				t.Errorf("len(PrivateKey.Bytes()) = %d, want %d", got, PrivateKeySize)
+			}
+
+			// Public() returns the same key as PublicKey().
+			anyPub := sk.Public()
+			pub2, ok := anyPub.(*PublicKey)
+			if !ok {
+				t.Fatalf("PrivateKey.Public() = %T, want *PublicKey", anyPub)
+			}
+			if !pk.Equal(pub2) {
+				t.Errorf("PrivateKey.Public() does not equal PublicKey()")
+			}
+
+			// Round-trip via NewPrivateKey/NewPublicKey.
+			sk2, err := NewPrivateKey(tc.params, sk.Bytes())
+			if err != nil {
+				t.Fatalf("NewPrivateKey round-trip: %v", err)
+			}
+			if !sk.Equal(sk2) {
+				t.Errorf("PrivateKey round-trip not equal")
+			}
+			pk2, err := NewPublicKey(tc.params, pk.Bytes())
+			if err != nil {
+				t.Fatalf("NewPublicKey round-trip: %v", err)
+			}
+			if !pk.Equal(pk2) {
+				t.Errorf("PublicKey round-trip not equal")
+			}
+		})
+	}
+}
+
+func TestEqualWrongType(t *testing.T) {
+	sk, err := GenerateKey(MLDSA44())
+	if err != nil {
+		t.Fatalf("GenerateKey: %v", err)
+	}
+	if sk.Equal("not a key") {
+		t.Errorf("PrivateKey.Equal(string) = true, want false")
+	}
+	if sk.Equal((*PublicKey)(nil)) {
+		t.Errorf("PrivateKey.Equal(*PublicKey) = true, want false")
+	}
+	if sk.PublicKey().Equal("not a key") {
+		t.Errorf("PublicKey.Equal(string) = true, want false")
+	}
+	if sk.PublicKey().Equal((*PrivateKey)(nil)) {
+		t.Errorf("PublicKey.Equal(*PrivateKey) = true, want false")
+	}
+
+	// Distinct keys are not Equal.
+	sk2, err := GenerateKey(MLDSA44())
+	if err != nil {
+		t.Fatalf("GenerateKey: %v", err)
+	}
+	if sk.Equal(sk2) {
+		t.Errorf("two random PrivateKeys are Equal")
+	}
+	if sk.PublicKey().Equal(sk2.PublicKey()) {
+		t.Errorf("two random PublicKeys are Equal")
+	}
+}
+
+func TestInvalidParameters(t *testing.T) {
+	var zero Parameters
+	if _, err := GenerateKey(zero); err == nil {
+		t.Errorf("GenerateKey(zero Parameters): want error, got nil")
+	}
+	if _, err := NewPrivateKey(zero, make([]byte, PrivateKeySize)); err == nil {
+		t.Errorf("NewPrivateKey(zero Parameters): want error, got nil")
+	}
+	if _, err := NewPublicKey(zero, make([]byte, MLDSA44PublicKeySize)); err == nil {
+		t.Errorf("NewPublicKey(zero Parameters): want error, got nil")
+	}
+}
+
+func TestInvalidSize(t *testing.T) {
+	testAllParameters(t, func(t *testing.T, params Parameters) {
+		if _, err := NewPrivateKey(params, make([]byte, PrivateKeySize-1)); err == nil {
+			t.Errorf("NewPrivateKey with short seed: want error, got nil")
+		}
+		if _, err := NewPrivateKey(params, make([]byte, PrivateKeySize+1)); err == nil {
+			t.Errorf("NewPrivateKey with long seed: want error, got nil")
+		}
+		if _, err := NewPublicKey(params, make([]byte, params.PublicKeySize()-1)); err == nil {
+			t.Errorf("NewPublicKey with short encoding: want error, got nil")
+		}
+		if _, err := NewPublicKey(params, make([]byte, params.PublicKeySize()+1)); err == nil {
+			t.Errorf("NewPublicKey with long encoding: want error, got nil")
+		}
+
+		sk, err := GenerateKey(params)
+		if err != nil {
+			t.Fatalf("GenerateKey: %v", err)
+		}
+		msg := []byte("test message")
+		sig, err := sk.SignDeterministic(msg, nil)
+		if err != nil {
+			t.Fatalf("SignDeterministic: %v", err)
+		}
+		if err := Verify(sk.PublicKey(), msg, sig[:len(sig)-1], nil); err == nil {
+			t.Errorf("Verify with short signature: want error, got nil")
+		}
+		if err := Verify(sk.PublicKey(), msg, append(sig, 0), nil); err == nil {
+			t.Errorf("Verify with long signature: want error, got nil")
+		}
+	})
+
+	// Cross-parameter mismatch: an MLDSA65 public key encoding is rejected by
+	// MLDSA44 (and vice versa), because the lengths differ.
+	sk65, err := GenerateKey(MLDSA65())
+	if err != nil {
+		t.Fatalf("GenerateKey(MLDSA65): %v", err)
+	}
+	if _, err := NewPublicKey(MLDSA44(), sk65.PublicKey().Bytes()); err == nil {
+		t.Errorf("NewPublicKey(MLDSA44, MLDSA65 encoding): want error, got nil")
+	}
+}
+
+func BenchmarkSign(b *testing.B) {
 	// Signing works by rejection sampling, which introduces massive variance in
 	// individual signing times. To get stable but correct results, we benchmark
 	// a series of representative operations, engineered to have the same
 	// distribution of rejection counts and reasons as the average case. See also
 	// https://words.filippo.io/rsa-keygen-bench/ for a similar approach.
 	b.Run("ML-DSA-44", func(b *testing.B) {
-		benchmarkMLDSASign(b, NewPrivateKey44, benchmarkMessagesMLDSA44)
+		benchmarkSign(b, MLDSA44(), benchmarkMessagesMLDSA44)
 	})
 	b.Run("ML-DSA-65", func(b *testing.B) {
-		benchmarkMLDSASign(b, NewPrivateKey65, benchmarkMessagesMLDSA65)
+		benchmarkSign(b, MLDSA65(), benchmarkMessagesMLDSA65)
 	})
 	b.Run("ML-DSA-87", func(b *testing.B) {
-		benchmarkMLDSASign(b, NewPrivateKey87, benchmarkMessagesMLDSA87)
+		benchmarkSign(b, MLDSA87(), benchmarkMessagesMLDSA87)
 	})
 }
 
-func benchmarkMLDSASign(b *testing.B, newPrivateKey func([]byte) (*PrivateKey, error), messages []string) {
+func benchmarkSign(b *testing.B, params Parameters, messages []string) {
 	seed := make([]byte, 32)
-	priv, err := newPrivateKey(seed)
+	priv, err := NewPrivateKey(params, seed)
 	if err != nil {
 		b.Fatalf("NewPrivateKey: %v", err)
 	}
@@ -213,58 +620,77 @@ func benchmarkMLDSASign(b *testing.B, newPrivateKey func([]byte) (*PrivateKey, e
 		if i++; i >= len(messages) {
 			i = 0
 		}
-		SignDeterministic(priv, []byte(msg), "")
+		priv.SignDeterministic([]byte(msg), nil)
 	}
 }
 
-// BenchmarkMLDSAVerify runs both public key parsing and signature verification,
-// since pre-computation can be easily moved between the two, but in practice
-// most uses of verification are for fresh public keys (unlike signing).
-func BenchmarkMLDSAVerify(b *testing.B) {
+func BenchmarkVerify(b *testing.B) {
 	b.Run("ML-DSA-44", func(b *testing.B) {
-		benchmarkMLDSAVerify(b, GenerateKey44, NewPublicKey44)
+		benchmarkVerify(b, MLDSA44())
 	})
 	b.Run("ML-DSA-65", func(b *testing.B) {
-		benchmarkMLDSAVerify(b, GenerateKey65, NewPublicKey65)
+		benchmarkVerify(b, MLDSA65())
 	})
 	b.Run("ML-DSA-87", func(b *testing.B) {
-		benchmarkMLDSAVerify(b, GenerateKey87, NewPublicKey87)
+		benchmarkVerify(b, MLDSA87())
 	})
 }
 
-func benchmarkMLDSAVerify(b *testing.B, generateKey func() *PrivateKey, newPublicKey func([]byte) (*PublicKey, error)) {
-	priv := generateKey()
+func benchmarkVerify(b *testing.B, params Parameters) {
+	priv, err := GenerateKey(params)
+	if err != nil {
+		b.Fatalf("GenerateKey: %v", err)
+	}
 	msg := make([]byte, 128)
-	sig, err := SignDeterministic(priv, msg, "context")
+	sig, err := priv.SignDeterministic(msg, &Options{Context: "context"})
 	if err != nil {
 		b.Fatalf("SignDeterministic: %v", err)
 	}
 	pub := priv.PublicKey().Bytes()
-	for b.Loop() {
-		pk, err := newPublicKey(pub)
+
+	// "Whole" runs both public key parsing and signature verification,
+	// since pre-computation can be easily moved between the two, but in practice
+	// most uses of verification are for fresh public keys (unlike signing).
+	b.Run("Whole", func(b *testing.B) {
+		for b.Loop() {
+			pk, err := NewPublicKey(params, pub)
+			if err != nil {
+				b.Fatalf("NewPublicKey: %v", err)
+			}
+			if err := Verify(pk, msg, sig, &Options{Context: "context"}); err != nil {
+				b.Fatalf("Verify: %v", err)
+			}
+		}
+	})
+
+	// "Precomputed" runs only Verify with a pre-parsed public key.
+	b.Run("Precomputed", func(b *testing.B) {
+		pk, err := NewPublicKey(params, pub)
 		if err != nil {
 			b.Fatalf("NewPublicKey: %v", err)
 		}
-		if err := Verify(pk, msg, sig, "context"); err != nil {
-			b.Fatalf("Verify: %v", err)
+		for b.Loop() {
+			if err := Verify(pk, msg, sig, &Options{Context: "context"}); err != nil {
+				b.Fatalf("Verify: %v", err)
+			}
 		}
-	}
+	})
 }
 
-func BenchmarkMLDSAKeygen(b *testing.B) {
+func BenchmarkKeygen(b *testing.B) {
 	b.Run("ML-DSA-44", func(b *testing.B) {
 		for b.Loop() {
-			NewPrivateKey44(make([]byte, 32))
+			NewPrivateKey(MLDSA44(), make([]byte, 32))
 		}
 	})
 	b.Run("ML-DSA-65", func(b *testing.B) {
 		for b.Loop() {
-			NewPrivateKey65(make([]byte, 32))
+			NewPrivateKey(MLDSA65(), make([]byte, 32))
 		}
 	})
 	b.Run("ML-DSA-87", func(b *testing.B) {
 		for b.Loop() {
-			NewPrivateKey87(make([]byte, 32))
+			NewPrivateKey(MLDSA87(), make([]byte, 32))
 		}
 	})
 }

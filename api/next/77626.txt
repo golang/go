@@ -1,0 +1,41 @@
+pkg crypto, const MLDSAMu = 20 #77626
+pkg crypto, const MLDSAMu Hash #77626
+pkg crypto/mldsa, const MLDSA44PublicKeySize = 1312 #77626
+pkg crypto/mldsa, const MLDSA44PublicKeySize ideal-int #77626
+pkg crypto/mldsa, const MLDSA44SignatureSize = 2420 #77626
+pkg crypto/mldsa, const MLDSA44SignatureSize ideal-int #77626
+pkg crypto/mldsa, const MLDSA65PublicKeySize = 1952 #77626
+pkg crypto/mldsa, const MLDSA65PublicKeySize ideal-int #77626
+pkg crypto/mldsa, const MLDSA65SignatureSize = 3309 #77626
+pkg crypto/mldsa, const MLDSA65SignatureSize ideal-int #77626
+pkg crypto/mldsa, const MLDSA87PublicKeySize = 2592 #77626
+pkg crypto/mldsa, const MLDSA87PublicKeySize ideal-int #77626
+pkg crypto/mldsa, const MLDSA87SignatureSize = 4627 #77626
+pkg crypto/mldsa, const MLDSA87SignatureSize ideal-int #77626
+pkg crypto/mldsa, const PrivateKeySize = 32 #77626
+pkg crypto/mldsa, const PrivateKeySize ideal-int #77626
+pkg crypto/mldsa, func GenerateKey(Parameters) (*PrivateKey, error) #77626
+pkg crypto/mldsa, func MLDSA44() Parameters #77626
+pkg crypto/mldsa, func MLDSA65() Parameters #77626
+pkg crypto/mldsa, func MLDSA87() Parameters #77626
+pkg crypto/mldsa, func NewPrivateKey(Parameters, []uint8) (*PrivateKey, error) #77626
+pkg crypto/mldsa, func NewPublicKey(Parameters, []uint8) (*PublicKey, error) #77626
+pkg crypto/mldsa, func Verify(*PublicKey, []uint8, []uint8, *Options) error #77626
+pkg crypto/mldsa, method (*Options) HashFunc() crypto.Hash #77626
+pkg crypto/mldsa, method (*PrivateKey) Bytes() []uint8 #77626
+pkg crypto/mldsa, method (*PrivateKey) Equal(crypto.PrivateKey) bool #77626
+pkg crypto/mldsa, method (*PrivateKey) Public() crypto.PublicKey #77626
+pkg crypto/mldsa, method (*PrivateKey) PublicKey() *PublicKey #77626
+pkg crypto/mldsa, method (*PrivateKey) Sign(io.Reader, []uint8, crypto.SignerOpts) ([]uint8, error) #77626
+pkg crypto/mldsa, method (*PrivateKey) SignDeterministic([]uint8, crypto.SignerOpts) ([]uint8, error) #77626
+pkg crypto/mldsa, method (*PublicKey) Bytes() []uint8 #77626
+pkg crypto/mldsa, method (*PublicKey) Equal(crypto.PublicKey) bool #77626
+pkg crypto/mldsa, method (*PublicKey) Parameters() Parameters #77626
+pkg crypto/mldsa, method (Parameters) PublicKeySize() int #77626
+pkg crypto/mldsa, method (Parameters) SignatureSize() int #77626
+pkg crypto/mldsa, method (Parameters) String() string #77626
+pkg crypto/mldsa, type Options struct #77626
+pkg crypto/mldsa, type Options struct, Context string #77626
+pkg crypto/mldsa, type Parameters struct #77626
+pkg crypto/mldsa, type PrivateKey struct #77626
+pkg crypto/mldsa, type PublicKey struct #77626
