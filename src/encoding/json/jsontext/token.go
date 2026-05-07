@@ -525,10 +525,10 @@ func f64toi64(f64 float64) int64 {
 // It reports an error that matches [strconv.ErrSyntax] if the JSON number
 // does not match the restricted grammar of just an unsigned integer.
 // It reports an error that matches [strconv.ErrRange] if the JSON number
-// is an unsigned integer, but outside the representable range of an uint64.
+// is an unsigned integer, but outside the representable range of a uint64.
 // Even if an error is reported, a reasonable value is still returned.
 // The fractional component of any number is ignored (truncation toward zero).
-// Any number beyond the representation of an uint64 will be saturated
+// Any number beyond the representation of a uint64 will be saturated
 // to the closest representable value.
 //
 // It panics if the token kind is not a JSON number.

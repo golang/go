@@ -1142,7 +1142,7 @@ func (d *Decoder) UnreadBuffer() []byte {
 
 // StackDepth returns the depth of the state machine for read JSON data.
 // Each level on the stack represents a nested JSON object or array.
-// It is incremented whenever an [BeginObject] or [BeginArray] token is encountered
+// It is incremented whenever a [BeginObject] or [BeginArray] token is encountered
 // and decremented whenever an [EndObject] or [EndArray] token is encountered.
 // The depth is zero-indexed, where zero represents the top-level JSON value.
 func (d *Decoder) StackDepth() int {
