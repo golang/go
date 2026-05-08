@@ -2379,6 +2379,7 @@ func TestECH(t *testing.T) {
 	clientConfig.RootCAs.AddCert(secretCert)
 	clientConfig.RootCAs.AddCert(publicCert)
 	clientConfig.EncryptedClientHelloConfigList = echConfigList
+	clientConfig.ClientSessionCache = NewLRUClientSessionCache(2)
 	serverConfig.InsecureSkipVerify = false
 	serverConfig.Rand = rand.Reader
 	serverConfig.Time = nil
