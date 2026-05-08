@@ -5,6 +5,7 @@
 package tls
 
 import (
+	"bytes"
 	"errors"
 	"fmt"
 	"slices"
@@ -317,7 +318,8 @@ func (m *clientHelloMsg) marshalMsg(echInner bool) ([]byte, error) {
 			})
 		})
 	}
-	if len(m.pskIdentities) > 0 { // pre_shared_key must be the last extension
+	// pre_shared_key must be the last extension
+	if len(m.pskIdentities) > 0 && (echInner || len(m.encryptedClientHello) == 0 || bytes.Equal(m.encryptedClientHello, []byte{byte(innerECHExt)})) {
 		// RFC 8446, Section 4.2.11
 		exts.AddUint16(extensionPreSharedKey)
 		exts.AddUint16LengthPrefixed(func(exts *cryptobyte.Builder) {
