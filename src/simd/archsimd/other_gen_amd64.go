@@ -601,293 +601,293 @@ func (x Uint64x8) Not() Uint64x8 {
 // String returns a string representation of SIMD vector x.
 func (x Int8x16) String() string {
 	var s [16]int8
-	x.Store(&s)
+	x.StoreArray(&s)
 	return sliceToString(s[:])
 }
 
 // String returns a string representation of SIMD vector x.
 func (x Int16x8) String() string {
 	var s [8]int16
-	x.Store(&s)
+	x.StoreArray(&s)
 	return sliceToString(s[:])
 }
 
 // String returns a string representation of SIMD vector x.
 func (x Int32x4) String() string {
 	var s [4]int32
-	x.Store(&s)
+	x.StoreArray(&s)
 	return sliceToString(s[:])
 }
 
 // String returns a string representation of SIMD vector x.
 func (x Int64x2) String() string {
 	var s [2]int64
-	x.Store(&s)
+	x.StoreArray(&s)
 	return sliceToString(s[:])
 }
 
 // String returns a string representation of SIMD vector x.
 func (x Uint8x16) String() string {
 	var s [16]uint8
-	x.Store(&s)
+	x.StoreArray(&s)
 	return sliceToString(s[:])
 }
 
 // String returns a string representation of SIMD vector x.
 func (x Uint16x8) String() string {
 	var s [8]uint16
-	x.Store(&s)
+	x.StoreArray(&s)
 	return sliceToString(s[:])
 }
 
 // String returns a string representation of SIMD vector x.
 func (x Uint32x4) String() string {
 	var s [4]uint32
-	x.Store(&s)
+	x.StoreArray(&s)
 	return sliceToString(s[:])
 }
 
 // String returns a string representation of SIMD vector x.
 func (x Uint64x2) String() string {
 	var s [2]uint64
-	x.Store(&s)
+	x.StoreArray(&s)
 	return sliceToString(s[:])
 }
 
 // String returns a string representation of SIMD vector x.
 func (x Float32x4) String() string {
 	var s [4]float32
-	x.Store(&s)
+	x.StoreArray(&s)
 	return sliceToString(s[:])
 }
 
 // String returns a string representation of SIMD vector x.
 func (x Float64x2) String() string {
 	var s [2]float64
-	x.Store(&s)
+	x.StoreArray(&s)
 	return sliceToString(s[:])
 }
 
 // String returns a string representation of SIMD vector x.
 func (x Int8x32) String() string {
 	var s [32]int8
-	x.Store(&s)
+	x.StoreArray(&s)
 	return sliceToString(s[:])
 }
 
 // String returns a string representation of SIMD vector x.
 func (x Int16x16) String() string {
 	var s [16]int16
-	x.Store(&s)
+	x.StoreArray(&s)
 	return sliceToString(s[:])
 }
 
 // String returns a string representation of SIMD vector x.
 func (x Int32x8) String() string {
 	var s [8]int32
-	x.Store(&s)
+	x.StoreArray(&s)
 	return sliceToString(s[:])
 }
 
 // String returns a string representation of SIMD vector x.
 func (x Int64x4) String() string {
 	var s [4]int64
-	x.Store(&s)
+	x.StoreArray(&s)
 	return sliceToString(s[:])
 }
 
 // String returns a string representation of SIMD vector x.
 func (x Uint8x32) String() string {
 	var s [32]uint8
-	x.Store(&s)
+	x.StoreArray(&s)
 	return sliceToString(s[:])
 }
 
 // String returns a string representation of SIMD vector x.
 func (x Uint16x16) String() string {
 	var s [16]uint16
-	x.Store(&s)
+	x.StoreArray(&s)
 	return sliceToString(s[:])
 }
 
 // String returns a string representation of SIMD vector x.
 func (x Uint32x8) String() string {
 	var s [8]uint32
-	x.Store(&s)
+	x.StoreArray(&s)
 	return sliceToString(s[:])
 }
 
 // String returns a string representation of SIMD vector x.
 func (x Uint64x4) String() string {
 	var s [4]uint64
-	x.Store(&s)
+	x.StoreArray(&s)
 	return sliceToString(s[:])
 }
 
 // String returns a string representation of SIMD vector x.
 func (x Float32x8) String() string {
 	var s [8]float32
-	x.Store(&s)
+	x.StoreArray(&s)
 	return sliceToString(s[:])
 }
 
 // String returns a string representation of SIMD vector x.
 func (x Float64x4) String() string {
 	var s [4]float64
-	x.Store(&s)
+	x.StoreArray(&s)
 	return sliceToString(s[:])
 }
 
 // String returns a string representation of SIMD vector x.
 func (x Int8x64) String() string {
 	var s [64]int8
-	x.Store(&s)
+	x.StoreArray(&s)
 	return sliceToString(s[:])
 }
 
 // String returns a string representation of SIMD vector x.
 func (x Int16x32) String() string {
 	var s [32]int16
-	x.Store(&s)
+	x.StoreArray(&s)
 	return sliceToString(s[:])
 }
 
 // String returns a string representation of SIMD vector x.
 func (x Int32x16) String() string {
 	var s [16]int32
-	x.Store(&s)
+	x.StoreArray(&s)
 	return sliceToString(s[:])
 }
 
 // String returns a string representation of SIMD vector x.
 func (x Int64x8) String() string {
 	var s [8]int64
-	x.Store(&s)
+	x.StoreArray(&s)
 	return sliceToString(s[:])
 }
 
 // String returns a string representation of SIMD vector x.
 func (x Uint8x64) String() string {
 	var s [64]uint8
-	x.Store(&s)
+	x.StoreArray(&s)
 	return sliceToString(s[:])
 }
 
 // String returns a string representation of SIMD vector x.
 func (x Uint16x32) String() string {
 	var s [32]uint16
-	x.Store(&s)
+	x.StoreArray(&s)
 	return sliceToString(s[:])
 }
 
 // String returns a string representation of SIMD vector x.
 func (x Uint32x16) String() string {
 	var s [16]uint32
-	x.Store(&s)
+	x.StoreArray(&s)
 	return sliceToString(s[:])
 }
 
 // String returns a string representation of SIMD vector x.
 func (x Uint64x8) String() string {
 	var s [8]uint64
-	x.Store(&s)
+	x.StoreArray(&s)
 	return sliceToString(s[:])
 }
 
 // String returns a string representation of SIMD vector x.
 func (x Float32x16) String() string {
 	var s [16]float32
-	x.Store(&s)
+	x.StoreArray(&s)
 	return sliceToString(s[:])
 }
 
 // String returns a string representation of SIMD vector x.
 func (x Float64x8) String() string {
 	var s [8]float64
-	x.Store(&s)
+	x.StoreArray(&s)
 	return sliceToString(s[:])
 }
 
 // String returns a string representation of SIMD mask x.
 func (x Mask8x16) String() string {
 	var s [16]int8
-	x.ToInt8x16().Neg().Store(&s)
+	x.ToInt8x16().Neg().StoreArray(&s)
 	return sliceToString(s[:])
 }
 
 // String returns a string representation of SIMD mask x.
 func (x Mask16x8) String() string {
 	var s [8]int16
-	x.ToInt16x8().Neg().Store(&s)
+	x.ToInt16x8().Neg().StoreArray(&s)
 	return sliceToString(s[:])
 }
 
 // String returns a string representation of SIMD mask x.
 func (x Mask32x4) String() string {
 	var s [4]int32
-	x.ToInt32x4().Neg().Store(&s)
+	x.ToInt32x4().Neg().StoreArray(&s)
 	return sliceToString(s[:])
 }
 
 // String returns a string representation of SIMD mask x.
 func (x Mask64x2) String() string {
 	var s [2]int64
-	x.ToInt64x2().Neg().Store(&s)
+	x.ToInt64x2().Neg().StoreArray(&s)
 	return sliceToString(s[:])
 }
 
 // String returns a string representation of SIMD mask x.
 func (x Mask8x32) String() string {
 	var s [32]int8
-	x.ToInt8x32().Neg().Store(&s)
+	x.ToInt8x32().Neg().StoreArray(&s)
 	return sliceToString(s[:])
 }
 
 // String returns a string representation of SIMD mask x.
 func (x Mask16x16) String() string {
 	var s [16]int16
-	x.ToInt16x16().Neg().Store(&s)
+	x.ToInt16x16().Neg().StoreArray(&s)
 	return sliceToString(s[:])
 }
 
 // String returns a string representation of SIMD mask x.
 func (x Mask32x8) String() string {
 	var s [8]int32
-	x.ToInt32x8().Neg().Store(&s)
+	x.ToInt32x8().Neg().StoreArray(&s)
 	return sliceToString(s[:])
 }
 
 // String returns a string representation of SIMD mask x.
 func (x Mask64x4) String() string {
 	var s [4]int64
-	x.ToInt64x4().Neg().Store(&s)
+	x.ToInt64x4().Neg().StoreArray(&s)
 	return sliceToString(s[:])
 }
 
 // String returns a string representation of SIMD mask x.
 func (x Mask8x64) String() string {
 	var s [64]int8
-	x.ToInt8x64().Neg().Store(&s)
+	x.ToInt8x64().Neg().StoreArray(&s)
 	return sliceToString(s[:])
 }
 
 // String returns a string representation of SIMD mask x.
 func (x Mask16x32) String() string {
 	var s [32]int16
-	x.ToInt16x32().Neg().Store(&s)
+	x.ToInt16x32().Neg().StoreArray(&s)
 	return sliceToString(s[:])
 }
 
 // String returns a string representation of SIMD mask x.
 func (x Mask32x16) String() string {
 	var s [16]int32
-	x.ToInt32x16().Neg().Store(&s)
+	x.ToInt32x16().Neg().StoreArray(&s)
 	return sliceToString(s[:])
 }
 
 // String returns a string representation of SIMD mask x.
 func (x Mask64x8) String() string {
 	var s [8]int64
-	x.ToInt64x8().Neg().Store(&s)
+	x.ToInt64x8().Neg().StoreArray(&s)
 	return sliceToString(s[:])
 }

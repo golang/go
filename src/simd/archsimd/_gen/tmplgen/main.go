@@ -328,16 +328,16 @@ func shapedTemplateOf(s *shapes, name, temp string) shapeAndTemplate {
 }
 
 var sliceTemplate = templateOf("slice", `
-// Load{{.VType}}Slice loads {{.AOrAn}} {{.VType}} from a slice of elements.
+// Load{{.VType}} loads {{.AOrAn}} {{.VType}} from a slice of elements.
 // If s does not have at least {{.Count}} elements, it panics.
-func Load{{.VType}}Slice(s []{{.Etype}}) {{.VType}} {
-	return Load{{.VType}}((*[{{.Count}}]{{.Etype}})(s))
+func Load{{.VType}}(s []{{.Etype}}) {{.VType}} {
+	return Load{{.VType}}Array((*[{{.Count}}]{{.Etype}})(s))
 }
 
-// StoreSlice stores the elements of x into a slice.
+// Store stores the elements of x into a slice.
 // If s does not have at least {{.Count}} elements, it panics.
-func (x {{.VType}}) StoreSlice(s []{{.Etype}}) {
-	x.Store((*[{{.Count}}]{{.Etype}})(s))
+func (x {{.VType}}) Store(s []{{.Etype}}) {
+	x.StoreArray((*[{{.Count}}]{{.Etype}})(s))
 }
 `)
 
@@ -348,9 +348,9 @@ func test{{.VType}}Unary(t *testing.T, f func(_ archsimd.{{.VType}}) archsimd.{{
 	t.Helper()
 	forSlice(t, {{.Etype}}s, n, func(x []{{.Etype}}) bool {
 	 	t.Helper()
-		a := archsimd.Load{{.VType}}Slice(x)
+		a := archsimd.Load{{.VType}}(x)
 		g := make([]{{.Etype}}, n)
-		f(a).StoreSlice(g)
+		f(a).Store(g)
 		w := want(x)
 		return checkSlicesLogInput(t, g, w, 0.0, func() {t.Helper(); t.Logf("x=%v", x)})
 	})
@@ -365,9 +365,9 @@ func test{{.VType}}UnaryFlaky(t *testing.T, f func(x archsimd.{{.VType}}) archsi
 	t.Helper()
 	forSlice(t, {{.Etype}}s, n, func(x []{{.Etype}}) bool {
 	 	t.Helper()
-		a := archsimd.Load{{.VType}}Slice(x)
+		a := archsimd.Load{{.VType}}(x)
 		g := make([]{{.Etype}}, n)
-		f(a).StoreSlice(g)
+		f(a).Store(g)
 		w := want(x)
 		return checkSlicesLogInput(t, g, w, flakiness, func() {t.Helper(); t.Logf("x=%v", x)})
 	})
@@ -383,9 +383,9 @@ func test{{.VType}}ConvertTo{{.OEType}}(t *testing.T, f func(x archsimd.{{.VType
 	t.Helper()
 	forSlice(t, {{.Etype}}s, n, func(x []{{.Etype}}) bool {
 	 	t.Helper()
-		a := archsimd.Load{{.VType}}Slice(x)
+		a := archsimd.Load{{.VType}}(x)
 		g := make([]{{.OEtype}}, {{.OCount}})
-		f(a).StoreSlice(g)
+		f(a).Store(g)
 		w := want(x)
 		return checkSlicesLogInput(t, g, w, 0.0, func() {t.Helper(); t.Logf("x=%v", x)})
 	})
@@ -416,9 +416,9 @@ func test{{.VType}}ConvertLoTo{{.OVType}}(t *testing.T, f func(x archsimd.{{.VTy
 	t.Helper()
 	forSlice(t, {{.Etype}}s, n, func(x []{{.Etype}}) bool {
 	 	t.Helper()
-		a := archsimd.Load{{.VType}}Slice(x)
+		a := archsimd.Load{{.VType}}(x)
 		g := make([]{{.OEtype}}, {{.OCount}})
-		f(a).StoreSlice(g)
+		f(a).Store(g)
 		w := want(x)
 		return checkSlicesLogInput(t, g, w, 0.0, func() {t.Helper(); t.Logf("x=%v", x)})
 	})
@@ -450,10 +450,10 @@ func test{{.VType}}Binary(t *testing.T, f func(_, _ archsimd.{{.VType}}) archsim
 	t.Helper()
 	forSlicePair(t, {{.Etype}}s, n, func(x, y []{{.Etype}}) bool {
 	 	t.Helper()
-		a := archsimd.Load{{.VType}}Slice(x)
-		b := archsimd.Load{{.VType}}Slice(y)
+		a := archsimd.Load{{.VType}}(x)
+		b := archsimd.Load{{.VType}}(y)
 		g := make([]{{.Etype}}, n)
-		f(a, b).StoreSlice(g)
+		f(a, b).Store(g)
 		w := want(x, y)
 		return checkSlicesLogInput(t, g, w, 0.0, func() {t.Helper(); t.Logf("x=%v", x); t.Logf("y=%v", y); })
 	})
@@ -467,11 +467,11 @@ func test{{.VType}}Ternary(t *testing.T, f func(_, _, _ archsimd.{{.VType}}) arc
 	t.Helper()
 	forSliceTriple(t, {{.Etype}}s, n, func(x, y, z []{{.Etype}}) bool {
 	 	t.Helper()
-		a := archsimd.Load{{.VType}}Slice(x)
-		b := archsimd.Load{{.VType}}Slice(y)
-		c := archsimd.Load{{.VType}}Slice(z)
+		a := archsimd.Load{{.VType}}(x)
+		b := archsimd.Load{{.VType}}(y)
+		c := archsimd.Load{{.VType}}(z)
 		g := make([]{{.Etype}}, n)
-		f(a, b, c).StoreSlice(g)
+		f(a, b, c).Store(g)
 		w := want(x, y, z)
 		return checkSlicesLogInput(t, g, w, 0.0, func() {t.Helper(); t.Logf("x=%v", x); t.Logf("y=%v", y); t.Logf("z=%v", z); })
 	})
@@ -486,11 +486,11 @@ func test{{.VType}}TernaryFlaky(t *testing.T, f func(x, y, z archsimd.{{.VType}}
 	t.Helper()
 	forSliceTriple(t, {{.Etype}}s, n, func(x, y, z []{{.Etype}}) bool {
 	 	t.Helper()
-		a := archsimd.Load{{.VType}}Slice(x)
-		b := archsimd.Load{{.VType}}Slice(y)
-		c := archsimd.Load{{.VType}}Slice(z)
+		a := archsimd.Load{{.VType}}(x)
+		b := archsimd.Load{{.VType}}(y)
+		c := archsimd.Load{{.VType}}(z)
 		g := make([]{{.Etype}}, n)
-		f(a, b, c).StoreSlice(g)
+		f(a, b, c).Store(g)
 		w := want(x, y, z)
 		return checkSlicesLogInput(t, g, w, flakiness, func() {t.Helper(); t.Logf("x=%v", x); t.Logf("y=%v", y); t.Logf("z=%v", z); })
 	})
@@ -504,10 +504,10 @@ func test{{.VType}}Compare(t *testing.T, f func(_, _ archsimd.{{.VType}}) archsi
 	t.Helper()
 	forSlicePair(t, {{.Etype}}s, n, func(x, y []{{.Etype}}) bool {
 	 	t.Helper()
-		a := archsimd.Load{{.VType}}Slice(x)
-		b := archsimd.Load{{.VType}}Slice(y)
+		a := archsimd.Load{{.VType}}(x)
+		b := archsimd.Load{{.VType}}(y)
 		g := make([]int{{.EWidth}}, n)
-		f(a, b).ToInt{{.WxC}}().StoreSlice(g)
+		f(a, b).ToInt{{.WxC}}().Store(g)
 		w := want(x, y)
 		return checkSlicesLogInput(t, s64(g), w, 0.0, func() {t.Helper(); t.Logf("x=%v", x); t.Logf("y=%v", y); })
 	})
@@ -521,9 +521,9 @@ func test{{.VType}}UnaryCompare(t *testing.T, f func(x archsimd.{{.VType}}) arch
 	t.Helper()
 	forSlice(t, {{.Etype}}s, n, func(x []{{.Etype}}) bool {
 	 	t.Helper()
-		a := archsimd.Load{{.VType}}Slice(x)
+		a := archsimd.Load{{.VType}}(x)
 		g := make([]int{{.EWidth}}, n)
-		f(a).ToInt{{.WxC}}().StoreSlice(g)
+		f(a).ToInt{{.WxC}}().Store(g)
 		w := want(x)
 		return checkSlicesLogInput(t, s64(g), w, 0.0, func() {t.Helper(); t.Logf("x=%v", x)})
 	})
@@ -541,11 +541,11 @@ func test{{.VType}}CompareMasked(t *testing.T,
 	t.Helper()
 	forSlicePairMasked(t, {{.Etype}}s, n, func(x, y []{{.Etype}}, m []bool) bool {
 	 	t.Helper()
-		a := archsimd.Load{{.VType}}Slice(x)
-		b := archsimd.Load{{.VType}}Slice(y)
-		k := archsimd.LoadInt{{.WxC}}Slice(toVect[int{{.EWidth}}](m)).ToMask()
+		a := archsimd.Load{{.VType}}(x)
+		b := archsimd.Load{{.VType}}(y)
+		k := archsimd.LoadInt{{.WxC}}(toVect[int{{.EWidth}}](m)).ToMask()
 		g := make([]int{{.EWidth}}, n)
-		f(a, b, k).ToInt{{.WxC}}().StoreSlice(g)
+		f(a, b, k).ToInt{{.WxC}}().Store(g)
 		w := want(x, y)
 		for i := range m {
 			if !m[i] {
@@ -557,96 +557,96 @@ func test{{.VType}}CompareMasked(t *testing.T,
 }
 `)
 
-var avx512MaskedLoadSlicePartTemplate = shapedTemplateOf(avx512Shapes, "avx 512 load slice part", `
-// Load{{.VType}}SlicePart loads a {{.VType}} from the slice s.
+var avx512MaskedLoadSliceTemplate = shapedTemplateOf(avx512Shapes, "avx 512 load slice part", `
+// Load{{.VType}}Part loads a {{.VType}} from the slice s.
 // If s has fewer than {{.Count}} elements, the remaining elements of the vector are filled with zeroes.
 // If s has {{.Count}} or more elements, the function is equivalent to Load{{.VType}}Slice.
-func Load{{.VType}}SlicePart(s []{{.Etype}}) {{.VType}} {
+func Load{{.VType}}Part(s []{{.Etype}}) {{.VType}} {
 	l := len(s)
 	if l >= {{.Count}} {
-		return Load{{.VType}}Slice(s)
+		return Load{{.VType}}(s)
 	}
 	if l == 0 {
 		var x {{.VType}}
 		return x
 	}
 	mask := Mask{{.WxC}}FromBits({{.OxFF}} >> ({{.Count}} - l))
-	return LoadMasked{{.VType}}(pa{{.VType}}(s), mask)
+	return Load{{.VType}}Array(pa{{.VType}}(s)).Masked(mask)
 }
 
-// StoreSlicePart stores the {{.Count}} elements of x into the slice s.
+// StorePart stores the {{.Count}} elements of x into the slice s.
 // It stores as many elements as will fit in s.
-// If s has {{.Count}} or more elements, the method is equivalent to x.StoreSlice.
-func (x {{.VType}}) StoreSlicePart(s []{{.Etype}}) {
+// If s has {{.Count}} or more elements, the method is equivalent to x.Store.
+func (x {{.VType}}) StorePart(s []{{.Etype}}) {
 	l := len(s)
 	if l >= {{.Count}} {
-		x.StoreSlice(s)
+		x.Store(s)
 		return
 	}
 	if l == 0 {
 		return
 	}
 	mask := Mask{{.WxC}}FromBits({{.OxFF}} >> ({{.Count}} - l))
-	x.StoreMasked(pa{{.VType}}(s), mask)
+	x.StoreArrayMasked(pa{{.VType}}(s), mask)
 }
 `)
 
-var avx2MaskedLoadSlicePartTemplate = shapedTemplateOf(avx2MaskedLoadShapes, "avx 2 load slice part", `
-// Load{{.VType}}SlicePart loads a {{.VType}} from the slice s.
+var avx2MaskedLoadSliceTemplate = shapedTemplateOf(avx2MaskedLoadShapes, "avx 2 load slice part", `
+// Load{{.VType}}Part loads a {{.VType}} from the slice s.
 // If s has fewer than {{.Count}} elements, the remaining elements of the vector are filled with zeroes.
 // If s has {{.Count}} or more elements, the function is equivalent to Load{{.VType}}Slice.
-func Load{{.VType}}SlicePart(s []{{.Etype}}) {{.VType}} {
+func Load{{.VType}}Part(s []{{.Etype}}) {{.VType}} {
 	l := len(s)
 	if l >= {{.Count}} {
-		return Load{{.VType}}Slice(s)
+		return Load{{.VType}}(s)
 	}
 	if l == 0 {
 		var x {{.VType}}
 		return x
 	}
 	mask := vecMask{{.EWidth}}[len(vecMask{{.EWidth}})/2-l:]
-	return LoadMasked{{.VType}}(pa{{.VType}}(s), LoadInt{{.WxC}}Slice(mask).asMask())
+	return Load{{.VType}}Array(pa{{.VType}}(s)).Masked(LoadInt{{.WxC}}(mask).asMask())
 }
 
-// StoreSlicePart stores the {{.Count}} elements of x into the slice s.
+// StorePart stores the {{.Count}} elements of x into the slice s.
 // It stores as many elements as will fit in s.
-// If s has {{.Count}} or more elements, the method is equivalent to x.StoreSlice.
-func (x {{.VType}}) StoreSlicePart(s []{{.Etype}}) {
+// If s has {{.Count}} or more elements, the method is equivalent to x.Store.
+func (x {{.VType}}) StorePart(s []{{.Etype}}) {
 	l := len(s)
 	if l >= {{.Count}} {
-		x.StoreSlice(s)
+		x.Store(s)
 		return
 	}
 	if l == 0 {
 		return
 	}
 	mask := vecMask{{.EWidth}}[len(vecMask{{.EWidth}})/2-l:]
-	x.StoreMasked(pa{{.VType}}(s), LoadInt{{.WxC}}Slice(mask).asMask())
+	x.StoreArrayMasked(pa{{.VType}}(s), LoadInt{{.WxC}}(mask).asMask())
 }
 `)
 
-var avx2SmallLoadSlicePartTemplate = shapedTemplateOf(avx2SmallLoadPunShapes, "avx 2 small load slice part", `
-// Load{{.VType}}SlicePart loads a {{.VType}} from the slice s.
+var avx2SmallLoadSliceTemplate = shapedTemplateOf(avx2SmallLoadPunShapes, "avx 2 small load slice part", `
+// Load{{.VType}}Part loads a {{.VType}} from the slice s.
 // If s has fewer than {{.Count}} elements, the remaining elements of the vector are filled with zeroes.
 // If s has {{.Count}} or more elements, the function is equivalent to Load{{.VType}}Slice.
-func Load{{.VType}}SlicePart(s []{{.Etype}}) {{.VType}} {
+func Load{{.VType}}Part(s []{{.Etype}}) {{.VType}} {
 	if len(s) == 0 {
 		var zero {{.VType}}
 		return zero
 	}
 	t := unsafe.Slice((*int{{.EWidth}})(unsafe.Pointer(&s[0])), len(s))
-	return LoadInt{{.WxC}}SlicePart(t).As{{.VType}}()
+	return LoadInt{{.WxC}}Part(t).As{{.VType}}()
 }
 
-// StoreSlicePart stores the {{.Count}} elements of x into the slice s.
+// StorePart stores the {{.Count}} elements of x into the slice s.
 // It stores as many elements as will fit in s.
-// If s has {{.Count}} or more elements, the method is equivalent to x.StoreSlice.
-func (x {{.VType}}) StoreSlicePart(s []{{.Etype}}) {
+// If s has {{.Count}} or more elements, the method is equivalent to x.Store.
+func (x {{.VType}}) StorePart(s []{{.Etype}}) {
 	if len(s) == 0 {
 		return
 	}
 	t := unsafe.Slice((*int{{.EWidth}})(unsafe.Pointer(&s[0])), len(s))
-	x.AsInt{{.WxC}}().StoreSlicePart(t)
+	x.AsInt{{.WxC}}().StorePart(t)
 }
 `)
 
@@ -909,7 +909,7 @@ var stringTemplate = shapedTemplateOf(allShapes, "String methods", `
 // String returns a string representation of SIMD vector x.
 func (x {{.VType}}) String() string {
 	var s [{{.Count}}]{{.Etype}}
-	x.Store(&s)
+	x.StoreArray(&s)
 	return sliceToString(s[:])
 }
 `)
@@ -918,7 +918,7 @@ var maskToString = shapedTemplateOf(intShapes, "maskToString", `
 // String returns a string representation of SIMD mask x.
 func (x Mask{{.WxC}}) String() string {
 	var s [{{.Count}}]{{.Etype}}
-	x.ToInt{{.WxC}}().Neg().Store(&s)
+	x.ToInt{{.WxC}}().Neg().StoreArray(&s)
 	return sliceToString(s[:])
 }
 `)
@@ -943,9 +943,9 @@ func main() {
 	if *sl != "" {
 		one(*sl, unsafePrologue,
 			sliceTemplate,
-			avx512MaskedLoadSlicePartTemplate,
-			avx2MaskedLoadSlicePartTemplate,
-			avx2SmallLoadSlicePartTemplate,
+			avx512MaskedLoadSliceTemplate,
+			avx2MaskedLoadSliceTemplate,
+			avx2SmallLoadSliceTemplate,
 		)
 	}
 	if *cm != "" {

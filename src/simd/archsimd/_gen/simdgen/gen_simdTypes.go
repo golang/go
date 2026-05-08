@@ -221,15 +221,15 @@ const simdLoadStoreTemplate = `
 // Len returns the number of elements in {{.Article}} {{.Name}}.
 func (x {{.Name}}) Len() int { return {{.Lanes}} }
 
-// Load{{.Name}} loads {{.Article}} {{.Name}} from an array.
+// Load{{.Name}}Array loads {{.Article}} {{.Name}} from an array.
 //
 //go:noescape
-func Load{{.Name}}(y *[{{.Lanes}}]{{.Base}}) {{.Name}}
+func Load{{.Name}}Array(y *[{{.Lanes}}]{{.Base}}) {{.Name}}
 
-// Store stores {{.Article}} {{.Name}} to an array.
+// StoreArray stores {{.Article}} {{.Name}} to an array.
 //
 //go:noescape
-func (x {{.Name}}) Store(y *[{{.Lanes}}]{{.Base}})
+func (x {{.Name}}) StoreArray(y *[{{.Lanes}}]{{.Base}})
 `
 
 const simdMaskFromValTemplate = `
@@ -251,21 +251,13 @@ func (x {{.Name}}) ToBits() uint{{.LanesContainer}}
 `
 
 const simdMaskedLoadStoreTemplate = `
-// LoadMasked{{.Name}} loads {{.Article}} {{.Name}} from an array,
-// at those elements enabled by mask.
-//
-{{.MaskedLoadDoc}}
-//
-//go:noescape
-func LoadMasked{{.Name}}(y *[{{.Lanes}}]{{.Base}}, mask Mask{{.ElemBits}}x{{.Lanes}}) {{.Name}}
-
-// StoreMasked stores {{.Article}} {{.Name}} to an array,
+// StoreArrayMasked stores {{.Article}} {{.Name}} to an array,
 // at those elements enabled by mask.
 //
 {{.MaskedStoreDoc}}
 //
 //go:noescape
-func (x {{.Name}}) StoreMasked(y *[{{.Lanes}}]{{.Base}}, mask Mask{{.ElemBits}}x{{.Lanes}})
+func (x {{.Name}}) StoreArrayMasked(y *[{{.Lanes}}]{{.Base}}, mask Mask{{.ElemBits}}x{{.Lanes}})
 `
 
 const simdStubsTmpl = `

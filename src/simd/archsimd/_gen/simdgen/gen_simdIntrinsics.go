@@ -68,12 +68,12 @@ func simdAMD64Intrinsics(addF func(pkg, fn string, b intrinsicBuilder, archFamil
 {{define "vectorConversion"}}	addF(simdPackage, "{{.Tsrc.Name}}.As{{.Tdst.Name}}", func(s *state, n *ir.CallExpr, args []*ssa.Value) *ssa.Value { return args[0] }, sys.AMD64)
 {{end}}
 
-{{define "loadStore"}}	addF(simdPackage, "Load{{.Name}}", simdLoad(), sys.AMD64)
-	addF(simdPackage, "{{.Name}}.Store", simdStore(), sys.AMD64)
+{{define "loadStore"}}	addF(simdPackage, "Load{{.Name}}Array", simdLoad(), sys.AMD64)
+	addF(simdPackage, "{{.Name}}.StoreArray", simdStore(), sys.AMD64)
 {{end}}
 
-{{define "maskedLoadStore"}}	addF(simdPackage, "LoadMasked{{.Name}}", simdMaskedLoad(ssa.OpLoadMasked{{.ElemBits}}), sys.AMD64)
-	addF(simdPackage, "{{.Name}}.StoreMasked", simdMaskedStore(ssa.OpStoreMasked{{.ElemBits}}), sys.AMD64)
+{{define "maskedLoadStore"}}
+	addF(simdPackage, "{{.Name}}.StoreArrayMasked", simdMaskedStore(ssa.OpStoreMasked{{.ElemBits}}), sys.AMD64)
 {{end}}
 
 {{define "mask"}}	addF(simdPackage, "{{.Name}}.To{{.VectorCounterpart}}", func(s *state, n *ir.CallExpr, args []*ssa.Value) *ssa.Value { return args[0] }, sys.AMD64)

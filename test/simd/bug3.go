@@ -20,5 +20,5 @@ func F() []int32 {
 }
 
 func main() {
-	archsimd.LoadInt32x8SlicePart(F())
+	archsimd.LoadInt32x8Part(F())
 }

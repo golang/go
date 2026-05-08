@@ -16,16 +16,16 @@ import (
 )
 
 func vptest1() bool {
-	v1 := archsimd.LoadUint64x2Slice([]uint64{0, 1})
-	v2 := archsimd.LoadUint64x2Slice([]uint64{0, 0})
+	v1 := archsimd.LoadUint64x2([]uint64{0, 1})
+	v2 := archsimd.LoadUint64x2([]uint64{0, 0})
 	// amd64:`VPTEST (.*)(.*)$`
 	// amd64:`SETCS (.*)$`
 	return v1.AndNot(v2).IsZero()
 }
 
 func vptest2() bool {
-	v1 := archsimd.LoadUint64x2Slice([]uint64{0, 1})
-	v2 := archsimd.LoadUint64x2Slice([]uint64{0, 0})
+	v1 := archsimd.LoadUint64x2([]uint64{0, 1})
+	v2 := archsimd.LoadUint64x2([]uint64{0, 0})
 	// amd64:`VPTEST (.*)(.*)$`
 	// amd64:`SETEQ (.*)$`
 	return v1.And(v2).IsZero()
@@ -86,23 +86,23 @@ var floats64s = []float64{0, 1, 2, nan, 4, nan, 6, 7, 8, 9, 10, 11, nan, 13, 14,
 var sinkInt64s = make([]int64, 100)
 
 func simdIsNaN() {
-	x := archsimd.LoadFloat64x4Slice(floats64s)
-	y := archsimd.LoadFloat64x4Slice(floats64s[4:])
+	x := archsimd.LoadFloat64x4(floats64s)
+	y := archsimd.LoadFloat64x4(floats64s[4:])
 	a := x.IsNaN()
 	b := y.IsNaN()
 	// amd64:"VCMPPD [$]3," -"VPOR"
 	c := a.Or(b)
-	c.ToInt64x4().StoreSlice(sinkInt64s)
+	c.ToInt64x4().Store(sinkInt64s)
 }
 
 func simdIsNaN512() {
-	x := archsimd.LoadFloat64x8Slice(floats64s)
-	y := archsimd.LoadFloat64x8Slice(floats64s[8:])
+	x := archsimd.LoadFloat64x8(floats64s)
+	y := archsimd.LoadFloat64x8(floats64s[8:])
 	a := x.IsNaN()
 	b := y.IsNaN()
 	// amd64:"VCMPPD [$]3," -"VPOR"
 	c := a.Or(b)
-	c.ToInt64x8().StoreSlice(sinkInt64s)
+	c.ToInt64x8().Store(sinkInt64s)
 }
 
 func sftImmVPSRL() archsimd.Uint32x4 {

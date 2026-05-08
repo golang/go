@@ -22,15 +22,15 @@ func F(
 ) {
 	tiny := archsimd.BroadcastFloat32x8(0)
 	for {
-		dstCol12 := archsimd.LoadFloat32x8((*[8]float32)(unsafe.Pointer((*[2][4]float32)(dst[0][0:]))))
-		dstCol34 := archsimd.LoadFloat32x8((*[8]float32)(unsafe.Pointer((*[2][4]float32)(dst[0][2:]))))
-		dstCol56 := archsimd.LoadFloat32x8((*[8]float32)(unsafe.Pointer((*[2][4]float32)(dst[1][0:]))))
-		dstCol78 := archsimd.LoadFloat32x8((*[8]float32)(unsafe.Pointer((*[2][4]float32)(dst[1][2:]))))
+		dstCol12 := archsimd.LoadFloat32x8Array((*[8]float32)(unsafe.Pointer((*[2][4]float32)(dst[0][0:]))))
+		dstCol34 := archsimd.LoadFloat32x8Array((*[8]float32)(unsafe.Pointer((*[2][4]float32)(dst[0][2:]))))
+		dstCol56 := archsimd.LoadFloat32x8Array((*[8]float32)(unsafe.Pointer((*[2][4]float32)(dst[1][0:]))))
+		dstCol78 := archsimd.LoadFloat32x8Array((*[8]float32)(unsafe.Pointer((*[2][4]float32)(dst[1][2:]))))
 
-		tosCol12 := archsimd.LoadFloat32x8((*[8]float32)(unsafe.Pointer((*[2][4]float32)(tos[0][0:]))))
-		tosCol34 := archsimd.LoadFloat32x8((*[8]float32)(unsafe.Pointer((*[2][4]float32)(tos[0][2:]))))
-		tosCol56 := archsimd.LoadFloat32x8((*[8]float32)(unsafe.Pointer((*[2][4]float32)(tos[1][0:]))))
-		tosCol78 := archsimd.LoadFloat32x8((*[8]float32)(unsafe.Pointer((*[2][4]float32)(tos[1][2:]))))
+		tosCol12 := archsimd.LoadFloat32x8Array((*[8]float32)(unsafe.Pointer((*[2][4]float32)(tos[0][0:]))))
+		tosCol34 := archsimd.LoadFloat32x8Array((*[8]float32)(unsafe.Pointer((*[2][4]float32)(tos[0][2:]))))
+		tosCol56 := archsimd.LoadFloat32x8Array((*[8]float32)(unsafe.Pointer((*[2][4]float32)(tos[1][0:]))))
+		tosCol78 := archsimd.LoadFloat32x8Array((*[8]float32)(unsafe.Pointer((*[2][4]float32)(tos[1][2:]))))
 
 		var Cr0, Cr1, Cr2 archsimd.Float32x8
 		if blend != 0 {
@@ -73,9 +73,9 @@ func F(
 			resB = Cr2.Add(dstCol56)
 		}
 
-		resR.Store((*[8]float32)(unsafe.Pointer((*[2][4]float32)(dst[0][0:2]))))
-		resG.Store((*[8]float32)(unsafe.Pointer((*[2][4]float32)(dst[0][2:4]))))
-		resB.Store((*[8]float32)(unsafe.Pointer((*[2][4]float32)(dst[1][0:2]))))
-		resA.Store((*[8]float32)(unsafe.Pointer((*[2][4]float32)(dst[1][2:4]))))
+		resR.StoreArray((*[8]float32)(unsafe.Pointer((*[2][4]float32)(dst[0][0:2]))))
+		resG.StoreArray((*[8]float32)(unsafe.Pointer((*[2][4]float32)(dst[0][2:4]))))
+		resB.StoreArray((*[8]float32)(unsafe.Pointer((*[2][4]float32)(dst[1][0:2]))))
+		resA.StoreArray((*[8]float32)(unsafe.Pointer((*[2][4]float32)(dst[1][2:4]))))
 	}
 }
