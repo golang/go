@@ -186,3 +186,15 @@
   out:
   - go: $u
     base: uint
+
+- go: ShiftLeftLoLongConst
+  signed: true
+  asm: "VSSHLL"
+  hiHalfAsm: "VSSHLL2"
+  in:
+  - *imm
+  - go: $t
+    base: int
+  out:
+  - go: $u
+    base: int

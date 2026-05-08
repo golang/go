@@ -56,6 +56,145 @@ func (x Uint32x4) Add(y Uint32x4) Uint32x4
 // Asm: VADD, CPU Feature: NEON
 func (x Uint64x2) Add(y Uint64x2) Uint64x2
 
+/* ConvertLo2ToFloat64 */
+
+// ConvertLo2ToFloat64 converts low-indexed float32 element values to float64.
+// For the high-indexed elements, use GetHi:
+//
+//	x.GetHi().ConvertLo2ToFloat64(...)
+//
+// Asm: VFCVTL, CPU Feature: NEON
+func (x Float32x4) ConvertLo2ToFloat64() Float64x2
+
+/* ConvertToFloat32 */
+
+// ConvertToFloat32 converts element values to float32.
+//
+// Asm: VFCVTN, CPU Feature: NEON
+func (x Float64x2) ConvertToFloat32() Float32x4
+
+// ConvertToFloat32 converts element values to float32.
+//
+// Asm: VSCVTF, CPU Feature: NEON
+func (x Int32x4) ConvertToFloat32() Float32x4
+
+// ConvertToFloat32 converts element values to float32.
+//
+// Asm: VUCVTF, CPU Feature: NEON
+func (x Uint32x4) ConvertToFloat32() Float32x4
+
+/* ConvertToFloat64 */
+
+// ConvertToFloat64 converts element values to float64.
+//
+// Asm: VSCVTF, CPU Feature: NEON
+func (x Int64x2) ConvertToFloat64() Float64x2
+
+// ConvertToFloat64 converts element values to float64.
+//
+// Asm: VUCVTF, CPU Feature: NEON
+func (x Uint64x2) ConvertToFloat64() Float64x2
+
+/* ConvertToInt32 */
+
+// ConvertToInt32 converts element values to int32.
+// When a conversion is inexact, a truncated (round toward zero) value is returned.
+// If a converted result cannot be represented in int32, an implementation-defined
+// architecture-specific value is returned.
+//
+// Asm: VFCVTZS, CPU Feature: NEON
+func (x Float32x4) ConvertToInt32() Int32x4
+
+/* ConvertToInt64 */
+
+// ConvertToInt64 converts element values to int64.
+// When a conversion is inexact, a truncated (round toward zero) value is returned.
+// If a converted result cannot be represented in int64, an implementation-defined
+// architecture-specific value is returned.
+//
+// Asm: VFCVTZS, CPU Feature: NEON
+func (x Float64x2) ConvertToInt64() Int64x2
+
+/* ConvertToUint32 */
+
+// ConvertToUint32 converts element values to uint32.
+// When a conversion is inexact, a truncated (round toward zero) value is returned.
+// If a converted result cannot be represented in uint32, an implementation-defined
+// architecture-specific value is returned.
+//
+// Asm: VFCVTZU, CPU Feature: NEON
+func (x Float32x4) ConvertToUint32() Uint32x4
+
+/* ConvertToUint64 */
+
+// ConvertToUint64 converts element values to uint64.
+// When a conversion is inexact, a truncated (round toward zero) value is returned.
+// If a converted result cannot be represented in uint64, an implementation-defined
+// architecture-specific value is returned.
+//
+// Asm: VFCVTZU, CPU Feature: NEON
+func (x Float64x2) ConvertToUint64() Uint64x2
+
+/* ExtendLo2ToInt64 */
+
+// ExtendLo2ToInt64 sign-extends 2 lowest vector element values to int64.
+// For the high-indexed elements, use GetHi:
+//
+//	x.GetHi().ExtendLo2ToInt64(...)
+//
+// Asm: VSXTL, CPU Feature: NEON
+func (x Int32x4) ExtendLo2ToInt64() Int64x2
+
+/* ExtendLo2ToUint64 */
+
+// ExtendLo2ToUint64 zero-extends 2 lowest vector element values to uint64.
+// For the high-indexed elements, use GetHi:
+//
+//	x.GetHi().ExtendLo2ToUint64(...)
+//
+// Asm: VUXTL, CPU Feature: NEON
+func (x Uint32x4) ExtendLo2ToUint64() Uint64x2
+
+/* ExtendLo4ToInt32 */
+
+// ExtendLo4ToInt32 sign-extends 4 lowest vector element values to int32.
+// For the high-indexed elements, use GetHi:
+//
+//	x.GetHi().ExtendLo4ToInt32(...)
+//
+// Asm: VSXTL, CPU Feature: NEON
+func (x Int16x8) ExtendLo4ToInt32() Int32x4
+
+/* ExtendLo4ToUint32 */
+
+// ExtendLo4ToUint32 zero-extends 4 lowest vector element values to uint32.
+// For the high-indexed elements, use GetHi:
+//
+//	x.GetHi().ExtendLo4ToUint32(...)
+//
+// Asm: VUXTL, CPU Feature: NEON
+func (x Uint16x8) ExtendLo4ToUint32() Uint32x4
+
+/* ExtendLo8ToInt16 */
+
+// ExtendLo8ToInt16 sign-extends 8 lowest vector element values to int16.
+// For the high-indexed elements, use GetHi:
+//
+//	x.GetHi().ExtendLo8ToInt16(...)
+//
+// Asm: VSXTL, CPU Feature: NEON
+func (x Int8x16) ExtendLo8ToInt16() Int16x8
+
+/* ExtendLo8ToUint16 */
+
+// ExtendLo8ToUint16 zero-extends 8 lowest vector element values to uint16.
+// For the high-indexed elements, use GetHi:
+//
+//	x.GetHi().ExtendLo8ToUint16(...)
+//
+// Asm: VUXTL, CPU Feature: NEON
+func (x Uint8x16) ExtendLo8ToUint16() Uint16x8
+
 /* GetElem */
 
 // GetElem returns the index'th element of x.
@@ -219,6 +358,72 @@ func (x Uint16x8) MulLoLong(y Uint16x8) Uint32x4
 //
 // Asm: VUMULL, CPU Feature: NEON
 func (x Uint32x4) MulLoLong(y Uint32x4) Uint64x2
+
+/* SaturateToInt8 */
+
+// SaturateToInt8 converts element values to int8 with signed saturation.
+// Results are packed to low elements in the returned vector, its upper elements are zeroed.
+//
+// Asm: VSQXTN, CPU Feature: NEON
+func (x Int16x8) SaturateToInt8() Int8x16
+
+/* SaturateToInt16 */
+
+// SaturateToInt16 converts element values to int16 with signed saturation.
+// Results are packed to low elements in the returned vector, its upper elements are zeroed.
+//
+// Asm: VSQXTN, CPU Feature: NEON
+func (x Int32x4) SaturateToInt16() Int16x8
+
+/* SaturateToInt32 */
+
+// SaturateToInt32 converts element values to int32 with signed saturation.
+// Results are packed to low elements in the returned vector, its upper elements are zeroed.
+//
+// Asm: VSQXTN, CPU Feature: NEON
+func (x Int64x2) SaturateToInt32() Int32x4
+
+/* SaturateToUint8 */
+
+// SaturateToUint8 converts element values to uint8 with unsigned saturation.
+// Results are packed to low elements in the returned vector, its upper elements are zeroed.
+//
+// Asm: VSQXTUN, CPU Feature: NEON
+func (x Int16x8) SaturateToUint8() Uint8x16
+
+// SaturateToUint8 converts element values to uint8 with unsigned saturation.
+// Results are packed to low elements in the returned vector, its upper elements are zeroed.
+//
+// Asm: VUQXTN, CPU Feature: NEON
+func (x Uint16x8) SaturateToUint8() Uint8x16
+
+/* SaturateToUint16 */
+
+// SaturateToUint16 converts element values to uint16 with unsigned saturation.
+// Results are packed to low elements in the returned vector, its upper elements are zeroed.
+//
+// Asm: VSQXTUN, CPU Feature: NEON
+func (x Int32x4) SaturateToUint16() Uint16x8
+
+// SaturateToUint16 converts element values to uint16 with unsigned saturation.
+// Results are packed to low elements in the returned vector, its upper elements are zeroed.
+//
+// Asm: VUQXTN, CPU Feature: NEON
+func (x Uint32x4) SaturateToUint16() Uint16x8
+
+/* SaturateToUint32 */
+
+// SaturateToUint32 converts element values to uint32 with unsigned saturation.
+// Results are packed to low elements in the returned vector, its upper elements are zeroed.
+//
+// Asm: VSQXTUN, CPU Feature: NEON
+func (x Int64x2) SaturateToUint32() Uint32x4
+
+// SaturateToUint32 converts element values to uint32 with unsigned saturation.
+// Results are packed to low elements in the returned vector, its upper elements are zeroed.
+//
+// Asm: VUQXTN, CPU Feature: NEON
+func (x Uint64x2) SaturateToUint32() Uint32x4
 
 /* SetElem */
 
@@ -499,6 +704,39 @@ func (x Uint32x4) ShiftLeftConst(constant uint8) Uint32x4
 func (x Uint64x2) ShiftLeftConst(constant uint8) Uint64x2
 
 /* ShiftLeftLoLongConst */
+
+// ShiftLeftLoLongConst performs a left shift on each signed low-indexed element in x by the constant number of bits
+// and widens the result to double the element width.
+// For the high-indexed elements, use GetHi:
+//
+//	x.GetHi().ShiftLeftLoLongConst(...)
+//
+// A non-constant value of constant may result in significantly worse performance for this operation.
+//
+// Asm: VSSHLL, CPU Feature: NEON
+func (x Int8x16) ShiftLeftLoLongConst(constant uint8) Int16x8
+
+// ShiftLeftLoLongConst performs a left shift on each signed low-indexed element in x by the constant number of bits
+// and widens the result to double the element width.
+// For the high-indexed elements, use GetHi:
+//
+//	x.GetHi().ShiftLeftLoLongConst(...)
+//
+// A non-constant value of constant may result in significantly worse performance for this operation.
+//
+// Asm: VSSHLL, CPU Feature: NEON
+func (x Int16x8) ShiftLeftLoLongConst(constant uint8) Int32x4
+
+// ShiftLeftLoLongConst performs a left shift on each signed low-indexed element in x by the constant number of bits
+// and widens the result to double the element width.
+// For the high-indexed elements, use GetHi:
+//
+//	x.GetHi().ShiftLeftLoLongConst(...)
+//
+// A non-constant value of constant may result in significantly worse performance for this operation.
+//
+// Asm: VSSHLL, CPU Feature: NEON
+func (x Int32x4) ShiftLeftLoLongConst(constant uint8) Int64x2
 
 // ShiftLeftLoLongConst performs a left shift on each unsigned low-indexed element in x by the constant number of bits
 // and widens the result to double the element width.

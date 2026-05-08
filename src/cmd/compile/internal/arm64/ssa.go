@@ -436,6 +436,29 @@ func simdV21ImmNarrow2(s *ssagen.State, v *ssa.Value, arrangement int16) *obj.Pr
 	return p
 }
 
+// simdV11Long generates a unary long instruction, e.g. SXTL V1.4H, V0.8H
+// The instruction reads the lower half of the source, the destination has 2x element size.
+func simdV11Long(s *ssagen.State, v *ssa.Value, arrangement int16) *obj.Prog {
+	src := arngHalfLanes(arrangement)
+	p := s.Prog(v.Op.Asm())
+	p.From.Type = obj.TYPE_REG
+	p.From.Reg = simdRegArng(v.Args[0].Reg(), src)
+	p.To.Type = obj.TYPE_REG
+	p.To.Reg = simdRegArng(v.Reg(), arngLong(src))
+	return p
+}
+
+// simdV11Long2 generates a unary long "2" instruction, e.g. SXTL2 V1.4S, V0.2D
+// The instruction reads the upper half of the source, the destination has 2x element size.
+func simdV11Long2(s *ssagen.State, v *ssa.Value, arrangement int16) *obj.Prog {
+	p := s.Prog(v.Op.Asm())
+	p.From.Type = obj.TYPE_REG
+	p.From.Reg = simdRegArng(v.Args[0].Reg(), arrangement)
+	p.To.Type = obj.TYPE_REG
+	p.To.Reg = simdRegArng(v.Reg(), arngLong(arngHalfLanes(arrangement)))
+	return p
+}
+
 // simdV11ImmLong generates a long instruction with immediate, e.g. USHLL $imm, V1.4H, V0.8H
 // The instruction reads the lower half of the source, the destination has 2x element size.
 func simdV11ImmLong(s *ssagen.State, v *ssa.Value, arrangement int16) *obj.Prog {

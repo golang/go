@@ -549,3 +549,53 @@ func shiftAllLeftSlice[T integer](x []T, amt uint64) []T {
 func shiftAllRightSlice[T integer](x []T, amt uint64) []T {
 	return map1(func(a T) T { return a >> amt })(x)
 }
+
+// ARM64-specific float-to-int conversion saturation helpers.
+// ARM64 uses IEEE 754 saturation: out-of-range values clamp to min/max of the target type.
+// NaN converts to 0. Negative values convert to 0 for unsigned types.
+
+func floatToInt32_arm64[T float](x T) int32 {
+	if x != x { // NaN
+		return 0
+	}
+	if x >= math.MaxInt32 {
+		return math.MaxInt32
+	}
+	if x < math.MinInt32 {
+		return math.MinInt32
+	}
+	return int32(x)
+}
+
+func floatToInt64_arm64[T float](x T) int64 {
+	if x != x { // NaN
+		return 0
+	}
+	if x >= math.MaxInt64 {
+		return math.MaxInt64
+	}
+	if x < math.MinInt64 {
+		return math.MinInt64
+	}
+	return int64(x)
+}
+
+func floatToUint32_arm64[T float](x T) uint32 {
+	if x != x || x < 0 { // NaN or negative
+		return 0
+	}
+	if x >= math.MaxUint32 {
+		return math.MaxUint32
+	}
+	return uint32(x)
+}
+
+func floatToUint64_arm64[T float](x T) uint64 {
+	if x != x || x < 0 { // NaN or negative
+		return 0
+	}
+	if x >= math.MaxUint64 {
+		return math.MaxUint64
+	}
+	return uint64(x)
+}
