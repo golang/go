@@ -1284,11 +1284,11 @@ func TestClMul(t *testing.T) {
 		checkSlices[uint64](t, r, s)
 	}
 
-	foo(x.CarrylessMultiply(0, 0, y), []uint64{3, 0})
-	foo(x.CarrylessMultiply(0, 1, y), []uint64{9, 0})
-	foo(x.CarrylessMultiply(1, 0, y), []uint64{15, 0})
-	foo(x.CarrylessMultiply(1, 1, y), []uint64{45, 0})
-	foo(y.CarrylessMultiply(0, 0, y), []uint64{5, 0})
+	foo(x.CarrylessMultiplyEven(y), []uint64{3, 0})
+	foo(x.CarrylessMultiplyEvenOdd(y), []uint64{9, 0})
+	foo(x.CarrylessMultiplyOddEven(y), []uint64{15, 0})
+	foo(x.CarrylessMultiplyOdd(y), []uint64{45, 0})
+	foo(y.CarrylessMultiplyEven(y), []uint64{5, 0})
 
 }
 
