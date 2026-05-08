@@ -143,36 +143,6 @@ func simdGenericOps() []opData {
 		{name: "AverageUint16x8", argLength: 2, commutative: true},                      // ARCH:amd64
 		{name: "AverageUint16x16", argLength: 2, commutative: true},                     // ARCH:amd64
 		{name: "AverageUint16x32", argLength: 2, commutative: true},                     // ARCH:amd64
-		{name: "Broadcast1To2Float64x2", argLength: 1},                                  // ARCH:amd64
-		{name: "Broadcast1To2Int64x2", argLength: 1},                                    // ARCH:amd64
-		{name: "Broadcast1To2Uint64x2", argLength: 1},                                   // ARCH:amd64
-		{name: "Broadcast1To4Float32x4", argLength: 1},                                  // ARCH:amd64
-		{name: "Broadcast1To4Float64x2", argLength: 1},                                  // ARCH:amd64
-		{name: "Broadcast1To4Int32x4", argLength: 1},                                    // ARCH:amd64
-		{name: "Broadcast1To4Int64x2", argLength: 1},                                    // ARCH:amd64
-		{name: "Broadcast1To4Uint32x4", argLength: 1},                                   // ARCH:amd64
-		{name: "Broadcast1To4Uint64x2", argLength: 1},                                   // ARCH:amd64
-		{name: "Broadcast1To8Float32x4", argLength: 1},                                  // ARCH:amd64
-		{name: "Broadcast1To8Float64x2", argLength: 1},                                  // ARCH:amd64
-		{name: "Broadcast1To8Int16x8", argLength: 1},                                    // ARCH:amd64
-		{name: "Broadcast1To8Int32x4", argLength: 1},                                    // ARCH:amd64
-		{name: "Broadcast1To8Int64x2", argLength: 1},                                    // ARCH:amd64
-		{name: "Broadcast1To8Uint16x8", argLength: 1},                                   // ARCH:amd64
-		{name: "Broadcast1To8Uint32x4", argLength: 1},                                   // ARCH:amd64
-		{name: "Broadcast1To8Uint64x2", argLength: 1},                                   // ARCH:amd64
-		{name: "Broadcast1To16Float32x4", argLength: 1},                                 // ARCH:amd64
-		{name: "Broadcast1To16Int8x16", argLength: 1},                                   // ARCH:amd64
-		{name: "Broadcast1To16Int16x8", argLength: 1},                                   // ARCH:amd64
-		{name: "Broadcast1To16Int32x4", argLength: 1},                                   // ARCH:amd64
-		{name: "Broadcast1To16Uint8x16", argLength: 1},                                  // ARCH:amd64
-		{name: "Broadcast1To16Uint16x8", argLength: 1},                                  // ARCH:amd64
-		{name: "Broadcast1To16Uint32x4", argLength: 1},                                  // ARCH:amd64
-		{name: "Broadcast1To32Int8x16", argLength: 1},                                   // ARCH:amd64
-		{name: "Broadcast1To32Int16x8", argLength: 1},                                   // ARCH:amd64
-		{name: "Broadcast1To32Uint8x16", argLength: 1},                                  // ARCH:amd64
-		{name: "Broadcast1To32Uint16x8", argLength: 1},                                  // ARCH:amd64
-		{name: "Broadcast1To64Int8x16", argLength: 1},                                   // ARCH:amd64
-		{name: "Broadcast1To64Uint8x16", argLength: 1},                                  // ARCH:amd64
 		{name: "CeilFloat32x4", argLength: 1},                                           // ARCH:amd64
 		{name: "CeilFloat32x8", argLength: 1},                                           // ARCH:amd64
 		{name: "CeilFloat64x2", argLength: 1},                                           // ARCH:amd64
@@ -1140,6 +1110,66 @@ func simdGenericOps() []opData {
 		{name: "blendMaskedInt16x32", argLength: 3},                                     // ARCH:amd64
 		{name: "blendMaskedInt32x16", argLength: 3},                                     // ARCH:amd64
 		{name: "blendMaskedInt64x8", argLength: 3},                                      // ARCH:amd64
+		{name: "broadcast1To2Float64x2", argLength: 1},                                  // ARCH:amd64
+		{name: "broadcast1To2Int64x2", argLength: 1},                                    // ARCH:amd64
+		{name: "broadcast1To2MaskedFloat64x2", argLength: 2},                            // ARCH:amd64
+		{name: "broadcast1To2MaskedInt64x2", argLength: 2},                              // ARCH:amd64
+		{name: "broadcast1To2MaskedUint64x2", argLength: 2},                             // ARCH:amd64
+		{name: "broadcast1To2Uint64x2", argLength: 1},                                   // ARCH:amd64
+		{name: "broadcast1To4Float32x4", argLength: 1},                                  // ARCH:amd64
+		{name: "broadcast1To4Float64x2", argLength: 1},                                  // ARCH:amd64
+		{name: "broadcast1To4Int32x4", argLength: 1},                                    // ARCH:amd64
+		{name: "broadcast1To4Int64x2", argLength: 1},                                    // ARCH:amd64
+		{name: "broadcast1To4MaskedFloat32x4", argLength: 2},                            // ARCH:amd64
+		{name: "broadcast1To4MaskedFloat64x2", argLength: 2},                            // ARCH:amd64
+		{name: "broadcast1To4MaskedInt32x4", argLength: 2},                              // ARCH:amd64
+		{name: "broadcast1To4MaskedInt64x2", argLength: 2},                              // ARCH:amd64
+		{name: "broadcast1To4MaskedUint32x4", argLength: 2},                             // ARCH:amd64
+		{name: "broadcast1To4MaskedUint64x2", argLength: 2},                             // ARCH:amd64
+		{name: "broadcast1To4Uint32x4", argLength: 1},                                   // ARCH:amd64
+		{name: "broadcast1To4Uint64x2", argLength: 1},                                   // ARCH:amd64
+		{name: "broadcast1To8Float32x4", argLength: 1},                                  // ARCH:amd64
+		{name: "broadcast1To8Float64x2", argLength: 1},                                  // ARCH:amd64
+		{name: "broadcast1To8Int16x8", argLength: 1},                                    // ARCH:amd64
+		{name: "broadcast1To8Int32x4", argLength: 1},                                    // ARCH:amd64
+		{name: "broadcast1To8Int64x2", argLength: 1},                                    // ARCH:amd64
+		{name: "broadcast1To8MaskedFloat32x4", argLength: 2},                            // ARCH:amd64
+		{name: "broadcast1To8MaskedFloat64x2", argLength: 2},                            // ARCH:amd64
+		{name: "broadcast1To8MaskedInt16x8", argLength: 2},                              // ARCH:amd64
+		{name: "broadcast1To8MaskedInt32x4", argLength: 2},                              // ARCH:amd64
+		{name: "broadcast1To8MaskedInt64x2", argLength: 2},                              // ARCH:amd64
+		{name: "broadcast1To8MaskedUint16x8", argLength: 2},                             // ARCH:amd64
+		{name: "broadcast1To8MaskedUint32x4", argLength: 2},                             // ARCH:amd64
+		{name: "broadcast1To8MaskedUint64x2", argLength: 2},                             // ARCH:amd64
+		{name: "broadcast1To8Uint16x8", argLength: 1},                                   // ARCH:amd64
+		{name: "broadcast1To8Uint32x4", argLength: 1},                                   // ARCH:amd64
+		{name: "broadcast1To8Uint64x2", argLength: 1},                                   // ARCH:amd64
+		{name: "broadcast1To16Float32x4", argLength: 1},                                 // ARCH:amd64
+		{name: "broadcast1To16Int8x16", argLength: 1},                                   // ARCH:amd64
+		{name: "broadcast1To16Int16x8", argLength: 1},                                   // ARCH:amd64
+		{name: "broadcast1To16Int32x4", argLength: 1},                                   // ARCH:amd64
+		{name: "broadcast1To16MaskedFloat32x4", argLength: 2},                           // ARCH:amd64
+		{name: "broadcast1To16MaskedInt8x16", argLength: 2},                             // ARCH:amd64
+		{name: "broadcast1To16MaskedInt16x8", argLength: 2},                             // ARCH:amd64
+		{name: "broadcast1To16MaskedInt32x4", argLength: 2},                             // ARCH:amd64
+		{name: "broadcast1To16MaskedUint8x16", argLength: 2},                            // ARCH:amd64
+		{name: "broadcast1To16MaskedUint16x8", argLength: 2},                            // ARCH:amd64
+		{name: "broadcast1To16MaskedUint32x4", argLength: 2},                            // ARCH:amd64
+		{name: "broadcast1To16Uint8x16", argLength: 1},                                  // ARCH:amd64
+		{name: "broadcast1To16Uint16x8", argLength: 1},                                  // ARCH:amd64
+		{name: "broadcast1To16Uint32x4", argLength: 1},                                  // ARCH:amd64
+		{name: "broadcast1To32Int8x16", argLength: 1},                                   // ARCH:amd64
+		{name: "broadcast1To32Int16x8", argLength: 1},                                   // ARCH:amd64
+		{name: "broadcast1To32MaskedInt8x16", argLength: 2},                             // ARCH:amd64
+		{name: "broadcast1To32MaskedInt16x8", argLength: 2},                             // ARCH:amd64
+		{name: "broadcast1To32MaskedUint8x16", argLength: 2},                            // ARCH:amd64
+		{name: "broadcast1To32MaskedUint16x8", argLength: 2},                            // ARCH:amd64
+		{name: "broadcast1To32Uint8x16", argLength: 1},                                  // ARCH:amd64
+		{name: "broadcast1To32Uint16x8", argLength: 1},                                  // ARCH:amd64
+		{name: "broadcast1To64Int8x16", argLength: 1},                                   // ARCH:amd64
+		{name: "broadcast1To64MaskedInt8x16", argLength: 2},                             // ARCH:amd64
+		{name: "broadcast1To64MaskedUint8x16", argLength: 2},                            // ARCH:amd64
+		{name: "broadcast1To64Uint8x16", argLength: 1},                                  // ARCH:amd64
 		{name: "AESRoundKeyGenAssistUint32x4", argLength: 1, aux: "UInt8"},              // ARCH:amd64
 		{name: "CeilScaledFloat32x4", argLength: 1, aux: "UInt8"},                       // ARCH:amd64
 		{name: "CeilScaledFloat32x8", argLength: 1, aux: "UInt8"},                       // ARCH:amd64

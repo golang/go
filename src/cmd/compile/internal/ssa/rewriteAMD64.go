@@ -2557,96 +2557,6 @@ func rewriteValueAMD64(v *Value) bool {
 		return rewriteValueAMD64_OpBitLen64(v)
 	case OpBitLen8:
 		return rewriteValueAMD64_OpBitLen8(v)
-	case OpBroadcast1To16Float32x4:
-		v.Op = OpAMD64VBROADCASTSS512
-		return true
-	case OpBroadcast1To16Int16x8:
-		v.Op = OpAMD64VPBROADCASTW256
-		return true
-	case OpBroadcast1To16Int32x4:
-		v.Op = OpAMD64VPBROADCASTD512
-		return true
-	case OpBroadcast1To16Int8x16:
-		v.Op = OpAMD64VPBROADCASTB128
-		return true
-	case OpBroadcast1To16Uint16x8:
-		v.Op = OpAMD64VPBROADCASTW256
-		return true
-	case OpBroadcast1To16Uint32x4:
-		v.Op = OpAMD64VPBROADCASTD512
-		return true
-	case OpBroadcast1To16Uint8x16:
-		v.Op = OpAMD64VPBROADCASTB128
-		return true
-	case OpBroadcast1To2Float64x2:
-		v.Op = OpAMD64VPBROADCASTQ128
-		return true
-	case OpBroadcast1To2Int64x2:
-		v.Op = OpAMD64VPBROADCASTQ128
-		return true
-	case OpBroadcast1To2Uint64x2:
-		v.Op = OpAMD64VPBROADCASTQ128
-		return true
-	case OpBroadcast1To32Int16x8:
-		v.Op = OpAMD64VPBROADCASTW512
-		return true
-	case OpBroadcast1To32Int8x16:
-		v.Op = OpAMD64VPBROADCASTB256
-		return true
-	case OpBroadcast1To32Uint16x8:
-		v.Op = OpAMD64VPBROADCASTW512
-		return true
-	case OpBroadcast1To32Uint8x16:
-		v.Op = OpAMD64VPBROADCASTB256
-		return true
-	case OpBroadcast1To4Float32x4:
-		v.Op = OpAMD64VBROADCASTSS128
-		return true
-	case OpBroadcast1To4Float64x2:
-		v.Op = OpAMD64VBROADCASTSD256
-		return true
-	case OpBroadcast1To4Int32x4:
-		v.Op = OpAMD64VPBROADCASTD128
-		return true
-	case OpBroadcast1To4Int64x2:
-		v.Op = OpAMD64VPBROADCASTQ256
-		return true
-	case OpBroadcast1To4Uint32x4:
-		v.Op = OpAMD64VPBROADCASTD128
-		return true
-	case OpBroadcast1To4Uint64x2:
-		v.Op = OpAMD64VPBROADCASTQ256
-		return true
-	case OpBroadcast1To64Int8x16:
-		v.Op = OpAMD64VPBROADCASTB512
-		return true
-	case OpBroadcast1To64Uint8x16:
-		v.Op = OpAMD64VPBROADCASTB512
-		return true
-	case OpBroadcast1To8Float32x4:
-		v.Op = OpAMD64VBROADCASTSS256
-		return true
-	case OpBroadcast1To8Float64x2:
-		v.Op = OpAMD64VBROADCASTSD512
-		return true
-	case OpBroadcast1To8Int16x8:
-		v.Op = OpAMD64VPBROADCASTW128
-		return true
-	case OpBroadcast1To8Int32x4:
-		v.Op = OpAMD64VPBROADCASTD256
-		return true
-	case OpBroadcast1To8Int64x2:
-		v.Op = OpAMD64VPBROADCASTQ512
-		return true
-	case OpBroadcast1To8Uint16x8:
-		v.Op = OpAMD64VPBROADCASTW128
-		return true
-	case OpBroadcast1To8Uint32x4:
-		v.Op = OpAMD64VPBROADCASTD256
-		return true
-	case OpBroadcast1To8Uint64x2:
-		v.Op = OpAMD64VPBROADCASTQ512
-		return true
 	case OpBswap16:
 		return rewriteValueAMD64_OpBswap16(v)
 	case OpBswap32:
@@ -6360,6 +6270,156 @@ func rewriteValueAMD64(v *Value) bool {
 		return rewriteValueAMD64_OpblendMaskedInt64x8(v)
 	case OpblendMaskedInt8x64:
 		return rewriteValueAMD64_OpblendMaskedInt8x64(v)
+	case Opbroadcast1To16Float32x4:
+		v.Op = OpAMD64VBROADCASTSS512
+		return true
+	case Opbroadcast1To16Int16x8:
+		v.Op = OpAMD64VPBROADCASTW256
+		return true
+	case Opbroadcast1To16Int32x4:
+		v.Op = OpAMD64VPBROADCASTD512
+		return true
+	case Opbroadcast1To16Int8x16:
+		v.Op = OpAMD64VPBROADCASTB128
+		return true
+	case Opbroadcast1To16MaskedFloat32x4:
+		return rewriteValueAMD64_Opbroadcast1To16MaskedFloat32x4(v)
+	case Opbroadcast1To16MaskedInt16x8:
+		return rewriteValueAMD64_Opbroadcast1To16MaskedInt16x8(v)
+	case Opbroadcast1To16MaskedInt32x4:
+		return rewriteValueAMD64_Opbroadcast1To16MaskedInt32x4(v)
+	case Opbroadcast1To16MaskedInt8x16:
+		return rewriteValueAMD64_Opbroadcast1To16MaskedInt8x16(v)
+	case Opbroadcast1To16MaskedUint16x8:
+		return rewriteValueAMD64_Opbroadcast1To16MaskedUint16x8(v)
+	case Opbroadcast1To16MaskedUint32x4:
+		return rewriteValueAMD64_Opbroadcast1To16MaskedUint32x4(v)
+	case Opbroadcast1To16MaskedUint8x16:
+		return rewriteValueAMD64_Opbroadcast1To16MaskedUint8x16(v)
+	case Opbroadcast1To16Uint16x8:
+		v.Op = OpAMD64VPBROADCASTW256
+		return true
+	case Opbroadcast1To16Uint32x4:
+		v.Op = OpAMD64VPBROADCASTD512
+		return true
+	case Opbroadcast1To16Uint8x16:
+		v.Op = OpAMD64VPBROADCASTB128
+		return true
+	case Opbroadcast1To2Float64x2:
+		v.Op = OpAMD64VPBROADCASTQ128
+		return true
+	case Opbroadcast1To2Int64x2:
+		v.Op = OpAMD64VPBROADCASTQ128
+		return true
+	case Opbroadcast1To2MaskedFloat64x2:
+		return rewriteValueAMD64_Opbroadcast1To2MaskedFloat64x2(v)
+	case Opbroadcast1To2MaskedInt64x2:
+		return rewriteValueAMD64_Opbroadcast1To2MaskedInt64x2(v)
+	case Opbroadcast1To2MaskedUint64x2:
+		return rewriteValueAMD64_Opbroadcast1To2MaskedUint64x2(v)
+	case Opbroadcast1To2Uint64x2:
+		v.Op = OpAMD64VPBROADCASTQ128
+		return true
+	case Opbroadcast1To32Int16x8:
+		v.Op = OpAMD64VPBROADCASTW512
+		return true
+	case Opbroadcast1To32Int8x16:
+		v.Op = OpAMD64VPBROADCASTB256
+		return true
+	case Opbroadcast1To32MaskedInt16x8:
+		return rewriteValueAMD64_Opbroadcast1To32MaskedInt16x8(v)
+	case Opbroadcast1To32MaskedInt8x16:
+		return rewriteValueAMD64_Opbroadcast1To32MaskedInt8x16(v)
+	case Opbroadcast1To32MaskedUint16x8:
+		return rewriteValueAMD64_Opbroadcast1To32MaskedUint16x8(v)
+	case Opbroadcast1To32MaskedUint8x16:
+		return rewriteValueAMD64_Opbroadcast1To32MaskedUint8x16(v)
+	case Opbroadcast1To32Uint16x8:
+		v.Op = OpAMD64VPBROADCASTW512
+		return true
+	case Opbroadcast1To32Uint8x16:
+		v.Op = OpAMD64VPBROADCASTB256
+		return true
+	case Opbroadcast1To4Float32x4:
+		v.Op = OpAMD64VBROADCASTSS128
+		return true
+	case Opbroadcast1To4Float64x2:
+		v.Op = OpAMD64VBROADCASTSD256
+		return true
+	case Opbroadcast1To4Int32x4:
+		v.Op = OpAMD64VPBROADCASTD128
+		return true
+	case Opbroadcast1To4Int64x2:
+		v.Op = OpAMD64VPBROADCASTQ256
+		return true
+	case Opbroadcast1To4MaskedFloat32x4:
+		return rewriteValueAMD64_Opbroadcast1To4MaskedFloat32x4(v)
+	case Opbroadcast1To4MaskedFloat64x2:
+		return rewriteValueAMD64_Opbroadcast1To4MaskedFloat64x2(v)
+	case Opbroadcast1To4MaskedInt32x4:
+		return rewriteValueAMD64_Opbroadcast1To4MaskedInt32x4(v)
+	case Opbroadcast1To4MaskedInt64x2:
+		return rewriteValueAMD64_Opbroadcast1To4MaskedInt64x2(v)
+	case Opbroadcast1To4MaskedUint32x4:
+		return rewriteValueAMD64_Opbroadcast1To4MaskedUint32x4(v)
+	case Opbroadcast1To4MaskedUint64x2:
+		return rewriteValueAMD64_Opbroadcast1To4MaskedUint64x2(v)
+	case Opbroadcast1To4Uint32x4:
+		v.Op = OpAMD64VPBROADCASTD128
+		return true
+	case Opbroadcast1To4Uint64x2:
+		v.Op = OpAMD64VPBROADCASTQ256
+		return true
+	case Opbroadcast1To64Int8x16:
+		v.Op = OpAMD64VPBROADCASTB512
+		return true
+	case Opbroadcast1To64MaskedInt8x16:
+		return rewriteValueAMD64_Opbroadcast1To64MaskedInt8x16(v)
+	case Opbroadcast1To64MaskedUint8x16:
+		return rewriteValueAMD64_Opbroadcast1To64MaskedUint8x16(v)
+	case Opbroadcast1To64Uint8x16:
+		v.Op = OpAMD64VPBROADCASTB512
+		return true
+	case Opbroadcast1To8Float32x4:
+		v.Op = OpAMD64VBROADCASTSS256
+		return true
+	case Opbroadcast1To8Float64x2:
+		v.Op = OpAMD64VBROADCASTSD512
+		return true
+	case Opbroadcast1To8Int16x8:
+		v.Op = OpAMD64VPBROADCASTW128
+		return true
+	case Opbroadcast1To8Int32x4:
+		v.Op = OpAMD64VPBROADCASTD256
+		return true
+	case Opbroadcast1To8Int64x2:
+		v.Op = OpAMD64VPBROADCASTQ512
+		return true
+	case Opbroadcast1To8MaskedFloat32x4:
+		return rewriteValueAMD64_Opbroadcast1To8MaskedFloat32x4(v)
+	case Opbroadcast1To8MaskedFloat64x2:
+		return rewriteValueAMD64_Opbroadcast1To8MaskedFloat64x2(v)
+	case Opbroadcast1To8MaskedInt16x8:
+		return rewriteValueAMD64_Opbroadcast1To8MaskedInt16x8(v)
+	case Opbroadcast1To8MaskedInt32x4:
+		return rewriteValueAMD64_Opbroadcast1To8MaskedInt32x4(v)
+	case Opbroadcast1To8MaskedInt64x2:
+		return rewriteValueAMD64_Opbroadcast1To8MaskedInt64x2(v)
+	case Opbroadcast1To8MaskedUint16x8:
+		return rewriteValueAMD64_Opbroadcast1To8MaskedUint16x8(v)
+	case Opbroadcast1To8MaskedUint32x4:
+		return rewriteValueAMD64_Opbroadcast1To8MaskedUint32x4(v)
+	case Opbroadcast1To8MaskedUint64x2:
+		return rewriteValueAMD64_Opbroadcast1To8MaskedUint64x2(v)
+	case Opbroadcast1To8Uint16x8:
+		v.Op = OpAMD64VPBROADCASTW128
+		return true
+	case Opbroadcast1To8Uint32x4:
+		v.Op = OpAMD64VPBROADCASTD256
+		return true
+	case Opbroadcast1To8Uint64x2:
+		v.Op = OpAMD64VPBROADCASTQ512
+		return true
 	case OpcarrylessMultiplyUint64x2:
 		v.Op = OpAMD64VPCLMULQDQ128
 		return true
@@ -33324,18 +33384,6 @@ func rewriteValueAMD64_OpAMD64VMOVDQU16Masked128(v *Value) bool {
 		v.AddArg3(x, y, mask)
 		return true
 	}
-	// match: (VMOVDQU16Masked128 (VPBROADCASTW128 x) mask)
-	// result: (VPBROADCASTWMasked128 x mask)
-	for {
-		if v_0.Op != OpAMD64VPBROADCASTW128 {
-			break
-		}
-		x := v_0.Args[0]
-		mask := v_1
-		v.reset(OpAMD64VPBROADCASTWMasked128)
-		v.AddArg2(x, mask)
-		return true
-	}
 	// match: (VMOVDQU16Masked128 (VPERMI2W128 x y z) mask)
 	// result: (VPERMI2WMasked128 x y z mask)
 	for {
@@ -33888,18 +33936,6 @@ func rewriteValueAMD64_OpAMD64VMOVDQU16Masked256(v *Value) bool {
 		mask := v_1
 		v.reset(OpAMD64VPAVGWMasked256)
 		v.AddArg3(x, y, mask)
-		return true
-	}
-	// match: (VMOVDQU16Masked256 (VPBROADCASTW256 x) mask)
-	// result: (VPBROADCASTWMasked256 x mask)
-	for {
-		if v_0.Op != OpAMD64VPBROADCASTW256 {
-			break
-		}
-		x := v_0.Args[0]
-		mask := v_1
-		v.reset(OpAMD64VPBROADCASTWMasked256)
-		v.AddArg2(x, mask)
 		return true
 	}
 	// match: (VMOVDQU16Masked256 (VPERMI2W256 x y z) mask)
@@ -34492,18 +34528,6 @@ func rewriteValueAMD64_OpAMD64VMOVDQU16Masked512(v *Value) bool {
 		v.AddArg3(x, y, mask)
 		return true
 	}
-	// match: (VMOVDQU16Masked512 (VPBROADCASTW512 x) mask)
-	// result: (VPBROADCASTWMasked512 x mask)
-	for {
-		if v_0.Op != OpAMD64VPBROADCASTW512 {
-			break
-		}
-		x := v_0.Args[0]
-		mask := v_1
-		v.reset(OpAMD64VPBROADCASTWMasked512)
-		v.AddArg2(x, mask)
-		return true
-	}
 	// match: (VMOVDQU16Masked512 (VPERMI2W512 x y z) mask)
 	// result: (VPERMI2WMasked512 x y z mask)
 	for {
@@ -34994,30 +35018,6 @@ func rewriteValueAMD64_OpAMD64VMOVDQU32Masked128(v *Value) bool {
 		mask := v_1
 		v.reset(OpAMD64VPADDDMasked128)
 		v.AddArg3(x, y, mask)
-		return true
-	}
-	// match: (VMOVDQU32Masked128 (VBROADCASTSS128 x) mask)
-	// result: (VBROADCASTSSMasked128 x mask)
-	for {
-		if v_0.Op != OpAMD64VBROADCASTSS128 {
-			break
-		}
-		x := v_0.Args[0]
-		mask := v_1
-		v.reset(OpAMD64VBROADCASTSSMasked128)
-		v.AddArg2(x, mask)
-		return true
-	}
-	// match: (VMOVDQU32Masked128 (VPBROADCASTD128 x) mask)
-	// result: (VPBROADCASTDMasked128 x mask)
-	for {
-		if v_0.Op != OpAMD64VPBROADCASTD128 {
-			break
-		}
-		x := v_0.Args[0]
-		mask := v_1
-		v.reset(OpAMD64VPBROADCASTDMasked128)
-		v.AddArg2(x, mask)
 		return true
 	}
 	// match: (VMOVDQU32Masked128 (VRNDSCALEPS128 [a] x) mask)
@@ -35767,30 +35767,6 @@ func rewriteValueAMD64_OpAMD64VMOVDQU32Masked256(v *Value) bool {
 		mask := v_1
 		v.reset(OpAMD64VPADDDMasked256)
 		v.AddArg3(x, y, mask)
-		return true
-	}
-	// match: (VMOVDQU32Masked256 (VBROADCASTSS256 x) mask)
-	// result: (VBROADCASTSSMasked256 x mask)
-	for {
-		if v_0.Op != OpAMD64VBROADCASTSS256 {
-			break
-		}
-		x := v_0.Args[0]
-		mask := v_1
-		v.reset(OpAMD64VBROADCASTSSMasked256)
-		v.AddArg2(x, mask)
-		return true
-	}
-	// match: (VMOVDQU32Masked256 (VPBROADCASTD256 x) mask)
-	// result: (VPBROADCASTDMasked256 x mask)
-	for {
-		if v_0.Op != OpAMD64VPBROADCASTD256 {
-			break
-		}
-		x := v_0.Args[0]
-		mask := v_1
-		v.reset(OpAMD64VPBROADCASTDMasked256)
-		v.AddArg2(x, mask)
 		return true
 	}
 	// match: (VMOVDQU32Masked256 (VRNDSCALEPS256 [a] x) mask)
@@ -36690,30 +36666,6 @@ func rewriteValueAMD64_OpAMD64VMOVDQU32Masked512(v *Value) bool {
 		v.AddArg3(x, y, mask)
 		return true
 	}
-	// match: (VMOVDQU32Masked512 (VBROADCASTSS512 x) mask)
-	// result: (VBROADCASTSSMasked512 x mask)
-	for {
-		if v_0.Op != OpAMD64VBROADCASTSS512 {
-			break
-		}
-		x := v_0.Args[0]
-		mask := v_1
-		v.reset(OpAMD64VBROADCASTSSMasked512)
-		v.AddArg2(x, mask)
-		return true
-	}
-	// match: (VMOVDQU32Masked512 (VPBROADCASTD512 x) mask)
-	// result: (VPBROADCASTDMasked512 x mask)
-	for {
-		if v_0.Op != OpAMD64VPBROADCASTD512 {
-			break
-		}
-		x := v_0.Args[0]
-		mask := v_1
-		v.reset(OpAMD64VPBROADCASTDMasked512)
-		v.AddArg2(x, mask)
-		return true
-	}
 	// match: (VMOVDQU32Masked512 (VRNDSCALEPS512 [a] x) mask)
 	// result: (VRNDSCALEPSMasked512 [a] x mask)
 	for {
@@ -37561,18 +37513,6 @@ func rewriteValueAMD64_OpAMD64VMOVDQU64Masked128(v *Value) bool {
 		mask := v_1
 		v.reset(OpAMD64VPADDQMasked128)
 		v.AddArg3(x, y, mask)
-		return true
-	}
-	// match: (VMOVDQU64Masked128 (VPBROADCASTQ128 x) mask)
-	// result: (VPBROADCASTQMasked128 x mask)
-	for {
-		if v_0.Op != OpAMD64VPBROADCASTQ128 {
-			break
-		}
-		x := v_0.Args[0]
-		mask := v_1
-		v.reset(OpAMD64VPBROADCASTQMasked128)
-		v.AddArg2(x, mask)
 		return true
 	}
 	// match: (VMOVDQU64Masked128 (VRNDSCALEPD128 [a] x) mask)
@@ -38438,30 +38378,6 @@ func rewriteValueAMD64_OpAMD64VMOVDQU64Masked256(v *Value) bool {
 		mask := v_1
 		v.reset(OpAMD64VPADDQMasked256)
 		v.AddArg3(x, y, mask)
-		return true
-	}
-	// match: (VMOVDQU64Masked256 (VBROADCASTSD256 x) mask)
-	// result: (VBROADCASTSDMasked256 x mask)
-	for {
-		if v_0.Op != OpAMD64VBROADCASTSD256 {
-			break
-		}
-		x := v_0.Args[0]
-		mask := v_1
-		v.reset(OpAMD64VBROADCASTSDMasked256)
-		v.AddArg2(x, mask)
-		return true
-	}
-	// match: (VMOVDQU64Masked256 (VPBROADCASTQ256 x) mask)
-	// result: (VPBROADCASTQMasked256 x mask)
-	for {
-		if v_0.Op != OpAMD64VPBROADCASTQ256 {
-			break
-		}
-		x := v_0.Args[0]
-		mask := v_1
-		v.reset(OpAMD64VPBROADCASTQMasked256)
-		v.AddArg2(x, mask)
 		return true
 	}
 	// match: (VMOVDQU64Masked256 (VRNDSCALEPD256 [a] x) mask)
@@ -39357,30 +39273,6 @@ func rewriteValueAMD64_OpAMD64VMOVDQU64Masked512(v *Value) bool {
 		v.AddArg3(x, y, mask)
 		return true
 	}
-	// match: (VMOVDQU64Masked512 (VBROADCASTSD512 x) mask)
-	// result: (VBROADCASTSDMasked512 x mask)
-	for {
-		if v_0.Op != OpAMD64VBROADCASTSD512 {
-			break
-		}
-		x := v_0.Args[0]
-		mask := v_1
-		v.reset(OpAMD64VBROADCASTSDMasked512)
-		v.AddArg2(x, mask)
-		return true
-	}
-	// match: (VMOVDQU64Masked512 (VPBROADCASTQ512 x) mask)
-	// result: (VPBROADCASTQMasked512 x mask)
-	for {
-		if v_0.Op != OpAMD64VPBROADCASTQ512 {
-			break
-		}
-		x := v_0.Args[0]
-		mask := v_1
-		v.reset(OpAMD64VPBROADCASTQMasked512)
-		v.AddArg2(x, mask)
-		return true
-	}
 	// match: (VMOVDQU64Masked512 (VRNDSCALEPD512 [a] x) mask)
 	// result: (VRNDSCALEPDMasked512 [a] x mask)
 	for {
@@ -40168,18 +40060,6 @@ func rewriteValueAMD64_OpAMD64VMOVDQU8Masked128(v *Value) bool {
 		v.AddArg3(x, y, mask)
 		return true
 	}
-	// match: (VMOVDQU8Masked128 (VPBROADCASTB128 x) mask)
-	// result: (VPBROADCASTBMasked128 x mask)
-	for {
-		if v_0.Op != OpAMD64VPBROADCASTB128 {
-			break
-		}
-		x := v_0.Args[0]
-		mask := v_1
-		v.reset(OpAMD64VPBROADCASTBMasked128)
-		v.AddArg2(x, mask)
-		return true
-	}
 	// match: (VMOVDQU8Masked128 (VPERMI2B128 x y z) mask)
 	// result: (VPERMI2BMasked128 x y z mask)
 	for {
@@ -40522,18 +40402,6 @@ func rewriteValueAMD64_OpAMD64VMOVDQU8Masked256(v *Value) bool {
 		v.AddArg3(x, y, mask)
 		return true
 	}
-	// match: (VMOVDQU8Masked256 (VPBROADCASTB256 x) mask)
-	// result: (VPBROADCASTBMasked256 x mask)
-	for {
-		if v_0.Op != OpAMD64VPBROADCASTB256 {
-			break
-		}
-		x := v_0.Args[0]
-		mask := v_1
-		v.reset(OpAMD64VPBROADCASTBMasked256)
-		v.AddArg2(x, mask)
-		return true
-	}
 	// match: (VMOVDQU8Masked256 (VPERMI2B256 x y z) mask)
 	// result: (VPERMI2BMasked256 x y z mask)
 	for {
@@ -40874,18 +40742,6 @@ func rewriteValueAMD64_OpAMD64VMOVDQU8Masked512(v *Value) bool {
 		mask := v_1
 		v.reset(OpAMD64VPAVGBMasked512)
 		v.AddArg3(x, y, mask)
-		return true
-	}
-	// match: (VMOVDQU8Masked512 (VPBROADCASTB512 x) mask)
-	// result: (VPBROADCASTBMasked512 x mask)
-	for {
-		if v_0.Op != OpAMD64VPBROADCASTB512 {
-			break
-		}
-		x := v_0.Args[0]
-		mask := v_1
-		v.reset(OpAMD64VPBROADCASTBMasked512)
-		v.AddArg2(x, mask)
 		return true
 	}
 	// match: (VMOVDQU8Masked512 (VPERMI2B512 x y z) mask)
@@ -79555,6 +79411,486 @@ func rewriteValueAMD64_OpblendMaskedInt8x64(v *Value) bool {
 		v0 := b.NewValue0(v.Pos, OpAMD64VPMOVVec8x64ToM, types.TypeMask)
 		v0.AddArg(mask)
 		v.AddArg3(x, y, v0)
+		return true
+	}
+}
+func rewriteValueAMD64_Opbroadcast1To16MaskedFloat32x4(v *Value) bool {
+	v_1 := v.Args[1]
+	v_0 := v.Args[0]
+	b := v.Block
+	// match: (broadcast1To16MaskedFloat32x4 x mask)
+	// result: (VBROADCASTSSMasked512 x (VPMOVVec32x4ToM <types.TypeMask> mask))
+	for {
+		x := v_0
+		mask := v_1
+		v.reset(OpAMD64VBROADCASTSSMasked512)
+		v0 := b.NewValue0(v.Pos, OpAMD64VPMOVVec32x4ToM, types.TypeMask)
+		v0.AddArg(mask)
+		v.AddArg2(x, v0)
+		return true
+	}
+}
+func rewriteValueAMD64_Opbroadcast1To16MaskedInt16x8(v *Value) bool {
+	v_1 := v.Args[1]
+	v_0 := v.Args[0]
+	b := v.Block
+	// match: (broadcast1To16MaskedInt16x8 x mask)
+	// result: (VPBROADCASTWMasked256 x (VPMOVVec16x8ToM <types.TypeMask> mask))
+	for {
+		x := v_0
+		mask := v_1
+		v.reset(OpAMD64VPBROADCASTWMasked256)
+		v0 := b.NewValue0(v.Pos, OpAMD64VPMOVVec16x8ToM, types.TypeMask)
+		v0.AddArg(mask)
+		v.AddArg2(x, v0)
+		return true
+	}
+}
+func rewriteValueAMD64_Opbroadcast1To16MaskedInt32x4(v *Value) bool {
+	v_1 := v.Args[1]
+	v_0 := v.Args[0]
+	b := v.Block
+	// match: (broadcast1To16MaskedInt32x4 x mask)
+	// result: (VPBROADCASTDMasked512 x (VPMOVVec32x4ToM <types.TypeMask> mask))
+	for {
+		x := v_0
+		mask := v_1
+		v.reset(OpAMD64VPBROADCASTDMasked512)
+		v0 := b.NewValue0(v.Pos, OpAMD64VPMOVVec32x4ToM, types.TypeMask)
+		v0.AddArg(mask)
+		v.AddArg2(x, v0)
+		return true
+	}
+}
+func rewriteValueAMD64_Opbroadcast1To16MaskedInt8x16(v *Value) bool {
+	v_1 := v.Args[1]
+	v_0 := v.Args[0]
+	b := v.Block
+	// match: (broadcast1To16MaskedInt8x16 x mask)
+	// result: (VPBROADCASTBMasked128 x (VPMOVVec8x16ToM <types.TypeMask> mask))
+	for {
+		x := v_0
+		mask := v_1
+		v.reset(OpAMD64VPBROADCASTBMasked128)
+		v0 := b.NewValue0(v.Pos, OpAMD64VPMOVVec8x16ToM, types.TypeMask)
+		v0.AddArg(mask)
+		v.AddArg2(x, v0)
+		return true
+	}
+}
+func rewriteValueAMD64_Opbroadcast1To16MaskedUint16x8(v *Value) bool {
+	v_1 := v.Args[1]
+	v_0 := v.Args[0]
+	b := v.Block
+	// match: (broadcast1To16MaskedUint16x8 x mask)
+	// result: (VPBROADCASTWMasked256 x (VPMOVVec16x8ToM <types.TypeMask> mask))
+	for {
+		x := v_0
+		mask := v_1
+		v.reset(OpAMD64VPBROADCASTWMasked256)
+		v0 := b.NewValue0(v.Pos, OpAMD64VPMOVVec16x8ToM, types.TypeMask)
+		v0.AddArg(mask)
+		v.AddArg2(x, v0)
+		return true
+	}
+}
+func rewriteValueAMD64_Opbroadcast1To16MaskedUint32x4(v *Value) bool {
+	v_1 := v.Args[1]
+	v_0 := v.Args[0]
+	b := v.Block
+	// match: (broadcast1To16MaskedUint32x4 x mask)
+	// result: (VPBROADCASTDMasked512 x (VPMOVVec32x4ToM <types.TypeMask> mask))
+	for {
+		x := v_0
+		mask := v_1
+		v.reset(OpAMD64VPBROADCASTDMasked512)
+		v0 := b.NewValue0(v.Pos, OpAMD64VPMOVVec32x4ToM, types.TypeMask)
+		v0.AddArg(mask)
+		v.AddArg2(x, v0)
+		return true
+	}
+}
+func rewriteValueAMD64_Opbroadcast1To16MaskedUint8x16(v *Value) bool {
+	v_1 := v.Args[1]
+	v_0 := v.Args[0]
+	b := v.Block
+	// match: (broadcast1To16MaskedUint8x16 x mask)
+	// result: (VPBROADCASTBMasked128 x (VPMOVVec8x16ToM <types.TypeMask> mask))
+	for {
+		x := v_0
+		mask := v_1
+		v.reset(OpAMD64VPBROADCASTBMasked128)
+		v0 := b.NewValue0(v.Pos, OpAMD64VPMOVVec8x16ToM, types.TypeMask)
+		v0.AddArg(mask)
+		v.AddArg2(x, v0)
+		return true
+	}
+}
+func rewriteValueAMD64_Opbroadcast1To2MaskedFloat64x2(v *Value) bool {
+	v_1 := v.Args[1]
+	v_0 := v.Args[0]
+	b := v.Block
+	// match: (broadcast1To2MaskedFloat64x2 x mask)
+	// result: (VPBROADCASTQMasked128 x (VPMOVVec64x2ToM <types.TypeMask> mask))
+	for {
+		x := v_0
+		mask := v_1
+		v.reset(OpAMD64VPBROADCASTQMasked128)
+		v0 := b.NewValue0(v.Pos, OpAMD64VPMOVVec64x2ToM, types.TypeMask)
+		v0.AddArg(mask)
+		v.AddArg2(x, v0)
+		return true
+	}
+}
+func rewriteValueAMD64_Opbroadcast1To2MaskedInt64x2(v *Value) bool {
+	v_1 := v.Args[1]
+	v_0 := v.Args[0]
+	b := v.Block
+	// match: (broadcast1To2MaskedInt64x2 x mask)
+	// result: (VPBROADCASTQMasked128 x (VPMOVVec64x2ToM <types.TypeMask> mask))
+	for {
+		x := v_0
+		mask := v_1
+		v.reset(OpAMD64VPBROADCASTQMasked128)
+		v0 := b.NewValue0(v.Pos, OpAMD64VPMOVVec64x2ToM, types.TypeMask)
+		v0.AddArg(mask)
+		v.AddArg2(x, v0)
+		return true
+	}
+}
+func rewriteValueAMD64_Opbroadcast1To2MaskedUint64x2(v *Value) bool {
+	v_1 := v.Args[1]
+	v_0 := v.Args[0]
+	b := v.Block
+	// match: (broadcast1To2MaskedUint64x2 x mask)
+	// result: (VPBROADCASTQMasked128 x (VPMOVVec64x2ToM <types.TypeMask> mask))
+	for {
+		x := v_0
+		mask := v_1
+		v.reset(OpAMD64VPBROADCASTQMasked128)
+		v0 := b.NewValue0(v.Pos, OpAMD64VPMOVVec64x2ToM, types.TypeMask)
+		v0.AddArg(mask)
+		v.AddArg2(x, v0)
+		return true
+	}
+}
+func rewriteValueAMD64_Opbroadcast1To32MaskedInt16x8(v *Value) bool {
+	v_1 := v.Args[1]
+	v_0 := v.Args[0]
+	b := v.Block
+	// match: (broadcast1To32MaskedInt16x8 x mask)
+	// result: (VPBROADCASTWMasked512 x (VPMOVVec16x8ToM <types.TypeMask> mask))
+	for {
+		x := v_0
+		mask := v_1
+		v.reset(OpAMD64VPBROADCASTWMasked512)
+		v0 := b.NewValue0(v.Pos, OpAMD64VPMOVVec16x8ToM, types.TypeMask)
+		v0.AddArg(mask)
+		v.AddArg2(x, v0)
+		return true
+	}
+}
+func rewriteValueAMD64_Opbroadcast1To32MaskedInt8x16(v *Value) bool {
+	v_1 := v.Args[1]
+	v_0 := v.Args[0]
+	b := v.Block
+	// match: (broadcast1To32MaskedInt8x16 x mask)
+	// result: (VPBROADCASTBMasked256 x (VPMOVVec8x16ToM <types.TypeMask> mask))
+	for {
+		x := v_0
+		mask := v_1
+		v.reset(OpAMD64VPBROADCASTBMasked256)
+		v0 := b.NewValue0(v.Pos, OpAMD64VPMOVVec8x16ToM, types.TypeMask)
+		v0.AddArg(mask)
+		v.AddArg2(x, v0)
+		return true
+	}
+}
+func rewriteValueAMD64_Opbroadcast1To32MaskedUint16x8(v *Value) bool {
+	v_1 := v.Args[1]
+	v_0 := v.Args[0]
+	b := v.Block
+	// match: (broadcast1To32MaskedUint16x8 x mask)
+	// result: (VPBROADCASTWMasked512 x (VPMOVVec16x8ToM <types.TypeMask> mask))
+	for {
+		x := v_0
+		mask := v_1
+		v.reset(OpAMD64VPBROADCASTWMasked512)
+		v0 := b.NewValue0(v.Pos, OpAMD64VPMOVVec16x8ToM, types.TypeMask)
+		v0.AddArg(mask)
+		v.AddArg2(x, v0)
+		return true
+	}
+}
+func rewriteValueAMD64_Opbroadcast1To32MaskedUint8x16(v *Value) bool {
+	v_1 := v.Args[1]
+	v_0 := v.Args[0]
+	b := v.Block
+	// match: (broadcast1To32MaskedUint8x16 x mask)
+	// result: (VPBROADCASTBMasked256 x (VPMOVVec8x16ToM <types.TypeMask> mask))
+	for {
+		x := v_0
+		mask := v_1
+		v.reset(OpAMD64VPBROADCASTBMasked256)
+		v0 := b.NewValue0(v.Pos, OpAMD64VPMOVVec8x16ToM, types.TypeMask)
+		v0.AddArg(mask)
+		v.AddArg2(x, v0)
+		return true
+	}
+}
+func rewriteValueAMD64_Opbroadcast1To4MaskedFloat32x4(v *Value) bool {
+	v_1 := v.Args[1]
+	v_0 := v.Args[0]
+	b := v.Block
+	// match: (broadcast1To4MaskedFloat32x4 x mask)
+	// result: (VBROADCASTSSMasked128 x (VPMOVVec32x4ToM <types.TypeMask> mask))
+	for {
+		x := v_0
+		mask := v_1
+		v.reset(OpAMD64VBROADCASTSSMasked128)
+		v0 := b.NewValue0(v.Pos, OpAMD64VPMOVVec32x4ToM, types.TypeMask)
+		v0.AddArg(mask)
+		v.AddArg2(x, v0)
+		return true
+	}
+}
+func rewriteValueAMD64_Opbroadcast1To4MaskedFloat64x2(v *Value) bool {
+	v_1 := v.Args[1]
+	v_0 := v.Args[0]
+	b := v.Block
+	// match: (broadcast1To4MaskedFloat64x2 x mask)
+	// result: (VBROADCASTSDMasked256 x (VPMOVVec64x2ToM <types.TypeMask> mask))
+	for {
+		x := v_0
+		mask := v_1
+		v.reset(OpAMD64VBROADCASTSDMasked256)
+		v0 := b.NewValue0(v.Pos, OpAMD64VPMOVVec64x2ToM, types.TypeMask)
+		v0.AddArg(mask)
+		v.AddArg2(x, v0)
+		return true
+	}
+}
+func rewriteValueAMD64_Opbroadcast1To4MaskedInt32x4(v *Value) bool {
+	v_1 := v.Args[1]
+	v_0 := v.Args[0]
+	b := v.Block
+	// match: (broadcast1To4MaskedInt32x4 x mask)
+	// result: (VPBROADCASTDMasked128 x (VPMOVVec32x4ToM <types.TypeMask> mask))
+	for {
+		x := v_0
+		mask := v_1
+		v.reset(OpAMD64VPBROADCASTDMasked128)
+		v0 := b.NewValue0(v.Pos, OpAMD64VPMOVVec32x4ToM, types.TypeMask)
+		v0.AddArg(mask)
+		v.AddArg2(x, v0)
+		return true
+	}
+}
+func rewriteValueAMD64_Opbroadcast1To4MaskedInt64x2(v *Value) bool {
+	v_1 := v.Args[1]
+	v_0 := v.Args[0]
+	b := v.Block
+	// match: (broadcast1To4MaskedInt64x2 x mask)
+	// result: (VPBROADCASTQMasked256 x (VPMOVVec64x2ToM <types.TypeMask> mask))
+	for {
+		x := v_0
+		mask := v_1
+		v.reset(OpAMD64VPBROADCASTQMasked256)
+		v0 := b.NewValue0(v.Pos, OpAMD64VPMOVVec64x2ToM, types.TypeMask)
+		v0.AddArg(mask)
+		v.AddArg2(x, v0)
+		return true
+	}
+}
+func rewriteValueAMD64_Opbroadcast1To4MaskedUint32x4(v *Value) bool {
+	v_1 := v.Args[1]
+	v_0 := v.Args[0]
+	b := v.Block
+	// match: (broadcast1To4MaskedUint32x4 x mask)
+	// result: (VPBROADCASTDMasked128 x (VPMOVVec32x4ToM <types.TypeMask> mask))
+	for {
+		x := v_0
+		mask := v_1
+		v.reset(OpAMD64VPBROADCASTDMasked128)
+		v0 := b.NewValue0(v.Pos, OpAMD64VPMOVVec32x4ToM, types.TypeMask)
+		v0.AddArg(mask)
+		v.AddArg2(x, v0)
+		return true
+	}
+}
+func rewriteValueAMD64_Opbroadcast1To4MaskedUint64x2(v *Value) bool {
+	v_1 := v.Args[1]
+	v_0 := v.Args[0]
+	b := v.Block
+	// match: (broadcast1To4MaskedUint64x2 x mask)
+	// result: (VPBROADCASTQMasked256 x (VPMOVVec64x2ToM <types.TypeMask> mask))
+	for {
+		x := v_0
+		mask := v_1
+		v.reset(OpAMD64VPBROADCASTQMasked256)
+		v0 := b.NewValue0(v.Pos, OpAMD64VPMOVVec64x2ToM, types.TypeMask)
+		v0.AddArg(mask)
+		v.AddArg2(x, v0)
+		return true
+	}
+}
+func rewriteValueAMD64_Opbroadcast1To64MaskedInt8x16(v *Value) bool {
+	v_1 := v.Args[1]
+	v_0 := v.Args[0]
+	b := v.Block
+	// match: (broadcast1To64MaskedInt8x16 x mask)
+	// result: (VPBROADCASTBMasked512 x (VPMOVVec8x16ToM <types.TypeMask> mask))
+	for {
+		x := v_0
+		mask := v_1
+		v.reset(OpAMD64VPBROADCASTBMasked512)
+		v0 := b.NewValue0(v.Pos, OpAMD64VPMOVVec8x16ToM, types.TypeMask)
+		v0.AddArg(mask)
+		v.AddArg2(x, v0)
+		return true
+	}
+}
+func rewriteValueAMD64_Opbroadcast1To64MaskedUint8x16(v *Value) bool {
+	v_1 := v.Args[1]
+	v_0 := v.Args[0]
+	b := v.Block
+	// match: (broadcast1To64MaskedUint8x16 x mask)
+	// result: (VPBROADCASTBMasked512 x (VPMOVVec8x16ToM <types.TypeMask> mask))
+	for {
+		x := v_0
+		mask := v_1
+		v.reset(OpAMD64VPBROADCASTBMasked512)
+		v0 := b.NewValue0(v.Pos, OpAMD64VPMOVVec8x16ToM, types.TypeMask)
+		v0.AddArg(mask)
+		v.AddArg2(x, v0)
+		return true
+	}
+}
+func rewriteValueAMD64_Opbroadcast1To8MaskedFloat32x4(v *Value) bool {
+	v_1 := v.Args[1]
+	v_0 := v.Args[0]
+	b := v.Block
+	// match: (broadcast1To8MaskedFloat32x4 x mask)
+	// result: (VBROADCASTSSMasked256 x (VPMOVVec32x4ToM <types.TypeMask> mask))
+	for {
+		x := v_0
+		mask := v_1
+		v.reset(OpAMD64VBROADCASTSSMasked256)
+		v0 := b.NewValue0(v.Pos, OpAMD64VPMOVVec32x4ToM, types.TypeMask)
+		v0.AddArg(mask)
+		v.AddArg2(x, v0)
+		return true
+	}
+}
+func rewriteValueAMD64_Opbroadcast1To8MaskedFloat64x2(v *Value) bool {
+	v_1 := v.Args[1]
+	v_0 := v.Args[0]
+	b := v.Block
+	// match: (broadcast1To8MaskedFloat64x2 x mask)
+	// result: (VBROADCASTSDMasked512 x (VPMOVVec64x2ToM <types.TypeMask> mask))
+	for {
+		x := v_0
+		mask := v_1
+		v.reset(OpAMD64VBROADCASTSDMasked512)
+		v0 := b.NewValue0(v.Pos, OpAMD64VPMOVVec64x2ToM, types.TypeMask)
+		v0.AddArg(mask)
+		v.AddArg2(x, v0)
+		return true
+	}
+}
+func rewriteValueAMD64_Opbroadcast1To8MaskedInt16x8(v *Value) bool {
+	v_1 := v.Args[1]
+	v_0 := v.Args[0]
+	b := v.Block
+	// match: (broadcast1To8MaskedInt16x8 x mask)
+	// result: (VPBROADCASTWMasked128 x (VPMOVVec16x8ToM <types.TypeMask> mask))
+	for {
+		x := v_0
+		mask := v_1
+		v.reset(OpAMD64VPBROADCASTWMasked128)
+		v0 := b.NewValue0(v.Pos, OpAMD64VPMOVVec16x8ToM, types.TypeMask)
+		v0.AddArg(mask)
+		v.AddArg2(x, v0)
+		return true
+	}
+}
+func rewriteValueAMD64_Opbroadcast1To8MaskedInt32x4(v *Value) bool {
+	v_1 := v.Args[1]
+	v_0 := v.Args[0]
+	b := v.Block
+	// match: (broadcast1To8MaskedInt32x4 x mask)
+	// result: (VPBROADCASTDMasked256 x (VPMOVVec32x4ToM <types.TypeMask> mask))
+	for {
+		x := v_0
+		mask := v_1
+		v.reset(OpAMD64VPBROADCASTDMasked256)
+		v0 := b.NewValue0(v.Pos, OpAMD64VPMOVVec32x4ToM, types.TypeMask)
+		v0.AddArg(mask)
+		v.AddArg2(x, v0)
+		return true
+	}
+}
+func rewriteValueAMD64_Opbroadcast1To8MaskedInt64x2(v *Value) bool {
+	v_1 := v.Args[1]
+	v_0 := v.Args[0]
+	b := v.Block
+	// match: (broadcast1To8MaskedInt64x2 x mask)
+	// result: (VPBROADCASTQMasked512 x (VPMOVVec64x2ToM <types.TypeMask> mask))
+	for {
+		x := v_0
+		mask := v_1
+		v.reset(OpAMD64VPBROADCASTQMasked512)
+		v0 := b.NewValue0(v.Pos, OpAMD64VPMOVVec64x2ToM, types.TypeMask)
+		v0.AddArg(mask)
+		v.AddArg2(x, v0)
+		return true
+	}
+}
+func rewriteValueAMD64_Opbroadcast1To8MaskedUint16x8(v *Value) bool {
+	v_1 := v.Args[1]
+	v_0 := v.Args[0]
+	b := v.Block
+	// match: (broadcast1To8MaskedUint16x8 x mask)
+	// result: (VPBROADCASTWMasked128 x (VPMOVVec16x8ToM <types.TypeMask> mask))
+	for {
+		x := v_0
+		mask := v_1
+		v.reset(OpAMD64VPBROADCASTWMasked128)
+		v0 := b.NewValue0(v.Pos, OpAMD64VPMOVVec16x8ToM, types.TypeMask)
+		v0.AddArg(mask)
+		v.AddArg2(x, v0)
+		return true
+	}
+}
+func rewriteValueAMD64_Opbroadcast1To8MaskedUint32x4(v *Value) bool {
+	v_1 := v.Args[1]
+	v_0 := v.Args[0]
+	b := v.Block
+	// match: (broadcast1To8MaskedUint32x4 x mask)
+	// result: (VPBROADCASTDMasked256 x (VPMOVVec32x4ToM <types.TypeMask> mask))
+	for {
+		x := v_0
+		mask := v_1
+		v.reset(OpAMD64VPBROADCASTDMasked256)
+		v0 := b.NewValue0(v.Pos, OpAMD64VPMOVVec32x4ToM, types.TypeMask)
+		v0.AddArg(mask)
+		v.AddArg2(x, v0)
+		return true
+	}
+}
+func rewriteValueAMD64_Opbroadcast1To8MaskedUint64x2(v *Value) bool {
+	v_1 := v.Args[1]
+	v_0 := v.Args[0]
+	b := v.Block
+	// match: (broadcast1To8MaskedUint64x2 x mask)
+	// result: (VPBROADCASTQMasked512 x (VPMOVVec64x2ToM <types.TypeMask> mask))
+	for {
+		x := v_0
+		mask := v_1
+		v.reset(OpAMD64VPBROADCASTQMasked512)
+		v0 := b.NewValue0(v.Pos, OpAMD64VPMOVVec64x2ToM, types.TypeMask)
+		v0.AddArg(mask)
+		v.AddArg2(x, v0)
 		return true
 	}
 }

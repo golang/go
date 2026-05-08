@@ -52,6 +52,450 @@ func (x Int32x16) blendMasked(y Int32x16, mask Mask32x16) Int32x16
 // Asm: VPBLENDMQ, CPU Feature: AVX512
 func (x Int64x8) blendMasked(y Int64x8, mask Mask64x8) Int64x8
 
+/* broadcast1To2 */
+
+// broadcast1To2 copies the lowest element of its input to all 2 elements of
+// the output vector.
+//
+// Asm: VPBROADCASTQ, CPU Feature: AVX2
+func (x Float64x2) broadcast1To2() Float64x2
+
+// broadcast1To2 copies the lowest element of its input to all 2 elements of
+// the output vector.
+//
+// Asm: VPBROADCASTQ, CPU Feature: AVX2
+func (x Int64x2) broadcast1To2() Int64x2
+
+// broadcast1To2 copies the lowest element of its input to all 2 elements of
+// the output vector.
+//
+// Asm: VPBROADCASTQ, CPU Feature: AVX2
+func (x Uint64x2) broadcast1To2() Uint64x2
+
+/* broadcast1To2Masked */
+
+// broadcast1To2Masked copies the lowest element of its input to all 2 elements of
+// the output vector.
+//
+// This operation is applied selectively under a write mask.
+//
+// Asm: VPBROADCASTQ, CPU Feature: AVX512
+func (x Float64x2) broadcast1To2Masked(mask Mask64x2) Float64x2
+
+// broadcast1To2Masked copies the lowest element of its input to all 2 elements of
+// the output vector.
+//
+// This operation is applied selectively under a write mask.
+//
+// Asm: VPBROADCASTQ, CPU Feature: AVX512
+func (x Int64x2) broadcast1To2Masked(mask Mask64x2) Int64x2
+
+// broadcast1To2Masked copies the lowest element of its input to all 2 elements of
+// the output vector.
+//
+// This operation is applied selectively under a write mask.
+//
+// Asm: VPBROADCASTQ, CPU Feature: AVX512
+func (x Uint64x2) broadcast1To2Masked(mask Mask64x2) Uint64x2
+
+/* broadcast1To4 */
+
+// broadcast1To4 copies the lowest element of its input to all 4 elements of
+// the output vector.
+//
+// Asm: VBROADCASTSS, CPU Feature: AVX2
+func (x Float32x4) broadcast1To4() Float32x4
+
+// broadcast1To4 copies the lowest element of its input to all 4 elements of
+// the output vector.
+//
+// Asm: VBROADCASTSD, CPU Feature: AVX2
+func (x Float64x2) broadcast1To4() Float64x4
+
+// broadcast1To4 copies the lowest element of its input to all 4 elements of
+// the output vector.
+//
+// Asm: VPBROADCASTD, CPU Feature: AVX2
+func (x Int32x4) broadcast1To4() Int32x4
+
+// broadcast1To4 copies the lowest element of its input to all 4 elements of
+// the output vector.
+//
+// Asm: VPBROADCASTQ, CPU Feature: AVX2
+func (x Int64x2) broadcast1To4() Int64x4
+
+// broadcast1To4 copies the lowest element of its input to all 4 elements of
+// the output vector.
+//
+// Asm: VPBROADCASTD, CPU Feature: AVX2
+func (x Uint32x4) broadcast1To4() Uint32x4
+
+// broadcast1To4 copies the lowest element of its input to all 4 elements of
+// the output vector.
+//
+// Asm: VPBROADCASTQ, CPU Feature: AVX2
+func (x Uint64x2) broadcast1To4() Uint64x4
+
+/* broadcast1To4Masked */
+
+// broadcast1To4Masked copies the lowest element of its input to all 4 elements of
+// the output vector.
+//
+// This operation is applied selectively under a write mask.
+//
+// Asm: VBROADCASTSS, CPU Feature: AVX512
+func (x Float32x4) broadcast1To4Masked(mask Mask32x4) Float32x4
+
+// broadcast1To4Masked copies the lowest element of its input to all 4 elements of
+// the output vector.
+//
+// This operation is applied selectively under a write mask.
+//
+// Asm: VBROADCASTSD, CPU Feature: AVX512
+func (x Float64x2) broadcast1To4Masked(mask Mask64x2) Float64x4
+
+// broadcast1To4Masked copies the lowest element of its input to all 4 elements of
+// the output vector.
+//
+// This operation is applied selectively under a write mask.
+//
+// Asm: VPBROADCASTD, CPU Feature: AVX512
+func (x Int32x4) broadcast1To4Masked(mask Mask32x4) Int32x4
+
+// broadcast1To4Masked copies the lowest element of its input to all 4 elements of
+// the output vector.
+//
+// This operation is applied selectively under a write mask.
+//
+// Asm: VPBROADCASTQ, CPU Feature: AVX512
+func (x Int64x2) broadcast1To4Masked(mask Mask64x2) Int64x4
+
+// broadcast1To4Masked copies the lowest element of its input to all 4 elements of
+// the output vector.
+//
+// This operation is applied selectively under a write mask.
+//
+// Asm: VPBROADCASTD, CPU Feature: AVX512
+func (x Uint32x4) broadcast1To4Masked(mask Mask32x4) Uint32x4
+
+// broadcast1To4Masked copies the lowest element of its input to all 4 elements of
+// the output vector.
+//
+// This operation is applied selectively under a write mask.
+//
+// Asm: VPBROADCASTQ, CPU Feature: AVX512
+func (x Uint64x2) broadcast1To4Masked(mask Mask64x2) Uint64x4
+
+/* broadcast1To8 */
+
+// broadcast1To8 copies the lowest element of its input to all 8 elements of
+// the output vector.
+//
+// Asm: VBROADCASTSS, CPU Feature: AVX2
+func (x Float32x4) broadcast1To8() Float32x8
+
+// broadcast1To8 copies the lowest element of its input to all 8 elements of
+// the output vector.
+//
+// Asm: VBROADCASTSD, CPU Feature: AVX512
+func (x Float64x2) broadcast1To8() Float64x8
+
+// broadcast1To8 copies the lowest element of its input to all 8 elements of
+// the output vector.
+//
+// Asm: VPBROADCASTW, CPU Feature: AVX2
+func (x Int16x8) broadcast1To8() Int16x8
+
+// broadcast1To8 copies the lowest element of its input to all 8 elements of
+// the output vector.
+//
+// Asm: VPBROADCASTD, CPU Feature: AVX2
+func (x Int32x4) broadcast1To8() Int32x8
+
+// broadcast1To8 copies the lowest element of its input to all 8 elements of
+// the output vector.
+//
+// Asm: VPBROADCASTQ, CPU Feature: AVX512
+func (x Int64x2) broadcast1To8() Int64x8
+
+// broadcast1To8 copies the lowest element of its input to all 8 elements of
+// the output vector.
+//
+// Asm: VPBROADCASTW, CPU Feature: AVX2
+func (x Uint16x8) broadcast1To8() Uint16x8
+
+// broadcast1To8 copies the lowest element of its input to all 8 elements of
+// the output vector.
+//
+// Asm: VPBROADCASTD, CPU Feature: AVX2
+func (x Uint32x4) broadcast1To8() Uint32x8
+
+// broadcast1To8 copies the lowest element of its input to all 8 elements of
+// the output vector.
+//
+// Asm: VPBROADCASTQ, CPU Feature: AVX512
+func (x Uint64x2) broadcast1To8() Uint64x8
+
+/* broadcast1To8Masked */
+
+// broadcast1To8Masked copies the lowest element of its input to all 8 elements of
+// the output vector.
+//
+// This operation is applied selectively under a write mask.
+//
+// Asm: VBROADCASTSS, CPU Feature: AVX512
+func (x Float32x4) broadcast1To8Masked(mask Mask32x4) Float32x8
+
+// broadcast1To8Masked copies the lowest element of its input to all 8 elements of
+// the output vector.
+//
+// This operation is applied selectively under a write mask.
+//
+// Asm: VBROADCASTSD, CPU Feature: AVX512
+func (x Float64x2) broadcast1To8Masked(mask Mask64x2) Float64x8
+
+// broadcast1To8Masked copies the lowest element of its input to all 8 elements of
+// the output vector.
+//
+// This operation is applied selectively under a write mask.
+//
+// Asm: VPBROADCASTW, CPU Feature: AVX512
+func (x Int16x8) broadcast1To8Masked(mask Mask16x8) Int16x8
+
+// broadcast1To8Masked copies the lowest element of its input to all 8 elements of
+// the output vector.
+//
+// This operation is applied selectively under a write mask.
+//
+// Asm: VPBROADCASTD, CPU Feature: AVX512
+func (x Int32x4) broadcast1To8Masked(mask Mask32x4) Int32x8
+
+// broadcast1To8Masked copies the lowest element of its input to all 8 elements of
+// the output vector.
+//
+// This operation is applied selectively under a write mask.
+//
+// Asm: VPBROADCASTQ, CPU Feature: AVX512
+func (x Int64x2) broadcast1To8Masked(mask Mask64x2) Int64x8
+
+// broadcast1To8Masked copies the lowest element of its input to all 8 elements of
+// the output vector.
+//
+// This operation is applied selectively under a write mask.
+//
+// Asm: VPBROADCASTW, CPU Feature: AVX512
+func (x Uint16x8) broadcast1To8Masked(mask Mask16x8) Uint16x8
+
+// broadcast1To8Masked copies the lowest element of its input to all 8 elements of
+// the output vector.
+//
+// This operation is applied selectively under a write mask.
+//
+// Asm: VPBROADCASTD, CPU Feature: AVX512
+func (x Uint32x4) broadcast1To8Masked(mask Mask32x4) Uint32x8
+
+// broadcast1To8Masked copies the lowest element of its input to all 8 elements of
+// the output vector.
+//
+// This operation is applied selectively under a write mask.
+//
+// Asm: VPBROADCASTQ, CPU Feature: AVX512
+func (x Uint64x2) broadcast1To8Masked(mask Mask64x2) Uint64x8
+
+/* broadcast1To16 */
+
+// broadcast1To16 copies the lowest element of its input to all 16 elements of
+// the output vector.
+//
+// Asm: VBROADCASTSS, CPU Feature: AVX512
+func (x Float32x4) broadcast1To16() Float32x16
+
+// broadcast1To16 copies the lowest element of its input to all 16 elements of
+// the output vector.
+//
+// Asm: VPBROADCASTB, CPU Feature: AVX2
+func (x Int8x16) broadcast1To16() Int8x16
+
+// broadcast1To16 copies the lowest element of its input to all 16 elements of
+// the output vector.
+//
+// Asm: VPBROADCASTW, CPU Feature: AVX2
+func (x Int16x8) broadcast1To16() Int16x16
+
+// broadcast1To16 copies the lowest element of its input to all 16 elements of
+// the output vector.
+//
+// Asm: VPBROADCASTD, CPU Feature: AVX512
+func (x Int32x4) broadcast1To16() Int32x16
+
+// broadcast1To16 copies the lowest element of its input to all 16 elements of
+// the output vector.
+//
+// Asm: VPBROADCASTB, CPU Feature: AVX2
+func (x Uint8x16) broadcast1To16() Uint8x16
+
+// broadcast1To16 copies the lowest element of its input to all 16 elements of
+// the output vector.
+//
+// Asm: VPBROADCASTW, CPU Feature: AVX2
+func (x Uint16x8) broadcast1To16() Uint16x16
+
+// broadcast1To16 copies the lowest element of its input to all 16 elements of
+// the output vector.
+//
+// Asm: VPBROADCASTD, CPU Feature: AVX512
+func (x Uint32x4) broadcast1To16() Uint32x16
+
+/* broadcast1To16Masked */
+
+// broadcast1To16Masked copies the lowest element of its input to all 16 elements of
+// the output vector.
+//
+// This operation is applied selectively under a write mask.
+//
+// Asm: VBROADCASTSS, CPU Feature: AVX512
+func (x Float32x4) broadcast1To16Masked(mask Mask32x4) Float32x16
+
+// broadcast1To16Masked copies the lowest element of its input to all 16 elements of
+// the output vector.
+//
+// This operation is applied selectively under a write mask.
+//
+// Asm: VPBROADCASTB, CPU Feature: AVX512
+func (x Int8x16) broadcast1To16Masked(mask Mask8x16) Int8x16
+
+// broadcast1To16Masked copies the lowest element of its input to all 16 elements of
+// the output vector.
+//
+// This operation is applied selectively under a write mask.
+//
+// Asm: VPBROADCASTW, CPU Feature: AVX512
+func (x Int16x8) broadcast1To16Masked(mask Mask16x8) Int16x16
+
+// broadcast1To16Masked copies the lowest element of its input to all 16 elements of
+// the output vector.
+//
+// This operation is applied selectively under a write mask.
+//
+// Asm: VPBROADCASTD, CPU Feature: AVX512
+func (x Int32x4) broadcast1To16Masked(mask Mask32x4) Int32x16
+
+// broadcast1To16Masked copies the lowest element of its input to all 16 elements of
+// the output vector.
+//
+// This operation is applied selectively under a write mask.
+//
+// Asm: VPBROADCASTB, CPU Feature: AVX512
+func (x Uint8x16) broadcast1To16Masked(mask Mask8x16) Uint8x16
+
+// broadcast1To16Masked copies the lowest element of its input to all 16 elements of
+// the output vector.
+//
+// This operation is applied selectively under a write mask.
+//
+// Asm: VPBROADCASTW, CPU Feature: AVX512
+func (x Uint16x8) broadcast1To16Masked(mask Mask16x8) Uint16x16
+
+// broadcast1To16Masked copies the lowest element of its input to all 16 elements of
+// the output vector.
+//
+// This operation is applied selectively under a write mask.
+//
+// Asm: VPBROADCASTD, CPU Feature: AVX512
+func (x Uint32x4) broadcast1To16Masked(mask Mask32x4) Uint32x16
+
+/* broadcast1To32 */
+
+// broadcast1To32 copies the lowest element of its input to all 32 elements of
+// the output vector.
+//
+// Asm: VPBROADCASTB, CPU Feature: AVX2
+func (x Int8x16) broadcast1To32() Int8x32
+
+// broadcast1To32 copies the lowest element of its input to all 32 elements of
+// the output vector.
+//
+// Asm: VPBROADCASTW, CPU Feature: AVX512
+func (x Int16x8) broadcast1To32() Int16x32
+
+// broadcast1To32 copies the lowest element of its input to all 32 elements of
+// the output vector.
+//
+// Asm: VPBROADCASTB, CPU Feature: AVX2
+func (x Uint8x16) broadcast1To32() Uint8x32
+
+// broadcast1To32 copies the lowest element of its input to all 32 elements of
+// the output vector.
+//
+// Asm: VPBROADCASTW, CPU Feature: AVX512
+func (x Uint16x8) broadcast1To32() Uint16x32
+
+/* broadcast1To32Masked */
+
+// broadcast1To32Masked copies the lowest element of its input to all 32 elements of
+// the output vector.
+//
+// This operation is applied selectively under a write mask.
+//
+// Asm: VPBROADCASTB, CPU Feature: AVX512
+func (x Int8x16) broadcast1To32Masked(mask Mask8x16) Int8x32
+
+// broadcast1To32Masked copies the lowest element of its input to all 32 elements of
+// the output vector.
+//
+// This operation is applied selectively under a write mask.
+//
+// Asm: VPBROADCASTW, CPU Feature: AVX512
+func (x Int16x8) broadcast1To32Masked(mask Mask16x8) Int16x32
+
+// broadcast1To32Masked copies the lowest element of its input to all 32 elements of
+// the output vector.
+//
+// This operation is applied selectively under a write mask.
+//
+// Asm: VPBROADCASTB, CPU Feature: AVX512
+func (x Uint8x16) broadcast1To32Masked(mask Mask8x16) Uint8x32
+
+// broadcast1To32Masked copies the lowest element of its input to all 32 elements of
+// the output vector.
+//
+// This operation is applied selectively under a write mask.
+//
+// Asm: VPBROADCASTW, CPU Feature: AVX512
+func (x Uint16x8) broadcast1To32Masked(mask Mask16x8) Uint16x32
+
+/* broadcast1To64 */
+
+// broadcast1To64 copies the lowest element of its input to all 64 elements of
+// the output vector.
+//
+// Asm: VPBROADCASTB, CPU Feature: AVX512
+func (x Int8x16) broadcast1To64() Int8x64
+
+// broadcast1To64 copies the lowest element of its input to all 64 elements of
+// the output vector.
+//
+// Asm: VPBROADCASTB, CPU Feature: AVX512
+func (x Uint8x16) broadcast1To64() Uint8x64
+
+/* broadcast1To64Masked */
+
+// broadcast1To64Masked copies the lowest element of its input to all 64 elements of
+// the output vector.
+//
+// This operation is applied selectively under a write mask.
+//
+// Asm: VPBROADCASTB, CPU Feature: AVX512
+func (x Int8x16) broadcast1To64Masked(mask Mask8x16) Int8x64
+
+// broadcast1To64Masked copies the lowest element of its input to all 64 elements of
+// the output vector.
+//
+// This operation is applied selectively under a write mask.
+//
+// Asm: VPBROADCASTB, CPU Feature: AVX512
+func (x Uint8x16) broadcast1To64Masked(mask Mask8x16) Uint8x64
+
 /* carrylessMultiply */
 
 // carrylessMultiply computes one of four possible Galois polynomial

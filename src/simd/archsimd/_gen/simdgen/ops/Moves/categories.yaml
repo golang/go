@@ -70,32 +70,32 @@
   commutative: false
   documentation: !string |-
     // NAME expands the lower elements of x into the masked elements of z.
-- go: Broadcast1To2
+- go: broadcast1To2
   commutative: false
   documentation: !string |-
     // NAME copies the lowest element of its input to all 2 elements of
     // the output vector.
-- go: Broadcast1To4
+- go: broadcast1To4
   commutative: false
   documentation: !string |-
     // NAME copies the lowest element of its input to all 4 elements of
     // the output vector.
-- go: Broadcast1To8
+- go: broadcast1To8
   commutative: false
   documentation: !string |-
     // NAME copies the lowest element of its input to all 8 elements of
     // the output vector.
-- go: Broadcast1To16
+- go: broadcast1To16
   commutative: false
   documentation: !string |-
     // NAME copies the lowest element of its input to all 16 elements of
     // the output vector.
-- go: Broadcast1To32
+- go: broadcast1To32
   commutative: false
   documentation: !string |-
     // NAME copies the lowest element of its input to all 32 elements of
     // the output vector.
-- go: Broadcast1To64
+- go: broadcast1To64
   commutative: false
   documentation: !string |-
     // NAME copies the lowest element of its input to all 64 elements of

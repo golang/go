@@ -347,7 +347,7 @@
   out:
   - go: $t
 
-- go: Broadcast1To2
+- go: broadcast1To2
   asm: VPBROADCASTQ
   in:
   - class: vreg
@@ -361,7 +361,7 @@
     base: $b
 
 # weirdly, this one case on AVX2 is memory-operand-only
-- go: Broadcast1To2
+- go: broadcast1To2
   asm: VPBROADCASTQ
   in:
   - class: vreg
@@ -376,7 +376,7 @@
     base: int
     OverwriteBase: float
 
-- go: Broadcast1To4
+- go: broadcast1To4
   asm: VPBROADCAST[BWDQ]
   in:
   - class: vreg
@@ -387,7 +387,7 @@
     lanes: 4
     base: $b
 
-- go: Broadcast1To8
+- go: broadcast1To8
   asm: VPBROADCAST[BWDQ]
   in:
   - class: vreg
@@ -398,7 +398,7 @@
     lanes: 8
     base: $b
 
-- go: Broadcast1To16
+- go: broadcast1To16
   asm: VPBROADCAST[BWDQ]
   in:
   - class: vreg
@@ -409,7 +409,7 @@
     lanes: 16
     base: $b
 
-- go: Broadcast1To32
+- go: broadcast1To32
   asm: VPBROADCAST[BWDQ]
   in:
   - class: vreg
@@ -420,7 +420,7 @@
     lanes: 32
     base: $b
 
-- go: Broadcast1To64
+- go: broadcast1To64
   asm: VPBROADCASTB
   in:
   - class: vreg
@@ -431,7 +431,7 @@
     lanes: 64
     base: $b
 
-- go: Broadcast1To4
+- go: broadcast1To4
   asm: VBROADCASTS[SD]
   in:
   - class: vreg
@@ -442,7 +442,7 @@
     lanes: 4
     base: float
 
-- go: Broadcast1To8
+- go: broadcast1To8
   asm: VBROADCASTS[SD]
   in:
   - class: vreg
@@ -453,7 +453,7 @@
     lanes: 8
     base: float
 
-- go: Broadcast1To16
+- go: broadcast1To16
   asm: VBROADCASTS[SD]
   in:
   - class: vreg

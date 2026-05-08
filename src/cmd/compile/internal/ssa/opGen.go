@@ -6345,36 +6345,6 @@ const (
 	OpAverageUint16x8
 	OpAverageUint16x16
 	OpAverageUint16x32
-	OpBroadcast1To2Float64x2
-	OpBroadcast1To2Int64x2
-	OpBroadcast1To2Uint64x2
-	OpBroadcast1To4Float32x4
-	OpBroadcast1To4Float64x2
-	OpBroadcast1To4Int32x4
-	OpBroadcast1To4Int64x2
-	OpBroadcast1To4Uint32x4
-	OpBroadcast1To4Uint64x2
-	OpBroadcast1To8Float32x4
-	OpBroadcast1To8Float64x2
-	OpBroadcast1To8Int16x8
-	OpBroadcast1To8Int32x4
-	OpBroadcast1To8Int64x2
-	OpBroadcast1To8Uint16x8
-	OpBroadcast1To8Uint32x4
-	OpBroadcast1To8Uint64x2
-	OpBroadcast1To16Float32x4
-	OpBroadcast1To16Int8x16
-	OpBroadcast1To16Int16x8
-	OpBroadcast1To16Int32x4
-	OpBroadcast1To16Uint8x16
-	OpBroadcast1To16Uint16x8
-	OpBroadcast1To16Uint32x4
-	OpBroadcast1To32Int8x16
-	OpBroadcast1To32Int16x8
-	OpBroadcast1To32Uint8x16
-	OpBroadcast1To32Uint16x8
-	OpBroadcast1To64Int8x16
-	OpBroadcast1To64Uint8x16
 	OpCeilFloat32x4
 	OpCeilFloat32x8
 	OpCeilFloat64x2
@@ -7342,6 +7312,66 @@ const (
 	OpblendMaskedInt16x32
 	OpblendMaskedInt32x16
 	OpblendMaskedInt64x8
+	Opbroadcast1To2Float64x2
+	Opbroadcast1To2Int64x2
+	Opbroadcast1To2MaskedFloat64x2
+	Opbroadcast1To2MaskedInt64x2
+	Opbroadcast1To2MaskedUint64x2
+	Opbroadcast1To2Uint64x2
+	Opbroadcast1To4Float32x4
+	Opbroadcast1To4Float64x2
+	Opbroadcast1To4Int32x4
+	Opbroadcast1To4Int64x2
+	Opbroadcast1To4MaskedFloat32x4
+	Opbroadcast1To4MaskedFloat64x2
+	Opbroadcast1To4MaskedInt32x4
+	Opbroadcast1To4MaskedInt64x2
+	Opbroadcast1To4MaskedUint32x4
+	Opbroadcast1To4MaskedUint64x2
+	Opbroadcast1To4Uint32x4
+	Opbroadcast1To4Uint64x2
+	Opbroadcast1To8Float32x4
+	Opbroadcast1To8Float64x2
+	Opbroadcast1To8Int16x8
+	Opbroadcast1To8Int32x4
+	Opbroadcast1To8Int64x2
+	Opbroadcast1To8MaskedFloat32x4
+	Opbroadcast1To8MaskedFloat64x2
+	Opbroadcast1To8MaskedInt16x8
+	Opbroadcast1To8MaskedInt32x4
+	Opbroadcast1To8MaskedInt64x2
+	Opbroadcast1To8MaskedUint16x8
+	Opbroadcast1To8MaskedUint32x4
+	Opbroadcast1To8MaskedUint64x2
+	Opbroadcast1To8Uint16x8
+	Opbroadcast1To8Uint32x4
+	Opbroadcast1To8Uint64x2
+	Opbroadcast1To16Float32x4
+	Opbroadcast1To16Int8x16
+	Opbroadcast1To16Int16x8
+	Opbroadcast1To16Int32x4
+	Opbroadcast1To16MaskedFloat32x4
+	Opbroadcast1To16MaskedInt8x16
+	Opbroadcast1To16MaskedInt16x8
+	Opbroadcast1To16MaskedInt32x4
+	Opbroadcast1To16MaskedUint8x16
+	Opbroadcast1To16MaskedUint16x8
+	Opbroadcast1To16MaskedUint32x4
+	Opbroadcast1To16Uint8x16
+	Opbroadcast1To16Uint16x8
+	Opbroadcast1To16Uint32x4
+	Opbroadcast1To32Int8x16
+	Opbroadcast1To32Int16x8
+	Opbroadcast1To32MaskedInt8x16
+	Opbroadcast1To32MaskedInt16x8
+	Opbroadcast1To32MaskedUint8x16
+	Opbroadcast1To32MaskedUint16x8
+	Opbroadcast1To32Uint8x16
+	Opbroadcast1To32Uint16x8
+	Opbroadcast1To64Int8x16
+	Opbroadcast1To64MaskedInt8x16
+	Opbroadcast1To64MaskedUint8x16
+	Opbroadcast1To64Uint8x16
 	OpAESRoundKeyGenAssistUint32x4
 	OpCeilScaledFloat32x4
 	OpCeilScaledFloat32x8
@@ -90401,156 +90431,6 @@ var opcodeTable = [...]opInfo{
 		generic:     true,
 	},
 	{
-		name:    "Broadcast1To2Float64x2",
-		argLen:  1,
-		generic: true,
-	},
-	{
-		name:    "Broadcast1To2Int64x2",
-		argLen:  1,
-		generic: true,
-	},
-	{
-		name:    "Broadcast1To2Uint64x2",
-		argLen:  1,
-		generic: true,
-	},
-	{
-		name:    "Broadcast1To4Float32x4",
-		argLen:  1,
-		generic: true,
-	},
-	{
-		name:    "Broadcast1To4Float64x2",
-		argLen:  1,
-		generic: true,
-	},
-	{
-		name:    "Broadcast1To4Int32x4",
-		argLen:  1,
-		generic: true,
-	},
-	{
-		name:    "Broadcast1To4Int64x2",
-		argLen:  1,
-		generic: true,
-	},
-	{
-		name:    "Broadcast1To4Uint32x4",
-		argLen:  1,
-		generic: true,
-	},
-	{
-		name:    "Broadcast1To4Uint64x2",
-		argLen:  1,
-		generic: true,
-	},
-	{
-		name:    "Broadcast1To8Float32x4",
-		argLen:  1,
-		generic: true,
-	},
-	{
-		name:    "Broadcast1To8Float64x2",
-		argLen:  1,
-		generic: true,
-	},
-	{
-		name:    "Broadcast1To8Int16x8",
-		argLen:  1,
-		generic: true,
-	},
-	{
-		name:    "Broadcast1To8Int32x4",
-		argLen:  1,
-		generic: true,
-	},
-	{
-		name:    "Broadcast1To8Int64x2",
-		argLen:  1,
-		generic: true,
-	},
-	{
-		name:    "Broadcast1To8Uint16x8",
-		argLen:  1,
-		generic: true,
-	},
-	{
-		name:    "Broadcast1To8Uint32x4",
-		argLen:  1,
-		generic: true,
-	},
-	{
-		name:    "Broadcast1To8Uint64x2",
-		argLen:  1,
-		generic: true,
-	},
-	{
-		name:    "Broadcast1To16Float32x4",
-		argLen:  1,
-		generic: true,
-	},
-	{
-		name:    "Broadcast1To16Int8x16",
-		argLen:  1,
-		generic: true,
-	},
-	{
-		name:    "Broadcast1To16Int16x8",
-		argLen:  1,
-		generic: true,
-	},
-	{
-		name:    "Broadcast1To16Int32x4",
-		argLen:  1,
-		generic: true,
-	},
-	{
-		name:    "Broadcast1To16Uint8x16",
-		argLen:  1,
-		generic: true,
-	},
-	{
-		name:    "Broadcast1To16Uint16x8",
-		argLen:  1,
-		generic: true,
-	},
-	{
-		name:    "Broadcast1To16Uint32x4",
-		argLen:  1,
-		generic: true,
-	},
-	{
-		name:    "Broadcast1To32Int8x16",
-		argLen:  1,
-		generic: true,
-	},
-	{
-		name:    "Broadcast1To32Int16x8",
-		argLen:  1,
-		generic: true,
-	},
-	{
-		name:    "Broadcast1To32Uint8x16",
-		argLen:  1,
-		generic: true,
-	},
-	{
-		name:    "Broadcast1To32Uint16x8",
-		argLen:  1,
-		generic: true,
-	},
-	{
-		name:    "Broadcast1To64Int8x16",
-		argLen:  1,
-		generic: true,
-	},
-	{
-		name:    "Broadcast1To64Uint8x16",
-		argLen:  1,
-		generic: true,
-	},
-	{
 		name:    "CeilFloat32x4",
 		argLen:  1,
 		generic: true,
@@ -95569,6 +95449,306 @@ var opcodeTable = [...]opInfo{
 	{
 		name:    "blendMaskedInt64x8",
 		argLen:  3,
+		generic: true,
+	},
+	{
+		name:    "broadcast1To2Float64x2",
+		argLen:  1,
+		generic: true,
+	},
+	{
+		name:    "broadcast1To2Int64x2",
+		argLen:  1,
+		generic: true,
+	},
+	{
+		name:    "broadcast1To2MaskedFloat64x2",
+		argLen:  2,
+		generic: true,
+	},
+	{
+		name:    "broadcast1To2MaskedInt64x2",
+		argLen:  2,
+		generic: true,
+	},
+	{
+		name:    "broadcast1To2MaskedUint64x2",
+		argLen:  2,
+		generic: true,
+	},
+	{
+		name:    "broadcast1To2Uint64x2",
+		argLen:  1,
+		generic: true,
+	},
+	{
+		name:    "broadcast1To4Float32x4",
+		argLen:  1,
+		generic: true,
+	},
+	{
+		name:    "broadcast1To4Float64x2",
+		argLen:  1,
+		generic: true,
+	},
+	{
+		name:    "broadcast1To4Int32x4",
+		argLen:  1,
+		generic: true,
+	},
+	{
+		name:    "broadcast1To4Int64x2",
+		argLen:  1,
+		generic: true,
+	},
+	{
+		name:    "broadcast1To4MaskedFloat32x4",
+		argLen:  2,
+		generic: true,
+	},
+	{
+		name:    "broadcast1To4MaskedFloat64x2",
+		argLen:  2,
+		generic: true,
+	},
+	{
+		name:    "broadcast1To4MaskedInt32x4",
+		argLen:  2,
+		generic: true,
+	},
+	{
+		name:    "broadcast1To4MaskedInt64x2",
+		argLen:  2,
+		generic: true,
+	},
+	{
+		name:    "broadcast1To4MaskedUint32x4",
+		argLen:  2,
+		generic: true,
+	},
+	{
+		name:    "broadcast1To4MaskedUint64x2",
+		argLen:  2,
+		generic: true,
+	},
+	{
+		name:    "broadcast1To4Uint32x4",
+		argLen:  1,
+		generic: true,
+	},
+	{
+		name:    "broadcast1To4Uint64x2",
+		argLen:  1,
+		generic: true,
+	},
+	{
+		name:    "broadcast1To8Float32x4",
+		argLen:  1,
+		generic: true,
+	},
+	{
+		name:    "broadcast1To8Float64x2",
+		argLen:  1,
+		generic: true,
+	},
+	{
+		name:    "broadcast1To8Int16x8",
+		argLen:  1,
+		generic: true,
+	},
+	{
+		name:    "broadcast1To8Int32x4",
+		argLen:  1,
+		generic: true,
+	},
+	{
+		name:    "broadcast1To8Int64x2",
+		argLen:  1,
+		generic: true,
+	},
+	{
+		name:    "broadcast1To8MaskedFloat32x4",
+		argLen:  2,
+		generic: true,
+	},
+	{
+		name:    "broadcast1To8MaskedFloat64x2",
+		argLen:  2,
+		generic: true,
+	},
+	{
+		name:    "broadcast1To8MaskedInt16x8",
+		argLen:  2,
+		generic: true,
+	},
+	{
+		name:    "broadcast1To8MaskedInt32x4",
+		argLen:  2,
+		generic: true,
+	},
+	{
+		name:    "broadcast1To8MaskedInt64x2",
+		argLen:  2,
+		generic: true,
+	},
+	{
+		name:    "broadcast1To8MaskedUint16x8",
+		argLen:  2,
+		generic: true,
+	},
+	{
+		name:    "broadcast1To8MaskedUint32x4",
+		argLen:  2,
+		generic: true,
+	},
+	{
+		name:    "broadcast1To8MaskedUint64x2",
+		argLen:  2,
+		generic: true,
+	},
+	{
+		name:    "broadcast1To8Uint16x8",
+		argLen:  1,
+		generic: true,
+	},
+	{
+		name:    "broadcast1To8Uint32x4",
+		argLen:  1,
+		generic: true,
+	},
+	{
+		name:    "broadcast1To8Uint64x2",
+		argLen:  1,
+		generic: true,
+	},
+	{
+		name:    "broadcast1To16Float32x4",
+		argLen:  1,
+		generic: true,
+	},
+	{
+		name:    "broadcast1To16Int8x16",
+		argLen:  1,
+		generic: true,
+	},
+	{
+		name:    "broadcast1To16Int16x8",
+		argLen:  1,
+		generic: true,
+	},
+	{
+		name:    "broadcast1To16Int32x4",
+		argLen:  1,
+		generic: true,
+	},
+	{
+		name:    "broadcast1To16MaskedFloat32x4",
+		argLen:  2,
+		generic: true,
+	},
+	{
+		name:    "broadcast1To16MaskedInt8x16",
+		argLen:  2,
+		generic: true,
+	},
+	{
+		name:    "broadcast1To16MaskedInt16x8",
+		argLen:  2,
+		generic: true,
+	},
+	{
+		name:    "broadcast1To16MaskedInt32x4",
+		argLen:  2,
+		generic: true,
+	},
+	{
+		name:    "broadcast1To16MaskedUint8x16",
+		argLen:  2,
+		generic: true,
+	},
+	{
+		name:    "broadcast1To16MaskedUint16x8",
+		argLen:  2,
+		generic: true,
+	},
+	{
+		name:    "broadcast1To16MaskedUint32x4",
+		argLen:  2,
+		generic: true,
+	},
+	{
+		name:    "broadcast1To16Uint8x16",
+		argLen:  1,
+		generic: true,
+	},
+	{
+		name:    "broadcast1To16Uint16x8",
+		argLen:  1,
+		generic: true,
+	},
+	{
+		name:    "broadcast1To16Uint32x4",
+		argLen:  1,
+		generic: true,
+	},
+	{
+		name:    "broadcast1To32Int8x16",
+		argLen:  1,
+		generic: true,
+	},
+	{
+		name:    "broadcast1To32Int16x8",
+		argLen:  1,
+		generic: true,
+	},
+	{
+		name:    "broadcast1To32MaskedInt8x16",
+		argLen:  2,
+		generic: true,
+	},
+	{
+		name:    "broadcast1To32MaskedInt16x8",
+		argLen:  2,
+		generic: true,
+	},
+	{
+		name:    "broadcast1To32MaskedUint8x16",
+		argLen:  2,
+		generic: true,
+	},
+	{
+		name:    "broadcast1To32MaskedUint16x8",
+		argLen:  2,
+		generic: true,
+	},
+	{
+		name:    "broadcast1To32Uint8x16",
+		argLen:  1,
+		generic: true,
+	},
+	{
+		name:    "broadcast1To32Uint16x8",
+		argLen:  1,
+		generic: true,
+	},
+	{
+		name:    "broadcast1To64Int8x16",
+		argLen:  1,
+		generic: true,
+	},
+	{
+		name:    "broadcast1To64MaskedInt8x16",
+		argLen:  2,
+		generic: true,
+	},
+	{
+		name:    "broadcast1To64MaskedUint8x16",
+		argLen:  2,
+		generic: true,
+	},
+	{
+		name:    "broadcast1To64Uint8x16",
+		argLen:  1,
 		generic: true,
 	},
 	{
