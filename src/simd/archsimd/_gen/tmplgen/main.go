@@ -558,20 +558,21 @@ func test{{.VType}}CompareMasked(t *testing.T,
 `)
 
 var avx512MaskedLoadSliceTemplate = shapedTemplateOf(avx512Shapes, "avx 512 load slice part", `
-// Load{{.VType}}Part loads a {{.VType}} from the slice s.
+// Load{{.VType}}Part loads a {{.VType}} from the slice s, it returns the loaded vector and the
+// number of elements loaded.
 // If s has fewer than {{.Count}} elements, the remaining elements of the vector are filled with zeroes.
 // If s has {{.Count}} or more elements, the function is equivalent to Load{{.VType}}Slice.
-func Load{{.VType}}Part(s []{{.Etype}}) {{.VType}} {
+func Load{{.VType}}Part(s []{{.Etype}}) ({{.VType}}, int) {
 	l := len(s)
 	if l >= {{.Count}} {
-		return Load{{.VType}}(s)
+		return Load{{.VType}}(s), {{.Count}}
 	}
 	if l == 0 {
 		var x {{.VType}}
-		return x
+		return x, 0
 	}
 	mask := Mask{{.WxC}}FromBits({{.OxFF}} >> ({{.Count}} - l))
-	return Load{{.VType}}Array(pa{{.VType}}(s)).Masked(mask)
+	return Load{{.VType}}Array(pa{{.VType}}(s)).Masked(mask), l
 }
 
 // StorePart stores the {{.Count}} elements of x into the slice s.
@@ -592,20 +593,21 @@ func (x {{.VType}}) StorePart(s []{{.Etype}}) {
 `)
 
 var avx2MaskedLoadSliceTemplate = shapedTemplateOf(avx2MaskedLoadShapes, "avx 2 load slice part", `
-// Load{{.VType}}Part loads a {{.VType}} from the slice s.
+// Load{{.VType}}Part loads a {{.VType}} from the slice s, it returns the loaded vector and the
+// number of elements loaded.
 // If s has fewer than {{.Count}} elements, the remaining elements of the vector are filled with zeroes.
 // If s has {{.Count}} or more elements, the function is equivalent to Load{{.VType}}Slice.
-func Load{{.VType}}Part(s []{{.Etype}}) {{.VType}} {
+func Load{{.VType}}Part(s []{{.Etype}}) ({{.VType}}, int) {
 	l := len(s)
 	if l >= {{.Count}} {
-		return Load{{.VType}}(s)
+		return Load{{.VType}}(s), {{.Count}}
 	}
 	if l == 0 {
 		var x {{.VType}}
-		return x
+		return x, 0
 	}
 	mask := vecMask{{.EWidth}}[len(vecMask{{.EWidth}})/2-l:]
-	return Load{{.VType}}Array(pa{{.VType}}(s)).Masked(LoadInt{{.WxC}}(mask).asMask())
+	return Load{{.VType}}Array(pa{{.VType}}(s)).Masked(LoadInt{{.WxC}}(mask).asMask()), l
 }
 
 // StorePart stores the {{.Count}} elements of x into the slice s.
@@ -626,16 +628,18 @@ func (x {{.VType}}) StorePart(s []{{.Etype}}) {
 `)
 
 var avx2SmallLoadSliceTemplate = shapedTemplateOf(avx2SmallLoadPunShapes, "avx 2 small load slice part", `
-// Load{{.VType}}Part loads a {{.VType}} from the slice s.
+// Load{{.VType}}Part loads a {{.VType}} from the slice s, it returns the loaded vector and the
+// number of elements loaded.
 // If s has fewer than {{.Count}} elements, the remaining elements of the vector are filled with zeroes.
 // If s has {{.Count}} or more elements, the function is equivalent to Load{{.VType}}Slice.
-func Load{{.VType}}Part(s []{{.Etype}}) {{.VType}} {
+func Load{{.VType}}Part(s []{{.Etype}}) ({{.VType}}, int) {
 	if len(s) == 0 {
 		var zero {{.VType}}
-		return zero
+		return zero, 0
 	}
 	t := unsafe.Slice((*int{{.EWidth}})(unsafe.Pointer(&s[0])), len(s))
-	return LoadInt{{.WxC}}Part(t).As{{.VType}}()
+	v, l := LoadInt{{.WxC}}Part(t)
+	return v.As{{.VType}}(), l
 }
 
 // StorePart stores the {{.Count}} elements of x into the slice s.

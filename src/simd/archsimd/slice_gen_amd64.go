@@ -366,20 +366,21 @@ func (x Float64x8) Store(s []float64) {
 	x.StoreArray((*[8]float64)(s))
 }
 
-// LoadInt8x64Part loads a Int8x64 from the slice s.
+// LoadInt8x64Part loads a Int8x64 from the slice s, it returns the loaded vector and the
+// number of elements loaded.
 // If s has fewer than 64 elements, the remaining elements of the vector are filled with zeroes.
 // If s has 64 or more elements, the function is equivalent to LoadInt8x64Slice.
-func LoadInt8x64Part(s []int8) Int8x64 {
+func LoadInt8x64Part(s []int8) (Int8x64, int) {
 	l := len(s)
 	if l >= 64 {
-		return LoadInt8x64(s)
+		return LoadInt8x64(s), 64
 	}
 	if l == 0 {
 		var x Int8x64
-		return x
+		return x, 0
 	}
 	mask := Mask8x64FromBits(0xffffffffffffffff >> (64 - l))
-	return LoadInt8x64Array(paInt8x64(s)).Masked(mask)
+	return LoadInt8x64Array(paInt8x64(s)).Masked(mask), l
 }
 
 // StorePart stores the 64 elements of x into the slice s.
@@ -398,20 +399,21 @@ func (x Int8x64) StorePart(s []int8) {
 	x.StoreArrayMasked(paInt8x64(s), mask)
 }
 
-// LoadInt16x32Part loads a Int16x32 from the slice s.
+// LoadInt16x32Part loads a Int16x32 from the slice s, it returns the loaded vector and the
+// number of elements loaded.
 // If s has fewer than 32 elements, the remaining elements of the vector are filled with zeroes.
 // If s has 32 or more elements, the function is equivalent to LoadInt16x32Slice.
-func LoadInt16x32Part(s []int16) Int16x32 {
+func LoadInt16x32Part(s []int16) (Int16x32, int) {
 	l := len(s)
 	if l >= 32 {
-		return LoadInt16x32(s)
+		return LoadInt16x32(s), 32
 	}
 	if l == 0 {
 		var x Int16x32
-		return x
+		return x, 0
 	}
 	mask := Mask16x32FromBits(0xffffffff >> (32 - l))
-	return LoadInt16x32Array(paInt16x32(s)).Masked(mask)
+	return LoadInt16x32Array(paInt16x32(s)).Masked(mask), l
 }
 
 // StorePart stores the 32 elements of x into the slice s.
@@ -430,20 +432,21 @@ func (x Int16x32) StorePart(s []int16) {
 	x.StoreArrayMasked(paInt16x32(s), mask)
 }
 
-// LoadInt32x16Part loads a Int32x16 from the slice s.
+// LoadInt32x16Part loads a Int32x16 from the slice s, it returns the loaded vector and the
+// number of elements loaded.
 // If s has fewer than 16 elements, the remaining elements of the vector are filled with zeroes.
 // If s has 16 or more elements, the function is equivalent to LoadInt32x16Slice.
-func LoadInt32x16Part(s []int32) Int32x16 {
+func LoadInt32x16Part(s []int32) (Int32x16, int) {
 	l := len(s)
 	if l >= 16 {
-		return LoadInt32x16(s)
+		return LoadInt32x16(s), 16
 	}
 	if l == 0 {
 		var x Int32x16
-		return x
+		return x, 0
 	}
 	mask := Mask32x16FromBits(0xffff >> (16 - l))
-	return LoadInt32x16Array(paInt32x16(s)).Masked(mask)
+	return LoadInt32x16Array(paInt32x16(s)).Masked(mask), l
 }
 
 // StorePart stores the 16 elements of x into the slice s.
@@ -462,20 +465,21 @@ func (x Int32x16) StorePart(s []int32) {
 	x.StoreArrayMasked(paInt32x16(s), mask)
 }
 
-// LoadInt64x8Part loads a Int64x8 from the slice s.
+// LoadInt64x8Part loads a Int64x8 from the slice s, it returns the loaded vector and the
+// number of elements loaded.
 // If s has fewer than 8 elements, the remaining elements of the vector are filled with zeroes.
 // If s has 8 or more elements, the function is equivalent to LoadInt64x8Slice.
-func LoadInt64x8Part(s []int64) Int64x8 {
+func LoadInt64x8Part(s []int64) (Int64x8, int) {
 	l := len(s)
 	if l >= 8 {
-		return LoadInt64x8(s)
+		return LoadInt64x8(s), 8
 	}
 	if l == 0 {
 		var x Int64x8
-		return x
+		return x, 0
 	}
 	mask := Mask64x8FromBits(0xff >> (8 - l))
-	return LoadInt64x8Array(paInt64x8(s)).Masked(mask)
+	return LoadInt64x8Array(paInt64x8(s)).Masked(mask), l
 }
 
 // StorePart stores the 8 elements of x into the slice s.
@@ -494,20 +498,21 @@ func (x Int64x8) StorePart(s []int64) {
 	x.StoreArrayMasked(paInt64x8(s), mask)
 }
 
-// LoadUint8x64Part loads a Uint8x64 from the slice s.
+// LoadUint8x64Part loads a Uint8x64 from the slice s, it returns the loaded vector and the
+// number of elements loaded.
 // If s has fewer than 64 elements, the remaining elements of the vector are filled with zeroes.
 // If s has 64 or more elements, the function is equivalent to LoadUint8x64Slice.
-func LoadUint8x64Part(s []uint8) Uint8x64 {
+func LoadUint8x64Part(s []uint8) (Uint8x64, int) {
 	l := len(s)
 	if l >= 64 {
-		return LoadUint8x64(s)
+		return LoadUint8x64(s), 64
 	}
 	if l == 0 {
 		var x Uint8x64
-		return x
+		return x, 0
 	}
 	mask := Mask8x64FromBits(0xffffffffffffffff >> (64 - l))
-	return LoadUint8x64Array(paUint8x64(s)).Masked(mask)
+	return LoadUint8x64Array(paUint8x64(s)).Masked(mask), l
 }
 
 // StorePart stores the 64 elements of x into the slice s.
@@ -526,20 +531,21 @@ func (x Uint8x64) StorePart(s []uint8) {
 	x.StoreArrayMasked(paUint8x64(s), mask)
 }
 
-// LoadUint16x32Part loads a Uint16x32 from the slice s.
+// LoadUint16x32Part loads a Uint16x32 from the slice s, it returns the loaded vector and the
+// number of elements loaded.
 // If s has fewer than 32 elements, the remaining elements of the vector are filled with zeroes.
 // If s has 32 or more elements, the function is equivalent to LoadUint16x32Slice.
-func LoadUint16x32Part(s []uint16) Uint16x32 {
+func LoadUint16x32Part(s []uint16) (Uint16x32, int) {
 	l := len(s)
 	if l >= 32 {
-		return LoadUint16x32(s)
+		return LoadUint16x32(s), 32
 	}
 	if l == 0 {
 		var x Uint16x32
-		return x
+		return x, 0
 	}
 	mask := Mask16x32FromBits(0xffffffff >> (32 - l))
-	return LoadUint16x32Array(paUint16x32(s)).Masked(mask)
+	return LoadUint16x32Array(paUint16x32(s)).Masked(mask), l
 }
 
 // StorePart stores the 32 elements of x into the slice s.
@@ -558,20 +564,21 @@ func (x Uint16x32) StorePart(s []uint16) {
 	x.StoreArrayMasked(paUint16x32(s), mask)
 }
 
-// LoadUint32x16Part loads a Uint32x16 from the slice s.
+// LoadUint32x16Part loads a Uint32x16 from the slice s, it returns the loaded vector and the
+// number of elements loaded.
 // If s has fewer than 16 elements, the remaining elements of the vector are filled with zeroes.
 // If s has 16 or more elements, the function is equivalent to LoadUint32x16Slice.
-func LoadUint32x16Part(s []uint32) Uint32x16 {
+func LoadUint32x16Part(s []uint32) (Uint32x16, int) {
 	l := len(s)
 	if l >= 16 {
-		return LoadUint32x16(s)
+		return LoadUint32x16(s), 16
 	}
 	if l == 0 {
 		var x Uint32x16
-		return x
+		return x, 0
 	}
 	mask := Mask32x16FromBits(0xffff >> (16 - l))
-	return LoadUint32x16Array(paUint32x16(s)).Masked(mask)
+	return LoadUint32x16Array(paUint32x16(s)).Masked(mask), l
 }
 
 // StorePart stores the 16 elements of x into the slice s.
@@ -590,20 +597,21 @@ func (x Uint32x16) StorePart(s []uint32) {
 	x.StoreArrayMasked(paUint32x16(s), mask)
 }
 
-// LoadUint64x8Part loads a Uint64x8 from the slice s.
+// LoadUint64x8Part loads a Uint64x8 from the slice s, it returns the loaded vector and the
+// number of elements loaded.
 // If s has fewer than 8 elements, the remaining elements of the vector are filled with zeroes.
 // If s has 8 or more elements, the function is equivalent to LoadUint64x8Slice.
-func LoadUint64x8Part(s []uint64) Uint64x8 {
+func LoadUint64x8Part(s []uint64) (Uint64x8, int) {
 	l := len(s)
 	if l >= 8 {
-		return LoadUint64x8(s)
+		return LoadUint64x8(s), 8
 	}
 	if l == 0 {
 		var x Uint64x8
-		return x
+		return x, 0
 	}
 	mask := Mask64x8FromBits(0xff >> (8 - l))
-	return LoadUint64x8Array(paUint64x8(s)).Masked(mask)
+	return LoadUint64x8Array(paUint64x8(s)).Masked(mask), l
 }
 
 // StorePart stores the 8 elements of x into the slice s.
@@ -622,20 +630,21 @@ func (x Uint64x8) StorePart(s []uint64) {
 	x.StoreArrayMasked(paUint64x8(s), mask)
 }
 
-// LoadFloat32x16Part loads a Float32x16 from the slice s.
+// LoadFloat32x16Part loads a Float32x16 from the slice s, it returns the loaded vector and the
+// number of elements loaded.
 // If s has fewer than 16 elements, the remaining elements of the vector are filled with zeroes.
 // If s has 16 or more elements, the function is equivalent to LoadFloat32x16Slice.
-func LoadFloat32x16Part(s []float32) Float32x16 {
+func LoadFloat32x16Part(s []float32) (Float32x16, int) {
 	l := len(s)
 	if l >= 16 {
-		return LoadFloat32x16(s)
+		return LoadFloat32x16(s), 16
 	}
 	if l == 0 {
 		var x Float32x16
-		return x
+		return x, 0
 	}
 	mask := Mask32x16FromBits(0xffff >> (16 - l))
-	return LoadFloat32x16Array(paFloat32x16(s)).Masked(mask)
+	return LoadFloat32x16Array(paFloat32x16(s)).Masked(mask), l
 }
 
 // StorePart stores the 16 elements of x into the slice s.
@@ -654,20 +663,21 @@ func (x Float32x16) StorePart(s []float32) {
 	x.StoreArrayMasked(paFloat32x16(s), mask)
 }
 
-// LoadFloat64x8Part loads a Float64x8 from the slice s.
+// LoadFloat64x8Part loads a Float64x8 from the slice s, it returns the loaded vector and the
+// number of elements loaded.
 // If s has fewer than 8 elements, the remaining elements of the vector are filled with zeroes.
 // If s has 8 or more elements, the function is equivalent to LoadFloat64x8Slice.
-func LoadFloat64x8Part(s []float64) Float64x8 {
+func LoadFloat64x8Part(s []float64) (Float64x8, int) {
 	l := len(s)
 	if l >= 8 {
-		return LoadFloat64x8(s)
+		return LoadFloat64x8(s), 8
 	}
 	if l == 0 {
 		var x Float64x8
-		return x
+		return x, 0
 	}
 	mask := Mask64x8FromBits(0xff >> (8 - l))
-	return LoadFloat64x8Array(paFloat64x8(s)).Masked(mask)
+	return LoadFloat64x8Array(paFloat64x8(s)).Masked(mask), l
 }
 
 // StorePart stores the 8 elements of x into the slice s.
@@ -686,20 +696,21 @@ func (x Float64x8) StorePart(s []float64) {
 	x.StoreArrayMasked(paFloat64x8(s), mask)
 }
 
-// LoadInt32x4Part loads a Int32x4 from the slice s.
+// LoadInt32x4Part loads a Int32x4 from the slice s, it returns the loaded vector and the
+// number of elements loaded.
 // If s has fewer than 4 elements, the remaining elements of the vector are filled with zeroes.
 // If s has 4 or more elements, the function is equivalent to LoadInt32x4Slice.
-func LoadInt32x4Part(s []int32) Int32x4 {
+func LoadInt32x4Part(s []int32) (Int32x4, int) {
 	l := len(s)
 	if l >= 4 {
-		return LoadInt32x4(s)
+		return LoadInt32x4(s), 4
 	}
 	if l == 0 {
 		var x Int32x4
-		return x
+		return x, 0
 	}
 	mask := vecMask32[len(vecMask32)/2-l:]
-	return LoadInt32x4Array(paInt32x4(s)).Masked(LoadInt32x4(mask).asMask())
+	return LoadInt32x4Array(paInt32x4(s)).Masked(LoadInt32x4(mask).asMask()), l
 }
 
 // StorePart stores the 4 elements of x into the slice s.
@@ -718,20 +729,21 @@ func (x Int32x4) StorePart(s []int32) {
 	x.StoreArrayMasked(paInt32x4(s), LoadInt32x4(mask).asMask())
 }
 
-// LoadInt64x2Part loads a Int64x2 from the slice s.
+// LoadInt64x2Part loads a Int64x2 from the slice s, it returns the loaded vector and the
+// number of elements loaded.
 // If s has fewer than 2 elements, the remaining elements of the vector are filled with zeroes.
 // If s has 2 or more elements, the function is equivalent to LoadInt64x2Slice.
-func LoadInt64x2Part(s []int64) Int64x2 {
+func LoadInt64x2Part(s []int64) (Int64x2, int) {
 	l := len(s)
 	if l >= 2 {
-		return LoadInt64x2(s)
+		return LoadInt64x2(s), 2
 	}
 	if l == 0 {
 		var x Int64x2
-		return x
+		return x, 0
 	}
 	mask := vecMask64[len(vecMask64)/2-l:]
-	return LoadInt64x2Array(paInt64x2(s)).Masked(LoadInt64x2(mask).asMask())
+	return LoadInt64x2Array(paInt64x2(s)).Masked(LoadInt64x2(mask).asMask()), l
 }
 
 // StorePart stores the 2 elements of x into the slice s.
@@ -750,20 +762,21 @@ func (x Int64x2) StorePart(s []int64) {
 	x.StoreArrayMasked(paInt64x2(s), LoadInt64x2(mask).asMask())
 }
 
-// LoadUint32x4Part loads a Uint32x4 from the slice s.
+// LoadUint32x4Part loads a Uint32x4 from the slice s, it returns the loaded vector and the
+// number of elements loaded.
 // If s has fewer than 4 elements, the remaining elements of the vector are filled with zeroes.
 // If s has 4 or more elements, the function is equivalent to LoadUint32x4Slice.
-func LoadUint32x4Part(s []uint32) Uint32x4 {
+func LoadUint32x4Part(s []uint32) (Uint32x4, int) {
 	l := len(s)
 	if l >= 4 {
-		return LoadUint32x4(s)
+		return LoadUint32x4(s), 4
 	}
 	if l == 0 {
 		var x Uint32x4
-		return x
+		return x, 0
 	}
 	mask := vecMask32[len(vecMask32)/2-l:]
-	return LoadUint32x4Array(paUint32x4(s)).Masked(LoadInt32x4(mask).asMask())
+	return LoadUint32x4Array(paUint32x4(s)).Masked(LoadInt32x4(mask).asMask()), l
 }
 
 // StorePart stores the 4 elements of x into the slice s.
@@ -782,20 +795,21 @@ func (x Uint32x4) StorePart(s []uint32) {
 	x.StoreArrayMasked(paUint32x4(s), LoadInt32x4(mask).asMask())
 }
 
-// LoadUint64x2Part loads a Uint64x2 from the slice s.
+// LoadUint64x2Part loads a Uint64x2 from the slice s, it returns the loaded vector and the
+// number of elements loaded.
 // If s has fewer than 2 elements, the remaining elements of the vector are filled with zeroes.
 // If s has 2 or more elements, the function is equivalent to LoadUint64x2Slice.
-func LoadUint64x2Part(s []uint64) Uint64x2 {
+func LoadUint64x2Part(s []uint64) (Uint64x2, int) {
 	l := len(s)
 	if l >= 2 {
-		return LoadUint64x2(s)
+		return LoadUint64x2(s), 2
 	}
 	if l == 0 {
 		var x Uint64x2
-		return x
+		return x, 0
 	}
 	mask := vecMask64[len(vecMask64)/2-l:]
-	return LoadUint64x2Array(paUint64x2(s)).Masked(LoadInt64x2(mask).asMask())
+	return LoadUint64x2Array(paUint64x2(s)).Masked(LoadInt64x2(mask).asMask()), l
 }
 
 // StorePart stores the 2 elements of x into the slice s.
@@ -814,20 +828,21 @@ func (x Uint64x2) StorePart(s []uint64) {
 	x.StoreArrayMasked(paUint64x2(s), LoadInt64x2(mask).asMask())
 }
 
-// LoadFloat32x4Part loads a Float32x4 from the slice s.
+// LoadFloat32x4Part loads a Float32x4 from the slice s, it returns the loaded vector and the
+// number of elements loaded.
 // If s has fewer than 4 elements, the remaining elements of the vector are filled with zeroes.
 // If s has 4 or more elements, the function is equivalent to LoadFloat32x4Slice.
-func LoadFloat32x4Part(s []float32) Float32x4 {
+func LoadFloat32x4Part(s []float32) (Float32x4, int) {
 	l := len(s)
 	if l >= 4 {
-		return LoadFloat32x4(s)
+		return LoadFloat32x4(s), 4
 	}
 	if l == 0 {
 		var x Float32x4
-		return x
+		return x, 0
 	}
 	mask := vecMask32[len(vecMask32)/2-l:]
-	return LoadFloat32x4Array(paFloat32x4(s)).Masked(LoadInt32x4(mask).asMask())
+	return LoadFloat32x4Array(paFloat32x4(s)).Masked(LoadInt32x4(mask).asMask()), l
 }
 
 // StorePart stores the 4 elements of x into the slice s.
@@ -846,20 +861,21 @@ func (x Float32x4) StorePart(s []float32) {
 	x.StoreArrayMasked(paFloat32x4(s), LoadInt32x4(mask).asMask())
 }
 
-// LoadFloat64x2Part loads a Float64x2 from the slice s.
+// LoadFloat64x2Part loads a Float64x2 from the slice s, it returns the loaded vector and the
+// number of elements loaded.
 // If s has fewer than 2 elements, the remaining elements of the vector are filled with zeroes.
 // If s has 2 or more elements, the function is equivalent to LoadFloat64x2Slice.
-func LoadFloat64x2Part(s []float64) Float64x2 {
+func LoadFloat64x2Part(s []float64) (Float64x2, int) {
 	l := len(s)
 	if l >= 2 {
-		return LoadFloat64x2(s)
+		return LoadFloat64x2(s), 2
 	}
 	if l == 0 {
 		var x Float64x2
-		return x
+		return x, 0
 	}
 	mask := vecMask64[len(vecMask64)/2-l:]
-	return LoadFloat64x2Array(paFloat64x2(s)).Masked(LoadInt64x2(mask).asMask())
+	return LoadFloat64x2Array(paFloat64x2(s)).Masked(LoadInt64x2(mask).asMask()), l
 }
 
 // StorePart stores the 2 elements of x into the slice s.
@@ -878,20 +894,21 @@ func (x Float64x2) StorePart(s []float64) {
 	x.StoreArrayMasked(paFloat64x2(s), LoadInt64x2(mask).asMask())
 }
 
-// LoadInt32x8Part loads a Int32x8 from the slice s.
+// LoadInt32x8Part loads a Int32x8 from the slice s, it returns the loaded vector and the
+// number of elements loaded.
 // If s has fewer than 8 elements, the remaining elements of the vector are filled with zeroes.
 // If s has 8 or more elements, the function is equivalent to LoadInt32x8Slice.
-func LoadInt32x8Part(s []int32) Int32x8 {
+func LoadInt32x8Part(s []int32) (Int32x8, int) {
 	l := len(s)
 	if l >= 8 {
-		return LoadInt32x8(s)
+		return LoadInt32x8(s), 8
 	}
 	if l == 0 {
 		var x Int32x8
-		return x
+		return x, 0
 	}
 	mask := vecMask32[len(vecMask32)/2-l:]
-	return LoadInt32x8Array(paInt32x8(s)).Masked(LoadInt32x8(mask).asMask())
+	return LoadInt32x8Array(paInt32x8(s)).Masked(LoadInt32x8(mask).asMask()), l
 }
 
 // StorePart stores the 8 elements of x into the slice s.
@@ -910,20 +927,21 @@ func (x Int32x8) StorePart(s []int32) {
 	x.StoreArrayMasked(paInt32x8(s), LoadInt32x8(mask).asMask())
 }
 
-// LoadInt64x4Part loads a Int64x4 from the slice s.
+// LoadInt64x4Part loads a Int64x4 from the slice s, it returns the loaded vector and the
+// number of elements loaded.
 // If s has fewer than 4 elements, the remaining elements of the vector are filled with zeroes.
 // If s has 4 or more elements, the function is equivalent to LoadInt64x4Slice.
-func LoadInt64x4Part(s []int64) Int64x4 {
+func LoadInt64x4Part(s []int64) (Int64x4, int) {
 	l := len(s)
 	if l >= 4 {
-		return LoadInt64x4(s)
+		return LoadInt64x4(s), 4
 	}
 	if l == 0 {
 		var x Int64x4
-		return x
+		return x, 0
 	}
 	mask := vecMask64[len(vecMask64)/2-l:]
-	return LoadInt64x4Array(paInt64x4(s)).Masked(LoadInt64x4(mask).asMask())
+	return LoadInt64x4Array(paInt64x4(s)).Masked(LoadInt64x4(mask).asMask()), l
 }
 
 // StorePart stores the 4 elements of x into the slice s.
@@ -942,20 +960,21 @@ func (x Int64x4) StorePart(s []int64) {
 	x.StoreArrayMasked(paInt64x4(s), LoadInt64x4(mask).asMask())
 }
 
-// LoadUint32x8Part loads a Uint32x8 from the slice s.
+// LoadUint32x8Part loads a Uint32x8 from the slice s, it returns the loaded vector and the
+// number of elements loaded.
 // If s has fewer than 8 elements, the remaining elements of the vector are filled with zeroes.
 // If s has 8 or more elements, the function is equivalent to LoadUint32x8Slice.
-func LoadUint32x8Part(s []uint32) Uint32x8 {
+func LoadUint32x8Part(s []uint32) (Uint32x8, int) {
 	l := len(s)
 	if l >= 8 {
-		return LoadUint32x8(s)
+		return LoadUint32x8(s), 8
 	}
 	if l == 0 {
 		var x Uint32x8
-		return x
+		return x, 0
 	}
 	mask := vecMask32[len(vecMask32)/2-l:]
-	return LoadUint32x8Array(paUint32x8(s)).Masked(LoadInt32x8(mask).asMask())
+	return LoadUint32x8Array(paUint32x8(s)).Masked(LoadInt32x8(mask).asMask()), l
 }
 
 // StorePart stores the 8 elements of x into the slice s.
@@ -974,20 +993,21 @@ func (x Uint32x8) StorePart(s []uint32) {
 	x.StoreArrayMasked(paUint32x8(s), LoadInt32x8(mask).asMask())
 }
 
-// LoadUint64x4Part loads a Uint64x4 from the slice s.
+// LoadUint64x4Part loads a Uint64x4 from the slice s, it returns the loaded vector and the
+// number of elements loaded.
 // If s has fewer than 4 elements, the remaining elements of the vector are filled with zeroes.
 // If s has 4 or more elements, the function is equivalent to LoadUint64x4Slice.
-func LoadUint64x4Part(s []uint64) Uint64x4 {
+func LoadUint64x4Part(s []uint64) (Uint64x4, int) {
 	l := len(s)
 	if l >= 4 {
-		return LoadUint64x4(s)
+		return LoadUint64x4(s), 4
 	}
 	if l == 0 {
 		var x Uint64x4
-		return x
+		return x, 0
 	}
 	mask := vecMask64[len(vecMask64)/2-l:]
-	return LoadUint64x4Array(paUint64x4(s)).Masked(LoadInt64x4(mask).asMask())
+	return LoadUint64x4Array(paUint64x4(s)).Masked(LoadInt64x4(mask).asMask()), l
 }
 
 // StorePart stores the 4 elements of x into the slice s.
@@ -1006,20 +1026,21 @@ func (x Uint64x4) StorePart(s []uint64) {
 	x.StoreArrayMasked(paUint64x4(s), LoadInt64x4(mask).asMask())
 }
 
-// LoadFloat32x8Part loads a Float32x8 from the slice s.
+// LoadFloat32x8Part loads a Float32x8 from the slice s, it returns the loaded vector and the
+// number of elements loaded.
 // If s has fewer than 8 elements, the remaining elements of the vector are filled with zeroes.
 // If s has 8 or more elements, the function is equivalent to LoadFloat32x8Slice.
-func LoadFloat32x8Part(s []float32) Float32x8 {
+func LoadFloat32x8Part(s []float32) (Float32x8, int) {
 	l := len(s)
 	if l >= 8 {
-		return LoadFloat32x8(s)
+		return LoadFloat32x8(s), 8
 	}
 	if l == 0 {
 		var x Float32x8
-		return x
+		return x, 0
 	}
 	mask := vecMask32[len(vecMask32)/2-l:]
-	return LoadFloat32x8Array(paFloat32x8(s)).Masked(LoadInt32x8(mask).asMask())
+	return LoadFloat32x8Array(paFloat32x8(s)).Masked(LoadInt32x8(mask).asMask()), l
 }
 
 // StorePart stores the 8 elements of x into the slice s.
@@ -1038,20 +1059,21 @@ func (x Float32x8) StorePart(s []float32) {
 	x.StoreArrayMasked(paFloat32x8(s), LoadInt32x8(mask).asMask())
 }
 
-// LoadFloat64x4Part loads a Float64x4 from the slice s.
+// LoadFloat64x4Part loads a Float64x4 from the slice s, it returns the loaded vector and the
+// number of elements loaded.
 // If s has fewer than 4 elements, the remaining elements of the vector are filled with zeroes.
 // If s has 4 or more elements, the function is equivalent to LoadFloat64x4Slice.
-func LoadFloat64x4Part(s []float64) Float64x4 {
+func LoadFloat64x4Part(s []float64) (Float64x4, int) {
 	l := len(s)
 	if l >= 4 {
-		return LoadFloat64x4(s)
+		return LoadFloat64x4(s), 4
 	}
 	if l == 0 {
 		var x Float64x4
-		return x
+		return x, 0
 	}
 	mask := vecMask64[len(vecMask64)/2-l:]
-	return LoadFloat64x4Array(paFloat64x4(s)).Masked(LoadInt64x4(mask).asMask())
+	return LoadFloat64x4Array(paFloat64x4(s)).Masked(LoadInt64x4(mask).asMask()), l
 }
 
 // StorePart stores the 4 elements of x into the slice s.
@@ -1070,16 +1092,18 @@ func (x Float64x4) StorePart(s []float64) {
 	x.StoreArrayMasked(paFloat64x4(s), LoadInt64x4(mask).asMask())
 }
 
-// LoadUint8x16Part loads a Uint8x16 from the slice s.
+// LoadUint8x16Part loads a Uint8x16 from the slice s, it returns the loaded vector and the
+// number of elements loaded.
 // If s has fewer than 16 elements, the remaining elements of the vector are filled with zeroes.
 // If s has 16 or more elements, the function is equivalent to LoadUint8x16Slice.
-func LoadUint8x16Part(s []uint8) Uint8x16 {
+func LoadUint8x16Part(s []uint8) (Uint8x16, int) {
 	if len(s) == 0 {
 		var zero Uint8x16
-		return zero
+		return zero, 0
 	}
 	t := unsafe.Slice((*int8)(unsafe.Pointer(&s[0])), len(s))
-	return LoadInt8x16Part(t).AsUint8x16()
+	v, l := LoadInt8x16Part(t)
+	return v.AsUint8x16(), l
 }
 
 // StorePart stores the 16 elements of x into the slice s.
@@ -1093,16 +1117,18 @@ func (x Uint8x16) StorePart(s []uint8) {
 	x.AsInt8x16().StorePart(t)
 }
 
-// LoadUint16x8Part loads a Uint16x8 from the slice s.
+// LoadUint16x8Part loads a Uint16x8 from the slice s, it returns the loaded vector and the
+// number of elements loaded.
 // If s has fewer than 8 elements, the remaining elements of the vector are filled with zeroes.
 // If s has 8 or more elements, the function is equivalent to LoadUint16x8Slice.
-func LoadUint16x8Part(s []uint16) Uint16x8 {
+func LoadUint16x8Part(s []uint16) (Uint16x8, int) {
 	if len(s) == 0 {
 		var zero Uint16x8
-		return zero
+		return zero, 0
 	}
 	t := unsafe.Slice((*int16)(unsafe.Pointer(&s[0])), len(s))
-	return LoadInt16x8Part(t).AsUint16x8()
+	v, l := LoadInt16x8Part(t)
+	return v.AsUint16x8(), l
 }
 
 // StorePart stores the 8 elements of x into the slice s.
@@ -1116,16 +1142,18 @@ func (x Uint16x8) StorePart(s []uint16) {
 	x.AsInt16x8().StorePart(t)
 }
 
-// LoadUint8x32Part loads a Uint8x32 from the slice s.
+// LoadUint8x32Part loads a Uint8x32 from the slice s, it returns the loaded vector and the
+// number of elements loaded.
 // If s has fewer than 32 elements, the remaining elements of the vector are filled with zeroes.
 // If s has 32 or more elements, the function is equivalent to LoadUint8x32Slice.
-func LoadUint8x32Part(s []uint8) Uint8x32 {
+func LoadUint8x32Part(s []uint8) (Uint8x32, int) {
 	if len(s) == 0 {
 		var zero Uint8x32
-		return zero
+		return zero, 0
 	}
 	t := unsafe.Slice((*int8)(unsafe.Pointer(&s[0])), len(s))
-	return LoadInt8x32Part(t).AsUint8x32()
+	v, l := LoadInt8x32Part(t)
+	return v.AsUint8x32(), l
 }
 
 // StorePart stores the 32 elements of x into the slice s.
@@ -1139,16 +1167,18 @@ func (x Uint8x32) StorePart(s []uint8) {
 	x.AsInt8x32().StorePart(t)
 }
 
-// LoadUint16x16Part loads a Uint16x16 from the slice s.
+// LoadUint16x16Part loads a Uint16x16 from the slice s, it returns the loaded vector and the
+// number of elements loaded.
 // If s has fewer than 16 elements, the remaining elements of the vector are filled with zeroes.
 // If s has 16 or more elements, the function is equivalent to LoadUint16x16Slice.
-func LoadUint16x16Part(s []uint16) Uint16x16 {
+func LoadUint16x16Part(s []uint16) (Uint16x16, int) {
 	if len(s) == 0 {
 		var zero Uint16x16
-		return zero
+		return zero, 0
 	}
 	t := unsafe.Slice((*int16)(unsafe.Pointer(&s[0])), len(s))
-	return LoadInt16x16Part(t).AsUint16x16()
+	v, l := LoadInt16x16Part(t)
+	return v.AsUint16x16(), l
 }
 
 // StorePart stores the 16 elements of x into the slice s.

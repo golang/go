@@ -66,38 +66,42 @@ var vecMask32 = [32]int32{
 // LoadInt8x32Part loads a Int8x32 from the slice s.
 // If s has fewer than 32 elements, the remaining elements of the vector are filled with zeroes.
 // If s has 32 or more elements, the function is equivalent to LoadInt8x32Slice.
-func LoadInt8x32Part(s []int8) Int8x32 {
+func LoadInt8x32Part(s []int8) (Int8x32, int) {
 	l := len(s)
 	if l >= 32 {
-		return LoadInt8x32(s)
+		return LoadInt8x32(s), 32
 	}
 	var x Int8x32
 	if l == 0 {
-		return x
+		return x, 0
 	}
 	if l > 16 {
-		return x.SetLo(LoadInt8x16(s)).SetHi(LoadInt8x16Part(s[16:]))
+		v, _ := LoadInt8x16Part(s[16:])
+		return x.SetLo(LoadInt8x16(s)).SetHi(v), l
 	} else {
-		return x.SetLo(LoadInt8x16Part(s))
+		v, _ := LoadInt8x16Part(s)
+		return x.SetLo(v), l
 	}
 }
 
 // LoadInt16x16Part loads a Int16x16 from the slice s.
 // If s has fewer than 16 elements, the remaining elements of the vector are filled with zeroes.
 // If s has 16 or more elements, the function is equivalent to LoadInt16x16Slice.
-func LoadInt16x16Part(s []int16) Int16x16 {
+func LoadInt16x16Part(s []int16) (Int16x16, int) {
 	l := len(s)
 	if l >= 16 {
-		return LoadInt16x16(s)
+		return LoadInt16x16(s), 16
 	}
 	var x Int16x16
 	if l == 0 {
-		return x
+		return x, 0
 	}
 	if l > 8 {
-		return x.SetLo(LoadInt16x8(s)).SetHi(LoadInt16x8Part(s[8:]))
+		v, _ := LoadInt16x8Part(s[8:])
+		return x.SetLo(LoadInt16x8(s)).SetHi(v), l
 	} else {
-		return x.SetLo(LoadInt16x8Part(s))
+		v, _ := LoadInt16x8Part(s)
+		return x.SetLo(v), l
 	}
 }
 
@@ -146,14 +150,14 @@ func (x Int16x16) StorePart(s []int16) {
 // LoadInt8x16Part loads a Int8x16 from the slice s.
 // If s has fewer than 16 elements, the remaining elements of the vector are filled with zeroes.
 // If s has 16 or more elements, the function is equivalent to LoadInt8x16Slice.
-func LoadInt8x16Part(s []int8) Int8x16 {
+func LoadInt8x16Part(s []int8) (Int8x16, int) {
 	l := len(s)
 	if l >= 16 {
-		return LoadInt8x16(s)
+		return LoadInt8x16(s), 16
 	}
 	var x Int8x16
 	if l == 0 {
-		return x
+		return x, 0
 	}
 	if l >= 8 { // 8-15
 		x = x.AsInt64x2().SetElem(0, *int64atP8(&s[0])).AsInt8x16()
@@ -193,7 +197,7 @@ func LoadInt8x16Part(s []int8) Int8x16 {
 	} else { // l == 1
 		x = x.SetElem(0, s[0])
 	}
-	return x
+	return x, l
 }
 
 // StorePart stores the elements of x into the slice s.
@@ -251,14 +255,14 @@ func (x Int8x16) StorePart(s []int8) {
 // LoadInt16x8Part loads a Int16x8 from the slice s.
 // If s has fewer than 8 elements, the remaining elements of the vector are filled with zeroes.
 // If s has 8 or more elements, the function is equivalent to LoadInt16x8Slice.
-func LoadInt16x8Part(s []int16) Int16x8 {
+func LoadInt16x8Part(s []int16) (Int16x8, int) {
 	l := len(s)
 	if l >= 8 {
-		return LoadInt16x8(s)
+		return LoadInt16x8(s), 8
 	}
 	var x Int16x8
 	if l == 0 {
-		return x
+		return x, 0
 	}
 	if l >= 4 { // 4-7
 		x = x.AsInt64x2().SetElem(0, *int64atP16(&s[0])).AsInt16x8()
@@ -278,7 +282,7 @@ func LoadInt16x8Part(s []int16) Int16x8 {
 	} else { // l == 1
 		x = x.SetElem(0, s[0])
 	}
-	return x
+	return x, l
 }
 
 // StorePart stores the elements of x into the slice s.

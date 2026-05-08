@@ -13,7 +13,7 @@ import (
 
 func TestPartInt8x16(t *testing.T) {
 	Do(t, 16, func(a, c []int8) {
-		u := archsimd.LoadInt8x16Part(a)
+		u, _ := archsimd.LoadInt8x16Part(a)
 		u.Store(c)
 	})
 }
@@ -24,7 +24,7 @@ func TestPartInt8x32(t *testing.T) {
 	b := []int8{1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16,
 		17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32}
 	for i := 32; i >= 0; i-- {
-		u := archsimd.LoadInt8x32Part(a[:i])
+		u, _ := archsimd.LoadInt8x32Part(a[:i])
 		c := make([]int8, 32, 32)
 		u.Store(c)
 		checkSlices(t, c, b)
@@ -38,7 +38,7 @@ func TestPartUint8x16(t *testing.T) {
 	a := []uint8{1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16}
 	b := []uint8{1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16}
 	for i := 16; i >= 0; i-- {
-		u := archsimd.LoadUint8x16Part(a[:i])
+		u, _ := archsimd.LoadUint8x16Part(a[:i])
 		c := make([]uint8, 32, 32)
 		u.Store(c)
 		checkSlices(t, c, b)
@@ -54,7 +54,7 @@ func TestPartUint8x32(t *testing.T) {
 	b := []uint8{1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16,
 		17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32}
 	for i := 32; i >= 0; i-- {
-		u := archsimd.LoadUint8x32Part(a[:i])
+		u, _ := archsimd.LoadUint8x32Part(a[:i])
 		c := make([]uint8, 32, 32)
 		u.Store(c)
 		checkSlices(t, c, b)
@@ -68,7 +68,7 @@ func TestPartInt16x8(t *testing.T) {
 	a := []int16{1, 2, 3, 4, 5, 6, 7, 8}
 	b := []int16{1, 2, 3, 4, 5, 6, 7, 8}
 	for i := 8; i >= 0; i-- {
-		u := archsimd.LoadInt16x8Part(a[:i])
+		u, _ := archsimd.LoadInt16x8Part(a[:i])
 		c := make([]int16, 16, 16)
 		u.Store(c)
 		checkSlices(t, c, b)
@@ -82,7 +82,7 @@ func TestPartInt16x16(t *testing.T) {
 	a := []int16{1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16}
 	b := []int16{1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16}
 	for i := 16; i >= 0; i-- {
-		u := archsimd.LoadInt16x16Part(a[:i])
+		u, _ := archsimd.LoadInt16x16Part(a[:i])
 		c := make([]int16, 16, 16)
 		u.Store(c)
 		checkSlices(t, c, b)
@@ -187,7 +187,7 @@ func TestPartInt32(t *testing.T) {
 		// Test the load first
 		// e is a partial slice.
 		e := a[i:]
-		v := archsimd.LoadInt32x4Part(e)
+		v, _ := archsimd.LoadInt32x4Part(e)
 		// d contains what a ought to contain
 		d := make([]int32, L)
 		for j := 0; j < len(e) && j < len(d); j++ {
@@ -228,7 +228,7 @@ func TestPartUint64(t *testing.T) {
 		// Test the load first
 		// e is a partial slice.
 		e := a[i:]
-		v := archsimd.LoadUint64x4Part(e)
+		v, _ := archsimd.LoadUint64x4Part(e)
 		// d contains what a ought to contain
 		d := make([]uint64, L)
 		for j := 0; j < len(e) && j < len(d); j++ {
@@ -269,7 +269,7 @@ func TestPartFloat64(t *testing.T) {
 		// Test the load first
 		// e is a partial slice.
 		e := a[i:]
-		v := archsimd.LoadFloat64x2Part(e)
+		v, _ := archsimd.LoadFloat64x2Part(e)
 		// d contains what a ought to contain
 		d := make([]float64, L)
 		for j := 0; j < len(e) && j < len(d); j++ {
@@ -310,7 +310,7 @@ func TestPartFloat32(t *testing.T) {
 		// Test the load first
 		// e is a partial slice.
 		e := a[i:]
-		v := archsimd.LoadFloat32x8Part(e)
+		v, _ := archsimd.LoadFloat32x8Part(e)
 		// d contains what a ought to contain
 		d := make([]float32, L)
 		for j := 0; j < len(e) && j < len(d); j++ {
@@ -357,7 +357,7 @@ func TestPartInt64(t *testing.T) {
 		// Test the load first
 		// e is a partial slice.
 		e := a[i:]
-		v := archsimd.LoadInt64x8Part(e)
+		v, _ := archsimd.LoadInt64x8Part(e)
 		// d contains what a ought to contain
 		d := make([]int64, L)
 		for j := 0; j < len(e) && j < len(d); j++ {
