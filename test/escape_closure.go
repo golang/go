@@ -282,3 +282,111 @@ func ClosureIndirectNilReassign() {
 	f = func(p *int) {} // ERROR "p does not escape" "func literal does not escape"
 	f(new(int))         // ERROR "new\(int\) does not escape"
 }
+
+func ClosureIndirectMultiAssign(b bool) {
+	var f func(p *int)
+	if b {
+		f = func(p *int) {} // ERROR "p does not escape" "func literal does not escape"
+	} else {
+		f = func(p *int) {} // ERROR "p does not escape" "func literal does not escape"
+	}
+	f(new(int)) // ERROR "new\(int\) does not escape"
+}
+
+func ClosureIndirectMultiAssignNamed(b bool) {
+	var f func(*int)
+	if b {
+		f = nopFunc
+	} else {
+		f = nopFunc
+	}
+	f(new(int)) // ERROR "new\(int\) does not escape"
+}
+
+func ClosureIndirectMultiAssignResult(b bool) *int {
+	var f func(p *int) *int
+	if b {
+		f = func(p *int) *int { return p } // ERROR "leaking param: p to result ~r0 level=0" "func literal does not escape"
+	} else {
+		f = func(p *int) *int { return p } // ERROR "leaking param: p to result ~r0 level=0" "func literal does not escape"
+	}
+	return f(new(int)) // ERROR "new\(int\) escapes to heap"
+}
+
+func ClosureIndirectMultiAssignSafe(b bool) int {
+	var f func(p *int) int
+	if b {
+		f = func(p *int) int { return *p } // ERROR "p does not escape" "func literal does not escape"
+	} else {
+		f = func(p *int) int { return 42 } // ERROR "p does not escape" "func literal does not escape"
+	}
+	return f(new(int)) // ERROR "new\(int\) does not escape"
+}
+
+func ClosureIndirectTripleAssign(x int) {
+	var f func(p *int)
+	switch x {
+	case 1:
+		f = func(p *int) {} // ERROR "p does not escape" "func literal does not escape"
+	case 2:
+		f = func(p *int) {} // ERROR "p does not escape" "func literal does not escape"
+	default:
+		f = func(p *int) {} // ERROR "p does not escape" "func literal does not escape"
+	}
+	f(new(int)) // ERROR "new\(int\) does not escape"
+}
+
+func ClosureIndirectReassignInit(b bool) {
+	f := func(p *int) {} // ERROR "p does not escape" "func literal does not escape"
+	if b {
+		f = func(p *int) {} // ERROR "p does not escape" "func literal does not escape"
+	}
+	f(new(int)) // ERROR "new\(int\) does not escape"
+}
+
+func ClosureIndirectNestedMultiAssign(b bool) {
+	var f func(p *int)
+	f = func(p *int) {} // ERROR "p does not escape" "func literal does not escape"
+	func() {            // ERROR "func literal does not escape"
+		f = func(p *int) {} // ERROR "p does not escape" "func literal escapes to heap"
+	}()
+	f(new(int)) // ERROR "new\(int\) does not escape"
+}
+
+type myFloat struct{ v float64 }
+
+func (f *myFloat) add(p *myFloat) *myFloat { // ERROR "leaking param: f to result ~r0 level=0" "p does not escape"
+	f.v += p.v
+	return f
+}
+
+func (f *myFloat) sub(p *myFloat) *myFloat { // ERROR "leaking param: f to result ~r0 level=0" "p does not escape"
+	f.v -= p.v
+	return f
+}
+
+func ClosureIndirectMethodExpr(b bool) {
+	var op func(*myFloat, *myFloat) *myFloat
+	if b {
+		op = (*myFloat).add
+	} else {
+		op = (*myFloat).sub
+	}
+	f := &myFloat{1.0} // ERROR "&myFloat{...} does not escape"
+	g := &myFloat{2.0} // ERROR "&myFloat{...} does not escape"
+	op(f, g)
+}
+
+func ClosureIndirectMethodExprMixed(b bool) {
+	var op func(*myFloat, *myFloat) *myFloat
+	if b {
+		op = (*myFloat).add
+	} else {
+		op = func(f, g *myFloat) *myFloat { // ERROR "f does not escape" "g does not escape" "func literal does not escape"
+			return nil
+		}
+	}
+	f := &myFloat{1.0} // ERROR "&myFloat{...} does not escape"
+	g := &myFloat{2.0} // ERROR "&myFloat{...} does not escape"
+	op(f, g)
+}

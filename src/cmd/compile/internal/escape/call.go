@@ -47,12 +47,7 @@ func (e *escape) call(ks []hole, call ir.Node) {
 			if fn := ir.StaticCalleeName(v); fn != nil {
 				fns = []*ir.Name{fn}
 			} else if name, ok := v.(*ir.Name); ok {
-				orig := name.Canonical()
-				if as := ir.FuncSingleAssignment(orig); as != nil {
-					if callee := ir.StaticCalleeName(as.Y); callee != nil {
-						fns = []*ir.Name{callee}
-					}
-				}
+				fns = resolveAssignedCallees(ir.FuncAssignments(name.Canonical()))
 			}
 		}
 
@@ -427,6 +422,27 @@ func (e *escape) tagHole(ks []hole, fn *ir.Name, param *types.Field) hole {
 	}
 
 	return e.teeHole(tagKs...)
+}
+
+// resolveAssignedCallees resolves all assignment RHS values to static
+// callee names, skipping zero-value assignments since nil panics on
+// call and can't cause escape.
+func resolveAssignedCallees(assigns []*ir.AssignStmt) []*ir.Name {
+	fns := make([]*ir.Name, 0, len(assigns))
+	for _, as := range assigns {
+		if ir.IsZero(as.Y) {
+			continue // zero value panics on call; skip
+		}
+		callee := ir.StaticCalleeName(as.Y)
+		if callee == nil {
+			return nil
+		}
+		if callee.Func != nil && callee.Func.Pragma&(ir.UintptrKeepAlive|ir.UintptrEscapes) != 0 {
+			return nil
+		}
+		fns = append(fns, callee)
+	}
+	return fns
 }
 
 func isEscapeNonString(fns []*ir.Name, fntype *types.Type) bool {

@@ -1020,19 +1020,18 @@ func Reassigned(name *Name) bool {
 	return Any(name.Curfn, do)
 }
 
-// FuncSingleAssignment returns the sole OAS *AssignStmt that assigns a
-// non-zero value to name, if name is a func-typed local variable (PAUTO)
-// with exactly one such assignment. Zero-value assignments (nil, bare
-// declarations) are ignored since nil panics on call. Returns nil if the
-// variable is not PAUTO, not func-typed, address-taken, has multiple
-// non-zero assignments, or has any complex assignments (OAS2, ORANGE).
-// Assignments inside nested closures are accepted because this is only
-// used for escape analysis callee resolution: the only alternative value
-// is nil, which panics on call.
+// FuncAssignments returns all simple (OAS) assignments of non-zero
+// values to name, if name is a func-typed local variable (PAUTO).
+// Zero-value assignments (nil, bare declarations) are ignored since
+// nil panics on call. Returns nil if the variable is not PAUTO, not
+// func-typed, address-taken, has any complex assignment (OAS2, ORANGE),
+// or has too many assignments. Assignments inside nested closures are
+// accepted because this is only used for escape analysis callee
+// resolution: the only alternative value is nil, which panics on call.
 //
 // TODO: fold this into [ReassignOracle] so it can share the single
 // walk with StaticValue and Reassigned.
-func FuncSingleAssignment(name *Name) *AssignStmt {
+func FuncAssignments(name *Name) []*AssignStmt {
 	if name.Class != PAUTO {
 		return nil
 	}
@@ -1043,12 +1042,9 @@ func FuncSingleAssignment(name *Name) *AssignStmt {
 	if name.Type().Kind() != types.TFUNC {
 		return nil
 	}
-	// Reject variables with non-zero defining assignments we can't
-	// analyze (e.g., type switch case variables whose Defn is a
-	// TypeSwitchGuard, not an AssignStmt).
+	var found []*AssignStmt
 	if name.Defn != nil {
-		as, ok := name.Defn.(*AssignStmt)
-		if !ok || !isNilAssign(as) {
+		if _, ok := name.Defn.(*AssignStmt); !ok {
 			return nil
 		}
 	}
@@ -1061,8 +1057,6 @@ func FuncSingleAssignment(name *Name) *AssignStmt {
 		return ok && n.Canonical() == name
 	}
 
-	var found *AssignStmt
-
 	var do func(n Node) bool
 	do = func(n Node) bool {
 		switch n.Op() {
@@ -1072,11 +1066,7 @@ func FuncSingleAssignment(name *Name) *AssignStmt {
 				if isNilAssign(as) {
 					break
 				}
-				if found != nil {
-					found = nil
-					return true
-				}
-				found = as
+				found = append(found, as)
 			}
 		case OAS2, OAS2FUNC, OAS2MAPR, OAS2DOTTYPE, OAS2RECV, OSELRECV2:
 			as := n.(*AssignListStmt)
