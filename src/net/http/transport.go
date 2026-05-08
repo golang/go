@@ -2058,6 +2058,19 @@ func (t *Transport) dialConn(ctx context.Context, cm connectMethod, isClientConn
 	http2 := unencryptedHTTP2 ||
 		(pconn.tlsState != nil && pconn.tlsState.NegotiatedProtocol == "h2")
 
+	if isClientConn && http2 && ctx.Done() != nil {
+		// Close the connection if ctx is canceled before the function returns.
+		stop := context.AfterFunc(ctx, func() {
+			_ = pconn.conn.Close()
+		})
+		defer func() {
+			if !stop() {
+				// Return context error to user.
+				err = ctx.Err()
+			}
+		}()
+	}
+
 	if http2 && t.h2Transport != nil {
 		if isClientConn {
 			cc, err := t.http2NewClientConn(pconn.conn, internalStateHook)
