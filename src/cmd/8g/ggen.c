@@ -1171,7 +1171,7 @@ abop:	// asymmetric binary
 }
 
 void
-bgen_float(Node *n, int true, int likely, Prog *to)
+bgen_float(Node *n, int _true, int likely, Prog *to)
 {
 	int et, a;
 	Node *nl, *nr, *r;
@@ -1181,7 +1181,7 @@ bgen_float(Node *n, int true, int likely, Prog *to)
 	nl = n->left;
 	nr = n->right;
 	a = n->op;
-	if(!true) {
+	if(!_true) {
 		// brcom is not valid on floats when NaN is involved.
 		p1 = gbranch(AJMP, T, 0);
 		p2 = gbranch(AJMP, T, 0);

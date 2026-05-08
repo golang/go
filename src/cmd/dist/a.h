@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-typedef int bool;
+#include <stdbool.h>
 
 // The Time unit is unspecified; we just need to
 // be able to compare whether t1 is older than t2 with t1 < t2.

@@ -613,7 +613,7 @@ walkexpr(Node **np, NodeList **init)
 		if(oaslit(n, init))
 			goto ret;
 
-		if(n->right == N || iszero(n->right) && !flag_race)
+		if(n->right == N || _iszero(n->right) && !flag_race)
 			goto ret;
 
 		switch(n->right->op) {
@@ -1935,7 +1935,7 @@ needwritebarrier(Node *l, Node *r)
 		return 0;
 
 	// No write barrier for implicit or explicit zeroing.
-	if(r == N || iszero(r))
+	if(r == N || _iszero(r))
 		return 0;
 
 	// No write barrier for initialization to constant.

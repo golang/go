@@ -1101,7 +1101,7 @@ gencmp0(Node *n, Type *t, int o, int likely, Prog *to)
  *	if(n == true) goto to;
  */
 void
-bgen(Node *n, int true, int likely, Prog *to)
+bgen(Node *n, int _true, int likely, Prog *to)
 {
 	int et, a;
 	Node *nl, *nr, *r;
@@ -1136,39 +1136,39 @@ bgen(Node *n, int true, int likely, Prog *to)
 	switch(n->op) {
 	default:
 		a = ONE;
-		if(!true)
+		if(!_true)
 			a = OEQ;
 		gencmp0(n, n->type, a, likely, to);
 		goto ret;
 
 	case OLITERAL:
 		// need to ask if it is bool?
-		if(!true == !n->val.u.bval)
+		if(!_true == !n->val.u.bval)
 			patch(gbranch(AB, T, 0), to);
 		goto ret;
 
 	case OANDAND:
-		if(!true)
+		if(!_true)
 			goto caseor;
 
 	caseand:
 		p1 = gbranch(AB, T, 0);
 		p2 = gbranch(AB, T, 0);
 		patch(p1, pc);
-		bgen(n->left, !true, -likely, p2);
-		bgen(n->right, !true, -likely, p2);
+		bgen(n->left, !_true, -likely, p2);
+		bgen(n->right, !_true, -likely, p2);
 		p1 = gbranch(AB, T, 0);
 		patch(p1, to);
 		patch(p2, pc);
 		goto ret;
 
 	case OOROR:
-		if(!true)
+		if(!_true)
 			goto caseand;
 
 	caseor:
-		bgen(n->left, true, likely, to);
-		bgen(n->right, true, likely, to);
+		bgen(n->left, _true, likely, to);
+		bgen(n->right, _true, likely, to);
 		goto ret;
 
 	case OEQ:
@@ -1190,7 +1190,7 @@ bgen(Node *n, int true, int likely, Prog *to)
 	switch(n->op) {
 
 	case ONOT:
-		bgen(nl, !true, likely, to);
+		bgen(nl, !_true, likely, to);
 		goto ret;
 
 	case OEQ:
@@ -1200,7 +1200,7 @@ bgen(Node *n, int true, int likely, Prog *to)
 	case OLE:
 	case OGE:
 		a = n->op;
-		if(!true) {
+		if(!_true) {
 			if(isfloat[nl->type->etype]) {
 				// brcom is not valid on floats when NaN is involved.
 				p1 = gbranch(AB, T, 0);
@@ -1215,7 +1215,7 @@ bgen(Node *n, int true, int likely, Prog *to)
 				goto ret;
 			}				
 			a = brcom(a);
-			true = !true;
+			_true = !_true;
 		}
 
 		// make simplest on right
@@ -1257,7 +1257,7 @@ bgen(Node *n, int true, int likely, Prog *to)
 		}
 
 		if(iscomplex[nl->type->etype]) {
-			complexbool(a, nl, nr, true, likely, to);
+			complexbool(a, nl, nr, _true, likely, to);
 			break;
 		}
 

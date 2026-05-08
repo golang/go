@@ -1222,17 +1222,17 @@ lcgen(Node *n, Node *nn)
 }
 
 void
-bcgen(Node *n, int true)
+bcgen(Node *n, int _true)
 {
 
 	if(n->type == T)
 		gbranch(OGOTO);
 	else
-		boolgen(n, true, Z);
+		boolgen(n, _true, Z);
 }
 
 void
-boolgen(Node *n, int true, Node *nn)
+boolgen(Node *n, int _true, Node *nn)
 {
 	int o;
 	Prog *p1, *p2, *p3;
@@ -1250,11 +1250,11 @@ boolgen(Node *n, int true, Node *nn)
 
 	default:
 		if(typev[n->type->etype]) {
-			testv(n, true);
+			testv(n, _true);
 			goto com;
 		}
 		o = ONE;
-		if(true)
+		if(_true)
 			o = OEQ;
 		if(typefd[n->type->etype]) {
 			if(n->addable < INDEXED) {
@@ -1280,7 +1280,7 @@ boolgen(Node *n, int true, Node *nn)
 
 	case OCONST:
 		o = vconst(n);
-		if(!true)
+		if(!_true)
 			o = !o;
 		gbranch(OGOTO);
 		if(o) {
@@ -1292,22 +1292,22 @@ boolgen(Node *n, int true, Node *nn)
 
 	case OCOMMA:
 		cgen(l, Z);
-		boolgen(r, true, nn);
+		boolgen(r, _true, nn);
 		break;
 
 	case ONOT:
-		boolgen(l, !true, nn);
+		boolgen(l, !_true, nn);
 		break;
 
 	case OCOND:
 		bcgen(l, 1);
 		p1 = p;
-		bcgen(r->left, true);
+		bcgen(r->left, _true);
 		p2 = p;
 		gbranch(OGOTO);
 		patch(p1, pc);
 		p1 = p;
-		bcgen(r->right, !true);
+		bcgen(r->right, !_true);
 		patch(p2, pc);
 		p2 = p;
 		gbranch(OGOTO);
@@ -1316,13 +1316,13 @@ boolgen(Node *n, int true, Node *nn)
 		goto com;
 
 	case OANDAND:
-		if(!true)
+		if(!_true)
 			goto caseor;
 
 	caseand:
-		bcgen(l, true);
+		bcgen(l, _true);
 		p1 = p;
-		bcgen(r, !true);
+		bcgen(r, !_true);
 		p2 = p;
 		patch(p1, pc);
 		gbranch(OGOTO);
@@ -1330,13 +1330,13 @@ boolgen(Node *n, int true, Node *nn)
 		goto com;
 
 	case OOROR:
-		if(!true)
+		if(!_true)
 			goto caseand;
 
 	caseor:
-		bcgen(l, !true);
+		bcgen(l, !_true);
 		p1 = p;
-		bcgen(r, !true);
+		bcgen(r, !_true);
 		p2 = p;
 		gbranch(OGOTO);
 		patch(p1, pc);
@@ -1355,12 +1355,12 @@ boolgen(Node *n, int true, Node *nn)
 	case OLS:
 		o = n->op;
 		if(typev[l->type->etype]) {
-			if(!true)
+			if(!_true)
 				n->op = comrel[relindex(o)];
 			cgen64(n, Z);
 			goto com;
 		}
-		if(true && typefd[l->type->etype] && (o == OEQ || o == ONE)) {
+		if(_true && typefd[l->type->etype] && (o == OEQ || o == ONE)) {
 			// Cannot rewrite !(l == r) into l != r with float64; it breaks NaNs.
 			// Jump around instead.
 			boolgen(n, 0, Z);
@@ -1369,7 +1369,7 @@ boolgen(Node *n, int true, Node *nn)
 			patch(p1, pc);
 			goto com;
 		}
-		if(true)
+		if(_true)
 			o = comrel[relindex(o)];
 		if(l->complex >= FNX && r->complex >= FNX) {
 			regret(&nod, r, 0, 0);
@@ -1379,7 +1379,7 @@ boolgen(Node *n, int true, Node *nn)
 			regfree(&nod);
 			nod = *n;
 			nod.right = &nod1;
-			boolgen(&nod, true, nn);
+			boolgen(&nod, _true, nn);
 			break;
 		}
 		if(typefd[l->type->etype]) {

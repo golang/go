@@ -731,7 +731,7 @@ cgen_as(Node *nl, Node *nr)
 		return;
 	}
 
-	if(nr == N || iszero(nr)) {
+	if(nr == N || _iszero(nr)) {
 		// heaps should already be clear
 		if(nr == N && (nl->class & PHEAP))
 			return;

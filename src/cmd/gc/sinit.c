@@ -300,7 +300,7 @@ staticcopy(Node *l, Node *r, NodeList **out)
 		return 1;
 	
 	case OLITERAL:
-		if(iszero(r))
+		if(_iszero(r))
 			return 1;
 		gdata(l, r, l->type->width);
 		return 1;
@@ -392,7 +392,7 @@ staticassign(Node *l, Node *r, NodeList **out)
 		break;
 
 	case OLITERAL:
-		if(iszero(r))
+		if(_iszero(r))
 			return 1;
 		gdata(l, r, l->type->width);
 		return 1;
@@ -1410,7 +1410,7 @@ addvalue(InitPlan *p, vlong xoffset, Node *key, Node *n)
 	USED(key);
 
 	// special case: zero can be dropped entirely
-	if(iszero(n)) {
+	if(_iszero(n)) {
 		p->zero += n->type->width;
 		return;
 	}
@@ -1439,7 +1439,7 @@ addvalue(InitPlan *p, vlong xoffset, Node *key, Node *n)
 }
 
 int
-iszero(Node *n)
+_iszero(Node *n)
 {
 	NodeList *l;
 
@@ -1476,7 +1476,7 @@ iszero(Node *n)
 		// fall through
 	case OSTRUCTLIT:
 		for(l=n->list; l; l=l->next)
-			if(!iszero(l->n->right))
+			if(!_iszero(l->n->right))
 				return 0;
 		return 1;
 	}

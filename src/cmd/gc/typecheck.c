@@ -2891,7 +2891,7 @@ typecheckas(Node *n)
 		case OSLICE3:
 		case OSLICESTR:
 			// For x = x[0:y], x can be updated in place, without touching pointer.
-			if(samesafeexpr(n->left, n->right->left) && (n->right->right->left == N || iszero(n->right->right->left)))
+			if(samesafeexpr(n->left, n->right->left) && (n->right->right->left == N || _iszero(n->right->right->left)))
 				n->right->reslice = 1;
 			break;
 		

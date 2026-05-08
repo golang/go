@@ -1090,7 +1090,7 @@ Mpflt*	truncfltlit(Mpflt *oldv, Type *t);
  *	cplx.c
  */
 void	complexadd(int op, Node *nl, Node *nr, Node *res);
-void	complexbool(int op, Node *nl, Node *nr, int true, int likely, Prog *to);
+void	complexbool(int op, Node *nl, Node *nr, int _true, int likely, Prog *to);
 void	complexgen(Node *n, Node *res);
 void	complexminus(Node *nl, Node *res);
 void	complexmove(Node *f, Node *t);
@@ -1376,7 +1376,7 @@ int	isnilinter(Type *t);
 int	isptrto(Type *t, int et);
 int	isslice(Type *t);
 int	istype(Type *t, int et);
-int	iszero(Node *n);
+int	_iszero(Node *n);
 void	linehist(char *file, int32 off, int relative);
 NodeList*	list(NodeList *l, Node *n);
 NodeList*	list1(Node *n);
@@ -1489,7 +1489,7 @@ EXTERN	vlong	zerosize;
 
 int	anyregalloc(void);
 void	betypeinit(void);
-void	bgen(Node *n, int true, int likely, Prog *to);
+void	bgen(Node *n, int _true, int likely, Prog *to);
 void	checknil(Node*, NodeList**);
 void	expandchecks(Prog*);
 void	cgen(Node*, Node*);
