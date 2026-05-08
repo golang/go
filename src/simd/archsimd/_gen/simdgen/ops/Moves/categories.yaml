@@ -62,6 +62,14 @@
   documentation: !string |-
     // NAME blends two vectors based on mask values, choosing either
     // the first or the second based on whether the third is false or true
+- go: bitSelect
+  commutative: false
+  documentation: !string |-
+    // NAME selects bits from y where mask is 1, keeps bits from x where mask is 0.
+- go: bitSelectNot
+  commutative: false
+  documentation: !string |-
+    // NAME selects bits from y where mask is 0, keeps bits from x where mask is 1.
 - go: move
   commutative: false
   noTypes: "true"

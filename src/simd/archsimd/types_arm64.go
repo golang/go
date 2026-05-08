@@ -198,3 +198,27 @@ func LoadUint64x2Array(y *[2]uint64) Uint64x2
 //
 //go:noescape
 func (x Uint64x2) StoreArray(y *[2]uint64)
+
+// Mask8x16 is a mask for a SIMD vector of 16 8-bit elements.
+type Mask8x16 struct {
+	int8x16 v128
+	vals    [16]int8
+}
+
+// Mask16x8 is a mask for a SIMD vector of 8 16-bit elements.
+type Mask16x8 struct {
+	int16x8 v128
+	vals    [8]int16
+}
+
+// Mask32x4 is a mask for a SIMD vector of 4 32-bit elements.
+type Mask32x4 struct {
+	int32x4 v128
+	vals    [4]int32
+}
+
+// Mask64x2 is a mask for a SIMD vector of 2 64-bit elements.
+type Mask64x2 struct {
+	int64x2 v128
+	vals    [2]int64
+}

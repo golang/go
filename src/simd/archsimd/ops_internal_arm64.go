@@ -4,6 +4,20 @@
 
 package archsimd
 
+/* bitSelect */
+
+// bitSelect selects bits from y where mask is 1, keeps bits from x where mask is 0.
+//
+// Asm: VBIT, CPU Feature: NEON
+func (x Int8x16) bitSelect(y Int8x16, mask Int8x16) Int8x16
+
+/* bitSelectNot */
+
+// bitSelectNot selects bits from y where mask is 0, keeps bits from x where mask is 1.
+//
+// Asm: VBIF, CPU Feature: NEON
+func (x Int8x16) bitSelectNot(y Int8x16, mask Int8x16) Int8x16
+
 /* broadcast1To2 */
 
 // broadcast1To2 copies the lowest element of its input to all 2 elements of

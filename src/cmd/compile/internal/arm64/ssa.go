@@ -359,6 +359,18 @@ func simdV21(s *ssagen.State, v *ssa.Value, arrangement int16) *obj.Prog {
 	return p
 }
 
+// simdV31ResultInArg0 generates a destructive 3-register instruction,
+// e.g. VBIT Vm.16B, Vn.16B, Vd.16B.
+func simdV31ResultInArg0(s *ssagen.State, v *ssa.Value, arrangement int16) *obj.Prog {
+	p := s.Prog(v.Op.Asm())
+	p.From.Type = obj.TYPE_REG
+	p.From.Reg = simdRegArng(v.Args[2].Reg(), arrangement)
+	p.Reg = simdRegArng(v.Args[1].Reg(), arrangement)
+	p.To.Type = obj.TYPE_REG
+	p.To.Reg = simdRegArng(v.Reg(), arrangement)
+	return p
+}
+
 // simdVfpvResultInArg0ImmOutIn1 generates vector floating-point SetElem,
 // e.g. VMOV V2.S[0], V1.S[3] (INS element instruction)
 // The arrangement parameter specifies the vector element arrangement (e.g., S, D)

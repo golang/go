@@ -17,18 +17,18 @@ func simdGenericOps() []opData {
 		{name: "AESEncryptOneRoundUint8x32", argLength: 2},                              // ARCH:amd64
 		{name: "AESEncryptOneRoundUint8x64", argLength: 2},                              // ARCH:amd64
 		{name: "AESInvMixColumnsUint32x4", argLength: 1},                                // ARCH:amd64
-		{name: "AbsFloat32x4", argLength: 1},                                            // ARCH:wasm
-		{name: "AbsFloat64x2", argLength: 1},                                            // ARCH:wasm
-		{name: "AbsInt8x16", argLength: 1},                                              // ARCH:amd64,wasm
+		{name: "AbsFloat32x4", argLength: 1},                                            // ARCH:arm64,wasm
+		{name: "AbsFloat64x2", argLength: 1},                                            // ARCH:arm64,wasm
+		{name: "AbsInt8x16", argLength: 1},                                              // ARCH:amd64,arm64,wasm
 		{name: "AbsInt8x32", argLength: 1},                                              // ARCH:amd64
 		{name: "AbsInt8x64", argLength: 1},                                              // ARCH:amd64
-		{name: "AbsInt16x8", argLength: 1},                                              // ARCH:amd64,wasm
+		{name: "AbsInt16x8", argLength: 1},                                              // ARCH:amd64,arm64,wasm
 		{name: "AbsInt16x16", argLength: 1},                                             // ARCH:amd64
 		{name: "AbsInt16x32", argLength: 1},                                             // ARCH:amd64
-		{name: "AbsInt32x4", argLength: 1},                                              // ARCH:amd64,wasm
+		{name: "AbsInt32x4", argLength: 1},                                              // ARCH:amd64,arm64,wasm
 		{name: "AbsInt32x8", argLength: 1},                                              // ARCH:amd64
 		{name: "AbsInt32x16", argLength: 1},                                             // ARCH:amd64
-		{name: "AbsInt64x2", argLength: 1},                                              // ARCH:amd64,wasm
+		{name: "AbsInt64x2", argLength: 1},                                              // ARCH:amd64,arm64,wasm
 		{name: "AbsInt64x4", argLength: 1},                                              // ARCH:amd64
 		{name: "AbsInt64x8", argLength: 1},                                              // ARCH:amd64
 		{name: "AddFloat32x4", argLength: 2, commutative: true},                         // ARCH:amd64,arm64,wasm
@@ -295,34 +295,34 @@ func simdGenericOps() []opData {
 		{name: "DotProductPairsSaturatedUint8x16", argLength: 2},                        // ARCH:amd64
 		{name: "DotProductPairsSaturatedUint8x32", argLength: 2},                        // ARCH:amd64
 		{name: "DotProductPairsSaturatedUint8x64", argLength: 2},                        // ARCH:amd64
-		{name: "EqualFloat32x4", argLength: 2, commutative: true},                       // ARCH:amd64,wasm
+		{name: "EqualFloat32x4", argLength: 2, commutative: true},                       // ARCH:amd64,arm64,wasm
 		{name: "EqualFloat32x8", argLength: 2, commutative: true},                       // ARCH:amd64
 		{name: "EqualFloat32x16", argLength: 2, commutative: true},                      // ARCH:amd64
-		{name: "EqualFloat64x2", argLength: 2, commutative: true},                       // ARCH:amd64,wasm
+		{name: "EqualFloat64x2", argLength: 2, commutative: true},                       // ARCH:amd64,arm64,wasm
 		{name: "EqualFloat64x4", argLength: 2, commutative: true},                       // ARCH:amd64
 		{name: "EqualFloat64x8", argLength: 2, commutative: true},                       // ARCH:amd64
-		{name: "EqualInt8x16", argLength: 2, commutative: true},                         // ARCH:amd64,wasm
+		{name: "EqualInt8x16", argLength: 2, commutative: true},                         // ARCH:amd64,arm64,wasm
 		{name: "EqualInt8x32", argLength: 2, commutative: true},                         // ARCH:amd64
 		{name: "EqualInt8x64", argLength: 2, commutative: true},                         // ARCH:amd64
-		{name: "EqualInt16x8", argLength: 2, commutative: true},                         // ARCH:amd64,wasm
+		{name: "EqualInt16x8", argLength: 2, commutative: true},                         // ARCH:amd64,arm64,wasm
 		{name: "EqualInt16x16", argLength: 2, commutative: true},                        // ARCH:amd64
 		{name: "EqualInt16x32", argLength: 2, commutative: true},                        // ARCH:amd64
-		{name: "EqualInt32x4", argLength: 2, commutative: true},                         // ARCH:amd64,wasm
+		{name: "EqualInt32x4", argLength: 2, commutative: true},                         // ARCH:amd64,arm64,wasm
 		{name: "EqualInt32x8", argLength: 2, commutative: true},                         // ARCH:amd64
 		{name: "EqualInt32x16", argLength: 2, commutative: true},                        // ARCH:amd64
-		{name: "EqualInt64x2", argLength: 2, commutative: true},                         // ARCH:amd64,wasm
+		{name: "EqualInt64x2", argLength: 2, commutative: true},                         // ARCH:amd64,arm64,wasm
 		{name: "EqualInt64x4", argLength: 2, commutative: true},                         // ARCH:amd64
 		{name: "EqualInt64x8", argLength: 2, commutative: true},                         // ARCH:amd64
-		{name: "EqualUint8x16", argLength: 2, commutative: true},                        // ARCH:amd64,wasm
+		{name: "EqualUint8x16", argLength: 2, commutative: true},                        // ARCH:amd64,arm64,wasm
 		{name: "EqualUint8x32", argLength: 2, commutative: true},                        // ARCH:amd64
 		{name: "EqualUint8x64", argLength: 2, commutative: true},                        // ARCH:amd64
-		{name: "EqualUint16x8", argLength: 2, commutative: true},                        // ARCH:amd64,wasm
+		{name: "EqualUint16x8", argLength: 2, commutative: true},                        // ARCH:amd64,arm64,wasm
 		{name: "EqualUint16x16", argLength: 2, commutative: true},                       // ARCH:amd64
 		{name: "EqualUint16x32", argLength: 2, commutative: true},                       // ARCH:amd64
-		{name: "EqualUint32x4", argLength: 2, commutative: true},                        // ARCH:amd64,wasm
+		{name: "EqualUint32x4", argLength: 2, commutative: true},                        // ARCH:amd64,arm64,wasm
 		{name: "EqualUint32x8", argLength: 2, commutative: true},                        // ARCH:amd64
 		{name: "EqualUint32x16", argLength: 2, commutative: true},                       // ARCH:amd64
-		{name: "EqualUint64x2", argLength: 2, commutative: true},                        // ARCH:amd64,wasm
+		{name: "EqualUint64x2", argLength: 2, commutative: true},                        // ARCH:amd64,arm64,wasm
 		{name: "EqualUint64x4", argLength: 2, commutative: true},                        // ARCH:amd64
 		{name: "EqualUint64x8", argLength: 2, commutative: true},                        // ARCH:amd64
 		{name: "ExpandFloat32x4", argLength: 2},                                         // ARCH:amd64
@@ -444,51 +444,53 @@ func simdGenericOps() []opData {
 		{name: "GetLoUint32x16", argLength: 1},                                          // ARCH:amd64
 		{name: "GetLoUint64x4", argLength: 1},                                           // ARCH:amd64
 		{name: "GetLoUint64x8", argLength: 1},                                           // ARCH:amd64
-		{name: "GreaterEqualFloat32x4", argLength: 2},                                   // ARCH:amd64,wasm
+		{name: "GreaterEqualFloat32x4", argLength: 2},                                   // ARCH:amd64,arm64,wasm
 		{name: "GreaterEqualFloat32x8", argLength: 2},                                   // ARCH:amd64
 		{name: "GreaterEqualFloat32x16", argLength: 2},                                  // ARCH:amd64
-		{name: "GreaterEqualFloat64x2", argLength: 2},                                   // ARCH:amd64,wasm
+		{name: "GreaterEqualFloat64x2", argLength: 2},                                   // ARCH:amd64,arm64,wasm
 		{name: "GreaterEqualFloat64x4", argLength: 2},                                   // ARCH:amd64
 		{name: "GreaterEqualFloat64x8", argLength: 2},                                   // ARCH:amd64
-		{name: "GreaterEqualInt8x16", argLength: 2},                                     // ARCH:wasm
+		{name: "GreaterEqualInt8x16", argLength: 2},                                     // ARCH:arm64,wasm
 		{name: "GreaterEqualInt8x64", argLength: 2},                                     // ARCH:amd64
-		{name: "GreaterEqualInt16x8", argLength: 2},                                     // ARCH:wasm
+		{name: "GreaterEqualInt16x8", argLength: 2},                                     // ARCH:arm64,wasm
 		{name: "GreaterEqualInt16x32", argLength: 2},                                    // ARCH:amd64
-		{name: "GreaterEqualInt32x4", argLength: 2},                                     // ARCH:wasm
+		{name: "GreaterEqualInt32x4", argLength: 2},                                     // ARCH:arm64,wasm
 		{name: "GreaterEqualInt32x16", argLength: 2},                                    // ARCH:amd64
-		{name: "GreaterEqualInt64x2", argLength: 2},                                     // ARCH:wasm
+		{name: "GreaterEqualInt64x2", argLength: 2},                                     // ARCH:arm64,wasm
 		{name: "GreaterEqualInt64x8", argLength: 2},                                     // ARCH:amd64
-		{name: "GreaterEqualUint8x16", argLength: 2},                                    // ARCH:wasm
+		{name: "GreaterEqualUint8x16", argLength: 2},                                    // ARCH:arm64,wasm
 		{name: "GreaterEqualUint8x64", argLength: 2},                                    // ARCH:amd64
-		{name: "GreaterEqualUint16x8", argLength: 2},                                    // ARCH:wasm
+		{name: "GreaterEqualUint16x8", argLength: 2},                                    // ARCH:arm64,wasm
 		{name: "GreaterEqualUint16x32", argLength: 2},                                   // ARCH:amd64
-		{name: "GreaterEqualUint32x4", argLength: 2},                                    // ARCH:wasm
+		{name: "GreaterEqualUint32x4", argLength: 2},                                    // ARCH:arm64,wasm
 		{name: "GreaterEqualUint32x16", argLength: 2},                                   // ARCH:amd64
+		{name: "GreaterEqualUint64x2", argLength: 2},                                    // ARCH:arm64
 		{name: "GreaterEqualUint64x8", argLength: 2},                                    // ARCH:amd64
-		{name: "GreaterFloat32x4", argLength: 2},                                        // ARCH:amd64,wasm
+		{name: "GreaterFloat32x4", argLength: 2},                                        // ARCH:amd64,arm64,wasm
 		{name: "GreaterFloat32x8", argLength: 2},                                        // ARCH:amd64
 		{name: "GreaterFloat32x16", argLength: 2},                                       // ARCH:amd64
-		{name: "GreaterFloat64x2", argLength: 2},                                        // ARCH:amd64,wasm
+		{name: "GreaterFloat64x2", argLength: 2},                                        // ARCH:amd64,arm64,wasm
 		{name: "GreaterFloat64x4", argLength: 2},                                        // ARCH:amd64
 		{name: "GreaterFloat64x8", argLength: 2},                                        // ARCH:amd64
-		{name: "GreaterInt8x16", argLength: 2},                                          // ARCH:amd64,wasm
+		{name: "GreaterInt8x16", argLength: 2},                                          // ARCH:amd64,arm64,wasm
 		{name: "GreaterInt8x32", argLength: 2},                                          // ARCH:amd64
 		{name: "GreaterInt8x64", argLength: 2},                                          // ARCH:amd64
-		{name: "GreaterInt16x8", argLength: 2},                                          // ARCH:amd64,wasm
+		{name: "GreaterInt16x8", argLength: 2},                                          // ARCH:amd64,arm64,wasm
 		{name: "GreaterInt16x16", argLength: 2},                                         // ARCH:amd64
 		{name: "GreaterInt16x32", argLength: 2},                                         // ARCH:amd64
-		{name: "GreaterInt32x4", argLength: 2},                                          // ARCH:amd64,wasm
+		{name: "GreaterInt32x4", argLength: 2},                                          // ARCH:amd64,arm64,wasm
 		{name: "GreaterInt32x8", argLength: 2},                                          // ARCH:amd64
 		{name: "GreaterInt32x16", argLength: 2},                                         // ARCH:amd64
-		{name: "GreaterInt64x2", argLength: 2},                                          // ARCH:amd64,wasm
+		{name: "GreaterInt64x2", argLength: 2},                                          // ARCH:amd64,arm64,wasm
 		{name: "GreaterInt64x4", argLength: 2},                                          // ARCH:amd64
 		{name: "GreaterInt64x8", argLength: 2},                                          // ARCH:amd64
-		{name: "GreaterUint8x16", argLength: 2},                                         // ARCH:wasm
+		{name: "GreaterUint8x16", argLength: 2},                                         // ARCH:arm64,wasm
 		{name: "GreaterUint8x64", argLength: 2},                                         // ARCH:amd64
-		{name: "GreaterUint16x8", argLength: 2},                                         // ARCH:wasm
+		{name: "GreaterUint16x8", argLength: 2},                                         // ARCH:arm64,wasm
 		{name: "GreaterUint16x32", argLength: 2},                                        // ARCH:amd64
-		{name: "GreaterUint32x4", argLength: 2},                                         // ARCH:wasm
+		{name: "GreaterUint32x4", argLength: 2},                                         // ARCH:arm64,wasm
 		{name: "GreaterUint32x16", argLength: 2},                                        // ARCH:amd64
+		{name: "GreaterUint64x2", argLength: 2},                                         // ARCH:arm64
 		{name: "GreaterUint64x8", argLength: 2},                                         // ARCH:amd64
 		{name: "InterleaveHiGroupedInt16x16", argLength: 2},                             // ARCH:amd64
 		{name: "InterleaveHiGroupedInt16x32", argLength: 2},                             // ARCH:amd64
@@ -706,12 +708,12 @@ func simdGenericOps() []opData {
 		{name: "MulUint64x2", argLength: 2, commutative: true},                          // ARCH:amd64,wasm
 		{name: "MulUint64x4", argLength: 2, commutative: true},                          // ARCH:amd64
 		{name: "MulUint64x8", argLength: 2, commutative: true},                          // ARCH:amd64
-		{name: "NegFloat32x4", argLength: 1},                                            // ARCH:wasm
-		{name: "NegFloat64x2", argLength: 1},                                            // ARCH:wasm
-		{name: "NegInt8x16", argLength: 1},                                              // ARCH:wasm
-		{name: "NegInt16x8", argLength: 1},                                              // ARCH:wasm
-		{name: "NegInt32x4", argLength: 1},                                              // ARCH:wasm
-		{name: "NegInt64x2", argLength: 1},                                              // ARCH:wasm
+		{name: "NegFloat32x4", argLength: 1},                                            // ARCH:arm64,wasm
+		{name: "NegFloat64x2", argLength: 1},                                            // ARCH:arm64,wasm
+		{name: "NegInt8x16", argLength: 1},                                              // ARCH:arm64,wasm
+		{name: "NegInt16x8", argLength: 1},                                              // ARCH:arm64,wasm
+		{name: "NegInt32x4", argLength: 1},                                              // ARCH:arm64,wasm
+		{name: "NegInt64x2", argLength: 1},                                              // ARCH:arm64,wasm
 		{name: "NotEqualFloat32x4", argLength: 2, commutative: true},                    // ARCH:amd64,wasm
 		{name: "NotEqualFloat32x8", argLength: 2, commutative: true},                    // ARCH:amd64
 		{name: "NotEqualFloat32x16", argLength: 2, commutative: true},                   // ARCH:amd64
@@ -1224,6 +1226,8 @@ func simdGenericOps() []opData {
 		{name: "XorUint64x2", argLength: 2, commutative: true},                          // ARCH:amd64,arm64,wasm
 		{name: "XorUint64x4", argLength: 2, commutative: true},                          // ARCH:amd64
 		{name: "XorUint64x8", argLength: 2, commutative: true},                          // ARCH:amd64
+		{name: "bitSelectInt8x16", argLength: 3},                                        // ARCH:arm64
+		{name: "bitSelectNotInt8x16", argLength: 3},                                     // ARCH:arm64
 		{name: "blendInt8x16", argLength: 3},                                            // ARCH:amd64
 		{name: "blendInt8x32", argLength: 3},                                            // ARCH:amd64
 		{name: "blendMaskedInt8x64", argLength: 3},                                      // ARCH:amd64

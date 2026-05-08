@@ -26,6 +26,7 @@ type simdType struct {
 	VectorCounterpart       string // For mask use only: just replacing the "Mask" in [simdType.Name] with "Int"
 	ReshapedVectorWithAndOr string // For mask use only: vector AND and OR are only available in some shape with element width 32.
 	Size                    int    // The size of the vector type
+	HasNot                  bool   // True when this mask type supports Not()
 }
 
 func (x simdType) ElemBits() int {
@@ -466,6 +467,9 @@ func (from {{.VectorCounterpart}}) asMask() (to {{.Name}})
 func (x {{.Name}}) And(y {{.Name}}) {{.Name}}
 
 func (x {{.Name}}) Or(y {{.Name}}) {{.Name}}
+{{if .HasNot}}
+func (x {{.Name}}) Not() {{.Name}}
+{{end}}
 {{end}}
 `
 
@@ -491,17 +495,18 @@ func parseSIMDTypes(ops []Operation) simdTypeMap {
 		tagFieldS := fmt.Sprintf("%s v%d", tagFieldNameS, *arg.Bits)
 		valFieldS := fmt.Sprintf("vals%s[%d]%s", strings.Repeat(" ", len(tagFieldNameS)-3), lanes, base)
 		fields := fmt.Sprintf("\t%s\n\t%s", tagFieldS, valFieldS)
+		hasNot := CurrentArch().Arch == "arm64"
 		if arg.Class == "mask" {
 			vectorCounterpart := strings.ReplaceAll(*arg.Go, "Mask", "Int")
 			reshapedVectorWithAndOr := fmt.Sprintf("Int32x%d", *arg.Bits/32)
-			ret[*arg.Bits] = append(ret[*arg.Bits], simdType{*arg.Go, lanes, base, fields, arg.Class, vectorCounterpart, reshapedVectorWithAndOr, *arg.Bits})
+			ret[*arg.Bits] = append(ret[*arg.Bits], simdType{*arg.Go, lanes, base, fields, arg.Class, vectorCounterpart, reshapedVectorWithAndOr, *arg.Bits, hasNot})
 			// In case the vector counterpart of a mask is not present, put its vector counterpart typedef into the map as well.
 			if _, ok := seen[vectorCounterpart]; !ok {
 				seen[vectorCounterpart] = struct{}{}
-				ret[*arg.Bits] = append(ret[*arg.Bits], simdType{vectorCounterpart, lanes, base, fields, "vreg", "", "", *arg.Bits})
+				ret[*arg.Bits] = append(ret[*arg.Bits], simdType{vectorCounterpart, lanes, base, fields, "vreg", "", "", *arg.Bits, hasNot})
 			}
 		} else {
-			ret[*arg.Bits] = append(ret[*arg.Bits], simdType{*arg.Go, lanes, base, fields, arg.Class, "", "", *arg.Bits})
+			ret[*arg.Bits] = append(ret[*arg.Bits], simdType{*arg.Go, lanes, base, fields, arg.Class, "", "", *arg.Bits, hasNot})
 		}
 	}
 	for _, op := range ops {
@@ -600,8 +605,12 @@ func writeSIMDTypes(typeMap simdTypeMap) *bytes.Buffer {
 					}
 				}
 			} else {
-				if err := maskFromVal.ExecuteTemplate(buffer, "maskFromVal_amd64", typeDef); err != nil {
-					panic(fmt.Errorf("failed to execute maskFromVal template for type %s: %w", typeDef.Name, err))
+				// ARM64 NEON comparisons produce all-0/all-1 per lane, so
+				// FromBits/ToBits (x86 mask register conversions) are not needed.
+				if CurrentArch().Arch != "arm64" {
+					if err := maskFromVal.ExecuteTemplate(buffer, "maskFromVal_amd64", typeDef); err != nil {
+						panic(fmt.Errorf("failed to execute maskFromVal template for type %s: %w", typeDef.Name, err))
+					}
 				}
 			}
 		}

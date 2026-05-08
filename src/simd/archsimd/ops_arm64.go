@@ -4,6 +4,38 @@
 
 package archsimd
 
+/* Abs */
+
+// Abs computes the absolute value of each element.
+//
+// Asm: VFABS, CPU Feature: NEON
+func (x Float32x4) Abs() Float32x4
+
+// Abs computes the absolute value of each element.
+//
+// Asm: VFABS, CPU Feature: NEON
+func (x Float64x2) Abs() Float64x2
+
+// Abs computes the absolute value of each element.
+//
+// Asm: VABS, CPU Feature: NEON
+func (x Int8x16) Abs() Int8x16
+
+// Abs computes the absolute value of each element.
+//
+// Asm: VABS, CPU Feature: NEON
+func (x Int16x8) Abs() Int16x8
+
+// Abs computes the absolute value of each element.
+//
+// Asm: VABS, CPU Feature: NEON
+func (x Int32x4) Abs() Int32x4
+
+// Abs computes the absolute value of each element.
+//
+// Asm: VABS, CPU Feature: NEON
+func (x Int64x2) Abs() Int64x2
+
 /* Add */
 
 // Add adds corresponding elements of two vectors.
@@ -219,6 +251,58 @@ func (x Float32x4) ConvertToUint32() Uint32x4
 // Asm: VFCVTZU, CPU Feature: NEON
 func (x Float64x2) ConvertToUint64() Uint64x2
 
+/* Equal */
+
+// Equal returns a mask whose elements indicate whether x == y.
+//
+// Asm: VFCMEQ, CPU Feature: NEON
+func (x Float32x4) Equal(y Float32x4) Mask32x4
+
+// Equal returns a mask whose elements indicate whether x == y.
+//
+// Asm: VFCMEQ, CPU Feature: NEON
+func (x Float64x2) Equal(y Float64x2) Mask64x2
+
+// Equal returns a mask whose elements indicate whether x == y.
+//
+// Asm: VCMEQ, CPU Feature: NEON
+func (x Int8x16) Equal(y Int8x16) Mask8x16
+
+// Equal returns a mask whose elements indicate whether x == y.
+//
+// Asm: VCMEQ, CPU Feature: NEON
+func (x Int16x8) Equal(y Int16x8) Mask16x8
+
+// Equal returns a mask whose elements indicate whether x == y.
+//
+// Asm: VCMEQ, CPU Feature: NEON
+func (x Int32x4) Equal(y Int32x4) Mask32x4
+
+// Equal returns a mask whose elements indicate whether x == y.
+//
+// Asm: VCMEQ, CPU Feature: NEON
+func (x Int64x2) Equal(y Int64x2) Mask64x2
+
+// Equal returns a mask whose elements indicate whether x == y.
+//
+// Asm: VCMEQ, CPU Feature: NEON
+func (x Uint8x16) Equal(y Uint8x16) Mask8x16
+
+// Equal returns a mask whose elements indicate whether x == y.
+//
+// Asm: VCMEQ, CPU Feature: NEON
+func (x Uint16x8) Equal(y Uint16x8) Mask16x8
+
+// Equal returns a mask whose elements indicate whether x == y.
+//
+// Asm: VCMEQ, CPU Feature: NEON
+func (x Uint32x4) Equal(y Uint32x4) Mask32x4
+
+// Equal returns a mask whose elements indicate whether x == y.
+//
+// Asm: VCMEQ, CPU Feature: NEON
+func (x Uint64x2) Equal(y Uint64x2) Mask64x2
+
 /* ExtendLo2ToInt64 */
 
 // ExtendLo2ToInt64 sign-extends 2 lowest vector element values to int64.
@@ -351,6 +435,110 @@ func (x Uint32x4) GetElem(index uint8) uint32
 // Asm: VMOV, CPU Feature: NEON
 func (x Uint64x2) GetElem(index uint8) uint64
 
+/* Greater */
+
+// Greater returns a mask whose elements indicate whether x > y.
+//
+// Asm: VFCMGT, CPU Feature: NEON
+func (x Float32x4) Greater(y Float32x4) Mask32x4
+
+// Greater returns a mask whose elements indicate whether x > y.
+//
+// Asm: VFCMGT, CPU Feature: NEON
+func (x Float64x2) Greater(y Float64x2) Mask64x2
+
+// Greater returns a mask whose elements indicate whether x > y.
+//
+// Asm: VCMGT, CPU Feature: NEON
+func (x Int8x16) Greater(y Int8x16) Mask8x16
+
+// Greater returns a mask whose elements indicate whether x > y.
+//
+// Asm: VCMGT, CPU Feature: NEON
+func (x Int16x8) Greater(y Int16x8) Mask16x8
+
+// Greater returns a mask whose elements indicate whether x > y.
+//
+// Asm: VCMGT, CPU Feature: NEON
+func (x Int32x4) Greater(y Int32x4) Mask32x4
+
+// Greater returns a mask whose elements indicate whether x > y.
+//
+// Asm: VCMGT, CPU Feature: NEON
+func (x Int64x2) Greater(y Int64x2) Mask64x2
+
+// Greater returns a mask whose elements indicate whether x > y.
+//
+// Asm: VCMHI, CPU Feature: NEON
+func (x Uint8x16) Greater(y Uint8x16) Mask8x16
+
+// Greater returns a mask whose elements indicate whether x > y.
+//
+// Asm: VCMHI, CPU Feature: NEON
+func (x Uint16x8) Greater(y Uint16x8) Mask16x8
+
+// Greater returns a mask whose elements indicate whether x > y.
+//
+// Asm: VCMHI, CPU Feature: NEON
+func (x Uint32x4) Greater(y Uint32x4) Mask32x4
+
+// Greater returns a mask whose elements indicate whether x > y.
+//
+// Asm: VCMHI, CPU Feature: NEON
+func (x Uint64x2) Greater(y Uint64x2) Mask64x2
+
+/* GreaterEqual */
+
+// GreaterEqual returns a mask whose elements indicate whether x >= y.
+//
+// Asm: VFCMGE, CPU Feature: NEON
+func (x Float32x4) GreaterEqual(y Float32x4) Mask32x4
+
+// GreaterEqual returns a mask whose elements indicate whether x >= y.
+//
+// Asm: VFCMGE, CPU Feature: NEON
+func (x Float64x2) GreaterEqual(y Float64x2) Mask64x2
+
+// GreaterEqual returns a mask whose elements indicate whether x >= y.
+//
+// Asm: VCMGE, CPU Feature: NEON
+func (x Int8x16) GreaterEqual(y Int8x16) Mask8x16
+
+// GreaterEqual returns a mask whose elements indicate whether x >= y.
+//
+// Asm: VCMGE, CPU Feature: NEON
+func (x Int16x8) GreaterEqual(y Int16x8) Mask16x8
+
+// GreaterEqual returns a mask whose elements indicate whether x >= y.
+//
+// Asm: VCMGE, CPU Feature: NEON
+func (x Int32x4) GreaterEqual(y Int32x4) Mask32x4
+
+// GreaterEqual returns a mask whose elements indicate whether x >= y.
+//
+// Asm: VCMGE, CPU Feature: NEON
+func (x Int64x2) GreaterEqual(y Int64x2) Mask64x2
+
+// GreaterEqual returns a mask whose elements indicate whether x >= y.
+//
+// Asm: VCMHS, CPU Feature: NEON
+func (x Uint8x16) GreaterEqual(y Uint8x16) Mask8x16
+
+// GreaterEqual returns a mask whose elements indicate whether x >= y.
+//
+// Asm: VCMHS, CPU Feature: NEON
+func (x Uint16x8) GreaterEqual(y Uint16x8) Mask16x8
+
+// GreaterEqual returns a mask whose elements indicate whether x >= y.
+//
+// Asm: VCMHS, CPU Feature: NEON
+func (x Uint32x4) GreaterEqual(y Uint32x4) Mask32x4
+
+// GreaterEqual returns a mask whose elements indicate whether x >= y.
+//
+// Asm: VCMHS, CPU Feature: NEON
+func (x Uint64x2) GreaterEqual(y Uint64x2) Mask64x2
+
 /* Mul */
 
 // Mul multiplies corresponding elements of two vectors, modulo 2ⁿ.
@@ -442,6 +630,38 @@ func (x Uint16x8) MulLoLong(y Uint16x8) Uint32x4
 //
 // Asm: VUMULL, CPU Feature: NEON
 func (x Uint32x4) MulLoLong(y Uint32x4) Uint64x2
+
+/* Neg */
+
+// Neg returns the elementwise negation of x.
+//
+// Asm: VFNEG, CPU Feature: NEON
+func (x Float32x4) Neg() Float32x4
+
+// Neg returns the elementwise negation of x.
+//
+// Asm: VFNEG, CPU Feature: NEON
+func (x Float64x2) Neg() Float64x2
+
+// Neg returns the elementwise negation of x.
+//
+// Asm: VNEG, CPU Feature: NEON
+func (x Int8x16) Neg() Int8x16
+
+// Neg returns the elementwise negation of x.
+//
+// Asm: VNEG, CPU Feature: NEON
+func (x Int16x8) Neg() Int16x8
+
+// Neg returns the elementwise negation of x.
+//
+// Asm: VNEG, CPU Feature: NEON
+func (x Int32x4) Neg() Int32x4
+
+// Neg returns the elementwise negation of x.
+//
+// Asm: VNEG, CPU Feature: NEON
+func (x Int64x2) Neg() Int64x2
 
 /* Not */
 
@@ -2236,3 +2456,59 @@ func (x Uint64x2) AsUint32x4() Uint32x4 {
 
 // ReshapeToUint32s reinterprets the bits of a Uint64x2 vector as a Uint32x4 vector
 func (x Uint64x2) ReshapeToUint32s() Uint32x4
+
+// ToInt8x16 converts from Mask8x16 to Int8x16.
+// If element i in the mask is "true", all bits in element i of the resulting
+// vector will be set.
+func (from Mask8x16) ToInt8x16() (to Int8x16)
+
+// asMask converts from Int8x16 to Mask8x16.
+func (from Int8x16) asMask() (to Mask8x16)
+
+func (x Mask8x16) And(y Mask8x16) Mask8x16
+
+func (x Mask8x16) Or(y Mask8x16) Mask8x16
+
+func (x Mask8x16) Not() Mask8x16
+
+// ToInt16x8 converts from Mask16x8 to Int16x8.
+// If element i in the mask is "true", all bits in element i of the resulting
+// vector will be set.
+func (from Mask16x8) ToInt16x8() (to Int16x8)
+
+// asMask converts from Int16x8 to Mask16x8.
+func (from Int16x8) asMask() (to Mask16x8)
+
+func (x Mask16x8) And(y Mask16x8) Mask16x8
+
+func (x Mask16x8) Or(y Mask16x8) Mask16x8
+
+func (x Mask16x8) Not() Mask16x8
+
+// ToInt32x4 converts from Mask32x4 to Int32x4.
+// If element i in the mask is "true", all bits in element i of the resulting
+// vector will be set.
+func (from Mask32x4) ToInt32x4() (to Int32x4)
+
+// asMask converts from Int32x4 to Mask32x4.
+func (from Int32x4) asMask() (to Mask32x4)
+
+func (x Mask32x4) And(y Mask32x4) Mask32x4
+
+func (x Mask32x4) Or(y Mask32x4) Mask32x4
+
+func (x Mask32x4) Not() Mask32x4
+
+// ToInt64x2 converts from Mask64x2 to Int64x2.
+// If element i in the mask is "true", all bits in element i of the resulting
+// vector will be set.
+func (from Mask64x2) ToInt64x2() (to Int64x2)
+
+// asMask converts from Int64x2 to Mask64x2.
+func (from Int64x2) asMask() (to Mask64x2)
+
+func (x Mask64x2) And(y Mask64x2) Mask64x2
+
+func (x Mask64x2) Or(y Mask64x2) Mask64x2
+
+func (x Mask64x2) Not() Mask64x2

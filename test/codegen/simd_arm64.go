@@ -112,3 +112,15 @@ func foldGetHiSetHiMuls(a, b archsimd.Uint16x8) archsimd.Uint16x8 {
 	wLoRight := wLo.ShiftRightNarrowConst(16) // arm64: `VSHRN [$]16, V[0-9]+.S4, V0.H4`
 	return wLoRight.SetHi(wHiRight)           // arm64: `VSHRN2 [$]16, V[0-9]+.S4, V0.H8` -`VMOV.*D\[`
 }
+
+func mergeWithNotMask(x, y archsimd.Int8x16, mask archsimd.Mask8x16, f1, f2 archsimd.Float32x4) {
+	// arm64:`VBIF` -`VBIT` -`VNOT`
+	sinkI8 = x.IfElse(mask.Not(), y)
+	// arm64: `VFCMEQ`
+	eq := f1.Equal(f2)
+	// The next line `ne` should be CSEd with `eq` above
+	ne := f1.NotEqual(f2)    // arm64: -`.*`
+	fne := f1.IfElse(eq, f2) // arm64:`VBIT`
+	feq := f1.IfElse(ne, f2) // arm64:`VBIF`
+	sinkF32 = fne.Add(feq)
+}

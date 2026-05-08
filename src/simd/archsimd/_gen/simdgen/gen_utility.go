@@ -774,15 +774,12 @@ func overwrite(ops []Operation) error {
 			*op[idx].Lanes = *op[idx].Bits / *op[idx].ElemBits
 			*op[idx].Go = fmt.Sprintf("%s%dx%d", capitalizeFirst(*op[idx].Base), *op[idx].ElemBits, *op[idx].Lanes)
 		}
-		if CurrentArch().Arch == "arm64" && op[idx].OverwriteClass != nil {
+		if CurrentArch().Arch == "arm64" && op[idx].OverwriteClass != nil && *op[idx].OverwriteClass == "greg" {
 			if op[idx].OverwriteBase == nil {
 				panic(fmt.Errorf("simdgen: [OverwriteClass] must be set together with [OverwriteBase]: %s", op[idx]))
 			}
 			oBase := *op[idx].OverwriteBase
 			oClass := *op[idx].OverwriteClass
-			if oClass != "greg" {
-				panic(fmt.Errorf("simdgen: [Class] overwrite only supports overwriting to greg: %s", op[idx]))
-			}
 			if oBase != "float" {
 				panic(fmt.Errorf("simdgen: [Class] overwrite must set [OverwriteBase] to float: %s", op[idx]))
 			}

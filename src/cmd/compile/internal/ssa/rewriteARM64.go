@@ -398,6 +398,10 @@ func rewriteValueARM64(v *Value) bool {
 		return rewriteValueARM64_OpARM64UMOD(v)
 	case OpARM64UMODW:
 		return rewriteValueARM64_OpARM64UMODW(v)
+	case OpARM64VBIF16B:
+		return rewriteValueARM64_OpARM64VBIF16B(v)
+	case OpARM64VBIT16B:
+		return rewriteValueARM64_OpARM64VBIT16B(v)
 	case OpARM64VDUPBbcast:
 		return rewriteValueARM64_OpARM64VDUPBbcast(v)
 	case OpARM64VFCVTL4S:
@@ -502,6 +506,24 @@ func rewriteValueARM64(v *Value) bool {
 		return rewriteValueARM64_OpARM64XORshiftRO(v)
 	case OpAbs:
 		v.Op = OpARM64FABSD
+		return true
+	case OpAbsFloat32x4:
+		v.Op = OpARM64VFABS4S
+		return true
+	case OpAbsFloat64x2:
+		v.Op = OpARM64VFABS2D
+		return true
+	case OpAbsInt16x8:
+		v.Op = OpARM64VABS8H
+		return true
+	case OpAbsInt32x4:
+		v.Op = OpARM64VABS4S
+		return true
+	case OpAbsInt64x2:
+		v.Op = OpARM64VABS2D
+		return true
+	case OpAbsInt8x16:
+		v.Op = OpARM64VABS16B
 		return true
 	case OpAdd16:
 		v.Op = OpARM64ADD
@@ -933,6 +955,36 @@ func rewriteValueARM64(v *Value) bool {
 		return rewriteValueARM64_OpEqB(v)
 	case OpEqPtr:
 		return rewriteValueARM64_OpEqPtr(v)
+	case OpEqualFloat32x4:
+		v.Op = OpARM64VFCMEQ4S
+		return true
+	case OpEqualFloat64x2:
+		v.Op = OpARM64VFCMEQ2D
+		return true
+	case OpEqualInt16x8:
+		v.Op = OpARM64VCMEQ8H
+		return true
+	case OpEqualInt32x4:
+		v.Op = OpARM64VCMEQ4S
+		return true
+	case OpEqualInt64x2:
+		v.Op = OpARM64VCMEQ2D
+		return true
+	case OpEqualInt8x16:
+		v.Op = OpARM64VCMEQ16B
+		return true
+	case OpEqualUint16x8:
+		v.Op = OpARM64VCMEQ8H
+		return true
+	case OpEqualUint32x4:
+		v.Op = OpARM64VCMEQ4S
+		return true
+	case OpEqualUint64x2:
+		v.Op = OpARM64VCMEQ2D
+		return true
+	case OpEqualUint8x16:
+		v.Op = OpARM64VCMEQ16B
+		return true
 	case OpExtendLo2ToInt64Int32x4:
 		v.Op = OpARM64VSXTL4S
 		return true
@@ -994,6 +1046,66 @@ func rewriteValueARM64(v *Value) bool {
 		return true
 	case OpGetElemUint8x16:
 		v.Op = OpARM64VMOVBextr
+		return true
+	case OpGreaterEqualFloat32x4:
+		v.Op = OpARM64VFCMGE4S
+		return true
+	case OpGreaterEqualFloat64x2:
+		v.Op = OpARM64VFCMGE2D
+		return true
+	case OpGreaterEqualInt16x8:
+		v.Op = OpARM64VCMGE8H
+		return true
+	case OpGreaterEqualInt32x4:
+		v.Op = OpARM64VCMGE4S
+		return true
+	case OpGreaterEqualInt64x2:
+		v.Op = OpARM64VCMGE2D
+		return true
+	case OpGreaterEqualInt8x16:
+		v.Op = OpARM64VCMGE16B
+		return true
+	case OpGreaterEqualUint16x8:
+		v.Op = OpARM64VCMHS8H
+		return true
+	case OpGreaterEqualUint32x4:
+		v.Op = OpARM64VCMHS4S
+		return true
+	case OpGreaterEqualUint64x2:
+		v.Op = OpARM64VCMHS2D
+		return true
+	case OpGreaterEqualUint8x16:
+		v.Op = OpARM64VCMHS16B
+		return true
+	case OpGreaterFloat32x4:
+		v.Op = OpARM64VFCMGT4S
+		return true
+	case OpGreaterFloat64x2:
+		v.Op = OpARM64VFCMGT2D
+		return true
+	case OpGreaterInt16x8:
+		v.Op = OpARM64VCMGT8H
+		return true
+	case OpGreaterInt32x4:
+		v.Op = OpARM64VCMGT4S
+		return true
+	case OpGreaterInt64x2:
+		v.Op = OpARM64VCMGT2D
+		return true
+	case OpGreaterInt8x16:
+		v.Op = OpARM64VCMGT16B
+		return true
+	case OpGreaterUint16x8:
+		v.Op = OpARM64VCMHI8H
+		return true
+	case OpGreaterUint32x4:
+		v.Op = OpARM64VCMHI4S
+		return true
+	case OpGreaterUint64x2:
+		v.Op = OpARM64VCMHI2D
+		return true
+	case OpGreaterUint8x16:
+		v.Op = OpARM64VCMHI16B
 		return true
 	case OpHmul32:
 		return rewriteValueARM64_OpHmul32(v)
@@ -1202,6 +1314,24 @@ func rewriteValueARM64(v *Value) bool {
 		return true
 	case OpNeg8:
 		v.Op = OpARM64NEG
+		return true
+	case OpNegFloat32x4:
+		v.Op = OpARM64VFNEG4S
+		return true
+	case OpNegFloat64x2:
+		v.Op = OpARM64VFNEG2D
+		return true
+	case OpNegInt16x8:
+		v.Op = OpARM64VNEG8H
+		return true
+	case OpNegInt32x4:
+		v.Op = OpARM64VNEG4S
+		return true
+	case OpNegInt64x2:
+		v.Op = OpARM64VNEG2D
+		return true
+	case OpNegInt8x16:
+		v.Op = OpARM64VNEG16B
 		return true
 	case OpNeq16:
 		return rewriteValueARM64_OpNeq16(v)
@@ -1843,6 +1973,12 @@ func rewriteValueARM64(v *Value) bool {
 		return true
 	case OpZeroSIMD:
 		return rewriteValueARM64_OpZeroSIMD(v)
+	case OpbitSelectInt8x16:
+		v.Op = OpARM64VBIT16B
+		return true
+	case OpbitSelectNotInt8x16:
+		v.Op = OpARM64VBIF16B
+		return true
 	case Opbroadcast1To16Int8x16:
 		return rewriteValueARM64_Opbroadcast1To16Int8x16(v)
 	case Opbroadcast1To16Uint8x16:
@@ -17431,6 +17567,44 @@ func rewriteValueARM64_OpARM64UMODW(v *Value) bool {
 		}
 		v.reset(OpARM64MOVDconst)
 		v.AuxInt = int64ToAuxInt(int64(uint32(c) % uint32(d)))
+		return true
+	}
+	return false
+}
+func rewriteValueARM64_OpARM64VBIF16B(v *Value) bool {
+	v_2 := v.Args[2]
+	v_1 := v.Args[1]
+	v_0 := v.Args[0]
+	// match: (VBIF16B x y (VNOT16B mask))
+	// result: (VBIT16B x y mask)
+	for {
+		x := v_0
+		y := v_1
+		if v_2.Op != OpARM64VNOT16B {
+			break
+		}
+		mask := v_2.Args[0]
+		v.reset(OpARM64VBIT16B)
+		v.AddArg3(x, y, mask)
+		return true
+	}
+	return false
+}
+func rewriteValueARM64_OpARM64VBIT16B(v *Value) bool {
+	v_2 := v.Args[2]
+	v_1 := v.Args[1]
+	v_0 := v.Args[0]
+	// match: (VBIT16B x y (VNOT16B mask))
+	// result: (VBIF16B x y mask)
+	for {
+		x := v_0
+		y := v_1
+		if v_2.Op != OpARM64VNOT16B {
+			break
+		}
+		mask := v_2.Args[0]
+		v.reset(OpARM64VBIF16B)
+		v.AddArg3(x, y, mask)
 		return true
 	}
 	return false

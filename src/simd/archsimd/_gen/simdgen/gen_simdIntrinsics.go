@@ -88,7 +88,9 @@ func simd{{GetArchUpper}}Intrinsics(addF func(pkg, fn string, b intrinsicBuilder
 	addF(simdPackage, "{{.VectorCounterpart}}.asMask", func(s *state, n *ir.CallExpr, args []*ssa.Value) *ssa.Value { return args[0] }, {{GetSysArch}})
 	addF(simdPackage, "{{.Name}}.And", opLen2(ssa.OpAnd{{.ReshapedVectorWithAndOr}}, types.TypeVec{{.Size}}), {{GetSysArch}})
 	addF(simdPackage, "{{.Name}}.Or", opLen2(ssa.OpOr{{.ReshapedVectorWithAndOr}}, types.TypeVec{{.Size}}), {{GetSysArch}})
-{{- if eq GetSysArch "sys.ARM64"}}{{else}}
+{{- if eq GetSysArch "sys.ARM64"}}
+	addF(simdPackage, "{{.Name}}.Not", opLen1(ssa.OpNot{{.ReshapedVectorWithAndOr}}, types.TypeVec{{.Size}}), {{GetSysArch}})
+{{else}}
 	addF(simdPackage, "{{.Name}}FromBits", simdCvtVToMask({{.ElemBits}}, {{.Lanes}}), {{GetSysArch}})
 	addF(simdPackage, "{{.Name}}.ToBits", simdCvtMaskToV({{.ElemBits}}, {{.Lanes}}), {{GetSysArch}})
 {{- end}}
