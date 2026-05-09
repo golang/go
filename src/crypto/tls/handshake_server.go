@@ -9,6 +9,7 @@ import (
 	"crypto"
 	"crypto/ecdsa"
 	"crypto/ed25519"
+	"crypto/mldsa"
 	"crypto/rsa"
 	"crypto/subtle"
 	"crypto/tls/internal/fips140tls"
@@ -310,6 +311,11 @@ func (hs *serverHandshakeState) processClientHello() error {
 			hs.ecSignOk = true
 		case *rsa.PublicKey:
 			hs.rsaSignOk = true
+		case *mldsa.PublicKey:
+			// ML-DSA can only be used with TLS 1.3.
+			c.sendAlert(alertInternalError)
+			return fmt.Errorf("tls: ML-DSA certificates require TLS 1.3, but client negotiated %s",
+				VersionName(c.vers))
 		default:
 			c.sendAlert(alertInternalError)
 			return fmt.Errorf("tls: unsupported signing key type (%T)", priv.Public())
@@ -659,7 +665,7 @@ func (hs *serverHandshakeState) doFullHandshake() error {
 		}
 		if c.vers >= VersionTLS12 {
 			certReq.hasSignatureAlgorithm = true
-			certReq.supportedSignatureAlgorithms = supportedSignatureAlgorithms(c.vers)
+			certReq.supportedSignatureAlgorithms = supportedSignatureAlgorithms(c.vers, c.vers)
 		}
 
 		// An empty list of certificateAuthorities signals to
@@ -1002,6 +1008,11 @@ func (c *Conn) processCertsFromClient(certificate Certificate) error {
 	if len(certs) > 0 {
 		switch certs[0].PublicKey.(type) {
 		case *ecdsa.PublicKey, *rsa.PublicKey, ed25519.PublicKey:
+		case *mldsa.PublicKey:
+			if c.vers < VersionTLS13 {
+				c.sendAlert(alertIllegalParameter)
+				return errors.New("tls: client certificate uses ML-DSA, which requires TLS 1.3")
+			}
 		default:
 			c.sendAlert(alertUnsupportedCertificate)
 			return fmt.Errorf("tls: client certificate contains an unsupported public key of type %T", certs[0].PublicKey)

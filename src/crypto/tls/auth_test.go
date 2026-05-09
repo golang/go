@@ -6,6 +6,9 @@ package tls
 
 import (
 	"crypto"
+	"crypto/fips140"
+	"crypto/internal/cryptotest"
+	"crypto/mldsa"
 	"crypto/tls/internal/fips140tls"
 	"internal/testenv"
 	"strconv"
@@ -39,6 +42,9 @@ func TestSignatureSelection(t *testing.T) {
 		{testECDSAP256Cert, []SignatureScheme{ECDSAWithP256AndSHA256}, VersionTLS13, "", ECDSAWithP256AndSHA256, signatureECDSA, crypto.SHA256},
 		{testEd25519Cert, []SignatureScheme{Ed25519}, VersionTLS12, "", Ed25519, signatureEd25519, directSigning},
 		{testEd25519Cert, []SignatureScheme{Ed25519}, VersionTLS13, "", Ed25519, signatureEd25519, directSigning},
+		{testMLDSA44Cert, []SignatureScheme{MLDSA44}, VersionTLS13, "", MLDSA44, signatureMLDSA, directSigning},
+		{testMLDSA65Cert, []SignatureScheme{MLDSA65}, VersionTLS13, "", MLDSA65, signatureMLDSA, directSigning},
+		{testMLDSA87Cert, []SignatureScheme{MLDSA87}, VersionTLS13, "", MLDSA87, signatureMLDSA, directSigning},
 
 		// TLS 1.2 without signature_algorithms extension
 		{testRSA2048Cert, nil, VersionTLS12, "tlssha1=1", PKCS1WithSHA1, signaturePKCS1v15, crypto.SHA1},
@@ -52,6 +58,10 @@ func TestSignatureSelection(t *testing.T) {
 		t.Run(strconv.Itoa(testNo), func(t *testing.T) {
 			if fips140tls.Required() && test.expectedHash == crypto.SHA1 {
 				t.Skip("skipping test not compatible with TLS FIPS mode")
+			}
+			switch test.expectedSigAlg {
+			case MLDSA44, MLDSA65, MLDSA87:
+				cryptotest.MustMinimumFIPS140ModuleVersion(t, "v1.26.0")
 			}
 			if test.godebug != "" {
 				testenv.SetGODEBUG(t, test.godebug)
@@ -115,6 +125,18 @@ func TestSignatureSelection(t *testing.T) {
 		{testECDSAP256Cert, []SignatureScheme{ECDSAWithSHA1}, VersionTLS12},
 		{testRSA2048Cert, nil, VersionTLS12},
 		{testECDSAP256Cert, nil, VersionTLS12},
+		// ML-DSA requires TLS 1.3.
+		{testMLDSA44Cert, []SignatureScheme{MLDSA44}, VersionTLS12},
+		{testMLDSA65Cert, []SignatureScheme{MLDSA65}, VersionTLS12},
+		{testMLDSA87Cert, []SignatureScheme{MLDSA87}, VersionTLS12},
+		// ML-DSA parameter sets don't cross-match.
+		{testMLDSA44Cert, []SignatureScheme{MLDSA65}, VersionTLS13},
+		{testMLDSA65Cert, []SignatureScheme{MLDSA87}, VersionTLS13},
+		{testMLDSA87Cert, []SignatureScheme{MLDSA44}, VersionTLS13},
+		// ML-DSA cert with non-ML-DSA peer sig algs and vice versa.
+		{testMLDSA44Cert, []SignatureScheme{Ed25519}, VersionTLS13},
+		{testRSA2048Cert, []SignatureScheme{MLDSA44}, VersionTLS13},
+		{testECDSAP256Cert, []SignatureScheme{MLDSA44}, VersionTLS13},
 	}
 
 	for testNo, test := range badTests {
@@ -153,12 +175,24 @@ func TestLegacyTypeAndHash(t *testing.T) {
 	if err == nil {
 		t.Errorf("Ed25519: unexpected success")
 	}
+
+	// ML-DSA is not supported by TLS 1.0 and 1.1. Skip under FIPS 140-3 module
+	// v1.0.0 which doesn't support ML-DSA public keys.
+	if fips140.Version() != "v1.0.0" {
+		for _, key := range []*mldsa.PrivateKey{
+			testMLDSA44Key, testMLDSA65Key, testMLDSA87Key,
+		} {
+			if _, _, err := legacyTypeAndHashFromPublicKey(key.PublicKey()); err == nil {
+				t.Errorf("%s: unexpected success", key.PublicKey().Parameters())
+			}
+		}
+	}
 }
 
 // TestSupportedSignatureAlgorithms checks that all supportedSignatureAlgorithms
 // have valid type and hash information.
 func TestSupportedSignatureAlgorithms(t *testing.T) {
-	for _, sigAlg := range supportedSignatureAlgorithms(VersionTLS12) {
+	for _, sigAlg := range supportedSignatureAlgorithms(VersionTLS12, VersionTLS13) {
 		sigType, hash, err := typeAndHashFromSignatureScheme(sigAlg)
 		if err != nil {
 			t.Errorf("%v: unexpected error: %v", sigAlg, err)
@@ -166,7 +200,7 @@ func TestSupportedSignatureAlgorithms(t *testing.T) {
 		if sigType == 0 {
 			t.Errorf("%v: missing signature type", sigAlg)
 		}
-		if hash == 0 && sigAlg != Ed25519 {
+		if hash == 0 && sigAlg != Ed25519 && sigAlg != MLDSA44 && sigAlg != MLDSA65 && sigAlg != MLDSA87 {
 			t.Errorf("%v: missing hash", sigAlg)
 		}
 	}

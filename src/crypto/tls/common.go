@@ -12,6 +12,8 @@ import (
 	"crypto/ecdsa"
 	"crypto/ed25519"
 	"crypto/elliptic"
+	"crypto/fips140"
+	"crypto/mldsa"
 	"crypto/rand"
 	"crypto/rsa"
 	"crypto/sha512"
@@ -216,11 +218,12 @@ const (
 	signatureRSAPSS
 	signatureECDSA
 	signatureEd25519
+	signatureMLDSA
 )
 
 // directSigning is a standard Hash value that signals that no pre-hashing
 // should be performed, and that the input should be signed directly. It is the
-// hash function associated with the Ed25519 signature scheme.
+// hash function associated with the Ed25519 and ML-DSA signature schemes.
 var directSigning crypto.Hash = 0
 
 // helloRetryRequestRandom is set as the Random value of a ServerHello
@@ -424,6 +427,11 @@ const (
 
 	// EdDSA algorithms.
 	Ed25519 SignatureScheme = 0x0807
+
+	// ML-DSA algorithms.
+	MLDSA44 SignatureScheme = 0x0904
+	MLDSA65 SignatureScheme = 0x0905
+	MLDSA87 SignatureScheme = 0x0906
 
 	// Legacy signature and hash algorithms for TLS 1.2.
 	PKCS1WithSHA1 SignatureScheme = 0x0201
@@ -1486,6 +1494,9 @@ func (chi *ClientHelloInfo) SupportsCertificate(c *Certificate) error {
 				return errors.New("connection doesn't support Ed25519")
 			}
 			ecdsaCipherSuite = true
+		case *mldsa.PublicKey:
+			// ML-DSA requires TLS 1.3, which we already excluded above.
+			return errors.New("connection doesn't support ML-DSA")
 		case *rsa.PublicKey:
 		default:
 			return supportsRSAFallback(unsupportedCertificateError(c))
@@ -1610,8 +1621,8 @@ var writerMutex sync.Mutex
 type Certificate struct {
 	Certificate [][]byte
 	// PrivateKey contains the private key corresponding to the public key in
-	// Leaf. This must implement [crypto.Signer] with an RSA, ECDSA or Ed25519
-	// PublicKey.
+	// Leaf. This must implement [crypto.Signer] with an RSA, ECDSA, Ed25519
+	// (TLS 1.2+), or ML-DSA (TLS 1.3) PublicKey.
 	//
 	// For a server up to TLS 1.2, it can also implement crypto.Decrypter with
 	// an RSA PublicKey.
@@ -1747,15 +1758,21 @@ func unexpectedMessageError(wanted, got any) error {
 var testingOnlySupportedSignatureAlgorithms []SignatureScheme
 
 // supportedSignatureAlgorithms returns the supported signature algorithms for
-// the given minimum TLS version, to advertise in ClientHello and
-// CertificateRequest messages.
-func supportedSignatureAlgorithms(minVers uint16) []SignatureScheme {
+// the given range of TLS versions, to advertise in ClientHello and
+// CertificateRequest messages. An algorithm is included if it is enabled at any
+// version in the range.
+func supportedSignatureAlgorithms(minVers, maxVers uint16) []SignatureScheme {
 	sigAlgs := defaultSupportedSignatureAlgorithms()
 	if testingOnlySupportedSignatureAlgorithms != nil {
 		sigAlgs = slices.Clone(testingOnlySupportedSignatureAlgorithms)
 	}
 	return slices.DeleteFunc(sigAlgs, func(s SignatureScheme) bool {
-		return isDisabledSignatureAlgorithm(minVers, s, false)
+		for v := minVers; v <= maxVers; v++ {
+			if !isDisabledSignatureAlgorithm(v, s, false) {
+				return false
+			}
+		}
+		return true
 	})
 }
 
@@ -1764,6 +1781,18 @@ var tlssha1 = godebug.New("tlssha1")
 func isDisabledSignatureAlgorithm(version uint16, s SignatureScheme, isCert bool) bool {
 	if fips140tls.Required() && !slices.Contains(allowedSignatureAlgorithmsFIPS, s) {
 		return true
+	}
+
+	switch s {
+	case MLDSA44, MLDSA65, MLDSA87:
+		// ML-DSA is not available in FIPS 140-3 module v1.0.0.
+		if fips140.Version() == "v1.0.0" {
+			return true
+		}
+		// ML-DSA codepoints are only defined for TLS 1.3.
+		if version < VersionTLS13 {
+			return true
+		}
 	}
 
 	// For the _cert extension we include all algorithms, including SHA-1 and
@@ -1795,10 +1824,15 @@ func isDisabledSignatureAlgorithm(version uint16, s SignatureScheme, isCert bool
 
 // supportedSignatureAlgorithmsCert returns the supported algorithms for
 // signatures in certificates.
-func supportedSignatureAlgorithmsCert() []SignatureScheme {
+func supportedSignatureAlgorithmsCert(minVers, maxVers uint16) []SignatureScheme {
 	sigAlgs := defaultSupportedSignatureAlgorithms()
 	return slices.DeleteFunc(sigAlgs, func(s SignatureScheme) bool {
-		return isDisabledSignatureAlgorithm(0, s, true)
+		for v := minVers; v <= maxVers; v++ {
+			if !isDisabledSignatureAlgorithm(v, s, true) {
+				return false
+			}
+		}
+		return true
 	})
 }
 

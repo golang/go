@@ -18,6 +18,9 @@ func _() {
 	_ = x[ECDSAWithP384AndSHA384-1283]
 	_ = x[ECDSAWithP521AndSHA512-1539]
 	_ = x[Ed25519-2055]
+	_ = x[MLDSA44-2308]
+	_ = x[MLDSA65-2309]
+	_ = x[MLDSA87-2310]
 	_ = x[PKCS1WithSHA1-513]
 	_ = x[ECDSAWithSHA1-515]
 }
@@ -32,10 +35,12 @@ const (
 	_SignatureScheme_name_6 = "PKCS1WithSHA512"
 	_SignatureScheme_name_7 = "ECDSAWithP521AndSHA512"
 	_SignatureScheme_name_8 = "PSSWithSHA256PSSWithSHA384PSSWithSHA512Ed25519"
+	_SignatureScheme_name_9 = "MLDSA44MLDSA65MLDSA87"
 )
 
 var (
 	_SignatureScheme_index_8 = [...]uint8{0, 13, 26, 39, 46}
+	_SignatureScheme_index_9 = [...]uint8{0, 7, 14, 21}
 )
 
 func (i SignatureScheme) String() string {
@@ -59,6 +64,9 @@ func (i SignatureScheme) String() string {
 	case 2052 <= i && i <= 2055:
 		i -= 2052
 		return _SignatureScheme_name_8[_SignatureScheme_index_8[i]:_SignatureScheme_index_8[i+1]]
+	case 2308 <= i && i <= 2310:
+		i -= 2308
+		return _SignatureScheme_name_9[_SignatureScheme_index_9[i]:_SignatureScheme_index_9[i+1]]
 	default:
 		return "SignatureScheme(" + strconv.FormatInt(int64(i), 10) + ")"
 	}
@@ -117,8 +125,9 @@ const _ClientAuthType_name = "NoClientCertRequestClientCertRequireAnyClientCertV
 var _ClientAuthType_index = [...]uint8{0, 12, 29, 49, 72, 98}
 
 func (i ClientAuthType) String() string {
-	if i < 0 || i >= ClientAuthType(len(_ClientAuthType_index)-1) {
+	idx := int(i) - 0
+	if i < 0 || idx >= len(_ClientAuthType_index)-1 {
 		return "ClientAuthType(" + strconv.FormatInt(int64(i), 10) + ")"
 	}
-	return _ClientAuthType_name[_ClientAuthType_index[i]:_ClientAuthType_index[i+1]]
+	return _ClientAuthType_name[_ClientAuthType_index[idx]:_ClientAuthType_index[idx+1]]
 }

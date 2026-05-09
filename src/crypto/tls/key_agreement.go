@@ -294,6 +294,10 @@ func (ka *ecdheKeyAgreement) processServerKeyExchange(config *Config, clientHell
 		if len(sig) < 2 {
 			return errServerKeyExchange
 		}
+		switch ka.signatureAlgorithm {
+		case MLDSA44, MLDSA65, MLDSA87:
+			return errors.New("tls: server selected ML-DSA with TLS version < 1.3")
+		}
 	}
 	sigLen := int(sig[0])<<8 | int(sig[1])
 	if sigLen+2 != len(sig) {
