@@ -70,6 +70,32 @@ TEXT ·Casp1(SB), NOSPLIT, $0-25
 	SETEQ	ret+24(FP)
 	RET
 
+// func Cas128(ptr *uint64, old1, old2, new1, new2 uint64) bool
+// Atomically:
+//	if *ptr == old1 && *(ptr+1) == old2 {
+//		*ptr = new1
+//		*(ptr+1) = new2
+//		return true
+//	} else {
+//		return false
+//	}
+//
+// CMPXCHG16B requires its memory operand to be 16-byte aligned;
+// unaligned accesses fault.
+TEXT ·Cas128(SB), NOSPLIT, $0-41
+	MOVQ	ptr+0(FP), DI
+	TESTQ	$15, DI
+	JZ	2(PC)
+	CALL	·panicUnaligned128(SB)
+	MOVQ	old1+8(FP), AX
+	MOVQ	old2+16(FP), DX
+	MOVQ	new1+24(FP), BX
+	MOVQ	new2+32(FP), CX
+	LOCK
+	CMPXCHG16B	(DI)
+	SETEQ	ret+40(FP)
+	RET
+
 TEXT ·Casint32(SB), NOSPLIT, $0-17
 	JMP	·Cas(SB)
 

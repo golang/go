@@ -262,6 +262,41 @@ ok:
 	RET
 #endif
 
+// func Cas128(ptr *uint64, old1, old2, new1, new2 uint64) bool
+// Atomically:
+//	if *ptr == old1 && *(ptr+1) == old2 {
+//		*ptr = new1
+//		*(ptr+1) = new2
+//		return true
+//	} else {
+//		return false
+//	}
+//
+// LDAXP/STLXP requires its memory operand to be 16-byte aligned;
+// unaligned accesses fault.
+TEXT ·Cas128(SB), NOSPLIT, $0-41
+	MOVD	ptr+0(FP), R0
+	AND	$15, R0, R7
+	CBZ	R7, aligned
+	CALL	·panicUnaligned128(SB)
+aligned:
+	MOVD	old1+8(FP), R1
+	MOVD	old2+16(FP), R2
+	MOVD	new1+24(FP), R3
+	MOVD	new2+32(FP), R4
+load_store_loop:
+	LDAXP	(R0), (R5, R6)
+	CMP	R1, R5
+	BNE	done
+	CMP	R2, R6
+	BNE	done
+	STLXP	(R3, R4), (R0), R7
+	CBNZ	R7, load_store_loop
+done:
+	CSET	EQ, R0
+	MOVB	R0, ret+40(FP)
+	RET
+
 // uint32 xadd(uint32 volatile *ptr, int32 delta)
 // Atomically:
 //      *val += delta;
