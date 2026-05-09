@@ -1426,7 +1426,7 @@ func TestBuildNameToCertificate_doesntModifyCertificates(t *testing.T) {
 func testingKey(s string) string { return strings.ReplaceAll(s, "TESTING KEY", "PRIVATE KEY") }
 
 func TestClientHelloInfo_SupportsCertificate(t *testing.T) {
-	skipFIPS(t) // Test certificates not FIPS compatible.
+	skipFIPS(t) // SHA-1, Ed25519, and legacy RSA kex test cases not FIPS compatible.
 
 	pkcs1Cert := testRSA2048Cert
 	pkcs1Cert.SupportedSignatureAlgorithms = []SignatureScheme{PKCS1WithSHA1, PKCS1WithSHA256}
@@ -1861,8 +1861,6 @@ func TestPKCS1OnlyCert(t *testing.T) {
 }
 
 func TestVerifyCertificates(t *testing.T) {
-	skipFIPS(t) // Test certificates not FIPS compatible.
-
 	// See https://go.dev/issue/31641.
 	t.Run("TLSv12", func(t *testing.T) { testVerifyCertificates(t, VersionTLS12) })
 	t.Run("TLSv13", func(t *testing.T) { testVerifyCertificates(t, VersionTLS13) })

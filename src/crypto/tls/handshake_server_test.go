@@ -212,8 +212,6 @@ func TestDontSelectRSAWithECDSAKey(t *testing.T) {
 }
 
 func TestRenegotiationExtension(t *testing.T) {
-	skipFIPS(t) // #70505
-
 	clientHello := &clientHelloMsg{
 		vers:                         VersionTLS12,
 		compressionMethods:           []uint8{compressionNone},

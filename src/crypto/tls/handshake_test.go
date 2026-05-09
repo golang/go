@@ -54,8 +54,7 @@ var (
 )
 
 func runTestAndUpdateIfNeeded(t *testing.T, name string, run func(t *testing.T, update bool)) {
-	// FIPS mode is non-deterministic and so isn't suited for testing against static test transcripts.
-	skipFIPS(t)
+	skipFIPS(t) // FIPS 140-3 mode changes the advertised parameters.
 
 	// Go+BoringCrypto's boring.RandReader ignores the testing override set by
 	// cryptotest.SetGlobalRandom, so e.g. ECDH key generation would be

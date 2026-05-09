@@ -909,7 +909,6 @@ func testResumption(t *testing.T, version uint16) {
 		t.Skip("skipping in -short mode")
 	}
 
-	// Note: using RSA 2048 test certificates because they are compatible with FIPS mode.
 	testCertificates := []Certificate{testRSA2048Cert}
 	serverConfig := &Config{
 		MaxVersion:   version,
@@ -1772,7 +1771,6 @@ func testVerifyConnection(t *testing.T, version uint16) {
 		},
 	}
 	for _, test := range tests {
-		// Note: using RSA 2048 test certificates because they are compatible with FIPS mode.
 		var serverCalled, clientCalled int
 
 		serverConfig := &Config{
@@ -1827,7 +1825,6 @@ func TestVerifyPeerCertificate(t *testing.T) {
 }
 
 func testVerifyPeerCertificate(t *testing.T, version uint16) {
-	// Note: using RSA 2048 test certificates because they are compatible with FIPS mode.
 	sentinelErr := errors.New("TestVerifyPeerCertificate")
 
 	verifyPeerCertificateCallback := func(called *bool, rawCerts [][]byte, validatedChains [][]*x509.Certificate) error {
@@ -2382,7 +2379,6 @@ func TestGetClientCertificate(t *testing.T) {
 }
 
 func testGetClientCertificate(t *testing.T, version uint16) {
-	// Note: using RSA 2048 test certificates because they are compatible with FIPS mode.
 	for i, test := range getClientCertificateTests {
 		serverConfig := testConfigServer.Clone()
 		serverConfig.Certificates = []Certificate{testRSA2048Cert}
@@ -2561,7 +2557,6 @@ func TestResumptionKeepsOCSPAndSCT(t *testing.T) {
 }
 
 func testResumptionKeepsOCSPAndSCT(t *testing.T, ver uint16) {
-	// Note: using RSA 2048 test certificates because they are compatible with FIPS mode.
 	clientConfig := &Config{
 		MaxVersion:         ver,
 		ClientSessionCache: NewLRUClientSessionCache(32),
