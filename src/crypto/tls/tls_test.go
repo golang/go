@@ -1197,19 +1197,19 @@ func TestConnectionStateMarshal(t *testing.T) {
 }
 
 func TestConnectionState(t *testing.T) {
-	issuer, err := x509.ParseCertificate(testRSA2048CertificateIssuer)
-	if err != nil {
-		panic(err)
-	}
-	rootCAs := x509.NewCertPool()
-	rootCAs.AddCert(issuer)
-
 	const alpnProtocol = "golang"
-	const serverName = "example.golang"
+	const serverName = "test.golang.example"
 	var scts = [][]byte{[]byte("dummy sct 1"), []byte("dummy sct 2")}
 	var ocsp = []byte("dummy ocsp")
 
 	checkConnectionState := func(t *testing.T, cs ConnectionState, version uint16, isClient bool) {
+		// On the client, the peer is the server (testRSA2048Cert under
+		// testRootCert); on the server, the peer is the client
+		// (testClientRSA2048Cert under testClientRootCert).
+		peerLeaf, peerRoot := testRSA2048Cert.Certificate[0], testRootCert.Certificate[0]
+		if !isClient {
+			peerLeaf, peerRoot = testClientRSA2048Cert.Certificate[0], testClientRootCert.Certificate[0]
+		}
 		if cs.Version != version {
 			t.Errorf("got Version %x, expected %x", cs.Version, version)
 		}
@@ -1244,18 +1244,18 @@ func TestConnectionState(t *testing.T) {
 
 		if len(cs.PeerCertificates) != 1 {
 			t.Errorf("got %d PeerCertificates, expected %d", len(cs.PeerCertificates), 1)
-		} else if !bytes.Equal(cs.PeerCertificates[0].Raw, testRSA2048Certificate) {
-			t.Errorf("got PeerCertificates %x, expected %x", cs.PeerCertificates[0].Raw, testRSA2048Certificate)
+		} else if !bytes.Equal(cs.PeerCertificates[0].Raw, peerLeaf) {
+			t.Errorf("got PeerCertificates %x, expected %x", cs.PeerCertificates[0].Raw, peerLeaf)
 		}
 
 		if len(cs.VerifiedChains) != 1 {
 			t.Errorf("got %d long verified chain, expected %d", len(cs.VerifiedChains), 1)
 		} else if len(cs.VerifiedChains[0]) != 2 {
 			t.Errorf("got %d verified chain, expected %d", len(cs.VerifiedChains[0]), 2)
-		} else if !bytes.Equal(cs.VerifiedChains[0][0].Raw, testRSA2048Certificate) {
-			t.Errorf("got verified chain[0][0] %x, expected %x", cs.VerifiedChains[0][0].Raw, testRSA2048Certificate)
-		} else if !bytes.Equal(cs.VerifiedChains[0][1].Raw, testRSA2048CertificateIssuer) {
-			t.Errorf("got verified chain[0][1] %x, expected %x", cs.VerifiedChains[0][1].Raw, testRSA2048CertificateIssuer)
+		} else if !bytes.Equal(cs.VerifiedChains[0][0].Raw, peerLeaf) {
+			t.Errorf("got verified chain[0][0] %x, expected %x", cs.VerifiedChains[0][0].Raw, peerLeaf)
+		} else if !bytes.Equal(cs.VerifiedChains[0][1].Raw, peerRoot) {
+			t.Errorf("got verified chain[0][1] %x, expected %x", cs.VerifiedChains[0][1].Raw, peerRoot)
 		}
 
 		// Only TLS 1.3 supports OCSP and SCTs on client certs.
@@ -1342,24 +1342,34 @@ func TestConnectionState(t *testing.T) {
 			name = "TLSv13"
 		}
 		t.Run(name, func(t *testing.T) {
-			config := &Config{
+			serverCert := testRSA2048Cert
+			serverCert.SignedCertificateTimestamps = scts
+			serverCert.OCSPStaple = ocsp
+			clientCert := testClientRSA2048Cert
+			clientCert.SignedCertificateTimestamps = scts
+			clientCert.OCSPStaple = ocsp
+
+			serverConfig := &Config{
+				Time:         testTime,
+				Certificates: []Certificate{serverCert},
+				MinVersion:   v,
+				MaxVersion:   v,
+				ClientCAs:    testClientRootCertPool,
+				ClientAuth:   RequireAndVerifyClientCert,
+				NextProtos:   []string{alpnProtocol},
+			}
+			clientConfig := &Config{
 				Time:               testTime,
-				Certificates:       make([]Certificate, 1),
+				Certificates:       []Certificate{clientCert},
 				MinVersion:         v,
 				MaxVersion:         v,
-				RootCAs:            rootCAs,
-				ClientCAs:          rootCAs,
-				ClientAuth:         RequireAndVerifyClientCert,
+				RootCAs:            testRootCertPool,
 				NextProtos:         []string{alpnProtocol},
 				ServerName:         serverName,
 				ClientSessionCache: NewLRUClientSessionCache(1),
 			}
-			config.Certificates[0].Certificate = [][]byte{testRSA2048Certificate}
-			config.Certificates[0].PrivateKey = testRSA2048PrivateKey
-			config.Certificates[0].SignedCertificateTimestamps = scts
-			config.Certificates[0].OCSPStaple = ocsp
 
-			ss, cs, err := testHandshake(t, config, config)
+			ss, cs, err := testHandshake(t, clientConfig, serverConfig)
 			if err != nil {
 				t.Fatalf("handshake failed: %v", err)
 			}
@@ -1371,7 +1381,7 @@ func TestConnectionState(t *testing.T) {
 				// TODO: test changing parameters between original and resumed
 				// connection when the protocol allows it.
 
-				ss1, cs1, err := testHandshake(t, config, config)
+				ss1, cs1, err := testHandshake(t, clientConfig, serverConfig)
 				if err != nil {
 					t.Fatalf("handshake failed: %v", err)
 				}
@@ -1390,20 +1400,12 @@ func TestConnectionState(t *testing.T) {
 // Issue 28744: Ensure that we don't modify memory
 // that Config doesn't own such as Certificates.
 func TestBuildNameToCertificate_doesntModifyCertificates(t *testing.T) {
-	c0 := Certificate{
-		Certificate: [][]byte{testRSACertificate},
-		PrivateKey:  testRSAPrivateKey,
-	}
-	c1 := Certificate{
-		Certificate: [][]byte{testSNICertificate},
-		PrivateKey:  testRSAPrivateKey,
-	}
 	config := testConfig.Clone()
-	config.Certificates = []Certificate{c0, c1}
+	config.Certificates = []Certificate{testRSA2048Cert, testSNICert}
 
 	config.BuildNameToCertificate()
 	got := config.Certificates
-	want := []Certificate{c0, c1}
+	want := []Certificate{testRSA2048Cert, testSNICert}
 	if !reflect.DeepEqual(got, want) {
 		t.Fatalf("Certificates were mutated by BuildNameToCertificate\nGot: %#v\nWant: %#v\n", got, want)
 	}
@@ -1414,45 +1416,29 @@ func testingKey(s string) string { return strings.ReplaceAll(s, "TESTING KEY", "
 func TestClientHelloInfo_SupportsCertificate(t *testing.T) {
 	skipFIPS(t) // Test certificates not FIPS compatible.
 
-	rsaCert := &Certificate{
-		Certificate: [][]byte{testRSACertificate},
-		PrivateKey:  testRSAPrivateKey,
-	}
-	pkcs1Cert := &Certificate{
-		Certificate:                  [][]byte{testRSACertificate},
-		PrivateKey:                   testRSAPrivateKey,
-		SupportedSignatureAlgorithms: []SignatureScheme{PKCS1WithSHA1, PKCS1WithSHA256},
-	}
-	ecdsaCert := &Certificate{
-		// ECDSA P-256 certificate
-		Certificate: [][]byte{testP256Certificate},
-		PrivateKey:  testP256PrivateKey,
-	}
-	ed25519Cert := &Certificate{
-		Certificate: [][]byte{testEd25519Certificate},
-		PrivateKey:  testEd25519PrivateKey,
-	}
+	pkcs1Cert := testRSA2048Cert
+	pkcs1Cert.SupportedSignatureAlgorithms = []SignatureScheme{PKCS1WithSHA1, PKCS1WithSHA256}
 
 	tests := []struct {
-		c       *Certificate
+		c       Certificate
 		chi     *ClientHelloInfo
 		wantErr string
 	}{
-		{rsaCert, &ClientHelloInfo{
-			ServerName:        "example.golang",
+		{testRSA2048Cert, &ClientHelloInfo{
+			ServerName:        "test.golang.example",
 			SignatureSchemes:  []SignatureScheme{PSSWithSHA256},
 			SupportedVersions: []uint16{VersionTLS13},
 		}, ""},
-		{ecdsaCert, &ClientHelloInfo{
+		{testECDSAP256Cert, &ClientHelloInfo{
 			SignatureSchemes:  []SignatureScheme{PSSWithSHA256, ECDSAWithP256AndSHA256},
 			SupportedVersions: []uint16{VersionTLS13, VersionTLS12},
 		}, ""},
-		{rsaCert, &ClientHelloInfo{
+		{testRSA2048Cert, &ClientHelloInfo{
 			ServerName:        "example.com",
 			SignatureSchemes:  []SignatureScheme{PSSWithSHA256},
 			SupportedVersions: []uint16{VersionTLS13},
 		}, "not valid for requested server name"},
-		{ecdsaCert, &ClientHelloInfo{
+		{testECDSAP256Cert, &ClientHelloInfo{
 			SignatureSchemes:  []SignatureScheme{ECDSAWithP384AndSHA384},
 			SupportedVersions: []uint16{VersionTLS13},
 		}, "signature algorithms"},
@@ -1461,12 +1447,12 @@ func TestClientHelloInfo_SupportsCertificate(t *testing.T) {
 			SupportedVersions: []uint16{VersionTLS13},
 		}, "signature algorithms"},
 
-		{rsaCert, &ClientHelloInfo{
+		{testRSA2048Cert, &ClientHelloInfo{
 			CipherSuites:      []uint16{TLS_RSA_WITH_AES_128_GCM_SHA256},
 			SignatureSchemes:  []SignatureScheme{PKCS1WithSHA1},
 			SupportedVersions: []uint16{VersionTLS13, VersionTLS12},
 		}, "signature algorithms"},
-		{rsaCert, &ClientHelloInfo{
+		{testRSA2048Cert, &ClientHelloInfo{
 			CipherSuites:      []uint16{TLS_RSA_WITH_AES_128_GCM_SHA256},
 			SignatureSchemes:  []SignatureScheme{PKCS1WithSHA1},
 			SupportedVersions: []uint16{VersionTLS13, VersionTLS12},
@@ -1476,35 +1462,35 @@ func TestClientHelloInfo_SupportsCertificate(t *testing.T) {
 			},
 		}, ""}, // Check that mutual version selection works.
 
-		{ecdsaCert, &ClientHelloInfo{
+		{testECDSAP256Cert, &ClientHelloInfo{
 			CipherSuites:      []uint16{TLS_ECDHE_ECDSA_WITH_AES_128_GCM_SHA256},
 			SupportedCurves:   []CurveID{CurveP256},
 			SupportedPoints:   []uint8{pointFormatUncompressed},
 			SignatureSchemes:  []SignatureScheme{ECDSAWithP256AndSHA256},
 			SupportedVersions: []uint16{VersionTLS12},
 		}, ""},
-		{ecdsaCert, &ClientHelloInfo{
+		{testECDSAP256Cert, &ClientHelloInfo{
 			CipherSuites:      []uint16{TLS_ECDHE_ECDSA_WITH_AES_128_GCM_SHA256},
 			SupportedCurves:   []CurveID{CurveP256},
 			SupportedPoints:   []uint8{pointFormatUncompressed},
 			SignatureSchemes:  []SignatureScheme{ECDSAWithP384AndSHA384},
 			SupportedVersions: []uint16{VersionTLS12},
 		}, ""}, // TLS 1.2 does not restrict curves based on the SignatureScheme.
-		{ecdsaCert, &ClientHelloInfo{
+		{testECDSAP256Cert, &ClientHelloInfo{
 			CipherSuites:      []uint16{TLS_ECDHE_ECDSA_WITH_AES_128_GCM_SHA256},
 			SupportedCurves:   []CurveID{CurveP256},
 			SupportedPoints:   []uint8{pointFormatUncompressed},
 			SignatureSchemes:  nil,
 			SupportedVersions: []uint16{VersionTLS12},
 		}, ""}, // TLS 1.2 comes with default signature schemes.
-		{ecdsaCert, &ClientHelloInfo{
+		{testECDSAP256Cert, &ClientHelloInfo{
 			CipherSuites:      []uint16{TLS_RSA_WITH_AES_128_GCM_SHA256},
 			SupportedCurves:   []CurveID{CurveP256},
 			SupportedPoints:   []uint8{pointFormatUncompressed},
 			SignatureSchemes:  []SignatureScheme{ECDSAWithP256AndSHA256},
 			SupportedVersions: []uint16{VersionTLS12},
 		}, "cipher suite"},
-		{ecdsaCert, &ClientHelloInfo{
+		{testECDSAP256Cert, &ClientHelloInfo{
 			CipherSuites:      []uint16{TLS_ECDHE_ECDSA_WITH_AES_128_GCM_SHA256},
 			SupportedCurves:   []CurveID{CurveP256},
 			SupportedPoints:   []uint8{pointFormatUncompressed},
@@ -1514,21 +1500,21 @@ func TestClientHelloInfo_SupportsCertificate(t *testing.T) {
 				CipherSuites: []uint16{TLS_RSA_WITH_AES_128_GCM_SHA256},
 			},
 		}, "cipher suite"},
-		{ecdsaCert, &ClientHelloInfo{
+		{testECDSAP256Cert, &ClientHelloInfo{
 			CipherSuites:      []uint16{TLS_ECDHE_ECDSA_WITH_AES_128_GCM_SHA256},
 			SupportedCurves:   []CurveID{CurveP384},
 			SupportedPoints:   []uint8{pointFormatUncompressed},
 			SignatureSchemes:  []SignatureScheme{ECDSAWithP256AndSHA256},
 			SupportedVersions: []uint16{VersionTLS12},
 		}, "certificate curve"},
-		{ecdsaCert, &ClientHelloInfo{
+		{testECDSAP256Cert, &ClientHelloInfo{
 			CipherSuites:      []uint16{TLS_ECDHE_ECDSA_WITH_AES_128_GCM_SHA256},
 			SupportedCurves:   []CurveID{CurveP256},
 			SupportedPoints:   []uint8{1},
 			SignatureSchemes:  []SignatureScheme{ECDSAWithP256AndSHA256},
 			SupportedVersions: []uint16{VersionTLS12},
 		}, "only incompatible point formats"},
-		{ecdsaCert, &ClientHelloInfo{
+		{testECDSAP256Cert, &ClientHelloInfo{
 			CipherSuites:      []uint16{TLS_ECDHE_ECDSA_WITH_AES_128_GCM_SHA256},
 			SupportedCurves:   []CurveID{CurveP256},
 			SupportedPoints:   []uint8{pointFormatUncompressed},
@@ -1536,14 +1522,14 @@ func TestClientHelloInfo_SupportsCertificate(t *testing.T) {
 			SupportedVersions: []uint16{VersionTLS12},
 		}, "signature algorithms"},
 
-		{ed25519Cert, &ClientHelloInfo{
+		{testEd25519Cert, &ClientHelloInfo{
 			CipherSuites:      []uint16{TLS_ECDHE_ECDSA_WITH_AES_128_GCM_SHA256},
 			SupportedCurves:   []CurveID{CurveP256}, // only relevant for ECDHE support
 			SupportedPoints:   []uint8{pointFormatUncompressed},
 			SignatureSchemes:  []SignatureScheme{Ed25519},
 			SupportedVersions: []uint16{VersionTLS12},
 		}, ""},
-		{ed25519Cert, &ClientHelloInfo{
+		{testEd25519Cert, &ClientHelloInfo{
 			CipherSuites:      []uint16{TLS_ECDHE_ECDSA_WITH_AES_128_GCM_SHA256},
 			SupportedCurves:   []CurveID{CurveP256}, // only relevant for ECDHE support
 			SupportedPoints:   []uint8{pointFormatUncompressed},
@@ -1551,7 +1537,7 @@ func TestClientHelloInfo_SupportsCertificate(t *testing.T) {
 			SupportedVersions: []uint16{VersionTLS10},
 			config:            &Config{MinVersion: VersionTLS10},
 		}, "doesn't support Ed25519"},
-		{ed25519Cert, &ClientHelloInfo{
+		{testEd25519Cert, &ClientHelloInfo{
 			CipherSuites:      []uint16{TLS_ECDHE_ECDSA_WITH_AES_128_GCM_SHA256},
 			SupportedCurves:   []CurveID{},
 			SupportedPoints:   []uint8{pointFormatUncompressed},
@@ -1559,14 +1545,14 @@ func TestClientHelloInfo_SupportsCertificate(t *testing.T) {
 			SupportedVersions: []uint16{VersionTLS12},
 		}, "doesn't support ECDHE"},
 
-		{rsaCert, &ClientHelloInfo{
+		{testRSA2048Cert, &ClientHelloInfo{
 			CipherSuites:      []uint16{TLS_ECDHE_RSA_WITH_AES_128_CBC_SHA},
 			SupportedCurves:   []CurveID{CurveP256}, // only relevant for ECDHE support
 			SupportedPoints:   []uint8{pointFormatUncompressed},
 			SupportedVersions: []uint16{VersionTLS10},
 			config:            &Config{MinVersion: VersionTLS10},
 		}, ""},
-		{rsaCert, &ClientHelloInfo{
+		{testRSA2048Cert, &ClientHelloInfo{
 			CipherSuites:      []uint16{TLS_RSA_WITH_AES_128_GCM_SHA256},
 			SupportedVersions: []uint16{VersionTLS12},
 			config: &Config{
@@ -1575,7 +1561,7 @@ func TestClientHelloInfo_SupportsCertificate(t *testing.T) {
 		}, ""}, // static RSA fallback
 	}
 	for i, tt := range tests {
-		err := tt.chi.SupportsCertificate(tt.c)
+		err := tt.chi.SupportsCertificate(&tt.c)
 		switch {
 		case tt.wantErr == "" && err != nil:
 			t.Errorf("%d: unexpected error: %v", i, err)
@@ -1840,8 +1826,8 @@ func (s brokenSigner) Sign(rand io.Reader, digest []byte, opts crypto.SignerOpts
 func TestPKCS1OnlyCert(t *testing.T) {
 	clientConfig := testConfig.Clone()
 	clientConfig.Certificates = []Certificate{{
-		Certificate: [][]byte{testRSACertificate},
-		PrivateKey:  brokenSigner{testRSAPrivateKey},
+		Certificate: testRSA2048Cert.Certificate,
+		PrivateKey:  brokenSigner{testRSA2048Key},
 	}}
 	serverConfig := testConfig.Clone()
 	serverConfig.MaxVersion = VersionTLS12 // TLS 1.3 doesn't support PKCS #1 v1.5
@@ -2465,12 +2451,12 @@ func testMessageSigner(t *testing.T, version uint16) {
 	serverConfig.MinVersion = version
 	serverConfig.MaxVersion = version
 	clientConfig.Certificates = []Certificate{{
-		Certificate: [][]byte{testRSACertificate},
-		PrivateKey:  messageOnlySigner{testRSAPrivateKey},
+		Certificate: testRSA2048Cert.Certificate,
+		PrivateKey:  messageOnlySigner{testRSA2048Key},
 	}}
 	serverConfig.Certificates = []Certificate{{
-		Certificate: [][]byte{testRSACertificate},
-		PrivateKey:  messageOnlySigner{testRSAPrivateKey},
+		Certificate: testRSA2048Cert.Certificate,
+		PrivateKey:  messageOnlySigner{testRSA2048Key},
 	}}
 
 	_, _, err := testHandshake(t, clientConfig, serverConfig)
@@ -2485,12 +2471,12 @@ func testMessageSigner(t *testing.T, version uint16) {
 	}
 
 	clientConfig.Certificates = []Certificate{{
-		Certificate: [][]byte{testECDSACertificate},
-		PrivateKey:  messageOnlySigner{testECDSAPrivateKey},
+		Certificate: testECDSAP256Cert.Certificate,
+		PrivateKey:  messageOnlySigner{testECDSAP256Key},
 	}}
 	serverConfig.Certificates = []Certificate{{
-		Certificate: [][]byte{testECDSACertificate},
-		PrivateKey:  messageOnlySigner{testECDSAPrivateKey},
+		Certificate: testECDSAP256Cert.Certificate,
+		PrivateKey:  messageOnlySigner{testECDSAP256Key},
 	}}
 
 	_, _, err = testHandshake(t, clientConfig, serverConfig)

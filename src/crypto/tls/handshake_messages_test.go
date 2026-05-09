@@ -360,16 +360,8 @@ func (*newSessionTicketMsg) Generate(rand *rand.Rand, size int) reflect.Value {
 var sessionTestCerts []*x509.Certificate
 
 func init() {
-	cert, err := x509.ParseCertificate(testRSACertificate)
-	if err != nil {
-		panic(err)
-	}
-	sessionTestCerts = append(sessionTestCerts, cert)
-	cert, err = x509.ParseCertificate(testRSACertificateIssuer)
-	if err != nil {
-		panic(err)
-	}
-	sessionTestCerts = append(sessionTestCerts, cert)
+	sessionTestCerts = append(sessionTestCerts, testRSA2048Cert.Leaf)
+	sessionTestCerts = append(sessionTestCerts, testRootCert.Leaf)
 }
 
 func (*SessionState) Generate(rand *rand.Rand, size int) reflect.Value {

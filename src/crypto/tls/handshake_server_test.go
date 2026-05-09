@@ -175,8 +175,7 @@ func TestDontSelectECDSAWithRSAKey(t *testing.T) {
 	serverConfig := testConfig.Clone()
 	serverConfig.CipherSuites = clientHello.cipherSuites
 	serverConfig.Certificates = make([]Certificate, 1)
-	serverConfig.Certificates[0].Certificate = [][]byte{testECDSACertificate}
-	serverConfig.Certificates[0].PrivateKey = testECDSAPrivateKey
+	serverConfig.Certificates[0] = testECDSAP256Cert
 	serverConfig.BuildNameToCertificate()
 	// First test that it *does* work when the server's key is ECDSA.
 	testClientHello(t, serverConfig, clientHello)
@@ -206,8 +205,7 @@ func TestDontSelectRSAWithECDSAKey(t *testing.T) {
 	// Now test that switching to an ECDSA key causes the expected error
 	// (and not an internal error about a signing failure).
 	serverConfig.Certificates = make([]Certificate, 1)
-	serverConfig.Certificates[0].Certificate = [][]byte{testECDSACertificate}
-	serverConfig.Certificates[0].PrivateKey = testECDSAPrivateKey
+	serverConfig.Certificates[0] = testECDSAP256Cert
 	serverConfig.BuildNameToCertificate()
 	testClientHelloFailure(t, serverConfig, clientHello, "no cipher suite supported by both client and server")
 }
@@ -355,7 +353,7 @@ func TestTLSPointFormats(t *testing.T) {
 			replyChan := make(chan any)
 			go func() {
 				clientConfig := testConfig.Clone()
-				clientConfig.Certificates = []Certificate{{Certificate: [][]byte{testRSA2048Certificate}, PrivateKey: testRSA2048PrivateKey}}
+				clientConfig.Certificates = []Certificate{testRSA2048Cert}
 				cli := Client(c, clientConfig)
 				cli.vers = clientHello.vers
 				if _, err := cli.writeHandshakeRecord(clientHello, nil); err != nil {
@@ -370,7 +368,7 @@ func TestTLSPointFormats(t *testing.T) {
 				}
 			}()
 			serverConfig := testConfig.Clone()
-			serverConfig.Certificates = []Certificate{{Certificate: [][]byte{testRSA2048Certificate}, PrivateKey: testRSA2048PrivateKey}}
+			serverConfig.Certificates = []Certificate{testRSA2048Cert}
 			serverConfig.CipherSuites = clientHello.cipherSuites
 			Server(s, serverConfig).Handshake()
 			s.Close()
@@ -483,13 +481,11 @@ func TestSCTHandshake(t *testing.T) {
 
 func testSCTHandshake(t *testing.T, version uint16) {
 	expected := [][]byte{[]byte("certificate"), []byte("transparency")}
+	cert := testRSA2048Cert
+	cert.SignedCertificateTimestamps = expected
 	serverConfig := &Config{
-		Certificates: []Certificate{{
-			Certificate:                 [][]byte{testRSACertificate},
-			PrivateKey:                  testRSAPrivateKey,
-			SignedCertificateTimestamps: expected,
-		}},
-		MaxVersion: version,
+		Certificates: []Certificate{cert},
+		MaxVersion:   version,
 	}
 	clientConfig := &Config{
 		InsecureSkipVerify: true,
@@ -1444,49 +1440,49 @@ func benchmarkHandshakeServer(b *testing.B, version uint16, cipherSuite uint16, 
 func BenchmarkHandshakeServer(b *testing.B) {
 	b.Run("RSA", func(b *testing.B) {
 		benchmarkHandshakeServer(b, VersionTLS12, TLS_RSA_WITH_AES_128_GCM_SHA256,
-			0, testRSACertificate, testRSAPrivateKey)
+			0, testRSA2048Cert.Certificate[0], testRSA2048Key)
 	})
 	b.Run("ECDHE-P256-RSA", func(b *testing.B) {
 		b.Run("TLSv13", func(b *testing.B) {
 			benchmarkHandshakeServer(b, VersionTLS13, TLS_ECDHE_RSA_WITH_CHACHA20_POLY1305_SHA256,
-				CurveP256, testRSACertificate, testRSAPrivateKey)
+				CurveP256, testRSA2048Cert.Certificate[0], testRSA2048Key)
 		})
 		b.Run("TLSv12", func(b *testing.B) {
 			benchmarkHandshakeServer(b, VersionTLS12, TLS_ECDHE_RSA_WITH_CHACHA20_POLY1305_SHA256,
-				CurveP256, testRSACertificate, testRSAPrivateKey)
+				CurveP256, testRSA2048Cert.Certificate[0], testRSA2048Key)
 		})
 	})
 	b.Run("ECDHE-P256-ECDSA-P256", func(b *testing.B) {
 		b.Run("TLSv13", func(b *testing.B) {
 			benchmarkHandshakeServer(b, VersionTLS13, TLS_ECDHE_ECDSA_WITH_CHACHA20_POLY1305_SHA256,
-				CurveP256, testP256Certificate, testP256PrivateKey)
+				CurveP256, testECDSAP256Cert.Certificate[0], testECDSAP256Key)
 		})
 		b.Run("TLSv12", func(b *testing.B) {
 			benchmarkHandshakeServer(b, VersionTLS12, TLS_ECDHE_ECDSA_WITH_CHACHA20_POLY1305_SHA256,
-				CurveP256, testP256Certificate, testP256PrivateKey)
+				CurveP256, testECDSAP256Cert.Certificate[0], testECDSAP256Key)
 		})
 	})
 	b.Run("ECDHE-X25519-ECDSA-P256", func(b *testing.B) {
 		b.Run("TLSv13", func(b *testing.B) {
 			benchmarkHandshakeServer(b, VersionTLS13, TLS_ECDHE_ECDSA_WITH_CHACHA20_POLY1305_SHA256,
-				X25519, testP256Certificate, testP256PrivateKey)
+				X25519, testECDSAP256Cert.Certificate[0], testECDSAP256Key)
 		})
 		b.Run("TLSv12", func(b *testing.B) {
 			benchmarkHandshakeServer(b, VersionTLS12, TLS_ECDHE_ECDSA_WITH_CHACHA20_POLY1305_SHA256,
-				X25519, testP256Certificate, testP256PrivateKey)
+				X25519, testECDSAP256Cert.Certificate[0], testECDSAP256Key)
 		})
 	})
 	b.Run("ECDHE-P521-ECDSA-P521", func(b *testing.B) {
-		if testECDSAPrivateKey.PublicKey.Curve != elliptic.P521() {
+		if testECDSAP521Key.PublicKey.Curve != elliptic.P521() {
 			b.Fatal("test ECDSA key doesn't use curve P-521")
 		}
 		b.Run("TLSv13", func(b *testing.B) {
 			benchmarkHandshakeServer(b, VersionTLS13, TLS_ECDHE_ECDSA_WITH_CHACHA20_POLY1305_SHA256,
-				CurveP521, testECDSACertificate, testECDSAPrivateKey)
+				CurveP521, testECDSAP521Cert.Certificate[0], testECDSAP521Key)
 		})
 		b.Run("TLSv12", func(b *testing.B) {
 			benchmarkHandshakeServer(b, VersionTLS12, TLS_ECDHE_ECDSA_WITH_CHACHA20_POLY1305_SHA256,
-				CurveP521, testECDSACertificate, testECDSAPrivateKey)
+				CurveP521, testECDSAP521Cert.Certificate[0], testECDSAP521Key)
 		})
 	})
 }
@@ -1798,13 +1794,7 @@ func TestMultipleCertificates(t *testing.T) {
 	clientConfig.MaxVersion = VersionTLS12
 
 	serverConfig := testConfig.Clone()
-	serverConfig.Certificates = []Certificate{{
-		Certificate: [][]byte{testECDSACertificate},
-		PrivateKey:  testECDSAPrivateKey,
-	}, {
-		Certificate: [][]byte{testRSACertificate},
-		PrivateKey:  testRSAPrivateKey,
-	}}
+	serverConfig.Certificates = []Certificate{testECDSAP256Cert, testRSA2048Cert}
 
 	_, clientState, err := testHandshake(t, clientConfig, serverConfig)
 	if err != nil {
@@ -2116,10 +2106,7 @@ func TestHandshakeContextHierarchy(t *testing.T) {
 				t.Errorf("GetClientCertificate context was not child of HandshakeContext")
 			}
 			innerCtx = certificateRequest.Context()
-			return &Certificate{
-				Certificate: [][]byte{testRSACertificate},
-				PrivateKey:  testRSAPrivateKey,
-			}, nil
+			return &testRSA2048Cert, nil
 		}
 		cli := Client(c, clientConfig)
 		err := cli.HandshakeContext(ctx)
@@ -2141,10 +2128,7 @@ func TestHandshakeContextHierarchy(t *testing.T) {
 			t.Errorf("GetClientCertificate context was not child of HandshakeContext")
 		}
 		innerCtx = clientHello.Context()
-		return &Certificate{
-			Certificate: [][]byte{testRSACertificate},
-			PrivateKey:  testRSAPrivateKey,
-		}, nil
+		return &testRSA2048Cert, nil
 	}
 	conn := Server(s, serverConfig)
 	err := conn.HandshakeContext(ctx)
@@ -2181,7 +2165,7 @@ func testHandshakeChainExpiryResumption(t *testing.T, version uint16) {
 			IsCA:                  true,
 			BasicConstraintsValid: true,
 		}
-		rootDER, err := x509.CreateCertificate(rand.Reader, tmpl, tmpl, &testECDSAPrivateKey.PublicKey, testECDSAPrivateKey)
+		rootDER, err := x509.CreateCertificate(rand.Reader, tmpl, tmpl, &testECDSAP521Key.PublicKey, testECDSAP521Key)
 		if err != nil {
 			t.Fatalf("CreateCertificate: %v", err)
 		}
@@ -2197,12 +2181,12 @@ func testHandshakeChainExpiryResumption(t *testing.T, version uint16) {
 			NotAfter:  leafNotAfter,
 			KeyUsage:  x509.KeyUsageDigitalSignature,
 		}
-		leafCertDER, err := x509.CreateCertificate(rand.Reader, tmpl, root, &testECDSAPrivateKey.PublicKey, testECDSAPrivateKey)
+		leafCertDER, err := x509.CreateCertificate(rand.Reader, tmpl, root, &testECDSAP256Key.PublicKey, testECDSAP521Key)
 		if err != nil {
 			t.Fatalf("CreateCertificate: %v", err)
 		}
 		tmpl.NotBefore, tmpl.NotAfter = leafNotAfter.Add(-time.Hour*24*365), leafNotAfter.Add(-time.Hour*24*364)
-		expiredLeafDERCertDER, err := x509.CreateCertificate(rand.Reader, tmpl, root, &testECDSAPrivateKey.PublicKey, testECDSAPrivateKey)
+		expiredLeafDERCertDER, err := x509.CreateCertificate(rand.Reader, tmpl, root, &testECDSAP256Key.PublicKey, testECDSAP521Key)
 		if err != nil {
 			t.Fatalf("CreateCertificate: %v", err)
 		}
@@ -2217,7 +2201,7 @@ func testHandshakeChainExpiryResumption(t *testing.T, version uint16) {
 			serverConfig.MaxVersion = version
 			serverConfig.Certificates = []Certificate{{
 				Certificate: [][]byte{initialLeafDER, expiredLeafDER},
-				PrivateKey:  testECDSAPrivateKey,
+				PrivateKey:  testECDSAP256Key,
 			}}
 			serverConfig.ClientCAs = x509.NewCertPool()
 			serverConfig.ClientCAs.AddCert(initialRoot)
@@ -2232,7 +2216,7 @@ func testHandshakeChainExpiryResumption(t *testing.T, version uint16) {
 			clientConfig.MaxVersion = version
 			clientConfig.Certificates = []Certificate{{
 				Certificate: [][]byte{initialLeafDER, expiredLeafDER},
-				PrivateKey:  testECDSAPrivateKey,
+				PrivateKey:  testECDSAP256Key,
 			}}
 			clientConfig.RootCAs = x509.NewCertPool()
 			clientConfig.RootCAs.AddCert(initialRoot)
@@ -2266,7 +2250,7 @@ func testHandshakeChainExpiryResumption(t *testing.T, version uint16) {
 			freshLeafDER, expiredLeafDER, freshRoot := createChain(expiredNow.Add(time.Hour), expiredNow.Add(time.Hour))
 			clientConfig.Certificates = []Certificate{{
 				Certificate: [][]byte{freshLeafDER, expiredLeafDER},
-				PrivateKey:  testECDSAPrivateKey,
+				PrivateKey:  testECDSAP256Key,
 			}}
 			serverConfig.Time = func() time.Time {
 				return expiredNow
@@ -2300,7 +2284,7 @@ func testHandshakeGetConfigForClientDifferentClientCAs(t *testing.T, version uin
 		IsCA:                  true,
 		BasicConstraintsValid: true,
 	}
-	rootDER, err := x509.CreateCertificate(rand.Reader, tmpl, tmpl, &testECDSAPrivateKey.PublicKey, testECDSAPrivateKey)
+	rootDER, err := x509.CreateCertificate(rand.Reader, tmpl, tmpl, &testECDSAP521Key.PublicKey, testECDSAP521Key)
 	if err != nil {
 		t.Fatalf("CreateCertificate: %v", err)
 	}
@@ -2308,7 +2292,7 @@ func testHandshakeGetConfigForClientDifferentClientCAs(t *testing.T, version uin
 	if err != nil {
 		t.Fatalf("ParseCertificate: %v", err)
 	}
-	rootDER, err = x509.CreateCertificate(rand.Reader, tmpl, tmpl, &testRSA2048PrivateKey.PublicKey, testRSA2048PrivateKey)
+	rootDER, err = x509.CreateCertificate(rand.Reader, tmpl, tmpl, &testRSA2048Key.PublicKey, testRSA2048Key)
 	if err != nil {
 		t.Fatalf("CreateCertificate: %v", err)
 	}
@@ -2324,11 +2308,11 @@ func testHandshakeGetConfigForClientDifferentClientCAs(t *testing.T, version uin
 		NotAfter:  now.Add(time.Hour * 24),
 		KeyUsage:  x509.KeyUsageDigitalSignature,
 	}
-	certA, err := x509.CreateCertificate(rand.Reader, tmpl, rootA, &testECDSAPrivateKey.PublicKey, testECDSAPrivateKey)
+	certA, err := x509.CreateCertificate(rand.Reader, tmpl, rootA, &testECDSAP256Key.PublicKey, testECDSAP521Key)
 	if err != nil {
 		t.Fatalf("CreateCertificate: %v", err)
 	}
-	certB, err := x509.CreateCertificate(rand.Reader, tmpl, rootB, &testECDSAPrivateKey.PublicKey, testRSA2048PrivateKey)
+	certB, err := x509.CreateCertificate(rand.Reader, tmpl, rootB, &testECDSAP256Key.PublicKey, testRSA2048Key)
 	if err != nil {
 		t.Fatalf("CreateCertificate: %v", err)
 	}
@@ -2337,7 +2321,7 @@ func testHandshakeGetConfigForClientDifferentClientCAs(t *testing.T, version uin
 	serverConfig.MaxVersion = version
 	serverConfig.Certificates = []Certificate{{
 		Certificate: [][]byte{certA},
-		PrivateKey:  testECDSAPrivateKey,
+		PrivateKey:  testECDSAP256Key,
 	}}
 	serverConfig.Time = func() time.Time {
 		return now
@@ -2362,7 +2346,7 @@ func testHandshakeGetConfigForClientDifferentClientCAs(t *testing.T, version uin
 	clientConfig.MaxVersion = version
 	clientConfig.Certificates = []Certificate{{
 		Certificate: [][]byte{certA},
-		PrivateKey:  testECDSAPrivateKey,
+		PrivateKey:  testECDSAP256Key,
 	}}
 	clientConfig.ClientSessionCache = NewLRUClientSessionCache(32)
 	clientConfig.RootCAs = x509.NewCertPool()
@@ -2418,7 +2402,7 @@ func testHandshakeChangeRootCAsResumption(t *testing.T, version uint16) {
 		IsCA:                  true,
 		BasicConstraintsValid: true,
 	}
-	rootDER, err := x509.CreateCertificate(rand.Reader, tmpl, tmpl, &testECDSAPrivateKey.PublicKey, testECDSAPrivateKey)
+	rootDER, err := x509.CreateCertificate(rand.Reader, tmpl, tmpl, &testECDSAP521Key.PublicKey, testECDSAP521Key)
 	if err != nil {
 		t.Fatalf("CreateCertificate: %v", err)
 	}
@@ -2426,7 +2410,7 @@ func testHandshakeChangeRootCAsResumption(t *testing.T, version uint16) {
 	if err != nil {
 		t.Fatalf("ParseCertificate: %v", err)
 	}
-	rootDER, err = x509.CreateCertificate(rand.Reader, tmpl, tmpl, &testRSA2048PrivateKey.PublicKey, testRSA2048PrivateKey)
+	rootDER, err = x509.CreateCertificate(rand.Reader, tmpl, tmpl, &testRSA2048Key.PublicKey, testRSA2048Key)
 	if err != nil {
 		t.Fatalf("CreateCertificate: %v", err)
 	}
@@ -2442,11 +2426,11 @@ func testHandshakeChangeRootCAsResumption(t *testing.T, version uint16) {
 		NotAfter:  now.Add(time.Hour * 24),
 		KeyUsage:  x509.KeyUsageDigitalSignature,
 	}
-	certA, err := x509.CreateCertificate(rand.Reader, tmpl, rootA, &testECDSAPrivateKey.PublicKey, testECDSAPrivateKey)
+	certA, err := x509.CreateCertificate(rand.Reader, tmpl, rootA, &testECDSAP256Key.PublicKey, testECDSAP521Key)
 	if err != nil {
 		t.Fatalf("CreateCertificate: %v", err)
 	}
-	certB, err := x509.CreateCertificate(rand.Reader, tmpl, rootB, &testECDSAPrivateKey.PublicKey, testRSA2048PrivateKey)
+	certB, err := x509.CreateCertificate(rand.Reader, tmpl, rootB, &testECDSAP256Key.PublicKey, testRSA2048Key)
 	if err != nil {
 		t.Fatalf("CreateCertificate: %v", err)
 	}
@@ -2455,7 +2439,7 @@ func testHandshakeChangeRootCAsResumption(t *testing.T, version uint16) {
 	serverConfig.MaxVersion = version
 	serverConfig.Certificates = []Certificate{{
 		Certificate: [][]byte{certA},
-		PrivateKey:  testECDSAPrivateKey,
+		PrivateKey:  testECDSAP256Key,
 	}}
 	serverConfig.Time = func() time.Time {
 		return now
@@ -2470,7 +2454,7 @@ func testHandshakeChangeRootCAsResumption(t *testing.T, version uint16) {
 	clientConfig.MaxVersion = version
 	clientConfig.Certificates = []Certificate{{
 		Certificate: [][]byte{certA},
-		PrivateKey:  testECDSAPrivateKey,
+		PrivateKey:  testECDSAP256Key,
 	}}
 	clientConfig.ClientSessionCache = NewLRUClientSessionCache(32)
 	clientConfig.RootCAs = x509.NewCertPool()

@@ -130,6 +130,7 @@ func TestGenerateCertificates(t *testing.T) {
 		comment string
 		certPEM string
 		keyPEM  string
+		keyType string
 	}
 	var pairs []certKeyPair
 
@@ -140,7 +141,7 @@ func TestGenerateCertificates(t *testing.T) {
 		}
 		certPEM := string(pem.EncodeToMemory(&pem.Block{Type: "CERTIFICATE", Bytes: certDER}))
 		keyPEM := string(pem.EncodeToMemory(&pem.Block{Type: "TESTING KEY", Bytes: keyDER}))
-		pairs = append(pairs, certKeyPair{name, comment, strings.TrimSpace(certPEM), strings.TrimSpace(keyPEM)})
+		pairs = append(pairs, certKeyPair{name, comment, strings.TrimSpace(certPEM), strings.TrimSpace(keyPEM), fmt.Sprintf("%T", key)})
 	}
 
 	// Roots.
@@ -320,7 +321,12 @@ func TestGenerateCertificates(t *testing.T) {
 
 package tls
 
-import "crypto/x509"
+import (
+	"crypto/ecdsa"
+	"crypto/ed25519"
+	"crypto/rsa"
+	"crypto/x509"
+)
 
 `)
 
@@ -328,8 +334,10 @@ import "crypto/x509"
 `)
 	for _, p := range pairs {
 		fmt.Fprintf(&buf, "\t// %s\n", p.comment)
-		fmt.Fprintf(&buf, "\t%sCert = parseTestCert(%sCertPEM, %sKeyPEM)\n\n",
+		fmt.Fprintf(&buf, "\t%sCert = parseTestCert(%sCertPEM, %sKeyPEM)\n",
 			p.name, p.name, p.name)
+		fmt.Fprintf(&buf, "\t%sKey  = %sCert.PrivateKey.(%s)\n\n",
+			p.name, p.name, p.keyType)
 	}
 	fmt.Fprint(&buf, `	// x509.CertPool containing testRootCert.
 	testRootCertPool = newTestCertPool(testRootCertPEM)

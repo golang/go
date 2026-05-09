@@ -3,57 +3,77 @@
 
 package tls
 
-import "crypto/x509"
+import (
+	"crypto/ecdsa"
+	"crypto/ed25519"
+	"crypto/rsa"
+	"crypto/x509"
+)
 
 var (
 	// Self-signed RSA 2048 root CA, CN=Root.
 	testRootCert = parseTestCert(testRootCertPEM, testRootKeyPEM)
+	testRootKey  = testRootCert.PrivateKey.(*rsa.PrivateKey)
 
 	// Self-signed RSA 2048 root CA, CN=Client Root.
 	testClientRootCert = parseTestCert(testClientRootCertPEM, testClientRootKeyPEM)
+	testClientRootKey  = testClientRootCert.PrivateKey.(*rsa.PrivateKey)
 
 	// ECDSA P-256 server leaf, SAN=test.golang.example, issued by Root.
 	testECDSAP256Cert = parseTestCert(testECDSAP256CertPEM, testECDSAP256KeyPEM)
+	testECDSAP256Key  = testECDSAP256Cert.PrivateKey.(*ecdsa.PrivateKey)
 
 	// RSA 2048 server leaf, SAN=test.golang.example, issued by Root.
 	testRSA2048Cert = parseTestCert(testRSA2048CertPEM, testRSA2048KeyPEM)
+	testRSA2048Key  = testRSA2048Cert.PrivateKey.(*rsa.PrivateKey)
 
 	// ECDSA P-384 server leaf, SAN=test.golang.example, issued by Root.
 	testECDSAP384Cert = parseTestCert(testECDSAP384CertPEM, testECDSAP384KeyPEM)
+	testECDSAP384Key  = testECDSAP384Cert.PrivateKey.(*ecdsa.PrivateKey)
 
 	// ECDSA P-521 server leaf, SAN=test.golang.example, issued by Root.
 	testECDSAP521Cert = parseTestCert(testECDSAP521CertPEM, testECDSAP521KeyPEM)
+	testECDSAP521Key  = testECDSAP521Cert.PrivateKey.(*ecdsa.PrivateKey)
 
 	// Ed25519 server leaf, SAN=test.golang.example, issued by Root.
 	testEd25519Cert = parseTestCert(testEd25519CertPEM, testEd25519KeyPEM)
+	testEd25519Key  = testEd25519Cert.PrivateKey.(ed25519.PrivateKey)
 
 	// RSA 2048 server leaf, SAN=test.golang.example, issued by Root.
 	// Signature algorithm is SHA512WithRSAPSS (rsaEncryption SPKI, rsassaPss signature).
 	testRSAPSSCert = parseTestCert(testRSAPSSCertPEM, testRSAPSSKeyPEM)
+	testRSAPSSKey  = testRSAPSSCert.PrivateKey.(*rsa.PrivateKey)
 
 	// RSA 1024 server leaf, SAN=test.golang.example, issued by Root.
 	// Key is too small for rsa_pss_rsae_sha512; used by TestHandshakeServerRSAPSS.
 	testRSA1024Cert = parseTestCert(testRSA1024CertPEM, testRSA1024KeyPEM)
+	testRSA1024Key  = testRSA1024Cert.PrivateKey.(*rsa.PrivateKey)
 
 	// RSA 512 server leaf, SAN=test.golang.example, issued by Root.
 	// Key is too small for any rsa_pss_rsae_*; used by TestKeyTooSmallForRSAPSS.
 	testRSA512Cert = parseTestCert(testRSA512CertPEM, testRSA512KeyPEM)
+	testRSA512Key  = testRSA512Cert.PrivateKey.(*rsa.PrivateKey)
 
 	// ECDSA P-256 server leaf, SAN=different.example.com, issued by Root.
 	testSNICert = parseTestCert(testSNICertPEM, testSNIKeyPEM)
+	testSNIKey  = testSNICert.PrivateKey.(*ecdsa.PrivateKey)
 
 	// RSA 2048 client leaf, SAN=test.golang.example, issued by Client Root.
 	testClientRSA2048Cert = parseTestCert(testClientRSA2048CertPEM, testClientRSA2048KeyPEM)
+	testClientRSA2048Key  = testClientRSA2048Cert.PrivateKey.(*rsa.PrivateKey)
 
 	// ECDSA P-256 client leaf, SAN=test.golang.example, issued by Client Root.
 	testClientECDSAP256Cert = parseTestCert(testClientECDSAP256CertPEM, testClientECDSAP256KeyPEM)
+	testClientECDSAP256Key  = testClientECDSAP256Cert.PrivateKey.(*ecdsa.PrivateKey)
 
 	// Ed25519 client leaf, SAN=test.golang.example, issued by Client Root.
 	testClientEd25519Cert = parseTestCert(testClientEd25519CertPEM, testClientEd25519KeyPEM)
+	testClientEd25519Key  = testClientEd25519Cert.PrivateKey.(ed25519.PrivateKey)
 
 	// RSA 2048 client leaf, SAN=test.golang.example, issued by Client Root.
 	// Signature algorithm is SHA512WithRSAPSS (rsaEncryption SPKI, rsassaPss signature).
 	testClientRSAPSSCert = parseTestCert(testClientRSAPSSCertPEM, testClientRSAPSSKeyPEM)
+	testClientRSAPSSKey  = testClientRSAPSSCert.PrivateKey.(*rsa.PrivateKey)
 
 	// x509.CertPool containing testRootCert.
 	testRootCertPool = newTestCertPool(testRootCertPEM)
