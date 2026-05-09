@@ -1495,17 +1495,17 @@ func TestClientAuth(t *testing.T) {
 	var certPath, keyPath, ecdsaCertPath, ecdsaKeyPath, ed25519CertPath, ed25519KeyPath string
 
 	if *update {
-		certPath = tempFile(clientCertificatePEM)
+		certPath = tempFile(testClientRSA2048CertPEM)
 		defer os.Remove(certPath)
-		keyPath = tempFile(clientKeyPEM)
+		keyPath = tempFile(testingKey(testClientRSA2048KeyPEM))
 		defer os.Remove(keyPath)
-		ecdsaCertPath = tempFile(clientECDSACertificatePEM)
+		ecdsaCertPath = tempFile(testClientECDSAP256CertPEM)
 		defer os.Remove(ecdsaCertPath)
-		ecdsaKeyPath = tempFile(clientECDSAKeyPEM)
+		ecdsaKeyPath = tempFile(testingKey(testClientECDSAP256KeyPEM))
 		defer os.Remove(ecdsaKeyPath)
-		ed25519CertPath = tempFile(clientEd25519CertificatePEM)
+		ed25519CertPath = tempFile(testClientEd25519CertPEM)
 		defer os.Remove(ed25519CertPath)
-		ed25519KeyPath = tempFile(clientEd25519KeyPEM)
+		ed25519KeyPath = tempFile(testingKey(testClientEd25519KeyPEM))
 		defer os.Remove(ed25519KeyPath)
 	}
 
@@ -1523,7 +1523,7 @@ func TestClientAuth(t *testing.T) {
 		name:              "ClientAuthRequestedAndGiven",
 		command:           append(defaultClientCommand, "-cert", certPath, "-key", keyPath, "-client_sigalgs", "rsa_pss_rsae_sha256"),
 		config:            config,
-		expectedPeerCerts: []string{clientCertificatePEM},
+		expectedPeerCerts: []string{testClientRSA2048CertPEM},
 	}
 	runServerTestTLS12(t, test)
 	runServerTestTLS13(t, test)
@@ -1532,7 +1532,7 @@ func TestClientAuth(t *testing.T) {
 		name:              "ClientAuthRequestedAndECDSAGiven",
 		command:           append(defaultClientCommand, "-cert", ecdsaCertPath, "-key", ecdsaKeyPath),
 		config:            config,
-		expectedPeerCerts: []string{clientECDSACertificatePEM},
+		expectedPeerCerts: []string{testClientECDSAP256CertPEM},
 	}
 	runServerTestTLS12(t, test)
 	runServerTestTLS13(t, test)
@@ -1541,7 +1541,7 @@ func TestClientAuth(t *testing.T) {
 		name:              "ClientAuthRequestedAndEd25519Given",
 		command:           append(defaultClientCommand, "-cert", ed25519CertPath, "-key", ed25519KeyPath),
 		config:            config,
-		expectedPeerCerts: []string{clientEd25519CertificatePEM},
+		expectedPeerCerts: []string{testClientEd25519CertPEM},
 	}
 	runServerTestTLS12(t, test)
 	runServerTestTLS13(t, test)
@@ -1550,7 +1550,7 @@ func TestClientAuth(t *testing.T) {
 		name:              "ClientAuthRequestedAndPKCS1v15Given",
 		command:           append(defaultClientCommand, "-cert", certPath, "-key", keyPath, "-client_sigalgs", "rsa_pkcs1_sha256"),
 		config:            config,
-		expectedPeerCerts: []string{clientCertificatePEM},
+		expectedPeerCerts: []string{testClientRSA2048CertPEM},
 	}
 	runServerTestTLS12(t, test)
 }
