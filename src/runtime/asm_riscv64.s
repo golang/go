@@ -101,6 +101,7 @@ nocgo:
 	ADD	$16, X2
 
 	// start this M
+	CALL	runtime·stackcheck(SB)	// fault if stack check is wrong
 	CALL	runtime·mstart(SB)
 
 	WORD $0 // crash if reached
@@ -273,6 +274,17 @@ TEXT runtime·morestack_noctxt(SB),NOSPLIT|NOFRAME,$0-0
 
 	MOV	ZERO, CTXT
 	JMP	runtime·morestack(SB)
+
+// check that SP is in range [g->stack.lo, g->stack.hi]
+TEXT runtime·stackcheck(SB), NOSPLIT|NOFRAME, $0-0
+	MOV	(g_stack+stack_hi)(g), A0
+	BGEU	A0, X2, 2(PC)
+	CALL	runtime·abort(SB)
+
+	MOV	(g_stack+stack_lo)(g), A0
+	BGTU	X2, A0, 2(PC)
+	CALL	runtime·abort(SB)
+	RET
 
 // restore state from Gobuf; longjmp
 
