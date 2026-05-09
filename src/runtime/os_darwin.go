@@ -341,6 +341,7 @@ func minit() {
 	}
 	minitSignalMask()
 	getg().m.procid = uint64(pthread_self())
+	stackcheck()
 }
 
 // Called from dropm to undo the effect of an minit.
