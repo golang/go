@@ -686,6 +686,15 @@ func (s *regAllocState) allocValToReg(v *Value, mask regMask, nospill bool, pos 
 			s.f.Warnl(vi.spill.Pos, "load spill for %v from %v", v, spill)
 		}
 		c = s.curBlock.NewValue1(pos, OpLoadReg, v.Type, spill)
+		sourceMask := s.compatRegs(v.Type)
+		if !sourceMask.hasReg(r) && !onWasmStack {
+			// Assign a temporary register that can be copied to the desired destination;
+			// this at least works where it is currently a problem (x86).
+			// This happens processing e.g. ASAN/TSAN with SIMD *simdtype methods.
+			s.setOrig(c, v)
+			s.assignReg(s.allocReg(sourceMask, v), v, c)
+			c = s.curBlock.NewValue1(pos, OpCopy, v.Type, c)
+		}
 	}
 
 	s.setOrig(c, v)
