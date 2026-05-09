@@ -832,7 +832,18 @@ func (x {{.VType}}) Masked(mask Mask{{.WxC}}) {{.VType}} {
 // Merge returns x but with elements set to y where mask is false.
 //
 // Emulated, CPU Feature: {{.CPUfeature}}
+//
+// Deprecated: use x.IfElse(mask, y)
+//
+//go:fix inline
 func (x {{.VType}}) Merge(y {{.VType}}, mask Mask{{.WxC}}) {{.VType}} {
+   return x.IfElse(mask, y)
+}
+
+// IfElse returns x but with elements set to y where mask is false.
+//
+// Emulated, CPU Feature: {{.CPUfeature}}
+func (x {{.VType}}) IfElse(mask Mask{{.WxC}}, y {{.VType}}) {{.VType}} {
 {{- if eq .BxC .WxC -}}
 	im := mask.ToInt{{.BxC}}()
 {{- else}}
@@ -865,7 +876,15 @@ func (x {{.VType}}) Masked(mask Mask{{.WxC}}) {{.VType}} {
 // Merge returns x but with elements set to y where mask is false.
 //
 // Emulated, CPU Feature: AVX512
+//
+// Deprecated: use x.IfElse(mask, y)
+//
+//go:fix inline
 func (x {{.VType}}) Merge(y {{.VType}}, mask Mask{{.WxC}}) {{.VType}} {
+   return x.IfElse(mask, y)
+}
+
+func (x {{.VType}}) IfElse(mask Mask{{.WxC}}, y {{.VType}}) {{.VType}} {
 {{- if eq .Base "Int" }}
 	return y.blendMasked(x, mask)
 {{- else}}

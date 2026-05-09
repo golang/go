@@ -470,6 +470,26 @@ func TestMergeFloat(t *testing.T) {
 	checkSlices[float64](t, s, []float64{4, 2, 3, 4})
 }
 
+func TestIfElseFloat(t *testing.T) {
+	if !archsimd.X86.AVX2() {
+		t.Skip("Test requires X86.AVX2, not available on this hardware")
+		return
+	}
+	k := make([]int64, 4, 4)
+	s := make([]float64, 4, 4)
+
+	a := archsimd.LoadFloat64x4([]float64{1, 2, 3, 4})
+	b := archsimd.LoadFloat64x4([]float64{4, 2, 3, 1})
+	g := a.Greater(b)
+	g.ToInt64x4().Store(k)
+	c := a.IfElse(g, b)
+
+	c.Store(s)
+
+	checkSlices[int64](t, k, []int64{0, 0, 0, -1})
+	checkSlices[float64](t, s, []float64{4, 2, 3, 4})
+}
+
 func TestMergeFloat512(t *testing.T) {
 	if !archsimd.X86.AVX512() {
 		t.Skip("Test requires X86.AVX512, not available on this hardware")
@@ -484,6 +504,31 @@ func TestMergeFloat512(t *testing.T) {
 	g := a.Greater(b)
 	g.ToInt64x8().Store(k)
 	c := a.Merge(b, g)
+	d := a.Masked(g)
+
+	checkSlices[int64](t, k, []int64{0, 0, 0, 0, -1, -1, -1, -1})
+
+	c.Store(s)
+	checkSlices[float64](t, s, []float64{8, 7, 6, 5, 5, 6, 7, 8})
+
+	d.Store(s)
+	checkSlices[float64](t, s, []float64{0, 0, 0, 0, 5, 6, 7, 8})
+}
+
+func TestIfElseFloat512(t *testing.T) {
+	if !archsimd.X86.AVX512() {
+		t.Skip("Test requires X86.AVX512, not available on this hardware")
+		return
+	}
+
+	k := make([]int64, 8, 8)
+	s := make([]float64, 8, 8)
+
+	a := archsimd.LoadFloat64x8([]float64{1, 2, 3, 4, 5, 6, 7, 8})
+	b := archsimd.LoadFloat64x8([]float64{8, 7, 6, 5, 4, 2, 3, 1})
+	g := a.Greater(b)
+	g.ToInt64x8().Store(k)
+	c := a.IfElse(g, b)
 	d := a.Masked(g)
 
 	checkSlices[int64](t, k, []int64{0, 0, 0, 0, -1, -1, -1, -1})
@@ -1206,6 +1251,29 @@ func TestMaskedMerge(t *testing.T) {
 		x.Add(y).Merge(z, mask).Store(res)
 	} else {
 		x.Add(y).Merge(z, mask).Store(res)
+	}
+	for i := range 4 {
+		if res[i] != expected[i] {
+			t.Errorf("got %d wanted %d", res[i], expected[i])
+		}
+	}
+}
+
+func TestMaskedIfElse(t *testing.T) {
+	if !archsimd.X86.AVX2() {
+		t.Skip("Test requires X86.AVX2, not available on this hardware")
+		return
+	}
+	x := archsimd.LoadInt64x4([]int64{1, 2, 3, 4})
+	y := archsimd.LoadInt64x4([]int64{5, 6, 1, 1})
+	z := archsimd.LoadInt64x4([]int64{-1, -2, -3, -4})
+	res := make([]int64, 4)
+	expected := []int64{6, 8, -3, -4}
+	mask := x.Less(y)
+	if archsimd.X86.AVX512() {
+		x.Add(y).IfElse(mask, z).Store(res)
+	} else {
+		x.Add(y).IfElse(mask, z).Store(res)
 	}
 	for i := range 4 {
 		if res[i] != expected[i] {
