@@ -4596,6 +4596,8 @@ const (
 	OpARM64VSXTL4S
 	OpARM64VSXTL8H
 	OpARM64VSXTL16B
+	OpARM64VTBL16B
+	OpARM64VTBX16B
 	OpARM64VUCVTF2D
 	OpARM64VUCVTF4S
 	OpARM64VUMULL2_4S
@@ -7145,6 +7147,10 @@ const (
 	OpLessUint32x4
 	OpLessUint32x16
 	OpLessUint64x8
+	OpLookupOrKeepInt8x16
+	OpLookupOrKeepUint8x16
+	OpLookupOrZeroInt8x16
+	OpLookupOrZeroUint8x16
 	OpMaxFloat32x4
 	OpMaxFloat32x8
 	OpMaxFloat32x16
@@ -71768,6 +71774,36 @@ var opcodeTable = [...]opInfo{
 		},
 	},
 	{
+		name:   "VTBL16B",
+		argLen: 2,
+		asm:    arm64.AVTBL,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{0, regMask{v1: 9223372034707292160, v2: 0}}, // F0 F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15 F16 F17 F18 F19 F20 F21 F22 F23 F24 F25 F26 F27 F28 F29 F30 F31
+				{1, regMask{v1: 9223372034707292160, v2: 0}}, // F0 F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15 F16 F17 F18 F19 F20 F21 F22 F23 F24 F25 F26 F27 F28 F29 F30 F31
+			},
+			outputs: []outputInfo{
+				{0, regMask{v1: 9223372034707292160, v2: 0}}, // F0 F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15 F16 F17 F18 F19 F20 F21 F22 F23 F24 F25 F26 F27 F28 F29 F30 F31
+			},
+		},
+	},
+	{
+		name:         "VTBX16B",
+		argLen:       3,
+		resultInArg0: true,
+		asm:          arm64.AVTBX,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{0, regMask{v1: 9223372034707292160, v2: 0}}, // F0 F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15 F16 F17 F18 F19 F20 F21 F22 F23 F24 F25 F26 F27 F28 F29 F30 F31
+				{1, regMask{v1: 9223372034707292160, v2: 0}}, // F0 F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15 F16 F17 F18 F19 F20 F21 F22 F23 F24 F25 F26 F27 F28 F29 F30 F31
+				{2, regMask{v1: 9223372034707292160, v2: 0}}, // F0 F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15 F16 F17 F18 F19 F20 F21 F22 F23 F24 F25 F26 F27 F28 F29 F30 F31
+			},
+			outputs: []outputInfo{
+				{0, regMask{v1: 9223372034707292160, v2: 0}}, // F0 F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15 F16 F17 F18 F19 F20 F21 F22 F23 F24 F25 F26 F27 F28 F29 F30 F31
+			},
+		},
+	},
+	{
 		name:   "VUCVTF2D",
 		argLen: 1,
 		asm:    arm64.AVUCVTF,
@@ -98174,6 +98210,26 @@ var opcodeTable = [...]opInfo{
 	},
 	{
 		name:    "LessUint64x8",
+		argLen:  2,
+		generic: true,
+	},
+	{
+		name:    "LookupOrKeepInt8x16",
+		argLen:  3,
+		generic: true,
+	},
+	{
+		name:    "LookupOrKeepUint8x16",
+		argLen:  3,
+		generic: true,
+	},
+	{
+		name:    "LookupOrZeroInt8x16",
+		argLen:  2,
+		generic: true,
+	},
+	{
+		name:    "LookupOrZeroUint8x16",
 		argLen:  2,
 		generic: true,
 	},

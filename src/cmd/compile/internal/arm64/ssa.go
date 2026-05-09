@@ -371,6 +371,43 @@ func simdV31ResultInArg0(s *ssagen.State, v *ssa.Value, arrangement int16) *obj.
 	return p
 }
 
+// simdV21List generates a binary instruction with register list, e.g. TBL Vm.Ta, {Vn.B16}, Vd.Ta.
+func simdV21List(s *ssagen.State, v *ssa.Value, arrangement int16) *obj.Prog {
+	if v.Op.Asm() != arm64.AVTBL { // TODO: support other instructions as needed.
+		panic("simdV21List: expected VTBL")
+	}
+	p := s.Prog(v.Op.Asm())
+	p.From.Type = obj.TYPE_REG
+	p.From.Reg = simdRegArng(v.Args[1].Reg(), arrangement)
+	// TBL requires B16 table arrangement.
+	// Also, multi-element register lists are not supported by regalloc.
+	const listB16 = int64(1 << 30)
+	regList, _ := arm64.RegisterListOffset(int(v.Args[0].Reg()&31), 1, listB16, 0)
+	p.AddRestSource(obj.Addr{Type: obj.TYPE_REGLIST, Offset: regList})
+	p.To.Type = obj.TYPE_REG
+	p.To.Reg = simdRegArng(v.Reg(), arrangement)
+	return p
+}
+
+// simdV31ResultInArg0List generates a destructive 3-register instruction
+// with register list, e.g. TBX Vm.Ta, {Vn.B16}, Vd.Ta.
+func simdV31ResultInArg0List(s *ssagen.State, v *ssa.Value, arrangement int16) *obj.Prog {
+	if v.Op.Asm() != arm64.AVTBX { // TODO: support other instructions as needed.
+		panic("simdV31ResultInArg0List: expected VTBX")
+	}
+	p := s.Prog(v.Op.Asm())
+	p.From.Type = obj.TYPE_REG
+	p.From.Reg = simdRegArng(v.Args[2].Reg(), arrangement)
+	// TBX requires B16 table arrangement.
+	// Also, multi-element register lists are not supported by regalloc.
+	const listB16 = int64(1 << 30)
+	regList, _ := arm64.RegisterListOffset(int(v.Args[1].Reg()&31), 1, listB16, 0)
+	p.AddRestSource(obj.Addr{Type: obj.TYPE_REGLIST, Offset: regList})
+	p.To.Type = obj.TYPE_REG
+	p.To.Reg = simdRegArng(v.Reg(), arrangement)
+	return p
+}
+
 // simdVfpvResultInArg0ImmOutIn1 generates vector floating-point SetElem,
 // e.g. VMOV V2.S[0], V1.S[3] (INS element instruction)
 // The arrangement parameter specifies the vector element arrangement (e.g., S, D)

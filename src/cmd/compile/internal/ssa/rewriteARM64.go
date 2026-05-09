@@ -1170,6 +1170,18 @@ func rewriteValueARM64(v *Value) bool {
 		return rewriteValueARM64_OpLoad(v)
 	case OpLocalAddr:
 		return rewriteValueARM64_OpLocalAddr(v)
+	case OpLookupOrKeepInt8x16:
+		v.Op = OpARM64VTBX16B
+		return true
+	case OpLookupOrKeepUint8x16:
+		v.Op = OpARM64VTBX16B
+		return true
+	case OpLookupOrZeroInt8x16:
+		v.Op = OpARM64VTBL16B
+		return true
+	case OpLookupOrZeroUint8x16:
+		v.Op = OpARM64VTBL16B
+		return true
 	case OpLsh16x16:
 		return rewriteValueARM64_OpLsh16x16(v)
 	case OpLsh16x32:

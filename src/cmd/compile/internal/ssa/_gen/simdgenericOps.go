@@ -582,6 +582,10 @@ func simdGenericOps() []opData {
 		{name: "LessUint32x4", argLength: 2},                                            // ARCH:wasm
 		{name: "LessUint32x16", argLength: 2},                                           // ARCH:amd64
 		{name: "LessUint64x8", argLength: 2},                                            // ARCH:amd64
+		{name: "LookupOrKeepInt8x16", argLength: 3},                                     // ARCH:arm64
+		{name: "LookupOrKeepUint8x16", argLength: 3},                                    // ARCH:arm64
+		{name: "LookupOrZeroInt8x16", argLength: 2},                                     // ARCH:arm64
+		{name: "LookupOrZeroUint8x16", argLength: 2},                                    // ARCH:arm64
 		{name: "MaxFloat32x4", argLength: 2, commutative: true},                         // ARCH:amd64,wasm
 		{name: "MaxFloat32x8", argLength: 2, commutative: true},                         // ARCH:amd64
 		{name: "MaxFloat32x16", argLength: 2, commutative: true},                        // ARCH:amd64

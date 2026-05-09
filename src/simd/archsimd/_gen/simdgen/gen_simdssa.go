@@ -113,6 +113,9 @@ func writeSIMDSSA(ops []Operation) *bytes.Buffer {
 				regShape += "Imm8" // full 8-bit range (0-255)
 			}
 		}
+		if shapeIn == VlistIn {
+			regShape += "List"
+		}
 		regShape, err = rewriteVecAsScalarRegInfo(op, regShape)
 		if err != nil {
 			return "", err

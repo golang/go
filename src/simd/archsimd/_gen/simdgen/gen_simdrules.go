@@ -299,7 +299,7 @@ func writeSIMDRules(ops []Operation) *bytes.Buffer {
 			case OneImmIn:
 				tplName = "pureVreg"
 				data.GoType = goType(gOp)
-			case PureVregIn:
+			case PureVregIn, VlistIn:
 				tplName = "pureVreg"
 				data.GoType = goType(gOp)
 			case OneKmaskImmIn:

@@ -88,6 +88,7 @@ const (
 	OneImmIn              // vector and immediate input
 	OneKmaskImmIn         // vector, kmask, and immediate inputs
 	PureKmaskIn           // only mask inputs.
+	VlistIn               // vector list input (e.g. TBL [v1 v2 v3] vidx)
 )
 
 const (
@@ -161,7 +162,11 @@ func (op *Operation) shape() (shapeIn inShape, shapeOut outShape, maskType maskS
 	immAsmPos := -1
 	maskCount := 0
 	hasVreg := false
+	hasListIn := false
 	for _, in := range op.In {
+		if in.ListNumber != nil {
+			hasListIn = true
+		}
 		if in.AsmPos == outputReg {
 			if shapeOut != OneVregOutAtIn && in.AsmPos == 0 && in.Class == "vreg" {
 				shapeOut = OneVregOutAtIn
@@ -233,6 +238,9 @@ func (op *Operation) shape() (shapeIn inShape, shapeOut outShape, maskType maskS
 	}
 	if !hasImm && maskCount == 0 {
 		shapeIn = PureVregIn
+		if hasListIn {
+			shapeIn = VlistIn
+		}
 	} else if !hasImm && maskCount > 0 {
 		if maskCount == 1 {
 			shapeIn = OneKmaskIn

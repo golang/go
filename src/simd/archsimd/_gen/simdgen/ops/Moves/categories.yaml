@@ -27,6 +27,26 @@
   constImm: 1
   documentation: !string |-
     // NAME returns the upper half of x.
+- go: LookupOrKeep
+  commutative: false
+  documentation: !string |-
+    // NAME looks up table. If an index is out of range, the result is the corresponding element of keep.
+    //
+    //   if 0 <= indices[i] && indices[i] < len(table) {
+    //       result[i] = table[indices[i]]
+    //   } else {
+    //       result[i] = keep[i]
+    //   }
+- go: LookupOrZero
+  commutative: false
+  documentation: !string |-
+    // NAME looks up table. If an index is out of range, the result is 0.
+    //
+    //   if 0 <= indices[i] && indices[i] < len(table) {
+    //       result[i] = table[indices[i]]
+    //   } else {
+    //       result[i] = 0
+    //   }
 - go: PermuteOrZero
   commutative: false
   documentation: !string |-

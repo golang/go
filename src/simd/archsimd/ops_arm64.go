@@ -539,6 +539,54 @@ func (x Uint32x4) GreaterEqual(y Uint32x4) Mask32x4
 // Asm: VCMHS, CPU Feature: NEON
 func (x Uint64x2) GreaterEqual(y Uint64x2) Mask64x2
 
+/* LookupOrKeep */
+
+// LookupOrKeep looks up table. If an index is out of range, the result is the corresponding element of keep.
+//
+//	if 0 <= indices[i] && indices[i] < len(table) {
+//	    result[i] = table[indices[i]]
+//	} else {
+//	    result[i] = keep[i]
+//	}
+//
+// Asm: VTBX, CPU Feature: NEON
+func (keep Int8x16) LookupOrKeep(table Int8x16, indices Int8x16) Int8x16
+
+// LookupOrKeep looks up table. If an index is out of range, the result is the corresponding element of keep.
+//
+//	if 0 <= indices[i] && indices[i] < len(table) {
+//	    result[i] = table[indices[i]]
+//	} else {
+//	    result[i] = keep[i]
+//	}
+//
+// Asm: VTBX, CPU Feature: NEON
+func (keep Uint8x16) LookupOrKeep(table Uint8x16, indices Uint8x16) Uint8x16
+
+/* LookupOrZero */
+
+// LookupOrZero looks up table. If an index is out of range, the result is 0.
+//
+//	if 0 <= indices[i] && indices[i] < len(table) {
+//	    result[i] = table[indices[i]]
+//	} else {
+//	    result[i] = 0
+//	}
+//
+// Asm: VTBL, CPU Feature: NEON
+func (table Int8x16) LookupOrZero(indices Int8x16) Int8x16
+
+// LookupOrZero looks up table. If an index is out of range, the result is 0.
+//
+//	if 0 <= indices[i] && indices[i] < len(table) {
+//	    result[i] = table[indices[i]]
+//	} else {
+//	    result[i] = 0
+//	}
+//
+// Asm: VTBL, CPU Feature: NEON
+func (table Uint8x16) LookupOrZero(indices Uint8x16) Uint8x16
+
 /* Mul */
 
 // Mul multiplies corresponding elements of two vectors, modulo 2ⁿ.

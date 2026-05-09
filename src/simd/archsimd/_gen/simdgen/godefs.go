@@ -338,6 +338,9 @@ func compareOperands(x, y *Operand) int {
 		if c := compareIntPointers(x.Bits, y.Bits); c != 0 {
 			return c
 		}
+		if c := compareIntPointers(x.ListNumber, y.ListNumber); c != 0 {
+			return c
+		}
 		return 0
 	}
 }
@@ -380,6 +383,10 @@ type Operand struct {
 	OverwriteBits *int
 	// FixedReg is the name of the fixed registers
 	FixedReg *string
+	// If non-nil, marks this vreg as a register list operand (for TBL/TBX).
+	// Currently only list number 0 is supported (we might need to teach regalloc handle register lists
+	// to support more than one register in the list).
+	ListNumber *int
 }
 
 // isDigit returns true if the byte is an ASCII digit.

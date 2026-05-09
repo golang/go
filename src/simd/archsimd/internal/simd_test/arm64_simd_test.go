@@ -101,3 +101,27 @@ func TestBroadcastInt64x2(t *testing.T) {
 	archsimd.BroadcastInt64x2(-123456789).Store(s)
 	checkSlices(t, s, []int64{-123456789, -123456789})
 }
+
+func TestLookupOrZero(t *testing.T) {
+	// Out-of-range indices produce zero lane value.
+	x := []uint8{1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16}
+	indices := []uint8{7, 6, 5, 4, 3, 2, 1, 0, 0xff, 8, 16, 9, 128, 10, 20, 11}
+	want := []uint8{8, 7, 6, 5, 4, 3, 2, 1, 0, 9, 0, 10, 0, 11, 0, 12}
+	got := make([]uint8, len(x))
+	archsimd.LoadUint8x16(x).LookupOrZero(archsimd.LoadUint8x16(indices)).Store(got)
+	checkSlices(t, got, want)
+}
+
+func TestLookupOrKeep(t *testing.T) {
+	// Out-of-range indices keep the existing (receiver) lane value.
+	existing := []int8{100, 101, 102, 103, 104, 105, 106, 107, 108, 109, 110, 111, 112, 113, 114, 115}
+	table := []int8{1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16}
+	indices := []int8{0, 1, 2, 3, -1, -1, 6, 7, 8, 9, -1, -1, 12, 13, 14, 15}
+	want := []int8{1, 2, 3, 4, 104, 105, 7, 8, 9, 10, 110, 111, 13, 14, 15, 16}
+	got := make([]int8, 16)
+	archsimd.LoadInt8x16(existing).LookupOrKeep(
+		archsimd.LoadInt8x16(table),
+		archsimd.LoadInt8x16(indices),
+	).Store(got)
+	checkSlices(t, got, want)
+}

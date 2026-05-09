@@ -152,3 +152,39 @@
   - *maskReg
   out:
   - *v8
+
+# LookupOrZero — TBL (table lookup, zeros for out-of-range indices)
+- go: LookupOrZero
+  regexpTag: "move"
+  asm: "VTBL"
+  in:
+  - &bytesTable
+    go: $t
+    base: int|uint
+    elemBits: 8
+    name: table
+  - &byteIndices
+    go: $t
+    base: int|uint
+    elemBits: 8
+    name: indices
+  out:
+  - &bytes
+    go: $t
+    base: int|uint
+    elemBits: 8
+
+# LookupOrKeep — TBX (table lookup extended, keeps original for out-of-range)
+- go: LookupOrKeep
+  regexpTag: "move"
+  asm: "VTBX"
+  in:
+  - &bytesKeep
+    go: $t
+    base: int|uint
+    elemBits: 8
+    name: keep
+  - *bytesTable
+  - *byteIndices
+  out:
+  - *bytes
