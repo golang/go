@@ -125,12 +125,17 @@ func TestCertificateSelection(t *testing.T) {
 }
 
 // Run with multiple crypto configs to test the logic for computing TLS record overheads.
-func runDynamicRecordSizingTest(t *testing.T, config *Config) {
+func runDynamicRecordSizingTest(t *testing.T, serverConfig *Config) {
 	clientConn, serverConn := localPipe(t)
 
-	serverConfig := config.Clone()
+	serverConfig = serverConfig.Clone()
 	serverConfig.DynamicRecordSizingDisabled = false
 	tlsConn := Server(serverConn, serverConfig)
+
+	clientConfig := testConfigClient.Clone()
+	clientConfig.MinVersion = serverConfig.MinVersion
+	clientConfig.MaxVersion = serverConfig.MaxVersion
+	clientConfig.CipherSuites = serverConfig.CipherSuites
 
 	handshakeDone := make(chan struct{})
 	recordSizesChan := make(chan []int, 1)
@@ -142,7 +147,7 @@ func runDynamicRecordSizingTest(t *testing.T, config *Config) {
 		defer close(recordSizesChan)
 		defer clientConn.Close()
 
-		tlsConn := Client(clientConn, config)
+		tlsConn := Client(clientConn, clientConfig)
 		if err := tlsConn.Handshake(); err != nil {
 			t.Errorf("Error from client handshake: %v", err)
 			return
@@ -232,7 +237,7 @@ func runDynamicRecordSizingTest(t *testing.T, config *Config) {
 func TestDynamicRecordSizingWithStreamCipher(t *testing.T) {
 	skipFIPS(t) // No RC4 in FIPS mode.
 
-	config := testConfig.Clone()
+	config := testConfigServer.Clone()
 	config.MaxVersion = VersionTLS12
 	config.CipherSuites = []uint16{TLS_RSA_WITH_RC4_128_SHA}
 	runDynamicRecordSizingTest(t, config)
@@ -241,21 +246,21 @@ func TestDynamicRecordSizingWithStreamCipher(t *testing.T) {
 func TestDynamicRecordSizingWithCBC(t *testing.T) {
 	skipFIPS(t) // No CBC cipher suites in defaultCipherSuitesFIPS.
 
-	config := testConfig.Clone()
+	config := testConfigServer.Clone()
 	config.MaxVersion = VersionTLS12
 	config.CipherSuites = []uint16{TLS_RSA_WITH_AES_256_CBC_SHA}
 	runDynamicRecordSizingTest(t, config)
 }
 
 func TestDynamicRecordSizingWithAEAD(t *testing.T) {
-	config := testConfig.Clone()
+	config := testConfigServer.Clone()
 	config.MaxVersion = VersionTLS12
 	config.CipherSuites = []uint16{TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256}
 	runDynamicRecordSizingTest(t, config)
 }
 
 func TestDynamicRecordSizingWithTLSv13(t *testing.T) {
-	config := testConfig.Clone()
+	config := testConfigServer.Clone()
 	runDynamicRecordSizingTest(t, config)
 }
 
@@ -295,11 +300,13 @@ func TestRecordBadVersionTLS13(t *testing.T) {
 	defer server.Close()
 	defer client.Close()
 
-	config := testConfig.Clone()
-	config.MinVersion, config.MaxVersion = VersionTLS13, VersionTLS13
+	clientConfig := testConfigClient.Clone()
+	clientConfig.MinVersion, clientConfig.MaxVersion = VersionTLS13, VersionTLS13
+	serverConfig := testConfigServer.Clone()
+	serverConfig.MinVersion, serverConfig.MaxVersion = VersionTLS13, VersionTLS13
 
 	go func() {
-		tlsConn := Client(client, config)
+		tlsConn := Client(client, clientConfig)
 		if err := tlsConn.Handshake(); err != nil {
 			t.Errorf("Error from client handshake: %v", err)
 			return
@@ -308,7 +315,7 @@ func TestRecordBadVersionTLS13(t *testing.T) {
 		tlsConn.Write([]byte{1})
 	}()
 
-	tlsConn := Server(server, config)
+	tlsConn := Server(server, serverConfig)
 	if err := tlsConn.Handshake(); err != nil {
 		t.Errorf("Error from client handshake: %v", err)
 		return

@@ -670,7 +670,7 @@ func TestServerHelloTrailingMessage(t *testing.T) {
 	c, s := localPipe(t)
 	go func() {
 		ctx := context.Background()
-		srv := Server(s, testConfig)
+		srv := Server(s, testConfigServer.Clone())
 		clientHello, _, err := srv.readClientHello(ctx)
 		if err != nil {
 			testFatal(t, err)
@@ -699,7 +699,7 @@ func TestServerHelloTrailingMessage(t *testing.T) {
 		srv.Close()
 	}()
 
-	cli := Client(c, testConfig)
+	cli := Client(c, testConfigClient.Clone())
 	expectedErr := "tls: handshake buffer not empty before setting read traffic secret"
 	if err := cli.Handshake(); err == nil {
 		t.Fatal("expected error from incomplete handshake, got nil")
@@ -713,7 +713,7 @@ func TestClientHelloTrailingMessage(t *testing.T) {
 
 	c, s := localPipe(t)
 	go func() {
-		cli := Client(c, testConfig)
+		cli := Client(c, testConfigClient.Clone())
 
 		hello, _, _, err := cli.makeClientHello()
 		if err != nil {
@@ -731,7 +731,7 @@ func TestClientHelloTrailingMessage(t *testing.T) {
 		cli.Close()
 	}()
 
-	srv := Server(s, testConfig)
+	srv := Server(s, testConfigServer.Clone())
 	expectedErr := "tls: handshake buffer not empty before setting read traffic secret"
 	if err := srv.Handshake(); err == nil {
 		t.Fatal("expected error from incomplete handshake, got nil")
@@ -748,7 +748,7 @@ func TestDoubleClientHelloHRR(t *testing.T) {
 	c, s := localPipe(t)
 
 	go func() {
-		cli := Client(c, testConfig)
+		cli := Client(c, testConfigClient.Clone())
 
 		hello, _, _, err := cli.makeClientHello()
 		if err != nil {
@@ -767,7 +767,7 @@ func TestDoubleClientHelloHRR(t *testing.T) {
 		cli.Close()
 	}()
 
-	srv := Server(s, testConfig)
+	srv := Server(s, testConfigServer.Clone())
 	expectedErr := "tls: handshake buffer not empty before HelloRetryRequest"
 	if err := srv.Handshake(); err == nil {
 		t.Fatal("expected error from incomplete handshake, got nil")
@@ -804,11 +804,14 @@ func TestMultipleKeyUpdate(t *testing.T) {
 		t.Run(fmt.Sprintf("requestUpdate=%t", requestUpdate), func(t *testing.T) {
 
 			c, s := localPipe(t)
-			cfg := testConfig.Clone()
-			cfg.MinVersion = VersionTLS13
-			cfg.MaxVersion = VersionTLS13
-			client := Client(c, testConfig)
-			server := Server(s, testConfig)
+			clientConfig := testConfigClient.Clone()
+			clientConfig.MinVersion = VersionTLS13
+			clientConfig.MaxVersion = VersionTLS13
+			serverConfig := testConfigServer.Clone()
+			serverConfig.MinVersion = VersionTLS13
+			serverConfig.MaxVersion = VersionTLS13
+			client := Client(c, clientConfig)
+			server := Server(s, serverConfig)
 
 			clientHandshakeDone := make(chan struct{})
 			go func() {

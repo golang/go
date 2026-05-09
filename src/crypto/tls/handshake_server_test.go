@@ -45,7 +45,7 @@ func testFatal(t *testing.T, err error) {
 func testClientHelloFailure(t *testing.T, serverConfig *Config, m handshakeMessage, expectedSubStr string) {
 	c, s := localPipe(t)
 	go func() {
-		cli := Client(c, testConfig)
+		cli := Client(c, testConfigClient.Clone())
 		if ch, ok := m.(*clientHelloMsg); ok {
 			cli.vers = ch.vers
 		}
@@ -98,13 +98,13 @@ func testClientHelloFailure(t *testing.T, serverConfig *Config, m handshakeMessa
 }
 
 func TestSimpleError(t *testing.T) {
-	testClientHelloFailure(t, testConfig, &serverHelloDoneMsg{}, "unexpected handshake message")
+	testClientHelloFailure(t, testConfigServer.Clone(), &serverHelloDoneMsg{}, "unexpected handshake message")
 }
 
 var badProtocolVersions = []uint16{0x0000, 0x0005, 0x0100, 0x0105, 0x0200, 0x0205, VersionSSL30}
 
 func TestRejectBadProtocolVersion(t *testing.T) {
-	config := testConfig.Clone()
+	config := testConfigServer.Clone()
 	config.MinVersion = VersionSSL30
 	for _, v := range badProtocolVersions {
 		testClientHelloFailure(t, config, &clientHelloMsg{
@@ -126,7 +126,7 @@ func TestNoSuiteOverlap(t *testing.T) {
 		cipherSuites:       []uint16{0xff00},
 		compressionMethods: []uint8{compressionNone},
 	}
-	testClientHelloFailure(t, testConfig, clientHello, "no cipher suite supported by both client and server")
+	testClientHelloFailure(t, testConfigServer.Clone(), clientHello, "no cipher suite supported by both client and server")
 }
 
 func TestNoCompressionOverlap(t *testing.T) {
@@ -136,7 +136,7 @@ func TestNoCompressionOverlap(t *testing.T) {
 		cipherSuites:       []uint16{TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256},
 		compressionMethods: []uint8{0xff},
 	}
-	testClientHelloFailure(t, testConfig, clientHello, "client does not support uncompressed connections")
+	testClientHelloFailure(t, testConfigServer.Clone(), clientHello, "client does not support uncompressed connections")
 }
 
 func TestNoRC4ByDefault(t *testing.T) {
@@ -146,7 +146,7 @@ func TestNoRC4ByDefault(t *testing.T) {
 		cipherSuites:       []uint16{TLS_RSA_WITH_RC4_128_SHA},
 		compressionMethods: []uint8{compressionNone},
 	}
-	serverConfig := testConfig.Clone()
+	serverConfig := testConfigServer.Clone()
 	// Reset the enabled cipher suites to nil in order to test the
 	// defaults.
 	serverConfig.CipherSuites = nil
@@ -154,7 +154,7 @@ func TestNoRC4ByDefault(t *testing.T) {
 }
 
 func TestRejectSNIWithTrailingDot(t *testing.T) {
-	testClientHelloFailure(t, testConfig, &clientHelloMsg{
+	testClientHelloFailure(t, testConfigServer.Clone(), &clientHelloMsg{
 		vers:       VersionTLS12,
 		random:     make([]byte, 32),
 		serverName: "foo.com.",
@@ -172,7 +172,7 @@ func TestDontSelectECDSAWithRSAKey(t *testing.T) {
 		supportedCurves:    []CurveID{CurveP256},
 		supportedPoints:    []uint8{pointFormatUncompressed},
 	}
-	serverConfig := testConfig.Clone()
+	serverConfig := testConfigServer.Clone()
 	serverConfig.CipherSuites = clientHello.cipherSuites
 	serverConfig.Certificates = make([]Certificate, 1)
 	serverConfig.Certificates[0] = testECDSAP256Cert
@@ -182,7 +182,7 @@ func TestDontSelectECDSAWithRSAKey(t *testing.T) {
 
 	// Now test that switching to an RSA key causes the expected error (and
 	// not an internal error about a signing failure).
-	serverConfig.Certificates = testConfig.Certificates
+	serverConfig.Certificates = []Certificate{testRSA2048Cert}
 	testClientHelloFailure(t, serverConfig, clientHello, "no cipher suite supported by both client and server")
 }
 
@@ -197,7 +197,7 @@ func TestDontSelectRSAWithECDSAKey(t *testing.T) {
 		supportedCurves:    []CurveID{CurveP256},
 		supportedPoints:    []uint8{pointFormatUncompressed},
 	}
-	serverConfig := testConfig.Clone()
+	serverConfig := testConfigServer.Clone()
 	serverConfig.CipherSuites = clientHello.cipherSuites
 	// First test that it *does* work when the server's key is RSA.
 	testClientHello(t, serverConfig, clientHello)
@@ -225,7 +225,7 @@ func TestRenegotiationExtension(t *testing.T) {
 	c, s := localPipe(t)
 
 	go func() {
-		cli := Client(c, testConfig)
+		cli := Client(c, testConfigClient.Clone())
 		cli.vers = clientHello.vers
 		if _, err := cli.writeHandshakeRecord(clientHello, nil); err != nil {
 			testFatal(t, err)
@@ -240,7 +240,10 @@ func TestRenegotiationExtension(t *testing.T) {
 		bufChan <- buf[:n]
 	}()
 
-	Server(s, testConfig).Handshake()
+	serverConfig := testConfigServer.Clone()
+	serverConfig.CipherSuites = allCipherSuites()
+	serverConfig.MinVersion = VersionTLS10
+	Server(s, serverConfig).Handshake()
 	buf := <-bufChan
 
 	if len(buf) < 5+4 {
@@ -287,7 +290,7 @@ func TestTLS12OnlyCipherSuites(t *testing.T) {
 	c, s := localPipe(t)
 	replyChan := make(chan any)
 	go func() {
-		cli := Client(c, testConfig)
+		cli := Client(c, testConfigClient.Clone())
 		cli.vers = clientHello.vers
 		if _, err := cli.writeHandshakeRecord(clientHello, nil); err != nil {
 			testFatal(t, err)
@@ -300,8 +303,9 @@ func TestTLS12OnlyCipherSuites(t *testing.T) {
 			replyChan <- reply
 		}
 	}()
-	config := testConfig.Clone()
+	config := testConfigServer.Clone()
 	config.CipherSuites = clientHello.cipherSuites
+	config.MinVersion = VersionTLS10
 	Server(s, config).Handshake()
 	s.Close()
 	reply := <-replyChan
@@ -352,7 +356,7 @@ func TestTLSPointFormats(t *testing.T) {
 			c, s := localPipe(t)
 			replyChan := make(chan any)
 			go func() {
-				clientConfig := testConfig.Clone()
+				clientConfig := testConfigClient.Clone()
 				clientConfig.Certificates = []Certificate{testRSA2048Cert}
 				cli := Client(c, clientConfig)
 				cli.vers = clientHello.vers
@@ -367,7 +371,7 @@ func TestTLSPointFormats(t *testing.T) {
 					replyChan <- reply
 				}
 			}()
-			serverConfig := testConfig.Clone()
+			serverConfig := testConfigServer.Clone()
 			serverConfig.Certificates = []Certificate{testRSA2048Cert}
 			serverConfig.CipherSuites = clientHello.cipherSuites
 			Server(s, serverConfig).Handshake()
@@ -396,11 +400,11 @@ func TestTLSPointFormats(t *testing.T) {
 func TestAlertForwarding(t *testing.T) {
 	c, s := localPipe(t)
 	go func() {
-		Client(c, testConfig).sendAlert(alertUnknownCA)
+		Client(c, testConfigClient.Clone()).sendAlert(alertUnknownCA)
 		c.Close()
 	}()
 
-	err := Server(s, testConfig).Handshake()
+	err := Server(s, testConfigServer.Clone()).Handshake()
 	s.Close()
 	if opErr, ok := errors.AsType[*net.OpError](err); !ok || opErr.Err != error(alertUnknownCA) {
 		t.Errorf("Got error: %s; expected: %s", err, error(alertUnknownCA))
@@ -411,7 +415,7 @@ func TestClose(t *testing.T) {
 	c, s := localPipe(t)
 	go c.Close()
 
-	err := Server(s, testConfig).Handshake()
+	err := Server(s, testConfigServer.Clone()).Handshake()
 	s.Close()
 	if err != io.EOF {
 		t.Errorf("Got error: %s; expected: %s", err, io.EOF)
@@ -420,7 +424,7 @@ func TestClose(t *testing.T) {
 
 func TestVersion(t *testing.T) {
 	serverConfig := &Config{
-		Certificates: testConfig.Certificates,
+		Certificates: testConfigServer.Certificates,
 		MaxVersion:   VersionTLS13,
 	}
 	clientConfig := &Config{
@@ -449,7 +453,7 @@ func TestCipherSuitePreference(t *testing.T) {
 	serverConfig := &Config{
 		CipherSuites: []uint16{TLS_RSA_WITH_RC4_128_SHA, TLS_AES_128_GCM_SHA256,
 			TLS_ECDHE_RSA_WITH_CHACHA20_POLY1305_SHA256},
-		Certificates: testConfig.Certificates,
+		Certificates: testConfigServer.Certificates,
 		MaxVersion:   VersionTLS12,
 		GetConfigForClient: func(chi *ClientHelloInfo) (*Config, error) {
 			if chi.CipherSuites[0] != TLS_ECDHE_RSA_WITH_CHACHA20_POLY1305_SHA256 {
@@ -513,7 +517,7 @@ func TestCrossVersionResume(t *testing.T) {
 func testCrossVersionResume(t *testing.T, version uint16) {
 	serverConfig := &Config{
 		CipherSuites: []uint16{TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256},
-		Certificates: testConfig.Certificates,
+		Certificates: []Certificate{testRSA2048Cert},
 		Time:         testTime,
 	}
 	clientConfig := &Config{
@@ -1181,7 +1185,7 @@ func TestHandshakeServerGetCertificateExtensions(t *testing.T) {
 			// Go's TLS client presents extensions in the ClientHello sorted by extension ID
 			slices.Sort(expectedExtensions)
 
-			serverConfig := testConfig.Clone()
+			serverConfig := testConfigServer.Clone()
 			serverConfig.GetCertificate = func(clientHello *ClientHelloInfo) (*Certificate, error) {
 				if !slices.Equal(expectedExtensions, clientHello.Extensions) {
 					t.Errorf("expected extensions on ClientHelloInfo (%v) to match clientHelloMsg (%v)", expectedExtensions, clientHello.Extensions)
@@ -1204,7 +1208,7 @@ func TestHandshakeServerGetCertificateExtensions(t *testing.T) {
 func TestHandshakeServerSNIGetCertificateError(t *testing.T) {
 	const errMsg = "TestHandshakeServerSNIGetCertificateError error"
 
-	serverConfig := testConfig.Clone()
+	serverConfig := testConfigServer.Clone()
 	serverConfig.GetCertificate = func(clientHello *ClientHelloInfo) (*Certificate, error) {
 		return nil, errors.New(errMsg)
 	}
@@ -1224,7 +1228,7 @@ func TestHandshakeServerSNIGetCertificateError(t *testing.T) {
 func TestHandshakeServerEmptyCertificates(t *testing.T) {
 	const errMsg = "TestHandshakeServerEmptyCertificates error"
 
-	serverConfig := testConfig.Clone()
+	serverConfig := testConfigServer.Clone()
 	serverConfig.GetCertificate = func(clientHello *ClientHelloInfo) (*Certificate, error) {
 		return nil, errors.New(errMsg)
 	}
@@ -1403,7 +1407,7 @@ func TestHandshakeServerEd25519(t *testing.T) {
 }
 
 func benchmarkHandshakeServer(b *testing.B, version uint16, cipherSuite uint16, curve CurveID, cert []byte, key crypto.PrivateKey) {
-	config := testConfig.Clone()
+	config := testConfigServer.Clone()
 	config.CipherSuites = []uint16{cipherSuite}
 	config.CurvePreferences = []CurveID{curve}
 	config.Certificates = make([]Certificate, 1)
@@ -1414,7 +1418,7 @@ func benchmarkHandshakeServer(b *testing.B, version uint16, cipherSuite uint16, 
 	clientConn, serverConn := localPipe(b)
 	serverConn = &recordingConn{Conn: serverConn}
 	go func() {
-		config := testConfig.Clone()
+		config := testConfigClient.Clone()
 		config.MaxVersion = version
 		config.CurvePreferences = []CurveID{curve}
 		client := Client(clientConn, config)
@@ -1562,13 +1566,13 @@ func TestSNIGivenOnFailure(t *testing.T) {
 		serverName:         expectedServerName,
 	}
 
-	serverConfig := testConfig.Clone()
+	serverConfig := testConfigServer.Clone()
 	// Erase the server's cipher suites to ensure the handshake fails.
 	serverConfig.CipherSuites = nil
 
 	c, s := localPipe(t)
 	go func() {
-		cli := Client(c, testConfig)
+		cli := Client(c, testConfigClient.Clone())
 		cli.vers = clientHello.vers
 		if _, err := cli.writeHandshakeRecord(clientHello, nil); err != nil {
 			testFatal(t, err)
@@ -1630,7 +1634,7 @@ var getConfigForClientTests = []struct {
 	{
 		nil,
 		func(clientHello *ClientHelloInfo) (*Config, error) {
-			config := testConfig.Clone()
+			config := testConfigServer.Clone()
 			// Setting a maximum version of TLS 1.1 should cause
 			// the handshake to fail, as the client MinVersion is TLS 1.2.
 			config.MaxVersion = VersionTLS11
@@ -1647,7 +1651,7 @@ var getConfigForClientTests = []struct {
 			config.sessionTicketKeys = nil
 		},
 		func(clientHello *ClientHelloInfo) (*Config, error) {
-			config := testConfig.Clone()
+			config := testConfigServer.Clone()
 			clear(config.SessionTicketKey[:])
 			config.sessionTicketKeys = nil
 			return config, nil
@@ -1670,7 +1674,7 @@ var getConfigForClientTests = []struct {
 			config.SetSessionTicketKeys([][32]byte{dummyKey})
 		},
 		func(clientHello *ClientHelloInfo) (*Config, error) {
-			config := testConfig.Clone()
+			config := testConfigServer.Clone()
 			config.sessionTicketKeys = nil
 			return config, nil
 		},
@@ -1685,8 +1689,8 @@ var getConfigForClientTests = []struct {
 }
 
 func TestGetConfigForClient(t *testing.T) {
-	serverConfig := testConfig.Clone()
-	clientConfig := testConfig.Clone()
+	serverConfig := testConfigServer.Clone()
+	clientConfig := testConfigClient.Clone()
 	clientConfig.MinVersion = VersionTLS12
 
 	for i, test := range getConfigForClientTests {
@@ -1734,7 +1738,7 @@ func TestGetConfigForClient(t *testing.T) {
 
 func TestCloseServerConnectionOnIdleClient(t *testing.T) {
 	clientConn, serverConn := localPipe(t)
-	server := Server(serverConn, testConfig.Clone())
+	server := Server(serverConn, testConfigServer.Clone())
 	go func() {
 		clientConn.Write([]byte{'0'})
 		server.Close()
@@ -1772,7 +1776,7 @@ func expectError(t *testing.T, err error, sub string) {
 func TestKeyTooSmallForRSAPSS(t *testing.T) {
 	t.Setenv("GODEBUG", os.Getenv("GODEBUG")+",rsa1024min=0")
 	clientConn, serverConn := localPipe(t)
-	client := Client(clientConn, testConfigClient)
+	client := Client(clientConn, testConfigClient.Clone())
 	done := make(chan struct{})
 	go func() {
 		config := testConfigServer.Clone()
@@ -1789,11 +1793,11 @@ func TestKeyTooSmallForRSAPSS(t *testing.T) {
 }
 
 func TestMultipleCertificates(t *testing.T) {
-	clientConfig := testConfig.Clone()
+	clientConfig := testConfigClient.Clone()
 	clientConfig.CipherSuites = []uint16{TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256}
 	clientConfig.MaxVersion = VersionTLS12
 
-	serverConfig := testConfig.Clone()
+	serverConfig := testConfigServer.Clone()
 	serverConfig.Certificates = []Certificate{testECDSAP256Cert, testRSA2048Cert}
 
 	_, clientState, err := testHandshake(t, clientConfig, serverConfig)
@@ -2063,7 +2067,7 @@ func TestServerHandshakeContextCancellation(t *testing.T) {
 		<-unblockClient
 		_ = c.Close()
 	}()
-	conn := Server(s, testConfig)
+	conn := Server(s, testConfigServer.Clone())
 	// Initiates server side handshake, which will block until a client hello is read
 	// unless the cancellation works.
 	err := conn.HandshakeContext(ctx)
@@ -2090,8 +2094,8 @@ func TestServerHandshakeContextCancellation(t *testing.T) {
 func TestHandshakeContextHierarchy(t *testing.T) {
 	c, s := localPipe(t)
 	clientErr := make(chan error, 1)
-	clientConfig := testConfig.Clone()
-	serverConfig := testConfig.Clone()
+	clientConfig := testConfigClient.Clone()
+	serverConfig := testConfigServer.Clone()
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 	key := struct{}{}
@@ -2197,7 +2201,7 @@ func testHandshakeChainExpiryResumption(t *testing.T, version uint16) {
 		t.Run(name, func(t *testing.T) {
 			initialLeafDER, expiredLeafDER, initialRoot := createChain(leafNotAfter, rootNotAfter)
 
-			serverConfig := testConfig.Clone()
+			serverConfig := testConfigServer.Clone()
 			serverConfig.MaxVersion = version
 			serverConfig.Certificates = []Certificate{{
 				Certificate: [][]byte{initialLeafDER, expiredLeafDER},
@@ -2212,7 +2216,7 @@ func testHandshakeChainExpiryResumption(t *testing.T, version uint16) {
 			serverConfig.InsecureSkipVerify = false
 			serverConfig.ServerName = "expired-resume.example.com"
 
-			clientConfig := testConfig.Clone()
+			clientConfig := testConfigClient.Clone()
 			clientConfig.MaxVersion = version
 			clientConfig.Certificates = []Certificate{{
 				Certificate: [][]byte{initialLeafDER, expiredLeafDER},
@@ -2317,7 +2321,7 @@ func testHandshakeGetConfigForClientDifferentClientCAs(t *testing.T, version uin
 		t.Fatalf("CreateCertificate: %v", err)
 	}
 
-	serverConfig := testConfig.Clone()
+	serverConfig := testConfigServer.Clone()
 	serverConfig.MaxVersion = version
 	serverConfig.Certificates = []Certificate{{
 		Certificate: [][]byte{certA},
@@ -2342,7 +2346,7 @@ func testHandshakeGetConfigForClientDifferentClientCAs(t *testing.T, version uin
 	serverConfig.InsecureSkipVerify = false
 	serverConfig.ServerName = "example.com"
 
-	clientConfig := testConfig.Clone()
+	clientConfig := testConfigClient.Clone()
 	clientConfig.MaxVersion = version
 	clientConfig.Certificates = []Certificate{{
 		Certificate: [][]byte{certA},
@@ -2435,7 +2439,7 @@ func testHandshakeChangeRootCAsResumption(t *testing.T, version uint16) {
 		t.Fatalf("CreateCertificate: %v", err)
 	}
 
-	serverConfig := testConfig.Clone()
+	serverConfig := testConfigServer.Clone()
 	serverConfig.MaxVersion = version
 	serverConfig.Certificates = []Certificate{{
 		Certificate: [][]byte{certA},
@@ -2450,7 +2454,7 @@ func testHandshakeChangeRootCAsResumption(t *testing.T, version uint16) {
 	serverConfig.InsecureSkipVerify = false
 	serverConfig.ServerName = "example.com"
 
-	clientConfig := testConfig.Clone()
+	clientConfig := testConfigClient.Clone()
 	clientConfig.MaxVersion = version
 	clientConfig.Certificates = []Certificate{{
 		Certificate: [][]byte{certA},

@@ -297,7 +297,7 @@ func TestDeadlineOnWrite(t *testing.T) {
 			srvCh <- nil
 			return
 		}
-		srv := Server(sconn, testConfig.Clone())
+		srv := Server(sconn, testConfigServer.Clone())
 		if err := srv.Handshake(); err != nil {
 			srvCh <- nil
 			return
@@ -305,7 +305,7 @@ func TestDeadlineOnWrite(t *testing.T) {
 		srvCh <- srv
 	}()
 
-	clientConfig := testConfig.Clone()
+	clientConfig := testConfigClient.Clone()
 	clientConfig.MaxVersion = VersionTLS12
 	conn, err := Dial("tcp", ln.Addr().String(), clientConfig)
 	if err != nil {
@@ -435,7 +435,7 @@ func testConnReadNonzeroAndEOF(t *testing.T, delay time.Duration) error {
 			srvCh <- nil
 			return
 		}
-		serverConfig := testConfig.Clone()
+		serverConfig := testConfigServer.Clone()
 		srv := Server(sconn, serverConfig)
 		if err := srv.Handshake(); err != nil {
 			serr = fmt.Errorf("handshake: %v", err)
@@ -445,7 +445,7 @@ func testConnReadNonzeroAndEOF(t *testing.T, delay time.Duration) error {
 		srvCh <- srv
 	}()
 
-	clientConfig := testConfig.Clone()
+	clientConfig := testConfigClient.Clone()
 	// In TLS 1.3, alerts are encrypted and disguised as application data, so
 	// the opportunistic peek won't work.
 	clientConfig.MaxVersion = VersionTLS12
@@ -485,6 +485,9 @@ func TestTLSUniqueMatches(t *testing.T) {
 	ln := newLocalListener(t)
 	defer ln.Close()
 
+	serverConfig := testConfigServer.Clone()
+	serverConfig.MaxVersion = VersionTLS12 // TLSUnique is not defined in TLS 1.3
+
 	serverTLSUniques := make(chan []byte)
 	parentDone := make(chan struct{})
 	childDone := make(chan struct{})
@@ -497,8 +500,6 @@ func TestTLSUniqueMatches(t *testing.T) {
 				t.Error(err)
 				return
 			}
-			serverConfig := testConfig.Clone()
-			serverConfig.MaxVersion = VersionTLS12 // TLSUnique is not defined in TLS 1.3
 			srv := Server(sconn, serverConfig)
 			if err := srv.Handshake(); err != nil {
 				t.Error(err)
@@ -512,7 +513,7 @@ func TestTLSUniqueMatches(t *testing.T) {
 		}
 	}()
 
-	clientConfig := testConfig.Clone()
+	clientConfig := testConfigClient.Clone()
 	clientConfig.ClientSessionCache = NewLRUClientSessionCache(1)
 	conn, err := Dial("tcp", ln.Addr().String(), clientConfig)
 	if err != nil {
@@ -630,7 +631,7 @@ func TestConnCloseBreakingWrite(t *testing.T) {
 			srvCh <- nil
 			return
 		}
-		serverConfig := testConfig.Clone()
+		serverConfig := testConfigServer.Clone()
 		srv := Server(sconn, serverConfig)
 		if err := srv.Handshake(); err != nil {
 			serr = fmt.Errorf("handshake: %v", err)
@@ -650,7 +651,7 @@ func TestConnCloseBreakingWrite(t *testing.T) {
 		Conn: cconn,
 	}
 
-	clientConfig := testConfig.Clone()
+	clientConfig := testConfigClient.Clone()
 	tconn := Client(conn, clientConfig)
 	if err := tconn.Handshake(); err != nil {
 		t.Fatal(err)
@@ -707,7 +708,7 @@ func TestConnCloseWrite(t *testing.T) {
 		}
 		defer sconn.Close()
 
-		serverConfig := testConfig.Clone()
+		serverConfig := testConfigServer.Clone()
 		srv := Server(sconn, serverConfig)
 		if err := srv.Handshake(); err != nil {
 			return fmt.Errorf("handshake: %v", err)
@@ -737,7 +738,7 @@ func TestConnCloseWrite(t *testing.T) {
 	clientCloseWrite := func() error {
 		defer close(clientDoneChan)
 
-		clientConfig := testConfig.Clone()
+		clientConfig := testConfigClient.Clone()
 		conn, err := Dial("tcp", ln.Addr().String(), clientConfig)
 		if err != nil {
 			return err
@@ -792,7 +793,7 @@ func TestConnCloseWrite(t *testing.T) {
 			t.Fatal(err)
 		}
 		defer netConn.Close()
-		conn := Client(netConn, testConfig.Clone())
+		conn := Client(netConn, testConfigClient.Clone())
 
 		if err := conn.CloseWrite(); err != errEarlyCloseWrite {
 			t.Errorf("CloseWrite error = %v; want errEarlyCloseWrite", err)
@@ -811,7 +812,7 @@ func TestWarningAlertFlood(t *testing.T) {
 		}
 		defer sconn.Close()
 
-		serverConfig := testConfig.Clone()
+		serverConfig := testConfigServer.Clone()
 		srv := Server(sconn, serverConfig)
 		if err := srv.Handshake(); err != nil {
 			return fmt.Errorf("handshake: %v", err)
@@ -833,7 +834,7 @@ func TestWarningAlertFlood(t *testing.T) {
 	errChan := make(chan error, 1)
 	go func() { errChan <- server() }()
 
-	clientConfig := testConfig.Clone()
+	clientConfig := testConfigClient.Clone()
 	clientConfig.MaxVersion = VersionTLS12 // there are no warning alerts in TLS 1.3
 	conn, err := Dial("tcp", ln.Addr().String(), clientConfig)
 	if err != nil {
@@ -1035,7 +1036,7 @@ func throughput(b *testing.B, version uint16, totalBytes int64, dynamicRecordSiz
 				// (cannot call b.Fatal in goroutine)
 				panic(fmt.Errorf("accept: %v", err))
 			}
-			serverConfig := testConfig.Clone()
+			serverConfig := testConfigServer.Clone()
 			serverConfig.CipherSuites = nil // the defaults may prefer faster ciphers
 			serverConfig.DynamicRecordSizingDisabled = dynamicRecordSizingDisabled
 			srv := Server(sconn, serverConfig)
@@ -1049,7 +1050,7 @@ func throughput(b *testing.B, version uint16, totalBytes int64, dynamicRecordSiz
 	}()
 
 	b.SetBytes(totalBytes)
-	clientConfig := testConfig.Clone()
+	clientConfig := testConfigClient.Clone()
 	clientConfig.CipherSuites = nil // the defaults may prefer faster ciphers
 	clientConfig.DynamicRecordSizingDisabled = dynamicRecordSizingDisabled
 	clientConfig.MaxVersion = version
@@ -1133,7 +1134,7 @@ func latency(b *testing.B, version uint16, bps int, dynamicRecordSizingDisabled 
 				// (cannot call b.Fatal in goroutine)
 				panic(fmt.Errorf("accept: %v", err))
 			}
-			serverConfig := testConfig.Clone()
+			serverConfig := testConfigServer.Clone()
 			serverConfig.DynamicRecordSizingDisabled = dynamicRecordSizingDisabled
 			srv := Server(&slowConn{sconn, bps}, serverConfig)
 			if err := srv.Handshake(); err != nil {
@@ -1143,7 +1144,7 @@ func latency(b *testing.B, version uint16, bps int, dynamicRecordSizingDisabled 
 		}
 	}()
 
-	clientConfig := testConfig.Clone()
+	clientConfig := testConfigClient.Clone()
 	clientConfig.DynamicRecordSizingDisabled = dynamicRecordSizingDisabled
 	clientConfig.MaxVersion = version
 
@@ -1400,7 +1401,7 @@ func TestConnectionState(t *testing.T) {
 // Issue 28744: Ensure that we don't modify memory
 // that Config doesn't own such as Certificates.
 func TestBuildNameToCertificate_doesntModifyCertificates(t *testing.T) {
-	config := testConfig.Clone()
+	config := testConfigServer.Clone()
 	config.Certificates = []Certificate{testRSA2048Cert, testSNICert}
 
 	config.BuildNameToCertificate()
@@ -1824,12 +1825,12 @@ func (s brokenSigner) Sign(rand io.Reader, digest []byte, opts crypto.SignerOpts
 // TestPKCS1OnlyCert uses a client certificate with a broken crypto.Signer that
 // always makes PKCS #1 v1.5 signatures, so can't be used with RSA-PSS.
 func TestPKCS1OnlyCert(t *testing.T) {
-	clientConfig := testConfig.Clone()
+	clientConfig := testConfigClient.Clone()
 	clientConfig.Certificates = []Certificate{{
-		Certificate: testRSA2048Cert.Certificate,
-		PrivateKey:  brokenSigner{testRSA2048Key},
+		Certificate: testClientRSA2048Cert.Certificate,
+		PrivateKey:  brokenSigner{testClientRSA2048Key},
 	}}
-	serverConfig := testConfig.Clone()
+	serverConfig := testConfigServer.Clone()
 	serverConfig.MaxVersion = VersionTLS12 // TLS 1.3 doesn't support PKCS #1 v1.5
 	serverConfig.ClientAuth = RequireAnyClientCert
 
@@ -1901,13 +1902,6 @@ func testVerifyCertificates(t *testing.T, version uint16) {
 		},
 	}
 
-	issuer, err := x509.ParseCertificate(testRSACertificateIssuer)
-	if err != nil {
-		t.Fatal(err)
-	}
-	rootCAs := x509.NewCertPool()
-	rootCAs.AddCert(issuer)
-
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
 			t.Parallel()
@@ -1915,15 +1909,13 @@ func testVerifyCertificates(t *testing.T, version uint16) {
 			var serverVerifyConnection, clientVerifyConnection bool
 			var serverVerifyPeerCertificates, clientVerifyPeerCertificates bool
 
-			clientConfig := testConfig.Clone()
-			clientConfig.Time = testTime
+			clientConfig := testConfigClient.Clone()
 			clientConfig.MaxVersion = version
 			clientConfig.MinVersion = version
-			clientConfig.RootCAs = rootCAs
-			clientConfig.ServerName = "example.golang"
 			clientConfig.ClientSessionCache = NewLRUClientSessionCache(1)
-			serverConfig := clientConfig.Clone()
-			serverConfig.ClientCAs = rootCAs
+			serverConfig := testConfigServer.Clone()
+			serverConfig.MaxVersion = version
+			serverConfig.MinVersion = version
 
 			clientConfig.VerifyConnection = func(cs ConnectionState) error {
 				clientVerifyConnection = true
@@ -2125,8 +2117,8 @@ func TestHandshakeMLKEM(t *testing.T) {
 		},
 	}
 
-	baseConfig := testConfig.Clone()
-	baseConfig.CurvePreferences = nil
+	baseServerConfig := testConfigServer.Clone()
+	baseClientConfig := testConfigClient.Clone()
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
 			if fips140tls.Required() && test.expectSelected == X25519 {
@@ -2137,7 +2129,7 @@ func TestHandshakeMLKEM(t *testing.T) {
 			} else {
 				t.Parallel()
 			}
-			serverConfig := baseConfig.Clone()
+			serverConfig := baseServerConfig.Clone()
 			if test.serverConfig != nil {
 				test.serverConfig(serverConfig)
 			}
@@ -2151,7 +2143,7 @@ func TestHandshakeMLKEM(t *testing.T) {
 				}
 				return nil, nil
 			}
-			clientConfig := baseConfig.Clone()
+			clientConfig := baseClientConfig.Clone()
 			if test.clientConfig != nil {
 				test.clientConfig(clientConfig)
 			}
@@ -2245,7 +2237,7 @@ func TestEarlyLargeCertMsg(t *testing.T) {
 	}()
 
 	expectedErr := "tls: handshake message of length 131071 bytes exceeds maximum of 65536 bytes"
-	servConn := Server(server, testConfig)
+	servConn := Server(server, testConfigServer.Clone())
 	err := servConn.Handshake()
 	if err == nil {
 		t.Fatal("unexpected success")
@@ -2277,7 +2269,7 @@ func TestLargeCertMsg(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	clientConfig, serverConfig := testConfig.Clone(), testConfig.Clone()
+	clientConfig, serverConfig := testConfigClient.Clone(), testConfigServer.Clone()
 	clientConfig.InsecureSkipVerify = true
 	serverConfig.Certificates = []Certificate{
 		{
@@ -2355,9 +2347,7 @@ func TestECH(t *testing.T) {
 	})
 	echConfigList := builder.BytesOrPanic()
 
-	clientConfig, serverConfig := testConfig.Clone(), testConfig.Clone()
-	clientConfig.InsecureSkipVerify = false
-	clientConfig.Rand = rand.Reader
+	clientConfig, serverConfig := testConfigClient.Clone(), testConfigServer.Clone()
 	clientConfig.Time = nil
 	clientConfig.MinVersion = VersionTLS13
 	clientConfig.ServerName = "secret.example"
@@ -2366,7 +2356,6 @@ func TestECH(t *testing.T) {
 	clientConfig.RootCAs.AddCert(publicCert)
 	clientConfig.EncryptedClientHelloConfigList = echConfigList
 	serverConfig.InsecureSkipVerify = false
-	serverConfig.Rand = rand.Reader
 	serverConfig.Time = nil
 	serverConfig.MinVersion = VersionTLS13
 	serverConfig.ServerName = "public.example"
@@ -2444,15 +2433,15 @@ func TestMessageSigner(t *testing.T) {
 }
 
 func testMessageSigner(t *testing.T, version uint16) {
-	clientConfig, serverConfig := testConfig.Clone(), testConfig.Clone()
+	clientConfig, serverConfig := testConfigClient.Clone(), testConfigServer.Clone()
 	serverConfig.ClientAuth = RequireAnyClientCert
 	clientConfig.MinVersion = version
 	clientConfig.MaxVersion = version
 	serverConfig.MinVersion = version
 	serverConfig.MaxVersion = version
 	clientConfig.Certificates = []Certificate{{
-		Certificate: testRSA2048Cert.Certificate,
-		PrivateKey:  messageOnlySigner{testRSA2048Key},
+		Certificate: testClientRSA2048Cert.Certificate,
+		PrivateKey:  messageOnlySigner{testClientRSA2048Key},
 	}}
 	serverConfig.Certificates = []Certificate{{
 		Certificate: testRSA2048Cert.Certificate,
@@ -2471,8 +2460,8 @@ func testMessageSigner(t *testing.T, version uint16) {
 	}
 
 	clientConfig.Certificates = []Certificate{{
-		Certificate: testECDSAP256Cert.Certificate,
-		PrivateKey:  messageOnlySigner{testECDSAP256Key},
+		Certificate: testClientECDSAP256Cert.Certificate,
+		PrivateKey:  messageOnlySigner{testClientECDSAP256Key},
 	}}
 	serverConfig.Certificates = []Certificate{{
 		Certificate: testECDSAP256Cert.Certificate,
