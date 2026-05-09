@@ -17,6 +17,7 @@ import (
 	"encoding/pem"
 	"errors"
 	"fmt"
+	"internal/testenv"
 	"io"
 	"net"
 	"os"
@@ -1773,7 +1774,7 @@ func expectError(t *testing.T, err error, sub string) {
 }
 
 func TestKeyTooSmallForRSAPSS(t *testing.T) {
-	t.Setenv("GODEBUG", os.Getenv("GODEBUG")+",rsa1024min=0")
+	testenv.SetGODEBUG(t, "rsa1024min=0")
 	clientConn, serverConn := localPipe(t)
 	client := Client(clientConn, testConfigClient.Clone())
 	done := make(chan struct{})

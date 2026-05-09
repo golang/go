@@ -2208,7 +2208,7 @@ func TestX509KeyPairPopulateCertificate(t *testing.T) {
 	certPEM := pem.EncodeToMemory(&pem.Block{Type: "CERTIFICATE", Bytes: certDER})
 
 	t.Run("x509keypairleaf=0", func(t *testing.T) {
-		t.Setenv("GODEBUG", "x509keypairleaf=0")
+		testenv.SetGODEBUG(t, "x509keypairleaf=0")
 		cert, err := X509KeyPair(certPEM, keyPEM)
 		if err != nil {
 			t.Fatal(err)
@@ -2218,7 +2218,7 @@ func TestX509KeyPairPopulateCertificate(t *testing.T) {
 		}
 	})
 	t.Run("x509keypairleaf=1", func(t *testing.T) {
-		t.Setenv("GODEBUG", "x509keypairleaf=1")
+		testenv.SetGODEBUG(t, "x509keypairleaf=1")
 		cert, err := X509KeyPair(certPEM, keyPEM)
 		if err != nil {
 			t.Fatal(err)

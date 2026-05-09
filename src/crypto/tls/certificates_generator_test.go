@@ -40,7 +40,7 @@ func TestGenerateCertificates(t *testing.T) {
 	}
 
 	// Allow RSA keys below 1024 bits for testRSA512.
-	t.Setenv("GODEBUG", os.Getenv("GODEBUG")+",rsa1024min=0")
+	testenv.SetGODEBUG(t, "rsa1024min=0")
 
 	cryptotest.SetGlobalRandom(t, 0)
 
