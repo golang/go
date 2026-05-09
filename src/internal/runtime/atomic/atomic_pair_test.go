@@ -13,8 +13,19 @@ import (
 // alignedPair returns a 16-byte-aligned *uint64 pointing inside buf. buf
 // must be at least 3 uint64s wide so a 16-byte-aligned 16-byte region fits.
 func alignedPair(buf *[3]uint64) *uint64 {
-	p := (uintptr(unsafe.Pointer(&buf[0])) + 15) &^ 15
-	return (*uint64)(unsafe.Pointer(p))
+	if uintptr(unsafe.Pointer(&buf[0]))&15 == 0 {
+		return &buf[0]
+	}
+	return &buf[1]
+}
+
+// unalignedPair returns a *uint64 inside buf that is 8-byte aligned but
+// not 16-byte aligned
+func unalignedPair(buf *[3]uint64) *uint64 {
+	if uintptr(unsafe.Pointer(&buf[0]))&15 == 0 {
+		return &buf[1]
+	}
+	return &buf[2]
 }
 
 func TestCas128(t *testing.T) {
@@ -77,9 +88,7 @@ func TestCas128(t *testing.T) {
 
 func TestCas128Unaligned(t *testing.T) {
 	var buf [3]uint64
-	aligned := alignedPair(&buf)
-	// One uint64 past the aligned slot is 8-aligned but not 16-aligned.
-	misaligned := (*uint64)(unsafe.Pointer(uintptr(unsafe.Pointer(aligned)) + 8))
+	misaligned := unalignedPair(&buf)
 
 	defer func() {
 		err := recover()
