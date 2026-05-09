@@ -2739,8 +2739,9 @@ func (dc *discardConn) Write(data []byte) (int, error) {
 	return len(data), nil
 }
 
-// largeRSAKeyCertPEM contains a 8193 bit RSA key
-const largeRSAKeyCertPEM = `-----BEGIN CERTIFICATE-----
+func TestHandshakeRSATooBig(t *testing.T) {
+	// largeRSAKeyCertPEM contains a 8193 bit RSA key
+	const largeRSAKeyCertPEM = `-----BEGIN CERTIFICATE-----
 MIIInjCCBIWgAwIBAgIBAjANBgkqhkiG9w0BAQsFADASMRAwDgYDVQQDEwd0ZXN0
 aW5nMB4XDTIzMDYwNzIxMjMzNloXDTIzMDYwNzIzMjMzNlowEjEQMA4GA1UEAxMH
 dGVzdGluZzCCBCIwDQYJKoZIhvcNAQEBBQADggQPADCCBAoCggQBAWdHsf6Rh2Ca
@@ -2790,7 +2791,6 @@ o2SBdbs3Y6MBPBtTu977Z/0RO63J3M5i2tjUiDfrFy7+VRLKr7qQ7JibohyB8QaR
 u58=
 -----END CERTIFICATE-----`
 
-func TestHandshakeRSATooBig(t *testing.T) {
 	testCert, _ := pem.Decode([]byte(largeRSAKeyCertPEM))
 
 	c := &Conn{conn: &discardConn{}, config: testConfigClient.Clone()}

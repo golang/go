@@ -218,7 +218,9 @@ func TestRenegotiationExtension(t *testing.T) {
 		compressionMethods:           []uint8{compressionNone},
 		random:                       make([]byte, 32),
 		secureRenegotiationSupported: true,
-		cipherSuites:                 []uint16{TLS_RSA_WITH_RC4_128_SHA},
+		cipherSuites:                 []uint16{TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256},
+		supportedCurves:              []CurveID{CurveP256},
+		supportedPoints:              []uint8{pointFormatUncompressed},
 	}
 
 	bufChan := make(chan []byte, 1)
@@ -240,10 +242,7 @@ func TestRenegotiationExtension(t *testing.T) {
 		bufChan <- buf[:n]
 	}()
 
-	serverConfig := testConfigServer.Clone()
-	serverConfig.CipherSuites = allCipherSuites()
-	serverConfig.MinVersion = VersionTLS10
-	Server(s, serverConfig).Handshake()
+	Server(s, testConfigServer.Clone()).Handshake()
 	buf := <-bufChan
 
 	if len(buf) < 5+4 {

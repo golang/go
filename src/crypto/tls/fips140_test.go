@@ -32,7 +32,10 @@ var testConfigFIPS140 = &Config{
 }
 
 func allCipherSuitesIncludingTLS13() []uint16 {
-	s := allCipherSuites()
+	s := make([]uint16, 0, len(cipherSuites))
+	for _, suite := range cipherSuites {
+		s = append(s, suite.id)
+	}
 	for _, suite := range cipherSuitesTLS13 {
 		s = append(s, suite.id)
 	}
@@ -330,7 +333,7 @@ func testFIPSClientHello(t *testing.T) {
 	// All sorts of traps for the client to avoid.
 	clientConfig.MinVersion = VersionSSL30
 	clientConfig.MaxVersion = VersionTLS13
-	clientConfig.CipherSuites = allCipherSuites()
+	clientConfig.CipherSuites = allCipherSuitesIncludingTLS13()
 	clientConfig.CurvePreferences = defaultCurvePreferences()
 
 	go Client(c, clientConfig).Handshake()

@@ -12,7 +12,7 @@ import (
 
 func TestWeakCertCache(t *testing.T) {
 	wcc := weakCertCache{}
-	p, _ := pem.Decode([]byte(rsaCertPEM))
+	p, _ := pem.Decode([]byte(testRSA2048CertPEM))
 	if p == nil {
 		t.Fatal("Failed to decode certificate")
 	}

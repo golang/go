@@ -37,7 +37,23 @@ import (
 	"golang.org/x/crypto/cryptobyte"
 )
 
-var rsaCertPEM = `-----BEGIN CERTIFICATE-----
+var testTime = func() time.Time { return time.Unix(1476984729, 0) }
+
+var testConfigServer = &Config{
+	Time:         testTime,
+	Certificates: []Certificate{testECDSAP256Cert, testRSA2048Cert, testEd25519Cert, testSNICert},
+	ClientCAs:    testClientRootCertPool,
+}
+
+var testConfigClient = &Config{
+	Time:         testTime,
+	Certificates: []Certificate{testClientECDSAP256Cert, testClientRSA2048Cert, testClientEd25519Cert},
+	RootCAs:      testRootCertPool,
+	ServerName:   "test.golang.example",
+}
+
+func TestX509KeyPair(t *testing.T) {
+	var rsaCertPEM = `-----BEGIN CERTIFICATE-----
 MIIB0zCCAX2gAwIBAgIJAI/M7BYjwB+uMA0GCSqGSIb3DQEBBQUAMEUxCzAJBgNV
 BAYTAkFVMRMwEQYDVQQIDApTb21lLVN0YXRlMSEwHwYDVQQKDBhJbnRlcm5ldCBX
 aWRnaXRzIFB0eSBMdGQwHhcNMTIwOTEyMjE1MjAyWhcNMTUwOTEyMjE1MjAyWjBF
@@ -51,7 +67,7 @@ r5QuVbpQhH6u+0UgcW0jp9QwpxoPTLTWGXEWBBBurxFwiCBhkQ+V
 -----END CERTIFICATE-----
 `
 
-var rsaKeyPEM = testingKey(`-----BEGIN RSA TESTING KEY-----
+	var rsaKeyPEM = testingKey(`-----BEGIN RSA TESTING KEY-----
 MIIBOwIBAAJBANLJhPHhITqQbPklG3ibCVxwGMRfp/v4XqhfdQHdcVfHap6NQ5Wo
 k/4xIA+ui35/MmNartNuC+BdZ1tMuVCPFZcCAwEAAQJAEJ2N+zsR0Xn8/Q6twa4G
 6OB1M1WO+k+ztnX/1SvNeWu8D6GImtupLTYgjZcHufykj09jiHmjHx8u8ZZB/o1N
@@ -62,9 +78,9 @@ D2lWusoe2/nEqfDVVWGWlyJ7yOmqaVm/iNUN9B2N2g==
 -----END RSA TESTING KEY-----
 `)
 
-// keyPEM is the same as rsaKeyPEM, but declares itself as just
-// "PRIVATE KEY", not "RSA PRIVATE KEY".  https://golang.org/issue/4477
-var keyPEM = testingKey(`-----BEGIN TESTING KEY-----
+	// keyPEM is the same as rsaKeyPEM, but declares itself as just
+	// "PRIVATE KEY", not "RSA PRIVATE KEY".  https://golang.org/issue/4477
+	var keyPEM = testingKey(`-----BEGIN TESTING KEY-----
 MIIBOwIBAAJBANLJhPHhITqQbPklG3ibCVxwGMRfp/v4XqhfdQHdcVfHap6NQ5Wo
 k/4xIA+ui35/MmNartNuC+BdZ1tMuVCPFZcCAwEAAQJAEJ2N+zsR0Xn8/Q6twa4G
 6OB1M1WO+k+ztnX/1SvNeWu8D6GImtupLTYgjZcHufykj09jiHmjHx8u8ZZB/o1N
@@ -75,7 +91,7 @@ D2lWusoe2/nEqfDVVWGWlyJ7yOmqaVm/iNUN9B2N2g==
 -----END TESTING KEY-----
 `)
 
-var ecdsaCertPEM = `-----BEGIN CERTIFICATE-----
+	var ecdsaCertPEM = `-----BEGIN CERTIFICATE-----
 MIIB/jCCAWICCQDscdUxw16XFDAJBgcqhkjOPQQBMEUxCzAJBgNVBAYTAkFVMRMw
 EQYDVQQIEwpTb21lLVN0YXRlMSEwHwYDVQQKExhJbnRlcm5ldCBXaWRnaXRzIFB0
 eSBMdGQwHhcNMTIxMTE0MTI0MDQ4WhcNMTUxMTE0MTI0MDQ4WjBFMQswCQYDVQQG
@@ -90,7 +106,7 @@ H5jBImIxPL4WxQNiBTexAkF8D1EtpYuWdlVQ80/h/f4pBcGiXPqX5h2PQSQY7hP1
 -----END CERTIFICATE-----
 `
 
-var ecdsaKeyPEM = testingKey(`-----BEGIN EC PARAMETERS-----
+	var ecdsaKeyPEM = testingKey(`-----BEGIN EC PARAMETERS-----
 BgUrgQQAIw==
 -----END EC PARAMETERS-----
 -----BEGIN EC TESTING KEY-----
@@ -102,17 +118,16 @@ kohxS/xfFg/TEwRSSws+roJr4JFKpO2t3/be5OdqmQ==
 -----END EC TESTING KEY-----
 `)
 
-var keyPairTests = []struct {
-	algo string
-	cert string
-	key  string
-}{
-	{"ECDSA", ecdsaCertPEM, ecdsaKeyPEM},
-	{"RSA", rsaCertPEM, rsaKeyPEM},
-	{"RSA-untyped", rsaCertPEM, keyPEM}, // golang.org/issue/4477
-}
+	var keyPairTests = []struct {
+		algo string
+		cert string
+		key  string
+	}{
+		{"ECDSA", ecdsaCertPEM, ecdsaKeyPEM},
+		{"RSA", rsaCertPEM, rsaKeyPEM},
+		{"RSA-untyped", rsaCertPEM, keyPEM}, // golang.org/issue/4477
+	}
 
-func TestX509KeyPair(t *testing.T) {
 	t.Parallel()
 	var pem []byte
 	for _, test := range keyPairTests {
@@ -125,9 +140,7 @@ func TestX509KeyPair(t *testing.T) {
 			t.Errorf("Failed to load %s key followed by %s cert: %s", test.algo, test.algo, err)
 		}
 	}
-}
 
-func TestX509KeyPairErrors(t *testing.T) {
 	_, err := X509KeyPair([]byte(rsaKeyPEM), []byte(rsaCertPEM))
 	if err == nil {
 		t.Fatalf("X509KeyPair didn't return an error when arguments were switched")
@@ -157,9 +170,7 @@ Zm9vZm9vZm9v
 	if subStr := "NONSENSE"; !strings.Contains(err.Error(), subStr) {
 		t.Fatalf("Expected %q in the error when both arguments to X509KeyPair were nonsense, but the error was %q", subStr, err)
 	}
-}
 
-func TestX509MixedKeyPair(t *testing.T) {
 	if _, err := X509KeyPair([]byte(rsaCertPEM), []byte(ecdsaKeyPEM)); err == nil {
 		t.Error("Load of RSA certificate succeeded with ECDSA private key")
 	}

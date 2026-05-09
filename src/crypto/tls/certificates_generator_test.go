@@ -41,8 +41,7 @@ func TestGenerateCertificates(t *testing.T) {
 
 	// Allow RSA keys below 1024 bits for testRSA512.
 	t.Setenv("GODEBUG", os.Getenv("GODEBUG")+",rsa1024min=0")
-	// Unset cryptocustomrand to avoid MaybeReadByte non-determinism.
-	t.Setenv("GODEBUG", os.Getenv("GODEBUG")+",cryptocustomrand=0")
+
 	cryptotest.SetGlobalRandom(t, 0)
 
 	notBefore := time.Unix(1476984729, 0).Add(-100 * 24 * time.Hour)
