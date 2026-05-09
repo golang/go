@@ -38,8 +38,7 @@ func AlgInit() {
 		cpu.X86.HasSSSE3 && // PSHUFB
 		cpu.X86.HasSSE41 { // PINSR{D,Q}
 
-		// In aeshashbody (that is used by memhash & strhash)
-		// we have global variables that should be properly aligned.
+		// In memHashAES we have global variables that should be properly aligned.
 		//
 		// See #12415
 		if !checkMasksAndShiftsAlignment() {
@@ -69,15 +68,6 @@ func initAlgAES() {
 	for i := range key {
 		key[i] = bootstrapRand()
 	}
-}
-
-func strHashFallback(a unsafe.Pointer, h uintptr) uintptr {
-	type stringStruct struct {
-		str unsafe.Pointer
-		len int
-	}
-	x := (*stringStruct)(a)
-	return memHashFallback(x.str, h, uintptr(x.len))
 }
 
 //go:nosplit

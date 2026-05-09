@@ -64,13 +64,13 @@ func memHashFallback(p unsafe.Pointer, seed, s uintptr) uintptr {
 	return mix(m5^s, mix(a^hashkey[1], b^seed))
 }
 
-func memHash32Fallback(p unsafe.Pointer, seed uintptr) uintptr {
-	a := r4(p)
+func memHash32Fallback(k uint32, seed uintptr) uintptr {
+	a := uintptr(k)
 	return mix(m5^4, mix(a^hashkey[1], a^seed^hashkey[0]))
 }
 
-func memHash64Fallback(p unsafe.Pointer, seed uintptr) uintptr {
-	a := r8(p)
+func memHash64Fallback(k uint64, seed uintptr) uintptr {
+	a := uintptr(k)
 	return mix(m5^8, mix(a^hashkey[1], a^seed^hashkey[0]))
 }
 

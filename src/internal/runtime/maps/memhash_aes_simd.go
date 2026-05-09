@@ -13,9 +13,9 @@ import (
 
 const memHashUsesVAES = true
 
-func memHash32AES(p unsafe.Pointer, seed uintptr) uintptr {
+func memHash32AES(k uint32, seed uintptr) uintptr {
 	var state archsimd.Uint64x2
-	state = state.SetElem(0, uint64(seed)).SetElem(1, uint64(*(*uint32)(p)))
+	state = state.SetElem(0, uint64(seed)).SetElem(1, uint64(k))
 
 	hash := state.
 		AsUint8x16().
@@ -27,9 +27,9 @@ func memHash32AES(p unsafe.Pointer, seed uintptr) uintptr {
 	return uintptr(hash)
 }
 
-func memHash64AES(p unsafe.Pointer, seed uintptr) uintptr {
+func memHash64AES(k uint64, seed uintptr) uintptr {
 	var state archsimd.Uint64x2
-	state = state.SetElem(0, uint64(seed)).SetElem(1, *(*uint64)(p))
+	state = state.SetElem(0, uint64(seed)).SetElem(1, k)
 
 	hash := state.
 		AsUint8x16().
@@ -41,12 +41,9 @@ func memHash64AES(p unsafe.Pointer, seed uintptr) uintptr {
 	return uintptr(hash)
 }
 
-// TODO: Both strHashAES and memHashAES use aeshashbody that is quite large.
-// So there is no point in rewriting them using simd intrinsics, since they won't be inlinable.
+// TODO: memHashAES is quite large.
+// So there is no point in rewriting it using simd intrinsics, since it won't be inlinable.
 // Maybe in future we can do it for better maitanability.
 //
 //go:noescape
 func memHashAES(p unsafe.Pointer, h, s uintptr) uintptr
-
-//go:noescape
-func strHashAES(p unsafe.Pointer, h uintptr) uintptr

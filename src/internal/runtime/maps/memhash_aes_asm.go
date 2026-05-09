@@ -18,10 +18,7 @@ const memHashUsesVAES = false
 func memHashAES(p unsafe.Pointer, h, s uintptr) uintptr
 
 //go:noescape
-func memHash32AES(p unsafe.Pointer, h uintptr) uintptr
+func memHash32AES(k uint32, h uintptr) uintptr
 
 //go:noescape
-func memHash64AES(p unsafe.Pointer, h uintptr) uintptr
-
-//go:noescape
-func strHashAES(p unsafe.Pointer, h uintptr) uintptr
+func memHash64AES(k uint64, h uintptr) uintptr

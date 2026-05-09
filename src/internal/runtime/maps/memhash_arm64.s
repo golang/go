@@ -4,13 +4,13 @@
 
 #include "textflag.h"
 
-// func memHash32AES(p unsafe.Pointer, h uintptr) uintptr
+// func memHash32AES(k uint32, h uintptr) uintptr
 TEXT ·memHash32AES<ABIInternal>(SB),NOSPLIT|NOFRAME,$0-24
 	MOVD	$·aeskeysched+0(SB), R3
 
 	VEOR	V0.B16, V0.B16, V0.B16
 	VLD1	(R3), [V2.B16]
-	VLD1	(R0), V0.S[2]
+	VMOV	R0, V0.S[2]
 	VMOV	R1, V0.D[0]
 
 	AESE	V2.B16, V0.B16
@@ -22,13 +22,13 @@ TEXT ·memHash32AES<ABIInternal>(SB),NOSPLIT|NOFRAME,$0-24
 	VMOV	V0.D[0], R0
 	RET
 
-// func memHash64AES(p unsafe.Pointer, h uintptr) uintptr
+// func memHash64AES(k uint64, h uintptr) uintptr
 TEXT ·memHash64AES<ABIInternal>(SB),NOSPLIT|NOFRAME,$0-24
 	MOVD	$·aeskeysched+0(SB), R3
 
 	VEOR	V0.B16, V0.B16, V0.B16
 	VLD1	(R3), [V2.B16]
-	VLD1	(R0), V0.D[1]
+	VMOV	R0, V0.D[1]
 	VMOV	R1, V0.D[0]
 
 	AESE	V2.B16, V0.B16
@@ -42,18 +42,10 @@ TEXT ·memHash64AES<ABIInternal>(SB),NOSPLIT|NOFRAME,$0-24
 
 // func memHashAES(p unsafe.Pointer, h, size uintptr) uintptr
 TEXT ·memHashAES<ABIInternal>(SB),NOSPLIT|NOFRAME,$0-32
-	B	·aeshashbody<>(SB)
-
-// func strHashAES(p unsafe.Pointer, h uintptr) uintptr
-TEXT ·strHashAES<ABIInternal>(SB),NOSPLIT|NOFRAME,$0-24
-	LDP	(R0), (R0, R2)	// string data / length
-	B	·aeshashbody<>(SB)
-
-// R0: data
-// R1: seed data
-// R2: length
-// At return, R0 = return value
-TEXT ·aeshashbody<>(SB),NOSPLIT|NOFRAME,$0
+	// R0: data
+	// R1: seed data
+	// R2: length
+	// At return, R0 = return value
 	VEOR	V30.B16, V30.B16, V30.B16
 	VMOV	R1, V30.D[0]
 	VMOV	R2, V30.D[1] // load length into seed

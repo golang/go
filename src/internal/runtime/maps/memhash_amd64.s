@@ -7,24 +7,11 @@
 // func memHashAES(p unsafe.Pointer, h, s uintptr) uintptr
 // hash function using AES hardware instructions
 TEXT ·memHashAES<ABIInternal>(SB),NOSPLIT,$0-32
-	// AX = ptr to data
-	// BX = seed
-	// CX = size
-	JMP	·aeshashbody<>(SB)
+	// AX: data
+	// BX: hash seed
+	// CX: length
+	// At return: AX = return value
 
-// func strhashAES(p unsafe.Pointer, h uintptr) uintptr
-TEXT ·strHashAES<ABIInternal>(SB),NOSPLIT,$0-24
-	// AX = ptr to string struct
-	// BX = seed
-	MOVQ	8(AX), CX	// length of string
-	MOVQ	(AX), AX	// string data
-	JMP	·aeshashbody<>(SB)
-
-// AX: data
-// BX: hash seed
-// CX: length
-// At return: AX = return value
-TEXT ·aeshashbody<>(SB),NOSPLIT,$0-0
 	// Fill an SSE register with our seeds.
 	MOVQ	BX, X0				// 64 bits of per-table hash seed
 	PINSRW	$4, CX, X0			// 16 bits of length

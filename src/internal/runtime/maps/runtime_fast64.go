@@ -63,15 +63,12 @@ func runtime_mapaccess2_fast64(typ *abi.MapType, m *Map, key uint64) (unsafe.Poi
 		return unsafe.Pointer(&zeroVal[0]), false
 	}
 
-	// See the related comment in runtime_mapaccess2_fast32
-	// for why we pass local copy of key.
-	k := key
 	var hash uintptr
 	// See the related comment in runtime_mapaccess2_fast32
 	if memHashAESImplemented && UseAeshash {
-		hash = memHash64AES(unsafe.Pointer(&k), m.seed)
+		hash = memHash64AES(key, m.seed)
 	} else {
-		hash = memHash64Fallback(unsafe.Pointer(&k), m.seed)
+		hash = memHash64Fallback(key, m.seed)
 	}
 
 	// Select table.
@@ -195,15 +192,12 @@ func runtime_mapassign_fast64(typ *abi.MapType, m *Map, key uint64) unsafe.Point
 		fatal("concurrent map writes")
 	}
 
-	// See the related comment in runtime_mapaccess2_fast32
-	// for why we pass local copy of key.
-	k := key
 	var hash uintptr
 	// See the related comment in runtime_mapaccess2_fast32
 	if memHashAESImplemented && UseAeshash {
-		hash = memHash64AES(unsafe.Pointer(&k), m.seed)
+		hash = memHash64AES(key, m.seed)
 	} else {
-		hash = memHash64Fallback(unsafe.Pointer(&k), m.seed)
+		hash = memHash64Fallback(key, m.seed)
 	}
 
 	// Set writing after calling Hasher, since Hasher may panic, in which
@@ -416,15 +410,12 @@ func runtime_mapassign_fast64ptr(typ *abi.MapType, m *Map, key unsafe.Pointer) u
 		fatal("concurrent map writes")
 	}
 
-	// See the related comment in runtime_mapaccess2_fast32
-	// for why we pass local copy of key.
-	k := key
 	var hash uintptr
 	// See the related comment in runtime_mapaccess2_fast32
 	if memHashAESImplemented && UseAeshash {
-		hash = memHash64AES(unsafe.Pointer(&k), m.seed)
+		hash = memHash64AES(uint64((uintptr)(key)), m.seed)
 	} else {
-		hash = memHash64Fallback(unsafe.Pointer(&k), m.seed)
+		hash = memHash64Fallback(uint64((uintptr)(key)), m.seed)
 	}
 
 	// Set writing after calling Hasher, since Hasher may panic, in which
