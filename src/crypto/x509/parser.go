@@ -10,6 +10,7 @@ import (
 	"crypto/ecdh"
 	"crypto/ecdsa"
 	"crypto/ed25519"
+	"crypto/mldsa"
 	"crypto/rsa"
 	"crypto/x509/pkix"
 	"encoding/asn1"
@@ -362,6 +363,15 @@ func parsePublicKey(keyData *publicKeyInfo) (any, error) {
 			return nil, errors.New("x509: wrong Ed25519 public key size")
 		}
 		return ed25519.PublicKey(data), nil
+	case oid.Equal(oidPublicKeyMLDSA44), oid.Equal(oidPublicKeyMLDSA65), oid.Equal(oidPublicKeyMLDSA87):
+		if len(params.FullBytes) != 0 {
+			return nil, errors.New("x509: ML-DSA key encoded with illegal parameters")
+		}
+		params, ok := mldsaParametersFromOID(oid)
+		if !ok {
+			return nil, errors.New("x509: unsupported ML-DSA parameters")
+		}
+		return mldsa.NewPublicKey(params, data)
 	case oid.Equal(oidPublicKeyX25519):
 		// RFC 8410, Section 3
 		// > For all of the OIDs, the parameters MUST be absent.

@@ -8,6 +8,8 @@ import (
 	"crypto/internal/fips140"
 	"internal/testenv"
 	"regexp"
+	"strconv"
+	"strings"
 	"testing"
 )
 
@@ -16,6 +18,35 @@ func MustSupportFIPS140(t *testing.T) {
 	if err := fips140.Supported(); err != nil {
 		t.Skipf("test requires FIPS 140 mode: %v", err)
 	}
+}
+
+// MustMinimumFIPS140ModuleVersion skips the test if compiled against a lower
+// minor version of the FIPS 140-3 module than min (such as "v1.26.0").
+func MustMinimumFIPS140ModuleVersion(t *testing.T, min string) {
+	t.Helper()
+	if fips140.Version() == "latest" {
+		return
+	}
+	if parseFIPS140MinorVersion(t, fips140.Version()) < parseFIPS140MinorVersion(t, min) {
+		t.Skipf("test requires FIPS 140-3 module %s or later", min)
+	}
+}
+
+func parseFIPS140MinorVersion(t *testing.T, version string) int {
+	t.Helper()
+	v, ok := strings.CutPrefix(version, "v1.")
+	if !ok {
+		t.Fatalf("unexpected FIPS 140 version format: %q", version)
+	}
+	v, _, ok = strings.Cut(v, ".")
+	if !ok {
+		t.Fatalf("unexpected FIPS 140 version format: %q", version)
+	}
+	i, err := strconv.Atoi(v)
+	if err != nil {
+		t.Fatalf("unexpected FIPS 140 version format %q: %v", version, err)
+	}
+	return i
 }
 
 func RerunWithFIPS140Enabled(t *testing.T) {
