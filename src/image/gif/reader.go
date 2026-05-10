@@ -292,7 +292,7 @@ func (d *decoder) readColorTable(fields byte) (color.Palette, error) {
 	n := 1 << (1 + uint(fields&fColorTableBitsMask))
 	err := readFull(d.r, d.tmp[:3*n])
 	if err != nil {
-		return nil, fmt.Errorf("gif: reading color table: %s", err)
+		return nil, fmt.Errorf("gif: reading color table: %w", err)
 	}
 	j, p := 0, make(color.Palette, n)
 	for i := range p {
@@ -358,7 +358,7 @@ func (d *decoder) readExtension() error {
 
 func (d *decoder) readGraphicControl() error {
 	if err := readFull(d.r, d.tmp[:6]); err != nil {
-		return fmt.Errorf("gif: can't read graphic control: %s", err)
+		return fmt.Errorf("gif: can't read graphic control: %w", err)
 	}
 	if d.tmp[0] != 4 {
 		return fmt.Errorf("gif: invalid graphic control extension block size: %d", d.tmp[0])
@@ -485,7 +485,7 @@ func (d *decoder) readImageDescriptor(keepAllFrames bool) error {
 
 func (d *decoder) newImageFromDescriptor() (*image.Paletted, error) {
 	if err := readFull(d.r, d.tmp[:9]); err != nil {
-		return nil, fmt.Errorf("gif: can't read image descriptor: %s", err)
+		return nil, fmt.Errorf("gif: can't read image descriptor: %w", err)
 	}
 	left := int(d.tmp[0]) + int(d.tmp[1])<<8
 	top := int(d.tmp[2]) + int(d.tmp[3])<<8
