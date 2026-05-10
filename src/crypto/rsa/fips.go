@@ -71,14 +71,16 @@ func SignPSS(random io.Reader, priv *PrivateKey, hash crypto.Hash, digest []byte
 		hash = opts.Hash
 	}
 
-	if boring.Enabled && rand.IsDefaultReader(random) {
+	if boring.Enabled && rand.IsDefaultReader(random) && priv.N.BitLen() >= 1024 {
 		bkey, err := boringPrivateKey(priv)
 		if err != nil {
 			return nil, err
 		}
 		return boring.SignRSAPSS(bkey, hash, digest, opts.saltLength())
 	}
-	boring.UnreachableExceptTests()
+	if priv.N.BitLen() >= 1024 {
+		boring.UnreachableExceptTests()
+	}
 
 	if !hash.Available() {
 		return nil, errors.New("crypto/rsa: requested hash function unavailable: " + hash.String())
@@ -281,7 +283,7 @@ func decryptOAEP(hash, mgfHash hash.Hash, priv *PrivateKey, ciphertext []byte, l
 		return nil, err
 	}
 
-	if boring.Enabled {
+	if boring.Enabled && priv.N.BitLen() >= 1024 {
 		k := priv.Size()
 		if len(ciphertext) > k ||
 			k < hash.Size()*2+2 {
@@ -343,7 +345,7 @@ func SignPKCS1v15(random io.Reader, priv *PrivateKey, hash crypto.Hash, hashed [
 		return nil, err
 	}
 
-	if boring.Enabled {
+	if boring.Enabled && priv.N.BitLen() >= 1024 {
 		bkey, err := boringPrivateKey(priv)
 		if err != nil {
 			return nil, err
