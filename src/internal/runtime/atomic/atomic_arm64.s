@@ -262,11 +262,11 @@ ok:
 	RET
 #endif
 
-// func Cas128(ptr *uint64, old1, old2, new1, new2 uint64) bool
+// func Cas128(ptr *[2]uint64, old1, old2, new1, new2 uint64) bool
 // Atomically:
-//	if *ptr == old1 && *(ptr+1) == old2 {
-//		*ptr = new1
-//		*(ptr+1) = new2
+//	if (*ptr)[0] == old1 && (*ptr)[1] == old2 {
+//		(*ptr)[0] = new1
+//		(*ptr)[1] = new2
 //		return true
 //	} else {
 //		return false
