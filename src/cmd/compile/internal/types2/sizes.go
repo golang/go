@@ -6,6 +6,8 @@
 
 package types2
 
+import "sync"
+
 // Sizes defines the sizing functions for package unsafe.
 type Sizes interface {
 	// Alignof returns the alignment of a variable of type T.
@@ -45,6 +47,11 @@ type Sizes interface {
 type StdSizes struct {
 	WordSize int64 // word size in bytes - must be >= 4 (32bits)
 	MaxAlign int64 // maximum alignment in bytes - must be >= 1
+
+	// sizeCache memoizes Sizeof results to avoid exponential
+	// recomputation for deeply nested generic types (see go.dev/issue/78342).
+	sizeCacheMu sync.RWMutex
+	sizeCache   map[Type]int64
 }
 
 func (s *StdSizes) Alignof(T Type) (result int64) {
@@ -162,68 +169,98 @@ var basicSizes = [...]byte{
 }
 
 func (s *StdSizes) Sizeof(T Type) int64 {
+	// Check cache first to avoid exponential recomputation
+	// for deeply nested generic types (go.dev/issue/78342).
+	s.sizeCacheMu.RLock()
+	if sz, ok := s.sizeCache[T]; ok {
+		s.sizeCacheMu.RUnlock()
+		return sz
+	}
+	s.sizeCacheMu.RUnlock()
+
+	var size int64
 	switch t := T.Underlying().(type) {
 	case *Basic:
 		assert(isTyped(T))
 		k := t.kind
 		if int(k) < len(basicSizes) {
 			if s := basicSizes[k]; s > 0 {
-				return int64(s)
+				size = int64(s)
+				break
 			}
 		}
 		if k == String {
-			return s.WordSize * 2
+			size = s.WordSize * 2
+			break
 		}
+		size = s.WordSize
 	case *Array:
 		n := t.len
 		if n <= 0 {
-			return 0
+			size = 0
+			break
 		}
 		// n > 0
 		esize := s.Sizeof(t.elem)
 		if esize < 0 {
-			return -1 // element too large
+			size = -1 // element too large
+			break
 		}
 		if esize == 0 {
-			return 0 // 0-size element
+			size = 0 // 0-size element
+			break
 		}
 		// esize > 0
 		a := s.Alignof(t.elem)
 		ea := align(esize, a) // possibly < 0 if align overflows
 		if ea < 0 {
-			return -1
+			size = -1
+			break
 		}
 		// ea >= 1
 		n1 := n - 1 // n1 >= 0
 		// Final size is ea*n1 + esize; and size must be <= maxInt64.
 		const maxInt64 = 1<<63 - 1
 		if n1 > 0 && ea > maxInt64/n1 {
-			return -1 // ea*n1 overflows
+			size = -1 // ea*n1 overflows
+			break
 		}
-		return ea*n1 + esize // may still overflow to < 0 which is ok
+		size = ea*n1 + esize // may still overflow to < 0 which is ok
 	case *Slice:
-		return s.WordSize * 3
+		size = s.WordSize * 3
 	case *Struct:
 		n := t.NumFields()
 		if n == 0 {
-			return 0
+			size = 0
+			break
 		}
 		offsets := s.Offsetsof(t.fields)
 		offs := offsets[n-1]
-		size := s.Sizeof(t.fields[n-1].typ)
-		if offs < 0 || size < 0 {
-			return -1 // type too large
+		sz := s.Sizeof(t.fields[n-1].typ)
+		if offs < 0 || sz < 0 {
+			size = -1 // type too large
+			break
 		}
-		return offs + size // may overflow to < 0 which is ok
+		size = offs + sz // may overflow to < 0 which is ok
 	case *Interface:
 		// Type parameters lead to variable sizes/alignments;
 		// StdSizes.Sizeof won't be called for them.
 		assert(!isTypeParam(T))
-		return s.WordSize * 2
+		size = s.WordSize * 2
 	case *TypeParam, *Union:
 		panic("unreachable")
+	default:
+		size = s.WordSize // catch-all
 	}
-	return s.WordSize // catch-all
+
+	// Store in cache
+	s.sizeCacheMu.Lock()
+	if s.sizeCache == nil {
+		s.sizeCache = make(map[Type]int64)
+	}
+	s.sizeCache[T] = size
+	s.sizeCacheMu.Unlock()
+	return size
 }
 
 // common architecture word sizes and alignments
