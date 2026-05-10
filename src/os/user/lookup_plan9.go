@@ -30,7 +30,7 @@ var (
 func current() (*User, error) {
 	ubytes, err := os.ReadFile("/dev/user")
 	if err != nil {
-		return nil, fmt.Errorf("user: %s", err)
+		return nil, fmt.Errorf("user: %w", err)
 	}
 
 	uname := string(ubytes)
