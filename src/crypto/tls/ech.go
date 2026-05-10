@@ -574,7 +574,7 @@ func (c *Conn) processECHClientHello(outer *clientHelloMsg, echKeys []EncryptedC
 		skip, config, err := parseECHConfig(echKey.Config)
 		if err != nil {
 			c.sendAlert(alertInternalError)
-			return nil, nil, fmt.Errorf("tls: invalid EncryptedClientHelloKey Config: %s", err)
+			return nil, nil, fmt.Errorf("tls: invalid EncryptedClientHelloKey Config: %w", err)
 		}
 		if skip {
 			continue
@@ -582,22 +582,22 @@ func (c *Conn) processECHClientHello(outer *clientHelloMsg, echKeys []EncryptedC
 		kem, err := hpke.NewKEM(config.KemID)
 		if err != nil {
 			c.sendAlert(alertInternalError)
-			return nil, nil, fmt.Errorf("tls: invalid EncryptedClientHelloKey Config KEM: %s", err)
+			return nil, nil, fmt.Errorf("tls: invalid EncryptedClientHelloKey Config KEM: %w", err)
 		}
 		echPriv, err := kem.NewPrivateKey(echKey.PrivateKey)
 		if err != nil {
 			c.sendAlert(alertInternalError)
-			return nil, nil, fmt.Errorf("tls: invalid EncryptedClientHelloKey PrivateKey: %s", err)
+			return nil, nil, fmt.Errorf("tls: invalid EncryptedClientHelloKey PrivateKey: %w", err)
 		}
 		kdf, err := hpke.NewKDF(echCiphersuite.KDFID)
 		if err != nil {
 			c.sendAlert(alertInternalError)
-			return nil, nil, fmt.Errorf("tls: invalid EncryptedClientHelloKey Config KDF: %s", err)
+			return nil, nil, fmt.Errorf("tls: invalid EncryptedClientHelloKey Config KDF: %w", err)
 		}
 		aead, err := hpke.NewAEAD(echCiphersuite.AEADID)
 		if err != nil {
 			c.sendAlert(alertInternalError)
-			return nil, nil, fmt.Errorf("tls: invalid EncryptedClientHelloKey Config AEAD: %s", err)
+			return nil, nil, fmt.Errorf("tls: invalid EncryptedClientHelloKey Config AEAD: %w", err)
 		}
 		info := append([]byte("tls ech\x00"), echKey.Config...)
 		hpkeContext, err := hpke.NewRecipient(encap, echPriv, kdf, aead, info)
