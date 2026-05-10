@@ -76,7 +76,7 @@ func Node(dst io.Writer, fset *token.FileSet, node any) error {
 		file, err = parser.ParseFile(fset, "", buf.Bytes(), parserMode)
 		if err != nil {
 			// We should never get here. If we do, provide good diagnostic.
-			return fmt.Errorf("format.Node internal error (%s)", err)
+			return fmt.Errorf("format.Node internal error (%w)", err)
 		}
 		ast.SortImports(fset, file)
 
