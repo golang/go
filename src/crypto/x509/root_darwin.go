@@ -68,7 +68,7 @@ func (c *Certificate) systemVerify(opts *VerifyOptions) (chains [][]*Certificate
 		case macos.ErrSecNotTrusted:
 			return nil, UnknownAuthorityError{Cert: c}
 		default:
-			return nil, fmt.Errorf("x509: %s", err)
+			return nil, fmt.Errorf("x509: %w", err)
 		}
 	}
 
