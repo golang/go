@@ -169,7 +169,7 @@ func parseName(raw cryptobyte.String) (*pkix.RDNSequence, error) {
 			var err error
 			attr.Value, err = parseASN1String(valueTag, rawValue)
 			if err != nil {
-				return nil, fmt.Errorf("x509: invalid RDNSequence: invalid attribute value: %s", err)
+				return nil, fmt.Errorf("x509: invalid RDNSequence: invalid attribute value: %w", err)
 			}
 			rdnSet = append(rdnSet, attr)
 		}
