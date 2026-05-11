@@ -6228,20 +6228,6 @@ const (
 	OpAddInt64x2
 	OpAddInt64x4
 	OpAddInt64x8
-	OpAddPairsFloat32x4
-	OpAddPairsFloat64x2
-	OpAddPairsGroupedFloat32x8
-	OpAddPairsGroupedFloat64x4
-	OpAddPairsGroupedInt16x16
-	OpAddPairsGroupedInt32x8
-	OpAddPairsGroupedUint16x16
-	OpAddPairsGroupedUint32x8
-	OpAddPairsInt16x8
-	OpAddPairsInt32x4
-	OpAddPairsSaturatedGroupedInt16x16
-	OpAddPairsSaturatedInt16x8
-	OpAddPairsUint16x8
-	OpAddPairsUint32x4
 	OpAddSaturatedInt8x16
 	OpAddSaturatedInt8x32
 	OpAddSaturatedInt8x64
@@ -6358,6 +6344,20 @@ const (
 	OpCompressUint64x2
 	OpCompressUint64x4
 	OpCompressUint64x8
+	OpConcatAddPairsFloat32x4
+	OpConcatAddPairsFloat64x2
+	OpConcatAddPairsGroupedFloat32x8
+	OpConcatAddPairsGroupedFloat64x4
+	OpConcatAddPairsGroupedInt16x16
+	OpConcatAddPairsGroupedInt32x8
+	OpConcatAddPairsGroupedUint16x16
+	OpConcatAddPairsGroupedUint32x8
+	OpConcatAddPairsInt16x8
+	OpConcatAddPairsInt32x4
+	OpConcatAddPairsSaturatedGroupedInt16x16
+	OpConcatAddPairsSaturatedInt16x8
+	OpConcatAddPairsUint16x8
+	OpConcatAddPairsUint32x4
 	OpConcatPermuteFloat32x4
 	OpConcatPermuteFloat32x8
 	OpConcatPermuteFloat32x16
@@ -6388,6 +6388,20 @@ const (
 	OpConcatPermuteUint64x2
 	OpConcatPermuteUint64x4
 	OpConcatPermuteUint64x8
+	OpConcatSubPairsFloat32x4
+	OpConcatSubPairsFloat64x2
+	OpConcatSubPairsGroupedFloat32x8
+	OpConcatSubPairsGroupedFloat64x4
+	OpConcatSubPairsGroupedInt16x16
+	OpConcatSubPairsGroupedInt32x8
+	OpConcatSubPairsGroupedUint16x16
+	OpConcatSubPairsGroupedUint32x8
+	OpConcatSubPairsInt16x8
+	OpConcatSubPairsInt32x4
+	OpConcatSubPairsSaturatedGroupedInt16x16
+	OpConcatSubPairsSaturatedInt16x8
+	OpConcatSubPairsUint16x8
+	OpConcatSubPairsUint32x4
 	OpConvertToFloat32Float64x2
 	OpConvertToFloat32Float64x4
 	OpConvertToFloat32Float64x8
@@ -7180,20 +7194,6 @@ const (
 	OpSubInt64x2
 	OpSubInt64x4
 	OpSubInt64x8
-	OpSubPairsFloat32x4
-	OpSubPairsFloat64x2
-	OpSubPairsGroupedFloat32x8
-	OpSubPairsGroupedFloat64x4
-	OpSubPairsGroupedInt16x16
-	OpSubPairsGroupedInt32x8
-	OpSubPairsGroupedUint16x16
-	OpSubPairsGroupedUint32x8
-	OpSubPairsInt16x8
-	OpSubPairsInt32x4
-	OpSubPairsSaturatedGroupedInt16x16
-	OpSubPairsSaturatedInt16x8
-	OpSubPairsUint16x8
-	OpSubPairsUint32x4
 	OpSubSaturatedInt8x16
 	OpSubSaturatedInt8x32
 	OpSubSaturatedInt8x64
@@ -89498,76 +89498,6 @@ var opcodeTable = [...]opInfo{
 		generic:     true,
 	},
 	{
-		name:    "AddPairsFloat32x4",
-		argLen:  2,
-		generic: true,
-	},
-	{
-		name:    "AddPairsFloat64x2",
-		argLen:  2,
-		generic: true,
-	},
-	{
-		name:    "AddPairsGroupedFloat32x8",
-		argLen:  2,
-		generic: true,
-	},
-	{
-		name:    "AddPairsGroupedFloat64x4",
-		argLen:  2,
-		generic: true,
-	},
-	{
-		name:    "AddPairsGroupedInt16x16",
-		argLen:  2,
-		generic: true,
-	},
-	{
-		name:    "AddPairsGroupedInt32x8",
-		argLen:  2,
-		generic: true,
-	},
-	{
-		name:    "AddPairsGroupedUint16x16",
-		argLen:  2,
-		generic: true,
-	},
-	{
-		name:    "AddPairsGroupedUint32x8",
-		argLen:  2,
-		generic: true,
-	},
-	{
-		name:    "AddPairsInt16x8",
-		argLen:  2,
-		generic: true,
-	},
-	{
-		name:    "AddPairsInt32x4",
-		argLen:  2,
-		generic: true,
-	},
-	{
-		name:    "AddPairsSaturatedGroupedInt16x16",
-		argLen:  2,
-		generic: true,
-	},
-	{
-		name:    "AddPairsSaturatedInt16x8",
-		argLen:  2,
-		generic: true,
-	},
-	{
-		name:    "AddPairsUint16x8",
-		argLen:  2,
-		generic: true,
-	},
-	{
-		name:    "AddPairsUint32x4",
-		argLen:  2,
-		generic: true,
-	},
-	{
 		name:        "AddSaturatedInt8x16",
 		argLen:      2,
 		commutative: true,
@@ -90202,6 +90132,76 @@ var opcodeTable = [...]opInfo{
 		generic: true,
 	},
 	{
+		name:    "ConcatAddPairsFloat32x4",
+		argLen:  2,
+		generic: true,
+	},
+	{
+		name:    "ConcatAddPairsFloat64x2",
+		argLen:  2,
+		generic: true,
+	},
+	{
+		name:    "ConcatAddPairsGroupedFloat32x8",
+		argLen:  2,
+		generic: true,
+	},
+	{
+		name:    "ConcatAddPairsGroupedFloat64x4",
+		argLen:  2,
+		generic: true,
+	},
+	{
+		name:    "ConcatAddPairsGroupedInt16x16",
+		argLen:  2,
+		generic: true,
+	},
+	{
+		name:    "ConcatAddPairsGroupedInt32x8",
+		argLen:  2,
+		generic: true,
+	},
+	{
+		name:    "ConcatAddPairsGroupedUint16x16",
+		argLen:  2,
+		generic: true,
+	},
+	{
+		name:    "ConcatAddPairsGroupedUint32x8",
+		argLen:  2,
+		generic: true,
+	},
+	{
+		name:    "ConcatAddPairsInt16x8",
+		argLen:  2,
+		generic: true,
+	},
+	{
+		name:    "ConcatAddPairsInt32x4",
+		argLen:  2,
+		generic: true,
+	},
+	{
+		name:    "ConcatAddPairsSaturatedGroupedInt16x16",
+		argLen:  2,
+		generic: true,
+	},
+	{
+		name:    "ConcatAddPairsSaturatedInt16x8",
+		argLen:  2,
+		generic: true,
+	},
+	{
+		name:    "ConcatAddPairsUint16x8",
+		argLen:  2,
+		generic: true,
+	},
+	{
+		name:    "ConcatAddPairsUint32x4",
+		argLen:  2,
+		generic: true,
+	},
+	{
 		name:    "ConcatPermuteFloat32x4",
 		argLen:  3,
 		generic: true,
@@ -90349,6 +90349,76 @@ var opcodeTable = [...]opInfo{
 	{
 		name:    "ConcatPermuteUint64x8",
 		argLen:  3,
+		generic: true,
+	},
+	{
+		name:    "ConcatSubPairsFloat32x4",
+		argLen:  2,
+		generic: true,
+	},
+	{
+		name:    "ConcatSubPairsFloat64x2",
+		argLen:  2,
+		generic: true,
+	},
+	{
+		name:    "ConcatSubPairsGroupedFloat32x8",
+		argLen:  2,
+		generic: true,
+	},
+	{
+		name:    "ConcatSubPairsGroupedFloat64x4",
+		argLen:  2,
+		generic: true,
+	},
+	{
+		name:    "ConcatSubPairsGroupedInt16x16",
+		argLen:  2,
+		generic: true,
+	},
+	{
+		name:    "ConcatSubPairsGroupedInt32x8",
+		argLen:  2,
+		generic: true,
+	},
+	{
+		name:    "ConcatSubPairsGroupedUint16x16",
+		argLen:  2,
+		generic: true,
+	},
+	{
+		name:    "ConcatSubPairsGroupedUint32x8",
+		argLen:  2,
+		generic: true,
+	},
+	{
+		name:    "ConcatSubPairsInt16x8",
+		argLen:  2,
+		generic: true,
+	},
+	{
+		name:    "ConcatSubPairsInt32x4",
+		argLen:  2,
+		generic: true,
+	},
+	{
+		name:    "ConcatSubPairsSaturatedGroupedInt16x16",
+		argLen:  2,
+		generic: true,
+	},
+	{
+		name:    "ConcatSubPairsSaturatedInt16x8",
+		argLen:  2,
+		generic: true,
+	},
+	{
+		name:    "ConcatSubPairsUint16x8",
+		argLen:  2,
+		generic: true,
+	},
+	{
+		name:    "ConcatSubPairsUint32x4",
+		argLen:  2,
 		generic: true,
 	},
 	{
@@ -94470,76 +94540,6 @@ var opcodeTable = [...]opInfo{
 	},
 	{
 		name:    "SubInt64x8",
-		argLen:  2,
-		generic: true,
-	},
-	{
-		name:    "SubPairsFloat32x4",
-		argLen:  2,
-		generic: true,
-	},
-	{
-		name:    "SubPairsFloat64x2",
-		argLen:  2,
-		generic: true,
-	},
-	{
-		name:    "SubPairsGroupedFloat32x8",
-		argLen:  2,
-		generic: true,
-	},
-	{
-		name:    "SubPairsGroupedFloat64x4",
-		argLen:  2,
-		generic: true,
-	},
-	{
-		name:    "SubPairsGroupedInt16x16",
-		argLen:  2,
-		generic: true,
-	},
-	{
-		name:    "SubPairsGroupedInt32x8",
-		argLen:  2,
-		generic: true,
-	},
-	{
-		name:    "SubPairsGroupedUint16x16",
-		argLen:  2,
-		generic: true,
-	},
-	{
-		name:    "SubPairsGroupedUint32x8",
-		argLen:  2,
-		generic: true,
-	},
-	{
-		name:    "SubPairsInt16x8",
-		argLen:  2,
-		generic: true,
-	},
-	{
-		name:    "SubPairsInt32x4",
-		argLen:  2,
-		generic: true,
-	},
-	{
-		name:    "SubPairsSaturatedGroupedInt16x16",
-		argLen:  2,
-		generic: true,
-	},
-	{
-		name:    "SubPairsSaturatedInt16x8",
-		argLen:  2,
-		generic: true,
-	},
-	{
-		name:    "SubPairsUint16x8",
-		argLen:  2,
-		generic: true,
-	},
-	{
-		name:    "SubPairsUint32x4",
 		argLen:  2,
 		generic: true,
 	},

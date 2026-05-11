@@ -51,7 +51,7 @@
   - *uint
   out:
   - *uint
-- go: AddPairs
+- go: ConcatAddPairs
   asm: "VPHADD[DW]"
   in: &2any128
   - &any128
@@ -60,19 +60,19 @@
   - *any128
   out: &1any128
   - *any128
-- go: SubPairs
+- go: ConcatSubPairs
   asm: "VPHSUB[DW]"
   in: *2any128
   out: *1any128
-- go: AddPairs
+- go: ConcatAddPairs
   asm: "VHADDP[SD]" # floats
   in: *2any128
   out: *1any128
-- go: SubPairs
+- go: ConcatSubPairs
   asm: "VHSUBP[SD]"  # floats
   in: *2any128
   out: *1any128
-- go: AddPairsSaturated
+- go: ConcatAddPairsSaturated
   asm: "VPHADDS[DW]"
   in: &2int128
   - &int128
@@ -82,11 +82,11 @@
   - *int128
   out: &1int128
   - *int128
-- go: SubPairsSaturated
+- go: ConcatSubPairsSaturated
   asm: "VPHSUBS[DW]"
   in: *2int128
   out: *1int128
-- go: AddPairsGrouped
+- go: ConcatAddPairsGrouped
   asm: "VPHADD[DW]"
   in: &2any256
   - &any256
@@ -95,19 +95,19 @@
   - *any256
   out: &1any256
   - *any256
-- go: SubPairsGrouped
+- go: ConcatSubPairsGrouped
   asm: "VPHSUB[DW]"
   in: *2any256
   out: *1any256
-- go: AddPairsGrouped
+- go: ConcatAddPairsGrouped
   asm: "VHADDP[SD]" # floats
   in: *2any256
   out: *1any256
-- go: SubPairsGrouped
+- go: ConcatSubPairsGrouped
   asm: "VHSUBP[SD]"  # floats
   in: *2any256
   out: *1any256
-- go: AddPairsSaturatedGrouped
+- go: ConcatAddPairsSaturatedGrouped
   asm: "VPHADDS[DW]"
   in: &2int256
   - &int256
@@ -117,7 +117,7 @@
   - *int256
   out: &1int256
   - *int256
-- go: SubPairsSaturatedGrouped
+- go: ConcatSubPairsSaturatedGrouped
   asm: "VPHSUBS[DW]"
   in: *2int256
   out: *1int256

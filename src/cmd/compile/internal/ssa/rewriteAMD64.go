@@ -2192,48 +2192,6 @@ func rewriteValueAMD64(v *Value) bool {
 	case OpAddInt8x64:
 		v.Op = OpAMD64VPADDB512
 		return true
-	case OpAddPairsFloat32x4:
-		v.Op = OpAMD64VHADDPS128
-		return true
-	case OpAddPairsFloat64x2:
-		v.Op = OpAMD64VHADDPD128
-		return true
-	case OpAddPairsGroupedFloat32x8:
-		v.Op = OpAMD64VHADDPS256
-		return true
-	case OpAddPairsGroupedFloat64x4:
-		v.Op = OpAMD64VHADDPD256
-		return true
-	case OpAddPairsGroupedInt16x16:
-		v.Op = OpAMD64VPHADDW256
-		return true
-	case OpAddPairsGroupedInt32x8:
-		v.Op = OpAMD64VPHADDD256
-		return true
-	case OpAddPairsGroupedUint16x16:
-		v.Op = OpAMD64VPHADDW256
-		return true
-	case OpAddPairsGroupedUint32x8:
-		v.Op = OpAMD64VPHADDD256
-		return true
-	case OpAddPairsInt16x8:
-		v.Op = OpAMD64VPHADDW128
-		return true
-	case OpAddPairsInt32x4:
-		v.Op = OpAMD64VPHADDD128
-		return true
-	case OpAddPairsSaturatedGroupedInt16x16:
-		v.Op = OpAMD64VPHADDSW256
-		return true
-	case OpAddPairsSaturatedInt16x8:
-		v.Op = OpAMD64VPHADDSW128
-		return true
-	case OpAddPairsUint16x8:
-		v.Op = OpAMD64VPHADDW128
-		return true
-	case OpAddPairsUint32x4:
-		v.Op = OpAMD64VPHADDD128
-		return true
 	case OpAddPtr:
 		v.Op = OpAMD64ADDQ
 		return true
@@ -2674,6 +2632,48 @@ func rewriteValueAMD64(v *Value) bool {
 		return rewriteValueAMD64_OpCompressUint8x32(v)
 	case OpCompressUint8x64:
 		return rewriteValueAMD64_OpCompressUint8x64(v)
+	case OpConcatAddPairsFloat32x4:
+		v.Op = OpAMD64VHADDPS128
+		return true
+	case OpConcatAddPairsFloat64x2:
+		v.Op = OpAMD64VHADDPD128
+		return true
+	case OpConcatAddPairsGroupedFloat32x8:
+		v.Op = OpAMD64VHADDPS256
+		return true
+	case OpConcatAddPairsGroupedFloat64x4:
+		v.Op = OpAMD64VHADDPD256
+		return true
+	case OpConcatAddPairsGroupedInt16x16:
+		v.Op = OpAMD64VPHADDW256
+		return true
+	case OpConcatAddPairsGroupedInt32x8:
+		v.Op = OpAMD64VPHADDD256
+		return true
+	case OpConcatAddPairsGroupedUint16x16:
+		v.Op = OpAMD64VPHADDW256
+		return true
+	case OpConcatAddPairsGroupedUint32x8:
+		v.Op = OpAMD64VPHADDD256
+		return true
+	case OpConcatAddPairsInt16x8:
+		v.Op = OpAMD64VPHADDW128
+		return true
+	case OpConcatAddPairsInt32x4:
+		v.Op = OpAMD64VPHADDD128
+		return true
+	case OpConcatAddPairsSaturatedGroupedInt16x16:
+		v.Op = OpAMD64VPHADDSW256
+		return true
+	case OpConcatAddPairsSaturatedInt16x8:
+		v.Op = OpAMD64VPHADDSW128
+		return true
+	case OpConcatAddPairsUint16x8:
+		v.Op = OpAMD64VPHADDW128
+		return true
+	case OpConcatAddPairsUint32x4:
+		v.Op = OpAMD64VPHADDD128
+		return true
 	case OpConcatPermuteFloat32x16:
 		v.Op = OpAMD64VPERMI2PS512
 		return true
@@ -2772,6 +2772,48 @@ func rewriteValueAMD64(v *Value) bool {
 		return true
 	case OpConcatShiftBytesRightUint8x16:
 		v.Op = OpAMD64VPALIGNR128
+		return true
+	case OpConcatSubPairsFloat32x4:
+		v.Op = OpAMD64VHSUBPS128
+		return true
+	case OpConcatSubPairsFloat64x2:
+		v.Op = OpAMD64VHSUBPD128
+		return true
+	case OpConcatSubPairsGroupedFloat32x8:
+		v.Op = OpAMD64VHSUBPS256
+		return true
+	case OpConcatSubPairsGroupedFloat64x4:
+		v.Op = OpAMD64VHSUBPD256
+		return true
+	case OpConcatSubPairsGroupedInt16x16:
+		v.Op = OpAMD64VPHSUBW256
+		return true
+	case OpConcatSubPairsGroupedInt32x8:
+		v.Op = OpAMD64VPHSUBD256
+		return true
+	case OpConcatSubPairsGroupedUint16x16:
+		v.Op = OpAMD64VPHSUBW256
+		return true
+	case OpConcatSubPairsGroupedUint32x8:
+		v.Op = OpAMD64VPHSUBD256
+		return true
+	case OpConcatSubPairsInt16x8:
+		v.Op = OpAMD64VPHSUBW128
+		return true
+	case OpConcatSubPairsInt32x4:
+		v.Op = OpAMD64VPHSUBD128
+		return true
+	case OpConcatSubPairsSaturatedGroupedInt16x16:
+		v.Op = OpAMD64VPHSUBSW256
+		return true
+	case OpConcatSubPairsSaturatedInt16x8:
+		v.Op = OpAMD64VPHSUBSW128
+		return true
+	case OpConcatSubPairsUint16x8:
+		v.Op = OpAMD64VPHSUBW128
+		return true
+	case OpConcatSubPairsUint32x4:
+		v.Op = OpAMD64VPHSUBD128
 		return true
 	case OpCondSelect:
 		return rewriteValueAMD64_OpCondSelect(v)
@@ -5854,48 +5896,6 @@ func rewriteValueAMD64(v *Value) bool {
 		return true
 	case OpSubInt8x64:
 		v.Op = OpAMD64VPSUBB512
-		return true
-	case OpSubPairsFloat32x4:
-		v.Op = OpAMD64VHSUBPS128
-		return true
-	case OpSubPairsFloat64x2:
-		v.Op = OpAMD64VHSUBPD128
-		return true
-	case OpSubPairsGroupedFloat32x8:
-		v.Op = OpAMD64VHSUBPS256
-		return true
-	case OpSubPairsGroupedFloat64x4:
-		v.Op = OpAMD64VHSUBPD256
-		return true
-	case OpSubPairsGroupedInt16x16:
-		v.Op = OpAMD64VPHSUBW256
-		return true
-	case OpSubPairsGroupedInt32x8:
-		v.Op = OpAMD64VPHSUBD256
-		return true
-	case OpSubPairsGroupedUint16x16:
-		v.Op = OpAMD64VPHSUBW256
-		return true
-	case OpSubPairsGroupedUint32x8:
-		v.Op = OpAMD64VPHSUBD256
-		return true
-	case OpSubPairsInt16x8:
-		v.Op = OpAMD64VPHSUBW128
-		return true
-	case OpSubPairsInt32x4:
-		v.Op = OpAMD64VPHSUBD128
-		return true
-	case OpSubPairsSaturatedGroupedInt16x16:
-		v.Op = OpAMD64VPHSUBSW256
-		return true
-	case OpSubPairsSaturatedInt16x8:
-		v.Op = OpAMD64VPHSUBSW128
-		return true
-	case OpSubPairsUint16x8:
-		v.Op = OpAMD64VPHSUBW128
-		return true
-	case OpSubPairsUint32x4:
-		v.Op = OpAMD64VPHSUBD128
 		return true
 	case OpSubPtr:
 		v.Op = OpAMD64SUBQ

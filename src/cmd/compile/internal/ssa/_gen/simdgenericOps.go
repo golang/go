@@ -47,20 +47,6 @@ func simdGenericOps() []opData {
 		{name: "AddInt64x2", argLength: 2, commutative: true},                           // ARCH:amd64
 		{name: "AddInt64x4", argLength: 2, commutative: true},                           // ARCH:amd64
 		{name: "AddInt64x8", argLength: 2, commutative: true},                           // ARCH:amd64
-		{name: "AddPairsFloat32x4", argLength: 2},                                       // ARCH:amd64
-		{name: "AddPairsFloat64x2", argLength: 2},                                       // ARCH:amd64
-		{name: "AddPairsGroupedFloat32x8", argLength: 2},                                // ARCH:amd64
-		{name: "AddPairsGroupedFloat64x4", argLength: 2},                                // ARCH:amd64
-		{name: "AddPairsGroupedInt16x16", argLength: 2},                                 // ARCH:amd64
-		{name: "AddPairsGroupedInt32x8", argLength: 2},                                  // ARCH:amd64
-		{name: "AddPairsGroupedUint16x16", argLength: 2},                                // ARCH:amd64
-		{name: "AddPairsGroupedUint32x8", argLength: 2},                                 // ARCH:amd64
-		{name: "AddPairsInt16x8", argLength: 2},                                         // ARCH:amd64
-		{name: "AddPairsInt32x4", argLength: 2},                                         // ARCH:amd64
-		{name: "AddPairsSaturatedGroupedInt16x16", argLength: 2},                        // ARCH:amd64
-		{name: "AddPairsSaturatedInt16x8", argLength: 2},                                // ARCH:amd64
-		{name: "AddPairsUint16x8", argLength: 2},                                        // ARCH:amd64
-		{name: "AddPairsUint32x4", argLength: 2},                                        // ARCH:amd64
 		{name: "AddSaturatedInt8x16", argLength: 2, commutative: true},                  // ARCH:amd64
 		{name: "AddSaturatedInt8x32", argLength: 2, commutative: true},                  // ARCH:amd64
 		{name: "AddSaturatedInt8x64", argLength: 2, commutative: true},                  // ARCH:amd64
@@ -177,6 +163,20 @@ func simdGenericOps() []opData {
 		{name: "CompressUint64x2", argLength: 2},                                        // ARCH:amd64
 		{name: "CompressUint64x4", argLength: 2},                                        // ARCH:amd64
 		{name: "CompressUint64x8", argLength: 2},                                        // ARCH:amd64
+		{name: "ConcatAddPairsFloat32x4", argLength: 2},                                 // ARCH:amd64
+		{name: "ConcatAddPairsFloat64x2", argLength: 2},                                 // ARCH:amd64
+		{name: "ConcatAddPairsGroupedFloat32x8", argLength: 2},                          // ARCH:amd64
+		{name: "ConcatAddPairsGroupedFloat64x4", argLength: 2},                          // ARCH:amd64
+		{name: "ConcatAddPairsGroupedInt16x16", argLength: 2},                           // ARCH:amd64
+		{name: "ConcatAddPairsGroupedInt32x8", argLength: 2},                            // ARCH:amd64
+		{name: "ConcatAddPairsGroupedUint16x16", argLength: 2},                          // ARCH:amd64
+		{name: "ConcatAddPairsGroupedUint32x8", argLength: 2},                           // ARCH:amd64
+		{name: "ConcatAddPairsInt16x8", argLength: 2},                                   // ARCH:amd64
+		{name: "ConcatAddPairsInt32x4", argLength: 2},                                   // ARCH:amd64
+		{name: "ConcatAddPairsSaturatedGroupedInt16x16", argLength: 2},                  // ARCH:amd64
+		{name: "ConcatAddPairsSaturatedInt16x8", argLength: 2},                          // ARCH:amd64
+		{name: "ConcatAddPairsUint16x8", argLength: 2},                                  // ARCH:amd64
+		{name: "ConcatAddPairsUint32x4", argLength: 2},                                  // ARCH:amd64
 		{name: "ConcatPermuteFloat32x4", argLength: 3},                                  // ARCH:amd64
 		{name: "ConcatPermuteFloat32x8", argLength: 3},                                  // ARCH:amd64
 		{name: "ConcatPermuteFloat32x16", argLength: 3},                                 // ARCH:amd64
@@ -207,6 +207,20 @@ func simdGenericOps() []opData {
 		{name: "ConcatPermuteUint64x2", argLength: 3},                                   // ARCH:amd64
 		{name: "ConcatPermuteUint64x4", argLength: 3},                                   // ARCH:amd64
 		{name: "ConcatPermuteUint64x8", argLength: 3},                                   // ARCH:amd64
+		{name: "ConcatSubPairsFloat32x4", argLength: 2},                                 // ARCH:amd64
+		{name: "ConcatSubPairsFloat64x2", argLength: 2},                                 // ARCH:amd64
+		{name: "ConcatSubPairsGroupedFloat32x8", argLength: 2},                          // ARCH:amd64
+		{name: "ConcatSubPairsGroupedFloat64x4", argLength: 2},                          // ARCH:amd64
+		{name: "ConcatSubPairsGroupedInt16x16", argLength: 2},                           // ARCH:amd64
+		{name: "ConcatSubPairsGroupedInt32x8", argLength: 2},                            // ARCH:amd64
+		{name: "ConcatSubPairsGroupedUint16x16", argLength: 2},                          // ARCH:amd64
+		{name: "ConcatSubPairsGroupedUint32x8", argLength: 2},                           // ARCH:amd64
+		{name: "ConcatSubPairsInt16x8", argLength: 2},                                   // ARCH:amd64
+		{name: "ConcatSubPairsInt32x4", argLength: 2},                                   // ARCH:amd64
+		{name: "ConcatSubPairsSaturatedGroupedInt16x16", argLength: 2},                  // ARCH:amd64
+		{name: "ConcatSubPairsSaturatedInt16x8", argLength: 2},                          // ARCH:amd64
+		{name: "ConcatSubPairsUint16x8", argLength: 2},                                  // ARCH:amd64
+		{name: "ConcatSubPairsUint32x4", argLength: 2},                                  // ARCH:amd64
 		{name: "ConvertToFloat32Float64x2", argLength: 1},                               // ARCH:amd64
 		{name: "ConvertToFloat32Float64x4", argLength: 1},                               // ARCH:amd64
 		{name: "ConvertToFloat32Float64x8", argLength: 1},                               // ARCH:amd64
@@ -999,20 +1013,6 @@ func simdGenericOps() []opData {
 		{name: "SubInt64x2", argLength: 2},                                              // ARCH:amd64
 		{name: "SubInt64x4", argLength: 2},                                              // ARCH:amd64
 		{name: "SubInt64x8", argLength: 2},                                              // ARCH:amd64
-		{name: "SubPairsFloat32x4", argLength: 2},                                       // ARCH:amd64
-		{name: "SubPairsFloat64x2", argLength: 2},                                       // ARCH:amd64
-		{name: "SubPairsGroupedFloat32x8", argLength: 2},                                // ARCH:amd64
-		{name: "SubPairsGroupedFloat64x4", argLength: 2},                                // ARCH:amd64
-		{name: "SubPairsGroupedInt16x16", argLength: 2},                                 // ARCH:amd64
-		{name: "SubPairsGroupedInt32x8", argLength: 2},                                  // ARCH:amd64
-		{name: "SubPairsGroupedUint16x16", argLength: 2},                                // ARCH:amd64
-		{name: "SubPairsGroupedUint32x8", argLength: 2},                                 // ARCH:amd64
-		{name: "SubPairsInt16x8", argLength: 2},                                         // ARCH:amd64
-		{name: "SubPairsInt32x4", argLength: 2},                                         // ARCH:amd64
-		{name: "SubPairsSaturatedGroupedInt16x16", argLength: 2},                        // ARCH:amd64
-		{name: "SubPairsSaturatedInt16x8", argLength: 2},                                // ARCH:amd64
-		{name: "SubPairsUint16x8", argLength: 2},                                        // ARCH:amd64
-		{name: "SubPairsUint32x4", argLength: 2},                                        // ARCH:amd64
 		{name: "SubSaturatedInt8x16", argLength: 2},                                     // ARCH:amd64
 		{name: "SubSaturatedInt8x32", argLength: 2},                                     // ARCH:amd64
 		{name: "SubSaturatedInt8x64", argLength: 2},                                     // ARCH:amd64
