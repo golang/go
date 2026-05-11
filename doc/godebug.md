@@ -170,6 +170,14 @@ to `1`. This opt-out is expected to be kept indefinitely in case goroutine
 labels acquire sensitive information that shouldn't be made available in
 tracebacks.
 
+Go 1.27 added a new `x509sslcertoverrideplatform` setting that controls whether
+crypto/x509 will load roots from disk on Windows and Darwin when `SSL_CERT_FILE`
+or `SSL_CERT_DIR` are set. The default value `x509sslcertoverrideplatform=1` will
+cause roots to be loaded from disk when these environment variables are set.
+Setting `x509sslcertoverrideplatform=0` disables this behavior in favor of using
+the platform certificate store instead of honoring the environment variables. We
+plan to remove this setting in Go 1.31.
+
 ### Go 1.26
 
 Go 1.26 added a new `httpcookiemaxnum` setting that controls the maximum number
