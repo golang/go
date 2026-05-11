@@ -695,7 +695,7 @@ func TestHello(t *testing.T) {
 			err = c.Hello("customhost")
 		case 1:
 			err = c.StartTLS(nil)
-			if err.Error() == "502 Not implemented" {
+			if err.Error() == `502 "Not implemented"` {
 				err = nil
 			}
 		case 2:
@@ -953,8 +953,8 @@ func TestAuthFailed(t *testing.T) {
 
 	if err == nil {
 		t.Error("Auth: expected error; got none")
-	} else if err.Error() != "535 Invalid credentials\nplease see www.example.com" {
-		t.Errorf("Auth: got error: %v, want: %s", err, "535 Invalid credentials\nplease see www.example.com")
+	} else if err.Error() != `535 "Invalid credentials\nplease see www.example.com"` {
+		t.Errorf("Auth: got error: %v, want: %s", err, `535 "Invalid credentials\nplease see www.example.com"`)
 	}
 
 	bcmdbuf.Flush()
