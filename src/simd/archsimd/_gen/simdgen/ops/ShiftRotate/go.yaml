@@ -158,6 +158,7 @@
 # Bizzare shifts.
 - go: ShiftAllLeftConcat
   asm: "VPSHLD[WDQ]"
+  operandOrder: 2I
   in:
   - *any
   - *any
@@ -166,6 +167,7 @@
   - *any
 - go: ShiftAllRightConcat
   asm: "VPSHRD[WDQ]"
+  operandOrder: 2I
   in:
   - *any
   - *any

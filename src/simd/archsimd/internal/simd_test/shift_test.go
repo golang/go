@@ -109,20 +109,20 @@ func TestShiftAllConcat(t *testing.T) {
 	}
 
 	testInt32x4Binary(t,
-		func(x, y archsimd.Int32x4) archsimd.Int32x4 { return x.ShiftAllLeftConcat(2, y) },
+		func(x, y archsimd.Int32x4) archsimd.Int32x4 { return x.ShiftAllLeftConcat(y, 2) },
 		map2(salc(2)))
 	testInt32x4Binary(t,
-		func(x, y archsimd.Int32x4) archsimd.Int32x4 { return x.ShiftAllLeftConcat(hide(2), y) },
+		func(x, y archsimd.Int32x4) archsimd.Int32x4 { return x.ShiftAllLeftConcat(y, hide(2)) },
 		map2(salc(hide(2))))
 
 	// TODO: If we expand the shift from uint8, add larger cases (e.g., 0x1000).
 	// The uint8 conversion is only here so the build will fail if we change it.
 
 	testInt32x4Binary(t,
-		func(x, y archsimd.Int32x4) archsimd.Int32x4 { return x.ShiftAllLeftConcat(uint8(128), y) },
+		func(x, y archsimd.Int32x4) archsimd.Int32x4 { return x.ShiftAllLeftConcat(y, uint8(128)) },
 		map2(salc(128)))
 	testInt32x4Binary(t,
-		func(x, y archsimd.Int32x4) archsimd.Int32x4 { return x.ShiftAllLeftConcat(hide(128), y) },
+		func(x, y archsimd.Int32x4) archsimd.Int32x4 { return x.ShiftAllLeftConcat(y, hide(128)) },
 		map2(salc(hide(128))))
 
 	// Signed ShiftAllRightConcat
@@ -133,17 +133,17 @@ func TestShiftAllConcat(t *testing.T) {
 	}
 
 	testInt32x4Binary(t,
-		func(x, y archsimd.Int32x4) archsimd.Int32x4 { return x.ShiftAllRightConcat(2, y) },
+		func(x, y archsimd.Int32x4) archsimd.Int32x4 { return x.ShiftAllRightConcat(y, 2) },
 		map2(sarc(2)))
 	testInt32x4Binary(t,
-		func(x, y archsimd.Int32x4) archsimd.Int32x4 { return x.ShiftAllRightConcat(hide(2), y) },
+		func(x, y archsimd.Int32x4) archsimd.Int32x4 { return x.ShiftAllRightConcat(y, hide(2)) },
 		map2(sarc(hide(2))))
 
 	testInt32x4Binary(t,
-		func(x, y archsimd.Int32x4) archsimd.Int32x4 { return x.ShiftAllRightConcat(128, y) },
+		func(x, y archsimd.Int32x4) archsimd.Int32x4 { return x.ShiftAllRightConcat(y, uint8(128)) },
 		map2(sarc(128)))
 	testInt32x4Binary(t,
-		func(x, y archsimd.Int32x4) archsimd.Int32x4 { return x.ShiftAllRightConcat(hide(128), y) },
+		func(x, y archsimd.Int32x4) archsimd.Int32x4 { return x.ShiftAllRightConcat(y, hide(128)) },
 		map2(sarc(hide(128))))
 
 	// Unsigned ShiftAllRightConcat
@@ -154,17 +154,17 @@ func TestShiftAllConcat(t *testing.T) {
 	}
 
 	testUint32x4Binary(t,
-		func(x, y archsimd.Uint32x4) archsimd.Uint32x4 { return x.ShiftAllRightConcat(2, y) },
+		func(x, y archsimd.Uint32x4) archsimd.Uint32x4 { return x.ShiftAllRightConcat(y, 2) },
 		map2(usarc(2)))
 	testUint32x4Binary(t,
-		func(x, y archsimd.Uint32x4) archsimd.Uint32x4 { return x.ShiftAllRightConcat(hide(2), y) },
+		func(x, y archsimd.Uint32x4) archsimd.Uint32x4 { return x.ShiftAllRightConcat(y, hide(2)) },
 		map2(usarc(hide(2))))
 
 	testUint32x4Binary(t,
-		func(x, y archsimd.Uint32x4) archsimd.Uint32x4 { return x.ShiftAllRightConcat(128, y) },
+		func(x, y archsimd.Uint32x4) archsimd.Uint32x4 { return x.ShiftAllRightConcat(y, uint8(128)) },
 		map2(usarc(128)))
 	testUint32x4Binary(t,
-		func(x, y archsimd.Uint32x4) archsimd.Uint32x4 { return x.ShiftAllRightConcat(hide(128), y) },
+		func(x, y archsimd.Uint32x4) archsimd.Uint32x4 { return x.ShiftAllRightConcat(y, hide(128)) },
 		map2(usarc(hide(128))))
 }
 
@@ -220,10 +220,10 @@ func TestConcatShiftBytesRight(t *testing.T) {
 		for _, shift := range []uint8{0, 2, 16, 20, 32, 128} {
 			t.Log("shift", shift)
 			testUint8x16Binary(t,
-				func(x, y archsimd.Uint8x16) archsimd.Uint8x16 { return x.ConcatShiftBytesRight(shift, y) },
+				func(x, y archsimd.Uint8x16) archsimd.Uint8x16 { return x.ConcatShiftBytesRight(y, shift) },
 				csbr(shift))
 			testUint8x16Binary(t,
-				func(x, y archsimd.Uint8x16) archsimd.Uint8x16 { return x.ConcatShiftBytesRight(hide(shift), y) },
+				func(x, y archsimd.Uint8x16) archsimd.Uint8x16 { return x.ConcatShiftBytesRight(y, hide(shift)) },
 				csbr(hide(shift)))
 		}
 	})
@@ -235,10 +235,10 @@ func TestConcatShiftBytesRight(t *testing.T) {
 		for _, shift := range []uint8{0, 2, 16, 20, 32, 128} {
 			t.Log("shift", shift)
 			testUint8x32Binary(t,
-				func(x, y archsimd.Uint8x32) archsimd.Uint8x32 { return x.ConcatShiftBytesRightGrouped(shift, y) },
+				func(x, y archsimd.Uint8x32) archsimd.Uint8x32 { return x.ConcatShiftBytesRightGrouped(y, shift) },
 				grouped2(csbr(shift)))
 			testUint8x32Binary(t,
-				func(x, y archsimd.Uint8x32) archsimd.Uint8x32 { return x.ConcatShiftBytesRightGrouped(hide(shift), y) },
+				func(x, y archsimd.Uint8x32) archsimd.Uint8x32 { return x.ConcatShiftBytesRightGrouped(y, hide(shift)) },
 				grouped2(csbr(hide(shift))))
 		}
 	})
@@ -250,10 +250,10 @@ func TestConcatShiftBytesRight(t *testing.T) {
 		for _, shift := range []uint8{0, 2, 16, 20, 32, 128} {
 			t.Log("shift", shift)
 			testUint8x64Binary(t,
-				func(x, y archsimd.Uint8x64) archsimd.Uint8x64 { return x.ConcatShiftBytesRightGrouped(shift, y) },
+				func(x, y archsimd.Uint8x64) archsimd.Uint8x64 { return x.ConcatShiftBytesRightGrouped(y, shift) },
 				grouped2(csbr(shift)))
 			testUint8x64Binary(t,
-				func(x, y archsimd.Uint8x64) archsimd.Uint8x64 { return x.ConcatShiftBytesRightGrouped(hide(shift), y) },
+				func(x, y archsimd.Uint8x64) archsimd.Uint8x64 { return x.ConcatShiftBytesRightGrouped(y, hide(shift)) },
 				grouped2(csbr(hide(shift))))
 		}
 	})

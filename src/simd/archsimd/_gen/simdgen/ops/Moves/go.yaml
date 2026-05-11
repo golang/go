@@ -1027,6 +1027,7 @@
 
 - go: ConcatShiftBytesRight
   asm: VPALIGNR
+  operandOrder: 2I
   in:
   - &uint128
     go: $t
@@ -1041,6 +1042,7 @@
 
 - go: ConcatShiftBytesRightGrouped
   asm: VPALIGNR
+  operandOrder: 2I
   in:
   - &uint256512
     go: $t
