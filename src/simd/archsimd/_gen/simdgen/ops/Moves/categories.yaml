@@ -255,7 +255,7 @@
     // This differs from the same method applied to a 32x8 or 32x16 vector, where
     // the 8-bit constant performs the same selection on all the subvectors.
 
-- go: Select128FromPair
+- go: ConcatPermute128Scalars
   commutative: false
   documentation: !string |-
     // NAME treats the 256-bit vectors x and y as a single vector of four

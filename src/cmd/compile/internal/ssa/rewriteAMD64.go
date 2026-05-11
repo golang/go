@@ -2674,6 +2674,36 @@ func rewriteValueAMD64(v *Value) bool {
 	case OpConcatAddPairsUint32x4:
 		v.Op = OpAMD64VPHADDD128
 		return true
+	case OpConcatPermute128ScalarsFloat32x8:
+		v.Op = OpAMD64VPERM2F128256
+		return true
+	case OpConcatPermute128ScalarsFloat64x4:
+		v.Op = OpAMD64VPERM2F128256
+		return true
+	case OpConcatPermute128ScalarsInt16x16:
+		v.Op = OpAMD64VPERM2I128256
+		return true
+	case OpConcatPermute128ScalarsInt32x8:
+		v.Op = OpAMD64VPERM2I128256
+		return true
+	case OpConcatPermute128ScalarsInt64x4:
+		v.Op = OpAMD64VPERM2I128256
+		return true
+	case OpConcatPermute128ScalarsInt8x32:
+		v.Op = OpAMD64VPERM2I128256
+		return true
+	case OpConcatPermute128ScalarsUint16x16:
+		v.Op = OpAMD64VPERM2I128256
+		return true
+	case OpConcatPermute128ScalarsUint32x8:
+		v.Op = OpAMD64VPERM2I128256
+		return true
+	case OpConcatPermute128ScalarsUint64x4:
+		v.Op = OpAMD64VPERM2I128256
+		return true
+	case OpConcatPermute128ScalarsUint8x32:
+		v.Op = OpAMD64VPERM2I128256
+		return true
 	case OpConcatPermuteFloat32x16:
 		v.Op = OpAMD64VPERMI2PS512
 		return true
@@ -5190,36 +5220,6 @@ func rewriteValueAMD64(v *Value) bool {
 		return rewriteValueAMD64_OpSelect0(v)
 	case OpSelect1:
 		return rewriteValueAMD64_OpSelect1(v)
-	case OpSelect128FromPairFloat32x8:
-		v.Op = OpAMD64VPERM2F128256
-		return true
-	case OpSelect128FromPairFloat64x4:
-		v.Op = OpAMD64VPERM2F128256
-		return true
-	case OpSelect128FromPairInt16x16:
-		v.Op = OpAMD64VPERM2I128256
-		return true
-	case OpSelect128FromPairInt32x8:
-		v.Op = OpAMD64VPERM2I128256
-		return true
-	case OpSelect128FromPairInt64x4:
-		v.Op = OpAMD64VPERM2I128256
-		return true
-	case OpSelect128FromPairInt8x32:
-		v.Op = OpAMD64VPERM2I128256
-		return true
-	case OpSelect128FromPairUint16x16:
-		v.Op = OpAMD64VPERM2I128256
-		return true
-	case OpSelect128FromPairUint32x8:
-		v.Op = OpAMD64VPERM2I128256
-		return true
-	case OpSelect128FromPairUint64x4:
-		v.Op = OpAMD64VPERM2I128256
-		return true
-	case OpSelect128FromPairUint8x32:
-		v.Op = OpAMD64VPERM2I128256
-		return true
 	case OpSelectN:
 		return rewriteValueAMD64_OpSelectN(v)
 	case OpSetElemFloat32x4:

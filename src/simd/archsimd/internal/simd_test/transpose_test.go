@@ -27,10 +27,10 @@ func Transpose4(a0, a1, a2, a3 archsimd.Int32x4) (b0, b1, b2, b3 archsimd.Int32x
 	// C3G7
 	// D4H8
 
-	b0 = t0.SelectFromPair(0, 1, 4, 5, t2) // lower elements from each
-	b1 = t0.SelectFromPair(2, 3, 6, 7, t2) // upper elements from each
-	b2 = t1.SelectFromPair(0, 1, 4, 5, t3) // lowers
-	b3 = t1.SelectFromPair(2, 3, 6, 7, t3) // uppers
+	b0 = t0.ConcatPermuteScalars(0, 1, 4, 5, t2) // lower elements from each
+	b1 = t0.ConcatPermuteScalars(2, 3, 6, 7, t2) // upper elements from each
+	b2 = t1.ConcatPermuteScalars(0, 1, 4, 5, t3) // lowers
+	b3 = t1.ConcatPermuteScalars(2, 3, 6, 7, t3) // uppers
 	return
 }
 
@@ -51,29 +51,29 @@ func Transpose8(a0, a1, a2, a3, a4, a5, a6, a7 archsimd.Int32x8) (b0, b1, b2, b3
 	// C3G7
 	// D4H8
 
-	a0 = t0.SelectFromPairGrouped(0, 1, 4, 5, t2) // lower elements from each
-	a1 = t0.SelectFromPairGrouped(2, 3, 6, 7, t2) // upper elements from each
-	a2 = t1.SelectFromPairGrouped(0, 1, 4, 5, t3) // lowers
-	a3 = t1.SelectFromPairGrouped(2, 3, 6, 7, t3) // uppers
+	a0 = t0.ConcatPermuteScalarsGrouped(0, 1, 4, 5, t2) // lower elements from each
+	a1 = t0.ConcatPermuteScalarsGrouped(2, 3, 6, 7, t2) // upper elements from each
+	a2 = t1.ConcatPermuteScalarsGrouped(0, 1, 4, 5, t3) // lowers
+	a3 = t1.ConcatPermuteScalarsGrouped(2, 3, 6, 7, t3) // uppers
 
-	a4 = t4.SelectFromPairGrouped(0, 1, 4, 5, t6) // lower elements from each
-	a5 = t4.SelectFromPairGrouped(2, 3, 6, 7, t6) // upper elements from each
-	a6 = t5.SelectFromPairGrouped(0, 1, 4, 5, t7) // lowers
-	a7 = t5.SelectFromPairGrouped(2, 3, 6, 7, t7) // uppers
+	a4 = t4.ConcatPermuteScalarsGrouped(0, 1, 4, 5, t6) // lower elements from each
+	a5 = t4.ConcatPermuteScalarsGrouped(2, 3, 6, 7, t6) // upper elements from each
+	a6 = t5.ConcatPermuteScalarsGrouped(0, 1, 4, 5, t7) // lowers
+	a7 = t5.ConcatPermuteScalarsGrouped(2, 3, 6, 7, t7) // uppers
 
 	// next need to swap the upper 128 bits of a0-a3 with the lower 128 bits of a4-a7
 
-	b0 = a0.Select128FromPair(0, 2, a4)
-	b4 = a0.Select128FromPair(1, 3, a4)
+	b0 = a0.ConcatPermute128Scalars(0, 2, a4)
+	b4 = a0.ConcatPermute128Scalars(1, 3, a4)
 
-	b1 = a1.Select128FromPair(0, 2, a5)
-	b5 = a1.Select128FromPair(1, 3, a5)
+	b1 = a1.ConcatPermute128Scalars(0, 2, a5)
+	b5 = a1.ConcatPermute128Scalars(1, 3, a5)
 
-	b2 = a2.Select128FromPair(0, 2, a6)
-	b6 = a2.Select128FromPair(1, 3, a6)
+	b2 = a2.ConcatPermute128Scalars(0, 2, a6)
+	b6 = a2.ConcatPermute128Scalars(1, 3, a6)
 
-	b3 = a3.Select128FromPair(0, 2, a7)
-	b7 = a3.Select128FromPair(1, 3, a7)
+	b3 = a3.ConcatPermute128Scalars(0, 2, a7)
+	b7 = a3.ConcatPermute128Scalars(1, 3, a7)
 
 	return
 }

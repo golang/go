@@ -1183,6 +1183,16 @@ func simdGenericOps() []opData {
 		{name: "CeilScaledResidueFloat64x2", argLength: 1, aux: "UInt8"},                // ARCH:amd64
 		{name: "CeilScaledResidueFloat64x4", argLength: 1, aux: "UInt8"},                // ARCH:amd64
 		{name: "CeilScaledResidueFloat64x8", argLength: 1, aux: "UInt8"},                // ARCH:amd64
+		{name: "ConcatPermute128ScalarsFloat32x8", argLength: 2, aux: "UInt8"},          // ARCH:amd64
+		{name: "ConcatPermute128ScalarsFloat64x4", argLength: 2, aux: "UInt8"},          // ARCH:amd64
+		{name: "ConcatPermute128ScalarsInt8x32", argLength: 2, aux: "UInt8"},            // ARCH:amd64
+		{name: "ConcatPermute128ScalarsInt16x16", argLength: 2, aux: "UInt8"},           // ARCH:amd64
+		{name: "ConcatPermute128ScalarsInt32x8", argLength: 2, aux: "UInt8"},            // ARCH:amd64
+		{name: "ConcatPermute128ScalarsInt64x4", argLength: 2, aux: "UInt8"},            // ARCH:amd64
+		{name: "ConcatPermute128ScalarsUint8x32", argLength: 2, aux: "UInt8"},           // ARCH:amd64
+		{name: "ConcatPermute128ScalarsUint16x16", argLength: 2, aux: "UInt8"},          // ARCH:amd64
+		{name: "ConcatPermute128ScalarsUint32x8", argLength: 2, aux: "UInt8"},           // ARCH:amd64
+		{name: "ConcatPermute128ScalarsUint64x4", argLength: 2, aux: "UInt8"},           // ARCH:amd64
 		{name: "ConcatShiftBytesRightGroupedUint8x32", argLength: 2, aux: "UInt8"},      // ARCH:amd64
 		{name: "ConcatShiftBytesRightGroupedUint8x64", argLength: 2, aux: "UInt8"},      // ARCH:amd64
 		{name: "ConcatShiftBytesRightUint8x16", argLength: 2, aux: "UInt8"},             // ARCH:amd64
@@ -1251,16 +1261,6 @@ func simdGenericOps() []opData {
 		{name: "RoundScaledResidueFloat64x4", argLength: 1, aux: "UInt8"},               // ARCH:amd64
 		{name: "RoundScaledResidueFloat64x8", argLength: 1, aux: "UInt8"},               // ARCH:amd64
 		{name: "SHA1FourRoundsUint32x4", argLength: 2, aux: "UInt8"},                    // ARCH:amd64
-		{name: "Select128FromPairFloat32x8", argLength: 2, aux: "UInt8"},                // ARCH:amd64
-		{name: "Select128FromPairFloat64x4", argLength: 2, aux: "UInt8"},                // ARCH:amd64
-		{name: "Select128FromPairInt8x32", argLength: 2, aux: "UInt8"},                  // ARCH:amd64
-		{name: "Select128FromPairInt16x16", argLength: 2, aux: "UInt8"},                 // ARCH:amd64
-		{name: "Select128FromPairInt32x8", argLength: 2, aux: "UInt8"},                  // ARCH:amd64
-		{name: "Select128FromPairInt64x4", argLength: 2, aux: "UInt8"},                  // ARCH:amd64
-		{name: "Select128FromPairUint8x32", argLength: 2, aux: "UInt8"},                 // ARCH:amd64
-		{name: "Select128FromPairUint16x16", argLength: 2, aux: "UInt8"},                // ARCH:amd64
-		{name: "Select128FromPairUint32x8", argLength: 2, aux: "UInt8"},                 // ARCH:amd64
-		{name: "Select128FromPairUint64x4", argLength: 2, aux: "UInt8"},                 // ARCH:amd64
 		{name: "SetElemFloat32x4", argLength: 2, aux: "UInt8"},                          // ARCH:amd64
 		{name: "SetElemFloat64x2", argLength: 2, aux: "UInt8"},                          // ARCH:amd64
 		{name: "SetElemInt8x16", argLength: 2, aux: "UInt8"},                            // ARCH:amd64

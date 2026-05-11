@@ -666,25 +666,25 @@ func TestSelect4FromPairConst(t *testing.T) {
 	x := archsimd.LoadInt32x4([]int32{0, 1, 2, 3})
 	y := archsimd.LoadInt32x4([]int32{4, 5, 6, 7})
 
-	llll := x.SelectFromPair(0, 1, 2, 3, y)
-	hhhh := x.SelectFromPair(4, 5, 6, 7, y)
-	llhh := x.SelectFromPair(0, 1, 6, 7, y)
-	hhll := x.SelectFromPair(6, 7, 0, 1, y)
+	llll := x.ConcatPermuteScalars(0, 1, 2, 3, y)
+	hhhh := x.ConcatPermuteScalars(4, 5, 6, 7, y)
+	llhh := x.ConcatPermuteScalars(0, 1, 6, 7, y)
+	hhll := x.ConcatPermuteScalars(6, 7, 0, 1, y)
 
-	lllh := x.SelectFromPair(0, 1, 2, 7, y)
-	llhl := x.SelectFromPair(0, 1, 7, 2, y)
-	lhll := x.SelectFromPair(0, 7, 1, 2, y)
-	hlll := x.SelectFromPair(7, 0, 1, 2, y)
+	lllh := x.ConcatPermuteScalars(0, 1, 2, 7, y)
+	llhl := x.ConcatPermuteScalars(0, 1, 7, 2, y)
+	lhll := x.ConcatPermuteScalars(0, 7, 1, 2, y)
+	hlll := x.ConcatPermuteScalars(7, 0, 1, 2, y)
 
-	hhhl := x.SelectFromPair(4, 5, 6, 0, y)
-	hhlh := x.SelectFromPair(4, 5, 0, 6, y)
-	hlhh := x.SelectFromPair(4, 0, 5, 6, y)
-	lhhh := x.SelectFromPair(0, 4, 5, 6, y)
+	hhhl := x.ConcatPermuteScalars(4, 5, 6, 0, y)
+	hhlh := x.ConcatPermuteScalars(4, 5, 0, 6, y)
+	hlhh := x.ConcatPermuteScalars(4, 0, 5, 6, y)
+	lhhh := x.ConcatPermuteScalars(0, 4, 5, 6, y)
 
-	lhlh := x.SelectFromPair(0, 4, 1, 5, y)
-	hlhl := x.SelectFromPair(4, 0, 5, 1, y)
-	lhhl := x.SelectFromPair(0, 4, 5, 1, y)
-	hllh := x.SelectFromPair(4, 0, 1, 5, y)
+	lhlh := x.ConcatPermuteScalars(0, 4, 1, 5, y)
+	hlhl := x.ConcatPermuteScalars(4, 0, 5, 1, y)
+	lhhl := x.ConcatPermuteScalars(0, 4, 5, 1, y)
+	hllh := x.ConcatPermuteScalars(4, 0, 1, 5, y)
 
 	r := make([]int32, 4, 4)
 
@@ -716,7 +716,7 @@ func TestSelect4FromPairConst(t *testing.T) {
 
 //go:noinline
 func selectFromPairInt32x4(x archsimd.Int32x4, a, b, c, d uint8, y archsimd.Int32x4) archsimd.Int32x4 {
-	return x.SelectFromPair(a, b, c, d, y)
+	return x.ConcatPermuteScalars(a, b, c, d, y)
 }
 
 func TestSelect4FromPairVar(t *testing.T) {
@@ -775,25 +775,25 @@ func TestSelect4FromPairConstGrouped(t *testing.T) {
 	x := archsimd.LoadFloat32x8([]float32{0, 1, 2, 3, 10, 11, 12, 13})
 	y := archsimd.LoadFloat32x8([]float32{4, 5, 6, 7, 14, 15, 16, 17})
 
-	llll := x.SelectFromPairGrouped(0, 1, 2, 3, y)
-	hhhh := x.SelectFromPairGrouped(4, 5, 6, 7, y)
-	llhh := x.SelectFromPairGrouped(0, 1, 6, 7, y)
-	hhll := x.SelectFromPairGrouped(6, 7, 0, 1, y)
+	llll := x.ConcatPermuteScalarsGrouped(0, 1, 2, 3, y)
+	hhhh := x.ConcatPermuteScalarsGrouped(4, 5, 6, 7, y)
+	llhh := x.ConcatPermuteScalarsGrouped(0, 1, 6, 7, y)
+	hhll := x.ConcatPermuteScalarsGrouped(6, 7, 0, 1, y)
 
-	lllh := x.SelectFromPairGrouped(0, 1, 2, 7, y)
-	llhl := x.SelectFromPairGrouped(0, 1, 7, 2, y)
-	lhll := x.SelectFromPairGrouped(0, 7, 1, 2, y)
-	hlll := x.SelectFromPairGrouped(7, 0, 1, 2, y)
+	lllh := x.ConcatPermuteScalarsGrouped(0, 1, 2, 7, y)
+	llhl := x.ConcatPermuteScalarsGrouped(0, 1, 7, 2, y)
+	lhll := x.ConcatPermuteScalarsGrouped(0, 7, 1, 2, y)
+	hlll := x.ConcatPermuteScalarsGrouped(7, 0, 1, 2, y)
 
-	hhhl := x.SelectFromPairGrouped(4, 5, 6, 0, y)
-	hhlh := x.SelectFromPairGrouped(4, 5, 0, 6, y)
-	hlhh := x.SelectFromPairGrouped(4, 0, 5, 6, y)
-	lhhh := x.SelectFromPairGrouped(0, 4, 5, 6, y)
+	hhhl := x.ConcatPermuteScalarsGrouped(4, 5, 6, 0, y)
+	hhlh := x.ConcatPermuteScalarsGrouped(4, 5, 0, 6, y)
+	hlhh := x.ConcatPermuteScalarsGrouped(4, 0, 5, 6, y)
+	lhhh := x.ConcatPermuteScalarsGrouped(0, 4, 5, 6, y)
 
-	lhlh := x.SelectFromPairGrouped(0, 4, 1, 5, y)
-	hlhl := x.SelectFromPairGrouped(4, 0, 5, 1, y)
-	lhhl := x.SelectFromPairGrouped(0, 4, 5, 1, y)
-	hllh := x.SelectFromPairGrouped(4, 0, 1, 5, y)
+	lhlh := x.ConcatPermuteScalarsGrouped(0, 4, 1, 5, y)
+	hlhl := x.ConcatPermuteScalarsGrouped(4, 0, 5, 1, y)
+	lhhl := x.ConcatPermuteScalarsGrouped(0, 4, 5, 1, y)
+	hllh := x.ConcatPermuteScalarsGrouped(4, 0, 1, 5, y)
 
 	r := make([]float32, 8, 8)
 
@@ -823,7 +823,7 @@ func TestSelect4FromPairConstGrouped(t *testing.T) {
 	foo(hllh, 4, 0, 1, 5)
 }
 
-func TestSelectFromPairConstGroupedUint32x16(t *testing.T) {
+func TestConcatPermuteScalarsConstGroupedUint32x16(t *testing.T) {
 	if !archsimd.X86.AVX512() {
 		t.Skip("Test requires X86.AVX512, not available on this hardware")
 		return
@@ -831,25 +831,25 @@ func TestSelectFromPairConstGroupedUint32x16(t *testing.T) {
 	x := archsimd.LoadUint32x16([]uint32{0, 1, 2, 3, 10, 11, 12, 13, 20, 21, 22, 23, 30, 31, 32, 33})
 	y := archsimd.LoadUint32x16([]uint32{4, 5, 6, 7, 14, 15, 16, 17, 24, 25, 26, 27, 34, 35, 36, 37})
 
-	llll := x.SelectFromPairGrouped(0, 1, 2, 3, y)
-	hhhh := x.SelectFromPairGrouped(4, 5, 6, 7, y)
-	llhh := x.SelectFromPairGrouped(0, 1, 6, 7, y)
-	hhll := x.SelectFromPairGrouped(6, 7, 0, 1, y)
+	llll := x.ConcatPermuteScalarsGrouped(0, 1, 2, 3, y)
+	hhhh := x.ConcatPermuteScalarsGrouped(4, 5, 6, 7, y)
+	llhh := x.ConcatPermuteScalarsGrouped(0, 1, 6, 7, y)
+	hhll := x.ConcatPermuteScalarsGrouped(6, 7, 0, 1, y)
 
-	lllh := x.SelectFromPairGrouped(0, 1, 2, 7, y)
-	llhl := x.SelectFromPairGrouped(0, 1, 7, 2, y)
-	lhll := x.SelectFromPairGrouped(0, 7, 1, 2, y)
-	hlll := x.SelectFromPairGrouped(7, 0, 1, 2, y)
+	lllh := x.ConcatPermuteScalarsGrouped(0, 1, 2, 7, y)
+	llhl := x.ConcatPermuteScalarsGrouped(0, 1, 7, 2, y)
+	lhll := x.ConcatPermuteScalarsGrouped(0, 7, 1, 2, y)
+	hlll := x.ConcatPermuteScalarsGrouped(7, 0, 1, 2, y)
 
-	hhhl := x.SelectFromPairGrouped(4, 5, 6, 0, y)
-	hhlh := x.SelectFromPairGrouped(4, 5, 0, 6, y)
-	hlhh := x.SelectFromPairGrouped(4, 0, 5, 6, y)
-	lhhh := x.SelectFromPairGrouped(0, 4, 5, 6, y)
+	hhhl := x.ConcatPermuteScalarsGrouped(4, 5, 6, 0, y)
+	hhlh := x.ConcatPermuteScalarsGrouped(4, 5, 0, 6, y)
+	hlhh := x.ConcatPermuteScalarsGrouped(4, 0, 5, 6, y)
+	lhhh := x.ConcatPermuteScalarsGrouped(0, 4, 5, 6, y)
 
-	lhlh := x.SelectFromPairGrouped(0, 4, 1, 5, y)
-	hlhl := x.SelectFromPairGrouped(4, 0, 5, 1, y)
-	lhhl := x.SelectFromPairGrouped(0, 4, 5, 1, y)
-	hllh := x.SelectFromPairGrouped(4, 0, 1, 5, y)
+	lhlh := x.ConcatPermuteScalarsGrouped(0, 4, 1, 5, y)
+	hlhl := x.ConcatPermuteScalarsGrouped(4, 0, 5, 1, y)
+	lhhl := x.ConcatPermuteScalarsGrouped(0, 4, 5, 1, y)
+	hllh := x.ConcatPermuteScalarsGrouped(4, 0, 1, 5, y)
 
 	r := make([]uint32, 16, 16)
 
@@ -883,16 +883,16 @@ func TestSelectFromPairConstGroupedUint32x16(t *testing.T) {
 	foo(hllh, 4, 0, 1, 5)
 }
 
-func TestSelect128FromPair(t *testing.T) {
+func TestConcatPermute128Scalars(t *testing.T) {
 	x := archsimd.LoadUint64x4([]uint64{0, 1, 2, 3})
 	y := archsimd.LoadUint64x4([]uint64{4, 5, 6, 7})
 
-	aa := x.Select128FromPair(0, 0, y)
-	ab := x.Select128FromPair(0, 1, y)
-	bc := x.Select128FromPair(1, 2, y)
-	cd := x.Select128FromPair(2, 3, y)
-	da := x.Select128FromPair(3, 0, y)
-	dc := x.Select128FromPair(3, 2, y)
+	aa := x.ConcatPermute128Scalars(0, 0, y)
+	ab := x.ConcatPermute128Scalars(0, 1, y)
+	bc := x.ConcatPermute128Scalars(1, 2, y)
+	cd := x.ConcatPermute128Scalars(2, 3, y)
+	da := x.ConcatPermute128Scalars(3, 0, y)
+	dc := x.ConcatPermute128Scalars(3, 2, y)
 
 	r := make([]uint64, 4, 4)
 
@@ -910,7 +910,7 @@ func TestSelect128FromPair(t *testing.T) {
 	foo(dc, 3, 2)
 }
 
-func TestSelect128FromPairError(t *testing.T) {
+func TestConcatPermute128ScalarsError(t *testing.T) {
 	x := archsimd.LoadUint64x4([]uint64{0, 1, 2, 3})
 	y := archsimd.LoadUint64x4([]uint64{4, 5, 6, 7})
 
@@ -919,17 +919,17 @@ func TestSelect128FromPairError(t *testing.T) {
 			t.Logf("Saw expected panic %v", r)
 		}
 	}()
-	_ = x.Select128FromPair(0, 4, y)
+	_ = x.ConcatPermute128Scalars(0, 4, y)
 
 	t.Errorf("Should have panicked")
 }
 
 //go:noinline
 func select128FromPair(x archsimd.Uint64x4, lo, hi uint8, y archsimd.Uint64x4) archsimd.Uint64x4 {
-	return x.Select128FromPair(lo, hi, y)
+	return x.ConcatPermute128Scalars(lo, hi, y)
 }
 
-func TestSelect128FromPairVar(t *testing.T) {
+func TestConcatPermute128ScalarsVar(t *testing.T) {
 	x := archsimd.LoadUint64x4([]uint64{0, 1, 2, 3})
 	y := archsimd.LoadUint64x4([]uint64{4, 5, 6, 7})
 
@@ -960,10 +960,10 @@ func TestSelect2FromPairConst(t *testing.T) {
 	x := archsimd.LoadUint64x2([]uint64{0, 1})
 	y := archsimd.LoadUint64x2([]uint64{2, 3})
 
-	ll := x.SelectFromPair(0, 1, y)
-	hh := x.SelectFromPair(3, 2, y)
-	lh := x.SelectFromPair(0, 3, y)
-	hl := x.SelectFromPair(2, 1, y)
+	ll := x.ConcatPermuteScalars(0, 1, y)
+	hh := x.ConcatPermuteScalars(3, 2, y)
+	lh := x.ConcatPermuteScalars(0, 3, y)
+	hl := x.ConcatPermuteScalars(2, 1, y)
 
 	r := make([]uint64, 2, 2)
 
@@ -982,10 +982,10 @@ func TestSelect2FromPairConstGroupedUint(t *testing.T) {
 	x := archsimd.LoadUint64x4([]uint64{0, 1, 10, 11})
 	y := archsimd.LoadUint64x4([]uint64{2, 3, 12, 13})
 
-	ll := x.SelectFromPairGrouped(0, 1, y)
-	hh := x.SelectFromPairGrouped(3, 2, y)
-	lh := x.SelectFromPairGrouped(0, 3, y)
-	hl := x.SelectFromPairGrouped(2, 1, y)
+	ll := x.ConcatPermuteScalarsGrouped(0, 1, y)
+	hh := x.ConcatPermuteScalarsGrouped(3, 2, y)
+	lh := x.ConcatPermuteScalarsGrouped(0, 3, y)
+	hl := x.ConcatPermuteScalarsGrouped(2, 1, y)
 
 	r := make([]uint64, 4, 4)
 
@@ -1004,10 +1004,10 @@ func TestSelect2FromPairConstGroupedFloat(t *testing.T) {
 	x := archsimd.LoadFloat64x4([]float64{0, 1, 10, 11})
 	y := archsimd.LoadFloat64x4([]float64{2, 3, 12, 13})
 
-	ll := x.SelectFromPairGrouped(0, 1, y)
-	hh := x.SelectFromPairGrouped(3, 2, y)
-	lh := x.SelectFromPairGrouped(0, 3, y)
-	hl := x.SelectFromPairGrouped(2, 1, y)
+	ll := x.ConcatPermuteScalarsGrouped(0, 1, y)
+	hh := x.ConcatPermuteScalarsGrouped(3, 2, y)
+	lh := x.ConcatPermuteScalarsGrouped(0, 3, y)
+	hl := x.ConcatPermuteScalarsGrouped(2, 1, y)
 
 	r := make([]float64, 4, 4)
 
@@ -1026,10 +1026,10 @@ func TestSelect2FromPairConstGroupedInt(t *testing.T) {
 	x := archsimd.LoadInt64x4([]int64{0, 1, 10, 11})
 	y := archsimd.LoadInt64x4([]int64{2, 3, 12, 13})
 
-	ll := x.SelectFromPairGrouped(0, 1, y)
-	hh := x.SelectFromPairGrouped(3, 2, y)
-	lh := x.SelectFromPairGrouped(0, 3, y)
-	hl := x.SelectFromPairGrouped(2, 1, y)
+	ll := x.ConcatPermuteScalarsGrouped(0, 1, y)
+	hh := x.ConcatPermuteScalarsGrouped(3, 2, y)
+	lh := x.ConcatPermuteScalarsGrouped(0, 3, y)
+	hl := x.ConcatPermuteScalarsGrouped(2, 1, y)
 
 	r := make([]int64, 4, 4)
 
@@ -1053,10 +1053,10 @@ func TestSelect2FromPairConstGroupedInt512(t *testing.T) {
 	x := archsimd.LoadInt64x8([]int64{0, 1, 10, 11, 20, 21, 30, 31})
 	y := archsimd.LoadInt64x8([]int64{2, 3, 12, 13, 22, 23, 32, 33})
 
-	ll := x.SelectFromPairGrouped(0, 1, y)
-	hh := x.SelectFromPairGrouped(3, 2, y)
-	lh := x.SelectFromPairGrouped(0, 3, y)
-	hl := x.SelectFromPairGrouped(2, 1, y)
+	ll := x.ConcatPermuteScalarsGrouped(0, 1, y)
+	hh := x.ConcatPermuteScalarsGrouped(3, 2, y)
+	lh := x.ConcatPermuteScalarsGrouped(0, 3, y)
+	hl := x.ConcatPermuteScalarsGrouped(2, 1, y)
 
 	r := make([]int64, 8, 8)
 

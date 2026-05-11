@@ -7364,6 +7364,16 @@ const (
 	OpCeilScaledResidueFloat64x2
 	OpCeilScaledResidueFloat64x4
 	OpCeilScaledResidueFloat64x8
+	OpConcatPermute128ScalarsFloat32x8
+	OpConcatPermute128ScalarsFloat64x4
+	OpConcatPermute128ScalarsInt8x32
+	OpConcatPermute128ScalarsInt16x16
+	OpConcatPermute128ScalarsInt32x8
+	OpConcatPermute128ScalarsInt64x4
+	OpConcatPermute128ScalarsUint8x32
+	OpConcatPermute128ScalarsUint16x16
+	OpConcatPermute128ScalarsUint32x8
+	OpConcatPermute128ScalarsUint64x4
 	OpConcatShiftBytesRightGroupedUint8x32
 	OpConcatShiftBytesRightGroupedUint8x64
 	OpConcatShiftBytesRightUint8x16
@@ -7432,16 +7442,6 @@ const (
 	OpRoundScaledResidueFloat64x4
 	OpRoundScaledResidueFloat64x8
 	OpSHA1FourRoundsUint32x4
-	OpSelect128FromPairFloat32x8
-	OpSelect128FromPairFloat64x4
-	OpSelect128FromPairInt8x32
-	OpSelect128FromPairInt16x16
-	OpSelect128FromPairInt32x8
-	OpSelect128FromPairInt64x4
-	OpSelect128FromPairUint8x32
-	OpSelect128FromPairUint16x16
-	OpSelect128FromPairUint32x8
-	OpSelect128FromPairUint64x4
 	OpSetElemFloat32x4
 	OpSetElemFloat64x2
 	OpSetElemInt8x16
@@ -95431,6 +95431,66 @@ var opcodeTable = [...]opInfo{
 		generic: true,
 	},
 	{
+		name:    "ConcatPermute128ScalarsFloat32x8",
+		auxType: auxUInt8,
+		argLen:  2,
+		generic: true,
+	},
+	{
+		name:    "ConcatPermute128ScalarsFloat64x4",
+		auxType: auxUInt8,
+		argLen:  2,
+		generic: true,
+	},
+	{
+		name:    "ConcatPermute128ScalarsInt8x32",
+		auxType: auxUInt8,
+		argLen:  2,
+		generic: true,
+	},
+	{
+		name:    "ConcatPermute128ScalarsInt16x16",
+		auxType: auxUInt8,
+		argLen:  2,
+		generic: true,
+	},
+	{
+		name:    "ConcatPermute128ScalarsInt32x8",
+		auxType: auxUInt8,
+		argLen:  2,
+		generic: true,
+	},
+	{
+		name:    "ConcatPermute128ScalarsInt64x4",
+		auxType: auxUInt8,
+		argLen:  2,
+		generic: true,
+	},
+	{
+		name:    "ConcatPermute128ScalarsUint8x32",
+		auxType: auxUInt8,
+		argLen:  2,
+		generic: true,
+	},
+	{
+		name:    "ConcatPermute128ScalarsUint16x16",
+		auxType: auxUInt8,
+		argLen:  2,
+		generic: true,
+	},
+	{
+		name:    "ConcatPermute128ScalarsUint32x8",
+		auxType: auxUInt8,
+		argLen:  2,
+		generic: true,
+	},
+	{
+		name:    "ConcatPermute128ScalarsUint64x4",
+		auxType: auxUInt8,
+		argLen:  2,
+		generic: true,
+	},
+	{
 		name:    "ConcatShiftBytesRightGroupedUint8x32",
 		auxType: auxUInt8,
 		argLen:  2,
@@ -95834,66 +95894,6 @@ var opcodeTable = [...]opInfo{
 	},
 	{
 		name:    "SHA1FourRoundsUint32x4",
-		auxType: auxUInt8,
-		argLen:  2,
-		generic: true,
-	},
-	{
-		name:    "Select128FromPairFloat32x8",
-		auxType: auxUInt8,
-		argLen:  2,
-		generic: true,
-	},
-	{
-		name:    "Select128FromPairFloat64x4",
-		auxType: auxUInt8,
-		argLen:  2,
-		generic: true,
-	},
-	{
-		name:    "Select128FromPairInt8x32",
-		auxType: auxUInt8,
-		argLen:  2,
-		generic: true,
-	},
-	{
-		name:    "Select128FromPairInt16x16",
-		auxType: auxUInt8,
-		argLen:  2,
-		generic: true,
-	},
-	{
-		name:    "Select128FromPairInt32x8",
-		auxType: auxUInt8,
-		argLen:  2,
-		generic: true,
-	},
-	{
-		name:    "Select128FromPairInt64x4",
-		auxType: auxUInt8,
-		argLen:  2,
-		generic: true,
-	},
-	{
-		name:    "Select128FromPairUint8x32",
-		auxType: auxUInt8,
-		argLen:  2,
-		generic: true,
-	},
-	{
-		name:    "Select128FromPairUint16x16",
-		auxType: auxUInt8,
-		argLen:  2,
-		generic: true,
-	},
-	{
-		name:    "Select128FromPairUint32x8",
-		auxType: auxUInt8,
-		argLen:  2,
-		generic: true,
-	},
-	{
-		name:    "Select128FromPairUint64x4",
 		auxType: auxUInt8,
 		argLen:  2,
 		generic: true,

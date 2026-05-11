@@ -880,7 +880,7 @@
   out:
   - *v
 
-- go: Select128FromPair
+- go: ConcatPermute128Scalars
   asm: VPERM2F128
   operandOrder: II
   addDoc: !string |-
@@ -903,7 +903,7 @@
   out:
   - *v
 
-- go: Select128FromPair
+- go: ConcatPermute128Scalars
   asm: VPERM2F128
   operandOrder: II
   addDoc: !string |-
@@ -927,7 +927,7 @@
   out:
   - *v
 
-- go: Select128FromPair
+- go: ConcatPermute128Scalars
   asm: VPERM2I128
   operandOrder: II
   addDoc: !string |-
@@ -951,7 +951,7 @@
   out:
   - *v
 
-- go: Select128FromPair
+- go: ConcatPermute128Scalars
   asm: VPERM2I128
   operandOrder: II
   addDoc: !string |-
@@ -975,7 +975,7 @@
   out:
   - *v
 
-- go: Select128FromPair
+- go: ConcatPermute128Scalars
   asm: VPERM2I128
   operandOrder: II
   addDoc: !string |-
@@ -1000,7 +1000,7 @@
   out:
   - *v
 
-- go: Select128FromPair
+- go: ConcatPermute128Scalars
   asm: VPERM2I128
   operandOrder: II
   addDoc: !string |-
