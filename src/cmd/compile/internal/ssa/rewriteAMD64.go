@@ -4881,40 +4881,40 @@ func rewriteValueAMD64(v *Value) bool {
 	case OpRound64F:
 		v.Op = OpAMD64LoweredRound64F
 		return true
+	case OpRoundFloat32x4:
+		return rewriteValueAMD64_OpRoundFloat32x4(v)
+	case OpRoundFloat32x8:
+		return rewriteValueAMD64_OpRoundFloat32x8(v)
+	case OpRoundFloat64x2:
+		return rewriteValueAMD64_OpRoundFloat64x2(v)
+	case OpRoundFloat64x4:
+		return rewriteValueAMD64_OpRoundFloat64x4(v)
+	case OpRoundScaledFloat32x16:
+		return rewriteValueAMD64_OpRoundScaledFloat32x16(v)
+	case OpRoundScaledFloat32x4:
+		return rewriteValueAMD64_OpRoundScaledFloat32x4(v)
+	case OpRoundScaledFloat32x8:
+		return rewriteValueAMD64_OpRoundScaledFloat32x8(v)
+	case OpRoundScaledFloat64x2:
+		return rewriteValueAMD64_OpRoundScaledFloat64x2(v)
+	case OpRoundScaledFloat64x4:
+		return rewriteValueAMD64_OpRoundScaledFloat64x4(v)
+	case OpRoundScaledFloat64x8:
+		return rewriteValueAMD64_OpRoundScaledFloat64x8(v)
+	case OpRoundScaledResidueFloat32x16:
+		return rewriteValueAMD64_OpRoundScaledResidueFloat32x16(v)
+	case OpRoundScaledResidueFloat32x4:
+		return rewriteValueAMD64_OpRoundScaledResidueFloat32x4(v)
+	case OpRoundScaledResidueFloat32x8:
+		return rewriteValueAMD64_OpRoundScaledResidueFloat32x8(v)
+	case OpRoundScaledResidueFloat64x2:
+		return rewriteValueAMD64_OpRoundScaledResidueFloat64x2(v)
+	case OpRoundScaledResidueFloat64x4:
+		return rewriteValueAMD64_OpRoundScaledResidueFloat64x4(v)
+	case OpRoundScaledResidueFloat64x8:
+		return rewriteValueAMD64_OpRoundScaledResidueFloat64x8(v)
 	case OpRoundToEven:
 		return rewriteValueAMD64_OpRoundToEven(v)
-	case OpRoundToEvenFloat32x4:
-		return rewriteValueAMD64_OpRoundToEvenFloat32x4(v)
-	case OpRoundToEvenFloat32x8:
-		return rewriteValueAMD64_OpRoundToEvenFloat32x8(v)
-	case OpRoundToEvenFloat64x2:
-		return rewriteValueAMD64_OpRoundToEvenFloat64x2(v)
-	case OpRoundToEvenFloat64x4:
-		return rewriteValueAMD64_OpRoundToEvenFloat64x4(v)
-	case OpRoundToEvenScaledFloat32x16:
-		return rewriteValueAMD64_OpRoundToEvenScaledFloat32x16(v)
-	case OpRoundToEvenScaledFloat32x4:
-		return rewriteValueAMD64_OpRoundToEvenScaledFloat32x4(v)
-	case OpRoundToEvenScaledFloat32x8:
-		return rewriteValueAMD64_OpRoundToEvenScaledFloat32x8(v)
-	case OpRoundToEvenScaledFloat64x2:
-		return rewriteValueAMD64_OpRoundToEvenScaledFloat64x2(v)
-	case OpRoundToEvenScaledFloat64x4:
-		return rewriteValueAMD64_OpRoundToEvenScaledFloat64x4(v)
-	case OpRoundToEvenScaledFloat64x8:
-		return rewriteValueAMD64_OpRoundToEvenScaledFloat64x8(v)
-	case OpRoundToEvenScaledResidueFloat32x16:
-		return rewriteValueAMD64_OpRoundToEvenScaledResidueFloat32x16(v)
-	case OpRoundToEvenScaledResidueFloat32x4:
-		return rewriteValueAMD64_OpRoundToEvenScaledResidueFloat32x4(v)
-	case OpRoundToEvenScaledResidueFloat32x8:
-		return rewriteValueAMD64_OpRoundToEvenScaledResidueFloat32x8(v)
-	case OpRoundToEvenScaledResidueFloat64x2:
-		return rewriteValueAMD64_OpRoundToEvenScaledResidueFloat64x2(v)
-	case OpRoundToEvenScaledResidueFloat64x4:
-		return rewriteValueAMD64_OpRoundToEvenScaledResidueFloat64x4(v)
-	case OpRoundToEvenScaledResidueFloat64x8:
-		return rewriteValueAMD64_OpRoundToEvenScaledResidueFloat64x8(v)
 	case OpRsh16Ux16:
 		return rewriteValueAMD64_OpRsh16Ux16(v)
 	case OpRsh16Ux32:
@@ -75491,21 +75491,9 @@ func rewriteValueAMD64_OpPopCount8(v *Value) bool {
 		return true
 	}
 }
-func rewriteValueAMD64_OpRoundToEven(v *Value) bool {
+func rewriteValueAMD64_OpRoundFloat32x4(v *Value) bool {
 	v_0 := v.Args[0]
-	// match: (RoundToEven x)
-	// result: (ROUNDSD [0] x)
-	for {
-		x := v_0
-		v.reset(OpAMD64ROUNDSD)
-		v.AuxInt = int8ToAuxInt(0)
-		v.AddArg(x)
-		return true
-	}
-}
-func rewriteValueAMD64_OpRoundToEvenFloat32x4(v *Value) bool {
-	v_0 := v.Args[0]
-	// match: (RoundToEvenFloat32x4 x)
+	// match: (RoundFloat32x4 x)
 	// result: (VROUNDPS128 [0] x)
 	for {
 		x := v_0
@@ -75515,9 +75503,9 @@ func rewriteValueAMD64_OpRoundToEvenFloat32x4(v *Value) bool {
 		return true
 	}
 }
-func rewriteValueAMD64_OpRoundToEvenFloat32x8(v *Value) bool {
+func rewriteValueAMD64_OpRoundFloat32x8(v *Value) bool {
 	v_0 := v.Args[0]
-	// match: (RoundToEvenFloat32x8 x)
+	// match: (RoundFloat32x8 x)
 	// result: (VROUNDPS256 [0] x)
 	for {
 		x := v_0
@@ -75527,9 +75515,9 @@ func rewriteValueAMD64_OpRoundToEvenFloat32x8(v *Value) bool {
 		return true
 	}
 }
-func rewriteValueAMD64_OpRoundToEvenFloat64x2(v *Value) bool {
+func rewriteValueAMD64_OpRoundFloat64x2(v *Value) bool {
 	v_0 := v.Args[0]
-	// match: (RoundToEvenFloat64x2 x)
+	// match: (RoundFloat64x2 x)
 	// result: (VROUNDPD128 [0] x)
 	for {
 		x := v_0
@@ -75539,9 +75527,9 @@ func rewriteValueAMD64_OpRoundToEvenFloat64x2(v *Value) bool {
 		return true
 	}
 }
-func rewriteValueAMD64_OpRoundToEvenFloat64x4(v *Value) bool {
+func rewriteValueAMD64_OpRoundFloat64x4(v *Value) bool {
 	v_0 := v.Args[0]
-	// match: (RoundToEvenFloat64x4 x)
+	// match: (RoundFloat64x4 x)
 	// result: (VROUNDPD256 [0] x)
 	for {
 		x := v_0
@@ -75551,9 +75539,9 @@ func rewriteValueAMD64_OpRoundToEvenFloat64x4(v *Value) bool {
 		return true
 	}
 }
-func rewriteValueAMD64_OpRoundToEvenScaledFloat32x16(v *Value) bool {
+func rewriteValueAMD64_OpRoundScaledFloat32x16(v *Value) bool {
 	v_0 := v.Args[0]
-	// match: (RoundToEvenScaledFloat32x16 [a] x)
+	// match: (RoundScaledFloat32x16 [a] x)
 	// result: (VRNDSCALEPS512 [a+0] x)
 	for {
 		a := auxIntToUint8(v.AuxInt)
@@ -75564,9 +75552,9 @@ func rewriteValueAMD64_OpRoundToEvenScaledFloat32x16(v *Value) bool {
 		return true
 	}
 }
-func rewriteValueAMD64_OpRoundToEvenScaledFloat32x4(v *Value) bool {
+func rewriteValueAMD64_OpRoundScaledFloat32x4(v *Value) bool {
 	v_0 := v.Args[0]
-	// match: (RoundToEvenScaledFloat32x4 [a] x)
+	// match: (RoundScaledFloat32x4 [a] x)
 	// result: (VRNDSCALEPS128 [a+0] x)
 	for {
 		a := auxIntToUint8(v.AuxInt)
@@ -75577,9 +75565,9 @@ func rewriteValueAMD64_OpRoundToEvenScaledFloat32x4(v *Value) bool {
 		return true
 	}
 }
-func rewriteValueAMD64_OpRoundToEvenScaledFloat32x8(v *Value) bool {
+func rewriteValueAMD64_OpRoundScaledFloat32x8(v *Value) bool {
 	v_0 := v.Args[0]
-	// match: (RoundToEvenScaledFloat32x8 [a] x)
+	// match: (RoundScaledFloat32x8 [a] x)
 	// result: (VRNDSCALEPS256 [a+0] x)
 	for {
 		a := auxIntToUint8(v.AuxInt)
@@ -75590,9 +75578,9 @@ func rewriteValueAMD64_OpRoundToEvenScaledFloat32x8(v *Value) bool {
 		return true
 	}
 }
-func rewriteValueAMD64_OpRoundToEvenScaledFloat64x2(v *Value) bool {
+func rewriteValueAMD64_OpRoundScaledFloat64x2(v *Value) bool {
 	v_0 := v.Args[0]
-	// match: (RoundToEvenScaledFloat64x2 [a] x)
+	// match: (RoundScaledFloat64x2 [a] x)
 	// result: (VRNDSCALEPD128 [a+0] x)
 	for {
 		a := auxIntToUint8(v.AuxInt)
@@ -75603,9 +75591,9 @@ func rewriteValueAMD64_OpRoundToEvenScaledFloat64x2(v *Value) bool {
 		return true
 	}
 }
-func rewriteValueAMD64_OpRoundToEvenScaledFloat64x4(v *Value) bool {
+func rewriteValueAMD64_OpRoundScaledFloat64x4(v *Value) bool {
 	v_0 := v.Args[0]
-	// match: (RoundToEvenScaledFloat64x4 [a] x)
+	// match: (RoundScaledFloat64x4 [a] x)
 	// result: (VRNDSCALEPD256 [a+0] x)
 	for {
 		a := auxIntToUint8(v.AuxInt)
@@ -75616,9 +75604,9 @@ func rewriteValueAMD64_OpRoundToEvenScaledFloat64x4(v *Value) bool {
 		return true
 	}
 }
-func rewriteValueAMD64_OpRoundToEvenScaledFloat64x8(v *Value) bool {
+func rewriteValueAMD64_OpRoundScaledFloat64x8(v *Value) bool {
 	v_0 := v.Args[0]
-	// match: (RoundToEvenScaledFloat64x8 [a] x)
+	// match: (RoundScaledFloat64x8 [a] x)
 	// result: (VRNDSCALEPD512 [a+0] x)
 	for {
 		a := auxIntToUint8(v.AuxInt)
@@ -75629,9 +75617,9 @@ func rewriteValueAMD64_OpRoundToEvenScaledFloat64x8(v *Value) bool {
 		return true
 	}
 }
-func rewriteValueAMD64_OpRoundToEvenScaledResidueFloat32x16(v *Value) bool {
+func rewriteValueAMD64_OpRoundScaledResidueFloat32x16(v *Value) bool {
 	v_0 := v.Args[0]
-	// match: (RoundToEvenScaledResidueFloat32x16 [a] x)
+	// match: (RoundScaledResidueFloat32x16 [a] x)
 	// result: (VREDUCEPS512 [a+0] x)
 	for {
 		a := auxIntToUint8(v.AuxInt)
@@ -75642,9 +75630,9 @@ func rewriteValueAMD64_OpRoundToEvenScaledResidueFloat32x16(v *Value) bool {
 		return true
 	}
 }
-func rewriteValueAMD64_OpRoundToEvenScaledResidueFloat32x4(v *Value) bool {
+func rewriteValueAMD64_OpRoundScaledResidueFloat32x4(v *Value) bool {
 	v_0 := v.Args[0]
-	// match: (RoundToEvenScaledResidueFloat32x4 [a] x)
+	// match: (RoundScaledResidueFloat32x4 [a] x)
 	// result: (VREDUCEPS128 [a+0] x)
 	for {
 		a := auxIntToUint8(v.AuxInt)
@@ -75655,9 +75643,9 @@ func rewriteValueAMD64_OpRoundToEvenScaledResidueFloat32x4(v *Value) bool {
 		return true
 	}
 }
-func rewriteValueAMD64_OpRoundToEvenScaledResidueFloat32x8(v *Value) bool {
+func rewriteValueAMD64_OpRoundScaledResidueFloat32x8(v *Value) bool {
 	v_0 := v.Args[0]
-	// match: (RoundToEvenScaledResidueFloat32x8 [a] x)
+	// match: (RoundScaledResidueFloat32x8 [a] x)
 	// result: (VREDUCEPS256 [a+0] x)
 	for {
 		a := auxIntToUint8(v.AuxInt)
@@ -75668,9 +75656,9 @@ func rewriteValueAMD64_OpRoundToEvenScaledResidueFloat32x8(v *Value) bool {
 		return true
 	}
 }
-func rewriteValueAMD64_OpRoundToEvenScaledResidueFloat64x2(v *Value) bool {
+func rewriteValueAMD64_OpRoundScaledResidueFloat64x2(v *Value) bool {
 	v_0 := v.Args[0]
-	// match: (RoundToEvenScaledResidueFloat64x2 [a] x)
+	// match: (RoundScaledResidueFloat64x2 [a] x)
 	// result: (VREDUCEPD128 [a+0] x)
 	for {
 		a := auxIntToUint8(v.AuxInt)
@@ -75681,9 +75669,9 @@ func rewriteValueAMD64_OpRoundToEvenScaledResidueFloat64x2(v *Value) bool {
 		return true
 	}
 }
-func rewriteValueAMD64_OpRoundToEvenScaledResidueFloat64x4(v *Value) bool {
+func rewriteValueAMD64_OpRoundScaledResidueFloat64x4(v *Value) bool {
 	v_0 := v.Args[0]
-	// match: (RoundToEvenScaledResidueFloat64x4 [a] x)
+	// match: (RoundScaledResidueFloat64x4 [a] x)
 	// result: (VREDUCEPD256 [a+0] x)
 	for {
 		a := auxIntToUint8(v.AuxInt)
@@ -75694,15 +75682,27 @@ func rewriteValueAMD64_OpRoundToEvenScaledResidueFloat64x4(v *Value) bool {
 		return true
 	}
 }
-func rewriteValueAMD64_OpRoundToEvenScaledResidueFloat64x8(v *Value) bool {
+func rewriteValueAMD64_OpRoundScaledResidueFloat64x8(v *Value) bool {
 	v_0 := v.Args[0]
-	// match: (RoundToEvenScaledResidueFloat64x8 [a] x)
+	// match: (RoundScaledResidueFloat64x8 [a] x)
 	// result: (VREDUCEPD512 [a+0] x)
 	for {
 		a := auxIntToUint8(v.AuxInt)
 		x := v_0
 		v.reset(OpAMD64VREDUCEPD512)
 		v.AuxInt = uint8ToAuxInt(a + 0)
+		v.AddArg(x)
+		return true
+	}
+}
+func rewriteValueAMD64_OpRoundToEven(v *Value) bool {
+	v_0 := v.Args[0]
+	// match: (RoundToEven x)
+	// result: (ROUNDSD [0] x)
+	for {
+		x := v_0
+		v.reset(OpAMD64ROUNDSD)
+		v.AuxInt = int8ToAuxInt(0)
 		v.AddArg(x)
 		return true
 	}

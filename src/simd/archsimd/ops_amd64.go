@@ -4936,115 +4936,115 @@ func (x Uint64x4) RotateRight(y Uint64x4) Uint64x4
 // Asm: VPRORVQ, CPU Feature: AVX512
 func (x Uint64x8) RotateRight(y Uint64x8) Uint64x8
 
-/* RoundToEven */
+/* Round */
 
-// RoundToEven rounds elements to the nearest integer, rounding ties to even.
+// Round rounds elements to the nearest integer, rounding ties to even.
 //
 // Asm: VROUNDPS, CPU Feature: AVX
-func (x Float32x4) RoundToEven() Float32x4
+func (x Float32x4) Round() Float32x4
 
-// RoundToEven rounds elements to the nearest integer, rounding ties to even.
+// Round rounds elements to the nearest integer, rounding ties to even.
 //
 // Asm: VROUNDPS, CPU Feature: AVX
-func (x Float32x8) RoundToEven() Float32x8
+func (x Float32x8) Round() Float32x8
 
-// RoundToEven rounds elements to the nearest integer, rounding ties to even.
+// Round rounds elements to the nearest integer, rounding ties to even.
 //
 // Asm: VROUNDPD, CPU Feature: AVX
-func (x Float64x2) RoundToEven() Float64x2
+func (x Float64x2) Round() Float64x2
 
-// RoundToEven rounds elements to the nearest integer, rounding ties to even.
+// Round rounds elements to the nearest integer, rounding ties to even.
 //
 // Asm: VROUNDPD, CPU Feature: AVX
-func (x Float64x4) RoundToEven() Float64x4
+func (x Float64x4) Round() Float64x4
 
-/* RoundToEvenScaled */
+/* RoundScaled */
 
-// RoundToEvenScaled rounds elements with specified precision.
+// RoundScaled rounds elements with specified precision.
 //
 // A non-constant value of prec may result in significantly worse performance for this operation.
 //
 // Asm: VRNDSCALEPS, CPU Feature: AVX512
-func (x Float32x4) RoundToEvenScaled(prec uint8) Float32x4
+func (x Float32x4) RoundScaled(prec uint8) Float32x4
 
-// RoundToEvenScaled rounds elements with specified precision.
+// RoundScaled rounds elements with specified precision.
 //
 // A non-constant value of prec may result in significantly worse performance for this operation.
 //
 // Asm: VRNDSCALEPS, CPU Feature: AVX512
-func (x Float32x8) RoundToEvenScaled(prec uint8) Float32x8
+func (x Float32x8) RoundScaled(prec uint8) Float32x8
 
-// RoundToEvenScaled rounds elements with specified precision.
+// RoundScaled rounds elements with specified precision.
 //
 // A non-constant value of prec may result in significantly worse performance for this operation.
 //
 // Asm: VRNDSCALEPS, CPU Feature: AVX512
-func (x Float32x16) RoundToEvenScaled(prec uint8) Float32x16
+func (x Float32x16) RoundScaled(prec uint8) Float32x16
 
-// RoundToEvenScaled rounds elements with specified precision.
+// RoundScaled rounds elements with specified precision.
 //
 // A non-constant value of prec may result in significantly worse performance for this operation.
 //
 // Asm: VRNDSCALEPD, CPU Feature: AVX512
-func (x Float64x2) RoundToEvenScaled(prec uint8) Float64x2
+func (x Float64x2) RoundScaled(prec uint8) Float64x2
 
-// RoundToEvenScaled rounds elements with specified precision.
+// RoundScaled rounds elements with specified precision.
 //
 // A non-constant value of prec may result in significantly worse performance for this operation.
 //
 // Asm: VRNDSCALEPD, CPU Feature: AVX512
-func (x Float64x4) RoundToEvenScaled(prec uint8) Float64x4
+func (x Float64x4) RoundScaled(prec uint8) Float64x4
 
-// RoundToEvenScaled rounds elements with specified precision.
+// RoundScaled rounds elements with specified precision.
 //
 // A non-constant value of prec may result in significantly worse performance for this operation.
 //
 // Asm: VRNDSCALEPD, CPU Feature: AVX512
-func (x Float64x8) RoundToEvenScaled(prec uint8) Float64x8
+func (x Float64x8) RoundScaled(prec uint8) Float64x8
 
-/* RoundToEvenScaledResidue */
+/* RoundScaledResidue */
 
-// RoundToEvenScaledResidue computes the difference after rounding with specified precision.
+// RoundScaledResidue computes the difference after rounding with specified precision.
 //
 // A non-constant value of prec may result in significantly worse performance for this operation.
 //
 // Asm: VREDUCEPS, CPU Feature: AVX512
-func (x Float32x4) RoundToEvenScaledResidue(prec uint8) Float32x4
+func (x Float32x4) RoundScaledResidue(prec uint8) Float32x4
 
-// RoundToEvenScaledResidue computes the difference after rounding with specified precision.
+// RoundScaledResidue computes the difference after rounding with specified precision.
 //
 // A non-constant value of prec may result in significantly worse performance for this operation.
 //
 // Asm: VREDUCEPS, CPU Feature: AVX512
-func (x Float32x8) RoundToEvenScaledResidue(prec uint8) Float32x8
+func (x Float32x8) RoundScaledResidue(prec uint8) Float32x8
 
-// RoundToEvenScaledResidue computes the difference after rounding with specified precision.
+// RoundScaledResidue computes the difference after rounding with specified precision.
 //
 // A non-constant value of prec may result in significantly worse performance for this operation.
 //
 // Asm: VREDUCEPS, CPU Feature: AVX512
-func (x Float32x16) RoundToEvenScaledResidue(prec uint8) Float32x16
+func (x Float32x16) RoundScaledResidue(prec uint8) Float32x16
 
-// RoundToEvenScaledResidue computes the difference after rounding with specified precision.
+// RoundScaledResidue computes the difference after rounding with specified precision.
 //
 // A non-constant value of prec may result in significantly worse performance for this operation.
 //
 // Asm: VREDUCEPD, CPU Feature: AVX512
-func (x Float64x2) RoundToEvenScaledResidue(prec uint8) Float64x2
+func (x Float64x2) RoundScaledResidue(prec uint8) Float64x2
 
-// RoundToEvenScaledResidue computes the difference after rounding with specified precision.
+// RoundScaledResidue computes the difference after rounding with specified precision.
 //
 // A non-constant value of prec may result in significantly worse performance for this operation.
 //
 // Asm: VREDUCEPD, CPU Feature: AVX512
-func (x Float64x4) RoundToEvenScaledResidue(prec uint8) Float64x4
+func (x Float64x4) RoundScaledResidue(prec uint8) Float64x4
 
-// RoundToEvenScaledResidue computes the difference after rounding with specified precision.
+// RoundScaledResidue computes the difference after rounding with specified precision.
 //
 // A non-constant value of prec may result in significantly worse performance for this operation.
 //
 // Asm: VREDUCEPD, CPU Feature: AVX512
-func (x Float64x8) RoundToEvenScaledResidue(prec uint8) Float64x8
+func (x Float64x8) RoundScaledResidue(prec uint8) Float64x8
 
 /* SHA1FourRounds */
 

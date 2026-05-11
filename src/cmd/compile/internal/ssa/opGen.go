@@ -6950,10 +6950,10 @@ const (
 	OpRotateRightUint64x2
 	OpRotateRightUint64x4
 	OpRotateRightUint64x8
-	OpRoundToEvenFloat32x4
-	OpRoundToEvenFloat32x8
-	OpRoundToEvenFloat64x2
-	OpRoundToEvenFloat64x4
+	OpRoundFloat32x4
+	OpRoundFloat32x8
+	OpRoundFloat64x2
+	OpRoundFloat64x4
 	OpSHA1Message1Uint32x4
 	OpSHA1Message2Uint32x4
 	OpSHA1NextEUint32x4
@@ -7419,18 +7419,18 @@ const (
 	OpRotateAllRightUint64x2
 	OpRotateAllRightUint64x4
 	OpRotateAllRightUint64x8
-	OpRoundToEvenScaledFloat32x4
-	OpRoundToEvenScaledFloat32x8
-	OpRoundToEvenScaledFloat32x16
-	OpRoundToEvenScaledFloat64x2
-	OpRoundToEvenScaledFloat64x4
-	OpRoundToEvenScaledFloat64x8
-	OpRoundToEvenScaledResidueFloat32x4
-	OpRoundToEvenScaledResidueFloat32x8
-	OpRoundToEvenScaledResidueFloat32x16
-	OpRoundToEvenScaledResidueFloat64x2
-	OpRoundToEvenScaledResidueFloat64x4
-	OpRoundToEvenScaledResidueFloat64x8
+	OpRoundScaledFloat32x4
+	OpRoundScaledFloat32x8
+	OpRoundScaledFloat32x16
+	OpRoundScaledFloat64x2
+	OpRoundScaledFloat64x4
+	OpRoundScaledFloat64x8
+	OpRoundScaledResidueFloat32x4
+	OpRoundScaledResidueFloat32x8
+	OpRoundScaledResidueFloat32x16
+	OpRoundScaledResidueFloat64x2
+	OpRoundScaledResidueFloat64x4
+	OpRoundScaledResidueFloat64x8
 	OpSHA1FourRoundsUint32x4
 	OpSelect128FromPairFloat32x8
 	OpSelect128FromPairFloat64x4
@@ -93324,22 +93324,22 @@ var opcodeTable = [...]opInfo{
 		generic: true,
 	},
 	{
-		name:    "RoundToEvenFloat32x4",
+		name:    "RoundFloat32x4",
 		argLen:  1,
 		generic: true,
 	},
 	{
-		name:    "RoundToEvenFloat32x8",
+		name:    "RoundFloat32x8",
 		argLen:  1,
 		generic: true,
 	},
 	{
-		name:    "RoundToEvenFloat64x2",
+		name:    "RoundFloat64x2",
 		argLen:  1,
 		generic: true,
 	},
 	{
-		name:    "RoundToEvenFloat64x4",
+		name:    "RoundFloat64x4",
 		argLen:  1,
 		generic: true,
 	},
@@ -95761,73 +95761,73 @@ var opcodeTable = [...]opInfo{
 		generic: true,
 	},
 	{
-		name:    "RoundToEvenScaledFloat32x4",
+		name:    "RoundScaledFloat32x4",
 		auxType: auxUInt8,
 		argLen:  1,
 		generic: true,
 	},
 	{
-		name:    "RoundToEvenScaledFloat32x8",
+		name:    "RoundScaledFloat32x8",
 		auxType: auxUInt8,
 		argLen:  1,
 		generic: true,
 	},
 	{
-		name:    "RoundToEvenScaledFloat32x16",
+		name:    "RoundScaledFloat32x16",
 		auxType: auxUInt8,
 		argLen:  1,
 		generic: true,
 	},
 	{
-		name:    "RoundToEvenScaledFloat64x2",
+		name:    "RoundScaledFloat64x2",
 		auxType: auxUInt8,
 		argLen:  1,
 		generic: true,
 	},
 	{
-		name:    "RoundToEvenScaledFloat64x4",
+		name:    "RoundScaledFloat64x4",
 		auxType: auxUInt8,
 		argLen:  1,
 		generic: true,
 	},
 	{
-		name:    "RoundToEvenScaledFloat64x8",
+		name:    "RoundScaledFloat64x8",
 		auxType: auxUInt8,
 		argLen:  1,
 		generic: true,
 	},
 	{
-		name:    "RoundToEvenScaledResidueFloat32x4",
+		name:    "RoundScaledResidueFloat32x4",
 		auxType: auxUInt8,
 		argLen:  1,
 		generic: true,
 	},
 	{
-		name:    "RoundToEvenScaledResidueFloat32x8",
+		name:    "RoundScaledResidueFloat32x8",
 		auxType: auxUInt8,
 		argLen:  1,
 		generic: true,
 	},
 	{
-		name:    "RoundToEvenScaledResidueFloat32x16",
+		name:    "RoundScaledResidueFloat32x16",
 		auxType: auxUInt8,
 		argLen:  1,
 		generic: true,
 	},
 	{
-		name:    "RoundToEvenScaledResidueFloat64x2",
+		name:    "RoundScaledResidueFloat64x2",
 		auxType: auxUInt8,
 		argLen:  1,
 		generic: true,
 	},
 	{
-		name:    "RoundToEvenScaledResidueFloat64x4",
+		name:    "RoundScaledResidueFloat64x4",
 		auxType: auxUInt8,
 		argLen:  1,
 		generic: true,
 	},
 	{
-		name:    "RoundToEvenScaledResidueFloat64x8",
+		name:    "RoundScaledResidueFloat64x8",
 		auxType: auxUInt8,
 		argLen:  1,
 		generic: true,

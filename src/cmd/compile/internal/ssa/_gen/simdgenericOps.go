@@ -769,10 +769,10 @@ func simdGenericOps() []opData {
 		{name: "RotateRightUint64x2", argLength: 2},                                     // ARCH:amd64
 		{name: "RotateRightUint64x4", argLength: 2},                                     // ARCH:amd64
 		{name: "RotateRightUint64x8", argLength: 2},                                     // ARCH:amd64
-		{name: "RoundToEvenFloat32x4", argLength: 1},                                    // ARCH:amd64
-		{name: "RoundToEvenFloat32x8", argLength: 1},                                    // ARCH:amd64
-		{name: "RoundToEvenFloat64x2", argLength: 1},                                    // ARCH:amd64
-		{name: "RoundToEvenFloat64x4", argLength: 1},                                    // ARCH:amd64
+		{name: "RoundFloat32x4", argLength: 1},                                          // ARCH:amd64
+		{name: "RoundFloat32x8", argLength: 1},                                          // ARCH:amd64
+		{name: "RoundFloat64x2", argLength: 1},                                          // ARCH:amd64
+		{name: "RoundFloat64x4", argLength: 1},                                          // ARCH:amd64
 		{name: "SHA1Message1Uint32x4", argLength: 2},                                    // ARCH:amd64
 		{name: "SHA1Message2Uint32x4", argLength: 2},                                    // ARCH:amd64
 		{name: "SHA1NextEUint32x4", argLength: 2},                                       // ARCH:amd64
@@ -1238,18 +1238,18 @@ func simdGenericOps() []opData {
 		{name: "RotateAllRightUint64x2", argLength: 1, aux: "UInt8"},                    // ARCH:amd64
 		{name: "RotateAllRightUint64x4", argLength: 1, aux: "UInt8"},                    // ARCH:amd64
 		{name: "RotateAllRightUint64x8", argLength: 1, aux: "UInt8"},                    // ARCH:amd64
-		{name: "RoundToEvenScaledFloat32x4", argLength: 1, aux: "UInt8"},                // ARCH:amd64
-		{name: "RoundToEvenScaledFloat32x8", argLength: 1, aux: "UInt8"},                // ARCH:amd64
-		{name: "RoundToEvenScaledFloat32x16", argLength: 1, aux: "UInt8"},               // ARCH:amd64
-		{name: "RoundToEvenScaledFloat64x2", argLength: 1, aux: "UInt8"},                // ARCH:amd64
-		{name: "RoundToEvenScaledFloat64x4", argLength: 1, aux: "UInt8"},                // ARCH:amd64
-		{name: "RoundToEvenScaledFloat64x8", argLength: 1, aux: "UInt8"},                // ARCH:amd64
-		{name: "RoundToEvenScaledResidueFloat32x4", argLength: 1, aux: "UInt8"},         // ARCH:amd64
-		{name: "RoundToEvenScaledResidueFloat32x8", argLength: 1, aux: "UInt8"},         // ARCH:amd64
-		{name: "RoundToEvenScaledResidueFloat32x16", argLength: 1, aux: "UInt8"},        // ARCH:amd64
-		{name: "RoundToEvenScaledResidueFloat64x2", argLength: 1, aux: "UInt8"},         // ARCH:amd64
-		{name: "RoundToEvenScaledResidueFloat64x4", argLength: 1, aux: "UInt8"},         // ARCH:amd64
-		{name: "RoundToEvenScaledResidueFloat64x8", argLength: 1, aux: "UInt8"},         // ARCH:amd64
+		{name: "RoundScaledFloat32x4", argLength: 1, aux: "UInt8"},                      // ARCH:amd64
+		{name: "RoundScaledFloat32x8", argLength: 1, aux: "UInt8"},                      // ARCH:amd64
+		{name: "RoundScaledFloat32x16", argLength: 1, aux: "UInt8"},                     // ARCH:amd64
+		{name: "RoundScaledFloat64x2", argLength: 1, aux: "UInt8"},                      // ARCH:amd64
+		{name: "RoundScaledFloat64x4", argLength: 1, aux: "UInt8"},                      // ARCH:amd64
+		{name: "RoundScaledFloat64x8", argLength: 1, aux: "UInt8"},                      // ARCH:amd64
+		{name: "RoundScaledResidueFloat32x4", argLength: 1, aux: "UInt8"},               // ARCH:amd64
+		{name: "RoundScaledResidueFloat32x8", argLength: 1, aux: "UInt8"},               // ARCH:amd64
+		{name: "RoundScaledResidueFloat32x16", argLength: 1, aux: "UInt8"},              // ARCH:amd64
+		{name: "RoundScaledResidueFloat64x2", argLength: 1, aux: "UInt8"},               // ARCH:amd64
+		{name: "RoundScaledResidueFloat64x4", argLength: 1, aux: "UInt8"},               // ARCH:amd64
+		{name: "RoundScaledResidueFloat64x8", argLength: 1, aux: "UInt8"},               // ARCH:amd64
 		{name: "SHA1FourRoundsUint32x4", argLength: 2, aux: "UInt8"},                    // ARCH:amd64
 		{name: "Select128FromPairFloat32x8", argLength: 2, aux: "UInt8"},                // ARCH:amd64
 		{name: "Select128FromPairFloat64x4", argLength: 2, aux: "UInt8"},                // ARCH:amd64
