@@ -104,8 +104,8 @@ import (
 	"slices"
 	"strings"
 
-	"simd/archsimd/_gen/simdgen/arm64"
-	"simd/archsimd/_gen/unify"
+	"_gen/simdgen/arm64"
+	"_gen/unify"
 
 	"gopkg.in/yaml.v3"
 )

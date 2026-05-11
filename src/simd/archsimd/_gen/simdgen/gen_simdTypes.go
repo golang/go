@@ -14,7 +14,7 @@ import (
 	"strings"
 	"unicode"
 
-	"simd/archsimd/_gen/sgutil"
+	"_gen/sgutil"
 )
 
 type simdType struct {
