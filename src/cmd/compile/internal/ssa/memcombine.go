@@ -27,33 +27,60 @@ func memcombine(f *Func) {
 }
 
 // isAligned attempts to prove that ptr + offset is aligned to align bytes.
-func isAligned(ptr *Value, offset int64, align int64) bool {
+func isAligned(f *Func, ptr *Value, offset int64, align int64) bool {
+
 	if align <= 1 {
 		return true
 	}
 
-	// Basic principle: (PointerAlignment + Offset) % align == 0
-	switch ptr.Op {
-	case OpAddr, OpLocalAddr:
-		// Global variables or local variables (stack) usually have explicit alignment attributes
-		// In SSA, Aux typically contains *obj.LSym or *ir.Name
-		if a, ok := ptr.Aux.(interface{ Alignment() int64 }); ok {
-			baseAlign := a.Alignment()
-			return baseAlign%align == 0 && offset%align == 0
-		}
-	case OpArg:
-		// Function arguments are typically aligned at least to their type's alignment requirement,
-		// and on architectures like riscv64, stack frame start is usually 8 or 16 byte aligned.
-		if ptr.Type.Alignment()%align == 0 && offset%align == 0 {
-			return true
-		}
-	case OpOffPtr:
-		// Recursive check: if ptr = base + off1, then total offset is off1 + offset
-		return isAligned(ptr.Args[0], ptr.AuxInt+offset, align)
+	if align&(align-1) != 0 {
+		return false
 	}
 
-	// If alignment cannot be statically proven, return false for safety
-	return false
+	totalOffset := offset
+	cur := ptr
+	depth := 0
+
+	for {
+		depth++
+
+		switch cur.Op {
+		case OpAddr:
+			typ := cur.Type
+			if typ == nil {
+				return false
+			}
+			typeAlign := typ.Alignment()
+			return totalOffset%align == 0 && align <= int64(typeAlign)
+
+		case OpLocalAddr:
+			stackAlign := int64(16)
+			return totalOffset%align == 0 && align <= stackAlign
+			
+		case OpArg:
+			argAlign := cur.Type.Alignment()
+			return totalOffset%align == 0 && align <= int64(argAlign)
+
+		case OpArgIntReg, OpArgFloatReg:
+			return false
+
+		case OpOffPtr:
+			totalOffset += cur.AuxInt
+			cur = cur.Args[0]
+			continue
+
+		case OpAddPtr:
+			if idx := cur.Args[1]; idx.Op == OpConst64 || idx.Op == OpConst32 {
+				totalOffset += idx.AuxInt
+				cur = cur.Args[0]
+				continue
+			}
+			return false
+
+		default:
+			return false
+		}
+	}
 }
 
 func memcombineLoads(f *Func) {
@@ -295,7 +322,7 @@ func combineLoads(root *Value, n int64) bool {
 		// (BasePointer + r[0].offset) % totalSize == 0
 		//
 		// Use isAligned function to statically check alignment
-		if !isAligned(base.ptr, r[0].offset, totalSize) {
+		if !isAligned(root.Block.Func, base.ptr, r[0].offset, totalSize) {
 			// Cannot statically prove alignment, skip combining for safety
 			return false
 		}
@@ -627,7 +654,7 @@ func combineStores(root *Value) {
 				if !root.Block.Func.Config.unalignedOK {
 					// Need to prove the combined store address is naturally aligned
 					// Check if the first store location is aligned to totalSize
-					if !isAligned(rbase.ptr, candidate[0].offset, s) {
+					if !isAligned(root.Block.Func, rbase.ptr, candidate[0].offset, s) {
 						// Cannot prove alignment, skip this candidate set
 						continue
 					}
