@@ -86,15 +86,48 @@
   commutative: false
   documentation: !string |-
     // NAME rotates each element in x to the right by the number of bits specified by y's corresponding elements.
-- go: ShiftAllLeftConcat
+# Bizzare shifts
+- go: ShiftAllLeftConcatMod16
+  nameAndSizeCheck: true
+  commutative: false
+  documentation: !string |-
+    // NAME shifts x[i] left by shift%16, filing any empted lower bits
+    // with the high bits of y[i].
+    //
+    //    z[i] = concat(x[i], y[i]) << (shift%16)
+- go: ShiftAllRightConcatMod16
+  nameAndSizeCheck: true
+  commutative: false
+  documentation: !string |-
+    // NAME shifts x[i] right by shift%16, filling any emptied upper bits
+    // with the low bits of y[i].
+    //
+    //    z[i] = concat(y[i], x[i]) >> (shift%16)
+- go: ShiftLeftConcatMod16
+  nameAndSizeCheck: true
+  commutative: false
+  documentation: !string |-
+    // NAME shifts x[i] left by shift[i]%16, filing any empted lower bits
+    // with the high bits of y[i].
+    //
+    //    z[i] = concat(x[i], y[i]) << (shift[i]%16)
+- go: ShiftRightConcatMod16
+  nameAndSizeCheck: true
+  commutative: false
+  documentation: !string |-
+    // NAME shifts x[i] right by shift[i]%16, filling any emptied upper bits
+    // with the low bits of y[i].
+    //
+    //    z[i] = concat(y[i], x[i]) >> (shift[i]%16)
+- go: ShiftAllLeftConcatMod32
   nameAndSizeCheck: true
   commutative: false
   documentation: !string |-
     // NAME shifts x[i] left by shift%32, filing any empted lower bits
     // with the high bits of y[i].
     //
-    //    z[i] = concat(x[i], y[i]) << (shift%32 - 32)
-- go: ShiftAllRightConcat
+    //    z[i] = concat(x[i], y[i]) << (shift%32)
+- go: ShiftAllRightConcatMod32
   nameAndSizeCheck: true
   commutative: false
   documentation: !string |-
@@ -102,15 +135,15 @@
     // with the low bits of y[i].
     //
     //    z[i] = concat(y[i], x[i]) >> (shift%32)
-- go: ShiftLeftConcat
+- go: ShiftLeftConcatMod32
   nameAndSizeCheck: true
   commutative: false
   documentation: !string |-
     // NAME shifts x[i] left by shift[i]%32, filing any empted lower bits
     // with the high bits of y[i].
     //
-    //    z[i] = concat(x[i], y[i]) << (shift[i]%32 - 32)
-- go: ShiftRightConcat
+    //    z[i] = concat(x[i], y[i]) << (shift[i]%32)
+- go: ShiftRightConcatMod32
   nameAndSizeCheck: true
   commutative: false
   documentation: !string |-
@@ -118,3 +151,35 @@
     // with the low bits of y[i].
     //
     //    z[i] = concat(y[i], x[i]) >> (shift[i]%32)
+- go: ShiftAllLeftConcatMod64
+  nameAndSizeCheck: true
+  commutative: false
+  documentation: !string |-
+    // NAME shifts x[i] left by shift%64, filing any empted lower bits
+    // with the high bits of y[i].
+    //
+    //    z[i] = concat(x[i], y[i]) << (shift%64)
+- go: ShiftAllRightConcatMod64
+  nameAndSizeCheck: true
+  commutative: false
+  documentation: !string |-
+    // NAME shifts x[i] right by shift%64, filling any emptied upper bits
+    // with the low bits of y[i].
+    //
+    //    z[i] = concat(y[i], x[i]) >> (shift%64)
+- go: ShiftLeftConcatMod64
+  nameAndSizeCheck: true
+  commutative: false
+  documentation: !string |-
+    // NAME shifts x[i] left by shift[i]%64, filing any empted lower bits
+    // with the high bits of y[i].
+    //
+    //    z[i] = concat(x[i], y[i]) << (shift[i]%64)
+- go: ShiftRightConcatMod64
+  nameAndSizeCheck: true
+  commutative: false
+  documentation: !string |-
+    // NAME shifts x[i] right by shift[i]%64, filling any emptied upper bits
+    // with the low bits of y[i].
+    //
+    //    z[i] = concat(y[i], x[i]) >> (shift[i]%64)

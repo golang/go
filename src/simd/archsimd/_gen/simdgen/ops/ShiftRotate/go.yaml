@@ -156,8 +156,8 @@
   - *any
 
 # Bizzare shifts.
-- go: ShiftAllLeftConcat
-  asm: "VPSHLD[WDQ]"
+- go: ShiftAllLeftConcatMod16
+  asm: "VPSHLDW"
   operandOrder: 2I
   in:
   - *any
@@ -165,8 +165,8 @@
   - *pureImm
   out:
   - *any
-- go: ShiftAllRightConcat
-  asm: "VPSHRD[WDQ]"
+- go: ShiftAllRightConcatMod16
+  asm: "VPSHRDW"
   operandOrder: 2I
   in:
   - *any
@@ -174,8 +174,8 @@
   - *pureImm
   out:
   - *any
-- go: ShiftLeftConcat
-  asm: "VPSHLDV[WDQ]"
+- go: ShiftLeftConcatMod16
+  asm: "VPSHLDVW"
   in:
   - go: $t
   - go: $t
@@ -183,8 +183,80 @@
     name: shift
   out:
   - go: $t
-- go: ShiftRightConcat
-  asm: "VPSHRDV[WDQ]"
+- go: ShiftRightConcatMod16
+  asm: "VPSHRDVW"
+  in:
+  - go: $t
+  - go: $t
+  - base: uint
+    name: shift
+  out:
+  - go: $t
+- go: ShiftAllLeftConcatMod32
+  asm: "VPSHLDD"
+  operandOrder: 2I
+  in:
+  - *any
+  - *any
+  - *pureImm
+  out:
+  - *any
+- go: ShiftAllRightConcatMod32
+  asm: "VPSHRDD"
+  operandOrder: 2I
+  in:
+  - *any
+  - *any
+  - *pureImm
+  out:
+  - *any
+- go: ShiftLeftConcatMod32
+  asm: "VPSHLDVD"
+  in:
+  - go: $t
+  - go: $t
+  - base: uint
+    name: shift
+  out:
+  - go: $t
+- go: ShiftRightConcatMod32
+  asm: "VPSHRDVD"
+  in:
+  - go: $t
+  - go: $t
+  - base: uint
+    name: shift
+  out:
+  - go: $t
+- go: ShiftAllLeftConcatMod64
+  asm: "VPSHLDQ"
+  operandOrder: 2I
+  in:
+  - *any
+  - *any
+  - *pureImm
+  out:
+  - *any
+- go: ShiftAllRightConcatMod64
+  asm: "VPSHRDQ"
+  operandOrder: 2I
+  in:
+  - *any
+  - *any
+  - *pureImm
+  out:
+  - *any
+- go: ShiftLeftConcatMod64
+  asm: "VPSHLDVQ"
+  in:
+  - go: $t
+  - go: $t
+  - base: uint
+    name: shift
+  out:
+  - go: $t
+- go: ShiftRightConcatMod64
+  asm: "VPSHRDVQ"
   in:
   - go: $t
   - go: $t

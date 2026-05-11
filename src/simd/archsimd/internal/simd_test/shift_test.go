@@ -109,20 +109,20 @@ func TestShiftAllConcat(t *testing.T) {
 	}
 
 	testInt32x4Binary(t,
-		func(x, y archsimd.Int32x4) archsimd.Int32x4 { return x.ShiftAllLeftConcat(y, 2) },
+		func(x, y archsimd.Int32x4) archsimd.Int32x4 { return x.ShiftAllLeftConcatMod32(y, 2) },
 		map2(salc(2)))
 	testInt32x4Binary(t,
-		func(x, y archsimd.Int32x4) archsimd.Int32x4 { return x.ShiftAllLeftConcat(y, hide(2)) },
+		func(x, y archsimd.Int32x4) archsimd.Int32x4 { return x.ShiftAllLeftConcatMod32(y, hide(2)) },
 		map2(salc(hide(2))))
 
 	// TODO: If we expand the shift from uint8, add larger cases (e.g., 0x1000).
 	// The uint8 conversion is only here so the build will fail if we change it.
 
 	testInt32x4Binary(t,
-		func(x, y archsimd.Int32x4) archsimd.Int32x4 { return x.ShiftAllLeftConcat(y, uint8(128)) },
+		func(x, y archsimd.Int32x4) archsimd.Int32x4 { return x.ShiftAllLeftConcatMod32(y, uint8(128)) },
 		map2(salc(128)))
 	testInt32x4Binary(t,
-		func(x, y archsimd.Int32x4) archsimd.Int32x4 { return x.ShiftAllLeftConcat(y, hide(128)) },
+		func(x, y archsimd.Int32x4) archsimd.Int32x4 { return x.ShiftAllLeftConcatMod32(y, hide(128)) },
 		map2(salc(hide(128))))
 
 	// Signed ShiftAllRightConcat
@@ -133,17 +133,17 @@ func TestShiftAllConcat(t *testing.T) {
 	}
 
 	testInt32x4Binary(t,
-		func(x, y archsimd.Int32x4) archsimd.Int32x4 { return x.ShiftAllRightConcat(y, 2) },
+		func(x, y archsimd.Int32x4) archsimd.Int32x4 { return x.ShiftAllRightConcatMod32(y, 2) },
 		map2(sarc(2)))
 	testInt32x4Binary(t,
-		func(x, y archsimd.Int32x4) archsimd.Int32x4 { return x.ShiftAllRightConcat(y, hide(2)) },
+		func(x, y archsimd.Int32x4) archsimd.Int32x4 { return x.ShiftAllRightConcatMod32(y, hide(2)) },
 		map2(sarc(hide(2))))
 
 	testInt32x4Binary(t,
-		func(x, y archsimd.Int32x4) archsimd.Int32x4 { return x.ShiftAllRightConcat(y, uint8(128)) },
+		func(x, y archsimd.Int32x4) archsimd.Int32x4 { return x.ShiftAllRightConcatMod32(y, uint8(128)) },
 		map2(sarc(128)))
 	testInt32x4Binary(t,
-		func(x, y archsimd.Int32x4) archsimd.Int32x4 { return x.ShiftAllRightConcat(y, hide(128)) },
+		func(x, y archsimd.Int32x4) archsimd.Int32x4 { return x.ShiftAllRightConcatMod32(y, hide(128)) },
 		map2(sarc(hide(128))))
 
 	// Unsigned ShiftAllRightConcat
@@ -154,17 +154,17 @@ func TestShiftAllConcat(t *testing.T) {
 	}
 
 	testUint32x4Binary(t,
-		func(x, y archsimd.Uint32x4) archsimd.Uint32x4 { return x.ShiftAllRightConcat(y, 2) },
+		func(x, y archsimd.Uint32x4) archsimd.Uint32x4 { return x.ShiftAllRightConcatMod32(y, 2) },
 		map2(usarc(2)))
 	testUint32x4Binary(t,
-		func(x, y archsimd.Uint32x4) archsimd.Uint32x4 { return x.ShiftAllRightConcat(y, hide(2)) },
+		func(x, y archsimd.Uint32x4) archsimd.Uint32x4 { return x.ShiftAllRightConcatMod32(y, hide(2)) },
 		map2(usarc(hide(2))))
 
 	testUint32x4Binary(t,
-		func(x, y archsimd.Uint32x4) archsimd.Uint32x4 { return x.ShiftAllRightConcat(y, uint8(128)) },
+		func(x, y archsimd.Uint32x4) archsimd.Uint32x4 { return x.ShiftAllRightConcatMod32(y, uint8(128)) },
 		map2(usarc(128)))
 	testUint32x4Binary(t,
-		func(x, y archsimd.Uint32x4) archsimd.Uint32x4 { return x.ShiftAllRightConcat(y, hide(128)) },
+		func(x, y archsimd.Uint32x4) archsimd.Uint32x4 { return x.ShiftAllRightConcatMod32(y, hide(128)) },
 		map2(usarc(hide(128))))
 }
 
@@ -176,19 +176,19 @@ func TestShiftConcat(t *testing.T) {
 	// Note that unlike their non-Concat counterparts, these wrap the shift count.
 
 	testInt32x4Ternary(t,
-		func(x, y, z archsimd.Int32x4) archsimd.Int32x4 { return x.ShiftLeftConcat(y, z.AsUint32x4()) },
+		func(x, y, z archsimd.Int32x4) archsimd.Int32x4 { return x.ShiftLeftConcatMod32(y, z.AsUint32x4()) },
 		map3(func(x, y, z int32) int32 {
 			return int32(concatInt32s(x, y) >> (32 - uint32(z)%32))
 		}))
 
 	testInt32x4Ternary(t,
-		func(x, y, z archsimd.Int32x4) archsimd.Int32x4 { return x.ShiftRightConcat(y, z.AsUint32x4()) },
+		func(x, y, z archsimd.Int32x4) archsimd.Int32x4 { return x.ShiftRightConcatMod32(y, z.AsUint32x4()) },
 		map3(func(x, y, z int32) int32 {
 			return int32(concatInt32s(y, x) >> (uint32(z) % 32))
 		}))
 
 	testUint32x4Ternary(t,
-		func(x, y, z archsimd.Uint32x4) archsimd.Uint32x4 { return x.ShiftRightConcat(y, z) },
+		func(x, y, z archsimd.Uint32x4) archsimd.Uint32x4 { return x.ShiftRightConcatMod32(y, z) },
 		map3(func(x, y, z uint32) uint32 {
 			return uint32(concatUint32s(y, x) >> (z % 32))
 		}))

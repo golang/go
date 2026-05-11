@@ -903,24 +903,24 @@ func simdGenericOps() []opData {
 		{name: "ShiftAllRightUint64x2", argLength: 2},                                   // ARCH:amd64
 		{name: "ShiftAllRightUint64x4", argLength: 2},                                   // ARCH:amd64
 		{name: "ShiftAllRightUint64x8", argLength: 2},                                   // ARCH:amd64
-		{name: "ShiftLeftConcatInt16x8", argLength: 3},                                  // ARCH:amd64
-		{name: "ShiftLeftConcatInt16x16", argLength: 3},                                 // ARCH:amd64
-		{name: "ShiftLeftConcatInt16x32", argLength: 3},                                 // ARCH:amd64
-		{name: "ShiftLeftConcatInt32x4", argLength: 3},                                  // ARCH:amd64
-		{name: "ShiftLeftConcatInt32x8", argLength: 3},                                  // ARCH:amd64
-		{name: "ShiftLeftConcatInt32x16", argLength: 3},                                 // ARCH:amd64
-		{name: "ShiftLeftConcatInt64x2", argLength: 3},                                  // ARCH:amd64
-		{name: "ShiftLeftConcatInt64x4", argLength: 3},                                  // ARCH:amd64
-		{name: "ShiftLeftConcatInt64x8", argLength: 3},                                  // ARCH:amd64
-		{name: "ShiftLeftConcatUint16x8", argLength: 3},                                 // ARCH:amd64
-		{name: "ShiftLeftConcatUint16x16", argLength: 3},                                // ARCH:amd64
-		{name: "ShiftLeftConcatUint16x32", argLength: 3},                                // ARCH:amd64
-		{name: "ShiftLeftConcatUint32x4", argLength: 3},                                 // ARCH:amd64
-		{name: "ShiftLeftConcatUint32x8", argLength: 3},                                 // ARCH:amd64
-		{name: "ShiftLeftConcatUint32x16", argLength: 3},                                // ARCH:amd64
-		{name: "ShiftLeftConcatUint64x2", argLength: 3},                                 // ARCH:amd64
-		{name: "ShiftLeftConcatUint64x4", argLength: 3},                                 // ARCH:amd64
-		{name: "ShiftLeftConcatUint64x8", argLength: 3},                                 // ARCH:amd64
+		{name: "ShiftLeftConcatMod16Int16x8", argLength: 3},                             // ARCH:amd64
+		{name: "ShiftLeftConcatMod16Int16x16", argLength: 3},                            // ARCH:amd64
+		{name: "ShiftLeftConcatMod16Int16x32", argLength: 3},                            // ARCH:amd64
+		{name: "ShiftLeftConcatMod16Uint16x8", argLength: 3},                            // ARCH:amd64
+		{name: "ShiftLeftConcatMod16Uint16x16", argLength: 3},                           // ARCH:amd64
+		{name: "ShiftLeftConcatMod16Uint16x32", argLength: 3},                           // ARCH:amd64
+		{name: "ShiftLeftConcatMod32Int32x4", argLength: 3},                             // ARCH:amd64
+		{name: "ShiftLeftConcatMod32Int32x8", argLength: 3},                             // ARCH:amd64
+		{name: "ShiftLeftConcatMod32Int32x16", argLength: 3},                            // ARCH:amd64
+		{name: "ShiftLeftConcatMod32Uint32x4", argLength: 3},                            // ARCH:amd64
+		{name: "ShiftLeftConcatMod32Uint32x8", argLength: 3},                            // ARCH:amd64
+		{name: "ShiftLeftConcatMod32Uint32x16", argLength: 3},                           // ARCH:amd64
+		{name: "ShiftLeftConcatMod64Int64x2", argLength: 3},                             // ARCH:amd64
+		{name: "ShiftLeftConcatMod64Int64x4", argLength: 3},                             // ARCH:amd64
+		{name: "ShiftLeftConcatMod64Int64x8", argLength: 3},                             // ARCH:amd64
+		{name: "ShiftLeftConcatMod64Uint64x2", argLength: 3},                            // ARCH:amd64
+		{name: "ShiftLeftConcatMod64Uint64x4", argLength: 3},                            // ARCH:amd64
+		{name: "ShiftLeftConcatMod64Uint64x8", argLength: 3},                            // ARCH:amd64
 		{name: "ShiftLeftInt16x8", argLength: 2},                                        // ARCH:amd64
 		{name: "ShiftLeftInt16x16", argLength: 2},                                       // ARCH:amd64
 		{name: "ShiftLeftInt16x32", argLength: 2},                                       // ARCH:amd64
@@ -939,24 +939,24 @@ func simdGenericOps() []opData {
 		{name: "ShiftLeftUint64x2", argLength: 2},                                       // ARCH:amd64
 		{name: "ShiftLeftUint64x4", argLength: 2},                                       // ARCH:amd64
 		{name: "ShiftLeftUint64x8", argLength: 2},                                       // ARCH:amd64
-		{name: "ShiftRightConcatInt16x8", argLength: 3},                                 // ARCH:amd64
-		{name: "ShiftRightConcatInt16x16", argLength: 3},                                // ARCH:amd64
-		{name: "ShiftRightConcatInt16x32", argLength: 3},                                // ARCH:amd64
-		{name: "ShiftRightConcatInt32x4", argLength: 3},                                 // ARCH:amd64
-		{name: "ShiftRightConcatInt32x8", argLength: 3},                                 // ARCH:amd64
-		{name: "ShiftRightConcatInt32x16", argLength: 3},                                // ARCH:amd64
-		{name: "ShiftRightConcatInt64x2", argLength: 3},                                 // ARCH:amd64
-		{name: "ShiftRightConcatInt64x4", argLength: 3},                                 // ARCH:amd64
-		{name: "ShiftRightConcatInt64x8", argLength: 3},                                 // ARCH:amd64
-		{name: "ShiftRightConcatUint16x8", argLength: 3},                                // ARCH:amd64
-		{name: "ShiftRightConcatUint16x16", argLength: 3},                               // ARCH:amd64
-		{name: "ShiftRightConcatUint16x32", argLength: 3},                               // ARCH:amd64
-		{name: "ShiftRightConcatUint32x4", argLength: 3},                                // ARCH:amd64
-		{name: "ShiftRightConcatUint32x8", argLength: 3},                                // ARCH:amd64
-		{name: "ShiftRightConcatUint32x16", argLength: 3},                               // ARCH:amd64
-		{name: "ShiftRightConcatUint64x2", argLength: 3},                                // ARCH:amd64
-		{name: "ShiftRightConcatUint64x4", argLength: 3},                                // ARCH:amd64
-		{name: "ShiftRightConcatUint64x8", argLength: 3},                                // ARCH:amd64
+		{name: "ShiftRightConcatMod16Int16x8", argLength: 3},                            // ARCH:amd64
+		{name: "ShiftRightConcatMod16Int16x16", argLength: 3},                           // ARCH:amd64
+		{name: "ShiftRightConcatMod16Int16x32", argLength: 3},                           // ARCH:amd64
+		{name: "ShiftRightConcatMod16Uint16x8", argLength: 3},                           // ARCH:amd64
+		{name: "ShiftRightConcatMod16Uint16x16", argLength: 3},                          // ARCH:amd64
+		{name: "ShiftRightConcatMod16Uint16x32", argLength: 3},                          // ARCH:amd64
+		{name: "ShiftRightConcatMod32Int32x4", argLength: 3},                            // ARCH:amd64
+		{name: "ShiftRightConcatMod32Int32x8", argLength: 3},                            // ARCH:amd64
+		{name: "ShiftRightConcatMod32Int32x16", argLength: 3},                           // ARCH:amd64
+		{name: "ShiftRightConcatMod32Uint32x4", argLength: 3},                           // ARCH:amd64
+		{name: "ShiftRightConcatMod32Uint32x8", argLength: 3},                           // ARCH:amd64
+		{name: "ShiftRightConcatMod32Uint32x16", argLength: 3},                          // ARCH:amd64
+		{name: "ShiftRightConcatMod64Int64x2", argLength: 3},                            // ARCH:amd64
+		{name: "ShiftRightConcatMod64Int64x4", argLength: 3},                            // ARCH:amd64
+		{name: "ShiftRightConcatMod64Int64x8", argLength: 3},                            // ARCH:amd64
+		{name: "ShiftRightConcatMod64Uint64x2", argLength: 3},                           // ARCH:amd64
+		{name: "ShiftRightConcatMod64Uint64x4", argLength: 3},                           // ARCH:amd64
+		{name: "ShiftRightConcatMod64Uint64x8", argLength: 3},                           // ARCH:amd64
 		{name: "ShiftRightInt16x8", argLength: 2},                                       // ARCH:amd64
 		{name: "ShiftRightInt16x16", argLength: 2},                                      // ARCH:amd64
 		{name: "ShiftRightInt16x32", argLength: 2},                                      // ARCH:amd64
@@ -1271,42 +1271,42 @@ func simdGenericOps() []opData {
 		{name: "SetElemUint16x8", argLength: 2, aux: "UInt8"},                           // ARCH:amd64
 		{name: "SetElemUint32x4", argLength: 2, aux: "UInt8"},                           // ARCH:amd64
 		{name: "SetElemUint64x2", argLength: 2, aux: "UInt8"},                           // ARCH:amd64
-		{name: "ShiftAllLeftConcatInt16x8", argLength: 2, aux: "UInt8"},                 // ARCH:amd64
-		{name: "ShiftAllLeftConcatInt16x16", argLength: 2, aux: "UInt8"},                // ARCH:amd64
-		{name: "ShiftAllLeftConcatInt16x32", argLength: 2, aux: "UInt8"},                // ARCH:amd64
-		{name: "ShiftAllLeftConcatInt32x4", argLength: 2, aux: "UInt8"},                 // ARCH:amd64
-		{name: "ShiftAllLeftConcatInt32x8", argLength: 2, aux: "UInt8"},                 // ARCH:amd64
-		{name: "ShiftAllLeftConcatInt32x16", argLength: 2, aux: "UInt8"},                // ARCH:amd64
-		{name: "ShiftAllLeftConcatInt64x2", argLength: 2, aux: "UInt8"},                 // ARCH:amd64
-		{name: "ShiftAllLeftConcatInt64x4", argLength: 2, aux: "UInt8"},                 // ARCH:amd64
-		{name: "ShiftAllLeftConcatInt64x8", argLength: 2, aux: "UInt8"},                 // ARCH:amd64
-		{name: "ShiftAllLeftConcatUint16x8", argLength: 2, aux: "UInt8"},                // ARCH:amd64
-		{name: "ShiftAllLeftConcatUint16x16", argLength: 2, aux: "UInt8"},               // ARCH:amd64
-		{name: "ShiftAllLeftConcatUint16x32", argLength: 2, aux: "UInt8"},               // ARCH:amd64
-		{name: "ShiftAllLeftConcatUint32x4", argLength: 2, aux: "UInt8"},                // ARCH:amd64
-		{name: "ShiftAllLeftConcatUint32x8", argLength: 2, aux: "UInt8"},                // ARCH:amd64
-		{name: "ShiftAllLeftConcatUint32x16", argLength: 2, aux: "UInt8"},               // ARCH:amd64
-		{name: "ShiftAllLeftConcatUint64x2", argLength: 2, aux: "UInt8"},                // ARCH:amd64
-		{name: "ShiftAllLeftConcatUint64x4", argLength: 2, aux: "UInt8"},                // ARCH:amd64
-		{name: "ShiftAllLeftConcatUint64x8", argLength: 2, aux: "UInt8"},                // ARCH:amd64
-		{name: "ShiftAllRightConcatInt16x8", argLength: 2, aux: "UInt8"},                // ARCH:amd64
-		{name: "ShiftAllRightConcatInt16x16", argLength: 2, aux: "UInt8"},               // ARCH:amd64
-		{name: "ShiftAllRightConcatInt16x32", argLength: 2, aux: "UInt8"},               // ARCH:amd64
-		{name: "ShiftAllRightConcatInt32x4", argLength: 2, aux: "UInt8"},                // ARCH:amd64
-		{name: "ShiftAllRightConcatInt32x8", argLength: 2, aux: "UInt8"},                // ARCH:amd64
-		{name: "ShiftAllRightConcatInt32x16", argLength: 2, aux: "UInt8"},               // ARCH:amd64
-		{name: "ShiftAllRightConcatInt64x2", argLength: 2, aux: "UInt8"},                // ARCH:amd64
-		{name: "ShiftAllRightConcatInt64x4", argLength: 2, aux: "UInt8"},                // ARCH:amd64
-		{name: "ShiftAllRightConcatInt64x8", argLength: 2, aux: "UInt8"},                // ARCH:amd64
-		{name: "ShiftAllRightConcatUint16x8", argLength: 2, aux: "UInt8"},               // ARCH:amd64
-		{name: "ShiftAllRightConcatUint16x16", argLength: 2, aux: "UInt8"},              // ARCH:amd64
-		{name: "ShiftAllRightConcatUint16x32", argLength: 2, aux: "UInt8"},              // ARCH:amd64
-		{name: "ShiftAllRightConcatUint32x4", argLength: 2, aux: "UInt8"},               // ARCH:amd64
-		{name: "ShiftAllRightConcatUint32x8", argLength: 2, aux: "UInt8"},               // ARCH:amd64
-		{name: "ShiftAllRightConcatUint32x16", argLength: 2, aux: "UInt8"},              // ARCH:amd64
-		{name: "ShiftAllRightConcatUint64x2", argLength: 2, aux: "UInt8"},               // ARCH:amd64
-		{name: "ShiftAllRightConcatUint64x4", argLength: 2, aux: "UInt8"},               // ARCH:amd64
-		{name: "ShiftAllRightConcatUint64x8", argLength: 2, aux: "UInt8"},               // ARCH:amd64
+		{name: "ShiftAllLeftConcatMod16Int16x8", argLength: 2, aux: "UInt8"},            // ARCH:amd64
+		{name: "ShiftAllLeftConcatMod16Int16x16", argLength: 2, aux: "UInt8"},           // ARCH:amd64
+		{name: "ShiftAllLeftConcatMod16Int16x32", argLength: 2, aux: "UInt8"},           // ARCH:amd64
+		{name: "ShiftAllLeftConcatMod16Uint16x8", argLength: 2, aux: "UInt8"},           // ARCH:amd64
+		{name: "ShiftAllLeftConcatMod16Uint16x16", argLength: 2, aux: "UInt8"},          // ARCH:amd64
+		{name: "ShiftAllLeftConcatMod16Uint16x32", argLength: 2, aux: "UInt8"},          // ARCH:amd64
+		{name: "ShiftAllLeftConcatMod32Int32x4", argLength: 2, aux: "UInt8"},            // ARCH:amd64
+		{name: "ShiftAllLeftConcatMod32Int32x8", argLength: 2, aux: "UInt8"},            // ARCH:amd64
+		{name: "ShiftAllLeftConcatMod32Int32x16", argLength: 2, aux: "UInt8"},           // ARCH:amd64
+		{name: "ShiftAllLeftConcatMod32Uint32x4", argLength: 2, aux: "UInt8"},           // ARCH:amd64
+		{name: "ShiftAllLeftConcatMod32Uint32x8", argLength: 2, aux: "UInt8"},           // ARCH:amd64
+		{name: "ShiftAllLeftConcatMod32Uint32x16", argLength: 2, aux: "UInt8"},          // ARCH:amd64
+		{name: "ShiftAllLeftConcatMod64Int64x2", argLength: 2, aux: "UInt8"},            // ARCH:amd64
+		{name: "ShiftAllLeftConcatMod64Int64x4", argLength: 2, aux: "UInt8"},            // ARCH:amd64
+		{name: "ShiftAllLeftConcatMod64Int64x8", argLength: 2, aux: "UInt8"},            // ARCH:amd64
+		{name: "ShiftAllLeftConcatMod64Uint64x2", argLength: 2, aux: "UInt8"},           // ARCH:amd64
+		{name: "ShiftAllLeftConcatMod64Uint64x4", argLength: 2, aux: "UInt8"},           // ARCH:amd64
+		{name: "ShiftAllLeftConcatMod64Uint64x8", argLength: 2, aux: "UInt8"},           // ARCH:amd64
+		{name: "ShiftAllRightConcatMod16Int16x8", argLength: 2, aux: "UInt8"},           // ARCH:amd64
+		{name: "ShiftAllRightConcatMod16Int16x16", argLength: 2, aux: "UInt8"},          // ARCH:amd64
+		{name: "ShiftAllRightConcatMod16Int16x32", argLength: 2, aux: "UInt8"},          // ARCH:amd64
+		{name: "ShiftAllRightConcatMod16Uint16x8", argLength: 2, aux: "UInt8"},          // ARCH:amd64
+		{name: "ShiftAllRightConcatMod16Uint16x16", argLength: 2, aux: "UInt8"},         // ARCH:amd64
+		{name: "ShiftAllRightConcatMod16Uint16x32", argLength: 2, aux: "UInt8"},         // ARCH:amd64
+		{name: "ShiftAllRightConcatMod32Int32x4", argLength: 2, aux: "UInt8"},           // ARCH:amd64
+		{name: "ShiftAllRightConcatMod32Int32x8", argLength: 2, aux: "UInt8"},           // ARCH:amd64
+		{name: "ShiftAllRightConcatMod32Int32x16", argLength: 2, aux: "UInt8"},          // ARCH:amd64
+		{name: "ShiftAllRightConcatMod32Uint32x4", argLength: 2, aux: "UInt8"},          // ARCH:amd64
+		{name: "ShiftAllRightConcatMod32Uint32x8", argLength: 2, aux: "UInt8"},          // ARCH:amd64
+		{name: "ShiftAllRightConcatMod32Uint32x16", argLength: 2, aux: "UInt8"},         // ARCH:amd64
+		{name: "ShiftAllRightConcatMod64Int64x2", argLength: 2, aux: "UInt8"},           // ARCH:amd64
+		{name: "ShiftAllRightConcatMod64Int64x4", argLength: 2, aux: "UInt8"},           // ARCH:amd64
+		{name: "ShiftAllRightConcatMod64Int64x8", argLength: 2, aux: "UInt8"},           // ARCH:amd64
+		{name: "ShiftAllRightConcatMod64Uint64x2", argLength: 2, aux: "UInt8"},          // ARCH:amd64
+		{name: "ShiftAllRightConcatMod64Uint64x4", argLength: 2, aux: "UInt8"},          // ARCH:amd64
+		{name: "ShiftAllRightConcatMod64Uint64x8", argLength: 2, aux: "UInt8"},          // ARCH:amd64
 		{name: "TruncScaledFloat32x4", argLength: 1, aux: "UInt8"},                      // ARCH:amd64
 		{name: "TruncScaledFloat32x8", argLength: 1, aux: "UInt8"},                      // ARCH:amd64
 		{name: "TruncScaledFloat32x16", argLength: 1, aux: "UInt8"},                     // ARCH:amd64

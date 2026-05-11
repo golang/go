@@ -5290,58 +5290,58 @@ func rewriteValueAMD64(v *Value) bool {
 		return rewriteValueAMD64_OpSetLoUint8x32(v)
 	case OpSetLoUint8x64:
 		return rewriteValueAMD64_OpSetLoUint8x64(v)
-	case OpShiftAllLeftConcatInt16x16:
+	case OpShiftAllLeftConcatMod16Int16x16:
 		v.Op = OpAMD64VPSHLDW256
 		return true
-	case OpShiftAllLeftConcatInt16x32:
+	case OpShiftAllLeftConcatMod16Int16x32:
 		v.Op = OpAMD64VPSHLDW512
 		return true
-	case OpShiftAllLeftConcatInt16x8:
+	case OpShiftAllLeftConcatMod16Int16x8:
 		v.Op = OpAMD64VPSHLDW128
 		return true
-	case OpShiftAllLeftConcatInt32x16:
+	case OpShiftAllLeftConcatMod16Uint16x16:
+		v.Op = OpAMD64VPSHLDW256
+		return true
+	case OpShiftAllLeftConcatMod16Uint16x32:
+		v.Op = OpAMD64VPSHLDW512
+		return true
+	case OpShiftAllLeftConcatMod16Uint16x8:
+		v.Op = OpAMD64VPSHLDW128
+		return true
+	case OpShiftAllLeftConcatMod32Int32x16:
 		v.Op = OpAMD64VPSHLDD512
 		return true
-	case OpShiftAllLeftConcatInt32x4:
+	case OpShiftAllLeftConcatMod32Int32x4:
 		v.Op = OpAMD64VPSHLDD128
 		return true
-	case OpShiftAllLeftConcatInt32x8:
+	case OpShiftAllLeftConcatMod32Int32x8:
 		v.Op = OpAMD64VPSHLDD256
 		return true
-	case OpShiftAllLeftConcatInt64x2:
+	case OpShiftAllLeftConcatMod32Uint32x16:
+		v.Op = OpAMD64VPSHLDD512
+		return true
+	case OpShiftAllLeftConcatMod32Uint32x4:
+		v.Op = OpAMD64VPSHLDD128
+		return true
+	case OpShiftAllLeftConcatMod32Uint32x8:
+		v.Op = OpAMD64VPSHLDD256
+		return true
+	case OpShiftAllLeftConcatMod64Int64x2:
 		v.Op = OpAMD64VPSHLDQ128
 		return true
-	case OpShiftAllLeftConcatInt64x4:
+	case OpShiftAllLeftConcatMod64Int64x4:
 		v.Op = OpAMD64VPSHLDQ256
 		return true
-	case OpShiftAllLeftConcatInt64x8:
+	case OpShiftAllLeftConcatMod64Int64x8:
 		v.Op = OpAMD64VPSHLDQ512
 		return true
-	case OpShiftAllLeftConcatUint16x16:
-		v.Op = OpAMD64VPSHLDW256
-		return true
-	case OpShiftAllLeftConcatUint16x32:
-		v.Op = OpAMD64VPSHLDW512
-		return true
-	case OpShiftAllLeftConcatUint16x8:
-		v.Op = OpAMD64VPSHLDW128
-		return true
-	case OpShiftAllLeftConcatUint32x16:
-		v.Op = OpAMD64VPSHLDD512
-		return true
-	case OpShiftAllLeftConcatUint32x4:
-		v.Op = OpAMD64VPSHLDD128
-		return true
-	case OpShiftAllLeftConcatUint32x8:
-		v.Op = OpAMD64VPSHLDD256
-		return true
-	case OpShiftAllLeftConcatUint64x2:
+	case OpShiftAllLeftConcatMod64Uint64x2:
 		v.Op = OpAMD64VPSHLDQ128
 		return true
-	case OpShiftAllLeftConcatUint64x4:
+	case OpShiftAllLeftConcatMod64Uint64x4:
 		v.Op = OpAMD64VPSHLDQ256
 		return true
-	case OpShiftAllLeftConcatUint64x8:
+	case OpShiftAllLeftConcatMod64Uint64x8:
 		v.Op = OpAMD64VPSHLDQ512
 		return true
 	case OpShiftAllLeftInt16x16:
@@ -5398,58 +5398,58 @@ func rewriteValueAMD64(v *Value) bool {
 	case OpShiftAllLeftUint64x8:
 		v.Op = OpAMD64VPSLLQ512
 		return true
-	case OpShiftAllRightConcatInt16x16:
+	case OpShiftAllRightConcatMod16Int16x16:
 		v.Op = OpAMD64VPSHRDW256
 		return true
-	case OpShiftAllRightConcatInt16x32:
+	case OpShiftAllRightConcatMod16Int16x32:
 		v.Op = OpAMD64VPSHRDW512
 		return true
-	case OpShiftAllRightConcatInt16x8:
+	case OpShiftAllRightConcatMod16Int16x8:
 		v.Op = OpAMD64VPSHRDW128
 		return true
-	case OpShiftAllRightConcatInt32x16:
+	case OpShiftAllRightConcatMod16Uint16x16:
+		v.Op = OpAMD64VPSHRDW256
+		return true
+	case OpShiftAllRightConcatMod16Uint16x32:
+		v.Op = OpAMD64VPSHRDW512
+		return true
+	case OpShiftAllRightConcatMod16Uint16x8:
+		v.Op = OpAMD64VPSHRDW128
+		return true
+	case OpShiftAllRightConcatMod32Int32x16:
 		v.Op = OpAMD64VPSHRDD512
 		return true
-	case OpShiftAllRightConcatInt32x4:
+	case OpShiftAllRightConcatMod32Int32x4:
 		v.Op = OpAMD64VPSHRDD128
 		return true
-	case OpShiftAllRightConcatInt32x8:
+	case OpShiftAllRightConcatMod32Int32x8:
 		v.Op = OpAMD64VPSHRDD256
 		return true
-	case OpShiftAllRightConcatInt64x2:
+	case OpShiftAllRightConcatMod32Uint32x16:
+		v.Op = OpAMD64VPSHRDD512
+		return true
+	case OpShiftAllRightConcatMod32Uint32x4:
+		v.Op = OpAMD64VPSHRDD128
+		return true
+	case OpShiftAllRightConcatMod32Uint32x8:
+		v.Op = OpAMD64VPSHRDD256
+		return true
+	case OpShiftAllRightConcatMod64Int64x2:
 		v.Op = OpAMD64VPSHRDQ128
 		return true
-	case OpShiftAllRightConcatInt64x4:
+	case OpShiftAllRightConcatMod64Int64x4:
 		v.Op = OpAMD64VPSHRDQ256
 		return true
-	case OpShiftAllRightConcatInt64x8:
+	case OpShiftAllRightConcatMod64Int64x8:
 		v.Op = OpAMD64VPSHRDQ512
 		return true
-	case OpShiftAllRightConcatUint16x16:
-		v.Op = OpAMD64VPSHRDW256
-		return true
-	case OpShiftAllRightConcatUint16x32:
-		v.Op = OpAMD64VPSHRDW512
-		return true
-	case OpShiftAllRightConcatUint16x8:
-		v.Op = OpAMD64VPSHRDW128
-		return true
-	case OpShiftAllRightConcatUint32x16:
-		v.Op = OpAMD64VPSHRDD512
-		return true
-	case OpShiftAllRightConcatUint32x4:
-		v.Op = OpAMD64VPSHRDD128
-		return true
-	case OpShiftAllRightConcatUint32x8:
-		v.Op = OpAMD64VPSHRDD256
-		return true
-	case OpShiftAllRightConcatUint64x2:
+	case OpShiftAllRightConcatMod64Uint64x2:
 		v.Op = OpAMD64VPSHRDQ128
 		return true
-	case OpShiftAllRightConcatUint64x4:
+	case OpShiftAllRightConcatMod64Uint64x4:
 		v.Op = OpAMD64VPSHRDQ256
 		return true
-	case OpShiftAllRightConcatUint64x8:
+	case OpShiftAllRightConcatMod64Uint64x8:
 		v.Op = OpAMD64VPSHRDQ512
 		return true
 	case OpShiftAllRightInt16x16:
@@ -5506,58 +5506,58 @@ func rewriteValueAMD64(v *Value) bool {
 	case OpShiftAllRightUint64x8:
 		v.Op = OpAMD64VPSRLQ512
 		return true
-	case OpShiftLeftConcatInt16x16:
+	case OpShiftLeftConcatMod16Int16x16:
 		v.Op = OpAMD64VPSHLDVW256
 		return true
-	case OpShiftLeftConcatInt16x32:
+	case OpShiftLeftConcatMod16Int16x32:
 		v.Op = OpAMD64VPSHLDVW512
 		return true
-	case OpShiftLeftConcatInt16x8:
+	case OpShiftLeftConcatMod16Int16x8:
 		v.Op = OpAMD64VPSHLDVW128
 		return true
-	case OpShiftLeftConcatInt32x16:
+	case OpShiftLeftConcatMod16Uint16x16:
+		v.Op = OpAMD64VPSHLDVW256
+		return true
+	case OpShiftLeftConcatMod16Uint16x32:
+		v.Op = OpAMD64VPSHLDVW512
+		return true
+	case OpShiftLeftConcatMod16Uint16x8:
+		v.Op = OpAMD64VPSHLDVW128
+		return true
+	case OpShiftLeftConcatMod32Int32x16:
 		v.Op = OpAMD64VPSHLDVD512
 		return true
-	case OpShiftLeftConcatInt32x4:
+	case OpShiftLeftConcatMod32Int32x4:
 		v.Op = OpAMD64VPSHLDVD128
 		return true
-	case OpShiftLeftConcatInt32x8:
+	case OpShiftLeftConcatMod32Int32x8:
 		v.Op = OpAMD64VPSHLDVD256
 		return true
-	case OpShiftLeftConcatInt64x2:
+	case OpShiftLeftConcatMod32Uint32x16:
+		v.Op = OpAMD64VPSHLDVD512
+		return true
+	case OpShiftLeftConcatMod32Uint32x4:
+		v.Op = OpAMD64VPSHLDVD128
+		return true
+	case OpShiftLeftConcatMod32Uint32x8:
+		v.Op = OpAMD64VPSHLDVD256
+		return true
+	case OpShiftLeftConcatMod64Int64x2:
 		v.Op = OpAMD64VPSHLDVQ128
 		return true
-	case OpShiftLeftConcatInt64x4:
+	case OpShiftLeftConcatMod64Int64x4:
 		v.Op = OpAMD64VPSHLDVQ256
 		return true
-	case OpShiftLeftConcatInt64x8:
+	case OpShiftLeftConcatMod64Int64x8:
 		v.Op = OpAMD64VPSHLDVQ512
 		return true
-	case OpShiftLeftConcatUint16x16:
-		v.Op = OpAMD64VPSHLDVW256
-		return true
-	case OpShiftLeftConcatUint16x32:
-		v.Op = OpAMD64VPSHLDVW512
-		return true
-	case OpShiftLeftConcatUint16x8:
-		v.Op = OpAMD64VPSHLDVW128
-		return true
-	case OpShiftLeftConcatUint32x16:
-		v.Op = OpAMD64VPSHLDVD512
-		return true
-	case OpShiftLeftConcatUint32x4:
-		v.Op = OpAMD64VPSHLDVD128
-		return true
-	case OpShiftLeftConcatUint32x8:
-		v.Op = OpAMD64VPSHLDVD256
-		return true
-	case OpShiftLeftConcatUint64x2:
+	case OpShiftLeftConcatMod64Uint64x2:
 		v.Op = OpAMD64VPSHLDVQ128
 		return true
-	case OpShiftLeftConcatUint64x4:
+	case OpShiftLeftConcatMod64Uint64x4:
 		v.Op = OpAMD64VPSHLDVQ256
 		return true
-	case OpShiftLeftConcatUint64x8:
+	case OpShiftLeftConcatMod64Uint64x8:
 		v.Op = OpAMD64VPSHLDVQ512
 		return true
 	case OpShiftLeftInt16x16:
@@ -5614,58 +5614,58 @@ func rewriteValueAMD64(v *Value) bool {
 	case OpShiftLeftUint64x8:
 		v.Op = OpAMD64VPSLLVQ512
 		return true
-	case OpShiftRightConcatInt16x16:
+	case OpShiftRightConcatMod16Int16x16:
 		v.Op = OpAMD64VPSHRDVW256
 		return true
-	case OpShiftRightConcatInt16x32:
+	case OpShiftRightConcatMod16Int16x32:
 		v.Op = OpAMD64VPSHRDVW512
 		return true
-	case OpShiftRightConcatInt16x8:
+	case OpShiftRightConcatMod16Int16x8:
 		v.Op = OpAMD64VPSHRDVW128
 		return true
-	case OpShiftRightConcatInt32x16:
+	case OpShiftRightConcatMod16Uint16x16:
+		v.Op = OpAMD64VPSHRDVW256
+		return true
+	case OpShiftRightConcatMod16Uint16x32:
+		v.Op = OpAMD64VPSHRDVW512
+		return true
+	case OpShiftRightConcatMod16Uint16x8:
+		v.Op = OpAMD64VPSHRDVW128
+		return true
+	case OpShiftRightConcatMod32Int32x16:
 		v.Op = OpAMD64VPSHRDVD512
 		return true
-	case OpShiftRightConcatInt32x4:
+	case OpShiftRightConcatMod32Int32x4:
 		v.Op = OpAMD64VPSHRDVD128
 		return true
-	case OpShiftRightConcatInt32x8:
+	case OpShiftRightConcatMod32Int32x8:
 		v.Op = OpAMD64VPSHRDVD256
 		return true
-	case OpShiftRightConcatInt64x2:
+	case OpShiftRightConcatMod32Uint32x16:
+		v.Op = OpAMD64VPSHRDVD512
+		return true
+	case OpShiftRightConcatMod32Uint32x4:
+		v.Op = OpAMD64VPSHRDVD128
+		return true
+	case OpShiftRightConcatMod32Uint32x8:
+		v.Op = OpAMD64VPSHRDVD256
+		return true
+	case OpShiftRightConcatMod64Int64x2:
 		v.Op = OpAMD64VPSHRDVQ128
 		return true
-	case OpShiftRightConcatInt64x4:
+	case OpShiftRightConcatMod64Int64x4:
 		v.Op = OpAMD64VPSHRDVQ256
 		return true
-	case OpShiftRightConcatInt64x8:
+	case OpShiftRightConcatMod64Int64x8:
 		v.Op = OpAMD64VPSHRDVQ512
 		return true
-	case OpShiftRightConcatUint16x16:
-		v.Op = OpAMD64VPSHRDVW256
-		return true
-	case OpShiftRightConcatUint16x32:
-		v.Op = OpAMD64VPSHRDVW512
-		return true
-	case OpShiftRightConcatUint16x8:
-		v.Op = OpAMD64VPSHRDVW128
-		return true
-	case OpShiftRightConcatUint32x16:
-		v.Op = OpAMD64VPSHRDVD512
-		return true
-	case OpShiftRightConcatUint32x4:
-		v.Op = OpAMD64VPSHRDVD128
-		return true
-	case OpShiftRightConcatUint32x8:
-		v.Op = OpAMD64VPSHRDVD256
-		return true
-	case OpShiftRightConcatUint64x2:
+	case OpShiftRightConcatMod64Uint64x2:
 		v.Op = OpAMD64VPSHRDVQ128
 		return true
-	case OpShiftRightConcatUint64x4:
+	case OpShiftRightConcatMod64Uint64x4:
 		v.Op = OpAMD64VPSHRDVQ256
 		return true
-	case OpShiftRightConcatUint64x8:
+	case OpShiftRightConcatMod64Uint64x8:
 		v.Op = OpAMD64VPSHRDVQ512
 		return true
 	case OpShiftRightInt16x16:
