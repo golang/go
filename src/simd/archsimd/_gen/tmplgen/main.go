@@ -561,7 +561,7 @@ var avx512MaskedLoadSliceTemplate = shapedTemplateOf(avx512Shapes, "avx 512 load
 // Load{{.VType}}Part loads a {{.VType}} from the slice s, it returns the loaded vector and the
 // number of elements loaded.
 // If s has fewer than {{.Count}} elements, the remaining elements of the vector are filled with zeroes.
-// If s has {{.Count}} or more elements, the function is equivalent to Load{{.VType}}Slice.
+// If s has {{.Count}} or more elements, the function is equivalent to Load{{.VType}}.
 func Load{{.VType}}Part(s []{{.Etype}}) ({{.VType}}, int) {
 	l := len(s)
 	if l >= {{.Count}} {
@@ -596,7 +596,7 @@ var avx2MaskedLoadSliceTemplate = shapedTemplateOf(avx2MaskedLoadShapes, "avx 2 
 // Load{{.VType}}Part loads a {{.VType}} from the slice s, it returns the loaded vector and the
 // number of elements loaded.
 // If s has fewer than {{.Count}} elements, the remaining elements of the vector are filled with zeroes.
-// If s has {{.Count}} or more elements, the function is equivalent to Load{{.VType}}Slice.
+// If s has {{.Count}} or more elements, the function is equivalent to Load{{.VType}}.
 func Load{{.VType}}Part(s []{{.Etype}}) ({{.VType}}, int) {
 	l := len(s)
 	if l >= {{.Count}} {
@@ -631,7 +631,7 @@ var avx2SmallLoadSliceTemplate = shapedTemplateOf(avx2SmallLoadPunShapes, "avx 2
 // Load{{.VType}}Part loads a {{.VType}} from the slice s, it returns the loaded vector and the
 // number of elements loaded.
 // If s has fewer than {{.Count}} elements, the remaining elements of the vector are filled with zeroes.
-// If s has {{.Count}} or more elements, the function is equivalent to Load{{.VType}}Slice.
+// If s has {{.Count}} or more elements, the function is equivalent to Load{{.VType}}.
 func Load{{.VType}}Part(s []{{.Etype}}) ({{.VType}}, int) {
 	if len(s) == 0 {
 		var zero {{.VType}}

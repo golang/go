@@ -369,7 +369,7 @@ func (x Float64x8) Store(s []float64) {
 // LoadInt8x64Part loads a Int8x64 from the slice s, it returns the loaded vector and the
 // number of elements loaded.
 // If s has fewer than 64 elements, the remaining elements of the vector are filled with zeroes.
-// If s has 64 or more elements, the function is equivalent to LoadInt8x64Slice.
+// If s has 64 or more elements, the function is equivalent to LoadInt8x64.
 func LoadInt8x64Part(s []int8) (Int8x64, int) {
 	l := len(s)
 	if l >= 64 {
@@ -402,7 +402,7 @@ func (x Int8x64) StorePart(s []int8) {
 // LoadInt16x32Part loads a Int16x32 from the slice s, it returns the loaded vector and the
 // number of elements loaded.
 // If s has fewer than 32 elements, the remaining elements of the vector are filled with zeroes.
-// If s has 32 or more elements, the function is equivalent to LoadInt16x32Slice.
+// If s has 32 or more elements, the function is equivalent to LoadInt16x32.
 func LoadInt16x32Part(s []int16) (Int16x32, int) {
 	l := len(s)
 	if l >= 32 {
@@ -435,7 +435,7 @@ func (x Int16x32) StorePart(s []int16) {
 // LoadInt32x16Part loads a Int32x16 from the slice s, it returns the loaded vector and the
 // number of elements loaded.
 // If s has fewer than 16 elements, the remaining elements of the vector are filled with zeroes.
-// If s has 16 or more elements, the function is equivalent to LoadInt32x16Slice.
+// If s has 16 or more elements, the function is equivalent to LoadInt32x16.
 func LoadInt32x16Part(s []int32) (Int32x16, int) {
 	l := len(s)
 	if l >= 16 {
@@ -468,7 +468,7 @@ func (x Int32x16) StorePart(s []int32) {
 // LoadInt64x8Part loads a Int64x8 from the slice s, it returns the loaded vector and the
 // number of elements loaded.
 // If s has fewer than 8 elements, the remaining elements of the vector are filled with zeroes.
-// If s has 8 or more elements, the function is equivalent to LoadInt64x8Slice.
+// If s has 8 or more elements, the function is equivalent to LoadInt64x8.
 func LoadInt64x8Part(s []int64) (Int64x8, int) {
 	l := len(s)
 	if l >= 8 {
@@ -501,7 +501,7 @@ func (x Int64x8) StorePart(s []int64) {
 // LoadUint8x64Part loads a Uint8x64 from the slice s, it returns the loaded vector and the
 // number of elements loaded.
 // If s has fewer than 64 elements, the remaining elements of the vector are filled with zeroes.
-// If s has 64 or more elements, the function is equivalent to LoadUint8x64Slice.
+// If s has 64 or more elements, the function is equivalent to LoadUint8x64.
 func LoadUint8x64Part(s []uint8) (Uint8x64, int) {
 	l := len(s)
 	if l >= 64 {
@@ -534,7 +534,7 @@ func (x Uint8x64) StorePart(s []uint8) {
 // LoadUint16x32Part loads a Uint16x32 from the slice s, it returns the loaded vector and the
 // number of elements loaded.
 // If s has fewer than 32 elements, the remaining elements of the vector are filled with zeroes.
-// If s has 32 or more elements, the function is equivalent to LoadUint16x32Slice.
+// If s has 32 or more elements, the function is equivalent to LoadUint16x32.
 func LoadUint16x32Part(s []uint16) (Uint16x32, int) {
 	l := len(s)
 	if l >= 32 {
@@ -567,7 +567,7 @@ func (x Uint16x32) StorePart(s []uint16) {
 // LoadUint32x16Part loads a Uint32x16 from the slice s, it returns the loaded vector and the
 // number of elements loaded.
 // If s has fewer than 16 elements, the remaining elements of the vector are filled with zeroes.
-// If s has 16 or more elements, the function is equivalent to LoadUint32x16Slice.
+// If s has 16 or more elements, the function is equivalent to LoadUint32x16.
 func LoadUint32x16Part(s []uint32) (Uint32x16, int) {
 	l := len(s)
 	if l >= 16 {
@@ -600,7 +600,7 @@ func (x Uint32x16) StorePart(s []uint32) {
 // LoadUint64x8Part loads a Uint64x8 from the slice s, it returns the loaded vector and the
 // number of elements loaded.
 // If s has fewer than 8 elements, the remaining elements of the vector are filled with zeroes.
-// If s has 8 or more elements, the function is equivalent to LoadUint64x8Slice.
+// If s has 8 or more elements, the function is equivalent to LoadUint64x8.
 func LoadUint64x8Part(s []uint64) (Uint64x8, int) {
 	l := len(s)
 	if l >= 8 {
@@ -633,7 +633,7 @@ func (x Uint64x8) StorePart(s []uint64) {
 // LoadFloat32x16Part loads a Float32x16 from the slice s, it returns the loaded vector and the
 // number of elements loaded.
 // If s has fewer than 16 elements, the remaining elements of the vector are filled with zeroes.
-// If s has 16 or more elements, the function is equivalent to LoadFloat32x16Slice.
+// If s has 16 or more elements, the function is equivalent to LoadFloat32x16.
 func LoadFloat32x16Part(s []float32) (Float32x16, int) {
 	l := len(s)
 	if l >= 16 {
@@ -666,7 +666,7 @@ func (x Float32x16) StorePart(s []float32) {
 // LoadFloat64x8Part loads a Float64x8 from the slice s, it returns the loaded vector and the
 // number of elements loaded.
 // If s has fewer than 8 elements, the remaining elements of the vector are filled with zeroes.
-// If s has 8 or more elements, the function is equivalent to LoadFloat64x8Slice.
+// If s has 8 or more elements, the function is equivalent to LoadFloat64x8.
 func LoadFloat64x8Part(s []float64) (Float64x8, int) {
 	l := len(s)
 	if l >= 8 {
@@ -699,7 +699,7 @@ func (x Float64x8) StorePart(s []float64) {
 // LoadInt32x4Part loads a Int32x4 from the slice s, it returns the loaded vector and the
 // number of elements loaded.
 // If s has fewer than 4 elements, the remaining elements of the vector are filled with zeroes.
-// If s has 4 or more elements, the function is equivalent to LoadInt32x4Slice.
+// If s has 4 or more elements, the function is equivalent to LoadInt32x4.
 func LoadInt32x4Part(s []int32) (Int32x4, int) {
 	l := len(s)
 	if l >= 4 {
@@ -732,7 +732,7 @@ func (x Int32x4) StorePart(s []int32) {
 // LoadInt64x2Part loads a Int64x2 from the slice s, it returns the loaded vector and the
 // number of elements loaded.
 // If s has fewer than 2 elements, the remaining elements of the vector are filled with zeroes.
-// If s has 2 or more elements, the function is equivalent to LoadInt64x2Slice.
+// If s has 2 or more elements, the function is equivalent to LoadInt64x2.
 func LoadInt64x2Part(s []int64) (Int64x2, int) {
 	l := len(s)
 	if l >= 2 {
@@ -765,7 +765,7 @@ func (x Int64x2) StorePart(s []int64) {
 // LoadUint32x4Part loads a Uint32x4 from the slice s, it returns the loaded vector and the
 // number of elements loaded.
 // If s has fewer than 4 elements, the remaining elements of the vector are filled with zeroes.
-// If s has 4 or more elements, the function is equivalent to LoadUint32x4Slice.
+// If s has 4 or more elements, the function is equivalent to LoadUint32x4.
 func LoadUint32x4Part(s []uint32) (Uint32x4, int) {
 	l := len(s)
 	if l >= 4 {
@@ -798,7 +798,7 @@ func (x Uint32x4) StorePart(s []uint32) {
 // LoadUint64x2Part loads a Uint64x2 from the slice s, it returns the loaded vector and the
 // number of elements loaded.
 // If s has fewer than 2 elements, the remaining elements of the vector are filled with zeroes.
-// If s has 2 or more elements, the function is equivalent to LoadUint64x2Slice.
+// If s has 2 or more elements, the function is equivalent to LoadUint64x2.
 func LoadUint64x2Part(s []uint64) (Uint64x2, int) {
 	l := len(s)
 	if l >= 2 {
@@ -831,7 +831,7 @@ func (x Uint64x2) StorePart(s []uint64) {
 // LoadFloat32x4Part loads a Float32x4 from the slice s, it returns the loaded vector and the
 // number of elements loaded.
 // If s has fewer than 4 elements, the remaining elements of the vector are filled with zeroes.
-// If s has 4 or more elements, the function is equivalent to LoadFloat32x4Slice.
+// If s has 4 or more elements, the function is equivalent to LoadFloat32x4.
 func LoadFloat32x4Part(s []float32) (Float32x4, int) {
 	l := len(s)
 	if l >= 4 {
@@ -864,7 +864,7 @@ func (x Float32x4) StorePart(s []float32) {
 // LoadFloat64x2Part loads a Float64x2 from the slice s, it returns the loaded vector and the
 // number of elements loaded.
 // If s has fewer than 2 elements, the remaining elements of the vector are filled with zeroes.
-// If s has 2 or more elements, the function is equivalent to LoadFloat64x2Slice.
+// If s has 2 or more elements, the function is equivalent to LoadFloat64x2.
 func LoadFloat64x2Part(s []float64) (Float64x2, int) {
 	l := len(s)
 	if l >= 2 {
@@ -897,7 +897,7 @@ func (x Float64x2) StorePart(s []float64) {
 // LoadInt32x8Part loads a Int32x8 from the slice s, it returns the loaded vector and the
 // number of elements loaded.
 // If s has fewer than 8 elements, the remaining elements of the vector are filled with zeroes.
-// If s has 8 or more elements, the function is equivalent to LoadInt32x8Slice.
+// If s has 8 or more elements, the function is equivalent to LoadInt32x8.
 func LoadInt32x8Part(s []int32) (Int32x8, int) {
 	l := len(s)
 	if l >= 8 {
@@ -930,7 +930,7 @@ func (x Int32x8) StorePart(s []int32) {
 // LoadInt64x4Part loads a Int64x4 from the slice s, it returns the loaded vector and the
 // number of elements loaded.
 // If s has fewer than 4 elements, the remaining elements of the vector are filled with zeroes.
-// If s has 4 or more elements, the function is equivalent to LoadInt64x4Slice.
+// If s has 4 or more elements, the function is equivalent to LoadInt64x4.
 func LoadInt64x4Part(s []int64) (Int64x4, int) {
 	l := len(s)
 	if l >= 4 {
@@ -963,7 +963,7 @@ func (x Int64x4) StorePart(s []int64) {
 // LoadUint32x8Part loads a Uint32x8 from the slice s, it returns the loaded vector and the
 // number of elements loaded.
 // If s has fewer than 8 elements, the remaining elements of the vector are filled with zeroes.
-// If s has 8 or more elements, the function is equivalent to LoadUint32x8Slice.
+// If s has 8 or more elements, the function is equivalent to LoadUint32x8.
 func LoadUint32x8Part(s []uint32) (Uint32x8, int) {
 	l := len(s)
 	if l >= 8 {
@@ -996,7 +996,7 @@ func (x Uint32x8) StorePart(s []uint32) {
 // LoadUint64x4Part loads a Uint64x4 from the slice s, it returns the loaded vector and the
 // number of elements loaded.
 // If s has fewer than 4 elements, the remaining elements of the vector are filled with zeroes.
-// If s has 4 or more elements, the function is equivalent to LoadUint64x4Slice.
+// If s has 4 or more elements, the function is equivalent to LoadUint64x4.
 func LoadUint64x4Part(s []uint64) (Uint64x4, int) {
 	l := len(s)
 	if l >= 4 {
@@ -1029,7 +1029,7 @@ func (x Uint64x4) StorePart(s []uint64) {
 // LoadFloat32x8Part loads a Float32x8 from the slice s, it returns the loaded vector and the
 // number of elements loaded.
 // If s has fewer than 8 elements, the remaining elements of the vector are filled with zeroes.
-// If s has 8 or more elements, the function is equivalent to LoadFloat32x8Slice.
+// If s has 8 or more elements, the function is equivalent to LoadFloat32x8.
 func LoadFloat32x8Part(s []float32) (Float32x8, int) {
 	l := len(s)
 	if l >= 8 {
@@ -1062,7 +1062,7 @@ func (x Float32x8) StorePart(s []float32) {
 // LoadFloat64x4Part loads a Float64x4 from the slice s, it returns the loaded vector and the
 // number of elements loaded.
 // If s has fewer than 4 elements, the remaining elements of the vector are filled with zeroes.
-// If s has 4 or more elements, the function is equivalent to LoadFloat64x4Slice.
+// If s has 4 or more elements, the function is equivalent to LoadFloat64x4.
 func LoadFloat64x4Part(s []float64) (Float64x4, int) {
 	l := len(s)
 	if l >= 4 {
@@ -1095,7 +1095,7 @@ func (x Float64x4) StorePart(s []float64) {
 // LoadUint8x16Part loads a Uint8x16 from the slice s, it returns the loaded vector and the
 // number of elements loaded.
 // If s has fewer than 16 elements, the remaining elements of the vector are filled with zeroes.
-// If s has 16 or more elements, the function is equivalent to LoadUint8x16Slice.
+// If s has 16 or more elements, the function is equivalent to LoadUint8x16.
 func LoadUint8x16Part(s []uint8) (Uint8x16, int) {
 	if len(s) == 0 {
 		var zero Uint8x16
@@ -1120,7 +1120,7 @@ func (x Uint8x16) StorePart(s []uint8) {
 // LoadUint16x8Part loads a Uint16x8 from the slice s, it returns the loaded vector and the
 // number of elements loaded.
 // If s has fewer than 8 elements, the remaining elements of the vector are filled with zeroes.
-// If s has 8 or more elements, the function is equivalent to LoadUint16x8Slice.
+// If s has 8 or more elements, the function is equivalent to LoadUint16x8.
 func LoadUint16x8Part(s []uint16) (Uint16x8, int) {
 	if len(s) == 0 {
 		var zero Uint16x8
@@ -1145,7 +1145,7 @@ func (x Uint16x8) StorePart(s []uint16) {
 // LoadUint8x32Part loads a Uint8x32 from the slice s, it returns the loaded vector and the
 // number of elements loaded.
 // If s has fewer than 32 elements, the remaining elements of the vector are filled with zeroes.
-// If s has 32 or more elements, the function is equivalent to LoadUint8x32Slice.
+// If s has 32 or more elements, the function is equivalent to LoadUint8x32.
 func LoadUint8x32Part(s []uint8) (Uint8x32, int) {
 	if len(s) == 0 {
 		var zero Uint8x32
@@ -1170,7 +1170,7 @@ func (x Uint8x32) StorePart(s []uint8) {
 // LoadUint16x16Part loads a Uint16x16 from the slice s, it returns the loaded vector and the
 // number of elements loaded.
 // If s has fewer than 16 elements, the remaining elements of the vector are filled with zeroes.
-// If s has 16 or more elements, the function is equivalent to LoadUint16x16Slice.
+// If s has 16 or more elements, the function is equivalent to LoadUint16x16.
 func LoadUint16x16Part(s []uint16) (Uint16x16, int) {
 	if len(s) == 0 {
 		var zero Uint16x16
