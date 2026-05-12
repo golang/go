@@ -166,6 +166,8 @@ Go 1.27 removed the `tls3des` setting, as noted in the [Go 1.23](#go-123) sectio
 
 Go 1.27 removed the `tls10server` setting, as noted in the [Go 1.22](#go-122) section.
 
+Go 1.27 removed the `x509keypairleaf` setting, as noted in the [Go 1.23](#go-123) section.
+
 Go 1.27 added a new `htmlmetacontenturlescape` setting that controls whether
 html/template will escape URLs in the `url=` portion of the content attribute of
 HTML meta tags. The default `htmlmetacontentescape=1` will cause URLs to be
