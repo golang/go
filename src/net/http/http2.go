@@ -88,6 +88,7 @@ func (s *Server) setHTTP2Config(conf http2ExternalServerConfig) {
 	}
 	s.h2Config = conf
 	s.h2Config.ServeConnFunc(s.serveHTTP2Conn)
+	s.configureHTTP2()
 }
 
 func (s *Server) serveHTTP2Conn(ctx context.Context, nc net.Conn, h Handler, sawClientPreface bool, upgradeReq *Request, settings []byte) {
