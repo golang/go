@@ -329,7 +329,7 @@ func (dec *yamlDecoder) value(node *yaml.Node) (vOut *Value, errOut error) {
 				// of the tuple after we've generated it?
 				v, err := dec.value(elts[i])
 				if err != nil {
-					// It worked the first time, so this really shouldn't hapen.
+					// It worked the first time, so this really shouldn't happen.
 					panic("decoding repeat element failed")
 				}
 				return v, dec.env

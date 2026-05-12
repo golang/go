@@ -113,7 +113,7 @@ func fixedFtoa(d *decimalSlice, mant uint64, exp, digits, prec int, fmt byte) {
 	}
 
 	// The value we want to format is dm * 2^de, where de < 0.
-	// Multply by 2^de by shifting, but leave one extra bit for rounding.
+	// Multiply by 2^de by shifting, but leave one extra bit for rounding.
 	// After the shift, the "integer part" of dm is dm>>1,
 	// the "rounding bit" (the first fractional bit) is dm&1,
 	// and the "truncated bit" (have any bits been discarded?) is dt.
