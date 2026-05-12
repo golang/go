@@ -9,6 +9,7 @@ import (
 	"iter"
 	"reflect"
 	"strings"
+	"sync/atomic"
 )
 
 // An envSet is an immutable set of environments, where each environment is a
@@ -103,6 +104,7 @@ type envExpr struct {
 	// Clojure) that could enable more efficient construction operations.
 
 	kind envExprKind
+	mask [2]uint64
 
 	// For envBinding
 	id  *ident
@@ -156,7 +158,7 @@ func (e envSet) bind(id *ident, vals ...*Value) envSet {
 	// Create a sum of all the values.
 	bindings := make([]*envExpr, 0, 1)
 	for _, val := range vals {
-		bindings = append(bindings, &envExpr{kind: envBinding, id: id, val: val})
+		bindings = append(bindings, &envExpr{kind: envBinding, mask: id.mask, id: id, val: val})
 	}
 
 	// Multiply it in.
@@ -175,6 +177,9 @@ func (e *envExpr) bindings(id *ident) iter.Seq[*envExpr] {
 	return func(yield func(*envExpr) bool) {
 		var rec func(e *envExpr) bool
 		rec = func(e *envExpr) bool {
+			if id != nil && (e.mask[0]&id.mask[0] == 0 && e.mask[1]&id.mask[1] == 0) {
+				return true
+			}
 			if e.kind == envBinding && (id == nil || e.id == id) {
 				if !yield(e) {
 					return false
@@ -213,7 +218,12 @@ func newEnvExprProduct(exprs ...*envExpr) *envExpr {
 	} else if len(factors) == 1 {
 		return factors[0]
 	}
-	return &envExpr{kind: envProduct, operands: factors}
+	var mask [2]uint64
+	for _, f := range factors {
+		mask[0] |= f.mask[0]
+		mask[1] |= f.mask[1]
+	}
+	return &envExpr{kind: envProduct, mask: mask, operands: factors}
 }
 
 // newEnvExprSum constructs a sum node from exprs, performing simplifications.
@@ -246,7 +256,12 @@ func newEnvExprSum(exprs ...*envExpr) *envExpr {
 	} else if len(terms) == 1 {
 		return terms[0]
 	}
-	return &envExpr{kind: envSum, operands: terms}
+	var mask [2]uint64
+	for _, t := range terms {
+		mask[0] |= t.mask[0]
+		mask[1] |= t.mask[1]
+	}
+	return &envExpr{kind: envSum, mask: mask, operands: terms}
 }
 
 func crossEnvs(env1, env2 envSet) envSet {
@@ -317,6 +332,9 @@ func (e envSet) partitionBy(id *ident) []envPartition {
 // substitute replaces bindings of id to val with 1 and bindings of id to any
 // other value with 0 and simplifies the result.
 func (e *envExpr) substitute(id *ident, val *Value) *envExpr {
+	if e.mask[0]&id.mask[0] == 0 && e.mask[1]&id.mask[1] == 0 {
+		return e
+	}
 	switch e.kind {
 	default:
 		panic("bad kind")
@@ -403,7 +421,21 @@ func (s *smallSet[T]) Add(val T) bool {
 
 type ident struct {
 	_    [0]func() // Not comparable (only compare *ident)
+	mask [2]uint64
 	name string
+}
+
+var identCounter atomic.Uint64
+
+func newIdent(name string) *ident {
+	c := identCounter.Add(1)
+	var mask [2]uint64
+	bit := c % 128
+	mask[bit/64] = 1 << (bit % 64)
+	return &ident{
+		mask: mask,
+		name: name,
+	}
 }
 
 type Var struct {
