@@ -723,9 +723,7 @@ type Config struct {
 	// the list is ignored. Note that TLS 1.3 ciphersuites are not configurable.
 	//
 	// If CipherSuites is nil, a safe default list is used. The default cipher
-	// suites might change over time. In Go 1.22 RSA key exchange based cipher
-	// suites were removed from the default list, but can be re-added with the
-	// GODEBUG setting tlsrsakex=1. In Go 1.23 3DES cipher suites were removed
+	// suites might change over time. In Go 1.23 3DES cipher suites were removed
 	// from the default list, but can be re-added with the GODEBUG setting
 	// tls3des=1.
 	CipherSuites []uint16

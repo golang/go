@@ -1715,16 +1715,14 @@ func TestCipherSuites(t *testing.T) {
 	}
 
 	// Check that disabled suites are marked insecure.
-	for _, badSuites := range []map[uint16]bool{disabledCipherSuites, rsaKexCiphers} {
-		for id := range badSuites {
-			c := CipherSuiteByID(id)
-			if c == nil {
-				t.Errorf("%#04x: no CipherSuite entry", id)
-				continue
-			}
-			if !c.Insecure {
-				t.Errorf("%#04x: disabled by default but not marked insecure", id)
-			}
+	for id := range disabledCipherSuites {
+		c := CipherSuiteByID(id)
+		if c == nil {
+			t.Errorf("%#04x: no CipherSuite entry", id)
+			continue
+		}
+		if !c.Insecure {
+			t.Errorf("%#04x: disabled by default but not marked insecure", id)
 		}
 	}
 

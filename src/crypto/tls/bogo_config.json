@@ -47,7 +47,7 @@
         "*-Verify-RSA_PKCS1_SHA256_LEGACY-TLS12": "Likewise, we don't know how to handle it in TLS 1.2, so we send the wrong alert",
         "*-VerifyDefault-*": "Our signature algorithms are not configurable, so there is no difference between default and supported",
         "Ed25519DefaultDisable-*": "We support Ed25519 by default",
-        "NoCommonSignatureAlgorithms-TLS12-Fallback": "We don't support the legacy RSA exchange (without tlsrsakex=1)",
+        "NoCommonSignatureAlgorithms-TLS12-Fallback": "We don't support the legacy RSA exchange",
 
         "*_SHA1-TLS12": "We don't support SHA-1 in TLS 1.2 (without tlssha1=1)",
         "Agree-Digest-SHA1": "We don't support SHA-1 in TLS 1.2 (without tlssha1=1)",

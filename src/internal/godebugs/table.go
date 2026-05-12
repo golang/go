@@ -64,7 +64,6 @@ var All = []Info{
 	{Name: "tls3des", Package: "crypto/tls", Changed: 23, Old: "1"},
 	{Name: "tlsmaxrsasize", Package: "crypto/tls"},
 	{Name: "tlsmlkem", Package: "crypto/tls", Changed: 24, Old: "0", Opaque: true},
-	{Name: "tlsrsakex", Package: "crypto/tls", Changed: 22, Old: "1"},
 	{Name: "tlssecpmlkem", Package: "crypto/tls", Changed: 26, Old: "0", Opaque: true},
 	{Name: "tlssha1", Package: "crypto/tls", Changed: 25, Old: "1"},
 	// Mark tracebacklabels as Opaque so we don't generate a metric that we can't increment.
@@ -99,6 +98,7 @@ var Removed = []RemovedInfo{
 	{Name: "x509sha1", Removed: 24},
 	{Name: "gotypesalias", Removed: 27},
 	{Name: "tlsunsafeekm", Removed: 27}, // Old: "1"
+	{Name: "tlsrsakex", Removed: 27},    // Old: "1"
 }
 
 // Lookup returns the Info with the given name.
