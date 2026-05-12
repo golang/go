@@ -337,6 +337,35 @@ func roundSlice[T float](x []T) []T {
 	return map1[T](round)(x)
 }
 
+// interleaveSlice models PUNPCKL*/PUNPCKH* (x86), NEON ZIP1/ZIP2, and SVE
+// ZIP1/ZIP2. Interleaving happens within each lane of laneBits bits.
+// laneBits == 128 matches x86 InterleaveLo/Hi and the grouped variants, and
+// also matches NEON ZIP1/ZIP2 on 128-bit vectors. laneBits == 0 means
+// variable length vector (e.g. SVE), and treats the whole input as one lane.
+// If hi is false the low halves of each lane are interleaved (ZIP1/InterleaveLo);
+// if true the high halves are (ZIP2/InterleaveHi).
+func interleaveSlice[T number](laneBits int, hi bool) func(x, y []T) []T {
+	return func(x, y []T) []T {
+		lane := laneBits / (8 * int(unsafe.Sizeof(x[0])))
+		if lane == 0 || lane > len(x) {
+			lane = len(x)
+		}
+		half := lane / 2
+		off := 0
+		if hi {
+			off = half
+		}
+		out := make([]T, len(x))
+		for base := 0; base < len(x); base += lane {
+			for i := 0; i < half; i++ {
+				out[base+2*i] = x[base+off+i]
+				out[base+2*i+1] = y[base+off+i]
+			}
+		}
+		return out
+	}
+}
+
 func sqrtSlice[T float](x []T) []T {
 	return map1[T](sqrt)(x)
 }
