@@ -322,7 +322,7 @@ func (hs *clientHandshakeStateTLS13) processHelloRetryRequest() error {
 		ke, err := keyExchangeForCurveID(curveID)
 		if err != nil {
 			c.sendAlert(alertInternalError)
-			return errors.New("tls: CurvePreferences includes unsupported curve")
+			return errors.New("tls: internal error: supportsCurve accepted unimplemented curve")
 		}
 		hs.keyShareKeys, hello.keyShares, err = ke.keyShares(c.config.rand())
 		if err != nil {

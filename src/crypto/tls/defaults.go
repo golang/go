@@ -13,24 +13,32 @@ import (
 // Defaults are collected in this file to allow distributions to more easily patch
 // them to apply local policies.
 
+// tlsmlkem=0 restores the pre-Go 1.24 default key exchanges.
 var tlsmlkem = godebug.New("tlsmlkem")
+
+// tlssecpmlkem=0 restores the pre-Go 1.26 default key exchanges.
 var tlssecpmlkem = godebug.New("tlssecpmlkem")
 
-// defaultCurvePreferences is the default set of supported key exchanges, as
-// well as the preference order.
-func defaultCurvePreferences() []CurveID {
-	switch {
-	// tlsmlkem=0 restores the pre-Go 1.24 default.
-	case tlsmlkem.Value() == "0":
-		return []CurveID{X25519, CurveP256, CurveP384, CurveP521}
-	// tlssecpmlkem=0 restores the pre-Go 1.26 default.
-	case tlssecpmlkem.Value() == "0":
-		return []CurveID{X25519MLKEM768, X25519, CurveP256, CurveP384, CurveP521}
+// defaultCurveEnabled returns whether the key exchange c is enabled by default.
+func defaultCurveEnabled(c CurveID) bool {
+	switch c {
+	case X25519, CurveP256, CurveP384, CurveP521:
+		return true
+	case X25519MLKEM768:
+		return tlsmlkem.Value() != "0"
+	case SecP256r1MLKEM768, SecP384r1MLKEM1024:
+		return tlsmlkem.Value() != "0" && tlssecpmlkem.Value() != "0"
 	default:
-		return []CurveID{
-			X25519MLKEM768, SecP256r1MLKEM768, SecP384r1MLKEM1024,
-			X25519, CurveP256, CurveP384, CurveP521,
-		}
+		return false
+	}
+}
+
+// curvePreferenceOrder is the fixed preference order of key exchanges. It must
+// include every supported key exchange.
+func curvePreferenceOrder() []CurveID {
+	return []CurveID{
+		X25519MLKEM768, SecP256r1MLKEM768, SecP384r1MLKEM1024,
+		X25519, CurveP256, CurveP384, CurveP521,
 	}
 }
 

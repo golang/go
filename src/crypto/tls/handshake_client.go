@@ -148,7 +148,7 @@ func (c *Conn) makeClientHello() (*clientHelloMsg, *keySharePrivateKeys, *echCli
 		curveID := hello.supportedCurves[0]
 		ke, err := keyExchangeForCurveID(curveID)
 		if err != nil {
-			return nil, nil, nil, errors.New("tls: CurvePreferences includes unsupported curve")
+			return nil, nil, nil, errors.New("tls: internal error: supportsCurve accepted unimplemented curve")
 		}
 		keyShareKeys, hello.keyShares, err = ke.keyShares(config.rand())
 		if err != nil {

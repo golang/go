@@ -167,7 +167,7 @@ func (ka *ecdheKeyAgreement) generateServerKeyExchange(config *Config, cert *Cer
 		return nil, errors.New("tls: no supported elliptic curves offered")
 	}
 	if _, ok := curveForCurveID(ka.curveID); !ok {
-		return nil, errors.New("tls: CurvePreferences includes unsupported curve")
+		return nil, errors.New("tls: internal error: supportsCurve accepted unimplemented curve")
 	}
 
 	key, err := generateECDHEKey(config.rand(), ka.curveID)

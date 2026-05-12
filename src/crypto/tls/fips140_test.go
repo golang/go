@@ -233,7 +233,7 @@ func TestFIPSServerCipherSuites(t *testing.T) {
 }
 
 func TestFIPSServerCurves(t *testing.T) {
-	for _, curveid := range defaultCurvePreferences() {
+	for _, curveid := range curvePreferenceOrder() {
 		t.Run(fmt.Sprintf("curve=%v", curveid), func(t *testing.T) {
 			testConfig := testConfigFIPS140.Clone()
 			testConfig.CurvePreferences = []CurveID{curveid}
@@ -342,7 +342,7 @@ func testFIPSClientHello(t *testing.T) {
 	clientConfig.MinVersion = VersionSSL30
 	clientConfig.MaxVersion = VersionTLS13
 	clientConfig.CipherSuites = allCipherSuitesIncludingTLS13()
-	clientConfig.CurvePreferences = defaultCurvePreferences()
+	clientConfig.CurvePreferences = curvePreferenceOrder()
 
 	go Client(c, clientConfig).Handshake()
 	srv := Server(s, testConfigFIPS140)

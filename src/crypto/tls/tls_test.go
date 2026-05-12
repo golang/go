@@ -2156,6 +2156,21 @@ func TestHandshakeMLKEM(t *testing.T) {
 			expectClient:   []CurveID{X25519MLKEM768, X25519, CurveP256, CurveP384, CurveP521},
 			expectSelected: X25519MLKEM768,
 		},
+		{
+			name: "CurvePreferences override GODEBUG",
+			preparation: func(t *testing.T) {
+				testenv.SetGODEBUG(t, "tlsmlkem=0")
+				testenv.SetGODEBUG(t, "tlssecpmlkem=0")
+			},
+			clientConfig: func(config *Config) {
+				config.CurvePreferences = []CurveID{CurveP256, SecP256r1MLKEM768}
+			},
+			serverConfig: func(config *Config) {
+				config.CurvePreferences = []CurveID{CurveP256, SecP256r1MLKEM768}
+			},
+			expectClient:   []CurveID{SecP256r1MLKEM768, CurveP256},
+			expectSelected: SecP256r1MLKEM768,
+		},
 	}
 
 	baseServerConfig := testConfigServer.Clone()

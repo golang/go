@@ -1276,25 +1276,32 @@ func supportedVersionsFromMax(maxVersion uint16) []uint16 {
 }
 
 func (c *Config) curvePreferences(version uint16) []CurveID {
-	curvePreferences := defaultCurvePreferences()
-	if fips140tls.Required() {
-		curvePreferences = slices.DeleteFunc(curvePreferences, func(x CurveID) bool {
-			return !slices.Contains(allowedCurvePreferencesFIPS, x)
-		})
-	}
-	if c != nil && len(c.CurvePreferences) != 0 {
-		curvePreferences = slices.DeleteFunc(curvePreferences, func(x CurveID) bool {
-			return !slices.Contains(c.CurvePreferences, x)
-		})
-	}
-	if version < VersionTLS13 {
-		curvePreferences = slices.DeleteFunc(curvePreferences, isTLS13OnlyKeyExchange)
-	}
-	return curvePreferences
+	return slices.DeleteFunc(curvePreferenceOrder(), func(x CurveID) bool {
+		return !c.supportsCurve(version, x)
+	})
 }
 
-func (c *Config) supportsCurve(version uint16, curve CurveID) bool {
-	return slices.Contains(c.curvePreferences(version), curve)
+func (c *Config) supportsCurve(version uint16, x CurveID) bool {
+	if c != nil && len(c.CurvePreferences) != 0 {
+		if !slices.Contains(c.CurvePreferences, x) {
+			return false
+		}
+		// Ignore unimplemented entries in c.CurvePreferences.
+		if !slices.Contains(curvePreferenceOrder(), x) {
+			return false
+		}
+	} else {
+		if !defaultCurveEnabled(x) {
+			return false
+		}
+	}
+	if fips140tls.Required() && !slices.Contains(allowedCurvePreferencesFIPS, x) {
+		return false
+	}
+	if version < VersionTLS13 && isTLS13OnlyKeyExchange(x) {
+		return false
+	}
+	return true
 }
 
 // mutualVersion returns the protocol version to use given the advertised
