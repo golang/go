@@ -66,8 +66,6 @@ func defaultSupportedSignatureAlgorithms() []SignatureScheme {
 	}
 }
 
-var tls3des = godebug.New("tls3des")
-
 func supportedCipherSuites(aesGCMPreferred bool) []uint16 {
 	if aesGCMPreferred {
 		return slices.Clone(cipherSuitesPreferenceOrder)
@@ -79,8 +77,7 @@ func supportedCipherSuites(aesGCMPreferred bool) []uint16 {
 func defaultCipherSuites(aesGCMPreferred bool) []uint16 {
 	cipherSuites := supportedCipherSuites(aesGCMPreferred)
 	return slices.DeleteFunc(cipherSuites, func(c uint16) bool {
-		return disabledCipherSuites[c] ||
-			tls3des.Value() != "1" && tdesCiphers[c]
+		return disabledCipherSuites[c]
 	})
 }
 

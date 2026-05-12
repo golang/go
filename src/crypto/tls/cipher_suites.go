@@ -353,13 +353,9 @@ var disabledCipherSuites = map[uint16]bool{
 	TLS_RSA_WITH_AES_256_CBC_SHA:    true,
 	TLS_RSA_WITH_AES_128_GCM_SHA256: true,
 	TLS_RSA_WITH_AES_256_GCM_SHA384: true,
-}
 
-// tdesCiphers contains 3DES ciphers,
-// which we also disable by default unless a GODEBUG is set.
-var tdesCiphers = map[uint16]bool{
+	// 3DES
 	TLS_ECDHE_RSA_WITH_3DES_EDE_CBC_SHA: true,
-	TLS_RSA_WITH_3DES_EDE_CBC_SHA:       true,
 }
 
 var (
