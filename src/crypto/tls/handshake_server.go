@@ -209,11 +209,6 @@ func (c *Conn) readClientHello(ctx context.Context) (*clientHelloMsg, *echServer
 		return nil, nil, errors.New("tls: Encrypted Client Hello cannot be used pre-TLS 1.3")
 	}
 
-	if c.config.MinVersion == 0 && c.vers < VersionTLS12 {
-		tls10server.Value() // ensure godebug is initialized
-		tls10server.IncNonDefault()
-	}
-
 	return clientHello, ech, nil
 }
 

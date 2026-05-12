@@ -60,7 +60,6 @@ var All = []Info{
 	{Name: "randseednop", Package: "math/rand", Changed: 24, Old: "0"},
 	{Name: "rsa1024min", Package: "crypto/rsa", Changed: 24, Old: "0"},
 	{Name: "tarinsecurepath", Package: "archive/tar"},
-	{Name: "tls10server", Package: "crypto/tls", Changed: 22, Old: "1"},
 	{Name: "tlsmaxrsasize", Package: "crypto/tls"},
 	{Name: "tlsmlkem", Package: "crypto/tls", Changed: 24, Old: "0", Opaque: true},
 	{Name: "tlssecpmlkem", Package: "crypto/tls", Changed: 26, Old: "0", Opaque: true},
@@ -99,6 +98,7 @@ var Removed = []RemovedInfo{
 	{Name: "tlsunsafeekm", Removed: 27}, // Old: "1"
 	{Name: "tlsrsakex", Removed: 27},    // Old: "1"
 	{Name: "tls3des", Removed: 27},      // Old: "1"
+	{Name: "tls10server", Removed: 27},  // Old: "1"
 }
 
 // Lookup returns the Info with the given name.
