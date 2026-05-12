@@ -22,7 +22,7 @@ func TestTransportNewClientConnRoundTrip(t *testing.T) {
 func testTransportNewClientConnRoundTrip(t *testing.T, mode testMode) {
 	cst := newClientServerTest(t, mode, http.HandlerFunc(func(w http.ResponseWriter, req *http.Request) {
 		io.WriteString(w, req.Host)
-	}), optFakeNet)
+	}))
 
 	scheme := mode.Scheme() // http or https
 	cc, err := cst.tr.NewClientConn(t.Context(), scheme, "example.tld:"+scheme)
@@ -88,7 +88,7 @@ func TestClientConnReserveAll(t *testing.T) {
 	runSynctest(t, testClientConnReserveAll, http3SkippedMode)
 }
 func testClientConnReserveAll(t *testing.T, mode testMode) {
-	cst, cc := newClientConnTest(t, mode, nil, optFakeNet, func(s *http.Server) {
+	cst, cc := newClientConnTest(t, mode, nil, func(s *http.Server) {
 		s.HTTP2 = &http.HTTP2Config{
 			MaxConcurrentStreams: 3,
 		}
@@ -129,7 +129,7 @@ func TestClientConnReserveParallel(t *testing.T) {
 	runSynctest(t, testClientConnReserveParallel, http3SkippedMode)
 }
 func testClientConnReserveParallel(t *testing.T, mode testMode) {
-	_, cc := newClientConnTest(t, mode, nil, optFakeNet, func(s *http.Server) {
+	_, cc := newClientConnTest(t, mode, nil, func(s *http.Server) {
 		s.HTTP2 = &http.HTTP2Config{
 			MaxConcurrentStreams: 3,
 		}
@@ -169,7 +169,7 @@ func TestClientConnReserveRelease(t *testing.T) {
 	runSynctest(t, testClientConnReserveRelease, http3SkippedMode)
 }
 func testClientConnReserveRelease(t *testing.T, mode testMode) {
-	_, cc := newClientConnTest(t, mode, nil, optFakeNet, func(s *http.Server) {
+	_, cc := newClientConnTest(t, mode, nil, func(s *http.Server) {
 		s.HTTP2 = &http.HTTP2Config{
 			MaxConcurrentStreams: 3,
 		}
@@ -274,7 +274,7 @@ func TestClientConnReserveAndConsume(t *testing.T) {
 					}
 				}
 
-				_, cc := newClientConnTest(t, mode, handler, optFakeNet)
+				_, cc := newClientConnTest(t, mode, handler)
 				stateHookCalls := 0
 				cc.SetStateHook(func(cc *http.ClientConn) {
 					stateHookCalls++
@@ -349,7 +349,7 @@ func testClientConnRoundTripBlocks(t *testing.T, mode testMode) {
 		handlerCalls.Add(1)
 		<-requestc
 	}
-	_, cc := newClientConnTest(t, mode, handler, optFakeNet, func(s *http.Server) {
+	_, cc := newClientConnTest(t, mode, handler, func(s *http.Server) {
 		s.HTTP2 = &http.HTTP2Config{
 			MaxConcurrentStreams: 3,
 		}

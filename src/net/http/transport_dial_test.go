@@ -440,7 +440,7 @@ func newTransportDialTester(t *testing.T, mode testMode, opts ...any) *transport
 		// Wait for the client to send the request body,
 		// to synchronize with the rest of the test.
 		io.ReadAll(r.Body)
-	}), append([]any{optFakeNet, func(tr *http.Transport) {
+	}), append([]any{func(tr *http.Transport) {
 		dialContext := tr.DialContext
 		tr.DialContext = func(ctx context.Context, network, addr string) (net.Conn, error) {
 			c, err := dialer()

@@ -857,7 +857,7 @@ func (c *writeCountingConn) Write(p []byte) (int, error) {
 func TestClientWrites(t *testing.T) { run(t, testClientWrites, []testMode{http1Mode}) }
 func testClientWrites(t *testing.T, mode testMode) {
 	ts := newClientServerTest(t, mode, HandlerFunc(func(w ResponseWriter, r *Request) {
-	})).ts
+	}), optRealNet).ts
 
 	writes := 0
 	dialer := func(netz string, addr string) (net.Conn, error) {
@@ -894,7 +894,7 @@ func TestClientInsecureTransport(t *testing.T) {
 func testClientInsecureTransport(t *testing.T, mode testMode) {
 	cst := newClientServerTest(t, mode, HandlerFunc(func(w ResponseWriter, r *Request) {
 		w.Write([]byte("Hello"))
-	}))
+	}), optRealNet)
 	ts := cst.ts
 	errLog := new(strings.Builder)
 	ts.Config.ErrorLog = log.New(errLog, "", 0)
@@ -951,7 +951,7 @@ func testClientWithCorrectTLSServerName(t *testing.T, mode testMode) {
 
 	c := ts.Client()
 	c.Transport.(*Transport).TLSClientConfig.ServerName = serverName
-	if _, err := c.Get(ts.URL); err != nil {
+	if _, err := c.Get("https://" + serverName); err != nil {
 		t.Fatalf("expected successful TLS connection, got error: %v", err)
 	}
 }
@@ -960,7 +960,7 @@ func TestClientWithIncorrectTLSServerName(t *testing.T) {
 	run(t, testClientWithIncorrectTLSServerName, []testMode{https1Mode, http2Mode})
 }
 func testClientWithIncorrectTLSServerName(t *testing.T, mode testMode) {
-	cst := newClientServerTest(t, mode, HandlerFunc(func(w ResponseWriter, r *Request) {}))
+	cst := newClientServerTest(t, mode, HandlerFunc(func(w ResponseWriter, r *Request) {}), optRealNet)
 	ts := cst.ts
 	errLog := new(strings.Builder)
 	ts.Config.ErrorLog = log.New(errLog, "", 0)
@@ -1046,7 +1046,7 @@ func TestHTTPSClientDetectsHTTPServer(t *testing.T) {
 	run(t, testHTTPSClientDetectsHTTPServer, []testMode{http1Mode})
 }
 func testHTTPSClientDetectsHTTPServer(t *testing.T, mode testMode) {
-	ts := newClientServerTest(t, mode, HandlerFunc(func(w ResponseWriter, r *Request) {})).ts
+	ts := newClientServerTest(t, mode, HandlerFunc(func(w ResponseWriter, r *Request) {}), optRealNet).ts
 	ts.Config.ErrorLog = quietLog
 
 	_, err := Get(strings.Replace(ts.URL, "http", "https", 1))
@@ -1556,12 +1556,18 @@ func testClientCopyHeadersOnRedirect(t *testing.T, mode testMode) {
 		ua   = "some-agent/1.2"
 		xfoo = "foo-val"
 	)
-	var ts2URL string
-	ts1 := newClientServerTest(t, mode, HandlerFunc(func(w ResponseWriter, r *Request) {
+	var (
+		targetHost   = "target.example.com"
+		redirectHost = "example.com"
+		targetURL    = mode.Scheme() + "://" + targetHost + "/"
+		redirectURL  = mode.Scheme() + "://" + redirectHost + "/"
+	)
+	mux := NewServeMux()
+	mux.Handle(targetHost+"/", HandlerFunc(func(w ResponseWriter, r *Request) {
 		want := Header{
 			"User-Agent":      []string{ua},
 			"X-Foo":           []string{xfoo},
-			"Referer":         []string{ts2URL},
+			"Referer":         []string{redirectURL},
 			"Accept-Encoding": []string{"gzip"},
 			"Cookie":          []string{"foo=bar"},
 			"Authorization":   []string{"secretpassword"},
@@ -1574,18 +1580,18 @@ func testClientCopyHeadersOnRedirect(t *testing.T, mode testMode) {
 		} else {
 			w.Header().Set("Result", "ok")
 		}
-	})).ts
-	ts2 := newClientServerTest(t, mode, HandlerFunc(func(w ResponseWriter, r *Request) {
-		Redirect(w, r, ts1.URL, StatusFound)
-	})).ts
-	ts2URL = ts2.URL
+	}))
+	mux.Handle(redirectHost+"/", HandlerFunc(func(w ResponseWriter, r *Request) {
+		Redirect(w, r, targetURL, StatusFound)
+	}))
+	ts := newClientServerTest(t, mode, mux).ts
 
-	c := ts1.Client()
+	c := ts.Client()
 	c.CheckRedirect = func(r *Request, via []*Request) error {
 		want := Header{
 			"User-Agent":    []string{ua},
 			"X-Foo":         []string{xfoo},
-			"Referer":       []string{ts2URL},
+			"Referer":       []string{redirectURL},
 			"Cookie":        []string{"foo=bar"},
 			"Authorization": []string{"secretpassword"},
 		}
@@ -1595,7 +1601,7 @@ func testClientCopyHeadersOnRedirect(t *testing.T, mode testMode) {
 		return nil
 	}
 
-	req, _ := NewRequest("GET", ts2.URL, nil)
+	req, _ := NewRequest("GET", redirectURL, nil)
 	req.Header.Add("User-Agent", ua)
 	req.Header.Add("X-Foo", xfoo)
 	req.Header.Add("Cookie", "foo=bar")
