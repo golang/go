@@ -107,9 +107,38 @@ func keyExchangeForCurveID(id CurveID) (keyExchange, error) {
 		return &hybridKeyExchange{id, ecdhKeyExchange{CurveP384, ecdh.P384()},
 			97, mlkem.EncapsulationKeySize1024, mlkem.CiphertextSize1024,
 			mlkemGenerateKey1024, mlkemNewPublicKey1024}, nil
+	case MLKEM1024:
+		return &mlkem1024KeyExchange{}, nil
 	default:
 		return nil, errors.New("tls: unsupported key exchange")
 	}
+}
+
+type mlkem1024KeyExchange struct{}
+
+func (ke *mlkem1024KeyExchange) keyShares(_ io.Reader) (*keySharePrivateKeys, []keyShare, error) {
+	priv, err := mlkem.GenerateKey1024()
+	if err != nil {
+		return nil, nil, err
+	}
+	return &keySharePrivateKeys{mlkem: priv}, []keyShare{{MLKEM1024, priv.EncapsulationKey().Bytes()}}, nil
+}
+
+func (ke *mlkem1024KeyExchange) serverSharedSecret(_ io.Reader, clientKeyShare []byte) ([]byte, keyShare, error) {
+	peerKey, err := mlkem.NewEncapsulationKey1024(clientKeyShare)
+	if err != nil {
+		return nil, keyShare{}, err
+	}
+	sharedKey, keyShareData := peerKey.Encapsulate()
+	return sharedKey, keyShare{MLKEM1024, keyShareData}, nil
+}
+
+func (ke *mlkem1024KeyExchange) clientSharedSecret(priv *keySharePrivateKeys, serverKeyShare []byte) ([]byte, error) {
+	sharedKey, err := priv.mlkem.Decapsulate(serverKeyShare)
+	if err != nil {
+		return nil, err
+	}
+	return sharedKey, nil
 }
 
 type ecdhKeyExchange struct {

@@ -155,11 +155,12 @@ const (
 	X25519MLKEM768     CurveID = 4588
 	SecP256r1MLKEM768  CurveID = 4587
 	SecP384r1MLKEM1024 CurveID = 4589
+	MLKEM1024          CurveID = 514
 )
 
 func isTLS13OnlyKeyExchange(curve CurveID) bool {
 	switch curve {
-	case X25519MLKEM768, SecP256r1MLKEM768, SecP384r1MLKEM1024:
+	case X25519MLKEM768, SecP256r1MLKEM768, SecP384r1MLKEM1024, MLKEM1024:
 		return true
 	default:
 		return false
@@ -168,7 +169,7 @@ func isTLS13OnlyKeyExchange(curve CurveID) bool {
 
 func isPQKeyExchange(curve CurveID) bool {
 	switch curve {
-	case X25519MLKEM768, SecP256r1MLKEM768, SecP384r1MLKEM1024:
+	case X25519MLKEM768, SecP256r1MLKEM768, SecP384r1MLKEM1024, MLKEM1024:
 		return true
 	default:
 		return false

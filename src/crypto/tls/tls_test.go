@@ -2109,6 +2109,18 @@ func TestHandshakeMLKEM(t *testing.T) {
 			expectSelected: CurveP256,
 		},
 		{
+			name: "CurveP384HRR",
+			clientConfig: func(config *Config) {
+				config.CurvePreferences = []CurveID{SecP256r1MLKEM768, CurveP384}
+			},
+			serverConfig: func(config *Config) {
+				config.CurvePreferences = []CurveID{CurveP384}
+			},
+			expectClient:   []CurveID{SecP256r1MLKEM768, CurveP384},
+			expectSelected: CurveP384,
+			expectHRR:      true,
+		},
+		{
 			name: "ClientMLKEMOnly",
 			clientConfig: func(config *Config) {
 				config.CurvePreferences = []CurveID{X25519MLKEM768}
@@ -2163,13 +2175,59 @@ func TestHandshakeMLKEM(t *testing.T) {
 				testenv.SetGODEBUG(t, "tlssecpmlkem=0")
 			},
 			clientConfig: func(config *Config) {
-				config.CurvePreferences = []CurveID{CurveP256, SecP256r1MLKEM768}
+				config.CurvePreferences = []CurveID{CurveP256, SecP256r1MLKEM768, MLKEM1024}
 			},
 			serverConfig: func(config *Config) {
-				config.CurvePreferences = []CurveID{CurveP256, SecP256r1MLKEM768}
+				config.CurvePreferences = []CurveID{CurveP256, SecP256r1MLKEM768, MLKEM1024}
 			},
-			expectClient:   []CurveID{SecP256r1MLKEM768, CurveP256},
+			expectClient:   []CurveID{SecP256r1MLKEM768, MLKEM1024, CurveP256},
 			expectSelected: SecP256r1MLKEM768,
+		},
+		{
+			name: "ClientMLKEM1024Only",
+			clientConfig: func(config *Config) {
+				config.CurvePreferences = []CurveID{MLKEM1024}
+			},
+			serverConfig: func(config *Config) {
+				config.CurvePreferences = append(defaultWithPQ, MLKEM1024)
+			},
+			expectClient:   []CurveID{MLKEM1024},
+			expectSelected: MLKEM1024,
+		},
+		{
+			name: "ServerMLKEM1024Only",
+			clientConfig: func(config *Config) {
+				config.CurvePreferences = append(defaultWithPQ, MLKEM1024)
+			},
+			serverConfig: func(config *Config) {
+				config.CurvePreferences = []CurveID{MLKEM1024}
+			},
+			expectClient: []CurveID{X25519MLKEM768, SecP256r1MLKEM768, SecP384r1MLKEM1024,
+				MLKEM1024, X25519, CurveP256, CurveP384, CurveP521},
+			expectSelected: MLKEM1024,
+			expectHRR:      true,
+		},
+		{
+			name: "MLKEM1024NotPreferredOverHybrid",
+			clientConfig: func(config *Config) {
+				config.CurvePreferences = []CurveID{MLKEM1024, X25519MLKEM768}
+			},
+			serverConfig: func(config *Config) {
+				config.CurvePreferences = []CurveID{MLKEM1024, X25519MLKEM768}
+			},
+			expectClient:   []CurveID{X25519MLKEM768, MLKEM1024},
+			expectSelected: X25519MLKEM768,
+		},
+		{
+			name: "MLKEM1024PreferredOverECC",
+			clientConfig: func(config *Config) {
+				config.CurvePreferences = []CurveID{X25519, MLKEM1024}
+			},
+			serverConfig: func(config *Config) {
+				config.CurvePreferences = []CurveID{X25519, MLKEM1024}
+			},
+			expectClient:   []CurveID{MLKEM1024, X25519},
+			expectSelected: MLKEM1024,
 		},
 	}
 

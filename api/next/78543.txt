@@ -1,0 +1,2 @@
+pkg crypto/tls, const MLKEM1024 = 514 #78543
+pkg crypto/tls, const MLKEM1024 CurveID #78543

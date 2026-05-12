@@ -37,7 +37,7 @@ func defaultCurveEnabled(c CurveID) bool {
 // include every supported key exchange.
 func curvePreferenceOrder() []CurveID {
 	return []CurveID{
-		X25519MLKEM768, SecP256r1MLKEM768, SecP384r1MLKEM1024,
+		X25519MLKEM768, SecP256r1MLKEM768, SecP384r1MLKEM1024, MLKEM1024,
 		X25519, CurveP256, CurveP384, CurveP521,
 	}
 }

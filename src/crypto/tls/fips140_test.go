@@ -151,7 +151,7 @@ func isFIPSCurve(id CurveID) bool {
 	switch id {
 	case CurveP256, CurveP384, CurveP521:
 		return true
-	case X25519MLKEM768, SecP256r1MLKEM768, SecP384r1MLKEM1024:
+	case X25519MLKEM768, SecP256r1MLKEM768, SecP384r1MLKEM1024, MLKEM1024:
 		// Only for the native module.
 		return !boring.Enabled
 	case X25519:

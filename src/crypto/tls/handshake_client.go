@@ -140,7 +140,7 @@ func (c *Conn) makeClientHello() (*clientHelloMsg, *keySharePrivateKeys, *echCli
 		}
 
 		if len(hello.supportedCurves) == 0 {
-			return nil, nil, nil, errors.New("tls: no supported elliptic curves for ECDHE")
+			return nil, nil, nil, errors.New("tls: no supported key exchange methods (CurveIDs)")
 		}
 		// Since the order is fixed, the first one is always the one to send a
 		// key share for. All the PQ hybrids sort first, and produce a fallback
