@@ -338,11 +338,6 @@ type ConnectionState struct {
 // the seed. If the connection was set to allow renegotiation via
 // Config.Renegotiation, or if the connections supports neither TLS 1.3 nor
 // Extended Master Secret, this function will return an error.
-//
-// Exporting key material without Extended Master Secret or TLS 1.3 was disabled
-// in Go 1.22 due to security issues (see the Security Considerations sections
-// of RFC 5705 and RFC 7627), but can be re-enabled with the GODEBUG setting
-// tlsunsafeekm=1.
 func (cs *ConnectionState) ExportKeyingMaterial(label string, context []byte, length int) ([]byte, error) {
 	return cs.ekm(label, context, length)
 }
