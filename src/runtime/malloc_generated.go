@@ -159,10 +159,6 @@ func mallocgcSmallScanNoHeaderSC1(size uintptr, typ *_type, needzero bool) unsaf
 		addSecret(x, size)
 	}
 
-	if valgrindenabled {
-		valgrindMalloc(x, size)
-	}
-
 	if gcBlackenEnabled != 0 && elemsize != 0 {
 		if assistG := getg().m.curg; assistG != nil {
 			assistG.gcAssistBytes -= int64(elemsize - size)
@@ -322,10 +318,6 @@ func mallocgcSmallScanNoHeaderSC2(size uintptr, typ *_type, needzero bool) unsaf
 	if goexperiment.RuntimeSecret && gp.secret > 0 {
 
 		addSecret(x, size)
-	}
-
-	if valgrindenabled {
-		valgrindMalloc(x, size)
 	}
 
 	if gcBlackenEnabled != 0 && elemsize != 0 {
@@ -489,10 +481,6 @@ func mallocgcSmallScanNoHeaderSC3(size uintptr, typ *_type, needzero bool) unsaf
 		addSecret(x, size)
 	}
 
-	if valgrindenabled {
-		valgrindMalloc(x, size)
-	}
-
 	if gcBlackenEnabled != 0 && elemsize != 0 {
 		if assistG := getg().m.curg; assistG != nil {
 			assistG.gcAssistBytes -= int64(elemsize - size)
@@ -652,10 +640,6 @@ func mallocgcSmallScanNoHeaderSC4(size uintptr, typ *_type, needzero bool) unsaf
 	if goexperiment.RuntimeSecret && gp.secret > 0 {
 
 		addSecret(x, size)
-	}
-
-	if valgrindenabled {
-		valgrindMalloc(x, size)
 	}
 
 	if gcBlackenEnabled != 0 && elemsize != 0 {
@@ -819,10 +803,6 @@ func mallocgcSmallScanNoHeaderSC5(size uintptr, typ *_type, needzero bool) unsaf
 		addSecret(x, size)
 	}
 
-	if valgrindenabled {
-		valgrindMalloc(x, size)
-	}
-
 	if gcBlackenEnabled != 0 && elemsize != 0 {
 		if assistG := getg().m.curg; assistG != nil {
 			assistG.gcAssistBytes -= int64(elemsize - size)
@@ -982,10 +962,6 @@ func mallocgcSmallScanNoHeaderSC6(size uintptr, typ *_type, needzero bool) unsaf
 	if goexperiment.RuntimeSecret && gp.secret > 0 {
 
 		addSecret(x, size)
-	}
-
-	if valgrindenabled {
-		valgrindMalloc(x, size)
 	}
 
 	if gcBlackenEnabled != 0 && elemsize != 0 {
@@ -1149,10 +1125,6 @@ func mallocgcSmallScanNoHeaderSC7(size uintptr, typ *_type, needzero bool) unsaf
 		addSecret(x, size)
 	}
 
-	if valgrindenabled {
-		valgrindMalloc(x, size)
-	}
-
 	if gcBlackenEnabled != 0 && elemsize != 0 {
 		if assistG := getg().m.curg; assistG != nil {
 			assistG.gcAssistBytes -= int64(elemsize - size)
@@ -1312,10 +1284,6 @@ func mallocgcSmallScanNoHeaderSC8(size uintptr, typ *_type, needzero bool) unsaf
 	if goexperiment.RuntimeSecret && gp.secret > 0 {
 
 		addSecret(x, size)
-	}
-
-	if valgrindenabled {
-		valgrindMalloc(x, size)
 	}
 
 	if gcBlackenEnabled != 0 && elemsize != 0 {
@@ -1479,10 +1447,6 @@ func mallocgcSmallScanNoHeaderSC9(size uintptr, typ *_type, needzero bool) unsaf
 		addSecret(x, size)
 	}
 
-	if valgrindenabled {
-		valgrindMalloc(x, size)
-	}
-
 	if gcBlackenEnabled != 0 && elemsize != 0 {
 		if assistG := getg().m.curg; assistG != nil {
 			assistG.gcAssistBytes -= int64(elemsize - size)
@@ -1644,10 +1608,6 @@ func mallocgcSmallScanNoHeaderSC10(size uintptr, typ *_type, needzero bool) unsa
 		addSecret(x, size)
 	}
 
-	if valgrindenabled {
-		valgrindMalloc(x, size)
-	}
-
 	if gcBlackenEnabled != 0 && elemsize != 0 {
 		if assistG := getg().m.curg; assistG != nil {
 			assistG.gcAssistBytes -= int64(elemsize - size)
@@ -1724,10 +1684,6 @@ func mallocgcTinySC2(size uintptr, typ *_type, needzero bool) unsafe.Pointer {
 		const elemsize = 0
 		{
 
-			if valgrindenabled {
-				valgrindMalloc(x, size)
-			}
-
 			if gcBlackenEnabled != 0 && elemsize != 0 {
 				if assistG := getg().m.curg; assistG != nil {
 					assistG.gcAssistBytes -= int64(elemsize - size)
@@ -1797,15 +1753,6 @@ func mallocgcTinySC2(size uintptr, typ *_type, needzero bool) unsafe.Pointer {
 			gcStart(t)
 		}
 	}
-
-	if raceenabled {
-
-		x = add(x, elemsize-size)
-	}
-	if valgrindenabled {
-		valgrindMalloc(x, size)
-	}
-
 	if gcBlackenEnabled != 0 && elemsize != 0 {
 		if assistG := getg().m.curg; assistG != nil {
 			assistG.gcAssistBytes -= int64(elemsize - size)
@@ -1864,10 +1811,6 @@ func mallocgcSmallNoScanSC2(size uintptr, typ *_type, needzero bool) unsafe.Poin
 			if goexperiment.RuntimeSecret && gp.secret > 0 {
 
 				addSecret(x, size)
-			}
-
-			if valgrindenabled {
-				valgrindMalloc(x, size)
 			}
 
 			if gcBlackenEnabled != 0 && elemsize != 0 {
@@ -1935,10 +1878,6 @@ func mallocgcSmallNoScanSC2(size uintptr, typ *_type, needzero bool) unsafe.Poin
 		addSecret(x, size)
 	}
 
-	if valgrindenabled {
-		valgrindMalloc(x, size)
-	}
-
 	if gcBlackenEnabled != 0 && elemsize != 0 {
 		if assistG := getg().m.curg; assistG != nil {
 			assistG.gcAssistBytes -= int64(elemsize - size)
@@ -1997,10 +1936,6 @@ func mallocgcSmallNoScanSC3(size uintptr, typ *_type, needzero bool) unsafe.Poin
 			if goexperiment.RuntimeSecret && gp.secret > 0 {
 
 				addSecret(x, size)
-			}
-
-			if valgrindenabled {
-				valgrindMalloc(x, size)
 			}
 
 			if gcBlackenEnabled != 0 && elemsize != 0 {
@@ -2068,10 +2003,6 @@ func mallocgcSmallNoScanSC3(size uintptr, typ *_type, needzero bool) unsafe.Poin
 		addSecret(x, size)
 	}
 
-	if valgrindenabled {
-		valgrindMalloc(x, size)
-	}
-
 	if gcBlackenEnabled != 0 && elemsize != 0 {
 		if assistG := getg().m.curg; assistG != nil {
 			assistG.gcAssistBytes -= int64(elemsize - size)
@@ -2130,10 +2061,6 @@ func mallocgcSmallNoScanSC4(size uintptr, typ *_type, needzero bool) unsafe.Poin
 			if goexperiment.RuntimeSecret && gp.secret > 0 {
 
 				addSecret(x, size)
-			}
-
-			if valgrindenabled {
-				valgrindMalloc(x, size)
 			}
 
 			if gcBlackenEnabled != 0 && elemsize != 0 {
@@ -2201,10 +2128,6 @@ func mallocgcSmallNoScanSC4(size uintptr, typ *_type, needzero bool) unsafe.Poin
 		addSecret(x, size)
 	}
 
-	if valgrindenabled {
-		valgrindMalloc(x, size)
-	}
-
 	if gcBlackenEnabled != 0 && elemsize != 0 {
 		if assistG := getg().m.curg; assistG != nil {
 			assistG.gcAssistBytes -= int64(elemsize - size)
@@ -2263,10 +2186,6 @@ func mallocgcSmallNoScanSC5(size uintptr, typ *_type, needzero bool) unsafe.Poin
 			if goexperiment.RuntimeSecret && gp.secret > 0 {
 
 				addSecret(x, size)
-			}
-
-			if valgrindenabled {
-				valgrindMalloc(x, size)
 			}
 
 			if gcBlackenEnabled != 0 && elemsize != 0 {
@@ -2334,10 +2253,6 @@ func mallocgcSmallNoScanSC5(size uintptr, typ *_type, needzero bool) unsafe.Poin
 		addSecret(x, size)
 	}
 
-	if valgrindenabled {
-		valgrindMalloc(x, size)
-	}
-
 	if gcBlackenEnabled != 0 && elemsize != 0 {
 		if assistG := getg().m.curg; assistG != nil {
 			assistG.gcAssistBytes -= int64(elemsize - size)
@@ -2396,10 +2311,6 @@ func mallocgcSmallNoScanSC6(size uintptr, typ *_type, needzero bool) unsafe.Poin
 			if goexperiment.RuntimeSecret && gp.secret > 0 {
 
 				addSecret(x, size)
-			}
-
-			if valgrindenabled {
-				valgrindMalloc(x, size)
 			}
 
 			if gcBlackenEnabled != 0 && elemsize != 0 {
@@ -2467,10 +2378,6 @@ func mallocgcSmallNoScanSC6(size uintptr, typ *_type, needzero bool) unsafe.Poin
 		addSecret(x, size)
 	}
 
-	if valgrindenabled {
-		valgrindMalloc(x, size)
-	}
-
 	if gcBlackenEnabled != 0 && elemsize != 0 {
 		if assistG := getg().m.curg; assistG != nil {
 			assistG.gcAssistBytes -= int64(elemsize - size)
@@ -2529,10 +2436,6 @@ func mallocgcSmallNoScanSC7(size uintptr, typ *_type, needzero bool) unsafe.Poin
 			if goexperiment.RuntimeSecret && gp.secret > 0 {
 
 				addSecret(x, size)
-			}
-
-			if valgrindenabled {
-				valgrindMalloc(x, size)
 			}
 
 			if gcBlackenEnabled != 0 && elemsize != 0 {
@@ -2600,10 +2503,6 @@ func mallocgcSmallNoScanSC7(size uintptr, typ *_type, needzero bool) unsafe.Poin
 		addSecret(x, size)
 	}
 
-	if valgrindenabled {
-		valgrindMalloc(x, size)
-	}
-
 	if gcBlackenEnabled != 0 && elemsize != 0 {
 		if assistG := getg().m.curg; assistG != nil {
 			assistG.gcAssistBytes -= int64(elemsize - size)
@@ -2662,10 +2561,6 @@ func mallocgcSmallNoScanSC8(size uintptr, typ *_type, needzero bool) unsafe.Poin
 			if goexperiment.RuntimeSecret && gp.secret > 0 {
 
 				addSecret(x, size)
-			}
-
-			if valgrindenabled {
-				valgrindMalloc(x, size)
 			}
 
 			if gcBlackenEnabled != 0 && elemsize != 0 {
@@ -2733,10 +2628,6 @@ func mallocgcSmallNoScanSC8(size uintptr, typ *_type, needzero bool) unsafe.Poin
 		addSecret(x, size)
 	}
 
-	if valgrindenabled {
-		valgrindMalloc(x, size)
-	}
-
 	if gcBlackenEnabled != 0 && elemsize != 0 {
 		if assistG := getg().m.curg; assistG != nil {
 			assistG.gcAssistBytes -= int64(elemsize - size)
@@ -2795,10 +2686,6 @@ func mallocgcSmallNoScanSC9(size uintptr, typ *_type, needzero bool) unsafe.Poin
 			if goexperiment.RuntimeSecret && gp.secret > 0 {
 
 				addSecret(x, size)
-			}
-
-			if valgrindenabled {
-				valgrindMalloc(x, size)
 			}
 
 			if gcBlackenEnabled != 0 && elemsize != 0 {
@@ -2866,10 +2753,6 @@ func mallocgcSmallNoScanSC9(size uintptr, typ *_type, needzero bool) unsafe.Poin
 		addSecret(x, size)
 	}
 
-	if valgrindenabled {
-		valgrindMalloc(x, size)
-	}
-
 	if gcBlackenEnabled != 0 && elemsize != 0 {
 		if assistG := getg().m.curg; assistG != nil {
 			assistG.gcAssistBytes -= int64(elemsize - size)
@@ -2928,10 +2811,6 @@ func mallocgcSmallNoScanSC10(size uintptr, typ *_type, needzero bool) unsafe.Poi
 			if goexperiment.RuntimeSecret && gp.secret > 0 {
 
 				addSecret(x, size)
-			}
-
-			if valgrindenabled {
-				valgrindMalloc(x, size)
 			}
 
 			if gcBlackenEnabled != 0 && elemsize != 0 {
@@ -2997,10 +2876,6 @@ func mallocgcSmallNoScanSC10(size uintptr, typ *_type, needzero bool) unsafe.Poi
 	if goexperiment.RuntimeSecret && gp.secret > 0 {
 
 		addSecret(x, size)
-	}
-
-	if valgrindenabled {
-		valgrindMalloc(x, size)
 	}
 
 	if gcBlackenEnabled != 0 && elemsize != 0 {

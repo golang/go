@@ -105,13 +105,6 @@ func mallocStub(size uintptr, typ *_type, needzero bool) unsafe.Pointer {
 		}
 	}
 
-	// Notify valgrind, if enabled.
-	// To allow the compiler to not know about valgrind, we do valgrind instrumentation
-	// unlike the other sanitizers.
-	if valgrindenabled {
-		valgrindMalloc(x, size)
-	}
-
 	// Adjust our GC assist debt to account for internal fragmentation.
 	if gcBlackenEnabled != 0 && elemsize != 0 {
 		if assistG := getg().m.curg; assistG != nil {
@@ -505,21 +498,6 @@ func tinyStub(size uintptr, typ *_type, needzero bool) (unsafe.Pointer, uintptr)
 		}
 	}
 
-	if raceenabled {
-		// Pad tinysize allocations so they are aligned with the end
-		// of the tinyalloc region. This ensures that any arithmetic
-		// that goes off the top end of the object will be detectable
-		// by checkptr (issue 38872).
-		// Note that we disable tinyalloc when raceenabled for this to work.
-		// TODO: This padding is only performed when the race detector
-		// is enabled. It would be nice to enable it if any package
-		// was compiled with checkptr, but there's no easy way to
-		// detect that (especially at compile time).
-		// TODO: enable this padding for all allocations, not just
-		// tinyalloc ones. It's tricky because of pointer maps.
-		// Maybe just all noscan objects?
-		x = add(x, elemsize-size)
-	}
 	return x, elemsize
 }
 
