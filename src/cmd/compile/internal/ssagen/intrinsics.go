@@ -1721,17 +1721,17 @@ func initIntrinsics(cfg *intrinsicBuildConfig) {
 				sys.AMD64)
 		}
 
-		sfp4("Int32x4.SelectFromPair", ssa.OpconcatSelectedConstantInt32x4, types.TypeVec128)
-		sfp4("Uint32x4.SelectFromPair", ssa.OpconcatSelectedConstantUint32x4, types.TypeVec128)
-		sfp4("Float32x4.SelectFromPair", ssa.OpconcatSelectedConstantFloat32x4, types.TypeVec128)
+		sfp4("Int32x4.ConcatPermuteScalars", ssa.OpconcatSelectedConstantInt32x4, types.TypeVec128)
+		sfp4("Uint32x4.ConcatPermuteScalars", ssa.OpconcatSelectedConstantUint32x4, types.TypeVec128)
+		sfp4("Float32x4.ConcatPermuteScalars", ssa.OpconcatSelectedConstantFloat32x4, types.TypeVec128)
 
-		sfp4("Int32x8.SelectFromPairGrouped", ssa.OpconcatSelectedConstantGroupedInt32x8, types.TypeVec256)
-		sfp4("Uint32x8.SelectFromPairGrouped", ssa.OpconcatSelectedConstantGroupedUint32x8, types.TypeVec256)
-		sfp4("Float32x8.SelectFromPairGrouped", ssa.OpconcatSelectedConstantGroupedFloat32x8, types.TypeVec256)
+		sfp4("Int32x8.ConcatPermuteScalarsGrouped", ssa.OpconcatSelectedConstantGroupedInt32x8, types.TypeVec256)
+		sfp4("Uint32x8.ConcatPermuteScalarsGrouped", ssa.OpconcatSelectedConstantGroupedUint32x8, types.TypeVec256)
+		sfp4("Float32x8.ConcatPermuteScalarsGrouped", ssa.OpconcatSelectedConstantGroupedFloat32x8, types.TypeVec256)
 
-		sfp4("Int32x16.SelectFromPairGrouped", ssa.OpconcatSelectedConstantGroupedInt32x16, types.TypeVec512)
-		sfp4("Uint32x16.SelectFromPairGrouped", ssa.OpconcatSelectedConstantGroupedUint32x16, types.TypeVec512)
-		sfp4("Float32x16.SelectFromPairGrouped", ssa.OpconcatSelectedConstantGroupedFloat32x16, types.TypeVec512)
+		sfp4("Int32x16.ConcatPermuteScalarsGrouped", ssa.OpconcatSelectedConstantGroupedInt32x16, types.TypeVec512)
+		sfp4("Uint32x16.ConcatPermuteScalarsGrouped", ssa.OpconcatSelectedConstantGroupedUint32x16, types.TypeVec512)
+		sfp4("Float32x16.ConcatPermuteScalarsGrouped", ssa.OpconcatSelectedConstantGroupedFloat32x16, types.TypeVec512)
 
 		// sfp2 is intrinsic-if-constant, but otherwise it's complicated enough to just implement in Go.
 		sfp2 := func(method string, hwop ssa.Op, vectype *types.Type, cscimm func(i, j uint8) int64) {
@@ -1749,17 +1749,17 @@ func initIntrinsics(cfg *intrinsicBuildConfig) {
 				sys.AMD64)
 		}
 
-		sfp2("Uint64x2.SelectFromPair", ssa.OpconcatSelectedConstantUint64x2, types.TypeVec128, cscimm2)
-		sfp2("Int64x2.SelectFromPair", ssa.OpconcatSelectedConstantInt64x2, types.TypeVec128, cscimm2)
-		sfp2("Float64x2.SelectFromPair", ssa.OpconcatSelectedConstantFloat64x2, types.TypeVec128, cscimm2)
+		sfp2("Uint64x2.ConcatPermuteScalars", ssa.OpconcatSelectedConstantUint64x2, types.TypeVec128, cscimm2)
+		sfp2("Int64x2.ConcatPermuteScalars", ssa.OpconcatSelectedConstantInt64x2, types.TypeVec128, cscimm2)
+		sfp2("Float64x2.ConcatPermuteScalars", ssa.OpconcatSelectedConstantFloat64x2, types.TypeVec128, cscimm2)
 
-		sfp2("Uint64x4.SelectFromPairGrouped", ssa.OpconcatSelectedConstantGroupedUint64x4, types.TypeVec256, cscimm2g2)
-		sfp2("Int64x4.SelectFromPairGrouped", ssa.OpconcatSelectedConstantGroupedInt64x4, types.TypeVec256, cscimm2g2)
-		sfp2("Float64x4.SelectFromPairGrouped", ssa.OpconcatSelectedConstantGroupedFloat64x4, types.TypeVec256, cscimm2g2)
+		sfp2("Uint64x4.ConcatPermuteScalarsGrouped", ssa.OpconcatSelectedConstantGroupedUint64x4, types.TypeVec256, cscimm2g2)
+		sfp2("Int64x4.ConcatPermuteScalarsGrouped", ssa.OpconcatSelectedConstantGroupedInt64x4, types.TypeVec256, cscimm2g2)
+		sfp2("Float64x4.ConcatPermuteScalarsGrouped", ssa.OpconcatSelectedConstantGroupedFloat64x4, types.TypeVec256, cscimm2g2)
 
-		sfp2("Uint64x8.SelectFromPairGrouped", ssa.OpconcatSelectedConstantGroupedUint64x8, types.TypeVec512, cscimm2g4)
-		sfp2("Int64x8.SelectFromPairGrouped", ssa.OpconcatSelectedConstantGroupedInt64x8, types.TypeVec512, cscimm2g4)
-		sfp2("Float64x8.SelectFromPairGrouped", ssa.OpconcatSelectedConstantGroupedFloat64x8, types.TypeVec512, cscimm2g4)
+		sfp2("Uint64x8.ConcatPermuteScalarsGrouped", ssa.OpconcatSelectedConstantGroupedUint64x8, types.TypeVec512, cscimm2g4)
+		sfp2("Int64x8.ConcatPermuteScalarsGrouped", ssa.OpconcatSelectedConstantGroupedInt64x8, types.TypeVec512, cscimm2g4)
+		sfp2("Float64x8.ConcatPermuteScalarsGrouped", ssa.OpconcatSelectedConstantGroupedFloat64x8, types.TypeVec512, cscimm2g4)
 
 	}
 }
