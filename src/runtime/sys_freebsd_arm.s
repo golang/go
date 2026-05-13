@@ -232,6 +232,20 @@ TEXT runtime·asmSigaction(SB),NOSPLIT|NOFRAME,$0
 	MOVW	R0, ret+12(FP)
 	RET
 
+// Call the function stored in _cgo_sigaction using the GCC calling convention.
+TEXT runtime·callCgoSigaction(SB),NOSPLIT,$0
+	MOVW	sig+0(FP), R0
+	MOVW	new+4(FP), R1
+	MOVW	old+8(FP), R2
+	MOVW	_cgo_sigaction(SB), R11
+	MOVW	R13, R4
+	SUB	$24, R13
+	BIC	$0x7, R13 // alignment for ELF ABI
+	BL	(R11)
+	MOVW	R4, R13
+	MOVW	R0, ret+12(FP)
+	RET
+
 TEXT runtime·sigtramp(SB),NOSPLIT|TOPFRAME,$0
 	// Reserve space for callee-save registers and arguments.
 	MOVM.DB.W [R4-R11], (R13)

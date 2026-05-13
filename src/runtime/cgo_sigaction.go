@@ -6,7 +6,7 @@
 // Also used on linux/386 to clear the SA_RESTORER flag
 // when using cgo; see issue #75253.
 
-//go:build (linux && (386 || amd64 || arm64 || loong64 || ppc64le)) || (freebsd && amd64)
+//go:build (linux && (386 || amd64 || arm64 || loong64 || ppc64le)) || (freebsd && (amd64 || arm || arm64))
 
 package runtime
 
