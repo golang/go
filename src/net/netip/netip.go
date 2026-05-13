@@ -785,17 +785,32 @@ func (ip Addr) Prev() Addr {
 // IPv4-mapped IPv6 addresses format with a "::ffff:"
 // prefix before the dotted quad.
 func (ip Addr) String() string {
-	switch ip.z {
-	case z0:
+	if !ip.IsValid() {
 		return "invalid IP"
-	case z4:
-		return ip.string4()
-	default:
-		if ip.Is4In6() {
-			return ip.string4In6()
-		}
-		return ip.string6()
 	}
+	var b []byte
+	switch {
+	case ip.z == z4:
+		const max = len("255.255.255.255")
+		b = make([]byte, 0, max)
+		b = ip.appendTo4(b)
+	case ip.Is4In6():
+		const max = len("::ffff:255.255.255.255%enp5s0")
+		b = make([]byte, 0, max)
+		b = ip.appendTo4In6(b)
+	default:
+		// Use a zone with a "plausibly long" name, so that most zone-ful
+		// IP addresses won't require additional allocation.
+		//
+		// The compiler does a cool optimization here, where b ends up
+		// stack-allocated and so the only allocation this function does
+		// is to construct the returned string. As such, it's okay to be a
+		// bit greedy here, size-wise.
+		const max = len("ffff:ffff:ffff:ffff:ffff:ffff:ffff:ffff%enp5s0")
+		b = make([]byte, 0, max)
+		b = ip.appendTo6(b)
+	}
+	return string(b)
 }
 
 // AppendTo appends a text encoding of ip,
@@ -855,13 +870,6 @@ func appendHexPad(b []byte, x uint16) []byte {
 	return append(b, digits[x>>12], digits[x>>8&0xf], digits[x>>4&0xf], digits[x&0xf])
 }
 
-func (ip Addr) string4() string {
-	const max = len("255.255.255.255")
-	ret := make([]byte, 0, max)
-	ret = ip.appendTo4(ret)
-	return string(ret)
-}
-
 func (ip Addr) appendTo4(ret []byte) []byte {
 	ret = appendDecimal(ret, ip.v4(0))
 	ret = append(ret, '.')
@@ -871,13 +879,6 @@ func (ip Addr) appendTo4(ret []byte) []byte {
 	ret = append(ret, '.')
 	ret = appendDecimal(ret, ip.v4(3))
 	return ret
-}
-
-func (ip Addr) string4In6() string {
-	const max = len("::ffff:255.255.255.255%enp5s0")
-	ret := make([]byte, 0, max)
-	ret = ip.appendTo4In6(ret)
-	return string(ret)
 }
 
 func (ip Addr) appendTo4In6(ret []byte) []byte {
@@ -890,25 +891,11 @@ func (ip Addr) appendTo4In6(ret []byte) []byte {
 	return ret
 }
 
-// string6 formats ip in IPv6 textual representation. It follows the
-// guidelines in section 4 of RFC 5952
-// (https://tools.ietf.org/html/rfc5952#section-4): no unnecessary
-// zeros, use :: to elide the longest run of zeros, and don't use ::
+// appendTo6 formats ip in IPv6 textual representation, appends the result to
+// the byte slice, and returns the updated slice. It follows the guidelines in
+// section 4 of RFC 5952 (https://tools.ietf.org/html/rfc5952#section-4): no
+// unnecessary zeros, use :: to elide the longest run of zeros, and don't use ::
 // to compact a single zero field.
-func (ip Addr) string6() string {
-	// Use a zone with a "plausibly long" name, so that most zone-ful
-	// IP addresses won't require additional allocation.
-	//
-	// The compiler does a cool optimization here, where ret ends up
-	// stack-allocated and so the only allocation this function does
-	// is to construct the returned string. As such, it's okay to be a
-	// bit greedy here, size-wise.
-	const max = len("ffff:ffff:ffff:ffff:ffff:ffff:ffff:ffff%enp5s0")
-	ret := make([]byte, 0, max)
-	ret = ip.appendTo6(ret)
-	return string(ret)
-}
-
 func (ip Addr) appendTo6(ret []byte) []byte {
 	zeroStart, zeroEnd := uint8(255), uint8(255)
 	for i := uint8(0); i < 8; i++ {
