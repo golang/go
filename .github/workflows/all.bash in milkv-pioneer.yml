@@ -1,0 +1,37 @@
+name: all.bash in milkv-pioneer
+on:
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  build-toolchain-in-milkv-pioneer:
+    runs-on: milkv-pioneer
+    timeout-minutes: 120
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Ensure C toolchain is available
+        run: |
+            set -euxo pipefail
+            if ! command -v gcc >/dev/null 2>&1; then
+              sudo apt-get update
+              sudo apt-get install -y --no-install-recommends gcc libc6-dev
+            fi
+            gcc --version
+
+      - name: Build toolchain (host riscv64)
+        run: |
+            # install bootstrap Go
+            set -euxo pipefail
+            BOOT=/tmp/go-bootstrap
+            rm -rf "$BOOT"
+            curl -fsSL https://go.dev/dl/go1.25.0.linux-riscv64.tar.gz -o /tmp/go.tar.gz
+            tar -C /tmp -xzf /tmp/go.tar.gz
+            mv /tmp/go "$BOOT"
+            export GOROOT_BOOTSTRAP="$BOOT"
+
+            # build toolchain
+            cd "$GITHUB_WORKSPACE/src"
+            ./all.bash
