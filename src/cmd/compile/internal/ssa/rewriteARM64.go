@@ -775,6 +775,12 @@ func rewriteValueARM64(v *Value) bool {
 	case OpCeil:
 		v.Op = OpARM64FRINTPD
 		return true
+	case OpCeilFloat32x4:
+		v.Op = OpARM64VFRINTP4S
+		return true
+	case OpCeilFloat64x2:
+		v.Op = OpARM64VFRINTP2D
+		return true
 	case OpClosureCall:
 		v.Op = OpARM64CALLclosure
 		return true
@@ -939,6 +945,12 @@ func rewriteValueARM64(v *Value) bool {
 		return rewriteValueARM64_OpDiv8(v)
 	case OpDiv8u:
 		return rewriteValueARM64_OpDiv8u(v)
+	case OpDivFloat32x4:
+		v.Op = OpARM64VFDIV4S
+		return true
+	case OpDivFloat64x2:
+		v.Op = OpARM64VFDIV2D
+		return true
 	case OpEq16:
 		return rewriteValueARM64_OpEq16(v)
 	case OpEq32:
@@ -1007,6 +1019,12 @@ func rewriteValueARM64(v *Value) bool {
 		return rewriteValueARM64_OpFMA(v)
 	case OpFloor:
 		v.Op = OpARM64FRINTMD
+		return true
+	case OpFloorFloat32x4:
+		v.Op = OpARM64VFRINTM4S
+		return true
+	case OpFloorFloat64x2:
+		v.Op = OpARM64VFRINTM2D
 		return true
 	case OpGetCallerPC:
 		v.Op = OpARM64LoweredGetCallerPC
@@ -1220,6 +1238,30 @@ func rewriteValueARM64(v *Value) bool {
 	case OpMax64F:
 		v.Op = OpARM64FMAXD
 		return true
+	case OpMaxFloat32x4:
+		v.Op = OpARM64VFMAX4S
+		return true
+	case OpMaxFloat64x2:
+		v.Op = OpARM64VFMAX2D
+		return true
+	case OpMaxInt16x8:
+		v.Op = OpARM64VSMAX8H
+		return true
+	case OpMaxInt32x4:
+		v.Op = OpARM64VSMAX4S
+		return true
+	case OpMaxInt8x16:
+		v.Op = OpARM64VSMAX16B
+		return true
+	case OpMaxUint16x8:
+		v.Op = OpARM64VUMAX8H
+		return true
+	case OpMaxUint32x4:
+		v.Op = OpARM64VUMAX4S
+		return true
+	case OpMaxUint8x16:
+		v.Op = OpARM64VUMAX16B
+		return true
 	case OpMemEq:
 		v.Op = OpARM64LoweredMemEq
 		return true
@@ -1228,6 +1270,30 @@ func rewriteValueARM64(v *Value) bool {
 		return true
 	case OpMin64F:
 		v.Op = OpARM64FMIND
+		return true
+	case OpMinFloat32x4:
+		v.Op = OpARM64VFMIN4S
+		return true
+	case OpMinFloat64x2:
+		v.Op = OpARM64VFMIN2D
+		return true
+	case OpMinInt16x8:
+		v.Op = OpARM64VSMIN8H
+		return true
+	case OpMinInt32x4:
+		v.Op = OpARM64VSMIN4S
+		return true
+	case OpMinInt8x16:
+		v.Op = OpARM64VSMIN16B
+		return true
+	case OpMinUint16x8:
+		v.Op = OpARM64VUMIN8H
+		return true
+	case OpMinUint32x4:
+		v.Op = OpARM64VUMIN4S
+		return true
+	case OpMinUint8x16:
+		v.Op = OpARM64VUMIN16B
 		return true
 	case OpMod16:
 		return rewriteValueARM64_OpMod16(v)
@@ -1487,6 +1553,12 @@ func rewriteValueARM64(v *Value) bool {
 		return true
 	case OpRound64F:
 		v.Op = OpARM64LoweredRound64F
+		return true
+	case OpRoundFloat32x4:
+		v.Op = OpARM64VFRINTN4S
+		return true
+	case OpRoundFloat64x2:
+		v.Op = OpARM64VFRINTN2D
 		return true
 	case OpRoundToEven:
 		v.Op = OpARM64FRINTND
@@ -1823,6 +1895,12 @@ func rewriteValueARM64(v *Value) bool {
 	case OpSqrt32:
 		v.Op = OpARM64FSQRTS
 		return true
+	case OpSqrtFloat32x4:
+		v.Op = OpARM64VFSQRT4S
+		return true
+	case OpSqrtFloat64x2:
+		v.Op = OpARM64VFSQRT2D
+		return true
 	case OpStaticCall:
 		v.Op = OpARM64CALLstatic
 		return true
@@ -1905,6 +1983,12 @@ func rewriteValueARM64(v *Value) bool {
 		return true
 	case OpTrunc64to8:
 		v.Op = OpCopy
+		return true
+	case OpTruncFloat32x4:
+		v.Op = OpARM64VFRINTZ4S
+		return true
+	case OpTruncFloat64x2:
+		v.Op = OpARM64VFRINTZ2D
 		return true
 	case OpTruncateToInt16Int32x4:
 		v.Op = OpARM64VXTN4S

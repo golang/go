@@ -172,6 +172,18 @@ func (x Uint32x4) AndNot(y Uint32x4) Uint32x4
 // Asm: VBIC, CPU Feature: NEON
 func (x Uint64x2) AndNot(y Uint64x2) Uint64x2
 
+/* Ceil */
+
+// Ceil rounds elements up to the nearest integer.
+//
+// Asm: VFRINTP, CPU Feature: NEON
+func (x Float32x4) Ceil() Float32x4
+
+// Ceil rounds elements up to the nearest integer.
+//
+// Asm: VFRINTP, CPU Feature: NEON
+func (x Float64x2) Ceil() Float64x2
+
 /* ConvertLo2ToFloat64 */
 
 // ConvertLo2ToFloat64 converts low-indexed float32 element values to float64.
@@ -250,6 +262,18 @@ func (x Float32x4) ConvertToUint32() Uint32x4
 //
 // Asm: VFCVTZU, CPU Feature: NEON
 func (x Float64x2) ConvertToUint64() Uint64x2
+
+/* Div */
+
+// Div divides elements of two vectors. Division by zero follows IEEE 754 and does not panic.
+//
+// Asm: VFDIV, CPU Feature: NEON
+func (x Float32x4) Div(y Float32x4) Float32x4
+
+// Div divides elements of two vectors. Division by zero follows IEEE 754 and does not panic.
+//
+// Asm: VFDIV, CPU Feature: NEON
+func (x Float64x2) Div(y Float64x2) Float64x2
 
 /* Equal */
 
@@ -362,6 +386,18 @@ func (x Int8x16) ExtendLo8ToInt16() Int16x8
 //
 // Asm: VUXTL, CPU Feature: NEON
 func (x Uint8x16) ExtendLo8ToUint16() Uint16x8
+
+/* Floor */
+
+// Floor rounds elements down to the nearest integer.
+//
+// Asm: VFRINTM, CPU Feature: NEON
+func (x Float32x4) Floor() Float32x4
+
+// Floor rounds elements down to the nearest integer.
+//
+// Asm: VFRINTM, CPU Feature: NEON
+func (x Float64x2) Floor() Float64x2
 
 /* GetElem */
 
@@ -586,6 +622,90 @@ func (table Int8x16) LookupOrZero(indices Int8x16) Int8x16
 //
 // Asm: VTBL, CPU Feature: NEON
 func (table Uint8x16) LookupOrZero(indices Uint8x16) Uint8x16
+
+/* Max */
+
+// Max computes the maximum of each pair of corresponding elements in x and y.
+//
+// Asm: VFMAX, CPU Feature: NEON
+func (x Float32x4) Max(y Float32x4) Float32x4
+
+// Max computes the maximum of each pair of corresponding elements in x and y.
+//
+// Asm: VFMAX, CPU Feature: NEON
+func (x Float64x2) Max(y Float64x2) Float64x2
+
+// Max computes the maximum of each pair of corresponding elements in x and y.
+//
+// Asm: VSMAX, CPU Feature: NEON
+func (x Int8x16) Max(y Int8x16) Int8x16
+
+// Max computes the maximum of each pair of corresponding elements in x and y.
+//
+// Asm: VSMAX, CPU Feature: NEON
+func (x Int16x8) Max(y Int16x8) Int16x8
+
+// Max computes the maximum of each pair of corresponding elements in x and y.
+//
+// Asm: VSMAX, CPU Feature: NEON
+func (x Int32x4) Max(y Int32x4) Int32x4
+
+// Max computes the maximum of each pair of corresponding elements in x and y.
+//
+// Asm: VUMAX, CPU Feature: NEON
+func (x Uint8x16) Max(y Uint8x16) Uint8x16
+
+// Max computes the maximum of each pair of corresponding elements in x and y.
+//
+// Asm: VUMAX, CPU Feature: NEON
+func (x Uint16x8) Max(y Uint16x8) Uint16x8
+
+// Max computes the maximum of each pair of corresponding elements in x and y.
+//
+// Asm: VUMAX, CPU Feature: NEON
+func (x Uint32x4) Max(y Uint32x4) Uint32x4
+
+/* Min */
+
+// Min computes the minimum of each pair of corresponding elements in x and y.
+//
+// Asm: VFMIN, CPU Feature: NEON
+func (x Float32x4) Min(y Float32x4) Float32x4
+
+// Min computes the minimum of each pair of corresponding elements in x and y.
+//
+// Asm: VFMIN, CPU Feature: NEON
+func (x Float64x2) Min(y Float64x2) Float64x2
+
+// Min computes the minimum of each pair of corresponding elements in x and y.
+//
+// Asm: VSMIN, CPU Feature: NEON
+func (x Int8x16) Min(y Int8x16) Int8x16
+
+// Min computes the minimum of each pair of corresponding elements in x and y.
+//
+// Asm: VSMIN, CPU Feature: NEON
+func (x Int16x8) Min(y Int16x8) Int16x8
+
+// Min computes the minimum of each pair of corresponding elements in x and y.
+//
+// Asm: VSMIN, CPU Feature: NEON
+func (x Int32x4) Min(y Int32x4) Int32x4
+
+// Min computes the minimum of each pair of corresponding elements in x and y.
+//
+// Asm: VUMIN, CPU Feature: NEON
+func (x Uint8x16) Min(y Uint8x16) Uint8x16
+
+// Min computes the minimum of each pair of corresponding elements in x and y.
+//
+// Asm: VUMIN, CPU Feature: NEON
+func (x Uint16x8) Min(y Uint16x8) Uint16x8
+
+// Min computes the minimum of each pair of corresponding elements in x and y.
+//
+// Asm: VUMIN, CPU Feature: NEON
+func (x Uint32x4) Min(y Uint32x4) Uint32x4
 
 /* Mul */
 
@@ -836,6 +956,18 @@ func (x Uint32x4) OrNot(y Uint32x4) Uint32x4
 //
 // Asm: VORN, CPU Feature: NEON
 func (x Uint64x2) OrNot(y Uint64x2) Uint64x2
+
+/* Round */
+
+// Round rounds elements to the nearest integer, rounding ties to even.
+//
+// Asm: VFRINTN, CPU Feature: NEON
+func (x Float32x4) Round() Float32x4
+
+// Round rounds elements to the nearest integer, rounding ties to even.
+//
+// Asm: VFRINTN, CPU Feature: NEON
+func (x Float64x2) Round() Float64x2
 
 /* SaturateToInt8 */
 
@@ -1457,6 +1589,18 @@ func (x Uint32x4) ShiftSaturated(y Int32x4) Uint32x4
 // Asm: VUQSHL, CPU Feature: NEON
 func (x Uint64x2) ShiftSaturated(y Int64x2) Uint64x2
 
+/* Sqrt */
+
+// Sqrt computes the square root of each element.
+//
+// Asm: VFSQRT, CPU Feature: NEON
+func (x Float32x4) Sqrt() Float32x4
+
+// Sqrt computes the square root of each element.
+//
+// Asm: VFSQRT, CPU Feature: NEON
+func (x Float64x2) Sqrt() Float64x2
+
 /* Sub */
 
 // Sub subtracts corresponding elements of two vectors.
@@ -1508,6 +1652,18 @@ func (x Uint32x4) Sub(y Uint32x4) Uint32x4
 //
 // Asm: VSUB, CPU Feature: NEON
 func (x Uint64x2) Sub(y Uint64x2) Uint64x2
+
+/* Trunc */
+
+// Trunc truncates elements towards zero.
+//
+// Asm: VFRINTZ, CPU Feature: NEON
+func (x Float32x4) Trunc() Float32x4
+
+// Trunc truncates elements towards zero.
+//
+// Asm: VFRINTZ, CPU Feature: NEON
+func (x Float64x2) Trunc() Float64x2
 
 /* TruncateToInt8 */
 

@@ -54,6 +54,35 @@ func TestSub(t *testing.T) {
 	testUint64x2Binary(t, archsimd.Uint64x2.Sub, subSlice[uint64])
 }
 
+func TestDiv(t *testing.T) {
+	testFloat32x4Binary(t, archsimd.Float32x4.Div, divSlice[float32])
+	testFloat64x2Binary(t, archsimd.Float64x2.Div, divSlice[float64])
+}
+
+func TestMax(t *testing.T) {
+	testFloat32x4Binary(t, archsimd.Float32x4.Max, maxSlice[float32])
+	testFloat64x2Binary(t, archsimd.Float64x2.Max, maxSlice[float64])
+
+	testInt8x16Binary(t, archsimd.Int8x16.Max, maxSlice[int8])
+	testInt16x8Binary(t, archsimd.Int16x8.Max, maxSlice[int16])
+	testInt32x4Binary(t, archsimd.Int32x4.Max, maxSlice[int32])
+	testUint8x16Binary(t, archsimd.Uint8x16.Max, maxSlice[uint8])
+	testUint16x8Binary(t, archsimd.Uint16x8.Max, maxSlice[uint16])
+	testUint32x4Binary(t, archsimd.Uint32x4.Max, maxSlice[uint32])
+}
+
+func TestMin(t *testing.T) {
+	testFloat32x4Binary(t, archsimd.Float32x4.Min, minSlice[float32])
+	testFloat64x2Binary(t, archsimd.Float64x2.Min, minSlice[float64])
+
+	testInt8x16Binary(t, archsimd.Int8x16.Min, minSlice[int8])
+	testInt16x8Binary(t, archsimd.Int16x8.Min, minSlice[int16])
+	testInt32x4Binary(t, archsimd.Int32x4.Min, minSlice[int32])
+	testUint8x16Binary(t, archsimd.Uint8x16.Min, minSlice[uint8])
+	testUint16x8Binary(t, archsimd.Uint16x8.Min, minSlice[uint16])
+	testUint32x4Binary(t, archsimd.Uint32x4.Min, minSlice[uint32])
+}
+
 func TestGetElem(t *testing.T) {
 	// Int8x16
 	{
