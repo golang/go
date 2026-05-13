@@ -124,6 +124,37 @@ func TestCertificateSelection(t *testing.T) {
 	}
 }
 
+// TestBrokenCertificateSkipped checks that a Certificate in Config.Certificates
+// whose leaf doesn't parse as X.509 doesn't prevent the next, valid certificate
+// from being selected. It exercises both the legacy BuildNameToCertificate path
+// and the SupportsCertificate-based selection.
+func TestBrokenCertificateSkipped(t *testing.T) {
+	brokenCert := Certificate{Certificate: [][]byte{[]byte("not a valid X.509 certificate")}}
+	for _, test := range []struct {
+		name       string
+		buildIndex bool
+	}{
+		{name: "BuildNameToCertificate", buildIndex: true},
+		{name: "SupportsCertificate", buildIndex: false},
+	} {
+		t.Run(test.name, func(t *testing.T) {
+			serverConfig := testConfigServer.Clone()
+			serverConfig.Certificates = []Certificate{brokenCert, testECDSAP256Cert}
+			if test.buildIndex {
+				serverConfig.BuildNameToCertificate()
+			}
+			clientConfig := testConfigClient.Clone()
+			_, cs, err := testHandshake(t, clientConfig, serverConfig)
+			if err != nil {
+				t.Fatalf("handshake failed: %v", err)
+			}
+			if !cs.PeerCertificates[0].Equal(testECDSAP256Cert.Leaf) {
+				t.Fatalf("handshake succeeded but wrong certificate was used")
+			}
+		})
+	}
+}
+
 // Run with multiple crypto configs to test the logic for computing TLS record overheads.
 func runDynamicRecordSizingTest(t *testing.T, serverConfig *Config) {
 	clientConn, serverConn := localPipe(t)
