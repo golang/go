@@ -305,12 +305,15 @@ func substituteWithBasicLit(node ast.Node, from, to string) ast.Node {
 	if err != nil {
 		log.Fatalf("parsing expr %q: %v", to, err)
 	}
-	if _, ok := toExpr.(*ast.BasicLit); !ok {
+	toLit, ok := toExpr.(*ast.BasicLit)
+	if !ok {
 		log.Fatalf("op 'to' expr %q is not a basic literal", to)
 	}
 	return astutil.Apply(node, func(cursor *astutil.Cursor) bool {
-		if isIdentWithName(cursor.Node(), from) {
-			cursor.Replace(toExpr)
+		if ident, ok := cursor.Node().(*ast.Ident); ok && ident.Name == from {
+			replacement := *toLit
+			replacement.ValuePos = ident.NamePos
+			cursor.Replace(new(replacement))
 		}
 		return true
 	}, nil)

@@ -11,7 +11,6 @@ import (
 
 func benchmarkMallocgcNoscan8(b *testing.B) {
 	const size = 8
-
 	b.Run("kind=new", func(b *testing.B) {
 		for b.Loop() {
 
@@ -32,7 +31,6 @@ func benchmarkMallocgcNoscan8(b *testing.B) {
 
 func benchmarkMallocgcScan8(b *testing.B) {
 	const size = 8
-
 	b.Run("kind=new", func(b *testing.B) {
 		for b.Loop() {
 
@@ -53,7 +51,6 @@ func benchmarkMallocgcScan8(b *testing.B) {
 
 func benchmarkMallocgcNoscan16(b *testing.B) {
 	const size = 16
-
 	b.Run("kind=new", func(b *testing.B) {
 		for b.Loop() {
 
@@ -74,7 +71,6 @@ func benchmarkMallocgcNoscan16(b *testing.B) {
 
 func benchmarkMallocgcScan16(b *testing.B) {
 	const size = 16
-
 	b.Run("kind=new", func(b *testing.B) {
 		for b.Loop() {
 
@@ -95,7 +91,6 @@ func benchmarkMallocgcScan16(b *testing.B) {
 
 func benchmarkMallocgcNoscan24(b *testing.B) {
 	const size = 24
-
 	b.Run("kind=new", func(b *testing.B) {
 		for b.Loop() {
 
@@ -116,7 +111,6 @@ func benchmarkMallocgcNoscan24(b *testing.B) {
 
 func benchmarkMallocgcScan24(b *testing.B) {
 	const size = 24
-
 	b.Run("kind=new", func(b *testing.B) {
 		for b.Loop() {
 
@@ -137,7 +131,6 @@ func benchmarkMallocgcScan24(b *testing.B) {
 
 func benchmarkMallocgcNoscan32(b *testing.B) {
 	const size = 32
-
 	b.Run("kind=new", func(b *testing.B) {
 		for b.Loop() {
 
@@ -158,7 +151,6 @@ func benchmarkMallocgcNoscan32(b *testing.B) {
 
 func benchmarkMallocgcScan32(b *testing.B) {
 	const size = 32
-
 	b.Run("kind=new", func(b *testing.B) {
 		for b.Loop() {
 
@@ -179,7 +171,6 @@ func benchmarkMallocgcScan32(b *testing.B) {
 
 func benchmarkMallocgcNoscan48(b *testing.B) {
 	const size = 48
-
 	b.Run("kind=new", func(b *testing.B) {
 		for b.Loop() {
 
@@ -200,7 +191,6 @@ func benchmarkMallocgcNoscan48(b *testing.B) {
 
 func benchmarkMallocgcScan48(b *testing.B) {
 	const size = 48
-
 	b.Run("kind=new", func(b *testing.B) {
 		for b.Loop() {
 
@@ -221,7 +211,6 @@ func benchmarkMallocgcScan48(b *testing.B) {
 
 func benchmarkMallocgcNoscan64(b *testing.B) {
 	const size = 64
-
 	b.Run("kind=new", func(b *testing.B) {
 		for b.Loop() {
 
@@ -242,7 +231,6 @@ func benchmarkMallocgcNoscan64(b *testing.B) {
 
 func benchmarkMallocgcScan64(b *testing.B) {
 	const size = 64
-
 	b.Run("kind=new", func(b *testing.B) {
 		for b.Loop() {
 
@@ -263,7 +251,6 @@ func benchmarkMallocgcScan64(b *testing.B) {
 
 func benchmarkMallocgcNoscan80(b *testing.B) {
 	const size = 80
-
 	b.Run("kind=new", func(b *testing.B) {
 		for b.Loop() {
 
@@ -284,7 +271,6 @@ func benchmarkMallocgcNoscan80(b *testing.B) {
 
 func benchmarkMallocgcScan80(b *testing.B) {
 	const size = 80
-
 	b.Run("kind=new", func(b *testing.B) {
 		for b.Loop() {
 
@@ -305,7 +291,6 @@ func benchmarkMallocgcScan80(b *testing.B) {
 
 func benchmarkMallocgcNoscan96(b *testing.B) {
 	const size = 96
-
 	b.Run("kind=new", func(b *testing.B) {
 		for b.Loop() {
 
@@ -326,7 +311,6 @@ func benchmarkMallocgcNoscan96(b *testing.B) {
 
 func benchmarkMallocgcScan96(b *testing.B) {
 	const size = 96
-
 	b.Run("kind=new", func(b *testing.B) {
 		for b.Loop() {
 
@@ -347,7 +331,6 @@ func benchmarkMallocgcScan96(b *testing.B) {
 
 func benchmarkMallocgcNoscan112(b *testing.B) {
 	const size = 112
-
 	b.Run("kind=new", func(b *testing.B) {
 		for b.Loop() {
 
@@ -368,7 +351,6 @@ func benchmarkMallocgcNoscan112(b *testing.B) {
 
 func benchmarkMallocgcScan112(b *testing.B) {
 	const size = 112
-
 	b.Run("kind=new", func(b *testing.B) {
 		for b.Loop() {
 
@@ -389,7 +371,6 @@ func benchmarkMallocgcScan112(b *testing.B) {
 
 func benchmarkMallocgcNoscan128(b *testing.B) {
 	const size = 128
-
 	b.Run("kind=new", func(b *testing.B) {
 		for b.Loop() {
 
@@ -410,7 +391,6 @@ func benchmarkMallocgcNoscan128(b *testing.B) {
 
 func benchmarkMallocgcScan128(b *testing.B) {
 	const size = 128
-
 	b.Run("kind=new", func(b *testing.B) {
 		for b.Loop() {
 
@@ -431,7 +411,6 @@ func benchmarkMallocgcScan128(b *testing.B) {
 
 func benchmarkMallocgcNoscan144(b *testing.B) {
 	const size = 144
-
 	b.Run("kind=new", func(b *testing.B) {
 		for b.Loop() {
 
@@ -452,7 +431,6 @@ func benchmarkMallocgcNoscan144(b *testing.B) {
 
 func benchmarkMallocgcScan144(b *testing.B) {
 	const size = 144
-
 	b.Run("kind=new", func(b *testing.B) {
 		for b.Loop() {
 
@@ -473,7 +451,6 @@ func benchmarkMallocgcScan144(b *testing.B) {
 
 func benchmarkMallocgcNoscan160(b *testing.B) {
 	const size = 160
-
 	b.Run("kind=new", func(b *testing.B) {
 		for b.Loop() {
 
@@ -494,7 +471,6 @@ func benchmarkMallocgcNoscan160(b *testing.B) {
 
 func benchmarkMallocgcScan160(b *testing.B) {
 	const size = 160
-
 	b.Run("kind=new", func(b *testing.B) {
 		for b.Loop() {
 
@@ -515,7 +491,6 @@ func benchmarkMallocgcScan160(b *testing.B) {
 
 func benchmarkMallocgcNoscan176(b *testing.B) {
 	const size = 176
-
 	b.Run("kind=new", func(b *testing.B) {
 		for b.Loop() {
 
@@ -536,7 +511,6 @@ func benchmarkMallocgcNoscan176(b *testing.B) {
 
 func benchmarkMallocgcScan176(b *testing.B) {
 	const size = 176
-
 	b.Run("kind=new", func(b *testing.B) {
 		for b.Loop() {
 
@@ -557,7 +531,6 @@ func benchmarkMallocgcScan176(b *testing.B) {
 
 func benchmarkMallocgcNoscan192(b *testing.B) {
 	const size = 192
-
 	b.Run("kind=new", func(b *testing.B) {
 		for b.Loop() {
 
@@ -578,7 +551,6 @@ func benchmarkMallocgcNoscan192(b *testing.B) {
 
 func benchmarkMallocgcScan192(b *testing.B) {
 	const size = 192
-
 	b.Run("kind=new", func(b *testing.B) {
 		for b.Loop() {
 
@@ -599,7 +571,6 @@ func benchmarkMallocgcScan192(b *testing.B) {
 
 func benchmarkMallocgcNoscan208(b *testing.B) {
 	const size = 208
-
 	b.Run("kind=new", func(b *testing.B) {
 		for b.Loop() {
 
@@ -620,7 +591,6 @@ func benchmarkMallocgcNoscan208(b *testing.B) {
 
 func benchmarkMallocgcScan208(b *testing.B) {
 	const size = 208
-
 	b.Run("kind=new", func(b *testing.B) {
 		for b.Loop() {
 
@@ -641,7 +611,6 @@ func benchmarkMallocgcScan208(b *testing.B) {
 
 func benchmarkMallocgcNoscan224(b *testing.B) {
 	const size = 224
-
 	b.Run("kind=new", func(b *testing.B) {
 		for b.Loop() {
 
@@ -662,7 +631,6 @@ func benchmarkMallocgcNoscan224(b *testing.B) {
 
 func benchmarkMallocgcScan224(b *testing.B) {
 	const size = 224
-
 	b.Run("kind=new", func(b *testing.B) {
 		for b.Loop() {
 
@@ -683,7 +651,6 @@ func benchmarkMallocgcScan224(b *testing.B) {
 
 func benchmarkMallocgcNoscan240(b *testing.B) {
 	const size = 240
-
 	b.Run("kind=new", func(b *testing.B) {
 		for b.Loop() {
 
@@ -704,7 +671,6 @@ func benchmarkMallocgcNoscan240(b *testing.B) {
 
 func benchmarkMallocgcScan240(b *testing.B) {
 	const size = 240
-
 	b.Run("kind=new", func(b *testing.B) {
 		for b.Loop() {
 
@@ -725,7 +691,6 @@ func benchmarkMallocgcScan240(b *testing.B) {
 
 func benchmarkMallocgcNoscan256(b *testing.B) {
 	const size = 256
-
 	b.Run("kind=new", func(b *testing.B) {
 		for b.Loop() {
 
@@ -746,7 +711,6 @@ func benchmarkMallocgcNoscan256(b *testing.B) {
 
 func benchmarkMallocgcScan256(b *testing.B) {
 	const size = 256
-
 	b.Run("kind=new", func(b *testing.B) {
 		for b.Loop() {
 
@@ -767,7 +731,6 @@ func benchmarkMallocgcScan256(b *testing.B) {
 
 func benchmarkMallocgcNoscan288(b *testing.B) {
 	const size = 288
-
 	b.Run("kind=new", func(b *testing.B) {
 		for b.Loop() {
 
@@ -788,7 +751,6 @@ func benchmarkMallocgcNoscan288(b *testing.B) {
 
 func benchmarkMallocgcScan288(b *testing.B) {
 	const size = 288
-
 	b.Run("kind=new", func(b *testing.B) {
 		for b.Loop() {
 
@@ -809,7 +771,6 @@ func benchmarkMallocgcScan288(b *testing.B) {
 
 func benchmarkMallocgcNoscan320(b *testing.B) {
 	const size = 320
-
 	b.Run("kind=new", func(b *testing.B) {
 		for b.Loop() {
 
@@ -830,7 +791,6 @@ func benchmarkMallocgcNoscan320(b *testing.B) {
 
 func benchmarkMallocgcScan320(b *testing.B) {
 	const size = 320
-
 	b.Run("kind=new", func(b *testing.B) {
 		for b.Loop() {
 
@@ -851,7 +811,6 @@ func benchmarkMallocgcScan320(b *testing.B) {
 
 func benchmarkMallocgcNoscan352(b *testing.B) {
 	const size = 352
-
 	b.Run("kind=new", func(b *testing.B) {
 		for b.Loop() {
 
@@ -872,7 +831,6 @@ func benchmarkMallocgcNoscan352(b *testing.B) {
 
 func benchmarkMallocgcScan352(b *testing.B) {
 	const size = 352
-
 	b.Run("kind=new", func(b *testing.B) {
 		for b.Loop() {
 
@@ -893,7 +851,6 @@ func benchmarkMallocgcScan352(b *testing.B) {
 
 func benchmarkMallocgcNoscan384(b *testing.B) {
 	const size = 384
-
 	b.Run("kind=new", func(b *testing.B) {
 		for b.Loop() {
 
@@ -914,7 +871,6 @@ func benchmarkMallocgcNoscan384(b *testing.B) {
 
 func benchmarkMallocgcScan384(b *testing.B) {
 	const size = 384
-
 	b.Run("kind=new", func(b *testing.B) {
 		for b.Loop() {
 
@@ -935,7 +891,6 @@ func benchmarkMallocgcScan384(b *testing.B) {
 
 func benchmarkMallocgcNoscan416(b *testing.B) {
 	const size = 416
-
 	b.Run("kind=new", func(b *testing.B) {
 		for b.Loop() {
 
@@ -956,7 +911,6 @@ func benchmarkMallocgcNoscan416(b *testing.B) {
 
 func benchmarkMallocgcScan416(b *testing.B) {
 	const size = 416
-
 	b.Run("kind=new", func(b *testing.B) {
 		for b.Loop() {
 
@@ -977,7 +931,6 @@ func benchmarkMallocgcScan416(b *testing.B) {
 
 func benchmarkMallocgcNoscan448(b *testing.B) {
 	const size = 448
-
 	b.Run("kind=new", func(b *testing.B) {
 		for b.Loop() {
 
@@ -998,7 +951,6 @@ func benchmarkMallocgcNoscan448(b *testing.B) {
 
 func benchmarkMallocgcScan448(b *testing.B) {
 	const size = 448
-
 	b.Run("kind=new", func(b *testing.B) {
 		for b.Loop() {
 
@@ -1019,7 +971,6 @@ func benchmarkMallocgcScan448(b *testing.B) {
 
 func benchmarkMallocgcNoscan480(b *testing.B) {
 	const size = 480
-
 	b.Run("kind=new", func(b *testing.B) {
 		for b.Loop() {
 
@@ -1040,7 +991,6 @@ func benchmarkMallocgcNoscan480(b *testing.B) {
 
 func benchmarkMallocgcScan480(b *testing.B) {
 	const size = 480
-
 	b.Run("kind=new", func(b *testing.B) {
 		for b.Loop() {
 
@@ -1061,7 +1011,6 @@ func benchmarkMallocgcScan480(b *testing.B) {
 
 func benchmarkMallocgcNoscan512(b *testing.B) {
 	const size = 512
-
 	b.Run("kind=new", func(b *testing.B) {
 		for b.Loop() {
 
@@ -1082,7 +1031,6 @@ func benchmarkMallocgcNoscan512(b *testing.B) {
 
 func benchmarkMallocgcScan512(b *testing.B) {
 	const size = 512
-
 	b.Run("kind=new", func(b *testing.B) {
 		for b.Loop() {
 
@@ -1103,7 +1051,6 @@ func benchmarkMallocgcScan512(b *testing.B) {
 
 func benchmarkMallocgcTiny1(b *testing.B) {
 	const size = 1
-
 	type s struct {
 		v [size]byte
 	}
@@ -1122,7 +1069,6 @@ func benchmarkMallocgcTiny1(b *testing.B) {
 
 func benchmarkMallocgcTiny2(b *testing.B) {
 	const size = 2
-
 	type s struct {
 		v [size]byte
 	}
@@ -1141,7 +1087,6 @@ func benchmarkMallocgcTiny2(b *testing.B) {
 
 func benchmarkMallocgcTiny3(b *testing.B) {
 	const size = 3
-
 	type s struct {
 		v [size]byte
 	}
@@ -1160,7 +1105,6 @@ func benchmarkMallocgcTiny3(b *testing.B) {
 
 func benchmarkMallocgcTiny4(b *testing.B) {
 	const size = 4
-
 	type s struct {
 		v [size]byte
 	}
@@ -1179,7 +1123,6 @@ func benchmarkMallocgcTiny4(b *testing.B) {
 
 func benchmarkMallocgcTiny5(b *testing.B) {
 	const size = 5
-
 	type s struct {
 		v [size]byte
 	}
@@ -1198,7 +1141,6 @@ func benchmarkMallocgcTiny5(b *testing.B) {
 
 func benchmarkMallocgcTiny6(b *testing.B) {
 	const size = 6
-
 	type s struct {
 		v [size]byte
 	}
@@ -1217,7 +1159,6 @@ func benchmarkMallocgcTiny6(b *testing.B) {
 
 func benchmarkMallocgcTiny7(b *testing.B) {
 	const size = 7
-
 	type s struct {
 		v [size]byte
 	}
@@ -1236,7 +1177,6 @@ func benchmarkMallocgcTiny7(b *testing.B) {
 
 func benchmarkMallocgcTiny8(b *testing.B) {
 	const size = 8
-
 	type s struct {
 		v [size]byte
 	}
@@ -1255,7 +1195,6 @@ func benchmarkMallocgcTiny8(b *testing.B) {
 
 func benchmarkMallocgcTiny9(b *testing.B) {
 	const size = 9
-
 	type s struct {
 		v [size]byte
 	}
@@ -1274,7 +1213,6 @@ func benchmarkMallocgcTiny9(b *testing.B) {
 
 func benchmarkMallocgcTiny10(b *testing.B) {
 	const size = 10
-
 	type s struct {
 		v [size]byte
 	}
@@ -1293,7 +1231,6 @@ func benchmarkMallocgcTiny10(b *testing.B) {
 
 func benchmarkMallocgcTiny11(b *testing.B) {
 	const size = 11
-
 	type s struct {
 		v [size]byte
 	}
@@ -1312,7 +1249,6 @@ func benchmarkMallocgcTiny11(b *testing.B) {
 
 func benchmarkMallocgcTiny12(b *testing.B) {
 	const size = 12
-
 	type s struct {
 		v [size]byte
 	}
@@ -1331,7 +1267,6 @@ func benchmarkMallocgcTiny12(b *testing.B) {
 
 func benchmarkMallocgcTiny13(b *testing.B) {
 	const size = 13
-
 	type s struct {
 		v [size]byte
 	}
@@ -1350,7 +1285,6 @@ func benchmarkMallocgcTiny13(b *testing.B) {
 
 func benchmarkMallocgcTiny14(b *testing.B) {
 	const size = 14
-
 	type s struct {
 		v [size]byte
 	}
@@ -1369,7 +1303,6 @@ func benchmarkMallocgcTiny14(b *testing.B) {
 
 func benchmarkMallocgcTiny15(b *testing.B) {
 	const size = 15
-
 	type s struct {
 		v [size]byte
 	}

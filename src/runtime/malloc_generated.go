@@ -31,7 +31,6 @@ func mallocgcSmallScanNoHeaderSC1(size uintptr, typ *_type, needzero bool) unsaf
 	}
 
 	const sizeclass = 1
-
 	const elemsize = 8
 
 	mp := acquirem()
@@ -55,9 +54,7 @@ func mallocgcSmallScanNoHeaderSC1(size uintptr, typ *_type, needzero bool) unsaf
 				span.allocCache >>= uint(theBit + 1)
 				span.freeindex = freeidx
 				span.allocCount++
-				nextFreeFastResult = gclinkptr(uintptr(result)*
-					8 +
-					span.base())
+				nextFreeFastResult = gclinkptr(uintptr(result)*8 + span.base())
 			}
 		}
 	}
@@ -199,7 +196,6 @@ func mallocgcSmallScanNoHeaderSC2(size uintptr, typ *_type, needzero bool) unsaf
 	}
 
 	const sizeclass = 2
-
 	const elemsize = 16
 
 	mp := acquirem()
@@ -223,9 +219,7 @@ func mallocgcSmallScanNoHeaderSC2(size uintptr, typ *_type, needzero bool) unsaf
 				span.allocCache >>= uint(theBit + 1)
 				span.freeindex = freeidx
 				span.allocCount++
-				nextFreeFastResult = gclinkptr(uintptr(result)*
-					16 +
-					span.base())
+				nextFreeFastResult = gclinkptr(uintptr(result)*16 + span.base())
 			}
 		}
 	}
@@ -367,7 +361,6 @@ func mallocgcSmallScanNoHeaderSC3(size uintptr, typ *_type, needzero bool) unsaf
 	}
 
 	const sizeclass = 3
-
 	const elemsize = 24
 
 	mp := acquirem()
@@ -391,9 +384,7 @@ func mallocgcSmallScanNoHeaderSC3(size uintptr, typ *_type, needzero bool) unsaf
 				span.allocCache >>= uint(theBit + 1)
 				span.freeindex = freeidx
 				span.allocCount++
-				nextFreeFastResult = gclinkptr(uintptr(result)*
-					24 +
-					span.base())
+				nextFreeFastResult = gclinkptr(uintptr(result)*24 + span.base())
 			}
 		}
 	}
@@ -535,7 +526,6 @@ func mallocgcSmallScanNoHeaderSC4(size uintptr, typ *_type, needzero bool) unsaf
 	}
 
 	const sizeclass = 4
-
 	const elemsize = 32
 
 	mp := acquirem()
@@ -559,9 +549,7 @@ func mallocgcSmallScanNoHeaderSC4(size uintptr, typ *_type, needzero bool) unsaf
 				span.allocCache >>= uint(theBit + 1)
 				span.freeindex = freeidx
 				span.allocCount++
-				nextFreeFastResult = gclinkptr(uintptr(result)*
-					32 +
-					span.base())
+				nextFreeFastResult = gclinkptr(uintptr(result)*32 + span.base())
 			}
 		}
 	}
@@ -703,7 +691,6 @@ func mallocgcSmallScanNoHeaderSC5(size uintptr, typ *_type, needzero bool) unsaf
 	}
 
 	const sizeclass = 5
-
 	const elemsize = 48
 
 	mp := acquirem()
@@ -727,9 +714,7 @@ func mallocgcSmallScanNoHeaderSC5(size uintptr, typ *_type, needzero bool) unsaf
 				span.allocCache >>= uint(theBit + 1)
 				span.freeindex = freeidx
 				span.allocCount++
-				nextFreeFastResult = gclinkptr(uintptr(result)*
-					48 +
-					span.base())
+				nextFreeFastResult = gclinkptr(uintptr(result)*48 + span.base())
 			}
 		}
 	}
@@ -871,7 +856,6 @@ func mallocgcSmallScanNoHeaderSC6(size uintptr, typ *_type, needzero bool) unsaf
 	}
 
 	const sizeclass = 6
-
 	const elemsize = 64
 
 	mp := acquirem()
@@ -895,9 +879,7 @@ func mallocgcSmallScanNoHeaderSC6(size uintptr, typ *_type, needzero bool) unsaf
 				span.allocCache >>= uint(theBit + 1)
 				span.freeindex = freeidx
 				span.allocCount++
-				nextFreeFastResult = gclinkptr(uintptr(result)*
-					64 +
-					span.base())
+				nextFreeFastResult = gclinkptr(uintptr(result)*64 + span.base())
 			}
 		}
 	}
@@ -1039,7 +1021,6 @@ func mallocgcSmallScanNoHeaderSC7(size uintptr, typ *_type, needzero bool) unsaf
 	}
 
 	const sizeclass = 7
-
 	const elemsize = 80
 
 	mp := acquirem()
@@ -1063,9 +1044,7 @@ func mallocgcSmallScanNoHeaderSC7(size uintptr, typ *_type, needzero bool) unsaf
 				span.allocCache >>= uint(theBit + 1)
 				span.freeindex = freeidx
 				span.allocCount++
-				nextFreeFastResult = gclinkptr(uintptr(result)*
-					80 +
-					span.base())
+				nextFreeFastResult = gclinkptr(uintptr(result)*80 + span.base())
 			}
 		}
 	}
@@ -1207,7 +1186,6 @@ func mallocgcSmallScanNoHeaderSC8(size uintptr, typ *_type, needzero bool) unsaf
 	}
 
 	const sizeclass = 8
-
 	const elemsize = 96
 
 	mp := acquirem()
@@ -1231,9 +1209,7 @@ func mallocgcSmallScanNoHeaderSC8(size uintptr, typ *_type, needzero bool) unsaf
 				span.allocCache >>= uint(theBit + 1)
 				span.freeindex = freeidx
 				span.allocCount++
-				nextFreeFastResult = gclinkptr(uintptr(result)*
-					96 +
-					span.base())
+				nextFreeFastResult = gclinkptr(uintptr(result)*96 + span.base())
 			}
 		}
 	}
@@ -1375,7 +1351,6 @@ func mallocgcSmallScanNoHeaderSC9(size uintptr, typ *_type, needzero bool) unsaf
 	}
 
 	const sizeclass = 9
-
 	const elemsize = 112
 
 	mp := acquirem()
@@ -1399,9 +1374,7 @@ func mallocgcSmallScanNoHeaderSC9(size uintptr, typ *_type, needzero bool) unsaf
 				span.allocCache >>= uint(theBit + 1)
 				span.freeindex = freeidx
 				span.allocCount++
-				nextFreeFastResult = gclinkptr(uintptr(result)*
-					112 +
-					span.base())
+				nextFreeFastResult = gclinkptr(uintptr(result)*112 + span.base())
 			}
 		}
 	}
@@ -1543,7 +1516,6 @@ func mallocgcSmallScanNoHeaderSC10(size uintptr, typ *_type, needzero bool) unsa
 	}
 
 	const sizeclass = 10
-
 	const elemsize = 128
 
 	mp := acquirem()
@@ -1567,9 +1539,7 @@ func mallocgcSmallScanNoHeaderSC10(size uintptr, typ *_type, needzero bool) unsa
 				span.allocCache >>= uint(theBit + 1)
 				span.freeindex = freeidx
 				span.allocCount++
-				nextFreeFastResult = gclinkptr(uintptr(result)*
-					128 +
-					span.base())
+				nextFreeFastResult = gclinkptr(uintptr(result)*128 + span.base())
 			}
 		}
 	}
@@ -1776,9 +1746,7 @@ func mallocgcTinySC2(size uintptr, typ *_type, needzero bool) unsafe.Pointer {
 	span := c.alloc[tinySpanClass]
 
 	const nbytes = 8192
-	const nelems = uint16((nbytes - unsafe.Sizeof(spanInlineMarkBits{})) /
-		16,
-	)
+	const nelems = uint16((nbytes - unsafe.Sizeof(spanInlineMarkBits{})) / 16)
 	var nextFreeFastResult gclinkptr
 	if span.allocCache != 0 {
 		theBit := sys.TrailingZeros64(span.allocCache)
@@ -1789,9 +1757,7 @@ func mallocgcTinySC2(size uintptr, typ *_type, needzero bool) unsafe.Pointer {
 				span.allocCache >>= uint(theBit + 1)
 				span.freeindex = freeidx
 				span.allocCount++
-				nextFreeFastResult = gclinkptr(uintptr(result)*
-					16 +
-					span.base())
+				nextFreeFastResult = gclinkptr(uintptr(result)*16 + span.base())
 			}
 		}
 	}
@@ -1873,7 +1839,6 @@ func mallocgcSmallNoScanSC2(size uintptr, typ *_type, needzero bool) unsafe.Poin
 	}
 
 	const sizeclass = 2
-
 	const elemsize = 16
 
 	mp := acquirem()
@@ -1929,9 +1894,7 @@ func mallocgcSmallNoScanSC2(size uintptr, typ *_type, needzero bool) unsafe.Poin
 				span.allocCache >>= uint(theBit + 1)
 				span.freeindex = freeidx
 				span.allocCount++
-				nextFreeFastResult = gclinkptr(uintptr(result)*
-					16 +
-					span.base())
+				nextFreeFastResult = gclinkptr(uintptr(result)*16 + span.base())
 			}
 		}
 	}
@@ -2009,7 +1972,6 @@ func mallocgcSmallNoScanSC3(size uintptr, typ *_type, needzero bool) unsafe.Poin
 	}
 
 	const sizeclass = 3
-
 	const elemsize = 24
 
 	mp := acquirem()
@@ -2065,9 +2027,7 @@ func mallocgcSmallNoScanSC3(size uintptr, typ *_type, needzero bool) unsafe.Poin
 				span.allocCache >>= uint(theBit + 1)
 				span.freeindex = freeidx
 				span.allocCount++
-				nextFreeFastResult = gclinkptr(uintptr(result)*
-					24 +
-					span.base())
+				nextFreeFastResult = gclinkptr(uintptr(result)*24 + span.base())
 			}
 		}
 	}
@@ -2145,7 +2105,6 @@ func mallocgcSmallNoScanSC4(size uintptr, typ *_type, needzero bool) unsafe.Poin
 	}
 
 	const sizeclass = 4
-
 	const elemsize = 32
 
 	mp := acquirem()
@@ -2201,9 +2160,7 @@ func mallocgcSmallNoScanSC4(size uintptr, typ *_type, needzero bool) unsafe.Poin
 				span.allocCache >>= uint(theBit + 1)
 				span.freeindex = freeidx
 				span.allocCount++
-				nextFreeFastResult = gclinkptr(uintptr(result)*
-					32 +
-					span.base())
+				nextFreeFastResult = gclinkptr(uintptr(result)*32 + span.base())
 			}
 		}
 	}
@@ -2281,7 +2238,6 @@ func mallocgcSmallNoScanSC5(size uintptr, typ *_type, needzero bool) unsafe.Poin
 	}
 
 	const sizeclass = 5
-
 	const elemsize = 48
 
 	mp := acquirem()
@@ -2337,9 +2293,7 @@ func mallocgcSmallNoScanSC5(size uintptr, typ *_type, needzero bool) unsafe.Poin
 				span.allocCache >>= uint(theBit + 1)
 				span.freeindex = freeidx
 				span.allocCount++
-				nextFreeFastResult = gclinkptr(uintptr(result)*
-					48 +
-					span.base())
+				nextFreeFastResult = gclinkptr(uintptr(result)*48 + span.base())
 			}
 		}
 	}
@@ -2417,7 +2371,6 @@ func mallocgcSmallNoScanSC6(size uintptr, typ *_type, needzero bool) unsafe.Poin
 	}
 
 	const sizeclass = 6
-
 	const elemsize = 64
 
 	mp := acquirem()
@@ -2473,9 +2426,7 @@ func mallocgcSmallNoScanSC6(size uintptr, typ *_type, needzero bool) unsafe.Poin
 				span.allocCache >>= uint(theBit + 1)
 				span.freeindex = freeidx
 				span.allocCount++
-				nextFreeFastResult = gclinkptr(uintptr(result)*
-					64 +
-					span.base())
+				nextFreeFastResult = gclinkptr(uintptr(result)*64 + span.base())
 			}
 		}
 	}
@@ -2553,7 +2504,6 @@ func mallocgcSmallNoScanSC7(size uintptr, typ *_type, needzero bool) unsafe.Poin
 	}
 
 	const sizeclass = 7
-
 	const elemsize = 80
 
 	mp := acquirem()
@@ -2609,9 +2559,7 @@ func mallocgcSmallNoScanSC7(size uintptr, typ *_type, needzero bool) unsafe.Poin
 				span.allocCache >>= uint(theBit + 1)
 				span.freeindex = freeidx
 				span.allocCount++
-				nextFreeFastResult = gclinkptr(uintptr(result)*
-					80 +
-					span.base())
+				nextFreeFastResult = gclinkptr(uintptr(result)*80 + span.base())
 			}
 		}
 	}
@@ -2689,7 +2637,6 @@ func mallocgcSmallNoScanSC8(size uintptr, typ *_type, needzero bool) unsafe.Poin
 	}
 
 	const sizeclass = 8
-
 	const elemsize = 96
 
 	mp := acquirem()
@@ -2745,9 +2692,7 @@ func mallocgcSmallNoScanSC8(size uintptr, typ *_type, needzero bool) unsafe.Poin
 				span.allocCache >>= uint(theBit + 1)
 				span.freeindex = freeidx
 				span.allocCount++
-				nextFreeFastResult = gclinkptr(uintptr(result)*
-					96 +
-					span.base())
+				nextFreeFastResult = gclinkptr(uintptr(result)*96 + span.base())
 			}
 		}
 	}
@@ -2825,7 +2770,6 @@ func mallocgcSmallNoScanSC9(size uintptr, typ *_type, needzero bool) unsafe.Poin
 	}
 
 	const sizeclass = 9
-
 	const elemsize = 112
 
 	mp := acquirem()
@@ -2881,9 +2825,7 @@ func mallocgcSmallNoScanSC9(size uintptr, typ *_type, needzero bool) unsafe.Poin
 				span.allocCache >>= uint(theBit + 1)
 				span.freeindex = freeidx
 				span.allocCount++
-				nextFreeFastResult = gclinkptr(uintptr(result)*
-					112 +
-					span.base())
+				nextFreeFastResult = gclinkptr(uintptr(result)*112 + span.base())
 			}
 		}
 	}
@@ -2961,7 +2903,6 @@ func mallocgcSmallNoScanSC10(size uintptr, typ *_type, needzero bool) unsafe.Poi
 	}
 
 	const sizeclass = 10
-
 	const elemsize = 128
 
 	mp := acquirem()
@@ -3017,9 +2958,7 @@ func mallocgcSmallNoScanSC10(size uintptr, typ *_type, needzero bool) unsafe.Poi
 				span.allocCache >>= uint(theBit + 1)
 				span.freeindex = freeidx
 				span.allocCount++
-				nextFreeFastResult = gclinkptr(uintptr(result)*
-					128 +
-					span.base())
+				nextFreeFastResult = gclinkptr(uintptr(result)*128 + span.base())
 			}
 		}
 	}
