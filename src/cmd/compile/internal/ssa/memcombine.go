@@ -840,7 +840,7 @@ func combineStores(root *Value) {
 	if isLittleEndian && shift0 != 0 {
 		sv = rightShift(root.Block, root.Pos, sv, shift0)
 	}
-	shiftedSize = int64(aTotalSize - a[0].size)
+	shiftedSize = aTotalSize - a[0].size
 	if isBigEndian && shift0-shiftedSize*8 != 0 {
 		sv = rightShift(root.Block, root.Pos, sv, shift0-shiftedSize*8)
 	}

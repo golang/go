@@ -2,8 +2,7 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-
-package main
+package ssa
 
 import (
 	"testing"
@@ -268,12 +267,4 @@ func TestMemcombineCorrectness(t *testing.T) {
 		t.Errorf("after writeUint16Global, read = %#x, want 0xabcd", got)
 	}
 	writeUint16Global(want16)
-}
-
-func main() {
-	println("Uint64 Global:", readUint64Global())
-	println("Uint32 Global:", readUint32Global())
-	println("Uint16 Global:", readUint16Global())
-	println("Uint64 Local:", readUint64Local())
-	println("Uint64 Dynamic:", readUint64Dynamic([]byte{0x01, 0x23, 0x45, 0x67, 0x89, 0xab, 0xcd, 0xef}, 0))
 }
