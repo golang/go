@@ -166,7 +166,8 @@ func specializedMallocConfig(classes []class, sizeToSizeClass []uint8) generator
 				templateFunc: "mallocStub",
 				name:         name,
 				ops: []op{
-					{inlineFunc, "inlinedMalloc", "smallScanNoHeaderStub"},
+					{inlineFunc, "inlinedMalloc", "smallStub"},
+					{foldCondition, "isNoScan_", str(false)},
 					{inlineFunc, "heapSetTypeNoHeaderStub", "heapSetTypeNoHeaderStub"},
 					{inlineFunc, "nextFreeFastStub", "nextFreeFastStub"},
 					{inlineFunc, "writeHeapBitsSmallStub", "writeHeapBitsSmallStub"},
@@ -211,7 +212,8 @@ func specializedMallocConfig(classes []class, sizeToSizeClass []uint8) generator
 				templateFunc: "mallocStub",
 				name:         name,
 				ops: []op{
-					{inlineFunc, "inlinedMalloc", "smallNoScanStub"},
+					{inlineFunc, "inlinedMalloc", "smallStub"},
+					{foldCondition, "isNoScan_", str(true)},
 					{inlineFunc, "nextFreeFastStub", "nextFreeFastStub"},
 					{subBasicLit, "elemsize_", str(elemsize)},
 					{subBasicLit, "sizeclass_", str(sc)},

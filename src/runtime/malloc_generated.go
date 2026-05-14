@@ -35,7 +35,9 @@ func mallocgcSmallScanNoHeaderSC1(size uintptr, typ *_type, needzero bool) unsaf
 
 	mp := acquirem()
 	if doubleCheckMalloc {
+
 		doubleCheckSmallScanNoHeader(size, typ, mp)
+
 	}
 	mp.mallocing = 1
 
@@ -63,6 +65,7 @@ func mallocgcSmallScanNoHeaderSC1(size uintptr, typ *_type, needzero bool) unsaf
 		v, span, checkGCTrigger = c.nextFree(spc)
 	}
 	x := unsafe.Pointer(v)
+
 	if span.needzero != 0 {
 		memclrNoHeapPointers(x, elemsize)
 	}
@@ -196,7 +199,9 @@ func mallocgcSmallScanNoHeaderSC2(size uintptr, typ *_type, needzero bool) unsaf
 
 	mp := acquirem()
 	if doubleCheckMalloc {
+
 		doubleCheckSmallScanNoHeader(size, typ, mp)
+
 	}
 	mp.mallocing = 1
 
@@ -224,6 +229,7 @@ func mallocgcSmallScanNoHeaderSC2(size uintptr, typ *_type, needzero bool) unsaf
 		v, span, checkGCTrigger = c.nextFree(spc)
 	}
 	x := unsafe.Pointer(v)
+
 	if span.needzero != 0 {
 		memclrNoHeapPointers(x, elemsize)
 	}
@@ -357,7 +363,9 @@ func mallocgcSmallScanNoHeaderSC3(size uintptr, typ *_type, needzero bool) unsaf
 
 	mp := acquirem()
 	if doubleCheckMalloc {
+
 		doubleCheckSmallScanNoHeader(size, typ, mp)
+
 	}
 	mp.mallocing = 1
 
@@ -385,6 +393,7 @@ func mallocgcSmallScanNoHeaderSC3(size uintptr, typ *_type, needzero bool) unsaf
 		v, span, checkGCTrigger = c.nextFree(spc)
 	}
 	x := unsafe.Pointer(v)
+
 	if span.needzero != 0 {
 		memclrNoHeapPointers(x, elemsize)
 	}
@@ -518,7 +527,9 @@ func mallocgcSmallScanNoHeaderSC4(size uintptr, typ *_type, needzero bool) unsaf
 
 	mp := acquirem()
 	if doubleCheckMalloc {
+
 		doubleCheckSmallScanNoHeader(size, typ, mp)
+
 	}
 	mp.mallocing = 1
 
@@ -546,6 +557,7 @@ func mallocgcSmallScanNoHeaderSC4(size uintptr, typ *_type, needzero bool) unsaf
 		v, span, checkGCTrigger = c.nextFree(spc)
 	}
 	x := unsafe.Pointer(v)
+
 	if span.needzero != 0 {
 		memclrNoHeapPointers(x, elemsize)
 	}
@@ -679,7 +691,9 @@ func mallocgcSmallScanNoHeaderSC5(size uintptr, typ *_type, needzero bool) unsaf
 
 	mp := acquirem()
 	if doubleCheckMalloc {
+
 		doubleCheckSmallScanNoHeader(size, typ, mp)
+
 	}
 	mp.mallocing = 1
 
@@ -707,6 +721,7 @@ func mallocgcSmallScanNoHeaderSC5(size uintptr, typ *_type, needzero bool) unsaf
 		v, span, checkGCTrigger = c.nextFree(spc)
 	}
 	x := unsafe.Pointer(v)
+
 	if span.needzero != 0 {
 		memclrNoHeapPointers(x, elemsize)
 	}
@@ -840,7 +855,9 @@ func mallocgcSmallScanNoHeaderSC6(size uintptr, typ *_type, needzero bool) unsaf
 
 	mp := acquirem()
 	if doubleCheckMalloc {
+
 		doubleCheckSmallScanNoHeader(size, typ, mp)
+
 	}
 	mp.mallocing = 1
 
@@ -868,6 +885,7 @@ func mallocgcSmallScanNoHeaderSC6(size uintptr, typ *_type, needzero bool) unsaf
 		v, span, checkGCTrigger = c.nextFree(spc)
 	}
 	x := unsafe.Pointer(v)
+
 	if span.needzero != 0 {
 		memclrNoHeapPointers(x, elemsize)
 	}
@@ -1001,7 +1019,9 @@ func mallocgcSmallScanNoHeaderSC7(size uintptr, typ *_type, needzero bool) unsaf
 
 	mp := acquirem()
 	if doubleCheckMalloc {
+
 		doubleCheckSmallScanNoHeader(size, typ, mp)
+
 	}
 	mp.mallocing = 1
 
@@ -1029,6 +1049,7 @@ func mallocgcSmallScanNoHeaderSC7(size uintptr, typ *_type, needzero bool) unsaf
 		v, span, checkGCTrigger = c.nextFree(spc)
 	}
 	x := unsafe.Pointer(v)
+
 	if span.needzero != 0 {
 		memclrNoHeapPointers(x, elemsize)
 	}
@@ -1162,7 +1183,9 @@ func mallocgcSmallScanNoHeaderSC8(size uintptr, typ *_type, needzero bool) unsaf
 
 	mp := acquirem()
 	if doubleCheckMalloc {
+
 		doubleCheckSmallScanNoHeader(size, typ, mp)
+
 	}
 	mp.mallocing = 1
 
@@ -1190,6 +1213,7 @@ func mallocgcSmallScanNoHeaderSC8(size uintptr, typ *_type, needzero bool) unsaf
 		v, span, checkGCTrigger = c.nextFree(spc)
 	}
 	x := unsafe.Pointer(v)
+
 	if span.needzero != 0 {
 		memclrNoHeapPointers(x, elemsize)
 	}
@@ -1323,7 +1347,9 @@ func mallocgcSmallScanNoHeaderSC9(size uintptr, typ *_type, needzero bool) unsaf
 
 	mp := acquirem()
 	if doubleCheckMalloc {
+
 		doubleCheckSmallScanNoHeader(size, typ, mp)
+
 	}
 	mp.mallocing = 1
 
@@ -1351,6 +1377,7 @@ func mallocgcSmallScanNoHeaderSC9(size uintptr, typ *_type, needzero bool) unsaf
 		v, span, checkGCTrigger = c.nextFree(spc)
 	}
 	x := unsafe.Pointer(v)
+
 	if span.needzero != 0 {
 		memclrNoHeapPointers(x, elemsize)
 	}
@@ -1484,7 +1511,9 @@ func mallocgcSmallScanNoHeaderSC10(size uintptr, typ *_type, needzero bool) unsa
 
 	mp := acquirem()
 	if doubleCheckMalloc {
+
 		doubleCheckSmallScanNoHeader(size, typ, mp)
+
 	}
 	mp.mallocing = 1
 
@@ -1512,6 +1541,7 @@ func mallocgcSmallScanNoHeaderSC10(size uintptr, typ *_type, needzero bool) unsa
 		v, span, checkGCTrigger = c.nextFree(spc)
 	}
 	x := unsafe.Pointer(v)
+
 	if span.needzero != 0 {
 		memclrNoHeapPointers(x, elemsize)
 	}
@@ -1790,7 +1820,9 @@ func mallocgcSmallNoScanSC2(size uintptr, typ *_type, needzero bool) unsafe.Poin
 
 	mp := acquirem()
 	if doubleCheckMalloc {
+
 		doubleCheckSmallNoScan(typ, mp)
+
 	}
 	mp.mallocing = 1
 
@@ -1846,6 +1878,7 @@ func mallocgcSmallNoScanSC2(size uintptr, typ *_type, needzero bool) unsafe.Poin
 		v, span, checkGCTrigger = c.nextFree(spc)
 	}
 	x := unsafe.Pointer(v)
+
 	if needzero && span.needzero != 0 {
 		memclrNoHeapPointers(x, elemsize)
 	}
@@ -1915,7 +1948,9 @@ func mallocgcSmallNoScanSC3(size uintptr, typ *_type, needzero bool) unsafe.Poin
 
 	mp := acquirem()
 	if doubleCheckMalloc {
+
 		doubleCheckSmallNoScan(typ, mp)
+
 	}
 	mp.mallocing = 1
 
@@ -1971,6 +2006,7 @@ func mallocgcSmallNoScanSC3(size uintptr, typ *_type, needzero bool) unsafe.Poin
 		v, span, checkGCTrigger = c.nextFree(spc)
 	}
 	x := unsafe.Pointer(v)
+
 	if needzero && span.needzero != 0 {
 		memclrNoHeapPointers(x, elemsize)
 	}
@@ -2040,7 +2076,9 @@ func mallocgcSmallNoScanSC4(size uintptr, typ *_type, needzero bool) unsafe.Poin
 
 	mp := acquirem()
 	if doubleCheckMalloc {
+
 		doubleCheckSmallNoScan(typ, mp)
+
 	}
 	mp.mallocing = 1
 
@@ -2096,6 +2134,7 @@ func mallocgcSmallNoScanSC4(size uintptr, typ *_type, needzero bool) unsafe.Poin
 		v, span, checkGCTrigger = c.nextFree(spc)
 	}
 	x := unsafe.Pointer(v)
+
 	if needzero && span.needzero != 0 {
 		memclrNoHeapPointers(x, elemsize)
 	}
@@ -2165,7 +2204,9 @@ func mallocgcSmallNoScanSC5(size uintptr, typ *_type, needzero bool) unsafe.Poin
 
 	mp := acquirem()
 	if doubleCheckMalloc {
+
 		doubleCheckSmallNoScan(typ, mp)
+
 	}
 	mp.mallocing = 1
 
@@ -2221,6 +2262,7 @@ func mallocgcSmallNoScanSC5(size uintptr, typ *_type, needzero bool) unsafe.Poin
 		v, span, checkGCTrigger = c.nextFree(spc)
 	}
 	x := unsafe.Pointer(v)
+
 	if needzero && span.needzero != 0 {
 		memclrNoHeapPointers(x, elemsize)
 	}
@@ -2290,7 +2332,9 @@ func mallocgcSmallNoScanSC6(size uintptr, typ *_type, needzero bool) unsafe.Poin
 
 	mp := acquirem()
 	if doubleCheckMalloc {
+
 		doubleCheckSmallNoScan(typ, mp)
+
 	}
 	mp.mallocing = 1
 
@@ -2346,6 +2390,7 @@ func mallocgcSmallNoScanSC6(size uintptr, typ *_type, needzero bool) unsafe.Poin
 		v, span, checkGCTrigger = c.nextFree(spc)
 	}
 	x := unsafe.Pointer(v)
+
 	if needzero && span.needzero != 0 {
 		memclrNoHeapPointers(x, elemsize)
 	}
@@ -2415,7 +2460,9 @@ func mallocgcSmallNoScanSC7(size uintptr, typ *_type, needzero bool) unsafe.Poin
 
 	mp := acquirem()
 	if doubleCheckMalloc {
+
 		doubleCheckSmallNoScan(typ, mp)
+
 	}
 	mp.mallocing = 1
 
@@ -2471,6 +2518,7 @@ func mallocgcSmallNoScanSC7(size uintptr, typ *_type, needzero bool) unsafe.Poin
 		v, span, checkGCTrigger = c.nextFree(spc)
 	}
 	x := unsafe.Pointer(v)
+
 	if needzero && span.needzero != 0 {
 		memclrNoHeapPointers(x, elemsize)
 	}
@@ -2540,7 +2588,9 @@ func mallocgcSmallNoScanSC8(size uintptr, typ *_type, needzero bool) unsafe.Poin
 
 	mp := acquirem()
 	if doubleCheckMalloc {
+
 		doubleCheckSmallNoScan(typ, mp)
+
 	}
 	mp.mallocing = 1
 
@@ -2596,6 +2646,7 @@ func mallocgcSmallNoScanSC8(size uintptr, typ *_type, needzero bool) unsafe.Poin
 		v, span, checkGCTrigger = c.nextFree(spc)
 	}
 	x := unsafe.Pointer(v)
+
 	if needzero && span.needzero != 0 {
 		memclrNoHeapPointers(x, elemsize)
 	}
@@ -2665,7 +2716,9 @@ func mallocgcSmallNoScanSC9(size uintptr, typ *_type, needzero bool) unsafe.Poin
 
 	mp := acquirem()
 	if doubleCheckMalloc {
+
 		doubleCheckSmallNoScan(typ, mp)
+
 	}
 	mp.mallocing = 1
 
@@ -2721,6 +2774,7 @@ func mallocgcSmallNoScanSC9(size uintptr, typ *_type, needzero bool) unsafe.Poin
 		v, span, checkGCTrigger = c.nextFree(spc)
 	}
 	x := unsafe.Pointer(v)
+
 	if needzero && span.needzero != 0 {
 		memclrNoHeapPointers(x, elemsize)
 	}
@@ -2790,7 +2844,9 @@ func mallocgcSmallNoScanSC10(size uintptr, typ *_type, needzero bool) unsafe.Poi
 
 	mp := acquirem()
 	if doubleCheckMalloc {
+
 		doubleCheckSmallNoScan(typ, mp)
+
 	}
 	mp.mallocing = 1
 
@@ -2846,6 +2902,7 @@ func mallocgcSmallNoScanSC10(size uintptr, typ *_type, needzero bool) unsafe.Poi
 		v, span, checkGCTrigger = c.nextFree(spc)
 	}
 	x := unsafe.Pointer(v)
+
 	if needzero && span.needzero != 0 {
 		memclrNoHeapPointers(x, elemsize)
 	}
