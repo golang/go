@@ -13,7 +13,7 @@
 //func Syscall(trap, a1, a2, a3 uintptr) (r1, r2 uintptr, err ErrorString)
 TEXT	·Syscall(SB),NOSPLIT,$168-64
 	NO_LOCAL_POINTERS
-	BL	runtime·entersyscall(SB)
+	BL	runtime·entersyscall<ABIInternal>(SB)
 
 	MOVD	trap+0(FP), R0
 	MOVD	a1+8(FP), R2
@@ -35,7 +35,7 @@ TEXT	·Syscall(SB),NOSPLIT,$168-64
 	// put error if needed
 	CMP	$-1, R0
 	BEQ	syscallerr
-	BL	runtime·exitsyscall(SB)
+	BL	runtime·exitsyscall<ABIInternal>(SB)
 	MOVD	$·emptystring+0(SB), R2
 	B	syscallok
 syscallerr:
@@ -47,7 +47,7 @@ syscallerr:
 	MOVD	R3, nerr-184(FP)
 	SVC	$0
 
-	BL	runtime·exitsyscall(SB)
+	BL	runtime·exitsyscall<ABIInternal>(SB)
 	BL	runtime·gostring(SB)
 	MOVD	$str-160(SP), R2
 syscallok:
@@ -63,7 +63,7 @@ syscallok:
 // Actually Syscall5 but the rest of the code expects it to be named Syscall6.
 TEXT	·Syscall6(SB),NOSPLIT,$168-88
 	NO_LOCAL_POINTERS
-	BL	runtime·entersyscall(SB)
+	BL	runtime·entersyscall<ABIInternal>(SB)
 
 	MOVD	trap+0(FP), R1
 	MOVD	a1+8(FP), R2
@@ -92,7 +92,7 @@ TEXT	·Syscall6(SB),NOSPLIT,$168-88
 	// put error if needed
 	CMP	$-1, R0
 	BEQ	syscall6err
-	BL	runtime·exitsyscall(SB)
+	BL	runtime·exitsyscall<ABIInternal>(SB)
 	MOVD	$·emptystring+0(SB), R2
 	B	syscall6ok
 syscall6err:
@@ -104,7 +104,7 @@ syscall6err:
 	MOVD	R3, nerr-184(FP)
 	SVC	$0
 
-	BL	runtime·exitsyscall(SB)
+	BL	runtime·exitsyscall<ABIInternal>(SB)
 	BL	runtime·gostring(SB)
 	MOVD	$str-160(SP), R2
 syscall6ok:

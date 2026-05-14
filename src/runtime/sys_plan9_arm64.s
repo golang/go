@@ -170,24 +170,6 @@ TEXT runtime·nsec(SB),NOSPLIT|NOFRAME,$0-16
 	MOVD	R0, ret+8(FP)
 	RET
 
-// func walltime() (sec int64, nsec int32)
-TEXT runtime·walltime(SB),NOSPLIT,$16-12
-	// use nsec system call to get current time in nanoseconds
-	MOVD	$SYS_NSEC, R0
-	SVC	$0
-
-	MOVD	R0, R1
-	MOVD	$1000000000, R2
-	UDIV	R2, R1
-
-	MOVD	R1, R3
-	MUL	R3, R2
-	SUB	R2, R0
-
-	MOVD	R1,sec+0(FP)
-	MOVWU	R0,nsec+8(FP)
-	RET
-
 //func notify(fn unsafe.Pointer) int32
 TEXT runtime·notify(SB),NOSPLIT,$0-12
 	MOVD	$SYS_NOTIFY, R0
