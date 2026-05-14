@@ -357,20 +357,21 @@ func X509KeyPair(certPEMBlock, keyPEMBlock []byte) (Certificate, error) {
 // PKCS #1 private keys by default, while OpenSSL 1.0.0 generates PKCS #8 keys.
 // OpenSSL ecparam generates SEC1 EC private keys for ECDSA. We try all three.
 func parsePrivateKey(der []byte) (crypto.PrivateKey, error) {
-	if key, err := x509.ParsePKCS1PrivateKey(der); err == nil {
+	key, err := x509.ParsePKCS8PrivateKey(der)
+	pkcs8Err := err // Return the PKCS#8 error if all parsing attempts fail.
+	if err != nil {
+		key, err = x509.ParsePKCS1PrivateKey(der)
+	}
+	if err != nil {
+		key, err = x509.ParseECPrivateKey(der)
+	}
+	if err != nil {
+		return nil, fmt.Errorf("tls: failed to parse private key: %w", pkcs8Err)
+	}
+	switch key := key.(type) {
+	case *rsa.PrivateKey, *ecdsa.PrivateKey, ed25519.PrivateKey, *mldsa.PrivateKey:
 		return key, nil
+	default:
+		return nil, errors.New("tls: found unknown private key type in PKCS#8 wrapping")
 	}
-	if key, err := x509.ParsePKCS8PrivateKey(der); err == nil {
-		switch key := key.(type) {
-		case *rsa.PrivateKey, *ecdsa.PrivateKey, ed25519.PrivateKey, *mldsa.PrivateKey:
-			return key, nil
-		default:
-			return nil, errors.New("tls: found unknown private key type in PKCS#8 wrapping")
-		}
-	}
-	if key, err := x509.ParseECPrivateKey(der); err == nil {
-		return key, nil
-	}
-
-	return nil, errors.New("tls: failed to parse private key")
 }
