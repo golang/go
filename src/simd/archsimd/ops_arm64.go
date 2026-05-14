@@ -88,6 +88,48 @@ func (x Uint32x4) Add(y Uint32x4) Uint32x4
 // Asm: VADD, CPU Feature: NEON
 func (x Uint64x2) Add(y Uint64x2) Uint64x2
 
+/* AddSaturated */
+
+// AddSaturated adds corresponding elements of two vectors with saturation.
+//
+// Asm: VSQADD, CPU Feature: NEON
+func (x Int8x16) AddSaturated(y Int8x16) Int8x16
+
+// AddSaturated adds corresponding elements of two vectors with saturation.
+//
+// Asm: VSQADD, CPU Feature: NEON
+func (x Int16x8) AddSaturated(y Int16x8) Int16x8
+
+// AddSaturated adds corresponding elements of two vectors with saturation.
+//
+// Asm: VSQADD, CPU Feature: NEON
+func (x Int32x4) AddSaturated(y Int32x4) Int32x4
+
+// AddSaturated adds corresponding elements of two vectors with saturation.
+//
+// Asm: VSQADD, CPU Feature: NEON
+func (x Int64x2) AddSaturated(y Int64x2) Int64x2
+
+// AddSaturated adds corresponding elements of two vectors with saturation.
+//
+// Asm: VUQADD, CPU Feature: NEON
+func (x Uint8x16) AddSaturated(y Uint8x16) Uint8x16
+
+// AddSaturated adds corresponding elements of two vectors with saturation.
+//
+// Asm: VUQADD, CPU Feature: NEON
+func (x Uint16x8) AddSaturated(y Uint16x8) Uint16x8
+
+// AddSaturated adds corresponding elements of two vectors with saturation.
+//
+// Asm: VUQADD, CPU Feature: NEON
+func (x Uint32x4) AddSaturated(y Uint32x4) Uint32x4
+
+// AddSaturated adds corresponding elements of two vectors with saturation.
+//
+// Asm: VUQADD, CPU Feature: NEON
+func (x Uint64x2) AddSaturated(y Uint64x2) Uint64x2
+
 /* And */
 
 // And performs a bitwise x & y.
@@ -172,6 +214,38 @@ func (x Uint32x4) AndNot(y Uint32x4) Uint32x4
 // Asm: VBIC, CPU Feature: NEON
 func (x Uint64x2) AndNot(y Uint64x2) Uint64x2
 
+/* Average */
+
+// Average computes the rounded average of corresponding elements.
+//
+// Asm: VSRHADD, CPU Feature: NEON
+func (x Int8x16) Average(y Int8x16) Int8x16
+
+// Average computes the rounded average of corresponding elements.
+//
+// Asm: VSRHADD, CPU Feature: NEON
+func (x Int16x8) Average(y Int16x8) Int16x8
+
+// Average computes the rounded average of corresponding elements.
+//
+// Asm: VSRHADD, CPU Feature: NEON
+func (x Int32x4) Average(y Int32x4) Int32x4
+
+// Average computes the rounded average of corresponding elements.
+//
+// Asm: VURHADD, CPU Feature: NEON
+func (x Uint8x16) Average(y Uint8x16) Uint8x16
+
+// Average computes the rounded average of corresponding elements.
+//
+// Asm: VURHADD, CPU Feature: NEON
+func (x Uint16x8) Average(y Uint16x8) Uint16x8
+
+// Average computes the rounded average of corresponding elements.
+//
+// Asm: VURHADD, CPU Feature: NEON
+func (x Uint32x4) Average(y Uint32x4) Uint32x4
+
 /* Ceil */
 
 // Ceil rounds elements up to the nearest integer.
@@ -183,6 +257,56 @@ func (x Float32x4) Ceil() Float32x4
 //
 // Asm: VFRINTP, CPU Feature: NEON
 func (x Float64x2) Ceil() Float64x2
+
+/* ConcatAddPairs */
+
+// ConcatAddPairs horizontally adds adjacent pairs of elements.
+// For x = [x0, x1, x2, x3, ...] and y = [y0, y1, y2, y3, ...], the result is [x0+x1, x2+x3, ..., y0+y1, y2+y3, ...].
+//
+// Asm: VFADDP, CPU Feature: NEON
+func (x Float32x4) ConcatAddPairs(y Float32x4) Float32x4
+
+// ConcatAddPairs horizontally adds adjacent pairs of elements.
+// For x = [x0, x1] and y = [y0, y1], the result is [x0+x1, y0+y1].
+//
+// Asm: VFADDP, CPU Feature: NEON
+func (x Float64x2) ConcatAddPairs(y Float64x2) Float64x2
+
+// ConcatAddPairs horizontally adds adjacent pairs of elements.
+// For x = [x0, x1, x2, x3, ...] and y = [y0, y1, y2, y3, ...], the result is [x0+x1, x2+x3, ..., y0+y1, y2+y3, ...].
+//
+// Asm: VADDP, CPU Feature: NEON
+func (x Int16x8) ConcatAddPairs(y Int16x8) Int16x8
+
+// ConcatAddPairs horizontally adds adjacent pairs of elements.
+// For x = [x0, x1, x2, x3, ...] and y = [y0, y1, y2, y3, ...], the result is [x0+x1, x2+x3, ..., y0+y1, y2+y3, ...].
+//
+// Asm: VADDP, CPU Feature: NEON
+func (x Int32x4) ConcatAddPairs(y Int32x4) Int32x4
+
+// ConcatAddPairs horizontally adds adjacent pairs of elements.
+// For x = [x0, x1] and y = [y0, y1], the result is [x0+x1, y0+y1].
+//
+// Asm: VADDP, CPU Feature: NEON
+func (x Int64x2) ConcatAddPairs(y Int64x2) Int64x2
+
+// ConcatAddPairs horizontally adds adjacent pairs of elements.
+// For x = [x0, x1, x2, x3, ...] and y = [y0, y1, y2, y3, ...], the result is [x0+x1, x2+x3, ..., y0+y1, y2+y3, ...].
+//
+// Asm: VADDP, CPU Feature: NEON
+func (x Uint16x8) ConcatAddPairs(y Uint16x8) Uint16x8
+
+// ConcatAddPairs horizontally adds adjacent pairs of elements.
+// For x = [x0, x1, x2, x3, ...] and y = [y0, y1, y2, y3, ...], the result is [x0+x1, x2+x3, ..., y0+y1, y2+y3, ...].
+//
+// Asm: VADDP, CPU Feature: NEON
+func (x Uint32x4) ConcatAddPairs(y Uint32x4) Uint32x4
+
+// ConcatAddPairs horizontally adds adjacent pairs of elements.
+// For x = [x0, x1] and y = [y0, y1], the result is [x0+x1, y0+y1].
+//
+// Asm: VADDP, CPU Feature: NEON
+func (x Uint64x2) ConcatAddPairs(y Uint64x2) Uint64x2
 
 /* ConcatShiftBytesRight */
 
@@ -769,6 +893,70 @@ func (x Uint32x4) InterleaveLo(y Uint32x4) Uint32x4
 // Asm: VZIP1, CPU Feature: NEON
 func (x Uint64x2) InterleaveLo(y Uint64x2) Uint64x2
 
+/* LeadingSignBits */
+
+// LeadingSignBits counts the leading sign bits of each element in x.
+//
+// Asm: VCLS, CPU Feature: NEON
+func (x Int8x16) LeadingSignBits() Int8x16
+
+// LeadingSignBits counts the leading sign bits of each element in x.
+//
+// Asm: VCLS, CPU Feature: NEON
+func (x Int16x8) LeadingSignBits() Int16x8
+
+// LeadingSignBits counts the leading sign bits of each element in x.
+//
+// Asm: VCLS, CPU Feature: NEON
+func (x Int32x4) LeadingSignBits() Int32x4
+
+// LeadingSignBits counts the leading sign bits of each element in x.
+//
+// Asm: VCLS, CPU Feature: NEON
+func (x Uint8x16) LeadingSignBits() Uint8x16
+
+// LeadingSignBits counts the leading sign bits of each element in x.
+//
+// Asm: VCLS, CPU Feature: NEON
+func (x Uint16x8) LeadingSignBits() Uint16x8
+
+// LeadingSignBits counts the leading sign bits of each element in x.
+//
+// Asm: VCLS, CPU Feature: NEON
+func (x Uint32x4) LeadingSignBits() Uint32x4
+
+/* LeadingZeros */
+
+// LeadingZeros counts the leading zeros of each element in x.
+//
+// Asm: VCLZ, CPU Feature: NEON
+func (x Int8x16) LeadingZeros() Int8x16
+
+// LeadingZeros counts the leading zeros of each element in x.
+//
+// Asm: VCLZ, CPU Feature: NEON
+func (x Int16x8) LeadingZeros() Int16x8
+
+// LeadingZeros counts the leading zeros of each element in x.
+//
+// Asm: VCLZ, CPU Feature: NEON
+func (x Int32x4) LeadingZeros() Int32x4
+
+// LeadingZeros counts the leading zeros of each element in x.
+//
+// Asm: VCLZ, CPU Feature: NEON
+func (x Uint8x16) LeadingZeros() Uint8x16
+
+// LeadingZeros counts the leading zeros of each element in x.
+//
+// Asm: VCLZ, CPU Feature: NEON
+func (x Uint16x8) LeadingZeros() Uint16x8
+
+// LeadingZeros counts the leading zeros of each element in x.
+//
+// Asm: VCLZ, CPU Feature: NEON
+func (x Uint32x4) LeadingZeros() Uint32x4
+
 /* LookupOrKeep */
 
 // LookupOrKeep looks up table. If an index is out of range, the result is the corresponding element of keep.
@@ -1066,6 +1254,18 @@ func (x Uint32x4) Not() Uint32x4
 //
 // Asm: VNOT, CPU Feature: NEON
 func (x Uint64x2) Not() Uint64x2
+
+/* OnesCount */
+
+// OnesCount counts the number of set bits in each element.
+//
+// Asm: VCNT, CPU Feature: NEON
+func (x Int8x16) OnesCount() Int8x16
+
+// OnesCount counts the number of set bits in each element.
+//
+// Asm: VCNT, CPU Feature: NEON
+func (x Uint8x16) OnesCount() Uint8x16
 
 /* Or */
 
@@ -1972,6 +2172,48 @@ func (x Uint32x4) Sub(y Uint32x4) Uint32x4
 //
 // Asm: VSUB, CPU Feature: NEON
 func (x Uint64x2) Sub(y Uint64x2) Uint64x2
+
+/* SubSaturated */
+
+// SubSaturated subtracts corresponding elements of two vectors with saturation.
+//
+// Asm: VSQSUB, CPU Feature: NEON
+func (x Int8x16) SubSaturated(y Int8x16) Int8x16
+
+// SubSaturated subtracts corresponding elements of two vectors with saturation.
+//
+// Asm: VSQSUB, CPU Feature: NEON
+func (x Int16x8) SubSaturated(y Int16x8) Int16x8
+
+// SubSaturated subtracts corresponding elements of two vectors with saturation.
+//
+// Asm: VSQSUB, CPU Feature: NEON
+func (x Int32x4) SubSaturated(y Int32x4) Int32x4
+
+// SubSaturated subtracts corresponding elements of two vectors with saturation.
+//
+// Asm: VSQSUB, CPU Feature: NEON
+func (x Int64x2) SubSaturated(y Int64x2) Int64x2
+
+// SubSaturated subtracts corresponding elements of two vectors with saturation.
+//
+// Asm: VUQSUB, CPU Feature: NEON
+func (x Uint8x16) SubSaturated(y Uint8x16) Uint8x16
+
+// SubSaturated subtracts corresponding elements of two vectors with saturation.
+//
+// Asm: VUQSUB, CPU Feature: NEON
+func (x Uint16x8) SubSaturated(y Uint16x8) Uint16x8
+
+// SubSaturated subtracts corresponding elements of two vectors with saturation.
+//
+// Asm: VUQSUB, CPU Feature: NEON
+func (x Uint32x4) SubSaturated(y Uint32x4) Uint32x4
+
+// SubSaturated subtracts corresponding elements of two vectors with saturation.
+//
+// Asm: VUQSUB, CPU Feature: NEON
+func (x Uint64x2) SubSaturated(y Uint64x2) Uint64x2
 
 /* TransposeEven */
 

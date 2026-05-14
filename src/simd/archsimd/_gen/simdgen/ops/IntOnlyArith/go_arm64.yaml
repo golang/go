@@ -1,0 +1,35 @@
+!sum
+
+# Unsigned average — VURHADD
+- go: Average
+  signed: false
+  asm: "VURHADD"
+  in:
+  - &uint
+    go: $t
+    base: uint
+  - *uint
+  out:
+  - *uint
+
+# Signed average — VSRHADD
+- go: Average
+  signed: true
+  asm: "VSRHADD"
+  in:
+  - &int
+    go: $t
+    base: int
+  - *int
+  out:
+  - *int
+
+# Population count per byte — VCNT
+- go: OnesCount
+  asm: "VCNT"
+  in:
+  - &any8
+    go: $t
+    elemBits: 8
+  out:
+  - *any8

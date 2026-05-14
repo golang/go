@@ -564,6 +564,30 @@ func rewriteValueARM64(v *Value) bool {
 	case OpAddPtr:
 		v.Op = OpARM64ADD
 		return true
+	case OpAddSaturatedInt16x8:
+		v.Op = OpARM64VSQADD8H
+		return true
+	case OpAddSaturatedInt32x4:
+		v.Op = OpARM64VSQADD4S
+		return true
+	case OpAddSaturatedInt64x2:
+		v.Op = OpARM64VSQADD2D
+		return true
+	case OpAddSaturatedInt8x16:
+		v.Op = OpARM64VSQADD16B
+		return true
+	case OpAddSaturatedUint16x8:
+		v.Op = OpARM64VUQADD8H
+		return true
+	case OpAddSaturatedUint32x4:
+		v.Op = OpARM64VUQADD4S
+		return true
+	case OpAddSaturatedUint64x2:
+		v.Op = OpARM64VUQADD2D
+		return true
+	case OpAddSaturatedUint8x16:
+		v.Op = OpARM64VUQADD16B
+		return true
 	case OpAddUint16x8:
 		v.Op = OpARM64VADD8H
 		return true
@@ -743,6 +767,24 @@ func rewriteValueARM64(v *Value) bool {
 	case OpAtomicStorePtrNoWB:
 		v.Op = OpARM64STLR
 		return true
+	case OpAverageInt16x8:
+		v.Op = OpARM64VSRHADD8H
+		return true
+	case OpAverageInt32x4:
+		v.Op = OpARM64VSRHADD4S
+		return true
+	case OpAverageInt8x16:
+		v.Op = OpARM64VSRHADD16B
+		return true
+	case OpAverageUint16x8:
+		v.Op = OpARM64VURHADD8H
+		return true
+	case OpAverageUint32x4:
+		v.Op = OpARM64VURHADD4S
+		return true
+	case OpAverageUint8x16:
+		v.Op = OpARM64VURHADD16B
+		return true
 	case OpAvg64u:
 		return rewriteValueARM64_OpAvg64u(v)
 	case OpBitLen16:
@@ -795,6 +837,30 @@ func rewriteValueARM64(v *Value) bool {
 		return true
 	case OpCom8:
 		v.Op = OpARM64MVN
+		return true
+	case OpConcatAddPairsFloat32x4:
+		v.Op = OpARM64VFADDP4S
+		return true
+	case OpConcatAddPairsFloat64x2:
+		v.Op = OpARM64VFADDP2D
+		return true
+	case OpConcatAddPairsInt16x8:
+		v.Op = OpARM64VADDP8H
+		return true
+	case OpConcatAddPairsInt32x4:
+		v.Op = OpARM64VADDP4S
+		return true
+	case OpConcatAddPairsInt64x2:
+		v.Op = OpARM64VADDP2D
+		return true
+	case OpConcatAddPairsUint16x8:
+		v.Op = OpARM64VADDP8H
+		return true
+	case OpConcatAddPairsUint32x4:
+		v.Op = OpARM64VADDP4S
+		return true
+	case OpConcatAddPairsUint64x2:
+		v.Op = OpARM64VADDP2D
 		return true
 	case OpConcatShiftBytesRightUint8x16:
 		v.Op = OpARM64VEXT16B
@@ -1243,6 +1309,42 @@ func rewriteValueARM64(v *Value) bool {
 		return rewriteValueARM64_OpIsNonNil(v)
 	case OpIsSliceInBounds:
 		return rewriteValueARM64_OpIsSliceInBounds(v)
+	case OpLeadingSignBitsInt16x8:
+		v.Op = OpARM64VCLS8H
+		return true
+	case OpLeadingSignBitsInt32x4:
+		v.Op = OpARM64VCLS4S
+		return true
+	case OpLeadingSignBitsInt8x16:
+		v.Op = OpARM64VCLS16B
+		return true
+	case OpLeadingSignBitsUint16x8:
+		v.Op = OpARM64VCLS8H
+		return true
+	case OpLeadingSignBitsUint32x4:
+		v.Op = OpARM64VCLS4S
+		return true
+	case OpLeadingSignBitsUint8x16:
+		v.Op = OpARM64VCLS16B
+		return true
+	case OpLeadingZerosInt16x8:
+		v.Op = OpARM64VCLZ8H
+		return true
+	case OpLeadingZerosInt32x4:
+		v.Op = OpARM64VCLZ4S
+		return true
+	case OpLeadingZerosInt8x16:
+		v.Op = OpARM64VCLZ16B
+		return true
+	case OpLeadingZerosUint16x8:
+		v.Op = OpARM64VCLZ8H
+		return true
+	case OpLeadingZerosUint32x4:
+		v.Op = OpARM64VCLZ4S
+		return true
+	case OpLeadingZerosUint8x16:
+		v.Op = OpARM64VCLZ16B
+		return true
 	case OpLeq16:
 		return rewriteValueARM64_OpLeq16(v)
 	case OpLeq16U:
@@ -1558,6 +1660,12 @@ func rewriteValueARM64(v *Value) bool {
 		return true
 	case OpOffPtr:
 		return rewriteValueARM64_OpOffPtr(v)
+	case OpOnesCountInt8x16:
+		v.Op = OpARM64VCNT16B
+		return true
+	case OpOnesCountUint8x16:
+		v.Op = OpARM64VCNT16B
+		return true
 	case OpOr16:
 		v.Op = OpARM64OR
 		return true
@@ -2103,6 +2211,30 @@ func rewriteValueARM64(v *Value) bool {
 		return true
 	case OpSubPtr:
 		v.Op = OpARM64SUB
+		return true
+	case OpSubSaturatedInt16x8:
+		v.Op = OpARM64VSQSUB8H
+		return true
+	case OpSubSaturatedInt32x4:
+		v.Op = OpARM64VSQSUB4S
+		return true
+	case OpSubSaturatedInt64x2:
+		v.Op = OpARM64VSQSUB2D
+		return true
+	case OpSubSaturatedInt8x16:
+		v.Op = OpARM64VSQSUB16B
+		return true
+	case OpSubSaturatedUint16x8:
+		v.Op = OpARM64VUQSUB8H
+		return true
+	case OpSubSaturatedUint32x4:
+		v.Op = OpARM64VUQSUB4S
+		return true
+	case OpSubSaturatedUint64x2:
+		v.Op = OpARM64VUQSUB2D
+		return true
+	case OpSubSaturatedUint8x16:
+		v.Op = OpARM64VUQSUB16B
 		return true
 	case OpSubUint16x8:
 		v.Op = OpARM64VSUB8H
