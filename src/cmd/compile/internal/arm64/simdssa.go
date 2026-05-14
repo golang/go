@@ -100,11 +100,15 @@ func ssaGenSIMDValue(s *ssagen.State, v *ssa.Value) bool {
 	case ssa.OpARM64VADD16B,
 		ssa.OpARM64VAND16B,
 		ssa.OpARM64VBIC16B,
+		ssa.OpARM64VUZP116B,
+		ssa.OpARM64VUZP216B,
 		ssa.OpARM64VCMEQ16B,
 		ssa.OpARM64VCMGT16B,
 		ssa.OpARM64VCMHI16B,
 		ssa.OpARM64VCMGE16B,
 		ssa.OpARM64VCMHS16B,
+		ssa.OpARM64VZIP216B,
+		ssa.OpARM64VZIP116B,
 		ssa.OpARM64VSMAX16B,
 		ssa.OpARM64VUMAX16B,
 		ssa.OpARM64VSMIN16B,
@@ -117,11 +121,15 @@ func ssaGenSIMDValue(s *ssagen.State, v *ssa.Value) bool {
 		ssa.OpARM64VSQSHL16B,
 		ssa.OpARM64VUQSHL16B,
 		ssa.OpARM64VSUB16B,
+		ssa.OpARM64VTRN116B,
+		ssa.OpARM64VTRN216B,
 		ssa.OpARM64VEOR16B:
 		p = simdV21(s, v, arm64.ARNG_16B)
 
 	case ssa.OpARM64VFADD2D,
 		ssa.OpARM64VADD2D,
+		ssa.OpARM64VUZP12D,
+		ssa.OpARM64VUZP22D,
 		ssa.OpARM64VFDIV2D,
 		ssa.OpARM64VFCMEQ2D,
 		ssa.OpARM64VCMEQ2D,
@@ -131,6 +139,8 @@ func ssaGenSIMDValue(s *ssagen.State, v *ssa.Value) bool {
 		ssa.OpARM64VFCMGE2D,
 		ssa.OpARM64VCMGE2D,
 		ssa.OpARM64VCMHS2D,
+		ssa.OpARM64VZIP22D,
+		ssa.OpARM64VZIP12D,
 		ssa.OpARM64VFMAX2D,
 		ssa.OpARM64VFMIN2D,
 		ssa.OpARM64VFMUL2D,
@@ -139,11 +149,15 @@ func ssaGenSIMDValue(s *ssagen.State, v *ssa.Value) bool {
 		ssa.OpARM64VSQSHL2D,
 		ssa.OpARM64VUQSHL2D,
 		ssa.OpARM64VFSUB2D,
-		ssa.OpARM64VSUB2D:
+		ssa.OpARM64VSUB2D,
+		ssa.OpARM64VTRN12D,
+		ssa.OpARM64VTRN22D:
 		p = simdV21(s, v, arm64.ARNG_2D)
 
 	case ssa.OpARM64VFADD4S,
 		ssa.OpARM64VADD4S,
+		ssa.OpARM64VUZP14S,
+		ssa.OpARM64VUZP24S,
 		ssa.OpARM64VFDIV4S,
 		ssa.OpARM64VFCMEQ4S,
 		ssa.OpARM64VCMEQ4S,
@@ -153,6 +167,8 @@ func ssaGenSIMDValue(s *ssagen.State, v *ssa.Value) bool {
 		ssa.OpARM64VFCMGE4S,
 		ssa.OpARM64VCMGE4S,
 		ssa.OpARM64VCMHS4S,
+		ssa.OpARM64VZIP24S,
+		ssa.OpARM64VZIP14S,
 		ssa.OpARM64VFMAX4S,
 		ssa.OpARM64VSMAX4S,
 		ssa.OpARM64VUMAX4S,
@@ -166,15 +182,21 @@ func ssaGenSIMDValue(s *ssagen.State, v *ssa.Value) bool {
 		ssa.OpARM64VSQSHL4S,
 		ssa.OpARM64VUQSHL4S,
 		ssa.OpARM64VFSUB4S,
-		ssa.OpARM64VSUB4S:
+		ssa.OpARM64VSUB4S,
+		ssa.OpARM64VTRN14S,
+		ssa.OpARM64VTRN24S:
 		p = simdV21(s, v, arm64.ARNG_4S)
 
 	case ssa.OpARM64VADD8H,
+		ssa.OpARM64VUZP18H,
+		ssa.OpARM64VUZP28H,
 		ssa.OpARM64VCMEQ8H,
 		ssa.OpARM64VCMGT8H,
 		ssa.OpARM64VCMHI8H,
 		ssa.OpARM64VCMGE8H,
 		ssa.OpARM64VCMHS8H,
+		ssa.OpARM64VZIP28H,
+		ssa.OpARM64VZIP18H,
 		ssa.OpARM64VSMAX8H,
 		ssa.OpARM64VUMAX8H,
 		ssa.OpARM64VSMIN8H,
@@ -184,7 +206,9 @@ func ssaGenSIMDValue(s *ssagen.State, v *ssa.Value) bool {
 		ssa.OpARM64VUSHL8H,
 		ssa.OpARM64VSQSHL8H,
 		ssa.OpARM64VUQSHL8H,
-		ssa.OpARM64VSUB8H:
+		ssa.OpARM64VSUB8H,
+		ssa.OpARM64VTRN18H,
+		ssa.OpARM64VTRN28H:
 		p = simdV21(s, v, arm64.ARNG_8H)
 
 	case ssa.OpARM64VEXT16B:

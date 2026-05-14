@@ -273,6 +273,106 @@ func (x Float32x4) ConvertToUint32() Uint32x4
 // Asm: VFCVTZU, CPU Feature: NEON
 func (x Float64x2) ConvertToUint64() Uint64x2
 
+/* DeinterleaveEven */
+
+// DeinterleaveEven deinterleaves even-indexed elements from the concatenation of x and y.
+// For x = [x0,x1,x2,x3] and y = [y0,y1,y2,y3], result = [x0,x2,y0,y2].
+//
+// Asm: VUZP1, CPU Feature: NEON
+func (x Int8x16) DeinterleaveEven(y Int8x16) Int8x16
+
+// DeinterleaveEven deinterleaves even-indexed elements from the concatenation of x and y.
+// For x = [x0,x1,x2,x3] and y = [y0,y1,y2,y3], result = [x0,x2,y0,y2].
+//
+// Asm: VUZP1, CPU Feature: NEON
+func (x Int16x8) DeinterleaveEven(y Int16x8) Int16x8
+
+// DeinterleaveEven deinterleaves even-indexed elements from the concatenation of x and y.
+// For x = [x0,x1,x2,x3] and y = [y0,y1,y2,y3], result = [x0,x2,y0,y2].
+//
+// Asm: VUZP1, CPU Feature: NEON
+func (x Int32x4) DeinterleaveEven(y Int32x4) Int32x4
+
+// DeinterleaveEven deinterleaves even-indexed elements from the concatenation of x and y.
+// For x = [x0,x1,x2,x3] and y = [y0,y1,y2,y3], result = [x0,x2,y0,y2].
+//
+// Asm: VUZP1, CPU Feature: NEON
+func (x Int64x2) DeinterleaveEven(y Int64x2) Int64x2
+
+// DeinterleaveEven deinterleaves even-indexed elements from the concatenation of x and y.
+// For x = [x0,x1,x2,x3] and y = [y0,y1,y2,y3], result = [x0,x2,y0,y2].
+//
+// Asm: VUZP1, CPU Feature: NEON
+func (x Uint8x16) DeinterleaveEven(y Uint8x16) Uint8x16
+
+// DeinterleaveEven deinterleaves even-indexed elements from the concatenation of x and y.
+// For x = [x0,x1,x2,x3] and y = [y0,y1,y2,y3], result = [x0,x2,y0,y2].
+//
+// Asm: VUZP1, CPU Feature: NEON
+func (x Uint16x8) DeinterleaveEven(y Uint16x8) Uint16x8
+
+// DeinterleaveEven deinterleaves even-indexed elements from the concatenation of x and y.
+// For x = [x0,x1,x2,x3] and y = [y0,y1,y2,y3], result = [x0,x2,y0,y2].
+//
+// Asm: VUZP1, CPU Feature: NEON
+func (x Uint32x4) DeinterleaveEven(y Uint32x4) Uint32x4
+
+// DeinterleaveEven deinterleaves even-indexed elements from the concatenation of x and y.
+// For x = [x0,x1,x2,x3] and y = [y0,y1,y2,y3], result = [x0,x2,y0,y2].
+//
+// Asm: VUZP1, CPU Feature: NEON
+func (x Uint64x2) DeinterleaveEven(y Uint64x2) Uint64x2
+
+/* DeinterleaveOdd */
+
+// DeinterleaveOdd deinterleaves odd-indexed elements from the concatenation of x and y.
+// For x = [x0,x1,x2,x3] and y = [y0,y1,y2,y3], result = [x1,x3,y1,y3].
+//
+// Asm: VUZP2, CPU Feature: NEON
+func (x Int8x16) DeinterleaveOdd(y Int8x16) Int8x16
+
+// DeinterleaveOdd deinterleaves odd-indexed elements from the concatenation of x and y.
+// For x = [x0,x1,x2,x3] and y = [y0,y1,y2,y3], result = [x1,x3,y1,y3].
+//
+// Asm: VUZP2, CPU Feature: NEON
+func (x Int16x8) DeinterleaveOdd(y Int16x8) Int16x8
+
+// DeinterleaveOdd deinterleaves odd-indexed elements from the concatenation of x and y.
+// For x = [x0,x1,x2,x3] and y = [y0,y1,y2,y3], result = [x1,x3,y1,y3].
+//
+// Asm: VUZP2, CPU Feature: NEON
+func (x Int32x4) DeinterleaveOdd(y Int32x4) Int32x4
+
+// DeinterleaveOdd deinterleaves odd-indexed elements from the concatenation of x and y.
+// For x = [x0,x1,x2,x3] and y = [y0,y1,y2,y3], result = [x1,x3,y1,y3].
+//
+// Asm: VUZP2, CPU Feature: NEON
+func (x Int64x2) DeinterleaveOdd(y Int64x2) Int64x2
+
+// DeinterleaveOdd deinterleaves odd-indexed elements from the concatenation of x and y.
+// For x = [x0,x1,x2,x3] and y = [y0,y1,y2,y3], result = [x1,x3,y1,y3].
+//
+// Asm: VUZP2, CPU Feature: NEON
+func (x Uint8x16) DeinterleaveOdd(y Uint8x16) Uint8x16
+
+// DeinterleaveOdd deinterleaves odd-indexed elements from the concatenation of x and y.
+// For x = [x0,x1,x2,x3] and y = [y0,y1,y2,y3], result = [x1,x3,y1,y3].
+//
+// Asm: VUZP2, CPU Feature: NEON
+func (x Uint16x8) DeinterleaveOdd(y Uint16x8) Uint16x8
+
+// DeinterleaveOdd deinterleaves odd-indexed elements from the concatenation of x and y.
+// For x = [x0,x1,x2,x3] and y = [y0,y1,y2,y3], result = [x1,x3,y1,y3].
+//
+// Asm: VUZP2, CPU Feature: NEON
+func (x Uint32x4) DeinterleaveOdd(y Uint32x4) Uint32x4
+
+// DeinterleaveOdd deinterleaves odd-indexed elements from the concatenation of x and y.
+// For x = [x0,x1,x2,x3] and y = [y0,y1,y2,y3], result = [x1,x3,y1,y3].
+//
+// Asm: VUZP2, CPU Feature: NEON
+func (x Uint64x2) DeinterleaveOdd(y Uint64x2) Uint64x2
+
 /* Div */
 
 // Div divides elements of two vectors. Division by zero follows IEEE 754 and does not panic.
@@ -584,6 +684,90 @@ func (x Uint32x4) GreaterEqual(y Uint32x4) Mask32x4
 //
 // Asm: VCMHS, CPU Feature: NEON
 func (x Uint64x2) GreaterEqual(y Uint64x2) Mask64x2
+
+/* InterleaveHi */
+
+// InterleaveHi interleaves the elements of the high halves of x and y.
+//
+// Asm: VZIP2, CPU Feature: NEON
+func (x Int8x16) InterleaveHi(y Int8x16) Int8x16
+
+// InterleaveHi interleaves the elements of the high halves of x and y.
+//
+// Asm: VZIP2, CPU Feature: NEON
+func (x Int16x8) InterleaveHi(y Int16x8) Int16x8
+
+// InterleaveHi interleaves the elements of the high halves of x and y.
+//
+// Asm: VZIP2, CPU Feature: NEON
+func (x Int32x4) InterleaveHi(y Int32x4) Int32x4
+
+// InterleaveHi interleaves the elements of the high halves of x and y.
+//
+// Asm: VZIP2, CPU Feature: NEON
+func (x Int64x2) InterleaveHi(y Int64x2) Int64x2
+
+// InterleaveHi interleaves the elements of the high halves of x and y.
+//
+// Asm: VZIP2, CPU Feature: NEON
+func (x Uint8x16) InterleaveHi(y Uint8x16) Uint8x16
+
+// InterleaveHi interleaves the elements of the high halves of x and y.
+//
+// Asm: VZIP2, CPU Feature: NEON
+func (x Uint16x8) InterleaveHi(y Uint16x8) Uint16x8
+
+// InterleaveHi interleaves the elements of the high halves of x and y.
+//
+// Asm: VZIP2, CPU Feature: NEON
+func (x Uint32x4) InterleaveHi(y Uint32x4) Uint32x4
+
+// InterleaveHi interleaves the elements of the high halves of x and y.
+//
+// Asm: VZIP2, CPU Feature: NEON
+func (x Uint64x2) InterleaveHi(y Uint64x2) Uint64x2
+
+/* InterleaveLo */
+
+// InterleaveLo interleaves the elements of the low halves of x and y.
+//
+// Asm: VZIP1, CPU Feature: NEON
+func (x Int8x16) InterleaveLo(y Int8x16) Int8x16
+
+// InterleaveLo interleaves the elements of the low halves of x and y.
+//
+// Asm: VZIP1, CPU Feature: NEON
+func (x Int16x8) InterleaveLo(y Int16x8) Int16x8
+
+// InterleaveLo interleaves the elements of the low halves of x and y.
+//
+// Asm: VZIP1, CPU Feature: NEON
+func (x Int32x4) InterleaveLo(y Int32x4) Int32x4
+
+// InterleaveLo interleaves the elements of the low halves of x and y.
+//
+// Asm: VZIP1, CPU Feature: NEON
+func (x Int64x2) InterleaveLo(y Int64x2) Int64x2
+
+// InterleaveLo interleaves the elements of the low halves of x and y.
+//
+// Asm: VZIP1, CPU Feature: NEON
+func (x Uint8x16) InterleaveLo(y Uint8x16) Uint8x16
+
+// InterleaveLo interleaves the elements of the low halves of x and y.
+//
+// Asm: VZIP1, CPU Feature: NEON
+func (x Uint16x8) InterleaveLo(y Uint16x8) Uint16x8
+
+// InterleaveLo interleaves the elements of the low halves of x and y.
+//
+// Asm: VZIP1, CPU Feature: NEON
+func (x Uint32x4) InterleaveLo(y Uint32x4) Uint32x4
+
+// InterleaveLo interleaves the elements of the low halves of x and y.
+//
+// Asm: VZIP1, CPU Feature: NEON
+func (x Uint64x2) InterleaveLo(y Uint64x2) Uint64x2
 
 /* LookupOrKeep */
 
@@ -1662,6 +1846,106 @@ func (x Uint32x4) Sub(y Uint32x4) Uint32x4
 //
 // Asm: VSUB, CPU Feature: NEON
 func (x Uint64x2) Sub(y Uint64x2) Uint64x2
+
+/* TransposeEven */
+
+// TransposeEven transposes 2-element pairs at even positions from x and y.
+// For x = [a0,a1,a2,a3] and y = [b0,b1,b2,b3], result = [a0,b0,a2,b2].
+//
+// Asm: VTRN1, CPU Feature: NEON
+func (x Int8x16) TransposeEven(y Int8x16) Int8x16
+
+// TransposeEven transposes 2-element pairs at even positions from x and y.
+// For x = [a0,a1,a2,a3] and y = [b0,b1,b2,b3], result = [a0,b0,a2,b2].
+//
+// Asm: VTRN1, CPU Feature: NEON
+func (x Int16x8) TransposeEven(y Int16x8) Int16x8
+
+// TransposeEven transposes 2-element pairs at even positions from x and y.
+// For x = [a0,a1,a2,a3] and y = [b0,b1,b2,b3], result = [a0,b0,a2,b2].
+//
+// Asm: VTRN1, CPU Feature: NEON
+func (x Int32x4) TransposeEven(y Int32x4) Int32x4
+
+// TransposeEven transposes 2-element pairs at even positions from x and y.
+// For x = [a0,a1,a2,a3] and y = [b0,b1,b2,b3], result = [a0,b0,a2,b2].
+//
+// Asm: VTRN1, CPU Feature: NEON
+func (x Int64x2) TransposeEven(y Int64x2) Int64x2
+
+// TransposeEven transposes 2-element pairs at even positions from x and y.
+// For x = [a0,a1,a2,a3] and y = [b0,b1,b2,b3], result = [a0,b0,a2,b2].
+//
+// Asm: VTRN1, CPU Feature: NEON
+func (x Uint8x16) TransposeEven(y Uint8x16) Uint8x16
+
+// TransposeEven transposes 2-element pairs at even positions from x and y.
+// For x = [a0,a1,a2,a3] and y = [b0,b1,b2,b3], result = [a0,b0,a2,b2].
+//
+// Asm: VTRN1, CPU Feature: NEON
+func (x Uint16x8) TransposeEven(y Uint16x8) Uint16x8
+
+// TransposeEven transposes 2-element pairs at even positions from x and y.
+// For x = [a0,a1,a2,a3] and y = [b0,b1,b2,b3], result = [a0,b0,a2,b2].
+//
+// Asm: VTRN1, CPU Feature: NEON
+func (x Uint32x4) TransposeEven(y Uint32x4) Uint32x4
+
+// TransposeEven transposes 2-element pairs at even positions from x and y.
+// For x = [a0,a1,a2,a3] and y = [b0,b1,b2,b3], result = [a0,b0,a2,b2].
+//
+// Asm: VTRN1, CPU Feature: NEON
+func (x Uint64x2) TransposeEven(y Uint64x2) Uint64x2
+
+/* TransposeOdd */
+
+// TransposeOdd transposes 2-element pairs at odd positions from x and y.
+// For x = [a0,a1,a2,a3] and y = [b0,b1,b2,b3], result = [a1,b1,a3,b3].
+//
+// Asm: VTRN2, CPU Feature: NEON
+func (x Int8x16) TransposeOdd(y Int8x16) Int8x16
+
+// TransposeOdd transposes 2-element pairs at odd positions from x and y.
+// For x = [a0,a1,a2,a3] and y = [b0,b1,b2,b3], result = [a1,b1,a3,b3].
+//
+// Asm: VTRN2, CPU Feature: NEON
+func (x Int16x8) TransposeOdd(y Int16x8) Int16x8
+
+// TransposeOdd transposes 2-element pairs at odd positions from x and y.
+// For x = [a0,a1,a2,a3] and y = [b0,b1,b2,b3], result = [a1,b1,a3,b3].
+//
+// Asm: VTRN2, CPU Feature: NEON
+func (x Int32x4) TransposeOdd(y Int32x4) Int32x4
+
+// TransposeOdd transposes 2-element pairs at odd positions from x and y.
+// For x = [a0,a1,a2,a3] and y = [b0,b1,b2,b3], result = [a1,b1,a3,b3].
+//
+// Asm: VTRN2, CPU Feature: NEON
+func (x Int64x2) TransposeOdd(y Int64x2) Int64x2
+
+// TransposeOdd transposes 2-element pairs at odd positions from x and y.
+// For x = [a0,a1,a2,a3] and y = [b0,b1,b2,b3], result = [a1,b1,a3,b3].
+//
+// Asm: VTRN2, CPU Feature: NEON
+func (x Uint8x16) TransposeOdd(y Uint8x16) Uint8x16
+
+// TransposeOdd transposes 2-element pairs at odd positions from x and y.
+// For x = [a0,a1,a2,a3] and y = [b0,b1,b2,b3], result = [a1,b1,a3,b3].
+//
+// Asm: VTRN2, CPU Feature: NEON
+func (x Uint16x8) TransposeOdd(y Uint16x8) Uint16x8
+
+// TransposeOdd transposes 2-element pairs at odd positions from x and y.
+// For x = [a0,a1,a2,a3] and y = [b0,b1,b2,b3], result = [a1,b1,a3,b3].
+//
+// Asm: VTRN2, CPU Feature: NEON
+func (x Uint32x4) TransposeOdd(y Uint32x4) Uint32x4
+
+// TransposeOdd transposes 2-element pairs at odd positions from x and y.
+// For x = [a0,a1,a2,a3] and y = [b0,b1,b2,b3], result = [a1,b1,a3,b3].
+//
+// Asm: VTRN2, CPU Feature: NEON
+func (x Uint64x2) TransposeOdd(y Uint64x2) Uint64x2
 
 /* Trunc */
 

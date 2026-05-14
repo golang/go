@@ -337,33 +337,57 @@ func roundSlice[T float](x []T) []T {
 	return map1[T](round)(x)
 }
 
-// interleaveSlice models PUNPCKL*/PUNPCKH* (x86), NEON ZIP1/ZIP2, and SVE
-// ZIP1/ZIP2. Interleaving happens within each lane of laneBits bits.
-// laneBits == 128 matches x86 InterleaveLo/Hi and the grouped variants, and
-// also matches NEON ZIP1/ZIP2 on 128-bit vectors. laneBits == 0 means
-// variable length vector (e.g. SVE), and treats the whole input as one lane.
-// If hi is false the low halves of each lane are interleaved (ZIP1/InterleaveLo);
-// if true the high halves are (ZIP2/InterleaveHi).
-func interleaveSlice[T number](laneBits int, hi bool) func(x, y []T) []T {
+// lanewiseSlice is the common helper for interleave, deinterleave, and transpose
+// simulations. It handles lane computation, allocation, and iteration.
+// laneBits is the lane size in bits (128 for NEON/x86 128-bit, 0 for whole-input/SVE).
+// hi selects the half-lane offset (offHalf = 0 or half, for interleave hi/lo).
+// odd selects the single-element offset (offOne = 0 or 1, for deinterleave/transpose odd/even).
+// body receives (out, x, y, base, i, half, offHalf, offOne) for each pair within each lane
+// and performs the operation-specific element assignment.
+func lanewiseSlice[T number](laneBits int, hi bool, odd bool, body func(out, x, y []T, base, i, half, offHalf, offOne int)) func(x, y []T) []T {
 	return func(x, y []T) []T {
 		lane := laneBits / (8 * int(unsafe.Sizeof(x[0])))
 		if lane == 0 || lane > len(x) {
 			lane = len(x)
 		}
 		half := lane / 2
-		off := 0
+		offHalf := 0
 		if hi {
-			off = half
+			offHalf = half
+		}
+		offOne := 0
+		if odd {
+			offOne = 1
 		}
 		out := make([]T, len(x))
 		for base := 0; base < len(x); base += lane {
 			for i := 0; i < half; i++ {
-				out[base+2*i] = x[base+off+i]
-				out[base+2*i+1] = y[base+off+i]
+				body(out, x, y, base, i, half, offHalf, offOne)
 			}
 		}
 		return out
 	}
+}
+
+func interleaveSlice[T number](laneBits int, hi bool) func(x, y []T) []T {
+	return lanewiseSlice(laneBits, hi, false, func(out, x, y []T, base, i, half, offHalf, _ int) {
+		out[base+2*i] = x[base+offHalf+i]
+		out[base+2*i+1] = y[base+offHalf+i]
+	})
+}
+
+func deinterleaveSlice[T number](laneBits int, odd bool) func(x, y []T) []T {
+	return lanewiseSlice(laneBits, false, odd, func(out, x, y []T, base, i, half, _, offOne int) {
+		out[base+i] = x[base+2*i+offOne]
+		out[base+half+i] = y[base+2*i+offOne]
+	})
+}
+
+func transposeSlice[T number](laneBits int, odd bool) func(x, y []T) []T {
+	return lanewiseSlice(laneBits, false, odd, func(out, x, y []T, base, i, half, _, offOne int) {
+		out[base+2*i] = x[base+2*i+offOne]
+		out[base+2*i+1] = y[base+2*i+offOne]
+	})
 }
 
 func sqrtSlice[T float](x []T) []T {

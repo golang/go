@@ -205,3 +205,59 @@
   - *uint8x128
   out:
   - *uint8x128
+
+# InterleaveLo — ZIP1 (interleave low halves)
+- go: InterleaveLo
+  asm: "VZIP1"
+  in:
+  - &any128
+    go: $t
+    bits: 128
+  - *any128
+  out:
+  - *any128
+
+# InterleaveHi — ZIP2 (interleave high halves)
+- go: InterleaveHi
+  asm: "VZIP2"
+  in:
+  - *any128
+  - *any128
+  out:
+  - *any128
+
+# DeinterleaveEven — UZP1 (extract even-indexed elements)
+- go: DeinterleaveEven
+  asm: "VUZP1"
+  in:
+  - *any128
+  - *any128
+  out:
+  - *any128
+
+# DeinterleaveOdd — UZP2 (extract odd-indexed elements)
+- go: DeinterleaveOdd
+  asm: "VUZP2"
+  in:
+  - *any128
+  - *any128
+  out:
+  - *any128
+
+# TransposeEven — TRN1 (transpose even-position pairs)
+- go: TransposeEven
+  asm: "VTRN1"
+  in:
+  - *any128
+  - *any128
+  out:
+  - *any128
+
+# TransposeOdd — TRN2 (transpose odd-position pairs)
+- go: TransposeOdd
+  asm: "VTRN2"
+  in:
+  - *any128
+  - *any128
+  out:
+  - *any128
