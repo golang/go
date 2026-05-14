@@ -514,51 +514,6 @@ func TestSquareN(t *testing.T) {
 	}
 }
 
-func TestFeSquareN(t *testing.T) {
-	asmLikeGeneric := func(a Element) bool {
-		for _, n := range []int{1, 2, 5, 10, 15, 50, 120} {
-			t1 := a
-			t2 := a
-
-			feSquareNGeneric(&t1, &t1, n)
-			feSquareN(&t2, &t2, n)
-
-			if t1 != t2 {
-				t.Logf("n=%d: got %#v, expected %#v", n, t2, t1)
-				return false
-			}
-			if !isInBounds(&t2) {
-				return false
-			}
-		}
-		return true
-	}
-
-	if err := quick.Check(asmLikeGeneric, quickCheckConfig(1024)); err != nil {
-		t.Error(err)
-	}
-}
-
-func TestFeSquare(t *testing.T) {
-	asmLikeGeneric := func(a Element) bool {
-		t1 := a
-		t2 := a
-
-		feSquareGeneric(&t1, &t1)
-		feSquare(&t2, &t2)
-
-		if t1 != t2 {
-			t.Logf("got: %#v,\nexpected: %#v", t1, t2)
-		}
-
-		return t1 == t2 && isInBounds(&t2)
-	}
-
-	if err := quick.Check(asmLikeGeneric, quickCheckConfig(1024)); err != nil {
-		t.Error(err)
-	}
-}
-
 func TestFeMul(t *testing.T) {
 	asmLikeGeneric := func(a, b Element) bool {
 		a1 := a

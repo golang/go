@@ -183,7 +183,7 @@ func feMulGeneric(v, a, b *Element) {
 	v.l4 = rr4&maskLow51Bits + rr3>>51
 }
 
-func feSquareGeneric(v, a *Element) {
+func feSquare(v, a *Element) {
 	l0 := a.l0
 	l1 := a.l1
 	l2 := a.l2
@@ -256,9 +256,9 @@ func feSquareGeneric(v, a *Element) {
 	v.l4 = rr4&maskLow51Bits + rr3>>51
 }
 
-// feSquareNGeneric squares a n times and writes the result to v.
+// feSquareN squares a n times and writes the result to v.
 // It uses local variables to keep limbs in registers.
-func feSquareNGeneric(v, a *Element, n int) {
+func feSquareN(v, a *Element, n int) {
 	l0 := a.l0
 	l1 := a.l1
 	l2 := a.l2
