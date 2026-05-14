@@ -4,7 +4,10 @@
 
 package ssa
 
-import "slices"
+import (
+	"slices"
+	"strings"
+)
 
 func (kb *knownBitsState) fold(v *Value) (value, known int64) {
 	if kb.seenValues.Test(uint32(v.ID)) {
@@ -37,11 +40,11 @@ func (kb *knownBitsState) fold(v *Value) (value, known int64) {
 		// 1. unknown bits are always set to 0 inside value
 		value &= known
 
-		if v.Block.Func.pass.debug > 1 {
-			v.Block.Func.Warnl(v.Pos, "known bits state %v: k:%d v:%d", v, known, value)
-		}
 		kb.entries[v.ID].known = known
 		kb.entries[v.ID].value = value
+		if v.Block.Func.pass.debug > 1 {
+			v.Block.Func.Warnl(v.Pos, "known bits state %v: %v", v, kb.entries[v.ID])
+		}
 	}()
 	kb.seenValues.Set(uint32(v.ID)) // set seen early to give up on loops
 
@@ -226,6 +229,22 @@ type knownBitsEntry struct {
 	//    value = int64(int8(0b10000000))
 	// 3. booleans are stored as 1 byte values who are either 0 or 1.
 	known, value int64
+}
+
+func (kbe knownBitsEntry) String() string {
+	lut := []rune{ // indexed by knownBit<<1 | valueBit
+		0b00: '?',
+		0b01: '¿', // violates invariant 1
+		0b10: '0',
+		0b11: '1',
+	}
+	var sb strings.Builder
+	sb.Grow(64)
+	for i := 63; i >= 0; i-- {
+		bits := (kbe.known>>i&1)<<1 | (kbe.value >> i & 1)
+		sb.WriteRune(lut[bits])
+	}
+	return sb.String()
 }
 
 func (kb *knownBitsState) isLiveInEdge(b *Block, index uint) bool {

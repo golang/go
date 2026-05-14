@@ -41,7 +41,7 @@ func TestAllPossibleValues(t *testing.T) {
 		known := i | ^tryMask
 
 		for value := range allPossibleValuesRejection(0, unknown, tryMask) { // don't use allPossibleValues since it's what we are about to test.
-			t.Run(fmt.Sprintf("known=%b,value=%b", uint64(known), uint64(value)), func(t *testing.T) {
+			t.Run(fmt.Sprintf("%v", knownBitsEntry{known: known, value: value}), func(t *testing.T) {
 				truth, truthStop := iter.Pull(allPossibleValuesRejection(value, known, tryMask))
 				defer truthStop()
 				dut, dutStop := iter.Pull(allPossibleValues(value, known))
