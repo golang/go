@@ -59,3 +59,63 @@
     treatLikeAScalarOfSize: 0
   out:
   - *fvector
+
+# broadcast1To16 VDUP (duplicate element 0 to all 16 byte lanes)
+- go: broadcast1To16
+  asm: "VDUP"
+  SSAVariant: "bcast"
+  constImm: 0
+  in:
+  - &immLane0
+    name: "@" # tag "fully constant" (no aux field needed)
+    const: 0
+    class: immediate
+    go: Immediate
+  - &bcast8
+    go: $t
+    bits: 128
+    elemBits: 8
+  out:
+  - *bcast8
+
+# broadcast1To8 VDUP (duplicate element 0 to all 8 halfword lanes)
+- go: broadcast1To8
+  asm: "VDUP"
+  SSAVariant: "bcast"
+  constImm: 0
+  in:
+  - *immLane0
+  - &bcast16
+    go: $t
+    bits: 128
+    elemBits: 16
+  out:
+  - *bcast16
+
+# broadcast1To4 VDUP (duplicate element 0 to all 4 word lanes)
+- go: broadcast1To4
+  asm: "VDUP"
+  SSAVariant: "bcast"
+  constImm: 0
+  in:
+  - *immLane0
+  - &bcast32
+    go: $t
+    bits: 128
+    elemBits: 32
+  out:
+  - *bcast32
+
+# broadcast1To2 VDUP (duplicate element 0 to both doubleword lanes)
+- go: broadcast1To2
+  asm: "VDUP"
+  SSAVariant: "bcast"
+  constImm: 0
+  in:
+  - *immLane0
+  - &bcast64
+    go: $t
+    bits: 128
+    elemBits: 64
+  out:
+  - *bcast64

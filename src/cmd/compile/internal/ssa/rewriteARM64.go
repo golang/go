@@ -1319,6 +1319,26 @@ func rewriteValueARM64(v *Value) bool {
 		return true
 	case OpZeroSIMD:
 		return rewriteValueARM64_OpZeroSIMD(v)
+	case Opbroadcast1To16Int8x16:
+		return rewriteValueARM64_Opbroadcast1To16Int8x16(v)
+	case Opbroadcast1To16Uint8x16:
+		return rewriteValueARM64_Opbroadcast1To16Uint8x16(v)
+	case Opbroadcast1To2Float64x2:
+		return rewriteValueARM64_Opbroadcast1To2Float64x2(v)
+	case Opbroadcast1To2Int64x2:
+		return rewriteValueARM64_Opbroadcast1To2Int64x2(v)
+	case Opbroadcast1To2Uint64x2:
+		return rewriteValueARM64_Opbroadcast1To2Uint64x2(v)
+	case Opbroadcast1To4Float32x4:
+		return rewriteValueARM64_Opbroadcast1To4Float32x4(v)
+	case Opbroadcast1To4Int32x4:
+		return rewriteValueARM64_Opbroadcast1To4Int32x4(v)
+	case Opbroadcast1To4Uint32x4:
+		return rewriteValueARM64_Opbroadcast1To4Uint32x4(v)
+	case Opbroadcast1To8Int16x8:
+		return rewriteValueARM64_Opbroadcast1To8Int16x8(v)
+	case Opbroadcast1To8Uint16x8:
+		return rewriteValueARM64_Opbroadcast1To8Uint16x8(v)
 	}
 	return false
 }
@@ -22785,6 +22805,126 @@ func rewriteValueARM64_OpZeroSIMD(v *Value) bool {
 		return true
 	}
 	return false
+}
+func rewriteValueARM64_Opbroadcast1To16Int8x16(v *Value) bool {
+	v_0 := v.Args[0]
+	// match: (broadcast1To16Int8x16 x)
+	// result: (VDUPBbcast [0] x)
+	for {
+		x := v_0
+		v.reset(OpARM64VDUPBbcast)
+		v.AuxInt = uint8ToAuxInt(0)
+		v.AddArg(x)
+		return true
+	}
+}
+func rewriteValueARM64_Opbroadcast1To16Uint8x16(v *Value) bool {
+	v_0 := v.Args[0]
+	// match: (broadcast1To16Uint8x16 x)
+	// result: (VDUPBbcast [0] x)
+	for {
+		x := v_0
+		v.reset(OpARM64VDUPBbcast)
+		v.AuxInt = uint8ToAuxInt(0)
+		v.AddArg(x)
+		return true
+	}
+}
+func rewriteValueARM64_Opbroadcast1To2Float64x2(v *Value) bool {
+	v_0 := v.Args[0]
+	// match: (broadcast1To2Float64x2 x)
+	// result: (VDUPDbcast [0] x)
+	for {
+		x := v_0
+		v.reset(OpARM64VDUPDbcast)
+		v.AuxInt = uint8ToAuxInt(0)
+		v.AddArg(x)
+		return true
+	}
+}
+func rewriteValueARM64_Opbroadcast1To2Int64x2(v *Value) bool {
+	v_0 := v.Args[0]
+	// match: (broadcast1To2Int64x2 x)
+	// result: (VDUPDbcast [0] x)
+	for {
+		x := v_0
+		v.reset(OpARM64VDUPDbcast)
+		v.AuxInt = uint8ToAuxInt(0)
+		v.AddArg(x)
+		return true
+	}
+}
+func rewriteValueARM64_Opbroadcast1To2Uint64x2(v *Value) bool {
+	v_0 := v.Args[0]
+	// match: (broadcast1To2Uint64x2 x)
+	// result: (VDUPDbcast [0] x)
+	for {
+		x := v_0
+		v.reset(OpARM64VDUPDbcast)
+		v.AuxInt = uint8ToAuxInt(0)
+		v.AddArg(x)
+		return true
+	}
+}
+func rewriteValueARM64_Opbroadcast1To4Float32x4(v *Value) bool {
+	v_0 := v.Args[0]
+	// match: (broadcast1To4Float32x4 x)
+	// result: (VDUPSbcast [0] x)
+	for {
+		x := v_0
+		v.reset(OpARM64VDUPSbcast)
+		v.AuxInt = uint8ToAuxInt(0)
+		v.AddArg(x)
+		return true
+	}
+}
+func rewriteValueARM64_Opbroadcast1To4Int32x4(v *Value) bool {
+	v_0 := v.Args[0]
+	// match: (broadcast1To4Int32x4 x)
+	// result: (VDUPSbcast [0] x)
+	for {
+		x := v_0
+		v.reset(OpARM64VDUPSbcast)
+		v.AuxInt = uint8ToAuxInt(0)
+		v.AddArg(x)
+		return true
+	}
+}
+func rewriteValueARM64_Opbroadcast1To4Uint32x4(v *Value) bool {
+	v_0 := v.Args[0]
+	// match: (broadcast1To4Uint32x4 x)
+	// result: (VDUPSbcast [0] x)
+	for {
+		x := v_0
+		v.reset(OpARM64VDUPSbcast)
+		v.AuxInt = uint8ToAuxInt(0)
+		v.AddArg(x)
+		return true
+	}
+}
+func rewriteValueARM64_Opbroadcast1To8Int16x8(v *Value) bool {
+	v_0 := v.Args[0]
+	// match: (broadcast1To8Int16x8 x)
+	// result: (VDUPHbcast [0] x)
+	for {
+		x := v_0
+		v.reset(OpARM64VDUPHbcast)
+		v.AuxInt = uint8ToAuxInt(0)
+		v.AddArg(x)
+		return true
+	}
+}
+func rewriteValueARM64_Opbroadcast1To8Uint16x8(v *Value) bool {
+	v_0 := v.Args[0]
+	// match: (broadcast1To8Uint16x8 x)
+	// result: (VDUPHbcast [0] x)
+	for {
+		x := v_0
+		v.reset(OpARM64VDUPHbcast)
+		v.AuxInt = uint8ToAuxInt(0)
+		v.AddArg(x)
+		return true
+	}
 }
 func rewriteBlockARM64(b *Block) bool {
 	typ := &b.Func.Config.Types

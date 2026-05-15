@@ -735,6 +735,11 @@ func copyConstImm(ops []Operation) error {
 
 		if immType == ConstImm || immType == ConstVarImm {
 			op.In[0].Const = op.ConstImm
+			// If the immediate operand is tagged with name:"@", it is fully constant;
+			// clear ImmOffset to ensure this is treated as ConstImm (no aux field).
+			if op.In[0].Name != nil && *op.In[0].Name == "@" {
+				op.In[0].ImmOffset = nil
+			}
 		}
 		// Otherwise, just not port it - e.g. {VPCMP[BWDQ] imm=0} and {VPCMPEQ[BWDQ]} are
 		// the same operations "Equal", [dedupgodef] should be able to distinguish them.

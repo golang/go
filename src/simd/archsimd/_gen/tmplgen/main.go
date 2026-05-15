@@ -977,6 +977,24 @@ func Broadcast{{.VType}}(x {{.Etype}}) {{.VType}} {
 }
 `)
 
+var broadcastTemplateArm64 = shapedTemplateOf(arm64Shapes, "arm64_broadcast", `
+// Broadcast{{.VType}} returns a vector with the input
+// x assigned to all elements of the output.
+func Broadcast{{.VType}}(x {{.Etype}}) {{.VType}} {
+	var z {{.VType}}
+	return z.SetElem(0, x).broadcast1To{{.Count}}()
+}
+`)
+
+var stringTemplateArm64 = shapedTemplateOf(arm64Shapes, "arm64_String methods", `
+// String returns a string representation of SIMD vector x.
+func (x {{.VType}}) String() string {
+	var s [{{.Count}}]{{.Etype}}
+	x.StoreArray(&s)
+	return sliceToString(s[:])
+}
+`)
+
 var maskCvtTemplate = shapedTemplateOf(intShapes, "Mask conversions", `
 // ToMask returns a mask whose i'th element is set if x[i] is non-zero.
 func (from {{.Base}}{{.WxC}}) ToMask() (to Mask{{.WxC}}) {
@@ -1020,6 +1038,7 @@ func main() {
 	// ARM64-specific
 	bhArm64 := flag.String("bhArm64", TD+"arm64_binary_helpers_test.go", "file name for ARM64 binary test helpers")
 	slArm64 := flag.String("slArm64", SIMD+"slice_gen_arm64.go", "file name for ARM64 slice operations")
+	opArm64 := flag.String("opArm64", SIMD+"other_gen_arm64.go", "file name for ARM64 other operations")
 	flag.Parse()
 
 	if *sl != "" {
@@ -1087,6 +1106,9 @@ func main() {
 	}
 	if *bhArm64 != "" {
 		oneArch(*bhArm64, "arm64", curryTestPrologue("binary simd methods"), binaryTemplateArm64)
+	}
+	if *opArm64 != "" {
+		one(*opArm64, prologue, broadcastTemplateArm64, stringTemplateArm64)
 	}
 
 	nonTemplateRewrites(SSA+"tern_helpers.go", ssaPrologue, classifyBooleanSIMD, ternOpForLogical)

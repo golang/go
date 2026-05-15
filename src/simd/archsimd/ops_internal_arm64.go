@@ -3,3 +3,71 @@
 //go:build goexperiment.simd
 
 package archsimd
+
+/* broadcast1To2 */
+
+// broadcast1To2 copies the lowest element of its input to all 2 elements of
+// the output vector.
+//
+// Asm: VDUP, CPU Feature: NEON
+func (x Float64x2) broadcast1To2() Float64x2
+
+// broadcast1To2 copies the lowest element of its input to all 2 elements of
+// the output vector.
+//
+// Asm: VDUP, CPU Feature: NEON
+func (x Int64x2) broadcast1To2() Int64x2
+
+// broadcast1To2 copies the lowest element of its input to all 2 elements of
+// the output vector.
+//
+// Asm: VDUP, CPU Feature: NEON
+func (x Uint64x2) broadcast1To2() Uint64x2
+
+/* broadcast1To4 */
+
+// broadcast1To4 copies the lowest element of its input to all 4 elements of
+// the output vector.
+//
+// Asm: VDUP, CPU Feature: NEON
+func (x Float32x4) broadcast1To4() Float32x4
+
+// broadcast1To4 copies the lowest element of its input to all 4 elements of
+// the output vector.
+//
+// Asm: VDUP, CPU Feature: NEON
+func (x Int32x4) broadcast1To4() Int32x4
+
+// broadcast1To4 copies the lowest element of its input to all 4 elements of
+// the output vector.
+//
+// Asm: VDUP, CPU Feature: NEON
+func (x Uint32x4) broadcast1To4() Uint32x4
+
+/* broadcast1To8 */
+
+// broadcast1To8 copies the lowest element of its input to all 8 elements of
+// the output vector.
+//
+// Asm: VDUP, CPU Feature: NEON
+func (x Int16x8) broadcast1To8() Int16x8
+
+// broadcast1To8 copies the lowest element of its input to all 8 elements of
+// the output vector.
+//
+// Asm: VDUP, CPU Feature: NEON
+func (x Uint16x8) broadcast1To8() Uint16x8
+
+/* broadcast1To16 */
+
+// broadcast1To16 copies the lowest element of its input to all 16 elements of
+// the output vector.
+//
+// Asm: VDUP, CPU Feature: NEON
+func (x Int8x16) broadcast1To16() Int8x16
+
+// broadcast1To16 copies the lowest element of its input to all 16 elements of
+// the output vector.
+//
+// Asm: VDUP, CPU Feature: NEON
+func (x Uint8x16) broadcast1To16() Uint8x16

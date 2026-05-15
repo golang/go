@@ -198,6 +198,24 @@ func simdRegElem(reg int16, arng int16, idx int16) (res obj.Addr) {
 	return
 }
 
+// allLanes converts an element arrangement to its 128-bit vector arrangement.
+// e.g., ARNG_B -> ARNG_16B, ARNG_S -> ARNG_4S
+func allLanes(arng int16) int16 {
+	switch arng {
+	case arm64.ARNG_B:
+		return arm64.ARNG_16B
+	case arm64.ARNG_H:
+		return arm64.ARNG_8H
+	case arm64.ARNG_S:
+		return arm64.ARNG_4S
+	case arm64.ARNG_D:
+		return arm64.ARNG_2D
+	default:
+		base.Fatalf("unsupported element arrangement: %d", arng)
+		return 0
+	}
+}
+
 // simdV01Imm generates a VMOVI-like instruction, e.g. VMOVI $0, V0.B16
 func simdV01Imm(s *ssagen.State, v *ssa.Value, arrangement int16) *obj.Prog {
 	p := s.Prog(v.Op.Asm())
@@ -221,6 +239,17 @@ func simdV11Asm(s *ssagen.State, asm obj.As, src, dst int16, arrangement int16) 
 // simdV11 generates element-wise unary vector operations, e.g. VCNT V1.B8, V0.B8
 func simdV11(s *ssagen.State, v *ssa.Value, arrangement int16) *obj.Prog {
 	return simdV11Asm(s, v.Op.Asm(), v.Args[0].Reg(), v.Reg(), arrangement)
+}
+
+// simdV11ImmIn1 generates a broadcast1ToN instruction,
+// e.g. VDUP V1.S[0], V0.S4 (duplicate element 0 to all lanes)
+// The arrangement parameter specifies the element arrangement (e.g., ARNG_S, ARNG_D)
+func simdV11ImmIn1(s *ssagen.State, v *ssa.Value, arrangement int16) *obj.Prog {
+	p := s.Prog(v.Op.Asm())
+	p.From = simdRegElem(v.Args[0].Reg(), arrangement, int16(v.AuxUInt8()))
+	p.To.Type = obj.TYPE_REG
+	p.To.Reg = simdRegArng(v.Reg(), allLanes(arrangement))
+	return p
 }
 
 // simdV11Scalar generates vector-to-scalar reduction operations, e.g. VUADDLV V1.B8, V0

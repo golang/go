@@ -12,6 +12,18 @@ import (
 func ssaGenSIMDValue(s *ssagen.State, v *ssa.Value) bool {
 	var p *obj.Prog
 	switch v.Op {
+	case ssa.OpARM64VDUPBbcast:
+		p = simdV11ImmIn1(s, v, arm64.ARNG_B)
+
+	case ssa.OpARM64VDUPDbcast:
+		p = simdV11ImmIn1(s, v, arm64.ARNG_D)
+
+	case ssa.OpARM64VDUPHbcast:
+		p = simdV11ImmIn1(s, v, arm64.ARNG_H)
+
+	case ssa.OpARM64VDUPSbcast:
+		p = simdV11ImmIn1(s, v, arm64.ARNG_S)
+
 	case ssa.OpARM64VDUPDextr:
 		p = simdV11ScalarImmIn1(s, v, arm64.ARNG_D)
 
