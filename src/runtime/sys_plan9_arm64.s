@@ -225,7 +225,7 @@ TEXT runtime·tstart_plan9(SB),NOSPLIT,$8-8
 	JMP	0(PC)
 
 //func sigtramp(ureg, note unsafe.Pointer)
-TEXT runtime·sigtramp(SB),NOSPLIT,$0-16
+TEXT runtime·sigtramp(SB),NOSPLIT|NOFRAME,$0-16
 	// check that g and m exist
 	CMP	$0, g
 	BEQ	4(PC)
