@@ -1,0 +1,3 @@
+pkg crypto/x509, type Certificate struct, RawSignatureAlgorithm []uint8 #76133
+pkg crypto/x509, type CertificateRequest struct, RawSignatureAlgorithm []uint8 #76133
+pkg crypto/x509, type RevocationList struct, RawSignatureAlgorithm []uint8 #76133

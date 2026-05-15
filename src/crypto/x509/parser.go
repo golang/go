@@ -936,7 +936,11 @@ func parseCertificate(der []byte) (*Certificate, error) {
 	cert.SerialNumber = serial
 
 	var sigAISeq cryptobyte.String
-	if !tbs.ReadASN1(&sigAISeq, cryptobyte_asn1.SEQUENCE) {
+	if !tbs.ReadASN1Element(&sigAISeq, cryptobyte_asn1.SEQUENCE) {
+		return nil, errors.New("x509: malformed signature algorithm identifier")
+	}
+	cert.RawSignatureAlgorithm = sigAISeq
+	if !sigAISeq.ReadASN1(&sigAISeq, cryptobyte_asn1.SEQUENCE) {
 		return nil, errors.New("x509: malformed signature algorithm identifier")
 	}
 	// Before parsing the inner algorithm identifier, extract
@@ -1143,7 +1147,11 @@ func ParseRevocationList(der []byte) (*RevocationList, error) {
 	}
 
 	var sigAISeq cryptobyte.String
-	if !tbs.ReadASN1(&sigAISeq, cryptobyte_asn1.SEQUENCE) {
+	if !tbs.ReadASN1Element(&sigAISeq, cryptobyte_asn1.SEQUENCE) {
+		return nil, errors.New("x509: malformed signature algorithm identifier")
+	}
+	rl.RawSignatureAlgorithm = sigAISeq
+	if !sigAISeq.ReadASN1(&sigAISeq, cryptobyte_asn1.SEQUENCE) {
 		return nil, errors.New("x509: malformed signature algorithm identifier")
 	}
 	// Before parsing the inner algorithm identifier, extract

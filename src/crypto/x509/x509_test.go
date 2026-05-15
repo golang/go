@@ -3506,6 +3506,87 @@ Qc4=
 	}
 }
 
+func TestRawSignatureAlgorithm(t *testing.T) {
+	// checkAI verifies that raw is a DER-encoded AlgorithmIdentifier with the
+	// expected OID.
+	checkAI := func(t *testing.T, raw []byte, wantOID asn1.ObjectIdentifier) {
+		t.Helper()
+		if len(raw) == 0 {
+			t.Fatal("RawSignatureAlgorithm is empty")
+		}
+		var ai pkix.AlgorithmIdentifier
+		rest, err := asn1.Unmarshal(raw, &ai)
+		if err != nil {
+			t.Fatalf("failed to unmarshal RawSignatureAlgorithm: %s", err)
+		}
+		if len(rest) != 0 {
+			t.Fatalf("trailing data after RawSignatureAlgorithm: %x", rest)
+		}
+		if !ai.Algorithm.Equal(wantOID) {
+			t.Fatalf("unexpected OID: got %v, want %v", ai.Algorithm, wantOID)
+		}
+	}
+
+	t.Run("Certificate", func(t *testing.T) {
+		p, _ := pem.Decode([]byte(pemCertificate))
+		cert, err := ParseCertificate(p.Bytes)
+		if err != nil {
+			t.Fatalf("failed to parse certificate: %s", err)
+		}
+		checkAI(t, cert.RawSignatureAlgorithm, oidSignatureSHA256WithRSA)
+	})
+
+	priv, err := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
+	if err != nil {
+		t.Fatalf("failed to generate key: %s", err)
+	}
+
+	t.Run("CertificateRequest", func(t *testing.T) {
+		csrDER, err := CreateCertificateRequest(rand.Reader, &CertificateRequest{}, priv)
+		if err != nil {
+			t.Fatalf("failed to create CSR: %s", err)
+		}
+		csr, err := ParseCertificateRequest(csrDER)
+		if err != nil {
+			t.Fatalf("failed to parse CSR: %s", err)
+		}
+		checkAI(t, csr.RawSignatureAlgorithm, oidSignatureECDSAWithSHA256)
+	})
+
+	t.Run("RevocationList", func(t *testing.T) {
+		issuerTmpl := &Certificate{
+			SerialNumber:          big.NewInt(1),
+			Subject:               pkix.Name{CommonName: "issuer"},
+			NotBefore:             time.Now(),
+			NotAfter:              time.Now().Add(time.Hour),
+			KeyUsage:              KeyUsageCRLSign,
+			IsCA:                  true,
+			BasicConstraintsValid: true,
+		}
+		issuerDER, err := CreateCertificate(rand.Reader, issuerTmpl, issuerTmpl, priv.Public(), priv)
+		if err != nil {
+			t.Fatalf("failed to create issuer: %s", err)
+		}
+		issuer, err := ParseCertificate(issuerDER)
+		if err != nil {
+			t.Fatalf("failed to parse issuer: %s", err)
+		}
+		crlDER, err := CreateRevocationList(rand.Reader, &RevocationList{
+			Number:     big.NewInt(1),
+			ThisUpdate: time.Now(),
+			NextUpdate: time.Now().Add(time.Hour),
+		}, issuer, priv)
+		if err != nil {
+			t.Fatalf("failed to create CRL: %s", err)
+		}
+		crl, err := ParseRevocationList(crlDER)
+		if err != nil {
+			t.Fatalf("failed to parse CRL: %s", err)
+		}
+		checkAI(t, crl.RawSignatureAlgorithm, oidSignatureECDSAWithSHA256)
+	})
+}
+
 func TestParseCertificateRawEquals(t *testing.T) {
 	p, _ := pem.Decode([]byte(pemCertificate))
 	cert, err := ParseCertificate(p.Bytes)

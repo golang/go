@@ -707,6 +707,7 @@ type Certificate struct {
 	RawSubjectPublicKeyInfo []byte // DER encoded SubjectPublicKeyInfo.
 	RawSubject              []byte // DER encoded Subject
 	RawIssuer               []byte // DER encoded Issuer
+	RawSignatureAlgorithm   []byte // DER encoded AlgorithmIdentifier
 
 	Signature          []byte
 	SignatureAlgorithm SignatureAlgorithm
@@ -1914,6 +1915,7 @@ type CertificateRequest struct {
 	RawTBSCertificateRequest []byte // Certificate request info part of raw ASN.1 DER content.
 	RawSubjectPublicKeyInfo  []byte // DER encoded SubjectPublicKeyInfo.
 	RawSubject               []byte // DER encoded Subject.
+	RawSignatureAlgorithm    []byte // DER encoded AlgorithmIdentifier.
 
 	Version            int
 	Signature          []byte
@@ -1966,8 +1968,12 @@ type tbsCertificateRequest struct {
 type certificateRequest struct {
 	Raw                asn1.RawContent
 	TBSCSR             tbsCertificateRequest
-	SignatureAlgorithm pkix.AlgorithmIdentifier
-	SignatureValue     asn1.BitString
+	SignatureAlgorithm struct {
+		Raw        asn1.RawContent
+		Algorithm  asn1.ObjectIdentifier
+		Parameters asn1.RawValue `asn1:"optional"`
+	}
+	SignatureValue asn1.BitString
 }
 
 // oidExtensionRequest is a PKCS #9 OBJECT IDENTIFIER that indicates requested
@@ -2202,11 +2208,12 @@ func CreateCertificateRequest(rand io.Reader, template *CertificateRequest, priv
 		return nil, err
 	}
 
-	return asn1.Marshal(certificateRequest{
-		TBSCSR:             tbsCSR,
-		SignatureAlgorithm: algorithmIdentifier,
-		SignatureValue:     asn1.BitString{Bytes: signature, BitLength: len(signature) * 8},
-	})
+	cr := certificateRequest{}
+	cr.TBSCSR = tbsCSR
+	cr.SignatureAlgorithm.Algorithm = algorithmIdentifier.Algorithm
+	cr.SignatureAlgorithm.Parameters = algorithmIdentifier.Parameters
+	cr.SignatureValue = asn1.BitString{Bytes: signature, BitLength: len(signature) * 8}
+	return asn1.Marshal(cr)
 }
 
 // ParseCertificateRequest parses a single certificate request from the
@@ -2230,9 +2237,13 @@ func parseCertificateRequest(in *certificateRequest) (*CertificateRequest, error
 		RawTBSCertificateRequest: in.TBSCSR.Raw,
 		RawSubjectPublicKeyInfo:  in.TBSCSR.PublicKey.Raw,
 		RawSubject:               in.TBSCSR.Subject.FullBytes,
+		RawSignatureAlgorithm:    in.SignatureAlgorithm.Raw,
 
-		Signature:          in.SignatureValue.RightAlign(),
-		SignatureAlgorithm: getSignatureAlgorithmFromAI(in.SignatureAlgorithm),
+		Signature: in.SignatureValue.RightAlign(),
+		SignatureAlgorithm: getSignatureAlgorithmFromAI(pkix.AlgorithmIdentifier{
+			Algorithm:  in.SignatureAlgorithm.Algorithm,
+			Parameters: in.SignatureAlgorithm.Parameters,
+		}),
 
 		PublicKeyAlgorithm: getPublicKeyAlgorithmFromOID(in.TBSCSR.PublicKey.Algorithm.Algorithm),
 
@@ -2327,6 +2338,9 @@ type RevocationList struct {
 	RawTBSRevocationList []byte
 	// RawIssuer contains the DER encoded Issuer.
 	RawIssuer []byte
+	// RawSignatureAlgorithm contains the DER encoded signature algorithm as a
+	// PKIX AlgorithmIdentifier.
+	RawSignatureAlgorithm []byte
 
 	// Issuer contains the DN of the issuing certificate.
 	Issuer pkix.Name
