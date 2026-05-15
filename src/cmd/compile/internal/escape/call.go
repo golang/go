@@ -42,12 +42,11 @@ func (e *escape) call(ks []hole, call ir.Node) {
 		var fns []*ir.Name
 		switch call.Op() {
 		case ir.OCALLFUNC:
-			// TODO(thepudds): use an ir.ReassignOracle here.
-			v := ir.StaticValue(call.Fun)
+			ro := e.reassignOracle(e.curfn)
+			v := ro.StaticValue(call.Fun)
 			if fn := ir.StaticCalleeName(v); fn != nil {
 				fns = []*ir.Name{fn}
 			} else if name, ok := v.(*ir.Name); ok {
-				ro := e.reassignOracle(e.curfn)
 				fns = resolveAssignedCallees(ro.FuncAssignments(name.Canonical()))
 			}
 		}
