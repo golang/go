@@ -2,26 +2,34 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-package ecdsa
+package ecdsa_test
 
 import (
 	"bufio"
 	"bytes"
 	"compress/bzip2"
 	"crypto"
+	. "crypto/ecdsa"
 	"crypto/elliptic"
 	"crypto/internal/cryptotest"
+	"crypto/internal/fips140/ecdsa"
 	"crypto/rand"
 	"crypto/sha1"
 	"crypto/sha256"
 	"crypto/sha512"
+	"crypto/x509"
 	"encoding/hex"
+	"encoding/json"
+	"fmt"
 	"hash"
 	"io"
 	"math/big"
 	"os"
 	"strings"
 	"testing"
+
+	"golang.org/x/crypto/cryptobyte"
+	"golang.org/x/crypto/cryptobyte/asn1"
 )
 
 func testAllCurves(t *testing.T, f func(*testing.T, elliptic.Curve)) {
@@ -546,6 +554,27 @@ func testRFC6979(t *testing.T, curve elliptic.Curve, D, X, Y, msg, r, s string) 
 	}
 }
 
+func encodeSignature(r, s []byte) ([]byte, error) {
+	var b cryptobyte.Builder
+	b.AddASN1(asn1.SEQUENCE, func(b *cryptobyte.Builder) {
+		addASN1IntBytes(b, r)
+		addASN1IntBytes(b, s)
+	})
+	return b.Bytes()
+}
+
+func addASN1IntBytes(b *cryptobyte.Builder, bytes []byte) {
+	for len(bytes) > 0 && bytes[0] == 0 {
+		bytes = bytes[1:]
+	}
+	b.AddASN1(asn1.INTEGER, func(c *cryptobyte.Builder) {
+		if bytes[0]&0x80 != 0 {
+			c.AddUint8(0)
+		}
+		c.AddBytes(bytes)
+	})
+}
+
 func TestParseAndBytesRoundTrip(t *testing.T) {
 	testAllCurves(t, testParseAndBytesRoundTrip)
 }
@@ -700,6 +729,86 @@ func testInvalidPrivateKeys(t *testing.T, curve elliptic.Curve) {
 			t.Errorf("ParseRawPrivateKey accepted long key")
 		}
 	})
+}
+
+// TestKeyGenerationVectors tests GenerateKey with the deterministic keygen
+// vectors of c2sp.org/det-keygen by replacing the default random source with
+// the specified DRBG.
+func TestKeyGenerationVectors(t *testing.T) {
+	var vectors []struct {
+		Curve string
+		Seed  []byte
+		PKCS8 []byte `json:"private_key_pkcs8"`
+	}
+	f, err := os.Open("testdata/det-keygen.json")
+	if err != nil {
+		t.Fatalf("failed to open det-keygen.json: %v", err)
+	}
+	defer f.Close()
+	if err := json.NewDecoder(f).Decode(&vectors); err != nil {
+		t.Fatalf("failed to decode keygen.json: %v", err)
+	}
+	for i, v := range vectors {
+		t.Run(fmt.Sprintf("%s-%d", v.Curve, i), func(t *testing.T) {
+			t.Setenv("GODEBUG", "cryptocustomrand=1")
+			var pers []byte
+			var curve elliptic.Curve
+			switch v.Curve {
+			case "secp224r1":
+				curve = elliptic.P224()
+				pers = []byte("det ECDSA key gen P-224")
+			case "secp256r1":
+				curve = elliptic.P256()
+				pers = []byte("det ECDSA key gen P-256")
+			case "secp384r1":
+				curve = elliptic.P384()
+				pers = []byte("det ECDSA key gen P-384")
+			case "secp521r1":
+				curve = elliptic.P521()
+				pers = []byte("det ECDSA key gen P-521")
+			default:
+				t.Fatalf("unknown curve: %q", v.Curve)
+			}
+			drbg := ecdsa.TestingOnlyNewDRBG(sha256.New, v.Seed, nil, pers)
+			rng := &keyGenTestReader{next: func(p []byte) error {
+				drbg.Generate(p)
+				return nil
+			}}
+			priv, err := GenerateKey(curve, rng)
+			if err != nil {
+				t.Fatalf("GenerateKey: %v", err)
+			}
+			der, err := x509.MarshalPKCS8PrivateKey(priv)
+			if err != nil {
+				t.Fatalf("MarshalPKCS8PrivateKey: %v", err)
+			}
+			if !bytes.Equal(der, v.PKCS8) {
+				t.Errorf("PKCS8 mismatch:\n%s\nvs\n\n%s", hex.Dump(der), hex.Dump(v.PKCS8))
+			}
+		})
+	}
+}
+
+type keyGenTestReader struct {
+	next func([]byte) error
+}
+
+func (r *keyGenTestReader) Read(p []byte) (n int, err error) {
+	// Neutralize randutil.MaybeReadByte.
+	//
+	// DO NOT COPY this. We *will* break you. We can do this because we're
+	// in the standard library, and can update this along with the
+	// GenerateKey implementation if necessary.
+	//
+	// You have been warned.
+	if len(p) == 1 {
+		return 1, nil
+	}
+
+	if err := r.next(p); err != nil {
+		return 0, err
+	}
+	return len(p), nil
 }
 
 func benchmarkAllCurves(b *testing.B, f func(*testing.B, elliptic.Curve)) {
