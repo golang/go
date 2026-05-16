@@ -60,6 +60,24 @@ stdout .
 go doc Method
 stdout .
 
+# Meta packages are package patterns, not documentable packages.
+# Regression test for golang.org/issue/53446.
+! go doc std
+stderr '^doc: go doc does not support meta-package argument std$'
+! stdout .
+
+! go doc all
+stderr '^doc: go doc does not support meta-package argument all$'
+! stdout .
+
+! go doc std Foo
+stderr '^doc: go doc does not support meta-package argument std$'
+! stdout .
+
+env TEST_GODOC_URL_FILE=$WORK/url.txt
+go doc -http std
+grep '/std' $TEST_GODOC_URL_FILE
+
 -- go.mod --
 module p/v2
 
