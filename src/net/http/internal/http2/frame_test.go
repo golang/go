@@ -7,6 +7,7 @@ package http2
 import (
 	"bytes"
 	"fmt"
+	"internal/race"
 	"io"
 	"reflect"
 	"strings"
@@ -764,6 +765,242 @@ func TestWriteWindowUpdate(t *testing.T) {
 	}
 }
 
+// readFrameAs writes one frame for streamID with write, reads it back
+// from fr, and asserts that it parsed as an F.
+func readFrameAs[F Frame](t testing.TB, fr *Framer, buf *bytes.Buffer, write func(t testing.TB, fr *Framer, streamID uint32), streamID uint32) F {
+	t.Helper()
+	buf.Reset()
+	write(t, fr, streamID)
+	f, err := fr.ReadFrame()
+	if err != nil {
+		t.Fatal(err)
+	}
+	ff, ok := f.(F)
+	if !ok {
+		t.Fatalf("stream %d: frame is %T, want %T", streamID, f, ff)
+	}
+	return ff
+}
+
+// testFrameReuse verifies the SetReuseFrames contract for one frame
+// type: every ReadFrame that parses a frame of type F returns the same
+// pointer, holding the values of the frame just parsed, and a frame of
+// another type in between does not disturb that. write emits a frame
+// for a stream; check asserts that a parsed frame carries the values
+// write produced for that stream, reading only fields that stay
+// readable on a reused frame.
+func testFrameReuse[F Frame](t *testing.T, meta bool, write func(t testing.TB, fr *Framer, streamID uint32), check func(t testing.TB, f F, streamID uint32)) {
+	fr, buf := testFramer()
+	fr.SetReuseFrames()
+	if meta {
+		fr.ReadMetaHeaders = hpack.NewDecoder(initialHeaderTableSize, nil)
+	}
+
+	first := readFrameAs[F](t, fr, buf, write, 1)
+	check(t, first, 1)
+
+	// Later frames return the same pointer with the new values, so the
+	// pointer returned first reflects each later parse as well.
+	for _, streamID := range []uint32{3, 1, 5} {
+		f := readFrameAs[F](t, fr, buf, write, streamID)
+		if any(f) != any(first) {
+			t.Errorf("stream %d: pointer changed: have %p, want %p", streamID, any(f), any(first))
+		}
+		check(t, f, streamID)
+		check(t, first, streamID)
+	}
+
+	// A frame of another type in between does not disturb reuse: the
+	// cached struct is repopulated by the next parse of type F.
+	buf.Reset()
+	if err := fr.WritePing(false, [8]byte{1, 2, 3, 4, 5, 6, 7, 8}); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := fr.ReadFrame(); err != nil {
+		t.Fatal(err)
+	}
+	f := readFrameAs[F](t, fr, buf, write, 7)
+	if any(f) != any(first) {
+		t.Errorf("after PING: pointer changed: have %p, want %p", any(f), any(first))
+	}
+	check(t, f, 7)
+}
+
+// testFrameDistinctWithoutReuse verifies the pre-SetReuseFrames
+// contract for one frame type: without opting in, each parse returns a
+// distinct pointer, and the first frame is intact after the second
+// ReadFrame.
+func testFrameDistinctWithoutReuse[F Frame](t *testing.T, meta bool, write func(t testing.TB, fr *Framer, streamID uint32), check func(t testing.TB, f F, streamID uint32)) {
+	fr, buf := testFramer()
+	if meta {
+		fr.ReadMetaHeaders = hpack.NewDecoder(initialHeaderTableSize, nil)
+	}
+	first := readFrameAs[F](t, fr, buf, write, 1)
+	second := readFrameAs[F](t, fr, buf, write, 3)
+	if any(first) == any(second) {
+		t.Errorf("without SetReuseFrames, expected distinct pointers; got the same: %p", any(first))
+	}
+	check(t, first, 1)
+	check(t, second, 3)
+}
+
+// writeWindowUpdateFrame and checkWindowUpdateFrame are the WINDOW_UPDATE
+// parameters for testFrameReuse and testFrameDistinctWithoutReuse.
+func writeWindowUpdateFrame(t testing.TB, fr *Framer, streamID uint32) {
+	t.Helper()
+	if err := fr.WriteWindowUpdate(streamID, 1000+streamID); err != nil {
+		t.Fatal(err)
+	}
+}
+
+func checkWindowUpdateFrame(t testing.TB, f *WindowUpdateFrame, streamID uint32) {
+	t.Helper()
+	if f.StreamID != streamID || f.Increment != 1000+streamID {
+		t.Errorf("WINDOW_UPDATE = %+v; want StreamID=%d Increment=%d", f, streamID, 1000+streamID)
+	}
+}
+
+// TestReadFrameReusesWindowUpdate verifies that ReadFrame returns the
+// same *WindowUpdateFrame pointer for every WINDOW_UPDATE parsed when
+// SetReuseFrames is in effect, so the parse path does not allocate a
+// fresh struct each time.
+func TestReadFrameReusesWindowUpdate(t *testing.T) {
+	testFrameReuse(t, false, writeWindowUpdateFrame, checkWindowUpdateFrame)
+}
+
+// TestReadFrameWindowUpdateNoAllocsWhenReused locks in the
+// zero-allocation invariant for the WINDOW_UPDATE parse path when
+// SetReuseFrames is in effect. If a regression makes
+// parseWindowUpdateFrame allocate, this fails rather than only showing
+// up in benchmarks.
+func TestReadFrameWindowUpdateNoAllocsWhenReused(t *testing.T) {
+	if testing.Short() {
+		t.Skip("skipping alloc test in short mode")
+	}
+	if race.Enabled {
+		t.Skip("skipping alloc test under race detector")
+	}
+	// Pre-encode a WINDOW_UPDATE frame.
+	var enc bytes.Buffer
+	if err := NewFramer(&enc, nil).WriteWindowUpdate(1, 7); err != nil {
+		t.Fatal(err)
+	}
+	encoded := enc.Bytes()
+
+	rbuf := bytes.NewReader(encoded)
+	fr := NewFramer(io.Discard, rbuf)
+	fr.SetReuseFrames()
+
+	// Warm up the read buffer so its growth does not count toward the
+	// measurement.
+	rbuf.Reset(encoded)
+	if _, err := fr.ReadFrame(); err != nil {
+		t.Fatal(err)
+	}
+
+	allocs := testing.AllocsPerRun(50, func() {
+		rbuf.Reset(encoded)
+		if _, err := fr.ReadFrame(); err != nil {
+			t.Fatal(err)
+		}
+	})
+	if allocs != 0 {
+		t.Errorf("ReadFrame for WINDOW_UPDATE allocates %v objects/op; want 0", allocs)
+	}
+}
+
+// TestReadFrameWindowUpdateOverwrites is a defensive test against
+// future maintenance hazards. When SetReuseFrames is in effect, the
+// cached *WindowUpdateFrame is reused across ReadFrame calls.
+// parseWindowUpdateFrame resets the whole struct with a composite
+// literal, so no field can survive from a previous frame; this test
+// guards that property against a future regression to field-by-field
+// assignment (which could silently leak stale data if a field were
+// added).
+//
+// The test poisons every byte of the cached struct, parses a fresh
+// WINDOW_UPDATE, and then verifies every field reflects the new frame
+// rather than the poison.
+func TestReadFrameWindowUpdateOverwrites(t *testing.T) {
+	fr, buf := testFramer()
+	fr.SetReuseFrames()
+
+	// First read to obtain the cached struct pointer.
+	if err := fr.WriteWindowUpdate(1, 5); err != nil {
+		t.Fatal(err)
+	}
+	first, err := fr.ReadFrame()
+	if err != nil {
+		t.Fatal(err)
+	}
+	wuf, ok := first.(*WindowUpdateFrame)
+	if !ok {
+		t.Fatalf("first frame is %T, want *WindowUpdateFrame", first)
+	}
+
+	// Fill every byte of the cached struct with 0xFF. If any field is
+	// left unassigned by the next parse, it will keep this poison value.
+	//
+	// valid is a bool, and any non-zero byte reads as true; bulk 0xFF
+	// poison would therefore mask a parser that forgets to reassign
+	// valid. Set valid to false separately so the post-parse
+	// expectation (valid == true) genuinely tests a fresh write.
+	poison := unsafe.Slice((*byte)(unsafe.Pointer(wuf)), unsafe.Sizeof(*wuf))
+	for i := range poison {
+		poison[i] = 0xFF
+	}
+	wuf.valid = false
+
+	// Parse a fresh WINDOW_UPDATE. The poison must be fully gone.
+	buf.Reset()
+	const wantStreamID = 42
+	const wantIncrement = 100
+	if err := fr.WriteWindowUpdate(wantStreamID, wantIncrement); err != nil {
+		t.Fatal(err)
+	}
+	f, err := fr.ReadFrame()
+	if err != nil {
+		t.Fatal(err)
+	}
+	wu, ok := f.(*WindowUpdateFrame)
+	if !ok {
+		t.Fatalf("frame is %T, want *WindowUpdateFrame", f)
+	}
+	if wu != wuf {
+		t.Fatalf("pointer changed after poison: have %p, want %p", wu, wuf)
+	}
+
+	// Check every field. Failure on any of these means
+	// parseWindowUpdateFrame left a field unassigned, which would leak
+	// data from a previous frame to the next consumer.
+	if wu.Type != FrameWindowUpdate {
+		t.Errorf("Type = %v (poison leak); want %v", wu.Type, FrameWindowUpdate)
+	}
+	if wu.Flags != 0 {
+		t.Errorf("Flags = %#x (poison leak); want 0", wu.Flags)
+	}
+	if wu.Length != 4 {
+		t.Errorf("Length = %d (poison leak); want 4", wu.Length)
+	}
+	if wu.StreamID != wantStreamID {
+		t.Errorf("StreamID = %d (poison leak); want %d", wu.StreamID, wantStreamID)
+	}
+	if !wu.valid {
+		t.Errorf("valid = false (poison leak); want true")
+	}
+	if wu.Increment != wantIncrement {
+		t.Errorf("Increment = %d (poison leak); want %d", wu.Increment, wantIncrement)
+	}
+}
+
+// TestReadFrameWindowUpdateDistinctWithoutReuse asserts the
+// pre-SetReuseFrames contract: without opting in, each parsed
+// WINDOW_UPDATE returns a distinct *WindowUpdateFrame whose fields
+// remain valid even after a subsequent ReadFrame.
+func TestReadFrameWindowUpdateDistinctWithoutReuse(t *testing.T) {
+	testFrameDistinctWithoutReuse(t, false, writeWindowUpdateFrame, checkWindowUpdateFrame)
+}
+
 func TestWritePing(t *testing.T)    { testWritePing(t, false) }
 func TestWritePingAck(t *testing.T) { testWritePing(t, true) }
 
@@ -1321,8 +1558,7 @@ func TestSetReuseFrames(t *testing.T) {
 	fr, buf := testFramer()
 	fr.SetReuseFrames()
 
-	// Check that DataFrames are reused. Note that
-	// SetReuseFrames only currently implements reuse of DataFrames.
+	// Check that DataFrames are reused.
 	firstDf := readAndVerifyDataFrame("ABC", 3, fr, buf, t)
 
 	for range 10 {
@@ -1370,7 +1606,6 @@ func TestNoSetReuseFrames(t *testing.T) {
 	dfSoFar := make([]any, numNewDataFrames)
 
 	// Check that DataFrames are not reused if SetReuseFrames wasn't called.
-	// SetReuseFrames only currently implements reuse of DataFrames.
 	for i := range numNewDataFrames {
 		df := readAndVerifyDataFrame("XYZ", 3, fr, buf, t)
 		for _, item := range dfSoFar {
