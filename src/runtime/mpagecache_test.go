@@ -5,11 +5,18 @@
 package runtime_test
 
 import (
+	"internal/goarch"
 	"internal/goos"
 	"math/rand"
 	. "runtime"
 	"testing"
 )
+
+func skipPageCacheSimulationOnPlan9Arm64(t *testing.T) {
+	if goos.IsPlan9 != 0 && goarch.IsArm64 != 0 {
+		t.Skip("skipping on plan9/arm64; sbrk-backed reservations can exhaust physical memory")
+	}
+}
 
 func checkPageCache(t *testing.T, got, want PageCache) {
 	if got.Base() != want.Base() {
@@ -180,6 +187,7 @@ func TestPageCacheAlloc(t *testing.T) {
 }
 
 func TestPageCacheFlush(t *testing.T) {
+	skipPageCacheSimulationOnPlan9Arm64(t)
 	if GOOS == "openbsd" && testing.Short() {
 		t.Skip("skipping because virtual memory is limited; see #36210")
 	}
@@ -257,6 +265,7 @@ func TestPageCacheFlush(t *testing.T) {
 }
 
 func TestPageAllocAllocToCache(t *testing.T) {
+	skipPageCacheSimulationOnPlan9Arm64(t)
 	if GOOS == "openbsd" && testing.Short() {
 		t.Skip("skipping because virtual memory is limited; see #36210")
 	}
