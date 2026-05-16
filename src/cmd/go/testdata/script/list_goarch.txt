@@ -1,0 +1,29 @@
+
+# default GOAMD64=v1
+env GOARCH=amd64
+! go list -f '{{ range $f := .GoFiles }}{{ $f }}{{ end }}'
+! go build
+
+# settable from the environment
+env GOAMD64=v3
+go list -f '{{ range $f := .GoFiles }}{{ $f }}{{ end }}'
+stdout main.go
+go build
+
+# settable from the config file
+env GOAMD64=
+env GOENV=$WORK/env
+go env -w GOAMD64=v3
+go list -f '{{ range $f := .GoFiles }}{{ $f }}{{ end }}'
+stdout main.go
+go build
+
+-- go.mod --
+module test
+
+-- main.go --
+//go:build amd64.v3
+
+package main
+
+func main() {}
