@@ -183,6 +183,9 @@ func TestWritevError(t *testing.T) {
 	if runtime.GOOS == "windows" {
 		t.Skipf("skipping the test: windows does not have problem sending large chunks of data")
 	}
+	if runtime.GOOS == "plan9" {
+		t.Skipf("skipping the test: %s may not report closed TCP writes promptly", runtime.GOOS)
+	}
 
 	ln := newLocalListener(t, "tcp")
 
