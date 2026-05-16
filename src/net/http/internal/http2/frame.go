@@ -433,7 +433,8 @@ func (fr *Framer) SetReuseFrames() {
 }
 
 type frameCache struct {
-	dataFrame DataFrame
+	dataFrame         DataFrame
+	windowUpdateFrame WindowUpdateFrame
 }
 
 func (fc *frameCache) getDataFrame() *DataFrame {
@@ -441,6 +442,13 @@ func (fc *frameCache) getDataFrame() *DataFrame {
 		return &DataFrame{}
 	}
 	return &fc.dataFrame
+}
+
+func (fc *frameCache) getWindowUpdateFrame() *WindowUpdateFrame {
+	if fc == nil {
+		return &WindowUpdateFrame{}
+	}
+	return &fc.windowUpdateFrame
 }
 
 // NewFramer returns a Framer that writes frames to w and reads them from r.
@@ -996,12 +1004,25 @@ func parseUnknownFrame(_ *frameCache, fh FrameHeader, countError func(string), p
 
 // A WindowUpdateFrame is used to implement flow control.
 // See https://httpwg.org/specs/rfc7540.html#rfc.section.6.9
+//
+// When [Framer.SetReuseFrames] is in effect, the same *WindowUpdateFrame
+// is returned by every (*Framer).ReadFrame call that parses a
+// WINDOW_UPDATE and its fields are overwritten on each call, so callers
+// must consume the StreamID and Increment fields before the next
+// ReadFrame and must not retain the pointer.
 type WindowUpdateFrame struct {
 	FrameHeader
 	Increment uint32 // never read with high bit set
 }
 
-func parseWindowUpdateFrame(_ *frameCache, fh FrameHeader, countError func(string), p []byte) (Frame, error) {
+// parseWindowUpdateFrame populates the *WindowUpdateFrame returned by
+// frameCache.getWindowUpdateFrame. When [Framer.SetReuseFrames] is in
+// effect, that struct is reused across ReadFrame calls; the composite
+// literal reset below overwrites every field, so stale data from a
+// previous frame cannot leak even if a field is added to
+// WindowUpdateFrame later. TestReadFrameWindowUpdateOverwrites guards
+// this property.
+func parseWindowUpdateFrame(fc *frameCache, fh FrameHeader, countError func(string), p []byte) (Frame, error) {
 	if len(p) != 4 {
 		countError("frame_windowupdate_bad_len")
 		return nil, ConnectionError(ErrCodeFrameSize)
@@ -1021,10 +1042,12 @@ func parseWindowUpdateFrame(_ *frameCache, fh FrameHeader, countError func(strin
 		countError("frame_windowupdate_zero_inc_stream")
 		return nil, streamError(fh.StreamID, ErrCodeProtocol)
 	}
-	return &WindowUpdateFrame{
+	wuf := fc.getWindowUpdateFrame()
+	*wuf = WindowUpdateFrame{
 		FrameHeader: fh,
 		Increment:   inc,
-	}, nil
+	}
+	return wuf, nil
 }
 
 // WriteWindowUpdate writes a WINDOW_UPDATE frame.
