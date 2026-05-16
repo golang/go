@@ -106,6 +106,13 @@ func MkEnv() []cfg.EnvVar {
 		{Name: "GONOPROXY", Value: cfg.GONOPROXY, Changed: cfg.GONOPROXYChanged},
 		{Name: "GONOSUMDB", Value: cfg.GONOSUMDB, Changed: cfg.GONOSUMDBChanged},
 		{Name: "GOOS", Value: cfg.Goos, Changed: cfg.Goos != runtime.GOOS},
+
+		// GOPACKAGESDRIVER isn't read or used by cmd/go, so it can only
+		// be sourced from environment variables.
+		// We include it for bug reports.
+		// go.dev/issue/75930
+		{Name: "GOPACKAGESDRIVER", Value: os.Getenv("GOPACKAGESDRIVER")},
+
 		{Name: "GOPATH", Value: cfg.BuildContext.GOPATH, Changed: cfg.GOPATHChanged},
 		{Name: "GOPRIVATE", Value: cfg.GOPRIVATE},
 		{Name: "GOPROXY", Value: cfg.GOPROXY, Changed: cfg.GOPROXYChanged},
@@ -126,7 +133,7 @@ func MkEnv() []cfg.EnvVar {
 			if env[i].Value != "on" && env[i].Value != "" {
 				env[i].Changed = true
 			}
-		case "GOBIN", "GOEXPERIMENT", "GOFLAGS", "GOINSECURE", "GOPRIVATE", "GOTMPDIR", "GOVCS":
+		case "GOBIN", "GOEXPERIMENT", "GOFLAGS", "GOINSECURE", "GOPACKAGESDRIVER", "GOPRIVATE", "GOTMPDIR", "GOVCS":
 			if env[i].Value != "" {
 				env[i].Changed = true
 			}
