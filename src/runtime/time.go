@@ -1229,7 +1229,7 @@ func (t *timer) unlockAndRun(now int64, bubble *synctestBubble) {
 	}
 }
 
-// verifyTimerHeap verifies that the timers is in a valid state.
+// verify verifies that the timer heap is in a valid state.
 // This is only for debugging, and is only called if verifyTimers is true.
 // The caller must have locked ts.
 func (ts *timers) verify() {

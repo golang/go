@@ -1191,7 +1191,7 @@ func applyTo3(x, y, z archsimd.Int32x16, f func(x, y, z int32) int32) []int32 {
 	return r
 }
 
-// applyTo3 returns a 16-element slice of the results of
+// applyTo4 returns a 16-element slice of the results of
 // applying f to the respective elements of vectors x, y, z, and w.
 func applyTo4(x, y, z, w archsimd.Int32x16, f func(x, y, z, w int32) int32) []int32 {
 	ax, ay, az, aw := a(), a(), a(), a()
