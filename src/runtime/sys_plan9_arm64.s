@@ -130,6 +130,20 @@ TEXT runtime·brk_(SB),NOSPLIT,$0-12
 	MOVWU	R0, ret+8(FP)
 	RET
 
+//func segattach(attr uintptr, name *byte, va unsafe.Pointer, length uintptr) unsafe.Pointer
+TEXT runtime·segattach(SB),NOSPLIT,$0-40
+	MOVD	$SYS_SEGATTACH, R0
+	SVC	$0
+	MOVD	R0, ret+32(FP)
+	RET
+
+//func segfree(addr unsafe.Pointer, length uintptr) int32
+TEXT runtime·segfree(SB),NOSPLIT,$0-20
+	MOVD	$SYS_SEGFREE, R0
+	SVC	$0
+	MOVWU	R0, ret+16(FP)
+	RET
+
 //func sleep(ms int32) int32
 TEXT runtime·sleep(SB),NOSPLIT,$0-12
 	MOVD    $SYS_SLEEP, R0

@@ -12,9 +12,9 @@ import (
 	"testing"
 )
 
-func skipPageAllocSimulationOnPlan9Arm64(t *testing.T) {
+func skipPageAllocPressureOnPlan9Arm64(t *testing.T) {
 	if goos.IsPlan9 != 0 && goarch.IsArm64 != 0 {
-		t.Skip("skipping on plan9/arm64; sbrk-backed reservations can exhaust physical memory")
+		t.Skip("skipping on plan9/arm64; page allocator simulation exhausts Plan 9 user memory")
 	}
 }
 
@@ -49,7 +49,6 @@ func checkPageAlloc(t *testing.T, want, got *PageAlloc) {
 }
 
 func TestPageAllocGrow(t *testing.T) {
-	skipPageAllocSimulationOnPlan9Arm64(t)
 	if GOOS == "openbsd" && testing.Short() {
 		t.Skip("skipping because virtual memory is limited; see #36210")
 	}
@@ -229,7 +228,7 @@ func TestPageAllocGrow(t *testing.T) {
 }
 
 func TestPageAllocAlloc(t *testing.T) {
-	skipPageAllocSimulationOnPlan9Arm64(t)
+	skipPageAllocPressureOnPlan9Arm64(t)
 	if GOOS == "openbsd" && testing.Short() {
 		t.Skip("skipping because virtual memory is limited; see #36210")
 	}
@@ -708,7 +707,7 @@ func TestPageAllocAlloc(t *testing.T) {
 }
 
 func TestPageAllocExhaust(t *testing.T) {
-	skipPageAllocSimulationOnPlan9Arm64(t)
+	skipPageAllocPressureOnPlan9Arm64(t)
 	if GOOS == "openbsd" && testing.Short() {
 		t.Skip("skipping because virtual memory is limited; see #36210")
 	}
@@ -760,7 +759,7 @@ func TestPageAllocExhaust(t *testing.T) {
 }
 
 func TestPageAllocFree(t *testing.T) {
-	skipPageAllocSimulationOnPlan9Arm64(t)
+	skipPageAllocPressureOnPlan9Arm64(t)
 	if GOOS == "openbsd" && testing.Short() {
 		t.Skip("skipping because virtual memory is limited; see #36210")
 	}
@@ -997,7 +996,7 @@ func TestPageAllocFree(t *testing.T) {
 }
 
 func TestPageAllocAllocAndFree(t *testing.T) {
-	skipPageAllocSimulationOnPlan9Arm64(t)
+	skipPageAllocPressureOnPlan9Arm64(t)
 	if GOOS == "openbsd" && testing.Short() {
 		t.Skip("skipping because virtual memory is limited; see #36210")
 	}

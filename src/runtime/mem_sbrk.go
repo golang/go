@@ -223,6 +223,7 @@ func sysFreeOS(v unsafe.Pointer, n uintptr) {
 }
 
 func sysUnusedOS(v unsafe.Pointer, n uintptr) {
+	sysUnusedOSImpl(v, n)
 }
 
 func sysUsedOS(v unsafe.Pointer, n uintptr) {
