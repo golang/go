@@ -325,41 +325,76 @@ func substituteWithBasicLit(node ast.Node, from, to string) ast.Node {
 	}, nil)
 }
 
-// foldIfCondition looks for if statements with a single boolean variable from, or
-// the negation of from and either replaces it with its body or nothing,
-// depending on whether the to value is true or false.
+// foldIfCondition replaces 'from' with 'to', which must be "true" or "false".
+// It then applies simplifications to any boolean expressions that have literal
+// true or false values, from the bottom up. Any if statements that have a condition
+// that is a literal true or false after the simplification will be replaced with
+// their bodies (in the true case) or deleted (in the false case).
 func foldIfCondition(node ast.Node, from, to string) ast.Node {
-	var isTrue bool
-	switch to {
-	case "true":
-		isTrue = true
-	case "false":
-		isTrue = false
-	default:
-		log.Fatalf("op 'to' expr %q is not true or false", to)
+	boolLit := func(n ast.Expr) (v, ok bool) {
+		if ident, ok := ast.Unparen(n).(*ast.Ident); ok {
+			switch ident.Name {
+			case "true":
+				return true, true
+			case "false":
+				return false, true
+			}
+			return false, false
+		}
+		return false, false
 	}
-	return astutil.Apply(node, func(cursor *astutil.Cursor) bool {
-		var foldIfTrue bool
-		ifexpr, ok := cursor.Node().(*ast.IfStmt)
-		if !ok {
-			return true
-		}
-		if isIdentWithName(ifexpr.Cond, from) {
-			foldIfTrue = true
-		} else if unaryexpr, ok := ifexpr.Cond.(*ast.UnaryExpr); ok && unaryexpr.Op == token.NOT && isIdentWithName(unaryexpr.X, from) {
-			foldIfTrue = false
-		} else {
-			// not an if with from or !from.
-			return true
-		}
-		if foldIfTrue == isTrue {
-			for _, stmt := range ifexpr.Body.List {
-				cursor.InsertBefore(stmt)
+	handleIfs := func(cursor *astutil.Cursor) bool {
+		switch n := cursor.Node().(type) {
+		case *ast.Ident:
+			// First, do the replacement.
+			if n.Name == from {
+				cursor.Replace(&ast.Ident{Name: to, NamePos: n.NamePos})
+			}
+		case *ast.UnaryExpr:
+			if n.Op == token.NOT {
+				if b, ok := boolLit(n.X); ok {
+					name := "true"
+					if b {
+						name = "false"
+					}
+					cursor.Replace(&ast.Ident{Name: name, NamePos: n.Pos()})
+				}
+			}
+		case *ast.BinaryExpr:
+			xBool, xOk := boolLit(n.X)
+			yBool, yOk := boolLit(n.Y)
+			if n.Op == token.LAND {
+				switch {
+				case xOk && !xBool || yOk && !yBool:
+					cursor.Replace(&ast.Ident{Name: "false", NamePos: n.Pos()})
+				case xOk && xBool:
+					cursor.Replace(n.Y)
+				case yOk && yBool:
+					cursor.Replace(n.X)
+				}
+			} else if n.Op == token.LOR {
+				switch {
+				case xOk && xBool || yOk && yBool:
+					cursor.Replace(&ast.Ident{Name: "true", NamePos: n.Pos()})
+				case xOk && !xBool:
+					cursor.Replace(n.Y)
+				case yOk && !yBool:
+					cursor.Replace(n.X)
+				}
+			}
+		case *ast.IfStmt:
+			if v, ok := boolLit(n.Cond); ok {
+				if v {
+					for _, stmt := range n.Body.List {
+						cursor.InsertBefore(stmt)
+					}
+				}
+				cursor.Delete()
 			}
 		}
-		cursor.Delete()
 		return true
-	}, nil)
+	}
+	return astutil.Apply(node, nil, handleIfs)
 }
 
 // inlineFunction recursively replaces calls to the function 'from' with the body of the function
