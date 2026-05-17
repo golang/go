@@ -171,6 +171,7 @@ func mallocgcSmallScanNoHeaderSC1(size uintptr, typ *_type, needzero bool) unsaf
 	if debug.malloc {
 		postMallocgcDebug(x, elemsize, typ)
 	}
+
 	return x
 }
 
@@ -335,6 +336,7 @@ func mallocgcSmallScanNoHeaderSC2(size uintptr, typ *_type, needzero bool) unsaf
 	if debug.malloc {
 		postMallocgcDebug(x, elemsize, typ)
 	}
+
 	return x
 }
 
@@ -499,6 +501,7 @@ func mallocgcSmallScanNoHeaderSC3(size uintptr, typ *_type, needzero bool) unsaf
 	if debug.malloc {
 		postMallocgcDebug(x, elemsize, typ)
 	}
+
 	return x
 }
 
@@ -663,6 +666,7 @@ func mallocgcSmallScanNoHeaderSC4(size uintptr, typ *_type, needzero bool) unsaf
 	if debug.malloc {
 		postMallocgcDebug(x, elemsize, typ)
 	}
+
 	return x
 }
 
@@ -827,6 +831,7 @@ func mallocgcSmallScanNoHeaderSC5(size uintptr, typ *_type, needzero bool) unsaf
 	if debug.malloc {
 		postMallocgcDebug(x, elemsize, typ)
 	}
+
 	return x
 }
 
@@ -991,6 +996,7 @@ func mallocgcSmallScanNoHeaderSC6(size uintptr, typ *_type, needzero bool) unsaf
 	if debug.malloc {
 		postMallocgcDebug(x, elemsize, typ)
 	}
+
 	return x
 }
 
@@ -1155,6 +1161,7 @@ func mallocgcSmallScanNoHeaderSC7(size uintptr, typ *_type, needzero bool) unsaf
 	if debug.malloc {
 		postMallocgcDebug(x, elemsize, typ)
 	}
+
 	return x
 }
 
@@ -1319,6 +1326,7 @@ func mallocgcSmallScanNoHeaderSC8(size uintptr, typ *_type, needzero bool) unsaf
 	if debug.malloc {
 		postMallocgcDebug(x, elemsize, typ)
 	}
+
 	return x
 }
 
@@ -1483,6 +1491,7 @@ func mallocgcSmallScanNoHeaderSC9(size uintptr, typ *_type, needzero bool) unsaf
 	if debug.malloc {
 		postMallocgcDebug(x, elemsize, typ)
 	}
+
 	return x
 }
 
@@ -1647,6 +1656,7 @@ func mallocgcSmallScanNoHeaderSC10(size uintptr, typ *_type, needzero bool) unsa
 	if debug.malloc {
 		postMallocgcDebug(x, elemsize, typ)
 	}
+
 	return x
 }
 
@@ -1712,20 +1722,17 @@ func mallocgcTinySC2(size uintptr, typ *_type, needzero bool) unsafe.Pointer {
 		mp.mallocing = 0
 		releasem(mp)
 		const elemsize = 0
-		{
-
-			if gcBlackenEnabled != 0 && elemsize != 0 {
-				if assistG := getg().m.curg; assistG != nil {
-					assistG.gcAssistBytes -= int64(elemsize - size)
-				}
+		if gcBlackenEnabled != 0 && elemsize != 0 {
+			if assistG := getg().m.curg; assistG != nil {
+				assistG.gcAssistBytes -= int64(elemsize - size)
 			}
-
-			if debug.malloc {
-				postMallocgcDebug(x, elemsize, typ)
-			}
-			return x
 		}
 
+		if debug.malloc {
+			postMallocgcDebug(x, elemsize, typ)
+		}
+
+		return x
 	}
 
 	checkGCTrigger := false
@@ -1792,6 +1799,7 @@ func mallocgcTinySC2(size uintptr, typ *_type, needzero bool) unsafe.Pointer {
 	if debug.malloc {
 		postMallocgcDebug(x, elemsize, typ)
 	}
+
 	return x
 }
 
@@ -1833,30 +1841,26 @@ func mallocgcSmallNoScanSC2(size uintptr, typ *_type, needzero bool) unsafe.Poin
 
 	if runtimeFreegcEnabled && c.hasReusableNoscan(spc) {
 
-		v := mallocgcSmallNoscanReuse(c, span, spc, elemsize, needzero)
+		x := mallocgcSmallNoscanReuse(c, span, spc, elemsize, needzero)
 		mp.mallocing = 0
 		releasem(mp)
-		x := v
-		{
+		gp := getg()
+		if goexperiment.RuntimeSecret && gp.secret > 0 {
 
-			gp := getg()
-			if goexperiment.RuntimeSecret && gp.secret > 0 {
-
-				addSecret(x, size)
-			}
-
-			if gcBlackenEnabled != 0 && elemsize != 0 {
-				if assistG := getg().m.curg; assistG != nil {
-					assistG.gcAssistBytes -= int64(elemsize - size)
-				}
-			}
-
-			if debug.malloc {
-				postMallocgcDebug(x, elemsize, typ)
-			}
-			return x
+			addSecret(x, size)
 		}
 
+		if gcBlackenEnabled != 0 && elemsize != 0 {
+			if assistG := getg().m.curg; assistG != nil {
+				assistG.gcAssistBytes -= int64(elemsize - size)
+			}
+		}
+
+		if debug.malloc {
+			postMallocgcDebug(x, elemsize, typ)
+		}
+
+		return x
 	}
 
 	var nextFreeFastResult gclinkptr
@@ -1920,6 +1924,7 @@ func mallocgcSmallNoScanSC2(size uintptr, typ *_type, needzero bool) unsafe.Poin
 	if debug.malloc {
 		postMallocgcDebug(x, elemsize, typ)
 	}
+
 	return x
 }
 
@@ -1961,30 +1966,26 @@ func mallocgcSmallNoScanSC3(size uintptr, typ *_type, needzero bool) unsafe.Poin
 
 	if runtimeFreegcEnabled && c.hasReusableNoscan(spc) {
 
-		v := mallocgcSmallNoscanReuse(c, span, spc, elemsize, needzero)
+		x := mallocgcSmallNoscanReuse(c, span, spc, elemsize, needzero)
 		mp.mallocing = 0
 		releasem(mp)
-		x := v
-		{
+		gp := getg()
+		if goexperiment.RuntimeSecret && gp.secret > 0 {
 
-			gp := getg()
-			if goexperiment.RuntimeSecret && gp.secret > 0 {
-
-				addSecret(x, size)
-			}
-
-			if gcBlackenEnabled != 0 && elemsize != 0 {
-				if assistG := getg().m.curg; assistG != nil {
-					assistG.gcAssistBytes -= int64(elemsize - size)
-				}
-			}
-
-			if debug.malloc {
-				postMallocgcDebug(x, elemsize, typ)
-			}
-			return x
+			addSecret(x, size)
 		}
 
+		if gcBlackenEnabled != 0 && elemsize != 0 {
+			if assistG := getg().m.curg; assistG != nil {
+				assistG.gcAssistBytes -= int64(elemsize - size)
+			}
+		}
+
+		if debug.malloc {
+			postMallocgcDebug(x, elemsize, typ)
+		}
+
+		return x
 	}
 
 	var nextFreeFastResult gclinkptr
@@ -2048,6 +2049,7 @@ func mallocgcSmallNoScanSC3(size uintptr, typ *_type, needzero bool) unsafe.Poin
 	if debug.malloc {
 		postMallocgcDebug(x, elemsize, typ)
 	}
+
 	return x
 }
 
@@ -2089,30 +2091,26 @@ func mallocgcSmallNoScanSC4(size uintptr, typ *_type, needzero bool) unsafe.Poin
 
 	if runtimeFreegcEnabled && c.hasReusableNoscan(spc) {
 
-		v := mallocgcSmallNoscanReuse(c, span, spc, elemsize, needzero)
+		x := mallocgcSmallNoscanReuse(c, span, spc, elemsize, needzero)
 		mp.mallocing = 0
 		releasem(mp)
-		x := v
-		{
+		gp := getg()
+		if goexperiment.RuntimeSecret && gp.secret > 0 {
 
-			gp := getg()
-			if goexperiment.RuntimeSecret && gp.secret > 0 {
-
-				addSecret(x, size)
-			}
-
-			if gcBlackenEnabled != 0 && elemsize != 0 {
-				if assistG := getg().m.curg; assistG != nil {
-					assistG.gcAssistBytes -= int64(elemsize - size)
-				}
-			}
-
-			if debug.malloc {
-				postMallocgcDebug(x, elemsize, typ)
-			}
-			return x
+			addSecret(x, size)
 		}
 
+		if gcBlackenEnabled != 0 && elemsize != 0 {
+			if assistG := getg().m.curg; assistG != nil {
+				assistG.gcAssistBytes -= int64(elemsize - size)
+			}
+		}
+
+		if debug.malloc {
+			postMallocgcDebug(x, elemsize, typ)
+		}
+
+		return x
 	}
 
 	var nextFreeFastResult gclinkptr
@@ -2176,6 +2174,7 @@ func mallocgcSmallNoScanSC4(size uintptr, typ *_type, needzero bool) unsafe.Poin
 	if debug.malloc {
 		postMallocgcDebug(x, elemsize, typ)
 	}
+
 	return x
 }
 
@@ -2217,30 +2216,26 @@ func mallocgcSmallNoScanSC5(size uintptr, typ *_type, needzero bool) unsafe.Poin
 
 	if runtimeFreegcEnabled && c.hasReusableNoscan(spc) {
 
-		v := mallocgcSmallNoscanReuse(c, span, spc, elemsize, needzero)
+		x := mallocgcSmallNoscanReuse(c, span, spc, elemsize, needzero)
 		mp.mallocing = 0
 		releasem(mp)
-		x := v
-		{
+		gp := getg()
+		if goexperiment.RuntimeSecret && gp.secret > 0 {
 
-			gp := getg()
-			if goexperiment.RuntimeSecret && gp.secret > 0 {
-
-				addSecret(x, size)
-			}
-
-			if gcBlackenEnabled != 0 && elemsize != 0 {
-				if assistG := getg().m.curg; assistG != nil {
-					assistG.gcAssistBytes -= int64(elemsize - size)
-				}
-			}
-
-			if debug.malloc {
-				postMallocgcDebug(x, elemsize, typ)
-			}
-			return x
+			addSecret(x, size)
 		}
 
+		if gcBlackenEnabled != 0 && elemsize != 0 {
+			if assistG := getg().m.curg; assistG != nil {
+				assistG.gcAssistBytes -= int64(elemsize - size)
+			}
+		}
+
+		if debug.malloc {
+			postMallocgcDebug(x, elemsize, typ)
+		}
+
+		return x
 	}
 
 	var nextFreeFastResult gclinkptr
@@ -2304,6 +2299,7 @@ func mallocgcSmallNoScanSC5(size uintptr, typ *_type, needzero bool) unsafe.Poin
 	if debug.malloc {
 		postMallocgcDebug(x, elemsize, typ)
 	}
+
 	return x
 }
 
@@ -2345,30 +2341,26 @@ func mallocgcSmallNoScanSC6(size uintptr, typ *_type, needzero bool) unsafe.Poin
 
 	if runtimeFreegcEnabled && c.hasReusableNoscan(spc) {
 
-		v := mallocgcSmallNoscanReuse(c, span, spc, elemsize, needzero)
+		x := mallocgcSmallNoscanReuse(c, span, spc, elemsize, needzero)
 		mp.mallocing = 0
 		releasem(mp)
-		x := v
-		{
+		gp := getg()
+		if goexperiment.RuntimeSecret && gp.secret > 0 {
 
-			gp := getg()
-			if goexperiment.RuntimeSecret && gp.secret > 0 {
-
-				addSecret(x, size)
-			}
-
-			if gcBlackenEnabled != 0 && elemsize != 0 {
-				if assistG := getg().m.curg; assistG != nil {
-					assistG.gcAssistBytes -= int64(elemsize - size)
-				}
-			}
-
-			if debug.malloc {
-				postMallocgcDebug(x, elemsize, typ)
-			}
-			return x
+			addSecret(x, size)
 		}
 
+		if gcBlackenEnabled != 0 && elemsize != 0 {
+			if assistG := getg().m.curg; assistG != nil {
+				assistG.gcAssistBytes -= int64(elemsize - size)
+			}
+		}
+
+		if debug.malloc {
+			postMallocgcDebug(x, elemsize, typ)
+		}
+
+		return x
 	}
 
 	var nextFreeFastResult gclinkptr
@@ -2432,6 +2424,7 @@ func mallocgcSmallNoScanSC6(size uintptr, typ *_type, needzero bool) unsafe.Poin
 	if debug.malloc {
 		postMallocgcDebug(x, elemsize, typ)
 	}
+
 	return x
 }
 
@@ -2473,30 +2466,26 @@ func mallocgcSmallNoScanSC7(size uintptr, typ *_type, needzero bool) unsafe.Poin
 
 	if runtimeFreegcEnabled && c.hasReusableNoscan(spc) {
 
-		v := mallocgcSmallNoscanReuse(c, span, spc, elemsize, needzero)
+		x := mallocgcSmallNoscanReuse(c, span, spc, elemsize, needzero)
 		mp.mallocing = 0
 		releasem(mp)
-		x := v
-		{
+		gp := getg()
+		if goexperiment.RuntimeSecret && gp.secret > 0 {
 
-			gp := getg()
-			if goexperiment.RuntimeSecret && gp.secret > 0 {
-
-				addSecret(x, size)
-			}
-
-			if gcBlackenEnabled != 0 && elemsize != 0 {
-				if assistG := getg().m.curg; assistG != nil {
-					assistG.gcAssistBytes -= int64(elemsize - size)
-				}
-			}
-
-			if debug.malloc {
-				postMallocgcDebug(x, elemsize, typ)
-			}
-			return x
+			addSecret(x, size)
 		}
 
+		if gcBlackenEnabled != 0 && elemsize != 0 {
+			if assistG := getg().m.curg; assistG != nil {
+				assistG.gcAssistBytes -= int64(elemsize - size)
+			}
+		}
+
+		if debug.malloc {
+			postMallocgcDebug(x, elemsize, typ)
+		}
+
+		return x
 	}
 
 	var nextFreeFastResult gclinkptr
@@ -2560,6 +2549,7 @@ func mallocgcSmallNoScanSC7(size uintptr, typ *_type, needzero bool) unsafe.Poin
 	if debug.malloc {
 		postMallocgcDebug(x, elemsize, typ)
 	}
+
 	return x
 }
 
@@ -2601,30 +2591,26 @@ func mallocgcSmallNoScanSC8(size uintptr, typ *_type, needzero bool) unsafe.Poin
 
 	if runtimeFreegcEnabled && c.hasReusableNoscan(spc) {
 
-		v := mallocgcSmallNoscanReuse(c, span, spc, elemsize, needzero)
+		x := mallocgcSmallNoscanReuse(c, span, spc, elemsize, needzero)
 		mp.mallocing = 0
 		releasem(mp)
-		x := v
-		{
+		gp := getg()
+		if goexperiment.RuntimeSecret && gp.secret > 0 {
 
-			gp := getg()
-			if goexperiment.RuntimeSecret && gp.secret > 0 {
-
-				addSecret(x, size)
-			}
-
-			if gcBlackenEnabled != 0 && elemsize != 0 {
-				if assistG := getg().m.curg; assistG != nil {
-					assistG.gcAssistBytes -= int64(elemsize - size)
-				}
-			}
-
-			if debug.malloc {
-				postMallocgcDebug(x, elemsize, typ)
-			}
-			return x
+			addSecret(x, size)
 		}
 
+		if gcBlackenEnabled != 0 && elemsize != 0 {
+			if assistG := getg().m.curg; assistG != nil {
+				assistG.gcAssistBytes -= int64(elemsize - size)
+			}
+		}
+
+		if debug.malloc {
+			postMallocgcDebug(x, elemsize, typ)
+		}
+
+		return x
 	}
 
 	var nextFreeFastResult gclinkptr
@@ -2688,6 +2674,7 @@ func mallocgcSmallNoScanSC8(size uintptr, typ *_type, needzero bool) unsafe.Poin
 	if debug.malloc {
 		postMallocgcDebug(x, elemsize, typ)
 	}
+
 	return x
 }
 
@@ -2729,30 +2716,26 @@ func mallocgcSmallNoScanSC9(size uintptr, typ *_type, needzero bool) unsafe.Poin
 
 	if runtimeFreegcEnabled && c.hasReusableNoscan(spc) {
 
-		v := mallocgcSmallNoscanReuse(c, span, spc, elemsize, needzero)
+		x := mallocgcSmallNoscanReuse(c, span, spc, elemsize, needzero)
 		mp.mallocing = 0
 		releasem(mp)
-		x := v
-		{
+		gp := getg()
+		if goexperiment.RuntimeSecret && gp.secret > 0 {
 
-			gp := getg()
-			if goexperiment.RuntimeSecret && gp.secret > 0 {
-
-				addSecret(x, size)
-			}
-
-			if gcBlackenEnabled != 0 && elemsize != 0 {
-				if assistG := getg().m.curg; assistG != nil {
-					assistG.gcAssistBytes -= int64(elemsize - size)
-				}
-			}
-
-			if debug.malloc {
-				postMallocgcDebug(x, elemsize, typ)
-			}
-			return x
+			addSecret(x, size)
 		}
 
+		if gcBlackenEnabled != 0 && elemsize != 0 {
+			if assistG := getg().m.curg; assistG != nil {
+				assistG.gcAssistBytes -= int64(elemsize - size)
+			}
+		}
+
+		if debug.malloc {
+			postMallocgcDebug(x, elemsize, typ)
+		}
+
+		return x
 	}
 
 	var nextFreeFastResult gclinkptr
@@ -2816,6 +2799,7 @@ func mallocgcSmallNoScanSC9(size uintptr, typ *_type, needzero bool) unsafe.Poin
 	if debug.malloc {
 		postMallocgcDebug(x, elemsize, typ)
 	}
+
 	return x
 }
 
@@ -2857,30 +2841,26 @@ func mallocgcSmallNoScanSC10(size uintptr, typ *_type, needzero bool) unsafe.Poi
 
 	if runtimeFreegcEnabled && c.hasReusableNoscan(spc) {
 
-		v := mallocgcSmallNoscanReuse(c, span, spc, elemsize, needzero)
+		x := mallocgcSmallNoscanReuse(c, span, spc, elemsize, needzero)
 		mp.mallocing = 0
 		releasem(mp)
-		x := v
-		{
+		gp := getg()
+		if goexperiment.RuntimeSecret && gp.secret > 0 {
 
-			gp := getg()
-			if goexperiment.RuntimeSecret && gp.secret > 0 {
-
-				addSecret(x, size)
-			}
-
-			if gcBlackenEnabled != 0 && elemsize != 0 {
-				if assistG := getg().m.curg; assistG != nil {
-					assistG.gcAssistBytes -= int64(elemsize - size)
-				}
-			}
-
-			if debug.malloc {
-				postMallocgcDebug(x, elemsize, typ)
-			}
-			return x
+			addSecret(x, size)
 		}
 
+		if gcBlackenEnabled != 0 && elemsize != 0 {
+			if assistG := getg().m.curg; assistG != nil {
+				assistG.gcAssistBytes -= int64(elemsize - size)
+			}
+		}
+
+		if debug.malloc {
+			postMallocgcDebug(x, elemsize, typ)
+		}
+
+		return x
 	}
 
 	var nextFreeFastResult gclinkptr
@@ -2944,5 +2924,6 @@ func mallocgcSmallNoScanSC10(size uintptr, typ *_type, needzero bool) unsafe.Poi
 	if debug.malloc {
 		postMallocgcDebug(x, elemsize, typ)
 	}
+
 	return x
 }

@@ -95,8 +95,10 @@ func mallocStub(size uintptr, typ *_type, needzero bool) unsafe.Pointer {
 	}
 
 	// Actually do the allocation.
-	x, elemsize := inlinedMalloc(size, typ, needzero)
+	return inlinedMalloc(size, typ, needzero)
+}
 
+func postMallocgc(x unsafe.Pointer, typ *_type, size uintptr, elemsize uintptr) {
 	if !isTiny_ {
 		gp := getg()
 		if goexperiment.RuntimeSecret && gp.secret > 0 {
@@ -117,7 +119,6 @@ func mallocStub(size uintptr, typ *_type, needzero bool) unsafe.Pointer {
 	if debug.malloc {
 		postMallocgcDebug(x, elemsize, typ)
 	}
-	return x
 }
 
 // deductAssistCredit reduces the current G's GC assist credit
@@ -143,8 +144,8 @@ func deductAssistCredit(size uintptr) {
 // will be replaced with the inlined body of smallStub or tinyStub when generating the
 // size-specialized malloc function. See the comment at the top of this file for more
 // information.
-func inlinedMalloc(size uintptr, typ *_type, needzero bool) (unsafe.Pointer, uintptr) {
-	return unsafe.Pointer(uintptr(0)), 0
+func inlinedMalloc(size uintptr, typ *_type, needzero bool) unsafe.Pointer {
+	return unsafe.Pointer(uintptr(0))
 }
 
 func doubleCheckSmallScanNoHeader(size uintptr, typ *_type, mp *m) {
@@ -162,7 +163,7 @@ func doubleCheckSmallScanNoHeader(size uintptr, typ *_type, mp *m) {
 	}
 }
 
-func smallStub(size uintptr, typ *_type, needzero bool) (unsafe.Pointer, uintptr) {
+func smallStub(size uintptr, typ *_type, needzero bool) unsafe.Pointer {
 	const sizeclass = sizeclass_
 	const elemsize = elemsize_
 
@@ -187,7 +188,7 @@ func smallStub(size uintptr, typ *_type, needzero bool) (unsafe.Pointer, uintptr
 		// First, check for a reusable object.
 		if runtimeFreegcEnabled && c.hasReusableNoscan(spc) {
 			// We have a reusable object, use it.
-			v := mallocgcSmallNoscanReuse(c, span, spc, elemsize, needzero)
+			x := mallocgcSmallNoscanReuse(c, span, spc, elemsize, needzero)
 			mp.mallocing = 0
 			releasem(mp)
 
@@ -197,7 +198,9 @@ func smallStub(size uintptr, typ *_type, needzero bool) (unsafe.Pointer, uintptr
 			// mallocgcSmallNoScanSC2 function. One set of those correspond to this
 			// return here. We might be able to de-duplicate the generated return path
 			// by updating the generator, perhaps by jumping to a shared return or similar.
-			return v, elemsize
+			postMallocgc(x, typ, size, elemsize)
+
+			return x
 		}
 	}
 
@@ -275,7 +278,9 @@ func smallStub(size uintptr, typ *_type, needzero bool) (unsafe.Pointer, uintptr
 		}
 	}
 
-	return x, elemsize
+	postMallocgc(x, typ, size, elemsize)
+
+	return x
 }
 
 func doubleCheckSmallNoScan(typ *_type, mp *m) {
@@ -302,7 +307,7 @@ func doubleCheckTiny(size uintptr, typ *_type, mp *m) {
 	}
 }
 
-func tinyStub(size uintptr, typ *_type, needzero bool) (unsafe.Pointer, uintptr) {
+func tinyStub(size uintptr, typ *_type, needzero bool) unsafe.Pointer {
 	const elemsize = elemsize_
 
 	// Set mp.mallocing to keep from being preempted by GC.
@@ -366,7 +371,9 @@ func tinyStub(size uintptr, typ *_type, needzero bool) (unsafe.Pointer, uintptr)
 		c.tinyAllocs++
 		mp.mallocing = 0
 		releasem(mp)
-		return x, 0
+		const elemsize = 0
+		postMallocgc(x, typ, size, elemsize)
+		return x
 	}
 	// Allocate a new maxTinySize block.
 	checkGCTrigger := false
@@ -434,7 +441,9 @@ func tinyStub(size uintptr, typ *_type, needzero bool) (unsafe.Pointer, uintptr)
 		}
 	}
 
-	return x, elemsize
+	postMallocgc(x, typ, size, elemsize)
+
+	return x
 }
 
 // TODO(matloob): Should we let the go compiler inline this instead of using mkmalloc?

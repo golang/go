@@ -167,6 +167,7 @@ func specializedMallocConfig(classes []class, sizeToSizeClass []uint8) generator
 				name:         name,
 				ops: []op{
 					{inlineFunc, "inlinedMalloc", "smallStub"},
+					{inlineFunc, "postMallocgc", "postMallocgc"},
 					{foldCondition, "isNoScan_", str(false)},
 					{inlineFunc, "heapSetTypeNoHeaderStub", "heapSetTypeNoHeaderStub"},
 					{inlineFunc, "nextFreeFastStub", "nextFreeFastStub"},
@@ -195,6 +196,8 @@ func specializedMallocConfig(classes []class, sizeToSizeClass []uint8) generator
 				ops: []op{
 					{inlineFunc, "inlinedMalloc", "tinyStub"},
 					{inlineFunc, "nextFreeFastTiny", "nextFreeFastTiny"},
+					{inlineFunc, "postMallocgc", "postMallocgc"},
+					{inlineFunc, "nextFreeFastStub", "nextFreeFastStub"},
 					{inlineFunc, "deductAssistCredit", "deductAssistCredit"},
 					{subBasicLit, "elemsize_", str(elemsize)},
 					{subBasicLit, "sizeclass_", str(tinySizeClass)},
@@ -213,6 +216,7 @@ func specializedMallocConfig(classes []class, sizeToSizeClass []uint8) generator
 				name:         name,
 				ops: []op{
 					{inlineFunc, "inlinedMalloc", "smallStub"},
+					{inlineFunc, "postMallocgc", "postMallocgc"},
 					{foldCondition, "isNoScan_", str(true)},
 					{inlineFunc, "nextFreeFastStub", "nextFreeFastStub"},
 					{subBasicLit, "elemsize_", str(elemsize)},
@@ -389,6 +393,23 @@ func inlineFunction(node ast.Node, from string, toDecl *ast.FuncDecl) ast.Node {
 				replaceCallExprStmt(cursor, toDecl)
 			}
 			return false
+		case *ast.ReturnStmt:
+			if len(node.Results) == 1 && isCallTo(node.Results[0], from) {
+				args := node.Results[0].(*ast.CallExpr).Args
+				if !argsMatchParameters(args, toDecl.Type.Params) {
+					log.Fatalf("applying op: arguments to %v don't match parameter names of %v: %v", from, toDecl.Name, debugPrint(args...))
+				}
+				replaceTailCall(cursor, toDecl)
+			}
+			return false
+		case *ast.CallExpr:
+			if isCallTo(node, from) {
+				switch cursor.Parent().(type) {
+				case *ast.AssignStmt, *ast.ExprStmt:
+				default:
+					log.Fatalf("applying op: all calls to function %q being replaced must appear in an assignment or expression statement, appears in %T", from, cursor.Parent())
+				}
+			}
 		}
 		return true
 	}, nil)
@@ -437,6 +458,27 @@ func isCallTo(expr ast.Expr, name string) bool {
 // return values with the body of the function.
 func replaceCallExprStmt(cursor *astutil.Cursor, funcdecl *ast.FuncDecl) {
 	body := internalastutil.CloneNode(funcdecl.Body)
+	for _, stmt := range body.List {
+		cursor.InsertBefore(stmt)
+	}
+	cursor.Delete()
+}
+
+func replaceTailCall(cursor *astutil.Cursor, funcdecl *ast.FuncDecl) {
+	if !hasTerminatingReturn(funcdecl.Body) {
+		log.Fatal("function being inlined must have a return at the end")
+	}
+
+	body := internalastutil.CloneNode(funcdecl.Body)
+	if len(body.List) < 1 {
+		log.Fatal("replacing with empty bodied function")
+	}
+
+	// The op happens in two steps: first we insert the body of the function being inlined (except for
+	// the final return) before the assignment, and then we change the assignment statement to replace the function call
+	// with the expressions being returned.
+
+	// Insert the body up to the final return.
 	for _, stmt := range body.List {
 		cursor.InsertBefore(stmt)
 	}
