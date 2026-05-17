@@ -173,6 +173,16 @@ func compileFunctions(profile *pgoir.Profile) {
 				mu.Unlock()
 				ssagen.Compile(ssacompile.Compiler{}, fn, workerId, profile)
 				closures = fn.Closures
+
+				// Free IR data that is no longer needed once machine code has been generated.
+				fn.Body = nil
+				fn.Dcl = nil
+				fn.ClosureVars = nil
+				// We need to retain debug info for inlined functions because it is used to build
+				// DWARF for the functions that this function was inlined into.
+				if !fn.LSym.WasInlined() {
+					fn.DebugInfo = nil
+				}
 			}
 		})
 	}
