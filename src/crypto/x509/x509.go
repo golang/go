@@ -2259,14 +2259,11 @@ func parseCertificateRequest(in *certificateRequest) (*CertificateRequest, error
 		}
 	}
 
-	var subject pkix.RDNSequence
-	if rest, err := asn1.Unmarshal(in.TBSCSR.Subject.FullBytes, &subject); err != nil {
+	subject, err := parseName(in.TBSCSR.Subject.FullBytes)
+	if err != nil {
 		return nil, err
-	} else if len(rest) != 0 {
-		return nil, errors.New("x509: trailing data after X.509 Subject")
 	}
-
-	out.Subject.FillFromRDNSequence(&subject)
+	out.Subject.FillFromRDNSequence(subject)
 
 	if out.Extensions, err = parseCSRExtensions(in.TBSCSR.RawAttributes); err != nil {
 		return nil, err
