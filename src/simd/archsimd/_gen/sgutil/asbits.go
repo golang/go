@@ -91,30 +91,32 @@ func Conversion(from, to TforAsBits) *AsConversion {
 	return &AsConversion{from, to}
 }
 
-type Foo struct {
-	Foo string
+type TypeDotMethod struct {
+	TypeDotMethod string
 }
 
-func (c *AsConversion) Foo(t *template.Template) *Foo {
+func (c *AsConversion) TypeDotMethod(t *template.Template) *TypeDotMethod {
 	var b bytes.Buffer
 	t.Execute(&b, c)
-	return &Foo{b.String()}
+	return &TypeDotMethod{b.String()}
 }
 
-func (c *AsConversion) ExecuteIntrinsicTemplateOfFoo(w io.Writer, t *template.Template) {
+// ExecuteIntrinsicTemplateOfTypeDotMethod executes the template t on a
+// variety of TypeDotMethod inputs with template parameter TypeDotMethod
+func (c *AsConversion) ExecuteIntrinsicTemplateOfTypeDotMethod(w io.Writer, t *template.Template) {
 	from, to := c.From, c.To
 	switch to.Name_()[0] {
 	case 'F': // U -> F
-		t.Execute(w, c.Foo(ToFloatsIntrinsic))
-		t.Execute(w, c.Foo(ToBitsIntrinsic))
+		t.Execute(w, c.TypeDotMethod(ToFloatsIntrinsic))
+		t.Execute(w, c.TypeDotMethod(ToBitsIntrinsic))
 	case 'I': // U -> I
-		t.Execute(w, c.Foo(ToIntsIntrinsic))
-		t.Execute(w, c.Foo(CvtToIntsIntrinsic))
-		t.Execute(w, c.Foo(CvtToUintsIntrinsic))
-		t.Execute(w, c.Foo(ToBitsIntrinsic))
+		t.Execute(w, c.TypeDotMethod(ToIntsIntrinsic))
+		t.Execute(w, c.TypeDotMethod(CvtToIntsIntrinsic))
+		t.Execute(w, c.TypeDotMethod(CvtToUintsIntrinsic))
+		t.Execute(w, c.TypeDotMethod(ToBitsIntrinsic))
 	case 'U': // U -> U
 		if from.Name_()[0] == 'U' {
-			t.Execute(w, c.Foo(ReshapeIntrinsic))
+			t.Execute(w, c.TypeDotMethod(ReshapeIntrinsic))
 		}
 	}
 }

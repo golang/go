@@ -119,7 +119,7 @@ func writeSIMDIntrinsics(ops []Operation, typeMap simdTypeMap) *bytes.Buffer {
 		}
 	}
 
-	var FooIntrinsic = templateOf(`addF(simdPackage, "{{.Foo}}", func(s *state, n *ir.CallExpr, args []*ssa.Value) *ssa.Value { return args[0] }, sys.AMD64)
+	var TypeDotMethodIntrinsic = templateOf(`addF(simdPackage, "{{.TypeDotMethod}}", func(s *state, n *ir.CallExpr, args []*ssa.Value) *ssa.Value { return args[0] }, sys.AMD64)
 	`, "amd64 foo intrinsics")
 
 	for _, conv := range vConvertFromTypeMap(typeMap) {
@@ -136,7 +136,7 @@ func writeSIMDIntrinsics(ops []Operation, typeMap simdTypeMap) *bytes.Buffer {
 		if from.Lanes != to.Lanes && (from.Name[0] != 'U' || to.Name[0] != 'U') {
 			continue
 		}
-		sgutil.Conversion(from, to).ExecuteIntrinsicTemplateOfFoo(buffer, FooIntrinsic)
+		sgutil.Conversion(from, to).ExecuteIntrinsicTemplateOfTypeDotMethod(buffer, TypeDotMethodIntrinsic)
 	}
 
 	for _, typ := range typesFromTypeMap(typeMap) {
