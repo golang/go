@@ -197,7 +197,9 @@ dirloop:
 				// control file for descriptor <N> is named <N>ctl
 				continue
 			}
-			closeFdExcept(int(atoi(s)), pipe, dupdevfd, fd)
+			if !closeFdExcept(int(atoi(s)), pipe, dupdevfd, fd) {
+				goto childerror
+			}
 		}
 	}
 	RawSyscall(SYS_CLOSE, uintptr(dupdevfd), 0, 0)
@@ -309,16 +311,17 @@ childerror1:
 // close the numbered file descriptor, unless it is fd1, fd2, or a member of fds.
 //
 //go:nosplit
-func closeFdExcept(n int, fd1 int, fd2 int, fds []int) {
+func closeFdExcept(n int, fd1 int, fd2 int, fds []int) bool {
 	if n == fd1 || n == fd2 {
-		return
+		return true
 	}
 	for _, fd := range fds {
 		if n == fd {
-			return
+			return true
 		}
 	}
-	RawSyscall(SYS_CLOSE, uintptr(n), 0, 0)
+	r1, _, _ := RawSyscall(SYS_CLOSE, uintptr(n), 0, 0)
+	return r1 != -1
 }
 
 func cexecPipe(p []int) error {
