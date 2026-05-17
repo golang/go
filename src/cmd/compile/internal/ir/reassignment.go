@@ -172,6 +172,11 @@ func (ro *ReassignOracle) StaticValue(n Node) Node {
 			continue
 		}
 
+		if n.Op() == OPAREN {
+			n = n.(*ParenExpr).X
+			continue
+		}
+
 		n1 := ro.staticValue1(n)
 		if n1 == nil {
 			if consistencyCheckEnabled {
