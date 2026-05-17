@@ -119,10 +119,10 @@ func doSimdgen() {
 		os.Exit(1)
 	}
 
-	goRun("-C", "simdgen", ".", "-o", "godefs", "-goroot", goRoot, "-arm64Path", prettyPath("./simdgen", armPath), "go_arm64.yaml", "types.yaml", "categories.yaml")
+	goRun("-C", "simdgen", ".", "-o", "godefs", "-goroot", goRoot, "-arch", "arm64", "-arm64Path", prettyPath("./simdgen", armPath), "go_arm64.yaml", "types.yaml", "categories.yaml")
 
 	// Regenerate the XED-derived SIMD files
-	goRun("-C", "simdgen", ".", "-o", "godefs", "-goroot", goRoot, "-xedPath", prettyPath("./simdgen", xedPath), "go_amd64.yaml", "types.yaml", "categories.yaml")
+	goRun("-C", "simdgen", ".", "-o", "godefs", "-goroot", goRoot, "-arch", "amd64", "-xedPath", prettyPath("./simdgen", xedPath), "go_amd64.yaml", "types.yaml", "categories.yaml")
 }
 
 // simdgen -o godefs -goroot goRoot -arm64Path $ARM64_ISA_PATH arm64/go.yaml arm64/categories.yaml types.yaml

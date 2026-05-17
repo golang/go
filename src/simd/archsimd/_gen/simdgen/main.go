@@ -120,7 +120,9 @@ var (
 	flagGoDefRoot         = flag.String("goroot", ".", "the path to the Go dev directory that will receive the generated files")
 	FlagNoDedup           = flag.Bool("nodedup", false, "disable deduplicating godefs of 2 qualifying operations from different extensions")
 	FlagNoConstImmPorting = flag.Bool("noconstimmporting", false, "disable const immediate porting from op to imm operand")
-	FlagArch              = flag.String("arch", "amd64", "the target architecture")
+
+	// FlagArch must be pre-initialized to a bogus value because there have been initializations that depended on it
+	FlagArch = flag.String("arch", "must be specified, amd64 or arm64", "the target architecture")
 
 	Verbose = flag.Bool("v", false, "verbose")
 
@@ -163,7 +165,7 @@ func main() {
 		if *xedPath != "" {
 			log.Fatalf("both -xedPath and -arm64Path specified")
 		}
-		*FlagArch = "arm64"
+		// *FlagArch = "arm64"
 	}
 
 	// Load instructions into the architecture-specific defs set.
