@@ -745,7 +745,7 @@ func (prof *mLockProfile) captureStack() {
 //
 //go:nowritebarrierrec
 func (prof *mLockProfile) store() {
-	if gp := getg(); gp.m.locks == 1 && gp.m.mLockProfile.haveStack {
+	if gp := getg(); gp.m.locks/mutexMLocksDelta == 1 && gp.m.mLockProfile.haveStack {
 		prof.storeSlow()
 	}
 }
