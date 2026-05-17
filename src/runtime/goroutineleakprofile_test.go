@@ -6,6 +6,8 @@ package runtime_test
 
 import (
 	"fmt"
+	"internal/goarch"
+	"internal/goos"
 	"internal/testenv"
 	"os"
 	"regexp"
@@ -14,6 +16,10 @@ import (
 )
 
 func TestGoroutineLeakProfile(t *testing.T) {
+	if testing.Short() && goos.IsPlan9 != 0 && goarch.IsArm64 != 0 {
+		t.Skip("skipping in short mode on plan9/arm64; helper builds exceed the runtime dist test timeout")
+	}
+
 	// Some tests have false negatives under mayMoreStackPreempt and mayMoreStackMove.
 	// This may be a test-only issue in that they're just sensitive to scheduling, but it
 	// needs more investigation.
