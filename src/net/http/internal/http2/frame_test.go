@@ -1179,6 +1179,169 @@ func TestReadFrameHeadersDistinctWithoutReuse(t *testing.T) {
 	}
 }
 
+// TestReadMetaFrameReusesMetaHeadersFrame verifies that every
+// ReadFrame call returning a *MetaHeadersFrame returns the same
+// cached pointer when SetReuseFrames is in effect.
+func TestReadMetaFrameReusesMetaHeadersFrame(t *testing.T) {
+	fr, buf := testFramer()
+	fr.SetReuseFrames()
+	fr.ReadMetaHeaders = hpack.NewDecoder(initialHeaderTableSize, nil)
+
+	writeMetaHeaders(t, fr, 1, ":method", "GET", ":path", "/", ":scheme", "http", ":authority", "x")
+	first, err := fr.ReadFrame()
+	if err != nil {
+		t.Fatal(err)
+	}
+	firstMH, ok := first.(*MetaHeadersFrame)
+	if !ok {
+		t.Fatalf("first frame is %T, want *MetaHeadersFrame", first)
+	}
+
+	for i, streamID := range []uint32{3, 5, 7} {
+		buf.Reset()
+		writeMetaHeaders(t, fr, streamID, ":method", "POST", ":path", "/p", ":scheme", "http", ":authority", "y")
+		f, err := fr.ReadFrame()
+		if err != nil {
+			t.Fatal(err)
+		}
+		mh, ok := f.(*MetaHeadersFrame)
+		if !ok {
+			t.Fatalf("iter %d: frame is %T, want *MetaHeadersFrame", i, f)
+		}
+		if mh != firstMH {
+			t.Errorf("iter %d: *MetaHeadersFrame pointer changed: have %p, want %p", i, mh, firstMH)
+		}
+		if mh.StreamID != streamID {
+			t.Errorf("iter %d: StreamID = %d, want %d", i, mh.StreamID, streamID)
+		}
+	}
+}
+
+// TestReadMetaFrameMetaHeadersOverwrites verifies the cached
+// MetaHeadersFrame's Truncated flag (and any future-added field)
+// does not leak from a prior parse: the explicit
+// `*mh = MetaHeadersFrame{...}` reset at the start of readMetaFrame
+// must zero every field.
+func TestReadMetaFrameMetaHeadersOverwrites(t *testing.T) {
+	fr, buf := testFramer()
+	fr.SetReuseFrames()
+	fr.ReadMetaHeaders = hpack.NewDecoder(initialHeaderTableSize, nil)
+	// MaxHeaderListSize that fits the first two HPACK fields (each
+	// encodes as size = name + value + 32 = 42 for the pseudo-headers
+	// used below) but truncates from the third onward. The block of
+	// hpack-encoded bytes stays well under 2*MaxHeaderListSize so the
+	// early "header list too large" abort doesn't fire.
+	fr.MaxHeaderListSize = 100
+
+	// First parse: too-many headers -> Truncated.
+	writeMetaHeaders(t, fr, 1, ":method", "GET", ":path", "/a", ":scheme", "http", ":authority", "x")
+	first, err := fr.ReadFrame()
+	if err != nil {
+		t.Fatal(err)
+	}
+	mh1 := first.(*MetaHeadersFrame)
+	if !mh1.Truncated {
+		t.Fatalf("test setup: first parse not marked Truncated as expected")
+	}
+
+	// Raise the limit, parse a fitting frame, and confirm Truncated
+	// did not bleed into the second result.
+	fr.MaxHeaderListSize = 1 << 16
+	buf.Reset()
+	writeMetaHeaders(t, fr, 3, ":method", "GET", ":path", "/b", ":scheme", "http", ":authority", "y")
+	second, err := fr.ReadFrame()
+	if err != nil {
+		t.Fatal(err)
+	}
+	mh2 := second.(*MetaHeadersFrame)
+	if mh2 != mh1 {
+		t.Fatalf("expected same cached *MetaHeadersFrame; have %p, want %p", mh2, mh1)
+	}
+	if mh2.Truncated {
+		t.Errorf("Truncated leaked from prior parse")
+	}
+}
+
+// TestReadMetaFrameDistinctWithoutReuse asserts the pre-SetReuseFrames
+// contract for the meta-headers path: without opting in, each
+// readMetaFrame returns a distinct *MetaHeadersFrame.
+func TestReadMetaFrameDistinctWithoutReuse(t *testing.T) {
+	fr, buf := testFramer()
+	fr.ReadMetaHeaders = hpack.NewDecoder(initialHeaderTableSize, nil)
+
+	writeMetaHeaders(t, fr, 1, ":method", "GET", ":path", "/", ":scheme", "http", ":authority", "x")
+	first, err := fr.ReadFrame()
+	if err != nil {
+		t.Fatal(err)
+	}
+	mh1 := first.(*MetaHeadersFrame)
+
+	buf.Reset()
+	writeMetaHeaders(t, fr, 3, ":method", "POST", ":path", "/p", ":scheme", "http", ":authority", "y")
+	second, err := fr.ReadFrame()
+	if err != nil {
+		t.Fatal(err)
+	}
+	mh2 := second.(*MetaHeadersFrame)
+
+	if mh1 == mh2 {
+		t.Errorf("without SetReuseFrames, expected distinct *MetaHeadersFrame pointers; got same: %p", mh1)
+	}
+	if mh1.StreamID != 1 {
+		t.Errorf("first MH mutated after second ReadFrame: StreamID=%d, want 1", mh1.StreamID)
+	}
+	if mh2.StreamID != 3 {
+		t.Errorf("second MH StreamID = %d, want 3", mh2.StreamID)
+	}
+}
+
+// TestMetaHeadersFrameAccessorPanicsWhenStale verifies the ownership
+// guard on MetaHeadersFrame's accessor methods: once the next
+// ReadFrame call has been made, PseudoValue (and the other Fields
+// accessors) on a retained frame panic — mirroring DataFrame.Data —
+// instead of silently returning fields that a later parse may have
+// overwritten in place. The guard applies with and without
+// SetReuseFrames. An intervening non-HEADERS frame is read because a
+// subsequent meta parse would repopulate the cached struct and
+// re-mark it owned, which the guard (like DataFrame's) does not
+// detect.
+func TestMetaHeadersFrameAccessorPanicsWhenStale(t *testing.T) {
+	for _, reuse := range []bool{true, false} {
+		t.Run(fmt.Sprintf("reuse=%v", reuse), func(t *testing.T) {
+			fr, buf := testFramer()
+			if reuse {
+				fr.SetReuseFrames()
+			}
+			fr.ReadMetaHeaders = hpack.NewDecoder(initialHeaderTableSize, nil)
+
+			writeMetaHeaders(t, fr, 1, ":method", "GET", ":path", "/", ":scheme", "http", ":authority", "x")
+			f, err := fr.ReadFrame()
+			if err != nil {
+				t.Fatal(err)
+			}
+			mh := f.(*MetaHeadersFrame)
+			if got := mh.PseudoValue("method"); got != "GET" {
+				t.Fatalf(`PseudoValue("method") = %q, want "GET"`, got)
+			}
+
+			buf.Reset()
+			if err := fr.WriteWindowUpdate(1, 5); err != nil {
+				t.Fatal(err)
+			}
+			if _, err := fr.ReadFrame(); err != nil {
+				t.Fatal(err)
+			}
+
+			defer func() {
+				if recover() == nil {
+					t.Errorf("PseudoValue on a stale MetaHeadersFrame did not panic")
+				}
+			}()
+			mh.PseudoValue("method")
+		})
+	}
+}
+
 func TestWritePing(t *testing.T)    { testWritePing(t, false) }
 func TestWritePingAck(t *testing.T) { testWritePing(t, true) }
 
@@ -1525,6 +1688,7 @@ func TestMetaFrameHeader(t *testing.T) {
 				},
 			},
 			Fields: []hpack.HeaderField(nil),
+			owned:  true,
 		}
 		for len(pairs) > 0 {
 			mh.Fields = append(mh.Fields, hpack.HeaderField{
@@ -1831,6 +1995,20 @@ func encodeHeaderRaw(t testing.TB, headers ...string) []byte {
 		headers = headers[2:]
 	}
 	return buf.Bytes()
+}
+
+// writeMetaHeaders HPACK-encodes the name/value pairs and writes them
+// to fr as a single HEADERS frame with EndHeaders set.
+func writeMetaHeaders(t testing.TB, fr *Framer, streamID uint32, pairs ...string) {
+	t.Helper()
+	block := encodeHeaderRaw(t, pairs...)
+	if err := fr.WriteHeaders(HeadersFrameParam{
+		StreamID:      streamID,
+		BlockFragment: block,
+		EndHeaders:    true,
+	}); err != nil {
+		t.Fatal(err)
+	}
 }
 
 func TestSettingsDuplicates(t *testing.T) {
