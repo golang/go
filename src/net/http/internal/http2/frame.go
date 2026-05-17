@@ -445,6 +445,7 @@ func (fr *Framer) SetReuseFrames() {
 type frameCache struct {
 	dataFrame         DataFrame
 	windowUpdateFrame WindowUpdateFrame
+	headersFrame      HeadersFrame
 }
 
 func (fc *frameCache) getDataFrame() *DataFrame {
@@ -459,6 +460,13 @@ func (fc *frameCache) getWindowUpdateFrame() *WindowUpdateFrame {
 		return &WindowUpdateFrame{}
 	}
 	return &fc.windowUpdateFrame
+}
+
+func (fc *frameCache) getHeadersFrame() *HeadersFrame {
+	if fc == nil {
+		return &HeadersFrame{}
+	}
+	return &fc.headersFrame
 }
 
 // NewFramer returns a Framer that writes frames to w and reads them from r.
@@ -1076,6 +1084,12 @@ func (f *Framer) WriteWindowUpdate(streamID, incr uint32) error {
 
 // A HeadersFrame is used to open a stream and additionally carries a
 // header block fragment.
+//
+// When [Framer.SetReuseFrames] is in effect, the same *HeadersFrame
+// is returned by every (*Framer).ReadFrame call that parses a HEADERS
+// and its fields are overwritten on each call. The headerFragBuf
+// slice always aliases the framer's read buffer and must not be
+// retained past the next ReadFrame regardless of this setting.
 type HeadersFrame struct {
 	FrameHeader
 
@@ -1102,8 +1116,16 @@ func (f *HeadersFrame) HasPriority() bool {
 	return f.FrameHeader.Flags.Has(FlagHeadersPriority)
 }
 
-func parseHeadersFrame(_ *frameCache, fh FrameHeader, countError func(string), p []byte) (_ Frame, err error) {
-	hf := &HeadersFrame{
+// parseHeadersFrame populates the *HeadersFrame returned by
+// frameCache.getHeadersFrame. When [Framer.SetReuseFrames] is in
+// effect, that struct is reused across ReadFrame calls; the composite
+// literal reset below overwrites every field — including any added in
+// the future — so stale values (Priority, or any flag-dependent field
+// added later) cannot leak from a prior frame.
+// TestReadFrameHeadersOverwrites guards this property.
+func parseHeadersFrame(fc *frameCache, fh FrameHeader, countError func(string), p []byte) (_ Frame, err error) {
+	hf := fc.getHeadersFrame()
+	*hf = HeadersFrame{
 		FrameHeader: fh,
 	}
 	if fh.StreamID == 0 {
