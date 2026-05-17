@@ -1016,6 +1016,169 @@ func TestReadFrameWindowUpdateDistinctWithoutReuse(t *testing.T) {
 	}
 }
 
+// TestReadFrameReusesHeadersFrame verifies that ReadFrame returns
+// the same *HeadersFrame pointer for every HEADERS parsed when
+// SetReuseFrames is in effect.
+func TestReadFrameReusesHeadersFrame(t *testing.T) {
+	fr, buf := testFramer()
+	fr.SetReuseFrames()
+
+	write := func(streamID uint32) {
+		t.Helper()
+		if err := fr.WriteHeaders(HeadersFrameParam{
+			StreamID:      streamID,
+			BlockFragment: []byte("abc"),
+			EndHeaders:    true,
+		}); err != nil {
+			t.Fatal(err)
+		}
+	}
+
+	write(1)
+	first, err := fr.ReadFrame()
+	if err != nil {
+		t.Fatal(err)
+	}
+	firstHF, ok := first.(*HeadersFrame)
+	if !ok {
+		t.Fatalf("first frame is %T, want *HeadersFrame", first)
+	}
+
+	for i, streamID := range []uint32{3, 5, 7} {
+		buf.Reset()
+		write(streamID)
+		f, err := fr.ReadFrame()
+		if err != nil {
+			t.Fatal(err)
+		}
+		hf, ok := f.(*HeadersFrame)
+		if !ok {
+			t.Fatalf("iter %d: frame is %T, want *HeadersFrame", i, f)
+		}
+		if hf != firstHF {
+			t.Errorf("iter %d: pointer changed: have %p, want %p", i, hf, firstHF)
+		}
+		if hf.StreamID != streamID {
+			t.Errorf("iter %d: StreamID = %d, want %d", i, hf.StreamID, streamID)
+		}
+	}
+}
+
+// TestReadFrameHeadersOverwrites is a defensive test against future
+// maintenance hazards. When SetReuseFrames is in effect, the cached
+// *HeadersFrame is reused across ReadFrame calls; any field that
+// parseHeadersFrame forgets to assign would leak from the previous
+// frame to the next caller.
+//
+// The test parses a HEADERS frame WITH Priority and padding to
+// populate all fields, then parses a second frame WITHOUT either
+// flag and asserts the previous Priority and headerFragBuf-related
+// state do not bleed through.
+func TestReadFrameHeadersOverwrites(t *testing.T) {
+	fr, buf := testFramer()
+	fr.SetReuseFrames()
+
+	// First frame: priority + padding to populate every field.
+	if err := fr.WriteHeaders(HeadersFrameParam{
+		StreamID:      9,
+		BlockFragment: []byte("xyz"),
+		EndHeaders:    true,
+		PadLength:     3,
+		Priority: PriorityParam{
+			StreamDep: 7,
+			Exclusive: true,
+			Weight:    100,
+		},
+	}); err != nil {
+		t.Fatal(err)
+	}
+	first, err := fr.ReadFrame()
+	if err != nil {
+		t.Fatal(err)
+	}
+	hf1 := first.(*HeadersFrame)
+	if hf1.Priority.StreamDep != 7 || !hf1.Priority.Exclusive || hf1.Priority.Weight != 100 {
+		t.Fatalf("test setup: first frame priority = %+v; want StreamDep=7 Exclusive=true Weight=100", hf1.Priority)
+	}
+
+	// Second frame: no priority, no padding. Priority must reset.
+	buf.Reset()
+	if err := fr.WriteHeaders(HeadersFrameParam{
+		StreamID:      11,
+		BlockFragment: []byte("ab"),
+		EndHeaders:    true,
+	}); err != nil {
+		t.Fatal(err)
+	}
+	second, err := fr.ReadFrame()
+	if err != nil {
+		t.Fatal(err)
+	}
+	hf2 := second.(*HeadersFrame)
+	if hf2 != hf1 {
+		t.Fatalf("expected same pointer (cached); have %p, want %p", hf2, hf1)
+	}
+	if (hf2.Priority != PriorityParam{}) {
+		t.Errorf("Priority leak: %+v (want zero)", hf2.Priority)
+	}
+	if hf2.Flags.Has(FlagHeadersPriority) || hf2.Flags.Has(FlagHeadersPadded) {
+		t.Errorf("Flags leak: %x", hf2.Flags)
+	}
+	if hf2.StreamID != 11 {
+		t.Errorf("StreamID = %d, want 11", hf2.StreamID)
+	}
+}
+
+// TestReadFrameHeadersDistinctWithoutReuse asserts the
+// pre-SetReuseFrames contract: without opting in, each parsed
+// HEADERS returns a distinct *HeadersFrame whose Priority and
+// FrameHeader remain stable after a subsequent ReadFrame.
+func TestReadFrameHeadersDistinctWithoutReuse(t *testing.T) {
+	fr, buf := testFramer()
+
+	if err := fr.WriteHeaders(HeadersFrameParam{
+		StreamID:      1,
+		BlockFragment: []byte("abc"),
+		EndHeaders:    true,
+		Priority: PriorityParam{
+			StreamDep: 7,
+			Exclusive: true,
+			Weight:    100,
+		},
+	}); err != nil {
+		t.Fatal(err)
+	}
+	first, err := fr.ReadFrame()
+	if err != nil {
+		t.Fatal(err)
+	}
+	hf1 := first.(*HeadersFrame)
+
+	buf.Reset()
+	if err := fr.WriteHeaders(HeadersFrameParam{
+		StreamID:      3,
+		BlockFragment: []byte("xy"),
+		EndHeaders:    true,
+	}); err != nil {
+		t.Fatal(err)
+	}
+	second, err := fr.ReadFrame()
+	if err != nil {
+		t.Fatal(err)
+	}
+	hf2 := second.(*HeadersFrame)
+
+	if hf1 == hf2 {
+		t.Errorf("without SetReuseFrames, expected distinct pointers; got same: %p", hf1)
+	}
+	if hf1.StreamID != 1 || hf1.Priority.StreamDep != 7 {
+		t.Errorf("first HF mutated after second ReadFrame: StreamID=%d Priority=%+v", hf1.StreamID, hf1.Priority)
+	}
+	if hf2.StreamID != 3 {
+		t.Errorf("second HF StreamID = %d, want 3", hf2.StreamID)
+	}
+}
+
 func TestWritePing(t *testing.T)    { testWritePing(t, false) }
 func TestWritePingAck(t *testing.T) { testWritePing(t, true) }
 
