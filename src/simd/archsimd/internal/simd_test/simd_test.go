@@ -541,14 +541,27 @@ func TestIfElseFloat512(t *testing.T) {
 }
 
 var ro uint64 = 2
+var roBig uint64 = 1024 + 2
 
 func TestRotateAllVariable(t *testing.T) {
-	if !archsimd.X86.AVX512() {
-		t.Skip("Test requires X86.AVX512, not available on this hardware")
-		return
-	}
 	got := make([]int32, 4)
 	archsimd.LoadInt32x4([]int32{0b11, 0b11, 0b11, 0b11}).RotateAllLeft(ro).Store(got)
+	for _, v := range got {
+		if v != 0b1100 {
+			t.Errorf("Want 0b1100, got %b", v)
+		}
+	}
+	archsimd.LoadInt32x4([]int32{0b11, 0b11, 0b11, 0b11}).RotateAllLeft(roBig).Store(got)
+	for _, v := range got {
+		if v != 0b1100 {
+			t.Errorf("Want 0b1100, got %b", v)
+		}
+	}
+}
+
+func TestRotateAllConst(t *testing.T) {
+	got := make([]int32, 4)
+	archsimd.LoadInt32x4([]int32{0b11, 0b11, 0b11, 0b11}).RotateAllLeft(2).Store(got)
 	for _, v := range got {
 		if v != 0b1100 {
 			t.Errorf("Want 0b1100, got %b", v)

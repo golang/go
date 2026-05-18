@@ -185,6 +185,12 @@ func (x Int16s) NotEqual(y Int16s) Mask16s
 // Or returns the bitwise OR of x and y.
 func (x Int16s) Or(y Int16s) Int16s
 
+// RotatesAllLeft rotates all elements left by y bits.
+func (x Int16s) RotateAllLeft(dist uint64) Int16s
+
+// RotatesAllRight rotates all elements right by y bits.
+func (x Int16s) RotateAllRight(dist uint64) Int16s
+
 // ShiftAllLeft shifts all elements left by y bits.
 func (x Int16s) ShiftAllLeft(shift uint64) Int16s
 
@@ -290,6 +296,12 @@ func (x Int32s) NotEqual(y Int32s) Mask32s
 // Or returns the bitwise OR of x and y.
 func (x Int32s) Or(y Int32s) Int32s
 
+// RotatesAllLeft rotates all elements left by y bits.
+func (x Int32s) RotateAllLeft(dist uint64) Int32s
+
+// RotatesAllRight rotates all elements right by y bits.
+func (x Int32s) RotateAllRight(dist uint64) Int32s
+
 // ShiftAllLeft shifts all elements left by y bits.
 func (x Int32s) ShiftAllLeft(shift uint64) Int32s
 
@@ -376,6 +388,12 @@ func (x Int64s) NotEqual(y Int64s) Mask64s
 
 // Or returns the bitwise OR of x and y.
 func (x Int64s) Or(y Int64s) Int64s
+
+// RotatesAllLeft rotates all elements left by y bits.
+func (x Int64s) RotateAllLeft(dist uint64) Int64s
+
+// RotatesAllRight rotates all elements right by y bits.
+func (x Int64s) RotateAllRight(dist uint64) Int64s
 
 // ShiftAllLeft shifts all elements left by y bits.
 func (x Int64s) ShiftAllLeft(shift uint64) Int64s
@@ -575,6 +593,12 @@ func (x Uint16s) ReshapeToUint64s() Uint64s
 // ReshapeToUint8s reinterprets the vector bits as a Uint8s vector.
 func (x Uint16s) ReshapeToUint8s() Uint8s
 
+// RotatesAllLeft rotates all elements left by y bits.
+func (x Uint16s) RotateAllLeft(dist uint64) Uint16s
+
+// RotatesAllRight rotates all elements right by y bits.
+func (x Uint16s) RotateAllRight(dist uint64) Uint16s
+
 // ShiftAllLeft shifts all elements left by y bits.
 func (x Uint16s) ShiftAllLeft(shift uint64) Uint16s
 
@@ -680,6 +704,12 @@ func (x Uint32s) ReshapeToUint64s() Uint64s
 // ReshapeToUint8s reinterprets the vector bits as a Uint8s vector.
 func (x Uint32s) ReshapeToUint8s() Uint8s
 
+// RotatesAllLeft rotates all elements left by y bits.
+func (x Uint32s) RotateAllLeft(dist uint64) Uint32s
+
+// RotatesAllRight rotates all elements right by y bits.
+func (x Uint32s) RotateAllRight(dist uint64) Uint32s
+
 // ShiftAllLeft shifts all elements left by y bits.
 func (x Uint32s) ShiftAllLeft(shift uint64) Uint32s
 
@@ -772,6 +802,12 @@ func (x Uint64s) ReshapeToUint32s() Uint32s
 
 // ReshapeToUint8s reinterprets the vector bits as a Uint8s vector.
 func (x Uint64s) ReshapeToUint8s() Uint8s
+
+// RotatesAllLeft rotates all elements left by y bits.
+func (x Uint64s) RotateAllLeft(dist uint64) Uint64s
+
+// RotatesAllRight rotates all elements right by y bits.
+func (x Uint64s) RotateAllRight(dist uint64) Uint64s
 
 // ShiftAllLeft shifts all elements left by y bits.
 func (x Uint64s) ShiftAllLeft(shift uint64) Uint64s

@@ -314,6 +314,14 @@ func (x Int16x8) Or(y Int16x8) Int16x8 {
 	return Int16x8((archsimd.Int16x8(x)).Or(archsimd.Int16x8(y)))
 }
 
+func (x Int16x8) RotateAllLeft(shift uint64) Int16x8 {
+	return Int16x8((archsimd.Int16x8(x)).RotateAllLeft(shift))
+}
+
+func (x Int16x8) RotateAllRight(shift uint64) Int16x8 {
+	return Int16x8((archsimd.Int16x8(x)).RotateAllRight(shift))
+}
+
 func (x Int16x8) ShiftAllLeft(y uint64) Int16x8 {
 	return Int16x8((archsimd.Int16x8(x)).ShiftAllLeft(y))
 }
@@ -438,6 +446,14 @@ func (x Int32x4) Or(y Int32x4) Int32x4 {
 	return Int32x4((archsimd.Int32x4(x)).Or(archsimd.Int32x4(y)))
 }
 
+func (x Int32x4) RotateAllLeft(shift uint64) Int32x4 {
+	return Int32x4((archsimd.Int32x4(x)).RotateAllLeft(shift))
+}
+
+func (x Int32x4) RotateAllRight(shift uint64) Int32x4 {
+	return Int32x4((archsimd.Int32x4(x)).RotateAllRight(shift))
+}
+
 func (x Int32x4) ShiftAllLeft(y uint64) Int32x4 {
 	return Int32x4((archsimd.Int32x4(x)).ShiftAllLeft(y))
 }
@@ -536,6 +552,14 @@ func (x Int64x2) NotEqual(y Int64x2) Mask64x2 {
 
 func (x Int64x2) Or(y Int64x2) Int64x2 {
 	return Int64x2((archsimd.Int64x2(x)).Or(archsimd.Int64x2(y)))
+}
+
+func (x Int64x2) RotateAllLeft(shift uint64) Int64x2 {
+	return Int64x2((archsimd.Int64x2(x)).RotateAllLeft(shift))
+}
+
+func (x Int64x2) RotateAllRight(shift uint64) Int64x2 {
+	return Int64x2((archsimd.Int64x2(x)).RotateAllRight(shift))
 }
 
 func (x Int64x2) ShiftAllLeft(y uint64) Int64x2 {
@@ -770,6 +794,14 @@ func (x Uint16x8) ReshapeToUint8s() Uint8x16 {
 	return Uint8x16((archsimd.Uint16x8(x)).ReshapeToUint8s())
 }
 
+func (x Uint16x8) RotateAllLeft(shift uint64) Uint16x8 {
+	return Uint16x8((archsimd.Uint16x8(x)).RotateAllLeft(shift))
+}
+
+func (x Uint16x8) RotateAllRight(shift uint64) Uint16x8 {
+	return Uint16x8((archsimd.Uint16x8(x)).RotateAllRight(shift))
+}
+
 func (x Uint16x8) ShiftAllLeft(y uint64) Uint16x8 {
 	return Uint16x8((archsimd.Uint16x8(x)).ShiftAllLeft(y))
 }
@@ -894,6 +926,14 @@ func (x Uint32x4) ReshapeToUint8s() Uint8x16 {
 	return Uint8x16((archsimd.Uint32x4(x)).ReshapeToUint8s())
 }
 
+func (x Uint32x4) RotateAllLeft(shift uint64) Uint32x4 {
+	return Uint32x4((archsimd.Uint32x4(x)).RotateAllLeft(shift))
+}
+
+func (x Uint32x4) RotateAllRight(shift uint64) Uint32x4 {
+	return Uint32x4((archsimd.Uint32x4(x)).RotateAllRight(shift))
+}
+
 func (x Uint32x4) ShiftAllLeft(y uint64) Uint32x4 {
 	return Uint32x4((archsimd.Uint32x4(x)).ShiftAllLeft(y))
 }
@@ -1000,6 +1040,14 @@ func (x Uint64x2) ReshapeToUint32s() Uint32x4 {
 
 func (x Uint64x2) ReshapeToUint8s() Uint8x16 {
 	return Uint8x16((archsimd.Uint64x2(x)).ReshapeToUint8s())
+}
+
+func (x Uint64x2) RotateAllLeft(shift uint64) Uint64x2 {
+	return Uint64x2((archsimd.Uint64x2(x)).RotateAllLeft(shift))
+}
+
+func (x Uint64x2) RotateAllRight(shift uint64) Uint64x2 {
+	return Uint64x2((archsimd.Uint64x2(x)).RotateAllRight(shift))
 }
 
 func (x Uint64x2) ShiftAllLeft(y uint64) Uint64x2 {

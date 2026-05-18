@@ -8,6 +8,7 @@ package main
 // slice operations and tests
 
 import (
+	"_gen/sgutil"
 	"bufio"
 	"bytes"
 	"flag"
@@ -243,6 +244,27 @@ var avx2SignedComparisons = &shapes{
 
 var avx2UnsignedComparisons = &shapes{
 	vecs:  []int{128, 256},
+	uints: []int{8, 16, 32, 64},
+}
+
+// The shift-all shapes are for rotate emulation
+var amdIntShiftAllShapes = &shapes{
+	vecs: []int{128, 256, 512},
+	ints: []int{16, 32, 64}, // has 32 and 64 rotate on AVX512 that is too hard to use, and no 8-bit shiftall
+}
+
+var amdUintShiftAllShapes = &shapes{
+	vecs:  []int{128, 256, 512},
+	uints: []int{16, 32, 64}, // has 32 and 64 rotate on AVX512 that is too hard to use, and no 8-bit shiftall
+}
+
+var neonIntShiftAllShapes = &shapes{
+	vecs: []int{128},
+	ints: []int{8, 16, 32, 64},
+}
+
+var neonUintShiftAllShapes = &shapes{
+	vecs:  []int{128},
 	uints: []int{8, 16, 32, 64},
 }
 
@@ -888,6 +910,46 @@ func (x {{.VType}}) NotEqual(y {{.VType}}) Mask{{.WxC}} {
 }
 `)
 
+var intRotateAllTemplate = sgutil.TemplateNamed("intRotateAll", `
+// RotateAllLeft rotates all elements left by the specified amount
+//
+// Emulated
+func (x {{.VType}}) RotateAllLeft(dist uint64) {{.VType}} {
+	dist = dist & ({{.EWidth}}-1)
+	ndist := {{.EWidth}} - dist
+	return x.ToBits().ShiftAllLeft(dist).Or(x.ToBits().ShiftAllRight(ndist)).BitsToInt{{.EWidth}}()
+}
+
+// RotateAllRight rotates all elements right by the specified amount
+//
+// Emulated
+func (x {{.VType}}) RotateAllRight(dist uint64) {{.VType}} {
+	dist = dist & ({{.EWidth}}-1)
+	ndist := {{.EWidth}} - dist
+	return x.ToBits().ShiftAllLeft(ndist).Or(x.ToBits().ShiftAllRight(dist)).BitsToInt{{.EWidth}}()
+}
+`)
+
+var uintRotateAllTemplate = sgutil.TemplateNamed("intRotateAll", `
+// RotateAllLeft rotates all elements left by the specified amount
+//
+// Emulated
+func (x {{.VType}}) RotateAllLeft(dist uint64) {{.VType}} {
+	dist = dist & ({{.EWidth}}-1)
+	ndist := {{.EWidth}} - dist
+	return x.ShiftAllLeft(dist).Or(x.ShiftAllRight(ndist))
+}
+
+// RotateAllRight rotates all elements right by the specified amount
+//
+// Emulated
+func (x {{.VType}}) RotateAllRight(dist uint64) {{.VType}} {
+	dist = dist & ({{.EWidth}}-1)
+	ndist := {{.EWidth}} - dist
+	return x.ShiftAllLeft(ndist).Or(x.ShiftAllRight(dist))
+}
+`)
+
 var bitWiseIntTemplate = shapedTemplateOf(intShapes, "bitwise int complement", `
 // Not returns the bitwise complement of x.
 //
@@ -1160,6 +1222,13 @@ func (from {{.Base}}{{.WxC}}) ToMask() (to Mask{{.WxC}}) {
 }
 `)
 
+var arm64MaskCvtTemplate = shapedTemplateOf(arm64IntegerShapes, "Mask conversions", `
+// ToMask returns a mask whose i'th element is set if x[i] is non-zero.
+func (from {{.Base}}{{.WxC}}) ToMask() (to Mask{{.WxC}}) {
+	return from.NotEqual({{.Base}}{{.WxC}}{})
+}
+`)
+
 // ARM64 derived comparison templates.
 // On ARM64 NEON, Equal, Greater, and GreaterEqual are hardware-backed.
 // Less, LessEqual, and NotEqual are derived.
@@ -1332,6 +1401,8 @@ func main() {
 			bitWiseUintTemplate,
 			stringTemplate,
 			maskToString,
+			shapeAndTemplate{amdIntShiftAllShapes, intRotateAllTemplate},
+			shapeAndTemplate{amdUintShiftAllShapes, uintRotateAllTemplate},
 		)
 	}
 	if *ush != "" {
@@ -1374,7 +1445,15 @@ func main() {
 		oneArch(*bhArm64, "arm64", curryTestPrologue("binary simd methods"), binaryTemplateArm64)
 	}
 	if *opArm64 != "" {
-		one(*opArm64, prologue, broadcastTemplateArm64, stringTemplateArm64, setHiTemplateArm64, getHiTemplateArm64)
+		one(*opArm64, prologue,
+			broadcastTemplateArm64,
+			stringTemplateArm64,
+			setHiTemplateArm64,
+			getHiTemplateArm64,
+			arm64MaskCvtTemplate,
+			shapeAndTemplate{neonIntShiftAllShapes, intRotateAllTemplate},
+			shapeAndTemplate{neonUintShiftAllShapes, uintRotateAllTemplate},
+		)
 	}
 	if *shArm64 != "" {
 		oneArch(*shArm64, "arm64", curryTestPrologue("shift simd methods"),

@@ -137,7 +137,7 @@
     base: int
 
 # Rotate
-- go: RotateAllLeft
+- go: rotateAllLeft
   nameAndSizeCheck: true
   asm: "VPROL[DQ]"
   in:
@@ -148,7 +148,7 @@
     name: shift
   out:
   - *any
-- go: RotateAllRight
+- go: rotateAllRight
   nameAndSizeCheck: true
   asm: "VPROR[DQ]"
   in:

@@ -891,3 +891,327 @@ func (x Mask64x8) String() string {
 	x.ToInt64x8().Neg().StoreArray(&s)
 	return sliceToString(s[:])
 }
+
+// RotateAllLeft rotates all elements left by the specified amount
+//
+// Emulated
+func (x Int16x8) RotateAllLeft(dist uint64) Int16x8 {
+	dist = dist & (16 - 1)
+	ndist := 16 - dist
+	return x.ToBits().ShiftAllLeft(dist).Or(x.ToBits().ShiftAllRight(ndist)).BitsToInt16()
+}
+
+// RotateAllRight rotates all elements right by the specified amount
+//
+// Emulated
+func (x Int16x8) RotateAllRight(dist uint64) Int16x8 {
+	dist = dist & (16 - 1)
+	ndist := 16 - dist
+	return x.ToBits().ShiftAllLeft(ndist).Or(x.ToBits().ShiftAllRight(dist)).BitsToInt16()
+}
+
+// RotateAllLeft rotates all elements left by the specified amount
+//
+// Emulated
+func (x Int32x4) RotateAllLeft(dist uint64) Int32x4 {
+	dist = dist & (32 - 1)
+	ndist := 32 - dist
+	return x.ToBits().ShiftAllLeft(dist).Or(x.ToBits().ShiftAllRight(ndist)).BitsToInt32()
+}
+
+// RotateAllRight rotates all elements right by the specified amount
+//
+// Emulated
+func (x Int32x4) RotateAllRight(dist uint64) Int32x4 {
+	dist = dist & (32 - 1)
+	ndist := 32 - dist
+	return x.ToBits().ShiftAllLeft(ndist).Or(x.ToBits().ShiftAllRight(dist)).BitsToInt32()
+}
+
+// RotateAllLeft rotates all elements left by the specified amount
+//
+// Emulated
+func (x Int64x2) RotateAllLeft(dist uint64) Int64x2 {
+	dist = dist & (64 - 1)
+	ndist := 64 - dist
+	return x.ToBits().ShiftAllLeft(dist).Or(x.ToBits().ShiftAllRight(ndist)).BitsToInt64()
+}
+
+// RotateAllRight rotates all elements right by the specified amount
+//
+// Emulated
+func (x Int64x2) RotateAllRight(dist uint64) Int64x2 {
+	dist = dist & (64 - 1)
+	ndist := 64 - dist
+	return x.ToBits().ShiftAllLeft(ndist).Or(x.ToBits().ShiftAllRight(dist)).BitsToInt64()
+}
+
+// RotateAllLeft rotates all elements left by the specified amount
+//
+// Emulated
+func (x Int16x16) RotateAllLeft(dist uint64) Int16x16 {
+	dist = dist & (16 - 1)
+	ndist := 16 - dist
+	return x.ToBits().ShiftAllLeft(dist).Or(x.ToBits().ShiftAllRight(ndist)).BitsToInt16()
+}
+
+// RotateAllRight rotates all elements right by the specified amount
+//
+// Emulated
+func (x Int16x16) RotateAllRight(dist uint64) Int16x16 {
+	dist = dist & (16 - 1)
+	ndist := 16 - dist
+	return x.ToBits().ShiftAllLeft(ndist).Or(x.ToBits().ShiftAllRight(dist)).BitsToInt16()
+}
+
+// RotateAllLeft rotates all elements left by the specified amount
+//
+// Emulated
+func (x Int32x8) RotateAllLeft(dist uint64) Int32x8 {
+	dist = dist & (32 - 1)
+	ndist := 32 - dist
+	return x.ToBits().ShiftAllLeft(dist).Or(x.ToBits().ShiftAllRight(ndist)).BitsToInt32()
+}
+
+// RotateAllRight rotates all elements right by the specified amount
+//
+// Emulated
+func (x Int32x8) RotateAllRight(dist uint64) Int32x8 {
+	dist = dist & (32 - 1)
+	ndist := 32 - dist
+	return x.ToBits().ShiftAllLeft(ndist).Or(x.ToBits().ShiftAllRight(dist)).BitsToInt32()
+}
+
+// RotateAllLeft rotates all elements left by the specified amount
+//
+// Emulated
+func (x Int64x4) RotateAllLeft(dist uint64) Int64x4 {
+	dist = dist & (64 - 1)
+	ndist := 64 - dist
+	return x.ToBits().ShiftAllLeft(dist).Or(x.ToBits().ShiftAllRight(ndist)).BitsToInt64()
+}
+
+// RotateAllRight rotates all elements right by the specified amount
+//
+// Emulated
+func (x Int64x4) RotateAllRight(dist uint64) Int64x4 {
+	dist = dist & (64 - 1)
+	ndist := 64 - dist
+	return x.ToBits().ShiftAllLeft(ndist).Or(x.ToBits().ShiftAllRight(dist)).BitsToInt64()
+}
+
+// RotateAllLeft rotates all elements left by the specified amount
+//
+// Emulated
+func (x Int16x32) RotateAllLeft(dist uint64) Int16x32 {
+	dist = dist & (16 - 1)
+	ndist := 16 - dist
+	return x.ToBits().ShiftAllLeft(dist).Or(x.ToBits().ShiftAllRight(ndist)).BitsToInt16()
+}
+
+// RotateAllRight rotates all elements right by the specified amount
+//
+// Emulated
+func (x Int16x32) RotateAllRight(dist uint64) Int16x32 {
+	dist = dist & (16 - 1)
+	ndist := 16 - dist
+	return x.ToBits().ShiftAllLeft(ndist).Or(x.ToBits().ShiftAllRight(dist)).BitsToInt16()
+}
+
+// RotateAllLeft rotates all elements left by the specified amount
+//
+// Emulated
+func (x Int32x16) RotateAllLeft(dist uint64) Int32x16 {
+	dist = dist & (32 - 1)
+	ndist := 32 - dist
+	return x.ToBits().ShiftAllLeft(dist).Or(x.ToBits().ShiftAllRight(ndist)).BitsToInt32()
+}
+
+// RotateAllRight rotates all elements right by the specified amount
+//
+// Emulated
+func (x Int32x16) RotateAllRight(dist uint64) Int32x16 {
+	dist = dist & (32 - 1)
+	ndist := 32 - dist
+	return x.ToBits().ShiftAllLeft(ndist).Or(x.ToBits().ShiftAllRight(dist)).BitsToInt32()
+}
+
+// RotateAllLeft rotates all elements left by the specified amount
+//
+// Emulated
+func (x Int64x8) RotateAllLeft(dist uint64) Int64x8 {
+	dist = dist & (64 - 1)
+	ndist := 64 - dist
+	return x.ToBits().ShiftAllLeft(dist).Or(x.ToBits().ShiftAllRight(ndist)).BitsToInt64()
+}
+
+// RotateAllRight rotates all elements right by the specified amount
+//
+// Emulated
+func (x Int64x8) RotateAllRight(dist uint64) Int64x8 {
+	dist = dist & (64 - 1)
+	ndist := 64 - dist
+	return x.ToBits().ShiftAllLeft(ndist).Or(x.ToBits().ShiftAllRight(dist)).BitsToInt64()
+}
+
+// RotateAllLeft rotates all elements left by the specified amount
+//
+// Emulated
+func (x Uint16x8) RotateAllLeft(dist uint64) Uint16x8 {
+	dist = dist & (16 - 1)
+	ndist := 16 - dist
+	return x.ShiftAllLeft(dist).Or(x.ShiftAllRight(ndist))
+}
+
+// RotateAllRight rotates all elements right by the specified amount
+//
+// Emulated
+func (x Uint16x8) RotateAllRight(dist uint64) Uint16x8 {
+	dist = dist & (16 - 1)
+	ndist := 16 - dist
+	return x.ShiftAllLeft(ndist).Or(x.ShiftAllRight(dist))
+}
+
+// RotateAllLeft rotates all elements left by the specified amount
+//
+// Emulated
+func (x Uint32x4) RotateAllLeft(dist uint64) Uint32x4 {
+	dist = dist & (32 - 1)
+	ndist := 32 - dist
+	return x.ShiftAllLeft(dist).Or(x.ShiftAllRight(ndist))
+}
+
+// RotateAllRight rotates all elements right by the specified amount
+//
+// Emulated
+func (x Uint32x4) RotateAllRight(dist uint64) Uint32x4 {
+	dist = dist & (32 - 1)
+	ndist := 32 - dist
+	return x.ShiftAllLeft(ndist).Or(x.ShiftAllRight(dist))
+}
+
+// RotateAllLeft rotates all elements left by the specified amount
+//
+// Emulated
+func (x Uint64x2) RotateAllLeft(dist uint64) Uint64x2 {
+	dist = dist & (64 - 1)
+	ndist := 64 - dist
+	return x.ShiftAllLeft(dist).Or(x.ShiftAllRight(ndist))
+}
+
+// RotateAllRight rotates all elements right by the specified amount
+//
+// Emulated
+func (x Uint64x2) RotateAllRight(dist uint64) Uint64x2 {
+	dist = dist & (64 - 1)
+	ndist := 64 - dist
+	return x.ShiftAllLeft(ndist).Or(x.ShiftAllRight(dist))
+}
+
+// RotateAllLeft rotates all elements left by the specified amount
+//
+// Emulated
+func (x Uint16x16) RotateAllLeft(dist uint64) Uint16x16 {
+	dist = dist & (16 - 1)
+	ndist := 16 - dist
+	return x.ShiftAllLeft(dist).Or(x.ShiftAllRight(ndist))
+}
+
+// RotateAllRight rotates all elements right by the specified amount
+//
+// Emulated
+func (x Uint16x16) RotateAllRight(dist uint64) Uint16x16 {
+	dist = dist & (16 - 1)
+	ndist := 16 - dist
+	return x.ShiftAllLeft(ndist).Or(x.ShiftAllRight(dist))
+}
+
+// RotateAllLeft rotates all elements left by the specified amount
+//
+// Emulated
+func (x Uint32x8) RotateAllLeft(dist uint64) Uint32x8 {
+	dist = dist & (32 - 1)
+	ndist := 32 - dist
+	return x.ShiftAllLeft(dist).Or(x.ShiftAllRight(ndist))
+}
+
+// RotateAllRight rotates all elements right by the specified amount
+//
+// Emulated
+func (x Uint32x8) RotateAllRight(dist uint64) Uint32x8 {
+	dist = dist & (32 - 1)
+	ndist := 32 - dist
+	return x.ShiftAllLeft(ndist).Or(x.ShiftAllRight(dist))
+}
+
+// RotateAllLeft rotates all elements left by the specified amount
+//
+// Emulated
+func (x Uint64x4) RotateAllLeft(dist uint64) Uint64x4 {
+	dist = dist & (64 - 1)
+	ndist := 64 - dist
+	return x.ShiftAllLeft(dist).Or(x.ShiftAllRight(ndist))
+}
+
+// RotateAllRight rotates all elements right by the specified amount
+//
+// Emulated
+func (x Uint64x4) RotateAllRight(dist uint64) Uint64x4 {
+	dist = dist & (64 - 1)
+	ndist := 64 - dist
+	return x.ShiftAllLeft(ndist).Or(x.ShiftAllRight(dist))
+}
+
+// RotateAllLeft rotates all elements left by the specified amount
+//
+// Emulated
+func (x Uint16x32) RotateAllLeft(dist uint64) Uint16x32 {
+	dist = dist & (16 - 1)
+	ndist := 16 - dist
+	return x.ShiftAllLeft(dist).Or(x.ShiftAllRight(ndist))
+}
+
+// RotateAllRight rotates all elements right by the specified amount
+//
+// Emulated
+func (x Uint16x32) RotateAllRight(dist uint64) Uint16x32 {
+	dist = dist & (16 - 1)
+	ndist := 16 - dist
+	return x.ShiftAllLeft(ndist).Or(x.ShiftAllRight(dist))
+}
+
+// RotateAllLeft rotates all elements left by the specified amount
+//
+// Emulated
+func (x Uint32x16) RotateAllLeft(dist uint64) Uint32x16 {
+	dist = dist & (32 - 1)
+	ndist := 32 - dist
+	return x.ShiftAllLeft(dist).Or(x.ShiftAllRight(ndist))
+}
+
+// RotateAllRight rotates all elements right by the specified amount
+//
+// Emulated
+func (x Uint32x16) RotateAllRight(dist uint64) Uint32x16 {
+	dist = dist & (32 - 1)
+	ndist := 32 - dist
+	return x.ShiftAllLeft(ndist).Or(x.ShiftAllRight(dist))
+}
+
+// RotateAllLeft rotates all elements left by the specified amount
+//
+// Emulated
+func (x Uint64x8) RotateAllLeft(dist uint64) Uint64x8 {
+	dist = dist & (64 - 1)
+	ndist := 64 - dist
+	return x.ShiftAllLeft(dist).Or(x.ShiftAllRight(ndist))
+}
+
+// RotateAllRight rotates all elements right by the specified amount
+//
+// Emulated
+func (x Uint64x8) RotateAllRight(dist uint64) Uint64x8 {
+	dist = dist & (64 - 1)
+	ndist := 64 - dist
+	return x.ShiftAllLeft(ndist).Or(x.ShiftAllRight(dist))
+}

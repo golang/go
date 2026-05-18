@@ -1,6 +1,5 @@
 !sum
 
-# ARM64-only ops (no AMD64 equivalent)
 - go: Shift
   commutative: false
   documentation: !string |-
@@ -122,11 +121,21 @@
   commutative: false
   documentation: !string |-
     // NAME rotates each element to the left by the number of bits specified by shift.
+- go: rotateAllLeft
+  noGenericOps: "true"
+  commutative: false
+  documentation: !string |-
+    // NAME rotates each element to the left by the number of bits specified by shift.
 - go: RotateLeft
   commutative: false
   documentation: !string |-
     // NAME rotates each element in x to the left by the number of bits specified by y's corresponding elements.
 - go: RotateAllRight
+  commutative: false
+  documentation: !string |-
+    // NAME rotates each element to the right by the number of bits specified by shift.
+- go: rotateAllRight
+  noGenericOps: "true"
   commutative: false
   documentation: !string |-
     // NAME rotates each element to the right by the number of bits specified by shift.

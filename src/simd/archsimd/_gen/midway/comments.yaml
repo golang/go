@@ -23,6 +23,8 @@
   Not: "Not returns the bitwise NOT of x."
   NotEqual: "NotEqual returns a mask indicating where x and y are not equal."
   Or: "Or returns the bitwise OR of x and y."
+  RotateAllLeft: "RotatesAllLeft rotates all elements left by y bits."
+  RotateAllRight: "RotatesAllRight rotates all elements right by y bits."
   ShiftAllLeft: "ShiftAllLeft shifts all elements left by y bits."
   ShiftAllRight: "ShiftAllRight shifts all elements right by y bits."
   Sqrt: "Sqrt returns the element-wise square root of x."

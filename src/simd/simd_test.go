@@ -98,6 +98,28 @@ func TestInt16s(t *testing.T) {
 			t.Errorf("Int16s Add at %d: got %d, want %d", i, buf[i], expected)
 		}
 	}
+
+	// Test RotateAllLeft
+	rotLeft := x.RotateAllLeft(3)
+	rotLeft.Store(buf)
+	for i := 0; i < x.Len() && i < len(in1); i++ {
+		val := uint16(in1[i])
+		expected := int16((val << 3) | (val >> 13))
+		if buf[i] != expected {
+			t.Errorf("Int16s RotateAllLeft at %d: got %d, want %d", i, buf[i], expected)
+		}
+	}
+
+	// Test RotateAllRight with large distance
+	rotRight := x.RotateAllRight(19)
+	rotRight.Store(buf)
+	for i := 0; i < x.Len() && i < len(in1); i++ {
+		val := uint16(in1[i])
+		expected := int16((val >> 3) | (val << 13))
+		if buf[i] != expected {
+			t.Errorf("Int16s RotateAllRight(19) at %d: got %d, want %d", i, buf[i], expected)
+		}
+	}
 }
 
 func TestInt32s(t *testing.T) {
@@ -125,6 +147,28 @@ func TestInt32s(t *testing.T) {
 			t.Errorf("Int32s Add at %d: got %d, want %d", i, buf[i], expected)
 		}
 	}
+
+	// Test RotateAllLeft
+	rotLeft := x.RotateAllLeft(5)
+	rotLeft.Store(buf)
+	for i := 0; i < x.Len() && i < len(in1); i++ {
+		val := uint32(in1[i])
+		expected := int32((val << 5) | (val >> 27))
+		if buf[i] != expected {
+			t.Errorf("Int32s RotateAllLeft at %d: got %d, want %d", i, buf[i], expected)
+		}
+	}
+
+	// Test RotateAllRight with large distance
+	rotRight := x.RotateAllRight(37)
+	rotRight.Store(buf)
+	for i := 0; i < x.Len() && i < len(in1); i++ {
+		val := uint32(in1[i])
+		expected := int32((val >> 5) | (val << 27))
+		if buf[i] != expected {
+			t.Errorf("Int32s RotateAllRight(37) at %d: got %d, want %d", i, buf[i], expected)
+		}
+	}
 }
 
 func TestInt64s(t *testing.T) {
@@ -150,6 +194,28 @@ func TestInt64s(t *testing.T) {
 		expected := in1[i] + in2[i]
 		if buf[i] != expected {
 			t.Errorf("Int64s Add at %d: got %d, want %d", i, buf[i], expected)
+		}
+	}
+
+	// Test RotateAllLeft
+	rotLeft := x.RotateAllLeft(7)
+	rotLeft.Store(buf)
+	for i := 0; i < x.Len() && i < len(in1); i++ {
+		val := uint64(in1[i])
+		expected := int64((val << 7) | (val >> 57))
+		if buf[i] != expected {
+			t.Errorf("Int64s RotateAllLeft at %d: got %d, want %d", i, buf[i], expected)
+		}
+	}
+
+	// Test RotateAllRight with large distance
+	rotRight := x.RotateAllRight(71)
+	rotRight.Store(buf)
+	for i := 0; i < x.Len() && i < len(in1); i++ {
+		val := uint64(in1[i])
+		expected := int64((val >> 7) | (val << 57))
+		if buf[i] != expected {
+			t.Errorf("Int64s RotateAllRight(71) at %d: got %d, want %d", i, buf[i], expected)
 		}
 	}
 }
@@ -230,6 +296,102 @@ func TestFloat64s(t *testing.T) {
 		expected := in1[i] * in2[i]
 		if buf[i] != expected {
 			t.Errorf("Float64s Mul at %d: got %f, want %f", i, buf[i], expected)
+		}
+	}
+}
+
+func TestUint16s(t *testing.T) {
+	in1 := make([]uint16, 32)
+	for i := range in1 {
+		in1[i] = uint16((i + 1) * 100)
+	}
+
+	x := simd.LoadUint16s(in1)
+	buf := make([]uint16, x.Len())
+
+	// Test RotateAllLeft
+	rotLeft := x.RotateAllLeft(3)
+	rotLeft.Store(buf)
+	for i := 0; i < x.Len() && i < len(in1); i++ {
+		val := in1[i]
+		expected := (val << 3) | (val >> 13)
+		if buf[i] != expected {
+			t.Errorf("Uint16s RotateAllLeft at %d: got %d, want %d", i, buf[i], expected)
+		}
+	}
+
+	// Test RotateAllRight with large distance
+	rotRight := x.RotateAllRight(19)
+	rotRight.Store(buf)
+	for i := 0; i < x.Len() && i < len(in1); i++ {
+		val := in1[i]
+		expected := (val >> 3) | (val << 13)
+		if buf[i] != expected {
+			t.Errorf("Uint16s RotateAllRight(19) at %d: got %d, want %d", i, buf[i], expected)
+		}
+	}
+}
+
+func TestUint32s(t *testing.T) {
+	in1 := make([]uint32, 16)
+	for i := range in1 {
+		in1[i] = uint32((i + 1) * 1000)
+	}
+
+	x := simd.LoadUint32s(in1)
+	buf := make([]uint32, x.Len())
+
+	// Test RotateAllLeft
+	rotLeft := x.RotateAllLeft(5)
+	rotLeft.Store(buf)
+	for i := 0; i < x.Len() && i < len(in1); i++ {
+		val := in1[i]
+		expected := (val << 5) | (val >> 27)
+		if buf[i] != expected {
+			t.Errorf("Uint32s RotateAllLeft at %d: got %d, want %d", i, buf[i], expected)
+		}
+	}
+
+	// Test RotateAllRight with large distance
+	rotRight := x.RotateAllRight(37)
+	rotRight.Store(buf)
+	for i := 0; i < x.Len() && i < len(in1); i++ {
+		val := in1[i]
+		expected := (val >> 5) | (val << 27)
+		if buf[i] != expected {
+			t.Errorf("Uint32s RotateAllRight(37) at %d: got %d, want %d", i, buf[i], expected)
+		}
+	}
+}
+
+func TestUint64s(t *testing.T) {
+	in1 := make([]uint64, 8)
+	for i := range in1 {
+		in1[i] = uint64((i + 1) * 10000)
+	}
+
+	x := simd.LoadUint64s(in1)
+	buf := make([]uint64, x.Len())
+
+	// Test RotateAllLeft
+	rotLeft := x.RotateAllLeft(7)
+	rotLeft.Store(buf)
+	for i := 0; i < x.Len() && i < len(in1); i++ {
+		val := in1[i]
+		expected := (val << 7) | (val >> 57)
+		if buf[i] != expected {
+			t.Errorf("Uint64s RotateAllLeft at %d: got %d, want %d", i, buf[i], expected)
+		}
+	}
+
+	// Test RotateAllRight with large distance
+	rotRight := x.RotateAllRight(71)
+	rotRight.Store(buf)
+	for i := 0; i < x.Len() && i < len(in1); i++ {
+		val := in1[i]
+		expected := (val >> 7) | (val << 57)
+		if buf[i] != expected {
+			t.Errorf("Uint64s RotateAllRight(71) at %d: got %d, want %d", i, buf[i], expected)
 		}
 	}
 }

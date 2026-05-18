@@ -756,6 +756,9 @@ func writeSIMDStubs(ops []Operation, typeMap simdTypeMap) (f, fI *bytes.Buffer) 
 			panic(err)
 		}
 		if s, op, err := classifyOp(op); err == nil {
+			if op.NoGenericOps != nil && *op.NoGenericOps == "true" {
+				continue
+			}
 			if idxVecAsScalar != -1 {
 				if s == "op2" || s == "op3" || s == "op2Imm" {
 					s += "VecAsScalar"

@@ -1450,30 +1450,6 @@ func simdGenericOps() []opData {
 		{name: "GetElemUint16x8", argLength: 1, aux: "UInt8"},                           // ARCH:amd64,arm64,wasm
 		{name: "GetElemUint32x4", argLength: 1, aux: "UInt8"},                           // ARCH:amd64,arm64,wasm
 		{name: "GetElemUint64x2", argLength: 1, aux: "UInt8"},                           // ARCH:amd64,arm64,wasm
-		{name: "RotateAllLeftInt32x4", argLength: 1, aux: "UInt8"},                      // ARCH:amd64
-		{name: "RotateAllLeftInt32x8", argLength: 1, aux: "UInt8"},                      // ARCH:amd64
-		{name: "RotateAllLeftInt32x16", argLength: 1, aux: "UInt8"},                     // ARCH:amd64
-		{name: "RotateAllLeftInt64x2", argLength: 1, aux: "UInt8"},                      // ARCH:amd64
-		{name: "RotateAllLeftInt64x4", argLength: 1, aux: "UInt8"},                      // ARCH:amd64
-		{name: "RotateAllLeftInt64x8", argLength: 1, aux: "UInt8"},                      // ARCH:amd64
-		{name: "RotateAllLeftUint32x4", argLength: 1, aux: "UInt8"},                     // ARCH:amd64
-		{name: "RotateAllLeftUint32x8", argLength: 1, aux: "UInt8"},                     // ARCH:amd64
-		{name: "RotateAllLeftUint32x16", argLength: 1, aux: "UInt8"},                    // ARCH:amd64
-		{name: "RotateAllLeftUint64x2", argLength: 1, aux: "UInt8"},                     // ARCH:amd64
-		{name: "RotateAllLeftUint64x4", argLength: 1, aux: "UInt8"},                     // ARCH:amd64
-		{name: "RotateAllLeftUint64x8", argLength: 1, aux: "UInt8"},                     // ARCH:amd64
-		{name: "RotateAllRightInt32x4", argLength: 1, aux: "UInt8"},                     // ARCH:amd64
-		{name: "RotateAllRightInt32x8", argLength: 1, aux: "UInt8"},                     // ARCH:amd64
-		{name: "RotateAllRightInt32x16", argLength: 1, aux: "UInt8"},                    // ARCH:amd64
-		{name: "RotateAllRightInt64x2", argLength: 1, aux: "UInt8"},                     // ARCH:amd64
-		{name: "RotateAllRightInt64x4", argLength: 1, aux: "UInt8"},                     // ARCH:amd64
-		{name: "RotateAllRightInt64x8", argLength: 1, aux: "UInt8"},                     // ARCH:amd64
-		{name: "RotateAllRightUint32x4", argLength: 1, aux: "UInt8"},                    // ARCH:amd64
-		{name: "RotateAllRightUint32x8", argLength: 1, aux: "UInt8"},                    // ARCH:amd64
-		{name: "RotateAllRightUint32x16", argLength: 1, aux: "UInt8"},                   // ARCH:amd64
-		{name: "RotateAllRightUint64x2", argLength: 1, aux: "UInt8"},                    // ARCH:amd64
-		{name: "RotateAllRightUint64x4", argLength: 1, aux: "UInt8"},                    // ARCH:amd64
-		{name: "RotateAllRightUint64x8", argLength: 1, aux: "UInt8"},                    // ARCH:amd64
 		{name: "RoundScaledFloat32x4", argLength: 1, aux: "UInt8"},                      // ARCH:amd64
 		{name: "RoundScaledFloat32x8", argLength: 1, aux: "UInt8"},                      // ARCH:amd64
 		{name: "RoundScaledFloat32x16", argLength: 1, aux: "UInt8"},                     // ARCH:amd64

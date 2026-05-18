@@ -143,6 +143,10 @@ func simd{{GetArchUpper}}Intrinsics(addF func(pkg, fn string, b intrinsicBuilder
 		if op.SkipMaskedMethod() {
 			continue
 		}
+		// Cannot have an intrinsic w/o generics, at least for now.
+		if op.NoGenericOps != nil && *op.NoGenericOps == "true" {
+			continue
+		}
 		if s, op, err := classifyOp(op); err == nil {
 			if s == "op2Imm" {
 				idxVecAsScalar, err := checkVecAsScalar(op)
