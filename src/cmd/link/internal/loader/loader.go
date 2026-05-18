@@ -92,6 +92,13 @@ type oReader struct {
 // non-package symbols).
 func (r *oReader) NAlldef() int { return r.ndef + r.nhashed64def + r.nhasheddef + r.NNonpkgdef() }
 
+// whether the symbol at local index li is a content hashed symbol
+func (r *oReader) IsContentHashed(li uint32) bool {
+	start := uint32(r.ndef + r.nhashed64def)
+	end := start + uint32(r.nhasheddef)
+	return start <= li && li < end
+}
+
 // objSym represents a symbol in an object file. It is a tuple of
 // the object and the symbol's local index.
 // For external symbols, objidx is the index of l.extReader (extObj),
@@ -230,18 +237,19 @@ type Loader struct {
 	outer []Sym // indexed by global index
 	sub   map[Sym]Sym
 
-	dynimplib   map[Sym]string      // stores Dynimplib symbol attribute
-	dynimpvers  map[Sym]string      // stores Dynimpvers symbol attribute
-	localentry  map[Sym]uint8       // stores Localentry symbol attribute
-	extname     map[Sym]string      // stores Extname symbol attribute
-	elfType     map[Sym]elf.SymType // stores elf type symbol property
-	elfSym      map[Sym]int32       // stores elf sym symbol property
-	localElfSym map[Sym]int32       // stores "local" elf sym symbol property
-	symPkg      map[Sym]string      // stores package for symbol, or library for shlib-derived syms
-	plt         map[Sym]int32       // stores dynimport for pe objects
-	got         map[Sym]int32       // stores got for pe objects
-	dynid       map[Sym]int32       // stores Dynid for symbol
-	weakBinding map[Sym]bool        // stores whether a symbol has a weak binding
+	dynimplib     map[Sym]string      // stores Dynimplib symbol attribute
+	dynimpvers    map[Sym]string      // stores Dynimpvers symbol attribute
+	localentry    map[Sym]uint8       // stores Localentry symbol attribute
+	extname       map[Sym]string      // stores Extname symbol attribute
+	elfType       map[Sym]elf.SymType // stores elf type symbol property
+	elfSym        map[Sym]int32       // stores elf sym symbol property
+	localElfSym   map[Sym]int32       // stores "local" elf sym symbol property
+	symPkg        map[Sym]string      // stores package for symbol, or library for shlib-derived syms
+	plt           map[Sym]int32       // stores dynimport for pe objects
+	got           map[Sym]int32       // stores got for pe objects
+	dynid         map[Sym]int32       // stores Dynid for symbol
+	weakBinding   map[Sym]bool        // stores whether a symbol has a weak binding
+	contentHashed map[Sym]bool        // whether a symbol is a content hashed symbol, for external symbol only
 
 	relocVariant map[relocId]sym.RelocVariant // stores variant relocs
 
@@ -331,6 +339,7 @@ func NewLoader(flags uint32, reporter *ErrorReporter) *Loader {
 		attrCgoExportDynamic: make(map[Sym]struct{}),
 		attrCgoExportStatic:  make(map[Sym]struct{}),
 		deferReturnTramp:     make(map[Sym]bool),
+		contentHashed:        make(map[Sym]bool),
 		extStaticSyms:        make(map[nameVer]Sym),
 		builtinSyms:          make([]Sym, nbuiltin),
 		flags:                flags,
@@ -818,12 +827,10 @@ func (l *Loader) SymVersion(i Sym) int {
 
 func (l *Loader) IsContentHashed(i Sym) bool {
 	if l.IsExternal(i) {
-		return false
+		return l.contentHashed[i]
 	}
 	r, li := l.toLocal(i)
-	start := uint32(r.ndef + r.nhashed64def)
-	end := start + uint32(r.nhasheddef)
-	return start <= li && li < end
+	return r.IsContentHashed(li)
 }
 
 func (l *Loader) IsFileLocal(i Sym) bool {
@@ -2647,6 +2654,9 @@ func (l *Loader) cloneToExternal(symIdx Sym) *extSymPayload {
 	// Some attributes were encoded in the object file. Copy them over.
 	l.SetAttrDuplicateOK(symIdx, r.Sym(li).Dupok())
 	l.SetAttrShared(symIdx, r.Shared())
+	if r.IsContentHashed(li) {
+		l.contentHashed[symIdx] = true
+	}
 
 	return pp
 }
