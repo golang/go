@@ -384,6 +384,25 @@ func actualPrec(x float64) uint {
 	return 53
 }
 
+func TestRoundShortestNormal(t *testing.T) {
+	// See go.dev/issue/80206.
+	text := func(x float64) string {
+		return new(Float).SetPrec(53).SetFloat64(x).Text('g', -1)
+	}
+	for _, x := range []float64{
+		4.3749999999999917e+17,
+		4.9999999999999917e+17,
+		4.7619047619047597e+17,
+		3.7499999999999917e+17,
+		1.9047619047619039e+18,
+		1.1138394197049199e+18, // m='9' at trimmed position; guard must reject round-up
+	} {
+		if got, want := text(x), strconv.FormatFloat(x, 'g', -1, 64); got != want {
+			t.Errorf("got %s, want %s", got, want)
+		}
+	}
+}
+
 func TestFloatText(t *testing.T) {
 	const defaultRound = ^RoundingMode(0)
 
@@ -710,7 +729,7 @@ func TestFloatFormat(t *testing.T) {
 }
 
 func BenchmarkParseFloatSmallExp(b *testing.B) {
-	for i := 0; i < b.N; i++ {
+	for b.Loop() {
 		for _, s := range []string{
 			"1e0",
 			"1e-1",
@@ -740,7 +759,7 @@ func BenchmarkParseFloatSmallExp(b *testing.B) {
 }
 
 func BenchmarkParseFloatLargeExp(b *testing.B) {
-	for i := 0; i < b.N; i++ {
+	for b.Loop() {
 		for _, s := range []string{
 			"1e0",
 			"1e-10",
@@ -774,7 +793,7 @@ func BenchmarkParseFloatLargeExp(b *testing.B) {
 }
 
 func TestFloatScan(t *testing.T) {
-	var floatScanTests = []struct {
+	floatScanTests := []struct {
 		input     string
 		format    string
 		output    string
