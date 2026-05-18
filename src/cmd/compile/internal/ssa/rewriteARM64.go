@@ -571,6 +571,54 @@ func rewriteValueARM64(v *Value) bool {
 	case OpAndB:
 		v.Op = OpARM64AND
 		return true
+	case OpAndInt16x8:
+		v.Op = OpARM64VAND16B
+		return true
+	case OpAndInt32x4:
+		v.Op = OpARM64VAND16B
+		return true
+	case OpAndInt64x2:
+		v.Op = OpARM64VAND16B
+		return true
+	case OpAndInt8x16:
+		v.Op = OpARM64VAND16B
+		return true
+	case OpAndNotInt16x8:
+		v.Op = OpARM64VBIC16B
+		return true
+	case OpAndNotInt32x4:
+		v.Op = OpARM64VBIC16B
+		return true
+	case OpAndNotInt64x2:
+		v.Op = OpARM64VBIC16B
+		return true
+	case OpAndNotInt8x16:
+		v.Op = OpARM64VBIC16B
+		return true
+	case OpAndNotUint16x8:
+		v.Op = OpARM64VBIC16B
+		return true
+	case OpAndNotUint32x4:
+		v.Op = OpARM64VBIC16B
+		return true
+	case OpAndNotUint64x2:
+		v.Op = OpARM64VBIC16B
+		return true
+	case OpAndNotUint8x16:
+		v.Op = OpARM64VBIC16B
+		return true
+	case OpAndUint16x8:
+		v.Op = OpARM64VAND16B
+		return true
+	case OpAndUint32x4:
+		v.Op = OpARM64VAND16B
+		return true
+	case OpAndUint64x2:
+		v.Op = OpARM64VAND16B
+		return true
+	case OpAndUint8x16:
+		v.Op = OpARM64VAND16B
+		return true
 	case OpAtomicAdd32:
 		v.Op = OpARM64LoweredAtomicAdd32
 		return true
@@ -1177,6 +1225,30 @@ func rewriteValueARM64(v *Value) bool {
 		return true
 	case OpNot:
 		return rewriteValueARM64_OpNot(v)
+	case OpNotInt16x8:
+		v.Op = OpARM64VNOT16B
+		return true
+	case OpNotInt32x4:
+		v.Op = OpARM64VNOT16B
+		return true
+	case OpNotInt64x2:
+		v.Op = OpARM64VNOT16B
+		return true
+	case OpNotInt8x16:
+		v.Op = OpARM64VNOT16B
+		return true
+	case OpNotUint16x8:
+		v.Op = OpARM64VNOT16B
+		return true
+	case OpNotUint32x4:
+		v.Op = OpARM64VNOT16B
+		return true
+	case OpNotUint64x2:
+		v.Op = OpARM64VNOT16B
+		return true
+	case OpNotUint8x16:
+		v.Op = OpARM64VNOT16B
+		return true
 	case OpOffPtr:
 		return rewriteValueARM64_OpOffPtr(v)
 	case OpOr16:
@@ -1193,6 +1265,54 @@ func rewriteValueARM64(v *Value) bool {
 		return true
 	case OpOrB:
 		v.Op = OpARM64OR
+		return true
+	case OpOrInt16x8:
+		v.Op = OpARM64VORR16B
+		return true
+	case OpOrInt32x4:
+		v.Op = OpARM64VORR16B
+		return true
+	case OpOrInt64x2:
+		v.Op = OpARM64VORR16B
+		return true
+	case OpOrInt8x16:
+		v.Op = OpARM64VORR16B
+		return true
+	case OpOrNotInt16x8:
+		v.Op = OpARM64VORN16B
+		return true
+	case OpOrNotInt32x4:
+		v.Op = OpARM64VORN16B
+		return true
+	case OpOrNotInt64x2:
+		v.Op = OpARM64VORN16B
+		return true
+	case OpOrNotInt8x16:
+		v.Op = OpARM64VORN16B
+		return true
+	case OpOrNotUint16x8:
+		v.Op = OpARM64VORN16B
+		return true
+	case OpOrNotUint32x4:
+		v.Op = OpARM64VORN16B
+		return true
+	case OpOrNotUint64x2:
+		v.Op = OpARM64VORN16B
+		return true
+	case OpOrNotUint8x16:
+		v.Op = OpARM64VORN16B
+		return true
+	case OpOrUint16x8:
+		v.Op = OpARM64VORR16B
+		return true
+	case OpOrUint32x4:
+		v.Op = OpARM64VORR16B
+		return true
+	case OpOrUint64x2:
+		v.Op = OpARM64VORR16B
+		return true
+	case OpOrUint8x16:
+		v.Op = OpARM64VORR16B
 		return true
 	case OpPanicBounds:
 		v.Op = OpARM64LoweredPanicBoundsRR
@@ -1676,6 +1796,30 @@ func rewriteValueARM64(v *Value) bool {
 		return true
 	case OpXor8:
 		v.Op = OpARM64XOR
+		return true
+	case OpXorInt16x8:
+		v.Op = OpARM64VEOR16B
+		return true
+	case OpXorInt32x4:
+		v.Op = OpARM64VEOR16B
+		return true
+	case OpXorInt64x2:
+		v.Op = OpARM64VEOR16B
+		return true
+	case OpXorInt8x16:
+		v.Op = OpARM64VEOR16B
+		return true
+	case OpXorUint16x8:
+		v.Op = OpARM64VEOR16B
+		return true
+	case OpXorUint32x4:
+		v.Op = OpARM64VEOR16B
+		return true
+	case OpXorUint64x2:
+		v.Op = OpARM64VEOR16B
+		return true
+	case OpXorUint8x16:
+		v.Op = OpARM64VEOR16B
 		return true
 	case OpZero:
 		return rewriteValueARM64_OpZero(v)

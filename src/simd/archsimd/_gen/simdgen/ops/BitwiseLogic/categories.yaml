@@ -15,6 +15,14 @@
   commutative: true
   documentation: !string |-
     // NAME performs a bitwise x ^ y.
+- go: OrNot
+  commutative: false
+  documentation: !string |-
+    // NAME performs a bitwise x | ^y.
+- go: Not
+  commutative: false
+  documentation: !string |-
+    // NAME returns the bitwise complement of x.
 - go: tern
   commutative: false
   documentation: !string |-

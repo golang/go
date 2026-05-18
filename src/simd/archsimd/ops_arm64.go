@@ -56,6 +56,90 @@ func (x Uint32x4) Add(y Uint32x4) Uint32x4
 // Asm: VADD, CPU Feature: NEON
 func (x Uint64x2) Add(y Uint64x2) Uint64x2
 
+/* And */
+
+// And performs a bitwise x & y.
+//
+// Asm: VAND, CPU Feature: NEON
+func (x Int8x16) And(y Int8x16) Int8x16
+
+// And performs a bitwise x & y.
+//
+// Asm: VAND, CPU Feature: NEON
+func (x Int16x8) And(y Int16x8) Int16x8
+
+// And performs a bitwise x & y.
+//
+// Asm: VAND, CPU Feature: NEON
+func (x Int32x4) And(y Int32x4) Int32x4
+
+// And performs a bitwise x & y.
+//
+// Asm: VAND, CPU Feature: NEON
+func (x Int64x2) And(y Int64x2) Int64x2
+
+// And performs a bitwise x & y.
+//
+// Asm: VAND, CPU Feature: NEON
+func (x Uint8x16) And(y Uint8x16) Uint8x16
+
+// And performs a bitwise x & y.
+//
+// Asm: VAND, CPU Feature: NEON
+func (x Uint16x8) And(y Uint16x8) Uint16x8
+
+// And performs a bitwise x & y.
+//
+// Asm: VAND, CPU Feature: NEON
+func (x Uint32x4) And(y Uint32x4) Uint32x4
+
+// And performs a bitwise x & y.
+//
+// Asm: VAND, CPU Feature: NEON
+func (x Uint64x2) And(y Uint64x2) Uint64x2
+
+/* AndNot */
+
+// AndNot performs a bitwise x &^ y.
+//
+// Asm: VBIC, CPU Feature: NEON
+func (x Int8x16) AndNot(y Int8x16) Int8x16
+
+// AndNot performs a bitwise x &^ y.
+//
+// Asm: VBIC, CPU Feature: NEON
+func (x Int16x8) AndNot(y Int16x8) Int16x8
+
+// AndNot performs a bitwise x &^ y.
+//
+// Asm: VBIC, CPU Feature: NEON
+func (x Int32x4) AndNot(y Int32x4) Int32x4
+
+// AndNot performs a bitwise x &^ y.
+//
+// Asm: VBIC, CPU Feature: NEON
+func (x Int64x2) AndNot(y Int64x2) Int64x2
+
+// AndNot performs a bitwise x &^ y.
+//
+// Asm: VBIC, CPU Feature: NEON
+func (x Uint8x16) AndNot(y Uint8x16) Uint8x16
+
+// AndNot performs a bitwise x &^ y.
+//
+// Asm: VBIC, CPU Feature: NEON
+func (x Uint16x8) AndNot(y Uint16x8) Uint16x8
+
+// AndNot performs a bitwise x &^ y.
+//
+// Asm: VBIC, CPU Feature: NEON
+func (x Uint32x4) AndNot(y Uint32x4) Uint32x4
+
+// AndNot performs a bitwise x &^ y.
+//
+// Asm: VBIC, CPU Feature: NEON
+func (x Uint64x2) AndNot(y Uint64x2) Uint64x2
+
 /* ConvertLo2ToFloat64 */
 
 // ConvertLo2ToFloat64 converts low-indexed float32 element values to float64.
@@ -358,6 +442,132 @@ func (x Uint16x8) MulLoLong(y Uint16x8) Uint32x4
 //
 // Asm: VUMULL, CPU Feature: NEON
 func (x Uint32x4) MulLoLong(y Uint32x4) Uint64x2
+
+/* Not */
+
+// Not returns the bitwise complement of x.
+//
+// Asm: VNOT, CPU Feature: NEON
+func (x Int8x16) Not() Int8x16
+
+// Not returns the bitwise complement of x.
+//
+// Asm: VNOT, CPU Feature: NEON
+func (x Int16x8) Not() Int16x8
+
+// Not returns the bitwise complement of x.
+//
+// Asm: VNOT, CPU Feature: NEON
+func (x Int32x4) Not() Int32x4
+
+// Not returns the bitwise complement of x.
+//
+// Asm: VNOT, CPU Feature: NEON
+func (x Int64x2) Not() Int64x2
+
+// Not returns the bitwise complement of x.
+//
+// Asm: VNOT, CPU Feature: NEON
+func (x Uint8x16) Not() Uint8x16
+
+// Not returns the bitwise complement of x.
+//
+// Asm: VNOT, CPU Feature: NEON
+func (x Uint16x8) Not() Uint16x8
+
+// Not returns the bitwise complement of x.
+//
+// Asm: VNOT, CPU Feature: NEON
+func (x Uint32x4) Not() Uint32x4
+
+// Not returns the bitwise complement of x.
+//
+// Asm: VNOT, CPU Feature: NEON
+func (x Uint64x2) Not() Uint64x2
+
+/* Or */
+
+// Or performs a bitwise x | y.
+//
+// Asm: VORR, CPU Feature: NEON
+func (x Int8x16) Or(y Int8x16) Int8x16
+
+// Or performs a bitwise x | y.
+//
+// Asm: VORR, CPU Feature: NEON
+func (x Int16x8) Or(y Int16x8) Int16x8
+
+// Or performs a bitwise x | y.
+//
+// Asm: VORR, CPU Feature: NEON
+func (x Int32x4) Or(y Int32x4) Int32x4
+
+// Or performs a bitwise x | y.
+//
+// Asm: VORR, CPU Feature: NEON
+func (x Int64x2) Or(y Int64x2) Int64x2
+
+// Or performs a bitwise x | y.
+//
+// Asm: VORR, CPU Feature: NEON
+func (x Uint8x16) Or(y Uint8x16) Uint8x16
+
+// Or performs a bitwise x | y.
+//
+// Asm: VORR, CPU Feature: NEON
+func (x Uint16x8) Or(y Uint16x8) Uint16x8
+
+// Or performs a bitwise x | y.
+//
+// Asm: VORR, CPU Feature: NEON
+func (x Uint32x4) Or(y Uint32x4) Uint32x4
+
+// Or performs a bitwise x | y.
+//
+// Asm: VORR, CPU Feature: NEON
+func (x Uint64x2) Or(y Uint64x2) Uint64x2
+
+/* OrNot */
+
+// OrNot performs a bitwise x | ^y.
+//
+// Asm: VORN, CPU Feature: NEON
+func (x Int8x16) OrNot(y Int8x16) Int8x16
+
+// OrNot performs a bitwise x | ^y.
+//
+// Asm: VORN, CPU Feature: NEON
+func (x Int16x8) OrNot(y Int16x8) Int16x8
+
+// OrNot performs a bitwise x | ^y.
+//
+// Asm: VORN, CPU Feature: NEON
+func (x Int32x4) OrNot(y Int32x4) Int32x4
+
+// OrNot performs a bitwise x | ^y.
+//
+// Asm: VORN, CPU Feature: NEON
+func (x Int64x2) OrNot(y Int64x2) Int64x2
+
+// OrNot performs a bitwise x | ^y.
+//
+// Asm: VORN, CPU Feature: NEON
+func (x Uint8x16) OrNot(y Uint8x16) Uint8x16
+
+// OrNot performs a bitwise x | ^y.
+//
+// Asm: VORN, CPU Feature: NEON
+func (x Uint16x8) OrNot(y Uint16x8) Uint16x8
+
+// OrNot performs a bitwise x | ^y.
+//
+// Asm: VORN, CPU Feature: NEON
+func (x Uint32x4) OrNot(y Uint32x4) Uint32x4
+
+// OrNot performs a bitwise x | ^y.
+//
+// Asm: VORN, CPU Feature: NEON
+func (x Uint64x2) OrNot(y Uint64x2) Uint64x2
 
 /* SaturateToInt8 */
 
@@ -1078,6 +1288,48 @@ func (x Uint32x4) TruncateToUint16() Uint16x8
 //
 // Asm: VXTN, CPU Feature: NEON
 func (x Uint64x2) TruncateToUint32() Uint32x4
+
+/* Xor */
+
+// Xor performs a bitwise x ^ y.
+//
+// Asm: VEOR, CPU Feature: NEON
+func (x Int8x16) Xor(y Int8x16) Int8x16
+
+// Xor performs a bitwise x ^ y.
+//
+// Asm: VEOR, CPU Feature: NEON
+func (x Int16x8) Xor(y Int16x8) Int16x8
+
+// Xor performs a bitwise x ^ y.
+//
+// Asm: VEOR, CPU Feature: NEON
+func (x Int32x4) Xor(y Int32x4) Int32x4
+
+// Xor performs a bitwise x ^ y.
+//
+// Asm: VEOR, CPU Feature: NEON
+func (x Int64x2) Xor(y Int64x2) Int64x2
+
+// Xor performs a bitwise x ^ y.
+//
+// Asm: VEOR, CPU Feature: NEON
+func (x Uint8x16) Xor(y Uint8x16) Uint8x16
+
+// Xor performs a bitwise x ^ y.
+//
+// Asm: VEOR, CPU Feature: NEON
+func (x Uint16x8) Xor(y Uint16x8) Uint16x8
+
+// Xor performs a bitwise x ^ y.
+//
+// Asm: VEOR, CPU Feature: NEON
+func (x Uint32x4) Xor(y Uint32x4) Uint32x4
+
+// Xor performs a bitwise x ^ y.
+//
+// Asm: VEOR, CPU Feature: NEON
+func (x Uint64x2) Xor(y Uint64x2) Uint64x2
 
 // AsFloat64x2 reinterprets the bits of a Float32x4 vector as a Float64x2 vector
 //

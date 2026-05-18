@@ -12,6 +12,9 @@ import (
 func ssaGenSIMDValue(s *ssagen.State, v *ssa.Value) bool {
 	var p *obj.Prog
 	switch v.Op {
+	case ssa.OpARM64VNOT16B:
+		p = simdV11(s, v, arm64.ARNG_16B)
+
 	case ssa.OpARM64VSCVTF2D,
 		ssa.OpARM64VUCVTF2D,
 		ssa.OpARM64VFCVTZS2D,
@@ -71,12 +74,17 @@ func ssaGenSIMDValue(s *ssagen.State, v *ssa.Value) bool {
 		p = simdV11ScalarImmIn1(s, v, arm64.ARNG_S)
 
 	case ssa.OpARM64VADD16B,
+		ssa.OpARM64VAND16B,
+		ssa.OpARM64VBIC16B,
 		ssa.OpARM64VMUL16B,
+		ssa.OpARM64VORR16B,
+		ssa.OpARM64VORN16B,
 		ssa.OpARM64VSSHL16B,
 		ssa.OpARM64VUSHL16B,
 		ssa.OpARM64VSQSHL16B,
 		ssa.OpARM64VUQSHL16B,
-		ssa.OpARM64VSUB16B:
+		ssa.OpARM64VSUB16B,
+		ssa.OpARM64VEOR16B:
 		p = simdV21(s, v, arm64.ARNG_16B)
 
 	case ssa.OpARM64VFADD2D,

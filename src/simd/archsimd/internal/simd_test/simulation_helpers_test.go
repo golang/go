@@ -101,6 +101,10 @@ func orI[T integer](x, y T) T {
 	return x | y
 }
 
+func orNotI[T integer](x, y T) T {
+	return x | ^y
+}
+
 func xorI[T integer](x, y T) T {
 	return x ^ y
 }
@@ -274,6 +278,10 @@ func andNotSlice[T integer](x, y []T) []T {
 
 func orSlice[T integer](x, y []T) []T {
 	return map2[T](orI)(x, y)
+}
+
+func orNotSlice[T integer](x, y []T) []T {
+	return map2[T](orNotI)(x, y)
 }
 
 func xorSlice[T integer](x, y []T) []T {
