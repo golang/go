@@ -26,12 +26,12 @@ import (
 )
 
 // uirVersion is the unified IR version to use for encoding/decoding.
-// Use V4 for generic methods. Revert to V3 if the GOEXPERIMENT is enabled.
+// Use V4 for generic methods if the GOEXPERIMENT is enabled.
 var uirVersion = func() pkgbits.Version {
 	if buildcfg.Experiment.GenericMethods {
-		return pkgbits.V3
+		return pkgbits.V4
 	}
-	return pkgbits.V4
+	return pkgbits.V3
 }()
 
 // localPkgReader holds the package reader used for reading the local
