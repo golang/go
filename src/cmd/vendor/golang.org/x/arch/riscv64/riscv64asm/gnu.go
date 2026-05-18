@@ -29,8 +29,9 @@ func GNUSyntax(inst Inst) string {
 	}
 
 	op := strings.ToLower(inst.Op.String())
+gnuSyntaxSwitch:
 	switch inst.Op {
-	case ADDI, ADDIW, ANDI, ORI, SLLI, SLLIW, SRAI, SRAIW, SRLI, SRLIW, XORI:
+	case ADDI, ADDIW, ANDI, SLLI, SLLIW, SRAI, SRAIW, SRLI, SRLIW, XORI:
 		if inst.Op == ADDI {
 			if inst.Args[1].(Reg) == X0 && inst.Args[0].(Reg) != X0 {
 				op = "li"
@@ -63,6 +64,25 @@ func GNUSyntax(inst Inst) string {
 		if inst.Op == XORI && inst.Args[2].(Simm).String() == "-1" {
 			op = "not"
 			args = args[:len(args)-1]
+		}
+
+	case ORI:
+		if inst.Args[0].(Reg) == X0 {
+			simm := inst.Args[2].(Simm)
+			switch simm.Imm & 0b11111 {
+			case 0:
+				op = "prefetch.i"
+			case 1:
+				op = "prefetch.r"
+			case 3:
+				op = "prefetch.w"
+			default:
+				break gnuSyntaxSwitch
+			}
+			// compared to ORI, the lowest 5 bits of simm.Imm in PREFETCH should be zeros
+			simm.Imm = simm.Imm &^ 0b11111
+			args[0] = RegOffset{inst.Args[1].(Reg), simm}.String()
+			args = args[:len(args)-2]
 		}
 
 	case ADD:
@@ -221,11 +241,25 @@ func GNUSyntax(inst Inst) string {
 			args = args[:len(args)-1]
 		}
 
-	// When both pred and succ equals to iorw, the GNU objdump will omit them.
 	case FENCE:
-		if inst.Args[0].(MemOrder).String() == "iorw" &&
-			inst.Args[1].(MemOrder).String() == "iorw" {
-			args = nil
+		fm := inst.Enc >> 28
+		pred := inst.Args[0].(MemOrder).String()
+		succ := inst.Args[1].(MemOrder).String()
+		if fm == 0b1000 {
+			if pred == "rw" && succ == "rw" {
+				return "fence.tso"
+			}
+			return op
+		}
+		// PAUSE is encoded as a FENCE instruction with pred=W, succ=0.
+		if pred == "w" && succ == "" {
+			return "pause"
+		}
+		if fm != 0 || pred == "" || succ == "" || (pred == "iorw" && succ == "iorw") {
+			// We've either got a full fence or a reserved encoding which should be
+			// treated as a full fence. When both pred and succ equals to iorw, GNU
+			// objdump will omit them.
+			return op
 		}
 
 	case FSGNJX_D:

@@ -6,8 +6,8 @@ github.com/ianlancetaylor/demangle v0.0.0-20250417193237-f615e6bd150b h1:ogbOPx8
 github.com/ianlancetaylor/demangle v0.0.0-20250417193237-f615e6bd150b/go.mod h1:gx7rwoVhcfuVKG5uya9Hs3Sxj7EIvldVofAWIUtGouw=
 github.com/yuin/goldmark v1.6.0 h1:boZcn2GTjpsynOsC0iJHnBWa4Bi0qzfJjthwauItG68=
 github.com/yuin/goldmark v1.6.0/go.mod h1:6yULJ656Px+3vBD8DxQVa3kxgyrAnzto9xy5taEt/CY=
-golang.org/x/arch v0.23.1-0.20260109160903-657d90bd6695 h1:q45HsUyFzBjBk4mHGgUewJf6KKOkNiWB8wMx0X6elyA=
-golang.org/x/arch v0.23.1-0.20260109160903-657d90bd6695/go.mod h1:dNHoOeKiyja7GTvF9NJS1l3Z2yntpQNzgrjh1cU103A=
+golang.org/x/arch v0.27.1-0.20260513003155-2ebc08890589 h1:vhLfA6kUzRvCYV5uFBJbdMndztX1STqGC8GmQJsuldY=
+golang.org/x/arch v0.27.1-0.20260513003155-2ebc08890589/go.mod h1:0X+GdSIP+kL5wPmpK7sdkEVTt2XoYP0cSjQSbZBwOi8=
 golang.org/x/build v0.0.0-20260122183339-3ba88df37c64 h1:BNhBATNmH/VtzGolB+ksQPPvn6ZyffiR8TmKenqNo+A=
 golang.org/x/build v0.0.0-20260122183339-3ba88df37c64/go.mod h1:3QmSbNil8ZWqC94m80Glej1v8b92gYzPIQPTtSa0c+4=
 golang.org/x/mod v0.36.1-0.20260513122029-343ee60345a1 h1:C0TwvxhsI0bHc1TbK4QEa5PCMrHiST7y/lpX4MVW3KM=
