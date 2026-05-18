@@ -361,6 +361,8 @@ func inline(config generatorConfig) []byte {
 			}
 		}
 
+		stamped = cleanLabels(stamped)
+
 		out.Write(mustFormatNode(fset, stamped))
 		out.WriteString("\n\n")
 	}
@@ -459,6 +461,14 @@ func foldIfCondition(node ast.Node, from, to string) ast.Node {
 			}
 		case *ast.IfStmt:
 			if v, ok := boolLit(n.Cond); ok {
+				if cursor.Index() < 0 {
+					replacement := ast.Node(&ast.EmptyStmt{})
+					if v {
+						replacement = n.Body
+					}
+					cursor.Replace(replacement)
+					break
+				}
 				if v {
 					for _, stmt := range n.Body.List {
 						cursor.InsertBefore(stmt)
@@ -473,10 +483,48 @@ func foldIfCondition(node ast.Node, from, to string) ast.Node {
 				}
 				cursor.Delete()
 			}
+		case *ast.LabeledStmt:
+			// This case isn't necessary but it moves the code
+			// out of the block so that it looks cleaner.
+			if inner, ok := n.Stmt.(*ast.BlockStmt); ok {
+				if len(inner.List) == 0 {
+					cursor.Delete()
+					break
+				}
+				list := inner.List
+				n.Stmt = list[0]
+				for i := len(list) - 1; i > 0; i-- {
+					cursor.InsertAfter(list[i])
+				}
+			}
 		}
 		return true
 	}
 	return astutil.Apply(node, nil, handleIfs)
+}
+
+func cleanLabels(node ast.Node) ast.Node {
+	found := map[string]bool{}
+	ast.Inspect(node, func(node ast.Node) bool {
+		if branch, ok := node.(*ast.BranchStmt); ok {
+			if branch.Label != nil {
+				found[branch.Label.Name] = true
+			}
+		}
+		return true
+	})
+	return astutil.Apply(node, nil, func(cursor *astutil.Cursor) bool {
+		if lstmt, ok := cursor.Node().(*ast.LabeledStmt); ok {
+			if !found[lstmt.Label.Name] {
+				if _, ok := lstmt.Stmt.(*ast.EmptyStmt); ok {
+					cursor.Delete()
+				} else {
+					cursor.Replace(lstmt.Stmt)
+				}
+			}
+		}
+		return true
+	})
 }
 
 // reports whether this is a non-grouped constant decl named 'name'.

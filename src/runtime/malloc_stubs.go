@@ -202,31 +202,32 @@ func smallStub(size uintptr, typ *_type, needzero bool) unsafe.Pointer {
 	const spc = spanClass(sizeclass<<1) | spanClass(noscanint_)
 	span := c.alloc[spc]
 
+	var v gclinkptr
+	var x unsafe.Pointer
 	if isNoScan_ {
 		// First, check for a reusable object.
 		if runtimeFreegcEnabled && c.hasReusableNoscan(spc) {
 			// We have a reusable object, use it.
-			x := mallocgcSmallNoscanReuse(c, span, spc, elemsize, needzero)
+			x = mallocgcSmallNoscanReuse(c, span, spc, elemsize, needzero)
 			mp.mallocing = 0
 			releasem(mp)
-
-			// TODO(thepudds): note that the generated return path is essentially duplicated
-			// by the generator. For example, see the two postMallocgcDebug calls and
-			// related duplicated code on the return path currently in the generated
-			// mallocgcSmallNoScanSC2 function. One set of those correspond to this
-			// return here. We might be able to de-duplicate the generated return path
-			// by updating the generator, perhaps by jumping to a shared return or similar.
-			postMallocgc(x, typ, size, elemsize)
-
+			if isSlowPath_ {
+				// postMallocgc only does anything in the slow path.
+				goto post
+			}
 			return x
 		}
 	}
-
-	v := nextFreeFastStub(span, elemsize)
-	if v == 0 {
-		v, span, checkGCTrigger = c.nextFree(spc)
+	// This is in a block so that the goto above doesn't jump past the
+	// definition of nextFreeFastResult that's introduced when nextFreeFastStub
+	// is inlined.
+	{
+		v = nextFreeFastStub(span, elemsize)
+		if v == 0 {
+			v, span, checkGCTrigger = c.nextFree(spc)
+		}
+		x = unsafe.Pointer(v)
 	}
-	x := unsafe.Pointer(v)
 	if isNoScan_ {
 		if needzero && span.needzero != 0 {
 			memclrNoHeapPointers(x, elemsize)
@@ -296,7 +297,10 @@ func smallStub(size uintptr, typ *_type, needzero bool) unsafe.Pointer {
 		}
 	}
 
-	postMallocgc(x, typ, size, elemsize)
+post:
+	if isSlowPath_ {
+		postMallocgc(x, typ, size, elemsize)
+	}
 
 	return x
 }

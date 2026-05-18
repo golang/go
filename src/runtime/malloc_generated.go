@@ -45,25 +45,31 @@ func mallocgcSmallScanNoHeaderSC1(size uintptr, typ *_type, needzero bool) unsaf
 	const spc = spanClass(sizeclass<<1) | spanClass(0)
 	span := c.alloc[spc]
 
-	var nextFreeFastResult gclinkptr
-	if span.allocCache != 0 {
-		theBit := sys.TrailingZeros64(span.allocCache)
-		result := span.freeindex + uint16(theBit)
-		if result < span.nelems {
-			freeidx := result + 1
-			if !(freeidx%64 == 0 && freeidx != span.nelems) {
-				span.allocCache >>= uint(theBit + 1)
-				span.freeindex = freeidx
-				span.allocCount++
-				nextFreeFastResult = gclinkptr(uintptr(result)*elemsize + span.base())
+	var v gclinkptr
+	var x unsafe.Pointer
+
+	{
+
+		var nextFreeFastResult gclinkptr
+		if span.allocCache != 0 {
+			theBit := sys.TrailingZeros64(span.allocCache)
+			result := span.freeindex + uint16(theBit)
+			if result < span.nelems {
+				freeidx := result + 1
+				if !(freeidx%64 == 0 && freeidx != span.nelems) {
+					span.allocCache >>= uint(theBit + 1)
+					span.freeindex = freeidx
+					span.allocCount++
+					nextFreeFastResult = gclinkptr(uintptr(result)*elemsize + span.base())
+				}
 			}
 		}
+		v = nextFreeFastResult
+		if v == 0 {
+			v, span, checkGCTrigger = c.nextFree(spc)
+		}
+		x = unsafe.Pointer(v)
 	}
-	v := nextFreeFastResult
-	if v == 0 {
-		v, span, checkGCTrigger = c.nextFree(spc)
-	}
-	x := unsafe.Pointer(v)
 
 	if span.needzero != 0 {
 		memclrNoHeapPointers(x, elemsize)
@@ -188,25 +194,31 @@ func mallocgcSmallScanNoHeaderSC2(size uintptr, typ *_type, needzero bool) unsaf
 	const spc = spanClass(sizeclass<<1) | spanClass(0)
 	span := c.alloc[spc]
 
-	var nextFreeFastResult gclinkptr
-	if span.allocCache != 0 {
-		theBit := sys.TrailingZeros64(span.allocCache)
-		result := span.freeindex + uint16(theBit)
-		if result < span.nelems {
-			freeidx := result + 1
-			if !(freeidx%64 == 0 && freeidx != span.nelems) {
-				span.allocCache >>= uint(theBit + 1)
-				span.freeindex = freeidx
-				span.allocCount++
-				nextFreeFastResult = gclinkptr(uintptr(result)*elemsize + span.base())
+	var v gclinkptr
+	var x unsafe.Pointer
+
+	{
+
+		var nextFreeFastResult gclinkptr
+		if span.allocCache != 0 {
+			theBit := sys.TrailingZeros64(span.allocCache)
+			result := span.freeindex + uint16(theBit)
+			if result < span.nelems {
+				freeidx := result + 1
+				if !(freeidx%64 == 0 && freeidx != span.nelems) {
+					span.allocCache >>= uint(theBit + 1)
+					span.freeindex = freeidx
+					span.allocCount++
+					nextFreeFastResult = gclinkptr(uintptr(result)*elemsize + span.base())
+				}
 			}
 		}
+		v = nextFreeFastResult
+		if v == 0 {
+			v, span, checkGCTrigger = c.nextFree(spc)
+		}
+		x = unsafe.Pointer(v)
 	}
-	v := nextFreeFastResult
-	if v == 0 {
-		v, span, checkGCTrigger = c.nextFree(spc)
-	}
-	x := unsafe.Pointer(v)
 
 	if span.needzero != 0 {
 		memclrNoHeapPointers(x, elemsize)
@@ -331,25 +343,31 @@ func mallocgcSmallScanNoHeaderSC3(size uintptr, typ *_type, needzero bool) unsaf
 	const spc = spanClass(sizeclass<<1) | spanClass(0)
 	span := c.alloc[spc]
 
-	var nextFreeFastResult gclinkptr
-	if span.allocCache != 0 {
-		theBit := sys.TrailingZeros64(span.allocCache)
-		result := span.freeindex + uint16(theBit)
-		if result < span.nelems {
-			freeidx := result + 1
-			if !(freeidx%64 == 0 && freeidx != span.nelems) {
-				span.allocCache >>= uint(theBit + 1)
-				span.freeindex = freeidx
-				span.allocCount++
-				nextFreeFastResult = gclinkptr(uintptr(result)*elemsize + span.base())
+	var v gclinkptr
+	var x unsafe.Pointer
+
+	{
+
+		var nextFreeFastResult gclinkptr
+		if span.allocCache != 0 {
+			theBit := sys.TrailingZeros64(span.allocCache)
+			result := span.freeindex + uint16(theBit)
+			if result < span.nelems {
+				freeidx := result + 1
+				if !(freeidx%64 == 0 && freeidx != span.nelems) {
+					span.allocCache >>= uint(theBit + 1)
+					span.freeindex = freeidx
+					span.allocCount++
+					nextFreeFastResult = gclinkptr(uintptr(result)*elemsize + span.base())
+				}
 			}
 		}
+		v = nextFreeFastResult
+		if v == 0 {
+			v, span, checkGCTrigger = c.nextFree(spc)
+		}
+		x = unsafe.Pointer(v)
 	}
-	v := nextFreeFastResult
-	if v == 0 {
-		v, span, checkGCTrigger = c.nextFree(spc)
-	}
-	x := unsafe.Pointer(v)
 
 	if span.needzero != 0 {
 		memclrNoHeapPointers(x, elemsize)
@@ -474,25 +492,31 @@ func mallocgcSmallScanNoHeaderSC4(size uintptr, typ *_type, needzero bool) unsaf
 	const spc = spanClass(sizeclass<<1) | spanClass(0)
 	span := c.alloc[spc]
 
-	var nextFreeFastResult gclinkptr
-	if span.allocCache != 0 {
-		theBit := sys.TrailingZeros64(span.allocCache)
-		result := span.freeindex + uint16(theBit)
-		if result < span.nelems {
-			freeidx := result + 1
-			if !(freeidx%64 == 0 && freeidx != span.nelems) {
-				span.allocCache >>= uint(theBit + 1)
-				span.freeindex = freeidx
-				span.allocCount++
-				nextFreeFastResult = gclinkptr(uintptr(result)*elemsize + span.base())
+	var v gclinkptr
+	var x unsafe.Pointer
+
+	{
+
+		var nextFreeFastResult gclinkptr
+		if span.allocCache != 0 {
+			theBit := sys.TrailingZeros64(span.allocCache)
+			result := span.freeindex + uint16(theBit)
+			if result < span.nelems {
+				freeidx := result + 1
+				if !(freeidx%64 == 0 && freeidx != span.nelems) {
+					span.allocCache >>= uint(theBit + 1)
+					span.freeindex = freeidx
+					span.allocCount++
+					nextFreeFastResult = gclinkptr(uintptr(result)*elemsize + span.base())
+				}
 			}
 		}
+		v = nextFreeFastResult
+		if v == 0 {
+			v, span, checkGCTrigger = c.nextFree(spc)
+		}
+		x = unsafe.Pointer(v)
 	}
-	v := nextFreeFastResult
-	if v == 0 {
-		v, span, checkGCTrigger = c.nextFree(spc)
-	}
-	x := unsafe.Pointer(v)
 
 	if span.needzero != 0 {
 		memclrNoHeapPointers(x, elemsize)
@@ -617,25 +641,31 @@ func mallocgcSmallScanNoHeaderSC5(size uintptr, typ *_type, needzero bool) unsaf
 	const spc = spanClass(sizeclass<<1) | spanClass(0)
 	span := c.alloc[spc]
 
-	var nextFreeFastResult gclinkptr
-	if span.allocCache != 0 {
-		theBit := sys.TrailingZeros64(span.allocCache)
-		result := span.freeindex + uint16(theBit)
-		if result < span.nelems {
-			freeidx := result + 1
-			if !(freeidx%64 == 0 && freeidx != span.nelems) {
-				span.allocCache >>= uint(theBit + 1)
-				span.freeindex = freeidx
-				span.allocCount++
-				nextFreeFastResult = gclinkptr(uintptr(result)*elemsize + span.base())
+	var v gclinkptr
+	var x unsafe.Pointer
+
+	{
+
+		var nextFreeFastResult gclinkptr
+		if span.allocCache != 0 {
+			theBit := sys.TrailingZeros64(span.allocCache)
+			result := span.freeindex + uint16(theBit)
+			if result < span.nelems {
+				freeidx := result + 1
+				if !(freeidx%64 == 0 && freeidx != span.nelems) {
+					span.allocCache >>= uint(theBit + 1)
+					span.freeindex = freeidx
+					span.allocCount++
+					nextFreeFastResult = gclinkptr(uintptr(result)*elemsize + span.base())
+				}
 			}
 		}
+		v = nextFreeFastResult
+		if v == 0 {
+			v, span, checkGCTrigger = c.nextFree(spc)
+		}
+		x = unsafe.Pointer(v)
 	}
-	v := nextFreeFastResult
-	if v == 0 {
-		v, span, checkGCTrigger = c.nextFree(spc)
-	}
-	x := unsafe.Pointer(v)
 
 	if span.needzero != 0 {
 		memclrNoHeapPointers(x, elemsize)
@@ -760,25 +790,31 @@ func mallocgcSmallScanNoHeaderSC6(size uintptr, typ *_type, needzero bool) unsaf
 	const spc = spanClass(sizeclass<<1) | spanClass(0)
 	span := c.alloc[spc]
 
-	var nextFreeFastResult gclinkptr
-	if span.allocCache != 0 {
-		theBit := sys.TrailingZeros64(span.allocCache)
-		result := span.freeindex + uint16(theBit)
-		if result < span.nelems {
-			freeidx := result + 1
-			if !(freeidx%64 == 0 && freeidx != span.nelems) {
-				span.allocCache >>= uint(theBit + 1)
-				span.freeindex = freeidx
-				span.allocCount++
-				nextFreeFastResult = gclinkptr(uintptr(result)*elemsize + span.base())
+	var v gclinkptr
+	var x unsafe.Pointer
+
+	{
+
+		var nextFreeFastResult gclinkptr
+		if span.allocCache != 0 {
+			theBit := sys.TrailingZeros64(span.allocCache)
+			result := span.freeindex + uint16(theBit)
+			if result < span.nelems {
+				freeidx := result + 1
+				if !(freeidx%64 == 0 && freeidx != span.nelems) {
+					span.allocCache >>= uint(theBit + 1)
+					span.freeindex = freeidx
+					span.allocCount++
+					nextFreeFastResult = gclinkptr(uintptr(result)*elemsize + span.base())
+				}
 			}
 		}
+		v = nextFreeFastResult
+		if v == 0 {
+			v, span, checkGCTrigger = c.nextFree(spc)
+		}
+		x = unsafe.Pointer(v)
 	}
-	v := nextFreeFastResult
-	if v == 0 {
-		v, span, checkGCTrigger = c.nextFree(spc)
-	}
-	x := unsafe.Pointer(v)
 
 	if span.needzero != 0 {
 		memclrNoHeapPointers(x, elemsize)
@@ -903,25 +939,31 @@ func mallocgcSmallScanNoHeaderSC7(size uintptr, typ *_type, needzero bool) unsaf
 	const spc = spanClass(sizeclass<<1) | spanClass(0)
 	span := c.alloc[spc]
 
-	var nextFreeFastResult gclinkptr
-	if span.allocCache != 0 {
-		theBit := sys.TrailingZeros64(span.allocCache)
-		result := span.freeindex + uint16(theBit)
-		if result < span.nelems {
-			freeidx := result + 1
-			if !(freeidx%64 == 0 && freeidx != span.nelems) {
-				span.allocCache >>= uint(theBit + 1)
-				span.freeindex = freeidx
-				span.allocCount++
-				nextFreeFastResult = gclinkptr(uintptr(result)*elemsize + span.base())
+	var v gclinkptr
+	var x unsafe.Pointer
+
+	{
+
+		var nextFreeFastResult gclinkptr
+		if span.allocCache != 0 {
+			theBit := sys.TrailingZeros64(span.allocCache)
+			result := span.freeindex + uint16(theBit)
+			if result < span.nelems {
+				freeidx := result + 1
+				if !(freeidx%64 == 0 && freeidx != span.nelems) {
+					span.allocCache >>= uint(theBit + 1)
+					span.freeindex = freeidx
+					span.allocCount++
+					nextFreeFastResult = gclinkptr(uintptr(result)*elemsize + span.base())
+				}
 			}
 		}
+		v = nextFreeFastResult
+		if v == 0 {
+			v, span, checkGCTrigger = c.nextFree(spc)
+		}
+		x = unsafe.Pointer(v)
 	}
-	v := nextFreeFastResult
-	if v == 0 {
-		v, span, checkGCTrigger = c.nextFree(spc)
-	}
-	x := unsafe.Pointer(v)
 
 	if span.needzero != 0 {
 		memclrNoHeapPointers(x, elemsize)
@@ -1046,25 +1088,31 @@ func mallocgcSmallScanNoHeaderSC8(size uintptr, typ *_type, needzero bool) unsaf
 	const spc = spanClass(sizeclass<<1) | spanClass(0)
 	span := c.alloc[spc]
 
-	var nextFreeFastResult gclinkptr
-	if span.allocCache != 0 {
-		theBit := sys.TrailingZeros64(span.allocCache)
-		result := span.freeindex + uint16(theBit)
-		if result < span.nelems {
-			freeidx := result + 1
-			if !(freeidx%64 == 0 && freeidx != span.nelems) {
-				span.allocCache >>= uint(theBit + 1)
-				span.freeindex = freeidx
-				span.allocCount++
-				nextFreeFastResult = gclinkptr(uintptr(result)*elemsize + span.base())
+	var v gclinkptr
+	var x unsafe.Pointer
+
+	{
+
+		var nextFreeFastResult gclinkptr
+		if span.allocCache != 0 {
+			theBit := sys.TrailingZeros64(span.allocCache)
+			result := span.freeindex + uint16(theBit)
+			if result < span.nelems {
+				freeidx := result + 1
+				if !(freeidx%64 == 0 && freeidx != span.nelems) {
+					span.allocCache >>= uint(theBit + 1)
+					span.freeindex = freeidx
+					span.allocCount++
+					nextFreeFastResult = gclinkptr(uintptr(result)*elemsize + span.base())
+				}
 			}
 		}
+		v = nextFreeFastResult
+		if v == 0 {
+			v, span, checkGCTrigger = c.nextFree(spc)
+		}
+		x = unsafe.Pointer(v)
 	}
-	v := nextFreeFastResult
-	if v == 0 {
-		v, span, checkGCTrigger = c.nextFree(spc)
-	}
-	x := unsafe.Pointer(v)
 
 	if span.needzero != 0 {
 		memclrNoHeapPointers(x, elemsize)
@@ -1189,25 +1237,31 @@ func mallocgcSmallScanNoHeaderSC9(size uintptr, typ *_type, needzero bool) unsaf
 	const spc = spanClass(sizeclass<<1) | spanClass(0)
 	span := c.alloc[spc]
 
-	var nextFreeFastResult gclinkptr
-	if span.allocCache != 0 {
-		theBit := sys.TrailingZeros64(span.allocCache)
-		result := span.freeindex + uint16(theBit)
-		if result < span.nelems {
-			freeidx := result + 1
-			if !(freeidx%64 == 0 && freeidx != span.nelems) {
-				span.allocCache >>= uint(theBit + 1)
-				span.freeindex = freeidx
-				span.allocCount++
-				nextFreeFastResult = gclinkptr(uintptr(result)*elemsize + span.base())
+	var v gclinkptr
+	var x unsafe.Pointer
+
+	{
+
+		var nextFreeFastResult gclinkptr
+		if span.allocCache != 0 {
+			theBit := sys.TrailingZeros64(span.allocCache)
+			result := span.freeindex + uint16(theBit)
+			if result < span.nelems {
+				freeidx := result + 1
+				if !(freeidx%64 == 0 && freeidx != span.nelems) {
+					span.allocCache >>= uint(theBit + 1)
+					span.freeindex = freeidx
+					span.allocCount++
+					nextFreeFastResult = gclinkptr(uintptr(result)*elemsize + span.base())
+				}
 			}
 		}
+		v = nextFreeFastResult
+		if v == 0 {
+			v, span, checkGCTrigger = c.nextFree(spc)
+		}
+		x = unsafe.Pointer(v)
 	}
-	v := nextFreeFastResult
-	if v == 0 {
-		v, span, checkGCTrigger = c.nextFree(spc)
-	}
-	x := unsafe.Pointer(v)
 
 	if span.needzero != 0 {
 		memclrNoHeapPointers(x, elemsize)
@@ -1332,25 +1386,31 @@ func mallocgcSmallScanNoHeaderSC10(size uintptr, typ *_type, needzero bool) unsa
 	const spc = spanClass(sizeclass<<1) | spanClass(0)
 	span := c.alloc[spc]
 
-	var nextFreeFastResult gclinkptr
-	if span.allocCache != 0 {
-		theBit := sys.TrailingZeros64(span.allocCache)
-		result := span.freeindex + uint16(theBit)
-		if result < span.nelems {
-			freeidx := result + 1
-			if !(freeidx%64 == 0 && freeidx != span.nelems) {
-				span.allocCache >>= uint(theBit + 1)
-				span.freeindex = freeidx
-				span.allocCount++
-				nextFreeFastResult = gclinkptr(uintptr(result)*elemsize + span.base())
+	var v gclinkptr
+	var x unsafe.Pointer
+
+	{
+
+		var nextFreeFastResult gclinkptr
+		if span.allocCache != 0 {
+			theBit := sys.TrailingZeros64(span.allocCache)
+			result := span.freeindex + uint16(theBit)
+			if result < span.nelems {
+				freeidx := result + 1
+				if !(freeidx%64 == 0 && freeidx != span.nelems) {
+					span.allocCache >>= uint(theBit + 1)
+					span.freeindex = freeidx
+					span.allocCount++
+					nextFreeFastResult = gclinkptr(uintptr(result)*elemsize + span.base())
+				}
 			}
 		}
+		v = nextFreeFastResult
+		if v == 0 {
+			v, span, checkGCTrigger = c.nextFree(spc)
+		}
+		x = unsafe.Pointer(v)
 	}
-	v := nextFreeFastResult
-	if v == 0 {
-		v, span, checkGCTrigger = c.nextFree(spc)
-	}
-	x := unsafe.Pointer(v)
 
 	if span.needzero != 0 {
 		memclrNoHeapPointers(x, elemsize)
@@ -1582,34 +1642,40 @@ func mallocgcSmallNoScanSC2(size uintptr, typ *_type, needzero bool) unsafe.Poin
 	const spc = spanClass(sizeclass<<1) | spanClass(1)
 	span := c.alloc[spc]
 
+	var v gclinkptr
+	var x unsafe.Pointer
+
 	if runtimeFreegcEnabled && c.hasReusableNoscan(spc) {
 
-		x := mallocgcSmallNoscanReuse(c, span, spc, elemsize, needzero)
+		x = mallocgcSmallNoscanReuse(c, span, spc, elemsize, needzero)
 		mp.mallocing = 0
 		releasem(mp)
 
 		return x
 	}
 
-	var nextFreeFastResult gclinkptr
-	if span.allocCache != 0 {
-		theBit := sys.TrailingZeros64(span.allocCache)
-		result := span.freeindex + uint16(theBit)
-		if result < span.nelems {
-			freeidx := result + 1
-			if !(freeidx%64 == 0 && freeidx != span.nelems) {
-				span.allocCache >>= uint(theBit + 1)
-				span.freeindex = freeidx
-				span.allocCount++
-				nextFreeFastResult = gclinkptr(uintptr(result)*elemsize + span.base())
+	{
+
+		var nextFreeFastResult gclinkptr
+		if span.allocCache != 0 {
+			theBit := sys.TrailingZeros64(span.allocCache)
+			result := span.freeindex + uint16(theBit)
+			if result < span.nelems {
+				freeidx := result + 1
+				if !(freeidx%64 == 0 && freeidx != span.nelems) {
+					span.allocCache >>= uint(theBit + 1)
+					span.freeindex = freeidx
+					span.allocCount++
+					nextFreeFastResult = gclinkptr(uintptr(result)*elemsize + span.base())
+				}
 			}
 		}
+		v = nextFreeFastResult
+		if v == 0 {
+			v, span, checkGCTrigger = c.nextFree(spc)
+		}
+		x = unsafe.Pointer(v)
 	}
-	v := nextFreeFastResult
-	if v == 0 {
-		v, span, checkGCTrigger = c.nextFree(spc)
-	}
-	x := unsafe.Pointer(v)
 
 	if needzero && span.needzero != 0 {
 		memclrNoHeapPointers(x, elemsize)
@@ -1670,34 +1736,40 @@ func mallocgcSmallNoScanSC3(size uintptr, typ *_type, needzero bool) unsafe.Poin
 	const spc = spanClass(sizeclass<<1) | spanClass(1)
 	span := c.alloc[spc]
 
+	var v gclinkptr
+	var x unsafe.Pointer
+
 	if runtimeFreegcEnabled && c.hasReusableNoscan(spc) {
 
-		x := mallocgcSmallNoscanReuse(c, span, spc, elemsize, needzero)
+		x = mallocgcSmallNoscanReuse(c, span, spc, elemsize, needzero)
 		mp.mallocing = 0
 		releasem(mp)
 
 		return x
 	}
 
-	var nextFreeFastResult gclinkptr
-	if span.allocCache != 0 {
-		theBit := sys.TrailingZeros64(span.allocCache)
-		result := span.freeindex + uint16(theBit)
-		if result < span.nelems {
-			freeidx := result + 1
-			if !(freeidx%64 == 0 && freeidx != span.nelems) {
-				span.allocCache >>= uint(theBit + 1)
-				span.freeindex = freeidx
-				span.allocCount++
-				nextFreeFastResult = gclinkptr(uintptr(result)*elemsize + span.base())
+	{
+
+		var nextFreeFastResult gclinkptr
+		if span.allocCache != 0 {
+			theBit := sys.TrailingZeros64(span.allocCache)
+			result := span.freeindex + uint16(theBit)
+			if result < span.nelems {
+				freeidx := result + 1
+				if !(freeidx%64 == 0 && freeidx != span.nelems) {
+					span.allocCache >>= uint(theBit + 1)
+					span.freeindex = freeidx
+					span.allocCount++
+					nextFreeFastResult = gclinkptr(uintptr(result)*elemsize + span.base())
+				}
 			}
 		}
+		v = nextFreeFastResult
+		if v == 0 {
+			v, span, checkGCTrigger = c.nextFree(spc)
+		}
+		x = unsafe.Pointer(v)
 	}
-	v := nextFreeFastResult
-	if v == 0 {
-		v, span, checkGCTrigger = c.nextFree(spc)
-	}
-	x := unsafe.Pointer(v)
 
 	if needzero && span.needzero != 0 {
 		memclrNoHeapPointers(x, elemsize)
@@ -1758,34 +1830,40 @@ func mallocgcSmallNoScanSC4(size uintptr, typ *_type, needzero bool) unsafe.Poin
 	const spc = spanClass(sizeclass<<1) | spanClass(1)
 	span := c.alloc[spc]
 
+	var v gclinkptr
+	var x unsafe.Pointer
+
 	if runtimeFreegcEnabled && c.hasReusableNoscan(spc) {
 
-		x := mallocgcSmallNoscanReuse(c, span, spc, elemsize, needzero)
+		x = mallocgcSmallNoscanReuse(c, span, spc, elemsize, needzero)
 		mp.mallocing = 0
 		releasem(mp)
 
 		return x
 	}
 
-	var nextFreeFastResult gclinkptr
-	if span.allocCache != 0 {
-		theBit := sys.TrailingZeros64(span.allocCache)
-		result := span.freeindex + uint16(theBit)
-		if result < span.nelems {
-			freeidx := result + 1
-			if !(freeidx%64 == 0 && freeidx != span.nelems) {
-				span.allocCache >>= uint(theBit + 1)
-				span.freeindex = freeidx
-				span.allocCount++
-				nextFreeFastResult = gclinkptr(uintptr(result)*elemsize + span.base())
+	{
+
+		var nextFreeFastResult gclinkptr
+		if span.allocCache != 0 {
+			theBit := sys.TrailingZeros64(span.allocCache)
+			result := span.freeindex + uint16(theBit)
+			if result < span.nelems {
+				freeidx := result + 1
+				if !(freeidx%64 == 0 && freeidx != span.nelems) {
+					span.allocCache >>= uint(theBit + 1)
+					span.freeindex = freeidx
+					span.allocCount++
+					nextFreeFastResult = gclinkptr(uintptr(result)*elemsize + span.base())
+				}
 			}
 		}
+		v = nextFreeFastResult
+		if v == 0 {
+			v, span, checkGCTrigger = c.nextFree(spc)
+		}
+		x = unsafe.Pointer(v)
 	}
-	v := nextFreeFastResult
-	if v == 0 {
-		v, span, checkGCTrigger = c.nextFree(spc)
-	}
-	x := unsafe.Pointer(v)
 
 	if needzero && span.needzero != 0 {
 		memclrNoHeapPointers(x, elemsize)
@@ -1846,34 +1924,40 @@ func mallocgcSmallNoScanSC5(size uintptr, typ *_type, needzero bool) unsafe.Poin
 	const spc = spanClass(sizeclass<<1) | spanClass(1)
 	span := c.alloc[spc]
 
+	var v gclinkptr
+	var x unsafe.Pointer
+
 	if runtimeFreegcEnabled && c.hasReusableNoscan(spc) {
 
-		x := mallocgcSmallNoscanReuse(c, span, spc, elemsize, needzero)
+		x = mallocgcSmallNoscanReuse(c, span, spc, elemsize, needzero)
 		mp.mallocing = 0
 		releasem(mp)
 
 		return x
 	}
 
-	var nextFreeFastResult gclinkptr
-	if span.allocCache != 0 {
-		theBit := sys.TrailingZeros64(span.allocCache)
-		result := span.freeindex + uint16(theBit)
-		if result < span.nelems {
-			freeidx := result + 1
-			if !(freeidx%64 == 0 && freeidx != span.nelems) {
-				span.allocCache >>= uint(theBit + 1)
-				span.freeindex = freeidx
-				span.allocCount++
-				nextFreeFastResult = gclinkptr(uintptr(result)*elemsize + span.base())
+	{
+
+		var nextFreeFastResult gclinkptr
+		if span.allocCache != 0 {
+			theBit := sys.TrailingZeros64(span.allocCache)
+			result := span.freeindex + uint16(theBit)
+			if result < span.nelems {
+				freeidx := result + 1
+				if !(freeidx%64 == 0 && freeidx != span.nelems) {
+					span.allocCache >>= uint(theBit + 1)
+					span.freeindex = freeidx
+					span.allocCount++
+					nextFreeFastResult = gclinkptr(uintptr(result)*elemsize + span.base())
+				}
 			}
 		}
+		v = nextFreeFastResult
+		if v == 0 {
+			v, span, checkGCTrigger = c.nextFree(spc)
+		}
+		x = unsafe.Pointer(v)
 	}
-	v := nextFreeFastResult
-	if v == 0 {
-		v, span, checkGCTrigger = c.nextFree(spc)
-	}
-	x := unsafe.Pointer(v)
 
 	if needzero && span.needzero != 0 {
 		memclrNoHeapPointers(x, elemsize)
@@ -1934,34 +2018,40 @@ func mallocgcSmallNoScanSC6(size uintptr, typ *_type, needzero bool) unsafe.Poin
 	const spc = spanClass(sizeclass<<1) | spanClass(1)
 	span := c.alloc[spc]
 
+	var v gclinkptr
+	var x unsafe.Pointer
+
 	if runtimeFreegcEnabled && c.hasReusableNoscan(spc) {
 
-		x := mallocgcSmallNoscanReuse(c, span, spc, elemsize, needzero)
+		x = mallocgcSmallNoscanReuse(c, span, spc, elemsize, needzero)
 		mp.mallocing = 0
 		releasem(mp)
 
 		return x
 	}
 
-	var nextFreeFastResult gclinkptr
-	if span.allocCache != 0 {
-		theBit := sys.TrailingZeros64(span.allocCache)
-		result := span.freeindex + uint16(theBit)
-		if result < span.nelems {
-			freeidx := result + 1
-			if !(freeidx%64 == 0 && freeidx != span.nelems) {
-				span.allocCache >>= uint(theBit + 1)
-				span.freeindex = freeidx
-				span.allocCount++
-				nextFreeFastResult = gclinkptr(uintptr(result)*elemsize + span.base())
+	{
+
+		var nextFreeFastResult gclinkptr
+		if span.allocCache != 0 {
+			theBit := sys.TrailingZeros64(span.allocCache)
+			result := span.freeindex + uint16(theBit)
+			if result < span.nelems {
+				freeidx := result + 1
+				if !(freeidx%64 == 0 && freeidx != span.nelems) {
+					span.allocCache >>= uint(theBit + 1)
+					span.freeindex = freeidx
+					span.allocCount++
+					nextFreeFastResult = gclinkptr(uintptr(result)*elemsize + span.base())
+				}
 			}
 		}
+		v = nextFreeFastResult
+		if v == 0 {
+			v, span, checkGCTrigger = c.nextFree(spc)
+		}
+		x = unsafe.Pointer(v)
 	}
-	v := nextFreeFastResult
-	if v == 0 {
-		v, span, checkGCTrigger = c.nextFree(spc)
-	}
-	x := unsafe.Pointer(v)
 
 	if needzero && span.needzero != 0 {
 		memclrNoHeapPointers(x, elemsize)
@@ -2022,34 +2112,40 @@ func mallocgcSmallNoScanSC7(size uintptr, typ *_type, needzero bool) unsafe.Poin
 	const spc = spanClass(sizeclass<<1) | spanClass(1)
 	span := c.alloc[spc]
 
+	var v gclinkptr
+	var x unsafe.Pointer
+
 	if runtimeFreegcEnabled && c.hasReusableNoscan(spc) {
 
-		x := mallocgcSmallNoscanReuse(c, span, spc, elemsize, needzero)
+		x = mallocgcSmallNoscanReuse(c, span, spc, elemsize, needzero)
 		mp.mallocing = 0
 		releasem(mp)
 
 		return x
 	}
 
-	var nextFreeFastResult gclinkptr
-	if span.allocCache != 0 {
-		theBit := sys.TrailingZeros64(span.allocCache)
-		result := span.freeindex + uint16(theBit)
-		if result < span.nelems {
-			freeidx := result + 1
-			if !(freeidx%64 == 0 && freeidx != span.nelems) {
-				span.allocCache >>= uint(theBit + 1)
-				span.freeindex = freeidx
-				span.allocCount++
-				nextFreeFastResult = gclinkptr(uintptr(result)*elemsize + span.base())
+	{
+
+		var nextFreeFastResult gclinkptr
+		if span.allocCache != 0 {
+			theBit := sys.TrailingZeros64(span.allocCache)
+			result := span.freeindex + uint16(theBit)
+			if result < span.nelems {
+				freeidx := result + 1
+				if !(freeidx%64 == 0 && freeidx != span.nelems) {
+					span.allocCache >>= uint(theBit + 1)
+					span.freeindex = freeidx
+					span.allocCount++
+					nextFreeFastResult = gclinkptr(uintptr(result)*elemsize + span.base())
+				}
 			}
 		}
+		v = nextFreeFastResult
+		if v == 0 {
+			v, span, checkGCTrigger = c.nextFree(spc)
+		}
+		x = unsafe.Pointer(v)
 	}
-	v := nextFreeFastResult
-	if v == 0 {
-		v, span, checkGCTrigger = c.nextFree(spc)
-	}
-	x := unsafe.Pointer(v)
 
 	if needzero && span.needzero != 0 {
 		memclrNoHeapPointers(x, elemsize)
@@ -2110,34 +2206,40 @@ func mallocgcSmallNoScanSC8(size uintptr, typ *_type, needzero bool) unsafe.Poin
 	const spc = spanClass(sizeclass<<1) | spanClass(1)
 	span := c.alloc[spc]
 
+	var v gclinkptr
+	var x unsafe.Pointer
+
 	if runtimeFreegcEnabled && c.hasReusableNoscan(spc) {
 
-		x := mallocgcSmallNoscanReuse(c, span, spc, elemsize, needzero)
+		x = mallocgcSmallNoscanReuse(c, span, spc, elemsize, needzero)
 		mp.mallocing = 0
 		releasem(mp)
 
 		return x
 	}
 
-	var nextFreeFastResult gclinkptr
-	if span.allocCache != 0 {
-		theBit := sys.TrailingZeros64(span.allocCache)
-		result := span.freeindex + uint16(theBit)
-		if result < span.nelems {
-			freeidx := result + 1
-			if !(freeidx%64 == 0 && freeidx != span.nelems) {
-				span.allocCache >>= uint(theBit + 1)
-				span.freeindex = freeidx
-				span.allocCount++
-				nextFreeFastResult = gclinkptr(uintptr(result)*elemsize + span.base())
+	{
+
+		var nextFreeFastResult gclinkptr
+		if span.allocCache != 0 {
+			theBit := sys.TrailingZeros64(span.allocCache)
+			result := span.freeindex + uint16(theBit)
+			if result < span.nelems {
+				freeidx := result + 1
+				if !(freeidx%64 == 0 && freeidx != span.nelems) {
+					span.allocCache >>= uint(theBit + 1)
+					span.freeindex = freeidx
+					span.allocCount++
+					nextFreeFastResult = gclinkptr(uintptr(result)*elemsize + span.base())
+				}
 			}
 		}
+		v = nextFreeFastResult
+		if v == 0 {
+			v, span, checkGCTrigger = c.nextFree(spc)
+		}
+		x = unsafe.Pointer(v)
 	}
-	v := nextFreeFastResult
-	if v == 0 {
-		v, span, checkGCTrigger = c.nextFree(spc)
-	}
-	x := unsafe.Pointer(v)
 
 	if needzero && span.needzero != 0 {
 		memclrNoHeapPointers(x, elemsize)
@@ -2198,34 +2300,40 @@ func mallocgcSmallNoScanSC9(size uintptr, typ *_type, needzero bool) unsafe.Poin
 	const spc = spanClass(sizeclass<<1) | spanClass(1)
 	span := c.alloc[spc]
 
+	var v gclinkptr
+	var x unsafe.Pointer
+
 	if runtimeFreegcEnabled && c.hasReusableNoscan(spc) {
 
-		x := mallocgcSmallNoscanReuse(c, span, spc, elemsize, needzero)
+		x = mallocgcSmallNoscanReuse(c, span, spc, elemsize, needzero)
 		mp.mallocing = 0
 		releasem(mp)
 
 		return x
 	}
 
-	var nextFreeFastResult gclinkptr
-	if span.allocCache != 0 {
-		theBit := sys.TrailingZeros64(span.allocCache)
-		result := span.freeindex + uint16(theBit)
-		if result < span.nelems {
-			freeidx := result + 1
-			if !(freeidx%64 == 0 && freeidx != span.nelems) {
-				span.allocCache >>= uint(theBit + 1)
-				span.freeindex = freeidx
-				span.allocCount++
-				nextFreeFastResult = gclinkptr(uintptr(result)*elemsize + span.base())
+	{
+
+		var nextFreeFastResult gclinkptr
+		if span.allocCache != 0 {
+			theBit := sys.TrailingZeros64(span.allocCache)
+			result := span.freeindex + uint16(theBit)
+			if result < span.nelems {
+				freeidx := result + 1
+				if !(freeidx%64 == 0 && freeidx != span.nelems) {
+					span.allocCache >>= uint(theBit + 1)
+					span.freeindex = freeidx
+					span.allocCount++
+					nextFreeFastResult = gclinkptr(uintptr(result)*elemsize + span.base())
+				}
 			}
 		}
+		v = nextFreeFastResult
+		if v == 0 {
+			v, span, checkGCTrigger = c.nextFree(spc)
+		}
+		x = unsafe.Pointer(v)
 	}
-	v := nextFreeFastResult
-	if v == 0 {
-		v, span, checkGCTrigger = c.nextFree(spc)
-	}
-	x := unsafe.Pointer(v)
 
 	if needzero && span.needzero != 0 {
 		memclrNoHeapPointers(x, elemsize)
@@ -2286,34 +2394,40 @@ func mallocgcSmallNoScanSC10(size uintptr, typ *_type, needzero bool) unsafe.Poi
 	const spc = spanClass(sizeclass<<1) | spanClass(1)
 	span := c.alloc[spc]
 
+	var v gclinkptr
+	var x unsafe.Pointer
+
 	if runtimeFreegcEnabled && c.hasReusableNoscan(spc) {
 
-		x := mallocgcSmallNoscanReuse(c, span, spc, elemsize, needzero)
+		x = mallocgcSmallNoscanReuse(c, span, spc, elemsize, needzero)
 		mp.mallocing = 0
 		releasem(mp)
 
 		return x
 	}
 
-	var nextFreeFastResult gclinkptr
-	if span.allocCache != 0 {
-		theBit := sys.TrailingZeros64(span.allocCache)
-		result := span.freeindex + uint16(theBit)
-		if result < span.nelems {
-			freeidx := result + 1
-			if !(freeidx%64 == 0 && freeidx != span.nelems) {
-				span.allocCache >>= uint(theBit + 1)
-				span.freeindex = freeidx
-				span.allocCount++
-				nextFreeFastResult = gclinkptr(uintptr(result)*elemsize + span.base())
+	{
+
+		var nextFreeFastResult gclinkptr
+		if span.allocCache != 0 {
+			theBit := sys.TrailingZeros64(span.allocCache)
+			result := span.freeindex + uint16(theBit)
+			if result < span.nelems {
+				freeidx := result + 1
+				if !(freeidx%64 == 0 && freeidx != span.nelems) {
+					span.allocCache >>= uint(theBit + 1)
+					span.freeindex = freeidx
+					span.allocCount++
+					nextFreeFastResult = gclinkptr(uintptr(result)*elemsize + span.base())
+				}
 			}
 		}
+		v = nextFreeFastResult
+		if v == 0 {
+			v, span, checkGCTrigger = c.nextFree(spc)
+		}
+		x = unsafe.Pointer(v)
 	}
-	v := nextFreeFastResult
-	if v == 0 {
-		v, span, checkGCTrigger = c.nextFree(spc)
-	}
-	x := unsafe.Pointer(v)
 
 	if needzero && span.needzero != 0 {
 		memclrNoHeapPointers(x, elemsize)
@@ -2523,25 +2637,31 @@ func mallocgcSmallScanSlowPath(size uintptr, typ *_type, needzero bool, spc span
 
 	span := c.alloc[spc]
 
-	var nextFreeFastResult gclinkptr
-	if span.allocCache != 0 {
-		theBit := sys.TrailingZeros64(span.allocCache)
-		result := span.freeindex + uint16(theBit)
-		if result < span.nelems {
-			freeidx := result + 1
-			if !(freeidx%64 == 0 && freeidx != span.nelems) {
-				span.allocCache >>= uint(theBit + 1)
-				span.freeindex = freeidx
-				span.allocCount++
-				nextFreeFastResult = gclinkptr(uintptr(result)*elemsize + span.base())
+	var v gclinkptr
+	var x unsafe.Pointer
+
+	{
+
+		var nextFreeFastResult gclinkptr
+		if span.allocCache != 0 {
+			theBit := sys.TrailingZeros64(span.allocCache)
+			result := span.freeindex + uint16(theBit)
+			if result < span.nelems {
+				freeidx := result + 1
+				if !(freeidx%64 == 0 && freeidx != span.nelems) {
+					span.allocCache >>= uint(theBit + 1)
+					span.freeindex = freeidx
+					span.allocCount++
+					nextFreeFastResult = gclinkptr(uintptr(result)*elemsize + span.base())
+				}
 			}
 		}
+		v = nextFreeFastResult
+		if v == 0 {
+			v, span, checkGCTrigger = c.nextFree(spc)
+		}
+		x = unsafe.Pointer(v)
 	}
-	v := nextFreeFastResult
-	if v == 0 {
-		v, span, checkGCTrigger = c.nextFree(spc)
-	}
-	x := unsafe.Pointer(v)
 
 	if span.needzero != 0 {
 		memclrNoHeapPointers(x, elemsize)
@@ -2691,49 +2811,42 @@ func mallocgcSmallNoScanSlowPath(size uintptr, typ *_type, needzero bool, spc sp
 
 	span := c.alloc[spc]
 
+	var v gclinkptr
+	var x unsafe.Pointer
+
 	if runtimeFreegcEnabled && c.hasReusableNoscan(spc) {
 
-		x := mallocgcSmallNoscanReuse(c, span, spc, elemsize, needzero)
+		x = mallocgcSmallNoscanReuse(c, span, spc, elemsize, needzero)
 		mp.mallocing = 0
 		releasem(mp)
-		gp := getg()
-		if goexperiment.RuntimeSecret && gp.secret > 0 {
 
-			addSecret(x, size)
-		}
-
-		if gcBlackenEnabled != 0 && elemsize != 0 {
-			if assistG := getg().m.curg; assistG != nil {
-				assistG.gcAssistBytes -= int64(elemsize - size)
-			}
-		}
-
-		if debug.malloc {
-			postMallocgcDebug(x, elemsize, typ)
-		}
+		goto post
 
 		return x
 	}
 
-	var nextFreeFastResult gclinkptr
-	if span.allocCache != 0 {
-		theBit := sys.TrailingZeros64(span.allocCache)
-		result := span.freeindex + uint16(theBit)
-		if result < span.nelems {
-			freeidx := result + 1
-			if !(freeidx%64 == 0 && freeidx != span.nelems) {
-				span.allocCache >>= uint(theBit + 1)
-				span.freeindex = freeidx
-				span.allocCount++
-				nextFreeFastResult = gclinkptr(uintptr(result)*elemsize + span.base())
+	{
+
+		var nextFreeFastResult gclinkptr
+		if span.allocCache != 0 {
+			theBit := sys.TrailingZeros64(span.allocCache)
+			result := span.freeindex + uint16(theBit)
+			if result < span.nelems {
+				freeidx := result + 1
+				if !(freeidx%64 == 0 && freeidx != span.nelems) {
+					span.allocCache >>= uint(theBit + 1)
+					span.freeindex = freeidx
+					span.allocCount++
+					nextFreeFastResult = gclinkptr(uintptr(result)*elemsize + span.base())
+				}
 			}
 		}
+		v = nextFreeFastResult
+		if v == 0 {
+			v, span, checkGCTrigger = c.nextFree(spc)
+		}
+		x = unsafe.Pointer(v)
 	}
-	v := nextFreeFastResult
-	if v == 0 {
-		v, span, checkGCTrigger = c.nextFree(spc)
-	}
-	x := unsafe.Pointer(v)
 
 	if needzero && span.needzero != 0 {
 		memclrNoHeapPointers(x, elemsize)
@@ -2761,6 +2874,8 @@ func mallocgcSmallNoScanSlowPath(size uintptr, typ *_type, needzero bool, spc sp
 			gcStart(t)
 		}
 	}
+
+post:
 	gp := getg()
 	if goexperiment.RuntimeSecret && gp.secret > 0 {
 
