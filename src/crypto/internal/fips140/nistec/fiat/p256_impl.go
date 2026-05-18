@@ -9,3 +9,7 @@ package fiat
 func p256Mul(out, a, b *p256MontgomeryDomainFieldElement) {
 	p256MulGeneric(out, a, b)
 }
+
+func p256Square(out, a *p256MontgomeryDomainFieldElement) {
+	p256SquareGeneric(out, a)
+}
