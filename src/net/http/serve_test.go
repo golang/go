@@ -971,7 +971,9 @@ func testServerWriteTimeout(t *testing.T, mode testMode) {
 func TestServerNoWriteTimeout(t *testing.T) { run(t, testServerNoWriteTimeout) }
 func testServerNoWriteTimeout(t *testing.T, mode testMode) {
 	for _, timeout := range []time.Duration{0, -1} {
+		handlerDone := make(chan struct{})
 		cst := newClientServerTest(t, mode, HandlerFunc(func(res ResponseWriter, req *Request) {
+			defer close(handlerDone)
 			_, err := io.Copy(res, neverEnding('a'))
 			t.Logf("server write response: %v", err)
 		}), func(ts *httptest.Server) {
@@ -983,15 +985,14 @@ func testServerNoWriteTimeout(t *testing.T, mode testMode) {
 		if err != nil {
 			t.Fatal(err)
 		}
-		defer res.Body.Close()
 		n, err := io.CopyN(io.Discard, res.Body, 1<<20) // 1MB should be sufficient to prove the point
 		if n != 1<<20 || err != nil {
 			t.Errorf("client read response body: %d, %v", n, err)
 		}
-		// This shutdown really should be automatic, but it isn't right now.
-		// Shutdown (rather than Close) ensures the handler is done before we return.
 		res.Body.Close()
+		// This shutdown really should be automatic, but it isn't right now.
 		cst.ts.Config.Shutdown(context.Background())
+		<-handlerDone
 	}
 }
 
