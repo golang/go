@@ -12,6 +12,7 @@ import (
 	"slices"
 	"sort"
 	"strings"
+	"text/template"
 	"unicode"
 
 	"_gen/sgutil"
@@ -269,198 +270,190 @@ const simdMaskedLoadStoreTemplate = `
 func (x {{.Name}}) StoreArrayMasked(y *[{{.Lanes}}]{{.Base}}, mask Mask{{.ElemBits}}x{{.Lanes}})
 `
 
-const simdStubsTmpl = `
-{{define "op1"}}
-{{if .Documentation}}{{.Documentation}}
+// Helper type to make template map initialization less repetitive
+// (and also remove a chance for errors.)
+type stubTemplateMap struct {
+	sgutil.InsertMap[string, *template.Template]
+}
+
+// Add creates a template named "name" after appending "\n" to the
+// template, and returns the input so that additions may be chained.
+// This helps make template initialization easy to order and easy to read.
+func (rtm *stubTemplateMap) Add(name string, templ string) *stubTemplateMap {
+	// Wrap in newlines.
+	templ = "\n" + templ + "\n"
+	ct := sgutil.TemplateNamed(name, templ)
+	rtm.InsertMap.Put(name, ct)
+	return rtm
+}
+
+var stubTemplates = new(stubTemplateMap)
+
+func init() {
+	st := stubTemplates
+
+	st.Add("op1", `{{if .Documentation}}{{.Documentation}}
 //{{end}}
 // Asm: {{.Asm}}, CPU Feature: {{.CPUFeature}}
-func ({{.Op0NameAndType "x"}}) {{.Go}}() {{.GoType}}
-{{end}}
+func ({{.Op0NameAndType "x"}}) {{.Go}}() {{.GoType}}`)
 
-{{define "op2"}}
-{{if .Documentation}}{{.Documentation}}
+	st.Add("op2", `{{if .Documentation}}{{.Documentation}}
 //{{end}}
 // Asm: {{.Asm}}, CPU Feature: {{.CPUFeature}}
-func ({{.Op0NameAndType "x"}}) {{.Go}}({{.Op1NameAndType "y"}}) {{.GoType}}
-{{end}}
+func ({{.Op0NameAndType "x"}}) {{.Go}}({{.Op1NameAndType "y"}}) {{.GoType}}`)
 
-{{define "op2_21"}}
-{{if .Documentation}}{{.Documentation}}
+	st.Add("op2_21", `{{if .Documentation}}{{.Documentation}}
 //{{end}}
 // Asm: {{.Asm}}, CPU Feature: {{.CPUFeature}}
-func ({{.Op1NameAndType "x"}}) {{.Go}}({{.Op0NameAndType "y"}}) {{.GoType}}
-{{end}}
+func ({{.Op1NameAndType "x"}}) {{.Go}}({{.Op0NameAndType "y"}}) {{.GoType}}`)
 
-{{define "op2_21Type1"}}
-{{if .Documentation}}{{.Documentation}}
+	st.Add("op2_21Type1", `{{if .Documentation}}{{.Documentation}}
 //{{end}}
 // Asm: {{.Asm}}, CPU Feature: {{.CPUFeature}}
-func ({{.Op1NameAndType "x"}}) {{.Go}}({{.Op0NameAndType "y"}}) {{.GoType}}
-{{end}}
+func ({{.Op1NameAndType "x"}}) {{.Go}}({{.Op0NameAndType "y"}}) {{.GoType}}`)
 
-{{define "op3"}}
-{{if .Documentation}}{{.Documentation}}
+	st.Add("op3", `{{if .Documentation}}{{.Documentation}}
 //{{end}}
 // Asm: {{.Asm}}, CPU Feature: {{.CPUFeature}}
-func ({{.Op0NameAndType "x"}}) {{.Go}}({{.Op1NameAndType "y"}}, {{.Op2NameAndType "z"}}) {{.GoType}}
-{{end}}
+func ({{.Op0NameAndType "x"}}) {{.Go}}({{.Op1NameAndType "y"}}, {{.Op2NameAndType "z"}}) {{.GoType}}`)
 
-{{define "op3_31Zero3"}}
-{{if .Documentation}}{{.Documentation}}
+	st.Add("op3_31Zero3", `{{if .Documentation}}{{.Documentation}}
 //{{end}}
 // Asm: {{.Asm}}, CPU Feature: {{.CPUFeature}}
-func ({{.Op2NameAndType "x"}}) {{.Go}}({{.Op1NameAndType "y"}}) {{.GoType}}
-{{end}}
+func ({{.Op2NameAndType "x"}}) {{.Go}}({{.Op1NameAndType "y"}}) {{.GoType}}`)
 
-{{define "op3_21"}}
-{{if .Documentation}}{{.Documentation}}
+	st.Add("op3_21", `{{if .Documentation}}{{.Documentation}}
 //{{end}}
 // Asm: {{.Asm}}, CPU Feature: {{.CPUFeature}}
-func ({{.Op1NameAndType "x"}}) {{.Go}}({{.Op0NameAndType "y"}}, {{.Op2NameAndType "z"}}) {{.GoType}}
-{{end}}
+func ({{.Op1NameAndType "x"}}) {{.Go}}({{.Op0NameAndType "y"}}, {{.Op2NameAndType "z"}}) {{.GoType}}`)
 
-{{define "op3_21Type1"}}
-{{if .Documentation}}{{.Documentation}}
+	st.Add("op3_21Type1", `{{if .Documentation}}{{.Documentation}}
 //{{end}}
 // Asm: {{.Asm}}, CPU Feature: {{.CPUFeature}}
-func ({{.Op1NameAndType "x"}}) {{.Go}}({{.Op0NameAndType "y"}}, {{.Op2NameAndType "z"}}) {{.GoType}}
-{{end}}
+func ({{.Op1NameAndType "x"}}) {{.Go}}({{.Op0NameAndType "y"}}, {{.Op2NameAndType "z"}}) {{.GoType}}`)
 
-{{define "op3_231Type1"}}
-{{if .Documentation}}{{.Documentation}}
+	st.Add("op3_231Type1", `{{if .Documentation}}{{.Documentation}}
 //{{end}}
 // Asm: {{.Asm}}, CPU Feature: {{.CPUFeature}}
-func ({{.Op1NameAndType "x"}}) {{.Go}}({{.Op2NameAndType "y"}}, {{.Op0NameAndType "z"}}) {{.GoType}}
-{{end}}
+func ({{.Op1NameAndType "x"}}) {{.Go}}({{.Op2NameAndType "y"}}, {{.Op0NameAndType "z"}}) {{.GoType}}`)
 
-{{define "op2VecAsScalar"}}
-{{if .Documentation}}{{.Documentation}}
+	st.Add("op2VecAsScalar", `{{if .Documentation}}{{.Documentation}}
 //{{end}}
 // Asm: {{.Asm}}, CPU Feature: {{.CPUFeature}}
-func ({{.Op0NameAndType "x"}}) {{.Go}}({{.Op1Name "y"}} uint{{(index .In 1).TreatLikeAScalarOfSize}}) {{(index .Out 0).Go}}
-{{end}}
+func ({{.Op0NameAndType "x"}}) {{.Go}}({{.Op1Name "y"}} uint{{(index .In 1).TreatLikeAScalarOfSize}}) {{(index .Out 0).Go}}`)
 
-{{define "op2ImmVecAsScalar"}}
-{{if .Documentation}}{{.Documentation}}
+	st.Add("op2ImmVecAsScalar", `{{if .Documentation}}{{.Documentation}}
 //{{end}}
 // {{.ImmName}} results in better performance when it's a constant, a non-constant value will be translated into a jump table.
 // Asm: {{.Asm}}, CPU Feature: {{.CPUFeature}}
-func ({{.Op2NameAndType "x"}}) {{.Go}}({{.ImmName}} {{.ImmType}}, v float{{(index .In 3).ElemBits}}) {{(index .Out 0).Go}}
-{{end}}
+func ({{.Op2NameAndType "x"}}) {{.Go}}({{.ImmName}} {{.ImmType}}, v float{{(index .In 3).ElemBits}}) {{(index .Out 0).Go}}`)
 
-{{define "op3VecAsScalar"}}
-{{if .Documentation}}{{.Documentation}}
+	st.Add("op3VecAsScalar", `{{if .Documentation}}{{.Documentation}}
 //{{end}}
 // Asm: {{.Asm}}, CPU Feature: {{.CPUFeature}}
-func ({{.Op0NameAndType "x"}}) {{.Go}}({{.Op1Name "y"}} uint{{(index .In 1).TreatLikeAScalarOfSize}}, {{.Op2NameAndType "z"}}) {{(index .Out 0).Go}}
-{{end}}
+func ({{.Op0NameAndType "x"}}) {{.Go}}({{.Op1Name "y"}} uint{{(index .In 1).TreatLikeAScalarOfSize}}, {{.Op2NameAndType "z"}}) {{(index .Out 0).Go}}`)
 
-{{define "op4"}}
-{{if .Documentation}}{{.Documentation}}
+	st.Add("op4", `{{if .Documentation}}{{.Documentation}}
 //{{end}}
 // Asm: {{.Asm}}, CPU Feature: {{.CPUFeature}}
-func ({{.Op0NameAndType "x"}}) {{.Go}}({{.Op1NameAndType "y"}}, {{.Op2NameAndType "z"}}, {{.Op3NameAndType "u"}}) {{.GoType}}
-{{end}}
+func ({{.Op0NameAndType "x"}}) {{.Go}}({{.Op1NameAndType "y"}}, {{.Op2NameAndType "z"}}, {{.Op3NameAndType "u"}}) {{.GoType}}`)
 
-{{define "op4_231Type1"}}
-{{if .Documentation}}{{.Documentation}}
+	st.Add("op4_231Type1", `{{if .Documentation}}{{.Documentation}}
 //{{end}}
 // Asm: {{.Asm}}, CPU Feature: {{.CPUFeature}}
-func ({{.Op1NameAndType "x"}}) {{.Go}}({{.Op2NameAndType "y"}}, {{.Op0NameAndType "z"}}, {{.Op3NameAndType "u"}}) {{.GoType}}
-{{end}}
+func ({{.Op1NameAndType "x"}}) {{.Go}}({{.Op2NameAndType "y"}}, {{.Op0NameAndType "z"}}, {{.Op3NameAndType "u"}}) {{.GoType}}`)
 
-{{define "op4_31"}}
-{{if .Documentation}}{{.Documentation}}
+	st.Add("op4_31", `{{if .Documentation}}{{.Documentation}}
 //{{end}}
 // Asm: {{.Asm}}, CPU Feature: {{.CPUFeature}}
-func ({{.Op2NameAndType "x"}}) {{.Go}}({{.Op1NameAndType "y"}}, {{.Op0NameAndType "z"}}, {{.Op3NameAndType "u"}}) {{.GoType}}
-{{end}}
+func ({{.Op2NameAndType "x"}}) {{.Go}}({{.Op1NameAndType "y"}}, {{.Op0NameAndType "z"}}, {{.Op3NameAndType "u"}}) {{.GoType}}`)
 
-{{define "op1Imm8"}}
-{{if .Documentation}}{{.Documentation}}
+	st.Add("op1Imm", `{{if .Documentation}}{{.Documentation}}
 //{{end}}
 // A non-constant value of {{.ImmName}} may result in significantly worse performance for this operation.
 //
 // Asm: {{.Asm}}, CPU Feature: {{.CPUFeature}}
-func ({{.Op1NameAndType "x"}}) {{.Go}}({{.ImmName}} {{.ImmType}}) {{.GoType}}
-{{end}}
+func ({{.Op1NameAndType "x"}}) {{.Go}}({{.ImmName}} {{.ImmType}}) {{.GoType}}`)
 
-{{define "op1Imm"}}{{template "op1Imm8" .}}{{end}}
-
-{{define "op2Imm8"}}
-{{if .Documentation}}{{.Documentation}}
+	st.Add("op1Imm8", `{{if .Documentation}}{{.Documentation}}
 //{{end}}
 // A non-constant value of {{.ImmName}} may result in significantly worse performance for this operation.
 //
 // Asm: {{.Asm}}, CPU Feature: {{.CPUFeature}}
-func ({{.Op1NameAndType "x"}}) {{.Go}}({{.ImmName}} {{.ImmType}}, {{.Op2NameAndType "y"}}) {{.GoType}}
-{{end}}
+func ({{.Op1NameAndType "x"}}) {{.Go}}({{.ImmName}} {{.ImmType}}) {{.GoType}}`)
 
-{{define "op2Imm"}}{{template "op2Imm8" .}}{{end}}
-
-{{define "op2Imm8_2I"}}
-{{if .Documentation}}{{.Documentation}}
+	st.Add("op2Imm", `{{if .Documentation}}{{.Documentation}}
 //{{end}}
 // A non-constant value of {{.ImmName}} may result in significantly worse performance for this operation.
 //
 // Asm: {{.Asm}}, CPU Feature: {{.CPUFeature}}
-func ({{.Op1NameAndType "x"}}) {{.Go}}({{.Op2NameAndType "y"}}, {{.ImmName}} {{.ImmType}}) {{.GoType}}
-{{end}}
+func ({{.Op1NameAndType "x"}}) {{.Go}}({{.ImmName}} {{.ImmType}}, {{.Op2NameAndType "y"}}) {{.GoType}}`)
 
-{{define "op2Imm_2I"}}
-{{template "op2Imm8_2I" .}}
-{{end}}
+	st.Add("op2Imm8", `{{if .Documentation}}{{.Documentation}}
+//{{end}}
+// A non-constant value of {{.ImmName}} may result in significantly worse performance for this operation.
+//
+// Asm: {{.Asm}}, CPU Feature: {{.CPUFeature}}
+func ({{.Op1NameAndType "x"}}) {{.Go}}({{.ImmName}} {{.ImmType}}, {{.Op2NameAndType "y"}}) {{.GoType}}`)
 
-{{define "op2Imm8_II"}}
-{{if .Documentation}}{{.Documentation}}
+	// Special case for the instruction (in some versions at least) takes an immediate but treat it as a regular operand
+	st.Add("op1Imm8_rotate", `{{if .Documentation}}{{.Documentation}}
+//{{end}}
+// Emulated
+func ({{.Op1NameAndType "x"}}) {{.Go}}(dist uint64) {{.GoType}}`)
+
+	st.Add("op2Imm8_2I", `{{if .Documentation}}{{.Documentation}}
+//{{end}}
+// A non-constant value of {{.ImmName}} may result in significantly worse performance for this operation.
+//
+// Asm: {{.Asm}}, CPU Feature: {{.CPUFeature}}
+func ({{.Op1NameAndType "x"}}) {{.Go}}({{.Op2NameAndType "y"}}, {{.ImmName}} {{.ImmType}}) {{.GoType}}`)
+
+	st.Add("op2Imm_2I", `{{if .Documentation}}{{.Documentation}}
+//{{end}}
+// A non-constant value of {{.ImmName}} may result in significantly worse performance for this operation.
+//
+// Asm: {{.Asm}}, CPU Feature: {{.CPUFeature}}
+func ({{.Op1NameAndType "x"}}) {{.Go}}({{.Op2NameAndType "y"}}, {{.ImmName}} {{.ImmType}}) {{.GoType}}`)
+
+	st.Add("op2Imm8_II", `{{if .Documentation}}{{.Documentation}}
 //{{end}}
 // {{.ImmName}} should be between 0 and 3, inclusive; other values may result in a runtime panic.
 //
 // A non-constant value of {{.ImmName}} may result in significantly worse performance for this operation.
 //
 // Asm: {{.Asm}}, CPU Feature: {{.CPUFeature}}
-func ({{.Op1NameAndType "x"}}) {{.Go}}({{.ImmName}} {{.ImmType}}, {{.Op2NameAndType "y"}}) {{.GoType}}
-{{end}}
+func ({{.Op1NameAndType "x"}}) {{.Go}}({{.ImmName}} {{.ImmType}}, {{.Op2NameAndType "y"}}) {{.GoType}}`)
 
-{{define "op2Imm8_SHA1RNDS4"}}
-{{if .Documentation}}{{.Documentation}}
+	st.Add("op2Imm8_SHA1RNDS4", `{{if .Documentation}}{{.Documentation}}
 //{{end}}
 // A non-constant value of {{.ImmName}} may result in significantly worse performance for this operation.
 //
 // Asm: {{.Asm}}, CPU Feature: {{.CPUFeature}}
-func ({{.Op1NameAndType "x"}}) {{.Go}}({{.ImmName}} {{.ImmType}}, {{.Op2NameAndType "y"}}) {{.GoType}}
-{{end}}
+func ({{.Op1NameAndType "x"}}) {{.Go}}({{.ImmName}} {{.ImmType}}, {{.Op2NameAndType "y"}}) {{.GoType}}`)
 
-{{define "op3Imm8"}}
-{{if .Documentation}}{{.Documentation}}
+	st.Add("op3Imm8", `{{if .Documentation}}{{.Documentation}}
 //{{end}}
 // A non-constant value of {{.ImmName}} may result in significantly worse performance for this operation.
 //
 // Asm: {{.Asm}}, CPU Feature: {{.CPUFeature}}
-func ({{.Op1NameAndType "x"}}) {{.Go}}({{.ImmName}} {{.ImmType}}, {{.Op2NameAndType "y"}}, {{.Op3NameAndType "z"}}) {{.GoType}}
-{{end}}
+func ({{.Op1NameAndType "x"}}) {{.Go}}({{.ImmName}} {{.ImmType}}, {{.Op2NameAndType "y"}}, {{.Op3NameAndType "z"}}) {{.GoType}}`)
 
-{{define "op3Imm8_2I"}}
-{{if .Documentation}}{{.Documentation}}
+	st.Add("op3Imm8_2I", `{{if .Documentation}}{{.Documentation}}
 //{{end}}
 // A non-constant value of {{.ImmName}} may result in significantly worse performance for this operation.
 //
 // Asm: {{.Asm}}, CPU Feature: {{.CPUFeature}}
-func ({{.Op1NameAndType "x"}}) {{.Go}}({{.Op2NameAndType "y"}}, {{.ImmName}} {{.ImmType}}, {{.Op3NameAndType "z"}}) {{.GoType}}
-{{end}}
+func ({{.Op1NameAndType "x"}}) {{.Go}}({{.Op2NameAndType "y"}}, {{.ImmName}} {{.ImmType}}, {{.Op3NameAndType "z"}}) {{.GoType}}`)
 
-
-{{define "op4Imm8"}}
-{{if .Documentation}}{{.Documentation}}
+	st.Add("op4Imm8", `{{if .Documentation}}{{.Documentation}}
 //{{end}}
 // A non-constant value of {{.ImmName}} may result in significantly worse performance for this operation.
 //
 // Asm: {{.Asm}}, CPU Feature: {{.CPUFeature}}
-func ({{.Op1NameAndType "x"}}) {{.Go}}({{.ImmName}} {{.ImmType}}, {{.Op2NameAndType "y"}}, {{.Op3NameAndType "z"}}, {{.Op4NameAndType "u"}}) {{.GoType}}
-{{end}}
+func ({{.Op1NameAndType "x"}}) {{.Go}}({{.ImmName}} {{.ImmType}}, {{.Op2NameAndType "y"}}, {{.Op3NameAndType "z"}}, {{.Op4NameAndType "u"}}) {{.GoType}}`)
 
-{{define "mask"}}
-// To{{.VectorCounterpart}} converts from {{.Name}} to {{.VectorCounterpart}}.
+	st.Add("mask", `// To{{.VectorCounterpart}} converts from {{.Name}} to {{.VectorCounterpart}}.
 // If element i in the mask is "true", all bits in element i of the resulting
 // vector will be set.
 func (from {{.Name}}) To{{.VectorCounterpart}}() (to {{.VectorCounterpart}})
@@ -473,9 +466,9 @@ func (x {{.Name}}) And(y {{.Name}}) {{.Name}}
 func (x {{.Name}}) Or(y {{.Name}}) {{.Name}}
 {{if .HasNot}}
 func (x {{.Name}}) Not() {{.Name}}
-{{end}}
-{{end}}
-`
+{{end}}`)
+
+}
 
 // parseSIMDTypes groups go simd types by their vector sizes, and
 // returns a map whose key is the vector size, value is the simd type.
@@ -744,7 +737,6 @@ func writeSIMDFeatures(ops []Operation) *bytes.Buffer {
 // writeSIMDStubs returns two bytes.Buffers containing the declarations for the public
 // and internal-use vector intrinsics.
 func writeSIMDStubs(ops []Operation, typeMap simdTypeMap) (f, fI *bytes.Buffer) {
-	t := templateOf(simdStubsTmpl, "simdStubs")
 	f = new(bytes.Buffer)
 	fI = new(bytes.Buffer)
 	f.WriteString(simdPackageHeader())
@@ -778,12 +770,16 @@ func writeSIMDStubs(ops []Operation, typeMap simdTypeMap) (f, fI *bytes.Buffer) 
 					fmt.Fprintf(fI, "\n/* %s */\n", op.Go)
 				}
 			}
+			tpl := stubTemplates.Get(s)
+			if tpl == nil {
+				panic(fmt.Errorf("template %s not found", s))
+			}
 			if unicode.IsUpper([]rune(op.Go)[0]) {
-				if err := t.ExecuteTemplate(f, s, op); err != nil {
+				if err := tpl.Execute(f, op); err != nil {
 					panic(fmt.Errorf("failed to execute template %s for op %v: %w", s, op, err))
 				}
 			} else {
-				if err := t.ExecuteTemplate(fI, s, op); err != nil {
+				if err := tpl.Execute(fI, op); err != nil {
 					panic(fmt.Errorf("failed to execute template %s for op %v: %w", s, op, err))
 				}
 			}
@@ -827,7 +823,11 @@ func writeSIMDStubs(ops []Operation, typeMap simdTypeMap) (f, fI *bytes.Buffer) 
 
 	masks := masksFromTypeMap(typeMap)
 	for _, mask := range masks {
-		if err := t.ExecuteTemplate(f, "mask", mask); err != nil {
+		tpl := stubTemplates.Get("mask")
+		if tpl == nil {
+			panic(fmt.Errorf("template mask not found"))
+		}
+		if err := tpl.Execute(f, mask); err != nil {
 			panic(fmt.Errorf("failed to execute mask template for mask %s: %w", mask.Name, err))
 		}
 	}
