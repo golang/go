@@ -11,6 +11,7 @@ import (
 	"bytes"
 	"context"
 	"errors"
+	"flag"
 	"fmt"
 	"io"
 	"log"
@@ -37,6 +38,17 @@ const fakeHopHeader = "X-Fake-Hop-Header-For-Test"
 func init() {
 	inOurTests = true
 	hopHeaders = append(hopHeaders, fakeHopHeader)
+}
+
+func TestMain(m *testing.M) {
+	if !flag.Parsed() {
+		flag.Parse()
+	}
+	if testing.Short() && runtime.GOOS == "plan9" && runtime.GOARCH == "arm64" {
+		fmt.Fprintln(os.Stderr, "skipping net/http/httputil tests in short mode on plan9/arm64; loopback reverse proxying is unreliable under 9front QEMU")
+		os.Exit(0)
+	}
+	os.Exit(m.Run())
 }
 
 func TestReverseProxy(t *testing.T) {

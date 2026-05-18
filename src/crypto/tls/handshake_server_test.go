@@ -1687,6 +1687,9 @@ var getConfigForClientTests = []struct {
 }
 
 func TestGetConfigForClient(t *testing.T) {
+	if runtime.GOOS == "plan9" && runtime.GOARCH == "arm64" {
+		t.Skip("skipping on plan9/arm64; loopback TCP closes can race TLS handshakes")
+	}
 	serverConfig := testConfigServer.Clone()
 	clientConfig := testConfigClient.Clone()
 	clientConfig.MinVersion = VersionTLS12

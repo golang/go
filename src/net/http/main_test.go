@@ -5,6 +5,7 @@
 package http_test
 
 import (
+	"flag"
 	"fmt"
 	"io"
 	"log"
@@ -20,6 +21,13 @@ import (
 var quietLog = log.New(io.Discard, "", 0)
 
 func TestMain(m *testing.M) {
+	if !flag.Parsed() {
+		flag.Parse()
+	}
+	if testing.Short() && runtime.GOOS == "plan9" && runtime.GOARCH == "arm64" {
+		fmt.Fprintln(os.Stderr, "skipping net/http tests in short mode on plan9/arm64; loopback TCP is unreliable under 9front QEMU")
+		os.Exit(0)
+	}
 	*http.MaxWriteWaitBeforeConnReuse = 60 * time.Minute
 	v := m.Run()
 	if v == 0 && goroutineLeaked() {

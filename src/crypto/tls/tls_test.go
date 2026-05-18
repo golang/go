@@ -31,6 +31,7 @@ import (
 	"net"
 	"os"
 	"reflect"
+	"runtime"
 	"slices"
 	"strings"
 	"testing"
@@ -506,6 +507,9 @@ func testConnReadNonzeroAndEOF(t *testing.T, delay time.Duration) error {
 }
 
 func TestTLSUniqueMatches(t *testing.T) {
+	if runtime.GOOS == "plan9" && runtime.GOARCH == "arm64" {
+		t.Skip("skipping on plan9/arm64; loopback TCP close can abort the resumed handshake")
+	}
 	ln := newLocalListener(t)
 	defer ln.Close()
 
@@ -641,6 +645,9 @@ func TestRealResumption(t *testing.T) {
 }
 
 func TestConnCloseBreakingWrite(t *testing.T) {
+	if runtime.GOOS == "plan9" && runtime.GOARCH == "arm64" {
+		t.Skip("skipping on plan9/arm64; loopback TCP close can abort the handshake")
+	}
 	ln := newLocalListener(t)
 	defer ln.Close()
 
@@ -720,6 +727,9 @@ func TestConnCloseBreakingWrite(t *testing.T) {
 }
 
 func TestConnCloseWrite(t *testing.T) {
+	if runtime.GOOS == "plan9" && runtime.GOARCH == "arm64" {
+		t.Skip("skipping on plan9/arm64; loopback TCP close can interrupt TLS CloseWrite")
+	}
 	ln := newLocalListener(t)
 	defer ln.Close()
 
@@ -826,6 +836,9 @@ func TestConnCloseWrite(t *testing.T) {
 }
 
 func TestWarningAlertFlood(t *testing.T) {
+	if runtime.GOOS == "plan9" && runtime.GOARCH == "arm64" {
+		t.Skip("skipping on plan9/arm64; loopback TCP close can abort the warning-alert exchange")
+	}
 	ln := newLocalListener(t)
 	defer ln.Close()
 

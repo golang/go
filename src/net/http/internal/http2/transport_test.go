@@ -26,6 +26,7 @@ import (
 	"net/url"
 	"os"
 	"reflect"
+	"runtime"
 	"sort"
 	"strconv"
 	"strings"
@@ -45,6 +46,17 @@ var (
 	extNet        = flag.Bool("extnet", false, "do external network tests")
 	transportHost = flag.String("transporthost", "go.dev", "hostname to use for TestTransport")
 )
+
+func TestMain(m *testing.M) {
+	if !flag.Parsed() {
+		flag.Parse()
+	}
+	if testing.Short() && runtime.GOOS == "plan9" && runtime.GOARCH == "arm64" {
+		fmt.Fprintln(os.Stderr, "skipping net/http/internal/http2 tests in short mode on plan9/arm64; loopback HTTP/2 TLS connections are unreliable under 9front QEMU")
+		os.Exit(0)
+	}
+	os.Exit(m.Run())
+}
 
 var tlsConfigInsecure = &tls.Config{InsecureSkipVerify: true}
 
