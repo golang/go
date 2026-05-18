@@ -1329,6 +1329,7 @@ const (
 // and returns the pair (z, r) if y != 0.
 // If y == 0, a division-by-zero run-time panic occurs.
 func (z *Int) Divide(x, y, r *Int, mode RoundingMode) (*Int, *Int) {
+	// TODO: optimize the code where z or r is nil
 	var z_abs nat
 	if z != nil {
 		z_abs = z.abs

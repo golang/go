@@ -2017,80 +2017,64 @@ func TestIntDivide(t *testing.T) {
 	y := new(Int)
 	q := new(Int)
 	r := new(Int)
-	qExp := new(Int)
-	rExp := new(Int)
-	factor, _ := new(Int).SetString("123_456_789_012_345_678_901", 0)
-	msg := "%v(%v/%v): got q = %v r = %v, want q = %v r = %v"
-	for i := int64(-10); i <= 10; i++ {
-		for j := int64(-10); j <= 10; j++ {
-			if j == 0 {
-				continue
-			}
-			x.SetInt64(i)
-			y.SetInt64(j)
-			qExp.SetInt64(i / j)
-			rExp.SetInt64(i % j)
-			q, r = q.Divide(x, y, r, Trunc)
-			if q.Cmp(qExp) != 0 || r.Cmp(rExp) != 0 {
-				t.Errorf(msg, "trunc", x, y, q, r, qExp, rExp)
-			}
-			x.Mul(x, factor)
-			y.Mul(y, factor)
-			rExp.Mul(rExp, factor)
-			q, r = q.Divide(x, y, r, Trunc)
-			if q.Cmp(qExp) != 0 || r.Cmp(rExp) != 0 {
-				t.Errorf(msg, "trunc", x, y, q, r, qExp, rExp)
-			}
+	f := new(Int)
+	qGot := new(Int)
+	rGot := new(Int)
 
-			x.SetInt64(i)
-			y.SetInt64(j)
-			floor := int64(math.Floor(float64(i) / float64(j)))
-			qExp.SetInt64(floor)
-			rExp.SetInt64(i - j*floor)
-			q, r = q.Divide(x, y, r, Floor)
-			if q.Cmp(qExp) != 0 || r.Cmp(rExp) != 0 {
-				t.Errorf(msg, "floor", x, y, q, r, qExp, rExp)
-			}
-			x.Mul(x, factor)
-			y.Mul(y, factor)
-			rExp.Mul(rExp, factor)
-			q, r = q.Divide(x, y, r, Floor)
-			if q.Cmp(qExp) != 0 || r.Cmp(rExp) != 0 {
-				t.Errorf(msg, "floor", x, y, q, r, qExp, rExp)
-			}
+	check := func(i, j, q_ int64, mode RoundingMode, modeName string) {
+		x.SetInt64(i)
+		y.SetInt64(j)
+		q.SetInt64(q_)
+		r.SetInt64(i - j*q_)
 
-			x.SetInt64(i)
-			y.SetInt64(j)
-			ceil := int64(math.Ceil(float64(i) / float64(j)))
-			qExp.SetInt64(ceil)
-			rExp.SetInt64(i - j*ceil)
-			q, r = q.Divide(x, y, r, Ceil)
-			if q.Cmp(qExp) != 0 || r.Cmp(rExp) != 0 {
-				t.Errorf(msg, "ceil", x, y, q, r, qExp, rExp)
-			}
-			x.Mul(x, factor)
-			y.Mul(y, factor)
-			rExp.Mul(rExp, factor)
-			q, r = q.Divide(x, y, r, Ceil)
-			if q.Cmp(qExp) != 0 || r.Cmp(rExp) != 0 {
-				t.Errorf(msg, "ceil", x, y, q, r, qExp, rExp)
-			}
+		// The quotient remains the same irrespective of scaling factor f,
+		// everything else gets scaled by f; f is set by the caller.
+		x.Mul(x, f)
+		y.Mul(y, f)
+		r.Mul(r, f)
 
-			x.SetInt64(i)
-			y.SetInt64(j)
-			round := int64(math.RoundToEven(float64(i) / float64(j)))
-			qExp.SetInt64(round)
-			rExp.SetInt64(i - j*round)
-			q, r = q.Divide(x, y, r, Round)
-			if q.Cmp(qExp) != 0 || r.Cmp(rExp) != 0 {
-				t.Errorf(msg, "round", x, y, q, r, qExp, rExp)
-			}
-			x.Mul(x, factor)
-			y.Mul(y, factor)
-			rExp.Mul(rExp, factor)
-			q, r = q.Divide(x, y, r, Round)
-			if q.Cmp(qExp) != 0 || r.Cmp(rExp) != 0 {
-				t.Errorf(msg, "round", x, y, q, r, qExp, rExp)
+		qGot, rGot = qGot.Divide(x, y, rGot, mode)
+		if qGot.Cmp(q) != 0 || rGot.Cmp(r) != 0 {
+			t.Errorf("%v(%v/%v): got q = %v, r = %v; want q = %v, r = %v", modeName, x, y, qGot, rGot, q, r)
+		}
+
+		// nil remainder result
+		qGot, _ = qGot.Divide(x, y, nil, mode)
+		if qGot.Cmp(q) != 0 {
+			t.Errorf("%v(%v/%v): got q = %v; want q = %v", modeName, x, y, qGot, q)
+		}
+
+		// nil quotient result
+		_, rGot = (*Int)(nil).Divide(x, y, rGot, mode)
+		if rGot.Cmp(r) != 0 {
+			t.Errorf("%v(%v/%v): got r = %v; want r = %v", modeName, x, y, rGot, r)
+		}
+
+		// nil quotient and remainder must not panic
+		(*Int)(nil).Divide(x, y, nil, mode)
+	}
+
+	// test each case with different scaling factors f
+	for _, s := range []string{
+		"1",
+		"1234",
+		"99991",
+		"1234567890",
+		"12345678901234567890",
+	} {
+		f.SetString(s, 10)
+		const n int64 = 10
+		for i := -n; i <= n; i++ {
+			for j := -n; j <= n; j++ {
+				if j == 0 {
+					continue
+				}
+				z := float64(i) / float64(j)
+				check(i, j, i/j, Trunc, "trunc") // T-division is regular Go integer division
+				check(i, j, int64(math.Trunc(z)), Trunc, "trunc")
+				check(i, j, int64(math.Floor(z)), Floor, "floor")
+				check(i, j, int64(math.Ceil(z)), Ceil, "ceil")
+				check(i, j, int64(math.RoundToEven(z)), Round, "round")
 			}
 		}
 	}
