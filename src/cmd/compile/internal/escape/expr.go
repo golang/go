@@ -90,6 +90,8 @@ func (e *escape) exprSkipInit(k hole, n ir.Node) {
 	case ir.OINDEXMAP:
 		n := n.(*ir.IndexExpr)
 		e.discard(n.X)
+		// Keys used in map lookups do not need to escape.
+		// See "Hashing Pointers" doc in internal/runtime/maps/map.go.
 		e.discard(n.Index)
 	case ir.OSLICE, ir.OSLICEARR, ir.OSLICE3, ir.OSLICE3ARR, ir.OSLICESTR:
 		n := n.(*ir.SliceExpr)
