@@ -110,3 +110,14 @@ func sftImmVPSRL() archsimd.Uint32x4 {
 	// amd64:`VPSRLD \$1, .*$`
 	return x.ShiftAllRight(1)
 }
+
+var globalSlice = []uint32{1, 2, 3, 4, 5, 6, 7, 8}
+
+func simdMemoryOperandMerge() archsimd.Uint32x4 {
+	a := archsimd.BroadcastUint32x4(1)
+	// amd64:`VPADDD \([A-Z]+\), X\d, X\d`
+	a = a.Add(archsimd.LoadUint32x4Slice(globalSlice[0:4]))
+	// amd64:`VPADDD 16\([A-Z]+\), X\d, X\d`
+	a = a.Add(archsimd.LoadUint32x4Slice(globalSlice[4:8]))
+	return a
+}

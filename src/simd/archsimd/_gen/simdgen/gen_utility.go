@@ -839,12 +839,12 @@ func (o *Operation) hasMaskedMerging(maskType maskShape, outType outShape) bool 
 		len(o.InVariant) == 1 && !strings.Contains(o.Asm, "BLEND") && !strings.Contains(o.Asm, "VMOVDQU")
 }
 
-func getVbcstData(s string) (feat1Match, feat2Match string) {
-	_, err := fmt.Sscanf(s, "feat1=%[^;];feat2=%s", &feat1Match, &feat2Match)
-	if err != nil {
-		panic(err)
+func getVbcstData(s string) (string, string) {
+	feat1, feat2, found := strings.Cut(s, ";")
+	if !found || !strings.HasPrefix(feat1, "feat1=") || !strings.HasPrefix(feat2, "feat2=") {
+		panic(fmt.Sprintf("unexpected format for vbcst data: %s", s))
 	}
-	return
+	return strings.TrimPrefix(feat1, "feat1="), strings.TrimPrefix(feat2, "feat2=")
 }
 
 func (o Operation) String() string {
