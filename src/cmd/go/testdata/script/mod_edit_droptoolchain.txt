@@ -1,0 +1,35 @@
+# Test for go mod edit -droptoolchain
+
+# Setup
+env GO111MODULE=on
+env GOFLAGS=-mod=mod
+
+# Create a new module
+! exists go.mod
+go mod init example.com/test
+exists go.mod
+
+# Check that the toolchain directive is not present initially
+! grep toolchain go.mod
+
+# Add a toolchain directive
+go mod edit -toolchain=go1.21
+grep 'toolchain go1.21' go.mod
+
+# Remove the toolchain directive using -droptoolchain
+go mod edit -droptoolchain
+! grep toolchain go.mod
+
+# Add a toolchain directive again
+go mod edit -toolchain=go1.22
+grep 'toolchain go1.22' go.mod
+
+# Make sure that -toolchain=none still works as before
+go mod edit -toolchain=none
+! grep toolchain go.mod
+
+# Add a toolchain directive again and use -droptoolchain with an argument (should be ignored)
+go mod edit -toolchain=go1.23
+grep 'toolchain go1.23' go.mod
+go mod edit -droptoolchain
+! grep toolchain go.mod 
