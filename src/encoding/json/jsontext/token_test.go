@@ -8,6 +8,7 @@ package jsontext
 
 import (
 	"errors"
+	"internal/testenv"
 	"math"
 	"reflect"
 	"strconv"
@@ -15,6 +16,7 @@ import (
 )
 
 func TestTokenStringAllocations(t *testing.T) {
+	testenv.SkipIfOptimizationOff(t)
 	if testing.CoverMode() != "" {
 		t.Skip("coverage mode breaks the compiler optimization this depends on")
 	}
