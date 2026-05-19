@@ -889,6 +889,11 @@ func benchmarkConfig(classes []class, sizeToSizeClass []uint8) generatorConfig {
 				{foldCondition, "noscan_", str(false)},
 			},
 		})
+		config.specs = append(config.specs, spec{
+			templateFunc: "benchmarkScanSliceStub",
+			name:         fmt.Sprintf("benchmarkMallocgcScanSlice%d", elemsize),
+			ops:          []op{{subBasicLit, "size_", str(elemsize)}},
+		})
 	}
 
 	for size := 1; size < tinySize; size++ {
@@ -920,6 +925,14 @@ func generateTopBenchmark(classes []class, sizeToSizeClass []uint8) string {
 	for sc := uint8(1); sc <= scMax; sc++ {
 		elemsize := classes[sc].size
 		bench += fmt.Sprintf(`b.Run("size=%d", benchmarkMallocgcScan%d)`, elemsize, elemsize) + "\n"
+
+	}
+	bench += `})
+		b.Run("scan=scanslice", func(b *testing.B) {
+`
+	for sc := uint8(1); sc <= scMax; sc++ {
+		elemsize := classes[sc].size
+		bench += fmt.Sprintf(`b.Run("size=%d", benchmarkMallocgcScanSlice%d)`, elemsize, elemsize) + "\n"
 	}
 	bench += `})
 }`

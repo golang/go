@@ -57,3 +57,10 @@ func benchmarkStub(b *testing.B) {
 		}
 	})
 }
+
+func benchmarkScanSliceStub(b *testing.B) {
+	const size = size_
+	for b.Loop() {
+		runtime.Escape(make([]*uint64, size/8))
+	}
+}

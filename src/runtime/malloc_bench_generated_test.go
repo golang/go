@@ -49,6 +49,13 @@ func benchmarkMallocgcScan8(b *testing.B) {
 	})
 }
 
+func benchmarkMallocgcScanSlice8(b *testing.B) {
+	const size = 8
+	for b.Loop() {
+		runtime.Escape(make([]*uint64, size/8))
+	}
+}
+
 func benchmarkMallocgcNoscan16(b *testing.B) {
 	const size = 16
 	b.Run("kind=new", func(b *testing.B) {
@@ -87,6 +94,13 @@ func benchmarkMallocgcScan16(b *testing.B) {
 			runtime.Escape(runtime.MallocGC(size, typ, true))
 		}
 	})
+}
+
+func benchmarkMallocgcScanSlice16(b *testing.B) {
+	const size = 16
+	for b.Loop() {
+		runtime.Escape(make([]*uint64, size/8))
+	}
 }
 
 func benchmarkMallocgcNoscan24(b *testing.B) {
@@ -129,6 +143,13 @@ func benchmarkMallocgcScan24(b *testing.B) {
 	})
 }
 
+func benchmarkMallocgcScanSlice24(b *testing.B) {
+	const size = 24
+	for b.Loop() {
+		runtime.Escape(make([]*uint64, size/8))
+	}
+}
+
 func benchmarkMallocgcNoscan32(b *testing.B) {
 	const size = 32
 	b.Run("kind=new", func(b *testing.B) {
@@ -167,6 +188,13 @@ func benchmarkMallocgcScan32(b *testing.B) {
 			runtime.Escape(runtime.MallocGC(size, typ, true))
 		}
 	})
+}
+
+func benchmarkMallocgcScanSlice32(b *testing.B) {
+	const size = 32
+	for b.Loop() {
+		runtime.Escape(make([]*uint64, size/8))
+	}
 }
 
 func benchmarkMallocgcNoscan48(b *testing.B) {
@@ -209,6 +237,13 @@ func benchmarkMallocgcScan48(b *testing.B) {
 	})
 }
 
+func benchmarkMallocgcScanSlice48(b *testing.B) {
+	const size = 48
+	for b.Loop() {
+		runtime.Escape(make([]*uint64, size/8))
+	}
+}
+
 func benchmarkMallocgcNoscan64(b *testing.B) {
 	const size = 64
 	b.Run("kind=new", func(b *testing.B) {
@@ -247,6 +282,13 @@ func benchmarkMallocgcScan64(b *testing.B) {
 			runtime.Escape(runtime.MallocGC(size, typ, true))
 		}
 	})
+}
+
+func benchmarkMallocgcScanSlice64(b *testing.B) {
+	const size = 64
+	for b.Loop() {
+		runtime.Escape(make([]*uint64, size/8))
+	}
 }
 
 func benchmarkMallocgcNoscan80(b *testing.B) {
@@ -289,6 +331,13 @@ func benchmarkMallocgcScan80(b *testing.B) {
 	})
 }
 
+func benchmarkMallocgcScanSlice80(b *testing.B) {
+	const size = 80
+	for b.Loop() {
+		runtime.Escape(make([]*uint64, size/8))
+	}
+}
+
 func benchmarkMallocgcNoscan96(b *testing.B) {
 	const size = 96
 	b.Run("kind=new", func(b *testing.B) {
@@ -327,6 +376,13 @@ func benchmarkMallocgcScan96(b *testing.B) {
 			runtime.Escape(runtime.MallocGC(size, typ, true))
 		}
 	})
+}
+
+func benchmarkMallocgcScanSlice96(b *testing.B) {
+	const size = 96
+	for b.Loop() {
+		runtime.Escape(make([]*uint64, size/8))
+	}
 }
 
 func benchmarkMallocgcNoscan112(b *testing.B) {
@@ -369,6 +425,13 @@ func benchmarkMallocgcScan112(b *testing.B) {
 	})
 }
 
+func benchmarkMallocgcScanSlice112(b *testing.B) {
+	const size = 112
+	for b.Loop() {
+		runtime.Escape(make([]*uint64, size/8))
+	}
+}
+
 func benchmarkMallocgcNoscan128(b *testing.B) {
 	const size = 128
 	b.Run("kind=new", func(b *testing.B) {
@@ -407,6 +470,13 @@ func benchmarkMallocgcScan128(b *testing.B) {
 			runtime.Escape(runtime.MallocGC(size, typ, true))
 		}
 	})
+}
+
+func benchmarkMallocgcScanSlice128(b *testing.B) {
+	const size = 128
+	for b.Loop() {
+		runtime.Escape(make([]*uint64, size/8))
+	}
 }
 
 func benchmarkMallocgcNoscan144(b *testing.B) {
@@ -449,6 +519,13 @@ func benchmarkMallocgcScan144(b *testing.B) {
 	})
 }
 
+func benchmarkMallocgcScanSlice144(b *testing.B) {
+	const size = 144
+	for b.Loop() {
+		runtime.Escape(make([]*uint64, size/8))
+	}
+}
+
 func benchmarkMallocgcNoscan160(b *testing.B) {
 	const size = 160
 	b.Run("kind=new", func(b *testing.B) {
@@ -487,6 +564,13 @@ func benchmarkMallocgcScan160(b *testing.B) {
 			runtime.Escape(runtime.MallocGC(size, typ, true))
 		}
 	})
+}
+
+func benchmarkMallocgcScanSlice160(b *testing.B) {
+	const size = 160
+	for b.Loop() {
+		runtime.Escape(make([]*uint64, size/8))
+	}
 }
 
 func benchmarkMallocgcNoscan176(b *testing.B) {
@@ -529,6 +613,13 @@ func benchmarkMallocgcScan176(b *testing.B) {
 	})
 }
 
+func benchmarkMallocgcScanSlice176(b *testing.B) {
+	const size = 176
+	for b.Loop() {
+		runtime.Escape(make([]*uint64, size/8))
+	}
+}
+
 func benchmarkMallocgcNoscan192(b *testing.B) {
 	const size = 192
 	b.Run("kind=new", func(b *testing.B) {
@@ -567,6 +658,13 @@ func benchmarkMallocgcScan192(b *testing.B) {
 			runtime.Escape(runtime.MallocGC(size, typ, true))
 		}
 	})
+}
+
+func benchmarkMallocgcScanSlice192(b *testing.B) {
+	const size = 192
+	for b.Loop() {
+		runtime.Escape(make([]*uint64, size/8))
+	}
 }
 
 func benchmarkMallocgcNoscan208(b *testing.B) {
@@ -609,6 +707,13 @@ func benchmarkMallocgcScan208(b *testing.B) {
 	})
 }
 
+func benchmarkMallocgcScanSlice208(b *testing.B) {
+	const size = 208
+	for b.Loop() {
+		runtime.Escape(make([]*uint64, size/8))
+	}
+}
+
 func benchmarkMallocgcNoscan224(b *testing.B) {
 	const size = 224
 	b.Run("kind=new", func(b *testing.B) {
@@ -647,6 +752,13 @@ func benchmarkMallocgcScan224(b *testing.B) {
 			runtime.Escape(runtime.MallocGC(size, typ, true))
 		}
 	})
+}
+
+func benchmarkMallocgcScanSlice224(b *testing.B) {
+	const size = 224
+	for b.Loop() {
+		runtime.Escape(make([]*uint64, size/8))
+	}
 }
 
 func benchmarkMallocgcNoscan240(b *testing.B) {
@@ -689,6 +801,13 @@ func benchmarkMallocgcScan240(b *testing.B) {
 	})
 }
 
+func benchmarkMallocgcScanSlice240(b *testing.B) {
+	const size = 240
+	for b.Loop() {
+		runtime.Escape(make([]*uint64, size/8))
+	}
+}
+
 func benchmarkMallocgcNoscan256(b *testing.B) {
 	const size = 256
 	b.Run("kind=new", func(b *testing.B) {
@@ -727,6 +846,13 @@ func benchmarkMallocgcScan256(b *testing.B) {
 			runtime.Escape(runtime.MallocGC(size, typ, true))
 		}
 	})
+}
+
+func benchmarkMallocgcScanSlice256(b *testing.B) {
+	const size = 256
+	for b.Loop() {
+		runtime.Escape(make([]*uint64, size/8))
+	}
 }
 
 func benchmarkMallocgcNoscan288(b *testing.B) {
@@ -769,6 +895,13 @@ func benchmarkMallocgcScan288(b *testing.B) {
 	})
 }
 
+func benchmarkMallocgcScanSlice288(b *testing.B) {
+	const size = 288
+	for b.Loop() {
+		runtime.Escape(make([]*uint64, size/8))
+	}
+}
+
 func benchmarkMallocgcNoscan320(b *testing.B) {
 	const size = 320
 	b.Run("kind=new", func(b *testing.B) {
@@ -807,6 +940,13 @@ func benchmarkMallocgcScan320(b *testing.B) {
 			runtime.Escape(runtime.MallocGC(size, typ, true))
 		}
 	})
+}
+
+func benchmarkMallocgcScanSlice320(b *testing.B) {
+	const size = 320
+	for b.Loop() {
+		runtime.Escape(make([]*uint64, size/8))
+	}
 }
 
 func benchmarkMallocgcNoscan352(b *testing.B) {
@@ -849,6 +989,13 @@ func benchmarkMallocgcScan352(b *testing.B) {
 	})
 }
 
+func benchmarkMallocgcScanSlice352(b *testing.B) {
+	const size = 352
+	for b.Loop() {
+		runtime.Escape(make([]*uint64, size/8))
+	}
+}
+
 func benchmarkMallocgcNoscan384(b *testing.B) {
 	const size = 384
 	b.Run("kind=new", func(b *testing.B) {
@@ -887,6 +1034,13 @@ func benchmarkMallocgcScan384(b *testing.B) {
 			runtime.Escape(runtime.MallocGC(size, typ, true))
 		}
 	})
+}
+
+func benchmarkMallocgcScanSlice384(b *testing.B) {
+	const size = 384
+	for b.Loop() {
+		runtime.Escape(make([]*uint64, size/8))
+	}
 }
 
 func benchmarkMallocgcNoscan416(b *testing.B) {
@@ -929,6 +1083,13 @@ func benchmarkMallocgcScan416(b *testing.B) {
 	})
 }
 
+func benchmarkMallocgcScanSlice416(b *testing.B) {
+	const size = 416
+	for b.Loop() {
+		runtime.Escape(make([]*uint64, size/8))
+	}
+}
+
 func benchmarkMallocgcNoscan448(b *testing.B) {
 	const size = 448
 	b.Run("kind=new", func(b *testing.B) {
@@ -967,6 +1128,13 @@ func benchmarkMallocgcScan448(b *testing.B) {
 			runtime.Escape(runtime.MallocGC(size, typ, true))
 		}
 	})
+}
+
+func benchmarkMallocgcScanSlice448(b *testing.B) {
+	const size = 448
+	for b.Loop() {
+		runtime.Escape(make([]*uint64, size/8))
+	}
 }
 
 func benchmarkMallocgcNoscan480(b *testing.B) {
@@ -1009,6 +1177,13 @@ func benchmarkMallocgcScan480(b *testing.B) {
 	})
 }
 
+func benchmarkMallocgcScanSlice480(b *testing.B) {
+	const size = 480
+	for b.Loop() {
+		runtime.Escape(make([]*uint64, size/8))
+	}
+}
+
 func benchmarkMallocgcNoscan512(b *testing.B) {
 	const size = 512
 	b.Run("kind=new", func(b *testing.B) {
@@ -1047,6 +1222,13 @@ func benchmarkMallocgcScan512(b *testing.B) {
 			runtime.Escape(runtime.MallocGC(size, typ, true))
 		}
 	})
+}
+
+func benchmarkMallocgcScanSlice512(b *testing.B) {
+	const size = 512
+	for b.Loop() {
+		runtime.Escape(make([]*uint64, size/8))
+	}
 }
 
 func benchmarkMallocgcTiny1(b *testing.B) {
@@ -1389,5 +1571,33 @@ func BenchmarkMallocgc(b *testing.B) {
 		b.Run("size=448", benchmarkMallocgcScan448)
 		b.Run("size=480", benchmarkMallocgcScan480)
 		b.Run("size=512", benchmarkMallocgcScan512)
+	})
+	b.Run("scan=scanslice", func(b *testing.B) {
+		b.Run("size=8", benchmarkMallocgcScanSlice8)
+		b.Run("size=16", benchmarkMallocgcScanSlice16)
+		b.Run("size=24", benchmarkMallocgcScanSlice24)
+		b.Run("size=32", benchmarkMallocgcScanSlice32)
+		b.Run("size=48", benchmarkMallocgcScanSlice48)
+		b.Run("size=64", benchmarkMallocgcScanSlice64)
+		b.Run("size=80", benchmarkMallocgcScanSlice80)
+		b.Run("size=96", benchmarkMallocgcScanSlice96)
+		b.Run("size=112", benchmarkMallocgcScanSlice112)
+		b.Run("size=128", benchmarkMallocgcScanSlice128)
+		b.Run("size=144", benchmarkMallocgcScanSlice144)
+		b.Run("size=160", benchmarkMallocgcScanSlice160)
+		b.Run("size=176", benchmarkMallocgcScanSlice176)
+		b.Run("size=192", benchmarkMallocgcScanSlice192)
+		b.Run("size=208", benchmarkMallocgcScanSlice208)
+		b.Run("size=224", benchmarkMallocgcScanSlice224)
+		b.Run("size=240", benchmarkMallocgcScanSlice240)
+		b.Run("size=256", benchmarkMallocgcScanSlice256)
+		b.Run("size=288", benchmarkMallocgcScanSlice288)
+		b.Run("size=320", benchmarkMallocgcScanSlice320)
+		b.Run("size=352", benchmarkMallocgcScanSlice352)
+		b.Run("size=384", benchmarkMallocgcScanSlice384)
+		b.Run("size=416", benchmarkMallocgcScanSlice416)
+		b.Run("size=448", benchmarkMallocgcScanSlice448)
+		b.Run("size=480", benchmarkMallocgcScanSlice480)
+		b.Run("size=512", benchmarkMallocgcScanSlice512)
 	})
 }
