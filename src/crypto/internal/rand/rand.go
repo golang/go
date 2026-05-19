@@ -42,7 +42,7 @@ var Reader io.Reader = reader{}
 //
 // SetTestingReader panics when building against Go Cryptographic Module v1.0.0.
 //
-// SetTestingReader is pulled by [testing/cryptotest.setGlobalRandom] via go:linkname.
+// SetTestingReader is pulled by [testing/cryptotest.SetGlobalRandom] via go:linkname.
 //
 //go:linkname SetTestingReader crypto/internal/rand.SetTestingReader
 func SetTestingReader(r io.Reader) {
