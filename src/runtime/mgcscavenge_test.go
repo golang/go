@@ -6,7 +6,6 @@ package runtime_test
 
 import (
 	"fmt"
-	"internal/goarch"
 	"internal/goos"
 	"internal/runtime/atomic"
 	"math"
@@ -299,9 +298,6 @@ func TestPallocDataFindScavengeCandidate(t *testing.T) {
 
 // Tests end-to-end scavenging on a pageAlloc.
 func TestPageAllocScavenge(t *testing.T) {
-	if goos.IsPlan9 != 0 && goarch.IsArm64 != 0 {
-		t.Skip("skipping on plan9/arm64; page scavenging simulation exhausts Plan 9 user memory")
-	}
 	if GOOS == "openbsd" && testing.Short() {
 		t.Skip("skipping because virtual memory is limited; see #36210")
 	}
