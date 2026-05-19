@@ -241,10 +241,7 @@ func f(a int, s string) S {
 }`
 
 	fset := token.NewFileSet()
-	f, err := parser.ParseFile(fset, "p", src, parser.ParseComments|parser.SkipObjectResolution)
-	if err != nil {
-		t.Fatal(err)
-	}
+	f := mustParse(fset, src)
 
 	conf := Config{Importer: defaultImporter(fset)}
 	pkg, err := conf.Check("p", fset, []*ast.File{f}, nil)

@@ -6,7 +6,6 @@ package types_test
 
 import (
 	"go/ast"
-	"go/parser"
 	"go/token"
 	"go/types"
 	"testing"
@@ -28,10 +27,7 @@ type B struct {
 type A[T any] struct{}`
 
 	fset := token.NewFileSet()
-	file, err := parser.ParseFile(fset, "p.go", src, parser.ParseComments)
-	if err != nil {
-		t.Fatalf("could not parse: %v", err)
-	}
+	file := mustParse(fset, src)
 
 	conf := types.Config{}
 	pkg, err := conf.Check(file.Name.Name, fset, []*ast.File{file}, &types.Info{})
@@ -59,10 +55,7 @@ func TestPartialTypeCheckUndeclaredAliasPanic(t *testing.T) {
 type A = B // undeclared`
 
 	fset := token.NewFileSet()
-	file, err := parser.ParseFile(fset, "p.go", src, parser.ParseComments|parser.SkipObjectResolution)
-	if err != nil {
-		t.Fatalf("could not parse: %v", err)
-	}
+	file := mustParse(fset, src)
 
 	conf := types.Config{} // no error handler, panic
 	pkg, _ := conf.Check(file.Name.Name, fset, []*ast.File{file}, &types.Info{})
