@@ -101,6 +101,10 @@ type action func(in *ast.File)
 
 var filemap = map[string]action{
 	"alias.go": fixTokenPos,
+	"alias_test.go": func(f *ast.File) {
+		renameImportPath(f, `"cmd/compile/internal/types2"->"go/types"`)
+		renameIdents(f, "types2->types")
+	},
 	"assignments.go": func(f *ast.File) {
 		renameImportPath(f, `"cmd/compile/internal/syntax"->"go/ast"`)
 		renameSelectorExprs(f, "syntax.Name->ast.Ident", "ident.Value->ident.Name", "ast.Pos->token.Pos") // must happen before renaming identifiers
