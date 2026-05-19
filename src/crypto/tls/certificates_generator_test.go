@@ -33,7 +33,8 @@ var generate = flag.Bool("generate", false, "regenerate certificates_test.go")
 
 func TestGenerateCertificates(t *testing.T) {
 	testenv.MustHaveSource(t)
-	icryptotest.MustMinimumFIPS140ModuleVersion(t, "v1.26.0")
+	// The RSA key generation algorithm changed after Go 1.26.0.
+	icryptotest.MustMinimumFIPS140ModuleVersion(t, "v1.28.0")
 	if testing.Short() && !*generate {
 		t.Skip("set -generate to regenerate certificates_test.go, or run without -short to check")
 	}
