@@ -249,10 +249,10 @@ func TestQUICVersions(t *testing.T) {
 		},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
-			client := testConfig.Clone()
+			client := testConfigClient.Clone()
 			client.MinVersion = tc.clientMin
 			client.MaxVersion = tc.clientMax
-			server := testConfig.Clone()
+			server := testConfigServer.Clone()
 			server.MinVersion = tc.serverMin
 			server.MaxVersion = tc.serverMax
 
