@@ -1085,7 +1085,7 @@ func makeStructArshaler(t reflect.Type) *arshaler {
 		// This validation is effectively a makeStructFields error that
 		// occurs before any marshalling begins, but since it depends
 		// on the marshal options it can't be part of the sync.Once.
-		if !mo.Flags.Get(jsonflags.ReportErrorsWithLegacySemantics) {
+		if fields.hasString && !mo.Flags.Get(jsonflags.ReportErrorsWithLegacySemantics) {
 			for i := range fields.flattened {
 				f := &fields.flattened[i]
 				if f.string {
@@ -1290,7 +1290,7 @@ func makeStructArshaler(t reflect.Type) *arshaler {
 			// This validation is effectively a makeStructFields error that
 			// occurs before any marshalling begins, but since it depends
 			// on the marshal options it can't be part of the sync.Once.
-			if !uo.Flags.Get(jsonflags.ReportErrorsWithLegacySemantics) {
+			if fields.hasString && !uo.Flags.Get(jsonflags.ReportErrorsWithLegacySemantics) {
 				for i := range fields.flattened {
 					f := &fields.flattened[i]
 					if f.string {
