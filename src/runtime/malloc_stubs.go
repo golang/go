@@ -256,7 +256,7 @@ func smallStub(size uintptr, typ *_type, needzero bool) unsafe.Pointer {
 	// but see uninitialized memory or stale heap bits.
 	publicationBarrier()
 
-	if writeBarrier.enabled {
+	if isSlowPath_ && writeBarrier.enabled {
 		// Allocate black during GC.
 		// All slots hold nil so no scanning is needed.
 		// This may be racing with GC so do it atomically if there can be
@@ -419,7 +419,7 @@ func tinyStub(size uintptr, typ *_type, needzero bool) unsafe.Pointer {
 	// but see uninitialized memory or stale heap bits.
 	publicationBarrier()
 
-	if writeBarrier.enabled {
+	if isSlowPath_ && writeBarrier.enabled {
 		// Allocate black during GC.
 		// All slots hold nil so no scanning is needed.
 		// This may be racing with GC so do it atomically if there can be
