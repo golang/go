@@ -772,6 +772,15 @@ func ssaGenValue(s *ssagen.State, v *ssa.Value) {
 		p.To.Reg = v.Args[0].Reg()
 		p.RegTo2 = riscv.REG_ZERO
 
+	case ssaop.OpRISCV64LoweredAtomicAnd32value, ssaop.OpRISCV64LoweredAtomicAnd64value,
+		ssaop.OpRISCV64LoweredAtomicOr32value, ssaop.OpRISCV64LoweredAtomicOr64value:
+		p := s.Prog(v.Op.Asm())
+		p.From.Type = obj.TYPE_REG
+		p.From.Reg = v.Args[1].Reg()
+		p.To.Type = obj.TYPE_MEM
+		p.To.Reg = v.Args[0].Reg()
+		p.RegTo2 = v.Reg0()
+
 	case ssaop.OpRISCV64LoweredZero:
 		ptr := v.Args[0].Reg()
 		sc := v.AuxValAndOff()

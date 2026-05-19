@@ -5844,6 +5844,10 @@ const (
 	OpRISCV64LoweredAtomicCas64
 	OpRISCV64LoweredAtomicAnd32
 	OpRISCV64LoweredAtomicOr32
+	OpRISCV64LoweredAtomicAnd32value
+	OpRISCV64LoweredAtomicAnd64value
+	OpRISCV64LoweredAtomicOr32value
+	OpRISCV64LoweredAtomicOr64value
 	OpRISCV64LoweredNilCheck
 	OpRISCV64LoweredGetClosurePtr
 	OpRISCV64LoweredGetCallerSP
@@ -97023,6 +97027,74 @@ var OpcodeTable = [...]OpInfo{
 			Inputs: []InputInfo{
 				{1, RegMask{V1: 1073741808, V2: 0}},          // X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15 X16 X17 X18 X19 X20 X21 X22 X23 X24 X25 X26 g X28 X29 X30
 				{0, RegMask{V1: 9223372037928517618, V2: 0}}, // SP X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15 X16 X17 X18 X19 X20 X21 X22 X23 X24 X25 X26 g X28 X29 X30 SB
+			},
+		},
+	},
+	{
+		Name:            "LoweredAtomicAnd32value",
+		ArgLen:          3,
+		ResultNotInArgs: true,
+		FaultOnNilArg0:  true,
+		HasSideEffects:  true,
+		asm:             riscv.AAMOANDW,
+		Reg: RegInfo{
+			Inputs: []InputInfo{
+				{1, RegMask{V1: 1073741808, V2: 0}},          // X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15 X16 X17 X18 X19 X20 X21 X22 X23 X24 X25 X26 g X28 X29 X30
+				{0, RegMask{V1: 9223372037928517618, V2: 0}}, // SP X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15 X16 X17 X18 X19 X20 X21 X22 X23 X24 X25 X26 g X28 X29 X30 SB
+			},
+			Outputs: []OutputInfo{
+				{0, RegMask{V1: 1006632944, V2: 0}}, // X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15 X16 X17 X18 X19 X20 X21 X22 X23 X24 X25 X26 X28 X29 X30
+			},
+		},
+	},
+	{
+		Name:            "LoweredAtomicAnd64value",
+		ArgLen:          3,
+		ResultNotInArgs: true,
+		FaultOnNilArg0:  true,
+		HasSideEffects:  true,
+		asm:             riscv.AAMOANDD,
+		Reg: RegInfo{
+			Inputs: []InputInfo{
+				{1, RegMask{V1: 1073741808, V2: 0}},          // X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15 X16 X17 X18 X19 X20 X21 X22 X23 X24 X25 X26 g X28 X29 X30
+				{0, RegMask{V1: 9223372037928517618, V2: 0}}, // SP X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15 X16 X17 X18 X19 X20 X21 X22 X23 X24 X25 X26 g X28 X29 X30 SB
+			},
+			Outputs: []OutputInfo{
+				{0, RegMask{V1: 1006632944, V2: 0}}, // X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15 X16 X17 X18 X19 X20 X21 X22 X23 X24 X25 X26 X28 X29 X30
+			},
+		},
+	},
+	{
+		Name:            "LoweredAtomicOr32value",
+		ArgLen:          3,
+		ResultNotInArgs: true,
+		FaultOnNilArg0:  true,
+		HasSideEffects:  true,
+		asm:             riscv.AAMOORW,
+		Reg: RegInfo{
+			Inputs: []InputInfo{
+				{1, RegMask{V1: 1073741808, V2: 0}},          // X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15 X16 X17 X18 X19 X20 X21 X22 X23 X24 X25 X26 g X28 X29 X30
+				{0, RegMask{V1: 9223372037928517618, V2: 0}}, // SP X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15 X16 X17 X18 X19 X20 X21 X22 X23 X24 X25 X26 g X28 X29 X30 SB
+			},
+			Outputs: []OutputInfo{
+				{0, RegMask{V1: 1006632944, V2: 0}}, // X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15 X16 X17 X18 X19 X20 X21 X22 X23 X24 X25 X26 X28 X29 X30
+			},
+		},
+	},
+	{
+		Name:            "LoweredAtomicOr64value",
+		ArgLen:          3,
+		ResultNotInArgs: true,
+		FaultOnNilArg0:  true,
+		HasSideEffects:  true,
+		asm:             riscv.AAMOORD,
+		Reg: RegInfo{
+			Inputs: []InputInfo{
+				{1, RegMask{V1: 1073741808, V2: 0}},          // X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15 X16 X17 X18 X19 X20 X21 X22 X23 X24 X25 X26 g X28 X29 X30
+				{0, RegMask{V1: 9223372037928517618, V2: 0}}, // SP X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15 X16 X17 X18 X19 X20 X21 X22 X23 X24 X25 X26 g X28 X29 X30 SB
+			},
+			Outputs: []OutputInfo{
+				{0, RegMask{V1: 1006632944, V2: 0}}, // X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15 X16 X17 X18 X19 X20 X21 X22 X23 X24 X25 X26 X28 X29 X30
 			},
 		},
 	},
