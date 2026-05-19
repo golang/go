@@ -1490,7 +1490,6 @@ func (p Prefix) AppendTo(b []byte) []byte {
 		return append(b, "invalid Prefix"...)
 	}
 
-	// p.ip is non-nil, because p is valid.
 	if p.ip.z == z4 {
 		b = p.ip.appendTo4(b)
 	} else {
