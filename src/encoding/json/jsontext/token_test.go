@@ -13,6 +13,8 @@ import (
 	"reflect"
 	"strconv"
 	"testing"
+
+	"internal/testenv"
 )
 
 func TestTokenStringAllocations(t *testing.T) {
