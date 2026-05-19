@@ -117,7 +117,7 @@ type S struct { I; m int }
 type I interface { m() byte }
 `
 	fset := token.NewFileSet()
-	f, err := parser.ParseFile(fset, "celsius.go", input, 0)
+	f, err := parser.ParseFile(fset, "celsius.go", input, parser.SkipObjectResolution)
 	if err != nil {
 		log.Fatal(err)
 	}

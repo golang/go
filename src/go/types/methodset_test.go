@@ -144,7 +144,7 @@ type Instance = *Tree[int]
 `
 
 	fset := token.NewFileSet()
-	f, err := parser.ParseFile(fset, "foo.go", src, 0)
+	f, err := parser.ParseFile(fset, "foo.go", src, parser.SkipObjectResolution)
 	if err != nil {
 		panic(err)
 	}
@@ -165,7 +165,7 @@ func (T) m() {} // expected error: invalid receiver type
 `
 
 	fset := token.NewFileSet()
-	f, err := parser.ParseFile(fset, "p.go", src, 0)
+	f, err := parser.ParseFile(fset, "p.go", src, parser.SkipObjectResolution)
 	if err != nil {
 		t.Fatal(err)
 	}

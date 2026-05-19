@@ -95,7 +95,7 @@ type Tagged2 struct { F int "tag2" }
 `
 
 	fset := token.NewFileSet()
-	file, err := parser.ParseFile(fset, "p.go", src, 0)
+	file, err := parser.ParseFile(fset, "p.go", src, parser.SkipObjectResolution)
 	if err != nil {
 		t.Fatal(err)
 	}

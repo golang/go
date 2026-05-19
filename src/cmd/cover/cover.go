@@ -773,7 +773,7 @@ func (p *Package) annotateFile(name string, fd io.Writer) {
 	if err != nil {
 		log.Fatalf("cover: %s: %s", name, err)
 	}
-	parsedFile, err := parser.ParseFile(fset, name, content, parser.ParseComments)
+	parsedFile, err := parser.ParseFile(fset, name, content, parser.ParseComments|parser.SkipObjectResolution)
 	if err != nil {
 		log.Fatalf("cover: %s: %s", name, err)
 	}

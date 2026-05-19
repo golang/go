@@ -54,7 +54,7 @@ func TestGenerate(t *testing.T) {
 func generate(t *testing.T, filename string, write bool) {
 	// parse src (cmd/compile/internal/types2)
 	srcFilename := filepath.FromSlash(runtime.GOROOT() + srcDir + filename)
-	file, err := parser.ParseFile(fset, srcFilename, nil, parser.ParseComments)
+	file, err := parser.ParseFile(fset, srcFilename, nil, parser.ParseComments|parser.SkipObjectResolution)
 	if err != nil {
 		t.Fatal(err)
 	}

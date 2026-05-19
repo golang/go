@@ -45,7 +45,7 @@ func TestGenMeth(t *testing.T) {
 	}
 
 	check := func(pkgname, src string, imports importMap) (*types.Package, error) {
-		f, err := parser.ParseFile(fset, "genmeth.go", src, 0)
+		f, err := parser.ParseFile(fset, "genmeth.go", src, parser.SkipObjectResolution)
 		if err != nil {
 			return nil, err
 		}

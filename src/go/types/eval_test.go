@@ -168,7 +168,7 @@ func TestEvalPos(t *testing.T) {
 	fset := token.NewFileSet()
 	var files []*ast.File
 	for i, src := range sources {
-		file, err := parser.ParseFile(fset, "p", src, parser.ParseComments)
+		file, err := parser.ParseFile(fset, "p", src, parser.ParseComments|parser.SkipObjectResolution)
 		if err != nil {
 			t.Fatalf("could not parse file %d: %s", i, err)
 		}
@@ -241,7 +241,7 @@ func f(a int, s string) S {
 }`
 
 	fset := token.NewFileSet()
-	f, err := parser.ParseFile(fset, "p", src, parser.ParseComments)
+	f, err := parser.ParseFile(fset, "p", src, parser.ParseComments|parser.SkipObjectResolution)
 	if err != nil {
 		t.Fatal(err)
 	}

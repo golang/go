@@ -94,7 +94,7 @@ func TestDocs(t *testing.T) {
 		t.Fatal(err)
 	}
 	fset := token.NewFileSet()
-	f, err := parser.ParseFile(fset, "doc.go", src, parser.ParseComments)
+	f, err := parser.ParseFile(fset, "doc.go", src, parser.ParseComments|parser.SkipObjectResolution)
 	if err != nil {
 		t.Fatal(err)
 	}

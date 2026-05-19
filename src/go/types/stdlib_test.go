@@ -263,7 +263,7 @@ func testTestDir(t *testing.T, path string, ignore ...string) {
 		}
 
 		// parse and type-check file
-		file, err := parser.ParseFile(fset, filename, nil, 0)
+		file, err := parser.ParseFile(fset, filename, nil, parser.SkipObjectResolution)
 		if err == nil {
 			conf := Config{
 				GoVersion: goVersion,
@@ -377,7 +377,7 @@ func typecheckFiles(path string, filenames []string, importer Importer) (*Packag
 	// Parse package files.
 	var files []*ast.File
 	for _, filename := range filenames {
-		file, err := parser.ParseFile(fset, filename, nil, parser.AllErrors)
+		file, err := parser.ParseFile(fset, filename, nil, parser.AllErrors|parser.SkipObjectResolution)
 		if err != nil {
 			return nil, err
 		}

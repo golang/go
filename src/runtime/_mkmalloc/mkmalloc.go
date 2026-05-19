@@ -298,7 +298,7 @@ func inline(config generatorConfig) []byte {
 
 	// Read the template file in.
 	fset := token.NewFileSet()
-	f, err := parser.ParseFile(fset, config.file, nil, 0)
+	f, err := parser.ParseFile(fset, config.file, nil, parser.SkipObjectResolution)
 	if err != nil {
 		log.Fatalf("parsing %s: %v", config.file, err)
 	}

@@ -289,7 +289,7 @@ func genRulesSuffix(arch arch, suff string) {
 	buf := new(bytes.Buffer)
 	fprint(buf, genFile)
 	fset := token.NewFileSet()
-	file, err := parser.ParseFile(fset, "", buf, parser.ParseComments)
+	file, err := parser.ParseFile(fset, "", buf, parser.ParseComments|parser.SkipObjectResolution)
 	if err != nil {
 		filename := fmt.Sprintf("%s_broken.go", arch.name)
 		if err := os.WriteFile(filename, buf.Bytes(), 0644); err != nil {
@@ -841,7 +841,7 @@ func exprf(format string, a ...interface{}) ast.Expr {
 func stmtf(format string, a ...interface{}) Statement {
 	src := fmt.Sprintf(format, a...)
 	fsrc := "package p\nfunc _() {\n" + src + "\n}\n"
-	file, err := parser.ParseFile(token.NewFileSet(), "", fsrc, 0)
+	file, err := parser.ParseFile(token.NewFileSet(), "", fsrc, parser.SkipObjectResolution)
 	if err != nil {
 		log.Fatalf("stmt parse error on %q: %v", src, err)
 	}

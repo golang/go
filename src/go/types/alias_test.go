@@ -59,7 +59,7 @@ func TestPartialTypeCheckUndeclaredAliasPanic(t *testing.T) {
 type A = B // undeclared`
 
 	fset := token.NewFileSet()
-	file, err := parser.ParseFile(fset, "p.go", src, parser.ParseComments)
+	file, err := parser.ParseFile(fset, "p.go", src, parser.ParseComments|parser.SkipObjectResolution)
 	if err != nil {
 		t.Fatalf("could not parse: %v", err)
 	}
