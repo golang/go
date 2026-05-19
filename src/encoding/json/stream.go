@@ -80,8 +80,20 @@ func (dec *Decoder) Decode(v any) error {
 	return err
 }
 
-// Buffered returns a reader of the data remaining in the Decoder's
-// buffer. The reader is valid until the next call to [Decoder.Decode].
+// Buffered returns a reader of the data remaining in the unread buffer,
+// which may contain zero or more bytes.
+// This is the data already consumed from the input [io.Reader],
+// but not yet read by a [Decoder.Decode] or [Decoder.Token] call.
+// It may contain bytes that do not form valid JSON as it has not yet
+// been validated according to the JSON grammar.
+// The exact amount of buffered data is an implementation detail
+// of the Decoder and may change over time.
+//
+// It is the caller's responsibility to concatenate this buffer with
+// the remainder of the input Reader to obtain the full sequence
+// of bytes after the last decoded JSON value.
+//
+// The reader is valid until the next call to [Decoder.Decode] or [Decoder.Token].
 func (dec *Decoder) Buffered() io.Reader {
 	return bytes.NewReader(dec.buf[dec.scanp:])
 }
