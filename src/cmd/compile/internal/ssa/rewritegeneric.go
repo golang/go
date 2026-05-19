@@ -11727,7 +11727,7 @@ func rewriteValuegeneric_OpIsInBounds(v *Value) bool {
 		v.AuxInt = boolToAuxInt(true)
 		return true
 	}
-	// match: (IsInBounds (Rsh8Ux64 _ (Const64 [c])) (Const64 [d]))
+	// match: (IsInBounds (Rsh8Ux64 _ (Const64 [c])) (Const8 [d]))
 	// cond: 0 < c && c < 8 && 1<<uint( 8-c)-1 < d
 	// result: (ConstBool [true])
 	for {
@@ -11740,10 +11740,10 @@ func rewriteValuegeneric_OpIsInBounds(v *Value) bool {
 			break
 		}
 		c := auxIntToInt64(v_0_1.AuxInt)
-		if v_1.Op != OpConst64 {
+		if v_1.Op != OpConst8 {
 			break
 		}
-		d := auxIntToInt64(v_1.AuxInt)
+		d := auxIntToInt8(v_1.AuxInt)
 		if !(0 < c && c < 8 && 1<<uint(8-c)-1 < d) {
 			break
 		}
@@ -11779,7 +11779,7 @@ func rewriteValuegeneric_OpIsInBounds(v *Value) bool {
 		v.AuxInt = boolToAuxInt(true)
 		return true
 	}
-	// match: (IsInBounds (ZeroExt16to32 (Rsh16Ux64 _ (Const64 [c]))) (Const64 [d]))
+	// match: (IsInBounds (ZeroExt16to32 (Rsh16Ux64 _ (Const64 [c]))) (Const32 [d]))
 	// cond: 0 < c && c < 16 && 1<<uint(16-c)-1 < d
 	// result: (ConstBool [true])
 	for {
@@ -11796,10 +11796,10 @@ func rewriteValuegeneric_OpIsInBounds(v *Value) bool {
 			break
 		}
 		c := auxIntToInt64(v_0_0_1.AuxInt)
-		if v_1.Op != OpConst64 {
+		if v_1.Op != OpConst32 {
 			break
 		}
-		d := auxIntToInt64(v_1.AuxInt)
+		d := auxIntToInt32(v_1.AuxInt)
 		if !(0 < c && c < 16 && 1<<uint(16-c)-1 < d) {
 			break
 		}
@@ -11807,7 +11807,7 @@ func rewriteValuegeneric_OpIsInBounds(v *Value) bool {
 		v.AuxInt = boolToAuxInt(true)
 		return true
 	}
-	// match: (IsInBounds (Rsh16Ux64 _ (Const64 [c])) (Const64 [d]))
+	// match: (IsInBounds (Rsh16Ux64 _ (Const64 [c])) (Const16 [d]))
 	// cond: 0 < c && c < 16 && 1<<uint(16-c)-1 < d
 	// result: (ConstBool [true])
 	for {
@@ -11820,10 +11820,10 @@ func rewriteValuegeneric_OpIsInBounds(v *Value) bool {
 			break
 		}
 		c := auxIntToInt64(v_0_1.AuxInt)
-		if v_1.Op != OpConst64 {
+		if v_1.Op != OpConst16 {
 			break
 		}
-		d := auxIntToInt64(v_1.AuxInt)
+		d := auxIntToInt16(v_1.AuxInt)
 		if !(0 < c && c < 16 && 1<<uint(16-c)-1 < d) {
 			break
 		}
@@ -11859,7 +11859,7 @@ func rewriteValuegeneric_OpIsInBounds(v *Value) bool {
 		v.AuxInt = boolToAuxInt(true)
 		return true
 	}
-	// match: (IsInBounds (Rsh32Ux64 _ (Const64 [c])) (Const64 [d]))
+	// match: (IsInBounds (Rsh32Ux64 _ (Const64 [c])) (Const32 [d]))
 	// cond: 0 < c && c < 32 && 1<<uint(32-c)-1 < d
 	// result: (ConstBool [true])
 	for {
@@ -11872,10 +11872,10 @@ func rewriteValuegeneric_OpIsInBounds(v *Value) bool {
 			break
 		}
 		c := auxIntToInt64(v_0_1.AuxInt)
-		if v_1.Op != OpConst64 {
+		if v_1.Op != OpConst32 {
 			break
 		}
-		d := auxIntToInt64(v_1.AuxInt)
+		d := auxIntToInt32(v_1.AuxInt)
 		if !(0 < c && c < 32 && 1<<uint(32-c)-1 < d) {
 			break
 		}
