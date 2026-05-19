@@ -933,23 +933,72 @@ func genPPC64(g *gen) {
 		"MOVD XER, R31\nMOVD R31, %d(R1)",
 		"MOVD %d(R1), R31\nMOVD R31, XER",
 		8)
-	// Add floating point registers F0-F31.
+
+	// VS0-VS31 (aliased to F0-F31), FPSCR, and V0-V31 are all saved to
+	// p.xRegs.scratch instead of the stack to keep the nosplit frame small
+	// and to preserve VS0-VS31 at full 128-bit width.
+	//
+	// Ordering constraint: MOVFL FPSCR, F0 clobbers F0 (= VS0), so
+	// VS0-VS31 must be saved BEFORE FPSCR. On restore, FPSCR must be
+	// restored BEFORE VS0-VS31 so that LXV VS0 overwrites the FPSCR
+	// scratch value left in F0.
+	const vReg = "R14"
+
+	// Struct layout for writeXRegs:
+	// FPSCR(8) + pad(8) + VS0-VS31(32x16=512) + V0-V31(32x16=512) = 1040 bytes.
+	// FPSCR sits at offset 0 in the struct but is saved last / restored
+	// first in the assembly to satisfy the ordering constraint above.
+	lXRegs := layout{sp: vReg}
+	lXRegs.add2("FMOVD", "FMOVD", []regInfo{{name: "FPSCR", size: 8}}, [2]string{"", ""}, false)
+	lXRegs.add2("MOVD", "MOVD", []regInfo{{name: "_", size: 8}}, [2]string{"", ""}, false)
 	for i := 0; i <= 31; i++ {
-		reg := fmt.Sprintf("F%d", i)
-		l.add("FMOVD", reg, 8)
+		regs := []regInfo{{name: fmt.Sprintf("VS%d", i), size: 16}}
+		lXRegs.add2("STXV", "LXV", regs, [2]string{"", ""}, false)
 	}
-	// Add floating point control/status register FPSCR.
-	l.addSpecial(
-		"MOVFL FPSCR, F0\nFMOVD F0, %d(R1)",
-		"FMOVD %d(R1), F0\nMOVFL F0, FPSCR",
-		8)
+	for i := 0; i <= 31; i++ {
+		regs := []regInfo{{name: fmt.Sprintf("V%d", i), size: 16}}
+		lXRegs.add2("STXV", "LXV", regs, [2]string{"", ""}, false)
+	}
+	writeXRegs(g.goarch, &lXRegs)
+
+	// Save/restore layout for VS0-VS31 (starts at offset 16, skipping FPSCR+pad).
+	lVSRegs := layout{sp: vReg, stack: 16}
+	for i := 0; i <= 31; i++ {
+		regs := []regInfo{{name: fmt.Sprintf("VS%d", i), size: 16}}
+		lVSRegs.add2("STXV", "LXV", regs, [2]string{"", ""}, false)
+	}
+
+	// Save/restore layout for V0-V31 (starts at offset 528, after FPSCR+pad+VS0-VS31).
+	lVRegs := layout{sp: vReg, stack: 16 + 32*16}
+	for i := 0; i <= 31; i++ {
+		regs := []regInfo{{name: fmt.Sprintf("V%d", i), size: 16}}
+		lVRegs.add2("STXV", "LXV", regs, [2]string{"", ""}, false)
+	}
 
 	p("MOVD R31, -%d(R1)", l.stack-32) // save R31 first, we'll use R31 for saving LR
 	p("MOVD LR, R31")
 	p("MOVDU R31, -%d(R1)", l.stack) // allocate frame, save PC of interrupted instruction (in LR)
 
 	l.save(g)
+	p("// Save VS0-VS31, FPSCR, and V0-V31 to p.xRegs.scratch")
+	p("MOVD g_m(g), %s", vReg)
+	p("MOVD m_p(%s), %s", vReg, vReg)
+	p("ADD $(p_xRegs+xRegPerP_scratch), %s, %s", vReg, vReg)
+	// VS0-VS31 saved first: MOVFL FPSCR,F0 below clobbers F0 (=VS0).
+	lVSRegs.save(g)
+	p("MOVFL FPSCR, F0")
+	p("FMOVD F0, 0(%s)", vReg)
+	lVRegs.save(g)
 	p("CALL ·asyncPreempt2(SB)")
+	p("// Restore VS0-VS31, FPSCR, and V0-V31 from *p.xRegs.cache")
+	p("MOVD g_m(g), %s", vReg)
+	p("MOVD m_p(%s), %s", vReg, vReg)
+	p("MOVD (p_xRegs+xRegPerP_cache)(%s), %s", vReg, vReg)
+	// FPSCR restored first: LXV VS0 below overwrites F0's scratch value.
+	p("FMOVD 0(%s), F0", vReg)
+	p("MOVFL F0, FPSCR")
+	lVSRegs.restoreDirect(g)
+	lVRegs.restoreDirect(g)
 	l.restore(g)
 
 	p("MOVD %d(R1), R31", l.stack) // sigctxt.pushCall has pushed LR, R2, R12 (at interrupt) on stack, restore them

@@ -504,13 +504,47 @@ var registersPPC64 = [...]ssabase.Register{
 	{Num: 60, ObjNum: ppc64.REG_F28, Name: "F28"},
 	{Num: 61, ObjNum: ppc64.REG_F29, Name: "F29"},
 	{Num: 62, ObjNum: ppc64.REG_F30, Name: "F30"},
-	{Num: 63, ObjNum: ppc64.REG_XER, Name: "XER"},
+	{Num: 63, ObjNum: ppc64.REG_F31, Name: "F31"},
+	{Num: 64, ObjNum: ppc64.REG_V0, Name: "V0"},
+	{Num: 65, ObjNum: ppc64.REG_V1, Name: "V1"},
+	{Num: 66, ObjNum: ppc64.REG_V2, Name: "V2"},
+	{Num: 67, ObjNum: ppc64.REG_V3, Name: "V3"},
+	{Num: 68, ObjNum: ppc64.REG_V4, Name: "V4"},
+	{Num: 69, ObjNum: ppc64.REG_V5, Name: "V5"},
+	{Num: 70, ObjNum: ppc64.REG_V6, Name: "V6"},
+	{Num: 71, ObjNum: ppc64.REG_V7, Name: "V7"},
+	{Num: 72, ObjNum: ppc64.REG_V8, Name: "V8"},
+	{Num: 73, ObjNum: ppc64.REG_V9, Name: "V9"},
+	{Num: 74, ObjNum: ppc64.REG_V10, Name: "V10"},
+	{Num: 75, ObjNum: ppc64.REG_V11, Name: "V11"},
+	{Num: 76, ObjNum: ppc64.REG_V12, Name: "V12"},
+	{Num: 77, ObjNum: ppc64.REG_V13, Name: "V13"},
+	{Num: 78, ObjNum: ppc64.REG_V14, Name: "V14"},
+	{Num: 79, ObjNum: ppc64.REG_V15, Name: "V15"},
+	{Num: 80, ObjNum: ppc64.REG_V16, Name: "V16"},
+	{Num: 81, ObjNum: ppc64.REG_V17, Name: "V17"},
+	{Num: 82, ObjNum: ppc64.REG_V18, Name: "V18"},
+	{Num: 83, ObjNum: ppc64.REG_V19, Name: "V19"},
+	{Num: 84, ObjNum: ppc64.REG_V20, Name: "V20"},
+	{Num: 85, ObjNum: ppc64.REG_V21, Name: "V21"},
+	{Num: 86, ObjNum: ppc64.REG_V22, Name: "V22"},
+	{Num: 87, ObjNum: ppc64.REG_V23, Name: "V23"},
+	{Num: 88, ObjNum: ppc64.REG_V24, Name: "V24"},
+	{Num: 89, ObjNum: ppc64.REG_V25, Name: "V25"},
+	{Num: 90, ObjNum: ppc64.REG_V26, Name: "V26"},
+	{Num: 91, ObjNum: ppc64.REG_V27, Name: "V27"},
+	{Num: 92, ObjNum: ppc64.REG_V28, Name: "V28"},
+	{Num: 93, ObjNum: ppc64.REG_V29, Name: "V29"},
+	{Num: 94, ObjNum: ppc64.REG_V30, Name: "V30"},
+	{Num: 95, ObjNum: ppc64.REG_V31, Name: "V31"},
+	{Num: 96, ObjNum: ppc64.REG_XER, Name: "XER"},
 }
 var paramIntRegPPC64 = []int8{3, 4, 5, 6, 7, 8, 9, 10, 14, 15, 16, 17}
 var paramFloatRegPPC64 = []int8{33, 34, 35, 36, 37, 38, 39, 40, 41, 42, 43, 44}
 var gpRegMaskPPC64 = ssaop.RegMask{V1: 1073733624, V2: 0}
-var fpRegMaskPPC64 = ssaop.RegMask{V1: 9223372032559808512, V2: 0}
-var specialRegMaskPPC64 = ssaop.RegMask{V1: 9223372036854775808, V2: 0}
+var fpRegMaskPPC64 = ssaop.RegMask{V1: 18446744069414584320, V2: 0}
+var simdRegMaskPPC64 = ssaop.RegMask{V1: 18446744069414584320, V2: 4294967295}
+var specialRegMaskPPC64 = ssaop.RegMask{V1: 0, V2: 4294967296}
 var framepointerRegPPC64 = int8(-1)
 var linkRegPPC64 = int8(-1)
 var registersRISCV64 = [...]ssabase.Register{
