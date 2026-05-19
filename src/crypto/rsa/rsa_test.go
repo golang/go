@@ -134,7 +134,13 @@ func TestTinyKeyGeneration(t *testing.T) {
 	}
 }
 
+// TestKeyGenerationVectors tests RSA key generation against the
+// c2sp.org/det-keygen test vectors. See the comment on
+// [crypto/internal/fips140/rsa.GenerateKey] for more details.
 func TestKeyGenerationVectors(t *testing.T) {
+	// The RSA key generation algorithm changed after Go 1.26.0, so the
+	// generated keys only match with recent FIPS 140-3 modules.
+	cryptotest.MustMinimumFIPS140ModuleVersion(t, "v1.28.0")
 	var vectors []struct {
 		Bits  int
 		Seed  []byte
@@ -890,6 +896,9 @@ func BenchmarkParsePKCS8PrivateKey(b *testing.B) {
 }
 
 func BenchmarkGenerateKey(b *testing.B) {
+	// The RSA key generation algorithm changed after Go 1.26.0, so the testdata
+	// only accurately works with recent FIPS 140-3 modules.
+	cryptotest.MustMinimumFIPS140ModuleVersion(b, "v1.28.0")
 	b.Run("2048", func(b *testing.B) {
 		b.Setenv("GODEBUG", "cryptocustomrand=1")
 		primes, err := os.ReadFile("testdata/keygen2048.txt")
