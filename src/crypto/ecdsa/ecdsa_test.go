@@ -108,6 +108,81 @@ func TestSignAndVerifyASN1(t *testing.T) {
 	testAllCurves(t, testSignAndVerifyASN1)
 }
 
+func TestEmptyHashRejection(t *testing.T) {
+	testAllCurves(t, testEmptyHashRejection)
+}
+
+func testEmptyHashRejection(t *testing.T, c elliptic.Curve) {
+	priv, err := GenerateKey(c, rand.Reader)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	t.Run("SignASN1", func(t *testing.T) {
+		_, err := SignASN1(rand.Reader, priv, nil)
+		if err == nil {
+			t.Fatal("SignASN1 with nil hash should fail")
+		}
+		if !strings.Contains(err.Error(), "cannot be empty") {
+			t.Errorf("unexpected error: %v", err)
+		}
+
+		_, err = SignASN1(rand.Reader, priv, []byte{})
+		if err == nil {
+			t.Fatal("SignASN1 with empty hash should fail")
+		}
+		if !strings.Contains(err.Error(), "cannot be empty") {
+			t.Errorf("unexpected error: %v", err)
+		}
+	})
+
+	t.Run("Sign", func(t *testing.T) {
+		_, err := priv.Sign(rand.Reader, nil, nil)
+		if err == nil {
+			t.Fatal("Sign with nil hash should fail")
+		}
+		if !strings.Contains(err.Error(), "cannot be empty") {
+			t.Errorf("unexpected error: %v", err)
+		}
+
+		_, err = priv.Sign(rand.Reader, []byte{}, nil)
+		if err == nil {
+			t.Fatal("Sign with empty hash should fail")
+		}
+		if !strings.Contains(err.Error(), "cannot be empty") {
+			t.Errorf("unexpected error: %v", err)
+		}
+	})
+
+	t.Run("SignDeterministic", func(t *testing.T) {
+		if _, err := priv.Sign(nil, nil, nil); err == nil {
+			t.Error("deterministic Sign with nil hash should fail")
+		}
+		if _, err := priv.Sign(nil, []byte{}, nil); err == nil {
+			t.Error("deterministic Sign with empty hash should fail")
+		}
+	})
+
+	t.Run("VerifyASN1", func(t *testing.T) {
+		// Create a valid signature first
+		hash := []byte("test hash")
+		sig, err := SignASN1(rand.Reader, priv, hash)
+		if err != nil {
+			t.Fatal(err)
+		}
+
+		// Verify with nil hash should return false
+		if VerifyASN1(&priv.PublicKey, nil, sig) {
+			t.Error("VerifyASN1 with nil hash should return false")
+		}
+
+		// Verify with empty hash should return false
+		if VerifyASN1(&priv.PublicKey, []byte{}, sig) {
+			t.Error("VerifyASN1 with empty hash should return false")
+		}
+	})
+}
+
 func testSignAndVerifyASN1(t *testing.T, c elliptic.Curve) {
 	priv, _ := GenerateKey(c, rand.Reader)
 
@@ -125,6 +200,40 @@ func testSignAndVerifyASN1(t *testing.T, c elliptic.Curve) {
 	hashed[0] ^= 0xff
 	if VerifyASN1(&priv.PublicKey, hashed, sig) {
 		t.Errorf("VerifyASN1 always works!")
+	}
+}
+
+func TestSignHashLength(t *testing.T) {
+	testAllCurves(t, testSignHashLength)
+}
+
+func testSignHashLength(t *testing.T, c elliptic.Curve) {
+	priv, err := GenerateKey(c, rand.Reader)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	digest := sha256.Sum256([]byte("message"))
+
+	// opts == nil is allowed and skips the length check.
+	if _, err := priv.Sign(rand.Reader, digest[:], nil); err != nil {
+		t.Errorf("Sign with nil opts: %v", err)
+	}
+
+	// opts != nil with matching hash length succeeds.
+	if _, err := priv.Sign(rand.Reader, digest[:], crypto.SHA256); err != nil {
+		t.Errorf("Sign with matching hash: %v", err)
+	}
+
+	// opts != nil with mismatched hash length fails.
+	if _, err := priv.Sign(rand.Reader, digest[:], crypto.SHA384); err == nil {
+		t.Error("Sign with mismatched hash length should fail")
+	}
+	if _, err := priv.Sign(rand.Reader, digest[:len(digest)-1], crypto.SHA256); err == nil {
+		t.Error("Sign with short digest should fail")
+	}
+	if _, err := priv.Sign(rand.Reader, nil, crypto.SHA256); err == nil {
+		t.Error("Sign with empty digest should fail")
 	}
 }
 
