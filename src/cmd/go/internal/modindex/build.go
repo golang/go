@@ -274,8 +274,14 @@ func getFileInfo(dir, name string, fset *token.FileSet) (*fileInfo, error) {
 		return nil, fmt.Errorf("read %s: %v", info.name, err)
 	}
 
-	// Look for +build comments to accept or reject the file.
-	info.goBuildConstraint, info.plusBuildConstraints, info.binaryOnly, err = getConstraints(info.header)
+	// Look for go:build comments to accept or reject the file.
+	// For non-Go source files, also recognise language-specific comment prefixes
+	// (e.g. "% go:build" for MATLAB .m files).
+	var commentPrefix []byte
+	if !strings.HasSuffix(name, ".go") {
+		commentPrefix = extCommentPrefix[ext]
+	}
+	info.goBuildConstraint, info.plusBuildConstraints, info.binaryOnly, err = getConstraintsWithPrefix(info.header, commentPrefix)
 	if err != nil {
 		return nil, fmt.Errorf("%s: %v", name, err)
 	}
@@ -302,12 +308,23 @@ var (
 	errMultipleGoBuild = errors.New("multiple //go:build comments")
 )
 
+// extCommentPrefix maps non-Go file extensions to their line-comment prefix
+// for go:build constraints. See go/build.extCommentPrefix for the full rationale.
+var extCommentPrefix = map[string][]byte{
+	".m":   []byte("% go:build"),
+	".f90": []byte("! go:build"),
+}
+
 func isGoBuildComment(line []byte) bool {
-	if !bytes.HasPrefix(line, goBuildComment) {
+	return isGoBuildCommentWithPrefix(line, goBuildComment)
+}
+
+func isGoBuildCommentWithPrefix(line, prefix []byte) bool {
+	if !bytes.HasPrefix(line, prefix) {
 		return false
 	}
 	line = bytes.TrimSpace(line)
-	rest := line[len(goBuildComment):]
+	rest := line[len(prefix):]
 	return len(rest) == 0 || len(bytes.TrimSpace(rest)) < len(rest)
 }
 
@@ -317,17 +334,39 @@ func isGoBuildComment(line []byte) bool {
 var binaryOnlyComment = []byte("//go:binary-only-package")
 
 func getConstraints(content []byte) (goBuild string, plusBuild []string, binaryOnly bool, err error) {
-	// Identify leading run of // comments and blank lines,
-	// which must be followed by a blank line.
-	// Also identify any //go:build comments.
-	content, goBuildBytes, sawBinaryOnly, err := parseFileHeader(content)
+	return getConstraintsWithPrefix(content, nil)
+}
+
+// getConstraintsWithPrefix is like getConstraints but accepts an explicit
+// line-comment prefix for non-Go source files (e.g. "% go:build" for MATLAB).
+// When commentPrefix is nil the function behaves exactly like getConstraints.
+func getConstraintsWithPrefix(content []byte, commentPrefix []byte) (goBuild string, plusBuild []string, binaryOnly bool, err error) {
+	var goBuildBytes []byte
+	var sawBinaryOnly bool
+	if commentPrefix == nil {
+		content, goBuildBytes, sawBinaryOnly, err = parseFileHeader(content)
+	} else {
+		content, goBuildBytes, sawBinaryOnly, err = parseFileHeaderWithPrefix(content, commentPrefix)
+	}
 	if err != nil {
 		return "", nil, false, err
 	}
 
-	// If //go:build line is present, it controls, so no need to look for +build .
-	// Otherwise, get plusBuild constraints.
-	if goBuildBytes == nil {
+	// If a go:build line is present it controls; no need to look for +build.
+	// For non-Go files the legacy +build form is not supported.
+	if goBuildBytes != nil {
+		// Normalise: strip the language-specific prefix and re-wrap as
+		// "//go:build <expr>" so the rest of the toolchain can parse it.
+		prefix := goBuildComment
+		if commentPrefix != nil {
+			prefix = commentPrefix
+		}
+		expr := string(bytes.TrimSpace(goBuildBytes[len(prefix):]))
+		return "//go:build " + expr, nil, sawBinaryOnly, nil
+	}
+
+	if commentPrefix == nil {
+		// Legacy // +build processing only for Go-style comments.
 		p := content
 		for len(p) > 0 {
 			line := p
@@ -348,7 +387,7 @@ func getConstraints(content []byte) (goBuild string, plusBuild []string, binaryO
 		}
 	}
 
-	return string(goBuildBytes), plusBuild, sawBinaryOnly, nil
+	return "", plusBuild, sawBinaryOnly, nil
 }
 
 func parseFileHeader(content []byte) (trimmed, goBuild []byte, sawBinaryOnly bool, err error) {
@@ -416,6 +455,44 @@ Lines:
 	}
 
 	return content[:end], goBuild, sawBinaryOnly, nil
+}
+
+// parseFileHeaderWithPrefix is the non-Go analogue of parseFileHeader.
+// It scans content for a build constraint line introduced by commentPrefix
+// (e.g. []byte("% go:build") for MATLAB .m files).
+// Block-comment tracking is omitted because non-Go languages targeted here
+// do not use /* */ block comments in the same way.
+func parseFileHeaderWithPrefix(content []byte, commentPrefix []byte) (trimmed, goBuild []byte, sawBinaryOnly bool, err error) {
+	end := 0
+	p := content
+	ended := false
+
+Lines:
+	for len(p) > 0 {
+		line := p
+		if i := bytes.IndexByte(line, '\n'); i >= 0 {
+			line, p = line[:i], p[i+1:]
+		} else {
+			p = p[len(p):]
+		}
+		line = bytes.TrimSpace(line)
+		if len(line) == 0 && !ended {
+			end = len(content) - len(p)
+			continue Lines
+		}
+		if !bytes.HasPrefix(line, commentPrefix[:1]) {
+			ended = true
+			continue Lines
+		}
+		if isGoBuildCommentWithPrefix(line, commentPrefix) {
+			if goBuild != nil {
+				return nil, nil, false, errMultipleGoBuild
+			}
+			goBuild = line
+		}
+	}
+
+	return content[:end], goBuild, false, nil
 }
 
 // saveCgo saves the information from the #cgo lines in the import "C" comment.
