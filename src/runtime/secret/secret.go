@@ -36,8 +36,8 @@ import (
 // it should do so by copying the result into an allocation created by the caller.
 //
 // Limitations:
-//   - Currently only supported on linux/amd64 and linux/arm64.  On unsupported
-//     platforms, Do will invoke f directly.
+//   - Currently only supported on linux/amd64 and linux/arm64. 
+//     On unsupported platforms, Do will invoke f directly.
 //   - Protection does not extend to any global variables written by f.
 //   - Protection does not extend to any new goroutines made by f.
 //   - If f calls runtime.Goexit, erasure can be delayed by defers
@@ -119,7 +119,8 @@ func doHelper(f func()) (p any) {
 	return
 }
 
-// Enabled reports whether [Do] appears anywhere on the call stack.
+// Enabled returns true if [Do] appears anywhere on the call stack
+// and the platform is supported (see [Do] for details).
 func Enabled() bool {
 	return count() > 0
 }
