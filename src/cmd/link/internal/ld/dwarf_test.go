@@ -828,6 +828,9 @@ func TestAbstractOriginSanity(t *testing.T) {
 		t.Skip("skipping test in short mode.")
 	}
 
+	// TODO(go.dev/issue/79547): -l=4 builds are temporarily broken.
+	t.Skip("-l=4 builds are currently broken because they introduce an allocation in runtime.printfloat64")
+
 	mustHaveDWARF(t)
 	abstractOriginSanity(t, "testdata/httptest", OptAllInl4)
 }
