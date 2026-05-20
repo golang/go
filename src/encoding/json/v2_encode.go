@@ -33,7 +33,7 @@ import (
 //
 // The input value is encoded as JSON according the following rules:
 //
-//   - If the value type implements [encoding/json/v2.MarshalerTo],
+//   - If the value type implements [jsonv2.MarshalerTo],
 //     then the MarshalJSONTo method is called to encode the value.
 //     If the method returns [errors.ErrUnsupported],
 //     then the input is encoded according to subsequent rules.
