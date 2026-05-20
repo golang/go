@@ -44,10 +44,6 @@ func TestMain(m *testing.M) {
 	if !flag.Parsed() {
 		flag.Parse()
 	}
-	if testing.Short() && runtime.GOOS == "plan9" && runtime.GOARCH == "arm64" {
-		fmt.Fprintln(os.Stderr, "skipping net/http/httputil tests in short mode on plan9/arm64; loopback reverse proxying is unreliable under 9front QEMU")
-		os.Exit(0)
-	}
 	os.Exit(m.Run())
 }
 

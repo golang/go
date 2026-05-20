@@ -1692,10 +1692,6 @@ func TestGetConfigForClient(t *testing.T) {
 	clientConfig.MinVersion = VersionTLS12
 
 	for i, test := range getConfigForClientTests {
-		if i == 4 && runtime.GOOS == "plan9" && runtime.GOARCH == "arm64" {
-			t.Logf("test[%d]: skipping on plan9/arm64; SetSessionTicketKeys handshake fails with EOF", i)
-			continue
-		}
 		if test.setup != nil {
 			test.setup(serverConfig)
 		}
