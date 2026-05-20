@@ -230,11 +230,19 @@ func signal_disable(s uint32) {
 	if s >= uint32(len(sig.wanted)*32) {
 		return
 	}
-	sigdisable(s)
+	ignored := sigdisable(s)
 
 	w := sig.wanted[s/32]
 	w &^= 1 << (s & 31)
 	atomic.Store(&sig.wanted[s/32], w)
+
+	i := sig.ignored[s/32]
+	if ignored {
+		i |= 1 << (s & 31)
+	} else {
+		i &^= 1 << (s & 31)
+	}
+	atomic.Store(&sig.ignored[s/32], i)
 }
 
 // Must only be called from a single goroutine at a time.
