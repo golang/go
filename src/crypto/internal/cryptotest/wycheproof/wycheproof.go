@@ -8,7 +8,6 @@
 package wycheproof
 
 import (
-	"bufio"
 	"crypto"
 	"crypto/internal/cryptotest"
 	"encoding/hex"
@@ -18,7 +17,6 @@ import (
 	"os"
 	"path"
 	"reflect"
-	"strings"
 	"testing"
 )
 
@@ -34,9 +32,11 @@ func LoadVectorFile(t *testing.T, filename string, value any) {
 
 	// We want to avoid a dependency on c2sp/wycheproof or the schema generator
 	// in this stdlib code, so we fetch the module at runtime and read the
-	// vector JSON from that module clone.
+	// vector JSON from that module clone. The version is pinned to whatever
+	// the _schema generator was last run against (see schemaversion.go), so
+	// the vectors match the generated schema.go.
 	wycheproofDir := cryptotest.FetchModule(
-		t, "github.com/c2sp/wycheproof", findVersionFromSum(t))
+		t, "github.com/c2sp/wycheproof", wycheproofVersion)
 
 	content, err := os.ReadFile(path.Join(wycheproofDir, "testvectors_v1", filename))
 	if err != nil {
@@ -47,44 +47,6 @@ func LoadVectorFile(t *testing.T, filename string, value any) {
 	if err != nil {
 		t.Fatalf("failed to unmarshal vector file %q: %v", filename, err)
 	}
-}
-
-// To make sure this code fetches the same module version as we used to
-// generate the vendored schema.go we parse the _schema Go module's
-// go.sum to find the Wycheproof version used.
-func findVersionFromSum(t *testing.T) string {
-	testenv.MustHaveSource(t)
-
-	goSumPath := path.Join(
-		testenv.GOROOT(t),
-		"src/crypto/internal/cryptotest/wycheproof/_schema/go.sum")
-	f, err := os.Open(goSumPath)
-	if err != nil {
-		t.Fatalf("_schema module go.sum read failed: %v", err)
-	}
-	defer f.Close()
-
-	var version string
-	found := 0
-	scanner := bufio.NewScanner(f)
-	for scanner.Scan() {
-		fields := strings.Fields(scanner.Text())
-		if len(fields) == 3 && fields[0] == "github.com/c2sp/wycheproof" {
-			version = strings.TrimSuffix(fields[1], "/go.mod")
-			found++
-		}
-	}
-
-	// We expect 2 entries for a tidied sum file.
-	if found > 2 {
-		t.Fatalf(
-			"_schema module requires 'go tidy' - found %d wycheproof occurrences in go.sum",
-			found)
-	} else if found == 0 {
-		t.Fatal("_schema module go.sum missing wycheproof dependency")
-	}
-
-	return version
 }
 
 // ShouldPass returns true if a test should pass informed by expected result
