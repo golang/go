@@ -844,6 +844,7 @@ func init() {
 		ParamFloatRegNames: "F0 F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15",
 		gpregmask:          gp,
 		fpregmask:          fp,
+		simdregmask:        fp,
 		framepointerreg:    -1, // not used
 		linkreg:            int8(num["R30"]),
 	})

@@ -100411,6 +100411,7 @@ var paramIntRegARM64 = []int8{0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 
 var paramFloatRegARM64 = []int8{31, 32, 33, 34, 35, 36, 37, 38, 39, 40, 41, 42, 43, 44, 45, 46}
 var gpRegMaskARM64 = regMask{v1: 335544319, v2: 0}
 var fpRegMaskARM64 = regMask{v1: 9223372034707292160, v2: 0}
+var simdRegMaskARM64 = regMask{v1: 9223372034707292160, v2: 0}
 var specialRegMaskARM64 = regMask{v1: 0, v2: 0}
 var framepointerRegARM64 = int8(-1)
 var linkRegARM64 = int8(28)
