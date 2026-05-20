@@ -2241,6 +2241,54 @@ func opLen2Imm8_SHA1RNDS4(op ssa.Op, t *types.Type, offset int) func(s *state, n
 	}
 }
 
+func opLen1Imm(op ssa.Op, t *types.Type, offset int, immMax int) func(s *state, n *ir.CallExpr, args []*ssa.Value) *ssa.Value {
+	return func(s *state, n *ir.CallExpr, args []*ssa.Value) *ssa.Value {
+		if args[1].Op == ssa.OpConst8 {
+			return s.newValue1I(op, t, args[1].AuxInt<<int64(offset), args[0])
+		}
+		return immJumpTableN(s, args[1], n, uint64(immMax+1), func(sNew *state, idx int) {
+			// Encode as int8 due to requirement of AuxInt, check its comment for details.
+			s.vars[n] = sNew.newValue1I(op, t, int64(int8(idx<<offset)), args[0])
+		})
+	}
+}
+
+func opLen2Imm(op ssa.Op, t *types.Type, offset int, immMax int) func(s *state, n *ir.CallExpr, args []*ssa.Value) *ssa.Value {
+	return func(s *state, n *ir.CallExpr, args []*ssa.Value) *ssa.Value {
+		if args[1].Op == ssa.OpConst8 {
+			return s.newValue2I(op, t, args[1].AuxInt<<int64(offset), args[0], args[2])
+		}
+		return immJumpTableN(s, args[1], n, uint64(immMax+1), func(sNew *state, idx int) {
+			// Encode as int8 due to requirement of AuxInt, check its comment for details.
+			s.vars[n] = sNew.newValue2I(op, t, int64(int8(idx<<offset)), args[0], args[2])
+		})
+	}
+}
+
+func opLen3Imm(op ssa.Op, t *types.Type, offset int, immMax int) func(s *state, n *ir.CallExpr, args []*ssa.Value) *ssa.Value {
+	return func(s *state, n *ir.CallExpr, args []*ssa.Value) *ssa.Value {
+		if args[1].Op == ssa.OpConst8 {
+			return s.newValue3I(op, t, args[1].AuxInt<<int64(offset), args[0], args[2], args[3])
+		}
+		return immJumpTableN(s, args[1], n, uint64(immMax+1), func(sNew *state, idx int) {
+			// Encode as int8 due to requirement of AuxInt, check its comment for details.
+			s.vars[n] = sNew.newValue3I(op, t, int64(int8(idx<<offset)), args[0], args[2], args[3])
+		})
+	}
+}
+
+func opLen2Imm_2I(op ssa.Op, t *types.Type, offset int, immMax int) func(s *state, n *ir.CallExpr, args []*ssa.Value) *ssa.Value {
+	return func(s *state, n *ir.CallExpr, args []*ssa.Value) *ssa.Value {
+		if args[2].Op == ssa.OpConst8 {
+			return s.newValue2I(op, t, args[2].AuxInt<<int64(offset), args[0], args[1])
+		}
+		return immJumpTableN(s, args[2], n, uint64(immMax+1), func(sNew *state, idx int) {
+			// Encode as int8 due to requirement of AuxInt, check its comment for details.
+			s.vars[n] = sNew.newValue2I(op, t, int64(int8(idx<<offset)), args[0], args[1])
+		})
+	}
+}
+
 func opLen3Imm8_2I(op ssa.Op, t *types.Type, offset int) func(s *state, n *ir.CallExpr, args []*ssa.Value) *ssa.Value {
 	return func(s *state, n *ir.CallExpr, args []*ssa.Value) *ssa.Value {
 		if args[2].Op == ssa.OpConst8 {

@@ -376,6 +376,8 @@ func ({{.Op2NameAndType "x"}}) {{.Go}}({{.Op1NameAndType "y"}}, {{.Op0NameAndTyp
 func ({{.Op1NameAndType "x"}}) {{.Go}}({{.ImmName}} uint8) {{.GoType}}
 {{end}}
 
+{{define "op1Imm"}}{{template "op1Imm8" .}}{{end}}
+
 {{define "op2Imm8"}}
 {{if .Documentation}}{{.Documentation}}
 //{{end}}
@@ -384,6 +386,8 @@ func ({{.Op1NameAndType "x"}}) {{.Go}}({{.ImmName}} uint8) {{.GoType}}
 // Asm: {{.Asm}}, CPU Feature: {{.CPUFeature}}
 func ({{.Op1NameAndType "x"}}) {{.Go}}({{.ImmName}} uint8, {{.Op2NameAndType "y"}}) {{.GoType}}
 {{end}}
+
+{{define "op2Imm"}}{{template "op2Imm8" .}}{{end}}
 
 {{define "op2Imm8_2I"}}
 {{if .Documentation}}{{.Documentation}}

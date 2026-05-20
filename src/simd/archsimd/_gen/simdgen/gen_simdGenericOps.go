@@ -29,7 +29,7 @@ func writeSIMDGenericOps(ops []Operation, genericOpsFilePath string) *bytes.Buff
 			OpName:  gOp.GenericName(),
 			OpInLen: len(gOp.In),
 			Comm:    op.Commutative,
-			HasAux:  immType == VarImm || immType == ConstVarImm,
+			HasAux:  immType == VarImm || immType == VarImmLim || immType == ConstVarImm,
 			Archs:   []string{currentArch},
 		})
 	}

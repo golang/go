@@ -112,6 +112,7 @@ const (
 	ConstImm             // const only immediate
 	VarImm               // pure imm argument provided by the users
 	ConstVarImm          // a combination of user arg and const
+	VarImmLim            // pure imm argument provided by the users, up to maximum in op.ImmMax
 )
 
 const (
@@ -187,7 +188,11 @@ func (op *Operation) shape() (shapeIn inShape, shapeOut outShape, maskType maskS
 				immType = ConstImm
 			}
 		} else if op.In[0].ImmOffset != nil {
-			immType = VarImm
+			if op.In[0].ImmMax != nil {
+				immType = VarImmLim
+			} else {
+				immType = VarImm
+			}
 		} else {
 			panic(fmt.Errorf("simdgen requires imm to have at least one of ImmOffset or Const set: %s", op))
 		}
@@ -481,12 +486,12 @@ func (op Operation) Op4NameAndType(s string) string {
 	return op.In[4].OpNameAndType(s)
 }
 
-var immClasses []string = []string{"BAD0Imm", "BAD1Imm", "op1Imm8", "op2Imm8", "op3Imm8", "op4Imm8"}
+var immClasses []string = []string{"BAD0Imm", "BAD1Imm", "op1Imm", "op2Imm", "op3Imm", "op4Imm"}
 var classes []string = []string{"BAD0", "op1", "op2", "op3", "op4"}
 
 // classifyOp returns a classification string, modified operation, and perhaps error based
 // on the stub and intrinsic shape for the operation.
-// The classification string is in the regular expression set "op[1234](Imm8)?(_<order>)?"
+// The classification string is in the regular expression set "op[1234](Imm(8)?)?(_<order>)?"
 // where the "<order>" suffix is optionally attached to the Operation in its input yaml.
 // The classification string is used to select a template or a clause of a template
 // for intrinsics declaration and the ssagen intrinisics glue code in the compiler.
@@ -495,12 +500,23 @@ func classifyOp(op Operation) (string, Operation, error) {
 
 	var class string
 
-	if immType == VarImm || immType == ConstVarImm {
+	if immType == VarImm || immType == VarImmLim || immType == ConstVarImm {
 		switch l := len(op.In); l {
 		case 1:
 			return "", op, fmt.Errorf("simdgen does not recognize this operation of only immediate input: %s", op)
 		case 2, 3, 4, 5:
-			class = immClasses[l]
+			if immType == VarImmLim {
+				if len(op.In)-len(gOp.In) == 2 {
+					class = immClasses[l-1] // arm64: do not account const 0 imm in INS Vn[0], Vd[imm]
+				} else {
+					class = immClasses[l] // known immediate maximum value
+				}
+			} else {
+				// No known maximum: default to full uint8 range via the "8"-suffixed
+				// template variants (e.g. "op2Imm"+"8" → "op2Imm8", mapping to
+				// opLen2Imm8 which hardcodes immMax=255).
+				class = immClasses[l] + "8"
+			}
 		default:
 			return "", op, fmt.Errorf("simdgen does not recognize this operation of input length %d: %s", len(op.In), op)
 		}

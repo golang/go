@@ -302,6 +302,7 @@ type Operand struct {
 	// The compiler will right-shift the user-passed value by ImmOffset and set it as the AuxInt
 	// field of the operation.
 	ImmOffset *string
+	ImmMax    *int    // optional maximum immediate, also highest case in immediate jump table
 	Name      *string // optional name in the Go intrinsic declaration
 	Lanes     *int    // *Lanes equals Bits/ElemBits except for scalars, when *Lanes == 1
 	// TreatLikeAScalarOfSize means only the lower $TreatLikeAScalarOfSize bits of the vector
