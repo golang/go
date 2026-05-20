@@ -11,7 +11,6 @@ package main
 import (
 	"bytes"
 	"fmt"
-	"io/ioutil"
 	"log"
 	"os"
 	"os/exec"
@@ -20,33 +19,33 @@ import (
 )
 
 func main() {
-	f, err := ioutil.TempFile("", "issue22660.go")
+	f, err := os.CreateTemp("", "issue22660.go")
 	if err != nil {
 		log.Fatal(err)
 	}
 	f.Close()
 	defer os.Remove(f.Name())
 
-	// path components from the //line directive must survive -trimpath and
-	// appear in error messages (since go.dev/issue/70478, as a path-component
-	// suffix of the resolved path, not as the bare prefix).
+	// path must appear in error messages even if we strip them with -trimpath
 	path := filepath.Join("users", "xxx", "go")
+	filename := filepath.Join(path, "foo.go")
 	var src bytes.Buffer
-	fmt.Fprintf(&src, "//line %s:1\n", filepath.Join(path, "foo.go"))
-
-	if err := ioutil.WriteFile(f.Name(), src.Bytes(), 0660); err != nil {
+	fmt.Fprintf(&src, "//line %s:1\n", filename)
+	if err := os.WriteFile(f.Name(), src.Bytes(), 0660); err != nil {
 		log.Fatal(err)
 	}
 
 	out, err := exec.Command("go", "tool", "compile", "-p=p", fmt.Sprintf("-trimpath=%s", path), f.Name()).CombinedOutput()
 	if err == nil {
-		log.Fatalf("expected compiling %s to fail", f.Name())
+		// The file only contains a line directive, w/o a package clause.
+		log.Fatalf("expected compiling %s to fail with syntax error", f.Name())
 	}
 
-	// After #70478 the resolved path is <tempdir>/users/xxx/go/foo.go,
-	// so the directive's components must appear as a path suffix.
-	want := filepath.Join(path, "foo.go")
-	if !strings.Contains(string(out), string(filepath.Separator)+want) {
-		log.Fatalf("expected path component (%s) in error message, got:\n%s", want, out)
+	// The error message position depends on the line directive.
+	// The resolved path is <tempdir>/filename, so the directive's components
+	// must appear as a path suffix in the error message's error position
+	// (go.dev/issue/70478).
+	if !strings.Contains(string(out), string(filepath.Separator)+filename) {
+		log.Fatalf("expected full path and filename (%s) in error message, got:\n%s", filename, out)
 	}
 }

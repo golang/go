@@ -16,7 +16,7 @@ import (
 )
 
 // Since go.dev/issue/70478, the compiler resolves a relative filename in a
-// //line directive against the directory of the source file, so the expected
+// line directive against the directory of the source file, so the expected
 // path may be a suffix of the actual filename rather than equal to it.
 // Accept either an exact match or the file as a path-component suffix.
 // Compiler-emitted paths are always slash-normalized (cmd/internal/objabi.AbsFile).
