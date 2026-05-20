@@ -29,6 +29,12 @@ func time_runtimeNow() (sec int64, nsec int32, mono int64) {
 	return time_now()
 }
 
+//go:linkname crypto_internal_fips140deps_time_monoTime crypto/internal/fips140deps/time.monoTime
+func crypto_internal_fips140deps_time_monoTime() (mono int64) {
+	_, _, mono = time_now()
+	return mono
+}
+
 //go:linkname time_runtimeNano time.runtimeNano
 func time_runtimeNano() int64 {
 	gp := getg()
