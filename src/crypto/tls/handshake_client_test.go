@@ -2376,9 +2376,6 @@ var getClientCertificateTests = []struct {
 }
 
 func TestGetClientCertificate(t *testing.T) {
-	if runtime.GOOS == "plan9" && runtime.GOARCH == "arm64" {
-		t.Skip("skipping on plan9/arm64; loopback TCP closes obscure the expected handshake error")
-	}
 	t.Run("TLSv12", func(t *testing.T) { testGetClientCertificate(t, VersionTLS12) })
 	t.Run("TLSv13", func(t *testing.T) { testGetClientCertificate(t, VersionTLS13) })
 }
