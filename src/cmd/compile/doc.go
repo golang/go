@@ -205,7 +205,7 @@ all other compiler directives are of the form
 //
 // Examples:
 //
-//	//line foo.go:10      the filename is foo.go, and the line number is 10 for the next line
+//	//line foo.go:10      the (relative) filename is foo.go, and the line number is 10 for the next line
 //	//line ../foo.go:10   relative filenames are resolved against the directive's source directory
 //	//line C:foo.go:10    colons are permitted in filenames, here the filename is C:foo.go, and the line is 10
 //	//line  a:100 :10     blanks are permitted in filenames, here the filename is " a:100 " (excluding quotes)
