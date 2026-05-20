@@ -924,6 +924,7 @@ func runInstall(pkg string, ch chan struct{}) {
 		"-D", "GOARCH_" + goarch,
 		"-D", "GOOS_GOARCH_" + goos + "_" + goarch,
 		"-p", pkg,
+		"-std",
 	}
 	if goarch == "mips" || goarch == "mipsle" {
 		// Define GOMIPS_value from gomips.
