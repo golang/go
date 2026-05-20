@@ -1138,7 +1138,7 @@ var roundTripTests = []struct {
 }
 
 // Test that the modification made to the Request by the RoundTripper is cleaned up
-func TestRoundTripGzip(t *testing.T) { run(t, testRoundTripGzip, http3SkippedMode) }
+func TestRoundTripGzip(t *testing.T) { run(t, testRoundTripGzip) }
 func testRoundTripGzip(t *testing.T, mode testMode) {
 	const responseBody = "test response body"
 	ts := newClientServerTest(t, mode, HandlerFunc(func(rw ResponseWriter, req *Request) {
@@ -1200,7 +1200,7 @@ func testRoundTripGzip(t *testing.T, mode testMode) {
 
 }
 
-func TestTransportGzip(t *testing.T) { run(t, testTransportGzip, http3SkippedMode) }
+func TestTransportGzip(t *testing.T) { run(t, testTransportGzip) }
 func testTransportGzip(t *testing.T, mode testMode) {
 	const testString = "The test string aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
 	const nRandBytes = 1024 * 1024
@@ -2004,7 +2004,7 @@ func testTransportProxyDialDoesNotMutateProxyConnectHeader(t *testing.T, mode te
 // client gets the same value back. This is more cute than anything,
 // but checks that we don't recurse forever, and checks that
 // Content-Encoding is removed.
-func TestTransportGzipRecursive(t *testing.T) { run(t, testTransportGzipRecursive, http3SkippedMode) }
+func TestTransportGzipRecursive(t *testing.T) { run(t, testTransportGzipRecursive) }
 func testTransportGzipRecursive(t *testing.T, mode testMode) {
 	ts := newClientServerTest(t, mode, HandlerFunc(func(w ResponseWriter, r *Request) {
 		w.Header().Set("Content-Encoding", "gzip")
@@ -2031,7 +2031,7 @@ func testTransportGzipRecursive(t *testing.T, mode testMode) {
 
 // golang.org/issue/7750: request fails when server replies with
 // a short gzip body
-func TestTransportGzipShort(t *testing.T) { run(t, testTransportGzipShort, http3SkippedMode) }
+func TestTransportGzipShort(t *testing.T) { run(t, testTransportGzipShort) }
 func testTransportGzipShort(t *testing.T, mode testMode) {
 	ts := newClientServerTest(t, mode, HandlerFunc(func(w ResponseWriter, r *Request) {
 		w.Header().Set("Content-Encoding", "gzip")
@@ -2054,7 +2054,7 @@ func testTransportGzipShort(t *testing.T, mode testMode) {
 }
 
 func TestTransportGzipConcurrentCloseAndRead(t *testing.T) {
-	runSynctest(t, testTransportGzipConcurrentCloseAndRead, http3SkippedMode)
+	runSynctest(t, testTransportGzipConcurrentCloseAndRead)
 }
 func testTransportGzipConcurrentCloseAndRead(t *testing.T, mode testMode) {
 	cst := newClientServerTest(t, mode, HandlerFunc(func(w ResponseWriter, r *Request) {
@@ -2456,11 +2456,7 @@ func testIssue3644(t *testing.T, mode testMode) {
 
 // Test that a client receives a server's reply, even if the server doesn't read
 // the entire request body.
-func TestIssue3595(t *testing.T) {
-	// Not parallel: modifies the global rstAvoidanceDelay.
-	// HTTP/3 fails on WASM.
-	run(t, testIssue3595, testNotParallel, http3SkippedMode)
-}
+func TestIssue3595(t *testing.T) { run(t, testIssue3595, testNotParallel) }
 func testIssue3595(t *testing.T, mode testMode) {
 	runTimeSensitiveTest(t, []time.Duration{
 		1 * time.Millisecond,
@@ -4656,7 +4652,7 @@ func testTransportResponseCancelRace(t *testing.T, mode testMode) {
 
 // Test for issue 19248: Content-Encoding's value is case insensitive.
 func TestTransportContentEncodingCaseInsensitive(t *testing.T) {
-	run(t, testTransportContentEncodingCaseInsensitive, http3SkippedMode)
+	run(t, testTransportContentEncodingCaseInsensitive)
 }
 func testTransportContentEncodingCaseInsensitive(t *testing.T, mode testMode) {
 	for _, ce := range []string{"gzip", "GZIP"} {
@@ -4866,7 +4862,7 @@ func (c *wgReadCloser) Close() error {
 // Issue 11745.
 func TestTransportPrefersResponseOverWriteError(t *testing.T) {
 	// Not parallel: modifies the global rstAvoidanceDelay.
-	run(t, testTransportPrefersResponseOverWriteError, testNotParallel, http3SkippedMode)
+	run(t, testTransportPrefersResponseOverWriteError, testNotParallel)
 }
 func testTransportPrefersResponseOverWriteError(t *testing.T, mode testMode) {
 	if testing.Short() {

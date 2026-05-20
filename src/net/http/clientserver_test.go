@@ -504,7 +504,7 @@ func testNewClientServerTest(t *testing.T, mode testMode, opts ...any) {
 }
 
 func TestChunkedResponseHeaders(t *testing.T) {
-	run(t, testChunkedResponseHeaders, http3SkippedMode)
+	run(t, testChunkedResponseHeaders)
 }
 func testChunkedResponseHeaders(t *testing.T, mode testMode) {
 	log.SetOutput(io.Discard) // is noisy otherwise
@@ -524,7 +524,7 @@ func testChunkedResponseHeaders(t *testing.T, mode testMode) {
 		t.Errorf("expected ContentLength of %d; got %d", e, g)
 	}
 	wantTE := []string{"chunked"}
-	if mode == http2Mode {
+	if mode == http2Mode || mode == http3Mode {
 		wantTE = nil
 	}
 	if !slices.Equal(res.TransferEncoding, wantTE) {
@@ -991,7 +991,7 @@ func testTrailersClientToServer(t *testing.T, mode testMode) {
 func TestTrailersServerToClient(t *testing.T) {
 	run(t, func(t *testing.T, mode testMode) {
 		testTrailersServerToClient(t, mode, false)
-	}, http3SkippedMode)
+	})
 }
 func TestTrailersServerToClientFlush(t *testing.T) {
 	run(t, func(t *testing.T, mode testMode) {
@@ -1190,17 +1190,21 @@ func testConnectRequest(t *testing.T, mode testMode) {
 	}
 }
 
-func TestTransportUserAgent(t *testing.T) { run(t, testTransportUserAgent, http3SkippedMode) }
+func TestTransportUserAgent(t *testing.T) { run(t, testTransportUserAgent) }
 func testTransportUserAgent(t *testing.T, mode testMode) {
 	cst := newClientServerTest(t, mode, HandlerFunc(func(w ResponseWriter, r *Request) {
 		fmt.Fprintf(w, "%q", r.Header["User-Agent"])
 	}))
 
-	either := func(a, b string) string {
-		if mode == http2Mode {
-			return b
+	defaultUA := func() string {
+		switch mode {
+		case http2Mode, http2UnencryptedMode:
+			return `["Go-http-client/2.0"]`
+		case http3Mode:
+			return `["Go-http-client/3.0"]`
+		default:
+			return `["Go-http-client/1.1"]`
 		}
-		return a
 	}
 
 	tests := []struct {
@@ -1209,7 +1213,7 @@ func testTransportUserAgent(t *testing.T, mode testMode) {
 	}{
 		{
 			func(r *Request) {},
-			either(`["Go-http-client/1.1"]`, `["Go-http-client/2.0"]`),
+			defaultUA(),
 		},
 		{
 			func(r *Request) { r.Header.Set("User-Agent", "foo/1.2.3") },
@@ -1684,9 +1688,7 @@ func testNoSniffExpectRequestBody(t *testing.T, mode testMode) {
 	}
 }
 
-func TestServerUndeclaredTrailers(t *testing.T) {
-	run(t, testServerUndeclaredTrailers, http3SkippedMode)
-}
+func TestServerUndeclaredTrailers(t *testing.T) { run(t, testServerUndeclaredTrailers) }
 func testServerUndeclaredTrailers(t *testing.T, mode testMode) {
 	cst := newClientServerTest(t, mode, HandlerFunc(func(w ResponseWriter, r *Request) {
 		w.Header().Set("Foo", "Bar")
@@ -1781,7 +1783,7 @@ func testWriteHeader0(t *testing.T, mode testMode) {
 func TestWriteHeaderNoCodeCheck(t *testing.T) {
 	run(t, func(t *testing.T, mode testMode) {
 		testWriteHeaderAfterWrite(t, mode, false)
-	}, http3SkippedMode)
+	})
 }
 func TestWriteHeaderNoCodeCheck_h1hijack(t *testing.T) {
 	testWriteHeaderAfterWrite(t, http1Mode, true)
@@ -1818,7 +1820,7 @@ func testWriteHeaderAfterWrite(t *testing.T, mode testMode, hijack bool) {
 	}
 
 	// Also check the stderr output:
-	if mode == http2Mode {
+	if mode == http2Mode || mode == http3Mode {
 		// TODO: also emit this log message for HTTP/2?
 		// We historically haven't, so don't check.
 		return
