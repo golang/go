@@ -64,6 +64,8 @@ func simd{{GetArchUpper}}Intrinsics(addF func(pkg, fn string, b intrinsicBuilder
 {{end}}
 {{define "op2Imm8_SHA1RNDS4"}}	addF(simdPackage, "{{(index .In 1).Go}}.{{.Go}}", opLen2Imm8_SHA1RNDS4(ssa.Op{{.GenericName}}, {{.SSAType}}, {{(index .In 0).ImmOffset}}), {{GetSysArch}})
 {{end}}
+{{define "op2ImmVecAsScalar"}} addF(simdPackage, "{{(index .In 2).Go}}.{{.Go}}", opLen2Imm(ssa.Op{{.GenericName}}, {{.SSAType}}, {{(index .In 0).ImmOffset}}, {{(index .In 0).ImmMax}}), {{GetSysArch}})
+{{end}}
 {{define "op3Imm8"}}	addF(simdPackage, "{{(index .In 1).Go}}.{{.Go}}", opLen3Imm8(ssa.Op{{.GenericName}}, {{.SSAType}}, {{(index .In 0).ImmOffset}}), {{GetSysArch}})
 {{end}}
 {{define "op3Imm8_2I"}}	addF(simdPackage, "{{(index .In 1).Go}}.{{.Go}}", opLen3Imm8_2I(ssa.Op{{.GenericName}}, {{.SSAType}}, {{(index .In 0).ImmOffset}}), {{GetSysArch}})
@@ -132,6 +134,17 @@ func writeSIMDIntrinsics(ops []Operation, typeMap simdTypeMap) *bytes.Buffer {
 			continue
 		}
 		if s, op, err := classifyOp(op); err == nil {
+
+			if s == "op2Imm" {
+				idxVecAsScalar, err := checkVecAsScalar(op)
+				if err != nil {
+					panic(err)
+				}
+				if idxVecAsScalar >= 0 {
+					s += "VecAsScalar"
+				}
+			}
+
 			if err := t.ExecuteTemplate(buffer, s, op); err != nil {
 				panic(fmt.Errorf("failed to execute template %s for op %s: %w", s, op.Go, err))
 			}

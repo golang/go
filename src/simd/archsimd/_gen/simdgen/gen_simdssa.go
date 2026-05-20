@@ -89,7 +89,7 @@ func writeSIMDSSA(ops []Operation) *bytes.Buffer {
 	seen := map[string]struct{}{}
 	allUnseen := make(map[string][]Operation)
 	allUnseenCaseStr := make(map[string][]string)
-	classifyOp := func(op Operation, maskType maskShape, shapeIn inShape, shapeOut outShape, caseStr string, mem memShape) error {
+	classifyOp := func(op Operation, maskType maskShape, shapeIn inShape, shapeOut outShape, caseStr string, mem memShape, immOpArg string) error {
 		regShape, err := op.regShape(mem)
 		if err != nil {
 			return err
@@ -99,9 +99,16 @@ func writeSIMDSSA(ops []Operation) *bytes.Buffer {
 		}
 		if shapeOut == OneVregOutAtIn {
 			regShape += "ResultInArg0"
+		} else if shapeOut == OneVregOutScalar {
+			regShape += "Scalar"
 		}
 		if shapeIn == OneImmIn || shapeIn == OneKmaskImmIn {
-			regShape += "Imm8"
+			if immOpArg != "" {
+				regShape += "Imm"
+				regShape += immOpArg
+			} else {
+				regShape += "Imm8"
+			}
 		}
 		regShape, err = rewriteVecAsScalarRegInfo(op, regShape)
 		if err != nil {
@@ -137,7 +144,7 @@ func writeSIMDSSA(ops []Operation) *bytes.Buffer {
 		return nil
 	}
 	for _, op := range ops {
-		shapeIn, shapeOut, maskType, _, gOp := op.shape()
+		shapeIn, shapeOut, maskType, _, gOp, immOpArg := op.shape()
 		asm := machineOpName(maskType, gOp)
 		if _, ok := seen[asm]; ok {
 			continue
@@ -151,7 +158,7 @@ func writeSIMDSSA(ops []Operation) *bytes.Buffer {
 				isZeroMasking = true
 			}
 		}
-		if err := classifyOp(op, maskType, shapeIn, shapeOut, caseStr, NoMem); err != nil {
+		if err := classifyOp(op, maskType, shapeIn, shapeOut, caseStr, NoMem, immOpArg); err != nil {
 			panic(err)
 		}
 		if op.MemFeatures != nil && *op.MemFeatures == "vbcst" {
@@ -160,7 +167,7 @@ func writeSIMDSSA(ops []Operation) *bytes.Buffer {
 			// Ignore the error
 			// an error could be triggered by [checkVecAsScalar].
 			// TODO: make [checkVecAsScalar] aware of mem ops.
-			if err := classifyOp(op, maskType, shapeIn, shapeOut, caseStr+"load", VregMemIn); err != nil {
+			if err := classifyOp(op, maskType, shapeIn, shapeOut, caseStr+"load", VregMemIn, immOpArg); err != nil {
 				if *Verbose {
 					log.Printf("Seen error: %e", err)
 				}

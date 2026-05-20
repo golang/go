@@ -2,7 +2,7 @@
 
 package main
 
-func simdARM64Ops(v21 regInfo) []opData {
+func simdARM64Ops(v11, v21, vgp, vgpv, vfpv regInfo) []opData {
 	return []opData{
 		{name: "VADD2D", argLength: 2, reg: v21, asm: "VADD", commutative: true, typ: "Vec128"},
 		{name: "VADD4S", argLength: 2, reg: v21, asm: "VADD", commutative: true, typ: "Vec128"},
@@ -21,5 +21,17 @@ func simdARM64Ops(v21 regInfo) []opData {
 		{name: "VSUB4S", argLength: 2, reg: v21, asm: "VSUB", typ: "Vec128"},
 		{name: "VSUB8H", argLength: 2, reg: v21, asm: "VSUB", typ: "Vec128"},
 		{name: "VSUB16B", argLength: 2, reg: v21, asm: "VSUB", typ: "Vec128"},
+		{name: "VDUPDextr", argLength: 1, reg: v11, asm: "VDUP", aux: "UInt8", typ: "Vec128"},
+		{name: "VDUPSextr", argLength: 1, reg: v11, asm: "VDUP", aux: "UInt8", typ: "Vec128"},
+		{name: "VMOVBextr", argLength: 1, reg: vgp, asm: "VMOV", aux: "UInt8", typ: "int8"},
+		{name: "VMOVBins", argLength: 2, reg: vgpv, asm: "VMOV", aux: "UInt8", typ: "Vec128", resultInArg0: true},
+		{name: "VMOVDextr", argLength: 1, reg: vgp, asm: "VMOV", aux: "UInt8", typ: "int64"},
+		{name: "VMOVDins", argLength: 2, reg: vgpv, asm: "VMOV", aux: "UInt8", typ: "Vec128", resultInArg0: true},
+		{name: "VMOVDins0", argLength: 2, reg: vfpv, asm: "VMOV", aux: "UInt8", typ: "Vec128", resultInArg0: true},
+		{name: "VMOVHextr", argLength: 1, reg: vgp, asm: "VMOV", aux: "UInt8", typ: "int16"},
+		{name: "VMOVHins", argLength: 2, reg: vgpv, asm: "VMOV", aux: "UInt8", typ: "Vec128", resultInArg0: true},
+		{name: "VMOVSextr", argLength: 1, reg: vgp, asm: "VMOV", aux: "UInt8", typ: "int32"},
+		{name: "VMOVSins", argLength: 2, reg: vgpv, asm: "VMOV", aux: "UInt8", typ: "Vec128", resultInArg0: true},
+		{name: "VMOVSins0", argLength: 2, reg: vfpv, asm: "VMOV", aux: "UInt8", typ: "Vec128", resultInArg0: true},
 	}
 }

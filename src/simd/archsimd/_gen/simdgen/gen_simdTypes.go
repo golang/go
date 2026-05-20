@@ -339,6 +339,14 @@ func ({{.Op1NameAndType "x"}}) {{.Go}}({{.Op2NameAndType "y"}}, {{.Op0NameAndTyp
 func ({{.Op0NameAndType "x"}}) {{.Go}}({{.Op1Name "y"}} uint{{(index .In 1).TreatLikeAScalarOfSize}}) {{(index .Out 0).Go}}
 {{end}}
 
+{{define "op2ImmVecAsScalar"}}
+{{if .Documentation}}{{.Documentation}}
+//{{end}}
+// {{.ImmName}} results in better performance when it's a constant, a non-constant value will be translated into a jump table.
+// Asm: {{.Asm}}, CPU Feature: {{.CPUFeature}}
+func ({{.Op2NameAndType "x"}}) {{.Go}}({{.ImmName}} uint8, v float{{(index .In 3).ElemBits}}) {{(index .Out 0).Go}}
+{{end}}
+
 {{define "op3VecAsScalar"}}
 {{if .Documentation}}{{.Documentation}}
 //{{end}}
@@ -744,10 +752,10 @@ func writeSIMDStubs(ops []Operation, typeMap simdTypeMap) (f, fI *bytes.Buffer) 
 		}
 		if s, op, err := classifyOp(op); err == nil {
 			if idxVecAsScalar != -1 {
-				if s == "op2" || s == "op3" {
+				if s == "op2" || s == "op3" || s == "op2Imm" {
 					s += "VecAsScalar"
 				} else {
-					panic(fmt.Errorf("simdgen only supports op2 or op3 with TreatLikeAScalarOfSize"))
+					panic(fmt.Errorf("simdgen only supports op2, op2Imm or op3, not %s with TreatLikeAScalarOfSize", s))
 				}
 			}
 			if i == 0 || op.Go != ops[i-1].Go {

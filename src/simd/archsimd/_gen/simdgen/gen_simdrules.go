@@ -176,7 +176,7 @@ func writeSIMDRules(ops []Operation) *bytes.Buffer {
 	ruleDone := make(map[string]struct{})
 
 	for _, opr := range ops {
-		opInShape, opOutShape, maskType, immType, gOp := opr.shape()
+		opInShape, opOutShape, maskType, immType, gOp, _ := opr.shape()
 		asm := machineOpName(maskType, gOp)
 		vregInCnt := len(gOp.In)
 		if maskType == OneMask {
@@ -222,7 +222,7 @@ func writeSIMDRules(ops []Operation) *bytes.Buffer {
 		}
 		var tplName string
 		// If class overwrite is happening, that's not really a mask but a vreg.
-		if opOutShape == OneVregOut || opOutShape == OneVregOutAtIn || gOp.Out[0].OverwriteClass != nil {
+		if opOutShape == OneVregOut || opOutShape == OneVregOutAtIn || opOutShape == OneVregOutScalar || gOp.Out[0].OverwriteClass != nil {
 			switch opInShape {
 			case OneImmIn:
 				tplName = "pureVreg"

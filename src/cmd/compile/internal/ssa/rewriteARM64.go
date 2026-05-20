@@ -779,6 +779,36 @@ func rewriteValueARM64(v *Value) bool {
 	case OpGetClosurePtr:
 		v.Op = OpARM64LoweredGetClosurePtr
 		return true
+	case OpGetElemFloat32x4:
+		v.Op = OpARM64VDUPSextr
+		return true
+	case OpGetElemFloat64x2:
+		v.Op = OpARM64VDUPDextr
+		return true
+	case OpGetElemInt16x8:
+		v.Op = OpARM64VMOVHextr
+		return true
+	case OpGetElemInt32x4:
+		v.Op = OpARM64VMOVSextr
+		return true
+	case OpGetElemInt64x2:
+		v.Op = OpARM64VMOVDextr
+		return true
+	case OpGetElemInt8x16:
+		v.Op = OpARM64VMOVBextr
+		return true
+	case OpGetElemUint16x8:
+		v.Op = OpARM64VMOVHextr
+		return true
+	case OpGetElemUint32x4:
+		v.Op = OpARM64VMOVSextr
+		return true
+	case OpGetElemUint64x2:
+		v.Op = OpARM64VMOVDextr
+		return true
+	case OpGetElemUint8x16:
+		v.Op = OpARM64VMOVBextr
+		return true
 	case OpHmul32:
 		return rewriteValueARM64_OpHmul32(v)
 	case OpHmul32u:
@@ -1113,6 +1143,36 @@ func rewriteValueARM64(v *Value) bool {
 		return rewriteValueARM64_OpSelect1(v)
 	case OpSelectN:
 		return rewriteValueARM64_OpSelectN(v)
+	case OpSetElemFloat32x4:
+		v.Op = OpARM64VMOVSins0
+		return true
+	case OpSetElemFloat64x2:
+		v.Op = OpARM64VMOVDins0
+		return true
+	case OpSetElemInt16x8:
+		v.Op = OpARM64VMOVHins
+		return true
+	case OpSetElemInt32x4:
+		v.Op = OpARM64VMOVSins
+		return true
+	case OpSetElemInt64x2:
+		v.Op = OpARM64VMOVDins
+		return true
+	case OpSetElemInt8x16:
+		v.Op = OpARM64VMOVBins
+		return true
+	case OpSetElemUint16x8:
+		v.Op = OpARM64VMOVHins
+		return true
+	case OpSetElemUint32x4:
+		v.Op = OpARM64VMOVSins
+		return true
+	case OpSetElemUint64x2:
+		v.Op = OpARM64VMOVDins
+		return true
+	case OpSetElemUint8x16:
+		v.Op = OpARM64VMOVBins
+		return true
 	case OpSignExt16to32:
 		v.Op = OpARM64MOVHreg
 		return true

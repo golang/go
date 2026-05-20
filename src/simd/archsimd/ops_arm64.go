@@ -56,6 +56,78 @@ func (x Uint32x4) Add(y Uint32x4) Uint32x4
 // Asm: VADD, CPU Feature: NEON
 func (x Uint64x2) Add(y Uint64x2) Uint64x2
 
+/* GetElem */
+
+// GetElem returns the index'th element of x.
+//
+// A non-constant value of index may result in significantly worse performance for this operation.
+//
+// Asm: VDUP, CPU Feature: NEON
+func (x Float32x4) GetElem(index uint8) float32
+
+// GetElem returns the index'th element of x.
+//
+// A non-constant value of index may result in significantly worse performance for this operation.
+//
+// Asm: VDUP, CPU Feature: NEON
+func (x Float64x2) GetElem(index uint8) float64
+
+// GetElem returns the index'th element of x.
+//
+// A non-constant value of index may result in significantly worse performance for this operation.
+//
+// Asm: VMOV, CPU Feature: NEON
+func (x Int8x16) GetElem(index uint8) int8
+
+// GetElem returns the index'th element of x.
+//
+// A non-constant value of index may result in significantly worse performance for this operation.
+//
+// Asm: VMOV, CPU Feature: NEON
+func (x Int16x8) GetElem(index uint8) int16
+
+// GetElem returns the index'th element of x.
+//
+// A non-constant value of index may result in significantly worse performance for this operation.
+//
+// Asm: VMOV, CPU Feature: NEON
+func (x Int32x4) GetElem(index uint8) int32
+
+// GetElem returns the index'th element of x.
+//
+// A non-constant value of index may result in significantly worse performance for this operation.
+//
+// Asm: VMOV, CPU Feature: NEON
+func (x Int64x2) GetElem(index uint8) int64
+
+// GetElem returns the index'th element of x.
+//
+// A non-constant value of index may result in significantly worse performance for this operation.
+//
+// Asm: VMOV, CPU Feature: NEON
+func (x Uint8x16) GetElem(index uint8) uint8
+
+// GetElem returns the index'th element of x.
+//
+// A non-constant value of index may result in significantly worse performance for this operation.
+//
+// Asm: VMOV, CPU Feature: NEON
+func (x Uint16x8) GetElem(index uint8) uint16
+
+// GetElem returns the index'th element of x.
+//
+// A non-constant value of index may result in significantly worse performance for this operation.
+//
+// Asm: VMOV, CPU Feature: NEON
+func (x Uint32x4) GetElem(index uint8) uint32
+
+// GetElem returns the index'th element of x.
+//
+// A non-constant value of index may result in significantly worse performance for this operation.
+//
+// Asm: VMOV, CPU Feature: NEON
+func (x Uint64x2) GetElem(index uint8) uint64
+
 /* Mul */
 
 // Mul multiplies corresponding elements of two vectors, modulo 2ⁿ.
@@ -97,6 +169,76 @@ func (x Uint16x8) Mul(y Uint16x8) Uint16x8
 //
 // Asm: VMUL, CPU Feature: NEON
 func (x Uint32x4) Mul(y Uint32x4) Uint32x4
+
+/* SetElem */
+
+// SetElem returns x with the index'th element set to y.
+//
+// A non-constant value of index may result in significantly worse performance for this operation.
+//
+// Asm: VMOV, CPU Feature: NEON
+func (x Int8x16) SetElem(index uint8, y int8) Int8x16
+
+// SetElem returns x with the index'th element set to y.
+//
+// A non-constant value of index may result in significantly worse performance for this operation.
+//
+// Asm: VMOV, CPU Feature: NEON
+func (x Int16x8) SetElem(index uint8, y int16) Int16x8
+
+// SetElem returns x with the index'th element set to y.
+//
+// A non-constant value of index may result in significantly worse performance for this operation.
+//
+// Asm: VMOV, CPU Feature: NEON
+func (x Int32x4) SetElem(index uint8, y int32) Int32x4
+
+// SetElem returns x with the index'th element set to y.
+//
+// A non-constant value of index may result in significantly worse performance for this operation.
+//
+// Asm: VMOV, CPU Feature: NEON
+func (x Int64x2) SetElem(index uint8, y int64) Int64x2
+
+// SetElem returns x with the index'th element set to y.
+//
+// A non-constant value of index may result in significantly worse performance for this operation.
+//
+// Asm: VMOV, CPU Feature: NEON
+func (x Uint8x16) SetElem(index uint8, y uint8) Uint8x16
+
+// SetElem returns x with the index'th element set to y.
+//
+// A non-constant value of index may result in significantly worse performance for this operation.
+//
+// Asm: VMOV, CPU Feature: NEON
+func (x Uint16x8) SetElem(index uint8, y uint16) Uint16x8
+
+// SetElem returns x with the index'th element set to y.
+//
+// A non-constant value of index may result in significantly worse performance for this operation.
+//
+// Asm: VMOV, CPU Feature: NEON
+func (x Uint32x4) SetElem(index uint8, y uint32) Uint32x4
+
+// SetElem returns x with the index'th element set to y.
+//
+// A non-constant value of index may result in significantly worse performance for this operation.
+//
+// Asm: VMOV, CPU Feature: NEON
+func (x Uint64x2) SetElem(index uint8, y uint64) Uint64x2
+
+// SetElem returns x with the index'th element set to y.
+//
+// index results in better performance when it's a constant, a non-constant value will be translated into a jump table.
+// Asm: VMOV, CPU Feature: NEON
+func (x Float32x4) SetElem(index uint8, v float32) Float32x4
+
+// SetElem returns x with the index'th element set to y.
+//
+// index results in better performance when it's a constant, a non-constant value will be translated into a jump table.
+// Asm: VMOV, CPU Feature: NEON
+func (x Float64x2) SetElem(index uint8, v float64) Float64x2
 
 /* Sub */
 

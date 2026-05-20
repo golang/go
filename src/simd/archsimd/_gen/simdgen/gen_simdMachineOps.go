@@ -89,7 +89,7 @@ func writeSIMDMachineOps(ops []Operation) *bytes.Buffer {
 		return a
 	}
 	for _, op := range ops {
-		_, _, maskType, _, gOp := op.shape()
+		_, _, maskType, _, gOp, _ := op.shape()
 		asm := machineOpName(maskType, gOp)
 		other, ok := best[asm]
 		if !ok {
@@ -111,7 +111,7 @@ func writeSIMDMachineOps(ops []Operation) *bytes.Buffer {
 	regInfoMissing := make(map[string]bool, 0)
 	for _, asm := range mOpOrder {
 		op := best[asm]
-		shapeIn, shapeOut, maskType, _, gOp := op.shape()
+		shapeIn, shapeOut, maskType, _, gOp, _ := op.shape()
 
 		// TODO: all our masked operations are now zeroing, we need to generate machine ops with merging masks, maybe copy
 		// one here with a name suffix "Merging". The rewrite rules will need them.
@@ -145,7 +145,7 @@ func writeSIMDMachineOps(ops []Operation) *bytes.Buffer {
 			panic(err)
 		}
 		var outType string
-		if shapeOut == OneVregOut || shapeOut == OneVregOutAtIn || gOp.Out[0].OverwriteClass != nil {
+		if shapeOut == OneVregOut || shapeOut == OneVregOutAtIn || shapeOut == OneVregOutScalar || gOp.Out[0].OverwriteClass != nil {
 			// If class overwrite is happening, that's not really a mask but a vreg.
 			outType = fmt.Sprintf("Vec%d", *gOp.Out[0].Bits)
 		} else if shapeOut == OneGregOut {

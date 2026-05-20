@@ -23,7 +23,7 @@ func writeSIMDGenericOps(ops []Operation, genericOpsFilePath string) *bytes.Buff
 		if op.SkipMaskedMethod() {
 			continue
 		}
-		_, _, _, immType, gOp := op.shape()
+		_, _, _, immType, gOp, _ := op.shape()
 
 		newOps = append(newOps, sgutil.GenericOpsData{
 			OpName:  gOp.GenericName(),

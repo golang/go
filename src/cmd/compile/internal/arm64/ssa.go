@@ -182,6 +182,22 @@ func simdRegArng(reg int16, arng int16) int16 {
 	return reg
 }
 
+// simdRegElem encodes ssa value's reference to a vector register element
+func simdRegElem(reg int16, arng int16, idx int16) (res obj.Addr) {
+	if reg < arm64.REG_F0 || arm64.REG_F31 < reg {
+		base.Fatalf("expected fp register: r%d", reg)
+	}
+	elem, err := arm64.RegisterArrangement(reg, arng, true /*indexing*/)
+	if err != nil {
+		base.Fatalf("bad simd register indexing arrangement: %v", err)
+	}
+	res.Type = obj.TYPE_REG
+	res.Class = arm64.C_ELEM
+	res.Index = idx
+	res.Reg = elem
+	return
+}
+
 // simdV01Imm generates a VMOVI-like instruction, e.g. VMOVI $0, V0.B16
 func simdV01Imm(s *ssagen.State, v *ssa.Value, arrangement int16) *obj.Prog {
 	p := s.Prog(v.Op.Asm())
@@ -217,6 +233,18 @@ func simdV11Scalar(s *ssagen.State, v *ssa.Value, arrangement int16) *obj.Prog {
 	return p
 }
 
+// simdV11ScalarImmIn1 generates a SIMD instruction with indexed input and
+// scalar-in-vector-register output, e.g. VDUP V1.S[1], V0
+// The arrangement parameter specifies the source arrangement (e.g., S, D)
+func simdV11ScalarImmIn1(s *ssagen.State, v *ssa.Value, arrangement int16) *obj.Prog {
+	p := s.Prog(v.Op.Asm())
+	p.From = simdRegElem(v.Args[0].Reg(), arrangement, int16(v.AuxUInt8()))
+	p.To.Type = obj.TYPE_REG
+	p.To.Reg = v.Reg() - arm64.REG_F0 + arm64.REG_V0
+	p.To.Class = arm64.C_VREG
+	return p
+}
+
 // simdV21 generates element-wise binary vector operations, e.g. VFADD V1.S4, V2.S4, V0.S4
 func simdV21(s *ssagen.State, v *ssa.Value, arrangement int16) *obj.Prog {
 	p := s.Prog(v.Op.Asm())
@@ -225,6 +253,36 @@ func simdV21(s *ssagen.State, v *ssa.Value, arrangement int16) *obj.Prog {
 	p.Reg = simdRegArng(v.Args[0].Reg(), arrangement)
 	p.To.Type = obj.TYPE_REG
 	p.To.Reg = simdRegArng(v.Reg(), arrangement)
+	return p
+}
+
+// simdVfpvResultInArg0ImmOutIn1 generates vector floating-point SetElem,
+// e.g. VMOV V2.S[0], V1.S[3] (INS element instruction)
+// The arrangement parameter specifies the vector element arrangement (e.g., S, D)
+func simdVfpvResultInArg0ImmOutIn1(s *ssagen.State, v *ssa.Value, arrangement int16) *obj.Prog {
+	p := s.Prog(v.Op.Asm())
+	p.To = simdRegElem(v.Reg(), arrangement, int16(v.AuxUInt8()))
+	p.From = simdRegElem(v.Args[1].Reg(), arrangement, 0)
+	return p
+}
+
+// simdVgpImmIn1 generates vector GetElem instruction VMOV V1.S[2], R0
+// The arrangement parameter specifies the vector element arrangement (e.g., S, D)
+func simdVgpImmIn1(s *ssagen.State, v *ssa.Value, arrangement int16) *obj.Prog {
+	p := s.Prog(v.Op.Asm())
+	p.From = simdRegElem(v.Args[0].Reg(), arrangement, int16(v.AuxUInt8()))
+	p.To.Reg = v.Reg()
+	p.To.Type = obj.TYPE_REG
+	return p
+}
+
+// simdVgpvResultInArg0ImmOutIn0 generates vector SetElem, e.g. VMOV R0, V1.S[2] (INS general instruction)
+// The arrangement parameter specifies the vector element arrangement (e.g., S, D)
+func simdVgpvResultInArg0ImmOutIn0(s *ssagen.State, v *ssa.Value, arrangement int16) *obj.Prog {
+	p := s.Prog(v.Op.Asm())
+	p.To = simdRegElem(v.Reg(), arrangement, int16(v.AuxUInt8()))
+	p.From.Reg = v.Args[1].Reg()
+	p.From.Type = obj.TYPE_REG
 	return p
 }
 

@@ -91,12 +91,13 @@ const (
 )
 
 const (
-	InvalidOut     outShape = iota
-	NoOut                   // no output
-	OneVregOut              // (one) vector register output
-	OneGregOut              // (one) general register output
-	OneKmaskOut             // mask output
-	OneVregOutAtIn          // the first input is also the output
+	InvalidOut       outShape = iota
+	NoOut                     // no output
+	OneVregOut                // (one) vector register output
+	OneGregOut                // (one) general register output
+	OneKmaskOut               // mask output
+	OneVregOutAtIn            // the first input is also the output
+	OneVregOutScalar          // (one) vector register output scalar in lane 0, other lanes zeroed
 )
 
 const (
@@ -128,7 +129,7 @@ const (
 //
 // This function does not modify op.
 func (op *Operation) shape() (shapeIn inShape, shapeOut outShape, maskType maskShape, immType immShape,
-	opNoImm Operation) {
+	opNoImm Operation, immOpIdx string) {
 	if len(op.Out) > 1 {
 		panic(fmt.Errorf("simdgen only supports 1 output: %s", op))
 	}
@@ -137,8 +138,14 @@ func (op *Operation) shape() (shapeIn inShape, shapeOut outShape, maskType maskS
 		outputReg = op.Out[0].AsmPos
 		if op.Out[0].Class == "vreg" {
 			shapeOut = OneVregOut
+			if op.Out[0].TreatLikeAScalarOfSize != nil {
+				shapeOut = OneVregOutScalar
+			}
 		} else if op.Out[0].Class == "greg" {
 			shapeOut = OneGregOut
+			if op.Out[0].TreatLikeAScalarOfSize != nil {
+				shapeOut = OneVregOutScalar
+			}
 		} else if op.Out[0].Class == "mask" {
 			shapeOut = OneKmaskOut
 		} else {
@@ -151,13 +158,14 @@ func (op *Operation) shape() (shapeIn inShape, shapeOut outShape, maskType maskS
 		panic(fmt.Errorf("simdgen only supports 1 output: %s", op))
 	}
 	hasImm := false
+	immAsmPos := -1
 	maskCount := 0
 	hasVreg := false
 	for _, in := range op.In {
 		if in.AsmPos == outputReg {
 			if shapeOut != OneVregOutAtIn && in.AsmPos == 0 && in.Class == "vreg" {
 				shapeOut = OneVregOutAtIn
-			} else {
+			} else if in.Class != "immediate" { // on arm64 immediate may be indexing into output register, e.g. INS greg, vreg[1]
 				panic(fmt.Errorf("simdgen only supports output and input sharing the same position case of \"the first input is vreg and the only output\": %s", op))
 			}
 		}
@@ -168,9 +176,16 @@ func (op *Operation) shape() (shapeIn inShape, shapeOut outShape, maskType maskS
 				panic(fmt.Errorf("simdgen only supports immediates of 8 bits: %s", op))
 			}
 			hasImm = true
+			immAsmPos = in.AsmPos
+			if immAsmPos == outputReg {
+				immOpIdx += "Out"
+			}
 		} else if in.Class == "mask" {
 			maskCount++
 		} else {
+			if immAsmPos == in.AsmPos {
+				immOpIdx += fmt.Sprintf("In%d", in.AsmPos)
+			}
 			hasVreg = true
 		}
 	}
@@ -178,6 +193,9 @@ func (op *Operation) shape() (shapeIn inShape, shapeOut outShape, maskType maskS
 
 	removeImm := func(o *Operation) {
 		o.In = o.In[1:]
+		if o.In[0].Class == "immediate" {
+			o.In = o.In[1:] // e.g. arm64 INS Vn[0], Vd[imm]
+		}
 	}
 	if hasImm {
 		removeImm(&opNoImm)
@@ -240,7 +258,7 @@ func (op *Operation) shape() (shapeIn inShape, shapeOut outShape, maskType maskS
 
 // regShape returns a string representation of the register shape.
 func (op *Operation) regShape(mem memShape) (string, error) {
-	_, _, _, _, gOp := op.shape()
+	_, _, _, _, gOp, _ := op.shape()
 	var regInfo, fixedName string
 	var vRegInCnt, gRegInCnt, kMaskInCnt, vRegOutCnt, gRegOutCnt, kMaskOutCnt, memInCnt, memOutCnt int
 	for i, in := range gOp.In {
@@ -496,7 +514,7 @@ var classes []string = []string{"BAD0", "op1", "op2", "op3", "op4"}
 // The classification string is used to select a template or a clause of a template
 // for intrinsics declaration and the ssagen intrinisics glue code in the compiler.
 func classifyOp(op Operation) (string, Operation, error) {
-	_, _, _, immType, gOp := op.shape()
+	_, _, _, immType, gOp, _ := op.shape()
 
 	var class string
 
@@ -546,6 +564,9 @@ func checkVecAsScalar(op Operation) (idx int, err error) {
 			if idx == -1 {
 				idx = i
 				sSize = *o.TreatLikeAScalarOfSize
+				if sSize == 0 && CurrentArch().Arch == "arm64" {
+					sSize = *o.ElemBits // treating lane 0 as element-sized fp scalar, e.g. INS Vn[0], Vd[imm]
+				}
 			} else {
 				err = fmt.Errorf("simdgen only supports one TreatLikeAScalarOfSize in the arg list: %s", op)
 				return
@@ -575,6 +596,8 @@ func rewriteVecAsScalarRegInfo(op Operation, regInfo string) (string, error) {
 			regInfo = "v2fpv"
 		} else if regInfo == "v3kv" {
 			regInfo = "v2fpkv"
+		} else if regInfo == "v21ResultInArg0ImmOutIn1" {
+			regInfo = "vfpvResultInArg0ImmOutIn1"
 		} else {
 			return "", fmt.Errorf("simdgen does not recognize uses of treatLikeAScalarOfSize with op regShape %s in op: %s", regInfo, op)
 		}
@@ -627,6 +650,9 @@ func (op Operation) GenericName() string {
 		}
 	}
 	if op.In[0].Class == "immediate" {
+		if op.In[1].Class == "immediate" {
+			return op.Go + *op.In[2].Go // e.g. arm64 INS Vn[0], Vd[imm]
+		}
 		return op.Go + *op.In[1].Go
 	}
 	return op.Go + *op.In[0].Go
@@ -639,7 +665,7 @@ func (op Operation) GenericName() string {
 func dedupGodef(ops []Operation) ([]Operation, error) {
 	seen := map[string][]Operation{}
 	for _, op := range ops {
-		_, _, _, _, gOp := op.shape()
+		_, _, _, _, gOp, _ := op.shape()
 
 		gN := gOp.GenericName()
 		seen[gN] = append(seen[gN], op)
@@ -705,7 +731,7 @@ func copyConstImm(ops []Operation) error {
 		if op.ConstImm == nil {
 			continue
 		}
-		_, _, _, immType, _ := op.shape()
+		_, _, _, immType, _, _ := op.shape()
 
 		if immType == ConstImm || immType == ConstVarImm {
 			op.In[0].Const = op.ConstImm
@@ -743,7 +769,29 @@ func overwrite(ops []Operation) error {
 			*op[idx].Lanes = *op[idx].Bits / *op[idx].ElemBits
 			*op[idx].Go = fmt.Sprintf("%s%dx%d", capitalizeFirst(*op[idx].Base), *op[idx].ElemBits, *op[idx].Lanes)
 		}
-		if op[idx].OverwriteClass != nil {
+		if CurrentArch().Arch == "arm64" && op[idx].OverwriteClass != nil {
+			if op[idx].OverwriteBase == nil {
+				panic(fmt.Errorf("simdgen: [OverwriteClass] must be set together with [OverwriteBase]: %s", op[idx]))
+			}
+			oBase := *op[idx].OverwriteBase
+			oClass := *op[idx].OverwriteClass
+			if oClass != "greg" {
+				panic(fmt.Errorf("simdgen: [Class] overwrite only supports overwriting to greg: %s", op[idx]))
+			}
+			if oBase != "float" {
+				panic(fmt.Errorf("simdgen: [Class] overwrite must set [OverwriteBase] to float: %s", op[idx]))
+			}
+			if op[idx].Class != "vreg" {
+				panic(fmt.Errorf("simdgen: [Class] overwrite must be overwriting [Class] from vreg: %s", op[idx]))
+			}
+			// The low lane of vreg (with other lanes zeroed) also represents a regular floating point greg.
+			// This is supposed to be used only by special instructions like float GetElem
+			// and floating point vector reduction across-lanes to lane 0 like FMINNMV.
+			hasClassOverwrite = true
+			*op[idx].Base = oBase
+			op[idx].Class = oClass
+			*op[idx].Go = fmt.Sprintf("float%d", *op[idx].ElemBits)
+		} else if op[idx].OverwriteClass != nil {
 			if op[idx].OverwriteBase == nil {
 				panic(fmt.Errorf("simdgen: [OverwriteClass] must be set together with [OverwriteBase]: %s", op[idx]))
 			}

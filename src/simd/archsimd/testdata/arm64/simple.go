@@ -314,6 +314,228 @@ func main() {
 		}
 	}
 
+	// Int8x16 GetElem/SetElem
+	{
+		a := [16]int8{1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16}
+		v := archsimd.LoadInt8x16Array(&a)
+
+		// Test GetElem
+		for i := uint8(0); i < 16; i++ {
+			if got := v.GetElem(i); got != a[i] {
+				fail = true
+			}
+		}
+
+		// Test SetElem
+		v = v.SetElem(5, int8(99))
+		a[5] = 99
+		var out [16]int8
+		v.StoreArray(&out)
+		for i := range out {
+			if out[i] != a[i] {
+				fail = true
+			}
+		}
+	}
+
+	// Int16x8 GetElem/SetElem
+	{
+		a := [8]int16{10, 20, 30, 40, 50, 60, 70, 80}
+		v := archsimd.LoadInt16x8Array(&a)
+
+		for i := uint8(0); i < 8; i++ {
+			if got := v.GetElem(i); got != a[i] {
+				fail = true
+			}
+		}
+
+		v = v.SetElem(3, int16(123))
+		a[3] = 123
+		var out [8]int16
+		v.StoreArray(&out)
+		for i := range out {
+			if out[i] != a[i] {
+				fail = true
+			}
+		}
+	}
+
+	// Int32x4 GetElem/SetElem
+	{
+		a := [4]int32{100, 200, 300, 400}
+		v := archsimd.LoadInt32x4Array(&a)
+
+		for i := uint8(0); i < 4; i++ {
+			if got := v.GetElem(i); got != a[i] {
+				fail = true
+			}
+		}
+
+		v = v.SetElem(2, int32(999))
+		a[2] = 999
+		var out [4]int32
+		v.StoreArray(&out)
+		for i := range out {
+			if out[i] != a[i] {
+				fail = true
+			}
+		}
+	}
+
+	// Int64x2 GetElem/SetElem
+	{
+		a := [2]int64{1000, 2000}
+		v := archsimd.LoadInt64x2Array(&a)
+
+		for i := uint8(0); i < 2; i++ {
+			if got := v.GetElem(i); got != a[i] {
+				fail = true
+			}
+		}
+
+		v = v.SetElem(1, int64(5555))
+		a[1] = 5555
+		var out [2]int64
+		v.StoreArray(&out)
+		for i := range out {
+			if out[i] != a[i] {
+				fail = true
+			}
+		}
+	}
+
+	// Uint8x16 GetElem/SetElem
+	{
+		a := [16]uint8{1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16}
+		v := archsimd.LoadUint8x16Array(&a)
+
+		for i := uint8(0); i < 16; i++ {
+			if got := v.GetElem(i); got != a[i] {
+				fail = true
+			}
+		}
+
+		v = v.SetElem(7, uint8(200))
+		a[7] = 200
+		var out [16]uint8
+		v.StoreArray(&out)
+		for i := range out {
+			if out[i] != a[i] {
+				fail = true
+			}
+		}
+	}
+
+	// Uint16x8 GetElem/SetElem
+	{
+		a := [8]uint16{100, 200, 300, 400, 500, 600, 700, 800}
+		v := archsimd.LoadUint16x8Array(&a)
+
+		for i := uint8(0); i < 8; i++ {
+			if got := v.GetElem(i); got != a[i] {
+				fail = true
+			}
+		}
+
+		v = v.SetElem(0, uint16(1111))
+		a[0] = 1111
+		var out [8]uint16
+		v.StoreArray(&out)
+		for i := range out {
+			if out[i] != a[i] {
+				fail = true
+			}
+		}
+	}
+
+	// Uint32x4 GetElem/SetElem
+	{
+		a := [4]uint32{1000, 2000, 3000, 4000}
+		v := archsimd.LoadUint32x4Array(&a)
+
+		for i := uint8(0); i < 4; i++ {
+			if got := v.GetElem(i); got != a[i] {
+				fail = true
+			}
+		}
+
+		v = v.SetElem(3, uint32(9999))
+		a[3] = 9999
+		var out [4]uint32
+		v.StoreArray(&out)
+		for i := range out {
+			if out[i] != a[i] {
+				fail = true
+			}
+		}
+	}
+
+	// Uint64x2 GetElem/SetElem
+	{
+		a := [2]uint64{10000, 20000}
+		v := archsimd.LoadUint64x2Array(&a)
+
+		for i := uint8(0); i < 2; i++ {
+			if got := v.GetElem(i); got != a[i] {
+				fail = true
+			}
+		}
+
+		v = v.SetElem(0, uint64(55555))
+		a[0] = 55555
+		var out [2]uint64
+		v.StoreArray(&out)
+		for i := range out {
+			if out[i] != a[i] {
+				fail = true
+			}
+		}
+	}
+
+	// Float32x4 GetElem/SetElem
+	{
+		a := [4]float32{1.0, 2.0, 3.0, 4.0}
+		v := archsimd.LoadFloat32x4Array(&a)
+
+		for i := uint8(0); i < 4; i++ {
+			if got := v.GetElem(i); got != a[i] {
+				fail = true
+			}
+		}
+
+		v = v.SetElem(1, float32(9.5))
+		a[1] = 9.5
+		var out [4]float32
+		v.StoreArray(&out)
+		for i := range out {
+			if out[i] != a[i] {
+				fail = true
+			}
+		}
+	}
+
+	// Float64x2 GetElem/SetElem
+	{
+		a := [2]float64{10.5, 20.5}
+		v := archsimd.LoadFloat64x2Array(&a)
+
+		for i := uint8(0); i < 2; i++ {
+			if got := v.GetElem(i); got != a[i] {
+				fail = true
+			}
+		}
+
+		v = v.SetElem(0, float64(99.25))
+		a[0] = 99.25
+		var out [2]float64
+		v.StoreArray(&out)
+		for i := range out {
+			if out[i] != a[i] {
+				fail = true
+			}
+		}
+	}
+
 	if fail {
 		os.Exit(1)
 	}

@@ -1300,16 +1300,16 @@ func simdGenericOps() []opData {
 		{name: "GaloisFieldAffineTransformUint8x16", argLength: 2, aux: "UInt8"},        // ARCH:amd64
 		{name: "GaloisFieldAffineTransformUint8x32", argLength: 2, aux: "UInt8"},        // ARCH:amd64
 		{name: "GaloisFieldAffineTransformUint8x64", argLength: 2, aux: "UInt8"},        // ARCH:amd64
-		{name: "GetElemFloat32x4", argLength: 1, aux: "UInt8"},                          // ARCH:amd64,wasm
-		{name: "GetElemFloat64x2", argLength: 1, aux: "UInt8"},                          // ARCH:amd64,wasm
-		{name: "GetElemInt8x16", argLength: 1, aux: "UInt8"},                            // ARCH:amd64,wasm
-		{name: "GetElemInt16x8", argLength: 1, aux: "UInt8"},                            // ARCH:amd64,wasm
-		{name: "GetElemInt32x4", argLength: 1, aux: "UInt8"},                            // ARCH:amd64,wasm
-		{name: "GetElemInt64x2", argLength: 1, aux: "UInt8"},                            // ARCH:amd64,wasm
-		{name: "GetElemUint8x16", argLength: 1, aux: "UInt8"},                           // ARCH:amd64,wasm
-		{name: "GetElemUint16x8", argLength: 1, aux: "UInt8"},                           // ARCH:amd64,wasm
-		{name: "GetElemUint32x4", argLength: 1, aux: "UInt8"},                           // ARCH:amd64,wasm
-		{name: "GetElemUint64x2", argLength: 1, aux: "UInt8"},                           // ARCH:amd64,wasm
+		{name: "GetElemFloat32x4", argLength: 1, aux: "UInt8"},                          // ARCH:amd64,arm64,wasm
+		{name: "GetElemFloat64x2", argLength: 1, aux: "UInt8"},                          // ARCH:amd64,arm64,wasm
+		{name: "GetElemInt8x16", argLength: 1, aux: "UInt8"},                            // ARCH:amd64,arm64,wasm
+		{name: "GetElemInt16x8", argLength: 1, aux: "UInt8"},                            // ARCH:amd64,arm64,wasm
+		{name: "GetElemInt32x4", argLength: 1, aux: "UInt8"},                            // ARCH:amd64,arm64,wasm
+		{name: "GetElemInt64x2", argLength: 1, aux: "UInt8"},                            // ARCH:amd64,arm64,wasm
+		{name: "GetElemUint8x16", argLength: 1, aux: "UInt8"},                           // ARCH:amd64,arm64,wasm
+		{name: "GetElemUint16x8", argLength: 1, aux: "UInt8"},                           // ARCH:amd64,arm64,wasm
+		{name: "GetElemUint32x4", argLength: 1, aux: "UInt8"},                           // ARCH:amd64,arm64,wasm
+		{name: "GetElemUint64x2", argLength: 1, aux: "UInt8"},                           // ARCH:amd64,arm64,wasm
 		{name: "RotateAllLeftInt32x4", argLength: 1, aux: "UInt8"},                      // ARCH:amd64
 		{name: "RotateAllLeftInt32x8", argLength: 1, aux: "UInt8"},                      // ARCH:amd64
 		{name: "RotateAllLeftInt32x16", argLength: 1, aux: "UInt8"},                     // ARCH:amd64
@@ -1347,16 +1347,16 @@ func simdGenericOps() []opData {
 		{name: "RoundScaledResidueFloat64x4", argLength: 1, aux: "UInt8"},               // ARCH:amd64
 		{name: "RoundScaledResidueFloat64x8", argLength: 1, aux: "UInt8"},               // ARCH:amd64
 		{name: "SHA1FourRoundsUint32x4", argLength: 2, aux: "UInt8"},                    // ARCH:amd64
-		{name: "SetElemFloat32x4", argLength: 2, aux: "UInt8"},                          // ARCH:amd64,wasm
-		{name: "SetElemFloat64x2", argLength: 2, aux: "UInt8"},                          // ARCH:amd64,wasm
-		{name: "SetElemInt8x16", argLength: 2, aux: "UInt8"},                            // ARCH:amd64,wasm
-		{name: "SetElemInt16x8", argLength: 2, aux: "UInt8"},                            // ARCH:amd64,wasm
-		{name: "SetElemInt32x4", argLength: 2, aux: "UInt8"},                            // ARCH:amd64,wasm
-		{name: "SetElemInt64x2", argLength: 2, aux: "UInt8"},                            // ARCH:amd64,wasm
-		{name: "SetElemUint8x16", argLength: 2, aux: "UInt8"},                           // ARCH:amd64,wasm
-		{name: "SetElemUint16x8", argLength: 2, aux: "UInt8"},                           // ARCH:amd64,wasm
-		{name: "SetElemUint32x4", argLength: 2, aux: "UInt8"},                           // ARCH:amd64,wasm
-		{name: "SetElemUint64x2", argLength: 2, aux: "UInt8"},                           // ARCH:amd64,wasm
+		{name: "SetElemFloat32x4", argLength: 2, aux: "UInt8"},                          // ARCH:amd64,arm64,wasm
+		{name: "SetElemFloat64x2", argLength: 2, aux: "UInt8"},                          // ARCH:amd64,arm64,wasm
+		{name: "SetElemInt8x16", argLength: 2, aux: "UInt8"},                            // ARCH:amd64,arm64,wasm
+		{name: "SetElemInt16x8", argLength: 2, aux: "UInt8"},                            // ARCH:amd64,arm64,wasm
+		{name: "SetElemInt32x4", argLength: 2, aux: "UInt8"},                            // ARCH:amd64,arm64,wasm
+		{name: "SetElemInt64x2", argLength: 2, aux: "UInt8"},                            // ARCH:amd64,arm64,wasm
+		{name: "SetElemUint8x16", argLength: 2, aux: "UInt8"},                           // ARCH:amd64,arm64,wasm
+		{name: "SetElemUint16x8", argLength: 2, aux: "UInt8"},                           // ARCH:amd64,arm64,wasm
+		{name: "SetElemUint32x4", argLength: 2, aux: "UInt8"},                           // ARCH:amd64,arm64,wasm
+		{name: "SetElemUint64x2", argLength: 2, aux: "UInt8"},                           // ARCH:amd64,arm64,wasm
 		{name: "ShiftAllLeftConcatMod16Int16x8", argLength: 2, aux: "UInt8"},            // ARCH:amd64
 		{name: "ShiftAllLeftConcatMod16Int16x16", argLength: 2, aux: "UInt8"},           // ARCH:amd64
 		{name: "ShiftAllLeftConcatMod16Int16x32", argLength: 2, aux: "UInt8"},           // ARCH:amd64

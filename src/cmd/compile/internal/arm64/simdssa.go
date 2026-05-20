@@ -12,6 +12,12 @@ import (
 func ssaGenSIMDValue(s *ssagen.State, v *ssa.Value) bool {
 	var p *obj.Prog
 	switch v.Op {
+	case ssa.OpARM64VDUPDextr:
+		p = simdV11ScalarImmIn1(s, v, arm64.ARNG_D)
+
+	case ssa.OpARM64VDUPSextr:
+		p = simdV11ScalarImmIn1(s, v, arm64.ARNG_S)
+
 	case ssa.OpARM64VADD16B,
 		ssa.OpARM64VMUL16B,
 		ssa.OpARM64VSUB16B:
@@ -36,6 +42,36 @@ func ssaGenSIMDValue(s *ssagen.State, v *ssa.Value) bool {
 		ssa.OpARM64VMUL8H,
 		ssa.OpARM64VSUB8H:
 		p = simdV21(s, v, arm64.ARNG_8H)
+
+	case ssa.OpARM64VMOVBextr:
+		p = simdVgpImmIn1(s, v, arm64.ARNG_B)
+
+	case ssa.OpARM64VMOVDextr:
+		p = simdVgpImmIn1(s, v, arm64.ARNG_D)
+
+	case ssa.OpARM64VMOVHextr:
+		p = simdVgpImmIn1(s, v, arm64.ARNG_H)
+
+	case ssa.OpARM64VMOVSextr:
+		p = simdVgpImmIn1(s, v, arm64.ARNG_S)
+
+	case ssa.OpARM64VMOVBins:
+		p = simdVgpvResultInArg0ImmOutIn0(s, v, arm64.ARNG_B)
+
+	case ssa.OpARM64VMOVDins:
+		p = simdVgpvResultInArg0ImmOutIn0(s, v, arm64.ARNG_D)
+
+	case ssa.OpARM64VMOVHins:
+		p = simdVgpvResultInArg0ImmOutIn0(s, v, arm64.ARNG_H)
+
+	case ssa.OpARM64VMOVSins:
+		p = simdVgpvResultInArg0ImmOutIn0(s, v, arm64.ARNG_S)
+
+	case ssa.OpARM64VMOVDins0:
+		p = simdVfpvResultInArg0ImmOutIn1(s, v, arm64.ARNG_D)
+
+	case ssa.OpARM64VMOVSins0:
+		p = simdVfpvResultInArg0ImmOutIn1(s, v, arm64.ARNG_S)
 
 	default:
 		// Unknown reg shape

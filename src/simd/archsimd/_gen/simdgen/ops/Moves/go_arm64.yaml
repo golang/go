@@ -1,0 +1,61 @@
+!sum
+
+# GetElem VMOV (UMOV, integer)
+- go: GetElem
+  asm: "VMOV"
+  SSAVariant: "extr"
+  in:
+  - &immIndex
+    class: immediate
+    go: Immediate
+    name: index
+  - &vector
+    go: $t
+    base: int|uint
+  out:
+  - &scalar
+    class: greg
+
+# GetElem VDUP (duplicate element into scalar float in vreg)
+- go: GetElem
+  asm: "VDUP"
+  SSAVariant: "extr"
+  in:
+  - *immIndex
+  - &fvector
+    go: $t
+    base: float
+  out:
+  - &fscalarOut
+    class: vreg
+    treatLikeAScalarOfSize: 0
+    OverwriteClass: greg
+    OverwriteBase: float
+
+# SetElem VMOV (INS, integer)
+- go: SetElem
+  asm: "VMOV"
+  SSAVariant: "ins"
+  in:
+  - *immIndex
+  - *vector
+  - *scalar
+  out:
+  - *vector
+
+# SetElem VMOV (float: INS from the lane 0 of the source)
+- go: SetElem
+  asm: "VMOV"
+  SSAVariant: "ins0"
+  in:
+  - *immIndex
+  - &imm0
+    class: immediate
+    go: Immediate
+    const: 0 # imm+vreg with treatLikeAScalarOfSize are treated as scalar in lane 0
+  - *fvector
+  - &fscalarIn
+    class: vreg
+    treatLikeAScalarOfSize: 0
+  out:
+  - *fvector
