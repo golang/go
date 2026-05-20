@@ -4503,6 +4503,7 @@ const (
 	OpARM64VFSUB4S
 	OpARM64VMUL4S
 	OpARM64VMUL8H
+	OpARM64VMUL16B
 	OpARM64VSUB2D
 	OpARM64VSUB4S
 	OpARM64VSUB8H
@@ -7053,6 +7054,7 @@ const (
 	OpMulHighUint16x8
 	OpMulHighUint16x16
 	OpMulHighUint16x32
+	OpMulInt8x16
 	OpMulInt16x8
 	OpMulInt16x16
 	OpMulInt16x32
@@ -7074,6 +7076,7 @@ const (
 	OpMulSubAddFloat64x2
 	OpMulSubAddFloat64x4
 	OpMulSubAddFloat64x8
+	OpMulUint8x16
 	OpMulUint16x8
 	OpMulUint16x16
 	OpMulUint16x32
@@ -70223,6 +70226,21 @@ var opcodeTable = [...]opInfo{
 		},
 	},
 	{
+		name:        "VMUL16B",
+		argLen:      2,
+		commutative: true,
+		asm:         arm64.AVMUL,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{0, regMask{v1: 9223372034707292160, v2: 0}}, // F0 F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15 F16 F17 F18 F19 F20 F21 F22 F23 F24 F25 F26 F27 F28 F29 F30 F31
+				{1, regMask{v1: 9223372034707292160, v2: 0}}, // F0 F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15 F16 F17 F18 F19 F20 F21 F22 F23 F24 F25 F26 F27 F28 F29 F30 F31
+			},
+			outputs: []outputInfo{
+				{0, regMask{v1: 9223372034707292160, v2: 0}}, // F0 F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15 F16 F17 F18 F19 F20 F21 F22 F23 F24 F25 F26 F27 F28 F29 F30 F31
+			},
+		},
+	},
+	{
 		name:   "VSUB2D",
 		argLen: 2,
 		asm:    arm64.AVSUB,
@@ -95942,6 +95960,12 @@ var opcodeTable = [...]opInfo{
 		generic:     true,
 	},
 	{
+		name:        "MulInt8x16",
+		argLen:      2,
+		commutative: true,
+		generic:     true,
+	},
+	{
 		name:        "MulInt16x8",
 		argLen:      2,
 		commutative: true,
@@ -96054,6 +96078,12 @@ var opcodeTable = [...]opInfo{
 		name:    "MulSubAddFloat64x8",
 		argLen:  3,
 		generic: true,
+	},
+	{
+		name:        "MulUint8x16",
+		argLen:      2,
+		commutative: true,
+		generic:     true,
 	},
 	{
 		name:        "MulUint16x8",

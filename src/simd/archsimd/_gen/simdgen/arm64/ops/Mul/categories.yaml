@@ -1,5 +1,0 @@
-!sum
-- go: Mul
-  commutative: true
-  documentation: !string |-
-    // NAME multiplies corresponding elements of two vectors.

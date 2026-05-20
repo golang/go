@@ -15,16 +15,16 @@ import (
 )
 
 const defaultXedPath = "$XEDPATH" + string(filepath.ListSeparator) + "./simdgen/xeddata" + string(filepath.ListSeparator) + "$HOME/xed/obj/dgen"
-const defaultArmPath = "$ARM64_ISA_PATH" + string(filepath.ListSeparator) + "./simdgen/armdata" + string(filepath.ListSeparator) + "$HOME/Downloads/ISA_A64_xml_A_profile-2025-06"
+const defaultArm64Path = "$ARM64_ISA_PATH" + string(filepath.ListSeparator) + "./simdgen/armdata" + string(filepath.ListSeparator) + "$HOME/Downloads/ISA_A64_xml_A_profile-2025-06"
 
 var (
 	flagTmplgen = flag.Bool("tmplgen", true, "run tmplgen generator")
 	flagSimdgen = flag.Bool("simdgen", true, "run simdgen generator")
 	flagWasmgen = flag.Bool("wasmgen", true, "run wasmgen generator")
 
-	flagN       = flag.Bool("n", false, "dry run")
-	flagXedPath = flag.String("xedPath", defaultXedPath, "load XED datafile from `path`, which must be the XED obj/dgen directory")
-	flagArmPath = flag.String("armPath", defaultArmPath, "load ARM64 datafile from `path`")
+	flagN         = flag.Bool("n", false, "dry run")
+	flagXedPath   = flag.String("xedPath", defaultXedPath, "load XED datafile from `path`, which must be the XED obj/dgen directory")
+	flagArm64Path = flag.String("arm64Path", defaultArm64Path, "load ARM64 ISA XML definitions from `path`")
 
 	flagGoRoot = flag.String("goroot", "", "destination go dev tree for generated files")
 )
@@ -44,10 +44,10 @@ func main() {
 		*flagXedPath = os.ExpandEnv(defaultXedPath)
 	}
 
-	if *flagArmPath == defaultArmPath {
+	if *flagArm64Path == defaultArm64Path {
 		// In general we want the shell to do variable expansion, but for the
 		// default value we don't get that, so do it ourselves.
-		*flagArmPath = os.ExpandEnv(defaultArmPath)
+		*flagArm64Path = os.ExpandEnv(defaultArm64Path)
 	}
 
 	var err error
@@ -112,16 +112,16 @@ func doSimdgen() {
 		os.Exit(1)
 	}
 
-	armPath, err := resolveARMPath(*flagArmPath)
+	armPath, err := resolveARMPath(*flagArm64Path)
 	if err != nil {
 		fmt.Fprintln(os.Stderr, err)
 		os.Exit(1)
 	}
 
-	goRun("-C", "simdgen", ".", "-o", "godefs", "-goroot", goRoot, "-arm64Path", prettyPath("./simdgen", armPath), "arm64/go.yaml", "types.yaml", "arm64/categories.yaml")
+	goRun("-C", "simdgen", ".", "-o", "godefs", "-goroot", goRoot, "-arm64Path", prettyPath("./simdgen", armPath), "go_arm64.yaml", "types.yaml", "categories.yaml")
 
 	// Regenerate the XED-derived SIMD files
-	goRun("-C", "simdgen", ".", "-o", "godefs", "-goroot", goRoot, "-xedPath", prettyPath("./simdgen", xedPath), "go.yaml", "types.yaml", "categories.yaml")
+	goRun("-C", "simdgen", ".", "-o", "godefs", "-goroot", goRoot, "-xedPath", prettyPath("./simdgen", xedPath), "go_amd64.yaml", "types.yaml", "categories.yaml")
 }
 
 // simdgen -o godefs -goroot goRoot -arm64Path $ARM64_ISA_PATH arm64/go.yaml arm64/categories.yaml types.yaml

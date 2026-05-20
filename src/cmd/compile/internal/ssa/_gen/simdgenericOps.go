@@ -667,6 +667,7 @@ func simdGenericOps() []opData {
 		{name: "MulHighUint16x8", argLength: 2, commutative: true},                      // ARCH:amd64
 		{name: "MulHighUint16x16", argLength: 2, commutative: true},                     // ARCH:amd64
 		{name: "MulHighUint16x32", argLength: 2, commutative: true},                     // ARCH:amd64
+		{name: "MulInt8x16", argLength: 2, commutative: true},                           // ARCH:arm64
 		{name: "MulInt16x8", argLength: 2, commutative: true},                           // ARCH:amd64,arm64,wasm
 		{name: "MulInt16x16", argLength: 2, commutative: true},                          // ARCH:amd64
 		{name: "MulInt16x32", argLength: 2, commutative: true},                          // ARCH:amd64
@@ -688,6 +689,7 @@ func simdGenericOps() []opData {
 		{name: "MulSubAddFloat64x2", argLength: 3},                                      // ARCH:amd64
 		{name: "MulSubAddFloat64x4", argLength: 3},                                      // ARCH:amd64
 		{name: "MulSubAddFloat64x8", argLength: 3},                                      // ARCH:amd64
+		{name: "MulUint8x16", argLength: 2, commutative: true},                          // ARCH:arm64
 		{name: "MulUint16x8", argLength: 2, commutative: true},                          // ARCH:amd64,arm64,wasm
 		{name: "MulUint16x16", argLength: 2, commutative: true},                         // ARCH:amd64
 		{name: "MulUint16x32", argLength: 2, commutative: true},                         // ARCH:amd64

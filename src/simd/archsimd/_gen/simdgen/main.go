@@ -50,13 +50,15 @@
 // simdgen can also generate Go definitions of SIMD mappings:
 // To generate go files to the go root, run:
 //
-//	go run . -xedPath $XEDPATH -o godefs -goroot $PATH/TO/go go.yaml categories.yaml types.yaml
+//	go run . -xedPath $XEDPATH -o godefs -goroot $PATH/TO/go go_amd64.yaml categories.yaml types.yaml
 //
-// TODO: go.yaml for ARM64 will be added in follow-on commits
+// For ARM64:
+//
+//	go run . -arm64Path $ARM64_ISA_PATH -o godefs -goroot $PATH/TO/go go_arm64.yaml categories.yaml types.yaml
 //
 // types.yaml is already written, it specifies the shapes of vectors.
-// categories.yaml and go.yaml contains definitions that unifies with types.yaml and XED
-// data, you can find an example in ops/AddSub/.
+// categories.yaml and go_<arch>.yaml contain definitions that unify with types.yaml and
+// XED/ARM64 ISA data, you can find an example in ops/AddSub/.
 //
 // When generating Go definitions, simdgen do 3 "magic"s:
 // - It splits masked operations(with op's [Masked] field set) to const and non const:
@@ -205,7 +207,8 @@ func main() {
 		}
 		inputs = append(inputs, defs)
 
-		if filepath.Base(path) == "go.yaml" {
+		base := filepath.Base(path)
+		if base == "go_amd64.yaml" || base == "go_arm64.yaml" {
 			// These must all be used in the final result
 			for def := range defs.Summands() {
 				must[def] = struct{}{}

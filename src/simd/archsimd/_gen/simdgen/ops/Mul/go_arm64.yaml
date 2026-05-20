@@ -4,7 +4,7 @@
   in:
   - &any
     go: $t
-    elemBits: 16|32|64
+    elemBits: 8|16|32|64
   - *any
   out:
   - *any

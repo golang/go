@@ -1,9 +1,0 @@
-!sum
-- go: Add
-  commutative: true
-  documentation: !string |-
-    // NAME adds corresponding elements of two vectors.
-- go: Sub
-  commutative: false
-  documentation: !string |-
-    // NAME subtracts corresponding elements of two vectors.
