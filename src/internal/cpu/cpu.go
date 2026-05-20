@@ -98,7 +98,7 @@ var Loong64 struct {
 	HasCRC32       bool // support CRC instruction
 	HasLAMCAS      bool // support AMCAS[_DB].{B/H/W/D}
 	HasLAM_BH      bool // support AM{SWAP/ADD}[_DB].{B/H} instruction
-	HasLLACQ_SCREL bool // support LLACQ.{W/D}、SCREL.{W/D} instruction
+	HasLLACQ_SCREL bool // support LLACQ.{W/D}, SCREL.{W/D} instruction
 	HasSCQ         bool // support SC.Q instruction
 	HasDBAR_HINTS  bool // supports finer-grained DBAR hints
 	_              CacheLinePad
