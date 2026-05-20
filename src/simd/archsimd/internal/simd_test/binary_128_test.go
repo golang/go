@@ -45,14 +45,14 @@ func TestMax(t *testing.T) {
 	testInt16x8Binary(t, archsimd.Int16x8.Max, maxSlice[int16])
 	testInt32x4Binary(t, archsimd.Int32x4.Max, maxSlice[int32])
 
-	// testInt64x2Binary(t, archsimd.Int64x2.Max, maxSlice[int64])
+	testInt64x2Binary(t, archsimd.Int64x2.Max, maxSlice[int64])
 
 	testInt8x16Binary(t, archsimd.Int8x16.Max, maxSlice[int8])
 
 	testUint16x8Binary(t, archsimd.Uint16x8.Max, maxSlice[uint16])
 	testUint32x4Binary(t, archsimd.Uint32x4.Max, maxSlice[uint32])
 
-	// 	testUint64x2Binary(t, archsimd.Uint64x2.Max, maxSlice[uint64])
+	testUint64x2Binary(t, archsimd.Uint64x2.Max, maxSlice[uint64])
 
 	testUint8x16Binary(t, archsimd.Uint8x16.Max, maxSlice[uint8])
 }
@@ -61,14 +61,14 @@ func TestMin(t *testing.T) {
 	testInt16x8Binary(t, archsimd.Int16x8.Min, minSlice[int16])
 	testInt32x4Binary(t, archsimd.Int32x4.Min, minSlice[int32])
 
-	// testInt64x2Binary(t, archsimd.Int64x2.Min, minSlice[int64])
+	testInt64x2Binary(t, archsimd.Int64x2.Min, minSlice[int64])
 
 	testInt8x16Binary(t, archsimd.Int8x16.Min, minSlice[int8])
 
 	testUint16x8Binary(t, archsimd.Uint16x8.Min, minSlice[uint16])
 	testUint32x4Binary(t, archsimd.Uint32x4.Min, minSlice[uint32])
 
-	//	testUint64x2Binary(t, archsimd.Uint64x2.Min, minSlice[uint64])
+	testUint64x2Binary(t, archsimd.Uint64x2.Min, minSlice[uint64])
 
 	testUint8x16Binary(t, archsimd.Uint8x16.Min, minSlice[uint8])
 }
@@ -125,6 +125,8 @@ func TestMul(t *testing.T) {
 	testFloat32x4Binary(t, archsimd.Float32x4.Mul, mulSlice[float32])
 	testFloat64x2Binary(t, archsimd.Float64x2.Mul, mulSlice[float64])
 
+	testInt8x16Binary(t, archsimd.Int8x16.Mul, mulSlice[int8])
+	testUint8x16Binary(t, archsimd.Uint8x16.Mul, mulSlice[uint8])
 	testInt16x8Binary(t, archsimd.Int16x8.Mul, mulSlice[int16])
 	testInt32x4Binary(t, archsimd.Int32x4.Mul, mulSlice[int32])
 

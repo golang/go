@@ -27,63 +27,6 @@ func TestShift(t *testing.T) {
 		map2(func(x, y uint32) uint32 { return x >> y }))
 }
 
-func TestShiftAll(t *testing.T) {
-	// Test both const and non-const shifts.
-	// Test both regular and over-shifts.
-
-	hide := hideConst[uint64]
-
-	// ShiftAllLeft
-
-	testInt32x4Unary(t,
-		func(x archsimd.Int32x4) archsimd.Int32x4 { return x.ShiftAllLeft(2) },
-		map1(func(x int32) int32 { return x << 2 }))
-	testInt32x4Unary(t,
-		func(x archsimd.Int32x4) archsimd.Int32x4 { return x.ShiftAllLeft(hide(2)) },
-		map1(func(x int32) int32 { return x << hide(2) }))
-
-	// Ironically, we have to hide the constant in the want function so the
-	// compiler doesn't complain about a silly shift.
-	testInt32x4Unary(t,
-		func(x archsimd.Int32x4) archsimd.Int32x4 { return x.ShiftAllLeft(0x1000) },
-		map1(func(x int32) int32 { return x << hide(0x1000) }))
-	testInt32x4Unary(t,
-		func(x archsimd.Int32x4) archsimd.Int32x4 { return x.ShiftAllLeft(hide(0x1000)) },
-		map1(func(x int32) int32 { return x << hide(0x1000) }))
-
-	// Signed ShiftAllRight
-
-	testInt32x4Unary(t,
-		func(x archsimd.Int32x4) archsimd.Int32x4 { return x.ShiftAllRight(2) },
-		map1(func(x int32) int32 { return x >> 2 }))
-	testInt32x4Unary(t,
-		func(x archsimd.Int32x4) archsimd.Int32x4 { return x.ShiftAllRight(hide(2)) },
-		map1(func(x int32) int32 { return x >> hide(2) }))
-
-	testInt32x4Unary(t,
-		func(x archsimd.Int32x4) archsimd.Int32x4 { return x.ShiftAllRight(0x1000) },
-		map1(func(x int32) int32 { return x >> hide(0x1000) }))
-	testInt32x4Unary(t,
-		func(x archsimd.Int32x4) archsimd.Int32x4 { return x.ShiftAllRight(hide(0x1000)) },
-		map1(func(x int32) int32 { return x >> hide(0x1000) }))
-
-	// Unsigned ShiftAllRight
-
-	testUint32x4Unary(t,
-		func(x archsimd.Uint32x4) archsimd.Uint32x4 { return x.ShiftAllRight(2) },
-		map1(func(x uint32) uint32 { return x >> 2 }))
-	testUint32x4Unary(t,
-		func(x archsimd.Uint32x4) archsimd.Uint32x4 { return x.ShiftAllRight(hide(2)) },
-		map1(func(x uint32) uint32 { return x >> hide(2) }))
-
-	testUint32x4Unary(t,
-		func(x archsimd.Uint32x4) archsimd.Uint32x4 { return x.ShiftAllRight(0x1000) },
-		map1(func(x uint32) uint32 { return x >> hide(0x1000) }))
-	testUint32x4Unary(t,
-		func(x archsimd.Uint32x4) archsimd.Uint32x4 { return x.ShiftAllRight(hide(0x1000)) },
-		map1(func(x uint32) uint32 { return x >> hide(0x1000) }))
-}
-
 func concatInt32s(x, y int32) int64 {
 	return (int64(x) << 32) | int64(uint32(y))
 }

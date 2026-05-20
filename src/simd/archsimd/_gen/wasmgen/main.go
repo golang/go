@@ -952,7 +952,7 @@ func initWasmOps() {
 
 	rotate := func(op *wasmOp) {
 		op.opFlags = EmulatedRule | IsShift
-		op.argType = "uint8"
+		op.argType = "uint64"
 		op.arg1Name = "shift"
 	}
 
