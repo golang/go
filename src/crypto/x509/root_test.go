@@ -320,6 +320,7 @@ func TestLoadSystemCertsLoadColonSeparatedDirs(t *testing.T) {
 }
 
 func TestReadUniqueDirectoryEntries(t *testing.T) {
+	testenv.MustHaveSymlink(t)
 	baseTmpDir := t.TempDir()
 	path := func(base string) string { return filepath.Join(baseTmpDir, base) }
 	if f, err := os.Create(path("file")); err != nil {
