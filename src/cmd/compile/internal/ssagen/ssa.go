@@ -806,7 +806,7 @@ func (s *state) specializedMallocSym(size int64, hasPointers bool) *obj.LSym {
 	if !s.sizeSpecializedMallocEnabled() {
 		return nil
 	}
-	const specializedMallocMax = 128 // This must match the constant in mkmalloc.
+	const specializedMallocMax = 80 // This must match the constant in mkmalloc.
 	if size > specializedMallocMax {
 		return nil
 	}

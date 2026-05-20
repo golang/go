@@ -27,5 +27,5 @@ const (
 	// size classes, and with the wrapper they are sometimes slower
 	// than the non-specialized functions.
 	// This must match the constant in the compiler.
-	specializedMallocMax = 128
+	specializedMallocMax = 80
 )

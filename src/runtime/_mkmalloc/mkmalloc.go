@@ -888,16 +888,16 @@ package runtime
 
 import "unsafe"
 
-var mallocScanTable = [129]func(size uintptr, typ *_type, needzero bool) unsafe.Pointer{`)
+var mallocScanTable = [%d]func(size uintptr, typ *_type, needzero bool) unsafe.Pointer{`, specializedMallocMax+1)
 
 	for i := range uintptr(specializedMallocMax + 1) {
 		fmt.Fprintf(&b, "%s,\n", smallScanNoHeaderSCFuncName(sizeToSizeClass[i], scMax))
 	}
 
-	fmt.Fprintln(&b, `
+	fmt.Fprintf(&b, `
 }
 
-var mallocNoScanTable = [129]func(size uintptr, typ *_type, needzero bool) unsafe.Pointer{`)
+var mallocNoScanTable = [%d]func(size uintptr, typ *_type, needzero bool) unsafe.Pointer{`, specializedMallocMax+1)
 	for i := range uintptr(specializedMallocMax + 1) {
 		if i < 16 {
 			fmt.Fprintf(&b, "%s,\n", "mallocPanic")

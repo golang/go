@@ -39,8 +39,8 @@ type symsStruct struct {
 	InterfaceSwitch           *obj.LSym
 	MallocGC                  *obj.LSym
 	MallocGCTiny              *obj.LSym
-	MallocGCSmallNoScan       [11]*obj.LSym
-	MallocGCSmallScanNoHeader [11]*obj.LSym
+	MallocGCSmallNoScan       [8]*obj.LSym
+	MallocGCSmallScanNoHeader [8]*obj.LSym
 	Memmove                   *obj.LSym
 	Memequal                  *obj.LSym
 	Msanread                  *obj.LSym
