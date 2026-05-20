@@ -232,7 +232,7 @@ func TestParseFile(t *testing.T) {
 var tooLarge int = PosMax + 1
 
 func TestLineDirectives(t *testing.T) {
-	// valid line directives lead to a syntax error after them
+	// valid line directives lead to this syntax error after them
 	const valid = "syntax error: package statement must be first"
 	const filename = "directives.go"
 
@@ -271,8 +271,8 @@ func TestLineDirectives(t *testing.T) {
 		{fmt.Sprintf("//line foo:10:%d\n", tooLarge), fmt.Sprintf("invalid column number: %d", tooLarge), filename, 1, 15},
 
 		// effect of valid //line directives on lines
-		{"//line foo:123\n   foo", valid, "foo", 123, 0},
-		{"//line  foo:123\n   foo", valid, " foo", 123, 0},
+		{"//line foo:123\n", valid, "foo", 123, 0},
+		{"//line  foo:123\n", valid, " foo", 123, 0},
 		{"//line foo:123\n//line bar:345\nfoo", valid, "bar", 345, 0},
 		{"//line :x:1\n", valid, ":x", 1, 0},
 		{"//line foo ::1\n", valid, "foo :", 1, 0},
@@ -322,7 +322,7 @@ func TestLineDirectives(t *testing.T) {
 		{fmt.Sprintf("/*line foo:10:%d*/", tooLarge), fmt.Sprintf("invalid column number: %d", tooLarge), filename, 1, 15},
 
 		// effect of valid /*line directives on lines
-		{"/*line foo:123*/   foo", valid, "foo", 123, 0},
+		{"/*line foo:123*/", valid, "foo", 123, 0},
 		{"/*line foo:123*/\n//line bar:345\nfoo", valid, "bar", 345, 0},
 		{"/*line :x:1*/", valid, ":x", 1, 0},
 		{"/*line foo ::1*/", valid, "foo :", 1, 0},
@@ -342,6 +342,14 @@ func TestLineDirectives(t *testing.T) {
 		{"/*line :10:20*/", valid, filename, 10, 20},
 		{"//line bar:1\n/*line :10*/", valid, "", 10, 0},
 		{"//line bar:1\n/*line :10:20*/", valid, "bar", 10, 20},
+
+		// effect of cleaning filenames
+		{"//line C:foo:123\n", valid, filepath.Clean("C:foo"), 123, 0},
+		{"//line /src/a/a.go:123\n", valid, filepath.Clean("/src/a/a.go"), 123, 0},
+		{"//line foo/../bar:1\n", valid, filepath.Clean("foo/../bar"), 1, 0},
+		{"/*line C:foo:123*/", valid, filepath.Clean("C:foo"), 123, 0},
+		{"/*line /src/a/a.go:123*/", valid, filepath.Clean("/src/a/a.go"), 123, 0},
+		{"/*line foo/../bar:1*/", valid, filepath.Clean("foo/../bar"), 1, 0},
 	} {
 		base := NewFileBase(filename)
 		_, err := Parse(base, strings.NewReader(test.src), nil, nil, 0)
@@ -372,101 +380,39 @@ func TestLineDirectives(t *testing.T) {
 }
 
 func TestLineDirectivesWithDir(t *testing.T) {
-	const valid = "syntax error: package statement must be first"
-	srcFile := filepath.Join("dir", "directives.go")
+	const dir = "dir"
+	filename := filepath.Join(dir, "directives.go")
 
-	check := func(src, want string) {
-		t.Helper()
-		base := NewFileBase(srcFile)
-		_, err := Parse(base, strings.NewReader(src), nil, nil, 0)
-		if err == nil {
-			t.Errorf("%s: no error reported", src)
-			return
-		}
-		perr, ok := err.(Error)
-		if !ok {
-			t.Errorf("%s: got %v; want parser error", src, err)
-			return
-		}
-		if perr.Msg != valid {
-			t.Errorf("%s: got msg = %q; want %q", src, perr.Msg, valid)
-			return
-		}
-		if got := perr.Pos.RelFilename(); got != want {
-			t.Errorf("%s: got filename = %q; want %q", src, got, want)
-		}
+	type test struct{ src, filename string }
+	relPaths := []test{
+		{"//line foo:1\n", filepath.Join(dir, "foo")},
+		{"//line ./foo:1\n", filepath.Join(dir, "foo")},
+		{"//line ../foo:1\n", "foo"},
+		{"//line sub/foo:1\n", filepath.Join(dir, "sub", "foo")},
+		{"/*line foo:1*/", filepath.Join(dir, "foo")},
+		{"//line bar:1\n//line :2:1\n", filepath.Join(dir, "bar")},
 	}
 
-	for _, test := range []struct {
-		src      string
-		filename string
-	}{
-		{"//line foo:1\n   x", filepath.Join("dir", "foo")},
-		{"//line ./foo:1\n   x", filepath.Join("dir", "foo")},
-		{"//line ../foo:1\n   x", "foo"},
-		{"//line sub/foo:1\n   x", filepath.Join("dir", "sub", "foo")},
-		{"/*line foo:1*/   x", filepath.Join("dir", "foo")},
-		{"//line bar:1\n//line :2:1\n   x", filepath.Join("dir", "bar")},
-	} {
-		check(test.src, test.filename)
-	}
-
-	var absCases []struct {
-		src, filename string
-	}
+	var absPaths []test
 	if runtime.GOOS == "windows" {
-		absCases = append(absCases, struct{ src, filename string }{
-			"//line c:\\bar:1\n   x", "c:\\bar",
-		})
+		absPaths = []test{
+			{"//line c:\\bar:1\n", "c:\\bar"},
+		}
 	} else {
-		absCases = append(absCases,
-			struct{ src, filename string }{"//line /abs/foo:1\n   x", "/abs/foo"},
-			struct{ src, filename string }{"//line /src/a/a.go:1\n   x", "/src/a/a.go"},
-		)
+		absPaths = []test{
+			{"//line /abs/foo:1\n", "/abs/foo"},
+			{"//line /src/a/a.go:1\n", "/src/a/a.go"},
+		}
 	}
-	for _, test := range absCases {
-		check(test.src, test.filename)
-	}
-}
 
-func TestLineDirectivesPaths(t *testing.T) {
-	const valid = "syntax error: package statement must be first"
-	const filename = "directives.go"
-
-	type tc struct {
-		src      string
-		filename string
-		line     uint
-	}
-	var cases []tc
-	cases = []tc{
-		{"//line C:foo:123\n", "C:foo", 123},
-		{"//line /src/a/a.go:123\n   foo", filepath.Clean("/src/a/a.go"), 123},
-		{"/*line C:foo:123*/", "C:foo", 123},
-		{"/*line /src/a/a.go:123*/   foo", filepath.Clean("/src/a/a.go"), 123},
-		{"//line foo/../bar:1\n   x", "bar", 1},
-	}
-	for _, test := range cases {
+	for _, test := range append(relPaths, absPaths...) {
 		base := NewFileBase(filename)
-		_, err := Parse(base, strings.NewReader(test.src), nil, nil, 0)
-		if err == nil {
-			t.Errorf("%s: no error reported", test.src)
-			continue
+		pkg, err := Parse(base, strings.NewReader(test.src+"package p"), nil, nil, 0)
+		if err != nil {
+			t.Error(err)
 		}
-		perr, ok := err.(Error)
-		if !ok {
-			t.Errorf("%s: got %v; want parser error", test.src, err)
-			continue
-		}
-		if perr.Msg != valid {
-			t.Errorf("%s: got msg = %q; want %q", test.src, perr.Msg, valid)
-			continue
-		}
-		if got := perr.Pos.RelFilename(); got != test.filename {
+		if got := pkg.Pos().RelFilename(); got != test.filename {
 			t.Errorf("%s: got filename = %q; want %q", test.src, got, test.filename)
-		}
-		if got := perr.Pos.RelLine(); got != test.line {
-			t.Errorf("%s: got line = %d; want %d", test.src, got, test.line)
 		}
 	}
 }
