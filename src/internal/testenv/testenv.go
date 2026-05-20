@@ -275,11 +275,27 @@ var goTool = sync.OnceValues(func() (string, error) {
 
 // MustHaveSource checks that the entire source tree is available under GOROOT.
 // If not, it calls t.Skip with an explanation.
+//
+// This is needed when reading files from GOROOT that are not in ./testdata.
 func MustHaveSource(t testing.TB) {
+	t.Helper()
 	switch runtime.GOOS {
 	case "ios":
-		t.Helper()
 		t.Skip("skipping test: no source tree on " + runtime.GOOS)
+	}
+	if Builder() != "" {
+		// The builders have the source tree available, and if they don't the
+		// tests should error out.
+		return
+	}
+	// If not running on the builders, the test binary might have been copied to
+	// a target machine where the source tree isn't available.
+	goroot, err := findGOROOT()
+	if err != nil {
+		t.Skipf("skipping test: cannot locate GOROOT: %v", err)
+	}
+	if _, err := os.Stat(filepath.Join(goroot, "src", "go.mod")); err != nil {
+		t.Skipf("skipping test: GOROOT/src not available: %v", err)
 	}
 }
 
