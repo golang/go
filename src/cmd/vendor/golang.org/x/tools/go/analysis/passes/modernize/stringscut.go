@@ -21,14 +21,13 @@ import (
 	"golang.org/x/tools/internal/analysis/analyzerutil"
 	typeindexanalyzer "golang.org/x/tools/internal/analysis/typeindex"
 	"golang.org/x/tools/internal/astutil"
-	"golang.org/x/tools/internal/goplsexport"
 	"golang.org/x/tools/internal/moreiters"
 	"golang.org/x/tools/internal/typesinternal"
 	"golang.org/x/tools/internal/typesinternal/typeindex"
 	"golang.org/x/tools/internal/versions"
 )
 
-var stringscutAnalyzer = &analysis.Analyzer{
+var StringsCutAnalyzer = &analysis.Analyzer{
 	Name: "stringscut",
 	Doc:  analyzerutil.MustExtractDoc(doc, "stringscut"),
 	Requires: []*analysis.Analyzer{
@@ -37,11 +36,6 @@ var stringscutAnalyzer = &analysis.Analyzer{
 	},
 	Run: stringscut,
 	URL: "https://pkg.go.dev/golang.org/x/tools/go/analysis/passes/modernize#stringscut",
-}
-
-func init() {
-	// Export to gopls until this is a published modernizer.
-	goplsexport.StringsCutModernizer = stringscutAnalyzer
 }
 
 // stringscut offers a fix to replace an occurrence of strings.Index{,Byte} with
@@ -92,7 +86,7 @@ func init() {
 //     }
 //
 // If the condition involving `i` is equivalent to i >= 0, then we replace it with
-// `if ok“.
+// `if ok`.
 // If the condition is negated (e.g. equivalent to `i < 0`), we use `if !ok` instead.
 // If the slices of `s` match `s[:i]` or `s[i+len(substr):]` or their variants listed above,
 // then we replace them with before and after.
@@ -124,6 +118,8 @@ func stringscut(pass *analysis.Pass) (any, error) {
 		bytesIndexByte   = index.Object("bytes", "IndexByte")
 	)
 
+	stringsplitCut(pass, index)
+
 	scopeFixCount := make(map[*types.Scope]int) // the number of times we have offered a fix within a given scope in the current pass
 
 	for _, obj := range []types.Object{
@@ -149,11 +145,20 @@ func stringscut(pass *analysis.Pass) (any, error) {
 			switch ek, idx := curCall.ParentEdge(); ek {
 			case edge.ValueSpec_Values:
 				// Have: var i = strings.Index(...)
+				// If the call occurs in a multi-value declaration or assignment, don't suggest a fix because it would produce invalid code (See golang/go#78643).
+				spec := curCall.Parent().Node().(*ast.ValueSpec)
+				if len(spec.Names) != 1 {
+					continue
+				}
 				curName := curCall.Parent().ChildAt(edge.ValueSpec_Names, idx)
 				iIdent = curName.Node().(*ast.Ident)
 			case edge.AssignStmt_Rhs:
 				// Have: i := strings.Index(...)
 				// (Must be i's definition.)
+				assign := curCall.Parent().Node().(*ast.AssignStmt)
+				if len(assign.Lhs) != 1 {
+					continue
+				}
 				curLhs := curCall.Parent().ChildAt(edge.AssignStmt_Lhs, idx)
 				iIdent, _ = curLhs.Node().(*ast.Ident) // may be nil
 			}
@@ -367,6 +372,129 @@ func stringscut(pass *analysis.Pass) (any, error) {
 	return nil, nil
 }
 
+// stringsplitCut reports patterns where strings.Split or strings.SplitN with
+// n=2 is immediately indexed at [0], which can be simplified to strings.Cut,
+// when sep is a non-empty string constant. The transformation is
+// semantics-preserving only for non-empty sep: strings.Split(s, "")[0]
+// returns the first character of s, but strings.Cut(s, "").before is "".
+// For variable sep the value is unknown at analysis time, so we conservatively
+// skip those cases too.
+//
+// For example:
+//
+//	x := strings.SplitN(s, ",", 2)[0]
+//	              ------              --
+//	x, _, _ := strings.Cut(s, ",")
+//
+// Requires Go 1.18 (when strings.Cut was added).
+func stringsplitCut(pass *analysis.Pass, index *typeindex.Index) {
+	info := pass.TypesInfo
+
+	stringsSplit := index.Object("strings", "Split")
+	stringsSplitN := index.Object("strings", "SplitN")
+
+	for _, obj := range []types.Object{stringsSplit, stringsSplitN} {
+		for curCall := range index.Calls(obj) {
+			callExpr := curCall.Node().(*ast.CallExpr)
+
+			// For SplitN, the third argument must be the integer constant 2.
+			if obj.Name() == "SplitN" && !isIntLiteral(info, callExpr.Args[2], 2) {
+				continue
+			}
+
+			// Sep must be a non-empty constant string.
+			// strings.Split(s, "")[0] returns the first character of s, but
+			// strings.Cut(s, "").before is "", so the semantics differ for
+			// an empty sep. For a variable sep we cannot rule out "" at
+			// analysis time, so we conservatively skip those cases too.
+			sepTV := info.Types[callExpr.Args[1]]
+			if sepTV.Value == nil || constant.StringVal(sepTV.Value) == "" {
+				continue
+			}
+
+			// The call must be the X of an IndexExpr.
+			if curCall.ParentEdgeKind() != edge.IndexExpr_X {
+				continue
+			}
+			parent := curCall.Parent()
+			indexExpr := parent.Node().(*ast.IndexExpr)
+
+			// The index must be the integer constant 0.
+			if !isZeroIntConst(info, indexExpr.Index) {
+				continue
+			}
+
+			// The IndexExpr must be the sole RHS of an assignment statement.
+			if parent.ParentEdgeKind() != edge.AssignStmt_Rhs {
+				continue
+			}
+			assign := parent.Parent().Node().(*ast.AssignStmt)
+			if assign.Tok != token.DEFINE || len(assign.Lhs) != 1 {
+				continue
+			}
+
+			// The LHS must be a single non-blank identifier.
+			lhsIdent, ok := assign.Lhs[0].(*ast.Ident)
+			if !ok || lhsIdent.Name == "_" {
+				continue
+			}
+
+			// strings.Cut requires Go 1.18.
+			if !analyzerutil.FileUsesGoVersion(pass, astutil.EnclosingFile(curCall), versions.Go1_18) {
+				continue
+			}
+
+			// Build the fix.
+			//
+			//  x  := strings.SplitN(s, sep, 2)[0]
+			//  ---           ------             ---
+			//  x, _, _ := strings.Cut(s, sep)
+			callFunIdent := typesinternal.UsedIdent(info, callExpr.Fun)
+
+			var edits []analysis.TextEdit
+
+			// LHS: insert ", _, _" after x
+			edits = append(edits, analysis.TextEdit{
+				Pos:     lhsIdent.End(),
+				End:     lhsIdent.End(),
+				NewText: []byte(", _, _"),
+			})
+
+			// Function name: Split/SplitN → Cut
+			edits = append(edits, analysis.TextEdit{
+				Pos:     callFunIdent.Pos(),
+				End:     callFunIdent.End(),
+				NewText: []byte("Cut"),
+			})
+
+			// For SplitN: remove the ", 2" third argument.
+			if obj.Name() == "SplitN" {
+				edits = append(edits, analysis.TextEdit{
+					Pos: callExpr.Args[1].End(), // after sep
+					End: callExpr.Rparen,        // before )
+				})
+			}
+
+			// Remove the "[0]" index expression.
+			edits = append(edits, analysis.TextEdit{
+				Pos: indexExpr.Lbrack,
+				End: indexExpr.End(),
+			})
+
+			pass.Report(analysis.Diagnostic{
+				Pos:      callExpr.Fun.Pos(),
+				End:      callExpr.Fun.End(),
+				Message:  fmt.Sprintf("strings.%s call can be simplified using strings.Cut", obj.Name()),
+				Category: "stringscut",
+				SuggestedFixes: []analysis.SuggestedFix{{
+					Message:   fmt.Sprintf("Simplify strings.%s call using strings.Cut", obj.Name()),
+					TextEdits: edits,
+				}},
+			})
+		}
+	}
+}
+
 // indexArgValid reports whether expr is a valid strings.Index(_, _) arg
 // for the transformation. An arg is valid iff it is:
 // - constant;
@@ -387,10 +515,10 @@ func indexArgValid(info *types.Info, index *typeindex.Index, expr ast.Expr, afte
 	case *ast.Ident:
 		sObj := info.Uses[expr]
 		sUses := index.Uses(sObj)
-		return !hasModifyingUses(info, sUses, afterPos)
+		return !hasModifyingUses(sUses, afterPos)
 	default:
 		// For now, skip instances where s or substr are not
-		// identifers, basic lits, or call expressions of the form
+		// identifiers, basic lits, or call expressions of the form
 		// []byte(s).
 		// TODO(mkalil): Handle s and substr being expressions like ptr.field[i].
 		// From adonovan: We'd need to analyze s and substr to see
@@ -487,18 +615,15 @@ func checkIdxUses(info *types.Info, uses iter.Seq[inspector.Cursor], s, substr a
 // hasModifyingUses reports whether any of the uses involve potential
 // modifications. Uses involving assignments before the "afterPos" won't be
 // considered.
-func hasModifyingUses(info *types.Info, uses iter.Seq[inspector.Cursor], afterPos token.Pos) bool {
+func hasModifyingUses(uses iter.Seq[inspector.Cursor], afterPos token.Pos) bool {
 	for curUse := range uses {
 		ek := curUse.ParentEdgeKind()
 		if ek == edge.AssignStmt_Lhs {
 			if curUse.Node().Pos() <= afterPos {
 				continue
 			}
-			assign := curUse.Parent().Node().(*ast.AssignStmt)
-			if sameObject(info, assign.Lhs[0], curUse.Node().(*ast.Ident)) {
-				// Modifying use because we are reassigning the value of the object.
-				return true
-			}
+			// Any use on the LHS is a modifying use.
+			return true
 		} else if ek == edge.UnaryExpr_X &&
 			curUse.Parent().Node().(*ast.UnaryExpr).Op == token.AND {
 			// Modifying use because we might be passing the object by reference (an explicit &).

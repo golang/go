@@ -24,8 +24,10 @@
 package objectpath
 
 import (
+	"encoding/binary"
 	"fmt"
 	"go/types"
+	"slices"
 	"strconv"
 	"strings"
 
@@ -124,7 +126,66 @@ func For(obj types.Object) (Path, error) {
 // An Encoder amortizes the cost of encoding the paths of multiple objects.
 // The zero value of an Encoder is ready to use.
 type Encoder struct {
-	scopeMemo map[*types.Scope][]types.Object // memoization of scopeObjects
+	pkgIndex map[*types.Package]*pkgIndex
+}
+
+// A traversal encapsulates the state of a single traversal of the object/type graph.
+type traversal struct {
+	pkg *types.Package
+	ix  *pkgIndex // non-nil if we are building the index
+
+	target types.Object // the sought symbol (if ix == nil)
+	found  Path         // the found path    (if ix == nil)
+
+	// These maps are used to short circuit cycles through
+	// interface methods, such as occur in the following example:
+	//
+	//	type I interface { f() interface{I} }
+	//
+	// See golang/go#68046 for details.
+	seenTParamNames map[*types.TypeName]bool // global cycle breaking through type parameters
+	seenMethods     map[*types.Func]bool     // global cycle breaking through recursive interfaces
+}
+
+// A pkgIndex holds a compressed index of objectpaths of all symbols
+// (fields, methods, params) requiring search for an entire package.
+//
+// The first time a search for a given package is requested, we simply
+// traverse the type graph for the target object, maintaining the
+// current object path as a stack. If we find the target object, we
+// save the path and terminate the main loop (but it's not worth
+// breaking out of the current recursion).
+//
+// On the second search (a pkgIndex exists but its data is nil), we
+// build an index of the traversal, which we use for all subsequent
+// searches.
+//
+// The traversal index is encoded in the data field as a list of records,
+// one per node, in preorder. Records are of two types:
+//
+//   - A record for a package-level object consists of a pair
+//     (parent, nameIndex uvarint), where parent is zero and
+//     nameIndex is the index of the object's name in the sorted
+//     pkg.Scope().Names() slice.
+//
+//   - A record for a nested node (a segment of an object path)
+//     consists of (parent uvarint, op byte, index uvarint), where
+//     parent is the index of the record for the parent node,
+//     op is the destructuring operator, and index (if op = [AFMTr])
+//     is its integer operand.
+//
+// Since data[0] = 0 all nodes have positive offsets. In effect the
+// encoding is a trie in which each node stores one path segment
+// and points to the node for its prefix.
+//
+// TODO(adonovan): opt: evaluate an only 2-level tree with nodes for
+// package-level objects and the-rest-of-the-path. One calculation
+// suggested that it might be similar speed but 30% more compact.
+type pkgIndex struct {
+	pkg        *types.Package
+	data       []byte                  // encoding of traversal; nil if not yet constructed
+	scopeNames []string                // memo of pkg.Scope().Names() to avoid O(n) alloc/sort at lookup
+	offsets    map[types.Object]uint32 // each object's node offset within encoded traversal data
 }
 
 // For returns the path to an object relative to its package,
@@ -211,10 +272,9 @@ func (enc *Encoder) For(obj types.Object) (Path, error) {
 	if pkg == nil {
 		return "", fmt.Errorf("predeclared %s has no path", obj)
 	}
-	scope := pkg.Scope()
 
 	// 2. package-level object?
-	if scope.Lookup(obj.Name()) == obj {
+	if pkg.Scope().Lookup(obj.Name()) == obj {
 		// Only exported objects (and non-exported types) have a path.
 		// Non-exported types may be referenced by other objects.
 		if _, ok := obj.(*types.TypeName); !ok && !obj.Exported() {
@@ -232,19 +292,18 @@ func (enc *Encoder) For(obj types.Object) (Path, error) {
 			// have a path.
 			return "", fmt.Errorf("no path for %v", obj)
 		}
+
 	case *types.Const, // Only package-level constants have a path.
 		*types.Label,   // Labels are function-local.
 		*types.PkgName: // PkgNames are file-local.
 		return "", fmt.Errorf("no path for %v", obj)
 
 	case *types.Var:
-		// Could be:
-		// - a field (obj.IsField())
-		// - a func parameter or result
-		// - a local var.
-		// Sadly there is no way to distinguish
-		// a param/result from a local
-		// so we must proceed to the find.
+		// A var, if not package-level, must be a
+		// parameter (incl. receiver) or result, or a struct field.
+		if obj.Kind() == types.LocalVar {
+			return "", fmt.Errorf("no path for local %v", obj)
+		}
 
 	case *types.Func:
 		// A func, if not package-level, must be a method.
@@ -261,89 +320,311 @@ func (enc *Encoder) For(obj types.Object) (Path, error) {
 		panic(obj)
 	}
 
-	// 4. Search the API for the path to the var (field/param/result) or method.
+	// 4. Search the object/type graph for the path to
+	//    the var (field/param/result) or method.
+	ix, ok := enc.pkgIndex[pkg]
+	if !ok {
+		// First search: don't build an index, just traverse.
+		// This avoids allocation in [For], whose Encoder
+		// lives for a single call.
+		ix = &pkgIndex{pkg: pkg}
 
-	// First inspect package-level named types.
-	// In the presence of path aliases, these give
-	// the best paths because non-types may
-	// refer to types, but not the reverse.
-	empty := make([]byte, 0, 48) // initial space
-	objs := enc.scopeObjects(scope)
-	for _, o := range objs {
-		tname, ok := o.(*types.TypeName)
-		if !ok {
-			continue // handle non-types in second pass
+		if enc.pkgIndex == nil {
+			enc.pkgIndex = make(map[*types.Package]*pkgIndex)
+		}
+		enc.pkgIndex[pkg] = ix // build the index next time
+
+		f := traversal{pkg: pkg, target: obj}
+		f.traverse()
+
+		if f.found != "" {
+			return f.found, nil
+		}
+	} else {
+		// Second search: build an index while traversing.
+		if ix.data == nil {
+			ix.offsets = make(map[types.Object]uint32)
+			ix.data = []byte{0} // offset 0 is sentinel
+			(&traversal{pkg: pkg, ix: ix}).traverse()
 		}
 
-		path := append(empty, o.Name()...)
-		path = append(path, opType)
-
-		T := o.Type()
-		if alias, ok := T.(*types.Alias); ok {
-			if r := findTypeParam(obj, alias.TypeParams(), path, opTypeParam); r != nil {
-				return Path(r), nil
-			}
-			if r := find(obj, alias.Rhs(), append(path, opRhs)); r != nil {
-				return Path(r), nil
-			}
-
-		} else if tname.IsAlias() {
-			// legacy alias
-			if r := find(obj, T, path); r != nil {
-				return Path(r), nil
-			}
-
-		} else if named, ok := T.(*types.Named); ok {
-			// defined (named) type
-			if r := findTypeParam(obj, named.TypeParams(), path, opTypeParam); r != nil {
-				return Path(r), nil
-			}
-			if r := find(obj, named.Underlying(), append(path, opUnderlying)); r != nil {
-				return Path(r), nil
-			}
-		}
-	}
-
-	// Then inspect everything else:
-	// non-types, and declared methods of defined types.
-	for _, o := range objs {
-		path := append(empty, o.Name()...)
-		if _, ok := o.(*types.TypeName); !ok {
-			if o.Exported() {
-				// exported non-type (const, var, func)
-				if r := find(obj, o.Type(), append(path, opType)); r != nil {
-					return Path(r), nil
-				}
-			}
-			continue
-		}
-
-		// Inspect declared methods of defined types.
-		if T, ok := types.Unalias(o.Type()).(*types.Named); ok {
-			path = append(path, opType)
-			// The method index here is always with respect
-			// to the underlying go/types data structures,
-			// which ultimately derives from source order
-			// and must be preserved by export data.
-			for i := 0; i < T.NumMethods(); i++ {
-				m := T.Method(i)
-				path2 := appendOpArg(path, opMethod, i)
-				if m == obj {
-					return Path(path2), nil // found declared method
-				}
-				if r := find(obj, m.Type(), append(path2, opType)); r != nil {
-					return Path(r), nil
-				}
-			}
+		// Second and later searches: consult the index.
+		if offset, ok := ix.offsets[obj]; ok {
+			return ix.path(offset), nil
 		}
 	}
 
 	return "", fmt.Errorf("can't find path for %v in %s", obj, pkg.Path())
 }
 
-func appendOpArg(path []byte, op byte, arg int) []byte {
+// traverse performs a complete traversal of all symbols reachable from the package.
+func (tr *traversal) traverse() {
+	scope := tr.pkg.Scope()
+	names := scope.Names()
+	if tr.ix != nil {
+		tr.ix.scopeNames = names
+	}
+
+	empty := make([]byte, 0, 48) // initial space for stack (ix == nil)
+
+	// First inspect package-level type names.
+	// In the presence of path aliases, these give
+	// the best paths because non-types may
+	// refer to types, but not the reverse.
+	for i, name := range names {
+		if tr.found != "" {
+			return // found (ix == nil)
+		}
+
+		obj := scope.Lookup(name)
+		if _, ok := obj.(*types.TypeName); !ok {
+			continue // handle non-types in second pass
+		}
+
+		// emit (name, opType)
+		var path []byte
+		var offset uint32
+		if tr.ix == nil {
+			path = append(empty, name...)
+			path = append(path, opType)
+		} else {
+			offset = tr.ix.emitPackageLevel(i)
+			tr.ix.offsets[obj] = offset
+			offset = tr.ix.emitPathSegment(offset, opType, -1)
+		}
+
+		// A TypeName (for Named or Alias) may have type parameters.
+		switch t := obj.Type().(type) {
+		case *types.Alias:
+			tr.tparams(t.TypeParams(), path, offset, opTypeParam)
+			tr.typ(path, offset, opRhs, -1, t.Rhs())
+		case *types.Named:
+			tr.tparams(t.TypeParams(), path, offset, opTypeParam)
+			tr.typ(path, offset, opUnderlying, -1, t.Underlying())
+		}
+	}
+
+	// Then inspect everything else:
+	// exported non-types, and declared methods of defined types.
+	for i, name := range names {
+		if tr.found != "" {
+			return // found (ix == nil)
+		}
+
+		obj := scope.Lookup(name)
+
+		if tname, ok := obj.(*types.TypeName); !ok {
+			if obj.Exported() {
+				// exported non-type (const, var, func)
+				var path []byte
+				var offset uint32
+				if tr.ix == nil {
+					path = append(empty, name...)
+				} else {
+					offset = tr.ix.emitPackageLevel(i)
+					tr.ix.offsets[obj] = offset
+				}
+				tr.typ(path, offset, opType, -1, obj.Type())
+			}
+
+		} else if T, ok := types.Unalias(tname.Type()).(*types.Named); ok {
+			// defined type
+			var path []byte
+			var offset uint32
+			if tr.ix == nil {
+				path = append(empty, name...)
+				path = append(path, opType)
+			} else {
+				// Inv: map entry for obj was populated in first pass.
+				offset = tr.ix.emitPathSegment(tr.ix.offsets[obj], opType, -1)
+			}
+
+			// Inspect declared methods of defined types.
+			//
+			// The method index here is always with respect
+			// to the underlying go/types data structures,
+			// which ultimately derives from source order
+			// and must be preserved by export data.
+			for i := 0; i < T.NumMethods(); i++ {
+				m := T.Method(i)
+				tr.object(path, offset, opMethod, i, m)
+			}
+		}
+	}
+}
+
+func (tr *traversal) visitType(path []byte, offset uint32, T types.Type) {
+	switch T := T.(type) {
+	case *types.Alias:
+		tr.typ(path, offset, opRhs, -1, T.Rhs())
+
+	case *types.Basic, *types.Named:
+		// Named types belonging to pkg were handled already,
+		// so T must belong to another package. No path.
+		return
+
+	case *types.Pointer, *types.Slice, *types.Array, *types.Chan:
+		type hasElem interface{ Elem() types.Type } // note: includes Map
+		tr.typ(path, offset, opElem, -1, T.(hasElem).Elem())
+
+	case *types.Map:
+		tr.typ(path, offset, opKey, -1, T.Key())
+		tr.typ(path, offset, opElem, -1, T.Elem())
+
+	case *types.Signature:
+		tr.tparams(T.RecvTypeParams(), path, offset, opRecvTypeParam)
+		tr.tparams(T.TypeParams(), path, offset, opTypeParam)
+		tr.typ(path, offset, opParams, -1, T.Params())
+		tr.typ(path, offset, opResults, -1, T.Results())
+
+	case *types.Struct:
+		for i := 0; i < T.NumFields(); i++ {
+			tr.object(path, offset, opField, i, T.Field(i))
+		}
+
+	case *types.Tuple:
+		for i := 0; i < T.Len(); i++ {
+			tr.object(path, offset, opAt, i, T.At(i))
+		}
+
+	case *types.Interface:
+		for i := 0; i < T.NumMethods(); i++ {
+			m := T.Method(i)
+			if m.Pkg() != nil && m.Pkg() != tr.pkg {
+				continue // embedded method from another package
+			}
+			if !tr.seenMethods[m] {
+				if tr.seenMethods == nil {
+					tr.seenMethods = make(map[*types.Func]bool)
+				}
+				tr.seenMethods[m] = true
+				tr.object(path, offset, opMethod, i, m)
+			}
+		}
+
+	case *types.TypeParam:
+		tname := T.Obj()
+		if tname.Pkg() != nil && tname.Pkg() != tr.pkg {
+			return // type parameter from another package
+		}
+		if !tr.seenTParamNames[tname] {
+			if tr.seenTParamNames == nil {
+				tr.seenTParamNames = make(map[*types.TypeName]bool)
+			}
+			tr.seenTParamNames[tname] = true
+			tr.object(path, offset, opObj, -1, tname)
+			tr.typ(path, offset, opConstraint, -1, T.Constraint())
+		}
+	}
+}
+
+func (tr *traversal) tparams(list *types.TypeParamList, path []byte, offset uint32, op byte) {
+	for i := 0; i < list.Len(); i++ {
+		tr.typ(path, offset, op, i, list.At(i))
+	}
+}
+
+// typ descends the type graph edge (op, index), then proceeds to traverse type t.
+func (tr *traversal) typ(path []byte, offset uint32, op byte, index int, t types.Type) {
+	if tr.ix == nil {
+		path = appendOpArg(path, op, index)
+	} else {
+		offset = tr.ix.emitPathSegment(offset, op, index)
+	}
+	tr.visitType(path, offset, t)
+}
+
+// object descends the type graph edge (op, index), records object
+// obj, then proceeds to traverse its type.
+func (tr *traversal) object(path []byte, offset uint32, op byte, index int, obj types.Object) {
+	if tr.ix == nil {
+		path = appendOpArg(path, op, index)
+		if obj == tr.target && tr.found == "" {
+			tr.found = Path(path)
+		}
+		path = append(path, opType)
+	} else {
+		offset = tr.ix.emitPathSegment(offset, op, index)
+		if _, ok := tr.ix.offsets[obj]; !ok {
+			tr.ix.offsets[obj] = offset
+		}
+		offset = tr.ix.emitPathSegment(offset, opType, -1)
+	}
+	tr.visitType(path, offset, obj.Type())
+}
+
+// emitPackageLevel encodes a record for a package-level symbol,
+// identified by its index in ix.scopeNames.
+func (p *pkgIndex) emitPackageLevel(index int) uint32 {
+	off := uint32(len(p.data))
+	p.data = append(p.data, 0) // zero varint => no parent
+	p.data = binary.AppendUvarint(p.data, uint64(index))
+	return off
+}
+
+// emitPathSegment emits a record for a non-initial object path segment.
+func (p *pkgIndex) emitPathSegment(parent uint32, op byte, index int) uint32 {
+	off := uint32(len(p.data))
+	p.data = binary.AppendUvarint(p.data, uint64(parent))
+	p.data = append(p.data, op)
+	switch op {
+	case opAt, opField, opMethod, opTypeParam, opRecvTypeParam:
+		p.data = binary.AppendUvarint(p.data, uint64(index))
+	}
+	return off
+}
+
+// path returns the Path for the encoded node at the specified offset.
+func (p *pkgIndex) path(offset uint32) Path {
+	var elems []string // path elements in reverse
+	for {
+		// Read parent index.
+		parent, n := binary.Uvarint(p.data[offset:])
+		offset += uint32(n)
+
+		if parent == 0 {
+			break // root (end of path)
+		}
+
+		op := p.data[offset]
+		offset++
+
+		// The [AFMTr] operators have a numeric operand.
+		switch op {
+		case opAt, opField, opMethod, opTypeParam, opRecvTypeParam:
+			val, n := binary.Uvarint(p.data[offset:])
+			offset += uint32(n)
+			elems = append(elems, strconv.Itoa(int(val)))
+		}
+
+		elems = append(elems, string([]byte{op}))
+
+		offset = uint32(parent)
+	}
+	idx, _ := binary.Uvarint(p.data[offset:])
+
+	// Convert index to Path string.
+	name := p.scopeNames[idx]
+	sz := len(name)
+	for _, elem := range elems {
+		sz += len(elem)
+	}
+	var buf strings.Builder
+	buf.Grow(sz)
+	buf.WriteString(name)
+	for _, elem := range slices.Backward(elems) {
+		buf.WriteString(elem)
+	}
+	return Path(buf.String())
+}
+
+// appendOpArg appends (op, index) to the object path.
+// A negative index is ignored.
+func appendOpArg(path []byte, op byte, index int) []byte {
 	path = append(path, op)
-	path = strconv.AppendInt(path, int64(arg), 10)
+	if index >= 0 {
+		path = strconv.AppendInt(path, int64(index), 10)
+	}
 	return path
 }
 
@@ -440,138 +721,6 @@ func (enc *Encoder) concreteMethod(meth *types.Func) (Path, bool) {
 	// versions gopls supports.
 	return "", false
 	// panic(fmt.Sprintf("couldn't find method %s on type %s; methods: %#v", meth, named, enc.namedMethods(named)))
-}
-
-// find finds obj within type T, returning the path to it, or nil if not found.
-//
-// The seen map is used to short circuit cycles through type parameters. If
-// nil, it will be allocated as necessary.
-//
-// The seenMethods map is used internally to short circuit cycles through
-// interface methods, such as occur in the following example:
-//
-//	type I interface { f() interface{I} }
-//
-// See golang/go#68046 for details.
-func find(obj types.Object, T types.Type, path []byte) []byte {
-	return (&finder{obj: obj}).find(T, path)
-}
-
-// finder closes over search state for a call to find.
-type finder struct {
-	obj             types.Object             // the sought object
-	seenTParamNames map[*types.TypeName]bool // for cycle breaking through type parameters
-	seenMethods     map[*types.Func]bool     // for cycle breaking through recursive interfaces
-}
-
-func (f *finder) find(T types.Type, path []byte) []byte {
-	switch T := T.(type) {
-	case *types.Alias:
-		return f.find(types.Unalias(T), path)
-	case *types.Basic, *types.Named:
-		// Named types belonging to pkg were handled already,
-		// so T must belong to another package. No path.
-		return nil
-	case *types.Pointer:
-		return f.find(T.Elem(), append(path, opElem))
-	case *types.Slice:
-		return f.find(T.Elem(), append(path, opElem))
-	case *types.Array:
-		return f.find(T.Elem(), append(path, opElem))
-	case *types.Chan:
-		return f.find(T.Elem(), append(path, opElem))
-	case *types.Map:
-		if r := f.find(T.Key(), append(path, opKey)); r != nil {
-			return r
-		}
-		return f.find(T.Elem(), append(path, opElem))
-	case *types.Signature:
-		if r := f.findTypeParam(T.RecvTypeParams(), path, opRecvTypeParam); r != nil {
-			return r
-		}
-		if r := f.findTypeParam(T.TypeParams(), path, opTypeParam); r != nil {
-			return r
-		}
-		if r := f.find(T.Params(), append(path, opParams)); r != nil {
-			return r
-		}
-		return f.find(T.Results(), append(path, opResults))
-	case *types.Struct:
-		for i := 0; i < T.NumFields(); i++ {
-			fld := T.Field(i)
-			path2 := appendOpArg(path, opField, i)
-			if fld == f.obj {
-				return path2 // found field var
-			}
-			if r := f.find(fld.Type(), append(path2, opType)); r != nil {
-				return r
-			}
-		}
-		return nil
-	case *types.Tuple:
-		for i := 0; i < T.Len(); i++ {
-			v := T.At(i)
-			path2 := appendOpArg(path, opAt, i)
-			if v == f.obj {
-				return path2 // found param/result var
-			}
-			if r := f.find(v.Type(), append(path2, opType)); r != nil {
-				return r
-			}
-		}
-		return nil
-	case *types.Interface:
-		for i := 0; i < T.NumMethods(); i++ {
-			m := T.Method(i)
-			if f.seenMethods[m] {
-				continue // break cycles (see TestIssue70418)
-			}
-			path2 := appendOpArg(path, opMethod, i)
-			if m == f.obj {
-				return path2 // found interface method
-			}
-			if f.seenMethods == nil {
-				f.seenMethods = make(map[*types.Func]bool)
-			}
-			f.seenMethods[m] = true
-			if r := f.find(m.Type(), append(path2, opType)); r != nil {
-				return r
-			}
-		}
-		return nil
-	case *types.TypeParam:
-		name := T.Obj()
-		if f.seenTParamNames[name] {
-			return nil
-		}
-		if name == f.obj {
-			return append(path, opObj)
-		}
-		if f.seenTParamNames == nil {
-			f.seenTParamNames = make(map[*types.TypeName]bool)
-		}
-		f.seenTParamNames[name] = true
-		if r := f.find(T.Constraint(), append(path, opConstraint)); r != nil {
-			return r
-		}
-		return nil
-	}
-	panic(T)
-}
-
-func findTypeParam(obj types.Object, list *types.TypeParamList, path []byte, op byte) []byte {
-	return (&finder{obj: obj}).findTypeParam(list, path, op)
-}
-
-func (f *finder) findTypeParam(list *types.TypeParamList, path []byte, op byte) []byte {
-	for i := 0; i < list.Len(); i++ {
-		tparam := list.At(i)
-		path2 := appendOpArg(path, op, i)
-		if r := f.find(tparam, path2); r != nil {
-			return r
-		}
-	}
-	return nil
 }
 
 // Object returns the object denoted by path p within the package pkg.
@@ -708,7 +857,7 @@ func Object(pkg *types.Package, p Path) (types.Object, error) {
 			}
 			tparams := hasTypeParams.TypeParams()
 			if n := tparams.Len(); index >= n {
-				return nil, fmt.Errorf("tuple index %d out of range [0-%d)", index, n)
+				return nil, fmt.Errorf("type parameter index %d out of range [0-%d)", index, n)
 			}
 			t = tparams.At(index)
 
@@ -719,7 +868,7 @@ func Object(pkg *types.Package, p Path) (types.Object, error) {
 			}
 			rtparams := sig.RecvTypeParams()
 			if n := rtparams.Len(); index >= n {
-				return nil, fmt.Errorf("tuple index %d out of range [0-%d)", index, n)
+				return nil, fmt.Errorf("receiver type parameter index %d out of range [0-%d)", index, n)
 			}
 			t = rtparams.At(index)
 
@@ -793,24 +942,4 @@ func Object(pkg *types.Package, p Path) (types.Object, error) {
 	}
 
 	return obj, nil // success
-}
-
-// scopeObjects is a memoization of scope objects.
-// Callers must not modify the result.
-func (enc *Encoder) scopeObjects(scope *types.Scope) []types.Object {
-	m := enc.scopeMemo
-	if m == nil {
-		m = make(map[*types.Scope][]types.Object)
-		enc.scopeMemo = m
-	}
-	objs, ok := m[scope]
-	if !ok {
-		names := scope.Names() // allocates and sorts
-		objs = make([]types.Object, len(names))
-		for i, name := range names {
-			objs[i] = scope.Lookup(name)
-		}
-		m[scope] = objs
-	}
-	return objs
 }

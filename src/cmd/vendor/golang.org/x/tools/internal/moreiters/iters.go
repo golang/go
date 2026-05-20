@@ -53,3 +53,11 @@ func Len[T any](seq iter.Seq[T]) (n int) {
 	}
 	return
 }
+
+// Empty reports whether the sequence contains no elements.
+func Empty[T any](seq iter.Seq[T]) bool {
+	for range seq {
+		return false
+	}
+	return true
+}

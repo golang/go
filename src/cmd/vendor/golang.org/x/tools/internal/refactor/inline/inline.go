@@ -2050,7 +2050,7 @@ func resolveEffects(logf logger, args []*argument, effects []int, sg substGraph)
 			}
 		}
 		if !sg.has(argi) {
-			for j := 0; j < i; j++ {
+			for j := range i {
 				argj := args[j]
 				if argj.pure {
 					continue
