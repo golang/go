@@ -20330,6 +20330,33 @@ func rewriteValuegeneric_OpMul64uhilo(v *Value) bool {
 		}
 		break
 	}
+	// match: (Mul64uhilo x (Const64 [c]))
+	// cond: c > 0 && isPowerOfTwo(uint64(c))
+	// result: (MakeTuple (Rsh64Ux64 <typ.UInt64> x (Const64 <typ.UInt64> [64 - log64u(uint64(c))])) (Lsh64x64 <typ.UInt64> x (Const64 <typ.UInt64> [log64u(uint64(c))])))
+	for {
+		for _i0 := 0; _i0 <= 1; _i0, v_0, v_1 = _i0+1, v_1, v_0 {
+			x := v_0
+			if v_1.Op != OpConst64 {
+				continue
+			}
+			c := auxIntToInt64(v_1.AuxInt)
+			if !(c > 0 && isPowerOfTwo(uint64(c))) {
+				continue
+			}
+			v.reset(OpMakeTuple)
+			v0 := b.NewValue0(v.Pos, OpRsh64Ux64, typ.UInt64)
+			v1 := b.NewValue0(v.Pos, OpConst64, typ.UInt64)
+			v1.AuxInt = int64ToAuxInt(64 - log64u(uint64(c)))
+			v0.AddArg2(x, v1)
+			v2 := b.NewValue0(v.Pos, OpLsh64x64, typ.UInt64)
+			v3 := b.NewValue0(v.Pos, OpConst64, typ.UInt64)
+			v3.AuxInt = int64ToAuxInt(log64u(uint64(c)))
+			v2.AddArg2(x, v3)
+			v.AddArg2(v0, v2)
+			return true
+		}
+		break
+	}
 	return false
 }
 func rewriteValuegeneric_OpMul64uover(v *Value) bool {

@@ -1023,6 +1023,12 @@ func Mul64Const() (uint64, uint64) {
 	return bits.Mul64(99+88<<8, 1<<56)
 }
 
+func Mul64ConstPow2(x uint64) (uint64, uint64) {
+	// amd64:-"MULQ"
+	// arm64:-"UMULH" -"\tMUL\t"
+	return bits.Mul64(x, 1<<40)
+}
+
 func MulUintOverflow(p *uint64) []uint64 {
 	// arm64:"CMP [$]72"
 	return unsafe.Slice(p, 9)
