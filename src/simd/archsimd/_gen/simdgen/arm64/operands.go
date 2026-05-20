@@ -124,6 +124,9 @@ func (op *Operand) instantiate(arrangement Arrangement, ashape ArngShape, vregPo
 				op.Bits = 32
 			}
 		}
+		if mnemonic == "INS" {
+			op.Bits = arrangement.elemBits
+		}
 	case OperandVElem, OperandList:
 		panic("expected this operand type to be early-lowered")
 	}
