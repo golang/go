@@ -19,7 +19,7 @@ import (
 //go:linkname fatal
 func fatal(s string)
 
-//go:linkname bootstrapRand runtime.bootstrapRand
+//go:linknamestd bootstrapRand runtime.bootstrapRand
 func bootstrapRand() uint64
 
 //go:linkname rand

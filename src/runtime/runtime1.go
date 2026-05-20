@@ -655,7 +655,7 @@ func reflect_typelinks() ([]unsafe.Pointer, [][]int32) {
 // slice for the main module, and a slice of slices, normally nil,
 // for other modules.
 //
-//go:linkname reflect_compiledTypelinks reflect.compiledTypelinks
+//go:linknamestd reflect_compiledTypelinks reflect.compiledTypelinks
 func reflect_compiledTypelinks() ([]*abi.Type, [][]*abi.Type) {
 	modules := activeModules()
 	firstTypes := moduleTypelinks(modules[0])
@@ -753,7 +753,7 @@ func reflect_addReflectOff(ptr unsafe.Pointer) int32 {
 // the new address to use. This is only called on AIX.
 // See getGCMaskOnDemand.
 //
-//go:linkname reflect_adjustAIXGCDataForRuntime reflect.adjustAIXGCDataForRuntime
+//go:linknamestd reflect_adjustAIXGCDataForRuntime reflect.adjustAIXGCDataForRuntime
 func reflect_adjustAIXGCDataForRuntime(addr *byte) *byte {
 	return (*byte)(add(unsafe.Pointer(addr), aixStaticDataBase-firstmoduledata.data))
 }

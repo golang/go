@@ -1719,6 +1719,8 @@ func haveIdenticalUnderlyingType(T, V *abi.Type, cmpTags bool) bool {
 // there can be more than one with a given string.
 // Only types we might want to look up are included:
 // pointers, channels, maps, slices, and arrays.
+//
+//go:linknamestd compiledTypelinks
 func compiledTypelinks() ([]*abi.Type, [][]*abi.Type)
 
 // rtypeOff should be an internal detail,
@@ -2775,7 +2777,7 @@ func adjustAIXGCData(addr *byte) *byte {
 // adjustAIXGCDataForRuntime adjusts the GCData field pointer
 // as the runtime requires for AIX. See runtime.getGCMaskOnDemand.
 //
-//go:linkname adjustAIXGCDataForRuntime
+//go:linknamestd adjustAIXGCDataForRuntime
 //go:noescape
 func adjustAIXGCDataForRuntime(*byte) *byte
 

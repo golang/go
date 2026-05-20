@@ -16,5 +16,5 @@ const (
 
 // isProcessorFeaturePresent calls windows IsProcessorFeaturePresent API.
 //
-//go:linkname isProcessorFeaturePresent
+//go:linknamestd isProcessorFeaturePresent
 func isProcessorFeaturePresent(processorFeature uint32) bool // Implemented in runtime package.
