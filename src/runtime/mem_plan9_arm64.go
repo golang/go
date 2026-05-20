@@ -26,10 +26,16 @@ func sbrk(n uintptr) unsafe.Pointer {
 	n = memRound(n)
 	if !plan9UseBrk {
 		if blocMax == memRound(firstmoduledata.end) {
-			base := uintptr(segattach(plan9SgCexec, &plan9MemoryName[0], nil, plan9MemorySegmentLen))
-			if base != 0 && base != ^uintptr(0) {
-				bloc = base
-				blocMax = base + plan9MemorySegmentLen
+			attached := uintptr(segattach(plan9SgCexec, &plan9MemoryName[0], nil, plan9MemorySegmentLen))
+			if attached != 0 && attached != ^uintptr(0) {
+				end := attached + plan9MemorySegmentLen
+				base := alignUp(attached, heapArenaBytes)
+				if end < attached || base >= end {
+					plan9UseBrk = true
+				} else {
+					bloc = base
+					blocMax = end
+				}
 			} else {
 				plan9UseBrk = true
 			}
