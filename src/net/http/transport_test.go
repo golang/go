@@ -7389,6 +7389,9 @@ func testProxyAuthHeader(t *testing.T, mode testMode) {
 
 // Issue 61708
 func TestTransportReqCancelerCleanupOnRequestBodyWriteError(t *testing.T) {
+	if runtime.GOOS == "plan9" && runtime.GOARCH == "arm64" {
+		t.Skip("skipping on plan9/arm64; loopback server close does not unblock client writeLoop streaming a large body (only verified on plan9/arm64)")
+	}
 	ln := newLocalListener(t)
 	addr := ln.Addr().String()
 
