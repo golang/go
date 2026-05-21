@@ -359,6 +359,18 @@ func simdV21(s *ssagen.State, v *ssa.Value, arrangement int16) *obj.Prog {
 	return p
 }
 
+// simdV21Imm generates a binary instruction with immediate, e.g. EXT $imm, Vm.16B, Vn.16B, Vd.16B
+func simdV21Imm(s *ssagen.State, v *ssa.Value, arrangement int16) *obj.Prog {
+	p := s.Prog(v.Op.Asm())
+	p.From.Type = obj.TYPE_CONST
+	p.From.Offset = int64(v.AuxUInt8())
+	p.Reg = simdRegArng(v.Args[0].Reg(), arrangement)
+	p.To.Type = obj.TYPE_REG
+	p.To.Reg = simdRegArng(v.Reg(), arrangement)
+	p.AddRestSource(obj.Addr{Type: obj.TYPE_REG, Reg: simdRegArng(v.Args[1].Reg(), arrangement)})
+	return p
+}
+
 // simdV31ResultInArg0 generates a destructive 3-register instruction,
 // e.g. VBIT Vm.16B, Vn.16B, Vd.16B.
 func simdV31ResultInArg0(s *ssagen.State, v *ssa.Value, arrangement int16) *obj.Prog {

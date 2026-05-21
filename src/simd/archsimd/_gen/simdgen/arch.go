@@ -66,6 +66,7 @@ var arm64RegInfoKeys = []string{
 	"v11ImmIn1",
 	"v11ScalarImmIn1",
 	"v21",
+	"v21Imm",
 	"v31ResultInArg0",
 	"vgpImmIn1",
 	"vgpvResultInArg0ImmOutIn0",
@@ -94,6 +95,7 @@ var amd64RegInfoSet = map[string]bool{
 var arm64RegInfoSet = map[string]bool{
 	"v11":                 true,
 	"v21":                 true,
+	"v21Imm":              true,
 	"v31":                 true,
 	"vgp":                 true,
 	"vgpv":                true,

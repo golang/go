@@ -188,3 +188,20 @@
   - *byteIndices
   out:
   - *bytes
+
+# ConcatShiftBytesRight — EXT (extract bytes from concatenated pair)
+- go: ConcatShiftBytesRight
+  asm: "VEXT"
+  operandOrder: 2I
+  in:
+  - class: immediate
+    immOffset: 0
+    name: shift
+  - &uint8x128
+    go: $t
+    base: uint
+    bits: 128
+    elemBits: 8
+  - *uint8x128
+  out:
+  - *uint8x128

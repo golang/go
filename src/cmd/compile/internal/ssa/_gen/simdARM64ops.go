@@ -179,6 +179,7 @@ func simdARM64Ops(v11, v21, v31, vgp, vgpv, vfpv regInfo) []opData {
 		{name: "VDUPHbcast", argLength: 1, reg: v11, asm: "VDUP", aux: "UInt8", typ: "Vec128"},
 		{name: "VDUPSbcast", argLength: 1, reg: v11, asm: "VDUP", aux: "UInt8", typ: "Vec128"},
 		{name: "VDUPSextr", argLength: 1, reg: v11, asm: "VDUP", aux: "UInt8", typ: "Vec128"},
+		{name: "VEXT16B", argLength: 2, reg: v21, asm: "VEXT", aux: "UInt8", typ: "Vec128"},
 		{name: "VMOVBextr", argLength: 1, reg: vgp, asm: "VMOV", aux: "UInt8", typ: "int8"},
 		{name: "VMOVBins", argLength: 2, reg: vgpv, asm: "VMOV", aux: "UInt8", typ: "Vec128", resultInArg0: true},
 		{name: "VMOVDextr", argLength: 1, reg: vgp, asm: "VMOV", aux: "UInt8", typ: "int64"},

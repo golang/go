@@ -796,6 +796,9 @@ func rewriteValueARM64(v *Value) bool {
 	case OpCom8:
 		v.Op = OpARM64MVN
 		return true
+	case OpConcatShiftBytesRightUint8x16:
+		v.Op = OpARM64VEXT16B
+		return true
 	case OpCondSelect:
 		return rewriteValueARM64_OpCondSelect(v)
 	case OpConst16:

@@ -407,6 +407,10 @@ func ({{.Op1NameAndType "x"}}) {{.Go}}({{.ImmName}} uint8, {{.Op2NameAndType "y"
 func ({{.Op1NameAndType "x"}}) {{.Go}}({{.Op2NameAndType "y"}}, {{.ImmName}} uint8) {{.GoType}}
 {{end}}
 
+{{define "op2Imm_2I"}}
+{{template "op2Imm8_2I" .}}
+{{end}}
+
 {{define "op2Imm8_II"}}
 {{if .Documentation}}{{.Documentation}}
 //{{end}}

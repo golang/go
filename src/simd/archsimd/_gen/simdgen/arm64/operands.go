@@ -110,6 +110,9 @@ func (op *Operand) instantiate(arrangement Arrangement, ashape ArngShape, vregPo
 			if strings.HasSuffix(op.Role, "_i") {
 				// Vector element index: max = lanes - 1
 				op.ImmMax = arrangement.lanes - 1
+			} else if mnemonic == "EXT" {
+				// EXT byte index: max = register size in bytes - 1 = 15 for 128-bit
+				op.ImmMax = arrangement.bits/8 - 1
 			} else if ashape == NarrowArngs {
 				// Narrow shift: max = destination element bits - 1 (half of source)
 				op.ImmMax = arrangement.elemBits/2 - 1

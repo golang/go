@@ -158,3 +158,34 @@ func TestShiftAllRight(t *testing.T) {
 		return checkSlicesLogInput(t, g, w, 0.0, func() { t.Helper(); t.Logf("x=%v, amt=%d", x, testShiftAllVarAmt) })
 	})
 }
+
+func TestConcatShiftBytesRight(t *testing.T) {
+	hide := hideConst[uint8]
+
+	csbr := func(shift uint8) func(x, y []uint8) []uint8 {
+		return func(x, y []uint8) []uint8 {
+			z := make([]uint8, len(x))
+			for i := range z {
+				target := i + int(shift)
+				if target < 16 {
+					z[i] = y[target]
+				} else if target < 32 {
+					z[i] = x[(target - 16)]
+				}
+			}
+			return z
+		}
+	}
+
+	t.Run("Uint8x16", func(t *testing.T) {
+		for _, shift := range []uint8{0, 2, 8, 15} {
+			t.Log("shift", shift)
+			testUint8x16Binary(t,
+				func(x, y archsimd.Uint8x16) archsimd.Uint8x16 { return x.ConcatShiftBytesRight(y, shift) },
+				csbr(shift))
+			testUint8x16Binary(t,
+				func(x, y archsimd.Uint8x16) archsimd.Uint8x16 { return x.ConcatShiftBytesRight(y, hide(shift)) },
+				csbr(hide(shift)))
+		}
+	})
+}

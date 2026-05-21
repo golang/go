@@ -184,6 +184,16 @@ func (x Float32x4) Ceil() Float32x4
 // Asm: VFRINTP, CPU Feature: NEON
 func (x Float64x2) Ceil() Float64x2
 
+/* ConcatShiftBytesRight */
+
+// ConcatShiftBytesRight concatenates x and y and shifts it right by shift bytes.
+// The result vector will be the lower half of the concatenated vector.
+//
+// A non-constant value of shift may result in significantly worse performance for this operation.
+//
+// Asm: VEXT, CPU Feature: NEON
+func (x Uint8x16) ConcatShiftBytesRight(y Uint8x16, shift uint8) Uint8x16
+
 /* ConvertLo2ToFloat64 */
 
 // ConvertLo2ToFloat64 converts low-indexed float32 element values to float64.

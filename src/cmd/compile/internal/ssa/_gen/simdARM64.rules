@@ -69,6 +69,7 @@
 (AndNotUint64x2 ...) => (VBIC16B ...)
 (CeilFloat32x4 ...) => (VFRINTP4S ...)
 (CeilFloat64x2 ...) => (VFRINTP2D ...)
+(ConcatShiftBytesRightUint8x16 ...) => (VEXT16B ...)
 (ConvertLo2ToFloat64Float32x4 ...) => (VFCVTL4S ...)
 (ConvertToFloat32Float64x2 ...) => (VFCVTN2D ...)
 (ConvertToFloat32Int32x4 ...) => (VSCVTF4S ...)

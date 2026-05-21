@@ -1323,7 +1323,7 @@ func simdGenericOps() []opData {
 		{name: "ConcatPermute128ScalarsUint64x4", argLength: 2, aux: "UInt8"},           // ARCH:amd64
 		{name: "ConcatShiftBytesRightGroupedUint8x32", argLength: 2, aux: "UInt8"},      // ARCH:amd64
 		{name: "ConcatShiftBytesRightGroupedUint8x64", argLength: 2, aux: "UInt8"},      // ARCH:amd64
-		{name: "ConcatShiftBytesRightUint8x16", argLength: 2, aux: "UInt8"},             // ARCH:amd64
+		{name: "ConcatShiftBytesRightUint8x16", argLength: 2, aux: "UInt8"},             // ARCH:amd64,arm64
 		{name: "FloorScaledFloat32x4", argLength: 1, aux: "UInt8"},                      // ARCH:amd64
 		{name: "FloorScaledFloat32x8", argLength: 1, aux: "UInt8"},                      // ARCH:amd64
 		{name: "FloorScaledFloat32x16", argLength: 1, aux: "UInt8"},                     // ARCH:amd64
