@@ -398,7 +398,7 @@ func testTimerChan(t *testing.T, tim timer, C <-chan Time) {
 	tim.Reset(1)
 	Sleep(sched)
 	if l, c := len(C), cap(C); l != 0 || c != 0 {
-		// t.Fatalf("len(C), cap(C) = %d, %d, want 0, 0", l, c)
+		t.Fatalf("len(C), cap(C) = %d, %d, want 0, 0", l, c)
 	}
 	assertTick()
 
