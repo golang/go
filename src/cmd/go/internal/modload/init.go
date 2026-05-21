@@ -1525,11 +1525,42 @@ func rootsFromModFile(ld *Loader, m module.Version, modFile *modfile.File, addTo
 	}
 	goVersion := gover.FromGoMod(modFile)
 	var toolchain string
-	if addToolchainRoot && modFile.Toolchain != nil {
-		toolchain = modFile.Toolchain.Name
+	if addToolchainRoot {
+		toolchain = toolchainForModFile(modFile)
 	}
 	roots = appendGoAndToolchainRoots(roots, goVersion, toolchain, direct)
 	return roots, direct
+}
+
+func toolchainForModFile(modFile *modfile.File) string {
+	toolchain := ""
+	if modFile.Toolchain != nil {
+		toolchain = modFile.Toolchain.Name
+	}
+
+	required := godebugDefaultToolchain(modFile.Godebug)
+	if required == "" || toolchain == "default" {
+		return toolchain
+	}
+	if toolchain == "" || gover.Compare(gover.FromToolchain(toolchain), gover.FromToolchain(required)) < 0 {
+		return required
+	}
+	return toolchain
+}
+
+func godebugDefaultToolchain(godebugs []*modfile.Godebug) string {
+	toolchain := ""
+	for _, g := range godebugs {
+		if g.Key == "default" && strings.HasPrefix(g.Value, "go") {
+			toolchain = g.Value
+			v := gover.FromToolchain(toolchain)
+			if gover.IsLang(v) && gover.Compare(v, "1.21") >= 0 {
+				// Starting with Go 1.21, language versions do not name toolchains.
+				toolchain += ".0"
+			}
+		}
+	}
+	return toolchain
 }
 
 func appendGoAndToolchainRoots(roots []module.Version, goVersion, toolchain string, direct map[string]bool) []module.Version {
