@@ -31,6 +31,7 @@ import (
 	"net"
 	"os"
 	"reflect"
+	"runtime"
 	"slices"
 	"strings"
 	"testing"
@@ -1891,6 +1892,17 @@ func TestPKCS1OnlyCert(t *testing.T) {
 }
 
 func TestVerifyCertificates(t *testing.T) {
+	if runtime.GOOS == "plan9" {
+		// localPipe dials a real 127.0.0.1 TCP socket, which the
+		// kernel splices to its peer via tcpsplice in
+		// sys/src/9/ip/tcp.c.  The bypass-cleanup path on Close
+		// races with the surviving side's writes, so multi-roundtrip
+		// handshakes with client auth flake with "i/o on hungup
+		// channel" or "EOF" before VerifyConnection runs.  Confirmed
+		// against 9front; tcpsplice predates the 9legacy fork so the
+		// same races occur there too.
+		t.Skip("skipping on plan9; loopback tcpsplice races against TLS handshake close")
+	}
 	// See https://go.dev/issue/31641.
 	t.Run("TLSv12", func(t *testing.T) { testVerifyCertificates(t, VersionTLS12) })
 	t.Run("TLSv13", func(t *testing.T) { testVerifyCertificates(t, VersionTLS13) })
@@ -2333,6 +2345,13 @@ func TestSupportedSignatureAlgorithmsMLDSAGating(t *testing.T) {
 }
 
 func TestHandshakeMLDSA(t *testing.T) {
+	if runtime.GOOS == "plan9" {
+		// Same loopback tcpsplice race as TestVerifyCertificates: the
+		// large ML-DSA handshake transcripts trip the bypass-cleanup
+		// race in sys/src/9/ip/tcp.c, surfacing as "handshake:
+		// server: EOF" / "client: EOF" before the handshake completes.
+		t.Skip("skipping on plan9; loopback tcpsplice races against TLS handshake close")
+	}
 	for _, tt := range []struct {
 		name   string
 		cert   Certificate
