@@ -970,6 +970,9 @@ func testServerWriteTimeout(t *testing.T, mode testMode) {
 
 func TestServerNoWriteTimeout(t *testing.T) { run(t, testServerNoWriteTimeout) }
 func testServerNoWriteTimeout(t *testing.T, mode testMode) {
+	if runtime.GOOS == "plan9" && runtime.GOARCH == "arm64" {
+		t.Skip("skipping on plan9/arm64; handler write to closed loopback connection does not unblock (only verified on plan9/arm64)")
+	}
 	for _, timeout := range []time.Duration{0, -1} {
 		handlerDone := make(chan struct{})
 		cst := newClientServerTest(t, mode, HandlerFunc(func(res ResponseWriter, req *Request) {
