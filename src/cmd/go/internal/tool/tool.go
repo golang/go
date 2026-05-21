@@ -424,7 +424,13 @@ func runBuiltTool(toolName string, env, cmdline []string) error {
 			fmt.Fprintf(os.Stderr, "go tool %s: %s\n", toolName, err)
 		}
 		if ok {
-			base.SetExitStatus(e.ExitCode())
+			n := e.ExitCode()
+			if n == -1 {
+				// If the tool was terminated by a signal,
+				// set a non-zero exit status. See go.dev/issue/79540.
+				n = 1
+			}
+			base.SetExitStatus(n)
 		} else {
 			base.SetExitStatus(1)
 		}

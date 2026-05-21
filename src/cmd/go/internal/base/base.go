@@ -175,6 +175,8 @@ func Fatal(err error) {
 var exitStatus = 0
 var exitMu sync.Mutex
 
+// SetExitStatus sets exit status to n if
+// n is higher than the current exit status.
 func SetExitStatus(n int) {
 	exitMu.Lock()
 	if exitStatus < n {
@@ -183,6 +185,7 @@ func SetExitStatus(n int) {
 	exitMu.Unlock()
 }
 
+// GetExitStatus reports the current exit status.
 func GetExitStatus() int {
 	return exitStatus
 }
