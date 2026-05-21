@@ -523,6 +523,12 @@ func init() {
 		{name: "LoweredFMIND", argLength: 2, reg: fp21, resultNotInArgs: true, asm: "FMIND", commutative: true, typ: "Float64", earlyOk: true}, // min(arg0, arg1)
 		{name: "LoweredFMAXD", argLength: 2, reg: fp21, resultNotInArgs: true, asm: "FMAXD", commutative: true, typ: "Float64", earlyOk: true}, // max(arg0, arg1)
 
+		{name: "LoweredRoundToEvenD", argLength: 1, reg: fp11, resultNotInArgs: true, typ: "Float64"}, // round float64 to nearest integer, ties to even
+		{name: "LoweredRoundD", argLength: 1, reg: fp11, resultNotInArgs: true, typ: "Float64"},       // round float64 to nearest integer, ties away from zero
+		{name: "LoweredFloorD", argLength: 1, reg: fp11, resultNotInArgs: true, typ: "Float64"},       // round float64 toward -Inf
+		{name: "LoweredCeilD", argLength: 1, reg: fp11, resultNotInArgs: true, typ: "Float64"},        // round float64 toward +Inf
+		{name: "LoweredTruncD", argLength: 1, reg: fp11, resultNotInArgs: true, typ: "Float64"},       // round float64 toward zero
+
 		// Floating point classify (in the F and D extensions).
 		//
 		// The FCLASS instructions will always set exactly one bit in the output

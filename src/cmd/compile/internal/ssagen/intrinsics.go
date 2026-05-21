@@ -933,6 +933,52 @@ func initIntrinsics(cfg *intrinsicBuildConfig) {
 		makeRoundLoong64(ssaop.OpTrunc),
 		sys.Loong64)
 
+	makeRoundRISCV64 := func(op ssaop.Op) func(s *state, n *ir.CallExpr, args []*ssa.Value) *ssa.Value {
+		return func(s *state, n *ir.CallExpr, args []*ssa.Value) *ssa.Value {
+			// FCVT.L.D only gives the right result while the rounded value fits
+			// in int64. For larger finite values, infinities, and NaNs, these
+			// operations return x unchanged.
+			abs := s.newValue1(ssaop.OpAbs, types.Types[types.TFLOAT64], args[0])
+			limit := s.constFloat64(types.Types[types.TFLOAT64], float64(1<<52))
+			inRange := s.newValue2(ssaop.OpLess64F, types.Types[types.TBOOL], abs, limit)
+			b := s.endBlock()
+			b.Kind = block.BlockIf
+			b.SetControl(inRange)
+			bTrue := s.f.NewBlock(block.BlockPlain)
+			bFalse := s.f.NewBlock(block.BlockPlain)
+			bEnd := s.f.NewBlock(block.BlockPlain)
+			b.AddEdgeTo(bTrue)
+			b.AddEdgeTo(bFalse)
+			b.Likely = ssa.BranchLikely
+
+			s.startBlock(bTrue)
+			s.vars[n] = s.newValue1(op, types.Types[types.TFLOAT64], args[0])
+			s.endBlock().AddEdgeTo(bEnd)
+
+			s.startBlock(bFalse)
+			s.vars[n] = args[0]
+			s.endBlock().AddEdgeTo(bEnd)
+
+			s.startBlock(bEnd)
+			return s.variable(n, types.Types[types.TFLOAT64])
+		}
+	}
+	addF("math", "RoundToEven",
+		makeRoundRISCV64(ssaop.OpRISCV64LoweredRoundToEvenD),
+		sys.RISCV64)
+	addF("math", "Round",
+		makeRoundRISCV64(ssaop.OpRISCV64LoweredRoundD),
+		sys.RISCV64)
+	addF("math", "Floor",
+		makeRoundRISCV64(ssaop.OpRISCV64LoweredFloorD),
+		sys.RISCV64)
+	addF("math", "Ceil",
+		makeRoundRISCV64(ssaop.OpRISCV64LoweredCeilD),
+		sys.RISCV64)
+	addF("math", "Trunc",
+		makeRoundRISCV64(ssaop.OpRISCV64LoweredTruncD),
+		sys.RISCV64)
+
 	/******** math/bits ********/
 	addF("math/bits", "TrailingZeros64",
 		func(s *state, n *ir.CallExpr, args []*ssa.Value) *ssa.Value {

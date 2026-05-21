@@ -1677,6 +1677,12 @@ func rmSuffixString(u uint8) (string, error) {
 	return "", fmt.Errorf("unknown suffix:%x", u)
 }
 
+// RoundingModeSuffix returns the Scond value for an explicitly encoded
+// floating-point rounding mode.
+func RoundingModeSuffix(rm uint8) uint8 {
+	return rm | rmSuffixBit
+}
+
 const (
 	RM_RNE uint8 = iota // Round to Nearest, ties to Even
 	RM_RTZ              // Round towards Zero

@@ -374,6 +374,41 @@ func ssaGenValue(s *ssagen.State, v *ssa.Value) {
 		p3.To.SetTarget(nop)
 		p5.To.SetTarget(nop)
 
+	case ssaop.OpRISCV64LoweredRoundToEvenD, ssaop.OpRISCV64LoweredRoundD, ssaop.OpRISCV64LoweredFloorD, ssaop.OpRISCV64LoweredCeilD, ssaop.OpRISCV64LoweredTruncD:
+		rm := riscv.RM_RNE
+		switch v.Op {
+		case ssaop.OpRISCV64LoweredRoundD:
+			rm = riscv.RM_RMM
+		case ssaop.OpRISCV64LoweredFloorD:
+			rm = riscv.RM_RDN
+		case ssaop.OpRISCV64LoweredCeilD:
+			rm = riscv.RM_RUP
+		case ssaop.OpRISCV64LoweredTruncD:
+			rm = riscv.RM_RTZ
+		}
+		arg := v.Args[0].Reg()
+		out := v.Reg()
+
+		p := s.Prog(riscv.AFCVTLD)
+		p.Scond = riscv.RoundingModeSuffix(rm)
+		p.From.Type = obj.TYPE_REG
+		p.From.Reg = arg
+		p.To.Type = obj.TYPE_REG
+		p.To.Reg = riscv.REG_TMP
+
+		p = s.Prog(riscv.AFCVTDL)
+		p.From.Type = obj.TYPE_REG
+		p.From.Reg = riscv.REG_TMP
+		p.To.Type = obj.TYPE_REG
+		p.To.Reg = out
+
+		p = s.Prog(riscv.AFSGNJD)
+		p.From.Type = obj.TYPE_REG
+		p.From.Reg = arg
+		p.Reg = out
+		p.To.Type = obj.TYPE_REG
+		p.To.Reg = out
+
 	case ssaop.OpRISCV64LoweredMuluhilo:
 		r0 := v.Args[0].Reg()
 		r1 := v.Args[1].Reg()
