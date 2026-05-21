@@ -124,17 +124,8 @@ func (e *encoderState) reset(b []byte, w io.Writer, opts ...Options) {
 	opts2 := jsonopts.Struct{} // avoid mutating e.Struct in case it is part of opts
 	opts2.Join(opts...)
 	e.Struct = opts2
-	if e.Flags.Get(jsonflags.Multiline) {
-		if !e.Flags.Has(jsonflags.SpaceAfterColon) {
-			e.Flags.Set(jsonflags.SpaceAfterColon | 1)
-		}
-		if !e.Flags.Has(jsonflags.SpaceAfterComma) {
-			e.Flags.Set(jsonflags.SpaceAfterComma | 0)
-		}
-		if !e.Flags.Has(jsonflags.Indent) {
-			e.Flags.Set(jsonflags.Indent | 1)
-			e.Indent = "\t"
-		}
+	if e.Struct.Flags.Get(jsonflags.Multiline) {
+		e.Struct.InitializeMultiline()
 	}
 }
 

@@ -9,6 +9,7 @@ package json
 import (
 	"bytes"
 	"encoding"
+	"errors"
 	"io"
 	"reflect"
 	"sync"
@@ -28,6 +29,36 @@ var (
 	_ encoding.TextUnmarshaler
 	_ time.Time
 	_ time.Duration
+)
+
+var (
+	// Once a JSON object has begun processing without duplicate name verification,
+	// it does not track the history of names that have been seen so far.
+	// Reject changing the setting for the current JSON object namespace,
+	// otherwise we would be operating with inconsistent state.
+	// Note that you can change the setting before processing the start
+	// of a different JSON object.
+	//
+	// TODO: We could loosen this restriction in certain conditions.
+	// If we are already checking for duplicate names,
+	// we can momentarily disable it for the next JSON object member name.
+	// However, if we are already NOT checking for duplicate names,
+	// we cannot momentarily enable it for the next JSON object member name
+	// since we already lack prior history of JSON object names.
+	errChangingDuplicateNames = errors.New("cannot change duplicate name checks after a JSON object has already begun processing")
+
+	// The presence of invalid UTF-8 has an interesting intersection
+	// with checking for duplicate names. Due to the semantic of mangling
+	// invalid UTF-8 as the Unicode replacement character,
+	// two string keys in a Go map (both with invalid UTF-8)
+	// may encode as the same JSON string. Thus, we forbid changing of
+	// invalid UTF-8 checks in the current JSON object namespace.
+	errChangingInvalidUTF8 = errors.New("cannot change UTF-8 checks after a JSON object has already begun processing")
+
+	// TODO(https://go.dev/issue/79559): Changing whitespace currently
+	// leads to strange effects and will need more careful adjustment.
+	// For now, we just report an error.
+	errChangingWhitespace = errors.New("cannot change whitespace formatting within a MarshalEncode call")
 )
 
 // export exposes internal functionality of the "jsontext" package.
@@ -158,11 +189,9 @@ func MarshalWrite(out io.Writer, in any, opts ...Options) (err error) {
 }
 
 // MarshalEncode serializes a Go value into an [jsontext.Encoder] according to
-// the provided marshal options (while ignoring unmarshal, encode, or decode options).
-// Any marshal-relevant options already specified on the [jsontext.Encoder]
-// take lower precedence than the set of options provided by the caller.
-// Unlike [Marshal] and [MarshalWrite], encode options are ignored because
-// they must have already been specified on the provided [jsontext.Encoder].
+// the provided marshal or encode options (while ignoring unmarshal or decode options).
+// The options provided take precedence over options already applied on
+// the [jsontext.Encoder] and only apply for the duration of the marshal call.
 //
 // See [Marshal] for details about the conversion of a Go value into JSON.
 func MarshalEncode(out *jsontext.Encoder, in any, opts ...Options) (err error) {
@@ -170,7 +199,23 @@ func MarshalEncode(out *jsontext.Encoder, in any, opts ...Options) (err error) {
 	if len(opts) > 0 {
 		optsOriginal := xe.Struct
 		defer func() { xe.Struct = optsOriginal }()
-		xe.Struct.JoinWithoutCoderOptions(opts...)
+		xe.Struct.Join(opts...)
+		if xe.Tokens.Last.NeedObjectName() {
+			if optsOriginal.Flags.Get(jsonflags.AllowDuplicateNames) != xe.Struct.Flags.Get(jsonflags.AllowDuplicateNames) {
+				return newMarshalErrorBefore(out, reflect.TypeOf(in), errChangingDuplicateNames)
+			}
+			if optsOriginal.Flags.Get(jsonflags.AllowInvalidUTF8) != xe.Struct.Flags.Get(jsonflags.AllowInvalidUTF8) {
+				return newMarshalErrorBefore(out, reflect.TypeOf(in), errChangingInvalidUTF8)
+			}
+		}
+		if xe.Struct.Flags.Has(jsonflags.AnyWhitespace) {
+			if xe.Struct.Flags.Get(jsonflags.Multiline) {
+				xe.Struct.InitializeMultiline()
+			}
+			if jsonopts.ChangedWhitespace(optsOriginal, xe.Struct) {
+				return newMarshalErrorBefore(out, reflect.TypeOf(in), errChangingWhitespace)
+			}
+		}
 	}
 	err = marshalEncode(out, in, &xe.Struct)
 	if err != nil && xe.Flags.Get(jsonflags.ReportErrorsWithLegacySemantics) {
@@ -361,11 +406,9 @@ func UnmarshalRead(in io.Reader, out any, opts ...Options) (err error) {
 }
 
 // UnmarshalDecode deserializes a Go value from a [jsontext.Decoder] according to
-// the provided unmarshal options (while ignoring marshal, encode, or decode options).
-// Any unmarshal options already specified on the [jsontext.Decoder]
-// take lower precedence than the set of options provided by the caller.
-// Unlike [Unmarshal] and [UnmarshalRead], decode options are ignored because
-// they must have already been specified on the provided [jsontext.Decoder].
+// the provided unmarshal or decode options (while ignoring marshal or encode options).
+// The options provided take precedence over options already applied on
+// the [jsontext.Decoder] and only apply for the duration of the unmarshal call.
 //
 // The input may be a stream of zero or more JSON values,
 // where this only unmarshals the next JSON value in the stream.
@@ -377,7 +420,15 @@ func UnmarshalDecode(in *jsontext.Decoder, out any, opts ...Options) (err error)
 	if len(opts) > 0 {
 		optsOriginal := xd.Struct
 		defer func() { xd.Struct = optsOriginal }()
-		xd.Struct.JoinWithoutCoderOptions(opts...)
+		xd.Struct.Join(opts...)
+		if xd.Tokens.Last.NeedObjectName() {
+			if optsOriginal.Flags.Get(jsonflags.AllowDuplicateNames) != xd.Struct.Flags.Get(jsonflags.AllowDuplicateNames) {
+				return newUnmarshalErrorBefore(in, reflect.TypeOf(out), errChangingDuplicateNames)
+			}
+			if optsOriginal.Flags.Get(jsonflags.AllowInvalidUTF8) != xd.Struct.Flags.Get(jsonflags.AllowInvalidUTF8) {
+				return newUnmarshalErrorBefore(in, reflect.TypeOf(out), errChangingInvalidUTF8)
+			}
+		}
 	}
 	err = unmarshalDecode(in, out, &xd.Struct, false)
 	if err != nil && xd.Flags.Get(jsonflags.ReportErrorsWithLegacySemantics) {

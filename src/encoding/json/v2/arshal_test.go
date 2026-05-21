@@ -9714,8 +9714,13 @@ func TestUnmarshalDecodeOptions(t *testing.T) {
 		t.Fatalf("calledFuncs = %d, want 2", calledFuncs)
 	}
 	if err := UnmarshalDecode(dec, new(string),
-		jsontext.AllowInvalidUTF8(false), // should be ignored
-		WithUnmarshalers(nil),            // should override
+		jsontext.AllowInvalidUTF8(false), // expect to see invalid UTF-8 error
+		WithUnmarshalers(nil),            // avoid calling previously registered unmarshalers
+	); !errors.Is(err, jsonwire.ErrInvalidUTF8) {
+		t.Fatalf("UnmarshalDecode = %v, want %v", err, jsonwire.ErrInvalidUTF8)
+	}
+	if err := UnmarshalDecode(dec, new(string),
+		WithUnmarshalers(nil),
 	); err != nil {
 		t.Fatalf("UnmarshalDecode: %v", err)
 	}
@@ -9729,7 +9734,6 @@ func TestUnmarshalDecodeOptions(t *testing.T) {
 		t.Fatalf("calledFuncs = %d, want 3", calledFuncs)
 	}
 	if err := UnmarshalDecode(dec, new(string), JoinOptions(
-		jsontext.AllowInvalidUTF8(false), // should be ignored
 		WithUnmarshalers(UnmarshalFromFunc(func(_ *jsontext.Decoder, _ any) error {
 			opts := dec.Options()
 			if v, _ := GetOption(opts, jsontext.AllowInvalidUTF8); !v {
@@ -9751,6 +9755,37 @@ func TestUnmarshalDecodeOptions(t *testing.T) {
 	dec.Reset(in, jsontext.AllowInvalidUTF8(false), opts) // earlier AllowInvalidUTF8(false) should be overridden by latter AllowInvalidUTF8(true) in opts
 	if v, _ := GetOption(dec.Options(), jsontext.AllowInvalidUTF8); v == false {
 		t.Errorf("Options.AllowInvalidUTF8 = false, want true")
+	}
+
+	// Verify that AllowInvalidUTF8 and AllowDuplicateNames cannot be changed
+	// when positioned at a JSON object name, but can be changed for the value.
+	{
+		dec2 := jsontext.NewDecoder(strings.NewReader(`{"name":{"dupe":"value","dupe":"value"}}`))
+		if tok, err := dec2.ReadToken(); tok.Kind() != '{' || err != nil {
+			t.Fatalf("ReadToken = (%v, %v), want ('{', nil)", tok.Kind(), err)
+		}
+		var name string
+		if err := UnmarshalDecode(dec2, &name, jsontext.AllowDuplicateNames(true)); !errors.Is(err, errChangingDuplicateNames) {
+			t.Errorf("UnmarshalDecode(name) = %v, want %v", err, errChangingDuplicateNames)
+		}
+		if err := UnmarshalDecode(dec2, &name, jsontext.AllowInvalidUTF8(true)); !errors.Is(err, errChangingInvalidUTF8) {
+			t.Errorf("UnmarshalDecode(name) = %v, want %v", err, errChangingInvalidUTF8)
+		}
+		// Setting the same option value does not report an error.
+		if err := UnmarshalDecode(dec2, &name, jsontext.AllowDuplicateNames(false)); err != nil {
+			t.Errorf("UnmarshalDecode(name) = %v, want nil", err)
+		} else if name != "name" {
+			t.Errorf("UnmarshalDecode(name) = %q, want %q", name, "name")
+		}
+		// At value position, changing AllowDuplicateNames is allowed.
+		var value jsontext.Value
+		if err := UnmarshalDecode(dec2, &value, jsontext.AllowDuplicateNames(true)); err != nil {
+			t.Errorf("UnmarshalDecode(value) = %v, want nil", err)
+		}
+		const want = `{"dupe":"value","dupe":"value"}`
+		if string(value) != string(want) {
+			t.Errorf("UnmarshalDecode(value) = %s, want %s", value, want)
+		}
 	}
 }
 
@@ -9853,8 +9888,13 @@ func TestMarshalEncodeOptions(t *testing.T) {
 		t.Fatalf("calledFuncs = %d, want 2", calledFuncs)
 	}
 	if err := MarshalEncode(enc, "\xde\xad\xbe\xef",
-		jsontext.AllowInvalidUTF8(false), // should be ignored
-		WithMarshalers(nil),              // should override
+		jsontext.AllowInvalidUTF8(false), // expect to see invalid UTF-8 error
+		WithMarshalers(nil),              // avoid calling previously registered marshalers
+	); !errors.Is(err, jsonwire.ErrInvalidUTF8) {
+		t.Fatalf("MarshalEncode = %v, want %v", err, jsonwire.ErrInvalidUTF8)
+	}
+	if err := MarshalEncode(enc, "\xde\xad\xbe\xef",
+		WithMarshalers(nil), // should override
 	); err != nil {
 		t.Fatalf("MarshalEncode: %v", err)
 	}
@@ -9868,7 +9908,6 @@ func TestMarshalEncodeOptions(t *testing.T) {
 		t.Fatalf("calledFuncs = %d, want 3", calledFuncs)
 	}
 	if err := MarshalEncode(enc, "\xde\xad\xbe\xef", JoinOptions(
-		jsontext.AllowInvalidUTF8(false), // should be ignored
 		WithMarshalers(MarshalToFunc(func(enc *jsontext.Encoder, _ any) error {
 			opts := enc.Options()
 			if v, _ := GetOption(opts, jsontext.AllowInvalidUTF8); !v {
@@ -9893,6 +9932,64 @@ func TestMarshalEncodeOptions(t *testing.T) {
 	enc.Reset(out, jsontext.AllowInvalidUTF8(false), opts) // earlier AllowInvalidUTF8(false) should be overridden by latter AllowInvalidUTF8(true) in opts
 	if v, _ := GetOption(enc.Options(), jsontext.AllowInvalidUTF8); v == false {
 		t.Errorf("Options.AllowInvalidUTF8 = false, want true")
+	}
+
+	// Verify that AllowInvalidUTF8 and AllowDuplicateNames cannot be changed
+	// when positioned at a JSON object name, but can be changed for the value.
+	{
+		var buf2 bytes.Buffer
+		enc2 := jsontext.NewEncoder(&buf2)
+		if err := enc2.WriteToken(jsontext.BeginObject); err != nil {
+			t.Fatalf("WriteToken(BeginObject) = %v, want nil", err)
+		}
+
+		// Verify that you cannot change AllowDuplicateNames or AllowInvalidUTF8 settings for the JSON member name.
+		if err := MarshalEncode(enc2, "name", jsontext.AllowDuplicateNames(true)); !errors.Is(err, errChangingDuplicateNames) {
+			t.Errorf("MarshalEncode(name) = %v, want %v", err, errChangingDuplicateNames)
+		}
+		if err := MarshalEncode(enc2, "name", jsontext.AllowInvalidUTF8(true)); !errors.Is(err, errChangingInvalidUTF8) {
+			t.Errorf("MarshalEncode(name) = %v, want %v", err, errChangingInvalidUTF8)
+		}
+		// Setting the same option value does not report an error.
+		if err := MarshalEncode(enc2, "name", jsontext.AllowDuplicateNames(false)); err != nil {
+			t.Errorf("MarshalEncode(name) = %v, want nil", err)
+		}
+		// At value position, changing AllowDuplicateNames is allowed.
+		if err := MarshalEncode(enc2, jsontext.Value(`{"dupe":"value","dupe":"value"}`), jsontext.AllowDuplicateNames(true)); err != nil {
+			t.Errorf("MarshalEncode(value) = %v, want nil", err)
+		}
+
+		// Verify that you can change AllowInvalidUTF8 for the JSON member value.
+		if err := MarshalEncode(enc2, "name2"); err != nil {
+			t.Errorf("MarshalEncode(name) = %v, want nil", err)
+		}
+		if err := MarshalEncode(enc2, "value\xde\xad\xbe\xef"); !errors.Is(err, jsonwire.ErrInvalidUTF8) {
+			t.Errorf("MarshalEncode(value) = %v, want %v", err, jsonwire.ErrInvalidUTF8)
+		}
+		if err := MarshalEncode(enc2, "value\xde\xad\xbe\xef", jsontext.AllowInvalidUTF8(true)); err != nil {
+			t.Errorf("MarshalEncode(value) = %v, want nil", err)
+		}
+
+		if err := enc2.WriteToken(jsontext.EndObject); err != nil {
+			t.Errorf("WriteToken(EndObject) = %v, want nil", err)
+		}
+	}
+
+	// Verify that whitespace options cannot change within a MarshalEncode call,
+	// but setting them to identical values is allowed.
+	{
+		var buf3 bytes.Buffer
+		enc3 := jsontext.NewEncoder(&buf3, jsontext.WithIndent("\t"))
+		if err := MarshalEncode(enc3, "value", jsontext.Multiline(false)); !errors.Is(err, errChangingWhitespace) {
+			t.Errorf("MarshalEncode = %v, want %v", err, errChangingWhitespace)
+		}
+		if err := MarshalEncode(enc3, "value", jsontext.WithIndent("  ")); !errors.Is(err, errChangingWhitespace) {
+			t.Errorf("MarshalEncode = %v, want %v", err, errChangingWhitespace)
+		}
+		// Setting identical whitespace options does not report an error.
+		if err := MarshalEncode(enc3, "value", enc3.Options()); err != nil {
+			t.Errorf("MarshalEncode = %v, want nil", err)
+		}
 	}
 }
 
