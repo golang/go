@@ -953,9 +953,6 @@ func TestVariousDeadlines4Proc(t *testing.T) {
 }
 
 func testVariousDeadlines(t *testing.T) {
-	if runtime.GOOS == "plan9" {
-		t.Skipf("not supported on %s", runtime.GOOS)
-	}
 	handler := func(ls *localServer, ln Listener) {
 		for {
 			c, err := ln.Accept()

@@ -866,12 +866,10 @@ func TestLookupNonLDH(t *testing.T) {
 	if err == nil {
 		t.Fatalf("lookup succeeded: %v", addrs)
 	}
-	if !strings.HasSuffix(err.Error(), errNoSuchHost.Error()) &&
-		!(runtime.GOOS == "plan9" && strings.Contains(err.Error(), "no ip address")) {
+	if !strings.HasSuffix(err.Error(), errNoSuchHost.Error()) {
 		t.Fatalf("lookup error = %v, want %v", err, errNoSuchHost)
 	}
-	if !err.(*DNSError).IsNotFound &&
-		!(runtime.GOOS == "plan9" && strings.Contains(err.Error(), "no ip address")) {
+	if !err.(*DNSError).IsNotFound {
 		t.Fatalf("lookup error = %v, want true", err.(*DNSError).IsNotFound)
 	}
 }
