@@ -44,6 +44,15 @@ func TestMain(m *testing.M) {
 	if !flag.Parsed() {
 		flag.Parse()
 	}
+	if testing.Short() && runtime.GOOS == "plan9" {
+		// httputil drives the same net/http machinery and so it
+		// inherits the loopback tcpsplice kernel bug in
+		// sys/src/9/ip/tcp.c: TLS handshakes on loopback flake
+		// with "EOF" / "i/o on hungup channel".  Skip the package
+		// in short mode on plan9 until the kernel bug is fixed.
+		fmt.Fprintln(os.Stderr, "skipping net/http/httputil tests in short mode on plan9 (loopback tcpsplice kernel bug)")
+		os.Exit(0)
+	}
 	os.Exit(m.Run())
 }
 

@@ -410,6 +410,25 @@ func TestMain(m *testing.M) {
 		os.Exit(0)
 	}
 
+	if testing.Short() && runtime.GOOS == "plan9" {
+		// crypto/tls's localPipe-based handshake tests all dial
+		// real 127.0.0.1 TCP sockets, so they hit Plan 9's loopback
+		// tcpsplice bug in sys/src/9/ip/tcp.c: the bypass-cleanup
+		// path on Close races with the surviving side's writes,
+		// causing TLS handshakes to intermittently fail with
+		// "i/o on hungup channel" or "EOF" before the application
+		// sees the expected protocol-level error.  Different runs
+		// flake different tests, so a surgical skip per test cannot
+		// keep up; instead skip the package in short mode and let
+		// `go test ./crypto/tls/...` (without -short) still run for
+		// manual triage.  Confirmed against 9front under QEMU
+		// aarch64; tcpsplice predates the 9legacy fork so the same
+		// races are expected there.  A kernel patch is shipped in
+		// misc/plan9/arm64/9front-tcpsplice-fix.patch.
+		fmt.Fprintln(os.Stderr, "skipping crypto/tls tests in short mode on plan9 (loopback tcpsplice kernel bug)")
+		os.Exit(0)
+	}
+
 	os.Exit(runMain(m))
 }
 

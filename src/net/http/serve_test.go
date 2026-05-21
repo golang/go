@@ -3222,18 +3222,6 @@ func testServerWriteHijackZeroBytes(t *testing.T, mode testMode) {
 }
 
 func TestServerNoDate(t *testing.T) {
-	if runtime.GOOS == "plan9" {
-		// The h2 subtest does an HTTPS GET on a loopback TLS server.
-		// Plan 9's tcpsplice in sys/src/9/ip/tcp.c short-circuits the
-		// two same-kernel TCP conversations, and the bypass-cleanup
-		// path on Close races with the surviving side's writes, so
-		// the TLS handshake intermittently fails with "EOF" /
-		// "i/o on hungup channel" before any HTTP headers are
-		// exchanged.  Skip on plan9 instead of producing a flaky h2
-		// subtest.  Confirmed against 9front; tcpsplice predates the
-		// 9legacy fork.
-		t.Skip("skipping on plan9; loopback tcpsplice races against TLS handshake close")
-	}
 	run(t, func(t *testing.T, mode testMode) {
 		testServerNoHeader(t, mode, "Date")
 	})
@@ -4680,18 +4668,7 @@ func testServerKeepAlivesEnabledResultClose(t *testing.T, mode testMode) {
 }
 
 // golang.org/issue/7856
-func TestServerEmptyBodyRace(t *testing.T) {
-	if runtime.GOOS == "plan9" {
-		// 20 parallel GETs against a loopback h2/TLS server flake
-		// catastrophically on plan9: the first request's TLS handshake
-		// loses the tcpsplice bypass-cleanup race (see
-		// sys/src/9/ip/tcp.c), and the surviving listener serves
-		// "connection refused" to all 20 retries.  Skip on plan9
-		// until the kernel bug is fixed.
-		t.Skip("skipping on plan9; loopback tcpsplice causes h2 listener storms to fail with connection refused")
-	}
-	run(t, testServerEmptyBodyRace)
-}
+func TestServerEmptyBodyRace(t *testing.T) { run(t, testServerEmptyBodyRace) }
 func testServerEmptyBodyRace(t *testing.T, mode testMode) {
 	var n int32
 	cst := newClientServerTest(t, mode, HandlerFunc(func(rw ResponseWriter, req *Request) {

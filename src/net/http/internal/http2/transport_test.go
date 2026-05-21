@@ -26,6 +26,7 @@ import (
 	"net/url"
 	"os"
 	"reflect"
+	"runtime"
 	"sort"
 	"strconv"
 	"strings"
@@ -49,6 +50,15 @@ var (
 func TestMain(m *testing.M) {
 	if !flag.Parsed() {
 		flag.Parse()
+	}
+	if testing.Short() && runtime.GOOS == "plan9" {
+		// Same kernel-level tcpsplice bug as net/http: every HTTP/2
+		// over TLS handshake on loopback can flake with
+		// "EOF" / "i/o on hungup channel" because of the
+		// bypass-cleanup race in sys/src/9/ip/tcp.c.  Skip in short
+		// mode on plan9 until the kernel bug is fixed.
+		fmt.Fprintln(os.Stderr, "skipping net/http/internal/http2 tests in short mode on plan9 (loopback tcpsplice kernel bug)")
+		os.Exit(0)
 	}
 	os.Exit(m.Run())
 }
