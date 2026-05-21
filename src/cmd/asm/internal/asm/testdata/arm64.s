@@ -1215,6 +1215,12 @@ again:
 	CASPD	(R30, ZR), (RSP), (R8, R9)           // e87f3e48
 	CASPW	(R6, R7), (R8), (R4, R5)             // 047d2608
 	CASPD	(R2, R3), (R2), (R8, R9)             // 487c2248
+	CASPAD	(R2, R3), (R2), (R8, R9)             // 487c6248
+	CASPAW	(R6, R7), (R8), (R4, R5)             // 047d6608
+	CASPALD	(R2, R3), (R2), (R8, R9)             // 48fc6248
+	CASPALW	(R6, R7), (R8), (R4, R5)             // 04fd6608
+	CASPLD	(R2, R3), (R2), (R8, R9)             // 48fc2248
+	CASPLW	(R6, R7), (R8), (R4, R5)             // 04fd2608
 
 // RET
 	RET                                        // c0035fd6
