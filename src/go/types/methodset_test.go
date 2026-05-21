@@ -36,6 +36,18 @@ func TestNewMethodSet(t *testing.T) {
 		"var a T[int]; type T[P any] struct{}; func (*T[P]) f() {}":  {},
 		"var a *T[int]; type T[P any] struct{}; func (*T[P]) f() {}": {{"f", []int{0}, true}},
 
+		// Generic methods on named types
+		"var a T; type T struct{}; func (T) f[P any]() {}":   {},
+		"var a *T; type T struct{}; func (T) f[P any]() {}":  {},
+		"var a T; type T struct{}; func (*T) f[P any]() {}":  {},
+		"var a *T; type T struct{}; func (*T) f[P any]() {}": {},
+
+		// Generic methods on generic named types
+		"var a T[int]; type T[P any] struct{}; func (T[P]) f[Q any]() {}":   {},
+		"var a *T[int]; type T[P any] struct{}; func (T[P]) f[Q any]() {}":  {},
+		"var a T[int]; type T[P any] struct{}; func (*T[P]) f[Q any]() {}":  {},
+		"var a *T[int]; type T[P any] struct{}; func (*T[P]) f[Q any]() {}": {},
+
 		// Interfaces
 		"var a T; type T interface{ f() }":                           {{"f", []int{0}, true}},
 		"var a T1; type ( T1 T2; T2 interface{ f() } )":              {{"f", []int{0}, true}},
