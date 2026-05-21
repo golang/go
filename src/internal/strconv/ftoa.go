@@ -448,13 +448,13 @@ func fmtEFG(dst []byte, neg bool, s []byte, dp, nd, prec int, fmt byte, shortest
 		// fraction
 		if prec > 0 {
 			dst = append(dst, '.')
-			lz := min(prec, max(0, -dp))     // leading zeros
-			m := min(prec-lz, max(0, nd-dp)) // middle digits
-			tz := max(0, prec-lz-m)          // trailing zeros
+			lz := min(prec, max(0, -dp)) // leading zeros
+			off := dp + lz
+			m := min(prec-lz, max(0, nd-off)) // middle digits
+			tz := max(0, prec-lz-m)           // trailing zeros
 			for range lz {
 				dst = append(dst, '0')
 			}
-			off := dp + lz
 			for i := range m {
 				dst = append(dst, s[off+i])
 			}
