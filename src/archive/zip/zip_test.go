@@ -14,6 +14,7 @@ import (
 	"hash"
 	"internal/testenv"
 	"io"
+	"math/bits"
 	"slices"
 	"strings"
 	"testing"
@@ -498,6 +499,9 @@ func TestZip64LargeDirectory(t *testing.T) {
 	}
 	if testing.Short() {
 		t.Skip("skipping in short mode")
+	}
+	if bits.UintSize == 32 {
+		t.Skip("skipping on 32-bit platforms")
 	}
 	t.Parallel()
 	// gen returns a func that writes a zip with a wantLen bytes
