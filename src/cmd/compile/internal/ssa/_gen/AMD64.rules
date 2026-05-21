@@ -53,7 +53,8 @@
 (ADDQ x (MOVBQZX (SETB flags))) => (Select0 (ADCQconst [0] x flags))
 (SUBQ x (MOVBQZX (SETB flags))) => (Select0 (SBBQconst [0] x flags))
 
-(Mul64uhilo ...) => (MULQU2 ...)
+(Mul64uhilo x y) && buildcfg.GOAMD64 >= 3 => (MULXQ x y)
+(Mul64uhilo x y) && buildcfg.GOAMD64 <  3 => (MULQU2 x y)
 (Div128u ...) => (DIVQU2 ...)
 
 (Avg64u ...) => (AVGQU ...)

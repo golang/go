@@ -5228,8 +5228,7 @@ func rewriteValueAMD64(v *Value) bool {
 		v.Op = OpAMD64MULSD
 		return true
 	case OpMul64uhilo:
-		v.Op = OpAMD64MULQU2
-		return true
+		return rewriteValueAMD64_OpMul64uhilo(v)
 	case OpMul8:
 		v.Op = OpAMD64MULL
 		return true
@@ -101445,6 +101444,37 @@ func rewriteValueAMD64_OpMove(v *Value) bool {
 		v0 := b.NewValue0(v.Pos, OpAMD64MOVQconst, typ.UInt64)
 		v0.AuxInt = int64ToAuxInt(s / 8)
 		v.AddArg4(dst, src, v0, mem)
+		return true
+	}
+	return false
+}
+func rewriteValueAMD64_OpMul64uhilo(v *Value) bool {
+	v_1 := v.Args[1]
+	v_0 := v.Args[0]
+	// match: (Mul64uhilo x y)
+	// cond: buildcfg.GOAMD64 >= 3
+	// result: (MULXQ x y)
+	for {
+		x := v_0
+		y := v_1
+		if !(buildcfg.GOAMD64 >= 3) {
+			break
+		}
+		v.reset(OpAMD64MULXQ)
+		v.AddArg2(x, y)
+		return true
+	}
+	// match: (Mul64uhilo x y)
+	// cond: buildcfg.GOAMD64 < 3
+	// result: (MULQU2 x y)
+	for {
+		x := v_0
+		y := v_1
+		if !(buildcfg.GOAMD64 < 3) {
+			break
+		}
+		v.reset(OpAMD64MULQU2)
+		v.AddArg2(x, y)
 		return true
 	}
 	return false

@@ -342,6 +342,7 @@ const (
 	OpAMD64SUBQconstborrow
 	OpAMD64SBBQconst
 	OpAMD64MULQU2
+	OpAMD64MULXQ
 	OpAMD64DIVQU2
 	OpAMD64ANDQ
 	OpAMD64ANDL
@@ -13470,6 +13471,22 @@ var opcodeTable = [...]opInfo{
 			outputs: []outputInfo{
 				{0, regMask{v1: 4, v2: 0}}, // DX
 				{1, regMask{v1: 1, v2: 0}}, // AX
+			},
+		},
+	},
+	{
+		name:        "MULXQ",
+		argLen:      2,
+		commutative: true,
+		asm:         x86.AMULXQ,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{0, regMask{v1: 4, v2: 0}},     // DX
+				{1, regMask{v1: 49151, v2: 0}}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R15
+			},
+			outputs: []outputInfo{
+				{0, regMask{v1: 49135, v2: 0}}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R15
+				{1, regMask{v1: 49135, v2: 0}}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R15
 			},
 		},
 	},

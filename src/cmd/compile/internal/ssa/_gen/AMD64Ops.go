@@ -429,7 +429,14 @@ func init() {
 		{name: "SBBQconst", argLength: 2, reg: gp1flags1flags, typ: "(UInt64,Flags)", asm: "SBBQ", aux: "Int32", resultInArg0: true},  // r = arg0-(auxint+carry(arg1))
 
 		{name: "MULQU2", argLength: 2, reg: regInfo{inputs: []regMask{ax, gpsp}, outputs: []regMask{dx, ax}}, commutative: true, asm: "MULQ", clobberFlags: true, earlyOk: true}, // arg0 * arg1, returns (hi, lo)
-		{name: "DIVQU2", argLength: 3, reg: regInfo{inputs: []regMask{dx, ax, gpsp}, outputs: []regMask{ax, dx}}, asm: "DIVQ", clobberFlags: true},                               // arg0:arg1 / arg2 (128-bit divided by 64-bit), returns (q, r)
+		// MULXQ is the BMI2 unsigned 64x64->128 multiply. arg0 must be in DX
+		// (the implicit operand); arg1 is any register or memory. Outputs are
+		// (hi, lo) and may be placed in any general-purpose registers (they
+		// must be different from each other; the assembler/register allocator
+		// arranges this). Unlike MULQ, MULXQ does not affect the flags, which
+		// makes it interleavable with ADCX/ADOX carry chains.
+		{name: "MULXQ", argLength: 2, reg: regInfo{inputs: []regMask{dx, gpsp}, outputs: []regMask{gp, gp}}, commutative: true, asm: "MULXQ"},      // arg0 * arg1, returns (hi, lo); does not affect flags
+		{name: "DIVQU2", argLength: 3, reg: regInfo{inputs: []regMask{dx, ax, gpsp}, outputs: []regMask{ax, dx}}, asm: "DIVQ", clobberFlags: true}, // arg0:arg1 / arg2 (128-bit divided by 64-bit), returns (q, r)
 
 		{name: "ANDQ", argLength: 2, reg: gp21, asm: "ANDQ", commutative: true, resultInArg0: true, clobberFlags: true, earlyOk: true},                                                      // arg0 & arg1
 		{name: "ANDL", argLength: 2, reg: gp21, asm: "ANDL", commutative: true, resultInArg0: true, clobberFlags: true, earlyOk: true},                                                      // arg0 & arg1
@@ -1500,7 +1507,7 @@ func init() {
 		{name: "VPTEST", asm: "VPTEST", argLength: 2, reg: v2flags, clobberFlags: true, typ: "Flags"},
 	}
 
-	var AMD64blocks = []blockData{
+	AMD64blocks := []blockData{
 		{name: "EQ", controls: 1},
 		{name: "NE", controls: 1},
 		{name: "LT", controls: 1},

@@ -473,6 +473,17 @@ func ssaGenValue(s *ssagen.State, v *ssa.Value) {
 		p.From.Type = obj.TYPE_REG
 		p.From.Reg = v.Args[1].Reg()
 
+	case ssa.OpAMD64MULXQ:
+		// Arg[0] is already in DX (the implicit operand); Arg[1] is any GP/mem.
+		// SSA outputs are (hi, lo) -> Reg0()=hi, Reg1()=lo.
+		// Go assembler syntax: MULXQ src, lo, hi (encodes vvvv=lo, reg=hi).
+		p := s.Prog(v.Op.Asm())
+		p.From.Type = obj.TYPE_REG
+		p.From.Reg = v.Args[1].Reg()
+		p.AddRestSourceReg(v.Reg1())
+		p.To.Type = obj.TYPE_REG
+		p.To.Reg = v.Reg0()
+
 	case ssa.OpAMD64DIVQU2:
 		// Arg[0], Arg[1] are already in Dx, AX, as they're the only registers we allow
 		// results q in AX, r in DX

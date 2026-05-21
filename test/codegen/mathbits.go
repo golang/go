@@ -992,7 +992,7 @@ func Sub64MPanicOnOverflowGT(a, b [2]uint64) [2]uint64 {
 // --------------- //
 
 func Mul(x, y uint) (hi, lo uint) {
-	// amd64:"MULQ"
+	// amd64:`MULX?Q`
 	// arm64:"UMULH" "MUL"
 	// loong64:"MULV" "MULHVU"
 	// ppc64x:"MULHDU" "MULLD"
@@ -1003,7 +1003,9 @@ func Mul(x, y uint) (hi, lo uint) {
 }
 
 func Mul64(x, y uint64) (hi, lo uint64) {
-	// amd64:"MULQ"
+	// amd64:`MULX?Q`
+	// amd64/v3:"MULXQ"
+	// amd64/v4:"MULXQ"
 	// arm64:"UMULH" "MUL"
 	// loong64:"MULV" "MULHVU"
 	// ppc64x:"MULHDU" "MULLD"
