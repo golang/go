@@ -11,7 +11,7 @@ require (
 	golang.org/x/sys v0.44.0
 	golang.org/x/telemetry v0.0.0-20260508192327-42602be52be6
 	golang.org/x/term v0.39.0
-	golang.org/x/tools v0.45.1-0.20260520205638-b38156a7a9f5
+	golang.org/x/tools v0.45.1-0.20260520211234-69238901bf50
 )
 
 require (

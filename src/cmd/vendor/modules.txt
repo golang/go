@@ -73,7 +73,7 @@ golang.org/x/text/internal/tag
 golang.org/x/text/language
 golang.org/x/text/transform
 golang.org/x/text/unicode/norm
-# golang.org/x/tools v0.45.1-0.20260520205638-b38156a7a9f5
+# golang.org/x/tools v0.45.1-0.20260520211234-69238901bf50
 ## explicit; go 1.25.0
 golang.org/x/tools/cmd/bisect
 golang.org/x/tools/cover
@@ -119,6 +119,8 @@ golang.org/x/tools/go/analysis/passes/unreachable
 golang.org/x/tools/go/analysis/passes/unsafeptr
 golang.org/x/tools/go/analysis/passes/unusedresult
 golang.org/x/tools/go/analysis/passes/waitgroup
+golang.org/x/tools/go/analysis/suite/fix
+golang.org/x/tools/go/analysis/suite/vet
 golang.org/x/tools/go/analysis/unitchecker
 golang.org/x/tools/go/ast/astutil
 golang.org/x/tools/go/ast/edge
