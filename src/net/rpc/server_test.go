@@ -699,6 +699,9 @@ func TestAcceptExitAfterListenerClose(t *testing.T) {
 }
 
 func TestShutdown(t *testing.T) {
+	if runtime.GOOS == "plan9" {
+		t.Skip("skipping on plan9; TCPConn.CloseWrite is not supported")
+	}
 	var l net.Listener
 	l, _ = listenTCP()
 	ch := make(chan net.Conn, 1)
