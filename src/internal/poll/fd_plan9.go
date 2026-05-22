@@ -26,8 +26,10 @@ type FD struct {
 	waio      *asyncIO
 	rtimer    *time.Timer
 	wtimer    *time.Timer
-	rtimedout bool // set true when read deadline has been reached
-	wtimedout bool // set true when write deadline has been reached
+	rtimedout bool      // set true when read deadline has been reached
+	wtimedout bool      // set true when write deadline has been reached
+	rdeadline time.Time // absolute read deadline (zero if none)
+	wdeadline time.Time // absolute write deadline (zero if none)
 
 	// Whether this is a normal file.
 	// On Plan 9 we do not use this package for ordinary files,
@@ -72,12 +74,35 @@ func (fd *FD) Read(fn func([]byte) (int, error), b []byte) (int, error) {
 	fd.raio = newAsyncIO(fn, b)
 	fd.rmu.Unlock()
 	n, err := fd.raio.Wait()
+	fd.rmu.Lock()
 	fd.raio = nil
+	timedOut := fd.rtimedout
+	deadline := fd.rdeadline
+	fd.rmu.Unlock()
 	if isHangup(err) {
 		err = io.EOF
 	}
 	if isInterrupted(err) {
 		err = ErrDeadlineExceeded
+	}
+	// If the deadline has expired by wall-clock or the timer flagged
+	// rtimedout, prefer the deadline error over a "soft" result (no error
+	// or io.EOF with 0 bytes). This covers two races on Plan 9:
+	//
+	//   1. The deadline timer fired (rtimedout=true) but the Cancel note
+	//      lost to the underlying syscall completing naturally.
+	//   2. The syscall returned a spurious EOF on a fresh loopback TCP
+	//      connection under SMP before the timer goroutine got a chance
+	//      to set rtimedout=true; the wall clock is already past the
+	//      deadline, so reporting timeout matches what the caller asked
+	//      for.
+	//
+	// We only override n==0 results; data observed before the deadline is
+	// still useful and we don't want to discard it.
+	if n == 0 && (err == nil || err == io.EOF) {
+		if timedOut || (!deadline.IsZero() && !time.Now().Before(deadline)) {
+			err = ErrDeadlineExceeded
+		}
 	}
 	return n, err
 }
@@ -96,9 +121,20 @@ func (fd *FD) Write(fn func([]byte) (int, error), b []byte) (int, error) {
 	fd.waio = newAsyncIO(fn, b)
 	fd.wmu.Unlock()
 	n, err := fd.waio.Wait()
+	fd.wmu.Lock()
 	fd.waio = nil
+	timedOut := fd.wtimedout
+	deadline := fd.wdeadline
+	fd.wmu.Unlock()
 	if isInterrupted(err) {
 		err = ErrDeadlineExceeded
+	}
+	// Symmetric to Read: if the write deadline fired before fn returned and
+	// we got an ambiguous "wrote nothing" result, prefer the deadline error.
+	if n == 0 && err == nil {
+		if timedOut || (!deadline.IsZero() && !time.Now().Before(deadline)) {
+			err = ErrDeadlineExceeded
+		}
 	}
 	return n, err
 }
@@ -128,6 +164,7 @@ func setDeadlineImpl(fd *FD, t time.Time, mode int) error {
 			fd.rtimer = nil
 		}
 		fd.rtimedout = false
+		fd.rdeadline = t
 	}
 	if mode == 'w' || mode == 'r'+'w' {
 		fd.wmu.Lock()
@@ -137,6 +174,7 @@ func setDeadlineImpl(fd *FD, t time.Time, mode int) error {
 			fd.wtimer = nil
 		}
 		fd.wtimedout = false
+		fd.wdeadline = t
 	}
 	if !t.IsZero() && d > 0 {
 		// Interrupt I/O operation once timer has expired
