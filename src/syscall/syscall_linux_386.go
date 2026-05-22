@@ -125,7 +125,7 @@ const (
 	_SENDMMSG    = 20
 )
 
-// socketcall and rawsocketcall are accessed via assembly in x/sys/unix.
+// socketcall and rawsocketcall are accessed via assembly in x/sys/unix and x/net.
 //
 //go:linkname socketcall
 func socketcall(call int, a0, a1, a2, a3, a4, a5 uintptr) (n int, err Errno)
