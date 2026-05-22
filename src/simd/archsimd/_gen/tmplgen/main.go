@@ -1282,7 +1282,8 @@ func main() {
 	op := flag.String("op", SIMD+"other_gen_amd64.go", "file name for other operations")
 	ush := flag.String("ush", SIMD+"unsafe_helpers.go", "file name for unsafe helpers")
 	bh := flag.String("bh", TD+"binary_helpers_%W_test.go", "file name for binary test helpers")
-	uh := flag.String("uh", TD+"unary_helpers_test.go", "file name for unary test helpers")
+	uh := flag.String("uh", TD+"unary_helpers_%W_test.go", "file name for unary test helpers")
+	cvh := flag.String("cvh", TD+"convert_helpers_test.go", "file name for conversion test helpers")
 	th := flag.String("th", TD+"ternary_helpers_test.go", "file name for ternary test helpers")
 	ch := flag.String("ch", TD+"compare_helpers_%W_test.go", "file name for compare test helpers")
 	cmh := flag.String("cmh", TD+"comparemasked_helpers_test.go", "file name for compare-masked test helpers")
@@ -1331,7 +1332,10 @@ func main() {
 		one(*ush, unsafePrologue, unsafePATemplate)
 	}
 	if *uh != "" {
-		one(*uh, curryTestPrologue("unary simd methods"), unaryTemplate,
+		one(*uh, curryTestPrologue("unary simd methods"), unaryTemplate)
+	}
+	if *cvh != "" {
+		one(*cvh, curryTestPrologue("conversion simd methods"),
 			unaryToInt8, unaryToUint8, unaryToInt16, unaryToUint16,
 			unaryToInt32, unaryToUint32, unaryToInt64, unaryToUint64,
 			unaryToFloat32, unaryToFloat64,
@@ -1397,7 +1401,7 @@ func main() {
 		)
 	}
 	if *chArm64 != "" {
-		one(*chArm64, curryTestPrologue("simd methods that compare two operands", "arm64"), compareTemplateArm64)
+		oneArch(*chArm64, "arm64", curryTestPrologue("simd methods that compare two operands"), compareTemplateArm64)
 	}
 
 	nonTemplateRewrites(SSA+"tern_helpers.go", ssaPrologue, classifyBooleanSIMD, ternOpForLogical)

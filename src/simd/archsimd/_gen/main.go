@@ -14,8 +14,9 @@ import (
 	"strings"
 )
 
+const defaultLocalISA = "ISA_A64_xml_A_profile-2026-03_96/ISA_A64_xml_A_profile_2026-03_96-2026-03_rel" // ISA_A64_xml_A_profile-2025-06"
 const defaultXedPath = "$XEDPATH" + string(filepath.ListSeparator) + "./simdgen/xeddata" + string(filepath.ListSeparator) + "$HOME/xed/obj/dgen"
-const defaultArm64Path = "$ARM64_ISA_PATH" + string(filepath.ListSeparator) + "./simdgen/armdata" + string(filepath.ListSeparator) + "$HOME/Downloads/ISA_A64_xml_A_profile-2025-06"
+const defaultArm64Path = "$ARM64_ISA_PATH" + string(filepath.ListSeparator) + "./simdgen/armdata" + string(filepath.ListSeparator) + "$HOME/Downloads/" + defaultLocalISA
 
 var (
 	flagTmplgen = flag.Bool("tmplgen", true, "run tmplgen generator")
@@ -176,7 +177,7 @@ func resolveGOROOT() (goRoot string, err error) {
 }
 
 func goRun(args ...string) {
-	exe := filepath.Join(goRoot, "bin", "go")
+	exe := "go" // Use go on the path, not GOROOT.  GOROOT could be broken
 	cmd := exec.Command(exe, append([]string{"run"}, args...)...)
 	run(cmd)
 }
@@ -190,6 +191,7 @@ func run(cmd *exec.Cmd) {
 	}
 	if err := cmd.Run(); err != nil {
 		fmt.Fprintf(os.Stderr, "%s failed: %s\n", cmd, err)
+		os.Exit(1)
 	}
 }
 

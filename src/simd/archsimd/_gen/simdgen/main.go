@@ -235,13 +235,15 @@ func main() {
 		log.Fatal(err)
 	}
 
+	ok := true
+
 	// Validate results.
 	//
 	// Don't validate if this is a command-line query because that tends to
 	// eliminate lots of required defs and is used in cases where maybe defs
 	// aren't enumerable anyway.
 	if *flagQ == "" && len(must) > 0 {
-		validate(unified, must)
+		ok = validate(unified, must)
 	}
 
 	// Print results.
@@ -273,9 +275,13 @@ func main() {
 			fmt.Fprintf(os.Stderr, "XED decoding generated %d \"errors\" which is not cause for alarm, use -v for details.\n", operandRemarks)
 		}
 	}
+	if !ok {
+		os.Exit(1)
+	}
 }
 
-func validate(cl unify.Closure, required map[*unify.Value]struct{}) {
+func validate(cl unify.Closure, required map[*unify.Value]struct{}) bool {
+	ok := true
 	// Validate that:
 	// 1. All final defs are exact
 	// 2. All required defs are used
@@ -312,5 +318,7 @@ func validate(cl unify.Closure, required map[*unify.Value]struct{}) {
 		// be worth it.
 		fmt.Fprintf(os.Stderr, "%s: def required, but did not unify (%v)\n",
 			def.PosString(), def)
+		ok = false
 	}
+	return ok
 }
