@@ -57,6 +57,9 @@ func (t *simdType) Name_() string {
 }
 
 func (a *simdType) Compare(b *simdType) int {
+	if a.Name == b.Name {
+		return 0
+	}
 	if d := a.ElemSize - b.ElemSize; d != 0 {
 		return d
 	}
@@ -64,35 +67,13 @@ func (a *simdType) Compare(b *simdType) int {
 		// never happens for WASM
 		return d
 	}
-	if a.Elem == b.Elem {
-		return 0
-	}
-	if a.Elem[0] == 'i' {
-		return -1
-	}
-	if a.Elem[0] == 'm' {
-		return 1
-	}
-	if b.Elem[0] == 'i' {
-		return 1
-	}
-	if b.Elem[0] == 'm' {
-		return -1
-	}
 
-	if a.Elem[0] == 'u' {
-		return -1
+	ao := strings.Index("iIuUfFmM", a.Name[:1])
+	bo := strings.Index("iIuUfFmM", b.Name[:1])
+	if ao == -1 || bo == -1 {
+		panic(fmt.Errorf("a.Elem=%s, b.Elem=%s, unexpected first characters (should be in \"iIuUfFmM\")", a.Elem, b.Elem))
 	}
-	if a.Elem[0] == 'f' {
-		return 1
-	}
-	if b.Elem[0] == 'u' {
-		return 1
-	}
-	if b.Elem[0] == 'f' {
-		return -1
-	}
-	panic(fmt.Errorf("should not be reached, a.Elem=%s, b.Elem=%s", a.Elem, b.Elem))
+	return ao - bo
 }
 
 // WasmUName returns the Capitalized wasm type name e.g. I64x2
@@ -363,7 +344,7 @@ func snakeToCamel(s string) string {
 }
 
 // Op returns the snakeToCamel version of the WASM operation,
-// e.g.
+// e.g. return_call_indirect
 func (o *wasmOp) Op() string {
 	return snakeToCamel(o.op)
 }

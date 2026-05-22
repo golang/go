@@ -107,11 +107,6 @@ func (x Uint16x8) AddSaturated(y Uint16x8) Uint16x8
 // And returns the bitwise AND of x and y.
 //
 // Asm: V128And
-func (x Mask8x16) And(y Mask8x16) Mask8x16
-
-// And returns the bitwise AND of x and y.
-//
-// Asm: V128And
 func (x Int8x16) And(y Int8x16) Int8x16
 
 // And returns the bitwise AND of x and y.
@@ -122,7 +117,7 @@ func (x Uint8x16) And(y Uint8x16) Uint8x16
 // And returns the bitwise AND of x and y.
 //
 // Asm: V128And
-func (x Mask16x8) And(y Mask16x8) Mask16x8
+func (x Mask8x16) And(y Mask8x16) Mask8x16
 
 // And returns the bitwise AND of x and y.
 //
@@ -137,7 +132,7 @@ func (x Uint16x8) And(y Uint16x8) Uint16x8
 // And returns the bitwise AND of x and y.
 //
 // Asm: V128And
-func (x Mask32x4) And(y Mask32x4) Mask32x4
+func (x Mask16x8) And(y Mask16x8) Mask16x8
 
 // And returns the bitwise AND of x and y.
 //
@@ -152,22 +147,22 @@ func (x Uint32x4) And(y Uint32x4) Uint32x4
 // And returns the bitwise AND of x and y.
 //
 // Asm: V128And
-func (x Int64x2) And(y Int64x2) Int64x2
+func (x Mask32x4) And(y Mask32x4) Mask32x4
 
 // And returns the bitwise AND of x and y.
 //
 // Asm: V128And
-func (x Mask64x2) And(y Mask64x2) Mask64x2
+func (x Int64x2) And(y Int64x2) Int64x2
 
 // And returns the bitwise AND of x and y.
 //
 // Asm: V128And
 func (x Uint64x2) And(y Uint64x2) Uint64x2
 
-// AndNot returns the bitwise AND NOT of x and y (x & ^y).
+// And returns the bitwise AND of x and y.
 //
-// Asm: V128Andnot
-func (x Mask8x16) AndNot(y Mask8x16) Mask8x16
+// Asm: V128And
+func (x Mask64x2) And(y Mask64x2) Mask64x2
 
 // AndNot returns the bitwise AND NOT of x and y (x & ^y).
 //
@@ -182,12 +177,12 @@ func (x Uint8x16) AndNot(y Uint8x16) Uint8x16
 // AndNot returns the bitwise AND NOT of x and y (x & ^y).
 //
 // Asm: V128Andnot
-func (x Int16x8) AndNot(y Int16x8) Int16x8
+func (x Mask8x16) AndNot(y Mask8x16) Mask8x16
 
 // AndNot returns the bitwise AND NOT of x and y (x & ^y).
 //
 // Asm: V128Andnot
-func (x Mask16x8) AndNot(y Mask16x8) Mask16x8
+func (x Int16x8) AndNot(y Int16x8) Int16x8
 
 // AndNot returns the bitwise AND NOT of x and y (x & ^y).
 //
@@ -197,7 +192,7 @@ func (x Uint16x8) AndNot(y Uint16x8) Uint16x8
 // AndNot returns the bitwise AND NOT of x and y (x & ^y).
 //
 // Asm: V128Andnot
-func (x Mask32x4) AndNot(y Mask32x4) Mask32x4
+func (x Mask16x8) AndNot(y Mask16x8) Mask16x8
 
 // AndNot returns the bitwise AND NOT of x and y (x & ^y).
 //
@@ -212,17 +207,22 @@ func (x Uint32x4) AndNot(y Uint32x4) Uint32x4
 // AndNot returns the bitwise AND NOT of x and y (x & ^y).
 //
 // Asm: V128Andnot
+func (x Mask32x4) AndNot(y Mask32x4) Mask32x4
+
+// AndNot returns the bitwise AND NOT of x and y (x & ^y).
+//
+// Asm: V128Andnot
 func (x Int64x2) AndNot(y Int64x2) Int64x2
 
 // AndNot returns the bitwise AND NOT of x and y (x & ^y).
 //
 // Asm: V128Andnot
-func (x Mask64x2) AndNot(y Mask64x2) Mask64x2
+func (x Uint64x2) AndNot(y Uint64x2) Uint64x2
 
 // AndNot returns the bitwise AND NOT of x and y (x & ^y).
 //
 // Asm: V128Andnot
-func (x Uint64x2) AndNot(y Uint64x2) Uint64x2
+func (x Mask64x2) AndNot(y Mask64x2) Mask64x2
 
 // Average returns the elementwise average of unsigned integers in x and y.
 //
@@ -937,17 +937,12 @@ func (x Int8x16) Or(y Int8x16) Int8x16
 // Or returns the bitwise OR of x and y.
 //
 // Asm: V128Or
-func (x Mask8x16) Or(y Mask8x16) Mask8x16
-
-// Or returns the bitwise OR of x and y.
-//
-// Asm: V128Or
 func (x Uint8x16) Or(y Uint8x16) Uint8x16
 
 // Or returns the bitwise OR of x and y.
 //
 // Asm: V128Or
-func (x Mask16x8) Or(y Mask16x8) Mask16x8
+func (x Mask8x16) Or(y Mask8x16) Mask8x16
 
 // Or returns the bitwise OR of x and y.
 //
@@ -962,12 +957,12 @@ func (x Uint16x8) Or(y Uint16x8) Uint16x8
 // Or returns the bitwise OR of x and y.
 //
 // Asm: V128Or
-func (x Int32x4) Or(y Int32x4) Int32x4
+func (x Mask16x8) Or(y Mask16x8) Mask16x8
 
 // Or returns the bitwise OR of x and y.
 //
 // Asm: V128Or
-func (x Mask32x4) Or(y Mask32x4) Mask32x4
+func (x Int32x4) Or(y Int32x4) Int32x4
 
 // Or returns the bitwise OR of x and y.
 //
@@ -977,17 +972,22 @@ func (x Uint32x4) Or(y Uint32x4) Uint32x4
 // Or returns the bitwise OR of x and y.
 //
 // Asm: V128Or
+func (x Mask32x4) Or(y Mask32x4) Mask32x4
+
+// Or returns the bitwise OR of x and y.
+//
+// Asm: V128Or
 func (x Int64x2) Or(y Int64x2) Int64x2
 
 // Or returns the bitwise OR of x and y.
 //
 // Asm: V128Or
-func (x Mask64x2) Or(y Mask64x2) Mask64x2
+func (x Uint64x2) Or(y Uint64x2) Uint64x2
 
 // Or returns the bitwise OR of x and y.
 //
 // Asm: V128Or
-func (x Uint64x2) Or(y Uint64x2) Uint64x2
+func (x Mask64x2) Or(y Mask64x2) Mask64x2
 
 // RotateAllLeft
 //
@@ -1302,11 +1302,6 @@ func (x Float64x2) Trunc() Float64x2
 // Xor returns the bitwise XOR of x and y.
 //
 // Asm: V128Xor
-func (x Mask8x16) Xor(y Mask8x16) Mask8x16
-
-// Xor returns the bitwise XOR of x and y.
-//
-// Asm: V128Xor
 func (x Int8x16) Xor(y Int8x16) Int8x16
 
 // Xor returns the bitwise XOR of x and y.
@@ -1317,12 +1312,12 @@ func (x Uint8x16) Xor(y Uint8x16) Uint8x16
 // Xor returns the bitwise XOR of x and y.
 //
 // Asm: V128Xor
-func (x Int16x8) Xor(y Int16x8) Int16x8
+func (x Mask8x16) Xor(y Mask8x16) Mask8x16
 
 // Xor returns the bitwise XOR of x and y.
 //
 // Asm: V128Xor
-func (x Mask16x8) Xor(y Mask16x8) Mask16x8
+func (x Int16x8) Xor(y Int16x8) Int16x8
 
 // Xor returns the bitwise XOR of x and y.
 //
@@ -1332,12 +1327,12 @@ func (x Uint16x8) Xor(y Uint16x8) Uint16x8
 // Xor returns the bitwise XOR of x and y.
 //
 // Asm: V128Xor
-func (x Int32x4) Xor(y Int32x4) Int32x4
+func (x Mask16x8) Xor(y Mask16x8) Mask16x8
 
 // Xor returns the bitwise XOR of x and y.
 //
 // Asm: V128Xor
-func (x Mask32x4) Xor(y Mask32x4) Mask32x4
+func (x Int32x4) Xor(y Int32x4) Int32x4
 
 // Xor returns the bitwise XOR of x and y.
 //
@@ -1347,17 +1342,22 @@ func (x Uint32x4) Xor(y Uint32x4) Uint32x4
 // Xor returns the bitwise XOR of x and y.
 //
 // Asm: V128Xor
+func (x Mask32x4) Xor(y Mask32x4) Mask32x4
+
+// Xor returns the bitwise XOR of x and y.
+//
+// Asm: V128Xor
 func (x Int64x2) Xor(y Int64x2) Int64x2
 
 // Xor returns the bitwise XOR of x and y.
 //
 // Asm: V128Xor
-func (x Mask64x2) Xor(y Mask64x2) Mask64x2
+func (x Uint64x2) Xor(y Uint64x2) Uint64x2
 
 // Xor returns the bitwise XOR of x and y.
 //
 // Asm: V128Xor
-func (x Uint64x2) Xor(y Uint64x2) Uint64x2
+func (x Mask64x2) Xor(y Mask64x2) Mask64x2
 
 // ToMask translates a Int8x16 vector to a Mask8x16 mask vector
 // zero becomes false, not-zero becomes true
