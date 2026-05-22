@@ -18708,7 +18708,7 @@ var opcodeTable = [...]opInfo{
 		clobberFlags: true,
 		call:         true,
 		reg: regInfo{
-			clobbers: regMask{v1: 2147483631, v2: 0}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 g R15 X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			clobbers: regMask{v1: 71776116913733615, v2: 0}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 g R15 X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X16 X17 X18 X19 X20 X21 X22 X23 X24 X25 X26 X27 X28 X29 X30 X31 K1 K2 K3 K4 K5 K6 K7
 		},
 	},
 	{
@@ -18719,7 +18719,7 @@ var opcodeTable = [...]opInfo{
 		call:         true,
 		tailCall:     true,
 		reg: regInfo{
-			clobbers: regMask{v1: 2147483631, v2: 0}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 g R15 X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			clobbers: regMask{v1: 71776116913733615, v2: 0}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 g R15 X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X16 X17 X18 X19 X20 X21 X22 X23 X24 X25 X26 X27 X28 X29 X30 X31 K1 K2 K3 K4 K5 K6 K7
 		},
 	},
 	{
@@ -18733,7 +18733,7 @@ var opcodeTable = [...]opInfo{
 			inputs: []inputInfo{
 				{0, regMask{v1: 49135, v2: 0}}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R15
 			},
-			clobbers: regMask{v1: 2147483631, v2: 0}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 g R15 X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			clobbers: regMask{v1: 71776116913733615, v2: 0}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 g R15 X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X16 X17 X18 X19 X20 X21 X22 X23 X24 X25 X26 X27 X28 X29 X30 X31 K1 K2 K3 K4 K5 K6 K7
 		},
 	},
 	{
@@ -18747,7 +18747,7 @@ var opcodeTable = [...]opInfo{
 				{1, regMask{v1: 4, v2: 0}},     // DX
 				{0, regMask{v1: 49151, v2: 0}}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R15
 			},
-			clobbers: regMask{v1: 2147483631, v2: 0}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 g R15 X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			clobbers: regMask{v1: 71776116913733615, v2: 0}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 g R15 X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X16 X17 X18 X19 X20 X21 X22 X23 X24 X25 X26 X27 X28 X29 X30 X31 K1 K2 K3 K4 K5 K6 K7
 		},
 	},
 	{
@@ -18760,7 +18760,7 @@ var opcodeTable = [...]opInfo{
 			inputs: []inputInfo{
 				{0, regMask{v1: 49135, v2: 0}}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R15
 			},
-			clobbers: regMask{v1: 2147483631, v2: 0}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 g R15 X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			clobbers: regMask{v1: 71776116913733615, v2: 0}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 g R15 X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X16 X17 X18 X19 X20 X21 X22 X23 X24 X25 X26 X27 X28 X29 X30 X31 K1 K2 K3 K4 K5 K6 K7
 		},
 	},
 	{
@@ -18871,7 +18871,7 @@ var opcodeTable = [...]opInfo{
 		argLen:       1,
 		clobberFlags: true,
 		reg: regInfo{
-			clobbers: regMask{v1: 2147418112, v2: 0}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			clobbers: regMask{v1: 71776116913668096, v2: 0}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X16 X17 X18 X19 X20 X21 X22 X23 X24 X25 X26 X27 X28 X29 X30 X31 K1 K2 K3 K4 K5 K6 K7
 			outputs: []outputInfo{
 				{0, regMask{v1: 2048, v2: 0}}, // R11
 			},

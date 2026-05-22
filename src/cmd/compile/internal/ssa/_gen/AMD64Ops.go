@@ -131,7 +131,7 @@ func init() {
 		gpsp       = gp.union(buildReg("SP"))
 		gpspsb     = gpsp.union(buildReg("SB"))
 		gpspsbg    = gpspsb.union(g)
-		callerSave = gp.union(fp).union(g) // runtime.setg (and anything calling it) may clobber g
+		callerSave = gp.union(w).union(mask).union(g) // runtime.setg (and anything calling it) may clobber g
 
 		vz = v.union(x15)
 		wz = w.union(x15)
