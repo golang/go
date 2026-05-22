@@ -109,7 +109,7 @@ func init() {
 		gpspsb = gpsp.union(buildReg("SB"))
 		// The "registers", which are actually local variables, can get clobbered
 		// if we're switching goroutines, because it unwinds the WebAssembly stack.
-		callerSave = gp.union(fp32).union(fp64).union(buildReg("g"))
+		callerSave = gp.union(fp32).union(fp64).union(v128).union(buildReg("g"))
 	)
 
 	// Common regInfo
