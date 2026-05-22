@@ -46,13 +46,6 @@ var (
 	transportHost = flag.String("transporthost", "go.dev", "hostname to use for TestTransport")
 )
 
-func TestMain(m *testing.M) {
-	if !flag.Parsed() {
-		flag.Parse()
-	}
-	os.Exit(m.Run())
-}
-
 var tlsConfigInsecure = &tls.Config{InsecureSkipVerify: true}
 
 var canceledCtx context.Context

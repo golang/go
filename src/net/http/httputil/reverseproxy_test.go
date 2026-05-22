@@ -11,7 +11,6 @@ import (
 	"bytes"
 	"context"
 	"errors"
-	"flag"
 	"fmt"
 	"io"
 	"log"
@@ -38,13 +37,6 @@ const fakeHopHeader = "X-Fake-Hop-Header-For-Test"
 func init() {
 	inOurTests = true
 	hopHeaders = append(hopHeaders, fakeHopHeader)
-}
-
-func TestMain(m *testing.M) {
-	if !flag.Parsed() {
-		flag.Parse()
-	}
-	os.Exit(m.Run())
 }
 
 func TestReverseProxy(t *testing.T) {

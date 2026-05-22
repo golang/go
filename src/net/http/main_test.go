@@ -5,7 +5,6 @@
 package http_test
 
 import (
-	"flag"
 	"fmt"
 	"io"
 	"log"
@@ -21,9 +20,6 @@ import (
 var quietLog = log.New(io.Discard, "", 0)
 
 func TestMain(m *testing.M) {
-	if !flag.Parsed() {
-		flag.Parse()
-	}
 	*http.MaxWriteWaitBeforeConnReuse = 60 * time.Minute
 	v := m.Run()
 	if v == 0 && goroutineLeaked() {
