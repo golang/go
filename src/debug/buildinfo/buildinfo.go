@@ -274,7 +274,7 @@ func hasPlan9Magic(magic []byte) bool {
 	if len(magic) >= 4 {
 		m := binary.BigEndian.Uint32(magic)
 		switch m {
-		case plan9obj.Magic386, plan9obj.MagicAMD64, plan9obj.MagicARM:
+		case plan9obj.Magic386, plan9obj.MagicAMD64, plan9obj.MagicARM, plan9obj.MagicARM64:
 			return true
 		}
 	}
