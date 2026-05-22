@@ -204,6 +204,7 @@ func initWasmSIMD() {
 	addWasmSIMD("simd/archsimd", "Float32x4.LessEqual", makeSimdOp2(ssa.OpLessEqualFloat32x4))
 	addWasmSIMD("simd/archsimd", "Int64x2.LessEqual", makeSimdOp2(ssa.OpLessEqualInt64x2))
 	addWasmSIMD("simd/archsimd", "Float64x2.LessEqual", makeSimdOp2(ssa.OpLessEqualFloat64x2))
+	addWasmSIMD("simd/archsimd", "Int8x16.LookupOrZero", makeSimdOp2(ssa.OpLookupOrZeroInt8x16))
 	addWasmSIMD("simd/archsimd", "Int8x16.Max", makeSimdOp2(ssa.OpMaxInt8x16))
 	addWasmSIMD("simd/archsimd", "Uint8x16.Max", makeSimdOp2(ssa.OpMaxUint8x16))
 	addWasmSIMD("simd/archsimd", "Int16x8.Max", makeSimdOp2(ssa.OpMaxInt16x8))

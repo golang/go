@@ -126,6 +126,7 @@
 (LessEqualFloat32x4 ...) => (F32x4Le ...)
 (LessEqualInt64x2 ...) => (I64x2LeS ...)
 (LessEqualFloat64x2 ...) => (F64x2Le ...)
+(LookupOrZeroInt8x16 ...) => (I8x16Swizzle ...)
 (MaxInt8x16 ...) => (I8x16MaxS ...)
 (MaxUint8x16 ...) => (I8x16MaxU ...)
 (MaxInt16x8 ...) => (I16x8MaxS ...)

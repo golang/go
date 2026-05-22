@@ -677,6 +677,9 @@ func rewriteValueWasm(v *Value) bool {
 		return rewriteValueWasm_OpLoad(v)
 	case OpLocalAddr:
 		return rewriteValueWasm_OpLocalAddr(v)
+	case OpLookupOrZeroInt8x16:
+		v.Op = OpWasmI8x16Swizzle
+		return true
 	case OpLsh16x16:
 		return rewriteValueWasm_OpLsh16x16(v)
 	case OpLsh16x32:

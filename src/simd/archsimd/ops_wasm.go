@@ -674,6 +674,17 @@ func (x Int64x2) LessEqual(y Int64x2) Mask64x2
 // Asm: F64x2Le
 func (x Float64x2) LessEqual(y Float64x2) Mask64x2
 
+// LookupOrZero returns the elements of x as indexed by the elements of i. If an index is out of range, its result is 0.
+//
+//	if 0 <= indices[i] && indices[i] < len(table) {
+//	    result[i] = table[indices[i]]
+//	} else {
+//	    result[i] = 0
+//	}
+//
+// Asm: I8x16Swizzle
+func (x Int8x16) LookupOrZero(i Int8x16) Int8x16
+
 // Max returns the elementwise maximum of x and y.
 //
 // Asm: I8x16MaxS
