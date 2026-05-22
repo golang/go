@@ -104,6 +104,25 @@ func (fd *FD) Read(fn func([]byte) (int, error), b []byte) (int, error) {
 			err = ErrDeadlineExceeded
 		}
 	}
+	// Defense in depth for very short deadlines on plan9 SMP: the kernel
+	// can return a spurious (0, EOF) on a fresh loopback TCP connection
+	// before either the timer goroutine has updated rtimedout or the wall
+	// clock has crossed the deadline.  If we still have a (0, EOF) here
+	// but the deadline is "soon" (within 1ms), spin briefly until the
+	// deadline elapses and the timer fires; then re-check.  We cap the
+	// extra wait so a connection that legitimately observes a fast EOF on
+	// a long-deadline connection isn't held up.
+	if n == 0 && err == io.EOF && !deadline.IsZero() {
+		if remaining := time.Until(deadline); remaining > 0 && remaining <= time.Millisecond {
+			time.Sleep(remaining)
+			fd.rmu.Lock()
+			timedOut = fd.rtimedout
+			fd.rmu.Unlock()
+			if timedOut || !time.Now().Before(deadline) {
+				err = ErrDeadlineExceeded
+			}
+		}
+	}
 	return n, err
 }
 
