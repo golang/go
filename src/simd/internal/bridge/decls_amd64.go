@@ -8,7 +8,7 @@ import "simd/archsimd"
 
 // These types/methods/functions forward calls to their counterparts in simd/archsimd.
 // Interposing this package allows a clean separation of "simd" from "archsimd" and
-// also allows additional useful exported declrations that would weirdly pollute archsimd.
+// also allows additional useful exported declarations that would weirdly pollute archsimd.
 
 type Float32x16 archsimd.Float32x16
 

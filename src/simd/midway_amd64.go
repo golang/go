@@ -42,6 +42,8 @@ func VectorBitSize() int {
 	return maxVectorSize
 }
 
+// Emulated returns whether simd operations are emulated or
+// running on actual vector hardware.
 func Emulated() bool {
 	return false
 }

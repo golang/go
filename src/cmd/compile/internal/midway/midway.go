@@ -14,6 +14,8 @@ func rewriteSizes() []int {
 		return []int{128}
 	case "amd64":
 		return []int{128, 256, 512}
+	case "arm64":
+		return []int{128} // this will change for SVE and cannot just be a size-based choice.
 	}
 	return nil
 }

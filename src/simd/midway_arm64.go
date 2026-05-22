@@ -2,12 +2,12 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-//go:build goexperiment.simd && wasm
+//go:build goexperiment.simd && arm64
 
 package simd
 
 // VectorBitSize returns the bit length of the longest vector available
-// on the current hardware.  For wasm, this is 128.
+// on the current hardware.  For arm64-neon, this is 128.
 func VectorBitSize() int {
 	return 128
 }

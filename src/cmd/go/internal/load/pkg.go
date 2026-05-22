@@ -1786,7 +1786,7 @@ const SimdBridgePkg = "simd/internal/bridge"
 // This is used for both build and test (and perhaps in other contexts to
 // be discovered later).
 func hasSimd(imports []string) (hasSimd bool) {
-	if cfg.BuildContext.GOARCH == "wasm" || cfg.BuildContext.GOARCH == "amd64" {
+	if cfg.BuildContext.GOARCH == "wasm" || cfg.BuildContext.GOARCH == "amd64" || cfg.BuildContext.GOARCH == "arm64" {
 		for _, imp := range imports {
 			if imp == "simd" {
 				hasSimd = true
