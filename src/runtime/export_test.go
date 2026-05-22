@@ -549,8 +549,11 @@ func MapNextArenaHint() (start, end uintptr, ok bool) {
 	ok = (addr == uintptr(got))
 	if !ok {
 		// We were unable to get the requested reservation.
-		// Release what we did get and fail.
-		sysUnreserve(got, physPageSize)
+		// Release what we did get and fail. Some platforms may return nil
+		// when the requested address is unavailable.
+		if got != nil {
+			sysUnreserve(got, physPageSize)
+		}
 	}
 	return
 }
