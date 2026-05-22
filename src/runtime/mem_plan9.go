@@ -2,6 +2,8 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
+//go:build plan9 && !arm64
+
 package runtime
 
 import "unsafe"
@@ -18,4 +20,7 @@ func sbrk(n uintptr) unsafe.Pointer {
 	}
 	bloc += n
 	return unsafe.Pointer(bl)
+}
+
+func sysUnusedOSImpl(v unsafe.Pointer, n uintptr) {
 }

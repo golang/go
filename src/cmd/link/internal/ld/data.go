@@ -2739,7 +2739,16 @@ func (ctxt *Link) textaddress() {
 		ctxt.Textp[0] = text
 	}
 
-	start := uint64(Rnd(*FlagTextAddr, int64(Funcalign)))
+	// (*Link).address rounds the start of the first text section up to
+	// the section's alignment, which is that of its most aligned symbol
+	// (see PCALIGN). Start assigning addresses at that same address, or
+	// symbol addresses would not match the section they are written to
+	// when -T is not already aligned, as with the Plan 9 header.
+	startAlign := int32(Funcalign)
+	for _, s := range ctxt.Textp {
+		startAlign = max(startAlign, ldr.SymAlign(s))
+	}
+	start := uint64(Rnd(*FlagTextAddr, int64(startAlign)))
 	va := start
 	n := 1
 	sect.Vaddr = va
