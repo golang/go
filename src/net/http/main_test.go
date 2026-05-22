@@ -24,23 +24,6 @@ func TestMain(m *testing.M) {
 	if !flag.Parsed() {
 		flag.Parse()
 	}
-	if testing.Short() && runtime.GOOS == "plan9" {
-		// Every https1/h2 subtest in this package establishes a TLS
-		// handshake over loopback, which trips Plan 9's tcpsplice
-		// kernel bug in sys/src/9/ip/tcp.c: the bypass-cleanup on
-		// Close races with the surviving side's writes, so
-		// handshakes flake with "EOF" / "i/o on hungup channel".
-		// Worse, some h2 listener storms see the first failed
-		// handshake cascade into "connection refused" on every
-		// subsequent retry, which can hang the package for the
-		// full -timeout.  Skip the whole package in short mode on
-		// plan9 instead of producing a flaky go tool dist test run.
-		// Manual `go test ./net/http/...` (without -short) still
-		// works for triage.  A 9front kernel patch is shipped in
-		// misc/plan9/arm64/9front-tcpsplice-fix.patch.
-		fmt.Fprintln(os.Stderr, "skipping net/http tests in short mode on plan9 (loopback tcpsplice kernel bug)")
-		os.Exit(0)
-	}
 	*http.MaxWriteWaitBeforeConnReuse = 60 * time.Minute
 	v := m.Run()
 	if v == 0 && goroutineLeaked() {

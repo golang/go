@@ -7389,19 +7389,6 @@ func testProxyAuthHeader(t *testing.T, mode testMode) {
 
 // Issue 61708
 func TestTransportReqCancelerCleanupOnRequestBodyWriteError(t *testing.T) {
-	if runtime.GOOS == "plan9" {
-		// On Plan 9 loopback, tcpsplice in sys/src/9/ip/tcp.c
-		// short-circuits two same-kernel TCP conversations into a
-		// direct wq -> rq bypass.  When the server closes, the
-		// bypass-cleanup path leaves the client's wq with a stale
-		// kick pointing at the now-closed conv; tcpbypass silently
-		// drops the client's writes (qbwrite still returns "success"
-		// because the bypass returns void).  The writeLoop streaming
-		// the 1 GiB request body therefore never observes the server
-		// close and never returns.  Confirmed against 9front; expected
-		// to affect 9legacy as well, since tcpsplice predates the fork.
-		t.Skip("skipping on plan9; loopback tcpsplice drops writes silently after peer Close instead of erroring out")
-	}
 	ln := newLocalListener(t)
 	addr := ln.Addr().String()
 

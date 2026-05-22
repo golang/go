@@ -970,20 +970,6 @@ func testServerWriteTimeout(t *testing.T, mode testMode) {
 
 func TestServerNoWriteTimeout(t *testing.T) { run(t, testServerNoWriteTimeout) }
 func testServerNoWriteTimeout(t *testing.T, mode testMode) {
-	if runtime.GOOS == "plan9" {
-		// On Plan 9, two TCP conversations on the same kernel are
-		// spliced by tcpsplice in sys/src/9/ip/tcp.c: a bypass kick
-		// copies blocks from one side's wq directly into the other
-		// side's rq, skipping the TCP state machine.  When the peer
-		// closes the connection, the bypass-cleanup path leaves
-		// the surviving wq with a stale kick and tcpbypass silently
-		// drops subsequent writes (qbwrite still returns "success"
-		// because the bypass returns void).  The handler's io.Copy
-		// therefore never observes the client close on loopback and
-		// never returns.  Confirmed against 9front; expected to
-		// affect 9legacy as well, since tcpsplice predates the fork.
-		t.Skip("skipping on plan9; loopback tcpsplice drops writes silently after peer Close instead of erroring out")
-	}
 	for _, timeout := range []time.Duration{0, -1} {
 		handlerDone := make(chan struct{})
 		cst := newClientServerTest(t, mode, HandlerFunc(func(res ResponseWriter, req *Request) {
