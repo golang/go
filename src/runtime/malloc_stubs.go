@@ -81,10 +81,11 @@ func mallocStub(size uintptr, typ *_type, needzero bool) unsafe.Pointer {
 		if forceSlowPath {
 			if isTiny_ {
 				return mallocgcTinySlowPath(size, typ, needzero)
+			} else {
+				const spc = spanClass(sizeclass_<<1) | spanClass(noscanint_)
+				const elemsize = uintptr(elemsize_)
+				return mallocgcSlowPathStub(size, typ, needzero, spc, elemsize)
 			}
-			const spc = spanClass(sizeclass_<<1) | spanClass(noscanint_)
-			const elemsize = uintptr(elemsize_)
-			return mallocgcSlowPathStub(size, typ, needzero, spc, elemsize)
 		}
 	}
 
@@ -214,8 +215,9 @@ func smallStub(size uintptr, typ *_type, needzero bool) unsafe.Pointer {
 			if isSlowPath_ {
 				// postMallocgc only does anything in the slow path.
 				goto post
+			} else {
+				return x
 			}
-			return x
 		}
 	}
 	// This is in a block so that the goto above doesn't jump past the

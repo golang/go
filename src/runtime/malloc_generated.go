@@ -19,6 +19,7 @@ func mallocgcSmallScanNoHeaderSC1(size uintptr, typ *_type, needzero bool) unsaf
 		const spc = spanClass(1<<1) | spanClass(0)
 		const elemsize = uintptr(8)
 		return mallocgcSmallScanSlowPath(size, typ, needzero, spc, elemsize)
+
 	}
 
 	if doubleCheckMalloc {
@@ -168,6 +169,7 @@ func mallocgcSmallScanNoHeaderSC2(size uintptr, typ *_type, needzero bool) unsaf
 		const spc = spanClass(2<<1) | spanClass(0)
 		const elemsize = uintptr(16)
 		return mallocgcSmallScanSlowPath(size, typ, needzero, spc, elemsize)
+
 	}
 
 	if doubleCheckMalloc {
@@ -317,6 +319,7 @@ func mallocgcSmallScanNoHeaderSC3(size uintptr, typ *_type, needzero bool) unsaf
 		const spc = spanClass(3<<1) | spanClass(0)
 		const elemsize = uintptr(24)
 		return mallocgcSmallScanSlowPath(size, typ, needzero, spc, elemsize)
+
 	}
 
 	if doubleCheckMalloc {
@@ -466,6 +469,7 @@ func mallocgcSmallScanNoHeaderSC4(size uintptr, typ *_type, needzero bool) unsaf
 		const spc = spanClass(4<<1) | spanClass(0)
 		const elemsize = uintptr(32)
 		return mallocgcSmallScanSlowPath(size, typ, needzero, spc, elemsize)
+
 	}
 
 	if doubleCheckMalloc {
@@ -615,6 +619,7 @@ func mallocgcSmallScanNoHeaderSC5(size uintptr, typ *_type, needzero bool) unsaf
 		const spc = spanClass(5<<1) | spanClass(0)
 		const elemsize = uintptr(48)
 		return mallocgcSmallScanSlowPath(size, typ, needzero, spc, elemsize)
+
 	}
 
 	if doubleCheckMalloc {
@@ -764,6 +769,7 @@ func mallocgcSmallScanNoHeaderSC6(size uintptr, typ *_type, needzero bool) unsaf
 		const spc = spanClass(6<<1) | spanClass(0)
 		const elemsize = uintptr(64)
 		return mallocgcSmallScanSlowPath(size, typ, needzero, spc, elemsize)
+
 	}
 
 	if doubleCheckMalloc {
@@ -913,6 +919,7 @@ func mallocgcSmallScanNoHeaderSC7(size uintptr, typ *_type, needzero bool) unsaf
 		const spc = spanClass(7<<1) | spanClass(0)
 		const elemsize = uintptr(80)
 		return mallocgcSmallScanSlowPath(size, typ, needzero, spc, elemsize)
+
 	}
 
 	if doubleCheckMalloc {
@@ -1061,9 +1068,6 @@ func mallocgcTinySC2(size uintptr, typ *_type, needzero bool) unsafe.Pointer {
 
 		return mallocgcTinySlowPath(size, typ, needzero)
 
-		const spc = spanClass(2<<1) | spanClass(1)
-		const elemsize = uintptr(16)
-		return mallocgcSlowPathStub(size, typ, needzero, spc, elemsize)
 	}
 
 	if doubleCheckMalloc {
@@ -1169,6 +1173,7 @@ func mallocgcSmallNoScanSC2(size uintptr, typ *_type, needzero bool) unsafe.Poin
 		const spc = spanClass(2<<1) | spanClass(1)
 		const elemsize = uintptr(16)
 		return mallocgcSmallNoScanSlowPath(size, typ, needzero, spc, elemsize)
+
 	}
 
 	if doubleCheckMalloc {
@@ -1205,6 +1210,7 @@ func mallocgcSmallNoScanSC2(size uintptr, typ *_type, needzero bool) unsafe.Poin
 		releasem(mp)
 
 		return x
+
 	}
 
 	{
@@ -1263,6 +1269,7 @@ func mallocgcSmallNoScanSC3(size uintptr, typ *_type, needzero bool) unsafe.Poin
 		const spc = spanClass(3<<1) | spanClass(1)
 		const elemsize = uintptr(24)
 		return mallocgcSmallNoScanSlowPath(size, typ, needzero, spc, elemsize)
+
 	}
 
 	if doubleCheckMalloc {
@@ -1299,6 +1306,7 @@ func mallocgcSmallNoScanSC3(size uintptr, typ *_type, needzero bool) unsafe.Poin
 		releasem(mp)
 
 		return x
+
 	}
 
 	{
@@ -1357,6 +1365,7 @@ func mallocgcSmallNoScanSC4(size uintptr, typ *_type, needzero bool) unsafe.Poin
 		const spc = spanClass(4<<1) | spanClass(1)
 		const elemsize = uintptr(32)
 		return mallocgcSmallNoScanSlowPath(size, typ, needzero, spc, elemsize)
+
 	}
 
 	if doubleCheckMalloc {
@@ -1393,6 +1402,7 @@ func mallocgcSmallNoScanSC4(size uintptr, typ *_type, needzero bool) unsafe.Poin
 		releasem(mp)
 
 		return x
+
 	}
 
 	{
@@ -1451,6 +1461,7 @@ func mallocgcSmallNoScanSC5(size uintptr, typ *_type, needzero bool) unsafe.Poin
 		const spc = spanClass(5<<1) | spanClass(1)
 		const elemsize = uintptr(48)
 		return mallocgcSmallNoScanSlowPath(size, typ, needzero, spc, elemsize)
+
 	}
 
 	if doubleCheckMalloc {
@@ -1487,6 +1498,7 @@ func mallocgcSmallNoScanSC5(size uintptr, typ *_type, needzero bool) unsafe.Poin
 		releasem(mp)
 
 		return x
+
 	}
 
 	{
@@ -1545,6 +1557,7 @@ func mallocgcSmallNoScanSC6(size uintptr, typ *_type, needzero bool) unsafe.Poin
 		const spc = spanClass(6<<1) | spanClass(1)
 		const elemsize = uintptr(64)
 		return mallocgcSmallNoScanSlowPath(size, typ, needzero, spc, elemsize)
+
 	}
 
 	if doubleCheckMalloc {
@@ -1581,6 +1594,7 @@ func mallocgcSmallNoScanSC6(size uintptr, typ *_type, needzero bool) unsafe.Poin
 		releasem(mp)
 
 		return x
+
 	}
 
 	{
@@ -1639,6 +1653,7 @@ func mallocgcSmallNoScanSC7(size uintptr, typ *_type, needzero bool) unsafe.Poin
 		const spc = spanClass(7<<1) | spanClass(1)
 		const elemsize = uintptr(80)
 		return mallocgcSmallNoScanSlowPath(size, typ, needzero, spc, elemsize)
+
 	}
 
 	if doubleCheckMalloc {
@@ -1675,6 +1690,7 @@ func mallocgcSmallNoScanSC7(size uintptr, typ *_type, needzero bool) unsafe.Poin
 		releasem(mp)
 
 		return x
+
 	}
 
 	{
@@ -2093,7 +2109,6 @@ func mallocgcSmallNoScanSlowPath(size uintptr, typ *_type, needzero bool, spc sp
 
 		goto post
 
-		return x
 	}
 
 	{

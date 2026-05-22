@@ -473,8 +473,7 @@ func foldIfCondition(node ast.Node, from, to string) ast.Node {
 					for _, stmt := range n.Body.List {
 						cursor.InsertBefore(stmt)
 					}
-				}
-				if n.Else != nil {
+				} else if n.Else != nil {
 					if block, ok := n.Else.(*ast.BlockStmt); ok {
 						for i := len(block.List) - 1; i >= 0; i-- {
 							cursor.InsertAfter(block.List[i])
