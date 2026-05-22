@@ -91,6 +91,29 @@ func ssaGenSIMDValue(s *ssagen.State, v *ssa.Value) bool {
 	case ssa.OpARM64VDUPSbcast:
 		p = simdV11ImmIn1(s, v, arm64.ARNG_S)
 
+	case ssa.OpARM64VSMAXV16B,
+		ssa.OpARM64VUMAXV16B,
+		ssa.OpARM64VSMINV16B,
+		ssa.OpARM64VUMINV16B,
+		ssa.OpARM64VADDV16B:
+		p = simdV11Scalar(s, v, arm64.ARNG_16B)
+
+	case ssa.OpARM64VFMAXV4S,
+		ssa.OpARM64VSMAXV4S,
+		ssa.OpARM64VUMAXV4S,
+		ssa.OpARM64VFMINV4S,
+		ssa.OpARM64VSMINV4S,
+		ssa.OpARM64VUMINV4S,
+		ssa.OpARM64VADDV4S:
+		p = simdV11Scalar(s, v, arm64.ARNG_4S)
+
+	case ssa.OpARM64VSMAXV8H,
+		ssa.OpARM64VUMAXV8H,
+		ssa.OpARM64VSMINV8H,
+		ssa.OpARM64VUMINV8H,
+		ssa.OpARM64VADDV8H:
+		p = simdV11Scalar(s, v, arm64.ARNG_8H)
+
 	case ssa.OpARM64VDUPDextr:
 		p = simdV11ScalarImmIn1(s, v, arm64.ARNG_D)
 

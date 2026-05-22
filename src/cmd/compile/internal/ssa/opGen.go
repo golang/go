@@ -4499,6 +4499,9 @@ const (
 	OpARM64VADD4S
 	OpARM64VADD8H
 	OpARM64VADD16B
+	OpARM64VADDV4S
+	OpARM64VADDV8H
+	OpARM64VADDV16B
 	OpARM64VAND16B
 	OpARM64VBIC16B
 	OpARM64VBIF16B
@@ -4546,8 +4549,10 @@ const (
 	OpARM64VFDIV4S
 	OpARM64VFMAX2D
 	OpARM64VFMAX4S
+	OpARM64VFMAXV4S
 	OpARM64VFMIN2D
 	OpARM64VFMIN4S
+	OpARM64VFMINV4S
 	OpARM64VFMUL2D
 	OpARM64VFMUL4S
 	OpARM64VFNEG2D
@@ -4579,9 +4584,15 @@ const (
 	OpARM64VSMAX4S
 	OpARM64VSMAX8H
 	OpARM64VSMAX16B
+	OpARM64VSMAXV4S
+	OpARM64VSMAXV8H
+	OpARM64VSMAXV16B
 	OpARM64VSMIN4S
 	OpARM64VSMIN8H
 	OpARM64VSMIN16B
+	OpARM64VSMINV4S
+	OpARM64VSMINV8H
+	OpARM64VSMINV16B
 	OpARM64VSMULL2_4S
 	OpARM64VSMULL2_8H
 	OpARM64VSMULL2_16B
@@ -4633,9 +4644,15 @@ const (
 	OpARM64VUMAX4S
 	OpARM64VUMAX8H
 	OpARM64VUMAX16B
+	OpARM64VUMAXV4S
+	OpARM64VUMAXV8H
+	OpARM64VUMAXV16B
 	OpARM64VUMIN4S
 	OpARM64VUMIN8H
 	OpARM64VUMIN16B
+	OpARM64VUMINV4S
+	OpARM64VUMINV8H
+	OpARM64VUMINV16B
 	OpARM64VUMULL2_4S
 	OpARM64VUMULL2_8H
 	OpARM64VUMULL2_16B
@@ -7484,6 +7501,26 @@ const (
 	OpReciprocalSqrtFloat64x2
 	OpReciprocalSqrtFloat64x4
 	OpReciprocalSqrtFloat64x8
+	OpReduceMaxFloat32x4
+	OpReduceMaxInt8x16
+	OpReduceMaxInt16x8
+	OpReduceMaxInt32x4
+	OpReduceMaxUint8x16
+	OpReduceMaxUint16x8
+	OpReduceMaxUint32x4
+	OpReduceMinFloat32x4
+	OpReduceMinInt8x16
+	OpReduceMinInt16x8
+	OpReduceMinInt32x4
+	OpReduceMinUint8x16
+	OpReduceMinUint16x8
+	OpReduceMinUint32x4
+	OpReduceSumInt8x16
+	OpReduceSumInt16x8
+	OpReduceSumInt32x4
+	OpReduceSumUint8x16
+	OpReduceSumUint16x8
+	OpReduceSumUint32x4
 	OpRotateAllLeftVarInt8x16
 	OpRotateAllLeftVarInt16x8
 	OpRotateAllLeftVarInt32x4
@@ -70502,6 +70539,45 @@ var opcodeTable = [...]opInfo{
 		},
 	},
 	{
+		name:   "VADDV4S",
+		argLen: 1,
+		asm:    arm64.AVADDV,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{0, regMask{v1: 9223372034707292160, v2: 0}}, // F0 F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15 F16 F17 F18 F19 F20 F21 F22 F23 F24 F25 F26 F27 F28 F29 F30 F31
+			},
+			outputs: []outputInfo{
+				{0, regMask{v1: 9223372034707292160, v2: 0}}, // F0 F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15 F16 F17 F18 F19 F20 F21 F22 F23 F24 F25 F26 F27 F28 F29 F30 F31
+			},
+		},
+	},
+	{
+		name:   "VADDV8H",
+		argLen: 1,
+		asm:    arm64.AVADDV,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{0, regMask{v1: 9223372034707292160, v2: 0}}, // F0 F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15 F16 F17 F18 F19 F20 F21 F22 F23 F24 F25 F26 F27 F28 F29 F30 F31
+			},
+			outputs: []outputInfo{
+				{0, regMask{v1: 9223372034707292160, v2: 0}}, // F0 F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15 F16 F17 F18 F19 F20 F21 F22 F23 F24 F25 F26 F27 F28 F29 F30 F31
+			},
+		},
+	},
+	{
+		name:   "VADDV16B",
+		argLen: 1,
+		asm:    arm64.AVADDV,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{0, regMask{v1: 9223372034707292160, v2: 0}}, // F0 F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15 F16 F17 F18 F19 F20 F21 F22 F23 F24 F25 F26 F27 F28 F29 F30 F31
+			},
+			outputs: []outputInfo{
+				{0, regMask{v1: 9223372034707292160, v2: 0}}, // F0 F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15 F16 F17 F18 F19 F20 F21 F22 F23 F24 F25 F26 F27 F28 F29 F30 F31
+			},
+		},
+	},
+	{
 		name:        "VAND16B",
 		argLen:      2,
 		commutative: true,
@@ -71168,6 +71244,19 @@ var opcodeTable = [...]opInfo{
 		},
 	},
 	{
+		name:   "VFMAXV4S",
+		argLen: 1,
+		asm:    arm64.AVFMAXV,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{0, regMask{v1: 9223372034707292160, v2: 0}}, // F0 F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15 F16 F17 F18 F19 F20 F21 F22 F23 F24 F25 F26 F27 F28 F29 F30 F31
+			},
+			outputs: []outputInfo{
+				{0, regMask{v1: 9223372034707292160, v2: 0}}, // F0 F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15 F16 F17 F18 F19 F20 F21 F22 F23 F24 F25 F26 F27 F28 F29 F30 F31
+			},
+		},
+	},
+	{
 		name:        "VFMIN2D",
 		argLen:      2,
 		commutative: true,
@@ -71191,6 +71280,19 @@ var opcodeTable = [...]opInfo{
 			inputs: []inputInfo{
 				{0, regMask{v1: 9223372034707292160, v2: 0}}, // F0 F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15 F16 F17 F18 F19 F20 F21 F22 F23 F24 F25 F26 F27 F28 F29 F30 F31
 				{1, regMask{v1: 9223372034707292160, v2: 0}}, // F0 F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15 F16 F17 F18 F19 F20 F21 F22 F23 F24 F25 F26 F27 F28 F29 F30 F31
+			},
+			outputs: []outputInfo{
+				{0, regMask{v1: 9223372034707292160, v2: 0}}, // F0 F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15 F16 F17 F18 F19 F20 F21 F22 F23 F24 F25 F26 F27 F28 F29 F30 F31
+			},
+		},
+	},
+	{
+		name:   "VFMINV4S",
+		argLen: 1,
+		asm:    arm64.AVFMINV,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{0, regMask{v1: 9223372034707292160, v2: 0}}, // F0 F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15 F16 F17 F18 F19 F20 F21 F22 F23 F24 F25 F26 F27 F28 F29 F30 F31
 			},
 			outputs: []outputInfo{
 				{0, regMask{v1: 9223372034707292160, v2: 0}}, // F0 F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15 F16 F17 F18 F19 F20 F21 F22 F23 F24 F25 F26 F27 F28 F29 F30 F31
@@ -71622,6 +71724,45 @@ var opcodeTable = [...]opInfo{
 		},
 	},
 	{
+		name:   "VSMAXV4S",
+		argLen: 1,
+		asm:    arm64.AVSMAXV,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{0, regMask{v1: 9223372034707292160, v2: 0}}, // F0 F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15 F16 F17 F18 F19 F20 F21 F22 F23 F24 F25 F26 F27 F28 F29 F30 F31
+			},
+			outputs: []outputInfo{
+				{0, regMask{v1: 9223372034707292160, v2: 0}}, // F0 F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15 F16 F17 F18 F19 F20 F21 F22 F23 F24 F25 F26 F27 F28 F29 F30 F31
+			},
+		},
+	},
+	{
+		name:   "VSMAXV8H",
+		argLen: 1,
+		asm:    arm64.AVSMAXV,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{0, regMask{v1: 9223372034707292160, v2: 0}}, // F0 F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15 F16 F17 F18 F19 F20 F21 F22 F23 F24 F25 F26 F27 F28 F29 F30 F31
+			},
+			outputs: []outputInfo{
+				{0, regMask{v1: 9223372034707292160, v2: 0}}, // F0 F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15 F16 F17 F18 F19 F20 F21 F22 F23 F24 F25 F26 F27 F28 F29 F30 F31
+			},
+		},
+	},
+	{
+		name:   "VSMAXV16B",
+		argLen: 1,
+		asm:    arm64.AVSMAXV,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{0, regMask{v1: 9223372034707292160, v2: 0}}, // F0 F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15 F16 F17 F18 F19 F20 F21 F22 F23 F24 F25 F26 F27 F28 F29 F30 F31
+			},
+			outputs: []outputInfo{
+				{0, regMask{v1: 9223372034707292160, v2: 0}}, // F0 F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15 F16 F17 F18 F19 F20 F21 F22 F23 F24 F25 F26 F27 F28 F29 F30 F31
+			},
+		},
+	},
+	{
 		name:        "VSMIN4S",
 		argLen:      2,
 		commutative: true,
@@ -71660,6 +71801,45 @@ var opcodeTable = [...]opInfo{
 			inputs: []inputInfo{
 				{0, regMask{v1: 9223372034707292160, v2: 0}}, // F0 F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15 F16 F17 F18 F19 F20 F21 F22 F23 F24 F25 F26 F27 F28 F29 F30 F31
 				{1, regMask{v1: 9223372034707292160, v2: 0}}, // F0 F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15 F16 F17 F18 F19 F20 F21 F22 F23 F24 F25 F26 F27 F28 F29 F30 F31
+			},
+			outputs: []outputInfo{
+				{0, regMask{v1: 9223372034707292160, v2: 0}}, // F0 F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15 F16 F17 F18 F19 F20 F21 F22 F23 F24 F25 F26 F27 F28 F29 F30 F31
+			},
+		},
+	},
+	{
+		name:   "VSMINV4S",
+		argLen: 1,
+		asm:    arm64.AVSMINV,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{0, regMask{v1: 9223372034707292160, v2: 0}}, // F0 F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15 F16 F17 F18 F19 F20 F21 F22 F23 F24 F25 F26 F27 F28 F29 F30 F31
+			},
+			outputs: []outputInfo{
+				{0, regMask{v1: 9223372034707292160, v2: 0}}, // F0 F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15 F16 F17 F18 F19 F20 F21 F22 F23 F24 F25 F26 F27 F28 F29 F30 F31
+			},
+		},
+	},
+	{
+		name:   "VSMINV8H",
+		argLen: 1,
+		asm:    arm64.AVSMINV,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{0, regMask{v1: 9223372034707292160, v2: 0}}, // F0 F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15 F16 F17 F18 F19 F20 F21 F22 F23 F24 F25 F26 F27 F28 F29 F30 F31
+			},
+			outputs: []outputInfo{
+				{0, regMask{v1: 9223372034707292160, v2: 0}}, // F0 F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15 F16 F17 F18 F19 F20 F21 F22 F23 F24 F25 F26 F27 F28 F29 F30 F31
+			},
+		},
+	},
+	{
+		name:   "VSMINV16B",
+		argLen: 1,
+		asm:    arm64.AVSMINV,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{0, regMask{v1: 9223372034707292160, v2: 0}}, // F0 F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15 F16 F17 F18 F19 F20 F21 F22 F23 F24 F25 F26 F27 F28 F29 F30 F31
 			},
 			outputs: []outputInfo{
 				{0, regMask{v1: 9223372034707292160, v2: 0}}, // F0 F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15 F16 F17 F18 F19 F20 F21 F22 F23 F24 F25 F26 F27 F28 F29 F30 F31
@@ -72384,6 +72564,45 @@ var opcodeTable = [...]opInfo{
 		},
 	},
 	{
+		name:   "VUMAXV4S",
+		argLen: 1,
+		asm:    arm64.AVUMAXV,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{0, regMask{v1: 9223372034707292160, v2: 0}}, // F0 F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15 F16 F17 F18 F19 F20 F21 F22 F23 F24 F25 F26 F27 F28 F29 F30 F31
+			},
+			outputs: []outputInfo{
+				{0, regMask{v1: 9223372034707292160, v2: 0}}, // F0 F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15 F16 F17 F18 F19 F20 F21 F22 F23 F24 F25 F26 F27 F28 F29 F30 F31
+			},
+		},
+	},
+	{
+		name:   "VUMAXV8H",
+		argLen: 1,
+		asm:    arm64.AVUMAXV,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{0, regMask{v1: 9223372034707292160, v2: 0}}, // F0 F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15 F16 F17 F18 F19 F20 F21 F22 F23 F24 F25 F26 F27 F28 F29 F30 F31
+			},
+			outputs: []outputInfo{
+				{0, regMask{v1: 9223372034707292160, v2: 0}}, // F0 F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15 F16 F17 F18 F19 F20 F21 F22 F23 F24 F25 F26 F27 F28 F29 F30 F31
+			},
+		},
+	},
+	{
+		name:   "VUMAXV16B",
+		argLen: 1,
+		asm:    arm64.AVUMAXV,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{0, regMask{v1: 9223372034707292160, v2: 0}}, // F0 F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15 F16 F17 F18 F19 F20 F21 F22 F23 F24 F25 F26 F27 F28 F29 F30 F31
+			},
+			outputs: []outputInfo{
+				{0, regMask{v1: 9223372034707292160, v2: 0}}, // F0 F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15 F16 F17 F18 F19 F20 F21 F22 F23 F24 F25 F26 F27 F28 F29 F30 F31
+			},
+		},
+	},
+	{
 		name:        "VUMIN4S",
 		argLen:      2,
 		commutative: true,
@@ -72422,6 +72641,45 @@ var opcodeTable = [...]opInfo{
 			inputs: []inputInfo{
 				{0, regMask{v1: 9223372034707292160, v2: 0}}, // F0 F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15 F16 F17 F18 F19 F20 F21 F22 F23 F24 F25 F26 F27 F28 F29 F30 F31
 				{1, regMask{v1: 9223372034707292160, v2: 0}}, // F0 F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15 F16 F17 F18 F19 F20 F21 F22 F23 F24 F25 F26 F27 F28 F29 F30 F31
+			},
+			outputs: []outputInfo{
+				{0, regMask{v1: 9223372034707292160, v2: 0}}, // F0 F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15 F16 F17 F18 F19 F20 F21 F22 F23 F24 F25 F26 F27 F28 F29 F30 F31
+			},
+		},
+	},
+	{
+		name:   "VUMINV4S",
+		argLen: 1,
+		asm:    arm64.AVUMINV,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{0, regMask{v1: 9223372034707292160, v2: 0}}, // F0 F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15 F16 F17 F18 F19 F20 F21 F22 F23 F24 F25 F26 F27 F28 F29 F30 F31
+			},
+			outputs: []outputInfo{
+				{0, regMask{v1: 9223372034707292160, v2: 0}}, // F0 F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15 F16 F17 F18 F19 F20 F21 F22 F23 F24 F25 F26 F27 F28 F29 F30 F31
+			},
+		},
+	},
+	{
+		name:   "VUMINV8H",
+		argLen: 1,
+		asm:    arm64.AVUMINV,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{0, regMask{v1: 9223372034707292160, v2: 0}}, // F0 F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15 F16 F17 F18 F19 F20 F21 F22 F23 F24 F25 F26 F27 F28 F29 F30 F31
+			},
+			outputs: []outputInfo{
+				{0, regMask{v1: 9223372034707292160, v2: 0}}, // F0 F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15 F16 F17 F18 F19 F20 F21 F22 F23 F24 F25 F26 F27 F28 F29 F30 F31
+			},
+		},
+	},
+	{
+		name:   "VUMINV16B",
+		argLen: 1,
+		asm:    arm64.AVUMINV,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{0, regMask{v1: 9223372034707292160, v2: 0}}, // F0 F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15 F16 F17 F18 F19 F20 F21 F22 F23 F24 F25 F26 F27 F28 F29 F30 F31
 			},
 			outputs: []outputInfo{
 				{0, regMask{v1: 9223372034707292160, v2: 0}}, // F0 F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15 F16 F17 F18 F19 F20 F21 F22 F23 F24 F25 F26 F27 F28 F29 F30 F31
@@ -100616,6 +100874,106 @@ var opcodeTable = [...]opInfo{
 	},
 	{
 		name:    "ReciprocalSqrtFloat64x8",
+		argLen:  1,
+		generic: true,
+	},
+	{
+		name:    "ReduceMaxFloat32x4",
+		argLen:  1,
+		generic: true,
+	},
+	{
+		name:    "ReduceMaxInt8x16",
+		argLen:  1,
+		generic: true,
+	},
+	{
+		name:    "ReduceMaxInt16x8",
+		argLen:  1,
+		generic: true,
+	},
+	{
+		name:    "ReduceMaxInt32x4",
+		argLen:  1,
+		generic: true,
+	},
+	{
+		name:    "ReduceMaxUint8x16",
+		argLen:  1,
+		generic: true,
+	},
+	{
+		name:    "ReduceMaxUint16x8",
+		argLen:  1,
+		generic: true,
+	},
+	{
+		name:    "ReduceMaxUint32x4",
+		argLen:  1,
+		generic: true,
+	},
+	{
+		name:    "ReduceMinFloat32x4",
+		argLen:  1,
+		generic: true,
+	},
+	{
+		name:    "ReduceMinInt8x16",
+		argLen:  1,
+		generic: true,
+	},
+	{
+		name:    "ReduceMinInt16x8",
+		argLen:  1,
+		generic: true,
+	},
+	{
+		name:    "ReduceMinInt32x4",
+		argLen:  1,
+		generic: true,
+	},
+	{
+		name:    "ReduceMinUint8x16",
+		argLen:  1,
+		generic: true,
+	},
+	{
+		name:    "ReduceMinUint16x8",
+		argLen:  1,
+		generic: true,
+	},
+	{
+		name:    "ReduceMinUint32x4",
+		argLen:  1,
+		generic: true,
+	},
+	{
+		name:    "ReduceSumInt8x16",
+		argLen:  1,
+		generic: true,
+	},
+	{
+		name:    "ReduceSumInt16x8",
+		argLen:  1,
+		generic: true,
+	},
+	{
+		name:    "ReduceSumInt32x4",
+		argLen:  1,
+		generic: true,
+	},
+	{
+		name:    "ReduceSumUint8x16",
+		argLen:  1,
+		generic: true,
+	},
+	{
+		name:    "ReduceSumUint16x8",
+		argLen:  1,
+		generic: true,
+	},
+	{
+		name:    "ReduceSumUint32x4",
 		argLen:  1,
 		generic: true,
 	},

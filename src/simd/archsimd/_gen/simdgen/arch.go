@@ -64,6 +64,7 @@ var arm64RegInfoKeys = []string{
 	"v11",
 	"v11Imm",
 	"v11ImmIn1",
+	"v11Scalar",
 	"v11ScalarImmIn1",
 	"v21",
 	"v21Imm",

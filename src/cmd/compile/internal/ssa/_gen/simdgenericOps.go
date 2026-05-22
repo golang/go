@@ -866,6 +866,26 @@ func simdGenericOps() []opData {
 		{name: "ReciprocalSqrtFloat64x2", argLength: 1},                                 // ARCH:amd64
 		{name: "ReciprocalSqrtFloat64x4", argLength: 1},                                 // ARCH:amd64
 		{name: "ReciprocalSqrtFloat64x8", argLength: 1},                                 // ARCH:amd64
+		{name: "ReduceMaxFloat32x4", argLength: 1},                                      // ARCH:arm64
+		{name: "ReduceMaxInt8x16", argLength: 1},                                        // ARCH:arm64
+		{name: "ReduceMaxInt16x8", argLength: 1},                                        // ARCH:arm64
+		{name: "ReduceMaxInt32x4", argLength: 1},                                        // ARCH:arm64
+		{name: "ReduceMaxUint8x16", argLength: 1},                                       // ARCH:arm64
+		{name: "ReduceMaxUint16x8", argLength: 1},                                       // ARCH:arm64
+		{name: "ReduceMaxUint32x4", argLength: 1},                                       // ARCH:arm64
+		{name: "ReduceMinFloat32x4", argLength: 1},                                      // ARCH:arm64
+		{name: "ReduceMinInt8x16", argLength: 1},                                        // ARCH:arm64
+		{name: "ReduceMinInt16x8", argLength: 1},                                        // ARCH:arm64
+		{name: "ReduceMinInt32x4", argLength: 1},                                        // ARCH:arm64
+		{name: "ReduceMinUint8x16", argLength: 1},                                       // ARCH:arm64
+		{name: "ReduceMinUint16x8", argLength: 1},                                       // ARCH:arm64
+		{name: "ReduceMinUint32x4", argLength: 1},                                       // ARCH:arm64
+		{name: "ReduceSumInt8x16", argLength: 1},                                        // ARCH:arm64
+		{name: "ReduceSumInt16x8", argLength: 1},                                        // ARCH:arm64
+		{name: "ReduceSumInt32x4", argLength: 1},                                        // ARCH:arm64
+		{name: "ReduceSumUint8x16", argLength: 1},                                       // ARCH:arm64
+		{name: "ReduceSumUint16x8", argLength: 1},                                       // ARCH:arm64
+		{name: "ReduceSumUint32x4", argLength: 1},                                       // ARCH:arm64
 		{name: "RotateAllLeftVarInt8x16", argLength: 2},                                 // ARCH:wasm
 		{name: "RotateAllLeftVarInt16x8", argLength: 2},                                 // ARCH:wasm
 		{name: "RotateAllLeftVarInt32x4", argLength: 2},                                 // ARCH:wasm

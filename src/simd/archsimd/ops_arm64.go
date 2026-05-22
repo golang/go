@@ -1151,6 +1151,132 @@ func (x Uint32x4) OrNot(y Uint32x4) Uint32x4
 // Asm: VORN, CPU Feature: NEON
 func (x Uint64x2) OrNot(y Uint64x2) Uint64x2
 
+/* ReduceMax */
+
+// ReduceMax reduces x by taking the maximum of all elements. The maximum is placed
+// in element 0 of the result; other elements are zeroed.
+//
+// Asm: VFMAXV, CPU Feature: NEON
+func (x Float32x4) ReduceMax() Float32x4
+
+// ReduceMax reduces x by taking the maximum of all elements. The maximum is placed
+// in element 0 of the result; other elements are zeroed.
+//
+// Asm: VSMAXV, CPU Feature: NEON
+func (x Int8x16) ReduceMax() Int8x16
+
+// ReduceMax reduces x by taking the maximum of all elements. The maximum is placed
+// in element 0 of the result; other elements are zeroed.
+//
+// Asm: VSMAXV, CPU Feature: NEON
+func (x Int16x8) ReduceMax() Int16x8
+
+// ReduceMax reduces x by taking the maximum of all elements. The maximum is placed
+// in element 0 of the result; other elements are zeroed.
+//
+// Asm: VSMAXV, CPU Feature: NEON
+func (x Int32x4) ReduceMax() Int32x4
+
+// ReduceMax reduces x by taking the maximum of all elements. The maximum is placed
+// in element 0 of the result; other elements are zeroed.
+//
+// Asm: VUMAXV, CPU Feature: NEON
+func (x Uint8x16) ReduceMax() Uint8x16
+
+// ReduceMax reduces x by taking the maximum of all elements. The maximum is placed
+// in element 0 of the result; other elements are zeroed.
+//
+// Asm: VUMAXV, CPU Feature: NEON
+func (x Uint16x8) ReduceMax() Uint16x8
+
+// ReduceMax reduces x by taking the maximum of all elements. The maximum is placed
+// in element 0 of the result; other elements are zeroed.
+//
+// Asm: VUMAXV, CPU Feature: NEON
+func (x Uint32x4) ReduceMax() Uint32x4
+
+/* ReduceMin */
+
+// ReduceMin reduces x by taking the minimum of all elements. The minimum is placed
+// in element 0 of the result; other elements are zeroed.
+//
+// Asm: VFMINV, CPU Feature: NEON
+func (x Float32x4) ReduceMin() Float32x4
+
+// ReduceMin reduces x by taking the minimum of all elements. The minimum is placed
+// in element 0 of the result; other elements are zeroed.
+//
+// Asm: VSMINV, CPU Feature: NEON
+func (x Int8x16) ReduceMin() Int8x16
+
+// ReduceMin reduces x by taking the minimum of all elements. The minimum is placed
+// in element 0 of the result; other elements are zeroed.
+//
+// Asm: VSMINV, CPU Feature: NEON
+func (x Int16x8) ReduceMin() Int16x8
+
+// ReduceMin reduces x by taking the minimum of all elements. The minimum is placed
+// in element 0 of the result; other elements are zeroed.
+//
+// Asm: VSMINV, CPU Feature: NEON
+func (x Int32x4) ReduceMin() Int32x4
+
+// ReduceMin reduces x by taking the minimum of all elements. The minimum is placed
+// in element 0 of the result; other elements are zeroed.
+//
+// Asm: VUMINV, CPU Feature: NEON
+func (x Uint8x16) ReduceMin() Uint8x16
+
+// ReduceMin reduces x by taking the minimum of all elements. The minimum is placed
+// in element 0 of the result; other elements are zeroed.
+//
+// Asm: VUMINV, CPU Feature: NEON
+func (x Uint16x8) ReduceMin() Uint16x8
+
+// ReduceMin reduces x by taking the minimum of all elements. The minimum is placed
+// in element 0 of the result; other elements are zeroed.
+//
+// Asm: VUMINV, CPU Feature: NEON
+func (x Uint32x4) ReduceMin() Uint32x4
+
+/* ReduceSum */
+
+// ReduceSum reduces x by summing all elements. The sum is placed in element 0
+// of the result; other elements are zeroed.
+//
+// Asm: VADDV, CPU Feature: NEON
+func (x Int8x16) ReduceSum() Int8x16
+
+// ReduceSum reduces x by summing all elements. The sum is placed in element 0
+// of the result; other elements are zeroed.
+//
+// Asm: VADDV, CPU Feature: NEON
+func (x Int16x8) ReduceSum() Int16x8
+
+// ReduceSum reduces x by summing all elements. The sum is placed in element 0
+// of the result; other elements are zeroed.
+//
+// Asm: VADDV, CPU Feature: NEON
+func (x Int32x4) ReduceSum() Int32x4
+
+// ReduceSum reduces x by summing all elements. The sum is placed in element 0
+// of the result; other elements are zeroed.
+//
+// Asm: VADDV, CPU Feature: NEON
+func (x Uint8x16) ReduceSum() Uint8x16
+
+// ReduceSum reduces x by summing all elements. The sum is placed in element 0
+// of the result; other elements are zeroed.
+//
+// Asm: VADDV, CPU Feature: NEON
+func (x Uint16x8) ReduceSum() Uint16x8
+
+// ReduceSum reduces x by summing all elements. The sum is placed in element 0
+// of the result; other elements are zeroed.
+//
+// Asm: VADDV, CPU Feature: NEON
+func (x Uint32x4) ReduceSum() Uint32x4
+
 /* Round */
 
 // Round rounds elements to the nearest integer, rounding ties to even.
