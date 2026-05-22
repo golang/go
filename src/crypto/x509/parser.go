@@ -11,6 +11,7 @@ import (
 	"crypto/ecdsa"
 	"crypto/ed25519"
 	"crypto/mldsa"
+	"crypto/mlkem"
 	"crypto/rsa"
 	"crypto/x509/pkix"
 	"encoding/asn1"
@@ -379,6 +380,19 @@ func parsePublicKey(keyData *publicKeyInfo) (any, error) {
 			return nil, errors.New("x509: X25519 key encoded with illegal parameters")
 		}
 		return ecdh.X25519().NewPublicKey(data)
+	case oid.Equal(oidPublicKeyMLKEM768):
+		// RFC 9935, Section 3
+		// > The parameters field of the AlgorithmIdentifier for the ML-KEM
+		// > public key MUST be absent.
+		if len(params.FullBytes) != 0 {
+			return nil, errors.New("x509: ML-KEM-768 key encoded with illegal parameters")
+		}
+		return mlkem.NewEncapsulationKey768(data)
+	case oid.Equal(oidPublicKeyMLKEM1024):
+		if len(params.FullBytes) != 0 {
+			return nil, errors.New("x509: ML-KEM-1024 key encoded with illegal parameters")
+		}
+		return mlkem.NewEncapsulationKey1024(data)
 	case oid.Equal(oidPublicKeyDSA):
 		der := cryptobyte.String(data)
 		y := new(big.Int)
