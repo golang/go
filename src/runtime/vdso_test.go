@@ -9,6 +9,7 @@ package runtime_test
 import (
 	"bytes"
 	"internal/asan"
+	"internal/goarch"
 	"internal/testenv"
 	"os"
 	"os/exec"
@@ -53,8 +54,17 @@ func TestUsingVDSO(t *testing.T) {
 		t.Skipf("skipping because Executable failed: %v", err)
 	}
 
-	t.Logf("GO_WANT_HELPER_PROCESS=1 %s -f -e clock_gettime %s -test.run=^TestUsingVDSO$", strace, exe)
-	cmd := testenv.Command(t, strace, "-f", "-e", "clock_gettime", exe, "-test.run=^TestUsingVDSO$")
+	traceFilter := "clock_gettime"
+
+	if goarch.PtrSize == 4 {
+		// Trace both clock_gettime and clock_gettime64: 32-bit Linux glibc uses
+		// the y2038-safe clock_gettime64 syscall, and strace's -e filter is an
+		// exact match, not a prefix.
+		traceFilter += ",clock_gettime64"
+	}
+
+	t.Logf("GO_WANT_HELPER_PROCESS=1 %s -f -e %s %s -test.run=^TestUsingVDSO$", strace, traceFilter, exe)
+	cmd := testenv.Command(t, strace, "-f", "-e", traceFilter, exe, "-test.run=^TestUsingVDSO$")
 	cmd = testenv.CleanCmdEnv(cmd)
 	cmd.Env = append(cmd.Env, "GO_WANT_HELPER_PROCESS=1")
 	out, err := cmd.CombinedOutput()
@@ -107,8 +117,8 @@ func TestUsingVDSO(t *testing.T) {
 			t.Skipf("can't verify VDSO status, C compiled failed: %v", err)
 		}
 
-		t.Logf("%s -f -e clock_gettime %s", strace, cexe)
-		cmd = testenv.Command(t, strace, "-f", "-e", "clock_gettime", cexe)
+		t.Logf("%s -f -e %s %s", strace, traceFilter, cexe)
+		cmd = testenv.Command(t, strace, "-f", "-e", traceFilter, cexe)
 		cmd = testenv.CleanCmdEnv(cmd)
 		out, err = cmd.CombinedOutput()
 		if len(out) > 0 {

@@ -139,8 +139,6 @@ func Deterministic(v bool) Options {
 // FormatNilSliceAsNull specifies that a nil Go slice should marshal as a
 // JSON null instead of the default representation as an empty JSON array
 // (or an empty JSON string in the case of ~[]byte).
-// Slice fields explicitly marked with `format:emitempty` still marshal
-// as an empty JSON array.
 //
 // This only affects marshaling and is ignored when unmarshaling.
 func FormatNilSliceAsNull(v bool) Options {
@@ -153,8 +151,6 @@ func FormatNilSliceAsNull(v bool) Options {
 
 // FormatNilMapAsNull specifies that a nil Go map should marshal as a
 // JSON null instead of the default representation as an empty JSON object.
-// Map fields explicitly marked with `format:emitempty` still marshal
-// as an empty JSON object.
 //
 // This only affects marshaling and is ignored when unmarshaling.
 func FormatNilMapAsNull(v bool) Options {

@@ -2720,7 +2720,7 @@ var invertEqNeqOp = map[Op]Op{
 // simplifyBlock simplifies some constant values in b and evaluates
 // branches to non-uniquely dominated successors of b.
 func simplifyBlock(sdom SparseTree, ft *factsTable, b *Block) {
-	for iv, v := range b.Values {
+	for _, v := range b.Values {
 		switch v.Op {
 		case OpStaticLECall:
 			if b.Func.pass.debug > 0 && len(v.Args) == 2 {
@@ -2873,14 +2873,6 @@ func simplifyBlock(sdom SparseTree, ft *factsTable, b *Block) {
 				ft.initLimitForNewValue(check)
 				v.reset(OpCondSelect)
 				v.AddArg3(y, zero, check)
-
-				// FIXME: workaround for go.dev/issues/76060
-				// we need to schedule the Neq before the CondSelect even tho
-				// scheduling is meaningless until we reach the schedule pass.
-				if b.Values[len(b.Values)-1] != check {
-					panic("unreachable; failed sanity check, new value isn't at the end of the block")
-				}
-				b.Values[iv], b.Values[len(b.Values)-1] = b.Values[len(b.Values)-1], b.Values[iv]
 
 				if b.Func.pass.debug > 0 {
 					b.Func.Warnl(v.Pos, "Rewrote Mul %v into CondSelect; %v is bool", v, x)

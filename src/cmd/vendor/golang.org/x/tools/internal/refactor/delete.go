@@ -439,7 +439,7 @@ Big:
 		inStmtList = true
 	case *ast.ForStmt:
 		use(parent.For, parent.Body.Lbrace)
-		// special handling, as init;cond;post BlockStmt is not a statment list
+		// special handling, as init;cond;post BlockStmt is not a statement list
 		if parent.Init != nil && parent.Cond != nil && stmt == parent.Init && lineOf(parent.Cond.Pos()) == lineOf(stmt.End()) {
 			rightStmt = parent.Cond.Pos()
 		} else if parent.Post != nil && parent.Cond != nil && stmt == parent.Post && lineOf(parent.Cond.End()) == lineOf(stmt.Pos()) {

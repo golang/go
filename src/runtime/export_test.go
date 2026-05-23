@@ -2114,3 +2114,7 @@ func GetScanAlloc() uintptr {
 	c := getMCache(getg().m)
 	return c.scanAlloc
 }
+
+func MallocGC(size uintptr, typ *abi.Type, needzero bool) unsafe.Pointer {
+	return mallocgc(size, typ, needzero)
+}

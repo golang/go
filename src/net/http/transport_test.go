@@ -4168,6 +4168,14 @@ func testTransportClosesBodyOnError(t *testing.T, mode testMode) {
 			return nil
 		}),
 	})
+	// Use 100-continue to ensure the server handler starts before the client
+	// delivers the error. Otherwise, an early error might cause the server to
+	// skip the handler, causing this test to hang waiting for readBody.
+	// This happens very rarely on HTTP/3 because QUIC stream resets are abrupt
+	// and can terminate the stream before headers are processed, whereas
+	// TCP-based HTTP/1 and HTTP/2 typically deliver headers in order before
+	// the reset signal.
+	req.Header.Set("Expect", "100-continue")
 	res, err := c.Do(req)
 	if res != nil {
 		defer res.Body.Close()

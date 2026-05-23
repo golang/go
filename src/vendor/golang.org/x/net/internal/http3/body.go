@@ -188,6 +188,7 @@ func (r *bodyReader) Read(p []byte) (n int, err error) {
 			}
 			var dec qpackDecoder
 			if err := dec.decode(r.st, func(_ indexType, name, value string) error {
+				name = textproto.CanonicalMIMEHeaderKey(textproto.TrimString(name))
 				if _, ok := r.trailer[name]; ok {
 					r.trailer.Add(name, value)
 				}

@@ -15,6 +15,7 @@ import (
 	"debug/elf"
 	"fmt"
 	"internal/abi"
+	"internal/buildcfg"
 	"io"
 	"iter"
 	"log"
@@ -91,6 +92,13 @@ type oReader struct {
 // Total number of defined symbols (package symbols, hashed symbols, and
 // non-package symbols).
 func (r *oReader) NAlldef() int { return r.ndef + r.nhashed64def + r.nhasheddef + r.NNonpkgdef() }
+
+// whether the symbol at local index li is a content hashed symbol
+func (r *oReader) IsContentHashed(li uint32) bool {
+	start := uint32(r.ndef + r.nhashed64def)
+	end := start + uint32(r.nhasheddef)
+	return start <= li && li < end
+}
 
 // objSym represents a symbol in an object file. It is a tuple of
 // the object and the symbol's local index.
@@ -230,18 +238,19 @@ type Loader struct {
 	outer []Sym // indexed by global index
 	sub   map[Sym]Sym
 
-	dynimplib   map[Sym]string      // stores Dynimplib symbol attribute
-	dynimpvers  map[Sym]string      // stores Dynimpvers symbol attribute
-	localentry  map[Sym]uint8       // stores Localentry symbol attribute
-	extname     map[Sym]string      // stores Extname symbol attribute
-	elfType     map[Sym]elf.SymType // stores elf type symbol property
-	elfSym      map[Sym]int32       // stores elf sym symbol property
-	localElfSym map[Sym]int32       // stores "local" elf sym symbol property
-	symPkg      map[Sym]string      // stores package for symbol, or library for shlib-derived syms
-	plt         map[Sym]int32       // stores dynimport for pe objects
-	got         map[Sym]int32       // stores got for pe objects
-	dynid       map[Sym]int32       // stores Dynid for symbol
-	weakBinding map[Sym]bool        // stores whether a symbol has a weak binding
+	dynimplib     map[Sym]string      // stores Dynimplib symbol attribute
+	dynimpvers    map[Sym]string      // stores Dynimpvers symbol attribute
+	localentry    map[Sym]uint8       // stores Localentry symbol attribute
+	extname       map[Sym]string      // stores Extname symbol attribute
+	elfType       map[Sym]elf.SymType // stores elf type symbol property
+	elfSym        map[Sym]int32       // stores elf sym symbol property
+	localElfSym   map[Sym]int32       // stores "local" elf sym symbol property
+	symPkg        map[Sym]string      // stores package for symbol, or library for shlib-derived syms
+	plt           map[Sym]int32       // stores dynimport for pe objects
+	got           map[Sym]int32       // stores got for pe objects
+	dynid         map[Sym]int32       // stores Dynid for symbol
+	weakBinding   map[Sym]bool        // stores whether a symbol has a weak binding
+	contentHashed map[Sym]bool        // whether a symbol is a content hashed symbol, for external symbol only
 
 	relocVariant map[relocId]sym.RelocVariant // stores variant relocs
 
@@ -331,6 +340,7 @@ func NewLoader(flags uint32, reporter *ErrorReporter) *Loader {
 		attrCgoExportDynamic: make(map[Sym]struct{}),
 		attrCgoExportStatic:  make(map[Sym]struct{}),
 		deferReturnTramp:     make(map[Sym]bool),
+		contentHashed:        make(map[Sym]bool),
 		extStaticSyms:        make(map[nameVer]Sym),
 		builtinSyms:          make([]Sym, nbuiltin),
 		flags:                flags,
@@ -814,6 +824,14 @@ func (l *Loader) SymVersion(i Sym) int {
 	}
 	r, li := l.toLocal(i)
 	return abiToVer(r.Sym(li).ABI(), r.version)
+}
+
+func (l *Loader) IsContentHashed(i Sym) bool {
+	if l.IsExternal(i) {
+		return l.contentHashed[i]
+	}
+	r, li := l.toLocal(i)
+	return r.IsContentHashed(li)
 }
 
 func (l *Loader) IsFileLocal(i Sym) bool {
@@ -2351,7 +2369,7 @@ func loadObjRefs(l *Loader, r *oReader, arch *sys.Arch) {
 		v := abiToVer(osym.ABI(), r.version)
 		gi := l.LookupOrCreateSym(name, v)
 		r.syms[ndef+i] = gi
-		if osym.IsLinkname() || osym.IsLinknameStd() {
+		if osym.IsLinkname() || osym.IsLinknameStd() || r.FromAssembly() {
 			// Check if a linkname reference is allowed.
 			// Only check references (pull), not definitions (push),
 			// so push is always allowed.
@@ -2409,8 +2427,6 @@ func abiToVer(abi uint16, localSymVersion int) int {
 // If a name is in this map, it is allowed only in listed packages,
 // even if it has a linknamed definition.
 var blockedLinknames = map[string][]string{
-	// coroutines
-	"runtime.newcoro": {"iter"},
 	// fips info
 	"go:fipsinfo": {"crypto/internal/fips140/check"},
 	// New internal linknames in Go 1.24
@@ -2536,6 +2552,27 @@ func (l *Loader) checkLinkname(refpkg *oReader, name string, s Sym) {
 		return
 	}
 	osym := r.Sym(li)
+	if r.FromAssembly() && !osym.IsLinknameStd() && !osym.IsLinkname() {
+		if strings.HasPrefix(name, pkg) {
+			// Allow if by name it is pushed to pkg, e.g. in package a,
+			// an assembly function is defined as b.F, then it is allowed
+			// to be used in package b.
+			return
+		}
+		// For an assembly symbol, check if there is a linkname applied
+		// to its ABI wrapper.
+		if !buildcfg.Experiment.RegabiWrappers {
+			// If ABI wrapper is not enabled (i.e. non-regabi platform),
+			// permit for now, as there is no good way to check.
+			return
+		}
+		otherABI := 1 - abiToVer(osym.ABI(), r.version) // for now, we only have ABI 0 and 1
+		w := l.Lookup(name, otherABI)                   // TODO: use an aux symbol instead of name lookup?
+		if w != 0 {
+			r, li = l.toLocal(w)
+			osym = r.Sym(li)
+		}
+	}
 	if osym.IsLinknameStd() {
 		// It is pushed with linknamestd. Allow only pulls from the
 		// standard library.
@@ -2543,12 +2580,8 @@ func (l *Loader) checkLinkname(refpkg *oReader, name string, s Sym) {
 			return
 		}
 	}
-	if osym.IsLinkname() || osym.ABIWrapper() {
+	if osym.IsLinkname() {
 		// Allow if the def has a linkname (push).
-		// ABI wrapper usually wraps an assembly symbol, a linknamed symbol,
-		// or an external symbol, or provide access of a Go symbol to assembly.
-		// For now, allow ABI wrappers.
-		// TODO: check the wrapped symbol?
 		return
 	}
 	error()
@@ -2637,6 +2670,9 @@ func (l *Loader) cloneToExternal(symIdx Sym) *extSymPayload {
 	// Some attributes were encoded in the object file. Copy them over.
 	l.SetAttrDuplicateOK(symIdx, r.Sym(li).Dupok())
 	l.SetAttrShared(symIdx, r.Shared())
+	if r.IsContentHashed(li) {
+		l.contentHashed[symIdx] = true
+	}
 
 	return pp
 }

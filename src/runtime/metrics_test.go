@@ -1204,6 +1204,7 @@ func TestRuntimeLockMetricsAndProfile(t *testing.T) {
 						minTicks[role][n] = runtime.Cputicks() - t1
 						break
 					}
+					runtime.Usleep(uint32(1 + delayMicros/8))
 				}
 				runtime.Unlock(mu)
 				needContention.Store(int64(n - 1))

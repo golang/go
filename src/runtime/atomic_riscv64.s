@@ -6,5 +6,5 @@
 
 // func publicationBarrier()
 TEXT ·publicationBarrier(SB),NOSPLIT|NOFRAME,$0-0
-	FENCE
+	FENCE	W, W
 	RET

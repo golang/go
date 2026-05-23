@@ -392,8 +392,8 @@ func (q *P256Point) Select(p1, p2 *P256Point, cond int) *P256Point {
 	return q
 }
 
-// p256OrdElement is a P-256 scalar field element in [0, ord(G)-1] in the
-// Montgomery domain (with R 2²⁵⁶) as four uint64 limbs in little-endian order.
+// p256OrdElement is a P-256 scalar field element in [0, ord(G)-1]
+// as four uint64 limbs in little-endian order.
 type p256OrdElement [4]uint64
 
 // SetBytes sets s to the big-endian value of x, reducing it as necessary.

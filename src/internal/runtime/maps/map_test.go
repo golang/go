@@ -57,6 +57,56 @@ func TestMapPut(t *testing.T) {
 	}
 }
 
+func TestSmallMapGrow(t *testing.T) {
+	m, typ := maps.NewTestMap[uint32, uint64](8)
+
+	key := uint32(0)
+	elem := uint64(256 + 0)
+
+	for i := 0; i < 8; i++ {
+		key += 1
+		elem += 1
+		m.Put(typ, unsafe.Pointer(&key), unsafe.Pointer(&elem))
+
+		if maps.DebugLog {
+			fmt.Printf("After put %d: %v\n", key, m)
+		}
+	}
+
+	if m.TableCount() != 0 {
+		t.Errorf("TableCount() got %d want 0", m.TableCount())
+	}
+
+	key = uint32(0)
+	elem = uint64(256 + 10)
+
+	for i := 0; i < 8; i++ {
+		key += 1
+		elem += 1
+		m.Put(typ, unsafe.Pointer(&key), unsafe.Pointer(&elem))
+
+		if maps.DebugLog {
+			fmt.Printf("After put %d: %v\n", key, m)
+		}
+	}
+
+	if m.TableCount() != 0 {
+		t.Errorf("TableCount() got %d want 0", m.TableCount())
+	}
+
+	key += 1
+	elem += 1
+	m.Put(typ, unsafe.Pointer(&key), unsafe.Pointer(&elem))
+
+	if maps.DebugLog {
+		fmt.Printf("After put %d: %v\n", key, m)
+	}
+
+	if m.TableCount() != 1 {
+		t.Errorf("TableCount() got %d want 1", m.TableCount())
+	}
+}
+
 // Grow enough to cause a table split.
 func TestMapSplit(t *testing.T) {
 	m, typ := maps.NewTestMap[uint32, uint64](0)

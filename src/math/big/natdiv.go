@@ -676,16 +676,19 @@ func (q nat) divBasic(stk *stack, u, v nat) {
 			ujn2 := u[j+n-2]
 			for greaterThan(x1, x2, rhat, ujn2) { // x1x2 > r̂ u[j+n-2]
 				qhat--
-				prevRhat := rhat
 				rhat += vn1
 				// If r̂  overflows, then
 				// r̂ u[j+n-2]v[n-1] is now definitely > x1 x2.
-				if rhat < prevRhat {
+				if rhat < vn1 {
 					break
 				}
-				// TODO(rsc): No need for a full mulWW.
-				// x2 += vn2; if x2 overflows, x1++
-				x1, x2 = mulWW(qhat, vn2)
+
+				// Maintain (x1, x2) = qhat * vn2.
+				// Since we did qhat-- we need to do (x1, x2) -= vn2.
+				if vn2 > x2 {
+					x1--
+				}
+				x2 -= vn2
 			}
 		}
 

@@ -4,15 +4,13 @@
 
 #include "textflag.h"
 
-// func MemHash32(p unsafe.Pointer, h uintptr) uintptr
-TEXT ·MemHash32<ABIInternal>(SB),NOSPLIT|NOFRAME,$0-24
-	MOVB	·UseAeshash(SB), R10
-	CBZ	R10, noaes
+// func memHash32AES(k uint32, h uintptr) uintptr
+TEXT ·memHash32AES<ABIInternal>(SB),NOSPLIT|NOFRAME,$0-24
 	MOVD	$·aeskeysched+0(SB), R3
 
 	VEOR	V0.B16, V0.B16, V0.B16
 	VLD1	(R3), [V2.B16]
-	VLD1	(R0), V0.S[2]
+	VMOV	R0, V0.S[2]
 	VMOV	R1, V0.D[0]
 
 	AESE	V2.B16, V0.B16
@@ -23,18 +21,14 @@ TEXT ·MemHash32<ABIInternal>(SB),NOSPLIT|NOFRAME,$0-24
 
 	VMOV	V0.D[0], R0
 	RET
-noaes:
-	B	·memHash32Fallback<ABIInternal>(SB)
 
-// func MemHash64(p unsafe.Pointer, h uintptr) uintptr
-TEXT ·MemHash64<ABIInternal>(SB),NOSPLIT|NOFRAME,$0-24
-	MOVB	·UseAeshash(SB), R10
-	CBZ	R10, noaes
+// func memHash64AES(k uint64, h uintptr) uintptr
+TEXT ·memHash64AES<ABIInternal>(SB),NOSPLIT|NOFRAME,$0-24
 	MOVD	$·aeskeysched+0(SB), R3
 
 	VEOR	V0.B16, V0.B16, V0.B16
 	VLD1	(R3), [V2.B16]
-	VLD1	(R0), V0.D[1]
+	VMOV	R0, V0.D[1]
 	VMOV	R1, V0.D[0]
 
 	AESE	V2.B16, V0.B16
@@ -45,31 +39,13 @@ TEXT ·MemHash64<ABIInternal>(SB),NOSPLIT|NOFRAME,$0-24
 
 	VMOV	V0.D[0], R0
 	RET
-noaes:
-	B	·memHash64Fallback<ABIInternal>(SB)
 
-// func MemHash(p unsafe.Pointer, h, size uintptr) uintptr
-TEXT ·MemHash<ABIInternal>(SB),NOSPLIT|NOFRAME,$0-32
-	MOVB	·UseAeshash(SB), R10
-	CBZ	R10, noaes
-	B	·aeshashbody<>(SB)
-noaes:
-	B	·memHashFallback<ABIInternal>(SB)
-
-// func StrHash(p unsafe.Pointer, h uintptr) uintptr
-TEXT ·StrHash<ABIInternal>(SB),NOSPLIT|NOFRAME,$0-24
-	MOVB	·UseAeshash(SB), R10
-	CBZ	R10, noaes
-	LDP	(R0), (R0, R2)	// string data / length
-	B	·aeshashbody<>(SB)
-noaes:
-	B	·strHashFallback<ABIInternal>(SB)
-
-// R0: data
-// R1: seed data
-// R2: length
-// At return, R0 = return value
-TEXT ·aeshashbody<>(SB),NOSPLIT|NOFRAME,$0
+// func memHashAES(p unsafe.Pointer, h, size uintptr) uintptr
+TEXT ·memHashAES<ABIInternal>(SB),NOSPLIT|NOFRAME,$0-32
+	// R0: data
+	// R1: seed data
+	// R2: length
+	// At return, R0 = return value
 	VEOR	V30.B16, V30.B16, V30.B16
 	VMOV	R1, V30.D[0]
 	VMOV	R2, V30.D[1] // load length into seed

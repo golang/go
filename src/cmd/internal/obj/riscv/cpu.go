@@ -1454,6 +1454,30 @@ const (
 	AVMV4RV
 	AVMV8RV
 
+	// 32.2.1: Vector Basic Bit-manipulation (Zvbb)
+	AVANDNVV
+	AVANDNVX
+	AVBREVV
+	AVBREV8V
+	AVREV8V
+	AVCLZV
+	AVCTZV
+	AVCPOPV
+	AVROLVV
+	AVROLVX
+	AVRORVV
+	AVRORVX
+	AVRORVI
+	AVWSLLVV
+	AVWSLLVX
+	AVWSLLVI
+
+	// 32.2.2: Vector Carryless Multiplication (Zvbc)
+	AVCLMULVV
+	AVCLMULVX
+	AVCLMULHVV
+	AVCLMULHVX
+
 	//
 	// Privileged ISA (version 20240411)
 	//

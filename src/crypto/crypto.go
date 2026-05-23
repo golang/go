@@ -60,6 +60,8 @@ func (h Hash) String() string {
 		return "BLAKE2b-384"
 	case BLAKE2b_512:
 		return "BLAKE2b-512"
+	case MLDSAMu:
+		return "ML-DSA μ message representative"
 	default:
 		return "unknown hash value " + strconv.Itoa(int(h))
 	}
@@ -85,6 +87,14 @@ const (
 	BLAKE2b_256                 // import golang.org/x/crypto/blake2b
 	BLAKE2b_384                 // import golang.org/x/crypto/blake2b
 	BLAKE2b_512                 // import golang.org/x/crypto/blake2b
+
+	// MLDSAMu is a sentinel value for a [pre-hashed μ message representative].
+	// It has no implementation, but is used as a [SignerOpts.HashFunc] return
+	// value for [crypto/mldsa.PrivateKey.Sign].
+	//
+	// [pre-hashed μ message representative]: https://www.rfc-editor.org/rfc/rfc9881.html#externalmu
+	MLDSAMu
+
 	maxHash
 )
 
@@ -108,6 +118,7 @@ var digestSizes = []uint8{
 	BLAKE2b_256: 32,
 	BLAKE2b_384: 48,
 	BLAKE2b_512: 64,
+	MLDSAMu:     64,
 }
 
 // Size returns the length, in bytes, of a digest resulting from the given hash
@@ -131,7 +142,7 @@ func (h Hash) New() hash.Hash {
 			return f()
 		}
 	}
-	panic("crypto: requested hash function #" + strconv.Itoa(int(h)) + " is unavailable")
+	panic("crypto: requested hash function unavailable: " + h.String())
 }
 
 // Available reports whether the given hash function is linked into the binary.
@@ -145,6 +156,9 @@ func (h Hash) Available() bool {
 func RegisterHash(h Hash, f func() hash.Hash) {
 	if h == 0 || h >= maxHash {
 		panic("crypto: RegisterHash of unknown hash function")
+	}
+	if h == MLDSAMu {
+		panic("crypto: cannot RegisterHash for MLDSAMu")
 	}
 	hashes[h] = f
 }
@@ -246,12 +260,21 @@ func SignMessage(signer Signer, rand io.Reader, msg []byte, opts SignerOpts) (si
 	if ms, ok := signer.(MessageSigner); ok {
 		return ms.SignMessage(rand, msg, opts)
 	}
-	if opts.HashFunc() != 0 {
-		h := opts.HashFunc().New()
+	if hash := opts.HashFunc(); hash != 0 {
+		if !hash.Available() {
+			return nil, hashUnavailableError(hash)
+		}
+		h := hash.New()
 		h.Write(msg)
 		msg = h.Sum(nil)
 	}
 	return signer.Sign(rand, msg, opts)
+}
+
+type hashUnavailableError Hash
+
+func (h hashUnavailableError) Error() string {
+	return "crypto: requested hash function unavailable: " + Hash(h).String()
 }
 
 // Decapsulator is an interface for an opaque private KEM key that can be used for

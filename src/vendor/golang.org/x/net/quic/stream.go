@@ -815,7 +815,7 @@ func (s *Stream) handleData(off int64, b []byte, fin bool) error {
 		// sending us different data than we received the first time.
 		// We currently don't bother.)
 		newOff := min(end, s.inset[0].end)
-		b = b[end-newOff:]
+		b = b[newOff-off:]
 		off = newOff
 	}
 	s.in.writeAt(b, off)
@@ -1013,7 +1013,7 @@ func (s *Stream) appendOutFramesLocked(w *packetWriter, pnum packetNumber, pto b
 	if s.outreset.isSet() {
 		// RESET_STREAM
 		if s.outreset.shouldSendPTO(pto) {
-			if !w.appendResetStreamFrame(s.id, s.outresetcode, min(s.outwin, s.out.end)) {
+			if !w.appendResetStreamFrame(s.id, s.outresetcode, s.outmaxsent) {
 				return false
 			}
 			s.outreset.setSent(pnum)

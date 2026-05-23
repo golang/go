@@ -21,41 +21,38 @@
 // Following [utf8.DecodeRune], each byte of an invalid UTF-8 sequence
 // is treated as if it encoded utf8.RuneError (U+FFFD).
 //
-// There are 16 methods of [Regexp] that match a regular expression and identify
+// There are 24 methods of [Regexp] that match a regular expression and identify
 // the matched text. Their names are matched by this regular expression:
 //
-//	Find(All)?(String)?(Submatch)?(Index)?
+//	(All|Find|FindAll)(String)?(Submatch)?(Index)?
 //
-// If 'All' is present, the routine matches successive non-overlapping
-// matches of the entire expression. Empty matches abutting a preceding
-// match are ignored. The return value is a slice containing the successive
-// return values of the corresponding non-'All' routine. These routines take
-// an extra integer argument, n. If n >= 0, the function returns at most n
-// matches/submatches; otherwise, it returns all of them.
+// The ‘All’ variants return an iterator over successive non-overlapping
+// matches of the entire expression. The ‘FindAll’ variants return a slice
+// of those matches instead. Empty matches abutting a preceding
+// match are ignored. The ‘FindAll’ variants take an extra integer argument, n.
+// If n >= 0, the function returns at most n matches/submatches;
+// otherwise, it returns all of them.
 //
-// If 'String' is present, the argument is a string; otherwise it is a slice
-// of bytes; return values are adjusted as appropriate.
+// The ‘Find’ variants return only the first match that All or FindAll would return.
 //
-// If 'Submatch' is present, the return value is a slice identifying the
-// successive submatches of the expression. Submatches are matches of
-// parenthesized subexpressions (also known as capturing groups) within the
-// regular expression, numbered from left to right in order of opening
+// If ‘String’ is present, the argument is a string; otherwise it is a []byte.
+//
+// By default, each returned match is denoted by the substring matching the
+// regular expression, of type string or []byte according to the type of the argument.
+// If ‘Submatch’ is present, each match is represented instead by a slice of
+// the substrings matching the regular expression's parenthesized subexpressions
+// (also known as capturing groups), numbered from left to right in order of opening
 // parenthesis. Submatch 0 is the match of the entire expression, submatch 1 is
 // the match of the first parenthesized subexpression, and so on.
-//
-// If 'Index' is present, matches and submatches are identified by byte index
-// pairs within the input string: result[2*n:2*n+2] identifies the indexes of
-// the nth submatch. The pair for n==0 identifies the match of the entire
-// expression. If 'Index' is not present, the match is identified by the text
-// of the match/submatch. If an index is negative or text is nil, it means that
-// subexpression did not match any string in the input. For 'String' versions
+// If ‘Index’ is present, each substring is instead denoted by a pair of byte indexes
+// within the input string. If an index is negative or substring is nil, it means that
+// the subexpression did not match any string in the input. For ‘String’ versions,
 // an empty string means either no match or an empty match.
 //
 // There is also a subset of the methods that can be applied to text read from
 // an [io.RuneReader]: [Regexp.MatchReader], [Regexp.FindReaderIndex],
 // [Regexp.FindReaderSubmatchIndex].
-//
-// This set may grow. Note that regular expression matches may need to
+// Note that regular expression matches may need to
 // examine text beyond the text returned by a match, so the methods that
 // match text from an [io.RuneReader] may read arbitrarily far into the input
 // before returning.
@@ -66,7 +63,9 @@ package regexp
 import (
 	"bytes"
 	"io"
+	"iter"
 	"regexp/syntax"
+	"slices"
 	"strconv"
 	"strings"
 	"sync"
@@ -215,7 +214,7 @@ func compile(expr string, mode syntax.Flags, longest bool) (*Regexp, error) {
 	return regexp, nil
 }
 
-// Pools of *machine for use during (*Regexp).doExecute,
+// Pools of *machine for use during (*Regexp).find,
 // split up by the size of the execution queues.
 // matchPool[i] machines have queue size matchSize[i].
 // On a 64-bit system each queue entry is 16 bytes,
@@ -596,7 +595,7 @@ func (re *Regexp) replaceAll(bsrc []byte, src string, nmatch int, repl func(dst 
 
 	var dstCap [2]int
 	for searchPos <= endPos {
-		a := re.doExecute(nil, bsrc, src, searchPos, nmatch, dstCap[:0])
+		a := re.find(nil, bsrc, src, searchPos, nmatch, dstCap[:0])
 		if len(a) == 0 {
 			break // no more matches
 		}
@@ -743,136 +742,408 @@ func (re *Regexp) pad(a []int) []int {
 	return a
 }
 
-// allMatches calls deliver at most n times
-// with the location of successive matches in the input text.
+// matches yields the location of successive matches in the input text.
 // The input text is b if non-nil, otherwise s.
-func (re *Regexp) allMatches(s string, b []byte, n int, deliver func([]int)) {
-	var end int
-	if b == nil {
-		end = len(s)
-	} else {
-		end = len(b)
-	}
-
-	for pos, i, prevMatchEnd := 0, 0, -1; i < n && pos <= end; {
-		matches := re.doExecute(nil, b, s, pos, re.prog.NumCap, nil)
-		if len(matches) == 0 {
-			break
+func (re *Regexp) matches(s string, b []byte, max, ncap int) iter.Seq[[]int] {
+	return func(yield func([]int) bool) {
+		if max == 0 {
+			return
 		}
-
-		accept := true
-		if matches[1] == pos {
-			// We've found an empty match.
-			if matches[0] == prevMatchEnd {
-				// We don't allow an empty match right
-				// after a previous match, so ignore it.
-				accept = false
-			}
-			var width int
-			if b == nil {
-				is := inputString{str: s}
-				_, width = is.step(pos)
-			} else {
-				ib := inputBytes{str: b}
-				_, width = ib.step(pos)
-			}
-			if width > 0 {
-				pos += width
-			} else {
-				pos = end + 1
-			}
+		var end int
+		if b == nil {
+			end = len(s)
 		} else {
-			pos = matches[1]
+			end = len(b)
 		}
-		prevMatchEnd = matches[1]
+		var matches []int
+		for pos, prevMatchEnd := 0, -1; pos <= end; {
+			matches = re.find(nil, b, s, pos, ncap, matches[:0])
+			if len(matches) == 0 {
+				break
+			}
 
-		if accept {
-			deliver(re.pad(matches))
-			i++
+			accept := true
+			if matches[1] == pos {
+				// We've found an empty match.
+				if matches[0] == prevMatchEnd {
+					// We don't allow an empty match right
+					// after a previous match, so ignore it.
+					accept = false
+				}
+				var width int
+				if b == nil {
+					is := inputString{str: s}
+					_, width = is.step(pos)
+				} else {
+					ib := inputBytes{str: b}
+					_, width = ib.step(pos)
+				}
+				if width > 0 {
+					pos += width
+				} else {
+					pos = end + 1
+				}
+			} else {
+				pos = matches[1]
+			}
+			prevMatchEnd = matches[1]
+
+			if accept {
+				if !yield(re.pad(matches)) {
+					return
+				}
+				if max > 0 {
+					if max--; max == 0 {
+						return
+					}
+				}
+			}
 		}
 	}
 }
 
-// Find returns a slice holding the text of the leftmost match in b of the regular expression.
-// A return value of nil indicates no match.
+// Find returns the text of the leftmost match for re in b.
+// The return value is nil for no match.
 func (re *Regexp) Find(b []byte) []byte {
 	var dstCap [2]int
-	a := re.doExecute(nil, b, "", 0, 2, dstCap[:0])
+	a := re.find(nil, b, "", 0, 2, dstCap[:0])
 	if a == nil {
 		return nil
 	}
 	return b[a[0]:a[1]:a[1]]
 }
 
-// FindIndex returns a two-element slice of integers defining the location of
-// the leftmost match in b of the regular expression. The match itself is at
-// b[loc[0]:loc[1]].
-// A return value of nil indicates no match.
-func (re *Regexp) FindIndex(b []byte) (loc []int) {
-	a := re.doExecute(nil, b, "", 0, 2, nil)
-	if a == nil {
-		return nil
-	}
-	return a[0:2]
-}
-
-// FindString returns a string holding the text of the leftmost match in s of the regular
-// expression. If there is no match, the return value is an empty string,
-// but it will also be empty if the regular expression successfully matches
-// an empty string. Use [Regexp.FindStringIndex] or [Regexp.FindStringSubmatch] if it is
-// necessary to distinguish these cases.
+// FindString returns the text of the leftmost match for re in s.
+// The return value is the empty string both for an empty match and for no match.
+// To distinguish those two cases, use [Regexp.FindStringIndex] or [Regexp.FindStringSubmatch].
 func (re *Regexp) FindString(s string) string {
 	var dstCap [2]int
-	a := re.doExecute(nil, nil, s, 0, 2, dstCap[:0])
+	a := re.find(nil, nil, s, 0, 2, dstCap[:0])
 	if a == nil {
 		return ""
 	}
 	return s[a[0]:a[1]]
 }
 
-// FindStringIndex returns a two-element slice of integers defining the
-// location of the leftmost match in s of the regular expression. The match
-// itself is at s[loc[0]:loc[1]].
-// A return value of nil indicates no match.
-func (re *Regexp) FindStringIndex(s string) (loc []int) {
-	a := re.doExecute(nil, nil, s, 0, 2, nil)
-	if a == nil {
+// FindIndex returns the location of the leftmost match for re in b.
+// The match itself is at b[m[0]:m[1]].
+// The return value is nil for no match.
+func (re *Regexp) FindIndex(b []byte) (m []int) {
+	m = re.find(nil, b, "", 0, 2, nil)
+	if m == nil {
 		return nil
 	}
-	return a[0:2]
+	return m[0:2]
 }
 
-// FindReaderIndex returns a two-element slice of integers defining the
-// location of the leftmost match of the regular expression in text read from
-// the [io.RuneReader]. The match text was found in the input stream at
-// byte offset loc[0] through loc[1]-1.
-// A return value of nil indicates no match.
-func (re *Regexp) FindReaderIndex(r io.RuneReader) (loc []int) {
-	a := re.doExecute(r, nil, "", 0, 2, nil)
-	if a == nil {
+// FindStringIndex returns the location of the leftmost match for re in s.
+// The match itself is at s[m[0]:m[1]].
+// The return value is nil for no match.
+func (re *Regexp) FindStringIndex(s string) (m []int) {
+	m = re.find(nil, nil, s, 0, 2, nil)
+	if m == nil {
 		return nil
 	}
-	return a[0:2]
+	return m[0:2]
 }
 
-// FindSubmatch returns a slice of slices holding the text of the leftmost
-// match of the regular expression in b and the matches, if any, of its
-// subexpressions, as defined by the 'Submatch' descriptions in the package
-// comment.
-// A return value of nil indicates no match.
+// FindReaderIndex returns the location of the leftmost match for re in r.
+// The match starts at byte index m[0] and ends just before byte index m[1].
+// The return value is nil for no match.
+//
+// FindReaderIndex may read arbitrarily far from r,
+// including reading beyond the returned match.
+func (re *Regexp) FindReaderIndex(r io.RuneReader) (m []int) {
+	m = re.find(r, nil, "", 0, 2, nil)
+	if m == nil {
+		return nil
+	}
+	return m[0:2]
+}
+
+// FindSubmatch returns the first match for re in b, including submatches.
+// The overall match is m[0], the first submatch is m[1], and so on.
+// The return value is nil for no match.
 func (re *Regexp) FindSubmatch(b []byte) [][]byte {
 	var dstCap [4]int
-	a := re.doExecute(nil, b, "", 0, re.prog.NumCap, dstCap[:0])
+	m := re.find(nil, b, "", 0, re.prog.NumCap, dstCap[:0])
+	if m == nil {
+		return nil
+	}
+	sub := make([][]byte, 1+re.numSubexp)
+	for i := range sub {
+		if 2*i < len(m) && m[2*i] >= 0 {
+			sub[i] = b[m[2*i]:m[2*i+1]:m[2*i+1]]
+		}
+	}
+	return sub
+}
+
+// FindStringSubmatch returns the first match for re in s, including submatches.
+// The overall match is s[0], the first submatch is s[1], and so on.
+// The return value is nil for no match.
+func (re *Regexp) FindStringSubmatch(s string) []string {
+	var dstCap [4]int
+	a := re.find(nil, nil, s, 0, re.prog.NumCap, dstCap[:0])
 	if a == nil {
 		return nil
 	}
-	ret := make([][]byte, 1+re.numSubexp)
+	ret := make([]string, 1+re.numSubexp)
 	for i := range ret {
 		if 2*i < len(a) && a[2*i] >= 0 {
-			ret[i] = b[a[2*i]:a[2*i+1]:a[2*i+1]]
+			ret[i] = s[a[2*i]:a[2*i+1]]
 		}
 	}
 	return ret
+}
+
+// FindSubmatchIndex returns the first match for re in b, including submatches.
+// The overall match is b[m[0]:m[1]], the first submatch is b[m[2]:m[3]], and so on.
+// The return value is nil for no match.
+func (re *Regexp) FindSubmatchIndex(b []byte) []int {
+	return re.pad(re.find(nil, b, "", 0, re.prog.NumCap, nil))
+}
+
+// FindStringSubmatchIndex returns the first match for re in s, including submatches.
+// The overall match is s[m[0]:m[1]], the first submatch is s[m[2]:m[3]], and so on.
+// The return value is nil for no match.
+func (re *Regexp) FindStringSubmatchIndex(s string) []int {
+	return re.pad(re.find(nil, nil, s, 0, re.prog.NumCap, nil))
+}
+
+// FindReaderSubmatchIndex returns the first match for re in r, including submatches.
+// The overall match is at byte index m[0] up to m[1],
+// the first submatch is at byte index m[2] up to m[3], and so on.
+// The return value is nil for no match.
+//
+// FindReaderSubmatchIndex may read arbitrarily far from r,
+// including reading beyond the returned match.
+func (re *Regexp) FindReaderSubmatchIndex(r io.RuneReader) []int {
+	return re.pad(re.find(r, nil, "", 0, re.prog.NumCap, nil))
+}
+
+// all returns at most n matches for re in b.
+func (re *Regexp) all(b []byte, n int) iter.Seq[[]byte] {
+	return func(yield func([]byte) bool) {
+		for m := range re.matches("", b, n, 2) {
+			if !yield(b[m[0]:m[1]:m[1]]) {
+				break
+			}
+		}
+	}
+}
+
+// allString returns at most n matches for re in s.
+func (re *Regexp) allString(s string, n int) iter.Seq[string] {
+	return func(yield func(string) bool) {
+		for m := range re.matches(s, nil, n, 2) {
+			if !yield(s[m[0]:m[1]]) {
+				break
+			}
+		}
+	}
+}
+
+// allIndex returns the locations of at most n matches for re in b.
+func (re *Regexp) allIndex(b []byte, n int) iter.Seq[[]int] {
+	return func(yield func([]int) bool) {
+		for m := range re.matches("", b, n, 2) {
+			if !yield([]int{m[0], m[1]}) {
+				break
+			}
+		}
+	}
+}
+
+// allStringIndex returns the locations of at most n matches for re in s.
+func (re *Regexp) allStringIndex(s string, n int) iter.Seq[[]int] {
+	return func(yield func([]int) bool) {
+		for m := range re.matches(s, nil, n, 2) {
+			if !yield([]int{m[0], m[1]}) {
+				break
+			}
+		}
+	}
+}
+
+// allSubmatch returns the locations of at most n matches for re in b,
+// including submatch locations.
+func (re *Regexp) allSubmatch(b []byte, n int) iter.Seq[[][]byte] {
+	return func(yield func([][]byte) bool) {
+		for m := range re.matches("", b, n, re.prog.NumCap) {
+			sub := make([][]byte, len(m)/2)
+			for i := range sub {
+				if m[2*i] >= 0 {
+					sub[i] = b[m[2*i]:m[2*i+1]:m[2*i+1]]
+				}
+			}
+			if !yield(sub) {
+				break
+			}
+		}
+	}
+}
+
+// allStringSubmatch returns the locations of at most n matches for re in s,
+// including submatch locations.
+func (re *Regexp) allStringSubmatch(s string, n int) iter.Seq[[]string] {
+	return func(yield func([]string) bool) {
+		for m := range re.matches(s, nil, n, re.prog.NumCap) {
+			sub := make([]string, len(m)/2)
+			for i := range sub {
+				if m[2*i] >= 0 {
+					sub[i] = s[m[2*i]:m[2*i+1]]
+				}
+			}
+			if !yield(sub) {
+				break
+			}
+		}
+	}
+}
+
+// allSubmatchIndex returns the locations of at most n matches for re in b,
+// including submatch locations.
+func (re *Regexp) allSubmatchIndex(b []byte, n int) iter.Seq[[]int] {
+	return func(yield func([]int) bool) {
+		for m := range re.matches("", b, n, re.prog.NumCap) {
+			if !yield(slices.Clone(m)) {
+				break
+			}
+		}
+	}
+}
+
+// allStringSubmatchIndex returns the locations of at most n matches for re in s,
+// including submatch locations.
+func (re *Regexp) allStringSubmatchIndex(s string, n int) iter.Seq[[]int] {
+	return func(yield func([]int) bool) {
+		for m := range re.matches(s, nil, n, re.prog.NumCap) {
+			if !yield(slices.Clone(m)) {
+				break
+			}
+		}
+	}
+}
+
+// All returns all the matches for re in b.
+func (re *Regexp) _All(b []byte) iter.Seq[[]byte] {
+	return re.all(b, -1)
+}
+
+// AllString returns all the matches for re in s.
+func (re *Regexp) _AllString(s string) iter.Seq[string] {
+	return re.allString(s, -1)
+}
+
+// AllIndex returns the locations of all matches for re in b.
+func (re *Regexp) _AllIndex(b []byte) iter.Seq[[]int] {
+	return re.allIndex(b, -1)
+}
+
+// AllStringIndex returns the locations of all matches for re in s.
+func (re *Regexp) _AllStringIndex(s string) iter.Seq[[]int] {
+	return re.allStringIndex(s, -1)
+}
+
+// AllSubmatch returns the locations of all matches for re in b,
+// including submatch locations.
+// In each returned match m, the overall match is m[0],
+// the first submatch is m[1], and so on.
+func (re *Regexp) _AllSubmatch(b []byte) iter.Seq[[][]byte] {
+	return re.allSubmatch(b, -1)
+}
+
+// AllStringSubmatch returns the locations of all matches for re in s,
+// including submatch locations.
+// In each returned match m, m[0] is the overall match,
+// m[1] is the first submatch, and so on.
+func (re *Regexp) _AllStringSubmatch(s string) iter.Seq[[]string] {
+	return re.allStringSubmatch(s, -1)
+}
+
+// AllSubmatchIndex returns the locations of all matches for re in b,
+// including submatch locations.
+// In each returned match m, the overall match is b[m[0]:m[1]],
+// the first submatch is b[m[2]:m[3]], and so on.
+func (re *Regexp) _AllSubmatchIndex(b []byte) iter.Seq[[]int] {
+	return re.allSubmatchIndex(b, -1)
+}
+
+// AllStringSubmatchIndex returns the locations of all matches for re in s,
+// including submatch locations.
+// In each returned match m, the overall match is s[m[0]:m[1]],
+// the first submatch is s[m[2]:m[3]], and so on.
+func (re *Regexp) _AllStringSubmatchIndex(s string) iter.Seq[[]int] {
+	return re.allStringSubmatchIndex(s, -1)
+}
+
+// FindAll returns all the matches for re in b.
+// If n >= 0, FindAll returns no more than n matches.
+// See [Regexp.All] for the equivalent iterator form.
+func (re *Regexp) FindAll(b []byte, n int) [][]byte {
+	return slices.Collect(re.all(b, n))
+}
+
+// FindAllString returns all the matches for re in s.
+// If n >= 0, FindAllString returns no more than n matches.
+// See [Regexp.AllString] for the equivalent iterator form.
+func (re *Regexp) FindAllString(s string, n int) []string {
+	return slices.Collect(re.allString(s, n))
+}
+
+// FindAllIndex returns the locations of all matches for re in b.
+// If n >= 0, FindAllIndex returns no more than n matches.
+// See [Regexp.AllIndex] for the equivalent iterator form.
+func (re *Regexp) FindAllIndex(b []byte, n int) [][]int {
+	return slices.Collect(re.allIndex(b, n))
+}
+
+// FindAllStringIndex returns the locations of all matches for re in s.
+// If n >= 0, FindAllStringIndex returns no more than n matches.
+// See [Regexp.AllStringIndex] for the equivalent iterator form.
+func (re *Regexp) FindAllStringIndex(s string, n int) [][]int {
+	return slices.Collect(re.allStringIndex(s, n))
+}
+
+// FindAllSubmatch returns the locations of all matches for re in b,
+// including submatch locations.
+// In each returned match m, the overall match is m[0],
+// the first submatch is m[1], and so on.
+// If n >= 0, FindAllSubmatch returns no more than n matches.
+// See [Regexp.AllSubmatch] for the equivalent iterator form.
+func (re *Regexp) FindAllSubmatch(b []byte, n int) [][][]byte {
+	return slices.Collect(re.allSubmatch(b, n))
+}
+
+// FindAllStringSubmatch returns the locations of all matches for re in s,
+// including submatch locations.
+// In each returned match m, m[0] is the overall match,
+// m[1] is the first submatch, and so on.
+// If n >= 0, FindAllStringSubmatch returns no more than n matches.
+// See [Regexp.AllStringSubmatch] for the equivalent iterator form.
+func (re *Regexp) FindAllStringSubmatch(s string, n int) [][]string {
+	return slices.Collect(re.allStringSubmatch(s, n))
+}
+
+// FindAllSubmatchIndex returns the locations of all matches for re in b,
+// including submatch locations.
+// In each returned match m, the overall match is b[m[0]:m[1]],
+// the first submatch is b[m[2]:m[3]], and so on.
+// If n >= 0, FindAllSubmatchIndex returns no more than n matches.
+// See [Regexp.AllSubmatchIndex] for the equivalent iterator form.
+func (re *Regexp) FindAllSubmatchIndex(b []byte, n int) [][]int {
+	return slices.Collect(re.allSubmatchIndex(b, n))
+}
+
+// FindAllStringSubmatchIndex returns the locations of all matches for re in s,
+// including submatch locations.
+// In each returned match m, the overall match is s[m[0]:m[1]],
+// the first submatch is s[m[2]:m[3]], and so on.
+// If n >= 0, FindAllStringSubmatchIndex returns no more than n matches.
+// See [Regexp.AllStringSubmatchIndex] for the equivalent iterator form.
+func (re *Regexp) FindAllStringSubmatchIndex(s string, n int) [][]int {
+	return slices.Collect(re.allStringSubmatchIndex(s, n))
 }
 
 // Expand appends template to dst and returns the result; during the
@@ -1001,212 +1272,6 @@ func extract(str string) (name string, num int, rest string, ok bool) {
 	return
 }
 
-// FindSubmatchIndex returns a slice holding the index pairs identifying the
-// leftmost match of the regular expression in b and the matches, if any, of
-// its subexpressions, as defined by the 'Submatch' and 'Index' descriptions
-// in the package comment.
-// A return value of nil indicates no match.
-func (re *Regexp) FindSubmatchIndex(b []byte) []int {
-	return re.pad(re.doExecute(nil, b, "", 0, re.prog.NumCap, nil))
-}
-
-// FindStringSubmatch returns a slice of strings holding the text of the
-// leftmost match of the regular expression in s and the matches, if any, of
-// its subexpressions, as defined by the 'Submatch' description in the
-// package comment.
-// A return value of nil indicates no match.
-func (re *Regexp) FindStringSubmatch(s string) []string {
-	var dstCap [4]int
-	a := re.doExecute(nil, nil, s, 0, re.prog.NumCap, dstCap[:0])
-	if a == nil {
-		return nil
-	}
-	ret := make([]string, 1+re.numSubexp)
-	for i := range ret {
-		if 2*i < len(a) && a[2*i] >= 0 {
-			ret[i] = s[a[2*i]:a[2*i+1]]
-		}
-	}
-	return ret
-}
-
-// FindStringSubmatchIndex returns a slice holding the index pairs
-// identifying the leftmost match of the regular expression in s and the
-// matches, if any, of its subexpressions, as defined by the 'Submatch' and
-// 'Index' descriptions in the package comment.
-// A return value of nil indicates no match.
-func (re *Regexp) FindStringSubmatchIndex(s string) []int {
-	return re.pad(re.doExecute(nil, nil, s, 0, re.prog.NumCap, nil))
-}
-
-// FindReaderSubmatchIndex returns a slice holding the index pairs
-// identifying the leftmost match of the regular expression of text read by
-// the [io.RuneReader], and the matches, if any, of its subexpressions, as defined
-// by the 'Submatch' and 'Index' descriptions in the package comment. A
-// return value of nil indicates no match.
-func (re *Regexp) FindReaderSubmatchIndex(r io.RuneReader) []int {
-	return re.pad(re.doExecute(r, nil, "", 0, re.prog.NumCap, nil))
-}
-
-const startSize = 10 // The size at which to start a slice in the 'All' routines.
-
-// FindAll is the 'All' version of [Regexp.Find]; it returns a slice of all successive
-// matches of the expression, as defined by the 'All' description in the
-// package comment.
-// A return value of nil indicates no match.
-func (re *Regexp) FindAll(b []byte, n int) [][]byte {
-	if n < 0 {
-		n = len(b) + 1
-	}
-	var result [][]byte
-	re.allMatches("", b, n, func(match []int) {
-		if result == nil {
-			result = make([][]byte, 0, startSize)
-		}
-		result = append(result, b[match[0]:match[1]:match[1]])
-	})
-	return result
-}
-
-// FindAllIndex is the 'All' version of [Regexp.FindIndex]; it returns a slice of all
-// successive matches of the expression, as defined by the 'All' description
-// in the package comment.
-// A return value of nil indicates no match.
-func (re *Regexp) FindAllIndex(b []byte, n int) [][]int {
-	if n < 0 {
-		n = len(b) + 1
-	}
-	var result [][]int
-	re.allMatches("", b, n, func(match []int) {
-		if result == nil {
-			result = make([][]int, 0, startSize)
-		}
-		result = append(result, match[0:2])
-	})
-	return result
-}
-
-// FindAllString is the 'All' version of [Regexp.FindString]; it returns a slice of all
-// successive matches of the expression, as defined by the 'All' description
-// in the package comment.
-// A return value of nil indicates no match.
-func (re *Regexp) FindAllString(s string, n int) []string {
-	if n < 0 {
-		n = len(s) + 1
-	}
-	var result []string
-	re.allMatches(s, nil, n, func(match []int) {
-		if result == nil {
-			result = make([]string, 0, startSize)
-		}
-		result = append(result, s[match[0]:match[1]])
-	})
-	return result
-}
-
-// FindAllStringIndex is the 'All' version of [Regexp.FindStringIndex]; it returns a
-// slice of all successive matches of the expression, as defined by the 'All'
-// description in the package comment.
-// A return value of nil indicates no match.
-func (re *Regexp) FindAllStringIndex(s string, n int) [][]int {
-	if n < 0 {
-		n = len(s) + 1
-	}
-	var result [][]int
-	re.allMatches(s, nil, n, func(match []int) {
-		if result == nil {
-			result = make([][]int, 0, startSize)
-		}
-		result = append(result, match[0:2])
-	})
-	return result
-}
-
-// FindAllSubmatch is the 'All' version of [Regexp.FindSubmatch]; it returns a slice
-// of all successive matches of the expression, as defined by the 'All'
-// description in the package comment.
-// A return value of nil indicates no match.
-func (re *Regexp) FindAllSubmatch(b []byte, n int) [][][]byte {
-	if n < 0 {
-		n = len(b) + 1
-	}
-	var result [][][]byte
-	re.allMatches("", b, n, func(match []int) {
-		if result == nil {
-			result = make([][][]byte, 0, startSize)
-		}
-		slice := make([][]byte, len(match)/2)
-		for j := range slice {
-			if match[2*j] >= 0 {
-				slice[j] = b[match[2*j]:match[2*j+1]:match[2*j+1]]
-			}
-		}
-		result = append(result, slice)
-	})
-	return result
-}
-
-// FindAllSubmatchIndex is the 'All' version of [Regexp.FindSubmatchIndex]; it returns
-// a slice of all successive matches of the expression, as defined by the
-// 'All' description in the package comment.
-// A return value of nil indicates no match.
-func (re *Regexp) FindAllSubmatchIndex(b []byte, n int) [][]int {
-	if n < 0 {
-		n = len(b) + 1
-	}
-	var result [][]int
-	re.allMatches("", b, n, func(match []int) {
-		if result == nil {
-			result = make([][]int, 0, startSize)
-		}
-		result = append(result, match)
-	})
-	return result
-}
-
-// FindAllStringSubmatch is the 'All' version of [Regexp.FindStringSubmatch]; it
-// returns a slice of all successive matches of the expression, as defined by
-// the 'All' description in the package comment.
-// A return value of nil indicates no match.
-func (re *Regexp) FindAllStringSubmatch(s string, n int) [][]string {
-	if n < 0 {
-		n = len(s) + 1
-	}
-	var result [][]string
-	re.allMatches(s, nil, n, func(match []int) {
-		if result == nil {
-			result = make([][]string, 0, startSize)
-		}
-		slice := make([]string, len(match)/2)
-		for j := range slice {
-			if match[2*j] >= 0 {
-				slice[j] = s[match[2*j]:match[2*j+1]]
-			}
-		}
-		result = append(result, slice)
-	})
-	return result
-}
-
-// FindAllStringSubmatchIndex is the 'All' version of
-// [Regexp.FindStringSubmatchIndex]; it returns a slice of all successive matches of
-// the expression, as defined by the 'All' description in the package
-// comment.
-// A return value of nil indicates no match.
-func (re *Regexp) FindAllStringSubmatchIndex(s string, n int) [][]int {
-	if n < 0 {
-		n = len(s) + 1
-	}
-	var result [][]int
-	re.allMatches(s, nil, n, func(match []int) {
-		if result == nil {
-			result = make([][]int, 0, startSize)
-		}
-		result = append(result, match)
-	})
-	return result
-}
-
 // Split slices s into substrings separated by the expression and returns a slice of
 // the substrings between those expression matches.
 //
@@ -1224,11 +1289,9 @@ func (re *Regexp) FindAllStringSubmatchIndex(s string, n int) [][]int {
 //   - n == 0: the result is nil (zero substrings);
 //   - n < 0: all substrings.
 func (re *Regexp) Split(s string, n int) []string {
-
 	if n == 0 {
 		return nil
 	}
-
 	if len(re.expr) > 0 && len(s) == 0 {
 		return []string{""}
 	}

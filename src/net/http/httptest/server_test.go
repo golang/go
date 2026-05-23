@@ -6,35 +6,58 @@ package httptest
 
 import (
 	"bufio"
+	"internal/testenv"
 	"io"
 	"net"
 	"net/http"
+	"os"
+	"regexp"
+	"strings"
 	"sync"
 	"testing"
+	"testing/synctest"
 )
 
-type newServerFunc func(http.Handler) *Server
+type newServerFunc func(*testing.T, http.Handler) *Server
 
 var newServers = map[string]newServerFunc{
-	"NewServer":    NewServer,
-	"NewTLSServer": NewTLSServer,
+	"NewServer": func(t *testing.T, h http.Handler) *Server {
+		return NewServer(h)
+	},
+	"NewTLSServer": func(t *testing.T, h http.Handler) *Server {
+		return NewTLSServer(h)
+	},
 
 	// The manual variants of newServer create a Server manually by only filling
 	// in the exported fields of Server.
-	"NewServerManual": func(h http.Handler) *Server {
+	"NewServerManual": func(t *testing.T, h http.Handler) *Server {
 		ts := &Server{Listener: newLocalListener(), Config: &http.Server{Handler: h}}
 		ts.Start()
 		return ts
 	},
-	"NewTLSServerManual": func(h http.Handler) *Server {
+	"NewTLSServerManual": func(t *testing.T, h http.Handler) *Server {
 		ts := &Server{Listener: newLocalListener(), Config: &http.Server{Handler: h}}
+		ts.StartTLS()
+		return ts
+	},
+
+	"NewTestServerMemory": func(t *testing.T, h http.Handler) *Server {
+		return NewTestServer(t, h)
+	},
+	"NewTestServerLoopback": func(t *testing.T, h http.Handler) *Server {
+		ts := NewTestServer(t, h)
+		ts.Start()
+		return ts
+	},
+	"NewTestServerLoopbackTLS": func(t *testing.T, h http.Handler) *Server {
+		ts := NewTestServer(t, h)
 		ts.StartTLS()
 		return ts
 	},
 }
 
 func TestServer(t *testing.T) {
-	for _, name := range []string{"NewServer", "NewServerManual"} {
+	for _, name := range []string{"NewServer", "NewServerManual", "NewTestServerLoopback"} {
 		t.Run(name, func(t *testing.T) {
 			newServer := newServers[name]
 			t.Run("Server", func(t *testing.T) { testServer(t, newServer) })
@@ -44,7 +67,7 @@ func TestServer(t *testing.T) {
 			t.Run("ServerClientTransportType", func(t *testing.T) { testServerClientTransportType(t, newServer) })
 		})
 	}
-	for _, name := range []string{"NewTLSServer", "NewTLSServerManual"} {
+	for _, name := range []string{"NewTLSServer", "NewTLSServerManual", "NewTestServerMemory", "NewTestServerLoopbackTLS"} {
 		t.Run(name, func(t *testing.T) {
 			newServer := newServers[name]
 			t.Run("ServerClient", func(t *testing.T) { testServerClient(t, newServer) })
@@ -54,7 +77,7 @@ func TestServer(t *testing.T) {
 }
 
 func testServer(t *testing.T, newServer newServerFunc) {
-	ts := newServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	ts := newServer(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.Write([]byte("hello"))
 	}))
 	defer ts.Close()
@@ -74,7 +97,7 @@ func testServer(t *testing.T, newServer newServerFunc) {
 
 // Issue 12781
 func testGetAfterClose(t *testing.T, newServer newServerFunc) {
-	ts := newServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	ts := newServer(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.Write([]byte("hello"))
 	}))
 
@@ -101,7 +124,7 @@ func testGetAfterClose(t *testing.T, newServer newServerFunc) {
 }
 
 func testServerCloseBlocking(t *testing.T, newServer newServerFunc) {
-	ts := newServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	ts := newServer(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.Write([]byte("hello"))
 	}))
 	dial := func() net.Conn {
@@ -131,7 +154,7 @@ func testServerCloseBlocking(t *testing.T, newServer newServerFunc) {
 // Issue 14290
 func testServerCloseClientConnections(t *testing.T, newServer newServerFunc) {
 	var s *Server
-	s = newServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	s = newServer(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		s.CloseClientConnections()
 	}))
 	defer s.Close()
@@ -145,7 +168,7 @@ func testServerCloseClientConnections(t *testing.T, newServer newServerFunc) {
 // Tests that the Server.Client method works and returns an http.Client that can hit
 // NewTLSServer without cert warnings.
 func testServerClient(t *testing.T, newTLSServer newServerFunc) {
-	ts := newTLSServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	ts := newTLSServer(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.Write([]byte("hello"))
 	}))
 	defer ts.Close()
@@ -167,7 +190,7 @@ func testServerClient(t *testing.T, newTLSServer newServerFunc) {
 // Tests that the Server.Client.Transport interface is implemented
 // by a *http.Transport.
 func testServerClientTransportType(t *testing.T, newServer newServerFunc) {
-	ts := newServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	ts := newServer(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 	}))
 	defer ts.Close()
 	client := ts.Client()
@@ -179,7 +202,7 @@ func testServerClientTransportType(t *testing.T, newServer newServerFunc) {
 // Tests that the TLS Server.Client.Transport interface is implemented
 // by a *http.Transport.
 func testTLSServerClientTransportType(t *testing.T, newTLSServer newServerFunc) {
-	ts := newTLSServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	ts := newTLSServer(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 	}))
 	defer ts.Close()
 	client := ts.Client()
@@ -328,5 +351,90 @@ func TestClientExampleCom(t *testing.T) {
 				t.Fatalf("Requested hostname mismatch\ngot: %q\nwant: %q", got, want)
 			}
 		})
+	}
+}
+
+func TestServerInMemoryNetwork(t *testing.T) {
+	synctest.Test(t, func(t *testing.T) {
+		ts := NewTestServer(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		}))
+
+		for _, u := range []string{
+			"http://example.tld/",
+			"https://example.tld/",
+			"https://go.dev/",
+			"http://127.0.0.1/",
+			"http://[::1]/",
+			"https://127.0.0.1/",
+		} {
+			resp, err := ts.Client().Get(u)
+			if err != nil {
+				t.Errorf("Get(%q): %v", u, err)
+				continue
+			}
+			resp.Body.Close()
+			if resp.StatusCode != 200 {
+				t.Errorf("Get(%q): Response.StatusCode = %v, want 200", u, resp.StatusCode)
+			}
+			if gotTLS, wantTLS := resp.TLS != nil, strings.HasPrefix(u, "https://"); gotTLS != wantTLS {
+				t.Errorf("Get(%q): TLS: %v; want %v", u, gotTLS, wantTLS)
+			}
+		}
+	})
+}
+
+func TestServerNilHandler(t *testing.T) {
+	ts := NewTestServer(t, nil)
+	resp, err := ts.Client().Get("http://example.tld/")
+	if err != nil {
+		t.Fatalf("Get: %v", err)
+	}
+	resp.Body.Close()
+	if got, want := resp.StatusCode, 500; got != want {
+		t.Errorf("Response.StatusCode = %v, want %v", got, want)
+	}
+
+}
+
+func TestServerPanicErrAbortHandler(t *testing.T) {
+	synctest.Test(t, func(t *testing.T) {
+		ts := NewTestServer(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			panic(http.ErrAbortHandler)
+		}))
+		resp, err := ts.Client().Get("http://example.com/")
+		if err == nil {
+			resp.Body.Close()
+			t.Errorf("request succeeded; want failure")
+		}
+	})
+}
+
+func TestServerPanicFailsTest(t *testing.T) {
+	runTest(t, func() {
+		synctest.Test(t, func(t *testing.T) {
+			ts := NewTestServer(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				panic("PANIC MESSAGE")
+			}))
+			ts.Client().Get("http://example.com/")
+		})
+	}, `--- FAIL: TestServerPanicFailsTest.*
+    .*: httptest: panic in server handler: PANIC MESSAGE
+`)
+}
+
+func runTest(t *testing.T, f func(), pattern string) {
+	if os.Getenv("GO_WANT_HELPER_PROCESS") == "1" {
+		f()
+		return
+	}
+	t.Helper()
+	re := regexp.MustCompile(pattern)
+	testenv.MustHaveExec(t)
+	cmd := testenv.Command(t, testenv.Executable(t), "-test.run=^"+regexp.QuoteMeta(t.Name())+"$", "-test.count=1")
+	cmd = testenv.CleanCmdEnv(cmd)
+	cmd.Env = append(cmd.Env, "GO_WANT_HELPER_PROCESS=1")
+	out, _ := cmd.CombinedOutput()
+	if !re.Match(out) {
+		t.Errorf("got output:\n%s\nwant matching:\n%s", out, pattern)
 	}
 }

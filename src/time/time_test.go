@@ -862,14 +862,14 @@ func TestUnmarshalInvalidTimes(t *testing.T) {
 	}{
 		{`{}`, func() string {
 			if goexperiment.JSONv2 {
-				return "json: cannot unmarshal JSON object into Go type time.Time"
+				return "json: cannot unmarshal object into Go value of type time.Time"
 			} else {
 				return "Time.UnmarshalJSON: input is not a JSON string"
 			}
 		}()},
 		{`[]`, func() string {
 			if goexperiment.JSONv2 {
-				return "json: cannot unmarshal JSON array into Go type time.Time"
+				return "json: cannot unmarshal array into Go value of type time.Time"
 			} else {
 				return "Time.UnmarshalJSON: input is not a JSON string"
 			}

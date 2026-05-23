@@ -2215,6 +2215,17 @@ func testTransportUsesGoAwayDebugError(t testing.TB, failMidBody bool) {
 	}
 }
 
+// https://go.dev/issue/68440 -- receiving a GoAway when there are no outstanding requests
+// should immediately close the connection.
+func TestTransportGoAwayWithNoConns(t *testing.T) { synctestTest(t, testTransportGoAwayWithNoConns) }
+func testTransportGoAwayWithNoConns(t testing.TB) {
+	tt := newTestTransportWithUnusedConn(t)
+	tc := tt.getConn()
+	tc.greet()
+	tc.writeGoAway(1, ErrCodeNo, nil)
+	tc.wantClosed()
+}
+
 func testTransportReturnsUnusedFlowControl(t testing.TB, oneDataFrame bool) {
 	tc := newTestClientConn(t)
 	tc.greet()

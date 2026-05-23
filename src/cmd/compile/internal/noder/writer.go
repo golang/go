@@ -863,8 +863,6 @@ func (w *writer) doObj(wext *writer, obj types2.Object) pkgbits.CodeObj {
 
 		w.pos(obj)
 		if isGenericMethod(sig) {
-			// otherwise the reader won't know to expect the flag
-			assert(w.Version().Has(pkgbits.GenericMethods))
 			w.Bool(true) // generic method
 
 			w.selector(obj)
@@ -921,6 +919,9 @@ func (w *writer) doObj(wext *writer, obj types2.Object) pkgbits.CodeObj {
 		w.Len(len(methods))
 		for _, m := range methods {
 			w.method(wext, m)
+		}
+		if len(gmethods) > 0 {
+			assert(w.Version().Has(pkgbits.GenericMethods))
 		}
 		// encode a pointer to each generic method
 		if w.Version().Has(pkgbits.GenericMethods) {

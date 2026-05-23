@@ -247,10 +247,12 @@ bXVL8iKLrG91IYQByUHZIn3WVAd2bfi4MfKagRt0ggd4
 	expectErr(t, errRet2(rsa.SignPKCS1v15(rand.Reader, rsaKey, crypto.SHA1, make([]byte, 20))))
 	// rand is always ignored for PKCS1v15 signing
 	expectNoErr(t, errRet2(rsa.SignPKCS1v15(readerWrap{rand.Reader}, rsaKey, crypto.SHA256, make([]byte, 32))))
+	expectErr(t, errRet2(rsa.SignPKCS1v15(rand.Reader, rsaKey, crypto.Hash(0), make([]byte, 32))))
 
 	expectNoErr(t, rsa.VerifyPKCS1v15(&rsaKey.PublicKey, crypto.SHA256, make([]byte, 32), sigPKCS1v15))
 	expectErr(t, rsa.VerifyPKCS1v15(&smallKey.PublicKey, crypto.SHA256, make([]byte, 32), sigPKCS1v15))
 	expectErr(t, rsa.VerifyPKCS1v15(&rsaKey.PublicKey, crypto.SHA1, make([]byte, 20), sigPKCS1v15))
+	expectErr(t, rsa.VerifyPKCS1v15(&rsaKey.PublicKey, crypto.Hash(0), make([]byte, 32), sigPKCS1v15))
 
 	sigPSS, err := rsa.SignPSS(rand.Reader, rsaKey, crypto.SHA256, make([]byte, 32), nil)
 	expectNoErr(t, err)
@@ -287,9 +289,8 @@ bXVL8iKLrG91IYQByUHZIn3WVAd2bfi4MfKagRt0ggd4
 			expectNoErr(t, err)
 			expectNoErr(t, errRet2(kem.NewPrivateKey(kb)))
 			expectNoErr(t, errRet2(kem.NewPublicKey(k.PublicKey().Bytes())))
-			if fips140.Version() == "v1.0.0" {
-				t.Skip("FIPS 140-3 Module v1.0.0 does not provide HPKE GCM modes")
-			}
+			// HPKE GCM modes were added in v1.26.0.
+			cryptotest.MustMinimumFIPS140ModuleVersion(t, "v1.26.0")
 			c, err := hpke.Seal(k.PublicKey(), hpke.HKDFSHA256(), hpke.AES128GCM(), nil, nil)
 			expectNoErr(t, err)
 			_, err = hpke.Open(k, hpke.HKDFSHA256(), hpke.AES128GCM(), nil, c)

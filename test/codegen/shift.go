@@ -120,47 +120,49 @@ func rshConst64x32(v int64) int64 {
 }
 
 func lshConst32x1Add(x int32) int32 {
-	// amd64:"SHLL [$]2"
-	// loong64:"SLL [$]2"
-	// riscv64:"SLLI [$]2"
-	// ppc64x:"SLW [$]2" -"ADD"
+	// amd64:-"ADD" "SHLL [$]2"
+	// loong64:-"ADD" "SLL [$]2"
+	// riscv64:-"ADD" "SLLI [$]2"
+	// ppc64x:-"ADD" "SLW [$]2"
 	return (x + x) << 1
 }
 
 func lshConst64x1Add(x int64) int64 {
-	// amd64:"SHLQ [$]2"
-	// loong64:"SLLV [$]2"
-	// riscv64:"SLLI [$]2"
-	// ppc64x:"SLD [$]2" -"ADD"
+	// amd64:-"ADD" "SHLQ [$]2"
+	// loong64:-"ADD" "SLLV [$]2"
+	// riscv64:-"ADD" "SLLI [$]2"
+	// ppc64x:-"ADD" "SLD [$]2"
 	return (x + x) << 1
 }
 
 func lshConst32x2Add(x int32) int32 {
-	// amd64:"SHLL [$]3"
-	// loong64:"SLL [$]3"
-	// riscv64:"SLLI [$]3"
-	// ppc64x:"SLW [$]3" -"ADD"
+	// amd64:-"ADD" "SHLL [$]3"
+	// loong64:-"ADD" "SLL [$]3"
+	// riscv64:-"ADD" "SLLI [$]3"
+	// ppc64x:-"ADD" "SLW [$]3"
 	return (x + x) << 2
 }
 
 func lshConst64x2Add(x int64) int64 {
-	// amd64:"SHLQ [$]3"
-	// loong64:"SLLV [$]3"
-	// riscv64:"SLLI [$]3"
-	// ppc64x:"SLD [$]3" -"ADD"
+	// amd64:-"ADD" "SHLQ [$]3"
+	// loong64:-"ADD" "SLLV [$]3"
+	// riscv64:-"ADD" "SLLI [$]3"
+	// ppc64x:-"ADD" "SLD [$]3"
 	return (x + x) << 2
 }
 
 func lshConst32x31Add(x int32) int32 {
-	// loong64:-"SLL " "MOVV R0"
-	// riscv64:-"SLLI" "MOV [$]0"
-	// ppc64x:"ADD" "SLW [$]31" -"SLW [$]32"
+	// amd64:-"ADD" -"SHL" "XORL AX, AX"
+	// loong64:-"ADD" -"SLL " "MOVV R0"
+	// riscv64:-"ADD" -"SLLI" "MOV [$]0"
+	// ppc64x:-"ADD" -"SLW" "MOVD [$]0"
 	return (x + x) << 31
 }
 
 func lshConst64x63Add(x int64) int64 {
-	// loong64:-"SLLV" "MOVV R0"
-	// riscv64:-"SLLI" "MOV [$]0"
+	// amd64:-"ADD" -"SHL" "XORL AX, AX"
+	// loong64:-"ADD" -"SLLV" "MOVV R0"
+	// riscv64:-"ADD" -"SLLI" "MOV [$]0"
 	return (x + x) << 63
 }
 

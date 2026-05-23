@@ -100,6 +100,11 @@ type reader struct {
 
 	dict *readerDict
 
+	// funcLitGen is a counter for closure names.
+	funcLitGen int
+	// rangeLitGen is a counter for range func closure names.
+	rangeLitGen int
+
 	// TODO(mdempsky): The state below is all specific to reading
 	// function bodies. It probably makes sense to split it out
 	// separately so that it doesn't take up space in every reader
@@ -905,6 +910,9 @@ func (dict *readerDict) mangle(sym *types.Sym) *types.Sym {
 		j = len(dict.targs) // consume all type arguments
 	}
 
+	// put type arguments inside parenthesis; (*T)[int] -> (*T[int])
+	n, ok := strings.CutSuffix(n, ")")
+
 	// type arguments, if any
 	buf.WriteString(n)
 	if j > 0 {
@@ -920,6 +928,10 @@ func (dict *readerDict) mangle(sym *types.Sym) *types.Sym {
 			buf.WriteString(dict.targs[i].LinkString())
 		}
 		buf.WriteByte(']')
+	}
+
+	if ok {
+		buf.WriteString(")")
 	}
 
 	buf.WriteString(vsuff)
@@ -3300,8 +3312,17 @@ func (r *reader) inlClosureFunc(origPos src.XPos, sig *types.Type, why ir.Op) *i
 		curfn = r.curfn
 	}
 
+	var gen int
+	if why == ir.ORANGE {
+		r.rangeLitGen++
+		gen = r.rangeLitGen
+	} else {
+		r.funcLitGen++
+		gen = r.funcLitGen
+	}
+
 	// TODO(mdempsky): Remove hard-coding of typecheck.Target.
-	return ir.NewClosureFunc(origPos, r.inlPos(origPos), why, sig, curfn, typecheck.Target)
+	return ir.NewClosureFunc(origPos, r.inlPos(origPos), why, sig, curfn, typecheck.Target, gen)
 }
 
 func (r *reader) exprList() []ir.Node {
@@ -4190,7 +4211,7 @@ func addTailCall(pos src.XPos, fn *ir.Func, recv ir.Node, method *types.Field) {
 			!types.IsInterfaceMethod(method.Type) && !unifiedHaveInlineBody(ir.MethodExprName(dot).Func)) &&
 		// TODO: implement wasm indirect tail calls
 		// TODO: do we need the ppc64le/dynlink restriction for interface tail calls?
-		!(base.Ctxt.Arch.Name == "ppc64le" && base.Ctxt.Flag_dynlink) {
+		!((base.Ctxt.Arch.Name == "ppc64le" || base.Ctxt.Arch.Name == "ppc64") && base.Ctxt.Flag_dynlink) {
 		if base.Debug.TailCall != 0 {
 			base.WarnfAt(fn.Nname.Type().Recv().Type.Elem().Pos(), "tail call emitted for the method %v wrapper", method.Nname)
 		}

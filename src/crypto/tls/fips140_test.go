@@ -10,6 +10,7 @@ import (
 	"crypto/fips140"
 	"crypto/internal/boring"
 	"crypto/internal/cryptotest"
+	"crypto/mldsa"
 	"crypto/rand"
 	"crypto/rsa"
 	"crypto/x509"
@@ -26,13 +27,16 @@ import (
 
 var testConfigFIPS140 = &Config{
 	Time:         testTime,
-	Certificates: []Certificate{testECDSAP256Cert, testRSAPSSCert, testEd25519Cert},
+	Certificates: []Certificate{testECDSAP256Cert, testRSAPSSCert, testEd25519Cert, testMLDSA44Cert, testMLDSA65Cert, testMLDSA87Cert},
 	RootCAs:      testRootCertPool,
 	ServerName:   "test.golang.example",
 }
 
 func allCipherSuitesIncludingTLS13() []uint16 {
-	s := allCipherSuites()
+	s := make([]uint16, 0, len(cipherSuites))
+	for _, suite := range cipherSuites {
+		s = append(s, suite.id)
+	}
 	for _, suite := range cipherSuitesTLS13 {
 		s = append(s, suite.id)
 	}
@@ -147,7 +151,7 @@ func isFIPSCurve(id CurveID) bool {
 	switch id {
 	case CurveP256, CurveP384, CurveP521:
 		return true
-	case X25519MLKEM768, SecP256r1MLKEM768, SecP384r1MLKEM1024:
+	case X25519MLKEM768, SecP256r1MLKEM768, SecP384r1MLKEM1024, MLKEM1024:
 		// Only for the native module.
 		return !boring.Enabled
 	case X25519:
@@ -178,7 +182,7 @@ func isFIPSSignatureScheme(alg SignatureScheme) bool {
 		PSSWithSHA384,
 		PSSWithSHA512:
 		return true
-	case Ed25519:
+	case Ed25519, MLDSA44, MLDSA65, MLDSA87:
 		// Only for the native module.
 		return !boring.Enabled
 	case PKCS1WithSHA1, ECDSAWithSHA1:
@@ -229,7 +233,7 @@ func TestFIPSServerCipherSuites(t *testing.T) {
 }
 
 func TestFIPSServerCurves(t *testing.T) {
-	for _, curveid := range defaultCurvePreferences() {
+	for _, curveid := range curvePreferenceOrder() {
 		t.Run(fmt.Sprintf("curve=%v", curveid), func(t *testing.T) {
 			testConfig := testConfigFIPS140.Clone()
 			testConfig.CurvePreferences = []CurveID{curveid}
@@ -280,11 +284,18 @@ func TestFIPSServerSignatureAndHash(t *testing.T) {
 
 	for _, sigHash := range defaultSupportedSignatureAlgorithms() {
 		t.Run(fmt.Sprintf("%v", sigHash), func(t *testing.T) {
+			isMLDSA := sigHash == MLDSA44 || sigHash == MLDSA65 || sigHash == MLDSA87
+			if isMLDSA {
+				cryptotest.MustMinimumFIPS140ModuleVersion(t, "v1.26.0")
+			}
 			serverConfig := testConfigFIPS140.Clone()
 			testingOnlySupportedSignatureAlgorithms = []SignatureScheme{sigHash}
 			// PKCS#1 v1.5 signature algorithms can't be used standalone in TLS
-			// 1.3, and the ECDSA ones bind to the curve used.
-			serverConfig.MaxVersion = VersionTLS12
+			// 1.3, and the ECDSA ones bind to the curve used. However, ML-DSA
+			// requires TLS 1.3.
+			if !isMLDSA {
+				serverConfig.MaxVersion = VersionTLS12
+			}
 
 			runWithFIPSDisabled(t, func(t *testing.T) {
 				clientErr, serverErr := fipsHandshake(t, testConfigFIPS140, serverConfig)
@@ -330,8 +341,8 @@ func testFIPSClientHello(t *testing.T) {
 	// All sorts of traps for the client to avoid.
 	clientConfig.MinVersion = VersionSSL30
 	clientConfig.MaxVersion = VersionTLS13
-	clientConfig.CipherSuites = allCipherSuites()
-	clientConfig.CurvePreferences = defaultCurvePreferences()
+	clientConfig.CipherSuites = allCipherSuitesIncludingTLS13()
+	clientConfig.CurvePreferences = curvePreferenceOrder()
 
 	go Client(c, clientConfig).Handshake()
 	srv := Server(s, testConfigFIPS140)
@@ -395,16 +406,27 @@ func TestFIPSCertAlgs(t *testing.T) {
 
 	L1_I := fipsCert(t, "L1_I", fipsECDSAKey(t, elliptic.P384()), I_R1, fipsCertLeaf|fipsCertFIPSOK)
 	L2_I := fipsCert(t, "L2_I", fipsRSAKey(t, 1024), I_R1, fipsCertLeaf)
+	var L3_I *fipsCertificate
+	if fips140.Version() != "v1.0.0" {
+		// ML-DSA is not implemented by the Go+BoringCrypto FIPS 140 module.
+		mldsaFlags := fipsCertLeaf | fipsCertFIPSOK
+		if boring.Enabled {
+			mldsaFlags = fipsCertLeaf
+		}
+		L3_I = fipsCert(t, "L3_I", fipsMLDSAKey(t, mldsa.MLDSA44()), I_R1, mldsaFlags)
+	}
 
 	// client verifying server cert
 	testServerCert := func(t *testing.T, desc string, pool *x509.CertPool, key any, list [][]byte, ok bool) {
-		clientConfig := testConfig.Clone()
+		clientConfig := testConfigFIPS140.Clone()
 		clientConfig.RootCAs = pool
 		clientConfig.InsecureSkipVerify = false
 		clientConfig.ServerName = "example.com"
+		clientConfig.Time = func() time.Time { return time.Unix(0, 0) }
 
-		serverConfig := testConfig.Clone()
+		serverConfig := testConfigFIPS140.Clone()
 		serverConfig.Certificates = []Certificate{{Certificate: list, PrivateKey: key}}
+		serverConfig.Time = func() time.Time { return time.Unix(0, 0) }
 
 		clientErr, _ := fipsHandshake(t, clientConfig, serverConfig)
 
@@ -425,13 +447,15 @@ func TestFIPSCertAlgs(t *testing.T) {
 
 	// server verifying client cert
 	testClientCert := func(t *testing.T, desc string, pool *x509.CertPool, key any, list [][]byte, ok bool) {
-		clientConfig := testConfig.Clone()
-		clientConfig.ServerName = "example.com"
+		clientConfig := testConfigFIPS140.Clone()
+		clientConfig.InsecureSkipVerify = true
 		clientConfig.Certificates = []Certificate{{Certificate: list, PrivateKey: key}}
+		clientConfig.Time = func() time.Time { return time.Unix(0, 0) }
 
-		serverConfig := testConfig.Clone()
+		serverConfig := testConfigFIPS140.Clone()
 		serverConfig.ClientCAs = pool
 		serverConfig.ClientAuth = RequireAndVerifyClientCert
+		serverConfig.Time = func() time.Time { return time.Unix(0, 0) }
 
 		_, serverErr := fipsHandshake(t, clientConfig, serverConfig)
 
@@ -458,11 +482,19 @@ func TestFIPSCertAlgs(t *testing.T) {
 	runWithFIPSDisabled(t, func(t *testing.T) {
 		testServerCert(t, "basic", r1pool, L2_I.key, [][]byte{L2_I.der, I_R1.der}, true)
 		testClientCert(t, "basic (client cert)", r1pool, L2_I.key, [][]byte{L2_I.der, I_R1.der}, true)
+		if L3_I != nil {
+			testServerCert(t, "basic ML-DSA", r1pool, L3_I.key, [][]byte{L3_I.der, I_R1.der}, true)
+			testClientCert(t, "basic ML-DSA (client cert)", r1pool, L3_I.key, [][]byte{L3_I.der, I_R1.der}, true)
+		}
 	})
 
 	runWithFIPSEnabled(t, func(t *testing.T) {
 		testServerCert(t, "basic (fips)", r1pool, L2_I.key, [][]byte{L2_I.der, I_R1.der}, false)
 		testClientCert(t, "basic (fips, client cert)", r1pool, L2_I.key, [][]byte{L2_I.der, I_R1.der}, false)
+		if L3_I != nil {
+			testServerCert(t, "basic ML-DSA (fips)", r1pool, L3_I.key, [][]byte{L3_I.der, I_R1.der}, L3_I.fipsOK)
+			testClientCert(t, "basic ML-DSA (fips, client cert)", r1pool, L3_I.key, [][]byte{L3_I.der, I_R1.der}, L3_I.fipsOK)
+		}
 	})
 
 	if t.Failed() {
@@ -560,6 +592,14 @@ func fipsECDSAKey(t *testing.T, curve elliptic.Curve) *ecdsa.PrivateKey {
 	return k
 }
 
+func fipsMLDSAKey(t *testing.T, params mldsa.Parameters) *mldsa.PrivateKey {
+	k, err := mldsa.GenerateKey(params)
+	if err != nil {
+		t.Fatal(err)
+	}
+	return k
+}
+
 type fipsCertificate struct {
 	name      string
 	org       string
@@ -615,6 +655,9 @@ func fipsCert(t *testing.T, name string, key any, parent *fipsCertificate, mode 
 	case *ecdsa.PrivateKey:
 		pub = &k.PublicKey
 		desc = "ECDSA-" + k.Curve.Params().Name
+	case *mldsa.PrivateKey:
+		pub = k.PublicKey()
+		desc = k.PublicKey().Parameters().String()
 	default:
 		t.Fatalf("invalid key %T", key)
 	}

@@ -2320,6 +2320,21 @@ type MibIfRow2 struct {
 	OutQLen                     uint64
 }
 
+// MIB_IF_TABLE_LEVEL enumeration from netioapi.h or
+// https://learn.microsoft.com/en-us/windows/win32/api/netioapi/ne-netioapi-mib_if_table_level.
+const (
+	MibIfTableNormal                  = 0
+	MibIfTableRaw                     = 1
+	MibIfTableNormalWithoutStatistics = 2
+)
+
+// MibIfTable2 contains a table of logical and physical interface entries. See
+// https://learn.microsoft.com/en-us/windows/win32/api/netioapi/ns-netioapi-mib_if_table2.
+type MibIfTable2 struct {
+	NumEntries uint32
+	Table      [1]MibIfRow2
+}
+
 // IP_ADDRESS_PREFIX stores an IP address prefix. See
 // https://learn.microsoft.com/en-us/windows/win32/api/netioapi/ns-netioapi-ip_address_prefix.
 type IpAddressPrefix struct {
@@ -2413,6 +2428,13 @@ type MibUnicastIpAddressRow struct {
 	CreationTimeStamp  Filetime
 }
 
+// MibUnicastIpAddressTable contains a table of unicast IP address entries. See
+// https://learn.microsoft.com/en-us/windows/win32/api/netioapi/ns-netioapi-mib_unicastipaddress_table.
+type MibUnicastIpAddressTable struct {
+	NumEntries uint32
+	Table      [1]MibUnicastIpAddressRow
+}
+
 const ScopeLevelCount = 16
 
 // MIB_IPINTERFACE_ROW stores interface management information for a particular IP address family on a network interface.
@@ -2453,6 +2475,13 @@ type MibIpInterfaceRow struct {
 	TransmitOffload                      uint32
 	ReceiveOffload                       uint32
 	DisableDefaultRoutes                 uint8
+}
+
+// MibIpInterfaceTable contains a table of IP interface entries. See
+// https://learn.microsoft.com/en-us/windows/win32/api/netioapi/ns-netioapi-mib_ipinterface_table.
+type MibIpInterfaceTable struct {
+	NumEntries uint32
+	Table      [1]MibIpInterfaceRow
 }
 
 // Console related constants used for the mode parameter to SetConsoleMode. See

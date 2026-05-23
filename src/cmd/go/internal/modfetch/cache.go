@@ -781,7 +781,7 @@ func rewriteVersionList(ctx context.Context, dir string) (err error) {
 	}
 	if fi, err := f.Stat(); err == nil && int(fi.Size()) == buf.Len() {
 		old := make([]byte, buf.Len()+1)
-		if n, err := f.ReadAt(old, 0); err == io.EOF && n == buf.Len() && bytes.Equal(buf.Bytes(), old) {
+		if n, err := f.ReadAt(old, 0); err == io.EOF && n == buf.Len() && bytes.Equal(buf.Bytes(), old[:n]) {
 			return nil // No edit needed.
 		}
 	}

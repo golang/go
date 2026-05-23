@@ -44,6 +44,7 @@ func GoSyntax(inst Inst, pc uint64, symname func(uint64) (string, uint64), text 
 
 	op := inst.Op.String()
 
+goSyntaxSwitch:
 	switch inst.Op {
 
 	case AMOADD_D, AMOADD_D_AQ, AMOADD_D_RL, AMOADD_D_AQRL, AMOADD_W, AMOADD_W_AQ,
@@ -72,6 +73,25 @@ func GoSyntax(inst Inst, pc uint64, symname func(uint64) (string, uint64), text 
 		if inst.Args[2].(Simm).Imm == 0 {
 			op = "MOVW"
 			args = args[:len(args)-1]
+		}
+
+	case ORI:
+		if inst.Args[0].(Reg) == X0 {
+			simm := inst.Args[2].(Simm)
+			switch simm.Imm & 0b11111 {
+			case 0:
+				op = "PREFETCHI"
+			case 1:
+				op = "PREFETCHR"
+			case 3:
+				op = "PREFETCHW"
+			default:
+				break goSyntaxSwitch
+			}
+			// compared to ORI, the lowest 5 bits of simm.Imm in PREFETCH should be zeros
+			simm.Imm = simm.Imm &^ 0b11111
+			args[0] = plan9Arg(&inst, pc, symname, RegOffset{inst.Args[1].(Reg), simm})
+			args = args[:len(args)-2]
 		}
 
 	case ANDI:
@@ -179,9 +199,26 @@ func GoSyntax(inst Inst, pc uint64, symname func(uint64) (string, uint64), text 
 			}
 		}
 
-	// Fence instruction in plan9 doesn't have any operands.
 	case FENCE:
-		args = nil
+		fm := inst.Enc >> 28
+		pred := inst.Args[0].(MemOrder).String()
+		succ := inst.Args[1].(MemOrder).String()
+		if fm == 0b1000 {
+			if pred == "rw" && succ == "rw" {
+				return "FENCE.TSO"
+			}
+			return op
+		}
+		// PAUSE is encoded as a FENCE instruction with pred=W, succ=0.
+		if pred == "w" && succ == "" {
+			return "PAUSE"
+		}
+		if fm != 0 || pred == "" || succ == "" || (pred == "iorw" && succ == "iorw") {
+			// We've either got a full fence or a reserved encoding which should be
+			// treated as a full fence.
+			return op
+		}
+		args[0], args[1] = args[1], args[0]
 
 	case FMADD_D, FMADD_H, FMADD_Q, FMADD_S, FMSUB_D, FMSUB_H,
 		FMSUB_Q, FMSUB_S, FNMADD_D, FNMADD_H, FNMADD_Q, FNMADD_S,

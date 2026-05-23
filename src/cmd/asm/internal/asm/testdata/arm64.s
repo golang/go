@@ -458,6 +458,9 @@ TEXT	foo(SB), DUPOK|NOSPLIT, $-8
 	PRFM	8(R12), PLIL3STRM               // 8d0580f9
 	PRFM	(R8), $25                       // 190180f9
 	PRFM	8(R9), $30                      // 3e0580f9
+	RPRFM	(R1), R2, PLDKEEP               // 3848a2f8
+	RPRFM	(RSP), R4, PSTSTRM              // fd4ba4f8
+	RPRFM	(R6), R12, $25                  // d978acf8
 	NOOP                                    // 1f2003d5
 	HINT $0                                 // 1f2003d5
 	DMB	$1

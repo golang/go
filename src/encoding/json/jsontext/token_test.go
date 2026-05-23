@@ -7,6 +7,8 @@
 package jsontext
 
 import (
+	"errors"
+	"internal/testenv"
 	"math"
 	"reflect"
 	"strconv"
@@ -14,6 +16,7 @@ import (
 )
 
 func TestTokenStringAllocations(t *testing.T) {
+	testenv.SkipIfOptimizationOff(t)
 	if testing.CoverMode() != "" {
 		t.Skip("coverage mode breaks the compiler optimization this depends on")
 	}
@@ -47,18 +50,16 @@ func TestTokenAccessors(t *testing.T) {
 		Kind    Kind
 	}
 	negZero := math.Copysign(0, -1)
-	errRange := &SyntacticError{Err: strconv.ErrRange}
-	errSyntax := &SyntacticError{Err: strconv.ErrSyntax}
 	f32 := func(f32 float32) valueError[float32] { return valueError[float32]{Value: f32} }
-	f32er := func(f32 float32) valueError[float32] { return valueError[float32]{Value: f32, Error: errRange} }
+	f32er := func(f32 float32) valueError[float32] { return valueError[float32]{Value: f32, Error: strconv.ErrRange} }
 	f64 := func(f64 float64) valueError[float64] { return valueError[float64]{Value: f64} }
-	f64er := func(f64 float64) valueError[float64] { return valueError[float64]{Value: f64, Error: errRange} }
+	f64er := func(f64 float64) valueError[float64] { return valueError[float64]{Value: f64, Error: strconv.ErrRange} }
 	i64 := func(i64 int64) valueError[int64] { return valueError[int64]{Value: i64} }
-	i64er := func(i64 int64) valueError[int64] { return valueError[int64]{Value: i64, Error: errRange} }
-	i64es := func(i64 int64) valueError[int64] { return valueError[int64]{Value: i64, Error: errSyntax} }
+	i64er := func(i64 int64) valueError[int64] { return valueError[int64]{Value: i64, Error: strconv.ErrRange} }
+	i64es := func(i64 int64) valueError[int64] { return valueError[int64]{Value: i64, Error: strconv.ErrSyntax} }
 	u64 := func(u64 uint64) valueError[uint64] { return valueError[uint64]{Value: u64} }
-	u64er := func(u64 uint64) valueError[uint64] { return valueError[uint64]{Value: u64, Error: errRange} }
-	u64es := func(u64 uint64) valueError[uint64] { return valueError[uint64]{Value: u64, Error: errSyntax} }
+	u64er := func(u64 uint64) valueError[uint64] { return valueError[uint64]{Value: u64, Error: strconv.ErrRange} }
+	u64es := func(u64 uint64) valueError[uint64] { return valueError[uint64]{Value: u64, Error: strconv.ErrSyntax} }
 
 	tests := []struct {
 		in   Token
@@ -185,16 +186,16 @@ func TestTokenAccessors(t *testing.T) {
 			if got.String != tt.want.String {
 				t.Errorf("Token(%s).String() = %v, want %v", tt.in, got.String, tt.want.String)
 			}
-			if math.Float32bits(got.Float32.Value) != math.Float32bits(tt.want.Float32.Value) || !reflect.DeepEqual(got.Float32.Error, tt.want.Float32.Error) {
+			if math.Float32bits(got.Float32.Value) != math.Float32bits(tt.want.Float32.Value) || !errors.Is(got.Float32.Error, tt.want.Float32.Error) {
 				t.Errorf("Token(%s).Float32() = (%v, %v), want (%v, %v)", tt.in, got.Float32.Value, got.Float32.Error, tt.want.Float32.Value, tt.want.Float32.Error)
 			}
-			if math.Float64bits(got.Float.Value) != math.Float64bits(tt.want.Float.Value) || !reflect.DeepEqual(got.Float.Error, tt.want.Float.Error) {
+			if math.Float64bits(got.Float.Value) != math.Float64bits(tt.want.Float.Value) || !errors.Is(got.Float.Error, tt.want.Float.Error) {
 				t.Errorf("Token(%s).Float() = (%v, %v), want (%v, %v)", tt.in, got.Float.Value, got.Float.Error, tt.want.Float.Value, tt.want.Float.Error)
 			}
-			if got.Int.Value != tt.want.Int.Value || !reflect.DeepEqual(got.Int.Error, tt.want.Int.Error) {
+			if got.Int.Value != tt.want.Int.Value || !errors.Is(got.Int.Error, tt.want.Int.Error) {
 				t.Errorf("Token(%s).Int() = (%v, %v), want (%v, %v)", tt.in, got.Int.Value, got.Int.Error, tt.want.Int.Value, tt.want.Int.Error)
 			}
-			if got.Uint.Value != tt.want.Uint.Value || !reflect.DeepEqual(got.Uint.Error, tt.want.Uint.Error) {
+			if got.Uint.Value != tt.want.Uint.Value || !errors.Is(got.Uint.Error, tt.want.Uint.Error) {
 				t.Errorf("Token(%s).Uint() = (%v, %v), want (%v, %v)", tt.in, got.Uint.Value, got.Uint.Error, tt.want.Uint.Value, tt.want.Uint.Error)
 			}
 			if got.Kind != tt.want.Kind {

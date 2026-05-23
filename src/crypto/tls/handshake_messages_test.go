@@ -179,10 +179,10 @@ func (*clientHelloMsg) Generate(rand *rand.Rand, size int) reflect.Value {
 		}
 	}
 	if rand.Intn(10) > 5 {
-		m.supportedSignatureAlgorithms = supportedSignatureAlgorithms(VersionTLS12)
+		m.supportedSignatureAlgorithms = supportedSignatureAlgorithms(VersionTLS12, VersionTLS13)
 	}
 	if rand.Intn(10) > 5 {
-		m.supportedSignatureAlgorithmsCert = supportedSignatureAlgorithms(VersionTLS12)
+		m.supportedSignatureAlgorithmsCert = supportedSignatureAlgorithms(VersionTLS12, VersionTLS13)
 	}
 	for i := 0; i < rand.Intn(5); i++ {
 		m.alpnProtocols = append(m.alpnProtocols, randomString(rand.Intn(20)+1, rand))
@@ -360,16 +360,8 @@ func (*newSessionTicketMsg) Generate(rand *rand.Rand, size int) reflect.Value {
 var sessionTestCerts []*x509.Certificate
 
 func init() {
-	cert, err := x509.ParseCertificate(testRSACertificate)
-	if err != nil {
-		panic(err)
-	}
-	sessionTestCerts = append(sessionTestCerts, cert)
-	cert, err = x509.ParseCertificate(testRSACertificateIssuer)
-	if err != nil {
-		panic(err)
-	}
-	sessionTestCerts = append(sessionTestCerts, cert)
+	sessionTestCerts = append(sessionTestCerts, testRSA2048Cert.Leaf)
+	sessionTestCerts = append(sessionTestCerts, testRootCert.Leaf)
 }
 
 func (*SessionState) Generate(rand *rand.Rand, size int) reflect.Value {
@@ -473,10 +465,10 @@ func (*certificateRequestMsgTLS13) Generate(rand *rand.Rand, size int) reflect.V
 		m.scts = true
 	}
 	if rand.Intn(10) > 5 {
-		m.supportedSignatureAlgorithms = supportedSignatureAlgorithms(VersionTLS12)
+		m.supportedSignatureAlgorithms = supportedSignatureAlgorithms(VersionTLS12, VersionTLS13)
 	}
 	if rand.Intn(10) > 5 {
-		m.supportedSignatureAlgorithmsCert = supportedSignatureAlgorithms(VersionTLS12)
+		m.supportedSignatureAlgorithmsCert = supportedSignatureAlgorithms(VersionTLS12, VersionTLS13)
 	}
 	if rand.Intn(10) > 5 {
 		m.certificateAuthorities = make([][]byte, 3)

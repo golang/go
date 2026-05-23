@@ -16,7 +16,7 @@ import (
 	"slices"
 	"sort"
 	"strings"
-	"text/template"
+	"text/template" // NOLINT
 	"unicode"
 )
 
@@ -423,7 +423,7 @@ func (op Operation) GoType() string {
 }
 
 // ImmName returns the name to use for an operation's immediate operand.
-// This can be overriden in the yaml with "name" on an operand,
+// This can be overridden in the yaml with "name" on an operand,
 // otherwise, for now, "constant"
 func (op Operation) ImmName() string {
 	return op.Op0Name("constant")
@@ -923,12 +923,12 @@ func (o *Operation) hasMaskedMerging(maskType maskShape, outType outShape) bool 
 		len(o.InVariant) == 1 && !strings.Contains(o.Asm, "BLEND") && !strings.Contains(o.Asm, "VMOVDQU")
 }
 
-func getVbcstData(s string) (feat1Match, feat2Match string) {
-	_, err := fmt.Sscanf(s, "feat1=%[^;];feat2=%s", &feat1Match, &feat2Match)
-	if err != nil {
-		panic(err)
+func getVbcstData(s string) (string, string) {
+	feat1, feat2, found := strings.Cut(s, ";")
+	if !found || !strings.HasPrefix(feat1, "feat1=") || !strings.HasPrefix(feat2, "feat2=") {
+		panic(fmt.Sprintf("unexpected format for vbcst data: %s", s))
 	}
-	return
+	return strings.TrimPrefix(feat1, "feat1="), strings.TrimPrefix(feat2, "feat2=")
 }
 
 func (o Operation) String() string {

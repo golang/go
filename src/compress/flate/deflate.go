@@ -818,6 +818,10 @@ func (d *compressor) close() error {
 //
 // If level is in the range [-2, 9] then the error returned will be nil.
 // Otherwise the error returned will be non-nil.
+//
+// Note that the exact bytes written to w are not covered by the Go 1
+// compatibility promise. Callers, including tests, should not depend on the
+// exact written bytes.
 func NewWriter(w io.Writer, level int) (*Writer, error) {
 	var dw Writer
 	if err := dw.d.init(w, level); err != nil {
@@ -832,6 +836,10 @@ func NewWriter(w io.Writer, level int) (*Writer, error) {
 // any compressed output. The compressed data written to w
 // can only be decompressed by a reader initialized with the
 // same dictionary (see [NewReaderDict]).
+//
+// Note that the exact bytes written to w are not covered by the Go 1
+// compatibility promise. Callers, including tests, should not depend on the
+// exact written bytes.
 func NewWriterDict(w io.Writer, level int, dict []byte) (*Writer, error) {
 	zw, err := NewWriter(w, level)
 	if err != nil {

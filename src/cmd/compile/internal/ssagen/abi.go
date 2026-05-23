@@ -280,6 +280,10 @@ func makeABIWrapper(f *ir.Func, wrapperABI obj.ABI) {
 	fn.SetABIWrapper(true)
 	fn.SetDupok(true)
 
+	// Propagate linkname attribute.
+	fn.LinksymABI(fn.ABI).Set(obj.AttrLinkname, f.Linksym().IsLinkname())
+	fn.LinksymABI(fn.ABI).Set(obj.AttrLinknameStd, f.Linksym().IsLinknameStd())
+
 	// ABI0-to-ABIInternal wrappers will be mainly loading params from
 	// stack into registers (and/or storing stack locations back to
 	// registers after the wrapped call); in most cases they won't
@@ -317,7 +321,7 @@ func makeABIWrapper(f *ir.Func, wrapperABI obj.ABI) {
 	// extra work in typecheck/walk/ssa, might want to add a new node
 	// OTAILCALL or something to this effect.
 	tailcall := fn.Type().NumResults() == 0 && fn.Type().NumParams() == 0 && fn.Type().NumRecvs() == 0
-	if base.Ctxt.Arch.Name == "ppc64le" && base.Ctxt.Flag_dynlink {
+	if (base.Ctxt.Arch.Name == "ppc64le" || base.Ctxt.Arch.Name == "ppc64") && base.Ctxt.Flag_dynlink {
 		// cannot tailcall on PPC64 with dynamic linking, as we need
 		// to restore R2 after call.
 		tailcall = false

@@ -790,3 +790,21 @@ var slist []symlink
 type symlink struct {
 	field *types.Field
 }
+
+// FieldOffset returns the offset of field f in t,
+// including any implicit offsets from embedded fields.
+func FieldOffset(t *types.Type, f *types.Field) int64 {
+	if f.Sym == nil {
+		return f.Offset
+	}
+	path, ambig := dotpath(f.Sym, t, nil, false)
+	if path == nil || ambig {
+		return f.Offset
+	}
+	var offset int64
+	for _, d := range path {
+		offset += d.field.Offset
+	}
+	offset += f.Offset
+	return offset
+}

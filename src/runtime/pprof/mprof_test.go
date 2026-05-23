@@ -96,8 +96,11 @@ func TestMemoryProfiler(t *testing.T) {
 		stk    []string
 		legacy string
 	}{{
+		// 4 PCs for the fast path
+		// 5 PCs for the slow path with size-specialized malloc
+		// 6 PCs for race builds (which also disable size-specialized malloc)
 		stk: []string{"runtime/pprof.allocatePersistent1K", "runtime/pprof.TestMemoryProfiler"},
-		legacy: fmt.Sprintf(`%v: %v \[%v: %v\] @ 0x[0-9,a-f]+ 0x[0-9,a-f]+ 0x[0-9,a-f]+ 0x[0-9,a-f]+( 0x[0-9,a-f]+ 0x[0-9,a-f]+)?
+		legacy: fmt.Sprintf(`%v: %v \[%v: %v\] @( 0x[0-9,a-f]+){4,6}
 #	0x[0-9,a-f]+	runtime/pprof\.allocatePersistent1K\+0x[0-9,a-f]+	.*runtime/pprof/mprof_test\.go:48
 #	0x[0-9,a-f]+	runtime/pprof\.TestMemoryProfiler\+0x[0-9,a-f]+	.*runtime/pprof/mprof_test\.go:87
 `, 32*memoryProfilerRun, 1024*memoryProfilerRun, 32*memoryProfilerRun, 1024*memoryProfilerRun),

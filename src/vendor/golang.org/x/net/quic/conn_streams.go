@@ -163,8 +163,8 @@ func (c *Conn) streamForFrame(now time.Time, id streamID, ftype streamFrameType)
 	num := id.num()
 	styp := id.streamType()
 	if id.initiator() == c.side {
-		if num < c.streams.localLimit[styp].opened {
-			// This stream was created by us, and has been closed.
+		// This stream was created by us, and has been closed.
+		if c.streams.localLimit[styp].wasOpened(num) {
 			return nil
 		}
 		// Received a frame for a stream that should be originated by us,

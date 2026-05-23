@@ -110,9 +110,12 @@ func putelfsym(ctxt *Link, x loader.Sym, typ elf.SymType, curbind elf.SymBind) {
 	// One pass for each binding: elf.STB_LOCAL, elf.STB_GLOBAL,
 	// maybe one day elf.STB_WEAK.
 	bind := elf.STB_GLOBAL
-	if ldr.IsFileLocal(x) && !isStaticTmp(sname) || ldr.AttrVisibilityHidden(x) || ldr.AttrLocal(x) {
+	if ldr.IsFileLocal(x) && !isStaticTmp(sname) || ldr.AttrVisibilityHidden(x) || ldr.AttrLocal(x) ||
+		(ldr.IsContentHashed(x) && ldr.SymType(x).IsText()) {
 		// Static tmp is package local, but a package can be shared among multiple DSOs.
 		// They need to have a single view of the static tmp that are writable.
+		// Content-hashed text symbols may have the same name. Mark them local to avoid
+		// collision.
 		bind = elf.STB_LOCAL
 	}
 

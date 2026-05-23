@@ -546,7 +546,7 @@ func (s *Schedule) initplan(n ir.Node) {
 			if a.Sym().IsBlank() {
 				continue
 			}
-			s.addvalue(p, a.Field.Offset, a.Value)
+			s.addvalue(p, typecheck.FieldOffset(n.Type(), a.Field), a.Value)
 		}
 
 	case ir.OMAPLIT:

@@ -10,6 +10,7 @@ import (
 	"crypto/ecdh"
 	"crypto/ecdsa"
 	"crypto/ed25519"
+	"crypto/mldsa"
 	"crypto/rsa"
 	"crypto/x509/pkix"
 	"encoding/asn1"
@@ -138,6 +139,70 @@ func parseASN1String(tag cryptobyte_asn1.Tag, value []byte) (string, error) {
 	return "", fmt.Errorf("unsupported string type: %v", tag)
 }
 
+// readASN1Any parses types documented at [pkix.AttributeTypeAndValue].
+func readASN1Any(der *cryptobyte.String) (any, error) {
+	var fullValue cryptobyte.String
+	var valueTag cryptobyte_asn1.Tag
+	if !der.ReadAnyASN1Element(&fullValue, &valueTag) {
+		return nil, errors.New("invalid ASN.1 element")
+	}
+	switch valueTag {
+	case cryptobyte_asn1.T61String, cryptobyte_asn1.PrintableString,
+		cryptobyte_asn1.UTF8String, cryptobyte_asn1.Tag(asn1.TagBMPString),
+		cryptobyte_asn1.IA5String, cryptobyte_asn1.Tag(asn1.TagNumericString):
+		var rawValue []byte
+		if !fullValue.ReadASN1((*cryptobyte.String)(&rawValue), valueTag) {
+			return nil, errors.New("invalid ASN.1 element")
+		}
+		return parseASN1String(valueTag, rawValue)
+	case cryptobyte_asn1.INTEGER:
+		var i int64
+		if !fullValue.ReadASN1Integer(&i) {
+			return nil, errors.New("invalid ASN.1 integer")
+		}
+		return i, nil
+	case cryptobyte_asn1.BIT_STRING:
+		var bs asn1.BitString
+		if !fullValue.ReadASN1BitString(&bs) {
+			return nil, errors.New("invalid ASN.1 BIT STRING")
+		}
+		return bs, nil
+	case cryptobyte_asn1.OCTET_STRING:
+		var s []byte
+		if !fullValue.ReadASN1((*cryptobyte.String)(&s), cryptobyte_asn1.OCTET_STRING) {
+			return nil, errors.New("invalid ASN.1 OCTET STRING")
+		}
+		return s, nil
+	case cryptobyte_asn1.OBJECT_IDENTIFIER:
+		var oid asn1.ObjectIdentifier
+		if !fullValue.ReadASN1ObjectIdentifier(&oid) {
+			return nil, errors.New("invalid ASN.1 OBJECT IDENTIFIER")
+		}
+		return oid, nil
+	case cryptobyte_asn1.UTCTime, cryptobyte_asn1.GeneralizedTime:
+		out, err := readASN1Time(&fullValue)
+		return out, err
+	case cryptobyte_asn1.BOOLEAN:
+		var b bool
+		if !fullValue.ReadASN1Boolean(&b) {
+			return nil, errors.New("invalid ASN.1 BOOLEAN")
+		}
+		return b, nil
+	case cryptobyte_asn1.NULL:
+		return nil, nil
+	default:
+		var v asn1.RawValue
+		v.Class = int(valueTag >> 6)
+		v.IsCompound = valueTag&0x20 == 0x20
+		v.Tag = int(valueTag & 0x1f)
+		v.FullBytes = fullValue
+		if !fullValue.ReadAnyASN1((*cryptobyte.String)(&v.Bytes), &valueTag) {
+			return nil, errors.New("invalid ASN.1 element")
+		}
+		return v, nil
+	}
+}
+
 // parseName parses a DER encoded Name as defined in RFC 5280. We may
 // want to export this function in the future for use in crypto/tls.
 func parseName(raw cryptobyte.String) (*pkix.RDNSequence, error) {
@@ -161,13 +226,8 @@ func parseName(raw cryptobyte.String) (*pkix.RDNSequence, error) {
 			if !atav.ReadASN1ObjectIdentifier(&attr.Type) {
 				return nil, errors.New("x509: invalid RDNSequence: invalid attribute type")
 			}
-			var rawValue cryptobyte.String
-			var valueTag cryptobyte_asn1.Tag
-			if !atav.ReadAnyASN1(&rawValue, &valueTag) {
-				return nil, errors.New("x509: invalid RDNSequence: invalid attribute value")
-			}
 			var err error
-			attr.Value, err = parseASN1String(valueTag, rawValue)
+			attr.Value, err = readASN1Any(&atav)
 			if err != nil {
 				return nil, fmt.Errorf("x509: invalid RDNSequence: invalid attribute value: %s", err)
 			}
@@ -198,7 +258,7 @@ func parseAI(der cryptobyte.String) (pkix.AlgorithmIdentifier, error) {
 	return ai, nil
 }
 
-func parseTime(der *cryptobyte.String) (time.Time, error) {
+func readASN1Time(der *cryptobyte.String) (time.Time, error) {
 	var t time.Time
 	switch {
 	case der.PeekASN1Tag(cryptobyte_asn1.UTCTime):
@@ -216,11 +276,11 @@ func parseTime(der *cryptobyte.String) (time.Time, error) {
 }
 
 func parseValidity(der cryptobyte.String) (time.Time, time.Time, error) {
-	notBefore, err := parseTime(&der)
+	notBefore, err := readASN1Time(&der)
 	if err != nil {
 		return time.Time{}, time.Time{}, err
 	}
-	notAfter, err := parseTime(&der)
+	notAfter, err := readASN1Time(&der)
 	if err != nil {
 		return time.Time{}, time.Time{}, err
 	}
@@ -303,6 +363,15 @@ func parsePublicKey(keyData *publicKeyInfo) (any, error) {
 			return nil, errors.New("x509: wrong Ed25519 public key size")
 		}
 		return ed25519.PublicKey(data), nil
+	case oid.Equal(oidPublicKeyMLDSA44), oid.Equal(oidPublicKeyMLDSA65), oid.Equal(oidPublicKeyMLDSA87):
+		if len(params.FullBytes) != 0 {
+			return nil, errors.New("x509: ML-DSA key encoded with illegal parameters")
+		}
+		params, ok := mldsaParametersFromOID(oid)
+		if !ok {
+			return nil, errors.New("x509: unsupported ML-DSA parameters")
+		}
+		return mldsa.NewPublicKey(params, data)
 	case oid.Equal(oidPublicKeyX25519):
 		// RFC 8410, Section 3
 		// > For all of the OIDs, the parameters MUST be absent.
@@ -936,7 +1005,11 @@ func parseCertificate(der []byte) (*Certificate, error) {
 	cert.SerialNumber = serial
 
 	var sigAISeq cryptobyte.String
-	if !tbs.ReadASN1(&sigAISeq, cryptobyte_asn1.SEQUENCE) {
+	if !tbs.ReadASN1Element(&sigAISeq, cryptobyte_asn1.SEQUENCE) {
+		return nil, errors.New("x509: malformed signature algorithm identifier")
+	}
+	cert.RawSignatureAlgorithm = sigAISeq
+	if !sigAISeq.ReadASN1(&sigAISeq, cryptobyte_asn1.SEQUENCE) {
 		return nil, errors.New("x509: malformed signature algorithm identifier")
 	}
 	// Before parsing the inner algorithm identifier, extract
@@ -1143,7 +1216,11 @@ func ParseRevocationList(der []byte) (*RevocationList, error) {
 	}
 
 	var sigAISeq cryptobyte.String
-	if !tbs.ReadASN1(&sigAISeq, cryptobyte_asn1.SEQUENCE) {
+	if !tbs.ReadASN1Element(&sigAISeq, cryptobyte_asn1.SEQUENCE) {
+		return nil, errors.New("x509: malformed signature algorithm identifier")
+	}
+	rl.RawSignatureAlgorithm = sigAISeq
+	if !sigAISeq.ReadASN1(&sigAISeq, cryptobyte_asn1.SEQUENCE) {
 		return nil, errors.New("x509: malformed signature algorithm identifier")
 	}
 	// Before parsing the inner algorithm identifier, extract
@@ -1179,12 +1256,12 @@ func ParseRevocationList(der []byte) (*RevocationList, error) {
 	}
 	rl.Issuer.FillFromRDNSequence(issuerRDNs)
 
-	rl.ThisUpdate, err = parseTime(&tbs)
+	rl.ThisUpdate, err = readASN1Time(&tbs)
 	if err != nil {
 		return nil, err
 	}
 	if tbs.PeekASN1Tag(cryptobyte_asn1.GeneralizedTime) || tbs.PeekASN1Tag(cryptobyte_asn1.UTCTime) {
-		rl.NextUpdate, err = parseTime(&tbs)
+		rl.NextUpdate, err = readASN1Time(&tbs)
 		if err != nil {
 			return nil, err
 		}
@@ -1211,7 +1288,7 @@ func ParseRevocationList(der []byte) (*RevocationList, error) {
 			if !certSeq.ReadASN1Integer(rce.SerialNumber) {
 				return nil, errors.New("x509: malformed serial number")
 			}
-			rce.RevocationTime, err = parseTime(&certSeq)
+			rce.RevocationTime, err = readASN1Time(&certSeq)
 			if err != nil {
 				return nil, err
 			}

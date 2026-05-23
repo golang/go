@@ -625,6 +625,8 @@ func TestBogoSuite(t *testing.T) {
 	assertResults := map[string]string{
 		"CurveTest-Client-X25519MLKEM768-TLS13": "PASS",
 		"CurveTest-Server-X25519MLKEM768-TLS13": "PASS",
+		"CurveTest-Client-MLKEM1024-TLS13":      "PASS",
+		"CurveTest-Server-MLKEM1024-TLS13":      "PASS",
 
 		// Various signature algorithm tests checking that we enforce our
 		// preferences on the peer.

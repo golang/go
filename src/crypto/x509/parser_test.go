@@ -5,14 +5,18 @@
 package x509
 
 import (
+	"bytes"
 	"crypto/ecdsa"
 	"crypto/elliptic"
 	"crypto/rand"
+	"crypto/x509/pkix"
 	"encoding/asn1"
 	"encoding/pem"
 	"os"
+	"reflect"
 	"strings"
 	"testing"
+	"time"
 
 	cryptobyte_asn1 "golang.org/x/crypto/cryptobyte/asn1"
 )
@@ -357,4 +361,65 @@ func FuzzDomainNameValid(f *testing.F) {
 		domainNameValid(data, false)
 		domainNameValid(data, true)
 	})
+}
+
+func TestParseNameTypes(t *testing.T) {
+	block, _ := pem.Decode([]byte(`
+-----BEGIN CERTIFICATE-----
+MIICGzCCAcGgAwIBAgIJAIZft7jy3RcpMAoGCCqGSM49BAMCMA8xDTALBgNVBAMM
+BFRlc3QwHhcNMjUwOTAyMTg0MzE3WhcNMjUxMDAyMTg0MzE3WjCCARUxIjAgBg0q
+hkiG9xIEAYS3CQIBDA91dGY4LXN0cmluZ/CfpooxHzAdBg0qhkiG9xIEAYS3CQIC
+BAxvY3RldC1zdHJpbmcxGDAWBg0qhkiG9xIEAYS3CQIDDQUBAgMEBTETMBEGDSqG
+SIb3EgQBhLcJAgQFADEVMBMGDSqGSIb3EgQBhLcJAgUwAgECMRQwEgYNKoZIhvcS
+BAGEtwkCBgIBKjEgMB4GDSqGSIb3EgQBhLcJAgcGDSqGSIb3EgQBhLcJAgcxGDAW
+Bg0qhkiG9xIEAYS3CQIIAwUAqrvM3TEgMB4GDSqGSIb3EgQBhLcJAgkXDTI1MDkw
+MjE4NDMxN1oxFDASBg0qhkiG9xIEAYS3CQIKAQH/MFkwEwYHKoZIzj0CAQYIKoZI
+zj0DAQcDQgAE7M4zoqQtXbvGsudKaM5gd8emxyk68AFTjIYU4PO1AtiYX3wyL89k
+wbHjxgvmh/9aBg1LOj6kfsJIxULUmUpdzTAKBggqhkjOPQQDAgNIADBFAiBvKz3o
+ALhCqKrRFLUbax6+tI1s1B14IPVk2ZHbBEou5gIhAOpvJRNj5qluPXKLXmZvIK8u
+OjUhiZoowYvborSS1EBK
+-----END CERTIFICATE-----
+	`))
+	expected := map[string]any{
+		"1.2.840.113554.4.1.72585.2.1": "utf8-string🦊",
+		"1.2.840.113554.4.1.72585.2.2": []byte("octet-string"),
+		"1.2.840.113554.4.1.72585.2.3": asn1.RawValue{Tag: 13,
+			Bytes: []byte{1, 2, 3, 4, 5}, FullBytes: []byte{13, 5, 1, 2, 3, 4, 5}},
+		"1.2.840.113554.4.1.72585.2.4": nil,
+		"1.2.840.113554.4.1.72585.2.5": asn1.RawValue{Tag: asn1.TagSequence, IsCompound: true,
+			Bytes: []byte{1, 2}, FullBytes: []byte{0x30, 2, 1, 2}},
+		"1.2.840.113554.4.1.72585.2.6": int64(42),
+		"1.2.840.113554.4.1.72585.2.7": asn1.ObjectIdentifier{1, 2, 840, 113554, 4, 1, 72585, 2, 7},
+		"1.2.840.113554.4.1.72585.2.8": asn1.BitString{BitLength: 32,
+			Bytes: []byte{0xaa, 0xbb, 0xcc, 0xdd}},
+		"1.2.840.113554.4.1.72585.2.9":  time.Date(2025, 9, 2, 18, 43, 17, 0, time.UTC),
+		"1.2.840.113554.4.1.72585.2.10": true,
+	}
+	cert, err := ParseCertificate(block.Bytes)
+	if err != nil {
+		t.Fatalf("ParseCertificate failed: %v", err)
+	}
+	for _, attr := range cert.Subject.Names {
+		if val, ok := expected[attr.Type.String()]; ok {
+			if !reflect.DeepEqual(attr.Value, val) {
+				t.Errorf("unexpected value for %s: got %v (%T), want %v (%T)", attr.Type, attr.Value, attr.Value, val, val)
+			}
+		} else {
+			t.Errorf("unexpected attribute type: %s", attr.Type)
+		}
+	}
+	extra := pkix.Name{ExtraNames: cert.Subject.Names}
+	// asn1.Marshal does not encode NULL.
+	for i := range extra.ExtraNames {
+		if extra.ExtraNames[i].Value == nil {
+			extra.ExtraNames[i].Value = asn1.NullRawValue
+		}
+	}
+	got, err := asn1.Marshal(extra.ToRDNSequence())
+	if err != nil {
+		t.Fatalf("asn1.Marshal failed: %v", err)
+	}
+	if !bytes.Equal(got, cert.RawSubject) {
+		t.Errorf("unexpected marshaled RDNSequence: got %x, want %x", got, cert.RawSubject)
+	}
 }

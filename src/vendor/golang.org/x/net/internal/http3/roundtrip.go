@@ -345,6 +345,9 @@ func (cc *clientConn) handleHeaders(st *stream) (statusCode int, h http.Header, 
 	// Issue #71374: Consider tracking the never-indexed status of headers
 	// with the N bit set in their QPACK encoding.
 	err = cc.dec.decode(st, func(_ indexType, name, value string) error {
+		if !httpguts.ValidHeaderFieldValue(value) {
+			return &streamError{errH3MessageError, "invalid field value"}
+		}
 		switch {
 		case name == ":status":
 			if haveStatus {
@@ -372,6 +375,9 @@ func (cc *clientConn) handleHeaders(st *stream) (statusCode int, h http.Header, 
 				cookie += "; " + value
 			}
 		default:
+			if !validWireHeaderFieldName(name) {
+				return &streamError{errH3MessageError, "invalid field name"}
+			}
 			if h == nil {
 				h = make(http.Header)
 			}

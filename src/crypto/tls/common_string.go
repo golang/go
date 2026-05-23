@@ -18,6 +18,9 @@ func _() {
 	_ = x[ECDSAWithP384AndSHA384-1283]
 	_ = x[ECDSAWithP521AndSHA512-1539]
 	_ = x[Ed25519-2055]
+	_ = x[MLDSA44-2308]
+	_ = x[MLDSA65-2309]
+	_ = x[MLDSA87-2310]
 	_ = x[PKCS1WithSHA1-513]
 	_ = x[ECDSAWithSHA1-515]
 }
@@ -32,10 +35,12 @@ const (
 	_SignatureScheme_name_6 = "PKCS1WithSHA512"
 	_SignatureScheme_name_7 = "ECDSAWithP521AndSHA512"
 	_SignatureScheme_name_8 = "PSSWithSHA256PSSWithSHA384PSSWithSHA512Ed25519"
+	_SignatureScheme_name_9 = "MLDSA44MLDSA65MLDSA87"
 )
 
 var (
 	_SignatureScheme_index_8 = [...]uint8{0, 13, 26, 39, 46}
+	_SignatureScheme_index_9 = [...]uint8{0, 7, 14, 21}
 )
 
 func (i SignatureScheme) String() string {
@@ -59,6 +64,9 @@ func (i SignatureScheme) String() string {
 	case 2052 <= i && i <= 2055:
 		i -= 2052
 		return _SignatureScheme_name_8[_SignatureScheme_index_8[i]:_SignatureScheme_index_8[i+1]]
+	case 2308 <= i && i <= 2310:
+		i -= 2308
+		return _SignatureScheme_name_9[_SignatureScheme_index_9[i]:_SignatureScheme_index_9[i+1]]
 	default:
 		return "SignatureScheme(" + strconv.FormatInt(int64(i), 10) + ")"
 	}
@@ -74,17 +82,19 @@ func _() {
 	_ = x[X25519MLKEM768-4588]
 	_ = x[SecP256r1MLKEM768-4587]
 	_ = x[SecP384r1MLKEM1024-4589]
+	_ = x[MLKEM1024-514]
 }
 
 const (
 	_CurveID_name_0 = "CurveP256CurveP384CurveP521"
 	_CurveID_name_1 = "X25519"
-	_CurveID_name_2 = "SecP256r1MLKEM768X25519MLKEM768SecP384r1MLKEM1024"
+	_CurveID_name_2 = "MLKEM1024"
+	_CurveID_name_3 = "SecP256r1MLKEM768X25519MLKEM768SecP384r1MLKEM1024"
 )
 
 var (
 	_CurveID_index_0 = [...]uint8{0, 9, 18, 27}
-	_CurveID_index_2 = [...]uint8{0, 17, 31, 49}
+	_CurveID_index_3 = [...]uint8{0, 17, 31, 49}
 )
 
 func (i CurveID) String() string {
@@ -94,9 +104,11 @@ func (i CurveID) String() string {
 		return _CurveID_name_0[_CurveID_index_0[i]:_CurveID_index_0[i+1]]
 	case i == 29:
 		return _CurveID_name_1
+	case i == 514:
+		return _CurveID_name_2
 	case 4587 <= i && i <= 4589:
 		i -= 4587
-		return _CurveID_name_2[_CurveID_index_2[i]:_CurveID_index_2[i+1]]
+		return _CurveID_name_3[_CurveID_index_3[i]:_CurveID_index_3[i+1]]
 	default:
 		return "CurveID(" + strconv.FormatInt(int64(i), 10) + ")"
 	}
@@ -117,8 +129,9 @@ const _ClientAuthType_name = "NoClientCertRequestClientCertRequireAnyClientCertV
 var _ClientAuthType_index = [...]uint8{0, 12, 29, 49, 72, 98}
 
 func (i ClientAuthType) String() string {
-	if i < 0 || i >= ClientAuthType(len(_ClientAuthType_index)-1) {
+	idx := int(i) - 0
+	if i < 0 || idx >= len(_ClientAuthType_index)-1 {
 		return "ClientAuthType(" + strconv.FormatInt(int64(i), 10) + ")"
 	}
-	return _ClientAuthType_name[_ClientAuthType_index[i]:_ClientAuthType_index[i+1]]
+	return _ClientAuthType_name[_ClientAuthType_index[idx]:_ClientAuthType_index[idx+1]]
 }

@@ -12,6 +12,7 @@ import (
 	"debug/pe"
 	"errors"
 	"internal/abi"
+	"internal/buildcfg"
 	"internal/platform"
 	"internal/testenv"
 	"internal/xcoff"
@@ -919,10 +920,16 @@ func TestTrampoline(t *testing.T) {
 	// calls will use trampolines.
 	buildmodes := []string{"default"}
 	switch runtime.GOARCH {
-	case "arm", "arm64", "ppc64", "loong64":
-	case "ppc64le":
-		// Trampolines are generated differently when internal linking PIE, test them too.
-		buildmodes = append(buildmodes, "pie")
+	case "arm", "arm64", "loong64":
+	case "ppc64le", "ppc64":
+		switch runtime.GOOS {
+		case "aix":
+		case "linux":
+			// Trampolines are generated differently when internal linking PIE, test them too.
+			buildmodes = append(buildmodes, "pie")
+		default:
+			t.Skipf("trampoline insertion is not implemented on %s-%s", runtime.GOARCH, runtime.GOOS)
+		}
 	default:
 		t.Skipf("trampoline insertion is not implemented on %s", runtime.GOARCH)
 	}
@@ -984,8 +991,8 @@ func TestTrampolineCgo(t *testing.T) {
 	// calls will use trampolines.
 	buildmodes := []string{"default"}
 	switch runtime.GOARCH {
-	case "arm", "arm64", "ppc64", "loong64":
-	case "ppc64le":
+	case "arm", "arm64", "loong64":
+	case "ppc64le", "ppc64":
 		// Trampolines are generated differently when internal linking PIE, test them too.
 		buildmodes = append(buildmodes, "pie")
 	default:
@@ -1709,6 +1716,10 @@ func TestCheckLinkname(t *testing.T) {
 		{"coro2.go", false},
 		// pull linkname of a builtin symbol is not ok
 		{"builtin.go", false},
+		// using a linkname to reference a runtime assembly
+		// function is not ok (except on non-regabi platforms)
+		{"systemstack.go", !buildcfg.Experiment.RegabiWrappers},
+		// misc
 		{"addmoduledata.go", false},
 		{"freegc.go", false},
 		// legacy bad linkname is ok, for now

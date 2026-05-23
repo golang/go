@@ -82,7 +82,7 @@ func TestShared(t *testing.T) {
 			}
 
 			dstBin := dir.Join(name)
-			cmd, err := cc(config.cFlags...)
+			cmd, err := cc(t.Context(), config.cFlags...)
 			if err != nil {
 				t.Fatal(err)
 			}

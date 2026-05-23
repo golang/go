@@ -32,28 +32,41 @@ func (lim *localStreamLimits) open(ctx context.Context, c *Conn) (num int64, err
 	if err := lim.gate.waitAndLock(ctx); err != nil {
 		return 0, err
 	}
+	defer lim.unlock()
 	if lim.opened < 0 {
-		lim.gate.unlock(true)
 		return 0, errConnClosed
 	}
 	num = lim.opened
 	lim.opened++
-	lim.gate.unlock(lim.opened < lim.max)
 	return num, nil
+}
+
+// unlock is a wrapper around lim.gate.unlock. This should be used in lieu of
+// lim.gate.unlock directly so that out gate-state-setting logic is consistent
+// across multiple calls.
+func (lim *localStreamLimits) unlock() {
+	lim.gate.unlock(lim.opened < lim.max)
+}
+
+// wasOpened reports whether the given stream was opened by us.
+func (lim *localStreamLimits) wasOpened(num int64) bool {
+	lim.gate.lock()
+	defer lim.unlock()
+	return num < lim.opened
 }
 
 // connHasClosed indicates the connection has been closed, locally or by the peer.
 func (lim *localStreamLimits) connHasClosed() {
 	lim.gate.lock()
 	lim.opened = -1
-	lim.gate.unlock(true)
+	lim.unlock()
 }
 
 // setMax sets the MAX_STREAMS provided by the peer.
 func (lim *localStreamLimits) setMax(maxStreams int64) {
 	lim.gate.lock()
 	lim.max = max(lim.max, maxStreams)
-	lim.gate.unlock(lim.opened < lim.max)
+	lim.unlock()
 }
 
 // remoteStreamLimits are limits on the number of open streams created by the peer.

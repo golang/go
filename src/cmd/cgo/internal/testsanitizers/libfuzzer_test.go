@@ -56,7 +56,7 @@ func TestLibFuzzer(t *testing.T) {
 			mustRun(t, config.goCmd("build", "-buildmode=c-archive", "-o", archivePath, srcPath(tc.goSrc)))
 
 			// build C code (if any) and link with Go code
-			cmd, err := cc(config.cFlags...)
+			cmd, err := cc(t.Context(), config.cFlags...)
 			if err != nil {
 				t.Fatalf("error running cc: %v", err)
 			}

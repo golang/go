@@ -1315,6 +1315,40 @@ func findGoroutineLeaks() bool {
 			}
 		}
 	}
+
+	// Do not report the main goroutine if it is waiting on select{}.
+	//
+	// NOTE: We still treat the main goroutine as leaked during the analysis,
+	// but revert its status to _Gwaiting after the analysis to not include
+	// it in the goroutine leak profile.
+	// This preserves the effectiveness of goroutine leak detection
+	// if the main goroutine holds references to concurrency primitives causing
+	// other leaks.
+	//
+	// Example:
+	//
+	// ```go
+	// func main() {
+	// 	ch := make(chan int)
+	// 	go func() {
+	// 		...
+	// 		<-ch // Leaks
+	// 	}()
+	//
+	// 	select {}
+	// }
+	// ```
+	//
+	// The main goroutine is blocked by select{}, but holds a reference to "ch".
+	// Not treating the main goroutine as leaked would cause the analysis to
+	// miss the legitimate leak at the child goroutine.
+	//
+	// The main goroutine should always be allgs[0], but double check
+	// in case that invariant changes in the future.
+	if gp0 := allgs[0]; gp0.goid == 1 && gp0.waitreason == waitReasonSelectNoCases {
+		casgstatus(gp0, _Gleaked, _Gwaiting)
+	}
+
 	// Put the remaining roots as ready for marking and drain them.
 	work.markrootJobs.Add(int32(work.nStackRoots - work.nMaybeRunnableStackRoots))
 	work.nMaybeRunnableStackRoots = work.nStackRoots

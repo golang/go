@@ -183,7 +183,7 @@ func feMulGeneric(v, a, b *Element) {
 	v.l4 = rr4&maskLow51Bits + rr3>>51
 }
 
-func feSquareGeneric(v, a *Element) {
+func feSquare(v, a *Element) {
 	l0 := a.l0
 	l1 := a.l1
 	l2 := a.l2
@@ -254,6 +254,62 @@ func feSquareGeneric(v, a *Element) {
 	v.l2 = rr2&maskLow51Bits + rr1>>51
 	v.l3 = rr3&maskLow51Bits + rr2>>51
 	v.l4 = rr4&maskLow51Bits + rr3>>51
+}
+
+// feSquareN squares a n times and writes the result to v.
+// It uses local variables to keep limbs in registers.
+func feSquareN(v, a *Element, n int) {
+	l0 := a.l0
+	l1 := a.l1
+	l2 := a.l2
+	l3 := a.l3
+	l4 := a.l4
+
+	for range n {
+		r0 := mul(l0, l0)
+		r0 = addMul38(r0, l1, l4)
+		r0 = addMul38(r0, l2, l3)
+
+		r1 := mul(l0*2, l1)
+		r1 = addMul38(r1, l2, l4)
+		r1 = addMul19(r1, l3, l3)
+
+		r2 := mul(l0*2, l2)
+		r2 = addMul(r2, l1, l1)
+		r2 = addMul38(r2, l3, l4)
+
+		r3 := mul(l0*2, l3)
+		r3 = addMul(r3, l1*2, l2)
+		r3 = addMul19(r3, l4, l4)
+
+		r4 := mul(l0*2, l4)
+		r4 = addMul(r4, l1*2, l3)
+		r4 = addMul(r4, l2, l2)
+
+		c0 := shiftRightBy51(r0)
+		c1 := shiftRightBy51(r1)
+		c2 := shiftRightBy51(r2)
+		c3 := shiftRightBy51(r3)
+		c4 := shiftRightBy51(r4)
+
+		rr0 := r0.lo&maskLow51Bits + mul19(c4)
+		rr1 := r1.lo&maskLow51Bits + c0
+		rr2 := r2.lo&maskLow51Bits + c1
+		rr3 := r3.lo&maskLow51Bits + c2
+		rr4 := r4.lo&maskLow51Bits + c3
+
+		l0 = rr0&maskLow51Bits + mul19(rr4>>51)
+		l1 = rr1&maskLow51Bits + rr0>>51
+		l2 = rr2&maskLow51Bits + rr1>>51
+		l3 = rr3&maskLow51Bits + rr2>>51
+		l4 = rr4&maskLow51Bits + rr3>>51
+	}
+
+	v.l0 = l0
+	v.l1 = l1
+	v.l2 = l2
+	v.l3 = l3
+	v.l4 = l4
 }
 
 // carryPropagate brings the limbs below 52 bits by applying the reduction

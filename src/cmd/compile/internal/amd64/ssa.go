@@ -704,11 +704,33 @@ func ssaGenValue(s *ssagen.State, v *ssa.Value) {
 	case ssa.OpAMD64SUBQconst, ssa.OpAMD64SUBLconst,
 		ssa.OpAMD64ANDLconst,
 		ssa.OpAMD64ORQconst, ssa.OpAMD64ORLconst,
-		ssa.OpAMD64XORQconst, ssa.OpAMD64XORLconst,
-		ssa.OpAMD64SHLQconst, ssa.OpAMD64SHLLconst,
+		ssa.OpAMD64XORQconst, ssa.OpAMD64XORLconst:
+		p := s.Prog(v.Op.Asm())
+		p.From.Type = obj.TYPE_CONST
+		p.From.Offset = v.AuxInt
+		p.To.Type = obj.TYPE_REG
+		p.To.Reg = v.Reg()
+
+	case ssa.OpAMD64SHLQconst, ssa.OpAMD64SHLLconst,
 		ssa.OpAMD64SHRQconst, ssa.OpAMD64SHRLconst, ssa.OpAMD64SHRWconst, ssa.OpAMD64SHRBconst,
 		ssa.OpAMD64SARQconst, ssa.OpAMD64SARLconst, ssa.OpAMD64SARWconst, ssa.OpAMD64SARBconst,
 		ssa.OpAMD64ROLQconst, ssa.OpAMD64ROLLconst, ssa.OpAMD64ROLWconst, ssa.OpAMD64ROLBconst:
+		var maxShift int64
+		switch v.Op {
+		case ssa.OpAMD64SHLQconst, ssa.OpAMD64SHRQconst, ssa.OpAMD64SARQconst, ssa.OpAMD64ROLQconst:
+			maxShift = 63
+		case ssa.OpAMD64SHLLconst, ssa.OpAMD64SHRLconst, ssa.OpAMD64SARLconst, ssa.OpAMD64ROLLconst:
+			maxShift = 31
+		case ssa.OpAMD64SHRWconst, ssa.OpAMD64SARWconst, ssa.OpAMD64ROLWconst:
+			maxShift = 15
+		case ssa.OpAMD64SHRBconst, ssa.OpAMD64SARBconst, ssa.OpAMD64ROLBconst:
+			maxShift = 7
+		default:
+			panic("unreachable")
+		}
+		if v.AuxInt < 0 || v.AuxInt > maxShift {
+			v.Fatalf("shift amount out of range [0,%d]: %d", maxShift, v.AuxInt)
+		}
 		p := s.Prog(v.Op.Asm())
 		p.From.Type = obj.TYPE_CONST
 		p.From.Offset = v.AuxInt

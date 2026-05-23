@@ -36,6 +36,7 @@ var oprrr = map[obj.As]uint32{
 	ASGTU:          0x25 << 15,          // sltu
 	AMASKEQZ:       0x26 << 15,          // maskeqz
 	AMASKNEZ:       0x27 << 15,          // masknez
+	ASCQ:           0x070AE << 15,       // sc.q
 	ANOR:           0x28 << 15,          // nor
 	AAND:           0x29 << 15,          // and
 	AOR:            0x2a << 15,          // or
@@ -568,6 +569,10 @@ var oprr = map[obj.As]uint32{
 	ARDTIMELW:    0x18 << 10,            // rdtimel.w
 	ARDTIMEHW:    0x19 << 10,            // rdtimeh.w
 	ARDTIMED:     0x1a << 10,            // rdtime.d
+	ALLACQW:      0x0E15E0 << 10,        // ll.acq.w
+	ASCRELW:      0x0E15E1 << 10,        // sc.rel.w
+	ALLACQV:      0x0E15E2 << 10,        // ll.acq.d
+	ASCRELV:      0x0E15E3 << 10,        // sc.rel.d
 	ATRUNCFV:     0x46a9 << 10,          // ftintrz.l.s
 	ATRUNCDV:     0x46aa << 10,          // ftintrz.l.d
 	ATRUNCFW:     0x46a1 << 10,          // ftintrz.w.s
@@ -588,6 +593,8 @@ var oprr = map[obj.As]uint32{
 	AFTINTVF:     0x46c9 << 10,          // ftint.l.s
 	AMOVDV:       0x46ca << 10,          // ftint.l.d
 	AFTINTVD:     0x46ca << 10,          // ftint.l.d
+	AFRINTF:      0x4791 << 10,          // frint.s
+	AFRINTD:      0x4792 << 10,          // frint.d
 	AMOVDF:       0x4646 << 10,          // fcvt.s.d
 	AMOVFD:       0x4649 << 10,          // fcvt.d.s
 	AABSF:        0x4501 << 10,          // fabs.s
@@ -758,7 +765,9 @@ var opirr = map[obj.As]uint32{
 	-AMOVD:      0x0ae << 22,          // fld.d
 	AMOVD:       0x0af << 22,          // fst.d
 	-ALL:        0x020 << 24,          // ll.w
+	-ALLW:       0x020 << 24,          // ll.w
 	ASC:         0x021 << 24,          // sc.w
+	ASCW:        0x021 << 24,          // sc.w
 	-ALLV:       0x022 << 24,          // ll.d
 	ASCV:        0x023 << 24,          // sc.d
 	-AMOVWP:     0x24 << 24,           // ldptr.w

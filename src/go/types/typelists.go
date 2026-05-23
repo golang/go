@@ -7,6 +7,8 @@
 
 package types
 
+import "bytes"
+
 // TypeParamList holds a list of type parameters.
 type TypeParamList struct{ tparams []*TypeParam }
 
@@ -25,6 +27,19 @@ func (l *TypeParamList) list() []*TypeParam {
 		return nil
 	}
 	return l.tparams
+}
+
+func (l *TypeParamList) String() string {
+	var buf bytes.Buffer
+	buf.WriteByte('[')
+	for i, tparam := range l.tparams {
+		if i > 0 {
+			buf.WriteString(", ")
+		}
+		WriteType(&buf, tparam, nil)
+	}
+	buf.WriteByte(']')
+	return buf.String()
 }
 
 // TypeList holds a list of types.
@@ -53,6 +68,19 @@ func (l *TypeList) list() []Type {
 		return nil
 	}
 	return l.types
+}
+
+func (l *TypeList) String() string {
+	var buf bytes.Buffer
+	buf.WriteByte('[')
+	for i, t := range l.types {
+		if i > 0 {
+			buf.WriteString(", ")
+		}
+		WriteType(&buf, t, nil)
+	}
+	buf.WriteByte(']')
+	return buf.String()
 }
 
 // ----------------------------------------------------------------------------

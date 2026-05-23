@@ -9,11 +9,12 @@ package goplsexport
 import "golang.org/x/tools/go/analysis"
 
 var (
-	ErrorsAsTypeModernizer  *analysis.Analyzer // = modernize.errorsastypeAnalyzer
+	ErrorsAsTypeModernizer   *analysis.Analyzer // = modernize.errorsastypeAnalyzer
 	SlicesBackwardModernizer *analysis.Analyzer // = modernize.slicesbackwardAnalyzer
-	StdIteratorsModernizer  *analysis.Analyzer // = modernize.stditeratorsAnalyzer
-	PlusBuildModernizer     *analysis.Analyzer // = modernize.plusbuildAnalyzer
-	StringsCutModernizer    *analysis.Analyzer // = modernize.stringscutAnalyzer
-	UnsafeFuncsModernizer   *analysis.Analyzer // = modernize.unsafeFuncsAnalyzer
-	AtomicTypesModernizer   *analysis.Analyzer // = modernize.atomicTypesAnalyzer
+	StdIteratorsModernizer   *analysis.Analyzer // = modernize.stditeratorsAnalyzer
+	PlusBuildModernizer      *analysis.Analyzer // = modernize.plusbuildAnalyzer
+	StringsCutModernizer     *analysis.Analyzer // = modernize.stringscutAnalyzer
+	UnsafeFuncsModernizer    *analysis.Analyzer // = modernize.unsafeFuncsAnalyzer
+	AtomicTypesModernizer    *analysis.Analyzer // = modernize.atomicTypesAnalyzer
+	EmbedLitModernizer       *analysis.Analyzer // = modernize.embedLitAnalyzer
 )

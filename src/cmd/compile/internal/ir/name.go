@@ -167,6 +167,10 @@ func (*Name) CanBeNtype()    {}
 func (*Name) CanBeAnSSASym() {}
 func (*Name) CanBeAnSSAAux() {}
 
+// DiagName returns the symbol name for diagnostics.
+// XXX should it be part of the formatter?
+func (n *Name) DiagName() string { return obj.TrimInlineHash(fmt.Sprint(n.Sym())) }
+
 // Pragma returns the PragmaFlag for p, which must be for an OTYPE.
 func (n *Name) Pragma() PragmaFlag { return n.pragma }
 

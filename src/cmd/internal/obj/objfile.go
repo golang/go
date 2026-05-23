@@ -14,6 +14,7 @@ import (
 	"cmd/internal/objabi"
 	"cmd/internal/sys"
 	"cmp"
+	"encoding/base64"
 	"encoding/binary"
 	"fmt"
 	"internal/abi"
@@ -276,6 +277,22 @@ func (w *writer) writeFile(ctxt *Link, file *FileInfo) {
 	}
 }
 
+var inlHashLen = base64.StdEncoding.EncodedLen(8)
+
+// TrimInlineHash strips the content hash of inlined call stacks from a symbol name.
+func TrimInlineHash(name string) string {
+	// The inline hash is in the form of #NNNN#, where NNNN is
+	// the base64 encoding of a 8-byte hash value.
+	a, b, ok := strings.Cut(name, "#")
+	if !ok {
+		return name
+	}
+	if len(b) < inlHashLen+1 || b[inlHashLen] != '#' {
+		return name
+	}
+	return a + b[inlHashLen+1:]
+}
+
 func (w *writer) StringTable() {
 	w.AddString("")
 	for _, p := range w.ctxt.Imports {
@@ -300,7 +317,7 @@ func (w *writer) StringTable() {
 		if strings.HasPrefix(s.Name, `"".`) {
 			w.ctxt.Diag("unqualified symbol name: %v", s.Name)
 		}
-		w.AddString(s.Name)
+		w.AddString(TrimInlineHash(s.Name))
 	})
 
 	// All filenames are in the postable.
@@ -354,9 +371,7 @@ func (w *writer) Sym(s *LSym) {
 	if s.IsPkgInit() {
 		flag2 |= goobj.SymFlagPkgInit
 	}
-	if s.IsLinkname() || (w.ctxt.IsAsm && name != "") || name == "main.main" {
-		// Assembly reference is treated the same as linkname,
-		// but not for unnamed (aux) symbols.
+	if s.IsLinkname() || name == "main.main" {
 		// The runtime linknames main.main.
 		flag2 |= goobj.SymFlagLinkname
 	}
@@ -373,7 +388,8 @@ func (w *writer) Sym(s *LSym) {
 		name = filepath.ToSlash(name)
 	}
 	align := uint32(s.Align)
-	if s.ContentAddressable() && s.Size != 0 && align == 0 {
+	if s.ContentAddressable() && s.Size != 0 && align == 0 && s.Type != objabi.STEXT && s.Type != objabi.STEXTFIPS {
+		// The linker applies a default alignment for text symbols, so they are okay.
 		// TODO: Check that alignment is set for all symbols.
 		w.ctxt.Diag("%s: is content-addressable but alignment is not set (size is %d)", s.Name, s.Size)
 	}
@@ -381,7 +397,7 @@ func (w *writer) Sym(s *LSym) {
 		w.ctxt.Diag("%s: symbol too large (%d bytes > %d bytes)", s.Name, s.Size, MaxSymSize)
 	}
 	o := &w.tmpSym
-	o.SetName(name, w.Writer)
+	o.SetName(TrimInlineHash(name), w.Writer)
 	o.SetABI(abi)
 	o.SetType(uint8(s.Type))
 	o.SetFlag(flag)
@@ -416,10 +432,16 @@ func (w *writer) Hash(s *LSym) {
 // Some of these conditions are duplicated in cmd/link/internal/ld.(*Link).symtab.
 // TODO: instead of duplicating them, have the compiler decide where symbols go.
 func contentHashSection(s *LSym) byte {
-	name := s.Name
+	if s.Type == objabi.STEXT {
+		return 't'
+	}
+	if s.Type == objabi.STEXTFIPS {
+		return 'f'
+	}
 	if s.IsPcdata() {
 		return 'P'
 	}
+	name := s.Name
 	if strings.HasPrefix(name, "gcargs.") ||
 		strings.HasPrefix(name, "gclocals.") ||
 		strings.HasPrefix(name, "gclocals·") ||
@@ -480,6 +502,14 @@ func (w *writer) contentHash(s *LSym) goobj.HashType {
 	tmp[8] = contentHashSection(s)
 	h.Write(tmp[:9])
 
+	if s.Type == objabi.STEXT || s.Type == objabi.STEXTFIPS {
+		// We don't want to combine irrelevant functions.
+		// Include the name to distinguish, without the temporary
+		// inline hash, so different inlined copies do get a chance
+		// to be combined.
+		io.WriteString(h, TrimInlineHash(s.Name))
+	}
+
 	// The compiler trims trailing zeros _sometimes_. We just do
 	// it always.
 	h.Write(bytes.TrimRight(s.P, "\x00"))
@@ -492,9 +522,14 @@ func (w *writer) contentHash(s *LSym) goobj.HashType {
 		h.Write(tmp[:])
 		rs := r.Sym
 		if rs == nil {
-			fmt.Printf("symbol: %s\n", s)
-			fmt.Printf("relocation: %#v\n", r)
-			panic("nil symbol target in relocation")
+			// marker relocation
+			io.WriteString(h, "nil symbol")
+			continue
+		}
+		if rs == s {
+			io.WriteString(h, "self symbol")
+			continue
+			// TODO: mutual recursion?
 		}
 		switch rs.PkgIdx {
 		case goobj.PkgIdxHashed64:

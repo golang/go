@@ -84,12 +84,12 @@ func memhash(p unsafe.Pointer, h, s uintptr) uintptr {
 
 //go:nosplit
 func memhash64(p unsafe.Pointer, seed uintptr) uintptr {
-	return maps.MemHash64(p, seed)
+	return maps.MemHash64(readUnaligned64(p), seed)
 }
 
 //go:nosplit
 func memhash32(p unsafe.Pointer, seed uintptr) uintptr {
-	return maps.MemHash32(p, seed)
+	return maps.MemHash32(readUnaligned32(p), seed)
 }
 
 // strhash should be an internal detail,
@@ -104,9 +104,10 @@ func memhash32(p unsafe.Pointer, seed uintptr) uintptr {
 // Do not remove or change the type signature.
 // See go.dev/issue/67401.
 //
+//go:nosplit
 //go:linkname strhash
 func strhash(p unsafe.Pointer, h uintptr) uintptr {
-	return maps.StrHash(p, h)
+	return maps.StrHash(*(*string)(p), h)
 }
 
 // NOTE: Because NaN != NaN, a map can contain any
@@ -382,6 +383,14 @@ func ifaceHash(i interface {
 	F()
 }, seed uintptr) uintptr {
 	return interhash(noescape(unsafe.Pointer(&i)), seed)
+}
+
+func readUnaligned32(p unsafe.Pointer) uint32 {
+	q := (*[4]byte)(p)
+	if goarch.BigEndian {
+		return byteorder.BEUint32(q[:])
+	}
+	return byteorder.LEUint32(q[:])
 }
 
 func readUnaligned64(p unsafe.Pointer) uint64 {

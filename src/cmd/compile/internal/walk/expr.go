@@ -1015,7 +1015,7 @@ func walkStringHeader(n *ir.StringHeaderExpr, init *ir.Nodes) ir.Node {
 	return n
 }
 
-// return 1 if integer n must be in range [0, max), 0 otherwise.
+// bounded reports whether integer n must be in range [0, max).
 func bounded(n ir.Node, max int64) bool {
 	if n.Type() == nil || !n.Type().IsInteger() {
 		return false
@@ -1073,7 +1073,7 @@ func bounded(n ir.Node, max int64) bool {
 		if !sign && ir.IsSmallIntConst(n.Y) {
 			v := ir.Int64Val(n.Y)
 			if v > int64(bits) {
-				return true
+				return max > 0
 			}
 			bits -= int32(v)
 		}

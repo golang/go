@@ -166,6 +166,9 @@ type Transport struct {
 	// requests and the TLSClientConfig and TLSHandshakeTimeout
 	// are ignored. The returned net.Conn is assumed to already be
 	// past the TLS handshake.
+	//
+	// To support ALPN protocol negotiation, the returned net.Conn should be
+	// a *tls.Conn or implement the same ConnectionState method as *tls.Conn.
 	DialTLSContext func(ctx context.Context, network, addr string) (net.Conn, error)
 
 	// DialTLS specifies an optional dial function for creating
@@ -1886,20 +1889,28 @@ func (t *Transport) dialConn(ctx context.Context, cm connectMethod, isClientConn
 		if err != nil {
 			return nil, wrapErr(err)
 		}
-		if tc, ok := pconn.conn.(*tls.Conn); ok {
-			// Handshake here, in case DialTLS didn't. TLSNextProto below
-			// depends on it for knowing the connection state.
+		type connectionStater interface {
+			ConnectionState() tls.ConnectionState
+		}
+		type handshaker interface {
+			HandshakeContext(context.Context) error
+		}
+		if cstater, ok := pconn.conn.(connectionStater); ok {
 			if trace != nil && trace.TLSHandshakeStart != nil {
 				trace.TLSHandshakeStart()
 			}
-			if err := tc.HandshakeContext(ctx); err != nil {
-				go pconn.conn.Close()
-				if trace != nil && trace.TLSHandshakeDone != nil {
-					trace.TLSHandshakeDone(tls.ConnectionState{}, err)
+			if handshaker, ok := cstater.(handshaker); ok {
+				// Handshake here, in case DialTLS didn't. TLSNextProto below
+				// depends on it for knowing the connection state.
+				if err := handshaker.HandshakeContext(ctx); err != nil {
+					go pconn.conn.Close()
+					if trace != nil && trace.TLSHandshakeDone != nil {
+						trace.TLSHandshakeDone(tls.ConnectionState{}, err)
+					}
+					return nil, err
 				}
-				return nil, err
 			}
-			cs := tc.ConnectionState()
+			cs := cstater.ConnectionState()
 			if trace != nil && trace.TLSHandshakeDone != nil {
 				trace.TLSHandshakeDone(cs, nil)
 			}
@@ -2095,8 +2106,9 @@ func (t *Transport) dialConn(ctx context.Context, cm connectMethod, isClientConn
 	}
 
 	if s := pconn.tlsState; s != nil && s.NegotiatedProtocolIsMutual && s.NegotiatedProtocol != "" {
-		if next, ok := t.TLSNextProto[s.NegotiatedProtocol]; ok {
-			alt := next(cm.targetAddr, pconn.conn.(*tls.Conn))
+		tlsConn, tlsConnOK := pconn.conn.(*tls.Conn)
+		if next, ok := t.TLSNextProto[s.NegotiatedProtocol]; tlsConnOK && ok {
+			alt := next(cm.targetAddr, tlsConn)
 			if e, ok := alt.(erringRoundTripper); ok {
 				// pconn.conn was closed by next (http2configureTransports.upgradeFn).
 				return nil, e.RoundTripErr()

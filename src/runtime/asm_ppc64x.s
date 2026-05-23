@@ -153,7 +153,7 @@ nocgo:
 	BL	runtime·mstart(SB)
 	// Prevent dead-code elimination of debugCallV2 and debugPinnerV1, which are
 	// intended to be called by debuggers.
-#ifdef GOARCH_ppc64le
+#ifdef GOOS_linux
 	MOVD	$runtime·debugPinnerV1<ABIInternal>(SB), R31
 	MOVD	$runtime·debugCallV2<ABIInternal>(SB), R31
 #endif
@@ -1214,7 +1214,7 @@ GLOBL	debugCallFrameTooLarge<>(SB), RODATA, $20	// Size duplicated below
 //
 // This is ABIInternal because Go code injects its PC directly into new
 // goroutine stacks.
-#ifdef GOARCH_ppc64le
+#ifdef GOOS_linux
 TEXT runtime·debugCallV2<ABIInternal>(SB), NOSPLIT|NOFRAME, $0-0
 	// save scratch register R31 first
 	MOVD	R31, -184(R1)
@@ -1374,7 +1374,7 @@ DEBUG_CALL_FN(debugCall16384<>, 16384)
 DEBUG_CALL_FN(debugCall32768<>, 32768)
 DEBUG_CALL_FN(debugCall65536<>, 65536)
 
-#ifdef GOARCH_ppc64le
+#ifdef GOOS_linux
 // func debugCallPanicked(val interface{})
 TEXT runtime·debugCallPanicked(SB),NOSPLIT,$32-16
 	// Copy the panic value to the top of stack at SP+32.

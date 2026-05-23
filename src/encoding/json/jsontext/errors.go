@@ -28,6 +28,19 @@ func (e *ioError) Unwrap() error {
 	return e.err
 }
 
+type numError struct {
+	accessor string // either "Int", "Uint", or "Float"
+	value    string // e.g., "1e1000"
+	err      error  // either [strconv.ErrSyntax] or [strconv.ErrRange]
+}
+
+func (e *numError) Error() string {
+	return "jsontext.Token(" + e.value + ")." + e.accessor + " error: " + e.err.Error()
+}
+func (e *numError) Unwrap() error {
+	return e.err
+}
+
 // SyntacticError is a description of a syntactic error that occurred when
 // encoding or decoding JSON according to the grammar.
 //

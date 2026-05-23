@@ -6,11 +6,16 @@ package http3
 
 import (
 	"net/http"
+	"time"
 	_ "unsafe" // for linkname
 
 	. "golang.org/x/net/internal/http3"
 	"golang.org/x/net/quic"
 )
+
+// Be extra generous with the handshake timeout. On some builders, the default
+// handshake timeout seems to be insufficient, causing rare test flakes.
+const handshakeTimeout = 1 * time.Minute
 
 //go:linkname registerHTTP3Server net/http_test.registerHTTP3Server
 func registerHTTP3Server(s *http.Server) <-chan *quic.Endpoint {
@@ -21,6 +26,7 @@ func registerHTTP3Server(s *http.Server) <-chan *quic.Endpoint {
 			endpointCh <- e
 			return e, err
 		},
+		QUICConfig: &quic.Config{HandshakeTimeout: handshakeTimeout},
 	})
 	return endpointCh
 }
@@ -34,6 +40,7 @@ func registerHTTP3Transport(tr *http.Transport) <-chan *quic.Endpoint {
 			endpointCh <- e
 			return e, err
 		},
+		QUICConfig: &quic.Config{HandshakeTimeout: handshakeTimeout},
 	})
 	return endpointCh
 }

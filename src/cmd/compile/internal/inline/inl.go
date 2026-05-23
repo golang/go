@@ -324,9 +324,9 @@ func CanInline(fn *ir.Func, profile *pgoir.Profile) {
 // function is inlinable.
 func noteInlinableFunc(n *ir.Name, fn *ir.Func, cost int32) {
 	if base.Flag.LowerM > 1 {
-		fmt.Printf("%v: can inline %v with cost %d as: %v { %v }\n", ir.Line(fn), n, cost, fn.Type(), fn.Body)
+		fmt.Printf("%v: can inline %v with cost %d as: %v { %v }\n", ir.Line(fn), n.DiagName(), cost, fn.Type(), fn.Body)
 	} else if base.Flag.LowerM != 0 {
-		fmt.Printf("%v: can inline %v\n", ir.Line(fn), n)
+		fmt.Printf("%v: can inline %v\n", ir.Line(fn), n.DiagName())
 	}
 	// JSON optimization log output.
 	if logopt.Enabled() {
@@ -1227,9 +1227,9 @@ func mkinlcall(callerfn *ir.Func, n *ir.CallExpr, fn *ir.Func, bigCaller, closur
 	if base.Flag.LowerM != 0 {
 		if buildcfg.Experiment.NewInliner {
 			fmt.Printf("%v: inlining call to %v with score %d\n",
-				ir.Line(n), fn, score)
+				ir.Line(n), fn.Nname.DiagName(), score)
 		} else {
-			fmt.Printf("%v: inlining call to %v\n", ir.Line(n), fn)
+			fmt.Printf("%v: inlining call to %v\n", ir.Line(n), fn.Nname.DiagName())
 		}
 	}
 	if base.Flag.LowerM > 2 {
@@ -1239,7 +1239,7 @@ func mkinlcall(callerfn *ir.Func, n *ir.CallExpr, fn *ir.Func, bigCaller, closur
 	res := InlineCall(callerfn, n, fn, inlIndex)
 
 	if res == nil {
-		base.FatalfAt(n.Pos(), "inlining call to %v failed", fn)
+		base.FatalfAt(n.Pos(), "inlining call to %v failed", fn.Nname.DiagName())
 	}
 
 	if base.Flag.LowerM > 2 {

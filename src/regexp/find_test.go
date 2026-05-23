@@ -18,6 +18,7 @@ import (
 type FindTest struct {
 	pat     string
 	text    string
+	max     int
 	matches [][]int
 }
 
@@ -26,109 +27,117 @@ func (t FindTest) String() string {
 }
 
 var findTests = []FindTest{
-	{``, ``, build(1, 0, 0)},
-	{`^abcdefg`, "abcdefg", build(1, 0, 7)},
-	{`a+`, "baaab", build(1, 1, 4)},
-	{"abcd..", "abcdef", build(1, 0, 6)},
-	{`a`, "a", build(1, 0, 1)},
-	{`x`, "y", nil},
-	{`b`, "abc", build(1, 1, 2)},
-	{`.`, "a", build(1, 0, 1)},
-	{`.*`, "abcdef", build(1, 0, 6)},
-	{`^`, "abcde", build(1, 0, 0)},
-	{`$`, "abcde", build(1, 5, 5)},
-	{`^abcd$`, "abcd", build(1, 0, 4)},
-	{`^bcd'`, "abcdef", nil},
-	{`^abcd$`, "abcde", nil},
-	{`a+`, "baaab", build(1, 1, 4)},
-	{`a*`, "baaab", build(3, 0, 0, 1, 4, 5, 5)},
-	{`[a-z]+`, "abcd", build(1, 0, 4)},
-	{`[^a-z]+`, "ab1234cd", build(1, 2, 6)},
-	{`[a\-\]z]+`, "az]-bcz", build(2, 0, 4, 6, 7)},
-	{`[^\n]+`, "abcd\n", build(1, 0, 4)},
-	{`[日本語]+`, "日本語日本語", build(1, 0, 18)},
-	{`日本語+`, "日本語", build(1, 0, 9)},
-	{`日本語+`, "日本語語語語", build(1, 0, 18)},
-	{`()`, "", build(1, 0, 0, 0, 0)},
-	{`(a)`, "a", build(1, 0, 1, 0, 1)},
-	{`(.)(.)`, "日a", build(1, 0, 4, 0, 3, 3, 4)},
-	{`(.*)`, "", build(1, 0, 0, 0, 0)},
-	{`(.*)`, "abcd", build(1, 0, 4, 0, 4)},
-	{`(..)(..)`, "abcd", build(1, 0, 4, 0, 2, 2, 4)},
-	{`(([^xyz]*)(d))`, "abcd", build(1, 0, 4, 0, 4, 0, 3, 3, 4)},
-	{`((a|b|c)*(d))`, "abcd", build(1, 0, 4, 0, 4, 2, 3, 3, 4)},
-	{`(((a|b|c)*)(d))`, "abcd", build(1, 0, 4, 0, 4, 0, 3, 2, 3, 3, 4)},
-	{`\a\f\n\r\t\v`, "\a\f\n\r\t\v", build(1, 0, 6)},
-	{`[\a\f\n\r\t\v]+`, "\a\f\n\r\t\v", build(1, 0, 6)},
+	{``, ``, -1, build(1, 0, 0)},
+	{`^abcdefg`, "abcdefg", -1, build(1, 0, 7)},
+	{`a+`, "baaab", -1, build(1, 1, 4)},
+	{`a`, "bababaab", -1, build(4, 1, 2, 3, 4, 5, 6, 6, 7)},
+	{`a`, "bababaab", 0, nil},
+	{`a`, "bababaab", 1, build(1, 1, 2)},
+	{`a`, "bababaab", 2, build(2, 1, 2, 3, 4)},
+	{`a`, "bababaab", 3, build(3, 1, 2, 3, 4, 5, 6)},
+	{`a`, "bababaab", 4, build(4, 1, 2, 3, 4, 5, 6, 6, 7)},
+	{`a`, "bababaab", 5, build(4, 1, 2, 3, 4, 5, 6, 6, 7)},
+	{"abcd..", "abcdef", -1, build(1, 0, 6)},
+	{`a`, "a", -1, build(1, 0, 1)},
+	{`x`, "y", -1, nil},
+	{`b`, "abc", -1, build(1, 1, 2)},
+	{`.`, "a", -1, build(1, 0, 1)},
+	{`.*`, "abcdef", -1, build(1, 0, 6)},
+	{`^`, "abcde", -1, build(1, 0, 0)},
+	{`$`, "abcde", -1, build(1, 5, 5)},
+	{`^abcd$`, "abcd", -1, build(1, 0, 4)},
+	{`^bcd'`, "abcdef", -1, nil},
+	{`^abcd$`, "abcde", -1, nil},
+	{`a+`, "baaab", -1, build(1, 1, 4)},
+	{`a*`, "baaab", -1, build(3, 0, 0, 1, 4, 5, 5)},
+	{`[a-z]+`, "abcd", -1, build(1, 0, 4)},
+	{`[^a-z]+`, "ab1234cd", -1, build(1, 2, 6)},
+	{`[a\-\]z]+`, "az]-bcz", -1, build(2, 0, 4, 6, 7)},
+	{`[^\n]+`, "abcd\n", -1, build(1, 0, 4)},
+	{`[日本語]+`, "日本語日本語", -1, build(1, 0, 18)},
+	{`日本語+`, "日本語", -1, build(1, 0, 9)},
+	{`日本語+`, "日本語語語語", -1, build(1, 0, 18)},
+	{`()`, "", -1, build(1, 0, 0, 0, 0)},
+	{`(a)`, "a", -1, build(1, 0, 1, 0, 1)},
+	{`(.)(.)`, "日a", -1, build(1, 0, 4, 0, 3, 3, 4)},
+	{`(.*)`, "", -1, build(1, 0, 0, 0, 0)},
+	{`(.*)`, "abcd", -1, build(1, 0, 4, 0, 4)},
+	{`(..)(..)`, "abcd", -1, build(1, 0, 4, 0, 2, 2, 4)},
+	{`(([^xyz]*)(d))`, "abcd", -1, build(1, 0, 4, 0, 4, 0, 3, 3, 4)},
+	{`((a|b|c)*(d))`, "abcd", -1, build(1, 0, 4, 0, 4, 2, 3, 3, 4)},
+	{`(((a|b|c)*)(d))`, "abcd", -1, build(1, 0, 4, 0, 4, 0, 3, 2, 3, 3, 4)},
+	{`\a\f\n\r\t\v`, "\a\f\n\r\t\v", -1, build(1, 0, 6)},
+	{`[\a\f\n\r\t\v]+`, "\a\f\n\r\t\v", -1, build(1, 0, 6)},
 
-	{`a*(|(b))c*`, "aacc", build(1, 0, 4, 2, 2, -1, -1)},
-	{`(.*).*`, "ab", build(1, 0, 2, 0, 2)},
-	{`[.]`, ".", build(1, 0, 1)},
-	{`/$`, "/abc/", build(1, 4, 5)},
-	{`/$`, "/abc", nil},
+	{`a*(|(b))c*`, "aacc", -1, build(1, 0, 4, 2, 2, -1, -1)},
+	{`(.*).*`, "ab", -1, build(1, 0, 2, 0, 2)},
+	{`[.]`, ".", -1, build(1, 0, 1)},
+	{`/$`, "/abc/", -1, build(1, 4, 5)},
+	{`/$`, "/abc", -1, nil},
 
 	// multiple matches
-	{`.`, "abc", build(3, 0, 1, 1, 2, 2, 3)},
-	{`(.)`, "abc", build(3, 0, 1, 0, 1, 1, 2, 1, 2, 2, 3, 2, 3)},
-	{`.(.)`, "abcd", build(2, 0, 2, 1, 2, 2, 4, 3, 4)},
-	{`ab*`, "abbaab", build(3, 0, 3, 3, 4, 4, 6)},
-	{`a(b*)`, "abbaab", build(3, 0, 3, 1, 3, 3, 4, 4, 4, 4, 6, 5, 6)},
+	{`.`, "abc", -1, build(3, 0, 1, 1, 2, 2, 3)},
+	{`(.)`, "abc", -1, build(3, 0, 1, 0, 1, 1, 2, 1, 2, 2, 3, 2, 3)},
+	{`.(.)`, "abcd", -1, build(2, 0, 2, 1, 2, 2, 4, 3, 4)},
+	{`ab*`, "abbaab", -1, build(3, 0, 3, 3, 4, 4, 6)},
+	{`a(b*)`, "abbaab", -1, build(3, 0, 3, 1, 3, 3, 4, 4, 4, 4, 6, 5, 6)},
 
 	// fixed bugs
-	{`ab$`, "cab", build(1, 1, 3)},
-	{`axxb$`, "axxcb", nil},
-	{`data`, "daXY data", build(1, 5, 9)},
-	{`da(.)a$`, "daXY data", build(1, 5, 9, 7, 8)},
-	{`zx+`, "zzx", build(1, 1, 3)},
-	{`ab$`, "abcab", build(1, 3, 5)},
-	{`(aa)*$`, "a", build(1, 1, 1, -1, -1)},
-	{`(?:.|(?:.a))`, "", nil},
-	{`(?:A(?:A|a))`, "Aa", build(1, 0, 2)},
-	{`(?:A|(?:A|a))`, "a", build(1, 0, 1)},
-	{`(a){0}`, "", build(1, 0, 0, -1, -1)},
-	{`(?-s)(?:(?:^).)`, "\n", nil},
-	{`(?s)(?:(?:^).)`, "\n", build(1, 0, 1)},
-	{`(?:(?:^).)`, "\n", nil},
-	{`\b`, "x", build(2, 0, 0, 1, 1)},
-	{`\b`, "xx", build(2, 0, 0, 2, 2)},
-	{`\b`, "x y", build(4, 0, 0, 1, 1, 2, 2, 3, 3)},
-	{`\b`, "xx yy", build(4, 0, 0, 2, 2, 3, 3, 5, 5)},
-	{`\B`, "x", nil},
-	{`\B`, "xx", build(1, 1, 1)},
-	{`\B`, "x y", nil},
-	{`\B`, "xx yy", build(2, 1, 1, 4, 4)},
-	{`(|a)*`, "aa", build(3, 0, 0, 0, 0, 1, 1, 1, 1, 2, 2, 2, 2)},
-	{`0A|0[aA]`, "0a", build(1, 0, 2)},
-	{`0[aA]|0A`, "0a", build(1, 0, 2)},
+	{`ab$`, "cab", -1, build(1, 1, 3)},
+	{`axxb$`, "axxcb", -1, nil},
+	{`data`, "daXY data", -1, build(1, 5, 9)},
+	{`da(.)a$`, "daXY data", -1, build(1, 5, 9, 7, 8)},
+	{`zx+`, "zzx", -1, build(1, 1, 3)},
+	{`ab$`, "abcab", -1, build(1, 3, 5)},
+	{`(aa)*$`, "a", -1, build(1, 1, 1, -1, -1)},
+	{`(?:.|(?:.a))`, "", -1, nil},
+	{`(?:A(?:A|a))`, "Aa", -1, build(1, 0, 2)},
+	{`(?:A|(?:A|a))`, "a", -1, build(1, 0, 1)},
+	{`(a){0}`, "", -1, build(1, 0, 0, -1, -1)},
+	{`(?-s)(?:(?:^).)`, "\n", -1, nil},
+	{`(?s)(?:(?:^).)`, "\n", -1, build(1, 0, 1)},
+	{`(?:(?:^).)`, "\n", -1, nil},
+	{`\b`, "x", -1, build(2, 0, 0, 1, 1)},
+	{`\b`, "xx", -1, build(2, 0, 0, 2, 2)},
+	{`\b`, "x y", -1, build(4, 0, 0, 1, 1, 2, 2, 3, 3)},
+	{`\b`, "xx yy", -1, build(4, 0, 0, 2, 2, 3, 3, 5, 5)},
+	{`\B`, "x", -1, nil},
+	{`\B`, "xx", -1, build(1, 1, 1)},
+	{`\B`, "x y", -1, nil},
+	{`\B`, "xx yy", -1, build(2, 1, 1, 4, 4)},
+	{`(|a)*`, "aa", -1, build(3, 0, 0, 0, 0, 1, 1, 1, 1, 2, 2, 2, 2)},
+	{`0A|0[aA]`, "0a", -1, build(1, 0, 2)},
+	{`0[aA]|0A`, "0a", -1, build(1, 0, 2)},
 
 	// RE2 tests
-	{`[^\S\s]`, "abcd", nil},
-	{`[^\S[:space:]]`, "abcd", nil},
-	{`[^\D\d]`, "abcd", nil},
-	{`[^\D[:digit:]]`, "abcd", nil},
-	{`(?i)\W`, "x", nil},
-	{`(?i)\W`, "k", nil},
-	{`(?i)\W`, "s", nil},
+	{`[^\S\s]`, "abcd", -1, nil},
+	{`[^\S[:space:]]`, "abcd", -1, nil},
+	{`[^\D\d]`, "abcd", -1, nil},
+	{`[^\D[:digit:]]`, "abcd", -1, nil},
+	{`(?i)\W`, "x", -1, nil},
+	{`(?i)\W`, "k", -1, nil},
+	{`(?i)\W`, "s", -1, nil},
 
 	// can backslash-escape any punctuation
 	{`\!\"\#\$\%\&\'\(\)\*\+\,\-\.\/\:\;\<\=\>\?\@\[\\\]\^\_\{\|\}\~`,
-		`!"#$%&'()*+,-./:;<=>?@[\]^_{|}~`, build(1, 0, 31)},
+		`!"#$%&'()*+,-./:;<=>?@[\]^_{|}~`, -1, build(1, 0, 31)},
 	{`[\!\"\#\$\%\&\'\(\)\*\+\,\-\.\/\:\;\<\=\>\?\@\[\\\]\^\_\{\|\}\~]+`,
-		`!"#$%&'()*+,-./:;<=>?@[\]^_{|}~`, build(1, 0, 31)},
-	{"\\`", "`", build(1, 0, 1)},
-	{"[\\`]+", "`", build(1, 0, 1)},
+		`!"#$%&'()*+,-./:;<=>?@[\]^_{|}~`, -1, build(1, 0, 31)},
+	{"\\`", "`", -1, build(1, 0, 1)},
+	{"[\\`]+", "`", -1, build(1, 0, 1)},
 
-	{"\ufffd", "\xff", build(1, 0, 1)},
-	{"\ufffd", "hello\xffworld", build(1, 5, 6)},
-	{`.*`, "hello\xffworld", build(1, 0, 11)},
-	{`\x{fffd}`, "\xc2\x00", build(1, 0, 1)},
-	{"[\ufffd]", "\xff", build(1, 0, 1)},
-	{`[\x{fffd}]`, "\xc2\x00", build(1, 0, 1)},
+	{"\ufffd", "\xff", -1, build(1, 0, 1)},
+	{"\ufffd", "hello\xffworld", -1, build(1, 5, 6)},
+	{`.*`, "hello\xffworld", -1, build(1, 0, 11)},
+	{`\x{fffd}`, "\xc2\x00", -1, build(1, 0, 1)},
+	{"[\ufffd]", "\xff", -1, build(1, 0, 1)},
+	{`[\x{fffd}]`, "\xc2\x00", -1, build(1, 0, 1)},
 
 	// long set of matches (longer than startSize)
 	{
 		".",
 		"qwertyuiopasdfghjklzxcvbnm1234567890",
+		-1,
 		build(36, 0, 1, 1, 2, 2, 3, 3, 4, 4, 5, 5, 6, 6, 7, 7, 8, 8, 9, 9, 10,
 			10, 11, 11, 12, 12, 13, 13, 14, 14, 15, 15, 16, 16, 17, 17, 18, 18, 19, 19, 20,
 			20, 21, 21, 22, 22, 23, 23, 24, 24, 25, 25, 26, 26, 27, 27, 28, 28, 29, 29, 30,
@@ -163,6 +172,8 @@ func TestFind(t *testing.T) {
 		}
 		result := re.Find([]byte(test.text))
 		switch {
+		case test.max == 0:
+			// do not know whether to match or not; skip
 		case len(test.matches) == 0 && len(result) == 0:
 			// ok
 		case test.matches == nil && result != nil:
@@ -185,6 +196,8 @@ func TestFindString(t *testing.T) {
 	for _, test := range findTests {
 		result := MustCompile(test.pat).FindString(test.text)
 		switch {
+		case test.max == 0:
+			// do not know whether to match or not; skip
 		case len(test.matches) == 0 && len(result) == 0:
 			// ok
 		case test.matches == nil && result != "":
@@ -205,6 +218,8 @@ func TestFindString(t *testing.T) {
 
 func testFindIndex(test *FindTest, result []int, t *testing.T) {
 	switch {
+	case test.max == 0:
+		// do not know whether to match or not; skip
 	case len(test.matches) == 0 && len(result) == 0:
 		// ok
 	case test.matches == nil && result != nil:
@@ -241,7 +256,7 @@ func TestFindReaderIndex(t *testing.T) {
 
 func TestFindAll(t *testing.T) {
 	for _, test := range findTests {
-		result := MustCompile(test.pat).FindAll([]byte(test.text), -1)
+		result := MustCompile(test.pat).FindAll([]byte(test.text), test.max)
 		switch {
 		case test.matches == nil && result == nil:
 			// ok
@@ -270,7 +285,7 @@ func TestFindAll(t *testing.T) {
 
 func TestFindAllString(t *testing.T) {
 	for _, test := range findTests {
-		result := MustCompile(test.pat).FindAllString(test.text, -1)
+		result := MustCompile(test.pat).FindAllString(test.text, test.max)
 		switch {
 		case test.matches == nil && result == nil:
 			// ok
@@ -316,13 +331,13 @@ func testFindAllIndex(test *FindTest, result [][]int, t *testing.T) {
 
 func TestFindAllIndex(t *testing.T) {
 	for _, test := range findTests {
-		testFindAllIndex(&test, MustCompile(test.pat).FindAllIndex([]byte(test.text), -1), t)
+		testFindAllIndex(&test, MustCompile(test.pat).FindAllIndex([]byte(test.text), test.max), t)
 	}
 }
 
 func TestFindAllStringIndex(t *testing.T) {
 	for _, test := range findTests {
-		testFindAllIndex(&test, MustCompile(test.pat).FindAllStringIndex(test.text, -1), t)
+		testFindAllIndex(&test, MustCompile(test.pat).FindAllStringIndex(test.text, test.max), t)
 	}
 }
 
@@ -357,6 +372,8 @@ func TestFindSubmatch(t *testing.T) {
 	for _, test := range findTests {
 		result := MustCompile(test.pat).FindSubmatch([]byte(test.text))
 		switch {
+		case test.max == 0:
+			// do not know whether to match or not; skip
 		case test.matches == nil && result == nil:
 			// ok
 		case test.matches == nil && result != nil:
@@ -393,6 +410,8 @@ func TestFindStringSubmatch(t *testing.T) {
 	for _, test := range findTests {
 		result := MustCompile(test.pat).FindStringSubmatch(test.text)
 		switch {
+		case test.max == 0:
+			// do not know whether to match or not; skip
 		case test.matches == nil && result == nil:
 			// ok
 		case test.matches == nil && result != nil:
@@ -419,6 +438,8 @@ func testSubmatchIndices(test *FindTest, n int, want, result []int, t *testing.T
 
 func testFindSubmatchIndex(test *FindTest, result []int, t *testing.T) {
 	switch {
+	case test.max == 0:
+		// do not know whether to match or not; skip
 	case test.matches == nil && result == nil:
 		// ok
 	case test.matches == nil && result != nil:
@@ -452,7 +473,7 @@ func TestFindReaderSubmatchIndex(t *testing.T) {
 
 func TestFindAllSubmatch(t *testing.T) {
 	for _, test := range findTests {
-		result := MustCompile(test.pat).FindAllSubmatch([]byte(test.text), -1)
+		result := MustCompile(test.pat).FindAllSubmatch([]byte(test.text), test.max)
 		switch {
 		case test.matches == nil && result == nil:
 			// ok
@@ -472,7 +493,7 @@ func TestFindAllSubmatch(t *testing.T) {
 
 func TestFindAllStringSubmatch(t *testing.T) {
 	for _, test := range findTests {
-		result := MustCompile(test.pat).FindAllStringSubmatch(test.text, -1)
+		result := MustCompile(test.pat).FindAllStringSubmatch(test.text, test.max)
 		switch {
 		case test.matches == nil && result == nil:
 			// ok
@@ -509,12 +530,12 @@ func testFindAllSubmatchIndex(test *FindTest, result [][]int, t *testing.T) {
 
 func TestFindAllSubmatchIndex(t *testing.T) {
 	for _, test := range findTests {
-		testFindAllSubmatchIndex(&test, MustCompile(test.pat).FindAllSubmatchIndex([]byte(test.text), -1), t)
+		testFindAllSubmatchIndex(&test, MustCompile(test.pat).FindAllSubmatchIndex([]byte(test.text), test.max), t)
 	}
 }
 
 func TestFindAllStringSubmatchIndex(t *testing.T) {
 	for _, test := range findTests {
-		testFindAllSubmatchIndex(&test, MustCompile(test.pat).FindAllStringSubmatchIndex(test.text, -1), t)
+		testFindAllSubmatchIndex(&test, MustCompile(test.pat).FindAllStringSubmatchIndex(test.text, test.max), t)
 	}
 }

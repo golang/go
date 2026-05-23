@@ -727,41 +727,6 @@ func (cc *ClientConn) SetDoNotReuse() {
 	cc.doNotReuse = true
 }
 
-func (cc *ClientConn) setGoAway(f *GoAwayFrame) {
-	cc.mu.Lock()
-	defer cc.mu.Unlock()
-
-	old := cc.goAway
-	cc.goAway = f
-
-	// Merge the previous and current GoAway error frames.
-	if cc.goAwayDebug == "" {
-		cc.goAwayDebug = string(f.DebugData())
-	}
-	if old != nil && old.ErrCode != ErrCodeNo {
-		cc.goAway.ErrCode = old.ErrCode
-	}
-	last := f.LastStreamID
-	for streamID, cs := range cc.streams {
-		if streamID <= last {
-			// The server's GOAWAY indicates that it received this stream.
-			// It will either finish processing it, or close the connection
-			// without doing so. Either way, leave the stream alone for now.
-			continue
-		}
-		if streamID == 1 && cc.goAway.ErrCode != ErrCodeNo {
-			// Don't retry the first stream on a connection if we get a non-NO error.
-			// If the server is sending an error on a new connection,
-			// retrying the request on a new one probably isn't going to work.
-			cs.abortStreamLocked(fmt.Errorf("http2: Transport received GOAWAY from server ErrCode:%v", cc.goAway.ErrCode))
-		} else {
-			// Aborting the stream with errClentConnGotGoAway indicates that
-			// the request should be retried on a new connection.
-			cs.abortStreamLocked(errClientConnGotGoAway)
-		}
-	}
-}
-
 // CanTakeNewRequest reports whether the connection can take a new request,
 // meaning it has not been closed or received or sent a GOAWAY.
 //
@@ -2067,6 +2032,9 @@ func (cc *ClientConn) countReadFrameError(err error) {
 	f("read_frame_other")
 }
 
+// errStopReadLoop is an error which cleanly exits the client's read loop.
+var errStopReadLoop = errors.New("client connection is closing (BUG: this is not user visible)")
+
 func (rl *clientConnReadLoop) run() error {
 	cc := rl.cc
 	gotSettings := false
@@ -2127,7 +2095,7 @@ func (rl *clientConnReadLoop) run() error {
 			cc.logf("Transport: unhandled response frame type %T", f)
 		}
 		if err != nil {
-			if VerboseLogs {
+			if VerboseLogs && err != errStopReadLoop {
 				cc.vlogf("http2: Transport conn %p received error from processing frame %v: %v", cc, summarizeFrame(f), err)
 			}
 			return err
@@ -2647,7 +2615,43 @@ func (rl *clientConnReadLoop) processGoAway(f *GoAwayFrame) error {
 			fn("recv_goaway_" + f.ErrCode.stringToken())
 		}
 	}
-	cc.setGoAway(f)
+
+	cc.mu.Lock()
+	defer cc.mu.Unlock()
+
+	old := cc.goAway
+	cc.goAway = f
+
+	// Merge the previous and current GoAway error frames.
+	if cc.goAwayDebug == "" {
+		cc.goAwayDebug = string(f.DebugData())
+	}
+	if old != nil && old.ErrCode != ErrCodeNo {
+		cc.goAway.ErrCode = old.ErrCode
+	}
+	last := f.LastStreamID
+	if len(cc.streams) == 0 {
+		// Received a GOAWAY and no streams active, just close the conn.
+		return errStopReadLoop
+	}
+	for streamID, cs := range cc.streams {
+		if streamID <= last {
+			// The server's GOAWAY indicates that it received this stream.
+			// It will either finish processing it, or close the connection
+			// without doing so. Either way, leave the stream alone for now.
+			continue
+		}
+		if streamID == 1 && cc.goAway.ErrCode != ErrCodeNo {
+			// Don't retry the first stream on a connection if we get a non-NO error.
+			// If the server is sending an error on a new connection,
+			// retrying the request on a new one probably isn't going to work.
+			cs.abortStreamLocked(fmt.Errorf("http2: Transport received GOAWAY from server ErrCode:%v", cc.goAway.ErrCode))
+		} else {
+			// Aborting the stream with errClentConnGotGoAway indicates that
+			// the request should be retried on a new connection.
+			cs.abortStreamLocked(errClientConnGotGoAway)
+		}
+	}
 	return nil
 }
 

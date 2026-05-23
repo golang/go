@@ -39,6 +39,20 @@ var errInvalidToken = errors.New("invalid jsontext.Token")
 // A Token cannot represent entire array or object values, while a [Value] can.
 // There is no Token to represent commas and colons since
 // these structural tokens can be inferred from the surrounding context.
+//
+// A Token stores data in one of two forms:
+//
+//   - As raw JSON text: backed by the internal buffer of the [Decoder]
+//     and only ever produced by [Decoder.ReadToken].
+//     Such a token is only valid until the next call to any method on that
+//     [Decoder] (e.g., [Decoder.PeekKind], [Decoder.ReadToken],
+//     [Decoder.ReadValue], or [Decoder.SkipValue]).
+//     Call [Token.Clone] to copy the raw text into an independent allocation
+//     that persists beyond subsequent [Decoder] calls.
+//
+//   - As a typed Go value: a self-contained representation produced by
+//     the constructor functions (e.g., [String], [Int], [Uint], [Float]).
+//     Such tokens are valid indefinitely and do not need to be cloned.
 type Token struct {
 	nonComparable
 
@@ -188,8 +202,10 @@ func Uint(n uint64) Token {
 	return Token{str: "u", num: uint64(n)}
 }
 
-// Clone makes a copy of the Token such that its value remains valid
-// even after a subsequent [Decoder.Read] call.
+// Clone returns a copy of the token with a value that is not backed by the
+// [Decoder] buffer and therefore remains valid past subsequent [Decoder] calls.
+// It has no effect on tokens produced by constructor functions,
+// since those are already self-contained.
 func (t Token) Clone() Token {
 	// TODO: Allow caller to avoid any allocations?
 	if raw := t.raw; raw != nil {
@@ -213,6 +229,7 @@ func (t Token) Clone() Token {
 			}
 		}
 
+		// This only ever needs to clone strings and numbers.
 		if uint64(raw.previousOffsetStart()) != t.num {
 			panic(invalidTokenPanic)
 		}
@@ -381,7 +398,7 @@ func (t Token) float(bits int) (float64, error) {
 		if Kind(buf[0]).normalize() == '0' {
 			fv, err := strconv.ParseFloat(string(buf), bits)
 			if err != nil {
-				err = &SyntacticError{Err: errors.Unwrap(err)} // only ever ErrRange
+				err = &numError{accessor: "Float", value: t.String(), err: errors.Unwrap(err)} // only ever ErrRange
 			}
 			return fv, err
 		}
@@ -393,7 +410,7 @@ func (t Token) float(bits int) (float64, error) {
 		case 'f':
 			f64 := float64(math.Float64frombits(uint64(t.num)))
 			if bits == 32 && !math.IsInf(f64, 0) && math.IsInf(float64(float32(f64)), 0) {
-				return f64, &SyntacticError{Err: strconv.ErrRange}
+				return f64, &numError{accessor: "Float", value: t.String(), err: strconv.ErrRange}
 			}
 			return f64, nil
 		case 'i':
@@ -443,7 +460,7 @@ func (t Token) Int() (int64, error) {
 			// Prospectively parse a negative integer.
 			switch abs, ok := jsonwire.ParseUint(buf[len("-"):]); {
 			case abs > -minInt64:
-				return minInt64, &SyntacticError{Err: strconv.ErrRange}
+				return minInt64, &numError{accessor: "Int", value: t.String(), err: strconv.ErrRange}
 			case ok:
 				return -1 * int64(abs), nil
 			}
@@ -451,7 +468,7 @@ func (t Token) Int() (int64, error) {
 			// Prospectively parse a non-negative integer.
 			switch abs, ok := jsonwire.ParseUint(buf); {
 			case abs > +maxInt64:
-				return maxInt64, &SyntacticError{Err: strconv.ErrRange}
+				return maxInt64, &numError{accessor: "Int", value: t.String(), err: strconv.ErrRange}
 			case ok:
 				return +1 * int64(abs), nil
 			}
@@ -459,7 +476,7 @@ func (t Token) Int() (int64, error) {
 		// This is not a signed integer, which implies ErrSyntax.
 		if Kind(buf[0]).normalize() == '0' {
 			f64, _ := strconv.ParseFloat(string(buf), 64)
-			return f64toi64(f64), &SyntacticError{Err: strconv.ErrSyntax}
+			return f64toi64(f64), &numError{accessor: "Int", value: t.String(), err: strconv.ErrSyntax}
 		}
 	} else if t.num != 0 {
 		// Handle typed Go number value.
@@ -468,7 +485,7 @@ func (t Token) Int() (int64, error) {
 			return int64(t.num), nil
 		case 'u':
 			if t.num > maxInt64 {
-				return maxInt64, &SyntacticError{Err: strconv.ErrRange}
+				return maxInt64, &numError{accessor: "Int", value: t.String(), err: strconv.ErrRange}
 			}
 			return int64(t.num), nil
 		case 'f', 'F':
@@ -478,9 +495,9 @@ func (t Token) Int() (int64, error) {
 			}
 			switch i64 := f64toi64(f64); {
 			case math.IsNaN(f64), math.Trunc(f64) != f64:
-				return i64, &SyntacticError{Err: strconv.ErrSyntax}
+				return i64, &numError{accessor: "Int", value: t.String(), err: strconv.ErrSyntax}
 			case (i64 == minInt64 && f64 < minInt64) || (i64 == maxInt64 && f64 > maxInt64):
-				return i64, &SyntacticError{Err: strconv.ErrRange}
+				return i64, &numError{accessor: "Int", value: t.String(), err: strconv.ErrRange}
 			default:
 				return i64, nil
 			}
@@ -508,10 +525,10 @@ func f64toi64(f64 float64) int64 {
 // It reports an error that matches [strconv.ErrSyntax] if the JSON number
 // does not match the restricted grammar of just an unsigned integer.
 // It reports an error that matches [strconv.ErrRange] if the JSON number
-// is an unsigned integer, but outside the representable range of an uint64.
+// is an unsigned integer, but outside the representable range of a uint64.
 // Even if an error is reported, a reasonable value is still returned.
 // The fractional component of any number is ignored (truncation toward zero).
-// Any number beyond the representation of an uint64 will be saturated
+// Any number beyond the representation of a uint64 will be saturated
 // to the closest representable value.
 //
 // It panics if the token kind is not a JSON number.
@@ -533,12 +550,12 @@ func (t Token) Uint() (uint64, error) {
 		case ok:
 			return abs, nil
 		case abs == maxUint64: // implies overflows
-			return maxUint64, &SyntacticError{Err: strconv.ErrRange}
+			return maxUint64, &numError{accessor: "Uint", value: t.String(), err: strconv.ErrRange}
 		}
 		// This is not an unsigned integer, which implies ErrSyntax.
 		if Kind(buf[0]).normalize() == '0' {
 			f64, _ := strconv.ParseFloat(string(buf), 64)
-			return f64tou64(f64), &SyntacticError{Err: strconv.ErrSyntax}
+			return f64tou64(f64), &numError{accessor: "Uint", value: t.String(), err: strconv.ErrSyntax}
 		}
 	} else if t.num != 0 {
 		// Handle typed Go number value.
@@ -547,7 +564,7 @@ func (t Token) Uint() (uint64, error) {
 			return t.num, nil
 		case 'i':
 			if int64(t.num) < minUint64 {
-				return minUint64, &SyntacticError{Err: strconv.ErrSyntax}
+				return minUint64, &numError{accessor: "Uint", value: t.String(), err: strconv.ErrSyntax}
 			}
 			return uint64(int64(t.num)), nil
 		case 'f', 'F':
@@ -557,9 +574,9 @@ func (t Token) Uint() (uint64, error) {
 			}
 			switch u64 := f64tou64(f64); {
 			case math.IsNaN(f64), math.Trunc(f64) != f64, math.Signbit(f64):
-				return u64, &SyntacticError{Err: strconv.ErrSyntax}
+				return u64, &numError{accessor: "Uint", value: t.String(), err: strconv.ErrSyntax}
 			case (u64 == minUint64 && f64 < minUint64) || (u64 == maxUint64 && f64 > maxUint64):
-				return u64, &SyntacticError{Err: strconv.ErrRange}
+				return u64, &numError{accessor: "Uint", value: t.String(), err: strconv.ErrRange}
 			default:
 				return u64, nil
 			}

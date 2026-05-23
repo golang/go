@@ -272,13 +272,6 @@ func logFilesInGOMODCACHE() {
 
 var cleaned = map[*load.Package]bool{}
 
-// TODO: These are dregs left by Makefile-based builds.
-// Eventually, can stop deleting these.
-var cleanDir = map[string]bool{
-	"_test": true,
-	"_obj":  true,
-}
-
 var cleanFile = map[string]bool{
 	"_testmain.go": true,
 	"test.out":     true,
@@ -329,25 +322,21 @@ func clean(p *load.Package) {
 	}
 
 	_, elem := filepath.Split(p.Dir)
-	var allRemove []string
+	toRemove := map[string]bool{}
 
 	// Remove dir-named executable only if this is package main.
 	if p.Name == "main" {
-		allRemove = append(allRemove,
-			elem,
-			elem+".exe",
-			p.DefaultExecName(),
-			p.DefaultExecName()+".exe",
-		)
+		toRemove[elem] = true
+		toRemove[elem+".exe"] = true
+		toRemove[p.DefaultExecName()] = true
+		toRemove[p.DefaultExecName()+".exe"] = true
 	}
 
 	// Remove package test executables.
-	allRemove = append(allRemove,
-		elem+".test",
-		elem+".test.exe",
-		p.DefaultExecName()+".test",
-		p.DefaultExecName()+".test.exe",
-	)
+	toRemove[elem+".test"] = true
+	toRemove[elem+".test.exe"] = true
+	toRemove[p.DefaultExecName()+".test"] = true
+	toRemove[p.DefaultExecName()+".test.exe"] = true
 
 	// Remove a potential executable, test executable for each .go file in the directory that
 	// is not part of the directory's package.
@@ -362,53 +351,31 @@ func clean(p *load.Package) {
 		}
 
 		if base, found := strings.CutSuffix(name, "_test.go"); found {
-			allRemove = append(allRemove, base+".test", base+".test.exe")
+			toRemove[base+".test"] = true
+			toRemove[base+".test.exe"] = true
 		}
 
 		if base, found := strings.CutSuffix(name, ".go"); found {
 			// TODO(adg,rsc): check that this .go file is actually
 			// in "package main", and therefore capable of building
 			// to an executable file.
-			allRemove = append(allRemove, base, base+".exe")
+			toRemove[base] = true
+			toRemove[base+".exe"] = true
 		}
 	}
 
-	if cfg.BuildN || cfg.BuildX {
-		sh.ShowCmd(p.Dir, "rm -f %s", strings.Join(allRemove, " "))
-	}
-
-	toRemove := map[string]bool{}
-	for _, name := range allRemove {
-		toRemove[name] = true
-	}
 	for _, dir := range dirs {
 		name := dir.Name()
 		if dir.IsDir() {
-			// TODO: Remove once Makefiles are forgotten.
-			if cleanDir[name] {
-				if err := sh.RemoveAll(filepath.Join(p.Dir, name)); err != nil {
-					base.Error(err)
-				}
-			}
 			continue
 		}
-
-		if cfg.BuildN {
-			continue
-		}
-
 		if cleanFile[name] || cleanExt[filepath.Ext(name)] || toRemove[name] {
-			removeFile(filepath.Join(p.Dir, name))
+			removeFile(sh, filepath.Join(p.Dir, name))
 		}
 	}
 
 	if cleanI && p.Target != "" {
-		if cfg.BuildN || cfg.BuildX {
-			sh.ShowCmd("", "rm -f %s", p.Target)
-		}
-		if !cfg.BuildN {
-			removeFile(p.Target)
-		}
+		removeFile(sh, p.Target)
 	}
 
 	if cleanR {
@@ -420,7 +387,13 @@ func clean(p *load.Package) {
 
 // removeFile tries to remove file f, if error other than file doesn't exist
 // occurs, it will report the error.
-func removeFile(f string) {
+func removeFile(sh *work.Shell, f string) {
+	if cfg.BuildN || cfg.BuildX {
+		sh.ShowCmd("", "rm -f %s", f)
+	}
+	if cfg.BuildN {
+		return
+	}
 	err := os.Remove(f)
 	if err == nil || os.IsNotExist(err) {
 		return

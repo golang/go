@@ -363,7 +363,7 @@ func (ctxt *Link) populateDWARF(curfn Func, s *LSym) {
 		panic("bad startPos")
 	}
 	fnstate := &dwarf.FnState{
-		Name:          s.Name,
+		Name:          TrimInlineHash(s.Name),
 		Info:          info,
 		Loc:           loc,
 		Ranges:        ranges,
@@ -435,7 +435,7 @@ func (ctxt *Link) DwarfAbstractFunc(curfn Func, s *LSym) {
 	scopes, _ := ctxt.DebugInfo(ctxt, s, absfn, curfn)
 	dwctxt := dwCtxt{ctxt}
 	fnstate := dwarf.FnState{
-		Name:          s.Name,
+		Name:          TrimInlineHash(s.Name),
 		Info:          absfn,
 		Absfn:         absfn,
 		StartPos:      ctxt.InnermostPos(curfn.Pos()),

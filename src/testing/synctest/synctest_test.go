@@ -188,3 +188,18 @@ func TestNow(t *testing.T) {
 		}
 	})
 }
+
+func TestSynctestTimerRaceCtxCrash(t *testing.T) {
+	for range 20 {
+		t.Run("", func(t *testing.T) {
+			synctest.Test(t, func(t *testing.T) {
+				for range 100 {
+					time.AfterFunc(1*time.Second, func() {
+						time.AfterFunc(0, func() {})
+					})
+				}
+				time.Sleep(2 * time.Second)
+			})
+		})
+	}
+}

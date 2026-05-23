@@ -1,0 +1,1 @@
+pkg crypto/tls, type QUICConfig struct, ClientHelloInfoConn net.Conn #77363

@@ -284,6 +284,22 @@ func TestRegisters(t *testing.T) {
 	}
 }
 
+func TestSecretInheritance(t *testing.T) {
+	ch := make(chan bool, 2)
+	Do(func() {
+		ch <- Enabled()
+		go func() {
+			ch <- Enabled()
+			close(ch)
+		}()
+	})
+	for enabled := range ch {
+		if !enabled {
+			t.Error("secret mode not enabled for child goroutine")
+		}
+	}
+}
+
 func TestSignalStacks(t *testing.T) {
 	Do(func() {
 		s := makeS()

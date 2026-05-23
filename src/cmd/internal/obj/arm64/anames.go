@@ -353,6 +353,7 @@ var Anames = []string{
 	"REVW",
 	"ROR",
 	"RORW",
+	"RPRFM",
 	"SB",
 	"SBC",
 	"SBCS",

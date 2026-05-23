@@ -1046,7 +1046,7 @@ func AddMachoSym(ldr *loader.Loader, s loader.Sym) {
 // When dynamically linking, all non-local variables and plugin-exported
 // symbols need to be exported.
 func machoShouldExport(ctxt *Link, ldr *loader.Loader, s loader.Sym) bool {
-	if !ctxt.DynlinkingGo() || ldr.AttrLocal(s) {
+	if !ctxt.DynlinkingGo() || ldr.AttrLocal(s) || (ldr.IsContentHashed(s) && ldr.SymType(s).IsText()) {
 		return false
 	}
 	if ctxt.BuildMode == BuildModePlugin && strings.HasPrefix(ldr.SymExtname(s), objabi.PathToPrefix(*flagPluginPath)) {

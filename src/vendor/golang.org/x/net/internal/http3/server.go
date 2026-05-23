@@ -324,6 +324,35 @@ func (sc *serverConn) handlePushStream(*stream) error {
 	}
 }
 
+// hasDisallowedConnectionHeader reports whether h contains connnection headers
+// that are not allowed in HTTP/3:
+//
+// "An endpoint MUST NOT generate an HTTP/3 field section containing
+// connection-specific fields; any message containing connection-specific
+// fields MUST be treated as malformed."
+//
+// "The only exception to this is the TE header field, which MAY be present in
+// an HTTP/3 request header; when it is, it MUST NOT contain any value other
+// than "trailers"."
+func hasDisallowedConnectionHeader(h http.Header) bool {
+	neverAllowed := []string{
+		"Connection",
+		"Keep-Alive",
+		"Proxy-Connection",
+		"Transfer-Encoding",
+		"Upgrade",
+	}
+	for _, k := range neverAllowed {
+		if _, ok := h[k]; ok {
+			return true
+		}
+	}
+	if te, ok := h["Te"]; ok && (len(te) != 1 || te[0] != "trailers") {
+		return true
+	}
+	return false
+}
+
 type pseudoHeader struct {
 	method    string
 	scheme    string
@@ -337,22 +366,45 @@ func (sc *serverConn) parseHeader(st *stream) (http.Header, pseudoHeader, error)
 		return nil, pseudoHeader{}, err
 	}
 	if ftype != frameTypeHeaders {
-		return nil, pseudoHeader{}, err
+		return nil, pseudoHeader{}, &streamError{errH3MessageError, "received other frames when expecting HEADERS"}
 	}
 	header := make(http.Header)
 	var pHeader pseudoHeader
 	var dec qpackDecoder
+	var hasMethod, hasScheme, hasPath, hasAuthority bool
 	if err := dec.decode(st, func(_ indexType, name, value string) error {
+		if !httpguts.ValidHeaderFieldValue(value) {
+			return &streamError{errH3MessageError, "invalid field value"}
+		}
 		switch name {
 		case ":method":
+			if hasMethod {
+				return &streamError{errH3MessageError, "duplicate :method"}
+			}
+			hasMethod = true
 			pHeader.method = value
 		case ":scheme":
+			if hasScheme {
+				return &streamError{errH3MessageError, "duplicate :scheme"}
+			}
+			hasScheme = true
 			pHeader.scheme = value
 		case ":path":
+			if hasPath {
+				return &streamError{errH3MessageError, "duplicate :path"}
+			}
+			hasPath = true
 			pHeader.path = value
 		case ":authority":
+			if hasAuthority {
+				return &streamError{errH3MessageError, "duplicate :authority"}
+			}
+			hasAuthority = true
 			pHeader.authority = value
 		default:
+			if !validWireHeaderFieldName(name) {
+				return &streamError{errH3MessageError, "invalid field name"}
+			}
 			header.Add(name, value)
 		}
 		return nil
@@ -361,6 +413,29 @@ func (sc *serverConn) parseHeader(st *stream) (http.Header, pseudoHeader, error)
 	}
 	if err := st.endFrame(); err != nil {
 		return nil, pseudoHeader{}, err
+	}
+	if hasDisallowedConnectionHeader(header) {
+		return nil, pseudoHeader{}, &streamError{errH3MessageError, "invalid connection-related header"}
+	}
+
+	// "All HTTP/3 requests MUST include exactly one value for the :method,
+	// :scheme, and :path pseudo-header fields, unless the request is a CONNECT
+	// request"
+	//
+	// "A CONNECT request MUST be constructed as follows:
+	// - The :method pseudo-header field is set to "CONNECT"
+	// - The :scheme and :path pseudo-header fields are omitted
+	// - The :authority pseudo-header field contains the host and port to connect to"
+	if !hasMethod {
+		return nil, pseudoHeader{}, &streamError{errH3MessageError, "missing :method"}
+	}
+	if pHeader.method != "CONNECT" && (!hasScheme || !hasPath) {
+		return nil, pseudoHeader{}, &streamError{errH3MessageError, "missing :scheme or :path for non-CONNECT requests"}
+	}
+	if pHeader.method == "CONNECT" && (hasScheme || hasPath || !hasAuthority) {
+		return nil, pseudoHeader{}, &streamError{
+			errH3MessageError, "CONNECT request must only have :method and :authority pseudo-headers",
+		}
 	}
 	return header, pHeader, nil
 }

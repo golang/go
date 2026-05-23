@@ -80,7 +80,6 @@ import (
 	"cmp"
 	"fmt"
 	"internal/abi"
-	"internal/goexperiment"
 	"internal/profilerecord"
 	"io"
 	"runtime"
@@ -257,15 +256,13 @@ func lockProfiles() {
 	if profiles.m == nil {
 		// Initial built-in profiles.
 		profiles.m = map[string]*Profile{
-			"goroutine":    goroutineProfile,
-			"threadcreate": threadcreateProfile,
-			"heap":         heapProfile,
-			"allocs":       allocsProfile,
-			"block":        blockProfile,
-			"mutex":        mutexProfile,
-		}
-		if goexperiment.GoroutineLeakProfile {
-			profiles.m["goroutineleak"] = goroutineLeakProfile
+			"goroutine":     goroutineProfile,
+			"threadcreate":  threadcreateProfile,
+			"heap":          heapProfile,
+			"allocs":        allocsProfile,
+			"block":         blockProfile,
+			"mutex":         mutexProfile,
+			"goroutineleak": goroutineLeakProfile,
 		}
 	}
 }

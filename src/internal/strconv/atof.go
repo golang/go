@@ -4,6 +4,17 @@
 
 package strconv
 
+type floatInfo struct {
+	mantbits uint
+	expbits  uint
+	bias     int
+}
+
+var (
+	float32info = floatInfo{float32MantBits, float32ExpBits, float32Bias}
+	float64info = floatInfo{float64MantBits, float64ExpBits, float64Bias}
+)
+
 // decimal to binary floating point conversion.
 // Algorithm:
 //   1) Store input in multiprecision decimal.
@@ -565,45 +576,54 @@ func atof32(s string) (f float32, n int, err error) {
 		return float32(val), n, nil
 	}
 
-	mantissa, exp, neg, trunc, hex, n, ok := readFloat(s)
+	d, p, neg, trunc, hex, n, ok := readFloat(s)
 	if !ok {
 		return 0, n, ErrSyntax
 	}
 
 	if hex {
-		f, err := atofHex(s[:n], &float32info, mantissa, exp, neg, trunc)
+		f, err := atofHex(s[:n], &float32info, d, p, neg, trunc)
 		return float32(f), n, err
 	}
 
 	if optimize {
-		// Try pure floating-point arithmetic conversion, and if that fails,
-		// the Eisel-Lemire algorithm.
+		sign := bool2[uint32](neg) << 31
+		if d == 0 {
+			return float32frombits(sign | 0), n, nil
+		}
+		if p > 40 { // overflow to ±Inf
+			return float32frombits(sign | 0xff<<23), n, ErrRange
+		}
+		if p < -70 { // underflow to ±0
+			return float32frombits(sign | 0), n, nil
+		}
 		if !trunc {
-			if f, ok := atof32exact(mantissa, exp, neg); ok {
+			// Exact rounding with single multiplication or division.
+			if f, ok := atof32exact(d, p, neg); ok {
 				return f, n, nil
 			}
 		}
-		f, ok := eiselLemire32(mantissa, exp, neg)
-		if ok {
-			if !trunc {
-				return f, n, nil
-			}
-			// Even if the mantissa was truncated, we may
-			// have found the correct result. Confirm by
-			// converting the upper mantissa bound.
-			fUp, ok := eiselLemire32(mantissa+1, exp, neg)
-			if ok && f == fUp {
-				return f, n, nil
-			}
+		// Use fast unrounded scaling.
+		// The only possible err is ErrRange, when the result overflows to ±Inf.
+		f, err := parseFloat32(d, p, sign)
+		if !trunc {
+			return f, n, err
+		}
+		// If additional digits were truncated from d
+		// but d+1 converts to the same value,
+		// then the additional digits don't matter.
+		f1, _ := parseFloat32(d+1, p, sign)
+		if f == f1 {
+			return f, n, err
 		}
 	}
 
 	// Slow fallback.
-	var d decimal
-	if !d.set(s[:n]) {
+	var dec decimal
+	if !dec.set(s[:n]) {
 		return 0, n, ErrSyntax
 	}
-	b, ovf := d.floatBits(&float32info)
+	b, ovf := dec.floatBits(&float32info)
 	f = float32frombits(uint32(b))
 	if ovf {
 		err = ErrRange
@@ -616,45 +636,52 @@ func atof64(s string) (f float64, n int, err error) {
 		return val, n, nil
 	}
 
-	mantissa, exp, neg, trunc, hex, n, ok := readFloat(s)
+	d, p, neg, trunc, hex, n, ok := readFloat(s)
 	if !ok {
 		return 0, n, ErrSyntax
 	}
-
 	if hex {
-		f, err := atofHex(s[:n], &float64info, mantissa, exp, neg, trunc)
+		f, err := atofHex(s[:n], &float64info, d, p, neg, trunc)
 		return f, n, err
 	}
-
 	if optimize {
-		// Try pure floating-point arithmetic conversion, and if that fails,
-		// the Eisel-Lemire algorithm.
+		sign := bool2[uint64](neg) << 63
+		if d == 0 {
+			return float64frombits(sign | 0), n, nil
+		}
+		if p > 310 { // overflow to ±Inf
+			return float64frombits(sign | 0x7ff<<52), n, ErrRange
+		}
+		if p < -345 { // underflow to ±0
+			return float64frombits(sign | 0), n, nil
+		}
 		if !trunc {
-			if f, ok := atof64exact(mantissa, exp, neg); ok {
+			// Exact rounding with single multiplication or division.
+			if f, ok := atof64exact(d, p, neg); ok {
 				return f, n, nil
 			}
 		}
-		f, ok := eiselLemire64(mantissa, exp, neg)
-		if ok {
-			if !trunc {
-				return f, n, nil
-			}
-			// Even if the mantissa was truncated, we may
-			// have found the correct result. Confirm by
-			// converting the upper mantissa bound.
-			fUp, ok := eiselLemire64(mantissa+1, exp, neg)
-			if ok && f == fUp {
-				return f, n, nil
-			}
+		// Use fast unrounded scaling.
+		// The only possible err is ErrRange, when the result overflows to ±Inf.
+		f, err := parseFloat64(d, p, sign)
+		if !trunc {
+			return f, n, err
+		}
+		// If additional digits were truncated from d
+		// but d+1 converts to the same value,
+		// then the additional digits don't matter.
+		f1, _ := parseFloat64(d+1, p, sign)
+		if f == f1 {
+			return f, n, err
 		}
 	}
 
 	// Slow fallback.
-	var d decimal
-	if !d.set(s[:n]) {
+	var dec decimal
+	if !dec.set(s[:n]) {
 		return 0, n, ErrSyntax
 	}
-	b, ovf := d.floatBits(&float64info)
+	b, ovf := dec.floatBits(&float64info)
 	f = float64frombits(b)
 	if ovf {
 		err = ErrRange

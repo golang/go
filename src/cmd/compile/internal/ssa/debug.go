@@ -1056,7 +1056,7 @@ func (state *debugState) processValue(v *Value, vSlots []SlotID, vReg *Register)
 		if clobbers.empty() {
 			break
 		}
-		reg := pickReg(clobbers)
+		reg := clobbers.pickReg()
 		clobbers = clobbers.removeReg(reg)
 
 		for _, slot := range locs.registers[reg] {

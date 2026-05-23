@@ -45,8 +45,9 @@ func NewReader(r io.Reader) *Reader {
 // Any remaining data in the current file is automatically discarded.
 // At the end of the archive, Next returns the error io.EOF.
 //
-// If Next encounters a non-local name (as defined by [filepath.IsLocal])
+// If Next encounters a non-local file name (as defined by [filepath.IsLocal])
 // and the GODEBUG environment variable contains `tarinsecurepath=0`,
+// Only file names are validated, not link targets.
 // Next returns the header with an [ErrInsecurePath] error.
 // A future version of Go may introduce this behavior by default.
 // Programs that want to accept non-local names can ignore

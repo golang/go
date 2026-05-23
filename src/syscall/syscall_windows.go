@@ -1375,7 +1375,11 @@ func LoadCreateSymbolicLink() error {
 
 // Readlink returns the destination of the named symbolic link.
 func Readlink(path string, buf []byte) (n int, err error) {
-	fd, err := CreateFile(StringToUTF16Ptr(path), GENERIC_READ, 0, nil, OPEN_EXISTING,
+	pathp, err := UTF16PtrFromString(path)
+	if err != nil {
+		return -1, err
+	}
+	fd, err := CreateFile(pathp, GENERIC_READ, 0, nil, OPEN_EXISTING,
 		FILE_FLAG_OPEN_REPARSE_POINT|FILE_FLAG_BACKUP_SEMANTICS, 0)
 	if err != nil {
 		return -1, err

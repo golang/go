@@ -15,6 +15,7 @@ import (
 	"internal/testenv"
 	"os"
 	"os/exec"
+	"path/filepath"
 	"runtime"
 	"strconv"
 	"strings"
@@ -115,6 +116,27 @@ func TestCgoCallbackX15(t *testing.T) {
 	got := runTestProg(t, "testprogcgo", "CgoCallbackX15")
 	if want := "OK\n"; got != want {
 		t.Fatalf("expected %q, but got:\n%s", want, got)
+	}
+}
+
+func TestSecretCgo(t *testing.T) {
+	t.Parallel()
+	testenv.MustHaveGoBuild(t)
+	testenv.MustHaveCGO(t)
+
+	exe := filepath.Join(t.TempDir(), "secretcgo.exe")
+	cmd := exec.Command(testenv.GoToolPath(t), "build", "-o", exe)
+	cmd.Dir = "testdata/testprogcgo"
+	cmd = testenv.CleanCmdEnv(cmd)
+	cmd.Env = append(cmd.Env, "GOEXPERIMENT=runtimesecret")
+	out, err := cmd.CombinedOutput()
+	if err != nil {
+		t.Fatalf("building testprogcgo with runtimesecret: %v\n%s", err, out)
+	}
+
+	got := runBuiltTestProg(t, exe, "SecretCgo")
+	if want := "OK\n"; got != want {
+		t.Fatalf("expected %q, got:\n%s", want, got)
 	}
 }
 
@@ -315,6 +337,7 @@ func TestCgoCrashTraceback(t *testing.T) {
 	case "linux/amd64":
 	case "linux/arm64":
 	case "linux/loong64":
+	case "linux/ppc64":
 	case "linux/ppc64le":
 	default:
 		t.Skipf("not yet supported on %s", platform)
@@ -340,6 +363,7 @@ func TestCgoCrashTracebackGo(t *testing.T) {
 	case "linux/amd64":
 	case "linux/arm64":
 	case "linux/loong64":
+	case "linux/ppc64":
 	case "linux/ppc64le":
 	default:
 		t.Skipf("not yet supported on %s", platform)
@@ -394,7 +418,7 @@ func TestCgoTracebackContextProfile(t *testing.T) {
 
 func testCgoPprof(t *testing.T, buildArg, runArg, top, bottom string) {
 	t.Parallel()
-	if runtime.GOOS != "linux" || (runtime.GOARCH != "amd64" && runtime.GOARCH != "ppc64le" && runtime.GOARCH != "arm64" && runtime.GOARCH != "loong64") {
+	if runtime.GOOS != "linux" || (runtime.GOARCH != "amd64" && runtime.GOARCH != "ppc64" && runtime.GOARCH != "ppc64le" && runtime.GOARCH != "arm64" && runtime.GOARCH != "loong64") {
 		t.Skipf("not yet supported on %s/%s", runtime.GOOS, runtime.GOARCH)
 	}
 	if runtime.GOOS == "freebsd" && race.Enabled {

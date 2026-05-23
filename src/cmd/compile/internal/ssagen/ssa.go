@@ -139,9 +139,7 @@ func InitConfig() {
 	for i := 1; i < len(ir.Syms.MallocGCSmallScanNoHeader); i++ {
 		ir.Syms.MallocGCSmallScanNoHeader[i] = typecheck.LookupRuntimeFunc(fmt.Sprintf("mallocgcSmallScanNoHeaderSC%d", i))
 	}
-	for i := 1; i < len(ir.Syms.MallocGCTiny); i++ {
-		ir.Syms.MallocGCTiny[i] = typecheck.LookupRuntimeFunc(fmt.Sprintf("mallocgcTinySize%d", i))
-	}
+	ir.Syms.MallocGCTiny = typecheck.LookupRuntimeFunc("mallocgcTinySC2")
 	ir.Syms.MallocGC = typecheck.LookupRuntimeFunc("mallocgc")
 	ir.Syms.Memmove = typecheck.LookupRuntimeFunc("memmove")
 	ir.Syms.Memequal = typecheck.LookupRuntimeFunc("memequal")
@@ -808,11 +806,8 @@ func (s *state) specializedMallocSym(size int64, hasPointers bool) *obj.LSym {
 	if !s.sizeSpecializedMallocEnabled() {
 		return nil
 	}
-	ptrSize := s.config.PtrSize
-	ptrBits := ptrSize * 8
-	minSizeForMallocHeader := ptrSize * ptrBits
-	heapBitsInSpan := size <= minSizeForMallocHeader
-	if !heapBitsInSpan {
+	const specializedMallocMax = 80 // This must match the constant in mkmalloc.
+	if size > specializedMallocMax {
 		return nil
 	}
 	divRoundUp := func(n, a uintptr) uintptr { return (n + a - 1) / a }
@@ -821,7 +816,7 @@ func (s *state) specializedMallocSym(size int64, hasPointers bool) *obj.LSym {
 		return ir.Syms.MallocGCSmallScanNoHeader[sizeClass]
 	}
 	if size < gc.TinySize {
-		return ir.Syms.MallocGCTiny[size]
+		return ir.Syms.MallocGCTiny
 	}
 	return ir.Syms.MallocGCSmallNoScan[sizeClass]
 }
@@ -4549,6 +4544,8 @@ func (s *state) assignWhichMayOverlap(left ir.Node, right *ssa.Value, deref bool
 				return
 			}
 			if t.Size() == 0 {
+				len := s.constInt(types.Types[types.TINT], n)
+				s.boundsCheck(i, len, ssa.BoundsIndex, false)
 				return
 			}
 

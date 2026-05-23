@@ -6,6 +6,11 @@ package x509
 
 import (
 	"internal/godebug"
+	"io/fs"
+	"os"
+	"path/filepath"
+	"runtime"
+	"strings"
 	"sync"
 	_ "unsafe" // for linkname
 )
@@ -114,4 +119,112 @@ func SetFallbackRoots(roots *CertPool) {
 	}
 
 	systemRoots, systemRootsErr = roots, nil
+}
+
+const (
+	// certFileEnv is the environment variable which identifies where to locate
+	// the SSL certificate file. If set this overrides the system default.
+	certFileEnv = "SSL_CERT_FILE"
+
+	// certDirEnv is the environment variable which identifies which directory
+	// to check for SSL certificate files. If set this overrides the system default.
+	// See https://docs.openssl.org/4.0/man1/openssl-rehash/#environment.
+	certDirEnv = "SSL_CERT_DIR"
+)
+
+var x509sslcertoverrideplatform = godebug.New("x509sslcertoverrideplatform")
+
+func loadSystemRoots() (*CertPool, error) {
+	certFilePath, certDirPath := os.Getenv(certFileEnv), os.Getenv(certDirEnv)
+
+	if runtime.GOOS == "windows" || runtime.GOOS == "darwin" || runtime.GOOS == "ios" {
+		if certFilePath == "" && certDirPath == "" {
+			return &CertPool{systemPool: true}, nil
+		}
+		if x509sslcertoverrideplatform.Value() == "0" {
+			x509sslcertoverrideplatform.IncNonDefault()
+			return &CertPool{systemPool: true}, nil
+		}
+	}
+
+	return loadOnDiskRoots(certFilePath, certDirPath)
+}
+
+func loadOnDiskRoots(certFilePath, certDirPath string) (*CertPool, error) {
+	roots := NewCertPool()
+
+	files := certFiles
+	if certFilePath != "" {
+		files = []string{certFilePath}
+	}
+
+	var firstErr error
+	for _, file := range files {
+		data, err := os.ReadFile(file)
+		if err == nil {
+			roots.AppendCertsFromPEM(data)
+			break
+		}
+		if firstErr == nil && !os.IsNotExist(err) {
+			firstErr = err
+		}
+	}
+
+	dirs := certDirectories
+	if certDirPath != "" {
+		// OpenSSL and BoringSSL both use ":" as the SSL_CERT_DIR separator on
+		// Unix-like systems, and ";" on Windows.
+		// See:
+		//  * https://golang.org/issue/35325
+		//  * https://docs.openssl.org/4.0/man1/openssl-rehash/#environment
+		dirs = filepath.SplitList(certDirPath)
+	}
+
+	for _, directory := range dirs {
+		fis, err := readUniqueDirectoryEntries(directory)
+		if err != nil {
+			if firstErr == nil && !os.IsNotExist(err) {
+				firstErr = err
+			}
+			continue
+		}
+		for _, fi := range fis {
+			data, err := os.ReadFile(filepath.Join(directory, fi.Name()))
+			if err == nil {
+				roots.AppendCertsFromPEM(data)
+			}
+		}
+	}
+
+	if roots.len() > 0 || firstErr == nil {
+		return roots, nil
+	}
+
+	return nil, firstErr
+}
+
+// readUniqueDirectoryEntries is like os.ReadDir but omits
+// symlinks that point within the directory.
+func readUniqueDirectoryEntries(dir string) ([]fs.DirEntry, error) {
+	files, err := os.ReadDir(dir)
+	if err != nil {
+		return nil, err
+	}
+	uniq := files[:0]
+	for _, f := range files {
+		if !isSameDirSymlink(f, dir) {
+			uniq = append(uniq, f)
+		}
+	}
+	return uniq, nil
+}
+
+// isSameDirSymlink reports whether f in dir is a symlink with a
+// target not containing a slash.
+func isSameDirSymlink(f fs.DirEntry, dir string) bool {
+	if f.Type()&fs.ModeSymlink == 0 {
+		return false
+	}
+	target, err := os.Readlink(filepath.Join(dir, f.Name()))
+	return err == nil && !strings.ContainsRune(target, filepath.Separator)
 }

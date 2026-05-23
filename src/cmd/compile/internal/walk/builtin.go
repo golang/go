@@ -744,7 +744,7 @@ func walkPrint(nn *ir.CallExpr, init *ir.Nodes) ir.Node {
 				}
 			}
 		default:
-			badtype(ir.OPRINT, n.Type(), nil)
+			badtype(nn.Op(), n.Type(), nil)
 			continue
 		}
 

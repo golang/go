@@ -80,6 +80,9 @@ func TestBadCompile(t *testing.T) {
 }
 
 func matchTest(t *testing.T, test *FindTest) {
+	if test.max == 0 {
+		return
+	}
 	re := compileTest(t, test.pat, "")
 	if re == nil {
 		return

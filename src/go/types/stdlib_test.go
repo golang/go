@@ -263,7 +263,7 @@ func testTestDir(t *testing.T, path string, ignore ...string) {
 		}
 
 		// parse and type-check file
-		file, err := parser.ParseFile(fset, filename, nil, 0)
+		file, err := parser.ParseFile(fset, filename, nil, parser.SkipObjectResolution)
 		if err == nil {
 			conf := Config{
 				GoVersion: goVersion,
@@ -355,12 +355,15 @@ func TestStdKen(t *testing.T) {
 
 // Package paths of excluded packages.
 var excluded = map[string]bool{
-	"builtin":                          true,
-	"cmd/compile/internal/ssa/_gen":    true,
-	"runtime/_mkmalloc":                true,
-	"simd/archsimd/_gen/simdgen":       true,
-	"simd/archsimd/_gen/simdgen/arm64": true,
-	"simd/archsimd/_gen/unify":         true,
+	"builtin":                       true,
+	"cmd/compile/internal/ssa/_gen": true,
+	"crypto/internal/cryptotest/wycheproof/_schema": true,
+	"runtime/_mkmalloc":                             true,
+	"simd/archsimd/_gen/simdgen":                    true,
+	"simd/archsimd/_gen/simdgen/arm64":              true,
+	"simd/archsimd/_gen/tmplgen":                    true,
+	"simd/archsimd/_gen/unify":                      true,
+	"simd/archsimd/_gen/wasmgen":                    true,
 }
 
 // printPackageMu synchronizes the printing of type-checked package files in
@@ -377,7 +380,7 @@ func typecheckFiles(path string, filenames []string, importer Importer) (*Packag
 	// Parse package files.
 	var files []*ast.File
 	for _, filename := range filenames {
-		file, err := parser.ParseFile(fset, filename, nil, parser.AllErrors)
+		file, err := parser.ParseFile(fset, filename, nil, parser.AllErrors|parser.SkipObjectResolution)
 		if err != nil {
 			return nil, err
 		}

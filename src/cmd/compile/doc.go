@@ -198,9 +198,15 @@ all other compiler directives are of the form
 // is peeled off the same way if it is valid. Anything before that is considered the filename
 // (possibly including blanks and colons). Invalid line or column values are reported as errors.
 //
+// A relative filename is interpreted relative to the directory of the file
+// containing the directive. Absolute filenames are used as given. A filename
+// inherited from a previous directive (the empty-filename form //line :line:col)
+// is reused verbatim and is not re-resolved.
+//
 // Examples:
 //
-//	//line foo.go:10      the filename is foo.go, and the line number is 10 for the next line
+//	//line foo.go:10      the (relative) filename is foo.go, and the line number is 10 for the next line
+//	//line ../foo.go:10   relative filenames are resolved against the directive's source directory
 //	//line C:foo.go:10    colons are permitted in filenames, here the filename is C:foo.go, and the line is 10
 //	//line  a:100 :10     blanks are permitted in filenames, here the filename is " a:100 " (excluding quotes)
 //	/*line :10:20*/x      the position of x is in the current file with line number 10 and column number 20

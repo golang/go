@@ -1915,10 +1915,6 @@ func isCommonNetReadError(err error) bool {
 	return false
 }
 
-type connectionStater interface {
-	ConnectionState() tls.ConnectionState
-}
-
 // Serve a new connection.
 func (c *conn) serve(ctx context.Context) {
 	if ra := c.rwc.RemoteAddr(); ra != nil {
@@ -1947,15 +1943,18 @@ func (c *conn) serve(ctx context.Context) {
 		}
 	}()
 
+	type connectionStater interface {
+		ConnectionState() tls.ConnectionState
+	}
+	type handshakeContexter interface {
+		HandshakeContext(ctx context.Context) error
+	}
 	if connStater, ok := c.rwc.(connectionStater); ok {
 		tlsTO := c.server.tlsHandshakeTimeout()
 		if tlsTO > 0 {
 			dl := time.Now().Add(tlsTO)
 			c.rwc.SetReadDeadline(dl)
 			c.rwc.SetWriteDeadline(dl)
-		}
-		type handshakeContexter interface {
-			HandshakeContext(ctx context.Context) error
 		}
 		var err error
 		if handshaker, ok := c.rwc.(handshakeContexter); ok {
@@ -2989,8 +2988,9 @@ func (mux *ServeMux) registerErr(patstr string, handler Handler) error {
 // The handler is typically nil, in which case [DefaultServeMux] is used.
 //
 // HTTP/2 support is only enabled if the Listener returns [*tls.Conn]
-// connections and they were configured with "h2" in the TLS
-// Config.NextProtos.
+// connections or connections which implement the same ConnectionState
+// method as *tls.Conn, and the connection state indicates that the "h2"
+// protocol was negotiated by ALPN.
 //
 // Serve always returns a non-nil error.
 func Serve(l net.Listener, handler Handler) error {

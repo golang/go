@@ -11,27 +11,25 @@ package maps
 
 import "unsafe"
 
-func memHash32Fallback(p unsafe.Pointer, seed uintptr) uintptr {
+func memHash32Fallback(k uint32, seed uintptr) uintptr {
 	a, b := mix32(uint32(seed), uint32(4^hashkey[0]))
-	t := readUnaligned32(p)
-	a ^= t
-	b ^= t
+	a ^= k
+	b ^= k
 	a, b = mix32(a, b)
 	a, b = mix32(a, b)
 	return uintptr(a ^ b)
 }
 
-func memHash64Fallback(p unsafe.Pointer, seed uintptr) uintptr {
+func memHash64Fallback(k uint64, seed uintptr) uintptr {
 	a, b := mix32(uint32(seed), uint32(8^hashkey[0]))
-	a ^= readUnaligned32(p)
-	b ^= readUnaligned32(add(p, 4))
+	a ^= uint32(k)
+	b ^= uint32(k >> 32)
 	a, b = mix32(a, b)
 	a, b = mix32(a, b)
 	return uintptr(a ^ b)
 }
 
 func memHashFallback(p unsafe.Pointer, seed, s uintptr) uintptr {
-
 	a, b := mix32(uint32(seed), uint32(s^hashkey[0]))
 	if s == 0 {
 		return uintptr(a ^ b)

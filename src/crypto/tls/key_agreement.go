@@ -167,7 +167,7 @@ func (ka *ecdheKeyAgreement) generateServerKeyExchange(config *Config, cert *Cer
 		return nil, errors.New("tls: no supported elliptic curves offered")
 	}
 	if _, ok := curveForCurveID(ka.curveID); !ok {
-		return nil, errors.New("tls: CurvePreferences includes unsupported curve")
+		return nil, errors.New("tls: internal error: supportsCurve accepted unimplemented curve")
 	}
 
 	key, err := generateECDHEKey(config.rand(), ka.curveID)
@@ -293,6 +293,10 @@ func (ka *ecdheKeyAgreement) processServerKeyExchange(config *Config, clientHell
 		sig = sig[2:]
 		if len(sig) < 2 {
 			return errServerKeyExchange
+		}
+		switch ka.signatureAlgorithm {
+		case MLDSA44, MLDSA65, MLDSA87:
+			return errors.New("tls: server selected ML-DSA with TLS version < 1.3")
 		}
 	}
 	sigLen := int(sig[0])<<8 | int(sig[1])

@@ -1126,13 +1126,7 @@ func (t *timer) unlockAndRun(now int64, bubble *synctestBubble) {
 		// Note that we are running on a system stack,
 		// so there is no chance of getg().m being reassigned
 		// out from under us while this function executes.
-		gp := getg()
-		var tsLocal *timers
-		if bubble == nil {
-			tsLocal = &gp.m.p.ptr().timers
-		} else {
-			tsLocal = &bubble.timers
-		}
+		tsLocal := &getg().m.p.ptr().timers
 		if tsLocal.raceCtx == 0 {
 			tsLocal.raceCtx = racegostart(abi.FuncPCABIInternal((*timers).run) + sys.PCQuantum)
 		}
@@ -1184,11 +1178,7 @@ func (t *timer) unlockAndRun(now int64, bubble *synctestBubble) {
 		if gp.racectx != 0 {
 			throw("unexpected racectx")
 		}
-		if bubble == nil {
-			gp.racectx = gp.m.p.ptr().timers.raceCtx
-		} else {
-			gp.racectx = bubble.timers.raceCtx
-		}
+		gp.racectx = gp.m.p.ptr().timers.raceCtx
 	}
 
 	if ts != nil {

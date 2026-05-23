@@ -339,23 +339,19 @@ func (a *analyzer) inlineAlias(tn *types.TypeName, curId inspector.Cursor) {
 		expr = curId.Node().(*ast.IndexListExpr)
 	}
 
-	fieldType := curId
-	if fieldType.ParentEdgeKind() == edge.StarExpr_X {
-		fieldType = fieldType.Parent()
-	}
-	if fieldType.ParentEdgeKind() == edge.Field_Type {
-		field := fieldType.Parent().Node().(*ast.Field)
-		if len(field.Names) == 0 {
-			identicalName := false
-			if rhs, ok := alias.Rhs().(*types.Named); ok {
-				identicalName = alias.Obj().Name() == rhs.Obj().Name()
-			}
-			if !identicalName {
-				// Type is embedded, inlining the alias will cause
-				// the field name to be changed, which might break
-				// programs in terms of backwards compatibility.
-				return
-			}
+	// Reject inlining of a type alias used to declare an embedded
+	// struct field if doing so would change the field's name.
+	if v, ok := a.pass.TypesInfo.Defs[id].(*types.Var); ok && v.Embedded() {
+		identicalName := false
+		// TODO(adonovan): should we allow a pointer (type A = *pkg.A)?
+		if rhs, ok := alias.Rhs().(*types.Named); ok {
+			identicalName = alias.Obj().Name() == rhs.Obj().Name()
+		}
+		if !identicalName {
+			// Type is embedded, inlining the alias will cause
+			// the field name to be changed, which might break
+			// programs in terms of backwards compatibility.
+			return
 		}
 	}
 

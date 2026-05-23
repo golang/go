@@ -23,6 +23,11 @@ type Inst struct {
 	Len      int      // length of encoded instruction in bytes
 	PCRel    int      // length of PC-relative address in instruction encoding
 	PCRelOff int      // index of start of PC-relative address in instruction encoding
+	// AVX-512 flags
+	Broadcast bool // EVEX broadcast
+	Zeroing   bool // EVEX zeroing
+	SAE       bool // Suppress All Exceptions
+	Rounding  int8 // Rounding control (0-3), valid only when SAE is true
 }
 
 // Prefixes is an array of prefixes associated with a single instruction.
@@ -79,6 +84,7 @@ const (
 	PrefixREXB      Prefix = 0x01 // extension bit B (r/m field in modrm or base field in sib)
 	PrefixVEX2Bytes Prefix = 0xC5 // Short form of vex prefix
 	PrefixVEX3Bytes Prefix = 0xC4 // Long form of vex prefix
+	PrefixEVEX      Prefix = 0x62 // EVEX prefix
 )
 
 // IsREX reports whether p is a REX prefix byte.
@@ -88,6 +94,10 @@ func (p Prefix) IsREX() bool {
 
 func (p Prefix) IsVEX() bool {
 	return p&0xFF == PrefixVEX2Bytes || p&0xFF == PrefixVEX3Bytes
+}
+
+func (p Prefix) IsEVEX() bool {
+	return p&0xFF == PrefixEVEX
 }
 
 func (p Prefix) String() string {
@@ -122,6 +132,9 @@ type Op uint32
 func (op Op) String() string {
 	i := int(op)
 	if i < 0 || i >= len(opNames) || opNames[i] == "" {
+		if i < len(avxOpNames) && avxOpNames[i] != "" {
+			return avxOpNames[i]
+		}
 		return fmt.Sprintf("Op(%d)", i)
 	}
 	return opNames[i]
@@ -130,7 +143,7 @@ func (op Op) String() string {
 // An Args holds the instruction arguments.
 // If an instruction has fewer than 4 arguments,
 // the final elements in the array are nil.
-type Args [4]Arg
+type Args [6]Arg
 
 // An Arg is a single instruction argument,
 // one of these types: Reg, Mem, Imm, Rel.
@@ -268,6 +281,100 @@ const (
 	X13
 	X14
 	X15
+	X16
+	X17
+	X18
+	X19
+	X20
+	X21
+	X22
+	X23
+	X24
+	X25
+	X26
+	X27
+	X28
+	X29
+	X30
+	X31
+
+	// YMM registers.
+	Y0
+	Y1
+	Y2
+	Y3
+	Y4
+	Y5
+	Y6
+	Y7
+	Y8
+	Y9
+	Y10
+	Y11
+	Y12
+	Y13
+	Y14
+	Y15
+	Y16
+	Y17
+	Y18
+	Y19
+	Y20
+	Y21
+	Y22
+	Y23
+	Y24
+	Y25
+	Y26
+	Y27
+	Y28
+	Y29
+	Y30
+	Y31
+
+	// ZMM registers.
+	Z0
+	Z1
+	Z2
+	Z3
+	Z4
+	Z5
+	Z6
+	Z7
+	Z8
+	Z9
+	Z10
+	Z11
+	Z12
+	Z13
+	Z14
+	Z15
+	Z16
+	Z17
+	Z18
+	Z19
+	Z20
+	Z21
+	Z22
+	Z23
+	Z24
+	Z25
+	Z26
+	Z27
+	Z28
+	Z29
+	Z30
+	Z31
+
+	// Mask registers.
+	K0
+	K1
+	K2
+	K3
+	K4
+	K5
+	K6
+	K7
 
 	// Segment registers.
 	ES
@@ -595,6 +702,94 @@ var regNames = [...]string{
 	X13:  "X13",
 	X14:  "X14",
 	X15:  "X15",
+	X16:  "X16",
+	X17:  "X17",
+	X18:  "X18",
+	X19:  "X19",
+	X20:  "X20",
+	X21:  "X21",
+	X22:  "X22",
+	X23:  "X23",
+	X24:  "X24",
+	X25:  "X25",
+	X26:  "X26",
+	X27:  "X27",
+	X28:  "X28",
+	X29:  "X29",
+	X30:  "X30",
+	X31:  "X31",
+	Y0:   "Y0",
+	Y1:   "Y1",
+	Y2:   "Y2",
+	Y3:   "Y3",
+	Y4:   "Y4",
+	Y5:   "Y5",
+	Y6:   "Y6",
+	Y7:   "Y7",
+	Y8:   "Y8",
+	Y9:   "Y9",
+	Y10:  "Y10",
+	Y11:  "Y11",
+	Y12:  "Y12",
+	Y13:  "Y13",
+	Y14:  "Y14",
+	Y15:  "Y15",
+	Y16:  "Y16",
+	Y17:  "Y17",
+	Y18:  "Y18",
+	Y19:  "Y19",
+	Y20:  "Y20",
+	Y21:  "Y21",
+	Y22:  "Y22",
+	Y23:  "Y23",
+	Y24:  "Y24",
+	Y25:  "Y25",
+	Y26:  "Y26",
+	Y27:  "Y27",
+	Y28:  "Y28",
+	Y29:  "Y29",
+	Y30:  "Y30",
+	Y31:  "Y31",
+	Z0:   "Z0",
+	Z1:   "Z1",
+	Z2:   "Z2",
+	Z3:   "Z3",
+	Z4:   "Z4",
+	Z5:   "Z5",
+	Z6:   "Z6",
+	Z7:   "Z7",
+	Z8:   "Z8",
+	Z9:   "Z9",
+	Z10:  "Z10",
+	Z11:  "Z11",
+	Z12:  "Z12",
+	Z13:  "Z13",
+	Z14:  "Z14",
+	Z15:  "Z15",
+	Z16:  "Z16",
+	Z17:  "Z17",
+	Z18:  "Z18",
+	Z19:  "Z19",
+	Z20:  "Z20",
+	Z21:  "Z21",
+	Z22:  "Z22",
+	Z23:  "Z23",
+	Z24:  "Z24",
+	Z25:  "Z25",
+	Z26:  "Z26",
+	Z27:  "Z27",
+	Z28:  "Z28",
+	Z29:  "Z29",
+	Z30:  "Z30",
+	Z31:  "Z31",
+	K0:   "K0",
+	K1:   "K1",
+	K2:   "K2",
+	K3:   "K3",
+	K4:   "K4",
+	K5:   "K5",
+	K6:   "K6",
+	K7:   "K7",
 	CS:   "CS",
 	SS:   "SS",
 	DS:   "DS",

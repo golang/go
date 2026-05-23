@@ -166,7 +166,7 @@ func (b *byteAtATimeReader) Read(p []byte) (n int, err error) {
 	return 1, nil
 }
 
-func TestContentTypeWithVariousSources(t *testing.T) { run(t, testContentTypeWithVariousSources, http3SkippedMode) }
+func TestContentTypeWithVariousSources(t *testing.T) { run(t, testContentTypeWithVariousSources) }
 func testContentTypeWithVariousSources(t *testing.T, mode testMode) {
 	const (
 		input    = "\n<html>\n\t<head>\n"
@@ -238,7 +238,8 @@ func testContentTypeWithVariousSources(t *testing.T, mode testMode) {
 			if ct := resp.Header.Get("Content-Type"); ct != expected {
 				t.Errorf("Content-Type = %q, want %q", ct, expected)
 			}
-			if want, got := resp.Header.Get("Content-Length"), fmt.Sprint(len(input)); want != got {
+			// HTTP/3 does not populate Content-Length automatically.
+			if want, got := resp.Header.Get("Content-Length"), fmt.Sprint(len(input)); want != got && mode != http3Mode {
 				t.Errorf("Content-Length = %q, want %q", want, got)
 			}
 			data, err := io.ReadAll(resp.Body)

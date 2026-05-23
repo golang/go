@@ -215,22 +215,6 @@ type (
 		Pointer       *structAll
 		Interface     any
 	}
-	structStringifiedAll struct {
-		Bool          bool                  `json:",string"`
-		String        string                `json:",string"`
-		Bytes         []byte                `json:",string"`
-		Int           int64                 `json:",string"`
-		Uint          uint64                `json:",string"`
-		Float         float64               `json:",string"`
-		Map           map[string]string     `json:",string"`
-		StructScalars structScalars         `json:",string"`
-		StructMaps    structMaps            `json:",string"`
-		StructSlices  structSlices          `json:",string"`
-		Slice         []string              `json:",string"`
-		Array         [1]string             `json:",string"`
-		Pointer       *structStringifiedAll `json:",string"`
-		Interface     any                   `json:",string"`
-	}
 	structOmitZeroAll struct {
 		Bool          bool               `json:",omitzero"`
 		String        string             `json:",omitzero"`
@@ -313,6 +297,53 @@ type (
 		Array     [1]string               `json:",omitzero,omitempty"`
 		Pointer   *structOmitZeroEmptyAll `json:",omitzero,omitempty"`
 		Interface any                     `json:",omitzero,omitempty"`
+	}
+	structStringifiedLegacy struct {
+		Bool          bool     `json:",string"`
+		String        string   `json:",string"`
+		Int           int64    `json:",string"`
+		Uint          uint64   `json:",string"`
+		Float         float64  `json:",string"`
+		PointerBool   *bool    `json:",string"`
+		PointerString *string  `json:",string"`
+		PointerInt    *int64   `json:",string"`
+		PointerUint   *uint64  `json:",string"`
+		PointerFloat  *float64 `json:",string"`
+	}
+	structStringified struct {
+		Int          int64    `json:",string"`
+		Uint         uint64   `json:",string"`
+		Float        float64  `json:",string"`
+		PointerInt   *int64   `json:",string"`
+		PointerUint  *uint64  `json:",string"`
+		PointerFloat *float64 `json:",string"`
+	}
+	structStringifiedBool struct {
+		Bool bool `json:",string"`
+	}
+	structStringifiedString struct {
+		String string `json:",string"`
+	}
+	structStringifiedBytes struct {
+		Bytes []byte `json:",string"`
+	}
+	structStringifiedMap struct {
+		Map map[string]string `json:",string"`
+	}
+	structStringifiedSlice struct {
+		Slice []string `json:",string"`
+	}
+	structStringifiedArray struct {
+		Array [1]string `json:",string"`
+	}
+	structStringifiedStruct struct {
+		Struct structAll `json:",string"`
+	}
+	structStringifiedPointer struct {
+		Pointer *structAll `json:",string"`
+	}
+	structStringifiedInterface struct {
+		Interface any `json:",string"`
 	}
 	structFormatBytes struct {
 		Base16    []byte `json:",format:base16"`
@@ -407,6 +438,9 @@ type (
 		T27 time.Time `json:",string,format:unixmicro"`
 		T28 time.Time `json:",format:unixnano"`
 		T29 time.Time `json:",string,format:unixnano"`
+	}
+	structTimeFormatStringInvalid struct {
+		T time.Time `json:",string,format:RFC3339"`
 	}
 	structInlined struct {
 		X             structInlinedL1 `json:",inline"`
@@ -728,6 +762,7 @@ func TestMarshal(t *testing.T) {
 
 		canonicalize bool // canonicalize the output before comparing?
 		useWriter    bool // call MarshalWrite instead of Marshal
+		skip         bool
 	}{{
 		name: jsontest.Name("Nil"),
 		in:   nil,
@@ -1120,6 +1155,7 @@ func TestMarshal(t *testing.T) {
 		name: jsontest.Name("Structs/WeirdNames"),
 		in:   structWeirdNames{Empty: "empty", Comma: "comma", Quote: "quote"},
 		want: `{"":"empty",",":"comma","\"":"quote"}`,
+		skip: !internal.ExpJSONFormat,
 	}, {
 		name: jsontest.Name("Structs/EscapedNames"),
 		opts: []Options{jsontext.EscapeForHTML(true), jsontext.EscapeForJS(true)},
@@ -1133,6 +1169,7 @@ func TestMarshal(t *testing.T) {
 			I: structInlineTextValue{X: jsontext.Value(`{"abc<>&` + "\u2028\u2029" + `xyz":"abc<>&` + "\u2028\u2029" + `xyz"}`)},
 		},
 		want: `{"abc\u003c\u003e\u0026\u2028\u2029xyz":"abc\u003c\u003e\u0026\u2028\u2029xyz","M":{"abc\u003c\u003e\u0026\u2028\u2029xyz":"abc\u003c\u003e\u0026\u2028\u2029xyz"},"I":{"abc\u003c\u003e\u0026\u2028\u2029xyz":"abc\u003c\u003e\u0026\u2028\u2029xyz"}}`,
+		skip: !internal.ExpJSONFormat,
 	}, {
 		name: jsontest.Name("Structs/NoCase"),
 		in:   structNoCase{AaA: "AaA", AAa: "AAa", Aaa: "Aaa", AAA: "AAA", AA_A: "AA_A"},
@@ -1311,261 +1348,133 @@ func TestMarshal(t *testing.T) {
 	}, {
 		name: jsontest.Name("Structs/Stringified"),
 		opts: []Options{jsontext.Multiline(true)},
-		in: structStringifiedAll{
-			Bool:   true,
-			String: "hello",
-			Bytes:  []byte{1, 2, 3},
-			Int:    -64,     // should be stringified
-			Uint:   +64,     // should be stringified
-			Float:  3.14159, // should be stringified
-			Map:    map[string]string{"key": "value"},
-			StructScalars: structScalars{
-				Bool:   true,
-				String: "hello",
-				Bytes:  []byte{1, 2, 3},
-				Int:    -64,     // should be stringified
-				Uint:   +64,     // should be stringified
-				Float:  3.14159, // should be stringified
-			},
-			StructMaps: structMaps{
-				MapBool:   map[string]bool{"": true},
-				MapString: map[string]string{"": "hello"},
-				MapBytes:  map[string][]byte{"": {1, 2, 3}},
-				MapInt:    map[string]int64{"": -64},       // should be stringified
-				MapUint:   map[string]uint64{"": +64},      // should be stringified
-				MapFloat:  map[string]float64{"": 3.14159}, // should be stringified
-			},
-			StructSlices: structSlices{
-				SliceBool:   []bool{true},
-				SliceString: []string{"hello"},
-				SliceBytes:  [][]byte{{1, 2, 3}},
-				SliceInt:    []int64{-64},       // should be stringified
-				SliceUint:   []uint64{+64},      // should be stringified
-				SliceFloat:  []float64{3.14159}, // should be stringified
-			},
-			Slice:     []string{"fizz", "buzz"},
-			Array:     [1]string{"goodbye"},
-			Pointer:   new(structStringifiedAll), // should be stringified
-			Interface: (*structStringifiedAll)(nil),
+		in: structStringified{
+			Int:          -64,
+			Uint:         +64,
+			Float:        3.14159,
+			PointerInt:   new(int64(-64)),
+			PointerUint:  new(uint64(+64)),
+			PointerFloat: new(float64(3.14159)),
 		},
 		want: `{
-	"Bool": true,
-	"String": "hello",
-	"Bytes": "AQID",
 	"Int": "-64",
 	"Uint": "64",
 	"Float": "3.14159",
-	"Map": {
-		"key": "value"
-	},
-	"StructScalars": {
-		"Bool": true,
-		"String": "hello",
-		"Bytes": "AQID",
-		"Int": "-64",
-		"Uint": "64",
-		"Float": "3.14159"
-	},
-	"StructMaps": {
-		"MapBool": {
-			"": true
-		},
-		"MapString": {
-			"": "hello"
-		},
-		"MapBytes": {
-			"": "AQID"
-		},
-		"MapInt": {
-			"": "-64"
-		},
-		"MapUint": {
-			"": "64"
-		},
-		"MapFloat": {
-			"": "3.14159"
-		}
-	},
-	"StructSlices": {
-		"SliceBool": [
-			true
-		],
-		"SliceString": [
-			"hello"
-		],
-		"SliceBytes": [
-			"AQID"
-		],
-		"SliceInt": [
-			"-64"
-		],
-		"SliceUint": [
-			"64"
-		],
-		"SliceFloat": [
-			"3.14159"
-		]
-	},
-	"Slice": [
-		"fizz",
-		"buzz"
-	],
-	"Array": [
-		"goodbye"
-	],
-	"Pointer": {
-		"Bool": false,
-		"String": "",
-		"Bytes": "",
-		"Int": "0",
-		"Uint": "0",
-		"Float": "0",
-		"Map": {},
-		"StructScalars": {
-			"Bool": false,
-			"String": "",
-			"Bytes": "",
-			"Int": "0",
-			"Uint": "0",
-			"Float": "0"
-		},
-		"StructMaps": {
-			"MapBool": {},
-			"MapString": {},
-			"MapBytes": {},
-			"MapInt": {},
-			"MapUint": {},
-			"MapFloat": {}
-		},
-		"StructSlices": {
-			"SliceBool": [],
-			"SliceString": [],
-			"SliceBytes": [],
-			"SliceInt": [],
-			"SliceUint": [],
-			"SliceFloat": []
-		},
-		"Slice": [],
-		"Array": [
-			""
-		],
-		"Pointer": null,
-		"Interface": null
-	},
-	"Interface": null
+	"PointerInt": "-64",
+	"PointerUint": "64",
+	"PointerFloat": "3.14159"
 }`,
 	}, {
 		name: jsontest.Name("Structs/LegacyStringified"),
 		opts: []Options{jsontext.Multiline(true), jsonflags.StringifyWithLegacySemantics | 1},
-		in: structStringifiedAll{
-			Bool:   true,    // should be stringified
-			String: "hello", // should be stringified
-			Bytes:  []byte{1, 2, 3},
-			Int:    -64,     // should be stringified
-			Uint:   +64,     // should be stringified
-			Float:  3.14159, // should be stringified
-			Map:    map[string]string{"key": "value"},
-			StructScalars: structScalars{
-				Bool:   true,
-				String: "hello",
-				Bytes:  []byte{1, 2, 3},
-				Int:    -64,
-				Uint:   +64,
-				Float:  3.14159,
-			},
-			StructMaps: structMaps{
-				MapBool:   map[string]bool{"": true},
-				MapString: map[string]string{"": "hello"},
-				MapBytes:  map[string][]byte{"": {1, 2, 3}},
-				MapInt:    map[string]int64{"": -64},
-				MapUint:   map[string]uint64{"": +64},
-				MapFloat:  map[string]float64{"": 3.14159},
-			},
-			StructSlices: structSlices{
-				SliceBool:   []bool{true},
-				SliceString: []string{"hello"},
-				SliceBytes:  [][]byte{{1, 2, 3}},
-				SliceInt:    []int64{-64},
-				SliceUint:   []uint64{+64},
-				SliceFloat:  []float64{3.14159},
-			},
-			Slice:     []string{"fizz", "buzz"},
-			Array:     [1]string{"goodbye"},
-			Pointer:   new(structStringifiedAll), // should be stringified
-			Interface: (*structStringifiedAll)(nil),
+		in: structStringifiedLegacy{
+			Bool:          true,
+			String:        "hello",
+			Int:           -64,
+			Uint:          +64,
+			Float:         3.14159,
+			PointerBool:   new(true),
+			PointerString: new("hello"),
+			PointerInt:    new(int64(-64)),
+			PointerUint:   new(uint64(+64)),
+			PointerFloat:  new(float64(3.14159)),
 		},
 		want: `{
 	"Bool": "true",
 	"String": "\"hello\"",
-	"Bytes": "AQID",
 	"Int": "-64",
 	"Uint": "64",
 	"Float": "3.14159",
-	"Map": {
-		"key": "value"
-	},
-	"StructScalars": {
-		"Bool": true,
-		"String": "hello",
-		"Bytes": "AQID",
-		"Int": -64,
-		"Uint": 64,
-		"Float": 3.14159
-	},
-	"StructMaps": {
-		"MapBool": {
-			"": true
-		},
-		"MapString": {
-			"": "hello"
-		},
-		"MapBytes": {
-			"": "AQID"
-		},
-		"MapInt": {
-			"": -64
-		},
-		"MapUint": {
-			"": 64
-		},
-		"MapFloat": {
-			"": 3.14159
-		}
-	},
-	"StructSlices": {
-		"SliceBool": [
-			true
-		],
-		"SliceString": [
-			"hello"
-		],
-		"SliceBytes": [
-			"AQID"
-		],
-		"SliceInt": [
-			-64
-		],
-		"SliceUint": [
-			64
-		],
-		"SliceFloat": [
-			3.14159
-		]
-	},
-	"Slice": [
-		"fizz",
-		"buzz"
-	],
+	"PointerBool": "true",
+	"PointerString": "\"hello\"",
+	"PointerInt": "-64",
+	"PointerUint": "64",
+	"PointerFloat": "3.14159"
+}`,
+	}, {
+		name:    jsontest.Name("Structs/Stringified/Invalid/Bool"),
+		in:      structStringifiedBool{},
+		wantErr: EM(newInvalidStringTagError("Bool", false)).withType(0, reflect.TypeFor[structStringifiedBool]()),
+	}, {
+		name: jsontest.Name("Structs/Stringified/Ignored/Bool"),
+		opts: []Options{jsontext.Multiline(true), jsonflags.ReportErrorsWithLegacySemantics | 1},
+		in:   structStringifiedBool{},
+		want: `{
+	"Bool": false
+}`,
+	}, {
+		name:    jsontest.Name("Structs/Stringified/Invalid/String"),
+		in:      structStringifiedString{},
+		wantErr: EM(newInvalidStringTagError("String", false)).withType(0, reflect.TypeFor[structStringifiedString]()),
+	}, {
+		name: jsontest.Name("Structs/Stringified/Ignored/String"),
+		opts: []Options{jsontext.Multiline(true), jsonflags.ReportErrorsWithLegacySemantics | 1},
+		in:   structStringifiedString{},
+		want: `{
+	"String": ""
+}`,
+	}, {
+		name:    jsontest.Name("Structs/Stringified/Invalid/Bytes"),
+		in:      structStringifiedBytes{},
+		wantErr: EM(newInvalidStringTagError("Bytes", false)).withType(0, reflect.TypeFor[structStringifiedBytes]()),
+	}, {
+		name: jsontest.Name("Structs/Stringified/Ignored/Bytes"),
+		opts: []Options{jsontext.Multiline(true), jsonflags.ReportErrorsWithLegacySemantics | 1},
+		in:   structStringifiedBytes{},
+		want: `{
+	"Bytes": ""
+}`,
+	}, {
+		name:    jsontest.Name("Structs/Stringified/Invalid/Map"),
+		in:      structStringifiedMap{},
+		wantErr: EM(newInvalidStringTagError("Map", false)).withType(0, reflect.TypeFor[structStringifiedMap]()),
+	}, {
+		name: jsontest.Name("Structs/Stringified/Ignored/Map"),
+		opts: []Options{jsontext.Multiline(true), jsonflags.ReportErrorsWithLegacySemantics | 1},
+		in:   structStringifiedMap{},
+		want: `{
+	"Map": {}
+}`,
+	}, {
+		name:    jsontest.Name("Structs/Stringified/Invalid/Slice"),
+		in:      structStringifiedSlice{},
+		wantErr: EM(newInvalidStringTagError("Slice", false)).withType(0, reflect.TypeFor[structStringifiedSlice]()),
+	}, {
+		name: jsontest.Name("Structs/Stringified/Ignored/Slice"),
+		opts: []Options{jsontext.Multiline(true), jsonflags.ReportErrorsWithLegacySemantics | 1},
+		in:   structStringifiedSlice{},
+		want: `{
+	"Slice": []
+}`,
+	}, {
+		name:    jsontest.Name("Structs/Stringified/Invalid/Array"),
+		in:      structStringifiedArray{},
+		wantErr: EM(newInvalidStringTagError("Array", false)).withType(0, reflect.TypeFor[structStringifiedArray]()),
+	}, {
+		name: jsontest.Name("Structs/Stringified/Ignored/Array"),
+		opts: []Options{jsontext.Multiline(true), jsonflags.ReportErrorsWithLegacySemantics | 1},
+		in:   structStringifiedArray{},
+		want: `{
 	"Array": [
-		"goodbye"
-	],
-	"Pointer": {
-		"Bool": "false",
-		"String": "\"\"",
+		""
+	]
+}`,
+	}, {
+		name:    jsontest.Name("Structs/Stringified/Invalid/Struct"),
+		in:      structStringifiedStruct{},
+		wantErr: EM(newInvalidStringTagError("Struct", false)).withType(0, reflect.TypeFor[structStringifiedStruct]()),
+	}, {
+		name: jsontest.Name("Structs/Stringified/Ignored/Struct"),
+		opts: []Options{jsontext.Multiline(true), jsonflags.ReportErrorsWithLegacySemantics | 1},
+		in:   structStringifiedStruct{},
+		want: `{
+	"Struct": {
+		"Bool": false,
+		"String": "",
 		"Bytes": "",
-		"Int": "0",
-		"Uint": "0",
-		"Float": "0",
+		"Int": 0,
+		"Uint": 0,
+		"Float": 0,
 		"Map": {},
 		"StructScalars": {
 			"Bool": false,
@@ -1597,7 +1506,152 @@ func TestMarshal(t *testing.T) {
 		],
 		"Pointer": null,
 		"Interface": null
-	},
+	}
+}`,
+	}, {
+		name:    jsontest.Name("Structs/Stringified/Invalid/Pointer"),
+		in:      structStringifiedPointer{},
+		wantErr: EM(newInvalidStringTagError("Pointer", false)).withType(0, reflect.TypeFor[structStringifiedPointer]()),
+	}, {
+		name: jsontest.Name("Structs/Stringified/Ignored/Pointer"),
+		opts: []Options{jsontext.Multiline(true), jsonflags.ReportErrorsWithLegacySemantics | 1},
+		in:   structStringifiedPointer{},
+		want: `{
+	"Pointer": null
+}`,
+	}, {
+		name:    jsontest.Name("Structs/Stringified/Invalid/Interface"),
+		in:      structStringifiedInterface{},
+		wantErr: EM(newInvalidStringTagError("Interface", false)).withType(0, reflect.TypeFor[structStringifiedInterface]()),
+	}, {
+		name: jsontest.Name("Structs/Stringified/Ignored/Interface"),
+		opts: []Options{jsontext.Multiline(true), jsonflags.ReportErrorsWithLegacySemantics | 1},
+		in:   structStringifiedInterface{},
+		want: `{
+	"Interface": null
+}`,
+	}, {
+		name:    jsontest.Name("Structs/LegacyStringified/Invalid/Bytes"),
+		opts:    []Options{jsonflags.StringifyWithLegacySemantics | 1},
+		wantErr: EM(newInvalidStringTagError("Bytes", true)).withType(0, reflect.TypeFor[structStringifiedBytes]()),
+		in:      structStringifiedBytes{},
+	}, {
+		name: jsontest.Name("Structs/LegacyStringified/Ignored/Bytes"),
+		opts: []Options{jsontext.Multiline(true), jsonflags.StringifyWithLegacySemantics | 1, jsonflags.ReportErrorsWithLegacySemantics | 1},
+		in:   structStringifiedBytes{},
+		want: `{
+	"Bytes": ""
+}`,
+	}, {
+		name:    jsontest.Name("Structs/LegacyStringified/Invalid/Map"),
+		opts:    []Options{jsonflags.StringifyWithLegacySemantics | 1},
+		in:      structStringifiedMap{},
+		wantErr: EM(newInvalidStringTagError("Map", true)).withType(0, reflect.TypeFor[structStringifiedMap]()),
+	}, {
+		name: jsontest.Name("Structs/LegacyStringified/Ignored/Map"),
+		opts: []Options{jsontext.Multiline(true), jsonflags.StringifyWithLegacySemantics | 1, jsonflags.ReportErrorsWithLegacySemantics | 1},
+		in:   structStringifiedMap{},
+		want: `{
+	"Map": {}
+}`,
+	}, {
+		name:    jsontest.Name("Structs/LegacyStringified/Invalid/Slice"),
+		opts:    []Options{jsonflags.StringifyWithLegacySemantics | 1},
+		in:      structStringifiedSlice{},
+		wantErr: EM(newInvalidStringTagError("Slice", true)).withType(0, reflect.TypeFor[structStringifiedSlice]()),
+	}, {
+		name: jsontest.Name("Structs/LegacyStringified/Ignored/Slice"),
+		opts: []Options{jsontext.Multiline(true), jsonflags.StringifyWithLegacySemantics | 1, jsonflags.ReportErrorsWithLegacySemantics | 1},
+		in:   structStringifiedSlice{},
+		want: `{
+	"Slice": []
+}`,
+	}, {
+		name:    jsontest.Name("Structs/LegacyStringified/Invalid/Array"),
+		opts:    []Options{jsonflags.StringifyWithLegacySemantics | 1},
+		in:      structStringifiedArray{},
+		wantErr: EM(newInvalidStringTagError("Array", true)).withType(0, reflect.TypeFor[structStringifiedArray]()),
+	}, {
+		name: jsontest.Name("Structs/LegacyStringified/Ignored/Array"),
+		opts: []Options{jsontext.Multiline(true), jsonflags.StringifyWithLegacySemantics | 1, jsonflags.ReportErrorsWithLegacySemantics | 1},
+		in:   structStringifiedArray{},
+		want: `{
+	"Array": [
+		""
+	]
+}`,
+	}, {
+		name:    jsontest.Name("Structs/LegacyStringified/Invalid/Struct"),
+		opts:    []Options{jsonflags.StringifyWithLegacySemantics | 1},
+		in:      structStringifiedStruct{},
+		wantErr: EM(newInvalidStringTagError("Struct", true)).withType(0, reflect.TypeFor[structStringifiedStruct]()),
+	}, {
+		name: jsontest.Name("Structs/LegacyStringified/Ignored/Struct"),
+		opts: []Options{jsontext.Multiline(true), jsonflags.StringifyWithLegacySemantics | 1, jsonflags.ReportErrorsWithLegacySemantics | 1},
+		in:   structStringifiedStruct{},
+		want: `{
+	"Struct": {
+		"Bool": false,
+		"String": "",
+		"Bytes": "",
+		"Int": 0,
+		"Uint": 0,
+		"Float": 0,
+		"Map": {},
+		"StructScalars": {
+			"Bool": false,
+			"String": "",
+			"Bytes": "",
+			"Int": 0,
+			"Uint": 0,
+			"Float": 0
+		},
+		"StructMaps": {
+			"MapBool": {},
+			"MapString": {},
+			"MapBytes": {},
+			"MapInt": {},
+			"MapUint": {},
+			"MapFloat": {}
+		},
+		"StructSlices": {
+			"SliceBool": [],
+			"SliceString": [],
+			"SliceBytes": [],
+			"SliceInt": [],
+			"SliceUint": [],
+			"SliceFloat": []
+		},
+		"Slice": [],
+		"Array": [
+			""
+		],
+		"Pointer": null,
+		"Interface": null
+	}
+}`,
+	}, {
+		name:    jsontest.Name("Structs/LegacyStringified/Invalid/Pointer"),
+		opts:    []Options{jsonflags.StringifyWithLegacySemantics | 1},
+		in:      structStringifiedPointer{},
+		wantErr: EM(newInvalidStringTagError("Pointer", true)).withType(0, reflect.TypeFor[structStringifiedPointer]()),
+	}, {
+		name: jsontest.Name("Structs/LegacyStringified/Ignored/Pointer"),
+		opts: []Options{jsontext.Multiline(true), jsonflags.StringifyWithLegacySemantics | 1, jsonflags.ReportErrorsWithLegacySemantics | 1},
+		in:   structStringifiedPointer{},
+		want: `{
+	"Pointer": null
+}`,
+	}, {
+		name:    jsontest.Name("Structs/LegacyStringified/Invalid/Interface"),
+		opts:    []Options{jsonflags.StringifyWithLegacySemantics | 1},
+		in:      structStringifiedInterface{},
+		wantErr: EM(newInvalidStringTagError("Interface", true)).withType(0, reflect.TypeFor[structStringifiedInterface]()),
+	}, {
+		name: jsontest.Name("Structs/LegacyStringified/Ignored/Interface"),
+		opts: []Options{jsontext.Multiline(true), jsonflags.StringifyWithLegacySemantics | 1, jsonflags.ReportErrorsWithLegacySemantics | 1},
+		in:   structStringifiedInterface{},
+		want: `{
 	"Interface": null
 }`,
 	}, {
@@ -2123,7 +2177,9 @@ func TestMarshal(t *testing.T) {
 		3,
 		4
 	]
-}`}, {
+}`,
+		skip: !internal.ExpJSONFormat,
+	}, {
 		name: jsontest.Name("Structs/Format/ArrayBytes"),
 		opts: []Options{jsontext.Multiline(true)},
 		in: structFormatArrayBytes{
@@ -2148,7 +2204,9 @@ func TestMarshal(t *testing.T) {
 		4
 	],
 	"Default": "AQIDBA=="
-}`}, {
+}`,
+		skip: !internal.ExpJSONFormat,
+	}, {
 		name: jsontest.Name("Structs/Format/ArrayBytes/Legacy"),
 		opts: []Options{jsontext.Multiline(true), jsonflags.FormatByteArrayAsArray | jsonflags.FormatBytesWithLegacySemantics | 1},
 		in: structFormatArrayBytes{
@@ -2178,7 +2236,9 @@ func TestMarshal(t *testing.T) {
 		3,
 		4
 	]
-}`}, {
+}`,
+		skip: !internal.ExpJSONFormat,
+	}, {
 		name: jsontest.Name("Structs/Format/Bytes/Array"),
 		opts: []Options{
 			WithMarshalers(MarshalFunc(func(in byte) ([]byte, error) {
@@ -2195,6 +2255,7 @@ func TestMarshal(t *testing.T) {
 			Array: []byte{1, 6, 2, 5, 3, 4},
 		},
 		want: `{"Array":[false,true,false,true,false,true]}`,
+		skip: !internal.ExpJSONFormat,
 	}, {
 		name: jsontest.Name("Structs/Format/Floats"),
 		opts: []Options{jsontext.Multiline(true)},
@@ -2222,6 +2283,7 @@ func TestMarshal(t *testing.T) {
 		"PointerNonFinite": "Infinity"
 	}
 ]`,
+		skip: !internal.ExpJSONFormat,
 	}, {
 		name: jsontest.Name("Structs/Format/Maps"),
 		opts: []Options{jsontext.Multiline(true)},
@@ -2276,6 +2338,7 @@ func TestMarshal(t *testing.T) {
 		}
 	}
 ]`,
+		skip: !internal.ExpJSONFormat,
 	}, {
 		name: jsontest.Name("Structs/Format/Maps/FormatNilMapAsNull"),
 		opts: []Options{
@@ -2333,6 +2396,7 @@ func TestMarshal(t *testing.T) {
 		}
 	}
 ]`,
+		skip: !internal.ExpJSONFormat,
 	}, {
 		name: jsontest.Name("Structs/Format/Slices"),
 		opts: []Options{jsontext.Multiline(true)},
@@ -2387,61 +2451,73 @@ func TestMarshal(t *testing.T) {
 		]
 	}
 ]`,
+		skip: !internal.ExpJSONFormat,
 	}, {
 		name:    jsontest.Name("Structs/Format/Invalid/Bool"),
 		in:      structFormatInvalid{Bool: true},
 		want:    `{"Bool"`,
 		wantErr: EM(errInvalidFormatFlag).withPos(`{"Bool":`, "/Bool").withType(0, boolType),
+		skip:    !internal.ExpJSONFormat,
 	}, {
 		name:    jsontest.Name("Structs/Format/Invalid/String"),
 		in:      structFormatInvalid{String: "string"},
 		want:    `{"String"`,
 		wantErr: EM(errInvalidFormatFlag).withPos(`{"String":`, "/String").withType(0, stringType),
+		skip:    !internal.ExpJSONFormat,
 	}, {
 		name:    jsontest.Name("Structs/Format/Invalid/Bytes"),
 		in:      structFormatInvalid{Bytes: []byte("bytes")},
 		want:    `{"Bytes"`,
 		wantErr: EM(errInvalidFormatFlag).withPos(`{"Bytes":`, "/Bytes").withType(0, bytesType),
+		skip:    !internal.ExpJSONFormat,
 	}, {
 		name:    jsontest.Name("Structs/Format/Invalid/Int"),
 		in:      structFormatInvalid{Int: 1},
 		want:    `{"Int"`,
 		wantErr: EM(errInvalidFormatFlag).withPos(`{"Int":`, "/Int").withType(0, T[int64]()),
+		skip:    !internal.ExpJSONFormat,
 	}, {
 		name:    jsontest.Name("Structs/Format/Invalid/Uint"),
 		in:      structFormatInvalid{Uint: 1},
 		want:    `{"Uint"`,
 		wantErr: EM(errInvalidFormatFlag).withPos(`{"Uint":`, "/Uint").withType(0, T[uint64]()),
+		skip:    !internal.ExpJSONFormat,
 	}, {
 		name:    jsontest.Name("Structs/Format/Invalid/Float"),
 		in:      structFormatInvalid{Float: 1},
 		want:    `{"Float"`,
 		wantErr: EM(errInvalidFormatFlag).withPos(`{"Float":`, "/Float").withType(0, T[float64]()),
+		skip:    !internal.ExpJSONFormat,
 	}, {
 		name:    jsontest.Name("Structs/Format/Invalid/Map"),
 		in:      structFormatInvalid{Map: map[string]string{}},
 		want:    `{"Map"`,
 		wantErr: EM(errInvalidFormatFlag).withPos(`{"Map":`, "/Map").withType(0, T[map[string]string]()),
+		skip:    !internal.ExpJSONFormat,
 	}, {
 		name:    jsontest.Name("Structs/Format/Invalid/Struct"),
 		in:      structFormatInvalid{Struct: structAll{Bool: true}},
 		want:    `{"Struct"`,
 		wantErr: EM(errInvalidFormatFlag).withPos(`{"Struct":`, "/Struct").withType(0, T[structAll]()),
+		skip:    !internal.ExpJSONFormat,
 	}, {
 		name:    jsontest.Name("Structs/Format/Invalid/Slice"),
 		in:      structFormatInvalid{Slice: []string{}},
 		want:    `{"Slice"`,
 		wantErr: EM(errInvalidFormatFlag).withPos(`{"Slice":`, "/Slice").withType(0, T[[]string]()),
+		skip:    !internal.ExpJSONFormat,
 	}, {
 		name:    jsontest.Name("Structs/Format/Invalid/Array"),
 		in:      structFormatInvalid{Array: [1]string{"string"}},
 		want:    `{"Array"`,
 		wantErr: EM(errInvalidFormatFlag).withPos(`{"Array":`, "/Array").withType(0, T[[1]string]()),
+		skip:    !internal.ExpJSONFormat,
 	}, {
 		name:    jsontest.Name("Structs/Format/Invalid/Interface"),
 		in:      structFormatInvalid{Interface: "anything"},
 		want:    `{"Interface"`,
 		wantErr: EM(errInvalidFormatFlag).withPos(`{"Interface":`, "/Interface").withType(0, T[any]()),
+		skip:    !internal.ExpJSONFormat,
 	}, {
 		name: jsontest.Name("Structs/Inline/Zero"),
 		in:   structInlined{},
@@ -4306,6 +4382,7 @@ func TestMarshal(t *testing.T) {
 			D2 time.Duration `json:",format:nano"`
 		}{0, 0},
 		want: `{"D1":"0s","D2":0}`,
+		skip: !internal.ExpJSONFormat,
 	}, {
 		name: jsontest.Name("Duration/Positive"),
 		in: struct {
@@ -4316,6 +4393,7 @@ func TestMarshal(t *testing.T) {
 			123456789123456789,
 		},
 		want: `{"D1":"34293h33m9.123456789s","D2":123456789123456789}`,
+		skip: !internal.ExpJSONFormat,
 	}, {
 		name: jsontest.Name("Duration/Negative"),
 		in: struct {
@@ -4326,6 +4404,7 @@ func TestMarshal(t *testing.T) {
 			-123456789123456789,
 		},
 		want: `{"D1":"-34293h33m9.123456789s","D2":-123456789123456789}`,
+		skip: !internal.ExpJSONFormat,
 	}, {
 		name: jsontest.Name("Duration/Nanos/String"),
 		in: struct {
@@ -4338,6 +4417,7 @@ func TestMarshal(t *testing.T) {
 			math.MaxInt64,
 		},
 		want: `{"D1":"-9223372036854775808","D2":"0","D3":"9223372036854775807"}`,
+		skip: !internal.ExpJSONFormat,
 	}, {
 		name: jsontest.Name("Duration/Format/Invalid"),
 		in: struct {
@@ -4345,6 +4425,7 @@ func TestMarshal(t *testing.T) {
 		}{},
 		want:    `{"D"`,
 		wantErr: EM(errInvalidFormatFlag).withPos(`{"D":`, "/D").withType(0, T[time.Duration]()),
+		skip:    !internal.ExpJSONFormat,
 	}, {
 		/* TODO(https://go.dev/issue/71631): Re-enable this test case.
 		name: jsontest.Name("Duration/IgnoreInvalidFormat"),
@@ -4380,6 +4461,7 @@ func TestMarshal(t *testing.T) {
 	"D10": "45296078090012",
 	"D11": "PT12H34M56.078090012S"
 }`,
+		skip: !internal.ExpJSONFormat,
 	}, {
 		/* TODO(https://go.dev/issue/71631): Re-enable this test case.
 		name: jsontest.Name("Duration/Format/Legacy"),
@@ -4417,6 +4499,7 @@ func TestMarshal(t *testing.T) {
 			time.Time{},
 		},
 		want: `{"T1":"0001-01-01T00:00:00Z","T2":"01 Jan 01 00:00 UTC","T3":"0001-01-01","T5":"0001-01-01T00:00:00Z"}`,
+		skip: !internal.ExpJSONFormat,
 	}, {
 		name: jsontest.Name("Time/Format"),
 		opts: []Options{jsontext.Multiline(true)},
@@ -4482,6 +4565,7 @@ func TestMarshal(t *testing.T) {
 	"T28": -23225777754999999994,
 	"T29": "-23225777754999999994"
 }`,
+		skip: !internal.ExpJSONFormat,
 	}, {
 		name: jsontest.Name("Time/Format/Invalid"),
 		in: struct {
@@ -4489,6 +4573,12 @@ func TestMarshal(t *testing.T) {
 		}{},
 		want:    `{"T"`,
 		wantErr: EM(errors.New(`invalid format flag "UndefinedConstant"`)).withPos(`{"T":`, "/T").withType(0, timeTimeType),
+		skip:    !internal.ExpJSONFormat,
+	}, {
+		name:    jsontest.Name("Time/Format/String/Invalid"),
+		in:      structTimeFormatStringInvalid{},
+		wantErr: EM(newInvalidStringTagError("T", false)).withType(0, reflect.TypeFor[structTimeFormatStringInvalid]()),
+		skip:    !internal.ExpJSONFormat,
 	}, {
 		name: jsontest.Name("Time/Format/YearOverflow"),
 		in: struct {
@@ -4538,6 +4628,9 @@ func TestMarshal(t *testing.T) {
 	}}
 
 	for _, tt := range tests {
+		if tt.skip {
+			continue
+		}
 		t.Run(tt.name.Name, func(t *testing.T) {
 			var got []byte
 			var gotErr error
@@ -4569,6 +4662,7 @@ func TestUnmarshal(t *testing.T) {
 		inVal   any
 		want    any
 		wantErr error
+		skip    bool
 	}{{
 		name:    jsontest.Name("Nil"),
 		inBuf:   `null`,
@@ -5918,250 +6012,390 @@ func TestUnmarshal(t *testing.T) {
 			Interface: map[string]string{"k1": "v1", "k2": "v2"},
 		}),
 	}, {
-		name: jsontest.Name("Structs/Stringified/Normal"),
+		name: jsontest.Name("Structs/Stringified"),
 		inBuf: `{
-	"Bool": true,
-	"String": "hello",
-	"Bytes": "AQID",
 	"Int": "-64",
 	"Uint": "64",
 	"Float": "3.14159",
-	"Map": {"key": "value"},
-	"StructScalars": {
-		"Bool": true,
-		"String": "hello",
-		"Bytes": "AQID",
-		"Int": "-64",
-		"Uint": "64",
-		"Float": "3.14159"
-	},
-	"StructMaps": {
-		"MapBool": {"": true},
-		"MapString": {"": "hello"},
-		"MapBytes": {"": "AQID"},
-		"MapInt": {"": "-64"},
-		"MapUint": {"": "64"},
-		"MapFloat": {"": "3.14159"}
-	},
-	"StructSlices": {
-		"SliceBool": [true],
-		"SliceString": ["hello"],
-		"SliceBytes": ["AQID"],
-		"SliceInt": ["-64"],
-		"SliceUint": ["64"],
-		"SliceFloat": ["3.14159"]
-	},
-	"Slice": ["fizz","buzz"],
-	"Array": ["goodbye"],
-	"Pointer": {},
-	"Interface": null
+	"PointerInt": "-64",
+	"PointerUint": "64",
+	"PointerFloat": "3.14159"
 }`,
-		inVal: new(structStringifiedAll),
-		want: addr(structStringifiedAll{
-			Bool:   true,
-			String: "hello",
-			Bytes:  []byte{1, 2, 3},
-			Int:    -64,     // may be stringified
-			Uint:   +64,     // may be stringified
-			Float:  3.14159, // may be stringified
-			Map:    map[string]string{"key": "value"},
-			StructScalars: structScalars{
-				Bool:   true,
-				String: "hello",
-				Bytes:  []byte{1, 2, 3},
-				Int:    -64,     // may be stringified
-				Uint:   +64,     // may be stringified
-				Float:  3.14159, // may be stringified
-			},
-			StructMaps: structMaps{
-				MapBool:   map[string]bool{"": true},
-				MapString: map[string]string{"": "hello"},
-				MapBytes:  map[string][]byte{"": {1, 2, 3}},
-				MapInt:    map[string]int64{"": -64},       // may be stringified
-				MapUint:   map[string]uint64{"": +64},      // may be stringified
-				MapFloat:  map[string]float64{"": 3.14159}, // may be stringified
-			},
-			StructSlices: structSlices{
-				SliceBool:   []bool{true},
-				SliceString: []string{"hello"},
-				SliceBytes:  [][]byte{{1, 2, 3}},
-				SliceInt:    []int64{-64},       // may be stringified
-				SliceUint:   []uint64{+64},      // may be stringified
-				SliceFloat:  []float64{3.14159}, // may be stringified
-			},
-			Slice:   []string{"fizz", "buzz"},
-			Array:   [1]string{"goodbye"},
-			Pointer: new(structStringifiedAll), // may be stringified
+		inVal: new(structStringified),
+		want: addr(structStringified{
+			Int:          -64,
+			Uint:         +64,
+			Float:        3.14159,
+			PointerInt:   new(int64(-64)),
+			PointerUint:  new(uint64(+64)),
+			PointerFloat: new(float64(3.14159)),
 		}),
 	}, {
-		name: jsontest.Name("Structs/Stringified/String"),
-		inBuf: `{
-	"Bool": true,
-	"String": "hello",
-	"Bytes": "AQID",
-	"Int": "-64",
-	"Uint": "64",
-	"Float": "3.14159",
-	"Map": {"key": "value"},
-	"StructScalars": {
-		"Bool": true,
-		"String": "hello",
-		"Bytes": "AQID",
-		"Int": "-64",
-		"Uint": "64",
-		"Float": "3.14159"
-	},
-	"StructMaps": {
-		"MapBool": {"": true},
-		"MapString": {"": "hello"},
-		"MapBytes": {"": "AQID"},
-		"MapInt": {"": "-64"},
-		"MapUint": {"": "64"},
-		"MapFloat": {"": "3.14159"}
-	},
-	"StructSlices": {
-		"SliceBool": [true],
-		"SliceString": ["hello"],
-		"SliceBytes": ["AQID"],
-		"SliceInt": ["-64"],
-		"SliceUint": ["64"],
-		"SliceFloat": ["3.14159"]
-	},
-	"Slice": ["fizz","buzz"],
-	"Array": ["goodbye"],
-	"Pointer": {},
-	"Interface": null
-}`,
-		inVal: new(structStringifiedAll),
-		want: addr(structStringifiedAll{
-			Bool:   true,
-			String: "hello",
-			Bytes:  []byte{1, 2, 3},
-			Int:    -64,     // may be stringified
-			Uint:   +64,     // may be stringified
-			Float:  3.14159, // may be stringified
-			Map:    map[string]string{"key": "value"},
-			StructScalars: structScalars{
-				Bool:   true,
-				String: "hello",
-				Bytes:  []byte{1, 2, 3},
-				Int:    -64,     // may be stringified
-				Uint:   +64,     // may be stringified
-				Float:  3.14159, // may be stringified
-			},
-			StructMaps: structMaps{
-				MapBool:   map[string]bool{"": true},
-				MapString: map[string]string{"": "hello"},
-				MapBytes:  map[string][]byte{"": {1, 2, 3}},
-				MapInt:    map[string]int64{"": -64},       // may be stringified
-				MapUint:   map[string]uint64{"": +64},      // may be stringified
-				MapFloat:  map[string]float64{"": 3.14159}, // may be stringified
-			},
-			StructSlices: structSlices{
-				SliceBool:   []bool{true},
-				SliceString: []string{"hello"},
-				SliceBytes:  [][]byte{{1, 2, 3}},
-				SliceInt:    []int64{-64},       // may be stringified
-				SliceUint:   []uint64{+64},      // may be stringified
-				SliceFloat:  []float64{3.14159}, // may be stringified
-			},
-			Slice:   []string{"fizz", "buzz"},
-			Array:   [1]string{"goodbye"},
-			Pointer: new(structStringifiedAll), // may be stringified
-		}),
-	}, {
-		name:    jsontest.Name("Structs/Stringified/InvalidEmpty"),
+		name:    jsontest.Name("Structs/Stringified/Invalid/Empty"),
 		inBuf:   `{"Int":""}`,
-		inVal:   new(structStringifiedAll),
-		want:    new(structStringifiedAll),
+		inVal:   new(structStringified),
+		want:    new(structStringified),
 		wantErr: EU(strconv.ErrSyntax).withVal(`""`).withPos(`{"Int":`, "/Int").withType('"', T[int64]()),
+	}, {
+		name:    jsontest.Name("Structs/Stringified/Invalid/BoolString"),
+		inBuf:   `{"Bool": "true"}`,
+		inVal:   new(structStringifiedBool),
+		want:    new(structStringifiedBool),
+		wantErr: EU(newInvalidStringTagError("Bool", false)).withType(jsontext.KindBeginObject, reflect.TypeFor[structStringifiedBool]()),
+	}, {
+		name:  jsontest.Name("Structs/Stringified/Ignored/Bool"),
+		opts:  []Options{jsonflags.ReportErrorsWithLegacySemantics | 1},
+		inBuf: `{"Bool": true}`,
+		inVal: new(structStringifiedBool),
+		want: new(structStringifiedBool{
+			Bool: true,
+		}),
+	}, {
+		name:  jsontest.Name("Structs/Stringified/Ignored/String"),
+		opts:  []Options{jsonflags.ReportErrorsWithLegacySemantics | 1},
+		inBuf: `{"String": "\"hello\""}`,
+		inVal: new(structStringifiedString),
+		want: new(structStringifiedString{
+			String: `"hello"`,
+		}),
+	}, {
+		name:    jsontest.Name("Structs/Stringified/Invalid/StringString"),
+		inBuf:   `{"String": "\"hello\""}`,
+		inVal:   new(structStringifiedString),
+		want:    new(structStringifiedString),
+		wantErr: EU(newInvalidStringTagError("String", false)).withType(jsontext.KindBeginObject, reflect.TypeFor[structStringifiedString]()),
+	}, {
+		name:  jsontest.Name("Structs/Stringified/Invalid/String"),
+		inBuf: `{}`,
+		inVal: new(structStringifiedString),
+		want:  new(structStringifiedString),
+		// The invalid tag error should occur even if there is nothing to unmarshal to that field.
+		wantErr: EU(newInvalidStringTagError("String", false)).withType(jsontext.KindBeginObject, reflect.TypeFor[structStringifiedString]()),
+	}, {
+		name:  jsontest.Name("Structs/Stringified/Ignored/String"),
+		opts:  []Options{jsonflags.ReportErrorsWithLegacySemantics | 1},
+		inBuf: `{"String": "\"hello\""}`,
+		inVal: new(structStringifiedString),
+		want: new(structStringifiedString{
+			String: `"hello"`,
+		}),
+	}, {
+		name:  jsontest.Name("Structs/Stringified/Invalid/Bytes"),
+		inBuf: `{}`,
+		inVal: new(structStringifiedBytes),
+		want:  new(structStringifiedBytes),
+		// The invalid tag error should occur even if there is nothing to unmarshal to that field.
+		wantErr: EU(newInvalidStringTagError("Bytes", false)).withType(jsontext.KindBeginObject, reflect.TypeFor[structStringifiedBytes]()),
+	}, {
+		name: jsontest.Name("Structs/Stringified/Ignored/Bytes"),
+		opts: []Options{jsonflags.ReportErrorsWithLegacySemantics | 1},
+		inBuf: `{
+	"Bytes": "AQID"
+}`,
+		inVal: new(structStringifiedBytes),
+		want: new(structStringifiedBytes{
+			Bytes: []byte{1, 2, 3},
+		}),
+	}, {
+		name:  jsontest.Name("Structs/Stringified/Invalid/Map"),
+		inBuf: `{}`,
+		inVal: new(structStringifiedMap),
+		want:  new(structStringifiedMap),
+		// The invalid tag error should occur even if there is nothing to unmarshal to that field.
+		wantErr: EU(newInvalidStringTagError("Map", false)).withType(jsontext.KindBeginObject, reflect.TypeFor[structStringifiedMap]()),
+	}, {
+		name: jsontest.Name("Structs/Stringified/Ignored/Map"),
+		opts: []Options{jsonflags.ReportErrorsWithLegacySemantics | 1},
+		inBuf: `{
+	"Map": {
+		"Key": "Value"
+	}
+}`,
+		inVal: new(structStringifiedMap),
+		want: new(structStringifiedMap{
+			Map: map[string]string{"Key": "Value"},
+		}),
+	}, {
+		name:  jsontest.Name("Structs/Stringified/Invalid/Slice"),
+		inBuf: `{}`,
+		inVal: new(structStringifiedSlice),
+		want:  new(structStringifiedSlice),
+		// The invalid tag error should occur even if there is nothing to unmarshal to that field.
+		wantErr: EU(newInvalidStringTagError("Slice", false)).withType(jsontext.KindBeginObject, reflect.TypeFor[structStringifiedSlice]()),
+	}, {
+		name: jsontest.Name("Structs/Stringified/Ignored/Slice"),
+		opts: []Options{jsonflags.ReportErrorsWithLegacySemantics | 1},
+		inBuf: `{
+	"Slice": [
+		"hello"
+	]
+}`,
+		inVal: new(structStringifiedSlice),
+		want: new(structStringifiedSlice{
+			Slice: []string{"hello"},
+		}),
+	}, {
+		name:  jsontest.Name("Structs/Stringified/Invalid/Array"),
+		inBuf: `{}`,
+		inVal: new(structStringifiedArray),
+		want:  new(structStringifiedArray),
+		// The invalid tag error should occur even if there is nothing to unmarshal to that field.
+		wantErr: EU(newInvalidStringTagError("Array", false)).withType(jsontext.KindBeginObject, reflect.TypeFor[structStringifiedArray]()),
+	}, {
+		name: jsontest.Name("Structs/Stringified/Ignored/Array"),
+		opts: []Options{jsonflags.ReportErrorsWithLegacySemantics | 1},
+		inBuf: `{
+	"Array": [
+		"hello"
+	]
+}`,
+		inVal: new(structStringifiedArray),
+		want: new(structStringifiedArray{
+			Array: [1]string{"hello"},
+		}),
+	}, {
+		name:  jsontest.Name("Structs/Stringified/Invalid/Struct"),
+		inBuf: `{}`,
+		inVal: new(structStringifiedStruct),
+		want:  new(structStringifiedStruct),
+		// The invalid tag error should occur even if there is nothing to unmarshal to that field.
+		wantErr: EU(newInvalidStringTagError("Struct", false)).withType(jsontext.KindBeginObject, reflect.TypeFor[structStringifiedStruct]()),
+	}, {
+		name: jsontest.Name("Structs/Stringified/Ignored/Struct"),
+		opts: []Options{jsonflags.ReportErrorsWithLegacySemantics | 1},
+		inBuf: `{
+	"Struct": {
+		"Bool": true
+	}
+}`,
+		inVal: new(structStringifiedStruct),
+		want: new(structStringifiedStruct{
+			Struct: structAll{
+				Bool: true,
+			},
+		}),
+	}, {
+		name:  jsontest.Name("Structs/Stringified/Invalid/Pointer"),
+		inBuf: `{}`,
+		inVal: new(structStringifiedPointer),
+		want:  new(structStringifiedPointer),
+		// The invalid tag error should occur even if there is nothing to unmarshal to that field.
+		wantErr: EU(newInvalidStringTagError("Pointer", false)).withType(jsontext.KindBeginObject, reflect.TypeFor[structStringifiedPointer]()),
+	}, {
+		name: jsontest.Name("Structs/Stringified/Ignored/Pointer"),
+		opts: []Options{jsonflags.ReportErrorsWithLegacySemantics | 1},
+		inBuf: `{
+	"Pointer": {
+		"Bool": true
+	}
+}`,
+		inVal: new(structStringifiedPointer),
+		want: new(structStringifiedPointer{
+			Pointer: new(structAll{
+				Bool: true,
+			}),
+		}),
+	}, {
+		name:  jsontest.Name("Structs/Stringified/Invalid/Interface"),
+		inBuf: `{}`,
+		inVal: new(structStringifiedInterface),
+		want:  new(structStringifiedInterface),
+		// The invalid tag error should occur even if there is nothing to unmarshal to that field.
+		wantErr: EU(newInvalidStringTagError("Interface", false)).withType(jsontext.KindBeginObject, reflect.TypeFor[structStringifiedInterface]()),
+	}, {
+		name: jsontest.Name("Structs/Stringified/Ignored/Interface"),
+		opts: []Options{jsonflags.ReportErrorsWithLegacySemantics | 1},
+		inBuf: `{
+	"Interface": null
+}`,
+		inVal: new(structStringifiedInterface),
+		want:  new(structStringifiedInterface),
 	}, {
 		name: jsontest.Name("Structs/LegacyStringified"),
 		opts: []Options{jsonflags.StringifyWithLegacySemantics | 1},
 		inBuf: `{
 	"Bool": "true",
 	"String": "\"hello\"",
-	"Bytes": "AQID",
 	"Int": "-64",
 	"Uint": "64",
 	"Float": "3.14159",
-	"Map": {"key": "value"},
-	"StructScalars": {
-		"Bool": true,
-		"String": "hello",
-		"Bytes": "AQID",
-		"Int": -64,
-		"Uint": 64,
-		"Float": 3.14159
-	},
-	"StructMaps": {
-		"MapBool": {"": true},
-		"MapString": {"": "hello"},
-		"MapBytes": {"": "AQID"},
-		"MapInt": {"": -64},
-		"MapUint": {"": 64},
-		"MapFloat": {"": 3.14159}
-	},
-	"StructSlices": {
-		"SliceBool": [true],
-		"SliceString": ["hello"],
-		"SliceBytes": ["AQID"],
-		"SliceInt": [-64],
-		"SliceUint": [64],
-		"SliceFloat": [3.14159]
-	},
-	"Slice": ["fizz", "buzz"],
-	"Array": ["goodbye"]
+	"PointerBool": "true",
+	"PointerString": "\"hello\"",
+	"PointerInt": "-64",
+	"PointerUint": "64",
+	"PointerFloat": "3.14159"
 }`,
-		inVal: new(structStringifiedAll),
-		want: addr(structStringifiedAll{
-			Bool:   true,
-			String: "hello",
-			Bytes:  []byte{1, 2, 3},
-			Int:    -64,
-			Uint:   +64,
-			Float:  3.14159,
-			Map:    map[string]string{"key": "value"},
-			StructScalars: structScalars{
-				Bool:   true,
-				String: "hello",
-				Bytes:  []byte{1, 2, 3},
-				Int:    -64,
-				Uint:   +64,
-				Float:  3.14159,
-			},
-			StructMaps: structMaps{
-				MapBool:   map[string]bool{"": true},
-				MapString: map[string]string{"": "hello"},
-				MapBytes:  map[string][]byte{"": {1, 2, 3}},
-				MapInt:    map[string]int64{"": -64},
-				MapUint:   map[string]uint64{"": +64},
-				MapFloat:  map[string]float64{"": 3.14159},
-			},
-			StructSlices: structSlices{
-				SliceBool:   []bool{true},
-				SliceString: []string{"hello"},
-				SliceBytes:  [][]byte{{1, 2, 3}},
-				SliceInt:    []int64{-64},
-				SliceUint:   []uint64{+64},
-				SliceFloat:  []float64{3.14159},
-			},
-			Slice: []string{"fizz", "buzz"},
-			Array: [1]string{"goodbye"},
+		inVal: new(structStringifiedLegacy),
+		want: addr(structStringifiedLegacy{
+			Bool:          true,
+			String:        "hello",
+			Int:           -64,
+			Uint:          +64,
+			Float:         3.14159,
+			PointerBool:   new(true),
+			PointerString: new("hello"),
+			PointerInt:    new(int64(-64)),
+			PointerUint:   new(uint64(+64)),
+			PointerFloat:  new(float64(3.14159)),
 		}),
 	}, {
-		name:    jsontest.Name("Structs/LegacyStringified/InvalidBool"),
+		name:    jsontest.Name("Structs/LegacyStringified/Invalid/Empty"),
+		opts:    []Options{jsonflags.StringifyWithLegacySemantics | 1},
+		inBuf:   `{"Int":""}`,
+		inVal:   new(structStringifiedLegacy),
+		want:    new(structStringifiedLegacy),
+		wantErr: EU(strconv.ErrSyntax).withVal(`""`).withPos(`{"Int":`, "/Int").withType('"', T[int64]()),
+	}, {
+		name:    jsontest.Name("Structs/LegacyStringified/Invalid/Bool"),
 		opts:    []Options{jsonflags.StringifyWithLegacySemantics | 1},
 		inBuf:   `{"Bool": true}`,
-		inVal:   new(structStringifiedAll),
+		inVal:   new(structStringifiedLegacy),
 		wantErr: EU(nil).withPos(`{"Bool": `, "/Bool").withType('t', T[bool]()),
 	}, {
-		name:  jsontest.Name("Structs/LegacyStringified/InvalidString"),
+		name:  jsontest.Name("Structs/LegacyStringified/Invalid/String"),
 		opts:  []Options{jsonflags.StringifyWithLegacySemantics | 1},
 		inBuf: `{"String": "string"}`,
-		inVal: new(structStringifiedAll),
+		inVal: new(structStringifiedLegacy),
 		wantErr: EU(newInvalidCharacterError("s", "at start of string (expecting '\"')", 0, "")).
 			withPos(`{"String": `, "/String").withType('"', T[string]()),
+	}, {
+		name:  jsontest.Name("Structs/Stringified/Invalid/Bytes"),
+		opts:  []Options{jsonflags.StringifyWithLegacySemantics | 1},
+		inBuf: `{}`,
+		inVal: new(structStringifiedBytes),
+		want:  new(structStringifiedBytes),
+		// The invalid tag error should occur even if there is nothing to unmarshal to that field.
+		wantErr: EU(newInvalidStringTagError("Bytes", true)).withType(jsontext.KindBeginObject, reflect.TypeFor[structStringifiedBytes]()),
+	}, {
+		name: jsontest.Name("Structs/Stringified/Ignored/Bytes"),
+		opts: []Options{jsonflags.StringifyWithLegacySemantics | 1, jsonflags.ReportErrorsWithLegacySemantics | 1},
+		inBuf: `{
+	"Bytes": "AQID"
+}`,
+		inVal: new(structStringifiedBytes),
+		want: new(structStringifiedBytes{
+			Bytes: []byte{1, 2, 3},
+		}),
+	}, {
+		name:  jsontest.Name("Structs/Stringified/Invalid/Map"),
+		opts:  []Options{jsonflags.StringifyWithLegacySemantics | 1},
+		inBuf: `{}`,
+		inVal: new(structStringifiedMap),
+		want:  new(structStringifiedMap),
+		// The invalid tag error should occur even if there is nothing to unmarshal to that field.
+		wantErr: EU(newInvalidStringTagError("Map", true)).withType(jsontext.KindBeginObject, reflect.TypeFor[structStringifiedMap]()),
+	}, {
+		name: jsontest.Name("Structs/Stringified/Ignored/Map"),
+		opts: []Options{jsonflags.StringifyWithLegacySemantics | 1, jsonflags.ReportErrorsWithLegacySemantics | 1},
+		inBuf: `{
+	"Map": {
+		"Key": "Value"
+	}
+}`,
+		inVal: new(structStringifiedMap),
+		want: new(structStringifiedMap{
+			Map: map[string]string{"Key": "Value"},
+		}),
+	}, {
+		name:  jsontest.Name("Structs/Stringified/Invalid/Slice"),
+		opts:  []Options{jsonflags.StringifyWithLegacySemantics | 1},
+		inBuf: `{}`,
+		inVal: new(structStringifiedSlice),
+		want:  new(structStringifiedSlice),
+		// The invalid tag error should occur even if there is nothing to unmarshal to that field.
+		wantErr: EU(newInvalidStringTagError("Slice", true)).withType(jsontext.KindBeginObject, reflect.TypeFor[structStringifiedSlice]()),
+	}, {
+		name: jsontest.Name("Structs/Stringified/Ignored/Slice"),
+		opts: []Options{jsonflags.StringifyWithLegacySemantics | 1, jsonflags.ReportErrorsWithLegacySemantics | 1},
+		inBuf: `{
+	"Slice": [
+		"hello"
+	]
+}`,
+		inVal: new(structStringifiedSlice),
+		want: new(structStringifiedSlice{
+			Slice: []string{"hello"},
+		}),
+	}, {
+		name:  jsontest.Name("Structs/Stringified/Invalid/Array"),
+		opts:  []Options{jsonflags.StringifyWithLegacySemantics | 1},
+		inBuf: `{}`,
+		inVal: new(structStringifiedArray),
+		want:  new(structStringifiedArray),
+		// The invalid tag error should occur even if there is nothing to unmarshal to that field.
+		wantErr: EU(newInvalidStringTagError("Array", true)).withType(jsontext.KindBeginObject, reflect.TypeFor[structStringifiedArray]()),
+	}, {
+		name: jsontest.Name("Structs/Stringified/Ignored/Array"),
+		opts: []Options{jsonflags.StringifyWithLegacySemantics | 1, jsonflags.ReportErrorsWithLegacySemantics | 1},
+		inBuf: `{
+	"Array": [
+		"hello"
+	]
+}`,
+		inVal: new(structStringifiedArray),
+		want: new(structStringifiedArray{
+			Array: [1]string{"hello"},
+		}),
+	}, {
+		name:  jsontest.Name("Structs/Stringified/Invalid/Struct"),
+		opts:  []Options{jsonflags.StringifyWithLegacySemantics | 1},
+		inBuf: `{}`,
+		inVal: new(structStringifiedStruct),
+		want:  new(structStringifiedStruct),
+		// The invalid tag error should occur even if there is nothing to unmarshal to that field.
+		wantErr: EU(newInvalidStringTagError("Struct", true)).withType(jsontext.KindBeginObject, reflect.TypeFor[structStringifiedStruct]()),
+	}, {
+		name: jsontest.Name("Structs/Stringified/Ignored/Struct"),
+		opts: []Options{jsonflags.StringifyWithLegacySemantics | 1, jsonflags.ReportErrorsWithLegacySemantics | 1},
+		inBuf: `{
+	"Struct": {
+		"Bool": true
+	}
+}`,
+		inVal: new(structStringifiedStruct),
+		want: new(structStringifiedStruct{
+			Struct: structAll{
+				Bool: true,
+			},
+		}),
+	}, {
+		name:  jsontest.Name("Structs/Stringified/Invalid/Pointer"),
+		opts:  []Options{jsonflags.StringifyWithLegacySemantics | 1},
+		inBuf: `{}`,
+		inVal: new(structStringifiedPointer),
+		want:  new(structStringifiedPointer),
+		// The invalid tag error should occur even if there is nothing to unmarshal to that field.
+		wantErr: EU(newInvalidStringTagError("Pointer", true)).withType(jsontext.KindBeginObject, reflect.TypeFor[structStringifiedPointer]()),
+	}, {
+		name: jsontest.Name("Structs/Stringified/Ignored/Pointer"),
+		opts: []Options{jsonflags.StringifyWithLegacySemantics | 1, jsonflags.ReportErrorsWithLegacySemantics | 1},
+		inBuf: `{
+	"Pointer": {
+		"Bool": true
+	}
+}`,
+		inVal: new(structStringifiedPointer),
+		want: new(structStringifiedPointer{
+			Pointer: new(structAll{
+				Bool: true,
+			}),
+		}),
+	}, {
+		name:  jsontest.Name("Structs/Stringified/Invalid/Interface"),
+		opts:  []Options{jsonflags.StringifyWithLegacySemantics | 1},
+		inBuf: `{}`,
+		inVal: new(structStringifiedInterface),
+		want:  new(structStringifiedInterface),
+		// The invalid tag error should occur even if there is nothing to unmarshal to that field.
+		wantErr: EU(newInvalidStringTagError("Interface", true)).withType(jsontext.KindBeginObject, reflect.TypeFor[structStringifiedInterface]()),
+	}, {
+		name: jsontest.Name("Structs/Stringified/Ignored/Interface"),
+		opts: []Options{jsonflags.StringifyWithLegacySemantics | 1, jsonflags.ReportErrorsWithLegacySemantics | 1},
+		inBuf: `{
+	"Interface": null
+}`,
+		inVal: new(structStringifiedInterface),
+		want:  new(structStringifiedInterface),
 	}, {
 		name: jsontest.Name("Structs/Format/Bytes"),
 		inBuf: `{
@@ -6181,6 +6415,7 @@ func TestUnmarshal(t *testing.T) {
 			Base64URL: []byte("\x00\x10\x83\x10Q\x87 \x92\x8b0ӏA\x14\x93QU\x97a\x96\x9bqן\x82\x18\xa3\x92Y\xa7\xa2\x9a\xab\xb2ۯ\xc3\x1c\xb3\xd3]\xb7㞻\xf3߿"),
 			Array:     []byte{1, 2, 3, 4},
 		}),
+		skip: !internal.ExpJSONFormat,
 	}, {
 		name: jsontest.Name("Structs/Format/ArrayBytes"),
 		inBuf: `{
@@ -6202,6 +6437,7 @@ func TestUnmarshal(t *testing.T) {
 			Array:     [4]byte{1, 2, 3, 4},
 			Default:   [4]byte{1, 2, 3, 4},
 		}),
+		skip: !internal.ExpJSONFormat,
 	}, {
 		name: jsontest.Name("Structs/Format/ArrayBytes/Legacy"),
 		opts: []Options{jsonflags.FormatBytesWithLegacySemantics | 1},
@@ -6224,6 +6460,7 @@ func TestUnmarshal(t *testing.T) {
 			Array:     [4]byte{1, 2, 3, 4},
 			Default:   [4]byte{1, 2, 3, 4},
 		}),
+		skip: !internal.ExpJSONFormat,
 	}, {
 		name: jsontest.Name("Structs/Format/Bytes/Array"),
 		opts: []Options{
@@ -6245,11 +6482,13 @@ func TestUnmarshal(t *testing.T) {
 		}{
 			Array: []byte{0, 1, 0, 1, 0, 1},
 		}),
+		skip: !internal.ExpJSONFormat,
 	}, {
 		name:    jsontest.Name("Structs/Format/Bytes/Invalid/Base16/WrongKind"),
 		inBuf:   `{"Base16": [1,2,3,4]}`,
 		inVal:   new(structFormatBytes),
 		wantErr: EU(nil).withPos(`{"Base16": `, "/Base16").withType('[', T[[]byte]()),
+		skip:    !internal.ExpJSONFormat,
 	}, {
 		name:  jsontest.Name("Structs/Format/Bytes/Invalid/Base16/AllPadding"),
 		inBuf: `{"Base16": "===="}`,
@@ -6258,6 +6497,7 @@ func TestUnmarshal(t *testing.T) {
 			_, err := hex.Decode(make([]byte, 2), []byte("====="))
 			return err
 		}()).withPos(`{"Base16": `, "/Base16").withType('"', T[[]byte]()),
+		skip: !internal.ExpJSONFormat,
 	}, {
 		name:  jsontest.Name("Structs/Format/Bytes/Invalid/Base16/EvenPadding"),
 		inBuf: `{"Base16": "0123456789abcdef="}`,
@@ -6266,6 +6506,7 @@ func TestUnmarshal(t *testing.T) {
 			_, err := hex.Decode(make([]byte, 8), []byte("0123456789abcdef="))
 			return err
 		}()).withPos(`{"Base16": `, "/Base16").withType('"', T[[]byte]()),
+		skip: !internal.ExpJSONFormat,
 	}, {
 		name:  jsontest.Name("Structs/Format/Bytes/Invalid/Base16/OddPadding"),
 		inBuf: `{"Base16": "0123456789abcdef0="}`,
@@ -6274,6 +6515,7 @@ func TestUnmarshal(t *testing.T) {
 			_, err := hex.Decode(make([]byte, 9), []byte("0123456789abcdef0="))
 			return err
 		}()).withPos(`{"Base16": `, "/Base16").withType('"', T[[]byte]()),
+		skip: !internal.ExpJSONFormat,
 	}, {
 		name:  jsontest.Name("Structs/Format/Bytes/Invalid/Base16/NonAlphabet/LineFeed"),
 		inBuf: `{"Base16": "aa\naa"}`,
@@ -6282,6 +6524,7 @@ func TestUnmarshal(t *testing.T) {
 			_, err := hex.Decode(make([]byte, 9), []byte("aa\naa"))
 			return err
 		}()).withPos(`{"Base16": `, "/Base16").withType('"', T[[]byte]()),
+		skip: !internal.ExpJSONFormat,
 	}, {
 		name:  jsontest.Name("Structs/Format/Bytes/Invalid/Base16/NonAlphabet/CarriageReturn"),
 		inBuf: `{"Base16": "aa\raa"}`,
@@ -6290,6 +6533,7 @@ func TestUnmarshal(t *testing.T) {
 			_, err := hex.Decode(make([]byte, 9), []byte("aa\raa"))
 			return err
 		}()).withPos(`{"Base16": `, "/Base16").withType('"', T[[]byte]()),
+		skip: !internal.ExpJSONFormat,
 	}, {
 		name:  jsontest.Name("Structs/Format/Bytes/Invalid/Base16/NonAlphabet/Space"),
 		inBuf: `{"Base16": "aa aa"}`,
@@ -6298,6 +6542,7 @@ func TestUnmarshal(t *testing.T) {
 			_, err := hex.Decode(make([]byte, 9), []byte("aa aa"))
 			return err
 		}()).withPos(`{"Base16": `, "/Base16").withType('"', T[[]byte]()),
+		skip: !internal.ExpJSONFormat,
 	}, {
 		name: jsontest.Name("Structs/Format/Bytes/Invalid/Base32/Padding"),
 		inBuf: `[
@@ -6315,6 +6560,7 @@ func TestUnmarshal(t *testing.T) {
 			{Base32: []byte("hell")},
 			{Base32: []byte("hello")},
 		}),
+		skip: !internal.ExpJSONFormat,
 	}, {
 		name: jsontest.Name("Structs/Format/Bytes/Invalid/Base32/Invalid/NoPadding"),
 		inBuf: `[
@@ -6329,6 +6575,7 @@ func TestUnmarshal(t *testing.T) {
 			_, err := base32.StdEncoding.Decode(make([]byte, 1), []byte("NA"))
 			return err
 		}()).withPos(`[`+"\n\t\t\t\t"+`{"Base32": `, "/0/Base32").withType('"', T[[]byte]()),
+		skip: !internal.ExpJSONFormat,
 	}, {
 		name:  jsontest.Name("Structs/Format/Bytes/Invalid/Base32/WrongAlphabet"),
 		inBuf: `{"Base32": "0123456789ABCDEFGHIJKLMNOPQRSTUV"}`,
@@ -6337,6 +6584,7 @@ func TestUnmarshal(t *testing.T) {
 			_, err := base32.StdEncoding.Decode(make([]byte, 20), []byte("0123456789ABCDEFGHIJKLMNOPQRSTUV"))
 			return err
 		}()).withPos(`{"Base32": `, "/Base32").withType('"', T[[]byte]()),
+		skip: !internal.ExpJSONFormat,
 	}, {
 		name:  jsontest.Name("Structs/Format/Bytes/Invalid/Base32Hex/WrongAlphabet"),
 		inBuf: `{"Base32Hex": "ABCDEFGHIJKLMNOPQRSTUVWXYZ234567"}`,
@@ -6345,21 +6593,25 @@ func TestUnmarshal(t *testing.T) {
 			_, err := base32.HexEncoding.Decode(make([]byte, 20), []byte("ABCDEFGHIJKLMNOPQRSTUVWXYZ234567"))
 			return err
 		}()).withPos(`{"Base32Hex": `, "/Base32Hex").withType('"', T[[]byte]()),
+		skip: !internal.ExpJSONFormat,
 	}, {
 		name:    jsontest.Name("Structs/Format/Bytes/Invalid/Base32/NonAlphabet/LineFeed"),
 		inBuf:   `{"Base32": "AAAA\nAAAA"}`,
 		inVal:   new(structFormatBytes),
 		wantErr: EU(errors.New("illegal character '\\n' at offset 4")).withPos(`{"Base32": `, "/Base32").withType('"', T[[]byte]()),
+		skip:    !internal.ExpJSONFormat,
 	}, {
 		name:    jsontest.Name("Structs/Format/Bytes/Invalid/Base32/NonAlphabet/CarriageReturn"),
 		inBuf:   `{"Base32": "AAAA\rAAAA"}`,
 		inVal:   new(structFormatBytes),
 		wantErr: EU(errors.New("illegal character '\\r' at offset 4")).withPos(`{"Base32": `, "/Base32").withType('"', T[[]byte]()),
+		skip:    !internal.ExpJSONFormat,
 	}, {
 		name:    jsontest.Name("Structs/Format/Bytes/Invalid/Base32/NonAlphabet/Space"),
 		inBuf:   `{"Base32": "AAAA AAAA"}`,
 		inVal:   new(structFormatBytes),
 		wantErr: EU(base32.CorruptInputError(4)).withPos(`{"Base32": `, "/Base32").withType('"', T[[]byte]()),
+		skip:    !internal.ExpJSONFormat,
 	}, {
 		name:  jsontest.Name("Structs/Format/Bytes/Invalid/Base64/WrongAlphabet"),
 		inBuf: `{"Base64": "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-_"}`,
@@ -6368,6 +6620,7 @@ func TestUnmarshal(t *testing.T) {
 			_, err := base64.StdEncoding.Decode(make([]byte, 48), []byte("ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-_"))
 			return err
 		}()).withPos(`{"Base64": `, "/Base64").withType('"', T[[]byte]()),
+		skip: !internal.ExpJSONFormat,
 	}, {
 		name:  jsontest.Name("Structs/Format/Bytes/Invalid/Base64URL/WrongAlphabet"),
 		inBuf: `{"Base64URL": "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/"}`,
@@ -6376,27 +6629,32 @@ func TestUnmarshal(t *testing.T) {
 			_, err := base64.URLEncoding.Decode(make([]byte, 48), []byte("ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/"))
 			return err
 		}()).withPos(`{"Base64URL": `, "/Base64URL").withType('"', T[[]byte]()),
+		skip: !internal.ExpJSONFormat,
 	}, {
 		name:    jsontest.Name("Structs/Format/Bytes/Invalid/Base64/NonAlphabet/LineFeed"),
 		inBuf:   `{"Base64": "aa=\n="}`,
 		inVal:   new(structFormatBytes),
 		wantErr: EU(errors.New("illegal character '\\n' at offset 3")).withPos(`{"Base64": `, "/Base64").withType('"', T[[]byte]()),
+		skip:    !internal.ExpJSONFormat,
 	}, {
 		name:    jsontest.Name("Structs/Format/Bytes/Invalid/Base64/NonAlphabet/CarriageReturn"),
 		inBuf:   `{"Base64": "aa=\r="}`,
 		inVal:   new(structFormatBytes),
 		wantErr: EU(errors.New("illegal character '\\r' at offset 3")).withPos(`{"Base64": `, "/Base64").withType('"', T[[]byte]()),
+		skip:    !internal.ExpJSONFormat,
 	}, {
 		name:  jsontest.Name("Structs/Format/Bytes/Base64/NonAlphabet/Ignored"),
 		opts:  []Options{jsonflags.ParseBytesWithLooseRFC4648 | 1},
 		inBuf: `{"Base64": "aa=\r\n="}`,
 		inVal: new(structFormatBytes),
 		want:  &structFormatBytes{Base64: []byte{105}},
+		skip:  !internal.ExpJSONFormat,
 	}, {
 		name:    jsontest.Name("Structs/Format/Bytes/Invalid/Base64/NonAlphabet/Space"),
 		inBuf:   `{"Base64": "aa= ="}`,
 		inVal:   new(structFormatBytes),
 		wantErr: EU(base64.CorruptInputError(2)).withPos(`{"Base64": `, "/Base64").withType('"', T[[]byte]()),
+		skip:    !internal.ExpJSONFormat,
 	}, {
 		name: jsontest.Name("Structs/Format/Floats"),
 		inBuf: `[
@@ -6410,26 +6668,31 @@ func TestUnmarshal(t *testing.T) {
 			{NonFinite: math.Inf(-1), PointerNonFinite: addr(math.Inf(-1))},
 			{NonFinite: math.Inf(+1), PointerNonFinite: addr(math.Inf(+1))},
 		}),
+		skip: !internal.ExpJSONFormat,
 	}, {
 		name:  jsontest.Name("Structs/Format/Floats/NaN"),
 		inBuf: `{"NonFinite": "NaN"}`,
 		inVal: new(structFormatFloats),
 		// Avoid checking want since reflect.DeepEqual fails for NaNs.
+		skip: !internal.ExpJSONFormat,
 	}, {
 		name:    jsontest.Name("Structs/Format/Floats/Invalid/NaN"),
 		inBuf:   `{"NonFinite": "nan"}`,
 		inVal:   new(structFormatFloats),
 		wantErr: EU(nil).withPos(`{"NonFinite": `, "/NonFinite").withType('"', T[float64]()),
+		skip:    !internal.ExpJSONFormat,
 	}, {
 		name:    jsontest.Name("Structs/Format/Floats/Invalid/PositiveInfinity"),
 		inBuf:   `{"NonFinite": "+Infinity"}`,
 		inVal:   new(structFormatFloats),
 		wantErr: EU(nil).withPos(`{"NonFinite": `, "/NonFinite").withType('"', T[float64]()),
+		skip:    !internal.ExpJSONFormat,
 	}, {
 		name:    jsontest.Name("Structs/Format/Floats/Invalid/NegativeInfinitySpace"),
 		inBuf:   `{"NonFinite": "-Infinity "}`,
 		inVal:   new(structFormatFloats),
 		wantErr: EU(nil).withPos(`{"NonFinite": `, "/NonFinite").withType('"', T[float64]()),
+		skip:    !internal.ExpJSONFormat,
 	}, {
 		name: jsontest.Name("Structs/Format/Maps"),
 		inBuf: `[
@@ -6451,6 +6714,7 @@ func TestUnmarshal(t *testing.T) {
 			EmitEmpty: map[string]string{"k": "v"}, PointerEmitEmpty: addr(map[string]string{"k": "v"}),
 			EmitDefault: map[string]string{"k": "v"}, PointerEmitDefault: addr(map[string]string{"k": "v"}),
 		}}),
+		skip: !internal.ExpJSONFormat,
 	}, {
 		name: jsontest.Name("Structs/Format/Slices"),
 		inBuf: `[
@@ -6472,61 +6736,73 @@ func TestUnmarshal(t *testing.T) {
 			EmitEmpty: []string{"v"}, PointerEmitEmpty: addr([]string{"v"}),
 			EmitDefault: []string{"v"}, PointerEmitDefault: addr([]string{"v"}),
 		}}),
+		skip: !internal.ExpJSONFormat,
 	}, {
 		name:    jsontest.Name("Structs/Format/Invalid/Bool"),
 		inBuf:   `{"Bool":true}`,
 		inVal:   new(structFormatInvalid),
 		wantErr: EU(errInvalidFormatFlag).withPos(`{"Bool":`, "/Bool").withType(0, T[bool]()),
+		skip:    !internal.ExpJSONFormat,
 	}, {
 		name:    jsontest.Name("Structs/Format/Invalid/String"),
 		inBuf:   `{"String": "string"}`,
 		inVal:   new(structFormatInvalid),
 		wantErr: EU(errInvalidFormatFlag).withPos(`{"String": `, "/String").withType(0, T[string]()),
+		skip:    !internal.ExpJSONFormat,
 	}, {
 		name:    jsontest.Name("Structs/Format/Invalid/Bytes"),
 		inBuf:   `{"Bytes": "bytes"}`,
 		inVal:   new(structFormatInvalid),
 		wantErr: EU(errInvalidFormatFlag).withPos(`{"Bytes": `, "/Bytes").withType(0, T[[]byte]()),
+		skip:    !internal.ExpJSONFormat,
 	}, {
 		name:    jsontest.Name("Structs/Format/Invalid/Int"),
 		inBuf:   `{"Int":   1}`,
 		inVal:   new(structFormatInvalid),
 		wantErr: EU(errInvalidFormatFlag).withPos(`{"Int":   `, "/Int").withType(0, T[int64]()),
+		skip:    !internal.ExpJSONFormat,
 	}, {
 		name:    jsontest.Name("Structs/Format/Invalid/Uint"),
 		inBuf:   `{"Uint": 1}`,
 		inVal:   new(structFormatInvalid),
 		wantErr: EU(errInvalidFormatFlag).withPos(`{"Uint": `, "/Uint").withType(0, T[uint64]()),
+		skip:    !internal.ExpJSONFormat,
 	}, {
 		name:    jsontest.Name("Structs/Format/Invalid/Float"),
 		inBuf:   `{"Float" : 1}`,
 		inVal:   new(structFormatInvalid),
 		wantErr: EU(errInvalidFormatFlag).withPos(`{"Float" : `, "/Float").withType(0, T[float64]()),
+		skip:    !internal.ExpJSONFormat,
 	}, {
 		name:    jsontest.Name("Structs/Format/Invalid/Map"),
 		inBuf:   `{"Map":{}}`,
 		inVal:   new(structFormatInvalid),
 		wantErr: EU(errInvalidFormatFlag).withPos(`{"Map":`, "/Map").withType(0, T[map[string]string]()),
+		skip:    !internal.ExpJSONFormat,
 	}, {
 		name:    jsontest.Name("Structs/Format/Invalid/Struct"),
 		inBuf:   `{"Struct": {}}`,
 		inVal:   new(structFormatInvalid),
 		wantErr: EU(errInvalidFormatFlag).withPos(`{"Struct": `, "/Struct").withType(0, T[structAll]()),
+		skip:    !internal.ExpJSONFormat,
 	}, {
 		name:    jsontest.Name("Structs/Format/Invalid/Slice"),
 		inBuf:   `{"Slice": {}}`,
 		inVal:   new(structFormatInvalid),
 		wantErr: EU(errInvalidFormatFlag).withPos(`{"Slice": `, "/Slice").withType(0, T[[]string]()),
+		skip:    !internal.ExpJSONFormat,
 	}, {
 		name:    jsontest.Name("Structs/Format/Invalid/Array"),
 		inBuf:   `{"Array": []}`,
 		inVal:   new(structFormatInvalid),
 		wantErr: EU(errInvalidFormatFlag).withPos(`{"Array": `, "/Array").withType(0, T[[1]string]()),
+		skip:    !internal.ExpJSONFormat,
 	}, {
 		name:    jsontest.Name("Structs/Format/Invalid/Interface"),
 		inBuf:   `{"Interface": "anything"}`,
 		inVal:   new(structFormatInvalid),
 		wantErr: EU(errInvalidFormatFlag).withPos(`{"Interface": `, "/Interface").withType(0, T[any]()),
+		skip:    !internal.ExpJSONFormat,
 	}, {
 		name:  jsontest.Name("Structs/Inline/Zero"),
 		inBuf: `{"D":""}`,
@@ -7016,6 +7292,7 @@ func TestUnmarshal(t *testing.T) {
 		inBuf: `{"":"empty",",":"comma","\"":"quote"}`,
 		inVal: new(structWeirdNames),
 		want:  addr(structWeirdNames{Empty: "empty", Comma: "comma", Quote: "quote"}),
+		skip:  !internal.ExpJSONFormat,
 	}, {
 		name:  jsontest.Name("Structs/NoCase/Exact"),
 		inBuf: `{"Aaa":"Aaa","AA_A":"AA_A","AaA":"AaA","AAa":"AAa","AAA":"AAA"}`,
@@ -8709,6 +8986,7 @@ func TestUnmarshal(t *testing.T) {
 			D1 time.Duration `json:",format:units"` // TODO(https://go.dev/issue/71631): Remove the format flag.
 			D2 time.Duration `json:",format:nano"`
 		}{0, 0}),
+		skip: !internal.ExpJSONFormat,
 	}, {
 		name:  jsontest.Name("Duration/Zero"),
 		inBuf: `{"D1":"0s","D2":0}`,
@@ -8720,6 +8998,7 @@ func TestUnmarshal(t *testing.T) {
 			D1 time.Duration `json:",format:units"` // TODO(https://go.dev/issue/71631): Remove the format flag.
 			D2 time.Duration `json:",format:nano"`
 		}{0, 0}),
+		skip: !internal.ExpJSONFormat,
 	}, {
 		name:  jsontest.Name("Duration/Positive"),
 		inBuf: `{"D1":"34293h33m9.123456789s","D2":123456789123456789}`,
@@ -8734,6 +9013,7 @@ func TestUnmarshal(t *testing.T) {
 			123456789123456789,
 			123456789123456789,
 		}),
+		skip: !internal.ExpJSONFormat,
 	}, {
 		name:  jsontest.Name("Duration/Negative"),
 		inBuf: `{"D1":"-34293h33m9.123456789s","D2":-123456789123456789}`,
@@ -8748,6 +9028,7 @@ func TestUnmarshal(t *testing.T) {
 			-123456789123456789,
 			-123456789123456789,
 		}),
+		skip: !internal.ExpJSONFormat,
 	}, {
 		name:  jsontest.Name("Duration/Nanos/String"),
 		inBuf: `{"D":"12345"}`,
@@ -8757,6 +9038,7 @@ func TestUnmarshal(t *testing.T) {
 		want: addr(struct {
 			D time.Duration `json:",string,format:nano"`
 		}{12345}),
+		skip: !internal.ExpJSONFormat,
 	}, {
 		name:  jsontest.Name("Duration/Nanos/String/Invalid"),
 		inBuf: `{"D":"+12345"}`,
@@ -8767,6 +9049,7 @@ func TestUnmarshal(t *testing.T) {
 			D time.Duration `json:",string,format:nano"`
 		}{1}),
 		wantErr: EU(fmt.Errorf(`invalid duration "+12345": %w`, strconv.ErrSyntax)).withPos(`{"D":`, "/D").withType('"', timeDurationType),
+		skip:    !internal.ExpJSONFormat,
 	}, {
 		name:  jsontest.Name("Duration/Nanos/Mismatch"),
 		inBuf: `{"D":"34293h33m9.123456789s"}`,
@@ -8777,6 +9060,7 @@ func TestUnmarshal(t *testing.T) {
 			D time.Duration `json:",format:nano"`
 		}{1}),
 		wantErr: EU(nil).withPos(`{"D":`, "/D").withType('"', timeDurationType),
+		skip:    !internal.ExpJSONFormat,
 	}, {
 		name:  jsontest.Name("Duration/Nanos"),
 		inBuf: `{"D":1.324}`,
@@ -8786,6 +9070,7 @@ func TestUnmarshal(t *testing.T) {
 		want: addr(struct {
 			D time.Duration `json:",format:nano"`
 		}{1}),
+		skip: !internal.ExpJSONFormat,
 	}, {
 		name:  jsontest.Name("Duration/String/Mismatch"),
 		inBuf: `{"D":-123456789123456789}`,
@@ -8796,6 +9081,7 @@ func TestUnmarshal(t *testing.T) {
 			D time.Duration `json:",format:units"` // TODO(https://go.dev/issue/71631): Remove the format flag.
 		}{1}),
 		wantErr: EU(nil).withPos(`{"D":`, "/D").withType('0', timeDurationType),
+		skip:    !internal.ExpJSONFormat,
 	}, {
 		name:  jsontest.Name("Duration/String/Invalid"),
 		inBuf: `{"D":"5minkutes"}`,
@@ -8809,6 +9095,7 @@ func TestUnmarshal(t *testing.T) {
 			_, err := time.ParseDuration("5minkutes")
 			return err
 		}()).withPos(`{"D":`, "/D").withType('"', timeDurationType),
+		skip: !internal.ExpJSONFormat,
 	}, {
 		name:  jsontest.Name("Duration/Syntax/Invalid"),
 		inBuf: `{"D":x}`,
@@ -8819,6 +9106,7 @@ func TestUnmarshal(t *testing.T) {
 			D time.Duration `json:",format:units"` // TODO(https://go.dev/issue/71631): Remove the format flag.
 		}{1}),
 		wantErr: newInvalidCharacterError("x", "at start of value", len64(`{"D":`), "/D"),
+		skip:    !internal.ExpJSONFormat,
 	}, {
 		name: jsontest.Name("Duration/Format"),
 		inBuf: `{
@@ -8848,6 +9136,7 @@ func TestUnmarshal(t *testing.T) {
 			12*time.Hour + 34*time.Minute + 56*time.Second + 78*time.Millisecond + 90*time.Microsecond + 12*time.Nanosecond,
 			12*time.Hour + 34*time.Minute + 56*time.Second + 78*time.Millisecond + 90*time.Microsecond + 12*time.Nanosecond,
 		}),
+		skip: !internal.ExpJSONFormat,
 	}, {
 		name:  jsontest.Name("Duration/Format/Invalid"),
 		inBuf: `{"D":"0s"}`,
@@ -8858,6 +9147,7 @@ func TestUnmarshal(t *testing.T) {
 			D time.Duration `json:",format:invalid"`
 		}{1}),
 		wantErr: EU(errInvalidFormatFlag).withPos(`{"D":`, "/D").withType(0, timeDurationType),
+		skip:    !internal.ExpJSONFormat,
 	}, {
 		/* TODO(https://go.dev/issue/71631): Re-enable this test case.
 		name:  jsontest.Name("Duration/Format/Legacy"),
@@ -8880,6 +9170,7 @@ func TestUnmarshal(t *testing.T) {
 		inBuf: `{"1000000000":""}`,
 		inVal: new(map[time.Duration]string),
 		want:  addr(map[time.Duration]string{time.Second: ""}),
+		skip:  !internal.ExpJSONFormat,
 	}, {
 		/* TODO(https://go.dev/issue/71631): Re-enable this test case.
 		name:  jsontest.Name("Duration/IgnoreInvalidFormat"),
@@ -8910,6 +9201,7 @@ func TestUnmarshal(t *testing.T) {
 			mustParseTime(time.RFC3339Nano, "0001-01-01T00:00:00Z"),
 			mustParseTime(time.RFC3339Nano, "0001-01-01T00:00:00Z"),
 		}),
+		skip: !internal.ExpJSONFormat,
 	}, {
 		name: jsontest.Name("Time/Format"),
 		inBuf: `{
@@ -8975,6 +9267,14 @@ func TestUnmarshal(t *testing.T) {
 			time.Unix(-23225777755, 6).UTC(),
 			time.Unix(-23225777755, 6).UTC(),
 		}),
+		skip: !internal.ExpJSONFormat,
+	}, {
+		name:    jsontest.Name("Time/Format/String/Invalid"),
+		inBuf:   `{}`,
+		inVal:   new(structTimeFormatStringInvalid),
+		want:    new(structTimeFormatStringInvalid),
+		wantErr: EU(newInvalidStringTagError("T", false)).withType(jsontext.KindBeginObject, reflect.TypeFor[structTimeFormatStringInvalid]()),
+		skip:    !internal.ExpJSONFormat,
 	}, {
 		name: jsontest.Name("Time/Format/UnixString/InvalidNumber"),
 		inBuf: `{
@@ -8986,6 +9286,7 @@ func TestUnmarshal(t *testing.T) {
 		inVal:   new(structTimeFormat),
 		want:    new(structTimeFormat),
 		wantErr: EU(nil).withPos(`{`+"\n\t\t\t"+`"T23": `, "/T23").withType('0', timeTimeType),
+		skip:    !internal.ExpJSONFormat,
 	}, {
 		name: jsontest.Name("Time/Format/UnixString/InvalidString"),
 		inBuf: `{
@@ -8997,6 +9298,7 @@ func TestUnmarshal(t *testing.T) {
 		inVal:   new(structTimeFormat),
 		want:    new(structTimeFormat),
 		wantErr: EU(nil).withPos(`{`+"\n\t\t\t"+`"T22": `, "/T22").withType('"', timeTimeType),
+		skip:    !internal.ExpJSONFormat,
 	}, {
 		name:  jsontest.Name("Time/Format/Null"),
 		inBuf: `{"T1":null,"T2":null,"T3":null,"T4":null,"T5":null,"T6":null,"T7":null,"T8":null,"T9":null,"T10":null,"T11":null,"T12":null,"T13":null,"T14":null,"T15":null,"T16":null,"T17":null,"T18":null,"T19":null,"T20":null,"T21":null,"T22":null,"T23":null,"T24":null,"T25":null,"T26":null,"T27":null,"T28":null,"T29":null}`,
@@ -9032,6 +9334,7 @@ func TestUnmarshal(t *testing.T) {
 			time.Unix(-23225777755, 6).UTC(),
 		}),
 		want: new(structTimeFormat),
+		skip: !internal.ExpJSONFormat,
 	}, {
 		name:  jsontest.Name("Time/RFC3339/Mismatch"),
 		inBuf: `{"T":1234}`,
@@ -9056,6 +9359,7 @@ func TestUnmarshal(t *testing.T) {
 			T time.Time `json:",format:UndefinedConstant"`
 		}),
 		wantErr: EU(errors.New(`invalid format flag "UndefinedConstant"`)).withPos(`{"T":`, "/T").withType(0, timeTimeType),
+		skip:    !internal.ExpJSONFormat,
 	}, {
 		name:    jsontest.Name("Time/Format/SingleDigitHour"),
 		inBuf:   `{"T":"2000-01-01T1:12:34Z"}`,
@@ -9092,6 +9396,9 @@ func TestUnmarshal(t *testing.T) {
 	}}
 
 	for _, tt := range tests {
+		if tt.skip {
+			continue
+		}
 		t.Run(tt.name.Name, func(t *testing.T) {
 			got := tt.inVal
 			gotErr := Unmarshal([]byte(tt.inBuf), got, tt.opts...)

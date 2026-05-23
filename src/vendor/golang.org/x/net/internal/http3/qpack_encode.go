@@ -4,6 +4,10 @@
 
 package http3
 
+import (
+	"golang.org/x/net/internal/httpcommon"
+)
+
 type qpackEncoder struct {
 	// The encoder has no state for now,
 	// but that'll change once we add dynamic table support.
@@ -28,6 +32,18 @@ func (qe *qpackEncoder) encode(headers func(func(itype indexType, name, value st
 	b = appendPrefixedInt(b, 0, 7, 0) // Delta Base
 
 	headers(func(itype indexType, name, value string) {
+		// Technically, it is the responsibility of the protocol using HTTP/3
+		// to ensure that all field names are already in lowercase. However,
+		// this QPACK implementation is solely used by and live in the http3
+		// package. So, we might as well do the lowercasing here to make sure
+		// we do not miss any callsites or need to create yet another struct
+		// wrapping the qpackEncoder.
+		name, ascii := httpcommon.LowerHeader(name)
+		// Skip writing invalid headers. Per RFC 9114 section 4.2: "Field
+		// names are strings containing a subset of ASCII characters."
+		if !ascii {
+			return
+		}
 		if itype == mayIndex {
 			if i, ok := staticTableByNameValue[tableEntry{name, value}]; ok {
 				b = appendIndexedFieldLine(b, staticTable, i)

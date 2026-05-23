@@ -15,8 +15,9 @@ func FormatUint(i uint64, base int) string {
 			return small(int(i))
 		}
 		var a [24]byte
-		j := formatBase10(a[:], i)
-		return string(a[j:])
+		nd := numDigits(i)
+		formatBase10(a[:nd], i)
+		return string(a[:nd])
 	}
 	_, s := formatBits(nil, i, base, false, false)
 	return s
@@ -35,12 +36,13 @@ func FormatInt(i int64, base int) string {
 		if i < 0 {
 			u = -u
 		}
-		j := formatBase10(a[:], u)
+		nd := numDigits(u)
+		formatBase10(a[1:1+nd], u)
 		if i < 0 {
-			j--
-			a[j] = '-'
+			a[0] = '-'
+			return string(a[:1+nd])
 		}
-		return string(a[j:])
+		return string(a[1 : 1+nd])
 	}
 	_, s := formatBits(nil, uint64(i), base, i < 0, false)
 	return s
@@ -70,8 +72,9 @@ func AppendUint(dst []byte, i uint64, base int) []byte {
 			return append(dst, small(int(i))...)
 		}
 		var a [24]byte
-		j := formatBase10(a[:], i)
-		return append(dst, a[j:]...)
+		nd := numDigits(i)
+		formatBase10(a[:nd], i)
+		return append(dst, a[:nd]...)
 	}
 	dst, _ = formatBits(dst, i, base, false, true)
 	return dst
@@ -164,8 +167,6 @@ const smalls = "00010203040506070809" +
 	"80818283848586878889" +
 	"90919293949596979899"
 
-const host64bit = ^uint(0)>>32 != 0
-
 // small returns the string for an i with 0 <= i < nSmalls.
 func small(i int) string {
 	if i < 10 {
@@ -179,59 +180,52 @@ func small(i int) string {
 // It is only for use by package runtime.
 // Other packages should use AppendUint.
 func RuntimeFormatBase10(a []byte, u uint64) int {
-	return formatBase10(a, u)
+	// Note: numDigits requires an argument ≥ 1.
+	// The |1 changes 0 to 1 without adding an extra digit
+	// to any other value.
+	i := len(a) - numDigits(u|1)
+	formatBase10(a[i:], u)
+	return i
 }
 
-// formatBase10 formats the decimal representation of u into the tail of a
-// and returns the offset of the first byte written to a. That is, after
-//
-//	i := formatBase10(a, u)
-//
-// the decimal representation is in a[i:].
-func formatBase10(a []byte, u uint64) int {
-	// Split into 9-digit chunks that fit in uint32s
-	// and convert each chunk using uint32 math instead of uint64 math.
-	// The obvious way to write the outer loop is "for u >= 1e9", but most numbers are small,
-	// so the setup for the comparison u >= 1e9 is usually pure overhead.
-	// Instead, we approximate it by u>>29 != 0, which is usually faster and good enough.
-	i := len(a)
-	for (host64bit && u>>29 != 0) || (!host64bit && uint32(u)>>29|uint32(u>>32) != 0) {
-		var lo uint32
-		u, lo = u/1e9, uint32(u%1e9)
-
-		// Convert 9 digits.
-		for range 4 {
-			var dd uint32
-			lo, dd = lo/100, (lo%100)*2
-			i -= 2
-			a[i+0], a[i+1] = smalls[dd+0], smalls[dd+1]
-		}
-		i--
-		a[i] = smalls[lo*2+1]
-
-		// If we'd been using u >= 1e9 then we would be guaranteed that u/1e9 > 0,
-		// but since we used u>>29 != 0, u/1e9 might be 0, so we might be done.
-		// (If u is now 0, then at the start we had 2²⁹ ≤ u < 10⁹, so it was still correct
-		// to write 9 digits; we have not accidentally written any leading zeros.)
-		if u == 0 {
-			return i
-		}
+// formatBase10 formats the decimal representation of u into a.
+// The caller is responsible for ensuring that a is big enough to hold u.
+// If a is too big, leading zeros will be filled in as needed.
+func formatBase10(a []byte, u uint64) {
+	nd := len(a)
+	for nd >= 8 {
+		// Format last 8 digits (4 pairs).
+		x3210 := uint32(u % 1e8)
+		u /= 1e8
+		x32, x10 := x3210/1e4, x3210%1e4
+		x1, x0 := (x10/100)*2, (x10%100)*2
+		x3, x2 := (x32/100)*2, (x32%100)*2
+		a[nd-1], a[nd-2] = smalls[x0+1], smalls[x0]
+		a[nd-3], a[nd-4] = smalls[x1+1], smalls[x1]
+		a[nd-5], a[nd-6] = smalls[x2+1], smalls[x2]
+		a[nd-7], a[nd-8] = smalls[x3+1], smalls[x3]
+		nd -= 8
 	}
 
-	// Convert final chunk, at most 8 digits.
-	lo := uint32(u)
-	for lo >= 100 {
-		var dd uint32
-		lo, dd = lo/100, (lo%100)*2
-		i -= 2
-		a[i+0], a[i+1] = smalls[dd+0], smalls[dd+1]
+	x := uint32(u)
+	if nd >= 4 {
+		// Format last 4 digits (2 pairs).
+		x10 := x % 1e4
+		x /= 1e4
+		x1, x0 := (x10/100)*2, (x10%100)*2
+		a[nd-1], a[nd-2] = smalls[x0+1], smalls[x0]
+		a[nd-3], a[nd-4] = smalls[x1+1], smalls[x1]
+		nd -= 4
 	}
-	i--
-	dd := lo * 2
-	a[i] = smalls[dd+1]
-	if lo >= 10 {
-		i--
-		a[i] = smalls[dd+0]
+	if nd >= 2 {
+		// Format last 2 digits.
+		x0 := (x % 1e2) * 2
+		x /= 1e2
+		a[nd-1], a[nd-2] = smalls[x0+1], smalls[x0]
+		nd -= 2
 	}
-	return i
+	if nd > 0 {
+		// Format final digit.
+		a[0] = byte('0' + x)
+	}
 }

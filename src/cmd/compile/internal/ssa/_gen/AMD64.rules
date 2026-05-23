@@ -27,15 +27,10 @@
 (Div8u x y) => (Select0 (DIVWU (ZeroExt8to16 x) (ZeroExt8to16 y)))
 (Div(32|64)F ...) => (DIVS(S|D) ...)
 
-(Select0 (Add64carry x y c)) =>
-	(Select0 <typ.UInt64> (ADCQ x y (Select1 <types.TypeFlags> (NEGLflags c))))
-(Select1 (Add64carry x y c)) =>
-	(NEGQ <typ.UInt64> (SBBQcarrymask <typ.UInt64> (Select1 <types.TypeFlags> (ADCQ x y (Select1 <types.TypeFlags> (NEGLflags c))))))
-(Select0 (Sub64borrow x y c)) =>
-	(Select0 <typ.UInt64> (SBBQ x y (Select1 <types.TypeFlags> (NEGLflags c))))
-(Select1 (Sub64borrow x y c)) =>
-	(NEGQ <typ.UInt64> (SBBQcarrymask <typ.UInt64> (Select1 <types.TypeFlags> (SBBQ x y (Select1 <types.TypeFlags> (NEGLflags c))))))
-
+(Select0 (Add64carry x y c)) => (Select0 (ADCQ x y (Select1 <types.TypeFlags> (NEGLflags c))))
+(Select1 (Add64carry x y c)) => (MOVBQZX (SETB <types.Types[types.TUINT8]> (Select1 <types.TypeFlags> (ADCQ x y (Select1 <types.TypeFlags> (NEGLflags c))))))
+(Select0 (Sub64borrow x y c)) => (Select0 (SBBQ x y (Select1 <types.TypeFlags> (NEGLflags c))))
+(Select1 (Sub64borrow x y c)) => (MOVBQZX (SETB <types.Types[types.TUINT8]> (Select1 <types.TypeFlags> (SBBQ x y (Select1 <types.TypeFlags> (NEGLflags c))))))
 // Optimize ADCQ and friends
 (ADCQ x (MOVQconst [c]) carry) && is32Bit(c) => (ADCQconst x [int32(c)] carry)
 (ADCQ x y (FlagEQ)) => (ADDQcarry x y)
@@ -46,7 +41,7 @@
 (SBBQconst x [c] (FlagEQ)) => (SUBQconstborrow x [c])
 (SUBQborrow x (MOVQconst [c])) && is32Bit(c) => (SUBQconstborrow x [int32(c)])
 (Select1 (NEGLflags (MOVQconst [0]))) => (FlagEQ)
-(Select1 (NEGLflags (NEGQ (SBBQcarrymask x)))) => x
+(Select1 (NEGLflags (MOVBQZX (SETB x)))) => x
 
 
 (Mul64uhilo ...) => (MULQU2 ...)
@@ -912,7 +907,8 @@
 (LEA(Q|L)2 [0] {s} (ADD(Q|L) x x) x) && s == nil => (SHL(Q|L)const [2] x)
 
 // (x + x) << 2 -> x << 3 and similar
-(SHL(Q|L)const [c] (ADD(Q|L) x x))  => (SHL(Q|L)const [c+1] x)
+(SHLQconst [c] (ADDQ x x)) && c < 63 => (SHLQconst [c+1] x)
+(SHLLconst [c] (ADDL x x)) && c < 31 => (SHLLconst [c+1] x)
 
 // reverse ordering of compare instruction
 (SETL (InvertFlags x)) => (SETG x)
@@ -1875,3 +1871,54 @@
 (EQ (VPTEST x:(VPANDN(128|256) j k) y) yes no) && x == y && x.Uses == 2 => (ULT (VPTEST k j) yes no) // AndNot has swapped its operand order
 (EQ (VPTEST x:(VPANDN(D|Q)512 j k) y) yes no) && x == y && x.Uses == 2 => (ULT (VPTEST k j) yes no) // AndNot has swapped its operand order
 
+// remove flags → bool → flags roundtrip
+// Only do it if the flag generating instruction is local otherwise the likelihood flagalloc won't undo this optimization and makes things worse are slim.
+(NE t:(TESTQ x:(MOVBQZX s:(SET(EQ|NE|L|G|LE|GE|A|B|AE|BE|EQF|NEF|GF|GEF) flags)) x) yes no) && t.Block == s.Block => ((EQ|NE|LT|GT|LE|GE|UGT|ULT|UGE|ULE|EQF|NEF|UGE|UGT) flags yes no)
+(NE t:(TESTL x:(MOVBQZX s:(SET(EQ|NE|L|G|LE|GE|A|B|AE|BE|EQF|NEF|GF|GEF) flags)) x) yes no) && t.Block == s.Block => ((EQ|NE|LT|GT|LE|GE|UGT|ULT|UGE|ULE|EQF|NEF|UGE|UGT) flags yes no)
+(NE t:(TESTW x:(MOVBQZX s:(SET(EQ|NE|L|G|LE|GE|A|B|AE|BE|EQF|NEF|GF|GEF) flags)) x) yes no) && t.Block == s.Block => ((EQ|NE|LT|GT|LE|GE|UGT|ULT|UGE|ULE|EQF|NEF|UGE|UGT) flags yes no)
+(NE t:(TESTB            s:(SET(EQ|NE|L|G|LE|GE|A|B|AE|BE|EQF|NEF|GF|GEF) flags)  s) yes no) && t.Block == s.Block => ((EQ|NE|LT|GT|LE|GE|UGT|ULT|UGE|ULE|EQF|NEF|UGE|UGT) flags yes no)
+
+(CMOVQNE yes no t:(TESTQ x:(MOVBQZX s:(SET(EQ|NE|L|G|LE|GE|A|B|AE|BE|EQF|NEF|GF|GEF) flags)) x)) && t.Block == s.Block => (CMOVQ(EQ|NE|LT|GT|LE|GE|HI|CS|CC|LS|EQF|NEF|GTF|GEF) yes no flags)
+(CMOVQNE yes no t:(TESTL x:(MOVBQZX s:(SET(EQ|NE|L|G|LE|GE|A|B|AE|BE|EQF|NEF|GF|GEF) flags)) x)) && t.Block == s.Block => (CMOVQ(EQ|NE|LT|GT|LE|GE|HI|CS|CC|LS|EQF|NEF|GTF|GEF) yes no flags)
+(CMOVQNE yes no t:(TESTW x:(MOVBQZX s:(SET(EQ|NE|L|G|LE|GE|A|B|AE|BE|EQF|NEF|GF|GEF) flags)) x)) && t.Block == s.Block => (CMOVQ(EQ|NE|LT|GT|LE|GE|HI|CS|CC|LS|EQF|NEF|GTF|GEF) yes no flags)
+(CMOVQNE yes no t:(TESTB            s:(SET(EQ|NE|L|G|LE|GE|A|B|AE|BE|EQF|NEF|GF|GEF) flags)  s)) && t.Block == s.Block => (CMOVQ(EQ|NE|LT|GT|LE|GE|HI|CS|CC|LS|EQF|NEF|GTF|GEF) yes no flags)
+
+(CMOVLNE yes no t:(TESTQ x:(MOVBQZX s:(SET(EQ|NE|L|G|LE|GE|A|B|AE|BE|EQF|NEF|GF|GEF) flags)) x)) && t.Block == s.Block => (CMOVL(EQ|NE|LT|GT|LE|GE|HI|CS|CC|LS|EQF|NEF|GTF|GEF) yes no flags)
+(CMOVLNE yes no t:(TESTL x:(MOVBQZX s:(SET(EQ|NE|L|G|LE|GE|A|B|AE|BE|EQF|NEF|GF|GEF) flags)) x)) && t.Block == s.Block => (CMOVL(EQ|NE|LT|GT|LE|GE|HI|CS|CC|LS|EQF|NEF|GTF|GEF) yes no flags)
+(CMOVLNE yes no t:(TESTW x:(MOVBQZX s:(SET(EQ|NE|L|G|LE|GE|A|B|AE|BE|EQF|NEF|GF|GEF) flags)) x)) && t.Block == s.Block => (CMOVL(EQ|NE|LT|GT|LE|GE|HI|CS|CC|LS|EQF|NEF|GTF|GEF) yes no flags)
+(CMOVLNE yes no t:(TESTB            s:(SET(EQ|NE|L|G|LE|GE|A|B|AE|BE|EQF|NEF|GF|GEF) flags)  s)) && t.Block == s.Block => (CMOVL(EQ|NE|LT|GT|LE|GE|HI|CS|CC|LS|EQF|NEF|GTF|GEF) yes no flags)
+
+(CMOVWNE yes no t:(TESTQ x:(MOVBQZX s:(SET(EQ|NE|L|G|LE|GE|A|B|AE|BE|EQF|NEF|GF|GEF) flags)) x)) && t.Block == s.Block => (CMOVW(EQ|NE|LT|GT|LE|GE|HI|CS|CC|LS|EQF|NEF|GTF|GEF) yes no flags)
+(CMOVWNE yes no t:(TESTL x:(MOVBQZX s:(SET(EQ|NE|L|G|LE|GE|A|B|AE|BE|EQF|NEF|GF|GEF) flags)) x)) && t.Block == s.Block => (CMOVW(EQ|NE|LT|GT|LE|GE|HI|CS|CC|LS|EQF|NEF|GTF|GEF) yes no flags)
+(CMOVWNE yes no t:(TESTW x:(MOVBQZX s:(SET(EQ|NE|L|G|LE|GE|A|B|AE|BE|EQF|NEF|GF|GEF) flags)) x)) && t.Block == s.Block => (CMOVW(EQ|NE|LT|GT|LE|GE|HI|CS|CC|LS|EQF|NEF|GTF|GEF) yes no flags)
+(CMOVWNE yes no t:(TESTB            s:(SET(EQ|NE|L|G|LE|GE|A|B|AE|BE|EQF|NEF|GF|GEF) flags)  s)) && t.Block == s.Block => (CMOVW(EQ|NE|LT|GT|LE|GE|HI|CS|CC|LS|EQF|NEF|GTF|GEF) yes no flags)
+
+(SETNE t:(TESTQ x:(MOVBQZX s:(SET(EQ|NE|L|G|LE|GE|A|B|AE|BE|EQF|NEF|GF|GEF) flags)) x)) && t.Block == s.Block => s
+(SETNE t:(TESTL x:(MOVBQZX s:(SET(EQ|NE|L|G|LE|GE|A|B|AE|BE|EQF|NEF|GF|GEF) flags)) x)) && t.Block == s.Block => s
+(SETNE t:(TESTW x:(MOVBQZX s:(SET(EQ|NE|L|G|LE|GE|A|B|AE|BE|EQF|NEF|GF|GEF) flags)) x)) && t.Block == s.Block => s
+(SETNE t:(TESTB            s:(SET(EQ|NE|L|G|LE|GE|A|B|AE|BE|EQF|NEF|GF|GEF) flags)  s)) && t.Block == s.Block => s
+
+(EQ t:(TESTQ x:(MOVBQZX s:(SET(EQ|NE|L|G|LE|GE|A|B|AE|BE) flags)) x) yes no) && t.Block == s.Block => ((NE|EQ|GE|LE|GT|LT|ULE|UGE|ULT|UGT) flags yes no)
+(EQ t:(TESTL x:(MOVBQZX s:(SET(EQ|NE|L|G|LE|GE|A|B|AE|BE) flags)) x) yes no) && t.Block == s.Block => ((NE|EQ|GE|LE|GT|LT|ULE|UGE|ULT|UGT) flags yes no)
+(EQ t:(TESTW x:(MOVBQZX s:(SET(EQ|NE|L|G|LE|GE|A|B|AE|BE) flags)) x) yes no) && t.Block == s.Block => ((NE|EQ|GE|LE|GT|LT|ULE|UGE|ULT|UGT) flags yes no)
+(EQ t:(TESTB            s:(SET(EQ|NE|L|G|LE|GE|A|B|AE|BE) flags)  s) yes no) && t.Block == s.Block => ((NE|EQ|GE|LE|GT|LT|ULE|UGE|ULT|UGT) flags yes no)
+
+(CMOVQEQ yes no t:(TESTQ x:(MOVBQZX s:(SET(EQ|NE|L|G|LE|GE|A|B|AE|BE) flags)) x)) && t.Block == s.Block => (CMOVQ(NE|EQ|GE|LE|GT|LT|LS|CC|CS|HI) yes no flags)
+(CMOVQEQ yes no t:(TESTL x:(MOVBQZX s:(SET(EQ|NE|L|G|LE|GE|A|B|AE|BE) flags)) x)) && t.Block == s.Block => (CMOVQ(NE|EQ|GE|LE|GT|LT|LS|CC|CS|HI) yes no flags)
+(CMOVQEQ yes no t:(TESTW x:(MOVBQZX s:(SET(EQ|NE|L|G|LE|GE|A|B|AE|BE) flags)) x)) && t.Block == s.Block => (CMOVQ(NE|EQ|GE|LE|GT|LT|LS|CC|CS|HI) yes no flags)
+(CMOVQEQ yes no t:(TESTB            s:(SET(EQ|NE|L|G|LE|GE|A|B|AE|BE) flags)  s)) && t.Block == s.Block => (CMOVQ(NE|EQ|GE|LE|GT|LT|LS|CC|CS|HI) yes no flags)
+
+(CMOVLEQ yes no t:(TESTQ x:(MOVBQZX s:(SET(EQ|NE|L|G|LE|GE|A|B|AE|BE) flags)) x)) && t.Block == s.Block => (CMOVL(NE|EQ|GE|LE|GT|LT|LS|CC|CS|HI) yes no flags)
+(CMOVLEQ yes no t:(TESTL x:(MOVBQZX s:(SET(EQ|NE|L|G|LE|GE|A|B|AE|BE) flags)) x)) && t.Block == s.Block => (CMOVL(NE|EQ|GE|LE|GT|LT|LS|CC|CS|HI) yes no flags)
+(CMOVLEQ yes no t:(TESTW x:(MOVBQZX s:(SET(EQ|NE|L|G|LE|GE|A|B|AE|BE) flags)) x)) && t.Block == s.Block => (CMOVL(NE|EQ|GE|LE|GT|LT|LS|CC|CS|HI) yes no flags)
+(CMOVLEQ yes no t:(TESTB            s:(SET(EQ|NE|L|G|LE|GE|A|B|AE|BE) flags)  s)) && t.Block == s.Block => (CMOVL(NE|EQ|GE|LE|GT|LT|LS|CC|CS|HI) yes no flags)
+
+(CMOVWEQ yes no t:(TESTQ x:(MOVBQZX s:(SET(EQ|NE|L|G|LE|GE|A|B|AE|BE) flags)) x)) && t.Block == s.Block => (CMOVW(NE|EQ|GE|LE|GT|LT|LS|CC|CS|HI) yes no flags)
+(CMOVWEQ yes no t:(TESTL x:(MOVBQZX s:(SET(EQ|NE|L|G|LE|GE|A|B|AE|BE) flags)) x)) && t.Block == s.Block => (CMOVW(NE|EQ|GE|LE|GT|LT|LS|CC|CS|HI) yes no flags)
+(CMOVWEQ yes no t:(TESTW x:(MOVBQZX s:(SET(EQ|NE|L|G|LE|GE|A|B|AE|BE) flags)) x)) && t.Block == s.Block => (CMOVW(NE|EQ|GE|LE|GT|LT|LS|CC|CS|HI) yes no flags)
+(CMOVWEQ yes no t:(TESTB            s:(SET(EQ|NE|L|G|LE|GE|A|B|AE|BE) flags)  s)) && t.Block == s.Block => (CMOVW(NE|EQ|GE|LE|GT|LT|LS|CC|CS|HI) yes no flags)
+
+(SETEQ t:(TESTQ x:(MOVBQZX s:(SET(EQ|NE|L|G|LE|GE|A|B|AE|BE) flags)) x)) && t.Block == s.Block => (SET(NE|EQ|GE|LE|G|L|BE|AE|B|A) flags)
+(SETEQ t:(TESTL x:(MOVBQZX s:(SET(EQ|NE|L|G|LE|GE|A|B|AE|BE) flags)) x)) && t.Block == s.Block => (SET(NE|EQ|GE|LE|G|L|BE|AE|B|A) flags)
+(SETEQ t:(TESTW x:(MOVBQZX s:(SET(EQ|NE|L|G|LE|GE|A|B|AE|BE) flags)) x)) && t.Block == s.Block => (SET(NE|EQ|GE|LE|G|L|BE|AE|B|A) flags)
+(SETEQ t:(TESTB            s:(SET(EQ|NE|L|G|LE|GE|A|B|AE|BE) flags)  s)) && t.Block == s.Block => (SET(NE|EQ|GE|LE|G|L|BE|AE|B|A) flags)

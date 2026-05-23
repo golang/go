@@ -18,6 +18,7 @@ import (
 	"unicode"
 	"unicode/utf8"
 
+	"encoding/json/internal"
 	"encoding/json/internal/jsonflags"
 	"encoding/json/internal/jsonwire"
 )
@@ -33,6 +34,7 @@ type structFields struct {
 	byActualName    map[string]*structField
 	byFoldedName    map[string][]*structField
 	inlinedFallback *structField
+	hasString       bool // one or more fields set the string option
 }
 
 // reindex recomputes index to avoid bounds check during runtime.
@@ -79,6 +81,9 @@ func makeStructFields(root reflect.Type) (fs structFields, serr *SemanticError) 
 	orErrorf := func(serr *SemanticError, t reflect.Type, f string, a ...any) *SemanticError {
 		return cmp.Or(serr, &SemanticError{GoType: t, Err: fmt.Errorf(f, a...)})
 	}
+
+	// Whether any field sets the string option.
+	var hasString bool
 
 	// Setup a queue for a breadth-first search.
 	var queueIndex int
@@ -247,6 +252,9 @@ func makeStructFields(root reflect.Type) (fs structFields, serr *SemanticError) 
 				f.id = len(allFields)
 				f.fncs = lookupArshaler(sf.Type)
 				allFields = append(allFields, f)
+				if f.string {
+					hasString = true
+				}
 			}
 		}
 
@@ -312,6 +320,7 @@ func makeStructFields(root reflect.Type) (fs structFields, serr *SemanticError) 
 		flattened:    flattened,
 		byActualName: make(map[string]*structField, len(flattened)),
 		byFoldedName: make(map[string][]*structField, len(flattened)),
+		hasString:    hasString,
 	}
 	for i, f := range fs.flattened {
 		foldedName := string(foldName([]byte(f.name)))
@@ -519,6 +528,10 @@ func parseFieldOptions(sf reflect.StructField) (out fieldOptions, ignored bool, 
 		case "string":
 			out.string = true
 		case "format":
+			if !internal.ExpJSONFormat {
+				err = cmp.Or(err, fmt.Errorf("Go struct field %s has invalid `format` tag option without GOEXPERIMENT=jsonformat", sf.Name))
+				break
+			}
 			if !strings.HasPrefix(tag, ":") {
 				err = cmp.Or(err, fmt.Errorf("Go struct field %s is missing value for `format` tag option", sf.Name))
 				break
@@ -576,6 +589,10 @@ func consumeTagOption(in string) (string, int, error) {
 		return in[:n], n, nil
 	// Option as a single-quoted string.
 	case r == '\'':
+		if !internal.ExpJSONFormat {
+			return in[:i], i, fmt.Errorf("invalid use of single-quoted tag option without GOEXPERIMENT=jsonformat")
+		}
+
 		// The grammar is nearly identical to a double-quoted Go string literal,
 		// but uses single quotes as the terminators. The reason for a custom
 		// grammar is because both backtick and double quotes cannot be used

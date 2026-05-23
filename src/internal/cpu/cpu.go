@@ -92,14 +92,16 @@ var ARM64 struct {
 // The booleans in Loong64 contain the correspondingly named cpu feature bit.
 // The struct is padded to avoid false sharing.
 var Loong64 struct {
-	_             CacheLinePad
-	HasLSX        bool // support 128-bit vector extension
-	HasLASX       bool // support 256-bit vector extension
-	HasCRC32      bool // support CRC instruction
-	HasLAMCAS     bool // support AMCAS[_DB].{B/H/W/D}
-	HasLAM_BH     bool // support AM{SWAP/ADD}[_DB].{B/H} instruction
-	HasDBAR_HINTS bool // supports finer-grained DBAR hints
-	_             CacheLinePad
+	_              CacheLinePad
+	HasLSX         bool // support 128-bit vector extension
+	HasLASX        bool // support 256-bit vector extension
+	HasCRC32       bool // support CRC instruction
+	HasLAMCAS      bool // support AMCAS[_DB].{B/H/W/D}
+	HasLAM_BH      bool // support AM{SWAP/ADD}[_DB].{B/H} instruction
+	HasLLACQ_SCREL bool // support LLACQ.{W/D}, SCREL.{W/D} instruction
+	HasSCQ         bool // support SC.Q instruction
+	HasDBAR_HINTS  bool // supports finer-grained DBAR hints
+	_              CacheLinePad
 }
 
 var MIPS64X struct {

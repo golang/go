@@ -950,7 +950,7 @@ func _() {
 }
 `
 	fset := token.NewFileSet()
-	f, err := parser.ParseFile(fset, pkgName(src), src, 0)
+	f, err := parser.ParseFile(fset, pkgName(src), src, parser.SkipObjectResolution)
 	if err == nil {
 		t.Fatal("expected syntax error")
 	}

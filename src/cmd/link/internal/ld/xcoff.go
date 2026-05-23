@@ -829,7 +829,7 @@ func (f *xcoffFile) writeSymbolFunc(ctxt *Link, x loader.Sym) []xcoffSym {
 		Nnumaux: 2,
 	}
 
-	if ldr.IsFileLocal(x) || ldr.AttrVisibilityHidden(x) || ldr.AttrLocal(x) {
+	if ldr.IsFileLocal(x) || ldr.AttrVisibilityHidden(x) || ldr.AttrLocal(x) || ldr.IsContentHashed(x) {
 		s.Nsclass = C_HIDEXT
 	}
 

@@ -8,7 +8,6 @@ package types_test
 
 import (
 	"go/ast"
-	"go/parser"
 	"go/token"
 	"go/types"
 	"hash/maphash"
@@ -95,10 +94,7 @@ type Tagged2 struct { F int "tag2" }
 `
 
 	fset := token.NewFileSet()
-	file, err := parser.ParseFile(fset, "p.go", src, 0)
-	if err != nil {
-		t.Fatal(err)
-	}
+	file := mustParse(fset, src)
 
 	var conf types.Config
 	pkg, err := conf.Check("", fset, []*ast.File{file}, nil)

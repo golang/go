@@ -1719,6 +1719,14 @@ func TestGoroutineLeakProfileConcurrency(t *testing.T) {
 			t.Errorf("%s profile does not contain expected leaked goroutine %s: %s", profType, leak, profText)
 		}
 	}
+
+	// TODO(thepudds,vsaioc): the next two subtests would ideally find totalLeaked goroutines,
+	// but in rare cases they seem to be 1 short, leading to intermittent flakes. Perhaps this
+	// is "expected" due to a convervative scan keeping something alive or some other rare event.
+	// Deflake for now by allowing a small margin of error. #79452 is for finding a true root
+	// cause, improving this test, or adjusting the leak profiler if warranted.
+	const minWantLeaks = totalLeaked - 1
+
 	t.Run("overlapping profile requests", func(t *testing.T) {
 		ctx := context.Background()
 		ctx, cancel := context.WithTimeout(ctx, time.Second)
@@ -1733,8 +1741,11 @@ func TestGoroutineLeakProfileConcurrency(t *testing.T) {
 					for ctx.Err() == nil {
 						var w strings.Builder
 						goroutineLeakProf.WriteTo(&w, 1)
-						if n := countLeaks(t, w.String()); n != totalLeaked {
-							t.Errorf("expected %d goroutines leaked, got %d: %s", totalLeaked, n, w.String())
+						got := countLeaks(t, w.String())
+						// TODO(thepudds,vsaioc): see related comment on minWantLeaks above.
+						if got < minWantLeaks || got > totalLeaked {
+							t.Errorf("expected at least %d and at most %d goroutines leaked, got %d: %s",
+								minWantLeaks, totalLeaked, got, w.String())
 						}
 						quickCheckForGoroutine(t, "goroutineleak", "runtime/pprof.goroutineLeakExample", w.String())
 					}
@@ -1760,8 +1771,11 @@ func TestGoroutineLeakProfileConcurrency(t *testing.T) {
 					for ctx.Err() == nil {
 						var w strings.Builder
 						goroutineLeakProf.WriteTo(&w, 1)
-						if n := countLeaks(t, w.String()); n != totalLeaked {
-							t.Errorf("expected %d goroutines leaked, got %d: %s", totalLeaked, n, w.String())
+						got := countLeaks(t, w.String())
+						// TODO(thepudds,vsaioc): see related comment on minWantLeaks above.
+						if got < minWantLeaks || got > totalLeaked {
+							t.Errorf("expected at least %d and at most %d goroutines leaked, got %d: %s",
+								minWantLeaks, totalLeaked, got, w.String())
 						}
 						quickCheckForGoroutine(t, "goroutineleak", "runtime/pprof.goroutineLeakExample", w.String())
 					}

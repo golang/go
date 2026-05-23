@@ -125,7 +125,7 @@ var vcsList = []*Cmd{
 }
 
 // vcsMod is a stub for the "mod" scheme. It's returned by
-// repoRootForImportPathDynamic, but is otherwise not treated as a VCS command.
+// repoRootForImportDynamic, but is otherwise not treated as a VCS command.
 var vcsMod = &Cmd{Name: "mod"}
 
 // vcsByCmd returns the version control system for the given
@@ -795,9 +795,13 @@ func RepoRootForImportPath(importPath string, mod ModuleMode, security web.Secur
 		err = importErrorf(importPath, "cannot expand ... in %q", importPath)
 	}
 
-	// Record telemetry about which VCS was used.
+	// Record telemetry about which VCS was found.
 	if err == nil {
-		counter.Inc("go/vcs:" + rr.VCS.Name)
+		if rr.VCS == vcsMod {
+			counter.Inc("go/vcs:mod")
+		} else {
+			counter.Inc("go/vcs:" + rr.VCS.Cmd)
+		}
 	}
 
 	return rr, err

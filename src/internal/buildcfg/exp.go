@@ -79,12 +79,15 @@ func ParseGOEXPERIMENT(goos, goarch, goexp string) (*ExperimentFlags, error) {
 	dwarf5Supported := (goos != "darwin" && goos != "ios" && goos != "aix")
 
 	baseline := goexperiment.Flags{
-		RegabiWrappers:       regabiSupported,
-		RegabiArgs:           regabiSupported,
-		Dwarf5:               dwarf5Supported,
-		SIMD:                 goarch == "amd64" || goarch == "wasm", // TODO: remove this (default to false) when dev.simd is merged
-		RandomizedHeapBase64: true,
-		GreenTeaGC:           true,
+		RegabiWrappers:        regabiSupported,
+		RegabiArgs:            regabiSupported,
+		Dwarf5:                dwarf5Supported,
+		SIMD:                  goarch == "amd64" || goarch == "wasm", // TODO: remove this (default to false) when dev.simd is merged
+		RandomizedHeapBase64:  true,
+		GreenTeaGC:            true,
+		JSONv2:                true,
+		GenericMethods:        true,
+		SizeSpecializedMalloc: true,
 	}
 	flags := &ExperimentFlags{
 		Flags:    baseline,
