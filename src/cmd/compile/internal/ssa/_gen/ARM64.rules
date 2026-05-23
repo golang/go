@@ -956,6 +956,17 @@
 (MOVWstoreidx4 ptr idx (MOVWreg  x) mem) => (MOVWstoreidx4 ptr idx x mem)
 (MOVWstoreidx4 ptr idx (MOVWUreg x) mem) => (MOVWstoreidx4 ptr idx x mem)
 
+// Replace extend after sign-extending load with unsigned load,
+// so a following zero-extension is unnecessary.
+(MOVBUreg <t> x:(MOVBload      [off] {sym} ptr     mem)) && x.Uses == 1 && clobber(x) => @x.Block (MOVBUload      <t> [off] {sym} ptr     mem)
+(MOVHUreg <t> x:(MOVHload      [off] {sym} ptr     mem)) && x.Uses == 1 && clobber(x) => @x.Block (MOVHUload      <t> [off] {sym} ptr     mem)
+(MOVWUreg <t> x:(MOVWload      [off] {sym} ptr     mem)) && x.Uses == 1 && clobber(x) => @x.Block (MOVWUload      <t> [off] {sym} ptr     mem)
+(MOVBUreg <t> x:(MOVBloadidx               ptr idx mem)) && x.Uses == 1 && clobber(x) => @x.Block (MOVBUloadidx   <t>             ptr idx mem)
+(MOVHUreg <t> x:(MOVHloadidx               ptr idx mem)) && x.Uses == 1 && clobber(x) => @x.Block (MOVHUloadidx   <t>             ptr idx mem)
+(MOVWUreg <t> x:(MOVWloadidx               ptr idx mem)) && x.Uses == 1 && clobber(x) => @x.Block (MOVWUloadidx   <t>             ptr idx mem)
+(MOVHUreg <t> x:(MOVHloadidx2              ptr idx mem)) && x.Uses == 1 && clobber(x) => @x.Block (MOVHUloadidx2  <t>             ptr idx mem)
+(MOVWUreg <t> x:(MOVWloadidx4              ptr idx mem)) && x.Uses == 1 && clobber(x) => @x.Block (MOVWUloadidx4  <t>             ptr idx mem)
+
 // if a register move has only 1 use, just use the same register without emitting instruction
 // MOVDnop doesn't emit instruction, only for ensuring the type.
 (MOVDreg x) && x.Uses == 1 => (MOVDnop x)

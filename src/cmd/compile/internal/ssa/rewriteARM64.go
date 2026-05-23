@@ -9028,6 +9028,52 @@ func rewriteValueARM64_OpARM64MOVBUloadidx(v *Value) bool {
 }
 func rewriteValueARM64_OpARM64MOVBUreg(v *Value) bool {
 	v_0 := v.Args[0]
+	b := v.Block
+	// match: (MOVBUreg <t> x:(MOVBload [off] {sym} ptr mem))
+	// cond: x.Uses == 1 && clobber(x)
+	// result: @x.Block (MOVBUload <t> [off] {sym} ptr mem)
+	for {
+		t := v.Type
+		x := v_0
+		if x.Op != OpARM64MOVBload {
+			break
+		}
+		off := auxIntToInt32(x.AuxInt)
+		sym := auxToSym(x.Aux)
+		mem := x.Args[1]
+		ptr := x.Args[0]
+		if !(x.Uses == 1 && clobber(x)) {
+			break
+		}
+		b = x.Block
+		v0 := b.NewValue0(x.Pos, OpARM64MOVBUload, t)
+		v.copyOf(v0)
+		v0.AuxInt = int32ToAuxInt(off)
+		v0.Aux = symToAux(sym)
+		v0.AddArg2(ptr, mem)
+		return true
+	}
+	// match: (MOVBUreg <t> x:(MOVBloadidx ptr idx mem))
+	// cond: x.Uses == 1 && clobber(x)
+	// result: @x.Block (MOVBUloadidx <t> ptr idx mem)
+	for {
+		t := v.Type
+		x := v_0
+		if x.Op != OpARM64MOVBloadidx {
+			break
+		}
+		mem := x.Args[2]
+		ptr := x.Args[0]
+		idx := x.Args[1]
+		if !(x.Uses == 1 && clobber(x)) {
+			break
+		}
+		b = x.Block
+		v0 := b.NewValue0(v.Pos, OpARM64MOVBUloadidx, t)
+		v.copyOf(v0)
+		v0.AddArg3(ptr, idx, mem)
+		return true
+	}
 	// match: (MOVBUreg (ANDconst [c] x))
 	// result: (ANDconst [c&(1<<8-1)] x)
 	for {
@@ -10313,6 +10359,73 @@ func rewriteValueARM64_OpARM64MOVHUloadidx2(v *Value) bool {
 }
 func rewriteValueARM64_OpARM64MOVHUreg(v *Value) bool {
 	v_0 := v.Args[0]
+	b := v.Block
+	// match: (MOVHUreg <t> x:(MOVHload [off] {sym} ptr mem))
+	// cond: x.Uses == 1 && clobber(x)
+	// result: @x.Block (MOVHUload <t> [off] {sym} ptr mem)
+	for {
+		t := v.Type
+		x := v_0
+		if x.Op != OpARM64MOVHload {
+			break
+		}
+		off := auxIntToInt32(x.AuxInt)
+		sym := auxToSym(x.Aux)
+		mem := x.Args[1]
+		ptr := x.Args[0]
+		if !(x.Uses == 1 && clobber(x)) {
+			break
+		}
+		b = x.Block
+		v0 := b.NewValue0(x.Pos, OpARM64MOVHUload, t)
+		v.copyOf(v0)
+		v0.AuxInt = int32ToAuxInt(off)
+		v0.Aux = symToAux(sym)
+		v0.AddArg2(ptr, mem)
+		return true
+	}
+	// match: (MOVHUreg <t> x:(MOVHloadidx ptr idx mem))
+	// cond: x.Uses == 1 && clobber(x)
+	// result: @x.Block (MOVHUloadidx <t> ptr idx mem)
+	for {
+		t := v.Type
+		x := v_0
+		if x.Op != OpARM64MOVHloadidx {
+			break
+		}
+		mem := x.Args[2]
+		ptr := x.Args[0]
+		idx := x.Args[1]
+		if !(x.Uses == 1 && clobber(x)) {
+			break
+		}
+		b = x.Block
+		v0 := b.NewValue0(v.Pos, OpARM64MOVHUloadidx, t)
+		v.copyOf(v0)
+		v0.AddArg3(ptr, idx, mem)
+		return true
+	}
+	// match: (MOVHUreg <t> x:(MOVHloadidx2 ptr idx mem))
+	// cond: x.Uses == 1 && clobber(x)
+	// result: @x.Block (MOVHUloadidx2 <t> ptr idx mem)
+	for {
+		t := v.Type
+		x := v_0
+		if x.Op != OpARM64MOVHloadidx2 {
+			break
+		}
+		mem := x.Args[2]
+		ptr := x.Args[0]
+		idx := x.Args[1]
+		if !(x.Uses == 1 && clobber(x)) {
+			break
+		}
+		b = x.Block
+		v0 := b.NewValue0(v.Pos, OpARM64MOVHUloadidx2, t)
+		v.copyOf(v0)
+		v0.AddArg3(ptr, idx, mem)
+		return true
+	}
 	// match: (MOVHUreg (ANDconst [c] x))
 	// result: (ANDconst [c&(1<<16-1)] x)
 	for {
@@ -11325,6 +11438,73 @@ func rewriteValueARM64_OpARM64MOVWUloadidx4(v *Value) bool {
 }
 func rewriteValueARM64_OpARM64MOVWUreg(v *Value) bool {
 	v_0 := v.Args[0]
+	b := v.Block
+	// match: (MOVWUreg <t> x:(MOVWload [off] {sym} ptr mem))
+	// cond: x.Uses == 1 && clobber(x)
+	// result: @x.Block (MOVWUload <t> [off] {sym} ptr mem)
+	for {
+		t := v.Type
+		x := v_0
+		if x.Op != OpARM64MOVWload {
+			break
+		}
+		off := auxIntToInt32(x.AuxInt)
+		sym := auxToSym(x.Aux)
+		mem := x.Args[1]
+		ptr := x.Args[0]
+		if !(x.Uses == 1 && clobber(x)) {
+			break
+		}
+		b = x.Block
+		v0 := b.NewValue0(x.Pos, OpARM64MOVWUload, t)
+		v.copyOf(v0)
+		v0.AuxInt = int32ToAuxInt(off)
+		v0.Aux = symToAux(sym)
+		v0.AddArg2(ptr, mem)
+		return true
+	}
+	// match: (MOVWUreg <t> x:(MOVWloadidx ptr idx mem))
+	// cond: x.Uses == 1 && clobber(x)
+	// result: @x.Block (MOVWUloadidx <t> ptr idx mem)
+	for {
+		t := v.Type
+		x := v_0
+		if x.Op != OpARM64MOVWloadidx {
+			break
+		}
+		mem := x.Args[2]
+		ptr := x.Args[0]
+		idx := x.Args[1]
+		if !(x.Uses == 1 && clobber(x)) {
+			break
+		}
+		b = x.Block
+		v0 := b.NewValue0(v.Pos, OpARM64MOVWUloadidx, t)
+		v.copyOf(v0)
+		v0.AddArg3(ptr, idx, mem)
+		return true
+	}
+	// match: (MOVWUreg <t> x:(MOVWloadidx4 ptr idx mem))
+	// cond: x.Uses == 1 && clobber(x)
+	// result: @x.Block (MOVWUloadidx4 <t> ptr idx mem)
+	for {
+		t := v.Type
+		x := v_0
+		if x.Op != OpARM64MOVWloadidx4 {
+			break
+		}
+		mem := x.Args[2]
+		ptr := x.Args[0]
+		idx := x.Args[1]
+		if !(x.Uses == 1 && clobber(x)) {
+			break
+		}
+		b = x.Block
+		v0 := b.NewValue0(v.Pos, OpARM64MOVWUloadidx4, t)
+		v.copyOf(v0)
+		v0.AddArg3(ptr, idx, mem)
+		return true
+	}
 	// match: (MOVWUreg (ANDconst [c] x))
 	// result: (ANDconst [c&(1<<32-1)] x)
 	for {
