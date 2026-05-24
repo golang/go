@@ -261,6 +261,28 @@ func Reverse8(n uint8) uint8 {
 	return bits.Reverse8(n)
 }
 
+func Reverse64Const() uint64 {
+	// arm64:-"RBIT"
+	// loong64:-"BITREV"
+	return bits.Reverse64(0x0102030405060708)
+}
+
+func Reverse32Const() uint32 {
+	// arm64:-"RBITW"
+	// loong64:-"BITREV"
+	return bits.Reverse32(0x01020304)
+}
+
+func Reverse16Const() uint16 {
+	// loong64:-"BITREV"
+	return bits.Reverse16(0x0102)
+}
+
+func Reverse8Const() uint8 {
+	// loong64:-"BITREV"
+	return bits.Reverse8(0x12)
+}
+
 // ----------------------- //
 //    bits.ReverseBytes    //
 // ----------------------- //
@@ -307,6 +329,26 @@ func ReverseBytes16(n uint16) uint16 {
 	// ppc64x/power10: "BRH"
 	// riscv64/rva22u64,riscv64/rva23u64:"REV8" "SRLI [$]48"
 	return bits.ReverseBytes16(n)
+}
+
+func ReverseBytes64Const() uint64 {
+	// amd64:-"BSWAPQ"
+	// arm64:-"REV"
+	// s390x:-"MOVDBR"
+	return bits.ReverseBytes64(0x0102030405060708)
+}
+
+func ReverseBytes32Const() uint32 {
+	// amd64:-"BSWAPL"
+	// arm64:-"REVW"
+	// s390x:-"MOVWBR"
+	return bits.ReverseBytes32(0x01020304)
+}
+
+func ReverseBytes16Const() uint16 {
+	// amd64:-"ROLW"
+	// arm64:-"REV16W"
+	return bits.ReverseBytes16(0x0102)
 }
 
 // --------------------- //

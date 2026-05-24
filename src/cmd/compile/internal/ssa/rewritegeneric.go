@@ -46,6 +46,20 @@ func rewriteValuegeneric(v *Value) bool {
 		return rewriteValuegeneric_OpBitLen64(v)
 	case OpBitLen8:
 		return rewriteValuegeneric_OpBitLen8(v)
+	case OpBitRev16:
+		return rewriteValuegeneric_OpBitRev16(v)
+	case OpBitRev32:
+		return rewriteValuegeneric_OpBitRev32(v)
+	case OpBitRev64:
+		return rewriteValuegeneric_OpBitRev64(v)
+	case OpBitRev8:
+		return rewriteValuegeneric_OpBitRev8(v)
+	case OpBswap16:
+		return rewriteValuegeneric_OpBswap16(v)
+	case OpBswap32:
+		return rewriteValuegeneric_OpBswap32(v)
+	case OpBswap64:
+		return rewriteValuegeneric_OpBswap64(v)
 	case OpCeil:
 		return rewriteValuegeneric_OpCeil(v)
 	case OpCom16:
@@ -5813,6 +5827,111 @@ func rewriteValuegeneric_OpBitLen8(v *Value) bool {
 		}
 		v.reset(OpConst32)
 		v.AuxInt = int32ToAuxInt(int32(bits.Len8(uint8(c))))
+		return true
+	}
+	return false
+}
+func rewriteValuegeneric_OpBitRev16(v *Value) bool {
+	v_0 := v.Args[0]
+	// match: (BitRev16 (Const16 [c]))
+	// result: (Const16 [int16(bits.Reverse16(uint16(c)))])
+	for {
+		if v_0.Op != OpConst16 {
+			break
+		}
+		c := auxIntToInt16(v_0.AuxInt)
+		v.reset(OpConst16)
+		v.AuxInt = int16ToAuxInt(int16(bits.Reverse16(uint16(c))))
+		return true
+	}
+	return false
+}
+func rewriteValuegeneric_OpBitRev32(v *Value) bool {
+	v_0 := v.Args[0]
+	// match: (BitRev32 (Const32 [c]))
+	// result: (Const32 [int32(bits.Reverse32(uint32(c)))])
+	for {
+		if v_0.Op != OpConst32 {
+			break
+		}
+		c := auxIntToInt32(v_0.AuxInt)
+		v.reset(OpConst32)
+		v.AuxInt = int32ToAuxInt(int32(bits.Reverse32(uint32(c))))
+		return true
+	}
+	return false
+}
+func rewriteValuegeneric_OpBitRev64(v *Value) bool {
+	v_0 := v.Args[0]
+	// match: (BitRev64 (Const64 [c]))
+	// result: (Const64 [int64(bits.Reverse64(uint64(c)))])
+	for {
+		if v_0.Op != OpConst64 {
+			break
+		}
+		c := auxIntToInt64(v_0.AuxInt)
+		v.reset(OpConst64)
+		v.AuxInt = int64ToAuxInt(int64(bits.Reverse64(uint64(c))))
+		return true
+	}
+	return false
+}
+func rewriteValuegeneric_OpBitRev8(v *Value) bool {
+	v_0 := v.Args[0]
+	// match: (BitRev8 (Const8 [c]))
+	// result: (Const8 [int8(bits.Reverse8(uint8(c)))])
+	for {
+		if v_0.Op != OpConst8 {
+			break
+		}
+		c := auxIntToInt8(v_0.AuxInt)
+		v.reset(OpConst8)
+		v.AuxInt = int8ToAuxInt(int8(bits.Reverse8(uint8(c))))
+		return true
+	}
+	return false
+}
+func rewriteValuegeneric_OpBswap16(v *Value) bool {
+	v_0 := v.Args[0]
+	// match: (Bswap16 (Const16 [c]))
+	// result: (Const16 [int16(bits.ReverseBytes16(uint16(c)))])
+	for {
+		if v_0.Op != OpConst16 {
+			break
+		}
+		c := auxIntToInt16(v_0.AuxInt)
+		v.reset(OpConst16)
+		v.AuxInt = int16ToAuxInt(int16(bits.ReverseBytes16(uint16(c))))
+		return true
+	}
+	return false
+}
+func rewriteValuegeneric_OpBswap32(v *Value) bool {
+	v_0 := v.Args[0]
+	// match: (Bswap32 (Const32 [c]))
+	// result: (Const32 [int32(bits.ReverseBytes32(uint32(c)))])
+	for {
+		if v_0.Op != OpConst32 {
+			break
+		}
+		c := auxIntToInt32(v_0.AuxInt)
+		v.reset(OpConst32)
+		v.AuxInt = int32ToAuxInt(int32(bits.ReverseBytes32(uint32(c))))
+		return true
+	}
+	return false
+}
+func rewriteValuegeneric_OpBswap64(v *Value) bool {
+	v_0 := v.Args[0]
+	// match: (Bswap64 (Const64 [c]))
+	// result: (Const64 [int64(bits.ReverseBytes64(uint64(c)))])
+	for {
+		if v_0.Op != OpConst64 {
+			break
+		}
+		c := auxIntToInt64(v_0.AuxInt)
+		v.reset(OpConst64)
+		v.AuxInt = int64ToAuxInt(int64(bits.ReverseBytes64(uint64(c))))
 		return true
 	}
 	return false
