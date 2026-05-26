@@ -2954,7 +2954,7 @@ func IndexRune(s string, r rune) int {
 
 <p>
 If the function declaration specifies <a href="#Type_parameter_declarations">type parameters</a>,
-the function name denotes a <i>generic function</i>.
+the function name denotes a <i>generic function</i> [<a href="#Go_1.18">Go 1.18</a>].
 A generic function must be <a href="#Instantiations">instantiated</a> before it can be
 called or used as a value.
 </p>
@@ -3083,7 +3083,7 @@ func (*IPair) Second() int  { … }  // illegal: alias must not denote instantia
 <p>
 If the method declaration specifies <a href="#Type_parameter_declarations">type parameters</a>
 (possibly in addition to type parameters declared by the receiver specification), the method name denotes
-a <i>generic method</i>.
+a <i>generic method</i> [<a href="#Go_1.27">Go 1.27</a>].
 Like a generic function, a generic method must be <a href="#Instantiations">instantiated</a> before it can
 be called or used as a value.
 </p>
@@ -4385,7 +4385,7 @@ with the same underlying array.
 
 <p>
 A generic function, method, or type is <i>instantiated</i> by substituting <i>type arguments</i>
-for the type parameters [<a href="#Go_1.18">Go 1.18</a>].
+for the type parameters [<a href="#Go_1.18">Go 1.18</a>][<a href="#Go_1.27">Go 1.27</a>].
 Instantiation proceeds in two steps:
 </p>
 
