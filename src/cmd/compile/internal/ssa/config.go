@@ -31,6 +31,7 @@ type Config struct {
 	fpRegMask      regMask        // floating point register mask
 	fp32RegMask    regMask        // floating point register mask
 	fp64RegMask    regMask        // floating point register mask
+	simdRegMask    regMask        // simd register mask; may be same as fpRegMask
 	specialRegMask regMask        // special register mask
 	intParamRegs   []int8         // register numbers of integer param (in/out) registers
 	floatParamRegs []int8         // register numbers of floating param (in/out) registers
@@ -186,6 +187,7 @@ func NewConfig(arch string, types Types, ctxt *obj.Link, optimize, softfloat boo
 		c.registers = registersAMD64[:]
 		c.gpRegMask = gpRegMaskAMD64
 		c.fpRegMask = fpRegMaskAMD64
+		c.simdRegMask = simdRegMaskAMD64
 		c.specialRegMask = specialRegMaskAMD64
 		c.intParamRegs = paramIntRegAMD64
 		c.floatParamRegs = paramFloatRegAMD64
@@ -233,6 +235,7 @@ func NewConfig(arch string, types Types, ctxt *obj.Link, optimize, softfloat boo
 		c.registers = registersARM64[:]
 		c.gpRegMask = gpRegMaskARM64
 		c.fpRegMask = fpRegMaskARM64
+		c.simdRegMask = simdRegMaskARM64
 		c.intParamRegs = paramIntRegARM64
 		c.floatParamRegs = paramFloatRegARM64
 		c.FPReg = framepointerRegARM64
@@ -365,6 +368,7 @@ func NewConfig(arch string, types Types, ctxt *obj.Link, optimize, softfloat boo
 		c.fpRegMask = fpRegMaskWasm
 		c.fp32RegMask = fp32RegMaskWasm
 		c.fp64RegMask = fp64RegMaskWasm
+		c.simdRegMask = simdRegMaskWasm
 		c.FPReg = framepointerRegWasm
 		c.LinkReg = linkRegWasm
 		c.hasGReg = true

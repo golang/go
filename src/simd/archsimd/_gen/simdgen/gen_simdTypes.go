@@ -13,6 +13,8 @@ import (
 	"sort"
 	"strings"
 	"unicode"
+
+	"_gen/sgutil"
 )
 
 type simdType struct {
@@ -24,10 +26,15 @@ type simdType struct {
 	VectorCounterpart       string // For mask use only: just replacing the "Mask" in [simdType.Name] with "Int"
 	ReshapedVectorWithAndOr string // For mask use only: vector AND and OR are only available in some shape with element width 32.
 	Size                    int    // The size of the vector type
+	HasNot                  bool   // True when this mask type supports Not()
 }
 
 func (x simdType) ElemBits() int {
 	return x.Size / x.Lanes
+}
+
+func (x *simdType) Name_() string {
+	return x.Name
 }
 
 func (x simdType) Article() string {
@@ -154,11 +161,13 @@ func compareSimdTypePairs(x, y simdTypePair) int {
 	return compareSimdTypes(x.Tdst, y.Tdst)
 }
 
-const simdPackageHeader = generatedHeader + `
+func simdPackageHeader() string {
+	return generatedHeader() + `
 //go:build goexperiment.simd
 
 package archsimd
 `
+}
 
 const simdTypesTemplates = `
 {{define "sizeTmpl"}}
@@ -221,15 +230,15 @@ const simdLoadStoreTemplate = `
 // Len returns the number of elements in {{.Article}} {{.Name}}.
 func (x {{.Name}}) Len() int { return {{.Lanes}} }
 
-// Load{{.Name}} loads {{.Article}} {{.Name}} from an array.
+// Load{{.Name}}Array loads {{.Article}} {{.Name}} from an array.
 //
 //go:noescape
-func Load{{.Name}}(y *[{{.Lanes}}]{{.Base}}) {{.Name}}
+func Load{{.Name}}Array(y *[{{.Lanes}}]{{.Base}}) {{.Name}}
 
-// Store stores {{.Article}} {{.Name}} to an array.
+// StoreArray stores {{.Article}} {{.Name}} to an array.
 //
 //go:noescape
-func (x {{.Name}}) Store(y *[{{.Lanes}}]{{.Base}})
+func (x {{.Name}}) StoreArray(y *[{{.Lanes}}]{{.Base}})
 `
 
 const simdMaskFromValTemplate = `
@@ -251,21 +260,13 @@ func (x {{.Name}}) ToBits() uint{{.LanesContainer}}
 `
 
 const simdMaskedLoadStoreTemplate = `
-// LoadMasked{{.Name}} loads {{.Article}} {{.Name}} from an array,
-// at those elements enabled by mask.
-//
-{{.MaskedLoadDoc}}
-//
-//go:noescape
-func LoadMasked{{.Name}}(y *[{{.Lanes}}]{{.Base}}, mask Mask{{.ElemBits}}x{{.Lanes}}) {{.Name}}
-
-// StoreMasked stores {{.Article}} {{.Name}} to an array,
+// StoreArrayMasked stores {{.Article}} {{.Name}} to an array,
 // at those elements enabled by mask.
 //
 {{.MaskedStoreDoc}}
 //
 //go:noescape
-func (x {{.Name}}) StoreMasked(y *[{{.Lanes}}]{{.Base}}, mask Mask{{.ElemBits}}x{{.Lanes}})
+func (x {{.Name}}) StoreArrayMasked(y *[{{.Lanes}}]{{.Base}}, mask Mask{{.ElemBits}}x{{.Lanes}})
 `
 
 const simdStubsTmpl = `
@@ -336,14 +337,22 @@ func ({{.Op1NameAndType "x"}}) {{.Go}}({{.Op2NameAndType "y"}}, {{.Op0NameAndTyp
 {{if .Documentation}}{{.Documentation}}
 //{{end}}
 // Asm: {{.Asm}}, CPU Feature: {{.CPUFeature}}
-func ({{.Op0NameAndType "x"}}) {{.Go}}(y uint{{(index .In 1).TreatLikeAScalarOfSize}}) {{(index .Out 0).Go}}
+func ({{.Op0NameAndType "x"}}) {{.Go}}({{.Op1Name "y"}} uint{{(index .In 1).TreatLikeAScalarOfSize}}) {{(index .Out 0).Go}}
+{{end}}
+
+{{define "op2ImmVecAsScalar"}}
+{{if .Documentation}}{{.Documentation}}
+//{{end}}
+// {{.ImmName}} results in better performance when it's a constant, a non-constant value will be translated into a jump table.
+// Asm: {{.Asm}}, CPU Feature: {{.CPUFeature}}
+func ({{.Op2NameAndType "x"}}) {{.Go}}({{.ImmName}} uint8, v float{{(index .In 3).ElemBits}}) {{(index .Out 0).Go}}
 {{end}}
 
 {{define "op3VecAsScalar"}}
 {{if .Documentation}}{{.Documentation}}
 //{{end}}
 // Asm: {{.Asm}}, CPU Feature: {{.CPUFeature}}
-func ({{.Op0NameAndType "x"}}) {{.Go}}(y uint{{(index .In 1).TreatLikeAScalarOfSize}}, {{.Op2NameAndType "z"}}) {{(index .Out 0).Go}}
+func ({{.Op0NameAndType "x"}}) {{.Go}}({{.Op1Name "y"}} uint{{(index .In 1).TreatLikeAScalarOfSize}}, {{.Op2NameAndType "z"}}) {{(index .Out 0).Go}}
 {{end}}
 
 {{define "op4"}}
@@ -370,35 +379,44 @@ func ({{.Op2NameAndType "x"}}) {{.Go}}({{.Op1NameAndType "y"}}, {{.Op0NameAndTyp
 {{define "op1Imm8"}}
 {{if .Documentation}}{{.Documentation}}
 //{{end}}
-// {{.ImmName}} results in better performance when it's a constant, a non-constant value will be translated into a jump table.
+// A non-constant value of {{.ImmName}} may result in significantly worse performance for this operation.
 //
 // Asm: {{.Asm}}, CPU Feature: {{.CPUFeature}}
 func ({{.Op1NameAndType "x"}}) {{.Go}}({{.ImmName}} uint8) {{.GoType}}
 {{end}}
 
+{{define "op1Imm"}}{{template "op1Imm8" .}}{{end}}
+
 {{define "op2Imm8"}}
 {{if .Documentation}}{{.Documentation}}
 //{{end}}
-// {{.ImmName}} results in better performance when it's a constant, a non-constant value will be translated into a jump table.
+// A non-constant value of {{.ImmName}} may result in significantly worse performance for this operation.
 //
 // Asm: {{.Asm}}, CPU Feature: {{.CPUFeature}}
 func ({{.Op1NameAndType "x"}}) {{.Go}}({{.ImmName}} uint8, {{.Op2NameAndType "y"}}) {{.GoType}}
 {{end}}
 
+{{define "op2Imm"}}{{template "op2Imm8" .}}{{end}}
+
 {{define "op2Imm8_2I"}}
 {{if .Documentation}}{{.Documentation}}
 //{{end}}
-// {{.ImmName}} results in better performance when it's a constant, a non-constant value will be translated into a jump table.
+// A non-constant value of {{.ImmName}} may result in significantly worse performance for this operation.
 //
 // Asm: {{.Asm}}, CPU Feature: {{.CPUFeature}}
 func ({{.Op1NameAndType "x"}}) {{.Go}}({{.Op2NameAndType "y"}}, {{.ImmName}} uint8) {{.GoType}}
 {{end}}
 
+{{define "op2Imm_2I"}}
+{{template "op2Imm8_2I" .}}
+{{end}}
+
 {{define "op2Imm8_II"}}
 {{if .Documentation}}{{.Documentation}}
 //{{end}}
-// {{.ImmName}} result in better performance when they are constants, non-constant values will be translated into a jump table.
 // {{.ImmName}} should be between 0 and 3, inclusive; other values may result in a runtime panic.
+//
+// A non-constant value of {{.ImmName}} may result in significantly worse performance for this operation.
 //
 // Asm: {{.Asm}}, CPU Feature: {{.CPUFeature}}
 func ({{.Op1NameAndType "x"}}) {{.Go}}({{.ImmName}} uint8, {{.Op2NameAndType "y"}}) {{.GoType}}
@@ -407,7 +425,7 @@ func ({{.Op1NameAndType "x"}}) {{.Go}}({{.ImmName}} uint8, {{.Op2NameAndType "y"
 {{define "op2Imm8_SHA1RNDS4"}}
 {{if .Documentation}}{{.Documentation}}
 //{{end}}
-// {{.ImmName}} results in better performance when it's a constant, a non-constant value will be translated into a jump table.
+// A non-constant value of {{.ImmName}} may result in significantly worse performance for this operation.
 //
 // Asm: {{.Asm}}, CPU Feature: {{.CPUFeature}}
 func ({{.Op1NameAndType "x"}}) {{.Go}}({{.ImmName}} uint8, {{.Op2NameAndType "y"}}) {{.GoType}}
@@ -416,7 +434,7 @@ func ({{.Op1NameAndType "x"}}) {{.Go}}({{.ImmName}} uint8, {{.Op2NameAndType "y"
 {{define "op3Imm8"}}
 {{if .Documentation}}{{.Documentation}}
 //{{end}}
-// {{.ImmName}} results in better performance when it's a constant, a non-constant value will be translated into a jump table.
+// A non-constant value of {{.ImmName}} may result in significantly worse performance for this operation.
 //
 // Asm: {{.Asm}}, CPU Feature: {{.CPUFeature}}
 func ({{.Op1NameAndType "x"}}) {{.Go}}({{.ImmName}} uint8, {{.Op2NameAndType "y"}}, {{.Op3NameAndType "z"}}) {{.GoType}}
@@ -425,7 +443,7 @@ func ({{.Op1NameAndType "x"}}) {{.Go}}({{.ImmName}} uint8, {{.Op2NameAndType "y"
 {{define "op3Imm8_2I"}}
 {{if .Documentation}}{{.Documentation}}
 //{{end}}
-// {{.ImmName}} results in better performance when it's a constant, a non-constant value will be translated into a jump table.
+// A non-constant value of {{.ImmName}} may result in significantly worse performance for this operation.
 //
 // Asm: {{.Asm}}, CPU Feature: {{.CPUFeature}}
 func ({{.Op1NameAndType "x"}}) {{.Go}}({{.Op2NameAndType "y"}}, {{.ImmName}} uint8, {{.Op3NameAndType "z"}}) {{.GoType}}
@@ -435,19 +453,16 @@ func ({{.Op1NameAndType "x"}}) {{.Go}}({{.Op2NameAndType "y"}}, {{.ImmName}} uin
 {{define "op4Imm8"}}
 {{if .Documentation}}{{.Documentation}}
 //{{end}}
-// {{.ImmName}} results in better performance when it's a constant, a non-constant value will be translated into a jump table.
+// A non-constant value of {{.ImmName}} may result in significantly worse performance for this operation.
 //
 // Asm: {{.Asm}}, CPU Feature: {{.CPUFeature}}
 func ({{.Op1NameAndType "x"}}) {{.Go}}({{.ImmName}} uint8, {{.Op2NameAndType "y"}}, {{.Op3NameAndType "z"}}, {{.Op4NameAndType "u"}}) {{.GoType}}
 {{end}}
 
-{{define "vectorConversion"}}
-// As{{.Tdst.Name}} returns {{.Tdst.Article}} {{.Tdst.Name}} with the same bit representation as x.
-func (x {{.Tsrc.Name}}) As{{.Tdst.Name}}() {{.Tdst.Name}}
-{{end}}
-
 {{define "mask"}}
 // To{{.VectorCounterpart}} converts from {{.Name}} to {{.VectorCounterpart}}.
+// If element i in the mask is "true", all bits in element i of the resulting
+// vector will be set.
 func (from {{.Name}}) To{{.VectorCounterpart}}() (to {{.VectorCounterpart}})
 
 // asMask converts from {{.VectorCounterpart}} to {{.Name}}.
@@ -456,6 +471,9 @@ func (from {{.VectorCounterpart}}) asMask() (to {{.Name}})
 func (x {{.Name}}) And(y {{.Name}}) {{.Name}}
 
 func (x {{.Name}}) Or(y {{.Name}}) {{.Name}}
+{{if .HasNot}}
+func (x {{.Name}}) Not() {{.Name}}
+{{end}}
 {{end}}
 `
 
@@ -481,17 +499,18 @@ func parseSIMDTypes(ops []Operation) simdTypeMap {
 		tagFieldS := fmt.Sprintf("%s v%d", tagFieldNameS, *arg.Bits)
 		valFieldS := fmt.Sprintf("vals%s[%d]%s", strings.Repeat(" ", len(tagFieldNameS)-3), lanes, base)
 		fields := fmt.Sprintf("\t%s\n\t%s", tagFieldS, valFieldS)
+		hasNot := CurrentArch().Arch == "arm64"
 		if arg.Class == "mask" {
 			vectorCounterpart := strings.ReplaceAll(*arg.Go, "Mask", "Int")
 			reshapedVectorWithAndOr := fmt.Sprintf("Int32x%d", *arg.Bits/32)
-			ret[*arg.Bits] = append(ret[*arg.Bits], simdType{*arg.Go, lanes, base, fields, arg.Class, vectorCounterpart, reshapedVectorWithAndOr, *arg.Bits})
+			ret[*arg.Bits] = append(ret[*arg.Bits], simdType{*arg.Go, lanes, base, fields, arg.Class, vectorCounterpart, reshapedVectorWithAndOr, *arg.Bits, hasNot})
 			// In case the vector counterpart of a mask is not present, put its vector counterpart typedef into the map as well.
 			if _, ok := seen[vectorCounterpart]; !ok {
 				seen[vectorCounterpart] = struct{}{}
-				ret[*arg.Bits] = append(ret[*arg.Bits], simdType{vectorCounterpart, lanes, base, fields, "vreg", "", "", *arg.Bits})
+				ret[*arg.Bits] = append(ret[*arg.Bits], simdType{vectorCounterpart, lanes, base, fields, "vreg", "", "", *arg.Bits, hasNot})
 			}
 		} else {
-			ret[*arg.Bits] = append(ret[*arg.Bits], simdType{*arg.Go, lanes, base, fields, arg.Class, "", "", *arg.Bits})
+			ret[*arg.Bits] = append(ret[*arg.Bits], simdType{*arg.Go, lanes, base, fields, arg.Class, "", "", *arg.Bits, hasNot})
 		}
 	}
 	for _, op := range ops {
@@ -555,7 +574,7 @@ func writeSIMDTypes(typeMap simdTypeMap) *bytes.Buffer {
 	maskFromVal := templateOf(simdMaskFromValTemplate, "maskFromVal_amd64")
 
 	buffer := new(bytes.Buffer)
-	buffer.WriteString(simdPackageHeader)
+	buffer.WriteString(simdPackageHeader())
 
 	sizes := make([]int, 0, len(typeMap))
 	for size, types := range typeMap {
@@ -584,14 +603,18 @@ func writeSIMDTypes(typeMap simdTypeMap) *bytes.Buffer {
 					panic(fmt.Errorf("failed to execute loadstore template for type %s: %w", typeDef.Name, err))
 				}
 				// restrict to AVX2 masked loads/stores first.
-				if typeDef.MaskedLoadStoreFilter() {
+				if CurrentArch().Arch == "amd64" && typeDef.MaskedLoadStoreFilter() {
 					if err := maskedLoadStore.ExecuteTemplate(buffer, "maskedloadstore_amd64", typeDef); err != nil {
 						panic(fmt.Errorf("failed to execute maskedloadstore template for type %s: %w", typeDef.Name, err))
 					}
 				}
 			} else {
-				if err := maskFromVal.ExecuteTemplate(buffer, "maskFromVal_amd64", typeDef); err != nil {
-					panic(fmt.Errorf("failed to execute maskFromVal template for type %s: %w", typeDef.Name, err))
+				// ARM64 NEON comparisons produce all-0/all-1 per lane, so
+				// FromBits/ToBits (x86 mask register conversions) are not needed.
+				if CurrentArch().Arch != "arm64" {
+					if err := maskFromVal.ExecuteTemplate(buffer, "maskFromVal_amd64", typeDef); err != nil {
+						panic(fmt.Errorf("failed to execute maskFromVal template for type %s: %w", typeDef.Name, err))
+					}
 				}
 			}
 		}
@@ -709,7 +732,7 @@ func writeSIMDFeatures(ops []Operation) *bytes.Buffer {
 	t := templateOf(simdFeaturesTemplate, "features")
 
 	buffer := new(bytes.Buffer)
-	buffer.WriteString(simdPackageHeader)
+	buffer.WriteString(simdPackageHeader())
 
 	if err := t.Execute(buffer, features); err != nil {
 		panic(fmt.Errorf("failed to execute features template: %w", err))
@@ -724,8 +747,8 @@ func writeSIMDStubs(ops []Operation, typeMap simdTypeMap) (f, fI *bytes.Buffer) 
 	t := templateOf(simdStubsTmpl, "simdStubs")
 	f = new(bytes.Buffer)
 	fI = new(bytes.Buffer)
-	f.WriteString(simdPackageHeader)
-	fI.WriteString(simdPackageHeader)
+	f.WriteString(simdPackageHeader())
+	fI.WriteString(simdPackageHeader())
 
 	slices.SortFunc(ops, compareOperations)
 
@@ -742,10 +765,10 @@ func writeSIMDStubs(ops []Operation, typeMap simdTypeMap) (f, fI *bytes.Buffer) 
 		}
 		if s, op, err := classifyOp(op); err == nil {
 			if idxVecAsScalar != -1 {
-				if s == "op2" || s == "op3" {
+				if s == "op2" || s == "op3" || s == "op2Imm" {
 					s += "VecAsScalar"
 				} else {
-					panic(fmt.Errorf("simdgen only supports op2 or op3 with TreatLikeAScalarOfSize"))
+					panic(fmt.Errorf("simdgen only supports op2, op2Imm or op3, not %s with TreatLikeAScalarOfSize", s))
 				}
 			}
 			if i == 0 || op.Go != ops[i-1].Go {
@@ -771,8 +794,34 @@ func writeSIMDStubs(ops []Operation, typeMap simdTypeMap) (f, fI *bytes.Buffer) 
 
 	vectorConversions := vConvertFromTypeMap(typeMap)
 	for _, conv := range vectorConversions {
-		if err := t.ExecuteTemplate(f, "vectorConversion", conv); err != nil {
+		from, to := &conv.Tsrc, &conv.Tdst
+
+		if err := sgutil.AsOp.Execute(f, sgutil.Conversion(from, to)); err != nil {
 			panic(fmt.Errorf("failed to execute vectorConversion template: %w", err))
+		}
+
+		// New style factored conversion intrinsics
+		if from.Name[0] != 'U' && to.Name[0] != 'U' {
+			continue
+		}
+		// Only emit the intrinsic if lanes are equal OR both are unsigned
+		if from.Lanes != to.Lanes && (from.Name[0] != 'U' || to.Name[0] != 'U') {
+			continue
+		}
+		switch to.Name[0] {
+		case 'F': // U -> F
+			sgutil.ToFloatsDcl.Execute(f, sgutil.Conversion(from, to))
+			sgutil.ToBitsDcl.Execute(f, sgutil.Conversion(to, from))
+		case 'I': // U -> I
+			sgutil.ToIntsDcl.Execute(f, sgutil.Conversion(from, to))
+			sgutil.ToBitsDcl.Execute(f, sgutil.Conversion(to, from))
+		case 'U': // U -> U
+			if from.Name[0] != 'U' {
+				continue
+			}
+			sgutil.ReshapeDcl.Execute(f, sgutil.Conversion(from, to))
+		default:
+			panic("unexpected type in reinterpret-declaration")
 		}
 	}
 

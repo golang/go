@@ -2,22 +2,24 @@
 - go: GaloisFieldAffineTransform
   commutative: false
   documentation: !string |-
-    // NAME computes an affine transformation in GF(2^8):
-    // x is a vector of 8-bit vectors, with each adjacent 8 as a group; y is a vector of 8x8 1-bit matrixes;
-    // b is an 8-bit vector. The affine transformation is y * x + b, with each element of y
-    // corresponding to a group of 8 elements in x.
+    // NAME returns the affine transformation A * x + b in GF(2^8).
+    // Each element of A is interpreted as an 8x8 matrix of bits.
+    // Each element of x is interpreted as an 8-element vector of bits.
+    // The b argument is likewise an 8-element vector of bits.
+    // The result is z[i] = A[i/8] * x[i] + b, where * and + are performed in GF2.
 - go: GaloisFieldAffineTransformInverse
   commutative: false
   documentation: !string |-
-    // NAME computes an affine transformation in GF(2^8),
-    // with x inverted with respect to reduction polynomial x^8 + x^4 + x^3 + x + 1:
-    // x is a vector of 8-bit vectors, with each adjacent 8 as a group; y is a vector of 8x8 1-bit matrixes;
-    // b is an 8-bit vector. The affine transformation is y * x + b, with each element of y
-    // corresponding to a group of 8 elements in x.
+    // NAME returns the affine transformation A * (x⁻¹ mod P) + b in GF(2^8),
+    // where the characteristic polynomial P is x^8 + x^4 + x^3 + x + 1.
+    // Each element of A is interpreted as an 8x8 matrix of bits.
+    // Each element of x is interpreted as an 8-element vector of bits.
+    // The b argument is likewise an 8-element vector of bits.
+    // The result is z[i] = A[i/8] * inv(x[i]) + b, where * and + are performed in GF2.
 - go: GaloisFieldMul
   commutative: false
   documentation: !string |-
-    // NAME computes element-wise GF(2^8) multiplication with
-    // reduction polynomial x^8 + x^4 + x^3 + x + 1.
+    // NAME returns (x * y) mod P, performed in GF(2^8),
+    // where the characteristic polynomial P is x^8 + x^4 + x^3 + x + 1.
 - go: carrylessMultiply
   commutative: false

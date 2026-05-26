@@ -42,6 +42,11 @@
   regexpTag: "convert"
   documentation: !string |-
     // NAME converts element values to float64.
+- go: "ConvertLo2ToFloat64"
+  commutative: false
+  regexpTag: "convert"
+  documentation: !string |-
+    // NAME converts low-indexed float32 element values to float64.
 
 # Int <-> Int conversions
 - go: "TruncateToInt8"

@@ -178,6 +178,7 @@ func init() {
 		fp01           = regInfo{inputs: nil, outputs: []regMask{fp}}
 		fp11           = regInfo{inputs: []regMask{fp}, outputs: []regMask{fp}}
 		fpgp           = regInfo{inputs: []regMask{fp}, outputs: []regMask{gp}}
+		fpgpfp         = regInfo{inputs: []regMask{fp, gp}, outputs: []regMask{fp}}
 		gpfp           = regInfo{inputs: []regMask{gp}, outputs: []regMask{fp}}
 		fp21           = regInfo{inputs: []regMask{fp, fp}, outputs: []regMask{fp}}
 		fp31           = regInfo{inputs: []regMask{fp, fp, fp}, outputs: []regMask{fp}}
@@ -793,6 +794,10 @@ func init() {
 		// Publication barrier
 		{name: "DMB", argLength: 1, aux: "Int64", asm: "DMB", hasSideEffects: true}, // Do data barrier. arg0=memory, aux=option.
 		{name: "ZERO", zeroWidth: true, fixedReg: true, earlyOk: true},              // reads-as-zero register
+
+		// Broadcast constant to each lane of a SIMD register. aux=constant.
+		// TODO: add the other arrangements after assembler supports them, to be used in simdgen-generated opt rules.
+		{name: "VMOVI16B", argLength: 0, reg: fp01, asm: "VMOVI", aux: "UInt8", commutative: false, typ: "Vec128", resultInArg0: false},
 	}
 
 	blocks := []blockData{
@@ -832,13 +837,15 @@ func init() {
 		name:               "ARM64",
 		pkg:                "cmd/internal/obj/arm64",
 		genfile:            "../../arm64/ssa.go",
-		ops:                ops,
+		genSIMDfile:        "../../arm64/simdssa.go",
+		ops:                append(ops, simdARM64Ops(fp11, fp21, fp31, fpgp, fpgpfp, fp21)...),
 		blocks:             blocks,
 		regnames:           regNamesARM64,
 		ParamIntRegNames:   "R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15",
 		ParamFloatRegNames: "F0 F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15",
 		gpregmask:          gp,
 		fpregmask:          fp,
+		simdregmask:        fp,
 		framepointerreg:    -1, // not used
 		linkreg:            int8(num["R30"]),
 	})

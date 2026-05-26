@@ -2,11 +2,11 @@
 - go: SetElem
   commutative: false
   documentation: !string |-
-    // NAME sets a single constant-indexed element's value.
+    // NAME returns x with the index'th element set to y.
 - go: GetElem
   commutative: false
   documentation: !string |-
-    // NAME retrieves a single constant-indexed element's value.
+    // NAME returns the index'th element of x.
 - go: SetLo
   commutative: false
   constImm: 0
@@ -27,20 +27,42 @@
   constImm: 1
   documentation: !string |-
     // NAME returns the upper half of x.
+- go: LookupOrKeep
+  commutative: false
+  documentation: !string |-
+    // NAME looks up table. If an index is out of range, the result is the corresponding element of keep.
+    //
+    //   if 0 <= indices[i] && indices[i] < len(table) {
+    //       result[i] = table[indices[i]]
+    //   } else {
+    //       result[i] = keep[i]
+    //   }
+- go: LookupOrZero
+  commutative: false
+  documentation: !string |-
+    // NAME looks up table. If an index is out of range, the result is 0.
+    //
+    //   if 0 <= indices[i] && indices[i] < len(table) {
+    //       result[i] = table[indices[i]]
+    //   } else {
+    //       result[i] = 0
+    //   }
 - go: PermuteOrZero
   commutative: false
   documentation: !string |-
-    // NAME performs a full permutation of vector x using indices:
+    // NAME permutes x. If an index is negative, the result is 0.
     //
-    //   result = {x[indices[0]], x[indices[1]], ..., x[indices[n]]}
-    //
+    //   if indices[i] >= 0 {
+    //       z[i] = x[indices[i] % len(x)]
+    //   } else {
+    //       z[i] = 0
+    //   }
 - go: Permute
   commutative: false
   documentation: !string |-
-    // NAME performs a full permutation of vector x using indices:
+    // NAME permutes x.
     //
-    //   result = {x[indices[0]], x[indices[1]], ..., x[indices[n]]}
-    //
+    //   z[i] = x[indices[i] % len(x)]
 - go: ConcatPermute # ConcatPermute is only available on or after AVX512
   commutative: false
   documentation: !string |-
@@ -53,13 +75,21 @@
 - go: Compress
   commutative: false
   documentation: !string |-
-    // NAME performs a compression on vector x using mask by
-    // selecting elements as indicated by mask, and pack them to lower indexed elements.
+    // NAME packs the masked elements of x into the lower indexed elements of z,
+    // zeroing any remaining elements.
 - go: blend
   commutative: false
   documentation: !string |-
     // NAME blends two vectors based on mask values, choosing either
     // the first or the second based on whether the third is false or true
+- go: bitSelect
+  commutative: false
+  documentation: !string |-
+    // NAME selects bits from y where mask is 1, keeps bits from x where mask is 0.
+- go: bitSelectNot
+  commutative: false
+  documentation: !string |-
+    // NAME selects bits from y where mask is 0, keeps bits from x where mask is 1.
 - go: move
   commutative: false
   noTypes: "true"
@@ -67,42 +97,48 @@
 - go: Expand
   commutative: false
   documentation: !string |-
-    // NAME performs an expansion on a vector x whose elements are packed to lower parts.
-    // The expansion is to distribute elements as indexed by mask, from lower mask elements to upper in order.
-- go: Broadcast1To2
+    // NAME expands the lower elements of x into the masked elements of z.
+- go: broadcast1To2
   commutative: false
   documentation: !string |-
     // NAME copies the lowest element of its input to all 2 elements of
     // the output vector.
-- go: Broadcast1To4
+- go: broadcast1To4
   commutative: false
   documentation: !string |-
     // NAME copies the lowest element of its input to all 4 elements of
     // the output vector.
-- go: Broadcast1To8
+- go: broadcast1To8
   commutative: false
   documentation: !string |-
     // NAME copies the lowest element of its input to all 8 elements of
     // the output vector.
-- go: Broadcast1To16
+- go: broadcast1To16
   commutative: false
   documentation: !string |-
     // NAME copies the lowest element of its input to all 16 elements of
     // the output vector.
-- go: Broadcast1To32
+- go: broadcast1To32
   commutative: false
   documentation: !string |-
     // NAME copies the lowest element of its input to all 32 elements of
     // the output vector.
-- go: Broadcast1To64
+- go: broadcast1To64
   commutative: false
   documentation: !string |-
     // NAME copies the lowest element of its input to all 64 elements of
     // the output vector.
 - go: PermuteOrZeroGrouped
   commutative: false
-  documentation: !string |- # Detailed documentation will rely on the specific ops.
-    // NAME performs a grouped permutation of vector x using indices:
+  documentation: !string |-
+    // NAME permutes x within each 128-bit group. If an index is negative, the result is 0.
+    //
+    //   let vₙ be the n'th 128-bit group of vector v
+    //   if indicesₙ[i] >= 0 {
+    //       zₙ[i] = xₙ[indicesₙ[i] % len(xₙ)]
+    //   } else {
+    //       zₙ[i] = 0
+    //   }
 - go: PermuteGrouped
   commutative: false
   documentation: !string |- # Detailed documentation will rely on the specific ops.
@@ -247,7 +283,7 @@
     // This differs from the same method applied to a 32x8 or 32x16 vector, where
     // the 8-bit constant performs the same selection on all the subvectors.
 
-- go: Select128FromPair
+- go: ConcatPermute128Scalars
   commutative: false
   documentation: !string |-
     // NAME treats the 256-bit vectors x and y as a single vector of four
@@ -257,12 +293,32 @@
 - go: ConcatShiftBytesRight
   commutative: false
   documentation: !string |-
-    // NAME concatenates x and y and shift it right by shift bytes.
+    // NAME concatenates x and y and shifts it right by shift bytes.
     // The result vector will be the lower half of the concatenated vector.
 
 - go: ConcatShiftBytesRightGrouped
   commutative: false
   documentation: !string |-
-    // NAME concatenates x and y and shift it right by shift bytes.
+    // NAME concatenates x and y and shifts it right by shift bytes.
     // The result vector will be the lower half of the concatenated vector.
     // This operation is performed grouped by each 16 byte.
+- go: DeinterleaveEven
+  commutative: false
+  documentation: !string |-
+    // NAME deinterleaves even-indexed elements from the concatenation of x and y.
+    // For x = [x0,x1,x2,x3] and y = [y0,y1,y2,y3], result = [x0,x2,y0,y2].
+- go: DeinterleaveOdd
+  commutative: false
+  documentation: !string |-
+    // NAME deinterleaves odd-indexed elements from the concatenation of x and y.
+    // For x = [x0,x1,x2,x3] and y = [y0,y1,y2,y3], result = [x1,x3,y1,y3].
+- go: TransposeEven
+  commutative: false
+  documentation: !string |-
+    // NAME transposes 2-element pairs at even positions from x and y.
+    // For x = [a0,a1,a2,a3] and y = [b0,b1,b2,b3], result = [a0,b0,a2,b2].
+- go: TransposeOdd
+  commutative: false
+  documentation: !string |-
+    // NAME transposes 2-element pairs at odd positions from x and y.
+    // For x = [a0,a1,a2,a3] and y = [b0,b1,b2,b3], result = [a1,b1,a3,b3].

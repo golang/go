@@ -358,7 +358,10 @@ var excluded = map[string]bool{
 	"crypto/internal/cryptotest/wycheproof/_schema": true,
 	"runtime/_mkmalloc":                             true,
 	"simd/archsimd/_gen/simdgen":                    true,
+	"simd/archsimd/_gen/simdgen/arm64":              true,
+	"simd/archsimd/_gen/tmplgen":                    true,
 	"simd/archsimd/_gen/unify":                      true,
+	"simd/archsimd/_gen/wasmgen":                    true,
 }
 
 // printPackageMu synchronizes the printing of type-checked package files in

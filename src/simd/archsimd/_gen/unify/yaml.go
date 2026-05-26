@@ -238,7 +238,7 @@ func (dec *yamlDecoder) value(node *yaml.Node) (vOut *Value, errOut error) {
 			// #N suffix. Strip that off so it doesn't accumulate. This isn't
 			// meant to be used in user-written input, though nothing stops that.
 			name, _, _ := strings.Cut(strVal, "#")
-			id = &ident{name: name}
+			id = newIdent(name)
 			dec.vars[strVal] = id
 			dec.env = dec.env.bind(id, topValue)
 		}
@@ -352,7 +352,7 @@ func (dec *yamlDecoder) value(node *yaml.Node) (vOut *Value, errOut error) {
 
 		// A sum is implemented as a fresh variable that's simultaneously bound
 		// to each of the descendants.
-		id := &ident{name: fmt.Sprintf("sum%d", dec.nSums)}
+		id := newIdent(fmt.Sprintf("sum%d", dec.nSums))
 		dec.nSums++
 		dec.env = dec.env.bind(id, vs...)
 		return mk(Var{id: id})
@@ -391,7 +391,7 @@ func (dec *yamlDecoder) value(node *yaml.Node) (vOut *Value, errOut error) {
 		if len(vs) == 1 {
 			return vs[0], nil
 		}
-		id := &ident{name: "import"}
+		id := newIdent("import")
 		dec.env = dec.env.bind(id, vs...)
 		return mk(Var{id: id})
 	}

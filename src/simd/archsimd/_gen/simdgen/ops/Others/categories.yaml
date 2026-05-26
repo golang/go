@@ -3,6 +3,10 @@
   commutative: false
   documentation: !string |-
     // NAME counts the leading zeros of each element in x.
+- go: LeadingSignBits
+  commutative: false
+  documentation: !string |-
+    // NAME counts the leading sign bits of each element in x.
 - go: AESEncryptOneRound
   commutative: false
   documentation: !string |-

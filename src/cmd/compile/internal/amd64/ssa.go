@@ -59,6 +59,10 @@ func isLowFPReg(r int16) bool {
 	return x86.REG_X0 <= r && r <= x86.REG_X15
 }
 
+func isHighFPReg(r int16) bool {
+	return x86.REG_X16 <= r && r <= x86.REG_X31 || x86.REG_Y16 <= r && r <= x86.REG_Y31 || x86.REG_Z16 <= r && r <= x86.REG_Z31
+}
+
 // loadByRegWidth returns the load instruction of the given register of a given width.
 func loadByRegWidth(r int16, width int64) obj.As {
 	// Avoid partial register write for GPR
@@ -77,6 +81,10 @@ func loadByRegWidth(r int16, width int64) obj.As {
 // storeByRegWidth returns the store instruction of the given register of a given width.
 // It's also used for loading const to a reg.
 func storeByRegWidth(r int16, width int64) obj.As {
+	if isHighFPReg(r) {
+		// High registers require AVX512 instruction
+		return x86.AVMOVDQU64
+	}
 	if isFPReg(r) {
 		switch width {
 		case 4:
@@ -85,11 +93,7 @@ func storeByRegWidth(r int16, width int64) obj.As {
 			return x86.AMOVSD
 		case 16:
 			// int128s are in SSE registers
-			if isLowFPReg(r) {
-				return x86.AMOVUPS
-			} else {
-				return x86.AVMOVDQU
-			}
+			return x86.AMOVUPS
 		case 32:
 			return x86.AVMOVDQU
 		case 64:
@@ -117,11 +121,15 @@ func storeByRegWidth(r int16, width int64) obj.As {
 func moveByRegsWidth(dest, src int16, width int64) obj.As {
 	// fp -> fp
 	if isFPReg(dest) && isFPReg(src) {
+		if isHighFPReg(src) || isHighFPReg(dest) {
+			// High registers require AVX512 instruction
+			return x86.AVMOVDQU64
+		}
 		// Moving the whole sse2 register is faster
 		// than moving just the correct low portion of it.
 		// There is no xmm->xmm move with 1 byte opcode,
 		// so use movups, which has 2 byte opcode.
-		if isLowFPReg(dest) && isLowFPReg(src) && width <= 16 {
+		if width <= 16 {
 			return x86.AMOVUPS
 		}
 		if width <= 32 {
@@ -148,12 +156,8 @@ func moveByRegsWidth(dest, src int16, width int64) obj.As {
 	case 8:
 		return x86.AMOVQ
 	case 16:
-		if isLowFPReg(dest) && isLowFPReg(src) {
-			// int128s are in SSE registers
-			return x86.AMOVUPS
-		} else {
-			return x86.AVMOVDQU
-		}
+		// int128s are in SSE registers
+		return x86.AMOVUPS
 	case 32:
 		return x86.AVMOVDQU
 	case 64:
@@ -1841,6 +1845,17 @@ func ssaGenValue(s *ssagen.State, v *ssa.Value) {
 		p.To.Reg = simdReg(v)
 		p.AddRestSourceReg(v.Args[1].Reg()) // simd mask reg
 		x86.ParseSuffix(p, "Z")             // must be zero if not in mask
+
+	case ssa.OpAMD64KANDB, ssa.OpAMD64KANDW, ssa.OpAMD64KANDD, ssa.OpAMD64KANDQ,
+		ssa.OpAMD64KORB, ssa.OpAMD64KORW, ssa.OpAMD64KORD, ssa.OpAMD64KORQ,
+		ssa.OpAMD64KXORB, ssa.OpAMD64KXORW, ssa.OpAMD64KXORD, ssa.OpAMD64KXORQ,
+		ssa.OpAMD64KXNORB, ssa.OpAMD64KXNORW, ssa.OpAMD64KXNORD, ssa.OpAMD64KXNORQ: // XNOR == EQ
+		p := s.Prog(v.Op.Asm())
+		p.From.Type = obj.TYPE_REG
+		p.From.Reg = v.Args[0].Reg()
+		p.To.Type = obj.TYPE_REG
+		p.To.Reg = v.Reg()
+		p.AddRestSourceReg(v.Args[1].Reg()) // masking simd reg
 
 	case ssa.OpAMD64VPMASK64store512, ssa.OpAMD64VPMASK32store512, ssa.OpAMD64VPMASK16store512, ssa.OpAMD64VPMASK8store512:
 		p := s.Prog(v.Op.Asm())

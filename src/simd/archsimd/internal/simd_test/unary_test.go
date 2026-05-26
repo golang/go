@@ -46,10 +46,10 @@ func TestTrunc(t *testing.T) {
 }
 
 func TestRound(t *testing.T) {
-	testFloat32x4Unary(t, archsimd.Float32x4.RoundToEven, roundSlice[float32])
-	testFloat32x8Unary(t, archsimd.Float32x8.RoundToEven, roundSlice[float32])
-	testFloat64x2Unary(t, archsimd.Float64x2.RoundToEven, roundSlice[float64])
-	testFloat64x4Unary(t, archsimd.Float64x4.RoundToEven, roundSlice[float64])
+	testFloat32x4Unary(t, archsimd.Float32x4.Round, roundSlice[float32])
+	testFloat32x8Unary(t, archsimd.Float32x8.Round, roundSlice[float32])
+	testFloat64x2Unary(t, archsimd.Float64x2.Round, roundSlice[float64])
+	testFloat64x4Unary(t, archsimd.Float64x4.Round, roundSlice[float64])
 	if archsimd.X86.AVX512() {
 		// testFloat32x16Unary(t, archsimd.Float32x16.Round, roundSlice[float32]) // missing
 		// testFloat64x8Unary(t, archsimd.Float64x8.Round, roundSlice[float64])   // missing

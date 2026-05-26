@@ -697,6 +697,15 @@ func (s *regAllocState) allocValToReg(v *Value, mask regMask, nospill bool, pos 
 			s.f.Warnl(vi.spill.Pos, "load spill for %v from %v", v, spill)
 		}
 		c = s.curBlock.NewValue1(pos, OpLoadReg, v.Type, spill)
+		sourceMask := s.compatRegs(v.Type)
+		if !sourceMask.hasReg(r) && !onWasmStack {
+			// Assign a temporary register that can be copied to the desired destination;
+			// this at least works where it is currently a problem (x86).
+			// This happens processing e.g. ASAN/TSAN with SIMD *simdtype methods.
+			s.setOrig(c, v)
+			s.assignReg(s.allocReg(sourceMask, v), v, c)
+			c = s.curBlock.NewValue1(pos, OpCopy, v.Type, c)
+		}
 	}
 
 	s.setOrig(c, v)
@@ -773,7 +782,7 @@ func (s *regAllocState) init(f *Func) {
 	}
 
 	// Figure out which registers we're allowed to use.
-	s.allocatable = s.f.Config.gpRegMask.union(s.f.Config.fpRegMask).union(s.f.Config.specialRegMask)
+	s.allocatable = s.f.Config.gpRegMask.union(s.f.Config.fpRegMask).union(s.f.Config.specialRegMask).union(s.f.Config.simdRegMask)
 	s.allocatable = s.allocatable.removeReg(s.SPReg)
 	s.allocatable = s.allocatable.removeReg(s.SBReg)
 	if s.f.Config.hasGReg {
@@ -996,7 +1005,7 @@ func (s *regAllocState) compatRegs(t *types.Type) regMask {
 	}
 	if t.IsSIMD() {
 		if t.Size() > 8 {
-			return s.f.Config.fpRegMask.intersect(s.allocatable)
+			return s.f.Config.simdRegMask.intersect(s.allocatable)
 		} else {
 			// K mask
 			return s.f.Config.gpRegMask.intersect(s.allocatable)

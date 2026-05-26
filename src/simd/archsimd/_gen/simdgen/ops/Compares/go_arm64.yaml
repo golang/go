@@ -1,0 +1,81 @@
+!sum
+- go: Equal
+  asm: "VCMEQ"
+  in:
+  - &int
+    go: $t
+    base: int
+  - *int
+  out:
+  - &anyToMask
+    go: $t
+    overwriteBase: int
+    overwriteClass: mask
+
+- go: Equal
+  asm: "VCMEQ"
+  in:
+  - &uint
+    go: $t
+    base: uint
+  - *uint
+  out:
+  - *anyToMask
+
+- go: Greater
+  asm: "VCMGT"
+  in:
+  - *int
+  - *int
+  out:
+  - *anyToMask
+
+- go: Greater
+  asm: "VCMHI"
+  in:
+  - *uint
+  - *uint
+  out:
+  - *anyToMask
+
+- go: GreaterEqual
+  asm: "VCMGE"
+  in:
+  - *int
+  - *int
+  out:
+  - *anyToMask
+
+- go: GreaterEqual
+  asm: "VCMHS"
+  in:
+  - *uint
+  - *uint
+  out:
+  - *anyToMask
+
+- go: Equal
+  asm: "VFCMEQ"
+  in:
+  - &float
+    go: $t
+    base: float
+  - *float
+  out:
+  - *anyToMask
+
+- go: Greater
+  asm: "VFCMGT"
+  in:
+  - *float
+  - *float
+  out:
+  - *anyToMask
+
+- go: GreaterEqual
+  asm: "VFCMGE"
+  in:
+  - *float
+  - *float
+  out:
+  - *anyToMask

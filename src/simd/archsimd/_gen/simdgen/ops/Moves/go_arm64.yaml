@@ -1,0 +1,263 @@
+!sum
+
+# GetElem VMOV (UMOV, integer)
+- go: GetElem
+  asm: "VMOV"
+  SSAVariant: "extr"
+  in:
+  - &immIndex
+    class: immediate
+    go: Immediate
+    name: index
+  - &vector
+    go: $t
+    base: int|uint
+  out:
+  - &scalar
+    class: greg
+
+# GetElem VDUP (duplicate element into scalar float in vreg)
+- go: GetElem
+  asm: "VDUP"
+  SSAVariant: "extr"
+  in:
+  - *immIndex
+  - &fvector
+    go: $t
+    base: float
+  out:
+  - &fscalarOut
+    class: vreg
+    treatLikeAScalarOfSize: 0
+    OverwriteClass: greg
+    OverwriteBase: float
+
+# SetElem VMOV (INS, integer)
+- go: SetElem
+  asm: "VMOV"
+  SSAVariant: "ins"
+  in:
+  - *immIndex
+  - *vector
+  - *scalar
+  out:
+  - *vector
+
+# SetElem VMOV (float: INS from the lane 0 of the source)
+- go: SetElem
+  asm: "VMOV"
+  SSAVariant: "ins0"
+  specialLower: !string "match [0] (VMOVI16B [0]) y:(VDUP%sextr [i] _) => y"
+  in:
+  - *immIndex
+  - &imm0
+    class: immediate
+    go: Immediate
+    const: 0 # imm+vreg with treatLikeAScalarOfSize are treated as scalar in lane 0
+  - *fvector
+  - &fscalarIn
+    class: vreg
+    treatLikeAScalarOfSize: 0
+  out:
+  - *fvector
+
+# broadcast1To16 VDUP (duplicate element 0 to all 16 byte lanes)
+- go: broadcast1To16
+  asm: "VDUP"
+  SSAVariant: "bcast"
+  constImm: 0
+  specialLower: !string "match [i] (VMOV%sins [j] _ (MOVDconst [c])) && i == j && c>=-128 && c<=255 => (VMOVI%a [uint8(c)])"
+  in:
+  - &immLane0
+    name: "@" # tag "fully constant" (no aux field needed)
+    const: 0
+    class: immediate
+    go: Immediate
+  - &bcast8
+    go: $t
+    bits: 128
+    elemBits: 8
+  out:
+  - *bcast8
+
+# broadcast1To8 VDUP (duplicate element 0 to all 8 halfword lanes)
+- go: broadcast1To8
+  asm: "VDUP"
+  SSAVariant: "bcast"
+  constImm: 0
+  in:
+  - *immLane0
+  - &bcast16
+    go: $t
+    bits: 128
+    elemBits: 16
+  out:
+  - *bcast16
+
+# broadcast1To4 VDUP (duplicate element 0 to all 4 word lanes)
+- go: broadcast1To4
+  asm: "VDUP"
+  SSAVariant: "bcast"
+  constImm: 0
+  in:
+  - *immLane0
+  - &bcast32
+    go: $t
+    bits: 128
+    elemBits: 32
+  out:
+  - *bcast32
+
+# broadcast1To2 VDUP (duplicate element 0 to both doubleword lanes)
+- go: broadcast1To2
+  asm: "VDUP"
+  SSAVariant: "bcast"
+  constImm: 0
+  in:
+  - *immLane0
+  - &bcast64
+    go: $t
+    bits: 128
+    elemBits: 64
+  out:
+  - *bcast64
+
+# bitSelect — VBIT (bit insert if true, internal)
+# Only Int8x16 is needed since VBIT operates on the full 128-bit register.
+# Other types cast to Int8x16 before calling bitSelect.
+- go: bitSelect
+  asm: "VBIT"
+  specialLower: !string "match x y (VNOT16B mask) => (VBIF16B x y mask)"
+  in:
+  - &v8
+    go: $t
+    class: vreg
+    base: int
+    elemBits: 8
+  - *v8
+  - &maskReg
+    class: vreg
+    base: int
+    name: mask
+  out:
+  - *v8
+
+# bitSelectNot — VBIF (bit insert if false, internal)
+- go: bitSelectNot
+  asm: "VBIF"
+  specialLower: !string "match x y (VNOT16B mask) => (VBIT16B x y mask)"
+  in:
+  - *v8
+  - *v8
+  - *maskReg
+  out:
+  - *v8
+
+# LookupOrZero — TBL (table lookup, zeros for out-of-range indices)
+- go: LookupOrZero
+  regexpTag: "move"
+  asm: "VTBL"
+  in:
+  - &bytesTable
+    go: $t
+    base: int|uint
+    elemBits: 8
+    name: table
+  - &byteIndices
+    go: $t
+    base: int|uint
+    elemBits: 8
+    name: indices
+  out:
+  - &bytes
+    go: $t
+    base: int|uint
+    elemBits: 8
+
+# LookupOrKeep — TBX (table lookup extended, keeps original for out-of-range)
+- go: LookupOrKeep
+  regexpTag: "move"
+  asm: "VTBX"
+  in:
+  - &bytesKeep
+    go: $t
+    base: int|uint
+    elemBits: 8
+    name: keep
+  - *bytesTable
+  - *byteIndices
+  out:
+  - *bytes
+
+# ConcatShiftBytesRight — EXT (extract bytes from concatenated pair)
+- go: ConcatShiftBytesRight
+  asm: "VEXT"
+  operandOrder: 2I
+  in:
+  - class: immediate
+    immOffset: 0
+    name: shift
+  - &uint8x128
+    go: $t
+    base: uint
+    bits: 128
+    elemBits: 8
+  - *uint8x128
+  out:
+  - *uint8x128
+
+# InterleaveLo — ZIP1 (interleave low halves)
+- go: InterleaveLo
+  asm: "VZIP1"
+  in:
+  - &any128
+    go: $t
+    bits: 128
+  - *any128
+  out:
+  - *any128
+
+# InterleaveHi — ZIP2 (interleave high halves)
+- go: InterleaveHi
+  asm: "VZIP2"
+  in:
+  - *any128
+  - *any128
+  out:
+  - *any128
+
+# DeinterleaveEven — UZP1 (extract even-indexed elements)
+- go: DeinterleaveEven
+  asm: "VUZP1"
+  in:
+  - *any128
+  - *any128
+  out:
+  - *any128
+
+# DeinterleaveOdd — UZP2 (extract odd-indexed elements)
+- go: DeinterleaveOdd
+  asm: "VUZP2"
+  in:
+  - *any128
+  - *any128
+  out:
+  - *any128
+
+# TransposeEven — TRN1 (transpose even-position pairs)
+- go: TransposeEven
+  asm: "VTRN1"
+  in:
+  - *any128
+  - *any128
+  out:
+  - *any128
+
+# TransposeOdd — TRN2 (transpose odd-position pairs)
+- go: TransposeOdd
+  asm: "VTRN2"
+  in:
+  - *any128
+  - *any128
+  out:
+  - *any128
