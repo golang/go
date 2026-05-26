@@ -316,7 +316,7 @@ func (x Uint64x2) ConcatAddPairs(y Uint64x2) Uint64x2
 // A non-constant value of shift may result in significantly worse performance for this operation.
 //
 // Asm: VEXT, CPU Feature: NEON
-func (x Uint8x16) ConcatShiftBytesRight(y Uint8x16, shift uint8) Uint8x16
+func (x Uint8x16) ConcatShiftBytesRight(y Uint8x16, shift uint64) Uint8x16
 
 /* ConvertLo2ToFloat64 */
 
@@ -1782,56 +1782,56 @@ func (x Uint64x2) ShiftAllRight(y uint64) Uint64x2
 // A non-constant value of constant may result in significantly worse performance for this operation.
 //
 // Asm: VSHL, CPU Feature: NEON
-func (x Int8x16) ShiftLeftConst(constant uint8) Int8x16
+func (x Int8x16) ShiftLeftConst(constant uint64) Int8x16
 
 // ShiftLeftConst performs a left shift on each element in x by the constant number of bits specified by y.
 //
 // A non-constant value of constant may result in significantly worse performance for this operation.
 //
 // Asm: VSHL, CPU Feature: NEON
-func (x Int16x8) ShiftLeftConst(constant uint8) Int16x8
+func (x Int16x8) ShiftLeftConst(constant uint64) Int16x8
 
 // ShiftLeftConst performs a left shift on each element in x by the constant number of bits specified by y.
 //
 // A non-constant value of constant may result in significantly worse performance for this operation.
 //
 // Asm: VSHL, CPU Feature: NEON
-func (x Int32x4) ShiftLeftConst(constant uint8) Int32x4
+func (x Int32x4) ShiftLeftConst(constant uint64) Int32x4
 
 // ShiftLeftConst performs a left shift on each element in x by the constant number of bits specified by y.
 //
 // A non-constant value of constant may result in significantly worse performance for this operation.
 //
 // Asm: VSHL, CPU Feature: NEON
-func (x Int64x2) ShiftLeftConst(constant uint8) Int64x2
+func (x Int64x2) ShiftLeftConst(constant uint64) Int64x2
 
 // ShiftLeftConst performs a left shift on each element in x by the constant number of bits specified by y.
 //
 // A non-constant value of constant may result in significantly worse performance for this operation.
 //
 // Asm: VSHL, CPU Feature: NEON
-func (x Uint8x16) ShiftLeftConst(constant uint8) Uint8x16
+func (x Uint8x16) ShiftLeftConst(constant uint64) Uint8x16
 
 // ShiftLeftConst performs a left shift on each element in x by the constant number of bits specified by y.
 //
 // A non-constant value of constant may result in significantly worse performance for this operation.
 //
 // Asm: VSHL, CPU Feature: NEON
-func (x Uint16x8) ShiftLeftConst(constant uint8) Uint16x8
+func (x Uint16x8) ShiftLeftConst(constant uint64) Uint16x8
 
 // ShiftLeftConst performs a left shift on each element in x by the constant number of bits specified by y.
 //
 // A non-constant value of constant may result in significantly worse performance for this operation.
 //
 // Asm: VSHL, CPU Feature: NEON
-func (x Uint32x4) ShiftLeftConst(constant uint8) Uint32x4
+func (x Uint32x4) ShiftLeftConst(constant uint64) Uint32x4
 
 // ShiftLeftConst performs a left shift on each element in x by the constant number of bits specified by y.
 //
 // A non-constant value of constant may result in significantly worse performance for this operation.
 //
 // Asm: VSHL, CPU Feature: NEON
-func (x Uint64x2) ShiftLeftConst(constant uint8) Uint64x2
+func (x Uint64x2) ShiftLeftConst(constant uint64) Uint64x2
 
 /* ShiftLeftLoLongConst */
 
@@ -1844,7 +1844,7 @@ func (x Uint64x2) ShiftLeftConst(constant uint8) Uint64x2
 // A non-constant value of constant may result in significantly worse performance for this operation.
 //
 // Asm: VSSHLL, CPU Feature: NEON
-func (x Int8x16) ShiftLeftLoLongConst(constant uint8) Int16x8
+func (x Int8x16) ShiftLeftLoLongConst(constant uint64) Int16x8
 
 // ShiftLeftLoLongConst performs a left shift on each signed low-indexed element in x by the constant number of bits
 // and widens the result to double the element width.
@@ -1855,7 +1855,7 @@ func (x Int8x16) ShiftLeftLoLongConst(constant uint8) Int16x8
 // A non-constant value of constant may result in significantly worse performance for this operation.
 //
 // Asm: VSSHLL, CPU Feature: NEON
-func (x Int16x8) ShiftLeftLoLongConst(constant uint8) Int32x4
+func (x Int16x8) ShiftLeftLoLongConst(constant uint64) Int32x4
 
 // ShiftLeftLoLongConst performs a left shift on each signed low-indexed element in x by the constant number of bits
 // and widens the result to double the element width.
@@ -1866,7 +1866,7 @@ func (x Int16x8) ShiftLeftLoLongConst(constant uint8) Int32x4
 // A non-constant value of constant may result in significantly worse performance for this operation.
 //
 // Asm: VSSHLL, CPU Feature: NEON
-func (x Int32x4) ShiftLeftLoLongConst(constant uint8) Int64x2
+func (x Int32x4) ShiftLeftLoLongConst(constant uint64) Int64x2
 
 // ShiftLeftLoLongConst performs a left shift on each unsigned low-indexed element in x by the constant number of bits
 // and widens the result to double the element width.
@@ -1877,7 +1877,7 @@ func (x Int32x4) ShiftLeftLoLongConst(constant uint8) Int64x2
 // A non-constant value of constant may result in significantly worse performance for this operation.
 //
 // Asm: VUSHLL, CPU Feature: NEON
-func (x Uint8x16) ShiftLeftLoLongConst(constant uint8) Uint16x8
+func (x Uint8x16) ShiftLeftLoLongConst(constant uint64) Uint16x8
 
 // ShiftLeftLoLongConst performs a left shift on each unsigned low-indexed element in x by the constant number of bits
 // and widens the result to double the element width.
@@ -1888,7 +1888,7 @@ func (x Uint8x16) ShiftLeftLoLongConst(constant uint8) Uint16x8
 // A non-constant value of constant may result in significantly worse performance for this operation.
 //
 // Asm: VUSHLL, CPU Feature: NEON
-func (x Uint16x8) ShiftLeftLoLongConst(constant uint8) Uint32x4
+func (x Uint16x8) ShiftLeftLoLongConst(constant uint64) Uint32x4
 
 // ShiftLeftLoLongConst performs a left shift on each unsigned low-indexed element in x by the constant number of bits
 // and widens the result to double the element width.
@@ -1899,7 +1899,7 @@ func (x Uint16x8) ShiftLeftLoLongConst(constant uint8) Uint32x4
 // A non-constant value of constant may result in significantly worse performance for this operation.
 //
 // Asm: VUSHLL, CPU Feature: NEON
-func (x Uint32x4) ShiftLeftLoLongConst(constant uint8) Uint64x2
+func (x Uint32x4) ShiftLeftLoLongConst(constant uint64) Uint64x2
 
 /* ShiftLeftSaturatedConst */
 
@@ -1909,7 +1909,7 @@ func (x Uint32x4) ShiftLeftLoLongConst(constant uint8) Uint64x2
 // A non-constant value of constant may result in significantly worse performance for this operation.
 //
 // Asm: VSQSHL, CPU Feature: NEON
-func (x Int8x16) ShiftLeftSaturatedConst(constant uint8) Int8x16
+func (x Int8x16) ShiftLeftSaturatedConst(constant uint64) Int8x16
 
 // ShiftLeftSaturatedConst performs a saturating left shift on each element in x by the constant number of bits specified by y.
 // Results are saturated to the signed range on overflow.
@@ -1917,7 +1917,7 @@ func (x Int8x16) ShiftLeftSaturatedConst(constant uint8) Int8x16
 // A non-constant value of constant may result in significantly worse performance for this operation.
 //
 // Asm: VSQSHL, CPU Feature: NEON
-func (x Int16x8) ShiftLeftSaturatedConst(constant uint8) Int16x8
+func (x Int16x8) ShiftLeftSaturatedConst(constant uint64) Int16x8
 
 // ShiftLeftSaturatedConst performs a saturating left shift on each element in x by the constant number of bits specified by y.
 // Results are saturated to the signed range on overflow.
@@ -1925,7 +1925,7 @@ func (x Int16x8) ShiftLeftSaturatedConst(constant uint8) Int16x8
 // A non-constant value of constant may result in significantly worse performance for this operation.
 //
 // Asm: VSQSHL, CPU Feature: NEON
-func (x Int32x4) ShiftLeftSaturatedConst(constant uint8) Int32x4
+func (x Int32x4) ShiftLeftSaturatedConst(constant uint64) Int32x4
 
 // ShiftLeftSaturatedConst performs a saturating left shift on each element in x by the constant number of bits specified by y.
 // Results are saturated to the signed range on overflow.
@@ -1933,7 +1933,7 @@ func (x Int32x4) ShiftLeftSaturatedConst(constant uint8) Int32x4
 // A non-constant value of constant may result in significantly worse performance for this operation.
 //
 // Asm: VSQSHL, CPU Feature: NEON
-func (x Int64x2) ShiftLeftSaturatedConst(constant uint8) Int64x2
+func (x Int64x2) ShiftLeftSaturatedConst(constant uint64) Int64x2
 
 // ShiftLeftSaturatedConst performs a saturating left shift on each element in x by the constant number of bits specified by y.
 // Results are saturated to the unsigned range on overflow.
@@ -1941,7 +1941,7 @@ func (x Int64x2) ShiftLeftSaturatedConst(constant uint8) Int64x2
 // A non-constant value of constant may result in significantly worse performance for this operation.
 //
 // Asm: VUQSHL, CPU Feature: NEON
-func (x Uint8x16) ShiftLeftSaturatedConst(constant uint8) Uint8x16
+func (x Uint8x16) ShiftLeftSaturatedConst(constant uint64) Uint8x16
 
 // ShiftLeftSaturatedConst performs a saturating left shift on each element in x by the constant number of bits specified by y.
 // Results are saturated to the unsigned range on overflow.
@@ -1949,7 +1949,7 @@ func (x Uint8x16) ShiftLeftSaturatedConst(constant uint8) Uint8x16
 // A non-constant value of constant may result in significantly worse performance for this operation.
 //
 // Asm: VUQSHL, CPU Feature: NEON
-func (x Uint16x8) ShiftLeftSaturatedConst(constant uint8) Uint16x8
+func (x Uint16x8) ShiftLeftSaturatedConst(constant uint64) Uint16x8
 
 // ShiftLeftSaturatedConst performs a saturating left shift on each element in x by the constant number of bits specified by y.
 // Results are saturated to the unsigned range on overflow.
@@ -1957,7 +1957,7 @@ func (x Uint16x8) ShiftLeftSaturatedConst(constant uint8) Uint16x8
 // A non-constant value of constant may result in significantly worse performance for this operation.
 //
 // Asm: VUQSHL, CPU Feature: NEON
-func (x Uint32x4) ShiftLeftSaturatedConst(constant uint8) Uint32x4
+func (x Uint32x4) ShiftLeftSaturatedConst(constant uint64) Uint32x4
 
 // ShiftLeftSaturatedConst performs a saturating left shift on each element in x by the constant number of bits specified by y.
 // Results are saturated to the unsigned range on overflow.
@@ -1965,7 +1965,7 @@ func (x Uint32x4) ShiftLeftSaturatedConst(constant uint8) Uint32x4
 // A non-constant value of constant may result in significantly worse performance for this operation.
 //
 // Asm: VUQSHL, CPU Feature: NEON
-func (x Uint64x2) ShiftLeftSaturatedConst(constant uint8) Uint64x2
+func (x Uint64x2) ShiftLeftSaturatedConst(constant uint64) Uint64x2
 
 /* ShiftRightConst */
 
@@ -1974,56 +1974,56 @@ func (x Uint64x2) ShiftLeftSaturatedConst(constant uint8) Uint64x2
 // A non-constant value of constant may result in significantly worse performance for this operation.
 //
 // Asm: VSSHR, CPU Feature: NEON
-func (x Int8x16) ShiftRightConst(constant uint8) Int8x16
+func (x Int8x16) ShiftRightConst(constant uint64) Int8x16
 
 // ShiftRightConst performs an arithmetic right shift on each element in x by the constant number of bits specified by y.
 //
 // A non-constant value of constant may result in significantly worse performance for this operation.
 //
 // Asm: VSSHR, CPU Feature: NEON
-func (x Int16x8) ShiftRightConst(constant uint8) Int16x8
+func (x Int16x8) ShiftRightConst(constant uint64) Int16x8
 
 // ShiftRightConst performs an arithmetic right shift on each element in x by the constant number of bits specified by y.
 //
 // A non-constant value of constant may result in significantly worse performance for this operation.
 //
 // Asm: VSSHR, CPU Feature: NEON
-func (x Int32x4) ShiftRightConst(constant uint8) Int32x4
+func (x Int32x4) ShiftRightConst(constant uint64) Int32x4
 
 // ShiftRightConst performs an arithmetic right shift on each element in x by the constant number of bits specified by y.
 //
 // A non-constant value of constant may result in significantly worse performance for this operation.
 //
 // Asm: VSSHR, CPU Feature: NEON
-func (x Int64x2) ShiftRightConst(constant uint8) Int64x2
+func (x Int64x2) ShiftRightConst(constant uint64) Int64x2
 
 // ShiftRightConst performs a logical right shift on each element in x by the constant number of bits specified by y.
 //
 // A non-constant value of constant may result in significantly worse performance for this operation.
 //
 // Asm: VUSHR, CPU Feature: NEON
-func (x Uint8x16) ShiftRightConst(constant uint8) Uint8x16
+func (x Uint8x16) ShiftRightConst(constant uint64) Uint8x16
 
 // ShiftRightConst performs a logical right shift on each element in x by the constant number of bits specified by y.
 //
 // A non-constant value of constant may result in significantly worse performance for this operation.
 //
 // Asm: VUSHR, CPU Feature: NEON
-func (x Uint16x8) ShiftRightConst(constant uint8) Uint16x8
+func (x Uint16x8) ShiftRightConst(constant uint64) Uint16x8
 
 // ShiftRightConst performs a logical right shift on each element in x by the constant number of bits specified by y.
 //
 // A non-constant value of constant may result in significantly worse performance for this operation.
 //
 // Asm: VUSHR, CPU Feature: NEON
-func (x Uint32x4) ShiftRightConst(constant uint8) Uint32x4
+func (x Uint32x4) ShiftRightConst(constant uint64) Uint32x4
 
 // ShiftRightConst performs a logical right shift on each element in x by the constant number of bits specified by y.
 //
 // A non-constant value of constant may result in significantly worse performance for this operation.
 //
 // Asm: VUSHR, CPU Feature: NEON
-func (x Uint64x2) ShiftRightConst(constant uint8) Uint64x2
+func (x Uint64x2) ShiftRightConst(constant uint64) Uint64x2
 
 /* ShiftRightNarrowConst */
 
@@ -2033,7 +2033,7 @@ func (x Uint64x2) ShiftRightConst(constant uint8) Uint64x2
 // A non-constant value of constant may result in significantly worse performance for this operation.
 //
 // Asm: VSHRN, CPU Feature: NEON
-func (x Uint16x8) ShiftRightNarrowConst(constant uint8) Uint8x16
+func (x Uint16x8) ShiftRightNarrowConst(constant uint64) Uint8x16
 
 // ShiftRightNarrowConst performs a right shift on each element in x by the constant number of bits
 // and narrows the result to half the element width.
@@ -2041,7 +2041,7 @@ func (x Uint16x8) ShiftRightNarrowConst(constant uint8) Uint8x16
 // A non-constant value of constant may result in significantly worse performance for this operation.
 //
 // Asm: VSHRN, CPU Feature: NEON
-func (x Uint32x4) ShiftRightNarrowConst(constant uint8) Uint16x8
+func (x Uint32x4) ShiftRightNarrowConst(constant uint64) Uint16x8
 
 // ShiftRightNarrowConst performs a right shift on each element in x by the constant number of bits
 // and narrows the result to half the element width.
@@ -2049,7 +2049,7 @@ func (x Uint32x4) ShiftRightNarrowConst(constant uint8) Uint16x8
 // A non-constant value of constant may result in significantly worse performance for this operation.
 //
 // Asm: VSHRN, CPU Feature: NEON
-func (x Uint64x2) ShiftRightNarrowConst(constant uint8) Uint32x4
+func (x Uint64x2) ShiftRightNarrowConst(constant uint64) Uint32x4
 
 /* ShiftSaturated */
 

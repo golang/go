@@ -99,10 +99,10 @@ func TestShiftAllConcat(t *testing.T) {
 
 	// Note that unlike their non-Concat counterparts, these wrap the shift count.
 
-	hide := hideConst[uint8]
+	hide := hideConst[uint64]
 
 	// ShiftAllLeftConcat
-	salc := func(shift uint8) func(x, y int32) int32 {
+	salc := func(shift uint64) func(x, y int32) int32 {
 		return func(x, y int32) int32 {
 			return int32(concatInt32s(x, y) >> (32 - shift%32))
 		}
@@ -115,18 +115,15 @@ func TestShiftAllConcat(t *testing.T) {
 		func(x, y archsimd.Int32x4) archsimd.Int32x4 { return x.ShiftAllLeftConcatMod32(y, hide(2)) },
 		map2(salc(hide(2))))
 
-	// TODO: If we expand the shift from uint8, add larger cases (e.g., 0x1000).
-	// The uint8 conversion is only here so the build will fail if we change it.
-
 	testInt32x4Binary(t,
-		func(x, y archsimd.Int32x4) archsimd.Int32x4 { return x.ShiftAllLeftConcatMod32(y, uint8(128)) },
+		func(x, y archsimd.Int32x4) archsimd.Int32x4 { return x.ShiftAllLeftConcatMod32(y, 128) },
 		map2(salc(128)))
 	testInt32x4Binary(t,
 		func(x, y archsimd.Int32x4) archsimd.Int32x4 { return x.ShiftAllLeftConcatMod32(y, hide(128)) },
 		map2(salc(hide(128))))
 
 	// Signed ShiftAllRightConcat
-	sarc := func(shift uint8) func(x, y int32) int32 {
+	sarc := func(shift uint64) func(x, y int32) int32 {
 		return func(x, y int32) int32 {
 			return int32(concatInt32s(y, x) >> (shift % 32))
 		}
@@ -140,14 +137,14 @@ func TestShiftAllConcat(t *testing.T) {
 		map2(sarc(hide(2))))
 
 	testInt32x4Binary(t,
-		func(x, y archsimd.Int32x4) archsimd.Int32x4 { return x.ShiftAllRightConcatMod32(y, uint8(128)) },
+		func(x, y archsimd.Int32x4) archsimd.Int32x4 { return x.ShiftAllRightConcatMod32(y, 128) },
 		map2(sarc(128)))
 	testInt32x4Binary(t,
 		func(x, y archsimd.Int32x4) archsimd.Int32x4 { return x.ShiftAllRightConcatMod32(y, hide(128)) },
 		map2(sarc(hide(128))))
 
 	// Unsigned ShiftAllRightConcat
-	usarc := func(shift uint8) func(x, y uint32) uint32 {
+	usarc := func(shift uint64) func(x, y uint32) uint32 {
 		return func(x, y uint32) uint32 {
 			return uint32(concatUint32s(y, x) >> (shift % 32))
 		}
@@ -161,7 +158,7 @@ func TestShiftAllConcat(t *testing.T) {
 		map2(usarc(hide(2))))
 
 	testUint32x4Binary(t,
-		func(x, y archsimd.Uint32x4) archsimd.Uint32x4 { return x.ShiftAllRightConcatMod32(y, uint8(128)) },
+		func(x, y archsimd.Uint32x4) archsimd.Uint32x4 { return x.ShiftAllRightConcatMod32(y, 128) },
 		map2(usarc(128)))
 	testUint32x4Binary(t,
 		func(x, y archsimd.Uint32x4) archsimd.Uint32x4 { return x.ShiftAllRightConcatMod32(y, hide(128)) },
@@ -195,9 +192,9 @@ func TestShiftConcat(t *testing.T) {
 }
 
 func TestConcatShiftBytesRight(t *testing.T) {
-	hide := hideConst[uint8]
+	hide := hideConst[uint64]
 
-	csbr := func(shift uint8) func(x, y []uint8) []uint8 {
+	csbr := func(shift uint64) func(x, y []uint8) []uint8 {
 		return func(x, y []uint8) []uint8 {
 			z := make([]uint8, len(x))
 			for i := range z {
@@ -216,8 +213,7 @@ func TestConcatShiftBytesRight(t *testing.T) {
 		if !archsimd.X86.AVX() {
 			t.Skip("requires AVX")
 		}
-		// TODO: If we expand the shift from uint8, add larger cases (e.g., 0x1000)
-		for _, shift := range []uint8{0, 2, 16, 20, 32, 128} {
+		for _, shift := range []uint64{0, 2, 16, 20, 32, 128} {
 			t.Log("shift", shift)
 			testUint8x16Binary(t,
 				func(x, y archsimd.Uint8x16) archsimd.Uint8x16 { return x.ConcatShiftBytesRight(y, shift) },
@@ -232,7 +228,7 @@ func TestConcatShiftBytesRight(t *testing.T) {
 		if !archsimd.X86.AVX2() {
 			t.Skip("requires AVX2")
 		}
-		for _, shift := range []uint8{0, 2, 16, 20, 32, 128} {
+		for _, shift := range []uint64{0, 2, 16, 20, 32, 128} {
 			t.Log("shift", shift)
 			testUint8x32Binary(t,
 				func(x, y archsimd.Uint8x32) archsimd.Uint8x32 { return x.ConcatShiftBytesRightGrouped(y, shift) },
@@ -247,7 +243,7 @@ func TestConcatShiftBytesRight(t *testing.T) {
 		if !archsimd.X86.AVX512() {
 			t.Skip("requires AVX512")
 		}
-		for _, shift := range []uint8{0, 2, 16, 20, 32, 128} {
+		for _, shift := range []uint64{0, 2, 16, 20, 32, 128} {
 			t.Log("shift", shift)
 			testUint8x64Binary(t,
 				func(x, y archsimd.Uint8x64) archsimd.Uint8x64 { return x.ConcatShiftBytesRightGrouped(y, shift) },

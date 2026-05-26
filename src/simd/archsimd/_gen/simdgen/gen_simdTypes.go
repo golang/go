@@ -345,7 +345,7 @@ func ({{.Op0NameAndType "x"}}) {{.Go}}({{.Op1Name "y"}} uint{{(index .In 1).Trea
 //{{end}}
 // {{.ImmName}} results in better performance when it's a constant, a non-constant value will be translated into a jump table.
 // Asm: {{.Asm}}, CPU Feature: {{.CPUFeature}}
-func ({{.Op2NameAndType "x"}}) {{.Go}}({{.ImmName}} uint8, v float{{(index .In 3).ElemBits}}) {{(index .Out 0).Go}}
+func ({{.Op2NameAndType "x"}}) {{.Go}}({{.ImmName}} {{.ImmType}}, v float{{(index .In 3).ElemBits}}) {{(index .Out 0).Go}}
 {{end}}
 
 {{define "op3VecAsScalar"}}
@@ -382,7 +382,7 @@ func ({{.Op2NameAndType "x"}}) {{.Go}}({{.Op1NameAndType "y"}}, {{.Op0NameAndTyp
 // A non-constant value of {{.ImmName}} may result in significantly worse performance for this operation.
 //
 // Asm: {{.Asm}}, CPU Feature: {{.CPUFeature}}
-func ({{.Op1NameAndType "x"}}) {{.Go}}({{.ImmName}} uint8) {{.GoType}}
+func ({{.Op1NameAndType "x"}}) {{.Go}}({{.ImmName}} {{.ImmType}}) {{.GoType}}
 {{end}}
 
 {{define "op1Imm"}}{{template "op1Imm8" .}}{{end}}
@@ -393,7 +393,7 @@ func ({{.Op1NameAndType "x"}}) {{.Go}}({{.ImmName}} uint8) {{.GoType}}
 // A non-constant value of {{.ImmName}} may result in significantly worse performance for this operation.
 //
 // Asm: {{.Asm}}, CPU Feature: {{.CPUFeature}}
-func ({{.Op1NameAndType "x"}}) {{.Go}}({{.ImmName}} uint8, {{.Op2NameAndType "y"}}) {{.GoType}}
+func ({{.Op1NameAndType "x"}}) {{.Go}}({{.ImmName}} {{.ImmType}}, {{.Op2NameAndType "y"}}) {{.GoType}}
 {{end}}
 
 {{define "op2Imm"}}{{template "op2Imm8" .}}{{end}}
@@ -404,7 +404,7 @@ func ({{.Op1NameAndType "x"}}) {{.Go}}({{.ImmName}} uint8, {{.Op2NameAndType "y"
 // A non-constant value of {{.ImmName}} may result in significantly worse performance for this operation.
 //
 // Asm: {{.Asm}}, CPU Feature: {{.CPUFeature}}
-func ({{.Op1NameAndType "x"}}) {{.Go}}({{.Op2NameAndType "y"}}, {{.ImmName}} uint8) {{.GoType}}
+func ({{.Op1NameAndType "x"}}) {{.Go}}({{.Op2NameAndType "y"}}, {{.ImmName}} {{.ImmType}}) {{.GoType}}
 {{end}}
 
 {{define "op2Imm_2I"}}
@@ -419,7 +419,7 @@ func ({{.Op1NameAndType "x"}}) {{.Go}}({{.Op2NameAndType "y"}}, {{.ImmName}} uin
 // A non-constant value of {{.ImmName}} may result in significantly worse performance for this operation.
 //
 // Asm: {{.Asm}}, CPU Feature: {{.CPUFeature}}
-func ({{.Op1NameAndType "x"}}) {{.Go}}({{.ImmName}} uint8, {{.Op2NameAndType "y"}}) {{.GoType}}
+func ({{.Op1NameAndType "x"}}) {{.Go}}({{.ImmName}} {{.ImmType}}, {{.Op2NameAndType "y"}}) {{.GoType}}
 {{end}}
 
 {{define "op2Imm8_SHA1RNDS4"}}
@@ -428,7 +428,7 @@ func ({{.Op1NameAndType "x"}}) {{.Go}}({{.ImmName}} uint8, {{.Op2NameAndType "y"
 // A non-constant value of {{.ImmName}} may result in significantly worse performance for this operation.
 //
 // Asm: {{.Asm}}, CPU Feature: {{.CPUFeature}}
-func ({{.Op1NameAndType "x"}}) {{.Go}}({{.ImmName}} uint8, {{.Op2NameAndType "y"}}) {{.GoType}}
+func ({{.Op1NameAndType "x"}}) {{.Go}}({{.ImmName}} {{.ImmType}}, {{.Op2NameAndType "y"}}) {{.GoType}}
 {{end}}
 
 {{define "op3Imm8"}}
@@ -437,7 +437,7 @@ func ({{.Op1NameAndType "x"}}) {{.Go}}({{.ImmName}} uint8, {{.Op2NameAndType "y"
 // A non-constant value of {{.ImmName}} may result in significantly worse performance for this operation.
 //
 // Asm: {{.Asm}}, CPU Feature: {{.CPUFeature}}
-func ({{.Op1NameAndType "x"}}) {{.Go}}({{.ImmName}} uint8, {{.Op2NameAndType "y"}}, {{.Op3NameAndType "z"}}) {{.GoType}}
+func ({{.Op1NameAndType "x"}}) {{.Go}}({{.ImmName}} {{.ImmType}}, {{.Op2NameAndType "y"}}, {{.Op3NameAndType "z"}}) {{.GoType}}
 {{end}}
 
 {{define "op3Imm8_2I"}}
@@ -446,7 +446,7 @@ func ({{.Op1NameAndType "x"}}) {{.Go}}({{.ImmName}} uint8, {{.Op2NameAndType "y"
 // A non-constant value of {{.ImmName}} may result in significantly worse performance for this operation.
 //
 // Asm: {{.Asm}}, CPU Feature: {{.CPUFeature}}
-func ({{.Op1NameAndType "x"}}) {{.Go}}({{.Op2NameAndType "y"}}, {{.ImmName}} uint8, {{.Op3NameAndType "z"}}) {{.GoType}}
+func ({{.Op1NameAndType "x"}}) {{.Go}}({{.Op2NameAndType "y"}}, {{.ImmName}} {{.ImmType}}, {{.Op3NameAndType "z"}}) {{.GoType}}
 {{end}}
 
 
@@ -456,7 +456,7 @@ func ({{.Op1NameAndType "x"}}) {{.Go}}({{.Op2NameAndType "y"}}, {{.ImmName}} uin
 // A non-constant value of {{.ImmName}} may result in significantly worse performance for this operation.
 //
 // Asm: {{.Asm}}, CPU Feature: {{.CPUFeature}}
-func ({{.Op1NameAndType "x"}}) {{.Go}}({{.ImmName}} uint8, {{.Op2NameAndType "y"}}, {{.Op3NameAndType "z"}}, {{.Op4NameAndType "u"}}) {{.GoType}}
+func ({{.Op1NameAndType "x"}}) {{.Go}}({{.ImmName}} {{.ImmType}}, {{.Op2NameAndType "y"}}, {{.Op3NameAndType "z"}}, {{.Op4NameAndType "u"}}) {{.GoType}}
 {{end}}
 
 {{define "mask"}}

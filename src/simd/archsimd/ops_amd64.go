@@ -1573,7 +1573,7 @@ func (x Uint64x4) ConcatPermute128Scalars(lo, hi uint8, y Uint64x4) Uint64x4
 // A non-constant value of shift may result in significantly worse performance for this operation.
 //
 // Asm: VPALIGNR, CPU Feature: AVX
-func (x Uint8x16) ConcatShiftBytesRight(y Uint8x16, shift uint8) Uint8x16
+func (x Uint8x16) ConcatShiftBytesRight(y Uint8x16, shift uint64) Uint8x16
 
 /* ConcatShiftBytesRightGrouped */
 
@@ -1584,7 +1584,7 @@ func (x Uint8x16) ConcatShiftBytesRight(y Uint8x16, shift uint8) Uint8x16
 // A non-constant value of shift may result in significantly worse performance for this operation.
 //
 // Asm: VPALIGNR, CPU Feature: AVX2
-func (x Uint8x32) ConcatShiftBytesRightGrouped(y Uint8x32, shift uint8) Uint8x32
+func (x Uint8x32) ConcatShiftBytesRightGrouped(y Uint8x32, shift uint64) Uint8x32
 
 // ConcatShiftBytesRightGrouped concatenates x and y and shifts it right by shift bytes.
 // The result vector will be the lower half of the concatenated vector.
@@ -1593,7 +1593,7 @@ func (x Uint8x32) ConcatShiftBytesRightGrouped(y Uint8x32, shift uint8) Uint8x32
 // A non-constant value of shift may result in significantly worse performance for this operation.
 //
 // Asm: VPALIGNR, CPU Feature: AVX512
-func (x Uint8x64) ConcatShiftBytesRightGrouped(y Uint8x64, shift uint8) Uint8x64
+func (x Uint8x64) ConcatShiftBytesRightGrouped(y Uint8x64, shift uint64) Uint8x64
 
 /* ConcatSubPairs */
 
@@ -4912,84 +4912,84 @@ func (x Float64x8) ReciprocalSqrt() Float64x8
 // A non-constant value of shift may result in significantly worse performance for this operation.
 //
 // Asm: VPROLD, CPU Feature: AVX512
-func (x Int32x4) RotateAllLeft(shift uint8) Int32x4
+func (x Int32x4) RotateAllLeft(shift uint64) Int32x4
 
 // RotateAllLeft rotates each element to the left by the number of bits specified by shift.
 //
 // A non-constant value of shift may result in significantly worse performance for this operation.
 //
 // Asm: VPROLD, CPU Feature: AVX512
-func (x Int32x8) RotateAllLeft(shift uint8) Int32x8
+func (x Int32x8) RotateAllLeft(shift uint64) Int32x8
 
 // RotateAllLeft rotates each element to the left by the number of bits specified by shift.
 //
 // A non-constant value of shift may result in significantly worse performance for this operation.
 //
 // Asm: VPROLD, CPU Feature: AVX512
-func (x Int32x16) RotateAllLeft(shift uint8) Int32x16
+func (x Int32x16) RotateAllLeft(shift uint64) Int32x16
 
 // RotateAllLeft rotates each element to the left by the number of bits specified by shift.
 //
 // A non-constant value of shift may result in significantly worse performance for this operation.
 //
 // Asm: VPROLQ, CPU Feature: AVX512
-func (x Int64x2) RotateAllLeft(shift uint8) Int64x2
+func (x Int64x2) RotateAllLeft(shift uint64) Int64x2
 
 // RotateAllLeft rotates each element to the left by the number of bits specified by shift.
 //
 // A non-constant value of shift may result in significantly worse performance for this operation.
 //
 // Asm: VPROLQ, CPU Feature: AVX512
-func (x Int64x4) RotateAllLeft(shift uint8) Int64x4
+func (x Int64x4) RotateAllLeft(shift uint64) Int64x4
 
 // RotateAllLeft rotates each element to the left by the number of bits specified by shift.
 //
 // A non-constant value of shift may result in significantly worse performance for this operation.
 //
 // Asm: VPROLQ, CPU Feature: AVX512
-func (x Int64x8) RotateAllLeft(shift uint8) Int64x8
+func (x Int64x8) RotateAllLeft(shift uint64) Int64x8
 
 // RotateAllLeft rotates each element to the left by the number of bits specified by shift.
 //
 // A non-constant value of shift may result in significantly worse performance for this operation.
 //
 // Asm: VPROLD, CPU Feature: AVX512
-func (x Uint32x4) RotateAllLeft(shift uint8) Uint32x4
+func (x Uint32x4) RotateAllLeft(shift uint64) Uint32x4
 
 // RotateAllLeft rotates each element to the left by the number of bits specified by shift.
 //
 // A non-constant value of shift may result in significantly worse performance for this operation.
 //
 // Asm: VPROLD, CPU Feature: AVX512
-func (x Uint32x8) RotateAllLeft(shift uint8) Uint32x8
+func (x Uint32x8) RotateAllLeft(shift uint64) Uint32x8
 
 // RotateAllLeft rotates each element to the left by the number of bits specified by shift.
 //
 // A non-constant value of shift may result in significantly worse performance for this operation.
 //
 // Asm: VPROLD, CPU Feature: AVX512
-func (x Uint32x16) RotateAllLeft(shift uint8) Uint32x16
+func (x Uint32x16) RotateAllLeft(shift uint64) Uint32x16
 
 // RotateAllLeft rotates each element to the left by the number of bits specified by shift.
 //
 // A non-constant value of shift may result in significantly worse performance for this operation.
 //
 // Asm: VPROLQ, CPU Feature: AVX512
-func (x Uint64x2) RotateAllLeft(shift uint8) Uint64x2
+func (x Uint64x2) RotateAllLeft(shift uint64) Uint64x2
 
 // RotateAllLeft rotates each element to the left by the number of bits specified by shift.
 //
 // A non-constant value of shift may result in significantly worse performance for this operation.
 //
 // Asm: VPROLQ, CPU Feature: AVX512
-func (x Uint64x4) RotateAllLeft(shift uint8) Uint64x4
+func (x Uint64x4) RotateAllLeft(shift uint64) Uint64x4
 
 // RotateAllLeft rotates each element to the left by the number of bits specified by shift.
 //
 // A non-constant value of shift may result in significantly worse performance for this operation.
 //
 // Asm: VPROLQ, CPU Feature: AVX512
-func (x Uint64x8) RotateAllLeft(shift uint8) Uint64x8
+func (x Uint64x8) RotateAllLeft(shift uint64) Uint64x8
 
 /* RotateAllRight */
 
@@ -4998,84 +4998,84 @@ func (x Uint64x8) RotateAllLeft(shift uint8) Uint64x8
 // A non-constant value of shift may result in significantly worse performance for this operation.
 //
 // Asm: VPRORD, CPU Feature: AVX512
-func (x Int32x4) RotateAllRight(shift uint8) Int32x4
+func (x Int32x4) RotateAllRight(shift uint64) Int32x4
 
 // RotateAllRight rotates each element to the right by the number of bits specified by shift.
 //
 // A non-constant value of shift may result in significantly worse performance for this operation.
 //
 // Asm: VPRORD, CPU Feature: AVX512
-func (x Int32x8) RotateAllRight(shift uint8) Int32x8
+func (x Int32x8) RotateAllRight(shift uint64) Int32x8
 
 // RotateAllRight rotates each element to the right by the number of bits specified by shift.
 //
 // A non-constant value of shift may result in significantly worse performance for this operation.
 //
 // Asm: VPRORD, CPU Feature: AVX512
-func (x Int32x16) RotateAllRight(shift uint8) Int32x16
+func (x Int32x16) RotateAllRight(shift uint64) Int32x16
 
 // RotateAllRight rotates each element to the right by the number of bits specified by shift.
 //
 // A non-constant value of shift may result in significantly worse performance for this operation.
 //
 // Asm: VPRORQ, CPU Feature: AVX512
-func (x Int64x2) RotateAllRight(shift uint8) Int64x2
+func (x Int64x2) RotateAllRight(shift uint64) Int64x2
 
 // RotateAllRight rotates each element to the right by the number of bits specified by shift.
 //
 // A non-constant value of shift may result in significantly worse performance for this operation.
 //
 // Asm: VPRORQ, CPU Feature: AVX512
-func (x Int64x4) RotateAllRight(shift uint8) Int64x4
+func (x Int64x4) RotateAllRight(shift uint64) Int64x4
 
 // RotateAllRight rotates each element to the right by the number of bits specified by shift.
 //
 // A non-constant value of shift may result in significantly worse performance for this operation.
 //
 // Asm: VPRORQ, CPU Feature: AVX512
-func (x Int64x8) RotateAllRight(shift uint8) Int64x8
+func (x Int64x8) RotateAllRight(shift uint64) Int64x8
 
 // RotateAllRight rotates each element to the right by the number of bits specified by shift.
 //
 // A non-constant value of shift may result in significantly worse performance for this operation.
 //
 // Asm: VPRORD, CPU Feature: AVX512
-func (x Uint32x4) RotateAllRight(shift uint8) Uint32x4
+func (x Uint32x4) RotateAllRight(shift uint64) Uint32x4
 
 // RotateAllRight rotates each element to the right by the number of bits specified by shift.
 //
 // A non-constant value of shift may result in significantly worse performance for this operation.
 //
 // Asm: VPRORD, CPU Feature: AVX512
-func (x Uint32x8) RotateAllRight(shift uint8) Uint32x8
+func (x Uint32x8) RotateAllRight(shift uint64) Uint32x8
 
 // RotateAllRight rotates each element to the right by the number of bits specified by shift.
 //
 // A non-constant value of shift may result in significantly worse performance for this operation.
 //
 // Asm: VPRORD, CPU Feature: AVX512
-func (x Uint32x16) RotateAllRight(shift uint8) Uint32x16
+func (x Uint32x16) RotateAllRight(shift uint64) Uint32x16
 
 // RotateAllRight rotates each element to the right by the number of bits specified by shift.
 //
 // A non-constant value of shift may result in significantly worse performance for this operation.
 //
 // Asm: VPRORQ, CPU Feature: AVX512
-func (x Uint64x2) RotateAllRight(shift uint8) Uint64x2
+func (x Uint64x2) RotateAllRight(shift uint64) Uint64x2
 
 // RotateAllRight rotates each element to the right by the number of bits specified by shift.
 //
 // A non-constant value of shift may result in significantly worse performance for this operation.
 //
 // Asm: VPRORQ, CPU Feature: AVX512
-func (x Uint64x4) RotateAllRight(shift uint8) Uint64x4
+func (x Uint64x4) RotateAllRight(shift uint64) Uint64x4
 
 // RotateAllRight rotates each element to the right by the number of bits specified by shift.
 //
 // A non-constant value of shift may result in significantly worse performance for this operation.
 //
 // Asm: VPRORQ, CPU Feature: AVX512
-func (x Uint64x8) RotateAllRight(shift uint8) Uint64x8
+func (x Uint64x8) RotateAllRight(shift uint64) Uint64x8
 
 /* RotateLeft */
 
@@ -6093,7 +6093,7 @@ func (x Uint64x8) ShiftAllLeft(shift uint64) Uint64x8
 // A non-constant value of shift may result in significantly worse performance for this operation.
 //
 // Asm: VPSHLDW, CPU Feature: AVX512VBMI2
-func (x Int16x8) ShiftAllLeftConcatMod16(y Int16x8, shift uint8) Int16x8
+func (x Int16x8) ShiftAllLeftConcatMod16(y Int16x8, shift uint64) Int16x8
 
 // ShiftAllLeftConcatMod16 shifts x[i] left by shift%16, filing any empted lower bits
 // with the high bits of y[i].
@@ -6103,7 +6103,7 @@ func (x Int16x8) ShiftAllLeftConcatMod16(y Int16x8, shift uint8) Int16x8
 // A non-constant value of shift may result in significantly worse performance for this operation.
 //
 // Asm: VPSHLDW, CPU Feature: AVX512VBMI2
-func (x Int16x16) ShiftAllLeftConcatMod16(y Int16x16, shift uint8) Int16x16
+func (x Int16x16) ShiftAllLeftConcatMod16(y Int16x16, shift uint64) Int16x16
 
 // ShiftAllLeftConcatMod16 shifts x[i] left by shift%16, filing any empted lower bits
 // with the high bits of y[i].
@@ -6113,7 +6113,7 @@ func (x Int16x16) ShiftAllLeftConcatMod16(y Int16x16, shift uint8) Int16x16
 // A non-constant value of shift may result in significantly worse performance for this operation.
 //
 // Asm: VPSHLDW, CPU Feature: AVX512VBMI2
-func (x Int16x32) ShiftAllLeftConcatMod16(y Int16x32, shift uint8) Int16x32
+func (x Int16x32) ShiftAllLeftConcatMod16(y Int16x32, shift uint64) Int16x32
 
 // ShiftAllLeftConcatMod16 shifts x[i] left by shift%16, filing any empted lower bits
 // with the high bits of y[i].
@@ -6123,7 +6123,7 @@ func (x Int16x32) ShiftAllLeftConcatMod16(y Int16x32, shift uint8) Int16x32
 // A non-constant value of shift may result in significantly worse performance for this operation.
 //
 // Asm: VPSHLDW, CPU Feature: AVX512VBMI2
-func (x Uint16x8) ShiftAllLeftConcatMod16(y Uint16x8, shift uint8) Uint16x8
+func (x Uint16x8) ShiftAllLeftConcatMod16(y Uint16x8, shift uint64) Uint16x8
 
 // ShiftAllLeftConcatMod16 shifts x[i] left by shift%16, filing any empted lower bits
 // with the high bits of y[i].
@@ -6133,7 +6133,7 @@ func (x Uint16x8) ShiftAllLeftConcatMod16(y Uint16x8, shift uint8) Uint16x8
 // A non-constant value of shift may result in significantly worse performance for this operation.
 //
 // Asm: VPSHLDW, CPU Feature: AVX512VBMI2
-func (x Uint16x16) ShiftAllLeftConcatMod16(y Uint16x16, shift uint8) Uint16x16
+func (x Uint16x16) ShiftAllLeftConcatMod16(y Uint16x16, shift uint64) Uint16x16
 
 // ShiftAllLeftConcatMod16 shifts x[i] left by shift%16, filing any empted lower bits
 // with the high bits of y[i].
@@ -6143,7 +6143,7 @@ func (x Uint16x16) ShiftAllLeftConcatMod16(y Uint16x16, shift uint8) Uint16x16
 // A non-constant value of shift may result in significantly worse performance for this operation.
 //
 // Asm: VPSHLDW, CPU Feature: AVX512VBMI2
-func (x Uint16x32) ShiftAllLeftConcatMod16(y Uint16x32, shift uint8) Uint16x32
+func (x Uint16x32) ShiftAllLeftConcatMod16(y Uint16x32, shift uint64) Uint16x32
 
 /* ShiftAllLeftConcatMod32 */
 
@@ -6155,7 +6155,7 @@ func (x Uint16x32) ShiftAllLeftConcatMod16(y Uint16x32, shift uint8) Uint16x32
 // A non-constant value of shift may result in significantly worse performance for this operation.
 //
 // Asm: VPSHLDD, CPU Feature: AVX512VBMI2
-func (x Int32x4) ShiftAllLeftConcatMod32(y Int32x4, shift uint8) Int32x4
+func (x Int32x4) ShiftAllLeftConcatMod32(y Int32x4, shift uint64) Int32x4
 
 // ShiftAllLeftConcatMod32 shifts x[i] left by shift%32, filing any empted lower bits
 // with the high bits of y[i].
@@ -6165,7 +6165,7 @@ func (x Int32x4) ShiftAllLeftConcatMod32(y Int32x4, shift uint8) Int32x4
 // A non-constant value of shift may result in significantly worse performance for this operation.
 //
 // Asm: VPSHLDD, CPU Feature: AVX512VBMI2
-func (x Int32x8) ShiftAllLeftConcatMod32(y Int32x8, shift uint8) Int32x8
+func (x Int32x8) ShiftAllLeftConcatMod32(y Int32x8, shift uint64) Int32x8
 
 // ShiftAllLeftConcatMod32 shifts x[i] left by shift%32, filing any empted lower bits
 // with the high bits of y[i].
@@ -6175,7 +6175,7 @@ func (x Int32x8) ShiftAllLeftConcatMod32(y Int32x8, shift uint8) Int32x8
 // A non-constant value of shift may result in significantly worse performance for this operation.
 //
 // Asm: VPSHLDD, CPU Feature: AVX512VBMI2
-func (x Int32x16) ShiftAllLeftConcatMod32(y Int32x16, shift uint8) Int32x16
+func (x Int32x16) ShiftAllLeftConcatMod32(y Int32x16, shift uint64) Int32x16
 
 // ShiftAllLeftConcatMod32 shifts x[i] left by shift%32, filing any empted lower bits
 // with the high bits of y[i].
@@ -6185,7 +6185,7 @@ func (x Int32x16) ShiftAllLeftConcatMod32(y Int32x16, shift uint8) Int32x16
 // A non-constant value of shift may result in significantly worse performance for this operation.
 //
 // Asm: VPSHLDD, CPU Feature: AVX512VBMI2
-func (x Uint32x4) ShiftAllLeftConcatMod32(y Uint32x4, shift uint8) Uint32x4
+func (x Uint32x4) ShiftAllLeftConcatMod32(y Uint32x4, shift uint64) Uint32x4
 
 // ShiftAllLeftConcatMod32 shifts x[i] left by shift%32, filing any empted lower bits
 // with the high bits of y[i].
@@ -6195,7 +6195,7 @@ func (x Uint32x4) ShiftAllLeftConcatMod32(y Uint32x4, shift uint8) Uint32x4
 // A non-constant value of shift may result in significantly worse performance for this operation.
 //
 // Asm: VPSHLDD, CPU Feature: AVX512VBMI2
-func (x Uint32x8) ShiftAllLeftConcatMod32(y Uint32x8, shift uint8) Uint32x8
+func (x Uint32x8) ShiftAllLeftConcatMod32(y Uint32x8, shift uint64) Uint32x8
 
 // ShiftAllLeftConcatMod32 shifts x[i] left by shift%32, filing any empted lower bits
 // with the high bits of y[i].
@@ -6205,7 +6205,7 @@ func (x Uint32x8) ShiftAllLeftConcatMod32(y Uint32x8, shift uint8) Uint32x8
 // A non-constant value of shift may result in significantly worse performance for this operation.
 //
 // Asm: VPSHLDD, CPU Feature: AVX512VBMI2
-func (x Uint32x16) ShiftAllLeftConcatMod32(y Uint32x16, shift uint8) Uint32x16
+func (x Uint32x16) ShiftAllLeftConcatMod32(y Uint32x16, shift uint64) Uint32x16
 
 /* ShiftAllLeftConcatMod64 */
 
@@ -6217,7 +6217,7 @@ func (x Uint32x16) ShiftAllLeftConcatMod32(y Uint32x16, shift uint8) Uint32x16
 // A non-constant value of shift may result in significantly worse performance for this operation.
 //
 // Asm: VPSHLDQ, CPU Feature: AVX512VBMI2
-func (x Int64x2) ShiftAllLeftConcatMod64(y Int64x2, shift uint8) Int64x2
+func (x Int64x2) ShiftAllLeftConcatMod64(y Int64x2, shift uint64) Int64x2
 
 // ShiftAllLeftConcatMod64 shifts x[i] left by shift%64, filing any empted lower bits
 // with the high bits of y[i].
@@ -6227,7 +6227,7 @@ func (x Int64x2) ShiftAllLeftConcatMod64(y Int64x2, shift uint8) Int64x2
 // A non-constant value of shift may result in significantly worse performance for this operation.
 //
 // Asm: VPSHLDQ, CPU Feature: AVX512VBMI2
-func (x Int64x4) ShiftAllLeftConcatMod64(y Int64x4, shift uint8) Int64x4
+func (x Int64x4) ShiftAllLeftConcatMod64(y Int64x4, shift uint64) Int64x4
 
 // ShiftAllLeftConcatMod64 shifts x[i] left by shift%64, filing any empted lower bits
 // with the high bits of y[i].
@@ -6237,7 +6237,7 @@ func (x Int64x4) ShiftAllLeftConcatMod64(y Int64x4, shift uint8) Int64x4
 // A non-constant value of shift may result in significantly worse performance for this operation.
 //
 // Asm: VPSHLDQ, CPU Feature: AVX512VBMI2
-func (x Int64x8) ShiftAllLeftConcatMod64(y Int64x8, shift uint8) Int64x8
+func (x Int64x8) ShiftAllLeftConcatMod64(y Int64x8, shift uint64) Int64x8
 
 // ShiftAllLeftConcatMod64 shifts x[i] left by shift%64, filing any empted lower bits
 // with the high bits of y[i].
@@ -6247,7 +6247,7 @@ func (x Int64x8) ShiftAllLeftConcatMod64(y Int64x8, shift uint8) Int64x8
 // A non-constant value of shift may result in significantly worse performance for this operation.
 //
 // Asm: VPSHLDQ, CPU Feature: AVX512VBMI2
-func (x Uint64x2) ShiftAllLeftConcatMod64(y Uint64x2, shift uint8) Uint64x2
+func (x Uint64x2) ShiftAllLeftConcatMod64(y Uint64x2, shift uint64) Uint64x2
 
 // ShiftAllLeftConcatMod64 shifts x[i] left by shift%64, filing any empted lower bits
 // with the high bits of y[i].
@@ -6257,7 +6257,7 @@ func (x Uint64x2) ShiftAllLeftConcatMod64(y Uint64x2, shift uint8) Uint64x2
 // A non-constant value of shift may result in significantly worse performance for this operation.
 //
 // Asm: VPSHLDQ, CPU Feature: AVX512VBMI2
-func (x Uint64x4) ShiftAllLeftConcatMod64(y Uint64x4, shift uint8) Uint64x4
+func (x Uint64x4) ShiftAllLeftConcatMod64(y Uint64x4, shift uint64) Uint64x4
 
 // ShiftAllLeftConcatMod64 shifts x[i] left by shift%64, filing any empted lower bits
 // with the high bits of y[i].
@@ -6267,7 +6267,7 @@ func (x Uint64x4) ShiftAllLeftConcatMod64(y Uint64x4, shift uint8) Uint64x4
 // A non-constant value of shift may result in significantly worse performance for this operation.
 //
 // Asm: VPSHLDQ, CPU Feature: AVX512VBMI2
-func (x Uint64x8) ShiftAllLeftConcatMod64(y Uint64x8, shift uint8) Uint64x8
+func (x Uint64x8) ShiftAllLeftConcatMod64(y Uint64x8, shift uint64) Uint64x8
 
 /* ShiftAllRight */
 
@@ -6389,7 +6389,7 @@ func (x Uint64x8) ShiftAllRight(shift uint64) Uint64x8
 // A non-constant value of shift may result in significantly worse performance for this operation.
 //
 // Asm: VPSHRDW, CPU Feature: AVX512VBMI2
-func (x Int16x8) ShiftAllRightConcatMod16(y Int16x8, shift uint8) Int16x8
+func (x Int16x8) ShiftAllRightConcatMod16(y Int16x8, shift uint64) Int16x8
 
 // ShiftAllRightConcatMod16 shifts x[i] right by shift%16, filling any emptied upper bits
 // with the low bits of y[i].
@@ -6399,7 +6399,7 @@ func (x Int16x8) ShiftAllRightConcatMod16(y Int16x8, shift uint8) Int16x8
 // A non-constant value of shift may result in significantly worse performance for this operation.
 //
 // Asm: VPSHRDW, CPU Feature: AVX512VBMI2
-func (x Int16x16) ShiftAllRightConcatMod16(y Int16x16, shift uint8) Int16x16
+func (x Int16x16) ShiftAllRightConcatMod16(y Int16x16, shift uint64) Int16x16
 
 // ShiftAllRightConcatMod16 shifts x[i] right by shift%16, filling any emptied upper bits
 // with the low bits of y[i].
@@ -6409,7 +6409,7 @@ func (x Int16x16) ShiftAllRightConcatMod16(y Int16x16, shift uint8) Int16x16
 // A non-constant value of shift may result in significantly worse performance for this operation.
 //
 // Asm: VPSHRDW, CPU Feature: AVX512VBMI2
-func (x Int16x32) ShiftAllRightConcatMod16(y Int16x32, shift uint8) Int16x32
+func (x Int16x32) ShiftAllRightConcatMod16(y Int16x32, shift uint64) Int16x32
 
 // ShiftAllRightConcatMod16 shifts x[i] right by shift%16, filling any emptied upper bits
 // with the low bits of y[i].
@@ -6419,7 +6419,7 @@ func (x Int16x32) ShiftAllRightConcatMod16(y Int16x32, shift uint8) Int16x32
 // A non-constant value of shift may result in significantly worse performance for this operation.
 //
 // Asm: VPSHRDW, CPU Feature: AVX512VBMI2
-func (x Uint16x8) ShiftAllRightConcatMod16(y Uint16x8, shift uint8) Uint16x8
+func (x Uint16x8) ShiftAllRightConcatMod16(y Uint16x8, shift uint64) Uint16x8
 
 // ShiftAllRightConcatMod16 shifts x[i] right by shift%16, filling any emptied upper bits
 // with the low bits of y[i].
@@ -6429,7 +6429,7 @@ func (x Uint16x8) ShiftAllRightConcatMod16(y Uint16x8, shift uint8) Uint16x8
 // A non-constant value of shift may result in significantly worse performance for this operation.
 //
 // Asm: VPSHRDW, CPU Feature: AVX512VBMI2
-func (x Uint16x16) ShiftAllRightConcatMod16(y Uint16x16, shift uint8) Uint16x16
+func (x Uint16x16) ShiftAllRightConcatMod16(y Uint16x16, shift uint64) Uint16x16
 
 // ShiftAllRightConcatMod16 shifts x[i] right by shift%16, filling any emptied upper bits
 // with the low bits of y[i].
@@ -6439,7 +6439,7 @@ func (x Uint16x16) ShiftAllRightConcatMod16(y Uint16x16, shift uint8) Uint16x16
 // A non-constant value of shift may result in significantly worse performance for this operation.
 //
 // Asm: VPSHRDW, CPU Feature: AVX512VBMI2
-func (x Uint16x32) ShiftAllRightConcatMod16(y Uint16x32, shift uint8) Uint16x32
+func (x Uint16x32) ShiftAllRightConcatMod16(y Uint16x32, shift uint64) Uint16x32
 
 /* ShiftAllRightConcatMod32 */
 
@@ -6451,7 +6451,7 @@ func (x Uint16x32) ShiftAllRightConcatMod16(y Uint16x32, shift uint8) Uint16x32
 // A non-constant value of shift may result in significantly worse performance for this operation.
 //
 // Asm: VPSHRDD, CPU Feature: AVX512VBMI2
-func (x Int32x4) ShiftAllRightConcatMod32(y Int32x4, shift uint8) Int32x4
+func (x Int32x4) ShiftAllRightConcatMod32(y Int32x4, shift uint64) Int32x4
 
 // ShiftAllRightConcatMod32 shifts x[i] right by shift%32, filling any emptied upper bits
 // with the low bits of y[i].
@@ -6461,7 +6461,7 @@ func (x Int32x4) ShiftAllRightConcatMod32(y Int32x4, shift uint8) Int32x4
 // A non-constant value of shift may result in significantly worse performance for this operation.
 //
 // Asm: VPSHRDD, CPU Feature: AVX512VBMI2
-func (x Int32x8) ShiftAllRightConcatMod32(y Int32x8, shift uint8) Int32x8
+func (x Int32x8) ShiftAllRightConcatMod32(y Int32x8, shift uint64) Int32x8
 
 // ShiftAllRightConcatMod32 shifts x[i] right by shift%32, filling any emptied upper bits
 // with the low bits of y[i].
@@ -6471,7 +6471,7 @@ func (x Int32x8) ShiftAllRightConcatMod32(y Int32x8, shift uint8) Int32x8
 // A non-constant value of shift may result in significantly worse performance for this operation.
 //
 // Asm: VPSHRDD, CPU Feature: AVX512VBMI2
-func (x Int32x16) ShiftAllRightConcatMod32(y Int32x16, shift uint8) Int32x16
+func (x Int32x16) ShiftAllRightConcatMod32(y Int32x16, shift uint64) Int32x16
 
 // ShiftAllRightConcatMod32 shifts x[i] right by shift%32, filling any emptied upper bits
 // with the low bits of y[i].
@@ -6481,7 +6481,7 @@ func (x Int32x16) ShiftAllRightConcatMod32(y Int32x16, shift uint8) Int32x16
 // A non-constant value of shift may result in significantly worse performance for this operation.
 //
 // Asm: VPSHRDD, CPU Feature: AVX512VBMI2
-func (x Uint32x4) ShiftAllRightConcatMod32(y Uint32x4, shift uint8) Uint32x4
+func (x Uint32x4) ShiftAllRightConcatMod32(y Uint32x4, shift uint64) Uint32x4
 
 // ShiftAllRightConcatMod32 shifts x[i] right by shift%32, filling any emptied upper bits
 // with the low bits of y[i].
@@ -6491,7 +6491,7 @@ func (x Uint32x4) ShiftAllRightConcatMod32(y Uint32x4, shift uint8) Uint32x4
 // A non-constant value of shift may result in significantly worse performance for this operation.
 //
 // Asm: VPSHRDD, CPU Feature: AVX512VBMI2
-func (x Uint32x8) ShiftAllRightConcatMod32(y Uint32x8, shift uint8) Uint32x8
+func (x Uint32x8) ShiftAllRightConcatMod32(y Uint32x8, shift uint64) Uint32x8
 
 // ShiftAllRightConcatMod32 shifts x[i] right by shift%32, filling any emptied upper bits
 // with the low bits of y[i].
@@ -6501,7 +6501,7 @@ func (x Uint32x8) ShiftAllRightConcatMod32(y Uint32x8, shift uint8) Uint32x8
 // A non-constant value of shift may result in significantly worse performance for this operation.
 //
 // Asm: VPSHRDD, CPU Feature: AVX512VBMI2
-func (x Uint32x16) ShiftAllRightConcatMod32(y Uint32x16, shift uint8) Uint32x16
+func (x Uint32x16) ShiftAllRightConcatMod32(y Uint32x16, shift uint64) Uint32x16
 
 /* ShiftAllRightConcatMod64 */
 
@@ -6513,7 +6513,7 @@ func (x Uint32x16) ShiftAllRightConcatMod32(y Uint32x16, shift uint8) Uint32x16
 // A non-constant value of shift may result in significantly worse performance for this operation.
 //
 // Asm: VPSHRDQ, CPU Feature: AVX512VBMI2
-func (x Int64x2) ShiftAllRightConcatMod64(y Int64x2, shift uint8) Int64x2
+func (x Int64x2) ShiftAllRightConcatMod64(y Int64x2, shift uint64) Int64x2
 
 // ShiftAllRightConcatMod64 shifts x[i] right by shift%64, filling any emptied upper bits
 // with the low bits of y[i].
@@ -6523,7 +6523,7 @@ func (x Int64x2) ShiftAllRightConcatMod64(y Int64x2, shift uint8) Int64x2
 // A non-constant value of shift may result in significantly worse performance for this operation.
 //
 // Asm: VPSHRDQ, CPU Feature: AVX512VBMI2
-func (x Int64x4) ShiftAllRightConcatMod64(y Int64x4, shift uint8) Int64x4
+func (x Int64x4) ShiftAllRightConcatMod64(y Int64x4, shift uint64) Int64x4
 
 // ShiftAllRightConcatMod64 shifts x[i] right by shift%64, filling any emptied upper bits
 // with the low bits of y[i].
@@ -6533,7 +6533,7 @@ func (x Int64x4) ShiftAllRightConcatMod64(y Int64x4, shift uint8) Int64x4
 // A non-constant value of shift may result in significantly worse performance for this operation.
 //
 // Asm: VPSHRDQ, CPU Feature: AVX512VBMI2
-func (x Int64x8) ShiftAllRightConcatMod64(y Int64x8, shift uint8) Int64x8
+func (x Int64x8) ShiftAllRightConcatMod64(y Int64x8, shift uint64) Int64x8
 
 // ShiftAllRightConcatMod64 shifts x[i] right by shift%64, filling any emptied upper bits
 // with the low bits of y[i].
@@ -6543,7 +6543,7 @@ func (x Int64x8) ShiftAllRightConcatMod64(y Int64x8, shift uint8) Int64x8
 // A non-constant value of shift may result in significantly worse performance for this operation.
 //
 // Asm: VPSHRDQ, CPU Feature: AVX512VBMI2
-func (x Uint64x2) ShiftAllRightConcatMod64(y Uint64x2, shift uint8) Uint64x2
+func (x Uint64x2) ShiftAllRightConcatMod64(y Uint64x2, shift uint64) Uint64x2
 
 // ShiftAllRightConcatMod64 shifts x[i] right by shift%64, filling any emptied upper bits
 // with the low bits of y[i].
@@ -6553,7 +6553,7 @@ func (x Uint64x2) ShiftAllRightConcatMod64(y Uint64x2, shift uint8) Uint64x2
 // A non-constant value of shift may result in significantly worse performance for this operation.
 //
 // Asm: VPSHRDQ, CPU Feature: AVX512VBMI2
-func (x Uint64x4) ShiftAllRightConcatMod64(y Uint64x4, shift uint8) Uint64x4
+func (x Uint64x4) ShiftAllRightConcatMod64(y Uint64x4, shift uint64) Uint64x4
 
 // ShiftAllRightConcatMod64 shifts x[i] right by shift%64, filling any emptied upper bits
 // with the low bits of y[i].
@@ -6563,7 +6563,7 @@ func (x Uint64x4) ShiftAllRightConcatMod64(y Uint64x4, shift uint8) Uint64x4
 // A non-constant value of shift may result in significantly worse performance for this operation.
 //
 // Asm: VPSHRDQ, CPU Feature: AVX512VBMI2
-func (x Uint64x8) ShiftAllRightConcatMod64(y Uint64x8, shift uint8) Uint64x8
+func (x Uint64x8) ShiftAllRightConcatMod64(y Uint64x8, shift uint64) Uint64x8
 
 /* ShiftLeft */
 

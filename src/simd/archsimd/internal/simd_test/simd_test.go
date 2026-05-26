@@ -540,7 +540,7 @@ func TestIfElseFloat512(t *testing.T) {
 	checkSlices[float64](t, s, []float64{0, 0, 0, 0, 5, 6, 7, 8})
 }
 
-var ro uint8 = 2
+var ro uint64 = 2
 
 func TestRotateAllVariable(t *testing.T) {
 	if !archsimd.X86.AVX512() {
