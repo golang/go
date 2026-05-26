@@ -1,5 +1,11 @@
 ## Changes to the language {#language}
 
+<!-- go.dev/issue/9859 -->
+
+A key in a [struct literal](/ref/spec#Composite_literals) may be any
+valid [field selector](/issue/9859) for the struct type, not just a
+(top-level) field name of the struct.
+
 <!-- go.dev/issue/77273 -->
 
 Go 1.27 now supports [generic methods](/issue/77273):
