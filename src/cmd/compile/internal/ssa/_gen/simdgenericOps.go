@@ -1227,9 +1227,9 @@ func simdGenericOps() []opData {
 		{name: "SubUint64x2", argLength: 2},                                             // ARCH:amd64,arm64,wasm
 		{name: "SubUint64x4", argLength: 2},                                             // ARCH:amd64
 		{name: "SubUint64x8", argLength: 2},                                             // ARCH:amd64
-		{name: "SumAbsDiffUint8x16", argLength: 2},                                      // ARCH:amd64
-		{name: "SumAbsDiffUint8x32", argLength: 2},                                      // ARCH:amd64
-		{name: "SumAbsDiffUint8x64", argLength: 2},                                      // ARCH:amd64
+		{name: "SumOf8AbsDiffUint8x16", argLength: 2},                                   // ARCH:amd64
+		{name: "SumOf8AbsDiffUint8x32", argLength: 2},                                   // ARCH:amd64
+		{name: "SumOf8AbsDiffUint8x64", argLength: 2},                                   // ARCH:amd64
 		{name: "TransposeEvenInt8x16", argLength: 2},                                    // ARCH:arm64
 		{name: "TransposeEvenInt16x8", argLength: 2},                                    // ARCH:arm64
 		{name: "TransposeEvenInt32x4", argLength: 2},                                    // ARCH:arm64

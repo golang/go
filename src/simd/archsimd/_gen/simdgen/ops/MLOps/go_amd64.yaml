@@ -76,7 +76,7 @@
   - *fma_op
   out:
   - *fma_op
-- go: SumAbsDiff
+- go: SumOf8AbsDiff
   asm: "VPSADBW"
   in:
   - go: $t

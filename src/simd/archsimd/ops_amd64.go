@@ -7331,25 +7331,25 @@ func (x Uint16x16) SubSaturated(y Uint16x16) Uint16x16
 // Asm: VPSUBUSW, CPU Feature: AVX512
 func (x Uint16x32) SubSaturated(y Uint16x32) Uint16x32
 
-/* SumAbsDiff */
+/* SumOf8AbsDiff */
 
-// SumAbsDiff computes the absolute difference of x and y and sums each group of 8 results.
+// SumOf8AbsDiff computes the absolute difference of x and y and sums each group of 8 results.
 // This method could be seen as the norm of the L1 distance of each 8-element group of the two input vectors.
 //
 // Asm: VPSADBW, CPU Feature: AVX
-func (x Uint8x16) SumAbsDiff(y Uint8x16) Uint64x2
+func (x Uint8x16) SumOf8AbsDiff(y Uint8x16) Uint64x2
 
-// SumAbsDiff computes the absolute difference of x and y and sums each group of 8 results.
+// SumOf8AbsDiff computes the absolute difference of x and y and sums each group of 8 results.
 // This method could be seen as the norm of the L1 distance of each 8-element group of the two input vectors.
 //
 // Asm: VPSADBW, CPU Feature: AVX2
-func (x Uint8x32) SumAbsDiff(y Uint8x32) Uint64x4
+func (x Uint8x32) SumOf8AbsDiff(y Uint8x32) Uint64x4
 
-// SumAbsDiff computes the absolute difference of x and y and sums each group of 8 results.
+// SumOf8AbsDiff computes the absolute difference of x and y and sums each group of 8 results.
 // This method could be seen as the norm of the L1 distance of each 8-element group of the two input vectors.
 //
 // Asm: VPSADBW, CPU Feature: AVX512
-func (x Uint8x64) SumAbsDiff(y Uint8x64) Uint64x8
+func (x Uint8x64) SumOf8AbsDiff(y Uint8x64) Uint64x8
 
 /* Trunc */
 

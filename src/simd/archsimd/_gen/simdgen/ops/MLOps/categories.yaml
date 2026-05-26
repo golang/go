@@ -32,7 +32,7 @@
   commutative: false
   documentation: !string |-
     // NAME performs a fused (x * y) + z for odd-indexed elements, and (x * y) - z for even-indexed elements.
-- go: SumAbsDiff
+- go: SumOf8AbsDiff
   commutative: false
   documentation: !string |-
     // NAME computes the absolute difference of x and y and sums each group of 8 results.

@@ -8407,9 +8407,9 @@ const (
 	OpSubUint64x2
 	OpSubUint64x4
 	OpSubUint64x8
-	OpSumAbsDiffUint8x16
-	OpSumAbsDiffUint8x32
-	OpSumAbsDiffUint8x64
+	OpSumOf8AbsDiffUint8x16
+	OpSumOf8AbsDiffUint8x32
+	OpSumOf8AbsDiffUint8x64
 	OpTransposeEvenInt8x16
 	OpTransposeEvenInt16x8
 	OpTransposeEvenInt32x4
@@ -113253,17 +113253,17 @@ var opcodeTable = [...]opInfo{
 		generic: true,
 	},
 	{
-		name:    "SumAbsDiffUint8x16",
+		name:    "SumOf8AbsDiffUint8x16",
 		argLen:  2,
 		generic: true,
 	},
 	{
-		name:    "SumAbsDiffUint8x32",
+		name:    "SumOf8AbsDiffUint8x32",
 		argLen:  2,
 		generic: true,
 	},
 	{
-		name:    "SumAbsDiffUint8x64",
+		name:    "SumOf8AbsDiffUint8x64",
 		argLen:  2,
 		generic: true,
 	},
