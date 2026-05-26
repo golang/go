@@ -10,3 +10,9 @@ the namespace of a particular data type where before one had to declare
 such functions with a scope of the entire package.
 Note that methods of [interfaces](/ref/spec#Interface_types) may not declare
 type parameters nor can interface types be implemented by generic methods.
+
+<!-- go.dev/issue/77245 -->
+
+Function type inference has been [generalized](/issue/77245) to apply in all
+contexts where a generic function is [assigned](/ref/spec#Assignability) to a
+variable of (or converted to) a matching function type.
