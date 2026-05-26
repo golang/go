@@ -3,7 +3,7 @@ module cmd
 go 1.27
 
 require (
-	github.com/google/pprof v0.0.0-20260115054156-294ebfa9ad83
+	github.com/google/pprof v0.0.0-20260507013755-92041b743c96
 	golang.org/x/arch v0.27.1-0.20260521044007-9c1a596a2c97
 	golang.org/x/build v0.0.0-20260522210304-d55d0041b921
 	golang.org/x/mod v0.36.1-0.20260520130633-087f6515dd3b
