@@ -491,11 +491,13 @@ func ssaGenValueOnStack(s *ssagen.State, v *ssa.Value, extend bool) {
 	}
 }
 
-func isCmp(v *ssa.Value) bool {
+func isAlready32(v *ssa.Value) bool {
 	switch v.Op {
 	case ssa.OpWasmI64Eqz, ssa.OpWasmI64Eq, ssa.OpWasmI64Ne, ssa.OpWasmI64LtS, ssa.OpWasmI64LtU, ssa.OpWasmI64GtS, ssa.OpWasmI64GtU, ssa.OpWasmI64LeS, ssa.OpWasmI64LeU, ssa.OpWasmI64GeS, ssa.OpWasmI64GeU,
 		ssa.OpWasmF32Eq, ssa.OpWasmF32Ne, ssa.OpWasmF32Lt, ssa.OpWasmF32Gt, ssa.OpWasmF32Le, ssa.OpWasmF32Ge,
-		ssa.OpWasmF64Eq, ssa.OpWasmF64Ne, ssa.OpWasmF64Lt, ssa.OpWasmF64Gt, ssa.OpWasmF64Le, ssa.OpWasmF64Ge:
+		ssa.OpWasmF64Eq, ssa.OpWasmF64Ne, ssa.OpWasmF64Lt, ssa.OpWasmF64Gt, ssa.OpWasmF64Le, ssa.OpWasmF64Ge,
+		ssa.OpWasmI8x16ExtractLaneS, ssa.OpWasmI16x8ExtractLaneS, ssa.OpWasmI32x4ExtractLane,
+		ssa.OpWasmI8x16ExtractLaneU, ssa.OpWasmI16x8ExtractLaneU:
 		return true
 	default:
 		return false
@@ -506,7 +508,7 @@ func getValue32(s *ssagen.State, v *ssa.Value) {
 	if v.OnWasmStack {
 		s.OnWasmStackSkipped--
 		ssaGenValueOnStack(s, v, false)
-		if !isCmp(v) {
+		if !isAlready32(v) {
 			s.Prog(wasm.AI32WrapI64)
 		}
 		return
