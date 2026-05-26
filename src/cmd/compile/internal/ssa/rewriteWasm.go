@@ -830,6 +830,42 @@ func rewriteValueWasm(v *Value) bool {
 	case OpMulUint64x2:
 		v.Op = OpWasmI64x2Mul
 		return true
+	case OpMulWidenHiInt16x8:
+		v.Op = OpWasmI32x4ExtmulHighI16x8S
+		return true
+	case OpMulWidenHiInt32x4:
+		v.Op = OpWasmI64x2ExtmulHighI32x4S
+		return true
+	case OpMulWidenHiInt8x16:
+		v.Op = OpWasmI16x8ExtmulHighI8x16S
+		return true
+	case OpMulWidenHiUint16x8:
+		v.Op = OpWasmI32x4ExtmulHighI16x8U
+		return true
+	case OpMulWidenHiUint32x4:
+		v.Op = OpWasmI64x2ExtmulHighI32x4U
+		return true
+	case OpMulWidenHiUint8x16:
+		v.Op = OpWasmI16x8ExtmulHighI8x16U
+		return true
+	case OpMulWidenLoInt16x8:
+		v.Op = OpWasmI32x4ExtmulLowI16x8S
+		return true
+	case OpMulWidenLoInt32x4:
+		v.Op = OpWasmI64x2ExtmulLowI32x4S
+		return true
+	case OpMulWidenLoInt8x16:
+		v.Op = OpWasmI16x8ExtmulLowI8x16S
+		return true
+	case OpMulWidenLoUint16x8:
+		v.Op = OpWasmI32x4ExtmulLowI16x8U
+		return true
+	case OpMulWidenLoUint32x4:
+		v.Op = OpWasmI64x2ExtmulLowI32x4U
+		return true
+	case OpMulWidenLoUint8x16:
+		v.Op = OpWasmI16x8ExtmulLowI8x16U
+		return true
 	case OpNeg16:
 		return rewriteValueWasm_OpNeg16(v)
 	case OpNeg32:

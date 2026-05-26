@@ -49,6 +49,14 @@ func (t *simdType) ElemBits() int {
 	return t.ElemSize
 }
 
+func (t *simdType) HalfCount() int {
+	return t.Count / 2
+}
+
+func (t *simdType) TwiceCount() int {
+	return t.Count * 2
+}
+
 func (t *simdType) Name_() string {
 	return t.Name
 }
@@ -400,6 +408,9 @@ func (o *wasmOp) RegInfo() string {
 		} else if o.Flag(IsConversion) {
 			if o.argCount == 1 {
 				return "v11"
+			} else if o.argCount == 2 {
+				// widening multiplies
+				return "v21"
 			}
 		} else {
 			if o.argCount == 1 {
@@ -748,10 +759,10 @@ var (
 		// need to verify semantics
 		"extadd_pairwise_s": "?",
 		"extadd_pairwise_u": "?",
-		"extmul_low_s":      "?",
-		"extmul_low_u":      "?",
-		"extmul_high_s":     "?",
-		"extmul_high_u":     "?",
+		"extmul_low_s":      "MulWidenLo",
+		"extmul_low_u":      "MulWidenLo",
+		"extmul_high_s":     "MulWidenHi",
+		"extmul_high_u":     "MulWidenHi",
 		"dot_s":             "?",
 		"relaxed_dot_s":     "?",
 
@@ -910,6 +921,16 @@ func initWasmOps() {
 		}
 		op.resultType = t.WidenElements(stem)
 	}
+	mulHalf := func(op *wasmOp) {
+		t := op.t
+		op.opFlags = IsConversion // this is ALSO a conversion, with same naming conventions.
+		// result type is twice the width, signedness from the op, half the count
+		stem := "Int"
+		if op.op[len(op.op)-1] == 'u' {
+			stem = "Uint"
+		}
+		op.resultType = t.WidenElements(stem)
+	}
 	convertHalf := func(op *wasmOp) {
 		// amd64 has these instructions but we use the vector-register-widening ones,
 		// thus the generics are not defined by amd64.
@@ -943,6 +964,9 @@ func initWasmOps() {
 	addWasmOpsDetail([]*simdType{vu32}, convert_u, 1, convert)
 
 	addWasmOpsDetail([]*simdType{vf32}, f_c, 1, truncSat)
+
+	addWasmOpsDetail(sle32, s_q2, 2, mulHalf)
+	addWasmOpsDetail(ule32, u_q2, 2, mulHalf)
 
 	addWasmOpsDetail(ints, rotates, 2, rotate)
 
@@ -1160,6 +1184,12 @@ var docForOp map[string]string = map[string]string{
 	"ConvertToInt32":      " converts elements of x to Int32x4.",
 	"ConvertToUint32":     " converts elements of x to Uint32x4.",
 	"ConvertLo2ToFloat64": " converts the first two elements of x to Float64x2.",
+	"MulWidenHi": ` returns the doubled-width product of respective elements of the upper halves of x and y.
+//
+//	Result[i] = x[i+{{.Type.HalfCount}}] * y[i+{{.Type.HalfCount}}], for 0 <= i < {{.Type.HalfCount}} == |x|/2.`,
+	"MulWidenLo": ` returns the doubled-width product of respective elements of the lower halves of x and y.
+//
+//	Result[i] = x[i] * y[i], for 0 <= i < {{.Type.HalfCount}} == |x|/2.`,
 	// Size-specific extend operations
 	"ExtendLo8ToInt16":   " extends the lower 8 elements of x to 16-bit integers.",
 	"ExtendLo16ToInt32":  " extends the lower 4 elements of x to 32-bit integers.",

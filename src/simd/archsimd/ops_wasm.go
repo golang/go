@@ -815,6 +815,90 @@ func (x Float32x4) MulAdd(y Float32x4, z Float32x4) Float32x4
 // Asm: F64x2RelaxedMadd
 func (x Float64x2) MulAdd(y Float64x2, z Float64x2) Float64x2
 
+// MulWidenHi returns the doubled-width product of respective elements of the upper halves of x and y.
+//
+//	Result[i] = x[i+8] * y[i+8], for 0 <= i < 8 == |x|/2.
+//
+// Asm: I16x8ExtmulHighI8x16S
+func (x Int8x16) MulWidenHi(y Int8x16) Int16x8
+
+// MulWidenHi returns the doubled-width product of respective elements of the upper halves of x and y.
+//
+//	Result[i] = x[i+8] * y[i+8], for 0 <= i < 8 == |x|/2.
+//
+// Asm: I16x8ExtmulHighI8x16U
+func (x Uint8x16) MulWidenHi(y Uint8x16) Uint16x8
+
+// MulWidenHi returns the doubled-width product of respective elements of the upper halves of x and y.
+//
+//	Result[i] = x[i+4] * y[i+4], for 0 <= i < 4 == |x|/2.
+//
+// Asm: I32x4ExtmulHighI16x8S
+func (x Int16x8) MulWidenHi(y Int16x8) Int32x4
+
+// MulWidenHi returns the doubled-width product of respective elements of the upper halves of x and y.
+//
+//	Result[i] = x[i+4] * y[i+4], for 0 <= i < 4 == |x|/2.
+//
+// Asm: I32x4ExtmulHighI16x8U
+func (x Uint16x8) MulWidenHi(y Uint16x8) Uint32x4
+
+// MulWidenHi returns the doubled-width product of respective elements of the upper halves of x and y.
+//
+//	Result[i] = x[i+2] * y[i+2], for 0 <= i < 2 == |x|/2.
+//
+// Asm: I64x2ExtmulHighI32x4S
+func (x Int32x4) MulWidenHi(y Int32x4) Int64x2
+
+// MulWidenHi returns the doubled-width product of respective elements of the upper halves of x and y.
+//
+//	Result[i] = x[i+2] * y[i+2], for 0 <= i < 2 == |x|/2.
+//
+// Asm: I64x2ExtmulHighI32x4U
+func (x Uint32x4) MulWidenHi(y Uint32x4) Uint64x2
+
+// MulWidenLo returns the doubled-width product of respective elements of the lower halves of x and y.
+//
+//	Result[i] = x[i] * y[i], for 0 <= i < 8 == |x|/2.
+//
+// Asm: I16x8ExtmulLowI8x16S
+func (x Int8x16) MulWidenLo(y Int8x16) Int16x8
+
+// MulWidenLo returns the doubled-width product of respective elements of the lower halves of x and y.
+//
+//	Result[i] = x[i] * y[i], for 0 <= i < 8 == |x|/2.
+//
+// Asm: I16x8ExtmulLowI8x16U
+func (x Uint8x16) MulWidenLo(y Uint8x16) Uint16x8
+
+// MulWidenLo returns the doubled-width product of respective elements of the lower halves of x and y.
+//
+//	Result[i] = x[i] * y[i], for 0 <= i < 4 == |x|/2.
+//
+// Asm: I32x4ExtmulLowI16x8S
+func (x Int16x8) MulWidenLo(y Int16x8) Int32x4
+
+// MulWidenLo returns the doubled-width product of respective elements of the lower halves of x and y.
+//
+//	Result[i] = x[i] * y[i], for 0 <= i < 4 == |x|/2.
+//
+// Asm: I32x4ExtmulLowI16x8U
+func (x Uint16x8) MulWidenLo(y Uint16x8) Uint32x4
+
+// MulWidenLo returns the doubled-width product of respective elements of the lower halves of x and y.
+//
+//	Result[i] = x[i] * y[i], for 0 <= i < 2 == |x|/2.
+//
+// Asm: I64x2ExtmulLowI32x4S
+func (x Int32x4) MulWidenLo(y Int32x4) Int64x2
+
+// MulWidenLo returns the doubled-width product of respective elements of the lower halves of x and y.
+//
+//	Result[i] = x[i] * y[i], for 0 <= i < 2 == |x|/2.
+//
+// Asm: I64x2ExtmulLowI32x4U
+func (x Uint32x4) MulWidenLo(y Uint32x4) Uint64x2
+
 // Neg returns the elementwise negation of x.
 //
 // Asm: I8x16Neg
