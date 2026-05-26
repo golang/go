@@ -262,10 +262,6 @@ Below is the full list of supported metrics, ordered lexicographically.
 		package due to a non-default GODEBUG=allowmultiplevcs=...
 		setting.
 
-	/godebug/non-default-behavior/asynctimerchan:events
-		The number of non-default behaviors executed by the time package
-		due to a non-default GODEBUG=asynctimerchan=... setting.
-
 	/godebug/non-default-behavior/containermaxprocs:events
 		The number of non-default behaviors executed by the runtime
 		package due to a non-default GODEBUG=containermaxprocs=...

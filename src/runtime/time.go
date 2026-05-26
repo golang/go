@@ -99,7 +99,6 @@ type timer struct {
 	ts *timers
 
 	// sendLock protects sends on the timer's channel.
-	// Not used for async (pre-Go 1.23) behavior when debug.asynctimerchan.Load() != 0.
 	sendLock mutex
 
 	// isSending is used to handle races between running a
@@ -466,45 +465,17 @@ func (ts *timers) addHeap(t *timer) {
 	}
 }
 
-// maybeRunAsync checks whether t needs to be triggered and runs it if so.
-// The caller is responsible for locking the timer and for checking that we
-// are running timers in async mode. If the timer needs to be run,
-// maybeRunAsync will unlock and re-lock it.
-// The timer is always locked on return.
-func (t *timer) maybeRunAsync() {
-	assertLockHeld(&t.mu)
-	if t.state&timerHeaped == 0 && t.isChan && t.when > 0 {
-		// If timer should have triggered already (but nothing looked at it yet),
-		// trigger now, so that a receive after the stop sees the "old" value
-		// that should be there.
-		// (It is possible to have t.blocked > 0 if there is a racing receive
-		// in blockTimerChan, but timerHeaped not being set means
-		// it hasn't run t.maybeAdd yet; in that case, running the
-		// timer ourselves now is fine.)
-		if now := nanotime(); t.when <= now {
-			systemstack(func() {
-				t.unlockAndRun(now, nil) // resets t.when
-			})
-			t.lock()
-		}
-	}
-}
-
 // stop stops the timer t. It may be on some other P, so we can't
 // actually remove it from the timers heap. We can only mark it as stopped.
 // It will be removed in due course by the P whose heap it is on.
 // Reports whether the timer was stopped before it was run.
 func (t *timer) stop() bool {
-	async := debug.asynctimerchan.Load() != 0
-	if !async && t.isChan {
+	if t.isChan {
 		lock(&t.sendLock)
 	}
 
 	t.lock()
 	t.trace("stop")
-	if async {
-		t.maybeRunAsync()
-	}
 	if t.state&timerHeaped != 0 {
 		t.state |= timerModified
 		if t.state&timerZombie == 0 {
@@ -515,7 +486,7 @@ func (t *timer) stop() bool {
 	pending := t.when > 0
 	t.when = 0
 
-	if !async && t.isChan {
+	if t.isChan {
 		// Stop any future sends with stale values.
 		// See timer.unlockAndRun.
 		t.seq++
@@ -530,7 +501,7 @@ func (t *timer) stop() bool {
 		}
 	}
 	t.unlock()
-	if !async && t.isChan {
+	if t.isChan {
 		unlock(&t.sendLock)
 		if timerchandrain(t.hchan()) {
 			pending = true
@@ -576,16 +547,12 @@ func (t *timer) modify(when, period int64, f func(arg any, seq uintptr, delay in
 	if period < 0 {
 		throw("timer period must be non-negative")
 	}
-	async := debug.asynctimerchan.Load() != 0
 
-	if !async && t.isChan {
+	if t.isChan {
 		lock(&t.sendLock)
 	}
 
 	t.lock()
-	if async {
-		t.maybeRunAsync()
-	}
 	t.trace("modify")
 	oldPeriod := t.period
 	t.period = period
@@ -636,7 +603,7 @@ func (t *timer) modify(when, period int64, f func(arg any, seq uintptr, delay in
 		}
 		if t.state&timerHeaped == 0 && when <= bubble.now {
 			systemstack(func() {
-				if !async && t.isChan {
+				if t.isChan {
 					unlock(&t.sendLock)
 				}
 				t.unlockAndRun(bubble.now, bubble)
@@ -645,7 +612,7 @@ func (t *timer) modify(when, period int64, f func(arg any, seq uintptr, delay in
 		}
 	}
 
-	if !async && t.isChan {
+	if t.isChan {
 		// Stop any future sends with stale values.
 		// See timer.unlockAndRun.
 		t.seq++
@@ -660,7 +627,7 @@ func (t *timer) modify(when, period int64, f func(arg any, seq uintptr, delay in
 		}
 	}
 	t.unlock()
-	if !async && t.isChan {
+	if t.isChan {
 		if timerchandrain(t.hchan()) {
 			pending = true
 		}
@@ -1162,8 +1129,7 @@ func (t *timer) unlockAndRun(now int64, bubble *synctestBubble) {
 		t.updateHeap()
 	}
 
-	async := debug.asynctimerchan.Load() != 0
-	if !async && t.isChan && t.period == 0 {
+	if t.isChan && t.period == 0 {
 		// Tell Stop/Reset that we are sending a value.
 		if t.isSending.Add(1) < 0 {
 			throw("too many concurrent timer firings")
@@ -1195,7 +1161,7 @@ func (t *timer) unlockAndRun(now int64, bubble *synctestBubble) {
 		bubble.changegstatus(gp, _Gdead, _Grunning)
 	}
 
-	if !async && t.isChan {
+	if t.isChan {
 		// For a timer channel, we want to make sure that no stale sends
 		// happen after a t.stop or t.modify, but we cannot hold t.mu
 		// during the actual send (which f does) due to lock ordering.
@@ -1232,7 +1198,7 @@ func (t *timer) unlockAndRun(now int64, bubble *synctestBubble) {
 
 	f(arg, seq, delay)
 
-	if !async && t.isChan {
+	if t.isChan {
 		unlock(&t.sendLock)
 	}
 

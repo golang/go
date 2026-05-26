@@ -30,6 +30,7 @@ import (
 	"reflect"
 	"runtime"
 	"slices"
+	"strconv"
 	"strings"
 	"sync"
 	"sync/atomic"
@@ -281,11 +282,21 @@ func newClientServerTest(t testing.TB, mode testMode, h Handler, opts ...any) *c
 		endpointCh := registerHTTP3Server(cst.ts.Config)
 
 		cst.ts.Config.TLSConfig = cst.ts.TLS
-		cst.ts.Config.Addr = "localhost:0"
+		cst.ts.Config.Addr = ":0"
 		go cst.ts.Config.ListenAndServeTLS("", "")
 
 		endpoint := <-endpointCh
-		cst.ts.URL = "https://" + endpoint.LocalAddr().String()
+		port := strconv.Itoa(int(endpoint.LocalAddr().Port()))
+		switch addr := endpoint.LocalAddr().Addr(); {
+		case !addr.IsUnspecified():
+			cst.ts.URL = "https://" + endpoint.LocalAddr().String()
+		case addr.Is4():
+			cst.ts.URL = "https://" + net.JoinHostPort("127.0.0.1", port)
+		case addr.Is6():
+			cst.ts.URL = "https://" + net.JoinHostPort("::1", port)
+		default:
+			t.Fatalf("unknown address family for %v", endpoint.LocalAddr())
+		}
 		t.Cleanup(func() {
 			// Give a relatively generous timeout. If the timeout is too short,
 			// the test might return before QUIC connections can finish closing

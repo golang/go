@@ -107,7 +107,7 @@ func (c *Conn) appendMaxDataFrame(w *packetWriter, pnum packetNumber, pto bool) 
 		if !w.appendMaxDataFrame(c.streams.inflow.newLimit) {
 			return false
 		}
-		c.streams.inflow.sentLimit += c.streams.inflow.newLimit
+		c.streams.inflow.sentLimit = c.streams.inflow.newLimit
 		c.streams.inflow.sent.setSent(pnum)
 	}
 	return true

@@ -46,6 +46,7 @@ type opInfo struct {
 	zeroWidth         bool      // op never translates into any machine code. example: copy, which may sometimes translate to machine code, is not zero-width.
 	unsafePoint       bool      // this op is an unsafe point, i.e. not safe for async preemption
 	fixedReg          bool      // this op will be assigned a fixed register
+	earlyOk           bool      // executing this op in an earlier block is ok
 	symEffect         SymEffect // effect this op has on symbol in aux
 	scale             uint8     // amd64/386 indexed load scale
 }

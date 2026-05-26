@@ -57,36 +57,24 @@ func licm(f *Func) {
 			continue
 		}
 		for _, v := range b.Values {
-			loopDep := false
-			if v.Op == OpPhi {
-				loopDep = true
-			} else if v.Type.IsMemory() {
-				// We can't move state-modifying code.
-				// (TODO: but maybe this is handled by memory Phis anyway?)
-				loopDep = true
-			} else if v.Type.IsFlags() || v.Type.IsTuple() && (v.Type.FieldType(0).IsFlags() || v.Type.FieldType(1).IsFlags()) {
-				// This is not required for correctness. It is just to
-				// keep the live range of flag values low.
-				loopDep = true
-			} else if opcodeTable[v.Op].nilCheck {
-				// NilCheck in case loop executes 0 times. (It has a memory arg anyway?)
-				loopDep = true
-			} else if opcodeTable[v.Op].hasSideEffects {
-				// Operations with side effects cannot be moved.
-				// (This includes divides that might fault, see issue 78892.)
-				loopDep = true
-			} else if v.MemoryArg() != nil {
-				// Because the state of memory might be different at the loop start. (Also handled by Phi?)
-				loopDep = true
-			} else if v.Type.IsPtr() {
-				// Can't move pointer arithmetic, as it may be guarded by conditionals
-				// and this could materialize a bad pointer across a safepoint.
-				loopDep = true
+			if opcodeTable[v.Op].earlyOk {
+				// Double check we didn't mark the wrong ops as earlyOk
+				if v.Type.IsMemory() || opcodeTable[v.Op].nilCheck || opcodeTable[v.Op].hasSideEffects || v.MemoryArg() != nil {
+					v.Fatalf("op %s has bad earlyOk mark", v.Op)
+				}
+				if !v.Type.IsPtr() {
+					// Note: can't move pointer arithmetic, as it may be guarded by conditionals
+					// and thus could materialize a bad pointer across a safepoint.
+
+					continue // Ok to lift out of loop.
+				}
 			}
-			if loopDep {
-				loopDependent[v.ID] = true
-				queue = append(queue, v)
+			if v.Op == OpSelect0 || v.Op == OpSelect1 {
+				// These ops can (and must) move with the op they are selecting from.
+				continue
 			}
+			loopDependent[v.ID] = true
+			queue = append(queue, v)
 		}
 	}
 

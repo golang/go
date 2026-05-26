@@ -27,7 +27,6 @@ type Info struct {
 // (Otherwise the test in this package will fail.)
 var All = []Info{
 	{Name: "allowmultiplevcs", Package: "cmd/go"},
-	{Name: "asynctimerchan", Package: "time", Changed: 23, Old: "1"},
 	{Name: "containermaxprocs", Package: "runtime", Changed: 25, Old: "0"},
 	{Name: "cryptocustomrand", Package: "crypto", Changed: 26, Old: "1"},
 	{Name: "dataindependenttiming", Package: "crypto/subtle", Opaque: true},
@@ -99,6 +98,7 @@ var Removed = []RemovedInfo{
 	{Name: "tls3des", Removed: 27},         // Old: "1"
 	{Name: "tls10server", Removed: 27},     // Old: "1"
 	{Name: "x509keypairleaf", Removed: 27}, // Old: "0"
+	{Name: "asynctimerchan", Removed: 27},  // Old: "1" or "2"
 }
 
 // Lookup returns the Info with the given name.

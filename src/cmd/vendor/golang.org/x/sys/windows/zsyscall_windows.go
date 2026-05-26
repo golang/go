@@ -428,8 +428,11 @@ var (
 	procNetUserGetInfo                                       = modnetapi32.NewProc("NetUserGetInfo")
 	procNtCreateFile                                         = modntdll.NewProc("NtCreateFile")
 	procNtCreateNamedPipeFile                                = modntdll.NewProc("NtCreateNamedPipeFile")
+	procNtQueryEaFile                                        = modntdll.NewProc("NtQueryEaFile")
+	procNtQueryInformationFile                               = modntdll.NewProc("NtQueryInformationFile")
 	procNtQueryInformationProcess                            = modntdll.NewProc("NtQueryInformationProcess")
 	procNtQuerySystemInformation                             = modntdll.NewProc("NtQuerySystemInformation")
+	procNtSetEaFile                                          = modntdll.NewProc("NtSetEaFile")
 	procNtSetInformationFile                                 = modntdll.NewProc("NtSetInformationFile")
 	procNtSetInformationProcess                              = modntdll.NewProc("NtSetInformationProcess")
 	procNtSetSystemInformation                               = modntdll.NewProc("NtSetSystemInformation")
@@ -3740,6 +3743,30 @@ func NtCreateNamedPipeFile(pipe *Handle, access uint32, oa *OBJECT_ATTRIBUTES, i
 	return
 }
 
+func NtQueryEaFile(handle Handle, iosb *IO_STATUS_BLOCK, outBuffer *byte, outBufferLen uint32, returnSingleEntry bool, eaList *byte, eaListLen uint32, eaIndex *uint32, restartScan bool) (ntstatus error) {
+	var _p0 uint32
+	if returnSingleEntry {
+		_p0 = 1
+	}
+	var _p1 uint32
+	if restartScan {
+		_p1 = 1
+	}
+	r0, _, _ := syscall.SyscallN(procNtQueryEaFile.Addr(), uintptr(handle), uintptr(unsafe.Pointer(iosb)), uintptr(unsafe.Pointer(outBuffer)), uintptr(outBufferLen), uintptr(_p0), uintptr(unsafe.Pointer(eaList)), uintptr(eaListLen), uintptr(unsafe.Pointer(eaIndex)), uintptr(_p1))
+	if r0 != 0 {
+		ntstatus = NTStatus(r0)
+	}
+	return
+}
+
+func NtQueryInformationFile(handle Handle, iosb *IO_STATUS_BLOCK, outBuffer *byte, outBufferLen uint32, class uint32) (ntstatus error) {
+	r0, _, _ := syscall.SyscallN(procNtQueryInformationFile.Addr(), uintptr(handle), uintptr(unsafe.Pointer(iosb)), uintptr(unsafe.Pointer(outBuffer)), uintptr(outBufferLen), uintptr(class))
+	if r0 != 0 {
+		ntstatus = NTStatus(r0)
+	}
+	return
+}
+
 func NtQueryInformationProcess(proc Handle, procInfoClass int32, procInfo unsafe.Pointer, procInfoLen uint32, retLen *uint32) (ntstatus error) {
 	r0, _, _ := syscall.SyscallN(procNtQueryInformationProcess.Addr(), uintptr(proc), uintptr(procInfoClass), uintptr(procInfo), uintptr(procInfoLen), uintptr(unsafe.Pointer(retLen)))
 	if r0 != 0 {
@@ -3750,6 +3777,14 @@ func NtQueryInformationProcess(proc Handle, procInfoClass int32, procInfo unsafe
 
 func NtQuerySystemInformation(sysInfoClass int32, sysInfo unsafe.Pointer, sysInfoLen uint32, retLen *uint32) (ntstatus error) {
 	r0, _, _ := syscall.SyscallN(procNtQuerySystemInformation.Addr(), uintptr(sysInfoClass), uintptr(sysInfo), uintptr(sysInfoLen), uintptr(unsafe.Pointer(retLen)))
+	if r0 != 0 {
+		ntstatus = NTStatus(r0)
+	}
+	return
+}
+
+func NtSetEaFile(handle Handle, iosb *IO_STATUS_BLOCK, inBuffer *byte, inBufferLen uint32) (ntstatus error) {
+	r0, _, _ := syscall.SyscallN(procNtSetEaFile.Addr(), uintptr(handle), uintptr(unsafe.Pointer(iosb)), uintptr(unsafe.Pointer(inBuffer)), uintptr(inBufferLen))
 	if r0 != 0 {
 		ntstatus = NTStatus(r0)
 	}
