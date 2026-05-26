@@ -25,45 +25,82 @@ var limboCases = flag.String("limbo_cases", "", "comma-separated limbo case ids 
 // Instances where we do **not** produce an error, but the test corpus says
 // we should have. The map value justifies each allow.
 var allowedUnexpectedVerifications = map[string]string{
-	// TODO(@cpu): triage and justify, or fix.
-	"rfc5280::aki::leaf-missing-aki":                       "requires triage",
-	"rfc5280::aki::intermediate-missing-aki":               "requires triage",
-	"rfc5280::aki::cross-signed-root-missing-aki":          "requires triage",
-	"rfc5280::eku::ee-eku-empty":                           "requires triage",
-	"rfc5280::nc::permitted-dns-match-noncritical":         "requires triage",
-	"rfc5280::nc::invalid-dnsname-leading-period":          "requires triage",
-	"rfc5280::nc::not-allowed-in-ee-noncritical":           "requires triage",
-	"rfc5280::nc::not-allowed-in-ee-critical":              "requires triage",
-	"rfc5280::pc::ica-noncritical-pc":                      "requires triage",
-	"rfc5280::san::noncritical-with-empty-subject":         "requires triage",
-	"rfc5280::san::underscore-dns":                         "requires triage",
-	"rfc5280::serial::too-long":                            "requires triage",
-	"rfc5280::serial::zero":                                "requires triage",
-	"rfc5280::serial::negative":                            "requires triage",
-	"rfc5280::ski::root-missing-ski":                       "requires triage",
-	"rfc5280::ski::intermediate-missing-ski":               "requires triage",
-	"rfc5280::ca-empty-subject":                            "requires triage",
-	"rfc5280::root-non-critical-basic-constraints":         "requires triage",
-	"rfc5280::root-inconsistent-ca-extensions":             "requires triage",
-	"rfc5280::leaf-ku-keycertsign":                         "requires triage",
-	"webpki::aki::root-with-aki-missing-keyidentifier":     "requires triage",
-	"webpki::aki::root-with-aki-authoritycertissuer":       "requires triage",
-	"webpki::aki::root-with-aki-authoritycertserialnumber": "requires triage",
-	"webpki::aki::root-with-aki-all-fields":                "requires triage",
-	"webpki::aki::root-with-aki-ski-mismatch":              "requires triage",
-	"webpki::eku::ee-anyeku":                               "requires triage",
-	"webpki::eku::ee-critical-eku":                         "requires triage",
-	"webpki::eku::ee-without-eku":                          "requires triage",
-	"webpki::eku::root-has-eku":                            "requires triage",
-	"webpki::san::public-suffix-wildcard-san":              "requires triage",
-	"webpki::san::san-critical-with-nonempty-subject":      "requires triage",
-	"webpki::forbidden-dsa-leaf":                           "requires triage",
-	"webpki::forbidden-weak-rsa-key-in-root":               "requires triage",
-	"webpki::forbidden-weak-rsa-in-leaf":                   "requires triage",
-	"webpki::forbidden-rsa-not-divisable-by-8-in-root":     "requires triage",
-	"webpki::forbidden-rsa-key-not-divisable-by-8-in-leaf": "requires triage",
-	"webpki::ee-basicconstraints-ca":                       "requires triage",
-	"webpki::ca-as-leaf":                                   "requires triage",
+	// These are instances where we should consider updating the implementation.
+	"rfc5280::san::noncritical-with-empty-subject":    "TODO(#79741)",
+	"webpki::san::san-critical-with-nonempty-subject": "TODO(#79741)",
+	"rfc5280::nc::not-allowed-in-ee-noncritical":      "TODO(#79742)",
+	"rfc5280::nc::not-allowed-in-ee-critical":         "TODO(#79742)",
+	"rfc5280::eku::ee-eku-empty":                      "TODO(#79743)",
+	"rfc5280::ca-empty-subject":                       "TODO(#79744)",
+
+	// Underscores and other invalid characters are presently allowed after
+	// tightening up the validation caused issues with real world certificates.
+	"rfc5280::san::underscore-dns": "TODO(#75835)",
+
+	// Go does not apply CABF key-strength policies.
+	"webpki::forbidden-dsa-leaf":                           "Go doesn't enforce CABF key strength policies",
+	"webpki::forbidden-weak-rsa-key-in-root":               "Go doesn't enforce CABF key strength policies",
+	"webpki::forbidden-weak-rsa-in-leaf":                   "Go doesn't enforce CABF key strength policies",
+	"webpki::forbidden-rsa-not-divisable-by-8-in-root":     "Go doesn't enforce CABF key strength policies",
+	"webpki::forbidden-rsa-key-not-divisable-by-8-in-leaf": "Go doesn't enforce CABF key strength policies",
+
+	// We don't want to take a public suffix data dependency, other heuristics
+	// are incomplete and will interact badly with private PKIs.
+	"webpki::san::public-suffix-wildcard-san": "Go doesn't include the PSL in its stdlib",
+
+	// Trust anchors are implicitly considered issuers regardless of basic
+	// constraints extension.
+	"rfc5280::root-non-critical-basic-constraints": "Go only considers BC on intermediates",
+	// Similarly, KeyUsage status flags are ignored by design. See Certificate.isValid
+	// comment in body of implementation.
+	"rfc5280::root-inconsistent-ca-extensions": "Go ignores KU, only considers BC on intermediates",
+	"rfc5280::leaf-ku-keycertsign":             "Go ignores KU, only considers BC on intermediates",
+
+	// Enforcing ee-basicconstraints-ca/ca-as-leaf may additionally break the
+	// somewhat common practice of using a self-signed issuer as the sole leaf
+	// certificate in a chain.
+	"webpki::ee-basicconstraints-ca": "Go ignores KU",
+	"webpki::ca-as-leaf":             "Go ignores KU",
+
+	// Certificate.Verify documents that we allow a leading period for DNS
+	// name constraints, similar to emails/URIs.
+	"rfc5280::nc::invalid-dnsname-leading-period": "Go accepts leading period",
+
+	// AKI is not load-bearing for validation. We only use it as a
+	// parent-ordering hint in CertPool.findPotentialParents.
+	"rfc5280::aki::cross-signed-root-missing-aki":          "Go only uses AKI for ordering hint, not a verification requirement",
+	"rfc5280::aki::leaf-missing-aki":                       "Go only uses AKI for ordering hint, not a verification requirement",
+	"webpki::aki::root-with-aki-missing-keyidentifier":     "Go does not enforce CABF requirement that root AKI contain a keyIdentifier field",
+	"webpki::aki::root-with-aki-authoritycertissuer":       "Go does not enforce CABF prohibition on authorityCertIssuer in root AKI",
+	"webpki::aki::root-with-aki-authoritycertserialnumber": "Go does not enforce CABF prohibition on authorityCertSerialNumber in root AKI",
+	"webpki::aki::root-with-aki-all-fields":                "Go does not enforce CABF restrictions on AKI field composition in roots",
+	"webpki::aki::root-with-aki-ski-mismatch":              "Go does not enforce CABF requirement that a self-signed root's AKI keyIdentifier match its SKI",
+
+	// Enforcing criticality is of dubious value in these cases and likely bumps
+	// into incorrect real world certificates. Additionally, no other verifiers
+	// tested by x509-limbo upstream treat these as a failure condition.
+	"webpki::eku::ee-critical-eku":                 "Go doesn't reject this extension when marked critical",
+	"rfc5280::nc::permitted-dns-match-noncritical": "Go doesn't require this extension to be critical",
+	"rfc5280::pc::ica-noncritical-pc":              "Go doesn't require this extension to be critical",
+
+	// Serial parsing enforces no negatives, but doesn't enforce max length or
+	// non-zero. Important roots have a serial of zero, and enforcing serial
+	// length broke enough private PKIs that the enforcement change was reverted.
+	"rfc5280::serial::too-long": "Causes significant breakage of real-world private PKIs",
+	"rfc5280::serial::zero":     "RFC 5280 says certificate users SHOULD gracefully handle zero",
+
+	// These are skipped based on CT analysis of affected certificates.
+	// See https://github.com/golang/go/issues/65085#issuecomment-1932886623
+	"rfc5280::ski::root-missing-ski":         "would break various trusted Verisign roots",
+	"rfc5280::ski::intermediate-missing-ski": "would break various trusted intermediates",
+	"rfc5280::aki::intermediate-missing-aki": "would break real world certificates",
+
+	// Go enforces EKU as an application-level capability filter, not according
+	// to CABF webpki policy where (for e.g.) anyExtendedKeyUsage is forbidden
+	// on leaves.
+	"webpki::eku::ee-anyeku":      "Go treats anyExtendedKeyUsage as overriding any other key usage.",
+	"webpki::eku::ee-without-eku": "Go skips certs with no EKU when checking chain usage.",
+	"webpki::eku::root-has-eku":   "Go allows a root to have an EKU as a downward constraint",
 
 	// Our implementation handles these degenerate name constraint tests
 	// without error. They are described as standards compliant but are
@@ -93,12 +130,27 @@ var allowedUnexpectedVerifications = map[string]string{
 // Instances where we produce an error, but the test corpus says we
 // shouldn't have. The map value justifies each allow.
 var allowedUnexpectedFailures = map[string]string{
-	// TODO(@cpu): triage and justify, or fix.
-	"pathlen::self-issued-certs-pathlen":     "requires triage",
-	"rfc5280::nc::permitted-dn-match":        "requires triage",
-	"rfc5280::nc::permitted-self-issued":     "requires triage",
-	"rfc5280::nc::nc-forbids-othername-noop": "requires triage",
-	"rfc5280::validity::notafter-fractional": "requires triage",
+	// This looks like a small oversight in our implementation, and should be
+	// fixed.
+	"rfc5280::nc::permitted-self-issued": "TODO(#79746)",
+
+	// The spec-conformant behavior weakens the security value of pathlen, and
+	// has limited real-world impact on webpki certificates. Other
+	// implementations like mozilla::pkix have reached a similar conclusion.
+	// See https://bugzilla.mozilla.org/show_bug.cgi?id=926265 and
+	// https://github.com/golang/go/issues/79745#issuecomment-4578179884
+	"pathlen::self-issued-certs-pathlen": "Go prefers a stricter pathen implementation",
+
+	// Limbo argues there are no OtherName GeneralName's in the chain being
+	// validated, and so it should pass. We take a more conservative stance
+	// backed by 5280 §4.2 that we have a critical extension we can't process,
+	// and don't make a determination based on usage in verification.
+	"rfc5280::nc::nc-forbids-othername-noop": "Go rejects critical NC with GeneralName types it doesn't implement",
+
+	// Per the test's description there is "no clear 'winning' interpretation"
+	// between second-granularity checks vs instantaneous. Changing our
+	// behavior in this case seems low-priority.
+	"rfc5280::validity::notafter-fractional": "Go uses instantaneous time comparisons",
 }
 
 var extKeyUsagesMap = map[x509limbo.KnownEKUs]ExtKeyUsage{
@@ -141,6 +193,10 @@ func TestX509Limbo(t *testing.T) {
 
 			if slices.Contains(tc.Features, x509limbo.FeatureMaxChainDepth) {
 				t.Skipf("customizable max chain depth not supported")
+			}
+
+			if slices.Contains(tc.Features, x509limbo.FeatureNameConstraintDn) {
+				t.Skipf("name constraints for DirectoryNames are not supported")
 			}
 
 			if len(tc.SignatureAlgorithms) != 0 {
