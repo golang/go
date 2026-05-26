@@ -80,7 +80,7 @@
   constImm: 3
   documentation: !string |-
     // NAME computes the difference after truncating with specified precision.
-- go: AddSub
+- go: AddOddSubEven
   commutative: false
   documentation: !string |-
     // NAME subtracts even elements and adds odd elements of two vectors.

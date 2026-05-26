@@ -24,11 +24,11 @@
   commutative: false
   documentation: !string |-
     // NAME performs a fused (x * y) + z.
-- go: MulAddSub
+- go: MulAddEvenSubOdd
   commutative: false
   documentation: !string |-
     // NAME performs a fused (x * y) - z for odd-indexed elements, and (x * y) + z for even-indexed elements.
-- go: MulSubAdd
+- go: MulAddOddSubEven
   commutative: false
   documentation: !string |-
     // NAME performs a fused (x * y) + z for odd-indexed elements, and (x * y) - z for even-indexed elements.

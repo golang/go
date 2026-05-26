@@ -7229,6 +7229,10 @@ const (
 	OpAddInt64x2
 	OpAddInt64x4
 	OpAddInt64x8
+	OpAddOddSubEvenFloat32x4
+	OpAddOddSubEvenFloat32x8
+	OpAddOddSubEvenFloat64x2
+	OpAddOddSubEvenFloat64x4
 	OpAddSaturatedInt8x16
 	OpAddSaturatedInt8x32
 	OpAddSaturatedInt8x64
@@ -7245,10 +7249,6 @@ const (
 	OpAddSaturatedUint16x32
 	OpAddSaturatedUint32x4
 	OpAddSaturatedUint64x2
-	OpAddSubFloat32x4
-	OpAddSubFloat32x8
-	OpAddSubFloat64x2
-	OpAddSubFloat64x4
 	OpAddUint8x16
 	OpAddUint8x32
 	OpAddUint8x64
@@ -7866,18 +7866,24 @@ const (
 	OpMinUint64x2
 	OpMinUint64x4
 	OpMinUint64x8
+	OpMulAddEvenSubOddFloat32x4
+	OpMulAddEvenSubOddFloat32x8
+	OpMulAddEvenSubOddFloat32x16
+	OpMulAddEvenSubOddFloat64x2
+	OpMulAddEvenSubOddFloat64x4
+	OpMulAddEvenSubOddFloat64x8
 	OpMulAddFloat32x4
 	OpMulAddFloat32x8
 	OpMulAddFloat32x16
 	OpMulAddFloat64x2
 	OpMulAddFloat64x4
 	OpMulAddFloat64x8
-	OpMulAddSubFloat32x4
-	OpMulAddSubFloat32x8
-	OpMulAddSubFloat32x16
-	OpMulAddSubFloat64x2
-	OpMulAddSubFloat64x4
-	OpMulAddSubFloat64x8
+	OpMulAddOddSubEvenFloat32x4
+	OpMulAddOddSubEvenFloat32x8
+	OpMulAddOddSubEvenFloat32x16
+	OpMulAddOddSubEvenFloat64x2
+	OpMulAddOddSubEvenFloat64x4
+	OpMulAddOddSubEvenFloat64x8
 	OpMulEvenWidenInt32x4
 	OpMulEvenWidenInt32x8
 	OpMulEvenWidenUint32x4
@@ -7916,12 +7922,6 @@ const (
 	OpMulSignInt16x16
 	OpMulSignInt32x4
 	OpMulSignInt32x8
-	OpMulSubAddFloat32x4
-	OpMulSubAddFloat32x8
-	OpMulSubAddFloat32x16
-	OpMulSubAddFloat64x2
-	OpMulSubAddFloat64x4
-	OpMulSubAddFloat64x8
 	OpMulUint8x16
 	OpMulUint16x8
 	OpMulUint16x16
@@ -107123,6 +107123,26 @@ var opcodeTable = [...]opInfo{
 		generic:     true,
 	},
 	{
+		name:    "AddOddSubEvenFloat32x4",
+		argLen:  2,
+		generic: true,
+	},
+	{
+		name:    "AddOddSubEvenFloat32x8",
+		argLen:  2,
+		generic: true,
+	},
+	{
+		name:    "AddOddSubEvenFloat64x2",
+		argLen:  2,
+		generic: true,
+	},
+	{
+		name:    "AddOddSubEvenFloat64x4",
+		argLen:  2,
+		generic: true,
+	},
+	{
 		name:        "AddSaturatedInt8x16",
 		argLen:      2,
 		commutative: true,
@@ -107217,26 +107237,6 @@ var opcodeTable = [...]opInfo{
 		argLen:      2,
 		commutative: true,
 		generic:     true,
-	},
-	{
-		name:    "AddSubFloat32x4",
-		argLen:  2,
-		generic: true,
-	},
-	{
-		name:    "AddSubFloat32x8",
-		argLen:  2,
-		generic: true,
-	},
-	{
-		name:    "AddSubFloat64x2",
-		argLen:  2,
-		generic: true,
-	},
-	{
-		name:    "AddSubFloat64x4",
-		argLen:  2,
-		generic: true,
 	},
 	{
 		name:        "AddUint8x16",
@@ -110460,6 +110460,36 @@ var opcodeTable = [...]opInfo{
 		generic:     true,
 	},
 	{
+		name:    "MulAddEvenSubOddFloat32x4",
+		argLen:  3,
+		generic: true,
+	},
+	{
+		name:    "MulAddEvenSubOddFloat32x8",
+		argLen:  3,
+		generic: true,
+	},
+	{
+		name:    "MulAddEvenSubOddFloat32x16",
+		argLen:  3,
+		generic: true,
+	},
+	{
+		name:    "MulAddEvenSubOddFloat64x2",
+		argLen:  3,
+		generic: true,
+	},
+	{
+		name:    "MulAddEvenSubOddFloat64x4",
+		argLen:  3,
+		generic: true,
+	},
+	{
+		name:    "MulAddEvenSubOddFloat64x8",
+		argLen:  3,
+		generic: true,
+	},
+	{
 		name:    "MulAddFloat32x4",
 		argLen:  3,
 		generic: true,
@@ -110490,32 +110520,32 @@ var opcodeTable = [...]opInfo{
 		generic: true,
 	},
 	{
-		name:    "MulAddSubFloat32x4",
+		name:    "MulAddOddSubEvenFloat32x4",
 		argLen:  3,
 		generic: true,
 	},
 	{
-		name:    "MulAddSubFloat32x8",
+		name:    "MulAddOddSubEvenFloat32x8",
 		argLen:  3,
 		generic: true,
 	},
 	{
-		name:    "MulAddSubFloat32x16",
+		name:    "MulAddOddSubEvenFloat32x16",
 		argLen:  3,
 		generic: true,
 	},
 	{
-		name:    "MulAddSubFloat64x2",
+		name:    "MulAddOddSubEvenFloat64x2",
 		argLen:  3,
 		generic: true,
 	},
 	{
-		name:    "MulAddSubFloat64x4",
+		name:    "MulAddOddSubEvenFloat64x4",
 		argLen:  3,
 		generic: true,
 	},
 	{
-		name:    "MulAddSubFloat64x8",
+		name:    "MulAddOddSubEvenFloat64x8",
 		argLen:  3,
 		generic: true,
 	},
@@ -110739,36 +110769,6 @@ var opcodeTable = [...]opInfo{
 	{
 		name:    "MulSignInt32x8",
 		argLen:  2,
-		generic: true,
-	},
-	{
-		name:    "MulSubAddFloat32x4",
-		argLen:  3,
-		generic: true,
-	},
-	{
-		name:    "MulSubAddFloat32x8",
-		argLen:  3,
-		generic: true,
-	},
-	{
-		name:    "MulSubAddFloat32x16",
-		argLen:  3,
-		generic: true,
-	},
-	{
-		name:    "MulSubAddFloat64x2",
-		argLen:  3,
-		generic: true,
-	},
-	{
-		name:    "MulSubAddFloat64x4",
-		argLen:  3,
-		generic: true,
-	},
-	{
-		name:    "MulSubAddFloat64x8",
-		argLen:  3,
 		generic: true,
 	},
 	{
