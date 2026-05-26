@@ -246,8 +246,8 @@ func (s *Stream) Read(b []byte) (n int, err error) {
 	fastPath := false
 	s.inbufmu.Lock()
 	if len(s.inbuf) > s.inbufoff {
-		// Fast path: If s.inbuf contains unread bytes, return them immediately
-		// without taking a lock.
+		// Fast path: If s.inbuf contains unread bytes, return them
+		// immediately.
 		n = copy(b, s.inbuf[s.inbufoff:])
 		s.inbufoff += n
 		fastPath = true
@@ -302,6 +302,7 @@ func (s *Stream) Read(b []byte) (n int, err error) {
 	bytesRead = int64(len(b))
 	start := s.in.start
 	end := start + int64(len(b))
+	raceAcquire()
 	s.in.copy(start, b)
 	s.in.discardBefore(end)
 	if end == s.insize {
@@ -462,6 +463,7 @@ func (s *Stream) Write(b []byte) (n int, err error) {
 		}
 		s.outbufmu.Unlock()
 	}
+	raceReleaseMerge()
 	s.outUnlock()
 	return n, nil
 }
