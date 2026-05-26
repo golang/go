@@ -8430,42 +8430,42 @@ const (
 	OpTruncFloat32x8
 	OpTruncFloat64x2
 	OpTruncFloat64x4
-	OpTruncateToInt8Int16x8
-	OpTruncateToInt8Int16x16
-	OpTruncateToInt8Int16x32
-	OpTruncateToInt8Int32x4
-	OpTruncateToInt8Int32x8
-	OpTruncateToInt8Int32x16
-	OpTruncateToInt8Int64x2
-	OpTruncateToInt8Int64x4
-	OpTruncateToInt8Int64x8
-	OpTruncateToInt16Int32x4
-	OpTruncateToInt16Int32x8
-	OpTruncateToInt16Int32x16
-	OpTruncateToInt16Int64x2
-	OpTruncateToInt16Int64x4
-	OpTruncateToInt16Int64x8
-	OpTruncateToInt32Int64x2
-	OpTruncateToInt32Int64x4
-	OpTruncateToInt32Int64x8
-	OpTruncateToUint8Uint16x8
-	OpTruncateToUint8Uint16x16
-	OpTruncateToUint8Uint16x32
-	OpTruncateToUint8Uint32x4
-	OpTruncateToUint8Uint32x8
-	OpTruncateToUint8Uint32x16
-	OpTruncateToUint8Uint64x2
-	OpTruncateToUint8Uint64x4
-	OpTruncateToUint8Uint64x8
-	OpTruncateToUint16Uint32x4
-	OpTruncateToUint16Uint32x8
-	OpTruncateToUint16Uint32x16
-	OpTruncateToUint16Uint64x2
-	OpTruncateToUint16Uint64x4
-	OpTruncateToUint16Uint64x8
-	OpTruncateToUint32Uint64x2
-	OpTruncateToUint32Uint64x4
-	OpTruncateToUint32Uint64x8
+	OpTruncToInt8Int16x8
+	OpTruncToInt8Int16x16
+	OpTruncToInt8Int16x32
+	OpTruncToInt8Int32x4
+	OpTruncToInt8Int32x8
+	OpTruncToInt8Int32x16
+	OpTruncToInt8Int64x2
+	OpTruncToInt8Int64x4
+	OpTruncToInt8Int64x8
+	OpTruncToInt16Int32x4
+	OpTruncToInt16Int32x8
+	OpTruncToInt16Int32x16
+	OpTruncToInt16Int64x2
+	OpTruncToInt16Int64x4
+	OpTruncToInt16Int64x8
+	OpTruncToInt32Int64x2
+	OpTruncToInt32Int64x4
+	OpTruncToInt32Int64x8
+	OpTruncToUint8Uint16x8
+	OpTruncToUint8Uint16x16
+	OpTruncToUint8Uint16x32
+	OpTruncToUint8Uint32x4
+	OpTruncToUint8Uint32x8
+	OpTruncToUint8Uint32x16
+	OpTruncToUint8Uint64x2
+	OpTruncToUint8Uint64x4
+	OpTruncToUint8Uint64x8
+	OpTruncToUint16Uint32x4
+	OpTruncToUint16Uint32x8
+	OpTruncToUint16Uint32x16
+	OpTruncToUint16Uint64x2
+	OpTruncToUint16Uint64x4
+	OpTruncToUint16Uint64x8
+	OpTruncToUint32Uint64x2
+	OpTruncToUint32Uint64x4
+	OpTruncToUint32Uint64x8
 	OpXorInt8x16
 	OpXorInt8x32
 	OpXorInt8x64
@@ -113368,182 +113368,182 @@ var opcodeTable = [...]opInfo{
 		generic: true,
 	},
 	{
-		name:    "TruncateToInt8Int16x8",
+		name:    "TruncToInt8Int16x8",
 		argLen:  1,
 		generic: true,
 	},
 	{
-		name:    "TruncateToInt8Int16x16",
+		name:    "TruncToInt8Int16x16",
 		argLen:  1,
 		generic: true,
 	},
 	{
-		name:    "TruncateToInt8Int16x32",
+		name:    "TruncToInt8Int16x32",
 		argLen:  1,
 		generic: true,
 	},
 	{
-		name:    "TruncateToInt8Int32x4",
+		name:    "TruncToInt8Int32x4",
 		argLen:  1,
 		generic: true,
 	},
 	{
-		name:    "TruncateToInt8Int32x8",
+		name:    "TruncToInt8Int32x8",
 		argLen:  1,
 		generic: true,
 	},
 	{
-		name:    "TruncateToInt8Int32x16",
+		name:    "TruncToInt8Int32x16",
 		argLen:  1,
 		generic: true,
 	},
 	{
-		name:    "TruncateToInt8Int64x2",
+		name:    "TruncToInt8Int64x2",
 		argLen:  1,
 		generic: true,
 	},
 	{
-		name:    "TruncateToInt8Int64x4",
+		name:    "TruncToInt8Int64x4",
 		argLen:  1,
 		generic: true,
 	},
 	{
-		name:    "TruncateToInt8Int64x8",
+		name:    "TruncToInt8Int64x8",
 		argLen:  1,
 		generic: true,
 	},
 	{
-		name:    "TruncateToInt16Int32x4",
+		name:    "TruncToInt16Int32x4",
 		argLen:  1,
 		generic: true,
 	},
 	{
-		name:    "TruncateToInt16Int32x8",
+		name:    "TruncToInt16Int32x8",
 		argLen:  1,
 		generic: true,
 	},
 	{
-		name:    "TruncateToInt16Int32x16",
+		name:    "TruncToInt16Int32x16",
 		argLen:  1,
 		generic: true,
 	},
 	{
-		name:    "TruncateToInt16Int64x2",
+		name:    "TruncToInt16Int64x2",
 		argLen:  1,
 		generic: true,
 	},
 	{
-		name:    "TruncateToInt16Int64x4",
+		name:    "TruncToInt16Int64x4",
 		argLen:  1,
 		generic: true,
 	},
 	{
-		name:    "TruncateToInt16Int64x8",
+		name:    "TruncToInt16Int64x8",
 		argLen:  1,
 		generic: true,
 	},
 	{
-		name:    "TruncateToInt32Int64x2",
+		name:    "TruncToInt32Int64x2",
 		argLen:  1,
 		generic: true,
 	},
 	{
-		name:    "TruncateToInt32Int64x4",
+		name:    "TruncToInt32Int64x4",
 		argLen:  1,
 		generic: true,
 	},
 	{
-		name:    "TruncateToInt32Int64x8",
+		name:    "TruncToInt32Int64x8",
 		argLen:  1,
 		generic: true,
 	},
 	{
-		name:    "TruncateToUint8Uint16x8",
+		name:    "TruncToUint8Uint16x8",
 		argLen:  1,
 		generic: true,
 	},
 	{
-		name:    "TruncateToUint8Uint16x16",
+		name:    "TruncToUint8Uint16x16",
 		argLen:  1,
 		generic: true,
 	},
 	{
-		name:    "TruncateToUint8Uint16x32",
+		name:    "TruncToUint8Uint16x32",
 		argLen:  1,
 		generic: true,
 	},
 	{
-		name:    "TruncateToUint8Uint32x4",
+		name:    "TruncToUint8Uint32x4",
 		argLen:  1,
 		generic: true,
 	},
 	{
-		name:    "TruncateToUint8Uint32x8",
+		name:    "TruncToUint8Uint32x8",
 		argLen:  1,
 		generic: true,
 	},
 	{
-		name:    "TruncateToUint8Uint32x16",
+		name:    "TruncToUint8Uint32x16",
 		argLen:  1,
 		generic: true,
 	},
 	{
-		name:    "TruncateToUint8Uint64x2",
+		name:    "TruncToUint8Uint64x2",
 		argLen:  1,
 		generic: true,
 	},
 	{
-		name:    "TruncateToUint8Uint64x4",
+		name:    "TruncToUint8Uint64x4",
 		argLen:  1,
 		generic: true,
 	},
 	{
-		name:    "TruncateToUint8Uint64x8",
+		name:    "TruncToUint8Uint64x8",
 		argLen:  1,
 		generic: true,
 	},
 	{
-		name:    "TruncateToUint16Uint32x4",
+		name:    "TruncToUint16Uint32x4",
 		argLen:  1,
 		generic: true,
 	},
 	{
-		name:    "TruncateToUint16Uint32x8",
+		name:    "TruncToUint16Uint32x8",
 		argLen:  1,
 		generic: true,
 	},
 	{
-		name:    "TruncateToUint16Uint32x16",
+		name:    "TruncToUint16Uint32x16",
 		argLen:  1,
 		generic: true,
 	},
 	{
-		name:    "TruncateToUint16Uint64x2",
+		name:    "TruncToUint16Uint64x2",
 		argLen:  1,
 		generic: true,
 	},
 	{
-		name:    "TruncateToUint16Uint64x4",
+		name:    "TruncToUint16Uint64x4",
 		argLen:  1,
 		generic: true,
 	},
 	{
-		name:    "TruncateToUint16Uint64x8",
+		name:    "TruncToUint16Uint64x8",
 		argLen:  1,
 		generic: true,
 	},
 	{
-		name:    "TruncateToUint32Uint64x2",
+		name:    "TruncToUint32Uint64x2",
 		argLen:  1,
 		generic: true,
 	},
 	{
-		name:    "TruncateToUint32Uint64x4",
+		name:    "TruncToUint32Uint64x4",
 		argLen:  1,
 		generic: true,
 	},
 	{
-		name:    "TruncateToUint32Uint64x8",
+		name:    "TruncToUint32Uint64x8",
 		argLen:  1,
 		generic: true,
 	},

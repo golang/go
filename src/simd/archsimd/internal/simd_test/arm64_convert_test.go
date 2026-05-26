@@ -29,11 +29,11 @@ func TestConvertArm64(t *testing.T) {
 }
 
 func TestTruncateArm64(t *testing.T) {
-	testInt16x8ConvertToInt8x16(t, archsimd.Int16x8.TruncateToInt8, map1[int16](toInt8))
-	testInt32x4ConvertToInt16x8(t, archsimd.Int32x4.TruncateToInt16, map1[int32](toInt16))
-	testInt64x2ConvertToInt32x4(t, archsimd.Int64x2.TruncateToInt32, map1[int64](toInt32))
+	testInt16x8ConvertToInt8x16(t, archsimd.Int16x8.TruncToToInt8, map1[int16](toInt8))
+	testInt32x4ConvertToInt16x8(t, archsimd.Int32x4.TruncToToInt16, map1[int32](toInt16))
+	testInt64x2ConvertToInt32x4(t, archsimd.Int64x2.TruncToToInt32, map1[int64](toInt32))
 
-	testUint16x8ConvertToUint8x16(t, archsimd.Uint16x8.TruncateToUint8, map1[uint16](toUint8))
-	testUint32x4ConvertToUint16x8(t, archsimd.Uint32x4.TruncateToUint16, map1[uint32](toUint16))
-	testUint64x2ConvertToUint32x4(t, archsimd.Uint64x2.TruncateToUint32, map1[uint64](toUint32))
+	testUint16x8ConvertToUint8x16(t, archsimd.Uint16x8.TruncToToUint8, map1[uint16](toUint8))
+	testUint32x4ConvertToUint16x8(t, archsimd.Uint32x4.TruncToToUint16, map1[uint32](toUint16))
+	testUint64x2ConvertToUint32x4(t, archsimd.Uint64x2.TruncToToUint32, map1[uint64](toUint32))
 }

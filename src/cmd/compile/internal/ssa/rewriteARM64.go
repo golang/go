@@ -2343,22 +2343,22 @@ func rewriteValueARM64(v *Value) bool {
 	case OpTruncFloat64x2:
 		v.Op = OpARM64VFRINTZ2D
 		return true
-	case OpTruncateToInt16Int32x4:
+	case OpTruncToInt16Int32x4:
 		v.Op = OpARM64VXTN4S
 		return true
-	case OpTruncateToInt32Int64x2:
+	case OpTruncToInt32Int64x2:
 		v.Op = OpARM64VXTN2D
 		return true
-	case OpTruncateToInt8Int16x8:
+	case OpTruncToInt8Int16x8:
 		v.Op = OpARM64VXTN8H
 		return true
-	case OpTruncateToUint16Uint32x4:
+	case OpTruncToUint16Uint32x4:
 		v.Op = OpARM64VXTN4S
 		return true
-	case OpTruncateToUint32Uint64x2:
+	case OpTruncToUint32Uint64x2:
 		v.Op = OpARM64VXTN2D
 		return true
-	case OpTruncateToUint8Uint16x8:
+	case OpTruncToUint8Uint16x8:
 		v.Op = OpARM64VXTN8H
 		return true
 	case OpWB:

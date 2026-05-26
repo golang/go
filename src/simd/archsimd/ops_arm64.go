@@ -2327,53 +2327,53 @@ func (x Float32x4) Trunc() Float32x4
 // Asm: VFRINTZ, CPU Feature: NEON
 func (x Float64x2) Trunc() Float64x2
 
-/* TruncateToInt8 */
+/* TruncToInt8 */
 
-// TruncateToInt8 truncates element values to int8.
+// TruncToInt8 truncates element values to int8.
 // Results are packed to low elements in the returned vector, its upper elements are zeroed.
 //
 // Asm: VXTN, CPU Feature: NEON
-func (x Int16x8) TruncateToInt8() Int8x16
+func (x Int16x8) TruncToInt8() Int8x16
 
-/* TruncateToInt16 */
+/* TruncToInt16 */
 
-// TruncateToInt16 truncates element values to int16.
+// TruncToInt16 truncates element values to int16.
 // Results are packed to low elements in the returned vector, its upper elements are zeroed.
 //
 // Asm: VXTN, CPU Feature: NEON
-func (x Int32x4) TruncateToInt16() Int16x8
+func (x Int32x4) TruncToInt16() Int16x8
 
-/* TruncateToInt32 */
+/* TruncToInt32 */
 
-// TruncateToInt32 truncates element values to int32.
+// TruncToInt32 truncates element values to int32.
 // Results are packed to low elements in the returned vector, its upper elements are zeroed.
 //
 // Asm: VXTN, CPU Feature: NEON
-func (x Int64x2) TruncateToInt32() Int32x4
+func (x Int64x2) TruncToInt32() Int32x4
 
-/* TruncateToUint8 */
+/* TruncToUint8 */
 
-// TruncateToUint8 truncates element values to uint8.
+// TruncToUint8 truncates element values to uint8.
 // Results are packed to low elements in the returned vector, its upper elements are zeroed.
 //
 // Asm: VXTN, CPU Feature: NEON
-func (x Uint16x8) TruncateToUint8() Uint8x16
+func (x Uint16x8) TruncToUint8() Uint8x16
 
-/* TruncateToUint16 */
+/* TruncToUint16 */
 
-// TruncateToUint16 truncates element values to uint16.
+// TruncToUint16 truncates element values to uint16.
 // Results are packed to low elements in the returned vector, its upper elements are zeroed.
 //
 // Asm: VXTN, CPU Feature: NEON
-func (x Uint32x4) TruncateToUint16() Uint16x8
+func (x Uint32x4) TruncToUint16() Uint16x8
 
-/* TruncateToUint32 */
+/* TruncToUint32 */
 
-// TruncateToUint32 truncates element values to uint32.
+// TruncToUint32 truncates element values to uint32.
 // Results are packed to low elements in the returned vector, its upper elements are zeroed.
 //
 // Asm: VXTN, CPU Feature: NEON
-func (x Uint64x2) TruncateToUint32() Uint32x4
+func (x Uint64x2) TruncToUint32() Uint32x4
 
 /* Xor */
 

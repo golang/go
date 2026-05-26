@@ -7461,217 +7461,217 @@ func (x Float64x4) TruncScaledResidue(prec uint8) Float64x4
 // Asm: VREDUCEPD, CPU Feature: AVX512
 func (x Float64x8) TruncScaledResidue(prec uint8) Float64x8
 
-/* TruncateToInt8 */
+/* TruncToInt8 */
 
-// TruncateToInt8 truncates element values to int8.
+// TruncToInt8 truncates element values to int8.
 // Results are packed to low elements in the returned vector, its upper elements are zeroed.
 //
 // Asm: VPMOVWB, CPU Feature: AVX512
-func (x Int16x8) TruncateToInt8() Int8x16
+func (x Int16x8) TruncToInt8() Int8x16
 
-// TruncateToInt8 truncates element values to int8.
+// TruncToInt8 truncates element values to int8.
 //
 // Asm: VPMOVWB, CPU Feature: AVX512
-func (x Int16x16) TruncateToInt8() Int8x16
+func (x Int16x16) TruncToInt8() Int8x16
 
-// TruncateToInt8 truncates element values to int8.
+// TruncToInt8 truncates element values to int8.
 //
 // Asm: VPMOVWB, CPU Feature: AVX512
-func (x Int16x32) TruncateToInt8() Int8x32
+func (x Int16x32) TruncToInt8() Int8x32
 
-// TruncateToInt8 truncates element values to int8.
+// TruncToInt8 truncates element values to int8.
 // Results are packed to low elements in the returned vector, its upper elements are zeroed.
 //
 // Asm: VPMOVDB, CPU Feature: AVX512
-func (x Int32x4) TruncateToInt8() Int8x16
+func (x Int32x4) TruncToInt8() Int8x16
 
-// TruncateToInt8 truncates element values to int8.
+// TruncToInt8 truncates element values to int8.
 // Results are packed to low elements in the returned vector, its upper elements are zeroed.
 //
 // Asm: VPMOVDB, CPU Feature: AVX512
-func (x Int32x8) TruncateToInt8() Int8x16
+func (x Int32x8) TruncToInt8() Int8x16
 
-// TruncateToInt8 truncates element values to int8.
+// TruncToInt8 truncates element values to int8.
 //
 // Asm: VPMOVDB, CPU Feature: AVX512
-func (x Int32x16) TruncateToInt8() Int8x16
+func (x Int32x16) TruncToInt8() Int8x16
 
-// TruncateToInt8 truncates element values to int8.
+// TruncToInt8 truncates element values to int8.
 // Results are packed to low elements in the returned vector, its upper elements are zeroed.
 //
 // Asm: VPMOVQB, CPU Feature: AVX512
-func (x Int64x2) TruncateToInt8() Int8x16
+func (x Int64x2) TruncToInt8() Int8x16
 
-// TruncateToInt8 truncates element values to int8.
+// TruncToInt8 truncates element values to int8.
 // Results are packed to low elements in the returned vector, its upper elements are zeroed.
 //
 // Asm: VPMOVQB, CPU Feature: AVX512
-func (x Int64x4) TruncateToInt8() Int8x16
+func (x Int64x4) TruncToInt8() Int8x16
 
-// TruncateToInt8 truncates element values to int8.
+// TruncToInt8 truncates element values to int8.
 // Results are packed to low elements in the returned vector, its upper elements are zeroed.
 //
 // Asm: VPMOVQB, CPU Feature: AVX512
-func (x Int64x8) TruncateToInt8() Int8x16
+func (x Int64x8) TruncToInt8() Int8x16
 
-/* TruncateToInt16 */
+/* TruncToInt16 */
 
-// TruncateToInt16 truncates element values to int16.
+// TruncToInt16 truncates element values to int16.
 // Results are packed to low elements in the returned vector, its upper elements are zeroed.
 //
 // Asm: VPMOVDW, CPU Feature: AVX512
-func (x Int32x4) TruncateToInt16() Int16x8
+func (x Int32x4) TruncToInt16() Int16x8
 
-// TruncateToInt16 truncates element values to int16.
+// TruncToInt16 truncates element values to int16.
 //
 // Asm: VPMOVDW, CPU Feature: AVX512
-func (x Int32x8) TruncateToInt16() Int16x8
+func (x Int32x8) TruncToInt16() Int16x8
 
-// TruncateToInt16 truncates element values to int16.
+// TruncToInt16 truncates element values to int16.
 //
 // Asm: VPMOVDW, CPU Feature: AVX512
-func (x Int32x16) TruncateToInt16() Int16x16
+func (x Int32x16) TruncToInt16() Int16x16
 
-// TruncateToInt16 truncates element values to int16.
+// TruncToInt16 truncates element values to int16.
 // Results are packed to low elements in the returned vector, its upper elements are zeroed.
 //
 // Asm: VPMOVQW, CPU Feature: AVX512
-func (x Int64x2) TruncateToInt16() Int16x8
+func (x Int64x2) TruncToInt16() Int16x8
 
-// TruncateToInt16 truncates element values to int16.
+// TruncToInt16 truncates element values to int16.
 // Results are packed to low elements in the returned vector, its upper elements are zeroed.
 //
 // Asm: VPMOVQW, CPU Feature: AVX512
-func (x Int64x4) TruncateToInt16() Int16x8
+func (x Int64x4) TruncToInt16() Int16x8
 
-// TruncateToInt16 truncates element values to int16.
+// TruncToInt16 truncates element values to int16.
 //
 // Asm: VPMOVQW, CPU Feature: AVX512
-func (x Int64x8) TruncateToInt16() Int16x8
+func (x Int64x8) TruncToInt16() Int16x8
 
-/* TruncateToInt32 */
+/* TruncToInt32 */
 
-// TruncateToInt32 truncates element values to int32.
+// TruncToInt32 truncates element values to int32.
 // Results are packed to low elements in the returned vector, its upper elements are zeroed.
 //
 // Asm: VPMOVQD, CPU Feature: AVX512
-func (x Int64x2) TruncateToInt32() Int32x4
+func (x Int64x2) TruncToInt32() Int32x4
 
-// TruncateToInt32 truncates element values to int32.
+// TruncToInt32 truncates element values to int32.
 //
 // Asm: VPMOVQD, CPU Feature: AVX512
-func (x Int64x4) TruncateToInt32() Int32x4
+func (x Int64x4) TruncToInt32() Int32x4
 
-// TruncateToInt32 truncates element values to int32.
+// TruncToInt32 truncates element values to int32.
 //
 // Asm: VPMOVQD, CPU Feature: AVX512
-func (x Int64x8) TruncateToInt32() Int32x8
+func (x Int64x8) TruncToInt32() Int32x8
 
-/* TruncateToUint8 */
+/* TruncToUint8 */
 
-// TruncateToUint8 truncates element values to uint8.
+// TruncToUint8 truncates element values to uint8.
 // Results are packed to low elements in the returned vector, its upper elements are zeroed.
 //
 // Asm: VPMOVWB, CPU Feature: AVX512
-func (x Uint16x8) TruncateToUint8() Uint8x16
+func (x Uint16x8) TruncToUint8() Uint8x16
 
-// TruncateToUint8 truncates element values to uint8.
+// TruncToUint8 truncates element values to uint8.
 //
 // Asm: VPMOVWB, CPU Feature: AVX512
-func (x Uint16x16) TruncateToUint8() Uint8x16
+func (x Uint16x16) TruncToUint8() Uint8x16
 
-// TruncateToUint8 truncates element values to uint8.
+// TruncToUint8 truncates element values to uint8.
 //
 // Asm: VPMOVWB, CPU Feature: AVX512
-func (x Uint16x32) TruncateToUint8() Uint8x32
+func (x Uint16x32) TruncToUint8() Uint8x32
 
-// TruncateToUint8 truncates element values to uint8.
+// TruncToUint8 truncates element values to uint8.
 // Results are packed to low elements in the returned vector, its upper elements are zeroed.
 //
 // Asm: VPMOVDB, CPU Feature: AVX512
-func (x Uint32x4) TruncateToUint8() Uint8x16
+func (x Uint32x4) TruncToUint8() Uint8x16
 
-// TruncateToUint8 truncates element values to uint8.
+// TruncToUint8 truncates element values to uint8.
 // Results are packed to low elements in the returned vector, its upper elements are zeroed.
 //
 // Asm: VPMOVDB, CPU Feature: AVX512
-func (x Uint32x8) TruncateToUint8() Uint8x16
+func (x Uint32x8) TruncToUint8() Uint8x16
 
-// TruncateToUint8 truncates element values to uint8.
+// TruncToUint8 truncates element values to uint8.
 //
 // Asm: VPMOVDB, CPU Feature: AVX512
-func (x Uint32x16) TruncateToUint8() Uint8x16
+func (x Uint32x16) TruncToUint8() Uint8x16
 
-// TruncateToUint8 truncates element values to uint8.
+// TruncToUint8 truncates element values to uint8.
 // Results are packed to low elements in the returned vector, its upper elements are zeroed.
 //
 // Asm: VPMOVQB, CPU Feature: AVX512
-func (x Uint64x2) TruncateToUint8() Uint8x16
+func (x Uint64x2) TruncToUint8() Uint8x16
 
-// TruncateToUint8 truncates element values to uint8.
+// TruncToUint8 truncates element values to uint8.
 // Results are packed to low elements in the returned vector, its upper elements are zeroed.
 //
 // Asm: VPMOVQB, CPU Feature: AVX512
-func (x Uint64x4) TruncateToUint8() Uint8x16
+func (x Uint64x4) TruncToUint8() Uint8x16
 
-// TruncateToUint8 truncates element values to uint8.
+// TruncToUint8 truncates element values to uint8.
 // Results are packed to low elements in the returned vector, its upper elements are zeroed.
 //
 // Asm: VPMOVQB, CPU Feature: AVX512
-func (x Uint64x8) TruncateToUint8() Uint8x16
+func (x Uint64x8) TruncToUint8() Uint8x16
 
-/* TruncateToUint16 */
+/* TruncToUint16 */
 
-// TruncateToUint16 truncates element values to uint16.
+// TruncToUint16 truncates element values to uint16.
 // Results are packed to low elements in the returned vector, its upper elements are zeroed.
 //
 // Asm: VPMOVDW, CPU Feature: AVX512
-func (x Uint32x4) TruncateToUint16() Uint16x8
+func (x Uint32x4) TruncToUint16() Uint16x8
 
-// TruncateToUint16 truncates element values to uint16.
+// TruncToUint16 truncates element values to uint16.
 //
 // Asm: VPMOVDW, CPU Feature: AVX512
-func (x Uint32x8) TruncateToUint16() Uint16x8
+func (x Uint32x8) TruncToUint16() Uint16x8
 
-// TruncateToUint16 truncates element values to uint16.
+// TruncToUint16 truncates element values to uint16.
 //
 // Asm: VPMOVDW, CPU Feature: AVX512
-func (x Uint32x16) TruncateToUint16() Uint16x16
+func (x Uint32x16) TruncToUint16() Uint16x16
 
-// TruncateToUint16 truncates element values to uint16.
+// TruncToUint16 truncates element values to uint16.
 // Results are packed to low elements in the returned vector, its upper elements are zeroed.
 //
 // Asm: VPMOVQW, CPU Feature: AVX512
-func (x Uint64x2) TruncateToUint16() Uint16x8
+func (x Uint64x2) TruncToUint16() Uint16x8
 
-// TruncateToUint16 truncates element values to uint16.
+// TruncToUint16 truncates element values to uint16.
 // Results are packed to low elements in the returned vector, its upper elements are zeroed.
 //
 // Asm: VPMOVQW, CPU Feature: AVX512
-func (x Uint64x4) TruncateToUint16() Uint16x8
+func (x Uint64x4) TruncToUint16() Uint16x8
 
-// TruncateToUint16 truncates element values to uint16.
+// TruncToUint16 truncates element values to uint16.
 //
 // Asm: VPMOVQW, CPU Feature: AVX512
-func (x Uint64x8) TruncateToUint16() Uint16x8
+func (x Uint64x8) TruncToUint16() Uint16x8
 
-/* TruncateToUint32 */
+/* TruncToUint32 */
 
-// TruncateToUint32 truncates element values to uint32.
+// TruncToUint32 truncates element values to uint32.
 // Results are packed to low elements in the returned vector, its upper elements are zeroed.
 //
 // Asm: VPMOVQD, CPU Feature: AVX512
-func (x Uint64x2) TruncateToUint32() Uint32x4
+func (x Uint64x2) TruncToUint32() Uint32x4
 
-// TruncateToUint32 truncates element values to uint32.
+// TruncToUint32 truncates element values to uint32.
 //
 // Asm: VPMOVQD, CPU Feature: AVX512
-func (x Uint64x4) TruncateToUint32() Uint32x4
+func (x Uint64x4) TruncToUint32() Uint32x4
 
-// TruncateToUint32 truncates element values to uint32.
+// TruncToUint32 truncates element values to uint32.
 //
 // Asm: VPMOVQD, CPU Feature: AVX512
-func (x Uint64x8) TruncateToUint32() Uint32x8
+func (x Uint64x8) TruncToUint32() Uint32x8
 
 /* Xor */
 
