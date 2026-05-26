@@ -16,8 +16,8 @@ import (
 
 	"simd/archsimd/_gen/unify"
 
+	"go.yaml.in/yaml/v3"
 	"golang.org/x/arch/x86/xeddata"
-	"gopkg.in/yaml.v3"
 )
 
 const (

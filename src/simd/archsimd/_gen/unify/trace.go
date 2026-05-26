@@ -9,7 +9,7 @@ import (
 	"io"
 	"strings"
 
-	"gopkg.in/yaml.v3"
+	"go.yaml.in/yaml/v3"
 )
 
 // debugDotInHTML, if true, includes dot code for all graphs in the HTML. Useful
