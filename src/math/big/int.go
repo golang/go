@@ -11,6 +11,7 @@ import (
 	"io"
 	"math/rand"
 	"strings"
+	"sync"
 )
 
 // An Int represents a signed multi-precision integer.
@@ -829,6 +830,35 @@ func euclidUpdate(A, B, Ua, Ub, q, r *Int, extended bool) (nA, nB, nr, nUa, nUb 
 	return B, r, A, Ua, Ub
 }
 
+type sixIntPool struct {
+	pool sync.Pool
+}
+
+func (t *sixIntPool) Put(data *[6]*Int) {
+	data[0].SetInt64(0)
+	data[1].SetInt64(0)
+	data[2].SetInt64(0)
+	data[3].SetInt64(0)
+	data[4].SetInt64(0)
+	data[5].SetInt64(0)
+	t.pool.Put(data)
+}
+
+func (t *sixIntPool) Get() *[6]*Int {
+	return t.pool.Get().(*[6]*Int)
+}
+
+var sixIntP = sixIntPool{
+	sync.Pool{
+		New: func() any {
+			data := [6]*Int{
+				&Int{}, &Int{}, &Int{}, &Int{}, &Int{}, &Int{},
+			}
+			return &data
+		},
+	},
+}
+
 // lehmerGCD sets z to the greatest common divisor of a and b,
 // which both must be != 0, and returns z.
 // If x or y are not nil, their values are set such that z = a*x + b*y.
@@ -840,22 +870,22 @@ func euclidUpdate(A, B, Ua, Ub, q, r *Int, extended bool) (nA, nB, nr, nUa, nUb 
 // The cosequences are updated according to Algorithm 10.45 from
 // Cohen et al. "Handbook of Elliptic and Hyperelliptic Curve Cryptography" pp 192.
 func (z *Int) lehmerGCD(x, y, a, b *Int) *Int {
-	var A, B, Ua, Ub *Int
+	data := sixIntP.Get()
+	var A, B, Ua, Ub *Int = data[0], data[1], data[2], data[3]
 
-	A = new(Int).Abs(a)
-	B = new(Int).Abs(b)
+	A.Abs(a)
+	B.Abs(b)
 
 	extended := x != nil || y != nil
 
 	if extended {
 		// Ua (Ub) tracks how many times input a has been accumulated into A (B).
-		Ua = new(Int).SetInt64(1)
-		Ub = new(Int)
+		Ua.SetInt64(1)
 	}
 
 	// temp variables for multiprecision update
-	q := new(Int)
-	r := new(Int)
+	q := data[4]
+	r := data[5]
 
 	// ensure A >= B
 	if A.abs.cmp(B.abs) < 0 {
@@ -947,6 +977,8 @@ func (z *Int) lehmerGCD(x, y, a, b *Int) *Int {
 
 	z.Set(A)
 
+	sixIntP.Put(data)
+
 	return z
 }
 
@@ -966,6 +998,29 @@ func (z *Int) Rand(rnd *rand.Rand, n *Int) *Int {
 	return z
 }
 
+type twoIntPool struct {
+	pool sync.Pool
+}
+
+func (t *twoIntPool) Put(data *[2]*Int) {
+	data[0].SetInt64(0)
+	data[1].SetInt64(0)
+	t.pool.Put(data)
+}
+
+func (t *twoIntPool) Get() *[2]*Int {
+	return t.pool.Get().(*[2]*Int)
+}
+
+var twoIntP = twoIntPool{
+	sync.Pool{
+		New: func() any {
+			data := [2]*Int{&Int{}, &Int{}}
+			return &data
+		},
+	},
+}
+
 // ModInverse sets z to the multiplicative inverse of g in the ring ℤ/nℤ
 // and returns z. If g and n are not relatively prime, g has no multiplicative
 // inverse in the ring ℤ/nℤ.  In this case, z is unchanged and the return value
@@ -980,8 +1035,10 @@ func (z *Int) ModInverse(g, n *Int) *Int {
 		var g2 Int
 		g = g2.Mod(g, n)
 	}
-	var d, x Int
-	d.GCD(&x, nil, g, n)
+
+	data := twoIntP.Get()
+	var d, x *Int = data[0], data[1]
+	d.GCD(x, nil, g, n)
 
 	// if and only if d==1, g and n are relatively prime
 	if d.Cmp(intOne) != 0 {
@@ -991,10 +1048,13 @@ func (z *Int) ModInverse(g, n *Int) *Int {
 	// x and y are such that g*x + n*y = 1, therefore x is the inverse element,
 	// but it may be negative, so convert to the range 0 <= z < |n|
 	if x.neg {
-		z.Add(&x, n)
+		z.Add(x, n)
 	} else {
-		z.Set(&x)
+		z.Set(x)
 	}
+
+	twoIntP.Put(data)
+
 	return z
 }
 
