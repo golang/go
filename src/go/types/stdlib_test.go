@@ -359,6 +359,7 @@ var excluded = map[string]bool{
 	"cmd/compile/internal/ssa/_gen": true,
 	"crypto/internal/cryptotest/wycheproof/_schema": true,
 	"runtime/_mkmalloc":                             true,
+	"simd/archsimd/_gen/sgutil":                     true,
 	"simd/archsimd/_gen/simdgen":                    true,
 	"simd/archsimd/_gen/simdgen/arm64":              true,
 	"simd/archsimd/_gen/tmplgen":                    true,
