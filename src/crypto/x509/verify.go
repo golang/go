@@ -110,7 +110,7 @@ func (h HostnameError) Error() string {
 	c := h.Certificate
 	maxNamesIncluded := 100
 
-	if !c.hasSANExtension() && matchHostnames(c.Subject.CommonName, h.Host) {
+	if !c.hasSANExtension() && matchHostnames(c.Subject.CommonName, splitHostname(h.Host)) {
 		return "x509: certificate relies on legacy Common Name field, use SANs instead"
 	}
 
@@ -867,16 +867,14 @@ func matchExactly(hostA, hostB string) bool {
 	return toLowerCaseASCII(hostA) == toLowerCaseASCII(hostB)
 }
 
-func matchHostnames(pattern, host string) bool {
+func matchHostnames(pattern string, hostParts []string) bool {
 	pattern = toLowerCaseASCII(pattern)
-	host = toLowerCaseASCII(strings.TrimSuffix(host, "."))
 
-	if len(pattern) == 0 || len(host) == 0 {
+	if len(pattern) == 0 || len(hostParts) == 0 {
 		return false
 	}
 
 	patternParts := strings.Split(pattern, ".")
-	hostParts := strings.Split(host, ".")
 
 	if len(patternParts) != len(hostParts) {
 		return false
@@ -954,6 +952,7 @@ func (c *Certificate) VerifyHostname(h string) error {
 
 	candidateName := toLowerCaseASCII(h) // Save allocations inside the loop.
 	validCandidateName := validHostnameInput(candidateName)
+	hostParts := splitHostname(candidateName)
 
 	for _, match := range c.DNSNames {
 		// Ideally, we'd only match valid hostnames according to RFC 6125 like
@@ -962,7 +961,7 @@ func (c *Certificate) VerifyHostname(h string) error {
 		// always allow perfect matches, and only apply wildcard and trailing
 		// dot processing to valid hostnames.
 		if validCandidateName && validHostnamePattern(match) {
-			if matchHostnames(match, candidateName) {
+			if matchHostnames(match, hostParts) {
 				return nil
 			}
 		} else {
@@ -973,6 +972,10 @@ func (c *Certificate) VerifyHostname(h string) error {
 	}
 
 	return HostnameError{c, h}
+}
+
+func splitHostname(host string) []string {
+	return strings.Split(toLowerCaseASCII(strings.TrimSuffix(host, ".")), ".")
 }
 
 func checkChainForKeyUsage(chain []*Certificate, keyUsages []ExtKeyUsage) bool {
