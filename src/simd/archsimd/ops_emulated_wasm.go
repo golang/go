@@ -50,26 +50,31 @@ func (x Uint64x2) GreaterEqual(y Uint64x2) Mask64x2 {
 	return ix.GreaterEqual(iy)
 }
 
+// Max returns the elementswise maximum of elements in x and y
 func (x Int64x2) Max(y Int64x2) Int64x2 {
 	mask := x.Greater(y).ToInt64x2()
 	return x.And(mask).Or(y.AndNot(mask))
 }
 
+// Min returns the elementswise minimum of elements in x and y
 func (x Int64x2) Min(y Int64x2) Int64x2 {
 	mask := x.Less(y).ToInt64x2()
 	return x.And(mask).Or(y.AndNot(mask))
 }
 
+// Max returns the elementswise maximum of elements in x and y
 func (x Uint64x2) Max(y Uint64x2) Uint64x2 {
 	mask := x.Greater(y).ToInt64x2().ToBits()
 	return x.And(mask).Or(y.AndNot(mask))
 }
 
+// Min returns the elementswise minimum of elements in x and y
 func (x Uint64x2) Min(y Uint64x2) Uint64x2 {
 	mask := x.Less(y).ToInt64x2().ToBits()
 	return x.And(mask).Or(y.AndNot(mask))
 }
 
+// Mul returns the elementswise product of elements in x and y
 func (x Int8x16) Mul(y Int8x16) Int8x16 {
 	// To obtain an 8-bit multiply, split the vectors into even and odd
 	// elements, shift odds into even position, widen elements in both
@@ -86,6 +91,7 @@ func (x Int8x16) Mul(y Int8x16) Int8x16 {
 	return pe.Or(po).ReshapeToUint8s().BitsToInt8()
 }
 
+// Mul returns the elementswise product of elements in x and y
 func (x Uint8x16) Mul(y Uint8x16) Uint8x16 {
 	mask := LoadInt8x16Array(&f0s).ToBits()
 	mask16 := mask.ReshapeToUint16s()
@@ -135,4 +141,24 @@ func (x Int64x2) OnesCount() Int64x2 {
 	ze := z.And(mask32).ToBits().ReshapeToUint64s().BitsToInt64()
 	zo := z.AndNot(mask32).ToBits().ReshapeToUint64s().BitsToInt64().ShiftAllRight(32)
 	return ze.Add(zo)
+}
+
+// OnesCount returns the number of set bits in each vector element
+func (x Uint8x16) OnesCount() Uint8x16 {
+	return x.BitsToInt8().OnesCount().ToBits()
+}
+
+// OnesCount returns the number of set bits in each vector element
+func (x Uint16x8) OnesCount() Uint16x8 {
+	return x.BitsToInt16().OnesCount().ToBits()
+}
+
+// OnesCount returns the number of set bits in each vector element
+func (x Uint32x4) OnesCount() Uint32x4 {
+	return x.BitsToInt32().OnesCount().ToBits()
+}
+
+// OnesCount returns the number of set bits in each vector element
+func (x Uint64x2) OnesCount() Uint64x2 {
+	return x.BitsToInt64().OnesCount().ToBits()
 }
