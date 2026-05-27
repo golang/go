@@ -12,6 +12,28 @@ import (
 	"testing"
 )
 
+func TestAbsFP(t *testing.T) {
+	testFloat32x4Unary(t, archsimd.Float32x4.Abs, map1[float32](abs))
+	testFloat32x8Unary(t, archsimd.Float32x8.Abs, map1[float32](abs))
+	testFloat64x2Unary(t, archsimd.Float64x2.Abs, map1[float64](abs))
+	testFloat64x4Unary(t, archsimd.Float64x4.Abs, map1[float64](abs))
+	if archsimd.X86.AVX512() {
+		testFloat32x16Unary(t, archsimd.Float32x16.Abs, map1[float32](abs)) // missing
+		testFloat64x8Unary(t, archsimd.Float64x8.Abs, map1[float64](abs))   // missing
+	}
+}
+
+func TestNegFP(t *testing.T) {
+	testFloat32x4Unary(t, archsimd.Float32x4.Neg, map1[float32](neg))
+	testFloat32x8Unary(t, archsimd.Float32x8.Neg, map1[float32](neg))
+	testFloat64x2Unary(t, archsimd.Float64x2.Neg, map1[float64](neg))
+	testFloat64x4Unary(t, archsimd.Float64x4.Neg, map1[float64](neg))
+	if archsimd.X86.AVX512() {
+		testFloat32x16Unary(t, archsimd.Float32x16.Neg, map1[float32](neg)) // missing
+		testFloat64x8Unary(t, archsimd.Float64x8.Neg, map1[float64](neg))   // missing
+	}
+}
+
 func TestCeil(t *testing.T) {
 	testFloat32x4Unary(t, archsimd.Float32x4.Ceil, ceilSlice[float32])
 	testFloat32x8Unary(t, archsimd.Float32x8.Ceil, ceilSlice[float32])

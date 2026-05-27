@@ -84,6 +84,10 @@ func abs[T number](x T) T {
 	return x
 }
 
+func neg[T number](x T) T {
+	return -x
+}
+
 func onesCount[T integer](x T) T {
 	size := uint64(unsafe.Sizeof(x)) * 8
 	return T(bits.OnesCount64(uint64(x) & ((1 << size) - 1)))

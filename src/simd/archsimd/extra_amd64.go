@@ -230,6 +230,56 @@ func (x Float64x8) Abs() Float64x8 {
 	return x.ToBits().AndNot(mask).BitsToFloat64()
 }
 
+// Neg returns the negation of the elements of x
+//
+// Emulated, CPU Feature AVX
+func (x Float32x4) Neg() Float32x4 {
+	mask := BroadcastUint32x4(0x80000000)
+	return x.ToBits().Xor(mask).BitsToFloat32()
+}
+
+// Neg returns the negation of the elements of x
+//
+// Emulated, CPU Feature AVX2
+func (x Float32x8) Neg() Float32x8 {
+	// mask will have a 1 in the sign bit UNLESS x is NaN
+	mask := BroadcastUint32x8(0x80000000)
+	return x.ToBits().Xor(mask).BitsToFloat32()
+}
+
+// Neg returns the negation of the elements of x
+//
+// Emulated, CPU Feature AVX512
+func (x Float32x16) Neg() Float32x16 {
+	mask := BroadcastUint32x16(0x80000000)
+	return x.ToBits().Xor(mask).BitsToFloat32()
+}
+
+// Neg returns the negation of the elements of x
+//
+// Emulated, CPU Feature AVX
+func (x Float64x2) Neg() Float64x2 {
+	// mask will have a 1 in the sign bit UNLESS x is NaN
+	mask := BroadcastUint64x2(0x8000000000000000)
+	return x.ToBits().Xor(mask).BitsToFloat64()
+}
+
+// Neg returns the negation of the elements of x
+//
+// Emulated, CPU Feature AVX2
+func (x Float64x4) Neg() Float64x4 {
+	mask := BroadcastUint64x4(0x8000000000000000)
+	return x.ToBits().Xor(mask).BitsToFloat64()
+}
+
+// Neg returns the negation of the elements of x
+//
+// Emulated, CPU Feature AVX512
+func (x Float64x8) Neg() Float64x8 {
+	mask := BroadcastUint64x8(0x8000000000000000)
+	return x.ToBits().Xor(mask).BitsToFloat64()
+}
+
 var f0x16 = [16]int8{-1, 0, -1, 0, -1, 0, -1, 0, -1, 0, -1, 0, -1, 0, -1, 0}
 var f0x32 = [32]int8{-1, 0, -1, 0, -1, 0, -1, 0, -1, 0, -1, 0, -1, 0, -1, 0,
 	-1, 0, -1, 0, -1, 0, -1, 0, -1, 0, -1, 0, -1, 0, -1, 0}
