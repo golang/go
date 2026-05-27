@@ -636,23 +636,23 @@ func shiftSaturatingUnsignedSlice[D unsigned, S integer](x []D, y []S) []D {
 // Slice versions for const shift operations (same constant amount for all elements)
 
 // shiftLeftByConstSlice shifts all elements left by constant amount.
-func shiftLeftByConstSlice[T integer](x []T, amt uint8) []T {
+func shiftLeftByConstSlice[T integer](x []T, amt uint64) []T {
 	return map1(func(a T) T { return a << amt })(x)
 }
 
 // shiftRightByConstSlice shifts all elements right by constant amount.
 // Signed types use arithmetic shift, unsigned types use logical shift.
-func shiftRightByConstSlice[T integer](x []T, amt uint8) []T {
+func shiftRightByConstSlice[T integer](x []T, amt uint64) []T {
 	return map1(func(a T) T { return a >> amt })(x)
 }
 
 // shiftLeftSaturatingByConstSlice shifts all elements left by constant amount with signed saturation.
-func shiftLeftSaturatingByConstSlice[T signed](x []T, amt uint8) []T {
+func shiftLeftSaturatingByConstSlice[T signed](x []T, amt uint64) []T {
 	return map1(func(a T) T { return shiftSaturatingSigned(a, int8(amt)) })(x)
 }
 
 // shiftLeftSaturatingUByConstSlice shifts all elements left by constant amount with unsigned saturation.
-func shiftLeftSaturatingUByConstSlice[T unsigned](x []T, amt uint8) []T {
+func shiftLeftSaturatingUByConstSlice[T unsigned](x []T, amt uint64) []T {
 	return map1(func(a T) T { return shiftSaturatingUnsigned(a, int8(amt)) })(x)
 }
 

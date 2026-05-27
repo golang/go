@@ -39,7 +39,7 @@ func TestShiftSaturated(t *testing.T) {
 	testUint64x2Shift(t, archsimd.Uint64x2.ShiftSaturated, shiftSaturatingUnsignedSlice[uint64, int64])
 }
 
-var testShiftConstAmt uint8 = 3
+var testShiftConstAmt uint64 = 3
 
 func TestShiftLeftConst(t *testing.T) {
 	// Signed
@@ -160,9 +160,9 @@ func TestShiftAllRight(t *testing.T) {
 }
 
 func TestConcatShiftBytesRight(t *testing.T) {
-	hide := hideConst[uint8]
+	hide := hideConst[uint64]
 
-	csbr := func(shift uint8) func(x, y []uint8) []uint8 {
+	csbr := func(shift uint64) func(x, y []uint8) []uint8 {
 		return func(x, y []uint8) []uint8 {
 			z := make([]uint8, len(x))
 			for i := range z {
@@ -178,7 +178,7 @@ func TestConcatShiftBytesRight(t *testing.T) {
 	}
 
 	t.Run("Uint8x16", func(t *testing.T) {
-		for _, shift := range []uint8{0, 2, 8, 15} {
+		for _, shift := range []uint64{0, 2, 8, 15} {
 			t.Log("shift", shift)
 			testUint8x16Binary(t,
 				func(x, y archsimd.Uint8x16) archsimd.Uint8x16 { return x.ConcatShiftBytesRight(y, shift) },

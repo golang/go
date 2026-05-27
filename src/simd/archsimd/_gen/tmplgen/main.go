@@ -557,12 +557,12 @@ var binaryTemplateArm64 = shapedTemplateOf(arm64Shapes, "arm64_binary_helpers", 
 
 var shiftConstTestTemplateArm64 = shapedTemplateOf(arm64IntegerShapes, "arm64_shift_const_helpers", `
 // test{{.VType}}ShiftConst tests a const-shift method (unary + immediate).
-func test{{.VType}}ShiftConst(t *testing.T, f func(_ archsimd.{{.VType}}, _ uint8) archsimd.{{.VType}}, want func(_ []{{.Etype}}, _ uint8) []{{.Etype}}) {
+func test{{.VType}}ShiftConst(t *testing.T, f func(_ archsimd.{{.VType}}, _ uint64) archsimd.{{.VType}}, want func(_ []{{.Etype}}, _ uint64) []{{.Etype}}) {
 	n := {{.Count}}
 	t.Helper()
 	forSlice(t, {{.Etype}}s, n, func(x []{{.Etype}}) bool {
 		t.Helper()
-		for _, amt := range []uint8{0, 1, 3, {{.EWidth}}-1} {
+		for _, amt := range []uint64{0, 1, 3, {{.EWidth}}-1} {
 			a := archsimd.Load{{.VType}}(x)
 			g := make([]{{.Etype}}, n)
 			f(a, amt).Store(g)
