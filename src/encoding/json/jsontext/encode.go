@@ -396,6 +396,7 @@ func (e *encoderState) WriteToken(t Token) error {
 		if !e.Flags.Get(jsonflags.AllowDuplicateNames) {
 			e.Namespaces.push()
 		}
+		e.Flags.Clear(jsonflags.TagFlags) // tags only apply to current depth
 	case '}':
 		b = append(b, '}')
 		if err = e.Tokens.popObject(); err != nil {
@@ -408,6 +409,7 @@ func (e *encoderState) WriteToken(t Token) error {
 	case '[':
 		b = append(b, '[')
 		err = e.Tokens.pushArray()
+		e.Flags.Clear(jsonflags.TagFlags) // tags only apply to current depth
 	case ']':
 		b = append(b, ']')
 		err = e.Tokens.popArray()

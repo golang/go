@@ -41,8 +41,7 @@ type ArshalValues struct {
 	Marshalers   any // jsonflags.Marshalers
 	Unmarshalers any // jsonflags.Unmarshalers
 
-	Format      string
-	FormatDepth int
+	Format string // valid if jsonflags.FormatTag is set
 }
 
 // DefaultOptionsV2 is the set of all options that define default v2 behavior.
@@ -82,6 +81,9 @@ func GetOption[T any](opts Options, setter func(T) Options) (T, bool) {
 	case jsonflags.Bools:
 		v := structOpts.Flags.Get(opt)
 		ok := structOpts.Flags.Has(opt)
+		if !ok && opt == jsonflags.StringifyNumbers && structOpts.Flags.Get(jsonflags.StringTag) {
+			return any(true).(T), true // check also whether the option is specified via a `string` tag
+		}
 		return any(v).(T), ok
 	case Indent:
 		if !structOpts.Flags.Has(jsonflags.Indent) {
@@ -152,6 +154,9 @@ func (dst *Struct) Join(srcs ...Options) {
 				}
 				if src.Flags.Has(jsonflags.Unmarshalers) {
 					dst.Unmarshalers = src.Unmarshalers
+				}
+				if src.Flags.Has(jsonflags.FormatTag) {
+					dst.Format = src.Format
 				}
 			}
 		default:

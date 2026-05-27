@@ -45,8 +45,10 @@
 //
 //   - In v1, a Go struct field marked as `string` can be used to quote a
 //     Go string, bool, number, or pointer to such as a JSON string.
-//     In contrast, v2 restricts the `string` option to only quote a Go number
-//     or pointer to number as a JSON string.
+//     In contrast, v2 restricts the `string` option to only quote a value
+//     that would normally be represented as a JSON number,
+//     but also expands support for it to operate with any Go type
+//     that would normally be represented as a JSON number.
 //     The [StringifyWithLegacySemantics] option controls this behavior difference.
 //
 //   - In v1, a nil Go slice or Go map is marshaled as a JSON null.

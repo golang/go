@@ -342,6 +342,9 @@ type (
 	structStringifiedPointer struct {
 		Pointer *structAll `json:",string"`
 	}
+	structStringifiedPointerPointerInt struct {
+		Pointer **int `json:",string"`
+	}
 	structStringifiedInterface struct {
 		Interface any `json:",string"`
 	}
@@ -748,8 +751,11 @@ func mustParseTime(layout, value string) time.Time {
 	return t
 }
 
+// invalidFormatOption is an option where the Format field is set,
+// but jsonflags.FormatTag has been cleared. In such a case,
+// the Format field should be ignored.
 var invalidFormatOption = &jsonopts.Struct{
-	ArshalValues: jsonopts.ArshalValues{FormatDepth: 1000, Format: "invalid"},
+	ArshalValues: jsonopts.ArshalValues{Format: "invalid"},
 }
 
 func TestMarshal(t *testing.T) {
@@ -781,10 +787,15 @@ func TestMarshal(t *testing.T) {
 		in:   []bool{false, true},
 		want: `[false,true]`,
 	}, {
-		name: jsontest.Name("Bools/StringifiedBool"),
-		opts: []Options{jsonflags.StringifyBoolsAndStrings | 1},
-		in:   []bool{false, true},
-		want: `["false","true"]`,
+		name: jsontest.Name("Bools/StringifiedBool/False"),
+		opts: []Options{jsonflags.StringTag | jsonflags.StringifyWithLegacySemantics | 1},
+		in:   false,
+		want: `"false"`,
+	}, {
+		name: jsontest.Name("Bools/StringifiedBool/True"),
+		opts: []Options{jsonflags.StringTag | jsonflags.StringifyWithLegacySemantics | 1},
+		in:   true,
+		want: `"true"`,
 	}, {
 		name: jsontest.Name("Bools/IgnoreInvalidFormat"),
 		opts: []Options{invalidFormatOption},
@@ -799,10 +810,10 @@ func TestMarshal(t *testing.T) {
 		in:   []namedString{"", "hello", "世界"},
 		want: `["","hello","世界"]`,
 	}, {
-		name: jsontest.Name("Strings/StringifiedBool"),
-		opts: []Options{jsonflags.StringifyBoolsAndStrings | 1},
-		in:   []string{"", "hello", "世界"},
-		want: `["\"\"","\"hello\"","\"世界\""]`,
+		name: jsontest.Name("Strings/StringifiedString"),
+		opts: []Options{jsonflags.StringTag | jsonflags.StringifyWithLegacySemantics | 1},
+		in:   "hello",
+		want: `"\"hello\""`,
 	}, {
 		name: jsontest.Name("Strings/IgnoreInvalidFormat"),
 		opts: []Options{invalidFormatOption},
@@ -1394,75 +1405,68 @@ func TestMarshal(t *testing.T) {
 	}, {
 		name:    jsontest.Name("Structs/Stringified/Invalid/Bool"),
 		in:      structStringifiedBool{},
-		wantErr: EM(newInvalidStringTagError("Bool", false)).withType(0, reflect.TypeFor[structStringifiedBool]()),
+		want:    `{"Bool"`,
+		wantErr: EM(errInvalidStringTag).withPos(`{"Bool":`, "/Bool").withType(0, boolType),
 	}, {
 		name: jsontest.Name("Structs/Stringified/Ignored/Bool"),
-		opts: []Options{jsontext.Multiline(true), jsonflags.ReportErrorsWithLegacySemantics | 1},
+		opts: []Options{jsonflags.ReportErrorsWithLegacySemantics | 1},
 		in:   structStringifiedBool{},
-		want: `{
-	"Bool": false
-}`,
+		want: `{"Bool":false}`,
 	}, {
 		name:    jsontest.Name("Structs/Stringified/Invalid/String"),
 		in:      structStringifiedString{},
-		wantErr: EM(newInvalidStringTagError("String", false)).withType(0, reflect.TypeFor[structStringifiedString]()),
+		want:    `{"String"`,
+		wantErr: EM(errInvalidStringTag).withPos(`{"String":`, "/String").withType(0, stringType),
 	}, {
 		name: jsontest.Name("Structs/Stringified/Ignored/String"),
-		opts: []Options{jsontext.Multiline(true), jsonflags.ReportErrorsWithLegacySemantics | 1},
+		opts: []Options{jsonflags.ReportErrorsWithLegacySemantics | 1},
 		in:   structStringifiedString{},
-		want: `{
-	"String": ""
-}`,
+		want: `{"String":""}`,
 	}, {
 		name:    jsontest.Name("Structs/Stringified/Invalid/Bytes"),
 		in:      structStringifiedBytes{},
-		wantErr: EM(newInvalidStringTagError("Bytes", false)).withType(0, reflect.TypeFor[structStringifiedBytes]()),
+		want:    `{"Bytes"`,
+		wantErr: EM(errInvalidStringTag).withPos(`{"Bytes":`, "/Bytes").withType(0, bytesType),
 	}, {
 		name: jsontest.Name("Structs/Stringified/Ignored/Bytes"),
-		opts: []Options{jsontext.Multiline(true), jsonflags.ReportErrorsWithLegacySemantics | 1},
+		opts: []Options{jsonflags.ReportErrorsWithLegacySemantics | 1},
 		in:   structStringifiedBytes{},
-		want: `{
-	"Bytes": ""
-}`,
+		want: `{"Bytes":""}`,
 	}, {
 		name:    jsontest.Name("Structs/Stringified/Invalid/Map"),
 		in:      structStringifiedMap{},
-		wantErr: EM(newInvalidStringTagError("Map", false)).withType(0, reflect.TypeFor[structStringifiedMap]()),
+		want:    `{"Map"`,
+		wantErr: EM(errInvalidStringTag).withPos(`{"Map":`, "/Map").withType(0, reflect.TypeFor[map[string]string]()),
 	}, {
 		name: jsontest.Name("Structs/Stringified/Ignored/Map"),
-		opts: []Options{jsontext.Multiline(true), jsonflags.ReportErrorsWithLegacySemantics | 1},
+		opts: []Options{jsonflags.ReportErrorsWithLegacySemantics | 1},
 		in:   structStringifiedMap{},
-		want: `{
-	"Map": {}
-}`,
+		want: `{"Map":{}}`,
 	}, {
 		name:    jsontest.Name("Structs/Stringified/Invalid/Slice"),
 		in:      structStringifiedSlice{},
-		wantErr: EM(newInvalidStringTagError("Slice", false)).withType(0, reflect.TypeFor[structStringifiedSlice]()),
+		want:    `{"Slice"`,
+		wantErr: EM(errInvalidStringTag).withPos(`{"Slice":`, "/Slice").withType(0, reflect.TypeFor[[]string]()),
 	}, {
 		name: jsontest.Name("Structs/Stringified/Ignored/Slice"),
-		opts: []Options{jsontext.Multiline(true), jsonflags.ReportErrorsWithLegacySemantics | 1},
+		opts: []Options{jsonflags.ReportErrorsWithLegacySemantics | 1},
 		in:   structStringifiedSlice{},
-		want: `{
-	"Slice": []
-}`,
+		want: `{"Slice":[]}`,
 	}, {
 		name:    jsontest.Name("Structs/Stringified/Invalid/Array"),
 		in:      structStringifiedArray{},
-		wantErr: EM(newInvalidStringTagError("Array", false)).withType(0, reflect.TypeFor[structStringifiedArray]()),
+		want:    `{"Array"`,
+		wantErr: EM(errInvalidStringTag).withPos(`{"Array":`, "/Array").withType(0, reflect.TypeFor[[1]string]()),
 	}, {
 		name: jsontest.Name("Structs/Stringified/Ignored/Array"),
-		opts: []Options{jsontext.Multiline(true), jsonflags.ReportErrorsWithLegacySemantics | 1},
+		opts: []Options{jsonflags.ReportErrorsWithLegacySemantics | 1},
 		in:   structStringifiedArray{},
-		want: `{
-	"Array": [
-		""
-	]
-}`,
+		want: `{"Array":[""]}`,
 	}, {
 		name:    jsontest.Name("Structs/Stringified/Invalid/Struct"),
 		in:      structStringifiedStruct{},
-		wantErr: EM(newInvalidStringTagError("Struct", false)).withType(0, reflect.TypeFor[structStringifiedStruct]()),
+		want:    `{"Struct"`,
+		wantErr: EM(errInvalidStringTag).withPos(`{"Struct":`, "/Struct").withType(0, reflect.TypeFor[structAll]()),
 	}, {
 		name: jsontest.Name("Structs/Stringified/Ignored/Struct"),
 		opts: []Options{jsontext.Multiline(true), jsonflags.ReportErrorsWithLegacySemantics | 1},
@@ -1509,82 +1513,78 @@ func TestMarshal(t *testing.T) {
 	}
 }`,
 	}, {
-		name:    jsontest.Name("Structs/Stringified/Invalid/Pointer"),
-		in:      structStringifiedPointer{},
-		wantErr: EM(newInvalidStringTagError("Pointer", false)).withType(0, reflect.TypeFor[structStringifiedPointer]()),
+		name: jsontest.Name("Structs/Stringified/Invalid/Pointer"),
+		in:   structStringifiedPointer{},
+		want: `{"Pointer":null}`,
 	}, {
 		name: jsontest.Name("Structs/Stringified/Ignored/Pointer"),
-		opts: []Options{jsontext.Multiline(true), jsonflags.ReportErrorsWithLegacySemantics | 1},
+		opts: []Options{jsonflags.ReportErrorsWithLegacySemantics | 1},
 		in:   structStringifiedPointer{},
-		want: `{
-	"Pointer": null
-}`,
+		want: `{"Pointer":null}`,
+	}, {
+		name: jsontest.Name("Structs/Stringified/PointerPointerInt"),
+		in:   structStringifiedPointerPointerInt{Pointer: new(new(5))},
+		want: `{"Pointer":"5"}`,
 	}, {
 		name:    jsontest.Name("Structs/Stringified/Invalid/Interface"),
-		in:      structStringifiedInterface{},
-		wantErr: EM(newInvalidStringTagError("Interface", false)).withType(0, reflect.TypeFor[structStringifiedInterface]()),
+		in:      structStringifiedInterface{Interface: 1000},
+		want:    `{"Interface"`,
+		wantErr: EM(errInvalidStringTag).withPos(`{"Interface":`, "/Interface").withType(0, anyType),
 	}, {
 		name: jsontest.Name("Structs/Stringified/Ignored/Interface"),
-		opts: []Options{jsontext.Multiline(true), jsonflags.ReportErrorsWithLegacySemantics | 1},
-		in:   structStringifiedInterface{},
-		want: `{
-	"Interface": null
-}`,
+		opts: []Options{jsonflags.ReportErrorsWithLegacySemantics | 1},
+		in:   structStringifiedInterface{Interface: 1000},
+		want: `{"Interface":"1000"}`,
 	}, {
 		name:    jsontest.Name("Structs/LegacyStringified/Invalid/Bytes"),
 		opts:    []Options{jsonflags.StringifyWithLegacySemantics | 1},
-		wantErr: EM(newInvalidStringTagError("Bytes", true)).withType(0, reflect.TypeFor[structStringifiedBytes]()),
+		want:    `{"Bytes"`,
+		wantErr: EM(errInvalidStringTag).withPos(`{"Bytes":`, "/Bytes").withType(0, bytesType),
 		in:      structStringifiedBytes{},
 	}, {
 		name: jsontest.Name("Structs/LegacyStringified/Ignored/Bytes"),
-		opts: []Options{jsontext.Multiline(true), jsonflags.StringifyWithLegacySemantics | 1, jsonflags.ReportErrorsWithLegacySemantics | 1},
+		opts: []Options{jsonflags.StringifyWithLegacySemantics | 1, jsonflags.ReportErrorsWithLegacySemantics | 1},
 		in:   structStringifiedBytes{},
-		want: `{
-	"Bytes": ""
-}`,
+		want: `{"Bytes":""}`,
 	}, {
 		name:    jsontest.Name("Structs/LegacyStringified/Invalid/Map"),
 		opts:    []Options{jsonflags.StringifyWithLegacySemantics | 1},
 		in:      structStringifiedMap{},
-		wantErr: EM(newInvalidStringTagError("Map", true)).withType(0, reflect.TypeFor[structStringifiedMap]()),
+		want:    `{"Map"`,
+		wantErr: EM(errInvalidStringTag).withPos(`{"Map":`, "/Map").withType(0, reflect.TypeFor[map[string]string]()),
 	}, {
 		name: jsontest.Name("Structs/LegacyStringified/Ignored/Map"),
-		opts: []Options{jsontext.Multiline(true), jsonflags.StringifyWithLegacySemantics | 1, jsonflags.ReportErrorsWithLegacySemantics | 1},
+		opts: []Options{jsonflags.StringifyWithLegacySemantics | 1, jsonflags.ReportErrorsWithLegacySemantics | 1},
 		in:   structStringifiedMap{},
-		want: `{
-	"Map": {}
-}`,
+		want: `{"Map":{}}`,
 	}, {
 		name:    jsontest.Name("Structs/LegacyStringified/Invalid/Slice"),
 		opts:    []Options{jsonflags.StringifyWithLegacySemantics | 1},
 		in:      structStringifiedSlice{},
-		wantErr: EM(newInvalidStringTagError("Slice", true)).withType(0, reflect.TypeFor[structStringifiedSlice]()),
+		want:    `{"Slice"`,
+		wantErr: EM(errInvalidStringTag).withPos(`{"Slice":`, "/Slice").withType(0, reflect.TypeFor[[]string]()),
 	}, {
 		name: jsontest.Name("Structs/LegacyStringified/Ignored/Slice"),
-		opts: []Options{jsontext.Multiline(true), jsonflags.StringifyWithLegacySemantics | 1, jsonflags.ReportErrorsWithLegacySemantics | 1},
+		opts: []Options{jsonflags.StringifyWithLegacySemantics | 1, jsonflags.ReportErrorsWithLegacySemantics | 1},
 		in:   structStringifiedSlice{},
-		want: `{
-	"Slice": []
-}`,
+		want: `{"Slice":[]}`,
 	}, {
 		name:    jsontest.Name("Structs/LegacyStringified/Invalid/Array"),
 		opts:    []Options{jsonflags.StringifyWithLegacySemantics | 1},
 		in:      structStringifiedArray{},
-		wantErr: EM(newInvalidStringTagError("Array", true)).withType(0, reflect.TypeFor[structStringifiedArray]()),
+		want:    `{"Array"`,
+		wantErr: EM(errInvalidStringTag).withPos(`{"Array":`, "/Array").withType(0, reflect.TypeFor[[1]string]()),
 	}, {
 		name: jsontest.Name("Structs/LegacyStringified/Ignored/Array"),
-		opts: []Options{jsontext.Multiline(true), jsonflags.StringifyWithLegacySemantics | 1, jsonflags.ReportErrorsWithLegacySemantics | 1},
+		opts: []Options{jsonflags.StringifyWithLegacySemantics | 1, jsonflags.ReportErrorsWithLegacySemantics | 1},
 		in:   structStringifiedArray{},
-		want: `{
-	"Array": [
-		""
-	]
-}`,
+		want: `{"Array":[""]}`,
 	}, {
 		name:    jsontest.Name("Structs/LegacyStringified/Invalid/Struct"),
 		opts:    []Options{jsonflags.StringifyWithLegacySemantics | 1},
 		in:      structStringifiedStruct{},
-		wantErr: EM(newInvalidStringTagError("Struct", true)).withType(0, reflect.TypeFor[structStringifiedStruct]()),
+		want:    `{"Struct"`,
+		wantErr: EM(errInvalidStringTag).withPos(`{"Struct":`, "/Struct").withType(0, reflect.TypeFor[structAll]()),
 	}, {
 		name: jsontest.Name("Structs/LegacyStringified/Ignored/Struct"),
 		opts: []Options{jsontext.Multiline(true), jsonflags.StringifyWithLegacySemantics | 1, jsonflags.ReportErrorsWithLegacySemantics | 1},
@@ -1633,27 +1633,76 @@ func TestMarshal(t *testing.T) {
 	}, {
 		name:    jsontest.Name("Structs/LegacyStringified/Invalid/Pointer"),
 		opts:    []Options{jsonflags.StringifyWithLegacySemantics | 1},
-		in:      structStringifiedPointer{},
-		wantErr: EM(newInvalidStringTagError("Pointer", true)).withType(0, reflect.TypeFor[structStringifiedPointer]()),
+		in:      structStringifiedPointer{Pointer: new(structAll)},
+		want:    `{"Pointer"`,
+		wantErr: EM(errInvalidStringTag).withPos(`{"Pointer":`, "/Pointer").withType(0, reflect.TypeFor[structAll]()),
 	}, {
 		name: jsontest.Name("Structs/LegacyStringified/Ignored/Pointer"),
 		opts: []Options{jsontext.Multiline(true), jsonflags.StringifyWithLegacySemantics | 1, jsonflags.ReportErrorsWithLegacySemantics | 1},
-		in:   structStringifiedPointer{},
+		in:   structStringifiedPointer{Pointer: new(structAll)},
 		want: `{
-	"Pointer": null
+	"Pointer": {
+		"Bool": false,
+		"String": "",
+		"Bytes": "",
+		"Int": 0,
+		"Uint": 0,
+		"Float": 0,
+		"Map": {},
+		"StructScalars": {
+			"Bool": false,
+			"String": "",
+			"Bytes": "",
+			"Int": 0,
+			"Uint": 0,
+			"Float": 0
+		},
+		"StructMaps": {
+			"MapBool": {},
+			"MapString": {},
+			"MapBytes": {},
+			"MapInt": {},
+			"MapUint": {},
+			"MapFloat": {}
+		},
+		"StructSlices": {
+			"SliceBool": [],
+			"SliceString": [],
+			"SliceBytes": [],
+			"SliceInt": [],
+			"SliceUint": [],
+			"SliceFloat": []
+		},
+		"Slice": [],
+		"Array": [
+			""
+		],
+		"Pointer": null,
+		"Interface": null
+	}
 }`,
+	}, {
+		name:    jsontest.Name("Structs/LegacyStringified/Invalid/PointerPointerInt"),
+		opts:    []Options{jsonflags.StringifyWithLegacySemantics | 1},
+		in:      structStringifiedPointerPointerInt{Pointer: new(new(5))},
+		want:    `{"Pointer"`,
+		wantErr: EM(errInvalidStringTag).withPos(`{"Pointer":`, "/Pointer").withType(0, reflect.TypeFor[**int]()),
+	}, {
+		name: jsontest.Name("Structs/LegacyStringified/Ignored/PointerPointerInt"),
+		opts: []Options{jsonflags.StringifyWithLegacySemantics | jsonflags.ReportErrorsWithLegacySemantics | 1},
+		in:   structStringifiedPointerPointerInt{Pointer: new(new(5))},
+		want: `{"Pointer":5}`,
 	}, {
 		name:    jsontest.Name("Structs/LegacyStringified/Invalid/Interface"),
 		opts:    []Options{jsonflags.StringifyWithLegacySemantics | 1},
 		in:      structStringifiedInterface{},
-		wantErr: EM(newInvalidStringTagError("Interface", true)).withType(0, reflect.TypeFor[structStringifiedInterface]()),
+		want:    `{"Interface"`,
+		wantErr: EM(errInvalidStringTag).withPos(`{"Interface":`, "/Interface").withType(0, anyType),
 	}, {
 		name: jsontest.Name("Structs/LegacyStringified/Ignored/Interface"),
-		opts: []Options{jsontext.Multiline(true), jsonflags.StringifyWithLegacySemantics | 1, jsonflags.ReportErrorsWithLegacySemantics | 1},
-		in:   structStringifiedInterface{},
-		want: `{
-	"Interface": null
-}`,
+		opts: []Options{jsonflags.StringifyWithLegacySemantics | 1, jsonflags.ReportErrorsWithLegacySemantics | 1},
+		in:   structStringifiedInterface{Interface: 1000},
+		want: `{"Interface":1000}`,
 	}, {
 		name: jsontest.Name("Structs/OmitZero/Zero"),
 		in:   structOmitZeroAll{},
@@ -4577,7 +4626,8 @@ func TestMarshal(t *testing.T) {
 	}, {
 		name:    jsontest.Name("Time/Format/String/Invalid"),
 		in:      structTimeFormatStringInvalid{},
-		wantErr: EM(newInvalidStringTagError("T", false)).withType(0, reflect.TypeFor[structTimeFormatStringInvalid]()),
+		want:    `{"T"`,
+		wantErr: EM(errInvalidStringTag).withPos(`{"T":`, "/T").withType(0, timeTimeType),
 		skip:    !internal.ExpJSONFormat,
 	}, {
 		name: jsontest.Name("Time/Format/YearOverflow"),
@@ -4716,26 +4766,26 @@ func TestUnmarshal(t *testing.T) {
 		wantErr: EU(nil).withType('"', boolType),
 	}, {
 		name:  jsontest.Name("Bools/StringifiedBool/True"),
-		opts:  []Options{jsonflags.StringifyBoolsAndStrings | 1},
+		opts:  []Options{jsonflags.StringTag | jsonflags.StringifyWithLegacySemantics | 1},
 		inBuf: `"true"`,
 		inVal: addr(false),
 		want:  addr(true),
 	}, {
 		name:  jsontest.Name("Bools/StringifiedBool/False"),
-		opts:  []Options{jsonflags.StringifyBoolsAndStrings | 1},
+		opts:  []Options{jsonflags.StringTag | jsonflags.StringifyWithLegacySemantics | 1},
 		inBuf: `"false"`,
 		inVal: addr(true),
 		want:  addr(false),
 	}, {
 		name:    jsontest.Name("Bools/StringifiedBool/InvalidWhitespace"),
-		opts:    []Options{jsonflags.StringifyBoolsAndStrings | 1},
+		opts:    []Options{jsonflags.StringTag | jsonflags.StringifyWithLegacySemantics | 1},
 		inBuf:   `"false "`,
 		inVal:   addr(true),
 		want:    addr(true),
 		wantErr: EU(strconv.ErrSyntax).withVal(`"false "`).withType('"', boolType),
 	}, {
 		name:    jsontest.Name("Bools/StringifiedBool/InvalidBool"),
-		opts:    []Options{jsonflags.StringifyBoolsAndStrings | 1},
+		opts:    []Options{jsonflags.StringTag | jsonflags.StringifyWithLegacySemantics | 1},
 		inBuf:   `false`,
 		inVal:   addr(true),
 		want:    addr(true),
@@ -4822,20 +4872,20 @@ func TestUnmarshal(t *testing.T) {
 		want:  addr("hello"),
 	}, {
 		name:  jsontest.Name("Strings/StringifiedString"),
-		opts:  []Options{jsonflags.StringifyBoolsAndStrings | 1},
+		opts:  []Options{jsonflags.StringTag | jsonflags.StringifyWithLegacySemantics | 1},
 		inBuf: `"\"foo\""`,
 		inVal: new(string),
 		want:  addr("foo"),
 	}, {
 		name:    jsontest.Name("Strings/StringifiedString/InvalidWhitespace"),
-		opts:    []Options{jsonflags.StringifyBoolsAndStrings | 1},
+		opts:    []Options{jsonflags.StringTag | jsonflags.StringifyWithLegacySemantics | 1},
 		inBuf:   `"\"foo\" "`,
 		inVal:   new(string),
 		want:    new(string),
 		wantErr: EU(newInvalidCharacterError(" ", "after string value", 0, "")).withType('"', stringType),
 	}, {
 		name:    jsontest.Name("Strings/StringifiedString/InvalidString"),
-		opts:    []Options{jsonflags.StringifyBoolsAndStrings | 1},
+		opts:    []Options{jsonflags.StringTag | jsonflags.StringifyWithLegacySemantics | 1},
 		inBuf:   `""`,
 		inVal:   new(string),
 		want:    new(string),
@@ -6031,183 +6081,122 @@ func TestUnmarshal(t *testing.T) {
 			PointerFloat: new(float64(3.14159)),
 		}),
 	}, {
-		name:    jsontest.Name("Structs/Stringified/Invalid/Empty"),
+		name:    jsontest.Name("Structs/Stringified/Invalid/EmptyIntString"),
 		inBuf:   `{"Int":""}`,
 		inVal:   new(structStringified),
 		want:    new(structStringified),
 		wantErr: EU(strconv.ErrSyntax).withVal(`""`).withPos(`{"Int":`, "/Int").withType('"', T[int64]()),
 	}, {
-		name:    jsontest.Name("Structs/Stringified/Invalid/BoolString"),
+		name:    jsontest.Name("Structs/Stringified/Invalid/Bool"),
 		inBuf:   `{"Bool": "true"}`,
 		inVal:   new(structStringifiedBool),
 		want:    new(structStringifiedBool),
-		wantErr: EU(newInvalidStringTagError("Bool", false)).withType(jsontext.KindBeginObject, reflect.TypeFor[structStringifiedBool]()),
+		wantErr: EU(errInvalidStringTag).withPos(`{"Bool": `, "/Bool").withType(0, T[bool]()),
 	}, {
 		name:  jsontest.Name("Structs/Stringified/Ignored/Bool"),
 		opts:  []Options{jsonflags.ReportErrorsWithLegacySemantics | 1},
 		inBuf: `{"Bool": true}`,
 		inVal: new(structStringifiedBool),
-		want: new(structStringifiedBool{
-			Bool: true,
-		}),
+		want:  new(structStringifiedBool{Bool: true}),
 	}, {
-		name:  jsontest.Name("Structs/Stringified/Ignored/String"),
-		opts:  []Options{jsonflags.ReportErrorsWithLegacySemantics | 1},
-		inBuf: `{"String": "\"hello\""}`,
-		inVal: new(structStringifiedString),
-		want: new(structStringifiedString{
-			String: `"hello"`,
-		}),
-	}, {
-		name:    jsontest.Name("Structs/Stringified/Invalid/StringString"),
+		name:    jsontest.Name("Structs/Stringified/Invalid/String"),
 		inBuf:   `{"String": "\"hello\""}`,
 		inVal:   new(structStringifiedString),
 		want:    new(structStringifiedString),
-		wantErr: EU(newInvalidStringTagError("String", false)).withType(jsontext.KindBeginObject, reflect.TypeFor[structStringifiedString]()),
-	}, {
-		name:  jsontest.Name("Structs/Stringified/Invalid/String"),
-		inBuf: `{}`,
-		inVal: new(structStringifiedString),
-		want:  new(structStringifiedString),
-		// The invalid tag error should occur even if there is nothing to unmarshal to that field.
-		wantErr: EU(newInvalidStringTagError("String", false)).withType(jsontext.KindBeginObject, reflect.TypeFor[structStringifiedString]()),
+		wantErr: EU(errInvalidStringTag).withPos(`{"String": `, "/String").withType(0, T[string]()),
 	}, {
 		name:  jsontest.Name("Structs/Stringified/Ignored/String"),
 		opts:  []Options{jsonflags.ReportErrorsWithLegacySemantics | 1},
 		inBuf: `{"String": "\"hello\""}`,
 		inVal: new(structStringifiedString),
-		want: new(structStringifiedString{
-			String: `"hello"`,
-		}),
+		want:  new(structStringifiedString{String: `"hello"`}),
 	}, {
-		name:  jsontest.Name("Structs/Stringified/Invalid/Bytes"),
-		inBuf: `{}`,
+		name:    jsontest.Name("Structs/Stringified/Invalid/Bytes"),
+		inBuf:   `{"Bytes": "AQID"}`,
+		inVal:   new(structStringifiedBytes),
+		want:    new(structStringifiedBytes),
+		wantErr: EU(errInvalidStringTag).withPos(`{"Bytes": `, "/Bytes").withType(0, T[[]byte]()),
+	}, {
+		name:  jsontest.Name("Structs/Stringified/Ignored/Bytes"),
+		opts:  []Options{jsonflags.ReportErrorsWithLegacySemantics | 1},
+		inBuf: `{"Bytes": "AQID"}`,
 		inVal: new(structStringifiedBytes),
-		want:  new(structStringifiedBytes),
-		// The invalid tag error should occur even if there is nothing to unmarshal to that field.
-		wantErr: EU(newInvalidStringTagError("Bytes", false)).withType(jsontext.KindBeginObject, reflect.TypeFor[structStringifiedBytes]()),
+		want:  new(structStringifiedBytes{Bytes: []byte{1, 2, 3}}),
 	}, {
-		name: jsontest.Name("Structs/Stringified/Ignored/Bytes"),
-		opts: []Options{jsonflags.ReportErrorsWithLegacySemantics | 1},
-		inBuf: `{
-	"Bytes": "AQID"
-}`,
-		inVal: new(structStringifiedBytes),
-		want: new(structStringifiedBytes{
-			Bytes: []byte{1, 2, 3},
-		}),
+		name:    jsontest.Name("Structs/Stringified/Invalid/Map"),
+		inBuf:   `{"Map": {"Key": "Value"}}`,
+		inVal:   new(structStringifiedMap),
+		want:    new(structStringifiedMap),
+		wantErr: EU(errInvalidStringTag).withPos(`{"Map": `, "/Map").withType(0, T[map[string]string]()),
 	}, {
-		name:  jsontest.Name("Structs/Stringified/Invalid/Map"),
-		inBuf: `{}`,
+		name:  jsontest.Name("Structs/Stringified/Ignored/Map"),
+		opts:  []Options{jsonflags.ReportErrorsWithLegacySemantics | 1},
+		inBuf: `{"Map": {"Key": "Value"}}`,
 		inVal: new(structStringifiedMap),
-		want:  new(structStringifiedMap),
-		// The invalid tag error should occur even if there is nothing to unmarshal to that field.
-		wantErr: EU(newInvalidStringTagError("Map", false)).withType(jsontext.KindBeginObject, reflect.TypeFor[structStringifiedMap]()),
+		want:  new(structStringifiedMap{Map: map[string]string{"Key": "Value"}}),
 	}, {
-		name: jsontest.Name("Structs/Stringified/Ignored/Map"),
-		opts: []Options{jsonflags.ReportErrorsWithLegacySemantics | 1},
-		inBuf: `{
-	"Map": {
-		"Key": "Value"
-	}
-}`,
-		inVal: new(structStringifiedMap),
-		want: new(structStringifiedMap{
-			Map: map[string]string{"Key": "Value"},
-		}),
+		name:    jsontest.Name("Structs/Stringified/Invalid/Slice"),
+		inBuf:   `{"Slice": ["hello"]}`,
+		inVal:   new(structStringifiedSlice),
+		want:    new(structStringifiedSlice),
+		wantErr: EU(errInvalidStringTag).withPos(`{"Slice": `, "/Slice").withType(0, T[[]string]()),
 	}, {
-		name:  jsontest.Name("Structs/Stringified/Invalid/Slice"),
-		inBuf: `{}`,
+		name:  jsontest.Name("Structs/Stringified/Ignored/Slice"),
+		opts:  []Options{jsonflags.ReportErrorsWithLegacySemantics | 1},
+		inBuf: `{"Slice": ["hello"]}`,
 		inVal: new(structStringifiedSlice),
-		want:  new(structStringifiedSlice),
-		// The invalid tag error should occur even if there is nothing to unmarshal to that field.
-		wantErr: EU(newInvalidStringTagError("Slice", false)).withType(jsontext.KindBeginObject, reflect.TypeFor[structStringifiedSlice]()),
+		want:  new(structStringifiedSlice{Slice: []string{"hello"}}),
 	}, {
-		name: jsontest.Name("Structs/Stringified/Ignored/Slice"),
-		opts: []Options{jsonflags.ReportErrorsWithLegacySemantics | 1},
-		inBuf: `{
-	"Slice": [
-		"hello"
-	]
-}`,
-		inVal: new(structStringifiedSlice),
-		want: new(structStringifiedSlice{
-			Slice: []string{"hello"},
-		}),
+		name:    jsontest.Name("Structs/Stringified/Invalid/Array"),
+		inBuf:   `{"Array": ["hello"]}`,
+		inVal:   new(structStringifiedArray),
+		want:    new(structStringifiedArray),
+		wantErr: EU(errInvalidStringTag).withPos(`{"Array": `, "/Array").withType(0, T[[1]string]()),
 	}, {
-		name:  jsontest.Name("Structs/Stringified/Invalid/Array"),
-		inBuf: `{}`,
+		name:  jsontest.Name("Structs/Stringified/Ignored/Array"),
+		opts:  []Options{jsonflags.ReportErrorsWithLegacySemantics | 1},
+		inBuf: `{"Array": ["hello"]}`,
 		inVal: new(structStringifiedArray),
-		want:  new(structStringifiedArray),
-		// The invalid tag error should occur even if there is nothing to unmarshal to that field.
-		wantErr: EU(newInvalidStringTagError("Array", false)).withType(jsontext.KindBeginObject, reflect.TypeFor[structStringifiedArray]()),
+		want:  new(structStringifiedArray{Array: [1]string{"hello"}}),
 	}, {
-		name: jsontest.Name("Structs/Stringified/Ignored/Array"),
-		opts: []Options{jsonflags.ReportErrorsWithLegacySemantics | 1},
-		inBuf: `{
-	"Array": [
-		"hello"
-	]
-}`,
-		inVal: new(structStringifiedArray),
-		want: new(structStringifiedArray{
-			Array: [1]string{"hello"},
-		}),
+		name:    jsontest.Name("Structs/Stringified/Invalid/Struct"),
+		inBuf:   `{"Struct": {"Bool": true}}`,
+		inVal:   new(structStringifiedStruct),
+		want:    new(structStringifiedStruct),
+		wantErr: EU(errInvalidStringTag).withPos(`{"Struct": `, "/Struct").withType(0, T[structAll]()),
 	}, {
-		name:  jsontest.Name("Structs/Stringified/Invalid/Struct"),
-		inBuf: `{}`,
+		name:  jsontest.Name("Structs/Stringified/Ignored/Struct"),
+		opts:  []Options{jsonflags.ReportErrorsWithLegacySemantics | 1},
+		inBuf: `{"Struct": {"Bool": true}}`,
 		inVal: new(structStringifiedStruct),
-		want:  new(structStringifiedStruct),
-		// The invalid tag error should occur even if there is nothing to unmarshal to that field.
-		wantErr: EU(newInvalidStringTagError("Struct", false)).withType(jsontext.KindBeginObject, reflect.TypeFor[structStringifiedStruct]()),
+		want:  new(structStringifiedStruct{Struct: structAll{Bool: true}}),
 	}, {
-		name: jsontest.Name("Structs/Stringified/Ignored/Struct"),
-		opts: []Options{jsonflags.ReportErrorsWithLegacySemantics | 1},
-		inBuf: `{
-	"Struct": {
-		"Bool": true
-	}
-}`,
-		inVal: new(structStringifiedStruct),
-		want: new(structStringifiedStruct{
-			Struct: structAll{
-				Bool: true,
-			},
-		}),
+		name:    jsontest.Name("Structs/Stringified/Invalid/Pointer"),
+		inBuf:   `{"Pointer": {"Bool": true}}`,
+		inVal:   new(structStringifiedPointer),
+		want:    new(structStringifiedPointer{Pointer: new(structAll)}),
+		wantErr: EU(errInvalidStringTag).withPos(`{"Pointer": `, "/Pointer").withType(0, T[structAll]()),
 	}, {
-		name:  jsontest.Name("Structs/Stringified/Invalid/Pointer"),
-		inBuf: `{}`,
+		name:  jsontest.Name("Structs/Stringified/Ignored/Pointer"),
+		opts:  []Options{jsonflags.ReportErrorsWithLegacySemantics | 1},
+		inBuf: `{"Pointer": {"Bool": true}}`,
 		inVal: new(structStringifiedPointer),
-		want:  new(structStringifiedPointer),
-		// The invalid tag error should occur even if there is nothing to unmarshal to that field.
-		wantErr: EU(newInvalidStringTagError("Pointer", false)).withType(jsontext.KindBeginObject, reflect.TypeFor[structStringifiedPointer]()),
+		want:  new(structStringifiedPointer{Pointer: new(structAll{Bool: true})}),
 	}, {
-		name: jsontest.Name("Structs/Stringified/Ignored/Pointer"),
-		opts: []Options{jsonflags.ReportErrorsWithLegacySemantics | 1},
-		inBuf: `{
-	"Pointer": {
-		"Bool": true
-	}
-}`,
-		inVal: new(structStringifiedPointer),
-		want: new(structStringifiedPointer{
-			Pointer: new(structAll{
-				Bool: true,
-			}),
-		}),
+		name:  jsontest.Name("Structs/Stringified/PointerPointerInt"),
+		inBuf: `{"Pointer": "5"}`,
+		inVal: new(structStringifiedPointerPointerInt),
+		want:  new(structStringifiedPointerPointerInt{Pointer: new(new(5))}),
 	}, {
-		name:  jsontest.Name("Structs/Stringified/Invalid/Interface"),
-		inBuf: `{}`,
-		inVal: new(structStringifiedInterface),
-		want:  new(structStringifiedInterface),
-		// The invalid tag error should occur even if there is nothing to unmarshal to that field.
-		wantErr: EU(newInvalidStringTagError("Interface", false)).withType(jsontext.KindBeginObject, reflect.TypeFor[structStringifiedInterface]()),
+		name:    jsontest.Name("Structs/Stringified/Invalid/Interface"),
+		inBuf:   `{"Interface": null}`,
+		inVal:   new(structStringifiedInterface),
+		want:    new(structStringifiedInterface),
+		wantErr: EU(errInvalidStringTag).withPos(`{"Interface": `, "/Interface").withType(0, T[any]()),
 	}, {
-		name: jsontest.Name("Structs/Stringified/Ignored/Interface"),
-		opts: []Options{jsonflags.ReportErrorsWithLegacySemantics | 1},
-		inBuf: `{
-	"Interface": null
-}`,
+		name:  jsontest.Name("Structs/Stringified/Ignored/Interface"),
+		opts:  []Options{jsonflags.ReportErrorsWithLegacySemantics | 1},
+		inBuf: `{"Interface": null}`,
 		inVal: new(structStringifiedInterface),
 		want:  new(structStringifiedInterface),
 	}, {
@@ -6239,7 +6228,7 @@ func TestUnmarshal(t *testing.T) {
 			PointerFloat:  new(float64(3.14159)),
 		}),
 	}, {
-		name:    jsontest.Name("Structs/LegacyStringified/Invalid/Empty"),
+		name:    jsontest.Name("Structs/LegacyStringified/Invalid/EmptyIntString"),
 		opts:    []Options{jsonflags.StringifyWithLegacySemantics | 1},
 		inBuf:   `{"Int":""}`,
 		inVal:   new(structStringifiedLegacy),
@@ -6259,141 +6248,107 @@ func TestUnmarshal(t *testing.T) {
 		wantErr: EU(newInvalidCharacterError("s", "at start of string (expecting '\"')", 0, "")).
 			withPos(`{"String": `, "/String").withType('"', T[string]()),
 	}, {
-		name:  jsontest.Name("Structs/Stringified/Invalid/Bytes"),
-		opts:  []Options{jsonflags.StringifyWithLegacySemantics | 1},
-		inBuf: `{}`,
+		name:    jsontest.Name("Structs/LegacyStringified/Invalid/Bytes"),
+		opts:    []Options{jsonflags.StringifyWithLegacySemantics | 1},
+		inBuf:   `{"Bytes": "AQID"}`,
+		inVal:   new(structStringifiedBytes),
+		want:    new(structStringifiedBytes),
+		wantErr: EU(errInvalidStringTag).withPos(`{"Bytes": `, "/Bytes").withType(0, T[[]byte]()),
+	}, {
+		name:  jsontest.Name("Structs/LegacyStringified/Ignored/Bytes"),
+		opts:  []Options{jsonflags.StringifyWithLegacySemantics | 1, jsonflags.ReportErrorsWithLegacySemantics | 1},
+		inBuf: `{"Bytes": "AQID"}`,
 		inVal: new(structStringifiedBytes),
-		want:  new(structStringifiedBytes),
-		// The invalid tag error should occur even if there is nothing to unmarshal to that field.
-		wantErr: EU(newInvalidStringTagError("Bytes", true)).withType(jsontext.KindBeginObject, reflect.TypeFor[structStringifiedBytes]()),
+		want:  new(structStringifiedBytes{Bytes: []byte{1, 2, 3}}),
 	}, {
-		name: jsontest.Name("Structs/Stringified/Ignored/Bytes"),
-		opts: []Options{jsonflags.StringifyWithLegacySemantics | 1, jsonflags.ReportErrorsWithLegacySemantics | 1},
-		inBuf: `{
-	"Bytes": "AQID"
-}`,
-		inVal: new(structStringifiedBytes),
-		want: new(structStringifiedBytes{
-			Bytes: []byte{1, 2, 3},
-		}),
+		name:    jsontest.Name("Structs/LegacyStringified/Invalid/Map"),
+		opts:    []Options{jsonflags.StringifyWithLegacySemantics | 1},
+		inBuf:   `{"Map": {"Key": "Value"}}`,
+		inVal:   new(structStringifiedMap),
+		want:    new(structStringifiedMap),
+		wantErr: EU(errInvalidStringTag).withPos(`{"Map": `, "/Map").withType(0, T[map[string]string]()),
 	}, {
-		name:  jsontest.Name("Structs/Stringified/Invalid/Map"),
-		opts:  []Options{jsonflags.StringifyWithLegacySemantics | 1},
-		inBuf: `{}`,
+		name:  jsontest.Name("Structs/LegacyStringified/Ignored/Map"),
+		opts:  []Options{jsonflags.StringifyWithLegacySemantics | 1, jsonflags.ReportErrorsWithLegacySemantics | 1},
+		inBuf: `{"Map": {"Key": "Value"}}`,
 		inVal: new(structStringifiedMap),
-		want:  new(structStringifiedMap),
-		// The invalid tag error should occur even if there is nothing to unmarshal to that field.
-		wantErr: EU(newInvalidStringTagError("Map", true)).withType(jsontext.KindBeginObject, reflect.TypeFor[structStringifiedMap]()),
+		want:  new(structStringifiedMap{Map: map[string]string{"Key": "Value"}}),
 	}, {
-		name: jsontest.Name("Structs/Stringified/Ignored/Map"),
-		opts: []Options{jsonflags.StringifyWithLegacySemantics | 1, jsonflags.ReportErrorsWithLegacySemantics | 1},
-		inBuf: `{
-	"Map": {
-		"Key": "Value"
-	}
-}`,
-		inVal: new(structStringifiedMap),
-		want: new(structStringifiedMap{
-			Map: map[string]string{"Key": "Value"},
-		}),
+		name:    jsontest.Name("Structs/LegacyStringified/Invalid/Slice"),
+		opts:    []Options{jsonflags.StringifyWithLegacySemantics | 1},
+		inBuf:   `{"Slice": ["hello"]}`,
+		inVal:   new(structStringifiedSlice),
+		want:    new(structStringifiedSlice),
+		wantErr: EU(errInvalidStringTag).withPos(`{"Slice": `, "/Slice").withType(0, T[[]string]()),
 	}, {
-		name:  jsontest.Name("Structs/Stringified/Invalid/Slice"),
-		opts:  []Options{jsonflags.StringifyWithLegacySemantics | 1},
-		inBuf: `{}`,
+		name:  jsontest.Name("Structs/LegacyStringified/Ignored/Slice"),
+		opts:  []Options{jsonflags.StringifyWithLegacySemantics | 1, jsonflags.ReportErrorsWithLegacySemantics | 1},
+		inBuf: `{"Slice": ["hello"]}`,
 		inVal: new(structStringifiedSlice),
-		want:  new(structStringifiedSlice),
-		// The invalid tag error should occur even if there is nothing to unmarshal to that field.
-		wantErr: EU(newInvalidStringTagError("Slice", true)).withType(jsontext.KindBeginObject, reflect.TypeFor[structStringifiedSlice]()),
+		want:  new(structStringifiedSlice{Slice: []string{"hello"}}),
 	}, {
-		name: jsontest.Name("Structs/Stringified/Ignored/Slice"),
-		opts: []Options{jsonflags.StringifyWithLegacySemantics | 1, jsonflags.ReportErrorsWithLegacySemantics | 1},
-		inBuf: `{
-	"Slice": [
-		"hello"
-	]
-}`,
-		inVal: new(structStringifiedSlice),
-		want: new(structStringifiedSlice{
-			Slice: []string{"hello"},
-		}),
+		name:    jsontest.Name("Structs/LegacyStringified/Invalid/Array"),
+		opts:    []Options{jsonflags.StringifyWithLegacySemantics | 1},
+		inBuf:   `{"Array": ["hello"]}`,
+		inVal:   new(structStringifiedArray),
+		want:    new(structStringifiedArray),
+		wantErr: EU(errInvalidStringTag).withPos(`{"Array": `, "/Array").withType(0, T[[1]string]()),
 	}, {
-		name:  jsontest.Name("Structs/Stringified/Invalid/Array"),
-		opts:  []Options{jsonflags.StringifyWithLegacySemantics | 1},
-		inBuf: `{}`,
+		name:  jsontest.Name("Structs/LegacyStringified/Ignored/Array"),
+		opts:  []Options{jsonflags.StringifyWithLegacySemantics | 1, jsonflags.ReportErrorsWithLegacySemantics | 1},
+		inBuf: `{"Array": ["hello"]}`,
 		inVal: new(structStringifiedArray),
-		want:  new(structStringifiedArray),
-		// The invalid tag error should occur even if there is nothing to unmarshal to that field.
-		wantErr: EU(newInvalidStringTagError("Array", true)).withType(jsontext.KindBeginObject, reflect.TypeFor[structStringifiedArray]()),
+		want:  new(structStringifiedArray{Array: [1]string{"hello"}}),
 	}, {
-		name: jsontest.Name("Structs/Stringified/Ignored/Array"),
-		opts: []Options{jsonflags.StringifyWithLegacySemantics | 1, jsonflags.ReportErrorsWithLegacySemantics | 1},
-		inBuf: `{
-	"Array": [
-		"hello"
-	]
-}`,
-		inVal: new(structStringifiedArray),
-		want: new(structStringifiedArray{
-			Array: [1]string{"hello"},
-		}),
+		name:    jsontest.Name("Structs/LegacyStringified/Invalid/Struct"),
+		opts:    []Options{jsonflags.StringifyWithLegacySemantics | 1},
+		inBuf:   `{"Struct": {"Bool": true}}`,
+		inVal:   new(structStringifiedStruct),
+		want:    new(structStringifiedStruct),
+		wantErr: EU(errInvalidStringTag).withPos(`{"Struct": `, "/Struct").withType(0, T[structAll]()),
 	}, {
-		name:  jsontest.Name("Structs/Stringified/Invalid/Struct"),
-		opts:  []Options{jsonflags.StringifyWithLegacySemantics | 1},
-		inBuf: `{}`,
+		name:  jsontest.Name("Structs/LegacyStringified/Ignored/Struct"),
+		opts:  []Options{jsonflags.StringifyWithLegacySemantics | 1, jsonflags.ReportErrorsWithLegacySemantics | 1},
+		inBuf: `{"Struct": {"Bool": true}}`,
 		inVal: new(structStringifiedStruct),
-		want:  new(structStringifiedStruct),
-		// The invalid tag error should occur even if there is nothing to unmarshal to that field.
-		wantErr: EU(newInvalidStringTagError("Struct", true)).withType(jsontext.KindBeginObject, reflect.TypeFor[structStringifiedStruct]()),
+		want:  new(structStringifiedStruct{Struct: structAll{Bool: true}}),
 	}, {
-		name: jsontest.Name("Structs/Stringified/Ignored/Struct"),
-		opts: []Options{jsonflags.StringifyWithLegacySemantics | 1, jsonflags.ReportErrorsWithLegacySemantics | 1},
-		inBuf: `{
-	"Struct": {
-		"Bool": true
-	}
-}`,
-		inVal: new(structStringifiedStruct),
-		want: new(structStringifiedStruct{
-			Struct: structAll{
-				Bool: true,
-			},
-		}),
+		name:    jsontest.Name("Structs/LegacyStringified/Invalid/Pointer"),
+		opts:    []Options{jsonflags.StringifyWithLegacySemantics | 1},
+		inBuf:   `{"Pointer": {"Bool": true}}`,
+		inVal:   new(structStringifiedPointer),
+		want:    new(structStringifiedPointer{Pointer: new(structAll)}),
+		wantErr: EU(errInvalidStringTag).withPos(`{"Pointer": `, "/Pointer").withType(0, T[structAll]()),
 	}, {
-		name:  jsontest.Name("Structs/Stringified/Invalid/Pointer"),
-		opts:  []Options{jsonflags.StringifyWithLegacySemantics | 1},
-		inBuf: `{}`,
+		name:  jsontest.Name("Structs/LegacyStringified/Ignored/Pointer"),
+		opts:  []Options{jsonflags.StringifyWithLegacySemantics | 1, jsonflags.ReportErrorsWithLegacySemantics | 1},
+		inBuf: `{"Pointer": {"Bool": true}}`,
 		inVal: new(structStringifiedPointer),
-		want:  new(structStringifiedPointer),
-		// The invalid tag error should occur even if there is nothing to unmarshal to that field.
-		wantErr: EU(newInvalidStringTagError("Pointer", true)).withType(jsontext.KindBeginObject, reflect.TypeFor[structStringifiedPointer]()),
+		want:  new(structStringifiedPointer{Pointer: new(structAll{Bool: true})}),
 	}, {
-		name: jsontest.Name("Structs/Stringified/Ignored/Pointer"),
-		opts: []Options{jsonflags.StringifyWithLegacySemantics | 1, jsonflags.ReportErrorsWithLegacySemantics | 1},
-		inBuf: `{
-	"Pointer": {
-		"Bool": true
-	}
-}`,
-		inVal: new(structStringifiedPointer),
-		want: new(structStringifiedPointer{
-			Pointer: new(structAll{
-				Bool: true,
-			}),
-		}),
+		name:    jsontest.Name("Structs/Stringified/Invalid/PointerPointerInt"),
+		opts:    []Options{jsonflags.StringifyWithLegacySemantics | 1},
+		inBuf:   `{"Pointer": 5}`,
+		inVal:   new(structStringifiedPointerPointerInt),
+		want:    new(structStringifiedPointerPointerInt{}),
+		wantErr: EU(errInvalidStringTag).withPos(`{"Pointer": `, "/Pointer").withType(0, T[**int]()),
 	}, {
-		name:  jsontest.Name("Structs/Stringified/Invalid/Interface"),
-		opts:  []Options{jsonflags.StringifyWithLegacySemantics | 1},
-		inBuf: `{}`,
-		inVal: new(structStringifiedInterface),
-		want:  new(structStringifiedInterface),
-		// The invalid tag error should occur even if there is nothing to unmarshal to that field.
-		wantErr: EU(newInvalidStringTagError("Interface", true)).withType(jsontext.KindBeginObject, reflect.TypeFor[structStringifiedInterface]()),
+		name:  jsontest.Name("Structs/Stringified/Ignored/PointerPointerInt"),
+		opts:  []Options{jsonflags.StringifyWithLegacySemantics | jsonflags.ReportErrorsWithLegacySemantics | 1},
+		inBuf: `{"Pointer": 5}`,
+		inVal: new(structStringifiedPointerPointerInt),
+		want:  new(structStringifiedPointerPointerInt{Pointer: new(new(5))}),
 	}, {
-		name: jsontest.Name("Structs/Stringified/Ignored/Interface"),
-		opts: []Options{jsonflags.StringifyWithLegacySemantics | 1, jsonflags.ReportErrorsWithLegacySemantics | 1},
-		inBuf: `{
-	"Interface": null
-}`,
+		name:    jsontest.Name("Structs/LegacyStringified/Invalid/Interface"),
+		opts:    []Options{jsonflags.StringifyWithLegacySemantics | 1},
+		inBuf:   `{"Interface": null}`,
+		inVal:   new(structStringifiedInterface),
+		want:    new(structStringifiedInterface),
+		wantErr: EU(errInvalidStringTag).withPos(`{"Interface": `, "/Interface").withType(0, T[any]()),
+	}, {
+		name:  jsontest.Name("Structs/LegacyStringified/Ignored/Interface"),
+		opts:  []Options{jsonflags.StringifyWithLegacySemantics | 1, jsonflags.ReportErrorsWithLegacySemantics | 1},
+		inBuf: `{"Interface": null}`,
 		inVal: new(structStringifiedInterface),
 		want:  new(structStringifiedInterface),
 	}, {
@@ -9270,10 +9225,10 @@ func TestUnmarshal(t *testing.T) {
 		skip: !internal.ExpJSONFormat,
 	}, {
 		name:    jsontest.Name("Time/Format/String/Invalid"),
-		inBuf:   `{}`,
+		inBuf:   `{"T":"2023-01-01T00:00:00Z"}`,
 		inVal:   new(structTimeFormatStringInvalid),
 		want:    new(structTimeFormatStringInvalid),
-		wantErr: EU(newInvalidStringTagError("T", false)).withType(jsontext.KindBeginObject, reflect.TypeFor[structTimeFormatStringInvalid]()),
+		wantErr: EU(errInvalidStringTag).withPos(`{"T":`, "/T").withType(0, timeTimeType),
 		skip:    !internal.ExpJSONFormat,
 	}, {
 		name: jsontest.Name("Time/Format/UnixString/InvalidNumber"),
