@@ -134,6 +134,23 @@ func (check *Checker) recordInstance(expr ast.Expr, targs []Type, typ Type) {
 	assert(ident != nil)
 	assert(typ != nil)
 	if m := check.Instances; m != nil {
+		// If this is an instance of a method value/expression, replace the
+		// receiver for the Signature stored in Instances (go.dev/issue/79657).
+		if sig, _ := typ.(*Signature); sig != nil && sig.recvold != nil {
+			copy := *sig
+			copy.recvold = nil // not strictly necessary
+			if sig.recvold == methodExprSentinel {
+				pars := *copy.params
+				copy.recv = pars.vars[0]
+				pars.vars = pars.vars[1:]
+				copy.params = &pars
+				m[ident] = Instance{newTypeList(targs), &copy}
+				return
+			}
+			copy.recv = sig.recvold
+			m[ident] = Instance{newTypeList(targs), &copy}
+			return
+		}
 		m[ident] = Instance{newTypeList(targs), typ}
 	}
 }
