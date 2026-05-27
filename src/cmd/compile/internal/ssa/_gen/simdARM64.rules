@@ -232,12 +232,12 @@
 (MulAddUint8x16 x y z)  => (VMLA16B z x y) // earlyMatchRule
 (MulAddUint16x8 x y z)  => (VMLA8H z x y) // earlyMatchRule
 (MulAddUint32x4 x y z)  => (VMLA4S z x y) // earlyMatchRule
-(MulLoLongInt8x16 ...) => (VSMULL16B ...) // pureVreg
-(MulLoLongInt16x8 ...) => (VSMULL8H ...) // pureVreg
-(MulLoLongInt32x4 ...) => (VSMULL4S ...) // pureVreg
-(MulLoLongUint8x16 ...) => (VUMULL16B ...) // pureVreg
-(MulLoLongUint16x8 ...) => (VUMULL8H ...) // pureVreg
-(MulLoLongUint32x4 ...) => (VUMULL4S ...) // pureVreg
+(MulWidenLoInt8x16 ...) => (VSMULL16B ...) // pureVreg
+(MulWidenLoInt16x8 ...) => (VSMULL8H ...) // pureVreg
+(MulWidenLoInt32x4 ...) => (VSMULL4S ...) // pureVreg
+(MulWidenLoUint8x16 ...) => (VUMULL16B ...) // pureVreg
+(MulWidenLoUint16x8 ...) => (VUMULL8H ...) // pureVreg
+(MulWidenLoUint32x4 ...) => (VUMULL4S ...) // pureVreg
 (NegFloat32x4 ...) => (VFNEG4S ...) // pureVreg
 (NegFloat64x2 ...) => (VFNEG2D ...) // pureVreg
 (NegInt8x16 ...) => (VNEG16B ...) // pureVreg
@@ -349,12 +349,6 @@
 (ShiftLeftConstUint16x8 ...) => (VSHL8H ...) // pureVreg
 (ShiftLeftConstUint32x4 ...) => (VSHL4S ...) // pureVreg
 (ShiftLeftConstUint64x2 ...) => (VSHL2D ...) // pureVreg
-(ShiftLeftLoLongConstInt8x16 ...) => (VSSHLL16B ...) // pureVreg
-(ShiftLeftLoLongConstInt16x8 ...) => (VSSHLL8H ...) // pureVreg
-(ShiftLeftLoLongConstInt32x4 ...) => (VSSHLL4S ...) // pureVreg
-(ShiftLeftLoLongConstUint8x16 ...) => (VUSHLL16B ...) // pureVreg
-(ShiftLeftLoLongConstUint16x8 ...) => (VUSHLL8H ...) // pureVreg
-(ShiftLeftLoLongConstUint32x4 ...) => (VUSHLL4S ...) // pureVreg
 (ShiftLeftSaturatedConstInt8x16 ...) => (VSQSHL16Bconst ...) // pureVreg
 (VSQSHL16Bconst [a] x) && a==0 => x // asmRule
 (ShiftLeftSaturatedConstInt16x8 ...) => (VSQSHL8Hconst ...) // pureVreg
@@ -371,6 +365,12 @@
 (VUQSHL4Sconst [a] x) && a==0 => x // asmRule
 (ShiftLeftSaturatedConstUint64x2 ...) => (VUQSHL2Dconst ...) // pureVreg
 (VUQSHL2Dconst [a] x) && a==0 => x // asmRule
+(ShiftLeftWidenLoConstInt8x16 ...) => (VSSHLL16B ...) // pureVreg
+(ShiftLeftWidenLoConstInt16x8 ...) => (VSSHLL8H ...) // pureVreg
+(ShiftLeftWidenLoConstInt32x4 ...) => (VSSHLL4S ...) // pureVreg
+(ShiftLeftWidenLoConstUint8x16 ...) => (VUSHLL16B ...) // pureVreg
+(ShiftLeftWidenLoConstUint16x8 ...) => (VUSHLL8H ...) // pureVreg
+(ShiftLeftWidenLoConstUint32x4 ...) => (VUSHLL4S ...) // pureVreg
 (ShiftRightConstInt8x16 ...) => (VSSHR16B ...) // pureVreg
 (VSSHR16B [a] x) && a==0 => x // asmRule
 (ShiftRightConstInt16x8 ...) => (VSSHR8H ...) // pureVreg

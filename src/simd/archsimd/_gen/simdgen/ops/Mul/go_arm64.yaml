@@ -10,7 +10,7 @@
   - *any
 
 # Multiply long signed (SMULL)
-- go: MulLoLong
+- go: MulWidenLo
   signed: true
   asm: "VSMULL"
   hiHalfAsm: "VSMULL2"
@@ -24,7 +24,7 @@
     base: int
 
 # Multiply long unsigned (UMULL)
-- go: MulLoLong
+- go: MulWidenLo
   signed: false
   asm: "VUMULL"
   hiHalfAsm: "VUMULL2"

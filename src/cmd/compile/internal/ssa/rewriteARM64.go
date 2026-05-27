@@ -1579,24 +1579,6 @@ func rewriteValueARM64(v *Value) bool {
 	case OpMulInt8x16:
 		v.Op = OpARM64VMUL16B
 		return true
-	case OpMulLoLongInt16x8:
-		v.Op = OpARM64VSMULL8H
-		return true
-	case OpMulLoLongInt32x4:
-		v.Op = OpARM64VSMULL4S
-		return true
-	case OpMulLoLongInt8x16:
-		v.Op = OpARM64VSMULL16B
-		return true
-	case OpMulLoLongUint16x8:
-		v.Op = OpARM64VUMULL8H
-		return true
-	case OpMulLoLongUint32x4:
-		v.Op = OpARM64VUMULL4S
-		return true
-	case OpMulLoLongUint8x16:
-		v.Op = OpARM64VUMULL16B
-		return true
 	case OpMulUint16x8:
 		v.Op = OpARM64VMUL8H
 		return true
@@ -1605,6 +1587,24 @@ func rewriteValueARM64(v *Value) bool {
 		return true
 	case OpMulUint8x16:
 		v.Op = OpARM64VMUL16B
+		return true
+	case OpMulWidenLoInt16x8:
+		v.Op = OpARM64VSMULL8H
+		return true
+	case OpMulWidenLoInt32x4:
+		v.Op = OpARM64VSMULL4S
+		return true
+	case OpMulWidenLoInt8x16:
+		v.Op = OpARM64VSMULL16B
+		return true
+	case OpMulWidenLoUint16x8:
+		v.Op = OpARM64VUMULL8H
+		return true
+	case OpMulWidenLoUint32x4:
+		v.Op = OpARM64VUMULL4S
+		return true
+	case OpMulWidenLoUint8x16:
+		v.Op = OpARM64VUMULL16B
 		return true
 	case OpNeg16:
 		v.Op = OpARM64NEG
@@ -2055,24 +2055,6 @@ func rewriteValueARM64(v *Value) bool {
 	case OpShiftLeftConstUint8x16:
 		v.Op = OpARM64VSHL16B
 		return true
-	case OpShiftLeftLoLongConstInt16x8:
-		v.Op = OpARM64VSSHLL8H
-		return true
-	case OpShiftLeftLoLongConstInt32x4:
-		v.Op = OpARM64VSSHLL4S
-		return true
-	case OpShiftLeftLoLongConstInt8x16:
-		v.Op = OpARM64VSSHLL16B
-		return true
-	case OpShiftLeftLoLongConstUint16x8:
-		v.Op = OpARM64VUSHLL8H
-		return true
-	case OpShiftLeftLoLongConstUint32x4:
-		v.Op = OpARM64VUSHLL4S
-		return true
-	case OpShiftLeftLoLongConstUint8x16:
-		v.Op = OpARM64VUSHLL16B
-		return true
 	case OpShiftLeftSaturatedConstInt16x8:
 		v.Op = OpARM64VSQSHL8Hconst
 		return true
@@ -2096,6 +2078,24 @@ func rewriteValueARM64(v *Value) bool {
 		return true
 	case OpShiftLeftSaturatedConstUint8x16:
 		v.Op = OpARM64VUQSHL16Bconst
+		return true
+	case OpShiftLeftWidenLoConstInt16x8:
+		v.Op = OpARM64VSSHLL8H
+		return true
+	case OpShiftLeftWidenLoConstInt32x4:
+		v.Op = OpARM64VSSHLL4S
+		return true
+	case OpShiftLeftWidenLoConstInt8x16:
+		v.Op = OpARM64VSSHLL16B
+		return true
+	case OpShiftLeftWidenLoConstUint16x8:
+		v.Op = OpARM64VUSHLL8H
+		return true
+	case OpShiftLeftWidenLoConstUint32x4:
+		v.Op = OpARM64VUSHLL4S
+		return true
+	case OpShiftLeftWidenLoConstUint8x16:
+		v.Op = OpARM64VUSHLL16B
 		return true
 	case OpShiftRightConstInt16x8:
 		v.Op = OpARM64VSSHR8H

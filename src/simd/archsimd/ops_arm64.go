@@ -1173,55 +1173,55 @@ func (x Uint16x8) MulAdd(y Uint16x8, z Uint16x8) Uint16x8
 // Asm: VMLA, CPU Feature: NEON
 func (x Uint32x4) MulAdd(y Uint32x4, z Uint32x4) Uint32x4
 
-/* MulLoLong */
+/* MulWidenLo */
 
-// MulLoLong multiplies corresponding low-indexed elements and produces a result with double the element width.
+// MulWidenLo multiplies corresponding low-indexed elements and produces a result with double the element width.
 // For the high-indexed elements, use GetHi:
 //
-//	x.GetHi().MulLoLong(y.GetHi())
+//	x.GetHi().MulWidenLo(y.GetHi())
 //
 // Asm: VSMULL, CPU Feature: NEON
-func (x Int8x16) MulLoLong(y Int8x16) Int16x8
+func (x Int8x16) MulWidenLo(y Int8x16) Int16x8
 
-// MulLoLong multiplies corresponding low-indexed elements and produces a result with double the element width.
+// MulWidenLo multiplies corresponding low-indexed elements and produces a result with double the element width.
 // For the high-indexed elements, use GetHi:
 //
-//	x.GetHi().MulLoLong(y.GetHi())
+//	x.GetHi().MulWidenLo(y.GetHi())
 //
 // Asm: VSMULL, CPU Feature: NEON
-func (x Int16x8) MulLoLong(y Int16x8) Int32x4
+func (x Int16x8) MulWidenLo(y Int16x8) Int32x4
 
-// MulLoLong multiplies corresponding low-indexed elements and produces a result with double the element width.
+// MulWidenLo multiplies corresponding low-indexed elements and produces a result with double the element width.
 // For the high-indexed elements, use GetHi:
 //
-//	x.GetHi().MulLoLong(y.GetHi())
+//	x.GetHi().MulWidenLo(y.GetHi())
 //
 // Asm: VSMULL, CPU Feature: NEON
-func (x Int32x4) MulLoLong(y Int32x4) Int64x2
+func (x Int32x4) MulWidenLo(y Int32x4) Int64x2
 
-// MulLoLong multiplies corresponding low-indexed elements and produces a result with double the element width.
+// MulWidenLo multiplies corresponding low-indexed elements and produces a result with double the element width.
 // For the high-indexed elements, use GetHi:
 //
-//	x.GetHi().MulLoLong(y.GetHi())
+//	x.GetHi().MulWidenLo(y.GetHi())
 //
 // Asm: VUMULL, CPU Feature: NEON
-func (x Uint8x16) MulLoLong(y Uint8x16) Uint16x8
+func (x Uint8x16) MulWidenLo(y Uint8x16) Uint16x8
 
-// MulLoLong multiplies corresponding low-indexed elements and produces a result with double the element width.
+// MulWidenLo multiplies corresponding low-indexed elements and produces a result with double the element width.
 // For the high-indexed elements, use GetHi:
 //
-//	x.GetHi().MulLoLong(y.GetHi())
+//	x.GetHi().MulWidenLo(y.GetHi())
 //
 // Asm: VUMULL, CPU Feature: NEON
-func (x Uint16x8) MulLoLong(y Uint16x8) Uint32x4
+func (x Uint16x8) MulWidenLo(y Uint16x8) Uint32x4
 
-// MulLoLong multiplies corresponding low-indexed elements and produces a result with double the element width.
+// MulWidenLo multiplies corresponding low-indexed elements and produces a result with double the element width.
 // For the high-indexed elements, use GetHi:
 //
-//	x.GetHi().MulLoLong(y.GetHi())
+//	x.GetHi().MulWidenLo(y.GetHi())
 //
 // Asm: VUMULL, CPU Feature: NEON
-func (x Uint32x4) MulLoLong(y Uint32x4) Uint64x2
+func (x Uint32x4) MulWidenLo(y Uint32x4) Uint64x2
 
 /* Neg */
 
@@ -1875,74 +1875,6 @@ func (x Uint32x4) ShiftLeftConst(constant uint64) Uint32x4
 // Asm: VSHL, CPU Feature: NEON
 func (x Uint64x2) ShiftLeftConst(constant uint64) Uint64x2
 
-/* ShiftLeftLoLongConst */
-
-// ShiftLeftLoLongConst performs a left shift on each signed low-indexed element in x by the constant number of bits
-// and widens the result to double the element width.
-// For the high-indexed elements, use GetHi:
-//
-//	x.GetHi().ShiftLeftLoLongConst(...)
-//
-// A non-constant value of constant may result in significantly worse performance for this operation.
-//
-// Asm: VSSHLL, CPU Feature: NEON
-func (x Int8x16) ShiftLeftLoLongConst(constant uint64) Int16x8
-
-// ShiftLeftLoLongConst performs a left shift on each signed low-indexed element in x by the constant number of bits
-// and widens the result to double the element width.
-// For the high-indexed elements, use GetHi:
-//
-//	x.GetHi().ShiftLeftLoLongConst(...)
-//
-// A non-constant value of constant may result in significantly worse performance for this operation.
-//
-// Asm: VSSHLL, CPU Feature: NEON
-func (x Int16x8) ShiftLeftLoLongConst(constant uint64) Int32x4
-
-// ShiftLeftLoLongConst performs a left shift on each signed low-indexed element in x by the constant number of bits
-// and widens the result to double the element width.
-// For the high-indexed elements, use GetHi:
-//
-//	x.GetHi().ShiftLeftLoLongConst(...)
-//
-// A non-constant value of constant may result in significantly worse performance for this operation.
-//
-// Asm: VSSHLL, CPU Feature: NEON
-func (x Int32x4) ShiftLeftLoLongConst(constant uint64) Int64x2
-
-// ShiftLeftLoLongConst performs a left shift on each unsigned low-indexed element in x by the constant number of bits
-// and widens the result to double the element width.
-// For the high-indexed elements, use GetHi:
-//
-//	x.GetHi().ShiftLeftLoLongConst(...)
-//
-// A non-constant value of constant may result in significantly worse performance for this operation.
-//
-// Asm: VUSHLL, CPU Feature: NEON
-func (x Uint8x16) ShiftLeftLoLongConst(constant uint64) Uint16x8
-
-// ShiftLeftLoLongConst performs a left shift on each unsigned low-indexed element in x by the constant number of bits
-// and widens the result to double the element width.
-// For the high-indexed elements, use GetHi:
-//
-//	x.GetHi().ShiftLeftLoLongConst(...)
-//
-// A non-constant value of constant may result in significantly worse performance for this operation.
-//
-// Asm: VUSHLL, CPU Feature: NEON
-func (x Uint16x8) ShiftLeftLoLongConst(constant uint64) Uint32x4
-
-// ShiftLeftLoLongConst performs a left shift on each unsigned low-indexed element in x by the constant number of bits
-// and widens the result to double the element width.
-// For the high-indexed elements, use GetHi:
-//
-//	x.GetHi().ShiftLeftLoLongConst(...)
-//
-// A non-constant value of constant may result in significantly worse performance for this operation.
-//
-// Asm: VUSHLL, CPU Feature: NEON
-func (x Uint32x4) ShiftLeftLoLongConst(constant uint64) Uint64x2
-
 /* ShiftLeftSaturatedConst */
 
 // ShiftLeftSaturatedConst performs a saturating left shift on each element in x by the constant number of bits specified by y.
@@ -2008,6 +1940,74 @@ func (x Uint32x4) ShiftLeftSaturatedConst(constant uint64) Uint32x4
 //
 // Asm: VUQSHL, CPU Feature: NEON
 func (x Uint64x2) ShiftLeftSaturatedConst(constant uint64) Uint64x2
+
+/* ShiftLeftWidenLoConst */
+
+// ShiftLeftWidenLoConst performs a left shift on each signed low-indexed element in x by the constant number of bits
+// and widens the result to double the element width.
+// For the high-indexed elements, use GetHi:
+//
+//	x.GetHi().ShiftLeftWidenLoConst(...)
+//
+// A non-constant value of constant may result in significantly worse performance for this operation.
+//
+// Asm: VSSHLL, CPU Feature: NEON
+func (x Int8x16) ShiftLeftWidenLoConst(constant uint64) Int16x8
+
+// ShiftLeftWidenLoConst performs a left shift on each signed low-indexed element in x by the constant number of bits
+// and widens the result to double the element width.
+// For the high-indexed elements, use GetHi:
+//
+//	x.GetHi().ShiftLeftWidenLoConst(...)
+//
+// A non-constant value of constant may result in significantly worse performance for this operation.
+//
+// Asm: VSSHLL, CPU Feature: NEON
+func (x Int16x8) ShiftLeftWidenLoConst(constant uint64) Int32x4
+
+// ShiftLeftWidenLoConst performs a left shift on each signed low-indexed element in x by the constant number of bits
+// and widens the result to double the element width.
+// For the high-indexed elements, use GetHi:
+//
+//	x.GetHi().ShiftLeftWidenLoConst(...)
+//
+// A non-constant value of constant may result in significantly worse performance for this operation.
+//
+// Asm: VSSHLL, CPU Feature: NEON
+func (x Int32x4) ShiftLeftWidenLoConst(constant uint64) Int64x2
+
+// ShiftLeftWidenLoConst performs a left shift on each unsigned low-indexed element in x by the constant number of bits
+// and widens the result to double the element width.
+// For the high-indexed elements, use GetHi:
+//
+//	x.GetHi().ShiftLeftWidenLoConst(...)
+//
+// A non-constant value of constant may result in significantly worse performance for this operation.
+//
+// Asm: VUSHLL, CPU Feature: NEON
+func (x Uint8x16) ShiftLeftWidenLoConst(constant uint64) Uint16x8
+
+// ShiftLeftWidenLoConst performs a left shift on each unsigned low-indexed element in x by the constant number of bits
+// and widens the result to double the element width.
+// For the high-indexed elements, use GetHi:
+//
+//	x.GetHi().ShiftLeftWidenLoConst(...)
+//
+// A non-constant value of constant may result in significantly worse performance for this operation.
+//
+// Asm: VUSHLL, CPU Feature: NEON
+func (x Uint16x8) ShiftLeftWidenLoConst(constant uint64) Uint32x4
+
+// ShiftLeftWidenLoConst performs a left shift on each unsigned low-indexed element in x by the constant number of bits
+// and widens the result to double the element width.
+// For the high-indexed elements, use GetHi:
+//
+//	x.GetHi().ShiftLeftWidenLoConst(...)
+//
+// A non-constant value of constant may result in significantly worse performance for this operation.
+//
+// Asm: VUSHLL, CPU Feature: NEON
+func (x Uint32x4) ShiftLeftWidenLoConst(constant uint64) Uint64x2
 
 /* ShiftRightConst */
 

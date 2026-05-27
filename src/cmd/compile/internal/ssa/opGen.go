@@ -7933,12 +7933,6 @@ const (
 	OpMulInt64x2
 	OpMulInt64x4
 	OpMulInt64x8
-	OpMulLoLongInt8x16
-	OpMulLoLongInt16x8
-	OpMulLoLongInt32x4
-	OpMulLoLongUint8x16
-	OpMulLoLongUint16x8
-	OpMulLoLongUint32x4
 	OpMulSignInt8x16
 	OpMulSignInt8x32
 	OpMulSignInt16x8
@@ -8714,12 +8708,6 @@ const (
 	OpShiftLeftConstUint16x8
 	OpShiftLeftConstUint32x4
 	OpShiftLeftConstUint64x2
-	OpShiftLeftLoLongConstInt8x16
-	OpShiftLeftLoLongConstInt16x8
-	OpShiftLeftLoLongConstInt32x4
-	OpShiftLeftLoLongConstUint8x16
-	OpShiftLeftLoLongConstUint16x8
-	OpShiftLeftLoLongConstUint32x4
 	OpShiftLeftSaturatedConstInt8x16
 	OpShiftLeftSaturatedConstInt16x8
 	OpShiftLeftSaturatedConstInt32x4
@@ -8728,6 +8716,12 @@ const (
 	OpShiftLeftSaturatedConstUint16x8
 	OpShiftLeftSaturatedConstUint32x4
 	OpShiftLeftSaturatedConstUint64x2
+	OpShiftLeftWidenLoConstInt8x16
+	OpShiftLeftWidenLoConstInt16x8
+	OpShiftLeftWidenLoConstInt32x4
+	OpShiftLeftWidenLoConstUint8x16
+	OpShiftLeftWidenLoConstUint16x8
+	OpShiftLeftWidenLoConstUint32x4
 	OpShiftRightConstInt8x16
 	OpShiftRightConstInt16x8
 	OpShiftRightConstInt32x4
@@ -111007,42 +111001,6 @@ var opcodeTable = [...]opInfo{
 		generic:     true,
 	},
 	{
-		name:        "MulLoLongInt8x16",
-		argLen:      2,
-		commutative: true,
-		generic:     true,
-	},
-	{
-		name:        "MulLoLongInt16x8",
-		argLen:      2,
-		commutative: true,
-		generic:     true,
-	},
-	{
-		name:        "MulLoLongInt32x4",
-		argLen:      2,
-		commutative: true,
-		generic:     true,
-	},
-	{
-		name:        "MulLoLongUint8x16",
-		argLen:      2,
-		commutative: true,
-		generic:     true,
-	},
-	{
-		name:        "MulLoLongUint16x8",
-		argLen:      2,
-		commutative: true,
-		generic:     true,
-	},
-	{
-		name:        "MulLoLongUint32x4",
-		argLen:      2,
-		commutative: true,
-		generic:     true,
-	},
-	{
 		name:    "MulSignInt8x16",
 		argLen:  2,
 		generic: true,
@@ -115131,42 +115089,6 @@ var opcodeTable = [...]opInfo{
 		generic: true,
 	},
 	{
-		name:    "ShiftLeftLoLongConstInt8x16",
-		auxType: auxUInt8,
-		argLen:  1,
-		generic: true,
-	},
-	{
-		name:    "ShiftLeftLoLongConstInt16x8",
-		auxType: auxUInt8,
-		argLen:  1,
-		generic: true,
-	},
-	{
-		name:    "ShiftLeftLoLongConstInt32x4",
-		auxType: auxUInt8,
-		argLen:  1,
-		generic: true,
-	},
-	{
-		name:    "ShiftLeftLoLongConstUint8x16",
-		auxType: auxUInt8,
-		argLen:  1,
-		generic: true,
-	},
-	{
-		name:    "ShiftLeftLoLongConstUint16x8",
-		auxType: auxUInt8,
-		argLen:  1,
-		generic: true,
-	},
-	{
-		name:    "ShiftLeftLoLongConstUint32x4",
-		auxType: auxUInt8,
-		argLen:  1,
-		generic: true,
-	},
-	{
 		name:    "ShiftLeftSaturatedConstInt8x16",
 		auxType: auxUInt8,
 		argLen:  1,
@@ -115210,6 +115132,42 @@ var opcodeTable = [...]opInfo{
 	},
 	{
 		name:    "ShiftLeftSaturatedConstUint64x2",
+		auxType: auxUInt8,
+		argLen:  1,
+		generic: true,
+	},
+	{
+		name:    "ShiftLeftWidenLoConstInt8x16",
+		auxType: auxUInt8,
+		argLen:  1,
+		generic: true,
+	},
+	{
+		name:    "ShiftLeftWidenLoConstInt16x8",
+		auxType: auxUInt8,
+		argLen:  1,
+		generic: true,
+	},
+	{
+		name:    "ShiftLeftWidenLoConstInt32x4",
+		auxType: auxUInt8,
+		argLen:  1,
+		generic: true,
+	},
+	{
+		name:    "ShiftLeftWidenLoConstUint8x16",
+		auxType: auxUInt8,
+		argLen:  1,
+		generic: true,
+	},
+	{
+		name:    "ShiftLeftWidenLoConstUint16x8",
+		auxType: auxUInt8,
+		argLen:  1,
+		generic: true,
+	},
+	{
+		name:    "ShiftLeftWidenLoConstUint32x4",
 		auxType: auxUInt8,
 		argLen:  1,
 		generic: true,
