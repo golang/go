@@ -93,8 +93,8 @@ func (op *Operand) instantiate(arrangement Arrangement, ashape ArngShape, vregPo
 			op.Lanes = arrangement.bits / op.ElemBits
 		case ashape == WideArngs && vregPos == 2:
 			op.ElemBits = arrangement.elemBits / 2
-			op.Bits = arrangement.bits / 2
-			op.Lanes = arrangement.lanes
+			op.Bits = arrangement.bits
+			op.Lanes = arrangement.bits / op.ElemBits
 		default:
 			op.ElemBits = arrangement.elemBits
 			op.Bits = arrangement.bits
