@@ -752,18 +752,18 @@ func simdGenericOps() []opData {
 		{name: "MulUint64x2", argLength: 2, commutative: true},                          // ARCH:amd64,wasm
 		{name: "MulUint64x4", argLength: 2, commutative: true},                          // ARCH:amd64
 		{name: "MulUint64x8", argLength: 2, commutative: true},                          // ARCH:amd64
-		{name: "MulWidenHiInt8x16", argLength: 2},                                       // ARCH:wasm
-		{name: "MulWidenHiInt16x8", argLength: 2},                                       // ARCH:wasm
-		{name: "MulWidenHiInt32x4", argLength: 2},                                       // ARCH:wasm
-		{name: "MulWidenHiUint8x16", argLength: 2},                                      // ARCH:wasm
-		{name: "MulWidenHiUint16x8", argLength: 2},                                      // ARCH:wasm
-		{name: "MulWidenHiUint32x4", argLength: 2},                                      // ARCH:wasm
-		{name: "MulWidenLoInt8x16", argLength: 2},                                       // ARCH:wasm
-		{name: "MulWidenLoInt16x8", argLength: 2},                                       // ARCH:wasm
-		{name: "MulWidenLoInt32x4", argLength: 2},                                       // ARCH:wasm
-		{name: "MulWidenLoUint8x16", argLength: 2},                                      // ARCH:wasm
-		{name: "MulWidenLoUint16x8", argLength: 2},                                      // ARCH:wasm
-		{name: "MulWidenLoUint32x4", argLength: 2},                                      // ARCH:wasm
+		{name: "MulWidenHiInt8x16", argLength: 2, commutative: true},                    // ARCH:wasm
+		{name: "MulWidenHiInt16x8", argLength: 2, commutative: true},                    // ARCH:wasm
+		{name: "MulWidenHiInt32x4", argLength: 2, commutative: true},                    // ARCH:wasm
+		{name: "MulWidenHiUint8x16", argLength: 2, commutative: true},                   // ARCH:wasm
+		{name: "MulWidenHiUint16x8", argLength: 2, commutative: true},                   // ARCH:wasm
+		{name: "MulWidenHiUint32x4", argLength: 2, commutative: true},                   // ARCH:wasm
+		{name: "MulWidenLoInt8x16", argLength: 2, commutative: true},                    // ARCH:wasm
+		{name: "MulWidenLoInt16x8", argLength: 2, commutative: true},                    // ARCH:wasm
+		{name: "MulWidenLoInt32x4", argLength: 2, commutative: true},                    // ARCH:wasm
+		{name: "MulWidenLoUint8x16", argLength: 2, commutative: true},                   // ARCH:wasm
+		{name: "MulWidenLoUint16x8", argLength: 2, commutative: true},                   // ARCH:wasm
+		{name: "MulWidenLoUint32x4", argLength: 2, commutative: true},                   // ARCH:wasm
 		{name: "NegFloat32x4", argLength: 1},                                            // ARCH:arm64,wasm
 		{name: "NegFloat64x2", argLength: 1},                                            // ARCH:arm64,wasm
 		{name: "NegInt8x16", argLength: 1},                                              // ARCH:arm64,wasm

@@ -923,7 +923,7 @@ func initWasmOps() {
 	}
 	mulHalf := func(op *wasmOp) {
 		t := op.t
-		op.opFlags = IsConversion // this is ALSO a conversion, with same naming conventions.
+		op.opFlags = IsConversion | IsCommutative // this is ALSO a conversion, with same naming conventions.
 		// result type is twice the width, signedness from the op, half the count
 		stem := "Int"
 		if op.op[len(op.op)-1] == 'u' {
