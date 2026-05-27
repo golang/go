@@ -9,6 +9,7 @@ import (
 	"go/constant"
 	"go/token"
 	"internal/goexperiment"
+	"slices"
 
 	"cmd/compile/internal/base"
 	"cmd/compile/internal/ir"
@@ -93,6 +94,11 @@ type batch struct {
 	closures        []closure
 	reassignOracles map[*ir.Func]*ir.ReassignOracle
 
+	// staleOracles collects the ReassignOracles that cover a function whose IR
+	// was modified by rewriteClosureVarsWithLiterals, so that they can be
+	// dropped from reassignOracles once the rewriting is done.
+	staleOracles []*ir.ReassignOracle
+
 	heapLoc    location
 	mutatorLoc location
 	calleeLoc  location
@@ -164,6 +170,7 @@ func Batch(fns []*ir.Func, reassignOracles map[*ir.Func]*ir.ReassignOracle) {
 		b.flowClosure(closure.k, closure.clo)
 	}
 	b.closures = nil
+	b.invalidateStaleOracles()
 
 	for _, loc := range b.allLocs {
 		// Try to replace some non-constant expressions with literals.
@@ -267,6 +274,15 @@ func (b *batch) flowClosure(k hole, clo *ir.ClosureExpr) {
 				base.FatalfAt(n.Pos(), "dictionary variable not captured by value")
 			}
 		}
+	}
+
+	// Now that we know which variables are captured by value, try to avoid
+	// capturing the ones that hold a constant altogether.
+	b.rewriteClosureVarsWithLiterals(clo.Func)
+
+	for _, cv := range clo.Func.ClosureVars {
+		n := cv.Canonical()
+		loc := b.oldLoc(cv)
 
 		if base.Flag.LowerM > 1 {
 			how := "ref"
@@ -282,6 +298,137 @@ func (b *batch) flowClosure(k hole, clo *ir.ClosureExpr) {
 			k = k.addr(cv, "reference")
 		}
 		b.flow(k.note(cv, "captured by a closure"), loc)
+	}
+}
+
+// rewriteClosureVarsWithLiterals rewrites the variables that clofn captures by
+// value and whose value is a known constant into ordinary local variables of
+// clofn, initialized with that constant, so that clofn does not need to
+// capture them. A closure that is left capturing nothing is not a closure
+// anymore, and walkClosure can then refer to its function directly instead of
+// building a closure record for it. See #5370.
+//
+// Whether a captured variable is rewritten must depend on its canonical
+// variable only, so that every closure capturing it reaches the same decision.
+// A closure nested inside clofn reads the variables it captures out of clofn's
+// closure record, so rewriting a capture here while leaving the nested closure
+// capturing it would leave that closure with nothing to read from.
+func (b *batch) rewriteClosureVarsWithLiterals(clofn *ir.Func) {
+	// All the copies that inlining made of a closure share a single linker
+	// symbol, so we must not specialize the body of just one of them: every
+	// copy would end up capturing the same constants. In particular, a copy
+	// that captures nothing is referred to through its func value symbol,
+	// f.func1·f, and there is one of those per copy under the very same name.
+	if clofn.IsInlinedClosure() {
+		return
+	}
+
+	var ro *ir.ReassignOracle // initialized lazily below, if needed
+	var repl map[*ir.Name]*ir.Name
+	var prefix ir.Nodes
+
+	for _, cv := range clofn.ClosureVars {
+		// Only variables captured by value can hold a constant: escape analysis
+		// has just proven those are neither address taken nor ever reassigned.
+		if !cv.Byval() || !ir.ValidTypeForConst(cv.Type(), constant.MakeUnknown()) {
+			continue
+		}
+
+		// Look up a cached ReassignOracle for the closure, lazily computing one if needed.
+		if ro == nil {
+			ro = b.reassignOracle(clofn)
+			if ro == nil {
+				base.Fatalf("no ReassignOracle for function %v with closure parent %v", clofn, clofn.ClosureParent)
+			}
+		}
+		lit, ok := ro.StaticValue(cv).(*ir.BasicLit)
+		if !ok || !ir.ValidTypeForConst(cv.Type(), lit.Val()) {
+			continue
+		}
+		declPos := cv.Canonical().Pos()
+		if !base.LiteralAllocHash.MatchPos(declPos, nil) {
+			// De-selected by literal alloc optimizations debug hash.
+			continue
+		}
+
+		// Redeclare the variable inside clofn, keeping the name and the
+		// declaration position of the variable it replaces, so that the debug
+		// information still describes it the same way: dwarfgen reports a
+		// variable at the position of its canonical variable, which for a
+		// closure variable is where it was declared in the enclosing function.
+		// The statements below belong to the closure body, though, so they keep
+		// the position of the closure itself.
+		//
+		// Note we assign the constant to a variable instead of substituting it
+		// at every use. Substituting it would report a compile time error for
+		// expressions like make([]byte, n) with a negative n, where the spec
+		// asks for a run time panic instead (see #4085). Assigning it also
+		// keeps the value reachable for rewriteWithLiterals below, which knows
+		// where replacing an expression with a literal is safe.
+		pos := clofn.Pos()
+		name := clofn.NewLocal(declPos, cv.Sym(), cv.Type())
+		name.SetUsed(true)
+		name.SetEsc(ir.EscNever) // a constant never needs to be heap allocated
+		as := typecheck.Stmt(ir.NewAssignStmt(pos, name, ir.NewBasicLit(pos, cv.Type(), lit.Val())))
+		prefix.Append(typecheck.Stmt(ir.NewDecl(pos, ir.ODCL, name)))
+		prefix.Append(as)
+		name.Defn = as.(*ir.AssignStmt) // so that a ReassignOracle can still find the constant
+
+		if repl == nil {
+			repl = make(map[*ir.Name]*ir.Name)
+		}
+		repl[cv] = name
+
+		if base.Debug.EscapeDebug >= 3 {
+			base.WarnfAt(pos, "rewriting closure variable %v (%v) to %v", cv, cv.Type(), lit)
+		}
+	}
+
+	if repl == nil {
+		return
+	}
+
+	// Substitute the captured variables with the local variables declared above.
+	var edit func(ir.Node) ir.Node
+	edit = func(n ir.Node) ir.Node {
+		if n, ok := n.(*ir.Name); ok {
+			if name := repl[n]; name != nil {
+				return name
+			}
+		}
+		ir.EditChildren(n, edit)
+		return n
+	}
+	ir.EditChildren(clofn, edit)
+
+	clofn.Body.Prepend(prefix...)
+	clofn.ClosureVars = slices.DeleteFunc(clofn.ClosureVars, func(cv *ir.Name) bool {
+		return repl[cv] != nil
+	})
+
+	// We just modified the IR that ro was initialized from.
+	b.staleOracles = append(b.staleOracles, ro)
+}
+
+// invalidateStaleOracles drops the cached ReassignOracles that cover a function
+// whose IR was modified by rewriteClosureVarsWithLiterals, so that
+// reassignOracle initializes them again from the current IR.
+// See ir.ReassignOracle.Init.
+func (b *batch) invalidateStaleOracles() {
+	if len(b.staleOracles) == 0 {
+		return
+	}
+
+	stale := make(map[*ir.ReassignOracle]bool, len(b.staleOracles))
+	for _, ro := range b.staleOracles {
+		stale[ro] = true
+	}
+	b.staleOracles = nil
+
+	for fn, ro := range b.reassignOracles {
+		if stale[ro] {
+			delete(b.reassignOracles, fn)
+		}
 	}
 }
 
