@@ -22,8 +22,6 @@
     // NAME performs dot products on pairs of elements of y and z and then adds x.
 - go: MulAdd
   commutative: false
-  documentation: !string |-
-    // NAME performs a fused (x * y) + z.
 - go: MulAddEvenSubOdd
   commutative: false
   documentation: !string |-

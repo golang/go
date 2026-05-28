@@ -224,6 +224,14 @@
 (MulUint8x16 ...) => (VMUL16B ...) // pureVreg
 (MulUint16x8 ...) => (VMUL8H ...) // pureVreg
 (MulUint32x4 ...) => (VMUL4S ...) // pureVreg
+(MulAddFloat32x4 x y z)  => (VFMLA4S z x y) // earlyMatchRule
+(MulAddFloat64x2 x y z)  => (VFMLA2D z x y) // earlyMatchRule
+(MulAddInt8x16 x y z)  => (VMLA16B z x y) // earlyMatchRule
+(MulAddInt16x8 x y z)  => (VMLA8H z x y) // earlyMatchRule
+(MulAddInt32x4 x y z)  => (VMLA4S z x y) // earlyMatchRule
+(MulAddUint8x16 x y z)  => (VMLA16B z x y) // earlyMatchRule
+(MulAddUint16x8 x y z)  => (VMLA8H z x y) // earlyMatchRule
+(MulAddUint32x4 x y z)  => (VMLA4S z x y) // earlyMatchRule
 (MulLoLongInt8x16 ...) => (VSMULL16B ...) // pureVreg
 (MulLoLongInt16x8 ...) => (VSMULL8H ...) // pureVreg
 (MulLoLongInt32x4 ...) => (VSMULL4S ...) // pureVreg

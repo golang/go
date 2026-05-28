@@ -52,6 +52,8 @@
   - *pdpa_acc
 - go: MulAdd
   asm: "VFMADD213PS|VFMADD213PD"
+  documentation: !string |-
+    // NAME performs a fused (x * y) + z.
   in:
   - &fma_op
    go: $t

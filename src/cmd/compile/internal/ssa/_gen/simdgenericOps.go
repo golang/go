@@ -692,18 +692,24 @@ func simdGenericOps() []opData {
 		{name: "MulAddEvenSubOddFloat64x2", argLength: 3},                               // ARCH:amd64
 		{name: "MulAddEvenSubOddFloat64x4", argLength: 3},                               // ARCH:amd64
 		{name: "MulAddEvenSubOddFloat64x8", argLength: 3},                               // ARCH:amd64
-		{name: "MulAddFloat32x4", argLength: 3},                                         // ARCH:amd64,wasm
+		{name: "MulAddFloat32x4", argLength: 3},                                         // ARCH:amd64,arm64,wasm
 		{name: "MulAddFloat32x8", argLength: 3},                                         // ARCH:amd64
 		{name: "MulAddFloat32x16", argLength: 3},                                        // ARCH:amd64
-		{name: "MulAddFloat64x2", argLength: 3},                                         // ARCH:amd64,wasm
+		{name: "MulAddFloat64x2", argLength: 3},                                         // ARCH:amd64,arm64,wasm
 		{name: "MulAddFloat64x4", argLength: 3},                                         // ARCH:amd64
 		{name: "MulAddFloat64x8", argLength: 3},                                         // ARCH:amd64
+		{name: "MulAddInt8x16", argLength: 3},                                           // ARCH:arm64
+		{name: "MulAddInt16x8", argLength: 3},                                           // ARCH:arm64
+		{name: "MulAddInt32x4", argLength: 3},                                           // ARCH:arm64
 		{name: "MulAddOddSubEvenFloat32x4", argLength: 3},                               // ARCH:amd64
 		{name: "MulAddOddSubEvenFloat32x8", argLength: 3},                               // ARCH:amd64
 		{name: "MulAddOddSubEvenFloat32x16", argLength: 3},                              // ARCH:amd64
 		{name: "MulAddOddSubEvenFloat64x2", argLength: 3},                               // ARCH:amd64
 		{name: "MulAddOddSubEvenFloat64x4", argLength: 3},                               // ARCH:amd64
 		{name: "MulAddOddSubEvenFloat64x8", argLength: 3},                               // ARCH:amd64
+		{name: "MulAddUint8x16", argLength: 3},                                          // ARCH:arm64
+		{name: "MulAddUint16x8", argLength: 3},                                          // ARCH:arm64
+		{name: "MulAddUint32x4", argLength: 3},                                          // ARCH:arm64
 		{name: "MulEvenWidenInt32x4", argLength: 2, commutative: true},                  // ARCH:amd64
 		{name: "MulEvenWidenInt32x8", argLength: 2, commutative: true},                  // ARCH:amd64
 		{name: "MulEvenWidenUint32x4", argLength: 2, commutative: true},                 // ARCH:amd64

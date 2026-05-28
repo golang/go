@@ -1131,6 +1131,48 @@ func (x Uint16x8) Mul(y Uint16x8) Uint16x8
 // Asm: VMUL, CPU Feature: NEON
 func (x Uint32x4) Mul(y Uint32x4) Uint32x4
 
+/* MulAdd */
+
+// MulAdd performs a fused (x * y) + z.
+//
+// Asm: VFMLA, CPU Feature: NEON
+func (x Float32x4) MulAdd(y Float32x4, z Float32x4) Float32x4
+
+// MulAdd performs a fused (x * y) + z.
+//
+// Asm: VFMLA, CPU Feature: NEON
+func (x Float64x2) MulAdd(y Float64x2, z Float64x2) Float64x2
+
+// MulAdd computes (x * y) + z.
+//
+// Asm: VMLA, CPU Feature: NEON
+func (x Int8x16) MulAdd(y Int8x16, z Int8x16) Int8x16
+
+// MulAdd computes (x * y) + z.
+//
+// Asm: VMLA, CPU Feature: NEON
+func (x Int16x8) MulAdd(y Int16x8, z Int16x8) Int16x8
+
+// MulAdd computes (x * y) + z.
+//
+// Asm: VMLA, CPU Feature: NEON
+func (x Int32x4) MulAdd(y Int32x4, z Int32x4) Int32x4
+
+// MulAdd computes (x * y) + z.
+//
+// Asm: VMLA, CPU Feature: NEON
+func (x Uint8x16) MulAdd(y Uint8x16, z Uint8x16) Uint8x16
+
+// MulAdd computes (x * y) + z.
+//
+// Asm: VMLA, CPU Feature: NEON
+func (x Uint16x8) MulAdd(y Uint16x8, z Uint16x8) Uint16x8
+
+// MulAdd computes (x * y) + z.
+//
+// Asm: VMLA, CPU Feature: NEON
+func (x Uint32x4) MulAdd(y Uint32x4, z Uint32x4) Uint32x4
+
 /* MulLoLong */
 
 // MulLoLong multiplies corresponding low-indexed elements and produces a result with double the element width.
