@@ -2559,6 +2559,14 @@ func (l *Loader) checkLinkname(refpkg *oReader, name string, s Sym) {
 			// to be used in package b.
 			return
 		}
+		if !strings.Contains(name, ".") {
+			// Symbol without "." in its name is meant to be accessed
+			// in non-Go code. Usually non-Go access is not checked, but
+			// it can also be from Go code via assembly or linkname.
+			// Notable member of the hall of shame is
+			// github.com/ebitengine/purego accessing crosscall2.
+			return
+		}
 		// For an assembly symbol, check if there is a linkname applied
 		// to its ABI wrapper.
 		if !buildcfg.Experiment.RegabiWrappers {
