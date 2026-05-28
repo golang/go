@@ -834,7 +834,7 @@ type sixIntPool struct {
 	pool sync.Pool
 }
 
-func (t *sixIntPool) Put(data *[6]*Int) {
+func (t *sixIntPool) Put(data *[6]Int) {
 	data[0].SetInt64(0)
 	data[1].SetInt64(0)
 	data[2].SetInt64(0)
@@ -844,18 +844,14 @@ func (t *sixIntPool) Put(data *[6]*Int) {
 	t.pool.Put(data)
 }
 
-func (t *sixIntPool) Get() *[6]*Int {
-	return t.pool.Get().(*[6]*Int)
+func (t *sixIntPool) Get() *[6]Int {
+	return t.pool.Get().(*[6]Int)
 }
 
 var sixIntP = sixIntPool{
 	sync.Pool{
 		New: func() any {
-			data := [6]*Int{
-				new(Int), new(Int), new(Int),
-				new(Int), new(Int), new(Int),
-			}
-			return &data
+			return &[6]Int{}
 		},
 	},
 }
@@ -871,9 +867,11 @@ var sixIntP = sixIntPool{
 // The cosequences are updated according to Algorithm 10.45 from
 // Cohen et al. "Handbook of Elliptic and Hyperelliptic Curve Cryptography" pp 192.
 func (z *Int) lehmerGCD(x, y, a, b *Int) *Int {
+	// recycle limbs of Int variables to reduce allocations.
 	data := sixIntP.Get()
 	defer sixIntP.Put(data)
-	var A, B, Ua, Ub *Int = data[0], data[1], data[2], data[3]
+
+	var A, B, Ua, Ub *Int = &data[0], &data[1], &data[2], &data[3]
 
 	A.Abs(a)
 	B.Abs(b)
@@ -886,8 +884,8 @@ func (z *Int) lehmerGCD(x, y, a, b *Int) *Int {
 	}
 
 	// temp variables for multiprecision update
-	q := data[4]
-	r := data[5]
+	q := &data[4]
+	r := &data[5]
 
 	// ensure A >= B
 	if A.abs.cmp(B.abs) < 0 {
@@ -1002,21 +1000,20 @@ type twoIntPool struct {
 	pool sync.Pool
 }
 
-func (t *twoIntPool) Put(data *[2]*Int) {
+func (t *twoIntPool) Put(data *[2]Int) {
 	data[0].SetInt64(0)
 	data[1].SetInt64(0)
 	t.pool.Put(data)
 }
 
-func (t *twoIntPool) Get() *[2]*Int {
-	return t.pool.Get().(*[2]*Int)
+func (t *twoIntPool) Get() *[2]Int {
+	return t.pool.Get().(*[2]Int)
 }
 
 var twoIntP = twoIntPool{
 	sync.Pool{
 		New: func() any {
-			data := [2]*Int{new(Int), new(Int)}
-			return &data
+			return &[2]Int{}
 		},
 	},
 }
@@ -1036,10 +1033,11 @@ func (z *Int) ModInverse(g, n *Int) *Int {
 		g = g2.Mod(g, n)
 	}
 
+	// recycle limbs of Int variables to reduce allocations.
 	data := twoIntP.Get()
 	defer twoIntP.Put(data)
 
-	var d, x *Int = data[0], data[1]
+	var d, x *Int = &data[0], &data[1]
 	d.GCD(x, nil, g, n)
 
 	// if and only if d==1, g and n are relatively prime
