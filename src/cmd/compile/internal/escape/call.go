@@ -31,42 +31,39 @@ func (e *escape) call(ks []hole, call ir.Node) {
 		call := call.(*ir.CallExpr)
 		typecheck.AssertFixedCall(call)
 
-		// Pick out the function callee, if statically known.
+		// Pick out the function callee(s), if statically known.
+		// fns collects all known callees; for a single static callee
+		// it has one element. For unknown callees fns is nil.
 		//
-		// TODO(mdempsky): Change fn from *ir.Name to *ir.Func, but some
-		// functions (e.g., runtime builtins, method wrappers, generated
-		// eq/hash functions) don't have it set. Investigate whether
-		// that's a concern.
-		var fn *ir.Name
+		// TODO(mdempsky): Change fns from []*ir.Name to []*ir.Func,
+		// but some functions (e.g., runtime builtins, method wrappers,
+		// generated eq/hash functions) don't have it set. Investigate
+		// whether that's a concern.
+		var fns []*ir.Name
 		switch call.Op() {
 		case ir.OCALLFUNC:
-			// TODO(thepudds): use an ir.ReassignOracle here.
-			v := ir.StaticValue(call.Fun)
-			fn = ir.StaticCalleeName(v)
-		}
-
-		// argumentParam handles escape analysis of assigning a call
-		// argument to its corresponding parameter.
-		argumentParam := func(param *types.Field, arg ir.Node) {
-			e.rewriteArgument(arg, call, fn)
-			argument(e.tagHole(ks, fn, param), arg)
-		}
-
-		if call.IsCompilerVarLive {
-			// Don't escape compiler-inserted KeepAlive.
-			argumentParam = func(param *types.Field, arg ir.Node) {
-				argument(e.discardHole(), arg)
+			ro := e.reassignOracle(e.curfn)
+			v := ro.StaticValue(call.Fun)
+			if fn := ir.StaticCalleeName(v); fn != nil {
+				fns = []*ir.Name{fn}
+			} else if name, ok := v.(*ir.Name); ok {
+				fns = resolveAssignedCallees(ro.FuncAssignments(name.Canonical()))
 			}
 		}
 
 		fntype := call.Fun.Type()
-		if fn != nil {
-			fntype = fn.Type()
+		if len(fns) == 1 {
+			fntype = fns[0].Type()
 		}
 
-		if ks != nil && fn != nil && e.inMutualBatch(fn) {
-			for i, result := range fn.Type().Results() {
-				e.expr(ks[i], result.Nname.(*ir.Name))
+		// Wire result flows for in-batch callees.
+		if ks != nil {
+			for _, f := range fns {
+				if e.inMutualBatch(f) {
+					for i, result := range f.Type().Results() {
+						e.expr(ks[i], result.Nname.(*ir.Name))
+					}
+				}
 			}
 		}
 
@@ -74,7 +71,7 @@ func (e *escape) call(ks []hole, call ir.Node) {
 		if call.Op() == ir.OCALLFUNC {
 			// Evaluate callee function expression.
 			calleeK := e.discardHole()
-			if fn == nil { // unknown callee
+			if len(fns) == 0 { // unknown callee
 				for _, k := range ks {
 					if k.dst != &e.blankLoc {
 						// The results flow somewhere, but we don't statically
@@ -91,46 +88,48 @@ func (e *escape) call(ks []hole, call ir.Node) {
 			recvArg = call.Fun.(*ir.SelectorExpr).X
 		}
 
-		// internal/abi.EscapeNonString forces its argument to be on
-		// the heap, if it contains a non-string pointer.
-		// This is used in hash/maphash.Comparable, where we cannot
-		// hash pointers to local variables, as the address of the
-		// local variable might change on stack growth.
-		// Strings are okay as the hash depends on only the content,
-		// not the pointer.
-		// This is also used in unique.clone, to model the data flow
-		// edge on the value with strings excluded, because strings
-		// are cloned (by content).
-		// The actual call we match is
-		//   internal/abi.EscapeNonString[go.shape.T](dict, go.shape.T)
-		if fn != nil && fn.Sym().Pkg.Path == "internal/abi" && strings.HasPrefix(fn.Sym().Name, "EscapeNonString[") {
-			ps := fntype.Params()
-			if len(ps) == 2 && ps[1].Type.IsShape() {
-				if !hasNonStringPointers(ps[1].Type) {
-					argumentParam = func(param *types.Field, arg ir.Node) {
-						argument(e.discardHole(), arg)
-					}
-				} else {
-					argumentParam = func(param *types.Field, arg ir.Node) {
-						argument(e.heapHole(), arg)
-					}
-				}
-			}
-		}
-
 		args := call.Args
-		if recvParam := fntype.Recv(); recvParam != nil {
+		if fntype.Recv() != nil {
 			if recvArg == nil {
 				// Function call using method expression. Receiver argument is
 				// at the front of the regular arguments list.
 				recvArg, args = args[0], args[1:]
 			}
-
-			argumentParam(recvParam, recvArg)
 		}
 
-		for i, param := range fntype.Params() {
-			argumentParam(param, args[i])
+		if call.IsCompilerVarLive {
+			// Don't escape compiler-inserted KeepAlive.
+			if recvArg != nil {
+				argument(e.discardHole(), recvArg)
+			}
+			for _, arg := range args {
+				argument(e.discardHole(), arg)
+			}
+		} else if isEscapeNonString(fns, fntype) {
+			// internal/abi.EscapeNonString forces its argument to
+			// the heap if it contains a non-string pointer. This is
+			// used in hash/maphash.Comparable (where we cannot hash
+			// pointers to locals whose address may change on stack
+			// growth) and unique.clone (to model the data flow edge
+			// with strings excluded, because strings are cloned by
+			// content). The actual call we match is:
+			//   internal/abi.EscapeNonString[go.shape.T](dict, go.shape.T)
+			k := e.heapHole()
+			if !hasNonStringPointers(fntype.Params()[1].Type) {
+				k = e.discardHole()
+			}
+			for _, arg := range args {
+				argument(k, arg)
+			}
+		} else {
+			if recvArg != nil {
+				e.rewriteArgument(recvArg, call, fns)
+				argument(e.mergedTagHole(ks, fns, -1, len(fntype.Params())), recvArg)
+			}
+			for i := range fntype.Params() {
+				e.rewriteArgument(args[i], call, fns)
+				argument(e.mergedTagHole(ks, fns, i, len(fntype.Params())), args[i])
+			}
 		}
 
 	case ir.OINLCALL:
@@ -269,12 +268,14 @@ func (e *escape) goDeferStmt(n *ir.GoDeferStmt) {
 }
 
 // rewriteArgument rewrites the argument arg of the given call expression.
-// fn is the static callee function, if known.
-func (e *escape) rewriteArgument(arg ir.Node, call *ir.CallExpr, fn *ir.Name) {
-	if fn == nil || fn.Func == nil {
-		return
+// fns is the list of statically known callees, if any.
+func (e *escape) rewriteArgument(arg ir.Node, call *ir.CallExpr, fns []*ir.Name) {
+	var pragma ir.PragmaFlag
+	for _, fn := range fns {
+		if fn.Func != nil {
+			pragma |= fn.Func.Pragma
+		}
 	}
-	pragma := fn.Func.Pragma
 	if pragma&(ir.UintptrKeepAlive|ir.UintptrEscapes) == 0 {
 		return
 	}
@@ -361,6 +362,25 @@ func (e *escape) copyExpr(pos src.XPos, expr ir.Node, init *ir.Nodes) *ir.Name {
 	return tmp
 }
 
+func (e *escape) mergedTagHole(ks []hole, fns []*ir.Name, paramIdx int, nParams int) hole {
+	if len(fns) == 0 {
+		return e.heapHole()
+	}
+	holes := make([]hole, 0, len(fns))
+	for _, f := range fns {
+		offset := nParams - len(f.Type().Params())
+		j := paramIdx - offset
+		var p *types.Field
+		if j >= 0 {
+			p = f.Type().Params()[j]
+		} else {
+			p = f.Type().Recv()
+		}
+		holes = append(holes, e.tagHole(ks, f, p))
+	}
+	return e.teeHole(holes...)
+}
+
 // tagHole returns a hole for evaluating an argument passed to param.
 // ks should contain the holes representing where the function
 // callee's results flows. fn is the statically-known callee function,
@@ -402,6 +422,34 @@ func (e *escape) tagHole(ks []hole, fn *ir.Name, param *types.Field) hole {
 	}
 
 	return e.teeHole(tagKs...)
+}
+
+// resolveAssignedCallees resolves all assignment RHS values to static
+// callee names, skipping zero-value assignments since nil panics on
+// call and can't cause escape.
+func resolveAssignedCallees(assigns []*ir.AssignStmt) []*ir.Name {
+	fns := make([]*ir.Name, 0, len(assigns))
+	for _, as := range assigns {
+		if ir.IsZero(as.Y) {
+			continue // zero value panics on call; skip
+		}
+		callee := ir.StaticCalleeName(as.Y)
+		if callee == nil {
+			return nil
+		}
+		if callee.Func != nil && callee.Func.Pragma&(ir.UintptrKeepAlive|ir.UintptrEscapes) != 0 {
+			return nil
+		}
+		fns = append(fns, callee)
+	}
+	return fns
+}
+
+func isEscapeNonString(fns []*ir.Name, fntype *types.Type) bool {
+	return len(fns) == 1 &&
+		fns[0].Sym().Pkg.Path == "internal/abi" &&
+		strings.HasPrefix(fns[0].Sym().Name, "EscapeNonString[") &&
+		len(fntype.Params()) == 2 && fntype.Params()[1].Type.IsShape()
 }
 
 func hasNonStringPointers(t *types.Type) bool {

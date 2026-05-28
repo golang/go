@@ -185,16 +185,12 @@ type quicState struct {
 
 // QUICClient returns a new TLS client side connection using QUICTransport as the
 // underlying transport. The config cannot be nil.
-//
-// The config's MinVersion must be at least TLS 1.3.
 func QUICClient(config *QUICConfig) *QUICConn {
 	return newQUICConn(Client(nil, config.TLSConfig), config)
 }
 
 // QUICServer returns a new TLS server side connection using QUICTransport as the
 // underlying transport. The config cannot be nil.
-//
-// The config's MinVersion must be at least TLS 1.3.
 func QUICServer(config *QUICConfig) *QUICConn {
 	return newQUICConn(Server(nil, config.TLSConfig), config)
 }
@@ -221,9 +217,6 @@ func (q *QUICConn) Start(ctx context.Context) error {
 		return quicError(errors.New("tls: Start called more than once"))
 	}
 	q.conn.quic.started = true
-	if q.conn.config.MinVersion < VersionTLS13 {
-		return quicError(errors.New("tls: Config MinVersion must be at least TLS 1.3"))
-	}
 	go q.conn.HandshakeContext(ctx)
 	if _, ok := <-q.conn.quic.blockedc; !ok {
 		return q.conn.handshakeErr

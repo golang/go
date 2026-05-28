@@ -771,6 +771,9 @@ func (check *Checker) funcDecl(obj *Func, decl *declInfo) {
 	fdecl := decl.fdecl
 	check.funcType(sig, fdecl.Recv, fdecl.Type)
 
+	// types2 handles go:nointerface pragma here by setting obj.nointerface.
+	// go/types currently doesn't handle pragmas.
+
 	// Set the scope's extent to the complete "func (...) { ... }"
 	// so that Scope.Innermost works correctly.
 	sig.scope.pos = fdecl.Pos()

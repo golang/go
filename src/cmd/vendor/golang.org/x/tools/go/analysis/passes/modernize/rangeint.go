@@ -356,16 +356,9 @@ func isScalarLvalue(info *types.Info, curId inspector.Cursor) bool {
 	// as it is always true for a variable even when that variable is
 	// used only as an r-value. So we must inspect enclosing syntax.
 
-	cur := curId
+	cur := astutil.UnparenEnclosingCursor(curId)
 
-	// Strip enclosing parens.
-	ek := cur.ParentEdgeKind()
-	for ek == edge.ParenExpr_X {
-		cur = cur.Parent()
-		ek = cur.ParentEdgeKind()
-	}
-
-	switch ek {
+	switch cur.ParentEdgeKind() {
 	case edge.AssignStmt_Lhs:
 		assign := cur.Parent().Node().(*ast.AssignStmt)
 		if assign.Tok != token.DEFINE {

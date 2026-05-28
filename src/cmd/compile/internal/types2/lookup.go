@@ -390,6 +390,7 @@ func (check *Checker) missingMethod(V, T Type, static bool, equivalent func(x, y
 		ambigSel
 		ptrRecv
 		field
+		nointerface
 	)
 
 	state := ok
@@ -453,6 +454,11 @@ func (check *Checker) missingMethod(V, T Type, static bool, equivalent func(x, y
 				check.objDecl(f)
 			}
 
+			if f.nointerface {
+				state = nointerface
+				break
+			}
+
 			if !equivalent(f.typ, m.typ) {
 				state = wrongSig
 				break
@@ -512,6 +518,8 @@ func (check *Checker) missingMethod(V, T Type, static bool, equivalent func(x, y
 			*cause = check.sprintf("(method %s has pointer receiver)", m.Name())
 		case field:
 			*cause = check.sprintf("(%s.%s is a field, not a method)", V, m.Name())
+		case nointerface:
+			*cause = check.sprintf("(%s method is marked 'nointerface')", m.Name())
 		default:
 			panic("unreachable")
 		}

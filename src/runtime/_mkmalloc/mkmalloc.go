@@ -25,7 +25,7 @@ var stdout = flag.Bool("stdout", false, "write sizeclasses source to stdout inst
 
 func makeSizeToSizeClass(classes []class) []uint8 {
 	sc := uint8(0)
-	ret := make([]uint8, smallScanNoHeaderMax+1)
+	ret := make([]uint8, benchmarkMax+1)
 	for i := range ret {
 		if i > classes[sc].size {
 			sc++
@@ -63,6 +63,12 @@ func main() {
 	if err := os.WriteFile(tablefile, mustFormat(generateTable(sizeToSizeClass)), 0666); err != nil {
 		log.Fatal(err)
 	}
+
+	benchmarkFile := "../malloc_bench_generated_test.go"
+	if err := os.WriteFile(benchmarkFile, mustFormat(append(inline(benchmarkConfig(classes, sizeToSizeClass)), []byte(generateTopBenchmark(classes, sizeToSizeClass))...)), 0666); err != nil {
+		log.Fatal(err)
+	}
+
 }
 
 // withLineNumbers returns b with line numbers added to help debugging.
@@ -108,6 +114,8 @@ const (
 	inlineFunc = replacementKind(iota)
 	subBasicLit
 	foldCondition
+	subIdent
+	deleteConst
 )
 
 // op is a single inlining operation for the inliner. Any calls to the function
@@ -126,12 +134,7 @@ func smallScanNoHeaderSCFuncName(sc, scMax uint8) string {
 	return fmt.Sprintf("mallocgcSmallScanNoHeaderSC%d", sc)
 }
 
-func tinyFuncName(size uintptr) string {
-	if size == 0 || size > smallScanNoHeaderMax {
-		return "mallocPanic"
-	}
-	return fmt.Sprintf("mallocgcTinySize%d", size)
-}
+const tinyFuncName = "mallocgcTinySC2"
 
 func smallNoScanSCFuncName(sc, scMax uint8) string {
 	if sc < 2 || sc > scMax {
@@ -145,10 +148,10 @@ func smallNoScanSCFuncName(sc, scMax uint8) string {
 func specializedMallocConfig(classes []class, sizeToSizeClass []uint8) generatorConfig {
 	config := generatorConfig{file: "../malloc_stubs.go"}
 
-	// Only generate specialized functions for sizes that don't have
-	// a header on 64-bit platforms. (They may have a header on 32-bit, but
-	// we will fall back to the non-specialized versions in that case)
-	scMax := sizeToSizeClass[smallScanNoHeaderMax]
+	// Only generate specialized functions for sizes up to specializedMallocMax.
+	// We've noticed limited benefit (or sometimes worse performance) for specialized
+	// functions for larger sizes, and having too many functions causes icache issues.
+	scMax := sizeToSizeClass[specializedMallocMax]
 
 	str := fmt.Sprint
 
@@ -165,14 +168,18 @@ func specializedMallocConfig(classes []class, sizeToSizeClass []uint8) generator
 				templateFunc: "mallocStub",
 				name:         name,
 				ops: []op{
-					{inlineFunc, "inlinedMalloc", "smallScanNoHeaderStub"},
+					{inlineFunc, "inlinedMalloc", "smallStub"},
+					{inlineFunc, "postMallocgc", "postMallocgc"},
+					{foldCondition, "isNoScan_", str(false)},
 					{inlineFunc, "heapSetTypeNoHeaderStub", "heapSetTypeNoHeaderStub"},
 					{inlineFunc, "nextFreeFastStub", "nextFreeFastStub"},
 					{inlineFunc, "writeHeapBitsSmallStub", "writeHeapBitsSmallStub"},
+					{foldCondition, "isSlowPath_", str(false)},
 					{subBasicLit, "elemsize_", str(elemsize)},
 					{subBasicLit, "sizeclass_", str(sc)},
 					{subBasicLit, "noscanint_", str(noscan)},
 					{foldCondition, "isTiny_", str(false)},
+					{subIdent, "mallocgcSlowPathStub", "mallocgcSmallScanSlowPath"},
 				},
 			})
 		}
@@ -184,11 +191,8 @@ func specializedMallocConfig(classes []class, sizeToSizeClass []uint8) generator
 
 		// tiny
 		tinySizeClass := sizeToSizeClass[tinySize]
-		for s := range uintptr(16) {
-			if s == 0 {
-				continue
-			}
-			name := tinyFuncName(s)
+		{
+			name := tinyFuncName
 			elemsize := classes[tinySizeClass].size
 			config.specs = append(config.specs, spec{
 				templateFunc: "mallocStub",
@@ -196,9 +200,11 @@ func specializedMallocConfig(classes []class, sizeToSizeClass []uint8) generator
 				ops: []op{
 					{inlineFunc, "inlinedMalloc", "tinyStub"},
 					{inlineFunc, "nextFreeFastTiny", "nextFreeFastTiny"},
+					{inlineFunc, "postMallocgc", "postMallocgc"},
+					{inlineFunc, "nextFreeFastStub", "nextFreeFastStub"},
+					{foldCondition, "isSlowPath_", str(false)},
 					{subBasicLit, "elemsize_", str(elemsize)},
 					{subBasicLit, "sizeclass_", str(tinySizeClass)},
-					{subBasicLit, "size_", str(s)},
 					{subBasicLit, "noscanint_", str(noscan)},
 					{foldCondition, "isTiny_", str(true)},
 				},
@@ -213,16 +219,75 @@ func specializedMallocConfig(classes []class, sizeToSizeClass []uint8) generator
 				templateFunc: "mallocStub",
 				name:         name,
 				ops: []op{
-					{inlineFunc, "inlinedMalloc", "smallNoScanStub"},
+					{inlineFunc, "inlinedMalloc", "smallStub"},
+					{inlineFunc, "postMallocgc", "postMallocgc"},
+					{foldCondition, "isNoScan_", str(true)},
 					{inlineFunc, "nextFreeFastStub", "nextFreeFastStub"},
+					{foldCondition, "isSlowPath_", str(false)},
 					{subBasicLit, "elemsize_", str(elemsize)},
 					{subBasicLit, "sizeclass_", str(sc)},
 					{subBasicLit, "noscanint_", str(noscan)},
 					{foldCondition, "isTiny_", str(false)},
+					{subIdent, "mallocgcSlowPathStub", "mallocgcSmallNoScanSlowPath"},
 				},
 			})
 		}
 	}
+
+	// Non-size-specialized fallbacks in case we can't do the fast path.
+	config.specs = append(config.specs, spec{
+		templateFunc: "mallocStub",
+		name:         "mallocgcTinySlowPath",
+		ops: []op{
+			{inlineFunc, "inlinedMalloc", "tinyStub"},
+			{inlineFunc, "postMallocgc", "postMallocgc"},
+			{inlineFunc, "nextFreeFastTiny", "nextFreeFastTiny"},
+			{inlineFunc, "deductAssistCredit", "deductAssistCredit"},
+			{foldCondition, "isSlowPath_", str(true)},
+			{foldCondition, "isTiny_", str(true)},
+			{subBasicLit, "elemsize_", str(classes[sizeToSizeClass[tinySize]].size)},
+		},
+	})
+	config.specs = append(config.specs, spec{
+		templateFunc: "mallocgcSlowPathStub",
+		name:         "mallocgcSmallScanSlowPath",
+		ops: []op{
+			{inlineFunc, "mallocStub", "mallocStub"},
+			{inlineFunc, "inlinedMalloc", "smallStub"},
+			{inlineFunc, "heapSetTypeNoHeaderStub", "heapSetTypeNoHeaderStub"},
+			{inlineFunc, "writeHeapBitsSmallStub", "writeHeapBitsSmallStub"},
+			{inlineFunc, "postMallocgc", "postMallocgc"},
+			{inlineFunc, "nextFreeFastStub", "nextFreeFastStub"},
+			{inlineFunc, "deductAssistCredit", "deductAssistCredit"},
+			{foldCondition, "isSlowPath_", str(true)},
+			{foldCondition, "isTiny_", str(false)},
+			{foldCondition, "isNoScan_", str(false)},
+
+			// Remove constants used by size-specialized variants.
+			{deleteConst, "elemsize", ""},
+			{deleteConst, "sizeclass", ""},
+			{deleteConst, "spc", ""},
+		},
+	})
+	config.specs = append(config.specs, spec{
+		templateFunc: "mallocgcSlowPathStub",
+		name:         "mallocgcSmallNoScanSlowPath",
+		ops: []op{
+			{inlineFunc, "mallocStub", "mallocStub"},
+			{inlineFunc, "inlinedMalloc", "smallStub"},
+			{inlineFunc, "postMallocgc", "postMallocgc"},
+			{inlineFunc, "nextFreeFastStub", "nextFreeFastStub"},
+			{inlineFunc, "deductAssistCredit", "deductAssistCredit"},
+			{foldCondition, "isSlowPath_", str(true)},
+			{foldCondition, "isTiny_", str(false)},
+			{foldCondition, "isNoScan_", str(true)},
+
+			// Remove constants used by size-specialized variants.
+			{deleteConst, "elemsize", ""},
+			{deleteConst, "sizeclass", ""},
+			{deleteConst, "spc", ""},
+		},
+	})
 
 	return config
 }
@@ -233,7 +298,7 @@ func inline(config generatorConfig) []byte {
 
 	// Read the template file in.
 	fset := token.NewFileSet()
-	f, err := parser.ParseFile(fset, config.file, nil, 0)
+	f, err := parser.ParseFile(fset, config.file, nil, parser.SkipObjectResolution)
 	if err != nil {
 		log.Fatalf("parsing %s: %v", config.file, err)
 	}
@@ -287,10 +352,16 @@ func inline(config generatorConfig) []byte {
 				stamped = substituteWithBasicLit(stamped, repl.from, repl.to)
 			case foldCondition:
 				stamped = foldIfCondition(stamped, repl.from, repl.to)
+			case subIdent:
+				stamped = substituteIdent(stamped, repl.from, repl.to)
+			case deleteConst:
+				stamped = deleteConstDecl(stamped, repl.from)
 			default:
 				log.Fatalf("unknown op kind %v", repl.kind)
 			}
 		}
+
+		stamped = cleanLabels(stamped)
 
 		out.Write(mustFormatNode(fset, stamped))
 		out.WriteString("\n\n")
@@ -302,61 +373,196 @@ func inline(config generatorConfig) []byte {
 // substituteWithBasicLit recursively renames identifiers in the provided AST
 // according to 'from' and 'to'.
 func substituteWithBasicLit(node ast.Node, from, to string) ast.Node {
-	// The op is a substitution of an identifier with an basic literal.
+	// The op is a substitution of an identifier with a basic literal.
 	toExpr, err := parser.ParseExpr(to)
 	if err != nil {
 		log.Fatalf("parsing expr %q: %v", to, err)
 	}
-	if _, ok := toExpr.(*ast.BasicLit); !ok {
+	toLit, ok := toExpr.(*ast.BasicLit)
+	if !ok {
 		log.Fatalf("op 'to' expr %q is not a basic literal", to)
 	}
 	return astutil.Apply(node, func(cursor *astutil.Cursor) bool {
-		if isIdentWithName(cursor.Node(), from) {
-			cursor.Replace(toExpr)
+		if ident, ok := cursor.Node().(*ast.Ident); ok && ident.Name == from {
+			replacement := *toLit
+			replacement.ValuePos = ident.NamePos
+			cursor.Replace(new(replacement))
 		}
 		return true
 	}, nil)
 }
 
-// foldIfCondition looks for if statements with a single boolean variable from, or
-// the negation of from and either replaces it with its body or nothing,
-// depending on whether the to value is true or false.
-func foldIfCondition(node ast.Node, from, to string) ast.Node {
-	var isTrue bool
-	switch to {
-	case "true":
-		isTrue = true
-	case "false":
-		isTrue = false
-	default:
-		log.Fatalf("op 'to' expr %q is not true or false", to)
-	}
+// substituteIdent replaces the ident named 'from' to 'to'.
+func substituteIdent(node ast.Node, from, to string) ast.Node {
 	return astutil.Apply(node, func(cursor *astutil.Cursor) bool {
-		var foldIfTrue bool
-		ifexpr, ok := cursor.Node().(*ast.IfStmt)
-		if !ok {
-			return true
+		if ident, ok := cursor.Node().(*ast.Ident); ok && ident.Name == from {
+			cursor.Replace(&ast.Ident{Name: to, NamePos: ident.NamePos})
 		}
-		if isIdentWithName(ifexpr.Cond, from) {
-			foldIfTrue = true
-		} else if unaryexpr, ok := ifexpr.Cond.(*ast.UnaryExpr); ok && unaryexpr.Op == token.NOT && isIdentWithName(unaryexpr.X, from) {
-			foldIfTrue = false
-		} else {
-			// not an if with from or !from.
-			return true
+		return true
+	}, nil)
+}
+
+// foldIfCondition replaces 'from' with 'to', which must be "true" or "false".
+// It then applies simplifications to any boolean expressions that have literal
+// true or false values, from the bottom up. Any if statements that have a condition
+// that is a literal true or false after the simplification will be replaced with
+// their bodies (in the true case) or deleted (in the false case).
+func foldIfCondition(node ast.Node, from, to string) ast.Node {
+	boolLit := func(n ast.Expr) (v, ok bool) {
+		if ident, ok := ast.Unparen(n).(*ast.Ident); ok {
+			switch ident.Name {
+			case "true":
+				return true, true
+			case "false":
+				return false, true
+			}
+			return false, false
 		}
-		if foldIfTrue == isTrue {
-			for _, stmt := range ifexpr.Body.List {
-				cursor.InsertBefore(stmt)
+		return false, false
+	}
+	handleIfs := func(cursor *astutil.Cursor) bool {
+		switch n := cursor.Node().(type) {
+		case *ast.Ident:
+			// First, do the replacement.
+			if n.Name == from {
+				cursor.Replace(&ast.Ident{Name: to, NamePos: n.NamePos})
+			}
+		case *ast.UnaryExpr:
+			if n.Op == token.NOT {
+				if b, ok := boolLit(n.X); ok {
+					name := "true"
+					if b {
+						name = "false"
+					}
+					cursor.Replace(&ast.Ident{Name: name, NamePos: n.Pos()})
+				}
+			}
+		case *ast.BinaryExpr:
+			xBool, xOk := boolLit(n.X)
+			yBool, yOk := boolLit(n.Y)
+			if n.Op == token.LAND {
+				switch {
+				case xOk && !xBool || yOk && !yBool:
+					cursor.Replace(&ast.Ident{Name: "false", NamePos: n.Pos()})
+				case xOk && xBool:
+					cursor.Replace(n.Y)
+				case yOk && yBool:
+					cursor.Replace(n.X)
+				}
+			} else if n.Op == token.LOR {
+				switch {
+				case xOk && xBool || yOk && yBool:
+					cursor.Replace(&ast.Ident{Name: "true", NamePos: n.Pos()})
+				case xOk && !xBool:
+					cursor.Replace(n.Y)
+				case yOk && !yBool:
+					cursor.Replace(n.X)
+				}
+			}
+		case *ast.IfStmt:
+			if v, ok := boolLit(n.Cond); ok {
+				if cursor.Index() < 0 {
+					replacement := ast.Node(&ast.EmptyStmt{})
+					if v {
+						replacement = n.Body
+					}
+					cursor.Replace(replacement)
+					break
+				}
+				if v {
+					for _, stmt := range n.Body.List {
+						cursor.InsertBefore(stmt)
+					}
+				} else if n.Else != nil {
+					if block, ok := n.Else.(*ast.BlockStmt); ok {
+						for i := len(block.List) - 1; i >= 0; i-- {
+							cursor.InsertAfter(block.List[i])
+						}
+					}
+				}
+				cursor.Delete()
+			}
+		case *ast.LabeledStmt:
+			// This case isn't necessary but it moves the code
+			// out of the block so that it looks cleaner.
+			if inner, ok := n.Stmt.(*ast.BlockStmt); ok {
+				if len(inner.List) == 0 {
+					cursor.Delete()
+					break
+				}
+				list := inner.List
+				n.Stmt = list[0]
+				for i := len(list) - 1; i > 0; i-- {
+					cursor.InsertAfter(list[i])
+				}
 			}
 		}
-		cursor.Delete()
+		return true
+	}
+	return astutil.Apply(node, nil, handleIfs)
+}
+
+func cleanLabels(node ast.Node) ast.Node {
+	found := map[string]bool{}
+	ast.Inspect(node, func(node ast.Node) bool {
+		if branch, ok := node.(*ast.BranchStmt); ok {
+			if branch.Label != nil {
+				found[branch.Label.Name] = true
+			}
+		}
+		return true
+	})
+	return astutil.Apply(node, nil, func(cursor *astutil.Cursor) bool {
+		if lstmt, ok := cursor.Node().(*ast.LabeledStmt); ok {
+			if !found[lstmt.Label.Name] {
+				if _, ok := lstmt.Stmt.(*ast.EmptyStmt); ok {
+					cursor.Delete()
+				} else {
+					cursor.Replace(lstmt.Stmt)
+				}
+			}
+		}
+		return true
+	})
+}
+
+// reports whether this is a non-grouped constant decl named 'name'.
+func isNamedConstDecl(node ast.Node, name string) bool {
+	declStmt, ok := node.(*ast.DeclStmt)
+	if !ok {
+		return false
+	}
+
+	genDecl, ok := declStmt.Decl.(*ast.GenDecl)
+	if !ok || genDecl.Tok != token.CONST {
+		return false
+	}
+
+	if len(genDecl.Specs) != 1 {
+		return false
+	}
+	vs, ok := genDecl.Specs[0].(*ast.ValueSpec)
+	if !ok || len(vs.Names) != 1 || len(vs.Values) != 1 {
+		return false
+	}
+
+	return vs.Names[0].Name == name
+}
+
+// deleteConstDecl removes const declarations whose name matches the given name.
+// It only applies to declaration statements with a single declaration.
+func deleteConstDecl(node ast.Node, name string) ast.Node {
+	return astutil.Apply(node, func(cursor *astutil.Cursor) bool {
+		if isNamedConstDecl(cursor.Node(), name) {
+			cursor.Delete()
+		}
 		return true
 	}, nil)
 }
 
 // inlineFunction recursively replaces calls to the function 'from' with the body of the function
-// 'toDecl'. All calls to 'from' must appear in assignment statements.
+// 'toDecl'. All calls to 'from' must either have no return values and appear in standalone expression statements
+// or otherwise must appear in assignment statements.
 // The replacement is very simple: it doesn't substitute the arguments for the parameters, so the
 // arguments to the function call must be the same identifier as the parameters to the function
 // declared by 'toDecl'. If there are any calls to from where that's not the case there will be a fatal error.
@@ -374,11 +580,32 @@ func inlineFunction(node ast.Node, from string, toDecl *ast.FuncDecl) ast.Node {
 				replaceAssignment(cursor, node, toDecl)
 			}
 			return false
+		case *ast.ExprStmt:
+			if callExpr, ok := node.X.(*ast.CallExpr); ok && isCallTo(callExpr, from) {
+				if !argsMatchParameters(callExpr.Args, toDecl.Type.Params) {
+					log.Fatalf("applying op: arguments to %v don't match parameter names of %v: %v", from, toDecl.Name, debugPrint(callExpr.Args...))
+				}
+				if toDecl.Type.Results != nil {
+					log.Fatalf("applying op: call to %v, which does not appear in an assignment, is replaced with %v which has return values: %v", from, toDecl.Name, debugPrint(callExpr.Args...))
+				}
+				replaceCallExprStmt(cursor, toDecl)
+			}
+			return false
+		case *ast.ReturnStmt:
+			if len(node.Results) == 1 && isCallTo(node.Results[0], from) {
+				args := node.Results[0].(*ast.CallExpr).Args
+				if !argsMatchParameters(args, toDecl.Type.Params) {
+					log.Fatalf("applying op: arguments to %v don't match parameter names of %v: %v", from, toDecl.Name, debugPrint(args...))
+				}
+				replaceTailCall(cursor, toDecl)
+			}
+			return false
 		case *ast.CallExpr:
-			// double check that all calls to from appear within an assignment
 			if isCallTo(node, from) {
-				if _, ok := cursor.Parent().(*ast.AssignStmt); !ok {
-					log.Fatalf("applying op: all calls to function %q being replaced must appear in an assignment statement, appears in %T", from, cursor.Parent())
+				switch cursor.Parent().(type) {
+				case *ast.AssignStmt, *ast.ExprStmt:
+				default:
+					log.Fatalf("applying op: all calls to function %q being replaced must appear in an assignment or expression statement, appears in %T", from, cursor.Parent())
 				}
 			}
 		}
@@ -423,6 +650,37 @@ func isCallTo(expr ast.Expr, name string) bool {
 		return false
 	}
 	return isIdentWithName(callexpr.Fun, name)
+}
+
+// replaceCallExprStmt replaces a standalone expression statement calling a function with no
+// return values with the body of the function.
+func replaceCallExprStmt(cursor *astutil.Cursor, funcdecl *ast.FuncDecl) {
+	body := internalastutil.CloneNode(funcdecl.Body)
+	for _, stmt := range body.List {
+		cursor.InsertBefore(stmt)
+	}
+	cursor.Delete()
+}
+
+func replaceTailCall(cursor *astutil.Cursor, funcdecl *ast.FuncDecl) {
+	if !hasTerminatingReturn(funcdecl.Body) {
+		log.Fatal("function being inlined must have a return at the end")
+	}
+
+	body := internalastutil.CloneNode(funcdecl.Body)
+	if len(body.List) < 1 {
+		log.Fatal("replacing with empty bodied function")
+	}
+
+	// The op happens in two steps: first we insert the body of the function being inlined (except for
+	// the final return) before the assignment, and then we change the assignment statement to replace the function call
+	// with the expressions being returned.
+
+	// Insert the body up to the final return.
+	for _, stmt := range body.List {
+		cursor.InsertBefore(stmt)
+	}
+	cursor.Delete()
 }
 
 // replaceAssignment replaces an assignment statement where the right hand side is a function call
@@ -619,29 +877,29 @@ func replaceWithAssignment(cursor *astutil.Cursor, lhs, rhs []ast.Expr, tok toke
 
 // generateTable generates the file with the jump tables for the specialized malloc functions.
 func generateTable(sizeToSizeClass []uint8) []byte {
-	scMax := sizeToSizeClass[smallScanNoHeaderMax]
+	scMax := sizeToSizeClass[specializedMallocMax]
 
 	var b bytes.Buffer
-	fmt.Fprintln(&b, `// Code generated by mkmalloc.go; DO NOT EDIT.
+	fmt.Fprintf(&b, `// Code generated by mkmalloc.go; DO NOT EDIT.
 //go:build !plan9
 
 package runtime
 
 import "unsafe"
 
-var mallocScanTable = [513]func(size uintptr, typ *_type, needzero bool) unsafe.Pointer{`)
+var mallocScanTable = [%d]func(size uintptr, typ *_type, needzero bool) unsafe.Pointer{`, specializedMallocMax+1)
 
-	for i := range uintptr(smallScanNoHeaderMax + 1) {
+	for i := range uintptr(specializedMallocMax + 1) {
 		fmt.Fprintf(&b, "%s,\n", smallScanNoHeaderSCFuncName(sizeToSizeClass[i], scMax))
 	}
 
-	fmt.Fprintln(&b, `
+	fmt.Fprintf(&b, `
 }
 
-var mallocNoScanTable = [513]func(size uintptr, typ *_type, needzero bool) unsafe.Pointer{`)
-	for i := range uintptr(smallScanNoHeaderMax + 1) {
+var mallocNoScanTable = [%d]func(size uintptr, typ *_type, needzero bool) unsafe.Pointer{`, specializedMallocMax+1)
+	for i := range uintptr(specializedMallocMax + 1) {
 		if i < 16 {
-			fmt.Fprintf(&b, "%s,\n", tinyFuncName(i))
+			fmt.Fprintf(&b, "%s,\n", "mallocPanic")
 		} else {
 			fmt.Fprintf(&b, "%s,\n", smallNoScanSCFuncName(sizeToSizeClass[i], scMax))
 		}
@@ -651,4 +909,87 @@ var mallocNoScanTable = [513]func(size uintptr, typ *_type, needzero bool) unsaf
 }`)
 
 	return b.Bytes()
+}
+
+// Generate benchmarks for all potentially small sizes
+// (sizes for which smallScanNoHeader would be called)
+// gc.MinSizeForMallocHeader is defined as goarch.PtrSize * goarch.PtrBits.
+
+const benchmarkMax = maxPtrSize * maxPtrBits
+
+// benchmarkConfig produces an inlining config to stamp out microbenchmarks.
+func benchmarkConfig(classes []class, sizeToSizeClass []uint8) generatorConfig {
+	config := generatorConfig{file: "../malloc_stubs_test.go"}
+
+	scMax := sizeToSizeClass[benchmarkMax]
+
+	str := fmt.Sprint
+
+	for sc := uint8(1); sc <= scMax; sc++ {
+		elemsize := classes[sc].size
+		config.specs = append(config.specs, spec{
+			templateFunc: "benchmarkStub",
+			name:         fmt.Sprintf("benchmarkMallocgcNoscan%d", elemsize),
+			ops: []op{
+				{subBasicLit, "size_", str(elemsize)},
+				{foldCondition, "noscan_", str(true)},
+			},
+		})
+		config.specs = append(config.specs, spec{
+			templateFunc: "benchmarkStub",
+			name:         fmt.Sprintf("benchmarkMallocgcScan%d", elemsize),
+			ops: []op{
+				{subBasicLit, "size_", str(elemsize)},
+				{foldCondition, "noscan_", str(false)},
+			},
+		})
+		config.specs = append(config.specs, spec{
+			templateFunc: "benchmarkScanSliceStub",
+			name:         fmt.Sprintf("benchmarkMallocgcScanSlice%d", elemsize),
+			ops:          []op{{subBasicLit, "size_", str(elemsize)}},
+		})
+	}
+
+	for size := 1; size < tinySize; size++ {
+		config.specs = append(config.specs, spec{
+			templateFunc: "benchmarkStubTiny",
+			name:         fmt.Sprintf("benchmarkMallocgcTiny%d", size),
+			ops:          []op{{subBasicLit, "size_", str(size)}, {foldCondition, "noscan_", str(true)}},
+		})
+	}
+
+	return config
+}
+
+func generateTopBenchmark(classes []class, sizeToSizeClass []uint8) string {
+	scMax := sizeToSizeClass[benchmarkMax]
+	bench := `func BenchmarkMallocgc(b *testing.B) {
+		b.Run("scan=noscan", func(b *testing.B) {
+`
+	for size := 1; size < tinySize; size++ {
+		bench += fmt.Sprintf(`b.Run("size=%d", benchmarkMallocgcTiny%d)`, size, size) + "\n"
+	}
+	for sc := uint8(2); sc <= scMax; sc++ {
+		elemsize := classes[sc].size
+		bench += fmt.Sprintf(`b.Run("size=%d", benchmarkMallocgcNoscan%d)`, elemsize, elemsize) + "\n"
+	}
+	bench += `})
+		b.Run("scan=scan", func(b *testing.B) {
+`
+	for sc := uint8(1); sc <= scMax; sc++ {
+		elemsize := classes[sc].size
+		bench += fmt.Sprintf(`b.Run("size=%d", benchmarkMallocgcScan%d)`, elemsize, elemsize) + "\n"
+
+	}
+	bench += `})
+		b.Run("scan=scanslice", func(b *testing.B) {
+`
+	for sc := uint8(1); sc <= scMax; sc++ {
+		elemsize := classes[sc].size
+		bench += fmt.Sprintf(`b.Run("size=%d", benchmarkMallocgcScanSlice%d)`, elemsize, elemsize) + "\n"
+	}
+	bench += `})
+}`
+
+	return bench
 }

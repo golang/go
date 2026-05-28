@@ -354,3 +354,10 @@ type signalError string
 func (s signalError) Error() string {
 	return string(s)
 }
+
+func (s signalError) Is(target error) bool {
+	if target == context.Canceled {
+		return true
+	}
+	return false
+}

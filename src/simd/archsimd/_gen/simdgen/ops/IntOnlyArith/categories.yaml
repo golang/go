@@ -8,13 +8,10 @@
   # Unary operation, not commutative
   documentation: !string |-
     // NAME computes the absolute value of each element.
-- go: CopySign
-  # Applies sign of second operand to first: sign(val, sign_src)
+- go: MulSign
   commutative: false
   documentation: !string |-
-    // NAME returns the product of x with -1, 0, or 1,
-    // whichever constant is nearest to the value of y.
-  # Sign does not have masked version
+    // NAME returns the product of x with the sign of y (-1, 0, or 1).
 - go: OnesCount
   commutative: false
   documentation: !string |-

@@ -1,0 +1,200 @@
+!sum
+
+# Shift by vector
+- go: Shift
+  signed: true
+  asm: "VSSHL"
+  in:
+  - &int
+    go: $t
+    base: int
+  - *int
+  out:
+  - *int
+
+- go: Shift
+  signed: false
+  asm: "VUSHL"
+  in:
+  - &uint
+    go: $t
+    base: uint
+  - &uintAsInt
+    go: $t
+    base: uint
+    OverwriteBase: int
+  out:
+  - *uint
+
+- go: ShiftSaturated
+  signed: true
+  asm: "VSQSHL"
+  in:
+  - *int
+  - *int
+  out:
+  - *int
+
+- go: ShiftSaturated
+  signed: false
+  asm: "VUQSHL"
+  in:
+  - *uint
+  - *uintAsInt
+  out:
+  - *uint
+
+# Shift right by constant
+- go: ShiftRightConst
+  signed: true
+  asm: "VSSHR"
+  specialLower: "if a==0 => x"
+  in:
+  - &imm
+    class: immediate
+    immOffset: 0
+  - *int
+  out:
+  - *int
+
+- go: ShiftRightConst
+  signed: false
+  asm: "VUSHR"
+  specialLower: "if a==0 => x"
+  in:
+  - *imm
+  - *uint
+  out:
+  - *uint
+
+# Shift left by constant
+- go: ShiftLeftConst
+  signed: true
+  asm: "VSHL"
+  specialLower: "if a==0 => x"
+  in:
+  - *imm
+  - *int
+  out:
+  - *int
+
+- go: ShiftLeftConst
+  signed: false
+  asm: "VSHL"
+  specialLower: "if a==0 => x"
+  in:
+  - *imm
+  - *uint
+  out:
+  - *uint
+
+# Shift left saturated by constant
+- go: ShiftLeftSaturatedConst
+  signed: true
+  asm: "VSQSHL"
+  SSAVariant: "const"
+  specialLower: "if a==0 => x"
+  in:
+  - *imm
+  - *int
+  out:
+  - *int
+
+- go: ShiftLeftSaturatedConst
+  signed: false
+  asm: "VUQSHL"
+  SSAVariant: "const"
+  specialLower: "if a==0 => x"
+  in:
+  - *imm
+  - *uint
+  out:
+  - *uint
+
+# Shift all lanes in vector x by the same unsigned scalar amount y.
+# ShiftAll* are lowered to corresponding ShiftConst* if the amount is constant and fits into immediate,
+# otherwise fallback to the Shift intrinsic using sign to specify shift direction, e.g.:
+#   x.Shift(Zero.SetElem(0, -y).Broadcast1ToN()) for shift right
+#   x.Shift(Zero.SetElem(0,  y).Broadcast1ToN()) for shift left
+- go: ShiftAllLeft
+  signed: true
+  asm: "VSSHL"
+  specialLower: !string "earlymatch x y => (VSSHL%a x (VDUP%sbcast [0] (VMOV%sins [0] x (CSEL <typ.UInt64> [OpARM64LessThanU] y (MOVDconst [127]) (CMPconst [127] y)))))"
+  in:
+  - *int
+  - &scalarShiftSigned
+    go: $t
+    base: int
+    treatLikeAScalarOfSize: 64
+  out:
+  - *int
+
+- go: ShiftAllLeft
+  signed: false
+  asm: "VUSHL"
+  specialLower: !string "earlymatch x y => (VUSHL%a x (VDUP%sbcast [0] (VMOV%sins [0] x (CSEL <typ.UInt64> [OpARM64LessThanU] y (MOVDconst [127]) (CMPconst [127] y)))))"
+  in:
+  - *uint
+  - &scalarShiftUnsigned
+    go: $t
+    base: uint
+    treatLikeAScalarOfSize: 64
+    OverwriteBase: int
+  out:
+  - *uint
+
+- go: ShiftAllRight
+  signed: true
+  asm: "VSSHL"
+  specialLower: !string "earlymatch x y => (VSSHL%a x (VDUP%sbcast [0] (VMOV%sins [0] x (NEG <typ.Int64> (CSEL <typ.UInt64> [OpARM64LessThanU] y (MOVDconst [127]) (CMPconst [127] y))))))"
+  in:
+  - *int
+  - *scalarShiftSigned
+  out:
+  - *int
+
+- go: ShiftAllRight
+  signed: false
+  asm: "VUSHL"
+  specialLower: !string "earlymatch x y => (VUSHL%a x (VDUP%sbcast [0] (VMOV%sins [0] x (NEG <typ.Int64> (CSEL <typ.UInt64> [OpARM64LessThanU] y (MOVDconst [127]) (CMPconst [127] y))))))"
+  in:
+  - *uint
+  - *scalarShiftUnsigned
+  out:
+  - *uint
+
+- go: ShiftRightNarrowConst
+  asm: "VSHRN"
+  hiHalfAsm: "VSHRN2"
+  specialLower: !string "match [0] x => (VXTN%a x)"
+  in:
+  - *imm
+  - go: $t
+    base: uint
+  out:
+  - go: $u
+    base: uint
+
+- go: ShiftLeftLoLongConst
+  signed: false
+  asm: "VUSHLL"
+  hiHalfAsm: "VUSHLL2"
+  in:
+  - *imm
+  - go: $t
+    base: uint
+  out:
+  - go: $u
+    base: uint
+
+- go: ShiftLeftLoLongConst
+  signed: true
+  asm: "VSSHLL"
+  hiHalfAsm: "VSSHLL2"
+  in:
+  - *imm
+  - go: $t
+    base: int
+  out:
+  - go: $u
+    base: int

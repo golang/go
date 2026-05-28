@@ -18,6 +18,7 @@ package sql
 import (
 	"context"
 	"database/sql/driver"
+	"database/sql/internal"
 	"errors"
 	"fmt"
 	"io"
@@ -2963,9 +2964,15 @@ type Rows struct {
 	// expected not to be called concurrently.
 	hitEOF bool
 
+	// nextCalled is set by the first call to Next.
+	nextCalled bool
+
 	// lastcols is only used in Scan, Next, and NextResultSet which are expected
 	// not to be called concurrently.
 	lastcols []driver.Value
+
+	// numCols is the number of columns, and is initialized by the first Next call.
+	numCols int
 
 	// raw is a buffer for RawBytes that persists between Scan calls.
 	// This is used when the driver returns a mismatched type that requires
@@ -3065,11 +3072,20 @@ func (rs *Rows) nextLocked() (doClose, ok bool) {
 	rs.dc.Lock()
 	defer rs.dc.Unlock()
 
-	if rs.lastcols == nil {
-		rs.lastcols = make([]driver.Value, len(rs.rowsi.Columns()))
+	if !rs.nextCalled {
+		rs.numCols = len(rs.rowsi.Columns())
+		rs.nextCalled = true
 	}
 
-	rs.lasterr = rs.rowsi.Next(rs.lastcols)
+	if rscan, ok := rs.rowsi.(driver.RowsColumnScanner); ok {
+		rs.lasterr = rscan.NextRow()
+	} else {
+		if rs.lastcols == nil {
+			rs.lastcols = make([]driver.Value, rs.numCols)
+		}
+		rs.lasterr = rs.rowsi.Next(rs.lastcols)
+	}
+
 	if rs.lasterr != nil {
 		// Close the connection if there is a driver error.
 		if rs.lasterr != io.EOF {
@@ -3117,6 +3133,7 @@ func (rs *Rows) NextResultSet() bool {
 		return false
 	}
 
+	rs.nextCalled = false
 	rs.lastcols = nil
 	nextResultSet, ok := rs.rowsi.(driver.RowsNextResultSet)
 	if !ok {
@@ -3386,6 +3403,11 @@ func (rs *Rows) Scan(dest ...any) error {
 	return err
 }
 
+// rowsScanContext is used to pass a *Rows through ScanColumn into ConvertAssign.
+type rowsScanContext struct {
+	rs *Rows
+}
+
 func (rs *Rows) scanLocked(dest ...any) error {
 	if rs.lasterr != nil && rs.lasterr != io.EOF {
 		return rs.lasterr
@@ -3394,11 +3416,26 @@ func (rs *Rows) scanLocked(dest ...any) error {
 		return rs.lasterrOrErrLocked(errRowsClosed)
 	}
 
-	if rs.lastcols == nil {
+	if !rs.nextCalled {
 		return errors.New("sql: Scan called without calling Next")
 	}
-	if len(dest) != len(rs.lastcols) {
-		return fmt.Errorf("sql: expected %d destination arguments in Scan, not %d", len(rs.lastcols), len(dest))
+	if len(dest) != rs.numCols {
+		return fmt.Errorf("sql: expected %d destination arguments in Scan, not %d", rs.numCols, len(dest))
+	}
+
+	if rscan, ok := rs.rowsi.(driver.RowsColumnScanner); ok {
+		// Lock the driver connection before calling the driver interface
+		// rowsi to prevent a Tx from rolling back the connection at the same time.
+		rs.dc.Lock()
+		defer rs.dc.Unlock()
+
+		for i, d := range dest {
+			scanCtx := driver.ScanContext(internal.NewScanContext(rs))
+			if err := rscan.ScanColumn(scanCtx, i, d); err != nil {
+				return fmt.Errorf(`sql: Scan error on column index %d, name %q: %w`, i, rs.rowsi.Columns()[i], err)
+			}
+		}
+		return nil
 	}
 
 	for i, sv := range rs.lastcols {

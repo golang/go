@@ -9,6 +9,7 @@ import (
 	"go/ast"
 	"go/token"
 	"go/types"
+	"strings"
 
 	"golang.org/x/tools/go/analysis"
 	"golang.org/x/tools/go/analysis/passes/inspect"
@@ -23,7 +24,7 @@ import (
 	"golang.org/x/tools/internal/versions"
 )
 
-var slicesbackwardAnalyzer = &analysis.Analyzer{
+var slicesBackwardAnalyzer = &analysis.Analyzer{
 	Name: "slicesbackward",
 	Doc:  analyzerutil.MustExtractDoc(doc, "slicesbackward"),
 	Requires: []*analysis.Analyzer{
@@ -36,7 +37,7 @@ var slicesbackwardAnalyzer = &analysis.Analyzer{
 
 func init() {
 	// Export to gopls until this is a published modernizer.
-	goplsexport.SlicesBackwardModernizer = slicesbackwardAnalyzer
+	goplsexport.SlicesBackwardModernizer = slicesBackwardAnalyzer
 }
 
 // slicesbackward offers a fix to replace a manually-written backward loop:
@@ -147,18 +148,47 @@ func slicesbackward(pass *analysis.Pass) (any, error) {
 			//   s[i] — pure element accesses that can be replaced by the value var
 			//   other — index used for non-indexing purposes
 			var (
-				sliceIndexes []*ast.IndexExpr
-				otherUses    int
+				// First assignment in the loop body of the form "name := s[i]"; or nil.
+				firstSliceIdxAssign *ast.AssignStmt
+				// List of s[i] expressions to replace by the value var (excludes firstSliceIdxAssign, which will be entirely removed).
+				sliceIdxsReplace []*ast.IndexExpr
+				// Total count of s[i] usages.
+				sliceIdxs int
+				// Non-indexing uses of i.
+				otherUses int
 			)
 			for curUse := range index.Uses(indexObj) {
 				if !bodyCur.Contains(curUse) {
 					continue
 				}
 				// Is i in the Index position of an s[i] expression?
+				// If so, we also need to check whether s[i] is an lvalue. If we're
+				// mutating the slice or taking an element's address, a fix will not
+				// be offered.
 				if curUse.ParentEdgeKind() == edge.IndexExpr_Index {
-					idxExpr := curUse.Parent().Node().(*ast.IndexExpr)
+					if isScalarLvalue(pass.TypesInfo, curUse.Parent()) {
+						continue nextLoop
+					}
+					idxCur := curUse.Parent()
+					idxExpr := idxCur.Node().(*ast.IndexExpr)
 					if astutil.EqualSyntax(idxExpr.X, sliceExpr) {
-						sliceIndexes = append(sliceIndexes, idxExpr)
+						sliceIdxs++
+						// If the current statement is the first in the body of the form
+						// "name := s[i]", save it so we can use "name" as the value
+						// variable in slices.Backward. We can also remove the entire assign
+						// statement.
+						if firstSliceIdxAssign == nil && idxCur.ParentEdgeKind() == edge.AssignStmt_Rhs {
+							assignStmt := idxCur.Parent().Node().(*ast.AssignStmt)
+							if len(assignStmt.Lhs) == 1 && assignStmt.Tok == token.DEFINE {
+								// The condition above implies that assignStmt.Lhs[0] is a valid
+								// identifier.
+								firstSliceIdxAssign = assignStmt
+								// We don't need to replace the index expr with the value variable
+								// name if we are going to remove the entire assignment.
+								continue
+							}
+						}
+						sliceIdxsReplace = append(sliceIdxsReplace, idxExpr)
 						continue
 					}
 				}
@@ -167,15 +197,18 @@ func slicesbackward(pass *analysis.Pass) (any, error) {
 
 			// Build the suggested fix.
 			//
-			// for i := len(s) - 1; i >= 0; i-- { ... s[i] ... }
-			//     ----------------------------         ----
-			//     _, v := range slices.Backward(s)      v
+			// for i := len(s) - 1;     i >= 0; i-- { ... s[i] ... }
+			//     --------------------------------       ----
+			// for _, v := range slices.Backward(s) { ... v    ... }
 			sliceStr := astutil.Format(pass.Fset, sliceExpr)
 			prefix, edits := refactor.AddImport(info, file, "slices", "slices", "Backward", loop.Pos())
-			elemName := freshName(info, index, info.Scopes[loop], loop.Pos(), bodyCur, bodyCur, token.NoPos, "v")
+			elemName := chooseValueName(firstSliceIdxAssign, sliceStr)
+			elemName = freshName(info, index, info.Scopes[loop], loop.Pos(), bodyCur, bodyCur, token.NoPos, elemName)
 
-			// Replace each s[i] with elemName.
-			for _, sx := range sliceIndexes {
+			// Replace each s[i] with elemName (except for in the statement of the
+			// form "name := s[i]" where we might have gotten elemName from - we will
+			// delete this entire statement instead).
+			for _, sx := range sliceIdxsReplace {
 				edits = append(edits, analysis.TextEdit{
 					Pos:     sx.Pos(),
 					End:     sx.End(),
@@ -183,17 +216,27 @@ func slicesbackward(pass *analysis.Pass) (any, error) {
 				})
 			}
 
-			// Replace the loop header with a range over slices.Backward.
-			var header string
-			if otherUses == 0 && len(sliceIndexes) > 0 {
-				// All uses of i are s[i]; drop the index variable.
-				header = fmt.Sprintf("_, %s := range %sBackward(%s)",
-					elemName, prefix, sliceStr)
-			} else {
-				// i is used for other purposes; keep both index and value.
-				header = fmt.Sprintf("%s, %s := range %sBackward(%s)",
-					indexIdent.Name, elemName, prefix, sliceStr)
+			if firstSliceIdxAssign != nil {
+				edits = append(edits, analysis.TextEdit{
+					Pos: firstSliceIdxAssign.Pos(),
+					End: firstSliceIdxAssign.End(),
+				})
 			}
+
+			// Replace the loop header with a range over slices.Backward. In
+			// well-typed code, at least one of the index or value variables must be
+			// referenced inside the loop body (otherUses + sliceIndexes > 0).
+			var vars string
+			if otherUses == 0 { // sliceIdxs > 0
+				// All uses of i are s[i]; drop the index variable.
+				vars = fmt.Sprintf("_, %s", elemName)
+			} else if sliceIdxs == 0 { // otherUses > 0
+				// Index i is not used in any s[i] expressions; drop the value variable.
+				vars = indexIdent.Name
+			} else { // otherUses > 0 && sliceIdxs > 0, keep both variables.
+				vars = fmt.Sprintf("%s, %s", indexIdent.Name, elemName)
+			}
+			header := fmt.Sprintf("%s := range %sBackward(%s)", vars, prefix, sliceStr)
 			edits = append(edits, analysis.TextEdit{
 				Pos:     loop.Init.Pos(),
 				End:     loop.Post.End(),
@@ -212,4 +255,21 @@ func slicesbackward(pass *analysis.Pass) (any, error) {
 		}
 	}
 	return nil, nil
+}
+
+// chooseValueName uses a heuristic to generate a name for the value variable in
+// the call to slices.Backward.
+func chooseValueName(assign *ast.AssignStmt, sliceStr string) string {
+	if assign != nil {
+		return assign.Lhs[0].(*ast.Ident).Name
+	}
+	// Heuristic: remove plural s suffix from slice var
+	// if present, otherwise use first letter.
+	if token.IsIdentifier(sliceStr) && len(sliceStr) > 1 {
+		if single, ok := strings.CutSuffix(sliceStr, "s"); ok {
+			return single
+		}
+		return sliceStr[:1] // first letter (assuming ASCII)
+	}
+	return "v"
 }

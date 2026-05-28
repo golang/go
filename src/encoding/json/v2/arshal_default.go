@@ -1076,6 +1076,34 @@ func makeStructArshaler(t reflect.Type) *arshaler {
 		if errInit != nil && !mo.Flags.Get(jsonflags.ReportErrorsWithLegacySemantics) {
 			return newMarshalErrorBefore(enc, errInit.GoType, errInit.Err)
 		}
+		// Validate that `string` struct tags only appear on valid
+		// field types.
+		//
+		// `string` tag type validation only occurs with new error
+		// semantics. Legacy semantics ignores errors.
+		//
+		// This validation is effectively a makeStructFields error that
+		// occurs before any marshalling begins, but since it depends
+		// on the marshal options it can't be part of the sync.Once.
+		if fields.hasString && !mo.Flags.Get(jsonflags.ReportErrorsWithLegacySemantics) {
+			for i := range fields.flattened {
+				f := &fields.flattened[i]
+				if f.string {
+					if !mo.Flags.Get(jsonflags.StringifyWithLegacySemantics) {
+						if !canStringify(f.typ, f.format) {
+							st := va.Type() // Type of the enclosing struct.
+							return newMarshalErrorBefore(enc, st, newInvalidStringTagError(st.Field(f.index0).Name, false))
+						}
+					} else {
+						if !canLegacyStringify(f.typ, f.format) {
+							st := va.Type() // Type of the enclosing struct.
+							return newMarshalErrorBefore(enc, st, newInvalidStringTagError(st.Field(f.index0).Name, true))
+						}
+					}
+				}
+			}
+		}
+
 		if err := enc.WriteToken(jsontext.BeginObject); err != nil {
 			return err
 		}
@@ -1163,8 +1191,11 @@ func makeStructArshaler(t reflect.Type) *arshaler {
 			flagsOriginal := mo.Flags
 			if f.string {
 				if !mo.Flags.Get(jsonflags.StringifyWithLegacySemantics) {
-					mo.Flags.Set(jsonflags.StringifyNumbers | 1)
-				} else if canLegacyStringify(f.typ) {
+					// Note that errors are reported above.
+					if canStringify(f.typ, f.format) {
+						mo.Flags.Set(jsonflags.StringifyNumbers | 1)
+					}
+				} else if canLegacyStringify(f.typ, f.format) {
 					mo.Flags.Set(jsonflags.StringifyNumbers | jsonflags.StringifyBoolsAndStrings | 1)
 				}
 			}
@@ -1250,6 +1281,34 @@ func makeStructArshaler(t reflect.Type) *arshaler {
 			if errInit != nil && !uo.Flags.Get(jsonflags.ReportErrorsWithLegacySemantics) {
 				return newUnmarshalErrorAfter(dec, errInit.GoType, errInit.Err)
 			}
+			// Validate that `string` struct tags only appear on valid
+			// field types.
+			//
+			// `string` tag type validation only occurs with new error
+			// semantics. Legacy semantics ignores errors.
+			//
+			// This validation is effectively a makeStructFields error that
+			// occurs before any marshalling begins, but since it depends
+			// on the marshal options it can't be part of the sync.Once.
+			if fields.hasString && !uo.Flags.Get(jsonflags.ReportErrorsWithLegacySemantics) {
+				for i := range fields.flattened {
+					f := &fields.flattened[i]
+					if f.string {
+						if !uo.Flags.Get(jsonflags.StringifyWithLegacySemantics) {
+							if !canStringify(f.typ, f.format) {
+								st := va.Type() // Type of the enclosing struct.
+								return newUnmarshalErrorAfter(dec, st, newInvalidStringTagError(st.Field(f.index0).Name, false))
+							}
+						} else {
+							if !canLegacyStringify(f.typ, f.format) {
+								st := va.Type() // Type of the enclosing struct.
+								return newUnmarshalErrorAfter(dec, st, newInvalidStringTagError(st.Field(f.index0).Name, true))
+							}
+						}
+					}
+				}
+			}
+
 			var seenIdxs uintSet
 			xd.Tokens.Last.DisableNamespace()
 			var errUnmarshal error
@@ -1312,8 +1371,11 @@ func makeStructArshaler(t reflect.Type) *arshaler {
 				flagsOriginal := uo.Flags
 				if f.string {
 					if !uo.Flags.Get(jsonflags.StringifyWithLegacySemantics) {
-						uo.Flags.Set(jsonflags.StringifyNumbers | 1)
-					} else if canLegacyStringify(f.typ) {
+						// Note that errors are reported above.
+						if canStringify(f.typ, f.format) {
+							uo.Flags.Set(jsonflags.StringifyNumbers | 1)
+						}
+					} else if canLegacyStringify(f.typ, f.format) {
 						uo.Flags.Set(jsonflags.StringifyNumbers | jsonflags.StringifyBoolsAndStrings | 1)
 					}
 				}
@@ -1399,11 +1461,39 @@ func isLegacyEmpty(v addressableValue) bool {
 	return false
 }
 
+// canStringify reports whether t can be stringified according to v2, where t
+// is a number (or unnamed pointer to such).
+// The `string` option does not apply recursively to nested types within
+// a composite Go type (e.g., an array, slice, struct, map, or interface).
+func canStringify(t reflect.Type, format string) bool {
+	// Based on encoding/json.typeFields#L1126-L1143@v1.23.0
+	if t.Name() == "" && t.Kind() == reflect.Ptr {
+		t = t.Elem()
+	}
+	switch t.Kind() {
+	case reflect.Int, reflect.Int8, reflect.Int16, reflect.Int32, reflect.Int64,
+		reflect.Uint, reflect.Uint8, reflect.Uint16, reflect.Uint32, reflect.Uint64, reflect.Uintptr,
+		reflect.Float32, reflect.Float64:
+		return true
+	}
+	// TODO(go.dev/issue/79451): Despite being defined in terms of the Go
+	// type system the `string` tag also applies to time.Time fields with a
+	// few different `format` tags. Thus we cannot determine validity
+	// solely from the field type like all other uses.
+	if internal.ExpJSONFormat && t == timeTimeType {
+		switch format {
+		case "unix", "unixmilli", "unixmicro", "unixnano":
+			return true
+		}
+	}
+	return false
+}
+
 // canLegacyStringify reports whether t can be stringified according to v1,
 // where t is a bool, string, or number (or unnamed pointer to such).
-// In v1, the `string` option does not apply recursively to nested types within
+// The `string` option does not apply recursively to nested types within
 // a composite Go type (e.g., an array, slice, struct, map, or interface).
-func canLegacyStringify(t reflect.Type) bool {
+func canLegacyStringify(t reflect.Type, format string) bool {
 	// Based on encoding/json.typeFields#L1126-L1143@v1.23.0
 	if t.Name() == "" && t.Kind() == reflect.Ptr {
 		t = t.Elem()
@@ -1414,6 +1504,13 @@ func canLegacyStringify(t reflect.Type) bool {
 		reflect.Uint, reflect.Uint8, reflect.Uint16, reflect.Uint32, reflect.Uint64, reflect.Uintptr,
 		reflect.Float32, reflect.Float64:
 		return true
+	}
+	// See above.
+	if internal.ExpJSONFormat && t == timeTimeType {
+		switch format {
+		case "unix", "unixmilli", "unixmicro", "unixnano":
+			return true
+		}
 	}
 	return false
 }

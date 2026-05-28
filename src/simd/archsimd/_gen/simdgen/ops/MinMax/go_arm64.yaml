@@ -1,0 +1,61 @@
+!sum
+
+# Signed integer Max — VSMAX
+- go: Max
+  asm: "VSMAX"
+  in:
+  - &int
+    go: $t
+    base: int
+  - *int
+  out:
+  - *int
+
+# Unsigned integer Max — VUMAX
+- go: Max
+  asm: "VUMAX"
+  in:
+  - &uint
+    go: $t
+    base: uint
+  - *uint
+  out:
+  - *uint
+
+# Float Max (NaN-suppressing) — VFMAX
+- go: Max
+  asm: "VFMAX"
+  in:
+  - &fp
+    go: $t
+    base: float
+  - *fp
+  out:
+  - *fp
+
+# Signed integer Min — VSMIN
+- go: Min
+  asm: "VSMIN"
+  in:
+  - *int
+  - *int
+  out:
+  - *int
+
+# Unsigned integer Min — VUMIN
+- go: Min
+  asm: "VUMIN"
+  in:
+  - *uint
+  - *uint
+  out:
+  - *uint
+
+# Float Min (NaN-suppressing) — VFMIN
+- go: Min
+  asm: "VFMIN"
+  in:
+  - *fp
+  - *fp
+  out:
+  - *fp

@@ -9,7 +9,6 @@
 
 // Platform-specific hooks.
 void (*x_cgo_inittls)(void **tlsg, void **tlsbase) __attribute__((weak));
-void (*x_cgo_init_platform)(void) __attribute__((weak));
 void (*x_cgo_threadentry_platform)(void) __attribute__((weak));
 
 static void (*setg_gcc)(void*);
@@ -42,9 +41,6 @@ x_cgo_init(G *g, void (*setg)(void*), void **tlsg, void **tlsbase)
 
 	if (x_cgo_inittls) {
 		x_cgo_inittls(tlsg, tlsbase);
-	}
-	if (x_cgo_init_platform) {
-		x_cgo_init_platform();
 	}
 }
 

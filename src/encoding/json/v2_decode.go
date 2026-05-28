@@ -35,12 +35,22 @@ import (
 // the value pointed at by the pointer. If the pointer is nil, Unmarshal
 // allocates a new value for it to point to.
 //
-// To unmarshal JSON into a value implementing [Unmarshaler],
-// Unmarshal calls that value's [Unmarshaler.UnmarshalJSON] method, including
-// when the input is a JSON null.
-// Otherwise, if the value implements [encoding.TextUnmarshaler]
-// and the input is a JSON quoted string, Unmarshal calls
-// [encoding.TextUnmarshaler.UnmarshalText] with the unquoted form of the string.
+// The JSON input is decoded according the following rules:
+//
+//   - If the value type implements [jsonv2.UnmarshalerFrom],
+//     then the UnmarshalJSONFrom method is called to decode the JSON value.
+//     If the method returns [errors.ErrUnsupported],
+//     then the input is decoded according to subsequent rules.
+//
+//   - If the value type implements [Unmarshaler],
+//     then the UnmarshalJSON method is called to decode the JSON value,
+//     including when the input is a JSON null.
+//
+//   - If the value implements [encoding.TextUnmarshaler] and
+//     the input is a JSON string, then the UnmarshalText method
+//     is called with the unquoted form of the string.
+//
+// Otherwise, Unmarshal uses the following type-dependent default decodings:
 //
 // To unmarshal JSON into a struct, Unmarshal matches incoming object
 // keys to the keys used by [Marshal] (either the struct field name or its tag),

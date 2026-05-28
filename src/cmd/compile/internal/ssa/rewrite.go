@@ -480,7 +480,7 @@ func isSpecializedMalloc(aux Aux) bool {
 	name := fn.String()
 	return strings.HasPrefix(name, "runtime.mallocgcSmallNoScanSC") ||
 		strings.HasPrefix(name, "runtime.mallocgcSmallScanNoHeaderSC") ||
-		strings.HasPrefix(name, "runtime.mallocgcTinySize")
+		strings.HasPrefix(name, "runtime.mallocgcTinySC")
 }
 
 // canLoadUnaligned reports if the architecture supports unaligned load operations.
@@ -681,6 +681,9 @@ func auxIntToInt64(i int64) int64 {
 func auxIntToUint8(i int64) uint8 {
 	return uint8(i)
 }
+func auxIntToUint64(i int64) uint64 {
+	return uint64(i)
+}
 func auxIntToFloat32(i int64) float32 {
 	return float32(math.Float64frombits(uint64(i)))
 }
@@ -732,6 +735,9 @@ func int64ToAuxInt(i int64) int64 {
 }
 func uint8ToAuxInt(i uint8) int64 {
 	return int64(int8(i))
+}
+func uint64ToAuxInt(i uint64) int64 {
+	return int64(i)
 }
 func float32ToAuxInt(f float32) int64 {
 	return int64(math.Float64bits(float64(f)))
@@ -1103,6 +1109,20 @@ func flagArg(v *Value) *Value {
 		return nil
 	}
 	return v.Args[0]
+}
+
+// amd64CapAVXShift caps an AMD64 AVX vector shift amount c so that over-shifts
+// always result in 0.
+//
+// These instructions have room for an 8-bit immediate and any value larger than
+// the element width will result in 0 or -1 (for an arithmetic right shift).
+// Thus, we simply cap this at 255.
+func amd64CapAVXShift(auxInt int64) uint8 {
+	u := auxIntToUint64(auxInt)
+	if u > 255 {
+		return 255
+	}
+	return uint8(u)
 }
 
 // arm64Negate finds the complement to an ARM64 condition code,
@@ -2854,4 +2874,20 @@ func addToSub(op Op) Op {
 	default:
 		panic(fmt.Sprintf("unexpected op %v", op))
 	}
+}
+
+func modularMultiplicativeInverse(x uint64) (y uint64) {
+	if x%2 != 1 {
+		panic("even numbers in a power-of-two modulus do not have a multiplicative inverse")
+	}
+	// we start with 3 bits of precision because each odd number is its own multiplicative inverse mod 8
+	y = x // 3 bits
+
+	// now use the Newton-Raphson method to double the number of correct bits in each iteration.
+	y *= 2 - x*y // 6 bits
+	y *= 2 - x*y // 12 bits
+	y *= 2 - x*y // 24 bits
+	y *= 2 - x*y // 48 bits
+	y *= 2 - x*y // 96 bits; good enough
+	return
 }

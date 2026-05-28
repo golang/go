@@ -9,6 +9,7 @@ package sql
 import (
 	"bytes"
 	"database/sql/driver"
+	"database/sql/internal"
 	"errors"
 	"fmt"
 	"reflect"
@@ -219,8 +220,23 @@ func driverArgsConnLocked(ci driver.Conn, ds *driverStmt, args []any) ([]driver.
 // See go.dev/issue/67401.
 //
 //go:linkname convertAssign
-func convertAssign(dest, src any) error {
+func convertAssign(dest any, src any) error {
 	return convertAssignRows(dest, src, nil)
+}
+
+// ConvertAssign copies the value in src to the value pointed at by dest.
+// See the documentation on [Rows.Scan] for details on conversions.
+// dest must be a pointer or must implement [Scanner].
+//
+// Implementations of [driver.RowsColumnScanner] should pass through
+// their [driver.ScanContext] parameter.
+// In other cases, pass driver.ScanContext{} as the context.
+//
+// ConvertAssign is intended for use by driver implementations.
+// Most users should not need to use it directly.
+func ConvertAssign(scanCtx driver.ScanContext, dest any, src driver.Value) error {
+	rows, _ := internal.ScanContextValue(internal.ScanContext(scanCtx)).(*Rows)
+	return convertAssignRows(dest, src, rows)
 }
 
 // convertAssignRows copies to dest the value in src, converting it if possible.
@@ -353,24 +369,41 @@ func convertAssignRows(dest, src any, rows *Rows) error {
 		}
 	// The driver is returning a cursor the client may iterate over.
 	case driver.Rows:
-		switch d := dest.(type) {
-		case *Rows:
+		d, ok := dest.(*Rows)
+		if ok {
 			if d == nil {
 				return errNilPtr
 			}
 			if rows == nil {
 				return errors.New("invalid context to convert cursor rows, missing parent *Rows")
 			}
+			// This is hazardous and not really correct: If the user provides us
+			// with the same *Rows for each Scan (which they very likely will),
+			// then this overwrites the previously-used Rows, including its mutexes.
+			// The chained row cancel function below will also repeatedly reference
+			// the same *Rows.
 			*d = Rows{
 				dc:          rows.dc,
 				releaseConn: func(error) {},
 				rowsi:       s,
 			}
 			// Chain the cancel function.
+			//
+			// This has problems:
+			//   - Repeatedly wrapping the cancel func is inefficient compared to
+			//     just storing a []*Rows of children.
+			//   - The cancel func is wrapped for each cursor read. If we scan N
+			//     rows, each with a child cursor, we end up with N chained cancel
+			//     funcs. (Also, if the user is reusing a Rows--see above--the cancel
+			//     funcs might all be referencing the same underlying Rows cursor.)
+			//   - It seems like it would be reasonable to invalidate a cursor
+			//     after advancing to the next parent row (the row which contains
+			//     the cursor). We don't do that now, and it isn't clear that we can
+			//     change this.
 			parentCancel := rows.cancel
 			rows.cancel = func() {
 				// When Rows.cancel is called, the closemu will be locked as well.
-				// So we can access rs.lasterr.
+				// So we can access rows.lasterr.
 				d.close(rows.lasterr)
 				if parentCancel != nil {
 					parentCancel()

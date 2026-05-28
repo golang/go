@@ -779,6 +779,20 @@ func testServer_Request_Post_Body_ContentLength_TooLarge(t testing.TB) {
 		})
 }
 
+func TestServer_Request_Post_Body_ContentLength_EndStream(t *testing.T) {
+	testRejectRequest(t, func(st *serverTester) {
+		st.writeHeaders(HeadersFrameParam{
+			StreamID: 1, // clients send odd numbers
+			BlockFragment: st.encodeHeader(
+				":method", "POST",
+				"content-length", "3",
+			),
+			EndStream:  true,
+			EndHeaders: true,
+		})
+	})
+}
+
 func TestServer_Request_Post_Body_ContentLength_TooSmall(t *testing.T) {
 	synctestTest(t, testServer_Request_Post_Body_ContentLength_TooSmall)
 }

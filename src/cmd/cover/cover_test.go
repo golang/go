@@ -259,7 +259,7 @@ func TestDirectives(t *testing.T) {
 	// come before the beginning of the named declaration and after the end
 	// of the previous declaration.
 	fset := token.NewFileSet()
-	astFile, err := parser.ParseFile(fset, testDirectives, output, 0)
+	astFile, err := parser.ParseFile(fset, testDirectives, output, parser.SkipObjectResolution)
 	if err != nil {
 		t.Fatal(err)
 	}

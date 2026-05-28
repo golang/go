@@ -610,13 +610,23 @@ func ssaGenValue(s *ssagen.State, v *ssa.Value) {
 		p.To.Sym = ir.Syms.PanicBounds
 
 	case ssa.OpRISCV64LoweredAtomicLoad8:
-		s.Prog(riscv.AFENCE)
+		p1 := s.Prog(riscv.AFENCE)
+		p1.From.Type = obj.TYPE_SPECIAL
+		p1.From.Offset = int64(riscv.SPOP_FENCE_RW)
+		p1.To.Type = obj.TYPE_SPECIAL
+		p1.To.Offset = int64(riscv.SPOP_FENCE_RW)
+
 		p := s.Prog(riscv.AMOVBU)
 		p.From.Type = obj.TYPE_MEM
 		p.From.Reg = v.Args[0].Reg()
 		p.To.Type = obj.TYPE_REG
 		p.To.Reg = v.Reg0()
-		s.Prog(riscv.AFENCE)
+
+		p2 := s.Prog(riscv.AFENCE)
+		p2.From.Type = obj.TYPE_SPECIAL
+		p2.From.Offset = int64(riscv.SPOP_FENCE_R)
+		p2.To.Type = obj.TYPE_SPECIAL
+		p2.To.Offset = int64(riscv.SPOP_FENCE_RW)
 
 	case ssa.OpRISCV64LoweredAtomicLoad32, ssa.OpRISCV64LoweredAtomicLoad64:
 		as := riscv.ALRW
@@ -630,13 +640,23 @@ func ssaGenValue(s *ssagen.State, v *ssa.Value) {
 		p.To.Reg = v.Reg0()
 
 	case ssa.OpRISCV64LoweredAtomicStore8:
-		s.Prog(riscv.AFENCE)
+		p1 := s.Prog(riscv.AFENCE)
+		p1.From.Type = obj.TYPE_SPECIAL
+		p1.From.Offset = int64(riscv.SPOP_FENCE_RW)
+		p1.To.Type = obj.TYPE_SPECIAL
+		p1.To.Offset = int64(riscv.SPOP_FENCE_W)
+
 		p := s.Prog(riscv.AMOVB)
 		p.From.Type = obj.TYPE_REG
 		p.From.Reg = v.Args[1].Reg()
 		p.To.Type = obj.TYPE_MEM
 		p.To.Reg = v.Args[0].Reg()
-		s.Prog(riscv.AFENCE)
+
+		p2 := s.Prog(riscv.AFENCE)
+		p2.From.Type = obj.TYPE_SPECIAL
+		p2.From.Offset = int64(riscv.SPOP_FENCE_RW)
+		p2.To.Type = obj.TYPE_SPECIAL
+		p2.To.Offset = int64(riscv.SPOP_FENCE_RW)
 
 	case ssa.OpRISCV64LoweredAtomicStore32, ssa.OpRISCV64LoweredAtomicStore64:
 		as := riscv.AAMOSWAPW
@@ -961,8 +981,12 @@ func ssaGenValue(s *ssagen.State, v *ssa.Value) {
 		p.To.Reg = v.Reg()
 
 	case ssa.OpRISCV64LoweredPubBarrier:
-		// FENCE
-		s.Prog(v.Op.Asm())
+		// FENCE W, W
+		p := s.Prog(v.Op.Asm())
+		p.From.Type = obj.TYPE_SPECIAL
+		p.From.Offset = int64(riscv.SPOP_FENCE_W)
+		p.To.Type = obj.TYPE_SPECIAL
+		p.To.Offset = int64(riscv.SPOP_FENCE_W)
 
 	case ssa.OpRISCV64LoweredRound32F, ssa.OpRISCV64LoweredRound64F:
 		// input is already rounded

@@ -535,7 +535,7 @@ func IterateBits8(n uint8) int {
 
 func Add(x, y, ci uint) (r, co uint) {
 	// arm64:"ADDS" "ADCS" "ADC" -"ADD " -"CMP"
-	// amd64:"NEGL" "ADCQ" "SBBQ" "NEGQ"
+	// amd64:"NEGL" "ADCQ" "SETCS" "MOVBLZX"
 	// ppc64x: "ADDC" "ADDE" "ADDZE"
 	// s390x:"ADDE" "ADDC [$]-1,"
 	// riscv64: "ADD" "SLTU"
@@ -544,7 +544,7 @@ func Add(x, y, ci uint) (r, co uint) {
 
 func AddC(x, ci uint) (r, co uint) {
 	// arm64:"ADDS" "ADCS" "ADC" -"ADD " -"CMP"
-	// amd64:"NEGL" "ADCQ" "SBBQ" "NEGQ"
+	// amd64:"NEGL" "ADCQ" "SETCS" "MOVBLZX"
 	// loong64: "ADDV" "SGTU"
 	// ppc64x: "ADDC" "ADDE" "ADDZE"
 	// s390x:"ADDE" "ADDC [$]-1,"
@@ -555,7 +555,7 @@ func AddC(x, ci uint) (r, co uint) {
 
 func AddZ(x, y uint) (r, co uint) {
 	// arm64:"ADDS" "ADC" -"ADCS" -"ADD " -"CMP"
-	// amd64:"ADDQ" "SBBQ" "NEGQ" -"NEGL" -"ADCQ"
+	// amd64:"ADDQ" "SETCS" "MOVBLZX" -"NEGL" -"ADCQ"
 	// loong64: "ADDV" "SGTU"
 	// ppc64x: "ADDC" -"ADDE" "ADDZE"
 	// s390x:"ADDC" -"ADDC [$]-1,"
@@ -566,7 +566,7 @@ func AddZ(x, y uint) (r, co uint) {
 
 func AddR(x, y, ci uint) uint {
 	// arm64:"ADDS" "ADCS" -"ADD " -"CMP"
-	// amd64:"NEGL" "ADCQ" -"SBBQ" -"NEGQ"
+	// amd64:"NEGL" "ADCQ" -"SETCS" -"MOVBLZX"
 	// loong64: "ADDV" -"SGTU"
 	// ppc64x: "ADDC" "ADDE" -"ADDZE"
 	// s390x:"ADDE" "ADDC [$]-1,"
@@ -580,7 +580,7 @@ func AddM(p, q, r *[3]uint) {
 	var c uint
 	r[0], c = bits.Add(p[0], q[0], c)
 	// arm64:"ADCS" -"ADD " -"CMP"
-	// amd64:"ADCQ" -"NEGL" -"SBBQ" -"NEGQ"
+	// amd64:"ADCQ" -"NEGL" -"SETCS" -"MOVBLZX"
 	// s390x:"ADDE" -"ADDC [$]-1,"
 	r[1], c = bits.Add(p[1], q[1], c)
 	r[2], c = bits.Add(p[2], q[2], c)
@@ -588,7 +588,7 @@ func AddM(p, q, r *[3]uint) {
 
 func Add64(x, y, ci uint64) (r, co uint64) {
 	// arm64:"ADDS" "ADCS" "ADC" -"ADD " -"CMP"
-	// amd64:"NEGL" "ADCQ" "SBBQ" "NEGQ"
+	// amd64:"NEGL" "ADCQ" "SETCS" "MOVBLZX"
 	// loong64: "ADDV" "SGTU"
 	// ppc64x: "ADDC" "ADDE" "ADDZE"
 	// s390x:"ADDE" "ADDC [$]-1,"
@@ -599,7 +599,7 @@ func Add64(x, y, ci uint64) (r, co uint64) {
 
 func Add64C(x, ci uint64) (r, co uint64) {
 	// arm64:"ADDS" "ADCS" "ADC" -"ADD " -"CMP"
-	// amd64:"NEGL" "ADCQ" "SBBQ" "NEGQ"
+	// amd64:"NEGL" "ADCQ" "SETCS" "MOVBLZX"
 	// loong64: "ADDV" "SGTU"
 	// ppc64x: "ADDC" "ADDE" "ADDZE"
 	// s390x:"ADDE" "ADDC [$]-1,"
@@ -610,7 +610,7 @@ func Add64C(x, ci uint64) (r, co uint64) {
 
 func Add64Z(x, y uint64) (r, co uint64) {
 	// arm64:"ADDS" "ADC" -"ADCS" -"ADD " -"CMP"
-	// amd64:"ADDQ" "SBBQ" "NEGQ" -"NEGL" -"ADCQ"
+	// amd64:"ADDQ" "SETCS" "MOVBLZX" -"NEGL" -"ADCQ"
 	// loong64: "ADDV" "SGTU"
 	// ppc64x: "ADDC" -"ADDE" "ADDZE"
 	// s390x:"ADDC" -"ADDC [$]-1,"
@@ -621,7 +621,7 @@ func Add64Z(x, y uint64) (r, co uint64) {
 
 func Add64R(x, y, ci uint64) uint64 {
 	// arm64:"ADDS" "ADCS" -"ADD " -"CMP"
-	// amd64:"NEGL" "ADCQ" -"SBBQ" -"NEGQ"
+	// amd64:"NEGL" "ADCQ" -"SETCS" -"MOVBLZX"
 	// loong64: "ADDV" -"SGTU"
 	// ppc64x: "ADDC" "ADDE" -"ADDZE"
 	// s390x:"ADDE" "ADDC [$]-1,"
@@ -635,7 +635,7 @@ func Add64M(p, q, r *[3]uint64) {
 	var c uint64
 	r[0], c = bits.Add64(p[0], q[0], c)
 	// arm64:"ADCS" -"ADD " -"CMP"
-	// amd64:"ADCQ" -"NEGL" -"SBBQ" -"NEGQ"
+	// amd64:"ADCQ" -"NEGL" -"SETCS" -"MOVBLZX"
 	// ppc64x: -"ADDC" "ADDE" -"ADDZE"
 	// s390x:"ADDE" -"ADDC [$]-1,"
 	r[1], c = bits.Add64(p[1], q[1], c)
@@ -756,7 +756,7 @@ func Add64MultipleChains(a, b, c, d [2]uint64) [2]uint64 {
 // --------------- //
 
 func Sub(x, y, ci uint) (r, co uint) {
-	// amd64:"NEGL" "SBBQ" "NEGQ"
+	// amd64:"NEGL" "SETCS" "MOVBLZX"
 	// arm64:"NEGS" "SBCS" "NGC" "NEG" -"ADD" -"SUB" -"CMP"
 	// loong64:"SUBV" "SGTU"
 	// ppc64x:"SUBC" "SUBE" "SUBZE" "NEG"
@@ -767,7 +767,7 @@ func Sub(x, y, ci uint) (r, co uint) {
 }
 
 func SubC(x, ci uint) (r, co uint) {
-	// amd64:"NEGL" "SBBQ" "NEGQ"
+	// amd64:"NEGL" "SBBQ" "SETCS" "MOVBLZX"
 	// arm64:"NEGS" "SBCS" "NGC" "NEG" -"ADD" -"SUB" -"CMP"
 	// loong64:"SUBV" "SGTU"
 	// ppc64x:"SUBC" "SUBE" "SUBZE" "NEG"
@@ -778,7 +778,7 @@ func SubC(x, ci uint) (r, co uint) {
 }
 
 func SubZ(x, y uint) (r, co uint) {
-	// amd64:"SUBQ" "SBBQ" "NEGQ" -"NEGL"
+	// amd64:"SUBQ" "SETCS" "MOVBLZX" -"NEGL"
 	// arm64:"SUBS" "NGC" "NEG" -"SBCS" -"ADD" -"SUB " -"CMP"
 	// loong64:"SUBV" "SGTU"
 	// ppc64x:"SUBC" -"SUBE" "SUBZE" "NEG"
@@ -789,7 +789,7 @@ func SubZ(x, y uint) (r, co uint) {
 }
 
 func SubR(x, y, ci uint) uint {
-	// amd64:"NEGL" "SBBQ" -"NEGQ"
+	// amd64:"NEGL" "SBBQ" -"SETCS" -"MOVBLZX"
 	// arm64:"NEGS" "SBCS" -"NGC" -"NEG " -"ADD" -"SUB" -"CMP"
 	// loong64:"SUBV" -"SGTU"
 	// ppc64x:"SUBC" "SUBE" -"SUBZE" -"NEG"
@@ -801,7 +801,7 @@ func SubR(x, y, ci uint) uint {
 func SubM(p, q, r *[3]uint) {
 	var c uint
 	r[0], c = bits.Sub(p[0], q[0], c)
-	// amd64:"SBBQ" -"NEGL" -"NEGQ"
+	// amd64:"SBBQ" -"NEGL" -"SETCS" -"MOVBLZX"
 	// arm64:"SBCS" -"NEGS" -"NGC" -"NEG" -"ADD" -"SUB" -"CMP"
 	// ppc64x:-"SUBC" "SUBE" -"SUBZE" -"NEG"
 	// s390x:"SUBE"
@@ -810,7 +810,7 @@ func SubM(p, q, r *[3]uint) {
 }
 
 func Sub64(x, y, ci uint64) (r, co uint64) {
-	// amd64:"NEGL" "SBBQ" "NEGQ"
+	// amd64:"NEGL" "SBBQ" "SETCS" "MOVBLZX"
 	// arm64:"NEGS" "SBCS" "NGC" "NEG" -"ADD" -"SUB" -"CMP"
 	// loong64:"SUBV" "SGTU"
 	// ppc64x:"SUBC" "SUBE" "SUBZE" "NEG"
@@ -821,7 +821,7 @@ func Sub64(x, y, ci uint64) (r, co uint64) {
 }
 
 func Sub64C(x, ci uint64) (r, co uint64) {
-	// amd64:"NEGL" "SBBQ" "NEGQ"
+	// amd64:"NEGL" "SBBQ" "SETCS" "MOVBLZX"
 	// arm64:"NEGS" "SBCS" "NGC" "NEG" -"ADD" -"SUB" -"CMP"
 	// loong64:"SUBV" "SGTU"
 	// ppc64x:"SUBC" "SUBE" "SUBZE" "NEG"
@@ -832,7 +832,7 @@ func Sub64C(x, ci uint64) (r, co uint64) {
 }
 
 func Sub64Z(x, y uint64) (r, co uint64) {
-	// amd64:"SUBQ" "SBBQ" "NEGQ" -"NEGL"
+	// amd64:"SUBQ" "SETCS" "MOVBLZX" -"NEGL"
 	// arm64:"SUBS" "NGC" "NEG" -"SBCS" -"ADD" -"SUB " -"CMP"
 	// loong64:"SUBV" "SGTU"
 	// ppc64x:"SUBC" -"SUBE" "SUBZE" "NEG"
@@ -843,7 +843,7 @@ func Sub64Z(x, y uint64) (r, co uint64) {
 }
 
 func Sub64R(x, y, ci uint64) uint64 {
-	// amd64:"NEGL" "SBBQ" -"NEGQ"
+	// amd64:"NEGL" "SBBQ" -"SETCS" -"MOVBLZX"
 	// arm64:"NEGS" "SBCS" -"NGC" -"NEG " -"ADD" -"SUB" -"CMP"
 	// loong64:"SUBV" -"SGTU"
 	// ppc64x:"SUBC" "SUBE" -"SUBZE" -"NEG"
@@ -855,7 +855,7 @@ func Sub64R(x, y, ci uint64) uint64 {
 func Sub64M(p, q, r *[3]uint64) {
 	var c uint64
 	r[0], c = bits.Sub64(p[0], q[0], c)
-	// amd64:"SBBQ" -"NEGL" -"NEGQ"
+	// amd64:"SBBQ" -"NEGL" -"SETCS" -"MOVBLZX"
 	// arm64:"SBCS" -"NEGS" -"NGC" -"NEG" -"ADD" -"SUB" -"CMP"
 	// s390x:"SUBE"
 	r[1], c = bits.Sub64(p[1], q[1], c)

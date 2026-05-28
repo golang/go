@@ -61,6 +61,12 @@ inliner machinery is capable of replacing f by a function literal,
 func(){...}(). However, the inline analyzer discards all such
 "literalizations" unconditionally, again on grounds of style.)
 
+A call to a function F from its dedicated test (TestF) is not inlined,
+since the purpose of the test is to exercise F itself, even when
+it's a deprecated function to which other calls should be inlined.
+This is not true for type aliases; see https://go.dev/issue/79271.
+See further discussion in https://go.dev/issue/79272.
+
 ## Constants
 
 Given a constant that is marked for inlining, like this one:

@@ -139,7 +139,7 @@ func testFiles(t *testing.T, filenames []string, srcs [][]byte, manual bool, opt
 	}
 
 	// parse files
-	files, errlist := parseFiles(t, filenames, srcs, parser.AllErrors)
+	files, errlist := parseFiles(t, filenames, srcs, parser.AllErrors|parser.SkipObjectResolution)
 	pkgName := "<no package>"
 	if len(files) > 0 {
 		pkgName = files[0].Name.Name

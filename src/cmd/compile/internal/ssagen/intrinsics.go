@@ -1673,7 +1673,9 @@ func initIntrinsics(cfg *intrinsicBuildConfig) {
 
 	if buildcfg.Experiment.SIMD {
 		// Only enable intrinsics, if SIMD experiment.
-		simdIntrinsics(addF)
+		simdAMD64Intrinsics(addF)
+		simdARM64Intrinsics(addF)
+		initWasmSIMD()
 
 		addF(simdPackage, "ClearAVXUpperBits",
 			func(s *state, n *ir.CallExpr, args []*ssa.Value) *ssa.Value {
@@ -1721,17 +1723,17 @@ func initIntrinsics(cfg *intrinsicBuildConfig) {
 				sys.AMD64)
 		}
 
-		sfp4("Int32x4.SelectFromPair", ssa.OpconcatSelectedConstantInt32x4, types.TypeVec128)
-		sfp4("Uint32x4.SelectFromPair", ssa.OpconcatSelectedConstantUint32x4, types.TypeVec128)
-		sfp4("Float32x4.SelectFromPair", ssa.OpconcatSelectedConstantFloat32x4, types.TypeVec128)
+		sfp4("Int32x4.ConcatPermuteScalars", ssa.OpconcatSelectedConstantInt32x4, types.TypeVec128)
+		sfp4("Uint32x4.ConcatPermuteScalars", ssa.OpconcatSelectedConstantUint32x4, types.TypeVec128)
+		sfp4("Float32x4.ConcatPermuteScalars", ssa.OpconcatSelectedConstantFloat32x4, types.TypeVec128)
 
-		sfp4("Int32x8.SelectFromPairGrouped", ssa.OpconcatSelectedConstantGroupedInt32x8, types.TypeVec256)
-		sfp4("Uint32x8.SelectFromPairGrouped", ssa.OpconcatSelectedConstantGroupedUint32x8, types.TypeVec256)
-		sfp4("Float32x8.SelectFromPairGrouped", ssa.OpconcatSelectedConstantGroupedFloat32x8, types.TypeVec256)
+		sfp4("Int32x8.ConcatPermuteScalarsGrouped", ssa.OpconcatSelectedConstantGroupedInt32x8, types.TypeVec256)
+		sfp4("Uint32x8.ConcatPermuteScalarsGrouped", ssa.OpconcatSelectedConstantGroupedUint32x8, types.TypeVec256)
+		sfp4("Float32x8.ConcatPermuteScalarsGrouped", ssa.OpconcatSelectedConstantGroupedFloat32x8, types.TypeVec256)
 
-		sfp4("Int32x16.SelectFromPairGrouped", ssa.OpconcatSelectedConstantGroupedInt32x16, types.TypeVec512)
-		sfp4("Uint32x16.SelectFromPairGrouped", ssa.OpconcatSelectedConstantGroupedUint32x16, types.TypeVec512)
-		sfp4("Float32x16.SelectFromPairGrouped", ssa.OpconcatSelectedConstantGroupedFloat32x16, types.TypeVec512)
+		sfp4("Int32x16.ConcatPermuteScalarsGrouped", ssa.OpconcatSelectedConstantGroupedInt32x16, types.TypeVec512)
+		sfp4("Uint32x16.ConcatPermuteScalarsGrouped", ssa.OpconcatSelectedConstantGroupedUint32x16, types.TypeVec512)
+		sfp4("Float32x16.ConcatPermuteScalarsGrouped", ssa.OpconcatSelectedConstantGroupedFloat32x16, types.TypeVec512)
 
 		// sfp2 is intrinsic-if-constant, but otherwise it's complicated enough to just implement in Go.
 		sfp2 := func(method string, hwop ssa.Op, vectype *types.Type, cscimm func(i, j uint8) int64) {
@@ -1749,20 +1751,22 @@ func initIntrinsics(cfg *intrinsicBuildConfig) {
 				sys.AMD64)
 		}
 
-		sfp2("Uint64x2.SelectFromPair", ssa.OpconcatSelectedConstantUint64x2, types.TypeVec128, cscimm2)
-		sfp2("Int64x2.SelectFromPair", ssa.OpconcatSelectedConstantInt64x2, types.TypeVec128, cscimm2)
-		sfp2("Float64x2.SelectFromPair", ssa.OpconcatSelectedConstantFloat64x2, types.TypeVec128, cscimm2)
+		sfp2("Uint64x2.ConcatPermuteScalars", ssa.OpconcatSelectedConstantUint64x2, types.TypeVec128, cscimm2)
+		sfp2("Int64x2.ConcatPermuteScalars", ssa.OpconcatSelectedConstantInt64x2, types.TypeVec128, cscimm2)
+		sfp2("Float64x2.ConcatPermuteScalars", ssa.OpconcatSelectedConstantFloat64x2, types.TypeVec128, cscimm2)
 
-		sfp2("Uint64x4.SelectFromPairGrouped", ssa.OpconcatSelectedConstantGroupedUint64x4, types.TypeVec256, cscimm2g2)
-		sfp2("Int64x4.SelectFromPairGrouped", ssa.OpconcatSelectedConstantGroupedInt64x4, types.TypeVec256, cscimm2g2)
-		sfp2("Float64x4.SelectFromPairGrouped", ssa.OpconcatSelectedConstantGroupedFloat64x4, types.TypeVec256, cscimm2g2)
+		sfp2("Uint64x4.ConcatPermuteScalarsGrouped", ssa.OpconcatSelectedConstantGroupedUint64x4, types.TypeVec256, cscimm2g2)
+		sfp2("Int64x4.ConcatPermuteScalarsGrouped", ssa.OpconcatSelectedConstantGroupedInt64x4, types.TypeVec256, cscimm2g2)
+		sfp2("Float64x4.ConcatPermuteScalarsGrouped", ssa.OpconcatSelectedConstantGroupedFloat64x4, types.TypeVec256, cscimm2g2)
 
-		sfp2("Uint64x8.SelectFromPairGrouped", ssa.OpconcatSelectedConstantGroupedUint64x8, types.TypeVec512, cscimm2g4)
-		sfp2("Int64x8.SelectFromPairGrouped", ssa.OpconcatSelectedConstantGroupedInt64x8, types.TypeVec512, cscimm2g4)
-		sfp2("Float64x8.SelectFromPairGrouped", ssa.OpconcatSelectedConstantGroupedFloat64x8, types.TypeVec512, cscimm2g4)
+		sfp2("Uint64x8.ConcatPermuteScalarsGrouped", ssa.OpconcatSelectedConstantGroupedUint64x8, types.TypeVec512, cscimm2g4)
+		sfp2("Int64x8.ConcatPermuteScalarsGrouped", ssa.OpconcatSelectedConstantGroupedInt64x8, types.TypeVec512, cscimm2g4)
+		sfp2("Float64x8.ConcatPermuteScalarsGrouped", ssa.OpconcatSelectedConstantGroupedFloat64x8, types.TypeVec512, cscimm2g4)
 
 	}
 }
+
+const simdPackage = "simd/archsimd"
 
 func cscimm4(a, b, c, d uint8) int64 {
 	return se(a + b<<2 + c<<4 + d<<6)
@@ -2042,6 +2046,10 @@ func branchTableN(s *state, idx *ssa.Value, intrinsicCall *ir.CallExpr, genOp fu
 		s.startBlock(bPanic)
 		s.rtcall(ir.Syms.PanicSimdImm, false, nil)
 	}
+	if s.curBlock != nil {
+		bb := s.endBlock()
+		bb.AddEdgeTo(jt)
+	}
 
 	s.startBlock(jt)
 	jt.Kind = ssa.BlockPlain
@@ -2083,6 +2091,71 @@ func branchTableNInner(s *state, idx *ssa.Value, lowInclusive, len uint64, genOp
 	branchTableNInner(s, idx, lowInclusive, len/2, genOp, bEnd)
 	s.startBlock(bNext)
 	branchTableNInner(s, idx, lowInclusive+len/2, len-len/2, genOp, bEnd)
+}
+
+// immJumpTableN emits a jump table to one of a number of indexed cases, from zero to n-1.
+// an index of n or larger will panic
+func immJumpTableN(s *state, idx *ssa.Value, intrinsicCall *ir.CallExpr, immLimit uint64, genOp func(*state, int)) *ssa.Value {
+
+	if !idx.Type.IsKind(types.TUINT8) {
+		s.Fatalf("immJumpTable expects uint8 value, saw %v instead, val=%s", idx.Type.String(), idx.LongString())
+	}
+
+	if base.Flag.N != 0 || !Arch.LinkArch.CanJumpTable || base.Ctxt.Retpoline {
+		return branchTableN(s, idx, intrinsicCall, genOp, immLimit, false)
+	}
+
+	// Make blocks we'll need.
+	bEnd := s.f.NewBlock(ssa.BlockPlain)
+	bPanic := s.f.NewBlock(ssa.BlockPlain)
+
+	jt := s.f.NewBlock(ssa.BlockJumpTable)
+
+	t := types.Types[types.TUINTPTR]
+	idx = s.conv(nil, idx, idx.Type, t)
+	width := s.uintptrConstant(immLimit)
+
+	// Begin with a bounds check
+	cmp := s.newValue2(s.ssaOp(ir.OLT, t), types.Types[types.TBOOL], idx, width)
+	bb := s.endBlock()
+	bb.Kind = ssa.BlockIf
+	bb.SetControl(cmp)
+	bb.AddEdgeTo(jt)             // in range - use jump table
+	bb.AddEdgeTo(bPanic)         // out of range - panic
+	bb.Likely = ssa.BranchLikely // panic is unlikely
+
+	s.startBlock(bPanic)
+	s.rtcall(ir.Syms.PanicSimdImm, false, nil)
+	s.endBlock()
+
+	s.startBlock(jt)
+	jt.Kind = ssa.BlockJumpTable
+	jt.Pos = intrinsicCall.Pos()
+	if base.Flag.Cfg.SpectreIndex {
+		// Potential Spectre vulnerability hardening?
+		idx = s.newValue2(ssa.OpSpectreSliceIndex, t, idx, s.uintptrConstant(immLimit-1))
+	}
+	jt.SetControl(idx)
+	targets := make([]*ssa.Block, immLimit, immLimit)
+	for i := range immLimit {
+		t := s.f.NewBlock(ssa.BlockPlain)
+		targets[i] = t
+		jt.AddEdgeTo(t)
+	}
+	s.endBlock()
+
+	for i, t := range targets {
+		s.startBlock(t)
+		genOp(s, i)
+		if t.Kind != ssa.BlockExit {
+			t.AddEdgeTo(bEnd)
+		}
+		s.endBlock()
+	}
+
+	s.startBlock(bEnd)
+	ret := s.variable(intrinsicCall, intrinsicCall.Type())
+	return ret
 }
 
 func opLen1Imm8(op ssa.Op, t *types.Type, offset int) func(s *state, n *ir.CallExpr, args []*ssa.Value) *ssa.Value {
@@ -2164,6 +2237,54 @@ func opLen2Imm8_SHA1RNDS4(op ssa.Op, t *types.Type, offset int) func(s *state, n
 		return immJumpTable(s, args[1], n, func(sNew *state, idx int) {
 			// Encode as int8 due to requirement of AuxInt, check its comment for details.
 			s.vars[n] = sNew.newValue2I(op, t, int64(int8(idx<<offset))&0b11, args[0], args[2])
+		})
+	}
+}
+
+func opLen1Imm(op ssa.Op, t *types.Type, offset int, immMax int) func(s *state, n *ir.CallExpr, args []*ssa.Value) *ssa.Value {
+	return func(s *state, n *ir.CallExpr, args []*ssa.Value) *ssa.Value {
+		if args[1].Op == ssa.OpConst8 {
+			return s.newValue1I(op, t, args[1].AuxInt<<int64(offset), args[0])
+		}
+		return immJumpTableN(s, args[1], n, uint64(immMax+1), func(sNew *state, idx int) {
+			// Encode as int8 due to requirement of AuxInt, check its comment for details.
+			s.vars[n] = sNew.newValue1I(op, t, int64(int8(idx<<offset)), args[0])
+		})
+	}
+}
+
+func opLen2Imm(op ssa.Op, t *types.Type, offset int, immMax int) func(s *state, n *ir.CallExpr, args []*ssa.Value) *ssa.Value {
+	return func(s *state, n *ir.CallExpr, args []*ssa.Value) *ssa.Value {
+		if args[1].Op == ssa.OpConst8 {
+			return s.newValue2I(op, t, args[1].AuxInt<<int64(offset), args[0], args[2])
+		}
+		return immJumpTableN(s, args[1], n, uint64(immMax+1), func(sNew *state, idx int) {
+			// Encode as int8 due to requirement of AuxInt, check its comment for details.
+			s.vars[n] = sNew.newValue2I(op, t, int64(int8(idx<<offset)), args[0], args[2])
+		})
+	}
+}
+
+func opLen3Imm(op ssa.Op, t *types.Type, offset int, immMax int) func(s *state, n *ir.CallExpr, args []*ssa.Value) *ssa.Value {
+	return func(s *state, n *ir.CallExpr, args []*ssa.Value) *ssa.Value {
+		if args[1].Op == ssa.OpConst8 {
+			return s.newValue3I(op, t, args[1].AuxInt<<int64(offset), args[0], args[2], args[3])
+		}
+		return immJumpTableN(s, args[1], n, uint64(immMax+1), func(sNew *state, idx int) {
+			// Encode as int8 due to requirement of AuxInt, check its comment for details.
+			s.vars[n] = sNew.newValue3I(op, t, int64(int8(idx<<offset)), args[0], args[2], args[3])
+		})
+	}
+}
+
+func opLen2Imm_2I(op ssa.Op, t *types.Type, offset int, immMax int) func(s *state, n *ir.CallExpr, args []*ssa.Value) *ssa.Value {
+	return func(s *state, n *ir.CallExpr, args []*ssa.Value) *ssa.Value {
+		if args[2].Op == ssa.OpConst8 {
+			return s.newValue2I(op, t, args[2].AuxInt<<int64(offset), args[0], args[1])
+		}
+		return immJumpTableN(s, args[2], n, uint64(immMax+1), func(sNew *state, idx int) {
+			// Encode as int8 due to requirement of AuxInt, check its comment for details.
+			s.vars[n] = sNew.newValue2I(op, t, int64(int8(idx<<offset)), args[0], args[1])
 		})
 	}
 }

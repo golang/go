@@ -263,7 +263,7 @@ func windows_QueryPerformanceFrequency() int64 {
 	return frequency
 }
 
-//go:linkname cpu_isProcessorFeaturePresent internal/cpu.isProcessorFeaturePresent
+//go:linknamestd cpu_isProcessorFeaturePresent internal/cpu.isProcessorFeaturePresent
 func cpu_isProcessorFeaturePresent(processorFeature uint32) bool {
 	ret := stdcall(_IsProcessorFeaturePresent, uintptr(processorFeature))
 	return ret != 0

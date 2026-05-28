@@ -23,10 +23,6 @@ const (
 
 // NewGCM returns the given 128-bit, block cipher wrapped in Galois Counter Mode
 // with the standard nonce length.
-//
-// In general, the GHASH operation performed by this implementation of GCM is not constant-time.
-// An exception is when the underlying [Block] was created by aes.NewCipher
-// on systems with hardware support for AES. See the [crypto/aes] package documentation for details.
 func NewGCM(cipher Block) (AEAD, error) {
 	if fips140only.Enforced() {
 		return nil, errors.New("crypto/cipher: use of GCM with arbitrary IVs is not allowed in FIPS 140-only mode, use NewGCMWithRandomNonce")

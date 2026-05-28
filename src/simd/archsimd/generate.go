@@ -8,4 +8,4 @@ package archsimd
 
 // Invoke code generators.
 
-//go:generate go run -C _gen . -tmplgen -simdgen
+//go:generate go run -C _gen . -tmplgen -simdgen -wasmgen

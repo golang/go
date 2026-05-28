@@ -460,7 +460,7 @@ func NewFile(r io.ReaderAt) (*File, error) {
 		// section header at index 0.
 		if shstrndx == int(SHN_XINDEX) {
 			shstrndx = int(link)
-			if shstrndx < int(SHN_LORESERVE) {
+			if shstrndx < int(SHN_LORESERVE) || shstrndx >= shnum {
 				return nil, &FormatError{shoff, "invalid ELF shstrndx contained in sh_link", shstrndx}
 			}
 		}

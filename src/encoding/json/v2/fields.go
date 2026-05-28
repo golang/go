@@ -34,6 +34,7 @@ type structFields struct {
 	byActualName    map[string]*structField
 	byFoldedName    map[string][]*structField
 	inlinedFallback *structField
+	hasString       bool // one or more fields set the string option
 }
 
 // reindex recomputes index to avoid bounds check during runtime.
@@ -80,6 +81,9 @@ func makeStructFields(root reflect.Type) (fs structFields, serr *SemanticError) 
 	orErrorf := func(serr *SemanticError, t reflect.Type, f string, a ...any) *SemanticError {
 		return cmp.Or(serr, &SemanticError{GoType: t, Err: fmt.Errorf(f, a...)})
 	}
+
+	// Whether any field sets the string option.
+	var hasString bool
 
 	// Setup a queue for a breadth-first search.
 	var queueIndex int
@@ -248,6 +252,9 @@ func makeStructFields(root reflect.Type) (fs structFields, serr *SemanticError) 
 				f.id = len(allFields)
 				f.fncs = lookupArshaler(sf.Type)
 				allFields = append(allFields, f)
+				if f.string {
+					hasString = true
+				}
 			}
 		}
 
@@ -313,6 +320,7 @@ func makeStructFields(root reflect.Type) (fs structFields, serr *SemanticError) 
 		flattened:    flattened,
 		byActualName: make(map[string]*structField, len(flattened)),
 		byFoldedName: make(map[string][]*structField, len(flattened)),
+		hasString:    hasString,
 	}
 	for i, f := range fs.flattened {
 		foldedName := string(foldName([]byte(f.name)))

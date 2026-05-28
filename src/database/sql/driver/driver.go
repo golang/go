@@ -40,6 +40,7 @@ package driver
 
 import (
 	"context"
+	"database/sql/internal"
 	"errors"
 	"reflect"
 )
@@ -441,6 +442,28 @@ type Rows interface {
 	// should be taken when closing Rows not to modify
 	// a buffer held in dest.
 	Next(dest []Value) error
+}
+
+// ScanContext carries state related to the current query
+// through a [RowsColumnScanner.ScanColumn] function to [database/sql.ConvertAssign].
+type ScanContext internal.ScanContext
+
+// RowsColumnScanner extends the [Rows] interface by providing a way for the driver
+// to scan directly into the user-provided destination.
+//
+// RowsColumnScanner supersedes the [Rows.Next] method.
+type RowsColumnScanner interface {
+	Rows
+
+	// NextRow advances to the next row of data.
+	// It should return io.EOF when there are no more rows.
+	NextRow() error
+
+	// ScanColumn copies the column at the given index in the current row
+	// into the value pointed to by dest.
+	//
+	// The driver may assign a driver.Value to dest using [database/sql.ConvertAssign].
+	ScanColumn(scanCtx ScanContext, index int, dest any) error
 }
 
 // RowsNextResultSet extends the [Rows] interface by providing a way to signal

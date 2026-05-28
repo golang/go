@@ -185,6 +185,17 @@ func (r regMask) empty() bool {
 	return r.v1 == 0 && r.v2 == 0
 }
 
+func (r regMask) pickReg() register {
+	if r.empty() {
+		panic("can't pick a register from an empty set")
+	}
+	// pick the lowest one
+	if r.v1 != 0 {
+		return register(bits.TrailingZeros64(r.v1))
+	}
+	return register(bits.TrailingZeros64(r.v2) + 64)
+}
+
 func regMaskAt(i register) regMask {
 	if i < 64 {
 		return regMask{v1: 1 << i}
@@ -248,16 +259,16 @@ func countRegs(r regMask) int {
 	return bits.OnesCount64(r.v1) + bits.OnesCount64(r.v2)
 }
 
-// pickReg picks an arbitrary register from the register mask.
-func pickReg(r regMask) register {
-	if r.empty() {
-		panic("can't pick a register from an empty set")
+// pickReg picks a register from the register mask.
+func (s *regAllocState) pickReg(rm regMask) register {
+	if s.f.Config.ctxt.Arch.Arch == sys.ArchRISCV64 {
+		// Prefer x8-x15 and f8-f15 to enable increased use of compressed instructions.
+		riscv64CompressedMask := rm.intersect(regMask{v1: 0x0000ff000000ff00})
+		if !riscv64CompressedMask.empty() {
+			rm = riscv64CompressedMask
+		}
 	}
-	// pick the lowest one
-	if r.v1 != 0 {
-		return register(bits.TrailingZeros64(r.v1))
-	}
-	return register(bits.TrailingZeros64(r.v2) + 64)
+	return rm.pickReg()
 }
 
 type use struct {
@@ -420,7 +431,7 @@ func (s *regAllocState) freeReg(r register) {
 // freeRegs frees up all registers listed in m.
 func (s *regAllocState) freeRegs(m regMask) {
 	for !m.intersect(s.used).empty() {
-		s.freeReg(pickReg(m.intersect(s.used)))
+		s.freeReg(s.pickReg(m.intersect(s.used)))
 	}
 }
 
@@ -428,7 +439,7 @@ func (s *regAllocState) freeRegs(m regMask) {
 func (s *regAllocState) clobberRegs(m regMask) {
 	m = m.intersect(s.allocatable.intersect(s.f.Config.gpRegMask)) // only integer register can contain pointers, only clobber them
 	for !m.empty() {
-		r := pickReg(m)
+		r := s.pickReg(m)
 		m = m.removeReg(r)
 		x := s.curBlock.NewValue0(src.NoXPos, OpClobberReg, types.TypeVoid)
 		s.f.setHome(x, &s.registers[r])
@@ -490,7 +501,7 @@ func (s *regAllocState) allocReg(mask regMask, v *Value) register {
 
 	// Pick an unused register if one is available.
 	if !mask.minus(s.used).empty() {
-		r := pickReg(mask.minus(s.used))
+		r := s.pickReg(mask.minus(s.used))
 		s.usedSinceBlockStart = s.usedSinceBlockStart.addReg(r)
 		return r
 	}
@@ -537,7 +548,7 @@ func (s *regAllocState) allocReg(mask regMask, v *Value) register {
 	m := s.compatRegs(v2.Type).minus(s.used).minus(s.tmpused).removeReg(r)
 	if !m.empty() && !s.values[v2.ID].rematerializeable && countRegs(s.values[v2.ID].regs) == 1 {
 		s.usedSinceBlockStart = s.usedSinceBlockStart.addReg(r)
-		r2 := pickReg(m)
+		r2 := s.pickReg(m)
 		c := s.curBlock.NewValue1(v2.Pos, OpCopy, v2.Type, s.regs[r].c)
 		s.copies[c] = false
 		if s.f.pass.debug > regDebug {
@@ -608,7 +619,7 @@ func (s *regAllocState) allocValToReg(v *Value, mask regMask, nospill bool, pos 
 	// Check if v is already in a requested register.
 	if !mask.intersect(vi.regs).empty() {
 		mask = mask.intersect(vi.regs)
-		r := pickReg(mask)
+		r := s.pickReg(mask)
 		if mask.hasReg(s.SPReg) {
 			// Prefer the stack pointer if it is allowed.
 			// (Needed because the op might have an Aux symbol
@@ -645,7 +656,7 @@ func (s *regAllocState) allocValToReg(v *Value, mask regMask, nospill bool, pos 
 			// v is in a fixed register, prefer that
 			current = v
 		} else {
-			r2 := pickReg(vi.regs)
+			r2 := s.pickReg(vi.regs)
 			if s.regs[r2].v != v {
 				panic("bad register state")
 			}
@@ -686,6 +697,15 @@ func (s *regAllocState) allocValToReg(v *Value, mask regMask, nospill bool, pos 
 			s.f.Warnl(vi.spill.Pos, "load spill for %v from %v", v, spill)
 		}
 		c = s.curBlock.NewValue1(pos, OpLoadReg, v.Type, spill)
+		sourceMask := s.compatRegs(v.Type)
+		if !sourceMask.hasReg(r) && !onWasmStack {
+			// Assign a temporary register that can be copied to the desired destination;
+			// this at least works where it is currently a problem (x86).
+			// This happens processing e.g. ASAN/TSAN with SIMD *simdtype methods.
+			s.setOrig(c, v)
+			s.assignReg(s.allocReg(sourceMask, v), v, c)
+			c = s.curBlock.NewValue1(pos, OpCopy, v.Type, c)
+		}
 	}
 
 	s.setOrig(c, v)
@@ -762,7 +782,7 @@ func (s *regAllocState) init(f *Func) {
 	}
 
 	// Figure out which registers we're allowed to use.
-	s.allocatable = s.f.Config.gpRegMask.union(s.f.Config.fpRegMask).union(s.f.Config.specialRegMask)
+	s.allocatable = s.f.Config.gpRegMask.union(s.f.Config.fpRegMask).union(s.f.Config.specialRegMask).union(s.f.Config.simdRegMask)
 	s.allocatable = s.allocatable.removeReg(s.SPReg)
 	s.allocatable = s.allocatable.removeReg(s.SBReg)
 	if s.f.Config.hasGReg {
@@ -796,7 +816,7 @@ func (s *regAllocState) init(f *Func) {
 			// nothing to do
 		case "loong64": // R2 (aka TP) already reserved.
 			// nothing to do
-		case "ppc64le": // R2 already reserved.
+		case "ppc64", "ppc64le": // R2 already reserved.
 			// nothing to do
 		case "riscv64": // X3 (aka GP) and X4 (aka TP) already reserved.
 			// nothing to do
@@ -985,7 +1005,7 @@ func (s *regAllocState) compatRegs(t *types.Type) regMask {
 	}
 	if t.IsSIMD() {
 		if t.Size() > 8 {
-			return s.f.Config.fpRegMask.intersect(s.allocatable)
+			return s.f.Config.simdRegMask.intersect(s.allocatable)
 		} else {
 			// K mask
 			return s.f.Config.gpRegMask.intersect(s.allocatable)
@@ -1251,7 +1271,7 @@ func (s *regAllocState) regalloc(f *Func) {
 				// They're not suitable for further (phi-function) allocation.
 				m := s.values[a.ID].regs.minus(phiUsed).intersect(s.allocatable)
 				if !m.empty() {
-					r := pickReg(m)
+					r := s.pickReg(m)
 					phiUsed = phiUsed.addReg(r)
 					phiRegs = append(phiRegs, r)
 				} else {
@@ -1280,7 +1300,7 @@ func (s *regAllocState) regalloc(f *Func) {
 					// them (and they are not going to be helpful anyway).
 					m := s.compatRegs(a.Type).minus(s.used).minus(phiUsed)
 					if !m.empty() && !s.values[a.ID].rematerializeable && countRegs(s.values[a.ID].regs) == 1 {
-						r2 := pickReg(m)
+						r2 := s.pickReg(m)
 						c := p.NewValue1(a.Pos, OpCopy, a.Type, s.regs[r].c)
 						s.copies[c] = false
 						if s.f.pass.debug > regDebug {
@@ -1326,7 +1346,7 @@ func (s *regAllocState) regalloc(f *Func) {
 					}
 				}
 				if !m.empty() {
-					r := pickReg(m)
+					r := s.pickReg(m)
 					phiRegs[i] = r
 					phiUsed = phiUsed.addReg(r)
 				}
@@ -1458,7 +1478,7 @@ func (s *regAllocState) regalloc(f *Func) {
 					continue
 				}
 				desired.clobber(j.regs)
-				desired.add(v.Args[j.idx].ID, pickReg(j.regs))
+				desired.add(v.Args[j.idx].ID, s.pickReg(j.regs))
 			}
 			if opcodeTable[v.Op].resultInArg0 || v.Op == OpAMD64ADDQconst || v.Op == OpAMD64ADDLconst || v.Op == OpSelect0 {
 				if opcodeTable[v.Op].commutative {
@@ -1508,7 +1528,7 @@ func (s *regAllocState) regalloc(f *Func) {
 					if countRegs(m) != 1 {
 						f.Fatalf("bad fixed-register op %s", v)
 					}
-					s.assignReg(pickReg(m), v, v)
+					s.assignReg(s.pickReg(m), v, v)
 				default:
 					f.Fatalf("unknown fixed-register op %s", v)
 				}
@@ -2848,19 +2868,19 @@ func (e *edgeState) findRegFor(typ *types.Type) Location {
 	// 4) a register holding a rematerializeable value
 	x := m.minus(e.usedRegs)
 	if !x.empty() {
-		return &e.s.registers[pickReg(x)]
+		return &e.s.registers[e.s.pickReg(x)]
 	}
 	x = m.minus(e.uniqueRegs).minus(e.finalRegs)
 	if !x.empty() {
-		return &e.s.registers[pickReg(x)]
+		return &e.s.registers[e.s.pickReg(x)]
 	}
 	x = m.minus(e.uniqueRegs)
 	if !x.empty() {
-		return &e.s.registers[pickReg(x)]
+		return &e.s.registers[e.s.pickReg(x)]
 	}
 	x = m.intersect(e.rematerializeableRegs)
 	if !x.empty() {
-		return &e.s.registers[pickReg(x)]
+		return &e.s.registers[e.s.pickReg(x)]
 	}
 
 	// No register is available.
@@ -3244,24 +3264,34 @@ func (s *regAllocState) computeDesired() {
 
 	// TODO: Can we speed this up using the liveness information we have already
 	// from computeLive?
-	// TODO: Since we don't propagate information through phi nodes, can we do
-	// this as a single dominator tree walk instead of the iterative solution?
 	var desired desiredState
 	f := s.f
 	po := f.postorder()
+	maxPreds := 0
+	for _, b := range f.Blocks {
+		maxPreds = max(maxPreds, len(b.Preds))
+	}
+	// phiPrefs[i] collects desired registers for phi inputs coming from b.Preds[i].
+	phiPrefs := make([]desiredState, maxPreds)
 	for {
 		changed := false
 		for _, b := range po {
 			desired.copy(&s.desired[b.ID])
-			for i := len(b.Values) - 1; i >= 0; i-- {
+			for i := range b.Preds {
+				phiPrefs[i].reset()
+			}
+			var headerLoop *loop // loop whose header is b, if any
+			if l := s.loopnest.b2l[b.ID]; l != nil && l.header == b {
+				headerLoop = l
+			}
+			// Process non-phis, then phis.
+			i := len(b.Values) - 1
+			for ; i >= 0; i-- {
 				v := b.Values[i]
-				prefs := desired.remove(v.ID)
 				if v.Op == OpPhi {
-					// TODO: if v is a phi, save desired register for phi inputs.
-					// For now, we just drop it and don't propagate
-					// desired registers back though phi nodes.
-					continue
+					break
 				}
+				prefs := desired.remove(v.ID)
 				regspec := s.regspec(v)
 				// Cancel desired registers if they get clobbered.
 				desired.clobber(regspec.clobbers)
@@ -3271,7 +3301,7 @@ func (s *regAllocState) computeDesired() {
 						continue
 					}
 					desired.clobber(j.regs)
-					desired.add(v.Args[j.idx].ID, pickReg(j.regs))
+					desired.add(v.Args[j.idx].ID, s.pickReg(j.regs))
 				}
 				// Set desired register of input 0 if this is a 2-operand instruction.
 				if opcodeTable[v.Op].resultInArg0 || v.Op == OpAMD64ADDQconst || v.Op == OpAMD64ADDLconst || v.Op == OpSelect0 {
@@ -3286,9 +3316,33 @@ func (s *regAllocState) computeDesired() {
 					desired.addList(v.Args[0].ID, prefs)
 				}
 			}
-			for _, e := range b.Preds {
+			for ; i >= 0; i-- {
+				v := b.Values[i]
+				prefs := desired.remove(v.ID)
+				if prefs[0] == noRegister {
+					continue
+				}
+				// Phi desires go to phiPrefs (per-pred), so drop them from desired.avoid.
+				// The merge below re-adds any bits other entries still need.
+				for _, r := range prefs {
+					if r != noRegister {
+						desired.avoid = desired.avoid.minus(regMaskAt(r))
+					}
+				}
+				// Propagate v's desired registers back to its args.
+				for pidx, a := range v.Args {
+					if headerLoop != nil && s.loopnest.b2l[b.Preds[pidx].b.ID] == headerLoop {
+						// Skip direct back-edges to avoid pessimizing the loop body to skip a single reg-reg move.
+						// We check only the immediate loop; it is simple and empirically sufficient.
+						continue
+					}
+					phiPrefs[pidx].addList(a.ID, prefs)
+				}
+			}
+			for pidx, e := range b.Preds {
 				p := e.b
 				changed = s.desired[p.ID].merge(&desired) || changed
+				changed = s.desired[p.ID].merge(&phiPrefs[pidx]) || changed
 			}
 		}
 		if !changed || (!s.loopnest.hasIrreducible && len(s.loopnest.loops) == 0) {
@@ -3459,6 +3513,12 @@ func (d *desiredState) clobber(m regMask) {
 		i++
 	}
 	d.avoid = d.avoid.minus(m)
+}
+
+// reset prepares d for re-use.
+func (d *desiredState) reset() {
+	d.entries = d.entries[:0]
+	d.avoid = regMask{}
 }
 
 // copy copies a desired state from another desiredState x.

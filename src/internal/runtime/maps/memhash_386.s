@@ -5,59 +5,36 @@
 #include "textflag.h"
 
 // hash function using AES hardware instructions
-TEXT ·MemHash32(SB),NOSPLIT,$0-12
-	CMPB	·UseAeshash(SB), $0
-	JEQ	noaes
-	MOVL	p+0(FP), AX	// ptr to data
-	MOVL	h+4(FP), X0	// seed
-	PINSRD	$1, (AX), X0	// data
+
+// func memHash32AES(k uint32, h uintptr) uintptr
+TEXT ·memHash32AES(SB),NOSPLIT,$0-12
+	MOVL	h+4(FP), X0     // seed
+	PINSRD	$1, k+0(FP), X0	// data
 	AESENC	·aeskeysched+0(SB), X0
 	AESENC	·aeskeysched+16(SB), X0
 	AESENC	·aeskeysched+32(SB), X0
 	MOVL	X0, ret+8(FP)
 	RET
-noaes:
-	JMP	·memHash32Fallback(SB)
 
-TEXT ·MemHash64(SB),NOSPLIT,$0-12
-	CMPB	·UseAeshash(SB), $0
-	JEQ	noaes
-	MOVL	p+0(FP), AX	// ptr to data
-	MOVQ	(AX), X0	// data
-	PINSRD	$2, h+4(FP), X0	// seed
+// func memHash64AES(k uint64, h uintptr) uintptr
+TEXT ·memHash64AES(SB),NOSPLIT,$0-16
+	MOVQ	k+0(FP), X0     // data
+	PINSRD	$2, h+8(FP), X0	// seed
 	AESENC	·aeskeysched+0(SB), X0
 	AESENC	·aeskeysched+16(SB), X0
 	AESENC	·aeskeysched+32(SB), X0
-	MOVL	X0, ret+8(FP)
+	MOVL	X0, ret+12(FP)
 	RET
-noaes:
-	JMP	·memHash64Fallback(SB)
 
-TEXT ·MemHash(SB),NOSPLIT,$0-16
-	CMPB	·UseAeshash(SB), $0
-	JEQ	noaes
-	MOVL	p+0(FP), AX	// ptr to data
-	MOVL	s+8(FP), BX	// size
+// func memHashAES(p unsafe.Pointer, h, size uintptr) uintptr
+TEXT ·memHashAES(SB),NOSPLIT,$0-16
+	// AX: data
+	// BX: size
+	// DX: address to put return value
+	MOVL	p+0(FP), AX
+	MOVL	s+8(FP), BX
 	LEAL	ret+12(FP), DX
-	JMP	·aeshashbody<>(SB)
-noaes:
-	JMP	·memHashFallback(SB)
 
-TEXT ·StrHash(SB),NOSPLIT,$0-12
-	CMPB	·UseAeshash(SB), $0
-	JEQ	noaes
-	MOVL	p+0(FP), AX	// ptr to string object
-	MOVL	4(AX), BX	// length of string
-	MOVL	(AX), AX	// string data
-	LEAL	ret+8(FP), DX
-	JMP	·aeshashbody<>(SB)
-noaes:
-	JMP	·strHashFallback(SB)
-
-// AX: data
-// BX: length
-// DX: address to put return value
-TEXT ·aeshashbody<>(SB),NOSPLIT,$0-0
 	MOVL	h+4(FP), X0	            // 32 bits of per-table hash seed
 	PINSRW	$4, BX, X0	            // 16 bits of length
 	PSHUFHW	$0, X0, X0	            // replace size with its low 2 bytes repeated 4 times

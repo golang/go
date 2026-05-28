@@ -139,9 +139,7 @@ func InitConfig() {
 	for i := 1; i < len(ir.Syms.MallocGCSmallScanNoHeader); i++ {
 		ir.Syms.MallocGCSmallScanNoHeader[i] = typecheck.LookupRuntimeFunc(fmt.Sprintf("mallocgcSmallScanNoHeaderSC%d", i))
 	}
-	for i := 1; i < len(ir.Syms.MallocGCTiny); i++ {
-		ir.Syms.MallocGCTiny[i] = typecheck.LookupRuntimeFunc(fmt.Sprintf("mallocgcTinySize%d", i))
-	}
+	ir.Syms.MallocGCTiny = typecheck.LookupRuntimeFunc("mallocgcTinySC2")
 	ir.Syms.MallocGC = typecheck.LookupRuntimeFunc("mallocgc")
 	ir.Syms.Memmove = typecheck.LookupRuntimeFunc("memmove")
 	ir.Syms.Memequal = typecheck.LookupRuntimeFunc("memequal")
@@ -808,11 +806,8 @@ func (s *state) specializedMallocSym(size int64, hasPointers bool) *obj.LSym {
 	if !s.sizeSpecializedMallocEnabled() {
 		return nil
 	}
-	ptrSize := s.config.PtrSize
-	ptrBits := ptrSize * 8
-	minSizeForMallocHeader := ptrSize * ptrBits
-	heapBitsInSpan := size <= minSizeForMallocHeader
-	if !heapBitsInSpan {
+	const specializedMallocMax = 80 // This must match the constant in mkmalloc.
+	if size > specializedMallocMax {
 		return nil
 	}
 	divRoundUp := func(n, a uintptr) uintptr { return (n + a - 1) / a }
@@ -821,7 +816,7 @@ func (s *state) specializedMallocSym(size int64, hasPointers bool) *obj.LSym {
 		return ir.Syms.MallocGCSmallScanNoHeader[sizeClass]
 	}
 	if size < gc.TinySize {
-		return ir.Syms.MallocGCTiny[size]
+		return ir.Syms.MallocGCTiny
 	}
 	return ir.Syms.MallocGCSmallNoScan[sizeClass]
 }
@@ -3559,16 +3554,14 @@ func (s *state) exprCheckPtr(n ir.Node, checkPtrOK bool) *ssa.Value {
 				bound := n.X.Type().NumElem()
 				a := s.expr(n.X)
 				i := s.expr(n.Index)
+				len := s.constInt(types.Types[types.TINT], bound)
 				if bound == 0 {
-					// Bounds check will never succeed.  Might as well
-					// use constants for the bounds check.
-					z := s.constInt(types.Types[types.TINT], 0)
-					s.boundsCheck(z, z, ssa.BoundsIndex, false)
+					// Bounds check will never succeed.
+					s.boundsCheck(i, len, ssa.BoundsIndex, false)
 					// The return value won't be live. In case bounds checks
 					// are turned off, load from (*T)(nil) to cause a segfault.
 					return s.load(n.Type(), s.constNil(n.Type().PtrTo()))
 				}
-				len := s.constInt(types.Types[types.TINT], bound)
 				s.boundsCheck(i, len, ssa.BoundsIndex, n.Bounded()) // checks i == 0
 				return s.newValue1I(ssa.OpArraySelect, n.Type(), 0, a)
 			}
@@ -4531,10 +4524,19 @@ func (s *state) assignWhichMayOverlap(left ir.Node, right *ssa.Value, deref bool
 
 			i := s.expr(left.Index) // index
 			if n == 0 {
+				_ = s.expr(left.X) // Evaluating left.X for any side-effects.
 				// The bounds check must fail.  Might as well
 				// ignore the actual index and just use zeros.
 				z := s.constInt(types.Types[types.TINT], 0)
 				s.boundsCheck(z, z, ssa.BoundsIndex, false)
+				return
+			}
+			if t.Size() == 0 {
+				_ = s.expr(left.X) // Evaluating left.X for any side-effects.
+				// Generate bounds check for left, since this can happen
+				// for 0-size assignment case, see issue #79236.
+				len := s.constInt(types.Types[types.TINT], n)
+				s.boundsCheck(i, len, ssa.BoundsIndex, false)
 				return
 			}
 			if n != 1 {
@@ -4546,11 +4548,8 @@ func (s *state) assignWhichMayOverlap(left ir.Node, right *ssa.Value, deref bool
 				// they are somewhere inside an outer [0].
 				// We can ignore the actual assignment, it is dynamically
 				// unreachable. See issue 77635.
-				return
-			}
-			if t.Size() == 0 {
-				len := s.constInt(types.Types[types.TINT], n)
-				s.boundsCheck(i, len, ssa.BoundsIndex, false)
+				// Still, evaluating left.X for any side-effects.
+				_ = s.expr(left.X)
 				return
 			}
 
@@ -5262,6 +5261,7 @@ func (s *state) addr(n ir.Node) *ssa.Value {
 		// &x[i], which will always panic when evaluated.
 		// We just return something reasonable in this case.
 		// It will be dynamically unreachable. See issue 77635.
+		s.boundsCheckArrayIndex(n)
 		return s.newValue1A(ssa.OpAddr, n.Type().PtrTo(), ir.Syms.Zerobase, s.sb)
 	}
 
@@ -5442,6 +5442,21 @@ func (s *state) nilCheck(ptr *ssa.Value) *ssa.Value {
 		return ptr
 	}
 	return s.newValue2(ssa.OpNilCheck, ptr.Type, ptr, s.mem())
+}
+
+// boundsCheckArrayIndex generates bounds checking code for array indexing operations.
+func (s *state) boundsCheckArrayIndex(n ir.Node) {
+	if n.Op() != ir.OINDEX {
+		return
+	}
+	nn := n.(*ir.IndexExpr)
+	typ := nn.X.Type()
+	if typ.IsArray() {
+		_ = s.expr(nn.X) // for side effects
+		idx := s.expr(nn.Index)
+		len := s.constInt(types.Types[types.TINT], typ.NumElem())
+		s.boundsCheck(idx, len, ssa.BoundsIndex, nn.Bounded())
+	}
 }
 
 // boundsCheck generates bounds checking code. Checks if 0 <= idx <[=] len, branches to exit if not.

@@ -29,7 +29,7 @@ func TestExamples(t *testing.T) {
 	for _, filename := range filenames {
 		t.Run(strings.TrimSuffix(filepath.Base(filename), ".go"), func(t *testing.T) {
 			fset := token.NewFileSet()
-			astFile, err := parser.ParseFile(fset, filename, nil, parser.ParseComments)
+			astFile, err := parser.ParseFile(fset, filename, nil, parser.ParseComments) // requires object resolution
 			if err != nil {
 				t.Fatal(err)
 			}

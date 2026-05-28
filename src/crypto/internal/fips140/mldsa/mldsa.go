@@ -58,6 +58,8 @@ const maxPubKeySize = PublicKeySize87
 type PrivateKey struct {
 	seed [32]byte
 	pub  PublicKey
+	a    [maxK * maxL]nttElement
+	t1   [maxK]nttElement // NTT(t₁ ⋅ 2ᵈ)
 	s1   [maxL]nttElement
 	s2   [maxK]nttElement
 	t0   [maxK]nttElement
@@ -82,9 +84,7 @@ func (priv *PrivateKey) PublicKey() *PublicKey {
 type PublicKey struct {
 	raw [maxPubKeySize]byte
 	p   parameters
-	a   [maxK * maxL]nttElement
-	t1  [maxK]nttElement // NTT(t₁ ⋅ 2ᵈ)
-	tr  [64]byte         // public key hash
+	tr  [64]byte // public key hash
 }
 
 func (pub *PublicKey) Equal(x *PublicKey) bool {
@@ -183,7 +183,7 @@ func newPrivateKey(seed *[32]byte, p parameters) *PrivateKey {
 	ξ.Read(ρs)
 	ξ.Read(priv.k[:])
 
-	A := priv.pub.a[:k*l]
+	A := priv.a[:k*l]
 	computeMatrixA(A, ρ, p)
 
 	s1 := priv.s1[:l]
@@ -219,13 +219,9 @@ func newPrivateKey(seed *[32]byte, p parameters) *PrivateKey {
 		t0[i] = ntt(w)
 	}
 
-	// The computations below (and their storage in the PrivateKey struct) are
-	// not strictly necessary and could be deferred to PrivateKey.PublicKey().
-	// That would require keeping or re-deriving ρ and t/t1, though.
-
 	pk := pkEncode(priv.pub.raw[:0], ρ, t1, p)
 	priv.pub.tr = computePublicKeyHash(pk)
-	computeT1Hat(priv.pub.t1[:k], t1) // NTT(t₁ ⋅ 2ᵈ)
+	computeT1Hat(priv.t1[:k], t1) // NTT(t₁ ⋅ 2ᵈ)
 
 	return priv
 }
@@ -302,31 +298,32 @@ func pkDecode(pk []byte, t1 [][n]uint16, p parameters) (ρ []byte, err error) {
 var errInvalidPublicKeyLength = errors.New("mldsa: invalid public key length")
 
 func NewPublicKey44(pk []byte) (*PublicKey, error) {
-	return newPublicKey(pk, params44)
+	return newPublicKey(&PublicKey{}, pk, params44)
 }
 
 func NewPublicKey65(pk []byte) (*PublicKey, error) {
-	return newPublicKey(pk, params65)
+	return newPublicKey(&PublicKey{}, pk, params65)
 }
 
 func NewPublicKey87(pk []byte) (*PublicKey, error) {
-	return newPublicKey(pk, params87)
+	return newPublicKey(&PublicKey{}, pk, params87)
 }
 
-func newPublicKey(pk []byte, p parameters) (*PublicKey, error) {
-	k, l := p.k, p.l
-
-	t1 := make([][n]uint16, k, maxK)
-	ρ, err := pkDecode(pk, t1, p)
-	if err != nil {
-		return nil, err
+func newPublicKey(pub *PublicKey, pk []byte, p parameters) (*PublicKey, error) {
+	if len(pk) != pubKeySize(p) {
+		return nil, errInvalidPublicKeyLength
 	}
 
-	pub := &PublicKey{p: p}
+	// We don't precompute A and t1Hat here, because they would make the
+	// PublicKey over 68KB. Unlike private keys, public keys are often used to
+	// verify a signature only once, so precomputation doesn't help as often,
+	// but they can stay around in memory, for example as part of a TLS
+	// connection's PeerCertificates, so their size is more of a concern.
+	// Instead, we compute A and t1Hat on demand in Verify.
+
+	pub.p = p
 	copy(pub.raw[:], pk)
-	computeMatrixA(pub.a[:k*l], ρ, p)
 	pub.tr = computePublicKeyHash(pk)
-	computeT1Hat(pub.t1[:k], t1) // NTT(t₁ ⋅ 2ᵈ)
 
 	return pub, nil
 }
@@ -423,7 +420,7 @@ func computeMessageHash(tr []byte, msg []byte, context string) ([64]byte, error)
 
 func signInternal(priv *PrivateKey, μ *[64]byte, random *[32]byte) []byte {
 	p, k, l := priv.pub.p, priv.pub.p.k, priv.pub.p.l
-	A, s1, s2, t0 := priv.pub.a[:k*l], priv.s1[:l], priv.s2[:k], priv.t0[:k]
+	A, s1, s2, t0 := priv.a[:k*l], priv.s1[:l], priv.s2[:k], priv.t0[:k]
 
 	β := p.τ * p.η
 	γ1 := uint32(1 << p.γ1)
@@ -654,11 +651,20 @@ func VerifyExternalMu(pub *PublicKey, μ []byte, sig []byte) error {
 
 func verifyInternal(pub *PublicKey, μ *[64]byte, sig []byte) error {
 	p, k, l := pub.p, pub.p.k, pub.p.l
-	t1, A := pub.t1[:k], pub.a[:k*l]
 
 	β := p.τ * p.η
 	γ1 := uint32(1 << p.γ1)
 	γ1β := γ1 - uint32(β)
+
+	t1 := make([][n]uint16, k, maxK)
+	ρ, err := pkDecode(pub.raw[:pubKeySize(pub.p)], t1, p)
+	if err != nil {
+		return err
+	}
+	A := make([]nttElement, k*l, maxK*maxL)
+	computeMatrixA(A, ρ, p)
+	t1Hat := make([]nttElement, k, maxK)
+	computeT1Hat(t1Hat, t1) // NTT(t₁ ⋅ 2ᵈ)
 
 	z := make([]ringElement, l, maxL)
 	h := make([][n]byte, k, maxK)
@@ -680,7 +686,7 @@ func verifyInternal(pub *PublicKey, μ *[64]byte, sig []byte) error {
 		for j := range l {
 			wHat = polyAdd(wHat, nttMul(A[i*l+j], zHat[j]))
 		}
-		wHat = polySub(wHat, nttMul(c, t1[i]))
+		wHat = polySub(wHat, nttMul(c, t1Hat[i]))
 		w[i] = inverseNTT(wHat)
 	}
 

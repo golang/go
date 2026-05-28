@@ -247,7 +247,7 @@ var optab = []Optab{
 	{AVMOVQ, C_SOREG_12, C_NONE, C_NONE, C_VREG, C_NONE, 8, 4, REGZERO, 0},
 	{AVMOVQ, C_VREG, C_NONE, C_NONE, C_ROFF, C_NONE, 20, 4, 0, 0},
 	{AVMOVQ, C_ROFF, C_NONE, C_NONE, C_VREG, C_NONE, 21, 4, 0, 0},
-	{AVMOVQ, C_SOREG_12, C_NONE, C_NONE, C_ARNG, C_NONE, 46, 4, 0, 0}, // vldrepl.{b/h/w/d}
+	{AVMOVQ, C_SOREG_12, C_NONE, C_NONE, C_ARNG, C_NONE, 42, 4, 0, 0}, // vldrepl.{b/h/w/d}
 	// moving data between registers
 	{AVMOVQ, C_VREG, C_NONE, C_NONE, C_VREG, C_NONE, 1, 4, 0, 0},
 	{AVMOVQ, C_REG, C_NONE, C_NONE, C_ELEM, C_NONE, 39, 4, 0, 0},  // vinsgr2vr.{b/h/w/d}
@@ -262,7 +262,7 @@ var optab = []Optab{
 	{AXVMOVQ, C_SAUTO, C_NONE, C_NONE, C_XREG, C_NONE, 8, 4, REGZERO, 0},
 	{AXVMOVQ, C_XREG, C_NONE, C_NONE, C_ROFF, C_NONE, 20, 4, 0, 0},
 	{AXVMOVQ, C_ROFF, C_NONE, C_NONE, C_XREG, C_NONE, 21, 4, 0, 0},
-	{AXVMOVQ, C_SOREG_12, C_NONE, C_NONE, C_ARNG, C_NONE, 46, 4, 0, 0}, // xvldrepl.{b/h/w/d}
+	{AXVMOVQ, C_SOREG_12, C_NONE, C_NONE, C_ARNG, C_NONE, 42, 4, 0, 0}, // xvldrepl.{b/h/w/d}
 	// moving data between registers
 	{AXVMOVQ, C_XREG, C_NONE, C_NONE, C_XREG, C_NONE, 1, 4, 0, 0},
 	{AXVMOVQ, C_REG, C_NONE, C_NONE, C_ELEM, C_NONE, 39, 4, 0, 0},  // vinsgr2vr.{b/h/w/d}
@@ -309,6 +309,10 @@ var optab = []Optab{
 	{AALSLV, C_U3CON, C_REG, C_REG, C_REG, C_NONE, 64, 4, 0, 0},
 
 	{AAMSWAPW, C_REG, C_NONE, C_NONE, C_ZOREG, C_REG, 66, 4, 0, 0},
+
+	{ASCQ, C_REG, C_REG, C_NONE, C_ZOREG, C_NONE, 45, 4, 0, 0},
+	{ALLACQW, C_ZOREG, C_NONE, C_NONE, C_REG, C_NONE, 46, 4, 0, 0},
+	{ASCRELW, C_REG, C_NONE, C_NONE, C_ZOREG, C_NONE, 46, 4, 0, 0},
 
 	{ASYSCALL, C_NONE, C_NONE, C_NONE, C_NONE, C_NONE, 5, 4, 0, 0},
 	{ASYSCALL, C_U15CON, C_NONE, C_NONE, C_NONE, C_NONE, 5, 4, 0, 0},
@@ -1332,6 +1336,8 @@ func buildop(ctxt *obj.Link) {
 			opset(AFTINTWD, r0)
 			opset(AFTINTVF, r0)
 			opset(AFTINTVD, r0)
+			opset(AFRINTF, r0)
+			opset(AFRINTD, r0)
 			opset(ANEGF, r0)
 			opset(ANEGD, r0)
 			opset(AABSD, r0)
@@ -1428,8 +1434,10 @@ func buildop(ctxt *obj.Link) {
 		case AMOVWP:
 			opset(AMOVVP, r0)
 			opset(ASC, r0)
+			opset(ASCW, r0)
 			opset(ASCV, r0)
 			opset(ALL, r0)
+			opset(ALLW, r0)
 			opset(ALLV, r0)
 
 		case ASLL:
@@ -1513,6 +1521,7 @@ func buildop(ctxt *obj.Link) {
 			APRELDX,
 			AFSEL,
 			AADDV16,
+			ASCQ,
 			obj.ANOP,
 			obj.ATEXT,
 			obj.AFUNCDATA,
@@ -1570,6 +1579,12 @@ func buildop(ctxt *obj.Link) {
 				}
 				opset(i, r0)
 			}
+
+		case ALLACQW:
+			opset(ALLACQV, r0)
+
+		case ASCRELW:
+			opset(ASCRELV, r0)
 
 		// vseq.b vd, vj, vk
 		// vseqi.b vd, vj, si5
@@ -2722,7 +2737,7 @@ func (c *ctxt0) asmout(p *obj.Prog, o *Optab, out []uint32) {
 		rd := uint32(p.To.Reg & EXT_REG_MASK)
 		o1 = v | (rj << 5) | rd
 
-	case 46: // vmov offset(vj), vd.<T>
+	case 42: // vmov offset(vj), vd.<T>
 		v, _ := c.specialLsxMovInst(p.As, p.From.Reg, p.To.Reg, true)
 		if v == 0 {
 			c.ctxt.Diag("illegal arng type combination: %v\n", p)
@@ -2753,6 +2768,23 @@ func (c *ctxt0) asmout(p *obj.Prog, o *Optab, out []uint32) {
 				o1 = OP_9IRR(v, uint32(si>>3), Rj, Vd)
 			}
 		}
+
+	case 45:
+		// sc.q rd, rk, (rj)
+		o1 = OP_RRR(c.oprrr(p.As), uint32(p.Reg), uint32(p.To.Reg), uint32(p.From.Reg))
+
+	case 46:
+		// ll.acq.{w/d}  (rj), rd
+		rj := uint32(p.From.Reg)
+		rd := uint32(p.To.Reg)
+
+		switch p.As {
+		case ASCRELW, ASCRELV:
+			rj = uint32(p.To.Reg)
+			rd = uint32(p.From.Reg)
+		}
+
+		o1 = OP_RR(c.oprr(p.As), rj, rd)
 
 	case 47: // preld  offset(Rbase), $hint
 		offs := c.regoff(&p.From)

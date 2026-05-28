@@ -10,6 +10,7 @@ import (
 	"crypto/rand"
 	"crypto/sha256"
 	"fmt"
+	"strconv"
 )
 
 // Usage example that expands one master secret into three other
@@ -17,7 +18,7 @@ import (
 func Example_usage() {
 	// Underlying hash function for HMAC.
 	hash := sha256.New
-	keyLen := hash().Size()
+	keyLen := hash().Size() / 2
 
 	// Cryptographically secure master secret.
 	secret := []byte{0x00, 0x01, 0x02, 0x03} // i.e. NOT this.
@@ -34,8 +35,8 @@ func Example_usage() {
 
 	// Generate three 128-bit derived keys.
 	var keys [][]byte
-	for i := 0; i < 3; i++ {
-		key, err := hkdf.Key(hash, secret, salt, info, keyLen)
+	for i := range 3 {
+		key, err := hkdf.Key(hash, secret, salt, info+strconv.Itoa(i), keyLen)
 		if err != nil {
 			panic(err)
 		}

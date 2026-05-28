@@ -13,7 +13,6 @@ import (
 	"cmd/internal/src"
 	"encoding/base64"
 	"fmt"
-	"io"
 	"unicode/utf8"
 )
 
@@ -472,9 +471,11 @@ func closureName(outerfn *Func, pos src.XPos, why Op, gen int) *types.Sym {
 		// we use a content hash to disambiguate instead.
 		// We choose the suffix as a hash of the inline call stack.
 		h := hash.New32()
-		io.WriteString(h, outer)
+		fmt.Fprint(h, inlIndex)
 		base.Ctxt.InlTree.AllParents(inlIndex, func(call obj.InlinedCall) {
-			io.WriteString(h, call.Name+":"+call.Pos.LineNumber()+":"+call.Pos.ColumnNumber())
+			if call.Parent >= 0 {
+				fmt.Fprint(h, " ", call.Parent)
+			}
 		})
 		inlHash = base64.StdEncoding.EncodeToString(h.Sum(nil)[:8])
 

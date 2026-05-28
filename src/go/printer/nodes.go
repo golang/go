@@ -1309,13 +1309,29 @@ func (p *printer) controlClause(isForStmt bool, init ast.Stmt, expr ast.Expr, po
 	}
 }
 
+// isCompositeLitLike reports whether x is a composite literal or an expression
+// whose core is a composite literal (e.g. &T{...}), ignoring parentheses.
+func isCompositeLitLike(x ast.Expr) bool {
+	switch x := stripParensAlways(x).(type) {
+	case *ast.CompositeLit:
+		return true
+	case *ast.UnaryExpr:
+		_, ok := stripParensAlways(x.X).(*ast.CompositeLit)
+		return x.Op == token.AND && ok
+	}
+	return false
+}
+
 // indentList reports whether an expression list would look better if it
 // were indented wholesale (starting with the very first element, rather
 // than starting at the first line break).
+// Currently this function is only used to improve formatting of return
+// statements.
 func (p *printer) indentList(list []ast.Expr) bool {
 	// Heuristic: indentList reports whether there are more than one multi-
-	// line element in the list, or if there is any element that is not
-	// starting on the same line as the previous one ends.
+	// line element (such as a complex expression, but excluding composite
+	// literals) in the list, or if there is any element that is not starting
+	// on the same line as the previous one ends.
 	if len(list) >= 2 {
 		var b = p.lineFor(list[0].Pos())
 		var e = p.lineFor(list[len(list)-1].End())
@@ -1331,8 +1347,10 @@ func (p *printer) indentList(list []ast.Expr) bool {
 					// line as the previous one ended
 					return true
 				}
-				if xb < xe {
-					// x is a multi-line element
+				if xb < xe && !isCompositeLitLike(x) {
+					// x is a multi-line element but not a composite literal
+					// (composite literals have their own field indentation
+					// already, see go.dev/issue/7195)
 					n++
 				}
 				line = xe

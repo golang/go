@@ -16,16 +16,16 @@ import (
 )
 
 func vptest1() bool {
-	v1 := archsimd.LoadUint64x2Slice([]uint64{0, 1})
-	v2 := archsimd.LoadUint64x2Slice([]uint64{0, 0})
+	v1 := archsimd.LoadUint64x2([]uint64{0, 1})
+	v2 := archsimd.LoadUint64x2([]uint64{0, 0})
 	// amd64:`VPTEST (.*)(.*)$`
 	// amd64:`SETCS (.*)$`
 	return v1.AndNot(v2).IsZero()
 }
 
 func vptest2() bool {
-	v1 := archsimd.LoadUint64x2Slice([]uint64{0, 1})
-	v2 := archsimd.LoadUint64x2Slice([]uint64{0, 0})
+	v1 := archsimd.LoadUint64x2([]uint64{0, 1})
+	v2 := archsimd.LoadUint64x2([]uint64{0, 0})
 	// amd64:`VPTEST (.*)(.*)$`
 	// amd64:`SETEQ (.*)$`
 	return v1.And(v2).IsZero()
@@ -86,27 +86,62 @@ var floats64s = []float64{0, 1, 2, nan, 4, nan, 6, 7, 8, 9, 10, 11, nan, 13, 14,
 var sinkInt64s = make([]int64, 100)
 
 func simdIsNaN() {
-	x := archsimd.LoadFloat64x4Slice(floats64s)
-	y := archsimd.LoadFloat64x4Slice(floats64s[4:])
+	x := archsimd.LoadFloat64x4(floats64s)
+	y := archsimd.LoadFloat64x4(floats64s[4:])
 	a := x.IsNaN()
 	b := y.IsNaN()
 	// amd64:"VCMPPD [$]3," -"VPOR"
 	c := a.Or(b)
-	c.ToInt64x4().StoreSlice(sinkInt64s)
+	c.ToInt64x4().Store(sinkInt64s)
 }
 
 func simdIsNaN512() {
-	x := archsimd.LoadFloat64x8Slice(floats64s)
-	y := archsimd.LoadFloat64x8Slice(floats64s[8:])
+	x := archsimd.LoadFloat64x8(floats64s)
+	y := archsimd.LoadFloat64x8(floats64s[8:])
 	a := x.IsNaN()
 	b := y.IsNaN()
 	// amd64:"VCMPPD [$]3," -"VPOR"
 	c := a.Or(b)
-	c.ToInt64x8().StoreSlice(sinkInt64s)
+	c.ToInt64x8().Store(sinkInt64s)
 }
 
 func sftImmVPSRL() archsimd.Uint32x4 {
 	var x archsimd.Uint32x4
 	// amd64:`VPSRLD \$1, .*$`
 	return x.ShiftAllRight(1)
+}
+
+func aLtbLtc8_avx512(a, b, c archsimd.Int8x64) archsimd.Mask8x64 {
+	// the vector length implies AVX512 implies the mask operations.
+	// amd64:`KANDB`
+	return a.Less(b).And(b.Less(c))
+}
+
+func aLtbORbLtc8_avx512(a, b, c archsimd.Int8x64) archsimd.Mask8x64 {
+	// the vector length implies AVX512 implies the mask operations.
+	// amd64:`KORB`
+	return a.Less(b).Or(b.Less(c))
+}
+
+func aLtbLtc64_avx512(a, b, c archsimd.Int64x8) archsimd.Mask64x8 {
+	// the vector length implies AVX512 implies the mask operations.
+	// amd64:`KANDQ`
+	return a.Less(b).And(b.Less(c))
+}
+
+func aLtbORbLtc64_avx512(a, b, c archsimd.Int64x8) archsimd.Mask64x8 {
+	// the vector length implies AVX512 implies the mask operations.
+	// amd64:`KORQ`
+	return a.Less(b).Or(b.Less(c))
+}
+
+var globalSlice = []uint32{1, 2, 3, 4, 5, 6, 7, 8}
+
+func simdMemoryOperandMerge() archsimd.Uint32x4 {
+	a := archsimd.BroadcastUint32x4(1)
+	// amd64:`VPADDD \([A-Z]+\), X\d, X\d`
+	a = a.Add(archsimd.LoadUint32x4(globalSlice[0:4]))
+	// amd64:`VPADDD 16\([A-Z]+\), X\d, X\d`
+	a = a.Add(archsimd.LoadUint32x4(globalSlice[4:8]))
+	return a
 }

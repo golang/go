@@ -3410,6 +3410,30 @@ var instructions = [ALAST & obj.AMask]instructionData{
 	AVMV4RV & obj.AMask: {enc: rVVEncoding},
 	AVMV8RV & obj.AMask: {enc: rVVEncoding},
 
+	// 32.2.1: Vector Basic Bit-manipulation
+	AVANDNVV & obj.AMask: {enc: rVVVEncoding},
+	AVANDNVX & obj.AMask: {enc: rVIVEncoding},
+	AVBREVV & obj.AMask:  {enc: rVVEncoding},
+	AVBREV8V & obj.AMask: {enc: rVVEncoding},
+	AVREV8V & obj.AMask:  {enc: rVVEncoding},
+	AVCLZV & obj.AMask:   {enc: rVVEncoding},
+	AVCTZV & obj.AMask:   {enc: rVVEncoding},
+	AVCPOPV & obj.AMask:  {enc: rVVEncoding},
+	AVROLVV & obj.AMask:  {enc: rVVVEncoding},
+	AVROLVX & obj.AMask:  {enc: rVIVEncoding},
+	AVRORVV & obj.AMask:  {enc: rVVVEncoding},
+	AVRORVX & obj.AMask:  {enc: rVIVEncoding},
+	AVRORVI & obj.AMask:  {enc: rVVuEncoding},
+	AVWSLLVV & obj.AMask: {enc: rVVVEncoding},
+	AVWSLLVX & obj.AMask: {enc: rVIVEncoding},
+	AVWSLLVI & obj.AMask: {enc: rVVuEncoding},
+
+	// 32.2.2: Vector Carryless Multiplication
+	AVCLMULVV & obj.AMask:  {enc: rVVVEncoding},
+	AVCLMULVX & obj.AMask:  {enc: rVIVEncoding},
+	AVCLMULHVV & obj.AMask: {enc: rVVVEncoding},
+	AVCLMULHVX & obj.AMask: {enc: rVIVEncoding},
+
 	//
 	// Privileged ISA
 	//
@@ -4756,7 +4780,9 @@ func instructionsForProg(p *obj.Prog, compress bool) []*instruction {
 		AVREDSUMVS, AVREDMAXUVS, AVREDMAXVS, AVREDMINUVS, AVREDMINVS, AVREDANDVS, AVREDORVS, AVREDXORVS,
 		AVWREDSUMUVS, AVWREDSUMVS, AVFREDOSUMVS, AVFREDUSUMVS, AVFREDMAXVS, AVFREDMINVS, AVFWREDOSUMVS, AVFWREDUSUMVS,
 		AVSLIDEUPVX, AVSLIDEDOWNVX, AVSLIDE1UPVX, AVFSLIDE1UPVF, AVSLIDE1DOWNVX, AVFSLIDE1DOWNVF,
-		AVRGATHERVV, AVRGATHEREI16VV, AVRGATHERVX:
+		AVRGATHERVV, AVRGATHEREI16VV, AVRGATHERVX,
+		AVANDNVV, AVANDNVX, AVROLVV, AVROLVX, AVRORVV, AVRORVX,
+		AVWSLLVV, AVWSLLVX, AVCLMULVV, AVCLMULVX, AVCLMULHVV, AVCLMULHVX:
 		// Set mask bit
 		switch {
 		case ins.rs3 == obj.REG_NONE:
@@ -4780,7 +4806,8 @@ func instructionsForProg(p *obj.Prog, compress bool) []*instruction {
 		ins.rd, ins.rs1, ins.rs2, ins.rs3 = uint32(p.To.Reg), uint32(p.Reg), uint32(p.From.Reg), obj.REG_NONE
 
 	case AVADDVI, AVRSUBVI, AVANDVI, AVORVI, AVXORVI, AVMSEQVI, AVMSNEVI, AVMSLEUVI, AVMSLEVI, AVMSGTUVI, AVMSGTVI,
-		AVSLLVI, AVSRLVI, AVSRAVI, AVNSRLWI, AVNSRAWI, AVRGATHERVI, AVSLIDEUPVI, AVSLIDEDOWNVI:
+		AVSLLVI, AVSRLVI, AVSRAVI, AVNSRLWI, AVNSRAWI, AVRGATHERVI, AVSLIDEUPVI, AVSLIDEDOWNVI,
+		AVRORVI, AVWSLLVI:
 		// Set mask bit
 		switch {
 		case ins.rs3 == obj.REG_NONE:
@@ -4790,10 +4817,13 @@ func instructionsForProg(p *obj.Prog, compress bool) []*instruction {
 		}
 		ins.rd, ins.rs1, ins.rs2, ins.rs3 = uint32(p.To.Reg), obj.REG_NONE, uint32(p.Reg), obj.REG_NONE
 
-	case AVZEXTVF2, AVSEXTVF2, AVZEXTVF4, AVSEXTVF4, AVZEXTVF8, AVSEXTVF8, AVFSQRTV, AVFRSQRT7V, AVFREC7V, AVFCLASSV,
+	case AVZEXTVF2, AVSEXTVF2, AVZEXTVF4, AVSEXTVF4, AVZEXTVF8, AVSEXTVF8,
+		AVFSQRTV, AVFRSQRT7V, AVFREC7V, AVFCLASSV,
 		AVFCVTXUFV, AVFCVTXFV, AVFCVTRTZXUFV, AVFCVTRTZXFV, AVFCVTFXUV, AVFCVTFXV,
-		AVFWCVTXUFV, AVFWCVTXFV, AVFWCVTRTZXUFV, AVFWCVTRTZXFV, AVFWCVTFXUV, AVFWCVTFXV, AVFWCVTFFV,
-		AVFNCVTXUFW, AVFNCVTXFW, AVFNCVTRTZXUFW, AVFNCVTRTZXFW, AVFNCVTFXUW, AVFNCVTFXW, AVFNCVTFFW, AVFNCVTRODFFW:
+		AVFWCVTXUFV, AVFWCVTXFV, AVFWCVTRTZXUFV, AVFWCVTRTZXFV, AVFWCVTFXUV, AVFWCVTFXV,
+		AVFWCVTFFV, AVFNCVTXUFW, AVFNCVTXFW, AVFNCVTRTZXUFW, AVFNCVTRTZXFW, AVFNCVTFXUW,
+		AVFNCVTFXW, AVFNCVTFFW, AVFNCVTRODFFW,
+		AVBREVV, AVBREV8V, AVREV8V, AVCLZV, AVCTZV, AVCPOPV:
 		// Set mask bit
 		switch {
 		case ins.rs1 == obj.REG_NONE:

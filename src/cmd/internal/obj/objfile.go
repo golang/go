@@ -371,9 +371,7 @@ func (w *writer) Sym(s *LSym) {
 	if s.IsPkgInit() {
 		flag2 |= goobj.SymFlagPkgInit
 	}
-	if s.IsLinkname() || (w.ctxt.IsAsm && name != "") || name == "main.main" {
-		// Assembly reference is treated the same as linkname,
-		// but not for unnamed (aux) symbols.
+	if s.IsLinkname() || name == "main.main" {
 		// The runtime linknames main.main.
 		flag2 |= goobj.SymFlagLinkname
 	}

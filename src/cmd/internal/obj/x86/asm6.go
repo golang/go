@@ -484,8 +484,7 @@ var ymovq = []ytab{
 	// valid only in 64-bit mode, usually with 64-bit prefix
 	{Zr_m, 1, argList{Yrl, Yml}},      // 0x89
 	{Zm_r, 1, argList{Yml, Yrl}},      // 0x8b
-	{Zilo_m, 2, argList{Ys32, Yrl}},   // 32 bit signed 0xc7,(0)
-	{Ziq_rp, 1, argList{Yi64, Yrl}},   // 0xb8 -- 32/64 bit immediate
+	{Ziq_rp, 1, argList{Yi64, Yrl}},   // 0xb8 -- 32/64 bit immediate (Ziq_rp picks 5/7/10-byte form)
 	{Zilo_m, 2, argList{Yi32, Yml}},   // 0xc7,(0)
 	{Zm_r_xm, 1, argList{Ymm, Ymr}},   // 0x6e MMX MOVD
 	{Zr_m_xm, 1, argList{Ymr, Ymm}},   // 0x7e MMX MOVD
@@ -1225,7 +1224,7 @@ var optab =
 	{AMOVNTPD, yxr_ml, Pe, opBytes{0x2b}},
 	{AMOVNTPS, yxr_ml, Pm, opBytes{0x2b}},
 	{AMOVNTQ, ymr_ml, Pm, opBytes{0xe7}},
-	{AMOVQ, ymovq, Pw8, opBytes{0x6f, 0x7f, Pf2, 0xd6, Pf3, 0x7e, Pe, 0xd6, 0x89, 0x8b, 0xc7, 00, 0xb8, 0xc7, 00, 0x6e, 0x7e, Pe, 0x6e, Pe, 0x7e, 0}},
+	{AMOVQ, ymovq, Pw8, opBytes{0x6f, 0x7f, Pf2, 0xd6, Pf3, 0x7e, Pe, 0xd6, 0x89, 0x8b, 0xb8, 0xc7, 00, 0x6e, 0x7e, Pe, 0x6e, Pe, 0x7e, 0}},
 	{AMOVQOZX, ymrxr, Pf3, opBytes{0xd6, 0x7e}},
 	{AMOVSB, ynone, Pb, opBytes{0xa4}},
 	{AMOVSD, yxmov, Pf2, opBytes{0x10, 0x11}},
@@ -2266,7 +2265,16 @@ func instinit(ctxt *obj.Link) {
 
 	switch ctxt.Headtype {
 	case objabi.Hplan9:
+		// _privates is a special symbol on Plan 9 that
+		// points to per–process private data (like TLS area).
+		// See https://9p.io/magic/man2html/2/exec .
+		// The assembler inserts a reference to this symbol
+		// for accessing the G. Mark it as linkname so it is
+		// allowed to access from anywhere. (Would be nice to
+		// mark it external, but we don't have a mechanism for
+		// that.)
 		plan9privates = ctxt.Lookup("_privates")
+		plan9privates.Set(obj.AttrLinkname, true)
 	}
 
 	for i := range avxOptab {

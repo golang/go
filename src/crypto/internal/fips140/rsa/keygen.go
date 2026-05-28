@@ -14,6 +14,13 @@ import (
 
 // GenerateKey generates a new RSA key pair of the given bit size.
 // bits must be at least 32.
+//
+// It follows the process described at c2sp.org/det-keygen, which is compliant
+// with FIPS 186-5, Appendix A.1, IFC Key Pair Generation and FIPS 186-5,
+// Appendix A.1.3, Generation of Random Primes that are Probably Prime.
+// The prime candidates are drawn from rand, which in production will be the
+// global DRBG, while in tests can be an HMAC_DRBG as specified in
+// c2sp.org/det-keygen, to allow using its tests vectors.
 func GenerateKey(rand io.Reader, bits int) (*PrivateKey, error) {
 	if bits < 32 {
 		return nil, errors.New("rsa: key too small")
@@ -61,11 +68,11 @@ func GenerateKey(rand io.Reader, bits int) (*PrivateKey, error) {
 		// However, FIPS 186-5, A.1.1(3) requires computing it as e⁻¹ mod λ(N)
 		// where λ(N) = lcm(p-1, q-1).
 		//
-		// This makes d smaller by 1.5 bits on average, which is irrelevant both
+		// This makes d smaller by 1.82 bits on average, which is irrelevant both
 		// because we exclusively use the CRT for private operations and because
 		// we use constant time windowed exponentiation. On the other hand, it
-		// requires computing a GCD of two values that are not coprime, and then
-		// a division, both complex variable-time operations.
+		// requires computing a GCD of two even numbers, and then a division,
+		// both complex variable-time operations.
 		λ, err := totient(P, Q)
 		if err == errDivisorTooLarge {
 			// The divisor is too large, try again with different primes.
@@ -84,7 +91,7 @@ func GenerateKey(rand io.Reader, bits int) (*PrivateKey, error) {
 			//
 			// We waste a prime by retrying the whole process, since 65537 is
 			// probably only a factor of one of p-1 or q-1, but the probability
-			// of this check failing is only 1/65537, so it doesn't matter.
+			// of this check failing is ≈ 2⁻¹⁵, so it doesn't matter.
 			continue
 		}
 
@@ -97,9 +104,9 @@ func GenerateKey(rand io.Reader, bits int) (*PrivateKey, error) {
 		// The probability of this check failing when d is derived from
 		// (e, p, q) is roughly
 		//
-		//   2^(nlen/2) / 2^nlen = 2^(-nlen/2)
+		//   2^(nlen/2) / λ(N) ≈ 2^(-nlen/2 + 1.82)
 		//
-		// so less than 2⁻¹²⁸ for keys larger than 256 bits.
+		// so less than 2⁻¹²⁶ for keys larger than 256 bits.
 		//
 		// We still need to check to comply with FIPS 186-5, but knowing it has
 		// negligible chance of failure we can defer the check to the end of key
@@ -134,20 +141,27 @@ func GenerateKey(rand io.Reader, bits int) (*PrivateKey, error) {
 var errDivisorTooLarge = errors.New("divisor too large")
 
 // totient computes the Carmichael totient function λ(N) = lcm(p-1, q-1).
+//
+// p and q must be primes congruent to 7 mod 8, so that p-1 and q-1 are both
+// even but not divisible by 4.
+//
+// totient returns errDivisorTooLarge if GCD(p-1, q-1) is larger than 2³²-1.
 func totient(p, q *bigmod.Modulus) (*bigmod.Modulus, error) {
 	a, b := p.Nat().SubOne(p), q.Nat().SubOne(q)
+	if a.IsOdd() == 1 || b.IsOdd() == 1 {
+		return nil, errors.New("rsa: internal error: p and q must be 7 mod 8")
+	}
 
 	// lcm(a, b) = a×b / gcd(a, b) = a × (b / gcd(a, b))
 
-	// Our GCD requires at least one of the numbers to be odd. For LCM we only
-	// need to preserve the larger prime power of each prime factor, so we can
-	// right-shift the number with the fewest trailing zeros until it's odd.
-	// For odd a, b and m >= n, lcm(a×2ᵐ, b×2ⁿ) = lcm(a×2ᵐ, b).
-	az, bz := a.TrailingZeroBitsVarTime(), b.TrailingZeroBitsVarTime()
-	if az < bz {
-		a = a.ShiftRightVarTime(az)
-	} else {
-		b = b.ShiftRightVarTime(bz)
+	// Our GCD requires at least one of the numbers to be odd.
+	// We know that a / 2 and b / 2 are odd because p and q are 7 mod 8.
+	// For LCM we only need to preserve the larger prime power of each
+	// prime factor, so we can shift out 2 from either of them.
+	// For odd x, y and m >= n, lcm(x×2, y×2) = lcm(x×2, y).
+	b = b.ShiftRightByOne()
+	if b.IsOdd() == 0 {
+		return nil, errors.New("rsa: internal error: p and q must be 7 mod 8")
 	}
 
 	gcd, err := bigmod.NewNat().GCDVarTime(a, b)
@@ -160,10 +174,11 @@ func totient(p, q *bigmod.Modulus) (*bigmod.Modulus, error) {
 
 	// To avoid implementing multiple-precision division, we just try again if
 	// the divisor doesn't fit in a single word. This would have a chance of
-	// 2⁻⁶⁴ on 64-bit platforms, and 2⁻³² on 32-bit platforms, but testing 2⁻⁶⁴
-	// edge cases is impractical, and we'd rather not behave differently on
-	// different platforms, so we reject divisors above 2³²-1.
-	if gcd.BitLenVarTime() > 32 {
+	// ~2⁻⁶⁴ on 64-bit platforms, and ~2⁻³² on 32-bit platforms, but testing
+	// 2⁻⁶⁴ edge cases is impractical, and we'd rather not behave differently on
+	// different platforms, so we reject divisors above 2³²-1. Note that we also
+	// add back the factor of 2 we shifted out above.
+	if gcd.BitLenVarTime()+1 > 32 {
 		return nil, errDivisorTooLarge
 	}
 	if gcd.IsZero() == 1 || gcd.Bits()[0] == 0 {
@@ -205,8 +220,10 @@ func randomPrime(rand io.Reader, bits int) ([]byte, error) {
 			b[1] |= 0b1000_0000
 		}
 
-		// Make the value odd since an even number certainly isn't prime.
-		b[len(b)-1] |= 1
+		// Set the three least significant bits, which makes the value 7 mod 8
+		// (steps 4.3 and 5.3). Even numbers are not prime, and an odd
+		// (p - 1) / 2 simplifies [millerRabinIteration] and the GCD in [totient].
+		b[len(b)-1] |= 0b0000_0111
 
 		// We don't need to check for p >= √2 × 2^(bits-1) (steps 4.4 and 5.4)
 		// because we set the top two bits above, so
@@ -233,7 +250,7 @@ func randomPrime(rand io.Reader, bits int) ([]byte, error) {
 // isPrime runs the Miller-Rabin Probabilistic Primality Test from
 // FIPS 186-5, Appendix B.3.1.
 //
-// w must be a random odd integer greater than three in big-endian order.
+// w must be a random integer equal to 3 mod 4 in big-endian order.
 // isPrime might return false positives for adversarially chosen values.
 //
 // isPrime is not constant-time.
@@ -339,35 +356,32 @@ var primes = []uint{
 
 type millerRabin struct {
 	w *bigmod.Modulus
-	a uint
 	m []byte
 }
 
 // millerRabinSetup prepares state that's reused across multiple iterations of
 // the Miller-Rabin test.
+//
+// w must be a random integer equal to 3 mod 4 in big-endian order.
 func millerRabinSetup(w []byte) (*millerRabin, error) {
 	mr := &millerRabin{}
 
-	// Check that w is odd, and precompute Montgomery parameters.
+	// Check that w is 3 mod 4, and precompute Montgomery parameters.
+	if len(w) == 0 || w[len(w)-1]&0b11 != 0b11 {
+		return nil, errors.New("candidate is not 3 mod 4")
+	}
 	wm, err := bigmod.NewModulus(w)
 	if err != nil {
 		return nil, err
 	}
-	if wm.Nat().IsOdd() == 0 {
-		return nil, errors.New("candidate is even")
-	}
 	mr.w = wm
 
 	// Compute m = (w-1)/2^a, where m is odd.
-	wMinus1 := mr.w.Nat().SubOne(mr.w)
-	if wMinus1.IsZero() == 1 {
-		return nil, errors.New("candidate is one")
-	}
-	mr.a = wMinus1.TrailingZeroBitsVarTime()
+	// Since w is 3 mod 4, a is always 1, so m = (w-1)/2.
+	m := mr.w.Nat().SubOne(mr.w).ShiftRightByOne()
 
 	// Store mr.m as a big-endian byte slice with leading zero bytes removed,
 	// for use with [bigmod.Nat.Exp].
-	m := wMinus1.ShiftRightVarTime(mr.a)
 	mr.m = m.Bytes(mr.w)
 	for mr.m[0] == 0 {
 		mr.m = mr.m[1:]
@@ -397,22 +411,10 @@ func millerRabinIteration(mr *millerRabin, bb []byte) (bool, error) {
 	// If b^(m*2^i) mod w = -1 for some 0 <= i < a, b is a possible prime.
 	// Otherwise b is composite.
 
-	// Start by computing and checking b^m mod w (also the i = 0 case).
+	// Since a = 1 for our w, we only need to check b^m mod w = +/-1.
 	z := bigmod.NewNat().Exp(b, mr.m, mr.w)
 	if z.IsOne() == 1 || z.IsMinusOne(mr.w) == 1 {
 		return millerRabinPOSSIBLYPRIME, nil
-	}
-
-	// Check b^(m*2^i) mod w = -1 for 0 < i < a.
-	for range mr.a - 1 {
-		z.Mul(z, mr.w)
-		if z.IsMinusOne(mr.w) == 1 {
-			return millerRabinPOSSIBLYPRIME, nil
-		}
-		if z.IsOne() == 1 {
-			// Future squaring will not turn z == 1 into -1.
-			break
-		}
 	}
 
 	return millerRabinCOMPOSITE, nil

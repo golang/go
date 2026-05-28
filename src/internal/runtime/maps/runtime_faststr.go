@@ -64,11 +64,13 @@ func (m *Map) getWithoutKeySmallFastStr(typ *abi.MapType, key string) unsafe.Poi
 
 dohash:
 	// This path will cost 1 hash and 1+ε comparisons.
-
+	var hash uintptr
 	// See the related comment in runtime_mapaccess2_fast32
-	// for why we pass local copy of key.
-	k := key
-	hash := StrHash(unsafe.Pointer(&k), m.seed)
+	if memHashAESImplemented && UseAeshash {
+		hash = memHashAES(unsafe.Pointer(unsafe.StringData(key)), m.seed, uintptr(len(key)))
+	} else {
+		hash = memHashFallback(unsafe.Pointer(unsafe.StringData(key)), m.seed, uintptr(len(key)))
+	}
 	h2 := uint8(h2(hash))
 	ctrls = *g.ctrls()
 	slotKey = g.key(typ, 0)
@@ -94,25 +96,18 @@ func longStringQuickEqualityTest(a, b string) bool {
 	if len(a) != len(b) {
 		return false
 	}
-	x, y := stringPtr(a), stringPtr(b)
+	x, y := unsafe.Pointer(unsafe.StringData(a)), unsafe.Pointer(unsafe.StringData(b))
 	// Check first 8 bytes.
 	if *(*[8]byte)(x) != *(*[8]byte)(y) {
 		return false
 	}
 	// Check last 8 bytes.
-	x = unsafe.Pointer(uintptr(x) + uintptr(len(a)) - 8)
-	y = unsafe.Pointer(uintptr(y) + uintptr(len(a)) - 8)
+	x = add(x, uintptr(len(a)-8))
+	y = add(y, uintptr(len(a)-8))
 	if *(*[8]byte)(x) != *(*[8]byte)(y) {
 		return false
 	}
 	return true
-}
-func stringPtr(s string) unsafe.Pointer {
-	type stringStruct struct {
-		ptr unsafe.Pointer
-		len int
-	}
-	return (*stringStruct)(unsafe.Pointer(&s)).ptr
 }
 
 //go:linkname runtime_mapaccess1_faststr runtime.mapaccess1_faststr
@@ -146,10 +141,13 @@ func runtime_mapaccess2_faststr(typ *abi.MapType, m *Map, key string) (unsafe.Po
 		return elem, true
 	}
 
+	var hash uintptr
 	// See the related comment in runtime_mapaccess2_fast32
-	// for why we pass local copy of key.
-	k := key
-	hash := StrHash(unsafe.Pointer(&k), m.seed)
+	if memHashAESImplemented && UseAeshash {
+		hash = memHashAES(unsafe.Pointer(unsafe.StringData(key)), m.seed, uintptr(len(key)))
+	} else {
+		hash = memHashFallback(unsafe.Pointer(unsafe.StringData(key)), m.seed, uintptr(len(key)))
+	}
 
 	// Select table.
 	idx := m.directoryIndex(hash)
@@ -273,10 +271,13 @@ func runtime_mapassign_faststr(typ *abi.MapType, m *Map, key string) unsafe.Poin
 		fatal("concurrent map writes")
 	}
 
+	var hash uintptr
 	// See the related comment in runtime_mapaccess2_fast32
-	// for why we pass local copy of key.
-	k := key
-	hash := StrHash(unsafe.Pointer(&k), m.seed)
+	if memHashAESImplemented && UseAeshash {
+		hash = memHashAES(unsafe.Pointer(unsafe.StringData(key)), m.seed, uintptr(len(key)))
+	} else {
+		hash = memHashFallback(unsafe.Pointer(unsafe.StringData(key)), m.seed, uintptr(len(key)))
+	}
 
 	// Set writing after calling Hasher, since Hasher may panic, in which
 	// case we have not actually done a write.

@@ -53,7 +53,7 @@ func mkbuiltin(w io.Writer) {
 	const pkg = "runtime"
 	fset := token.NewFileSet()
 	path := filepath.Join("..", "..", "compile", "internal", "typecheck", "_builtin", "runtime.go")
-	f, err := parser.ParseFile(fset, path, nil, 0)
+	f, err := parser.ParseFile(fset, path, nil, parser.SkipObjectResolution)
 	if err != nil {
 		log.Fatal(err)
 	}

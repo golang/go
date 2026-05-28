@@ -11,20 +11,14 @@ import (
 
 	"golang.org/x/tools/go/analysis"
 	"golang.org/x/tools/internal/analysis/analyzerutil"
-	"golang.org/x/tools/internal/goplsexport"
 	"golang.org/x/tools/internal/versions"
 )
 
-var plusBuildAnalyzer = &analysis.Analyzer{
+var PlusBuildAnalyzer = &analysis.Analyzer{
 	Name: "plusbuild",
 	Doc:  analyzerutil.MustExtractDoc(doc, "plusbuild"),
 	URL:  "https://pkg.go.dev/golang.org/x/tools/go/analysis/passes/modernize#plusbuild",
 	Run:  plusbuild,
-}
-
-func init() {
-	// Export to gopls until this is a published modernizer.
-	goplsexport.PlusBuildModernizer = plusBuildAnalyzer
 }
 
 func plusbuild(pass *analysis.Pass) (any, error) {

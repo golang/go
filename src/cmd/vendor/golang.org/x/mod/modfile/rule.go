@@ -327,6 +327,7 @@ func parseToFile(file string, data []byte, fix VersionFixer, strict bool) (parse
 }
 
 var GoVersionRE = lazyregexp.New(`^([1-9][0-9]*)\.(0|[1-9][0-9]*)(\.(0|[1-9][0-9]*))?([a-z]+[0-9]+)?$`)
+
 var laxGoVersionRE = lazyregexp.New(`^v?(([1-9][0-9]*)\.(0|[1-9][0-9]*))([^0-9].*)$`)
 
 // Toolchains must be named beginning with `go1`,
@@ -1272,6 +1273,17 @@ func (f *File) SetRequire(req []*Require) {
 // SetRequireSeparateIndirect will split it into a direct-only and indirect-only
 // block. This aids in the transition to separate blocks.
 func (f *File) SetRequireSeparateIndirect(req []*Require) {
+	f.setRequireSeparateIndirect(req, false)
+}
+
+// SetRequireAtMostTwo is like SetRequireSeparateIndirect but it aggressively
+// consolidates all requirements into at most two blocks (one direct, one indirect).
+// It ignores existing blocks and comments when deciding where to place requirements.
+func (f *File) SetRequireAtMostTwo(req []*Require) {
+	f.setRequireSeparateIndirect(req, true)
+}
+
+func (f *File) setRequireSeparateIndirect(req []*Require, simplify bool) {
 	// hasComments returns whether a line or block has comments
 	// other than "indirect".
 	hasComments := func(c Comments) bool {
@@ -1304,6 +1316,17 @@ func (f *File) SetRequireSeparateIndirect(req []*Require) {
 	}
 
 	// Examine existing require lines and blocks.
+	need := make(map[string]*Require)
+	for _, r := range req {
+		need[r.Mod.Path] = r
+	}
+	lineIndirect := make(map[*Line]bool)
+	for _, r := range f.Require {
+		if n := need[r.Mod.Path]; n != nil {
+			lineIndirect[r.Syntax] = n.Indirect
+		}
+	}
+
 	var (
 		// We may insert new requirements into the last uncommented
 		// direct-only and indirect-only blocks. We may also move requirements
@@ -1321,7 +1344,9 @@ func (f *File) SetRequireSeparateIndirect(req []*Require) {
 
 		// Track the block each requirement belongs to (if any) so we can
 		// move them later.
-		lineToBlock = make(map[*Line]*LineBlock)
+		lineToBlock           = make(map[*Line]*LineBlock)
+		directBlockComments   []Comment
+		indirectBlockComments []Comment
 	)
 	for i, stmt := range f.Syntax.Stmt {
 		switch stmt := stmt.(type) {
@@ -1363,6 +1388,24 @@ func (f *File) SetRequireSeparateIndirect(req []*Require) {
 			}
 			if allIndirect {
 				lastIndirectIndex = i
+			}
+			if simplify {
+				anyDirect := false
+				for _, line := range stmt.Line {
+					if ind, ok := lineIndirect[line]; ok && !ind {
+						anyDirect = true
+						break
+					}
+				}
+				target := &directBlockComments
+				if !anyDirect && len(stmt.Line) > 0 {
+					target = &indirectBlockComments
+				}
+				if len(*target) > 0 && len(stmt.Comments.Before) > 0 {
+					*target = append(*target, Comment{Token: "//"})
+				}
+				*target = append(*target, stmt.Comments.Before...)
+				stmt.Comments.Before = nil
 			}
 		}
 	}
@@ -1422,6 +1465,15 @@ func (f *File) SetRequireSeparateIndirect(req []*Require) {
 		lastIndirectBlock = ensureBlock(lastIndirectIndex)
 	}
 
+	if simplify {
+		if len(directBlockComments) > 0 {
+			lastDirectBlock.Comments.Before = append(lastDirectBlock.Comments.Before, directBlockComments...)
+		}
+		if len(indirectBlockComments) > 0 {
+			lastIndirectBlock.Comments.Before = append(lastIndirectBlock.Comments.Before, indirectBlockComments...)
+		}
+	}
+
 	// Delete requirements we don't want anymore.
 	// Update versions and indirect comments on requirements we want to keep.
 	// If a requirement is in last{Direct,Indirect}Block with the wrong
@@ -1430,10 +1482,6 @@ func (f *File) SetRequireSeparateIndirect(req []*Require) {
 	// correct block.
 	//
 	// Some blocks may be empty after this. Cleanup will remove them.
-	need := make(map[string]*Require)
-	for _, r := range req {
-		need[r.Mod.Path] = r
-	}
 	have := make(map[string]*Require)
 	for _, r := range f.Require {
 		path := r.Mod.Path
@@ -1446,10 +1494,10 @@ func (f *File) SetRequireSeparateIndirect(req []*Require) {
 		r.setVersion(need[path].Mod.Version)
 		r.setIndirect(need[path].Indirect)
 		if need[path].Indirect &&
-			(oneFlatUncommentedBlock || lineToBlock[r.Syntax] == lastDirectBlock) {
+			(simplify || oneFlatUncommentedBlock || lineToBlock[r.Syntax] == lastDirectBlock) {
 			moveReq(r, lastIndirectBlock)
 		} else if !need[path].Indirect &&
-			(oneFlatUncommentedBlock || lineToBlock[r.Syntax] == lastIndirectBlock) {
+			(simplify || oneFlatUncommentedBlock || lineToBlock[r.Syntax] == lastIndirectBlock) {
 			moveReq(r, lastDirectBlock)
 		}
 	}
@@ -1736,8 +1784,7 @@ func removeDups(syntax *FileSyntax, exclude *[]*Exclude, replace *[]*Replace, to
 	// Remove duplicate replacements.
 	// Later replacements take priority over earlier ones.
 	haveReplace := make(map[module.Version]bool)
-	for i := len(*replace) - 1; i >= 0; i-- {
-		x := (*replace)[i]
+	for _, x := range slices.Backward(*replace) {
 		if haveReplace[x.Old] {
 			kill[x.Syntax] = true
 			continue

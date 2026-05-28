@@ -66,13 +66,13 @@ func TestRemovePadding(t *testing.T) {
 	}
 }
 
-var certExampleCom = `308201713082011ba003020102021005a75ddf21014d5f417083b7a010ba2e300d06092a864886f70d01010b050030123110300e060355040a130741636d6520436f301e170d3136303831373231343135335a170d3137303831373231343135335a30123110300e060355040a130741636d6520436f305c300d06092a864886f70d0101010500034b003048024100b37f0fdd67e715bf532046ac34acbd8fdc4dabe2b598588f3f58b1f12e6219a16cbfe54d2b4b665396013589262360b6721efa27d546854f17cc9aeec6751db10203010001a34d304b300e0603551d0f0101ff0404030205a030130603551d25040c300a06082b06010505070301300c0603551d130101ff0402300030160603551d11040f300d820b6578616d706c652e636f6d300d06092a864886f70d01010b050003410059fc487866d3d855503c8e064ca32aac5e9babcece89ec597f8b2b24c17867f4a5d3b4ece06e795bfc5448ccbd2ffca1b3433171ebf3557a4737b020565350a0`
-
-var certWildcardExampleCom = `308201743082011ea003020102021100a7aa6297c9416a4633af8bec2958c607300d06092a864886f70d01010b050030123110300e060355040a130741636d6520436f301e170d3136303831373231343231395a170d3137303831373231343231395a30123110300e060355040a130741636d6520436f305c300d06092a864886f70d0101010500034b003048024100b105afc859a711ee864114e7d2d46c2dcbe392d3506249f6c2285b0eb342cc4bf2d803677c61c0abde443f084745c1a6d62080e5664ef2cc8f50ad8a0ab8870b0203010001a34f304d300e0603551d0f0101ff0404030205a030130603551d25040c300a06082b06010505070301300c0603551d130101ff0402300030180603551d110411300f820d2a2e6578616d706c652e636f6d300d06092a864886f70d01010b0500034100af26088584d266e3f6566360cf862c7fecc441484b098b107439543144a2b93f20781988281e108c6d7656934e56950e1e5f2bcf38796b814ccb729445856c34`
-
-var certFooExampleCom = `308201753082011fa00302010202101bbdb6070b0aeffc49008cde74deef29300d06092a864886f70d01010b050030123110300e060355040a130741636d6520436f301e170d3136303831373231343234345a170d3137303831373231343234345a30123110300e060355040a130741636d6520436f305c300d06092a864886f70d0101010500034b003048024100f00ac69d8ca2829f26216c7b50f1d4bbabad58d447706476cd89a2f3e1859943748aa42c15eedc93ac7c49e40d3b05ed645cb6b81c4efba60d961f44211a54eb0203010001a351304f300e0603551d0f0101ff0404030205a030130603551d25040c300a06082b06010505070301300c0603551d130101ff04023000301a0603551d1104133011820f666f6f2e6578616d706c652e636f6d300d06092a864886f70d01010b0500034100a0957fca6d1e0f1ef4b247348c7a8ca092c29c9c0ecc1898ea6b8065d23af6d922a410dd2335a0ea15edd1394cef9f62c9e876a21e35250a0b4fe1ddceba0f36`
-
 func TestCertificateSelection(t *testing.T) {
+	var certExampleCom = `308201713082011ba003020102021005a75ddf21014d5f417083b7a010ba2e300d06092a864886f70d01010b050030123110300e060355040a130741636d6520436f301e170d3136303831373231343135335a170d3137303831373231343135335a30123110300e060355040a130741636d6520436f305c300d06092a864886f70d0101010500034b003048024100b37f0fdd67e715bf532046ac34acbd8fdc4dabe2b598588f3f58b1f12e6219a16cbfe54d2b4b665396013589262360b6721efa27d546854f17cc9aeec6751db10203010001a34d304b300e0603551d0f0101ff0404030205a030130603551d25040c300a06082b06010505070301300c0603551d130101ff0402300030160603551d11040f300d820b6578616d706c652e636f6d300d06092a864886f70d01010b050003410059fc487866d3d855503c8e064ca32aac5e9babcece89ec597f8b2b24c17867f4a5d3b4ece06e795bfc5448ccbd2ffca1b3433171ebf3557a4737b020565350a0`
+
+	var certWildcardExampleCom = `308201743082011ea003020102021100a7aa6297c9416a4633af8bec2958c607300d06092a864886f70d01010b050030123110300e060355040a130741636d6520436f301e170d3136303831373231343231395a170d3137303831373231343231395a30123110300e060355040a130741636d6520436f305c300d06092a864886f70d0101010500034b003048024100b105afc859a711ee864114e7d2d46c2dcbe392d3506249f6c2285b0eb342cc4bf2d803677c61c0abde443f084745c1a6d62080e5664ef2cc8f50ad8a0ab8870b0203010001a34f304d300e0603551d0f0101ff0404030205a030130603551d25040c300a06082b06010505070301300c0603551d130101ff0402300030180603551d110411300f820d2a2e6578616d706c652e636f6d300d06092a864886f70d01010b0500034100af26088584d266e3f6566360cf862c7fecc441484b098b107439543144a2b93f20781988281e108c6d7656934e56950e1e5f2bcf38796b814ccb729445856c34`
+
+	var certFooExampleCom = `308201753082011fa00302010202101bbdb6070b0aeffc49008cde74deef29300d06092a864886f70d01010b050030123110300e060355040a130741636d6520436f301e170d3136303831373231343234345a170d3137303831373231343234345a30123110300e060355040a130741636d6520436f305c300d06092a864886f70d0101010500034b003048024100f00ac69d8ca2829f26216c7b50f1d4bbabad58d447706476cd89a2f3e1859943748aa42c15eedc93ac7c49e40d3b05ed645cb6b81c4efba60d961f44211a54eb0203010001a351304f300e0603551d0f0101ff0404030205a030130603551d25040c300a06082b06010505070301300c0603551d130101ff04023000301a0603551d1104133011820f666f6f2e6578616d706c652e636f6d300d06092a864886f70d01010b0500034100a0957fca6d1e0f1ef4b247348c7a8ca092c29c9c0ecc1898ea6b8065d23af6d922a410dd2335a0ea15edd1394cef9f62c9e876a21e35250a0b4fe1ddceba0f36`
+
 	config := Config{
 		Certificates: []Certificate{
 			{
@@ -124,13 +124,49 @@ func TestCertificateSelection(t *testing.T) {
 	}
 }
 
+// TestBrokenCertificateSkipped checks that a Certificate in Config.Certificates
+// whose leaf doesn't parse as X.509 doesn't prevent the next, valid certificate
+// from being selected. It exercises both the legacy BuildNameToCertificate path
+// and the SupportsCertificate-based selection.
+func TestBrokenCertificateSkipped(t *testing.T) {
+	brokenCert := Certificate{Certificate: [][]byte{[]byte("not a valid X.509 certificate")}}
+	for _, test := range []struct {
+		name       string
+		buildIndex bool
+	}{
+		{name: "BuildNameToCertificate", buildIndex: true},
+		{name: "SupportsCertificate", buildIndex: false},
+	} {
+		t.Run(test.name, func(t *testing.T) {
+			serverConfig := testConfigServer.Clone()
+			serverConfig.Certificates = []Certificate{brokenCert, testECDSAP256Cert}
+			if test.buildIndex {
+				serverConfig.BuildNameToCertificate()
+			}
+			clientConfig := testConfigClient.Clone()
+			_, cs, err := testHandshake(t, clientConfig, serverConfig)
+			if err != nil {
+				t.Fatalf("handshake failed: %v", err)
+			}
+			if !cs.PeerCertificates[0].Equal(testECDSAP256Cert.Leaf) {
+				t.Fatalf("handshake succeeded but wrong certificate was used")
+			}
+		})
+	}
+}
+
 // Run with multiple crypto configs to test the logic for computing TLS record overheads.
-func runDynamicRecordSizingTest(t *testing.T, config *Config) {
+func runDynamicRecordSizingTest(t *testing.T, serverConfig *Config) {
 	clientConn, serverConn := localPipe(t)
 
-	serverConfig := config.Clone()
+	serverConfig = serverConfig.Clone()
 	serverConfig.DynamicRecordSizingDisabled = false
 	tlsConn := Server(serverConn, serverConfig)
+
+	clientConfig := testConfigClient.Clone()
+	clientConfig.MinVersion = serverConfig.MinVersion
+	clientConfig.MaxVersion = serverConfig.MaxVersion
+	clientConfig.CipherSuites = serverConfig.CipherSuites
 
 	handshakeDone := make(chan struct{})
 	recordSizesChan := make(chan []int, 1)
@@ -142,7 +178,7 @@ func runDynamicRecordSizingTest(t *testing.T, config *Config) {
 		defer close(recordSizesChan)
 		defer clientConn.Close()
 
-		tlsConn := Client(clientConn, config)
+		tlsConn := Client(clientConn, clientConfig)
 		if err := tlsConn.Handshake(); err != nil {
 			t.Errorf("Error from client handshake: %v", err)
 			return
@@ -232,7 +268,7 @@ func runDynamicRecordSizingTest(t *testing.T, config *Config) {
 func TestDynamicRecordSizingWithStreamCipher(t *testing.T) {
 	skipFIPS(t) // No RC4 in FIPS mode.
 
-	config := testConfig.Clone()
+	config := testConfigServer.Clone()
 	config.MaxVersion = VersionTLS12
 	config.CipherSuites = []uint16{TLS_RSA_WITH_RC4_128_SHA}
 	runDynamicRecordSizingTest(t, config)
@@ -241,21 +277,21 @@ func TestDynamicRecordSizingWithStreamCipher(t *testing.T) {
 func TestDynamicRecordSizingWithCBC(t *testing.T) {
 	skipFIPS(t) // No CBC cipher suites in defaultCipherSuitesFIPS.
 
-	config := testConfig.Clone()
+	config := testConfigServer.Clone()
 	config.MaxVersion = VersionTLS12
 	config.CipherSuites = []uint16{TLS_RSA_WITH_AES_256_CBC_SHA}
 	runDynamicRecordSizingTest(t, config)
 }
 
 func TestDynamicRecordSizingWithAEAD(t *testing.T) {
-	config := testConfig.Clone()
+	config := testConfigServer.Clone()
 	config.MaxVersion = VersionTLS12
 	config.CipherSuites = []uint16{TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256}
 	runDynamicRecordSizingTest(t, config)
 }
 
 func TestDynamicRecordSizingWithTLSv13(t *testing.T) {
-	config := testConfig.Clone()
+	config := testConfigServer.Clone()
 	runDynamicRecordSizingTest(t, config)
 }
 
@@ -295,11 +331,13 @@ func TestRecordBadVersionTLS13(t *testing.T) {
 	defer server.Close()
 	defer client.Close()
 
-	config := testConfig.Clone()
-	config.MinVersion, config.MaxVersion = VersionTLS13, VersionTLS13
+	clientConfig := testConfigClient.Clone()
+	clientConfig.MinVersion, clientConfig.MaxVersion = VersionTLS13, VersionTLS13
+	serverConfig := testConfigServer.Clone()
+	serverConfig.MinVersion, serverConfig.MaxVersion = VersionTLS13, VersionTLS13
 
 	go func() {
-		tlsConn := Client(client, config)
+		tlsConn := Client(client, clientConfig)
 		if err := tlsConn.Handshake(); err != nil {
 			t.Errorf("Error from client handshake: %v", err)
 			return
@@ -308,7 +346,7 @@ func TestRecordBadVersionTLS13(t *testing.T) {
 		tlsConn.Write([]byte{1})
 	}()
 
-	tlsConn := Server(server, config)
+	tlsConn := Server(server, serverConfig)
 	if err := tlsConn.Handshake(); err != nil {
 		t.Errorf("Error from client handshake: %v", err)
 		return

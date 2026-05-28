@@ -6,7 +6,10 @@
 
 package codegen
 
-import "crypto/subtle"
+import (
+	"crypto/subtle"
+	"math/bits"
+)
 
 func cmovint(c int) int {
 	x := c + 4
@@ -807,4 +810,34 @@ func constantTimeSelect(v, x, y int) int {
 	// riscv64/rva20u64,riscv64/rva22u64:"SNEZ" "NEG" "AND" "OR"
 	// riscv64/rva23u64:"CZERONEZ" "CZEROEQZ" "OR" -"SNEZ" -"NEG" -"AND"
 	return subtle.ConstantTimeSelect(v, x, y)
+}
+
+func issue76056fieldReduceOnceSub32(a uint32) uint32 {
+	const q = 8380417 // 2²³ - 2¹³ + 1
+	// FIXME: the compiler struggles with Sub32 since it's not intriscified.
+	x, b := bits.Sub32(a, q, 0)
+	// FIXME: prove doesn't rewrite this multiply to a condselect because it doesn't know that b is always 0 or 1.
+	return x + b*q
+}
+
+func issue76056fieldReduceOnce2Sub32(a uint32) uint32 {
+	const q = 8380417 // 2²³ - 2¹³ + 1
+	// FIXME: the compiler struggles with Sub32 since it's not intriscified.
+	x, b := bits.Sub32(a, q, 0)
+	return uint32(subtle.ConstantTimeSelect(int(b), int(a), int(x)))
+}
+
+func issue76056fieldReduceOnceSub64(a uint32) uint32 {
+	const q = 8380417 // 2²³ - 2¹³ + 1
+	x, b := bits.Sub64(uint64(a), q, 0)
+	// FIXME: prove doesn't rewrite this multiply to a condselect because it doesn't know that b is always 0 or 1.
+	return uint32(x) + uint32(b)*q
+}
+
+func issue76056fieldReduceOnce2Sub64(a uint32) uint32 {
+	const q = 8380417 // 2²³ - 2¹³ + 1
+	// amd64:"SUB" -"TEST" -"SBB"
+	x, b := bits.Sub64(uint64(a), q, 0)
+	// amd64:"CMOV" -"TEST" -"SBB"
+	return uint32(subtle.ConstantTimeSelect(int(b), int(a), int(x)))
 }

@@ -95,7 +95,7 @@ func TestCode(t *testing.T) {
 			t.Fatalf("can't read testdata/%s: %v", f.Name(), err)
 		}
 		fset := token.NewFileSet()
-		code, err := parser.ParseFile(fset, f.Name(), text, 0)
+		code, err := parser.ParseFile(fset, f.Name(), text, parser.SkipObjectResolution)
 		if err != nil {
 			t.Fatalf("can't parse testdata/%s: %v", f.Name(), err)
 		}

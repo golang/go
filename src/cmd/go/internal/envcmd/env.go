@@ -83,7 +83,6 @@ func MkEnv() []cfg.EnvVar {
 		{Name: "GO111MODULE", Value: cfg.Getenv("GO111MODULE")},
 		{Name: "GOARCH", Value: cfg.Goarch, Changed: cfg.Goarch != runtime.GOARCH},
 		{Name: "GOAUTH", Value: cfg.GOAUTH, Changed: cfg.GOAUTHChanged},
-		{Name: "GOBIN", Value: cfg.GOBIN},
 		{Name: "GOCACHE"},
 		{Name: "GOCACHEPROG", Value: cfg.GOCACHEPROG, Changed: cfg.GOCACHEPROGChanged},
 		{Name: "GODEBUG", Value: os.Getenv("GODEBUG")},
@@ -106,6 +105,13 @@ func MkEnv() []cfg.EnvVar {
 		{Name: "GONOPROXY", Value: cfg.GONOPROXY, Changed: cfg.GONOPROXYChanged},
 		{Name: "GONOSUMDB", Value: cfg.GONOSUMDB, Changed: cfg.GONOSUMDBChanged},
 		{Name: "GOOS", Value: cfg.Goos, Changed: cfg.Goos != runtime.GOOS},
+
+		// GOPACKAGESDRIVER isn't read or used by cmd/go, so it can only
+		// be sourced from environment variables.
+		// We include it for bug reports.
+		// go.dev/issue/75930
+		{Name: "GOPACKAGESDRIVER", Value: os.Getenv("GOPACKAGESDRIVER")},
+
 		{Name: "GOPATH", Value: cfg.BuildContext.GOPATH, Changed: cfg.GOPATHChanged},
 		{Name: "GOPRIVATE", Value: cfg.GOPRIVATE},
 		{Name: "GOPROXY", Value: cfg.GOPROXY, Changed: cfg.GOPROXYChanged},
@@ -126,7 +132,7 @@ func MkEnv() []cfg.EnvVar {
 			if env[i].Value != "on" && env[i].Value != "" {
 				env[i].Changed = true
 			}
-		case "GOBIN", "GOEXPERIMENT", "GOFLAGS", "GOINSECURE", "GOPRIVATE", "GOTMPDIR", "GOVCS":
+		case "GOEXPERIMENT", "GOFLAGS", "GOINSECURE", "GOPACKAGESDRIVER", "GOPRIVATE", "GOTMPDIR", "GOVCS":
 			if env[i].Value != "" {
 				env[i].Changed = true
 			}
@@ -203,9 +209,30 @@ func ExtraEnvVars(ld *modload.Loader) []cfg.EnvVar {
 	if cfg.Getenv("GOWORK") == "off" {
 		gowork = "off"
 	}
+	gobin := cfg.GOBIN
+	if gobin == "" && cfg.ModulesEnabled {
+		gobin = modload.BinDir(ld)
+	} else if gobin == "" {
+		// Best effort guess of where the binary will be installed.
+		// go.dev/issue/23439
+		gopaths := filepath.SplitList(cfg.BuildContext.GOPATH)
+		wd, err := os.Getwd()
+		if err == nil && len(gopaths) > 0 {
+			gopath := gopaths[0]
+			for _, p := range gopaths {
+				if strings.HasPrefix(wd, p) {
+					gopath = p
+					break
+				}
+			}
+			gobin = filepath.Join(gopath, "bin")
+		}
+	}
+
 	return []cfg.EnvVar{
 		{Name: "GOMOD", Value: gomod},
 		{Name: "GOWORK", Value: gowork},
+		{Name: "GOBIN", Value: gobin, Changed: cfg.GOBINChanged},
 	}
 }
 

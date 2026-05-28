@@ -175,6 +175,10 @@ type pragmas struct {
 	WasmExport *WasmExport
 }
 
+func (p *pragmas) Nointerface() bool {
+	return p.Flag&ir.Nointerface != 0
+}
+
 // WasmImport stores metadata associated with the //go:wasmimport pragma
 type WasmImport struct {
 	Pos    syntax.Pos

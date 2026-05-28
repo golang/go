@@ -1989,8 +1989,10 @@ func UpdateGoModFromReqs(ld *Loader, ctx context.Context, opts WriteOpts) (befor
 	// Update require blocks.
 	if gover.Compare(goVersion, gover.SeparateIndirectVersion) < 0 {
 		modFile.SetRequire(list)
-	} else {
+	} else if gover.Compare(goVersion, gover.SimplifyRequireVersion) < 0 {
 		modFile.SetRequireSeparateIndirect(list)
+	} else {
+		modFile.SetRequireAtMostTwo(list)
 	}
 	modFile.Cleanup()
 	after, err = modFile.Format()

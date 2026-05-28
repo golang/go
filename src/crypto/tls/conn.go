@@ -15,7 +15,6 @@ import (
 	"errors"
 	"fmt"
 	"hash"
-	"internal/godebug"
 	"io"
 	"net"
 	"sync"
@@ -1610,8 +1609,6 @@ func (c *Conn) ConnectionState() ConnectionState {
 	return c.connectionStateLocked()
 }
 
-var tlsunsafeekm = godebug.New("tlsunsafeekm")
-
 func (c *Conn) connectionStateLocked() ConnectionState {
 	var state ConnectionState
 	state.HandshakeComplete = c.isHandshakeComplete.Load()
@@ -1638,13 +1635,7 @@ func (c *Conn) connectionStateLocked() ConnectionState {
 	if c.config.Renegotiation != RenegotiateNever {
 		state.ekm = noEKMBecauseRenegotiation
 	} else if c.vers != VersionTLS13 && !c.extMasterSecret {
-		state.ekm = func(label string, context []byte, length int) ([]byte, error) {
-			if tlsunsafeekm.Value() == "1" {
-				tlsunsafeekm.IncNonDefault()
-				return c.ekm(label, context, length)
-			}
-			return noEKMBecauseNoEMS(label, context, length)
-		}
+		state.ekm = noEKMBecauseNoEMS
 	} else {
 		state.ekm = c.ekm
 	}

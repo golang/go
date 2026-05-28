@@ -280,6 +280,10 @@ func makeABIWrapper(f *ir.Func, wrapperABI obj.ABI) {
 	fn.SetABIWrapper(true)
 	fn.SetDupok(true)
 
+	// Propagate linkname attribute.
+	fn.LinksymABI(fn.ABI).Set(obj.AttrLinkname, f.Linksym().IsLinkname())
+	fn.LinksymABI(fn.ABI).Set(obj.AttrLinknameStd, f.Linksym().IsLinknameStd())
+
 	// ABI0-to-ABIInternal wrappers will be mainly loading params from
 	// stack into registers (and/or storing stack locations back to
 	// registers after the wrapped call); in most cases they won't
@@ -317,7 +321,7 @@ func makeABIWrapper(f *ir.Func, wrapperABI obj.ABI) {
 	// extra work in typecheck/walk/ssa, might want to add a new node
 	// OTAILCALL or something to this effect.
 	tailcall := fn.Type().NumResults() == 0 && fn.Type().NumParams() == 0 && fn.Type().NumRecvs() == 0
-	if base.Ctxt.Arch.Name == "ppc64le" && base.Ctxt.Flag_dynlink {
+	if (base.Ctxt.Arch.Name == "ppc64le" || base.Ctxt.Arch.Name == "ppc64") && base.Ctxt.Flag_dynlink {
 		// cannot tailcall on PPC64 with dynamic linking, as we need
 		// to restore R2 after call.
 		tailcall = false
@@ -432,33 +436,37 @@ func paramsToWasmFields(f *ir.Func, pragma string, result *abi.ABIParamResultInf
 	for _, p := range abiParams {
 		t := p.Type
 		var wt obj.WasmFieldType
-		switch t.Kind() {
-		case types.TINT32, types.TUINT32:
-			wt = obj.WasmI32
-		case types.TINT64, types.TUINT64:
-			wt = obj.WasmI64
-		case types.TFLOAT32:
-			wt = obj.WasmF32
-		case types.TFLOAT64:
-			wt = obj.WasmF64
-		case types.TUNSAFEPTR, types.TUINTPTR:
-			wt = obj.WasmPtr
-		case types.TBOOL:
-			wt = obj.WasmBool
-		case types.TSTRING:
-			// Two parts, (ptr, len)
-			wt = obj.WasmPtr
-			wfs = append(wfs, obj.WasmField{Type: wt, Offset: p.FrameOffset(result)})
-			wfs = append(wfs, obj.WasmField{Type: wt, Offset: p.FrameOffset(result) + int64(types.PtrSize)})
-			continue
-		case types.TPTR:
-			if wasmElemTypeAllowed(t.Elem()) {
+		if t.IsSIMD() {
+			wt = obj.WasmV128
+		} else {
+			switch t.Kind() {
+			case types.TINT32, types.TUINT32:
+				wt = obj.WasmI32
+			case types.TINT64, types.TUINT64:
+				wt = obj.WasmI64
+			case types.TFLOAT32:
+				wt = obj.WasmF32
+			case types.TFLOAT64:
+				wt = obj.WasmF64
+			case types.TUNSAFEPTR, types.TUINTPTR:
 				wt = obj.WasmPtr
-				break
+			case types.TBOOL:
+				wt = obj.WasmBool
+			case types.TSTRING:
+				// Two parts, (ptr, len)
+				wt = obj.WasmPtr
+				wfs = append(wfs, obj.WasmField{Type: wt, Offset: p.FrameOffset(result)})
+				wfs = append(wfs, obj.WasmField{Type: wt, Offset: p.FrameOffset(result) + int64(types.PtrSize)})
+				continue
+			case types.TPTR:
+				if wasmElemTypeAllowed(t.Elem()) {
+					wt = obj.WasmPtr
+					break
+				}
+				fallthrough
+			default:
+				base.ErrorfAt(f.Pos(), 0, "%s: unsupported parameter type %s", pragma, t.String())
 			}
-			fallthrough
-		default:
-			base.ErrorfAt(f.Pos(), 0, "%s: unsupported parameter type %s", pragma, t.String())
 		}
 		wfs = append(wfs, obj.WasmField{Type: wt, Offset: p.FrameOffset(result)})
 	}
@@ -473,27 +481,31 @@ func resultsToWasmFields(f *ir.Func, pragma string, result *abi.ABIParamResultIn
 	wfs := make([]obj.WasmField, len(abiParams))
 	for i, p := range abiParams {
 		t := p.Type
-		switch t.Kind() {
-		case types.TINT32, types.TUINT32:
-			wfs[i].Type = obj.WasmI32
-		case types.TINT64, types.TUINT64:
-			wfs[i].Type = obj.WasmI64
-		case types.TFLOAT32:
-			wfs[i].Type = obj.WasmF32
-		case types.TFLOAT64:
-			wfs[i].Type = obj.WasmF64
-		case types.TUNSAFEPTR, types.TUINTPTR:
-			wfs[i].Type = obj.WasmPtr
-		case types.TBOOL:
-			wfs[i].Type = obj.WasmBool
-		case types.TPTR:
-			if wasmElemTypeAllowed(t.Elem()) {
+		if t.IsSIMD() {
+			wfs[i].Type = obj.WasmV128
+		} else {
+			switch t.Kind() {
+			case types.TINT32, types.TUINT32:
+				wfs[i].Type = obj.WasmI32
+			case types.TINT64, types.TUINT64:
+				wfs[i].Type = obj.WasmI64
+			case types.TFLOAT32:
+				wfs[i].Type = obj.WasmF32
+			case types.TFLOAT64:
+				wfs[i].Type = obj.WasmF64
+			case types.TUNSAFEPTR, types.TUINTPTR:
 				wfs[i].Type = obj.WasmPtr
-				break
+			case types.TBOOL:
+				wfs[i].Type = obj.WasmBool
+			case types.TPTR:
+				if wasmElemTypeAllowed(t.Elem()) {
+					wfs[i].Type = obj.WasmPtr
+					break
+				}
+				fallthrough
+			default:
+				base.ErrorfAt(f.Pos(), 0, "%s: unsupported result type %s", pragma, t.String())
 			}
-			fallthrough
-		default:
-			base.ErrorfAt(f.Pos(), 0, "%s: unsupported result type %s", pragma, t.String())
 		}
 		wfs[i].Offset = p.FrameOffset(result)
 	}

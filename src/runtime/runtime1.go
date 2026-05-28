@@ -348,16 +348,6 @@ var debug struct {
 
 	panicnil atomic.Int32
 
-	// asynctimerchan controls whether timer channels
-	// behave asynchronously (as in Go 1.22 and earlier)
-	// instead of their Go 1.23+ synchronous behavior.
-	// The value can change at any time (in response to os.Setenv("GODEBUG"))
-	// and affects all extant timer channels immediately.
-	// Programs wouldn't normally change over an execution,
-	// but allowing it is convenient for testing and for programs
-	// that do an os.Setenv in main.init or main.main.
-	asynctimerchan atomic.Int32
-
 	// tracebacklabels controls the inclusion of goroutine labels in the
 	// goroutine status header line.
 	tracebacklabels atomic.Int32
@@ -366,7 +356,6 @@ var debug struct {
 var dbgvars = []*dbgVar{
 	{name: "adaptivestackstart", value: &debug.adaptivestackstart},
 	{name: "asyncpreemptoff", value: &debug.asyncpreemptoff},
-	{name: "asynctimerchan", atomic: &debug.asynctimerchan},
 	{name: "cgocheck", value: &debug.cgocheck},
 	{name: "clobberfree", value: &debug.clobberfree},
 	{name: "containermaxprocs", value: &debug.containermaxprocs, def: 1},
@@ -655,7 +644,7 @@ func reflect_typelinks() ([]unsafe.Pointer, [][]int32) {
 // slice for the main module, and a slice of slices, normally nil,
 // for other modules.
 //
-//go:linkname reflect_compiledTypelinks reflect.compiledTypelinks
+//go:linknamestd reflect_compiledTypelinks reflect.compiledTypelinks
 func reflect_compiledTypelinks() ([]*abi.Type, [][]*abi.Type) {
 	modules := activeModules()
 	firstTypes := moduleTypelinks(modules[0])
@@ -753,7 +742,7 @@ func reflect_addReflectOff(ptr unsafe.Pointer) int32 {
 // the new address to use. This is only called on AIX.
 // See getGCMaskOnDemand.
 //
-//go:linkname reflect_adjustAIXGCDataForRuntime reflect.adjustAIXGCDataForRuntime
+//go:linknamestd reflect_adjustAIXGCDataForRuntime reflect.adjustAIXGCDataForRuntime
 func reflect_adjustAIXGCDataForRuntime(addr *byte) *byte {
 	return (*byte)(add(unsafe.Pointer(addr), aixStaticDataBase-firstmoduledata.data))
 }

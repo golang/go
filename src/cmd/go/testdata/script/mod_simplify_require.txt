@@ -1,0 +1,155 @@
+# If go.mod has go 1.27 or higher, multiple require blocks should be
+# consolidated.  Even those with comments.
+
+cp go.mod.127 go.mod
+go mod tidy
+cmp go.mod go.mod.127tidy
+
+# If go.mod has go 1.26, blocks with comments should be preserved.
+cp go.mod.126 go.mod
+go mod tidy
+cmp go.mod go.mod.126tidy
+
+-- go.mod.127 --
+module example.com/m
+
+go 1.27
+
+require example.com/a v1.0.0
+
+// Block comment
+require (
+	example.com/b v1.0.0
+)
+
+// Another block comment
+require (
+	example.com/d v1.0.0 // an inline comment
+  example.com/c v1.0.0 // indirect
+)
+
+// A third block comment
+require (
+  example.com/e v1.0.0 // indirect
+)
+
+replace (
+	example.com/a v1.0.0 => ./a
+	example.com/b v1.0.0 => ./b
+	example.com/c v1.0.0 => ./c
+	example.com/d v1.0.0 => ./d
+	example.com/e v1.0.0 => ./e
+)
+-- go.mod.127tidy --
+module example.com/m
+
+go 1.27
+
+// Block comment
+//
+// Another block comment
+require (
+	example.com/a v1.0.0
+	example.com/b v1.0.0
+	example.com/d v1.0.0 // an inline comment
+)
+
+// A third block comment
+require (
+	example.com/c v1.0.0 // indirect
+	example.com/e v1.0.0 // indirect
+)
+
+replace (
+	example.com/a v1.0.0 => ./a
+	example.com/b v1.0.0 => ./b
+	example.com/c v1.0.0 => ./c
+	example.com/d v1.0.0 => ./d
+	example.com/e v1.0.0 => ./e
+)
+-- go.mod.126 --
+module example.com/m
+
+go 1.26
+
+require example.com/a v1.0.0
+
+// Block comment
+require (
+	example.com/b v1.0.0
+	example.com/d v1.0.0
+)
+
+require example.com/c v1.0.0 // indirect
+
+replace (
+	example.com/a v1.0.0 => ./a
+	example.com/b v1.0.0 => ./b
+	example.com/c v1.0.0 => ./c
+	example.com/d v1.0.0 => ./d
+	example.com/e v1.0.0 => ./e
+)
+-- go.mod.126tidy --
+module example.com/m
+
+go 1.26
+
+require example.com/a v1.0.0
+
+// Block comment
+require (
+	example.com/b v1.0.0
+	example.com/d v1.0.0
+)
+
+require (
+	example.com/c v1.0.0 // indirect
+	example.com/e v1.0.0 // indirect
+)
+
+replace (
+	example.com/a v1.0.0 => ./a
+	example.com/b v1.0.0 => ./b
+	example.com/c v1.0.0 => ./c
+	example.com/d v1.0.0 => ./d
+	example.com/e v1.0.0 => ./e
+)
+-- m.go --
+package m
+import _ "example.com/a"
+import _ "example.com/b"
+import _ "example.com/d"
+
+-- a/go.mod --
+module example.com/a
+go 1.26
+require example.com/c v1.0.0
+require example.com/e v1.0.0
+-- a/a.go --
+package a
+import _ "example.com/c"
+import _ "example.com/e"
+
+-- b/go.mod --
+module example.com/b
+go 1.26
+-- b/b.go --
+package b
+
+-- c/go.mod --
+module example.com/c
+go 1.26
+-- c/c.go --
+package c
+
+-- d/go.mod --
+module example.com/d
+go 1.26
+-- d/d.go --
+package d
+
+-- e/go.mod --
+module example.com/e
+go 1.26
+-- e/e.go --
+package e

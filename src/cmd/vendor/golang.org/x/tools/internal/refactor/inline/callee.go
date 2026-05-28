@@ -530,9 +530,7 @@ func analyzeTypeParams(_ logger, fset *token.FileSet, info *types.Info, decl *as
 	// We don't care about most of the properties that matter for parameter references:
 	// a type is immutable, cannot have its address taken, and does not undergo conversions.
 	// TODO(jba): can we nevertheless combine this with the traversal in analyzeParams?
-	var stack []ast.Node
-	stack = append(stack, decl.Type) // for scope of function itself
-	ast.PreorderStack(decl.Body, stack, func(n ast.Node, stack []ast.Node) bool {
+	visit := func(n ast.Node, stack []ast.Node) bool {
 		if id, ok := n.(*ast.Ident); ok {
 			if v, ok := info.Uses[id].(*types.TypeName); ok {
 				if pinfo, ok := paramInfos[v]; ok {
@@ -543,7 +541,16 @@ func analyzeTypeParams(_ logger, fset *token.FileSet, info *types.Info, decl *as
 			}
 		}
 		return true
-	})
+	}
+	var stack []ast.Node
+	stack = append(stack, decl.Type) // for scope of function itself
+	if decl.Type.Params != nil {
+		ast.PreorderStack(decl.Type.Params, stack, visit)
+	}
+	if decl.Type.Results != nil {
+		ast.PreorderStack(decl.Type.Results, stack, visit)
+	}
+	ast.PreorderStack(decl.Body, stack, visit)
 	return params
 }
 

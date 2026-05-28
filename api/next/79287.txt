@@ -1,0 +1,3 @@
+pkg go/types, method (*TypeList) String() string #79287
+pkg go/types, method (*TypeParamList) String() string #79287
+pkg go/types, method (Instance) String() string #79287

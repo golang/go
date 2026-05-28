@@ -322,6 +322,36 @@ TEXT	foo(SB), DUPOK|NOSPLIT, $-8
 	VUXTL2	V30.H8, V30.S4                  // dea7106f
 	VUXTL2	V29.S4, V2.D2                   // a2a7206f
 	VUXTL2	V30.B16, V2.H8                  // c2a7086f
+	VSXTL	V1.B8, V2.H8                    // 22a4080f
+	VSXTL	V1.H4, V2.S4                    // 22a4100f
+	VSXTL	V1.S2, V2.D2                    // 22a4200f
+	VSXTL2	V1.B16, V2.H8                   // 22a4084f
+	VSXTL2	V1.H8, V2.S4                    // 22a4104f
+	VSXTL2	V1.S4, V2.D2                    // 22a4204f
+	VXTN	V1.H8, V2.B8                    // 2228210e
+	VXTN	V1.S4, V2.H4                    // 2228610e
+	VXTN	V1.D2, V2.S2                    // 2228a10e
+	VXTN2	V1.H8, V2.B16                   // 2228214e
+	VXTN2	V1.S4, V2.H8                    // 2228614e
+	VXTN2	V1.D2, V2.S4                    // 2228a14e
+	VSQXTN	V1.H8, V2.B8                    // 2248210e
+	VSQXTN	V1.S4, V2.H4                    // 2248610e
+	VSQXTN	V1.D2, V2.S2                    // 2248a10e
+	VSQXTN2	V1.H8, V2.B16                   // 2248214e
+	VSQXTN2	V1.S4, V2.H8                    // 2248614e
+	VSQXTN2	V1.D2, V2.S4                    // 2248a14e
+	VSQXTUN	V1.H8, V2.B8                    // 2228212e
+	VSQXTUN	V1.S4, V2.H4                    // 2228612e
+	VSQXTUN	V1.D2, V2.S2                    // 2228a12e
+	VSQXTUN2	V1.H8, V2.B16                  // 2228216e
+	VSQXTUN2	V1.S4, V2.H8                   // 2228616e
+	VSQXTUN2	V1.D2, V2.S4                   // 2228a16e
+	VUQXTN	V1.H8, V2.B8                    // 2248212e
+	VUQXTN	V1.S4, V2.H4                    // 2248612e
+	VUQXTN	V1.D2, V2.S2                    // 2248a12e
+	VUQXTN2	V1.H8, V2.B16                   // 2248216e
+	VUQXTN2	V1.S4, V2.H8                    // 2248616e
+	VUQXTN2	V1.D2, V2.S4                    // 2248a16e
 	VBIT	V21.B16, V25.B16, V4.B16        // 241fb56e
 	VBSL	V23.B16, V3.B16, V7.B16         // 671c776e
 	VCMTST	V2.B8, V29.B8, V2.B8            // a28f220e
@@ -345,6 +375,15 @@ TEXT	foo(SB), DUPOK|NOSPLIT, $-8
 	VUSHLL	$7, V30.B8, V30.H8              // dea70f2f
 	VUSHLL	$15, V30.H4, V29.S4             // dda71f2f
 	VUSHLL2	$31, V30.S4, V2.D2              // c2a73f6f
+	VSSHLL	$0, V1.B8, V2.H8                // 22a4080f
+	VSSHLL	$0, V1.H4, V2.S4                // 22a4100f
+	VSSHLL	$0, V1.S2, V2.D2                // 22a4200f
+	VSSHLL2	$0, V1.B16, V2.H8               // 22a4084f
+	VSSHLL2	$0, V1.H8, V2.S4                // 22a4104f
+	VSSHLL2	$0, V1.S4, V2.D2                // 22a4204f
+	VSSHLL	$7, V1.B8, V2.H8                // 22a40f0f
+	VSSHLL	$15, V1.H4, V2.S4               // 22a41f0f
+	VSSHLL2	$31, V1.S4, V2.D2               // 22a43f4f
 	VBIF	V0.B8, V30.B8, V1.B8            // c11fe02e
 	VBIF	V30.B16, V0.B16, V2.B16         // 021cfe6e
 	FMOVS	$(4.0), F0                      // 0010221e
@@ -419,6 +458,9 @@ TEXT	foo(SB), DUPOK|NOSPLIT, $-8
 	PRFM	8(R12), PLIL3STRM               // 8d0580f9
 	PRFM	(R8), $25                       // 190180f9
 	PRFM	8(R9), $30                      // 3e0580f9
+	RPRFM	(R1), R2, PLDKEEP               // 3848a2f8
+	RPRFM	(RSP), R4, PSTSTRM              // fd4ba4f8
+	RPRFM	(R6), R12, $25                  // d978acf8
 	NOOP                                    // 1f2003d5
 	HINT $0                                 // 1f2003d5
 	DMB	$1
@@ -2141,5 +2183,17 @@ next:
 	VFMINV	V0.S4, V0                          // 00f8b06e
 	VFMAXNMV V0.S4, V0                          // 00c8306e
 	VFMINNMV V0.S4, V0                          // 00c8b06e
+	VFCVTZS	V1.S4, V2.S4                        // 22b8a14e
+	VFCVTZS	V1.D2, V2.D2                        // 22b8e14e
+	VFCVTZU	V1.S4, V2.S4                        // 22b8a16e
+	VFCVTZU	V1.D2, V2.D2                        // 22b8e16e
+	VSCVTF	V1.S4, V2.S4                        // 22d8214e
+	VSCVTF	V1.D2, V2.D2                        // 22d8614e
+	VUCVTF	V1.S4, V2.S4                        // 22d8216e
+	VUCVTF	V1.D2, V2.D2                        // 22d8616e
+	VFCVTN	V1.D2, V2.S2                        // 2268610e
+	VFCVTN2	V1.D2, V2.S4                        // 2268614e
+	VFCVTL	V1.S2, V2.D2                        // 2278610e
+	VFCVTL2	V1.S4, V2.D2                        // 2278614e
 
 	END

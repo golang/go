@@ -41,6 +41,7 @@ func incrementConfig() {
 
 	counter.Inc("go/platform/target/goos:" + cfg.Goos)
 	counter.Inc("go/platform/target/goarch:" + cfg.Goarch)
+	counter.Inc("go/platform/target/port:" + cfg.Goos + "-" + cfg.Goarch)
 	switch cfg.Goarch {
 	case "386":
 		counter.Inc("go/platform/target/go386:" + cfg.GO386)

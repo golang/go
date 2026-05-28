@@ -244,7 +244,7 @@ func generate(absFile string) bool {
 	}
 
 	// Parse package clause
-	filePkg, err := parser.ParseFile(token.NewFileSet(), "", src, parser.PackageClauseOnly)
+	filePkg, err := parser.ParseFile(token.NewFileSet(), "", src, parser.PackageClauseOnly|parser.SkipObjectResolution)
 	if err != nil {
 		// Invalid package clause - ignore file.
 		return true

@@ -1,15 +1,22 @@
 # golang.org/issue/13037: 'go get' was not parsing <meta> tags in 404 served over HTTPS.
 
-[!net:bazil.org] skip
+[short] skip
 [!git] skip
 
-env GONOSUMDB=bazil.org,github.com,golang.org
+env GONOSUMDB=vcs-test.golang.org
 env GO111MODULE=on
 env GOPROXY=direct
-go get bazil.org/fuse/fs/fstestutil
-
+go get -x vcs-test.golang.org/go/get_404_meta
+stderr 'get https://vcs-test.golang.org/go/get_404_meta\?go-get=1: 404 Not Found'
+cmp go.mod go.mod.want
 
 -- go.mod --
 module m
 
 go 1.18
+-- go.mod.want --
+module m
+
+go 1.18
+
+require vcs-test.golang.org/go/get_404_meta v0.0.0-20170922010558-fc3a09f3dc5c // indirect

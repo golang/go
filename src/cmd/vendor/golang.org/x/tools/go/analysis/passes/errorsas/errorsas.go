@@ -2,8 +2,8 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-// The errorsas package defines an Analyzer that checks that the second argument to
-// errors.As is a pointer to a type implementing error.
+// Package errorsas defines an Analyzer that checks that the second argument to
+// [errors.As] is a pointer to a type implementing error.
 package errorsas
 
 import (
@@ -19,7 +19,12 @@ import (
 const Doc = `report passing non-pointer or non-error values to errors.As
 
 The errorsas analyzer reports calls to errors.As where the type
-of the second argument is not a pointer to a type implementing error.`
+of the second argument is not a pointer to a type implementing error.
+For example:
+
+	var unwrappedErr net.DNSError
+	errors.As(err, unwrappedErr) // should use &unwrappedErr, DNSError.Error has a pointer receiver
+`
 
 var Analyzer = &analysis.Analyzer{
 	Name:     "errorsas",

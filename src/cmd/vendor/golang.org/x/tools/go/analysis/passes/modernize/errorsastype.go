@@ -17,24 +17,19 @@ import (
 	"golang.org/x/tools/internal/analysis/analyzerutil"
 	typeindexanalyzer "golang.org/x/tools/internal/analysis/typeindex"
 	"golang.org/x/tools/internal/astutil"
-	"golang.org/x/tools/internal/goplsexport"
+	"golang.org/x/tools/internal/moreiters"
 	"golang.org/x/tools/internal/refactor"
 	"golang.org/x/tools/internal/typesinternal"
 	"golang.org/x/tools/internal/typesinternal/typeindex"
 	"golang.org/x/tools/internal/versions"
 )
 
-var errorsastypeAnalyzer = &analysis.Analyzer{
+var ErrorsAsTypeAnalyzer = &analysis.Analyzer{
 	Name:     "errorsastype",
 	Doc:      analyzerutil.MustExtractDoc(doc, "errorsastype"),
 	URL:      "https://pkg.go.dev/golang.org/x/tools/go/analysis/passes/modernize#errorsastype",
 	Requires: []*analysis.Analyzer{typeindexanalyzer.Analyzer},
 	Run:      errorsastype,
-}
-
-func init() {
-	// Export to gopls until this is a published modernizer.
-	goplsexport.ErrorsAsTypeModernizer = errorsastypeAnalyzer
 }
 
 // errorsastype offers a fix to replace error.As with the newer
@@ -60,22 +55,15 @@ func init() {
 //
 // because the transformation in that case would be ungainly.
 //
+// For the negated case (!errors.As), we use !ok instead.
+//
 // Note that the cmd/vet suite includes the "errorsas" analyzer, which
 // detects actual mistakes in the use of errors.As. This logic does
 // not belong in errorsas because the problems it fixes are merely
 // stylistic.
 //
 // TODO(adonovan): support more cases:
-//
-//   - Negative cases
-//     var myerr E
-//     if !errors.As(err, &myerr) { ... }
-//     =>
-//     myerr, ok := errors.AsType[E](err)
-//     if !ok { ... }
-//
 // - if myerr := new(E); errors.As(err, myerr); { ... }
-//
 // - if errors.As(err, myerr) && othercond { ... }
 func errorsastype(pass *analysis.Pass) (any, error) {
 	var (
@@ -89,7 +77,7 @@ func errorsastype(pass *analysis.Pass) (any, error) {
 			continue // spread call: errors.As(pair())
 		}
 
-		v, curDeclStmt := canUseErrorsAsType(info, index, curCall)
+		v, curDeclStmt, curIfStmt := canUseErrorsAsType(info, index, curCall)
 		if v == nil {
 			continue
 		}
@@ -127,64 +115,82 @@ func errorsastype(pass *analysis.Pass) (any, error) {
 		// Choose a name for the "ok" variable.
 		// We generate a new name only if 'ok' is already declared at
 		// curCall and it also used within the if-statement.
-		curIf := curCall.Parent()
-		ifScope := info.Scopes[curIf.Node().(*ast.IfStmt)]
-		okName := freshName(info, index, ifScope, v.Pos(), curCall, curIf, token.NoPos, "ok")
+		ifScope := info.Scopes[curIfStmt.Node().(*ast.IfStmt)]
+		negated := curCall.ParentEdgeKind() == edge.UnaryExpr_X // bool => Tok==NOT
+		okName := freshName(info, index, ifScope, v.Pos(), curCall, curIfStmt, token.NoPos, "ok")
+		// Because we reject any use of v outside the if statement, any use besides
+		// the argument in errors.As must lie inside the if statement.
+		usesV := moreiters.Len(index.Uses(v)) > 1
+
+		edits := append(
+			// delete "var myerr *MyErr"
+			refactor.DeleteStmt(pass.Fset.File(call.Fun.Pos()), curDeclStmt),
+			// if              errors.As            (err, &myerr)     { ... }
+			//    -------------       --------------    -------- ----
+			// if myerr, ok := errors.AsType[*MyErr](err        ); ok { ... }
+			analysis.TextEdit{
+				// Insert "myerr, ok := " if myerr is used inside the if statement.
+				// Otherwise insert "_, ok := ".
+				Pos:     call.Pos(),
+				End:     call.Pos(),
+				NewText: fmt.Appendf(nil, "%s, %s := ", cond(usesV, v.Name(), "_"), okName),
+			},
+			analysis.TextEdit{
+				// replace As with AsType[T]
+				Pos:     asIdent.Pos(),
+				End:     asIdent.End(),
+				NewText: fmt.Appendf(nil, "AsType[%s]", errtype),
+			},
+			analysis.TextEdit{
+				// delete ", &myerr"
+				Pos: call.Args[0].End(),
+				End: call.Args[1].End(),
+			},
+			analysis.TextEdit{
+				// insert "; ok" for errors.AsType or "; !ok" for !errors.AsType
+				Pos:     call.End(),
+				End:     call.End(),
+				NewText: fmt.Appendf(nil, "; %s%s", cond(negated, "!", ""), okName),
+			},
+		)
+		if negated {
+			unaryExpr := curCall.Parent().Node().(*ast.UnaryExpr)
+			// delete "!"
+			edits = append(edits, analysis.TextEdit{
+				Pos: unaryExpr.OpPos,
+				End: unaryExpr.X.Pos(),
+			})
+		}
 
 		pass.Report(analysis.Diagnostic{
 			Pos:     call.Fun.Pos(),
 			End:     call.Fun.End(),
 			Message: fmt.Sprintf("errors.As can be simplified using AsType[%s]", errtype),
 			SuggestedFixes: []analysis.SuggestedFix{{
-				Message: fmt.Sprintf("Replace errors.As with AsType[%s]", errtype),
-				TextEdits: append(
-					// delete "var myerr *MyErr"
-					refactor.DeleteStmt(pass.Fset.File(call.Fun.Pos()), curDeclStmt),
-					// if              errors.As            (err, &myerr)     { ... }
-					//    -------------       --------------    -------- ----
-					// if myerr, ok := errors.AsType[*MyErr](err        ); ok { ... }
-					analysis.TextEdit{
-						// insert "myerr, ok := "
-						Pos:     call.Pos(),
-						End:     call.Pos(),
-						NewText: fmt.Appendf(nil, "%s, %s := ", v.Name(), okName),
-					},
-					analysis.TextEdit{
-						// replace As with AsType[T]
-						Pos:     asIdent.Pos(),
-						End:     asIdent.End(),
-						NewText: fmt.Appendf(nil, "AsType[%s]", errtype),
-					},
-					analysis.TextEdit{
-						// delete ", &myerr"
-						Pos: call.Args[0].End(),
-						End: call.Args[1].End(),
-					},
-					analysis.TextEdit{
-						// insert "; ok"
-						Pos:     call.End(),
-						End:     call.End(),
-						NewText: fmt.Appendf(nil, "; %s", okName),
-					},
-				),
+				Message:   fmt.Sprintf("Replace errors.As with AsType[%s]", errtype),
+				TextEdits: edits,
 			}},
 		})
 	}
 	return nil, nil
 }
 
-// canUseErrorsAsType reports whether curCall is a call to
-// errors.As beneath an if statement, preceded by a
-// declaration of the typed error var. The var must not be
-// used outside the if statement.
-func canUseErrorsAsType(info *types.Info, index *typeindex.Index, curCall inspector.Cursor) (_ *types.Var, _ inspector.Cursor) {
-	if curCall.ParentEdgeKind() != edge.IfStmt_Cond {
-		return // not beneath if statement
+// canUseErrorsAsType reports whether curCall is a call to errors.As beneath an
+// if statement, preceded by a declaration of the typed error var. The var must
+// not be used outside the if statement.
+// If the conditions are met, it returns the error var, the cursor for its
+// DeclStmt, and the cursor for the IfStmt that contains the call to errors.As.
+// Otherwise it returns a nil error var.
+func canUseErrorsAsType(info *types.Info, index *typeindex.Index, curCall inspector.Cursor) (_ *types.Var, curDeclStmt, curIfStmt inspector.Cursor) {
+	curCond := curCall
+	if curCond.ParentEdgeKind() == edge.UnaryExpr_X { // if !errors.As(err, &v)
+		curCond = curCond.Parent()
 	}
-	var (
-		curIfStmt = curCall.Parent()
-		ifStmt    = curIfStmt.Node().(*ast.IfStmt)
-	)
+	if curCond.ParentEdgeKind() != edge.IfStmt_Cond {
+		return // not beneath if or unaryexpr
+	}
+	curIfStmt = curCond.Parent()
+	ifStmt := curIfStmt.Node().(*ast.IfStmt)
 	if ifStmt.Init != nil {
 		return // if statement already has an init part
 	}
@@ -228,5 +234,5 @@ func canUseErrorsAsType(info *types.Info, index *typeindex.Index, curCall inspec
 	//   ...
 	//   if errors.As(err, &v) { ... }
 	// with no uses of v outside the IfStmt.
-	return v, curDecl.Parent() // DeclStmt
+	return v, curDecl.Parent(), curIfStmt // curDecl.Parent() is a DeclStmt
 }

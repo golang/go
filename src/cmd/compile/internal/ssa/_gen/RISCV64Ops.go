@@ -153,38 +153,38 @@ func init() {
 	)
 
 	RISCV64ops := []opData{
-		{name: "ADD", argLength: 2, reg: gp21, asm: "ADD", commutative: true}, // arg0 + arg1
-		{name: "ADDI", argLength: 1, reg: gp11sb, asm: "ADDI", aux: "Int64"},  // arg0 + auxint
-		{name: "ADDIW", argLength: 1, reg: gp11, asm: "ADDIW", aux: "Int64"},  // 32 low bits of arg0 + auxint, sign extended to 64 bits
-		{name: "NEG", argLength: 1, reg: gp11, asm: "NEG"},                    // -arg0
-		{name: "NEGW", argLength: 1, reg: gp11, asm: "NEGW"},                  // -arg0 of 32 bits, sign extended to 64 bits
-		{name: "SUB", argLength: 2, reg: gp21, asm: "SUB"},                    // arg0 - arg1
-		{name: "SUBW", argLength: 2, reg: gp21, asm: "SUBW"},                  // 32 low bits of arg 0 - 32 low bits of arg 1, sign extended to 64 bits
+		{name: "ADD", argLength: 2, reg: gp21, asm: "ADD", commutative: true, earlyOk: true}, // arg0 + arg1
+		{name: "ADDI", argLength: 1, reg: gp11sb, asm: "ADDI", aux: "Int64", earlyOk: true},  // arg0 + auxint
+		{name: "ADDIW", argLength: 1, reg: gp11, asm: "ADDIW", aux: "Int64", earlyOk: true},  // 32 low bits of arg0 + auxint, sign extended to 64 bits
+		{name: "NEG", argLength: 1, reg: gp11, asm: "NEG", earlyOk: true},                    // -arg0
+		{name: "NEGW", argLength: 1, reg: gp11, asm: "NEGW", earlyOk: true},                  // -arg0 of 32 bits, sign extended to 64 bits
+		{name: "SUB", argLength: 2, reg: gp21, asm: "SUB", earlyOk: true},                    // arg0 - arg1
+		{name: "SUBW", argLength: 2, reg: gp21, asm: "SUBW", earlyOk: true},                  // 32 low bits of arg 0 - 32 low bits of arg 1, sign extended to 64 bits
 
 		// M extension. H means high (i.e., it returns the top bits of
 		// the result). U means unsigned. W means word (i.e., 32-bit).
-		{name: "MUL", argLength: 2, reg: gp21, asm: "MUL", commutative: true, typ: "Int64"}, // arg0 * arg1
-		{name: "MULW", argLength: 2, reg: gp21, asm: "MULW", commutative: true, typ: "Int32"},
-		{name: "MULH", argLength: 2, reg: gp21, asm: "MULH", commutative: true, typ: "Int64"},
-		{name: "MULHU", argLength: 2, reg: gp21, asm: "MULHU", commutative: true, typ: "UInt64"},
-		{name: "LoweredMuluhilo", argLength: 2, reg: gp22, resultNotInArgs: true}, // arg0 * arg1, return (hi, lo)
-		{name: "LoweredMuluover", argLength: 2, reg: gp22, resultNotInArgs: true}, // arg0 * arg1, return (64 bits of arg0*arg1, overflow)
+		{name: "MUL", argLength: 2, reg: gp21, asm: "MUL", commutative: true, typ: "Int64", earlyOk: true}, // arg0 * arg1
+		{name: "MULW", argLength: 2, reg: gp21, asm: "MULW", commutative: true, typ: "Int32", earlyOk: true},
+		{name: "MULH", argLength: 2, reg: gp21, asm: "MULH", commutative: true, typ: "Int64", earlyOk: true},
+		{name: "MULHU", argLength: 2, reg: gp21, asm: "MULHU", commutative: true, typ: "UInt64", earlyOk: true},
+		{name: "LoweredMuluhilo", argLength: 2, reg: gp22, resultNotInArgs: true, earlyOk: true}, // arg0 * arg1, return (hi, lo)
+		{name: "LoweredMuluover", argLength: 2, reg: gp22, resultNotInArgs: true, earlyOk: true}, // arg0 * arg1, return (64 bits of arg0*arg1, overflow)
 
-		{name: "DIV", argLength: 2, reg: gp21, asm: "DIV", typ: "Int64", hasSideEffects: true}, // arg0 / arg1
-		{name: "DIVU", argLength: 2, reg: gp21, asm: "DIVU", typ: "UInt64", hasSideEffects: true},
-		{name: "DIVW", argLength: 2, reg: gp21, asm: "DIVW", typ: "Int32", hasSideEffects: true},
-		{name: "DIVUW", argLength: 2, reg: gp21, asm: "DIVUW", typ: "UInt32", hasSideEffects: true},
-		{name: "REM", argLength: 2, reg: gp21, asm: "REM", typ: "Int64", hasSideEffects: true}, // arg0 % arg1
-		{name: "REMU", argLength: 2, reg: gp21, asm: "REMU", typ: "UInt64", hasSideEffects: true},
-		{name: "REMW", argLength: 2, reg: gp21, asm: "REMW", typ: "Int32", hasSideEffects: true},
-		{name: "REMUW", argLength: 2, reg: gp21, asm: "REMUW", typ: "UInt32", hasSideEffects: true},
+		{name: "DIV", argLength: 2, reg: gp21, asm: "DIV", typ: "Int64", earlyOk: true}, // arg0 / arg1
+		{name: "DIVU", argLength: 2, reg: gp21, asm: "DIVU", typ: "UInt64", earlyOk: true},
+		{name: "DIVW", argLength: 2, reg: gp21, asm: "DIVW", typ: "Int32", earlyOk: true},
+		{name: "DIVUW", argLength: 2, reg: gp21, asm: "DIVUW", typ: "UInt32", earlyOk: true},
+		{name: "REM", argLength: 2, reg: gp21, asm: "REM", typ: "Int64", earlyOk: true}, // arg0 % arg1
+		{name: "REMU", argLength: 2, reg: gp21, asm: "REMU", typ: "UInt64", earlyOk: true},
+		{name: "REMW", argLength: 2, reg: gp21, asm: "REMW", typ: "Int32", earlyOk: true},
+		{name: "REMUW", argLength: 2, reg: gp21, asm: "REMUW", typ: "UInt32", earlyOk: true},
 
-		{name: "MOVaddr", argLength: 1, reg: gp11sb, asm: "MOV", aux: "SymOff", rematerializeable: true, symEffect: "Addr"}, // arg0 + auxint + offset encoded in aux
+		{name: "MOVaddr", argLength: 1, reg: gp11sb, asm: "MOV", aux: "SymOff", rematerializeable: true, symEffect: "Addr", earlyOk: true}, // arg0 + auxint + offset encoded in aux
 		// auxint+aux == add auxint and the offset of the symbol in aux (if any) to the effective address
 
-		{name: "MOVDconst", reg: gp01, asm: "MOV", typ: "UInt64", aux: "Int64", rematerializeable: true},      // auxint
-		{name: "FMOVDconst", reg: fp01, asm: "MOVD", typ: "Float64", aux: "Float64", rematerializeable: true}, // auxint
-		{name: "FMOVFconst", reg: fp01, asm: "MOVF", typ: "Float32", aux: "Float32", rematerializeable: true}, // auxint
+		{name: "MOVDconst", reg: gp01, asm: "MOV", typ: "UInt64", aux: "Int64", rematerializeable: true, earlyOk: true},      // auxint
+		{name: "FMOVDconst", reg: fp01, asm: "MOVD", typ: "Float64", aux: "Float64", rematerializeable: true, earlyOk: true}, // auxint
+		{name: "FMOVFconst", reg: fp01, asm: "MOVF", typ: "Float32", aux: "Float32", rematerializeable: true, earlyOk: true}, // auxint
 
 		// Loads: load <size> bits from arg0+auxint+aux and extend to 64 bits; arg1=mem
 		{name: "MOVBload", argLength: 2, reg: gpload, asm: "MOVB", aux: "SymOff", typ: "Int8", faultOnNilArg0: true, symEffect: "Read"},     //  8 bits, sign extend
@@ -208,77 +208,78 @@ func init() {
 		{name: "MOVDstorezero", argLength: 2, reg: gpstore0, aux: "SymOff", asm: "MOV", typ: "Mem", faultOnNilArg0: true, symEffect: "Write"},  // 64 bits
 
 		// Conversions
-		{name: "MOVBreg", argLength: 1, reg: gp11, asm: "MOVB"},   // move from arg0, sign-extended from byte
-		{name: "MOVHreg", argLength: 1, reg: gp11, asm: "MOVH"},   // move from arg0, sign-extended from half
-		{name: "MOVWreg", argLength: 1, reg: gp11, asm: "MOVW"},   // move from arg0, sign-extended from word
-		{name: "MOVDreg", argLength: 1, reg: gp11, asm: "MOV"},    // move from arg0
-		{name: "MOVBUreg", argLength: 1, reg: gp11, asm: "MOVBU"}, // move from arg0, unsign-extended from byte
-		{name: "MOVHUreg", argLength: 1, reg: gp11, asm: "MOVHU"}, // move from arg0, unsign-extended from half
-		{name: "MOVWUreg", argLength: 1, reg: gp11, asm: "MOVWU"}, // move from arg0, unsign-extended from word
+		{name: "MOVBreg", argLength: 1, reg: gp11, asm: "MOVB", earlyOk: true},   // move from arg0, sign-extended from byte
+		{name: "MOVHreg", argLength: 1, reg: gp11, asm: "MOVH", earlyOk: true},   // move from arg0, sign-extended from half
+		{name: "MOVWreg", argLength: 1, reg: gp11, asm: "MOVW", earlyOk: true},   // move from arg0, sign-extended from word
+		{name: "MOVDreg", argLength: 1, reg: gp11, asm: "MOV", earlyOk: true},    // move from arg0
+		{name: "MOVBUreg", argLength: 1, reg: gp11, asm: "MOVBU", earlyOk: true}, // move from arg0, unsign-extended from byte
+		{name: "MOVHUreg", argLength: 1, reg: gp11, asm: "MOVHU", earlyOk: true}, // move from arg0, unsign-extended from half
+		{name: "MOVWUreg", argLength: 1, reg: gp11, asm: "MOVWU", earlyOk: true}, // move from arg0, unsign-extended from word
 
-		{name: "MOVDnop", argLength: 1, reg: regInfo{inputs: []regMask{gpMask}, outputs: []regMask{gpMask}}, resultInArg0: true}, // nop, return arg0 in same register
+		{name: "MOVDnop", argLength: 1, reg: regInfo{inputs: []regMask{gpMask}, outputs: []regMask{gpMask}}, resultInArg0: true, earlyOk: true}, // nop, return arg0 in same register
 
 		// Shift ops
-		{name: "SLL", argLength: 2, reg: gp21, asm: "SLL"},                   // arg0 << (aux1 & 63), logical left shift
-		{name: "SLLW", argLength: 2, reg: gp21, asm: "SLLW"},                 // arg0 << (aux1 & 31), logical left shift of 32 bit value, sign extended to 64 bits
-		{name: "SRA", argLength: 2, reg: gp21, asm: "SRA"},                   // arg0 >> (aux1 & 63), arithmetic right shift
-		{name: "SRAW", argLength: 2, reg: gp21, asm: "SRAW"},                 // arg0 >> (aux1 & 31), arithmetic right shift of 32 bit value, sign extended to 64 bits
-		{name: "SRL", argLength: 2, reg: gp21, asm: "SRL"},                   // arg0 >> (aux1 & 63), logical right shift
-		{name: "SRLW", argLength: 2, reg: gp21, asm: "SRLW"},                 // arg0 >> (aux1 & 31), logical right shift of 32 bit value, sign extended to 64 bits
-		{name: "SLLI", argLength: 1, reg: gp11, asm: "SLLI", aux: "Int64"},   // arg0 << auxint, shift amount 0-63, logical left shift
-		{name: "SLLIW", argLength: 1, reg: gp11, asm: "SLLIW", aux: "Int64"}, // arg0 << auxint, shift amount 0-31, logical left shift of 32 bit value, sign extended to 64 bits
-		{name: "SRAI", argLength: 1, reg: gp11, asm: "SRAI", aux: "Int64"},   // arg0 >> auxint, shift amount 0-63, arithmetic right shift
-		{name: "SRAIW", argLength: 1, reg: gp11, asm: "SRAIW", aux: "Int64"}, // arg0 >> auxint, shift amount 0-31, arithmetic right shift of 32 bit value, sign extended to 64 bits
-		{name: "SRLI", argLength: 1, reg: gp11, asm: "SRLI", aux: "Int64"},   // arg0 >> auxint, shift amount 0-63, logical right shift
-		{name: "SRLIW", argLength: 1, reg: gp11, asm: "SRLIW", aux: "Int64"}, // arg0 >> auxint, shift amount 0-31, logical right shift of 32 bit value, sign extended to 64 bits
+		{name: "SLL", argLength: 2, reg: gp21, asm: "SLL", earlyOk: true},                   // arg0 << (aux1 & 63), logical left shift
+		{name: "SLLW", argLength: 2, reg: gp21, asm: "SLLW", earlyOk: true},                 // arg0 << (aux1 & 31), logical left shift of 32 bit value, sign extended to 64 bits
+		{name: "SRA", argLength: 2, reg: gp21, asm: "SRA", earlyOk: true},                   // arg0 >> (aux1 & 63), arithmetic right shift
+		{name: "SRAW", argLength: 2, reg: gp21, asm: "SRAW", earlyOk: true},                 // arg0 >> (aux1 & 31), arithmetic right shift of 32 bit value, sign extended to 64 bits
+		{name: "SRL", argLength: 2, reg: gp21, asm: "SRL", earlyOk: true},                   // arg0 >> (aux1 & 63), logical right shift
+		{name: "SRLW", argLength: 2, reg: gp21, asm: "SRLW", earlyOk: true},                 // arg0 >> (aux1 & 31), logical right shift of 32 bit value, sign extended to 64 bits
+		{name: "SLLI", argLength: 1, reg: gp11, asm: "SLLI", aux: "Int64", earlyOk: true},   // arg0 << auxint, shift amount 0-63, logical left shift
+		{name: "SLLIW", argLength: 1, reg: gp11, asm: "SLLIW", aux: "Int64", earlyOk: true}, // arg0 << auxint, shift amount 0-31, logical left shift of 32 bit value, sign extended to 64 bits
+		{name: "SRAI", argLength: 1, reg: gp11, asm: "SRAI", aux: "Int64", earlyOk: true},   // arg0 >> auxint, shift amount 0-63, arithmetic right shift
+		{name: "SRAIW", argLength: 1, reg: gp11, asm: "SRAIW", aux: "Int64", earlyOk: true}, // arg0 >> auxint, shift amount 0-31, arithmetic right shift of 32 bit value, sign extended to 64 bits
+		{name: "SRLI", argLength: 1, reg: gp11, asm: "SRLI", aux: "Int64", earlyOk: true},   // arg0 >> auxint, shift amount 0-63, logical right shift
+		{name: "SRLIW", argLength: 1, reg: gp11, asm: "SRLIW", aux: "Int64", earlyOk: true}, // arg0 >> auxint, shift amount 0-31, logical right shift of 32 bit value, sign extended to 64 bits
 
 		// Shift and add
-		{name: "SH1ADD", argLength: 2, reg: gp21, asm: "SH1ADD"}, // arg0 << 1 + arg1
-		{name: "SH2ADD", argLength: 2, reg: gp21, asm: "SH2ADD"}, // arg0 << 2 + arg1
-		{name: "SH3ADD", argLength: 2, reg: gp21, asm: "SH3ADD"}, // arg0 << 3 + arg1
+		{name: "SH1ADD", argLength: 2, reg: gp21, asm: "SH1ADD", earlyOk: true}, // arg0 << 1 + arg1
+		{name: "SH2ADD", argLength: 2, reg: gp21, asm: "SH2ADD", earlyOk: true}, // arg0 << 2 + arg1
+		{name: "SH3ADD", argLength: 2, reg: gp21, asm: "SH3ADD", earlyOk: true}, // arg0 << 3 + arg1
 
 		// Bitwise ops
-		{name: "AND", argLength: 2, reg: gp21, asm: "AND", commutative: true},   // arg0 & arg1
-		{name: "ANDN", argLength: 2, reg: gp21, asm: "ANDN"},                    // ^arg0 & arg1
-		{name: "ANDI", argLength: 1, reg: gp11, asm: "ANDI", aux: "Int64"},      // arg0 & auxint
-		{name: "CLZ", argLength: 1, reg: gp11, asm: "CLZ"},                      // count leading zeros
-		{name: "CLZW", argLength: 1, reg: gp11, asm: "CLZW"},                    // count leading zeros of least significant word
-		{name: "CPOP", argLength: 1, reg: gp11, asm: "CPOP"},                    // count set bits
-		{name: "CPOPW", argLength: 1, reg: gp11, asm: "CPOPW"},                  // count set bits in least significant word
-		{name: "CTZ", argLength: 1, reg: gp11, asm: "CTZ"},                      // count trailing zeros
-		{name: "CTZW", argLength: 1, reg: gp11, asm: "CTZW"},                    // count trailing zeros of least significant word
-		{name: "NOT", argLength: 1, reg: gp11, asm: "NOT"},                      // ^arg0
-		{name: "OR", argLength: 2, reg: gp21, asm: "OR", commutative: true},     // arg0 | arg1
-		{name: "ORN", argLength: 2, reg: gp21, asm: "ORN"},                      // ^arg0 | arg1
-		{name: "ORI", argLength: 1, reg: gp11, asm: "ORI", aux: "Int64"},        // arg0 | auxint
-		{name: "REV8", argLength: 1, reg: gp11, asm: "REV8"},                    // reverse bytes
-		{name: "ROL", argLength: 2, reg: gp21, asm: "ROL"},                      // rotate left arg0 by (arg1 & 63)
-		{name: "ROLW", argLength: 2, reg: gp21, asm: "ROLW"},                    // rotate left least significant word of arg0 by (arg1 & 31), sign extended
-		{name: "ROR", argLength: 2, reg: gp21, asm: "ROR"},                      // rotate right arg0 by (arg1 & 63)
-		{name: "RORI", argLength: 1, reg: gp11, asm: "RORI", aux: "Int64"},      // rotate right arg0 by auxint, shift amount 0-63
-		{name: "RORIW", argLength: 1, reg: gp11, asm: "RORIW", aux: "Int64"},    // rotate right least significant word of arg0 by auxint, shift amount 0-31, sign extended
-		{name: "RORW", argLength: 2, reg: gp21, asm: "RORW"},                    // rotate right least significant word of arg0 by (arg1 & 31), sign extended
-		{name: "XNOR", argLength: 2, reg: gp21, asm: "XNOR", commutative: true}, // ^(arg0 ^ arg1)
-		{name: "XOR", argLength: 2, reg: gp21, asm: "XOR", commutative: true},   // arg0 ^ arg1
-		{name: "XORI", argLength: 1, reg: gp11, asm: "XORI", aux: "Int64"},      // arg0 ^ auxint
+		// CPOP/CPOPW need to check for zbb first
+		{name: "AND", argLength: 2, reg: gp21, asm: "AND", commutative: true, earlyOk: true},   // arg0 & arg1
+		{name: "ANDN", argLength: 2, reg: gp21, asm: "ANDN", earlyOk: true},                    // ^arg0 & arg1
+		{name: "ANDI", argLength: 1, reg: gp11, asm: "ANDI", aux: "Int64", earlyOk: true},      // arg0 & auxint
+		{name: "CLZ", argLength: 1, reg: gp11, asm: "CLZ", earlyOk: true},                      // count leading zeros
+		{name: "CLZW", argLength: 1, reg: gp11, asm: "CLZW", earlyOk: true},                    // count leading zeros of least significant word
+		{name: "CPOP", argLength: 1, reg: gp11, asm: "CPOP"},                                   // count set bits
+		{name: "CPOPW", argLength: 1, reg: gp11, asm: "CPOPW"},                                 // count set bits in least significant word
+		{name: "CTZ", argLength: 1, reg: gp11, asm: "CTZ", earlyOk: true},                      // count trailing zeros
+		{name: "CTZW", argLength: 1, reg: gp11, asm: "CTZW", earlyOk: true},                    // count trailing zeros of least significant word
+		{name: "NOT", argLength: 1, reg: gp11, asm: "NOT", earlyOk: true},                      // ^arg0
+		{name: "OR", argLength: 2, reg: gp21, asm: "OR", commutative: true, earlyOk: true},     // arg0 | arg1
+		{name: "ORN", argLength: 2, reg: gp21, asm: "ORN", earlyOk: true},                      // ^arg0 | arg1
+		{name: "ORI", argLength: 1, reg: gp11, asm: "ORI", aux: "Int64", earlyOk: true},        // arg0 | auxint
+		{name: "REV8", argLength: 1, reg: gp11, asm: "REV8", earlyOk: true},                    // reverse bytes
+		{name: "ROL", argLength: 2, reg: gp21, asm: "ROL", earlyOk: true},                      // rotate left arg0 by (arg1 & 63)
+		{name: "ROLW", argLength: 2, reg: gp21, asm: "ROLW", earlyOk: true},                    // rotate left least significant word of arg0 by (arg1 & 31), sign extended
+		{name: "ROR", argLength: 2, reg: gp21, asm: "ROR", earlyOk: true},                      // rotate right arg0 by (arg1 & 63)
+		{name: "RORI", argLength: 1, reg: gp11, asm: "RORI", aux: "Int64", earlyOk: true},      // rotate right arg0 by auxint, shift amount 0-63
+		{name: "RORIW", argLength: 1, reg: gp11, asm: "RORIW", aux: "Int64", earlyOk: true},    // rotate right least significant word of arg0 by auxint, shift amount 0-31, sign extended
+		{name: "RORW", argLength: 2, reg: gp21, asm: "RORW", earlyOk: true},                    // rotate right least significant word of arg0 by (arg1 & 31), sign extended
+		{name: "XNOR", argLength: 2, reg: gp21, asm: "XNOR", commutative: true, earlyOk: true}, // ^(arg0 ^ arg1)
+		{name: "XOR", argLength: 2, reg: gp21, asm: "XOR", commutative: true, earlyOk: true},   // arg0 ^ arg1
+		{name: "XORI", argLength: 1, reg: gp11, asm: "XORI", aux: "Int64", earlyOk: true},      // arg0 ^ auxint
 
 		// Minimum and maximum
-		{name: "MIN", argLength: 2, reg: gp21, asm: "MIN", commutative: true},   // min(arg0,arg1), signed
-		{name: "MAX", argLength: 2, reg: gp21, asm: "MAX", commutative: true},   // max(arg0,arg1), signed
-		{name: "MINU", argLength: 2, reg: gp21, asm: "MINU", commutative: true}, // min(arg0,arg1), unsigned
-		{name: "MAXU", argLength: 2, reg: gp21, asm: "MAXU", commutative: true}, // max(arg0,arg1), unsigned
+		{name: "MIN", argLength: 2, reg: gp21, asm: "MIN", commutative: true, earlyOk: true},   // min(arg0,arg1), signed
+		{name: "MAX", argLength: 2, reg: gp21, asm: "MAX", commutative: true, earlyOk: true},   // max(arg0,arg1), signed
+		{name: "MINU", argLength: 2, reg: gp21, asm: "MINU", commutative: true, earlyOk: true}, // min(arg0,arg1), unsigned
+		{name: "MAXU", argLength: 2, reg: gp21, asm: "MAXU", commutative: true, earlyOk: true}, // max(arg0,arg1), unsigned
 
 		// Generate boolean values
-		{name: "SEQZ", argLength: 1, reg: gp11, asm: "SEQZ"},                 // arg0 == 0, result is 0 or 1
-		{name: "SNEZ", argLength: 1, reg: gp11, asm: "SNEZ"},                 // arg0 != 0, result is 0 or 1
-		{name: "SLT", argLength: 2, reg: gp21, asm: "SLT"},                   // arg0 < arg1, result is 0 or 1
-		{name: "SLTI", argLength: 1, reg: gp11, asm: "SLTI", aux: "Int64"},   // arg0 < auxint, result is 0 or 1
-		{name: "SLTU", argLength: 2, reg: gp21, asm: "SLTU"},                 // arg0 < arg1, unsigned, result is 0 or 1
-		{name: "SLTIU", argLength: 1, reg: gp11, asm: "SLTIU", aux: "Int64"}, // arg0 < auxint, unsigned, result is 0 or 1
+		{name: "SEQZ", argLength: 1, reg: gp11, asm: "SEQZ", earlyOk: true},                 // arg0 == 0, result is 0 or 1
+		{name: "SNEZ", argLength: 1, reg: gp11, asm: "SNEZ", earlyOk: true},                 // arg0 != 0, result is 0 or 1
+		{name: "SLT", argLength: 2, reg: gp21, asm: "SLT", earlyOk: true},                   // arg0 < arg1, result is 0 or 1
+		{name: "SLTI", argLength: 1, reg: gp11, asm: "SLTI", aux: "Int64", earlyOk: true},   // arg0 < auxint, result is 0 or 1
+		{name: "SLTU", argLength: 2, reg: gp21, asm: "SLTU", earlyOk: true},                 // arg0 < arg1, unsigned, result is 0 or 1
+		{name: "SLTIU", argLength: 1, reg: gp11, asm: "SLTIU", aux: "Int64", earlyOk: true}, // arg0 < auxint, unsigned, result is 0 or 1
 
 		// Round ops to block fused-multiply-add extraction.
-		{name: "LoweredRound32F", argLength: 1, reg: fp11, resultInArg0: true},
-		{name: "LoweredRound64F", argLength: 1, reg: fp11, resultInArg0: true},
+		{name: "LoweredRound32F", argLength: 1, reg: fp11, resultInArg0: true, earlyOk: true},
+		{name: "LoweredRound64F", argLength: 1, reg: fp11, resultInArg0: true, earlyOk: true},
 
 		// Calls
 		{name: "CALLstatic", argLength: -1, reg: call, aux: "CallOff", call: true},                         // call static function aux.(*gc.Sym). last arg=mem, auxint=argsize, returns mem
@@ -454,61 +455,61 @@ func init() {
 		{name: "LoweredPanicBoundsCC", argLength: 1, aux: "PanicBoundsCC", reg: regInfo{}, typ: "Mem", call: true},                                    // arg0=mem, returns memory.
 
 		// F extension.
-		{name: "FADDS", argLength: 2, reg: fp21, asm: "FADDS", commutative: true, typ: "Float32"},                                           // arg0 + arg1
-		{name: "FSUBS", argLength: 2, reg: fp21, asm: "FSUBS", commutative: false, typ: "Float32"},                                          // arg0 - arg1
-		{name: "FMULS", argLength: 2, reg: fp21, asm: "FMULS", commutative: true, typ: "Float32"},                                           // arg0 * arg1
-		{name: "FDIVS", argLength: 2, reg: fp21, asm: "FDIVS", commutative: false, typ: "Float32"},                                          // arg0 / arg1
-		{name: "FMADDS", argLength: 3, reg: fp31, asm: "FMADDS", commutative: true, typ: "Float32"},                                         // (arg0 * arg1) + arg2
-		{name: "FMSUBS", argLength: 3, reg: fp31, asm: "FMSUBS", commutative: true, typ: "Float32"},                                         // (arg0 * arg1) - arg2
-		{name: "FNMADDS", argLength: 3, reg: fp31, asm: "FNMADDS", commutative: true, typ: "Float32"},                                       // -(arg0 * arg1) + arg2
-		{name: "FNMSUBS", argLength: 3, reg: fp31, asm: "FNMSUBS", commutative: true, typ: "Float32"},                                       // -(arg0 * arg1) - arg2
-		{name: "FSQRTS", argLength: 1, reg: fp11, asm: "FSQRTS", typ: "Float32"},                                                            // sqrt(arg0)
-		{name: "FABSS", argLength: 1, reg: fp11, asm: "FABSS", typ: "Float32"},                                                              // abs(arg0)
-		{name: "FNEGS", argLength: 1, reg: fp11, asm: "FNEGS", typ: "Float32"},                                                              // -arg0
-		{name: "FMVSX", argLength: 1, reg: gpfp, asm: "FMVSX", typ: "Float32"},                                                              // reinterpret arg0 as float32
-		{name: "FMVXS", argLength: 1, reg: fpgp, asm: "FMVXS", typ: "Int32"},                                                                // reinterpret arg0 as int32, sign extended to 64 bits
-		{name: "FCVTSW", argLength: 1, reg: gpfp, asm: "FCVTSW", typ: "Float32"},                                                            // float32(low 32 bits of arg0)
-		{name: "FCVTSL", argLength: 1, reg: gpfp, asm: "FCVTSL", typ: "Float32"},                                                            // float32(arg0)
-		{name: "FCVTWS", argLength: 1, reg: fpgp, asm: "FCVTWS", typ: "Int32"},                                                              // int32(arg0)
-		{name: "FCVTLS", argLength: 1, reg: fpgp, asm: "FCVTLS", typ: "Int64"},                                                              // int64(arg0)
-		{name: "FMOVWload", argLength: 2, reg: fpload, asm: "MOVF", aux: "SymOff", typ: "Float32", faultOnNilArg0: true, symEffect: "Read"}, // load float32 from arg0+auxint+aux
-		{name: "FMOVWstore", argLength: 3, reg: fpstore, asm: "MOVF", aux: "SymOff", typ: "Mem", faultOnNilArg0: true, symEffect: "Write"},  // store float32 to arg0+auxint+aux
-		{name: "FEQS", argLength: 2, reg: fp2gp, asm: "FEQS", commutative: true},                                                            // arg0 == arg1
-		{name: "FNES", argLength: 2, reg: fp2gp, asm: "FNES", commutative: true},                                                            // arg0 != arg1
-		{name: "FLTS", argLength: 2, reg: fp2gp, asm: "FLTS"},                                                                               // arg0 < arg1
-		{name: "FLES", argLength: 2, reg: fp2gp, asm: "FLES"},                                                                               // arg0 <= arg1
-		{name: "LoweredFMAXS", argLength: 2, reg: fp21, resultNotInArgs: true, asm: "FMAXS", commutative: true, typ: "Float32"},             // max(arg0, arg1)
-		{name: "LoweredFMINS", argLength: 2, reg: fp21, resultNotInArgs: true, asm: "FMINS", commutative: true, typ: "Float32"},             // min(arg0, arg1)
+		{name: "FADDS", argLength: 2, reg: fp21, asm: "FADDS", commutative: true, typ: "Float32", earlyOk: true},                               // arg0 + arg1
+		{name: "FSUBS", argLength: 2, reg: fp21, asm: "FSUBS", commutative: false, typ: "Float32", earlyOk: true},                              // arg0 - arg1
+		{name: "FMULS", argLength: 2, reg: fp21, asm: "FMULS", commutative: true, typ: "Float32", earlyOk: true},                               // arg0 * arg1
+		{name: "FDIVS", argLength: 2, reg: fp21, asm: "FDIVS", commutative: false, typ: "Float32", earlyOk: true},                              // arg0 / arg1
+		{name: "FMADDS", argLength: 3, reg: fp31, asm: "FMADDS", commutative: true, typ: "Float32", earlyOk: true},                             // (arg0 * arg1) + arg2
+		{name: "FMSUBS", argLength: 3, reg: fp31, asm: "FMSUBS", commutative: true, typ: "Float32", earlyOk: true},                             // (arg0 * arg1) - arg2
+		{name: "FNMADDS", argLength: 3, reg: fp31, asm: "FNMADDS", commutative: true, typ: "Float32", earlyOk: true},                           // -(arg0 * arg1) + arg2
+		{name: "FNMSUBS", argLength: 3, reg: fp31, asm: "FNMSUBS", commutative: true, typ: "Float32", earlyOk: true},                           // -(arg0 * arg1) - arg2
+		{name: "FSQRTS", argLength: 1, reg: fp11, asm: "FSQRTS", typ: "Float32", earlyOk: true},                                                // sqrt(arg0)
+		{name: "FABSS", argLength: 1, reg: fp11, asm: "FABSS", typ: "Float32", earlyOk: true},                                                  // abs(arg0)
+		{name: "FNEGS", argLength: 1, reg: fp11, asm: "FNEGS", typ: "Float32", earlyOk: true},                                                  // -arg0
+		{name: "FMVSX", argLength: 1, reg: gpfp, asm: "FMVSX", typ: "Float32", earlyOk: true},                                                  // reinterpret arg0 as float32
+		{name: "FMVXS", argLength: 1, reg: fpgp, asm: "FMVXS", typ: "Int32", earlyOk: true},                                                    // reinterpret arg0 as int32, sign extended to 64 bits
+		{name: "FCVTSW", argLength: 1, reg: gpfp, asm: "FCVTSW", typ: "Float32", earlyOk: true},                                                // float32(low 32 bits of arg0)
+		{name: "FCVTSL", argLength: 1, reg: gpfp, asm: "FCVTSL", typ: "Float32", earlyOk: true},                                                // float32(arg0)
+		{name: "FCVTWS", argLength: 1, reg: fpgp, asm: "FCVTWS", typ: "Int32", earlyOk: true},                                                  // int32(arg0)
+		{name: "FCVTLS", argLength: 1, reg: fpgp, asm: "FCVTLS", typ: "Int64", earlyOk: true},                                                  // int64(arg0)
+		{name: "FMOVWload", argLength: 2, reg: fpload, asm: "MOVF", aux: "SymOff", typ: "Float32", faultOnNilArg0: true, symEffect: "Read"},    // load float32 from arg0+auxint+aux
+		{name: "FMOVWstore", argLength: 3, reg: fpstore, asm: "MOVF", aux: "SymOff", typ: "Mem", faultOnNilArg0: true, symEffect: "Write"},     // store float32 to arg0+auxint+aux
+		{name: "FEQS", argLength: 2, reg: fp2gp, asm: "FEQS", commutative: true, earlyOk: true},                                                // arg0 == arg1
+		{name: "FNES", argLength: 2, reg: fp2gp, asm: "FNES", commutative: true, earlyOk: true},                                                // arg0 != arg1
+		{name: "FLTS", argLength: 2, reg: fp2gp, asm: "FLTS", earlyOk: true},                                                                   // arg0 < arg1
+		{name: "FLES", argLength: 2, reg: fp2gp, asm: "FLES", earlyOk: true},                                                                   // arg0 <= arg1
+		{name: "LoweredFMAXS", argLength: 2, reg: fp21, resultNotInArgs: true, asm: "FMAXS", commutative: true, typ: "Float32", earlyOk: true}, // max(arg0, arg1)
+		{name: "LoweredFMINS", argLength: 2, reg: fp21, resultNotInArgs: true, asm: "FMINS", commutative: true, typ: "Float32", earlyOk: true}, // min(arg0, arg1)
 
 		// D extension.
-		{name: "FADDD", argLength: 2, reg: fp21, asm: "FADDD", commutative: true, typ: "Float64"},                                           // arg0 + arg1
-		{name: "FSUBD", argLength: 2, reg: fp21, asm: "FSUBD", commutative: false, typ: "Float64"},                                          // arg0 - arg1
-		{name: "FMULD", argLength: 2, reg: fp21, asm: "FMULD", commutative: true, typ: "Float64"},                                           // arg0 * arg1
-		{name: "FDIVD", argLength: 2, reg: fp21, asm: "FDIVD", commutative: false, typ: "Float64"},                                          // arg0 / arg1
-		{name: "FMADDD", argLength: 3, reg: fp31, asm: "FMADDD", commutative: true, typ: "Float64"},                                         // (arg0 * arg1) + arg2
-		{name: "FMSUBD", argLength: 3, reg: fp31, asm: "FMSUBD", commutative: true, typ: "Float64"},                                         // (arg0 * arg1) - arg2
-		{name: "FNMADDD", argLength: 3, reg: fp31, asm: "FNMADDD", commutative: true, typ: "Float64"},                                       // -(arg0 * arg1) + arg2
-		{name: "FNMSUBD", argLength: 3, reg: fp31, asm: "FNMSUBD", commutative: true, typ: "Float64"},                                       // -(arg0 * arg1) - arg2
-		{name: "FSQRTD", argLength: 1, reg: fp11, asm: "FSQRTD", typ: "Float64"},                                                            // sqrt(arg0)
-		{name: "FNEGD", argLength: 1, reg: fp11, asm: "FNEGD", typ: "Float64"},                                                              // -arg0
-		{name: "FABSD", argLength: 1, reg: fp11, asm: "FABSD", typ: "Float64"},                                                              // abs(arg0)
-		{name: "FSGNJD", argLength: 2, reg: fp21, asm: "FSGNJD", typ: "Float64"},                                                            // copy sign of arg1 to arg0
-		{name: "FMVDX", argLength: 1, reg: gpfp, asm: "FMVDX", typ: "Float64"},                                                              // reinterpret arg0 as float64
-		{name: "FMVXD", argLength: 1, reg: fpgp, asm: "FMVXD", typ: "Int64"},                                                                // reinterpret arg0 as int64
-		{name: "FCVTDW", argLength: 1, reg: gpfp, asm: "FCVTDW", typ: "Float64"},                                                            // float64(low 32 bits of arg0)
-		{name: "FCVTDL", argLength: 1, reg: gpfp, asm: "FCVTDL", typ: "Float64"},                                                            // float64(arg0)
-		{name: "FCVTWD", argLength: 1, reg: fpgp, asm: "FCVTWD", typ: "Int32"},                                                              // int32(arg0)
-		{name: "FCVTLD", argLength: 1, reg: fpgp, asm: "FCVTLD", typ: "Int64"},                                                              // int64(arg0)
-		{name: "FCVTDS", argLength: 1, reg: fp11, asm: "FCVTDS", typ: "Float64"},                                                            // float64(arg0)
-		{name: "FCVTSD", argLength: 1, reg: fp11, asm: "FCVTSD", typ: "Float32"},                                                            // float32(arg0)
-		{name: "FMOVDload", argLength: 2, reg: fpload, asm: "MOVD", aux: "SymOff", typ: "Float64", faultOnNilArg0: true, symEffect: "Read"}, // load float64 from arg0+auxint+aux
-		{name: "FMOVDstore", argLength: 3, reg: fpstore, asm: "MOVD", aux: "SymOff", typ: "Mem", faultOnNilArg0: true, symEffect: "Write"},  // store float6 to arg0+auxint+aux
-		{name: "FEQD", argLength: 2, reg: fp2gp, asm: "FEQD", commutative: true},                                                            // arg0 == arg1
-		{name: "FNED", argLength: 2, reg: fp2gp, asm: "FNED", commutative: true},                                                            // arg0 != arg1
-		{name: "FLTD", argLength: 2, reg: fp2gp, asm: "FLTD"},                                                                               // arg0 < arg1
-		{name: "FLED", argLength: 2, reg: fp2gp, asm: "FLED"},                                                                               // arg0 <= arg1
-		{name: "LoweredFMIND", argLength: 2, reg: fp21, resultNotInArgs: true, asm: "FMIND", commutative: true, typ: "Float64"},             // min(arg0, arg1)
-		{name: "LoweredFMAXD", argLength: 2, reg: fp21, resultNotInArgs: true, asm: "FMAXD", commutative: true, typ: "Float64"},             // max(arg0, arg1)
+		{name: "FADDD", argLength: 2, reg: fp21, asm: "FADDD", commutative: true, typ: "Float64", earlyOk: true},                               // arg0 + arg1
+		{name: "FSUBD", argLength: 2, reg: fp21, asm: "FSUBD", commutative: false, typ: "Float64", earlyOk: true},                              // arg0 - arg1
+		{name: "FMULD", argLength: 2, reg: fp21, asm: "FMULD", commutative: true, typ: "Float64", earlyOk: true},                               // arg0 * arg1
+		{name: "FDIVD", argLength: 2, reg: fp21, asm: "FDIVD", commutative: false, typ: "Float64", earlyOk: true},                              // arg0 / arg1
+		{name: "FMADDD", argLength: 3, reg: fp31, asm: "FMADDD", commutative: true, typ: "Float64", earlyOk: true},                             // (arg0 * arg1) + arg2
+		{name: "FMSUBD", argLength: 3, reg: fp31, asm: "FMSUBD", commutative: true, typ: "Float64", earlyOk: true},                             // (arg0 * arg1) - arg2
+		{name: "FNMADDD", argLength: 3, reg: fp31, asm: "FNMADDD", commutative: true, typ: "Float64", earlyOk: true},                           // -(arg0 * arg1) + arg2
+		{name: "FNMSUBD", argLength: 3, reg: fp31, asm: "FNMSUBD", commutative: true, typ: "Float64", earlyOk: true},                           // -(arg0 * arg1) - arg2
+		{name: "FSQRTD", argLength: 1, reg: fp11, asm: "FSQRTD", typ: "Float64", earlyOk: true},                                                // sqrt(arg0)
+		{name: "FNEGD", argLength: 1, reg: fp11, asm: "FNEGD", typ: "Float64", earlyOk: true},                                                  // -arg0
+		{name: "FABSD", argLength: 1, reg: fp11, asm: "FABSD", typ: "Float64", earlyOk: true},                                                  // abs(arg0)
+		{name: "FSGNJD", argLength: 2, reg: fp21, asm: "FSGNJD", typ: "Float64", earlyOk: true},                                                // copy sign of arg1 to arg0
+		{name: "FMVDX", argLength: 1, reg: gpfp, asm: "FMVDX", typ: "Float64", earlyOk: true},                                                  // reinterpret arg0 as float64
+		{name: "FMVXD", argLength: 1, reg: fpgp, asm: "FMVXD", typ: "Int64", earlyOk: true},                                                    // reinterpret arg0 as int64
+		{name: "FCVTDW", argLength: 1, reg: gpfp, asm: "FCVTDW", typ: "Float64", earlyOk: true},                                                // float64(low 32 bits of arg0)
+		{name: "FCVTDL", argLength: 1, reg: gpfp, asm: "FCVTDL", typ: "Float64", earlyOk: true},                                                // float64(arg0)
+		{name: "FCVTWD", argLength: 1, reg: fpgp, asm: "FCVTWD", typ: "Int32", earlyOk: true},                                                  // int32(arg0)
+		{name: "FCVTLD", argLength: 1, reg: fpgp, asm: "FCVTLD", typ: "Int64", earlyOk: true},                                                  // int64(arg0)
+		{name: "FCVTDS", argLength: 1, reg: fp11, asm: "FCVTDS", typ: "Float64", earlyOk: true},                                                // float64(arg0)
+		{name: "FCVTSD", argLength: 1, reg: fp11, asm: "FCVTSD", typ: "Float32", earlyOk: true},                                                // float32(arg0)
+		{name: "FMOVDload", argLength: 2, reg: fpload, asm: "MOVD", aux: "SymOff", typ: "Float64", faultOnNilArg0: true, symEffect: "Read"},    // load float64 from arg0+auxint+aux
+		{name: "FMOVDstore", argLength: 3, reg: fpstore, asm: "MOVD", aux: "SymOff", typ: "Mem", faultOnNilArg0: true, symEffect: "Write"},     // store float6 to arg0+auxint+aux
+		{name: "FEQD", argLength: 2, reg: fp2gp, asm: "FEQD", commutative: true, earlyOk: true},                                                // arg0 == arg1
+		{name: "FNED", argLength: 2, reg: fp2gp, asm: "FNED", commutative: true, earlyOk: true},                                                // arg0 != arg1
+		{name: "FLTD", argLength: 2, reg: fp2gp, asm: "FLTD", earlyOk: true},                                                                   // arg0 < arg1
+		{name: "FLED", argLength: 2, reg: fp2gp, asm: "FLED", earlyOk: true},                                                                   // arg0 <= arg1
+		{name: "LoweredFMIND", argLength: 2, reg: fp21, resultNotInArgs: true, asm: "FMIND", commutative: true, typ: "Float64", earlyOk: true}, // min(arg0, arg1)
+		{name: "LoweredFMAXD", argLength: 2, reg: fp21, resultNotInArgs: true, asm: "FMAXD", commutative: true, typ: "Float64", earlyOk: true}, // max(arg0, arg1)
 
 		// Floating point classify (in the F and D extensions).
 		//
@@ -528,8 +529,8 @@ func init() {
 		//     8 | qNaN
 		//     9 | sNaN
 		//   ====+=============================
-		{name: "FCLASSS", argLength: 1, reg: fpgp, asm: "FCLASSS", typ: "Int64"}, // classify float32
-		{name: "FCLASSD", argLength: 1, reg: fpgp, asm: "FCLASSD", typ: "Int64"}, // classify float64
+		{name: "FCLASSS", argLength: 1, reg: fpgp, asm: "FCLASSS", typ: "Int64", earlyOk: true}, // classify float32
+		{name: "FCLASSD", argLength: 1, reg: fpgp, asm: "FCLASSD", typ: "Int64", earlyOk: true}, // classify float64
 
 		// RISC-V Integer Conditional (Zicond) operations extension
 		{name: "CZEROEQZ", argLength: 2, reg: gp21, asm: "CZEROEQZ"}, // arg1 == 0 result is 0, else arg0

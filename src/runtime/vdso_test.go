@@ -9,6 +9,7 @@ package runtime_test
 import (
 	"bytes"
 	"internal/asan"
+	"internal/goarch"
 	"internal/testenv"
 	"os"
 	"os/exec"
@@ -53,10 +54,14 @@ func TestUsingVDSO(t *testing.T) {
 		t.Skipf("skipping because Executable failed: %v", err)
 	}
 
-	// Trace both clock_gettime and clock_gettime64: 32-bit Linux glibc uses
-	// the y2038-safe clock_gettime64 syscall, and strace's -e filter is an
-	// exact match, not a prefix.
-	const traceFilter = "clock_gettime,clock_gettime64"
+	traceFilter := "clock_gettime"
+
+	if goarch.PtrSize == 4 {
+		// Trace both clock_gettime and clock_gettime64: 32-bit Linux glibc uses
+		// the y2038-safe clock_gettime64 syscall, and strace's -e filter is an
+		// exact match, not a prefix.
+		traceFilter += ",clock_gettime64"
+	}
 
 	t.Logf("GO_WANT_HELPER_PROCESS=1 %s -f -e %s %s -test.run=^TestUsingVDSO$", strace, traceFilter, exe)
 	cmd := testenv.Command(t, strace, "-f", "-e", traceFilter, exe, "-test.run=^TestUsingVDSO$")

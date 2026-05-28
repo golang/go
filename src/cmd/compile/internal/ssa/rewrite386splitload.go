@@ -46,9 +46,8 @@ func rewriteValue386splitload_Op386CMPBload(v *Value) bool {
 	v_1 := v.Args[1]
 	v_0 := v.Args[0]
 	b := v.Block
-	typ := &b.Func.Config.Types
 	// match: (CMPBload {sym} [off] ptr x mem)
-	// result: (CMPB (MOVBload {sym} [off] ptr mem) x)
+	// result: (CMPB (MOVBload <x.Type> {sym} [off] ptr mem) x)
 	for {
 		off := auxIntToInt32(v.AuxInt)
 		sym := auxToSym(v.Aux)
@@ -56,7 +55,7 @@ func rewriteValue386splitload_Op386CMPBload(v *Value) bool {
 		x := v_1
 		mem := v_2
 		v.reset(Op386CMPB)
-		v0 := b.NewValue0(v.Pos, Op386MOVBload, typ.UInt8)
+		v0 := b.NewValue0(v.Pos, Op386MOVBload, x.Type)
 		v0.AuxInt = int32ToAuxInt(off)
 		v0.Aux = symToAux(sym)
 		v0.AddArg2(ptr, mem)
@@ -91,9 +90,8 @@ func rewriteValue386splitload_Op386CMPLload(v *Value) bool {
 	v_1 := v.Args[1]
 	v_0 := v.Args[0]
 	b := v.Block
-	typ := &b.Func.Config.Types
 	// match: (CMPLload {sym} [off] ptr x mem)
-	// result: (CMPL (MOVLload {sym} [off] ptr mem) x)
+	// result: (CMPL (MOVLload <x.Type> {sym} [off] ptr mem) x)
 	for {
 		off := auxIntToInt32(v.AuxInt)
 		sym := auxToSym(v.Aux)
@@ -101,7 +99,7 @@ func rewriteValue386splitload_Op386CMPLload(v *Value) bool {
 		x := v_1
 		mem := v_2
 		v.reset(Op386CMPL)
-		v0 := b.NewValue0(v.Pos, Op386MOVLload, typ.UInt32)
+		v0 := b.NewValue0(v.Pos, Op386MOVLload, x.Type)
 		v0.AuxInt = int32ToAuxInt(off)
 		v0.Aux = symToAux(sym)
 		v0.AddArg2(ptr, mem)
@@ -136,9 +134,8 @@ func rewriteValue386splitload_Op386CMPWload(v *Value) bool {
 	v_1 := v.Args[1]
 	v_0 := v.Args[0]
 	b := v.Block
-	typ := &b.Func.Config.Types
 	// match: (CMPWload {sym} [off] ptr x mem)
-	// result: (CMPW (MOVWload {sym} [off] ptr mem) x)
+	// result: (CMPW (MOVWload <x.Type> {sym} [off] ptr mem) x)
 	for {
 		off := auxIntToInt32(v.AuxInt)
 		sym := auxToSym(v.Aux)
@@ -146,7 +143,7 @@ func rewriteValue386splitload_Op386CMPWload(v *Value) bool {
 		x := v_1
 		mem := v_2
 		v.reset(Op386CMPW)
-		v0 := b.NewValue0(v.Pos, Op386MOVWload, typ.UInt16)
+		v0 := b.NewValue0(v.Pos, Op386MOVWload, x.Type)
 		v0.AuxInt = int32ToAuxInt(off)
 		v0.Aux = symToAux(sym)
 		v0.AddArg2(ptr, mem)

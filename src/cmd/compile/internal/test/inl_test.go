@@ -243,6 +243,10 @@ func TestIntendedInlining(t *testing.T) {
 		"path/filepath": {
 			"scanChunk",
 		},
+		"internal/strconv": {
+			"prescale",
+			"uscale",
+		},
 	}
 
 	if runtime.GOARCH != "386" && runtime.GOARCH != "loong64" && runtime.GOARCH != "mips64" && runtime.GOARCH != "mips64le" && runtime.GOARCH != "riscv64" {

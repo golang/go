@@ -505,6 +505,74 @@ func BenchmarkQuoRem(b *testing.B) {
 	}
 }
 
+func TestIntDivide(t *testing.T) {
+	x := new(Int)
+	y := new(Int)
+	q := new(Int)
+	r := new(Int)
+	f := new(Int)
+	qGot := new(Int)
+	rGot := new(Int)
+
+	check := func(i, j, q_ int64, mode RoundingMode, modeName string) {
+		x.SetInt64(i)
+		y.SetInt64(j)
+		q.SetInt64(q_)
+		r.SetInt64(i - j*q_)
+
+		// The quotient remains the same irrespective of scaling factor f,
+		// everything else gets scaled by f; f is set by the caller.
+		x.Mul(x, f)
+		y.Mul(y, f)
+		r.Mul(r, f)
+
+		qGot, rGot = qGot.Divide(x, y, rGot, mode)
+		if qGot.Cmp(q) != 0 || rGot.Cmp(r) != 0 {
+			t.Errorf("%v(%v/%v): got q = %v, r = %v; want q = %v, r = %v", modeName, x, y, qGot, rGot, q, r)
+		}
+
+		// nil remainder result
+		qGot, _ = qGot.Divide(x, y, nil, mode)
+		if qGot.Cmp(q) != 0 {
+			t.Errorf("%v(%v/%v): got q = %v; want q = %v", modeName, x, y, qGot, q)
+		}
+
+		// nil quotient result
+		_, rGot = (*Int)(nil).Divide(x, y, rGot, mode)
+		if rGot.Cmp(r) != 0 {
+			t.Errorf("%v(%v/%v): got r = %v; want r = %v", modeName, x, y, rGot, r)
+		}
+
+		// nil quotient and remainder must not panic
+		(*Int)(nil).Divide(x, y, nil, mode)
+	}
+
+	// test each case with different scaling factors f
+	for _, s := range []string{
+		"1",
+		"1234",
+		"99991",
+		"1234567890",
+		"12345678901234567890",
+	} {
+		f.SetString(s, 10)
+		const n int64 = 10
+		for i := -n; i <= n; i++ {
+			for j := -n; j <= n; j++ {
+				if j == 0 {
+					continue
+				}
+				z := float64(i) / float64(j)
+				check(i, j, i/j, Trunc, "trunc") // T-division is regular Go integer division
+				check(i, j, int64(math.Trunc(z)), Trunc, "trunc")
+				check(i, j, int64(math.Floor(z)), Floor, "floor")
+				check(i, j, int64(math.Ceil(z)), Ceil, "ceil")
+				check(i, j, int64(math.RoundToEven(z)), Round, "round")
+			}
+		}
+	}
+}
+
 var bitLenTests = []struct {
 	in  string
 	out int

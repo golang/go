@@ -62,8 +62,31 @@ type fakeConnector struct {
 
 func (c *fakeConnector) Connect(context.Context) (driver.Conn, error) {
 	conn, err := fdriver.Open(c.name)
+	if err != nil {
+		return nil, err
+	}
 	conn.(*fakeConn).waiter = c.waiter
-	return conn, err
+	return conn, nil
+}
+
+func getFakeConn(c driver.Conn) *fakeConn {
+	return c.(interface {
+		getFakeConn() *fakeConn
+	}).getFakeConn()
+}
+
+func (c *fakeConn) getFakeConn() *fakeConn {
+	return c
+}
+
+func getRowsCursor(rs *Rows) *rowsCursor {
+	return rs.rowsi.(interface {
+		getRowsCursor() *rowsCursor
+	}).getRowsCursor()
+}
+
+func (rc *rowsCursor) getRowsCursor() *rowsCursor {
+	return rc
 }
 
 func (c *fakeConnector) Driver() driver.Driver {
@@ -1228,6 +1251,8 @@ func converterForType(typ string) driver.ValueConverter {
 	case "uuid":
 		return driver.NotNull{Converter: driver.DefaultParameterConverter}
 	case "nulluuid":
+		return driver.Null{Converter: driver.DefaultParameterConverter}
+	case "nulltable":
 		return driver.Null{Converter: driver.DefaultParameterConverter}
 	case "any":
 		return anyTypeConverter{}

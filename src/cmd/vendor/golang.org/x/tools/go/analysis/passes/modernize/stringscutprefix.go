@@ -16,6 +16,7 @@ import (
 	"golang.org/x/tools/internal/analysis/analyzerutil"
 	typeindexanalyzer "golang.org/x/tools/internal/analysis/typeindex"
 	"golang.org/x/tools/internal/astutil"
+	"golang.org/x/tools/internal/moreiters"
 	"golang.org/x/tools/internal/refactor"
 	"golang.org/x/tools/internal/typesinternal"
 	"golang.org/x/tools/internal/typesinternal/typeindex"
@@ -217,34 +218,47 @@ func stringscutprefix(pass *analysis.Pass) (any, error) {
 							call.Pos(),
 						)
 
+						// if x     := strings.TrimPrefix(s, pre); x != s ...
+						//     ----            ----------          ------
+						// if x, ok := strings.CutPrefix (s, pre); ok     ...
+						// (ditto Suffix)
+						edits := append(importEdits, []analysis.TextEdit{
+							{
+								Pos:     assign.Lhs[0].End(),
+								End:     assign.Lhs[0].End(),
+								NewText: fmt.Appendf(nil, ", %s", okVarName),
+							},
+							{
+								Pos:     call.Fun.Pos(),
+								End:     call.Fun.End(),
+								NewText: fmt.Appendf(nil, "%s%s", prefix, cutFuncName),
+							},
+							{
+								Pos:     ifStmt.Cond.Pos(),
+								End:     ifStmt.Cond.End(),
+								NewText: []byte(okVarName),
+							},
+						}...)
+
+						// Replace the "after" variable with "_" if is unused inside the if statement.
+						if id, ok := lhs.(*ast.Ident); ok {
+							if obj := info.ObjectOf(id); obj != nil && moreiters.Len(index.Uses(obj)) < 2 {
+								edits = append(edits, analysis.TextEdit{
+									Pos:     assign.Lhs[0].Pos(),
+									End:     assign.Lhs[0].End(),
+									NewText: []byte("_"),
+								})
+							}
+						}
+
 						pass.Report(analysis.Diagnostic{
 							// highlight from the init and the condition end.
 							Pos:     ifStmt.Init.Pos(),
 							End:     ifStmt.Cond.End(),
 							Message: message,
 							SuggestedFixes: []analysis.SuggestedFix{{
-								Message: fixMessage,
-								// if x     := strings.TrimPrefix(s, pre); x != s ...
-								//     ----            ----------          ------
-								// if x, ok := strings.CutPrefix (s, pre); ok     ...
-								// (ditto Suffix)
-								TextEdits: append(importEdits, []analysis.TextEdit{
-									{
-										Pos:     assign.Lhs[0].End(),
-										End:     assign.Lhs[0].End(),
-										NewText: fmt.Appendf(nil, ", %s", okVarName),
-									},
-									{
-										Pos:     call.Fun.Pos(),
-										End:     call.Fun.End(),
-										NewText: fmt.Appendf(nil, "%s%s", prefix, cutFuncName),
-									},
-									{
-										Pos:     ifStmt.Cond.Pos(),
-										End:     ifStmt.Cond.End(),
-										NewText: []byte(okVarName),
-									},
-								}...),
+								Message:   fixMessage,
+								TextEdits: edits,
 							}},
 						})
 					}

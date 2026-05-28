@@ -28,6 +28,7 @@ type C struct {
 func main() {
 	eq(A{1, B{b: "foo"}}, A{a: 1, b: "foo"})
 	eq(A{B: B{C: C{c: "foo"}}}, A{c: "foo"})
+	eq(x, A{B: B{b: "foo"}})
 }
 
 func eq(x, y any) {
@@ -35,3 +36,6 @@ func eq(x, y any) {
 		panic(fmt.Sprintf("%v != %v", x, y))
 	}
 }
+
+// test global initializer
+var x = A{b: "foo"}

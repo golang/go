@@ -63,19 +63,19 @@ func runtime_mapaccess2_fast32(typ *abi.MapType, m *Map, key uint32) (unsafe.Poi
 		return unsafe.Pointer(&zeroVal[0]), false
 	}
 
-	// Don't pass address of the key directly to the hashing function.
-	// Hashing functions are implemented in Go assembly and cannot be inlined,
-	// so compiler doesn't optimize redundant address taking/dereference.
+	var hash uintptr
+	// Explicitly inline MemHash32.
+	// MemHash32 cost is higher than the threshold for inlining.
+	// But when we are using intrinsic implementation we want it to be inlined,
+	// since it improves performance.
 	//
-	// Taking &key makes compiler treat key as address-taken, which forces it to spill on the stack
-	// and reload it in the loop.
-	// This is suboptimal for performance.
-	//
-	// Note: Even when we pass k (local copy of key), the compiler still spills the key to the stack.
-	// However, from compiler's perspective, key is no longer address-taken and
-	// filled back in register before the loop.
-	k := key
-	hash := MemHash32(unsafe.Pointer(&k), m.seed)
+	// Note: memHashAESImplemented is compile time constant. We use it to remove runtime UseAeshash check
+	// for architectures where we don't have AES hashing implementations.
+	if memHashAESImplemented && UseAeshash {
+		hash = memHash32AES(key, m.seed)
+	} else {
+		hash = memHash32Fallback(key, m.seed)
+	}
 
 	// Select table.
 	idx := m.directoryIndex(hash)
@@ -197,10 +197,13 @@ func runtime_mapassign_fast32(typ *abi.MapType, m *Map, key uint32) unsafe.Point
 		fatal("concurrent map writes")
 	}
 
+	var hash uintptr
 	// See the related comment in runtime_mapaccess2_fast32
-	// for why we pass local copy of key.
-	k := key
-	hash := MemHash32(unsafe.Pointer(&k), m.seed)
+	if memHashAESImplemented && UseAeshash {
+		hash = memHash32AES(key, m.seed)
+	} else {
+		hash = memHash32Fallback(key, m.seed)
+	}
 
 	// Set writing after calling Hasher, since Hasher may panic, in which
 	// case we have not actually done a write.
@@ -343,10 +346,13 @@ func runtime_mapassign_fast32ptr(typ *abi.MapType, m *Map, key unsafe.Pointer) u
 		fatal("concurrent map writes")
 	}
 
+	var hash uintptr
 	// See the related comment in runtime_mapaccess2_fast32
-	// for why we pass local copy of key.
-	k := key
-	hash := MemHash32(unsafe.Pointer(&k), m.seed)
+	if memHashAESImplemented && UseAeshash {
+		hash = memHash32AES(uint32((uintptr)(key)), m.seed)
+	} else {
+		hash = memHash32Fallback(uint32((uintptr)(key)), m.seed)
+	}
 
 	// Set writing after calling Hasher, since Hasher may panic, in which
 	// case we have not actually done a write.

@@ -1368,6 +1368,12 @@ func (b *Builder) vet(ctx context.Context, a *Action) error {
 	// dependency tree turn on *more* analysis, as here.
 	// (The unsafeptr check does not write any facts for use by
 	// later vet runs, nor does unreachable.)
+	//
+	// When changing the default analyzer suite, please update
+	// x/tools/go/analysis/unitchecker/vet_std_test.go too so that
+	// it functions as a consistent early-warning system for
+	// changes to analyzers (as opposed to changes in the target
+	// packages, which is the purpose of this logic).
 	if a.Package.Goroot && !VetExplicit && VetTool == base.Tool("vet") {
 		// Turn off -unsafeptr checks.
 		// There's too much unsafe.Pointer code
@@ -2985,6 +2991,11 @@ func (b *Builder) runCgo(ctx context.Context, a *Action) error {
 	flagSources := []string{"CGO_CFLAGS", "CGO_CXXFLAGS", "CGO_FFLAGS"}
 	flagLists := [][]string{cgoCFLAGS, cgoCXXFLAGS, cgoFFLAGS}
 	notCompatibleWithInternalLinking := flagsNotCompatibleWithInternalLinking(flagSources, flagLists)
+	if !notCompatibleWithInternalLinking {
+		if err := checkLinkerFlagsForInternalLink("CGO_LDFLAGS", "CGO_LDFLAGS", cgoLDFLAGS); err != nil {
+			notCompatibleWithInternalLinking = true
+		}
+	}
 
 	if cfg.BuildMSan {
 		cgoCFLAGS = append([]string{"-fsanitize=memory"}, cgoCFLAGS...)

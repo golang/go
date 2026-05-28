@@ -9,11 +9,6 @@
 // primitive data types such as booleans, strings, and numbers,
 // in addition to structured data types such as objects and arrays.
 //
-// This package (encoding/json/v2) is experimental,
-// and not subject to the Go 1 compatibility promise.
-// It only exists when building with the GOEXPERIMENT=jsonv2 environment variable set.
-// Most users should use [encoding/json].
-//
 // [Marshal] and [Unmarshal] encode and decode Go values
 // to/from JSON text contained within a []byte.
 // [MarshalWrite] and [UnmarshalRead] operate on JSON text
@@ -83,13 +78,17 @@
 //     encoded as a JSON null, empty string, empty object, or empty array.
 //     This option has no effect when unmarshaling.
 //
-//   - string: The "string" option specifies that [StringifyNumbers]
-//     be set when marshaling or unmarshaling a struct field value.
-//     This causes numeric types to be encoded as a JSON number
-//     within a JSON string, and to be decoded from a JSON string
-//     containing the JSON number without any surrounding whitespace.
-//     This extra level of encoding is often necessary since
-//     many JSON parsers cannot precisely represent 64-bit integers.
+//   - string: The "string" option specifies that [StringifyNumbers] be set
+//     when marshaling or unmarshaling a struct field value.
+//     This causes numeric types (or a pointer to a numeric type) to be encoded
+//     as a JSON number within a JSON string, and to be decoded from a JSON
+//     string containing the JSON number without any surrounding whitespace.
+//     The "string" option does not apply recursively. Specifically, `string`
+//     will not stringify bool, string, or numeric kinds within a composite
+//     data type (e.g., array, slice, struct, map, or interface).
+//     Applying this option to an invalid type causes a runtime error.
+//     This extra level of encoding is often necessary since many JSON parsers
+//     cannot precisely represent 64-bit integers.
 //
 //   - case: When unmarshaling, the "case" option specifies how
 //     JSON object names are matched with the JSON name for Go struct fields.

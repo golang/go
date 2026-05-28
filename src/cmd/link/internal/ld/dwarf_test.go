@@ -868,11 +868,12 @@ func TestRuntimeTypeAttrExternal(t *testing.T) {
 
 	mustHaveDWARF(t)
 
-	// Explicitly test external linking, for dsymutil compatibility on Darwin.
-	if runtime.GOARCH == "ppc64" {
-		t.Skip("-linkmode=external not supported on ppc64")
+	if runtime.GOOS == "aix" {
+		// This fails with something like: DWARF type offset was 0xf18+0x200008b8, but test program said 0x1100017d0
+		t.Skip("-linkmode=external not supported on aix")
 	}
 
+	// Explicitly test external linking, for dsymutil compatibility on Darwin.
 	testRuntimeTypeAttr(t, "-ldflags=-linkmode=external")
 }
 

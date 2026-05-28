@@ -176,6 +176,12 @@ func (priv *PrivateKey) Decrypt(rand io.Reader, ciphertext []byte, opts crypto.D
 
 	switch opts := opts.(type) {
 	case *OAEPOptions:
+		if !opts.Hash.Available() {
+			return nil, errors.New("rsa: requested hash function unavailable: " + opts.Hash.String())
+		}
+		if opts.MGFHash != 0 && !opts.MGFHash.Available() {
+			return nil, errors.New("rsa: requested hash function unavailable: " + opts.MGFHash.String())
+		}
 		if opts.MGFHash == 0 {
 			return decryptOAEP(opts.Hash.New(), opts.Hash.New(), priv, ciphertext, opts.Label)
 		} else {

@@ -2174,14 +2174,18 @@ func (sc *serverConn) newWriterAndRequest(st *stream, f *MetaHeadersFrame) (*res
 		return nil, nil, err
 	}
 	bodyOpen := !f.StreamEnded()
-	if bodyOpen {
-		if vv, ok := rp.Header["Content-Length"]; ok {
-			if cl, err := strconv.ParseUint(vv[0], 10, 63); err == nil {
-				req.ContentLength = int64(cl)
-			} else {
-				req.ContentLength = 0
-			}
+	if vv, ok := rp.Header["Content-Length"]; ok {
+		if cl, err := strconv.ParseUint(vv[0], 10, 63); err == nil {
+			req.ContentLength = int64(cl)
 		} else {
+			req.ContentLength = 0
+		}
+		if !bodyOpen && req.ContentLength != 0 {
+			return nil, nil, sc.countError("bodyless_content_length", streamError(f.StreamID, ErrCodeProtocol))
+		}
+	}
+	if bodyOpen {
+		if _, ok := rp.Header["Content-Length"]; !ok {
 			req.ContentLength = -1
 		}
 		req.Body.(*requestBody).pipe = &pipe{

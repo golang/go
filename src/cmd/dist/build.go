@@ -640,8 +640,8 @@ func mustLinkExternal(goos, goarch string, cgoEnabled bool) bool {
 			// https://golang.org/issue/14449
 			return true
 		case "ppc64":
-			// Big Endian PPC64 cgo internal linking is not implemented for aix or linux.
-			if goos == "aix" || goos == "linux" {
+			// Big Endian PPC64 cgo internal linking is not implemented for aix.
+			if goos == "aix" {
 				return true
 			}
 		}
@@ -924,6 +924,7 @@ func runInstall(pkg string, ch chan struct{}) {
 		"-D", "GOARCH_" + goarch,
 		"-D", "GOOS_GOARCH_" + goos + "_" + goarch,
 		"-p", pkg,
+		"-std",
 	}
 	if goarch == "mips" || goarch == "mipsle" {
 		// Define GOMIPS_value from gomips.
@@ -1796,7 +1797,7 @@ var cgoEnabled = map[string]bool{
 	"linux/arm":       true,
 	"linux/arm64":     true,
 	"linux/loong64":   true,
-	"linux/ppc64":     false,
+	"linux/ppc64":     true,
 	"linux/ppc64le":   true,
 	"linux/mips":      true,
 	"linux/mipsle":    true,

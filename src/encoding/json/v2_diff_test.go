@@ -257,14 +257,18 @@ func addr[T any](v T) *T {
 // The "string" option is not applied recursively, and so does not affect
 // strings, bools, and numeric values within a Go slice or map, but
 // does have special handling to affect the underlying value within a pointer.
+// If the "string" option is present on an unsupported type, it is simply ignored.
 // When unmarshaling, the "string" option permits decoding from a JSON null
 // escaped within a JSON string in some inconsistent cases.
 //
 // In v2, the "string" option specifies that only numeric values are encoded as
 // a JSON number within a JSON string when marshaling and are unmarshaled
 // from either a JSON number or a JSON string containing a JSON number.
-// The "string" option is applied recursively to all numeric sub-values,
-// and thus affects numeric values within a Go slice or map.
+// The "string" option is still not applied recursively, and so does not affect
+// within a Go slice or map, but it retains special handling to affect the
+// underlying value within a pointer.
+// If the "string" option is present on an unsupported type, a runtime error is
+// reported.
 // There is no support for escaped JSON nulls within a JSON string.
 //
 // The main utility for stringifying JSON numbers is because JSON parsers
@@ -275,13 +279,6 @@ func addr[T any](v T) *T {
 // is for numeric values, v2 limits the effect of the "string" option
 // to just numeric Go types. According to all code known by the Go module proxy,
 // there are close to zero usages of the "string" option on a Go string or bool.
-//
-// Regarding the recursive application of the "string" option,
-// there have been a number of issues filed about users being surprised that
-// the "string" option does not recursively affect numeric values
-// within a composite type like a Go map, slice, or interface value.
-// In v1, specifying the "string" option on composite type has no effect
-// and so this would be a largely backwards compatible change.
 //
 // The ability to decode from a JSON null wrapped within a JSON string
 // is removed in v2 because this behavior was surprising and inconsistent in v1.
@@ -294,8 +291,9 @@ func addr[T any](v T) *T {
 //	https://go.dev/issue/32055
 //	https://go.dev/issue/32117
 //	https://go.dev/issue/50997
+//	https://go.dev/issue/79065
 func TestStringOption(t *testing.T) {
-	type Types struct {
+	type AllTypes struct {
 		String     string              `json:",string"`
 		Bool       bool                `json:",string"`
 		Int        int                 `json:",string"`
@@ -311,9 +309,15 @@ func TestStringOption(t *testing.T) {
 		InterfaceB any                 `json:",string"`
 	}
 
+	type V2Types struct {
+		Int      int     `json:",string"`
+		Float    float64 `json:",string"`
+		PointerA *int    `json:",string"`
+	}
+
 	for _, json := range jsonPackages {
 		t.Run(path.Join("Marshal", json.Version), func(t *testing.T) {
-			in := Types{
+			in := AllTypes{
 				String:     "string",
 				Bool:       true,
 				Int:        1,
@@ -338,29 +342,32 @@ func TestStringOption(t *testing.T) {
 				}
 				return s
 			}
-			quoteOnlyV2 := func(s string) string {
-				if json.Version == "v2" {
-					s = quote(s)
-				}
-				return s
-			}
 			want := strings.Join([]string{
 				`{`,
 				`"String":` + quoteOnlyV1(`"string"`) + `,`, // in v1, Go strings are also stringified
 				`"Bool":` + quoteOnlyV1("true") + `,`,       // in v1, Go bools are also stringified
 				`"Int":` + quote("1") + `,`,
 				`"Float":` + quote("1") + `,`,
-				`"Map":{"Name":` + quoteOnlyV2("1") + `},`,     // in v2, numbers are recursively stringified
-				`"Struct":{"Field":` + quoteOnlyV2("1") + `},`, // in v2, numbers are recursively stringified
-				`"Slice":[` + quoteOnlyV2("1") + `],`,          // in v2, numbers are recursively stringified
-				`"Array":[` + quoteOnlyV2("1") + `],`,          // in v2, numbers are recursively stringified
+				`"Map":{"Name":1},`,     // No recursive stringification
+				`"Struct":{"Field":1},`, // No recursive stringification
+				`"Slice":[1],`,          // No recursive stringification
+				`"Array":[1],`,          // No recursive stringification
 				`"PointerA":null,`,
-				`"PointerB":` + quote("1") + `,`,       // in v1, numbers are stringified after a single pointer indirection
-				`"PointerC":` + quoteOnlyV2("1") + `,`, // in v2, numbers are recursively stringified
+				`"PointerB":` + quote("1") + `,`, // numbers are stringified after a single pointer indirection
+				`"PointerC":1,`,                  // No recursive stringification
 				`"InterfaceA":null,`,
-				`"InterfaceB":` + quoteOnlyV2("1") + ``, // in v2, numbers are recursively stringified
+				`"InterfaceB":1`, // No recursive stringification
 				`}`}, "")
-			got, err := json.Marshal(in)
+			var got []byte
+			var err error
+			if json.Version == "v2" {
+				// Suppress type errors in v2, so we can
+				// compare the affects regardless of type
+				// errors.
+				got, err = jsonv2.Marshal(in, jsonv1.ReportErrorsWithLegacySemantics(true))
+			} else {
+				got, err = json.Marshal(in)
+			}
 			if err != nil {
 				t.Fatalf("json.Marshal error: %v", err)
 			}
@@ -372,84 +379,51 @@ func TestStringOption(t *testing.T) {
 
 	for _, json := range jsonPackages {
 		t.Run(path.Join("Unmarshal/Null", json.Version), func(t *testing.T) {
-			var got Types
+			var got AllTypes
 			err := json.Unmarshal([]byte(`{
 				"Bool":     "null",
 				"Int":      "null",
 				"PointerA": "null"
 			}`), &got)
 			switch {
-			case !reflect.DeepEqual(got, Types{}):
-				t.Fatalf("json.Unmarshal = %v, want %v", got, Types{})
 			case json.Version == "v1" && err != nil:
 				t.Fatalf("json.Unmarshal error: %v", err)
 			case json.Version == "v2" && err == nil:
 				t.Fatal("json.Unmarshal error is nil, want non-nil")
+			case !reflect.DeepEqual(got, AllTypes{}):
+				t.Fatalf("json.Unmarshal = %+v, want %+v", got, AllTypes{})
 			}
 		})
 
 		t.Run(path.Join("Unmarshal/Bool", json.Version), func(t *testing.T) {
-			var got Types
-			want := map[string]Types{
+			var got AllTypes
+			want := map[string]AllTypes{
 				"v1": {Bool: true},
 				"v2": {Bool: false},
 			}[json.Version]
 			err := json.Unmarshal([]byte(`{"Bool": "true"}`), &got)
 			switch {
-			case !reflect.DeepEqual(got, want):
-				t.Fatalf("json.Unmarshal = %v, want %v", got, want)
 			case json.Version == "v1" && err != nil:
 				t.Fatalf("json.Unmarshal error: %v", err)
 			case json.Version == "v2" && err == nil:
 				t.Fatal("json.Unmarshal error is nil, want non-nil")
+			case !reflect.DeepEqual(got, want):
+				t.Fatalf("json.Unmarshal = %v, want %v", got, want)
 			}
 		})
 
 		t.Run(path.Join("Unmarshal/Shallow", json.Version), func(t *testing.T) {
-			var got Types
-			want := Types{Int: 1, PointerB: addr(1)}
+			var got V2Types
+			want := V2Types{Int: 1, PointerA: addr(1)}
 			err := json.Unmarshal([]byte(`{
 				"Int":      "1",
-				"PointerB": "1"
+				"PointerA": "1"
 			}`), &got)
 			switch {
-			case !reflect.DeepEqual(got, want):
-				t.Fatalf("json.Unmarshal = %v, want %v", got, want)
 			case err != nil:
 				t.Fatalf("json.Unmarshal error: %v", err)
-			}
-		})
-
-		t.Run(path.Join("Unmarshal/Deep", json.Version), func(t *testing.T) {
-			var got Types
-			want := map[string]Types{
-				"v1": {
-					Map:      map[string]int{"Name": 0},
-					Slice:    []int{0},
-					PointerC: addr(addr(0)),
-				},
-				"v2": {
-					Map:      map[string]int{"Name": 1},
-					Struct:   struct{ Field int }{1},
-					Slice:    []int{1},
-					Array:    [1]int{1},
-					PointerC: addr(addr(1)),
-				},
-			}[json.Version]
-			err := json.Unmarshal([]byte(`{
-				"Map":      {"Name":"1"},
-				"Struct":   {"Field":"1"},
-				"Slice":    ["1"],
-				"Array":    ["1"],
-				"PointerC": "1"
-			}`), &got)
-			switch {
 			case !reflect.DeepEqual(got, want):
-				t.Fatalf("json.Unmarshal =\n%v, want\n%v", got, want)
-			case json.Version == "v1" && err == nil:
-				t.Fatal("json.Unmarshal error is nil, want non-nil")
-			case json.Version == "v2" && err != nil:
-				t.Fatalf("json.Unmarshal error: %v", err)
+				t.Fatalf("json.Unmarshal =\n%+v, want\n%+v", got, want)
 			}
 		})
 	}

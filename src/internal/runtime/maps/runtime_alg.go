@@ -25,28 +25,39 @@ var aeskeysched [hashRandomBytes]byte
 var hashkey [4]uintptr
 
 func AlgInit() {
+	// Always intialize hashkey.
+	//
+	// See #78073
+	for i := range hashkey {
+		hashkey[i] = uintptr(bootstrapRand())
+	}
+
 	// Install AES hash algorithms if the instructions needed are present.
 	if (goarch.GOARCH == "386" || goarch.GOARCH == "amd64") &&
 		cpu.X86.HasAES && // AESENC
 		cpu.X86.HasSSSE3 && // PSHUFB
 		cpu.X86.HasSSE41 { // PINSR{D,Q}
 
-		// In aeshashbody (that is used by memhash & strhash)
-		// we have global variables that should be properly aligned.
+		// In memHashAES we have global variables that should be properly aligned.
 		//
 		// See #12415
 		if !checkMasksAndShiftsAlignment() {
 			fatal("maps: global variables for AES hashing are not properly aligned!")
 		}
 		initAlgAES()
+
+		if memHashUsesVAES {
+			// We are using intrinsics hash implementation.
+			// Override the UseAeshash in this case, since it uses VAES (AVX) instructions.
+			// While assembly implementation used AES-NI instructions,
+			// simd intrinsics only provide access to AVX ones.
+			UseAeshash = cpu.X86.HasAVX
+		}
 		return
 	}
 	if goarch.GOARCH == "arm64" && cpu.ARM64.HasAES {
 		initAlgAES()
 		return
-	}
-	for i := range hashkey {
-		hashkey[i] = uintptr(bootstrapRand())
 	}
 }
 
@@ -57,15 +68,6 @@ func initAlgAES() {
 	for i := range key {
 		key[i] = bootstrapRand()
 	}
-}
-
-func strHashFallback(a unsafe.Pointer, h uintptr) uintptr {
-	type stringStruct struct {
-		str unsafe.Pointer
-		len int
-	}
-	x := (*stringStruct)(a)
-	return memHashFallback(x.str, h, uintptr(x.len))
 }
 
 //go:nosplit

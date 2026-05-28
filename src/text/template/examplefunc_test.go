@@ -54,7 +54,7 @@ Output 2: {{printf "%q" . | title}}
 }
 
 // This example demonstrates registering two custom template functions
-// and how to overwite one of the functions after the template has been
+// and how to overwrite one of the functions after the template has been
 // parsed. Overwriting can be used, for example, to alter the operation
 // of cloned templates.
 func ExampleTemplate_funcs() {

@@ -183,7 +183,11 @@ func (ctxt *Link) InitTextSym(s *LSym, flag int, start src.XPos) {
 		return
 	}
 	if s.Func() != nil {
-		ctxt.Diag("%s: symbol %s redeclared\n\t%s: other declaration of symbol %s", ctxt.PosTable.Pos(start), s.Name, ctxt.PosTable.Pos(s.Func().Text.Pos), s.Name)
+		otherPos := src.NoPos
+		if s.Func().Text != nil {
+			otherPos = ctxt.PosTable.Pos(s.Func().Text.Pos)
+		}
+		ctxt.Diag("%s: symbol %s redeclared\n\t%s: other declaration of symbol %s", ctxt.PosTable.Pos(start), s.Name, otherPos, s.Name)
 		return
 	}
 	s.NewFuncInfo()

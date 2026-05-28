@@ -1,4 +1,4 @@
-# github.com/google/pprof v0.0.0-20260115054156-294ebfa9ad83
+# github.com/google/pprof v0.0.0-20260507013755-92041b743c96
 ## explicit; go 1.24.0
 github.com/google/pprof/driver
 github.com/google/pprof/internal/binutils
@@ -16,8 +16,8 @@ github.com/google/pprof/third_party/svgpan
 # github.com/ianlancetaylor/demangle v0.0.0-20250417193237-f615e6bd150b
 ## explicit; go 1.13
 github.com/ianlancetaylor/demangle
-# golang.org/x/arch v0.23.1-0.20260109160903-657d90bd6695
-## explicit; go 1.24.0
+# golang.org/x/arch v0.27.1-0.20260521044007-9c1a596a2c97
+## explicit; go 1.25.0
 golang.org/x/arch/arm/armasm
 golang.org/x/arch/arm64/arm64asm
 golang.org/x/arch/loong64/loong64asm
@@ -25,10 +25,10 @@ golang.org/x/arch/ppc64/ppc64asm
 golang.org/x/arch/riscv64/riscv64asm
 golang.org/x/arch/s390x/s390xasm
 golang.org/x/arch/x86/x86asm
-# golang.org/x/build v0.0.0-20260122183339-3ba88df37c64
-## explicit; go 1.24.9
+# golang.org/x/build v0.0.0-20260522210304-d55d0041b921
+## explicit; go 1.25.0
 golang.org/x/build/relnote
-# golang.org/x/mod v0.35.0
+# golang.org/x/mod v0.36.1-0.20260520130633-087f6515dd3b
 ## explicit; go 1.25.0
 golang.org/x/mod/internal/lazyregexp
 golang.org/x/mod/modfile
@@ -43,12 +43,12 @@ golang.org/x/mod/zip
 ## explicit; go 1.25.0
 golang.org/x/sync/errgroup
 golang.org/x/sync/semaphore
-# golang.org/x/sys v0.43.0
+# golang.org/x/sys v0.45.0
 ## explicit; go 1.25.0
 golang.org/x/sys/plan9
 golang.org/x/sys/unix
 golang.org/x/sys/windows
-# golang.org/x/telemetry v0.0.0-20260409153401-be6f6cb8b1fa
+# golang.org/x/telemetry v0.0.0-20260519152614-eab6ae52b5e2
 ## explicit; go 1.25.0
 golang.org/x/telemetry
 golang.org/x/telemetry/counter
@@ -60,10 +60,10 @@ golang.org/x/telemetry/internal/crashmonitor
 golang.org/x/telemetry/internal/mmap
 golang.org/x/telemetry/internal/telemetry
 golang.org/x/telemetry/internal/upload
-# golang.org/x/term v0.39.0
-## explicit; go 1.24.0
+# golang.org/x/term v0.43.0
+## explicit; go 1.25.0
 golang.org/x/term
-# golang.org/x/text v0.36.0
+# golang.org/x/text v0.37.0
 ## explicit; go 1.25.0
 golang.org/x/text/cases
 golang.org/x/text/internal
@@ -73,7 +73,7 @@ golang.org/x/text/internal/tag
 golang.org/x/text/language
 golang.org/x/text/transform
 golang.org/x/text/unicode/norm
-# golang.org/x/tools v0.44.1-0.20260414062052-55fb96ff894f
+# golang.org/x/tools v0.45.1-0.20260526150332-c7a66a92adc3
 ## explicit; go 1.25.0
 golang.org/x/tools/cmd/bisect
 golang.org/x/tools/cover
@@ -119,6 +119,8 @@ golang.org/x/tools/go/analysis/passes/unreachable
 golang.org/x/tools/go/analysis/passes/unsafeptr
 golang.org/x/tools/go/analysis/passes/unusedresult
 golang.org/x/tools/go/analysis/passes/waitgroup
+golang.org/x/tools/go/analysis/suite/fix
+golang.org/x/tools/go/analysis/suite/vet
 golang.org/x/tools/go/analysis/unitchecker
 golang.org/x/tools/go/ast/astutil
 golang.org/x/tools/go/ast/edge

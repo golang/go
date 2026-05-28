@@ -24,6 +24,7 @@ const (
 
 	bitsetLSB   = 0x0101010101010101
 	bitsetMSB   = 0x8080808080808080
+	bitsetL7B   = 0x7f7f7f7f7f7f7f7f
 	bitsetEmpty = bitsetLSB * uint64(ctrlEmpty)
 )
 
@@ -158,6 +159,11 @@ func (g ctrlGroup) matchH2(h uintptr) bitset {
 // Note: On AMD64, this is an intrinsic implemented with SIMD instructions. See
 // note on bitset about the packed intrinsified return value.
 func ctrlGroupMatchH2(g ctrlGroup, h uintptr) bitset {
+	v := uint64(g) ^ (bitsetLSB * uint64(h))
+	if goarch.IsArm64 == 1 {
+		v = ^v
+		return bitset((v&bitsetL7B + bitsetLSB) & (v & bitsetMSB))
+	}
 	// NB: This generic matching routine produces false positive matches when
 	// h is 2^N and the control bytes have a seq of 2^N followed by 2^N+1. For
 	// example: if ctrls==0x0302 and h=02, we'll compute v as 0x0100. When we
@@ -166,7 +172,6 @@ func ctrlGroupMatchH2(g ctrlGroup, h uintptr) bitset {
 	// just a rare inefficiency. Note that they only occur if there is a real
 	// match and never occur on ctrlEmpty, or ctrlDeleted. The subsequent key
 	// comparisons ensure that there is no correctness issue.
-	v := uint64(g) ^ (bitsetLSB * uint64(h))
 	return bitset(((v - bitsetLSB) &^ v) & bitsetMSB)
 }
 

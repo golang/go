@@ -1,0 +1,29 @@
+[short] skip 'runs go build'
+[GOOS:plan9] skip 'signals differ on Plan 9'
+[GOOS:windows] skip 'os.Interrupt is not implemented on Windows'
+
+! go tool interrupter
+stderr 'go tool interrupter: signal: interrupt'
+
+-- go.mod --
+module example.com/interrupter
+
+go 1.26.0
+
+tool example.com/interrupter/cmd/interrupter
+
+-- cmd/interrupter/main.go --
+package main
+
+import "os"
+
+func main() {
+	p, err := os.FindProcess(os.Getpid())
+	if err != nil {
+		panic(err)
+	}
+	if err := p.Signal(os.Interrupt); err != nil {
+		panic(err)
+	}
+	select {}
+}

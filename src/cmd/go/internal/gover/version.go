@@ -36,10 +36,15 @@ const (
 	// the module graph; see https://golang.org/ref/mod#graph-pruning.
 	ExplicitIndirectVersion = "1.17"
 
-	// separateIndirectVersion is the Go version at which
+	// SeparateIndirectVersion is the Go version at which
 	// "// indirect" dependencies are added in a block separate from the direct
 	// ones. See https://golang.org/issue/45965.
 	SeparateIndirectVersion = "1.17"
+
+	// SimplifyRequireVersion is the Go version at which
+	// require blocks are simplified to always have at most two sections
+	// (one direct, one indirect). See https://go.dev/issue/56471.
+	SimplifyRequireVersion = "1.27"
 
 	// tidyGoModSumVersion is the Go version at which
 	// 'go mod tidy' preserves go.mod checksums needed to build test dependencies

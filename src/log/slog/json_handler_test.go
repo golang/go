@@ -10,6 +10,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"internal/goexperiment"
 	"io"
 	"log/slog/internal/buffer"
 	"math"
@@ -101,6 +102,7 @@ func TestAppendJSONValue(t *testing.T) {
 		}
 		if got != want {
 			t.Errorf("%v: got %s, want %s", value, got, want)
+			t.Errorf("%v: got %x, want %x", value, got, want)
 		}
 	}
 }
@@ -162,7 +164,11 @@ func TestJSONAllocs(t *testing.T) {
 		})
 	})
 	t.Run("attrs", func(t *testing.T) {
-		wantAllocs(t, 1, func() {
+		// TODO(https://go.dev/issue/74617): JSONv2 heap copies aggressively
+		// to ensure that Go values are addressable in case a pointer method
+		// must be called. This leads to more allocations than necessary,
+		// but as an implementation detail, it can eventually be optimized away.
+		wantAllocs(t, 1+goexperiment.JSONv2Int, func() {
 			l.LogAttrs(ctx, LevelInfo,
 				"hello world",
 				String("component", "subtest"),

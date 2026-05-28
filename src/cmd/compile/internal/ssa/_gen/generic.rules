@@ -289,19 +289,33 @@
 (NeqB (ConstBool [true]) x) => (Not x)
 (NeqB (Not x) y) => (EqB x y)
 
-(Eq64 (Const64 <t> [c]) (Add64 (Const64 <t> [d]) x)) => (Eq64 (Const64 <t> [c-d]) x)
-(Eq32 (Const32 <t> [c]) (Add32 (Const32 <t> [d]) x)) => (Eq32 (Const32 <t> [c-d]) x)
-(Eq16 (Const16 <t> [c]) (Add16 (Const16 <t> [d]) x)) => (Eq16 (Const16 <t> [c-d]) x)
-(Eq8  (Const8  <t> [c]) (Add8  (Const8  <t> [d]) x)) => (Eq8  (Const8  <t> [c-d]) x)
-
-(Neq64 (Const64 <t> [c]) (Add64 (Const64 <t> [d]) x)) => (Neq64 (Const64 <t> [c-d]) x)
-(Neq32 (Const32 <t> [c]) (Add32 (Const32 <t> [d]) x)) => (Neq32 (Const32 <t> [c-d]) x)
-(Neq16 (Const16 <t> [c]) (Add16 (Const16 <t> [d]) x)) => (Neq16 (Const16 <t> [c-d]) x)
-(Neq8  (Const8  <t> [c]) (Add8  (Const8  <t> [d]) x)) => (Neq8  (Const8  <t> [c-d]) x)
-
 (CondSelect x _ (ConstBool [true ])) => x
 (CondSelect _ y (ConstBool [false])) => y
 (CondSelect x x _) => x
+
+// fold eq / neq between a constant and a compile time bijective operation into the constant.
+(Eq(64|32|16|8)  (Const(64|32|16|8) <t> [c]) o:(Add(64|32|16|8) (Const(64|32|16|8) [d]) x)) && o.Uses == 1 => (Eq(64|32|16|8)  (Const(64|32|16|8) <t> [c-d]) x)
+(Neq(64|32|16|8) (Const(64|32|16|8) <t> [c]) o:(Add(64|32|16|8) (Const(64|32|16|8) [d]) x)) && o.Uses == 1 => (Neq(64|32|16|8) (Const(64|32|16|8) <t> [c-d]) x)
+
+(Eq(64|32|16|8)  (Const(64|32|16|8) <t> [c]) o:(Sub(64|32|16|8) x (Const(64|32|16|8) [d]))) && o.Uses == 1 => (Eq(64|32|16|8)  (Const(64|32|16|8) <t> [c+d]) x)
+(Neq(64|32|16|8) (Const(64|32|16|8) <t> [c]) o:(Sub(64|32|16|8) x (Const(64|32|16|8) [d]))) && o.Uses == 1 => (Neq(64|32|16|8) (Const(64|32|16|8) <t> [c+d]) x)
+
+(Eq(64|32|16|8)  (Const(64|32|16|8) <t> [c]) o:(Sub(64|32|16|8) (Const(64|32|16|8) [d]) x)) && o.Uses == 1 => (Eq(64|32|16|8)  (Const(64|32|16|8) <t> [d-c]) x)
+(Neq(64|32|16|8) (Const(64|32|16|8) <t> [c]) o:(Sub(64|32|16|8) (Const(64|32|16|8) [d]) x)) && o.Uses == 1 => (Neq(64|32|16|8) (Const(64|32|16|8) <t> [d-c]) x)
+
+(Eq(64|32|16|8)  (Const(64|32|16|8) <t> [c]) o:(Xor(64|32|16|8) (Const(64|32|16|8) [d]) x)) && o.Uses == 1 => (Eq(64|32|16|8)  (Const(64|32|16|8) <t> [d^c]) x)
+(Neq(64|32|16|8) (Const(64|32|16|8) <t> [c]) o:(Xor(64|32|16|8) (Const(64|32|16|8) [d]) x)) && o.Uses == 1 => (Neq(64|32|16|8) (Const(64|32|16|8) <t> [d^c]) x)
+
+(Eq(64|32|16|8)  (Const(64|32|16|8) <t> [c]) o:(Com(64|32|16|8) x)) && o.Uses == 1 => (Eq(64|32|16|8)  (Const(64|32|16|8) <t> [^c]) x)
+(Neq(64|32|16|8) (Const(64|32|16|8) <t> [c]) o:(Com(64|32|16|8) x)) && o.Uses == 1 => (Neq(64|32|16|8) (Const(64|32|16|8) <t> [^c]) x)
+
+(Eq(64|32|16|8)  (Const(64|32|16|8) <t> [c]) o:(Neg(64|32|16|8) x)) && o.Uses == 1 => (Eq(64|32|16|8)  (Const(64|32|16|8) <t> [-c]) x)
+(Neq(64|32|16|8) (Const(64|32|16|8) <t> [c]) o:(Neg(64|32|16|8) x)) && o.Uses == 1 => (Neq(64|32|16|8) (Const(64|32|16|8) <t> [-c]) x)
+
+((Eq|Neq)64  (Const64 <t> [c]) o:(Mul64 (Const64 [d]) x)) && uint64(d)%2 == 1 && o.Uses == 1 => ((Eq|Neq)64  (Const64 <t> [int64(uint64(c) *        modularMultiplicativeInverse(uint64(d))) ]) x)
+((Eq|Neq)32  (Const32 <t> [c]) o:(Mul32 (Const32 [d]) x)) && uint32(d)%2 == 1 && o.Uses == 1 => ((Eq|Neq)32  (Const32 <t> [int32(uint32(c) * uint32(modularMultiplicativeInverse(uint64(d))))]) x)
+((Eq|Neq)16  (Const16 <t> [c]) o:(Mul16 (Const16 [d]) x)) && uint16(d)%2 == 1 && o.Uses == 1 => ((Eq|Neq)16  (Const16 <t> [int16(uint16(c) * uint16(modularMultiplicativeInverse(uint64(d))))]) x)
+((Eq|Neq)8   (Const8  <t> [c]) o:(Mul8  (Const8  [d]) x)) && uint8( d)%2 == 1 && o.Uses == 1 => ((Eq|Neq)8   (Const8  <t> [int8( uint8( c) * uint8( modularMultiplicativeInverse(uint64(d))))]) x)
 
 // signed integer range: ( c <= x && x (<|<=) d ) -> ( unsigned(x-c) (<|<=) unsigned(d-c) )
 (AndB (Leq64 (Const64 [c]) x) ((Less|Leq)64 x (Const64 [d]))) && d >= c => ((Less|Leq)64U (Sub64 <x.Type> x (Const64 <x.Type> [c])) (Const64 <x.Type> [d-c]))
@@ -406,6 +420,11 @@
 	=> (Mul(64|32|16|8) x (Add(64|32|16|8) <t> y z))
 (Sub(64|32|16|8) <t> (Mul(64|32|16|8) x y) (Mul(64|32|16|8) x z))
 	=> (Mul(64|32|16|8) x (Sub(64|32|16|8) <t> y z))
+
+// Canonicalize x+x to x << 1.
+// This is often slower since most CPUs have more adders than shifters, but it can enable other optimizations.
+// Arches who care about this like AMD64 convert x << 1 back to x+x in their arch-specific rules which is useful anyhow.
+(Add(64|32|16|8) x x) => (Lsh(64|32|16|8)x64 x (Const64 <types.Types[types.TUINT64]> [1]))
 
 // rewrite shifts of 8/16/32 bit consts into 64 bit consts to reduce
 // the number of the other rewrite rules for const shifts

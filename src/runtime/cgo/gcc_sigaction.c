@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-//go:build linux && (386 || amd64 || arm64 || loong64 || ppc64le)
+//go:build linux && (386 || amd64 || arm64 || loong64 || ppc64 || ppc64le)
 
 #include <errno.h>
 #include <stddef.h>

@@ -8,7 +8,8 @@ TEXT errors(SB),$0
 	ADDV16		$1, R4, R5	// ERROR "the constant must be a multiple of 65536."
 	ADDV16		$65535, R4, R5	// ERROR "the constant must be a multiple of 65536."
 	SC		R4, 1(R5)	// ERROR "offset must be a multiple of 4."
+	SCW		R4, 1(R5)	// ERROR "offset must be a multiple of 4."
 	SCV		R4, 1(R5)	// ERROR "offset must be a multiple of 4."
 	LL		1(R5), R4	// ERROR "offset must be a multiple of 4."
+	LLW		1(R5), R4	// ERROR "offset must be a multiple of 4."
 	LLV		1(R5), R4	// ERROR "offset must be a multiple of 4."
-

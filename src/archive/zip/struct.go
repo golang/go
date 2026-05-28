@@ -156,7 +156,11 @@ type FileHeader struct {
 	// UncompressedSize64 is the uncompressed size of the file in bytes.
 	UncompressedSize64 uint64
 
-	Extra         []byte
+	// Extra are the extensible data fields. The writer automatically includes
+	// the appropriate Zip64 field if necessary, and [Writer.Close] appends the
+	// Central Directory version of the Zip64 field to Extra.
+	Extra []byte
+
 	ExternalAttrs uint32 // Meaning depends on CreatorVersion
 }
 
@@ -335,11 +339,6 @@ func (h *FileHeader) SetMode(mode fs.FileMode) {
 	if mode&0200 == 0 {
 		h.ExternalAttrs |= msdosReadOnly
 	}
-}
-
-// isZip64 reports whether the file size exceeds the 32 bit limit
-func (h *FileHeader) isZip64() bool {
-	return h.CompressedSize64 >= uint32max || h.UncompressedSize64 >= uint32max
 }
 
 func (h *FileHeader) hasDataDescriptor() bool {

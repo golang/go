@@ -12,9 +12,14 @@ import (
 )
 
 // PurgeFuncBodies returns a copy of src in which the contents of each
-// outermost {...} region except struct and interface types have been
-// deleted. This reduces the amount of work required to parse the
-// top-level declarations.
+// outermost {...} region have been deleted, except for struct and
+// interface type bodies and the bodies of length-elided array
+// literals ([...]T), whose element count is part of the type. It
+// includes function bodies, function-literal bodies, and the bodies
+// of slice, map, and explicitly-sized array composite literals (whose
+// contents don't affect the type of the enclosing declaration). This
+// reduces the amount of work required to parse the top-level
+// declarations.
 //
 // PurgeFuncBodies does not preserve newlines or position information.
 // Also, if the input is invalid, parsing the output of
@@ -22,11 +27,12 @@ import (
 // on parser error recovery.
 func PurgeFuncBodies(src []byte) []byte {
 	// Destroy the content of any {...}-bracketed regions that are
-	// not immediately preceded by a "struct" or "interface"
-	// token.  That includes function bodies, composite literals,
-	// switch/select bodies, and all blocks of statements.
-	// This will lead to non-void functions that don't have return
-	// statements, which of course is a type error, but that's ok.
+	// not immediately preceded by a "struct" or "interface" token,
+	// and that are not the body of a length-elided array literal.
+	// That includes function bodies, switch/select bodies, and most
+	// composite literals; this will lead to non-void functions that
+	// don't have return statements, which of course is a type error,
+	// but that's ok.
 
 	var out bytes.Buffer
 	file := token.NewFileSet().AddFile("", -1, len(src))
@@ -34,7 +40,8 @@ func PurgeFuncBodies(src []byte) []byte {
 	sc.Init(file, src, nil, 0)
 	var prev token.Token
 	var cursor int         // last consumed src offset
-	var braces []token.Pos // stack of unclosed braces or -1 for struct/interface type
+	var braces []token.Pos // stack of unclosed braces, or -1 for a region we preserve
+	var ellipsis bool      // saw "[...]" not yet consumed by a literal-body "{"
 	for {
 		pos, tok, _ := sc.Scan()
 		if tok == token.EOF {
@@ -44,9 +51,23 @@ func PurgeFuncBodies(src []byte) []byte {
 		case token.COMMENT:
 			// TODO(adonovan): opt: skip, to save an estimated 20% of time.
 
+		case token.SEMICOLON:
+			ellipsis = false
+
+		case token.RBRACK:
+			// "...]" occurs only in the array-type prefix of a
+			// composite literal; variadic "..." is followed by
+			// a type or ")", never "]".
+			if prev == token.ELLIPSIS {
+				ellipsis = true
+			}
+
 		case token.LBRACE:
 			if prev == token.STRUCT || prev == token.INTERFACE {
-				pos = -1
+				pos = -1 // type body: preserve (don't consume ellipsis)
+			} else if ellipsis {
+				pos = -1 // [...]T literal body: preserve
+				ellipsis = false
 			}
 			braces = append(braces, pos)
 
@@ -55,7 +76,7 @@ func PurgeFuncBodies(src []byte) []byte {
 				top := braces[last]
 				braces = braces[:last]
 				if top < 0 {
-					// struct/interface type: leave alone
+					// preserve
 				} else if len(braces) == 0 { // toplevel only
 					// Delete {...} body.
 					start := file.Offset(top)

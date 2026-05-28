@@ -17,6 +17,8 @@ const (
 
 	active_spin     = 4
 	active_spin_cnt = 30
+
+	mutexMLocksDelta = 16
 )
 
 type mWaitList struct{}
@@ -41,7 +43,7 @@ func lock2(l *mutex) {
 	if gp.m.locks < 0 {
 		throw("lock count")
 	}
-	gp.m.locks++
+	gp.m.locks += mutexMLocksDelta
 	l.key = mutex_locked
 }
 
@@ -54,7 +56,7 @@ func unlock2(l *mutex) {
 		throw("unlock of unlocked lock")
 	}
 	gp := getg()
-	gp.m.locks--
+	gp.m.locks -= mutexMLocksDelta
 	if gp.m.locks < 0 {
 		throw("lock count")
 	}

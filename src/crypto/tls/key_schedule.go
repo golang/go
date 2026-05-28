@@ -74,16 +74,16 @@ type keyExchange interface {
 }
 
 func keyExchangeForCurveID(id CurveID) (keyExchange, error) {
-	newMLKEMPrivateKey768 := func(b []byte) (crypto.Decapsulator, error) {
-		return mlkem.NewDecapsulationKey768(b)
+	mlkemGenerateKey768 := func() (crypto.Decapsulator, error) {
+		return mlkem.GenerateKey768()
 	}
-	newMLKEMPrivateKey1024 := func(b []byte) (crypto.Decapsulator, error) {
-		return mlkem.NewDecapsulationKey1024(b)
+	mlkemGenerateKey1024 := func() (crypto.Decapsulator, error) {
+		return mlkem.GenerateKey1024()
 	}
-	newMLKEMPublicKey768 := func(b []byte) (crypto.Encapsulator, error) {
+	mlkemNewPublicKey768 := func(b []byte) (crypto.Encapsulator, error) {
 		return mlkem.NewEncapsulationKey768(b)
 	}
-	newMLKEMPublicKey1024 := func(b []byte) (crypto.Encapsulator, error) {
+	mlkemNewPublicKey1024 := func(b []byte) (crypto.Encapsulator, error) {
 		return mlkem.NewEncapsulationKey1024(b)
 	}
 	switch id {
@@ -98,18 +98,47 @@ func keyExchangeForCurveID(id CurveID) (keyExchange, error) {
 	case X25519MLKEM768:
 		return &hybridKeyExchange{id, ecdhKeyExchange{X25519, ecdh.X25519()},
 			32, mlkem.EncapsulationKeySize768, mlkem.CiphertextSize768,
-			newMLKEMPrivateKey768, newMLKEMPublicKey768}, nil
+			mlkemGenerateKey768, mlkemNewPublicKey768}, nil
 	case SecP256r1MLKEM768:
 		return &hybridKeyExchange{id, ecdhKeyExchange{CurveP256, ecdh.P256()},
 			65, mlkem.EncapsulationKeySize768, mlkem.CiphertextSize768,
-			newMLKEMPrivateKey768, newMLKEMPublicKey768}, nil
+			mlkemGenerateKey768, mlkemNewPublicKey768}, nil
 	case SecP384r1MLKEM1024:
 		return &hybridKeyExchange{id, ecdhKeyExchange{CurveP384, ecdh.P384()},
 			97, mlkem.EncapsulationKeySize1024, mlkem.CiphertextSize1024,
-			newMLKEMPrivateKey1024, newMLKEMPublicKey1024}, nil
+			mlkemGenerateKey1024, mlkemNewPublicKey1024}, nil
+	case MLKEM1024:
+		return &mlkem1024KeyExchange{}, nil
 	default:
 		return nil, errors.New("tls: unsupported key exchange")
 	}
+}
+
+type mlkem1024KeyExchange struct{}
+
+func (ke *mlkem1024KeyExchange) keyShares(_ io.Reader) (*keySharePrivateKeys, []keyShare, error) {
+	priv, err := mlkem.GenerateKey1024()
+	if err != nil {
+		return nil, nil, err
+	}
+	return &keySharePrivateKeys{mlkem: priv}, []keyShare{{MLKEM1024, priv.EncapsulationKey().Bytes()}}, nil
+}
+
+func (ke *mlkem1024KeyExchange) serverSharedSecret(_ io.Reader, clientKeyShare []byte) ([]byte, keyShare, error) {
+	peerKey, err := mlkem.NewEncapsulationKey1024(clientKeyShare)
+	if err != nil {
+		return nil, keyShare{}, err
+	}
+	sharedKey, keyShareData := peerKey.Encapsulate()
+	return sharedKey, keyShare{MLKEM1024, keyShareData}, nil
+}
+
+func (ke *mlkem1024KeyExchange) clientSharedSecret(priv *keySharePrivateKeys, serverKeyShare []byte) ([]byte, error) {
+	sharedKey, err := priv.mlkem.Decapsulate(serverKeyShare)
+	if err != nil {
+		return nil, err
+	}
+	return sharedKey, nil
 }
 
 type ecdhKeyExchange struct {
@@ -161,8 +190,8 @@ type hybridKeyExchange struct {
 	mlkemPublicKeySize  int
 	mlkemCiphertextSize int
 
-	newMLKEMPrivateKey func([]byte) (crypto.Decapsulator, error)
-	newMLKEMPublicKey  func([]byte) (crypto.Encapsulator, error)
+	mlkemGenerateKey  func() (crypto.Decapsulator, error)
+	mlkemNewPublicKey func([]byte) (crypto.Encapsulator, error)
 }
 
 func (ke *hybridKeyExchange) keyShares(rand io.Reader) (*keySharePrivateKeys, []keyShare, error) {
@@ -177,11 +206,7 @@ func (ke *hybridKeyExchange) keyShares(rand io.Reader) (*keySharePrivateKeys, []
 	if err != nil {
 		return nil, nil, err
 	}
-	seed := make([]byte, mlkem.SeedSize)
-	if _, err := io.ReadFull(rand, seed); err != nil {
-		return nil, nil, err
-	}
-	priv.mlkem, err = ke.newMLKEMPrivateKey(seed)
+	priv.mlkem, err = ke.mlkemGenerateKey()
 	if err != nil {
 		return nil, nil, err
 	}
@@ -220,7 +245,7 @@ func (ke *hybridKeyExchange) serverSharedSecret(rand io.Reader, clientKeyShare [
 	if err != nil {
 		return nil, keyShare{}, err
 	}
-	mlkemPeerKey, err := ke.newMLKEMPublicKey(mlkemShareData)
+	mlkemPeerKey, err := ke.mlkemNewPublicKey(mlkemShareData)
 	if err != nil {
 		return nil, keyShare{}, err
 	}
