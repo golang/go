@@ -852,7 +852,8 @@ var sixIntP = sixIntPool{
 	sync.Pool{
 		New: func() any {
 			data := [6]*Int{
-				&Int{}, &Int{}, &Int{}, &Int{}, &Int{}, &Int{},
+				new(Int), new(Int), new(Int),
+				new(Int), new(Int), new(Int),
 			}
 			return &data
 		},
@@ -871,6 +872,7 @@ var sixIntP = sixIntPool{
 // Cohen et al. "Handbook of Elliptic and Hyperelliptic Curve Cryptography" pp 192.
 func (z *Int) lehmerGCD(x, y, a, b *Int) *Int {
 	data := sixIntP.Get()
+	defer sixIntP.Put(data)
 	var A, B, Ua, Ub *Int = data[0], data[1], data[2], data[3]
 
 	A.Abs(a)
@@ -977,8 +979,6 @@ func (z *Int) lehmerGCD(x, y, a, b *Int) *Int {
 
 	z.Set(A)
 
-	sixIntP.Put(data)
-
 	return z
 }
 
@@ -1015,7 +1015,7 @@ func (t *twoIntPool) Get() *[2]*Int {
 var twoIntP = twoIntPool{
 	sync.Pool{
 		New: func() any {
-			data := [2]*Int{&Int{}, &Int{}}
+			data := [2]*Int{new(Int), new(Int)}
 			return &data
 		},
 	},
@@ -1037,6 +1037,8 @@ func (z *Int) ModInverse(g, n *Int) *Int {
 	}
 
 	data := twoIntP.Get()
+	defer twoIntP.Put(data)
+
 	var d, x *Int = data[0], data[1]
 	d.GCD(x, nil, g, n)
 
@@ -1052,8 +1054,6 @@ func (z *Int) ModInverse(g, n *Int) *Int {
 	} else {
 		z.Set(x)
 	}
-
-	twoIntP.Put(data)
 
 	return z
 }
