@@ -59,3 +59,61 @@
   - *fp
   out:
   - *fp
+
+# Pairwise signed integer max — VSMAXP
+- go: ConcatMaxPairs
+  signed: true
+  asm: "VSMAXP"
+  in:
+  - *int
+  - *int
+  out:
+  - *int
+
+# Pairwise unsigned integer max — VUMAXP
+- go: ConcatMaxPairs
+  signed: false
+  asm: "VUMAXP"
+  in:
+  - *uint
+  - *uint
+  out:
+  - *uint
+
+# Pairwise float max — VFMAXP
+- go: ConcatMaxPairs
+  asm: "VFMAXP"
+  in:
+  - *fp
+  - *fp
+  out:
+  - *fp
+
+# Pairwise signed integer min — VSMINP
+- go: ConcatMinPairs
+  signed: true
+  asm: "VSMINP"
+  in:
+  - *int
+  - *int
+  out:
+  - *int
+
+# Pairwise unsigned integer min — VUMINP
+- go: ConcatMinPairs
+  signed: false
+  asm: "VUMINP"
+  in:
+  - *uint
+  - *uint
+  out:
+  - *uint
+
+# Pairwise float min — VFMINP
+- go: ConcatMinPairs
+  asm: "VFMINP"
+  in:
+  - *fp
+  - *fp
+  out:
+  - *fp

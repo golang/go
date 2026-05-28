@@ -308,6 +308,24 @@ func concatAddPairsSlice[T number](a, b []T) []T {
 	return r
 }
 
+func concatMaxPairsSlice[T number](a, b []T) []T {
+	r := make([]T, len(a))
+	for i := range len(a) / 2 {
+		r[i] = max(a[2*i], a[2*i+1])
+		r[i+len(a)/2] = max(b[2*i], b[2*i+1])
+	}
+	return r
+}
+
+func concatMinPairsSlice[T number](a, b []T) []T {
+	r := make([]T, len(a))
+	for i := range len(a) / 2 {
+		r[i] = min(a[2*i], a[2*i+1])
+		r[i+len(a)/2] = min(b[2*i], b[2*i+1])
+	}
+	return r
+}
+
 func maxSlice[T number](x, y []T) []T {
 	return map2[T](max_)(x, y)
 }

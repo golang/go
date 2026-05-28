@@ -1069,6 +1069,54 @@ func RewriteValue(v *ssa.Value) bool {
 	case ssaop.OpConcatEvenUint8x16:
 		v.Op = ssaop.OpARM64VUZP116B
 		return true
+	case ssaop.OpConcatMaxPairsFloat32x4:
+		v.Op = ssaop.OpARM64VFMAXP4S
+		return true
+	case ssaop.OpConcatMaxPairsFloat64x2:
+		v.Op = ssaop.OpARM64VFMAXP2D
+		return true
+	case ssaop.OpConcatMaxPairsInt16x8:
+		v.Op = ssaop.OpARM64VSMAXP8H
+		return true
+	case ssaop.OpConcatMaxPairsInt32x4:
+		v.Op = ssaop.OpARM64VSMAXP4S
+		return true
+	case ssaop.OpConcatMaxPairsInt8x16:
+		v.Op = ssaop.OpARM64VSMAXP16B
+		return true
+	case ssaop.OpConcatMaxPairsUint16x8:
+		v.Op = ssaop.OpARM64VUMAXP8H
+		return true
+	case ssaop.OpConcatMaxPairsUint32x4:
+		v.Op = ssaop.OpARM64VUMAXP4S
+		return true
+	case ssaop.OpConcatMaxPairsUint8x16:
+		v.Op = ssaop.OpARM64VUMAXP16B
+		return true
+	case ssaop.OpConcatMinPairsFloat32x4:
+		v.Op = ssaop.OpARM64VFMINP4S
+		return true
+	case ssaop.OpConcatMinPairsFloat64x2:
+		v.Op = ssaop.OpARM64VFMINP2D
+		return true
+	case ssaop.OpConcatMinPairsInt16x8:
+		v.Op = ssaop.OpARM64VSMINP8H
+		return true
+	case ssaop.OpConcatMinPairsInt32x4:
+		v.Op = ssaop.OpARM64VSMINP4S
+		return true
+	case ssaop.OpConcatMinPairsInt8x16:
+		v.Op = ssaop.OpARM64VSMINP16B
+		return true
+	case ssaop.OpConcatMinPairsUint16x8:
+		v.Op = ssaop.OpARM64VUMINP8H
+		return true
+	case ssaop.OpConcatMinPairsUint32x4:
+		v.Op = ssaop.OpARM64VUMINP4S
+		return true
+	case ssaop.OpConcatMinPairsUint8x16:
+		v.Op = ssaop.OpARM64VUMINP16B
+		return true
 	case ssaop.OpConcatOddInt16x8:
 		v.Op = ssaop.OpARM64VUZP28H
 		return true

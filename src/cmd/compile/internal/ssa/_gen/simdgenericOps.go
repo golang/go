@@ -255,6 +255,22 @@ func simdGenericOps() []opData {
 		{name: "ConcatEvenUint16x8", argLength: 2},                                      // ARCH:arm64
 		{name: "ConcatEvenUint32x4", argLength: 2},                                      // ARCH:arm64
 		{name: "ConcatEvenUint64x2", argLength: 2},                                      // ARCH:arm64
+		{name: "ConcatMaxPairsFloat32x4", argLength: 2},                                 // ARCH:arm64
+		{name: "ConcatMaxPairsFloat64x2", argLength: 2},                                 // ARCH:arm64
+		{name: "ConcatMaxPairsInt8x16", argLength: 2},                                   // ARCH:arm64
+		{name: "ConcatMaxPairsInt16x8", argLength: 2},                                   // ARCH:arm64
+		{name: "ConcatMaxPairsInt32x4", argLength: 2},                                   // ARCH:arm64
+		{name: "ConcatMaxPairsUint8x16", argLength: 2},                                  // ARCH:arm64
+		{name: "ConcatMaxPairsUint16x8", argLength: 2},                                  // ARCH:arm64
+		{name: "ConcatMaxPairsUint32x4", argLength: 2},                                  // ARCH:arm64
+		{name: "ConcatMinPairsFloat32x4", argLength: 2},                                 // ARCH:arm64
+		{name: "ConcatMinPairsFloat64x2", argLength: 2},                                 // ARCH:arm64
+		{name: "ConcatMinPairsInt8x16", argLength: 2},                                   // ARCH:arm64
+		{name: "ConcatMinPairsInt16x8", argLength: 2},                                   // ARCH:arm64
+		{name: "ConcatMinPairsInt32x4", argLength: 2},                                   // ARCH:arm64
+		{name: "ConcatMinPairsUint8x16", argLength: 2},                                  // ARCH:arm64
+		{name: "ConcatMinPairsUint16x8", argLength: 2},                                  // ARCH:arm64
+		{name: "ConcatMinPairsUint32x4", argLength: 2},                                  // ARCH:arm64
 		{name: "ConcatOddInt8x16", argLength: 2},                                        // ARCH:arm64
 		{name: "ConcatOddInt16x8", argLength: 2},                                        // ARCH:arm64
 		{name: "ConcatOddInt32x4", argLength: 2},                                        // ARCH:arm64
