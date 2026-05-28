@@ -1552,6 +1552,9 @@ func (f *File) dynamicVersions(str []byte) error {
 				deps = append(deps, depName)
 			}
 
+			if vnext == 0 {
+				break
+			}
 			j += int(vnext)
 		}
 
