@@ -5,6 +5,7 @@
 // Note: some of these functions are semantically inlined
 // by the compiler (in src/cmd/compile/internal/gc/ssa.go).
 
+#include "go_asm.h"
 #include "textflag.h"
 #include "asm_amd64.h"
 
@@ -97,6 +98,21 @@ TEXT ·Cas128(SB), NOSPLIT, $0-41
 	CMPXCHG16B	(DI)
 	SETEQ	ret+40(FP)
 #else
+	CMPB	internal∕cpu·X86+const_offsetX86HasCX16(SB), $1
+	JNE	cas128_locktab
+	MOVQ	ptr+0(FP), DI
+	TESTQ	$15, DI
+	JZ	2(PC)
+	CALL	·panicUnaligned128(SB)
+	MOVQ	old1+8(FP), AX
+	MOVQ	old2+16(FP), DX
+	MOVQ	new1+24(FP), BX
+	MOVQ	new2+32(FP), CX
+	LOCK
+	CMPXCHG16B	(DI)
+	SETEQ	ret+40(FP)
+	RET
+cas128_locktab:
 	JMP	·goCas128(SB)
 #endif
 	RET

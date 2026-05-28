@@ -4,7 +4,14 @@
 
 package atomic
 
-import "unsafe"
+import (
+	"internal/cpu"
+	"unsafe"
+)
+
+const (
+	offsetX86HasCX16 = unsafe.Offsetof(cpu.X86.HasCX16)
+)
 
 //go:nosplit
 //go:noinline

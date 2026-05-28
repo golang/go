@@ -43,6 +43,7 @@ var X86 struct {
 	HasAVX512VPCLMULQDQ bool
 	HasBMI1             bool
 	HasBMI2             bool
+	HasCX16             bool
 	HasERMS             bool
 	HasFSRM             bool
 	HasFMA              bool

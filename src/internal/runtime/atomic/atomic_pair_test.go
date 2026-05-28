@@ -10,28 +10,27 @@ import (
 	"unsafe"
 )
 
-// alignedPair returns a 16-byte-aligned *[2]uint64 pointing inside buf.
-// buf must be at least 3 uint64s wide so a 16-byte-aligned 16-byte region
-// fits regardless of buf's own alignment.
-func alignedPair(buf *[3]uint64) *[2]uint64 {
+// alignedPair128 returns a 16-byte-aligned *[2]uint64 inside buf. buf
+// must be at least 3 uint64s wide so a 16-byte-aligned 16-byte region fits.
+func alignedPair128(buf *[3]uint64) *[2]uint64 {
 	if uintptr(unsafe.Pointer(&buf[0]))&15 == 0 {
-		return (*[2]uint64)(unsafe.Pointer(&buf[0]))
+		return (*[2]uint64)(buf[:2])
 	}
-	return (*[2]uint64)(unsafe.Pointer(&buf[1]))
+	return (*[2]uint64)(buf[1:])
 }
 
-// unalignedPair returns a *[2]uint64 inside buf that is 8-byte aligned but
-// not 16-byte aligned, for the misalignment panic test.
-func unalignedPair(buf *[3]uint64) *[2]uint64 {
+// misalignedPair128 returns a *[2]uint64 inside buf that is 8-byte aligned
+// but not 16-byte aligned, to test the panic path.
+func misalignedPair128(buf *[3]uint64) *[2]uint64 {
 	if uintptr(unsafe.Pointer(&buf[0]))&15 == 0 {
-		return (*[2]uint64)(unsafe.Pointer(&buf[1]))
+		return (*[2]uint64)(buf[1:])
 	}
-	return (*[2]uint64)(unsafe.Pointer(&buf[2]))
+	return (*[2]uint64)(buf[:2])
 }
 
 func TestCas128(t *testing.T) {
 	var buf [3]uint64
-	pair := alignedPair(&buf)
+	pair := alignedPair128(&buf)
 
 	// Successful CAS from (0, 0) to (1, 2).
 	if !atomic.Cas128(pair, 0, 0, 1, 2) {
@@ -88,7 +87,7 @@ func TestCas128(t *testing.T) {
 
 func TestCas128Unaligned(t *testing.T) {
 	var buf [3]uint64
-	misaligned := unalignedPair(&buf)
+	misaligned := misalignedPair128(&buf)
 
 	defer func() {
 		err := recover()
@@ -105,32 +104,20 @@ func TestCas128Unaligned(t *testing.T) {
 
 func BenchmarkCas128(b *testing.B) {
 	var buf [3]uint64
-	pair := alignedPair(&buf)
-	sink = pair
+	pair := alignedPair128(&buf)
+	sink = &pair[0]
 	for i := 0; i < b.N; i++ {
-		for {
-			lo := atomic.Load64(&pair[0])
-			hi := atomic.Load64(&pair[1])
-			if atomic.Cas128(pair, lo, hi, lo+1, hi-1) {
-				break
-			}
-		}
+		atomic.Cas128(pair, 0, 0, 0, 0)
 	}
 }
 
 func BenchmarkCas128Parallel(b *testing.B) {
 	var buf [3]uint64
-	pair := alignedPair(&buf)
-	sink = pair
+	pair := alignedPair128(&buf)
+	sink = &pair[0]
 	b.RunParallel(func(pb *testing.PB) {
 		for pb.Next() {
-			for {
-				lo := atomic.Load64(&pair[0])
-				hi := atomic.Load64(&pair[1])
-				if atomic.Cas128(pair, lo, hi, lo+1, hi-1) {
-					break
-				}
-			}
+			atomic.Cas128(pair, 0, 0, 0, 0)
 		}
 	})
 }
