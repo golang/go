@@ -75,7 +75,7 @@ type SemanticError struct {
 
 	action string // either "marshal" or "unmarshal"
 
-	// ByteOffset indicates that an error occurred after this byte offset.
+	// ByteOffset indicates that an error occurred at or after this byte offset.
 	ByteOffset int64
 	// JSONPointer indicates that an error occurred within this JSON value
 	// as indicated using the JSON Pointer notation (see RFC 6901).
@@ -159,8 +159,17 @@ func newUnmarshalErrorBeforeWithSkipping(d *jsontext.Decoder, t reflect.Type, er
 // is positioned right after the previous token or value, which caused an error.
 func newUnmarshalErrorAfter(d *jsontext.Decoder, t reflect.Type, err error) error {
 	tokOrVal := export.Decoder(d).PreviousTokenOrValue()
+	byteOffset := d.InputOffset() - int64(len(tokOrVal))
+	if export.Decoder(d).Flags.Get(jsonflags.ReportErrorsWithLegacySemantics) {
+		// NOTE: In v1, the offset pointed to the end of the bad token or value.
+		if k := jsontext.Value(tokOrVal).Kind(); k == '[' || k == '{' {
+			byteOffset++ // add just the '[' or '{'
+		} else {
+			byteOffset += int64(len(tokOrVal))
+		}
+	}
 	return &SemanticError{action: "unmarshal", GoType: t, Err: toUnexpectedEOF(err),
-		ByteOffset:  d.InputOffset() - int64(len(tokOrVal)),
+		ByteOffset:  byteOffset,
 		JSONPointer: jsontext.Pointer(export.Decoder(d).AppendStackPointer(nil, -1)),
 		JSONKind:    jsontext.Value(tokOrVal).Kind()}
 }

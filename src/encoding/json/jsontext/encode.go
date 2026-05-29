@@ -141,6 +141,8 @@ func (e *Encoder) Options() Options {
 	return &e.s.Struct
 }
 
+func (e *encoderState) options() *jsonopts.Struct { return &e.Struct }
+
 // NeedFlush determines whether to flush at this point.
 func (e *encoderState) NeedFlush() bool {
 	// NOTE: This function is carefully written to be inlinable.

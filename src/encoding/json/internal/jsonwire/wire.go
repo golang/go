@@ -8,7 +8,6 @@
 package jsonwire
 
 import (
-	"bytes"
 	"cmp"
 	"errors"
 	"strconv"
@@ -128,23 +127,37 @@ func CompareUTF16(x, y []byte) int {
 var ErrInvalidUTF8 = errors.New("invalid UTF-8")
 
 func NewInvalidCharacterError[Bytes ~[]byte | ~string](prefix Bytes, where string) error {
-	what := QuoteRune([]byte(prefix))
-	return errors.New("invalid character " + what + " " + where)
+	_, n := utf8.DecodeRune([]byte(prefix))
+	return &InvalidTextError{"character", string(prefix[:n]), where}
 }
 
 func NewInvalidEscapeSequenceError[Bytes ~[]byte | ~string](what Bytes) error {
-	label := "escape sequence"
 	if len(what) > 6 {
-		label = "surrogate pair"
+		return &InvalidTextError{"surrogate pair", string(what), "in string"}
 	}
-	needEscape := bytes.IndexFunc([]byte(what), func(r rune) bool {
+	return &InvalidTextError{"escape sequence", string(what), "in string"}
+}
+
+type InvalidTextError struct {
+	Label string // e.g., "character" | "escape sequence" | "surrogate pair"
+	What  string // raw invalid text
+	Where string // e.g., "in string" | "at start of value"
+}
+
+func (e *InvalidTextError) Error() string {
+	var what string
+	needEscape := strings.ContainsFunc(e.What, func(r rune) bool {
 		return r == '`' || r == utf8.RuneError || unicode.IsSpace(r) || !unicode.IsPrint(r)
-	}) >= 0
-	if needEscape {
-		return errors.New("invalid " + label + " " + strconv.Quote(string(what)) + " in string")
-	} else {
-		return errors.New("invalid " + label + " `" + string(what) + "` in string")
+	})
+	switch {
+	case utf8.RuneCount([]byte(e.What)) == 1:
+		what = QuoteRune([]byte(e.What))
+	case needEscape:
+		what = strconv.Quote(e.What)
+	default:
+		what = "`" + e.What + "`"
 	}
+	return strings.TrimSuffix("invalid "+e.Label+" "+what+" "+e.Where, " ")
 }
 
 // TruncatePointer optionally truncates the JSON pointer,

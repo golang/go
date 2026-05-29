@@ -166,6 +166,8 @@ func (d *Decoder) Options() Options {
 	return &d.s.Struct
 }
 
+func (d *decoderState) options() *jsonopts.Struct { return &d.Struct }
+
 var errBufferWriteAfterNext = errors.New("invalid bytes.Buffer.Write call after calling bytes.Buffer.Next")
 
 // fetch reads at least 1 byte from the underlying io.Reader.
