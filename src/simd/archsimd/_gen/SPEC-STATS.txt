@@ -13,15 +13,15 @@ String, Len, ToArch, and FromArch are excluded throughout (§2.7).
 
 Heading for 100%:
 
-spec coverage, by (receiver, name) (§1)          1809 / 2917   62%  [spec-common, spec-all]
-docs sourced from spec (§3)                      2934 / 3183   92%  [gen-docs, comments-yaml, handwritten-fill, template-docs]
+spec coverage, by (receiver, name) (§1)          1811 / 2921   62%  [spec-common, spec-all]
+docs sourced from spec (§3)                      2937 / 3185   92%  [gen-docs, comments-yaml, handwritten-fill, template-docs]
 
 Heading for zero:
 
 type mismatches with spec (§2)                      0 -> 0       [fill-enforce]
 type divergence across targets (§2)                 0 -> 0       [fill-enforce]
 spec coverage gaps in defined names (§5)            8 -> 0       [spec-all, convert-lo, mask-bits]
-hand-written doc conflicts with spec (§3)         165 -> 0       [doc-triage]
+hand-written doc conflicts with spec (§3)         164 -> 0       [doc-triage]
 simd mirror drift (§3)                              0 -> 0       [comments-yaml]
 categories.yaml entries (§4)                      227 -> 0       [cat-rehome, compiler-ops-impl, cat-delete]
 midway/comments.yaml entries spec covers (§4)       0 -> 0       [comments-yaml, spec-all]
@@ -29,14 +29,14 @@ midway/comments.yaml entries spec covers (§4)       0 -> 0       [comments-yaml
 
 ## 1. Spec coverage of API   [spec-common, spec-all]
 
-by (target, receiver, name)                      3911 / 5183   75%
-by (receiver, name)                              1809 / 2917   62%
+by (target, receiver, name)                      3913 / 5187   75%
+by (receiver, name)                              1811 / 2921   62%
 by name                                           275 / 458    60%
 
 By build configuration:
 
   amd64                                          1737 / 2692   65%
-  arm64                                          1076 / 1290   83%
+  arm64                                          1078 / 1294   83%
   wasm                                            750 / 829    90%
   portable                                        348 / 372    94%
 
@@ -45,7 +45,7 @@ By generator (declarations per tool, counted once per tool per pair):
   hand-written                                    502 / 561    89%
   midway                                          348 / 348   100%
   simdgen                                        1280 / 2255   57%
-  tmplgen                                         362 / 416    87%
+  tmplgen                                         365 / 421    87%
   wasmgen                                         337 / 392    86%
 
 High-drift-risk names (emitted by >1 generator):
@@ -87,17 +87,17 @@ argument agrees with any name:
 A declaration counts as sourced from spec when its doc comment begins with
 spec's text (a prefix test, because Fill leaves generator notes below).
 
-covered declarations whose doc comes from spec   2934 / 3183   92%  [gen-docs, comments-yaml, handwritten-fill, template-docs]
+covered declarations whose doc comes from spec   2937 / 3185   92%  [gen-docs, comments-yaml, handwritten-fill, template-docs]
 
 simd ∩ archsimd methods with matching docs        261 / 261   100%  [gen-docs, comments-yaml]
 
-hand-written doc conflicts with spec              165 -> 0       [doc-triage]
+hand-written doc conflicts with spec              164 -> 0       [doc-triage]
     archsimd/clmul_arm64.go                         4 -> 0       [doc-triage]
     archsimd/extra_amd64.go                         6 -> 0       [doc-triage]
     archsimd/maskrange_128.go                       4 -> 0       [doc-triage]
     archsimd/maskrange_amd64.go                    12 -> 0       [doc-triage]
     archsimd/ops_emulated_amd64.go                 48 -> 0       [doc-triage]
-    archsimd/ops_emulated_arm64.go                  2 -> 0       [doc-triage]
+    archsimd/ops_emulated_arm64.go                  1 -> 0       [doc-triage]
     archsimd/ops_emulated_wasm.go                  29 -> 0       [doc-triage]
     archsimd/shuffles_amd64.go                     12 -> 0       [doc-triage]
     archsimd/slicepart_128.go                       8 -> 0       [doc-triage]
@@ -149,17 +149,17 @@ spec operations implemented nowhere                 1 -> 0       [spec-all]
     TrailingZeros
 
 Every name either side defines, less the 183 spec has never defined at all
-(1100 receivers, counted as coverage in §1 rather than disagreement):
+(1102 receivers, counted as coverage in §1 rather than disagreement):
 
   relation         names  Σ|api - spec|  Σ|spec - api|
                                  (-> 0)       (review)
   api = spec         219              0              0
-  api ⊂ spec          50              0            773
+  api ⊂ spec          50              0            771
   api ⊃ spec           0              0              0
   overlapping          0              0              0
   disjoint             6              8             16
   api = ∅             11              0             34
-  total              286              8            823
+  total              286              8            821
 
 Names that disagree, with api - spec receivers (the defects):
 
@@ -223,7 +223,7 @@ Names that disagree, with api - spec receivers (the defects):
   NotEqual                   api ⊂ spec     40     56            0           16
   OnesCount                  api ⊂ spec     26     32            0            6
   Permute                    api ⊂ spec     24     40            0           16
-  ReduceSum                  api ⊂ spec     32     40            0            8
+  ReduceSum                  api ⊂ spec     34     40            0            6
   RotateAllLeft              api ⊂ spec     13     16            0            3
   RotateAllRight             api ⊂ spec     13     16            0            3
   RotateLeft                 api ⊂ spec      6     16            0           10

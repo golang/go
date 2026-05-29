@@ -62,6 +62,22 @@ func testInt32x4Reduce(t *testing.T, f func(_ archsimd.Int32x4) int32, want func
 	})
 }
 
+func testInt64x2Reduce(t *testing.T, f func(_ archsimd.Int64x2) int64, want func(_ []int64) int64) {
+	n := 2
+	t.Helper()
+	forSlice(t, int64s, n, func(x []int64) bool {
+		t.Helper()
+		a := archsimd.LoadInt64x2(x)
+		g := f(a)
+		w := want(x)
+		if g != w {
+			t.Errorf("got %v, want %v, input %v", g, w, x)
+			return false
+		}
+		return true
+	})
+}
+
 func testUint8x16Reduce(t *testing.T, f func(_ archsimd.Uint8x16) uint8, want func(_ []uint8) uint8) {
 	n := 16
 	t.Helper()
@@ -110,12 +126,44 @@ func testUint32x4Reduce(t *testing.T, f func(_ archsimd.Uint32x4) uint32, want f
 	})
 }
 
+func testUint64x2Reduce(t *testing.T, f func(_ archsimd.Uint64x2) uint64, want func(_ []uint64) uint64) {
+	n := 2
+	t.Helper()
+	forSlice(t, uint64s, n, func(x []uint64) bool {
+		t.Helper()
+		a := archsimd.LoadUint64x2(x)
+		g := f(a)
+		w := want(x)
+		if g != w {
+			t.Errorf("got %v, want %v, input %v", g, w, x)
+			return false
+		}
+		return true
+	})
+}
+
 func testFloat32x4Reduce(t *testing.T, f func(_ archsimd.Float32x4) float32, want func(_ []float32) float32) {
 	n := 4
 	t.Helper()
 	forSlice(t, float32s, n, func(x []float32) bool {
 		t.Helper()
 		a := archsimd.LoadFloat32x4(x)
+		g := f(a)
+		w := want(x)
+		if g != w && !(math.IsNaN(float64(g)) && math.IsNaN(float64(w))) {
+			t.Errorf("got %v, want %v, input %v", g, w, x)
+			return false
+		}
+		return true
+	})
+}
+
+func testFloat64x2Reduce(t *testing.T, f func(_ archsimd.Float64x2) float64, want func(_ []float64) float64) {
+	n := 2
+	t.Helper()
+	forSlice(t, float64s, n, func(x []float64) bool {
+		t.Helper()
+		a := archsimd.LoadFloat64x2(x)
 		g := f(a)
 		w := want(x)
 		if g != w && !(math.IsNaN(float64(g)) && math.IsNaN(float64(w))) {

@@ -481,3 +481,44 @@ func (x Float32x4) ReduceMax() float32 {
 func (x Float32x4) ReduceMin() float32 {
 	return x.reduceMin().GetElem(0)
 }
+
+// ReduceSum returns the scalar sum of the elements of x.
+//
+//	z = x[0] + x[1] + ...
+//
+// Emulated
+func (x Int64x2) ReduceSum() (z int64) {
+	return x.ConcatAddPairs(x).GetElem(0)
+}
+
+// ReduceSum returns the scalar sum of the elements of x.
+//
+//	z = x[0] + x[1] + ...
+//
+// Emulated
+func (x Uint64x2) ReduceSum() (z uint64) {
+	return x.ConcatAddPairs(x).GetElem(0)
+}
+
+// ReduceSum returns the scalar sum of the elements of x.
+//
+//	z = x[0] + x[1] + ...
+//
+// Emulated
+func (x Float64x2) ReduceSum() (z float64) {
+	return x.ConcatAddPairs(x).GetElem(0)
+}
+
+// ReduceMax reduces x by taking the maximum of all elements.
+//
+// Emulated
+func (x Float64x2) ReduceMax() float64 {
+	return x.ConcatMaxPairs(x).GetElem(0)
+}
+
+// ReduceMin reduces x by taking the minimum of all elements.
+//
+// Emulated
+func (x Float64x2) ReduceMin() float64 {
+	return x.ConcatMinPairs(x).GetElem(0)
+}
