@@ -1,0 +1,133 @@
+pkg bytes, func CutLast([]uint8, []uint8) ([]uint8, []uint8, bool) #71151
+pkg crypto, const MLDSAMu = 20 #77626
+pkg crypto, const MLDSAMu Hash #77626
+pkg crypto/mldsa, const MLDSA44PublicKeySize = 1312 #77626
+pkg crypto/mldsa, const MLDSA44PublicKeySize ideal-int #77626
+pkg crypto/mldsa, const MLDSA44SignatureSize = 2420 #77626
+pkg crypto/mldsa, const MLDSA44SignatureSize ideal-int #77626
+pkg crypto/mldsa, const MLDSA65PublicKeySize = 1952 #77626
+pkg crypto/mldsa, const MLDSA65PublicKeySize ideal-int #77626
+pkg crypto/mldsa, const MLDSA65SignatureSize = 3309 #77626
+pkg crypto/mldsa, const MLDSA65SignatureSize ideal-int #77626
+pkg crypto/mldsa, const MLDSA87PublicKeySize = 2592 #77626
+pkg crypto/mldsa, const MLDSA87PublicKeySize ideal-int #77626
+pkg crypto/mldsa, const MLDSA87SignatureSize = 4627 #77626
+pkg crypto/mldsa, const MLDSA87SignatureSize ideal-int #77626
+pkg crypto/mldsa, const PrivateKeySize = 32 #77626
+pkg crypto/mldsa, const PrivateKeySize ideal-int #77626
+pkg crypto/mldsa, func GenerateKey(Parameters) (*PrivateKey, error) #77626
+pkg crypto/mldsa, func MLDSA44() Parameters #77626
+pkg crypto/mldsa, func MLDSA65() Parameters #77626
+pkg crypto/mldsa, func MLDSA87() Parameters #77626
+pkg crypto/mldsa, func NewPrivateKey(Parameters, []uint8) (*PrivateKey, error) #77626
+pkg crypto/mldsa, func NewPublicKey(Parameters, []uint8) (*PublicKey, error) #77626
+pkg crypto/mldsa, func Verify(*PublicKey, []uint8, []uint8, *Options) error #77626
+pkg crypto/mldsa, method (*Options) HashFunc() crypto.Hash #77626
+pkg crypto/mldsa, method (*PrivateKey) Bytes() []uint8 #77626
+pkg crypto/mldsa, method (*PrivateKey) Equal(crypto.PrivateKey) bool #77626
+pkg crypto/mldsa, method (*PrivateKey) Public() crypto.PublicKey #77626
+pkg crypto/mldsa, method (*PrivateKey) PublicKey() *PublicKey #77626
+pkg crypto/mldsa, method (*PrivateKey) Sign(io.Reader, []uint8, crypto.SignerOpts) ([]uint8, error) #77626
+pkg crypto/mldsa, method (*PrivateKey) SignDeterministic([]uint8, crypto.SignerOpts) ([]uint8, error) #77626
+pkg crypto/mldsa, method (*PublicKey) Bytes() []uint8 #77626
+pkg crypto/mldsa, method (*PublicKey) Equal(crypto.PublicKey) bool #77626
+pkg crypto/mldsa, method (*PublicKey) Parameters() Parameters #77626
+pkg crypto/mldsa, method (Parameters) PublicKeySize() int #77626
+pkg crypto/mldsa, method (Parameters) SignatureSize() int #77626
+pkg crypto/mldsa, method (Parameters) String() string #77626
+pkg crypto/mldsa, type Options struct #77626
+pkg crypto/mldsa, type Options struct, Context string #77626
+pkg crypto/mldsa, type Parameters struct #77626
+pkg crypto/mldsa, type PrivateKey struct #77626
+pkg crypto/mldsa, type PublicKey struct #77626
+pkg crypto/tls, const MLDSA44 = 2308 #78888
+pkg crypto/tls, const MLDSA44 SignatureScheme #78888
+pkg crypto/tls, const MLDSA65 = 2309 #78888
+pkg crypto/tls, const MLDSA65 SignatureScheme #78888
+pkg crypto/tls, const MLDSA87 = 2310 #78888
+pkg crypto/tls, const MLDSA87 SignatureScheme #78888
+pkg crypto/tls, const MLKEM1024 = 514 #78543
+pkg crypto/tls, const MLKEM1024 CurveID #78543
+pkg crypto/tls, type Config struct, Rand //deprecated #79367
+pkg crypto/tls, type QUICConfig struct, ClientHelloInfoConn net.Conn #77363
+pkg crypto/x509, const MLDSA = 5 #78888
+pkg crypto/x509, const MLDSA PublicKeyAlgorithm #78888
+pkg crypto/x509, const MLDSA44 = 17 #78888
+pkg crypto/x509, const MLDSA44 SignatureAlgorithm #78888
+pkg crypto/x509, const MLDSA65 = 18 #78888
+pkg crypto/x509, const MLDSA65 SignatureAlgorithm #78888
+pkg crypto/x509, const MLDSA87 = 19 #78888
+pkg crypto/x509, const MLDSA87 SignatureAlgorithm #78888
+pkg crypto/x509, type Certificate struct, RawSignatureAlgorithm []uint8 #76133
+pkg crypto/x509, type CertificateRequest struct, RawSignatureAlgorithm []uint8 #76133
+pkg crypto/x509, type RevocationList struct, RawSignatureAlgorithm []uint8 #76133
+pkg database/sql, func ConvertAssign(driver.ScanContext, interface{}, driver.Value) error #67546
+pkg database/sql/driver, type RowsColumnScanner interface { Close, Columns, Next, NextRow, ScanColumn } #67546
+pkg database/sql/driver, type RowsColumnScanner interface, Close() error #67546
+pkg database/sql/driver, type RowsColumnScanner interface, Columns() []string #67546
+pkg database/sql/driver, type RowsColumnScanner interface, Next([]Value) error #67546
+pkg database/sql/driver, type RowsColumnScanner interface, NextRow() error #67546
+pkg database/sql/driver, type RowsColumnScanner interface, ScanColumn(ScanContext, int, interface{}) error #67546
+pkg database/sql/driver, type ScanContext struct #67546
+pkg go/constant, func StringLen(Value) int64 #79042
+pkg go/scanner, method (*Scanner) End() token.Pos #74958
+pkg go/token, method (*File) String() string #76285
+pkg go/types, method (*TypeList) String() string #79287
+pkg go/types, method (*TypeParamList) String() string #79287
+pkg go/types, method (Hasher) Equal(Type, Type) bool #69420
+pkg go/types, method (Hasher) Hash(*maphash.Hash, Type) #69420
+pkg go/types, method (HasherIgnoreTags) Equal(Type, Type) bool #69420
+pkg go/types, method (HasherIgnoreTags) Hash(*maphash.Hash, Type) #69420
+pkg go/types, method (Instance) String() string #79287
+pkg go/types, type Hasher struct #69420
+pkg go/types, type HasherIgnoreTags struct #69420
+pkg hash/maphash, method (ComparableHasher[$0]) Equal($0, $0) bool #70471
+pkg hash/maphash, method (ComparableHasher[$0]) Hash(*Hash, $0) #70471
+pkg hash/maphash, type ComparableHasher[$0 comparable] struct #70471
+pkg hash/maphash, type Hasher[$0 interface{}] interface { Equal, Hash } #70471
+pkg hash/maphash, type Hasher[$0 interface{}] interface, Equal($0, $0) bool #70471
+pkg hash/maphash, type Hasher[$0 interface{}] interface, Hash(*Hash, $0) #70471
+pkg math/big, const Ceil = 5 #76821
+pkg math/big, const Ceil RoundingMode #76821
+pkg math/big, const Floor = 4 #76821
+pkg math/big, const Floor RoundingMode #76821
+pkg math/big, const Round = 0 #76821
+pkg math/big, const Round RoundingMode #76821
+pkg math/big, const Trunc = 2 #76821
+pkg math/big, const Trunc RoundingMode #76821
+pkg math/big, method (*Int) Divide(*Int, *Int, *Int, RoundingMode) (*Int, *Int) #76821
+pkg net/http, type Server struct, DisableClientPriority bool #75500
+pkg net/http/httptest, func NewTestServer(testing.TB, http.Handler) *Server #76608
+pkg net/url, method (*URL) Clone() *URL #73450
+pkg net/url, method (Values) Clone() Values #73450
+pkg strings, func CutLast(string, string) (string, string, bool) #71151
+pkg testing/synctest, func Sleep(time.Duration) #77169
+pkg unicode, const Version = "17.0.0" #77266
+pkg unicode, var Beria_Erfe *RangeTable #77266
+pkg unicode, var Garay *RangeTable #77266
+pkg unicode, var Gurung_Khema *RangeTable #77266
+pkg unicode, var IDS_Unary_Operator *RangeTable #77266
+pkg unicode, var ID_Compat_Math_Continue *RangeTable #77266
+pkg unicode, var ID_Compat_Math_Start *RangeTable #77266
+pkg unicode, var Kirat_Rai *RangeTable #77266
+pkg unicode, var Modifier_Combining_Mark *RangeTable #77266
+pkg unicode, var Ol_Onal *RangeTable #77266
+pkg unicode, var Sidetic *RangeTable #77266
+pkg unicode, var Sunuwar *RangeTable #77266
+pkg unicode, var Tai_Yo *RangeTable #77266
+pkg unicode, var Todhri *RangeTable #77266
+pkg unicode, var Tolong_Siki *RangeTable #77266
+pkg unicode, var Tulu_Tigalari *RangeTable #77266
+pkg uuid, func Max() UUID #62026
+pkg uuid, func MustParse(string) UUID #62026
+pkg uuid, func New() UUID #62026
+pkg uuid, func NewV4() UUID #62026
+pkg uuid, func NewV7() UUID #62026
+pkg uuid, func Nil() UUID #62026
+pkg uuid, func Parse(string) (UUID, error) #62026
+pkg uuid, method (*UUID) UnmarshalText([]uint8) error #62026
+pkg uuid, method (UUID) AppendText([]uint8) ([]uint8, error) #62026
+pkg uuid, method (UUID) Compare(UUID) int #62026
+pkg uuid, method (UUID) MarshalText() ([]uint8, error) #62026
+pkg uuid, method (UUID) String() string #62026
+pkg uuid, type UUID [16]uint8 #62026
