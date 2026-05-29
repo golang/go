@@ -280,7 +280,7 @@ func processFile(filename string, info fs.FileInfo, in io.Reader, r *reporter) e
 			}
 
 			perm := info.Mode().Perm()
-			if err := writeFile(filename, src, res, perm, fileWeight(filename, info)); err != nil {
+			if err := writeFile(filename, src, res, perm, info.Size()); err != nil {
 				return err
 			}
 		}
