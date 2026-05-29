@@ -319,7 +319,7 @@
   out:
   - *i32x16
 # Truncating conversions
-- go: TruncateToInt8
+- go: TruncToInt8
   regexpTag: "convert"
   asm: "VPMOV[WDQ]B"
   in:
@@ -327,7 +327,7 @@
   out:
     - base: int
       bits: 128
-- go: TruncateToUint8
+- go: TruncToUint8
   regexpTag: "convert"
   asm: "VPMOV[WDQ]B"
   in:
@@ -335,7 +335,7 @@
   out:
     - base: uint
       bits: 128
-- go: TruncateToInt8
+- go: TruncToInt8
   regexpTag: "convert"
   asm: "VPMOV[WDQ]B"
   in:
@@ -343,7 +343,7 @@
   out:
     - base: int
       bits: 256|512
-- go: TruncateToUint8
+- go: TruncToUint8
   regexpTag: "convert"
   asm: "VPMOV[WDQ]B"
   in:
@@ -351,28 +351,28 @@
   out:
     - base: uint
       bits: 256|512
-- go: TruncateToInt16
+- go: TruncToInt16
   regexpTag: "convert"
   asm: "VPMOV[DQ]W"
   in:
     - base: int
   out:
     - base: int
-- go: TruncateToUint16
+- go: TruncToUint16
   regexpTag: "convert"
   asm: "VPMOV[DQ]W"
   in:
     - base: uint
   out:
     - base: uint
-- go: TruncateToInt32
+- go: TruncToInt32
   regexpTag: "convert"
   asm: "VPMOVQD"
   in:
     - base: int
   out:
     - base: int
-- go: TruncateToUint32
+- go: TruncToUint32
   regexpTag: "convert"
   asm: "VPMOVQD"
   in:

@@ -8,8 +8,47 @@ package simd_test
 
 import (
 	"math"
+	"math/bits"
 	"unsafe"
 )
+
+func rotl[T unsigned](x T, dist uint64) T {
+	size := uint64(unsafe.Sizeof(x)) * 8
+	dist = dist & (size - 1)
+	if dist == 0 {
+		return x
+	}
+	return (x << dist) | (x >> (size - dist))
+}
+
+func rotr[T unsigned](x T, dist uint64) T {
+	size := uint64(unsafe.Sizeof(x)) * 8
+	dist = dist & (size - 1)
+	if dist == 0 {
+		return x
+	}
+	return (x >> dist) | (x << (size - dist))
+}
+
+// rotlOfSlice returns a slice simulation of a left rotate
+// of a specified distance.
+func rotlOfSlice[T unsigned](dist uint64) func(x []T) []T {
+	return map1[T](func(x T) T { return rotl(x, dist) })
+}
+
+// rotrOfSlice returns a slice simulation of a right rotate
+// of a specified distance.
+func rotrOfSlice[T unsigned](dist uint64) func(x []T) []T {
+	return map1[T](func(x T) T { return rotr(x, dist) })
+}
+
+func curry2[T, U, V any](f func(T, U) V, y U) func(x T) V {
+	return func(x T) V { return f(x, y) }
+}
+
+func curry1[T, U, V any](f func(T, U) V, x T) func(y U) V {
+	return func(y U) V { return f(x, y) }
+}
 
 func less[T number](x, y T) bool {
 	return x < y
@@ -43,6 +82,15 @@ func abs[T number](x T) T {
 		return -x
 	}
 	return x
+}
+
+func neg[T number](x T) T {
+	return -x
+}
+
+func onesCount[T integer](x T) T {
+	size := uint64(unsafe.Sizeof(x)) * 8
+	return T(bits.OnesCount64(uint64(x) & ((1 << size) - 1)))
 }
 
 func ceil[T float](x T) T {
@@ -592,23 +640,23 @@ func shiftSaturatingUnsignedSlice[D unsigned, S integer](x []D, y []S) []D {
 // Slice versions for const shift operations (same constant amount for all elements)
 
 // shiftLeftByConstSlice shifts all elements left by constant amount.
-func shiftLeftByConstSlice[T integer](x []T, amt uint8) []T {
+func shiftLeftByConstSlice[T integer](x []T, amt uint64) []T {
 	return map1(func(a T) T { return a << amt })(x)
 }
 
 // shiftRightByConstSlice shifts all elements right by constant amount.
 // Signed types use arithmetic shift, unsigned types use logical shift.
-func shiftRightByConstSlice[T integer](x []T, amt uint8) []T {
+func shiftRightByConstSlice[T integer](x []T, amt uint64) []T {
 	return map1(func(a T) T { return a >> amt })(x)
 }
 
 // shiftLeftSaturatingByConstSlice shifts all elements left by constant amount with signed saturation.
-func shiftLeftSaturatingByConstSlice[T signed](x []T, amt uint8) []T {
+func shiftLeftSaturatingByConstSlice[T signed](x []T, amt uint64) []T {
 	return map1(func(a T) T { return shiftSaturatingSigned(a, int8(amt)) })(x)
 }
 
 // shiftLeftSaturatingUByConstSlice shifts all elements left by constant amount with unsigned saturation.
-func shiftLeftSaturatingUByConstSlice[T unsigned](x []T, amt uint8) []T {
+func shiftLeftSaturatingUByConstSlice[T unsigned](x []T, amt uint64) []T {
 	return map1(func(a T) T { return shiftSaturatingUnsigned(a, int8(amt)) })(x)
 }
 

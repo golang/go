@@ -375,10 +375,12 @@ func TestMul(t *testing.T) {
 	if archsimd.X86.AVX2() {
 		testInt16x16Binary(t, archsimd.Int16x16.Mul, mulSlice[int16])
 		testInt32x8Binary(t, archsimd.Int32x8.Mul, mulSlice[int32])
+		testInt8x32Binary(t, archsimd.Int8x32.Mul, mulSlice[int8])
+		testUint8x32Binary(t, archsimd.Uint8x32.Mul, mulSlice[uint8])
 	}
 
-	// testInt8x16Binary(t, archsimd.Int8x16.Mul, mulSlice[int8]) // nope
-	// testInt8x32Binary(t, archsimd.Int8x32.Mul, mulSlice[int8])
+	testInt8x16Binary(t, archsimd.Int8x16.Mul, mulSlice[int8])
+	testUint8x16Binary(t, archsimd.Uint8x16.Mul, mulSlice[uint8])
 
 	// TODO we should be able to do these, there's no difference between signed/unsigned Mul
 	// testUint16x16Binary(t, archsimd.Uint16x16.Mul, mulSlice[uint16])

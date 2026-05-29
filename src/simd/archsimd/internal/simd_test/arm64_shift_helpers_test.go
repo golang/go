@@ -14,12 +14,12 @@ import (
 )
 
 // testInt8x16ShiftConst tests a const-shift method (unary + immediate).
-func testInt8x16ShiftConst(t *testing.T, f func(_ archsimd.Int8x16, _ uint8) archsimd.Int8x16, want func(_ []int8, _ uint8) []int8) {
+func testInt8x16ShiftConst(t *testing.T, f func(_ archsimd.Int8x16, _ uint64) archsimd.Int8x16, want func(_ []int8, _ uint64) []int8) {
 	n := 16
 	t.Helper()
 	forSlice(t, int8s, n, func(x []int8) bool {
 		t.Helper()
-		for _, amt := range []uint8{0, 1, 3, 8 - 1} {
+		for _, amt := range []uint64{0, 1, 3, 8 - 1} {
 			a := archsimd.LoadInt8x16(x)
 			g := make([]int8, n)
 			f(a, amt).Store(g)
@@ -33,12 +33,12 @@ func testInt8x16ShiftConst(t *testing.T, f func(_ archsimd.Int8x16, _ uint8) arc
 }
 
 // testInt16x8ShiftConst tests a const-shift method (unary + immediate).
-func testInt16x8ShiftConst(t *testing.T, f func(_ archsimd.Int16x8, _ uint8) archsimd.Int16x8, want func(_ []int16, _ uint8) []int16) {
+func testInt16x8ShiftConst(t *testing.T, f func(_ archsimd.Int16x8, _ uint64) archsimd.Int16x8, want func(_ []int16, _ uint64) []int16) {
 	n := 8
 	t.Helper()
 	forSlice(t, int16s, n, func(x []int16) bool {
 		t.Helper()
-		for _, amt := range []uint8{0, 1, 3, 16 - 1} {
+		for _, amt := range []uint64{0, 1, 3, 16 - 1} {
 			a := archsimd.LoadInt16x8(x)
 			g := make([]int16, n)
 			f(a, amt).Store(g)
@@ -52,12 +52,12 @@ func testInt16x8ShiftConst(t *testing.T, f func(_ archsimd.Int16x8, _ uint8) arc
 }
 
 // testInt32x4ShiftConst tests a const-shift method (unary + immediate).
-func testInt32x4ShiftConst(t *testing.T, f func(_ archsimd.Int32x4, _ uint8) archsimd.Int32x4, want func(_ []int32, _ uint8) []int32) {
+func testInt32x4ShiftConst(t *testing.T, f func(_ archsimd.Int32x4, _ uint64) archsimd.Int32x4, want func(_ []int32, _ uint64) []int32) {
 	n := 4
 	t.Helper()
 	forSlice(t, int32s, n, func(x []int32) bool {
 		t.Helper()
-		for _, amt := range []uint8{0, 1, 3, 32 - 1} {
+		for _, amt := range []uint64{0, 1, 3, 32 - 1} {
 			a := archsimd.LoadInt32x4(x)
 			g := make([]int32, n)
 			f(a, amt).Store(g)
@@ -71,12 +71,12 @@ func testInt32x4ShiftConst(t *testing.T, f func(_ archsimd.Int32x4, _ uint8) arc
 }
 
 // testInt64x2ShiftConst tests a const-shift method (unary + immediate).
-func testInt64x2ShiftConst(t *testing.T, f func(_ archsimd.Int64x2, _ uint8) archsimd.Int64x2, want func(_ []int64, _ uint8) []int64) {
+func testInt64x2ShiftConst(t *testing.T, f func(_ archsimd.Int64x2, _ uint64) archsimd.Int64x2, want func(_ []int64, _ uint64) []int64) {
 	n := 2
 	t.Helper()
 	forSlice(t, int64s, n, func(x []int64) bool {
 		t.Helper()
-		for _, amt := range []uint8{0, 1, 3, 64 - 1} {
+		for _, amt := range []uint64{0, 1, 3, 64 - 1} {
 			a := archsimd.LoadInt64x2(x)
 			g := make([]int64, n)
 			f(a, amt).Store(g)
@@ -90,12 +90,12 @@ func testInt64x2ShiftConst(t *testing.T, f func(_ archsimd.Int64x2, _ uint8) arc
 }
 
 // testUint8x16ShiftConst tests a const-shift method (unary + immediate).
-func testUint8x16ShiftConst(t *testing.T, f func(_ archsimd.Uint8x16, _ uint8) archsimd.Uint8x16, want func(_ []uint8, _ uint8) []uint8) {
+func testUint8x16ShiftConst(t *testing.T, f func(_ archsimd.Uint8x16, _ uint64) archsimd.Uint8x16, want func(_ []uint8, _ uint64) []uint8) {
 	n := 16
 	t.Helper()
 	forSlice(t, uint8s, n, func(x []uint8) bool {
 		t.Helper()
-		for _, amt := range []uint8{0, 1, 3, 8 - 1} {
+		for _, amt := range []uint64{0, 1, 3, 8 - 1} {
 			a := archsimd.LoadUint8x16(x)
 			g := make([]uint8, n)
 			f(a, amt).Store(g)
@@ -109,12 +109,12 @@ func testUint8x16ShiftConst(t *testing.T, f func(_ archsimd.Uint8x16, _ uint8) a
 }
 
 // testUint16x8ShiftConst tests a const-shift method (unary + immediate).
-func testUint16x8ShiftConst(t *testing.T, f func(_ archsimd.Uint16x8, _ uint8) archsimd.Uint16x8, want func(_ []uint16, _ uint8) []uint16) {
+func testUint16x8ShiftConst(t *testing.T, f func(_ archsimd.Uint16x8, _ uint64) archsimd.Uint16x8, want func(_ []uint16, _ uint64) []uint16) {
 	n := 8
 	t.Helper()
 	forSlice(t, uint16s, n, func(x []uint16) bool {
 		t.Helper()
-		for _, amt := range []uint8{0, 1, 3, 16 - 1} {
+		for _, amt := range []uint64{0, 1, 3, 16 - 1} {
 			a := archsimd.LoadUint16x8(x)
 			g := make([]uint16, n)
 			f(a, amt).Store(g)
@@ -128,12 +128,12 @@ func testUint16x8ShiftConst(t *testing.T, f func(_ archsimd.Uint16x8, _ uint8) a
 }
 
 // testUint32x4ShiftConst tests a const-shift method (unary + immediate).
-func testUint32x4ShiftConst(t *testing.T, f func(_ archsimd.Uint32x4, _ uint8) archsimd.Uint32x4, want func(_ []uint32, _ uint8) []uint32) {
+func testUint32x4ShiftConst(t *testing.T, f func(_ archsimd.Uint32x4, _ uint64) archsimd.Uint32x4, want func(_ []uint32, _ uint64) []uint32) {
 	n := 4
 	t.Helper()
 	forSlice(t, uint32s, n, func(x []uint32) bool {
 		t.Helper()
-		for _, amt := range []uint8{0, 1, 3, 32 - 1} {
+		for _, amt := range []uint64{0, 1, 3, 32 - 1} {
 			a := archsimd.LoadUint32x4(x)
 			g := make([]uint32, n)
 			f(a, amt).Store(g)
@@ -147,12 +147,12 @@ func testUint32x4ShiftConst(t *testing.T, f func(_ archsimd.Uint32x4, _ uint8) a
 }
 
 // testUint64x2ShiftConst tests a const-shift method (unary + immediate).
-func testUint64x2ShiftConst(t *testing.T, f func(_ archsimd.Uint64x2, _ uint8) archsimd.Uint64x2, want func(_ []uint64, _ uint8) []uint64) {
+func testUint64x2ShiftConst(t *testing.T, f func(_ archsimd.Uint64x2, _ uint64) archsimd.Uint64x2, want func(_ []uint64, _ uint64) []uint64) {
 	n := 2
 	t.Helper()
 	forSlice(t, uint64s, n, func(x []uint64) bool {
 		t.Helper()
-		for _, amt := range []uint8{0, 1, 3, 64 - 1} {
+		for _, amt := range []uint64{0, 1, 3, 64 - 1} {
 			a := archsimd.LoadUint64x2(x)
 			g := make([]uint64, n)
 			f(a, amt).Store(g)

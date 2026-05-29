@@ -4,6 +4,8 @@
 
 package syntax
 
+import "fmt"
+
 // ----------------------------------------------------------------------------
 // Nodes
 
@@ -42,6 +44,10 @@ type File struct {
 	EOF       Pos
 	GoVersion string
 	node
+}
+
+func (f *File) String() string {
+	return fmt.Sprintf("File{PkgName:%v, DeclList:%v}", f.PkgName, f.DeclList)
 }
 
 // ----------------------------------------------------------------------------
@@ -112,6 +118,18 @@ type (
 		decl
 	}
 )
+
+func (d *FuncDecl) String() string {
+	return fmt.Sprintf("FuncDecl{Name:%v}", d.Name)
+}
+
+func (d *TypeDecl) String() string {
+	return fmt.Sprintf("TypeDecl{Name:%v}", d.Name)
+}
+
+func (d *VarDecl) String() string {
+	return fmt.Sprintf("FuncDecl{NameList:%v}", d.NameList)
+}
 
 type decl struct{ node }
 

@@ -11,10 +11,12 @@ import (
 	"strings"
 	"text/template"
 	"unicode"
+
+	"_gen/sgutil"
 )
 
 type tplRuleData struct {
-	tplName        string // e.g. "sftimm"
+	TplName        string // e.g. "sftimm"
 	GoOp           string // e.g. "ShiftAllLeft"
 	GoType         string // e.g. "Uint32x8"
 	Args           string // e.g. "x y"
@@ -32,31 +34,41 @@ type tplRuleData struct {
 	RuleArgs       string // custom args pattern for argsMatchRule.
 }
 
+// Helper type to make template map initialization less repetitive
+// (and also remove a chance for errors.)
+type ruleTemplateMap struct {
+	sgutil.InsertMap[string, *template.Template]
+}
+
+// Add creates a template named "name" after appending "// {{.TmplName}}\n" to the
+// template, and returns the input so that additions may be chained.
+// This helps make template initialization easy to order and easy to read.
+func (rtm *ruleTemplateMap) Add(name string, templ string) *ruleTemplateMap {
+	// Append debugging comment AND end of line
+	templ += " // {{.TplName}}\n"
+	ct := sgutil.TemplateNamed(name, templ)
+	rtm.InsertMap.Put(name, ct)
+	return rtm
+}
+
 var (
-	ruleTemplates = template.Must(template.New("simdRules").Parse(`
-{{define "pureVreg"}}({{.GoOp}}{{.GoType}} {{.Args}}) => ({{.Asm}} {{.ArgsOut}})
-{{end}}
-{{define "maskIn"}}({{.GoOp}}{{.GoType}} {{.Args}} mask) => ({{.Asm}} {{.ArgsOut}} ({{.MaskInConvert}} <types.TypeMask> mask))
-{{end}}
-{{define "maskOut"}}({{.GoOp}}{{.GoType}} {{.Args}}) => ({{.MaskOutConvert}} ({{.Asm}} {{.ArgsOut}}))
-{{end}}
-{{define "maskInMaskOut"}}({{.GoOp}}{{.GoType}} {{.Args}} mask) => ({{.MaskOutConvert}} ({{.Asm}} {{.ArgsOut}} ({{.MaskInConvert}} <types.TypeMask> mask)))
-{{end}}
-{{define "sftimm"}}({{.Asm}} x (MOVQconst [c])) => ({{.Asm}}const [amd64CapAVXShift(c)] x)
-{{end}}
-{{define "asmRule"}}({{.Asm}} {{.Args}}) {{.RuleCond}} => {{.RuleOut}}
-{{end}}
-{{define "argsMatchRule"}}({{.Asm}} {{.RuleArgs}}) {{.RuleCond}} => {{.RuleOut}}
-{{end}}
-{{define "earlyMatchRule"}}({{.GoOp}}{{.GoType}} {{.RuleArgs}}) {{.RuleCond}}=> {{.RuleOut}}
-{{end}}
-{{define "masksftimm"}}({{.Asm}} x (MOVQconst [c]) mask) => ({{.Asm}}const [amd64CapAVXShift(c)] x mask)
-{{end}}
-{{define "vregMem"}}({{.Asm}} {{.ArgsLoadAddr}}) && canMergeLoad(v, l) && clobber(l) => ({{.Asm}}load {{.ArgsAddr}})
-{{end}}
-{{define "vregMemFeatCheck"}}({{.Asm}} {{.ArgsLoadAddr}}) && {{.FeatCheck}} && canMergeLoad(v, l) && clobber(l)=> ({{.Asm}}load {{.ArgsAddr}})
-{{end}}
-`))
+	// ORDER MATTERS.  These should appear in most-to-least-specific order
+	// TODO: vregMemFeatCheck is not necessarily in the right place; there was an order,
+	// this was copied from it, but vregMemFeatCheck was not in it.  It's not clear
+	// it was ever used.
+	// It's also not clear that this is strictly most-to-least-specific?
+	ruleTemplates = new(ruleTemplateMap).
+		Add("masksftimm", `({{.Asm}} x (MOVQconst [c]) mask) => ({{.Asm}}const [amd64CapAVXShift(c)] x mask)`).
+		Add("sftimm", `({{.Asm}} x (MOVQconst [c])) => ({{.Asm}}const [amd64CapAVXShift(c)] x)`).
+		Add("maskInMaskOut", `({{.GoOp}}{{.GoType}} {{.Args}} mask) => ({{.MaskOutConvert}} ({{.Asm}} {{.ArgsOut}} ({{.MaskInConvert}} <types.TypeMask> mask)))`).
+		Add("maskOut", `({{.GoOp}}{{.GoType}} {{.Args}}) => ({{.MaskOutConvert}} ({{.Asm}} {{.ArgsOut}}))`).
+		Add("maskIn", `({{.GoOp}}{{.GoType}} {{.Args}} mask) => ({{.Asm}} {{.ArgsOut}} ({{.MaskInConvert}} <types.TypeMask> mask))`).
+		Add("pureVreg", `({{.GoOp}}{{.GoType}} {{.Args}}) => ({{.Asm}} {{.ArgsOut}})`).
+		Add("vregMem", `({{.Asm}} {{.ArgsLoadAddr}}) && canMergeLoad(v, l) && clobber(l) => ({{.Asm}}load {{.ArgsAddr}})`).
+		Add("vregMemFeatCheck", `({{.Asm}} {{.ArgsLoadAddr}}) && {{.FeatCheck}} && canMergeLoad(v, l) && clobber(l) => ({{.Asm}}load {{.ArgsAddr}})`).
+		Add("asmRule", `({{.Asm}} {{.Args}}) {{.RuleCond}} => {{.RuleOut}}`).
+		Add("argsMatchRule", `({{.Asm}} {{.RuleArgs}}) {{.RuleCond}} => {{.RuleOut}}`).
+		Add("earlyMatchRule", `({{.GoOp}}{{.GoType}} {{.RuleArgs}}) {{.RuleCond}} => {{.RuleOut}}`)
 )
 
 func (d tplRuleData) MaskOptimization(asmCheck map[string]bool) string {
@@ -95,20 +107,6 @@ func (d tplRuleData) MaskOptimization(asmCheck map[string]bool) string {
 	return fmt.Sprintf("(VMOVDQU%dMasked%s (%s %s) mask) => (%s %s mask)\n", d.ElementSize, size, asmNoMask, d.Args, d.Asm, d.Args)
 }
 
-// SSA rewrite rules need to appear in a most-to-least-specific order.  This works for that.
-var tmplOrder = map[string]int{
-	"masksftimm":     0,
-	"sftimm":         1,
-	"maskInMaskOut":  2,
-	"maskOut":        3,
-	"maskIn":         4,
-	"pureVreg":       5,
-	"vregMem":        6,
-	"asmRule":        7,
-	"argsMatchRule":  8,
-	"earlyMatchRule": 9,
-}
-
 func compareTplRuleData(x, y tplRuleData) int {
 	if c := compareNatural(x.GoOp, y.GoOp); c != 0 {
 		return c
@@ -119,18 +117,10 @@ func compareTplRuleData(x, y tplRuleData) int {
 	if c := compareNatural(x.Args, y.Args); c != 0 {
 		return c
 	}
-	if x.tplName == y.tplName {
+	if x.TplName == y.TplName {
 		return 0
 	}
-	xo, xok := tmplOrder[x.tplName]
-	yo, yok := tmplOrder[y.tplName]
-	if !xok {
-		panic(fmt.Errorf("Unexpected template name %s, please add to tmplOrder", x.tplName))
-	}
-	if !yok {
-		panic(fmt.Errorf("Unexpected template name %s, please add to tmplOrder", y.tplName))
-	}
-	return xo - yo
+	return ruleTemplates.Compare(x.TplName, y.TplName)
 }
 
 // parseAsmRule tries to parse given string as it would be asmRule:
@@ -345,9 +335,9 @@ func writeSIMDRules(ops []Operation) *bytes.Buffer {
 					sftimmCheck[data.Asm] = true
 					sftImmData := data
 					if tplName == "maskIn" {
-						sftImmData.tplName = "masksftimm"
+						sftImmData.TplName = "masksftimm"
 					} else {
-						sftImmData.tplName = "sftimm"
+						sftImmData.TplName = "sftimm"
 					}
 					allData = append(allData, sftImmData)
 					asmCheck[sftImmData.Asm+"const"] = true
@@ -356,7 +346,7 @@ func writeSIMDRules(ops []Operation) *bytes.Buffer {
 				if _, done := ruleDone[data.Asm]; !done {
 					ruleDone[data.Asm] = struct{}{}
 					optData := data
-					optData.tplName = "asmRule"
+					optData.TplName = "asmRule"
 					optData.RuleCond = cond
 					if cond != "" {
 						optData.RuleCond = "&& " + cond
@@ -384,9 +374,9 @@ func writeSIMDRules(ops []Operation) *bytes.Buffer {
 					}
 					optData := data
 					if isEarly {
-						optData.tplName = "earlyMatchRule"
+						optData.TplName = "earlyMatchRule"
 					} else {
-						optData.tplName = "argsMatchRule"
+						optData.TplName = "argsMatchRule"
 					}
 					optData.RuleArgs = expandFormatSpecifiers(matchArgs, elemBits)
 					optData.RuleCond = expandFormatSpecifiers(cond, elemBits)
@@ -452,9 +442,9 @@ func writeSIMDRules(ops []Operation) *bytes.Buffer {
 						"AVX512": "v.Block.CPUfeatures.hasFeature(CPUavx512)",
 					}
 					memOpData.FeatCheck = knownFeatChecks[feat2]
-					memOpData.tplName = "vregMemFeatCheck"
+					memOpData.TplName = "vregMemFeatCheck"
 				} else {
-					memOpData.tplName = "vregMem"
+					memOpData.TplName = "vregMem"
 				}
 				memOptData = append(memOptData, memOpData)
 				asmCheck[memOpData.Asm+"load"] = true
@@ -503,7 +493,7 @@ func writeSIMDRules(ops []Operation) *bytes.Buffer {
 			data.Args = "..."
 			data.ArgsOut = "..."
 		}
-		data.tplName = tplName
+		data.TplName = tplName
 		if opr.NoGenericOps != nil && *opr.NoGenericOps == "true" ||
 			opr.SkipMaskedMethod() {
 			optData = append(optData, data)
@@ -521,15 +511,19 @@ func writeSIMDRules(ops []Operation) *bytes.Buffer {
 	}
 
 	for _, data := range allData {
-		if err := ruleTemplates.ExecuteTemplate(buffer, data.tplName, data); err != nil {
-			panic(fmt.Errorf("failed to execute template %s for %s: %w", data.tplName, data.GoOp+data.GoType, err))
+		tpl := ruleTemplates.Get(data.TplName)
+		if tpl == nil {
+			panic(fmt.Errorf("template %s not found", data.TplName))
+		}
+		if err := tpl.Execute(buffer, data); err != nil {
+			panic(fmt.Errorf("failed to execute template %s for %s: %w", data.TplName, data.GoOp+data.GoType, err))
 		}
 	}
 
 	seen := make(map[string]bool)
 
 	for _, data := range optData {
-		if data.tplName == "maskIn" {
+		if data.TplName == "maskIn" {
 			rule := data.MaskOptimization(asmCheck)
 			if seen[rule] {
 				continue
@@ -552,8 +546,12 @@ func writeSIMDRules(ops []Operation) *bytes.Buffer {
 	}
 
 	for _, data := range memOptData {
-		if err := ruleTemplates.ExecuteTemplate(buffer, data.tplName, data); err != nil {
-			panic(fmt.Errorf("failed to execute template %s for %s: %w", data.tplName, data.Asm, err))
+		tpl := ruleTemplates.Get(data.TplName)
+		if tpl == nil {
+			panic(fmt.Errorf("template %s not found", data.TplName))
+		}
+		if err := tpl.Execute(buffer, data); err != nil {
+			panic(fmt.Errorf("failed to execute template %s for %s: %w", data.TplName, data.Asm, err))
 		}
 	}
 

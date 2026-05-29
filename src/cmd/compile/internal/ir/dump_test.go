@@ -9,7 +9,7 @@ import (
 )
 
 func testMatch(t *testing.T, pkgName, fnName, toMatch string, match bool) {
-	if matchPkgFn(pkgName, fnName, toMatch) != match {
+	if MatchPkgFn(pkgName, fnName, toMatch) != match {
 		t.Errorf("%v != matchPkgFn(%s, %s, %s)", match, pkgName, fnName, toMatch)
 	}
 }
@@ -20,7 +20,7 @@ func TestMatchPkgFn(t *testing.T) {
 	// "aPkg/subPkg.aFunc" matches "subPkg.aFunc"
 
 	match := func(pkgName, fnName, toMatch string) {
-		if !matchPkgFn(pkgName, fnName, toMatch) {
+		if !MatchPkgFn(pkgName, fnName, toMatch) {
 			t.Errorf("matchPkgFn(%s, %s, %s) did not match", pkgName, fnName, toMatch)
 		}
 	}
@@ -31,7 +31,7 @@ func TestMatchPkgFn(t *testing.T) {
 	match("aPkg/sPkg", "AFunc", "sPkg.AFunc")
 
 	notmatch := func(pkgName, fnName, toMatch string) {
-		if matchPkgFn(pkgName, fnName, toMatch) {
+		if MatchPkgFn(pkgName, fnName, toMatch) {
 			t.Errorf("matchPkgFn(%s, %s, %s) should not match", pkgName, fnName, toMatch)
 		}
 	}

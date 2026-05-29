@@ -401,10 +401,10 @@ const (
 	AI16x8MaxU
 	AReservedFD9A01 // 0xFD 0x9A 0x01
 	AI16x8AvgrU
-	AI16x8ExtMulLowI8x16S
-	AI16x8ExtMulHighI8x16S
-	AI16x8ExtMulLowI8x16U
-	AI16x8ExtMulHighI8x16U
+	AI16x8ExtmulLowI8x16S
+	AI16x8ExtmulHighI8x16S
+	AI16x8ExtmulLowI8x16U
+	AI16x8ExtmulHighI8x16U
 	AI32x4Abs
 	AI32x4Neg
 	AReservedFDA201
@@ -433,10 +433,10 @@ const (
 	AI32x4MaxU
 	AI32x4DotI16x8S
 	AReservedFDBB01
-	AI32x4ExtMulLowI16x8S
-	AI32x4ExtMulHighI16x8S
-	AI32x4ExtMulLowI16x8U
-	AI32x4ExtMulHighI16x8U
+	AI32x4ExtmulLowI16x8S
+	AI32x4ExtmulHighI16x8S
+	AI32x4ExtmulLowI16x8U
+	AI32x4ExtmulHighI16x8U
 	AI64x2Abs
 	AI64x2Neg
 	AReservedFDC201
@@ -465,10 +465,10 @@ const (
 	AI64x2GtS
 	AI64x2LeS
 	AI64x2GeS
-	AI64x2ExtMulLowI32x4S
-	AI64x2ExtMulHighI32x4S
-	AI64x2ExtMulLowI32x4U
-	AI64x2ExtMulHighI32x4U
+	AI64x2ExtmulLowI32x4S
+	AI64x2ExtmulHighI32x4S
+	AI64x2ExtmulLowI32x4U
+	AI64x2ExtmulHighI32x4U
 	AF32x4Abs
 	AF32x4Neg
 	AReservedFDE201

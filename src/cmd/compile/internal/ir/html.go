@@ -17,6 +17,7 @@ import (
 	"os"
 	"path/filepath"
 	"reflect"
+	"regexp"
 	"strings"
 )
 
@@ -24,14 +25,26 @@ import (
 // ssa backend does for GOSSAFUNC.  This is not the format used for
 // the ast column in GOSSAFUNC output.
 type HTMLWriter struct {
+	HTMLWriterBase
+	Func *Func
+}
+
+type HTMLWriterBase struct {
 	w             *BufferedWriterCloser
-	Func          *Func
-	canonIdMap    map[Node]int
+	canonIdMap    map[any]int
 	prevCanonId   int
 	path          string
 	prevHash      []byte
 	pendingPhases []string
 	pendingTitles []string
+	doDump        func(string) func()
+}
+
+func (h *HTMLWriterBase) Init(out io.WriteCloser, reportPath string, doDump func(string) func()) {
+	h.w = NewBufferedWriterCloser(out)
+	h.canonIdMap = make(map[any]int)
+	h.path = reportPath
+	h.doDump = doDump
 }
 
 // BufferedWriterCloser is here to help avoid pre-buffering the whole
@@ -70,19 +83,21 @@ func NewHTMLWriter(path string, f *Func, cfgMask string) *HTMLWriter {
 		reportPath = filepath.Join(pwd, path)
 	}
 	h := HTMLWriter{
-		w:          NewBufferedWriterCloser(out),
-		Func:       f,
-		path:       reportPath,
-		canonIdMap: make(map[Node]int),
+		Func: f,
 	}
+	h.Init(out, reportPath, h.FuncHTML)
 	h.start()
 	return &h
 }
 
-// canonId assigns indices to nodes based on pointer identity.
+func (h *HTMLWriterBase) Path() string {
+	return h.path
+}
+
+// CanonId assigns indices to nodes based on pointer identity.
 // this helps ensure that output html files don't gratuitously
 // differ from run to run.
-func (h *HTMLWriter) canonId(n Node) int {
+func (h *HTMLWriterBase) CanonId(n any) int {
 	if id := h.canonIdMap[n]; id > 0 {
 		return id
 	}
@@ -92,13 +107,13 @@ func (h *HTMLWriter) canonId(n Node) int {
 }
 
 // Fatalf reports an error and exits.
-func (w *HTMLWriter) Fatalf(msg string, args ...any) {
+func (w *HTMLWriterBase) Fatalf(msg string, args ...any) {
 	base.FatalfAt(src.NoXPos, msg, args...)
 }
 
 const (
-	RIGHT_ARROW = "\u25BA" // click-to-open (is closed)
-	DOWN_ARROW  = "\u25BC" // click-to-close (is open)
+	RightArrow = "►" // \u25BA click-to-open (is closed)
+	DownArrow  = "▼" // \u25BC click-to-close (is open)
 )
 
 func (w *HTMLWriter) start() {
@@ -114,7 +129,7 @@ func (w *HTMLWriter) start() {
 %s
 %s
 <title>AST display for %s</title>
-</head>`, escName, CSS, JS, escName)
+</head>`, escName, CSS, JS("bloop", "loopvar", "escape", "slice", "walk"), escName)
 	w.Print("<body>")
 	w.Print("<h1>")
 	w.Print(html.EscapeString(w.Func.Sym().Name))
@@ -137,7 +152,7 @@ locations are not treated as a single location, but as a sequence of locations t
 can be independently highlighted.
 </p>
 <p>
-Click on a ` + DOWN_ARROW + ` to collapse a subtree, or on a ` + RIGHT_ARROW + ` to expand a subtree.
+Click on a ` + DownArrow + ` to collapse a subtree, or on a ` + RightArrow + ` to expand a subtree.
 </p>
 
 
@@ -149,7 +164,7 @@ Click on a ` + DOWN_ARROW + ` to collapse a subtree, or on a ` + RIGHT_ARROW + `
 	w.Print("<tr>")
 }
 
-func (w *HTMLWriter) Close() {
+func (w *HTMLWriterBase) Close(format string, args ...any) {
 	if w == nil {
 		return
 	}
@@ -158,12 +173,12 @@ func (w *HTMLWriter) Close() {
 	w.Print("</body>")
 	w.Print("</html>\n")
 	w.w.Close()
-	fmt.Fprintf(os.Stderr, "Writing html ast output for %s to %s\n", PkgFuncName(w.Func), w.path)
+	fmt.Fprintf(os.Stderr, format, args...)
 }
 
 // WritePhase writes f in a column headed by title.
 // phase is used for collapsing columns and should be unique across the table.
-func (w *HTMLWriter) WritePhase(phase, title string) {
+func (w *HTMLWriterBase) WritePhase(phase, title string) {
 	if w == nil {
 		return // avoid generating HTML just to discard it
 	}
@@ -173,7 +188,7 @@ func (w *HTMLWriter) WritePhase(phase, title string) {
 }
 
 // flushPhases collects any pending phases and titles, writes them to the html, and resets the pending slices.
-func (w *HTMLWriter) flushPhases() {
+func (w *HTMLWriterBase) flushPhases() {
 	phaseLen := len(w.pendingPhases)
 	if phaseLen == 0 {
 		return
@@ -183,13 +198,13 @@ func (w *HTMLWriter) flushPhases() {
 		phases,
 		w.pendingTitles,
 		"allow-x-scroll",
-		w.FuncHTML(w.pendingPhases[phaseLen-1]),
+		w.doDump(w.pendingPhases[phaseLen-1]),
 	)
 	w.pendingPhases = w.pendingPhases[:0]
 	w.pendingTitles = w.pendingTitles[:0]
 }
 
-func (w *HTMLWriter) WriteMultiTitleColumn(phase string, titles []string, class string, writeContent func()) {
+func (w *HTMLWriterBase) WriteMultiTitleColumn(phase string, titles []string, class string, writeContent func()) {
 	if w == nil {
 		return
 	}
@@ -210,19 +225,19 @@ func (w *HTMLWriter) WriteMultiTitleColumn(phase string, titles []string, class 
 	w.Print("</td>\n")
 }
 
-func (w *HTMLWriter) Printf(msg string, v ...any) {
+func (w *HTMLWriterBase) Printf(msg string, v ...any) {
 	if _, err := fmt.Fprintf(w.w, msg, v...); err != nil {
 		w.Fatalf("%v", err)
 	}
 }
 
-func (w *HTMLWriter) Print(s string) {
+func (w *HTMLWriterBase) Print(s string) {
 	if _, err := fmt.Fprint(w.w, s); err != nil {
 		w.Fatalf("%v", err)
 	}
 }
 
-func (w *HTMLWriter) indent(n int) {
+func (w *HTMLWriterBase) indent(n int) {
 	indent(w.w, n)
 }
 
@@ -245,19 +260,23 @@ func (h *HTMLWriter) dumpNodesHTML(list Nodes, depth int) {
 	}
 }
 
+const indentString = ".   "
+
 // indent prints indentation to w.
-func (h *HTMLWriter) indentForToggle(depth int, hasChildren bool) {
+func (h *HTMLWriterBase) indentForToggle(depth int, hasChildren bool) {
 	h.Print("\n")
 	if depth == 0 {
 		return
 	}
 	for i := 0; i < depth-1; i++ {
-		h.Print(".   ")
+		h.Print(indentString)
 	}
 	if hasChildren {
-		h.Print(". ")
+		// Remove 2 spaces, which have similar rendered width to
+		// leading ir.DownArrow and trailing space.
+		h.Print(indentString[:len(indentString)-2])
 	} else {
-		h.Print(".   ")
+		h.Print(indentString)
 	}
 }
 
@@ -286,11 +305,11 @@ func (h *HTMLWriter) dumpNodeHTML(n Node, depth int) {
 	//
 	// Tag each class with its canonicalized index.
 
-	h.Printf("<span class=\"n%d ir-node\">", h.canonId(n))
+	h.Printf("<span class=\"n%d outline-node\">", h.CanonId(n))
 	defer h.Printf("</span>")
 
 	if hasChildren {
-		h.Print(`<span class="toggle" onclick="toggle_node(this)">` + DOWN_ARROW + `</span> `) // NOTE TRAILING SPACE after </span>!
+		h.Print(`<span class="toggle" onclick="toggle_node(this)">` + DownArrow + `</span> `) // NOTE TRAILING SPACE after </span>!
 	}
 
 	if len(n.Init()) != 0 {
@@ -608,8 +627,7 @@ func (h *HTMLWriter) dumpNodeHeaderHTML(n Node) {
 	}
 }
 
-const (
-	CSS = `<style>
+const CSS = `<style>
 
 body {
     font-size: 14px;
@@ -694,7 +712,7 @@ pre {
     overflow-x: scroll;
 }
 
-.ir-node {
+.outline-node {
     cursor: cell;
 }
 
@@ -766,16 +784,41 @@ body.darkmode .outline-black        { outline: gray solid 2px; }
 </style>
 `
 
-	JS = `<script type="text/javascript">
+// safePhaseNameString is a very conservative limit on phase names
+// that can safely be encoded as JavaScript strings by wrapping with
+// double-quotes.
+var safePhaseNameString = regexp.MustCompile("^[a-zA-Z0-9_ .]+$")
+
+func JS(opened ...string) string {
+	var middle strings.Builder
+
+	// "bloop",
+	// "loopvar",
+	// "escape",
+	// "slice",
+	// "walk",
+
+	// This is only for default-display purposes, and the expected strings
+	// are the names of compiler phases. If a wonky name is rejected, the
+	// "harm" is that a pane in the debugging display is not pre-opened.
+	for _, s := range opened {
+		if !safePhaseNameString.MatchString(s) {
+			continue
+		}
+		middle.WriteString("\t\"")
+		middle.WriteString(s)
+		middle.WriteString("\",\n")
+	}
+	return JS1 + middle.String() + JS2
+}
+
+const (
+	JS1 = `<script type="text/javascript">
 
 // Contains phase names which are expanded by default. Other columns are collapsed.
 let expandedDefault = [
-    "bloop",
-    "loopvar",
-    "escape",
-    "slice",
-    "walk",
-];
+`
+	JS2 = `];
 if (history.state === null) {
     history.pushState({expandedDefault}, "", location.href);
 }
@@ -889,7 +932,7 @@ window.onload = function() {
         irElemClicked(this, event, outlines, outlined);
     };
 
-    var irValues = document.getElementsByClassName("ir-node");
+    var irValues = document.getElementsByClassName("outline-node");
     for (var i = 0; i < irValues.length; i++) {
         irValues[i].addEventListener('click', irTreeClicked);
     }
@@ -1031,10 +1074,10 @@ function toggle_node(e) {
             }
         }
     }
-    if (e.innerText == "` + RIGHT_ARROW + `") {
-        e.innerText = "` + DOWN_ARROW + `";
+    if (e.innerText == "` + RightArrow + `") {
+        e.innerText = "` + DownArrow + `";
     } else {
-        e.innerText = "` + RIGHT_ARROW + `";
+        e.innerText = "` + RightArrow + `";
     }
 }
 

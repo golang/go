@@ -56,7 +56,7 @@
     name: prec
   out: *1fp
 
-- go: "AddSub"
+- go: "AddOddSubEven"
   asm: "VADDSUBP[SD]"
   in:
   - *fp

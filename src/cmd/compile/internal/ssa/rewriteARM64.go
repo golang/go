@@ -1548,6 +1548,22 @@ func rewriteValueARM64(v *Value) bool {
 	case OpMul8:
 		v.Op = OpARM64MULW
 		return true
+	case OpMulAddFloat32x4:
+		return rewriteValueARM64_OpMulAddFloat32x4(v)
+	case OpMulAddFloat64x2:
+		return rewriteValueARM64_OpMulAddFloat64x2(v)
+	case OpMulAddInt16x8:
+		return rewriteValueARM64_OpMulAddInt16x8(v)
+	case OpMulAddInt32x4:
+		return rewriteValueARM64_OpMulAddInt32x4(v)
+	case OpMulAddInt8x16:
+		return rewriteValueARM64_OpMulAddInt8x16(v)
+	case OpMulAddUint16x8:
+		return rewriteValueARM64_OpMulAddUint16x8(v)
+	case OpMulAddUint32x4:
+		return rewriteValueARM64_OpMulAddUint32x4(v)
+	case OpMulAddUint8x16:
+		return rewriteValueARM64_OpMulAddUint8x16(v)
 	case OpMulFloat32x4:
 		v.Op = OpARM64VFMUL4S
 		return true
@@ -2343,22 +2359,22 @@ func rewriteValueARM64(v *Value) bool {
 	case OpTruncFloat64x2:
 		v.Op = OpARM64VFRINTZ2D
 		return true
-	case OpTruncateToInt16Int32x4:
+	case OpTruncToInt16Int32x4:
 		v.Op = OpARM64VXTN4S
 		return true
-	case OpTruncateToInt32Int64x2:
+	case OpTruncToInt32Int64x2:
 		v.Op = OpARM64VXTN2D
 		return true
-	case OpTruncateToInt8Int16x8:
+	case OpTruncToInt8Int16x8:
 		v.Op = OpARM64VXTN8H
 		return true
-	case OpTruncateToUint16Uint32x4:
+	case OpTruncToUint16Uint32x4:
 		v.Op = OpARM64VXTN4S
 		return true
-	case OpTruncateToUint32Uint64x2:
+	case OpTruncToUint32Uint64x2:
 		v.Op = OpARM64VXTN2D
 		return true
-	case OpTruncateToUint8Uint16x8:
+	case OpTruncToUint8Uint16x8:
 		v.Op = OpARM64VXTN8H
 		return true
 	case OpWB:
@@ -21915,6 +21931,126 @@ func rewriteValueARM64_OpMove(v *Value) bool {
 		return true
 	}
 	return false
+}
+func rewriteValueARM64_OpMulAddFloat32x4(v *Value) bool {
+	v_2 := v.Args[2]
+	v_1 := v.Args[1]
+	v_0 := v.Args[0]
+	// match: (MulAddFloat32x4 x y z)
+	// result: (VFMLA4S z x y)
+	for {
+		x := v_0
+		y := v_1
+		z := v_2
+		v.reset(OpARM64VFMLA4S)
+		v.AddArg3(z, x, y)
+		return true
+	}
+}
+func rewriteValueARM64_OpMulAddFloat64x2(v *Value) bool {
+	v_2 := v.Args[2]
+	v_1 := v.Args[1]
+	v_0 := v.Args[0]
+	// match: (MulAddFloat64x2 x y z)
+	// result: (VFMLA2D z x y)
+	for {
+		x := v_0
+		y := v_1
+		z := v_2
+		v.reset(OpARM64VFMLA2D)
+		v.AddArg3(z, x, y)
+		return true
+	}
+}
+func rewriteValueARM64_OpMulAddInt16x8(v *Value) bool {
+	v_2 := v.Args[2]
+	v_1 := v.Args[1]
+	v_0 := v.Args[0]
+	// match: (MulAddInt16x8 x y z)
+	// result: (VMLA8H z x y)
+	for {
+		x := v_0
+		y := v_1
+		z := v_2
+		v.reset(OpARM64VMLA8H)
+		v.AddArg3(z, x, y)
+		return true
+	}
+}
+func rewriteValueARM64_OpMulAddInt32x4(v *Value) bool {
+	v_2 := v.Args[2]
+	v_1 := v.Args[1]
+	v_0 := v.Args[0]
+	// match: (MulAddInt32x4 x y z)
+	// result: (VMLA4S z x y)
+	for {
+		x := v_0
+		y := v_1
+		z := v_2
+		v.reset(OpARM64VMLA4S)
+		v.AddArg3(z, x, y)
+		return true
+	}
+}
+func rewriteValueARM64_OpMulAddInt8x16(v *Value) bool {
+	v_2 := v.Args[2]
+	v_1 := v.Args[1]
+	v_0 := v.Args[0]
+	// match: (MulAddInt8x16 x y z)
+	// result: (VMLA16B z x y)
+	for {
+		x := v_0
+		y := v_1
+		z := v_2
+		v.reset(OpARM64VMLA16B)
+		v.AddArg3(z, x, y)
+		return true
+	}
+}
+func rewriteValueARM64_OpMulAddUint16x8(v *Value) bool {
+	v_2 := v.Args[2]
+	v_1 := v.Args[1]
+	v_0 := v.Args[0]
+	// match: (MulAddUint16x8 x y z)
+	// result: (VMLA8H z x y)
+	for {
+		x := v_0
+		y := v_1
+		z := v_2
+		v.reset(OpARM64VMLA8H)
+		v.AddArg3(z, x, y)
+		return true
+	}
+}
+func rewriteValueARM64_OpMulAddUint32x4(v *Value) bool {
+	v_2 := v.Args[2]
+	v_1 := v.Args[1]
+	v_0 := v.Args[0]
+	// match: (MulAddUint32x4 x y z)
+	// result: (VMLA4S z x y)
+	for {
+		x := v_0
+		y := v_1
+		z := v_2
+		v.reset(OpARM64VMLA4S)
+		v.AddArg3(z, x, y)
+		return true
+	}
+}
+func rewriteValueARM64_OpMulAddUint8x16(v *Value) bool {
+	v_2 := v.Args[2]
+	v_1 := v.Args[1]
+	v_0 := v.Args[0]
+	// match: (MulAddUint8x16 x y z)
+	// result: (VMLA16B z x y)
+	for {
+		x := v_0
+		y := v_1
+		z := v_2
+		v.reset(OpARM64VMLA16B)
+		v.AddArg3(z, x, y)
+		return true
+	}
 }
 func rewriteValueARM64_OpNeq16(v *Value) bool {
 	v_1 := v.Args[1]

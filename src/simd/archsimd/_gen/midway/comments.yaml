@@ -1,0 +1,118 @@
+# Common methods shared across various SIMD types
+.common_methods: &common_methods
+  Abs: "Abs returns the element-wise absolute value of x."
+  Add: "Add returns the element-wise sum of x and y."
+  AddSaturated: "AddSaturated returns the element-wise saturated sum of x and y."
+  And: "And returns the bitwise AND of x and y."
+  AndNot: "AndNot returns the bitwise AND NOT of x and y."
+  Average: "Average returns the element-wise average of x and y."
+  Div: "Div returns the element-wise quotient of x and y."
+  Equal: "Equal returns a mask indicating where x and y are equal."
+  Greater: "Greater returns a mask indicating where x is greater than y."
+  GreaterEqual: "GreaterEqual returns a mask indicating where x is greater than or equal to y."
+  Len: "Len returns the number of elements in the vector."
+  Less: "Less returns a mask indicating where x is less than y."
+  LessEqual: "LessEqual returns a mask indicating where x is less than or equal to y."
+  Masked: "Masked returns a new vector with elements from x where mask is true, and zero elsewhere."
+  Max: "Max returns the element-wise maximum of x and y."
+  IfElse: "IfElse returns a new vector with elements from x where mask is true, and y where mask is false."
+  Min: "Min returns the element-wise minimum of x and y."
+  Mul: "Mul returns the element-wise product of x and y."
+  MulAdd: "MulAdd returns x * y + z element-wise."
+  Neg: "Neg returns the element-wise negation of x."
+  Not: "Not returns the bitwise NOT of x."
+  NotEqual: "NotEqual returns a mask indicating where x and y are not equal."
+  Or: "Or returns the bitwise OR of x and y."
+  RotateAllLeft: "RotatesAllLeft rotates all elements left by y bits."
+  RotateAllRight: "RotatesAllRight rotates all elements right by y bits."
+  ShiftAllLeft: "ShiftAllLeft shifts all elements left by y bits."
+  ShiftAllRight: "ShiftAllRight shifts all elements right by y bits."
+  Sqrt: "Sqrt returns the element-wise square root of x."
+  Store: "StoreSlice stores the vector elements into the slice s."
+  StorePart: "StoreSlicePart stores a partial vector into the slice s."
+  String: "String returns a string representation of the vector."
+  Sub: "Sub returns the element-wise difference of x and y."
+  SubSaturated: "SubSaturated returns the element-wise saturated difference of x and y."
+  ToMask: "ToMask returns a mask representation of the vector."
+  Xor: "Xor returns the bitwise XOR of x and y."
+
+  # Conversions
+  ConvertToFloat32: "ConvertToFloat32 converts the vector elements to float32."
+  ConvertToInt32: "ConvertToInt32 converts the vector elements to int32."
+  ConvertToUint8: "ConvertToUint8 converts the vector elements to uint8."
+  ConvertToUint16: "ConvertToUint16 converts the vector elements to uint16."
+  ConvertToUint32: "ConvertToUint32 converts the vector elements to uint32."
+  ConvertToUint64: "ConvertToUint64 converts the vector elements to uint64."
+  ConvertToInt8: "ConvertToInt8 converts the vector elements to int8."
+  ConvertToInt16: "ConvertToInt16 converts the vector elements to int16."
+  ConvertToInt64: "ConvertToInt64 converts the vector elements to int64."
+  ToBits: "ToBits reinterprets the vector bits as an unsigned integer vector."
+  BitsToInt8: "BitsToInt8 reinterprets the vector bits as an Int8s vector."
+  BitsToInt16: "BitsToInt16 reinterprets the vector bits as an Int16s vector."
+  BitsToInt32: "BitsToInt32 reinterprets the vector bits as an Int32s vector."
+  BitsToInt64: "BitsToInt64 reinterprets the vector bits as an Int64s vector."
+  BitsToFloat32: "BitsToFloat32 reinterprets the vector bits as a Float32s vector."
+  BitsToFloat64: "BitsToFloat64 reinterprets the vector bits as a Float64s vector."
+  ReshapeToUint8s: "ReshapeToUint8s reinterprets the vector bits as a Uint8s vector."
+  ReshapeToUint16s: "ReshapeToUint16s reinterprets the vector bits as a Uint16s vector."
+  ReshapeToUint32s: "ReshapeToUint32s reinterprets the vector bits as a Uint32s vector."
+  ReshapeToUint64s: "ReshapeToUint64s reinterprets the vector bits as a Uint64s vector."
+
+  # Mask specific conversions
+  ToInt8s: "ToInt8s converts the mask to an Int8s vector."
+  ToInt16s: "ToInt16s converts the mask to an Int16s vector."
+  ToInt32s: "ToInt32s converts the mask to an Int32s vector."
+  ToInt64s: "ToInt64s converts the mask to an Int64s vector."
+
+types:
+  _simd: "internal SIMD marker."
+  Int8s: "Int8s represents a vector of 8-bit signed integers."
+  Int16s: "Int16s represents a vector of 16-bit signed integers."
+  Int32s: "Int32s represents a vector of 32-bit signed integers."
+  Int64s: "Int64s represents a vector of 64-bit signed integers."
+  Uint8s: "Uint8s represents a vector of 8-bit unsigned integers."
+  Uint16s: "Uint16s represents a vector of 16-bit unsigned integers."
+  Uint32s: "Uint32s represents a vector of 32-bit unsigned integers."
+  Uint64s: "Uint64s represents a vector of 64-bit unsigned integers."
+  Float32s: "Float32s represents a vector of 32-bit floating-point numbers."
+  Float64s: "Float64s represents a vector of 64-bit floating-point numbers."
+  Mask8s: "Mask8s represents a boolean mask for Int8s/Uint8s vectors."
+  Mask16s: "Mask16s represents a boolean mask for Int16s/Uint16s vectors."
+  Mask32s: "Mask32s represents a boolean mask for Int32s/Uint32s vectors."
+  Mask64s: "Mask64s represents a boolean mask for Int64s/Uint64s vectors."
+
+functions:
+  VectorSize: "VectorSize returns the size of the largest SIMD vector supported by the current CPU."
+  # Templates for Load functions
+  default_LoadSlice: "Load%s loads a slice of %s into an %ss vector."
+  default_LoadPart: "Load%sPart loads a partial slice of %s into an %ss vector, returning the vector and the number of elements loaded."
+
+methods:
+  Int8s:
+    <<: *common_methods
+  Int16s:
+    <<: *common_methods
+  Int32s:
+    <<: *common_methods
+  Int64s:
+    <<: *common_methods
+  Uint8s:
+    <<: *common_methods
+  Uint16s:
+    <<: *common_methods
+  Uint32s:
+    <<: *common_methods
+  Uint64s:
+    <<: *common_methods
+  Float32s:
+    <<: *common_methods
+  Float64s:
+    <<: *common_methods
+  Mask8s:
+    <<: *common_methods
+  Mask16s:
+    <<: *common_methods
+  Mask32s:
+    <<: *common_methods
+  Mask64s:
+    <<: *common_methods

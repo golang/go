@@ -22,6 +22,7 @@ var (
 	flagTmplgen = flag.Bool("tmplgen", true, "run tmplgen generator")
 	flagSimdgen = flag.Bool("simdgen", true, "run simdgen generator")
 	flagWasmgen = flag.Bool("wasmgen", true, "run wasmgen generator")
+	flagMidway  = flag.Bool("midway", true, "run midway generator")
 
 	flagN         = flag.Bool("n", false, "dry run")
 	flagXedPath   = flag.String("xedPath", defaultXedPath, "load XED datafile from `path`, which must be the XED obj/dgen directory")
@@ -80,6 +81,10 @@ func main() {
 		}
 		ssaGen(ssaGenPath)
 	}
+
+	if *flagMidway {
+		doMidway()
+	}
 }
 
 func removeSimdGenericOps(ssaGenPath string) {
@@ -106,6 +111,11 @@ func doTmplgen() {
 func doWasmgen() {
 	goRun("-C", "wasmgen", ".")
 }
+
+func doMidway() {
+	goRun("-C", "midway", ".")
+}
+
 func doSimdgen() {
 	xedPath, err := resolveXEDPath(*flagXedPath)
 	if err != nil {
@@ -119,10 +129,10 @@ func doSimdgen() {
 		os.Exit(1)
 	}
 
-	goRun("-C", "simdgen", ".", "-o", "godefs", "-goroot", goRoot, "-arm64Path", prettyPath("./simdgen", armPath), "go_arm64.yaml", "types.yaml", "categories.yaml")
+	goRun("-C", "simdgen", ".", "-o", "godefs", "-goroot", goRoot, "-arch", "arm64", "-arm64Path", prettyPath("./simdgen", armPath), "go_arm64.yaml", "types.yaml", "categories.yaml")
 
 	// Regenerate the XED-derived SIMD files
-	goRun("-C", "simdgen", ".", "-o", "godefs", "-goroot", goRoot, "-xedPath", prettyPath("./simdgen", xedPath), "go_amd64.yaml", "types.yaml", "categories.yaml")
+	goRun("-C", "simdgen", ".", "-o", "godefs", "-goroot", goRoot, "-arch", "amd64", "-xedPath", prettyPath("./simdgen", xedPath), "go_amd64.yaml", "types.yaml", "categories.yaml")
 }
 
 // simdgen -o godefs -goroot goRoot -arm64Path $ARM64_ISA_PATH arm64/go.yaml arm64/categories.yaml types.yaml

@@ -88,26 +88,25 @@ func MatchAstDump(fn *Func, where string) bool {
 	return matchForDump(fn, base.Ctxt.Pkgpath, where)
 }
 
-var dbgRE *regexp.Regexp
-var onceDbgRE sync.Once
-
+// matchForDump is marked noinline to ensure that the exported
+// function MatchAstDump IS inlineable and is also small, because
+// common case is AstDump is not set.
+//
+//go:noinline
 func matchForDump(fn *Func, pkgPath, where string) bool {
-	dbg := false
-	flag := base.Debug.AstDump
-	if flag[0] == '~' {
-		onceDbgRE.Do(func() { dbgRE = regexp.MustCompile(flag[1:]) })
-		dbg = dbgRE.MatchString(pkgPath + "." + FuncName(fn))
-	} else {
-		dbg = matchPkgFn(pkgPath, FuncName(fn), flag)
-	}
-	return dbg
+	return MatchPkgFn(pkgPath, FuncName(fn), base.Debug.AstDump)
 }
 
-// matchPkgFn returns true if pkg and fnName "match" toMatch.
+// MatchPkgFn returns true if pkg and fnName "match" toMatch.
+// "~REGEXP" matches REGEXP against pkgName + "." + fnName
 // "aFunc" matches "aFunc" (in any package)
 // "aPkg.aFunc" matches "aPkg.aFunc"
 // "aPkg/subPkg.aFunc" matches "subPkg.aFunc"
-func matchPkgFn(pkgName, fnName, toMatch string) bool {
+func MatchPkgFn(pkgName, fnName, toMatch string) bool {
+	if toMatch[0] == '~' {
+		dbgRE := regexp.MustCompile(toMatch[1:])
+		return dbgRE.MatchString(pkgName + "." + fnName)
+	}
 	if fnName == toMatch {
 		return true
 	}
@@ -157,13 +156,17 @@ func AstDump(fn *Func, why string) {
 var mu sync.Mutex
 var astDumpFiles = make(map[string]bool)
 
-// escapedFileName constructs a file name from fn and suffix,
+func escapedFileName(fn *Func, suffix string) string {
+	return EscapedFileName(PkgFuncName(fn), suffix)
+}
+
+// EscapedFileName constructs a file name from fn and suffix,
 // url-path-escaping the function part of the name and replacing it
 // with a hash if it is too long.  The suffix is neither escaped
 // nor including in the length calculation, so an excessively
 // creative suffix will result in problems.
-func escapedFileName(fn *Func, suffix string) string {
-	name := url.PathEscape(PkgFuncName(fn))
+func EscapedFileName(fn, suffix string) string {
+	name := url.PathEscape(fn)
 	if len(name) > 125 { // arbitrary limit on file names, as if anyone types these in by hand
 		hash := sha256.Sum256([]byte(name))
 		name = hex.EncodeToString(hash[:8])
@@ -219,7 +222,7 @@ func CloseHTMLWriters() {
 	defer mu.Unlock()
 	for _, fn := range orderedFuncs {
 		if w, ok := htmlWriters[fn]; ok {
-			w.Close()
+			w.Close("Writing html ast output for %s to %s\n", PkgFuncName(w.Func), w.path)
 			delete(htmlWriters, fn)
 		}
 	}

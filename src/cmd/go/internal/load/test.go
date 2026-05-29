@@ -116,6 +116,11 @@ func TestPackagesAndErrors(ld *modload.Loader, ctx context.Context, done func(),
 	var incomplete bool
 	stk.Push(ImportInfo{Pkg: p.ImportPath + " (test)"})
 	rawTestImports := str.StringList(p.TestImports)
+
+	if hasSimd := hasSimd(p.TestImports); hasSimd {
+		p.TestImports = append(p.TestImports, SimdBridgePkg)
+	}
+
 	for i, path := range p.TestImports {
 		p1, err := loadImport(ld, ctx, opts, pre, path, p.Dir, p, &stk, p.Internal.Build.TestImportPos[path], ResolveImport)
 		if err != nil && ptestErr == nil {
@@ -145,6 +150,11 @@ func TestPackagesAndErrors(ld *modload.Loader, ctx context.Context, done func(),
 	pxtestNeedsPtest := false
 	var pxtestIncomplete bool
 	rawXTestImports := str.StringList(p.XTestImports)
+
+	if hasSimd := hasSimd(p.XTestImports); hasSimd {
+		p.XTestImports = append(p.XTestImports, SimdBridgePkg)
+	}
+
 	for i, path := range p.XTestImports {
 		p1, err := loadImport(ld, ctx, opts, pre, path, p.Dir, p, &stk, p.Internal.Build.XTestImportPos[path], ResolveImport)
 		if err != nil && pxtestErr == nil {

@@ -20,7 +20,7 @@ type ScopeMarker struct {
 // checkPos validates the given position and returns the current scope.
 func (m *ScopeMarker) checkPos(pos src.XPos) ir.ScopeID {
 	if !pos.IsKnown() {
-		base.Fatalf("unknown scope position")
+		base.Fatalf("unknown scope position, pos=%v", pos)
 	}
 
 	if len(m.marks) == 0 {

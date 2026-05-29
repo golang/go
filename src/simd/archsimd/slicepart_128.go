@@ -79,7 +79,7 @@ func float32atP64(p *float64) *float32 {
 
 /* 128-bit vector load and store slice parts for 8 and 16-bit int elements */
 
-// LoadInt8x16Part loads a Int8x16 from the slice s.
+// LoadUint8x16Part loads a Uint8x16 from the slice s.
 // If s has fewer than 16 elements, the remaining elements of the vector are filled with zeroes.
 // If s has 16 or more elements, the function is equivalent to LoadInt8x16.
 func LoadUint8x16Part(s []uint8) (Uint8x16, int) {
@@ -184,7 +184,7 @@ func (x Uint8x16) StorePart(s []uint8) {
 	}
 }
 
-// LoadInt16x8Part loads a Int16x8 from the slice s.
+// LoadUint16x8Part loads a Uint16x8 from the slice s.
 // If s has fewer than 8 elements, the remaining elements of the vector are filled with zeroes.
 // If s has 8 or more elements, the function is equivalent to LoadInt16x8.
 func LoadUint16x8Part(s []uint16) (Uint16x8, int) {

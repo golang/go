@@ -429,6 +429,13 @@ func (op Operation) ImmName() string {
 	return op.Op0Name("constant")
 }
 
+func (op Operation) ImmType() string {
+	if strings.Contains(op.Go, "Shift") || strings.Contains(op.Go, "Rotate") {
+		return "uint64"
+	}
+	return "uint8"
+}
+
 func (o Operand) OpName(s string) string {
 	if n := o.Name; n != nil {
 		return *n
