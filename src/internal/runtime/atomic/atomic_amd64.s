@@ -83,7 +83,7 @@ TEXT ·Casp1(SB), NOSPLIT, $0-25
 //	}
 //
 // CMPXCHG16B requires its memory operand to be 16-byte aligned;
-// unaligned accesses fault.
+// unaligned accesses fault
 TEXT ·Cas128(SB), NOSPLIT, $0-41
 #ifndef hasCMPXCHG16B
 	CMPB	internal∕cpu·X86+const_offsetX86HasCX16(SB), $1
