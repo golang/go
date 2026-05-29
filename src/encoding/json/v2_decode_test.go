@@ -1227,7 +1227,7 @@ var unmarshalTests = []struct {
 		in:       `{"F":{"V":"s"}}`,
 		ptr:      new(NestedUnamed),
 		out:      NestedUnamed{},
-		err:      &UnmarshalTypeError{Value: "string", Type: reflect.TypeFor[int](), Offset: 10, Struct: "NestedUnamed", Field: "F.V"},
+		err:      &UnmarshalTypeError{Value: "string", Type: reflect.TypeFor[int](), Offset: len64(`{"F":{"V":`), Struct: "NestedUnamed", Field: "F.V"},
 	},
 	{
 		CaseName: Name("ErrorInterface"),
@@ -1261,7 +1261,7 @@ var unmarshalTests = []struct {
 		ptr: new(struct {
 			X int64 `json:",string"`
 		}),
-		err: &UnmarshalTypeError{Value: "number 123 ", Type: reflect.TypeFor[int64](), Field: "X", Offset: int64(len(`{"X": `))},
+		err: &UnmarshalTypeError{Value: "number 123 ", Type: reflect.TypeFor[int64](), Field: "X", Offset: len64(`{"X": `)},
 	},
 	{
 		CaseName: Name("QuotedUint/GoSyntax"),
@@ -1279,7 +1279,7 @@ var unmarshalTests = []struct {
 		ptr: new(struct {
 			X uint64 `json:",string"`
 		}),
-		err: &UnmarshalTypeError{Value: "number 0x123", Type: reflect.TypeFor[uint64](), Field: "X", Offset: int64(len(`{"X": `))},
+		err: &UnmarshalTypeError{Value: "number 0x123", Type: reflect.TypeFor[uint64](), Field: "X", Offset: len64(`{"X": `)},
 	},
 	{
 		CaseName: Name("QuotedFloat/GoSyntax"),
@@ -1297,7 +1297,7 @@ var unmarshalTests = []struct {
 		ptr: new(struct {
 			X float64 `json:",string"`
 		}),
-		err: &UnmarshalTypeError{Value: "number 1.5e1_", Type: reflect.TypeFor[float64](), Field: "X", Offset: int64(len(`{"X": `))},
+		err: &UnmarshalTypeError{Value: "number 1.5e1_", Type: reflect.TypeFor[float64](), Field: "X", Offset: len64(`{"X": `)},
 	},
 }
 
@@ -2042,7 +2042,7 @@ func addr[T any](v T) *T {
 }
 
 func TestInterfaceSet(t *testing.T) {
-	errUnmarshal := &UnmarshalTypeError{Value: "object", Offset: 5, Type: reflect.TypeFor[int](), Field: "X"}
+	errUnmarshal := &UnmarshalTypeError{Value: "object", Offset: len64(`{"X":`), Type: reflect.TypeFor[int](), Field: "X"}
 	tests := []struct {
 		CaseName
 		pre  any
