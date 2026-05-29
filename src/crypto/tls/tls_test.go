@@ -2932,3 +2932,18 @@ func testInvalidSignatureHandshake(t *testing.T, clientConfig, serverConfig *Con
 	<-done
 	return
 }
+
+func TestKeyLogWriterErr(t *testing.T) {
+	var f *os.File // typed nil
+	err := (&Config{KeyLogWriter: f}).writeKeyLog("CLIENT_RANDOM", make([]byte, 32), make([]byte, 48))
+	if err == nil {
+		t.Fatal("writeKeyLog: expected error, got nil")
+	}
+
+	if want := os.ErrInvalid; !errors.Is(err, os.ErrInvalid) {
+		t.Errorf("got %v, want %v", err, want)
+	}
+	if got, want := err.Error(), "KeyLogWriter"; !strings.Contains(got, want) {
+		t.Errorf("got %q, want %q", got, want)
+	}
+}
