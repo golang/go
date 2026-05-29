@@ -85,36 +85,22 @@ TEXT ·Casp1(SB), NOSPLIT, $0-25
 // CMPXCHG16B requires its memory operand to be 16-byte aligned;
 // unaligned accesses fault.
 TEXT ·Cas128(SB), NOSPLIT, $0-41
-#ifdef hasCMPXCHG16B
-	MOVQ	ptr+0(FP), DI
-	TESTQ	$15, DI
-	JZ	2(PC)
-	CALL	·panicUnaligned128(SB)
-	MOVQ	old1+8(FP), AX
-	MOVQ	old2+16(FP), DX
-	MOVQ	new1+24(FP), BX
-	MOVQ	new2+32(FP), CX
-	LOCK
-	CMPXCHG16B	(DI)
-	SETEQ	ret+40(FP)
-#else
+#ifndef hasCMPXCHG16B
 	CMPB	internal∕cpu·X86+const_offsetX86HasCX16(SB), $1
-	JNE	cas128_locktab
-	MOVQ	ptr+0(FP), DI
-	TESTQ	$15, DI
-	JZ	2(PC)
-	CALL	·panicUnaligned128(SB)
-	MOVQ	old1+8(FP), AX
-	MOVQ	old2+16(FP), DX
-	MOVQ	new1+24(FP), BX
-	MOVQ	new2+32(FP), CX
-	LOCK
-	CMPXCHG16B	(DI)
-	SETEQ	ret+40(FP)
-	RET
-cas128_locktab:
+	JEQ	2(PC)
 	JMP	·goCas128(SB)
 #endif
+	MOVQ	ptr+0(FP), DI
+	TESTQ	$15, DI
+	JZ	2(PC)
+	CALL	·panicUnaligned128(SB)
+	MOVQ	old1+8(FP), AX
+	MOVQ	old2+16(FP), DX
+	MOVQ	new1+24(FP), BX
+	MOVQ	new2+32(FP), CX
+	LOCK
+	CMPXCHG16B	(DI)
+	SETEQ	ret+40(FP)
 	RET
 
 TEXT ·Casint32(SB), NOSPLIT, $0-17

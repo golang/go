@@ -9,7 +9,7 @@ package atomic
 // Cas128 atomically compares the 16 bytes at *ptr to (old1, old2) and,
 // if equal, replaces them with (new1, new2). On architectures without a
 // native 128-bit atomic instruction, this delegates to the lock-table
-// fallback in atomic_cas128_locktab.go. ptr must be 16-byte aligned.
+// fallback in atomic_cas128_native.go. ptr must be 16-byte aligned.
 //
 //go:nosplit
 func Cas128(ptr *[2]uint64, old1, old2, new1, new2 uint64) bool {
