@@ -54,6 +54,18 @@ const (
 	AMOCAS_H_AQ
 	AMOCAS_H_AQRL
 	AMOCAS_H_RL
+	AMOCAS_D
+	AMOCAS_D_AQ
+	AMOCAS_D_AQRL
+	AMOCAS_D_RL
+	AMOCAS_Q
+	AMOCAS_Q_AQ
+	AMOCAS_Q_AQRL
+	AMOCAS_Q_RL
+	AMOCAS_W
+	AMOCAS_W_AQ
+	AMOCAS_W_AQRL
+	AMOCAS_W_RL
 	AMOMAXU_B
 	AMOMAXU_B_AQ
 	AMOMAXU_B_AQRL
@@ -1139,6 +1151,18 @@ var opstr = [...]string{
 	AMOCAS_H_AQ:       "AMOCAS.H.AQ",
 	AMOCAS_H_AQRL:     "AMOCAS.H.AQRL",
 	AMOCAS_H_RL:       "AMOCAS.H.RL",
+	AMOCAS_D:          "AMOCAS.D",
+	AMOCAS_D_AQ:       "AMOCAS.D.AQ",
+	AMOCAS_D_AQRL:     "AMOCAS.D.AQRL",
+	AMOCAS_D_RL:       "AMOCAS.D.RL",
+	AMOCAS_Q:          "AMOCAS.Q",
+	AMOCAS_Q_AQ:       "AMOCAS.Q.AQ",
+	AMOCAS_Q_AQRL:     "AMOCAS.Q.AQRL",
+	AMOCAS_Q_RL:       "AMOCAS.Q.RL",
+	AMOCAS_W:          "AMOCAS.W",
+	AMOCAS_W_AQ:       "AMOCAS.W.AQ",
+	AMOCAS_W_AQRL:     "AMOCAS.W.AQRL",
+	AMOCAS_W_RL:       "AMOCAS.W.RL",
 	AMOMAXU_B:         "AMOMAXU.B",
 	AMOMAXU_B_AQ:      "AMOMAXU.B.AQ",
 	AMOMAXU_B_AQRL:    "AMOMAXU.B.AQRL",
@@ -2269,6 +2293,30 @@ var instFormats = [...]instFormat{
 	{mask: 0xfe00707f, value: 0x2e00102f, op: AMOCAS_H_AQRL, args: argTypeList{arg_rd, arg_rs2, arg_rs1_ptr}},
 	// AMOCAS.H.RL rd, rs2, rs1_ptr
 	{mask: 0xfe00707f, value: 0x2a00102f, op: AMOCAS_H_RL, args: argTypeList{arg_rd, arg_rs2, arg_rs1_ptr}},
+	// AMOCAS.D rd, rs2, rs1_ptr
+	{mask: 0xfe00707f, value: 0x2800302f, op: AMOCAS_D, args: argTypeList{arg_rd, arg_rs2, arg_rs1_ptr}},
+	// AMOCAS.D.AQ rd, rs2, rs1_ptr
+	{mask: 0xfe00707f, value: 0x2c00302f, op: AMOCAS_D_AQ, args: argTypeList{arg_rd, arg_rs2, arg_rs1_ptr}},
+	// AMOCAS.D.AQRL rd, rs2, rs1_ptr
+	{mask: 0xfe00707f, value: 0x2e00302f, op: AMOCAS_D_AQRL, args: argTypeList{arg_rd, arg_rs2, arg_rs1_ptr}},
+	// AMOCAS.D.RL rd, rs2, rs1_ptr
+	{mask: 0xfe00707f, value: 0x2a00302f, op: AMOCAS_D_RL, args: argTypeList{arg_rd, arg_rs2, arg_rs1_ptr}},
+	// AMOCAS.Q rd, rs2, rs1_ptr
+	{mask: 0xfe00707f, value: 0x2800402f, op: AMOCAS_Q, args: argTypeList{arg_rd, arg_rs2, arg_rs1_ptr}},
+	// AMOCAS.Q.AQ rd, rs2, rs1_ptr
+	{mask: 0xfe00707f, value: 0x2c00402f, op: AMOCAS_Q_AQ, args: argTypeList{arg_rd, arg_rs2, arg_rs1_ptr}},
+	// AMOCAS.Q.AQRL rd, rs2, rs1_ptr
+	{mask: 0xfe00707f, value: 0x2e00402f, op: AMOCAS_Q_AQRL, args: argTypeList{arg_rd, arg_rs2, arg_rs1_ptr}},
+	// AMOCAS.Q.RL rd, rs2, rs1_ptr
+	{mask: 0xfe00707f, value: 0x2a00402f, op: AMOCAS_Q_RL, args: argTypeList{arg_rd, arg_rs2, arg_rs1_ptr}},
+	// AMOCAS.W rd, rs2, rs1_ptr
+	{mask: 0xfe00707f, value: 0x2800202f, op: AMOCAS_W, args: argTypeList{arg_rd, arg_rs2, arg_rs1_ptr}},
+	// AMOCAS.W.AQ rd, rs2, rs1_ptr
+	{mask: 0xfe00707f, value: 0x2c00202f, op: AMOCAS_W_AQ, args: argTypeList{arg_rd, arg_rs2, arg_rs1_ptr}},
+	// AMOCAS.W.AQRL rd, rs2, rs1_ptr
+	{mask: 0xfe00707f, value: 0x2e00202f, op: AMOCAS_W_AQRL, args: argTypeList{arg_rd, arg_rs2, arg_rs1_ptr}},
+	// AMOCAS.W.RL rd, rs2, rs1_ptr
+	{mask: 0xfe00707f, value: 0x2a00202f, op: AMOCAS_W_RL, args: argTypeList{arg_rd, arg_rs2, arg_rs1_ptr}},
 	// AMOMAXU.B rd, rs2, rs1_ptr
 	{mask: 0xfe00707f, value: 0xe000002f, op: AMOMAXU_B, args: argTypeList{arg_rd, arg_rs2, arg_rs1_ptr}},
 	// AMOMAXU.B.AQ rd, rs2, rs1_ptr
