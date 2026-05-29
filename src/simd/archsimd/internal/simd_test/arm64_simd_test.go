@@ -125,3 +125,20 @@ func TestLookupOrKeep(t *testing.T) {
 	).Store(got)
 	checkSlices(t, got, want)
 }
+
+func TestClMul(t *testing.T) {
+	var x = archsimd.LoadUint64x2([]uint64{1, 5})
+	var y = archsimd.LoadUint64x2([]uint64{3, 9})
+
+	foo := func(v archsimd.Uint64x2, s []uint64) {
+		r := make([]uint64, 2, 2)
+		v.Store(r)
+		checkSlices[uint64](t, r, s)
+	}
+
+	foo(x.CarrylessMultiplyEven(y), []uint64{3, 0})
+	foo(x.CarrylessMultiplyEvenOdd(y), []uint64{9, 0})
+	foo(x.CarrylessMultiplyOddEven(y), []uint64{15, 0})
+	foo(x.CarrylessMultiplyOdd(y), []uint64{45, 0})
+	foo(y.CarrylessMultiplyEven(y), []uint64{5, 0})
+}

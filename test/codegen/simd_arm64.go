@@ -113,6 +113,12 @@ func foldGetHiSetHiMuls(a, b archsimd.Uint16x8) archsimd.Uint16x8 {
 	return wLoRight.SetHi(wHiRight)           // arm64: `VSHRN2 [$]16, V[0-9]+.S4, V0.H8` -`VMOV.*D\[`
 }
 
+func carrylessMultiplies(x, y archsimd.Uint64x2) archsimd.Uint64x2 {
+	lo := x.CarrylessMultiplyEven(y) // arm64:`VPMULL V` -`VPMULL2`
+	hi := x.CarrylessMultiplyOdd(y)  // arm64:`VPMULL2 V` -`VPMULL `
+	return lo.Xor(hi)
+}
+
 func mergeWithNotMask(x, y archsimd.Int8x16, mask archsimd.Mask8x16, f1, f2 archsimd.Float32x4) {
 	// arm64:`VBIF` -`VBIT` -`VNOT`
 	sinkI8 = x.IfElse(mask.Not(), y)

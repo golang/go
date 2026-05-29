@@ -240,6 +240,8 @@ func arngLong(arng int16) int16 {
 		return arm64.ARNG_4S
 	case arm64.ARNG_2S:
 		return arm64.ARNG_2D
+	case arm64.ARNG_1D:
+		return arm64.ARNG_1Q
 	default:
 		base.Fatalf("unsupported long input arrangement: %d", arng)
 		return 0
@@ -256,6 +258,8 @@ func arngHalfLanes(arng int16) int16 {
 		return arm64.ARNG_4H
 	case arm64.ARNG_4S:
 		return arm64.ARNG_2S
+	case arm64.ARNG_2D:
+		return arm64.ARNG_1D
 	default:
 		base.Fatalf("unsupported halfLanes input arrangement: %d", arng)
 		return 0

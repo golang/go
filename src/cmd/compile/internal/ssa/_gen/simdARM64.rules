@@ -17,6 +17,7 @@
 (VMOVDins0 [1] dst (VDUPDextr [0] (VXTN2D y))) => (VXTN2_2D dst y)
 (VMOVDins0 [1] dst (VDUPDextr [0] (VXTN4S y))) => (VXTN2_4S dst y)
 (VMOVDins0 [1] dst (VDUPDextr [0] (VXTN8H y))) => (VXTN2_8H dst y)
+(VPMULL2D (VDUPDextr [1] x) (VDUPDextr [1] y)) => (VPMULL2_2D x y)
 (VSMULL16B (VDUPDextr [1] x) (VDUPDextr [1] y)) => (VSMULL2_16B x y)
 (VSMULL4S (VDUPDextr [1] x) (VDUPDextr [1] y)) => (VSMULL2_4S x y)
 (VSMULL8H (VDUPDextr [1] x) (VDUPDextr [1] y)) => (VSMULL2_8H x y)
@@ -468,3 +469,4 @@
 (broadcast1To16Int8x16 x) => (VDUPBbcast [0] x) // pureVreg
 (VDUPBbcast [i] (VMOVBins [j] _ (MOVDconst [c]))) && i == j && c>=-128 && c<=255 => (VMOVI16B [uint8(c)]) // argsMatchRule
 (broadcast1To16Uint8x16 x) => (VDUPBbcast [0] x) // pureVreg
+(carrylessMultiplyWidenLoUint64x2 ...) => (VPMULL2D ...) // pureVreg

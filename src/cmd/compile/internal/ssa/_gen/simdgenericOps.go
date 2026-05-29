@@ -1390,6 +1390,7 @@ func simdGenericOps() []opData {
 		{name: "broadcast1To64MaskedInt8x16", argLength: 2},                             // ARCH:amd64
 		{name: "broadcast1To64MaskedUint8x16", argLength: 2},                            // ARCH:amd64
 		{name: "broadcast1To64Uint8x16", argLength: 1},                                  // ARCH:amd64
+		{name: "carrylessMultiplyWidenLoUint64x2", argLength: 2, commutative: true},     // ARCH:arm64
 		{name: "AESRoundKeyGenAssistUint32x4", argLength: 1, aux: "UInt8"},              // ARCH:amd64
 		{name: "CeilScaledFloat32x4", argLength: 1, aux: "UInt8"},                       // ARCH:amd64
 		{name: "CeilScaledFloat32x8", argLength: 1, aux: "UInt8"},                       // ARCH:amd64

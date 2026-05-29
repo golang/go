@@ -539,11 +539,6 @@ func (x Uint32x16) And(y Uint32x16) Uint32x16
 
 // And performs a bitwise x & y.
 //
-// Asm: VPAND, CPU Feature: AVX
-func (x Uint64x2) And(y Uint64x2) Uint64x2
-
-// And performs a bitwise x & y.
-//
 // Asm: VPAND, CPU Feature: AVX2
 func (x Uint64x4) And(y Uint64x4) Uint64x4
 
@@ -551,6 +546,11 @@ func (x Uint64x4) And(y Uint64x4) Uint64x4
 //
 // Asm: VPANDQ, CPU Feature: AVX512
 func (x Uint64x8) And(y Uint64x8) Uint64x8
+
+// And performs a bitwise x & y.
+//
+// Asm: VPAND, CPU Feature: AVX
+func (x Uint64x2) And(y Uint64x2) Uint64x2
 
 /* AndNot */
 
@@ -661,11 +661,6 @@ func (x Uint32x16) AndNot(y Uint32x16) Uint32x16
 
 // AndNot performs a bitwise x &^ y.
 //
-// Asm: VPANDN, CPU Feature: AVX
-func (x Uint64x2) AndNot(y Uint64x2) Uint64x2
-
-// AndNot performs a bitwise x &^ y.
-//
 // Asm: VPANDN, CPU Feature: AVX2
 func (x Uint64x4) AndNot(y Uint64x4) Uint64x4
 
@@ -673,6 +668,11 @@ func (x Uint64x4) AndNot(y Uint64x4) Uint64x4
 //
 // Asm: VPANDNQ, CPU Feature: AVX512
 func (x Uint64x8) AndNot(y Uint64x8) Uint64x8
+
+// AndNot performs a bitwise x &^ y.
+//
+// Asm: VPANDN, CPU Feature: AVX
+func (x Uint64x2) AndNot(y Uint64x2) Uint64x2
 
 /* Average */
 
@@ -4584,11 +4584,6 @@ func (x Uint32x16) Or(y Uint32x16) Uint32x16
 
 // Or performs a bitwise x | y.
 //
-// Asm: VPOR, CPU Feature: AVX
-func (x Uint64x2) Or(y Uint64x2) Uint64x2
-
-// Or performs a bitwise x | y.
-//
 // Asm: VPOR, CPU Feature: AVX2
 func (x Uint64x4) Or(y Uint64x4) Uint64x4
 
@@ -4596,6 +4591,11 @@ func (x Uint64x4) Or(y Uint64x4) Uint64x4
 //
 // Asm: VPORQ, CPU Feature: AVX512
 func (x Uint64x8) Or(y Uint64x8) Uint64x8
+
+// Or performs a bitwise x | y.
+//
+// Asm: VPOR, CPU Feature: AVX
+func (x Uint64x2) Or(y Uint64x2) Uint64x2
 
 /* Permute */
 
@@ -7610,11 +7610,6 @@ func (x Uint32x16) Xor(y Uint32x16) Uint32x16
 
 // Xor performs a bitwise x ^ y.
 //
-// Asm: VPXOR, CPU Feature: AVX
-func (x Uint64x2) Xor(y Uint64x2) Uint64x2
-
-// Xor performs a bitwise x ^ y.
-//
 // Asm: VPXOR, CPU Feature: AVX2
 func (x Uint64x4) Xor(y Uint64x4) Uint64x4
 
@@ -7622,6 +7617,11 @@ func (x Uint64x4) Xor(y Uint64x4) Uint64x4
 //
 // Asm: VPXORQ, CPU Feature: AVX512
 func (x Uint64x8) Xor(y Uint64x8) Uint64x8
+
+// Xor performs a bitwise x ^ y.
+//
+// Asm: VPXOR, CPU Feature: AVX
+func (x Uint64x2) Xor(y Uint64x2) Uint64x2
 
 // AsFloat64x2 reinterprets the bits of a Float32x4 vector as a Float64x2 vector
 //

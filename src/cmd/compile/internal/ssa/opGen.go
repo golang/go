@@ -5106,6 +5106,8 @@ const (
 	OpARM64VNOT16B
 	OpARM64VORN16B
 	OpARM64VORR16B
+	OpARM64VPMULL2D
+	OpARM64VPMULL2_2D
 	OpARM64VSCVTF2D
 	OpARM64VSCVTF4S
 	OpARM64VSMAX4S
@@ -8587,6 +8589,7 @@ const (
 	Opbroadcast1To64MaskedInt8x16
 	Opbroadcast1To64MaskedUint8x16
 	Opbroadcast1To64Uint8x16
+	OpcarrylessMultiplyWidenLoUint64x2
 	OpAESRoundKeyGenAssistUint32x4
 	OpCeilScaledFloat32x4
 	OpCeilScaledFloat32x8
@@ -81324,6 +81327,36 @@ var opcodeTable = [...]opInfo{
 		},
 	},
 	{
+		name:        "VPMULL2D",
+		argLen:      2,
+		commutative: true,
+		asm:         arm64.AVPMULL,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{0, regMask{v1: 9223372034707292160, v2: 0}}, // F0 F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15 F16 F17 F18 F19 F20 F21 F22 F23 F24 F25 F26 F27 F28 F29 F30 F31
+				{1, regMask{v1: 9223372034707292160, v2: 0}}, // F0 F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15 F16 F17 F18 F19 F20 F21 F22 F23 F24 F25 F26 F27 F28 F29 F30 F31
+			},
+			outputs: []outputInfo{
+				{0, regMask{v1: 9223372034707292160, v2: 0}}, // F0 F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15 F16 F17 F18 F19 F20 F21 F22 F23 F24 F25 F26 F27 F28 F29 F30 F31
+			},
+		},
+	},
+	{
+		name:        "VPMULL2_2D",
+		argLen:      2,
+		commutative: true,
+		asm:         arm64.AVPMULL2,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{0, regMask{v1: 9223372034707292160, v2: 0}}, // F0 F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15 F16 F17 F18 F19 F20 F21 F22 F23 F24 F25 F26 F27 F28 F29 F30 F31
+				{1, regMask{v1: 9223372034707292160, v2: 0}}, // F0 F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15 F16 F17 F18 F19 F20 F21 F22 F23 F24 F25 F26 F27 F28 F29 F30 F31
+			},
+			outputs: []outputInfo{
+				{0, regMask{v1: 9223372034707292160, v2: 0}}, // F0 F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15 F16 F17 F18 F19 F20 F21 F22 F23 F24 F25 F26 F27 F28 F29 F30 F31
+			},
+		},
+	},
+	{
 		name:   "VSCVTF2D",
 		argLen: 1,
 		asm:    arm64.AVSCVTF,
@@ -114361,6 +114394,12 @@ var opcodeTable = [...]opInfo{
 		name:    "broadcast1To64Uint8x16",
 		argLen:  1,
 		generic: true,
+	},
+	{
+		name:        "carrylessMultiplyWidenLoUint64x2",
+		argLen:      2,
+		commutative: true,
+		generic:     true,
 	},
 	{
 		name:    "AESRoundKeyGenAssistUint32x4",
