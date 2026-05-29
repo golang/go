@@ -982,6 +982,14 @@ func (x Uint64x2) BitsToInt64() Int64x2 {
 	return Int64x2((archsimd.Uint64x2(x)).BitsToInt64())
 }
 
+func (x Uint64x2) CarrylessMultiplyEven(y Uint64x2) Uint64x2 {
+	return Uint64x2((archsimd.Uint64x2(x)).CarrylessMultiplyEven(archsimd.Uint64x2(y)))
+}
+
+func (x Uint64x2) CarrylessMultiplyOdd(y Uint64x2) Uint64x2 {
+	return Uint64x2((archsimd.Uint64x2(x)).CarrylessMultiplyOdd(archsimd.Uint64x2(y)))
+}
+
 func (x Uint64x2) ConvertToInt64() Int64x2 {
 	return Int64x2((archsimd.Uint64x2(x)).ConvertToInt64())
 }

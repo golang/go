@@ -758,6 +758,38 @@ func (x Uint64s) BitsToFloat64() Float64s
 // BitsToInt64 reinterprets the vector bits as an Int64s vector.
 func (x Uint64s) BitsToInt64() Int64s
 
+// CarrylessMultiplyOdd computes the carryless
+// multiplications of selected even indexed elements of x and y.
+// Each product is 128 bits wide and fills the corresponding
+// even-odd pairs in the result.
+//
+// A carryless multiplication uses bitwise XOR instead of
+// add-with-carry, for example (in base two):
+//
+//	11 * 11 = 11 * (10 ^ 1) = (11 * 10) ^ (11 * 1) = 110 ^ 11 = 101
+//
+// This also models multiplication of polynomials with coefficients
+// from GF(2) -- 11 * 11 models (x+1)*(x+1) = x**2 + (1^1)x + 1 =
+// x**2 + 0x + 1 = x**2 + 1 modeled by 101.  (Note that "+" adds
+// polynomial terms, but coefficients "add" with XOR.)"
+func (x Uint64s) CarrylessMultiplyEven(y Uint64s) Uint64s
+
+// CarrylessMultiplyOdd computes the carryless
+// multiplications of selected odd indexed elements of x and y.
+// Each product is 128 bits wide and fills the corresponding
+// even-odd pairs in the result.
+//
+// A carryless multiplication uses bitwise XOR instead of
+// add-with-carry, for example (in base two):
+//
+//	11 * 11 = 11 * (10 ^ 1) = (11 * 10) ^ (11 * 1) = 110 ^ 11 = 101
+//
+// This also models multiplication of polynomials with coefficients
+// from GF(2) -- 11 * 11 models (x+1)*(x+1) = x**2 + (1^1)x + 1 =
+// x**2 + 0x + 1 = x**2 + 1 modeled by 101.  (Note that "+" adds
+// polynomial terms, but coefficients "add" with XOR.)"
+func (x Uint64s) CarrylessMultiplyOdd(y Uint64s) Uint64s
+
 // ConvertToInt64 converts the vector elements to int64.
 func (x Uint64s) ConvertToInt64() Int64s
 

@@ -9,6 +9,7 @@ package simd
 import (
 	"fmt"
 	"math"
+	"math/bits"
 )
 
 // VectorSize returns the bit length of the emulated vector (fixed to 128).
@@ -3143,4 +3144,82 @@ func (x Mask64s) String() string {
 // ToInt64s converts the mask to an Int64s vector.
 func (x Mask64s) ToInt64s() Int64s {
 	return Int64s{a: x.a, b: x.b}
+}
+
+func newT(lo, hi uint64) Uint64s {
+	return Uint64s{a: lo, b: hi}
+}
+
+// mwl returns the 128-bit product of the lower halves of x and y
+func (x Uint64s) mwl(y Uint64s) Uint64s {
+	hi, lo := bits.Mul64(x.a, y.a)
+	return Uint64s{a: lo, b: hi}
+}
+
+var (
+	// For mK, bits J such that J mod 5 == K are set
+	m0 = newT(0x0084210842108421, 0x1108421084210842)
+	m1 = newT(0x1108421084210842, 0x3210842108421084)
+	m2 = newT(0x3210842108421084, 0x8421084210842108)
+	m3 = newT(0x8421084210842108, 0x0842108421084210)
+	m4 = newT(0x0842108421084210, 0x0084210842108421)
+)
+
+func (x Uint64s) clmul(y Uint64s) Uint64s {
+	x0 := x.And(m0)
+	x1 := x.And(m1)
+	x2 := x.And(m2)
+	x3 := x.And(m3)
+	x4 := x.And(m4)
+
+	y0 := y.And(m0)
+	y1 := y.And(m1)
+	y2 := y.And(m2)
+	y3 := y.And(m3)
+	y4 := y.And(m4)
+
+	// sum of x, y indices == K mod 5; mask index = K
+	z := (x0.mwl(y0)).Xor(x1.mwl(y4)).Xor(x4.mwl(y1)).Xor(x2.mwl(y3)).Xor(x3.mwl(y2)).And(m0)
+	z = (x3.mwl(y3)).Xor(x2.mwl(y4)).Xor(x4.mwl(y2)).Xor(x0.mwl(y1)).Xor(x1.mwl(y0)).And(m1).Or(z)
+	z = (x1.mwl(y1)).Xor(x3.mwl(y4)).Xor(x4.mwl(y3)).Xor(x0.mwl(y2)).Xor(x2.mwl(y0)).And(m2).Or(z)
+	z = (x4.mwl(y4)).Xor(x0.mwl(y3)).Xor(x3.mwl(y0)).Xor(x1.mwl(y2)).Xor(x2.mwl(y1)).And(m3).Or(z)
+	z = (x2.mwl(y2)).Xor(x0.mwl(y4)).Xor(x4.mwl(y0)).Xor(x1.mwl(y3)).Xor(x3.mwl(y1)).And(m4).Or(z)
+
+	return z
+}
+
+// CarrylessMultiplyEven computes the carryless
+// multiplications of selected even halves of the elements of x and y.
+// The result fills the 128 bits of each even-odd pair.
+//
+// A carryless multiplication uses bitwise XOR instead of
+// add-with-carry, for example (in base two):
+//
+//	11 * 11 = 11 * (10 ^ 1) = (11 * 10) ^ (11 * 1) = 110 ^ 11 = 101
+//
+// This also models multiplication of polynomials with coefficients
+// from GF(2) -- 11 * 11 models (x+1)*(x+1) = x**2 + (1^1)x + 1 =
+// x**2 + 0x + 1 = x**2 + 1 modeled by 101.  (Note that "+" adds
+// polynomial terms, but coefficients "add" with XOR.)
+func (x Uint64s) CarrylessMultiplyEven(y Uint64s) Uint64s {
+	return x.clmul(y)
+}
+
+// CarrylessMultiplyOdd computes the carryless
+// multiplications of selected odd halves of the elements of x and y.
+// The result fills the 128 bits of each even-odd pair.
+//
+// A carryless multiplication uses bitwise XOR instead of
+// add-with-carry, for example (in base two):
+//
+//	11 * 11 = 11 * (10 ^ 1) = (11 * 10) ^ (11 * 1) = 110 ^ 11 = 101
+//
+// This also models multiplication of polynomials with coefficients
+// from GF(2) -- 11 * 11 models (x+1)*(x+1) = x**2 + (1^1)x + 1 =
+// x**2 + 0x + 1 = x**2 + 1 modeled by 101.  (Note that "+" adds
+// polynomial terms, but coefficients "add" with XOR.)
+func (x Uint64s) CarrylessMultiplyOdd(y Uint64s) Uint64s {
+	x.a = x.b
+	y.a = y.b
+	return x.clmul(y)
 }
