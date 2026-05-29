@@ -575,7 +575,7 @@ func (ns *objectNameStack) getUnquoted(i int) []byte {
 	if i == 0 {
 		return ns.unquotedNames[:ns.offsets[0]]
 	} else {
-		return ns.unquotedNames[ns.offsets[i-1]:ns.offsets[i-0]]
+		return ns.unquotedNames[ns.offsets[i-1]:ns.offsets[i]]
 	}
 }
 
@@ -747,7 +747,7 @@ func (ns *objectNamespace) getUnquoted(i int) []byte {
 	if i == 0 {
 		return ns.allUnquotedNames[:ns.endOffsets[0]]
 	} else {
-		return ns.allUnquotedNames[ns.endOffsets[i-1]:ns.endOffsets[i-0]]
+		return ns.allUnquotedNames[ns.endOffsets[i-1]:ns.endOffsets[i]]
 	}
 }
 

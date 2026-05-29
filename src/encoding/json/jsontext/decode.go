@@ -621,6 +621,7 @@ func (d *decoderState) ReadToken() (Token, error) {
 		if !d.Flags.Get(jsonflags.AllowDuplicateNames) {
 			d.Namespaces.push()
 		}
+		d.Flags.Clear(jsonflags.TagFlags) // tags only apply to current depth
 		pos += 1
 		d.prevStart, d.prevEnd = pos, pos
 		return BeginObject, nil
@@ -641,6 +642,7 @@ func (d *decoderState) ReadToken() (Token, error) {
 		if err = d.Tokens.pushArray(); err != nil {
 			return Token{}, wrapSyntacticError(d, err, pos, +1)
 		}
+		d.Flags.Clear(jsonflags.TagFlags) // tags only apply to current depth
 		pos += 1
 		d.prevStart, d.prevEnd = pos, pos
 		return BeginArray, nil

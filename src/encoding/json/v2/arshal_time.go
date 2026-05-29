@@ -46,7 +46,7 @@ func makeTimeArshaler(fncs *arshaler, t reflect.Type) *arshaler {
 		fncs.marshal = func(enc *jsontext.Encoder, va addressableValue, mo *jsonopts.Struct) error {
 			xe := export.Encoder(enc)
 			var m durationArshaler
-			if mo.Format != "" && mo.FormatDepth == xe.Tokens.Depth() {
+			if mo.Flags.Has(jsonflags.FormatTag) {
 				if !m.initFormat(mo.Format) {
 					return newInvalidFormatError(enc, t)
 				}
@@ -60,9 +60,12 @@ func makeTimeArshaler(fncs *arshaler, t reflect.Type) *arshaler {
 				}
 				return newMarshalErrorBefore(enc, t, errors.New("no default representation"+workaround))
 			}
+			if mo.Flags.Get(jsonflags.StringTag) && !m.isNumeric() && !mo.Flags.Get(jsonflags.ReportErrorsWithLegacySemantics) {
+				return newMarshalErrorBefore(enc, t, errInvalidStringTag)
+			}
 
 			m.td, _ = reflect.TypeAssert[time.Duration](va.Value)
-			k := stringOrNumberKind(!m.isNumeric() || xe.Tokens.Last.NeedObjectName() || mo.Flags.Get(jsonflags.StringifyNumbers))
+			k := stringOrNumberKind(!m.isNumeric() || xe.Tokens.Last.NeedObjectName() || mo.Flags.Get(jsonflags.StringifyNumbers|jsonflags.StringTag))
 			if err := xe.AppendRaw(k, true, m.appendMarshal); err != nil {
 				if !isSyntacticError(err) && !export.IsIOError(err) {
 					err = newMarshalErrorBefore(enc, t, err)
@@ -75,7 +78,7 @@ func makeTimeArshaler(fncs *arshaler, t reflect.Type) *arshaler {
 		fncs.unmarshal = func(dec *jsontext.Decoder, va addressableValue, uo *jsonopts.Struct) error {
 			xd := export.Decoder(dec)
 			var u durationArshaler
-			if uo.Format != "" && uo.FormatDepth == xd.Tokens.Depth() {
+			if uo.Flags.Has(jsonflags.FormatTag) {
 				if !u.initFormat(uo.Format) {
 					return newInvalidFormatError(dec, t)
 				}
@@ -89,8 +92,11 @@ func makeTimeArshaler(fncs *arshaler, t reflect.Type) *arshaler {
 				}
 				return newUnmarshalErrorBeforeWithSkipping(dec, t, errors.New("no default representation"+workaround))
 			}
+			if uo.Flags.Get(jsonflags.StringTag) && !u.isNumeric() && !uo.Flags.Get(jsonflags.ReportErrorsWithLegacySemantics) {
+				return newUnmarshalErrorBeforeWithSkipping(dec, t, errInvalidStringTag)
+			}
 
-			stringify := !u.isNumeric() || xd.Tokens.Last.NeedObjectName() || uo.Flags.Get(jsonflags.StringifyNumbers)
+			stringify := !u.isNumeric() || xd.Tokens.Last.NeedObjectName() || uo.Flags.Get(jsonflags.StringifyNumbers|jsonflags.StringTag)
 			var flags jsonwire.ValueFlags
 			td, _ := reflect.TypeAssert[*time.Duration](va.Addr())
 			val, err := xd.ReadValue(&flags)
@@ -130,14 +136,17 @@ func makeTimeArshaler(fncs *arshaler, t reflect.Type) *arshaler {
 		fncs.marshal = func(enc *jsontext.Encoder, va addressableValue, mo *jsonopts.Struct) (err error) {
 			xe := export.Encoder(enc)
 			var m timeArshaler
-			if mo.Format != "" && mo.FormatDepth == xe.Tokens.Depth() {
+			if mo.Flags.Has(jsonflags.FormatTag) {
 				if !m.initFormat(mo.Format) {
 					return newInvalidFormatError(enc, t)
 				}
 			}
+			if mo.Flags.Get(jsonflags.StringTag) && !m.isNumeric() && !mo.Flags.Get(jsonflags.ReportErrorsWithLegacySemantics) {
+				return newMarshalErrorBefore(enc, t, errInvalidStringTag)
+			}
 
 			m.tt, _ = reflect.TypeAssert[time.Time](va.Value)
-			k := stringOrNumberKind(!m.isNumeric() || xe.Tokens.Last.NeedObjectName() || mo.Flags.Get(jsonflags.StringifyNumbers))
+			k := stringOrNumberKind(!m.isNumeric() || xe.Tokens.Last.NeedObjectName() || mo.Flags.Get(jsonflags.StringifyNumbers|jsonflags.StringTag))
 			if err := xe.AppendRaw(k, !m.hasCustomFormat(), m.appendMarshal); err != nil {
 				if mo.Flags.Get(jsonflags.ReportErrorsWithLegacySemantics) {
 					return internal.NewMarshalerError(va.Addr().Interface(), err, "MarshalJSON") // unlike unmarshal, always wrapped
@@ -152,15 +161,18 @@ func makeTimeArshaler(fncs *arshaler, t reflect.Type) *arshaler {
 		fncs.unmarshal = func(dec *jsontext.Decoder, va addressableValue, uo *jsonopts.Struct) (err error) {
 			xd := export.Decoder(dec)
 			var u timeArshaler
-			if uo.Format != "" && uo.FormatDepth == xd.Tokens.Depth() {
+			if uo.Flags.Has(jsonflags.FormatTag) {
 				if !u.initFormat(uo.Format) {
 					return newInvalidFormatError(dec, t)
 				}
 			} else if uo.Flags.Get(jsonflags.ParseTimeWithLooseRFC3339) {
 				u.looseRFC3339 = true
 			}
+			if uo.Flags.Get(jsonflags.StringTag) && !u.isNumeric() && !uo.Flags.Get(jsonflags.ReportErrorsWithLegacySemantics) {
+				return newUnmarshalErrorBeforeWithSkipping(dec, t, errInvalidStringTag)
+			}
 
-			stringify := !u.isNumeric() || xd.Tokens.Last.NeedObjectName() || uo.Flags.Get(jsonflags.StringifyNumbers)
+			stringify := !u.isNumeric() || xd.Tokens.Last.NeedObjectName() || uo.Flags.Get(jsonflags.StringifyNumbers|jsonflags.StringTag)
 			var flags jsonwire.ValueFlags
 			tt, _ := reflect.TypeAssert[*time.Time](va.Addr())
 			val, err := xd.ReadValue(&flags)

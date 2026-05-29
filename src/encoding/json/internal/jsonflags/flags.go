@@ -43,7 +43,8 @@ const (
 		ByteLimit |
 		DepthLimit |
 		Marshalers |
-		Unmarshalers
+		Unmarshalers |
+		FormatTag
 
 	// DefaultV1Flags is the set of booleans flags that default to true under
 	// v1 semantics. None of the non-boolean flags differ between v1 and v2.
@@ -83,6 +84,12 @@ const (
 
 	// CanonicalizeNumbers is the set of flags related to raw number canonicalization.
 	CanonicalizeNumbers = CanonicalizeRawInts | CanonicalizeRawFloats
+
+	// TagFlags is the set of flags related to the presence of struct field tags.
+	// Tags have non-recursive effects, where the tag only applies to
+	// the top-level of the field value itself.
+	// Whenever descending into a JSON object or array, these flags are cleared.
+	TagFlags = StringTag | FormatTag
 )
 
 // Encoder and decoder flags.
@@ -123,6 +130,8 @@ const (
 	RejectUnknownMembers      // unmarshal only
 	Marshalers                // marshal only; non-boolean flag
 	Unmarshalers              // unmarshal only; non-boolean flag
+	StringTag                 // marshal or unmarshal
+	FormatTag                 // marshal or unmarshal; non-boolean flag
 
 	maxArshalV2Flag
 )
@@ -142,7 +151,6 @@ const (
 	ParseTimeWithLooseRFC3339       // unmarshal
 	ReportErrorsWithLegacySemantics // marshal or unmarshal
 	StringifyWithLegacySemantics    // marshal or unmarshal
-	StringifyBoolsAndStrings        // marshal or unmarshal; for internal use by jsonv2.makeStructArshaler
 	UnmarshalAnyWithRawNumber       // unmarshal; for internal use by jsonv1.Decoder.UseNumber
 	UnmarshalArrayFromAnyLength     // unmarshal
 
@@ -150,7 +158,7 @@ const (
 )
 
 // bitsUsed is the number of bits used in the 64-bit boolean flags
-const bitsUsed = 41
+const bitsUsed = 42
 
 // Static compile check that bitsUsed and maxArshalV1Flag are in sync.
 const _ = uint64((1<<bitsUsed)-maxArshalV1Flag) + uint64(maxArshalV1Flag-(1<<bitsUsed))

@@ -102,10 +102,19 @@ func DefaultOptionsV2() Options {
 	return &jsonopts.DefaultOptionsV2
 }
 
-// StringifyNumbers specifies that numeric Go types should be marshaled
-// as a JSON string containing the equivalent JSON number value.
-// When unmarshaling, numeric Go types are parsed from a JSON string
+// StringifyNumbers specifies that types that would normally be
+// encoded as a JSON number to instead be encoded as a JSON string
+// containing the equivalent JSON number value.
+// When unmarshaling, the value is parsed from a JSON string
 // containing the JSON number without any surrounding whitespace.
+//
+// When the `string` tag option is specified on a Go struct field,
+// this option is applied for the top-level JSON value for that field.
+// Unless StringifyNumbers was applied globally, the option does not
+// recursively apply to nested JSON numbers within a JSON object or array.
+// A Go type with custom marshal/unmarshal that represents a JSON number
+// should respect the StringifyNumbers option and if specified
+// serialize as a JSON number within a JSON string.
 //
 // According to RFC 8259, section 6, a JSON implementation may choose to
 // limit the representation of a JSON number to an IEEE 754 binary64 value.

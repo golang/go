@@ -7,6 +7,7 @@
 package os
 
 import (
+	"internal/testlog"
 	"runtime"
 	"syscall"
 	"time"
@@ -207,6 +208,12 @@ func (f *File) Chdir() error {
 	}
 	if e := f.pfd.Fchdir(); e != nil {
 		return f.wrapErr("chdir", e)
+	}
+	if log := testlog.Logger(); log != nil {
+		wd, err := Getwd()
+		if err == nil {
+			log.Chdir(wd)
+		}
 	}
 	return nil
 }

@@ -367,6 +367,17 @@ func (check *Checker) builtin(x *operand, call *syntax.CallExpr, id builtinId) (
 		// []byte with a source argument of a string type.
 		// This form copies the bytes from the string into the byte slice."
 
+		// In either case, the first argument must be a slice; in particular it
+		// cannot be the predeclared nil value. Note that nil is not excluded by
+		// the assignability requirement alone for the special case (go.dev/issue/79687).
+		// spec: "If the type of one or both arguments is a type parameter, all types
+		// in their respective type sets must have the same underlying slice type []E."
+		dstE, err := sliceElem(x)
+		if err != nil {
+			check.errorf(x, InvalidCopy, "invalid copy: %s", err.format(check))
+			return
+		}
+
 		// get special case out of the way
 		y := args[1]
 		var special bool
@@ -386,13 +397,6 @@ func (check *Checker) builtin(x *operand, call *syntax.CallExpr, id builtinId) (
 
 		// general case
 		if !special {
-			// spec: "If the type of one or both arguments is a type parameter, all types
-			// in their respective type sets must have the same underlying slice type []E."
-			dstE, err := sliceElem(x)
-			if err != nil {
-				check.errorf(x, InvalidCopy, "invalid copy: %s", err.format(check))
-				return
-			}
 			srcE, err := sliceElem(y)
 			if err != nil {
 				// If we have a string, for a better error message proceed with byte element type.

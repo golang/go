@@ -1618,6 +1618,53 @@ func TestFileChdir(t *testing.T) {
 	}
 }
 
+// TestFileChdirTestlog verifies that (*File).Chdir notifies the testlog,
+// just like os.Chdir does. cmd/go's test cache relies on every working
+// directory change being recorded so that relative paths logged by later
+// Open/Stat calls can be resolved against the correct directory.
+func TestFileChdirTestlog(t *testing.T) {
+	if Getenv("GO_TEST_FILE_CHDIR_TESTLOG") == "1" {
+		fd, err := Open(".")
+		if err != nil {
+			t.Fatalf("Open .: %s", err)
+		}
+		defer fd.Close()
+		if err := Chdir(TempDir()); err != nil {
+			t.Fatalf("Chdir: %s", err)
+		}
+		if err := fd.Chdir(); err != nil {
+			t.Fatalf("fd.Chdir: %s", err)
+		}
+		return
+	}
+
+	testenv.MustHaveExec(t)
+	exe := testenv.Executable(t)
+	logfile := filepath.Join(t.TempDir(), "testlog.txt")
+	cmd := testenv.Command(t, exe,
+		"-test.run=^TestFileChdirTestlog$",
+		"-test.testlogfile="+logfile)
+	cmd = testenv.CleanCmdEnv(cmd)
+	cmd.Env = append(cmd.Env, "GO_TEST_FILE_CHDIR_TESTLOG=1")
+	if out, err := cmd.CombinedOutput(); err != nil {
+		t.Fatalf("helper failed: %v\n%s", err, out)
+	}
+
+	data, err := ReadFile(logfile)
+	if err != nil {
+		t.Fatal(err)
+	}
+	chdirs := 0
+	for _, line := range strings.Split(string(data), "\n") {
+		if strings.HasPrefix(line, "chdir ") {
+			chdirs++
+		}
+	}
+	if chdirs < 2 {
+		t.Fatalf("got %d chdir testlog entries, want at least 2; testlog:\n%s", chdirs, data)
+	}
+}
+
 func TestChdirAndGetwd(t *testing.T) {
 	t.Chdir(t.TempDir()) // Ensure wd is restored after the test.
 

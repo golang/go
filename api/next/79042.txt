@@ -1,1 +1,0 @@
-pkg go/constant, func StringLen(Value) int64 #79042

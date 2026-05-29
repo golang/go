@@ -279,7 +279,7 @@ func ExampleReadlink() {
 	}
 	linkPath := filepath.Join(d, "hello.link")
 	if err := os.Symlink("hello.txt", filepath.Join(d, "hello.link")); err != nil {
-		if errors.Is(err, errors.ErrUnsupported) {
+		if isOSSymlinkUnsupportedError(err) {
 			// Allow the example to run on platforms that do not support symbolic links.
 			fmt.Printf("%s links to %s\n", filepath.Base(linkPath), "hello.txt")
 			return

@@ -1610,7 +1610,10 @@ func (c *Config) writeKeyLog(label string, clientRandom, secret []byte) error {
 	_, err := c.KeyLogWriter.Write(logLine)
 	writerMutex.Unlock()
 
-	return err
+	if err != nil {
+		return fmt.Errorf("tls: KeyLogWriter: %w", err)
+	}
+	return nil
 }
 
 // writerMutex protects all KeyLogWriters globally. It is rarely enabled,

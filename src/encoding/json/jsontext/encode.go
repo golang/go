@@ -124,17 +124,8 @@ func (e *encoderState) reset(b []byte, w io.Writer, opts ...Options) {
 	opts2 := jsonopts.Struct{} // avoid mutating e.Struct in case it is part of opts
 	opts2.Join(opts...)
 	e.Struct = opts2
-	if e.Flags.Get(jsonflags.Multiline) {
-		if !e.Flags.Has(jsonflags.SpaceAfterColon) {
-			e.Flags.Set(jsonflags.SpaceAfterColon | 1)
-		}
-		if !e.Flags.Has(jsonflags.SpaceAfterComma) {
-			e.Flags.Set(jsonflags.SpaceAfterComma | 0)
-		}
-		if !e.Flags.Has(jsonflags.Indent) {
-			e.Flags.Set(jsonflags.Indent | 1)
-			e.Indent = "\t"
-		}
+	if e.Struct.Flags.Get(jsonflags.Multiline) {
+		e.Struct.InitializeMultiline()
 	}
 }
 
@@ -229,7 +220,7 @@ func (e *encoderState) Flush() error {
 
 	return nil
 }
-func (d *encodeBuffer) offsetAt(pos int) int64   { return d.baseOffset + int64(pos) }
+func (e *encodeBuffer) offsetAt(pos int) int64   { return e.baseOffset + int64(pos) }
 func (e *encodeBuffer) previousOffsetEnd() int64 { return e.baseOffset + int64(len(e.Buf)) }
 func (e *encodeBuffer) unflushedBuffer() []byte  { return e.Buf }
 
@@ -405,6 +396,7 @@ func (e *encoderState) WriteToken(t Token) error {
 		if !e.Flags.Get(jsonflags.AllowDuplicateNames) {
 			e.Namespaces.push()
 		}
+		e.Flags.Clear(jsonflags.TagFlags) // tags only apply to current depth
 	case '}':
 		b = append(b, '}')
 		if err = e.Tokens.popObject(); err != nil {
@@ -417,6 +409,7 @@ func (e *encoderState) WriteToken(t Token) error {
 	case '[':
 		b = append(b, '[')
 		err = e.Tokens.pushArray()
+		e.Flags.Clear(jsonflags.TagFlags) // tags only apply to current depth
 	case ']':
 		b = append(b, ']')
 		err = e.Tokens.popArray()
@@ -482,7 +475,7 @@ func (e *encoderState) AppendRaw(k Kind, safeASCII bool, appendFn func([]byte) (
 		if e.Tokens.Last.NeedObjectName() {
 			if !e.Flags.Get(jsonflags.AllowDuplicateNames) {
 				if !e.Tokens.Last.isValidNamespace() {
-					return wrapSyntacticError(e, err, pos, +1)
+					return wrapSyntacticError(e, errInvalidNamespace, pos, +1)
 				}
 				if e.Tokens.Last.isActiveNamespace() && !e.Namespaces.Last().insertQuoted(b[pos:], isVerbatim) {
 					err = wrapWithObjectName(ErrDuplicateName, b[pos:])

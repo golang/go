@@ -1,0 +1,313 @@
+pkg bytes, func CutLast([]uint8, []uint8) ([]uint8, []uint8, bool) #71151
+pkg crypto, const MLDSAMu = 20 #77626
+pkg crypto, const MLDSAMu Hash #77626
+pkg crypto/mldsa, const MLDSA44PublicKeySize = 1312 #77626
+pkg crypto/mldsa, const MLDSA44PublicKeySize ideal-int #77626
+pkg crypto/mldsa, const MLDSA44SignatureSize = 2420 #77626
+pkg crypto/mldsa, const MLDSA44SignatureSize ideal-int #77626
+pkg crypto/mldsa, const MLDSA65PublicKeySize = 1952 #77626
+pkg crypto/mldsa, const MLDSA65PublicKeySize ideal-int #77626
+pkg crypto/mldsa, const MLDSA65SignatureSize = 3309 #77626
+pkg crypto/mldsa, const MLDSA65SignatureSize ideal-int #77626
+pkg crypto/mldsa, const MLDSA87PublicKeySize = 2592 #77626
+pkg crypto/mldsa, const MLDSA87PublicKeySize ideal-int #77626
+pkg crypto/mldsa, const MLDSA87SignatureSize = 4627 #77626
+pkg crypto/mldsa, const MLDSA87SignatureSize ideal-int #77626
+pkg crypto/mldsa, const PrivateKeySize = 32 #77626
+pkg crypto/mldsa, const PrivateKeySize ideal-int #77626
+pkg crypto/mldsa, func GenerateKey(Parameters) (*PrivateKey, error) #77626
+pkg crypto/mldsa, func MLDSA44() Parameters #77626
+pkg crypto/mldsa, func MLDSA65() Parameters #77626
+pkg crypto/mldsa, func MLDSA87() Parameters #77626
+pkg crypto/mldsa, func NewPrivateKey(Parameters, []uint8) (*PrivateKey, error) #77626
+pkg crypto/mldsa, func NewPublicKey(Parameters, []uint8) (*PublicKey, error) #77626
+pkg crypto/mldsa, func Verify(*PublicKey, []uint8, []uint8, *Options) error #77626
+pkg crypto/mldsa, method (*Options) HashFunc() crypto.Hash #77626
+pkg crypto/mldsa, method (*PrivateKey) Bytes() []uint8 #77626
+pkg crypto/mldsa, method (*PrivateKey) Equal(crypto.PrivateKey) bool #77626
+pkg crypto/mldsa, method (*PrivateKey) Public() crypto.PublicKey #77626
+pkg crypto/mldsa, method (*PrivateKey) PublicKey() *PublicKey #77626
+pkg crypto/mldsa, method (*PrivateKey) Sign(io.Reader, []uint8, crypto.SignerOpts) ([]uint8, error) #77626
+pkg crypto/mldsa, method (*PrivateKey) SignDeterministic([]uint8, crypto.SignerOpts) ([]uint8, error) #77626
+pkg crypto/mldsa, method (*PublicKey) Bytes() []uint8 #77626
+pkg crypto/mldsa, method (*PublicKey) Equal(crypto.PublicKey) bool #77626
+pkg crypto/mldsa, method (*PublicKey) Parameters() Parameters #77626
+pkg crypto/mldsa, method (Parameters) PublicKeySize() int #77626
+pkg crypto/mldsa, method (Parameters) SignatureSize() int #77626
+pkg crypto/mldsa, method (Parameters) String() string #77626
+pkg crypto/mldsa, type Options struct #77626
+pkg crypto/mldsa, type Options struct, Context string #77626
+pkg crypto/mldsa, type Parameters struct #77626
+pkg crypto/mldsa, type PrivateKey struct #77626
+pkg crypto/mldsa, type PublicKey struct #77626
+pkg crypto/tls, const MLDSA44 = 2308 #78888
+pkg crypto/tls, const MLDSA44 SignatureScheme #78888
+pkg crypto/tls, const MLDSA65 = 2309 #78888
+pkg crypto/tls, const MLDSA65 SignatureScheme #78888
+pkg crypto/tls, const MLDSA87 = 2310 #78888
+pkg crypto/tls, const MLDSA87 SignatureScheme #78888
+pkg crypto/tls, const MLKEM1024 = 514 #78543
+pkg crypto/tls, const MLKEM1024 CurveID #78543
+pkg crypto/tls, type Config struct, Rand //deprecated #79367
+pkg crypto/tls, type QUICConfig struct, ClientHelloInfoConn net.Conn #77363
+pkg crypto/x509, const MLDSA = 5 #78888
+pkg crypto/x509, const MLDSA PublicKeyAlgorithm #78888
+pkg crypto/x509, const MLDSA44 = 17 #78888
+pkg crypto/x509, const MLDSA44 SignatureAlgorithm #78888
+pkg crypto/x509, const MLDSA65 = 18 #78888
+pkg crypto/x509, const MLDSA65 SignatureAlgorithm #78888
+pkg crypto/x509, const MLDSA87 = 19 #78888
+pkg crypto/x509, const MLDSA87 SignatureAlgorithm #78888
+pkg crypto/x509, type Certificate struct, RawSignatureAlgorithm []uint8 #76133
+pkg crypto/x509, type CertificateRequest struct, RawSignatureAlgorithm []uint8 #76133
+pkg crypto/x509, type RevocationList struct, RawSignatureAlgorithm []uint8 #76133
+pkg database/sql, func ConvertAssign(driver.ScanContext, interface{}, driver.Value) error #67546
+pkg database/sql/driver, type RowsColumnScanner interface { Close, Columns, Next, NextRow, ScanColumn } #67546
+pkg database/sql/driver, type RowsColumnScanner interface, Close() error #67546
+pkg database/sql/driver, type RowsColumnScanner interface, Columns() []string #67546
+pkg database/sql/driver, type RowsColumnScanner interface, Next([]Value) error #67546
+pkg database/sql/driver, type RowsColumnScanner interface, NextRow() error #67546
+pkg database/sql/driver, type RowsColumnScanner interface, ScanColumn(ScanContext, int, interface{}) error #67546
+pkg database/sql/driver, type ScanContext struct #67546
+pkg encoding/json, func CallMethodsWithLegacySemantics(bool) jsonopts.Options #71497
+pkg encoding/json, func DefaultOptionsV1() jsonopts.Options #71497
+pkg encoding/json, func FormatByteArrayAsArray(bool) jsonopts.Options #71497
+pkg encoding/json, func FormatBytesWithLegacySemantics(bool) jsonopts.Options #71497
+pkg encoding/json, func FormatDurationAsNano(bool) jsonopts.Options #71497
+pkg encoding/json, func MatchCaseSensitiveDelimiter(bool) jsonopts.Options #71497
+pkg encoding/json, func MergeWithLegacySemantics(bool) jsonopts.Options #71497
+pkg encoding/json, func OmitEmptyWithLegacySemantics(bool) jsonopts.Options #71497
+pkg encoding/json, func ParseBytesWithLooseRFC4648(bool) jsonopts.Options #71497
+pkg encoding/json, func ParseTimeWithLooseRFC3339(bool) jsonopts.Options #71497
+pkg encoding/json, func ReportErrorsWithLegacySemantics(bool) jsonopts.Options #71497
+pkg encoding/json, func StringifyWithLegacySemantics(bool) jsonopts.Options #71497
+pkg encoding/json, func UnmarshalArrayFromAnyLength(bool) jsonopts.Options #71497
+pkg encoding/json, method (*Number) UnmarshalJSONFrom(*jsontext.Decoder) error #71497
+pkg encoding/json, method (*UnmarshalTypeError) Unwrap() error #71497
+pkg encoding/json, method (Number) MarshalJSONTo(*jsontext.Encoder) error #71497
+pkg encoding/json, type Marshaler = json.Marshaler #71497
+pkg encoding/json, type Options = jsonopts.Options #71497
+pkg encoding/json, type RawMessage = jsontext.Value #71497
+pkg encoding/json, type UnmarshalTypeError struct, Err error #71497
+pkg encoding/json, type Unmarshaler = json.Unmarshaler #71497
+pkg encoding/json/jsontext, const KindBeginArray = 91 #71497
+pkg encoding/json/jsontext, const KindBeginArray Kind #71497
+pkg encoding/json/jsontext, const KindBeginObject = 123 #71497
+pkg encoding/json/jsontext, const KindBeginObject Kind #71497
+pkg encoding/json/jsontext, const KindEndArray = 93 #71497
+pkg encoding/json/jsontext, const KindEndArray Kind #71497
+pkg encoding/json/jsontext, const KindEndObject = 125 #71497
+pkg encoding/json/jsontext, const KindEndObject Kind #71497
+pkg encoding/json/jsontext, const KindFalse = 102 #71497
+pkg encoding/json/jsontext, const KindFalse Kind #71497
+pkg encoding/json/jsontext, const KindInvalid = 0 #71497
+pkg encoding/json/jsontext, const KindInvalid Kind #71497
+pkg encoding/json/jsontext, const KindNull = 110 #71497
+pkg encoding/json/jsontext, const KindNull Kind #71497
+pkg encoding/json/jsontext, const KindNumber = 48 #71497
+pkg encoding/json/jsontext, const KindNumber Kind #71497
+pkg encoding/json/jsontext, const KindString = 34 #71497
+pkg encoding/json/jsontext, const KindString Kind #71497
+pkg encoding/json/jsontext, const KindTrue = 116 #71497
+pkg encoding/json/jsontext, const KindTrue Kind #71497
+pkg encoding/json/jsontext, func AllowDuplicateNames(bool) jsonopts.Options #71497
+pkg encoding/json/jsontext, func AllowInvalidUTF8(bool) jsonopts.Options #71497
+pkg encoding/json/jsontext, func AppendFloat([]uint8, float64, int) []uint8 #71497
+pkg encoding/json/jsontext, func AppendFormat[$0 interface{ ~[]uint8 | ~string }]([]uint8, $0, ...jsonopts.Options) ([]uint8, error) #71497
+pkg encoding/json/jsontext, func AppendQuote[$0 interface{ ~[]uint8 | ~string }]([]uint8, $0) ([]uint8, error) #71497
+pkg encoding/json/jsontext, func AppendUnquote[$0 interface{ ~[]uint8 | ~string }]([]uint8, $0) ([]uint8, error) #71497
+pkg encoding/json/jsontext, func Bool(bool) Token #71497
+pkg encoding/json/jsontext, func CanonicalizeRawFloats(bool) jsonopts.Options #71497
+pkg encoding/json/jsontext, func CanonicalizeRawInts(bool) jsonopts.Options #71497
+pkg encoding/json/jsontext, func EscapeForHTML(bool) jsonopts.Options #71497
+pkg encoding/json/jsontext, func EscapeForJS(bool) jsonopts.Options #71497
+pkg encoding/json/jsontext, func Float(float64) Token #71497
+pkg encoding/json/jsontext, func Float32(float32) Token #71497
+pkg encoding/json/jsontext, func Int(int64) Token #71497
+pkg encoding/json/jsontext, func Multiline(bool) jsonopts.Options #71497
+pkg encoding/json/jsontext, func NewDecoder(io.Reader, ...jsonopts.Options) *Decoder #71497
+pkg encoding/json/jsontext, func NewEncoder(io.Writer, ...jsonopts.Options) *Encoder #71497
+pkg encoding/json/jsontext, func PreserveRawStrings(bool) jsonopts.Options #71497
+pkg encoding/json/jsontext, func ReorderRawObjects(bool) jsonopts.Options #71497
+pkg encoding/json/jsontext, func SpaceAfterColon(bool) jsonopts.Options #71497
+pkg encoding/json/jsontext, func SpaceAfterComma(bool) jsonopts.Options #71497
+pkg encoding/json/jsontext, func String(string) Token #71497
+pkg encoding/json/jsontext, func Uint(uint64) Token #71497
+pkg encoding/json/jsontext, func WithIndent(string) jsonopts.Options #71497
+pkg encoding/json/jsontext, func WithIndentPrefix(string) jsonopts.Options #71497
+pkg encoding/json/jsontext, method (*Decoder) InputOffset() int64 #71497
+pkg encoding/json/jsontext, method (*Decoder) Options() jsonopts.Options #71497
+pkg encoding/json/jsontext, method (*Decoder) PeekKind() Kind #71497
+pkg encoding/json/jsontext, method (*Decoder) ReadToken() (Token, error) #71497
+pkg encoding/json/jsontext, method (*Decoder) ReadValue() (Value, error) #71497
+pkg encoding/json/jsontext, method (*Decoder) Reset(io.Reader, ...jsonopts.Options) #71497
+pkg encoding/json/jsontext, method (*Decoder) SkipValue() error #71497
+pkg encoding/json/jsontext, method (*Decoder) StackDepth() int #71497
+pkg encoding/json/jsontext, method (*Decoder) StackIndex(int) (Kind, int64) #71497
+pkg encoding/json/jsontext, method (*Decoder) StackPointer() Pointer #71497
+pkg encoding/json/jsontext, method (*Decoder) UnreadBuffer() []uint8 #71497
+pkg encoding/json/jsontext, method (*Encoder) AvailableBuffer() []uint8 #71497
+pkg encoding/json/jsontext, method (*Encoder) Options() jsonopts.Options #71497
+pkg encoding/json/jsontext, method (*Encoder) OutputOffset() int64 #71497
+pkg encoding/json/jsontext, method (*Encoder) Reset(io.Writer, ...jsonopts.Options) #71497
+pkg encoding/json/jsontext, method (*Encoder) StackDepth() int #71497
+pkg encoding/json/jsontext, method (*Encoder) StackIndex(int) (Kind, int64) #71497
+pkg encoding/json/jsontext, method (*Encoder) StackPointer() Pointer #71497
+pkg encoding/json/jsontext, method (*Encoder) WriteToken(Token) error #71497
+pkg encoding/json/jsontext, method (*Encoder) WriteValue(Value) error #71497
+pkg encoding/json/jsontext, method (*SyntacticError) Error() string #71497
+pkg encoding/json/jsontext, method (*SyntacticError) Unwrap() error #71497
+pkg encoding/json/jsontext, method (*Value) Canonicalize(...jsonopts.Options) error #71497
+pkg encoding/json/jsontext, method (*Value) Compact(...jsonopts.Options) error #71497
+pkg encoding/json/jsontext, method (*Value) Format(...jsonopts.Options) error #71497
+pkg encoding/json/jsontext, method (*Value) Indent(...jsonopts.Options) error #71497
+pkg encoding/json/jsontext, method (*Value) UnmarshalJSON([]uint8) error #71497
+pkg encoding/json/jsontext, method (Kind) String() string #71497
+pkg encoding/json/jsontext, method (Pointer) AppendToken(string) Pointer #71497
+pkg encoding/json/jsontext, method (Pointer) Contains(Pointer) bool #71497
+pkg encoding/json/jsontext, method (Pointer) IsValid() bool #71497
+pkg encoding/json/jsontext, method (Pointer) LastToken() string #71497
+pkg encoding/json/jsontext, method (Pointer) Parent() Pointer #71497
+pkg encoding/json/jsontext, method (Pointer) Tokens() iter.Seq[string] #71497
+pkg encoding/json/jsontext, method (Token) Bool() bool #71497
+pkg encoding/json/jsontext, method (Token) Clone() Token #71497
+pkg encoding/json/jsontext, method (Token) Float() (float64, error) #71497
+pkg encoding/json/jsontext, method (Token) Float32() (float32, error) #71497
+pkg encoding/json/jsontext, method (Token) Int() (int64, error) #71497
+pkg encoding/json/jsontext, method (Token) Kind() Kind #71497
+pkg encoding/json/jsontext, method (Token) String() string #71497
+pkg encoding/json/jsontext, method (Token) Uint() (uint64, error) #71497
+pkg encoding/json/jsontext, method (Value) Clone() Value #71497
+pkg encoding/json/jsontext, method (Value) IsValid(...jsonopts.Options) bool #71497
+pkg encoding/json/jsontext, method (Value) Kind() Kind #71497
+pkg encoding/json/jsontext, method (Value) MarshalJSON() ([]uint8, error) #71497
+pkg encoding/json/jsontext, method (Value) String() string #71497
+pkg encoding/json/jsontext, type Decoder struct #71497
+pkg encoding/json/jsontext, type Encoder struct #71497
+pkg encoding/json/jsontext, type Kind uint8 #71497
+pkg encoding/json/jsontext, type Options = jsonopts.Options #71497
+pkg encoding/json/jsontext, type Pointer string #71497
+pkg encoding/json/jsontext, type SyntacticError struct #71497
+pkg encoding/json/jsontext, type SyntacticError struct, ByteOffset int64 #71497
+pkg encoding/json/jsontext, type SyntacticError struct, Err error #71497
+pkg encoding/json/jsontext, type SyntacticError struct, JSONPointer Pointer #71497
+pkg encoding/json/jsontext, type Token struct #71497
+pkg encoding/json/jsontext, type Value []uint8 #71497
+pkg encoding/json/jsontext, var BeginArray Token #71497
+pkg encoding/json/jsontext, var BeginObject Token #71497
+pkg encoding/json/jsontext, var EndArray Token #71497
+pkg encoding/json/jsontext, var EndObject Token #71497
+pkg encoding/json/jsontext, var ErrDuplicateName error #71497
+pkg encoding/json/jsontext, var ErrNonStringName error #71497
+pkg encoding/json/jsontext, var False Token #71497
+pkg encoding/json/jsontext, var Internal exporter #71497
+pkg encoding/json/jsontext, var Null Token #71497
+pkg encoding/json/jsontext, var True Token #71497
+pkg encoding/json/v2, func DefaultOptionsV2() jsonopts.Options #71497
+pkg encoding/json/v2, func Deterministic(bool) jsonopts.Options #71497
+pkg encoding/json/v2, func FormatNilMapAsNull(bool) jsonopts.Options #71497
+pkg encoding/json/v2, func FormatNilSliceAsNull(bool) jsonopts.Options #71497
+pkg encoding/json/v2, func GetOption[$0 interface{}](jsonopts.Options, func($0) jsonopts.Options) ($0, bool) #71497
+pkg encoding/json/v2, func JoinMarshalers(...*typedArshalers[jsontext.Encoder]) *typedArshalers[jsontext.Encoder] #71497
+pkg encoding/json/v2, func JoinOptions(...jsonopts.Options) jsonopts.Options #71497
+pkg encoding/json/v2, func JoinUnmarshalers(...*typedArshalers[jsontext.Decoder]) *typedArshalers[jsontext.Decoder] #71497
+pkg encoding/json/v2, func Marshal(interface{}, ...jsonopts.Options) ([]uint8, error) #71497
+pkg encoding/json/v2, func MarshalEncode(*jsontext.Encoder, interface{}, ...jsonopts.Options) error #71497
+pkg encoding/json/v2, func MarshalFunc[$0 interface{}](func($0) ([]uint8, error)) *typedArshalers[jsontext.Encoder] #71497
+pkg encoding/json/v2, func MarshalToFunc[$0 interface{}](func(*jsontext.Encoder, $0) error) *typedArshalers[jsontext.Encoder] #71497
+pkg encoding/json/v2, func MarshalWrite(io.Writer, interface{}, ...jsonopts.Options) error #71497
+pkg encoding/json/v2, func MatchCaseInsensitiveNames(bool) jsonopts.Options #71497
+pkg encoding/json/v2, func OmitZeroStructFields(bool) jsonopts.Options #71497
+pkg encoding/json/v2, func RejectUnknownMembers(bool) jsonopts.Options #71497
+pkg encoding/json/v2, func StringifyNumbers(bool) jsonopts.Options #71497
+pkg encoding/json/v2, func Unmarshal([]uint8, interface{}, ...jsonopts.Options) error #71497
+pkg encoding/json/v2, func UnmarshalDecode(*jsontext.Decoder, interface{}, ...jsonopts.Options) error #71497
+pkg encoding/json/v2, func UnmarshalFromFunc[$0 interface{}](func(*jsontext.Decoder, $0) error) *typedArshalers[jsontext.Decoder] #71497
+pkg encoding/json/v2, func UnmarshalFunc[$0 interface{}](func([]uint8, $0) error) *typedArshalers[jsontext.Decoder] #71497
+pkg encoding/json/v2, func UnmarshalRead(io.Reader, interface{}, ...jsonopts.Options) error #71497
+pkg encoding/json/v2, func WithMarshalers(*typedArshalers[jsontext.Encoder]) jsonopts.Options #71497
+pkg encoding/json/v2, func WithUnmarshalers(*typedArshalers[jsontext.Decoder]) jsonopts.Options #71497
+pkg encoding/json/v2, method (*SemanticError) Error() string #71497
+pkg encoding/json/v2, method (*SemanticError) Unwrap() error #71497
+pkg encoding/json/v2, type Marshaler interface { MarshalJSON } #71497
+pkg encoding/json/v2, type Marshaler interface, MarshalJSON() ([]uint8, error) #71497
+pkg encoding/json/v2, type MarshalerTo interface { MarshalJSONTo } #71497
+pkg encoding/json/v2, type MarshalerTo interface, MarshalJSONTo(*jsontext.Encoder) error #71497
+pkg encoding/json/v2, type Marshalers = typedArshalers[jsontext.Encoder] #71497
+pkg encoding/json/v2, type Options = jsonopts.Options #71497
+pkg encoding/json/v2, type SemanticError struct #71497
+pkg encoding/json/v2, type SemanticError struct, ByteOffset int64 #71497
+pkg encoding/json/v2, type SemanticError struct, Err error #71497
+pkg encoding/json/v2, type SemanticError struct, GoType reflect.Type #71497
+pkg encoding/json/v2, type SemanticError struct, JSONKind jsontext.Kind #71497
+pkg encoding/json/v2, type SemanticError struct, JSONPointer jsontext.Pointer #71497
+pkg encoding/json/v2, type SemanticError struct, JSONValue jsontext.Value #71497
+pkg encoding/json/v2, type Unmarshaler interface { UnmarshalJSON } #71497
+pkg encoding/json/v2, type Unmarshaler interface, UnmarshalJSON([]uint8) error #71497
+pkg encoding/json/v2, type UnmarshalerFrom interface { UnmarshalJSONFrom } #71497
+pkg encoding/json/v2, type UnmarshalerFrom interface, UnmarshalJSONFrom(*jsontext.Decoder) error #71497
+pkg encoding/json/v2, type Unmarshalers = typedArshalers[jsontext.Decoder] #71497
+pkg encoding/json/v2, var ErrUnknownName error #71497
+pkg go/constant, func StringLen(Value) int64 #79042
+pkg go/scanner, method (*Scanner) End() token.Pos #74958
+pkg go/token, method (*File) String() string #76285
+pkg go/types, method (*TypeList) String() string #79287
+pkg go/types, method (*TypeParamList) String() string #79287
+pkg go/types, method (Hasher) Equal(Type, Type) bool #69420
+pkg go/types, method (Hasher) Hash(*maphash.Hash, Type) #69420
+pkg go/types, method (HasherIgnoreTags) Equal(Type, Type) bool #69420
+pkg go/types, method (HasherIgnoreTags) Hash(*maphash.Hash, Type) #69420
+pkg go/types, method (Instance) String() string #79287
+pkg go/types, type Hasher struct #69420
+pkg go/types, type HasherIgnoreTags struct #69420
+pkg hash/maphash, method (ComparableHasher[$0]) Equal($0, $0) bool #70471
+pkg hash/maphash, method (ComparableHasher[$0]) Hash(*Hash, $0) #70471
+pkg hash/maphash, type ComparableHasher[$0 comparable] struct #70471
+pkg hash/maphash, type Hasher[$0 interface{}] interface { Equal, Hash } #70471
+pkg hash/maphash, type Hasher[$0 interface{}] interface, Equal($0, $0) bool #70471
+pkg hash/maphash, type Hasher[$0 interface{}] interface, Hash(*Hash, $0) #70471
+pkg math/big, const Ceil = 5 #76821
+pkg math/big, const Ceil RoundingMode #76821
+pkg math/big, const Floor = 4 #76821
+pkg math/big, const Floor RoundingMode #76821
+pkg math/big, const Round = 0 #76821
+pkg math/big, const Round RoundingMode #76821
+pkg math/big, const Trunc = 2 #76821
+pkg math/big, const Trunc RoundingMode #76821
+pkg math/big, method (*Int) Divide(*Int, *Int, *Int, RoundingMode) (*Int, *Int) #76821
+pkg math/rand/v2, method (*Rand) N[$0 intType]($0) $0 #77853
+pkg net/http, type Server struct, DisableClientPriority bool #75500
+pkg net/http/httptest, func NewTestServer(testing.TB, http.Handler) *Server #76608
+pkg net/url, method (*URL) Clone() *URL #73450
+pkg net/url, method (Values) Clone() Values #73450
+pkg strings, func CutLast(string, string) (string, string, bool) #71151
+pkg testing/synctest, func Sleep(time.Duration) #77169
+pkg unicode, const Version = "17.0.0" #77266
+pkg unicode, var Beria_Erfe *RangeTable #77266
+pkg unicode, var Garay *RangeTable #77266
+pkg unicode, var Gurung_Khema *RangeTable #77266
+pkg unicode, var IDS_Unary_Operator *RangeTable #77266
+pkg unicode, var ID_Compat_Math_Continue *RangeTable #77266
+pkg unicode, var ID_Compat_Math_Start *RangeTable #77266
+pkg unicode, var Kirat_Rai *RangeTable #77266
+pkg unicode, var Modifier_Combining_Mark *RangeTable #77266
+pkg unicode, var Ol_Onal *RangeTable #77266
+pkg unicode, var Sidetic *RangeTable #77266
+pkg unicode, var Sunuwar *RangeTable #77266
+pkg unicode, var Tai_Yo *RangeTable #77266
+pkg unicode, var Todhri *RangeTable #77266
+pkg unicode, var Tolong_Siki *RangeTable #77266
+pkg unicode, var Tulu_Tigalari *RangeTable #77266
+pkg uuid, func Max() UUID #62026
+pkg uuid, func MustParse(string) UUID #62026
+pkg uuid, func New() UUID #62026
+pkg uuid, func NewV4() UUID #62026
+pkg uuid, func NewV7() UUID #62026
+pkg uuid, func Nil() UUID #62026
+pkg uuid, func Parse(string) (UUID, error) #62026
+pkg uuid, method (*UUID) UnmarshalText([]uint8) error #62026
+pkg uuid, method (UUID) AppendText([]uint8) ([]uint8, error) #62026
+pkg uuid, method (UUID) Compare(UUID) int #62026
+pkg uuid, method (UUID) MarshalText() ([]uint8, error) #62026
+pkg uuid, method (UUID) String() string #62026
+pkg uuid, type UUID [16]uint8 #62026
