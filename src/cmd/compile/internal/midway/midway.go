@@ -11,11 +11,11 @@ import (
 func rewriteSizes() []int {
 	switch buildcfg.GOARCH {
 	case "wasm":
-		return []int{128}
+		return []int{0, 128}
 	case "amd64":
-		return []int{128, 256, 512}
+		return []int{0, 128, 256, 512}
 	case "arm64":
-		return []int{128} // this will change for SVE and cannot just be a size-based choice.
+		return []int{0, 128} // this will change for SVE and cannot just be a size-based choice.
 	}
 	return nil
 }
@@ -24,6 +24,7 @@ const simdPkg = "simd"
 const archFullPkg = "simd/internal/bridge"
 const archPkg = "bridge"
 const vectorSizeFn = "VectorBitSize"
+const emulatedFn = "Emulated"
 
 func isSimdTypeName(s string) bool {
 	switch s {

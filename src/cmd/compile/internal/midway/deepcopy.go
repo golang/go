@@ -98,10 +98,20 @@ func (c *DeepCopier) OnNameExpr(id *syntax.Name) syntax.Expr {
 		name := id.Value
 		width := nameToElemBitWidth(name)
 		if width > 0 {
+			archsimdId := syntax.NewName(id.Pos(), archPkg)
+			if c.VecLen == 0 {
+				// special case for emulation
+				newSel := &syntax.SelectorExpr{
+					X:   archsimdId,
+					Sel: id, // name is unchanged for emulation
+				}
+				newSel.SetPos(id.Pos())
+				return newSel
+			}
+
 			count := c.VecLen / width
 			base := name[:len(name)-1]
 			newName := fmt.Sprintf("%sx%d", base, count)
-			archsimdId := syntax.NewName(id.Pos(), archPkg)
 			newSelId := syntax.NewName(id.Pos(), newName)
 			newSel := &syntax.SelectorExpr{
 				X:   archsimdId,
@@ -144,6 +154,17 @@ func (c *DeepCopier) OnSelector(se *syntax.SelectorExpr) syntax.Expr {
 			}
 			width := nameToElemBitWidth(name)
 			if width > 0 {
+				archsimdId := syntax.NewName(se.Pos(), archPkg)
+				if c.VecLen == 0 {
+					// emulated instead, name is unchanged
+					newSel := &syntax.SelectorExpr{
+						X:   archsimdId,
+						Sel: se.Sel,
+					}
+					newSel.SetPos(se.Pos())
+					return newSel
+				}
+
 				count := c.VecLen / width
 				base := name[:len(name)-1]
 				newName := fmt.Sprintf("%sx%d", base, count)
@@ -151,7 +172,6 @@ func (c *DeepCopier) OnSelector(se *syntax.SelectorExpr) syntax.Expr {
 					newName = "Load" + newName + nameSuffix
 				}
 
-				archsimdId := syntax.NewName(se.Pos(), archPkg)
 				newSelId := syntax.NewName(se.Sel.Pos(), newName)
 
 				newSel := &syntax.SelectorExpr{

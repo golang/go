@@ -201,10 +201,13 @@ func (r *Rewriter) createDispatcherBody(d *syntax.FuncDecl, sig *types2.Signatur
 	// switch ast node.
 	// the goal is something like (for now, till there are finer-grained choices)
 	// switch simd.VectorSize() {
-	//   case 128: call the specialize-for-128-code(args)
+	//   case 128: if simd.Emulated() { call the specialize-for-emulation-code(args) }
+	//             else { call the specialize-for-128-code(args) }
 	//   case 256: call the specialize-for-256-code(args)
 	//   etc
 	// }
+	//
+	// the cases above deal with the usual `return call(...)` vs `call(...); return`
 	switchStmt := &syntax.SwitchStmt{
 		Tag: pe(&syntax.CallExpr{
 			Fun: pe(&syntax.SelectorExpr{
@@ -215,6 +218,8 @@ func (r *Rewriter) createDispatcherBody(d *syntax.FuncDecl, sig *types2.Signatur
 		Body: []*syntax.CaseClause{},
 	}
 
+	var emulation syntax.Stmt
+
 	for _, k := range r.sizes {
 		fnName := fmt.Sprintf("%s@simd%d", d.Name.Value, k)
 		fnIdent := syntax.NewName(d.Pos(), fnName)
@@ -224,22 +229,57 @@ func (r *Rewriter) createDispatcherBody(d *syntax.FuncDecl, sig *types2.Signatur
 			ArgList: args(),
 		})
 
-		var branchStmt syntax.Stmt
+		// callReturnStmt is either `return call(...)` or `call(...); return`
+		var callReturnStmt syntax.Stmt
 		if d.Type.ResultList != nil && len(d.Type.ResultList) > 0 {
-			branchStmt = &syntax.ReturnStmt{Results: callExpr}
+			callReturnStmt = &syntax.ReturnStmt{Results: callExpr}
 		} else {
-			branchStmt = &syntax.BlockStmt{
+			callReturnStmt = &syntax.BlockStmt{
 				List: []syntax.Stmt{
 					ps(&syntax.ExprStmt{X: callExpr}),
 					ps(&syntax.ReturnStmt{}),
 				},
+				Rbrace: d.Pos(),
 			}
 		}
-		branchStmt.SetPos(d.Pos())
+		callReturnStmt.SetPos(d.Pos())
+
+		if k == 0 {
+			// emulation == `if simd.Emulated() { callReturnStmt }`
+			// save it for the first part of the 128 case.
+			cond := pe(&syntax.CallExpr{
+				Fun: pe(&syntax.SelectorExpr{
+					X:   syntax.NewName(d.Pos(), simdPkg), // Assume this is resolvable
+					Sel: syntax.NewName(d.Pos(), emulatedFn),
+				})})
+
+			blockStmt, ok := callReturnStmt.(*syntax.BlockStmt)
+			if !ok {
+				blockStmt = &syntax.BlockStmt{
+					List:   []syntax.Stmt{callReturnStmt},
+					Rbrace: d.Pos(),
+				}
+				blockStmt.SetPos(d.Pos())
+			}
+
+			emulation = ps(&syntax.IfStmt{
+				Cond: cond,
+				Then: blockStmt,
+			})
+			continue
+		}
+
+		var caseBody []syntax.Stmt
+		// assume that 128 is a case; when we do scalable simd, this may change.
+		// For now, if there is emulation, it is 128-bit (only).
+		if emulation != nil && k == 128 {
+			caseBody = append(caseBody, emulation)
+			emulation = nil
+		}
 
 		caseClause := &syntax.CaseClause{
 			Cases: pe(&syntax.BasicLit{Kind: syntax.IntLit, Value: fmt.Sprintf("%d", k)}),
-			Body:  []syntax.Stmt{branchStmt},
+			Body:  append(caseBody, callReturnStmt),
 		}
 		caseClause.SetPos(d.Pos())
 		switchStmt.Body = append(switchStmt.Body, caseClause)

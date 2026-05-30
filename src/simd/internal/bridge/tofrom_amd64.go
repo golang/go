@@ -8,6 +8,8 @@ package bridge
 
 import "simd/archsimd"
 
+// For amd64, handle the larger types not mentioned in tofrom_128.go
+
 func (x Float32x16) ToArch() any {
 	return archsimd.Float32x16(x)
 }

@@ -24,6 +24,8 @@ func sum(x simd.Float32s) float32 {
 		return b.GetLo().GetElem(0) + b.GetHi().GetElem(0)
 	case archsimd.Float32x4:
 		return boringSum(simd.Float32sFromArch(a))
+	default:
+		return boringSum(x)
 	}
 	panic("nope")
 }

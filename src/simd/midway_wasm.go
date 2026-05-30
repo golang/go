@@ -6,14 +6,8 @@
 
 package simd
 
-// VectorBitSize returns the bit length of the longest vector available
-// on the current hardware.  For wasm, this is 128.
-func VectorBitSize() int {
-	return 128
-}
+const archHasHwClmul = false
 
-// Emulated returns whether simd operations are emulated or
-// running on actual vector hardware.
-func Emulated() bool {
-	return false
+func archMaxVectorSize() (size, allFeatureSize int) {
+	return 128, 128
 }
