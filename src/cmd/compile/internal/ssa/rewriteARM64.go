@@ -16112,7 +16112,7 @@ func rewriteValueARM64_OpARM64SBFX(v *Value) bool {
 		return true
 	}
 	// match: (SBFX [bfc] s:(SLLconst [sc] x))
-	// cond: s.Uses == 1 && sc > bfc.lsb()
+	// cond: s.Uses == 1 && sc > bfc.lsb() && sc < bfc.lsb()+bfc.width()
 	// result: (SBFIZ [armBFAuxInt(sc - bfc.lsb(), bfc.width() - (sc-bfc.lsb()))] x)
 	for {
 		bfc := auxIntToArm64BitField(v.AuxInt)
@@ -16122,7 +16122,7 @@ func rewriteValueARM64_OpARM64SBFX(v *Value) bool {
 		}
 		sc := auxIntToInt64(s.AuxInt)
 		x := s.Args[0]
-		if !(s.Uses == 1 && sc > bfc.lsb()) {
+		if !(s.Uses == 1 && sc > bfc.lsb() && sc < bfc.lsb()+bfc.width()) {
 			break
 		}
 		v.reset(OpARM64SBFIZ)

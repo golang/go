@@ -1673,6 +1673,7 @@
 (SBFX [bfc] s:(SLLconst [sc] x))
 	&& s.Uses == 1
 	&& sc > bfc.lsb()
+	&& sc < bfc.lsb()+bfc.width()
 	=> (SBFIZ [armBFAuxInt(sc - bfc.lsb(), bfc.width() - (sc-bfc.lsb()))] x)
 
 // ubfiz
