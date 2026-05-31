@@ -7,6 +7,7 @@ package main
 import (
 	"fmt"
 	"log"
+	"math/rand/v2"
 	"regexp"
 	"slices"
 	"strconv"
@@ -430,6 +431,10 @@ func compareNatural(s1, s2 string) int {
 			if num1 > num2 {
 				return 1
 			}
+			// "1" < "01".  Don't expect it in simdgen, but just in case.
+			if ln1, ln2 := i-numStart1, j-numStart2; ln1 != ln2 {
+				return ln1 - ln2
+			}
 			// If numbers are equal, continue to the next segment.
 		} else {
 			// Non-digit comparison.
@@ -472,6 +477,11 @@ func writeGoDefs(path string, cl unify.Closure) error {
 		op.adjustAsm()
 		ops = append(ops, op)
 	}
+
+	rand.Shuffle(len(ops), func(i, j int) {
+		ops[i], ops[j] = ops[j], ops[i]
+	})
+
 	slices.SortFunc(ops, compareOperations)
 	// The parsed XED data might contain duplicates, like
 	// 512 bits VPADDP.
@@ -479,7 +489,7 @@ func writeGoDefs(path string, cl unify.Closure) error {
 	slices.SortFunc(deduped, compareOperations)
 
 	if *Verbose {
-		log.Printf("dedup len: %d\n", len(ops))
+		log.Printf("dedup len: %d, ops len: %d\n", len(deduped), len(ops))
 	}
 	var err error
 	if err = overwrite(deduped); err != nil {
@@ -507,6 +517,10 @@ func writeGoDefs(path string, cl unify.Closure) error {
 		log.Printf("dedup len: %d\n", len(deduped))
 	}
 	reportXEDInconsistency(deduped)
+
+	// Sorting again, just in case.
+	slices.SortFunc(deduped, compareOperations)
+
 	typeMap := parseSIMDTypes(deduped)
 
 	archInfo := CurrentArch()
