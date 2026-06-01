@@ -132,7 +132,7 @@ func (v *Value) Format(opts ...Options) error {
 	return v.format(opts, nil)
 }
 
-// format accepts two []Options to avoid the allocation appending them together.
+// format accepts two []Options to avoid the allocation of appending them together.
 // It is equivalent to v.Format(append(opts1, opts2...)...).
 func (v *Value) format(opts1, opts2 []Options) error {
 	e := getBufferedEncoder(opts1...)
@@ -170,7 +170,7 @@ func (v *Value) Compact(opts ...Options) error {
 }
 
 // Indent reformats the whitespace in the raw JSON value so that each element
-// in a JSON object or array begins on a indented line according to the nesting.
+// in a JSON object or array begins on an indented line according to the nesting.
 //
 // It does not reformat JSON strings or numbers to use any other representation.
 // To maximize the set of JSON values that can be formatted,

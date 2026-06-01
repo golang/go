@@ -32,7 +32,7 @@ var (
 	// It is called after a user-defined Marshal method/function fails.
 	NewMarshalerError func(any, error, string) error
 	// TransformUnmarshalError converts a v2 error into a v1 error.
-	// It is called only at the top-level of a Unmarshal function.
+	// It is called only at the top-level of an Unmarshal function.
 	TransformUnmarshalError func(any, error) error
 
 	// NewRawNumber returns new(jsonv1.Number).

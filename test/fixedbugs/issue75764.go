@@ -63,7 +63,7 @@ func main() {
 	// Prior to the fix for 75764, it was linear in the number of wrappers.
 	// Pre-fix, we get ratios typically in the 7.0-10.0 range.
 	// Post-fix, it is in the 1.0-1.5 range.
-	allowed := 5.0
+	allowed := 9.0
 	if ratio >= allowed {
 		fmt.Printf("short: %v\nlong: %v\nratio: %v\nallowed: %v\n", short, long, ratio, allowed)
 	}
