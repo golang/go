@@ -207,7 +207,7 @@ func (x Uint64x2) CarrylessMultiplyEven(y Uint64x2) Uint64x2 {
 // Emulated
 func (x Uint64x2) CarrylessMultiplyOdd(y Uint64x2) Uint64x2 {
 	x = x.SetElem(0, x.GetElem(1))
-	y = y.SetElem(0, x.GetElem(1))
+	y = y.SetElem(0, y.GetElem(1))
 	return x.carrylessMultiply(y)
 }
 

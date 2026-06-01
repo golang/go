@@ -9,6 +9,7 @@ package simd
 import (
 	"fmt"
 	"internal/godebug"
+	"internal/simd/variants"
 	"strconv"
 )
 
@@ -29,12 +30,24 @@ import (
 // expected operations (those appearing in this package) are available at that
 // length.  In that case, the default is to automatically downgrade to a length
 // where the operations are supported, perhaps even to emulated-only
-// (size=0).  If a size is requested that is not compatible with the available
-// features, the simd package will panic (and note the reason).  To override
-// the feature check, in the case that the user knows that the missing
-// operations will not be used, prefix the size request with a '+', for
-// example "GODEBUG=simd=+256".  A plain '+' will override the feature check at
-// whatever the hardware's default vector size happens to be.
+// (size=0).
+//
+// If a size is requested that is not compatible with the available
+// features, the simd package will panic (and note the reason).  To
+// override the feature check, in the case that the user knows that the
+// missing operations will not be used, prefix the size request with
+// a '+', for example "GODEBUG=simd=+256".  A plain '+' will override
+// the feature check at whatever the hardware's default vector size
+// happens to be.
+//
+// For certain hardware features, if a missing feature forces
+// emulation for a (popular) platform that has a mostly-capable set
+// of SIMD operations, rather than emulating all of SIMD, a variant
+// is used that emulates only the missing instruction(s).  Currently,
+// the only instance of this is "arm64 nclm" for Arm64 Neon platforms
+// that lack the carryless multiply instruction -- that is, Raspberry
+// Pi.  Demanding a vector length with a "+" prefix on
+// the "GODEBUG=simd" size bypasses this emulation.
 
 var simd = godebug.New("#simd")
 
@@ -43,11 +56,11 @@ var emulated = false
 var hwClmul = true
 
 func init() {
-	actualMax, allFeatureSize := archMaxVectorSize() // zero == no simd, zero == features unavailable
-	maxVectorSize, emulated, hwClmul = configure(actualMax, allFeatureSize, simd.Value())
+	actualMax, allFeatureSize, arch := archMaxVectorSize() // zero == no simd, zero == features unavailable
+	maxVectorSize, emulated, hwClmul = configure(actualMax, allFeatureSize, arch, simd.Value())
 }
 
-func configure(actualMax, allFeatureSize int, gosimd string) (maxVectorSize int, emulated, hwClmul bool) {
+func configure(actualMax, allFeatureSize int, arch, gosimd string) (maxVectorSize int, emulated, hwClmul bool) {
 	explicitRequest := false
 	hwClmul = true
 
@@ -65,7 +78,7 @@ func configure(actualMax, allFeatureSize int, gosimd string) (maxVectorSize int,
 	if gosimd == "1" {
 		gosimd = "+"
 	}
-	if len(gosimd) > 0 && gosimd[0] == '+' {
+	if len(gosimd) > 0 && gosimd[0] == '+' && gosimd[0] != '@' {
 		// override feature reduction
 		// keep maxVectorSize
 		// emulated remains false
@@ -74,15 +87,40 @@ func configure(actualMax, allFeatureSize int, gosimd string) (maxVectorSize int,
 		gosimd = gosimd[1:]
 		explicitRequest = true
 
+	} else if len(gosimd) > 0 && gosimd[0] == '@' {
+		// For testing, allow specification of a desired variant.
+		// If there is one for this architecture and size, it should work.
+		// This is not, currently, intended for everyday use.
+		key := variants.Key{Arch: arch, Size: maxVectorSize}
+		if v, ok := variants.Variants[key]; ok {
+			// there is a variant at this size, just reset hwClmul
+			hwClmul = false
+			if v.Name("") != gosimd[1:] {
+				panic(fmt.Errorf("requested variant %s but obtained variant %s", gosimd[1:], v.Name("")))
+			}
+			return maxVectorSize, emulated, hwClmul
+		}
+		panic(fmt.Errorf("requested variant %s but no variant was available", gosimd[1:]))
+
 	} else if allFeatureSize < actualMax {
 		if allFeatureSize > 0 {
 			maxVectorSize = allFeatureSize
 			hwClmul = true
 			emulated = false
 		} else {
-			maxVectorSize = 128
-			hwClmul = false
-			emulated = true
+			// if allFeatureSize is zero, check for an emulated low-features variant
+			// the plan, which we hope sticks, is that each major simd variant may have
+			// both most-features and low-features variants, e.g., arm64 has Raspberry Pi
+			// that oftens lacks PMULL instructions for carryless multiply.
+			key := variants.Key{Arch: arch, Size: maxVectorSize}
+			if _, ok := variants.Variants[key]; ok {
+				// there is a variant at this size, just reset hwClmul
+				hwClmul = false
+			} else { // fall back to full emulation
+				maxVectorSize = 128
+				hwClmul = false
+				emulated = true
+			}
 		}
 	}
 
@@ -115,6 +153,9 @@ func configure(actualMax, allFeatureSize int, gosimd string) (maxVectorSize int,
 		return maxVectorSize, emulated, hwClmul
 	}
 
+	// note that if lo-features variant exists, it will
+	// be activated by allFeatureSize < val.  It may not
+	// be correct for the chosen val, but...
 	hwClmul = allFeatureSize >= val
 	maxVectorSize = val
 	emulated = false

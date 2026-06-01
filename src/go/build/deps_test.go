@@ -58,6 +58,7 @@ var depsRules = `
 	  internal/platform,
 	  internal/profilerecord,
 	  internal/runtime/pprof/label,
+	  internal/simd/variants,
 	  internal/syslist,
 	  internal/trace/tracev2,
 	  internal/trace/traceviewer/format,
@@ -266,7 +267,7 @@ var depsRules = `
 
 	FMT, simd/archsimd < simd/internal/bridge;
 
-	simd/internal/bridge < simd;
+	simd/internal/bridge, internal/simd/variants < simd;
 
 	fmt !< encoding/base32, encoding/base64;
 
