@@ -1,0 +1,31 @@
+# Test that gofmt-ing a symlink works correctly. See #79735.
+
+# Skip on systems without unix-style symlinks
+[GOOS:windows] skip
+
+cd $WORK/a
+cp issue-original.go issue-expected.go
+exec go fmt issue-expected.go
+! cmp -q issue-expected.go issue-original.go
+
+# Create that symlink.
+exec ln -s issue-original.go issue-symlink.go
+
+# Now go fmt it.
+exec go fmt issue-symlink.go
+
+# Ensure that the symlinked file is equal to the expected.
+cmp issue-expected.go issue-symlink.go
+
+# Our source code and setup.
+-- $WORK/a/go.mod --
+module gofmt_symlink
+
+-- $WORK/a/issue-original.go --
+package main;
+
+import "fmt"
+
+func main() {
+       fmt.Println(  "Hello, world!!!"  )
+}
