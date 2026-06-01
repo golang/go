@@ -3533,7 +3533,16 @@ func vaddr(ctxt *obj.Link, p *obj.Prog, a *obj.Addr, r *obj.Reloc) int64 {
 
 		if a.Name == obj.NAME_GOTREF {
 			r.Siz = 4
-			r.Type = objabi.R_GOTPCREL
+			if ctxt.Headtype == objabi.Hwindows {
+				// Windows has no GOT; route GOT-style references
+				// through the PE Import Address Table (IAT) instead.
+				// The instruction encoding (RIP-relative MOV with a
+				// 4-byte displacement) is identical to ELF GOTPCREL;
+				// only the linker-side resolution differs.
+				r.Type = objabi.R_PEIMPORT
+			} else {
+				r.Type = objabi.R_GOTPCREL
+			}
 		} else if useAbs(ctxt, s) {
 			r.Siz = 4
 			r.Type = objabi.R_ADDR
