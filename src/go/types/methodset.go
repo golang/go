@@ -129,10 +129,7 @@ func NewMethodSet(T Type) *MethodSet {
 				seen.add(named)
 
 				for i := 0; i < named.NumMethods(); i++ {
-					// generic methods are not part of the method set
-					if m := named.Method(i); m.Signature().TypeParams().Len() == 0 {
-						mset = mset.addOne(m, concat(e.index, i), e.indirect, e.multiples)
-					}
+					mset = mset.addOne(named.Method(i), concat(e.index, i), e.indirect, e.multiples)
 				}
 			}
 
