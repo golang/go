@@ -122,7 +122,9 @@ func runBuiltTestProgErr(t *testing.T, exe, name string, env ...string) (string,
 		if _, ok := err.(*exec.ExitError); ok {
 			t.Logf("%v: %v", cmd, err)
 		} else if errors.Is(err, exec.ErrWaitDelay) {
-			t.Fatalf("%v: %v", cmd, err)
+			// Report the WaitDelay to help with triage. If it shows a small value like 100ms,
+			// it might not be enough for slow builders. See watchflakes issue #76685.
+			t.Fatalf("%v: %v: output pipes not closed after waiting %v", cmd, err, cmd.WaitDelay)
 		} else {
 			t.Fatalf("%v failed to start: %v", cmd, err)
 		}
