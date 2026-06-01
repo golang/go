@@ -736,12 +736,6 @@ func simdGenericOps() []opData {
 		{name: "MulInt64x2", argLength: 2, commutative: true},                           // ARCH:amd64,wasm
 		{name: "MulInt64x4", argLength: 2, commutative: true},                           // ARCH:amd64
 		{name: "MulInt64x8", argLength: 2, commutative: true},                           // ARCH:amd64
-		{name: "MulLoLongInt8x16", argLength: 2, commutative: true},                     // ARCH:arm64
-		{name: "MulLoLongInt16x8", argLength: 2, commutative: true},                     // ARCH:arm64
-		{name: "MulLoLongInt32x4", argLength: 2, commutative: true},                     // ARCH:arm64
-		{name: "MulLoLongUint8x16", argLength: 2, commutative: true},                    // ARCH:arm64
-		{name: "MulLoLongUint16x8", argLength: 2, commutative: true},                    // ARCH:arm64
-		{name: "MulLoLongUint32x4", argLength: 2, commutative: true},                    // ARCH:arm64
 		{name: "MulSignInt8x16", argLength: 2},                                          // ARCH:amd64
 		{name: "MulSignInt8x32", argLength: 2},                                          // ARCH:amd64
 		{name: "MulSignInt16x8", argLength: 2},                                          // ARCH:amd64
@@ -764,12 +758,12 @@ func simdGenericOps() []opData {
 		{name: "MulWidenHiUint8x16", argLength: 2, commutative: true},                   // ARCH:wasm
 		{name: "MulWidenHiUint16x8", argLength: 2, commutative: true},                   // ARCH:wasm
 		{name: "MulWidenHiUint32x4", argLength: 2, commutative: true},                   // ARCH:wasm
-		{name: "MulWidenLoInt8x16", argLength: 2, commutative: true},                    // ARCH:wasm
-		{name: "MulWidenLoInt16x8", argLength: 2, commutative: true},                    // ARCH:wasm
-		{name: "MulWidenLoInt32x4", argLength: 2, commutative: true},                    // ARCH:wasm
-		{name: "MulWidenLoUint8x16", argLength: 2, commutative: true},                   // ARCH:wasm
-		{name: "MulWidenLoUint16x8", argLength: 2, commutative: true},                   // ARCH:wasm
-		{name: "MulWidenLoUint32x4", argLength: 2, commutative: true},                   // ARCH:wasm
+		{name: "MulWidenLoInt8x16", argLength: 2, commutative: true},                    // ARCH:arm64,wasm
+		{name: "MulWidenLoInt16x8", argLength: 2, commutative: true},                    // ARCH:arm64,wasm
+		{name: "MulWidenLoInt32x4", argLength: 2, commutative: true},                    // ARCH:arm64,wasm
+		{name: "MulWidenLoUint8x16", argLength: 2, commutative: true},                   // ARCH:arm64,wasm
+		{name: "MulWidenLoUint16x8", argLength: 2, commutative: true},                   // ARCH:arm64,wasm
+		{name: "MulWidenLoUint32x4", argLength: 2, commutative: true},                   // ARCH:arm64,wasm
 		{name: "NegFloat32x4", argLength: 1},                                            // ARCH:arm64,wasm
 		{name: "NegFloat64x2", argLength: 1},                                            // ARCH:arm64,wasm
 		{name: "NegInt8x16", argLength: 1},                                              // ARCH:arm64,wasm
@@ -1396,6 +1390,7 @@ func simdGenericOps() []opData {
 		{name: "broadcast1To64MaskedInt8x16", argLength: 2},                             // ARCH:amd64
 		{name: "broadcast1To64MaskedUint8x16", argLength: 2},                            // ARCH:amd64
 		{name: "broadcast1To64Uint8x16", argLength: 1},                                  // ARCH:amd64
+		{name: "carrylessMultiplyWidenLoUint64x2", argLength: 2, commutative: true},     // ARCH:arm64
 		{name: "AESRoundKeyGenAssistUint32x4", argLength: 1, aux: "UInt8"},              // ARCH:amd64
 		{name: "CeilScaledFloat32x4", argLength: 1, aux: "UInt8"},                       // ARCH:amd64
 		{name: "CeilScaledFloat32x8", argLength: 1, aux: "UInt8"},                       // ARCH:amd64
@@ -1517,12 +1512,6 @@ func simdGenericOps() []opData {
 		{name: "ShiftLeftConstUint16x8", argLength: 1, aux: "UInt8"},                    // ARCH:arm64
 		{name: "ShiftLeftConstUint32x4", argLength: 1, aux: "UInt8"},                    // ARCH:arm64
 		{name: "ShiftLeftConstUint64x2", argLength: 1, aux: "UInt8"},                    // ARCH:arm64
-		{name: "ShiftLeftLoLongConstInt8x16", argLength: 1, aux: "UInt8"},               // ARCH:arm64
-		{name: "ShiftLeftLoLongConstInt16x8", argLength: 1, aux: "UInt8"},               // ARCH:arm64
-		{name: "ShiftLeftLoLongConstInt32x4", argLength: 1, aux: "UInt8"},               // ARCH:arm64
-		{name: "ShiftLeftLoLongConstUint8x16", argLength: 1, aux: "UInt8"},              // ARCH:arm64
-		{name: "ShiftLeftLoLongConstUint16x8", argLength: 1, aux: "UInt8"},              // ARCH:arm64
-		{name: "ShiftLeftLoLongConstUint32x4", argLength: 1, aux: "UInt8"},              // ARCH:arm64
 		{name: "ShiftLeftSaturatedConstInt8x16", argLength: 1, aux: "UInt8"},            // ARCH:arm64
 		{name: "ShiftLeftSaturatedConstInt16x8", argLength: 1, aux: "UInt8"},            // ARCH:arm64
 		{name: "ShiftLeftSaturatedConstInt32x4", argLength: 1, aux: "UInt8"},            // ARCH:arm64
@@ -1531,6 +1520,12 @@ func simdGenericOps() []opData {
 		{name: "ShiftLeftSaturatedConstUint16x8", argLength: 1, aux: "UInt8"},           // ARCH:arm64
 		{name: "ShiftLeftSaturatedConstUint32x4", argLength: 1, aux: "UInt8"},           // ARCH:arm64
 		{name: "ShiftLeftSaturatedConstUint64x2", argLength: 1, aux: "UInt8"},           // ARCH:arm64
+		{name: "ShiftLeftWidenLoConstInt8x16", argLength: 1, aux: "UInt8"},              // ARCH:arm64
+		{name: "ShiftLeftWidenLoConstInt16x8", argLength: 1, aux: "UInt8"},              // ARCH:arm64
+		{name: "ShiftLeftWidenLoConstInt32x4", argLength: 1, aux: "UInt8"},              // ARCH:arm64
+		{name: "ShiftLeftWidenLoConstUint8x16", argLength: 1, aux: "UInt8"},             // ARCH:arm64
+		{name: "ShiftLeftWidenLoConstUint16x8", argLength: 1, aux: "UInt8"},             // ARCH:arm64
+		{name: "ShiftLeftWidenLoConstUint32x4", argLength: 1, aux: "UInt8"},             // ARCH:arm64
 		{name: "ShiftRightConstInt8x16", argLength: 1, aux: "UInt8"},                    // ARCH:arm64
 		{name: "ShiftRightConstInt16x8", argLength: 1, aux: "UInt8"},                    // ARCH:arm64
 		{name: "ShiftRightConstInt32x4", argLength: 1, aux: "UInt8"},                    // ARCH:arm64

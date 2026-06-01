@@ -50,6 +50,10 @@ func CompareNatural(s1, s2 string) int {
 			if num1 > num2 {
 				return 1
 			}
+			// "1" < "01".  Don't expect it in simdgen, but just in case.
+			if ln1, ln2 := i-numStart1, j-numStart2; ln1 != ln2 {
+				return ln1 - ln2
+			}
 			// If numbers are equal, continue to the next segment.
 		} else {
 			// Non-digit comparison.

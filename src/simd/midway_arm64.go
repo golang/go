@@ -6,14 +6,17 @@
 
 package simd
 
-// VectorBitSize returns the bit length of the longest vector available
-// on the current hardware.  For arm64-neon, this is 128.
-func VectorBitSize() int {
-	return 128
-}
+import (
+	"internal/cpu"
+)
 
-// Emulated returns whether simd operations are emulated or
-// running on actual vector hardware.
-func Emulated() bool {
-	return false
+const archHasHwClmul = true
+
+func archMaxVectorSize() (size, allFeatureSize int) {
+	// This describes Neon, SVE is still TBD.
+	size = 128
+	if cpu.ARM64.HasPMULL {
+		allFeatureSize = 128
+	}
+	return
 }

@@ -5106,6 +5106,8 @@ const (
 	OpARM64VNOT16B
 	OpARM64VORN16B
 	OpARM64VORR16B
+	OpARM64VPMULL2D
+	OpARM64VPMULL2_2D
 	OpARM64VSCVTF2D
 	OpARM64VSCVTF4S
 	OpARM64VSMAX4S
@@ -7933,12 +7935,6 @@ const (
 	OpMulInt64x2
 	OpMulInt64x4
 	OpMulInt64x8
-	OpMulLoLongInt8x16
-	OpMulLoLongInt16x8
-	OpMulLoLongInt32x4
-	OpMulLoLongUint8x16
-	OpMulLoLongUint16x8
-	OpMulLoLongUint32x4
 	OpMulSignInt8x16
 	OpMulSignInt8x32
 	OpMulSignInt16x8
@@ -8593,6 +8589,7 @@ const (
 	Opbroadcast1To64MaskedInt8x16
 	Opbroadcast1To64MaskedUint8x16
 	Opbroadcast1To64Uint8x16
+	OpcarrylessMultiplyWidenLoUint64x2
 	OpAESRoundKeyGenAssistUint32x4
 	OpCeilScaledFloat32x4
 	OpCeilScaledFloat32x8
@@ -8714,12 +8711,6 @@ const (
 	OpShiftLeftConstUint16x8
 	OpShiftLeftConstUint32x4
 	OpShiftLeftConstUint64x2
-	OpShiftLeftLoLongConstInt8x16
-	OpShiftLeftLoLongConstInt16x8
-	OpShiftLeftLoLongConstInt32x4
-	OpShiftLeftLoLongConstUint8x16
-	OpShiftLeftLoLongConstUint16x8
-	OpShiftLeftLoLongConstUint32x4
 	OpShiftLeftSaturatedConstInt8x16
 	OpShiftLeftSaturatedConstInt16x8
 	OpShiftLeftSaturatedConstInt32x4
@@ -8728,6 +8719,12 @@ const (
 	OpShiftLeftSaturatedConstUint16x8
 	OpShiftLeftSaturatedConstUint32x4
 	OpShiftLeftSaturatedConstUint64x2
+	OpShiftLeftWidenLoConstInt8x16
+	OpShiftLeftWidenLoConstInt16x8
+	OpShiftLeftWidenLoConstInt32x4
+	OpShiftLeftWidenLoConstUint8x16
+	OpShiftLeftWidenLoConstUint16x8
+	OpShiftLeftWidenLoConstUint32x4
 	OpShiftRightConstInt8x16
 	OpShiftRightConstInt16x8
 	OpShiftRightConstInt32x4
@@ -81330,6 +81327,36 @@ var opcodeTable = [...]opInfo{
 		},
 	},
 	{
+		name:        "VPMULL2D",
+		argLen:      2,
+		commutative: true,
+		asm:         arm64.AVPMULL,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{0, regMask{v1: 9223372034707292160, v2: 0}}, // F0 F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15 F16 F17 F18 F19 F20 F21 F22 F23 F24 F25 F26 F27 F28 F29 F30 F31
+				{1, regMask{v1: 9223372034707292160, v2: 0}}, // F0 F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15 F16 F17 F18 F19 F20 F21 F22 F23 F24 F25 F26 F27 F28 F29 F30 F31
+			},
+			outputs: []outputInfo{
+				{0, regMask{v1: 9223372034707292160, v2: 0}}, // F0 F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15 F16 F17 F18 F19 F20 F21 F22 F23 F24 F25 F26 F27 F28 F29 F30 F31
+			},
+		},
+	},
+	{
+		name:        "VPMULL2_2D",
+		argLen:      2,
+		commutative: true,
+		asm:         arm64.AVPMULL2,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{0, regMask{v1: 9223372034707292160, v2: 0}}, // F0 F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15 F16 F17 F18 F19 F20 F21 F22 F23 F24 F25 F26 F27 F28 F29 F30 F31
+				{1, regMask{v1: 9223372034707292160, v2: 0}}, // F0 F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15 F16 F17 F18 F19 F20 F21 F22 F23 F24 F25 F26 F27 F28 F29 F30 F31
+			},
+			outputs: []outputInfo{
+				{0, regMask{v1: 9223372034707292160, v2: 0}}, // F0 F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15 F16 F17 F18 F19 F20 F21 F22 F23 F24 F25 F26 F27 F28 F29 F30 F31
+			},
+		},
+	},
+	{
 		name:   "VSCVTF2D",
 		argLen: 1,
 		asm:    arm64.AVSCVTF,
@@ -111007,42 +111034,6 @@ var opcodeTable = [...]opInfo{
 		generic:     true,
 	},
 	{
-		name:        "MulLoLongInt8x16",
-		argLen:      2,
-		commutative: true,
-		generic:     true,
-	},
-	{
-		name:        "MulLoLongInt16x8",
-		argLen:      2,
-		commutative: true,
-		generic:     true,
-	},
-	{
-		name:        "MulLoLongInt32x4",
-		argLen:      2,
-		commutative: true,
-		generic:     true,
-	},
-	{
-		name:        "MulLoLongUint8x16",
-		argLen:      2,
-		commutative: true,
-		generic:     true,
-	},
-	{
-		name:        "MulLoLongUint16x8",
-		argLen:      2,
-		commutative: true,
-		generic:     true,
-	},
-	{
-		name:        "MulLoLongUint32x4",
-		argLen:      2,
-		commutative: true,
-		generic:     true,
-	},
-	{
 		name:    "MulSignInt8x16",
 		argLen:  2,
 		generic: true,
@@ -114405,6 +114396,12 @@ var opcodeTable = [...]opInfo{
 		generic: true,
 	},
 	{
+		name:        "carrylessMultiplyWidenLoUint64x2",
+		argLen:      2,
+		commutative: true,
+		generic:     true,
+	},
+	{
 		name:    "AESRoundKeyGenAssistUint32x4",
 		auxType: auxUInt8,
 		argLen:  1,
@@ -115131,42 +115128,6 @@ var opcodeTable = [...]opInfo{
 		generic: true,
 	},
 	{
-		name:    "ShiftLeftLoLongConstInt8x16",
-		auxType: auxUInt8,
-		argLen:  1,
-		generic: true,
-	},
-	{
-		name:    "ShiftLeftLoLongConstInt16x8",
-		auxType: auxUInt8,
-		argLen:  1,
-		generic: true,
-	},
-	{
-		name:    "ShiftLeftLoLongConstInt32x4",
-		auxType: auxUInt8,
-		argLen:  1,
-		generic: true,
-	},
-	{
-		name:    "ShiftLeftLoLongConstUint8x16",
-		auxType: auxUInt8,
-		argLen:  1,
-		generic: true,
-	},
-	{
-		name:    "ShiftLeftLoLongConstUint16x8",
-		auxType: auxUInt8,
-		argLen:  1,
-		generic: true,
-	},
-	{
-		name:    "ShiftLeftLoLongConstUint32x4",
-		auxType: auxUInt8,
-		argLen:  1,
-		generic: true,
-	},
-	{
 		name:    "ShiftLeftSaturatedConstInt8x16",
 		auxType: auxUInt8,
 		argLen:  1,
@@ -115210,6 +115171,42 @@ var opcodeTable = [...]opInfo{
 	},
 	{
 		name:    "ShiftLeftSaturatedConstUint64x2",
+		auxType: auxUInt8,
+		argLen:  1,
+		generic: true,
+	},
+	{
+		name:    "ShiftLeftWidenLoConstInt8x16",
+		auxType: auxUInt8,
+		argLen:  1,
+		generic: true,
+	},
+	{
+		name:    "ShiftLeftWidenLoConstInt16x8",
+		auxType: auxUInt8,
+		argLen:  1,
+		generic: true,
+	},
+	{
+		name:    "ShiftLeftWidenLoConstInt32x4",
+		auxType: auxUInt8,
+		argLen:  1,
+		generic: true,
+	},
+	{
+		name:    "ShiftLeftWidenLoConstUint8x16",
+		auxType: auxUInt8,
+		argLen:  1,
+		generic: true,
+	},
+	{
+		name:    "ShiftLeftWidenLoConstUint16x8",
+		auxType: auxUInt8,
+		argLen:  1,
+		generic: true,
+	},
+	{
+		name:    "ShiftLeftWidenLoConstUint32x4",
 		auxType: auxUInt8,
 		argLen:  1,
 		generic: true,

@@ -514,6 +514,10 @@ func parseSIMDTypes(ops []Operation) simdTypeMap {
 			processArg(arg)
 		}
 	}
+	for _, v := range ret {
+		slices.SortFunc(v, compareSimdTypes)
+	}
+
 	return ret
 }
 

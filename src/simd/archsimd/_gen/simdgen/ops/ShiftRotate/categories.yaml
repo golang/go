@@ -51,13 +51,13 @@
   documentation: !string |-
     // NAME performs a right shift on each element in x by the constant number of bits
     // and narrows the result to half the element width.
-- go: ShiftLeftLoLongConst
+- go: ShiftLeftWidenLoConst
   signed: false
   commutative: false
   documentation: !string |-
     // NAME performs a left shift on each unsigned low-indexed element in x by the constant number of bits
     // and widens the result to double the element width.
-- go: ShiftLeftLoLongConst
+- go: ShiftLeftWidenLoConst
   signed: true
   commutative: false
   documentation: !string |-

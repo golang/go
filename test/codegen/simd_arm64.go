@@ -95,10 +95,10 @@ func getHiFloat64(x archsimd.Float64x2) {
 }
 
 func foldGetHiSetHiShifts(x archsimd.Uint32x4) archsimd.Uint16x8 {
-	shrN := x.ShiftRightNarrowConst(16)        // arm64: `VSHRN [$]16, V0.S4, V[0-9]+.H4`
-	trunc := x.ShiftRightNarrowConst(0)        // arm64: `VXTN V0.S4, V[0-9]+.H4` -`VSHRN`
-	shlLo := x.ShiftLeftLoLongConst(1)         // arm64: `VUSHLL [$]1, V0.S2, V[0-9]+.D2`
-	shlHi := x.GetHi().ShiftLeftLoLongConst(1) // arm64: `VUSHLL2 [$]1, V0.S4, V[0-9]+.D2` -`VDUP`
+	shrN := x.ShiftRightNarrowConst(16)         // arm64: `VSHRN [$]16, V0.S4, V[0-9]+.H4`
+	trunc := x.ShiftRightNarrowConst(0)         // arm64: `VXTN V0.S4, V[0-9]+.H4` -`VSHRN`
+	shlLo := x.ShiftLeftWidenLoConst(1)         // arm64: `VUSHLL [$]1, V0.S2, V[0-9]+.D2`
+	shlHi := x.GetHi().ShiftLeftWidenLoConst(1) // arm64: `VUSHLL2 [$]1, V0.S4, V[0-9]+.D2` -`VDUP`
 	sum := shrN.Add(trunc)
 	combined := sum.SetHi(x.ShiftRightNarrowConst(15)) // arm64: `VSHRN2 [$]15, V0.S4, V[0-9]+.H8` -`VMOV.*D\[`
 	sinkU64 = shlLo.Sub(shlHi)
@@ -106,11 +106,17 @@ func foldGetHiSetHiShifts(x archsimd.Uint32x4) archsimd.Uint16x8 {
 }
 
 func foldGetHiSetHiMuls(a, b archsimd.Uint16x8) archsimd.Uint16x8 {
-	wLo := a.MulLoLong(b)                     // arm64: `VUMULL V0.H4, V1.H4, V[0-9].S4`
-	wHi := a.GetHi().MulLoLong(b.GetHi())     // arm64: `VUMULL2 V1.H8, V0.H8, V[0-9].S4` -`VDUP`
+	wLo := a.MulWidenLo(b)                    // arm64: `VUMULL V0.H4, V1.H4, V[0-9].S4`
+	wHi := a.GetHi().MulWidenLo(b.GetHi())    // arm64: `VUMULL2 V1.H8, V0.H8, V[0-9].S4` -`VDUP`
 	wHiRight := wHi.ShiftRightNarrowConst(16) // arm64: -`.*`
 	wLoRight := wLo.ShiftRightNarrowConst(16) // arm64: `VSHRN [$]16, V[0-9]+.S4, V0.H4`
 	return wLoRight.SetHi(wHiRight)           // arm64: `VSHRN2 [$]16, V[0-9]+.S4, V0.H8` -`VMOV.*D\[`
+}
+
+func carrylessMultiplies(x, y archsimd.Uint64x2) archsimd.Uint64x2 {
+	lo := x.CarrylessMultiplyEven(y) // arm64:`VPMULL V` -`VPMULL2`
+	hi := x.CarrylessMultiplyOdd(y)  // arm64:`VPMULL2 V` -`VPMULL `
+	return lo.Xor(hi)
 }
 
 func mergeWithNotMask(x, y archsimd.Int8x16, mask archsimd.Mask8x16, f1, f2 archsimd.Float32x4) {

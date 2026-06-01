@@ -7,6 +7,7 @@ package arm64
 import (
 	"fmt"
 	"regexp"
+	"sort"
 	"strconv"
 	"strings"
 
@@ -348,24 +349,96 @@ func (instruction *Instruction) arrangementStrings() ([]string, ArngShape) {
 		return arrangements, DefaultArngs
 	}
 
+	// Determine the arrangement shape and which symbol to extract from.
+	// For LongArngs and NarrowArngs, we need only the source-side symbol.
+	// For WideArngs, we need only the wide-side symbol.
+	ashape = instruction.ArngShape()
+	var targetSymbol string
+	if ashape == LongArngs || ashape == NarrowArngs {
+		symbols := instruction.arrangementSymbols()
+		if len(symbols) >= 2 {
+			targetSymbol = "<" + symbols[len(symbols)-1] + ">"
+		}
+	} else if ashape == WideArngs {
+		symbols := instruction.arrangementSymbols()
+		if len(symbols) >= 2 {
+			targetSymbol = "<" + symbols[0] + ">"
+		}
+	}
+
+	nonTarget := map[string]bool{}
 	for _, Explanation := range instruction.Explanations.Explanations {
 		Definition := Explanation.Definition
 		if Definition.Table.TGroup.TBody.Row != nil {
+			isTarget := targetSymbol == "" || targetSymbol == strings.TrimSpace(Explanation.Symbol.Value)
 			for _, Row := range Definition.Table.TGroup.TBody.Row {
 				for _, Entry := range Row.Entries {
 					if Entry.Class == "symbol" {
-						arrangements = append(arrangements, strings.TrimSpace(Entry.Value))
+						v := strings.TrimSpace(Entry.Value)
+						if isTarget {
+							arrangements = append(arrangements, v)
+						} else if eb, _, _ := parseArrangement(v); eb > 0 {
+							nonTarget[v] = false
+						}
 					}
 				}
 			}
 		}
 	}
 
+	verifyNonTargetArrangements(instruction.Mnemonic(), ashape, arrangements, nonTarget)
+
 	fixedArrangements := instruction.extractFixedArrangements()
 	arrangements = append(arrangements, fixedArrangements...)
 	arrangements = removeDuplicates(arrangements)
-	ashape = instruction.ArngShape()
 	return arrangements, ashape
+}
+
+// verifyNonTargetArrangements checks that non-target symbol arrangements are the
+// expected transformed versions of the target arrangements (half/double elemBits).
+func verifyNonTargetArrangements(mnemonic string, ashape ArngShape, target []string, nonTarget map[string]bool) {
+	if ashape == DefaultArngs || len(nonTarget) == 0 {
+		return
+	}
+	// FCVTN has a FEAT_FP8 variant not covered by NarrowArngs.
+	// The other variants are covered.
+	switch mnemonic {
+	case "FCVTN", "FCVTXN":
+		return
+	}
+	for _, t := range target {
+		eb, _, _ := parseArrangement(t)
+		if eb == 0 {
+			continue
+		}
+		var expectedElemBits int
+		switch ashape {
+		case LongArngs:
+			expectedElemBits = eb * 2
+		case NarrowArngs, WideArngs:
+			expectedElemBits = eb / 2
+		}
+		if expectedElemBits == 0 {
+			continue
+		}
+		for nt := range nonTarget {
+			ntEb, _, _ := parseArrangement(nt)
+			if ntEb == expectedElemBits {
+				nonTarget[nt] = true
+			}
+		}
+	}
+	var unexplained []string
+	for nt, explained := range nonTarget {
+		if !explained {
+			unexplained = append(unexplained, nt)
+		}
+	}
+	if len(unexplained) > 0 {
+		sort.Strings(unexplained)
+		panic(fmt.Sprintf("%s: non-target arrangements not explained by target: %v\ntarget: %v",
+			mnemonic, unexplained, target))
+	}
 }
 
 // regDiagramArngShape returns the expected arrangement shape based on RegDiagram for NEON.

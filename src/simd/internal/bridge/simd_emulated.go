@@ -2,9 +2,9 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-//go:build goexperiment.simd && !(amd64 || wasm || arm64)
+//go:build goexperiment.simd && (amd64 || wasm || arm64)
 
-package simd
+package bridge
 
 import (
 	"fmt"
@@ -19,14 +19,6 @@ func VectorBitSize() int {
 
 // Emulated returns whether simd is emulated.
 func Emulated() bool {
-	return true
-}
-
-// EmulatedCarrylessMultiply returns whether CarrylessMultiply is emulated.
-// This sometimes matters to choice of algorithm (e.g., when computing CRC).
-// The emulation's execution time does not depend on its inputs, so it is
-// okay in that sense.
-func EmulatedCarrylessMultiply() bool {
 	return true
 }
 
@@ -3165,40 +3157,38 @@ func (x Uint64s) mwl(y Uint64s) Uint64s {
 }
 
 var (
-	// For mK, bits J such that J mod 5 == K are set
-	m0 = newT(0x0084210842108421, 0x1108421084210842)
-	m1 = newT(0x1108421084210842, 0x3210842108421084)
-	m2 = newT(0x3210842108421084, 0x8421084210842108)
-	m3 = newT(0x8421084210842108, 0x0842108421084210)
-	m4 = newT(0x0842108421084210, 0x0084210842108421)
+	m1 = newT(0x1084210842108421, 0x2108421084210842)
+	m2 = newT(0x2108421084210842, 0x4210842108421084)
+	m3 = newT(0x4210842108421084, 0x8421084210842108)
+	m4 = newT(0x8421084210842108, 0x0842108421084210)
+	m5 = newT(0x0842108421084210, 0x1084210842108421)
 )
 
 func (x Uint64s) clmul(y Uint64s) Uint64s {
-	x0 := x.And(m0)
 	x1 := x.And(m1)
 	x2 := x.And(m2)
 	x3 := x.And(m3)
 	x4 := x.And(m4)
+	x5 := x.And(m5)
 
-	y0 := y.And(m0)
 	y1 := y.And(m1)
 	y2 := y.And(m2)
 	y3 := y.And(m3)
 	y4 := y.And(m4)
+	y5 := y.And(m5)
 
-	// sum of x, y indices == K mod 5; mask index = K
-	z := (x0.mwl(y0)).Xor(x1.mwl(y4)).Xor(x4.mwl(y1)).Xor(x2.mwl(y3)).Xor(x3.mwl(y2)).And(m0)
-	z = (x3.mwl(y3)).Xor(x2.mwl(y4)).Xor(x4.mwl(y2)).Xor(x0.mwl(y1)).Xor(x1.mwl(y0)).And(m1).Or(z)
-	z = (x1.mwl(y1)).Xor(x3.mwl(y4)).Xor(x4.mwl(y3)).Xor(x0.mwl(y2)).Xor(x2.mwl(y0)).And(m2).Or(z)
-	z = (x4.mwl(y4)).Xor(x0.mwl(y3)).Xor(x3.mwl(y0)).Xor(x1.mwl(y2)).Xor(x2.mwl(y1)).And(m3).Or(z)
-	z = (x2.mwl(y2)).Xor(x0.mwl(y4)).Xor(x4.mwl(y0)).Xor(x1.mwl(y3)).Xor(x3.mwl(y1)).And(m4).Or(z)
+	// sum of x, y indices == K mod 5; mask index = K-1
+	z := (x1.mwl(y1)).Xor(x2.mwl(y5)).Xor(x5.mwl(y2)).Xor(x3.mwl(y4)).Xor(x4.mwl(y3)).And(m1)
+	z = (x4.mwl(y4)).Xor(x3.mwl(y5)).Xor(x5.mwl(y3)).Xor(x1.mwl(y2)).Xor(x2.mwl(y1)).And(m2).Or(z)
+	z = (x2.mwl(y2)).Xor(x4.mwl(y5)).Xor(x5.mwl(y4)).Xor(x1.mwl(y3)).Xor(x3.mwl(y1)).And(m3).Or(z)
+	z = (x5.mwl(y5)).Xor(x1.mwl(y4)).Xor(x4.mwl(y1)).Xor(x2.mwl(y3)).Xor(x3.mwl(y2)).And(m4).Or(z)
+	z = (x3.mwl(y3)).Xor(x1.mwl(y5)).Xor(x5.mwl(y1)).Xor(x2.mwl(y4)).Xor(x4.mwl(y2)).And(m5).Or(z)
 
 	return z
 }
 
 // CarrylessMultiplyEven computes the carryless
 // multiplications of selected even halves of the elements of x and y.
-// The result fills the 128 bits of each even-odd pair.
 //
 // A carryless multiplication uses bitwise XOR instead of
 // add-with-carry, for example (in base two):
@@ -3215,7 +3205,6 @@ func (x Uint64s) CarrylessMultiplyEven(y Uint64s) Uint64s {
 
 // CarrylessMultiplyOdd computes the carryless
 // multiplications of selected odd halves of the elements of x and y.
-// The result fills the 128 bits of each even-odd pair.
 //
 // A carryless multiplication uses bitwise XOR instead of
 // add-with-carry, for example (in base two):

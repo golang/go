@@ -57,6 +57,7 @@ const (
 	cpuid_AVX512_VBMI      = 1 << 1
 	cpuid_AVX512_VBMI2     = 1 << 6
 	cpuid_GFNI             = 1 << 8
+	cpuid_VPCLMULQDQ       = 1 << 10 // applies to not just AVX512
 	cpuid_AVX512VPCLMULQDQ = 1 << 10
 	cpuid_AVX512_BITALG    = 1 << 12
 
@@ -174,6 +175,7 @@ func doinit() {
 	X86.HasADX = isSet(ebx7, cpuid_ADX)
 	X86.HasSHA = isSet(ebx7, cpuid_SHA)
 	X86.HasVAES = isSet(ecx7, cpuid_VAES) && X86.HasAVX
+	X86.HasVPCLMULQDQ = isSet(ecx7, cpuid_VPCLMULQDQ)
 
 	X86.HasAVX512F = isSet(ebx7, cpuid_AVX512F) && osSupportsAVX512
 	if X86.HasAVX512F {
