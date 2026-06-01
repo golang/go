@@ -103,9 +103,17 @@ func NewEngine(t *testing.T, repls []ToolReplacement) (*script.Engine, []string)
 	}
 
 	interrupt := func(cmd *exec.Cmd) error {
+		// TODO(thepudds): currently cmd/go/script_test.go uses a platform-specific cancel
+		// that we could consider emulating here.
 		return cmd.Process.Signal(os.Interrupt)
 	}
-	gracePeriod := 60 * time.Second // arbitrary
+
+	// Customize the subprocess termination grace period to reduce flakes on busy builders (#76685).
+	// The grace period is the max of 100ms or 5% of the time remaining until any t.Deadline.
+	gracePeriod := subprocessGracePeriod(t.Deadline())
+
+	cmdExec := script.Exec(interrupt, gracePeriod)
+	cmds["exec"] = cmdExec
 
 	// Set up an alternate go root for running script tests, since it
 	// is possible that we might want to replace one of the installed
@@ -123,7 +131,6 @@ func NewEngine(t *testing.T, repls []ToolReplacement) (*script.Engine, []string)
 	testgo := filepath.Join(tgr, "bin", "go")
 	gocmd := script.Program(testgo, interrupt, gracePeriod)
 	addcmd("go", gocmd)
-	cmdExec := cmds["exec"]
 	addcmd("cc", scriptCC(cmdExec, goEnv("CC")))
 
 	// Add various helpful conditions related to builds and toolchain use.
@@ -199,19 +206,29 @@ func ScriptTestContext(t *testing.T, ctx context.Context) context.Context {
 		return ctx
 	}
 
-	gracePeriod := 100 * time.Millisecond
-	timeout := time.Until(deadline)
-
-	// If time allows, increase the termination grace period to 5% of the
-	// remaining time.
-	gracePeriod = max(gracePeriod, timeout/20)
+	gracePeriod := subprocessGracePeriod(deadline, ok)
 
 	// Reserve two grace periods to clean up
+	timeout := time.Until(deadline)
 	timeout -= 2 * gracePeriod
 
 	ctx, cancel := context.WithTimeout(ctx, timeout)
 	t.Cleanup(cancel)
 	return ctx
+}
+
+// subprocessGracePeriod returns a grace period for terminating subprocesses
+// created by the commands of a script test.
+func subprocessGracePeriod(deadline time.Time, hasDeadline bool) time.Duration {
+	gracePeriod := 100 * time.Millisecond // arbitrary
+	if !hasDeadline {
+		return gracePeriod
+	}
+
+	// If time allows, increase the termination grace period to 5% of the
+	// remaining time.
+	timeout := time.Until(deadline)
+	return max(gracePeriod, timeout/20)
 }
 
 // RunTests kicks off one or more script-based tests using the
