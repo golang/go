@@ -313,15 +313,6 @@ func ssaGenValue(s *ssagen.State, v *ssa.Value) {
 		p.To.Reg = v.Reg()
 		p.From.Reg = x86.REG_X15
 
-	case ssa.OpAMD64SHRDQ, ssa.OpAMD64SHLDQ:
-		p := s.Prog(v.Op.Asm())
-		lo, hi, bits := v.Args[0].Reg(), v.Args[1].Reg(), v.Args[2].Reg()
-		p.From.Type = obj.TYPE_REG
-		p.From.Reg = bits
-		p.To.Type = obj.TYPE_REG
-		p.To.Reg = lo
-		p.AddRestSourceReg(hi)
-
 	case ssa.OpAMD64BLSIQ, ssa.OpAMD64BLSIL,
 		ssa.OpAMD64BLSMSKQ, ssa.OpAMD64BLSMSKL,
 		ssa.OpAMD64BLSRQ, ssa.OpAMD64BLSRL:

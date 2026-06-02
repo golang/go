@@ -591,19 +591,6 @@ func checkShiftMask(a uint32, b uint64, z []uint32, y []uint64) {
 	y[3] = uint64(((uint16(a) & 0xFF0) >> 9) & 0x1F)
 }
 
-// 128 bit shifts
-
-func check128bitShifts(x, y uint64, bits uint) (uint64, uint64) {
-	s := bits & 63
-	ŝ := (64 - bits) & 63
-	// check that the shift operation has two commas (three operands)
-	// amd64:"SHRQ.*,.*,"
-	shr := x>>s | y<<ŝ
-	// amd64:"SHLQ.*,.*,"
-	shl := x<<s | y>>ŝ
-	return shr, shl
-}
-
 func checkShiftToMask(u []uint64, s []int64) {
 	// amd64:-"SHR" -"SHL" "ANDQ"
 	u[0] = u[0] >> 5 << 5
