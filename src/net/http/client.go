@@ -25,6 +25,8 @@ import (
 	"sync"
 	"sync/atomic"
 	"time"
+
+	"golang.org/x/net/http/httpguts"
 )
 
 // A Client is an HTTP client. Its zero value ([DefaultClient]) is a
@@ -1026,8 +1028,11 @@ func shouldCopyHeaderOnRedirect(initial, dest *url.URL) bool {
 	// directly, we don't know their scope, so we assume
 	// it's for *.domain.com.
 
-	ihost := idnaASCIIFromURL(initial)
-	dhost := idnaASCIIFromURL(dest)
+	ihost, err1 := httpguts.PunycodeHostPort(initial.Hostname())
+	dhost, err2 := httpguts.PunycodeHostPort(dest.Hostname())
+	if err1 != nil || err2 != nil {
+		return false
+	}
 	return isDomainOrSubdomain(dhost, ihost)
 }
 
