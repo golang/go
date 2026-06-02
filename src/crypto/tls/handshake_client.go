@@ -82,6 +82,7 @@ func (c *Conn) makeClientHello() (*clientHelloMsg, *keySharePrivateKeys, *echCli
 		alpnProtocols:                config.NextProtos,
 		supportedVersions:            supportedVersions,
 	}
+	hello.raTLSChallenge = config.RATLSChallenge
 
 	// The version at the beginning of the ClientHello was capped at TLS 1.2
 	// for compatibility reasons. The supported_versions extension is used
