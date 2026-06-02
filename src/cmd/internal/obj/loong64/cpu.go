@@ -228,6 +228,9 @@ const (
 	REGCTXT = REG_R29 // context for closures
 	REGG    = REG_R22 // G in loong64
 	REGTMP  = REG_R30 // used by the assembler
+	REGRT1  = REG_R20 // reserved for runtime, trampoline
+	REGRT2  = REG_R21 // reserved for runtime, trampoline
+	REGTLS  = REG_R2  // C ABI TLS base pointer
 	FREGRET = REG_F0  // not use
 )
 

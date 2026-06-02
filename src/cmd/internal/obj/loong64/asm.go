@@ -2938,7 +2938,7 @@ func (c *ctxt0) asmout(p *obj.Prog, o *Optab, out []uint32) {
 			Sym:  p.To.Sym,
 			Add:  p.To.Offset,
 		})
-		o3 = OP_RRR(c.oprrr(AADDV), uint32(REG_R2), uint32(REGTMP), uint32(REGTMP))
+		o3 = OP_RRR(c.oprrr(AADDV), uint32(REGTLS), uint32(REGTMP), uint32(REGTMP))
 		o4 = OP_12IRR(c.opirr(p.As), uint32(0), uint32(REGTMP), uint32(p.From.Reg))
 
 	case 54: // lu12i.w + ori + add r2, regtmp + lw o(regtmp)
@@ -2960,7 +2960,7 @@ func (c *ctxt0) asmout(p *obj.Prog, o *Optab, out []uint32) {
 			Sym:  p.From.Sym,
 			Add:  p.From.Offset,
 		})
-		o3 = OP_RRR(c.oprrr(AADDV), uint32(REG_R2), uint32(REGTMP), uint32(REGTMP))
+		o3 = OP_RRR(c.oprrr(AADDV), uint32(REGTLS), uint32(REGTMP), uint32(REGTMP))
 		o4 = OP_12IRR(c.opirr(-p.As), uint32(0), uint32(REGTMP), uint32(p.To.Reg))
 
 	case 56: // mov r, tlsvar IE model ==> (pcalau12i + ld.d)tlsvar@got + add.d + st.d
@@ -2978,7 +2978,7 @@ func (c *ctxt0) asmout(p *obj.Prog, o *Optab, out []uint32) {
 			Siz:  4,
 			Sym:  p.To.Sym,
 		})
-		o3 = OP_RRR(c.oprrr(AADDVU), uint32(REGTMP), uint32(REG_R2), uint32(REGTMP))
+		o3 = OP_RRR(c.oprrr(AADDVU), uint32(REGTMP), uint32(REGTLS), uint32(REGTMP))
 		o4 = OP_12IRR(c.opirr(p.As), uint32(0), uint32(REGTMP), uint32(p.From.Reg))
 
 	case 57: // mov tlsvar, r IE model ==> (pcalau12i + ld.d)tlsvar@got + add.d + ld.d
@@ -2996,7 +2996,7 @@ func (c *ctxt0) asmout(p *obj.Prog, o *Optab, out []uint32) {
 			Siz:  4,
 			Sym:  p.From.Sym,
 		})
-		o3 = OP_RRR(c.oprrr(AADDVU), uint32(REGTMP), uint32(REG_R2), uint32(REGTMP))
+		o3 = OP_RRR(c.oprrr(AADDVU), uint32(REGTMP), uint32(REGTLS), uint32(REGTMP))
 		o4 = OP_12IRR(c.opirr(-p.As), uint32(0), uint32(REGTMP), uint32(p.To.Reg))
 
 	case 59: // mov $dcon,r
@@ -3356,4 +3356,34 @@ func vshift(a obj.As) bool {
 		return true
 	}
 	return false
+}
+
+// The following functions are used only within the linker's
+// gentxt, elfsetupplt, addpltsym, gentramp, and gentrampgot.
+
+func OpCodeIR(a obj.As) uint32 {
+	op, ok := opir[a]
+	if ok {
+		return op
+	}
+	log.Fatalf("bad ir opcode %v", a)
+	return 0
+}
+
+func OpCodeIRR(a obj.As) uint32 {
+	op, ok := opirr[a]
+	if ok {
+		return op
+	}
+	log.Fatalf("bad irr opcode %v", a)
+	return 0
+}
+
+func OpCodeRRR(a obj.As) uint32 {
+	op, ok := oprrr[a]
+	if ok {
+		return op
+	}
+	log.Fatalf("bad rrr opcode %v", a)
+	return 0
 }

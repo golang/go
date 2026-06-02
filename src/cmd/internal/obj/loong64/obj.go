@@ -586,7 +586,7 @@ func (c *ctxt0) stacksplit(p *obj.Prog, framesize int32) *obj.Prog {
 		p.From.Offset = 3 * int64(c.ctxt.Arch.PtrSize) // G.stackguard1
 	}
 	p.To.Type = obj.TYPE_REG
-	p.To.Reg = REG_R20
+	p.To.Reg = REGRT1
 
 	// Mark the stack bound check and morestack call async nonpreemptible.
 	// If we get preempted here, when resumed the preemption request is
@@ -603,9 +603,9 @@ func (c *ctxt0) stacksplit(p *obj.Prog, framesize int32) *obj.Prog {
 		p.As = ASGTU
 		p.From.Type = obj.TYPE_REG
 		p.From.Reg = REGSP
-		p.Reg = REG_R20
+		p.Reg = REGRT1
 		p.To.Type = obj.TYPE_REG
-		p.To.Reg = REG_R20
+		p.To.Reg = REGRT1
 	} else {
 		// large stack: SP-framesize < stackguard-StackSmall
 		offset := int64(framesize) - abi.StackSmall
@@ -626,13 +626,13 @@ func (c *ctxt0) stacksplit(p *obj.Prog, framesize int32) *obj.Prog {
 			p.From.Offset = offset
 			p.Reg = REGSP
 			p.To.Type = obj.TYPE_REG
-			p.To.Reg = REG_R24
+			p.To.Reg = REGRT2
 
 			p = obj.Appendp(p, c.newprog)
 			q = p
 			p.As = ABNE
 			p.From.Type = obj.TYPE_REG
-			p.From.Reg = REG_R24
+			p.From.Reg = REGRT2
 			p.To.Type = obj.TYPE_BRANCH
 			p.Mark |= BRANCH
 		}
@@ -644,15 +644,15 @@ func (c *ctxt0) stacksplit(p *obj.Prog, framesize int32) *obj.Prog {
 		p.From.Offset = -offset
 		p.Reg = REGSP
 		p.To.Type = obj.TYPE_REG
-		p.To.Reg = REG_R24
+		p.To.Reg = REGRT2
 
 		p = obj.Appendp(p, c.newprog)
 		p.As = ASGTU
 		p.From.Type = obj.TYPE_REG
-		p.From.Reg = REG_R24
-		p.Reg = REG_R20
+		p.From.Reg = REGRT2
+		p.Reg = REGRT1
 		p.To.Type = obj.TYPE_REG
-		p.To.Reg = REG_R20
+		p.To.Reg = REGRT1
 	}
 
 	// q1: BEQ	R20, morestack
@@ -661,7 +661,7 @@ func (c *ctxt0) stacksplit(p *obj.Prog, framesize int32) *obj.Prog {
 
 	p.As = ABEQ
 	p.From.Type = obj.TYPE_REG
-	p.From.Reg = REG_R20
+	p.From.Reg = REGRT1
 	p.To.Type = obj.TYPE_BRANCH
 	p.Mark |= BRANCH
 

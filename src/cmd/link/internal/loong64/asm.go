@@ -5,6 +5,7 @@
 package loong64
 
 import (
+	. "cmd/internal/obj/loong64"
 	"cmd/internal/objabi"
 	"cmd/internal/sys"
 	"cmd/link/internal/ld"
@@ -34,7 +35,7 @@ func gentext(ctxt *ld.Link, ldr *loader.Loader) {
 	//	0000000000000000 <local.dso_init>:
 	//	0:	1a000004	pcalau12i	$a0, 0
 	//				0: R_LARCH_PCALA_HI20	local.moduledata
-	o(0x1a000004)
+	o(OP_IR(OpCodeIR(APCALAU12I), 0, REG_R4))
 	rel, _ := initfunc.AddRel(objabi.R_LOONG64_ADDR_HI)
 	rel.SetOff(0)
 	rel.SetSiz(4)
@@ -42,7 +43,7 @@ func gentext(ctxt *ld.Link, ldr *loader.Loader) {
 
 	//	4:	02c00084	addi.d	$a0, $a0, 0
 	//				4: R_LARCH_PCALA_LO12	local.moduledata
-	o(0x02c00084)
+	o(OP_12IRR(OpCodeIRR(AADDV), 0, REG_R4, REG_R4))
 	rel2, _ := initfunc.AddRel(objabi.R_LOONG64_ADDR_LO)
 	rel2.SetOff(4)
 	rel2.SetSiz(4)
@@ -50,7 +51,7 @@ func gentext(ctxt *ld.Link, ldr *loader.Loader) {
 
 	//	8:	50000000	b	0
 	//				8: R_LARCH_B26	runtime.addmoduledata
-	o(0x50000000)
+	o(OP_B_BL(OpCodeIRR(AJMP), 0))
 	rel3, _ := initfunc.AddRel(objabi.R_CALLLOONG64)
 	rel3.SetOff(8)
 	rel3.SetSiz(4)
@@ -335,32 +336,42 @@ func adddynrel(target *ld.Target, ldr *loader.Loader, syms *ld.ArchSyms, s loade
 
 func elfsetupplt(ctxt *ld.Link, ldr *loader.Loader, plt, gotplt *loader.SymbolBuilder, dynamic loader.Sym) {
 	if plt.Size() == 0 {
+		var t uint32
+
 		// pcalau12i $r14, imm
+		t = OP_IR(OpCodeIR(APCALAU12I), 0, REG_R14)
 		plt.AddSymRef(ctxt.Arch, gotplt.Sym(), 0, objabi.R_LOONG64_ADDR_HI, 4)
-		plt.SetUint32(ctxt.Arch, plt.Size()-4, 0x1a00000e)
+		plt.SetUint32(ctxt.Arch, plt.Size()-4, t)
 
 		// sub.d $r13, $r13, $r15
-		plt.AddUint32(ctxt.Arch, 0x0011bdad)
+		t = OP_RRR(OpCodeRRR(ASUBV), REG_R15, REG_R13, REG_R13)
+		plt.AddUint32(ctxt.Arch, t)
 
 		// ld.d $r15, $r14, imm
+		t = OP_12IRR(OpCodeIRR(-AMOVV), 0, REG_R14, REG_R15)
 		plt.AddSymRef(ctxt.Arch, gotplt.Sym(), 0, objabi.R_LOONG64_ADDR_LO, 4)
-		plt.SetUint32(ctxt.Arch, plt.Size()-4, 0x28c001cf)
+		plt.SetUint32(ctxt.Arch, plt.Size()-4, t)
 
 		// addi.d $r13, $r13, -40
-		plt.AddUint32(ctxt.Arch, 0x02ff61ad)
+		t = OP_12IRR(OpCodeIRR(AADDV), uint32(0xfd8), REG_R13, REG_R13)
+		plt.AddUint32(ctxt.Arch, t)
 
 		// addi.d $r12, $r14, imm
+		t = OP_12IRR(OpCodeIRR(AADDV), 0, REG_R14, REG_R12)
 		plt.AddSymRef(ctxt.Arch, gotplt.Sym(), 0, objabi.R_LOONG64_ADDR_LO, 4)
-		plt.SetUint32(ctxt.Arch, plt.Size()-4, 0x2c001cc)
+		plt.SetUint32(ctxt.Arch, plt.Size()-4, t)
 
 		// srli.d $r13, $r13, 1
-		plt.AddUint32(ctxt.Arch, 0x004505ad)
+		t = OP_6IRR(OpCodeIRR(ASRLV), 1, REG_R13, REG_R13)
+		plt.AddUint32(ctxt.Arch, t)
 
 		// ld.d $r12, $r12, 8
-		plt.AddUint32(ctxt.Arch, 0x28c0218c)
+		t = OP_12IRR(OpCodeIRR(-AMOVV), 8, REG_R12, REG_R12)
+		plt.AddUint32(ctxt.Arch, t)
 
 		// jirl $r0, $r15, 0
-		plt.AddUint32(ctxt.Arch, 0x4c0001e0)
+		t = OP_16IRR(OpCodeIRR(AJIRL), 0, REG_R15, REG_R0)
+		plt.AddUint32(ctxt.Arch, t)
 
 		// check gotplt.size == 0
 		if gotplt.Size() != 0 {
@@ -380,6 +391,7 @@ func addpltsym(target *ld.Target, ldr *loader.Loader, syms *ld.ArchSyms, s loade
 	ld.Adddynsym(ldr, target, syms, s)
 
 	if target.IsElf() {
+		var t uint32
 		plt := ldr.MakeSymbolUpdater(syms.PLT)
 		gotplt := ldr.MakeSymbolUpdater(syms.GOTPLT)
 		rela := ldr.MakeSymbolUpdater(syms.RelaPLT)
@@ -388,22 +400,26 @@ func addpltsym(target *ld.Target, ldr *loader.Loader, syms *ld.ArchSyms, s loade
 		}
 
 		// pcalau12i $r15, imm
+		t = OP_IR(OpCodeIR(APCALAU12I), 0, REG_R15)
 		plt.AddAddrPlus4(target.Arch, gotplt.Sym(), gotplt.Size())
-		plt.SetUint32(target.Arch, plt.Size()-4, 0x1a00000f)
+		plt.SetUint32(target.Arch, plt.Size()-4, t)
 		relocs := plt.Relocs()
 		plt.SetRelocType(relocs.Count()-1, objabi.R_LOONG64_ADDR_HI)
 
 		// ld.d $r15, $r15, imm
+		t = OP_12IRR(OpCodeIRR(-AMOVV), 0, REG_R15, REG_R15)
 		plt.AddAddrPlus4(target.Arch, gotplt.Sym(), gotplt.Size())
-		plt.SetUint32(target.Arch, plt.Size()-4, 0x28c001ef)
+		plt.SetUint32(target.Arch, plt.Size()-4, t)
 		relocs = plt.Relocs()
 		plt.SetRelocType(relocs.Count()-1, objabi.R_LOONG64_ADDR_LO)
 
 		// pcaddu12i $r13, 0
-		plt.AddUint32(target.Arch, 0x1c00000d)
+		t = OP_IR(OpCodeIR(APCADDU12I), 0, REG_R13)
+		plt.AddUint32(target.Arch, t)
 
 		// jirl r0, r15, 0
-		plt.AddUint32(target.Arch, 0x4c0001e0)
+		t = OP_16IRR(OpCodeIRR(AJIRL), 0, REG_R15, REG_R0)
+		plt.AddUint32(target.Arch, t)
 
 		// add to got.plt: pointer to plt[0]
 		gotplt.AddAddrPlus(target.Arch, plt.Sym(), 0)
@@ -847,7 +863,7 @@ func gentramp(ctxt *ld.Link, ldr *loader.Loader, tramp *loader.SymbolBuilder, ta
 	tramp.SetSize(12) // 3 instructions
 	P := make([]byte, tramp.Size())
 
-	o1 := uint32(0x1a000014) // pcalau12i $r20, 0
+	o1 := OP_IR(OpCodeIR(APCALAU12I), 0, REGRT1) // pcalau12i $r20, 0
 	ctxt.Arch.ByteOrder.PutUint32(P, o1)
 	r1, _ := tramp.AddRel(objabi.R_LOONG64_ADDR_HI)
 	r1.SetOff(0)
@@ -855,7 +871,7 @@ func gentramp(ctxt *ld.Link, ldr *loader.Loader, tramp *loader.SymbolBuilder, ta
 	r1.SetSym(target)
 	r1.SetAdd(offset)
 
-	o2 := uint32(0x02c00294) // addi.d $r20, $r20, 0
+	o2 := OP_12IRR(OpCodeIRR(AADDV), 0, REGRT1, REGRT1) // addi.d $r20, $r20, 0
 	ctxt.Arch.ByteOrder.PutUint32(P[4:], o2)
 	r2, _ := tramp.AddRel(objabi.R_LOONG64_ADDR_LO)
 	r2.SetOff(4)
@@ -863,7 +879,7 @@ func gentramp(ctxt *ld.Link, ldr *loader.Loader, tramp *loader.SymbolBuilder, ta
 	r2.SetSym(target)
 	r2.SetAdd(offset)
 
-	o3 := uint32(0x4c000280) // jirl $r0, $r20, 0
+	o3 := OP_16IRR(OpCodeIRR(AJIRL), 0, REGRT1, REG_R0) // jirl $r0, $r20, 0
 	ctxt.Arch.ByteOrder.PutUint32(P[8:], o3)
 
 	tramp.SetData(P)
@@ -873,21 +889,21 @@ func gentrampgot(ctxt *ld.Link, ldr *loader.Loader, tramp *loader.SymbolBuilder,
 	tramp.SetSize(12) // 3 instructions
 	P := make([]byte, tramp.Size())
 
-	o1 := uint32(0x1a000014) // pcalau12i $r20, 0
+	o1 := OP_IR(OpCodeIR(APCALAU12I), 0, REGRT1) // pcalau12i $r20, 0
 	ctxt.Arch.ByteOrder.PutUint32(P, o1)
 	r1, _ := tramp.AddRel(objabi.R_LOONG64_GOT_HI)
 	r1.SetOff(0)
 	r1.SetSiz(4)
 	r1.SetSym(target)
 
-	o2 := uint32(0x28c00294) // ld.d $r20, $r20, 0
+	o2 := OP_12IRR(OpCodeIRR(-AMOVV), 0, REGRT1, REGRT1) // ld.d $r20, $r20, 0
 	ctxt.Arch.ByteOrder.PutUint32(P[4:], o2)
 	r2, _ := tramp.AddRel(objabi.R_LOONG64_GOT_LO)
 	r2.SetOff(4)
 	r2.SetSiz(4)
 	r2.SetSym(target)
 
-	o3 := uint32(0x4c000280) // jirl $r0, $r20, 0
+	o3 := OP_16IRR(OpCodeIRR(AJIRL), 0, REGRT1, REG_R0) // jirl $r0, $r20, 0
 	ctxt.Arch.ByteOrder.PutUint32(P[8:], o3)
 
 	tramp.SetData(P)
