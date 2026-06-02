@@ -19,8 +19,9 @@ const _delim_name = "delimNonedelimDoubleQuotedelimSingleQuotedelimSpaceOrTagEnd
 var _delim_index = [...]uint8{0, 9, 25, 41, 59}
 
 func (i delim) String() string {
-	if i >= delim(len(_delim_index)-1) {
+	idx := int(i) - 0
+	if i < 0 || idx >= len(_delim_index)-1 {
 		return "delim(" + strconv.FormatInt(int64(i), 10) + ")"
 	}
-	return _delim_name[_delim_index[i]:_delim_index[i+1]]
+	return _delim_name[_delim_index[idx]:_delim_index[idx+1]]
 }

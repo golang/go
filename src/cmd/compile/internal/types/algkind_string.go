@@ -33,8 +33,9 @@ const _AlgKind_name = "UNKNOEQNOALGMEMMEM0MEM8MEM16MEM32MEM64MEM128STRINGINTERNI
 var _AlgKind_index = [...]uint8{0, 3, 7, 12, 15, 19, 23, 28, 33, 38, 44, 50, 55, 63, 70, 77, 83, 90, 97}
 
 func (i AlgKind) String() string {
-	if i < 0 || i >= AlgKind(len(_AlgKind_index)-1) {
+	idx := int(i) - 0
+	if i < 0 || idx >= len(_AlgKind_index)-1 {
 		return "AlgKind(" + strconv.FormatInt(int64(i), 10) + ")"
 	}
-	return _AlgKind_name[_AlgKind_index[i]:_AlgKind_index[i+1]]
+	return _AlgKind_name[_AlgKind_index[idx]:_AlgKind_index[idx+1]]
 }
