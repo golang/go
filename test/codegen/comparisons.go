@@ -357,7 +357,7 @@ func CmpToZero_ex1(a int64, e int32) int {
 	}
 
 	// arm64:`SUB` `TBNZ`
-	// arm:`CMP|CMN` -`(ADD|SUB)` `(BMI|BPL)`
+	// arm:`SUB` -`(BMI|BPL)`
 	if e-11 >= 0 {
 		return 8
 	}
@@ -425,22 +425,22 @@ func CmpToZero_ex3(a, b, c, d int64, e, f, g, h int32) int {
 
 // var - var*var
 func CmpToZero_ex4(a, b, c, d int64, e, f, g, h int32) int {
-	// arm64:`CMP` -`MSUB` `MUL` `BEQ` `(BMI|BPL)`
+	// arm64:`MSUB`
 	if a-b*c > 0 {
 		return 1
 	}
 
-	// arm64:`CMP` -`MSUB` `MUL` `(BMI|BPL)`
+	// arm64:`MSUB`
 	if b-c*d >= 0 {
 		return 2
 	}
 
-	// arm64:`CMPW` -`MSUBW` `MULW` `(BMI|BPL)`
+	// arm64:`MSUBW`
 	if e-f*g < 0 {
 		return 5
 	}
 
-	// arm64:`CMPW` -`MSUBW` `MULW` `(BMI|BPL)`
+	// arm64:`MSUBW`
 	if f-g*h >= 0 {
 		return 6
 	}
@@ -453,7 +453,7 @@ func CmpToZero_ex5(e, f int32, u uint32) int {
 		return 1
 	}
 
-	// arm:`CMP` -`SUB` `(BMI|BPL)`
+	// arm:`SUB` -`(BMI|BPL)`
 	if f-int32(u>>2) >= 0 {
 		return 2
 	}
@@ -748,7 +748,7 @@ func cmpToCmnLessThan(a, b, c, d int) int {
 	if a*b+c < 0 {
 		c3 = 1
 	}
-	// arm64:`CMP` `CSET MI` -`CMN`
+	// arm64:`MSUB` `CSET LT` -`CMN`
 	if a-b*c < 0 {
 		c4 = 1
 	}
@@ -817,7 +817,7 @@ func cmpToCmnGreaterThanEqual(a, b, c, d int) int {
 	if a*b+c >= 0 {
 		c3 = 1
 	}
-	// arm64:`CMP` `CSET PL` -`CMN`
+	// arm64:`MSUB` `CSET GE` -`CMN`
 	if a-b*c >= 0 {
 		c4 = 1
 	}
@@ -863,19 +863,6 @@ func cmp6[T comparable](val T) bool {
 func cmp7() {
 	cmp5[string]("") // force instantiation
 	cmp6[string]("") // force instantiation
-}
-
-type Point struct {
-	X, Y int
-}
-
-// invertLessThanNoov checks (LessThanNoov (InvertFlags x)) is lowered as
-// CMP, CSET, CSEL instruction sequence. InvertFlags are only generated under
-// certain conditions, see canonLessThan, so if the code below does not
-// generate an InvertFlags OP, this check may fail.
-func invertLessThanNoov(p1, p2, p3 Point) bool {
-	// arm64:`CMP` `CSET` `CSEL`
-	return (p1.X-p3.X)*(p2.Y-p3.Y)-(p2.X-p3.X)*(p1.Y-p3.Y) < 0
 }
 
 func cmpstring1(x, y string) int {
