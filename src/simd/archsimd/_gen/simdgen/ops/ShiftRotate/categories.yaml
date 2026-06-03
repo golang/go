@@ -19,45 +19,36 @@
     // NAME shifts each element in x by the signed value of the least significant byte
     // of y's corresponding element (positive shifts left, negative shifts right).
     // Results are saturated to the unsigned range on overflow.
-- go: ShiftRightConst
-  signed: true
-  commutative: false
-  documentation: !string |-
-    // NAME performs an arithmetic right shift on each element in x by the constant number of bits specified by y.
-- go: ShiftRightConst
-  signed: false
-  commutative: false
-  documentation: !string |-
-    // NAME performs a logical right shift on each element in x by the constant number of bits specified by y.
-- go: ShiftLeftConst
-  commutative: false
-  documentation: !string |-
-    // NAME performs a left shift on each element in x by the constant number of bits specified by y.
-- go: ShiftLeftSaturatedConst
+- go: shiftLeftSaturatedConst
+  noGenericOps: "true"
   signed: true
   commutative: false
   documentation: !string |-
     // NAME performs a saturating left shift on each element in x by the constant number of bits specified by y.
     // Results are saturated to the signed range on overflow.
-- go: ShiftLeftSaturatedConst
+- go: shiftLeftSaturatedConst
+  noGenericOps: "true"
   signed: false
   commutative: false
   documentation: !string |-
     // NAME performs a saturating left shift on each element in x by the constant number of bits specified by y.
     // Results are saturated to the unsigned range on overflow.
 
-- go: ShiftRightNarrowConst
+- go: shiftRightNarrowConst
+  noGenericOps: "true"
   commutative: false
   documentation: !string |-
     // NAME performs a right shift on each element in x by the constant number of bits
     // and narrows the result to half the element width.
-- go: ShiftLeftWidenLoConst
+- go: shiftLeftWidenLoConst
+  noGenericOps: "true"
   signed: false
   commutative: false
   documentation: !string |-
     // NAME performs a left shift on each unsigned low-indexed element in x by the constant number of bits
     // and widens the result to double the element width.
-- go: ShiftLeftWidenLoConst
+- go: shiftLeftWidenLoConst
+  noGenericOps: "true"
   signed: true
   commutative: false
   documentation: !string |-
@@ -85,18 +76,15 @@
 - go: shiftAllLeftConst # no APIs, only ssa ops.
   noTypes: "true"
   noGenericOps: "true"
-  SSAVariant: "const" # to avoid its name colliding with reg version of this instruction, amend this to its ssa op name.
   commutative: false
 - go: shiftAllRightConst # no APIs, only ssa ops.
   noTypes: "true"
   noGenericOps: "true"
-  SSAVariant: "const"
   signed: false
   commutative: false
 - go: shiftAllRightConst # no APIs, only ssa ops.
   noTypes: "true"
   noGenericOps: "true"
-  SSAVariant: "const"
   signed: true
   commutative: false
 

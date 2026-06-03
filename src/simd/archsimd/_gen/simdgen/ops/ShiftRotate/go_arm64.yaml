@@ -45,7 +45,7 @@
   - *uint
 
 # Shift right by constant
-- go: ShiftRightConst
+- go: shiftAllRightConst
   signed: true
   asm: "VSSHR"
   specialLower: "if a==0 => x"
@@ -57,7 +57,7 @@
   out:
   - *int
 
-- go: ShiftRightConst
+- go: shiftAllRightConst
   signed: false
   asm: "VUSHR"
   specialLower: "if a==0 => x"
@@ -68,7 +68,7 @@
   - *uint
 
 # Shift left by constant
-- go: ShiftLeftConst
+- go: shiftAllLeftConst
   signed: true
   asm: "VSHL"
   specialLower: "if a==0 => x"
@@ -78,7 +78,7 @@
   out:
   - *int
 
-- go: ShiftLeftConst
+- go: shiftAllLeftConst
   signed: false
   asm: "VSHL"
   specialLower: "if a==0 => x"
@@ -89,7 +89,7 @@
   - *uint
 
 # Shift left saturated by constant
-- go: ShiftLeftSaturatedConst
+- go: shiftLeftSaturatedConst
   signed: true
   asm: "VSQSHL"
   SSAVariant: "const"
@@ -100,7 +100,7 @@
   out:
   - *int
 
-- go: ShiftLeftSaturatedConst
+- go: shiftLeftSaturatedConst
   signed: false
   asm: "VUQSHL"
   SSAVariant: "const"
@@ -163,7 +163,7 @@
   out:
   - *uint
 
-- go: ShiftRightNarrowConst
+- go: shiftRightNarrowConst
   asm: "VSHRN"
   hiHalfAsm: "VSHRN2"
   specialLower: !string "match [0] x => (VXTN%a x)"
@@ -175,7 +175,7 @@
   - go: $u
     base: uint
 
-- go: ShiftLeftWidenLoConst
+- go: shiftLeftWidenLoConst
   signed: false
   asm: "VUSHLL"
   hiHalfAsm: "VUSHLL2"
@@ -187,7 +187,7 @@
   - go: $u
     base: uint
 
-- go: ShiftLeftWidenLoConst
+- go: shiftLeftWidenLoConst
   signed: true
   asm: "VSSHLL"
   hiHalfAsm: "VSSHLL2"

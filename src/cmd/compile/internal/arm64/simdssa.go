@@ -59,31 +59,31 @@ func ssaGenSIMDValue(s *ssagen.State, v *ssa.Value) bool {
 		p = simdV11(s, v, arm64.ARNG_8H)
 
 	case ssa.OpARM64VSHL16B,
-		ssa.OpARM64VSQSHL16Bconst,
-		ssa.OpARM64VUQSHL16Bconst,
 		ssa.OpARM64VSSHR16B,
-		ssa.OpARM64VUSHR16B:
+		ssa.OpARM64VUSHR16B,
+		ssa.OpARM64VSQSHL16Bconst,
+		ssa.OpARM64VUQSHL16Bconst:
 		p = simdV11Imm(s, v, arm64.ARNG_16B)
 
 	case ssa.OpARM64VSHL2D,
-		ssa.OpARM64VSQSHL2Dconst,
-		ssa.OpARM64VUQSHL2Dconst,
 		ssa.OpARM64VSSHR2D,
-		ssa.OpARM64VUSHR2D:
+		ssa.OpARM64VUSHR2D,
+		ssa.OpARM64VSQSHL2Dconst,
+		ssa.OpARM64VUQSHL2Dconst:
 		p = simdV11Imm(s, v, arm64.ARNG_2D)
 
 	case ssa.OpARM64VSHL4S,
-		ssa.OpARM64VSQSHL4Sconst,
-		ssa.OpARM64VUQSHL4Sconst,
 		ssa.OpARM64VSSHR4S,
-		ssa.OpARM64VUSHR4S:
+		ssa.OpARM64VUSHR4S,
+		ssa.OpARM64VSQSHL4Sconst,
+		ssa.OpARM64VUQSHL4Sconst:
 		p = simdV11Imm(s, v, arm64.ARNG_4S)
 
 	case ssa.OpARM64VSHL8H,
-		ssa.OpARM64VSQSHL8Hconst,
-		ssa.OpARM64VUQSHL8Hconst,
 		ssa.OpARM64VSSHR8H,
-		ssa.OpARM64VUSHR8H:
+		ssa.OpARM64VUSHR8H,
+		ssa.OpARM64VSQSHL8Hconst,
+		ssa.OpARM64VUQSHL8Hconst:
 		p = simdV11Imm(s, v, arm64.ARNG_8H)
 
 	case ssa.OpARM64VDUPBbcast:
