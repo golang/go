@@ -292,7 +292,6 @@ func (c *DeepCopier) CopyName(id *syntax.Name, isDef bool) *syntax.Name {
 		return match
 	}
 	newId := syntax.NewName(id.Pos(), id.Value)
-	newId.SetTypeInfo(id.GetTypeInfo())
 	if isDef {
 		c.registerDef(newId, id)
 	} else {
@@ -318,7 +317,6 @@ func (c *DeepCopier) CopyNameExpr(id *syntax.Name) syntax.Expr {
 	}
 
 	newId := syntax.NewName(id.Pos(), id.Value)
-	newId.SetTypeInfo(id.GetTypeInfo())
 	c.mapUse(newId, id)
 	return newId
 }
@@ -353,7 +351,6 @@ func (c *DeepCopier) CopyExpr(e syntax.Expr) syntax.Expr {
 	case *syntax.SelectorExpr:
 		if sub := c.OnSelector(e); sub != nil {
 			sub.SetPos(e.Pos())
-			sub.SetTypeInfo(e.GetTypeInfo()) // Copy type info
 			if sel := c.info.Selections[e]; sel != nil {
 				c.info.Selections[sub.(*syntax.SelectorExpr)] = sel
 			}

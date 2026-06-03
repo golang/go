@@ -859,6 +859,15 @@ func (w *writer) doObj(wext *writer, obj types2.Object) pkgbits.CodeObj {
 		return pkgbits.ObjConst
 
 	case *types2.Func:
+		if base.Flag.LowerH > 0 {
+			// Unified IR panics are the worst; this is a huge help in debugging them.
+			defer func() {
+				if p := recover(); p != nil {
+					fmt.Printf("Intercepted unified IR writer panic for function %s, repanicking", obj.FullName())
+					panic(p)
+				}
+			}()
+		}
 		decl, ok := w.p.funDecls[obj]
 		assert(ok)
 		sig := obj.Type().(*types2.Signature)
