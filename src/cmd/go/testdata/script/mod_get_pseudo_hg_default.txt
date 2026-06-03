@@ -1,0 +1,19 @@
+[!exec:hg] skip
+[short] skip
+
+# Testing hg->module converter's generation of +incompatible tags; turn off proxy.
+env GOPROXY=direct
+env GOSUMDB=off
+
+# get default
+go get vcs-test.golang.org/hg/legacytest.hg@default
+go list -m all
+stdout '^vcs-test.golang.org/hg/legacytest.hg v1\.2\.1-0\.20180717164942-2840708d1294$'
+
+-- go.mod --
+module x
+
+require vcs-test.golang.org/hg/legacytest.hg v1.0.0
+-- x.go --
+package x
+import "vcs-test.golang.org/hg/legacytest.hg"

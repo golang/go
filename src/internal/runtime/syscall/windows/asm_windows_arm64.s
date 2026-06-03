@@ -83,7 +83,6 @@ _0args:
 
 	// GetLastError
 	MOVD	TEB_error(R18_PLATFORM), R0
-	MOVD	R0, StdCallInfo_Err(R19)
 
 	// Restore callee-saved registers.
 	LDP	16(RSP), (R19, R20)

@@ -26,6 +26,7 @@ var (
 	SymABIs    = flag.Bool("gensymabis", false, "write symbol ABI information to output file, don't assemble")
 	Importpath = flag.String("p", obj.UnlinkablePkg, "set expected package import to path")
 	Spectre    = flag.String("spectre", "", "enable spectre mitigations in `list` (all, ret)")
+	Std        = flag.Bool("std", false, "building standard library")
 )
 
 var DebugFlags struct {

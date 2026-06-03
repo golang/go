@@ -26,7 +26,7 @@ var val8 [8]uint8
 func set16(x8 int8, u8 *uint8, y8 int8, z8 uint8) {
 	// Truncate not needed, load does sign/zero extend
 
-	// ppc64x:-"MOVBZ R\\d+,\\sR\\d+"
+	// ppc64x:-"MOVBZ R\\d+, R\\d+"
 	val16[0] = uint16(*u8)
 
 	// AND not needed due to size
@@ -39,20 +39,20 @@ func set16(x8 int8, u8 *uint8, y8 int8, z8 uint8) {
 }
 func shiftidx(u8 *uint8, x16 *int16, u16 *uint16) {
 
-	// ppc64x:-"MOVBZ R\\d+,\\sR\\d+"
+	// ppc64x:-"MOVBZ R\\d+, R\\d+"
 	val16[0] = uint16(sval16[*u8>>2])
 
-	// ppc64x:-"MOVH R\\d+,\\sR\\d+"
+	// ppc64x:-"MOVH R\\d+, R\\d+"
 	sval16[1] = int16(val16[*x16>>1])
 
-	// ppc64x:-"MOVHZ R\\d+,\\sR\\d+"
+	// ppc64x:-"MOVHZ R\\d+, R\\d+"
 	val16[1] = uint16(sval16[*u16>>2])
 
 }
 
 func setnox(x8 int8, u8 *uint8, y8 *int8, z8 *uint8, x16 *int16, u16 *uint16, x32 *int32, u32 *uint32) {
 
-	// ppc64x:-"MOVBZ R\\d+,\\sR\\d+"
+	// ppc64x:-"MOVBZ R\\d+, R\\d+"
 	val16[0] = uint16(*u8)
 
 	// AND not needed due to size
@@ -62,65 +62,65 @@ func setnox(x8 int8, u8 *uint8, y8 *int8, z8 *uint8, x16 *int16, u16 *uint16, x3
 	// ppc64x:-"ANDCC"
 	val16[1] = 255 & uint16(*u8+*z8)
 
-	// ppc64x:-"MOVH R\\d+,\\sR\\d+"
+	// ppc64x:-"MOVH R\\d+, R\\d+"
 	sval32[1] = int32(*x16)
 
-	// ppc64x:-"MOVBZ R\\d+,\\sR\\d+"
+	// ppc64x:-"MOVBZ R\\d+, R\\d+"
 	val32[0] = uint32(*u8)
 
-	// ppc64x:-"MOVHZ R\\d+,\\sR\\d+"
+	// ppc64x:-"MOVHZ R\\d+, R\\d+"
 	val32[1] = uint32(*u16)
 
-	// ppc64x:-"MOVH R\\d+,\\sR\\d+"
+	// ppc64x:-"MOVH R\\d+, R\\d+"
 	sval64[1] = int64(*x16)
 
-	// ppc64x:-"MOVW R\\d+,\\sR\\d+"
+	// ppc64x:-"MOVW R\\d+, R\\d+"
 	sval64[2] = int64(*x32)
 
-	// ppc64x:-"MOVBZ R\\d+,\\sR\\d+"
+	// ppc64x:-"MOVBZ R\\d+, R\\d+"
 	val64[0] = uint64(*u8)
 
-	// ppc64x:-"MOVHZ R\\d+,\\sR\\d+"
+	// ppc64x:-"MOVHZ R\\d+, R\\d+"
 	val64[1] = uint64(*u16)
 
-	// ppc64x:-"MOVWZ R\\d+,\\sR\\d+"
+	// ppc64x:-"MOVWZ R\\d+, R\\d+"
 	val64[2] = uint64(*u32)
 }
 
 func cmp16(u8 *uint8, x32 *int32, u32 *uint32, x64 *int64, u64 *uint64) bool {
 
-	// ppc64x:-"MOVBZ R\\d+,\\sR\\d+"
+	// ppc64x:-"MOVBZ R\\d+, R\\d+"
 	if uint16(*u8) == val16[0] {
 		return true
 	}
 
-	// ppc64x:-"MOVHZ R\\d+,\\sR\\d+"
+	// ppc64x:-"MOVHZ R\\d+, R\\d+"
 	if uint16(*u32>>16) == val16[0] {
 		return true
 	}
 
-	// ppc64x:-"MOVHZ R\\d+,\\sR\\d+"
+	// ppc64x:-"MOVHZ R\\d+, R\\d+"
 	if uint16(*u64>>48) == val16[0] {
 		return true
 	}
 
 	// Verify the truncates are using the correct sign.
-	// ppc64x:-"MOVHZ R\\d+,\\sR\\d+"
+	// ppc64x:-"MOVHZ R\\d+, R\\d+"
 	if int16(*x32) == sval16[0] {
 		return true
 	}
 
-	// ppc64x:-"MOVH R\\d+,\\sR\\d+"
+	// ppc64x:-"MOVH R\\d+, R\\d+"
 	if uint16(*u32) == val16[0] {
 		return true
 	}
 
-	// ppc64x:-"MOVHZ R\\d+,\\sR\\d+"
+	// ppc64x:-"MOVHZ R\\d+, R\\d+"
 	if int16(*x64) == sval16[0] {
 		return true
 	}
 
-	// ppc64x:-"MOVH R\\d+,\\sR\\d+"
+	// ppc64x:-"MOVH R\\d+, R\\d+"
 	if uint16(*u64) == val16[0] {
 		return true
 	}
@@ -130,28 +130,28 @@ func cmp16(u8 *uint8, x32 *int32, u32 *uint32, x64 *int64, u64 *uint64) bool {
 
 func cmp32(u8 *uint8, x16 *int16, u16 *uint16, x64 *int64, u64 *uint64) bool {
 
-	// ppc64x:-"MOVBZ R\\d+,\\sR\\d+"
+	// ppc64x:-"MOVBZ R\\d+, R\\d+"
 	if uint32(*u8) == val32[0] {
 		return true
 	}
 
-	// ppc64x:-"MOVH R\\d+,\\sR\\d+"
+	// ppc64x:-"MOVH R\\d+, R\\d+"
 	if int32(*x16) == sval32[0] {
 		return true
 	}
 
-	// ppc64x:-"MOVHZ R\\d+,\\sR\\d+"
+	// ppc64x:-"MOVHZ R\\d+, R\\d+"
 	if uint32(*u16) == val32[0] {
 		return true
 	}
 
 	// Verify the truncates are using the correct sign.
-	// ppc64x:-"MOVWZ R\\d+,\\sR\\d+"
+	// ppc64x:-"MOVWZ R\\d+, R\\d+"
 	if int32(*x64) == sval32[0] {
 		return true
 	}
 
-	// ppc64x:-"MOVW R\\d+,\\sR\\d+"
+	// ppc64x:-"MOVW R\\d+, R\\d+"
 	if uint32(*u64) == val32[0] {
 		return true
 	}
@@ -161,27 +161,27 @@ func cmp32(u8 *uint8, x16 *int16, u16 *uint16, x64 *int64, u64 *uint64) bool {
 
 func cmp64(u8 *uint8, x16 *int16, u16 *uint16, x32 *int32, u32 *uint32) bool {
 
-	// ppc64x:-"MOVBZ R\\d+,\\sR\\d+"
+	// ppc64x:-"MOVBZ R\\d+, R\\d+"
 	if uint64(*u8) == val64[0] {
 		return true
 	}
 
-	// ppc64x:-"MOVH R\\d+,\\sR\\d+"
+	// ppc64x:-"MOVH R\\d+, R\\d+"
 	if int64(*x16) == sval64[0] {
 		return true
 	}
 
-	// ppc64x:-"MOVHZ R\\d+,\\sR\\d+"
+	// ppc64x:-"MOVHZ R\\d+, R\\d+"
 	if uint64(*u16) == val64[0] {
 		return true
 	}
 
-	// ppc64x:-"MOVW R\\d+,\\sR\\d+"
+	// ppc64x:-"MOVW R\\d+, R\\d+"
 	if int64(*x32) == sval64[0] {
 		return true
 	}
 
-	// ppc64x:-"MOVWZ R\\d+,\\sR\\d+"
+	// ppc64x:-"MOVWZ R\\d+, R\\d+"
 	if uint64(*u32) == val64[0] {
 		return true
 	}

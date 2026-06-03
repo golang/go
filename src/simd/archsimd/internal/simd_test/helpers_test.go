@@ -2,18 +2,24 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-//go:build goexperiment.simd && amd64
+//go:build goexperiment.simd
 
 package simd_test
 
 import (
+	"fmt"
 	"math"
 	"simd/archsimd/internal/test_helpers"
 	"testing"
+	"unsafe"
 )
 
 type signed interface {
 	~int | ~int8 | ~int16 | ~int32 | ~int64
+}
+
+type unsigned interface {
+	~uint | ~uint8 | ~uint16 | ~uint32 | ~uint64 | ~uintptr
 }
 
 type integer interface {
@@ -167,6 +173,23 @@ func nOf[T any](n int, s []T) []T {
 	return r
 }
 
+// grouped2 takes a function that applies to a 128-bit group and returns a
+// function that applies to arbitrary length vectors.
+func grouped2[T any](fg func(xg, yg []T) (zg []T)) func(x, y []T) []T {
+	return func(x, y []T) []T {
+		z := make([]T, len(x))
+		groupElems := 128 / int(8*unsafe.Sizeof(*new(T)))
+		for i := 0; i < len(z); i += groupElems {
+			zg := fg(x[i:][:groupElems], y[i:][:groupElems])
+			if len(zg) != groupElems {
+				panic(fmt.Sprintf("got %d elements, want %d", len(zg), groupElems))
+			}
+			copy(z[i:], zg)
+		}
+		return z
+	}
+}
+
 const (
 	PN22  = 1.0 / 1024 / 1024 / 4
 	PN24  = 1.0 / 1024 / 1024 / 16
@@ -239,6 +262,17 @@ func forSliceTriple[T number](t *testing.T, s []T, n int, f func(a, b, c []T) bo
 	}
 }
 
+func forSliceMixed[D, S number](t *testing.T, d []D, s []S, n int, f func(a []D, b []S) bool) {
+	t.Helper()
+	for i := 0; i < len(d)-n; i++ {
+		for j := 0; j < len(s)-n; j++ {
+			if !f(d[i:i+n], s[j:j+n]) {
+				return
+			}
+		}
+	}
+}
+
 func forSlicePairMasked[T number](t *testing.T, s []T, n int, f func(a, b []T, m []bool) bool) {
 	t.Helper()
 	m := bools
@@ -252,4 +286,9 @@ func forSlicePairMasked[T number](t *testing.T, s []T, n int, f func(a, b []T, m
 			}
 		}
 	}
+}
+
+//go:noinline
+func hideConst[T number](x T) T {
+	return x
 }

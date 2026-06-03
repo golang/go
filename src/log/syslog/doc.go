@@ -22,3 +22,8 @@ package syslog
 // see https://golang.org/issue/1108.
 
 // BUG(akumar): This package is not implemented on Plan 9.
+
+// BUG(odeke-em): As of Darwin's macOS 12.X (Monterey), Apple's syslog daemon no
+// longer listens on a UNIX domain socket and instead now uses their proprietary
+// Apple Unified Logging (AUL) system, hence this package will no longer work.
+// Please see https://developer.apple.com/documentation/os/logging.

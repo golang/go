@@ -28,7 +28,7 @@ func checkValid(data []byte) error {
 	d := export.GetBufferedDecoder(data)
 	defer export.PutBufferedDecoder(d)
 	xd := export.Decoder(d)
-	xd.Struct.Flags.Set(jsonflags.AllowDuplicateNames | jsonflags.AllowInvalidUTF8 | 1)
+	xd.Struct.Flags.Set(jsonflags.ReportErrorsWithLegacySemantics | jsonflags.AllowDuplicateNames | jsonflags.AllowInvalidUTF8 | 1)
 	if _, err := d.ReadValue(); err != nil {
 		if err == io.EOF {
 			offset := d.InputOffset() + int64(len(d.UnreadBuffer()))
@@ -56,6 +56,11 @@ var errUnexpectedEnd = errors.New("unexpected end of JSON input")
 func transformSyntacticError(err error) error {
 	switch serr, ok := err.(*jsontext.SyntacticError); {
 	case serr != nil:
+		// If the SyntacticError wraps an IO error, unwrap it
+		// to match v1 behavior which returned IO errors directly.
+		if export.IsIOError(serr.Err) {
+			return errors.Unwrap(serr.Err)
+		}
 		if serr.Err == io.ErrUnexpectedEOF {
 			serr.Err = errUnexpectedEnd
 		}

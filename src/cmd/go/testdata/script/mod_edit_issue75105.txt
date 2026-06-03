@@ -26,11 +26,5 @@ godebug http2debug=2
 			"Key": "http2debug",
 			"Value": "2"
 		}
-	],
-	"Require": null,
-	"Exclude": null,
-	"Replace": null,
-	"Retract": null,
-	"Tool": null,
-	"Ignore": null
+	]
 }

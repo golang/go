@@ -39,12 +39,12 @@ func cmpVersion(p string, v1, v2 string) int {
 // mvsReqs implements mvs.Reqs for module semantic versions,
 // with any exclusions or replacements applied internally.
 type mvsReqs struct {
-	loaderstate *State // TODO(jitsu): Is there a way we can not depend on the entire loader state?
-	roots       []module.Version
+	ld    *Loader // TODO(jitsu): Is there a way we can not depend on the entire loader state?
+	roots []module.Version
 }
 
 func (r *mvsReqs) Required(mod module.Version) ([]module.Version, error) {
-	if mod.Version == "" && r.loaderstate.MainModules.Contains(mod.Path) {
+	if mod.Version == "" && r.ld.MainModules.Contains(mod.Path) {
 		// Use the build list as it existed when r was constructed, not the current
 		// global build list.
 		return r.roots, nil
@@ -54,7 +54,7 @@ func (r *mvsReqs) Required(mod module.Version) ([]module.Version, error) {
 		return nil, nil
 	}
 
-	summary, err := goModSummary(r.loaderstate, mod)
+	summary, err := goModSummary(r.ld, mod)
 	if err != nil {
 		return nil, err
 	}
@@ -80,11 +80,11 @@ func (*mvsReqs) Upgrade(m module.Version) (module.Version, error) {
 	return m, nil
 }
 
-func versions(loaderstate *State, ctx context.Context, path string, allowed AllowedFunc) (versions []string, origin *codehost.Origin, err error) {
+func versions(ld *Loader, ctx context.Context, path string, allowed AllowedFunc) (versions []string, origin *codehost.Origin, err error) {
 	// Note: modfetch.Lookup and repo.Versions are cached,
 	// so there's no need for us to add extra caching here.
 	err = modfetch.TryProxies(func(proxy string) error {
-		repo, err := lookupRepo(loaderstate, ctx, proxy, path)
+		repo, err := lookupRepo(ld, ctx, proxy, path)
 		if err != nil {
 			return err
 		}
@@ -112,12 +112,12 @@ func versions(loaderstate *State, ctx context.Context, path string, allowed Allo
 //
 // Since the version of a main module is not found in the version list,
 // it has no previous version.
-func previousVersion(loaderstate *State, ctx context.Context, m module.Version) (module.Version, error) {
-	if m.Version == "" && loaderstate.MainModules.Contains(m.Path) {
+func previousVersion(ld *Loader, ctx context.Context, m module.Version) (module.Version, error) {
+	if m.Version == "" && ld.MainModules.Contains(m.Path) {
 		return module.Version{Path: m.Path, Version: "none"}, nil
 	}
 
-	list, _, err := versions(loaderstate, ctx, m.Path, loaderstate.CheckAllowed)
+	list, _, err := versions(ld, ctx, m.Path, ld.CheckAllowed)
 	if err != nil {
 		if errors.Is(err, os.ErrNotExist) {
 			return module.Version{Path: m.Path, Version: "none"}, nil
@@ -133,5 +133,5 @@ func previousVersion(loaderstate *State, ctx context.Context, m module.Version) 
 
 func (r *mvsReqs) Previous(m module.Version) (module.Version, error) {
 	// TODO(golang.org/issue/38714): thread tracing context through MVS.
-	return previousVersion(r.loaderstate, context.TODO(), m)
+	return previousVersion(r.ld, context.TODO(), m)
 }

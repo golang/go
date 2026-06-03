@@ -7,6 +7,7 @@ package ssa
 import (
 	"cmd/compile/internal/ir"
 	"cmd/compile/internal/types"
+	"cmd/internal/obj"
 	"slices"
 )
 
@@ -206,11 +207,182 @@ func pairLoads(f *Func) {
 			i++ // Skip y next time around the loop.
 		}
 	}
+
+	// Try to pair a load with a load from a subsequent block.
+	// Note that this is always safe to do if the memory arguments match.
+	// (But see the memory barrier case below.)
+	type nextBlockKey struct {
+		op     Op
+		ptr    ID
+		mem    ID
+		auxInt int64
+		aux    any
+	}
+	nextBlock := map[nextBlockKey]*Value{}
+	for _, b := range f.Blocks {
+		if memoryBarrierTest(b) {
+			// TODO: Do we really need to skip write barrier test blocks?
+			//     type T struct {
+			//         a *byte
+			//         b int
+			//     }
+			//     func f(t *T) int {
+			//         r := t.b
+			//         t.a = nil
+			//         return r
+			//     }
+			// This would issue a single LDP for both the t.a and t.b fields,
+			// *before* we check the write barrier flag. (We load the t.a field
+			// to put it in the write barrier buffer.) Not sure if that is ok.
+			continue
+		}
+		// Find loads in the next block(s) that we can move to this one.
+		// TODO: could maybe look further than just one successor hop.
+		clear(nextBlock)
+		for _, e := range b.Succs {
+			if len(e.b.Preds) > 1 {
+				continue
+			}
+			for _, v := range e.b.Values {
+				info := pairableLoads[v.Op]
+				if info.width == 0 {
+					continue
+				}
+				if !offsetOk(v.Aux, v.AuxInt, info.width) {
+					continue // not advisable
+				}
+				nextBlock[nextBlockKey{op: v.Op, ptr: v.Args[0].ID, mem: v.Args[1].ID, auxInt: v.AuxInt, aux: v.Aux}] = v
+			}
+		}
+		if len(nextBlock) == 0 {
+			continue
+		}
+		// don't move too many loads. Each requires a register across a basic block boundary.
+		const maxMoved = 4
+		nMoved := 0
+		for i := len(b.Values) - 1; i >= 0 && nMoved < maxMoved; i-- {
+			x := b.Values[i]
+			info := pairableLoads[x.Op]
+			if info.width == 0 {
+				continue
+			}
+			if !offsetOk(x.Aux, x.AuxInt, info.width) {
+				continue // not advisable
+			}
+			key := nextBlockKey{op: x.Op, ptr: x.Args[0].ID, mem: x.Args[1].ID, auxInt: x.AuxInt + info.width, aux: x.Aux}
+			if y := nextBlock[key]; y != nil {
+				delete(nextBlock, key)
+
+				// Make the 2-register load.
+				load := b.NewValue2IA(x.Pos, info.pair, types.NewTuple(x.Type, y.Type), x.AuxInt, x.Aux, x.Args[0], x.Args[1])
+
+				// Modify x to be (Select0 load).
+				x.reset(OpSelect0)
+				x.SetArgs1(load)
+				// Modify y to be (Copy (Select1 load)).
+				// Note: the Select* needs to live in the load's block, not y's block.
+				y.reset(OpCopy)
+				y.SetArgs1(b.NewValue1(y.Pos, OpSelect1, y.Type, load))
+				nMoved++
+				continue
+			}
+			key.auxInt = x.AuxInt - info.width
+			if y := nextBlock[key]; y != nil {
+				delete(nextBlock, key)
+
+				// Make the 2-register load.
+				load := b.NewValue2IA(x.Pos, info.pair, types.NewTuple(y.Type, x.Type), y.AuxInt, x.Aux, x.Args[0], x.Args[1])
+
+				// Modify x to be (Select1 load).
+				x.reset(OpSelect1)
+				x.SetArgs1(load)
+				// Modify y to be (Copy (Select0 load)).
+				y.reset(OpCopy)
+				y.SetArgs1(b.NewValue1(y.Pos, OpSelect0, y.Type, load))
+				nMoved++
+				continue
+			}
+		}
+	}
 }
 
+func memoryBarrierTest(b *Block) bool {
+	if b.Kind != BlockARM64NZW {
+		return false
+	}
+	c := b.Controls[0]
+	if c.Op != OpARM64MOVWUload {
+		return false
+	}
+	if globl, ok := c.Aux.(*obj.LSym); ok {
+		return globl.Name == "runtime.writeBarrier"
+	}
+	return false
+}
+
+// pairStores merges store instructions.
+// It collects stores into a buffer where they can be freely reordered.
+// When encountering an instruction that cannot be added to the buffer,
+// it pairs the accumulated stores, flushes the buffer, and continues processing.
 func pairStores(f *Func) {
 	last := f.Cache.allocBoolSlice(f.NumValues())
 	defer f.Cache.freeBoolSlice(last)
+
+	// memChain contains a list of stores with the same ptr/aux pair and
+	// nonoverlapping write ranges [AuxInt:AuxInt+writeSize]. All of the
+	// elements of memChain can be reordered with each other.
+	memChain := []*Value{}
+
+	// Limit of length of memChain array.
+	// This keeps us in O(n) territory.
+	limit := 100
+
+	// flushMemChain sorts the stores in memChain and merges them when possible.
+	// Then it flushes memChain.
+	flushMemChain := func() {
+		if len(memChain) < 2 {
+			memChain = memChain[:0]
+			return
+		}
+
+		// Sort in increasing AuxInt to put pairable stores together.
+		slices.SortFunc(memChain, func(x, y *Value) int {
+			return int(x.AuxInt - y.AuxInt)
+		})
+
+		lastIdx := len(memChain) - 1
+		for i := 0; i < lastIdx; i++ {
+			v := memChain[i]
+			w := memChain[i+1]
+			info := pairableStores[v.Op]
+
+			off := v.AuxInt
+			mem := v.MemoryArg()
+			aux := v.Aux
+			pos := v.Pos
+			wmem := w.MemoryArg()
+
+			if w.Op == v.Op && w.AuxInt == off+info.width {
+				// Arguments for the merged store: ptr, val1, val2, mem.
+				args := []*Value{v.Args[0], v.Args[1], w.Args[1], mem}
+
+				v.reset(info.pair)
+				v.AddArgs(args...)
+				v.Aux = aux
+				v.AuxInt = off
+				v.Pos = pos
+
+				// Make w just a memory copy.
+				w.reset(OpCopy)
+				w.SetArgs1(wmem)
+
+				// Skip merged store (w)
+				i++
+			}
+		}
+
+		memChain = memChain[:0]
+	}
 
 	// prevStore returns the previous store in the
 	// same block, or nil if there are none.
@@ -225,7 +397,28 @@ func pairStores(f *Func) {
 		return m
 	}
 
+	// storeWidth returns the width of store,
+	// or 0 if it is not a store this pass understands.
+	storeWidth := func(op Op) int64 {
+		var width int64
+		switch op {
+		case OpARM64MOVDstore, OpARM64FMOVDstore:
+			width = 8
+		case OpARM64MOVWstore, OpARM64FMOVSstore:
+			width = 4
+		case OpARM64MOVHstore:
+			width = 2
+		case OpARM64MOVBstore:
+			width = 1
+		default:
+			width = 0
+		}
+		return width
+	}
+
 	for _, b := range f.Blocks {
+		memChain = memChain[:0]
+
 		// Find last store in block, so we can
 		// walk the stores last to first.
 		// Last to first helps ensure that the rewrites we
@@ -250,110 +443,46 @@ func pairStores(f *Func) {
 			}
 		}
 
-		// Check all stores, from last to first.
-	memCheck:
+		// Iterate over memory stores, accumulating them in memChain for potential merging.
+		// Flush the chain when reordering is unsafe or a conflict is detected.
 		for v := lastMem; v != nil; v = prevStore(v) {
-			info := pairableStores[v.Op]
-			if info.width == 0 {
-				continue // Not pairable.
+			writeSize := storeWidth(v.Op)
+
+			if writeSize == 0 {
+				// We can't reorder stores with calls or other instructions
+				// with writeSize == 0.
+				flushMemChain()
+				continue
 			}
-			if !offsetOk(v.Aux, v.AuxInt, info.width) {
-				continue // Not advisable to pair.
+			if v.Uses != 1 && len(memChain) > 0 ||
+				len(memChain) > 0 && (v.Args[0] != memChain[0].Args[0] || v.Aux != memChain[0].Aux) ||
+				len(memChain) == limit {
+				// If v has multiple uses and it is not the latest store in the chain,
+				// we cannot merge it with other store instructions.
+				// If v has a different base pointer or Aux value from the current chain,
+				// we need to flush memChain and start a new one with v.
+				// If memChain length limit is exceeded, we also need to flush the chain
+				// and start a new one with v.
+				// Only look back so far.
+				// This keeps us in O(n) territory, and it
+				// also prevents us from keeping values
+				// in registers for too long (and thus
+				// needing to spill them).
+				flushMemChain()
 			}
-			ptr := v.Args[0]
-			val := v.Args[1]
-			mem := v.Args[2]
-			off := v.AuxInt
-			aux := v.Aux
 
-			// Look for earlier store we can combine with.
-			lowerOk := true
-			higherOk := true
-			count := 10 // max lookback distance
-			for w := prevStore(v); w != nil; w = prevStore(w) {
-				if w.Uses != 1 {
-					// We can't combine stores if the earlier
-					// store has any use besides the next one
-					// in the store chain.
-					// (Unless we could check the aliasing of
-					// all those other uses.)
-					continue memCheck
-				}
-				if w.Op == v.Op &&
-					w.Args[0] == ptr &&
-					w.Aux == aux &&
-					(lowerOk && w.AuxInt == off-info.width || higherOk && w.AuxInt == off+info.width) {
-					// This op is mergeable with v.
-
-					// Commit point.
-
-					// ptr val1 val2 mem
-					args := []*Value{ptr, val, w.Args[1], mem}
-					if w.AuxInt == off-info.width {
-						args[1], args[2] = args[2], args[1]
-						off -= info.width
-					}
-					v.reset(info.pair)
-					v.AddArgs(args...)
-					v.Aux = aux
-					v.AuxInt = off
-					v.Pos = w.Pos // take position of earlier of the two stores (TODO: not really working?)
-
-					// Make w just a memory copy.
-					wmem := w.MemoryArg()
-					w.reset(OpCopy)
-					w.SetArgs1(wmem)
-					continue memCheck
-				}
-				if count--; count == 0 {
-					// Only look back so far.
-					// This keeps us in O(n) territory, and it
-					// also prevents us from keeping values
-					// in registers for too long (and thus
-					// needing to spill them).
-					continue memCheck
-				}
-				// We're now looking at a store w which is currently
-				// between the store v that we're intending to merge into,
-				// and the store we'll eventually find to merge with it.
-				// Make sure this store doesn't alias with the one
-				// we'll be moving.
-				var width int64
-				switch w.Op {
-				case OpARM64MOVDstore, OpARM64FMOVDstore:
-					width = 8
-				case OpARM64MOVWstore, OpARM64FMOVSstore:
-					width = 4
-				case OpARM64MOVHstore:
-					width = 2
-				case OpARM64MOVBstore:
-					width = 1
-				case OpCopy:
-					continue // this was a store we merged earlier
-				default:
-					// Can't reorder with any other memory operations.
-					// (atomics, calls, ...)
-					continue memCheck
-				}
-
-				// We only allow reordering with respect to other
-				// writes to the same pointer and aux, so we can
-				// compute the exact the aliasing relationship.
-				if w.Args[0] != ptr || w.Aux != aux {
-					continue memCheck
-				}
-				if overlap(w.AuxInt, width, off-info.width, info.width) {
-					// Aliases with slot before v's location.
-					lowerOk = false
-				}
-				if overlap(w.AuxInt, width, off+info.width, info.width) {
-					// Aliases with slot after v's location.
-					higherOk = false
-				}
-				if !higherOk && !lowerOk {
-					continue memCheck
+			for _, w := range memChain {
+				wWriteSize := storeWidth(w.Op)
+				if overlap(w.AuxInt, wWriteSize, v.AuxInt, writeSize) {
+					// Aliases with w's location.
+					// Flush the chain and start a new one with v.
+					flushMemChain()
+					break
 				}
 			}
+
+			memChain = append(memChain, v)
 		}
+		flushMemChain()
 	}
 }

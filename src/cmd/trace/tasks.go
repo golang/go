@@ -426,12 +426,12 @@ func describeEvent(ev *trace.Event) string {
 		return fmt.Sprintf("region %q end", ev.Region().Type)
 	case trace.EventTaskBegin:
 		t := ev.Task()
-		return fmt.Sprintf("task %q (D %d, parent %d) begin", t.Type, t.ID, t.Parent)
+		return fmt.Sprintf("task %q (ID %d, parent %d) begin", t.Type, t.ID, t.Parent)
 	case trace.EventTaskEnd:
 		return "task end"
 	case trace.EventLog:
 		log := ev.Log()
-		if log.Category != "" {
+		if log.Category == "" {
 			return fmt.Sprintf("log %q", log.Message)
 		}
 		return fmt.Sprintf("log (category: %s): %q", log.Category, log.Message)

@@ -16,7 +16,7 @@
 // For example:
 // (CMPBconstload c (ADDQ x y)) -> (CMPBconstloadidx1 c x y) -> (CMPB c (MOVBloadidx1 x y))
 
-(CMP(Q|L|W|B)load {sym} [off] ptr x mem) => (CMP(Q|L|W|B) (MOV(Q|L|W|B)load {sym} [off] ptr mem) x)
+(CMP(Q|L|W|B)load {sym} [off] ptr x mem) => (CMP(Q|L|W|B) (MOV(Q|L|W|B)load <x.Type> {sym} [off] ptr mem) x)
 
 (CMP(Q|L|W|B)constload {sym} [vo] ptr mem) && vo.Val() == 0 => (TEST(Q|L|W|B) x:(MOV(Q|L|W|B)load {sym} [vo.Off()] ptr mem) x)
 
@@ -25,10 +25,10 @@
 (CMPWconstload {sym} [vo] ptr mem) && vo.Val() != 0 => (CMPWconst (MOVWload {sym} [vo.Off()] ptr mem) [vo.Val16()])
 (CMPBconstload {sym} [vo] ptr mem) && vo.Val() != 0 => (CMPBconst (MOVBload {sym} [vo.Off()] ptr mem) [vo.Val8()])
 
-(CMP(Q|L|W|B)loadidx1 {sym} [off] ptr idx x mem) => (CMP(Q|L|W|B) (MOV(Q|L|W|B)loadidx1 {sym} [off] ptr idx mem) x)
-(CMPQloadidx8 {sym} [off] ptr idx x mem) => (CMPQ (MOVQloadidx8 {sym} [off] ptr idx mem) x)
-(CMPLloadidx4 {sym} [off] ptr idx x mem) => (CMPL (MOVLloadidx4 {sym} [off] ptr idx mem) x)
-(CMPWloadidx2 {sym} [off] ptr idx x mem) => (CMPW (MOVWloadidx2 {sym} [off] ptr idx mem) x)
+(CMP(Q|L|W|B)loadidx1 {sym} [off] ptr idx x mem) => (CMP(Q|L|W|B) (MOV(Q|L|W|B)loadidx1 <x.Type> {sym} [off] ptr idx mem) x)
+(CMPQloadidx8 {sym} [off] ptr idx x mem) => (CMPQ (MOVQloadidx8 <x.Type> {sym} [off] ptr idx mem) x)
+(CMPLloadidx4 {sym} [off] ptr idx x mem) => (CMPL (MOVLloadidx4 <x.Type> {sym} [off] ptr idx mem) x)
+(CMPWloadidx2 {sym} [off] ptr idx x mem) => (CMPW (MOVWloadidx2 <x.Type> {sym} [off] ptr idx mem) x)
 
 (CMP(Q|L|W|B)constloadidx1 {sym} [vo] ptr idx mem) && vo.Val() == 0 => (TEST(Q|L|W|B) x:(MOV(Q|L|W|B)loadidx1 {sym} [vo.Off()] ptr idx mem) x)
 (CMPQconstloadidx8         {sym} [vo] ptr idx mem) && vo.Val() == 0 => (TESTQ         x:(MOVQloadidx8         {sym} [vo.Off()] ptr idx mem) x)

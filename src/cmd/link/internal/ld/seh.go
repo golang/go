@@ -8,6 +8,8 @@ import (
 	"cmd/internal/sys"
 	"cmd/link/internal/loader"
 	"cmd/link/internal/sym"
+	"cmp"
+	"slices"
 )
 
 var sehp struct {
@@ -15,14 +17,16 @@ var sehp struct {
 	xdata []sym.LoaderSym
 }
 
-func writeSEH(ctxt *Link) {
+// collectSEH collects the SEH unwind information for all functions and organizes
+// it into .pdata and .xdata sections.
+func collectSEH(ctxt *Link) {
 	switch ctxt.Arch.Family {
 	case sys.AMD64:
-		writeSEHAMD64(ctxt)
+		collectSEHAMD64(ctxt)
 	}
 }
 
-func writeSEHAMD64(ctxt *Link) {
+func collectSEHAMD64(ctxt *Link) {
 	ldr := ctxt.loader
 	mkSecSym := func(name string, kind sym.SymKind) *loader.SymbolBuilder {
 		s := ldr.CreateSymForUpdate(name, 0)
@@ -39,6 +43,11 @@ func writeSEHAMD64(ctxt *Link) {
 	// an RVA, so it is possible, and binary-size wise,
 	// to deduplicate .xdata entries.
 	uwcache := make(map[string]int64) // aux symbol name --> .xdata offset
+	type pdataEntry struct {
+		start    sym.LoaderSym
+		xdataOff int64
+	}
+	var entries []pdataEntry
 	for _, s := range ctxt.Textp {
 		if fi := ldr.FuncInfo(s); !fi.Valid() {
 			continue
@@ -66,12 +75,22 @@ func writeSEHAMD64(ctxt *Link) {
 			}
 		}
 
+		entries = append(entries, pdataEntry{start: s, xdataOff: off})
+	}
+	slices.SortFunc(entries, func(a, b pdataEntry) int {
+		return cmp.Compare(ldr.SymAddr(a.start), ldr.SymAddr(b.start))
+	})
+	for _, ent := range entries {
 		// Reference:
 		// https://learn.microsoft.com/en-us/cpp/build/exception-handling-x64#struct-runtime_function
-		pdata.AddPEImageRelativeAddrPlus(ctxt.Arch, s, 0)
-		pdata.AddPEImageRelativeAddrPlus(ctxt.Arch, s, ldr.SymSize(s))
-		pdata.AddPEImageRelativeAddrPlus(ctxt.Arch, xdata.Sym(), off)
+		pdata.AddPEImageRelativeAddrPlus(ctxt.Arch, ent.start, 0)                      // function start address
+		pdata.AddPEImageRelativeAddrPlus(ctxt.Arch, ent.start, ldr.SymSize(ent.start)) // function end address
+		pdata.AddPEImageRelativeAddrPlus(ctxt.Arch, xdata.Sym(), ent.xdataOff)         // xdata symbol offset
 	}
-	sehp.pdata = append(sehp.pdata, pdata.Sym())
-	sehp.xdata = append(sehp.xdata, xdata.Sym())
+	if pdata.Size() > 0 {
+		sehp.pdata = append(sehp.pdata, pdata.Sym())
+	}
+	if xdata.Size() > 0 {
+		sehp.xdata = append(sehp.xdata, xdata.Sym())
+	}
 }

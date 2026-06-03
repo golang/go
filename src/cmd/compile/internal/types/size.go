@@ -366,6 +366,12 @@ func CalcSize(t *Type) {
 		t.intRegs = 1
 		CheckSize(t.Elem())
 		CheckSize(t.Key())
+		if t.Elem().width >= 1<<31 {
+			base.Errorf("map element type too large")
+		}
+		if t.Key().width >= 1<<31 {
+			base.Errorf("map key type too large")
+		}
 		t.setAlg(ANOEQ)
 		t.ptrBytes = int64(PtrSize)
 

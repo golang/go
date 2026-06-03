@@ -469,6 +469,34 @@ func stride2(x *[7]int) int {
 	return s
 }
 
+// This loop should not be proved anything.
+func smallIntUp(arr *[128]int) {
+	for i := int8(0); i <= int8(120); i += int8(10) {
+		arr[i] = int(i)
+	}
+}
+
+// This loop should not be proved anything.
+func smallIntDown(arr *[128]int) {
+	for i := int8(0); i >= int8(-120); i -= int8(10) {
+		arr[127+i] = int(i)
+	}
+}
+
+// This loop should not be proved anything.
+func smallUintUp(arr *[128]int) {
+	for i := uint8(0); i <= uint8(250); i += uint8(10) {
+		arr[i] = int(i)
+	}
+}
+
+// This loop should not be proved anything.
+func smallUintDown(arr *[128]int) {
+	for i := uint8(255); i >= uint8(0); i -= uint8(10) {
+		arr[127+i] = int(i)
+	}
+}
+
 //go:noinline
 func useString(a string) {
 }

@@ -198,3 +198,34 @@ func TestValueMethods(t *testing.T) {
 		})
 	}
 }
+
+func BenchmarkAppendFormat(b *testing.B) {
+	inputString := `[ null , false , true , "fizzbuzz" , 3.14159 , { "fizz" : "buzz" } ]`
+	inputBytes := []byte(inputString)
+	outputWant := `[null,false,true,"fizzbuzz",3.14159,{"fizz":"buzz"}]`
+	output := make([]byte, 0, len(inputString))
+
+	var err error
+	b.Run("FromString", func(b *testing.B) {
+		b.ReportAllocs()
+		for b.Loop() {
+			if output, err = AppendFormat(output[:0], inputString); err != nil {
+				b.Fatalf("AppendFormat error: %v", err)
+			}
+		}
+		if string(output) != outputWant {
+			b.Fatalf("AppendFormat mismatch:\n\tgot:  %s\n\twant: %s", output, outputWant)
+		}
+	})
+	b.Run("FromBytes", func(b *testing.B) {
+		b.ReportAllocs()
+		for b.Loop() {
+			if output, err = AppendFormat(output[:0], inputBytes); err != nil {
+				b.Fatalf("AppendFormat error: %v", err)
+			}
+		}
+		if string(output) != outputWant {
+			b.Fatalf("AppendFormat mismatch:\n\tgot:  %s\n\twant: %s", output, outputWant)
+		}
+	})
+}

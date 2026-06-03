@@ -86,6 +86,9 @@ package fips140
 
 import (
 	"context"
+	"crypto/sha256"
+	"fmt"
+	"io"
 	"os"
 	"path"
 	"path/filepath"
@@ -225,11 +228,64 @@ func initDir() {
 
 	mod := module.Version{Path: "golang.org/fips140", Version: v}
 	file := filepath.Join(cfg.GOROOT, "lib/fips140", v+".zip")
-	zdir, err := modfetch.NewFetcher().Unzip(context.Background(), mod, file)
+	ctx := context.Background()
+
+	// The FIPS 140-3 Security Policy require checking the SHA-256 hash of the
+	// zip file. Verify it once against fips140.sum before unpacking it.
+	if _, err := modfetch.DownloadDir(ctx, mod); err != nil {
+		sumfile := filepath.Join(cfg.GOROOT, "lib/fips140/fips140.sum")
+		if err := verifyZipSum(file, sumfile); err != nil {
+			base.Fatalf("go: verifying GOFIPS140=%v: %v", v, err)
+		}
+	}
+
+	zdir, err := modfetch.NewFetcher().Unzip(ctx, mod, file)
 	if err != nil {
 		base.Fatalf("go: unpacking GOFIPS140=%v: %v", v, err)
 	}
 	dir = filepath.Join(zdir, "fips140")
+}
+
+// verifyZipSum checks that the SHA-256 hash of zipfile matches the entry
+// for its base name in sumfile, which is expected to be in the format of
+// GOROOT/lib/fips140/fips140.sum: "NAME SHA256HEX" lines, with "#" comments.
+func verifyZipSum(zipfile, sumfile string) error {
+	sums, err := os.ReadFile(sumfile)
+	if err != nil {
+		return err
+	}
+	name := filepath.Base(zipfile)
+	var want string
+	for line := range strings.SplitSeq(string(sums), "\n") {
+		line = strings.TrimSpace(line)
+		if line == "" || strings.HasPrefix(line, "#") {
+			continue
+		}
+		n, h, ok := strings.Cut(line, " ")
+		if !ok {
+			continue
+		}
+		if n == name {
+			want = strings.TrimSpace(h)
+			break
+		}
+	}
+	if want == "" {
+		return fmt.Errorf("no SHA-256 hash for %s in %s", name, sumfile)
+	}
+	f, err := os.Open(zipfile)
+	if err != nil {
+		return err
+	}
+	defer f.Close()
+	h := sha256.New()
+	if _, err := io.Copy(h, f); err != nil {
+		return err
+	}
+	if got := fmt.Sprintf("%x", h.Sum(nil)); got != want {
+		return fmt.Errorf("SHA-256 hash of %s is %s, want %s (from %s)", name, got, want, sumfile)
+	}
+	return nil
 }
 
 // ResolveImport resolves the import path imp.

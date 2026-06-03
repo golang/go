@@ -222,7 +222,7 @@ var comdatDefinitions map[string]int64
 type Symbols struct {
 	Textp     []loader.Sym // text symbols
 	Resources []loader.Sym // .rsrc section or set of .rsrc$xx sections
-	PData     loader.Sym
+	PData     []loader.Sym
 	XData     loader.Sym
 }
 
@@ -256,7 +256,10 @@ func Load(l *loader.Loader, arch *sys.Arch, localSymVersion int, input *bio.Read
 	defer f.Close()
 	state.f = f
 
-	var ls Symbols
+	var (
+		ls    Symbols
+		pdata loader.Sym
+	)
 
 	// TODO return error if found .cormeta
 
@@ -312,7 +315,7 @@ func Load(l *loader.Loader, arch *sys.Arch, localSymVersion int, input *bio.Read
 			ls.Resources = append(ls.Resources, s)
 		} else if bld.Type() == sym.SSEHSECT {
 			if sect.Name == ".pdata" {
-				ls.PData = s
+				pdata = s
 			} else if sect.Name == ".xdata" {
 				ls.XData = s
 			}
@@ -596,8 +599,12 @@ func Load(l *loader.Loader, arch *sys.Arch, localSymVersion int, input *bio.Read
 		}
 	}
 
-	if ls.PData != 0 {
-		processSEH(l, arch, ls.PData, ls.XData)
+	if pdata != 0 {
+		subs, err := processSEH(l, arch, pdata)
+		if err != nil {
+			return nil, err
+		}
+		ls.PData = subs
 	}
 
 	return &ls, nil

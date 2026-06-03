@@ -147,6 +147,12 @@ const (
 	// Max length of a special file (PAX header, GNU long name or link).
 	// This matches the limit used by libarchive.
 	maxSpecialFileSize = 1 << 20
+
+	// Maximum number of sparse file entries.
+	// We should never actually hit this limit
+	// (every sparse encoding will first be limited by maxSpecialFileSize),
+	// but this adds an additional layer of defense.
+	maxSparseFileEntries = 1 << 20
 )
 
 // blockPadding computes the number of bytes needed to pad offset up to the

@@ -227,7 +227,7 @@ func dialPlan9Blocking(ctx context.Context, net string, laddr, raddr Addr) (fd *
 		f.Close()
 		return nil, err
 	}
-	return newFD(proto, name, nil, f, data, laddr, raddr)
+	return newFD(proto, name, nil, f, data, laddr, raddr), nil
 }
 
 func listenPlan9(ctx context.Context, net string, laddr Addr) (fd *netFD, err error) {
@@ -246,10 +246,10 @@ func listenPlan9(ctx context.Context, net string, laddr Addr) (fd *netFD, err er
 		f.Close()
 		return nil, err
 	}
-	return newFD(proto, name, nil, f, nil, laddr, nil)
+	return newFD(proto, name, nil, f, nil, laddr, nil), nil
 }
 
-func (fd *netFD) netFD() (*netFD, error) {
+func (fd *netFD) netFD() *netFD {
 	return newFD(fd.net, fd.n, fd.listen, fd.ctl, fd.data, fd.laddr, fd.raddr)
 }
 
@@ -288,7 +288,7 @@ func (fd *netFD) acceptPlan9() (nfd *netFD, err error) {
 		data.Close()
 		return nil, err
 	}
-	return newFD(fd.net, name, listen, ctl, data, fd.laddr, raddr)
+	return newFD(fd.net, name, listen, ctl, data, fd.laddr, raddr), nil
 }
 
 func isWildcard(a Addr) bool {

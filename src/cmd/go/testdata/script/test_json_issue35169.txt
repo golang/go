@@ -12,7 +12,7 @@
 ! stdout '\{.*"Action":"pass".*\}'
 
 	# TODO(#62067): emit this as a build event instead of a test event.
-stdout '\{.*"Action":"output","Package":"example","Output":"FAIL\\texample \[build failed\]\\n"\}'
+stdout '\{.*"Action":"output","Package":"example","Output":"FAIL\\texample \[build failed\]\\n".*\}'
 stdout '\{.*"Action":"fail","Package":"example",.*\}'
 
 -- go.mod --

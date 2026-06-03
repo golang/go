@@ -12,6 +12,8 @@ var Debug DebugFlags
 // DebugFlags defines the debugging configuration values (see var Debug).
 // Each struct field is a different value, named for the lower-case of the field name.
 // Each field must be an int or string and must have a `help` struct tag.
+// Don't forget to note that concurrency is "ok" when it is,
+// else the compiler will serialize for that flag.
 //
 // The -d option takes a comma-separated list of settings.
 // Each setting is name=value; for ints, name is short for name=1.
@@ -21,13 +23,13 @@ type DebugFlags struct {
 	AstDump               string `help:"for specified function/method, dump AST/IR at interesting points in compilation, to file pkg.func.ast. Use leading ~ for regular expression match."`
 	Checkptr              int    `help:"instrument unsafe pointer conversions\n0: instrumentation disabled\n1: conversions involving unsafe.Pointer are instrumented\n2: conversions to unsafe.Pointer force heap allocation" concurrent:"ok"`
 	Closure               int    `help:"print information about closure compilation"`
-	CompressInstructions  int    `help:"use compressed instructions when possible (if supported by architecture)"`
+	CompressInstructions  int    `help:"use compressed instructions when possible (if supported by architecture)" concurrent:"ok"`
 	Converthash           string `help:"hash value for use in debugging changes to platform-dependent float-to-[u]int conversion" concurrent:"ok"`
 	Defer                 int    `help:"print information about defer compilation"`
 	DisableNil            int    `help:"disable nil checks" concurrent:"ok"`
 	DumpInlFuncProps      string `help:"dump function properties from inl heuristics to specified file"`
 	DumpInlCallSiteScores int    `help:"dump scored callsites during inlining"`
-	InlScoreAdj           string `help:"set inliner score adjustments (ex: -d=inlscoreadj=panicPathAdj:10/passConstToNestedIfAdj:-90)"`
+	InlScoreAdj           string `help:"set inliner score adjustments (ex: -d=inlscoreadj=panicPathAdj:10/passConstToNestedIfAdj:-90)" concurrent:"ok"`
 	InlBudgetSlack        int    `help:"amount to expand the initial inline budget when new inliner enabled. Defaults to 80 if option not set." concurrent:"ok"`
 	DumpPtrs              int    `help:"show Node pointers values in dump output"`
 	DwarfInl              int    `help:"print information about DWARF inlined function creation"`
@@ -46,10 +48,11 @@ type DebugFlags struct {
 	Gossahash             string `help:"hash value for use in debugging the compiler"`
 	InlFuncsWithClosures  int    `help:"allow functions with closures to be inlined" concurrent:"ok"`
 	InlStaticInit         int    `help:"allow static initialization of inlined calls" concurrent:"ok"`
+	InterfaceCycles       int    `help:"allow anonymous interface cycles" concurrent:"ok"`
 	Libfuzzer             int    `help:"enable coverage instrumentation for libfuzzer"`
 	LiteralAllocHash      string `help:"hash value for use in debugging literal allocation optimizations" concurrent:"ok"`
-	LoopVar               int    `help:"shared (0, default), 1 (private loop variables), 2, private + log"`
-	LoopVarHash           string `help:"for debugging changes in loop behavior. Overrides experiment and loopvar flag."`
+	LoopVar               int    `help:"shared (0), 1 (private loop variables, default), 2, private + log" concurrent:"ok"`
+	LoopVarHash           string `help:"for debugging changes in loop behavior. Overrides experiment and loopvar flag." concurrent:"ok"`
 	LocationLists         int    `help:"print information about DWARF location list creation"`
 	MaxShapeLen           int    `help:"hash shape names longer than this threshold (default 500)" concurrent:"ok"`
 	MergeLocals           int    `help:"merge together non-interfering local stack slots" concurrent:"ok"`
@@ -68,7 +71,7 @@ type DebugFlags struct {
 	Slice                 int    `help:"print information about slice compilation"`
 	SoftFloat             int    `help:"force compiler to emit soft-float code" concurrent:"ok"`
 	StaticCopy            int    `help:"print information about missed static copies" concurrent:"ok"`
-	SyncFrames            int    `help:"how many writer stack frames to include at sync points in unified export data"`
+	SyncFrames            int    `help:"how many writer stack frames to include at sync points in unified export data" concurrent:"ok"`
 	TailCall              int    `help:"print information about tail calls"`
 	TypeAssert            int    `help:"print information about type assertion inlining"`
 	WB                    int    `help:"print information about write barriers"`
@@ -84,7 +87,7 @@ type DebugFlags struct {
 	VariableMakeHash      string `help:"hash value for debugging stack allocation of variable-sized make results" concurrent:"ok"`
 	VariableMakeThreshold int    `help:"threshold in bytes for possible stack allocation of variable-sized make results" concurrent:"ok"`
 	WrapGlobalMapDbg      int    `help:"debug trace output for global map init wrapping"`
-	WrapGlobalMapCtl      int    `help:"global map init wrap control (0 => default, 1 => off, 2 => stress mode, no size cutoff)"`
+	WrapGlobalMapCtl      int    `help:"global map init wrap control (0 => default, 1 => off, 2 => stress mode, no size cutoff)" concurrent:"ok"`
 	ZeroCopy              int    `help:"enable zero-copy string->[]byte conversions" concurrent:"ok"`
 
 	ConcurrentOk bool // true if only concurrentOk flags seen

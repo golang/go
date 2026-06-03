@@ -18,9 +18,6 @@
 (SETBC [1] cmp) && buildcfg.GOPPC64 <= 9 => (ISELZ [1] (MOVDconst [1]) cmp)
 (SETBCR [1] cmp) && buildcfg.GOPPC64 <= 9 => (ISELZ [5] (MOVDconst [1]) cmp)
 
-// The upper bits of the smaller than register values is undefined. Take advantage of that.
-(AND <t> x:(MOVDconst [m]) n) && t.Size() <= 2 => (ANDconst [int64(int16(m))] n)
-
 // Convert simple bit masks to an equivalent rldic[lr] if possible.
 (AND x:(MOVDconst [m]) n) && isPPC64ValidShiftMask(m) => (RLDICL [encodePPC64RotateMask(0,m,64)] n)
 (AND x:(MOVDconst [m]) n) && m != 0 && isPPC64ValidShiftMask(^m) => (RLDICR [encodePPC64RotateMask(0,m,64)] n)

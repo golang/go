@@ -105,5 +105,4 @@ Alternatively, the following GODEBUG settings are currently supported:
 The "omithttp2" build tag may be used to disable the HTTP/2 implementation
 contained in the http package.
 */
-
 package http

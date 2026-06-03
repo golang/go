@@ -789,8 +789,9 @@ func TestCPUMetricsSleep(t *testing.T) {
 }
 
 // Call f() and verify that the correct STW metrics increment. If isGC is true,
-// fn triggers a GC STW. Otherwise, fn triggers an other STW.
-func testSchedPauseMetrics(t *testing.T, fn func(t *testing.T), isGC bool) {
+// fn triggers a GC STW. If isOther is true, fn triggers an other STW. If both
+// are false, fn does not trigger any STW.
+func testSchedPauseMetrics(t *testing.T, fn func(t *testing.T), isGC, isOther bool) {
 	m := []metrics.Sample{
 		{Name: "/sched/pauses/stopping/gc:seconds"},
 		{Name: "/sched/pauses/stopping/other:seconds"},
@@ -832,13 +833,6 @@ func testSchedPauseMetrics(t *testing.T, fn func(t *testing.T), isGC bool) {
 		if got := sampleCount(totalGC); got <= baselineTotalGC {
 			t.Errorf("/sched/pauses/total/gc:seconds sample count %d did not increase from baseline of %d", got, baselineTotalGC)
 		}
-
-		if got := sampleCount(stoppingOther); got != baselineStartOther {
-			t.Errorf("/sched/pauses/stopping/other:seconds sample count %d changed from baseline of %d", got, baselineStartOther)
-		}
-		if got := sampleCount(totalOther); got != baselineTotalOther {
-			t.Errorf("/sched/pauses/stopping/other:seconds sample count %d changed from baseline of %d", got, baselineTotalOther)
-		}
 	} else {
 		if got := sampleCount(stoppingGC); got != baselineStartGC {
 			t.Errorf("/sched/pauses/stopping/gc:seconds sample count %d changed from baseline of %d", got, baselineStartGC)
@@ -846,22 +840,44 @@ func testSchedPauseMetrics(t *testing.T, fn func(t *testing.T), isGC bool) {
 		if got := sampleCount(totalGC); got != baselineTotalGC {
 			t.Errorf("/sched/pauses/total/gc:seconds sample count %d changed from baseline of %d", got, baselineTotalGC)
 		}
+	}
 
+	if isOther {
 		if got := sampleCount(stoppingOther); got <= baselineStartOther {
 			t.Errorf("/sched/pauses/stopping/other:seconds sample count %d did not increase from baseline of %d", got, baselineStartOther)
 		}
 		if got := sampleCount(totalOther); got <= baselineTotalOther {
-			t.Errorf("/sched/pauses/stopping/other:seconds sample count %d did not increase from baseline of %d", got, baselineTotalOther)
+			t.Errorf("/sched/pauses/total/other:seconds sample count %d did not increase from baseline of %d", got, baselineTotalOther)
+		}
+	} else {
+		if got := sampleCount(stoppingOther); got != baselineStartOther {
+			t.Errorf("/sched/pauses/stopping/other:seconds sample count %d changed from baseline of %d", got, baselineStartOther)
+		}
+		if got := sampleCount(totalOther); got != baselineTotalOther {
+			t.Errorf("/sched/pauses/total/other:seconds sample count %d changed from baseline of %d", got, baselineTotalOther)
 		}
 	}
 }
 
 func TestSchedPauseMetrics(t *testing.T) {
 	tests := []struct {
-		name string
-		isGC bool
-		fn   func(t *testing.T)
+		name   string
+		isGC   bool
+		isNone bool // no STW at all
+		fn     func(t *testing.T)
 	}{
+		{
+			name:   "runtime/metrics.Read",
+			isNone: true,
+			fn: func(t *testing.T) {
+				descs := metrics.All()
+				allSamples := make([]metrics.Sample, len(descs))
+				for i := range allSamples {
+					allSamples[i].Name = descs[i].Name
+				}
+				metrics.Read(allSamples)
+			},
+		},
 		{
 			name: "runtime.GC",
 			isGC: true,
@@ -946,7 +962,8 @@ func TestSchedPauseMetrics(t *testing.T) {
 
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
-			testSchedPauseMetrics(t, tc.fn, tc.isGC)
+			isOther := !tc.isGC && !tc.isNone
+			testSchedPauseMetrics(t, tc.fn, tc.isGC, isOther)
 		})
 	}
 }
@@ -1204,6 +1221,7 @@ func TestRuntimeLockMetricsAndProfile(t *testing.T) {
 						minTicks[role][n] = runtime.Cputicks() - t1
 						break
 					}
+					runtime.Usleep(uint32(1 + delayMicros/8))
 				}
 				runtime.Unlock(mu)
 				needContention.Store(int64(n - 1))

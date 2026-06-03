@@ -352,6 +352,7 @@ func ssaGenValue(s *ssagen.State, v *ssa.Value) {
 		ssa.OpMIPS64MOVVgpfp,
 		ssa.OpMIPS64NEGF,
 		ssa.OpMIPS64NEGD,
+		ssa.OpMIPS64ABSF,
 		ssa.OpMIPS64ABSD,
 		ssa.OpMIPS64SQRTF,
 		ssa.OpMIPS64SQRTD:
@@ -489,7 +490,7 @@ func ssaGenValue(s *ssagen.State, v *ssa.Value) {
 		p6.To.SetTarget(p2)
 	case ssa.OpMIPS64CALLstatic, ssa.OpMIPS64CALLclosure, ssa.OpMIPS64CALLinter:
 		s.Call(v)
-	case ssa.OpMIPS64CALLtail:
+	case ssa.OpMIPS64CALLtail, ssa.OpMIPS64CALLtailinter:
 		s.TailCall(v)
 	case ssa.OpMIPS64LoweredWB:
 		p := s.Prog(obj.ACALL)

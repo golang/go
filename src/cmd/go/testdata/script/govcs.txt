@@ -58,12 +58,6 @@ env GOVCS=
 ! go get rsc.io/nonexist.fossil/hello
 stderr '^go: rsc.io/nonexist.fossil/hello: GOVCS disallows using fossil for public rsc.io/nonexist.fossil; see ''go help vcs''$'
 
-# bzr is disallowed by default
-env GOPRIVATE=
-env GOVCS=
-! go get rsc.io/nonexist.bzr/hello
-stderr '^go: rsc.io/nonexist.bzr/hello: GOVCS disallows using bzr for public rsc.io/nonexist.bzr; see ''go help vcs''$'
-
 # git is OK by default
 env GOVCS=
 env GONOSUMDB='*'

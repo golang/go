@@ -2320,6 +2320,21 @@ type MibIfRow2 struct {
 	OutQLen                     uint64
 }
 
+// MIB_IF_TABLE_LEVEL enumeration from netioapi.h or
+// https://learn.microsoft.com/en-us/windows/win32/api/netioapi/ne-netioapi-mib_if_table_level.
+const (
+	MibIfTableNormal                  = 0
+	MibIfTableRaw                     = 1
+	MibIfTableNormalWithoutStatistics = 2
+)
+
+// MibIfTable2 contains a table of logical and physical interface entries. See
+// https://learn.microsoft.com/en-us/windows/win32/api/netioapi/ns-netioapi-mib_if_table2.
+type MibIfTable2 struct {
+	NumEntries uint32
+	Table      [1]MibIfRow2
+}
+
 // IP_ADDRESS_PREFIX stores an IP address prefix. See
 // https://learn.microsoft.com/en-us/windows/win32/api/netioapi/ns-netioapi-ip_address_prefix.
 type IpAddressPrefix struct {
@@ -2413,6 +2428,13 @@ type MibUnicastIpAddressRow struct {
 	CreationTimeStamp  Filetime
 }
 
+// MibUnicastIpAddressTable contains a table of unicast IP address entries. See
+// https://learn.microsoft.com/en-us/windows/win32/api/netioapi/ns-netioapi-mib_unicastipaddress_table.
+type MibUnicastIpAddressTable struct {
+	NumEntries uint32
+	Table      [1]MibUnicastIpAddressRow
+}
+
 const ScopeLevelCount = 16
 
 // MIB_IPINTERFACE_ROW stores interface management information for a particular IP address family on a network interface.
@@ -2453,6 +2475,13 @@ type MibIpInterfaceRow struct {
 	TransmitOffload                      uint32
 	ReceiveOffload                       uint32
 	DisableDefaultRoutes                 uint8
+}
+
+// MibIpInterfaceTable contains a table of IP interface entries. See
+// https://learn.microsoft.com/en-us/windows/win32/api/netioapi/ns-netioapi-mib_ipinterface_table.
+type MibIpInterfaceTable struct {
+	NumEntries uint32
+	Table      [1]MibIpInterfaceRow
 }
 
 // Console related constants used for the mode parameter to SetConsoleMode. See
@@ -3014,8 +3043,10 @@ const (
 )
 
 const (
-	// FileInformationClass for NtSetInformationFile
+	// FileInformationClass for NtSetInformationFile/NtQueryInformationFile, see
+	// https://learn.microsoft.com/en-us/windows-hardware/drivers/ddi/wdm/ne-wdm-_file_information_class
 	FileBasicInformation                         = 4
+	FileEaInformation                            = 7
 	FileRenameInformation                        = 10
 	FileDispositionInformation                   = 13
 	FilePositionInformation                      = 14
@@ -3937,4 +3968,89 @@ const (
 	MENU_EVENT               = 0x0008
 	MOUSE_EVENT              = 0x0002
 	WINDOW_BUFFER_SIZE_EVENT = 0x0004
+)
+
+// The processor features to be tested for IsProcessorFeaturePresent, see
+// https://learn.microsoft.com/en-us/windows/win32/api/processthreadsapi/nf-processthreadsapi-isprocessorfeaturepresent
+const (
+	PF_ARM_64BIT_LOADSTORE_ATOMIC              = 25
+	PF_ARM_DIVIDE_INSTRUCTION_AVAILABLE        = 24
+	PF_ARM_EXTERNAL_CACHE_AVAILABLE            = 26
+	PF_ARM_FMAC_INSTRUCTIONS_AVAILABLE         = 27
+	PF_ARM_VFP_32_REGISTERS_AVAILABLE          = 18
+	PF_3DNOW_INSTRUCTIONS_AVAILABLE            = 7
+	PF_CHANNELS_ENABLED                        = 16
+	PF_COMPARE_EXCHANGE_DOUBLE                 = 2
+	PF_COMPARE_EXCHANGE128                     = 14
+	PF_COMPARE64_EXCHANGE128                   = 15
+	PF_FASTFAIL_AVAILABLE                      = 23
+	PF_FLOATING_POINT_EMULATED                 = 1
+	PF_FLOATING_POINT_PRECISION_ERRATA         = 0
+	PF_MMX_INSTRUCTIONS_AVAILABLE              = 3
+	PF_NX_ENABLED                              = 12
+	PF_PAE_ENABLED                             = 9
+	PF_RDTSC_INSTRUCTION_AVAILABLE             = 8
+	PF_RDWRFSGSBASE_AVAILABLE                  = 22
+	PF_SECOND_LEVEL_ADDRESS_TRANSLATION        = 20
+	PF_SSE3_INSTRUCTIONS_AVAILABLE             = 13
+	PF_SSSE3_INSTRUCTIONS_AVAILABLE            = 36
+	PF_SSE4_1_INSTRUCTIONS_AVAILABLE           = 37
+	PF_SSE4_2_INSTRUCTIONS_AVAILABLE           = 38
+	PF_AVX_INSTRUCTIONS_AVAILABLE              = 39
+	PF_AVX2_INSTRUCTIONS_AVAILABLE             = 40
+	PF_AVX512F_INSTRUCTIONS_AVAILABLE          = 41
+	PF_VIRT_FIRMWARE_ENABLED                   = 21
+	PF_XMMI_INSTRUCTIONS_AVAILABLE             = 6
+	PF_XMMI64_INSTRUCTIONS_AVAILABLE           = 10
+	PF_XSAVE_ENABLED                           = 17
+	PF_ARM_V8_INSTRUCTIONS_AVAILABLE           = 29
+	PF_ARM_V8_CRYPTO_INSTRUCTIONS_AVAILABLE    = 30
+	PF_ARM_V8_CRC32_INSTRUCTIONS_AVAILABLE     = 31
+	PF_ARM_V81_ATOMIC_INSTRUCTIONS_AVAILABLE   = 34
+	PF_ARM_V82_DP_INSTRUCTIONS_AVAILABLE       = 43
+	PF_ARM_V83_JSCVT_INSTRUCTIONS_AVAILABLE    = 44
+	PF_ARM_V83_LRCPC_INSTRUCTIONS_AVAILABLE    = 45
+	PF_ARM_SVE_INSTRUCTIONS_AVAILABLE          = 46
+	PF_ARM_SVE2_INSTRUCTIONS_AVAILABLE         = 47
+	PF_ARM_SVE2_1_INSTRUCTIONS_AVAILABLE       = 48
+	PF_ARM_SVE_AES_INSTRUCTIONS_AVAILABLE      = 49
+	PF_ARM_SVE_PMULL128_INSTRUCTIONS_AVAILABLE = 50
+	PF_ARM_SVE_BITPERM_INSTRUCTIONS_AVAILABLE  = 51
+	PF_ARM_SVE_BF16_INSTRUCTIONS_AVAILABLE     = 52
+	PF_ARM_SVE_EBF16_INSTRUCTIONS_AVAILABLE    = 53
+	PF_ARM_SVE_B16B16_INSTRUCTIONS_AVAILABLE   = 54
+	PF_ARM_SVE_SHA3_INSTRUCTIONS_AVAILABLE     = 55
+	PF_ARM_SVE_SM4_INSTRUCTIONS_AVAILABLE      = 56
+	PF_ARM_SVE_I8MM_INSTRUCTIONS_AVAILABLE     = 57
+	PF_ARM_SVE_F32MM_INSTRUCTIONS_AVAILABLE    = 58
+	PF_ARM_SVE_F64MM_INSTRUCTIONS_AVAILABLE    = 59
+	PF_BMI2_INSTRUCTIONS_AVAILABLE             = 60
+	PF_MOVDIR64B_INSTRUCTION_AVAILABLE         = 61
+	PF_ARM_LSE2_AVAILABLE                      = 62
+	PF_ARM_SHA3_INSTRUCTIONS_AVAILABLE         = 64
+	PF_ARM_SHA512_INSTRUCTIONS_AVAILABLE       = 65
+	PF_ARM_V82_I8MM_INSTRUCTIONS_AVAILABLE     = 66
+	PF_ARM_V82_FP16_INSTRUCTIONS_AVAILABLE     = 67
+	PF_ARM_V86_BF16_INSTRUCTIONS_AVAILABLE     = 68
+	PF_ARM_V86_EBF16_INSTRUCTIONS_AVAILABLE    = 69
+	PF_ARM_SME_INSTRUCTIONS_AVAILABLE          = 70
+	PF_ARM_SME2_INSTRUCTIONS_AVAILABLE         = 71
+	PF_ARM_SME2_1_INSTRUCTIONS_AVAILABLE       = 72
+	PF_ARM_SME2_2_INSTRUCTIONS_AVAILABLE       = 73
+	PF_ARM_SME_AES_INSTRUCTIONS_AVAILABLE      = 74
+	PF_ARM_SME_SBITPERM_INSTRUCTIONS_AVAILABLE = 75
+	PF_ARM_SME_SF8MM4_INSTRUCTIONS_AVAILABLE   = 76
+	PF_ARM_SME_SF8MM8_INSTRUCTIONS_AVAILABLE   = 77
+	PF_ARM_SME_SF8DP2_INSTRUCTIONS_AVAILABLE   = 78
+	PF_ARM_SME_SF8DP4_INSTRUCTIONS_AVAILABLE   = 79
+	PF_ARM_SME_SF8FMA_INSTRUCTIONS_AVAILABLE   = 80
+	PF_ARM_SME_F8F32_INSTRUCTIONS_AVAILABLE    = 81
+	PF_ARM_SME_F8F16_INSTRUCTIONS_AVAILABLE    = 82
+	PF_ARM_SME_F16F16_INSTRUCTIONS_AVAILABLE   = 83
+	PF_ARM_SME_B16B16_INSTRUCTIONS_AVAILABLE   = 84
+	PF_ARM_SME_F64F64_INSTRUCTIONS_AVAILABLE   = 85
+	PF_ARM_SME_I16I64_INSTRUCTIONS_AVAILABLE   = 86
+	PF_ARM_SME_LUTv2_INSTRUCTIONS_AVAILABLE    = 87
+	PF_ARM_SME_FA64_INSTRUCTIONS_AVAILABLE     = 88
+	PF_UMONITOR_INSTRUCTION_AVAILABLE          = 89
 )

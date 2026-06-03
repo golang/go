@@ -16,7 +16,7 @@ import (
 
 func parseFunc(filename, functionname string) (fun *ast.FuncDecl, fset *token.FileSet) {
 	fset = token.NewFileSet()
-	if file, err := parser.ParseFile(fset, filename, nil, 0); err == nil {
+	if file, err := parser.ParseFile(fset, filename, nil, parser.SkipObjectResolution); err == nil {
 		for _, d := range file.Decls {
 			if f, ok := d.(*ast.FuncDecl); ok && f.Name.Name == functionname {
 				fun = f

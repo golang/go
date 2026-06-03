@@ -1,0 +1,65 @@
+go work sync
+
+cmp a/go.mod a/go.mod.want
+cmp b/go.mod b/go.mod.want
+-- go.work --
+go 1.27
+
+use (
+	./a
+	./b
+)
+-- a/go.mod --
+module example.com/a
+
+go 1.27
+
+replace example.com/syncreplace v1.1.0 => example.com/syncreplace v1.0.0
+
+require (
+	example.com/syncreplace v1.1.0
+	rsc.io/quote v1.0.0
+)
+-- a/go.mod.want --
+module example.com/a
+
+go 1.27
+
+replace example.com/syncreplace v1.1.0 => example.com/syncreplace v1.0.0
+
+require (
+	example.com/syncreplace v1.1.0
+	rsc.io/quote v1.0.0
+)
+-- a/a.go --
+package a
+
+import (
+	_ "example.com/syncreplace"
+	_ "rsc.io/quote"
+)
+-- b/go.mod --
+module example.com/b
+
+go 1.27
+
+require (
+	example.com/syncreplace v1.1.0
+	rsc.io/quote v1.0.0
+)
+-- b/go.mod.want --
+module example.com/b
+
+go 1.27
+
+require (
+	example.com/syncreplace v1.1.0
+	rsc.io/quote v1.1.0
+)
+-- b/b.go --
+package b
+
+import (
+	_ "example.com/syncreplace"
+	_ "rsc.io/quote"
+)

@@ -2,13 +2,53 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-//go:build goexperiment.simd && amd64
+//go:build goexperiment.simd
 
 package simd_test
 
 import (
 	"math"
+	"math/bits"
+	"unsafe"
 )
+
+func rotl[T unsigned](x T, dist uint64) T {
+	size := uint64(unsafe.Sizeof(x)) * 8
+	dist = dist & (size - 1)
+	if dist == 0 {
+		return x
+	}
+	return (x << dist) | (x >> (size - dist))
+}
+
+func rotr[T unsigned](x T, dist uint64) T {
+	size := uint64(unsafe.Sizeof(x)) * 8
+	dist = dist & (size - 1)
+	if dist == 0 {
+		return x
+	}
+	return (x >> dist) | (x << (size - dist))
+}
+
+// rotlOfSlice returns a slice simulation of a left rotate
+// of a specified distance.
+func rotlOfSlice[T unsigned](dist uint64) func(x []T) []T {
+	return map1[T](func(x T) T { return rotl(x, dist) })
+}
+
+// rotrOfSlice returns a slice simulation of a right rotate
+// of a specified distance.
+func rotrOfSlice[T unsigned](dist uint64) func(x []T) []T {
+	return map1[T](func(x T) T { return rotr(x, dist) })
+}
+
+func curry2[T, U, V any](f func(T, U) V, y U) func(x T) V {
+	return func(x T) V { return f(x, y) }
+}
+
+func curry1[T, U, V any](f func(T, U) V, x T) func(y U) V {
+	return func(y U) V { return f(x, y) }
+}
 
 func less[T number](x, y T) bool {
 	return x < y
@@ -42,6 +82,15 @@ func abs[T number](x T) T {
 		return -x
 	}
 	return x
+}
+
+func neg[T number](x T) T {
+	return -x
+}
+
+func onesCount[T integer](x T) T {
+	size := uint64(unsafe.Sizeof(x)) * 8
+	return T(bits.OnesCount64(uint64(x) & ((1 << size) - 1)))
 }
 
 func ceil[T float](x T) T {
@@ -98,6 +147,10 @@ func andNotI[T integer](x, y T) T {
 
 func orI[T integer](x, y T) T {
 	return x | y
+}
+
+func orNotI[T integer](x, y T) T {
+	return x | ^y
 }
 
 func xorI[T integer](x, y T) T {
@@ -275,6 +328,10 @@ func orSlice[T integer](x, y []T) []T {
 	return map2[T](orI)(x, y)
 }
 
+func orNotSlice[T integer](x, y []T) []T {
+	return map2[T](orNotI)(x, y)
+}
+
 func xorSlice[T integer](x, y []T) []T {
 	return map2[T](xorI)(x, y)
 }
@@ -328,6 +385,59 @@ func roundSlice[T float](x []T) []T {
 	return map1[T](round)(x)
 }
 
+// lanewiseSlice is the common helper for interleave, deinterleave, and transpose
+// simulations. It handles lane computation, allocation, and iteration.
+// laneBits is the lane size in bits (128 for NEON/x86 128-bit, 0 for whole-input/SVE).
+// hi selects the half-lane offset (offHalf = 0 or half, for interleave hi/lo).
+// odd selects the single-element offset (offOne = 0 or 1, for deinterleave/transpose odd/even).
+// body receives (out, x, y, base, i, half, offHalf, offOne) for each pair within each lane
+// and performs the operation-specific element assignment.
+func lanewiseSlice[T number](laneBits int, hi bool, odd bool, body func(out, x, y []T, base, i, half, offHalf, offOne int)) func(x, y []T) []T {
+	return func(x, y []T) []T {
+		lane := laneBits / (8 * int(unsafe.Sizeof(x[0])))
+		if lane == 0 || lane > len(x) {
+			lane = len(x)
+		}
+		half := lane / 2
+		offHalf := 0
+		if hi {
+			offHalf = half
+		}
+		offOne := 0
+		if odd {
+			offOne = 1
+		}
+		out := make([]T, len(x))
+		for base := 0; base < len(x); base += lane {
+			for i := 0; i < half; i++ {
+				body(out, x, y, base, i, half, offHalf, offOne)
+			}
+		}
+		return out
+	}
+}
+
+func interleaveSlice[T number](laneBits int, hi bool) func(x, y []T) []T {
+	return lanewiseSlice(laneBits, hi, false, func(out, x, y []T, base, i, half, offHalf, _ int) {
+		out[base+2*i] = x[base+offHalf+i]
+		out[base+2*i+1] = y[base+offHalf+i]
+	})
+}
+
+func deinterleaveSlice[T number](laneBits int, odd bool) func(x, y []T) []T {
+	return lanewiseSlice(laneBits, false, odd, func(out, x, y []T, base, i, half, _, offOne int) {
+		out[base+i] = x[base+2*i+offOne]
+		out[base+half+i] = y[base+2*i+offOne]
+	})
+}
+
+func transposeSlice[T number](laneBits int, odd bool) func(x, y []T) []T {
+	return lanewiseSlice(laneBits, false, odd, func(out, x, y []T, base, i, half, _, offOne int) {
+		out[base+2*i] = x[base+2*i+offOne]
+		out[base+2*i+1] = y[base+2*i+offOne]
+	})
+}
+
 func sqrtSlice[T float](x []T) []T {
 	return map1[T](sqrt)(x)
 }
@@ -342,6 +452,18 @@ func imaSlice[T integer](x, y, z []T) []T {
 
 func fmaSlice[T float](x, y, z []T) []T {
 	return map3[T](fma)(x, y, z)
+}
+
+// reduceSlice reduces x using fn as the combining operation.
+// The result is a vector with the reduced value in element 0 and zeros elsewhere.
+func reduceSlice[T number](x []T, fn func(a, b T) T) []T {
+	acc := x[0]
+	for _, v := range x[1:] {
+		acc = fn(acc, v)
+	}
+	out := make([]T, len(x))
+	out[0] = acc
+	return out
 }
 
 func satToInt8[T integer](x T) int8 {
@@ -429,4 +551,172 @@ func satToUint32[T integer](x T) uint32 {
 		return M
 	}
 	return uint32(x)
+}
+
+// shiftAmount extracts the signed shift amount from the least significant byte of s.
+// ARM64 SSHL/USHL use only bits [7:0] of the shift amount element, sign-extended.
+func shiftAmount[T integer](s T) int8 {
+	return int8(uint8(s))
+}
+
+// shiftBy shifts x by signed amount: positive = left, negative = right.
+func shiftBy[T integer](x T, amt int8) T {
+	a := int(amt)
+	if a > 0 {
+		return x << uint(a)
+	}
+	if a < 0 {
+		return x >> uint(-a)
+	}
+	return x
+}
+
+// shiftSaturatingSigned shifts x by signed amount with signed saturation on overflow.
+func shiftSaturatingSigned[T signed](x T, amt int8) T {
+	a := int(amt)
+	if a > 0 {
+		r := x << uint(a)
+		if r>>uint(a) != x { // overflow
+			bits := uint(unsafe.Sizeof(x)) * 8
+			if x >= 0 {
+				return ^T(0) ^ (T(1) << (bits - 1)) // MaxSigned
+			}
+			return T(1) << (bits - 1) // MinSigned
+		}
+		return r
+	}
+	if a < 0 {
+		return x >> uint(-a)
+	}
+	return x
+}
+
+// shiftSaturatingUnsigned shifts x by signed amount with unsigned saturation on overflow.
+func shiftSaturatingUnsigned[T unsigned](x T, amt int8) T {
+	a := int(amt)
+	if a > 0 {
+		r := x << uint(a)
+		if r>>uint(a) != x { // overflow
+			return ^T(0) // MaxUnsigned
+		}
+		return r
+	}
+	if a < 0 {
+		return x >> uint(-a)
+	}
+	return x
+}
+
+// Slice versions for shift operations
+
+// shiftSlice applies shiftBy element-wise using same-type slices.
+func shiftSlice[T integer](x, y []T) []T {
+	return map2(func(a, b T) T { return shiftBy(a, shiftAmount(b)) })(x, y)
+}
+
+// shiftMixedSlice applies shiftBy element-wise using mixed-type slices (unsigned data, signed amounts).
+func shiftMixedSlice[D integer, S integer](x []D, y []S) []D {
+	r := make([]D, len(x))
+	for i := range r {
+		r[i] = shiftBy(x[i], shiftAmount(y[i]))
+	}
+	return r
+}
+
+// shiftSaturatingSignedSlice applies saturating shift element-wise (same-type).
+func shiftSaturatingSignedSlice[T signed](x, y []T) []T {
+	return map2(func(a, b T) T { return shiftSaturatingSigned(a, shiftAmount(b)) })(x, y)
+}
+
+// shiftSaturatingUnsignedSlice applies saturating shift element-wise (mixed-type).
+func shiftSaturatingUnsignedSlice[D unsigned, S integer](x []D, y []S) []D {
+	r := make([]D, len(x))
+	for i := range r {
+		r[i] = shiftSaturatingUnsigned(x[i], shiftAmount(y[i]))
+	}
+	return r
+}
+
+// Slice versions for const shift operations (same constant amount for all elements)
+
+// shiftLeftByConstSlice shifts all elements left by constant amount.
+func shiftLeftByConstSlice[T integer](x []T, amt uint64) []T {
+	return map1(func(a T) T { return a << amt })(x)
+}
+
+// shiftRightByConstSlice shifts all elements right by constant amount.
+// Signed types use arithmetic shift, unsigned types use logical shift.
+func shiftRightByConstSlice[T integer](x []T, amt uint64) []T {
+	return map1(func(a T) T { return a >> amt })(x)
+}
+
+// shiftLeftSaturatingByConstSlice shifts all elements left by constant amount with signed saturation.
+func shiftLeftSaturatingByConstSlice[T signed](x []T, amt uint64) []T {
+	return map1(func(a T) T { return shiftSaturatingSigned(a, int8(amt)) })(x)
+}
+
+// shiftLeftSaturatingUByConstSlice shifts all elements left by constant amount with unsigned saturation.
+func shiftLeftSaturatingUByConstSlice[T unsigned](x []T, amt uint64) []T {
+	return map1(func(a T) T { return shiftSaturatingUnsigned(a, int8(amt)) })(x)
+}
+
+// shiftAllLeftSlice shifts all elements left by the same amount.
+func shiftAllLeftSlice[T integer](x []T, amt uint64) []T {
+	return map1(func(a T) T { return a << amt })(x)
+}
+
+// shiftAllRightSlice shifts all elements right by the same amount.
+// Signed types use arithmetic shift, unsigned types use logical shift.
+func shiftAllRightSlice[T integer](x []T, amt uint64) []T {
+	return map1(func(a T) T { return a >> amt })(x)
+}
+
+// ARM64-specific float-to-int conversion saturation helpers.
+// ARM64 uses IEEE 754 saturation: out-of-range values clamp to min/max of the target type.
+// NaN converts to 0. Negative values convert to 0 for unsigned types.
+
+func floatToInt32_arm64[T float](x T) int32 {
+	if x != x { // NaN
+		return 0
+	}
+	if x >= math.MaxInt32 {
+		return math.MaxInt32
+	}
+	if x < math.MinInt32 {
+		return math.MinInt32
+	}
+	return int32(x)
+}
+
+func floatToInt64_arm64[T float](x T) int64 {
+	if x != x { // NaN
+		return 0
+	}
+	if x >= math.MaxInt64 {
+		return math.MaxInt64
+	}
+	if x < math.MinInt64 {
+		return math.MinInt64
+	}
+	return int64(x)
+}
+
+func floatToUint32_arm64[T float](x T) uint32 {
+	if x != x || x < 0 { // NaN or negative
+		return 0
+	}
+	if x >= math.MaxUint32 {
+		return math.MaxUint32
+	}
+	return uint32(x)
+}
+
+func floatToUint64_arm64[T float](x T) uint64 {
+	if x != x || x < 0 { // NaN or negative
+		return 0
+	}
+	if x >= math.MaxUint64 {
+		return math.MaxUint64
+	}
+	return uint64(x)
 }

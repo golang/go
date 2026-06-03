@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"go/build/constraint"
 	"io"
+	"path/filepath"
 	"strconv"
 	"strings"
 )
@@ -161,6 +162,13 @@ func (p *parser) updateBase(pos Pos, tline, tcol uint, text string) {
 	if filename == "" && ok2 {
 		filename = p.base.Filename()
 		trimmed = p.base.Trimmed()
+	} else if filename != "" {
+		filename = filepath.Clean(filename)
+		if !filepath.IsAbs(filename) {
+			if dir := filepath.Dir(p.file.Filename()); dir != "." {
+				filename = filepath.Join(dir, filename)
+			}
+		}
 	}
 
 	p.base = NewLineBase(pos, filename, trimmed, line, col)

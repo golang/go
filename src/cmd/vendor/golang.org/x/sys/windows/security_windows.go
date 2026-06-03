@@ -1438,12 +1438,16 @@ func GetSecurityInfo(handle Handle, objectType SE_OBJECT_TYPE, securityInformati
 }
 
 // GetNamedSecurityInfo queries the security information for a given named object and returns the self-relative security
-// descriptor result on the Go heap.
+// descriptor result on the Go heap. The security descriptor might be nil, even when err is nil, if the object exists
+// but has no security descriptor.
 func GetNamedSecurityInfo(objectName string, objectType SE_OBJECT_TYPE, securityInformation SECURITY_INFORMATION) (sd *SECURITY_DESCRIPTOR, err error) {
 	var winHeapSD *SECURITY_DESCRIPTOR
 	err = getNamedSecurityInfo(objectName, objectType, securityInformation, nil, nil, nil, nil, &winHeapSD)
 	if err != nil {
 		return
+	}
+	if winHeapSD == nil {
+		return nil, nil
 	}
 	defer LocalFree(Handle(unsafe.Pointer(winHeapSD)))
 	return winHeapSD.copySelfRelativeSecurityDescriptor(), nil

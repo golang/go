@@ -66,9 +66,7 @@ func plugin_lastmoduleinit() (path string, syms map[string]any, initTasks []*ini
 	moduledataverify1(md)
 
 	lock(&itabLock)
-	for _, i := range md.itablinks {
-		itabAdd(i)
-	}
+	addModuleItabs(md)
 	unlock(&itabLock)
 
 	// Build a map of symbol names to symbols. Here in the runtime

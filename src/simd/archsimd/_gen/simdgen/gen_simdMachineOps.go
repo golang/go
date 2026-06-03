@@ -15,26 +15,25 @@ import (
 const simdMachineOpsTmpl = `
 package main
 
-func simdAMD64Ops(v11, v21, v2k, vkv, v2kv, v2kk, v31, v3kv, vgpv, vgp, vfpv, vfpkv, w11, w21, w2k, wkw, w2kw, w2kk, w31, w3kw, wgpw, wgp, wfpw, wfpkw,
-	wkwload, v21load, v31load, v11load, w21load, w31load, w2kload, w2kwload, w11load, w3kwload, w2kkload, v31x0AtIn2 regInfo) []opData {
+func simd{{.ArchUpper}}Ops({{.RegInfoParams}}) []opData {
 	return []opData{
 {{- range .OpsData }}
-		{name: "{{.OpName}}", argLength: {{.OpInLen}}, reg: {{.RegInfo}}, asm: "{{.Asm}}", commutative: {{.Comm}}, typ: "{{.Type}}", resultInArg0: {{.ResultInArg0}}},
+		{name: "{{.OpName}}", argLength: {{.OpInLen}}, reg: {{.RegInfo}}, asm: "{{.Asm}}",{{if .Comm}} commutative: true,{{end}} typ: "{{.Type}}"{{if .ResultInArg0}}, resultInArg0: true{{end}}},
 {{- end }}
 {{- range .OpsDataImm }}
-		{name: "{{.OpName}}", argLength: {{.OpInLen}}, reg: {{.RegInfo}}, asm: "{{.Asm}}", aux: "UInt8", commutative: {{.Comm}}, typ: "{{.Type}}", resultInArg0: {{.ResultInArg0}}},
+		{name: "{{.OpName}}", argLength: {{.OpInLen}}, reg: {{.RegInfo}}, asm: "{{.Asm}}", aux: "UInt8",{{if .Comm}} commutative: true,{{end}} typ: "{{.Type}}"{{if .ResultInArg0}}, resultInArg0: true{{end}}},
 {{- end }}
 {{- range .OpsDataLoad}}
-		{name: "{{.OpName}}", argLength: {{.OpInLen}}, reg: {{.RegInfo}}, asm: "{{.Asm}}", commutative: {{.Comm}}, typ: "{{.Type}}", aux: "SymOff", symEffect: "Read", resultInArg0: {{.ResultInArg0}}},
+		{name: "{{.OpName}}", argLength: {{.OpInLen}}, reg: {{.RegInfo}}, asm: "{{.Asm}}",{{if .Comm}} commutative: true,{{end}} typ: "{{.Type}}", aux: "SymOff", symEffect: "Read"{{if .ResultInArg0}}, resultInArg0: true{{end}}},
 {{- end}}
 {{- range .OpsDataImmLoad}}
-		{name: "{{.OpName}}", argLength: {{.OpInLen}}, reg: {{.RegInfo}}, asm: "{{.Asm}}", commutative: {{.Comm}}, typ: "{{.Type}}", aux: "SymValAndOff", symEffect: "Read", resultInArg0: {{.ResultInArg0}}},
+		{name: "{{.OpName}}", argLength: {{.OpInLen}}, reg: {{.RegInfo}}, asm: "{{.Asm}}",{{if .Comm}} commutative: true,{{end}} typ: "{{.Type}}", aux: "SymValAndOff", symEffect: "Read"{{if .ResultInArg0}}, resultInArg0: true{{end}}},
 {{- end}}
 {{- range .OpsDataMerging }}
-		{name: "{{.OpName}}Merging", argLength: {{.OpInLen}}, reg: {{.RegInfo}}, asm: "{{.Asm}}", commutative: false, typ: "{{.Type}}", resultInArg0: true},
+		{name: "{{.OpName}}Merging", argLength: {{.OpInLen}}, reg: {{.RegInfo}}, asm: "{{.Asm}}", typ: "{{.Type}}", resultInArg0: true},
 {{- end }}
 {{- range .OpsDataImmMerging }}
-		{name: "{{.OpName}}Merging", argLength: {{.OpInLen}}, reg: {{.RegInfo}}, asm: "{{.Asm}}", aux: "UInt8", commutative: false, typ: "{{.Type}}", resultInArg0: true},
+		{name: "{{.OpName}}Merging", argLength: {{.OpInLen}}, reg: {{.RegInfo}}, asm: "{{.Asm}}", aux: "UInt8", typ: "{{.Type}}", resultInArg0: true},
 {{- end }}
 	}
 }
@@ -45,7 +44,7 @@ func simdAMD64Ops(v11, v21, v2k, vkv, v2kv, v2kk, v31, v3kv, vgpv, vgp, vfpv, vf
 func writeSIMDMachineOps(ops []Operation) *bytes.Buffer {
 	t := templateOf(simdMachineOpsTmpl, "simdAMD64Ops")
 	buffer := new(bytes.Buffer)
-	buffer.WriteString(generatedHeader)
+	buffer.WriteString(generatedHeader())
 
 	type opData struct {
 		OpName       string
@@ -57,6 +56,8 @@ func writeSIMDMachineOps(ops []Operation) *bytes.Buffer {
 		ResultInArg0 bool
 	}
 	type machineOpsData struct {
+		ArchUpper         string
+		RegInfoParams     string
 		OpsData           []opData
 		OpsDataImm        []opData
 		OpsDataLoad       []opData
@@ -65,11 +66,9 @@ func writeSIMDMachineOps(ops []Operation) *bytes.Buffer {
 		OpsDataImmMerging []opData
 	}
 
-	regInfoSet := map[string]bool{
-		"v11": true, "v21": true, "v2k": true, "v2kv": true, "v2kk": true, "vkv": true, "v31": true, "v3kv": true, "vgpv": true, "vgp": true, "vfpv": true, "vfpkv": true,
-		"w11": true, "w21": true, "w2k": true, "w2kw": true, "w2kk": true, "wkw": true, "w31": true, "w3kw": true, "wgpw": true, "wgp": true, "wfpw": true, "wfpkw": true,
-		"wkwload": true, "v21load": true, "v31load": true, "v11load": true, "w21load": true, "w31load": true, "w2kload": true, "w2kwload": true, "w11load": true,
-		"w3kwload": true, "w2kkload": true, "v31x0AtIn2": true}
+	archInfo := CurrentArch()
+
+	regInfoSet := archInfo.RegInfoSet
 	opsData := make([]opData, 0)
 	opsDataImm := make([]opData, 0)
 	opsDataLoad := make([]opData, 0)
@@ -90,7 +89,7 @@ func writeSIMDMachineOps(ops []Operation) *bytes.Buffer {
 		return a
 	}
 	for _, op := range ops {
-		_, _, maskType, _, gOp := op.shape()
+		_, _, maskType, _, gOp, _ := op.shape()
 		asm := machineOpName(maskType, gOp)
 		other, ok := best[asm]
 		if !ok {
@@ -112,7 +111,7 @@ func writeSIMDMachineOps(ops []Operation) *bytes.Buffer {
 	regInfoMissing := make(map[string]bool, 0)
 	for _, asm := range mOpOrder {
 		op := best[asm]
-		shapeIn, shapeOut, maskType, _, gOp := op.shape()
+		shapeIn, shapeOut, maskType, _, gOp, _ := op.shape()
 
 		// TODO: all our masked operations are now zeroing, we need to generate machine ops with merging masks, maybe copy
 		// one here with a name suffix "Merging". The rewrite rules will need them.
@@ -146,7 +145,7 @@ func writeSIMDMachineOps(ops []Operation) *bytes.Buffer {
 			panic(err)
 		}
 		var outType string
-		if shapeOut == OneVregOut || shapeOut == OneVregOutAtIn || gOp.Out[0].OverwriteClass != nil {
+		if shapeOut == OneVregOut || shapeOut == OneVregOutAtIn || shapeOut == OneVregOutScalar || gOp.Out[0].OverwriteClass != nil {
 			// If class overwrite is happening, that's not really a mask but a vreg.
 			outType = fmt.Sprintf("Vec%d", *gOp.Out[0].Bits)
 		} else if shapeOut == OneGregOut {
@@ -225,6 +224,29 @@ func writeSIMDMachineOps(ops []Operation) *bytes.Buffer {
 				opsDataMerging = append(opsDataMerging, opData{asm, gOp.Asm, mergingLen, regInfoMerging, gOp.Commutative, outType, resultInArg0})
 			}
 		}
+		// Generate hi-half "2" variant machine op
+		if gOp.HiHalfAsm != nil {
+			opsDataTarget := &opsData
+			if shapeIn == OneImmIn || shapeIn == OneKmaskImmIn {
+				opsDataTarget = &opsDataImm
+			}
+			kind := op.hiHalfKind()
+			asm2Name := hiHalfOpName(*gOp.HiHalfAsm, gOp)
+			argLen2 := len(gOp.In)
+			regInfo2 := regInfo
+			resultInArg02 := false
+			if kind == "narrow" {
+				argLen2++ // extra vreg input for destination
+				regInfo2 = hiHalfRegShape2(regInfo, kind)
+				resultInArg02 = true
+			}
+			if _, ok := regInfoSet[regInfo2]; !ok {
+				regInfoErrs = append(regInfoErrs, fmt.Errorf("unsupported hi-half register constraint: %s for op %s", regInfo2, asm2Name))
+				regInfoMissing[regInfo2] = true
+			} else {
+				*opsDataTarget = append(*opsDataTarget, opData{asm2Name, *gOp.HiHalfAsm, argLen2, regInfo2, gOp.Commutative, outType, resultInArg02})
+			}
+		}
 	}
 	if len(regInfoErrs) != 0 {
 		for _, e := range regInfoErrs {
@@ -250,8 +272,17 @@ func writeSIMDMachineOps(ops []Operation) *bytes.Buffer {
 	sort.Slice(opsDataImmMerging, func(i, j int) bool {
 		return compareNatural(opsDataImmMerging[i].OpName, opsDataImmMerging[j].OpName) < 0
 	})
-	err := t.Execute(buffer, machineOpsData{opsData, opsDataImm, opsDataLoad, opsDataImmLoad,
-		opsDataMerging, opsDataImmMerging})
+
+	err := t.Execute(buffer, machineOpsData{
+		ArchUpper:         archInfo.ArchUpper,
+		RegInfoParams:     archInfo.RegInfoParams,
+		OpsData:           opsData,
+		OpsDataImm:        opsDataImm,
+		OpsDataLoad:       opsDataLoad,
+		OpsDataImmLoad:    opsDataImmLoad,
+		OpsDataMerging:    opsDataMerging,
+		OpsDataImmMerging: opsDataImmMerging,
+	})
 	if err != nil {
 		panic(fmt.Errorf("failed to execute template: %w", err))
 	}

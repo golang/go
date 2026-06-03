@@ -521,8 +521,13 @@ func forkAndExecInChild1(argv0 *byte, argv, envv []*byte, chroot, dir *byte, att
 		for _, c = range sys.AmbientCaps {
 			// Add the c capability to the permitted and inheritable capability mask,
 			// otherwise we will not be able to add it to the ambient capability mask.
-			caps.data[capToIndex(c)].permitted |= capToMask(c)
-			caps.data[capToIndex(c)].inheritable |= capToMask(c)
+			idx := int(capToIndex(c))
+			if idx >= len(caps.data) {
+				err1 = EINVAL
+				goto childerror
+			}
+			caps.data[idx].permitted |= capToMask(c)
+			caps.data[idx].inheritable |= capToMask(c)
 		}
 
 		if _, _, err1 = RawSyscall(SYS_CAPSET, uintptr(unsafe.Pointer(&caps.hdr)), uintptr(unsafe.Pointer(&caps.data[0])), 0); err1 != 0 {

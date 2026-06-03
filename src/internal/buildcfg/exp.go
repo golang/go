@@ -62,10 +62,8 @@ func ParseGOEXPERIMENT(goos, goarch, goexp string) (*ExperimentFlags, error) {
 	// always on.
 	var regabiSupported, regabiAlwaysOn bool
 	switch goarch {
-	case "amd64", "arm64", "loong64", "ppc64le", "ppc64", "riscv64":
+	case "amd64", "arm64", "loong64", "ppc64le", "ppc64", "riscv64", "s390x":
 		regabiAlwaysOn = true
-		regabiSupported = true
-	case "s390x":
 		regabiSupported = true
 	}
 
@@ -81,11 +79,14 @@ func ParseGOEXPERIMENT(goos, goarch, goexp string) (*ExperimentFlags, error) {
 	dwarf5Supported := (goos != "darwin" && goos != "ios" && goos != "aix")
 
 	baseline := goexperiment.Flags{
-		RegabiWrappers:       regabiSupported,
-		RegabiArgs:           regabiSupported,
-		Dwarf5:               dwarf5Supported,
-		RandomizedHeapBase64: true,
-		GreenTeaGC:           true,
+		RegabiWrappers:        regabiSupported,
+		RegabiArgs:            regabiSupported,
+		Dwarf5:                dwarf5Supported,
+		RandomizedHeapBase64:  true,
+		GreenTeaGC:            true,
+		JSONv2:                true,
+		GenericMethods:        true,
+		SizeSpecializedMalloc: true,
 	}
 	flags := &ExperimentFlags{
 		Flags:    baseline,

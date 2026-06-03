@@ -37,9 +37,10 @@ var (
 
 	arm64HasATOMICS bool
 
-	loong64HasLAMCAS bool
-	loong64HasLAM_BH bool
-	loong64HasLSX    bool
+	loong64HasLAMCAS     bool
+	loong64HasLAM_BH     bool
+	loong64HasDBAR_HINTS bool
+	loong64HasLSX        bool
 
 	riscv64HasZbb bool
 )

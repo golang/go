@@ -38,6 +38,16 @@ env GOCACHE=$WORK/cache2
 go run example.com/foo/v2
 stdout 'my name is: foo'$GOEXE
 
+# list aliases for tools
+go tool
+stdout '^bar \(example.com/foo/bar\)$'
+! stdout '^example.com/foo/bar$'
+stdout '^foo \(example.com/foo/v2\)$'
+! stdout '^example.com/foo/v2$'
+stdout '^example.com/foo/noalias$'
+! stdout '^noalias \(example.com/foo/noalias\)$'
+stdout '^example.com/foo/noalias/noalias$'
+! stdout '^noalias \(example.com/foo/noalias\)$'
 -- go.mod --
 module example.com/foo
 
@@ -45,6 +55,8 @@ go 1.24
 
 tool example.com/foo/bar
 tool example.com/foo/v2
+tool example.com/foo/noalias
+tool example.com/foo/noalias/noalias
 
 require example.com/foo/v2 v2.0.0
 
@@ -77,3 +89,11 @@ import (
 func main() {
 	fmt.Println("my name is:", filepath.Base(os.Args[0]))
 }
+
+-- noalias/noalias.go --
+package main
+
+func main() {}
+-- noalias/noalias/noalias.go --
+pagckage main
+func main() {}

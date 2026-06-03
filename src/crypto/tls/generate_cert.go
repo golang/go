@@ -13,6 +13,7 @@ import (
 	"crypto/ecdsa"
 	"crypto/ed25519"
 	"crypto/elliptic"
+	"crypto/mldsa"
 	"crypto/rand"
 	"crypto/rsa"
 	"crypto/x509"
@@ -35,6 +36,7 @@ var (
 	rsaBits    = flag.Int("rsa-bits", 2048, "Size of RSA key to generate. Ignored if --ecdsa-curve is set")
 	ecdsaCurve = flag.String("ecdsa-curve", "", "ECDSA curve to use to generate a key. Valid values are P224, P256 (recommended), P384, P521")
 	ed25519Key = flag.Bool("ed25519", false, "Generate an Ed25519 key")
+	mldsaKey   = flag.Bool("mldsa", false, "Generate an ML-DSA-44 key")
 )
 
 func publicKey(priv any) any {
@@ -45,6 +47,8 @@ func publicKey(priv any) any {
 		return &k.PublicKey
 	case ed25519.PrivateKey:
 		return k.Public().(ed25519.PublicKey)
+	case *mldsa.PrivateKey:
+		return k.PublicKey()
 	default:
 		return nil
 	}
@@ -63,6 +67,8 @@ func main() {
 	case "":
 		if *ed25519Key {
 			_, priv, err = ed25519.GenerateKey(rand.Reader)
+		} else if *mldsaKey {
+			priv, err = mldsa.GenerateKey(mldsa.MLDSA44())
 		} else {
 			priv, err = rsa.GenerateKey(rand.Reader, *rsaBits)
 		}
@@ -81,8 +87,8 @@ func main() {
 		log.Fatalf("Failed to generate private key: %v", err)
 	}
 
-	// ECDSA, ED25519 and RSA subject keys should have the DigitalSignature
-	// KeyUsage bits set in the x509.Certificate template
+	// ECDSA, ED25519, ML-DSA, and RSA subject keys should have the
+	// DigitalSignature KeyUsage bits set in the x509.Certificate template
 	keyUsage := x509.KeyUsageDigitalSignature
 	// Only RSA subject keys should have the KeyEncipherment KeyUsage bits set. In
 	// the context of TLS this KeyUsage is particular to RSA key exchange and

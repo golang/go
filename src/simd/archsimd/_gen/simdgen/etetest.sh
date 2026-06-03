@@ -22,7 +22,7 @@ fi
 set -ex
 
 # Regenerate SIMD files
-go run . -o godefs -goroot "$goroot" -xedPath "$XEDDATA" go.yaml types.yaml categories.yaml
+go run . -o godefs -goroot "$goroot" -xedPath "$XEDDATA" go_amd64.yaml types.yaml categories.yaml
 # Regenerate SSA files from SIMD rules
 go run -C "$goroot"/src/cmd/compile/internal/ssa/_gen .
 

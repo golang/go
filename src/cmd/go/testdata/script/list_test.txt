@@ -4,18 +4,18 @@
 
 [compiler:gccgo] skip 'gccgo does not have standard packages'
 
-go list -test -deps bytes
-stdout '^bytes.test$' # test main
-stdout '^bytes$' # real bytes
-stdout '^bytes \[bytes.test\]$' # test copy of bytes
-stdout 'testing \[bytes.test\]$' # test copy of testing
+go list -test -deps strings
+stdout '^strings.test$' # test main
+stdout '^strings$' # real strings
+stdout '^strings \[strings.test\]$' # test copy of strings
+stdout 'testing \[strings.test\]$' # test copy of testing
 ! stdout ^testing$ # should not have real testing
 
-go list -test bytes
-stdout '^bytes.test$' # test main
-stdout '^bytes$' # real bytes
-stdout '^bytes \[bytes.test\]$' # test copy of bytes
-! stdout '^testing \[bytes.test\]$' # should not have test copy of testing
+go list -test strings
+stdout '^strings.test$' # test main
+stdout '^strings$' # real strings
+stdout '^strings \[strings.test\]$' # test copy of strings
+! stdout '^testing \[strings.test\]$' # should not have test copy of testing
 ! stdout '^testing$' # should not have real testing
 
 go list -test cmd/buildid cmd/gofmt

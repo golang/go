@@ -2,8 +2,6 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-//go:generate bundle -o=h2_bundle.go -prefix=http2 -tags=!nethttpomithttp2 -import=golang.org/x/net/internal/httpcommon=net/http/internal/httpcommon -import=golang.org/x/net/internal/httpsfv=net/http/internal/httpsfv golang.org/x/net/http2
-
 package http
 
 import (
@@ -12,6 +10,7 @@ import (
 	"strings"
 	"time"
 	"unicode/utf8"
+	_ "unsafe"
 
 	"golang.org/x/net/http/httpguts"
 )
@@ -24,7 +23,7 @@ import (
 //   - HTTP1 is the HTTP/1.0 and HTTP/1.1 protocols.
 //     HTTP1 is supported on both unsecured TCP and secured TLS connections.
 //
-//   - HTTP2 is the HTTP/2 protcol over a TLS connection.
+//   - HTTP2 is the HTTP/2 protocol over a TLS connection.
 //
 //   - UnencryptedHTTP2 is the HTTP/2 protocol over an unsecured TCP connection.
 type Protocols struct {
@@ -35,6 +34,7 @@ const (
 	protoHTTP1 = 1 << iota
 	protoHTTP2
 	protoUnencryptedHTTP2
+	protoHTTP3
 )
 
 // HTTP1 reports whether p includes HTTP/1.
@@ -55,12 +55,26 @@ func (p Protocols) UnencryptedHTTP2() bool { return p.bits&protoUnencryptedHTTP2
 // SetUnencryptedHTTP2 adds or removes unencrypted HTTP/2 from p.
 func (p *Protocols) SetUnencryptedHTTP2(ok bool) { p.setBit(protoUnencryptedHTTP2, ok) }
 
+// http3 reports whether p includes HTTP/3.
+func (p Protocols) http3() bool { return p.bits&protoHTTP3 != 0 }
+
+// setHTTP3 adds or removes HTTP/3 from p.
+func (p *Protocols) setHTTP3(ok bool) { p.setBit(protoHTTP3, ok) }
+
+//go:linkname protocolSetHTTP3 golang.org/x/net/internal/http3_test.protocolSetHTTP3
+func protocolSetHTTP3(p *Protocols) { p.setHTTP3(true) }
+
 func (p *Protocols) setBit(bit uint8, ok bool) {
 	if ok {
 		p.bits |= bit
 	} else {
 		p.bits &^= bit
 	}
+}
+
+// empty returns true if p has no protocol set at all.
+func (p Protocols) empty() bool {
+	return p.bits == 0
 }
 
 func (p Protocols) String() string {
@@ -73,6 +87,9 @@ func (p Protocols) String() string {
 	}
 	if p.UnencryptedHTTP2() {
 		s = append(s, "UnencryptedHTTP2")
+	}
+	if p.http3() {
+		s = append(s, "HTTP3")
 	}
 	return "{" + strings.Join(s, ",") + "}"
 }
@@ -106,7 +123,7 @@ type contextKey struct {
 
 func (k *contextKey) String() string { return "net/http context value " + k.name }
 
-// removePort strips the port while correclty handling IPv6.
+// removePort strips the port while correctly handling IPv6.
 func removePort(host string) string {
 	for i := len(host) - 1; i >= 0; i-- {
 		switch host[i] {

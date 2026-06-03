@@ -1,0 +1,52 @@
+!sum
+
+# Float Div — VFDIV
+- go: Div
+  asm: "VFDIV"
+  in:
+  - &fp
+    go: $t
+    base: float
+  - *fp
+  out:
+  - *fp
+
+# Float Sqrt — VFSQRT
+- go: Sqrt
+  asm: "VFSQRT"
+  in:
+  - *fp
+  out:
+  - *fp
+
+# Float Round — VFRINTN (rounds to nearest, ties to even)
+- go: Round
+  asm: "VFRINTN"
+  in:
+  - *fp
+  out:
+  - *fp
+
+# Float Floor — VFRINTM
+- go: Floor
+  asm: "VFRINTM"
+  in:
+  - *fp
+  out:
+  - *fp
+
+# Float Ceil — VFRINTP
+- go: Ceil
+  asm: "VFRINTP"
+  in:
+  - *fp
+  out:
+  - *fp
+
+# Float Trunc — VFRINTZ
+- go: Trunc
+  asm: "VFRINTZ"
+  in:
+  - *fp
+  out:
+  - *fp

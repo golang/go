@@ -103,8 +103,9 @@ type SHA3 struct {
 }
 
 //go:linkname fips140hash_sha3Unwrap crypto/internal/fips140hash.sha3Unwrap
-func fips140hash_sha3Unwrap(sha3 *SHA3) *sha3.Digest {
-	return &sha3.s
+func fips140hash_sha3Unwrap(s *SHA3) *sha3.Digest {
+	s.init()
+	return &s.s
 }
 
 // New224 creates a new SHA3-224 hash.

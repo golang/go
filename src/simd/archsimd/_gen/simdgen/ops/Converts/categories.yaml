@@ -42,9 +42,14 @@
   regexpTag: "convert"
   documentation: !string |-
     // NAME converts element values to float64.
+- go: "ConvertLo2ToFloat64"
+  commutative: false
+  regexpTag: "convert"
+  documentation: !string |-
+    // NAME converts low-indexed float32 element values to float64.
 
 # Int <-> Int conversions
-- go: "TruncateToInt8"
+- go: "TruncToInt8"
   commutative: false
   regexpTag: "convert"
   documentation: !string |-
@@ -59,7 +64,7 @@
   regexpTag: "convert"
   documentation: !string |-
     // NAME sign-extends element values to int16.
-- go: "TruncateToInt16(Concat)?"
+- go: "TruncToInt16(Concat)?"
   commutative: false
   regexpTag: "convert"
   documentation: !string |-
@@ -74,7 +79,7 @@
   regexpTag: "convert"
   documentation: !string |-
     // NAME sign-extends element values to int32.
-- go: "TruncateToInt32"
+- go: "TruncToInt32"
   commutative: false
   regexpTag: "convert"
   documentation: !string |-
@@ -89,7 +94,7 @@
   regexpTag: "convert"
   documentation: !string |-
     // NAME sign-extends element values to int64.
-- go: "TruncateToUint8"
+- go: "TruncToUint8"
   commutative: false
   regexpTag: "convert"
   documentation: !string |-
@@ -104,7 +109,7 @@
   regexpTag: "convert"
   documentation: !string |-
     // NAME zero-extends element values to uint16.
-- go: "TruncateToUint16(Concat)?"
+- go: "TruncToUint16(Concat)?"
   commutative: false
   regexpTag: "convert"
   documentation: !string |-
@@ -119,7 +124,7 @@
   commutative: false
   documentation: !string |-
     // NAME zero-extends element values to uint32.
-- go: "TruncateToUint32"
+- go: "TruncToUint32"
   regexpTag: "convert"
   commutative: false
   documentation: !string |-

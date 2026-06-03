@@ -750,3 +750,45 @@ func TestIPv4WriteMsgUDPAddrPortTargetAddrIPVersion(t *testing.T) {
 		t.Errorf("conn.WriteMsgUDPAddrPort(buf, nil, daddr6) should have failed, but got no error")
 	}
 }
+
+// TestReadWriteMsgUDPAddrPortEmptyCmsg verifies that ReadMsgUDPAddrPort and
+// WriteMsgUDPAddrPort won't fail when the cmsg buffer (the oob parameter) is
+// non-nil but empty.
+//
+// This is a regression test for https://golang.org/issue/77875.
+func TestReadWriteMsgUDPAddrPortEmptyCmsg(t *testing.T) {
+	switch runtime.GOOS {
+	case "plan9":
+		t.Skipf("not supported on %s", runtime.GOOS)
+	}
+
+	if !testableNetwork("udp4") {
+		t.Skipf("skipping: udp4 not available")
+	}
+
+	conn, err := ListenUDP("udp4", &UDPAddr{IP: IPv4(127, 0, 0, 1)})
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer conn.Close()
+
+	buf := make([]byte, 8)
+	cmsgBuf := make([]byte, 8)[:0]
+	daddr := conn.LocalAddr().(*UDPAddr).AddrPort()
+
+	_, cmsgn, err := conn.WriteMsgUDPAddrPort(buf, cmsgBuf, daddr)
+	if err != nil {
+		t.Fatalf("WriteMsgUDPAddrPort failed: %v", err)
+	}
+	if cmsgn != 0 {
+		t.Errorf("WriteMsgUDPAddrPort wrote %d cmsg bytes; want 0", cmsgn)
+	}
+
+	_, cmsgn, _, _, err = conn.ReadMsgUDPAddrPort(buf, cmsgBuf)
+	if err != nil {
+		t.Fatalf("ReadMsgUDPAddrPort failed: %v", err)
+	}
+	if cmsgn != 0 {
+		t.Errorf("ReadMsgUDPAddrPort read %d cmsg bytes; want 0", cmsgn)
+	}
+}

@@ -75,22 +75,22 @@ func init() {
 }
 
 func runRun(ctx context.Context, cmd *base.Command, args []string) {
-	moduleLoaderState := modload.NewState()
+	moduleLoader := modload.NewLoader()
 	if shouldUseOutsideModuleMode(args) {
 		// Set global module flags for 'go run cmd@version'.
 		// This must be done before modload.Init, but we need to call work.BuildInit
 		// before loading packages, since it affects package locations, e.g.,
 		// for -race and -msan.
-		moduleLoaderState.ForceUseModules = true
-		moduleLoaderState.RootMode = modload.NoRoot
-		moduleLoaderState.AllowMissingModuleImports()
-		modload.Init(moduleLoaderState)
+		moduleLoader.ForceUseModules = true
+		moduleLoader.RootMode = modload.NoRoot
+		moduleLoader.AllowMissingModuleImports()
+		modload.Init(moduleLoader)
 	} else {
-		moduleLoaderState.InitWorkfile()
+		moduleLoader.InitWorkfile()
 	}
 
-	work.BuildInit(moduleLoaderState)
-	b := work.NewBuilder("", moduleLoaderState.VendorDirOrEmpty)
+	work.BuildInit(moduleLoader)
+	b := work.NewBuilder("", moduleLoader.VendorDirOrEmpty)
 	defer func() {
 		if err := b.Close(); err != nil {
 			base.Fatal(err)
@@ -112,18 +112,18 @@ func runRun(ctx context.Context, cmd *base.Command, args []string) {
 				base.Fatalf("go: cannot run *_test.go files (%s)", file)
 			}
 		}
-		p = load.GoFilesPackage(moduleLoaderState, ctx, pkgOpts, files)
+		p = load.GoFilesPackage(moduleLoader, ctx, pkgOpts, files)
 	} else if len(args) > 0 && !strings.HasPrefix(args[0], "-") {
 		arg := args[0]
 		var pkgs []*load.Package
 		if strings.Contains(arg, "@") && !build.IsLocalImport(arg) && !filepath.IsAbs(arg) {
 			var err error
-			pkgs, err = load.PackagesAndErrorsOutsideModule(moduleLoaderState, ctx, pkgOpts, args[:1])
+			pkgs, err = load.PackagesAndErrorsOutsideModule(moduleLoader, ctx, pkgOpts, args[:1])
 			if err != nil {
 				base.Fatal(err)
 			}
 		} else {
-			pkgs = load.PackagesAndErrors(moduleLoaderState, ctx, pkgOpts, args[:1])
+			pkgs = load.PackagesAndErrors(moduleLoader, ctx, pkgOpts, args[:1])
 		}
 
 		if len(pkgs) == 0 {
@@ -145,7 +145,7 @@ func runRun(ctx context.Context, cmd *base.Command, args []string) {
 	load.CheckPackageErrors([]*load.Package{p})
 
 	if cfg.BuildCover {
-		load.PrepareForCoverageBuild(moduleLoaderState, []*load.Package{p})
+		load.PrepareForCoverageBuild(moduleLoader, []*load.Package{p})
 	}
 
 	p.Internal.OmitDebug = true
@@ -171,7 +171,7 @@ func runRun(ctx context.Context, cmd *base.Command, args []string) {
 		p.Internal.ExeName = p.DefaultExecName()
 	}
 
-	a1 := b.LinkAction(moduleLoaderState, work.ModeBuild, work.ModeBuild, p)
+	a1 := b.LinkAction(moduleLoader, work.ModeBuild, work.ModeBuild, p)
 	a1.CacheExecutable = true
 	a := &work.Action{Mode: "go run", Actor: work.ActorFunc(buildRunProgram), Args: cmdArgs, Deps: []*work.Action{a1}}
 	b.Do(ctx, a)

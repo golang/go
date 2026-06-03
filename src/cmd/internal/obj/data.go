@@ -71,13 +71,12 @@ func (s *LSym) prepwrite(ctxt *Link, off int64, siz int) {
 	switch s.Type {
 	case objabi.Sxxx, objabi.SBSS:
 		s.Type = objabi.SDATA
-		s.setFIPSType(ctxt)
 	case objabi.SNOPTRBSS:
 		s.Type = objabi.SNOPTRDATA
-		s.setFIPSType(ctxt)
 	case objabi.STLSBSS:
 		ctxt.Diag("cannot supply data for %v var %v", s.Type, s.Name)
 	}
+	s.setFIPSType(ctxt)
 	l := off + int64(siz)
 	s.Grow(l)
 	if l > s.Size {

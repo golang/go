@@ -47,6 +47,22 @@ func IsRISCV64CSRO(op obj.As) (imm bool, ok bool) {
 	return
 }
 
+// IsRISCV64PseudoCSRO reports whether the op is a pseudo instruction
+// that uses CSR symbolic names, whether that instruction expects a register
+// or an immediate source operand and what the expected index of the operand
+// containing the CSR name should be.
+func IsRISCV64PseudoCSRO(op obj.As) (imm bool, index int, ok bool) {
+	switch op {
+	case riscv.ACSRCI, riscv.ACSRSI, riscv.ACSRWI:
+		imm, index, ok = true, 1, true
+	case riscv.ACSRC, riscv.ACSRS, riscv.ACSRW:
+		imm, index, ok = false, 1, true
+	case riscv.ACSRR:
+		imm, index, ok = false, 0, true
+	}
+	return
+}
+
 var riscv64SpecialOperand map[string]riscv.SpecialOperand
 
 // RISCV64SpecialOperand returns the internal representation of a special operand.
@@ -68,6 +84,10 @@ func RISCV64SpecialOperand(name string) riscv.SpecialOperand {
 				panic(fmt.Sprintf("riscv64 special operand %q redefined", csrName))
 			}
 			riscv64SpecialOperand[csrName] = riscv.SpecialOperand(int(csrCode) + int(riscv.SPOP_CSR_BEGIN))
+		}
+		// Add the FENCE operands
+		for opd := riscv.SPOP_FENCE_BEGIN + 1; opd < riscv.SPOP_FENCE_END; opd++ {
+			riscv64SpecialOperand[opd.String()] = opd
 		}
 	}
 	if opd, ok := riscv64SpecialOperand[name]; ok {

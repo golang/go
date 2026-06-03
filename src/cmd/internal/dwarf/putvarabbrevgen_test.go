@@ -80,7 +80,7 @@ func TestPutVarAbbrevGenerator(t *testing.T) {
 
 func pvagenerate(t *testing.T) string {
 	var fset token.FileSet
-	f, err := parser.ParseFile(&fset, "./dwarf.go", nil, parser.ParseComments)
+	f, err := parser.ParseFile(&fset, "./dwarf.go", nil, parser.ParseComments|parser.SkipObjectResolution)
 	if err != nil {
 		t.Fatal(err)
 	}

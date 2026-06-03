@@ -1,0 +1,80 @@
+# Test closure naming with inlining.
+
+go build -gcflags=-S -o x.exe x.go
+# original closure name should appear
+stderr 'adder\.func1'
+# inlining should not cause the closure to have longer names
+! stderr 'F1\.adder\.func1'
+! stderr 'F2\.adder\.func1'
+# the counter should match the original one, regardless of
+# how many closures are in the inlined caller
+! stderr 'adder\.func2'
+! stderr 'adder\.func3'
+! stderr 'adder\.func4'
+# user closure counter and range func counter should not
+# interfere
+stderr 'ranger\.func1'
+stderr 'ranger-range1'
+stderr 'ranger\.func2'
+
+go tool nm x.exe
+# same applies to the nm output
+stdout 'adder\.func1'
+! stdout 'F1\.adder\.func1'
+! stdout 'F2\.adder\.func1'
+! stdout 'adder\.func2'
+! stdout 'adder\.func3'
+! stdout 'adder\.func4'
+stdout 'ranger\.func1'
+stdout 'ranger-range1'
+stdout 'ranger\.func2'
+# the inline hash should not make into the final binary
+! stdout 'adder\.func1#'
+
+-- x.go --
+package main
+
+// keep prevents closures being optimized out
+//
+//go:noinline
+func keep(x func()) func() { return x }
+
+func adder(n int) func(int) int {
+	return func(x int) int { return x + n }
+}
+
+//go:noinline
+func F1() func(int) int {
+	// adder is inlined into F1, along with its closure.
+	// The closure should still be named addr.func1.
+	return adder(1)
+}
+
+//go:noinline
+func F2() func(int) int {
+	keep(func() {})
+	keep(func() {})
+	keep(func() {})
+	// Closures in the outer function should not change
+	// the counter. It should still be addr.func1.
+	return adder(2)
+}
+
+//go:noinline
+func iter(yield func(int) bool) {
+	_ = yield(1) && yield(2) && yield(3)
+}
+
+func ranger() func(int) int {
+	keep(func() {}) // func1
+	s := 0
+	for x := range iter { // range1
+		s += x
+	}
+	return func(x int) int { return s + x } // func2
+}
+
+func main() {
+	x := 1
+	F1()(F2()(ranger()(x)))
+}

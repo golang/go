@@ -9,43 +9,12 @@
 package drbg
 
 import (
-	entropy "crypto/internal/entropy/v1.0.0"
 	"crypto/internal/fips140"
 	"crypto/internal/sysrand"
 	"io"
 	"sync"
 	"sync/atomic"
 )
-
-// memory is a scratch buffer that is accessed between samples by the entropy
-// source to expose it to memory access timings.
-//
-// We reuse it and share it between Seed calls to avoid the significant (~500µs)
-// cost of zeroing a new allocation every time. The entropy source accesses it
-// using atomics (and doesn't care about its contents).
-//
-// It should end up in the .noptrbss section, and become backed by physical pages
-// at first use. This ensures that programs that do not use the FIPS 140-3 module
-// do not incur any memory use or initialization penalties.
-var memory entropy.ScratchBuffer
-
-func getEntropy() *[SeedSize]byte {
-	var retries int
-	seed, err := entropy.Seed(&memory)
-	for err != nil {
-		// The CPU jitter-based SP 800-90B entropy source has a non-negligible
-		// chance of failing the startup health tests.
-		//
-		// Each time it does, it enters a permanent failure state, and we
-		// restart it anew. This is not expected to happen more than a few times
-		// in a row.
-		if retries++; retries > 100 {
-			panic("fips140/drbg: failed to obtain initial entropy")
-		}
-		seed, err = entropy.Seed(&memory)
-	}
-	return &seed
-}
 
 // getEntropy is very slow (~500µs), so we don't want it on the hot path.
 // We keep both a persistent DRBG instance and a pool of additional instances.
@@ -124,14 +93,22 @@ func SetTestingReader(r io.Reader) {
 // [crypto/rand.Reader], used to recognize it when passed to
 // APIs that accept a rand io.Reader.
 //
-// Any Reader that implements this interface is assumed to
-// call [Read] as its Read method.
-type DefaultReader interface{ defaultReader() }
+// Any [io.Reader] that embeds this type is assumed to
+// call [Read] as its [io.Reader.Read] method.
+type DefaultReader struct{}
+
+func (d DefaultReader) defaultReader() {}
+
+// IsDefaultReader reports whether the r embeds the [DefaultReader] type.
+func IsDefaultReader(r io.Reader) bool {
+	_, ok := r.(interface{ defaultReader() })
+	return ok
+}
 
 // ReadWithReader uses Reader to fill b with cryptographically secure random
 // bytes. It is intended for use in APIs that expose a rand io.Reader.
 func ReadWithReader(r io.Reader, b []byte) error {
-	if _, ok := r.(DefaultReader); ok {
+	if IsDefaultReader(r) {
 		Read(b)
 		return nil
 	}

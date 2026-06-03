@@ -23,11 +23,11 @@ const tmpstringbufsize = 32
 func Walk(fn *ir.Func) {
 	ir.CurFunc = fn
 
-	// Set and then clear a package-level cache of static values for this fn.
+	// Build pre-walk analysis caches with a single AST traversal.
 	// (At some point, it might be worthwhile to have a walkState structure
 	// that gets passed everywhere where things like this can go.)
-	staticValues = findStaticValues(fn)
-	defer func() { staticValues = nil }()
+	analyzePreWalk(fn)
+	defer func() { staticValues = nil; shapeConvSources = nil }()
 
 	errorsBefore := base.Errors()
 	order(fn)
@@ -449,23 +449,44 @@ func staticValue(n ir.Node) ir.Node {
 // staticValues is a cache of static values for use by staticValue.
 var staticValues map[ir.Node]ir.Node
 
-// findStaticValues returns a map of static values for fn.
-func findStaticValues(fn *ir.Func) map[ir.Node]ir.Node {
-	// We can't use an ir.ReassignOracle or ir.StaticValue in the
-	// middle of walk because they don't currently handle
-	// transformed assignments (e.g., will complain about 'RHS == nil').
-	// So we instead build this map to use in walk.
+// shapeConvSources maps an *ir.Name (a PAUTO interface variable) to
+// the shape type of the OCONVIFACE expression that is its single
+// static value, if any.
+var shapeConvSources map[*ir.Name]*types.Type
+
+// analyzePreWalk populates staticValues and shapeConvSources using a
+// single AST traversal. We can't use an ir.ReassignOracle or
+// ir.StaticValue in the middle of walk because they don't currently
+// handle transformed assignments (e.g., will complain about
+// 'RHS == nil'). So we build these maps before walk begins.
+func analyzePreWalk(fn *ir.Func) {
 	ro := &ir.ReassignOracle{}
 	ro.Init(fn)
-	m := make(map[ir.Node]ir.Node)
+	sv := make(map[ir.Node]ir.Node)
+	scs := make(map[*ir.Name]*types.Type)
 	ir.Visit(fn, func(n ir.Node) {
-		if n.Op() == ir.OCONVIFACE {
+		switch n.Op() {
+		case ir.OCONVIFACE:
 			x := n.(*ir.ConvExpr).X
 			v := ro.StaticValue(x)
 			if v != nil && v != x {
-				m[x] = v
+				sv[x] = v
+			}
+		case ir.ONAME:
+			name := n.(*ir.Name).Canonical()
+			if name.Class != ir.PAUTO || name.Type() == nil || !name.Type().IsInterface() {
+				return
+			}
+			val := ro.StaticValue(name)
+			if val == nil || val.Op() != ir.OCONVIFACE {
+				return
+			}
+			srcType := val.(*ir.ConvExpr).X.Type()
+			if srcType != nil && !srcType.IsInterface() && srcType.IsShape() {
+				scs[name] = srcType
 			}
 		}
 	})
-	return m
+	staticValues = sv
+	shapeConvSources = scs
 }

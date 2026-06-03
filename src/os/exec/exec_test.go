@@ -684,7 +684,7 @@ func TestExtraFiles(t *testing.T) {
 	// This test runs with cgo disabled. External linking needs cgo, so
 	// it doesn't work if external linking is required.
 	//
-	// N.B. go build below explictly doesn't pass through
+	// N.B. go build below explicitly doesn't pass through
 	// -asan/-msan/-race, so we don't care about those.
 	testenv.MustInternalLink(t, testenv.NoSpecialBuildTypes)
 
@@ -1853,5 +1853,11 @@ func TestStart_twice(t *testing.T) {
 	want := "exec: already started"
 	if got != want {
 		t.Fatalf("Start call returned err %q, want %q", got, want)
+	}
+}
+
+func TestNoStringPanic(t *testing.T) {
+	if s := fmt.Sprintf("%v", &exec.Cmd{}); strings.Contains(s, "PANIC") {
+		t.Fatalf("got %q, want no panic", s)
 	}
 }

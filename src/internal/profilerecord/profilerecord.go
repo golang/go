@@ -13,12 +13,12 @@ type StackRecord struct {
 }
 
 type MemProfileRecord struct {
-	AllocBytes, FreeBytes     int64
+	ObjectSize                int64
 	AllocObjects, FreeObjects int64
 	Stack                     []uintptr
 }
 
-func (r *MemProfileRecord) InUseBytes() int64   { return r.AllocBytes - r.FreeBytes }
+func (r *MemProfileRecord) InUseBytes() int64   { return r.InUseObjects() * r.ObjectSize }
 func (r *MemProfileRecord) InUseObjects() int64 { return r.AllocObjects - r.FreeObjects }
 
 type BlockProfileRecord struct {

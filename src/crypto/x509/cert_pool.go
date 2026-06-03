@@ -105,10 +105,14 @@ func (s *CertPool) Clone() *CertPool {
 
 // SystemCertPool returns a copy of the system cert pool.
 //
-// On Unix systems other than macOS the environment variables SSL_CERT_FILE and
-// SSL_CERT_DIR can be used to override the system default locations for the SSL
-// certificate file and SSL certificate files directory, respectively. The
-// latter can be a colon-separated list.
+// The environment variables SSL_CERT_FILE and SSL_CERT_DIR can be used to
+// override the system default locations for the SSL certificate file and SSL
+// certificate files directory, respectively. The latter can be a
+// colon-separated list, or a semicolon-separated list on Windows. On platforms
+// which have system APIs for certificate verification (macOS and Windows),
+// setting SSL_CERT_FILE or SSL_CERT_DIR will prevent those APIs from being
+// used, unless the x509sslcertoverrideplatform=0 GODEBUG setting is used. (This
+// changed in Go 1.27.)
 //
 // Any mutations to the returned pool are not written to disk and do not affect
 // any other pool returned by SystemCertPool.

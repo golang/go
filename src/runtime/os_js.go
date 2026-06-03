@@ -40,3 +40,13 @@ func readRandom(r []byte) int {
 func goenvs() {
 	goenvs_unix()
 }
+
+//go:nowritebarrierrec
+//go:nosplit
+func libpreinit() {}
+
+//go:nowritebarrierrec
+//go:nosplit
+func newosproc0(stacksize uintptr, fn unsafe.Pointer) {
+	throw("bad newosproc0")
+}

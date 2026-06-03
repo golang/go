@@ -40,11 +40,12 @@ func Flagparse(usage func()) {
 // expandArgs expands "response files" arguments in the provided slice.
 //
 // A "response file" argument starts with '@' and the rest of that
-// argument is a filename with CR-or-CRLF-separated arguments. Each
-// argument in the named files can also contain response file
-// arguments. See Issue 18468.
+// argument is a filename with arguments. Arguments are separated by
+// whitespace, and can use single quotes (literal) or double quotes
+// (with escape sequences). Each argument in the named files can also
+// contain response file arguments. See Issue 77177.
 //
-// The returned slice 'out' aliases 'in' iff the input did not contain
+// The returned slice 'out' aliases 'in' if the input did not contain
 // any response file arguments.
 //
 // TODO: handle relative paths of recursive expansions in different directories?
@@ -61,10 +62,7 @@ func expandArgs(in []string) (out []string) {
 			if err != nil {
 				log.Fatal(err)
 			}
-			args := strings.Split(strings.TrimSpace(strings.ReplaceAll(string(slurp), "\r", "")), "\n")
-			for i, arg := range args {
-				args[i] = DecodeArg(arg)
-			}
+			args := ParseArgs(slurp)
 			out = append(out, expandArgs(args)...)
 		} else if out != nil {
 			out = append(out, s)
@@ -74,6 +72,130 @@ func expandArgs(in []string) (out []string) {
 		return in
 	}
 	return
+}
+
+// ParseArgs parses response file content into arguments using GCC-compatible rules.
+// Arguments are separated by whitespace. Single quotes preserve content literally.
+// Double quotes allow escape sequences: \\, \", \$, \`, and backslash-newline
+// for line continuation (both LF and CRLF). Outside quotes, backslash escapes the
+// next character, backslash-newline is line continuation (both LF and CRLF).
+// We aim to follow GCC's buildargv implementation.
+// Source code: https://github.com/gcc-mirror/gcc/blob/releases/gcc-15.2.0/libiberty/argv.c#L167
+// Known deviations from GCC:
+// - CRLF is treated as line continuation to be Windows-friendly; GCC only recognizes LF.
+// - Obsolete \f and \v are not treated as whitespaces
+// This function is public to test with cmd/go/internal/work.encodeArg
+func ParseArgs(s []byte) []string {
+	var args []string
+	var arg strings.Builder
+	hasArg := false // tracks if we've started an argument (for empty quotes)
+	inSingleQuote := false
+	inDoubleQuote := false
+	i := 0
+
+	for i < len(s) {
+		c := s[i]
+
+		if inSingleQuote {
+			if c == '\'' {
+				inSingleQuote = false
+			} else {
+				arg.WriteByte(c) // No escape processing in single quotes
+			}
+			i++
+			continue
+		}
+
+		if inDoubleQuote {
+			if c == '\\' && i+1 < len(s) {
+				next := s[i+1]
+				switch next {
+				case '\\':
+					arg.WriteByte('\\')
+					i += 2
+				case '"':
+					arg.WriteByte('"')
+					i += 2
+				case '$':
+					arg.WriteByte('$')
+					i += 2
+				case '`':
+					arg.WriteByte('`')
+					i += 2
+				case '\n':
+					// Line continuation - skip backslash and newline
+					i += 2
+				case '\r':
+					// Line continuation for CRLF - skip backslash, CR, and LF
+					if i+2 < len(s) && s[i+2] == '\n' {
+						i += 3
+					} else {
+						arg.WriteByte(c)
+						i++
+					}
+				default:
+					// Unknown escape - keep backslash and char
+					arg.WriteByte(c)
+					i++
+				}
+			} else if c == '"' {
+				inDoubleQuote = false
+				i++
+			} else {
+				arg.WriteByte(c)
+				i++
+			}
+			continue
+		}
+
+		// Normal mode (outside quotes)
+		switch c {
+		case ' ', '\t', '\n', '\r':
+			if arg.Len() > 0 || hasArg {
+				args = append(args, arg.String())
+				arg.Reset()
+				hasArg = false
+			}
+		case '\'':
+			inSingleQuote = true
+			hasArg = true // Empty quotes still produce an arg
+		case '"':
+			inDoubleQuote = true
+			hasArg = true // Empty quotes still produce an arg
+		case '\\':
+			// Backslash escapes the next character outside quotes.
+			// Backslash-newline is line continuation (handles both LF and CRLF).
+			if i+1 < len(s) {
+				next := s[i+1]
+				if next == '\n' {
+					i += 2
+					continue
+				}
+				if next == '\r' && i+2 < len(s) && s[i+2] == '\n' {
+					i += 3
+					continue
+				}
+				// Backslash escapes the next character
+				arg.WriteByte(next)
+				hasArg = true
+				i += 2
+				continue
+			}
+			// Trailing backslash at end of input — consumed and discarded
+			i++
+			continue
+		default:
+			arg.WriteByte(c)
+		}
+		i++
+	}
+
+	// Don't forget the last argument
+	if arg.Len() > 0 || hasArg {
+		args = append(args, arg.String())
+	}
+
+	return args
 }
 
 func AddVersionFlag() {
@@ -162,40 +284,6 @@ func (f fn1) Set(s string) error {
 }
 
 func (f fn1) String() string { return "" }
-
-// DecodeArg decodes an argument.
-//
-// This function is public for testing with the parallel encoder.
-func DecodeArg(arg string) string {
-	// If no encoding, fastpath out.
-	if !strings.ContainsAny(arg, "\\\n") {
-		return arg
-	}
-
-	var b strings.Builder
-	var wasBS bool
-	for _, r := range arg {
-		if wasBS {
-			switch r {
-			case '\\':
-				b.WriteByte('\\')
-			case 'n':
-				b.WriteByte('\n')
-			default:
-				// This shouldn't happen. The only backslashes that reach here
-				// should encode '\n' and '\\' exclusively.
-				panic("badly formatted input")
-			}
-		} else if r == '\\' {
-			wasBS = true
-			continue
-		} else {
-			b.WriteRune(r)
-		}
-		wasBS = false
-	}
-	return b.String()
-}
 
 type debugField struct {
 	name         string

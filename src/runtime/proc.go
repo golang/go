@@ -12,6 +12,7 @@ import (
 	"internal/goos"
 	"internal/runtime/atomic"
 	"internal/runtime/exithook"
+	"internal/runtime/maps"
 	"internal/runtime/sys"
 	"internal/strconv"
 	"internal/stringslite"
@@ -222,10 +223,10 @@ func main() {
 			throw("_cgo_pthread_key_created missing")
 		}
 
-		if _cgo_thread_start == nil {
-			throw("_cgo_thread_start missing")
-		}
 		if GOOS != "windows" {
+			if _cgo_thread_start == nil {
+				throw("_cgo_thread_start missing")
+			}
 			if _cgo_setenv == nil {
 				throw("_cgo_setenv missing")
 			}
@@ -782,6 +783,7 @@ func cpuinit(env string) {
 	case "loong64":
 		loong64HasLAMCAS = cpu.Loong64.HasLAMCAS
 		loong64HasLAM_BH = cpu.Loong64.HasLAM_BH
+		loong64HasDBAR_HINTS = cpu.Loong64.HasDBAR_HINTS
 		loong64HasLSX = cpu.Loong64.HasLSX
 
 	case "riscv64":
@@ -877,10 +879,10 @@ func schedinit() {
 	ticks.init() // run as early as possible
 	moduledataverify()
 	stackinit()
-	randinit() // must run before mallocinit, alginit, mcommoninit
+	randinit() // must run before mallocinit, AlgInit, mcommoninit
 	mallocinit()
-	cpuinit(godebug) // must run before alginit
-	alginit()        // maps, hash, rand must not be used before this call
+	cpuinit(godebug) // must run before AlgInit
+	maps.AlgInit()   // maps, hash, rand must not be used before this call
 	mcommoninit(gp.m, -1)
 	modulesinit()   // provides activeModules
 	typelinksinit() // uses maps, activeModules
@@ -1968,6 +1970,11 @@ func mstartm0() {
 //go:nosplit
 func mPark() {
 	gp := getg()
+	// This M might stay parked through an entire GC cycle.
+	// Erase any leftovers on the signal stack.
+	if goexperiment.RuntimeSecret {
+		eraseSecretsSignalStk()
+	}
 	notesleep(&gp.m.park)
 	noteclear(&gp.m.park)
 }
@@ -2908,11 +2915,8 @@ func newm(fn func(), pp *p, id int64) {
 }
 
 func newm1(mp *m) {
-	if iscgo {
+	if iscgo && _cgo_thread_start != nil {
 		var ts cgothreadstart
-		if _cgo_thread_start == nil {
-			throw("_cgo_thread_start missing")
-		}
 		ts.g.set(mp.g0)
 		ts.tls = (*uint64)(unsafe.Pointer(&mp.tls[0]))
 		ts.fn = unsafe.Pointer(abi.FuncPCABI0(mstart))
@@ -4635,6 +4639,30 @@ func reentersyscall(pc, sp, bp uintptr) {
 	// but can have inconsistent g->sched, do not let GC observe it.
 	gp.m.locks++
 
+	// This M may have a signal stack that is dirtied with secret information
+	// (see package "runtime/secret"). Since it's about to go into a syscall for
+	// an arbitrary amount of time and the G that put the secret info there
+	// might have returned from secret.Do, we have to zero it out now, lest we
+	// break the guarantee that secrets are purged by the next GC after a return
+	// to secret.Do.
+	//
+	// It might be tempting to think that we only need to zero out this if we're
+	// not running in secret mode anymore, but that leaves an ABA problem. The G
+	// that put the secrets onto our signal stack may not be the one that is
+	// currently executing.
+	//
+	// Logically, we should erase this when we lose our P, not when we enter the
+	// syscall. This would avoid a zeroing in the case where the call returns
+	// almost immediately. Since we use this path for cgo calls as well, these
+	// fast "syscalls" are quite common. However, since we only erase the signal
+	// stack if we were delivered a signal in secret mode and considering the
+	// cross-thread synchronization cost for the P, it hardly seems worth it.
+	//
+	// TODO(dmo): can we encode the goid into mp.signalSecret and avoid the ABA problem?
+	if goexperiment.RuntimeSecret {
+		eraseSecretsSignalStk()
+	}
+
 	// Entersyscall must not call any function that might split/grow the stack.
 	// (See details in comment above.)
 	// Catch calls that might, by replacing the stack guard with something that
@@ -5413,6 +5441,18 @@ func newproc1(fn *funcval, callergp *g, callerpc uintptr, parked bool, waitreaso
 
 	// dit bubble
 	newg.ditWanted = callergp.ditWanted
+
+	if goexperiment.RuntimeSecret && callergp.secret > 0 {
+		// while it might seem weird to have a non-zero gp.secret value
+		// with no calls to secret.Do on the stack, this case is handled
+		// just fine by the cleanup logic in goexit0
+		// TODO: secret mode is invisible to the user if they don't ask about it via secret.Enabled
+		// and can have severe performance penalties (at time of writing, wrapping the entire
+		// tls handshake resulted in a 30% slowdown of the benchmarks).
+		// Whether a goroutine is running in secret mode should be more visible,
+		// maybe with a stack frame or some sort of bubble inspecting mechanism
+		newg.secret = 1
+	}
 
 	// Set up race context.
 	if raceenabled {

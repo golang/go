@@ -567,12 +567,9 @@ _0args:
 	// Return result.
 	MOVQ	AX, libcCallInfo_r1(R13)
 	MOVQ	DX, libcCallInfo_r2(R13)
-	RET
 
-TEXT runtime·libc_error_trampoline(SB),NOSPLIT,$0
-	MOVQ	0(DI), R14
 	CALL	libc_error(SB)
-	MOVQ	AX, (R14)
+	MOVL	(AX), AX	// errno
 	RET
 
 // syscall_x509 is for crypto/x509. It is like syscall6 but does not check for errors,

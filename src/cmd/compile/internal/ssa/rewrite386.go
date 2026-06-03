@@ -692,6 +692,9 @@ func rewriteValue386(v *Value) bool {
 	case OpTailCall:
 		v.Op = Op386CALLtail
 		return true
+	case OpTailCallInter:
+		v.Op = Op386CALLtailinter
+		return true
 	case OpTrunc16to8:
 		v.Op = OpCopy
 		return true

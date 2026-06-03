@@ -405,3 +405,132 @@ func TestPreload(t *testing.T) {
 		t.Errorf("Expects to use a register for phi, but got: %s\n%v", loc, f.f)
 	}
 }
+
+// TestStartRegsDrop tests dropping physical register bits from startRegs preventing
+// unnecessary OpLoadReg on edges, such as edge right->merge in this example.
+//
+//	entry -> left (no pressure)  -> merge (startRegs updated) -> exit
+//	      -> right (pressure)   ->
+func TestStartRegsDrop(t *testing.T) {
+	c := testConfig(t)
+
+	f := c.Fun("entry",
+		Bloc("entry",
+			Valu("mem", OpInitMem, types.TypeMem, 0, nil),
+			Valu("ptr", OpArg, c.config.Types.Int64.PtrTo(), 0, c.Temp(c.config.Types.Int64)),
+			// Non-phi values that will be originally in registers and get into startRegs[merge]
+			Valu("u0", OpAMD64MOVQload, c.config.Types.Int64, 100, nil, "ptr", "mem"),
+			Valu("u1", OpAMD64MOVQload, c.config.Types.Int64, 108, nil, "ptr", "mem"),
+			Valu("u2", OpAMD64MOVQload, c.config.Types.Int64, 116, nil, "ptr", "mem"),
+			Valu("u3", OpAMD64MOVQload, c.config.Types.Int64, 124, nil, "ptr", "mem"),
+			Valu("u4", OpAMD64MOVQload, c.config.Types.Int64, 132, nil, "ptr", "mem"),
+			Valu("u5", OpAMD64MOVQload, c.config.Types.Int64, 140, nil, "ptr", "mem"),
+			Valu("u6", OpAMD64MOVQload, c.config.Types.Int64, 148, nil, "ptr", "mem"),
+			Valu("u7", OpAMD64MOVQload, c.config.Types.Int64, 156, nil, "ptr", "mem"),
+			// Some phi value
+			Valu("v0", OpAMD64MOVQload, c.config.Types.Int64, 0, nil, "ptr", "mem"),
+			// Branch
+			Valu("cond", OpAMD64MOVLconst, c.config.Types.Int32, 1, nil),
+			Valu("test", OpAMD64TESTL, types.TypeFlags, 0, nil, "cond", "cond"),
+			Eq("test", "left", "right"),
+		),
+		Bloc("left",
+			// No register pressure - values stay in their original registers
+			// This is the "primary" predecessor of merge block (less spill live)
+			Goto("merge"),
+		),
+		Bloc("right",
+			// Create some register pressure. We want to make difference in this block's endRegs,
+			// so that at shuffle stage, the updated startRegs of merge block will be measurable.
+			Valu("r0", OpAMD64MOVQload, c.config.Types.Int64, 200, nil, "ptr", "mem"),
+			Valu("r1", OpAMD64MOVQload, c.config.Types.Int64, 208, nil, "ptr", "mem"),
+			Valu("r2", OpAMD64MOVQload, c.config.Types.Int64, 216, nil, "ptr", "mem"),
+			Valu("r3", OpAMD64MOVQload, c.config.Types.Int64, 224, nil, "ptr", "mem"),
+			Valu("r4", OpAMD64MOVQload, c.config.Types.Int64, 232, nil, "ptr", "mem"),
+			Valu("r5", OpAMD64MOVQload, c.config.Types.Int64, 240, nil, "ptr", "mem"),
+			Valu("r6", OpAMD64MOVQload, c.config.Types.Int64, 248, nil, "ptr", "mem"),
+			Valu("r7", OpAMD64MOVQload, c.config.Types.Int64, 256, nil, "ptr", "mem"),
+			Valu("r8", OpAMD64MOVQload, c.config.Types.Int64, 264, nil, "ptr", "mem"),
+			Valu("r9", OpAMD64MOVQload, c.config.Types.Int64, 272, nil, "ptr", "mem"),
+			Valu("r10", OpAMD64MOVQload, c.config.Types.Int64, 280, nil, "ptr", "mem"),
+			Valu("r11", OpAMD64MOVQload, c.config.Types.Int64, 288, nil, "ptr", "mem"),
+			Valu("r12", OpAMD64MOVQload, c.config.Types.Int64, 296, nil, "ptr", "mem"),
+			Valu("r13", OpAMD64MOVQload, c.config.Types.Int64, 304, nil, "ptr", "mem"),
+			Valu("r14", OpAMD64MOVQload, c.config.Types.Int64, 312, nil, "ptr", "mem"),
+			Valu("r15", OpAMD64MOVQload, c.config.Types.Int64, 320, nil, "ptr", "mem"),
+			Valu("sum0", OpAMD64ADDQ, c.config.Types.Int64, 0, nil, "r0", "r1"),
+			Valu("sum1", OpAMD64ADDQ, c.config.Types.Int64, 0, nil, "r2", "r3"),
+			Valu("sum2", OpAMD64ADDQ, c.config.Types.Int64, 0, nil, "r4", "r5"),
+			Valu("sum3", OpAMD64ADDQ, c.config.Types.Int64, 0, nil, "r6", "r7"),
+			Valu("sum4", OpAMD64ADDQ, c.config.Types.Int64, 0, nil, "r8", "r9"),
+			Valu("sum5", OpAMD64ADDQ, c.config.Types.Int64, 0, nil, "r10", "r11"),
+			Valu("sum6", OpAMD64ADDQ, c.config.Types.Int64, 0, nil, "r12", "r13"),
+			Valu("sum7", OpAMD64ADDQ, c.config.Types.Int64, 0, nil, "r14", "r15"),
+			Valu("store0", OpAMD64MOVQstore, types.TypeMem, 400, nil, "ptr", "sum0", "mem"),
+			Valu("store1", OpAMD64MOVQstore, types.TypeMem, 408, nil, "ptr", "sum1", "store0"),
+			Valu("store2", OpAMD64MOVQstore, types.TypeMem, 416, nil, "ptr", "sum2", "store1"),
+			Valu("store3", OpAMD64MOVQstore, types.TypeMem, 424, nil, "ptr", "sum3", "store2"),
+			Valu("store4", OpAMD64MOVQstore, types.TypeMem, 432, nil, "ptr", "sum4", "store3"),
+			Valu("store5", OpAMD64MOVQstore, types.TypeMem, 440, nil, "ptr", "sum5", "store4"),
+			Valu("store6", OpAMD64MOVQstore, types.TypeMem, 448, nil, "ptr", "sum6", "store5"),
+			Valu("store7", OpAMD64MOVQstore, types.TypeMem, 456, nil, "ptr", "sum7", "store6"),
+			Goto("merge"),
+		),
+		Bloc("merge",
+			// One phi (for v0)
+			Valu("p0", OpPhi, c.config.Types.Int64, 0, nil, "v0", "v0"),
+			// New values to evict the most distant uses in the end of this block
+			Valu("n0", OpAMD64MOVQload, c.config.Types.Int64, 500, nil, "ptr", "mem"),
+			Valu("n1", OpAMD64MOVQload, c.config.Types.Int64, 508, nil, "ptr", "mem"),
+			Valu("n2", OpAMD64MOVQload, c.config.Types.Int64, 516, nil, "ptr", "mem"),
+			Valu("n3", OpAMD64MOVQload, c.config.Types.Int64, 524, nil, "ptr", "mem"),
+			Valu("n4", OpAMD64MOVQload, c.config.Types.Int64, 532, nil, "ptr", "mem"),
+			Valu("n5", OpAMD64MOVQload, c.config.Types.Int64, 540, nil, "ptr", "mem"),
+			Valu("n6", OpAMD64MOVQload, c.config.Types.Int64, 548, nil, "ptr", "mem"),
+			Valu("n7", OpAMD64MOVQload, c.config.Types.Int64, 556, nil, "ptr", "mem"),
+			Valu("n8", OpAMD64MOVQload, c.config.Types.Int64, 564, nil, "ptr", "mem"),
+			Valu("n9", OpAMD64MOVQload, c.config.Types.Int64, 572, nil, "ptr", "mem"),
+			Valu("n10", OpAMD64MOVQload, c.config.Types.Int64, 580, nil, "ptr", "mem"),
+			Valu("n11", OpAMD64MOVQload, c.config.Types.Int64, 588, nil, "ptr", "mem"),
+			Valu("n12", OpAMD64MOVQload, c.config.Types.Int64, 596, nil, "ptr", "mem"),
+			Valu("n13", OpAMD64MOVQload, c.config.Types.Int64, 604, nil, "ptr", "mem"),
+			// Normal uses before we start to evict / clean up startRegs mask
+			Valu("a0", OpAMD64ADDQ, c.config.Types.Int64, 0, nil, "n0", "n1"),
+			Valu("a1", OpAMD64ADDQ, c.config.Types.Int64, 0, nil, "n2", "n3"),
+			Valu("a2", OpAMD64ADDQ, c.config.Types.Int64, 0, nil, "n4", "n5"),
+			Valu("a3", OpAMD64ADDQ, c.config.Types.Int64, 0, nil, "n6", "n7"),
+			Valu("a4", OpAMD64ADDQ, c.config.Types.Int64, 0, nil, "n8", "n9"),
+			Valu("a5", OpAMD64ADDQ, c.config.Types.Int64, 0, nil, "n10", "n11"),
+			Valu("a6", OpAMD64ADDQ, c.config.Types.Int64, 0, nil, "n12", "n13"),
+			Valu("s0", OpAMD64MOVQstore, types.TypeMem, 0, nil, "ptr", "a0", "mem"),
+			Valu("s1", OpAMD64MOVQstore, types.TypeMem, 8, nil, "ptr", "a1", "s0"),
+			Valu("s2", OpAMD64MOVQstore, types.TypeMem, 16, nil, "ptr", "a2", "s1"),
+			Valu("s3", OpAMD64MOVQstore, types.TypeMem, 24, nil, "ptr", "a3", "s2"),
+			Valu("s4", OpAMD64MOVQstore, types.TypeMem, 32, nil, "ptr", "a4", "s3"),
+			Valu("s5", OpAMD64MOVQstore, types.TypeMem, 40, nil, "ptr", "a5", "s4"),
+			Valu("s6", OpAMD64MOVQstore, types.TypeMem, 48, nil, "ptr", "a6", "s5"),
+			// The distant uses - to be evicted and cleaned up from the startRegs mask
+			Valu("t0", OpAMD64MOVQstore, types.TypeMem, 100, nil, "ptr", "u0", "s6"),
+			Valu("t1", OpAMD64MOVQstore, types.TypeMem, 108, nil, "ptr", "u1", "t0"),
+			Valu("t2", OpAMD64MOVQstore, types.TypeMem, 116, nil, "ptr", "u2", "t1"),
+			Valu("t3", OpAMD64MOVQstore, types.TypeMem, 124, nil, "ptr", "u3", "t2"),
+			Valu("t4", OpAMD64MOVQstore, types.TypeMem, 132, nil, "ptr", "u4", "t3"),
+			Valu("t5", OpAMD64MOVQstore, types.TypeMem, 140, nil, "ptr", "u5", "t4"),
+			Valu("t6", OpAMD64MOVQstore, types.TypeMem, 148, nil, "ptr", "u6", "t5"),
+			Valu("t7", OpAMD64MOVQstore, types.TypeMem, 156, nil, "ptr", "u7", "t6"),
+			Exit("t7"),
+		),
+	)
+
+	regalloc(f.f)
+	checkFunc(f.f)
+
+	leftLoadCount := numOps(f.blocks["left"], OpLoadReg)
+	rightLoadCount := numOps(f.blocks["right"], OpLoadReg)
+	t.Logf("OpLoadReg count in left: %d, right: %d", leftLoadCount, rightLoadCount)
+
+	// Without startRegs mask cleanup we would have some dead LoadRegs added by shuffle
+	if rightLoadCount > 8 {
+		t.Errorf("expected <= 8 OpLoadReg in right block (got %d)", rightLoadCount)
+	}
+}

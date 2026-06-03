@@ -5,9 +5,9 @@
 # Each assertion matches the expected diff.
 #
 # Tip: to see the actual stdout,
-# temporarily prefix the go command with "! ".
+# temporarily remove the "! " prefix from the go command.
 
-go fix -diff example.com/x
+! go fix -diff example.com/x
 
 # buildtag
 stdout '-// \+build go1.26'

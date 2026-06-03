@@ -20,7 +20,7 @@ type SubFS interface {
 // Sub returns an [FS] corresponding to the subtree rooted at fsys's dir.
 //
 // If dir is ".", Sub returns fsys unchanged.
-// Otherwise, if fs implements [SubFS], Sub returns fsys.Sub(dir).
+// Otherwise, if fsys implements [SubFS], Sub returns fsys.Sub(dir).
 // Otherwise, Sub returns a new [FS] implementation sub that,
 // in effect, implements sub.Open(name) as fsys.Open(path.Join(dir, name)).
 // The implementation also translates calls to ReadDir, ReadFile,

@@ -29,12 +29,12 @@ func all(t Type, f func(t, u Type) bool) bool {
 // typeset is an iterator over the (type/underlying type) pairs of the
 // specific type terms of the type set implied by t.
 // If t is a type parameter, the implied type set is the type set of t's constraint.
-// In that case, if there are no specific terms, typeset calls yield with (nil, nil).
+// In this case, if there are no specific terms, the iterator produces (nil, nil).
 // If t is not a type parameter, the implied type set consists of just t.
-// In any case, typeset is guaranteed to call yield at least once.
+// In any case, typeset is guaranteed to produce at least one set of results.
 func typeset(t Type) iter.Seq2[Type, Type] {
 	return func(yield func(t, u Type) bool) {
-		_ = all(t, yield)
+		all(t, yield)
 	}
 }
 

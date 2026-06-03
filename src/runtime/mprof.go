@@ -120,7 +120,6 @@ type memRecord struct {
 	// of the events from that cycle must be done. Specifically:
 	//
 	// Mallocs are accounted to cycle C+2.
-	// Explicit frees are accounted to cycle C+2.
 	// GC frees (done during sweeping) are accounted to cycle C+1.
 	//
 	// After mark termination, we increment the global heap
@@ -146,16 +145,13 @@ type memRecord struct {
 
 // memRecordCycle
 type memRecordCycle struct {
-	allocs, frees           uintptr
-	alloc_bytes, free_bytes uintptr
+	allocs, frees uintptr
 }
 
 // add accumulates b into a. It does not zero b.
 func (a *memRecordCycle) add(b *memRecordCycle) {
 	a.allocs += b.allocs
 	a.frees += b.frees
-	a.alloc_bytes += b.alloc_bytes
-	a.free_bytes += b.free_bytes
 }
 
 // A blockRecord is the bucket data for a bucket of type blockProfile,
@@ -453,7 +449,6 @@ func mProf_Malloc(mp *m, p unsafe.Pointer, size uintptr) {
 
 	lock(&profMemFutureLock[index])
 	mpc.allocs++
-	mpc.alloc_bytes += size
 	unlock(&profMemFutureLock[index])
 
 	// Setprofilebucket locks a bunch of other mutexes, so we call it outside of
@@ -466,7 +461,7 @@ func mProf_Malloc(mp *m, p unsafe.Pointer, size uintptr) {
 }
 
 // Called when freeing a profiled block.
-func mProf_Free(b *bucket, size uintptr) {
+func mProf_Free(b *bucket) {
 	index := (mProfCycle.read() + 1) % uint32(len(memRecord{}.future))
 
 	mp := b.mp()
@@ -474,7 +469,6 @@ func mProf_Free(b *bucket, size uintptr) {
 
 	lock(&profMemFutureLock[index])
 	mpc.frees++
-	mpc.free_bytes += size
 	unlock(&profMemFutureLock[index])
 }
 
@@ -751,7 +745,7 @@ func (prof *mLockProfile) captureStack() {
 //
 //go:nowritebarrierrec
 func (prof *mLockProfile) store() {
-	if gp := getg(); gp.m.locks == 1 && gp.m.mLockProfile.haveStack {
+	if gp := getg(); gp.m.locks/mutexMLocksDelta == 1 && gp.m.mLockProfile.haveStack {
 		prof.storeSlow()
 	}
 }
@@ -960,7 +954,7 @@ func memProfileInternal(size int, inuseZero bool, copyFn func(profilerecord.MemP
 	head := (*bucket)(mbuckets.Load())
 	for b := head; b != nil; b = b.allnext {
 		mp := b.mp()
-		if inuseZero || mp.active.alloc_bytes != mp.active.free_bytes {
+		if inuseZero || mp.active.allocs != mp.active.frees {
 			n++
 		}
 		if mp.active.allocs != 0 || mp.active.frees != 0 {
@@ -981,7 +975,7 @@ func memProfileInternal(size int, inuseZero bool, copyFn func(profilerecord.MemP
 				mp.future[c] = memRecordCycle{}
 				unlock(&profMemFutureLock[c])
 			}
-			if inuseZero || mp.active.alloc_bytes != mp.active.free_bytes {
+			if inuseZero || mp.active.allocs != mp.active.frees {
 				n++
 			}
 		}
@@ -990,10 +984,9 @@ func memProfileInternal(size int, inuseZero bool, copyFn func(profilerecord.MemP
 		ok = true
 		for b := head; b != nil; b = b.allnext {
 			mp := b.mp()
-			if inuseZero || mp.active.alloc_bytes != mp.active.free_bytes {
+			if inuseZero || mp.active.allocs != mp.active.frees {
 				r := profilerecord.MemProfileRecord{
-					AllocBytes:   int64(mp.active.alloc_bytes),
-					FreeBytes:    int64(mp.active.free_bytes),
+					ObjectSize:   int64(b.size),
 					AllocObjects: int64(mp.active.allocs),
 					FreeObjects:  int64(mp.active.frees),
 					Stack:        b.stk(),
@@ -1007,8 +1000,8 @@ func memProfileInternal(size int, inuseZero bool, copyFn func(profilerecord.MemP
 }
 
 func copyMemProfileRecord(dst *MemProfileRecord, src profilerecord.MemProfileRecord) {
-	dst.AllocBytes = src.AllocBytes
-	dst.FreeBytes = src.FreeBytes
+	dst.AllocBytes = src.AllocObjects * src.ObjectSize
+	dst.FreeBytes = src.FreeObjects * src.ObjectSize
 	dst.AllocObjects = src.AllocObjects
 	dst.FreeObjects = src.FreeObjects
 	if raceenabled {

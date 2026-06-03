@@ -9,6 +9,7 @@ import (
 	"encoding/binary"
 	"fmt"
 	"strconv"
+	"strings"
 	"sync"
 
 	"cmd/compile/internal/base"
@@ -430,10 +431,11 @@ func tconv2(b *bytes.Buffer, t *Type, verb rune, mode fmtMode, visited map[*Type
 			case IsExported(f.Sym.Name):
 				sconv2(b, f.Sym, 'S', mode)
 			default:
+				smode := mode
 				if mode != fmtTypeIDName {
-					mode = fmtTypeID
+					smode = fmtTypeID
 				}
-				sconv2(b, f.Sym, 'v', mode)
+				sconv2(b, f.Sym, 'v', smode)
 			}
 			tconv2(b, f.Type, 'S', mode, visited)
 		}
@@ -635,6 +637,16 @@ func SplitVargenSuffix(name string) (base, suffix string) {
 	const dot = "·"
 	if i >= len(dot) && name[i-len(dot):i] == dot {
 		i -= len(dot)
+		return name[:i], name[i:]
+	}
+	return name, ""
+}
+
+// SplitMethSuffix returns name split into a defining type name and a .m
+// suffix, if any.
+func SplitMethSuffix(name string) (tname, suffix string) {
+	i := strings.LastIndex(name, ".")
+	if i >= 0 {
 		return name[:i], name[i:]
 	}
 	return name, ""

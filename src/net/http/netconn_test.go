@@ -383,7 +383,7 @@ func (h *fakeNetConnHalf) writePartial(b []byte) (n int, err error) {
 	return h.buf.Write(b)
 }
 
-// deadlineContext converts a changable deadline (as in net.Conn.SetDeadline) into a Context.
+// deadlineContext converts a changeable deadline (as in net.Conn.SetDeadline) into a Context.
 type deadlineContext struct {
 	mu     sync.Mutex
 	ctx    context.Context

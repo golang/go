@@ -40,10 +40,6 @@ func newScriptEngine() *script.Engine {
 		}
 		conds[name] = cond
 	}
-	lazyBool := func(summary string, f func() bool) script.Cond {
-		return script.OnceCondition(summary, func() (bool, error) { return f(), nil })
-	}
-	add("bzr", lazyBool("the 'bzr' executable exists and provides the standard CLI", hasWorkingBzr))
 	add("git-sha256", script.OnceCondition("the local 'git' version is recent enough to support sha256 object/commit hashes", gitSupportsSHA256))
 
 	interrupt := func(cmd *exec.Cmd) error { return cmd.Process.Signal(os.Interrupt) }
@@ -51,13 +47,13 @@ func newScriptEngine() *script.Engine {
 
 	cmds := script.DefaultCmds()
 	cmds["at"] = scriptAt()
-	cmds["bzr"] = script.Program("bzr", interrupt, gracePeriod)
 	cmds["fossil"] = script.Program("fossil", interrupt, gracePeriod)
 	cmds["git"] = script.Program("git", interrupt, gracePeriod)
 	cmds["hg"] = script.Program("hg", interrupt, gracePeriod)
 	cmds["handle"] = scriptHandle()
 	cmds["modzip"] = scriptModzip()
 	cmds["skip"] = scriptSkip()
+	cmds["status"] = scriptStatus()
 	cmds["svnadmin"] = script.Program("svnadmin", interrupt, gracePeriod)
 	cmds["svn"] = script.Program("svn", interrupt, gracePeriod)
 	cmds["unquote"] = scriptUnquote()
@@ -266,7 +262,7 @@ func scriptHandle() script.Cmd {
 			Args:    "handler [dir]",
 			Detail: []string{
 				"The handler will be passed the script's current working directory and environment as arguments.",
-				"Valid handlers include 'dir' (for general http.Dir serving), 'bzr', 'fossil', 'git', and 'hg'",
+				"Valid handlers include 'dir' (for general http.Dir serving), 'fossil', 'git', and 'hg'",
 			},
 		},
 		func(st *script.State, args ...string) (script.WaitFunc, error) {
@@ -353,6 +349,50 @@ func scriptSkip() script.Cmd {
 		})
 }
 
+type statusWriter struct {
+	http.ResponseWriter
+	status int
+}
+
+func (w *statusWriter) WriteHeader(code int) {
+	w.ResponseWriter.WriteHeader(w.status)
+}
+
+type statusCodeHandler struct {
+	handler    http.Handler
+	statusCode int
+}
+
+func (h *statusCodeHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
+	h.handler.ServeHTTP(&statusWriter{ResponseWriter: w, status: h.statusCode}, r)
+}
+
+func scriptStatus() script.Cmd {
+	return script.Command(
+		script.CmdUsage{
+			Summary: "set the HTTP status code for the handler",
+			Args:    "code",
+		},
+		func(st *script.State, args ...string) (script.WaitFunc, error) {
+			if len(args) != 1 {
+				return nil, script.ErrUsage
+			}
+			sc, err := getScriptCtx(st)
+			if err != nil {
+				return nil, err
+			}
+			if sc.handler == nil {
+				return nil, errors.New("status command must be called after handle")
+			}
+			code, err := strconv.Atoi(args[0])
+			if err != nil {
+				return nil, err
+			}
+			sc.handler = &statusCodeHandler{handler: sc.handler, statusCode: code}
+			return nil, nil
+		})
+}
+
 type SkipError struct {
 	Msg string
 }
@@ -385,17 +425,6 @@ func scriptUnquote() script.Cmd {
 			}
 			return wait, nil
 		})
-}
-
-func hasWorkingBzr() bool {
-	bzr, err := exec.LookPath("bzr")
-	if err != nil {
-		return false
-	}
-	// Check that 'bzr help' exits with code 0.
-	// See go.dev/issue/71504 for an example where 'bzr' exists in PATH but doesn't work.
-	err = exec.Command(bzr, "help").Run()
-	return err == nil
 }
 
 // Capture the major, minor and (optionally) patch version, but ignore anything later

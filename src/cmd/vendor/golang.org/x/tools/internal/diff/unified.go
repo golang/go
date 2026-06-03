@@ -20,7 +20,7 @@ const DefaultContextLines = 3
 // The old and new labels are the names of the old and new files.
 // If the strings are equal, it returns the empty string.
 func Unified(oldLabel, newLabel, old, new string) string {
-	edits := Strings(old, new)
+	edits := Lines(old, new)
 	unified, err := ToUnified(oldLabel, newLabel, old, edits, DefaultContextLines)
 	if err != nil {
 		// Can't happen: edits are consistent.
@@ -300,7 +300,7 @@ func ApplyUnified(udiffs, bef string) (string, error) {
 		case ' ':
 			return "", fmt.Errorf("unexpected line %q", l)
 		default:
-			return "", fmt.Errorf("impossible unified %q", udiffs)
+			return "", fmt.Errorf("invalid unified diff: <<%s>>", udiffs)
 		}
 	}
 	// copy any remaining lines

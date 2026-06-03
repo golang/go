@@ -17,13 +17,11 @@ import (
 	"golang.org/x/tools/internal/analysis/analyzerutil"
 	typeindexanalyzer "golang.org/x/tools/internal/analysis/typeindex"
 	"golang.org/x/tools/internal/astutil"
-	"golang.org/x/tools/internal/goplsexport"
-	"golang.org/x/tools/internal/refactor"
 	"golang.org/x/tools/internal/stdlib"
 	"golang.org/x/tools/internal/typesinternal/typeindex"
 )
 
-var stditeratorsAnalyzer = &analysis.Analyzer{
+var StdIteratorsAnalyzer = &analysis.Analyzer{
 	Name: "stditerators",
 	Doc:  analyzerutil.MustExtractDoc(doc, "stditerators"),
 	Requires: []*analysis.Analyzer{
@@ -31,11 +29,6 @@ var stditeratorsAnalyzer = &analysis.Analyzer{
 	},
 	Run: stditerators,
 	URL: "https://pkg.go.dev/golang.org/x/tools/go/analysis/passes/modernize#stditerators",
-}
-
-func init() {
-	// Export to gopls until this is a published modernizer.
-	goplsexport.StdIteratorsModernizer = stditeratorsAnalyzer
 }
 
 // stditeratorsTable records std types that have legacy T.{Len,At}
@@ -182,22 +175,9 @@ func stditerators(pass *analysis.Pass) (any, error) {
 			}
 
 			loop := curBody.Parent().Node()
-
-			// Choose a fresh name only if
-			// (a) the preferred name is already declared here, and
-			// (b) there are references to it from the loop body.
-			// TODO(adonovan): this pattern also appears in errorsastype,
-			// and is wanted elsewhere; factor.
-			name := row.elemname
-			if v := lookup(info, curBody, name); v != nil {
-				// is it free in body?
-				for curUse := range index.Uses(v) {
-					if curBody.Contains(curUse) {
-						name = refactor.FreshName(info.Scopes[loop], loop.Pos(), name)
-						break
-					}
-				}
-			}
+			// We generate a new name only if the preferred name is already declared here
+			// and is used within the loop body.
+			name := freshName(info, index, info.Scopes[loop], loop.Pos(), curBody, curBody, token.NoPos, row.elemname)
 			return name, nil
 		}
 
@@ -220,7 +200,7 @@ func stditerators(pass *analysis.Pass) (any, error) {
 			)
 
 			// Analyze enclosing loop.
-			switch first(curLenCall.ParentEdge()) {
+			switch curLenCall.ParentEdgeKind() {
 			case edge.BinaryExpr_Y:
 				// pattern 1: for i := 0; i < x.Len(); i++ { ... }
 				var (
@@ -228,7 +208,7 @@ func stditerators(pass *analysis.Pass) (any, error) {
 					cmp    = curCmp.Node().(*ast.BinaryExpr)
 				)
 				if cmp.Op != token.LSS ||
-					!astutil.IsChildOf(curCmp, edge.ForStmt_Cond) {
+					curCmp.ParentEdgeKind() != edge.ForStmt_Cond {
 					continue
 				}
 				if id, ok := cmp.X.(*ast.Ident); ok {

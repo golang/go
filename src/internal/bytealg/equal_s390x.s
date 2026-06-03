@@ -7,22 +7,10 @@
 
 // memequal(a, b unsafe.Pointer, size uintptr) bool
 TEXT runtime·memequal<ABIInternal>(SB),NOSPLIT|NOFRAME,$0-25
-#ifndef GOEXPERIMENT_regabiargs
-	MOVD	a+0(FP), R2
-	MOVD	b+8(FP), R3
-	MOVD	size+16(FP), R4
-	LA	ret+24(FP), R5
-#endif
 	BR	memeqbody<>(SB)
 
 // memequal_varlen(a, b unsafe.Pointer) bool
 TEXT runtime·memequal_varlen<ABIInternal>(SB),NOSPLIT|NOFRAME,$0-17
-#ifndef GOEXPERIMENT_regabiargs
-	MOVD	a+0(FP), R2
-	MOVD	b+8(FP), R3
-	LA	ret+16(FP), R5
-#endif
-
 	MOVD	8(R12), R4    // compiler stores size at offset 8 in the closure
 	BR	memeqbody<>(SB)
 
@@ -52,15 +40,9 @@ tail:
 	BEQ	equal
 notequal:
 	MOVD	$0, R2
-#ifndef GOEXPERIMENT_regabiargs
-	MOVB	R2, 0(R5)
-#endif
 	RET
 equal:
 	MOVD	$1, R2
-#ifndef GOEXPERIMENT_regabiargs
-	MOVB	R2, 0(R5)
-#endif
 	RET
 tiny:
 	MOVD	$0, R1

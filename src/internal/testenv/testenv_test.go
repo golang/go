@@ -97,8 +97,9 @@ func TestHasGoBuild(t *testing.T) {
 			}
 		}
 
-		if strings.Contains(b, "-noopt") {
-			// The -noopt builder sets GO_GCFLAGS, which causes tests of 'go build' to
+		if strings.Contains(b, "-noopt") ||
+			strings.Contains(b, "-spectre") {
+			// These builders set GO_GCFLAGS, which causes tests of 'go build' to
 			// be skipped.
 			t.Logf("HasGoBuild is false on %s", b)
 			return

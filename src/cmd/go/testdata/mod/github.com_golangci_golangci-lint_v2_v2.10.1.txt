@@ -1,0 +1,22 @@
+module github.com/golangci/golangci-lint/v2@latest
+
+Original import done via `go run addmod.go`. Dependencies have been manually
+reduced to the minimum required by the test `get_tool_issue_74691`.
+-- .mod --
+module github.com/golangci/golangci-lint/v2
+
+// The minimum Go version must always be latest-1.
+// This version should never be changed outside of the PR to add the support of newer Go version.
+// Only golangci-lint maintainers are allowed to change it.
+go 1.25.0
+
+require github.com/securego/gosec/v2 v2.23.0
+-- .info --
+{"Version":"v2.10.1"}
+-- cmd/golangci-lint/main.go --
+package main
+
+import _ "github.com/securego/gosec/v2/rules"
+
+func main()
+

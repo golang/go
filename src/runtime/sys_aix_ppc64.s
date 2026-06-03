@@ -197,6 +197,15 @@ DATA	runtime·tstart+8(SB)/8, $TOC(SB)
 DATA	runtime·tstart+16(SB)/8, $0
 GLOBL	runtime·tstart(SB), NOPTR, $24
 
+// runtime.rt0LibGoDesc is a function descriptor to rt0_lib_go,
+// used by libInit to create a new thread on AIX where
+// pthread_create expects a function descriptor, not a raw
+// code address.
+DATA	runtime·rt0LibGoDesc+0(SB)/8, $runtime·rt0_lib_go(SB)
+DATA	runtime·rt0LibGoDesc+8(SB)/8, $TOC(SB)
+DATA	runtime·rt0LibGoDesc+16(SB)/8, $0
+GLOBL	runtime·rt0LibGoDesc(SB), NOPTR, $24
+
 TEXT tstart<>(SB),NOSPLIT,$0
 	XOR	 R0, R0 // reset R0
 

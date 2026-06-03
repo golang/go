@@ -34,22 +34,34 @@ type Sym struct {
 // Static reports whether this symbol is static (not visible outside its file).
 func (s *Sym) Static() bool { return s.Type >= 'a' }
 
-// nameWithoutInst returns s.Name if s.Name has no brackets (does not reference an
-// instantiated type, function, or method). If s.Name contains brackets, then it
-// returns s.Name with all the contents between (and including) the outermost left
-// and right bracket removed. This is useful to ignore any extra slashes or dots
-// inside the brackets from the string searches below, where needed.
+// nameWithoutInst returns s.Name with all bracketed expressions masked by
+// underscores. This is useful to ignore any extra slashes or dots inside the
+// brackets from the string searches below, while preserving the byte indices
+// of the characters outside the brackets.
+//
+// s.Name is returned as-is if the brackets are imbalanced.
 func (s *Sym) nameWithoutInst() string {
-	start := strings.Index(s.Name, "[")
-	if start < 0 {
-		return s.Name
+	n := 0
+	b := []byte(s.Name)
+	for i, r := range b {
+		switch r {
+		case '[':
+			n++
+		case ']':
+			n--
+			if n < 0 {
+				return s.Name // malformed
+			}
+		default:
+			if n > 0 {
+				b[i] = '_'
+			}
+		}
 	}
-	end := strings.LastIndex(s.Name, "]")
-	if end < 0 {
-		// Malformed name, should contain closing bracket too.
-		return s.Name
+	if n > 0 {
+		return s.Name // malformed
 	}
-	return s.Name[0:start] + s.Name[end+1:]
+	return string(b)
 }
 
 // PackageName returns the package part of the symbol name,
@@ -76,7 +88,7 @@ func (s *Sym) PackageName() string {
 	}
 
 	if i := strings.Index(name[pathend:], "."); i != -1 {
-		return name[:pathend+i]
+		return s.Name[:pathend+i]
 	}
 	return ""
 }
@@ -86,8 +98,6 @@ func (s *Sym) PackageName() string {
 // the case that s.Name is fully-specified with a package name.
 func (s *Sym) ReceiverName() string {
 	name := s.nameWithoutInst()
-	// If we find a slash in name, it should precede any bracketed expression
-	// that was removed, so pathend will apply correctly to name and s.Name.
 	pathend := strings.LastIndex(name, "/")
 	if pathend < 0 {
 		pathend = 0
@@ -101,10 +111,6 @@ func (s *Sym) ReceiverName() string {
 		// There is no receiver if we didn't find two distinct dots after pathend.
 		return ""
 	}
-	// Given there is a trailing '.' that is in name, find it now in s.Name.
-	// pathend+l should apply to s.Name, because it should be the dot in the
-	// package name.
-	r = strings.LastIndex(s.Name[pathend:], ".")
 	return s.Name[pathend+l+1 : pathend+r]
 }
 
@@ -112,16 +118,6 @@ func (s *Sym) ReceiverName() string {
 func (s *Sym) BaseName() string {
 	name := s.nameWithoutInst()
 	if i := strings.LastIndex(name, "."); i != -1 {
-		if s.Name != name {
-			brack := strings.Index(s.Name, "[")
-			if i > brack {
-				// BaseName is a method name after the brackets, so
-				// recalculate for s.Name. Otherwise, i applies
-				// correctly to s.Name, since it is before the
-				// brackets.
-				i = strings.LastIndex(s.Name, ".")
-			}
-		}
 		return s.Name[i+1:]
 	}
 	return s.Name

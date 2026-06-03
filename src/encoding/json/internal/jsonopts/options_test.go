@@ -25,9 +25,8 @@ func makeFlags(f ...jsonflags.Bools) (fs jsonflags.Flags) {
 
 func TestJoin(t *testing.T) {
 	tests := []struct {
-		in            Options
-		excludeCoders bool
-		want          *Struct
+		in   Options
+		want *Struct
 	}{{
 		in:   jsonflags.AllowInvalidUTF8 | 1,
 		want: &Struct{Flags: makeFlags(jsonflags.AllowInvalidUTF8 | 1)},
@@ -68,46 +67,7 @@ func TestJoin(t *testing.T) {
 			return &v2
 		}(), // v2 fully replaces before (except for whitespace related flags)
 	}, {
-		in: jsonflags.Deterministic | jsonflags.AllowInvalidUTF8 | 1, excludeCoders: true,
-		want: func() *Struct {
-			v2 := DefaultOptionsV2
-			v2.Flags.Set(jsonflags.Deterministic | 1)
-			v2.Flags.Set(jsonflags.Indent | 1)
-			v2.Flags.Set(jsonflags.Multiline | 0)
-			v2.Indent = "\t"
-			return &v2
-		}(),
-	}, {
-		in: jsontext.WithIndentPrefix("    "), excludeCoders: true,
-		want: func() *Struct {
-			v2 := DefaultOptionsV2
-			v2.Flags.Set(jsonflags.Deterministic | 1)
-			v2.Flags.Set(jsonflags.Indent | 1)
-			v2.Flags.Set(jsonflags.Multiline | 0)
-			v2.Indent = "\t"
-			return &v2
-		}(),
-	}, {
-		in: jsontext.WithIndentPrefix("    "), excludeCoders: false,
-		want: func() *Struct {
-			v2 := DefaultOptionsV2
-			v2.Flags.Set(jsonflags.Deterministic | 1)
-			v2.Flags.Set(jsonflags.Indent | 1)
-			v2.Flags.Set(jsonflags.IndentPrefix | 1)
-			v2.Flags.Set(jsonflags.Multiline | 1)
-			v2.Indent = "\t"
-			v2.IndentPrefix = "    "
-			return &v2
-		}(),
-	}, {
-		in: &Struct{
-			Flags: jsonflags.Flags{
-				Presence: uint64(jsonflags.Deterministic | jsonflags.Indent | jsonflags.IndentPrefix),
-				Values:   uint64(jsonflags.Indent | jsonflags.IndentPrefix),
-			},
-			CoderValues: CoderValues{Indent: "  ", IndentPrefix: "  "},
-		},
-		excludeCoders: true,
+		in: jsontext.WithIndentPrefix("    "),
 		want: func() *Struct {
 			v2 := DefaultOptionsV2
 			v2.Flags.Set(jsonflags.Indent | 1)
@@ -125,7 +85,6 @@ func TestJoin(t *testing.T) {
 			},
 			CoderValues: CoderValues{Indent: "  ", IndentPrefix: "  "},
 		},
-		excludeCoders: false,
 		want: func() *Struct {
 			v2 := DefaultOptionsV2
 			v2.Flags.Set(jsonflags.Indent | 1)
@@ -138,11 +97,7 @@ func TestJoin(t *testing.T) {
 	}}
 	got := new(Struct)
 	for i, tt := range tests {
-		if tt.excludeCoders {
-			got.JoinWithoutCoderOptions(tt.in)
-		} else {
-			got.Join(tt.in)
-		}
+		got.Join(tt.in)
 		if !reflect.DeepEqual(got, tt.want) {
 			t.Fatalf("%d: Join:\n\tgot:  %+v\n\twant: %+v", i, got, tt.want)
 		}

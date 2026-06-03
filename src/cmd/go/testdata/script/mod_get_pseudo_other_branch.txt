@@ -64,4 +64,4 @@ git checkout master
 git merge b -m merge
 
 zip -r ../tagtests.zip .
-gsutil cp ../tagtests.zip gs://vcs-test/git/tagtests.zip
+gcloud storage cp ../tagtests.zip gs://vcs-test/git/tagtests.zip

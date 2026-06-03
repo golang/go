@@ -487,11 +487,12 @@ func (tg *testgoData) goTool() string {
 // returning exit status.
 func (tg *testgoData) doRun(args []string) error {
 	tg.t.Helper()
-	if tg.inParallel {
-		for _, arg := range args {
-			if strings.HasPrefix(arg, "testdata") || strings.HasPrefix(arg, "./testdata") {
-				tg.t.Fatal("internal testsuite error: parallel run using testdata")
-			}
+	if !tg.inParallel {
+		tg.t.Fatal("all tests using testgoData must run in parallel")
+	}
+	for _, arg := range args {
+		if strings.HasPrefix(arg, "testdata") || strings.HasPrefix(arg, "./testdata") {
+			tg.t.Fatal("internal testsuite error: parallel run using testdata")
 		}
 	}
 
@@ -1948,6 +1949,7 @@ func TestNeedVersion(t *testing.T) {
 
 func TestBuildmodePIE(t *testing.T) {
 	tooSlow(t, "links binaries")
+	t.Parallel()
 
 	if !platform.BuildModeSupported(runtime.Compiler, "pie", runtime.GOOS, runtime.GOARCH) {
 		t.Skipf("skipping test because buildmode=pie is not supported on %s/%s", runtime.GOOS, runtime.GOARCH)
@@ -1970,6 +1972,7 @@ func TestWindowsDefaultBuildmodIsPIE(t *testing.T) {
 		t.Skip("skipping windows only test")
 	}
 	tooSlow(t, "links binaries")
+	t.Parallel()
 
 	t.Run("non-cgo", func(t *testing.T) {
 		testBuildmodePIE(t, false, false)
@@ -2650,25 +2653,4 @@ func TestCoverpkgTestOnly(t *testing.T) {
 	tg.run("test", "-coverpkg=a", "atest")
 	tg.grepStderrNot("no packages being tested depend on matches", "bad match message")
 	tg.grepStdout("coverage: 100", "no coverage")
-}
-
-// Regression test for golang.org/issue/34499: version command should not crash
-// when executed in a deleted directory on Linux.
-func TestExecInDeletedDir(t *testing.T) {
-	switch runtime.GOOS {
-	case "windows", "plan9",
-		"aix",                // Fails with "device busy".
-		"solaris", "illumos": // Fails with "invalid argument".
-		t.Skipf("%v does not support removing the current working directory", runtime.GOOS)
-	}
-	tg := testgo(t)
-	defer tg.cleanup()
-
-	tg.makeTempdir()
-	t.Chdir(tg.tempdir)
-
-	tg.check(os.Remove(tg.tempdir))
-
-	// `go version` should not fail
-	tg.run("version")
 }

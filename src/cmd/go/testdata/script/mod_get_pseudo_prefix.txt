@@ -61,4 +61,4 @@ git add status
 git commit -m 'after last tag'
 
 zip -r ../prefixtagtests.zip .
-gsutil cp ../prefixtagtests.zip gs://vcs-test/git/prefixtagtests.zip
+gcloud storage cp ../prefixtagtests.zip gs://vcs-test/git/prefixtagtests.zip

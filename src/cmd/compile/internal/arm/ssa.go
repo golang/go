@@ -701,7 +701,7 @@ func ssaGenValue(s *ssagen.State, v *ssa.Value) {
 		p.To.Reg = v.Reg()
 	case ssa.OpARMCALLstatic, ssa.OpARMCALLclosure, ssa.OpARMCALLinter:
 		s.Call(v)
-	case ssa.OpARMCALLtail:
+	case ssa.OpARMCALLtail, ssa.OpARMCALLtailinter:
 		s.TailCall(v)
 	case ssa.OpARMCALLudiv:
 		p := s.Prog(obj.ACALL)

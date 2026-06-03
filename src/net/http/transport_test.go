@@ -200,7 +200,7 @@ func testTransportKeepAlives(t *testing.T, mode testMode) {
 }
 
 func TestTransportConnectionCloseOnResponse(t *testing.T) {
-	run(t, testTransportConnectionCloseOnResponse)
+	run(t, testTransportConnectionCloseOnResponse, http3SkippedMode)
 }
 func testTransportConnectionCloseOnResponse(t *testing.T, mode testMode) {
 	ts := newClientServerTest(t, mode, hostPortHandler).ts
@@ -431,10 +431,8 @@ func testTransportIdleCacheKeys(t *testing.T, mode testMode) {
 func TestTransportReadToEndReusesConn(t *testing.T) { run(t, testTransportReadToEndReusesConn) }
 func testTransportReadToEndReusesConn(t *testing.T, mode testMode) {
 	const msg = "foobar"
-
-	var addrSeen map[string]int
 	ts := newClientServerTest(t, mode, HandlerFunc(func(w ResponseWriter, r *Request) {
-		addrSeen[r.RemoteAddr]++
+		w.Header().Set("Remote-Addr", r.RemoteAddr)
 		if r.URL.Path == "/chunked/" {
 			w.WriteHeader(200)
 			w.(Flusher).Flush()
@@ -447,18 +445,13 @@ func testTransportReadToEndReusesConn(t *testing.T, mode testMode) {
 
 	for pi, path := range []string{"/content-length/", "/chunked/"} {
 		wantLen := []int{len(msg), -1}[pi]
-		addrSeen = make(map[string]int)
-		for i := 0; i < 3; i++ {
+		addrSeen := make(map[string]int)
+		for range 3 {
 			res, err := ts.Client().Get(ts.URL + path)
 			if err != nil {
 				t.Errorf("Get %s: %v", path, err)
 				continue
 			}
-			// We want to close this body eventually (before the
-			// defer afterTest at top runs), but not before the
-			// len(addrSeen) check at the bottom of this test,
-			// since Closing this early in the loop would risk
-			// making connections be re-used for the wrong reason.
 			defer res.Body.Close()
 
 			if res.ContentLength != int64(wantLen) {
@@ -468,6 +461,7 @@ func testTransportReadToEndReusesConn(t *testing.T, mode testMode) {
 			if string(got) != msg || err != nil {
 				t.Errorf("%s ReadAll(Body) = %q, %v; want %q, nil", path, string(got), err, msg)
 			}
+			addrSeen[res.Header.Get("Remote-Addr")]++
 		}
 		if len(addrSeen) != 1 {
 			t.Errorf("for %s, server saw %d distinct client addresses; want 1", path, len(addrSeen))
@@ -678,7 +672,7 @@ func testTransportMaxPerHostIdleConns(t *testing.T, mode testMode) {
 }
 
 func TestTransportMaxConnsPerHostIncludeDialInProgress(t *testing.T) {
-	run(t, testTransportMaxConnsPerHostIncludeDialInProgress)
+	run(t, testTransportMaxConnsPerHostIncludeDialInProgress, http3SkippedMode)
 }
 func testTransportMaxConnsPerHostIncludeDialInProgress(t *testing.T, mode testMode) {
 	ts := newClientServerTest(t, mode, HandlerFunc(func(w ResponseWriter, r *Request) {
@@ -1143,7 +1137,7 @@ var roundTripTests = []struct {
 }
 
 // Test that the modification made to the Request by the RoundTripper is cleaned up
-func TestRoundTripGzip(t *testing.T) { run(t, testRoundTripGzip) }
+func TestRoundTripGzip(t *testing.T) { run(t, testRoundTripGzip, http3SkippedMode) }
 func testRoundTripGzip(t *testing.T, mode testMode) {
 	const responseBody = "test response body"
 	ts := newClientServerTest(t, mode, HandlerFunc(func(rw ResponseWriter, req *Request) {
@@ -1205,11 +1199,8 @@ func testRoundTripGzip(t *testing.T, mode testMode) {
 
 }
 
-func TestTransportGzip(t *testing.T) { run(t, testTransportGzip) }
+func TestTransportGzip(t *testing.T) { run(t, testTransportGzip, http3SkippedMode) }
 func testTransportGzip(t *testing.T, mode testMode) {
-	if mode == http2Mode {
-		t.Skip("https://go.dev/issue/56020")
-	}
 	const testString = "The test string aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
 	const nRandBytes = 1024 * 1024
 	ts := newClientServerTest(t, mode, HandlerFunc(func(rw ResponseWriter, req *Request) {
@@ -1975,7 +1966,7 @@ func TestTransportDialPreservesNetOpProxyError(t *testing.T) {
 // (A bug caused dialConn to instead write the per-request Proxy-Authorization
 // header through to the shared Header instance, introducing a data race.)
 func TestTransportProxyDialDoesNotMutateProxyConnectHeader(t *testing.T) {
-	run(t, testTransportProxyDialDoesNotMutateProxyConnectHeader)
+	run(t, testTransportProxyDialDoesNotMutateProxyConnectHeader, http3SkippedMode)
 }
 func testTransportProxyDialDoesNotMutateProxyConnectHeader(t *testing.T, mode testMode) {
 	proxy := newClientServerTest(t, mode, NotFoundHandler()).ts
@@ -2012,7 +2003,7 @@ func testTransportProxyDialDoesNotMutateProxyConnectHeader(t *testing.T, mode te
 // client gets the same value back. This is more cute than anything,
 // but checks that we don't recurse forever, and checks that
 // Content-Encoding is removed.
-func TestTransportGzipRecursive(t *testing.T) { run(t, testTransportGzipRecursive) }
+func TestTransportGzipRecursive(t *testing.T) { run(t, testTransportGzipRecursive, http3SkippedMode) }
 func testTransportGzipRecursive(t *testing.T, mode testMode) {
 	ts := newClientServerTest(t, mode, HandlerFunc(func(w ResponseWriter, r *Request) {
 		w.Header().Set("Content-Encoding", "gzip")
@@ -2039,7 +2030,7 @@ func testTransportGzipRecursive(t *testing.T, mode testMode) {
 
 // golang.org/issue/7750: request fails when server replies with
 // a short gzip body
-func TestTransportGzipShort(t *testing.T) { run(t, testTransportGzipShort) }
+func TestTransportGzipShort(t *testing.T) { run(t, testTransportGzipShort, http3SkippedMode) }
 func testTransportGzipShort(t *testing.T, mode testMode) {
 	ts := newClientServerTest(t, mode, HandlerFunc(func(w ResponseWriter, r *Request) {
 		w.Header().Set("Content-Encoding", "gzip")
@@ -2077,11 +2068,11 @@ func TestTransportPersistConnLeak(t *testing.T) {
 	run(t, testTransportPersistConnLeak, testNotParallel)
 }
 func testTransportPersistConnLeak(t *testing.T, mode testMode) {
-	if mode == http2Mode {
-		t.Skip("flaky in HTTP/2")
+	if mode == http2Mode || mode == http3Mode {
+		t.Skip("flaky in HTTP/2 and HTTP/3")
 	}
-	// Not parallel: counts goroutines
 
+	// Not parallel: counts goroutines
 	const numReq = 25
 	gotReqCh := make(chan bool, numReq)
 	unblockCh := make(chan bool, numReq)
@@ -2151,8 +2142,8 @@ func TestTransportPersistConnLeakShortBody(t *testing.T) {
 	run(t, testTransportPersistConnLeakShortBody, testNotParallel)
 }
 func testTransportPersistConnLeakShortBody(t *testing.T, mode testMode) {
-	if mode == http2Mode {
-		t.Skip("flaky in HTTP/2")
+	if mode == http2Mode || mode == http3Mode {
+		t.Skip("flaky in HTTP/2 and HTTP/3")
 	}
 
 	// Not parallel: measures goroutines.
@@ -2303,7 +2294,7 @@ func (cc *contextCounter) Read() (live int64) {
 }
 
 func TestTransportPersistConnContextLeakMaxConnsPerHost(t *testing.T) {
-	run(t, testTransportPersistConnContextLeakMaxConnsPerHost)
+	run(t, testTransportPersistConnContextLeakMaxConnsPerHost, http3SkippedMode)
 }
 func testTransportPersistConnContextLeakMaxConnsPerHost(t *testing.T, mode testMode) {
 	if mode == http2Mode {
@@ -2363,7 +2354,7 @@ func testTransportPersistConnContextLeakMaxConnsPerHost(t *testing.T, mode testM
 }
 
 // This used to crash; https://golang.org/issue/3266
-func TestTransportIdleConnCrash(t *testing.T) { run(t, testTransportIdleConnCrash) }
+func TestTransportIdleConnCrash(t *testing.T) { run(t, testTransportIdleConnCrash, http3SkippedMode) }
 func testTransportIdleConnCrash(t *testing.T, mode testMode) {
 	var tr *Transport
 
@@ -2421,7 +2412,8 @@ func testIssue3644(t *testing.T, mode testMode) {
 // the entire request body.
 func TestIssue3595(t *testing.T) {
 	// Not parallel: modifies the global rstAvoidanceDelay.
-	run(t, testIssue3595, testNotParallel)
+	// HTTP/3 fails on WASM.
+	run(t, testIssue3595, testNotParallel, http3SkippedMode)
 }
 func testIssue3595(t *testing.T, mode testMode) {
 	runTimeSensitiveTest(t, []time.Duration{
@@ -2552,7 +2544,9 @@ func testTransportConcurrency(t *testing.T, mode testMode) {
 	wg.Wait()
 }
 
-func TestIssue4191_InfiniteGetTimeout(t *testing.T) { run(t, testIssue4191_InfiniteGetTimeout) }
+func TestIssue4191_InfiniteGetTimeout(t *testing.T) {
+	run(t, testIssue4191_InfiniteGetTimeout, http3SkippedMode)
+}
 func testIssue4191_InfiniteGetTimeout(t *testing.T, mode testMode) {
 	mux := NewServeMux()
 	mux.HandleFunc("/get", func(w ResponseWriter, r *Request) {
@@ -2654,7 +2648,9 @@ func testIssue4191_InfiniteGetToPutTimeout(t *testing.T, mode testMode) {
 	ts.Close()
 }
 
-func TestTransportResponseHeaderTimeout(t *testing.T) { run(t, testTransportResponseHeaderTimeout) }
+func TestTransportResponseHeaderTimeout(t *testing.T) {
+	run(t, testTransportResponseHeaderTimeout, http3SkippedMode)
+}
 func testTransportResponseHeaderTimeout(t *testing.T, mode testMode) {
 	if testing.Short() {
 		t.Skip("skipping timeout test in -short mode")
@@ -2822,7 +2818,7 @@ func runCancelTest(t *testing.T, f func(t *testing.T, test cancelTest), opts ...
 }
 
 func TestTransportCancelRequest(t *testing.T) {
-	runCancelTest(t, testTransportCancelRequest)
+	runCancelTest(t, testTransportCancelRequest, http3SkippedMode)
 }
 func testTransportCancelRequest(t *testing.T, test cancelTest) {
 	if testing.Short() {
@@ -2988,7 +2984,7 @@ Get error = true
 
 // Issue 51354
 func TestTransportCancelRequestWithBody(t *testing.T) {
-	runCancelTest(t, testTransportCancelRequestWithBody)
+	runCancelTest(t, testTransportCancelRequestWithBody, http3SkippedMode)
 }
 func testTransportCancelRequestWithBody(t *testing.T, test cancelTest) {
 	if testing.Short() {
@@ -3051,7 +3047,7 @@ func TestTransportCancelRequestBeforeDo(t *testing.T) {
 		t.Run("ContextCancel", func(t *testing.T) {
 			runCancelTestContext(t, mode, testTransportCancelRequestBeforeDo)
 		})
-	})
+	}, http3SkippedMode)
 }
 func testTransportCancelRequestBeforeDo(t *testing.T, test cancelTest) {
 	unblockc := make(chan bool)
@@ -3116,7 +3112,9 @@ func testTransportCancelRequestBeforeResponseHeaders(t *testing.T, test cancelTe
 // golang.org/issue/3672 -- Client can't close HTTP stream
 // Calling Close on a Response.Body used to just read until EOF.
 // Now it actually closes the TCP connection.
-func TestTransportCloseResponseBody(t *testing.T) { run(t, testTransportCloseResponseBody) }
+func TestTransportCloseResponseBody(t *testing.T) {
+	run(t, testTransportCloseResponseBody, http3SkippedMode)
+}
 func testTransportCloseResponseBody(t *testing.T, mode testMode) {
 	writeErr := make(chan error, 1)
 	msg := []byte("young\n")
@@ -3222,7 +3220,9 @@ func TestTransportEmptyMethod(t *testing.T) {
 	}
 }
 
-func TestTransportSocketLateBinding(t *testing.T) { run(t, testTransportSocketLateBinding) }
+func TestTransportSocketLateBinding(t *testing.T) {
+	run(t, testTransportSocketLateBinding, http3SkippedMode)
+}
 func testTransportSocketLateBinding(t *testing.T, mode testMode) {
 	mux := NewServeMux()
 	fooGate := make(chan bool, 1)
@@ -3439,7 +3439,9 @@ func testTransportIgnore1xxResponses(t *testing.T, mode testMode) {
 	}
 }
 
-func TestTransportLimits1xxResponses(t *testing.T) { run(t, testTransportLimits1xxResponses) }
+func TestTransportLimits1xxResponses(t *testing.T) {
+	run(t, testTransportLimits1xxResponses, http3SkippedMode)
+}
 func testTransportLimits1xxResponses(t *testing.T, mode testMode) {
 	cst := newClientServerTest(t, mode, HandlerFunc(func(w ResponseWriter, r *Request) {
 		w.Header().Add("X-Header", strings.Repeat("a", 100))
@@ -3469,7 +3471,7 @@ func testTransportLimits1xxResponses(t *testing.T, mode testMode) {
 }
 
 func TestTransportDoesNotLimitDelivered1xxResponses(t *testing.T) {
-	run(t, testTransportDoesNotLimitDelivered1xxResponses)
+	run(t, testTransportDoesNotLimitDelivered1xxResponses, http3SkippedMode)
 }
 func testTransportDoesNotLimitDelivered1xxResponses(t *testing.T, mode testMode) {
 	if mode == http2Mode {
@@ -4166,6 +4168,14 @@ func testTransportClosesBodyOnError(t *testing.T, mode testMode) {
 			return nil
 		}),
 	})
+	// Use 100-continue to ensure the server handler starts before the client
+	// delivers the error. Otherwise, an early error might cause the server to
+	// skip the handler, causing this test to hang waiting for readBody.
+	// This happens very rarely on HTTP/3 because QUIC stream resets are abrupt
+	// and can terminate the stream before headers are processed, whereas
+	// TCP-based HTTP/1 and HTTP/2 typically deliver headers in order before
+	// the reset signal.
+	req.Header.Set("Expect", "100-continue")
 	res, err := c.Do(req)
 	if res != nil {
 		defer res.Body.Close()
@@ -4221,7 +4231,7 @@ func testTransportDialTLS(t *testing.T, mode testMode) {
 	}
 }
 
-func TestTransportDialContext(t *testing.T) { run(t, testTransportDialContext) }
+func TestTransportDialContext(t *testing.T) { run(t, testTransportDialContext, http3SkippedMode) }
 func testTransportDialContext(t *testing.T, mode testMode) {
 	ctxKey := "some-key"
 	ctxValue := "some-value"
@@ -4483,7 +4493,7 @@ func testTransportIdleConnRacesRequest(t *testing.T, mode testMode) {
 }
 
 func TestTransportRemovesConnsAfterIdle(t *testing.T) {
-	runSynctest(t, testTransportRemovesConnsAfterIdle)
+	runSynctest(t, testTransportRemovesConnsAfterIdle, http3SkippedMode)
 }
 func testTransportRemovesConnsAfterIdle(t *testing.T, mode testMode) {
 	if testing.Short() {
@@ -4529,7 +4539,7 @@ func testTransportRemovesConnsAfterIdle(t *testing.T, mode testMode) {
 }
 
 func TestTransportRemovesConnsAfterBroken(t *testing.T) {
-	runSynctest(t, testTransportRemovesConnsAfterBroken)
+	runSynctest(t, testTransportRemovesConnsAfterBroken, http3SkippedMode)
 }
 func testTransportRemovesConnsAfterBroken(t *testing.T, mode testMode) {
 	if testing.Short() {
@@ -4636,7 +4646,7 @@ func testTransportResponseCancelRace(t *testing.T, mode testMode) {
 
 // Test for issue 19248: Content-Encoding's value is case insensitive.
 func TestTransportContentEncodingCaseInsensitive(t *testing.T) {
-	run(t, testTransportContentEncodingCaseInsensitive)
+	run(t, testTransportContentEncodingCaseInsensitive, http3SkippedMode)
 }
 func testTransportContentEncodingCaseInsensitive(t *testing.T, mode testMode) {
 	for _, ce := range []string{"gzip", "GZIP"} {
@@ -4845,7 +4855,7 @@ func (c *wgReadCloser) Close() error {
 // Issue 11745.
 func TestTransportPrefersResponseOverWriteError(t *testing.T) {
 	// Not parallel: modifies the global rstAvoidanceDelay.
-	run(t, testTransportPrefersResponseOverWriteError, testNotParallel)
+	run(t, testTransportPrefersResponseOverWriteError, testNotParallel, http3SkippedMode)
 }
 func testTransportPrefersResponseOverWriteError(t *testing.T, mode testMode) {
 	if testing.Short() {
@@ -5158,7 +5168,9 @@ func testTransportReuseConnection_Gzip(t *testing.T, mode testMode, chunked bool
 	}
 }
 
-func TestTransportResponseHeaderLength(t *testing.T) { run(t, testTransportResponseHeaderLength) }
+func TestTransportResponseHeaderLength(t *testing.T) {
+	run(t, testTransportResponseHeaderLength, http3SkippedMode)
+}
 func testTransportResponseHeaderLength(t *testing.T, mode testMode) {
 	if mode == http2Mode {
 		t.Skip("HTTP/2 Transport doesn't support MaxResponseHeaderBytes")
@@ -5196,14 +5208,14 @@ func testTransportResponseHeaderLength(t *testing.T, mode testMode) {
 func TestTransportEventTrace(t *testing.T) {
 	run(t, func(t *testing.T, mode testMode) {
 		testTransportEventTrace(t, mode, false)
-	}, testNotParallel)
+	}, testNotParallel, http3SkippedMode)
 }
 
 // test a non-nil httptrace.ClientTrace but with all hooks set to zero.
 func TestTransportEventTrace_NoHooks(t *testing.T) {
 	run(t, func(t *testing.T, mode testMode) {
 		testTransportEventTrace(t, mode, true)
-	}, testNotParallel)
+	}, testNotParallel, http3SkippedMode)
 }
 
 func testTransportEventTrace(t *testing.T, mode testMode, noHooks bool) {
@@ -5637,7 +5649,9 @@ func testTransportMaxIdleConns(t *testing.T, mode testMode) {
 	}
 }
 
-func TestTransportIdleConnTimeout(t *testing.T) { run(t, testTransportIdleConnTimeout) }
+func TestTransportIdleConnTimeout(t *testing.T) {
+	run(t, testTransportIdleConnTimeout, http3SkippedMode)
+}
 func testTransportIdleConnTimeout(t *testing.T, mode testMode) {
 	if testing.Short() {
 		t.Skip("skipping in short mode")
@@ -5655,11 +5669,7 @@ timeoutLoop:
 		c := &Client{Transport: tr}
 
 		idleConns := func() []string {
-			if mode == http2Mode {
-				return tr.IdleConnStrsForTesting_h2()
-			} else {
-				return tr.IdleConnStrsForTesting()
-			}
+			return tr.IdleConnStrsForTesting()
 		}
 
 		var conn string
@@ -5824,7 +5834,7 @@ func TestTransportReturnsPeekError(t *testing.T) {
 }
 
 // Issue 13835: international domain names should work
-func TestTransportIDNA(t *testing.T) { run(t, testTransportIDNA) }
+func TestTransportIDNA(t *testing.T) { run(t, testTransportIDNA, http3SkippedMode) }
 func testTransportIDNA(t *testing.T, mode testMode) {
 	const uniDomain = "гофер.го"
 	const punyDomain = "xn--c1ae0ajs.xn--c1aw"
@@ -7297,7 +7307,9 @@ func testCancelRequestWhenSharingConnection(t *testing.T, mode testMode) {
 	wg.Wait()
 }
 
-func TestHandlerAbortRacesBodyRead(t *testing.T) { run(t, testHandlerAbortRacesBodyRead) }
+func TestHandlerAbortRacesBodyRead(t *testing.T) {
+	run(t, testHandlerAbortRacesBodyRead, http3SkippedMode)
+}
 func testHandlerAbortRacesBodyRead(t *testing.T, mode testMode) {
 	ts := newClientServerTest(t, mode, HandlerFunc(func(rw ResponseWriter, req *Request) {
 		go io.Copy(io.Discard, req.Body)

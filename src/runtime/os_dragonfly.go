@@ -349,3 +349,13 @@ const sigPerThreadSyscall = 1 << 31
 func runPerThreadSyscall() {
 	throw("runPerThreadSyscall only valid on linux")
 }
+
+//go:nowritebarrierrec
+//go:nosplit
+func libpreinit() {}
+
+//go:nowritebarrierrec
+//go:nosplit
+func newosproc0(stacksize uintptr, fn unsafe.Pointer) {
+	throw("bad newosproc0")
+}

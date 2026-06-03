@@ -1,5 +1,5 @@
-go test -bench=Foo -cpuprofile=default.pgo
-go test -bench=Foo -pgo=default.pgo
+go test -bench=Foo -cpuprofile=default.pgo -timeout=30s
+go test -bench=Foo -pgo=default.pgo -timeout=30s
 ! stdout 'FAIL'
 
 -- main_test.go --

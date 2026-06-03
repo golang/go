@@ -85,6 +85,8 @@ in: !repeat
 
 # Special for carryless multiply
   - {class: vreg, go: Uint64x8,   base: "uint",  elemBits: 128, bits: 512, lanes: 8}
+# Result type of ARM64 carryless multiply, e.g. VPMULL V2.D1, V1.D1, V3.Q1
+  - {class: vreg, go: Uint64x2,   base: "uint",  elemBits: 128, bits: 128, lanes: 1}
 
 # Special shapes just to make VAES(ENC|DEC)(LAST)?512 work.
 # The elemBits field of these shapes are wrong, it would be overwritten by overwriteElemBits.

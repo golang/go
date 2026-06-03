@@ -23,6 +23,10 @@ func setTimeval(sec, usec int64) Timeval {
 
 // Underlying system call writes to newoffset via pointer.
 // Implemented in assembly to avoid allocation.
+//
+// Accessed via assembly in x/sys/unix.
+//
+//go:linkname seek
 func seek(fd int, offset int64, whence int) (newoffset int64, err Errno)
 
 func Seek(fd int, offset int64, whence int) (newoffset int64, err error) {

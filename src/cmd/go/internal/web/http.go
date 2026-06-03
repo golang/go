@@ -31,6 +31,8 @@ import (
 	"cmd/internal/browser"
 )
 
+const userAgent = "GoCommand/1 (+https://go.dev/cmd/go)"
+
 // impatientInsecureHTTPClient is used with GOINSECURE,
 // when we're connecting to https servers that might not be there
 // or might be using self-signed certificates.
@@ -146,6 +148,7 @@ func get(security SecurityMode, url *urlpkg.URL) (*Response, error) {
 			req.Host = req.URL.Host
 			req.URL.Host = t.ToHost
 		}
+		req.Header.Set("User-Agent", userAgent)
 
 		release, err := base.AcquireNet()
 		if err != nil {

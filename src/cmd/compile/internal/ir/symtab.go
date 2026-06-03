@@ -38,9 +38,9 @@ type symsStruct struct {
 	MoveSliceNoCapNoScan      *obj.LSym
 	InterfaceSwitch           *obj.LSym
 	MallocGC                  *obj.LSym
-	MallocGCSmallNoScan       [27]*obj.LSym
-	MallocGCSmallScanNoHeader [27]*obj.LSym
-	MallocGCTiny              [16]*obj.LSym
+	MallocGCTiny              *obj.LSym
+	MallocGCSmallNoScan       [8]*obj.LSym
+	MallocGCSmallScanNoHeader [8]*obj.LSym
 	Memmove                   *obj.LSym
 	Memequal                  *obj.LSym
 	Msanread                  *obj.LSym
@@ -67,23 +67,24 @@ type symsStruct struct {
 	WBZero                    *obj.LSym
 	WBMove                    *obj.LSym
 	// Wasm
-	SigPanic         *obj.LSym
-	Staticuint64s    *obj.LSym
-	Typedmemmove     *obj.LSym
-	Udiv             *obj.LSym
-	WriteBarrier     *obj.LSym
-	Zerobase         *obj.LSym
-	ZeroVal          *obj.LSym
-	ARM64HasATOMICS  *obj.LSym
-	ARMHasVFPv4      *obj.LSym
-	Loong64HasLAMCAS *obj.LSym
-	Loong64HasLAM_BH *obj.LSym
-	Loong64HasLSX    *obj.LSym
-	RISCV64HasZbb    *obj.LSym
-	X86HasAVX        *obj.LSym
-	X86HasFMA        *obj.LSym
-	X86HasPOPCNT     *obj.LSym
-	X86HasSSE41      *obj.LSym
+	SigPanic             *obj.LSym
+	Staticuint64s        *obj.LSym
+	Typedmemmove         *obj.LSym
+	Udiv                 *obj.LSym
+	WriteBarrier         *obj.LSym
+	Zerobase             *obj.LSym
+	ZeroVal              *obj.LSym
+	ARM64HasATOMICS      *obj.LSym
+	ARMHasVFPv4          *obj.LSym
+	Loong64HasLAMCAS     *obj.LSym
+	Loong64HasLAM_BH     *obj.LSym
+	Loong64HasDBAR_HINTS *obj.LSym
+	Loong64HasLSX        *obj.LSym
+	RISCV64HasZbb        *obj.LSym
+	X86HasAVX            *obj.LSym
+	X86HasFMA            *obj.LSym
+	X86HasPOPCNT         *obj.LSym
+	X86HasSSE41          *obj.LSym
 	// Wasm
 	WasmDiv *obj.LSym
 	// Wasm

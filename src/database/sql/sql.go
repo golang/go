@@ -18,6 +18,7 @@ package sql
 import (
 	"context"
 	"database/sql/driver"
+	"database/sql/internal"
 	"errors"
 	"fmt"
 	"io"
@@ -46,9 +47,6 @@ var driversMu sync.RWMutex
 //
 //go:linkname drivers
 var drivers = make(map[string]driver.Driver)
-
-// nowFunc returns the current time; it's overridden in tests.
-var nowFunc = time.Now
 
 // Register makes a database driver available by the provided name.
 // If Register is called twice with the same name or if driver is nil,
@@ -595,7 +593,7 @@ func (dc *driverConn) expired(timeout time.Duration) bool {
 	if timeout <= 0 {
 		return false
 	}
-	return dc.createdAt.Add(timeout).Before(nowFunc())
+	return dc.createdAt.Add(timeout).Before(time.Now())
 }
 
 // resetSession checks if the driver connection needs the
@@ -1151,7 +1149,7 @@ func (db *DB) connectionCleanerRunLocked(d time.Duration) (time.Duration, []*dri
 	if db.maxIdleTime > 0 {
 		// As freeConn is ordered by returnedAt process
 		// in reverse order to minimise the work needed.
-		idleSince := nowFunc().Add(-db.maxIdleTime)
+		idleSince := time.Now().Add(-db.maxIdleTime)
 		last := len(db.freeConn) - 1
 		for i := last; i >= 0; i-- {
 			c := db.freeConn[i]
@@ -1176,7 +1174,7 @@ func (db *DB) connectionCleanerRunLocked(d time.Duration) (time.Duration, []*dri
 	}
 
 	if db.maxLifetime > 0 {
-		expiredSince := nowFunc().Add(-db.maxLifetime)
+		expiredSince := time.Now().Add(-db.maxLifetime)
 		for i := 0; i < len(db.freeConn); i++ {
 			c := db.freeConn[i]
 			if c.createdAt.Before(expiredSince) {
@@ -1297,8 +1295,8 @@ func (db *DB) openNewConnection(ctx context.Context) {
 	}
 	dc := &driverConn{
 		db:         db,
-		createdAt:  nowFunc(),
-		returnedAt: nowFunc(),
+		createdAt:  time.Now(),
+		returnedAt: time.Now(),
 		ci:         ci,
 	}
 	if db.putConnDBLocked(dc, err) {
@@ -1370,7 +1368,7 @@ func (db *DB) conn(ctx context.Context, strategy connReuseStrategy) (*driverConn
 		db.waitCount++
 		db.mu.Unlock()
 
-		waitStart := nowFunc()
+		waitStart := time.Now()
 
 		// Timeout the connection request with the context.
 		select {
@@ -1446,8 +1444,8 @@ func (db *DB) conn(ctx context.Context, strategy connReuseStrategy) (*driverConn
 	db.mu.Lock()
 	dc := &driverConn{
 		db:         db,
-		createdAt:  nowFunc(),
-		returnedAt: nowFunc(),
+		createdAt:  time.Now(),
+		returnedAt: time.Now(),
 		ci:         ci,
 		inUse:      true,
 	}
@@ -1508,7 +1506,7 @@ func (db *DB) putConn(dc *driverConn, err error, resetSession bool) {
 		db.lastPut[dc] = stack()
 	}
 	dc.inUse = false
-	dc.returnedAt = nowFunc()
+	dc.returnedAt = time.Now()
 
 	for _, fn := range dc.onPut {
 		fn()
@@ -1986,7 +1984,7 @@ type Conn struct {
 	// closemu prevents the connection from closing while there
 	// is an active query. It is held for read during queries
 	// and exclusively during close.
-	closemu sync.RWMutex
+	closemu closingMutex
 
 	// dc is owned until close, at which point
 	// it's returned to the connection pool.
@@ -2176,7 +2174,7 @@ type Tx struct {
 	// closemu prevents the transaction from closing while there
 	// is an active query. It is held for read during queries
 	// and exclusively during close.
-	closemu sync.RWMutex
+	closemu closingMutex
 
 	// dc is owned exclusively until Commit or Rollback, at which point
 	// it's returned with putConn.
@@ -2613,7 +2611,7 @@ type Stmt struct {
 	query     string // that created the Stmt
 	stickyErr error  // if non-nil, this error is returned for all operations
 
-	closemu sync.RWMutex // held exclusively during close, for read otherwise.
+	closemu closingMutex // held exclusively during close, for read otherwise.
 
 	// If Stmt is prepared on a Tx or Conn then cg is present and will
 	// only ever grab a connection from cg.
@@ -2947,7 +2945,7 @@ type Rows struct {
 	// and exclusively during close.
 	//
 	// closemu guards lasterr and closed.
-	closemu sync.RWMutex
+	closemu closingMutex
 	lasterr error // non-nil only if closed is true
 	closed  bool
 
@@ -2966,9 +2964,15 @@ type Rows struct {
 	// expected not to be called concurrently.
 	hitEOF bool
 
+	// nextCalled is set by the first call to Next.
+	nextCalled bool
+
 	// lastcols is only used in Scan, Next, and NextResultSet which are expected
 	// not to be called concurrently.
 	lastcols []driver.Value
+
+	// numCols is the number of columns, and is initialized by the first Next call.
+	numCols int
 
 	// raw is a buffer for RawBytes that persists between Scan calls.
 	// This is used when the driver returns a mismatched type that requires
@@ -3044,9 +3048,11 @@ func (rs *Rows) Next() bool {
 	}
 
 	var doClose, ok bool
-	withLock(rs.closemu.RLocker(), func() {
+	func() {
+		rs.closemu.RLock()
+		defer rs.closemu.RUnlock()
 		doClose, ok = rs.nextLocked()
-	})
+	}()
 	if doClose {
 		rs.Close()
 	}
@@ -3066,11 +3072,20 @@ func (rs *Rows) nextLocked() (doClose, ok bool) {
 	rs.dc.Lock()
 	defer rs.dc.Unlock()
 
-	if rs.lastcols == nil {
-		rs.lastcols = make([]driver.Value, len(rs.rowsi.Columns()))
+	if !rs.nextCalled {
+		rs.numCols = len(rs.rowsi.Columns())
+		rs.nextCalled = true
 	}
 
-	rs.lasterr = rs.rowsi.Next(rs.lastcols)
+	if rscan, ok := rs.rowsi.(driver.RowsColumnScanner); ok {
+		rs.lasterr = rscan.NextRow()
+	} else {
+		if rs.lastcols == nil {
+			rs.lastcols = make([]driver.Value, rs.numCols)
+		}
+		rs.lasterr = rs.rowsi.Next(rs.lastcols)
+	}
+
 	if rs.lasterr != nil {
 		// Close the connection if there is a driver error.
 		if rs.lasterr != io.EOF {
@@ -3118,6 +3133,7 @@ func (rs *Rows) NextResultSet() bool {
 		return false
 	}
 
+	rs.nextCalled = false
 	rs.lastcols = nil
 	nextResultSet, ok := rs.rowsi.(driver.RowsNextResultSet)
 	if !ok {
@@ -3387,6 +3403,11 @@ func (rs *Rows) Scan(dest ...any) error {
 	return err
 }
 
+// rowsScanContext is used to pass a *Rows through ScanColumn into ConvertAssign.
+type rowsScanContext struct {
+	rs *Rows
+}
+
 func (rs *Rows) scanLocked(dest ...any) error {
 	if rs.lasterr != nil && rs.lasterr != io.EOF {
 		return rs.lasterr
@@ -3395,11 +3416,26 @@ func (rs *Rows) scanLocked(dest ...any) error {
 		return rs.lasterrOrErrLocked(errRowsClosed)
 	}
 
-	if rs.lastcols == nil {
+	if !rs.nextCalled {
 		return errors.New("sql: Scan called without calling Next")
 	}
-	if len(dest) != len(rs.lastcols) {
-		return fmt.Errorf("sql: expected %d destination arguments in Scan, not %d", len(rs.lastcols), len(dest))
+	if len(dest) != rs.numCols {
+		return fmt.Errorf("sql: expected %d destination arguments in Scan, not %d", rs.numCols, len(dest))
+	}
+
+	if rscan, ok := rs.rowsi.(driver.RowsColumnScanner); ok {
+		// Lock the driver connection before calling the driver interface
+		// rowsi to prevent a Tx from rolling back the connection at the same time.
+		rs.dc.Lock()
+		defer rs.dc.Unlock()
+
+		for i, d := range dest {
+			scanCtx := driver.ScanContext(internal.NewScanContext(rs))
+			if err := rscan.ScanColumn(scanCtx, i, d); err != nil {
+				return fmt.Errorf(`sql: Scan error on column index %d, name %q: %w`, i, rs.rowsi.Columns()[i], err)
+			}
+		}
+		return nil
 	}
 
 	for i, sv := range rs.lastcols {

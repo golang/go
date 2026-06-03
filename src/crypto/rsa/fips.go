@@ -71,15 +71,20 @@ func SignPSS(random io.Reader, priv *PrivateKey, hash crypto.Hash, digest []byte
 		hash = opts.Hash
 	}
 
-	if boring.Enabled && rand.IsDefaultReader(random) {
+	if boring.Enabled && rand.IsDefaultReader(random) && priv.N.BitLen() >= 1024 {
 		bkey, err := boringPrivateKey(priv)
 		if err != nil {
 			return nil, err
 		}
 		return boring.SignRSAPSS(bkey, hash, digest, opts.saltLength())
 	}
-	boring.UnreachableExceptTests()
+	if priv.N.BitLen() >= 1024 {
+		boring.UnreachableExceptTests()
+	}
 
+	if !hash.Available() {
+		return nil, errors.New("crypto/rsa: requested hash function unavailable: " + hash.String())
+	}
 	h := fips140hash.Unwrap(hash.New())
 
 	if err := checkFIPS140OnlyPrivateKey(priv); err != nil {
@@ -145,6 +150,9 @@ func VerifyPSS(pub *PublicKey, hash crypto.Hash, digest []byte, sig []byte, opts
 		return nil
 	}
 
+	if !hash.Available() {
+		return errors.New("crypto/rsa: requested hash function unavailable: " + hash.String())
+	}
 	h := fips140hash.Unwrap(hash.New())
 
 	if err := checkFIPS140OnlyPublicKey(pub); err != nil {
@@ -203,6 +211,12 @@ func EncryptOAEP(hash hash.Hash, random io.Reader, pub *PublicKey, msg []byte, l
 //
 // See [EncryptOAEP] for additional details.
 func EncryptOAEPWithOptions(random io.Reader, pub *PublicKey, msg []byte, opts *OAEPOptions) ([]byte, error) {
+	if !opts.Hash.Available() {
+		return nil, errors.New("crypto/rsa: requested hash function unavailable: " + opts.Hash.String())
+	}
+	if opts.MGFHash != 0 && !opts.MGFHash.Available() {
+		return nil, errors.New("crypto/rsa: requested hash function unavailable: " + opts.MGFHash.String())
+	}
 	if opts.MGFHash == 0 {
 		return encryptOAEP(opts.Hash.New(), opts.Hash.New(), random, pub, msg, opts.Label)
 	}
@@ -269,7 +283,7 @@ func decryptOAEP(hash, mgfHash hash.Hash, priv *PrivateKey, ciphertext []byte, l
 		return nil, err
 	}
 
-	if boring.Enabled {
+	if boring.Enabled && priv.N.BitLen() >= 1024 {
 		k := priv.Size()
 		if len(ciphertext) > k ||
 			k < hash.Size()*2+2 {
@@ -331,7 +345,7 @@ func SignPKCS1v15(random io.Reader, priv *PrivateKey, hash crypto.Hash, hashed [
 		return nil, err
 	}
 
-	if boring.Enabled {
+	if boring.Enabled && priv.N.BitLen() >= 1024 {
 		bkey, err := boringPrivateKey(priv)
 		if err != nil {
 			return nil, err
@@ -342,8 +356,10 @@ func SignPKCS1v15(random io.Reader, priv *PrivateKey, hash crypto.Hash, hashed [
 	if err := checkFIPS140OnlyPrivateKey(priv); err != nil {
 		return nil, err
 	}
-	if fips140only.Enforced() && !fips140only.ApprovedHash(fips140hash.Unwrap(hash.New())) {
-		return nil, errors.New("crypto/rsa: use of hash functions other than SHA-2 or SHA-3 is not allowed in FIPS 140-only mode")
+	if fips140only.Enforced() {
+		if !hash.Available() || !fips140only.ApprovedHash(fips140hash.Unwrap(hash.New())) {
+			return nil, errors.New("crypto/rsa: use of hash functions other than SHA-2 or SHA-3 is not allowed in FIPS 140-only mode")
+		}
 	}
 
 	k, err := fipsPrivateKey(priv)
@@ -388,8 +404,10 @@ func VerifyPKCS1v15(pub *PublicKey, hash crypto.Hash, hashed []byte, sig []byte)
 	if err := checkFIPS140OnlyPublicKey(pub); err != nil {
 		return err
 	}
-	if fips140only.Enforced() && !fips140only.ApprovedHash(fips140hash.Unwrap(hash.New())) {
-		return errors.New("crypto/rsa: use of hash functions other than SHA-2 or SHA-3 is not allowed in FIPS 140-only mode")
+	if fips140only.Enforced() {
+		if !hash.Available() || !fips140only.ApprovedHash(fips140hash.Unwrap(hash.New())) {
+			return errors.New("crypto/rsa: use of hash functions other than SHA-2 or SHA-3 is not allowed in FIPS 140-only mode")
+		}
 	}
 
 	k, err := fipsPublicKey(pub)

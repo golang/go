@@ -1,5 +1,4 @@
 [short] skip 'runs go run'
-env TESTGO_VERSION=go1.26.0
 
 ! go work init doesnotexist
 stderr 'go: directory doesnotexist does not exist'
@@ -75,7 +74,7 @@ use (
 	../src/a
 )
 -- go.work.want --
-go 1.25.0
+go $goversion
 
 use (
 	./a

@@ -9,6 +9,8 @@ import "unsafe"
 // paInt8x16 returns a type-unsafe pointer to array that can
 // only be used with partial load/store operations that only
 // access the known-safe portions of the array.
+//
+//go:nocheckptr
 func paInt8x16(s []int8) *[16]int8 {
 	return (*[16]int8)(unsafe.Pointer(&s[0]))
 }
@@ -16,6 +18,8 @@ func paInt8x16(s []int8) *[16]int8 {
 // paInt16x8 returns a type-unsafe pointer to array that can
 // only be used with partial load/store operations that only
 // access the known-safe portions of the array.
+//
+//go:nocheckptr
 func paInt16x8(s []int16) *[8]int16 {
 	return (*[8]int16)(unsafe.Pointer(&s[0]))
 }
@@ -23,6 +27,8 @@ func paInt16x8(s []int16) *[8]int16 {
 // paInt32x4 returns a type-unsafe pointer to array that can
 // only be used with partial load/store operations that only
 // access the known-safe portions of the array.
+//
+//go:nocheckptr
 func paInt32x4(s []int32) *[4]int32 {
 	return (*[4]int32)(unsafe.Pointer(&s[0]))
 }
@@ -30,6 +36,8 @@ func paInt32x4(s []int32) *[4]int32 {
 // paInt64x2 returns a type-unsafe pointer to array that can
 // only be used with partial load/store operations that only
 // access the known-safe portions of the array.
+//
+//go:nocheckptr
 func paInt64x2(s []int64) *[2]int64 {
 	return (*[2]int64)(unsafe.Pointer(&s[0]))
 }
@@ -37,6 +45,8 @@ func paInt64x2(s []int64) *[2]int64 {
 // paUint8x16 returns a type-unsafe pointer to array that can
 // only be used with partial load/store operations that only
 // access the known-safe portions of the array.
+//
+//go:nocheckptr
 func paUint8x16(s []uint8) *[16]uint8 {
 	return (*[16]uint8)(unsafe.Pointer(&s[0]))
 }
@@ -44,6 +54,8 @@ func paUint8x16(s []uint8) *[16]uint8 {
 // paUint16x8 returns a type-unsafe pointer to array that can
 // only be used with partial load/store operations that only
 // access the known-safe portions of the array.
+//
+//go:nocheckptr
 func paUint16x8(s []uint16) *[8]uint16 {
 	return (*[8]uint16)(unsafe.Pointer(&s[0]))
 }
@@ -51,6 +63,8 @@ func paUint16x8(s []uint16) *[8]uint16 {
 // paUint32x4 returns a type-unsafe pointer to array that can
 // only be used with partial load/store operations that only
 // access the known-safe portions of the array.
+//
+//go:nocheckptr
 func paUint32x4(s []uint32) *[4]uint32 {
 	return (*[4]uint32)(unsafe.Pointer(&s[0]))
 }
@@ -58,6 +72,8 @@ func paUint32x4(s []uint32) *[4]uint32 {
 // paUint64x2 returns a type-unsafe pointer to array that can
 // only be used with partial load/store operations that only
 // access the known-safe portions of the array.
+//
+//go:nocheckptr
 func paUint64x2(s []uint64) *[2]uint64 {
 	return (*[2]uint64)(unsafe.Pointer(&s[0]))
 }
@@ -65,6 +81,8 @@ func paUint64x2(s []uint64) *[2]uint64 {
 // paFloat32x4 returns a type-unsafe pointer to array that can
 // only be used with partial load/store operations that only
 // access the known-safe portions of the array.
+//
+//go:nocheckptr
 func paFloat32x4(s []float32) *[4]float32 {
 	return (*[4]float32)(unsafe.Pointer(&s[0]))
 }
@@ -72,6 +90,8 @@ func paFloat32x4(s []float32) *[4]float32 {
 // paFloat64x2 returns a type-unsafe pointer to array that can
 // only be used with partial load/store operations that only
 // access the known-safe portions of the array.
+//
+//go:nocheckptr
 func paFloat64x2(s []float64) *[2]float64 {
 	return (*[2]float64)(unsafe.Pointer(&s[0]))
 }
@@ -79,6 +99,8 @@ func paFloat64x2(s []float64) *[2]float64 {
 // paInt8x32 returns a type-unsafe pointer to array that can
 // only be used with partial load/store operations that only
 // access the known-safe portions of the array.
+//
+//go:nocheckptr
 func paInt8x32(s []int8) *[32]int8 {
 	return (*[32]int8)(unsafe.Pointer(&s[0]))
 }
@@ -86,6 +108,8 @@ func paInt8x32(s []int8) *[32]int8 {
 // paInt16x16 returns a type-unsafe pointer to array that can
 // only be used with partial load/store operations that only
 // access the known-safe portions of the array.
+//
+//go:nocheckptr
 func paInt16x16(s []int16) *[16]int16 {
 	return (*[16]int16)(unsafe.Pointer(&s[0]))
 }
@@ -93,6 +117,8 @@ func paInt16x16(s []int16) *[16]int16 {
 // paInt32x8 returns a type-unsafe pointer to array that can
 // only be used with partial load/store operations that only
 // access the known-safe portions of the array.
+//
+//go:nocheckptr
 func paInt32x8(s []int32) *[8]int32 {
 	return (*[8]int32)(unsafe.Pointer(&s[0]))
 }
@@ -100,6 +126,8 @@ func paInt32x8(s []int32) *[8]int32 {
 // paInt64x4 returns a type-unsafe pointer to array that can
 // only be used with partial load/store operations that only
 // access the known-safe portions of the array.
+//
+//go:nocheckptr
 func paInt64x4(s []int64) *[4]int64 {
 	return (*[4]int64)(unsafe.Pointer(&s[0]))
 }
@@ -107,6 +135,8 @@ func paInt64x4(s []int64) *[4]int64 {
 // paUint8x32 returns a type-unsafe pointer to array that can
 // only be used with partial load/store operations that only
 // access the known-safe portions of the array.
+//
+//go:nocheckptr
 func paUint8x32(s []uint8) *[32]uint8 {
 	return (*[32]uint8)(unsafe.Pointer(&s[0]))
 }
@@ -114,6 +144,8 @@ func paUint8x32(s []uint8) *[32]uint8 {
 // paUint16x16 returns a type-unsafe pointer to array that can
 // only be used with partial load/store operations that only
 // access the known-safe portions of the array.
+//
+//go:nocheckptr
 func paUint16x16(s []uint16) *[16]uint16 {
 	return (*[16]uint16)(unsafe.Pointer(&s[0]))
 }
@@ -121,6 +153,8 @@ func paUint16x16(s []uint16) *[16]uint16 {
 // paUint32x8 returns a type-unsafe pointer to array that can
 // only be used with partial load/store operations that only
 // access the known-safe portions of the array.
+//
+//go:nocheckptr
 func paUint32x8(s []uint32) *[8]uint32 {
 	return (*[8]uint32)(unsafe.Pointer(&s[0]))
 }
@@ -128,6 +162,8 @@ func paUint32x8(s []uint32) *[8]uint32 {
 // paUint64x4 returns a type-unsafe pointer to array that can
 // only be used with partial load/store operations that only
 // access the known-safe portions of the array.
+//
+//go:nocheckptr
 func paUint64x4(s []uint64) *[4]uint64 {
 	return (*[4]uint64)(unsafe.Pointer(&s[0]))
 }
@@ -135,6 +171,8 @@ func paUint64x4(s []uint64) *[4]uint64 {
 // paFloat32x8 returns a type-unsafe pointer to array that can
 // only be used with partial load/store operations that only
 // access the known-safe portions of the array.
+//
+//go:nocheckptr
 func paFloat32x8(s []float32) *[8]float32 {
 	return (*[8]float32)(unsafe.Pointer(&s[0]))
 }
@@ -142,6 +180,8 @@ func paFloat32x8(s []float32) *[8]float32 {
 // paFloat64x4 returns a type-unsafe pointer to array that can
 // only be used with partial load/store operations that only
 // access the known-safe portions of the array.
+//
+//go:nocheckptr
 func paFloat64x4(s []float64) *[4]float64 {
 	return (*[4]float64)(unsafe.Pointer(&s[0]))
 }
@@ -149,6 +189,8 @@ func paFloat64x4(s []float64) *[4]float64 {
 // paInt8x64 returns a type-unsafe pointer to array that can
 // only be used with partial load/store operations that only
 // access the known-safe portions of the array.
+//
+//go:nocheckptr
 func paInt8x64(s []int8) *[64]int8 {
 	return (*[64]int8)(unsafe.Pointer(&s[0]))
 }
@@ -156,6 +198,8 @@ func paInt8x64(s []int8) *[64]int8 {
 // paInt16x32 returns a type-unsafe pointer to array that can
 // only be used with partial load/store operations that only
 // access the known-safe portions of the array.
+//
+//go:nocheckptr
 func paInt16x32(s []int16) *[32]int16 {
 	return (*[32]int16)(unsafe.Pointer(&s[0]))
 }
@@ -163,6 +207,8 @@ func paInt16x32(s []int16) *[32]int16 {
 // paInt32x16 returns a type-unsafe pointer to array that can
 // only be used with partial load/store operations that only
 // access the known-safe portions of the array.
+//
+//go:nocheckptr
 func paInt32x16(s []int32) *[16]int32 {
 	return (*[16]int32)(unsafe.Pointer(&s[0]))
 }
@@ -170,6 +216,8 @@ func paInt32x16(s []int32) *[16]int32 {
 // paInt64x8 returns a type-unsafe pointer to array that can
 // only be used with partial load/store operations that only
 // access the known-safe portions of the array.
+//
+//go:nocheckptr
 func paInt64x8(s []int64) *[8]int64 {
 	return (*[8]int64)(unsafe.Pointer(&s[0]))
 }
@@ -177,6 +225,8 @@ func paInt64x8(s []int64) *[8]int64 {
 // paUint8x64 returns a type-unsafe pointer to array that can
 // only be used with partial load/store operations that only
 // access the known-safe portions of the array.
+//
+//go:nocheckptr
 func paUint8x64(s []uint8) *[64]uint8 {
 	return (*[64]uint8)(unsafe.Pointer(&s[0]))
 }
@@ -184,6 +234,8 @@ func paUint8x64(s []uint8) *[64]uint8 {
 // paUint16x32 returns a type-unsafe pointer to array that can
 // only be used with partial load/store operations that only
 // access the known-safe portions of the array.
+//
+//go:nocheckptr
 func paUint16x32(s []uint16) *[32]uint16 {
 	return (*[32]uint16)(unsafe.Pointer(&s[0]))
 }
@@ -191,6 +243,8 @@ func paUint16x32(s []uint16) *[32]uint16 {
 // paUint32x16 returns a type-unsafe pointer to array that can
 // only be used with partial load/store operations that only
 // access the known-safe portions of the array.
+//
+//go:nocheckptr
 func paUint32x16(s []uint32) *[16]uint32 {
 	return (*[16]uint32)(unsafe.Pointer(&s[0]))
 }
@@ -198,6 +252,8 @@ func paUint32x16(s []uint32) *[16]uint32 {
 // paUint64x8 returns a type-unsafe pointer to array that can
 // only be used with partial load/store operations that only
 // access the known-safe portions of the array.
+//
+//go:nocheckptr
 func paUint64x8(s []uint64) *[8]uint64 {
 	return (*[8]uint64)(unsafe.Pointer(&s[0]))
 }
@@ -205,6 +261,8 @@ func paUint64x8(s []uint64) *[8]uint64 {
 // paFloat32x16 returns a type-unsafe pointer to array that can
 // only be used with partial load/store operations that only
 // access the known-safe portions of the array.
+//
+//go:nocheckptr
 func paFloat32x16(s []float32) *[16]float32 {
 	return (*[16]float32)(unsafe.Pointer(&s[0]))
 }
@@ -212,6 +270,8 @@ func paFloat32x16(s []float32) *[16]float32 {
 // paFloat64x8 returns a type-unsafe pointer to array that can
 // only be used with partial load/store operations that only
 // access the known-safe portions of the array.
+//
+//go:nocheckptr
 func paFloat64x8(s []float64) *[8]float64 {
 	return (*[8]float64)(unsafe.Pointer(&s[0]))
 }

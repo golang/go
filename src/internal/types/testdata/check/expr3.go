@@ -187,7 +187,7 @@ func struct_literals() {
 	_ = T1{1 /* ERROR "invalid field name" */ : 0}
 	_ = T1{a: 0, s: "foo", u: 0, a /* ERROR "duplicate field" */: 10}
 	_ = T1{a: "foo" /* ERRORx `cannot use .* in struct literal` */ }
-	_ = T1{c /* ERROR "unknown field" */ : 0}
+	_ = T1{c: 0} // not an error anymore since Go 1.27
 	_ = T1{T0: { /* ERROR "missing type" */ }} // struct literal element type may not be elided
 	_ = T1{T0: T0{}}
 	_ = T1{T0 /* ERROR "invalid field name" */ .a: 0}

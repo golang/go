@@ -1314,8 +1314,8 @@ func dgcptrmaskOnDemand(t *types.Type, write bool) *obj.LSym {
 	if write && !lsym.OnList() {
 		// Note: contains a pointer, but a pointer to a
 		// persistentalloc allocation. Starts with nil.
-		objw.Uintptr(lsym, 0, 0)
-		objw.Global(lsym, int32(types.PtrSize), obj.DUPOK|obj.NOPTR|obj.LOCAL) // TODO:bss?
+		// Allocated in BSS.
+		objw.Global(lsym, int32(types.PtrSize), obj.DUPOK|obj.NOPTR|obj.LOCAL)
 	}
 	return lsym
 }

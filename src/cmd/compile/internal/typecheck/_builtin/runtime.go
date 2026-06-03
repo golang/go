@@ -303,6 +303,7 @@ var armHasVFPv4 bool
 var arm64HasATOMICS bool
 var loong64HasLAMCAS bool
 var loong64HasLAM_BH bool
+var loong64HasDBAR_HINTS bool
 var loong64HasLSX bool
 var riscv64HasZbb bool
 

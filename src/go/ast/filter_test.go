@@ -57,7 +57,7 @@ func (x *t2) f2() {}
 func TestFilterDuplicates(t *testing.T) {
 	// parse input
 	fset := token.NewFileSet()
-	file, err := parser.ParseFile(fset, "", input, 0)
+	file, err := parser.ParseFile(fset, "", input, 0) // requires object resolution
 	if err != nil {
 		t.Fatal(err)
 	}

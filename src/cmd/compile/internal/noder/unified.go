@@ -7,6 +7,7 @@ package noder
 import (
 	"cmp"
 	"fmt"
+	"internal/buildcfg"
 	"internal/pkgbits"
 	"internal/types/errors"
 	"io"
@@ -23,6 +24,15 @@ import (
 	"cmd/compile/internal/types2"
 	"cmd/internal/src"
 )
+
+// uirVersion is the unified IR version to use for encoding/decoding.
+// Use V4 for generic methods if the GOEXPERIMENT is enabled.
+var uirVersion = func() pkgbits.Version {
+	if buildcfg.Experiment.GenericMethods {
+		return pkgbits.V4
+	}
+	return pkgbits.V3
+}()
 
 // localPkgReader holds the package reader used for reading the local
 // package. It exists so the unified IR linker can refer back to it
@@ -463,10 +473,8 @@ func readPackage(pr *pkgReader, importpkg *types.Pkg, localStub bool) {
 // writeUnifiedExport writes to `out` the finalized, self-contained
 // Unified IR export data file for the current compilation unit.
 func writeUnifiedExport(out io.Writer) {
-	// Use V2 as the encoded version for aliastypeparams.
-	version := pkgbits.V2
 	l := linker{
-		pw: pkgbits.NewPkgEncoder(version, base.Debug.SyncFrames),
+		pw: pkgbits.NewPkgEncoder(uirVersion, base.Debug.SyncFrames),
 
 		pkgs:   make(map[string]index),
 		decls:  make(map[*types.Sym]index),
@@ -486,6 +494,12 @@ func writeUnifiedExport(out io.Writer) {
 
 		r.Sync(pkgbits.SyncPkg)
 		selfPkgIdx = l.relocIdx(pr, pkgbits.SectionPkg, r.Reloc(pkgbits.SectionPkg))
+
+		// Versions must match.
+		// TODO: It seems that we should be able to use r.Version() for NewPkgEncoder
+		// instead of passing uirVersion, but NewPkgEncoder is created before r.
+		// If that is correct, we should make that happen.
+		assert(r.Version() == uirVersion)
 
 		if r.Version().Has(pkgbits.HasInit) {
 			r.Bool()

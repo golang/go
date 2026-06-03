@@ -537,10 +537,12 @@ func (u *unifier) nify(x, y Type, mode unifyMode, p *ifacePair) (result bool) {
 		// the non-interface type, otherwise unification fails.
 		if xi != nil {
 			// All xi methods must exist in y and corresponding signatures must unify.
+			// A generic method never satisfies an interface method, so fail rather
+			// than unify ym's own type parameter into an inference variable.
 			xmethods := xi.typeSet().methods
 			for _, xm := range xmethods {
 				obj, _, _ := LookupFieldOrMethod(y, false, xm.pkg, xm.name)
-				if ym, _ := obj.(*Func); ym == nil || !u.nify(xm.typ, ym.typ, exact, p) {
+				if ym, _ := obj.(*Func); ym == nil || ym.Signature().TypeParams().Len() > 0 || !u.nify(xm.typ, ym.typ, exact, p) {
 					return false
 				}
 			}

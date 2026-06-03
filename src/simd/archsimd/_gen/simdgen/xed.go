@@ -14,7 +14,7 @@ import (
 	"strconv"
 	"strings"
 
-	"simd/archsimd/_gen/unify"
+	"_gen/unify"
 
 	"golang.org/x/arch/x86/xeddata"
 	"gopkg.in/yaml.v3"
@@ -39,6 +39,21 @@ const (
 )
 
 var operandRemarks int
+
+var skipMemOpsInstrs = map[string]bool{
+	// The SHA instructions has confusing semantics which we are too complicated
+	// to support.
+	"SHA1MSG1":    true,
+	"SHA1MSG2":    true,
+	"SHA1RNDS4":   true,
+	"SHA1NEXTE":   true,
+	"SHA256MSG1":  true,
+	"SHA256MSG2":  true,
+	"SHA256RNDS2": true,
+	// We don't support 3 input instructions with a memory operand (this appears
+	// to be the only one).
+	"VPBLENDVB": true,
+}
 
 // TODO: Doc. Returns Values with Def domains.
 func loadXED(xedPath string) []*unify.Value {
@@ -96,15 +111,15 @@ func loadXED(xedPath string) []*unify.Value {
 			return
 		}
 		var data map[string][]opData
+		opcode := inst.Opcode()
 		mem := checkMem(ops)
-		if mem == "vbcst" {
+		if mem == "hasMem" && !skipMemOpsInstrs[opcode] {
 			// A pure vreg variant might exist, wait for later to see if we can
 			// merge them
 			data = memOps
 		} else {
 			data = otherOps
 		}
-		opcode := inst.Opcode()
 		if _, ok := data[opcode]; !ok {
 			s := make([]opData, 1)
 			s[0] = opData{inst, ops, mem}
@@ -121,7 +136,7 @@ func loadXED(xedPath string) []*unify.Value {
 				// Checking if there is a vbcst variant of this operation exist
 				// First check the opcode
 				// Keep this logic in sync with [decodeOperands]
-				if ms, ok := memOps[opcode]; ok {
+				if ms, ok := memOps[opcode]; ok && !strings.HasPrefix(opcode, "VMOV") {
 					feat1, ok1 := decodeCPUFeature(o.inst)
 					// Then check if there exist such an operation that for all vreg
 					// shapes they are the same at the same index
@@ -155,8 +170,8 @@ func loadXED(xedPath string) []*unify.Value {
 								} else {
 									_, ok3 := o.ops[j].(operandVReg)
 									_, ok4 := m.ops[j].(operandMem)
-									// The only difference must be the vreg and mem, no other cases.
-									if !ok3 || !ok4 {
+									// The only difference must be the vreg and mem, and the operand must be a read operand.
+									if !ok3 || !ok4 || !o.ops[j].common().action.r {
 										// A mismatch, skip this memOp
 										continue outer
 									}
@@ -167,7 +182,7 @@ func loadXED(xedPath string) []*unify.Value {
 							feat1Match = feat1
 							feat2Match = feat2
 							if featMismatchCnt > 1 {
-								panic("multiple feature mismatch vbcst memops detected, simdgen failed to distinguish")
+								panic(fmt.Sprintf("multiple feature mismatch vbcst memops detected for %s, simdgen failed to distinguish", opcode))
 							}
 							if !featMismatch {
 								// Mismatch feat is ok but should prioritize matching cases.
@@ -455,9 +470,28 @@ func decodeOperand(db *xeddata.Database, operand string) (operand, error) {
 				vbcst:         true,
 				unknown:       false,
 			}, nil
+		} else {
+			baseType, elemBits, ok := decodeType(op)
+			if !ok {
+				return nil, fmt.Errorf("failed to decode memory width %q", operand)
+			}
+			sizeStr := db.WidthSize(op.Width, xeddata.OpSize64)
+			bytes, err := strconv.Atoi(sizeStr)
+			if err != nil {
+				return nil, fmt.Errorf("failed to decode memory width %q: %s", operand, err)
+			}
+			if bytes > 0 {
+				memBits := bytes * 8
+				shape := vecShape{elemBits: elemBits, bits: memBits}
+				return operandMem{
+					operandCommon: common,
+					vecShape:      shape,
+					elemBaseType:  baseType,
+					vbcst:         false,
+					unknown:       false,
+				}, nil
+			}
 		}
-		// TODO: parse op.Width better to handle all cases
-		// Right now this will at least miss VPBROADCAST.
 		return operandMem{
 			operandCommon: common,
 			unknown:       true,
@@ -697,11 +731,10 @@ func checkMem(ops []operand) string {
 		} else if memCnt > 1 {
 			memState = "tooManyMem"
 		} else {
-			// We only have vbcst case as of now.
 			// This shape has an indication that [bits] fields has two possible value:
 			// 1. The element broadcast width, which is its peer vreg operand's [elemBits] (default val in the parsed XED data)
 			// 2. The full vector width, which is its peer vreg operand's [bits] (godefs should be aware of this)
-			memState = "vbcst"
+			memState = "hasMem"
 		}
 	}
 	return memState

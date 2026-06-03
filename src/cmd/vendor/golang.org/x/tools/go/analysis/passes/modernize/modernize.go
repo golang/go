@@ -17,10 +17,11 @@ import (
 
 	"golang.org/x/tools/go/analysis"
 	"golang.org/x/tools/go/analysis/passes/inspect"
-	"golang.org/x/tools/go/ast/edge"
 	"golang.org/x/tools/go/ast/inspector"
 	"golang.org/x/tools/internal/analysis/analyzerutil"
-	"golang.org/x/tools/internal/astutil"
+	"golang.org/x/tools/internal/refactor"
+	"golang.org/x/tools/internal/typesinternal/typeindex"
+
 	"golang.org/x/tools/internal/moreiters"
 	"golang.org/x/tools/internal/packagepath"
 	"golang.org/x/tools/internal/stdlib"
@@ -33,28 +34,32 @@ var doc string
 // Suite lists all modernize analyzers.
 var Suite = []*analysis.Analyzer{
 	AnyAnalyzer,
+	AtomicTypesAnalyzer,
 	// AppendClippedAnalyzer, // not nil-preserving!
 	// BLoopAnalyzer, // may skew benchmark results, see golang/go#74967
-	FmtAppendfAnalyzer,
+	EmbedLitAnalyzer,
+	ErrorsAsTypeAnalyzer,
+	// FmtAppendfAnalyzer, // makes code less clear, see golang/go#77581
 	ForVarAnalyzer,
 	MapsLoopAnalyzer,
 	MinMaxAnalyzer,
 	NewExprAnalyzer,
 	OmitZeroAnalyzer,
-	plusBuildAnalyzer,
+	PlusBuildAnalyzer,
 	RangeIntAnalyzer,
 	ReflectTypeForAnalyzer,
+	slicesBackwardAnalyzer,
 	SlicesContainsAnalyzer,
 	// SlicesDeleteAnalyzer, // not nil-preserving!
 	SlicesSortAnalyzer,
-	stditeratorsAnalyzer,
-	stringscutAnalyzer,
+	StdIteratorsAnalyzer,
+	StringsCutAnalyzer,
 	StringsCutPrefixAnalyzer,
 	StringsSeqAnalyzer,
 	StringsBuilderAnalyzer,
 	TestingContextAnalyzer,
 	unsafeFuncsAnalyzer,
-	WaitGroupAnalyzer,
+	WaitGroupGoAnalyzer,
 }
 
 // -- helpers --
@@ -79,6 +84,12 @@ func isZeroIntConst(info *types.Info, e ast.Expr) bool {
 // isIntLiteral reports whether e is an integer with given value.
 func isIntLiteral(info *types.Info, e ast.Expr, n int64) bool {
 	return info.Types[e].Value == constant.MakeInt64(n)
+}
+
+// isInteger reports whether t is an integer type.
+func isInteger(t types.Type) bool {
+	basic, ok := t.Underlying().(*types.Basic)
+	return ok && basic.Info()&types.IsInteger != 0
 }
 
 // filesUsingGoVersion returns a cursor for each *ast.File in the inspector
@@ -111,15 +122,6 @@ func within(pass *analysis.Pass, pkgs ...string) bool {
 		moreiters.Contains(stdlib.Dependencies(pkgs...), path)
 }
 
-// unparenEnclosing removes enclosing parens from cur in
-// preparation for a call to [Cursor.ParentEdge].
-func unparenEnclosing(cur inspector.Cursor) inspector.Cursor {
-	for astutil.IsChildOf(cur, edge.ParenExpr_X) {
-		cur = cur.Parent()
-	}
-	return cur
-}
-
 var (
 	builtinAny     = types.Universe.Lookup("any")
 	builtinAppend  = types.Universe.Lookup("append")
@@ -144,3 +146,37 @@ func lookup(info *types.Info, cur inspector.Cursor, name string) types.Object {
 }
 
 func first[T any](x T, _ any) T { return x }
+
+// freshName returns a fresh name at the given pos and scope based on preferredName.
+// It generates a new name using refactor.FreshName only if:
+// (a) the preferred name is already defined at definedCur, and
+// (b) there are references to it from within usedCur.
+// If useAfterPos.IsValid(), the references must be after
+// useAfterPos within usedCur in order to warrant a fresh name.
+// Otherwise, it returns preferredName, since shadowing is valid in this case.
+// (declaredCur and usedCur may be identical in some use cases).
+func freshName(info *types.Info, index *typeindex.Index, scope *types.Scope, pos token.Pos, defCur inspector.Cursor, useCur inspector.Cursor, useAfterPos token.Pos, preferredName string) string {
+	obj := lookup(info, defCur, preferredName)
+	if obj == nil {
+		// preferredName has not been declared here.
+		return preferredName
+	}
+	for use := range index.Uses(obj) {
+		if useCur.Contains(use) && use.Node().Pos() >= useAfterPos {
+			return refactor.FreshName(scope, pos, preferredName)
+		}
+	}
+	// Name is taken but not used in the given block; shadowing is acceptable.
+	return preferredName
+}
+
+// isLocal reports whether obj is local to some function.
+// Precondition: not a struct field or interface method.
+func isLocal(obj types.Object) bool {
+	// [... 5=stmt 4=func 3=file 2=pkg 1=universe]
+	var depth int
+	for scope := obj.Parent(); scope != nil; scope = scope.Parent() {
+		depth++
+	}
+	return depth >= 4
+}

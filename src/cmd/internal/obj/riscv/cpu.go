@@ -339,7 +339,7 @@ const NEED_RELOC = NEED_JAL_RELOC | NEED_CALL_RELOC | NEED_PCREL_ITYPE_RELOC |
 // If you modify this table, you MUST run 'go generate' to regenerate anames.go!
 const (
 	//
-	// Unprivileged ISA (version 20240411)
+	// Unprivileged ISA (version 20260120)
 	//
 
 	// 2.4: Integer Computational Instructions
@@ -404,7 +404,7 @@ const (
 	ALD
 	ASD
 
-	// 7.1: CSR Instructions (Zicsr)
+	// 6.1: CSR Instructions (Zicsr)
 	ACSRRW
 	ACSRRS
 	ACSRRC
@@ -412,18 +412,18 @@ const (
 	ACSRRSI
 	ACSRRCI
 
-	// 12.3: Integer Conditional Operations (Zicond)
+	// 11.1: Integer Conditional Operations (Zicond)
 	ACZEROEQZ
 	ACZERONEZ
 
-	// 13.1: Multiplication Operations
+	// 12.1: Multiplication Operations
 	AMUL
 	AMULH
 	AMULHU
 	AMULHSU
 	AMULW
 
-	// 13.2: Division Operations
+	// 12.2: Division Operations
 	ADIV
 	ADIVU
 	AREM
@@ -433,13 +433,13 @@ const (
 	AREMW
 	AREMUW
 
-	// 14.2: Load-Reserved/Store-Conditional Instructions (Zalrsc)
+	// 13.2: Load-Reserved/Store-Conditional Instructions (Zalrsc)
 	ALRD
 	ASCD
 	ALRW
 	ASCW
 
-	// 14.4: Atomic Memory Operations (Zaamo)
+	// 13.4: Atomic Memory Operations (Zaamo)
 	AAMOSWAPD
 	AAMOADDD
 	AAMOANDD
@@ -459,11 +459,11 @@ const (
 	AAMOMINW
 	AAMOMINUW
 
-	// 20.5: Single-Precision Load and Store Instructions
+	// 21.5: Single-Precision Load and Store Instructions
 	AFLW
 	AFSW
 
-	// 20.6: Single-Precision Floating-Point Computational Instructions
+	// 21.6: Single-Precision Floating-Point Computational Instructions
 	AFADDS
 	AFSUBS
 	AFMULS
@@ -476,7 +476,7 @@ const (
 	AFNMADDS
 	AFNMSUBS
 
-	// 20.7: Single-Precision Floating-Point Conversion and Move Instructions
+	// 21.7: Single-Precision Floating-Point Conversion and Move Instructions
 	AFCVTWS
 	AFCVTLS
 	AFCVTSW
@@ -493,19 +493,19 @@ const (
 	AFMVXW
 	AFMVWX
 
-	// 20.8: Single-Precision Floating-Point Compare Instructions
+	// 21.8: Single-Precision Floating-Point Compare Instructions
 	AFEQS
 	AFLTS
 	AFLES
 
-	// 20.9: Single-Precision Floating-Point Classify Instruction
+	// 21.9: Single-Precision Floating-Point Classify Instruction
 	AFCLASSS
 
-	// 21.3: Double-Precision Load and Store Instructions
+	// 22.3: Double-Precision Load and Store Instructions
 	AFLD
 	AFSD
 
-	// 21.4: Double-Precision Floating-Point Computational Instructions
+	// 22.4: Double-Precision Floating-Point Computational Instructions
 	AFADDD
 	AFSUBD
 	AFMULD
@@ -518,7 +518,7 @@ const (
 	AFNMADDD
 	AFNMSUBD
 
-	// 21.5: Double-Precision Floating-Point Conversion and Move Instructions
+	// 22.5: Double-Precision Floating-Point Conversion and Move Instructions
 	AFCVTWD
 	AFCVTLD
 	AFCVTDW
@@ -535,19 +535,19 @@ const (
 	AFMVXD
 	AFMVDX
 
-	// 21.6: Double-Precision Floating-Point Compare Instructions
+	// 22.6: Double-Precision Floating-Point Compare Instructions
 	AFEQD
 	AFLTD
 	AFLED
 
-	// 21.7: Double-Precision Floating-Point Classify Instruction
+	// 22.7: Double-Precision Floating-Point Classify Instruction
 	AFCLASSD
 
-	// 22.1 Quad-Precision Load and Store Instructions
+	// 23.1: Quad-Precision Load and Store Instructions
 	AFLQ
 	AFSQ
 
-	// 22.2: Quad-Precision Computational Instructions
+	// 23.2: Quad-Precision Computational Instructions
 	AFADDQ
 	AFSUBQ
 	AFMULQ
@@ -560,7 +560,7 @@ const (
 	AFNMADDQ
 	AFNMSUBQ
 
-	// 22.3: Quad-Precision Convert and Move Instructions
+	// 23.3: Quad-Precision Convert and Move Instructions
 	AFCVTWQ
 	AFCVTLQ
 	AFCVTSQ
@@ -577,19 +577,19 @@ const (
 	AFSGNJNQ
 	AFSGNJXQ
 
-	// 22.4: Quad-Precision Floating-Point Compare Instructions
+	// 23.4: Quad-Precision Floating-Point Compare Instructions
 	AFEQQ
 	AFLEQ
 	AFLTQ
 
-	// 22.5: Quad-Precision Floating-Point Classify Instruction
+	// 23.5: Quad-Precision Floating-Point Classify Instruction
 	AFCLASSQ
 
 	//
 	// "C" Extension for Compressed Instructions
 	//
 
-	// 26.3.1: Compressed Stack-Pointer-Based Loads and Stores
+	// 28.3.1: Compressed Stack-Pointer-Based Loads and Stores
 	ACLWSP
 	ACLDSP
 	ACFLDSP
@@ -597,7 +597,7 @@ const (
 	ACSDSP
 	ACFSDSP
 
-	// 26.3.2: Compressed Register-Based Loads and Stores
+	// 28.3.2: Compressed Register-Based Loads and Stores
 	ACLW
 	ACLD
 	ACFLD
@@ -605,16 +605,18 @@ const (
 	ACSD
 	ACFSD
 
-	// 26.4: Compressed Control Transfer Instructions
+	// 28.4: Compressed Control Transfer Instructions
 	ACJ
 	ACJR
 	ACJALR
 	ACBEQZ
 	ACBNEZ
 
-	// 26.5.1: Compressed Integer Constant-Generation Instructions
+	// 28.5.1: Compressed Integer Constant-Generation Instructions
 	ACLI
 	ACLUI
+
+	// 28.5.2: Compressed Integer Register-Immediate Operations
 	ACADDI
 	ACADDIW
 	ACADDI16SP
@@ -624,7 +626,7 @@ const (
 	ACSRAI
 	ACANDI
 
-	// 26.5.3: Compressed Integer Register-Register Operations
+	// 28.5.3: Compressed Integer Register-Register Operations
 	ACMV
 	ACADD
 	ACAND
@@ -634,17 +636,17 @@ const (
 	ACADDW
 	ACSUBW
 
-	// 26.5.5: Compressed NOP Instruction
+	// 28.5.5: Compressed NOP Instruction
 	ACNOP
 
-	// 26.5.6: Compressed Breakpoint Instruction
+	// 28.5.6: Compressed Breakpoint Instruction
 	ACEBREAK
 
 	//
 	// "B" Extension for Bit Manipulation, Version 1.0.0
 	//
 
-	// 28.4.1: Address Generation Instructions (Zba)
+	// 30.2: Address Generation Instructions (Zba)
 	AADDUW
 	ASH1ADD
 	ASH1ADDUW
@@ -654,7 +656,7 @@ const (
 	ASH3ADDUW
 	ASLLIUW
 
-	// 28.4.2: Basic Bit Manipulation (Zbb)
+	// 30.3: Basic Bit Manipulation (Zbb)
 	AANDN
 	AORN
 	AXNOR
@@ -671,8 +673,6 @@ const (
 	ASEXTB
 	ASEXTH
 	AZEXTH
-
-	// 28.4.3: Bitwise Rotation (Zbb)
 	AROL
 	AROLW
 	AROR
@@ -682,7 +682,12 @@ const (
 	AORCB
 	AREV8
 
-	// 28.4.4: Single-bit Instructions (Zbs)
+	// 30.4: Carry-less multiplication (Zbc)
+	ACLMUL
+	ACLMULH
+	ACLMULR
+
+	// 30.5: Single-bit Instructions (Zbs)
 	ABCLR
 	ABCLRI
 	ABEXT
@@ -713,7 +718,7 @@ const (
 	AVLMV
 	AVSMV
 
-	// 31.7.5: Vector Strided Instructions
+	// 31.7.5: Vector Constant-Stride Instructions
 	AVLSE8V
 	AVLSE16V
 	AVLSE32V
@@ -741,15 +746,13 @@ const (
 	AVSOXEI32V
 	AVSOXEI64V
 
-	// 31.7.7: Unit-stride Fault-Only-First Loads
+	// 31.7.7: Vector Unit-Stride Fault-Only-First Loads
 	AVLE8FFV
 	AVLE16FFV
 	AVLE32FFV
 	AVLE64FFV
 
-	// 31.7.8. Vector Load/Store Segment Instructions
-
-	// 31.7.8.1. Vector Unit-Stride Segment Loads and Stores
+	// 31.7.8.1: Vector Unit-Stride Segment Loads and Stores
 	AVLSEG2E8V
 	AVLSEG3E8V
 	AVLSEG4E8V
@@ -837,7 +840,7 @@ const (
 	AVLSEG7E64FFV
 	AVLSEG8E64FFV
 
-	// 31.7.8.2. Vector Strided Segment Loads and Stores
+	// 31.7.8.2: Vector Constant-Stride Segment Loads and Stores
 	AVLSSEG2E8V
 	AVLSSEG3E8V
 	AVLSSEG4E8V
@@ -896,7 +899,7 @@ const (
 	AVSSSEG7E64V
 	AVSSSEG8E64V
 
-	// 31.7.8.3. Vector Indexed Segment Loads and Stores
+	// 31.7.8.3: Vector Indexed Segment Loads and Stores
 	AVLOXSEG2EI8V
 	AVLOXSEG3EI8V
 	AVLOXSEG4EI8V
@@ -1449,8 +1452,32 @@ const (
 	AVMV4RV
 	AVMV8RV
 
+	// 33.2.1: Vector Basic Bit-manipulation (Zvbb)
+	AVANDNVV
+	AVANDNVX
+	AVBREVV
+	AVBREV8V
+	AVREV8V
+	AVCLZV
+	AVCTZV
+	AVCPOPV
+	AVROLVV
+	AVROLVX
+	AVRORVV
+	AVRORVX
+	AVRORVI
+	AVWSLLVV
+	AVWSLLVX
+	AVWSLLVI
+
+	// 33.2.2: Vector Carryless Multiplication (Zvbc)
+	AVCLMULVV
+	AVCLMULVX
+	AVCLMULHVV
+	AVCLMULHVX
+
 	//
-	// Privileged ISA (version 20240411)
+	// Privileged ISA (version 20260120)
 	//
 
 	// 3.3.1: Environment Call and Breakpoint
@@ -1467,7 +1494,7 @@ const (
 	// 3.3.3: Wait for Interrupt
 	AWFI
 
-	// 10.2: Supervisor Memory-Management Fence Instruction
+	// 12.2.1: Supervisor Memory-Management Fence Instruction
 	ASFENCEVMA
 
 	// The escape hatch. Inserts a single 32-bit word.
@@ -1485,6 +1512,13 @@ const (
 	ABLEZ
 	ABLTZ
 	ABNEZ
+	ACSRC
+	ACSRCI
+	ACSRR
+	ACSRS
+	ACSRSI
+	ACSRW
+	ACSRWI
 	AFABSD
 	AFABSS
 	AFNED
@@ -1503,6 +1537,7 @@ const (
 	ANEG
 	ANEGW
 	ANOT
+	APAUSE
 	ARDCYCLE
 	ARDINSTRET
 	ARDTIME
@@ -1547,7 +1582,10 @@ var rmSuffixSet = map[string]uint8{
 	"RMM": RM_RMM,
 }
 
-const rmSuffixBit uint8 = 1 << 7
+const (
+	fenceTsoSuffixBit uint8 = 1 << 0
+	rmSuffixBit       uint8 = 1 << 7
+)
 
 func rmSuffixEncode(s string) (uint8, error) {
 	if s == "" {
@@ -1616,7 +1654,28 @@ const (
 	SPOP_CSR_BEGIN = SPOP_RVV_END
 	SPOP_CSR_END   = SPOP_CSR_BEGIN + 4096
 
-	SPOP_END = SPOP_CSR_END + 1
+	// FENCE operands. 16 special operands are reserved for FENCE flags (4 bits: IORW).
+	SPOP_FENCE_BEGIN = SPOP_CSR_END
+
+	SPOP_FENCE_W SpecialOperand = SPOP_FENCE_BEGIN + iota - 20
+	SPOP_FENCE_R
+	SPOP_FENCE_RW
+	SPOP_FENCE_O
+	SPOP_FENCE_OW
+	SPOP_FENCE_OR
+	SPOP_FENCE_ORW
+	SPOP_FENCE_I
+	SPOP_FENCE_IW
+	SPOP_FENCE_IR
+	SPOP_FENCE_IRW
+	SPOP_FENCE_IO
+	SPOP_FENCE_IOW
+	SPOP_FENCE_IOR
+	SPOP_FENCE_IORW
+
+	SPOP_FENCE_END = SPOP_FENCE_BEGIN + 16
+
+	SPOP_END = SPOP_FENCE_END + 1
 )
 
 var specialOperands = map[SpecialOperand]struct {
@@ -1641,6 +1700,22 @@ var specialOperands = map[SpecialOperand]struct {
 	SPOP_E16: {encoding: 1, name: "E16"},
 	SPOP_E32: {encoding: 2, name: "E32"},
 	SPOP_E64: {encoding: 3, name: "E64"},
+
+	SPOP_FENCE_W:    {encoding: 1, name: "W"},
+	SPOP_FENCE_R:    {encoding: 2, name: "R"},
+	SPOP_FENCE_RW:   {encoding: 3, name: "RW"},
+	SPOP_FENCE_O:    {encoding: 4, name: "O"},
+	SPOP_FENCE_OW:   {encoding: 5, name: "OW"},
+	SPOP_FENCE_OR:   {encoding: 6, name: "OR"},
+	SPOP_FENCE_ORW:  {encoding: 7, name: "ORW"},
+	SPOP_FENCE_I:    {encoding: 8, name: "I"},
+	SPOP_FENCE_IW:   {encoding: 9, name: "IW"},
+	SPOP_FENCE_IR:   {encoding: 10, name: "IR"},
+	SPOP_FENCE_IRW:  {encoding: 11, name: "IRW"},
+	SPOP_FENCE_IO:   {encoding: 12, name: "IO"},
+	SPOP_FENCE_IOW:  {encoding: 13, name: "IOW"},
+	SPOP_FENCE_IOR:  {encoding: 14, name: "IOR"},
+	SPOP_FENCE_IORW: {encoding: 15, name: "IORW"},
 }
 
 func (so SpecialOperand) encode() uint32 {
@@ -1654,6 +1729,11 @@ func (so SpecialOperand) encode() uint32 {
 		csrNum := uint16(so - SPOP_CSR_BEGIN)
 		if _, ok := csrs[csrNum]; ok {
 			return uint32(csrNum)
+		}
+	case so > SPOP_FENCE_BEGIN && so < SPOP_FENCE_END:
+		op, ok := specialOperands[so]
+		if ok {
+			return op.encoding
 		}
 	}
 	return 0
@@ -1670,6 +1750,11 @@ func (so SpecialOperand) String() string {
 	case so >= SPOP_CSR_BEGIN && so < SPOP_CSR_END:
 		if csrName, ok := csrs[uint16(so-SPOP_CSR_BEGIN)]; ok {
 			return csrName
+		}
+	case so > SPOP_FENCE_BEGIN && so < SPOP_FENCE_END:
+		op, ok := specialOperands[so]
+		if ok {
+			return op.name
 		}
 	}
 	return ""

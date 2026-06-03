@@ -232,7 +232,7 @@ func (p *Profile) postDecode() error {
 			if id := ln.functionIDX; id != 0 {
 				l.Line[i].Function = functions[id]
 				if l.Line[i].Function == nil {
-					return fmt.Errorf("Function ID %d not found", id)
+					return fmt.Errorf("function ID %d not found", id)
 				}
 				l.Line[i].functionIDX = 0
 			}

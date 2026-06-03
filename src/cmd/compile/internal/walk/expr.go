@@ -13,6 +13,7 @@ import (
 
 	"cmd/compile/internal/base"
 	"cmd/compile/internal/ir"
+	"cmd/compile/internal/noder"
 	"cmd/compile/internal/objw"
 	"cmd/compile/internal/reflectdata"
 	"cmd/compile/internal/rttype"
@@ -293,7 +294,7 @@ func walkExpr1(n ir.Node, init *ir.Nodes) ir.Node {
 
 	case ir.OCLEAR:
 		n := n.(*ir.UnaryExpr)
-		return walkClear(n)
+		return walkClear(n, init)
 
 	case ir.OCLOSE:
 		n := n.(*ir.UnaryExpr)
@@ -762,6 +763,51 @@ func walkDotType(n *ir.TypeAssertExpr, init *ir.Nodes) ir.Node {
 	return n
 }
 
+// shapeTypeAssertImpossible reports whether a type assertion from src
+// to concrete type dst can never succeed because they have
+// incompatible shape types.
+func shapeTypeAssertImpossible(src ir.Node, dst *types.Type) bool {
+	if dst.IsInterface() {
+		return false
+	}
+	srcShape := convIfaceShapeType(src)
+	if srcShape == nil {
+		return false
+	}
+	return !types.Identical(srcShape, noder.Shapify(dst, false)) &&
+		!types.Identical(srcShape, noder.Shapify(dst, true))
+}
+
+// convIfaceShapeType returns the shape type from which src was
+// created via OCONVIFACE, or nil.
+func convIfaceShapeType(src ir.Node) *types.Type {
+	for {
+		switch s := src.(type) {
+		case *ir.ParenExpr:
+			src = s.X
+			continue
+		case *ir.ConvExpr:
+			if s.Op() == ir.OCONVNOP {
+				src = s.X
+				continue
+			}
+			if s.Op() == ir.OCONVIFACE {
+				srcType := s.X.Type()
+				if srcType != nil && !srcType.IsInterface() && srcType.IsShape() {
+					return srcType
+				}
+				return nil
+			}
+		}
+		break
+	}
+
+	if name, ok := src.(*ir.Name); ok && shapeConvSources != nil {
+		return shapeConvSources[name.Canonical()]
+	}
+	return nil
+}
+
 func makeTypeAssertDescriptor(target *types.Type, canFail bool) *obj.LSym {
 	// When converting from an interface to a non-empty interface. Needs a runtime call.
 	// Allocate an internal/abi.TypeAssert descriptor for that call.
@@ -969,7 +1015,7 @@ func walkStringHeader(n *ir.StringHeaderExpr, init *ir.Nodes) ir.Node {
 	return n
 }
 
-// return 1 if integer n must be in range [0, max), 0 otherwise.
+// bounded reports whether integer n must be in range [0, max).
 func bounded(n ir.Node, max int64) bool {
 	if n.Type() == nil || !n.Type().IsInteger() {
 		return false
@@ -1027,7 +1073,7 @@ func bounded(n ir.Node, max int64) bool {
 		if !sign && ir.IsSmallIntConst(n.Y) {
 			v := ir.Int64Val(n.Y)
 			if v > int64(bits) {
-				return true
+				return max > 0
 			}
 			bits -= int32(v)
 		}

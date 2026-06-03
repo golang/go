@@ -110,6 +110,7 @@ var parseTests = []parseTest{
 	{`\p{Uppercase_Letter}`, mkCharClass(unicode.IsUpper)},
 	{`\p{upper case-let ter}`, mkCharClass(unicode.IsUpper)},
 	{`\p{__upper case-let ter}`, mkCharClass(unicode.IsUpper)},
+	{`\p{Canadian_Aboriginal}`, mkCharClass(func(r rune) bool { return unicode.In(r, unicode.Canadian_Aboriginal) })},
 	{`[\p{Lu}]`, mkCharClass(unicode.IsUpper)},
 	{`(?i)[\p{Lu}]`, mkCharClass(isUpperFold)},
 	{`\p{Any}`, `dot{}`},

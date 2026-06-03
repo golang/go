@@ -43,9 +43,10 @@ const (
 		ByteLimit |
 		DepthLimit |
 		Marshalers |
-		Unmarshalers
+		Unmarshalers |
+		FormatTag
 
-	// DefaultV1Flags is the set of booleans flags that default to true under
+	// DefaultV1Flags is the set of boolean flags that default to true under
 	// v1 semantics. None of the non-boolean flags differ between v1 and v2.
 	DefaultV1Flags = 0 |
 		AllowDuplicateNames |
@@ -83,6 +84,12 @@ const (
 
 	// CanonicalizeNumbers is the set of flags related to raw number canonicalization.
 	CanonicalizeNumbers = CanonicalizeRawInts | CanonicalizeRawFloats
+
+	// TagFlags is the set of flags related to the presence of struct field tags.
+	// Tags have non-recursive effects, where the tag only applies to
+	// the top-level of the field value itself.
+	// Whenever descending into a JSON object or array, these flags are cleared.
+	TagFlags = StringTag | FormatTag
 )
 
 // Encoder and decoder flags.
@@ -123,6 +130,8 @@ const (
 	RejectUnknownMembers      // unmarshal only
 	Marshalers                // marshal only; non-boolean flag
 	Unmarshalers              // unmarshal only; non-boolean flag
+	StringTag                 // marshal or unmarshal
+	FormatTag                 // marshal or unmarshal; non-boolean flag
 
 	maxArshalV2Flag
 )
@@ -142,7 +151,6 @@ const (
 	ParseTimeWithLooseRFC3339       // unmarshal
 	ReportErrorsWithLegacySemantics // marshal or unmarshal
 	StringifyWithLegacySemantics    // marshal or unmarshal
-	StringifyBoolsAndStrings        // marshal or unmarshal; for internal use by jsonv2.makeStructArshaler
 	UnmarshalAnyWithRawNumber       // unmarshal; for internal use by jsonv1.Decoder.UseNumber
 	UnmarshalArrayFromAnyLength     // unmarshal
 
@@ -150,7 +158,7 @@ const (
 )
 
 // bitsUsed is the number of bits used in the 64-bit boolean flags
-const bitsUsed = 41
+const bitsUsed = 42
 
 // Static compile check that bitsUsed and maxArshalV1Flag are in sync.
 const _ = uint64((1<<bitsUsed)-maxArshalV1Flag) + uint64(maxArshalV1Flag-(1<<bitsUsed))
@@ -170,9 +178,9 @@ func (dst *Flags) Join(src Flags) {
 	// then copy over source value bits over to the destination (using OR).
 	//	e.g., dst := Flags{Presence: 0b_1100_0011, Values: 0b_1000_0011}
 	//	e.g., src := Flags{Presence: 0b_0101_1010, Values: 0b_1001_0010}
-	dst.Presence |= src.Presence // e.g., 0b_1100_0011 | 0b_0101_1010 -> 0b_110_11011
-	dst.Values &= ^src.Presence  // e.g., 0b_1000_0011 & 0b_1010_0101 -> 0b_100_00001
-	dst.Values |= src.Values     // e.g., 0b_1000_0001 | 0b_1001_0010 -> 0b_100_10011
+	dst.Presence |= src.Presence // e.g., 0b_1100_0011 | 0b_0101_1010 -> 0b_1101_1011
+	dst.Values &= ^src.Presence  // e.g., 0b_1000_0011 & 0b_1010_0101 -> 0b_1000_0001
+	dst.Values |= src.Values     // e.g., 0b_1000_0001 | 0b_1001_0010 -> 0b_1001_0011
 }
 
 // Set sets both the presence and value for the provided bool (or set of bools).
@@ -184,7 +192,7 @@ func (fs *Flags) Set(f Bools) {
 	//	e.g., fs := Flags{Presence: 0b_0101_0010, Values: 0b_0001_0010}
 	//	e.g., f := 0b_1001_0001
 	id := uint64(f) &^ uint64(1)  // e.g., 0b_1001_0001 & 0b_1111_1110 -> 0b_1001_0000
-	fs.Presence |= id             // e.g., 0b_0101_0010 | 0b_1001_0000 -> 0b_1101_0011
+	fs.Presence |= id             // e.g., 0b_0101_0010 | 0b_1001_0000 -> 0b_1101_0010
 	fs.Values &= ^id              // e.g., 0b_0001_0010 & 0b_0110_1111 -> 0b_0000_0010
 	fs.Values |= uint64(f&1) * id // e.g., 0b_0000_0010 | 0b_1001_0000 -> 0b_1001_0010
 }

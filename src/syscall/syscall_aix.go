@@ -21,7 +21,12 @@ func RawSyscall(trap, a1, a2, a3 uintptr) (r1, r2 uintptr, err Errno)
 func RawSyscall6(trap, a1, a2, a3, a4, a5, a6 uintptr) (r1, r2 uintptr, err Errno)
 
 // Implemented in runtime/syscall_aix.go.
+// Accessed in assembly in x/sys/unix and x/sys/cpu.
+//
+//go:linkname rawSyscall6
 func rawSyscall6(trap, nargs, a1, a2, a3, a4, a5, a6 uintptr) (r1, r2 uintptr, err Errno)
+
+//go:linkname syscall6
 func syscall6(trap, nargs, a1, a2, a3, a4, a5, a6 uintptr) (r1, r2 uintptr, err Errno)
 
 // Constant expected by package but not supported

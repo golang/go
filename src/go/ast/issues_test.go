@@ -19,7 +19,7 @@ func TestIssue33649(t *testing.T) {
 		`package p; func _() { _ = 0 }`,
 	} {
 		fset := token.NewFileSet()
-		f, _ := parser.ParseFile(fset, "", src, parser.AllErrors)
+		f, _ := parser.ParseFile(fset, "", src, parser.AllErrors|parser.SkipObjectResolution)
 		if f == nil {
 			panic("invalid test setup: parser didn't return an AST")
 		}
@@ -125,7 +125,7 @@ package p
 `, true},
 	} {
 		fset := token.NewFileSet()
-		f, err := parser.ParseFile(fset, "", test.src, parser.PackageClauseOnly|parser.ParseComments)
+		f, err := parser.ParseFile(fset, "", test.src, parser.PackageClauseOnly|parser.ParseComments|parser.SkipObjectResolution)
 		if f == nil {
 			t.Fatalf("parse %d failed to return AST: %v", i, err)
 		}

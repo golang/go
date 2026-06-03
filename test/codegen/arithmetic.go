@@ -14,38 +14,38 @@ package codegen
 
 func AddLargeConst(a uint64, out []uint64) {
 	// ppc64x/power10:"ADD [$]4294967296,"
-	// ppc64x/power9:"MOVD [$]1", "SLD [$]32" "ADD R[0-9]*"
-	// ppc64x/power8:"MOVD [$]1", "SLD [$]32" "ADD R[0-9]*"
+	// ppc64x/power9:"MOVD [$]1" "SLD [$]32" "ADD R[0-9]*"
+	// ppc64x/power8:"MOVD [$]1" "SLD [$]32" "ADD R[0-9]*"
 	out[0] = a + 0x100000000
 	// ppc64x/power10:"ADD [$]-8589934592,"
-	// ppc64x/power9:"MOVD [$]-1", "SLD [$]33" "ADD R[0-9]*"
-	// ppc64x/power8:"MOVD [$]-1", "SLD [$]33" "ADD R[0-9]*"
+	// ppc64x/power9:"MOVD [$]-1" "SLD [$]33" "ADD R[0-9]*"
+	// ppc64x/power8:"MOVD [$]-1" "SLD [$]33" "ADD R[0-9]*"
 	out[1] = a + 0xFFFFFFFE00000000
 	// ppc64x/power10:"ADD [$]1234567,"
-	// ppc64x/power9:"ADDIS [$]19,", "ADD [$]-10617,"
-	// ppc64x/power8:"ADDIS [$]19,", "ADD [$]-10617,"
+	// ppc64x/power9:"ADDIS [$]19," "ADD [$]-10617,"
+	// ppc64x/power8:"ADDIS [$]19," "ADD [$]-10617,"
 	out[2] = a + 1234567
 	// ppc64x/power10:"ADD [$]-1234567,"
-	// ppc64x/power9:"ADDIS [$]-19,", "ADD [$]10617,"
-	// ppc64x/power8:"ADDIS [$]-19,", "ADD [$]10617,"
+	// ppc64x/power9:"ADDIS [$]-19," "ADD [$]10617,"
+	// ppc64x/power8:"ADDIS [$]-19," "ADD [$]10617,"
 	out[3] = a - 1234567
 	// ppc64x/power10:"ADD [$]2147450879,"
-	// ppc64x/power9:"ADDIS [$]32767,", "ADD [$]32767,"
-	// ppc64x/power8:"ADDIS [$]32767,", "ADD [$]32767,"
+	// ppc64x/power9:"ADDIS [$]32767," "ADD [$]32767,"
+	// ppc64x/power8:"ADDIS [$]32767," "ADD [$]32767,"
 	out[4] = a + 0x7FFF7FFF
 	// ppc64x/power10:"ADD [$]-2147483647,"
-	// ppc64x/power9:"ADDIS [$]-32768,", "ADD [$]1,"
-	// ppc64x/power8:"ADDIS [$]-32768,", "ADD [$]1,"
+	// ppc64x/power9:"ADDIS [$]-32768," "ADD [$]1,"
+	// ppc64x/power8:"ADDIS [$]-32768," "ADD [$]1,"
 	out[5] = a - 2147483647
-	// ppc64x:"ADDIS [$]-32768,", ^"ADD "
+	// ppc64x:"ADDIS [$]-32768," -"ADD "
 	out[6] = a - 2147483648
-	// ppc64x:"ADD [$]2147450880,", ^"ADDIS "
+	// ppc64x:"ADD [$]2147450880," -"ADDIS "
 	out[7] = a + 0x7FFF8000
-	// ppc64x:"ADD [$]-32768,", ^"ADDIS "
+	// ppc64x:"ADD [$]-32768," -"ADDIS "
 	out[8] = a - 32768
 	// ppc64x/power10:"ADD [$]-32769,"
-	// ppc64x/power9:"ADDIS [$]-1,", "ADD [$]32767,"
-	// ppc64x/power8:"ADDIS [$]-1,", "ADD [$]32767,"
+	// ppc64x/power9:"ADDIS [$]-1," "ADD [$]32767,"
+	// ppc64x/power8:"ADDIS [$]-1," "ADD [$]32767,"
 	out[9] = a - 32769
 }
 
@@ -59,25 +59,25 @@ func AddLargeConst2(a int, out []int) {
 var ef int
 
 func SubMem(arr []int, b, c, d int) int {
-	// 386:`SUBL\s[A-Z]+,\s8\([A-Z]+\)`
-	// amd64:`SUBQ\s[A-Z]+,\s16\([A-Z]+\)`
+	// 386:`SUBL [A-Z]+, 8\([A-Z]+\)`
+	// amd64:`SUBQ [A-Z]+, 16\([A-Z]+\)`
 	arr[2] -= b
-	// 386:`SUBL\s[A-Z]+,\s12\([A-Z]+\)`
-	// amd64:`SUBQ\s[A-Z]+,\s24\([A-Z]+\)`
+	// 386:`SUBL [A-Z]+, 12\([A-Z]+\)`
+	// amd64:`SUBQ [A-Z]+, 24\([A-Z]+\)`
 	arr[3] -= b
-	// 386:`DECL\s16\([A-Z]+\)`
+	// 386:`DECL 16\([A-Z]+\)`
 	arr[4]--
-	// 386:`ADDL\s[$]-20,\s20\([A-Z]+\)`
+	// 386:`ADDL [$]-20, 20\([A-Z]+\)`
 	arr[5] -= 20
-	// 386:`SUBL\s\([A-Z]+\)\([A-Z]+\*4\),\s[A-Z]+`
+	// 386:`SUBL \([A-Z]+\)\([A-Z]+\*4\), [A-Z]+`
 	ef -= arr[b]
-	// 386:`SUBL\s[A-Z]+,\s\([A-Z]+\)\([A-Z]+\*4\)`
+	// 386:`SUBL [A-Z]+, \([A-Z]+\)\([A-Z]+\*4\)`
 	arr[c] -= b
-	// 386:`ADDL\s[$]-15,\s\([A-Z]+\)\([A-Z]+\*4\)`
+	// 386:`ADDL [$]-15, \([A-Z]+\)\([A-Z]+\*4\)`
 	arr[d] -= 15
-	// 386:`DECL\s\([A-Z]+\)\([A-Z]+\*4\)`
+	// 386:`DECL \([A-Z]+\)\([A-Z]+\*4\)`
 	arr[b]--
-	// amd64:`DECQ\s64\([A-Z]+\)`
+	// amd64:`DECQ 64\([A-Z]+\)`
 	arr[8]--
 	// 386:"SUBL 4"
 	// amd64:"SUBQ 8"
@@ -85,7 +85,7 @@ func SubMem(arr []int, b, c, d int) int {
 }
 
 func SubFromConst(a int) int {
-	// ppc64x: `SUBC R[0-9]+,\s[$]40,\sR`
+	// ppc64x: `SUBC R[0-9]+, [$]40, R`
 	// riscv64: "ADDI [$]-40" "NEG"
 	b := 40 - a
 	return b
@@ -96,7 +96,7 @@ func SubFromConstNeg(a int) int {
 	// loong64: "ADDV[U] [$]40"
 	// mips: "ADD[U] [$]40"
 	// mips64: "ADDV[U] [$]40"
-	// ppc64x: `ADD [$]40,\sR[0-9]+,\sR`
+	// ppc64x: `ADD [$]40, R[0-9]+, R`
 	// riscv64: "ADDI [$]40" -"NEG"
 	c := 40 - (-a)
 	return c
@@ -107,14 +107,14 @@ func SubSubFromConst(a int) int {
 	// loong64: "ADDV[U] [$]20"
 	// mips: "ADD[U] [$]20"
 	// mips64: "ADDV[U] [$]20"
-	// ppc64x: `ADD [$]20,\sR[0-9]+,\sR`
+	// ppc64x: `ADD [$]20, R[0-9]+, R`
 	// riscv64: "ADDI [$]20" -"NEG"
 	c := 40 - (20 - a)
 	return c
 }
 
 func AddSubFromConst(a int) int {
-	// ppc64x: `SUBC R[0-9]+,\s[$]60,\sR`
+	// ppc64x: `SUBC R[0-9]+, [$]60, R`
 	// riscv64: "ADDI [$]-60" "NEG"
 	c := 40 + (20 - a)
 	return c
@@ -125,7 +125,7 @@ func NegSubFromConst(a int) int {
 	// loong64: "ADDV[U] [$]-20"
 	// mips: "ADD[U] [$]-20"
 	// mips64: "ADDV[U] [$]-20"
-	// ppc64x: `ADD [$]-20,\sR[0-9]+,\sR`
+	// ppc64x: `ADD [$]-20, R[0-9]+, R`
 	// riscv64: "ADDI [$]-20"
 	c := -(20 - a)
 	return c
@@ -136,7 +136,7 @@ func NegAddFromConstNeg(a int) int {
 	// loong64: "ADDV[U] [$]-40" "SUBV"
 	// mips: "ADD[U] [$]-40" "SUB"
 	// mips64: "ADDV[U] [$]-40" "SUBV"
-	// ppc64x: `SUBC R[0-9]+,\s[$]40,\sR`
+	// ppc64x: `SUBC R[0-9]+, [$]40, R`
 	// riscv64: "ADDI [$]-40" "NEG"
 	c := -(-40 + a)
 	return c
@@ -242,44 +242,44 @@ func Pow2Muls(n1, n2 int) (int, int) {
 	// amd64:"SHLQ [$]6" -"IMULQ"
 	// 386:"SHLL [$]6" -"IMULL"
 	// arm:"SLL [$]6" -"MUL"
-	// arm64:`NEG\sR[0-9]+<<6,\sR[0-9]+`,-`LSL`,-`MUL`
+	// arm64:`NEG R[0-9]+<<6, R[0-9]+` -`LSL` -`MUL`
 	// loong64:"SLLV [$]6" -"MULV"
-	// ppc64x:"SLD [$]6" "NEG\\sR[0-9]+,\\sR[0-9]+" -"MUL"
+	// ppc64x:"SLD [$]6" "NEG R[0-9]+, R[0-9]+" -"MUL"
 	b := -64 * n2
 
 	return a, b
 }
 
 func Mul_2(n1 int32, n2 int64) (int32, int64) {
-	// amd64:"ADDL", -"SHLL"
+	// amd64:"ADDL" -"SHLL"
 	a := n1 * 2
-	// amd64:"ADDQ", -"SHLQ"
+	// amd64:"ADDQ" -"SHLQ"
 	b := n2 * 2
 
 	return a, b
 }
 
 func Mul_96(n int) int {
-	// amd64:`SHLQ [$]5`,`LEAQ \(.*\)\(.*\*2\),`,-`IMULQ`
-	// 386:`SHLL [$]5`,`LEAL \(.*\)\(.*\*2\),`,-`IMULL`
-	// arm64:`LSL [$]5`,`ADD\sR[0-9]+<<1,\sR[0-9]+`,-`MUL`
-	// arm:`SLL [$]5`,`ADD\sR[0-9]+<<1,\sR[0-9]+`,-`MUL`
+	// amd64:`SHLQ [$]5` `LEAQ \(.*\)\(.*\*2\),` -`IMULQ`
+	// 386:`SHLL [$]5` `LEAL \(.*\)\(.*\*2\),` -`IMULL`
+	// arm64:`LSL [$]5` `ADD R[0-9]+<<1, R[0-9]+` -`MUL`
+	// arm:`SLL [$]5` `ADD R[0-9]+<<1, R[0-9]+` -`MUL`
 	// loong64:"SLLV [$]5" "ALSLV [$]1,"
-	// s390x:`SLD [$]5`,`SLD [$]6`,-`MULLD`
+	// s390x:`SLD [$]5` `SLD [$]6` -`MULLD`
 	return n * 96
 }
 
 func Mul_n120(n int) int {
 	// loong64:"SLLV [$]3" "SLLV [$]7" "SUBVU" -"MULV"
-	// s390x:`SLD [$]3`,`SLD [$]7`,-`MULLD`
+	// s390x:`SLD [$]3` `SLD [$]7` -`MULLD`
 	return n * -120
 }
 
 func MulMemSrc(a []uint32, b []float32) {
-	// 386:`IMULL\s4\([A-Z]+\),\s[A-Z]+`
+	// 386:`IMULL 4\([A-Z]+\), [A-Z]+`
 	a[0] *= a[1]
-	// 386/sse2:`MULSS\s4\([A-Z]+\),\sX[0-9]+`
-	// amd64:`MULSS\s4\([A-Z]+\),\sX[0-9]+`
+	// 386/sse2:`MULSS 4\([A-Z]+\), X[0-9]+`
+	// amd64:`MULSS 4\([A-Z]+\), X[0-9]+`
 	b[0] *= b[1]
 }
 
@@ -370,8 +370,8 @@ func SimplifyNegMul(a, b int) int {
 // -------------- //
 
 func DivMemSrc(a []float64) {
-	// 386/sse2:`DIVSD\s8\([A-Z]+\),\sX[0-9]+`
-	// amd64:`DIVSD\s8\([A-Z]+\),\sX[0-9]+`
+	// 386/sse2:`DIVSD 8\([A-Z]+\), X[0-9]+`
+	// amd64:`DIVSD 8\([A-Z]+\), X[0-9]+`
 	a[0] /= a[1]
 }
 
@@ -397,8 +397,8 @@ func Pow2Divs(n1 uint, n2 int) (uint, int) {
 func ConstDivs(n1 uint, n2 int) (uint, int) {
 	// amd64: "MOVQ [$]-1085102592571150095" "MULQ" -"DIVQ"
 	// 386: "MOVL [$]-252645135" "MULL" -"DIVL"
-	// arm64: `MOVD`,`UMULH`,-`DIV`
-	// arm: `MOVW`,`MUL`,-`.*udiv`
+	// arm64: `MOVD` `UMULH` -`DIV`
+	// arm: `MOVW` `MUL` -`.*udiv`
 	a := n1 / 17 // unsigned
 
 	// amd64: "MOVQ [$]-1085102592571150095" "IMULQ" -"IDIVQ"
@@ -411,8 +411,8 @@ func ConstDivs(n1 uint, n2 int) (uint, int) {
 }
 
 func FloatDivs(a []float32) float32 {
-	// amd64:`DIVSS\s8\([A-Z]+\),\sX[0-9]+`
-	// 386/sse2:`DIVSS\s8\([A-Z]+\),\sX[0-9]+`
+	// amd64:`DIVSS 8\([A-Z]+\), X[0-9]+`
+	// 386/sse2:`DIVSS 8\([A-Z]+\), X[0-9]+`
 	return a[1] / a[2]
 }
 
@@ -606,7 +606,7 @@ func LenDiv1(a []int) int {
 	// amd64:"SHRQ [$]10"
 	// arm64:"LSR [$]10" -"SDIV"
 	// arm:"SRL [$]10" -".*udiv"
-	// ppc64x:"SRD" [$]10"
+	// ppc64x:"SRD [$]10"
 	return len(a) / 1024
 }
 
@@ -669,31 +669,31 @@ func AddShift(a, b int) int {
 }
 
 func MULA(a, b, c uint32) (uint32, uint32, uint32) {
-	// arm:`MULA`,-`MUL\s`
-	// arm64:`MADDW`,-`MULW`
+	// arm:`MULA` -`MUL `
+	// arm64:`MADDW` -`MULW`
 	r0 := a*b + c
-	// arm:`MULA`,-`MUL\s`
-	// arm64:`MADDW`,-`MULW`
+	// arm:`MULA` -`MUL `
+	// arm64:`MADDW` -`MULW`
 	r1 := c*79 + a
-	// arm:`ADD`,-`MULA`,-`MUL\s`
-	// arm64:`ADD`,-`MADD`,-`MULW`
-	// ppc64x:`ADD`,-`MULLD`
+	// arm:`ADD` -`MULA` -`MUL `
+	// arm64:`ADD` -`MADD` -`MULW`
+	// ppc64x:`ADD` -`MULLD`
 	r2 := b*64 + c
 	return r0, r1, r2
 }
 
 func MULS(a, b, c uint32) (uint32, uint32, uint32) {
-	// arm/7:`MULS`,-`MUL\s`
-	// arm/6:`SUB`,`MUL\s`,-`MULS`
-	// arm64:`MSUBW`,-`MULW`
+	// arm/7:`MULS` -`MUL `
+	// arm/6:`SUB` `MUL ` -`MULS`
+	// arm64:`MSUBW` -`MULW`
 	r0 := c - a*b
-	// arm/7:`MULS`,-`MUL\s`
-	// arm/6:`SUB`,`MUL\s`,-`MULS`
-	// arm64:`MSUBW`,-`MULW`
+	// arm/7:`MULS` -`MUL `
+	// arm/6:`SUB` `MUL ` -`MULS`
+	// arm64:`MSUBW` -`MULW`
 	r1 := a - c*79
-	// arm/7:`SUB`,-`MULS`,-`MUL\s`
-	// arm64:`SUB`,-`MSUBW`,-`MULW`
-	// ppc64x:`SUB`,-`MULLD`
+	// arm/7:`SUB` -`MULS` -`MUL `
+	// arm64:`SUB` -`MSUBW` -`MULW`
+	// ppc64x:`SUB` -`MULLD`
 	r2 := c - b*64
 	return r0, r1, r2
 }
@@ -712,10 +712,10 @@ func addSpecial(a, b, c uint32) (uint32, uint32, uint32) {
 // If the input is non-negative, make sure the unsigned form is generated.
 func divInt(v int64) int64 {
 	if v < 0 {
-		// amd64:`SARQ.*63,`, `SHRQ.*56,`, `SARQ.*8,`
+		// amd64:`SARQ.*63,` `SHRQ.*56,` `SARQ.*8,`
 		return v / 256
 	}
-	// amd64:-`.*SARQ`, `SHRQ.*9,`
+	// amd64:-`.*SARQ` `SHRQ.*9,`
 	return v / 512
 }
 
@@ -741,10 +741,10 @@ func constantFold1(i0, j0, i1, j1, i2, j2, i3, j3 int) (int, int, int, int) {
 // "(C - z) - x -> C - (z + x)" can optimize the following cases.
 func constantFold2(i0, j0, i1, j1 int) (int, int) {
 	// arm64:"ADD" "MOVD [$]2" "SUB"
-	// ppc64x: `SUBC R[0-9]+,\s[$]2,\sR`
+	// ppc64x: `SUBC R[0-9]+, [$]2, R`
 	r0 := (3 - i0) - (j0 + 1)
 	// arm64:"ADD" "MOVD [$]4" "SUB"
-	// ppc64x: `SUBC R[0-9]+,\s[$]4,\sR`
+	// ppc64x: `SUBC R[0-9]+, [$]4, R`
 	r1 := (3 - i1) - (j1 - 1)
 	return r0, r1
 }
@@ -788,4 +788,48 @@ func Uint64Max(a, b uint64) uint64 {
 	// riscv64/rva20u64:"BLTU"
 	// riscv64/rva22u64,riscv64/rva23u64:"MAXU"
 	return max(a, b)
+}
+
+// PPC64x: Canonicalization of uint8/uint16 logical immediates
+func U16And(v uint16) uint16 {
+	// ppc64x:"ANDCC [$]32768" -"MOVD"
+	return v & (1 << 15)
+}
+
+func U16Or(v uint16) uint16 {
+	// ppc64x:"OR[I]? [$]32768" -"MOVD"
+	return v | (1 << 15)
+}
+
+func U16Xor(v uint16) uint16 {
+	// ppc64x:"XOR[I]? [$]32768" -"MOVD"
+	return v ^ (1 << 15)
+}
+
+func U8And(v uint8) uint8 {
+	// ppc64x:"ANDCC [$]128" -"MOVD"
+	return v & (1 << 7)
+}
+
+func U8Or(v uint8) uint8 {
+	// ppc64x:"OR[I]? [$]128" -"MOVD"
+	return v | (1 << 7)
+}
+
+func U8Xor(v uint8) uint8 {
+	// ppc64x:"XOR[I]? [$]128" -"MOVD"
+	return v ^ (1 << 7)
+}
+
+func mul9223372036854775808(a uint64) uint64 {
+	// amd64: "SHLQ [$]63"
+	// arm64: "LSL [$]63"
+	// ppc64x:"SLD [$]63"
+	return a * 9223372036854775808
+}
+func mulneg17293822569102704640(a uint64) uint64 {
+	// amd64: "SHLQ [$]60" "NEGQ"
+	// arm64: "NEG R[0-9]+<<60" -"LSL"
+	// ppc64x:"SLD [$]60" "NEG"
+	return a * 17293822569102704640
 }

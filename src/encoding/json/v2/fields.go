@@ -18,6 +18,7 @@ import (
 	"unicode"
 	"unicode/utf8"
 
+	"encoding/json/internal"
 	"encoding/json/internal/jsonflags"
 	"encoding/json/internal/jsonwire"
 )
@@ -80,7 +81,7 @@ func makeStructFields(root reflect.Type) (fs structFields, serr *SemanticError) 
 		return cmp.Or(serr, &SemanticError{GoType: t, Err: fmt.Errorf(f, a...)})
 	}
 
-	// Setup a queue for a breath-first search.
+	// Setup a queue for a breadth-first search.
 	var queueIndex int
 	type queueEntry struct {
 		typ           reflect.Type
@@ -162,7 +163,7 @@ func makeStructFields(root reflect.Type) (fs structFields, serr *SemanticError) 
 				}
 
 				// Handle an inlined field that serializes to/from any number of
-				// JSON object members back by a Go map or jsontext.Value.
+				// JSON object members backed by a Go map or jsontext.Value.
 				switch {
 				case tf == jsontextValueType:
 					f.fncs = nil // specially handled in arshal_inlined.go
@@ -320,7 +321,7 @@ func makeStructFields(root reflect.Type) (fs structFields, serr *SemanticError) 
 	}
 	for foldedName, fields := range fs.byFoldedName {
 		if len(fields) > 1 {
-			// The precedence order for conflicting ignoreCase names
+			// The precedence order for conflicting case-insensitive names
 			// is by breadth-first order, rather than depth-first order.
 			slices.SortFunc(fields, func(x, y *structField) int {
 				return cmp.Compare(x.id, y.id)
@@ -453,9 +454,9 @@ func parseFieldOptions(sf reflect.StructField) (out fieldOptions, ignored bool, 
 		}
 		tag = tag[n:]
 	}
-	b, _ := jsonwire.AppendQuote(nil, out.name, &jsonflags.Flags{})
+	b, _ := jsonwire.AppendQuote(nil, []byte(out.name), &jsonflags.Flags{})
 	out.quotedName = string(b)
-	out.nameNeedEscape = jsonwire.NeedEscape(out.name)
+	out.nameNeedEscape = jsonwire.NeedEscape([]byte(out.name))
 
 	// Handle any additional tag options (if any).
 	var wasFormat bool
@@ -519,6 +520,10 @@ func parseFieldOptions(sf reflect.StructField) (out fieldOptions, ignored bool, 
 		case "string":
 			out.string = true
 		case "format":
+			if !internal.ExpJSONFormat {
+				err = cmp.Or(err, fmt.Errorf("Go struct field %s has invalid `format` tag option without GOEXPERIMENT=jsonformat", sf.Name))
+				break
+			}
 			if !strings.HasPrefix(tag, ":") {
 				err = cmp.Or(err, fmt.Errorf("Go struct field %s is missing value for `format` tag option", sf.Name))
 				break
@@ -576,6 +581,10 @@ func consumeTagOption(in string) (string, int, error) {
 		return in[:n], n, nil
 	// Option as a single-quoted string.
 	case r == '\'':
+		if !internal.ExpJSONFormat {
+			return in[:i], i, fmt.Errorf("invalid use of single-quoted tag option without GOEXPERIMENT=jsonformat")
+		}
+
 		// The grammar is nearly identical to a double-quoted Go string literal,
 		// but uses single quotes as the terminators. The reason for a custom
 		// grammar is because both backtick and double quotes cannot be used

@@ -15,12 +15,6 @@ const (
 	offsetARMHasV7Atomics = unsafe.Offsetof(cpu.ARM.HasV7Atomics)
 )
 
-// Export some functions via linkname to assembly in sync/atomic.
-//
-//go:linkname Xchg
-//go:linkname Xchguintptr
-//go:linkname Xadd
-
 type spinlock struct {
 	v uint32
 }

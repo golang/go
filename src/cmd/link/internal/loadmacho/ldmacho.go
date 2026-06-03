@@ -570,6 +570,9 @@ func Load(l *loader.Loader, arch *sys.Arch, localSymVersion int, f *bio.Reader, 
 			bld.SetData(dat[sect.addr-c.seg.vmaddr:][:sect.size])
 		}
 		bld.SetSize(int64(len(bld.Data())))
+		if sect.align != 0 {
+			bld.SetAlign(1 << sect.align)
+		}
 
 		if sect.segname == "__TEXT" {
 			if sect.name == "__text" {

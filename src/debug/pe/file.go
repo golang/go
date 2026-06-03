@@ -22,6 +22,7 @@ import (
 	"encoding/binary"
 	"errors"
 	"fmt"
+	"internal/saferio"
 	"io"
 	"os"
 	"strings"
@@ -81,7 +82,9 @@ func NewFile(r io.ReaderAt) (*File, error) {
 	if dosheader[0] == 'M' && dosheader[1] == 'Z' {
 		signoff := int64(binary.LittleEndian.Uint32(dosheader[0x3c:]))
 		var sign [4]byte
-		r.ReadAt(sign[:], signoff)
+		if _, err := r.ReadAt(sign[:], signoff); err != nil {
+			return nil, err
+		}
 		if !(sign[0] == 'P' && sign[1] == 'E' && sign[2] == 0 && sign[3] == 0) {
 			return nil, fmt.Errorf("invalid PE file signature: % x", sign)
 		}
@@ -237,12 +240,12 @@ func (f *File) DWARF() (*dwarf.Data, error) {
 
 		if len(b) >= 12 && string(b[:4]) == "ZLIB" {
 			dlen := binary.BigEndian.Uint64(b[4:12])
-			dbuf := make([]byte, dlen)
 			r, err := zlib.NewReader(bytes.NewBuffer(b[12:]))
 			if err != nil {
 				return nil, err
 			}
-			if _, err := io.ReadFull(r, dbuf); err != nil {
+			dbuf, err := saferio.ReadData(r, dlen)
+			if err != nil {
 				return nil, err
 			}
 			if err := r.Close(); err != nil {

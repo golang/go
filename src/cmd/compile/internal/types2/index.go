@@ -77,7 +77,7 @@ func (check *Checker) indexExpr(x *operand, e *syntax.IndexExpr) (isFuncInst boo
 		if isString(typ) {
 			valid = true
 			if x.mode() == constant_ {
-				length = int64(len(constant.StringVal(x.val)))
+				length = constant.StringLen(x.val)
 			}
 			// an indexed string always yields a byte value
 			// (not a constant) even if the string and the
@@ -302,7 +302,7 @@ func (check *Checker) sliceExpr(x *operand, e *syntax.SliceExpr) {
 			}
 			valid = true
 			if x.mode() == constant_ {
-				length = int64(len(constant.StringVal(x.val)))
+				length = constant.StringLen(x.val)
 			}
 			// spec: "For untyped string operands the result
 			// is a non-constant value of type string."

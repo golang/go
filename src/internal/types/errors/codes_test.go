@@ -47,7 +47,7 @@ func TestErrorCodeExamples(t *testing.T) {
 func walkCodes(t *testing.T, f func(string, int, *ast.ValueSpec)) {
 	t.Helper()
 	fset := token.NewFileSet()
-	file, err := parser.ParseFile(fset, "codes.go", nil, parser.ParseComments)
+	file, err := parser.ParseFile(fset, "codes.go", nil, parser.ParseComments|parser.SkipObjectResolution)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -95,7 +95,7 @@ func checkExample(t *testing.T, example string) error {
 	if !strings.HasPrefix(example, "package") {
 		example = "package p\n\n" + example
 	}
-	file, err := parser.ParseFile(fset, "example.go", example, 0)
+	file, err := parser.ParseFile(fset, "example.go", example, parser.SkipObjectResolution)
 	if err != nil {
 		t.Fatal(err)
 	}

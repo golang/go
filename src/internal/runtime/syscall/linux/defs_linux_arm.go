@@ -17,6 +17,7 @@ const (
 	SYS_OPENAT        = 322
 	SYS_PREAD64       = 180
 	SYS_READ          = 3
+	SYS_UNAME         = 122
 
 	EFD_NONBLOCK = 0x800
 

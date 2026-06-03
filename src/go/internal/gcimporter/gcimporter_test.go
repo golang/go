@@ -231,7 +231,7 @@ func sanitizeObjectString(s string) string {
 
 func checkFile(t *testing.T, filename string, src []byte) *types.Package {
 	fset := token.NewFileSet()
-	f, err := parser.ParseFile(fset, filename, src, 0)
+	f, err := parser.ParseFile(fset, filename, src, parser.SkipObjectResolution)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -792,7 +792,7 @@ func TestIssue69912(t *testing.T) {
 	}
 
 	check := func(pkgname, src string, imports importMap) (*types.Package, error) {
-		f, err := parser.ParseFile(fset, "a.go", src, 0)
+		f, err := parser.ParseFile(fset, "a.go", src, parser.SkipObjectResolution)
 		if err != nil {
 			return nil, err
 		}

@@ -9,6 +9,15 @@ package runtime
 import "unsafe"
 
 // Called from assembly only; declared for go vet.
+//
+// load_g is also called from runtime/cgo.
+//
+// load_g should be an internal detail,
+// but widely used packages access it using linkname.
+// Notable members of the hall of shame include:
+//   - github.com/ebitengine/purego
+//
+//go:linkname load_g
 func load_g()
 func save_g()
 

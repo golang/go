@@ -12,6 +12,7 @@ import (
 	"debug/pe"
 	"errors"
 	"internal/abi"
+	"internal/buildcfg"
 	"internal/platform"
 	"internal/testenv"
 	"internal/xcoff"
@@ -128,7 +129,7 @@ func TestIssue21703(t *testing.T) {
 	t.Parallel()
 
 	testenv.MustHaveGoBuild(t)
-	// N.B. the build below explictly doesn't pass through
+	// N.B. the build below explicitly doesn't pass through
 	// -asan/-msan/-race, so we don't care about those.
 	testenv.MustInternalLink(t, testenv.NoSpecialBuildTypes)
 
@@ -175,7 +176,7 @@ func TestIssue28429(t *testing.T) {
 	t.Parallel()
 
 	testenv.MustHaveGoBuild(t)
-	// N.B. go build below explictly doesn't pass through
+	// N.B. go build below explicitly doesn't pass through
 	// -asan/-msan/-race, so we don't care about those.
 	testenv.MustInternalLink(t, testenv.NoSpecialBuildTypes)
 
@@ -280,7 +281,7 @@ main.x: relocation target main.zero not defined
 func TestIssue33979(t *testing.T) {
 	testenv.MustHaveGoBuild(t)
 	testenv.MustHaveCGO(t)
-	// N.B. go build below explictly doesn't pass through
+	// N.B. go build below explicitly doesn't pass through
 	// -asan/-msan/-race, so we don't care about those.
 	testenv.MustInternalLink(t, testenv.SpecialBuildTypes{Cgo: true})
 
@@ -451,7 +452,9 @@ func main() { }
 
 func TestMachOBuildVersion(t *testing.T) {
 	testenv.MustHaveGoBuild(t)
-
+	if runtime.GOOS != "darwin" {
+		t.Skip("skip on non-Mach-O platforms")
+	}
 	t.Parallel()
 
 	tmpdir := t.TempDir()
@@ -464,11 +467,7 @@ func TestMachOBuildVersion(t *testing.T) {
 
 	exe := filepath.Join(tmpdir, "main")
 	cmd := goCmd(t, "build", "-ldflags=-linkmode=internal", "-o", exe, src)
-	cmd.Env = append(cmd.Env,
-		"CGO_ENABLED=0",
-		"GOOS=darwin",
-		"GOARCH=amd64",
-	)
+	cmd.Env = append(cmd.Env, "CGO_ENABLED=0")
 	if out, err := cmd.CombinedOutput(); err != nil {
 		t.Fatalf("%v: %v:\n%s", cmd.Args, err, out)
 	}
@@ -484,8 +483,8 @@ func TestMachOBuildVersion(t *testing.T) {
 	found := false
 	checkMin := func(ver uint32) {
 		major, minor, patch := (ver>>16)&0xff, (ver>>8)&0xff, (ver>>0)&0xff
-		if major < 12 {
-			t.Errorf("LC_BUILD_VERSION version %d.%d.%d < 12.0.0", major, minor, patch)
+		if major < 13 {
+			t.Errorf("LC_BUILD_VERSION version %d.%d.%d < 13.0.0", major, minor, patch)
 		}
 	}
 	for _, cmd := range exem.Loads {
@@ -921,10 +920,16 @@ func TestTrampoline(t *testing.T) {
 	// calls will use trampolines.
 	buildmodes := []string{"default"}
 	switch runtime.GOARCH {
-	case "arm", "arm64", "ppc64", "loong64":
-	case "ppc64le":
-		// Trampolines are generated differently when internal linking PIE, test them too.
-		buildmodes = append(buildmodes, "pie")
+	case "arm", "arm64", "loong64":
+	case "ppc64le", "ppc64":
+		switch runtime.GOOS {
+		case "aix":
+		case "linux":
+			// Trampolines are generated differently when internal linking PIE, test them too.
+			buildmodes = append(buildmodes, "pie")
+		default:
+			t.Skipf("trampoline insertion is not implemented on %s-%s", runtime.GOARCH, runtime.GOOS)
+		}
 	default:
 		t.Skipf("trampoline insertion is not implemented on %s", runtime.GOARCH)
 	}
@@ -986,8 +991,8 @@ func TestTrampolineCgo(t *testing.T) {
 	// calls will use trampolines.
 	buildmodes := []string{"default"}
 	switch runtime.GOARCH {
-	case "arm", "arm64", "ppc64", "loong64":
-	case "ppc64le":
+	case "arm", "arm64", "loong64":
+	case "ppc64le", "ppc64":
 		// Trampolines are generated differently when internal linking PIE, test them too.
 		buildmodes = append(buildmodes, "pie")
 	default:
@@ -1049,7 +1054,7 @@ func TestIndexMismatch(t *testing.T) {
 	// This shouldn't happen with "go build". We invoke the compiler and the linker
 	// manually, and try to "trick" the linker with an inconsistent object file.
 	testenv.MustHaveGoBuild(t)
-	// N.B. the build below explictly doesn't pass through
+	// N.B. the build below explicitly doesn't pass through
 	// -asan/-msan/-race, so we don't care about those.
 	testenv.MustInternalLink(t, testenv.NoSpecialBuildTypes)
 
@@ -1468,10 +1473,11 @@ func main() {}
 	// Link with -v -linkmode=external to see the flags we pass to the
 	// external linker.
 	ldflags := "-ldflags=-v -linkmode=external -tmpdir=" + linktmp
-	var out0 []byte
+	var out0, fullOut0 []byte
 	for i := 0; i < 5; i++ {
-		cmd := goCmd(t, "build", ldflags, "-o", exe, src)
-		out, err := cmd.CombinedOutput()
+		cmd := goCmd(t, "build", ldflags, "-x", "-o", exe, src)
+		fullOut, err := cmd.CombinedOutput()
+		out := fullOut
 		if err != nil {
 			t.Fatalf("build failed: %v, output:\n%s", err, out)
 		}
@@ -1504,10 +1510,12 @@ func main() {}
 
 		if i == 0 {
 			out0 = out
+			fullOut0 = fullOut
 			continue
 		}
 		if !bytes.Equal(out0, out) {
-			t.Fatalf("output differ:\n%s\n==========\n%s", out0, out)
+			t.Fatalf("output differ:\n%s\n==========\n%s\n\nfull output:\n%s\n==========\n%s",
+				out0, out, fullOut0, fullOut)
 		}
 	}
 }
@@ -1708,6 +1716,10 @@ func TestCheckLinkname(t *testing.T) {
 		{"coro2.go", false},
 		// pull linkname of a builtin symbol is not ok
 		{"builtin.go", false},
+		// using a linkname to reference a runtime assembly
+		// function is not ok (except on non-regabi platforms)
+		{"systemstack.go", !buildcfg.Experiment.RegabiWrappers},
+		// misc
 		{"addmoduledata.go", false},
 		{"freegc.go", false},
 		// legacy bad linkname is ok, for now
@@ -1715,7 +1727,6 @@ func TestCheckLinkname(t *testing.T) {
 		{"badlinkname.go", true},
 	}
 	for _, test := range tests {
-		test := test
 		t.Run(test.src, func(t *testing.T) {
 			t.Parallel()
 			src := "./testdata/linkname/" + test.src

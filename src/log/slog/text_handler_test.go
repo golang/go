@@ -55,6 +55,16 @@ func TestTextHandler(t *testing.T) {
 			`t`, `"!ERROR:text: empty string"`,
 		},
 		{
+			"TextAppender",
+			Any("t", textAppend{"abc"}),
+			`t`, `"textAppend{\"abc\"}"`,
+		},
+		{
+			"TextAppender error",
+			Any("t", textAppend{""}),
+			`t`, `"!ERROR:textAppend: empty string"`,
+		},
+		{
 			"nil value",
 			Any("a", nil),
 			`a`, `<nil>`,
@@ -120,6 +130,23 @@ func (t text) MarshalText() ([]byte, error) {
 		return nil, errors.New("text: empty string")
 	}
 	return []byte(fmt.Sprintf("text{%q}", t.s)), nil
+}
+
+// for testing TextAppender
+type textAppend struct {
+	s string
+}
+
+func (t textAppend) String() string               { return t.s }
+func (t textAppend) MarshalText() ([]byte, error) { return []byte(t.s), nil }
+func (t textAppend) AppendText(b []byte) ([]byte, error) {
+	if t.s == "" {
+		return nil, errors.New("textAppend: empty string")
+	}
+	b = append(b, `textAppend{"`...)
+	b = append(b, t.s...)
+	b = append(b, `"}`...)
+	return b, nil
 }
 
 func TestTextHandlerPreformatted(t *testing.T) {

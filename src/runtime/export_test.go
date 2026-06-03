@@ -12,6 +12,7 @@ import (
 	"internal/goos"
 	"internal/runtime/atomic"
 	"internal/runtime/gc"
+	"internal/runtime/maps"
 	"internal/runtime/sys"
 	"unsafe"
 )
@@ -211,7 +212,7 @@ var (
 	IfaceHash  = ifaceHash
 )
 
-var UseAeshash = &useAeshash
+var UseAeshash = &maps.UseAeshash
 
 func MemclrBytes(b []byte) {
 	s := (*slice)(unsafe.Pointer(&b))
@@ -254,7 +255,6 @@ func SetTracebackEnv(level string) {
 	traceback_env = traceback_cache
 }
 
-var ReadUnaligned32 = readUnaligned32
 var ReadUnaligned64 = readUnaligned64
 
 func CountPagesInUse() (pagesInUse, counted uintptr) {
@@ -550,7 +550,7 @@ func MapNextArenaHint() (start, end uintptr, ok bool) {
 	if !ok {
 		// We were unable to get the requested reservation.
 		// Release what we did get and fail.
-		sysFreeOS(got, physPageSize)
+		sysUnreserve(got, physPageSize)
 	}
 	return
 }
@@ -1091,18 +1091,20 @@ func FreePageAlloc(pp *PageAlloc) {
 	// Free all the mapped space for the summary levels.
 	if pageAlloc64Bit != 0 {
 		for l := 0; l < summaryLevels; l++ {
-			sysFreeOS(unsafe.Pointer(&p.summary[l][0]), uintptr(cap(p.summary[l]))*pallocSumBytes)
+			// This isn't quite right, as some of this memory may
+			// be Ready instead of Reserved. The mappedReady and
+			// testSysStat adjustments below correct for the
+			// difference.
+			sysUnreserve(unsafe.Pointer(&p.summary[l][0]), uintptr(cap(p.summary[l]))*pallocSumBytes)
 		}
 	} else {
 		resSize := uintptr(0)
 		for _, s := range p.summary {
 			resSize += uintptr(cap(s)) * pallocSumBytes
 		}
-		sysFreeOS(unsafe.Pointer(&p.summary[0][0]), alignUp(resSize, physPageSize))
+		// See sysUnreserve comment above.
+		sysUnreserve(unsafe.Pointer(&p.summary[0][0]), alignUp(resSize, physPageSize))
 	}
-
-	// Free extra data structures.
-	sysFreeOS(unsafe.Pointer(&p.scav.index.chunks[0]), uintptr(cap(p.scav.index.chunks))*unsafe.Sizeof(atomicScavChunkData{}))
 
 	// Subtract back out whatever we mapped for the summaries.
 	// sysUsed adds to p.sysStat and memstats.mappedReady no matter what
@@ -1110,6 +1112,12 @@ func FreePageAlloc(pp *PageAlloc) {
 	// way to figure out how much we actually mapped.
 	gcController.mappedReady.Add(-int64(p.summaryMappedReady))
 	testSysStat.add(-int64(p.summaryMappedReady))
+
+	// Free extra data structures.
+	//
+	// TODO(prattmic): As above, some of this may be Ready, so we should
+	// manually adjust mappedReady and testSysStat?
+	sysUnreserve(unsafe.Pointer(&p.scav.index.chunks[0]), uintptr(cap(p.scav.index.chunks))*unsafe.Sizeof(atomicScavChunkData{}))
 
 	// Free the mapped space for chunks.
 	for i := range p.chunks {
@@ -2082,4 +2090,31 @@ func DumpPrintQuoted(s string) string {
 	gp.writebuf = nil
 
 	return string(buf)
+}
+
+// DumpPrint returns the output of print(v).
+func DumpPrint[T any](v T) string {
+	gp := getg()
+	gp.writebuf = make([]byte, 0, 2048)
+	print(v)
+	buf := gp.writebuf
+	gp.writebuf = nil
+
+	return string(buf)
+}
+
+var (
+	Float64Bytes    = float64Bytes
+	Float32Bytes    = float32Bytes
+	Complex128Bytes = complex128Bytes
+	Complex64Bytes  = complex64Bytes
+)
+
+func GetScanAlloc() uintptr {
+	c := getMCache(getg().m)
+	return c.scanAlloc
+}
+
+func MallocGC(size uintptr, typ *abi.Type, needzero bool) unsafe.Pointer {
+	return mallocgc(size, typ, needzero)
 }

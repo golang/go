@@ -1,0 +1,43 @@
+[short] skip
+[!exec:hg] skip
+
+env GO111MODULE=on
+env GOPROXY=direct
+env GOSUMDB=off
+env GOMODCACHE=$WORK/modcache
+
+# go list on repo with no tags
+go clean -modcache
+go list -x -json -m -retracted -versions vcs-test.golang.org/hg/hello.hg@latest
+stderr 'hg( .*)* pull'
+cp stdout hellolist.json
+! stdout '"Versions"'
+stdout '"Version": "v0.0.0-20170922011414-e483a7d9f8c9"'
+stdout '"VCS": "hg"'
+stdout '"URL": ".*/hg/hello"'
+stdout '"Query": "latest"'
+stdout '"Hash": "e483a7d9f8c9b4bc57430bdd8f81f0a65e4011c0"'
+stdout '"RepoSum": "r1:blLvkhBriVMV[+]6Il4Ub43wlyWXIe1NpobTelF0peaG0="'
+
+# reuse go list on repo with no tags
+go clean -modcache
+go list -x -reuse=hellolist.json -json -m -retracted -versions vcs-test.golang.org/hg/hello.hg@latest
+! stderr 'hg( .*)* pull'
+stdout '"Reuse": true'
+! stdout '"Versions"'
+stdout '"Version": "v0.0.0-20170922011414-e483a7d9f8c9"'
+stdout '"VCS": "hg"'
+stdout '"URL": ".*/hg/hello"'
+stdout '"Query": "latest"'
+stdout '"RepoSum": "r1:blLvkhBriVMV[+]6Il4Ub43wlyWXIe1NpobTelF0peaG0="'
+stdout '"Hash": "e483a7d9f8c9b4bc57430bdd8f81f0a65e4011c0"'
+
+# reuse with stale list
+go clean -modcache
+cp hellolist.json hellolistbad.json
+replace 'blLvkhBri' 'ZZZ' hellolistbad.json
+go clean -modcache
+go list -x -reuse=hellolistbad.json -json -m -retracted -versions vcs-test.golang.org/hg/hello.hg@latest
+stderr 'hg( .*)* pull'
+! stdout '"Reuse": true'
+stdout '"RepoSum": "r1:blLvkhBriVMV[+]6Il4Ub43wlyWXIe1NpobTelF0peaG0="'

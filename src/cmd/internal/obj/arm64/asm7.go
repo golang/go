@@ -36,6 +36,7 @@ import (
 	"encoding/binary"
 	"errors"
 	"fmt"
+	"internal/buildcfg"
 	"log"
 	"math"
 	"math/bits"
@@ -196,7 +197,7 @@ var atomicCASP = map[obj.As]uint32{
 	ACASPW: 0<<30 | 0x41<<21 | 0x1f<<10,
 }
 
-var oprange [ALAST & obj.AMask][]Optab
+var oprange [obj.AllowedOpCodes][]Optab
 
 var xcmp [C_NCLASS][C_NCLASS]bool
 
@@ -281,6 +282,30 @@ func MOVCONST(d int64, s int, rt int) uint32 {
 	return uint32(((d>>uint(s*16))&0xFFFF)<<5) | uint32(s)&3<<21 | uint32(rt&31)
 }
 
+func ASIMDALL(u, size, opcode uint32) uint32 {
+	return u<<29 | 0x7<<25 | size<<22 | 3<<20 | opcode<<12 | 1<<11
+}
+
+func ASIMDDIFF(u, opcode uint32) uint32 {
+	return u<<29 | 0x7<<25 | 1<<21 | opcode<<12
+}
+
+func ASIMDMISC(u, size, opcode uint32) uint32 {
+	return u<<29 | 0x7<<25 | size<<22 | 1<<21 | opcode<<12 | 1<<11
+}
+
+func ASIMDPERM(opcode uint32) uint32 {
+	return 0x7<<25 | opcode<<12 | 1<<11
+}
+
+func ASIMDSAME(u, size, opcode uint32) uint32 {
+	return u<<29 | 0x7<<25 | size<<22 | 1<<21 | opcode<<11 | 1<<10
+}
+
+func ASIMDSHF(u, opcode uint32) uint32 {
+	return u<<29 | 0xF<<24 | opcode<<11 | 1<<10
+}
+
 const (
 	// Optab.flag
 	LFROM        = 1 << iota // p.From uses constant pool
@@ -351,6 +376,13 @@ var optab = []Optab{
 	{AFCMPS, C_FREG, C_FREG, C_NONE, C_NONE, C_NONE, 56, 4, 0, 0, 0},
 	{AFCMPS, C_FCON, C_FREG, C_NONE, C_NONE, C_NONE, 56, 4, 0, 0, 0},
 	{AVADDP, C_ARNG, C_ARNG, C_NONE, C_ARNG, C_NONE, 72, 4, 0, 0, 0},
+	{AVCMEQ, C_ARNG, C_ARNG, C_NONE, C_ARNG, C_NONE, 72, 4, 0, 0, 0},
+	{AVCMEQ, C_ZCON, C_ARNG, C_NONE, C_ARNG, C_NONE, 109, 4, 0, 0, 0},
+	{AVCMLE, C_ZCON, C_ARNG, C_NONE, C_ARNG, C_NONE, 109, 4, 0, 0, 0},
+	{AVFCMEQ, C_ARNG, C_ARNG, C_NONE, C_ARNG, C_NONE, 72, 4, 0, 0, 0},
+	{AVFCMEQ, C_FCON, C_ARNG, C_NONE, C_ARNG, C_NONE, 109, 4, 0, 0, 0},
+	{AVFCMLE, C_FCON, C_ARNG, C_NONE, C_ARNG, C_NONE, 109, 4, 0, 0, 0},
+
 	{AVADD, C_ARNG, C_ARNG, C_NONE, C_ARNG, C_NONE, 72, 4, 0, 0, 0},
 	{AVADD, C_VREG, C_VREG, C_NONE, C_VREG, C_NONE, 89, 4, 0, 0, 0},
 	{AVADD, C_VREG, C_NONE, C_NONE, C_VREG, C_NONE, 89, 4, 0, 0, 0},
@@ -511,7 +543,10 @@ var optab = []Optab{
 	{AVEXT, C_VCON, C_ARNG, C_ARNG, C_ARNG, C_NONE, 94, 4, 0, 0, 0},
 	{AVTBL, C_ARNG, C_NONE, C_LIST, C_ARNG, C_NONE, 100, 4, 0, 0, 0},
 	{AVUSHR, C_VCON, C_ARNG, C_NONE, C_ARNG, C_NONE, 95, 4, 0, 0, 0},
+	{AVXTN, C_ARNG, C_NONE, C_NONE, C_ARNG, C_NONE, 95, 4, 0, 0, 0},
+	{AVSQSHL, C_VCON, C_ARNG, C_NONE, C_ARNG, C_NONE, 95, 4, 0, 0, 0},
 	{AVZIP1, C_ARNG, C_ARNG, C_NONE, C_ARNG, C_NONE, 72, 4, 0, 0, 0},
+	{AVSQSHL, C_ARNG, C_ARNG, C_NONE, C_ARNG, C_NONE, 72, 4, 0, 0, 0},
 	{AVUSHLL, C_VCON, C_ARNG, C_NONE, C_ARNG, C_NONE, 102, 4, 0, 0, 0},
 	{AVUXTL, C_ARNG, C_NONE, C_NONE, C_ARNG, C_NONE, 102, 4, 0, 0, 0},
 	{AVUADDW, C_ARNG, C_ARNG, C_NONE, C_ARNG, C_NONE, 105, 4, 0, 0, 0},
@@ -868,6 +903,8 @@ var optab = []Optab{
 	{AMSR, C_VCON, C_NONE, C_NONE, C_SPOP, C_NONE, 37, 4, 0, 0, 0},
 	{APRFM, C_UOREG32K, C_NONE, C_NONE, C_SPOP, C_NONE, 91, 4, 0, 0, 0},
 	{APRFM, C_UOREG32K, C_NONE, C_NONE, C_LCON, C_NONE, 91, 4, 0, 0, 0},
+	{ARPRFM, C_ZOREG, C_REG, C_NONE, C_SPOP, C_NONE, 110, 4, 0, 0, 0},
+	{ARPRFM, C_ZOREG, C_REG, C_NONE, C_LCON, C_NONE, 110, 4, 0, 0, 0},
 	{ADMB, C_VCON, C_NONE, C_NONE, C_NONE, C_NONE, 51, 4, 0, 0, 0},
 	{AHINT, C_VCON, C_NONE, C_NONE, C_NONE, C_NONE, 52, 4, 0, 0, 0},
 	{ASYS, C_VCON, C_NONE, C_NONE, C_NONE, C_NONE, 50, 4, 0, 0, 0},
@@ -877,6 +914,7 @@ var optab = []Optab{
 	{ATLBI, C_SPOP, C_NONE, C_NONE, C_ZREG, C_NONE, 107, 4, 0, 0, 0},
 	{ABTI, C_NONE, C_NONE, C_NONE, C_NONE, C_NONE, 108, 4, 0, 0, 0},
 	{ABTI, C_SPOP, C_NONE, C_NONE, C_NONE, C_NONE, 108, 4, 0, 0, 0},
+	{ASB, C_NONE, C_NONE, C_NONE, C_NONE, C_NONE, 10, 4, 0, 0, 0},
 
 	/* encryption instructions */
 	{AAESD, C_VREG, C_NONE, C_NONE, C_VREG, C_NONE, 26, 4, 0, 0, 0}, // for compatibility with old code
@@ -907,6 +945,13 @@ var pstatefield = []struct {
 }{
 	{SPOP_DAIFSet, 3<<16 | 4<<12 | 6<<5},
 	{SPOP_DAIFClr, 3<<16 | 4<<12 | 7<<5},
+}
+
+var rprfopfield = map[SpecialOperand]uint32{
+	SPOP_PLDKEEP: 0,
+	SPOP_PSTKEEP: 1,
+	SPOP_PLDSTRM: 4,
+	SPOP_PSTSTRM: 5,
 }
 
 var prfopfield = map[SpecialOperand]uint32{
@@ -1062,7 +1107,7 @@ const OP_NOOP = 0xd503201f
 func (o *Optab) size(ctxt *obj.Link, p *obj.Prog) int {
 	// Optimize adrp+add+ld/st to adrp+ld/st(offset).
 	sz := movesize(p.As)
-	if sz != -1 {
+	if 0 <= sz && sz <= 3 {
 		// Relocations R_AARCH64_LDST{64,32,16,8}_ABS_LO12_NC can only generate 8-byte, 4-byte,
 		// 2-byte and 1-byte aligned addresses, so the address of load/store must be aligned.
 		// Also symbols with prefix of "go:string." are Go strings, which will go into
@@ -1072,8 +1117,22 @@ func (o *Optab) size(ctxt *obj.Link, p *obj.Prog) int {
 		// to decide whether to use the unaligned/aligned forms, so o.size's result is always
 		// in sync with the code generation decisions, because it *is* the code generation decision.
 		align := int64(1 << sz)
-		if o.a1 == C_ADDR && p.From.Offset%align == 0 && int64(p.From.Sym.Align) >= align ||
-			o.a4 == C_ADDR && p.To.Offset%align == 0 && int64(p.To.Sym.Align) >= align {
+		ok := func(a *obj.Addr) bool {
+			if a.Offset%align != 0 {
+				return false
+			}
+			s := a.Sym
+			if s.Align != 0 {
+				return int64(s.Align) >= align
+			}
+			// When Align==0, the linker chooses a big enough alignment that this will
+			// always be ok. (It chooses the biggest alignment that fits in the object
+			// size. See cmd/link/internal/ld/data.go:symalign. That alignment will
+			// always be at least as big as this operation is, because this operation
+			// must fit in the object.) See issue 78585.
+			return true
+		}
+		if o.a1 == C_ADDR && ok(&p.From) || o.a4 == C_ADDR && ok(&p.To) {
 			return 8
 		}
 	}
@@ -1391,10 +1450,8 @@ func roundUp(x, to uint32) uint32 {
 	return (x + to - 1) &^ (to - 1)
 }
 
-// splitImm24uScaled splits an immediate into a scaled 12 bit unsigned lo value
-// and an unscaled shifted 12 bit unsigned hi value. These are typically used
-// by adding or subtracting the hi value and using the lo value as the offset
-// for a load or store.
+// splitImm24uScaled returns hi, lo such that v == hi + lo<<shift.
+// Always 0 <= lo <= 0xfff, and hi is either 0 <= hi <= 0xfff, or (hi&0xfff == 0 && 0 <= hi <= 0xfff000).
 func splitImm24uScaled(v int32, shift int) (int32, int32, error) {
 	if v < 0 {
 		return 0, 0, fmt.Errorf("%d is not a 24 bit unsigned immediate", v)
@@ -1402,19 +1459,28 @@ func splitImm24uScaled(v int32, shift int) (int32, int32, error) {
 	if v > 0xfff000+0xfff<<shift {
 		return 0, 0, fmt.Errorf("%d is too large for a scaled 24 bit unsigned immediate", v)
 	}
-	if v&((1<<shift)-1) != 0 {
-		return 0, 0, fmt.Errorf("%d is not a multiple of %d", v, 1<<shift)
+
+	// Try hi <= 0xfff and lo <= 0xfff such that v = hi + (lo << shift).
+	hi := max(v-(0xfff<<shift), v&((1<<shift)-1))
+	if hi <= 0xfff {
+		lo := (v - hi) >> shift
+		if lo <= 0xfff {
+			return hi, lo, nil
+		}
 	}
+
+	// Try hi shifted left by 12 bits.
 	lo := (v >> shift) & 0xfff
-	hi := v - (lo << shift)
+	hi = v - (lo << shift)
 	if hi > 0xfff000 {
 		hi = 0xfff000
 		lo = (v - hi) >> shift
 	}
-	if hi & ^0xfff000 != 0 {
-		panic(fmt.Sprintf("bad split for %x with shift %v (%x, %x)", v, shift, hi, lo))
+	if hi&^0xfff000 == 0 && hi+lo<<shift == v {
+		return hi, lo, nil
 	}
-	return hi, lo, nil
+
+	return 0, 0, fmt.Errorf("%d cannot be split into valid hi/lo", v)
 }
 
 func (c *ctxt7) regoff(a *obj.Addr) int32 {
@@ -1823,7 +1889,7 @@ func rclass(r int16) int {
 		return C_RSP
 	case r >= REG_ARNG && r < REG_ELEM:
 		return C_ARNG
-	case r >= REG_ELEM && r < REG_ELEM_END:
+	case r >= REG_ELEM && r < REG_ZARNG:
 		return C_ELEM
 	case r >= REG_UXTB && r < REG_SPECIAL,
 		r >= REG_LSL && r < REG_ARNG:
@@ -1968,28 +2034,28 @@ func (c *ctxt7) loadStoreClass(p *obj.Prog, lsc int, v int64) int {
 		if cmp(C_UAUTO8K, lsc) || cmp(C_UOREG8K, lsc) {
 			return lsc
 		}
-		if v >= 0 && v <= 0xfff000+0xfff<<1 && v&1 == 0 {
+		if v >= 0 && v <= 0xfff000+0xfff<<1 && (v&1 == 0 || v <= 0xfff+0xfff<<1) {
 			needsPool = false
 		}
 	case AMOVW, AMOVWU, AFMOVS:
 		if cmp(C_UAUTO16K, lsc) || cmp(C_UOREG16K, lsc) {
 			return lsc
 		}
-		if v >= 0 && v <= 0xfff000+0xfff<<2 && v&3 == 0 {
+		if v >= 0 && v <= 0xfff000+0xfff<<2 && (v&3 == 0 || v <= 0xfff+0xfff<<2) {
 			needsPool = false
 		}
 	case AMOVD, AFMOVD:
 		if cmp(C_UAUTO32K, lsc) || cmp(C_UOREG32K, lsc) {
 			return lsc
 		}
-		if v >= 0 && v <= 0xfff000+0xfff<<3 && v&7 == 0 {
+		if v >= 0 && v <= 0xfff000+0xfff<<3 && (v&7 == 0 || v <= 0xfff+0xfff<<3) {
 			needsPool = false
 		}
 	case AFMOVQ:
 		if cmp(C_UAUTO64K, lsc) || cmp(C_UOREG64K, lsc) {
 			return lsc
 		}
-		if v >= 0 && v <= 0xfff000+0xfff<<4 && v&15 == 0 {
+		if v >= 0 && v <= 0xfff000+0xfff<<4 && (v&15 == 0 || v <= 0xfff+0xfff<<4) {
 			needsPool = false
 		}
 	}
@@ -2175,7 +2241,23 @@ func (c *ctxt7) aclass(a *obj.Addr) int {
 	return C_GOK
 }
 
+// SVE instructions, type 127 is reserved for SVE instructions.
+// All SVE instructions are sized 4 bytes.
+var sveOptab = Optab{0, C_GOK, C_GOK, C_GOK, C_GOK, C_GOK, 127, 4, 0, 0, 0}
+
+func isSVE(as obj.As) bool {
+	// A64 opcodes are prefixed with AZ or AP for SVE/SVE2
+	// In goops_gen.go they are defined starting from ASVESTART + 1.
+	return as > ASVESTART
+}
+
 func (c *ctxt7) oplook(p *obj.Prog) *Optab {
+	if buildcfg.Experiment.SIMD && isSVE(p.As) {
+		// All SVE instructions are in the Insts table.
+		// Matching happens in asmout.
+		return &sveOptab
+	}
+
 	a1 := int(p.Optab)
 	if a1 != 0 {
 		return &optab[a1-1]
@@ -3156,17 +3238,53 @@ func buildop(ctxt *obj.Link) {
 
 		case AVADDP:
 			oprangeset(AVAND, t)
-			oprangeset(AVCMEQ, t)
 			oprangeset(AVORR, t)
 			oprangeset(AVEOR, t)
+			oprangeset(AVBIC, t)
+			oprangeset(AVORN, t)
 			oprangeset(AVBSL, t)
 			oprangeset(AVBIT, t)
 			oprangeset(AVCMTST, t)
+			oprangeset(AVCMHI, t)
+			oprangeset(AVSQADD, t)
+			oprangeset(AVUQADD, t)
+			oprangeset(AVSQSUB, t)
+			oprangeset(AVUQSUB, t)
+			oprangeset(AVMUL, t)
+			oprangeset(AVMLA, t)
+			oprangeset(AVMLS, t)
+			oprangeset(AVSHADD, t)
+			oprangeset(AVSRHADD, t)
+			oprangeset(AVSSHL, t)
+			oprangeset(AVUSHL, t)
+			oprangeset(AVUHADD, t)
+			oprangeset(AVURHADD, t)
+			oprangeset(AVCMHS, t)
 			oprangeset(AVUMAX, t)
 			oprangeset(AVUMIN, t)
+			oprangeset(AVSMAX, t)
+			oprangeset(AVSMIN, t)
+			oprangeset(AVSMAXP, t)
+			oprangeset(AVSMINP, t)
+			oprangeset(AVUMAXP, t)
+			oprangeset(AVUMINP, t)
 			oprangeset(AVUZP1, t)
 			oprangeset(AVUZP2, t)
 			oprangeset(AVBIF, t)
+
+		case AVCMEQ:
+			oprangeset(AVCMGE, t)
+			oprangeset(AVCMGT, t)
+
+		case AVCMLE:
+			oprangeset(AVCMLT, t)
+
+		case AVFCMEQ:
+			oprangeset(AVFCMGE, t)
+			oprangeset(AVFCMGT, t)
+
+		case AVFCMLE:
+			oprangeset(AVFCMLT, t)
 
 		case AVADD:
 			oprangeset(AVSUB, t)
@@ -3195,24 +3313,93 @@ func buildop(ctxt *obj.Link) {
 
 		case AVADDV:
 			oprangeset(AVUADDLV, t)
+			oprangeset(AVFMAXV, t)
+			oprangeset(AVFMAXNMV, t)
+			oprangeset(AVFMINV, t)
+			oprangeset(AVFMINNMV, t)
+			oprangeset(AVSMAXV, t)
+			oprangeset(AVSMINV, t)
+			oprangeset(AVUMAXV, t)
+			oprangeset(AVUMINV, t)
 
 		case AVFMLA:
 			oprangeset(AVFMLS, t)
+			oprangeset(AVFADD, t)
+			oprangeset(AVFSUB, t)
+			oprangeset(AVFMUL, t)
+			oprangeset(AVFDIV, t)
+			oprangeset(AVFMAX, t)
+			oprangeset(AVFMAXNM, t)
+			oprangeset(AVFMAXP, t)
+			oprangeset(AVFADDP, t)
+			oprangeset(AVFMIN, t)
+			oprangeset(AVFMINNM, t)
+			oprangeset(AVFMINP, t)
+			oprangeset(AVFMAXNMP, t)
+			oprangeset(AVFMINNMP, t)
 
 		case AVPMULL:
 			oprangeset(AVPMULL2, t)
+			oprangeset(AVSMLAL, t)
+			oprangeset(AVSMLAL2, t)
+			oprangeset(AVSMLSL, t)
+			oprangeset(AVSMLSL2, t)
+			oprangeset(AVSMULL, t)
+			oprangeset(AVSMULL2, t)
+			oprangeset(AVUMLAL, t)
+			oprangeset(AVUMLAL2, t)
+			oprangeset(AVUMLSL, t)
+			oprangeset(AVUMLSL2, t)
+			oprangeset(AVUMULL, t)
+			oprangeset(AVUMULL2, t)
 
 		case AVUSHR:
 			oprangeset(AVSHL, t)
 			oprangeset(AVSRI, t)
 			oprangeset(AVSLI, t)
 			oprangeset(AVUSRA, t)
+			oprangeset(AVSSHR, t)
+			oprangeset(AVSRSHR, t)
+			oprangeset(AVSHRN, t)
+			oprangeset(AVSHRN2, t)
+
+		case AVXTN:
+			oprangeset(AVXTN2, t)
+			oprangeset(AVSQXTN, t)
+			oprangeset(AVSQXTN2, t)
+			oprangeset(AVSQXTUN, t)
+			oprangeset(AVSQXTUN2, t)
+			oprangeset(AVUQXTN, t)
+			oprangeset(AVUQXTN2, t)
+			oprangeset(AVFCVTN, t)
+			oprangeset(AVFCVTN2, t)
+
+		case AVSQSHL:
+			oprangeset(AVUQSHL, t)
 
 		case AVREV32:
 			oprangeset(AVCNT, t)
+			oprangeset(AVCLS, t)
+			oprangeset(AVCLZ, t)
 			oprangeset(AVRBIT, t)
 			oprangeset(AVREV64, t)
 			oprangeset(AVREV16, t)
+			oprangeset(AVABS, t)
+			oprangeset(AVNEG, t)
+			oprangeset(AVFABS, t)
+			oprangeset(AVFNEG, t)
+			oprangeset(AVFSQRT, t)
+			oprangeset(AVFRINTN, t)
+			oprangeset(AVFRINTP, t)
+			oprangeset(AVFRINTM, t)
+			oprangeset(AVFRINTZ, t)
+			oprangeset(AVSQABS, t)
+			oprangeset(AVSQNEG, t)
+			oprangeset(AVNOT, t)
+			oprangeset(AVFCVTZS, t)
+			oprangeset(AVFCVTZU, t)
+			oprangeset(AVSCVTF, t)
+			oprangeset(AVUCVTF, t)
 
 		case AVZIP1:
 			oprangeset(AVZIP2, t)
@@ -3221,9 +3408,15 @@ func buildop(ctxt *obj.Link) {
 
 		case AVUXTL:
 			oprangeset(AVUXTL2, t)
+			oprangeset(AVSXTL, t)
+			oprangeset(AVSXTL2, t)
+			oprangeset(AVFCVTL, t)
+			oprangeset(AVFCVTL2, t)
 
 		case AVUSHLL:
 			oprangeset(AVUSHLL2, t)
+			oprangeset(AVSSHLL, t)
+			oprangeset(AVSSHLL2, t)
 
 		case AVLD1R:
 			oprangeset(AVLD2, t)
@@ -3242,6 +3435,9 @@ func buildop(ctxt *obj.Link) {
 		case AVTBL:
 			oprangeset(AVTBX, t)
 
+		case ASB:
+			break
+
 		case AVCNT,
 			AVMOV,
 			AVLD1,
@@ -3252,6 +3448,7 @@ func buildop(ctxt *obj.Link) {
 			AVDUP,
 			AVMOVI,
 			APRFM,
+			ARPRFM,
 			AVEXT,
 			AVXAR:
 			break
@@ -4698,27 +4895,27 @@ func (c *ctxt7) asmout(p *obj.Prog, out []uint32) (count int) {
 		}
 
 		switch p.As {
-		case AVORR, AVAND, AVEOR, AVBIT, AVBSL, AVBIF:
+		case AVORR, AVAND, AVEOR, AVBIT, AVBSL, AVBIF, AVBIC, AVORN:
 			if af != ARNG_16B && af != ARNG_8B {
 				c.ctxt.Diag("invalid arrangement: %v", p)
 			}
-		case AVFMLA, AVFMLS:
+		case AVFMLA, AVFMLS, AVFCMEQ, AVFCMGE, AVFCMGT, AVFADD, AVFSUB, AVFMUL, AVFDIV, AVFMAX, AVFMAXNM, AVFMAXP, AVFADDP, AVFMIN, AVFMINNM, AVFMINP, AVFMAXNMP, AVFMINNMP:
 			if af != ARNG_2D && af != ARNG_2S && af != ARNG_4S {
 				c.ctxt.Diag("invalid arrangement: %v", p)
 			}
-		case AVUMAX, AVUMIN:
+		case AVUMAX, AVUMIN, AVUMAXP, AVUMINP, AVMUL, AVMLA, AVMLS, AVSMAX, AVSMIN, AVSMAXP, AVSMINP:
 			if af == ARNG_2D {
 				c.ctxt.Diag("invalid arrangement: %v", p)
 			}
 		}
 		switch p.As {
-		case AVAND, AVEOR:
+		case AVAND, AVEOR, AVBIC, AVORN:
 			size = 0
 		case AVBSL:
 			size = 1
 		case AVORR, AVBIT, AVBIF:
 			size = 2
-		case AVFMLA, AVFMLS:
+		case AVFMLA, AVFMLS, AVFCMEQ, AVFCMGE, AVFCMGT, AVFADD, AVFSUB, AVFMUL, AVFDIV, AVFMAX, AVFMAXNM, AVFMAXP, AVFADDP, AVFMIN, AVFMINNM, AVFMINP, AVFMAXNMP, AVFMINNMP:
 			if af == ARNG_2D {
 				size = 1
 			} else {
@@ -5082,6 +5279,9 @@ func (c *ctxt7) asmout(p *obj.Prog, out []uint32) (count int) {
 		case ARNG_4S:
 			Q = 1
 			size = 2
+		case ARNG_2D:
+			Q = 1
+			size = 3
 		default:
 			c.ctxt.Diag("invalid arrangement: %v\n", p)
 		}
@@ -5096,6 +5296,31 @@ func (c *ctxt7) asmout(p *obj.Prog, out []uint32) (count int) {
 
 		if p.As == AVREV16 && af != ARNG_8B && af != ARNG_16B {
 			c.ctxt.Diag("invalid arrangement: %v", p)
+		}
+
+		if p.As == AVNOT && (af != ARNG_8B && af != ARNG_16B) {
+			c.ctxt.Diag("invalid arrangement: %v", p)
+		}
+
+		// VCLS and VCLZ only support integer arrangements (B, H, S), not D arrangements
+		if (p.As == AVCLS || p.As == AVCLZ) && (af == ARNG_1D || af == ARNG_2D) {
+			c.ctxt.Diag("invalid arrangement: %v", p)
+		}
+
+		// Floating-point instructions only allow floating-point arrangements
+		// and use 1-bit size field: 0 for S arrangements, 1 for D arrangements
+		if p.As == AVFABS || p.As == AVFNEG || p.As == AVFSQRT ||
+			p.As == AVFRINTN || p.As == AVFRINTP || p.As == AVFRINTM || p.As == AVFRINTZ ||
+			p.As == AVFCVTZS || p.As == AVFCVTZU || p.As == AVSCVTF || p.As == AVUCVTF {
+			if af != ARNG_2S && af != ARNG_4S && af != ARNG_2D {
+				c.ctxt.Diag("invalid arrangement: %v", p)
+			}
+			// Override size for floating-point instructions: 0 for S, 1 for D
+			if af == ARNG_2S || af == ARNG_4S {
+				size = 0
+			} else if af == ARNG_2D {
+				size = 1
+			}
 		}
 
 		if p.As == AVRBIT {
@@ -5154,6 +5379,14 @@ func (c *ctxt7) asmout(p *obj.Prog, out []uint32) (count int) {
 			size = 2
 		default:
 			c.ctxt.Diag("invalid arrangement: %v\n", p)
+		}
+		switch p.As {
+		// Floating-point reduction instructions only support .S4 arrangement and don't have a size field.
+		case AVFMAXV, AVFMINV, AVFMAXNMV, AVFMINNMV:
+			if af != ARNG_4S {
+				c.ctxt.Diag("invalid arrangement: %v\n", p)
+			}
+			size = 0
 		}
 		o1 = c.oprrr(p, p.As, p.To.Reg, p.From.Reg, obj.REG_NONE)
 		o1 |= uint32(Q&1)<<30 | uint32(size&3)<<22
@@ -5294,7 +5527,7 @@ func (c *ctxt7) asmout(p *obj.Prog, out []uint32) (count int) {
 		}
 		o1 |= (uint32(imm5&0x1f) << 16) | (uint32(imm4&0xf) << 11) | (uint32(rf&31) << 5) | uint32(rt&31)
 
-	case 93: /* vpmull{2} Vm.<Tb>, Vn.<Tb>, Vd.<Ta> */
+	case 93: /* vpmull{2}/v(s|u)(mla|mls|mul)l{2} Vm.<Tb>, Vn.<Tb>, Vd.<Ta> */
 		af := uint8((p.From.Reg >> 5) & 15)
 		at := uint8((p.To.Reg >> 5) & 15)
 		a := uint8((p.Reg >> 5) & 15)
@@ -5303,16 +5536,29 @@ func (c *ctxt7) asmout(p *obj.Prog, out []uint32) (count int) {
 		}
 
 		var Q, size uint32
-		if p.As == AVPMULL2 {
+		switch p.As {
+		case AVPMULL2, AVSMLAL2, AVSMLSL2, AVSMULL2, AVUMLAL2, AVUMLSL2, AVUMULL2:
 			Q = 1
 		}
 		switch pack(Q, at, af) {
 		case pack(0, ARNG_8H, ARNG_8B), pack(1, ARNG_8H, ARNG_16B):
 			size = 0
+		case pack(0, ARNG_4S, ARNG_4H), pack(1, ARNG_4S, ARNG_8H):
+			size = 1
+		case pack(0, ARNG_2D, ARNG_2S), pack(1, ARNG_2D, ARNG_4S):
+			size = 2
 		case pack(0, ARNG_1Q, ARNG_1D), pack(1, ARNG_1Q, ARNG_2D):
 			size = 3
 		default:
 			c.ctxt.Diag("operand mismatch: %v\n", p)
+		}
+
+		if p.As == AVPMULL || p.As == AVPMULL2 {
+			if size != 0 && size != 3 {
+				c.ctxt.Diag("invalid arrangement: %v", p)
+			}
+		} else if size == 3 {
+			c.ctxt.Diag("invalid arrangement: %v", p)
 		}
 
 		o1 = c.oprrr(p, p.As, p.To.Reg, p.Reg, p.From.Reg)
@@ -5353,19 +5599,38 @@ func (c *ctxt7) asmout(p *obj.Prog, out []uint32) (count int) {
 
 		o1 |= ((Q & 1) << 30) | (uint32(r&31) << 16) | (uint32(index&15) << 11) | (uint32(rf&31) << 5) | uint32(rt&31)
 
-	case 95: /* vushr/vshl/vsri/vsli/vusra $shift, Vn.<T>, Vd.<T> */
+	case 95: /* shift: vushr/vshl/vsri/vsli/vusra/vsshr/vsrshr $shift, Vn.<T>, Vd.<T>; narrowing shift: vshrn[2] $shift, Vn.<Ta>, Vd.<Tb>; trunc: vxtn/v{s,u}qxt{n,un}/vfcvtn[2] Vn.<Ta>, Vd.<Tb> */
 		at := int((p.To.Reg >> 5) & 15)
-		af := int((p.Reg >> 5) & 15)
-		shift := int(p.From.Offset)
+		rt := int((p.To.Reg) & 31)
+		var af, rf, shift int
 
-		if af != at {
+		// Truncation instructions (narrow without immediate).
+		trunc := p.As == AVXTN || p.As == AVXTN2 ||
+			p.As == AVSQXTN || p.As == AVSQXTN2 ||
+			p.As == AVSQXTUN || p.As == AVSQXTUN2 ||
+			p.As == AVUQXTN || p.As == AVUQXTN2 ||
+			p.As == AVFCVTN || p.As == AVFCVTN2
+
+		if trunc {
+			af = int((p.From.Reg >> 5) & 15)
+			rf = int(p.From.Reg & 31)
+			shift = 0
+		} else {
+			af = int((p.Reg >> 5) & 15)
+			rf = int((p.Reg) & 31)
+			shift = int(p.From.Offset)
+		}
+
+		narrow := trunc || p.As == AVSHRN || p.As == AVSHRN2
+		if af != at && !narrow {
 			c.ctxt.Diag("invalid arrangement on op Vn.<T>, Vd.<T>: %v", p)
+			at = af
 		}
 
 		var Q uint32
 		var imax, esize int
 
-		switch af {
+		switch at {
 		case ARNG_8B, ARNG_4H, ARNG_2S:
 			Q = 0
 		case ARNG_16B, ARNG_8H, ARNG_4S, ARNG_2D:
@@ -5374,42 +5639,62 @@ func (c *ctxt7) asmout(p *obj.Prog, out []uint32) (count int) {
 			c.ctxt.Diag("invalid arrangement on op Vn.<T>, Vd.<T>: %v", p)
 		}
 
-		switch af {
+		atwice := -1
+		switch at {
 		case ARNG_8B, ARNG_16B:
 			imax = 15
 			esize = 8
+			atwice = ARNG_8H
 		case ARNG_4H, ARNG_8H:
 			imax = 31
 			esize = 16
+			atwice = ARNG_4S
 		case ARNG_2S, ARNG_4S:
 			imax = 63
 			esize = 32
+			atwice = ARNG_2D
 		case ARNG_2D:
 			imax = 127
 			esize = 64
 		}
 
-		imm := 0
-		switch p.As {
-		case AVUSHR, AVSRI, AVUSRA:
-			imm = esize*2 - shift
-			if imm < esize || imm > imax {
-				c.ctxt.Diag("shift out of range: %v", p)
+		if narrow {
+			wantQ := uint32(0)
+			if p.As == AVXTN2 || p.As == AVSQXTN2 || p.As == AVSQXTUN2 ||
+				p.As == AVUQXTN2 || p.As == AVFCVTN2 || p.As == AVSHRN2 {
+				wantQ = 1
 			}
-		case AVSHL, AVSLI:
-			imm = esize + shift
-			if imm > imax {
-				c.ctxt.Diag("shift out of range: %v", p)
+			if Q != wantQ || atwice != af {
+				c.ctxt.Diag("invalid arrangement on op: %v", p)
 			}
-		default:
-			c.ctxt.Diag("invalid instruction %v\n", p)
 		}
 
 		o1 = c.opirr(p, p.As)
-		rt := int((p.To.Reg) & 31)
-		rf := int((p.Reg) & 31)
 
-		o1 |= ((Q & 1) << 30) | (uint32(imm&0x7f) << 16) | (uint32(rf&31) << 5) | uint32(rt&31)
+		if trunc && p.As != AVFCVTN && p.As != AVFCVTN2 {
+			// Integer trunc ops encode size from destination element width.
+			// FCVTN has size already in opirr base.
+			size := uint32(esize >> 4)
+			o1 |= (size << 22)
+		}
+
+		// Shift instructions: encode immediate from shift amount.
+		switch p.As {
+		case AVUSHR, AVSRI, AVUSRA, AVSSHR, AVSRSHR, AVSHRN, AVSHRN2:
+			imm := esize*2 - shift
+			if imm < esize || imm > imax {
+				c.ctxt.Diag("shift out of range: %v", p)
+			}
+			o1 |= (uint32(imm&0x7f) << 16)
+		case AVSHL, AVSLI, AVSQSHL, AVUQSHL:
+			imm := esize + shift
+			if imm > imax {
+				c.ctxt.Diag("shift out of range: %v", p)
+			}
+			o1 |= (uint32(imm&0x7f) << 16)
+		}
+
+		o1 |= ((Q & 1) << 30) | (uint32(rf&31) << 5) | uint32(rt&31)
 
 	case 96: /* vst1 Vt1.<T>[index], offset(Rn) */
 		af := int((p.From.Reg >> 5) & 15)
@@ -5626,19 +5911,30 @@ func (c *ctxt7) asmout(p *obj.Prog, out []uint32) (count int) {
 		o1 = q<<30 | 0xe<<24 | len<<13 | op<<12
 		o1 |= (uint32(rf&31) << 16) | uint32(offset&31)<<5 | uint32(rt&31)
 
-	case 102: /* vushll, vushll2, vuxtl, vuxtl2 */
+	case 102: /* long shift: v{s,u}shll[2] $shift, Vn.<Ta>, Vd.<Tb>; long: v{s,u}xtl[2], vfcvtl[2] Vn.<Ta>, Vd.<Tb> */
 		o1 = c.opirr(p, p.As)
 		rf := p.Reg
 		af := uint8((p.Reg >> 5) & 15)
 		at := uint8((p.To.Reg >> 5) & 15)
 		shift := int(p.From.Offset)
-		if p.As == AVUXTL || p.As == AVUXTL2 {
+		if p.As == AVUXTL || p.As == AVUXTL2 || p.As == AVSXTL || p.As == AVSXTL2 || p.As == AVFCVTL || p.As == AVFCVTL2 {
 			rf = p.From.Reg
 			af = uint8((p.From.Reg >> 5) & 15)
 			shift = 0
 		}
+		var Q uint32
+		if p.As == AVUXTL2 || p.As == AVSXTL2 || p.As == AVUSHLL2 || p.As == AVSSHLL2 || p.As == AVFCVTL2 {
+			Q = 1
+		}
 
-		Q := (o1 >> 30) & 1
+		if p.As == AVFCVTL || p.As == AVFCVTL2 {
+			if af != ARNG_2S && af != ARNG_4S || at != ARNG_2D {
+				c.ctxt.Diag("operand mismatch: %v\n", p)
+			}
+			o1 |= Q<<30 | uint32(rf&31)<<5 | uint32(p.To.Reg&31)
+			break
+		}
+
 		var immh, width uint8
 		switch pack(Q, af, at) {
 		case pack(0, ARNG_8B, ARNG_8H):
@@ -5659,7 +5955,7 @@ func (c *ctxt7) asmout(p *obj.Prog, out []uint32) (count int) {
 		if !(0 <= shift && shift <= int(width-1)) {
 			c.ctxt.Diag("shift amount out of range: %v\n", p)
 		}
-		o1 |= uint32(immh)<<19 | uint32(shift)<<16 | uint32(rf&31)<<5 | uint32(p.To.Reg&31)
+		o1 |= Q<<30 | uint32(immh)<<19 | uint32(shift)<<16 | uint32(rf&31)<<5 | uint32(p.To.Reg&31)
 
 	case 103: /* VEOR3/VBCAX Va.B16, Vm.B16, Vn.B16, Vd.B16 */
 		ta := (p.From.Reg >> 5) & 15
@@ -5796,6 +6092,119 @@ func (c *ctxt7) asmout(p *obj.Prog, out []uint32) (count int) {
 		default:
 			c.ctxt.Diag("illegal argument: %v\n", p)
 			break
+		}
+
+	case 109: /* [cm|fcm][eq|ge|gt|le|lt] $0, Vn.<T>, Vd.<T> */
+		// Encoding is same as case 83 (this is a separate case because $0 occupies p.From)
+		if !(p.From.Type == obj.TYPE_CONST && p.From.Offset == 0) &&
+			!(p.From.Type == obj.TYPE_FCONST && p.From.Val.(float64) == 0.0) {
+			c.ctxt.Diag("expected a constant zero immediate operand: %v\n", p)
+		}
+		an := int((p.Reg >> 5) & 15)
+		ad := int((p.To.Reg >> 5) & 15)
+		if an != ad {
+			c.ctxt.Diag("operand mismatch: %v", p)
+			break
+		}
+		var Q, size uint32
+		if p.From.Type == obj.TYPE_FCONST {
+			switch an {
+			case ARNG_2D:
+				Q = 1
+				size = 1
+			case ARNG_2S:
+				Q = 0
+				size = 0
+			case ARNG_4S:
+				Q = 1
+				size = 0
+			default:
+				c.ctxt.Diag("invalid arrangement: %v", p)
+			}
+		} else {
+			switch an {
+			case ARNG_16B:
+				Q = 1
+				size = 0
+			case ARNG_2D:
+				Q = 1
+				size = 3
+			case ARNG_2S:
+				Q = 0
+				size = 2
+			case ARNG_4H:
+				Q = 0
+				size = 1
+			case ARNG_4S:
+				Q = 1
+				size = 2
+			case ARNG_8B:
+				Q = 0
+				size = 0
+			case ARNG_8H:
+				Q = 1
+				size = 1
+			default:
+				c.ctxt.Diag("invalid arrangement: %v", p)
+			}
+		}
+		o1 = c.opirr(p, p.As)
+		rd := uint32(p.To.Reg & 31)
+		rn := uint32(p.Reg & 31)
+		o1 |= Q<<30 | size<<22 | (rn << 5) | (rd)
+
+	case 110: /*rprfm (Rn), Rm, <rprfop/imm6>*/
+		rn := p.From.Reg
+		rm := p.Reg
+		var operation uint32
+		var ok bool
+
+		// Operation is either a 6-bit immediate or named prefetch operation.
+		if p.To.Type == obj.TYPE_CONST {
+			operation = uint32(p.To.Offset)
+			if operation > 63 {
+				c.ctxt.Diag("range prefetch immediate must be 0 to 63: %v", p)
+			}
+		} else {
+			operation, ok = rprfopfield[SpecialOperand(p.To.Offset)]
+			if !ok {
+				c.ctxt.Diag("illegal range prefetch operand, expected PLDKEEP, PSTKEEP, PLDSTRM or PSTSTRM: %v", p)
+			}
+		}
+
+		// 6-bit placement: the 6-bit value is scattered to match the
+		// architectural encoding (bits 15,13,12,2-0). This is because the
+		// instructions word reuses fields from the base load/store hint space.
+		//	option2 (bit5) -> bit15
+		//	option0 (bit4) -> bit13
+		//	S       (bit3) -> bit12
+		//  Rt<2:0> (bits2-0) -> bits2-0
+		// Rt<4:3> are already set by c.opirr() and are fixed for RPRFM.
+		option2 := (operation & (1 << 5)) << 10
+		option0 := (operation & (1 << 4)) << 9
+		s := (operation & (1 << 3)) << 9
+		rt := (operation & 0x7)
+
+		encodedOperation := option2 | option0 | s | rt
+
+		o1 = c.opirr(p, p.As)
+		o1 |= (uint32(rm&31) << 16) | (uint32(rn&31) << 5) | uint32(encodedOperation)
+
+	case 127:
+		// Generic SVE instruction encoding
+		matched := false
+		groupIdx := int(p.As - ASVESTART - 1)
+		if groupIdx >= 0 && groupIdx < len(insts) {
+			for _, inst := range insts[groupIdx] {
+				if bin, ok := inst.tryEncode(p); ok {
+					o1 = bin
+					matched = true
+					break
+				}
+			}
+		}
+		if !matched {
+			c.ctxt.Diag("illegal combination from SVE: %v", p)
 		}
 	}
 	out[0] = o1
@@ -6381,73 +6790,280 @@ func (c *ctxt7) oprrr(p *obj.Prog, a obj.As, rd, rn, rm int16) uint32 {
 		op = FPOP1S(0, 0, 3, 5)
 
 	case AVADD:
-		op = 7<<25 | 1<<21 | 1<<15 | 1<<10
+		op = ASIMDSAME(0, 0, 0x10)
 
 	case AVSUB:
-		op = 0x17<<25 | 1<<21 | 1<<15 | 1<<10
+		op = ASIMDSAME(1, 0, 0x10)
+
+	case AVSHADD:
+		op = ASIMDSAME(0, 0, 0x0)
+
+	case AVSRHADD:
+		op = ASIMDSAME(0, 0, 0x2)
+
+	case AVSSHL:
+		op = ASIMDSAME(0, 0, 0x8)
+
+	case AVUSHL:
+		op = ASIMDSAME(1, 0, 0x8)
+
+	case AVUHADD:
+		op = ASIMDSAME(1, 0, 0x0)
+
+	case AVURHADD:
+		op = ASIMDSAME(1, 0, 0x2)
 
 	case AVADDP:
-		op = 7<<25 | 1<<21 | 1<<15 | 15<<10
+		op = ASIMDSAME(0, 0, 0x17)
+
+	case AVSQADD:
+		op = ASIMDSAME(0, 0, 0x1)
+
+	case AVUQADD:
+		op = ASIMDSAME(1, 0, 0x1)
+
+	case AVSQSHL:
+		op = ASIMDSAME(0, 0, 0x9)
+
+	case AVUQSHL:
+		op = ASIMDSAME(1, 0, 0x9)
+
+	case AVSQSUB:
+		op = ASIMDSAME(0, 0, 0x5)
+
+	case AVUQSUB:
+		op = ASIMDSAME(1, 0, 0x5)
+
+	case AVMUL:
+		op = ASIMDSAME(0, 0, 0x13)
+
+	case AVMLA:
+		op = ASIMDSAME(0, 0, 0x12)
+
+	case AVMLS:
+		op = ASIMDSAME(1, 0, 0x12)
 
 	case AVAND:
-		op = 7<<25 | 1<<21 | 7<<10
+		op = ASIMDSAME(0, 0, 0x03)
+
+	case AVBIC:
+		op = ASIMDSAME(0, 1, 0x03)
 
 	case AVBCAX:
 		op = 0xCE<<24 | 1<<21
 
 	case AVCMEQ:
-		op = 1<<29 | 0x71<<21 | 0x23<<10
+		op = ASIMDSAME(1, 0, 0x11)
+
+	case AVCMGE:
+		op = ASIMDSAME(0, 0, 0x07)
+
+	case AVCMGT:
+		op = ASIMDSAME(0, 0, 0x06)
+
+	case AVCMHI:
+		op = ASIMDSAME(1, 0, 0x06)
+
+	case AVCMHS:
+		op = ASIMDSAME(1, 0, 0x07)
+
+	case AVFCMEQ:
+		op = ASIMDSAME(0, 0, 0x1C)
+
+	case AVFCMGE:
+		op = ASIMDSAME(1, 0, 0x1C)
+
+	case AVFCMGT:
+		op = ASIMDSAME(1, 2, 0x1C)
 
 	case AVCNT:
-		op = 0xE<<24 | 0x10<<17 | 5<<12 | 2<<10
+		op = ASIMDMISC(0, 0, 0x05)
+
+	case AVCLS:
+		op = ASIMDMISC(0, 0, 0x04)
+
+	case AVCLZ:
+		op = ASIMDMISC(1, 0, 0x04)
 
 	case AVZIP1:
-		op = 0xE<<24 | 3<<12 | 2<<10
+		op = ASIMDPERM(0x3)
 
 	case AVZIP2:
-		op = 0xE<<24 | 1<<14 | 3<<12 | 2<<10
+		op = ASIMDPERM(0x7)
 
 	case AVEOR:
-		op = 1<<29 | 0x71<<21 | 7<<10
+		op = ASIMDSAME(1, 0, 0x03)
 
 	case AVEOR3:
 		op = 0xCE << 24
 
 	case AVORR:
-		op = 7<<25 | 5<<21 | 7<<10
+		op = ASIMDSAME(0, 2, 0x03)
 
-	case AVREV16:
-		op = 3<<26 | 2<<24 | 1<<21 | 3<<11
+	case AVORN:
+		op = ASIMDSAME(0, 3, 0x03)
 
 	case AVRAX1:
 		op = 0xCE<<24 | 3<<21 | 1<<15 | 3<<10
 
+	case AVREV16:
+		op = ASIMDMISC(0, 0, 0x01)
+
 	case AVREV32:
-		op = 11<<26 | 2<<24 | 1<<21 | 1<<11
+		op = ASIMDMISC(1, 0, 0x00)
 
 	case AVREV64:
-		op = 3<<26 | 2<<24 | 1<<21 | 1<<11
+		op = ASIMDMISC(0, 0, 0x00)
+
+	case AVABS:
+		op = ASIMDMISC(0, 0, 0xB)
+
+	case AVNEG:
+		op = ASIMDMISC(1, 0, 0xB)
+
+	case AVFABS:
+		op = ASIMDMISC(0, 2, 0xF)
+
+	case AVFNEG:
+		op = ASIMDMISC(1, 2, 0xF)
+
+	case AVFSQRT:
+		op = ASIMDMISC(1, 2, 0x1F)
+
+	case AVFRINTN:
+		op = ASIMDMISC(0, 0, 0x18)
+
+	case AVFRINTP:
+		op = ASIMDMISC(0, 2, 0x18)
+
+	case AVFRINTM:
+		op = ASIMDMISC(0, 0, 0x19)
+
+	case AVFRINTZ:
+		op = ASIMDMISC(0, 2, 0x19)
+
+	case AVFCVTZS:
+		op = ASIMDMISC(0, 2, 0x1B)
+
+	case AVFCVTZU:
+		op = ASIMDMISC(1, 2, 0x1B)
+
+	case AVSCVTF:
+		op = ASIMDMISC(0, 0, 0x1D)
+
+	case AVUCVTF:
+		op = ASIMDMISC(1, 0, 0x1D)
+
+	case AVSQABS:
+		op = ASIMDMISC(0, 0, 0x7)
+
+	case AVSQNEG:
+		op = ASIMDMISC(1, 0, 0x7)
+
+	case AVNOT:
+		op = ASIMDMISC(1, 0, 0x5)
 
 	case AVMOV:
 		op = 7<<25 | 5<<21 | 7<<10
 
 	case AVADDV:
-		op = 7<<25 | 3<<20 | 3<<15 | 7<<11
+		op = ASIMDALL(0, 0, 0x1B)
+
+	case AVFMAXV:
+		op = ASIMDALL(1, 0, 0xF)
+
+	case AVFMAXNMV:
+		op = ASIMDALL(1, 0, 0xC)
+
+	case AVFMINV:
+		op = ASIMDALL(1, 2, 0xF)
+
+	case AVFMINNMV:
+		op = ASIMDALL(1, 2, 0xC)
+
+	case AVSMAXV:
+		op = ASIMDALL(0, 0, 0xA)
+
+	case AVSMINV:
+		op = ASIMDALL(0, 0, 0x1A)
+
+	case AVUMAXV:
+		op = ASIMDALL(1, 0, 0xA)
+
+	case AVUMINV:
+		op = ASIMDALL(1, 0, 0x1A)
 
 	case AVUADDLV:
-		op = 1<<29 | 7<<25 | 3<<20 | 7<<11
+		op = ASIMDALL(1, 0, 0x03)
 
 	case AVFMLA:
-		op = 7<<25 | 0<<23 | 1<<21 | 3<<14 | 3<<10
+		op = ASIMDSAME(0, 0, 0x19)
 
 	case AVFMLS:
-		op = 7<<25 | 1<<23 | 1<<21 | 3<<14 | 3<<10
+		op = ASIMDSAME(0, 2, 0x19)
+
+	case AVFADD:
+		op = ASIMDSAME(0, 0, 0x1A)
+
+	case AVFSUB:
+		op = ASIMDSAME(0, 2, 0x1A)
+
+	case AVFMUL:
+		op = ASIMDSAME(1, 0, 0x1B)
+
+	case AVFDIV:
+		op = ASIMDSAME(1, 0, 0x1F)
+
+	case AVFMAX:
+		op = ASIMDSAME(0, 0, 0x1E)
+
+	case AVFMAXNM:
+		op = ASIMDSAME(0, 0, 0x18)
+
+	case AVFMAXP:
+		op = ASIMDSAME(1, 0, 0x1E)
+
+	case AVFADDP:
+		op = ASIMDSAME(1, 0, 0x1A)
+
+	case AVFMIN:
+		op = ASIMDSAME(0, 2, 0x1E)
+
+	case AVFMINNM:
+		op = ASIMDSAME(0, 2, 0x18)
+
+	case AVFMINP:
+		op = ASIMDSAME(1, 2, 0x1E)
+
+	case AVFMAXNMP:
+		op = ASIMDSAME(1, 0, 0x18)
+
+	case AVFMINNMP:
+		op = ASIMDSAME(1, 2, 0x18)
 
 	case AVPMULL, AVPMULL2:
-		op = 0xE<<24 | 1<<21 | 0x38<<10
+		op = ASIMDDIFF(0, 0xE)
+
+	case AVSMLAL, AVSMLAL2:
+		op = ASIMDDIFF(0, 0x8)
+
+	case AVSMLSL, AVSMLSL2:
+		op = ASIMDDIFF(0, 0xA)
+
+	case AVSMULL, AVSMULL2:
+		op = ASIMDDIFF(0, 0xC)
+
+	case AVUMLAL, AVUMLAL2:
+		op = ASIMDDIFF(1, 0x8)
+
+	case AVUMLSL, AVUMLSL2:
+		op = ASIMDDIFF(1, 0xA)
+
+	case AVUMULL, AVUMULL2:
+		op = ASIMDDIFF(1, 0xC)
 
 	case AVRBIT:
-		op = 0x2E<<24 | 1<<22 | 0x10<<17 | 5<<12 | 2<<10
+		op = ASIMDMISC(1, 1, 0x05)
 
 	case AVLD1, AVLD2, AVLD3, AVLD4:
 		op = 3<<26 | 1<<22
@@ -6459,37 +7075,55 @@ func (c *ctxt7) oprrr(p *obj.Prog, a obj.As, rd, rn, rm int16) uint32 {
 		op = 0xD<<24 | 3<<21
 
 	case AVBIF:
-		op = 1<<29 | 7<<25 | 7<<21 | 7<<10
+		op = ASIMDSAME(1, 3, 0x03)
 
 	case AVBIT:
-		op = 1<<29 | 0x75<<21 | 7<<10
+		op = ASIMDSAME(1, 2, 0x03)
 
 	case AVBSL:
-		op = 1<<29 | 0x73<<21 | 7<<10
+		op = ASIMDSAME(1, 1, 0x03)
 
 	case AVCMTST:
-		op = 0xE<<24 | 1<<21 | 0x23<<10
+		op = ASIMDSAME(0, 0, 0x11)
 
 	case AVUMAX:
-		op = 1<<29 | 7<<25 | 1<<21 | 0x19<<10
+		op = ASIMDSAME(1, 0, 0x0C)
 
 	case AVUMIN:
-		op = 1<<29 | 7<<25 | 1<<21 | 0x1b<<10
+		op = ASIMDSAME(1, 0, 0x0D)
+
+	case AVUMAXP:
+		op = ASIMDSAME(1, 0, 0x14)
+
+	case AVUMINP:
+		op = ASIMDSAME(1, 0, 0x15)
+
+	case AVSMAX:
+		op = ASIMDSAME(0, 0, 0x0C)
+
+	case AVSMIN:
+		op = ASIMDSAME(0, 0, 0x0D)
+
+	case AVSMAXP:
+		op = ASIMDSAME(0, 0, 0x14)
+
+	case AVSMINP:
+		op = ASIMDSAME(0, 0, 0x15)
 
 	case AVUZP1:
-		op = 7<<25 | 3<<11
+		op = ASIMDPERM(0x1)
 
 	case AVUZP2:
-		op = 7<<25 | 1<<14 | 3<<11
+		op = ASIMDPERM(0x5)
 
 	case AVUADDW, AVUADDW2:
-		op = 0x17<<25 | 1<<21 | 1<<12
+		op = ASIMDDIFF(1, 0x1)
 
 	case AVTRN1:
-		op = 7<<25 | 5<<11
+		op = ASIMDPERM(0x2)
 
 	case AVTRN2:
-		op = 7<<25 | 1<<14 | 5<<11
+		op = ASIMDPERM(0x6)
 
 	default:
 		c.ctxt.Diag("%v: bad rrr %d %v", p, a, a)
@@ -6686,35 +7320,101 @@ func (c *ctxt7) opirr(p *obj.Prog, a obj.As) uint32 {
 	case AHINT:
 		return SYSHINT(0)
 
+	case AVCMEQ:
+		return ASIMDMISC(0, 0, 0x09)
+
+	case AVCMGE:
+		return ASIMDMISC(1, 0, 0x08)
+
+	case AVCMGT:
+		return ASIMDMISC(0, 0, 0x08)
+
+	case AVCMLE:
+		return ASIMDMISC(1, 0, 0x09)
+
+	case AVCMLT:
+		return ASIMDMISC(0, 0, 0x0A)
+
+	case AVFCMEQ:
+		return ASIMDMISC(0, 2, 0x0D)
+
+	case AVFCMGE:
+		return ASIMDMISC(1, 2, 0x0C)
+
+	case AVFCMGT:
+		return ASIMDMISC(0, 2, 0x0C)
+
+	case AVFCMLE:
+		return ASIMDMISC(1, 2, 0x0D)
+
+	case AVFCMLT:
+		return ASIMDMISC(0, 2, 0x0E)
+
 	case AVEXT:
 		return 0x2E<<24 | 0<<23 | 0<<21 | 0<<15
 
 	case AVUSHR:
-		return 0x5E<<23 | 1<<10
+		return ASIMDSHF(1, 0x00)
+
+	case AVSSHR:
+		return ASIMDSHF(0, 0x00)
+
+	case AVSRSHR:
+		return ASIMDSHF(0, 0x04)
 
 	case AVSHL:
-		return 0x1E<<23 | 21<<10
+		return ASIMDSHF(0, 0x0A)
+
+	case AVSQSHL:
+		return ASIMDSHF(0, 0xE)
+
+	case AVUQSHL:
+		return ASIMDSHF(1, 0xE)
+
+	case AVSHRN, AVSHRN2:
+		return ASIMDSHF(0, 0x10)
+
+	case AVXTN, AVXTN2:
+		return ASIMDMISC(0, 0, 0x12)
+
+	case AVSQXTN, AVSQXTN2:
+		return ASIMDMISC(0, 0, 0x14)
+
+	case AVSQXTUN, AVSQXTUN2:
+		return ASIMDMISC(1, 0, 0x12)
+
+	case AVUQXTN, AVUQXTN2:
+		return ASIMDMISC(1, 0, 0x14)
+
+	case AVFCVTN, AVFCVTN2:
+		return ASIMDMISC(0, 1, 0x16)
+
+	case AVFCVTL, AVFCVTL2:
+		return ASIMDMISC(0, 1, 0x17)
 
 	case AVSRI:
-		return 0x5E<<23 | 17<<10
+		return ASIMDSHF(1, 0x08)
 
 	case AVSLI:
-		return 0x5E<<23 | 21<<10
+		return ASIMDSHF(1, 0x0A)
 
-	case AVUSHLL, AVUXTL:
-		return 1<<29 | 15<<24 | 0x29<<10
+	case AVUSHLL, AVUXTL, AVUSHLL2, AVUXTL2:
+		return ASIMDSHF(1, 0x14)
 
-	case AVUSHLL2, AVUXTL2:
-		return 3<<29 | 15<<24 | 0x29<<10
+	case AVSSHLL, AVSSHLL2, AVSXTL, AVSXTL2:
+		return ASIMDSHF(0, 0x14)
 
 	case AVXAR:
 		return 0xCE<<24 | 1<<23
 
 	case AVUSRA:
-		return 1<<29 | 15<<24 | 5<<10
+		return ASIMDSHF(1, 0x02)
 
 	case APRFM:
 		return 0xf9<<24 | 2<<22
+
+	case ARPRFM:
+		return 0xf8<<24 | 5<<21 | 18<<10 | 3<<3
 	}
 
 	c.ctxt.Diag("%v: bad irr %v", p, a)
@@ -6841,6 +7541,9 @@ func (c *ctxt7) opimm(p *obj.Prog, a obj.As) uint32 {
 
 	case ACLREX:
 		return SYSOP(0, 0, 3, 3, 0, 2, 0x1F)
+
+	case ASB:
+		return SYSOP(0, 0, 3, 3, 0, 0, 0xFF)
 	}
 
 	c.ctxt.Diag("%v: bad imm %v", p, a)
@@ -7907,79 +8610,103 @@ func EncodeRegisterExtension(a *obj.Addr, ext string, reg, num int16, isAmount, 
 			return errors.New("unsupported general register extension type: " + ext)
 
 		}
-	} else if reg <= REG_V31 && reg >= REG_V0 {
+	} else if REG_Z0 <= reg && reg <= REG_Z31 {
+		var arng int
 		switch ext {
-		case "B8":
-			if isIndex {
-				return errors.New("invalid register extension")
-			}
-			a.Reg = REG_ARNG + (reg & 31) + ((ARNG_8B & 15) << 5)
-		case "B16":
-			if isIndex {
-				return errors.New("invalid register extension")
-			}
-			a.Reg = REG_ARNG + (reg & 31) + ((ARNG_16B & 15) << 5)
-		case "H4":
-			if isIndex {
-				return errors.New("invalid register extension")
-			}
-			a.Reg = REG_ARNG + (reg & 31) + ((ARNG_4H & 15) << 5)
-		case "H8":
-			if isIndex {
-				return errors.New("invalid register extension")
-			}
-			a.Reg = REG_ARNG + (reg & 31) + ((ARNG_8H & 15) << 5)
-		case "S2":
-			if isIndex {
-				return errors.New("invalid register extension")
-			}
-			a.Reg = REG_ARNG + (reg & 31) + ((ARNG_2S & 15) << 5)
-		case "S4":
-			if isIndex {
-				return errors.New("invalid register extension")
-			}
-			a.Reg = REG_ARNG + (reg & 31) + ((ARNG_4S & 15) << 5)
-		case "D1":
-			if isIndex {
-				return errors.New("invalid register extension")
-			}
-			a.Reg = REG_ARNG + (reg & 31) + ((ARNG_1D & 15) << 5)
-		case "D2":
-			if isIndex {
-				return errors.New("invalid register extension")
-			}
-			a.Reg = REG_ARNG + (reg & 31) + ((ARNG_2D & 15) << 5)
-		case "Q1":
-			if isIndex {
-				return errors.New("invalid register extension")
-			}
-			a.Reg = REG_ARNG + (reg & 31) + ((ARNG_1Q & 15) << 5)
 		case "B":
-			if !isIndex {
+			if isIndex {
+				a.Reg = REG_ZARNGELEM + (reg & 31) + int16((ARNG_B&15)<<5)
+				a.Index = num
 				return nil
 			}
-			a.Reg = REG_ELEM + (reg & 31) + ((ARNG_B & 15) << 5)
-			a.Index = num
+			arng = ARNG_B
 		case "H":
-			if !isIndex {
+			if isIndex {
+				a.Reg = REG_ZARNGELEM + (reg & 31) + int16((ARNG_H&15)<<5)
+				a.Index = num
 				return nil
 			}
-			a.Reg = REG_ELEM + (reg & 31) + ((ARNG_H & 15) << 5)
-			a.Index = num
+			arng = ARNG_H
 		case "S":
-			if !isIndex {
+			if isIndex {
+				a.Reg = REG_ZARNGELEM + (reg & 31) + int16((ARNG_S&15)<<5)
+				a.Index = num
 				return nil
 			}
-			a.Reg = REG_ELEM + (reg & 31) + ((ARNG_S & 15) << 5)
-			a.Index = num
+			arng = ARNG_S
 		case "D":
-			if !isIndex {
+			if isIndex {
+				a.Reg = REG_ZARNGELEM + (reg & 31) + int16((ARNG_D&15)<<5)
+				a.Index = num
 				return nil
 			}
-			a.Reg = REG_ELEM + (reg & 31) + ((ARNG_D & 15) << 5)
-			a.Index = num
+			arng = ARNG_D
+		case "Q":
+			if isIndex {
+				a.Reg = REG_ZARNGELEM + (reg & 31) + int16((ARNG_Q&15)<<5)
+				a.Index = num
+				return nil
+			}
+			arng = ARNG_Q
 		default:
+			if isIndex && ext == "" {
+				a.Reg = REG_PZELEM + (reg & 31)
+				a.Index = num
+				return nil
+			}
+			return errors.New("invalid Z register arrangement: " + ext)
+		}
+		if isIndex {
+			a.Reg = REG_ZARNGELEM + (reg & 31) + int16((arng&15)<<5)
+			a.Index = num
+		} else {
+			if a.Type == obj.TYPE_MEM {
+				a.Index = REG_ZARNG + (reg & 31) + int16((arng&15)<<5)
+			} else {
+				a.Reg = REG_ZARNG + (reg & 31) + int16((arng&15)<<5)
+			}
+		}
+	} else if REG_P0 <= reg && reg <= REG_PN15 {
+		var arng int
+		switch ext {
+		case "B":
+			arng = ARNG_B
+		case "H":
+			arng = ARNG_H
+		case "S":
+			arng = ARNG_S
+		case "D":
+			arng = ARNG_D
+		case "Q":
+			arng = ARNG_Q
+		case "Z":
+			arng = PRED_Z
+		case "M":
+			arng = PRED_M
+		default:
+			if isIndex && ext == "" {
+				a.Reg = REG_PZELEM + (reg & 31) + (1 << 5)
+				a.Index = num
+				return nil
+			}
+			return errors.New("invalid P register arrangement: " + ext)
+		}
+		a.Reg = REG_PARNGZM + (reg & 31) + int16((arng&15)<<5)
+	} else if reg <= REG_V31 && reg >= REG_V0 {
+		arng, elem := readArrangement(ext)
+		if arng == -1 {
 			return errors.New("unsupported simd register extension type: " + ext)
+		}
+		if elem && !isIndex {
+			return nil
+		}
+		var err error
+		if reg, err = RegisterArrangement(reg, arng, isIndex); err != nil {
+			return err
+		}
+		a.Reg = reg
+		if isIndex {
+			a.Index = num
 		}
 	} else {
 		return errors.New("invalid register and extension combination")
@@ -7987,20 +8714,80 @@ func EncodeRegisterExtension(a *obj.Addr, ext string, reg, num int16, isAmount, 
 	return nil
 }
 
-// RegisterListOffset generates offset encoding according to AArch64 specification.
-func RegisterListOffset(firstReg, regCnt int, arrangement int64) (int64, error) {
-	offset := int64(firstReg)
-	switch regCnt {
-	case 1:
-		offset |= 0x7 << 12
-	case 2:
-		offset |= 0xa << 12
-	case 3:
-		offset |= 0x6 << 12
-	case 4:
-		offset |= 0x2 << 12
+// readArrangement returns arrangement constant (or -1 for unknown arrangement)
+// and a boolean flag specifying whether it refers to a vector element.
+func readArrangement(name string) (arng int16, elem bool) {
+	switch name {
+	case "B8":
+		return ARNG_8B, false
+	case "B16":
+		return ARNG_16B, false
+	case "H4":
+		return ARNG_4H, false
+	case "H8":
+		return ARNG_8H, false
+	case "S2":
+		return ARNG_2S, false
+	case "S4":
+		return ARNG_4S, false
+	case "D1":
+		return ARNG_1D, false
+	case "D2":
+		return ARNG_2D, false
+	case "B":
+		return ARNG_B, true
+	case "H":
+		return ARNG_H, true
+	case "S":
+		return ARNG_S, true
+	case "D":
+		return ARNG_D, true
+	case "Q1":
+		return ARNG_1Q, false
 	default:
-		return 0, errors.New("invalid register numbers in ARM64 register list")
+		return -1, false
+	}
+}
+
+// RegisterArrangement encodes specified simd register number and arrangement.
+func RegisterArrangement(reg int16, arng int16, isIndex bool) (int16, error) {
+	arng &= 15
+	arrangement := arng << 5
+	switch arng {
+	case ARNG_B, ARNG_H, ARNG_S, ARNG_D:
+		if !isIndex {
+			return reg, nil
+		}
+		return REG_ELEM + (reg & 31) + arrangement, nil
+	case ARNG_16B, ARNG_8H, ARNG_4S, ARNG_2D,
+		ARNG_8B, ARNG_4H, ARNG_2S, ARNG_1D, ARNG_1Q:
+		if isIndex {
+			return 0, errors.New("invalid register extension")
+		}
+		return REG_ARNG + (reg & 31) + arrangement, nil
+	}
+	return 0, errors.New("unsupported simd register arrangement: " + fmt.Sprint(arng))
+}
+
+// RegisterListOffset generates offset encoding according to AArch64 specification.
+func RegisterListOffset(firstReg, regCnt int, arrangement int64, scale int16) (int64, error) {
+	offset := int64(firstReg)
+	if scale == 0 {
+		switch regCnt {
+		case 1:
+			offset |= 0x7 << 12
+		case 2:
+			offset |= 0xa << 12
+		case 3:
+			offset |= 0x6 << 12
+		case 4:
+			offset |= 0x2 << 12
+		default:
+			return 0, errors.New("invalid register numbers in ARM64 register list")
+		}
+	} else {
+		// scale is either 1 or 3.
+		offset |= int64(scale) << 12
 	}
 	offset |= arrangement
 	offset |= obj.RegListARM64Lo

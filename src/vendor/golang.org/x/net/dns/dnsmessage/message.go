@@ -2085,7 +2085,11 @@ Loop:
 					return off, errInvalidName
 				}
 			}
-
+			// Reject names that are too long while unpacking
+			// See issue golang/go#77540
+			if len(name)+(endOff-currOff) >= nonEncodedNameMax {
+				return off, errNameTooLong
+			}
 			name = append(name, msg[currOff:endOff]...)
 			name = append(name, '.')
 			currOff = endOff
@@ -2110,9 +2114,6 @@ Loop:
 	}
 	if len(name) == 0 {
 		name = append(name, '.')
-	}
-	if len(name) > nonEncodedNameMax {
-		return off, errNameTooLong
 	}
 	n.Length = uint8(len(name))
 	if ptr == 0 {

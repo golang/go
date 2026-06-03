@@ -91,6 +91,18 @@ func makefs(t *testing.T, fs []string) string {
 	return root
 }
 
+// hasLink reports whether the test filesystem layout fs
+// contains at least a single symlink.
+func hasLink(fs []string) bool {
+	for _, ent := range fs {
+		isLink := strings.Contains(ent, " => ")
+		if isLink {
+			return true
+		}
+	}
+	return false
+}
+
 // A rootTest is a test case for os.Root.
 type rootTest struct {
 	name string
@@ -128,6 +140,9 @@ type rootTest struct {
 // run sets up the test filesystem layout, os.OpenDirs the root, and calls f.
 func (test *rootTest) run(t *testing.T, f func(t *testing.T, target string, d *os.Root)) {
 	t.Run(test.name, func(t *testing.T) {
+		if hasLink(test.fs) {
+			testenv.MustHaveSymlink(t)
+		}
 		root := makefs(t, test.fs)
 		d, err := os.OpenRoot(root)
 		if err != nil {
@@ -1211,15 +1226,7 @@ var rootConsistencyTestCases = []rootConsistencyTest{{
 }}
 
 func tempDirWithUnixSocket(t *testing.T, name string) string {
-	dir, err := os.MkdirTemp("", "")
-	if err != nil {
-		t.Fatal(err)
-	}
-	t.Cleanup(func() {
-		if err := os.RemoveAll(dir); err != nil {
-			t.Error(err)
-		}
-	})
+	dir := t.TempDir()
 	addr, err := net.ResolveUnixAddr("unix", filepath.Join(dir, name))
 	if err != nil {
 		t.Skipf("net.ResolveUnixAddr: %v", err)
@@ -1245,6 +1252,10 @@ func (test rootConsistencyTest) run(t *testing.T, f func(t *testing.T, path stri
 	t.Run(test.name, func(t *testing.T) {
 		if test.check != nil {
 			test.check(t)
+		}
+
+		if hasLink(test.fs) {
+			testenv.MustHaveSymlink(t)
 		}
 
 		dir1 := makefs(t, test.fs)
@@ -1833,6 +1844,7 @@ func TestRootRaceRenameDir(t *testing.T) {
 }
 
 func TestRootSymlinkToRoot(t *testing.T) {
+	testenv.MustHaveSymlink(t)
 	dir := makefs(t, []string{
 		"d/d => ..",
 	})
@@ -1860,6 +1872,7 @@ func TestRootSymlinkToRoot(t *testing.T) {
 }
 
 func TestOpenInRoot(t *testing.T) {
+	testenv.MustHaveSymlink(t)
 	dir := makefs(t, []string{
 		"file",
 		"link => ../ROOT/file",
@@ -1951,4 +1964,109 @@ func TestRootName(t *testing.T) {
 	if got, want := subroot.Name(), filepath.Join(dir, "dir"); got != want {
 		t.Errorf(`root.OpenRoot("dir").Name() = %q, want %q`, got, want)
 	}
+}
+
+// TestRootNoLstat verifies that we do not use lstat (possibly escaping the root)
+// when reading directories in a Root.
+func TestRootNoLstat(t *testing.T) {
+	if runtime.GOARCH == "wasm" {
+		t.Skip("wasm lacks fstatat")
+	}
+
+	dir := makefs(t, []string{
+		"subdir/",
+	})
+	const size = 42
+	contents := strings.Repeat("x", size)
+	if err := os.WriteFile(dir+"/subdir/file", []byte(contents), 0666); err != nil {
+		t.Fatal(err)
+	}
+	root, err := os.OpenRoot(dir)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer root.Close()
+
+	test := func(name string, fn func(t *testing.T, f *os.File)) {
+		t.Run(name, func(t *testing.T) {
+			os.SetStatHook(t, func(f *os.File, name string) (os.FileInfo, error) {
+				if f == nil {
+					t.Errorf("unexpected Lstat(%q)", name)
+				}
+				return nil, nil
+			})
+			f, err := root.Open("subdir")
+			if err != nil {
+				t.Fatal(err)
+			}
+			defer f.Close()
+			fn(t, f)
+		})
+	}
+
+	checkFileInfo := func(t *testing.T, fi fs.FileInfo) {
+		t.Helper()
+		if got, want := fi.Name(), "file"; got != want {
+			t.Errorf("FileInfo.Name() = %q, want %q", got, want)
+		}
+		if got, want := fi.Size(), int64(size); got != want {
+			t.Errorf("FileInfo.Size() = %v, want %v", got, want)
+		}
+	}
+	checkDirEntry := func(t *testing.T, d fs.DirEntry) {
+		t.Helper()
+		if got, want := d.Name(), "file"; got != want {
+			t.Errorf("DirEntry.Name() = %q, want %q", got, want)
+		}
+		if got, want := d.IsDir(), false; got != want {
+			t.Errorf("DirEntry.IsDir() = %v, want %v", got, want)
+		}
+		fi, err := d.Info()
+		if err != nil {
+			t.Fatalf("DirEntry.Info() = _, %v", err)
+		}
+		checkFileInfo(t, fi)
+	}
+
+	test("Stat", func(t *testing.T, subdir *os.File) {
+		fi, err := subdir.Stat()
+		if err != nil {
+			t.Fatal(err)
+		}
+		if !fi.IsDir() {
+			t.Fatalf(`Open("subdir").Stat().IsDir() = false, want true`)
+		}
+	})
+	// File.ReadDir, returning []DirEntry
+	test("ReadDirEntry", func(t *testing.T, subdir *os.File) {
+		dirents, err := subdir.ReadDir(-1)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if len(dirents) != 1 {
+			t.Fatalf(`Open("subdir").ReadDir(-1) = {%v}, want {file}`, dirents)
+		}
+		checkDirEntry(t, dirents[0])
+	})
+	// File.Readdir, returning []FileInfo
+	test("ReadFileInfo", func(t *testing.T, subdir *os.File) {
+		fileinfos, err := subdir.Readdir(-1)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if len(fileinfos) != 1 {
+			t.Fatalf(`Open("subdir").Readdir(-1) = {%v}, want {file}`, fileinfos)
+		}
+		checkFileInfo(t, fileinfos[0])
+	})
+	// File.Readdirnames, returning []string
+	test("Readdirnames", func(t *testing.T, subdir *os.File) {
+		names, err := subdir.Readdirnames(-1)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if got, want := names, []string{"file"}; !slices.Equal(got, want) {
+			t.Fatalf(`Open("subdir").Readdirnames(-1) = %q, want %q`, got, want)
+		}
+	})
 }

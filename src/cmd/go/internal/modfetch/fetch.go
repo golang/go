@@ -870,7 +870,7 @@ func checkSumDB(mod module.Version, h string) error {
 			return module.VersionError(modWithoutSuffix, fmt.Errorf("verifying %s: checksum mismatch\n\tdownloaded: %v\n\t%s: %v"+sumdbMismatch, noun, h, db, line[len(prefix)-len("h1:"):]))
 		}
 	}
-	return nil
+	return module.VersionError(modWithoutSuffix, fmt.Errorf("verifying %s: checksum missing from sumdb response"+sumdbAbsent, noun))
 }
 
 // Sum returns the checksum for the downloaded copy of the given module,
@@ -1080,6 +1080,19 @@ have intercepted the download attempt.
 For more information, see 'go help module-auth'.
 `
 
+const sumdbAbsent = `
+
+SECURITY ERROR
+This download does NOT match one reported by the checksum server.
+The checksum server has provided checksums, but the checksums do
+not contain an entry for the download.
+The checksum server may be malfunctioning, or an attacker may have
+intercepted the checksum request.
+The download cannot be verified.
+
+For more information, see 'go help module-auth'.
+`
+
 const hashVersionMismatch = `
 
 SECURITY WARNING
@@ -1101,7 +1114,7 @@ hashes are stored in a file in the module root directory named go.sum. Hashes
 may also be downloaded from the checksum database depending on the values of
 GOSUMDB, GOPRIVATE, and GONOSUMDB.
 
-For details, see https://golang.org/ref/mod#authenticating.
+For details, see https://go.dev/ref/mod#authenticating.
 `,
 }
 
@@ -1146,6 +1159,6 @@ instead of module paths.
 The 'go env -w' command (see 'go help env') can be used to set these variables
 for future go command invocations.
 
-For more details, see https://golang.org/ref/mod#private-modules.
+For more details, see https://go.dev/ref/mod#private-modules.
 `,
 }

@@ -839,30 +839,12 @@ func gcStart(trigger gcTrigger) {
 	work.cpuStats.accumulateGCPauseTime(stw.stoppingCPUTime, 1)
 
 	if goexperiment.RuntimeSecret {
-		// The world is stopped. Every M is either parked
-		// or in a syscall, or running some non-go code which can't run in secret mode.
-		// To get to a parked or a syscall state
-		// they have to transition through a point where we erase any
-		// confidential information in the registers. Making them
-		// handle a signal now would clobber the signal stack
-		// with non-confidential information.
-		//
-		// TODO(dmo): this is linear with respect to the number of Ms.
-		// Investigate just how long this takes and whether we can somehow
-		// loop over just the Ms that have secret info on their signal stack,
-		// or cooperatively have the Ms send signals to themselves just
-		// after they erase their registers, but before they enter a syscall
-		for mp := allm; mp != nil; mp = mp.alllink {
-			// even through the world is stopped, the kernel can still
-			// invoke our signal handlers. No confidential information can be spilled
-			// (because it's been erased by this time), but we can avoid
-			// sending additional signals by atomically inspecting this variable
-			if atomic.Xchg(&mp.signalSecret, 0) != 0 {
-				noopSignal(mp)
-			}
-			// TODO: syncronize with the signal handler to ensure that the signal
-			// was actually delivered.
-		}
+		// The world is stopped, which means every M is either idle, blocked
+		// in a syscall or this M that we are running on now.
+		// The blocked Ms had any secret spill on their signal stacks erased
+		// when they entered their respective states. Now we have to handle
+		// this one.
+		eraseSecretsSignalStk()
 	}
 
 	// Finish sweep before we start concurrent scan.
@@ -1333,6 +1315,40 @@ func findGoroutineLeaks() bool {
 			}
 		}
 	}
+
+	// Do not report the main goroutine if it is waiting on select{}.
+	//
+	// NOTE: We still treat the main goroutine as leaked during the analysis,
+	// but revert its status to _Gwaiting after the analysis to not include
+	// it in the goroutine leak profile.
+	// This preserves the effectiveness of goroutine leak detection
+	// if the main goroutine holds references to concurrency primitives causing
+	// other leaks.
+	//
+	// Example:
+	//
+	// ```go
+	// func main() {
+	// 	ch := make(chan int)
+	// 	go func() {
+	// 		...
+	// 		<-ch // Leaks
+	// 	}()
+	//
+	// 	select {}
+	// }
+	// ```
+	//
+	// The main goroutine is blocked by select{}, but holds a reference to "ch".
+	// Not treating the main goroutine as leaked would cause the analysis to
+	// miss the legitimate leak at the child goroutine.
+	//
+	// The main goroutine should always be allgs[0], but double check
+	// in case that invariant changes in the future.
+	if gp0 := allgs[0]; gp0.goid == 1 && gp0.waitreason == waitReasonSelectNoCases {
+		casgstatus(gp0, _Gleaked, _Gwaiting)
+	}
+
 	// Put the remaining roots as ready for marking and drain them.
 	work.markrootJobs.Add(int32(work.nStackRoots - work.nMaybeRunnableStackRoots))
 	work.nMaybeRunnableStackRoots = work.nStackRoots

@@ -24,7 +24,7 @@ func Key[Hash hash.Hash](h func() Hash, password string, salt []byte, iter, keyL
 	setServiceIndicator(salt, keyLength)
 
 	if keyLength <= 0 {
-		return nil, errors.New("pkbdf2: keyLength must be larger than 0")
+		return nil, errors.New("pbkdf2: keyLength must be larger than 0")
 	}
 
 	prf := hmac.New(h, []byte(password))

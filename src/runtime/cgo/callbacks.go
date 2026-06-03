@@ -47,29 +47,23 @@ func _cgo_panic(a *struct{ cstr *byte }) {
 	_runtime_cgo_panic_internal(a.cstr)
 }
 
-//go:cgo_import_static x_cgo_init
-//go:linkname x_cgo_init x_cgo_init
+//go:cgo_import_static _cgo_init
 //go:linkname _cgo_init _cgo_init
-var x_cgo_init byte
-var _cgo_init = &x_cgo_init
+var _cgo_init unsafe.Pointer
 
-//go:cgo_import_static x_cgo_thread_start
-//go:linkname x_cgo_thread_start x_cgo_thread_start
+//go:cgo_import_static _cgo_thread_start
 //go:linkname _cgo_thread_start _cgo_thread_start
-var x_cgo_thread_start byte
-var _cgo_thread_start = &x_cgo_thread_start
+var _cgo_thread_start unsafe.Pointer
 
 // Creates a new system thread without updating any Go state.
 //
 // This method is invoked during shared library loading to create a new OS
 // thread to perform the runtime initialization. This method is similar to
-// _cgo_sys_thread_start except that it doesn't update any Go state.
+// x_cgo_thread_start except that it doesn't update any Go state.
 
-//go:cgo_import_static x_cgo_sys_thread_create
-//go:linkname x_cgo_sys_thread_create x_cgo_sys_thread_create
+//go:cgo_import_static _cgo_sys_thread_create
 //go:linkname _cgo_sys_thread_create _cgo_sys_thread_create
-var x_cgo_sys_thread_create byte
-var _cgo_sys_thread_create = &x_cgo_sys_thread_create
+var _cgo_sys_thread_create unsafe.Pointer
 
 // Indicates whether a dummy thread key has been created or not.
 //
@@ -101,11 +95,9 @@ var _set_crosscall2 = set_crosscall2
 // Store the g into the thread-specific value.
 // So that pthread_key_destructor will dropm when the thread is exiting.
 
-//go:cgo_import_static x_cgo_bindm
-//go:linkname x_cgo_bindm x_cgo_bindm
+//go:cgo_import_static _cgo_bindm
 //go:linkname _cgo_bindm _cgo_bindm
-var x_cgo_bindm byte
-var _cgo_bindm = &x_cgo_bindm
+var _cgo_bindm unsafe.Pointer
 
 // Notifies that the runtime has been initialized.
 //
@@ -162,8 +154,6 @@ var _cgo_yield unsafe.Pointer
 // x_cgo_getstackbound gets the thread's C stack size and
 // set the G's stack bound based on the stack size.
 
-//go:cgo_import_static x_cgo_getstackbound
-//go:linkname x_cgo_getstackbound x_cgo_getstackbound
+//go:cgo_import_static _cgo_getstackbound
 //go:linkname _cgo_getstackbound _cgo_getstackbound
-var x_cgo_getstackbound byte
-var _cgo_getstackbound = &x_cgo_getstackbound
+var _cgo_getstackbound unsafe.Pointer

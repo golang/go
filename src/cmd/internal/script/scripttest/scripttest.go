@@ -89,7 +89,7 @@ func Run(t testing.TB, e *script.Engine, s *script.State, filename string, testS
 		return e.Execute(s, filename, bufio.NewReader(testScript), log)
 	}()
 
-	if skip, ok := errors.AsType[skipError](err); ok {
+	if skip, ok := errors.AsType[SkipError](err); ok {
 		if skip.msg == "" {
 			t.Skip("SKIP")
 		} else {
@@ -113,17 +113,18 @@ func Skip() script.Cmd {
 				return nil, script.ErrUsage
 			}
 			if len(args) == 0 {
-				return nil, skipError{""}
+				return nil, SkipError{""}
 			}
-			return nil, skipError{args[0]}
+			return nil, SkipError{args[0]}
 		})
 }
 
-type skipError struct {
+// SkipError is returned by a script test that executes the [Skip] command.
+type SkipError struct {
 	msg string
 }
 
-func (s skipError) Error() string {
+func (s SkipError) Error() string {
 	if s.msg == "" {
 		return "skip"
 	}

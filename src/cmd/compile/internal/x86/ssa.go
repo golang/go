@@ -903,7 +903,7 @@ func ssaGenValue(s *ssagen.State, v *ssa.Value) {
 
 	case ssa.Op386CALLstatic, ssa.Op386CALLclosure, ssa.Op386CALLinter:
 		s.Call(v)
-	case ssa.Op386CALLtail:
+	case ssa.Op386CALLtail, ssa.Op386CALLtailinter:
 		s.TailCall(v)
 	case ssa.Op386NEGL,
 		ssa.Op386BSWAPL,

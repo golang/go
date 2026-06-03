@@ -385,7 +385,10 @@ func preprocess(ctxt *obj.Link, cursym *obj.LSym, newprog obj.ProgAlloc) {
 			}
 
 		case obj.ARET:
-			retTarget := p.To.Sym
+			retTarget, retReg := p.To.Sym, p.To.Reg
+			if retReg == obj.REG_NONE {
+				retReg = REG_LR
+			}
 
 			if c.cursym.Func().Text.Mark&LEAF != 0 {
 				if autosize == 0 {
@@ -393,7 +396,7 @@ func preprocess(ctxt *obj.Link, cursym *obj.LSym, newprog obj.ProgAlloc) {
 					p.From = obj.Addr{}
 					if retTarget == nil {
 						p.To.Type = obj.TYPE_REG
-						p.To.Reg = REG_LR
+						p.To.Reg = retReg
 					} else {
 						p.To.Type = obj.TYPE_BRANCH
 						p.To.Sym = retTarget
@@ -414,7 +417,7 @@ func preprocess(ctxt *obj.Link, cursym *obj.LSym, newprog obj.ProgAlloc) {
 				q.From = obj.Addr{}
 				if retTarget == nil {
 					q.To.Type = obj.TYPE_REG
-					q.To.Reg = REG_LR
+					q.To.Reg = retReg
 				} else {
 					q.To.Type = obj.TYPE_BRANCH
 					q.To.Sym = retTarget
@@ -450,7 +453,7 @@ func preprocess(ctxt *obj.Link, cursym *obj.LSym, newprog obj.ProgAlloc) {
 			q.From = obj.Addr{}
 			if retTarget == nil {
 				q.To.Type = obj.TYPE_REG
-				q.To.Reg = REG_LR
+				q.To.Reg = retReg
 			} else {
 				q.To.Type = obj.TYPE_BRANCH
 				q.To.Sym = retTarget

@@ -1,0 +1,296 @@
+!sum
+# Integers
+# ShiftAll*
+- go: ShiftAllLeft
+  specialLower: sftimm
+  asm: "VPSLL[WDQ]"
+  in:
+  - &any
+    go: $t
+  - &vecAsScalar64
+    go: "Uint.*"
+    treatLikeAScalarOfSize: 64
+    name: shift
+  out:
+  - *any
+- go: ShiftAllRight
+  signed: false
+  specialLower: sftimm
+  asm: "VPSRL[WDQ]"
+  in:
+  - &uint
+    go: $t
+    base: uint
+  - *vecAsScalar64
+  out:
+  - *uint
+- go: ShiftAllRight
+  signed: true
+  specialLower: sftimm
+  asm: "VPSRA[WDQ]"
+  in:
+  - &int
+    go: $t
+    base: int
+  - *vecAsScalar64
+  out:
+  - *int
+
+- go: shiftAllLeftConst
+  nameAndSizeCheck: true
+  specialLower: "if a==0 => x"
+  asm: "VPSLL[WDQ]"
+  in:
+  - *any
+  - &imm
+    class: immediate
+    immOffset: 0
+  out:
+  - *any
+- go: shiftAllRightConst
+  nameAndSizeCheck: true
+  specialLower: "if a==0 => x"
+  asm: "VPSRA[WDQ]"
+  in:
+  - *int
+  - *imm
+  out:
+  - *int
+- go: shiftAllRightConst
+  nameAndSizeCheck: true
+  specialLower: "if a==0 => x"
+  asm: "VPSRL[WDQ]"
+  in:
+  - *uint
+  - *imm
+  out:
+  - *uint
+
+# Shift* (variable)
+- go: ShiftLeft
+  nameAndSizeCheck: true
+  asm: "VPSLLV[WD]"
+  in:
+  - go: $t
+  - go: $t
+    overwriteBase: uint
+    name: shift
+  out:
+  - go: $t
+# XED data of VPSLLVQ marks the element bits 32 which is off to the actual semantic, we need to overwrite
+# it to 64.
+- go: ShiftLeft
+  nameAndSizeCheck: true
+  asm: "VPSLLVQ"
+  in:
+  - go: $t
+    overwriteElementBits: 64
+  - go: $t
+    overwriteElementBits: 64
+    overwriteBase: uint
+    name: shift
+  out:
+  - go: $t
+    overwriteElementBits: 64
+- go: ShiftRight
+  signed: false
+  nameAndSizeCheck: true
+  asm: "VPSRLV[WD]"
+  in:
+  - go: $t
+    base: uint
+  - go: $t
+    overwriteBase: uint
+    name: shift
+  out:
+  - go: $t
+    base: uint
+# XED data of VPSRLVQ needs the same overwrite as VPSLLVQ.
+- go: ShiftRight
+  signed: false
+  nameAndSizeCheck: true
+  asm: "VPSRLVQ"
+  in:
+  - go: $t
+    base: uint
+    overwriteElementBits: 64
+  - go: $t
+    overwriteElementBits: 64
+    overwriteBase: uint
+    name: shift
+  out:
+  - go: $t
+    base: uint
+    overwriteElementBits: 64
+- go: ShiftRight
+  signed: true
+  nameAndSizeCheck: true
+  asm: "VPSRAV[WDQ]"
+  in:
+  - go: $t
+    base: int
+  - go: $t
+    overwriteBase: uint
+    name: shift
+  out:
+  - go: $t
+    base: int
+
+# Rotate
+- go: rotateAllLeft
+  nameAndSizeCheck: true
+  asm: "VPROL[DQ]"
+  in:
+  - *any
+  - &pureImm
+    class: immediate
+    immOffset: 0
+    name: shift
+  out:
+  - *any
+- go: rotateAllRight
+  nameAndSizeCheck: true
+  asm: "VPROR[DQ]"
+  in:
+  - *any
+  - *pureImm
+  out:
+  - *any
+- go: RotateLeft
+  nameAndSizeCheck: true
+  asm: "VPROLV[DQ]"
+  in:
+  - *any
+  - *any
+  out:
+  - *any
+- go: RotateRight
+  nameAndSizeCheck: true
+  asm: "VPRORV[DQ]"
+  in:
+  - *any
+  - *any
+  out:
+  - *any
+
+# Bizzare shifts.
+- go: ShiftAllLeftConcatMod16
+  nameAndSizeCheck: true
+  asm: "VPSHLDW"
+  operandOrder: 2I
+  in:
+  - *any
+  - *any
+  - *pureImm
+  out:
+  - *any
+- go: ShiftAllRightConcatMod16
+  nameAndSizeCheck: true
+  asm: "VPSHRDW"
+  operandOrder: 2I
+  in:
+  - *any
+  - *any
+  - *pureImm
+  out:
+  - *any
+- go: ShiftLeftConcatMod16
+  nameAndSizeCheck: true
+  asm: "VPSHLDVW"
+  in:
+  - go: $t
+  - go: $t
+  - base: uint
+    name: shift
+  out:
+  - go: $t
+- go: ShiftRightConcatMod16
+  nameAndSizeCheck: true
+  asm: "VPSHRDVW"
+  in:
+  - go: $t
+  - go: $t
+  - base: uint
+    name: shift
+  out:
+  - go: $t
+- go: ShiftAllLeftConcatMod32
+  nameAndSizeCheck: true
+  asm: "VPSHLDD"
+  operandOrder: 2I
+  in:
+  - *any
+  - *any
+  - *pureImm
+  out:
+  - *any
+- go: ShiftAllRightConcatMod32
+  nameAndSizeCheck: true
+  asm: "VPSHRDD"
+  operandOrder: 2I
+  in:
+  - *any
+  - *any
+  - *pureImm
+  out:
+  - *any
+- go: ShiftLeftConcatMod32
+  nameAndSizeCheck: true
+  asm: "VPSHLDVD"
+  in:
+  - go: $t
+  - go: $t
+  - base: uint
+    name: shift
+  out:
+  - go: $t
+- go: ShiftRightConcatMod32
+  nameAndSizeCheck: true
+  asm: "VPSHRDVD"
+  in:
+  - go: $t
+  - go: $t
+  - base: uint
+    name: shift
+  out:
+  - go: $t
+- go: ShiftAllLeftConcatMod64
+  nameAndSizeCheck: true
+  asm: "VPSHLDQ"
+  operandOrder: 2I
+  in:
+  - *any
+  - *any
+  - *pureImm
+  out:
+  - *any
+- go: ShiftAllRightConcatMod64
+  nameAndSizeCheck: true
+  asm: "VPSHRDQ"
+  operandOrder: 2I
+  in:
+  - *any
+  - *any
+  - *pureImm
+  out:
+  - *any
+- go: ShiftLeftConcatMod64
+  nameAndSizeCheck: true
+  asm: "VPSHLDVQ"
+  in:
+  - go: $t
+  - go: $t
+  - base: uint
+    name: shift
+  out:
+  - go: $t
+- go: ShiftRightConcatMod64
+  nameAndSizeCheck: true
+  asm: "VPSHRDVQ"
+  in:
+  - go: $t
+  - go: $t
+  - base: uint
+    name: shift
+  out:
+  - go: $t

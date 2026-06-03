@@ -173,13 +173,15 @@ go build -n fmt
 go build ./newgo/newgo.go
 
 # 'go doc' without arguments implicitly operates on the current directory, and should fail.
-# TODO(golang.org/issue/32027): currently, it succeeds.
 cd needmod
-go doc
+! go doc
+stderr '^doc: go: go.mod file not found in current directory or any parent directory; see ''go help modules''$'
 cd ..
 
-# 'go doc' of a non-module directory should also succeed.
-go doc ./needmod
+# 'go doc' of a non-module directory should also fail.
+! go doc ./needmod
+stderr '^doc: go: go.mod file not found in current directory or any parent directory; see ''go help modules''$'
+
 
 # 'go doc' should succeed for standard-library packages.
 go doc fmt

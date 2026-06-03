@@ -55,28 +55,6 @@ func rewriteValuePPC64latelower_OpPPC64ADD(v *Value) bool {
 func rewriteValuePPC64latelower_OpPPC64AND(v *Value) bool {
 	v_1 := v.Args[1]
 	v_0 := v.Args[0]
-	// match: (AND <t> x:(MOVDconst [m]) n)
-	// cond: t.Size() <= 2
-	// result: (ANDconst [int64(int16(m))] n)
-	for {
-		t := v.Type
-		for _i0 := 0; _i0 <= 1; _i0, v_0, v_1 = _i0+1, v_1, v_0 {
-			x := v_0
-			if x.Op != OpPPC64MOVDconst {
-				continue
-			}
-			m := auxIntToInt64(x.AuxInt)
-			n := v_1
-			if !(t.Size() <= 2) {
-				continue
-			}
-			v.reset(OpPPC64ANDconst)
-			v.AuxInt = int64ToAuxInt(int64(int16(m)))
-			v.AddArg(n)
-			return true
-		}
-		break
-	}
 	// match: (AND x:(MOVDconst [m]) n)
 	// cond: isPPC64ValidShiftMask(m)
 	// result: (RLDICL [encodePPC64RotateMask(0,m,64)] n)

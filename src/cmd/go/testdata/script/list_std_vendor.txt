@@ -2,6 +2,8 @@
 # dependencies regardless of whether they are listed from within or outside
 # GOROOT/src.
 
+env GOROOT=$WORK/goroot
+
 # Control case: net, viewed from outside the 'std' module,
 # should depend on vendor/golang.org/… instead of golang.org/….
 
@@ -25,9 +27,30 @@ cmp stdout $WORK/net-deps.txt
 # However, 'go mod' and 'go get' subcommands should report the original module
 # dependencies, not the vendored packages.
 
-[!net:golang.org] stop
-
-env GOPROXY=
 env GOWORK=off
 go mod why -m golang.org/x/net
 stdout '^# golang.org/x/net\nnet\ngolang.org/x/net'
+
+-- $WORK/goroot/src/go.mod --
+module std
+
+go 1.26
+
+require golang.org/x/net v0.1.0
+-- $WORK/goroot/src/go.sum --
+golang.org/x/net v0.1.0 h1:iUcD2VNMwNi3BZMUg2qIGo4aAass7E0R4eQNGK3hvc0=
+golang.org/x/net v0.1.0/go.mod h1:mL1N/T3taQHkDXs73rZJwtUhF3w3ftmwwsq0BUmARs4=
+-- $WORK/goroot/src/vendor/modules.txt --
+# golang.org/x/net v0.1.0
+## explicit
+golang.org/x/net/dns/dnsmessage
+-- $WORK/goroot/src/vendor/modules.txt --
+# golang.org/x/net v0.1.0
+## explicit
+golang.org/x/net/dns/dnsmessage
+-- $WORK/goroot/src/vendor/golang.org/x/net/dns/dnsmessage/dnsmessage.go --
+package dnsmessage
+-- $WORK/goroot/src/net/net.go --
+package net
+
+import _ "golang.org/x/net/dns/dnsmessage"

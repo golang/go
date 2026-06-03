@@ -80,7 +80,9 @@
 
 // interface ops
 (ITab (IMake itab _)) => itab
-(IData (IMake _ data)) => data
+(IData (IMake _ data)) && data.Op != OpStructMake && data.Op != OpArrayMake1 => data
+// Note: the conditional on data.Op ensures that StructMake/ArrayMake1 ops are
+// unwrapped before the IMake is thrown away. See issue 77534.
 
 (Load <t> ptr mem) && t.IsInterface() =>
   (IMake
@@ -99,8 +101,7 @@
 
 (IMake _typ (StructMake ___)) => imakeOfStructMake(v)
 (StructSelect (IData x)) && v.Type.Size() > 0 => (IData x)
-(StructSelect (IData x)) && v.Type.Size() == 0 && v.Type.IsStruct() => (StructMake)
-(StructSelect (IData x)) && v.Type.Size() == 0 && v.Type.IsArray() => (ArrayMake0)
+(StructSelect (IData x)) && v.Type.Size() == 0 => (Empty)
 
 (StructSelect [i] x:(StructMake ___)) => x.Args[i]
 

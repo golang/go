@@ -46,6 +46,7 @@ type opInfo struct {
 	zeroWidth         bool      // op never translates into any machine code. example: copy, which may sometimes translate to machine code, is not zero-width.
 	unsafePoint       bool      // this op is an unsafe point, i.e. not safe for async preemption
 	fixedReg          bool      // this op will be assigned a fixed register
+	earlyOk           bool      // executing this op in an earlier block is ok
 	symEffect         SymEffect // effect this op has on symbol in aux
 	scale             uint8     // amd64/386 indexed load scale
 }
@@ -132,7 +133,7 @@ type AuxCall struct {
 // At this point (active development of register ABI) that is very premature,
 // but if this turns out to be a cost, we could do it.
 func (a *AuxCall) Reg(i *regInfo, c *Config) *regInfo {
-	if a.reg.clobbers != 0 {
+	if !a.reg.clobbers.empty() {
 		// Already updated
 		return a.reg
 	}
@@ -146,7 +147,7 @@ func (a *AuxCall) Reg(i *regInfo, c *Config) *regInfo {
 	for _, p := range a.abiInfo.InParams() {
 		for _, r := range p.Registers {
 			m := archRegForAbiReg(r, c)
-			a.reg.inputs = append(a.reg.inputs, inputInfo{idx: k, regs: (1 << m)})
+			a.reg.inputs = append(a.reg.inputs, inputInfo{idx: k, regs: regMaskAt(register(m))})
 			k++
 		}
 	}
@@ -155,7 +156,7 @@ func (a *AuxCall) Reg(i *regInfo, c *Config) *regInfo {
 	for _, p := range a.abiInfo.OutParams() {
 		for _, r := range p.Registers {
 			m := archRegForAbiReg(r, c)
-			a.reg.outputs = append(a.reg.outputs, outputInfo{idx: k, regs: (1 << m)})
+			a.reg.outputs = append(a.reg.outputs, outputInfo{idx: k, regs: regMaskAt(register(m))})
 			k++
 		}
 	}
@@ -180,7 +181,7 @@ func (a *AuxCall) ResultReg(c *Config) *regInfo {
 	for _, p := range a.abiInfo.OutParams() {
 		for _, r := range p.Registers {
 			m := archRegForAbiReg(r, c)
-			a.reg.inputs = append(a.reg.inputs, inputInfo{idx: k, regs: (1 << m)})
+			a.reg.inputs = append(a.reg.inputs, inputInfo{idx: k, regs: regMaskAt(register(m))})
 			k++
 		}
 	}

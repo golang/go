@@ -41,35 +41,15 @@ TEXT _rt0_arm64_lib(SB),NOSPLIT,$184
 	MOVD	R0, _rt0_arm64_lib_argc<>(SB)
 	MOVD	R1, _rt0_arm64_lib_argv<>(SB)
 
-	// Synchronous initialization.
-	MOVD	$runtime·libpreinit(SB), R4
+	MOVD	$runtime·libInit(SB), R4
 	BL	(R4)
 
-	// Create a new thread to do the runtime initialization and return.
-	MOVD	_cgo_sys_thread_create(SB), R4
-	CBZ	R4, nocgo
-	MOVD	$_rt0_arm64_lib_go(SB), R0
-	MOVD	$0, R1
-	SUB	$16, RSP		// reserve 16 bytes for sp-8 where fp may be saved.
-	BL	(R4)
-	ADD	$16, RSP
-	B	restore
-
-nocgo:
-	MOVD	$0x800000, R0                     // stacksize = 8192KB
-	MOVD	$_rt0_arm64_lib_go(SB), R1
-	MOVD	R0, 8(RSP)
-	MOVD	R1, 16(RSP)
-	MOVD	$runtime·newosproc0(SB),R4
-	BL	(R4)
-
-restore:
 	// Restore callee-save registers.
 	RESTORE_R19_TO_R28(24)
 	RESTORE_F8_TO_F15(104)
 	RET
 
-TEXT _rt0_arm64_lib_go(SB),NOSPLIT,$0
+TEXT runtime·rt0_lib_go<ABIInternal>(SB),NOSPLIT,$0
 	MOVD	_rt0_arm64_lib_argc<>(SB), R0
 	MOVD	_rt0_arm64_lib_argv<>(SB), R1
 	MOVD	$runtime·rt0_go(SB),R4
@@ -694,391 +674,6 @@ CALLFN(·call268435456, 268435456)
 CALLFN(·call536870912, 536870912)
 CALLFN(·call1073741824, 1073741824)
 
-// func memhash32(p unsafe.Pointer, h uintptr) uintptr
-TEXT runtime·memhash32<ABIInternal>(SB),NOSPLIT|NOFRAME,$0-24
-	MOVB	runtime·useAeshash(SB), R10
-	CBZ	R10, noaes
-	MOVD	$runtime·aeskeysched+0(SB), R3
-
-	VEOR	V0.B16, V0.B16, V0.B16
-	VLD1	(R3), [V2.B16]
-	VLD1	(R0), V0.S[1]
-	VMOV	R1, V0.S[0]
-
-	AESE	V2.B16, V0.B16
-	AESMC	V0.B16, V0.B16
-	AESE	V2.B16, V0.B16
-	AESMC	V0.B16, V0.B16
-	AESE	V2.B16, V0.B16
-
-	VMOV	V0.D[0], R0
-	RET
-noaes:
-	B	runtime·memhash32Fallback<ABIInternal>(SB)
-
-// func memhash64(p unsafe.Pointer, h uintptr) uintptr
-TEXT runtime·memhash64<ABIInternal>(SB),NOSPLIT|NOFRAME,$0-24
-	MOVB	runtime·useAeshash(SB), R10
-	CBZ	R10, noaes
-	MOVD	$runtime·aeskeysched+0(SB), R3
-
-	VEOR	V0.B16, V0.B16, V0.B16
-	VLD1	(R3), [V2.B16]
-	VLD1	(R0), V0.D[1]
-	VMOV	R1, V0.D[0]
-
-	AESE	V2.B16, V0.B16
-	AESMC	V0.B16, V0.B16
-	AESE	V2.B16, V0.B16
-	AESMC	V0.B16, V0.B16
-	AESE	V2.B16, V0.B16
-
-	VMOV	V0.D[0], R0
-	RET
-noaes:
-	B	runtime·memhash64Fallback<ABIInternal>(SB)
-
-// func memhash(p unsafe.Pointer, h, size uintptr) uintptr
-TEXT runtime·memhash<ABIInternal>(SB),NOSPLIT|NOFRAME,$0-32
-	MOVB	runtime·useAeshash(SB), R10
-	CBZ	R10, noaes
-	B	runtime·aeshashbody<>(SB)
-noaes:
-	B	runtime·memhashFallback<ABIInternal>(SB)
-
-// func strhash(p unsafe.Pointer, h uintptr) uintptr
-TEXT runtime·strhash<ABIInternal>(SB),NOSPLIT|NOFRAME,$0-24
-	MOVB	runtime·useAeshash(SB), R10
-	CBZ	R10, noaes
-	LDP	(R0), (R0, R2)	// string data / length
-	B	runtime·aeshashbody<>(SB)
-noaes:
-	B	runtime·strhashFallback<ABIInternal>(SB)
-
-// R0: data
-// R1: seed data
-// R2: length
-// At return, R0 = return value
-TEXT runtime·aeshashbody<>(SB),NOSPLIT|NOFRAME,$0
-	VEOR	V30.B16, V30.B16, V30.B16
-	VMOV	R1, V30.D[0]
-	VMOV	R2, V30.D[1] // load length into seed
-
-	MOVD	$runtime·aeskeysched+0(SB), R4
-	VLD1.P	16(R4), [V0.B16]
-	AESE	V30.B16, V0.B16
-	AESMC	V0.B16, V0.B16
-	CMP	$16, R2
-	BLO	aes0to15
-	BEQ	aes16
-	CMP	$32, R2
-	BLS	aes17to32
-	CMP	$64, R2
-	BLS	aes33to64
-	CMP	$128, R2
-	BLS	aes65to128
-	B	aes129plus
-
-aes0to15:
-	CBZ	R2, aes0
-	VEOR	V2.B16, V2.B16, V2.B16
-	TBZ	$3, R2, less_than_8
-	VLD1.P	8(R0), V2.D[0]
-
-less_than_8:
-	TBZ	$2, R2, less_than_4
-	VLD1.P	4(R0), V2.S[2]
-
-less_than_4:
-	TBZ	$1, R2, less_than_2
-	VLD1.P	2(R0), V2.H[6]
-
-less_than_2:
-	TBZ	$0, R2, done
-	VLD1	(R0), V2.B[14]
-done:
-	AESE	V0.B16, V2.B16
-	AESMC	V2.B16, V2.B16
-	AESE	V0.B16, V2.B16
-	AESMC	V2.B16, V2.B16
-	AESE	V0.B16, V2.B16
-	AESMC	V2.B16, V2.B16
-
-	VMOV	V2.D[0], R0
-	RET
-
-aes0:
-	VMOV	V0.D[0], R0
-	RET
-
-aes16:
-	VLD1	(R0), [V2.B16]
-	B	done
-
-aes17to32:
-	// make second seed
-	VLD1	(R4), [V1.B16]
-	AESE	V30.B16, V1.B16
-	AESMC	V1.B16, V1.B16
-	SUB	$16, R2, R10
-	VLD1.P	(R0)(R10), [V2.B16]
-	VLD1	(R0), [V3.B16]
-
-	AESE	V0.B16, V2.B16
-	AESMC	V2.B16, V2.B16
-	AESE	V1.B16, V3.B16
-	AESMC	V3.B16, V3.B16
-
-	AESE	V0.B16, V2.B16
-	AESMC	V2.B16, V2.B16
-	AESE	V1.B16, V3.B16
-	AESMC	V3.B16, V3.B16
-
-	AESE	V0.B16, V2.B16
-	AESE	V1.B16, V3.B16
-
-	VEOR	V3.B16, V2.B16, V2.B16
-
-	VMOV	V2.D[0], R0
-	RET
-
-aes33to64:
-	VLD1	(R4), [V1.B16, V2.B16, V3.B16]
-	AESE	V30.B16, V1.B16
-	AESMC	V1.B16, V1.B16
-	AESE	V30.B16, V2.B16
-	AESMC	V2.B16, V2.B16
-	AESE	V30.B16, V3.B16
-	AESMC	V3.B16, V3.B16
-	SUB	$32, R2, R10
-
-	VLD1.P	(R0)(R10), [V4.B16, V5.B16]
-	VLD1	(R0), [V6.B16, V7.B16]
-
-	AESE	V0.B16, V4.B16
-	AESMC	V4.B16, V4.B16
-	AESE	V1.B16, V5.B16
-	AESMC	V5.B16, V5.B16
-	AESE	V2.B16, V6.B16
-	AESMC	V6.B16, V6.B16
-	AESE	V3.B16, V7.B16
-	AESMC	V7.B16, V7.B16
-
-	AESE	V0.B16, V4.B16
-	AESMC	V4.B16, V4.B16
-	AESE	V1.B16, V5.B16
-	AESMC	V5.B16, V5.B16
-	AESE	V2.B16, V6.B16
-	AESMC	V6.B16, V6.B16
-	AESE	V3.B16, V7.B16
-	AESMC	V7.B16, V7.B16
-
-	AESE	V0.B16, V4.B16
-	AESE	V1.B16, V5.B16
-	AESE	V2.B16, V6.B16
-	AESE	V3.B16, V7.B16
-
-	VEOR	V6.B16, V4.B16, V4.B16
-	VEOR	V7.B16, V5.B16, V5.B16
-	VEOR	V5.B16, V4.B16, V4.B16
-
-	VMOV	V4.D[0], R0
-	RET
-
-aes65to128:
-	VLD1.P	64(R4), [V1.B16, V2.B16, V3.B16, V4.B16]
-	VLD1	(R4), [V5.B16, V6.B16, V7.B16]
-	AESE	V30.B16, V1.B16
-	AESMC	V1.B16, V1.B16
-	AESE	V30.B16, V2.B16
-	AESMC	V2.B16, V2.B16
-	AESE	V30.B16, V3.B16
-	AESMC	V3.B16, V3.B16
-	AESE	V30.B16, V4.B16
-	AESMC	V4.B16, V4.B16
-	AESE	V30.B16, V5.B16
-	AESMC	V5.B16, V5.B16
-	AESE	V30.B16, V6.B16
-	AESMC	V6.B16, V6.B16
-	AESE	V30.B16, V7.B16
-	AESMC	V7.B16, V7.B16
-
-	SUB	$64, R2, R10
-	VLD1.P	(R0)(R10), [V8.B16, V9.B16, V10.B16, V11.B16]
-	VLD1	(R0), [V12.B16, V13.B16, V14.B16, V15.B16]
-	AESE	V0.B16,	 V8.B16
-	AESMC	V8.B16,  V8.B16
-	AESE	V1.B16,	 V9.B16
-	AESMC	V9.B16,  V9.B16
-	AESE	V2.B16, V10.B16
-	AESMC	V10.B16,  V10.B16
-	AESE	V3.B16, V11.B16
-	AESMC	V11.B16,  V11.B16
-	AESE	V4.B16, V12.B16
-	AESMC	V12.B16,  V12.B16
-	AESE	V5.B16, V13.B16
-	AESMC	V13.B16,  V13.B16
-	AESE	V6.B16, V14.B16
-	AESMC	V14.B16,  V14.B16
-	AESE	V7.B16, V15.B16
-	AESMC	V15.B16,  V15.B16
-
-	AESE	V0.B16,	 V8.B16
-	AESMC	V8.B16,  V8.B16
-	AESE	V1.B16,	 V9.B16
-	AESMC	V9.B16,  V9.B16
-	AESE	V2.B16, V10.B16
-	AESMC	V10.B16,  V10.B16
-	AESE	V3.B16, V11.B16
-	AESMC	V11.B16,  V11.B16
-	AESE	V4.B16, V12.B16
-	AESMC	V12.B16,  V12.B16
-	AESE	V5.B16, V13.B16
-	AESMC	V13.B16,  V13.B16
-	AESE	V6.B16, V14.B16
-	AESMC	V14.B16,  V14.B16
-	AESE	V7.B16, V15.B16
-	AESMC	V15.B16,  V15.B16
-
-	AESE	V0.B16,	 V8.B16
-	AESE	V1.B16,	 V9.B16
-	AESE	V2.B16, V10.B16
-	AESE	V3.B16, V11.B16
-	AESE	V4.B16, V12.B16
-	AESE	V5.B16, V13.B16
-	AESE	V6.B16, V14.B16
-	AESE	V7.B16, V15.B16
-
-	VEOR	V12.B16, V8.B16, V8.B16
-	VEOR	V13.B16, V9.B16, V9.B16
-	VEOR	V14.B16, V10.B16, V10.B16
-	VEOR	V15.B16, V11.B16, V11.B16
-	VEOR	V10.B16, V8.B16, V8.B16
-	VEOR	V11.B16, V9.B16, V9.B16
-	VEOR	V9.B16, V8.B16, V8.B16
-
-	VMOV	V8.D[0], R0
-	RET
-
-aes129plus:
-	PRFM (R0), PLDL1KEEP
-	VLD1.P	64(R4), [V1.B16, V2.B16, V3.B16, V4.B16]
-	VLD1	(R4), [V5.B16, V6.B16, V7.B16]
-	AESE	V30.B16, V1.B16
-	AESMC	V1.B16, V1.B16
-	AESE	V30.B16, V2.B16
-	AESMC	V2.B16, V2.B16
-	AESE	V30.B16, V3.B16
-	AESMC	V3.B16, V3.B16
-	AESE	V30.B16, V4.B16
-	AESMC	V4.B16, V4.B16
-	AESE	V30.B16, V5.B16
-	AESMC	V5.B16, V5.B16
-	AESE	V30.B16, V6.B16
-	AESMC	V6.B16, V6.B16
-	AESE	V30.B16, V7.B16
-	AESMC	V7.B16, V7.B16
-	ADD	R0, R2, R10
-	SUB	$128, R10, R10
-	VLD1.P	64(R10), [V8.B16, V9.B16, V10.B16, V11.B16]
-	VLD1	(R10), [V12.B16, V13.B16, V14.B16, V15.B16]
-	SUB	$1, R2, R2
-	LSR	$7, R2, R2
-
-aesloop:
-	AESE	V8.B16,	 V0.B16
-	AESMC	V0.B16,  V0.B16
-	AESE	V9.B16,	 V1.B16
-	AESMC	V1.B16,  V1.B16
-	AESE	V10.B16, V2.B16
-	AESMC	V2.B16,  V2.B16
-	AESE	V11.B16, V3.B16
-	AESMC	V3.B16,  V3.B16
-	AESE	V12.B16, V4.B16
-	AESMC	V4.B16,  V4.B16
-	AESE	V13.B16, V5.B16
-	AESMC	V5.B16,  V5.B16
-	AESE	V14.B16, V6.B16
-	AESMC	V6.B16,  V6.B16
-	AESE	V15.B16, V7.B16
-	AESMC	V7.B16,  V7.B16
-
-	VLD1.P	64(R0), [V8.B16, V9.B16, V10.B16, V11.B16]
-	AESE	V8.B16,	 V0.B16
-	AESMC	V0.B16,  V0.B16
-	AESE	V9.B16,	 V1.B16
-	AESMC	V1.B16,  V1.B16
-	AESE	V10.B16, V2.B16
-	AESMC	V2.B16,  V2.B16
-	AESE	V11.B16, V3.B16
-	AESMC	V3.B16,  V3.B16
-
-	VLD1.P	64(R0), [V12.B16, V13.B16, V14.B16, V15.B16]
-	AESE	V12.B16, V4.B16
-	AESMC	V4.B16,  V4.B16
-	AESE	V13.B16, V5.B16
-	AESMC	V5.B16,  V5.B16
-	AESE	V14.B16, V6.B16
-	AESMC	V6.B16,  V6.B16
-	AESE	V15.B16, V7.B16
-	AESMC	V7.B16,  V7.B16
-	SUB	$1, R2, R2
-	CBNZ	R2, aesloop
-
-	AESE	V8.B16,	 V0.B16
-	AESMC	V0.B16,  V0.B16
-	AESE	V9.B16,	 V1.B16
-	AESMC	V1.B16,  V1.B16
-	AESE	V10.B16, V2.B16
-	AESMC	V2.B16,  V2.B16
-	AESE	V11.B16, V3.B16
-	AESMC	V3.B16,  V3.B16
-	AESE	V12.B16, V4.B16
-	AESMC	V4.B16,  V4.B16
-	AESE	V13.B16, V5.B16
-	AESMC	V5.B16,  V5.B16
-	AESE	V14.B16, V6.B16
-	AESMC	V6.B16,  V6.B16
-	AESE	V15.B16, V7.B16
-	AESMC	V7.B16,  V7.B16
-
-	AESE	V8.B16,	 V0.B16
-	AESMC	V0.B16,  V0.B16
-	AESE	V9.B16,	 V1.B16
-	AESMC	V1.B16,  V1.B16
-	AESE	V10.B16, V2.B16
-	AESMC	V2.B16,  V2.B16
-	AESE	V11.B16, V3.B16
-	AESMC	V3.B16,  V3.B16
-	AESE	V12.B16, V4.B16
-	AESMC	V4.B16,  V4.B16
-	AESE	V13.B16, V5.B16
-	AESMC	V5.B16,  V5.B16
-	AESE	V14.B16, V6.B16
-	AESMC	V6.B16,  V6.B16
-	AESE	V15.B16, V7.B16
-	AESMC	V7.B16,  V7.B16
-
-	AESE	V8.B16,	 V0.B16
-	AESE	V9.B16,	 V1.B16
-	AESE	V10.B16, V2.B16
-	AESE	V11.B16, V3.B16
-	AESE	V12.B16, V4.B16
-	AESE	V13.B16, V5.B16
-	AESE	V14.B16, V6.B16
-	AESE	V15.B16, V7.B16
-
-	VEOR	V0.B16, V1.B16, V0.B16
-	VEOR	V2.B16, V3.B16, V2.B16
-	VEOR	V4.B16, V5.B16, V4.B16
-	VEOR	V6.B16, V7.B16, V6.B16
-	VEOR	V0.B16, V2.B16, V0.B16
-	VEOR	V4.B16, V6.B16, V4.B16
-	VEOR	V4.B16, V0.B16, V0.B16
-
-	VMOV	V0.D[0], R0
-	RET
-
 // The Arm architecture provides a user space accessible counter-timer which
 // is incremented at a fixed but machine-specific rate. Software can (spin)
 // wait until the counter-timer reaches some desired value.
@@ -1244,10 +839,6 @@ nosave:
 	// This code is like the above sequence but without saving/restoring g
 	// and without worrying about the stack moving out from under us
 	// (because we're on a system stack, not a goroutine stack).
-	// The above code could be used directly if already on a system stack,
-	// but then the only path through this code would be a rare case on Solaris.
-	// Using this code for all "already on system stack" calls exercises it more,
-	// which should help keep it correct.
 	MOVD	fn+0(FP), R1
 	MOVD	arg+8(FP), R0
 	MOVD	RSP, R2
@@ -1344,23 +935,24 @@ havem:
 	MOVD	(g_sched+gobuf_sp)(g), R4 // prepare stack as R4
 	MOVD	(g_sched+gobuf_pc)(g), R5
 	MOVD	R5, -48(R4)
-	MOVD	(g_sched+gobuf_bp)(g), R5
-	MOVD	R5, -56(R4)
+	MOVD	(g_sched+gobuf_bp)(g), R6
+	MOVD	R6, -56(R4)
+
 	// Gather our arguments into registers.
-	MOVD	fn+0(FP), R1
-	MOVD	frame+8(FP), R2
-	MOVD	ctxt+16(FP), R3
-	MOVD	$-48(R4), R0 // maintain 16-byte SP alignment
-	MOVD	R0, RSP	// switch stack
-	MOVD	R1, 8(RSP)
-	MOVD	R2, 16(RSP)
-	MOVD	R3, 24(RSP)
-	MOVD	$runtime·cgocallbackg(SB), R0
-	CALL	(R0) // indirect call to bypass nosplit check. We're on a different stack now.
+	MOVD	fn+0(FP), R0
+	MOVD	frame+8(FP), R1
+	MOVD	ctxt+16(FP), R2
+
+	SUB	$48, R4		// Allocate the same frame size on the g stack
+	MOVD	R4, RSP		// switch stack
+	MOVD	$runtime·cgocallbackg<ABIInternal>(SB), R11
+	CALL	(R11) // indirect call to bypass nosplit check. We're on a different stack now.
 
 	// Restore g->sched (== m->curg->sched) from saved values.
 	MOVD	0(RSP), R5
 	MOVD	R5, (g_sched+gobuf_pc)(g)
+	MOVD	-8(RSP), R6
+	MOVD	R6, (g_sched+gobuf_bp)(g)
 	MOVD	RSP, R4
 	ADD	$48, R4, R4
 	MOVD	R4, (g_sched+gobuf_sp)(g)
@@ -1456,11 +1048,6 @@ TEXT runtime·addmoduledata(SB),NOSPLIT,$0-0
 	MOVD	R0, runtime·lastmoduledatap(SB)
 	MOVD	8(RSP), R27
 	ADD	$0x10, RSP
-	RET
-
-TEXT ·checkASM(SB),NOSPLIT,$0-1
-	MOVW	$1, R3
-	MOVB	R3, ret+0(FP)
 	RET
 
 // gcWriteBarrier informs the GC about heap pointer writes.

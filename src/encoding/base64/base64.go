@@ -151,44 +151,39 @@ func (enc *Encoding) Encode(dst, src []byte) {
 	// outside of the loop to speed up the encoder.
 	_ = enc.encode
 
-	di, si := 0, 0
-	n := (len(src) / 3) * 3
-	for si < n {
+	for len(src) >= 3 {
 		// Convert 3x 8bit source bytes into 4 bytes
-		val := uint(src[si+0])<<16 | uint(src[si+1])<<8 | uint(src[si+2])
+		val := uint(src[0])<<16 | uint(src[1])<<8 | uint(src[2])
 
-		dst[di+0] = enc.encode[val>>18&0x3F]
-		dst[di+1] = enc.encode[val>>12&0x3F]
-		dst[di+2] = enc.encode[val>>6&0x3F]
-		dst[di+3] = enc.encode[val&0x3F]
+		_ = dst[3] // Eliminate bounds checks below.
+		dst[0] = enc.encode[val>>18&0x3F]
+		dst[1] = enc.encode[val>>12&0x3F]
+		dst[2] = enc.encode[val>>6&0x3F]
+		dst[3] = enc.encode[val&0x3F]
 
-		si += 3
-		di += 4
+		src = src[3:]
+		dst = dst[4:]
 	}
 
-	remain := len(src) - si
-	if remain == 0 {
+	// Add the remaining small block (if any).
+	switch len(src) {
+	case 0:
 		return
-	}
-	// Add the remaining small block
-	val := uint(src[si+0]) << 16
-	if remain == 2 {
-		val |= uint(src[si+1]) << 8
-	}
-
-	dst[di+0] = enc.encode[val>>18&0x3F]
-	dst[di+1] = enc.encode[val>>12&0x3F]
-
-	switch remain {
-	case 2:
-		dst[di+2] = enc.encode[val>>6&0x3F]
-		if enc.padChar != NoPadding {
-			dst[di+3] = byte(enc.padChar)
-		}
 	case 1:
+		val := uint(src[0]) << 16
+		dst[0] = enc.encode[val>>18&0x3F]
+		dst[1] = enc.encode[val>>12&0x3F]
 		if enc.padChar != NoPadding {
-			dst[di+2] = byte(enc.padChar)
-			dst[di+3] = byte(enc.padChar)
+			dst[2] = byte(enc.padChar)
+			dst[3] = byte(enc.padChar)
+		}
+	case 2:
+		val := uint(src[0])<<16 | uint(src[1])<<8
+		dst[0] = enc.encode[val>>18&0x3F]
+		dst[1] = enc.encode[val>>12&0x3F]
+		dst[2] = enc.encode[val>>6&0x3F]
+		if enc.padChar != NoPadding {
+			dst[3] = byte(enc.padChar)
 		}
 	}
 }

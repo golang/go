@@ -1,0 +1,27 @@
+[short] skip
+[!exec:hg] skip
+
+env GO111MODULE=on
+env GOPROXY=direct
+env GOSUMDB=off
+env GOMODCACHE=$WORK/modcache
+
+# go mod download vcstest/hello@1234567890123456789012345678901234567890 should fail, still print origin info
+# (40 hex digits is assumed to be a full hash and is a slightly different code path from @nonexist)
+! go mod download -x -json vcs-test.golang.org/hg/hello.hg@1234567890123456789012345678901234567890
+cp stdout hellononhash.json
+stdout '"Version": "1234567890123456789012345678901234567890"'
+stdout '"Error":.*unknown revision 1234567890123456789012345678901234567890'
+stdout '"RepoSum": "r1:blLvkhBriVMV[+]6Il4Ub43wlyWXIe1NpobTelF0peaG0="'
+! stdout '"(TagPrefix|TagSum|Ref|Hash)"'
+
+# reuse go mod download vcstest/hello@1234567890123456789012345678901234567890
+go clean -modcache
+! go mod download -reuse=hellononhash.json -x -json vcs-test.golang.org/hg/hello.hg@1234567890123456789012345678901234567890
+! stderr 'hg( .*)* pull'
+stdout '"Reuse": true'
+stdout '"Version": "1234567890123456789012345678901234567890"'
+stdout '"Error":.*unknown revision 1234567890123456789012345678901234567890'
+stdout '"RepoSum": "r1:blLvkhBriVMV[+]6Il4Ub43wlyWXIe1NpobTelF0peaG0="'
+! stdout '"(TagPrefix|TagSum|Ref|Hash)"'
+! stdout '"(Dir|Info|GoMod|Zip)"'

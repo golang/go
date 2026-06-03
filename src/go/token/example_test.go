@@ -35,7 +35,7 @@ func ok(pos p) bool {
 }
 `
 
-	f, err := parser.ParseFile(fset, "main.go", src, 0)
+	f, err := parser.ParseFile(fset, "main.go", src, parser.SkipObjectResolution)
 	if err != nil {
 		fmt.Println(err)
 		return

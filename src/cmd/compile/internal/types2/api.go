@@ -437,6 +437,10 @@ type Instance struct {
 	Type     Type
 }
 
+func (inst Instance) String() string {
+	return fmt.Sprintf("%s%s", inst.TypeArgs, inst.Type)
+}
+
 // An Initializer describes a package-level variable, or a list of variables in case
 // of a multi-valued initialization expression, and the corresponding initialization
 // expression.

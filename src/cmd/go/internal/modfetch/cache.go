@@ -15,9 +15,11 @@ import (
 	"math/rand"
 	"os"
 	"path/filepath"
+	"runtime"
 	"strconv"
 	"strings"
 	"sync"
+	"syscall"
 
 	"cmd/go/internal/base"
 	"cmd/go/internal/cfg"
@@ -264,7 +266,7 @@ func (r *cachingRepo) Stat(ctx context.Context, rev string) (*RevInfo, error) {
 				})
 			}
 
-			if err := writeDiskStat(ctx, file, info); err != nil {
+			if err := writeDiskStat(ctx, file, info); err != nil && !isErrReadOnlyFS(err) {
 				fmt.Fprintf(os.Stderr, "go: writing stat cache: %v\n", err)
 			}
 		}
@@ -321,7 +323,7 @@ func (r *cachingRepo) GoMod(ctx context.Context, version string) ([]byte, error)
 			if err := checkGoMod(r.fetcher, r.path, version, text); err != nil {
 				return text, err
 			}
-			if err := writeDiskGoMod(ctx, file, text); err != nil {
+			if err := writeDiskGoMod(ctx, file, text); err != nil && !isErrReadOnlyFS(err) {
 				fmt.Fprintf(os.Stderr, "go: writing go.mod cache: %v\n", err)
 			}
 		}
@@ -496,7 +498,7 @@ func readDiskStat(ctx context.Context, path, rev string) (file string, info *Rev
 	// Remarshal and update the cache file if needed.
 	data2, err := json.Marshal(info)
 	if err == nil && !bytes.Equal(data2, data) {
-		writeDiskCache(ctx, file, data)
+		writeDiskCache(ctx, file, data2)
 	}
 	return file, info, nil
 }
@@ -690,6 +692,24 @@ func writeDiskCache(ctx context.Context, file string, data []byte) error {
 	return nil
 }
 
+// isErrReadOnlyFS reports whether err is a read-only filesystem error
+// (syscall.EROFS on Unix/wasip1, ERROR_NOT_SUPPORTED on Windows).
+func isErrReadOnlyFS(err error) bool {
+	switch runtime.GOOS {
+	case "plan9":
+		return false
+	case "windows":
+		const ERROR_NOT_SUPPORTED = 50
+		return errors.Is(err, syscall.Errno(ERROR_NOT_SUPPORTED))
+	case "wasip1":
+		const EROFS = 69
+		return errors.Is(err, syscall.Errno(EROFS))
+	default: // unix and js
+		const EROFS = 30
+		return errors.Is(err, syscall.Errno(EROFS))
+	}
+}
+
 // tempFile creates a new temporary file with given permission bits.
 func tempFile(ctx context.Context, dir, prefix string, perm fs.FileMode) (f *os.File, err error) {
 	for i := 0; i < 10000; i++ {
@@ -761,7 +781,7 @@ func rewriteVersionList(ctx context.Context, dir string) (err error) {
 	}
 	if fi, err := f.Stat(); err == nil && int(fi.Size()) == buf.Len() {
 		old := make([]byte, buf.Len()+1)
-		if n, err := f.ReadAt(old, 0); err == io.EOF && n == buf.Len() && bytes.Equal(buf.Bytes(), old) {
+		if n, err := f.ReadAt(old, 0); err == io.EOF && n == buf.Len() && bytes.Equal(buf.Bytes(), old[:n]) {
 			return nil // No edit needed.
 		}
 	}

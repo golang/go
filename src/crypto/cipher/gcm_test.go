@@ -17,7 +17,6 @@ import (
 	"encoding/hex"
 	"errors"
 	"fmt"
-	"internal/testenv"
 	"io"
 	"reflect"
 	"testing"
@@ -763,15 +762,8 @@ func TestGCMExtraMethods(t *testing.T) {
 }
 
 func TestGCMNoncesFIPSV1(t *testing.T) {
-	cryptotest.MustSupportFIPS140(t)
 	if !fips140.Enabled {
-		cmd := testenv.Command(t, testenv.Executable(t), "-test.run=^TestGCMNoncesFIPSV1$", "-test.v")
-		cmd.Env = append(cmd.Environ(), "GODEBUG=fips140=on")
-		out, err := cmd.CombinedOutput()
-		t.Logf("running with GODEBUG=fips140=on:\n%s", out)
-		if err != nil {
-			t.Errorf("fips140=on subprocess failed: %v", err)
-		}
+		cryptotest.RerunWithFIPS140Enabled(t)
 		return
 	}
 

@@ -31,7 +31,7 @@ func defaultImporter(fset *token.FileSet) Importer {
 }
 
 func mustParse(fset *token.FileSet, src string) *ast.File {
-	f, err := parser.ParseFile(fset, pkgName(src), src, parser.ParseComments)
+	f, err := parser.ParseFile(fset, pkgName(src), src, parser.ParseComments|parser.SkipObjectResolution)
 	if err != nil {
 		panic(err) // so we don't need to pass *testing.T
 	}
@@ -2416,6 +2416,12 @@ type J = I[int]
 type Nested[P any] *interface{b(P)}
 
 type K = Nested[string]
+
+type G[T any] struct{}
+
+func (G[T]) M[P interface{ ~*T }](P) {}
+
+type GI = G[int]
 `
 	pkg := mustTypecheck(src, nil, nil)
 
@@ -2431,7 +2437,7 @@ type K = Nested[string]
 			methods [2][]string // method strings
 		)
 		var wg sync.WaitGroup
-		for i := 0; i < 2; i++ {
+		for i := range counts {
 			wg.Add(1)
 			go func() {
 				defer wg.Done()
@@ -2453,6 +2459,23 @@ type K = Nested[string]
 				t.Errorf("mismatching methods for %s: %s vs %s", inst, m0, m1)
 			}
 		}
+	}
+
+	// Expand a generic method on a Named instance concurrently.
+	named := Unalias(pkg.Scope().Lookup("GI").Type()).(*Named)
+	var bounds [2]string
+	var wg sync.WaitGroup
+	for i := range bounds {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			sig := named.Method(0).Type().(*Signature)
+			bounds[i] = sig.TypeParams().At(0).Underlying().String()
+		}()
+	}
+	wg.Wait()
+	if bounds[0] != bounds[1] || bounds[0] != "interface{~*int}" {
+		t.Errorf("mismatching bounds for GI.M: %s vs %s", bounds[0], bounds[1])
 	}
 }
 
@@ -3032,7 +3055,7 @@ type C = int
 // to compute which file it is "in" based on syntax position.
 func TestVersionIssue69477(t *testing.T) {
 	fset := token.NewFileSet()
-	f, _ := parser.ParseFile(fset, "a.go", "package p; const k = 123", 0)
+	f := mustParse(fset, "package p; const k = 123")
 
 	// Set an invalid Pos on the BasicLit.
 	ast.Inspect(f, func(n ast.Node) bool {
@@ -3062,10 +3085,10 @@ func TestVersionIssue69477(t *testing.T) {
 // The Checker now holds the effective version in a state variable.
 func TestVersionWithoutPos(t *testing.T) {
 	fset := token.NewFileSet()
-	f, _ := parser.ParseFile(fset, "a.go", "//go:build go1.22\n\npackage p; var _ int", 0)
+	f := mustParse(fset, "//go:build go1.22\n\npackage p; var _ int")
 
 	// Splice in a decl from another file. Its pos will be wrong.
-	f2, _ := parser.ParseFile(fset, "a.go", "package q; func _(s func(func() bool)) { for range s {} }", 0)
+	f2 := mustParse(fset, "package q; func _(s func(func() bool)) { for range s {} }")
 	f.Decls[0] = f2.Decls[0]
 
 	// Type check. The checker will consult the effective
@@ -3084,7 +3107,7 @@ func TestVersionWithoutPos(t *testing.T) {
 
 func TestVarKind(t *testing.T) {
 	fset := token.NewFileSet()
-	f, _ := parser.ParseFile(fset, "a.go", `package p
+	f := mustParse(fset, `package p
 
 var global int
 
@@ -3098,8 +3121,7 @@ func (recv T) f(param int) (result int) {
 		_ = local3
 	}
 	return local2
-}
-`, 0)
+}`)
 
 	pkg := NewPackage("p", "p")
 	info := &Info{Defs: make(map[*ast.Ident]Object)}
@@ -3137,7 +3159,7 @@ type B []byte
 var _ = f[B]
 `
 	fset := token.NewFileSet()
-	f, _ := parser.ParseFile(fset, "p.go", src, 0)
+	f := mustParse(fset, src)
 
 	pkg := NewPackage("p", "p")
 	info := &Info{Types: make(map[ast.Expr]TypeAndValue)}

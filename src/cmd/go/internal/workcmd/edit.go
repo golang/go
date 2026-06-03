@@ -35,7 +35,7 @@ The editing flags specify a sequence of editing operations.
 
 The -fmt flag reformats the go.work file without making other changes.
 This reformatting is also implied by any other modifications that use or
-rewrite the go.mod file. The only time this flag is needed is if no other
+rewrite the go.work file. The only time this flag is needed is if no other
 flags are specified, as in 'go work edit -fmt'.
 
 The -godebug=key=value flag adds a godebug key=value line,
@@ -63,14 +63,18 @@ The -use, -dropuse, -replace, and -dropreplace,
 editing flags may be repeated, and the changes are applied in the order given.
 
 The -go=version flag sets the expected Go language version.
+It takes a version like "1.26" or "1.26.2".
+Using "none" as the version removes the go directive.
 
 The -toolchain=name flag sets the Go toolchain to use.
+It takes a toolchain name like "go1.26" or "go1.26.2".
+Using "none" as the name removes the toolchain directive.
 
 The -print flag prints the final go.work in its text format instead of
-writing it back to go.mod.
+writing it back to go.work.
 
 The -json flag prints the final go.work file in JSON format instead of
-writing it back to go.mod. The JSON output corresponds to these Go types:
+writing it back to go.work. The JSON output corresponds to these Go types:
 
 	type GoWork struct {
 		Go        string
@@ -132,7 +136,7 @@ func init() {
 }
 
 func runEditwork(ctx context.Context, cmd *base.Command, args []string) {
-	moduleLoaderState := modload.NewState()
+	moduleLoader := modload.NewLoader()
 	if *editJSON && *editPrint {
 		base.Fatalf("go: cannot use both -json and -print")
 	}
@@ -144,8 +148,8 @@ func runEditwork(ctx context.Context, cmd *base.Command, args []string) {
 	if len(args) == 1 {
 		gowork = args[0]
 	} else {
-		moduleLoaderState.InitWorkfile()
-		gowork = modload.WorkFilePath(moduleLoaderState)
+		moduleLoader.InitWorkfile()
+		gowork = modload.WorkFilePath(moduleLoader)
 	}
 	if gowork == "" {
 		base.Fatalf("go: no go.work file found\n\t(run 'go work init' first or specify path using GOWORK environment variable)")
@@ -262,7 +266,7 @@ func flagEditworkUse(arg string) {
 func flagEditworkDropUse(arg string) {
 	workedits = append(workedits, func(f *modfile.WorkFile) {
 		if err := f.DropUse(modload.ToDirectoryPath(arg)); err != nil {
-			base.Fatalf("go: -dropdirectory=%s: %v", arg, err)
+			base.Fatalf("go: -dropuse=%s: %v", arg, err)
 		}
 	})
 }
@@ -341,21 +345,21 @@ func flagEditworkDropReplace(arg string) {
 	})
 }
 
-type replaceJSON struct {
-	Old module.Version
-	New module.Version
-}
-
 // editPrintJSON prints the -json output.
 func editPrintJSON(workFile *modfile.WorkFile) {
 	var f workfileJSON
 	if workFile.Go != nil {
 		f.Go = workFile.Go.Version
 	}
+	if workFile.Toolchain != nil {
+		f.Toolchain = workFile.Toolchain.Name
+	}
+	for _, d := range workFile.Godebug {
+		f.Godebug = append(f.Godebug, godebugJSON{Key: d.Key, Value: d.Value})
+	}
 	for _, d := range workFile.Use {
 		f.Use = append(f.Use, useJSON{DiskPath: d.Path, ModPath: d.ModulePath})
 	}
-
 	for _, r := range workFile.Replace {
 		f.Replace = append(f.Replace, replaceJSON{r.Old, r.New})
 	}
@@ -369,12 +373,24 @@ func editPrintJSON(workFile *modfile.WorkFile) {
 
 // workfileJSON is the -json output data structure.
 type workfileJSON struct {
-	Go      string `json:",omitempty"`
-	Use     []useJSON
-	Replace []replaceJSON
+	Go        string        `json:",omitempty"`
+	Toolchain string        `json:",omitempty"`
+	Godebug   []godebugJSON `json:",omitempty"`
+	Use       []useJSON     `json:",omitempty"`
+	Replace   []replaceJSON `json:",omitempty"`
+}
+
+type godebugJSON struct {
+	Key   string
+	Value string
 }
 
 type useJSON struct {
 	DiskPath string
 	ModPath  string `json:",omitempty"`
+}
+
+type replaceJSON struct {
+	Old module.Version
+	New module.Version
 }

@@ -475,7 +475,6 @@ func concurrentFlagOk() bool {
 		Flag.E == 0 &&
 		Flag.K == 0 &&
 		Flag.L == 0 &&
-		Flag.LowerH == 0 &&
 		Flag.LowerJ == 0 &&
 		Flag.LowerM == 0 &&
 		Flag.LowerR == 0

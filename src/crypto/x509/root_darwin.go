@@ -10,6 +10,9 @@ import (
 	"fmt"
 )
 
+// macOS has no default SSL_CERT_{FILE,DIR} paths.
+var certFiles, certDirectories []string
+
 func (c *Certificate) systemVerify(opts *VerifyOptions) (chains [][]*Certificate, err error) {
 	certs := macos.CFArrayCreateMutable()
 	defer macos.ReleaseCFArray(certs)
@@ -124,8 +127,4 @@ func exportCertificate(cert macos.CFRef) (*Certificate, error) {
 		return nil, err
 	}
 	return ParseCertificate(data)
-}
-
-func loadSystemRoots() (*CertPool, error) {
-	return &CertPool{systemPool: true}, nil
 }

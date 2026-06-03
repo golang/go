@@ -197,6 +197,7 @@ type CallExpr struct {
 	// whether it's a runtime.KeepAlive call the compiler generates to
 	// keep a variable alive. See #73137.
 	IsCompilerVarLive bool
+	Reshape           bool
 }
 
 func NewCallExpr(pos src.XPos, op Op, fun Node, args []Node) *CallExpr {
@@ -376,6 +377,7 @@ type InlinedCallExpr struct {
 	miniExpr
 	Body       Nodes
 	ReturnVars Nodes // must be side-effect free
+	Reshape    bool
 }
 
 func NewInlinedCallExpr(pos src.XPos, body, retvars []Node) *InlinedCallExpr {
@@ -391,10 +393,16 @@ func (n *InlinedCallExpr) SingleResult() Node {
 	if have := len(n.ReturnVars); have != 1 {
 		base.FatalfAt(n.Pos(), "inlined call has %v results, expected 1", have)
 	}
-	if !n.Type().HasShape() && n.ReturnVars[0].Type().HasShape() {
-		// If the type of the call is not a shape, but the type of the return value
-		// is a shape, we need to do an implicit conversion, so the real type
-		// of n is maintained.
+
+	// If the type of the call is not a shape, but the type of the return value
+	// is a shape, we need to do an implicit conversion, so the real type
+	// of n is maintained.
+	needImplicitConv := !n.Type().HasShape() && n.ReturnVars[0].Type().HasShape()
+	if n.Reshape { // or if the inlined call expr needs reshaping.
+		needImplicitConv = true
+	}
+
+	if needImplicitConv {
 		r := NewConvExpr(n.Pos(), OCONVNOP, n.Type(), n.ReturnVars[0])
 		r.SetTypecheck(1)
 		return r

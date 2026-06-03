@@ -331,7 +331,7 @@ func (conf *resolvConfTest) write(lines []string) error {
 }
 
 func (conf *resolvConfTest) writeAndUpdate(lines []string) error {
-	return conf.writeAndUpdateWithLastCheckedTime(lines, time.Now().Add(time.Hour))
+	return conf.writeAndUpdateWithLastCheckedTime(lines, distantFuture)
 }
 
 func (conf *resolvConfTest) writeAndUpdateWithLastCheckedTime(lines []string, lastChecked time.Time) error {
@@ -2853,5 +2853,31 @@ func TestExtendedRCode(t *testing.T) {
 	_, _, err := r.tryOneName(context.Background(), getSystemDNSConfig(), "go.dev.", dnsmessage.TypeA)
 	if dnsErr, ok := errors.AsType[*DNSError](err); !ok || dnsErr.Err != errServerMisbehaving.Error() {
 		t.Fatalf("r.tryOneName(): unexpected error: %v", err)
+	}
+}
+
+// This test makes sure that we always re-check the resolv.conf no matter
+// the elapsed time in case the default nameservers are used.
+func TestEmptyResolvConfReplacedWithConfHaingNameservers(t *testing.T) {
+	conf, err := newResolvConfTest()
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer conf.teardown()
+
+	if err := conf.writeAndUpdateWithLastCheckedTime([]string{"# empty resolv.conf file"}, time.Now()); err != nil {
+		t.Fatal(err)
+	}
+
+	if !getSystemDNSConfigNamed(conf.path).isDefaultNS() {
+		t.Fatal("resolv.conf was not re-loaded")
+	}
+
+	if err := conf.writeAndUpdateWithLastCheckedTime([]string{"nameserver 192.0.2.1"}, time.Now()); err != nil {
+		t.Fatal(err)
+	}
+
+	if getSystemDNSConfigNamed(conf.path).isDefaultNS() {
+		t.Fatal("resolv.conf was not re-loaded")
 	}
 }

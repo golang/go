@@ -24,7 +24,7 @@ func Increment() {
 func incrementConfig() {
 	// TODO(jitsu): Telemetry for the go/mode counters should eventually be
 	// moved to modload.Init()
-	s := modload.NewState()
+	s := modload.NewLoader()
 	if !s.WillBeEnabled() {
 		counter.Inc("go/mode:gopath")
 	} else if workfile := s.FindGoWork(base.Cwd()); workfile != "" {
@@ -41,6 +41,7 @@ func incrementConfig() {
 
 	counter.Inc("go/platform/target/goos:" + cfg.Goos)
 	counter.Inc("go/platform/target/goarch:" + cfg.Goarch)
+	counter.Inc("go/platform/target/port:" + cfg.Goos + "-" + cfg.Goarch)
 	switch cfg.Goarch {
 	case "386":
 		counter.Inc("go/platform/target/go386:" + cfg.GO386)

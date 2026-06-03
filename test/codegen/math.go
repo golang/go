@@ -117,7 +117,7 @@ func copysign(a, b, c float64) {
 	// s390x:"LNDFR " -"MOVD "     (no integer load/store)
 	// ppc64x:"FCPSGN"
 	// riscv64:"FSGNJD"
-	// arm64:"ORR", -"AND"
+	// arm64:"ORR" -"AND"
 	sink64[1] = math.Copysign(c, -1)
 
 	// Like math.Copysign(c, -1), but with integer operations. Useful
@@ -333,13 +333,13 @@ func nanGenerate32() float32 {
 
 func outOfBoundsConv(i32 *[2]int32, u32 *[2]uint32, i64 *[2]int64, u64 *[2]uint64) {
 	// arm64: "FCVTZSDW"
-	// amd64: "CVTTSD2SL", "CVTSD2SS"
+	// amd64: "CVTTSD2SL" "CVTSD2SS"
 	i32[0] = int32(two40())
 	// arm64: "FCVTZSDW"
-	// amd64: "CVTTSD2SL", "CVTSD2SS"
+	// amd64: "CVTTSD2SL" "CVTSD2SS"
 	i32[1] = int32(-two40())
 	// arm64: "FCVTZSDW"
-	// amd64: "CVTTSD2SL", "CVTSD2SS"
+	// amd64: "CVTTSD2SL" "CVTSD2SS"
 	u32[0] = uint32(two41())
 	// on arm64, this uses an explicit <0 comparison, so it constant folds.
 	// on amd64, this uses an explicit <0 comparison, so it constant folds.

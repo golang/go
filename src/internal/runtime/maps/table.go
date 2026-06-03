@@ -6,6 +6,7 @@ package maps
 
 import (
 	"internal/abi"
+	"internal/goexperiment"
 	"internal/runtime/math"
 	"unsafe"
 )
@@ -418,6 +419,61 @@ func (t *table) uncheckedPutSlot(typ *abi.MapType, hash uintptr, key, elem unsaf
 	}
 }
 
+// uncheckedPutSlotForAssign inserts a new key into the table for map
+// assignment and returns the element slot.
+//
+// Decrements growthLeft and increments used.
+//
+// Requires that the entry does not exist in the table, and that the table has
+// room for another element without rehashing.
+//
+// Before calling this method, you must ensure that the necessary check has
+// been performed in advance.
+//
+// For indirect keys, memory is allocated and the key is copied into it.
+// For indirect elements, memory is pre-allocated and the slot is returned
+// to the caller, who must write the element value into it.
+func (t *table) uncheckedPutSlotForAssign(typ *abi.MapType, hash uintptr, key unsafe.Pointer) unsafe.Pointer {
+	if t.growthLeft == 0 {
+		panic("invariant failed: growthLeft is unexpectedly 0")
+	}
+
+	// Given key and its hash hash(key), to insert it, we construct a
+	// probeSeq, and use it to find the first group with an unoccupied (empty
+	// or deleted) slot. We place the key into the first such slot in the
+	// group and mark it as full with key's H2. For indirect elements, we
+	// pre-allocate the element slot and return it to the caller.
+	seq := makeProbeSeq(h1(hash), t.groups.lengthMask)
+	for ; ; seq = seq.next() {
+		g := t.groups.group(typ, seq.offset)
+
+		match := g.ctrls().matchEmptyOrDeleted()
+		if match != 0 {
+			i := match.first()
+
+			slotKey := g.key(typ, i)
+			if typ.IndirectKey() {
+				kmem := newobject(typ.Key)
+				*(*unsafe.Pointer)(slotKey) = kmem
+				slotKey = kmem
+			}
+			typedmemmove(typ.Key, slotKey, key)
+
+			slotElem := g.elem(typ, i)
+			if typ.IndirectElem() {
+				emem := newobject(typ.Elem)
+				*(*unsafe.Pointer)(slotElem) = emem
+				slotElem = emem
+			}
+
+			t.growthLeft--
+			t.used++
+			g.ctrls().set(i, ctrl(h2(hash)))
+			return slotElem
+		}
+	}
+}
+
 // Delete returns true if it put a tombstone in t.
 func (t *table) Delete(typ *abi.MapType, m *Map, hash uintptr, key unsafe.Pointer) bool {
 	seq := makeProbeSeq(h1(hash), t.groups.lengthMask)
@@ -615,9 +671,16 @@ func (t *table) Clear(typ *abi.MapType) {
 	//  4) But if a group is really large, do the test anyway, as
 	//     clearing is expensive.
 	fullTest := uint64(t.used)*4 <= t.groups.lengthMask // less than ~0.25 entries per group -> >3/4 empty groups
-	if typ.SlotSize > 32 {
-		// For large slots, it is always worth doing the test first.
-		fullTest = true
+	if goexperiment.MapSplitGroup {
+		if (typ.KeyStride + typ.ElemStride) > 32 {
+			// For large slots, it is always worth doing the test first.
+			fullTest = true
+		}
+	} else {
+		if typ.KeyStride > 32 { // KeyStride == SlotSize in interleaved layout
+			// For large slots, it is always worth doing the test first.
+			fullTest = true
+		}
 	}
 	if fullTest {
 		for i := uint64(0); i <= t.groups.lengthMask; i++ {

@@ -17,6 +17,9 @@ import (
 // FileUsesGoVersion reports whether the specified file may use features of the
 // specified version of Go (e.g. "go1.24").
 //
+// It returns false when version information is not available,
+// such as for parsed files that are ignored by the type checker.
+//
 // Tip: we recommend using this check "late", just before calling
 // pass.Report, rather than "early" (when entering each ast.File, or
 // each candidate node of interest, during the traversal), because the
@@ -24,7 +27,10 @@ import (
 // fraction of files that pass most version checks is high and
 // increases over time.
 func FileUsesGoVersion(pass *analysis.Pass, file *ast.File, version string) (_res bool) {
-	fileVersion := pass.TypesInfo.FileVersions[file]
+	fileVersion, ok := pass.TypesInfo.FileVersions[file]
+	if !ok {
+		return false // be conservative in the absence of information (e.g. IgnoredFiles)
+	}
 
 	// Standard packages that are part of toolchain bootstrapping
 	// are not considered to use a version of Go later than the

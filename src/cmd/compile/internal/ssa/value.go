@@ -616,6 +616,9 @@ func CanSSA(t *types.Type) bool {
 	if t.IsSIMD() {
 		return true
 	}
+	if t.Size() == 0 {
+		return true
+	}
 	sizeLimit := int64(MaxStruct * types.PtrSize)
 	if t.Size() > sizeLimit {
 		// 4*Widthptr is an arbitrary constant. We want it

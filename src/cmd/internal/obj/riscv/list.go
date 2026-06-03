@@ -37,6 +37,9 @@ func RegName(r int) string {
 }
 
 func opSuffixString(s uint8) string {
+	if s == fenceTsoSuffixBit {
+		return ".TSO"
+	}
 	if s&rmSuffixBit == 0 {
 		return ""
 	}

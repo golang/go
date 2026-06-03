@@ -10,6 +10,7 @@ import (
 	"cmd/internal/script/scripttest"
 	"errors"
 	"fmt"
+	"internal/buildcfg"
 	"internal/testenv"
 	"os"
 	"os/exec"
@@ -40,13 +41,13 @@ func scriptConditions(t *testing.T) map[string]script.Cond {
 	}
 
 	add("abscc", script.Condition("default $CC path is absolute and exists", defaultCCIsAbsolute))
-	add("bzr", lazyBool("the 'bzr' executable exists and provides the standard CLI", hasWorkingBzr))
 	add("case-sensitive", script.OnceCondition("$WORK filesystem is case-sensitive", isCaseSensitive))
 	add("cc", script.PrefixCondition("go env CC = <suffix> (ignoring the go/env file)", ccIs))
 	add("git", lazyBool("the 'git' executable exists and provides the standard CLI", hasWorkingGit))
 	add("git-sha256", script.OnceCondition("the local 'git' version is recent enough to support sha256 object/commit hashes", gitSupportsSHA256))
 	add("net", script.PrefixCondition("can connect to external network host <suffix>", hasNet))
 	add("trimpath", script.OnceCondition("test binary was built with -trimpath", isTrimpath))
+	add("default-cgo", lazyBool("when CGO_ENABLED=1|0 was set in make.bash", defaultCgo))
 
 	return conds
 }
@@ -184,13 +185,6 @@ func gitSupportsSHA256() (bool, error) {
 	return hasAtLeastGitVersion("v2.29")
 }
 
-func hasWorkingBzr() bool {
-	bzr, err := exec.LookPath("bzr")
-	if err != nil {
-		return false
-	}
-	// Check that 'bzr help' exits with code 0.
-	// See go.dev/issue/71504 for an example where 'bzr' exists in PATH but doesn't work.
-	err = exec.Command(bzr, "help").Run()
-	return err == nil
+func defaultCgo() bool {
+	return buildcfg.DefaultCGO_ENABLED == "1" || buildcfg.DefaultCGO_ENABLED == "0"
 }

@@ -55,9 +55,11 @@ var (
 )
 
 func init() {
-	flag.Var(&rpath, "r", "set the ELF dynamic linker search `path` to dir1:dir2:...")
 	flag.Var(&flagExtld, "extld", "use `linker` when linking in external mode")
 	flag.Var(&flagExtldflags, "extldflags", "pass `flags` to external linker")
+	flag.Var(&macOS, "macos", "mac OS version to write in build info (only used in internal linking)")
+	flag.Var(&macSDK, "macsdk", "mac SDK version to write in build info (only used in internal linking)")
+	flag.Var(&rpath, "r", "set the ELF dynamic linker search `path` to dir1:dir2:...")
 	flag.Var(&flagW, "w", "disable DWARF generation")
 }
 
@@ -422,8 +424,6 @@ func Main(arch *sys.Arch, theArch Arch) {
 
 	bench.Start("textaddress")
 	ctxt.textaddress()
-	bench.Start("typelink")
-	ctxt.typelink()
 	bench.Start("buildinfo")
 	ctxt.buildinfo()
 	bench.Start("pclntab")

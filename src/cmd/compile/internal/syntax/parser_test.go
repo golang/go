@@ -232,7 +232,7 @@ func TestParseFile(t *testing.T) {
 var tooLarge int = PosMax + 1
 
 func TestLineDirectives(t *testing.T) {
-	// valid line directives lead to a syntax error after them
+	// valid line directives lead to this syntax error after them
 	const valid = "syntax error: package statement must be first"
 	const filename = "directives.go"
 
@@ -271,11 +271,9 @@ func TestLineDirectives(t *testing.T) {
 		{fmt.Sprintf("//line foo:10:%d\n", tooLarge), fmt.Sprintf("invalid column number: %d", tooLarge), filename, 1, 15},
 
 		// effect of valid //line directives on lines
-		{"//line foo:123\n   foo", valid, "foo", 123, 0},
-		{"//line  foo:123\n   foo", valid, " foo", 123, 0},
+		{"//line foo:123\n", valid, "foo", 123, 0},
+		{"//line  foo:123\n", valid, " foo", 123, 0},
 		{"//line foo:123\n//line bar:345\nfoo", valid, "bar", 345, 0},
-		{"//line C:foo:123\n", valid, "C:foo", 123, 0},
-		{"//line /src/a/a.go:123\n   foo", valid, "/src/a/a.go", 123, 0},
 		{"//line :x:1\n", valid, ":x", 1, 0},
 		{"//line foo ::1\n", valid, "foo :", 1, 0},
 		{"//line foo:123abc:1\n", valid, "foo:123abc", 1, 0},
@@ -324,10 +322,8 @@ func TestLineDirectives(t *testing.T) {
 		{fmt.Sprintf("/*line foo:10:%d*/", tooLarge), fmt.Sprintf("invalid column number: %d", tooLarge), filename, 1, 15},
 
 		// effect of valid /*line directives on lines
-		{"/*line foo:123*/   foo", valid, "foo", 123, 0},
+		{"/*line foo:123*/", valid, "foo", 123, 0},
 		{"/*line foo:123*/\n//line bar:345\nfoo", valid, "bar", 345, 0},
-		{"/*line C:foo:123*/", valid, "C:foo", 123, 0},
-		{"/*line /src/a/a.go:123*/   foo", valid, "/src/a/a.go", 123, 0},
 		{"/*line :x:1*/", valid, ":x", 1, 0},
 		{"/*line foo ::1*/", valid, "foo :", 1, 0},
 		{"/*line foo:123abc:1*/", valid, "foo:123abc", 1, 0},
@@ -346,6 +342,14 @@ func TestLineDirectives(t *testing.T) {
 		{"/*line :10:20*/", valid, filename, 10, 20},
 		{"//line bar:1\n/*line :10*/", valid, "", 10, 0},
 		{"//line bar:1\n/*line :10:20*/", valid, "bar", 10, 20},
+
+		// effect of cleaning filenames
+		{"//line C:foo:123\n", valid, filepath.Clean("C:foo"), 123, 0},
+		{"//line /src/a/a.go:123\n", valid, filepath.Clean("/src/a/a.go"), 123, 0},
+		{"//line foo/../bar:1\n", valid, filepath.Clean("foo/../bar"), 1, 0},
+		{"/*line C:foo:123*/", valid, filepath.Clean("C:foo"), 123, 0},
+		{"/*line /src/a/a.go:123*/", valid, filepath.Clean("/src/a/a.go"), 123, 0},
+		{"/*line foo/../bar:1*/", valid, filepath.Clean("foo/../bar"), 1, 0},
 	} {
 		base := NewFileBase(filename)
 		_, err := Parse(base, strings.NewReader(test.src), nil, nil, 0)
@@ -371,6 +375,44 @@ func TestLineDirectives(t *testing.T) {
 		}
 		if col := pos.RelCol(); col != test.col {
 			t.Errorf("%s: got col = %d; want %d", test.src, col, test.col)
+		}
+	}
+}
+
+func TestLineDirectivesWithDir(t *testing.T) {
+	const dir = "dir"
+	filename := filepath.Join(dir, "directives.go")
+
+	type test struct{ src, filename string }
+	relPaths := []test{
+		{"//line foo:1\n", filepath.Join(dir, "foo")},
+		{"//line ./foo:1\n", filepath.Join(dir, "foo")},
+		{"//line ../foo:1\n", "foo"},
+		{"//line sub/foo:1\n", filepath.Join(dir, "sub", "foo")},
+		{"/*line foo:1*/", filepath.Join(dir, "foo")},
+		{"//line bar:1\n//line :2:1\n", filepath.Join(dir, "bar")},
+	}
+
+	var absPaths []test
+	if runtime.GOOS == "windows" {
+		absPaths = []test{
+			{"//line c:\\bar:1\n", "c:\\bar"},
+		}
+	} else {
+		absPaths = []test{
+			{"//line /abs/foo:1\n", "/abs/foo"},
+			{"//line /src/a/a.go:1\n", "/src/a/a.go"},
+		}
+	}
+
+	for _, test := range append(relPaths, absPaths...) {
+		base := NewFileBase(filename)
+		pkg, err := Parse(base, strings.NewReader(test.src+"package p"), nil, nil, 0)
+		if err != nil {
+			t.Error(err)
+		}
+		if got := pkg.Pos().RelFilename(); got != test.filename {
+			t.Errorf("%s: got filename = %q; want %q", test.src, got, test.filename)
 		}
 	}
 }

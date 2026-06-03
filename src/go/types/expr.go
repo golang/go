@@ -956,8 +956,10 @@ type target struct {
 // The result is nil if typ is not a signature.
 func newTarget(typ Type, desc string) *target {
 	if typ != nil {
-		if sig, _ := typ.Underlying().(*Signature); sig != nil {
-			return &target{sig, desc}
+		if u, _ := commonUnder(typ, nil); u != nil {
+			if sig, _ := u.(*Signature); sig != nil {
+				return &target{sig, desc}
+			}
 		}
 	}
 	return nil
@@ -1268,8 +1270,8 @@ func (check *Checker) expr(T *target, x *operand, e ast.Expr) {
 }
 
 // genericExpr is like expr but the result may also be generic.
-func (check *Checker) genericExpr(x *operand, e ast.Expr) {
-	check.rawExpr(nil, x, e, nil, true)
+func (check *Checker) genericExpr(x *operand, e ast.Expr, hint Type) {
+	check.rawExpr(nil, x, e, hint, true)
 	check.exclude(x, 1<<novalue|1<<builtin|1<<typexpr)
 	check.singleValue(x)
 }
@@ -1288,7 +1290,10 @@ func (check *Checker) multiExpr(e ast.Expr, allowCommaOk bool) (list []*operand,
 		// multiple values
 		list = make([]*operand, t.Len())
 		for i, v := range t.vars {
-			list[i] = &operand{mode_: value, expr: e, typ_: v.typ}
+			// create a dummy expression (in place of e) for better error messages
+			dummy := ast.NewIdent(nth(i+1, "function result"))
+			dummy.NamePos = e.Pos() // fix position
+			list[i] = &operand{mode_: value, expr: dummy, typ_: v.typ}
 		}
 		return
 	}
@@ -1296,10 +1301,16 @@ func (check *Checker) multiExpr(e ast.Expr, allowCommaOk bool) (list []*operand,
 	// exactly one (possibly invalid or comma-ok) value
 	list = []*operand{&x}
 	if allowCommaOk && (x.mode() == mapindex || x.mode() == commaok || x.mode() == commaerr) {
-		x2 := &operand{mode_: value, expr: e, typ_: Typ[UntypedBool]}
+		var what string = "ok value of (comma, ok) expression"
+		var typ Type = Typ[UntypedBool]
 		if x.mode() == commaerr {
-			x2.typ_ = universeError
+			what = "err value of (comma, err) expression"
+			typ = universeError
 		}
+		// create a dummy expression (in place of e) for better error messages
+		dummy := ast.NewIdent(what)
+		dummy.NamePos = e.Pos() // fix position
+		x2 := &operand{mode_: value, expr: dummy, typ_: typ}
 		list = append(list, x2)
 		commaOk = true
 	}
@@ -1307,16 +1318,24 @@ func (check *Checker) multiExpr(e ast.Expr, allowCommaOk bool) (list []*operand,
 	return
 }
 
-// exprWithHint typechecks expression e and initializes x with the expression value;
-// hint is the type of a composite literal element.
-// If an error occurred, x.mode is set to invalid.
-func (check *Checker) exprWithHint(x *operand, e ast.Expr, hint Type) {
-	assert(hint != nil)
-	check.rawExpr(nil, x, e, hint, false)
-	check.exclude(x, 1<<novalue|1<<builtin|1<<typexpr)
-	check.singleValue(x)
+// nth returns a string of the form "nth " + what, where nth
+// stands for 1st, 2nd, 3rd, 4th, etc. depending on n.
+func nth(n int, what string) string {
+	var ext string
+	switch n {
+	case 1:
+		ext = "st"
+	case 2:
+		ext = "nd"
+	case 3:
+		ext = "rd"
+	default:
+		ext = "th"
+	}
+	return fmt.Sprintf("%d%s %s", n, ext, what)
 }
 
+// exprOrType typechecks expression or type e and initializes x with the expression value or type.
 // exprOrType typechecks expression or type e and initializes x with the expression value or type.
 // If allowGeneric is set, the operand type may be an uninstantiated parameterized type or function
 // value.

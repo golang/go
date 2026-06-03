@@ -6,6 +6,7 @@ package maps
 
 import (
 	"internal/abi"
+	"internal/goexperiment"
 	"internal/race"
 	"internal/runtime/sys"
 	"unsafe"
@@ -40,20 +41,35 @@ func runtime_mapaccess2_fast64(typ *abi.MapType, m *Map, key uint64) (unsafe.Poi
 		}
 		full := g.ctrls().matchFull()
 		slotKey := g.key(typ, 0)
-		slotSize := typ.SlotSize
+		var keyStride uintptr
+		if goexperiment.MapSplitGroup {
+			keyStride = 8 // keys are contiguous in split layout
+		} else {
+			keyStride = typ.KeyStride // == SlotSize in interleaved layout
+		}
+		var i uintptr
 		for full != 0 {
 			if key == *(*uint64)(slotKey) && full.lowestSet() {
-				slotElem := unsafe.Pointer(uintptr(slotKey) + 8)
-				return slotElem, true
+				if goexperiment.MapSplitGroup {
+					return g.elem(typ, i), true
+				} else {
+					return unsafe.Pointer(uintptr(slotKey) + 8), true
+				}
 			}
-			slotKey = unsafe.Pointer(uintptr(slotKey) + slotSize)
+			slotKey = unsafe.Pointer(uintptr(slotKey) + keyStride)
 			full = full.shiftOutLowest()
+			i++
 		}
 		return unsafe.Pointer(&zeroVal[0]), false
 	}
 
-	k := key
-	hash := typ.Hasher(abi.NoEscape(unsafe.Pointer(&k)), m.seed)
+	var hash uintptr
+	// See the related comment in runtime_mapaccess2_fast32
+	if memHashAESImplemented && UseAeshash {
+		hash = memHash64AES(key, m.seed)
+	} else {
+		hash = memHash64Fallback(key, m.seed)
+	}
 
 	// Select table.
 	idx := m.directoryIndex(hash)
@@ -73,8 +89,11 @@ func runtime_mapaccess2_fast64(typ *abi.MapType, m *Map, key uint64) (unsafe.Poi
 
 			slotKey := g.key(typ, i)
 			if key == *(*uint64)(slotKey) {
-				slotElem := unsafe.Pointer(uintptr(slotKey) + 8)
-				return slotElem, true
+				if goexperiment.MapSplitGroup {
+					return g.elem(typ, i), true
+				} else {
+					return unsafe.Pointer(uintptr(slotKey) + 8), true
+				}
 			}
 			match = match.removeFirst()
 		}
@@ -112,7 +131,8 @@ func (m *Map) putSlotSmallFast64(typ *abi.MapType, hash uintptr, key uint64) uns
 	// more efficient than matchEmpty.
 	match = g.ctrls().matchEmptyOrDeleted()
 	if match == 0 {
-		fatal("small map with no empty slot (concurrent map writes?)")
+		// No empty slot found. Need to grow the map.
+		return nil
 	}
 
 	i := match.first()
@@ -126,6 +146,36 @@ func (m *Map) putSlotSmallFast64(typ *abi.MapType, hash uintptr, key uint64) uns
 	m.used++
 
 	return slotElem
+}
+
+func (t *table) uncheckedPutSlotForAssignFast64(typ *abi.MapType, hash uintptr, key uint64) unsafe.Pointer {
+	if t.growthLeft == 0 {
+		panic("invariant failed: growthLeft is unexpectedly 0")
+	}
+
+	// Given key and its hash hash(key), to insert it, we construct a
+	// probeSeq, and use it to find the first group with an unoccupied (empty
+	// or deleted) slot. We place the key/value into the first such slot in
+	// the group and mark it as full with key's H2.
+	seq := makeProbeSeq(h1(hash), t.groups.lengthMask)
+	for ; ; seq = seq.next() {
+		g := t.groups.group(typ, seq.offset)
+
+		match := g.ctrls().matchEmptyOrDeleted()
+		if match != 0 {
+			i := match.first()
+
+			slotKey := g.key(typ, i)
+			*(*uint64)(slotKey) = key
+
+			slotElem := g.elem(typ, i)
+
+			t.growthLeft--
+			t.used++
+			g.ctrls().set(i, ctrl(h2(hash)))
+			return slotElem
+		}
+	}
 }
 
 //go:linkname runtime_mapassign_fast64 runtime.mapassign_fast64
@@ -142,8 +192,13 @@ func runtime_mapassign_fast64(typ *abi.MapType, m *Map, key uint64) unsafe.Point
 		fatal("concurrent map writes")
 	}
 
-	k := key
-	hash := typ.Hasher(abi.NoEscape(unsafe.Pointer(&k)), m.seed)
+	var hash uintptr
+	// See the related comment in runtime_mapaccess2_fast32
+	if memHashAESImplemented && UseAeshash {
+		hash = memHash64AES(key, m.seed)
+	} else {
+		hash = memHash64Fallback(key, m.seed)
+	}
 
 	// Set writing after calling Hasher, since Hasher may panic, in which
 	// case we have not actually done a write.
@@ -154,19 +209,23 @@ func runtime_mapassign_fast64(typ *abi.MapType, m *Map, key uint64) unsafe.Point
 	}
 
 	if m.dirLen == 0 {
-		if m.used < abi.MapGroupSlots {
-			elem := m.putSlotSmallFast64(typ, hash, key)
+		elem := m.putSlotSmallFast64(typ, hash, key)
+		if elem == nil {
+			// Can't fit another entry, grow to full size map.
+			tab := m.growToTable(typ)
 
-			if m.writing == 0 {
-				fatal("concurrent map writes")
-			}
-			m.writing ^= 1
+			elem = tab.uncheckedPutSlotForAssignFast64(typ, hash, key)
+			m.used++
 
-			return elem
+			tab.checkInvariants(typ, m)
 		}
 
-		// Can't fit another entry, grow to full size map.
-		m.growToTable(typ)
+		if m.writing == 0 {
+			fatal("concurrent map writes")
+		}
+		m.writing ^= 1
+
+		return elem
 	}
 
 	var slotElem unsafe.Pointer
@@ -288,7 +347,8 @@ func (m *Map) putSlotSmallFastPtr(typ *abi.MapType, hash uintptr, key unsafe.Poi
 	// more efficient than matchEmpty.
 	match = g.ctrls().matchEmptyOrDeleted()
 	if match == 0 {
-		fatal("small map with no empty slot (concurrent map writes?)")
+		// No empty slot found. Need to grow the map.
+		return nil
 	}
 
 	i := match.first()
@@ -302,6 +362,36 @@ func (m *Map) putSlotSmallFastPtr(typ *abi.MapType, hash uintptr, key unsafe.Poi
 	m.used++
 
 	return slotElem
+}
+
+func (t *table) uncheckedPutSlotForAssignFastPtr(typ *abi.MapType, hash uintptr, key unsafe.Pointer) unsafe.Pointer {
+	if t.growthLeft == 0 {
+		panic("invariant failed: growthLeft is unexpectedly 0")
+	}
+
+	// Given key and its hash hash(key), to insert it, we construct a
+	// probeSeq, and use it to find the first group with an unoccupied (empty
+	// or deleted) slot. We place the key/value into the first such slot in
+	// the group and mark it as full with key's H2.
+	seq := makeProbeSeq(h1(hash), t.groups.lengthMask)
+	for ; ; seq = seq.next() {
+		g := t.groups.group(typ, seq.offset)
+
+		match := g.ctrls().matchEmptyOrDeleted()
+		if match != 0 {
+			i := match.first()
+
+			slotKey := g.key(typ, i)
+			*(*unsafe.Pointer)(slotKey) = key
+
+			slotElem := g.elem(typ, i)
+
+			t.growthLeft--
+			t.used++
+			g.ctrls().set(i, ctrl(h2(hash)))
+			return slotElem
+		}
+	}
 }
 
 // Key is a 64-bit pointer (only called on 64-bit GOARCH).
@@ -320,8 +410,13 @@ func runtime_mapassign_fast64ptr(typ *abi.MapType, m *Map, key unsafe.Pointer) u
 		fatal("concurrent map writes")
 	}
 
-	k := key
-	hash := typ.Hasher(abi.NoEscape(unsafe.Pointer(&k)), m.seed)
+	var hash uintptr
+	// See the related comment in runtime_mapaccess2_fast32
+	if memHashAESImplemented && UseAeshash {
+		hash = memHash64AES(uint64((uintptr)(key)), m.seed)
+	} else {
+		hash = memHash64Fallback(uint64((uintptr)(key)), m.seed)
+	}
 
 	// Set writing after calling Hasher, since Hasher may panic, in which
 	// case we have not actually done a write.
@@ -332,19 +427,23 @@ func runtime_mapassign_fast64ptr(typ *abi.MapType, m *Map, key unsafe.Pointer) u
 	}
 
 	if m.dirLen == 0 {
-		if m.used < abi.MapGroupSlots {
-			elem := m.putSlotSmallFastPtr(typ, hash, key)
+		elem := m.putSlotSmallFastPtr(typ, hash, key)
+		if elem == nil {
+			// Can't fit another entry, grow to full size map.
+			tab := m.growToTable(typ)
 
-			if m.writing == 0 {
-				fatal("concurrent map writes")
-			}
-			m.writing ^= 1
+			elem = tab.uncheckedPutSlotForAssignFastPtr(typ, hash, key)
+			m.used++
 
-			return elem
+			tab.checkInvariants(typ, m)
 		}
 
-		// Can't fit another entry, grow to full size map.
-		m.growToTable(typ)
+		if m.writing == 0 {
+			fatal("concurrent map writes")
+		}
+		m.writing ^= 1
+
+		return elem
 	}
 
 	var slotElem unsafe.Pointer
@@ -406,6 +505,10 @@ outer:
 				g = firstDeletedGroup
 				i = firstDeletedSlot
 				t.growthLeft++ // will be decremented below to become a no-op.
+			}
+
+			if t.growthLeft == 0 {
+				t.pruneTombstones(typ, m)
 			}
 
 			// If there is room left to grow, just insert the new entry.

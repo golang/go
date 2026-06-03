@@ -20,10 +20,11 @@ import (
 )
 
 const (
-	I32 = 0x7F
-	I64 = 0x7E
-	F32 = 0x7D
-	F64 = 0x7C
+	I32  = 0x7F
+	I64  = 0x7E
+	F32  = 0x7D
+	F64  = 0x7C
+	V128 = 0x7B
 )
 
 const (
@@ -125,7 +126,6 @@ var dataSects []wasmDataSect
 func asmb(ctxt *ld.Link, ldr *loader.Loader) {
 	sections := []*sym.Section{
 		ldr.SymSect(ldr.Lookup("runtime.rodata", 0)),
-		ldr.SymSect(ldr.Lookup("runtime.itablink", 0)),
 		ldr.SymSect(ldr.Lookup("runtime.types", 0)),
 		ldr.SymSect(ldr.Lookup("go:funcdesc", 0)),
 		ldr.SymSect(ldr.Lookup("runtime.firstmoduledata", 0)),
@@ -699,6 +699,8 @@ func fieldsToTypes(fields []obj.WasmField) []byte {
 			b[i] = F32
 		case obj.WasmF64:
 			b[i] = F64
+		case obj.WasmV128:
+			b[i] = V128
 		default:
 			panic(fmt.Sprintf("fieldsToTypes: unknown field type: %d", f.Type))
 		}

@@ -41,8 +41,7 @@ type ArshalValues struct {
 	Marshalers   any // jsonflags.Marshalers
 	Unmarshalers any // jsonflags.Unmarshalers
 
-	Format      string
-	FormatDepth int
+	Format string // valid if jsonflags.FormatTag is set
 }
 
 // DefaultOptionsV2 is the set of all options that define default v2 behavior.
@@ -82,6 +81,9 @@ func GetOption[T any](opts Options, setter func(T) Options) (T, bool) {
 	case jsonflags.Bools:
 		v := structOpts.Flags.Get(opt)
 		ok := structOpts.Flags.Has(opt)
+		if !ok && opt == jsonflags.StringifyNumbers && structOpts.Flags.Get(jsonflags.StringTag) {
+			return any(true).(T), true // check also whether the option is specified via a `string` tag
+		}
 		return any(v).(T), ok
 	case Indent:
 		if !structOpts.Flags.Has(jsonflags.Indent) {
@@ -114,77 +116,75 @@ func GetOption[T any](opts Options, setter func(T) Options) (T, bool) {
 var JoinUnknownOption = func(Struct, Options) Struct { panic("unknown option") }
 
 func (dst *Struct) Join(srcs ...Options) {
-	dst.join(false, srcs...)
-}
-
-func (dst *Struct) JoinWithoutCoderOptions(srcs ...Options) {
-	dst.join(true, srcs...)
-}
-
-func (dst *Struct) join(excludeCoderOptions bool, srcs ...Options) {
 	for _, src := range srcs {
 		switch src := src.(type) {
 		case nil:
 			continue
 		case jsonflags.Bools:
-			if excludeCoderOptions {
-				src &= ^jsonflags.AllCoderFlags
-			}
 			dst.Flags.Set(src)
 		case Indent:
-			if excludeCoderOptions {
-				continue
-			}
 			dst.Flags.Set(jsonflags.Multiline | jsonflags.Indent | 1)
 			dst.Indent = string(src)
 		case IndentPrefix:
-			if excludeCoderOptions {
-				continue
-			}
 			dst.Flags.Set(jsonflags.Multiline | jsonflags.IndentPrefix | 1)
 			dst.IndentPrefix = string(src)
 		case ByteLimit:
-			if excludeCoderOptions {
-				continue
-			}
 			dst.Flags.Set(jsonflags.ByteLimit | 1)
 			dst.ByteLimit = int64(src)
 		case DepthLimit:
-			if excludeCoderOptions {
-				continue
-			}
 			dst.Flags.Set(jsonflags.DepthLimit | 1)
 			dst.DepthLimit = int(src)
 		case *Struct:
-			srcFlags := src.Flags // shallow copy the flags
-			if excludeCoderOptions {
-				srcFlags.Clear(jsonflags.AllCoderFlags)
-			}
-			dst.Flags.Join(srcFlags)
-			if srcFlags.Has(jsonflags.NonBooleanFlags) {
-				if srcFlags.Has(jsonflags.Indent) {
+			dst.Flags.Join(src.Flags)
+			if src.Flags.Has(jsonflags.NonBooleanFlags) {
+				if src.Flags.Has(jsonflags.Indent) {
 					dst.Indent = src.Indent
 				}
-				if srcFlags.Has(jsonflags.IndentPrefix) {
+				if src.Flags.Has(jsonflags.IndentPrefix) {
 					dst.IndentPrefix = src.IndentPrefix
 				}
-				if srcFlags.Has(jsonflags.ByteLimit) {
+				if src.Flags.Has(jsonflags.ByteLimit) {
 					dst.ByteLimit = src.ByteLimit
 				}
-				if srcFlags.Has(jsonflags.DepthLimit) {
+				if src.Flags.Has(jsonflags.DepthLimit) {
 					dst.DepthLimit = src.DepthLimit
 				}
-				if srcFlags.Has(jsonflags.Marshalers) {
+				if src.Flags.Has(jsonflags.Marshalers) {
 					dst.Marshalers = src.Marshalers
 				}
-				if srcFlags.Has(jsonflags.Unmarshalers) {
+				if src.Flags.Has(jsonflags.Unmarshalers) {
 					dst.Unmarshalers = src.Unmarshalers
+				}
+				if src.Flags.Has(jsonflags.FormatTag) {
+					dst.Format = src.Format
 				}
 			}
 		default:
 			*dst = JoinUnknownOption(*dst, src)
 		}
 	}
+}
+
+// InitializeMultiline sets default options implied by Multiline.
+func (s *Struct) InitializeMultiline() {
+	if !s.Flags.Has(jsonflags.SpaceAfterColon) {
+		s.Flags.Set(jsonflags.SpaceAfterColon | 1)
+	}
+	if !s.Flags.Has(jsonflags.SpaceAfterComma) {
+		s.Flags.Set(jsonflags.SpaceAfterComma | 0)
+	}
+	if !s.Flags.Has(jsonflags.Indent) {
+		s.Flags.Set(jsonflags.Indent | 1)
+		s.Indent = "\t"
+	}
+}
+
+// ChangedWhitespace reports whether whitespace values have changed.
+func ChangedWhitespace(s1, s2 Struct) bool {
+	return s1.Flags.Get(jsonflags.Multiline) != s2.Flags.Get(jsonflags.Multiline) ||
+		s1.Flags.Get(jsonflags.SpaceAfterColon) != s2.Flags.Get(jsonflags.SpaceAfterColon) ||
+		s1.Flags.Get(jsonflags.SpaceAfterComma) != s2.Flags.Get(jsonflags.SpaceAfterComma) ||
+		(s2.Flags.Get(jsonflags.Multiline) && (s1.Indent != s2.Indent || s1.IndentPrefix != s2.IndentPrefix))
 }
 
 type (

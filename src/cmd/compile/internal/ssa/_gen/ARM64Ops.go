@@ -124,10 +124,10 @@ func init() {
 		num[name] = i
 	}
 	buildReg := func(s string) regMask {
-		m := regMask(0)
+		m := regMask{}
 		for _, r := range strings.Split(s, " ") {
 			if n, ok := num[r]; ok {
-				m |= regMask(1) << uint(n)
+				m = m.addReg(uint(n))
 				continue
 			}
 			panic("register " + r + " not found")
@@ -138,12 +138,12 @@ func init() {
 	// Common individual register masks
 	var (
 		gp         = buildReg("R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15 R16 R17 R19 R20 R21 R22 R23 R24 R25 R26 R30")
-		gpg        = gp | buildReg("g")
-		gpsp       = gp | buildReg("SP")
-		gpspg      = gpg | buildReg("SP")
-		gpspsbg    = gpspg | buildReg("SB")
+		gpg        = gp.union(buildReg("g"))
+		gpsp       = gp.union(buildReg("SP"))
+		gpspg      = gpg.union(buildReg("SP"))
+		gpspsbg    = gpspg.union(buildReg("SB"))
 		fp         = buildReg("F0 F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15 F16 F17 F18 F19 F20 F21 F22 F23 F24 F25 F26 F27 F28 F29 F30 F31")
-		callerSave = gp | fp | buildReg("g") // runtime.setg (and anything calling it) may clobber g
+		callerSave = gp.union(fp).union(buildReg("g")) // runtime.setg (and anything calling it) may clobber g
 		r25        = buildReg("R25")
 		r24to25    = buildReg("R24 R25")
 		f16to17    = buildReg("F16 F17")
@@ -153,31 +153,32 @@ func init() {
 	// Common regInfo
 	var (
 		gp01           = regInfo{inputs: nil, outputs: []regMask{gp}}
-		gp0flags1      = regInfo{inputs: []regMask{0}, outputs: []regMask{gp}}
+		gp0flags1      = regInfo{inputs: []regMask{regMask{}}, outputs: []regMask{gp}}
 		gp11           = regInfo{inputs: []regMask{gpg}, outputs: []regMask{gp}}
 		gp11sp         = regInfo{inputs: []regMask{gpspg}, outputs: []regMask{gp}}
 		gp1flags       = regInfo{inputs: []regMask{gpg}}
 		gp1flagsflags  = regInfo{inputs: []regMask{gpg}}
 		gp1flags1      = regInfo{inputs: []regMask{gpg}, outputs: []regMask{gp}}
-		gp11flags      = regInfo{inputs: []regMask{gpg}, outputs: []regMask{gp, 0}}
+		gp11flags      = regInfo{inputs: []regMask{gpg}, outputs: []regMask{gp, regMask{}}}
 		gp21           = regInfo{inputs: []regMask{gpg, gpg}, outputs: []regMask{gp}}
 		gp21nog        = regInfo{inputs: []regMask{gp, gp}, outputs: []regMask{gp}}
-		gp21flags      = regInfo{inputs: []regMask{gp, gp}, outputs: []regMask{gp, 0}}
+		gp21flags      = regInfo{inputs: []regMask{gp, gp}, outputs: []regMask{gp, regMask{}}}
 		gp2flags       = regInfo{inputs: []regMask{gpg, gpg}}
 		gp2flagsflags  = regInfo{inputs: []regMask{gpg, gpg}}
 		gp2flags1      = regInfo{inputs: []regMask{gp, gp}, outputs: []regMask{gp}}
-		gp2flags1flags = regInfo{inputs: []regMask{gp, gp, 0}, outputs: []regMask{gp, 0}}
+		gp2flags1flags = regInfo{inputs: []regMask{gp, gp, regMask{}}, outputs: []regMask{gp, regMask{}}}
 		gp2load        = regInfo{inputs: []regMask{gpspsbg, gpg}, outputs: []regMask{gp}}
 		gp31           = regInfo{inputs: []regMask{gpg, gpg, gpg}, outputs: []regMask{gp}}
 		gpload         = regInfo{inputs: []regMask{gpspsbg}, outputs: []regMask{gp}}
 		gpload2        = regInfo{inputs: []regMask{gpspsbg}, outputs: []regMask{gpg, gpg}}
-		gpstore        = regInfo{inputs: []regMask{gpspsbg, gpg | rz}}
-		gpstore2       = regInfo{inputs: []regMask{gpspsbg, gpg | rz, gpg | rz}}
-		gpxchg         = regInfo{inputs: []regMask{gpspsbg, gpg | rz}, outputs: []regMask{gp}}
-		gpcas          = regInfo{inputs: []regMask{gpspsbg, gpg | rz, gpg | rz}, outputs: []regMask{gp}}
+		gpstore        = regInfo{inputs: []regMask{gpspsbg, gpg.union(rz)}}
+		gpstore2       = regInfo{inputs: []regMask{gpspsbg, gpg.union(rz), gpg.union(rz)}}
+		gpxchg         = regInfo{inputs: []regMask{gpspsbg, gpg.union(rz)}, outputs: []regMask{gp}}
+		gpcas          = regInfo{inputs: []regMask{gpspsbg, gpg.union(rz), gpg.union(rz)}, outputs: []regMask{gp}}
 		fp01           = regInfo{inputs: nil, outputs: []regMask{fp}}
 		fp11           = regInfo{inputs: []regMask{fp}, outputs: []regMask{fp}}
 		fpgp           = regInfo{inputs: []regMask{fp}, outputs: []regMask{gp}}
+		fpgpfp         = regInfo{inputs: []regMask{fp, gp}, outputs: []regMask{fp}}
 		gpfp           = regInfo{inputs: []regMask{gp}, outputs: []regMask{fp}}
 		fp21           = regInfo{inputs: []regMask{fp, fp}, outputs: []regMask{fp}}
 		fp31           = regInfo{inputs: []regMask{fp, fp, fp}, outputs: []regMask{fp}}
@@ -195,107 +196,108 @@ func init() {
 	ops := []opData{
 		// binary ops
 		{name: "ADCSflags", argLength: 3, reg: gp2flags1flags, typ: "(UInt64,Flags)", asm: "ADCS", commutative: true}, // arg0+arg1+carry, set flags.
-		{name: "ADCzerocarry", argLength: 1, reg: gp0flags1, typ: "UInt64", asm: "ADC"},                               // ZR+ZR+carry
-		{name: "ADD", argLength: 2, reg: gp21, asm: "ADD", commutative: true},                                         // arg0 + arg1
-		{name: "ADDconst", argLength: 1, reg: gp11sp, asm: "ADD", aux: "Int64"},                                       // arg0 + auxInt
+		{name: "ADCzerocarry", argLength: 1, reg: gp0flags1, typ: "UInt64", asm: "ADC", earlyOk: true},                // ZR+ZR+carry
+		{name: "ADD", argLength: 2, reg: gp21, asm: "ADD", commutative: true, earlyOk: true},                          // arg0 + arg1
+		{name: "ADDconst", argLength: 1, reg: gp11sp, asm: "ADD", aux: "Int64", earlyOk: true},                        // arg0 + auxInt
 		{name: "ADDSconstflags", argLength: 1, reg: gp11flags, typ: "(UInt64,Flags)", asm: "ADDS", aux: "Int64"},      // arg0+auxint, set flags.
 		{name: "ADDSflags", argLength: 2, reg: gp21flags, typ: "(UInt64,Flags)", asm: "ADDS", commutative: true},      // arg0+arg1, set flags.
-		{name: "SUB", argLength: 2, reg: gp21, asm: "SUB"},                                                            // arg0 - arg1
-		{name: "SUBconst", argLength: 1, reg: gp11, asm: "SUB", aux: "Int64"},                                         // arg0 - auxInt
+		{name: "SUB", argLength: 2, reg: gp21, asm: "SUB", earlyOk: true},                                             // arg0 - arg1
+		{name: "SUBconst", argLength: 1, reg: gp11, asm: "SUB", aux: "Int64", earlyOk: true},                          // arg0 - auxInt
 		{name: "SBCSflags", argLength: 3, reg: gp2flags1flags, typ: "(UInt64,Flags)", asm: "SBCS"},                    // arg0-(arg1+borrowing), set flags.
 		{name: "SUBSflags", argLength: 2, reg: gp21flags, typ: "(UInt64,Flags)", asm: "SUBS"},                         // arg0 - arg1, set flags.
-		{name: "MUL", argLength: 2, reg: gp21, asm: "MUL", commutative: true},                                         // arg0 * arg1
-		{name: "MULW", argLength: 2, reg: gp21, asm: "MULW", commutative: true},                                       // arg0 * arg1, 32-bit
-		{name: "MNEG", argLength: 2, reg: gp21, asm: "MNEG", commutative: true},                                       // -arg0 * arg1
-		{name: "MNEGW", argLength: 2, reg: gp21, asm: "MNEGW", commutative: true},                                     // -arg0 * arg1, 32-bit
-		{name: "MULH", argLength: 2, reg: gp21, asm: "SMULH", commutative: true},                                      // (arg0 * arg1) >> 64, signed
-		{name: "UMULH", argLength: 2, reg: gp21, asm: "UMULH", commutative: true},                                     // (arg0 * arg1) >> 64, unsigned
-		{name: "MULL", argLength: 2, reg: gp21, asm: "SMULL", commutative: true},                                      // arg0 * arg1, signed, 32-bit mult results in 64-bit
-		{name: "UMULL", argLength: 2, reg: gp21, asm: "UMULL", commutative: true},                                     // arg0 * arg1, unsigned, 32-bit mult results in 64-bit
-		{name: "DIV", argLength: 2, reg: gp21, asm: "SDIV"},                                                           // arg0 / arg1, signed
-		{name: "UDIV", argLength: 2, reg: gp21, asm: "UDIV"},                                                          // arg0 / arg1, unsigned
-		{name: "DIVW", argLength: 2, reg: gp21, asm: "SDIVW"},                                                         // arg0 / arg1, signed, 32 bit
-		{name: "UDIVW", argLength: 2, reg: gp21, asm: "UDIVW"},                                                        // arg0 / arg1, unsigned, 32 bit
-		{name: "MOD", argLength: 2, reg: gp21, asm: "REM"},                                                            // arg0 % arg1, signed
-		{name: "UMOD", argLength: 2, reg: gp21, asm: "UREM"},                                                          // arg0 % arg1, unsigned
-		{name: "MODW", argLength: 2, reg: gp21, asm: "REMW"},                                                          // arg0 % arg1, signed, 32 bit
-		{name: "UMODW", argLength: 2, reg: gp21, asm: "UREMW"},                                                        // arg0 % arg1, unsigned, 32 bit
+		{name: "MUL", argLength: 2, reg: gp21, asm: "MUL", commutative: true, earlyOk: true},                          // arg0 * arg1
+		{name: "MULW", argLength: 2, reg: gp21, asm: "MULW", commutative: true, earlyOk: true},                        // arg0 * arg1, 32-bit
+		{name: "MNEG", argLength: 2, reg: gp21, asm: "MNEG", commutative: true, earlyOk: true},                        // -arg0 * arg1
+		{name: "MNEGW", argLength: 2, reg: gp21, asm: "MNEGW", commutative: true, earlyOk: true},                      // -arg0 * arg1, 32-bit
+		{name: "MULH", argLength: 2, reg: gp21, asm: "SMULH", commutative: true, earlyOk: true},                       // (arg0 * arg1) >> 64, signed
+		{name: "UMULH", argLength: 2, reg: gp21, asm: "UMULH", commutative: true, earlyOk: true},                      // (arg0 * arg1) >> 64, unsigned
+		{name: "MULL", argLength: 2, reg: gp21, asm: "SMULL", commutative: true, earlyOk: true},                       // arg0 * arg1, signed, 32-bit mult results in 64-bit
+		{name: "UMULL", argLength: 2, reg: gp21, asm: "UMULL", commutative: true, earlyOk: true},                      // arg0 * arg1, unsigned, 32-bit mult results in 64-bit
+		{name: "DIV", argLength: 2, reg: gp21, asm: "SDIV", earlyOk: true},                                            // arg0 / arg1, signed
+		{name: "UDIV", argLength: 2, reg: gp21, asm: "UDIV", earlyOk: true},                                           // arg0 / arg1, unsigned
+		{name: "DIVW", argLength: 2, reg: gp21, asm: "SDIVW", earlyOk: true},                                          // arg0 / arg1, signed, 32 bit
+		{name: "UDIVW", argLength: 2, reg: gp21, asm: "UDIVW", earlyOk: true},                                         // arg0 / arg1, unsigned, 32 bit
+		{name: "MOD", argLength: 2, reg: gp21, asm: "REM", earlyOk: true},                                             // arg0 % arg1, signed
+		{name: "UMOD", argLength: 2, reg: gp21, asm: "UREM", earlyOk: true},                                           // arg0 % arg1, unsigned
+		{name: "MODW", argLength: 2, reg: gp21, asm: "REMW", earlyOk: true},                                           // arg0 % arg1, signed, 32 bit
+		{name: "UMODW", argLength: 2, reg: gp21, asm: "UREMW", earlyOk: true},                                         // arg0 % arg1, unsigned, 32 bit
 
-		{name: "FADDS", argLength: 2, reg: fp21, asm: "FADDS", commutative: true},   // arg0 + arg1
-		{name: "FADDD", argLength: 2, reg: fp21, asm: "FADDD", commutative: true},   // arg0 + arg1
-		{name: "FSUBS", argLength: 2, reg: fp21, asm: "FSUBS"},                      // arg0 - arg1
-		{name: "FSUBD", argLength: 2, reg: fp21, asm: "FSUBD"},                      // arg0 - arg1
-		{name: "FMULS", argLength: 2, reg: fp21, asm: "FMULS", commutative: true},   // arg0 * arg1
-		{name: "FMULD", argLength: 2, reg: fp21, asm: "FMULD", commutative: true},   // arg0 * arg1
-		{name: "FNMULS", argLength: 2, reg: fp21, asm: "FNMULS", commutative: true}, // -(arg0 * arg1)
-		{name: "FNMULD", argLength: 2, reg: fp21, asm: "FNMULD", commutative: true}, // -(arg0 * arg1)
-		{name: "FDIVS", argLength: 2, reg: fp21, asm: "FDIVS"},                      // arg0 / arg1
-		{name: "FDIVD", argLength: 2, reg: fp21, asm: "FDIVD"},                      // arg0 / arg1
+		{name: "FADDS", argLength: 2, reg: fp21, asm: "FADDS", commutative: true, earlyOk: true},   // arg0 + arg1
+		{name: "FADDD", argLength: 2, reg: fp21, asm: "FADDD", commutative: true, earlyOk: true},   // arg0 + arg1
+		{name: "FSUBS", argLength: 2, reg: fp21, asm: "FSUBS", earlyOk: true},                      // arg0 - arg1
+		{name: "FSUBD", argLength: 2, reg: fp21, asm: "FSUBD", earlyOk: true},                      // arg0 - arg1
+		{name: "FMULS", argLength: 2, reg: fp21, asm: "FMULS", commutative: true, earlyOk: true},   // arg0 * arg1
+		{name: "FMULD", argLength: 2, reg: fp21, asm: "FMULD", commutative: true, earlyOk: true},   // arg0 * arg1
+		{name: "FNMULS", argLength: 2, reg: fp21, asm: "FNMULS", commutative: true, earlyOk: true}, // -(arg0 * arg1)
+		{name: "FNMULD", argLength: 2, reg: fp21, asm: "FNMULD", commutative: true, earlyOk: true}, // -(arg0 * arg1)
+		{name: "FDIVS", argLength: 2, reg: fp21, asm: "FDIVS", earlyOk: true},                      // arg0 / arg1
+		{name: "FDIVD", argLength: 2, reg: fp21, asm: "FDIVD", earlyOk: true},                      // arg0 / arg1
 
-		{name: "AND", argLength: 2, reg: gp21, asm: "AND", commutative: true}, // arg0 & arg1
-		{name: "ANDconst", argLength: 1, reg: gp11, asm: "AND", aux: "Int64"}, // arg0 & auxInt
-		{name: "OR", argLength: 2, reg: gp21, asm: "ORR", commutative: true},  // arg0 | arg1
-		{name: "ORconst", argLength: 1, reg: gp11, asm: "ORR", aux: "Int64"},  // arg0 | auxInt
-		{name: "XOR", argLength: 2, reg: gp21, asm: "EOR", commutative: true}, // arg0 ^ arg1
-		{name: "XORconst", argLength: 1, reg: gp11, asm: "EOR", aux: "Int64"}, // arg0 ^ auxInt
-		{name: "BIC", argLength: 2, reg: gp21, asm: "BIC"},                    // arg0 &^ arg1
-		{name: "EON", argLength: 2, reg: gp21, asm: "EON"},                    // arg0 ^ ^arg1
-		{name: "ORN", argLength: 2, reg: gp21, asm: "ORN"},                    // arg0 | ^arg1
+		{name: "AND", argLength: 2, reg: gp21, asm: "AND", commutative: true, earlyOk: true}, // arg0 & arg1
+		{name: "ANDconst", argLength: 1, reg: gp11, asm: "AND", aux: "Int64", earlyOk: true}, // arg0 & auxInt
+		{name: "OR", argLength: 2, reg: gp21, asm: "ORR", commutative: true, earlyOk: true},  // arg0 | arg1
+		{name: "ORconst", argLength: 1, reg: gp11, asm: "ORR", aux: "Int64", earlyOk: true},  // arg0 | auxInt
+		{name: "XOR", argLength: 2, reg: gp21, asm: "EOR", commutative: true, earlyOk: true}, // arg0 ^ arg1
+		{name: "XORconst", argLength: 1, reg: gp11, asm: "EOR", aux: "Int64", earlyOk: true}, // arg0 ^ auxInt
+		{name: "BIC", argLength: 2, reg: gp21, asm: "BIC", earlyOk: true},                    // arg0 &^ arg1
+		{name: "EON", argLength: 2, reg: gp21, asm: "EON", earlyOk: true},                    // arg0 ^ ^arg1
+		{name: "ORN", argLength: 2, reg: gp21, asm: "ORN", earlyOk: true},                    // arg0 | ^arg1
 
 		// unary ops
-		{name: "MVN", argLength: 1, reg: gp11, asm: "MVN"},                                    // ^arg0
-		{name: "NEG", argLength: 1, reg: gp11, asm: "NEG"},                                    // -arg0
-		{name: "NEGSflags", argLength: 1, reg: gp11flags, typ: "(UInt64,Flags)", asm: "NEGS"}, // -arg0, set flags.
-		{name: "NGCzerocarry", argLength: 1, reg: gp0flags1, typ: "UInt64", asm: "NGC"},       // -1 if borrowing, 0 otherwise.
-		{name: "FABSD", argLength: 1, reg: fp11, asm: "FABSD"},                                // abs(arg0), float64
-		{name: "FNEGS", argLength: 1, reg: fp11, asm: "FNEGS"},                                // -arg0, float32
-		{name: "FNEGD", argLength: 1, reg: fp11, asm: "FNEGD"},                                // -arg0, float64
-		{name: "FSQRTD", argLength: 1, reg: fp11, asm: "FSQRTD"},                              // sqrt(arg0), float64
-		{name: "FSQRTS", argLength: 1, reg: fp11, asm: "FSQRTS"},                              // sqrt(arg0), float32
-		{name: "FMIND", argLength: 2, reg: fp21, asm: "FMIND"},                                // min(arg0, arg1)
-		{name: "FMINS", argLength: 2, reg: fp21, asm: "FMINS"},                                // min(arg0, arg1)
-		{name: "FMAXD", argLength: 2, reg: fp21, asm: "FMAXD"},                                // max(arg0, arg1)
-		{name: "FMAXS", argLength: 2, reg: fp21, asm: "FMAXS"},                                // max(arg0, arg1)
-		{name: "REV", argLength: 1, reg: gp11, asm: "REV"},                                    // byte reverse, 64-bit
-		{name: "REVW", argLength: 1, reg: gp11, asm: "REVW"},                                  // byte reverse, 32-bit
-		{name: "REV16", argLength: 1, reg: gp11, asm: "REV16"},                                // byte reverse in each 16-bit halfword, 64-bit
-		{name: "REV16W", argLength: 1, reg: gp11, asm: "REV16W"},                              // byte reverse in each 16-bit halfword, 32-bit
-		{name: "RBIT", argLength: 1, reg: gp11, asm: "RBIT"},                                  // bit reverse, 64-bit
-		{name: "RBITW", argLength: 1, reg: gp11, asm: "RBITW"},                                // bit reverse, 32-bit
-		{name: "CLZ", argLength: 1, reg: gp11, asm: "CLZ"},                                    // count leading zero, 64-bit
-		{name: "CLZW", argLength: 1, reg: gp11, asm: "CLZW"},                                  // count leading zero, 32-bit
-		{name: "VCNT", argLength: 1, reg: fp11, asm: "VCNT"},                                  // count set bits for each 8-bit unit and store the result in each 8-bit unit
-		{name: "VUADDLV", argLength: 1, reg: fp11, asm: "VUADDLV"},                            // unsigned sum of eight bytes in a 64-bit value, zero extended to 64-bit.
-		{name: "LoweredRound32F", argLength: 1, reg: fp11, resultInArg0: true, zeroWidth: true},
-		{name: "LoweredRound64F", argLength: 1, reg: fp11, resultInArg0: true, zeroWidth: true},
+		{name: "MVN", argLength: 1, reg: gp11, asm: "MVN", earlyOk: true},                              // ^arg0
+		{name: "NEG", argLength: 1, reg: gp11, asm: "NEG", earlyOk: true},                              // -arg0
+		{name: "NEGSflags", argLength: 1, reg: gp11flags, typ: "(UInt64,Flags)", asm: "NEGS"},          // -arg0, set flags.
+		{name: "NGCzerocarry", argLength: 1, reg: gp0flags1, typ: "UInt64", asm: "NGC", earlyOk: true}, // -1 if borrowing, 0 otherwise.
+		{name: "FABSD", argLength: 1, reg: fp11, asm: "FABSD", earlyOk: true},                          // abs(arg0), float64
+		{name: "FABSS", argLength: 1, reg: fp11, asm: "FABSS", earlyOk: true},                          // abs(arg0), float32
+		{name: "FNEGS", argLength: 1, reg: fp11, asm: "FNEGS", earlyOk: true},                          // -arg0, float32
+		{name: "FNEGD", argLength: 1, reg: fp11, asm: "FNEGD", earlyOk: true},                          // -arg0, float64
+		{name: "FSQRTD", argLength: 1, reg: fp11, asm: "FSQRTD", earlyOk: true},                        // sqrt(arg0), float64
+		{name: "FSQRTS", argLength: 1, reg: fp11, asm: "FSQRTS", earlyOk: true},                        // sqrt(arg0), float32
+		{name: "FMIND", argLength: 2, reg: fp21, asm: "FMIND", earlyOk: true},                          // min(arg0, arg1)
+		{name: "FMINS", argLength: 2, reg: fp21, asm: "FMINS", earlyOk: true},                          // min(arg0, arg1)
+		{name: "FMAXD", argLength: 2, reg: fp21, asm: "FMAXD", earlyOk: true},                          // max(arg0, arg1)
+		{name: "FMAXS", argLength: 2, reg: fp21, asm: "FMAXS", earlyOk: true},                          // max(arg0, arg1)
+		{name: "REV", argLength: 1, reg: gp11, asm: "REV", earlyOk: true},                              // byte reverse, 64-bit
+		{name: "REVW", argLength: 1, reg: gp11, asm: "REVW", earlyOk: true},                            // byte reverse, 32-bit
+		{name: "REV16", argLength: 1, reg: gp11, asm: "REV16", earlyOk: true},                          // byte reverse in each 16-bit halfword, 64-bit
+		{name: "REV16W", argLength: 1, reg: gp11, asm: "REV16W", earlyOk: true},                        // byte reverse in each 16-bit halfword, 32-bit
+		{name: "RBIT", argLength: 1, reg: gp11, asm: "RBIT", earlyOk: true},                            // bit reverse, 64-bit
+		{name: "RBITW", argLength: 1, reg: gp11, asm: "RBITW", earlyOk: true},                          // bit reverse, 32-bit
+		{name: "CLZ", argLength: 1, reg: gp11, asm: "CLZ", earlyOk: true},                              // count leading zero, 64-bit
+		{name: "CLZW", argLength: 1, reg: gp11, asm: "CLZW", earlyOk: true},                            // count leading zero, 32-bit
+		{name: "VCNT", argLength: 1, reg: fp11, asm: "VCNT", earlyOk: true},                            // count set bits for each 8-bit unit and store the result in each 8-bit unit
+		{name: "VUADDLV", argLength: 1, reg: fp11, asm: "VUADDLV", earlyOk: true},                      // unsigned sum of eight bytes in a 64-bit value, zero extended to 64-bit.
+		{name: "LoweredRound32F", argLength: 1, reg: fp11, resultInArg0: true, zeroWidth: true, earlyOk: true},
+		{name: "LoweredRound64F", argLength: 1, reg: fp11, resultInArg0: true, zeroWidth: true, earlyOk: true},
 
 		// 3-operand, the addend comes first
-		{name: "FMADDS", argLength: 3, reg: fp31, asm: "FMADDS"},   // +arg0 + (arg1 * arg2)
-		{name: "FMADDD", argLength: 3, reg: fp31, asm: "FMADDD"},   // +arg0 + (arg1 * arg2)
-		{name: "FNMADDS", argLength: 3, reg: fp31, asm: "FNMADDS"}, // -arg0 - (arg1 * arg2)
-		{name: "FNMADDD", argLength: 3, reg: fp31, asm: "FNMADDD"}, // -arg0 - (arg1 * arg2)
-		{name: "FMSUBS", argLength: 3, reg: fp31, asm: "FMSUBS"},   // +arg0 - (arg1 * arg2)
-		{name: "FMSUBD", argLength: 3, reg: fp31, asm: "FMSUBD"},   // +arg0 - (arg1 * arg2)
-		{name: "FNMSUBS", argLength: 3, reg: fp31, asm: "FNMSUBS"}, // -arg0 + (arg1 * arg2)
-		{name: "FNMSUBD", argLength: 3, reg: fp31, asm: "FNMSUBD"}, // -arg0 + (arg1 * arg2)
-		{name: "MADD", argLength: 3, reg: gp31, asm: "MADD"},       // +arg0 + (arg1 * arg2)
-		{name: "MADDW", argLength: 3, reg: gp31, asm: "MADDW"},     // +arg0 + (arg1 * arg2), 32-bit
-		{name: "MSUB", argLength: 3, reg: gp31, asm: "MSUB"},       // +arg0 - (arg1 * arg2)
-		{name: "MSUBW", argLength: 3, reg: gp31, asm: "MSUBW"},     // +arg0 - (arg1 * arg2), 32-bit
+		{name: "FMADDS", argLength: 3, reg: fp31, asm: "FMADDS", earlyOk: true},   // +arg0 + (arg1 * arg2)
+		{name: "FMADDD", argLength: 3, reg: fp31, asm: "FMADDD", earlyOk: true},   // +arg0 + (arg1 * arg2)
+		{name: "FNMADDS", argLength: 3, reg: fp31, asm: "FNMADDS", earlyOk: true}, // -arg0 - (arg1 * arg2)
+		{name: "FNMADDD", argLength: 3, reg: fp31, asm: "FNMADDD", earlyOk: true}, // -arg0 - (arg1 * arg2)
+		{name: "FMSUBS", argLength: 3, reg: fp31, asm: "FMSUBS", earlyOk: true},   // +arg0 - (arg1 * arg2)
+		{name: "FMSUBD", argLength: 3, reg: fp31, asm: "FMSUBD", earlyOk: true},   // +arg0 - (arg1 * arg2)
+		{name: "FNMSUBS", argLength: 3, reg: fp31, asm: "FNMSUBS", earlyOk: true}, // -arg0 + (arg1 * arg2)
+		{name: "FNMSUBD", argLength: 3, reg: fp31, asm: "FNMSUBD", earlyOk: true}, // -arg0 + (arg1 * arg2)
+		{name: "MADD", argLength: 3, reg: gp31, asm: "MADD", earlyOk: true},       // +arg0 + (arg1 * arg2)
+		{name: "MADDW", argLength: 3, reg: gp31, asm: "MADDW", earlyOk: true},     // +arg0 + (arg1 * arg2), 32-bit
+		{name: "MSUB", argLength: 3, reg: gp31, asm: "MSUB", earlyOk: true},       // +arg0 - (arg1 * arg2)
+		{name: "MSUBW", argLength: 3, reg: gp31, asm: "MSUBW", earlyOk: true},     // +arg0 - (arg1 * arg2), 32-bit
 
 		// shifts
-		{name: "SLL", argLength: 2, reg: gp21, asm: "LSL"},                        // arg0 << arg1, shift amount is mod 64
-		{name: "SLLconst", argLength: 1, reg: gp11, asm: "LSL", aux: "Int64"},     // arg0 << auxInt, auxInt should be in the range 0 to 63.
-		{name: "SRL", argLength: 2, reg: gp21, asm: "LSR"},                        // arg0 >> arg1, unsigned, shift amount is mod 64
-		{name: "SRLconst", argLength: 1, reg: gp11, asm: "LSR", aux: "Int64"},     // arg0 >> auxInt, unsigned, auxInt should be in the range 0 to 63.
-		{name: "SRA", argLength: 2, reg: gp21, asm: "ASR"},                        // arg0 >> arg1, signed, shift amount is mod 64
-		{name: "SRAconst", argLength: 1, reg: gp11, asm: "ASR", aux: "Int64"},     // arg0 >> auxInt, signed, auxInt should be in the range 0 to 63.
-		{name: "ROR", argLength: 2, reg: gp21, asm: "ROR"},                        // arg0 right rotate by (arg1 mod 64) bits
-		{name: "RORW", argLength: 2, reg: gp21, asm: "RORW"},                      // arg0 right rotate by (arg1 mod 32) bits
-		{name: "RORconst", argLength: 1, reg: gp11, asm: "ROR", aux: "Int64"},     // arg0 right rotate by auxInt bits, auxInt should be in the range 0 to 63.
-		{name: "RORWconst", argLength: 1, reg: gp11, asm: "RORW", aux: "Int64"},   // uint32(arg0) right rotate by auxInt bits, auxInt should be in the range 0 to 31.
-		{name: "EXTRconst", argLength: 2, reg: gp21, asm: "EXTR", aux: "Int64"},   // extract 64 bits from arg0:arg1 starting at lsb auxInt, auxInt should be in the range 0 to 63.
-		{name: "EXTRWconst", argLength: 2, reg: gp21, asm: "EXTRW", aux: "Int64"}, // extract 32 bits from arg0[31:0]:arg1[31:0] starting at lsb auxInt and zero top 32 bits, auxInt should be in the range 0 to 31.
+		{name: "SLL", argLength: 2, reg: gp21, asm: "LSL", earlyOk: true},                        // arg0 << arg1, shift amount is mod 64
+		{name: "SLLconst", argLength: 1, reg: gp11, asm: "LSL", aux: "Int64", earlyOk: true},     // arg0 << auxInt, auxInt should be in the range 0 to 63.
+		{name: "SRL", argLength: 2, reg: gp21, asm: "LSR", earlyOk: true},                        // arg0 >> arg1, unsigned, shift amount is mod 64
+		{name: "SRLconst", argLength: 1, reg: gp11, asm: "LSR", aux: "Int64", earlyOk: true},     // arg0 >> auxInt, unsigned, auxInt should be in the range 0 to 63.
+		{name: "SRA", argLength: 2, reg: gp21, asm: "ASR", earlyOk: true},                        // arg0 >> arg1, signed, shift amount is mod 64
+		{name: "SRAconst", argLength: 1, reg: gp11, asm: "ASR", aux: "Int64", earlyOk: true},     // arg0 >> auxInt, signed, auxInt should be in the range 0 to 63.
+		{name: "ROR", argLength: 2, reg: gp21, asm: "ROR", earlyOk: true},                        // arg0 right rotate by (arg1 mod 64) bits
+		{name: "RORW", argLength: 2, reg: gp21, asm: "RORW", earlyOk: true},                      // arg0 right rotate by (arg1 mod 32) bits
+		{name: "RORconst", argLength: 1, reg: gp11, asm: "ROR", aux: "Int64", earlyOk: true},     // arg0 right rotate by auxInt bits, auxInt should be in the range 0 to 63.
+		{name: "RORWconst", argLength: 1, reg: gp11, asm: "RORW", aux: "Int64", earlyOk: true},   // uint32(arg0) right rotate by auxInt bits, auxInt should be in the range 0 to 31.
+		{name: "EXTRconst", argLength: 2, reg: gp21, asm: "EXTR", aux: "Int64", earlyOk: true},   // extract 64 bits from arg0:arg1 starting at lsb auxInt, auxInt should be in the range 0 to 63.
+		{name: "EXTRWconst", argLength: 2, reg: gp21, asm: "EXTRW", aux: "Int64", earlyOk: true}, // extract 32 bits from arg0[31:0]:arg1[31:0] starting at lsb auxInt and zero top 32 bits, auxInt should be in the range 0 to 31.
 
 		// comparisons
 		{name: "CMP", argLength: 2, reg: gp2flags, asm: "CMP", typ: "Flags"},                      // arg0 compare to arg1
@@ -316,43 +318,43 @@ func init() {
 		{name: "FCMPD0", argLength: 1, reg: fp1flags, asm: "FCMPD", typ: "Flags"},                 // arg0 compare to 0, float64
 
 		// shifted ops
-		{name: "MVNshiftLL", argLength: 1, reg: gp11, asm: "MVN", aux: "Int64"},                   // ^(arg0<<auxInt), auxInt should be in the range 0 to 63.
-		{name: "MVNshiftRL", argLength: 1, reg: gp11, asm: "MVN", aux: "Int64"},                   // ^(arg0>>auxInt), unsigned shift, auxInt should be in the range 0 to 63.
-		{name: "MVNshiftRA", argLength: 1, reg: gp11, asm: "MVN", aux: "Int64"},                   // ^(arg0>>auxInt), signed shift, auxInt should be in the range 0 to 63.
-		{name: "MVNshiftRO", argLength: 1, reg: gp11, asm: "MVN", aux: "Int64"},                   // ^(arg0 ROR auxInt), signed shift, auxInt should be in the range 0 to 63.
-		{name: "NEGshiftLL", argLength: 1, reg: gp11, asm: "NEG", aux: "Int64"},                   // -(arg0<<auxInt), auxInt should be in the range 0 to 63.
-		{name: "NEGshiftRL", argLength: 1, reg: gp11, asm: "NEG", aux: "Int64"},                   // -(arg0>>auxInt), unsigned shift, auxInt should be in the range 0 to 63.
-		{name: "NEGshiftRA", argLength: 1, reg: gp11, asm: "NEG", aux: "Int64"},                   // -(arg0>>auxInt), signed shift, auxInt should be in the range 0 to 63.
-		{name: "ADDshiftLL", argLength: 2, reg: gp21, asm: "ADD", aux: "Int64"},                   // arg0 + arg1<<auxInt, auxInt should be in the range 0 to 63.
-		{name: "ADDshiftRL", argLength: 2, reg: gp21, asm: "ADD", aux: "Int64"},                   // arg0 + arg1>>auxInt, unsigned shift, auxInt should be in the range 0 to 63.
-		{name: "ADDshiftRA", argLength: 2, reg: gp21, asm: "ADD", aux: "Int64"},                   // arg0 + arg1>>auxInt, signed shift, auxInt should be in the range 0 to 63.
-		{name: "SUBshiftLL", argLength: 2, reg: gp21, asm: "SUB", aux: "Int64"},                   // arg0 - arg1<<auxInt, auxInt should be in the range 0 to 63.
-		{name: "SUBshiftRL", argLength: 2, reg: gp21, asm: "SUB", aux: "Int64"},                   // arg0 - arg1>>auxInt, unsigned shift, auxInt should be in the range 0 to 63.
-		{name: "SUBshiftRA", argLength: 2, reg: gp21, asm: "SUB", aux: "Int64"},                   // arg0 - arg1>>auxInt, signed shift, auxInt should be in the range 0 to 63.
-		{name: "ANDshiftLL", argLength: 2, reg: gp21, asm: "AND", aux: "Int64"},                   // arg0 & (arg1<<auxInt), auxInt should be in the range 0 to 63.
-		{name: "ANDshiftRL", argLength: 2, reg: gp21, asm: "AND", aux: "Int64"},                   // arg0 & (arg1>>auxInt), unsigned shift, auxInt should be in the range 0 to 63.
-		{name: "ANDshiftRA", argLength: 2, reg: gp21, asm: "AND", aux: "Int64"},                   // arg0 & (arg1>>auxInt), signed shift, auxInt should be in the range 0 to 63.
-		{name: "ANDshiftRO", argLength: 2, reg: gp21, asm: "AND", aux: "Int64"},                   // arg0 & (arg1 ROR auxInt), signed shift, auxInt should be in the range 0 to 63.
-		{name: "ORshiftLL", argLength: 2, reg: gp21, asm: "ORR", aux: "Int64"},                    // arg0 | arg1<<auxInt, auxInt should be in the range 0 to 63.
-		{name: "ORshiftRL", argLength: 2, reg: gp21, asm: "ORR", aux: "Int64"},                    // arg0 | arg1>>auxInt, unsigned shift, auxInt should be in the range 0 to 63.
-		{name: "ORshiftRA", argLength: 2, reg: gp21, asm: "ORR", aux: "Int64"},                    // arg0 | arg1>>auxInt, signed shift, auxInt should be in the range 0 to 63.
-		{name: "ORshiftRO", argLength: 2, reg: gp21, asm: "ORR", aux: "Int64"},                    // arg0 | arg1 ROR auxInt, signed shift, auxInt should be in the range 0 to 63.
-		{name: "XORshiftLL", argLength: 2, reg: gp21, asm: "EOR", aux: "Int64"},                   // arg0 ^ arg1<<auxInt, auxInt should be in the range 0 to 63.
-		{name: "XORshiftRL", argLength: 2, reg: gp21, asm: "EOR", aux: "Int64"},                   // arg0 ^ arg1>>auxInt, unsigned shift, auxInt should be in the range 0 to 63.
-		{name: "XORshiftRA", argLength: 2, reg: gp21, asm: "EOR", aux: "Int64"},                   // arg0 ^ arg1>>auxInt, signed shift, auxInt should be in the range 0 to 63.
-		{name: "XORshiftRO", argLength: 2, reg: gp21, asm: "EOR", aux: "Int64"},                   // arg0 ^ arg1 ROR auxInt, signed shift, auxInt should be in the range 0 to 63.
-		{name: "BICshiftLL", argLength: 2, reg: gp21, asm: "BIC", aux: "Int64"},                   // arg0 &^ (arg1<<auxInt), auxInt should be in the range 0 to 63.
-		{name: "BICshiftRL", argLength: 2, reg: gp21, asm: "BIC", aux: "Int64"},                   // arg0 &^ (arg1>>auxInt), unsigned shift, auxInt should be in the range 0 to 63.
-		{name: "BICshiftRA", argLength: 2, reg: gp21, asm: "BIC", aux: "Int64"},                   // arg0 &^ (arg1>>auxInt), signed shift, auxInt should be in the range 0 to 63.
-		{name: "BICshiftRO", argLength: 2, reg: gp21, asm: "BIC", aux: "Int64"},                   // arg0 &^ (arg1 ROR auxInt), signed shift, auxInt should be in the range 0 to 63.
-		{name: "EONshiftLL", argLength: 2, reg: gp21, asm: "EON", aux: "Int64"},                   // arg0 ^ ^(arg1<<auxInt), auxInt should be in the range 0 to 63.
-		{name: "EONshiftRL", argLength: 2, reg: gp21, asm: "EON", aux: "Int64"},                   // arg0 ^ ^(arg1>>auxInt), unsigned shift, auxInt should be in the range 0 to 63.
-		{name: "EONshiftRA", argLength: 2, reg: gp21, asm: "EON", aux: "Int64"},                   // arg0 ^ ^(arg1>>auxInt), signed shift, auxInt should be in the range 0 to 63.
-		{name: "EONshiftRO", argLength: 2, reg: gp21, asm: "EON", aux: "Int64"},                   // arg0 ^ ^(arg1 ROR auxInt), signed shift, auxInt should be in the range 0 to 63.
-		{name: "ORNshiftLL", argLength: 2, reg: gp21, asm: "ORN", aux: "Int64"},                   // arg0 | ^(arg1<<auxInt), auxInt should be in the range 0 to 63.
-		{name: "ORNshiftRL", argLength: 2, reg: gp21, asm: "ORN", aux: "Int64"},                   // arg0 | ^(arg1>>auxInt), unsigned shift, auxInt should be in the range 0 to 63.
-		{name: "ORNshiftRA", argLength: 2, reg: gp21, asm: "ORN", aux: "Int64"},                   // arg0 | ^(arg1>>auxInt), signed shift, auxInt should be in the range 0 to 63.
-		{name: "ORNshiftRO", argLength: 2, reg: gp21, asm: "ORN", aux: "Int64"},                   // arg0 | ^(arg1 ROR auxInt), signed shift, auxInt should be in the range 0 to 63.
+		{name: "MVNshiftLL", argLength: 1, reg: gp11, asm: "MVN", aux: "Int64", earlyOk: true},    // ^(arg0<<auxInt), auxInt should be in the range 0 to 63.
+		{name: "MVNshiftRL", argLength: 1, reg: gp11, asm: "MVN", aux: "Int64", earlyOk: true},    // ^(arg0>>auxInt), unsigned shift, auxInt should be in the range 0 to 63.
+		{name: "MVNshiftRA", argLength: 1, reg: gp11, asm: "MVN", aux: "Int64", earlyOk: true},    // ^(arg0>>auxInt), signed shift, auxInt should be in the range 0 to 63.
+		{name: "MVNshiftRO", argLength: 1, reg: gp11, asm: "MVN", aux: "Int64", earlyOk: true},    // ^(arg0 ROR auxInt), signed shift, auxInt should be in the range 0 to 63.
+		{name: "NEGshiftLL", argLength: 1, reg: gp11, asm: "NEG", aux: "Int64", earlyOk: true},    // -(arg0<<auxInt), auxInt should be in the range 0 to 63.
+		{name: "NEGshiftRL", argLength: 1, reg: gp11, asm: "NEG", aux: "Int64", earlyOk: true},    // -(arg0>>auxInt), unsigned shift, auxInt should be in the range 0 to 63.
+		{name: "NEGshiftRA", argLength: 1, reg: gp11, asm: "NEG", aux: "Int64", earlyOk: true},    // -(arg0>>auxInt), signed shift, auxInt should be in the range 0 to 63.
+		{name: "ADDshiftLL", argLength: 2, reg: gp21, asm: "ADD", aux: "Int64", earlyOk: true},    // arg0 + arg1<<auxInt, auxInt should be in the range 0 to 63.
+		{name: "ADDshiftRL", argLength: 2, reg: gp21, asm: "ADD", aux: "Int64", earlyOk: true},    // arg0 + arg1>>auxInt, unsigned shift, auxInt should be in the range 0 to 63.
+		{name: "ADDshiftRA", argLength: 2, reg: gp21, asm: "ADD", aux: "Int64", earlyOk: true},    // arg0 + arg1>>auxInt, signed shift, auxInt should be in the range 0 to 63.
+		{name: "SUBshiftLL", argLength: 2, reg: gp21, asm: "SUB", aux: "Int64", earlyOk: true},    // arg0 - arg1<<auxInt, auxInt should be in the range 0 to 63.
+		{name: "SUBshiftRL", argLength: 2, reg: gp21, asm: "SUB", aux: "Int64", earlyOk: true},    // arg0 - arg1>>auxInt, unsigned shift, auxInt should be in the range 0 to 63.
+		{name: "SUBshiftRA", argLength: 2, reg: gp21, asm: "SUB", aux: "Int64", earlyOk: true},    // arg0 - arg1>>auxInt, signed shift, auxInt should be in the range 0 to 63.
+		{name: "ANDshiftLL", argLength: 2, reg: gp21, asm: "AND", aux: "Int64", earlyOk: true},    // arg0 & (arg1<<auxInt), auxInt should be in the range 0 to 63.
+		{name: "ANDshiftRL", argLength: 2, reg: gp21, asm: "AND", aux: "Int64", earlyOk: true},    // arg0 & (arg1>>auxInt), unsigned shift, auxInt should be in the range 0 to 63.
+		{name: "ANDshiftRA", argLength: 2, reg: gp21, asm: "AND", aux: "Int64", earlyOk: true},    // arg0 & (arg1>>auxInt), signed shift, auxInt should be in the range 0 to 63.
+		{name: "ANDshiftRO", argLength: 2, reg: gp21, asm: "AND", aux: "Int64", earlyOk: true},    // arg0 & (arg1 ROR auxInt), signed shift, auxInt should be in the range 0 to 63.
+		{name: "ORshiftLL", argLength: 2, reg: gp21, asm: "ORR", aux: "Int64", earlyOk: true},     // arg0 | arg1<<auxInt, auxInt should be in the range 0 to 63.
+		{name: "ORshiftRL", argLength: 2, reg: gp21, asm: "ORR", aux: "Int64", earlyOk: true},     // arg0 | arg1>>auxInt, unsigned shift, auxInt should be in the range 0 to 63.
+		{name: "ORshiftRA", argLength: 2, reg: gp21, asm: "ORR", aux: "Int64", earlyOk: true},     // arg0 | arg1>>auxInt, signed shift, auxInt should be in the range 0 to 63.
+		{name: "ORshiftRO", argLength: 2, reg: gp21, asm: "ORR", aux: "Int64", earlyOk: true},     // arg0 | arg1 ROR auxInt, signed shift, auxInt should be in the range 0 to 63.
+		{name: "XORshiftLL", argLength: 2, reg: gp21, asm: "EOR", aux: "Int64", earlyOk: true},    // arg0 ^ arg1<<auxInt, auxInt should be in the range 0 to 63.
+		{name: "XORshiftRL", argLength: 2, reg: gp21, asm: "EOR", aux: "Int64", earlyOk: true},    // arg0 ^ arg1>>auxInt, unsigned shift, auxInt should be in the range 0 to 63.
+		{name: "XORshiftRA", argLength: 2, reg: gp21, asm: "EOR", aux: "Int64", earlyOk: true},    // arg0 ^ arg1>>auxInt, signed shift, auxInt should be in the range 0 to 63.
+		{name: "XORshiftRO", argLength: 2, reg: gp21, asm: "EOR", aux: "Int64", earlyOk: true},    // arg0 ^ arg1 ROR auxInt, signed shift, auxInt should be in the range 0 to 63.
+		{name: "BICshiftLL", argLength: 2, reg: gp21, asm: "BIC", aux: "Int64", earlyOk: true},    // arg0 &^ (arg1<<auxInt), auxInt should be in the range 0 to 63.
+		{name: "BICshiftRL", argLength: 2, reg: gp21, asm: "BIC", aux: "Int64", earlyOk: true},    // arg0 &^ (arg1>>auxInt), unsigned shift, auxInt should be in the range 0 to 63.
+		{name: "BICshiftRA", argLength: 2, reg: gp21, asm: "BIC", aux: "Int64", earlyOk: true},    // arg0 &^ (arg1>>auxInt), signed shift, auxInt should be in the range 0 to 63.
+		{name: "BICshiftRO", argLength: 2, reg: gp21, asm: "BIC", aux: "Int64", earlyOk: true},    // arg0 &^ (arg1 ROR auxInt), signed shift, auxInt should be in the range 0 to 63.
+		{name: "EONshiftLL", argLength: 2, reg: gp21, asm: "EON", aux: "Int64", earlyOk: true},    // arg0 ^ ^(arg1<<auxInt), auxInt should be in the range 0 to 63.
+		{name: "EONshiftRL", argLength: 2, reg: gp21, asm: "EON", aux: "Int64", earlyOk: true},    // arg0 ^ ^(arg1>>auxInt), unsigned shift, auxInt should be in the range 0 to 63.
+		{name: "EONshiftRA", argLength: 2, reg: gp21, asm: "EON", aux: "Int64", earlyOk: true},    // arg0 ^ ^(arg1>>auxInt), signed shift, auxInt should be in the range 0 to 63.
+		{name: "EONshiftRO", argLength: 2, reg: gp21, asm: "EON", aux: "Int64", earlyOk: true},    // arg0 ^ ^(arg1 ROR auxInt), signed shift, auxInt should be in the range 0 to 63.
+		{name: "ORNshiftLL", argLength: 2, reg: gp21, asm: "ORN", aux: "Int64", earlyOk: true},    // arg0 | ^(arg1<<auxInt), auxInt should be in the range 0 to 63.
+		{name: "ORNshiftRL", argLength: 2, reg: gp21, asm: "ORN", aux: "Int64", earlyOk: true},    // arg0 | ^(arg1>>auxInt), unsigned shift, auxInt should be in the range 0 to 63.
+		{name: "ORNshiftRA", argLength: 2, reg: gp21, asm: "ORN", aux: "Int64", earlyOk: true},    // arg0 | ^(arg1>>auxInt), signed shift, auxInt should be in the range 0 to 63.
+		{name: "ORNshiftRO", argLength: 2, reg: gp21, asm: "ORN", aux: "Int64", earlyOk: true},    // arg0 | ^(arg1 ROR auxInt), signed shift, auxInt should be in the range 0 to 63.
 		{name: "CMPshiftLL", argLength: 2, reg: gp2flags, asm: "CMP", aux: "Int64", typ: "Flags"}, // arg0 compare to arg1<<auxInt, auxInt should be in the range 0 to 63.
 		{name: "CMPshiftRL", argLength: 2, reg: gp2flags, asm: "CMP", aux: "Int64", typ: "Flags"}, // arg0 compare to arg1>>auxInt, unsigned shift, auxInt should be in the range 0 to 63.
 		{name: "CMPshiftRA", argLength: 2, reg: gp2flags, asm: "CMP", aux: "Int64", typ: "Flags"}, // arg0 compare to arg1>>auxInt, signed shift, auxInt should be in the range 0 to 63.
@@ -367,24 +369,24 @@ func init() {
 		// bitfield ops
 		// for all bitfield ops lsb is auxInt>>8, width is auxInt&0xff
 		// insert low width bits of arg1 into the result starting at bit lsb, copy other bits from arg0
-		{name: "BFI", argLength: 2, reg: gp21nog, asm: "BFI", aux: "ARM64BitField", resultInArg0: true},
+		{name: "BFI", argLength: 2, reg: gp21nog, asm: "BFI", aux: "ARM64BitField", resultInArg0: true, earlyOk: true},
 		// extract width bits of arg1 starting at bit lsb and insert at low end of result, copy other bits from arg0
-		{name: "BFXIL", argLength: 2, reg: gp21nog, asm: "BFXIL", aux: "ARM64BitField", resultInArg0: true},
+		{name: "BFXIL", argLength: 2, reg: gp21nog, asm: "BFXIL", aux: "ARM64BitField", resultInArg0: true, earlyOk: true},
 		// insert low width bits of arg0 into the result starting at bit lsb, bits to the left of the inserted bit field are set to the high/sign bit of the inserted bit field, bits to the right are zeroed
-		{name: "SBFIZ", argLength: 1, reg: gp11, asm: "SBFIZ", aux: "ARM64BitField"},
+		{name: "SBFIZ", argLength: 1, reg: gp11, asm: "SBFIZ", aux: "ARM64BitField", earlyOk: true},
 		// extract width bits of arg0 starting at bit lsb and insert at low end of result, remaining high bits are set to the high/sign bit of the extracted bitfield
-		{name: "SBFX", argLength: 1, reg: gp11, asm: "SBFX", aux: "ARM64BitField"},
+		{name: "SBFX", argLength: 1, reg: gp11, asm: "SBFX", aux: "ARM64BitField", earlyOk: true},
 		// insert low width bits of arg0 into the result starting at bit lsb, bits to the left and right of the inserted bit field are zeroed
-		{name: "UBFIZ", argLength: 1, reg: gp11, asm: "UBFIZ", aux: "ARM64BitField"},
+		{name: "UBFIZ", argLength: 1, reg: gp11, asm: "UBFIZ", aux: "ARM64BitField", earlyOk: true},
 		// extract width bits of arg0 starting at bit lsb and insert at low end of result, remaining high bits are zeroed
-		{name: "UBFX", argLength: 1, reg: gp11, asm: "UBFX", aux: "ARM64BitField"},
+		{name: "UBFX", argLength: 1, reg: gp11, asm: "UBFX", aux: "ARM64BitField", earlyOk: true},
 
 		// moves
-		{name: "MOVDconst", argLength: 0, reg: gp01, aux: "Int64", asm: "MOVD", typ: "UInt64", rematerializeable: true},      // 64 bits from auxint
-		{name: "FMOVSconst", argLength: 0, reg: fp01, aux: "Float64", asm: "FMOVS", typ: "Float32", rematerializeable: true}, // auxint as 64-bit float, convert to 32-bit float
-		{name: "FMOVDconst", argLength: 0, reg: fp01, aux: "Float64", asm: "FMOVD", typ: "Float64", rematerializeable: true}, // auxint as 64-bit float
+		{name: "MOVDconst", argLength: 0, reg: gp01, aux: "Int64", asm: "MOVD", typ: "UInt64", rematerializeable: true, earlyOk: true},      // 64 bits from auxint
+		{name: "FMOVSconst", argLength: 0, reg: fp01, aux: "Float64", asm: "FMOVS", typ: "Float32", rematerializeable: true, earlyOk: true}, // auxint as 64-bit float, convert to 32-bit float
+		{name: "FMOVDconst", argLength: 0, reg: fp01, aux: "Float64", asm: "FMOVD", typ: "Float64", rematerializeable: true, earlyOk: true}, // auxint as 64-bit float
 
-		{name: "MOVDaddr", argLength: 1, reg: regInfo{inputs: []regMask{buildReg("SP") | buildReg("SB")}, outputs: []regMask{gp}}, aux: "SymOff", asm: "MOVD", rematerializeable: true, symEffect: "Addr"}, // arg0 + auxInt + aux.(*gc.Sym), arg0=SP/SB
+		{name: "MOVDaddr", argLength: 1, reg: regInfo{inputs: []regMask{buildReg("SP").union(buildReg("SB"))}, outputs: []regMask{gp}}, aux: "SymOff", asm: "MOVD", rematerializeable: true, symEffect: "Addr", earlyOk: true}, // arg0 + auxInt + aux.(*gc.Sym), arg0=SP/SB
 
 		{name: "MOVBload", argLength: 2, reg: gpload, aux: "SymOff", asm: "MOVB", typ: "Int8", faultOnNilArg0: true, symEffect: "Read"},      // load from arg0 + auxInt + aux.  arg1=mem.
 		{name: "MOVBUload", argLength: 2, reg: gpload, aux: "SymOff", asm: "MOVBU", typ: "UInt8", faultOnNilArg0: true, symEffect: "Read"},   // load from arg0 + auxInt + aux.  arg1=mem.
@@ -395,6 +397,7 @@ func init() {
 		{name: "MOVDload", argLength: 2, reg: gpload, aux: "SymOff", asm: "MOVD", typ: "UInt64", faultOnNilArg0: true, symEffect: "Read"},    // load from arg0 + auxInt + aux.  arg1=mem.
 		{name: "FMOVSload", argLength: 2, reg: fpload, aux: "SymOff", asm: "FMOVS", typ: "Float32", faultOnNilArg0: true, symEffect: "Read"}, // load from arg0 + auxInt + aux.  arg1=mem.
 		{name: "FMOVDload", argLength: 2, reg: fpload, aux: "SymOff", asm: "FMOVD", typ: "Float64", faultOnNilArg0: true, symEffect: "Read"}, // load from arg0 + auxInt + aux.  arg1=mem.
+		{name: "FMOVQload", argLength: 2, reg: fpload, aux: "SymOff", asm: "FMOVQ", typ: "Vec128", faultOnNilArg0: true, symEffect: "Read"},  // load from arg0 + auxInt + aux.  arg1=mem.
 
 		// LDP instructions load the contents of two adjacent locations in memory into registers.
 		// Address to start loading is addr = arg0 + auxInt + aux.
@@ -407,6 +410,7 @@ func init() {
 		{name: "LDPSW", argLength: 2, reg: gpload2, aux: "SymOff", asm: "LDPSW", typ: "(Int32,Int32)", faultOnNilArg0: true, symEffect: "Read"},     // T=int32 (gp reg destination) signed extension
 		{name: "FLDPD", argLength: 2, reg: fpload2, aux: "SymOff", asm: "FLDPD", typ: "(Float64,Float64)", faultOnNilArg0: true, symEffect: "Read"}, // T=float64 (fp reg destination)
 		{name: "FLDPS", argLength: 2, reg: fpload2, aux: "SymOff", asm: "FLDPS", typ: "(Float32,Float32)", faultOnNilArg0: true, symEffect: "Read"}, // T=float32 (fp reg destination)
+		{name: "FLDPQ", argLength: 2, reg: fpload2, aux: "SymOff", asm: "FLDPQ", typ: "(Vec128,Vec128)", faultOnNilArg0: true, symEffect: "Read"},   // T=vec128 (fp reg destination)
 
 		// register indexed load
 		{name: "MOVDloadidx", argLength: 3, reg: gp2load, asm: "MOVD", typ: "UInt64"},    // load 64-bit dword from arg0 + arg1, arg2 = mem.
@@ -434,6 +438,7 @@ func init() {
 		{name: "MOVDstore", argLength: 3, reg: gpstore, aux: "SymOff", asm: "MOVD", typ: "Mem", faultOnNilArg0: true, symEffect: "Write"},   // store 8 bytes of arg1 to arg0 + auxInt + aux.  arg2=mem.
 		{name: "FMOVSstore", argLength: 3, reg: fpstore, aux: "SymOff", asm: "FMOVS", typ: "Mem", faultOnNilArg0: true, symEffect: "Write"}, // store 4 bytes of arg1 to arg0 + auxInt + aux.  arg2=mem.
 		{name: "FMOVDstore", argLength: 3, reg: fpstore, aux: "SymOff", asm: "FMOVD", typ: "Mem", faultOnNilArg0: true, symEffect: "Write"}, // store 8 bytes of arg1 to arg0 + auxInt + aux.  arg2=mem.
+		{name: "FMOVQstore", argLength: 3, reg: fpstore, aux: "SymOff", asm: "FMOVQ", typ: "Mem", faultOnNilArg0: true, symEffect: "Write"}, // store 16 bytes of arg1 to arg0 + auxInt + aux.  arg2=mem.
 
 		// STP instructions store the contents of two registers to adjacent locations in memory.
 		// Address to start storing is addr = arg0 + auxInt + aux.
@@ -444,6 +449,7 @@ func init() {
 		{name: "STPW", argLength: 4, reg: gpstore2, aux: "SymOff", asm: "STPW", typ: "Mem", faultOnNilArg0: true, symEffect: "Write"},   // T=int32 (gp reg source)
 		{name: "FSTPD", argLength: 4, reg: fpstore2, aux: "SymOff", asm: "FSTPD", typ: "Mem", faultOnNilArg0: true, symEffect: "Write"}, // T=float64 (fp reg source)
 		{name: "FSTPS", argLength: 4, reg: fpstore2, aux: "SymOff", asm: "FSTPS", typ: "Mem", faultOnNilArg0: true, symEffect: "Write"}, // T=float32 (fp reg source)
+		{name: "FSTPQ", argLength: 4, reg: fpstore2, aux: "SymOff", asm: "FSTPQ", typ: "Mem", faultOnNilArg0: true, symEffect: "Write"}, // T=vec128 (fp reg source)
 
 		// register indexed store
 		{name: "MOVBstoreidx", argLength: 4, reg: gpstore2, asm: "MOVB", typ: "Mem"},     // store 1 byte of arg2 to arg0 + arg1, arg3 = mem.
@@ -460,56 +466,62 @@ func init() {
 		{name: "FMOVSstoreidx4", argLength: 4, reg: fpstoreidx, asm: "FMOVS", typ: "Mem"}, // store 32-bit float of arg2 to arg0 + arg1*4, arg3=mem.
 		{name: "FMOVDstoreidx8", argLength: 4, reg: fpstoreidx, asm: "FMOVD", typ: "Mem"}, // store 64-bit float of arg2 to arg0 + arg1*8, arg3=mem.
 
-		{name: "FMOVDgpfp", argLength: 1, reg: gpfp, asm: "FMOVD"}, // move int64 to float64 (no conversion)
-		{name: "FMOVDfpgp", argLength: 1, reg: fpgp, asm: "FMOVD"}, // move float64 to int64 (no conversion)
-		{name: "FMOVSgpfp", argLength: 1, reg: gpfp, asm: "FMOVS"}, // move 32bits from int to float reg (no conversion)
-		{name: "FMOVSfpgp", argLength: 1, reg: fpgp, asm: "FMOVS"}, // move 32bits from float to int reg, zero extend (no conversion)
+		{name: "FMOVDgpfp", argLength: 1, reg: gpfp, asm: "FMOVD", earlyOk: true}, // move int64 to float64 (no conversion)
+		{name: "FMOVDfpgp", argLength: 1, reg: fpgp, asm: "FMOVD", earlyOk: true}, // move float64 to int64 (no conversion)
+		{name: "FMOVSgpfp", argLength: 1, reg: gpfp, asm: "FMOVS", earlyOk: true}, // move 32bits from int to float reg (no conversion)
+		{name: "FMOVSfpgp", argLength: 1, reg: fpgp, asm: "FMOVS", earlyOk: true}, // move 32bits from float to int reg, zero extend (no conversion)
 
 		// conversions
-		{name: "MOVBreg", argLength: 1, reg: gp11, asm: "MOVB"},   // move from arg0, sign-extended from byte
-		{name: "MOVBUreg", argLength: 1, reg: gp11, asm: "MOVBU"}, // move from arg0, unsign-extended from byte
-		{name: "MOVHreg", argLength: 1, reg: gp11, asm: "MOVH"},   // move from arg0, sign-extended from half
-		{name: "MOVHUreg", argLength: 1, reg: gp11, asm: "MOVHU"}, // move from arg0, unsign-extended from half
-		{name: "MOVWreg", argLength: 1, reg: gp11, asm: "MOVW"},   // move from arg0, sign-extended from word
-		{name: "MOVWUreg", argLength: 1, reg: gp11, asm: "MOVWU"}, // move from arg0, unsign-extended from word
-		{name: "MOVDreg", argLength: 1, reg: gp11, asm: "MOVD"},   // move from arg0
+		{name: "MOVBreg", argLength: 1, reg: gp11, asm: "MOVB", earlyOk: true},   // move from arg0, sign-extended from byte
+		{name: "MOVBUreg", argLength: 1, reg: gp11, asm: "MOVBU", earlyOk: true}, // move from arg0, unsign-extended from byte
+		{name: "MOVHreg", argLength: 1, reg: gp11, asm: "MOVH", earlyOk: true},   // move from arg0, sign-extended from half
+		{name: "MOVHUreg", argLength: 1, reg: gp11, asm: "MOVHU", earlyOk: true}, // move from arg0, unsign-extended from half
+		{name: "MOVWreg", argLength: 1, reg: gp11, asm: "MOVW", earlyOk: true},   // move from arg0, sign-extended from word
+		{name: "MOVWUreg", argLength: 1, reg: gp11, asm: "MOVWU", earlyOk: true}, // move from arg0, unsign-extended from word
+		{name: "MOVDreg", argLength: 1, reg: gp11, asm: "MOVD", earlyOk: true},   // move from arg0
 
-		{name: "MOVDnop", argLength: 1, reg: regInfo{inputs: []regMask{gp}, outputs: []regMask{gp}}, resultInArg0: true}, // nop, return arg0 in same register
+		{name: "MOVDnop", argLength: 1, reg: regInfo{inputs: []regMask{gp}, outputs: []regMask{gp}}, resultInArg0: true, earlyOk: true}, // nop, return arg0 in same register
 
-		{name: "SCVTFWS", argLength: 1, reg: gpfp, asm: "SCVTFWS"},   // int32 -> float32
-		{name: "SCVTFWD", argLength: 1, reg: gpfp, asm: "SCVTFWD"},   // int32 -> float64
-		{name: "UCVTFWS", argLength: 1, reg: gpfp, asm: "UCVTFWS"},   // uint32 -> float32
-		{name: "UCVTFWD", argLength: 1, reg: gpfp, asm: "UCVTFWD"},   // uint32 -> float64
-		{name: "SCVTFS", argLength: 1, reg: gpfp, asm: "SCVTFS"},     // int64 -> float32
-		{name: "SCVTFD", argLength: 1, reg: gpfp, asm: "SCVTFD"},     // int64 -> float64
-		{name: "UCVTFS", argLength: 1, reg: gpfp, asm: "UCVTFS"},     // uint64 -> float32
-		{name: "UCVTFD", argLength: 1, reg: gpfp, asm: "UCVTFD"},     // uint64 -> float64
-		{name: "FCVTZSSW", argLength: 1, reg: fpgp, asm: "FCVTZSSW"}, // float32 -> int32
-		{name: "FCVTZSDW", argLength: 1, reg: fpgp, asm: "FCVTZSDW"}, // float64 -> int32
-		{name: "FCVTZUSW", argLength: 1, reg: fpgp, asm: "FCVTZUSW"}, // float32 -> uint32
-		{name: "FCVTZUDW", argLength: 1, reg: fpgp, asm: "FCVTZUDW"}, // float64 -> uint32
-		{name: "FCVTZSS", argLength: 1, reg: fpgp, asm: "FCVTZSS"},   // float32 -> int64
-		{name: "FCVTZSD", argLength: 1, reg: fpgp, asm: "FCVTZSD"},   // float64 -> int64
-		{name: "FCVTZUS", argLength: 1, reg: fpgp, asm: "FCVTZUS"},   // float32 -> uint64
-		{name: "FCVTZUD", argLength: 1, reg: fpgp, asm: "FCVTZUD"},   // float64 -> uint64
-		{name: "FCVTSD", argLength: 1, reg: fp11, asm: "FCVTSD"},     // float32 -> float64
-		{name: "FCVTDS", argLength: 1, reg: fp11, asm: "FCVTDS"},     // float64 -> float32
+		{name: "SCVTFWS", argLength: 1, reg: gpfp, asm: "SCVTFWS", earlyOk: true},   // int32 -> float32
+		{name: "SCVTFWD", argLength: 1, reg: gpfp, asm: "SCVTFWD", earlyOk: true},   // int32 -> float64
+		{name: "UCVTFWS", argLength: 1, reg: gpfp, asm: "UCVTFWS", earlyOk: true},   // uint32 -> float32
+		{name: "UCVTFWD", argLength: 1, reg: gpfp, asm: "UCVTFWD", earlyOk: true},   // uint32 -> float64
+		{name: "SCVTFS", argLength: 1, reg: gpfp, asm: "SCVTFS", earlyOk: true},     // int64 -> float32
+		{name: "SCVTFD", argLength: 1, reg: gpfp, asm: "SCVTFD", earlyOk: true},     // int64 -> float64
+		{name: "UCVTFS", argLength: 1, reg: gpfp, asm: "UCVTFS", earlyOk: true},     // uint64 -> float32
+		{name: "UCVTFD", argLength: 1, reg: gpfp, asm: "UCVTFD", earlyOk: true},     // uint64 -> float64
+		{name: "FCVTZSSW", argLength: 1, reg: fpgp, asm: "FCVTZSSW", earlyOk: true}, // float32 -> int32
+		{name: "FCVTZSDW", argLength: 1, reg: fpgp, asm: "FCVTZSDW", earlyOk: true}, // float64 -> int32
+		{name: "FCVTZUSW", argLength: 1, reg: fpgp, asm: "FCVTZUSW", earlyOk: true}, // float32 -> uint32
+		{name: "FCVTZUDW", argLength: 1, reg: fpgp, asm: "FCVTZUDW", earlyOk: true}, // float64 -> uint32
+		{name: "FCVTZSS", argLength: 1, reg: fpgp, asm: "FCVTZSS", earlyOk: true},   // float32 -> int64
+		{name: "FCVTZSD", argLength: 1, reg: fpgp, asm: "FCVTZSD", earlyOk: true},   // float64 -> int64
+		{name: "FCVTZUS", argLength: 1, reg: fpgp, asm: "FCVTZUS", earlyOk: true},   // float32 -> uint64
+		{name: "FCVTZUD", argLength: 1, reg: fpgp, asm: "FCVTZUD", earlyOk: true},   // float64 -> uint64
+		{name: "FCVTSD", argLength: 1, reg: fp11, asm: "FCVTSD", earlyOk: true},     // float32 -> float64
+		{name: "FCVTDS", argLength: 1, reg: fp11, asm: "FCVTDS", earlyOk: true},     // float64 -> float32
 
-		// floating-point round to integral
-		{name: "FRINTAD", argLength: 1, reg: fp11, asm: "FRINTAD"},
-		{name: "FRINTMD", argLength: 1, reg: fp11, asm: "FRINTMD"},
-		{name: "FRINTND", argLength: 1, reg: fp11, asm: "FRINTND"},
-		{name: "FRINTPD", argLength: 1, reg: fp11, asm: "FRINTPD"},
-		{name: "FRINTZD", argLength: 1, reg: fp11, asm: "FRINTZD"},
+		// 64-bit floating-point round to integers in 64-bit FP format
+		{name: "FRINTAD", argLength: 1, reg: fp11, asm: "FRINTAD", earlyOk: true}, // Round (ties Away from zero; 0.5 -> 1, -0.5 -> -1)
+		{name: "FRINTMD", argLength: 1, reg: fp11, asm: "FRINTMD", earlyOk: true}, // Floor (towards Minus; 0.5 -> 0, -0.5 -> -1)
+		{name: "FRINTND", argLength: 1, reg: fp11, asm: "FRINTND", earlyOk: true}, // Round (ties to even; ; 0.5 -> 0, 1.5 -> 2)
+		{name: "FRINTPD", argLength: 1, reg: fp11, asm: "FRINTPD", earlyOk: true}, // Ceil (towards Positive; 0.5 -> 1, -0.5 -> 0)
+		{name: "FRINTZD", argLength: 1, reg: fp11, asm: "FRINTZD", earlyOk: true}, // Trunc (towards Zero; 0.5 -> 0, -0.5 -> 0))
+		// 32-bit floating-point round to integers in 32-bit FP format
+		{name: "FRINTAS", argLength: 1, reg: fp11, asm: "FRINTAS", earlyOk: true}, // Round (ties Away from zero; 0.5 -> 1, -0.5 -> -1)
+		{name: "FRINTMS", argLength: 1, reg: fp11, asm: "FRINTMS", earlyOk: true}, // Floor (towards Minus; 0.5 -> 0, -0.5 -> -1)
+		{name: "FRINTNS", argLength: 1, reg: fp11, asm: "FRINTNS", earlyOk: true}, // Round (ties to even; ; 0.5 -> 0, 1.5 -> 2)
+		{name: "FRINTPS", argLength: 1, reg: fp11, asm: "FRINTPS", earlyOk: true}, // Ceil (towards Positive; 0.5 -> 1, -0.5 -> 0)
+		{name: "FRINTZS", argLength: 1, reg: fp11, asm: "FRINTZS", earlyOk: true}, // Trunc (towards Zero; 0.5 -> 0, -0.5 -> 0))
 
 		// conditional instructions; auxint is
 		// one of the arm64 comparison pseudo-ops (LessThan, LessThanU, etc.)
-		{name: "CSEL", argLength: 3, reg: gp2flags1, asm: "CSEL", aux: "CCop"},   // auxint(flags) ? arg0 : arg1
-		{name: "CSEL0", argLength: 2, reg: gp1flags1, asm: "CSEL", aux: "CCop"},  // auxint(flags) ? arg0 : 0
-		{name: "CSINC", argLength: 3, reg: gp2flags1, asm: "CSINC", aux: "CCop"}, // auxint(flags) ? arg0 : arg1 + 1
-		{name: "CSINV", argLength: 3, reg: gp2flags1, asm: "CSINV", aux: "CCop"}, // auxint(flags) ? arg0 : ^arg1
-		{name: "CSNEG", argLength: 3, reg: gp2flags1, asm: "CSNEG", aux: "CCop"}, // auxint(flags) ? arg0 : -arg1
-		{name: "CSETM", argLength: 1, reg: readflags, asm: "CSETM", aux: "CCop"}, // auxint(flags) ? -1 : 0
+		{name: "CSEL", argLength: 3, reg: gp2flags1, asm: "CSEL", aux: "CCop", earlyOk: true},   // auxint(flags) ? arg0 : arg1
+		{name: "CSEL0", argLength: 2, reg: gp1flags1, asm: "CSEL", aux: "CCop", earlyOk: true},  // auxint(flags) ? arg0 : 0
+		{name: "CSINC", argLength: 3, reg: gp2flags1, asm: "CSINC", aux: "CCop", earlyOk: true}, // auxint(flags) ? arg0 : arg1 + 1
+		{name: "CSINV", argLength: 3, reg: gp2flags1, asm: "CSINV", aux: "CCop", earlyOk: true}, // auxint(flags) ? arg0 : ^arg1
+		{name: "CSNEG", argLength: 3, reg: gp2flags1, asm: "CSNEG", aux: "CCop", earlyOk: true}, // auxint(flags) ? arg0 : -arg1
+		{name: "CSETM", argLength: 1, reg: readflags, asm: "CSETM", aux: "CCop", earlyOk: true}, // auxint(flags) ? -1 : 0
 
 		// conditional comparison instructions; auxint is
 		// combination of Cond, Nzcv and optional ConstValue
@@ -528,35 +540,36 @@ func init() {
 		{name: "CCMNWconst", argLength: 2, reg: gp1flagsflags, asm: "CCMNW", aux: "ARM64ConditionalParams", typ: "Flags"}, // If Cond then flags = CCMNWconst [ConstValue] arg0 else flags = Nzcv
 
 		// function calls
-		{name: "CALLstatic", argLength: -1, reg: regInfo{clobbers: callerSave}, aux: "CallOff", clobberFlags: true, call: true},                                               // call static function aux.(*obj.LSym).  last arg=mem, auxint=argsize, returns mem
-		{name: "CALLtail", argLength: -1, reg: regInfo{clobbers: callerSave}, aux: "CallOff", clobberFlags: true, call: true, tailCall: true},                                 // tail call static function aux.(*obj.LSym).  last arg=mem, auxint=argsize, returns mem
-		{name: "CALLclosure", argLength: -1, reg: regInfo{inputs: []regMask{gpsp, buildReg("R26"), 0}, clobbers: callerSave}, aux: "CallOff", clobberFlags: true, call: true}, // call function via closure.  arg0=codeptr, arg1=closure, last arg=mem, auxint=argsize, returns mem
-		{name: "CALLinter", argLength: -1, reg: regInfo{inputs: []regMask{gp}, clobbers: callerSave}, aux: "CallOff", clobberFlags: true, call: true},                         // call fn by pointer.  arg0=codeptr, last arg=mem, auxint=argsize, returns mem
+		{name: "CALLstatic", argLength: -1, reg: regInfo{clobbers: callerSave}, aux: "CallOff", clobberFlags: true, call: true},                                                       // call static function aux.(*obj.LSym).  last arg=mem, auxint=argsize, returns mem
+		{name: "CALLtail", argLength: -1, reg: regInfo{clobbers: callerSave}, aux: "CallOff", clobberFlags: true, call: true, tailCall: true},                                         // tail call static function aux.(*obj.LSym).  last arg=mem, auxint=argsize, returns mem
+		{name: "CALLtailinter", argLength: -1, reg: regInfo{inputs: []regMask{gp}, clobbers: callerSave}, aux: "CallOff", clobberFlags: true, call: true, tailCall: true},             // tail call fn by pointer. arg0=codeptr, last arg=mem, auxint=argsize, returns mem
+		{name: "CALLclosure", argLength: -1, reg: regInfo{inputs: []regMask{gpsp, buildReg("R26"), regMask{}}, clobbers: callerSave}, aux: "CallOff", clobberFlags: true, call: true}, // call function via closure.  arg0=codeptr, arg1=closure, last arg=mem, auxint=argsize, returns mem
+		{name: "CALLinter", argLength: -1, reg: regInfo{inputs: []regMask{gp}, clobbers: callerSave}, aux: "CallOff", clobberFlags: true, call: true},                                 // call fn by pointer.  arg0=codeptr, last arg=mem, auxint=argsize, returns mem
 
 		// pseudo-ops
 		{name: "LoweredNilCheck", argLength: 2, reg: regInfo{inputs: []regMask{gpg}}, nilCheck: true, faultOnNilArg0: true},                                                                                                                                                      // panic if arg0 is nil.  arg1=mem.
 		{name: "LoweredMemEq", argLength: 4, reg: regInfo{inputs: []regMask{buildReg("R0"), buildReg("R1"), buildReg("R2")}, outputs: []regMask{buildReg("R0")}, clobbers: callerSave}, typ: "Bool", faultOnNilArg0: true, faultOnNilArg1: true, clobberFlags: true, call: true}, // arg0, arg1 - pointers to memory, arg2=size, arg3=mem.
 
-		{name: "Equal", argLength: 1, reg: readflags},            // bool, true flags encode x==y false otherwise.
-		{name: "NotEqual", argLength: 1, reg: readflags},         // bool, true flags encode x!=y false otherwise.
-		{name: "LessThan", argLength: 1, reg: readflags},         // bool, true flags encode signed x<y false otherwise.
-		{name: "LessEqual", argLength: 1, reg: readflags},        // bool, true flags encode signed x<=y false otherwise.
-		{name: "GreaterThan", argLength: 1, reg: readflags},      // bool, true flags encode signed x>y false otherwise.
-		{name: "GreaterEqual", argLength: 1, reg: readflags},     // bool, true flags encode signed x>=y false otherwise.
-		{name: "LessThanU", argLength: 1, reg: readflags},        // bool, true flags encode unsigned x<y false otherwise.
-		{name: "LessEqualU", argLength: 1, reg: readflags},       // bool, true flags encode unsigned x<=y false otherwise.
-		{name: "GreaterThanU", argLength: 1, reg: readflags},     // bool, true flags encode unsigned x>y false otherwise.
-		{name: "GreaterEqualU", argLength: 1, reg: readflags},    // bool, true flags encode unsigned x>=y false otherwise.
-		{name: "LessThanF", argLength: 1, reg: readflags},        // bool, true flags encode floating-point x<y false otherwise.
-		{name: "LessEqualF", argLength: 1, reg: readflags},       // bool, true flags encode floating-point x<=y false otherwise.
-		{name: "GreaterThanF", argLength: 1, reg: readflags},     // bool, true flags encode floating-point x>y false otherwise.
-		{name: "GreaterEqualF", argLength: 1, reg: readflags},    // bool, true flags encode floating-point x>=y false otherwise.
-		{name: "NotLessThanF", argLength: 1, reg: readflags},     // bool, true flags encode floating-point x>=y || x is unordered with y, false otherwise.
-		{name: "NotLessEqualF", argLength: 1, reg: readflags},    // bool, true flags encode floating-point x>y || x is unordered with y, false otherwise.
-		{name: "NotGreaterThanF", argLength: 1, reg: readflags},  // bool, true flags encode floating-point x<=y || x is unordered with y, false otherwise.
-		{name: "NotGreaterEqualF", argLength: 1, reg: readflags}, // bool, true flags encode floating-point x<y || x is unordered with y, false otherwise.
-		{name: "LessThanNoov", argLength: 1, reg: readflags},     // bool, true flags encode signed x<y but without honoring overflow, false otherwise.
-		{name: "GreaterEqualNoov", argLength: 1, reg: readflags}, // bool, true flags encode signed x>=y but without honoring overflow, false otherwise.
+		{name: "Equal", argLength: 1, reg: readflags, earlyOk: true},            // bool, true flags encode x==y false otherwise.
+		{name: "NotEqual", argLength: 1, reg: readflags, earlyOk: true},         // bool, true flags encode x!=y false otherwise.
+		{name: "LessThan", argLength: 1, reg: readflags, earlyOk: true},         // bool, true flags encode signed x<y false otherwise.
+		{name: "LessEqual", argLength: 1, reg: readflags, earlyOk: true},        // bool, true flags encode signed x<=y false otherwise.
+		{name: "GreaterThan", argLength: 1, reg: readflags, earlyOk: true},      // bool, true flags encode signed x>y false otherwise.
+		{name: "GreaterEqual", argLength: 1, reg: readflags, earlyOk: true},     // bool, true flags encode signed x>=y false otherwise.
+		{name: "LessThanU", argLength: 1, reg: readflags, earlyOk: true},        // bool, true flags encode unsigned x<y false otherwise.
+		{name: "LessEqualU", argLength: 1, reg: readflags, earlyOk: true},       // bool, true flags encode unsigned x<=y false otherwise.
+		{name: "GreaterThanU", argLength: 1, reg: readflags, earlyOk: true},     // bool, true flags encode unsigned x>y false otherwise.
+		{name: "GreaterEqualU", argLength: 1, reg: readflags, earlyOk: true},    // bool, true flags encode unsigned x>=y false otherwise.
+		{name: "LessThanF", argLength: 1, reg: readflags, earlyOk: true},        // bool, true flags encode floating-point x<y false otherwise.
+		{name: "LessEqualF", argLength: 1, reg: readflags, earlyOk: true},       // bool, true flags encode floating-point x<=y false otherwise.
+		{name: "GreaterThanF", argLength: 1, reg: readflags, earlyOk: true},     // bool, true flags encode floating-point x>y false otherwise.
+		{name: "GreaterEqualF", argLength: 1, reg: readflags, earlyOk: true},    // bool, true flags encode floating-point x>=y false otherwise.
+		{name: "NotLessThanF", argLength: 1, reg: readflags, earlyOk: true},     // bool, true flags encode floating-point x>=y || x is unordered with y, false otherwise.
+		{name: "NotLessEqualF", argLength: 1, reg: readflags, earlyOk: true},    // bool, true flags encode floating-point x>y || x is unordered with y, false otherwise.
+		{name: "NotGreaterThanF", argLength: 1, reg: readflags, earlyOk: true},  // bool, true flags encode floating-point x<=y || x is unordered with y, false otherwise.
+		{name: "NotGreaterEqualF", argLength: 1, reg: readflags, earlyOk: true}, // bool, true flags encode floating-point x<y || x is unordered with y, false otherwise.
+		{name: "LessThanNoov", argLength: 1, reg: readflags, earlyOk: true},     // bool, true flags encode signed x<y but without honoring overflow, false otherwise.
+		{name: "GreaterEqualNoov", argLength: 1, reg: readflags, earlyOk: true}, // bool, true flags encode signed x>=y but without honoring overflow, false otherwise.
 
 		// medium zeroing
 		// arg0 = address of memory to zero
@@ -601,8 +614,8 @@ func init() {
 			aux:       "Int64",
 			argLength: 3,
 			reg: regInfo{
-				inputs:   []regMask{gp &^ r25, gp &^ r25},
-				clobbers: r25 | f16to17, // TODO: figure out needIntTemp + x2 for floats
+				inputs:   []regMask{gp.minus(r25), gp.minus(r25)},
+				clobbers: r25.union(f16to17), // TODO: figure out needIntTemp + x2 for floats
 			},
 			faultOnNilArg0: true,
 			faultOnNilArg1: true,
@@ -619,8 +632,8 @@ func init() {
 			aux:       "Int64",
 			argLength: 3,
 			reg: regInfo{
-				inputs:       []regMask{gp &^ r24to25, gp &^ r24to25},
-				clobbers:     r24to25 | f16to17, // TODO: figure out needIntTemp x2 + x2 for floats
+				inputs:       []regMask{gp.minus(r24to25), gp.minus(r24to25)},
+				clobbers:     r24to25.union(f16to17), // TODO: figure out needIntTemp x2 + x2 for floats
 				clobbersArg0: true,
 				clobbersArg1: true,
 			},
@@ -762,7 +775,7 @@ func init() {
 		// but clobbers R30 (LR) because it's a call.
 		// R16 and R17 may be clobbered by linker trampoline.
 		// Returns a pointer to a write barrier buffer in R25.
-		{name: "LoweredWB", argLength: 1, reg: regInfo{clobbers: (callerSave &^ gpg) | buildReg("R16 R17 R30"), outputs: []regMask{buildReg("R25")}}, clobberFlags: true, aux: "Int64"},
+		{name: "LoweredWB", argLength: 1, reg: regInfo{clobbers: callerSave.minus(gpg).union(buildReg("R16 R17 R30")), outputs: []regMask{buildReg("R25")}}, clobberFlags: true, aux: "Int64"},
 
 		// LoweredPanicBoundsRR takes x and y, two values that caused a bounds check to fail.
 		// the RC and CR versions are used when one of the arguments is a constant. CC is used
@@ -780,7 +793,11 @@ func init() {
 
 		// Publication barrier
 		{name: "DMB", argLength: 1, aux: "Int64", asm: "DMB", hasSideEffects: true}, // Do data barrier. arg0=memory, aux=option.
-		{name: "ZERO", zeroWidth: true, fixedReg: true},                             // reads-as-zero register
+		{name: "ZERO", zeroWidth: true, fixedReg: true, earlyOk: true},              // reads-as-zero register
+
+		// Broadcast constant to each lane of a SIMD register. aux=constant.
+		// TODO: add the other arrangements after assembler supports them, to be used in simdgen-generated opt rules.
+		{name: "VMOVI16B", argLength: 0, reg: fp01, asm: "VMOVI", aux: "UInt8", commutative: false, typ: "Vec128", resultInArg0: false},
 	}
 
 	blocks := []blockData{
@@ -820,13 +837,15 @@ func init() {
 		name:               "ARM64",
 		pkg:                "cmd/internal/obj/arm64",
 		genfile:            "../../arm64/ssa.go",
-		ops:                ops,
+		genSIMDfile:        "../../arm64/simdssa.go",
+		ops:                append(ops, simdARM64Ops(fp11, fp21, fp31, fpgp, fpgpfp, fp21)...),
 		blocks:             blocks,
 		regnames:           regNamesARM64,
 		ParamIntRegNames:   "R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15",
 		ParamFloatRegNames: "F0 F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15",
 		gpregmask:          gp,
 		fpregmask:          fp,
+		simdregmask:        fp,
 		framepointerreg:    -1, // not used
 		linkreg:            int8(num["R30"]),
 	})

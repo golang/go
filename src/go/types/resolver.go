@@ -400,7 +400,10 @@ func (check *Checker) collectObjects() {
 			case funcDecl:
 				name := d.decl.Name.Name
 				obj := NewFunc(d.decl.Name.Pos(), pkg, name, nil) // signature set later
-				hasTParamError := false                           // avoid duplicate type parameter errors
+				var tparam0 *ast.Field
+				if d.decl.Type.TypeParams.NumFields() > 0 {
+					tparam0 = d.decl.Type.TypeParams.List[0]
+				}
 				if d.decl.Recv.NumFields() == 0 {
 					// regular function
 					if d.decl.Recv != nil {
@@ -408,18 +411,20 @@ func (check *Checker) collectObjects() {
 						// treat as function
 					}
 					if name == "init" || (name == "main" && check.pkg.name == "main") {
+						// init and main functions must not declare type and ordinary parameters or results
 						code := InvalidInitDecl
 						if name == "main" {
 							code = InvalidMainDecl
 						}
-						if d.decl.Type.TypeParams.NumFields() != 0 {
-							check.softErrorf(d.decl.Type.TypeParams.List[0], code, "func %s must have no type parameters", name)
-							hasTParamError = true
+						if tparam0 != nil {
+							check.softErrorf(tparam0, code, "func %s must have no type parameters", name)
 						}
 						if t := d.decl.Type; t.Params.NumFields() != 0 || t.Results != nil {
 							// TODO(rFindley) Should this be a hard error?
 							check.softErrorf(d.decl.Name, code, "func %s must have no arguments and no return values", name)
 						}
+					} else {
+						_ = tparam0 != nil && check.verifyVersionf(tparam0, go1_18, "type parameter")
 					}
 					if name == "init" {
 						// don't declare init functions in the package scope - they are invisible
@@ -433,12 +438,6 @@ func (check *Checker) collectObjects() {
 					}
 				} else {
 					// method
-
-					// TODO(rFindley) earlier versions of this code checked that methods
-					//                have no type parameters, but this is checked later
-					//                when type checking the function type. Confirm that
-					//                we don't need to check tparams here.
-
 					ptr, base, _ := check.unpackRecv(d.decl.Recv.List[0].Type, false)
 					// (Methods with invalid receiver cannot be associated to a type, and
 					// methods with blank _ names are never found; no need to collect any
@@ -446,14 +445,9 @@ func (check *Checker) collectObjects() {
 					if recv, _ := base.(*ast.Ident); recv != nil && name != "_" {
 						methods = append(methods, methodInfo{obj, ptr, recv})
 					}
-					// methods cannot have type parameters for now
-					if d.decl.Type.TypeParams.NumFields() != 0 {
-						check.softErrorf(d.decl.Type.TypeParams.List[0], InvalidMethodTypeParams, "method %s must have no type parameters", name)
-						hasTParamError = true
-					}
+					_ = tparam0 != nil && check.verifyVersionf(tparam0, go1_27, "generic method")
 					check.recordDef(d.decl.Name, obj)
 				}
-				_ = d.decl.Type.TypeParams.NumFields() != 0 && !hasTParamError && check.verifyVersionf(d.decl.Type.TypeParams.List[0], go1_18, "type parameter")
 				info := &declInfo{file: fileScope, version: check.version, fdecl: d.decl}
 				// Methods are not package-level objects but we still track them in the
 				// object map so that we can handle them like regular functions (if the

@@ -44,7 +44,7 @@ var altRepos = func() []string {
 	}
 }
 
-// TODO: Convert gitrepo1 to svn, bzr, fossil and add tests.
+// TODO: Convert gitrepo1 to svn and fossil and add tests.
 // For now, at least the hgrepo1 tests check the general vcs.go logic.
 
 // localGitRepo is like gitrepo1 but allows archive access

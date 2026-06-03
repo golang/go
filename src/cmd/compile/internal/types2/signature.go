@@ -50,8 +50,7 @@ type Signature struct {
 // type set. It may even be a named []byte slice type resulting from
 // substitution of such a type parameter.
 //
-// If recv is non-nil, typeParams must be empty. If recvTypeParams is
-// non-empty, recv must be non-nil.
+// If recvTypeParams is non-empty, recv must be non-nil.
 func NewSignatureType(recv *Var, recvTypeParams, typeParams []*TypeParam, params, results *Tuple, variadic bool) *Signature {
 	if variadic {
 		n := params.Len()
@@ -61,6 +60,9 @@ func NewSignatureType(recv *Var, recvTypeParams, typeParams []*TypeParam, params
 		last := params.At(n - 1).typ
 		var S *Slice
 		for t := range typeset(last) {
+			if t == nil {
+				break
+			}
 			var s *Slice
 			if isString(t) {
 				s = NewSlice(universeByte)
@@ -98,9 +100,6 @@ func NewSignatureType(recv *Var, recvTypeParams, typeParams []*TypeParam, params
 		sig.rparams = bindTParams(recvTypeParams)
 	}
 	if len(typeParams) != 0 {
-		if recv != nil {
-			panic("function with type parameters cannot have a receiver")
-		}
 		sig.tparams = bindTParams(typeParams)
 	}
 	return sig

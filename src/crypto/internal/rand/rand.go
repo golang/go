@@ -13,9 +13,11 @@ import (
 	_ "unsafe"
 )
 
-type reader struct {
-	drbg.DefaultReader
-}
+// defaultReader aliases [drbg.DefaultReader], so that [reader]
+// does not have an exported DefaultReader field.
+type defaultReader = drbg.DefaultReader
+
+type reader struct{ defaultReader }
 
 func (r reader) Read(b []byte) (n int, err error) {
 	if boring.Enabled {
@@ -40,34 +42,32 @@ var Reader io.Reader = reader{}
 //
 // SetTestingReader panics when building against Go Cryptographic Module v1.0.0.
 //
-// SetTestingReader is pulled by [testing/cryptotest.setGlobalRandom] via go:linkname.
+// SetTestingReader is pulled by [testing/cryptotest.SetGlobalRandom] via go:linkname.
 //
 //go:linkname SetTestingReader crypto/internal/rand.SetTestingReader
 func SetTestingReader(r io.Reader) {
+	testingReader = r
 	fips140SetTestingReader(r)
 }
+
+var testingReader io.Reader
 
 var cryptocustomrand = godebug.New("cryptocustomrand")
 
 // CustomReader returns [Reader] or, only if the GODEBUG setting
 // "cryptocustomrand=1" is set, the provided io.Reader.
 //
-// If returning a non-default Reader, it calls [randutil.MaybeReadByte] on it.
+// If returning a non-default Reader, it calls [randutil.MaybeReadByte] on it,
+// unless it's the global testing Reader set with [SetTestingReader].
 func CustomReader(r io.Reader) io.Reader {
 	if cryptocustomrand.Value() == "1" {
 		if !IsDefaultReader(r) {
-			randutil.MaybeReadByte(r)
+			if r != testingReader {
+				randutil.MaybeReadByte(r)
+			}
 			cryptocustomrand.IncNonDefault()
 		}
 		return r
 	}
 	return Reader
-}
-
-// IsDefaultReader reports whether r is the default [crypto/rand.Reader].
-//
-// If true, the Read method of r can be assumed to call [drbg.Read].
-func IsDefaultReader(r io.Reader) bool {
-	_, ok := r.(drbg.DefaultReader)
-	return ok
 }

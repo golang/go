@@ -19,6 +19,7 @@ import (
 	typeindexanalyzer "golang.org/x/tools/internal/analysis/typeindex"
 	"golang.org/x/tools/internal/astutil"
 	"golang.org/x/tools/internal/typeparams"
+	"golang.org/x/tools/internal/typesinternal"
 	"golang.org/x/tools/internal/typesinternal/typeindex"
 	"golang.org/x/tools/internal/versions"
 )
@@ -55,6 +56,10 @@ var MinMaxAnalyzer = &analysis.Analyzer{
 // - "x := a" or "x = a" or "var x = a" in pattern 2
 // - "x < b" or "a < b" in pattern 2
 func minmax(pass *analysis.Pass) (any, error) {
+	var (
+		inspect = pass.ResultOf[inspect.Analyzer].(*inspector.Inspector)
+		info    = pass.TypesInfo
+	)
 	// Check for user-defined min/max functions that can be removed
 	checkUserDefinedMinMax(pass)
 
@@ -104,6 +109,9 @@ func minmax(pass *analysis.Pass) (any, error) {
 				if !is[*types.Builtin](lookup(pass.TypesInfo, curIfStmt, sym)) {
 					return // min/max function is shadowed
 				}
+				if !analyzerutil.FileUsesGoVersion(pass, file, versions.Go1_21) {
+					return // min/max is too new
+				}
 
 				// pattern 1
 				//
@@ -147,6 +155,13 @@ func minmax(pass *analysis.Pass) (any, error) {
 			lhs0 := fassign.Lhs[0]
 			rhs0 := fassign.Rhs[0]
 
+			// If the assignment occurs within a select
+			// comms clause (like "case lhs0 := <-rhs0:"),
+			// there's no way of rewriting it into a min/max call.
+			if prev.ParentEdgeKind() == edge.CommClause_Comm {
+				return
+			}
+
 			if astutil.EqualSyntax(lhs, lhs0) {
 				if astutil.EqualSyntax(rhs, a) && (astutil.EqualSyntax(rhs0, b) || astutil.EqualSyntax(lhs0, b)) {
 					sign = +sign
@@ -168,6 +183,10 @@ func minmax(pass *analysis.Pass) (any, error) {
 					a = rhs0
 				} else if astutil.EqualSyntax(lhs0, b) {
 					b = rhs0
+				}
+
+				if !analyzerutil.FileUsesGoVersion(pass, file, versions.Go1_21) {
+					return // min/max is too new
 				}
 
 				// pattern 2
@@ -197,31 +216,27 @@ func minmax(pass *analysis.Pass) (any, error) {
 	}
 
 	// Find all "if a < b { lhs = rhs }" statements.
-	info := pass.TypesInfo
-	for curFile := range filesUsingGoVersion(pass, versions.Go1_21) {
-		astFile := curFile.Node().(*ast.File)
-		for curIfStmt := range curFile.Preorder((*ast.IfStmt)(nil)) {
-			ifStmt := curIfStmt.Node().(*ast.IfStmt)
+	for curIfStmt := range inspect.Root().Preorder((*ast.IfStmt)(nil)) {
+		ifStmt := curIfStmt.Node().(*ast.IfStmt)
+		// Don't bother handling "if a < b { lhs = rhs }" when it appears
+		// as the "else" branch of another if-statement.
+		//    if cond { ... } else if a < b { lhs = rhs }
+		// (This case would require introducing another block
+		//    if cond { ... } else { if a < b { lhs = rhs } }
+		// and checking that there is no following "else".)
+		if curIfStmt.ParentEdgeKind() == edge.IfStmt_Else {
+			continue
+		}
 
-			// Don't bother handling "if a < b { lhs = rhs }" when it appears
-			// as the "else" branch of another if-statement.
-			//    if cond { ... } else if a < b { lhs = rhs }
-			// (This case would require introducing another block
-			//    if cond { ... } else { if a < b { lhs = rhs } }
-			// and checking that there is no following "else".)
-			if astutil.IsChildOf(curIfStmt, edge.IfStmt_Else) {
-				continue
-			}
-
-			if compare, ok := ifStmt.Cond.(*ast.BinaryExpr); ok &&
-				ifStmt.Init == nil &&
-				isInequality(compare.Op) != 0 &&
-				isAssignBlock(ifStmt.Body) {
-				// a blank var has no type.
-				if tLHS := info.TypeOf(ifStmt.Body.List[0].(*ast.AssignStmt).Lhs[0]); tLHS != nil && !maybeNaN(tLHS) {
-					// Have: if a < b { lhs = rhs }
-					check(astFile, curIfStmt, compare)
-				}
+		if compare, ok := ifStmt.Cond.(*ast.BinaryExpr); ok &&
+			ifStmt.Init == nil &&
+			isInequality(compare.Op) != 0 &&
+			typesinternal.NoEffects(info, compare) &&
+			isAssignBlock(ifStmt.Body) {
+			// a blank var has no type.
+			if tLHS := info.TypeOf(ifStmt.Body.List[0].(*ast.AssignStmt).Lhs[0]); tLHS != nil && !maybeNaN(tLHS) {
+				// Have: if a < b { lhs = rhs }
+				check(astutil.EnclosingFile(curIfStmt), curIfStmt, compare)
 			}
 		}
 	}
@@ -293,8 +308,10 @@ func checkUserDefinedMinMax(pass *analysis.Pass) {
 			// Use typeindex to get the FuncDecl directly
 			if def, ok := index.Def(fn); ok {
 				decl := def.Parent().Node().(*ast.FuncDecl)
-				// Check if this function matches the built-in min/max signature and behavior
-				if canUseBuiltinMinMax(fn, decl.Body) {
+				// Check if this function matches the built-in min/max signature
+				// and behavior, and verify that we have go1.21.
+				if canUseBuiltinMinMax(fn, decl.Body) &&
+					analyzerutil.FileUsesGoVersion(pass, astutil.EnclosingFile(def), versions.Go1_21) {
 					// Expand to include leading doc comment
 					pos := decl.Pos()
 					if docs := astutil.DocComment(decl); docs != nil {
@@ -346,18 +363,18 @@ func canUseBuiltinMinMax(fn *types.Func, body *ast.BlockStmt) bool {
 		return false
 	}
 
-	return hasMinMaxLogic(body, fn.Name())
+	return hasMinMaxLogic(body, fn.Name(), sig.Params().At(0).Name(), sig.Params().At(1).Name())
 }
 
 // hasMinMaxLogic checks if the function body implements simple min/max logic.
-func hasMinMaxLogic(body *ast.BlockStmt, funcName string) bool {
+func hasMinMaxLogic(body *ast.BlockStmt, funcName, param0, param1 string) bool {
 	// Pattern 1: Single if/else statement
 	if len(body.List) == 1 {
 		if ifStmt, ok := body.List[0].(*ast.IfStmt); ok {
 			// Get the "false" result from the else block
 			if elseBlock, ok := ifStmt.Else.(*ast.BlockStmt); ok && len(elseBlock.List) == 1 {
 				if elseRet, ok := elseBlock.List[0].(*ast.ReturnStmt); ok && len(elseRet.Results) == 1 {
-					return checkMinMaxPattern(ifStmt, elseRet.Results[0], funcName)
+					return checkMinMaxPattern(ifStmt, elseRet.Results[0], funcName, param0, param1)
 				}
 			}
 		}
@@ -367,7 +384,7 @@ func hasMinMaxLogic(body *ast.BlockStmt, funcName string) bool {
 	if len(body.List) == 2 {
 		if ifStmt, ok := body.List[0].(*ast.IfStmt); ok && ifStmt.Else == nil {
 			if retStmt, ok := body.List[1].(*ast.ReturnStmt); ok && len(retStmt.Results) == 1 {
-				return checkMinMaxPattern(ifStmt, retStmt.Results[0], funcName)
+				return checkMinMaxPattern(ifStmt, retStmt.Results[0], funcName, param0, param1)
 			}
 		}
 	}
@@ -379,7 +396,8 @@ func hasMinMaxLogic(body *ast.BlockStmt, funcName string) bool {
 // ifStmt: the if statement to check
 // falseResult: the expression returned when the condition is false
 // funcName: "min" or "max"
-func checkMinMaxPattern(ifStmt *ast.IfStmt, falseResult ast.Expr, funcName string) bool {
+// param0, param1: the two parameter names for the function.
+func checkMinMaxPattern(ifStmt *ast.IfStmt, falseResult ast.Expr, funcName, param0, param1 string) bool {
 	// Must have condition with comparison
 	cmp, ok := ifStmt.Cond.(*ast.BinaryExpr)
 	if !ok {
@@ -402,10 +420,24 @@ func checkMinMaxPattern(ifStmt *ast.IfStmt, falseResult ast.Expr, funcName strin
 		return false // Not a comparison operator
 	}
 
-	t := thenRet.Results[0] // "true" result
-	f := falseResult        // "false" result
-	x := cmp.X              // left operand
-	y := cmp.Y              // right operand
+	t := thenRet.Results[0]     // "true" result
+	f := falseResult            // "false" result
+	x, ok := cmp.X.(*ast.Ident) // left operand
+	if !ok {
+		return false // Not a basic min/max comparison
+	}
+	y, ok := cmp.Y.(*ast.Ident) // right operand
+	if !ok {
+		return false // Not a basic min/max comparison
+	}
+
+	// Check that the min max algorithm uses the function's params
+	// Which param corresponds to which part of the operation doesn't matter,
+	// so we have to try both.
+	if !(param0 == x.Name && param1 == y.Name ||
+		param0 == y.Name && param1 == x.Name) {
+		return false
+	}
 
 	// Check operand order and adjust sign accordingly
 	if astutil.EqualSyntax(t, x) && astutil.EqualSyntax(f, y) {

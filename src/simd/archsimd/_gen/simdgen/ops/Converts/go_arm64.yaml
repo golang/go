@@ -1,0 +1,358 @@
+!sum
+
+- go: TruncToInt8
+  asm: "VXTN"
+  hiHalfAsm: "VXTN2"
+  in:
+    - base: int
+      elemBits: 16
+  out:
+    - base: int
+      bits: 128
+
+- go: TruncToUint8
+  asm: "VXTN"
+  hiHalfAsm: "VXTN2"
+  in:
+    - base: uint
+      elemBits: 16
+  out:
+    - base: uint
+      bits: 128
+
+- go: TruncToInt16
+  asm: "VXTN"
+  hiHalfAsm: "VXTN2"
+  in:
+    - base: int
+      elemBits: 32
+  out:
+    - base: int
+      bits: 128
+
+- go: TruncToUint16
+  asm: "VXTN"
+  hiHalfAsm: "VXTN2"
+  in:
+    - base: uint
+      elemBits: 32
+  out:
+    - base: uint
+      bits: 128
+
+- go: TruncToInt32
+  asm: "VXTN"
+  hiHalfAsm: "VXTN2"
+  in:
+    - base: int
+      elemBits: 64
+  out:
+    - base: int
+      bits: 128
+
+- go: TruncToUint32
+  asm: "VXTN"
+  hiHalfAsm: "VXTN2"
+  in:
+    - base: uint
+      elemBits: 64
+  out:
+    - base: uint
+      bits: 128
+
+# Float -> Int conversions (same-size)
+# ISA XML has float→float for FCVTZS_int; use OverwriteBase to correct output type
+# float32 -> int32
+- go: ConvertToInt32
+  asm: "VFCVTZS"
+  in:
+    - base: float
+      elemBits: 32
+  out:
+    - base: float
+      elemBits: 32
+      OverwriteBase: int
+
+# float32 -> uint32
+- go: ConvertToUint32
+  asm: "VFCVTZU"
+  in:
+    - base: float
+      elemBits: 32
+  out:
+    - base: float
+      elemBits: 32
+      OverwriteBase: uint
+
+# float64 -> int64
+- go: ConvertToInt64
+  asm: "VFCVTZS"
+  in:
+    - base: float
+      elemBits: 64
+  out:
+    - base: float
+      elemBits: 64
+      OverwriteBase: int
+
+# float64 -> uint64
+- go: ConvertToUint64
+  asm: "VFCVTZU"
+  in:
+    - base: float
+      elemBits: 64
+  out:
+    - base: float
+      elemBits: 64
+      OverwriteBase: uint
+
+# Int -> Float conversions (same-size)
+# ISA XML has float→float for SCVTF_int/UCVTF_int; use OverwriteBase to correct input type
+# int32 -> float32
+- go: ConvertToFloat32
+  asm: "VSCVTF"
+  in:
+    - base: float
+      elemBits: 32
+      OverwriteBase: int
+  out:
+    - base: float
+      elemBits: 32
+
+# uint32 -> float32
+- go: ConvertToFloat32
+  asm: "VUCVTF"
+  in:
+    - base: float
+      elemBits: 32
+      OverwriteBase: uint
+  out:
+    - base: float
+      elemBits: 32
+
+# int64 -> float64
+- go: ConvertToFloat64
+  asm: "VSCVTF"
+  in:
+    - base: float
+      elemBits: 64
+      OverwriteBase: int
+  out:
+    - base: float
+      elemBits: 64
+
+# uint64 -> float64
+- go: ConvertToFloat64
+  asm: "VUCVTF"
+  in:
+    - base: float
+      elemBits: 64
+      OverwriteBase: uint
+  out:
+    - base: float
+      elemBits: 64
+
+# Float narrow/widen
+# float64 -> float32 narrow
+- go: ConvertToFloat32
+  asm: "VFCVTN"
+  hiHalfAsm: "VFCVTN2"
+  in:
+    - base: float
+      elemBits: 64
+  out:
+    - base: float
+      elemBits: 32
+      bits: 128
+
+# float32 -> float64 widen
+- go: ConvertLo2ToFloat64
+  asm: "VFCVTL"
+  hiHalfAsm: "VFCVTL2"
+  in:
+    - base: float
+      elemBits: 32
+  out:
+    - base: float
+      elemBits: 64
+      bits: 128
+
+# Integer extend (widen) — signed
+# int8 -> int16
+- go: ExtendLo8ToInt16
+  asm: "VSXTL"
+  hiHalfAsm: "VSXTL2"
+  in:
+    - base: int
+      elemBits: 8
+  out:
+    - base: int
+      elemBits: 16
+      bits: 128
+
+# int16 -> int32
+- go: ExtendLo4ToInt32
+  asm: "VSXTL"
+  hiHalfAsm: "VSXTL2"
+  in:
+    - base: int
+      elemBits: 16
+  out:
+    - base: int
+      elemBits: 32
+      bits: 128
+
+# int32 -> int64
+- go: ExtendLo2ToInt64
+  asm: "VSXTL"
+  hiHalfAsm: "VSXTL2"
+  in:
+    - base: int
+      elemBits: 32
+  out:
+    - base: int
+      elemBits: 64
+      bits: 128
+
+# Integer extend (widen) — unsigned
+# uint8 -> uint16
+- go: ExtendLo8ToUint16
+  asm: "VUXTL"
+  hiHalfAsm: "VUXTL2"
+  in:
+    - base: uint
+      elemBits: 8
+  out:
+    - base: uint
+      elemBits: 16
+      bits: 128
+
+# uint16 -> uint32
+- go: ExtendLo4ToUint32
+  asm: "VUXTL"
+  hiHalfAsm: "VUXTL2"
+  in:
+    - base: uint
+      elemBits: 16
+  out:
+    - base: uint
+      elemBits: 32
+      bits: 128
+
+# uint32 -> uint64
+- go: ExtendLo2ToUint64
+  asm: "VUXTL"
+  hiHalfAsm: "VUXTL2"
+  in:
+    - base: uint
+      elemBits: 32
+  out:
+    - base: uint
+      elemBits: 64
+      bits: 128
+
+# Saturating narrow — signed (VSQXTN/VSQXTN2)
+- go: SaturateToInt8
+  asm: "VSQXTN"
+  hiHalfAsm: "VSQXTN2"
+  in:
+    - base: int
+      elemBits: 16
+  out:
+    - base: int
+      elemBits: 8
+      bits: 128
+
+- go: SaturateToInt16
+  asm: "VSQXTN"
+  hiHalfAsm: "VSQXTN2"
+  in:
+    - base: int
+      elemBits: 32
+  out:
+    - base: int
+      elemBits: 16
+      bits: 128
+
+- go: SaturateToInt32
+  asm: "VSQXTN"
+  hiHalfAsm: "VSQXTN2"
+  in:
+    - base: int
+      elemBits: 64
+  out:
+    - base: int
+      elemBits: 32
+      bits: 128
+
+# Saturating narrow — signed to unsigned (VSQXTUN/VSQXTUN2)
+# ISA XML has int→int for SQXTUN; use OverwriteBase to correct output type
+- go: SaturateToUint8
+  asm: "VSQXTUN"
+  hiHalfAsm: "VSQXTUN2"
+  in:
+    - base: int
+      elemBits: 16
+  out:
+    - base: int
+      elemBits: 8
+      bits: 128
+      OverwriteBase: uint
+
+- go: SaturateToUint16
+  asm: "VSQXTUN"
+  hiHalfAsm: "VSQXTUN2"
+  in:
+    - base: int
+      elemBits: 32
+  out:
+    - base: int
+      elemBits: 16
+      bits: 128
+      OverwriteBase: uint
+
+- go: SaturateToUint32
+  asm: "VSQXTUN"
+  hiHalfAsm: "VSQXTUN2"
+  in:
+    - base: int
+      elemBits: 64
+  out:
+    - base: int
+      elemBits: 32
+      bits: 128
+      OverwriteBase: uint
+
+# Saturating narrow — unsigned (VUQXTN/VUQXTN2)
+- go: SaturateToUint8
+  asm: "VUQXTN"
+  hiHalfAsm: "VUQXTN2"
+  in:
+    - base: uint
+      elemBits: 16
+  out:
+    - base: uint
+      elemBits: 8
+      bits: 128
+
+- go: SaturateToUint16
+  asm: "VUQXTN"
+  hiHalfAsm: "VUQXTN2"
+  in:
+    - base: uint
+      elemBits: 32
+  out:
+    - base: uint
+      elemBits: 16
+      bits: 128
+
+- go: SaturateToUint32
+  asm: "VUQXTN"
+  hiHalfAsm: "VUQXTN2"
+  in:
+    - base: uint
+      elemBits: 64
+  out:
+    - base: uint
+      elemBits: 32
+      bits: 128

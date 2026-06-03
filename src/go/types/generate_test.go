@@ -54,7 +54,7 @@ func TestGenerate(t *testing.T) {
 func generate(t *testing.T, filename string, write bool) {
 	// parse src (cmd/compile/internal/types2)
 	srcFilename := filepath.FromSlash(runtime.GOROOT() + srcDir + filename)
-	file, err := parser.ParseFile(fset, srcFilename, nil, parser.ParseComments)
+	file, err := parser.ParseFile(fset, srcFilename, nil, parser.ParseComments|parser.SkipObjectResolution)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -101,6 +101,10 @@ type action func(in *ast.File)
 
 var filemap = map[string]action{
 	"alias.go": fixTokenPos,
+	"alias_test.go": func(f *ast.File) {
+		renameImportPath(f, `"cmd/compile/internal/types2"->"go/types"`)
+		renameIdents(f, "types2->types")
+	},
 	"assignments.go": func(f *ast.File) {
 		renameImportPath(f, `"cmd/compile/internal/syntax"->"go/ast"`)
 		renameSelectorExprs(f, "syntax.Name->ast.Ident", "ident.Value->ident.Name", "ast.Pos->token.Pos") // must happen before renaming identifiers
@@ -194,6 +198,8 @@ var filemap = map[string]action{
 	"subst.go":         func(f *ast.File) { fixTokenPos(f); renameSelectors(f, "Trace->_Trace") },
 	"termlist.go":      nil,
 	"termlist_test.go": nil,
+	"trie.go":          nil,
+	"trie_test.go":     nil,
 	"tuple.go":         nil,
 	"typelists.go":     nil,
 	"typeset.go":       func(f *ast.File) { fixTokenPos(f); renameSelectors(f, "Trace->_Trace") },
@@ -206,6 +212,7 @@ var filemap = map[string]action{
 	"universe.go":      fixGlobalTypVarDecl,
 	"util_test.go":     fixTokenPos,
 	"validtype.go":     func(f *ast.File) { fixTokenPos(f); renameSelectors(f, "Trace->_Trace") },
+	"version.go":       func(f *ast.File) { renameIdents(f, "poser->positioner") },
 }
 
 // TODO(gri) We should be able to make these rewriters more configurable/composable.

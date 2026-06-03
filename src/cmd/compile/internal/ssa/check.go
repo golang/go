@@ -198,7 +198,7 @@ func checkFunc(f *Func) {
 				canHaveAux = true
 			case auxCCop:
 				if opcodeTable[Op(v.AuxInt)].name == "OpInvalid" {
-					f.Fatalf("value %v has an AuxInt value that is a valid opcode", v)
+					f.Fatalf("value %v has an AuxInt value that is not a valid opcode", v)
 				}
 				canHaveAuxInt = true
 			case auxS390XCCMask:
@@ -272,6 +272,10 @@ func checkFunc(f *Func) {
 				if !v.Args[1].Type.IsMemory() {
 					f.Fatalf("bad arg 1 to OpLocalAddr %v", v)
 				}
+			}
+
+			if (v.Op == OpStructMake || v.Op == OpArrayMake1) && v.Type.Size() == 0 {
+				f.Fatalf("zero-sized Make; use Empty instead %v", v)
 			}
 
 			if f.RegAlloc != nil && f.Config.SoftFloat && v.Type.IsFloat() {

@@ -11,13 +11,16 @@ import (
 	"crypto/internal/boring"
 	"crypto/internal/cryptotest"
 	"crypto/internal/fips140"
+	"crypto/internal/fips140/ecdsa"
 	"crypto/rand"
 	. "crypto/rsa"
 	"crypto/sha1"
 	"crypto/sha256"
 	"crypto/sha512"
 	"crypto/x509"
+	"encoding/binary"
 	"encoding/hex"
+	"encoding/json"
 	"encoding/pem"
 	"flag"
 	"fmt"
@@ -129,6 +132,74 @@ func TestTinyKeyGeneration(t *testing.T) {
 			t.Fatalf("Validate(32): %v", err)
 		}
 	}
+}
+
+// TestKeyGenerationVectors tests RSA key generation against the
+// c2sp.org/det-keygen test vectors. See the comment on
+// [crypto/internal/fips140/rsa.GenerateKey] for more details.
+func TestKeyGenerationVectors(t *testing.T) {
+	// The RSA key generation algorithm changed after Go 1.26.0, so the
+	// generated keys only match with recent FIPS 140-3 modules.
+	cryptotest.MustMinimumFIPS140ModuleVersion(t, "v1.28.0")
+	var vectors []struct {
+		Bits  int
+		Seed  []byte
+		PKCS8 []byte `json:"private_key_pkcs8"`
+	}
+	f, err := os.Open("testdata/det-keygen.json")
+	if err != nil {
+		t.Fatalf("failed to open det-keygen.json: %v", err)
+	}
+	defer f.Close()
+	if err := json.NewDecoder(f).Decode(&vectors); err != nil {
+		t.Fatalf("failed to decode keygen.json: %v", err)
+	}
+	for i, v := range vectors {
+		t.Run(fmt.Sprintf("%d", i), func(t *testing.T) {
+			t.Setenv("GODEBUG", "cryptocustomrand=1")
+			pers := []byte("det RSA key gen")
+			pers = binary.BigEndian.AppendUint16(pers, uint16(v.Bits))
+			drbg := ecdsa.TestingOnlyNewDRBG(sha256.New, v.Seed, nil, pers)
+			rng := &keyGenTestReader{next: func(p []byte) error {
+				drbg.Generate(p)
+				return nil
+			}}
+			priv, err := GenerateKey(rng, v.Bits)
+			if err != nil {
+				t.Fatalf("GenerateKey: %v", err)
+			}
+			testKeyBasics(t, priv)
+			der, err := x509.MarshalPKCS8PrivateKey(priv)
+			if err != nil {
+				t.Fatalf("MarshalPKCS8PrivateKey: %v", err)
+			}
+			if !bytes.Equal(der, v.PKCS8) {
+				t.Errorf("PKCS8 mismatch:\n%s\nvs\n\n%s", hex.Dump(der), hex.Dump(v.PKCS8))
+			}
+		})
+	}
+}
+
+type keyGenTestReader struct {
+	next func([]byte) error
+}
+
+func (r *keyGenTestReader) Read(p []byte) (n int, err error) {
+	// Neutralize randutil.MaybeReadByte.
+	//
+	// DO NOT COPY this. We *will* break you. We can do this because we're
+	// in the standard library, and can update this along with the
+	// GenerateKey implementation if necessary.
+	//
+	// You have been warned.
+	if len(p) == 1 {
+		return 1, nil
+	}
+
+	if err := r.next(p); err != nil {
+		return 0, err
+	}
+	return len(p), nil
 }
 
 func TestGnuTLSKey(t *testing.T) {
@@ -825,55 +896,72 @@ func BenchmarkParsePKCS8PrivateKey(b *testing.B) {
 }
 
 func BenchmarkGenerateKey(b *testing.B) {
+	// The RSA key generation algorithm changed after Go 1.26.0, so the testdata
+	// only accurately works with recent FIPS 140-3 modules.
+	cryptotest.MustMinimumFIPS140ModuleVersion(b, "v1.28.0")
 	b.Run("2048", func(b *testing.B) {
+		b.Setenv("GODEBUG", "cryptocustomrand=1")
 		primes, err := os.ReadFile("testdata/keygen2048.txt")
 		if err != nil {
 			b.Fatal(err)
 		}
 		for b.Loop() {
-			r := &testPrimeReader{primes: string(primes)}
+			r := benchmarkPrimeReader(string(primes))
 			if _, err := GenerateKey(r, 2048); err != nil {
+				b.Fatal(err)
+			}
+		}
+	})
+	b.Run("3072", func(b *testing.B) {
+		b.Setenv("GODEBUG", "cryptocustomrand=1")
+		primes, err := os.ReadFile("testdata/keygen3072.txt")
+		if err != nil {
+			b.Fatal(err)
+		}
+		for b.Loop() {
+			r := benchmarkPrimeReader(string(primes))
+			if _, err := GenerateKey(r, 3072); err != nil {
+				b.Fatal(err)
+			}
+		}
+	})
+	b.Run("4096", func(b *testing.B) {
+		b.Setenv("GODEBUG", "cryptocustomrand=1")
+		primes, err := os.ReadFile("testdata/keygen4096.txt")
+		if err != nil {
+			b.Fatal(err)
+		}
+		for b.Loop() {
+			r := benchmarkPrimeReader(string(primes))
+			if _, err := GenerateKey(r, 4096); err != nil {
 				b.Fatal(err)
 			}
 		}
 	})
 }
 
-// testPrimeReader feeds prime candidates from a text file,
+// benchmarkPrimeReader feeds prime candidates from a text file,
 // one per line in hex, to GenerateKey.
-type testPrimeReader struct {
-	primes string
-}
-
-func (r *testPrimeReader) Read(p []byte) (n int, err error) {
-	// Neutralize randutil.MaybeReadByte.
-	//
-	// DO NOT COPY this. We *will* break you. We can do this because we're
-	// in the standard library, and can update this along with the
-	// GenerateKey implementation if necessary.
-	//
-	// You have been warned.
-	if len(p) == 1 {
-		return 1, nil
-	}
-
-	var line string
-	for line == "" || line[0] == '#' {
-		var ok bool
-		line, r.primes, ok = strings.Cut(r.primes, "\n")
-		if !ok {
-			return 0, io.EOF
+func benchmarkPrimeReader(primes string) io.Reader {
+	return &keyGenTestReader{next: func(p []byte) error {
+		var line string
+		for line == "" || line[0] == '#' {
+			var ok bool
+			line, primes, ok = strings.Cut(primes, "\n")
+			if !ok {
+				return io.EOF
+			}
 		}
-	}
-	b, err := hex.DecodeString(line)
-	if err != nil {
-		return 0, err
-	}
-	if len(p) != len(b) {
-		return 0, fmt.Errorf("unexpected read length: %d", len(p))
-	}
-	copy(p, b)
-	return len(p), nil
+		b, err := hex.DecodeString(line)
+		if err != nil {
+			return err
+		}
+		if len(p) != len(b) {
+			return fmt.Errorf("unexpected read length: %d", len(p))
+		}
+		copy(p, b)
+		return nil
+	}}
 }
 
 type testEncryptOAEPMessage struct {

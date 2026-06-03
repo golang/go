@@ -5,7 +5,7 @@ go mod init m
 
 ! go get golang.org/x/net/http/httpgutsÿv0.43.0 # contains 0xff byte
 ! stderr panic
-stderr 'malformed module path'
+stderr 'module golang.org/x/net@upgrade found.*but does not contain package golang.org/x/net/http/httpguts.v0.43.0'
 
 ! go get golang.org/x/net/http/httpgutsÿ@v0.43.0 # contains 0xff byte
 ! stderr panic

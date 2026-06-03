@@ -1,0 +1,43 @@
+[short] skip
+[!exec:hg] skip
+
+env GO111MODULE=on
+env GOPROXY=direct
+env GOSUMDB=off
+env GOMODCACHE=$WORK/modcache
+
+# go mod download vcstest/tagtests should invoke hg, print origin info
+# Need RepoSum to lock in tagged "latest".
+go mod download -x -json vcs-test.golang.org/hg/tagtests.hg@latest
+stderr 'hg( .*)* pull'
+cp stdout tagtests.json
+stdout '"Version": "v0.2.2"'
+stdout '"Query": "latest"'
+stdout '"VCS": "hg"'
+stdout '"URL": ".*/hg/tagtests"'
+! stdout '"TagPrefix"'
+! stdout '"TagSum"'
+stdout '"RepoSum": "r1:8dnv906Aq1vb9YpNl9pslfva0VfG9enKb6O6NWs0xF0="'
+stdout '"Hash": "1e531550e864b16f25013cfbbf2d8e7cf07a0374"'
+
+# reuse go mod download vcstest/tagtests result
+go clean -modcache
+go mod download -reuse=tagtests.json -x -json vcs-test.golang.org/hg/tagtests.hg@latest
+! stderr 'hg( .*)* pull'
+stdout '"Reuse": true'
+stdout '"Version": "v0.2.2"'
+stdout '"Query": "latest"'
+stdout '"VCS": "hg"'
+stdout '"URL": ".*/hg/tagtests"'
+! stdout '"TagPrefix"'
+stdout '"RepoSum": "r1:8dnv906Aq1vb9YpNl9pslfva0VfG9enKb6O6NWs0xF0="'
+stdout '"Hash": "1e531550e864b16f25013cfbbf2d8e7cf07a0374"'
+! stdout '"(Dir|Info|GoMod|Zip)"'
+
+# reuse with stale RepoSum
+go clean -modcache
+cp tagtests.json tagtestsbadreposum.json
+replace '8dnv90' '8dnv90XXX' tagtestsbadreposum.json
+go mod download -reuse=tagtestsbadreposum.json -x -json vcs-test.golang.org/hg/tagtests.hg@latest
+! stdout '"Reuse": true'
+stdout '"RepoSum": "r1:8dnv906Aq1vb9YpNl9pslfva0VfG9enKb6O6NWs0xF0="'

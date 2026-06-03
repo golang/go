@@ -631,8 +631,12 @@ func TestIssue55030(t *testing.T) {
 	makeSig := func(typ Type, valid bool) {
 		if !valid {
 			defer func() {
-				if recover() == nil {
+				r := recover()
+				if r == nil {
 					panic("NewSignatureType panic expected")
+				}
+				if _, ok := r.(string); !ok {
+					panic("NewSignatureType string panic expected")
 				}
 			}()
 		}

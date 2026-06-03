@@ -626,11 +626,10 @@ func combineStores(root *Value) {
 			loadMem = nil
 			break
 		}
-		if load.Type.IsPtr() {
+		if load.Type.HasPointers() {
 			// Don't combine stores containing a pointer, as we need
-			// a write barrier for those. This can't currently happen,
-			// but might in the future if we ever have another
-			// 8-byte-reg/4-byte-ptr architecture like amd64p32.
+			// a write barrier for those. This can happen on an
+			// 8-byte-reg/4-byte-ptr architecture like wasm32.
 			loadMem = nil
 			break
 		}

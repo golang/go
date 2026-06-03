@@ -17,7 +17,7 @@ type Closure struct {
 }
 
 func NewSum(vs ...*Value) Closure {
-	id := &ident{name: "sum"}
+	id := newIdent("sum")
 	return Closure{NewValue(Var{id}), topEnv.bind(id, vs...)}
 }
 

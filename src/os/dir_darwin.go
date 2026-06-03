@@ -88,7 +88,7 @@ func (f *File) readdir(n int, mode readdirMode) (names []string, dirents []DirEn
 		if mode == readdirName {
 			names = append(names, string(name))
 		} else if mode == readdirDirEntry {
-			de, err := newUnixDirent(f.name, string(name), dtToType(dirent.Type))
+			de, err := newUnixDirent(f, string(name), dtToType(dirent.Type))
 			if IsNotExist(err) {
 				// File disappeared between readdir and stat.
 				// Treat as if it didn't exist.
@@ -99,7 +99,7 @@ func (f *File) readdir(n int, mode readdirMode) (names []string, dirents []DirEn
 			}
 			dirents = append(dirents, de)
 		} else {
-			info, err := lstat(f.name + "/" + string(name))
+			info, err := f.lstatat(string(name))
 			if IsNotExist(err) {
 				// File disappeared between readdir + stat.
 				// Treat as if it didn't exist.

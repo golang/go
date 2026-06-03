@@ -720,7 +720,7 @@ func cmdCShakeMct(hFn func(N, S []byte) *sha3.SHAKE) command {
 				rightmostOutput := digest[outputLenBytes-2:]
 				// IMPORTANT: the specification says:
 				//   NOTE: For the "Rightmost_Output_bits % Range" operation, the Rightmost_Output_bits bit string
-				//   should be interpretted as a little endian-encoded number.
+				//   should be interpreted as a little endian-encoded number.
 				// This is **a lie**! It has to be interpreted as a big-endian number.
 				rightmostOutputBE := binary.BigEndian.Uint16(rightmostOutput)
 
@@ -1799,7 +1799,7 @@ func cmdKdfCounterAft() command {
 			}
 			// The spec doesn't describe the "deferred" property for a KDF counterMode test case.
 			// BoringSSL's acvptool sends an empty key when deferred=true, but with the capabilities
-			// we register all test cases ahve deferred=false and provide a key from the populated
+			// we register all test cases have deferred=false and provide a key from the populated
 			// keyIn property.
 			if len(key) == 0 {
 				return nil, errors.New("deferred test cases are not supported")

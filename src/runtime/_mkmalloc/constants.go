@@ -22,8 +22,10 @@ const (
 	maxPtrSize = max(4, 8)
 	maxPtrBits = 8 * maxPtrSize
 
-	// Maximum size smallScanNoHeader would be called for, which is the
-	// maximum value gc.MinSizeForMallocHeader can have on any platform.
-	// gc.MinSizeForMallocHeader is defined as goarch.PtrSize * goarch.PtrBits.
-	smallScanNoHeaderMax = maxPtrSize * maxPtrBits
+	// Maximum size to generate size specialized functions for.
+	// We've seen very limited benefit for specialized functions for larger
+	// size classes, and with the wrapper they are sometimes slower
+	// than the non-specialized functions.
+	// This must match the constant in the compiler.
+	specializedMallocMax = 80
 )

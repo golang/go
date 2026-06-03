@@ -139,7 +139,7 @@ func errSet(err error) pathSet { return pathSet{err: err} }
 
 // newQuery returns a new query parsed from the raw argument,
 // which must be either path or path@version.
-func newQuery(loaderstate *modload.State, raw string) (*query, error) {
+func newQuery(ld *modload.Loader, raw string) (*query, error) {
 	pattern, rawVers, found, err := modload.ParsePathVersion(raw)
 	if err != nil {
 		return nil, err
@@ -170,14 +170,14 @@ func newQuery(loaderstate *modload.State, raw string) (*query, error) {
 		q.matchWildcard = pkgpattern.MatchPattern(q.pattern)
 		q.canMatchWildcardInModule = pkgpattern.TreeCanMatchPattern(q.pattern)
 	}
-	if err := q.validate(loaderstate); err != nil {
+	if err := q.validate(ld); err != nil {
 		return q, err
 	}
 	return q, nil
 }
 
 // validate reports a non-nil error if q is not sensible and well-formed.
-func (q *query) validate(loaderstate *modload.State) error {
+func (q *query) validate(ld *modload.Loader) error {
 	if q.patternIsLocal {
 		if q.rawVersion != "" {
 			return fmt.Errorf("can't request explicit version %q of path %q in main module", q.rawVersion, q.pattern)
@@ -187,15 +187,15 @@ func (q *query) validate(loaderstate *modload.State) error {
 
 	if q.pattern == "all" {
 		// If there is no main module, "all" is not meaningful.
-		if !loaderstate.HasModRoot() {
-			return fmt.Errorf(`cannot match "all": %v`, modload.NewNoMainModulesError(loaderstate))
+		if !ld.HasModRoot() {
+			return fmt.Errorf(`cannot match "all": %v`, modload.NewNoMainModulesError(ld))
 		}
 		if !versionOkForMainModule(q.version) {
 			// TODO(bcmills): "all@none" seems like a totally reasonable way to
 			// request that we remove all module requirements, leaving only the main
 			// module and standard library. Perhaps we should implement that someday.
 			return &modload.QueryUpgradesAllError{
-				MainModules: loaderstate.MainModules.Versions(),
+				MainModules: ld.MainModules.Versions(),
 				Query:       q.version,
 			}
 		}

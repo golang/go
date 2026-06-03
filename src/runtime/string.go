@@ -8,6 +8,7 @@ import (
 	"internal/abi"
 	"internal/bytealg"
 	"internal/goarch"
+	"internal/goos"
 	"internal/runtime/math"
 	"internal/runtime/sys"
 	"internal/strconv"
@@ -505,7 +506,9 @@ func findnull(s *byte) int {
 	// It must be the minimum page size for any architecture Go
 	// runs on. It's okay (just a minor performance loss) if the
 	// actual system page size is larger than this value.
-	const pageSize = 4096
+	// For Android, we set the page size to the MTE size, as MTE
+	// might be enforced. See issue 59090.
+	const pageSize = 4096*(1-goos.IsAndroid) + 16*goos.IsAndroid
 
 	offset := 0
 	ptr := unsafe.Pointer(s)

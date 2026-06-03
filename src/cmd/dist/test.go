@@ -30,6 +30,8 @@ func cmdtest() {
 
 	var t tester
 
+	t.asmflags = os.Getenv("GO_TEST_ASMFLAGS")
+
 	var noRebuild bool
 	flag.BoolVar(&t.listMode, "list", false, "list available tests")
 	flag.BoolVar(&t.rebuild, "rebuild", false, "rebuild everything first")
@@ -63,16 +65,16 @@ type tester struct {
 	failed      bool
 	keepGoing   bool
 	compileOnly bool // just try to compile all tests, but no need to run
+	short       bool
+	cgoEnabled  bool
+	asmflags    string
+	json        bool
 	runRxStr    string
 	runRx       *regexp.Regexp
 	runRxWant   bool     // want runRx to match (true) or not match (false)
 	runNames    []string // tests to run, exclusive with runRx; empty means all
 	banner      string   // prefix, or "" for none
 	lastHeading string   // last dir heading printed
-
-	short      bool
-	cgoEnabled bool
-	json       bool
 
 	tests        []distTest // use addTest to extend
 	testNames    map[string]bool
@@ -435,9 +437,6 @@ func (opts *goTest) buildArgs(t *tester) (build, run, pkgs, testFlags []string, 
 		run = append(run, "-short")
 	}
 	var tags []string
-	if t.iOS() {
-		tags = append(tags, "lldb")
-	}
 	if noOpt {
 		tags = append(tags, "noopt")
 	}
@@ -477,6 +476,9 @@ func (opts *goTest) buildArgs(t *tester) (build, run, pkgs, testFlags []string, 
 	}
 	if opts.ldflags != "" {
 		build = append(build, "-ldflags="+opts.ldflags)
+	}
+	if t.asmflags != "" {
+		build = append(build, "-asmflags="+t.asmflags)
 	}
 	if opts.buildmode != "" {
 		build = append(build, "-buildmode="+opts.buildmode)
@@ -699,15 +701,15 @@ func (t *tester) registerTests() {
 				tags:    []string{"osusergo"},
 				pkg:     "os/user",
 			})
-		t.registerTest("hash/maphash purego implementation",
-			&goTest{
-				variant: "purego",
-				timeout: 300 * time.Second,
-				tags:    []string{"purego"},
-				pkg:     "hash/maphash",
-				env:     []string{"GODEBUG=fips140=off"}, // FIPS 140-3 mode is incompatible with purego
-			})
 	}
+
+	// Tests that the nethttpomithttp2 build tag doesn't rot too much,
+	// even if there's not a regular builder on it.
+	t.registerTest("net/http with tag nethttpomithttp2", &goTest{
+		variant: "nethttpomithttp2",
+		tags:    []string{"nethttpomithttp2"},
+		pkg:     "net/http",
+	})
 
 	// Check that all crypto packages compile with the purego build tag.
 	t.registerTest("crypto with tag purego (build and vet only)", &goTest{
@@ -762,13 +764,23 @@ func (t *tester) registerTests() {
 		})
 	}
 
-	// Test GOEXPERIMENT=simd on amd64.
-	if goarch == "amd64" && !strings.Contains(goexperiment, "simd") {
-		t.registerTest("GOEXPERIMENT=simd go test simd/archsimd/...", &goTest{
+	// Test GOEXPERIMENT=simd.
+	if !strings.Contains(goexperiment, "simd") {
+		// simd package is portable.
+		t.registerTest("GOEXPERIMENT=simd go test simd", &goTest{
 			variant: "simd",
 			env:     []string{"GOEXPERIMENT=" + goexperiments("simd")},
-			pkg:     "simd/archsimd/...",
+			pkg:     "simd",
 		})
+		// simd/archsimd supports amd64, arm64, and wasm.
+		archsimdSupported := goarch == "amd64" || goarch == "arm64" || goarch == "wasm"
+		if archsimdSupported {
+			t.registerTest("GOEXPERIMENT=simd go test simd/archsimd/...", &goTest{
+				variant: "simd",
+				env:     []string{"GOEXPERIMENT=" + goexperiments("simd")},
+				pkg:     "simd/archsimd/...",
+			})
+		}
 	}
 
 	// Test ios/amd64 for the iOS simulator.
@@ -806,7 +818,7 @@ func (t *tester) registerTests() {
 	}
 
 	// Spectre mitigation smoke test.
-	if goos == "linux" && goarch == "amd64" {
+	if goos == "linux" && goarch == "amd64" && !(gogcflags == "-spectre=all" && t.asmflags == "all=-spectre=all") {
 		// Pick a bunch of packages known to have some assembly.
 		pkgs := []string{"internal/runtime/...", "reflect", "crypto/..."}
 		if !t.short {
@@ -1202,7 +1214,7 @@ func (t *tester) extLink() bool {
 	if !cgoEnabled[goos+"/"+goarch] {
 		return false
 	}
-	if goarch == "ppc64" && goos != "aix" {
+	if goarch == "ppc64" && goos != "aix" && goos != "linux" {
 		return false
 	}
 	return true
@@ -1243,7 +1255,7 @@ func (t *tester) internalLinkPIE() bool {
 	}
 	switch goos + "-" + goarch {
 	case "darwin-amd64", "darwin-arm64",
-		"linux-amd64", "linux-arm64", "linux-loong64", "linux-ppc64le", "linux-s390x",
+		"linux-amd64", "linux-arm64", "linux-loong64", "linux-ppc64", "linux-ppc64le", "linux-s390x",
 		"android-arm64",
 		"windows-amd64", "windows-386", "windows-arm64":
 		return true
@@ -1750,9 +1762,7 @@ func buildModeSupported(compiler, buildmode, goos, goarch string) bool {
 			return true
 		case "linux":
 			switch goarch {
-			case "386", "amd64", "arm", "armbe", "arm64", "arm64be", "loong64", "ppc64le", "riscv64", "s390x":
-				// linux/ppc64 not supported because it does
-				// not support external linking mode yet.
+			case "386", "amd64", "arm", "armbe", "arm64", "arm64be", "loong64", "ppc64", "ppc64le", "riscv64", "s390x":
 				return true
 			default:
 				// Other targets do not support -shared,
@@ -1770,7 +1780,7 @@ func buildModeSupported(compiler, buildmode, goos, goarch string) bool {
 
 	case "c-shared":
 		switch platform {
-		case "linux/amd64", "linux/arm", "linux/arm64", "linux/loong64", "linux/386", "linux/ppc64le", "linux/riscv64", "linux/s390x",
+		case "linux/amd64", "linux/arm", "linux/arm64", "linux/loong64", "linux/386", "linux/ppc64", "linux/ppc64le", "linux/riscv64", "linux/s390x",
 			"android/amd64", "android/arm", "android/arm64", "android/386",
 			"freebsd/amd64",
 			"darwin/amd64", "darwin/arm64",
@@ -1788,7 +1798,7 @@ func buildModeSupported(compiler, buildmode, goos, goarch string) bool {
 
 	case "pie":
 		switch platform {
-		case "linux/386", "linux/amd64", "linux/arm", "linux/arm64", "linux/loong64", "linux/ppc64le", "linux/riscv64", "linux/s390x",
+		case "linux/386", "linux/amd64", "linux/arm", "linux/arm64", "linux/loong64", "linux/ppc64", "linux/ppc64le", "linux/riscv64", "linux/s390x",
 			"android/amd64", "android/arm", "android/arm64", "android/386",
 			"freebsd/amd64",
 			"darwin/amd64", "darwin/arm64",
@@ -1802,14 +1812,14 @@ func buildModeSupported(compiler, buildmode, goos, goarch string) bool {
 
 	case "shared":
 		switch platform {
-		case "linux/386", "linux/amd64", "linux/arm", "linux/arm64", "linux/ppc64le", "linux/s390x":
+		case "linux/386", "linux/amd64", "linux/arm", "linux/arm64", "linux/ppc64", "linux/ppc64le", "linux/s390x":
 			return true
 		}
 		return false
 
 	case "plugin":
 		switch platform {
-		case "linux/amd64", "linux/arm", "linux/arm64", "linux/386", "linux/loong64", "linux/riscv64", "linux/s390x", "linux/ppc64le",
+		case "linux/amd64", "linux/arm", "linux/arm64", "linux/386", "linux/loong64", "linux/riscv64", "linux/s390x", "linux/ppc64", "linux/ppc64le",
 			"android/amd64", "android/386",
 			"darwin/amd64", "darwin/arm64",
 			"freebsd/amd64":

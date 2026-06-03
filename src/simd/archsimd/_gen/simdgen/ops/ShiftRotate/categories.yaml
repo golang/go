@@ -1,103 +1,230 @@
 !sum
-- go: ShiftAllLeft
-  nameAndSizeCheck: true
-  specialLower: sftimm
+
+- go: Shift
   commutative: false
   documentation: !string |-
-    // NAME shifts each element to the left by y bits.
+    // NAME shifts each element in x by the signed value of the least significant byte
+    // of y's corresponding element: positive values shift left, negative values shift right.
+- go: ShiftSaturated
+  signed: true
+  commutative: false
+  documentation: !string |-
+    // NAME shifts each element in x by the signed value of the least significant byte
+    // of y's corresponding element (positive shifts left, negative shifts right).
+    // Results are saturated to the signed range on overflow.
+- go: ShiftSaturated
+  signed: false
+  commutative: false
+  documentation: !string |-
+    // NAME shifts each element in x by the signed value of the least significant byte
+    // of y's corresponding element (positive shifts left, negative shifts right).
+    // Results are saturated to the unsigned range on overflow.
+- go: ShiftRightConst
+  signed: true
+  commutative: false
+  documentation: !string |-
+    // NAME performs an arithmetic right shift on each element in x by the constant number of bits specified by y.
+- go: ShiftRightConst
+  signed: false
+  commutative: false
+  documentation: !string |-
+    // NAME performs a logical right shift on each element in x by the constant number of bits specified by y.
+- go: ShiftLeftConst
+  commutative: false
+  documentation: !string |-
+    // NAME performs a left shift on each element in x by the constant number of bits specified by y.
+- go: ShiftLeftSaturatedConst
+  signed: true
+  commutative: false
+  documentation: !string |-
+    // NAME performs a saturating left shift on each element in x by the constant number of bits specified by y.
+    // Results are saturated to the signed range on overflow.
+- go: ShiftLeftSaturatedConst
+  signed: false
+  commutative: false
+  documentation: !string |-
+    // NAME performs a saturating left shift on each element in x by the constant number of bits specified by y.
+    // Results are saturated to the unsigned range on overflow.
+
+- go: ShiftRightNarrowConst
+  commutative: false
+  documentation: !string |-
+    // NAME performs a right shift on each element in x by the constant number of bits
+    // and narrows the result to half the element width.
+- go: ShiftLeftWidenLoConst
+  signed: false
+  commutative: false
+  documentation: !string |-
+    // NAME performs a left shift on each unsigned low-indexed element in x by the constant number of bits
+    // and widens the result to double the element width.
+- go: ShiftLeftWidenLoConst
+  signed: true
+  commutative: false
+  documentation: !string |-
+    // NAME performs a left shift on each signed low-indexed element in x by the constant number of bits
+    // and widens the result to double the element width.
+
+# Shared ops (AMD64 + ARM64)
+- go: ShiftAllLeft
+  commutative: false
+  documentation: !string |-
+    // NAME shifts each element of x left by y bits.
+    // If y is greater than the element width, the result is 0.
 - go: ShiftAllRight
   signed: false
-  nameAndSizeCheck: true
-  specialLower: sftimm
   commutative: false
   documentation: !string |-
-    // NAME performs an unsigned right shift on each element by y bits.
+    // NAME logically shifts each element of x right by y bits.
+    // If y is greater than the element width, the result is 0.
 - go: ShiftAllRight
   signed: true
-  specialLower: sftimm
-  nameAndSizeCheck: true
   commutative: false
   documentation: !string |-
-    // NAME performs a signed right shift on each element by y bits.
+    // NAME arithmetically shifts each element of x right by y bits.
+    // If y is greater than the element width, the result is 0 or -1.
 - go: shiftAllLeftConst # no APIs, only ssa ops.
   noTypes: "true"
   noGenericOps: "true"
   SSAVariant: "const" # to avoid its name colliding with reg version of this instruction, amend this to its ssa op name.
-  nameAndSizeCheck: true
   commutative: false
 - go: shiftAllRightConst # no APIs, only ssa ops.
   noTypes: "true"
   noGenericOps: "true"
   SSAVariant: "const"
   signed: false
-  nameAndSizeCheck: true
   commutative: false
 - go: shiftAllRightConst # no APIs, only ssa ops.
   noTypes: "true"
   noGenericOps: "true"
   SSAVariant: "const"
   signed: true
-  nameAndSizeCheck: true
   commutative: false
 
 - go: ShiftLeft
-  nameAndSizeCheck: true
   commutative: false
   documentation: !string |-
-    // NAME shifts each element in x to the left by the number of bits specified in y's corresponding elements.
+    // NAME shifts x[i] left by y[i] bits.
+    // If y[i] is greater than the element width, the result is 0.
 - go: ShiftRight
   signed: false
-  nameAndSizeCheck: true
   commutative: false
   documentation: !string |-
-    // NAME performs an unsigned right shift on each element in x by the number of bits specified in y's corresponding elements.
+    // NAME logically shifts x[i] right by y[i] bits.
+    // If y[i] is greater than the element width, the result is 0.
 - go: ShiftRight
   signed: true
-  nameAndSizeCheck: true
   commutative: false
   documentation: !string |-
-    // NAME performs a signed right shift on each element in x by the number of bits specified in y's corresponding elements.
+    // NAME arithmetically shifts x[i] right by y[i] bits.
+    // If y[i] is greater than the element width, the result is 0 or -1.
 - go: RotateAllLeft
-  nameAndSizeCheck: true
+  commutative: false
+  documentation: !string |-
+    // NAME rotates each element to the left by the number of bits specified by shift.
+- go: rotateAllLeft
+  noGenericOps: "true"
   commutative: false
   documentation: !string |-
     // NAME rotates each element to the left by the number of bits specified by shift.
 - go: RotateLeft
-  nameAndSizeCheck: true
   commutative: false
   documentation: !string |-
     // NAME rotates each element in x to the left by the number of bits specified by y's corresponding elements.
 - go: RotateAllRight
-  nameAndSizeCheck: true
+  commutative: false
+  documentation: !string |-
+    // NAME rotates each element to the right by the number of bits specified by shift.
+- go: rotateAllRight
+  noGenericOps: "true"
   commutative: false
   documentation: !string |-
     // NAME rotates each element to the right by the number of bits specified by shift.
 - go: RotateRight
-  nameAndSizeCheck: true
   commutative: false
   documentation: !string |-
     // NAME rotates each element in x to the right by the number of bits specified by y's corresponding elements.
-- go: ShiftAllLeftConcat
-  nameAndSizeCheck: true
+# Bizzare shifts
+- go: ShiftAllLeftConcatMod16
   commutative: false
   documentation: !string |-
-    // NAME shifts each element of x to the left by the number of bits specified by
-    // shift (only the lower 5 bits are used), and then copies the upper bits of y to the emptied lower bits of the shifted x.
-- go: ShiftAllRightConcat
-  nameAndSizeCheck: true
+    // NAME shifts x[i] left by shift%16, filing any empted lower bits
+    // with the high bits of y[i].
+    //
+    //    z[i] = concat(x[i], y[i]) << (shift%16)
+- go: ShiftAllRightConcatMod16
   commutative: false
   documentation: !string |-
-    // NAME shifts each element of x to the right by the number of bits specified by
-    // shift (only the lower 5 bits are used), and then copies the lower bits of y to the emptied upper bits of the shifted x.
-- go: ShiftLeftConcat
-  nameAndSizeCheck: true
+    // NAME shifts x[i] right by shift%16, filling any emptied upper bits
+    // with the low bits of y[i].
+    //
+    //    z[i] = concat(y[i], x[i]) >> (shift%16)
+- go: ShiftLeftConcatMod16
   commutative: false
   documentation: !string |-
-    // NAME shifts each element of x to the left by the number of bits specified by the
-    // corresponding elements in y (only the lower 5 bits are used), and then copies the upper bits of z to the emptied lower bits of the shifted x.
-- go: ShiftRightConcat
-  nameAndSizeCheck: true
+    // NAME shifts x[i] left by shift[i]%16, filing any empted lower bits
+    // with the high bits of y[i].
+    //
+    //    z[i] = concat(x[i], y[i]) << (shift[i]%16)
+- go: ShiftRightConcatMod16
   commutative: false
   documentation: !string |-
-    // NAME shifts each element of x to the right by the number of bits specified by the
-    // corresponding elements in y (only the lower 5 bits are used), and then copies the lower bits of z to the emptied upper bits of the shifted x.
+    // NAME shifts x[i] right by shift[i]%16, filling any emptied upper bits
+    // with the low bits of y[i].
+    //
+    //    z[i] = concat(y[i], x[i]) >> (shift[i]%16)
+- go: ShiftAllLeftConcatMod32
+  commutative: false
+  documentation: !string |-
+    // NAME shifts x[i] left by shift%32, filing any empted lower bits
+    // with the high bits of y[i].
+    //
+    //    z[i] = concat(x[i], y[i]) << (shift%32)
+- go: ShiftAllRightConcatMod32
+  commutative: false
+  documentation: !string |-
+    // NAME shifts x[i] right by shift%32, filling any emptied upper bits
+    // with the low bits of y[i].
+    //
+    //    z[i] = concat(y[i], x[i]) >> (shift%32)
+- go: ShiftLeftConcatMod32
+  commutative: false
+  documentation: !string |-
+    // NAME shifts x[i] left by shift[i]%32, filing any empted lower bits
+    // with the high bits of y[i].
+    //
+    //    z[i] = concat(x[i], y[i]) << (shift[i]%32)
+- go: ShiftRightConcatMod32
+  commutative: false
+  documentation: !string |-
+    // NAME shifts x[i] right by shift[i]%32, filling any emptied upper bits
+    // with the low bits of y[i].
+    //
+    //    z[i] = concat(y[i], x[i]) >> (shift[i]%32)
+- go: ShiftAllLeftConcatMod64
+  commutative: false
+  documentation: !string |-
+    // NAME shifts x[i] left by shift%64, filing any empted lower bits
+    // with the high bits of y[i].
+    //
+    //    z[i] = concat(x[i], y[i]) << (shift%64)
+- go: ShiftAllRightConcatMod64
+  commutative: false
+  documentation: !string |-
+    // NAME shifts x[i] right by shift%64, filling any emptied upper bits
+    // with the low bits of y[i].
+    //
+    //    z[i] = concat(y[i], x[i]) >> (shift%64)
+- go: ShiftLeftConcatMod64
+  commutative: false
+  documentation: !string |-
+    // NAME shifts x[i] left by shift[i]%64, filing any empted lower bits
+    // with the high bits of y[i].
+    //
+    //    z[i] = concat(x[i], y[i]) << (shift[i]%64)
+- go: ShiftRightConcatMod64
+  commutative: false
+  documentation: !string |-
+    // NAME shifts x[i] right by shift[i]%64, filling any emptied upper bits
+    // with the low bits of y[i].
+    //
+    //    z[i] = concat(y[i], x[i]) >> (shift[i]%64)

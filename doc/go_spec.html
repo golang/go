@@ -1,6 +1,6 @@
 <!--{
 	"Title": "The Go Programming Language Specification",
-	"Subtitle": "Language version go1.26 (Jan 12, 2026)",
+	"Subtitle": "Language version go1.27 (May 26, 2026)",
 	"Path": "/ref/spec"
 }-->
 
@@ -825,8 +825,11 @@ type literals.
 </p>
 
 <p>
-Predeclared types, defined types, and type parameters are called <i>named types</i>.
-An alias denotes a named type if the type given in the alias declaration is a named type.
+<a href="#Predeclared_identifiers">Predeclared</a> types (excluding <code>any</code>),
+<a href="#Type_definitions">defined types</a>, and
+<a href="#Type_parameter_declarations">type parameters</a> are called <i>named types</i>.
+An <a href="#Alias_declarations">alias</a> denotes a named type if the type given in the alias declaration is a named type.
+All named types are <a href="#Type_identity">distinct</a>.
 </p>
 
 <h3 id="Boolean_types">Boolean types</h3>
@@ -835,7 +838,7 @@ An alias denotes a named type if the type given in the alias declaration is a na
 A <i>boolean type</i> represents the set of Boolean truth values
 denoted by the predeclared constants <code>true</code>
 and <code>false</code>. The predeclared boolean type is <code>bool</code>;
-it is a <a href="#Type_definitions">defined type</a>.
+it is a <a href="#Types">named type</a>.
 </p>
 
 <h3 id="Numeric_types">Numeric types</h3>
@@ -884,8 +887,7 @@ uintptr  an unsigned integer large enough to store the uninterpreted bits of a p
 </pre>
 
 <p>
-To avoid portability issues all numeric types are <a href="#Type_definitions">defined
-types</a> and thus distinct except
+To avoid portability issues all numeric types are <a href="#Types">named types</a> and thus distinct except
 <code>byte</code>, which is an <a href="#Alias_declarations">alias</a> for <code>uint8</code>, and
 <code>rune</code>, which is an alias for <code>int32</code>.
 Explicit conversions
@@ -904,7 +906,7 @@ The number of bytes is called the length of the string and is never negative.
 Strings are immutable: once created,
 it is impossible to change the contents of a string.
 The predeclared string type is <code>string</code>;
-it is a <a href="#Type_definitions">defined type</a>.
+it is a <a href="#Types">named type</a>.
 </p>
 
 <p>
@@ -1118,9 +1120,7 @@ that field or method <code>f</code>.
 </p>
 
 <p>
-Promoted fields act like ordinary fields
-of a struct except that they cannot be used as field names in
-<a href="#Composite_literals">composite literals</a> of the struct.
+Promoted fields act like ordinary fields of a struct.
 </p>
 
 <p>
@@ -1294,6 +1294,8 @@ those methods, and the corresponding <a href="#Method_sets">method set</a> consi
 exactly of the methods specified by the interface.
 Interfaces whose type sets can be defined entirely by a list of methods are called
 <i>basic interfaces.</i>
+Interface methods cannot declare <a href="#Type_parameter_declarations">type parameters</a>,
+but they may use type parameters from the interface declaration.
 </p>
 
 <pre>
@@ -1349,7 +1351,8 @@ interface{}
 </pre>
 
 <p>
-For convenience, the predeclared type <code>any</code> is an alias for the empty interface.
+For convenience, the predeclared type <code>any</code> is an alias for the empty interface;
+it is not a <a href="#Types">named type</a>.
 [<a href="#Go_1.18">Go 1.18</a>]
 </p>
 
@@ -1982,6 +1985,13 @@ and at least one of <code>V</code> or <code>T</code> is not a <a href="#Types">n
 <li>
 <code>T</code> is an interface type, but not a type parameter, and
 <code>x</code> <a href="#Implementing_an_interface">implements</a> <code>T</code>.
+</li>
+<li>
+<code>x</code> is a (possibly partially instantiated) generic function, <code>T</code>
+is a function type, and any type arguments not provided explicitly for <code>x</code>
+can be <a href="#Type_inference">inferred</a> such that (after full instantiation)
+<code>x</code> and <code>T</code> have identical underlying types
+[<a href="#Go_1.27">Go 1.27</a>].
 </li>
 <li>
 <code>x</code> is the predeclared identifier <code>nil</code> and <code>T</code>
@@ -2624,11 +2634,11 @@ func (l *List[T]) Len() int  { … }
 <h3 id="Type_parameter_declarations">Type parameter declarations</h3>
 
 <p>
-A type parameter list declares the <i>type parameters</i> of a generic function or type declaration.
+A type parameter list declares the <i>type parameters</i> of a generic function, method, or type declaration.
 The type parameter list looks like an ordinary <a href="#Function_types">function parameter list</a>
 except that the type parameter names must all be present and the list is enclosed
 in square brackets rather than parentheses
-[<a href="#Go_1.18">Go 1.18</a>].
+[<a href="#Go_1.18">Go 1.18</a>, <a href="#Go_1.27">Go 1.27</a>].
 </p>
 
 <pre class="ebnf">
@@ -2642,7 +2652,7 @@ All non-blank names in the list must be unique.
 Each name declares a type parameter, which is a new and different <a href="#Types">named type</a>
 that acts as a placeholder for an (as of yet) unknown type in the declaration.
 The type parameter is replaced with a <i>type argument</i> upon
-<a href="#Instantiations">instantiation</a> of the generic function or type.
+<a href="#Instantiations">instantiation</a> of the generic function, method, or type.
 </p>
 
 <pre>
@@ -2944,7 +2954,7 @@ func IndexRune(s string, r rune) int {
 
 <p>
 If the function declaration specifies <a href="#Type_parameter_declarations">type parameters</a>,
-the function name denotes a <i>generic function</i>.
+the function name denotes a <i>generic function</i> [<a href="#Go_1.18">Go 1.18</a>].
 A generic function must be <a href="#Instantiations">instantiated</a> before it can be
 called or used as a value.
 </p>
@@ -2977,7 +2987,7 @@ and associates the method with the receiver's <i>base type</i>.
 </p>
 
 <pre class="ebnf">
-MethodDecl = "func" Receiver MethodName Signature [ FunctionBody ] .
+MethodDecl = "func" Receiver MethodName [ TypeParameters ] Signature [ FunctionBody ] .
 Receiver   = Parameters .
 </pre>
 
@@ -2988,7 +2998,7 @@ Its type must be a <a href="#Type_definitions">defined</a> type <code>T</code> o
 pointer to a defined type <code>T</code>, possibly followed by a list of type parameter
 names <code>[P1, P2, …]</code> enclosed in square brackets.
 <code>T</code> is called the receiver <i>base type</i>. A receiver base type cannot be
-a pointer or interface type and it must be defined in the same package as the method.
+a pointer or interface type and it must be declared in the same package as the method.
 The method is said to be <i>bound</i> to its receiver base type and the method name
 is visible only within <a href="#Selectors">selectors</a> for type <code>T</code>
 or <code>*T</code>.
@@ -3068,6 +3078,27 @@ type IPair         = Pair[int, int]
 func (*GPoint[P]) Draw(P)   { … }  // illegal: alias must not be generic
 func (HPoint) Draw(P)       { … }  // illegal: alias must not denote instantiated type GPoint[int]
 func (*IPair) Second() int  { … }  // illegal: alias must not denote instantiated type Pair[int, int]
+</pre>
+
+<p>
+If the method declaration specifies <a href="#Type_parameter_declarations">type parameters</a>
+(possibly in addition to type parameters declared by the receiver specification), the method name denotes
+a <i>generic method</i> [<a href="#Go_1.27">Go 1.27</a>].
+Like a generic function, a generic method must be <a href="#Instantiations">instantiated</a> before it can
+be called or used as a value.
+</p>
+
+<pre>
+type List[E any] []E
+
+// Apply returns the list obtained from applying f to each element of l.
+func (l List[E]) Apply[F any](f func(E) F) List[F] {
+	r := make(List[F], len(l))
+	for i, x := range l {
+		r[i] = f(x)
+	}
+	return r
+}
 </pre>
 
 <h2 id="Expressions">Expressions</h2>
@@ -3175,9 +3206,9 @@ a valid composite literal type.
 The types of the elements and keys must be <a href="#Assignability">assignable</a>
 to the respective field, element, and key types of the LiteralType;
 there is no additional conversion.
-The key is interpreted as a field name for struct literals,
+The key is interpreted as a field <a href="#Selectors">selector</a> for struct literals,
 an index for array and slice literals, and a key for map literals.
-It is an error to specify multiple elements with the same field name
+It is an error to specify multiple elements with the same field selector
 or constant key value.
 A literal may omit the element list; such a literal evaluates
 to the zero value for its type.
@@ -3212,13 +3243,18 @@ For struct literals with keys the following rules apply:
 <ul>
 	<li>Every element must have a key.
 	</li>
-	<li>Each key must be a field name declared in the struct type.
+	<li>Each key must be a valid field <a href="#Selectors">selector</a>
+	    [<a href="#Go_1.27">Go 1.27</a>] for a (possibly promoted) field
+	    of the struct; the key selects that field.
+	</li>
+	<li>The types of the embedded fields (if any) <a href="#Selectors">traversed</a>
+	    to reach a selected field must not be pointer types.
+	</li>
+	<li>A key must not denote a promoted field inside an embedded struct if
+	    that struct is also specified by another key.
 	</li>
 	<li>The element list does not need to have an element for each struct field.
 	    Omitted fields get the zero value for that field.
-	</li>
-	<li>It is an error to specify an element for a non-exported
-	    field of a struct belonging to a different package.
 	</li>
 </ul>
 
@@ -3226,8 +3262,9 @@ For struct literals with keys the following rules apply:
 Given the declarations
 </p>
 <pre>
-type Point3D struct { x, y, z float64 }
-type Line struct { p, q Point3D }
+type Object  struct { name, color string }
+type Point3D struct { Object; x, y, z float64 }
+type Line    struct { Object; p, q Point3D }
 </pre>
 
 <p>
@@ -3235,8 +3272,18 @@ one may write
 </p>
 
 <pre>
-origin := Point3D{}                            // zero value for Point3D
-line := Line{origin, Point3D{y: -4, z: 12.3}}  // zero value for line.q.x
+origin := Point3D{}                                       // zero value for Point3D
+line1 := Line{Object{}, origin, Point3D{y: -4, z: 12.3}}  // zero value for line1.q.x
+line2 := Line{name: "diagonal", q: Point3D{1, 1, 1}}      // zero value for line2.Object.color, line2.p
+</pre>
+
+<p>
+but field selectors may not denote overlapping fields:
+</p>
+
+<pre>
+obj   := Object{"edge", "black"}
+line3 := Line{Object: obj, name: "diagonal"}              // invalid: name denotes a field inside Object
 </pre>
 
 <h4>Array and slice literals</h4>
@@ -3393,7 +3440,7 @@ func(ch chan int) { ch &lt;- ACK }(replyChan)
 
 <p>
 Function literals are <i>closures</i>: they may refer to variables
-defined in a surrounding function. Those variables are then shared between
+declared in a surrounding function. Those variables are then shared between
 the surrounding function and the function literal, and they survive as long
 as they are accessible.
 </p>
@@ -4337,8 +4384,8 @@ with the same underlying array.
 <h3 id="Instantiations">Instantiations</h3>
 
 <p>
-A generic function or type is <i>instantiated</i> by substituting <i>type arguments</i>
-for the type parameters [<a href="#Go_1.18">Go 1.18</a>].
+A generic function, method, or type is <i>instantiated</i> by substituting <i>type arguments</i>
+for the type parameters [<a href="#Go_1.18">Go 1.18</a>][<a href="#Go_1.27">Go 1.27</a>].
 Instantiation proceeds in two steps:
 </p>
 
@@ -4358,8 +4405,8 @@ of the corresponding type parameter. Otherwise instantiation fails.
 </ol>
 
 <p>
-Instantiating a type results in a new non-generic <a href="#Types">named type</a>;
-instantiating a function produces a new non-generic function.
+Instantiating a generic type, function, or method results in a non-generic type, function,
+or method, respectively.
 </p>
 
 <pre>
@@ -4372,7 +4419,7 @@ type parameter list    type arguments    after substitution
 </pre>
 
 <p>
-When using a generic function, type arguments may be provided explicitly,
+When using a generic function or method, type arguments may be provided explicitly,
 or they may be partially or completely <a href="#Type_inference">inferred</a>
 from the context in which the function is used.
 Provided that they can be inferred, type argument lists may be omitted entirely if the function is:
@@ -4396,7 +4443,7 @@ Provided that they can be inferred, type argument lists may be omitted entirely 
 <p>
 In all other cases, a (possibly partial) type argument list must be present.
 If a type argument list is absent or partial, all missing type arguments
-must be inferrable from the context in which the function is used.
+must be inferable from the context in which the function is used.
 </p>
 
 <pre>
@@ -4535,11 +4582,16 @@ Type equations are always solved for the bound type parameters only.
 </p>
 
 <p>
-Type inference supports calls of generic functions and assignments
-of generic functions to (explicitly function-typed) variables.
-This includes passing generic functions as arguments to other
-(possibly also generic) functions, and returning generic functions
-as results.
+Type inference supports calls of generic functions and any use of
+a generic function in a context where the function must be
+<a href="#Assignability">assignable</a> to a (non-generic)
+function type.
+The latter includes assigning a generic function to a variable
+(including passing it as an argument to another function),
+converting a generic function to a function type, and others.
+</p>
+
+<p>
 Type inference operates on a set of equations specific to each of
 these cases.
 The equations are as follows (type argument lists are omitted for clarity):
@@ -4548,12 +4600,12 @@ The equations are as follows (type argument lists are omitted for clarity):
 <ul>
 <li>
 	<p>
-	For a function call <code>f(a<sub>0</sub>, a<sub>1</sub>, …)</code> where
+	In a function call <code>f(a<sub>0</sub>, a<sub>1</sub>, …)</code> where
 	<code>f</code> or a function argument <code>a<sub>i</sub></code> is
 	a generic function:
 	<br>
 	Each pair <code>(a<sub>i</sub>, p<sub>i</sub>)</code> of corresponding
-	function arguments and parameters where <code>a<sub>i</sub></code> is not an
+	function arguments and parameters of <code>f</code>where <code>a<sub>i</sub></code> is not an
 	<a href="#Constants">untyped constant</a> yields an equation
 	<code>typeof(p<sub>i</sub>) ≡<sub>A</sub> typeof(a<sub>i</sub>)</code>.
 	<br>
@@ -4565,19 +4617,10 @@ The equations are as follows (type argument lists are omitted for clarity):
 </li>
 <li>
 	<p>
-	For an assignment <code>v = f</code> of a generic function <code>f</code> to a
-	(non-generic) variable <code>v</code> of function type:
+	In a context where a generic function <code>f</code> must be
+	<a href="#Assignability">assignable</a> to a (non-generic) function type <code>T</code>:
 	<br>
-	<code>typeof(v) ≡<sub>A</sub> typeof(f)</code>.
-	</p>
-</li>
-<li>
-	<p>
-	For a return statement <code>return …, f, … </code> where <code>f</code> is a
-	generic function returned as a result to a (non-generic) result variable
-	<code>r</code> of function type:
-	<br>
-	<code>typeof(r) ≡<sub>A</sub> typeof(f)</code>.
+	<code>typeof(f) ≡<sub>A</sub> T</code>.
 	</p>
 </li>
 </ul>
@@ -6046,7 +6089,7 @@ The following built-in functions are not permitted in statement context:
 </p>
 
 <pre>
-append cap complex imag len make new real
+append cap complex imag len make max min new real
 unsafe.Add unsafe.Alignof unsafe.Offsetof unsafe.Sizeof unsafe.Slice unsafe.SliceData unsafe.String unsafe.StringData
 </pre>
 
@@ -6721,9 +6764,9 @@ string              s  string type                     index    i  int          
 map                 m  map[K]V                         key      k  K            m[k]       V
 channel             c  chan E, &lt;-chan E                element  e  E
 integer value       n  integer type, or untyped int    value    i  see below
-function, 0 values  f  func(func() bool)
-function, 1 value   f  func(func(V) bool)              value    v  V
-function, 2 values  f  func(func(K, V) bool)           key      k  K            v          V
+function, 0 values  f  func(yield func() bool)
+function, 1 value   f  func(yield func(V) bool)        value    v  V                               yield cannot be variadic
+function, 2 values  f  func(yield func(K, V) bool)     key      k  K            v          V       yield cannot be variadic
 </pre>
 
 <ol>
@@ -6793,6 +6836,13 @@ If the loop body terminates (such as by a <code>break</code> statement),
 <code>yield</code> returns false and must not be called again.
 </li>
 </ol>
+
+<p>
+If the type of the range expression is a <a href="#Type_parameter_declarations">type parameter</a>,
+all types in its type set must have the same underlying type and the range expression must be valid
+for that type, or, if the type set contains channel types, it must only contain channel types with
+identical element types, and all channel types must permit receive operations.
+</p>
 
 <p>
 The iteration variables may be declared by the "range" clause using a form of
@@ -6898,14 +6948,16 @@ var t Tree[string, int]
 for k, v := range t.Walk {
 	// process k, v
 }
-</pre>
 
-<p>
-If the type of the range expression is a <a href="#Type_parameter_declarations">type parameter</a>,
-all types in its type set must have the same underlying type and the range expression must be valid
-for that type, or, if the type set contains channel types, it must only contain channel types with
-identical element types, and all channel types must permit receive operations.
-</p>
+// xor returns the xor-ed bytes of S
+func xor[S ~[]byte](s S) byte {
+	var r byte
+	for _, b := range s {
+		r ^= b
+	}
+	return r
+}
+</pre>
 
 <h3 id="Go_statements">Go statements</h3>
 
@@ -8324,7 +8376,7 @@ func init() { … }
 </pre>
 
 <p>
-Multiple such functions may be defined per package, even within a single
+Multiple such functions may be declared per package, even within a single
 source file. In the package block, the <code>init</code> identifier can
 be used only to declare <code>init</code> functions, yet the identifier
 itself is not <a href="#Declarations_and_scope">declared</a>. Thus
@@ -8406,7 +8458,7 @@ type error interface {
 <p>
 It is the conventional interface for representing an error condition,
 with the nil value representing no error.
-For instance, a function to read data from a file might be defined:
+For instance, a function to read data from a file might be declared:
 </p>
 
 <pre>
@@ -8784,6 +8836,23 @@ function as range expression.
 <li>
 An <a href="#Alias_declarations">alias declaration</a> may declare
 <a href="#Type_parameter_declarations">type parameters</a>.
+</li>
+</ul>
+
+<h4 id="Go_1.27">Go 1.27</h4>
+<ul>
+<li>
+Function <a href="#Type_inference">type inference</a> applies in all
+<a href="#Assignability">assignment contexts</a> involving functions.
+</li>
+<li>
+A <a href="#Method_declarations">method declaration</a> may declare
+<a href="#Type_parameter_declarations">type parameters</a>.
+</li>
+<li>
+A key in a struct <a href="#Composite_literals">composite literal</a> may
+be any valid field <a href="#Selectors">selector</a> for the struct type,
+not just a (top-level) field name of the struct.
 </li>
 </ul>
 

@@ -6,6 +6,18 @@
 Package loong64 implements an LoongArch64 assembler. Go assembly syntax is different from
 GNU LoongArch64 syntax, but we can still follow the general rules to map between them.
 
+# Register Convention
+
+	Name                |  Alias  | Meaning
+	-----------------------------------------------------------------------------------------------------------------------
+	R0                  | REGZERO | Constant zero
+	R1                  | REGLINK | Return address
+	R3                  | REGSP   | Stack pointer
+	R12,R13,R14,R15,R20 |         | For plt and trampoline, use with caution in assembly code, save before calling function
+	R22                 | REGG    | Goroutine pointer
+	R29                 | REGCTXT | Context for closures
+	R30                 | REGTMP  | Tmp register used by assembler
+
 # Instructions mnemonics mapping rules
 
 1. Bit widths represented by various instruction suffixes and prefixes
@@ -369,7 +381,7 @@ Note: In the following sections 3.1 to 3.6, "ui4" (4-bit unsigned int immediate)
             Go assembly      |      platform assembly
          MOVWP  8(R4), R5    |      ldptr.w r5, r4, $2
 
-6. Note of special add instrction
+6. Note of special add instruction
     Mapping between Go and platform assembly:
               Go assembly        |      platform assembly
       ADDV16  si16<<16, Rj, Rd   |    addu16i.d  rd, rj, si16

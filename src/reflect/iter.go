@@ -29,14 +29,14 @@ func rangeNum[T int8 | int16 | int32 | int64 | int |
 }
 
 // Seq returns an iter.Seq[Value] that loops over the elements of v.
-// If v's kind is Func, it must be a function that has no results and
+// If v's kind is [Func], it must be a function that has no results and
 // that takes a single argument of type func(T) bool for some type T.
-// If v's kind is Pointer, the pointer element type must have kind Array.
-// Otherwise v's kind must be Int, Int8, Int16, Int32, Int64,
-// Uint, Uint8, Uint16, Uint32, Uint64, Uintptr,
-// Array, Chan, Map, Slice, or String.
+// If v's kind is [Pointer], the pointer element type must have kind [Array].
+// Otherwise v's kind must be [Int], [Int8], [Int16], [Int32], [Int64],
+// [Uint], [Uint8], [Uint16], [Uint32], [Uint64], [Uintptr],
+// [Array], [Chan], [Map], [Slice], or [String].
 func (v Value) Seq() iter.Seq[Value] {
-	if canRangeFunc(v.abiType()) {
+	if canRangeFunc(v.abiType(), 1) {
 		return func(yield func(Value) bool) {
 			rf := MakeFunc(v.Type().In(0), func(in []Value) []Value {
 				return []Value{ValueOf(yield(in[0]))}
@@ -68,12 +68,12 @@ func (v Value) Seq() iter.Seq[Value] {
 	case Uintptr:
 		return rangeNum[uintptr](v.Uint(), v.Type())
 	case Pointer:
-		if v.Elem().kind() != Array {
+		if v.Type().Elem().Kind() != Array {
 			break
 		}
+		n := v.Type().Elem().Len()
 		return func(yield func(Value) bool) {
-			v = v.Elem()
-			for i := range v.Len() {
+			for i := range n {
 				if !yield(ValueOf(i)) {
 					return
 				}
@@ -117,12 +117,12 @@ func (v Value) Seq() iter.Seq[Value] {
 }
 
 // Seq2 returns an iter.Seq2[Value, Value] that loops over the elements of v.
-// If v's kind is Func, it must be a function that has no results and
+// If v's kind is [Func], it must be a function that has no results and
 // that takes a single argument of type func(K, V) bool for some type K, V.
-// If v's kind is Pointer, the pointer element type must have kind Array.
-// Otherwise v's kind must be Array, Map, Slice, or String.
+// If v's kind is [Pointer], the pointer element type must have kind [Array].
+// Otherwise v's kind must be [Array], [Map], [Slice], or [String].
 func (v Value) Seq2() iter.Seq2[Value, Value] {
-	if canRangeFunc2(v.abiType()) {
+	if canRangeFunc(v.abiType(), 2) {
 		return func(yield func(Value, Value) bool) {
 			rf := MakeFunc(v.Type().In(0), func(in []Value) []Value {
 				return []Value{ValueOf(yield(in[0], in[1]))}

@@ -45,6 +45,10 @@
 // This definition provides the same semantics as
 // C++'s sequentially consistent atomics and Java's volatile variables.
 //
+// Only a few integer sizes are supported: on many architectures,
+// atomic operations on non-word-sized integers are inefficient or
+// infeasible. For example, a [Bool] may be larger than a built-in bool.
+//
 // [the Go memory model]: https://go.dev/ref/mem
 package atomic
 
@@ -80,6 +84,7 @@ func SwapUint32(addr *uint32, new uint32) (old uint32)
 // Consider using the more ergonomic and less error-prone [Uintptr.Swap] instead.
 //
 //go:noescape
+//go:linknamestd SwapUintptr
 func SwapUintptr(addr *uintptr, new uintptr) (old uintptr)
 
 // SwapPointer atomically stores new into *addr and returns the previous *addr value.
@@ -102,6 +107,7 @@ func CompareAndSwapUint32(addr *uint32, old, new uint32) (swapped bool)
 // Consider using the more ergonomic and less error-prone [Uintptr.CompareAndSwap] instead.
 //
 //go:noescape
+//go:linknamestd CompareAndSwapUintptr
 func CompareAndSwapUintptr(addr *uintptr, old, new uintptr) (swapped bool)
 
 // CompareAndSwapPointer executes the compare-and-swap operation for a unsafe.Pointer value.
@@ -208,6 +214,7 @@ func StoreUint32(addr *uint32, val uint32)
 // Consider using the more ergonomic and less error-prone [Uintptr.Store] instead.
 //
 //go:noescape
+//go:linknamestd StoreUintptr
 func StoreUintptr(addr *uintptr, val uintptr)
 
 // StorePointer atomically stores val into *addr.

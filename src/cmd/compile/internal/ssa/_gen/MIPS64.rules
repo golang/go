@@ -405,6 +405,7 @@
 (ClosureCall ...) => (CALLclosure ...)
 (InterCall ...) => (CALLinter ...)
 (TailCall ...) => (CALLtail ...)
+(TailCallInter ...) => (CALLtailinter ...)
 
 // atomic intrinsics
 (AtomicLoad(8|32|64) ...) => (LoweredAtomicLoad(8|32|64) ...)
@@ -690,6 +691,9 @@
 (Select1 (DIVVU x (MOVVconst [c]))) && isPowerOfTwo(c) => (SRLVconst [log64(c)] x)
 (Select0 (DIVVU _ (MOVVconst [1]))) => (MOVVconst [0])                       // mod
 (Select0 (DIVVU x (MOVVconst [c]))) && isPowerOfTwo(c) => (ANDconst [c-1] x) // mod
+
+// Absorb conversion between 32 bit and 64 bit if both src and dst are 32 bit.
+(MOVDF ((ABS|SQRT)D (MOVFD x))) => ((ABS|SQRT)F x)
 
 // generic simplifications
 (ADDV x (NEGV y)) => (SUBV x y)

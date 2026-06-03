@@ -41,8 +41,9 @@ const _SymKind_name = "SxxxSTEXTSTEXTFIPSSRODATASRODATAFIPSSNOPTRDATASNOPTRDATAF
 var _SymKind_index = [...]uint16{0, 4, 9, 18, 25, 36, 46, 60, 65, 74, 78, 87, 94, 106, 117, 126, 138, 148, 157, 168, 177, 188, 198, 221, 238, 254, 268}
 
 func (i SymKind) String() string {
-	if i >= SymKind(len(_SymKind_index)-1) {
+	idx := int(i) - 0
+	if i < 0 || idx >= len(_SymKind_index)-1 {
 		return "SymKind(" + strconv.FormatInt(int64(i), 10) + ")"
 	}
-	return _SymKind_name[_SymKind_index[i]:_SymKind_index[i+1]]
+	return _SymKind_name[_SymKind_index[idx]:_SymKind_index[idx+1]]
 }

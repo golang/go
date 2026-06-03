@@ -491,7 +491,7 @@ func sigtrampgo(sig uint32, info *siginfo, ctx unsafe.Pointer) {
 	sighandler(sig, info, ctx, gp)
 
 	if goexperiment.RuntimeSecret && gp.secret > 0 {
-		atomic.Store(&gp.m.signalSecret, 1)
+		gp.m.signalSecret = true
 	}
 
 	setg(gp)
@@ -989,8 +989,10 @@ func dieFromSignal(sig uint32) {
 	osyield()
 	osyield()
 
-	// If we are still somehow running, just exit with the wrong status.
-	exit(2)
+	// If we are still somehow running, this probably means we're PID 1
+	// immune to signals with default-terminate. Use a shell convention
+	// of exit(128+sig) to mimic the "terminated by signal".
+	exit(128 + int32(sig))
 }
 
 // raisebadsignal is called when a signal is received on a non-Go

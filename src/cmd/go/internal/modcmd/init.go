@@ -24,7 +24,7 @@ Init accepts one optional argument, the module path for the new module. If the
 module path argument is omitted, init will attempt to infer the module path
 using import comments in .go files and the current directory (if in GOPATH).
 
-See https://golang.org/ref/mod#go-mod-init for more about 'go mod init'.
+See https://go.dev/ref/mod#go-mod-init for more about 'go mod init'.
 `,
 	Run: runInit,
 }
@@ -35,7 +35,7 @@ func init() {
 }
 
 func runInit(ctx context.Context, cmd *base.Command, args []string) {
-	moduleLoaderState := modload.NewState()
+	moduleLoader := modload.NewLoader()
 	if len(args) > 1 {
 		base.Fatalf("go: 'go mod init' accepts at most one argument")
 	}
@@ -44,6 +44,6 @@ func runInit(ctx context.Context, cmd *base.Command, args []string) {
 		modPath = args[0]
 	}
 
-	moduleLoaderState.ForceUseModules = true
-	modload.CreateModFile(moduleLoaderState, ctx, modPath) // does all the hard work
+	moduleLoader.ForceUseModules = true
+	modload.CreateModFile(moduleLoader, ctx, modPath) // does all the hard work
 }

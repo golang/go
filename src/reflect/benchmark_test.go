@@ -265,6 +265,24 @@ func BenchmarkSelect(b *testing.B) {
 	}
 }
 
+func BenchmarkSelectStaticLit(b *testing.B) {
+	channel := make(chan int)
+	close(channel)
+
+	sc := SelectCase{Dir: SelectRecv, Chan: ValueOf(channel)}
+	b.Run("[4]SelectCase", func(b *testing.B) {
+		for range b.N {
+			_, _, _ = Select([]SelectCase{sc, sc, sc, sc})
+		}
+	})
+
+	b.Run("[8]SelectCase", func(b *testing.B) {
+		for range b.N {
+			_, _, _ = Select([]SelectCase{sc, sc, sc, sc, sc, sc, sc, sc})
+		}
+	})
+}
+
 func BenchmarkCall(b *testing.B) {
 	fv := ValueOf(func(a, b string) {})
 	b.ReportAllocs()

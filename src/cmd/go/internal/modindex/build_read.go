@@ -304,7 +304,7 @@ func readGoInfo(f io.Reader, info *fileInfo) error {
 	}
 
 	// Parse file header & record imports.
-	info.parsed, info.parseErr = parser.ParseFile(info.fset, info.name, info.header, parser.ImportsOnly|parser.ParseComments)
+	info.parsed, info.parseErr = parser.ParseFile(info.fset, info.name, info.header, parser.ImportsOnly|parser.ParseComments|parser.SkipObjectResolution)
 	if info.parseErr != nil {
 		return nil
 	}

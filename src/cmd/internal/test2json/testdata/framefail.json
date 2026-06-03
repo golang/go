@@ -1,0 +1,11 @@
+{"Action":"start"}
+{"Action":"run","Test":"TestAscii"}
+{"Action":"output","Test":"TestAscii","Output":"=== RUN   TestAscii\n","OutputType":"frame"}
+{"Action":"output","Test":"TestAscii","Output":"foo\n"}
+{"Action":"output","Test":"TestAscii","Output":"    one line\n","OutputType":"error"}
+{"Action":"output","Test":"TestAscii","Output":"bar\n"}
+{"Action":"output","Test":"TestAscii","Output":"    two\n","OutputType":"error"}
+{"Action":"output","Test":"TestAscii","Output":"    lines\n","OutputType":"error-continue"}
+{"Action":"output","Test":"TestAscii","Output":"baz"}
+{"Action":"output","Test":"TestAscii","Output":"    same line\n","OutputType":"error"}
+{"Action":"output","Test":"TestAscii","Output":"--- FAIL: TestAscii\n","OutputType":"frame"}

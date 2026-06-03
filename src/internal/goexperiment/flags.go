@@ -106,6 +106,9 @@ type Flags struct {
 	// JSONv2 enables the json/v2 package.
 	JSONv2 bool
 
+	// JSONFormat enables use of the `format` tag option with the json packages.
+	JSONFormat bool
+
 	// GreenTeaGC enables the Green Tea GC implementation.
 	GreenTeaGC bool
 
@@ -119,13 +122,18 @@ type Flags struct {
 	// SizeSpecializedMalloc enables malloc implementations that are specialized per size class.
 	SizeSpecializedMalloc bool
 
-	// GoroutineLeakProfile enables the collection of goroutine leak profiles.
-	GoroutineLeakProfile bool
-
 	// SIMD enables the simd package and the compiler's handling
 	// of SIMD intrinsics.
 	SIMD bool
 
 	// RuntimeSecret enables the runtime/secret package.
 	RuntimeSecret bool
+
+	// MapSplitGroup changes the internal representation of map groups
+	// from interleaved key/elem slots (KVKVKVKV) to split key and elem
+	// arrays (KKKKVVVV).
+	MapSplitGroup bool
+
+	// GenericMethods enables use of generic methods.
+	GenericMethods bool
 }

@@ -23,19 +23,22 @@ TEXT ·asmstdcall(SB),NOSPLIT,$16
 	MOVQ	0x30(GS), DI
 	MOVL	$0, 0x68(DI)
 
-	SUBQ	$(const_MaxArgs*8), SP	// room for args
+	MOVQ	SP, R12	// save frame pointer in the callee-saved R12 register to restore it before return
+	SUBQ	$32, SP	// reserve shadow space (Windows x64 ABI)
 
-	// Fast version, do not store args on the stack.
+	// Fast version (n <= 4): no stack copy needed.
 	CMPL	CX, $0;	JE	_0args
 	CMPL	CX, $1;	JE	_1args
 	CMPL	CX, $2;	JE	_2args
 	CMPL	CX, $3;	JE	_3args
 	CMPL	CX, $4;	JE	_4args
 
-	// Check we have enough room for args.
-	CMPL	CX, $const_MaxArgs
-	JLE	2(PC)
-	INT	$3			// not enough room -> crash
+	// Slow version (n > 4): grow stack for remaining args.
+	// Stack stays 16-byte aligned by rounding extra slots to even.
+	LEAQ	-3(CX), R8
+	ANDQ	$~1, R8
+	SHLQ	$3, R8
+	SUBQ	R8, SP
 
 	// Copy args to the stack.
 	MOVQ	SP, DI
@@ -65,7 +68,7 @@ _0args:
 	// Call stdcall function.
 	CALL	AX
 
-	ADDQ	$(const_MaxArgs*8), SP
+	MOVQ	R12, SP	// restore frame pointer
 
 	// Return result.
 	MOVQ	0(SP), CX
@@ -79,6 +82,5 @@ _0args:
 	// GetLastError().
 	MOVQ	0x30(GS), DI
 	MOVL	0x68(DI), AX
-	MOVQ	AX, StdCallInfo_Err(CX)
 
 	RET

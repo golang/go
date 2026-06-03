@@ -354,6 +354,7 @@ func osinit() {
 	numCPUStartup = getCPUCount()
 	physHugePageSize = getHugePageSize()
 	vgetrandomInit()
+	configure64bitsTimeOn32BitsArchitectures()
 }
 
 var urandom_dev = []byte("/dev/urandom\x00")
@@ -934,4 +935,78 @@ func (c *sigctxt) sigFromSeccomp() bool {
 func mprotect(addr unsafe.Pointer, n uintptr, prot int32) (ret int32, errno int32) {
 	r, _, err := linux.Syscall6(linux.SYS_MPROTECT, uintptr(addr), n, uintptr(prot), 0, 0, 0)
 	return int32(r), int32(err)
+}
+
+type kernelVersion struct {
+	major int
+	minor int
+}
+
+// getKernelVersion returns major and minor kernel version numbers
+// parsed from the uname release field. ok reports whether parsing
+// succeeded; on failure callers must pick a default rather than
+// failing, because this is called during osinit before the runtime
+// is fully initialized and a throw here is unrecoverable.
+func getKernelVersion() (kv kernelVersion, ok bool) {
+	var buf linux.Utsname
+	if e := linux.Uname(&buf); e != 0 {
+		return kernelVersion{}, false
+	}
+	rel := gostringnocopy(&buf.Release[0])
+	major, minor, _, ok := parseRelease(rel)
+	if !ok {
+		return kernelVersion{}, false
+	}
+	return kernelVersion{major: major, minor: minor}, true
+}
+
+// parseRelease parses a dot-separated version number from the prefix
+// of rel. It returns ok=true only if at least the major and minor
+// components were successfully parsed; the patch component is
+// best-effort. Trailing vendor or build suffixes such as
+// "-generic", "+", "_hi3535", or "-rc1" are ignored.
+func parseRelease(rel string) (major, minor, patch int, ok bool) {
+	// next consumes a run of decimal digits from the front of rel,
+	// returning the parsed value. If the digits are followed by a
+	// '.', it is consumed and more is set so the caller knows to
+	// parse another component; otherwise scanning terminates and
+	// the rest of rel is discarded.
+	next := func() (n int, more, ok bool) {
+		i := 0
+		for i < len(rel) && rel[i] >= '0' && rel[i] <= '9' {
+			i++
+		}
+		if i == 0 {
+			return 0, false, false
+		}
+		n, err := strconv.Atoi(rel[:i])
+		if err != nil {
+			return 0, false, false
+		}
+		if i < len(rel) && rel[i] == '.' {
+			rel = rel[i+1:]
+			return n, true, true
+		}
+		rel = ""
+		return n, false, true
+	}
+
+	var more bool
+	if major, more, ok = next(); !ok || !more {
+		return 0, 0, 0, false
+	}
+	if minor, more, ok = next(); !ok {
+		return 0, 0, 0, false
+	}
+	if !more {
+		return major, minor, 0, true
+	}
+	patch, _, _ = next()
+	return major, minor, patch, true
+}
+
+// GE checks if the running kernel version
+// is greater than or equal to the provided version.
+func (kv kernelVersion) GE(x, y int) bool {
+	return kv.major > x || (kv.major == x && kv.minor >= y)
 }

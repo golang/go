@@ -14,6 +14,7 @@ import (
 	"io/fs"
 	"mime"
 	"mime/multipart"
+	"net/http/internal"
 	"net/textproto"
 	"net/url"
 	"os"
@@ -288,7 +289,7 @@ func serveContent(w ResponseWriter, r *Request, name string, modtime time.Time, 
 		ctype = mime.TypeByExtension(filepath.Ext(name))
 		if ctype == "" {
 			// read a chunk to decide between utf-8 text and binary
-			var buf [sniffLen]byte
+			var buf [internal.SniffLen]byte
 			n, _ := io.ReadFull(content, buf[:])
 			ctype = DetectContentType(buf[:n])
 			_, err := content.Seek(0, io.SeekStart) // rewind to output whole file

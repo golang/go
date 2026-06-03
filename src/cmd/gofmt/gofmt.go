@@ -79,7 +79,7 @@ func usage() {
 }
 
 func initParserMode() {
-	parserMode = parser.ParseComments
+	parserMode = parser.ParseComments | parser.SkipObjectResolution
 	if *allErrors {
 		parserMode |= parser.AllErrors
 	}

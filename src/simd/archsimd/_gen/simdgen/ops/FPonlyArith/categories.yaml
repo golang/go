@@ -2,7 +2,7 @@
 - go: Div
   commutative: false
   documentation: !string |-
-    // NAME divides elements of two vectors.
+    // NAME divides elements of two vectors. Division by zero follows IEEE 754 and does not panic.
 - go: Sqrt
   commutative: false
   documentation: !string |-
@@ -20,17 +20,17 @@
   documentation: !string |-
     // NAME multiplies each element of x by 2 raised to the power of the
     // floor of the corresponding element in y.
-- go: RoundToEven
+- go: Round
   commutative: false
   constImm: 0
   documentation: !string |-
     // NAME rounds elements to the nearest integer, rounding ties to even.
-- go: RoundToEvenScaled
+- go: RoundScaled
   commutative: false
   constImm: 0
   documentation: !string |-
     // NAME rounds elements with specified precision.
-- go: RoundToEvenScaledResidue
+- go: RoundScaledResidue
   commutative: false
   constImm: 0
   documentation: !string |-
@@ -80,7 +80,7 @@
   constImm: 3
   documentation: !string |-
     // NAME computes the difference after truncating with specified precision.
-- go: AddSub
+- go: AddOddSubEven
   commutative: false
   documentation: !string |-
     // NAME subtracts even elements and adds odd elements of two vectors.

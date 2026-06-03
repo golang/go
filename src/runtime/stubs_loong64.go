@@ -6,15 +6,33 @@
 
 package runtime
 
+import "unsafe"
+
 // Called from assembly only; declared for go vet.
+//
+// load_g is also called from runtime/cgo.
+//
+// load_g should be an internal detail,
+// but widely used packages access it using linkname.
+// Notable members of the hall of shame include:
+//   - github.com/ebitengine/purego
+//
+//go:linkname load_g
 func load_g()
 func save_g()
+
+//go:noescape
+func asmcgocall_no_g(fn, arg unsafe.Pointer)
 
 // Used by reflectcall and the reflect package.
 //
 // Spills/loads arguments in registers to/from an internal/abi.RegArgs
 // respectively. Does not follow the Go ABI.
+//
+//go:linknamestd spillArgs
 func spillArgs()
+
+//go:linknamestd unspillArgs
 func unspillArgs()
 
 // getfp returns the frame pointer register of its caller or 0 if not implemented.

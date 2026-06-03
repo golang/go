@@ -31,53 +31,26 @@ TEXT _rt0_ppc64x_lib(SB),NOSPLIT|NOFRAME,$0
 	MOVD	R12, CTR
 	BL	(CTR)
 
+	// Initialize g as nil in case of using g later e.g. sigaction in cgo_sigaction.go
+	MOVD	R0, g
+
 #ifdef GOOS_aix
 	// See runtime/cgo/gcc_aix_ppc64.c
 	MOVBZ	runtime·isarchive(SB), R3	// Check buildmode = c-archive
 	CMP		$0, R3
-	BEQ		done
+	BEQ		skipInit
 #endif
 
-	MOVD	$runtime·libpreinit(SB), R12
+	MOVD	$runtime·libInit(SB), R12
 	MOVD	R12, CTR
 	BL	(CTR)
 
-	// Create a new thread to do the runtime initialization and return.
-	// _cgo_sys_thread_create is a C function.
-	MOVD	_cgo_sys_thread_create(SB), R12
-	CMP	$0, R12
-	BEQ	nocgo
-	MOVD	$_rt0_ppc64x_lib_go(SB), R3
-	MOVD	$0, R4
-#ifdef GO_PPC64X_HAS_FUNCDESC
-	// Load the real entry address from the first slot of the function descriptor.
-	MOVD	8(R12), R2
-	MOVD	(R12), R12
-#endif
-	MOVD	R12, CTR
-	BL	(CTR)
-	MOVD	24(R1), R2 // Restore the old frame, and R2.
-	BR	done
-
-nocgo:
-	MOVD	$0x800000, R12                     // stacksize = 8192KB
-	MOVD	R12, 8+FIXED_FRAME(R1)
-	MOVD	$_rt0_ppc64x_lib_go(SB), R12
-	MOVD	R12, 16+FIXED_FRAME(R1)
-	MOVD	$runtime·newosproc0(SB),R12
-	MOVD	R12, CTR
-	BL	(CTR)
-
-done:
+skipInit:
+	// Restore and return to ELFv2 caller.
 	UNSTACK_AND_RESTORE_GO_TO_HOST_ABI(32)
 	RET
 
-#ifdef GO_PPC64X_HAS_FUNCDESC
-DEFINE_PPC64X_FUNCDESC(_rt0_ppc64x_lib_go, __rt0_ppc64x_lib_go)
-TEXT __rt0_ppc64x_lib_go(SB),NOSPLIT,$0
-#else
-TEXT _rt0_ppc64x_lib_go(SB),NOSPLIT,$0
-#endif
+TEXT runtime·rt0_lib_go<ABIInternal>(SB),NOSPLIT,$0
 	MOVD	_rt0_ppc64x_lib_argc<>(SB), R3
 	MOVD	_rt0_ppc64x_lib_argv<>(SB), R4
 	MOVD	$runtime·rt0_go(SB), R12
@@ -180,7 +153,7 @@ nocgo:
 	BL	runtime·mstart(SB)
 	// Prevent dead-code elimination of debugCallV2 and debugPinnerV1, which are
 	// intended to be called by debuggers.
-#ifdef GOARCH_ppc64le
+#ifdef GOOS_linux
 	MOVD	$runtime·debugPinnerV1<ABIInternal>(SB), R31
 	MOVD	$runtime·debugCallV2<ABIInternal>(SB), R31
 #endif
@@ -782,10 +755,6 @@ nosave:
 	// This code is like the above sequence but without saving/restoring g
 	// and without worrying about the stack moving out from under us
 	// (because we're on a system stack, not a goroutine stack).
-	// The above code could be used directly if already on a system stack,
-	// but then the only path through this code would be a rare case.
-	// Using this code for all "already on system stack" calls exercises it more,
-	// which should help keep it correct.
 
 	SUB	$(asmcgocallSaveOffset+8), R1, R10
 	RLDCR	$0, R10, $~15, R1		// 16-byte alignment for gcc ABI
@@ -1050,16 +1019,6 @@ TEXT runtime·unspillArgs(SB),NOSPLIT,$0-0
 	FMOVD	184(R20), F12
 	RET
 
-// AES hashing not implemented for ppc64
-TEXT runtime·memhash<ABIInternal>(SB),NOSPLIT|NOFRAME,$0-32
-	JMP	runtime·memhashFallback<ABIInternal>(SB)
-TEXT runtime·strhash<ABIInternal>(SB),NOSPLIT|NOFRAME,$0-24
-	JMP	runtime·strhashFallback<ABIInternal>(SB)
-TEXT runtime·memhash32<ABIInternal>(SB),NOSPLIT|NOFRAME,$0-24
-	JMP	runtime·memhash32Fallback<ABIInternal>(SB)
-TEXT runtime·memhash64<ABIInternal>(SB),NOSPLIT|NOFRAME,$0-24
-	JMP	runtime·memhash64Fallback<ABIInternal>(SB)
-
 // Called from cgo wrappers, this function returns g->m->curg.stack.hi.
 // Must obey the gcc calling convention.
 #ifdef GOOS_aix
@@ -1117,11 +1076,6 @@ TEXT runtime·addmoduledata(SB),NOSPLIT|NOFRAME,$0-0
 	MOVD	R3, runtime·lastmoduledatap(SB)
 	MOVD	0(R1), R31
 	ADD	$8, R1
-	RET
-
-TEXT ·checkASM(SB),NOSPLIT,$0-1
-	MOVW	$1, R3
-	MOVB	R3, ret+0(FP)
 	RET
 
 // gcWriteBarrier informs the GC about heap pointer writes.
@@ -1260,7 +1214,7 @@ GLOBL	debugCallFrameTooLarge<>(SB), RODATA, $20	// Size duplicated below
 //
 // This is ABIInternal because Go code injects its PC directly into new
 // goroutine stacks.
-#ifdef GOARCH_ppc64le
+#ifdef GOOS_linux
 TEXT runtime·debugCallV2<ABIInternal>(SB), NOSPLIT|NOFRAME, $0-0
 	// save scratch register R31 first
 	MOVD	R31, -184(R1)
@@ -1420,7 +1374,7 @@ DEBUG_CALL_FN(debugCall16384<>, 16384)
 DEBUG_CALL_FN(debugCall32768<>, 32768)
 DEBUG_CALL_FN(debugCall65536<>, 65536)
 
-#ifdef GOARCH_ppc64le
+#ifdef GOOS_linux
 // func debugCallPanicked(val interface{})
 TEXT runtime·debugCallPanicked(SB),NOSPLIT,$32-16
 	// Copy the panic value to the top of stack at SP+32.

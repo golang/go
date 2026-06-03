@@ -60,10 +60,14 @@ constraints imposed by other modules.
 
 The -go=version flag sets the expected Go language version.
 This flag is mainly for tools that understand Go version dependencies.
+It takes a version like "1.26" or "1.26.2".
+Using the version "none" removes the go directive.
 Users should prefer 'go get go@version'.
 
-The -toolchain=version flag sets the Go toolchain to use.
+The -toolchain=name flag sets the Go toolchain to use.
 This flag is mainly for tools that understand Go version dependencies.
+It takes a toolchain name like "go1.26" or "go1.26.2".
+Using the name "none" removes the toolchain directive.
 Users should prefer 'go get toolchain@version'.
 
 The -exclude=path@version and -dropexclude=path@version flags
@@ -166,7 +170,7 @@ use 'go list -m -json all'.
 
 Edit also provides the -C, -n, and -x build flags.
 
-See https://golang.org/ref/mod#go-mod-edit for more about 'go mod edit'.
+See https://go.dev/ref/mod#go-mod-edit for more about 'go mod edit'.
 	`,
 }
 
@@ -209,7 +213,7 @@ func init() {
 }
 
 func runEdit(ctx context.Context, cmd *base.Command, args []string) {
-	moduleLoaderState := modload.NewState()
+	moduleLoader := modload.NewLoader()
 	anyFlags := *editModule != "" ||
 		*editGo != "" ||
 		*editToolchain != "" ||
@@ -233,7 +237,7 @@ func runEdit(ctx context.Context, cmd *base.Command, args []string) {
 	if len(args) == 1 {
 		gomod = args[0]
 	} else {
-		gomod = moduleLoaderState.ModFilePath()
+		gomod = moduleLoader.ModFilePath()
 	}
 
 	if *editModule != "" {
@@ -590,15 +594,15 @@ func flagDropIgnore(arg string) {
 // fileJSON is the -json output data structure.
 type fileJSON struct {
 	Module    editModuleJSON
-	Go        string      `json:",omitempty"`
-	Toolchain string      `json:",omitempty"`
-	GoDebug   []debugJSON `json:",omitempty"`
-	Require   []requireJSON
-	Exclude   []module.Version
-	Replace   []replaceJSON
-	Retract   []retractJSON
-	Tool      []toolJSON
-	Ignore    []ignoreJSON
+	Go        string           `json:",omitempty"`
+	Toolchain string           `json:",omitempty"`
+	GoDebug   []debugJSON      `json:",omitempty"`
+	Require   []requireJSON    `json:",omitempty"`
+	Exclude   []module.Version `json:",omitempty"`
+	Replace   []replaceJSON    `json:",omitempty"`
+	Retract   []retractJSON    `json:",omitempty"`
+	Tool      []toolJSON       `json:",omitempty"`
+	Ignore    []ignoreJSON     `json:",omitempty"`
 }
 
 type editModuleJSON struct {

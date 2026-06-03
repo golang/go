@@ -24,6 +24,9 @@ import (
 //     that, any panic raised by f will appear as if it originates from
 //     Do itself.
 //
+// Any goroutine spawned while executing f will act as if the entire goroutine
+// is wrapped inside another call to Do.
+//
 // Users should be cautious of allocating inside Do.
 // Erasing heap memory after Do returns may increase garbage collector sweep times and
 // requires additional memory to keep track of allocations until they are to be erased.
@@ -39,7 +42,6 @@ import (
 //   - Currently only supported on linux/amd64 and linux/arm64.  On unsupported
 //     platforms, Do will invoke f directly.
 //   - Protection does not extend to any global variables written by f.
-//   - Protection does not extend to any new goroutines made by f.
 //   - If f calls runtime.Goexit, erasure can be delayed by defers
 //     higher up on the call stack.
 //   - Heap allocations will only be erased if the program drops all
@@ -119,7 +121,10 @@ func doHelper(f func()) (p any) {
 	return
 }
 
-// Enabled reports whether [Do] appears anywhere on the call stack.
+// Enabled reports whether the current goroutine
+// is running in secret mode. This is usually through a call to
+// [Do], but can also occur when a goroutine already running in
+// secret mode launches another goroutine.
 func Enabled() bool {
 	return count() > 0
 }

@@ -242,12 +242,16 @@ func rewriteValuedec_OpIData(v *Value) bool {
 	config := b.Func.Config
 	typ := &b.Func.Config.Types
 	// match: (IData (IMake _ data))
+	// cond: data.Op != OpStructMake && data.Op != OpArrayMake1
 	// result: data
 	for {
 		if v_0.Op != OpIMake {
 			break
 		}
 		data := v_0.Args[1]
+		if !(data.Op != OpStructMake && data.Op != OpArrayMake1) {
+			break
+		}
 		v.copyOf(data)
 		return true
 	}
@@ -864,29 +868,16 @@ func rewriteValuedec_OpStructSelect(v *Value) bool {
 		return true
 	}
 	// match: (StructSelect (IData x))
-	// cond: v.Type.Size() == 0 && v.Type.IsStruct()
-	// result: (StructMake)
+	// cond: v.Type.Size() == 0
+	// result: (Empty)
 	for {
 		if v_0.Op != OpIData {
 			break
 		}
-		if !(v.Type.Size() == 0 && v.Type.IsStruct()) {
+		if !(v.Type.Size() == 0) {
 			break
 		}
-		v.reset(OpStructMake)
-		return true
-	}
-	// match: (StructSelect (IData x))
-	// cond: v.Type.Size() == 0 && v.Type.IsArray()
-	// result: (ArrayMake0)
-	for {
-		if v_0.Op != OpIData {
-			break
-		}
-		if !(v.Type.Size() == 0 && v.Type.IsArray()) {
-			break
-		}
-		v.reset(OpArrayMake0)
+		v.reset(OpEmpty)
 		return true
 	}
 	// match: (StructSelect [i] x:(StructMake ___))

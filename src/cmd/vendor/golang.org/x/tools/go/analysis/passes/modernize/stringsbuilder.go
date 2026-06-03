@@ -13,6 +13,7 @@ import (
 	"go/types"
 	"maps"
 	"slices"
+	"strings"
 
 	"golang.org/x/tools/go/analysis"
 	"golang.org/x/tools/go/analysis/passes/inspect"
@@ -22,7 +23,6 @@ import (
 	typeindexanalyzer "golang.org/x/tools/internal/analysis/typeindex"
 	"golang.org/x/tools/internal/astutil"
 	"golang.org/x/tools/internal/refactor"
-	"golang.org/x/tools/internal/typesinternal"
 	"golang.org/x/tools/internal/typesinternal/typeindex"
 )
 
@@ -48,6 +48,7 @@ func stringsbuilder(pass *analysis.Pass) (any, error) {
 	var (
 		inspect = pass.ResultOf[inspect.Analyzer].(*inspector.Inspector)
 		index   = pass.ResultOf[typeindexanalyzer.Analyzer].(*typeindex.Index)
+		info    = pass.TypesInfo
 	)
 
 	// Gather all local string variables that appear on the
@@ -56,8 +57,8 @@ func stringsbuilder(pass *analysis.Pass) (any, error) {
 	for curAssign := range inspect.Root().Preorder((*ast.AssignStmt)(nil)) {
 		assign := curAssign.Node().(*ast.AssignStmt)
 		if assign.Tok == token.ADD_ASSIGN && is[*ast.Ident](assign.Lhs[0]) {
-			if v, ok := pass.TypesInfo.Uses[assign.Lhs[0].(*ast.Ident)].(*types.Var); ok &&
-				!typesinternal.IsPackageLevel(v) && // TODO(adonovan): in go1.25, use v.Kind() == types.LocalVar &&
+			if v, ok := info.Uses[assign.Lhs[0].(*ast.Ident)].(*types.Var); ok &&
+				v.Kind() == types.LocalVar &&
 				types.Identical(v.Type(), builtinString.Type()) {
 				candidates[v] = true
 			}
@@ -76,7 +77,7 @@ func stringsbuilder(pass *analysis.Pass) (any, error) {
 	// Now check each candidate variable's decl and uses.
 nextcand:
 	for _, v := range slices.SortedFunc(maps.Keys(candidates), lexicalOrder) {
-		var edits []analysis.TextEdit
+		var edits, postEdits []analysis.TextEdit // postEdits are emitted last
 
 		// Check declaration of s has one of these forms:
 		//
@@ -101,8 +102,15 @@ nextcand:
 		if file == lastEditFile && v.Pos() < lastEditEnd {
 			continue
 		}
+		filename := pass.Fset.File(file.FileStart).Name()
+		// Suppress diagnostics in test files, where suggested fixes may increase
+		// verbosity, and performance doesn't matter as much.
+		// See https://go.dev/issue/78613
+		if strings.HasSuffix(filename, "_test.go") {
+			continue
+		}
 
-		ek, _ := def.ParentEdge()
+		ek := def.ParentEdgeKind()
 		if ek == edge.AssignStmt_Lhs &&
 			len(def.Parent().Node().(*ast.AssignStmt).Lhs) == 1 {
 			// Have: s := expr
@@ -122,10 +130,10 @@ nextcand:
 
 			// Add strings import.
 			prefix, importEdits := refactor.AddImport(
-				pass.TypesInfo, astutil.EnclosingFile(def), "strings", "strings", "Builder", v.Pos())
+				info, astutil.EnclosingFile(def), "strings", "strings", "Builder", v.Pos())
 			edits = append(edits, importEdits...)
 
-			if isEmptyString(pass.TypesInfo, assign.Rhs[0]) {
+			if isEmptyString(info, assign.Rhs[0]) {
 				// s := ""
 				// ---------------------
 				// var s strings.Builder
@@ -172,7 +180,7 @@ nextcand:
 
 			// Add strings import.
 			prefix, importEdits := refactor.AddImport(
-				pass.TypesInfo, astutil.EnclosingFile(def), "strings", "strings", "Builder", v.Pos())
+				info, astutil.EnclosingFile(def), "strings", "strings", "Builder", v.Pos())
 			edits = append(edits, importEdits...)
 
 			spec := def.Parent().Node().(*ast.ValueSpec)
@@ -194,7 +202,7 @@ nextcand:
 				NewText: fmt.Appendf(nil, " %sBuilder", prefix),
 			})
 
-			if len(spec.Values) > 0 && !isEmptyString(pass.TypesInfo, spec.Values[0]) {
+			if len(spec.Values) > 0 && !isEmptyString(info, spec.Values[0]) {
 				if decl.Rparen.IsValid() {
 					// var decl with explicit parens:
 					//
@@ -254,8 +262,8 @@ nextcand:
 		//    var s string
 		//    for ... { s += expr }
 		//
-		// - The final use of s must be as an rvalue (e.g. use(s), not &s).
-		//   This will become s.String().
+		// - All uses of s after the last += must be rvalue uses (e.g. use(s), not &s).
+		//   Each of these will become s.String().
 		//
 		//   Perhaps surprisingly, it is fine for there to be an
 		//   intervening loop or lambda w.r.t. the declaration of s:
@@ -270,20 +278,12 @@ nextcand:
 		var (
 			numLoopAssigns int             // number of += assignments within a loop
 			loopAssign     *ast.AssignStmt // first += assignment within a loop
-			seenRvalueUse  bool            // => we've seen the sole final use of s as an rvalue
+			seenRvalueUse  bool            // => we've seen at least one rvalue use of s
 		)
 		for curUse := range index.Uses(v) {
 			// Strip enclosing parens around Ident.
-			ek, _ := curUse.ParentEdge()
-			for ek == edge.ParenExpr_X {
-				curUse = curUse.Parent()
-				ek, _ = curUse.ParentEdge()
-			}
-
-			// The rvalueUse must be the lexically last use.
-			if seenRvalueUse {
-				continue nextcand
-			}
+			curUse = astutil.UnparenEnclosingCursor(curUse)
+			ek := curUse.ParentEdgeKind()
 
 			// intervening reports whether cur has an ancestor of
 			// one of the given types that is within the scope of v.
@@ -297,6 +297,11 @@ nextcand:
 			}
 
 			if ek == edge.AssignStmt_Lhs {
+				// After an rvalue use, no more assignments are allowed.
+				if seenRvalueUse {
+					continue nextcand
+				}
+
 				assign := curUse.Parent().Node().(*ast.AssignStmt)
 				if assign.Tok != token.ADD_ASSIGN {
 					continue nextcand
@@ -316,20 +321,21 @@ nextcand:
 				// s +=          expr
 				//  -------------    -
 				// s.WriteString(expr)
-				edits = append(edits, []analysis.TextEdit{
-					// replace += with .WriteString()
-					{
-						Pos:     assign.TokPos,
-						End:     assign.Rhs[0].Pos(),
-						NewText: []byte(".WriteString("),
-					},
+				edits = append(edits, analysis.TextEdit{
+					// replace " += " with ".WriteString("
+					Pos:     assign.Lhs[0].End(),
+					End:     assign.Rhs[0].Pos(),
+					NewText: []byte(".WriteString("),
+				})
+
+				// Delay inserting the closing parenthesis, in case it overlaps with a
+				// .String() edit, since it would need to come after.
+				postEdits = append(postEdits, analysis.TextEdit{
 					// insert ")"
-					{
-						Pos:     assign.End(),
-						End:     assign.End(),
-						NewText: []byte(")"),
-					},
-				}...)
+					Pos:     assign.End(),
+					End:     assign.End(),
+					NewText: []byte(")"),
+				})
 
 			} else if ek == edge.UnaryExpr_X &&
 				curUse.Parent().Node().(*ast.UnaryExpr).Op == token.AND {
@@ -357,6 +363,8 @@ nextcand:
 		if numLoopAssigns == 0 {
 			continue nextcand // no += in a loop; reject
 		}
+
+		edits = append(edits, postEdits...)
 
 		lastEditFile = file
 		lastEditEnd = edits[len(edits)-1].End

@@ -39,7 +39,7 @@ func ConsumeWhitespace(b []byte) (n int) {
 }
 
 // ConsumeNull consumes the next JSON null literal per RFC 7159, section 3.
-// It returns 0 if it is invalid, in which case consumeLiteral should be used.
+// It returns 0 if it is invalid, in which case ConsumeLiteral should be used.
 func ConsumeNull(b []byte) int {
 	// NOTE: The arguments and logic are kept simple to keep this inlinable.
 	const literal = "null"
@@ -50,7 +50,7 @@ func ConsumeNull(b []byte) int {
 }
 
 // ConsumeFalse consumes the next JSON false literal per RFC 7159, section 3.
-// It returns 0 if it is invalid, in which case consumeLiteral should be used.
+// It returns 0 if it is invalid, in which case ConsumeLiteral should be used.
 func ConsumeFalse(b []byte) int {
 	// NOTE: The arguments and logic are kept simple to keep this inlinable.
 	const literal = "false"
@@ -61,7 +61,7 @@ func ConsumeFalse(b []byte) int {
 }
 
 // ConsumeTrue consumes the next JSON true literal per RFC 7159, section 3.
-// It returns 0 if it is invalid, in which case consumeLiteral should be used.
+// It returns 0 if it is invalid, in which case ConsumeLiteral should be used.
 func ConsumeTrue(b []byte) int {
 	// NOTE: The arguments and logic are kept simple to keep this inlinable.
 	const literal = "true"
@@ -88,7 +88,7 @@ func ConsumeLiteral(b []byte, lit string) (n int, err error) {
 // ConsumeSimpleString consumes the next JSON string per RFC 7159, section 7
 // but is limited to the grammar for an ASCII string without escape sequences.
 // It returns 0 if it is invalid or more complicated than a simple string,
-// in which case consumeString should be called.
+// in which case [ConsumeString] should be called.
 //
 // It rejects '<', '>', and '&' for compatibility reasons since these were
 // always escaped in the v1 implementation. Thus, if this function reports
@@ -118,7 +118,7 @@ func ConsumeString(flags *ValueFlags, b []byte, validateUTF8 bool) (n int, err e
 	return ConsumeStringResumable(flags, b, 0, validateUTF8)
 }
 
-// ConsumeStringResumable is identical to consumeString but supports resuming
+// ConsumeStringResumable is identical to [ConsumeString] but supports resuming
 // from a previous call that returned io.ErrUnexpectedEOF.
 func ConsumeStringResumable(flags *ValueFlags, b []byte, resumeOffset int, validateUTF8 bool) (n int, err error) {
 	// Consume the leading double quote.
@@ -254,7 +254,7 @@ func ConsumeStringResumable(flags *ValueFlags, b []byte, resumeOffset int, valid
 // Any invalid UTF-8 within the string will be replaced with utf8.RuneError,
 // but the error will be specified as having encountered such an error.
 // The input must be an entire JSON string with no surrounding whitespace.
-func AppendUnquote[Bytes ~[]byte | ~string](dst []byte, src Bytes) (v []byte, err error) {
+func AppendUnquote(dst, src []byte) (v []byte, err error) {
 	dst = slices.Grow(dst, len(src))
 
 	// Consume the leading double quote.
@@ -292,7 +292,7 @@ func AppendUnquote[Bytes ~[]byte | ~string](dst []byte, src Bytes) (v []byte, er
 			return dst, err
 		}
 
-		switch r, rn := utf8.DecodeRuneInString(string(truncateMaxUTF8(src[n:]))); {
+		switch r, rn := utf8.DecodeRune(src[n:]); {
 		// Handle UTF-8 encoded byte sequence.
 		// Due to specialized handling of ASCII above, we know that
 		// all normal sequences at this point must be 2 bytes or larger.
@@ -364,7 +364,7 @@ func AppendUnquote[Bytes ~[]byte | ~string](dst []byte, src Bytes) (v []byte, er
 		// Handle invalid UTF-8.
 		case r == utf8.RuneError:
 			dst = append(dst, src[i:n]...)
-			if !utf8.FullRuneInString(string(truncateMaxUTF8(src[n:]))) {
+			if !utf8.FullRune(src[n:]) {
 				return dst, io.ErrUnexpectedEOF
 			}
 			// NOTE: An unescaped string may be longer than the escaped string
@@ -387,7 +387,7 @@ func AppendUnquote[Bytes ~[]byte | ~string](dst []byte, src Bytes) (v []byte, er
 
 // hasEscapedUTF16Prefix reports whether b is possibly
 // the truncated prefix of a \uFFFF escape sequence.
-func hasEscapedUTF16Prefix[Bytes ~[]byte | ~string](b Bytes, lowerSurrogateHalf bool) bool {
+func hasEscapedUTF16Prefix(b []byte, lowerSurrogateHalf bool) bool {
 	for i := range len(b) {
 		switch c := b[i]; {
 		case i == 0 && c != '\\':
@@ -420,9 +420,9 @@ func UnquoteMayCopy(b []byte, isVerbatim bool) []byte {
 }
 
 // ConsumeSimpleNumber consumes the next JSON number per RFC 7159, section 6
-// but is limited to the grammar for a positive integer.
+// but is limited to the grammar for a non-negative integer.
 // It returns 0 if it is invalid or more complicated than a simple integer,
-// in which case consumeNumber should be called.
+// in which case ConsumeNumber should be called.
 func ConsumeSimpleNumber(b []byte) (n int) {
 	// NOTE: The arguments and logic are kept simple to keep this inlinable.
 	if len(b) > 0 {
@@ -467,7 +467,7 @@ func ConsumeNumber(b []byte) (n int, err error) {
 	return n, err
 }
 
-// ConsumeNumberResumable is identical to consumeNumber but supports resuming
+// ConsumeNumberResumable is identical to ConsumeNumber but supports resuming
 // from a previous call that returned io.ErrUnexpectedEOF.
 func ConsumeNumberResumable(b []byte, resumeOffset int, state ConsumeNumberState) (n int, _ ConsumeNumberState, err error) {
 	// Jump to the right state when resuming from a partial consumption.
@@ -565,7 +565,7 @@ beforeExponent:
 // parseHexUint16 is similar to strconv.ParseUint,
 // but operates directly on []byte and is optimized for base-16.
 // See https://go.dev/issue/42429.
-func parseHexUint16[Bytes ~[]byte | ~string](b Bytes) (v uint16, ok bool) {
+func parseHexUint16(b []byte) (v uint16, ok bool) {
 	if len(b) != 4 {
 		return 0, false
 	}
@@ -603,27 +603,4 @@ func ParseUint(b []byte) (v uint64, ok bool) {
 		return math.MaxUint64, false
 	}
 	return v, true
-}
-
-// ParseFloat parses a floating point number according to the Go float grammar.
-// Note that the JSON number grammar is a strict subset.
-//
-// If the number overflows the finite representation of a float,
-// then we return MaxFloat since any finite value will always be infinitely
-// more accurate at representing another finite value than an infinite value.
-func ParseFloat(b []byte, bits int) (v float64, ok bool) {
-	fv, err := strconv.ParseFloat(string(b), bits)
-	if math.IsInf(fv, 0) {
-		switch {
-		case bits == 32 && math.IsInf(fv, +1):
-			fv = +math.MaxFloat32
-		case bits == 64 && math.IsInf(fv, +1):
-			fv = +math.MaxFloat64
-		case bits == 32 && math.IsInf(fv, -1):
-			fv = -math.MaxFloat32
-		case bits == 64 && math.IsInf(fv, -1):
-			fv = -math.MaxFloat64
-		}
-	}
-	return fv, err == nil
 }

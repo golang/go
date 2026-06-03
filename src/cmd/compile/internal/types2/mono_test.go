@@ -79,4 +79,8 @@ var bads = []string{
 	"type U[_ any] int; const X = unsafe.Sizeof(func() { type A[T any] U[A[*T]] })",
 	"func F[T any]() { type A = *T; F[A]() }",
 	"type A[T any] struct { _ A[*T] }",
+	"type T struct{}; func (t T) M[P any]() { t.M[*P]() }",
+	"type T struct{}; func (t T) A[P any]() { t.B[*P]() }; func (t T) B[Q any]() { t.A[*Q]() }",
+	"type G[T any] int; func (g G[T]) M[P any]() { g.M[*P]() }",
+	"type G[T any] int; func (g G[T]) A[P any]() { g.B[*P]() }; func (g G[T]) B[Q any]() { g.A[*Q]() }",
 }

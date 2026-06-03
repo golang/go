@@ -59,4 +59,4 @@ git mv p.go q.go
 git commit -m 'trivial change'
 
 zip -r ../retract-pseudo.zip .
-gsutil cp ../retract-pseudo.zip gs://vcs-test/git/retract-pseudo.zip
+gcloud storage cp ../retract-pseudo.zip gs://vcs-test/git/retract-pseudo.zip

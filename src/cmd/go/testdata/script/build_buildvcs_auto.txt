@@ -57,7 +57,7 @@ cd ..
 env PATH=
 env path=
 ! go build -buildvcs -o example.exe .
-stderr 'go: missing Git command\. See https://golang\.org/s/gogetcmd$'
+stderr 'go: missing Git command\. See https://go\.dev/s/gogetcmd$'
 
 # ...but by default we should omit VCS metadata when the tool is missing.
 

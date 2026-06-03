@@ -905,15 +905,20 @@ func xcoffreloc1(arch *sys.Arch, out *ld.OutBuf, ldr *loader.Loader, s loader.Sy
 }
 
 func elfreloc1(ctxt *ld.Link, out *ld.OutBuf, ldr *loader.Loader, s loader.Sym, r loader.ExtReloc, ri int, sectoff int64) bool {
-	// Beware that bit0~bit15 start from the third byte of an instruction in Big-Endian machines.
 	rt := r.Type
-	if rt == objabi.R_ADDR || rt == objabi.R_POWER_TLS || rt == objabi.R_CALLPOWER || rt == objabi.R_DWARFSECREF {
-	} else {
-		if ctxt.Arch.ByteOrder == binary.BigEndian {
-			sectoff += 2
-		}
+	fixupBe := int64(0)
+	// 32 bit Go relocations which translate into two 16 bit ELF relocations need to be adjusted
+	// to account for BE ordering.
+	if ctxt.Arch.ByteOrder == binary.BigEndian {
+		fixupBe = 2
 	}
-	out.Write64(uint64(sectoff))
+
+	// Helper to write one 64b ELF relocation entry.
+	writeElfReloc := func(rtyp elf.R_PPC64, offset int64, sym int32, addend int64) {
+		out.Write64(uint64(offset))
+		out.Write64(uint64(rtyp) | uint64(sym)<<32)
+		out.Write64(uint64(addend))
+	}
 
 	elfsym := ld.ElfSymForReloc(ctxt, r.Xsym)
 	switch rt {
@@ -922,78 +927,68 @@ func elfreloc1(ctxt *ld.Link, out *ld.OutBuf, ldr *loader.Loader, s loader.Sym, 
 	case objabi.R_ADDR, objabi.R_DWARFSECREF:
 		switch r.Size {
 		case 4:
-			out.Write64(uint64(elf.R_PPC64_ADDR32) | uint64(elfsym)<<32)
+			writeElfReloc(elf.R_PPC64_ADDR32, sectoff, elfsym, r.Xadd)
 		case 8:
-			out.Write64(uint64(elf.R_PPC64_ADDR64) | uint64(elfsym)<<32)
+			writeElfReloc(elf.R_PPC64_ADDR64, sectoff, elfsym, r.Xadd)
 		default:
 			return false
 		}
 	case objabi.R_ADDRPOWER_D34:
-		out.Write64(uint64(elf.R_PPC64_D34) | uint64(elfsym)<<32)
+		writeElfReloc(elf.R_PPC64_D34, sectoff, elfsym, r.Xadd)
 	case objabi.R_ADDRPOWER_PCREL34:
-		out.Write64(uint64(elf.R_PPC64_PCREL34) | uint64(elfsym)<<32)
+		writeElfReloc(elf.R_PPC64_PCREL34, sectoff, elfsym, r.Xadd)
 	case objabi.R_POWER_TLS:
-		out.Write64(uint64(elf.R_PPC64_TLS) | uint64(elfsym)<<32)
+		writeElfReloc(elf.R_PPC64_TLS, sectoff, elfsym, r.Xadd)
 	case objabi.R_POWER_TLS_LE:
-		out.Write64(uint64(elf.R_PPC64_TPREL16_HA) | uint64(elfsym)<<32)
-		out.Write64(uint64(r.Xadd))
-		out.Write64(uint64(sectoff + 4))
-		out.Write64(uint64(elf.R_PPC64_TPREL16_LO) | uint64(elfsym)<<32)
+		sectoff += fixupBe
+		writeElfReloc(elf.R_PPC64_TPREL16_HA, sectoff, elfsym, r.Xadd)
+		writeElfReloc(elf.R_PPC64_TPREL16_LO, sectoff+4, elfsym, r.Xadd)
 	case objabi.R_POWER_TLS_LE_TPREL34:
-		out.Write64(uint64(elf.R_PPC64_TPREL34) | uint64(elfsym)<<32)
+		writeElfReloc(elf.R_PPC64_TPREL34, sectoff, elfsym, r.Xadd)
 	case objabi.R_POWER_TLS_IE_PCREL34:
-		out.Write64(uint64(elf.R_PPC64_GOT_TPREL_PCREL34) | uint64(elfsym)<<32)
+		writeElfReloc(elf.R_PPC64_GOT_TPREL_PCREL34, sectoff, elfsym, r.Xadd)
 	case objabi.R_POWER_TLS_IE:
-		out.Write64(uint64(elf.R_PPC64_GOT_TPREL16_HA) | uint64(elfsym)<<32)
-		out.Write64(uint64(r.Xadd))
-		out.Write64(uint64(sectoff + 4))
-		out.Write64(uint64(elf.R_PPC64_GOT_TPREL16_LO_DS) | uint64(elfsym)<<32)
+		sectoff += fixupBe
+		writeElfReloc(elf.R_PPC64_GOT_TPREL16_HA, sectoff, elfsym, r.Xadd)
+		writeElfReloc(elf.R_PPC64_GOT_TPREL16_LO_DS, sectoff+4, elfsym, r.Xadd)
 	case objabi.R_ADDRPOWER:
-		out.Write64(uint64(elf.R_PPC64_ADDR16_HA) | uint64(elfsym)<<32)
-		out.Write64(uint64(r.Xadd))
-		out.Write64(uint64(sectoff + 4))
-		out.Write64(uint64(elf.R_PPC64_ADDR16_LO) | uint64(elfsym)<<32)
+		sectoff += fixupBe
+		writeElfReloc(elf.R_PPC64_ADDR16_HA, sectoff, elfsym, r.Xadd)
+		writeElfReloc(elf.R_PPC64_ADDR16_LO, sectoff+4, elfsym, r.Xadd)
 	case objabi.R_ADDRPOWER_DS:
-		out.Write64(uint64(elf.R_PPC64_ADDR16_HA) | uint64(elfsym)<<32)
-		out.Write64(uint64(r.Xadd))
-		out.Write64(uint64(sectoff + 4))
-		out.Write64(uint64(elf.R_PPC64_ADDR16_LO_DS) | uint64(elfsym)<<32)
+		sectoff += fixupBe
+		writeElfReloc(elf.R_PPC64_ADDR16_HA, sectoff, elfsym, r.Xadd)
+		writeElfReloc(elf.R_PPC64_ADDR16_LO_DS, sectoff+4, elfsym, r.Xadd)
 	case objabi.R_ADDRPOWER_GOT:
-		out.Write64(uint64(elf.R_PPC64_GOT16_HA) | uint64(elfsym)<<32)
-		out.Write64(uint64(r.Xadd))
-		out.Write64(uint64(sectoff + 4))
-		out.Write64(uint64(elf.R_PPC64_GOT16_LO_DS) | uint64(elfsym)<<32)
+		sectoff += fixupBe
+		writeElfReloc(elf.R_PPC64_GOT16_HA, sectoff, elfsym, r.Xadd)
+		writeElfReloc(elf.R_PPC64_GOT16_LO_DS, sectoff+4, elfsym, r.Xadd)
 	case objabi.R_ADDRPOWER_GOT_PCREL34:
-		out.Write64(uint64(elf.R_PPC64_GOT_PCREL34) | uint64(elfsym)<<32)
+		writeElfReloc(elf.R_PPC64_GOT_PCREL34, sectoff, elfsym, r.Xadd)
 	case objabi.R_ADDRPOWER_PCREL:
-		out.Write64(uint64(elf.R_PPC64_REL16_HA) | uint64(elfsym)<<32)
-		out.Write64(uint64(r.Xadd))
-		out.Write64(uint64(sectoff + 4))
-		out.Write64(uint64(elf.R_PPC64_REL16_LO) | uint64(elfsym)<<32)
-		r.Xadd += 4
+		sectoff += fixupBe
+		addend := r.Xadd + fixupBe
+		writeElfReloc(elf.R_PPC64_REL16_HA, sectoff, elfsym, addend)
+		writeElfReloc(elf.R_PPC64_REL16_LO, sectoff+4, elfsym, addend+4)
 	case objabi.R_ADDRPOWER_TOCREL:
-		out.Write64(uint64(elf.R_PPC64_TOC16_HA) | uint64(elfsym)<<32)
-		out.Write64(uint64(r.Xadd))
-		out.Write64(uint64(sectoff + 4))
-		out.Write64(uint64(elf.R_PPC64_TOC16_LO) | uint64(elfsym)<<32)
+		sectoff += fixupBe
+		writeElfReloc(elf.R_PPC64_TOC16_HA, sectoff, elfsym, r.Xadd)
+		writeElfReloc(elf.R_PPC64_TOC16_LO, sectoff+4, elfsym, r.Xadd)
 	case objabi.R_ADDRPOWER_TOCREL_DS:
-		out.Write64(uint64(elf.R_PPC64_TOC16_HA) | uint64(elfsym)<<32)
-		out.Write64(uint64(r.Xadd))
-		out.Write64(uint64(sectoff + 4))
-		out.Write64(uint64(elf.R_PPC64_TOC16_LO_DS) | uint64(elfsym)<<32)
+		sectoff += fixupBe
+		writeElfReloc(elf.R_PPC64_TOC16_HA, sectoff, elfsym, r.Xadd)
+		writeElfReloc(elf.R_PPC64_TOC16_LO_DS, sectoff+4, elfsym, r.Xadd)
 	case objabi.R_CALLPOWER:
 		if r.Size != 4 {
 			return false
 		}
 		if !hasPCrel {
-			out.Write64(uint64(elf.R_PPC64_REL24) | uint64(elfsym)<<32)
+			writeElfReloc(elf.R_PPC64_REL24, sectoff, elfsym, r.Xadd)
 		} else {
 			// TOC is not used in PCrel compiled Go code.
-			out.Write64(uint64(elf.R_PPC64_REL24_NOTOC) | uint64(elfsym)<<32)
+			writeElfReloc(elf.R_PPC64_REL24_NOTOC, sectoff, elfsym, r.Xadd)
 		}
-
 	}
-	out.Write64(uint64(r.Xadd))
 
 	return true
 }

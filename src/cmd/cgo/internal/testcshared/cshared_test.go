@@ -462,7 +462,7 @@ func GoFunc%d() {}
 
 	// NumberOfNames is the number of functions exported with a unique name.
 	// NumberOfFunctions can be higher than that because it also counts
-	// functions exported only by ordinal, a unique number asigned by the linker,
+	// functions exported only by ordinal, a unique number assigned by the linker,
 	// and linkers might add an unknown number of their own ordinal-only functions.
 	if wantAll {
 		if e.NumberOfNames <= uint32(exportedSymbols) {

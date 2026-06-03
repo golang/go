@@ -12,6 +12,9 @@ import (
 	"testing"
 )
 
+// Errno must implement error on all platforms, including plan9.
+var _ error = syscall.Errno(0)
+
 func testSetGetenv(t *testing.T, key, value string) {
 	err := syscall.Setenv(key, value)
 	if err != nil {

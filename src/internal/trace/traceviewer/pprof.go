@@ -56,6 +56,7 @@ func SVGProfileHandlerFunc(f ProfileFunc) http.HandlerFunc {
 		records, err := f(r)
 		if err != nil {
 			http.Error(w, fmt.Sprintf("failed to generate profile: %v", err), http.StatusInternalServerError)
+			return
 		}
 		blockb := bufio.NewWriter(blockf)
 		if err := BuildProfile(records).Write(blockb); err != nil {

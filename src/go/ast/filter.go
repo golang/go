@@ -358,7 +358,6 @@ func MergePackageFiles(pkg *Package, mode MergeMode) *File {
 	i := 0
 	for filename, f := range pkg.Files {
 		filenames[i] = filename
-		i++
 		if f.Doc != nil {
 			ndocs += len(f.Doc.List) + 1 // +1 for separator
 		}
@@ -370,6 +369,7 @@ func MergePackageFiles(pkg *Package, mode MergeMode) *File {
 		if i == 0 || f.FileEnd > maxPos {
 			maxPos = f.FileEnd
 		}
+		i++
 	}
 	slices.Sort(filenames)
 

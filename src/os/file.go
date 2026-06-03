@@ -428,9 +428,6 @@ func openDir(name string) (*File, error) {
 	return openDirNolog(name)
 }
 
-// lstat is overridden in tests.
-var lstat = Lstat
-
 // Rename renames (moves) oldpath to newpath.
 // If newpath already exists and is not a directory, Rename replaces it.
 // If newpath already exists and is a directory, Rename returns an error.

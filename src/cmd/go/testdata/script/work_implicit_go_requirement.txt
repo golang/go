@@ -2,7 +2,7 @@
 # go directive in a go.work file so 1.18 is implicitly required.
 
 ! go list
-stderr 'go: module . listed in go.work file requires go >= 1.21, but go.work implicitly requires go 1.18; to update it:\s+go work use'
+stderr 'go: module . listed in go.work file requires go >= 1.21, but go.work implicitly requires go 1.18; to download and use go 1.21:\s+go work use'
 
 go work use
 go list

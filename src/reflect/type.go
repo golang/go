@@ -906,27 +906,11 @@ func (t *rtype) CanSeq() bool {
 	case Int8, Int16, Int32, Int64, Int, Uint8, Uint16, Uint32, Uint64, Uint, Uintptr, Array, Slice, Chan, String, Map:
 		return true
 	case Func:
-		return canRangeFunc(&t.t)
+		return canRangeFunc(&t.t, 1)
 	case Pointer:
 		return t.Elem().Kind() == Array
 	}
 	return false
-}
-
-func canRangeFunc(t *abi.Type) bool {
-	if t.Kind() != abi.Func {
-		return false
-	}
-	f := t.FuncType()
-	if f.InCount != 1 || f.OutCount != 0 {
-		return false
-	}
-	y := f.In(0)
-	if y.Kind() != abi.Func {
-		return false
-	}
-	yield := y.FuncType()
-	return yield.InCount == 1 && yield.OutCount == 1 && yield.Out(0).Kind() == abi.Bool
 }
 
 func (t *rtype) CanSeq2() bool {
@@ -934,14 +918,14 @@ func (t *rtype) CanSeq2() bool {
 	case Array, Slice, String, Map:
 		return true
 	case Func:
-		return canRangeFunc2(&t.t)
+		return canRangeFunc(&t.t, 2)
 	case Pointer:
 		return t.Elem().Kind() == Array
 	}
 	return false
 }
 
-func canRangeFunc2(t *abi.Type) bool {
+func canRangeFunc(t *abi.Type, seq uint16) bool {
 	if t.Kind() != abi.Func {
 		return false
 	}
@@ -954,7 +938,7 @@ func canRangeFunc2(t *abi.Type) bool {
 		return false
 	}
 	yield := y.FuncType()
-	return yield.InCount == 2 && yield.OutCount == 1 && yield.Out(0).Kind() == abi.Bool
+	return yield.InCount == seq && yield.OutCount == 1 && yield.Out(0).Kind() == abi.Bool && toRType(yield.Out(0)).PkgPath() == ""
 }
 
 func (t *rtype) Fields() iter.Seq[StructField] {
@@ -1726,26 +1710,18 @@ func haveIdenticalUnderlyingType(T, V *abi.Type, cmpTags bool) bool {
 	return false
 }
 
-// typelinks is implemented in package runtime.
-// It returns a slice of the sections in each module,
-// and a slice of *rtype offsets in each module.
-//
-// The types in each module are sorted by string. That is, the first
-// two linked types of the first module are:
-//
-//	d0 := sections[0]
-//	t1 := (*rtype)(add(d0, offset[0][0]))
-//	t2 := (*rtype)(add(d0, offset[0][1]))
-//
-// and
-//
-//	t1.String() < t2.String()
+// compiledTypelinks is implemented in package runtime.
+// It returns the types defined by the first module,
+// and a slice of types defined in any other modules.
+// Each slice of types is sorted by string.
 //
 // Note that strings are not unique identifiers for types:
 // there can be more than one with a given string.
 // Only types we might want to look up are included:
 // pointers, channels, maps, slices, and arrays.
-func typelinks() (sections []unsafe.Pointer, offset [][]int32)
+//
+//go:linknamestd compiledTypelinks
+func compiledTypelinks() ([]*abi.Type, [][]*abi.Type)
 
 // rtypeOff should be an internal detail,
 // but widely used packages access it using linkname.
@@ -1760,7 +1736,7 @@ func rtypeOff(section unsafe.Pointer, off int32) *abi.Type {
 	return (*abi.Type)(add(section, uintptr(off), "sizeof(rtype) > 0"))
 }
 
-// typesByString returns the subslice of typelinks() whose elements have
+// typesByString returns all known types whose elements have
 // the given string representation.
 // It may be empty (no known types with that string) or may have
 // multiple elements (multiple types with that string).
@@ -1776,19 +1752,17 @@ func rtypeOff(section unsafe.Pointer, off int32) *abi.Type {
 //
 //go:linkname typesByString
 func typesByString(s string) []*abi.Type {
-	sections, offset := typelinks()
+	first, rest := compiledTypelinks()
 	var ret []*abi.Type
 
-	for offsI, offs := range offset {
-		section := sections[offsI]
-
+	searchTypes := func(types []*abi.Type) {
 		// We are looking for the first index i where the string becomes >= s.
 		// This is a copy of sort.Search, with f(h) replaced by (*typ[h].String() >= s).
-		i, j := 0, len(offs)
+		i, j := 0, len(types)
 		for i < j {
 			h := int(uint(i+j) >> 1) // avoid overflow when computing h
 			// i ≤ h < j
-			if !(stringFor(rtypeOff(section, offs[h])) >= s) {
+			if !(stringFor(types[h]) >= s) {
 				i = h + 1 // preserves f(i-1) == false
 			} else {
 				j = h // preserves f(j) == true
@@ -1799,14 +1773,20 @@ func typesByString(s string) []*abi.Type {
 		// Having found the first, linear scan forward to find the last.
 		// We could do a second binary search, but the caller is going
 		// to do a linear scan anyway.
-		for j := i; j < len(offs); j++ {
-			typ := rtypeOff(section, offs[j])
+		for j := i; j < len(types); j++ {
+			typ := types[j]
 			if stringFor(typ) != s {
 				break
 			}
 			ret = append(ret, typ)
 		}
 	}
+
+	searchTypes(first)
+	for _, r := range rest {
+		searchTypes(r)
+	}
+
 	return ret
 }
 
@@ -2303,7 +2283,7 @@ func StructOf(fields []StructField) Type {
 			if pkgpath == "" {
 				pkgpath = fpkgpath
 			} else if pkgpath != fpkgpath {
-				panic("reflect.Struct: fields with different PkgPath " + pkgpath + " and " + fpkgpath)
+				panic("reflect.StructOf: fields with different PkgPath " + pkgpath + " and " + fpkgpath)
 			}
 		}
 
@@ -2797,7 +2777,7 @@ func adjustAIXGCData(addr *byte) *byte {
 // adjustAIXGCDataForRuntime adjusts the GCData field pointer
 // as the runtime requires for AIX. See runtime.getGCMaskOnDemand.
 //
-//go:linkname adjustAIXGCDataForRuntime
+//go:linknamestd adjustAIXGCDataForRuntime
 //go:noescape
 func adjustAIXGCDataForRuntime(*byte) *byte
 

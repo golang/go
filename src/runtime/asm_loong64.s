@@ -21,33 +21,15 @@ TEXT _rt0_loong64_lib(SB),NOSPLIT,$168
 	MOVV	R4, _rt0_loong64_lib_argc<>(SB)
 	MOVV	R5, _rt0_loong64_lib_argv<>(SB)
 
-	// Synchronous initialization.
-	MOVV	$runtime·libpreinit(SB), R19
+	MOVV	$runtime·libInit(SB), R19
 	JAL	(R19)
 
-	// Create a new thread to do the runtime initialization and return.
-	MOVV	_cgo_sys_thread_create(SB), R19
-	BEQ	R19, nocgo
-	MOVV	$_rt0_loong64_lib_go(SB), R4
-	MOVV	$0, R5
-	JAL	(R19)
-	JMP	restore
-
-nocgo:
-	MOVV	$0x800000, R4                     // stacksize = 8192KB
-	MOVV	$_rt0_loong64_lib_go(SB), R5
-	MOVV	R4, 8(R3)
-	MOVV	R5, 16(R3)
-	MOVV	$runtime·newosproc0(SB), R19
-	JAL	(R19)
-
-restore:
 	// Restore callee-save registers.
 	RESTORE_R22_TO_R31(3*8)
 	RESTORE_F24_TO_F31(13*8)
 	RET
 
-TEXT _rt0_loong64_lib_go(SB),NOSPLIT,$0
+TEXT runtime·rt0_lib_go<ABIInternal>(SB),NOSPLIT,$0
 	MOVV	_rt0_loong64_lib_argc<>(SB), R4
 	MOVV	_rt0_loong64_lib_argv<>(SB), R5
 	MOVV	$runtime·rt0_go(SB),R19
@@ -539,6 +521,7 @@ TEXT ·asmcgocall(SB),NOSPLIT,$0-20
 	// Figure out if we need to switch to m->g0 stack.
 	// We get called to create new OS threads too, and those
 	// come in on the m->g0 stack already.
+	BEQ	g, R0, nosave
 	MOVV	g_m(g), R5
 	MOVV	m_gsignal(R5), R6
 	BEQ	R6, g, g0
@@ -569,6 +552,29 @@ g0:
 	MOVV	R5, R3
 
 	MOVW	R4, ret+16(FP)
+	RET
+
+nosave:
+	// Running on a system stack, perhaps even without a g.
+	// Having no g can happen during thread creation or thread teardown.
+	MOVV	fn+0(FP), R25
+	MOVV	arg+8(FP), R4
+	MOVV	R3, R12
+	ADDV	$-16, R3
+	MOVV	R0, 0(R3)	// Where above code stores g, in case someone looks during debugging.
+	MOVV	R12, 8(R3)	// Save original stack pointer.
+	JAL	(R25)
+	MOVV	8(R3), R3	// Restore stack pointer.
+	MOVW	R4, ret+16(FP)
+	RET
+
+// func asmcgocall_no_g(fn, arg unsafe.Pointer)
+// Call fn(arg) aligned appropriately for the gcc ABI.
+// Called on a system stack, and there may be no g yet.
+TEXT ·asmcgocall_no_g(SB),NOSPLIT,$0-16
+	MOVV	fn+0(FP), R25
+	MOVV	arg+8(FP), R4
+	JAL	(R25)
 	RET
 
 // func cgocallback(fn, frame unsafe.Pointer, ctxt uintptr)
@@ -650,20 +656,19 @@ havem:
 	MOVV	m_curg(R12), g
 	JAL	runtime·save_g(SB)
 	MOVV	(g_sched+gobuf_sp)(g), R13 // prepare stack as R13
-	MOVV	(g_sched+gobuf_pc)(g), R4
-	MOVV	R4, -(24+8)(R13) // "saved LR"; must match frame size
-	MOVV    fn+0(FP), R5
-	MOVV    frame+8(FP), R6
-	MOVV    ctxt+16(FP), R7
-	MOVV	$-(24+8)(R13), R3
-	MOVV    R5, 8(R3)
-	MOVV    R6, 16(R3)
-	MOVV    R7, 24(R3)
-	JAL	runtime·cgocallbackg(SB)
+	MOVV	(g_sched+gobuf_pc)(g), R7
+	MOVV	R7, -(24+8)(R13) // "saved LR"; must match frame size
+
+	MOVV    fn+0(FP), R4
+	MOVV    frame+8(FP), R5
+	MOVV    ctxt+16(FP), R6
+	SUBV	$(24+8), R13	// Allocate the same frame size on the g stack
+	MOVV	R13, R3		// switch stack
+	JAL	runtime·cgocallbackg<ABIInternal>(SB)
 
 	// Restore g->sched (== m->curg->sched) from saved values.
-	MOVV	0(R3), R4
-	MOVV	R4, (g_sched+gobuf_pc)(g)
+	MOVV	0(R3), R7
+	MOVV	R7, (g_sched+gobuf_pc)(g)
 	MOVV	$(24+8)(R3), R13 // must match frame size
 	MOVV	R13, (g_sched+gobuf_sp)(g)
 
@@ -719,16 +724,6 @@ TEXT runtime·abort(SB),NOSPLIT|NOFRAME,$0-0
 	MOVW	(R0), R0
 	UNDEF
 
-// AES hashing not implemented for loong64
-TEXT runtime·memhash<ABIInternal>(SB),NOSPLIT|NOFRAME,$0-32
-	JMP	runtime·memhashFallback<ABIInternal>(SB)
-TEXT runtime·strhash<ABIInternal>(SB),NOSPLIT|NOFRAME,$0-24
-	JMP	runtime·strhashFallback<ABIInternal>(SB)
-TEXT runtime·memhash32<ABIInternal>(SB),NOSPLIT|NOFRAME,$0-24
-	JMP	runtime·memhash32Fallback<ABIInternal>(SB)
-TEXT runtime·memhash64<ABIInternal>(SB),NOSPLIT|NOFRAME,$0-24
-	JMP	runtime·memhash64Fallback<ABIInternal>(SB)
-
 // Called from cgo wrappers, this function returns g->m->curg.stack.hi.
 // Must obey the gcc calling convention.
 TEXT _cgo_topofstack(SB),NOSPLIT,$16
@@ -763,11 +758,6 @@ TEXT runtime·addmoduledata(SB),NOSPLIT,$0-0
 	MOVV	R4, runtime·lastmoduledatap(SB)
 	MOVV	8(R3), R30
 	ADDV	$0x10, R3
-	RET
-
-TEXT ·checkASM(SB),NOSPLIT,$0-1
-	MOVW	$1, R19
-	MOVB	R19, ret+0(FP)
 	RET
 
 // spillArgs stores return values from registers to a *internal/abi.RegArgs in R25.

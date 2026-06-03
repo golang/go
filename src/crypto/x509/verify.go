@@ -110,7 +110,7 @@ func (h HostnameError) Error() string {
 	c := h.Certificate
 	maxNamesIncluded := 100
 
-	if !c.hasSANExtension() && matchHostnames(c.Subject.CommonName, h.Host) {
+	if !c.hasSANExtension() && matchHostnames(c.Subject.CommonName, splitHostname(h.Host)) {
 		return "x509: certificate relies on legacy Common Name field, use SANs instead"
 	}
 
@@ -253,6 +253,10 @@ type rfc2821Mailbox struct {
 	local, domain string
 }
 
+func (s rfc2821Mailbox) String() string {
+	return fmt.Sprintf("%s@%s", s.local, s.domain)
+}
+
 // parseRFC2821Mailbox parses an email address into local and domain parts,
 // based on the ABNF for a “Mailbox” from RFC 2821. According to RFC 5280,
 // Section 4.2.1.6 that's correct for an rfc822Name from a certificate: “The
@@ -384,7 +388,12 @@ func parseRFC2821Mailbox(in string) (mailbox rfc2821Mailbox, ok bool) {
 	// The RFC species a format for domains, but that's known to be
 	// violated in practice so we accept that anything after an '@' is the
 	// domain part.
-	if _, ok := domainToReverseLabels(in); !ok {
+	if !domainNameValid(in, false) {
+		return mailbox, false
+	}
+
+	// Reject domain names containing @.
+	if strings.ContainsRune(in, '@') {
 		return mailbox, false
 	}
 
@@ -686,7 +695,7 @@ func alreadyInChain(candidate *Certificate, chain []*Certificate) bool {
 			continue
 		}
 		// We enforce the canonical encoding of SPKI (by only allowing the
-		// correct AI paremeter encodings in parseCertificate), so it's safe to
+		// correct AI parameter encodings in parseCertificate), so it's safe to
 		// directly compare the raw bytes.
 		if !bytes.Equal(candidate.RawSubjectPublicKeyInfo, cert.RawSubjectPublicKeyInfo) {
 			continue
@@ -716,6 +725,8 @@ func alreadyInChain(candidate *Certificate, chain []*Certificate) bool {
 // for failed checks due to different intermediates having the same Subject.
 const maxChainSignatureChecks = 100
 
+var errSignatureLimit = errors.New("x509: signature check attempts limit reached while verifying certificate chain")
+
 func (c *Certificate) buildChains(currentChain []*Certificate, sigChecks *int, opts *VerifyOptions) (chains [][]*Certificate, err error) {
 	var (
 		hintErr  error
@@ -723,16 +734,16 @@ func (c *Certificate) buildChains(currentChain []*Certificate, sigChecks *int, o
 	)
 
 	considerCandidate := func(certType int, candidate potentialParent) {
-		if candidate.cert.PublicKey == nil || alreadyInChain(candidate.cert, currentChain) {
-			return
-		}
-
 		if sigChecks == nil {
 			sigChecks = new(int)
 		}
 		*sigChecks++
 		if *sigChecks > maxChainSignatureChecks {
-			err = errors.New("x509: signature check attempts limit reached while verifying certificate chain")
+			err = errSignatureLimit
+			return
+		}
+
+		if candidate.cert.PublicKey == nil || alreadyInChain(candidate.cert, currentChain) {
 			return
 		}
 
@@ -773,11 +784,20 @@ func (c *Certificate) buildChains(currentChain []*Certificate, sigChecks *int, o
 		}
 	}
 
-	for _, root := range opts.Roots.findPotentialParents(c) {
-		considerCandidate(rootCertificate, root)
-	}
-	for _, intermediate := range opts.Intermediates.findPotentialParents(c) {
-		considerCandidate(intermediateCertificate, intermediate)
+candidateLoop:
+	for _, parents := range []struct {
+		certType   int
+		potentials []potentialParent
+	}{
+		{rootCertificate, opts.Roots.findPotentialParents(c)},
+		{intermediateCertificate, opts.Intermediates.findPotentialParents(c)},
+	} {
+		for _, parent := range parents.potentials {
+			considerCandidate(parents.certType, parent)
+			if err == errSignatureLimit {
+				break candidateLoop
+			}
+		}
 	}
 
 	if len(chains) > 0 {
@@ -852,16 +872,14 @@ func matchExactly(hostA, hostB string) bool {
 	return toLowerCaseASCII(hostA) == toLowerCaseASCII(hostB)
 }
 
-func matchHostnames(pattern, host string) bool {
+func matchHostnames(pattern string, hostParts []string) bool {
 	pattern = toLowerCaseASCII(pattern)
-	host = toLowerCaseASCII(strings.TrimSuffix(host, "."))
 
-	if len(pattern) == 0 || len(host) == 0 {
+	if len(pattern) == 0 || len(hostParts) == 0 {
 		return false
 	}
 
 	patternParts := strings.Split(pattern, ".")
-	hostParts := strings.Split(host, ".")
 
 	if len(patternParts) != len(hostParts) {
 		return false
@@ -939,6 +957,7 @@ func (c *Certificate) VerifyHostname(h string) error {
 
 	candidateName := toLowerCaseASCII(h) // Save allocations inside the loop.
 	validCandidateName := validHostnameInput(candidateName)
+	hostParts := splitHostname(candidateName)
 
 	for _, match := range c.DNSNames {
 		// Ideally, we'd only match valid hostnames according to RFC 6125 like
@@ -947,7 +966,7 @@ func (c *Certificate) VerifyHostname(h string) error {
 		// always allow perfect matches, and only apply wildcard and trailing
 		// dot processing to valid hostnames.
 		if validCandidateName && validHostnamePattern(match) {
-			if matchHostnames(match, candidateName) {
+			if matchHostnames(match, hostParts) {
 				return nil
 			}
 		} else {
@@ -958,6 +977,10 @@ func (c *Certificate) VerifyHostname(h string) error {
 	}
 
 	return HostnameError{c, h}
+}
+
+func splitHostname(host string) []string {
+	return strings.Split(toLowerCaseASCII(strings.TrimSuffix(host, ".")), ".")
 }
 
 func checkChainForKeyUsage(chain []*Certificate, keyUsages []ExtKeyUsage) bool {
@@ -1280,11 +1303,11 @@ func policiesValid(chain []*Certificate, opts VerifyOptions) bool {
 						} else {
 							// 6.1.4 (b) (3) (i) -- as updated by RFC 9618
 							pg.deleteLeaf(mapping.IssuerDomainPolicy)
-
-							// 6.1.4 (b) (3) (ii) -- as updated by RFC 9618
-							pg.prune()
 						}
 					}
+
+					// 6.1.4 (b) (3) (ii) -- as updated by RFC 9618
+					pg.prune()
 
 					for issuerStr, subjectPolicies := range mappings {
 						// 6.1.4 (b) (1) -- as updated by RFC 9618

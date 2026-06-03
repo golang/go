@@ -20,6 +20,17 @@ import (
 	"unsafe"
 )
 
+// Test that unalgined access to memhash32 doesn't cause a problem.
+func TestMemHash32AlignAccess(t *testing.T) {
+	type Key struct {
+		_ [1]byte
+		k [4]byte
+		_ [3]byte
+	}
+	key := Key{}
+	sink = (uint64)(MemHash32(unsafe.Pointer(&key.k), 0))
+}
+
 func TestMemHash32Equality(t *testing.T) {
 	if *UseAeshash {
 		t.Skip("skipping since AES hash implementation is used")
@@ -35,6 +46,17 @@ func TestMemHash32Equality(t *testing.T) {
 			t.Errorf("MemHash32(%x, %v) = %v; want %v", b, seed, got, want)
 		}
 	}
+}
+
+// Test that unalgined access to memhash64 doesn't cause a problem.
+func TestMemHash64AlignAccess(t *testing.T) {
+	type Key struct {
+		_ [1]byte
+		k [8]byte
+		_ [7]byte
+	}
+	key := Key{}
+	sink = (uint64)(MemHash64(unsafe.Pointer(&key.k), 0))
 }
 
 func TestMemHash64Equality(t *testing.T) {

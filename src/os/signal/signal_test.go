@@ -924,3 +924,25 @@ func TestSignalTrace(t *testing.T) {
 	close(quit)
 	<-done
 }
+
+// #77639.
+func TestNotifyContextCause(t *testing.T) {
+	ctx, stop := NotifyContext(t.Context(), syscall.SIGINT)
+	defer stop()
+	syscall.Kill(syscall.Getpid(), syscall.SIGINT)
+	<-ctx.Done()
+
+	err := ctx.Err()
+	if err == nil {
+		t.Error("ctx.Err returned nil")
+	} else if !errors.Is(err, context.Canceled) {
+		t.Errorf("error %v is not context.Canceled", err)
+	}
+
+	err = context.Cause(ctx)
+	if err == nil {
+		t.Error("context.Cause returned nil")
+	} else if !errors.Is(err, context.Canceled) {
+		t.Errorf("cause %v is not context.Canceled", err)
+	}
+}

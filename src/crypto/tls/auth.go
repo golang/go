@@ -10,6 +10,7 @@ import (
 	"crypto/ecdsa"
 	"crypto/ed25519"
 	"crypto/elliptic"
+	"crypto/mldsa"
 	"crypto/rsa"
 	"errors"
 	"fmt"
@@ -21,6 +22,9 @@ import (
 // verifyHandshakeSignature verifies a signature against unhashed handshake contents.
 func verifyHandshakeSignature(sigType uint8, pubkey crypto.PublicKey, hashFunc crypto.Hash, signed, sig []byte) error {
 	if hashFunc != directSigning {
+		if !hashFunc.Available() {
+			return fmt.Errorf("hash function unavailable: %v", hashFunc)
+		}
 		h := hashFunc.New()
 		h.Write(signed)
 		signed = h.Sum(nil)
@@ -41,6 +45,14 @@ func verifyHandshakeSignature(sigType uint8, pubkey crypto.PublicKey, hashFunc c
 		}
 		if !ed25519.Verify(pubKey, signed, sig) {
 			return errors.New("Ed25519 verification failure")
+		}
+	case signatureMLDSA:
+		pubKey, ok := pubkey.(*mldsa.PublicKey)
+		if !ok {
+			return fmt.Errorf("expected an ML-DSA public key, got %T", pubkey)
+		}
+		if err := mldsa.Verify(pubKey, signed, sig, nil); err != nil {
+			return fmt.Errorf("ML-DSA verification failure: %w", err)
 		}
 	case signaturePKCS1v15:
 		pubKey, ok := pubkey.(*rsa.PublicKey)
@@ -130,6 +142,8 @@ func typeAndHashFromSignatureScheme(signatureAlgorithm SignatureScheme) (sigType
 		sigType = signatureECDSA
 	case Ed25519:
 		sigType = signatureEd25519
+	case MLDSA44, MLDSA65, MLDSA87:
+		sigType = signatureMLDSA
 	default:
 		return 0, 0, fmt.Errorf("unsupported signature algorithm: %v", signatureAlgorithm)
 	}
@@ -143,6 +157,8 @@ func typeAndHashFromSignatureScheme(signatureAlgorithm SignatureScheme) (sigType
 	case PKCS1WithSHA512, PSSWithSHA512, ECDSAWithP521AndSHA512:
 		hash = crypto.SHA512
 	case Ed25519:
+		hash = directSigning
+	case MLDSA44, MLDSA65, MLDSA87:
 		hash = directSigning
 	default:
 		return 0, 0, fmt.Errorf("unsupported signature algorithm: %v", signatureAlgorithm)
@@ -165,6 +181,8 @@ func legacyTypeAndHashFromPublicKey(pub crypto.PublicKey) (sigType uint8, hash c
 		// full signature, and not even OpenSSL bothers with the
 		// complexity, so we can't even test it properly.
 		return 0, 0, fmt.Errorf("tls: Ed25519 public keys are not supported before TLS 1.2")
+	case *mldsa.PublicKey:
+		return 0, 0, fmt.Errorf("tls: ML-DSA public keys are not supported before TLS 1.3")
 	default:
 		return 0, 0, fmt.Errorf("tls: unsupported public key: %T", pub)
 	}
@@ -221,6 +239,17 @@ func signatureSchemesForPublicKey(version uint16, pub crypto.PublicKey) []Signat
 		return sigAlgs
 	case ed25519.PublicKey:
 		return []SignatureScheme{Ed25519}
+	case *mldsa.PublicKey:
+		switch pub.Parameters() {
+		case mldsa.MLDSA44():
+			return []SignatureScheme{MLDSA44}
+		case mldsa.MLDSA65():
+			return []SignatureScheme{MLDSA65}
+		case mldsa.MLDSA87():
+			return []SignatureScheme{MLDSA87}
+		default:
+			panic("tls: internal error: unknown ML-DSA parameter set: " + pub.Parameters().String())
+		}
 	default:
 		return nil
 	}
@@ -297,6 +326,8 @@ func unsupportedCertificateError(cert *Certificate) error {
 	case *rsa.PublicKey:
 		return fmt.Errorf("tls: certificate RSA key size too small for supported signature algorithms")
 	case ed25519.PublicKey:
+	case *mldsa.PublicKey:
+		return errors.New("tls: ML-DSA certificates require TLS 1.3")
 	default:
 		return fmt.Errorf("tls: unsupported certificate key (%T)", pub)
 	}

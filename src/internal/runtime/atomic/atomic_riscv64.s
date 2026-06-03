@@ -82,9 +82,9 @@ TEXT ·Load(SB),NOSPLIT|NOFRAME,$0-12
 // func Load8(ptr *uint8) uint8
 TEXT ·Load8(SB),NOSPLIT|NOFRAME,$0-9
 	MOV	ptr+0(FP), A0
-	FENCE
+	FENCE	RW, RW
 	MOVBU	(A0), A1
-	FENCE
+	FENCE	R, RW
 	MOVB	A1, ret+8(FP)
 	RET
 
@@ -106,9 +106,9 @@ TEXT ·Store(SB), NOSPLIT, $0-12
 TEXT ·Store8(SB), NOSPLIT, $0-9
 	MOV	ptr+0(FP), A0
 	MOVBU	val+8(FP), A1
-	FENCE
+	FENCE	RW, W
 	MOVB	A1, (A0)
-	FENCE
+	FENCE	RW, RW
 	RET
 
 // func Store64(ptr *uint64, val uint64)

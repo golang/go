@@ -5,10 +5,14 @@
 #include "go_asm.h"
 #include "textflag.h"
 
-TEXT ·StdCall<ABIInternal>(SB),NOSPLIT,$0
-	JMP	·asmstdcall(SB)
+TEXT ·StdCall<ABIInternal>(SB),NOSPLIT,$4-8
+	MOVL	fn+0(FP), AX
+	MOVL	AX, 0(SP)
+	CALL	·asmstdcall(SB)
+	MOVL	AX, ret+4(FP)
+	RET
 
-TEXT ·asmstdcall(SB),NOSPLIT,$0
+TEXT ·asmstdcall(SB),NOSPLIT,$0-4
 	MOVL	fn+0(FP), BX
 	MOVL	SP, BP	// save stack pointer
 
@@ -43,6 +47,5 @@ docall:
 
 	// GetLastError().
 	MOVL	0x34(FS), AX
-	MOVL	AX, StdCallInfo_Err(BX)
 
 	RET

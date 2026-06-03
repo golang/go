@@ -40,11 +40,7 @@ func newFileFD(f *os.File) (*netFD, error) {
 		poll.CloseFunc(s)
 		return nil, syscall.EPROTONOSUPPORT
 	}
-	fd, err := newFD(s, family, sotype, "")
-	if err != nil {
-		poll.CloseFunc(s)
-		return nil, err
-	}
+	fd := newFD(s, family, sotype, "")
 	laddr := fd.addrFunc()(lsa)
 	raddr := fd.addrFunc()(rsa)
 	fd.net = laddr.Network()

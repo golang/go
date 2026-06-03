@@ -414,6 +414,20 @@ func TestARM64Encoder(t *testing.T) {
 	testEndToEnd(t, "arm64", "arm64enc")
 }
 
+func TestARM64SVEEncoder(t *testing.T) {
+	if !buildcfg.Experiment.SIMD {
+		t.Skip("test requires GOEXPERIMENT=simd")
+	}
+	testEndToEnd(t, "arm64", "arm64sveenc")
+}
+
+func TestARM64SVEErrors(t *testing.T) {
+	if !buildcfg.Experiment.SIMD {
+		t.Skip("test requires GOEXPERIMENT=simd")
+	}
+	testErrors(t, "arm64", "arm64sveerror")
+}
+
 func TestARM64Errors(t *testing.T) {
 	testErrors(t, "arm64", "arm64error")
 }

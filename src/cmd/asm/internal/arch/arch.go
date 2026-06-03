@@ -275,6 +275,15 @@ func archArm64() *Arch {
 	for i := arm64.REG_V0; i <= arm64.REG_V31; i++ {
 		register[obj.Rconv(i)] = int16(i)
 	}
+	for i := arm64.REG_Z0; i <= arm64.REG_Z31; i++ {
+		register[obj.Rconv(i)] = int16(i)
+	}
+	for i := arm64.REG_P0; i <= arm64.REG_P15; i++ {
+		register[obj.Rconv(i)] = int16(i)
+	}
+	for i := arm64.REG_PN0; i <= arm64.REG_PN15; i++ {
+		register[obj.Rconv(i)] = int16(i)
+	}
 
 	// System registers.
 	for i := 0; i < len(arm64.SystemReg); i++ {
@@ -292,9 +301,12 @@ func archArm64() *Arch {
 	delete(register, "R28")
 	register["g"] = arm64.REG_R28
 	registerPrefix := map[string]bool{
-		"F": true,
-		"R": true,
-		"V": true,
+		"F":  true,
+		"R":  true,
+		"V":  true,
+		"Z":  true,
+		"P":  true,
+		"PN": true,
 	}
 
 	instructions := make(map[string]obj.As)

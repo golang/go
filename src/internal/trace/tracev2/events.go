@@ -555,6 +555,8 @@ func (s ProcStatus) String() string {
 		return "Idle"
 	case ProcSyscall:
 		return "Syscall"
+	case ProcSyscallAbandoned:
+		return "SyscallAbandoned"
 	}
 	return "Bad"
 }

@@ -11,24 +11,20 @@ import (
 
 	"golang.org/x/tools/go/analysis"
 	"golang.org/x/tools/internal/analysis/analyzerutil"
-	"golang.org/x/tools/internal/goplsexport"
 	"golang.org/x/tools/internal/versions"
 )
 
-var plusBuildAnalyzer = &analysis.Analyzer{
+var PlusBuildAnalyzer = &analysis.Analyzer{
 	Name: "plusbuild",
 	Doc:  analyzerutil.MustExtractDoc(doc, "plusbuild"),
 	URL:  "https://pkg.go.dev/golang.org/x/tools/go/analysis/passes/modernize#plusbuild",
 	Run:  plusbuild,
 }
 
-func init() {
-	// Export to gopls until this is a published modernizer.
-	goplsexport.PlusBuildModernizer = plusBuildAnalyzer
-}
-
 func plusbuild(pass *analysis.Pass) (any, error) {
 	check := func(f *ast.File) {
+		// "//go:build" directives were added in go1.17, but
+		// we didn't start eliminating +build directives till go1.18.
 		if !analyzerutil.FileUsesGoVersion(pass, f, versions.Go1_18) {
 			return
 		}

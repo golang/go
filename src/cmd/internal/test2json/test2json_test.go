@@ -5,14 +5,22 @@
 package test2json
 
 import (
+	"bufio"
 	"bytes"
+	"cmd/internal/script"
+	"cmd/internal/script/scripttest"
+	"context"
 	"encoding/json"
+	"errors"
 	"flag"
 	"fmt"
+	"internal/txtar"
 	"io"
+	"io/fs"
 	"os"
 	"path/filepath"
 	"reflect"
+	"regexp"
 	"strings"
 	"testing"
 	"unicode/utf8"
@@ -21,6 +29,8 @@ import (
 var update = flag.Bool("update", false, "rewrite testdata/*.json files")
 
 func TestGolden(t *testing.T) {
+	ctx := scripttest.ScriptTestContext(t, context.Background())
+	engine, env := scripttest.NewEngine(t, nil)
 	files, err := filepath.Glob("testdata/*.test")
 	if err != nil {
 		t.Fatal(err)
@@ -31,6 +41,29 @@ func TestGolden(t *testing.T) {
 			orig, err := os.ReadFile(file)
 			if err != nil {
 				t.Fatal(err)
+			}
+
+			// If there's a corresponding *.src script, execute it
+			srcFile := strings.TrimSuffix(file, ".test") + ".src"
+			if st, err := os.Stat(srcFile); err != nil {
+				if !errors.Is(err, fs.ErrNotExist) {
+					t.Fatal(err)
+				}
+			} else if !st.IsDir() {
+				t.Run("go test", func(t *testing.T) {
+					stdout := runTest(t, ctx, engine, env, srcFile)
+
+					if *update {
+						t.Logf("rewriting %s", file)
+						if err := os.WriteFile(file, []byte(stdout), 0666); err != nil {
+							t.Fatal(err)
+						}
+						orig = []byte(stdout)
+						return
+					}
+
+					diffRaw(t, []byte(stdout), orig)
+				})
 			}
 
 			// Test one line written to c at a time.
@@ -139,6 +172,78 @@ func TestGolden(t *testing.T) {
 			}
 		})
 	}
+}
+
+func runTest(t *testing.T, ctx context.Context, engine *script.Engine, env []string, srcFile string) string {
+	workdir := t.TempDir()
+	s, err := script.NewState(ctx, workdir, env)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	// Unpack archive.
+	a, err := txtar.ParseFile(srcFile)
+	if err != nil {
+		t.Fatal(err)
+	}
+	scripttest.InitScriptDirs(t, s)
+	if err := s.ExtractFiles(a); err != nil {
+		t.Fatal(err)
+	}
+
+	err, stdout := func() (err error, stdout string) {
+		log := new(strings.Builder)
+
+		// Defer writing to the test log in case the script engine panics during execution,
+		// but write the log before we write the final "skip" or "FAIL" line.
+		t.Helper()
+		defer func() {
+			t.Helper()
+
+			stdout = s.Stdout()
+			if closeErr := s.CloseAndWait(log); err == nil {
+				err = closeErr
+			}
+
+			if log.Len() > 0 && (testing.Verbose() || err != nil) {
+				t.Log(strings.TrimSuffix(log.String(), "\n"))
+			}
+		}()
+
+		if testing.Verbose() {
+			// Add the environment to the start of the script log.
+			wait, err := script.Env().Run(s)
+			if err != nil {
+				t.Fatal(err)
+			}
+			if wait != nil {
+				stdout, stderr, err := wait(s)
+				if err != nil {
+					t.Fatalf("env: %v\n%s", err, stderr)
+				}
+				if len(stdout) > 0 {
+					s.Logf("%s\n", stdout)
+				}
+			}
+		}
+
+		testScript := bytes.NewReader(a.Comment)
+		err = engine.Execute(s, srcFile, bufio.NewReader(testScript), log)
+		return
+	}()
+	if skip := (scripttest.SkipError{}); errors.As(err, &skip) {
+		t.Skipf("SKIP: %v", skip)
+	} else if err != nil {
+		t.Fatalf("FAIL: %v", err)
+	}
+
+	// Remove the output after "=== NAME"
+	i := strings.LastIndex(stdout, "\n\x16=== NAME")
+	if i >= 0 {
+		stdout = stdout[:i+1]
+	}
+
+	return stdout
 }
 
 // writeAndKill writes b to w and then fills b with Zs.
@@ -269,6 +374,56 @@ func diffJSON(t *testing.T, have, want []byte) {
 		t.Errorf("extra events in stream")
 		fail()
 	}
+}
+
+var reRuntime = regexp.MustCompile(`\d*\.\d*s`)
+
+func diffRaw(t *testing.T, have, want []byte) {
+	have = bytes.TrimSpace(have)
+	want = bytes.TrimSpace(want)
+
+	// Replace durations (e.g. 0.01s) with a placeholder
+	have = reRuntime.ReplaceAll(have, []byte("X.XXs"))
+	want = reRuntime.ReplaceAll(want, []byte("X.XXs"))
+
+	// Compare
+	if bytes.Equal(have, want) {
+		return
+	}
+
+	// Escape non-printing characters to make the error more legible
+	have = escapeNonPrinting(have)
+	want = escapeNonPrinting(want)
+
+	// Find where the output differs and remember the last newline
+	var i, nl int
+	for i < len(have) && i < len(want) && have[i] == want[i] {
+		if have[i] == '\n' {
+			nl = i
+		}
+	}
+
+	if nl == 0 {
+		t.Fatalf("\nhave:\n%s\nwant:\n%s", have, want)
+	} else {
+		nl++
+		t.Fatalf("\nhave:\n%s» %s\nwant:\n%s» %s", have[:nl], have[nl:], want[:nl], want[nl:])
+	}
+}
+
+func escapeNonPrinting(buf []byte) []byte {
+	for i := 0; i < len(buf); i++ {
+		c := buf[i]
+		if 0x20 <= c && c < 0x7F || c > 0x7F || c == '\n' {
+			continue
+		}
+		escaped := fmt.Sprintf(`\x%02x`, c)
+		buf = append(buf[:i+len(escaped)], buf[i+1:]...)
+		for j := 0; j < len(escaped); j++ {
+			buf[i+j] = escaped[j]
+		}
+	}
+	return buf
 }
 
 func TestTrimUTF8(t *testing.T) {

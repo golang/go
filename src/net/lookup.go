@@ -487,6 +487,11 @@ func (r *Resolver) LookupCNAME(ctx context.Context, host string) (string, error)
 // publishing SRV records under non-standard names, if both service
 // and proto are empty strings, LookupSRV looks up name directly.
 //
+// The returned cname is the owner name from the first SRV answer
+// record, which is typically the constructed DNS name
+// (_service._proto.name) but may differ if CNAME records redirect
+// the query to another name.
+//
 // The returned service names are validated to be properly
 // formatted presentation-format domain names. If the response contains
 // invalid names, those records are filtered out and an error
@@ -504,6 +509,11 @@ func LookupSRV(service, proto, name string) (cname string, addrs []*SRV, err err
 // That is, it looks up _service._proto.name. To accommodate services
 // publishing SRV records under non-standard names, if both service
 // and proto are empty strings, LookupSRV looks up name directly.
+//
+// The returned cname is the owner name from the first SRV answer
+// record, which is typically the constructed DNS name
+// (_service._proto.name) but may differ if CNAME records redirect
+// the query to another name.
 //
 // The returned service names are validated to be properly
 // formatted presentation-format domain names. If the response contains

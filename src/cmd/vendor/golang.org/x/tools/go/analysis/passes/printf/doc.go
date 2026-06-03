@@ -57,6 +57,16 @@
 //
 //	fmt.Printf("%s", message)
 //
+// The %w verb, as used in fmt.Errorf, should have an operand whose type
+// implements error, not a pointer to a type that implements error. Using a
+// pointer can result in surprising behavior when passing the resulting error to
+// errors.Is and errors.As. In the example below, MyError implements error:
+//
+//	// %w wants operand of error type MyError, not pointer type *MyError (defeats errors.Is)
+//	err := fmt.Errorf("%w", &MyError{Msg: "my error"})
+//
+// This feature applies only to files using at least Go 1.27.
+//
 // # Inferred printf wrappers
 //
 // Functions that delegate their arguments to fmt.Printf are

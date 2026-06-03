@@ -51,7 +51,7 @@ func main() {
 		defer func() {
 			v = &Impl{}
 		}()
-		v. // A() is on a sepearate line
+		v. // A() is on a separate line
 			A()
 	})
 	shouldNilPanic(64, func() {
@@ -60,7 +60,7 @@ func main() {
 			v = &Impl{}
 			v = &Impl2{} // assign different type, such that the call below does not get devirtualized
 		}()
-		v. // A() is on a sepearate line
+		v. // A() is on a separate line
 			A()
 	})
 }

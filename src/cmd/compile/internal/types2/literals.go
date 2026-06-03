@@ -160,7 +160,7 @@ func (check *Checker) compositeLit(x *operand, e *syntax.CompositeLit, hint Type
 		fields := utyp.fields
 		if _, ok := e.ElemList[0].(*syntax.KeyValueExpr); ok {
 			// all elements must have keys
-			visited := make([]bool, len(fields))
+			visited := make(trie[*Var])
 			for _, e := range e.ElemList {
 				kv, _ := e.(*syntax.KeyValueExpr)
 				if kv == nil {
@@ -170,31 +170,46 @@ func (check *Checker) compositeLit(x *operand, e *syntax.CompositeLit, hint Type
 				key, _ := kv.Key.(*syntax.Name)
 				// do all possible checks early (before exiting due to errors)
 				// so we don't drop information on the floor
-				check.expr(nil, x, kv.Value)
+				check.genericExpr(x, kv.Value, nil)
 				if key == nil {
 					check.errorf(kv, InvalidLitField, "invalid field name %s in struct literal", kv.Key)
 					continue
 				}
-				i := fieldIndex(fields, check.pkg, key.Value, false)
-				if i < 0 {
-					var alt Object
-					if j := fieldIndex(fields, check.pkg, key.Value, true); j >= 0 {
-						alt = fields[j]
-					}
+				obj, index, indirect := lookupFieldOrMethod(utyp, false, check.pkg, key.Value, false)
+				if obj == nil {
+					alt, _, _ := lookupFieldOrMethod(utyp, false, check.pkg, key.Value, true)
 					msg := check.lookupError(base, key.Value, alt, true)
 					check.error(kv.Key, MissingLitField, msg)
 					continue
 				}
-				fld := fields[i]
+				fld, _ := obj.(*Var)
+				if fld == nil {
+					check.errorf(kv.Key, MissingLitField, "%s is not a field", kv.Key)
+					continue
+				}
+				if check.allowVersion(go1_27) {
+					if indirect {
+						check.errorf(kv.Key, InvalidLitField, "invalid implicit pointer indirection to reach %s", kv.Key)
+						continue
+					}
+				} else {
+					if len(index) > 1 {
+						check.errorf(kv.Key, InvalidLitField, "cannot use promoted field %s in struct literal of type %s", fieldPath(utyp, index), base)
+						continue
+					}
+				}
 				check.recordUse(key, fld)
 				etyp := fld.typ
 				check.assignment(x, etyp, "struct literal")
-				// 0 <= i < len(fields)
-				if visited[i] {
-					check.errorf(kv, DuplicateLitField, "duplicate field name %s in struct literal", key.Value)
-					continue
+				if alt, n := visited.insert(index, fld); n != 0 {
+					if fld == alt {
+						check.errorf(kv, DuplicateLitField, "duplicate field name %s in struct literal", fld.name)
+					} else if n < len(index) {
+						check.errorf(kv, DuplicateLitField, "cannot specify promoted field %s and enclosing embedded field %s", fld.name, alt.name)
+					} else { // n > len(index)
+						check.errorf(kv, DuplicateLitField, "cannot specify embedded field %s and enclosed promoted field %s", fld.name, alt.name)
+					}
 				}
-				visited[i] = true
 			}
 		} else {
 			// no element must have a key
@@ -203,7 +218,7 @@ func (check *Checker) compositeLit(x *operand, e *syntax.CompositeLit, hint Type
 					check.error(kv, MixedStructLit, "mixture of field:value and value elements in struct literal")
 					continue
 				}
-				check.expr(nil, x, e)
+				check.genericExpr(x, e, nil)
 				if i >= len(fields) {
 					check.errorf(x, InvalidStructLit, "too many values in struct literal of type %s", base)
 					break // cannot continue
@@ -259,7 +274,7 @@ func (check *Checker) compositeLit(x *operand, e *syntax.CompositeLit, hint Type
 				check.error(e, MissingLitKey, "missing key in map literal")
 				continue
 			}
-			check.exprWithHint(x, kv.Key, utyp.key)
+			check.genericExpr(x, kv.Key, utyp.key)
 			check.assignment(x, utyp.key, "map literal")
 			if !x.isValid() {
 				continue
@@ -284,7 +299,7 @@ func (check *Checker) compositeLit(x *operand, e *syntax.CompositeLit, hint Type
 					continue
 				}
 			}
-			check.exprWithHint(x, kv.Value, utyp.elem)
+			check.genericExpr(x, kv.Value, utyp.elem)
 			check.assignment(x, utyp.elem, "map literal")
 		}
 
@@ -361,7 +376,7 @@ func (check *Checker) indexedElts(elts []syntax.Expr, typ Type, length int64) in
 
 		// check element against composite literal element type
 		var x operand
-		check.exprWithHint(&x, eval, typ)
+		check.genericExpr(&x, eval, typ)
 		check.assignment(&x, typ, "array or slice literal")
 	}
 	return max

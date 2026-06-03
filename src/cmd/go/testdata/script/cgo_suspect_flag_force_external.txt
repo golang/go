@@ -91,6 +91,36 @@ go build -x -n -o dummy.exe ./usesInternalCgo
 ! stderr preferlinkext
 env CGO_CFLAGS=
 
+# CGO_LDFLAGS with -static variants are not compatible with internal linking.
+env CGO_LDFLAGS=-static
+go build -x -n -o dummy.exe ./usesInternalCgo
+stderr preferlinkext
+env CGO_LDFLAGS=--static
+go build -x -n -o dummy.exe ./usesInternalCgo
+stderr preferlinkext
+env CGO_LDFLAGS=-Wl,-static
+go build -x -n -o dummy.exe ./usesInternalCgo
+stderr preferlinkext
+env CGO_LDFLAGS=-Wl,--static
+go build -x -n -o dummy.exe ./usesInternalCgo
+stderr preferlinkext
+env CGO_LDFLAGS=-Wl,-Bstatic
+go build -x -n -o dummy.exe ./usesInternalCgo
+stderr preferlinkext
+env CGO_LDFLAGS=
+
+# CGO_LDFLAGS=-static-libgcc does NOT trigger external linking.
+env CGO_LDFLAGS=-static-libgcc
+go build -x -n -o dummy.exe ./usesInternalCgo
+! stderr preferlinkext
+env CGO_LDFLAGS=
+
+# CGO_CFLAGS=--static triggers external linking (some toolchains accept it).
+env CGO_CFLAGS=--static
+go build -x -n -o dummy.exe ./usesInternalCgo
+stderr preferlinkext
+env CGO_CFLAGS=
+
 [short] skip
 
 # In the remaining tests below we do actual builds (without -n) to

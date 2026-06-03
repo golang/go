@@ -9,7 +9,9 @@ package net
 import (
 	"bytes"
 	"internal/testenv"
+	"io"
 	"os"
+	"path/filepath"
 	"reflect"
 	"runtime"
 	"syscall"
@@ -474,5 +476,98 @@ func TestUnixUnlink(t *testing.T) {
 		l1.Close()
 		checkExists(t, "after FileListener close")
 		l.Close()
+	})
+}
+
+// Ensure UnixConn read methods return io.EOF directly instead of wrapping it
+// in net.OpError, per the io.Reader contract. See issue #78137.
+func TestUnixConnReadEOF(t *testing.T) {
+	if runtime.GOOS == "windows" {
+		t.Skip("unix sockets not reliable on windows")
+	}
+	if !testableNetwork("unix") {
+		t.Skip("unix test")
+	}
+	dir := t.TempDir()
+	addr := &UnixAddr{
+		Name: filepath.Join(dir, "sock"),
+		Net:  "unix",
+	}
+
+	listen := func(t *testing.T) *UnixListener {
+		ln, err := ListenUnix("unix", addr)
+		if err != nil {
+			t.Fatal(err)
+		}
+		return ln
+	}
+
+	startServer := func(t *testing.T, ln *UnixListener) {
+		go func() {
+			srv, err := ln.AcceptUnix()
+			if err != nil {
+				t.Error(err)
+				return
+			}
+			srv.Close()
+		}()
+	}
+
+	dial := func(t *testing.T) *UnixConn {
+		cl, err := DialUnix("unix", nil, addr)
+		if err != nil {
+			t.Fatal(err)
+		}
+		return cl
+	}
+
+	// Test ReadMsgUnix
+	t.Run("ReadMsgUnix", func(t *testing.T) {
+		ln := listen(t)
+		defer ln.Close()
+
+		startServer(t, ln)
+
+		cl := dial(t)
+		defer cl.Close()
+
+		_, _, _, _, err := cl.ReadMsgUnix(make([]byte, 1), nil)
+		if err != io.EOF {
+			t.Fatalf("ReadMsgUnix returned %v, want io.EOF", err)
+		}
+	})
+
+	// Test ReadFromUnix
+	t.Run("ReadFromUnix", func(t *testing.T) {
+		ln := listen(t)
+		defer ln.Close()
+
+		startServer(t, ln)
+
+		cl := dial(t)
+		defer cl.Close()
+
+		buf := make([]byte, 1)
+		_, _, err := cl.ReadFromUnix(buf)
+		if err != io.EOF {
+			t.Fatalf("ReadFromUnix returned %v, want io.EOF", err)
+		}
+	})
+
+	// Test ReadFrom
+	t.Run("ReadFrom", func(t *testing.T) {
+		ln := listen(t)
+		defer ln.Close()
+
+		startServer(t, ln)
+
+		cl := dial(t)
+		defer cl.Close()
+
+		buf := make([]byte, 1)
+		_, _, err := cl.ReadFrom(buf)
+		if err != io.EOF {
+			t.Fatalf("ReadFrom returned %v, want io.EOF", err)
+		}
 	})
 }

@@ -24,6 +24,7 @@ const (
 
 	bitsetLSB   = 0x0101010101010101
 	bitsetMSB   = 0x8080808080808080
+	bitsetL7B   = 0x7f7f7f7f7f7f7f7f
 	bitsetEmpty = bitsetLSB * uint64(ctrlEmpty)
 )
 
@@ -158,6 +159,11 @@ func (g ctrlGroup) matchH2(h uintptr) bitset {
 // Note: On AMD64, this is an intrinsic implemented with SIMD instructions. See
 // note on bitset about the packed intrinsified return value.
 func ctrlGroupMatchH2(g ctrlGroup, h uintptr) bitset {
+	v := uint64(g) ^ (bitsetLSB * uint64(h))
+	if goarch.IsArm64 == 1 {
+		v = ^v
+		return bitset((v&bitsetL7B + bitsetLSB) & (v & bitsetMSB))
+	}
 	// NB: This generic matching routine produces false positive matches when
 	// h is 2^N and the control bytes have a seq of 2^N followed by 2^N+1. For
 	// example: if ctrls==0x0302 and h=02, we'll compute v as 0x0100. When we
@@ -166,7 +172,6 @@ func ctrlGroupMatchH2(g ctrlGroup, h uintptr) bitset {
 	// just a rare inefficiency. Note that they only occur if there is a real
 	// match and never occur on ctrlEmpty, or ctrlDeleted. The subsequent key
 	// comparisons ensure that there is no correctness issue.
-	v := uint64(g) ^ (bitsetLSB * uint64(h))
 	return bitset(((v - bitsetLSB) &^ v) & bitsetMSB)
 }
 
@@ -242,24 +247,28 @@ func ctrlGroupMatchFull(g ctrlGroup) bitset {
 // control word.
 type groupReference struct {
 	// data points to the group, which is described by typ.Group and has
-	// layout:
+	// layout depending on GOEXPERIMENT=mapsplitgroup:
 	//
+	// With mapsplitgroup (split arrays):
 	// type group struct {
 	// 	ctrls ctrlGroup
-	// 	slots [abi.MapGroupSlots]slot
+	// 	keys  [abi.MapGroupSlots]typ.Key
+	// 	elems [abi.MapGroupSlots]typ.Elem
 	// }
 	//
-	// type slot struct {
-	// 	key  typ.Key
-	// 	elem typ.Elem
+	// Without (interleaved slots):
+	// type group struct {
+	// 	ctrls ctrlGroup
+	// 	slots [abi.MapGroupSlots]struct {
+	// 		key  typ.Key
+	// 		elem typ.Elem
+	// 	}
 	// }
+	//
+	// In both cases, key(i) and elem(i) use the same formula via
+	// typ.KeysOff/KeyStride and typ.ElemsOff/ElemStride.
 	data unsafe.Pointer // data *typ.Group
 }
-
-const (
-	ctrlGroupsSize   = unsafe.Sizeof(ctrlGroup(0))
-	groupSlotsOffset = ctrlGroupsSize
-)
 
 // alignUp rounds n up to a multiple of a. a must be a power of 2.
 func alignUp(n, a uintptr) uintptr {
@@ -287,14 +296,14 @@ func (g *groupReference) ctrls() *ctrlGroup {
 
 // key returns a pointer to the key at index i.
 func (g *groupReference) key(typ *abi.MapType, i uintptr) unsafe.Pointer {
-	offset := groupSlotsOffset + i*typ.SlotSize
+	offset := typ.KeysOff + i*typ.KeyStride
 
 	return unsafe.Pointer(uintptr(g.data) + offset)
 }
 
 // elem returns a pointer to the element at index i.
 func (g *groupReference) elem(typ *abi.MapType, i uintptr) unsafe.Pointer {
-	offset := groupSlotsOffset + i*typ.SlotSize + typ.ElemOff
+	offset := typ.ElemsOff + i*typ.ElemStride
 
 	return unsafe.Pointer(uintptr(g.data) + offset)
 }

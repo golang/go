@@ -472,6 +472,7 @@ var passes = [...]pass{
 	{name: "divisible", fn: divisible, required: true},
 	{name: "divmod", fn: divmod, required: true},
 	{name: "middle opt", fn: opt, required: true},
+	{name: "known bits", fn: knownBits},
 	{name: "early fuse", fn: fuseEarly},
 	{name: "expand calls", fn: expandCalls, required: true},
 	{name: "decompose builtin", fn: postExpandCallsDecompose, required: true},
@@ -500,6 +501,7 @@ var passes = [...]pass{
 	{name: "tighten tuple selectors", fn: tightenTupleSelectors, required: true},
 	{name: "lowered deadcode", fn: deadcode, required: true},
 	{name: "checkLower", fn: checkLower, required: true},
+	{name: "loop invariant", fn: licm},
 	{name: "late phielim and copyelim", fn: copyelim},
 	{name: "tighten", fn: tighten, required: true},                     // move values closer to their uses
 	{name: "merge conditional branches", fn: mergeConditionalBranches}, // generate conditional comparison instructions on ARM64 architecture
@@ -601,6 +603,12 @@ var passOrder = [...]constraint{
 	{"branchelim", "lower"},
 	// lower needs cpu feature information (for SIMD)
 	{"cpufeatures", "lower"},
+	// known bits is an arch-independent pass.
+	{"known bits", "lower"},
+	// known bits does very little except some fancy constant folding and we need opt to clean it up.
+	{"known bits", "late opt"},
+	// known bits does a better job once prove cleaned up some always taken and never taken branches.
+	{"prove", "known bits"},
 }
 
 func init() {

@@ -249,7 +249,7 @@ func equal(x, y *Index) bool {
 }
 
 // returns the serialized index size
-func testSaveRestore(t *testing.T, tc *testCase, x *Index) int {
+func testSaveRestore(t testing.TB, tc *testCase, x *Index) int {
 	var buf bytes.Buffer
 	if err := x.Write(&buf); err != nil {
 		t.Errorf("failed writing index %s (%s)", tc.name, err)
@@ -590,13 +590,14 @@ func BenchmarkSaveRestore(b *testing.B) {
 		if ^uint(0) == 0xffffffff && bits == 64 {
 			continue
 		}
+		tc := &testCase{name: "BenchmarkSaveRestore"}
 		b.Run(fmt.Sprintf("bits=%d", bits), func(b *testing.B) {
 			cleanup := setBits(bits)
 			defer cleanup()
 
 			b.StopTimer()
 			x := New(data)
-			size := testSaveRestore(nil, nil, x)       // verify correctness
+			size := testSaveRestore(b, tc, x)          // verify correctness
 			buf := bytes.NewBuffer(make([]byte, size)) // avoid growing
 			b.SetBytes(int64(size))
 			b.StartTimer()
@@ -612,5 +613,72 @@ func BenchmarkSaveRestore(b *testing.B) {
 				}
 			}
 		})
+	}
+}
+
+func TestIssue53352(t *testing.T) {
+	data := []byte("x")
+	index := New(data)
+	var buf bytes.Buffer
+	if err := index.Write(&buf); err != nil {
+		t.Fatal(err)
+	}
+
+	// buffer encoding is as follows:
+	//
+	// [ data length n | data bytes | index slice buffer size |  indices  ] ... (next slice, if any)
+	// \__ 10 bytes __/\_ n bytes _/\_______ 10 bytes _______/\_ varuints /
+	//
+	// n and s are encoded as varints using 10 bytes always so they can be patched.
+	// For small values x >= 0 the varint encoded value is 2*x.
+
+	// For the above data we have n == len("x") == 1.
+	n := len(data)
+	encoding := buf.Bytes()
+	if got := int(encoding[0]); got != 2*n {
+		t.Fatalf("got n = %d; want %d", got, 2*n)
+	}
+
+	// For the above data, the index slice buffer contains a single index entry (0 for "x")
+	// plus the size of the index buffer (10 bytes), so s == 10 + 1 == 11; and s is encoded
+	// immediately following the data bytes.
+	s := 10 + 1
+	if got := int(encoding[10+n]); got != 2*s {
+		t.Fatalf("got s = %d; want %d", got, 2*s)
+	}
+
+	// Reading back the encoding should work without errors.
+	if err := index.Read(bytes.NewBuffer(encoding)); err != nil {
+		t.Fatal(err)
+	}
+
+	// Adding an extra index corrupts the encoding (more indices than data bytes to be indexed).
+	s++                            // increase slice buffer size
+	encoding = append(encoding, 0) // add one more index
+	encoding[10+n] = byte(2 * s)   // update index slice buffer size
+
+	// Reading back the corrupted encoding should report an error.
+	// Before fixing go.dev/issue/53352, this resulted in an index-out-of-range panic.
+	if err := index.Read(bytes.NewBuffer(encoding)); err != errCorrupted {
+		t.Fatalf("got %v; want %v", err, errCorrupted)
+	}
+}
+
+func TestIndexCorruption(t *testing.T) {
+	data := []byte("x")
+	index := New(data)
+	var buf bytes.Buffer
+	if err := index.Write(&buf); err != nil {
+		t.Fatal(err)
+	}
+
+	// The index data is at the end of the encoding (see TestIssue53352 for the encoding format).
+	// The encoded indices i must be 0 <= i < len(data) because they are used to index into the
+	// data. Corrupt one and make sure we get an error when reading the encoding.
+	buf.Bytes()[buf.Len()-1] = byte(len(data))
+
+	// Reading back the corrupted encoding should report an error.
+	if err := index.Read(&buf); err != errCorrupted {
+		t.Fatalf("got %v; want %v", err, errCorrupted)
 	}
 }

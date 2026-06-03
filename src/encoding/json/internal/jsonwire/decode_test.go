@@ -213,7 +213,7 @@ func TestConsumeString(t *testing.T) {
 				t.Errorf("consumeString(%q, false) = (%v, %v), want (%v, %v)", tt.in, got, gotErr, tt.wantUTF8, tt.wantErrUTF8)
 			}
 
-			gotUnquote, gotErr := AppendUnquote(nil, tt.in)
+			gotUnquote, gotErr := AppendUnquote(nil, []byte(tt.in))
 			if string(gotUnquote) != tt.wantUnquote || !reflect.DeepEqual(gotErr, tt.wantErrUnquote) {
 				t.Errorf("AppendUnquote(nil, %q) = (%q, %v), want (%q, %v)", tt.in[:got], gotUnquote, gotErr, tt.wantUnquote, tt.wantErrUnquote)
 			}
@@ -393,50 +393,6 @@ func TestParseUint(t *testing.T) {
 			got, gotOk := ParseUint([]byte(tt.in))
 			if got != tt.want || gotOk != tt.wantOk {
 				t.Errorf("ParseUint(%q) = (%v, %v), want (%v, %v)", tt.in, got, gotOk, tt.want, tt.wantOk)
-			}
-		})
-	}
-}
-
-func TestParseFloat(t *testing.T) {
-	tests := []struct {
-		in     string
-		want32 float64
-		want64 float64
-		wantOk bool
-	}{
-		{"0", 0, 0, true},
-		{"-1", -1, -1, true},
-		{"1", 1, 1, true},
-
-		{"-16777215", -16777215, -16777215, true}, // -(1<<24 - 1)
-		{"16777215", 16777215, 16777215, true},    // +(1<<24 - 1)
-		{"-16777216", -16777216, -16777216, true}, // -(1<<24)
-		{"16777216", 16777216, 16777216, true},    // +(1<<24)
-		{"-16777217", -16777216, -16777217, true}, // -(1<<24 + 1)
-		{"16777217", 16777216, 16777217, true},    // +(1<<24 + 1)
-
-		{"-9007199254740991", -9007199254740992, -9007199254740991, true}, // -(1<<53 - 1)
-		{"9007199254740991", 9007199254740992, 9007199254740991, true},    // +(1<<53 - 1)
-		{"-9007199254740992", -9007199254740992, -9007199254740992, true}, // -(1<<53)
-		{"9007199254740992", 9007199254740992, 9007199254740992, true},    // +(1<<53)
-		{"-9007199254740993", -9007199254740992, -9007199254740992, true}, // -(1<<53 + 1)
-		{"9007199254740993", 9007199254740992, 9007199254740992, true},    // +(1<<53 + 1)
-
-		{"-1e1000", -math.MaxFloat32, -math.MaxFloat64, false},
-		{"1e1000", +math.MaxFloat32, +math.MaxFloat64, false},
-	}
-
-	for _, tt := range tests {
-		t.Run("", func(t *testing.T) {
-			got32, gotOk32 := ParseFloat([]byte(tt.in), 32)
-			if got32 != tt.want32 || gotOk32 != tt.wantOk {
-				t.Errorf("ParseFloat(%q, 32) = (%v, %v), want (%v, %v)", tt.in, got32, gotOk32, tt.want32, tt.wantOk)
-			}
-
-			got64, gotOk64 := ParseFloat([]byte(tt.in), 64)
-			if got64 != tt.want64 || gotOk64 != tt.wantOk {
-				t.Errorf("ParseFloat(%q, 64) = (%v, %v), want (%v, %v)", tt.in, got64, gotOk64, tt.want64, tt.wantOk)
 			}
 		})
 	}

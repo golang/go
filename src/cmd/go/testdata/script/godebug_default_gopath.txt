@@ -1,0 +1,9 @@
+env GO111MODULE=off
+
+go list -f '{{.DefaultGODEBUG}}'
+! stdout netedns0
+
+-- foo.go --
+package main
+
+func main() {}

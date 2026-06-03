@@ -565,15 +565,12 @@ _0args:
 	MOVD	R0, libcCallInfo_r1(R19)
 	MOVD	R1, libcCallInfo_r2(R19)
 
+	BL	libc_error(SB)
+	MOVW	(R0), R0	// errno
+
 	// Restore callee-saved registers.
 	LDP	16(RSP), (R19, R20)
     RET
-
-TEXT runtime·libc_error_trampoline(SB),NOSPLIT,$0
-	MOVD	0(R0), R20
-	BL	libc_error(SB)
-	MOVD	R0, (R20)
-	RET
 
 // syscall_x509 is for crypto/x509. It is like syscall6 but does not check for errors,
 // takes 5 uintptrs and 1 float64, and only returns one value,

@@ -34,3 +34,22 @@ func f3(p, x, y *T, b bool) {
 func f4(i any) T {
 	return i.(T)
 }
+
+type Inner struct {
+	a struct{}
+	p *byte
+}
+
+type Outer struct {
+	inner Inner
+}
+
+func f5(o1, o2 Outer, c bool) Outer {
+	var i any
+	if c {
+		i = o1
+	} else {
+		i = o2
+	}
+	return i.(Outer)
+}

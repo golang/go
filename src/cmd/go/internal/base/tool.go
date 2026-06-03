@@ -42,6 +42,9 @@ func ToolPath(toolName string) (string, error) {
 }
 
 func ValidToolName(toolName string) bool {
+	if toolName == "" {
+		return false
+	}
 	for _, c := range toolName {
 		switch {
 		case 'a' <= c && c <= 'z', '0' <= c && c <= '9', c == '_':
