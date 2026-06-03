@@ -119,7 +119,9 @@
 - go: ShiftAllLeft
   signed: true
   asm: "VSSHL"
-  specialLower: !string "earlymatch x y => (VSSHL%a x (VDUP%sbcast [0] (VMOV%sins [0] x (CSEL <typ.UInt64> [OpARM64LessThanU] y (MOVDconst [127]) (CMPconst [127] y)))))"
+  specialLower: !string |-
+    earlymatch (%g x y) => (VSSHL%a x (VDUP%sbcast [0] (VMOV%sins [0] x (CSEL <typ.UInt64> [OpARM64LessThanU] y (MOVDconst [127]) (CMPconst [127] y)))))
+
   in:
   - *int
   - &scalarShiftSigned
@@ -132,7 +134,7 @@
 - go: ShiftAllLeft
   signed: false
   asm: "VUSHL"
-  specialLower: !string "earlymatch x y => (VUSHL%a x (VDUP%sbcast [0] (VMOV%sins [0] x (CSEL <typ.UInt64> [OpARM64LessThanU] y (MOVDconst [127]) (CMPconst [127] y)))))"
+  specialLower: !string "earlymatch (%g x y) => (VUSHL%a x (VDUP%sbcast [0] (VMOV%sins [0] x (CSEL <typ.UInt64> [OpARM64LessThanU] y (MOVDconst [127]) (CMPconst [127] y)))))"
   in:
   - *uint
   - &scalarShiftUnsigned
@@ -146,7 +148,7 @@
 - go: ShiftAllRight
   signed: true
   asm: "VSSHL"
-  specialLower: !string "earlymatch x y => (VSSHL%a x (VDUP%sbcast [0] (VMOV%sins [0] x (NEG <typ.Int64> (CSEL <typ.UInt64> [OpARM64LessThanU] y (MOVDconst [127]) (CMPconst [127] y))))))"
+  specialLower: !string "earlymatch (%g x y) => (VSSHL%a x (VDUP%sbcast [0] (VMOV%sins [0] x (NEG <typ.Int64> (CSEL <typ.UInt64> [OpARM64LessThanU] y (MOVDconst [127]) (CMPconst [127] y))))))"
   in:
   - *int
   - *scalarShiftSigned
@@ -156,7 +158,7 @@
 - go: ShiftAllRight
   signed: false
   asm: "VUSHL"
-  specialLower: !string "earlymatch x y => (VUSHL%a x (VDUP%sbcast [0] (VMOV%sins [0] x (NEG <typ.Int64> (CSEL <typ.UInt64> [OpARM64LessThanU] y (MOVDconst [127]) (CMPconst [127] y))))))"
+  specialLower: !string "earlymatch (%g x y) => (VUSHL%a x (VDUP%sbcast [0] (VMOV%sins [0] x (NEG <typ.Int64> (CSEL <typ.UInt64> [OpARM64LessThanU] y (MOVDconst [127]) (CMPconst [127] y))))))"
   in:
   - *uint
   - *scalarShiftUnsigned
@@ -166,7 +168,7 @@
 - go: shiftRightNarrowConst
   asm: "VSHRN"
   hiHalfAsm: "VSHRN2"
-  specialLower: !string "match [0] x => (VXTN%a x)"
+  specialLower: !string "match (%h [0] x) => (VXTN%a x)"
   in:
   - *imm
   - go: $t

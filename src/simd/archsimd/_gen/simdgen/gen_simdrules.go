@@ -32,6 +32,7 @@ type tplRuleData struct {
 	RuleCond       string // e.g. "a==0" -- condition for asmRule or argsMatchRule.
 	RuleOut        string // e.g. "y" -- output of an asmRule or argsMatchRule.
 	RuleArgs       string // custom args pattern for argsMatchRule.
+	Rule           string // the whole rule
 }
 
 // Helper type to make template map initialization less repetitive
@@ -67,8 +68,7 @@ var (
 		Add("vregMem", `({{.Asm}} {{.ArgsLoadAddr}}) && canMergeLoad(v, l) && clobber(l) => ({{.Asm}}load {{.ArgsAddr}})`).
 		Add("vregMemFeatCheck", `({{.Asm}} {{.ArgsLoadAddr}}) && {{.FeatCheck}} && canMergeLoad(v, l) && clobber(l) => ({{.Asm}}load {{.ArgsAddr}})`).
 		Add("asmRule", `({{.Asm}} {{.Args}}) {{.RuleCond}} => {{.RuleOut}}`).
-		Add("argsMatchRule", `({{.Asm}} {{.RuleArgs}}) {{.RuleCond}} => {{.RuleOut}}`).
-		Add("earlyMatchRule", `({{.GoOp}}{{.GoType}} {{.RuleArgs}}) {{.RuleCond}} => {{.RuleOut}}`)
+		Add("specialLower", `{{.Rule}}`)
 )
 
 func (d tplRuleData) MaskOptimization(asmCheck map[string]bool) string {
@@ -165,42 +165,14 @@ func parseAsmRule(rule string) (bool, string, string) {
 // (VDUPSbcast [0] (VMOVSins [0] _ (MOVDconst [c]))) && uint64(c)<= 255 => (VMOVI4S [uint8(c)])
 // The specifiers currently supported are only arm64-specific, it may be generalized in the expandFormatSpecifiers function in future.
 // The "earlymatch" variant uses GoOp instead of Asm on the left-hand side, replacing the default lowering rule.
-func parseArgsMatchRule(rule string) (bool, string, string, string, bool) {
-	isEarly := false
-	rest := ""
+func parseArgsMatchRule(rule string) (bool, bool, string) {
 	if strings.HasPrefix(rule, "earlymatch ") {
-		isEarly = true
-		rest = rule[len("earlymatch "):]
+		return true, true, rule[len("earlymatch "):]
 	} else if strings.HasPrefix(rule, "match ") {
-		rest = rule[len("match "):]
+		return true, false, rule[len("match "):]
 	} else {
-		return false, "", "", "", false
+		return false, false, rule
 	}
-
-	arrowIndex := strings.Index(rest, "=>")
-	if arrowIndex == -1 {
-		return false, "", "", "", false
-	}
-
-	condPart := rest[:arrowIndex]
-	outPart := rest[arrowIndex+len("=>"):]
-
-	// Split args and optional condition on "&&".
-	args := condPart
-	cond := ""
-	if andIndex := strings.Index(condPart, "&&"); andIndex != -1 {
-		args = strings.TrimSpace(condPart[:andIndex])
-		cond = strings.TrimSpace(condPart[andIndex+len("&&"):])
-	} else {
-		args = strings.TrimSpace(args)
-	}
-
-	out := strings.TrimSpace(outPart)
-	if args == "" || out == "" {
-		return false, "", "", "", false
-	}
-
-	return true, args, cond, out, isEarly
 }
 
 // expandFormatSpecifiers replaces format specifiers in s with concrete values
@@ -357,7 +329,7 @@ func writeSIMDRules(ops []Operation) *bytes.Buffer {
 					}
 					allData = append(allData, optData)
 				}
-			} else if ok, matchArgs, cond, out, isEarly := parseArgsMatchRule(*gOp.SpecialLower); ok {
+			} else if ok, isEarly, rest := parseArgsMatchRule(*gOp.SpecialLower); ok {
 				key := data.Asm
 				if isEarly {
 					key = data.GoOp + data.GoType
@@ -373,17 +345,14 @@ func writeSIMDRules(ops []Operation) *bytes.Buffer {
 						}
 					}
 					optData := data
-					if isEarly {
-						optData.TplName = "earlyMatchRule"
-					} else {
-						optData.TplName = "argsMatchRule"
-					}
-					optData.RuleArgs = expandFormatSpecifiers(matchArgs, elemBits)
-					optData.RuleCond = expandFormatSpecifiers(cond, elemBits)
-					if optData.RuleCond != "" {
-						optData.RuleCond = "&& " + optData.RuleCond
-					}
-					optData.RuleOut = expandFormatSpecifiers(out, elemBits)
+					optData.Rule = rest
+					optData.Rule = expandFormatSpecifiers(optData.Rule, elemBits)
+					optData.TplName = "specialLower"
+					// %g is the generic operation name
+					optData.Rule = strings.ReplaceAll(optData.Rule, "%g", optData.GoOp+optData.GoType)
+					// %h is the hardware operation name
+					optData.Rule = strings.ReplaceAll(optData.Rule, "%h", optData.Asm)
+
 					allData = append(allData, optData)
 				}
 				if isEarly {

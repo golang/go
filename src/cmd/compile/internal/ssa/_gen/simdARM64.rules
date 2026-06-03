@@ -225,14 +225,14 @@
 (MulUint8x16 ...) => (VMUL16B ...) // pureVreg
 (MulUint16x8 ...) => (VMUL8H ...) // pureVreg
 (MulUint32x4 ...) => (VMUL4S ...) // pureVreg
-(MulAddFloat32x4 x y z)  => (VFMLA4S z x y) // earlyMatchRule
-(MulAddFloat64x2 x y z)  => (VFMLA2D z x y) // earlyMatchRule
-(MulAddInt8x16 x y z)  => (VMLA16B z x y) // earlyMatchRule
-(MulAddInt16x8 x y z)  => (VMLA8H z x y) // earlyMatchRule
-(MulAddInt32x4 x y z)  => (VMLA4S z x y) // earlyMatchRule
-(MulAddUint8x16 x y z)  => (VMLA16B z x y) // earlyMatchRule
-(MulAddUint16x8 x y z)  => (VMLA8H z x y) // earlyMatchRule
-(MulAddUint32x4 x y z)  => (VMLA4S z x y) // earlyMatchRule
+(MulAddFloat32x4 x y z) => (VFMLA4S z x y) // specialLower
+(MulAddFloat64x2 x y z) => (VFMLA2D z x y) // specialLower
+(MulAddInt8x16 x y z) => (VMLA16B z x y) // specialLower
+(MulAddInt16x8 x y z) => (VMLA8H z x y) // specialLower
+(MulAddInt32x4 x y z) => (VMLA4S z x y) // specialLower
+(MulAddUint8x16 x y z) => (VMLA16B z x y) // specialLower
+(MulAddUint16x8 x y z) => (VMLA8H z x y) // specialLower
+(MulAddUint32x4 x y z) => (VMLA4S z x y) // specialLower
 (MulWidenLoInt8x16 ...) => (VSMULL16B ...) // pureVreg
 (MulWidenLoInt16x8 ...) => (VSMULL8H ...) // pureVreg
 (MulWidenLoInt32x4 ...) => (VSMULL4S ...) // pureVreg
@@ -303,9 +303,9 @@
 (SaturateToUint32Int64x2 ...) => (VSQXTUN2D ...) // pureVreg
 (SaturateToUint32Uint64x2 ...) => (VUQXTN2D ...) // pureVreg
 (SetElemFloat32x4 ...) => (VMOVSins0 ...) // pureVreg
-(VMOVSins0 [0] (VMOVI16B [0]) y:(VDUPSextr [i] _))  => y // argsMatchRule
+(VMOVSins0 [0] (VMOVI16B [0]) y:(VDUPSextr [i] _)) => y // specialLower
 (SetElemFloat64x2 ...) => (VMOVDins0 ...) // pureVreg
-(VMOVDins0 [0] (VMOVI16B [0]) y:(VDUPDextr [i] _))  => y // argsMatchRule
+(VMOVDins0 [0] (VMOVI16B [0]) y:(VDUPDextr [i] _)) => y // specialLower
 (SetElemInt8x16 ...) => (VMOVBins ...) // pureVreg
 (SetElemInt16x8 ...) => (VMOVHins ...) // pureVreg
 (SetElemInt32x4 ...) => (VMOVSins ...) // pureVreg
@@ -322,22 +322,22 @@
 (ShiftUint16x8 ...) => (VUSHL8H ...) // pureVreg
 (ShiftUint32x4 ...) => (VUSHL4S ...) // pureVreg
 (ShiftUint64x2 ...) => (VUSHL2D ...) // pureVreg
-(ShiftAllLeftInt8x16 x y)  => (VSSHL16B x (VDUPBbcast [0] (VMOVBins [0] x (CSEL <typ.UInt64> [OpARM64LessThanU] y (MOVDconst [127]) (CMPconst [127] y))))) // earlyMatchRule
-(ShiftAllLeftInt16x8 x y)  => (VSSHL8H x (VDUPHbcast [0] (VMOVHins [0] x (CSEL <typ.UInt64> [OpARM64LessThanU] y (MOVDconst [127]) (CMPconst [127] y))))) // earlyMatchRule
-(ShiftAllLeftInt32x4 x y)  => (VSSHL4S x (VDUPSbcast [0] (VMOVSins [0] x (CSEL <typ.UInt64> [OpARM64LessThanU] y (MOVDconst [127]) (CMPconst [127] y))))) // earlyMatchRule
-(ShiftAllLeftInt64x2 x y)  => (VSSHL2D x (VDUPDbcast [0] (VMOVDins [0] x (CSEL <typ.UInt64> [OpARM64LessThanU] y (MOVDconst [127]) (CMPconst [127] y))))) // earlyMatchRule
-(ShiftAllLeftUint8x16 x y)  => (VUSHL16B x (VDUPBbcast [0] (VMOVBins [0] x (CSEL <typ.UInt64> [OpARM64LessThanU] y (MOVDconst [127]) (CMPconst [127] y))))) // earlyMatchRule
-(ShiftAllLeftUint16x8 x y)  => (VUSHL8H x (VDUPHbcast [0] (VMOVHins [0] x (CSEL <typ.UInt64> [OpARM64LessThanU] y (MOVDconst [127]) (CMPconst [127] y))))) // earlyMatchRule
-(ShiftAllLeftUint32x4 x y)  => (VUSHL4S x (VDUPSbcast [0] (VMOVSins [0] x (CSEL <typ.UInt64> [OpARM64LessThanU] y (MOVDconst [127]) (CMPconst [127] y))))) // earlyMatchRule
-(ShiftAllLeftUint64x2 x y)  => (VUSHL2D x (VDUPDbcast [0] (VMOVDins [0] x (CSEL <typ.UInt64> [OpARM64LessThanU] y (MOVDconst [127]) (CMPconst [127] y))))) // earlyMatchRule
-(ShiftAllRightInt8x16 x y)  => (VSSHL16B x (VDUPBbcast [0] (VMOVBins [0] x (NEG <typ.Int64> (CSEL <typ.UInt64> [OpARM64LessThanU] y (MOVDconst [127]) (CMPconst [127] y)))))) // earlyMatchRule
-(ShiftAllRightInt16x8 x y)  => (VSSHL8H x (VDUPHbcast [0] (VMOVHins [0] x (NEG <typ.Int64> (CSEL <typ.UInt64> [OpARM64LessThanU] y (MOVDconst [127]) (CMPconst [127] y)))))) // earlyMatchRule
-(ShiftAllRightInt32x4 x y)  => (VSSHL4S x (VDUPSbcast [0] (VMOVSins [0] x (NEG <typ.Int64> (CSEL <typ.UInt64> [OpARM64LessThanU] y (MOVDconst [127]) (CMPconst [127] y)))))) // earlyMatchRule
-(ShiftAllRightInt64x2 x y)  => (VSSHL2D x (VDUPDbcast [0] (VMOVDins [0] x (NEG <typ.Int64> (CSEL <typ.UInt64> [OpARM64LessThanU] y (MOVDconst [127]) (CMPconst [127] y)))))) // earlyMatchRule
-(ShiftAllRightUint8x16 x y)  => (VUSHL16B x (VDUPBbcast [0] (VMOVBins [0] x (NEG <typ.Int64> (CSEL <typ.UInt64> [OpARM64LessThanU] y (MOVDconst [127]) (CMPconst [127] y)))))) // earlyMatchRule
-(ShiftAllRightUint16x8 x y)  => (VUSHL8H x (VDUPHbcast [0] (VMOVHins [0] x (NEG <typ.Int64> (CSEL <typ.UInt64> [OpARM64LessThanU] y (MOVDconst [127]) (CMPconst [127] y)))))) // earlyMatchRule
-(ShiftAllRightUint32x4 x y)  => (VUSHL4S x (VDUPSbcast [0] (VMOVSins [0] x (NEG <typ.Int64> (CSEL <typ.UInt64> [OpARM64LessThanU] y (MOVDconst [127]) (CMPconst [127] y)))))) // earlyMatchRule
-(ShiftAllRightUint64x2 x y)  => (VUSHL2D x (VDUPDbcast [0] (VMOVDins [0] x (NEG <typ.Int64> (CSEL <typ.UInt64> [OpARM64LessThanU] y (MOVDconst [127]) (CMPconst [127] y)))))) // earlyMatchRule
+(ShiftAllLeftInt8x16 x y) => (VSSHL16B x (VDUPBbcast [0] (VMOVBins [0] x (CSEL <typ.UInt64> [OpARM64LessThanU] y (MOVDconst [127]) (CMPconst [127] y))))) // specialLower
+(ShiftAllLeftInt16x8 x y) => (VSSHL8H x (VDUPHbcast [0] (VMOVHins [0] x (CSEL <typ.UInt64> [OpARM64LessThanU] y (MOVDconst [127]) (CMPconst [127] y))))) // specialLower
+(ShiftAllLeftInt32x4 x y) => (VSSHL4S x (VDUPSbcast [0] (VMOVSins [0] x (CSEL <typ.UInt64> [OpARM64LessThanU] y (MOVDconst [127]) (CMPconst [127] y))))) // specialLower
+(ShiftAllLeftInt64x2 x y) => (VSSHL2D x (VDUPDbcast [0] (VMOVDins [0] x (CSEL <typ.UInt64> [OpARM64LessThanU] y (MOVDconst [127]) (CMPconst [127] y))))) // specialLower
+(ShiftAllLeftUint8x16 x y) => (VUSHL16B x (VDUPBbcast [0] (VMOVBins [0] x (CSEL <typ.UInt64> [OpARM64LessThanU] y (MOVDconst [127]) (CMPconst [127] y))))) // specialLower
+(ShiftAllLeftUint16x8 x y) => (VUSHL8H x (VDUPHbcast [0] (VMOVHins [0] x (CSEL <typ.UInt64> [OpARM64LessThanU] y (MOVDconst [127]) (CMPconst [127] y))))) // specialLower
+(ShiftAllLeftUint32x4 x y) => (VUSHL4S x (VDUPSbcast [0] (VMOVSins [0] x (CSEL <typ.UInt64> [OpARM64LessThanU] y (MOVDconst [127]) (CMPconst [127] y))))) // specialLower
+(ShiftAllLeftUint64x2 x y) => (VUSHL2D x (VDUPDbcast [0] (VMOVDins [0] x (CSEL <typ.UInt64> [OpARM64LessThanU] y (MOVDconst [127]) (CMPconst [127] y))))) // specialLower
+(ShiftAllRightInt8x16 x y) => (VSSHL16B x (VDUPBbcast [0] (VMOVBins [0] x (NEG <typ.Int64> (CSEL <typ.UInt64> [OpARM64LessThanU] y (MOVDconst [127]) (CMPconst [127] y)))))) // specialLower
+(ShiftAllRightInt16x8 x y) => (VSSHL8H x (VDUPHbcast [0] (VMOVHins [0] x (NEG <typ.Int64> (CSEL <typ.UInt64> [OpARM64LessThanU] y (MOVDconst [127]) (CMPconst [127] y)))))) // specialLower
+(ShiftAllRightInt32x4 x y) => (VSSHL4S x (VDUPSbcast [0] (VMOVSins [0] x (NEG <typ.Int64> (CSEL <typ.UInt64> [OpARM64LessThanU] y (MOVDconst [127]) (CMPconst [127] y)))))) // specialLower
+(ShiftAllRightInt64x2 x y) => (VSSHL2D x (VDUPDbcast [0] (VMOVDins [0] x (NEG <typ.Int64> (CSEL <typ.UInt64> [OpARM64LessThanU] y (MOVDconst [127]) (CMPconst [127] y)))))) // specialLower
+(ShiftAllRightUint8x16 x y) => (VUSHL16B x (VDUPBbcast [0] (VMOVBins [0] x (NEG <typ.Int64> (CSEL <typ.UInt64> [OpARM64LessThanU] y (MOVDconst [127]) (CMPconst [127] y)))))) // specialLower
+(ShiftAllRightUint16x8 x y) => (VUSHL8H x (VDUPHbcast [0] (VMOVHins [0] x (NEG <typ.Int64> (CSEL <typ.UInt64> [OpARM64LessThanU] y (MOVDconst [127]) (CMPconst [127] y)))))) // specialLower
+(ShiftAllRightUint32x4 x y) => (VUSHL4S x (VDUPSbcast [0] (VMOVSins [0] x (NEG <typ.Int64> (CSEL <typ.UInt64> [OpARM64LessThanU] y (MOVDconst [127]) (CMPconst [127] y)))))) // specialLower
+(ShiftAllRightUint64x2 x y) => (VUSHL2D x (VDUPDbcast [0] (VMOVDins [0] x (NEG <typ.Int64> (CSEL <typ.UInt64> [OpARM64LessThanU] y (MOVDconst [127]) (CMPconst [127] y)))))) // specialLower
 (ShiftSaturatedInt8x16 ...) => (VSQSHL16B ...) // pureVreg
 (ShiftSaturatedInt16x8 ...) => (VSQSHL8H ...) // pureVreg
 (ShiftSaturatedInt32x4 ...) => (VSQSHL4S ...) // pureVreg
@@ -399,9 +399,9 @@
 (XorUint32x4 ...) => (VEOR16B ...) // pureVreg
 (XorUint64x2 ...) => (VEOR16B ...) // pureVreg
 (bitSelectInt8x16 ...) => (VBIT16B ...) // pureVreg
-(VBIT16B x y (VNOT16B mask))  => (VBIF16B x y mask) // argsMatchRule
+(VBIT16B x y (VNOT16B mask)) => (VBIF16B x y mask) // specialLower
 (bitSelectNotInt8x16 ...) => (VBIF16B ...) // pureVreg
-(VBIF16B x y (VNOT16B mask))  => (VBIT16B x y mask) // argsMatchRule
+(VBIF16B x y (VNOT16B mask)) => (VBIT16B x y mask) // specialLower
 (broadcast1To2Float64x2 x) => (VDUPDbcast [0] x) // pureVreg
 (broadcast1To2Int64x2 x) => (VDUPDbcast [0] x) // pureVreg
 (broadcast1To2Uint64x2 x) => (VDUPDbcast [0] x) // pureVreg
@@ -411,7 +411,7 @@
 (broadcast1To8Int16x8 x) => (VDUPHbcast [0] x) // pureVreg
 (broadcast1To8Uint16x8 x) => (VDUPHbcast [0] x) // pureVreg
 (broadcast1To16Int8x16 x) => (VDUPBbcast [0] x) // pureVreg
-(VDUPBbcast [i] (VMOVBins [j] _ (MOVDconst [c]))) && i == j && c>=-128 && c<=255 => (VMOVI16B [uint8(c)]) // argsMatchRule
+(VDUPBbcast [i] (VMOVBins [j] _ (MOVDconst [c]))) && i == j && c>=-128 && c<=255 => (VMOVI16B [uint8(c)]) // specialLower
 (broadcast1To16Uint8x16 x) => (VDUPBbcast [0] x) // pureVreg
 (carrylessMultiplyWidenLoUint64x2 ...) => (VPMULL2D ...) // pureVreg
 (VSHL16B [a] x) && a==0 => x // asmRule
@@ -434,6 +434,6 @@
 (VUQSHL8Hconst [a] x) && a==0 => x // asmRule
 (VUQSHL4Sconst [a] x) && a==0 => x // asmRule
 (VUQSHL2Dconst [a] x) && a==0 => x // asmRule
-(VSHRN8H [0] x)  => (VXTN8H x) // argsMatchRule
-(VSHRN4S [0] x)  => (VXTN4S x) // argsMatchRule
-(VSHRN2D [0] x)  => (VXTN2D x) // argsMatchRule
+(VSHRN8H [0] x) => (VXTN8H x) // g=shiftRightNarrowConstUint16x8, h=VSHRN8H // specialLower
+(VSHRN4S [0] x) => (VXTN4S x) // g=shiftRightNarrowConstUint32x4, h=VSHRN4S // specialLower
+(VSHRN2D [0] x) => (VXTN2D x) // g=shiftRightNarrowConstUint64x2, h=VSHRN2D // specialLower

@@ -919,7 +919,7 @@ func (o *Operation) hasMaskedMerging(maskType maskShape, outType outShape) bool 
 		// asmRule and argsMatchRule/earlyMatchRule should not affect masked merging
 		ok, _, _ := parseAsmRule(*o.SpecialLower)
 		if !ok {
-			ok, _, _, _, _ = parseArgsMatchRule(*o.SpecialLower)
+			ok, _, _ = parseArgsMatchRule(*o.SpecialLower)
 			if !ok {
 				return false
 			}
