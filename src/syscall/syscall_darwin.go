@@ -326,6 +326,7 @@ func Getdirentries(fd int, buf []byte, basep *uintptr) (n int, err error) {
 // errno return e if int32(r) is -1, else it returns 0.
 //
 //go:nosplit
+//go:norace
 func errno(r uintptr, e Errno) Errno {
 	if int32(r) == -1 {
 		return e
@@ -336,6 +337,7 @@ func errno(r uintptr, e Errno) Errno {
 // errnoX return e if r is -1, else it returns 0.
 //
 //go:nosplit
+//go:norace
 func errnoX(r uintptr, e Errno) Errno {
 	if r == ^uintptr(0) {
 		return e
@@ -346,6 +348,7 @@ func errnoX(r uintptr, e Errno) Errno {
 // errnoPtr return e if r is 0, else it returns 0.
 //
 //go:nosplit
+//go:norace
 func errnoPtr(r uintptr, e Errno) Errno {
 	if r == 0 {
 		return e
@@ -357,6 +360,22 @@ func errnoPtr(r uintptr, e Errno) Errno {
 
 // golang.org/x/sys linknames the following syscalls.
 // Do not remove or change the type signature.
+
+// N.B. For the Syscall functions below:
+//
+// //go:uintptrkeepalive because the uintptr argument may be converted pointers
+// that need to be kept alive in the caller.
+//
+// //go:nosplit because stack copying does not account for uintptrkeepalive, so
+// the stack must not grow. Stack copying cannot blindly assume that all
+// uintptr arguments are pointers, because some values may look like pointers,
+// but not really be pointers, and adjusting their value would break the call.
+//
+// //go:norace, on RawSyscall, to avoid race instrumentation if RawSyscall is
+// called after fork, or from a signal handler.
+//
+// //go:linkname to ensure ABI wrappers are generated for external callers
+// (notably x/sys/unix assembly).
 
 //go:linkname syscall
 //go:nosplit
