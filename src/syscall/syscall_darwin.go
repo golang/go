@@ -409,6 +409,7 @@ func syscall9(fn, a1, a2, a3, a4, a5, a6, a7, a8, a9 uintptr) (r1, r2 uintptr, e
 
 //go:linkname rawSyscall
 //go:nosplit
+//go:norace
 //go:uintptrkeepalive
 func rawSyscall(fn, a1, a2, a3 uintptr) (r1, r2 uintptr, err Errno) {
 	r1, r2, err = rawsyscalln(fn, a1, a2, a3)
@@ -417,6 +418,7 @@ func rawSyscall(fn, a1, a2, a3 uintptr) (r1, r2 uintptr, err Errno) {
 
 //go:linkname rawSyscall6
 //go:nosplit
+//go:norace
 //go:uintptrkeepalive
 func rawSyscall6(fn, a1, a2, a3, a4, a5, a6 uintptr) (r1, r2 uintptr, err Errno) {
 	r1, r2, err = rawsyscalln(fn, a1, a2, a3, a4, a5, a6)
@@ -425,6 +427,7 @@ func rawSyscall6(fn, a1, a2, a3, a4, a5, a6 uintptr) (r1, r2 uintptr, err Errno)
 
 //go:linkname rawSyscall9
 //go:nosplit
+//go:norace
 //go:uintptrkeepalive
 func rawSyscall9(fn, a1, a2, a3, a4, a5, a6, a7, a8, a9 uintptr) (r1, r2 uintptr, err Errno) {
 	r1, r2, err = rawsyscalln(fn, a1, a2, a3, a4, a5, a6, a7, a8, a9)
