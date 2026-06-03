@@ -1033,7 +1033,9 @@ func shouldCopyHeaderOnRedirect(initial, dest *url.URL) bool {
 	if err1 != nil || err2 != nil {
 		return false
 	}
-	return isDomainOrSubdomain(dhost, ihost)
+	ihost, ok1 := ascii.ToLower(ihost)
+	dhost, ok2 := ascii.ToLower(dhost)
+	return ok1 && ok2 && isDomainOrSubdomain(dhost, ihost)
 }
 
 // isDomainOrSubdomain reports whether sub is a subdomain (or exact

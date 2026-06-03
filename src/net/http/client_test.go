@@ -1861,7 +1861,7 @@ func TestShouldCopyHeaderOnRedirect(t *testing.T) {
 		{"http://foo.com:443/", "https://sub.foo.com/", true},
 		{"http://foo.com:1234/", "http://foo.com/", true},
 
-		{"http://foobar.com/", "http://fooBAR.com/", false},
+		{"http://foobar.com/", "http://fooBAR.com/", true},
 
 		{"http://example.com/", "http://evil。example.com/", false},
 		{"http://example.com/", "http://ｅxample.com/", false},
