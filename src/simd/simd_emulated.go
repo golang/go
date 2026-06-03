@@ -22,12 +22,14 @@ func Emulated() bool {
 	return true
 }
 
-// EmulatedCarrylessMultiply returns whether CarrylessMultiply is emulated.
-// This sometimes matters to choice of algorithm (e.g., when computing CRC).
-// The emulation's execution time does not depend on its inputs, so it is
-// okay in that sense.
-func EmulatedCarrylessMultiply() bool {
-	return true
+// HasHardwareCarrylessMultiply returns whether this platform
+// has a hardware-implemented version of carryless multiply.
+// With default GODEBUG=simd settings, if this is false,
+// it is emulated and merely slow, but with non-default settings
+// this can indicate the possibility of a missing instruction
+// that will fail ("SIGILL") if it is executed.
+func HasHardwareCarrylessMultiply() bool {
+	return false
 }
 
 type _simd struct {
@@ -3166,11 +3168,11 @@ func (x Uint64s) mwl(y Uint64s) Uint64s {
 
 var (
 	// For mK, bits J such that J mod 5 == K are set
-	m0 = newT(0x0084210842108421, 0x1108421084210842)
-	m1 = newT(0x1108421084210842, 0x3210842108421084)
-	m2 = newT(0x3210842108421084, 0x8421084210842108)
+	m0 = newT(0x1084210842108421, 0x2108421084210842)
+	m1 = newT(0x2108421084210842, 0x4210842108421084)
+	m2 = newT(0x4210842108421084, 0x8421084210842108)
 	m3 = newT(0x8421084210842108, 0x0842108421084210)
-	m4 = newT(0x0842108421084210, 0x0084210842108421)
+	m4 = newT(0x0842108421084210, 0x1084210842108421)
 )
 
 func (x Uint64s) clmul(y Uint64s) Uint64s {
