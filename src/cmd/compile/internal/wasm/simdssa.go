@@ -39,6 +39,18 @@ func ssaGenSIMDValue(s *ssagen.State, v *ssa.Value, extend bool) bool {
 		getValue64(s, v.Args[1])
 		p := s.Prog(v.Op.Asm())
 		p.To = obj.Addr{Type: obj.TYPE_CONST, Offset: v.AuxInt}
+	case ssa.OpWasmI8x16Splat, ssa.OpWasmI16x8Splat, ssa.OpWasmI32x4Splat:
+		getValue32(s, v.Args[0])
+		s.Prog(v.Op.Asm())
+	case ssa.OpWasmI64x2Splat:
+		getValue64(s, v.Args[0])
+		s.Prog(v.Op.Asm())
+	case ssa.OpWasmF32x4Splat:
+		getValueFxx(s, v.Args[0])
+		s.Prog(v.Op.Asm())
+	case ssa.OpWasmF64x2Splat:
+		getValueFxx(s, v.Args[0])
+		s.Prog(v.Op.Asm())
 	case ssa.OpWasmI8x16AllTrue, ssa.OpWasmV128AnyTrue, ssa.OpWasmI16x8AllTrue,
 		ssa.OpWasmI32x4AllTrue, ssa.OpWasmI64x2AllTrue, ssa.OpWasmI8x16Abs,
 		ssa.OpWasmI16x8Abs, ssa.OpWasmI32x4Abs, ssa.OpWasmF32x4Abs,

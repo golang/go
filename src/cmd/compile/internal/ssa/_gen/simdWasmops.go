@@ -2,7 +2,7 @@
 
 package main
 
-func simdWasmOps(vload, vstore, v11, v21, v31, v11gp, v11fp32, v11fp64, v1gpv, v1fp32v, v1fp64v regInfo) []opData {
+func simdWasmOps(vload, vstore, v11, v21, v31, v11gp, v11fp32, v11fp64, v1gpv, v1fp32v, v1fp64v, gpv, fp32v, fp64v regInfo) []opData {
 	return []opData{
 		{name: "I8x16AllTrue", argLength: 1, reg: v11, asm: "I8x16AllTrue", typ: "Bool"},
 		{name: "V128AnyTrue", argLength: 1, reg: v11, asm: "V128AnyTrue", typ: "Bool"},
@@ -42,6 +42,12 @@ func simdWasmOps(vload, vstore, v11, v21, v31, v11gp, v11fp32, v11fp64, v1gpv, v
 		{name: "I8x16AvgrU", argLength: 2, reg: v21, asm: "I8x16AvgrU", commutative: true, typ: "Vec128"},
 		{name: "I16x8AvgrU", argLength: 2, reg: v21, asm: "I16x8AvgrU", commutative: true, typ: "Vec128"},
 		{name: "V128Bitselect", argLength: 3, reg: v31, asm: "V128Bitselect", typ: "Vec128"},
+		{name: "I8x16Splat", argLength: 1, reg: gpv, asm: "I8x16Splat", typ: "Vec128"},
+		{name: "I16x8Splat", argLength: 1, reg: gpv, asm: "I16x8Splat", typ: "Vec128"},
+		{name: "I32x4Splat", argLength: 1, reg: gpv, asm: "I32x4Splat", typ: "Vec128"},
+		{name: "F32x4Splat", argLength: 1, reg: fp32v, asm: "F32x4Splat", typ: "Vec128"},
+		{name: "I64x2Splat", argLength: 1, reg: gpv, asm: "I64x2Splat", typ: "Vec128"},
+		{name: "F64x2Splat", argLength: 1, reg: fp64v, asm: "F64x2Splat", typ: "Vec128"},
 		{name: "F32x4Ceil", argLength: 1, reg: v11, asm: "F32x4Ceil", typ: "Vec128"},
 		{name: "F64x2Ceil", argLength: 1, reg: v11, asm: "F64x2Ceil", typ: "Vec128"},
 		{name: "F64x2ConvertLowI32x4S", argLength: 1, reg: v11, asm: "F64x2ConvertLowI32x4S", typ: "Vec128"},

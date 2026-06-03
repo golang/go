@@ -11,6 +11,26 @@ import (
 	"testing"
 )
 
+type signed interface {
+	~int | ~int8 | ~int16 | ~int32 | ~int64
+}
+
+type unsigned interface {
+	~uint | ~uint8 | ~uint16 | ~uint32 | ~uint64 | ~uintptr
+}
+
+type integer interface {
+	~int | ~int8 | ~int16 | ~int32 | ~int64 | ~uint | ~uint8 | ~uint16 | ~uint32 | ~uint64 | ~uintptr
+}
+
+type float interface {
+	~float32 | ~float64
+}
+
+type number interface {
+	~int | ~int8 | ~int16 | ~int32 | ~int64 | ~uint | ~uint8 | ~uint16 | ~uint32 | ~uint64 | ~uintptr | ~float32 | ~float64
+}
+
 func TestInt8s(t *testing.T) {
 	// 64 elements = 512 bits
 	in1 := []int8{
@@ -394,4 +414,35 @@ func TestUint64s(t *testing.T) {
 			t.Errorf("Uint64s RotateAllRight(71) at %d: got %d, want %d", i, buf[i], expected)
 		}
 	}
+}
+
+type HasStoreLen[E number] interface {
+	Store(s []E)
+	Len() int
+}
+
+func testBroadcast[E number, V HasStoreLen[E]](t *testing.T, x E, f func(e E) V) {
+	v := f(x)
+	s := make([]E, v.Len())
+	v.Store(s)
+	for _, e := range s {
+		if e != x {
+			t.Errorf("Expected %v, saw %v", x, e)
+		}
+	}
+}
+
+func TestBroadcast(t *testing.T) {
+	testBroadcast(t, int8(-2), simd.BroadcastInt8s)
+	testBroadcast(t, int16(-2), simd.BroadcastInt16s)
+	testBroadcast(t, int32(-2), simd.BroadcastInt32s)
+	testBroadcast(t, int64(-2), simd.BroadcastInt64s)
+
+	testBroadcast(t, uint8(99), simd.BroadcastUint8s)
+	testBroadcast(t, uint16(9999), simd.BroadcastUint16s)
+	testBroadcast(t, uint32(99991111), simd.BroadcastUint32s)
+	testBroadcast(t, uint64(112233445599887766), simd.BroadcastUint64s)
+
+	testBroadcast(t, float32(99991111), simd.BroadcastFloat32s)
+	testBroadcast(t, float64(112233445599887766), simd.BroadcastFloat64s)
 }

@@ -140,18 +140,23 @@ func (c *DeepCopier) OnSelector(se *syntax.SelectorExpr) syntax.Expr {
 			// This first little bit detects name = Load-Type-Width-s-{,Part}
 			// and converts the name to Type-Width-s (for nameToWidth), sets isLoad,
 			// and initializes the suffix appropriately.
-			isLoad := false
+			prefix := ""
 			nameSuffix := ""
 			name := se.Sel.Value
 			end := len(name)
 			if strings.HasPrefix(name, "Load") {
-				isLoad = true
+				prefix = "Load"
 				if strings.HasSuffix(name, "Part") {
 					end = strings.Index(name, "Part")
 					nameSuffix = "Part"
 				}
 				name = name[len("Load"):end]
 			}
+			if strings.HasPrefix(name, "Broadcast") {
+				prefix = "Broadcast"
+				name = name[len("Broadcast"):end]
+			}
+
 			width := nameToElemBitWidth(name)
 			if width > 0 {
 				archsimdId := syntax.NewName(se.Pos(), archPkg)
@@ -168,9 +173,7 @@ func (c *DeepCopier) OnSelector(se *syntax.SelectorExpr) syntax.Expr {
 				count := c.VecLen / width
 				base := name[:len(name)-1]
 				newName := fmt.Sprintf("%sx%d", base, count)
-				if isLoad {
-					newName = "Load" + newName + nameSuffix
-				}
+				newName = prefix + newName + nameSuffix
 
 				newSelId := syntax.NewName(se.Sel.Pos(), newName)
 

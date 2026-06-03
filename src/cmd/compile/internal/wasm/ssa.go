@@ -546,6 +546,17 @@ func getValue128(s *ssagen.State, v *ssa.Value) {
 	getReg(s, reg)
 }
 
+func getValueFxx(s *ssagen.State, v *ssa.Value) {
+	if v.OnWasmStack {
+		s.OnWasmStackSkipped--
+		ssaGenValueOnStack(s, v, true)
+		return
+	}
+
+	reg := v.Reg()
+	getReg(s, reg)
+}
+
 func i32Const(s *ssagen.State, val int32) {
 	p := s.Prog(wasm.AI32Const)
 	p.From = obj.Addr{Type: obj.TYPE_CONST, Offset: int64(val)}

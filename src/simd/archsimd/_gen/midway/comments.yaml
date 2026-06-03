@@ -118,6 +118,7 @@ functions:
   # Templates for Load functions
   default_LoadSlice: "Load%s loads a slice of %s into an %ss vector."
   default_LoadPart: "Load%sPart loads a partial slice of %s into an %ss vector, returning the vector and the number of elements loaded."
+  default_Broadcast: "Broadcast%s fills the elements of a slice with its argument value."
 
 methods:
   Int8s:

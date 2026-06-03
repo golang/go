@@ -61,6 +61,14 @@ func (t *simdType) Name_() string {
 	return t.Name
 }
 
+func (t *simdType) Article() string {
+	// uint => "you-int" => "a you-int"
+	if t.Elem[0] == 'i' {
+		return "an"
+	}
+	return "a"
+}
+
 func (a *simdType) Compare(b *simdType) int {
 	if a.Name == b.Name {
 		return 0
@@ -438,12 +446,21 @@ func (o *wasmOp) RegInfo() string {
 	} else if o.argCount == 3 {
 		// bitSelect
 		return "v31"
+	} else if o.Flag(IsSplat) {
+		if o.argType[0] == 'i' {
+			return "gpv"
+		} else if o.argType == "float32" {
+			return "fp32v"
+		} else {
+			return "fp64v"
+		}
 	}
+
 	panic("RegInfo not implemented for " + o.String())
 }
 
 func (o *wasmOp) DefinesGeneric() bool {
-	return o.Method() != "" && !o.T().IsMask()
+	return o.Method() != "" && !o.T().IsMask() && !o.Flag(NonSigned)
 }
 
 // SubInt8x16
@@ -460,7 +477,7 @@ func (o *wasmOp) SsaGenOp() string {
 		m = m[1:]
 	}
 	t := o.T()
-	if t.IsMask() {
+	if t.IsMask() || o.Flag(NonSigned) {
 		t = t.IntShaped
 	}
 	// Rotate instructions on amd 64 are single op + immediate.
@@ -785,6 +802,7 @@ var (
 		"convert_low_u": "ConvertLo2ToFloat64",
 
 		"swizzle": "LookupOrZero",
+		"splat":   "Broadcast",
 	}
 )
 
@@ -909,6 +927,16 @@ func initWasmOps() {
 	}
 	addWasmOpsDetail(signed, s_s, 2, shift)
 	addWasmOpsDetail(unsigned, u_s, 2, shift)
+
+	splat := func(op *wasmOp) {
+		op.opFlags = IsSplat
+		op.argType = op.t.Elem
+		op.resultType = op.t.Name
+		if op.argType[0] == 'u' {
+			op.opFlags |= NonSigned
+		}
+	}
+	addWasmOpsDetail(allTypes, []string{"splat"}, 1, splat)
 
 	// To match the extend patterns for amd64, signed extends to signed, unsigned extends to unsigned
 	extendHalf := func(op *wasmOp) {
@@ -1074,19 +1102,19 @@ func templateOf(name, text string) *template.Template {
 }
 
 var loadDecl = templateOf("load from array", `
-// Load{{.Name}}Array loads a {{.Name}} from a [{{.Count}}]{{.Elem}}.
+// Load{{.Name}}Array loads {{.Article}} {{.Name}} from a [{{.Count}}]{{.Elem}}.
 //
 //go:noescape
 func Load{{.Name}}Array(y *[{{.Count}}]{{.Elem}}) {{.Name}}
 
-// Load{{.Name}} loads a {{.Name}} from a slice of at least {{.Count}} {{.Elem}}s.
+// Load{{.Name}} loads {{.Article}} {{.Name}} from a slice of at least {{.Count}} {{.Elem}}s.
 func Load{{.Name}}(s []{{.Elem}}) {{.Name}} {
 	return Load{{.Name}}Array((*[{{.Count}}]{{.Elem}})(s))
 }
 `)
 
 var storeDecl = templateOf("store to array", `
-// StoreArray stores a {{.Name}} to a [{{.Count}}]{{.Elem}}.
+// StoreArray stores {{.Article}} {{.Name}} to a [{{.Count}}]{{.Elem}}.
 //
 //go:noescape
 func (x {{.Name}}) StoreArray(y *[{{.Count}}]{{.Elem}})
@@ -1095,6 +1123,11 @@ func (x {{.Name}}) StoreArray(y *[{{.Count}}]{{.Elem}})
 func (x {{.Name}}) Store(s []{{.Elem}}) {
 	x.StoreArray((*[{{.Count}}]{{.Elem}})(s))
 }
+`)
+
+var splatDecl = templateOf("broadcast an element", `
+// Broadcast{{.Name}} broadcasts {{.Article}} {{.Elem}} to all elements of {{.Article}} {{.Name}} vector.
+func Broadcast{{.Name}}(x {{.Elem}}) {{.Name}}
 `)
 
 var typeDecl = templateOf("type decl", `
@@ -1114,7 +1147,7 @@ type {{.Name}} struct {
 `)
 
 var lenDecl = templateOf("len decl", `
-// Len returns the number of elements in a {{.Name}}.
+// Len returns the number of elements in {{.Article}} {{.Name}}.
 func (x {{.Name}}) Len() int { return {{.Count}} }
 `)
 
@@ -1136,6 +1169,7 @@ func genTypes() (f *bytes.Buffer) {
 		lenDecl.Execute(f, t)
 		loadDecl.Execute(f, t)
 		storeDecl.Execute(f, t)
+		splatDecl.Execute(f, t)
 	}
 	for _, t := range masks {
 		maskTypeDecl.Execute(f, t)
@@ -1267,13 +1301,13 @@ var binOpImm = templateOf("binaryOpImm", `
 `)
 
 var toMask = templateOf("toMask", `
-	// ToMask translates a {{.From.Name}} vector to a {{.To.Name}} mask vector
+	// ToMask translates {{.Article}} {{.From.Name}} vector to a {{.To.Name}} mask vector
 	// zero becomes false, not-zero becomes true
 	func (x {{.From.Name}}) ToMask() {{.To.Name}}
 `)
 
 var fromMask = templateOf("fromMask", `
-	// To{{.To.Name}} translates a {{.From.Name}} mask vector to a {{.To.Name}} int vector
+	// To{{.To.Name}} translates a {{.From.Name}} mask vector to {{.Article}} {{.To.Name}} int vector
 	// false becomes zero, true becomes -1
 	func (x {{.From.Name}}) To{{.To.Name}}() {{.To.Name}}
 `)
@@ -1342,6 +1376,7 @@ func (x Mask{{.ElemSize}}x{{.Count}}) String() string {
 
 type asConversion struct {
 	From, To *simdType
+	Article  string
 }
 
 func forAllAsConversions(f func(from, to *simdType)) {
@@ -1427,8 +1462,8 @@ func genOps() (f *bytes.Buffer) {
 		// Conversions to/from mask types
 		// func (x Int8x16) ToMask() Mask8x16
 		// func (x Mask8x16) ToInt8x16() Int8x16
-		toMask.Execute(f, &asConversion{t, t.MaskFor()})
-		fromMask.Execute(f, &asConversion{t.MaskFor(), t})
+		toMask.Execute(f, &asConversion{t, t.MaskFor(), t.Article()})
+		fromMask.Execute(f, &asConversion{t.MaskFor(), t, t.Article()})
 	}
 
 	// Mask and Merge ops
@@ -1478,7 +1513,7 @@ func genSSAOps() (f *bytes.Buffer) {
 	fmt.Fprintln(f)
 
 	fmt.Fprintln(f)
-	fmt.Fprintln(f, "func simdWasmOps(vload, vstore, v11, v21, v31, v11gp, v11fp32, v11fp64, v1gpv, v1fp32v, v1fp64v regInfo) []opData {")
+	fmt.Fprintln(f, "func simdWasmOps(vload, vstore, v11, v21, v31, v11gp, v11fp32, v11fp64, v1gpv, v1fp32v, v1fp64v, gpv, fp32v, fp64v regInfo) []opData {")
 	fmt.Fprintln(f, "\treturn []opData{")
 
 	done := make(map[string]string)
@@ -1530,6 +1565,10 @@ func genSSARules() {
 
 	for _, op := range wasmOps {
 		// (GoOp x y) => (WasmOp x y)
+		if op.Flag(NonSigned) {
+			// skip these generics
+			continue
+		}
 		g := op.SsaGenOp()
 		if g == "" {
 			continue
@@ -1607,6 +1646,13 @@ func genWasmSSA() (f *bytes.Buffer) {
 
 		IMM2_32
 		IMM2_64
+
+		// splat operations
+		I32V
+		I64V
+		F32V
+		F64V
+
 		V
 		VV
 		V32
@@ -1647,6 +1693,20 @@ func genWasmSSA() (f *bytes.Buffer) {
 		} else {
 			switch op.ArgCount() {
 			case 1:
+				if op.Flag(IsSplat) {
+					switch op.ArgType() {
+					case "int8", "int16", "int32":
+						return I32V
+					case "int64":
+						return I64V
+					case "float32":
+						return F32V
+					case "float64":
+						return F64V
+					default:
+						panic(fmt.Errorf("op %s has unexpected splat arg type", op.String()))
+					}
+				}
 				return V
 			case 2:
 				if c := op.ArgType()[0]; c == 'i' || c == 'u' {
@@ -1730,6 +1790,28 @@ func genWasmSSA() (f *bytes.Buffer) {
 		p := s.Prog(v.Op.Asm())
 		p.To = obj.Addr{Type: obj.TYPE_CONST, Offset: v.AuxInt}
 `)
+
+			case I32V:
+				fmt.Fprintf(f,
+					`		getValue32(s, v.Args[0])
+		s.Prog(v.Op.Asm())
+`)
+			case I64V:
+				fmt.Fprintf(f,
+					`		getValue64(s, v.Args[0])
+		s.Prog(v.Op.Asm())
+`)
+			case F32V:
+				fmt.Fprintf(f,
+					`		getValueFxx(s, v.Args[0])
+		s.Prog(v.Op.Asm())
+`)
+			case F64V:
+				fmt.Fprintf(f,
+					`		getValueFxx(s, v.Args[0])
+		s.Prog(v.Op.Asm())
+`)
+
 			case V:
 				fmt.Fprintf(f,
 					`		getValue128(s, v.Args[0])
@@ -1906,7 +1988,7 @@ func initWasmSIMD() {
 		fullname := typeName + "." + funcName
 
 		g := op.SsaGenOp()
-		if g == "" {
+		if g == "" || op.Flag(IsSplat) {
 			continue
 		}
 		genOp := "ssa.Op" + g
@@ -1945,7 +2027,12 @@ func initWasmSIMD() {
 
 	// load and store intrinsics
 	for _, t := range allTypes {
+		u := t
+		if t.Unsigned {
+			u = t.IntShaped
+		}
 		fmt.Fprintf(f, "\taddWasmSIMD(\"%s\", \"%s\", simdLoad())\n", pkg, "Load"+t.Name+"Array")
+		fmt.Fprintf(f, "\taddWasmSIMD(\"%s\", \"%s\", simdBroadcast(ssa.OpBroadcast%s))\n", pkg, "Broadcast"+t.Name, u.Name)
 		fmt.Fprintf(f, "\taddWasmSIMD(\"%s\", \"%s\", simdStore())\n", pkg, t.Name+".StoreArray")
 	}
 
