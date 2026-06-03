@@ -48,8 +48,9 @@ func runtime_AfterForkInChild()
 // they might have been locked at the time of the fork. This means
 // no rescheduling, no malloc calls, and no new stack segments.
 // For the same reason compiler does not race instrument it.
-// The calls to rawSyscall are okay because they are assembly
-// functions that do not grow the stack.
+// The calls to rawSyscall are okay because they are nosplit
+// functions that do not grow the stack and are not race
+// instrumented (go:norace).
 //
 //go:norace
 func forkAndExecInChild(argv0 *byte, argv, envv []*byte, chroot, dir *byte, attr *ProcAttr, sys *SysProcAttr, pipe int) (pid int, err1 Errno) {
