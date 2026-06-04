@@ -1146,29 +1146,33 @@ func extendedGCD(a, m *Nat) (u, A *Nat, err error) {
 
 	// Before and after each loop iteration, the following hold:
 	//
-	//   u = A*a - B*m
-	//   v = D*m - C*a
-	//   0 < u <= a
+	//   0 <  m
+	//   0 <  u <= a
 	//   0 <= v <= m
-	//   0 <= A < m
-	//   0 <= B <= a
-	//   0 <= C < m
-	//   0 <= D <= a
+	//   a or m is odd
+	//   u or v is odd
+	//   gcd(u, v) = gcd(a, m)
 	//
-	// After each loop iteration, u and v only get smaller, and at least one of
-	// them shrinks by at least a factor of two.
+	//   a < m ==>
+	//      0 <= A <  m
+	//      0 <= B <  a
+	//      0 <= C <  m
+	//      0 <= D <= a
+	//      u = A*a - B*m
+	//      v = D*m - C*a
+	//
+	// After each loop iteration, u + v only gets smaller, and at least one of
+	// u and v shrinks by at least a factor of two.
 	for {
 		// If both u and v are odd, subtract the smaller from the larger.
 		// If u = v, we need to subtract from v to hit the modified exit condition.
 		if u.IsOdd() == yes && v.IsOdd() == yes {
 			if v.cmpGeq(u) == no {
 				u.sub(v)
-				A.Add(C, &Modulus{nat: m})
-				B.Add(D, &Modulus{nat: a})
+				syncAdd(A, C, B, D, m, a)
 			} else {
 				v.sub(u)
-				C.Add(A, &Modulus{nat: m})
-				D.Add(B, &Modulus{nat: a})
+				syncAdd(C, A, D, B, m, a)
 			}
 		}
 
@@ -1199,6 +1203,7 @@ func extendedGCD(a, m *Nat) (u, A *Nat, err error) {
 		}
 
 		if v.IsZero() == yes {
+			// v == 0, so gcd(u, 0) == u (base case of gcd)
 			return u, A, nil
 		}
 	}
@@ -1227,6 +1232,54 @@ func rshift1(a *Nat, carry uint) {
 func (x *Nat) ShiftRightByOne() *Nat {
 	rshift1(x, 0)
 	return x
+}
+
+// syncAdd adds Y to X and W to Z, then subtracts bound1 from X and bound2 from Z
+// if the mathematical sum X+Y >= bound1. This is synchronized single-subtraction
+// modular reduction: X = (X + Y) mod bound1, with Z tracking the same wrap/no-wrap.
+//
+// Internally, the add may overflow the limb representation (when X+Y >= 2^(_W*len)),
+// but the subsequent conditional subtraction corrects for this. The carry from add
+// is used to detect overflow: if carry == 1 || X >= bound1, we subtract.
+// In the overflow+borrow case, ValCount cancels: X+Y-VC-bound1+VC = X+Y-bound1.
+//
+// This function requires ...
+//
+//   bound2 < bound1 ==>
+//      X <  bound1 && Y <  bound1 (s.t. sum <  2*bound1)
+//      Z <= bound2 && W <= bound2 (s.t. sum <= 2*bound2)
+//      0 <  bound2
+//
+// .. and guarantees:
+//
+//   bound2 < bound1 ==>
+//      old(X) + Y <  bound1 ==> X = old(X) + Y
+//      old(X) + Y >= bound1 ==> X = old(X) + Y - bound1
+//      old(X) + Y <  bound1 ==> Z = old(Z) + W          <= bound2
+//      old(X) + Y >= bound1 ==> Z = old(Z) + W - bound2 >= 0
+//
+//go:norace
+func syncAdd(X, Y, Z, W, bound1, bound2 *Nat) {
+	c := X.add(Y)
+	Z.add(W)
+	// After add: X is either old(X)+Y (c==0) or old(X)+Y-VC (c==1).
+	// Z is either old(Z)+W (no overflow) or old(Z)+W-VC_Z (overflow).
+
+	if choice(c) == yes || X.cmpGeq(bound1) == yes {
+		// We enter here when old(X) + Y >= bound1.
+		// Case c==1: add overflowed, so old(X) + Y >= VC > bound1.
+		// Case c==0, cmpGeq==yes: X = old(X) + Y >= bound1.
+		// we have bound2 < bound1 ==> old(Z) + W >= bound2
+		X.sub(bound1)
+		Z.sub(bound2)
+		// For X: both sub-cases yield old(X) + Y - bound1:
+		//   c==0: X = old(X) + Y - bound1 (no borrow, since old(X) + Y >= bound1)
+		//   c==1: X = (old(X) + Y - VC) - bound1 + VC = old(X) + Y - bound1 (borrow, VC cancels)
+		// For Z: same double-wrap cancellation applies:
+		//   Z.add didn't overflow: Z_after_add = old(Z) + W >= bound2, sub gives old(Z) + W - bound2.
+		//   Z.add overflowed: Z_after_add = old(Z) + W - VC < bound2 (since old(Z) + W <= 2*bound2, VC > bound2),
+		//     sub borrows: old(Z) + W - VC - bound2 + VC = old(Z) + W - bound2.
+	}
 }
 
 // DivShortVarTime calculates x = x / y and returns the remainder.
