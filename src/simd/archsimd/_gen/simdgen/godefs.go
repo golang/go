@@ -183,13 +183,14 @@ func (o *Operation) DecodeUnified(v *unify.Value) error {
 				vregIns++
 			}
 		}
+		// note this is arm64-specific
 		switch vregIns {
 		case 2:
 			// Binary: MulLong, AddLong, SubLong, etc.
-			o.Documentation += "\n// For the high-indexed elements, use GetHi:\n//\n//\tx.GetHi()." + o.Go + "(y.GetHi())"
+			o.Documentation += "\n// For the high-indexed elements, use HiToLo:\n//\n//\tx.HiToLo()." + o.Go + "(y.HiToLo())"
 		case 1:
 			// Unary: ShiftLeftLongConst, etc.
-			o.Documentation += "\n// For the high-indexed elements, use GetHi:\n//\n//\tx.GetHi()." + o.Go + "(...)"
+			o.Documentation += "\n// For the high-indexed elements, use HiToLo:\n//\n//\tx.HiToLo()." + o.Go + "(...)"
 		}
 	}
 

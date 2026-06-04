@@ -434,6 +434,6 @@
 (VUQSHL8Hconst [a] x) && a==0 => x // asmRule
 (VUQSHL4Sconst [a] x) && a==0 => x // asmRule
 (VUQSHL2Dconst [a] x) && a==0 => x // asmRule
-(VSHRN8H [0] x) => (VXTN8H x) // g=shiftRightNarrowConstUint16x8, h=VSHRN8H // specialLower
-(VSHRN4S [0] x) => (VXTN4S x) // g=shiftRightNarrowConstUint32x4, h=VSHRN4S // specialLower
-(VSHRN2D [0] x) => (VXTN2D x) // g=shiftRightNarrowConstUint64x2, h=VSHRN2D // specialLower
+(VSHRN8H [0] x) => (VXTN8H x) // specialLower
+(VSHRN4S [0] x) => (VXTN4S x) // specialLower
+(VSHRN2D [0] x) => (VXTN2D x) // specialLower

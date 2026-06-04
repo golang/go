@@ -1190,22 +1190,10 @@ func (x {{.VType}}) String() string {
 }
 `)
 
-var setHiTemplateArm64 = shapedTemplateOf(arm64Shapes, "arm64_SetHi methods", `
-// SetHi returns a vector with the lower 64 bits of x preserved and the upper
-// 64 bits replaced with the lower 64 bits of the parameter lo.
-func (x {{.VType}}) SetHi(lo {{.VType}}) {{.VType}} {
-{{- if and (eq .Base "Float") (eq .EWidth 64)}}
-	return x.SetElem(1, lo.GetElem(0))
-{{- else}}
-	return x.AsFloat64x2().SetElem(1, lo.AsFloat64x2().GetElem(0)).As{{.VType}}()
-{{- end}}
-}
-`)
-
-var getHiTemplateArm64 = shapedTemplateOf(arm64Shapes, "arm64_GetHi methods", `
-// GetHi returns a vector with the upper 64 bits zeroed and the lower
+var getHiTemplateArm64 = shapedTemplateOf(arm64Shapes, "arm64_HiToLo methods", `
+// HiToLo returns a vector with the upper 64 bits zeroed and the lower
 // 64 bits replaced with the upper 64 bits of x.
-func (x {{.VType}}) GetHi() {{.VType}} {
+func (x {{.VType}}) HiToLo() {{.VType}} {
 	var z {{.VType}}
 {{- if and (eq .Base "Float") (eq .EWidth 64)}}
 	return z.SetElem(0, x.GetElem(1))
@@ -1448,7 +1436,6 @@ func main() {
 		one(*opArm64, prologue,
 			broadcastTemplateArm64,
 			stringTemplateArm64,
-			setHiTemplateArm64,
 			getHiTemplateArm64,
 			arm64MaskCvtTemplate,
 			shapeAndTemplate{neonIntShiftAllShapes, intRotateAllTemplate},

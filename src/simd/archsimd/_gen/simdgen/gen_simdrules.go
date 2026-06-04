@@ -527,10 +527,13 @@ func writeSIMDRules(ops []Operation) *bytes.Buffer {
 	return buffer
 }
 
-// generateHiHalfFoldingRules generates folding rules that combine SetHi/GetHi patterns
+// Note: SetHi was removed (temporarily?) from 1.27, but may return in some form
+// and these optimizations may apply to the equivalent idioms.
+//
+// generateHiHalfFoldingRules generates folding rules that combine SetHi/HiToLo patterns
 // with narrow/long base operations into the hi-half "2" variant instruction.
 //
-// x.GetHi() is lowered as (VDUPDextr[1] x)
+// x.HiToLo() is lowered as (VDUPDextr[1] x)
 //
 // x.SetHi(lo) is lowered as (VMOVDins0 [1] x (VDUPDextr [0] lo))
 //
@@ -538,11 +541,11 @@ func writeSIMDRules(ops []Operation) *bytes.Buffer {
 //
 //	(VMOVDins0 [1] dst y:(VSHRN4S [a] x)) => (VSHRN2_4S dst [a] x)
 //
-// Unary Long (e.g., USHLL) getting high half (GetHi) as input:
+// Unary Long (e.g., USHLL) getting high half (HiToLo) as input:
 //
 //	(VUSHLL4H [a] (VDUPDextr [1] x)) => (VUSHLL2_4H [a] x)
 //
-// Binary Long (e.g., UMULL, SMULL), both inputs from GetHi:
+// Binary Long (e.g., UMULL, SMULL), both inputs from HiToLo:
 //
 //	(VUMULL4H (VDUPDextr [1] x) (VDUPDextr [1] y)) => (VUMULL2_4H x y)
 func generateHiHalfFoldingRules(ops []Operation) []string {
@@ -578,6 +581,10 @@ func generateHiHalfFoldingRules(ops []Operation) []string {
 		case "narrow":
 			switch vregInCnt {
 			case 1:
+				// Note, at least for 1.27, SetHi is not supported, because it is an emulated instruction,
+				// not part of the scalable set, and though it is intended to mimic the similar instruction
+				// on amd64, it is actually slightly different.
+				//
 				// Narrow: the value used by SetHi may be produced with asm2 (hiHalf) variant.
 				// TODO: Maybe have a separate rule: (VMOVDins0 [c] dst (VDUPDextr [0] src)) => (VMOVDins0 [c] dst src)
 				if hasImm {
@@ -591,14 +598,14 @@ func generateHiHalfFoldingRules(ops []Operation) []string {
 		case "long":
 			switch vregInCnt {
 			case 1:
-				// Long: input from GetHi (VDUPDextr [1]), prefer hiHalf variant.
+				// Long: input from HiToLo (VDUPDextr [1]), prefer hiHalf variant.
 				if hasImm {
 					rules = append(rules, fmt.Sprintf("(%s [a] (VDUPDextr [1] x)) => (%s [a] x)\n", asm, asm2))
 				} else {
 					rules = append(rules, fmt.Sprintf("(%s (VDUPDextr [1] x)) => (%s x)\n", asm, asm2))
 				}
 			case 2:
-				// Binary Long: both inputs are from GetHi, fold into hiHalf variant.
+				// Binary Long: both inputs are from HiToLo, fold into hiHalf variant.
 				rules = append(rules, fmt.Sprintf("(%s (VDUPDextr [1] x) (VDUPDextr [1] y)) => (%s x y)\n", asm, asm2))
 			default:
 				panic("unsupported yet folding long ops cases")

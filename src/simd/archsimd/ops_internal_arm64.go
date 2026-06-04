@@ -100,9 +100,9 @@ func (x Uint8x16) broadcast1To16() Uint8x16
 // from GF(2) -- 11 * 11 models (x+1)*(x+1) = x**2 + (1^1)x + 1 =
 // x**2 + 0x + 1 = x**2 + 1 modeled by 101.  (Note that "+" adds
 // polynomial terms, but coefficients "add" with XOR.)
-// For the high-indexed elements, use GetHi:
+// For the high-indexed elements, use HiToLo:
 //
-//	x.GetHi().carrylessMultiplyWidenLo(y.GetHi())
+//	x.HiToLo().carrylessMultiplyWidenLo(y.HiToLo())
 //
 // Asm: VPMULL, CPU Feature: NEON
 func (x Uint64x2) carrylessMultiplyWidenLo(y Uint64x2) Uint64x2

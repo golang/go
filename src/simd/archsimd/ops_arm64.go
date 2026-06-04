@@ -321,9 +321,9 @@ func (x Uint8x16) ConcatShiftBytesRight(y Uint8x16, shift uint64) Uint8x16
 /* ConvertLo2ToFloat64 */
 
 // ConvertLo2ToFloat64 converts low-indexed float32 element values to float64.
-// For the high-indexed elements, use GetHi:
+// For the high-indexed elements, use HiToLo:
 //
-//	x.GetHi().ConvertLo2ToFloat64(...)
+//	x.HiToLo().ConvertLo2ToFloat64(...)
 //
 // Asm: VFCVTL, CPU Feature: NEON
 func (x Float32x4) ConvertLo2ToFloat64() Float64x2
@@ -564,9 +564,9 @@ func (x Uint64x2) Equal(y Uint64x2) Mask64x2
 /* ExtendLo2ToInt64 */
 
 // ExtendLo2ToInt64 sign-extends 2 lowest vector element values to int64.
-// For the high-indexed elements, use GetHi:
+// For the high-indexed elements, use HiToLo:
 //
-//	x.GetHi().ExtendLo2ToInt64(...)
+//	x.HiToLo().ExtendLo2ToInt64(...)
 //
 // Asm: VSXTL, CPU Feature: NEON
 func (x Int32x4) ExtendLo2ToInt64() Int64x2
@@ -574,9 +574,9 @@ func (x Int32x4) ExtendLo2ToInt64() Int64x2
 /* ExtendLo2ToUint64 */
 
 // ExtendLo2ToUint64 zero-extends 2 lowest vector element values to uint64.
-// For the high-indexed elements, use GetHi:
+// For the high-indexed elements, use HiToLo:
 //
-//	x.GetHi().ExtendLo2ToUint64(...)
+//	x.HiToLo().ExtendLo2ToUint64(...)
 //
 // Asm: VUXTL, CPU Feature: NEON
 func (x Uint32x4) ExtendLo2ToUint64() Uint64x2
@@ -584,9 +584,9 @@ func (x Uint32x4) ExtendLo2ToUint64() Uint64x2
 /* ExtendLo4ToInt32 */
 
 // ExtendLo4ToInt32 sign-extends 4 lowest vector element values to int32.
-// For the high-indexed elements, use GetHi:
+// For the high-indexed elements, use HiToLo:
 //
-//	x.GetHi().ExtendLo4ToInt32(...)
+//	x.HiToLo().ExtendLo4ToInt32(...)
 //
 // Asm: VSXTL, CPU Feature: NEON
 func (x Int16x8) ExtendLo4ToInt32() Int32x4
@@ -594,9 +594,9 @@ func (x Int16x8) ExtendLo4ToInt32() Int32x4
 /* ExtendLo4ToUint32 */
 
 // ExtendLo4ToUint32 zero-extends 4 lowest vector element values to uint32.
-// For the high-indexed elements, use GetHi:
+// For the high-indexed elements, use HiToLo:
 //
-//	x.GetHi().ExtendLo4ToUint32(...)
+//	x.HiToLo().ExtendLo4ToUint32(...)
 //
 // Asm: VUXTL, CPU Feature: NEON
 func (x Uint16x8) ExtendLo4ToUint32() Uint32x4
@@ -604,9 +604,9 @@ func (x Uint16x8) ExtendLo4ToUint32() Uint32x4
 /* ExtendLo8ToInt16 */
 
 // ExtendLo8ToInt16 sign-extends 8 lowest vector element values to int16.
-// For the high-indexed elements, use GetHi:
+// For the high-indexed elements, use HiToLo:
 //
-//	x.GetHi().ExtendLo8ToInt16(...)
+//	x.HiToLo().ExtendLo8ToInt16(...)
 //
 // Asm: VSXTL, CPU Feature: NEON
 func (x Int8x16) ExtendLo8ToInt16() Int16x8
@@ -614,9 +614,9 @@ func (x Int8x16) ExtendLo8ToInt16() Int16x8
 /* ExtendLo8ToUint16 */
 
 // ExtendLo8ToUint16 zero-extends 8 lowest vector element values to uint16.
-// For the high-indexed elements, use GetHi:
+// For the high-indexed elements, use HiToLo:
 //
-//	x.GetHi().ExtendLo8ToUint16(...)
+//	x.HiToLo().ExtendLo8ToUint16(...)
 //
 // Asm: VUXTL, CPU Feature: NEON
 func (x Uint8x16) ExtendLo8ToUint16() Uint16x8
@@ -1176,49 +1176,49 @@ func (x Uint32x4) MulAdd(y Uint32x4, z Uint32x4) Uint32x4
 /* MulWidenLo */
 
 // MulWidenLo multiplies corresponding low-indexed elements and produces a result with double the element width.
-// For the high-indexed elements, use GetHi:
+// For the high-indexed elements, use HiToLo:
 //
-//	x.GetHi().MulWidenLo(y.GetHi())
+//	x.HiToLo().MulWidenLo(y.HiToLo())
 //
 // Asm: VSMULL, CPU Feature: NEON
 func (x Int8x16) MulWidenLo(y Int8x16) Int16x8
 
 // MulWidenLo multiplies corresponding low-indexed elements and produces a result with double the element width.
-// For the high-indexed elements, use GetHi:
+// For the high-indexed elements, use HiToLo:
 //
-//	x.GetHi().MulWidenLo(y.GetHi())
+//	x.HiToLo().MulWidenLo(y.HiToLo())
 //
 // Asm: VSMULL, CPU Feature: NEON
 func (x Int16x8) MulWidenLo(y Int16x8) Int32x4
 
 // MulWidenLo multiplies corresponding low-indexed elements and produces a result with double the element width.
-// For the high-indexed elements, use GetHi:
+// For the high-indexed elements, use HiToLo:
 //
-//	x.GetHi().MulWidenLo(y.GetHi())
+//	x.HiToLo().MulWidenLo(y.HiToLo())
 //
 // Asm: VSMULL, CPU Feature: NEON
 func (x Int32x4) MulWidenLo(y Int32x4) Int64x2
 
 // MulWidenLo multiplies corresponding low-indexed elements and produces a result with double the element width.
-// For the high-indexed elements, use GetHi:
+// For the high-indexed elements, use HiToLo:
 //
-//	x.GetHi().MulWidenLo(y.GetHi())
+//	x.HiToLo().MulWidenLo(y.HiToLo())
 //
 // Asm: VUMULL, CPU Feature: NEON
 func (x Uint8x16) MulWidenLo(y Uint8x16) Uint16x8
 
 // MulWidenLo multiplies corresponding low-indexed elements and produces a result with double the element width.
-// For the high-indexed elements, use GetHi:
+// For the high-indexed elements, use HiToLo:
 //
-//	x.GetHi().MulWidenLo(y.GetHi())
+//	x.HiToLo().MulWidenLo(y.HiToLo())
 //
 // Asm: VUMULL, CPU Feature: NEON
 func (x Uint16x8) MulWidenLo(y Uint16x8) Uint32x4
 
 // MulWidenLo multiplies corresponding low-indexed elements and produces a result with double the element width.
-// For the high-indexed elements, use GetHi:
+// For the high-indexed elements, use HiToLo:
 //
-//	x.GetHi().MulWidenLo(y.GetHi())
+//	x.HiToLo().MulWidenLo(y.HiToLo())
 //
 // Asm: VUMULL, CPU Feature: NEON
 func (x Uint32x4) MulWidenLo(y Uint32x4) Uint64x2
