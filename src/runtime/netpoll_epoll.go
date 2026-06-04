@@ -13,10 +13,17 @@ import (
 )
 
 var (
-	epfd           int32         = -1 // epoll descriptor
-	netpollEventFd uintptr            // eventfd for netpollBreak
-	netpollWakeSig atomic.Uint32      // used to avoid duplicate calls of netpollBreak
+	epfd             int32         = -1 // epoll descriptor
+	netpollEventFd   uintptr            // eventfd for netpollBreak
+	netpollWakeSig   atomic.Uint32      // used to avoid duplicate calls of netpollBreak
+	epollpwait2Avail bool               // true if epoll_pwait2 is available (Linux 5.11+)
 )
+
+func netpollEpollPwait2Init() {
+	var ts linux.KernelTimespec
+	_, errno := linux.EpollPwait2(-1, nil, 0, &ts)
+	epollpwait2Avail = errno != _ENOSYS
+}
 
 func netpollinit() {
 	var errno uintptr
@@ -100,23 +107,48 @@ func netpoll(delay int64) (gList, int32) {
 	if epfd == -1 {
 		return gList{}, 0
 	}
-	var waitms int32
-	if delay < 0 {
-		waitms = -1
-	} else if delay == 0 {
-		waitms = 0
-	} else if delay < 1e6 {
-		waitms = 1
-	} else if delay < 1e15 {
-		waitms = int32(delay / 1e6)
-	} else {
-		// An arbitrary cap on how long to wait for a timer.
-		// 1e9 ms == ~11.5 days.
-		waitms = 1e9
-	}
 	var events [128]linux.EpollEvent
+	var n int32
+	var errno uintptr
 retry:
-	n, errno := linux.EpollWait(epfd, events[:], int32(len(events)), waitms)
+	if epollpwait2Avail && delay != 0 {
+		// Use epoll_pwait2 for nanosecond-precision timeouts (Linux 5.11+).
+		// This eliminates the 1ms rounding applied by epoll_wait, improving
+		// deadline accuracy for sub-millisecond timeouts.
+		var ts *linux.KernelTimespec
+		if delay > 0 {
+			var timeout linux.KernelTimespec
+			if delay < 1e15 {
+				timeout.Sec = delay / 1e9
+				timeout.Nsec = delay % 1e9
+			} else {
+				// Cap at ~11.5 days to match epoll_wait behaviour.
+				timeout.Sec = 1e6
+				timeout.Nsec = 0
+			}
+			ts = &timeout
+		}
+		// delay < 0: ts == nil, blocks indefinitely.
+		n, errno = linux.EpollPwait2(epfd, events[:], int32(len(events)), ts)
+	} else {
+		// epoll_pwait2 unavailable or delay == 0 (non-blocking): use epoll_wait.
+		// Convert delay to milliseconds for epoll_wait.
+		var waitms int32
+		if delay < 0 {
+			waitms = -1
+		} else if delay == 0 {
+			waitms = 0
+		} else if delay < 1e6 {
+			waitms = 1
+		} else if delay < 1e15 {
+			waitms = int32(delay / 1e6)
+		} else {
+			// An arbitrary cap on how long to wait for a timer.
+			// 1e9 ms == ~11.5 days.
+			waitms = 1e9
+		}
+		n, errno = linux.EpollWait(epfd, events[:], int32(len(events)), waitms)
+	}
 	if errno != 0 {
 		if errno != _EINTR {
 			println("runtime: epollwait on fd", epfd, "failed with", errno)
@@ -124,7 +156,7 @@ retry:
 		}
 		// If a timed sleep was interrupted, just return to
 		// recalculate how long we should sleep now.
-		if waitms > 0 {
+		if delay > 0 {
 			return gList{}, 0
 		}
 		goto retry
