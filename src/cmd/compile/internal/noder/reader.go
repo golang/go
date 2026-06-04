@@ -2595,6 +2595,19 @@ func (r *reader) expr() (res ir.Node) {
 		identical := r.Bool()
 		x := r.expr()
 
+		// spec: "If the type is a type parameter, the constant is converted
+		// into a non-constant value of the type parameter."
+		if dstTypeParam && ir.IsConstNode(x) {
+			val := typecheck.ConvertVal(x.Val(), typ, false)
+			base.AssertfAt(val.Kind() != constant.Unknown, pos, "invalid constant conversion to %v: %v", typ, x.Val())
+			x = ir.NewBasicLit(x.Pos(), typ, val)
+
+			// Wrap in an OCONVNOP node to ensure result is non-constant.
+			n := Implicit(ir.NewConvExpr(pos, ir.OCONVNOP, typ, x))
+			n.SetTypecheck(1)
+			return n
+		}
+
 		// TODO(mdempsky): Stop constructing expressions of untyped type.
 		x = typecheck.DefaultLit(x, typ)
 
@@ -2627,13 +2640,6 @@ func (r *reader) expr() (res ir.Node) {
 			}
 		}
 
-		// spec: "If the type is a type parameter, the constant is converted
-		// into a non-constant value of the type parameter."
-		if dstTypeParam && ir.IsConstNode(n) {
-			// Wrap in an OCONVNOP node to ensure result is non-constant.
-			n = Implicit(ir.NewConvExpr(pos, ir.OCONVNOP, n.Type(), n))
-			n.SetTypecheck(1)
-		}
 		return n
 
 	case exprRuntimeBuiltin:
