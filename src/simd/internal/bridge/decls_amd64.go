@@ -676,16 +676,16 @@ func (x Int8x64) Store(s []int8) {
 	(archsimd.Int8x64(x)).Store(s)
 }
 
-func (x Int8x16) StorePart(s []int8) {
-	(archsimd.Int8x16(x)).StorePart(s)
+func (x Int8x16) StorePart(s []int8) int {
+	return (archsimd.Int8x16(x)).StorePart(s)
 }
 
-func (x Int8x32) StorePart(s []int8) {
-	(archsimd.Int8x32(x)).StorePart(s)
+func (x Int8x32) StorePart(s []int8) int {
+	return (archsimd.Int8x32(x)).StorePart(s)
 }
 
-func (x Int8x64) StorePart(s []int8) {
-	(archsimd.Int8x64(x)).StorePart(s)
+func (x Int8x64) StorePart(s []int8) int {
+	return (archsimd.Int8x64(x)).StorePart(s)
 }
 
 func (x Int8x16) String() string {
@@ -1072,16 +1072,16 @@ func (x Int16x8) Store(s []int16) {
 	(archsimd.Int16x8(x)).Store(s)
 }
 
-func (x Int16x16) StorePart(s []int16) {
-	(archsimd.Int16x16(x)).StorePart(s)
+func (x Int16x16) StorePart(s []int16) int {
+	return (archsimd.Int16x16(x)).StorePart(s)
 }
 
-func (x Int16x32) StorePart(s []int16) {
-	(archsimd.Int16x32(x)).StorePart(s)
+func (x Int16x32) StorePart(s []int16) int {
+	return (archsimd.Int16x32(x)).StorePart(s)
 }
 
-func (x Int16x8) StorePart(s []int16) {
-	(archsimd.Int16x8(x)).StorePart(s)
+func (x Int16x8) StorePart(s []int16) int {
+	return (archsimd.Int16x8(x)).StorePart(s)
 }
 
 func (x Int16x16) String() string {
@@ -1468,8 +1468,8 @@ func (x Int32x8) Store(s []int32) {
 	(archsimd.Int32x8(x)).Store(s)
 }
 
-func (x Int32x16) StorePart(s []int32) {
-	(archsimd.Int32x16(x)).StorePart(s)
+func (x Int32x16) StorePart(s []int32) int {
+	return (archsimd.Int32x16(x)).StorePart(s)
 }
 
 func (x Int32x4) StorePart(s []int32) {
@@ -1788,8 +1788,8 @@ func (x Int64x4) StorePart(s []int64) {
 	(archsimd.Int64x4(x)).StorePart(s)
 }
 
-func (x Int64x8) StorePart(s []int64) {
-	(archsimd.Int64x8(x)).StorePart(s)
+func (x Int64x8) StorePart(s []int64) int {
+	return (archsimd.Int64x8(x)).StorePart(s)
 }
 
 func (x Int64x2) String() string {
@@ -2104,16 +2104,16 @@ func (x Uint8x64) Store(s []uint8) {
 	(archsimd.Uint8x64(x)).Store(s)
 }
 
-func (x Uint8x16) StorePart(s []uint8) {
-	(archsimd.Uint8x16(x)).StorePart(s)
+func (x Uint8x16) StorePart(s []uint8) int {
+	return (archsimd.Uint8x16(x)).StorePart(s)
 }
 
 func (x Uint8x32) StorePart(s []uint8) {
 	(archsimd.Uint8x32(x)).StorePart(s)
 }
 
-func (x Uint8x64) StorePart(s []uint8) {
-	(archsimd.Uint8x64(x)).StorePart(s)
+func (x Uint8x64) StorePart(s []uint8) int {
+	return (archsimd.Uint8x64(x)).StorePart(s)
 }
 
 func (x Uint8x16) String() string {
@@ -2516,12 +2516,12 @@ func (x Uint16x16) StorePart(s []uint16) {
 	(archsimd.Uint16x16(x)).StorePart(s)
 }
 
-func (x Uint16x32) StorePart(s []uint16) {
-	(archsimd.Uint16x32(x)).StorePart(s)
+func (x Uint16x32) StorePart(s []uint16) int {
+	return (archsimd.Uint16x32(x)).StorePart(s)
 }
 
-func (x Uint16x8) StorePart(s []uint16) {
-	(archsimd.Uint16x8(x)).StorePart(s)
+func (x Uint16x8) StorePart(s []uint16) int {
+	return (archsimd.Uint16x8(x)).StorePart(s)
 }
 
 func (x Uint16x16) String() string {
@@ -2908,8 +2908,8 @@ func (x Uint32x8) Store(s []uint32) {
 	(archsimd.Uint32x8(x)).Store(s)
 }
 
-func (x Uint32x16) StorePart(s []uint32) {
-	(archsimd.Uint32x16(x)).StorePart(s)
+func (x Uint32x16) StorePart(s []uint32) int {
+	return (archsimd.Uint32x16(x)).StorePart(s)
 }
 
 func (x Uint32x4) StorePart(s []uint32) {
@@ -3288,8 +3288,8 @@ func (x Uint64x4) StorePart(s []uint64) {
 	(archsimd.Uint64x4(x)).StorePart(s)
 }
 
-func (x Uint64x8) StorePart(s []uint64) {
-	(archsimd.Uint64x8(x)).StorePart(s)
+func (x Uint64x8) StorePart(s []uint64) int {
+	return (archsimd.Uint64x8(x)).StorePart(s)
 }
 
 func (x Uint64x2) String() string {
@@ -3568,8 +3568,8 @@ func (x Float32x8) Store(s []float32) {
 	(archsimd.Float32x8(x)).Store(s)
 }
 
-func (x Float32x16) StorePart(s []float32) {
-	(archsimd.Float32x16(x)).StorePart(s)
+func (x Float32x16) StorePart(s []float32) int {
+	return (archsimd.Float32x16(x)).StorePart(s)
 }
 
 func (x Float32x4) StorePart(s []float32) {
@@ -3852,8 +3852,8 @@ func (x Float64x4) StorePart(s []float64) {
 	(archsimd.Float64x4(x)).StorePart(s)
 }
 
-func (x Float64x8) StorePart(s []float64) {
-	(archsimd.Float64x8(x)).StorePart(s)
+func (x Float64x8) StorePart(s []float64) int {
+	return (archsimd.Float64x8(x)).StorePart(s)
 }
 
 func (x Float64x2) String() string {

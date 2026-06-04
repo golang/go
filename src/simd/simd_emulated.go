@@ -291,8 +291,9 @@ func (x Int8s) Store(s []int8) {
 }
 
 // StorePart stores a partial vector into the slice s.
-func (x Int8s) StorePart(s []int8) {
+func (x Int8s) StorePart(s []int8) int {
 	x.Store(s)
+	return min(len(s), x.Len())
 }
 
 // String returns a string representation of the vector.
@@ -652,8 +653,9 @@ func (x Int16s) Store(s []int16) {
 }
 
 // StorePart stores a partial vector into the slice s.
-func (x Int16s) StorePart(s []int16) {
+func (x Int16s) StorePart(s []int16) int {
 	x.Store(s)
+	return min(len(s), x.Len())
 }
 
 // String returns a string representation of the vector.
@@ -1006,8 +1008,9 @@ func (x Int32s) Store(s []int32) {
 }
 
 // StorePart stores a partial vector into the slice s.
-func (x Int32s) StorePart(s []int32) {
+func (x Int32s) StorePart(s []int32) int {
 	x.Store(s)
+	return min(len(s), x.Len())
 }
 
 // String returns a string representation of the vector.
@@ -1249,8 +1252,9 @@ func (x Int64s) Store(s []int64) {
 }
 
 // StorePart stores a partial vector into the slice s.
-func (x Int64s) StorePart(s []int64) {
+func (x Int64s) StorePart(s []int64) int {
 	x.Store(s)
+	return min(len(s), x.Len())
 }
 
 // String returns a string representation of the vector.
@@ -1485,8 +1489,9 @@ func (x Uint8s) Store(s []uint8) {
 }
 
 // StorePart stores a partial vector into the slice s.
-func (x Uint8s) StorePart(s []uint8) {
+func (x Uint8s) StorePart(s []uint8) int {
 	x.Store(s)
+	return min(len(s), x.Len())
 }
 
 // String returns a string representation of the vector.
@@ -1833,8 +1838,9 @@ func (x Uint16s) Store(s []uint16) {
 }
 
 // StorePart stores a partial vector into the slice s.
-func (x Uint16s) StorePart(s []uint16) {
+func (x Uint16s) StorePart(s []uint16) int {
 	x.Store(s)
+	return min(len(s), x.Len())
 }
 
 // String returns a string representation of the vector.
@@ -2158,8 +2164,9 @@ func (x Uint32s) Store(s []uint32) {
 }
 
 // StorePart stores a partial vector into the slice s.
-func (x Uint32s) StorePart(s []uint32) {
+func (x Uint32s) StorePart(s []uint32) int {
 	x.Store(s)
+	return min(len(s), x.Len())
 }
 
 // String returns a string representation of the vector.
@@ -2407,8 +2414,9 @@ func (x Uint64s) Store(s []uint64) {
 }
 
 // StorePart stores a partial vector into the slice s.
-func (x Uint64s) StorePart(s []uint64) {
+func (x Uint64s) StorePart(s []uint64) int {
 	x.Store(s)
+	return min(len(s), x.Len())
 }
 
 // String returns a string representation of the vector.
@@ -2711,8 +2719,9 @@ func (x Float32s) Store(s []float32) {
 }
 
 // StorePart stores a partial vector into the slice s.
-func (x Float32s) StorePart(s []float32) {
+func (x Float32s) StorePart(s []float32) int {
 	x.Store(s)
+	return min(len(s), x.Len())
 }
 
 // String returns a string representation of the vector.
@@ -2984,8 +2993,9 @@ func (x Float64s) Store(s []float64) {
 }
 
 // StorePart stores a partial vector into the slice s.
-func (x Float64s) StorePart(s []float64) {
+func (x Float64s) StorePart(s []float64) int {
 	x.Store(s)
+	return min(len(s), x.Len())
 }
 
 // String returns a string representation of the vector.

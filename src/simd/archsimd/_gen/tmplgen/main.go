@@ -797,17 +797,18 @@ func Load{{.VType}}Part(s []{{.Etype}}) ({{.VType}}, int) {
 // StorePart stores the {{.Count}} elements of x into the slice s.
 // It stores as many elements as will fit in s.
 // If s has {{.Count}} or more elements, the method is equivalent to x.Store.
-func (x {{.VType}}) StorePart(s []{{.Etype}}) {
+func (x {{.VType}}) StorePart(s []{{.Etype}}) int {
 	l := len(s)
 	if l >= {{.Count}} {
 		x.Store(s)
-		return
+		return {{.Count}}
 	}
 	if l == 0 {
-		return
+		return 0
 	}
 	mask := Mask{{.WxC}}FromBits({{.OxFF}} >> ({{.Count}} - l))
 	x.StoreArrayMasked(pa{{.VType}}(s), mask)
+	return l
 }
 `)
 
