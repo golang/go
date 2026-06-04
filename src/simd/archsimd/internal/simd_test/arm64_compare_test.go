@@ -149,9 +149,9 @@ func TestMasked(t *testing.T) {
 	})
 }
 
-// --- Merge: set elements to y where mask is true, keep x where false ---
+// --- IfElse: set elements to y where mask is true, keep x where true ---
 
-func TestMerge(t *testing.T) {
+func TestIfElse(t *testing.T) {
 	// Test Merge for Int8x16
 	forSliceTriple(t, int8s, 16, func(x, y, m []int8) bool {
 		t.Helper()
@@ -159,7 +159,7 @@ func TestMerge(t *testing.T) {
 		b := archsimd.LoadInt8x16(y)
 		mask := archsimd.LoadInt8x16(m).Greater(archsimd.Int8x16{}) // mask: m > 0
 		g := make([]int8, 16)
-		a.Merge(b, mask).Store(g)
+		a.IfElse(mask, b).Store(g)
 		w := make([]int8, 16)
 		for i := range w {
 			if m[i] > 0 {
@@ -178,7 +178,7 @@ func TestMerge(t *testing.T) {
 		b := archsimd.LoadFloat32x4(y)
 		mask := archsimd.LoadFloat32x4(m).Greater(archsimd.Float32x4{}) // mask: m > 0
 		g := make([]float32, 4)
-		a.Merge(b, mask).Store(g)
+		a.IfElse(mask, b).Store(g)
 		w := make([]float32, 4)
 		for i := range w {
 			if m[i] > 0 {
