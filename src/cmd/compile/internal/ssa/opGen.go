@@ -7933,10 +7933,6 @@ const (
 	OpMulAddUint8x16
 	OpMulAddUint16x8
 	OpMulAddUint32x4
-	OpMulEvenWidenInt32x4
-	OpMulEvenWidenInt32x8
-	OpMulEvenWidenUint32x4
-	OpMulEvenWidenUint32x8
 	OpMulFloat32x4
 	OpMulFloat32x8
 	OpMulFloat32x16
@@ -7975,6 +7971,10 @@ const (
 	OpMulUint64x2
 	OpMulUint64x4
 	OpMulUint64x8
+	OpMulWidenEvenInt32x4
+	OpMulWidenEvenInt32x8
+	OpMulWidenEvenUint32x4
+	OpMulWidenEvenUint32x8
 	OpMulWidenHiInt8x16
 	OpMulWidenHiInt16x8
 	OpMulWidenHiInt32x4
@@ -110995,30 +110995,6 @@ var opcodeTable = [...]opInfo{
 		generic: true,
 	},
 	{
-		name:        "MulEvenWidenInt32x4",
-		argLen:      2,
-		commutative: true,
-		generic:     true,
-	},
-	{
-		name:        "MulEvenWidenInt32x8",
-		argLen:      2,
-		commutative: true,
-		generic:     true,
-	},
-	{
-		name:        "MulEvenWidenUint32x4",
-		argLen:      2,
-		commutative: true,
-		generic:     true,
-	},
-	{
-		name:        "MulEvenWidenUint32x8",
-		argLen:      2,
-		commutative: true,
-		generic:     true,
-	},
-	{
 		name:        "MulFloat32x4",
 		argLen:      2,
 		commutative: true,
@@ -111236,6 +111212,30 @@ var opcodeTable = [...]opInfo{
 	},
 	{
 		name:        "MulUint64x8",
+		argLen:      2,
+		commutative: true,
+		generic:     true,
+	},
+	{
+		name:        "MulWidenEvenInt32x4",
+		argLen:      2,
+		commutative: true,
+		generic:     true,
+	},
+	{
+		name:        "MulWidenEvenInt32x8",
+		argLen:      2,
+		commutative: true,
+		generic:     true,
+	},
+	{
+		name:        "MulWidenEvenUint32x4",
+		argLen:      2,
+		commutative: true,
+		generic:     true,
+	},
+	{
+		name:        "MulWidenEvenUint32x8",
 		argLen:      2,
 		commutative: true,
 		generic:     true,

@@ -5286,18 +5286,6 @@ func rewriteValueAMD64(v *Value) bool {
 	case OpMulAddOddSubEvenFloat64x8:
 		v.Op = OpAMD64VFMSUBADD213PD512
 		return true
-	case OpMulEvenWidenInt32x4:
-		v.Op = OpAMD64VPMULDQ128
-		return true
-	case OpMulEvenWidenInt32x8:
-		v.Op = OpAMD64VPMULDQ256
-		return true
-	case OpMulEvenWidenUint32x4:
-		v.Op = OpAMD64VPMULUDQ128
-		return true
-	case OpMulEvenWidenUint32x8:
-		v.Op = OpAMD64VPMULUDQ256
-		return true
 	case OpMulFloat32x16:
 		v.Op = OpAMD64VMULPS512
 		return true
@@ -5405,6 +5393,18 @@ func rewriteValueAMD64(v *Value) bool {
 		return true
 	case OpMulUint64x8:
 		v.Op = OpAMD64VPMULLQ512
+		return true
+	case OpMulWidenEvenInt32x4:
+		v.Op = OpAMD64VPMULDQ128
+		return true
+	case OpMulWidenEvenInt32x8:
+		v.Op = OpAMD64VPMULDQ256
+		return true
+	case OpMulWidenEvenUint32x4:
+		v.Op = OpAMD64VPMULUDQ128
+		return true
+	case OpMulWidenEvenUint32x8:
+		v.Op = OpAMD64VPMULUDQ256
 		return true
 	case OpNeg16:
 		v.Op = OpAMD64NEGL

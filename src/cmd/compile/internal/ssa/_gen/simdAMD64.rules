@@ -689,10 +689,6 @@
 (MulAddOddSubEvenFloat64x2 ...) => (VFMSUBADD213PD128 ...) // pureVreg
 (MulAddOddSubEvenFloat64x4 ...) => (VFMSUBADD213PD256 ...) // pureVreg
 (MulAddOddSubEvenFloat64x8 ...) => (VFMSUBADD213PD512 ...) // pureVreg
-(MulEvenWidenInt32x4 ...) => (VPMULDQ128 ...) // pureVreg
-(MulEvenWidenInt32x8 ...) => (VPMULDQ256 ...) // pureVreg
-(MulEvenWidenUint32x4 ...) => (VPMULUDQ128 ...) // pureVreg
-(MulEvenWidenUint32x8 ...) => (VPMULUDQ256 ...) // pureVreg
 (MulHighInt16x8 ...) => (VPMULHW128 ...) // pureVreg
 (MulHighInt16x16 ...) => (VPMULHW256 ...) // pureVreg
 (MulHighInt16x32 ...) => (VPMULHW512 ...) // pureVreg
@@ -705,6 +701,10 @@
 (MulSignInt16x16 ...) => (VPSIGNW256 ...) // pureVreg
 (MulSignInt32x4 ...) => (VPSIGND128 ...) // pureVreg
 (MulSignInt32x8 ...) => (VPSIGND256 ...) // pureVreg
+(MulWidenEvenInt32x4 ...) => (VPMULDQ128 ...) // pureVreg
+(MulWidenEvenInt32x8 ...) => (VPMULDQ256 ...) // pureVreg
+(MulWidenEvenUint32x4 ...) => (VPMULUDQ128 ...) // pureVreg
+(MulWidenEvenUint32x8 ...) => (VPMULUDQ256 ...) // pureVreg
 (NotEqualFloat32x4 x y) => (VCMPPS128 [4] x y) // pureVreg
 (NotEqualFloat32x8 x y) => (VCMPPS256 [4] x y) // pureVreg
 (NotEqualFloat32x16 x y) => (VPMOVMToVec32x16 (VCMPPS512 [4] x y)) // maskOut
@@ -3153,10 +3153,6 @@
 (VFMSUBADD213PDMasked128 x y l:(VMOVDQUload128 {sym} [off] ptr mem) mask) && canMergeLoad(v, l) && clobber(l) => (VFMSUBADD213PDMasked128load {sym} [off] x y ptr mask mem) // vregMem
 (VFMSUBADD213PDMasked256 x y l:(VMOVDQUload256 {sym} [off] ptr mem) mask) && canMergeLoad(v, l) && clobber(l) => (VFMSUBADD213PDMasked256load {sym} [off] x y ptr mask mem) // vregMem
 (VFMSUBADD213PDMasked512 x y l:(VMOVDQUload512 {sym} [off] ptr mem) mask) && canMergeLoad(v, l) && clobber(l) => (VFMSUBADD213PDMasked512load {sym} [off] x y ptr mask mem) // vregMem
-(VPMULDQ128 x l:(VMOVDQUload128 {sym} [off] ptr mem)) && canMergeLoad(v, l) && clobber(l) => (VPMULDQ128load {sym} [off] x ptr mem) // vregMem
-(VPMULDQ256 x l:(VMOVDQUload256 {sym} [off] ptr mem)) && canMergeLoad(v, l) && clobber(l) => (VPMULDQ256load {sym} [off] x ptr mem) // vregMem
-(VPMULUDQ128 x l:(VMOVDQUload128 {sym} [off] ptr mem)) && canMergeLoad(v, l) && clobber(l) => (VPMULUDQ128load {sym} [off] x ptr mem) // vregMem
-(VPMULUDQ256 x l:(VMOVDQUload256 {sym} [off] ptr mem)) && canMergeLoad(v, l) && clobber(l) => (VPMULUDQ256load {sym} [off] x ptr mem) // vregMem
 (VPMULHW128 x l:(VMOVDQUload128 {sym} [off] ptr mem)) && canMergeLoad(v, l) && clobber(l) => (VPMULHW128load {sym} [off] x ptr mem) // vregMem
 (VPMULHW256 x l:(VMOVDQUload256 {sym} [off] ptr mem)) && canMergeLoad(v, l) && clobber(l) => (VPMULHW256load {sym} [off] x ptr mem) // vregMem
 (VPMULHUW128 x l:(VMOVDQUload128 {sym} [off] ptr mem)) && canMergeLoad(v, l) && clobber(l) => (VPMULHUW128load {sym} [off] x ptr mem) // vregMem
@@ -3185,6 +3181,10 @@
 (VPSIGNW256 x l:(VMOVDQUload256 {sym} [off] ptr mem)) && canMergeLoad(v, l) && clobber(l) => (VPSIGNW256load {sym} [off] x ptr mem) // vregMem
 (VPSIGND128 x l:(VMOVDQUload128 {sym} [off] ptr mem)) && canMergeLoad(v, l) && clobber(l) => (VPSIGND128load {sym} [off] x ptr mem) // vregMem
 (VPSIGND256 x l:(VMOVDQUload256 {sym} [off] ptr mem)) && canMergeLoad(v, l) && clobber(l) => (VPSIGND256load {sym} [off] x ptr mem) // vregMem
+(VPMULDQ128 x l:(VMOVDQUload128 {sym} [off] ptr mem)) && canMergeLoad(v, l) && clobber(l) => (VPMULDQ128load {sym} [off] x ptr mem) // vregMem
+(VPMULDQ256 x l:(VMOVDQUload256 {sym} [off] ptr mem)) && canMergeLoad(v, l) && clobber(l) => (VPMULDQ256load {sym} [off] x ptr mem) // vregMem
+(VPMULUDQ128 x l:(VMOVDQUload128 {sym} [off] ptr mem)) && canMergeLoad(v, l) && clobber(l) => (VPMULUDQ128load {sym} [off] x ptr mem) // vregMem
+(VPMULUDQ256 x l:(VMOVDQUload256 {sym} [off] ptr mem)) && canMergeLoad(v, l) && clobber(l) => (VPMULUDQ256load {sym} [off] x ptr mem) // vregMem
 (VPOPCNTB128 l:(VMOVDQUload128 {sym} [off] ptr mem)) && canMergeLoad(v, l) && clobber(l) => (VPOPCNTB128load {sym} [off] ptr mem) // vregMem
 (VPOPCNTB256 l:(VMOVDQUload256 {sym} [off] ptr mem)) && canMergeLoad(v, l) && clobber(l) => (VPOPCNTB256load {sym} [off] ptr mem) // vregMem
 (VPOPCNTW128 l:(VMOVDQUload128 {sym} [off] ptr mem)) && canMergeLoad(v, l) && clobber(l) => (VPOPCNTW128load {sym} [off] ptr mem) // vregMem

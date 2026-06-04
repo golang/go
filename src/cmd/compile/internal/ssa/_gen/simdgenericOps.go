@@ -730,10 +730,6 @@ func simdGenericOps() []opData {
 		{name: "MulAddUint8x16", argLength: 3},                                          // ARCH:arm64
 		{name: "MulAddUint16x8", argLength: 3},                                          // ARCH:arm64
 		{name: "MulAddUint32x4", argLength: 3},                                          // ARCH:arm64
-		{name: "MulEvenWidenInt32x4", argLength: 2, commutative: true},                  // ARCH:amd64
-		{name: "MulEvenWidenInt32x8", argLength: 2, commutative: true},                  // ARCH:amd64
-		{name: "MulEvenWidenUint32x4", argLength: 2, commutative: true},                 // ARCH:amd64
-		{name: "MulEvenWidenUint32x8", argLength: 2, commutative: true},                 // ARCH:amd64
 		{name: "MulFloat32x4", argLength: 2, commutative: true},                         // ARCH:amd64,arm64,wasm
 		{name: "MulFloat32x8", argLength: 2, commutative: true},                         // ARCH:amd64
 		{name: "MulFloat32x16", argLength: 2, commutative: true},                        // ARCH:amd64
@@ -772,6 +768,10 @@ func simdGenericOps() []opData {
 		{name: "MulUint64x2", argLength: 2, commutative: true},                          // ARCH:amd64,wasm
 		{name: "MulUint64x4", argLength: 2, commutative: true},                          // ARCH:amd64
 		{name: "MulUint64x8", argLength: 2, commutative: true},                          // ARCH:amd64
+		{name: "MulWidenEvenInt32x4", argLength: 2, commutative: true},                  // ARCH:amd64
+		{name: "MulWidenEvenInt32x8", argLength: 2, commutative: true},                  // ARCH:amd64
+		{name: "MulWidenEvenUint32x4", argLength: 2, commutative: true},                 // ARCH:amd64
+		{name: "MulWidenEvenUint32x8", argLength: 2, commutative: true},                 // ARCH:amd64
 		{name: "MulWidenHiInt8x16", argLength: 2, commutative: true},                    // ARCH:wasm
 		{name: "MulWidenHiInt16x8", argLength: 2, commutative: true},                    // ARCH:wasm
 		{name: "MulWidenHiInt32x4", argLength: 2, commutative: true},                    // ARCH:wasm
