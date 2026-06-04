@@ -843,10 +843,12 @@ func init() {
 		{name: "VFNMADD231SD", argLength: 3, reg: fp31, resultInArg0: true, asm: "VFNMADD231SD"},
 
 		// Note that these operations don't exactly match the semantics of Go's
-		// builtin min. In particular, these aren't commutative, because on various
-		// special cases the 2nd argument is preferred.
+		// builtin min/max. In particular, these aren't commutative, because on
+		// various special cases the 2nd argument is preferred.
 		{name: "MINSD", argLength: 2, reg: fp21, resultInArg0: true, asm: "MINSD", earlyOk: true}, // min(arg0,arg1)
 		{name: "MINSS", argLength: 2, reg: fp21, resultInArg0: true, asm: "MINSS", earlyOk: true}, // min(arg0,arg1)
+		{name: "MAXSD", argLength: 2, reg: fp21, resultInArg0: true, asm: "MAXSD", earlyOk: true}, // max(arg0,arg1)
+		{name: "MAXSS", argLength: 2, reg: fp21, resultInArg0: true, asm: "MAXSS", earlyOk: true}, // max(arg0,arg1)
 
 		{name: "SBBQcarrymask", argLength: 1, reg: flagsgp, asm: "SBBQ", earlyOk: true},                    // (int64)(-1) if carry is set, 0 if carry is clear.
 		{name: "SBBLcarrymask", argLength: 1, reg: flagsgp, asm: "SBBL", earlyOk: true, zeroUpperBits: 32}, // (int32)(-1) if carry is set, 0 if carry is clear.

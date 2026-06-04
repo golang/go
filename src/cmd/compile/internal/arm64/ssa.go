@@ -1454,7 +1454,7 @@ func ssaGenValue(s *ssagen.State, v *ssa.Value) {
 		simdV11(s, v, arm64.ARNG_8B)
 	case ssa.OpARM64VUADDLV:
 		simdV11Scalar(s, v, arm64.ARNG_8B)
-	case ssa.OpARM64CSEL, ssa.OpARM64CSEL0:
+	case ssa.OpARM64CSEL, ssa.OpARM64CSEL0, ssa.OpARM64FCSELD, ssa.OpARM64FCSELS:
 		r1 := int16(arm64.REGZERO)
 		if v.Op != ssa.OpARM64CSEL0 {
 			r1 = v.Args[1].Reg()

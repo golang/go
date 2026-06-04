@@ -628,6 +628,8 @@ const (
 	OpAMD64VFNMADD231SD
 	OpAMD64MINSD
 	OpAMD64MINSS
+	OpAMD64MAXSD
+	OpAMD64MAXSS
 	OpAMD64SBBQcarrymask
 	OpAMD64SBBLcarrymask
 	OpAMD64SETEQ
@@ -4614,6 +4616,8 @@ const (
 	OpARM64CSINC
 	OpARM64CSINV
 	OpARM64CSNEG
+	OpARM64FCSELD
+	OpARM64FCSELS
 	OpARM64CSETM
 	OpARM64CCMP
 	OpARM64CCMN
@@ -6668,6 +6672,10 @@ const (
 	OpMin32F
 	OpMax64F
 	OpMax32F
+	OpMin64FSel
+	OpMin32FSel
+	OpMax64FSel
+	OpMax32FSel
 	OpFMA
 	OpPhi
 	OpCopy
@@ -18245,6 +18253,38 @@ var opcodeTable = [...]opInfo{
 		resultInArg0: true,
 		earlyOk:      true,
 		asm:          x86.AMINSS,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{0, regMask{v1: 2147418112, v2: 0}}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+				{1, regMask{v1: 2147418112, v2: 0}}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+			outputs: []outputInfo{
+				{0, regMask{v1: 2147418112, v2: 0}}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+		},
+	},
+	{
+		name:         "MAXSD",
+		argLen:       2,
+		resultInArg0: true,
+		earlyOk:      true,
+		asm:          x86.AMAXSD,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{0, regMask{v1: 2147418112, v2: 0}}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+				{1, regMask{v1: 2147418112, v2: 0}}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+			outputs: []outputInfo{
+				{0, regMask{v1: 2147418112, v2: 0}}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+		},
+	},
+	{
+		name:         "MAXSS",
+		argLen:       2,
+		resultInArg0: true,
+		earlyOk:      true,
+		asm:          x86.AMAXSS,
 		reg: regInfo{
 			inputs: []inputInfo{
 				{0, regMask{v1: 2147418112, v2: 0}}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
@@ -79557,6 +79597,38 @@ var opcodeTable = [...]opInfo{
 		},
 	},
 	{
+		name:    "FCSELD",
+		auxType: auxCCop,
+		argLen:  3,
+		earlyOk: true,
+		asm:     arm64.AFCSELD,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{0, regMask{v1: 9223372034707292160, v2: 0}}, // F0 F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15 F16 F17 F18 F19 F20 F21 F22 F23 F24 F25 F26 F27 F28 F29 F30 F31
+				{1, regMask{v1: 9223372034707292160, v2: 0}}, // F0 F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15 F16 F17 F18 F19 F20 F21 F22 F23 F24 F25 F26 F27 F28 F29 F30 F31
+			},
+			outputs: []outputInfo{
+				{0, regMask{v1: 9223372034707292160, v2: 0}}, // F0 F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15 F16 F17 F18 F19 F20 F21 F22 F23 F24 F25 F26 F27 F28 F29 F30 F31
+			},
+		},
+	},
+	{
+		name:    "FCSELS",
+		auxType: auxCCop,
+		argLen:  3,
+		earlyOk: true,
+		asm:     arm64.AFCSELS,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{0, regMask{v1: 9223372034707292160, v2: 0}}, // F0 F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15 F16 F17 F18 F19 F20 F21 F22 F23 F24 F25 F26 F27 F28 F29 F30 F31
+				{1, regMask{v1: 9223372034707292160, v2: 0}}, // F0 F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15 F16 F17 F18 F19 F20 F21 F22 F23 F24 F25 F26 F27 F28 F29 F30 F31
+			},
+			outputs: []outputInfo{
+				{0, regMask{v1: 9223372034707292160, v2: 0}}, // F0 F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15 F16 F17 F18 F19 F20 F21 F22 F23 F24 F25 F26 F27 F28 F29 F30 F31
+			},
+		},
+	},
+	{
 		name:    "CSETM",
 		auxType: auxCCop,
 		argLen:  1,
@@ -107020,6 +107092,26 @@ var opcodeTable = [...]opInfo{
 	},
 	{
 		name:    "Max32F",
+		argLen:  2,
+		generic: true,
+	},
+	{
+		name:    "Min64FSel",
+		argLen:  2,
+		generic: true,
+	},
+	{
+		name:    "Min32FSel",
+		argLen:  2,
+		generic: true,
+	},
+	{
+		name:    "Max64FSel",
+		argLen:  2,
+		generic: true,
+	},
+	{
+		name:    "Max32FSel",
 		argLen:  2,
 		generic: true,
 	},

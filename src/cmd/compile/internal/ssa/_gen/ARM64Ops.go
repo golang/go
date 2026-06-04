@@ -521,6 +521,8 @@ func init() {
 		{name: "CSINC", argLength: 3, reg: gp2flags1, asm: "CSINC", aux: "CCop", earlyOk: true}, // auxint(flags) ? arg0 : arg1 + 1
 		{name: "CSINV", argLength: 3, reg: gp2flags1, asm: "CSINV", aux: "CCop", earlyOk: true}, // auxint(flags) ? arg0 : ^arg1
 		{name: "CSNEG", argLength: 3, reg: gp2flags1, asm: "CSNEG", aux: "CCop", earlyOk: true}, // auxint(flags) ? arg0 : -arg1
+		{name: "FCSELD", argLength: 3, reg: fp21, asm: "FCSELD", aux: "CCop", earlyOk: true},    // auxint(flags) ? arg0 : arg1, 64-bit float
+		{name: "FCSELS", argLength: 3, reg: fp21, asm: "FCSELS", aux: "CCop", earlyOk: true},    // auxint(flags) ? arg0 : arg1, 32-bit float
 		{name: "CSETM", argLength: 1, reg: readflags, asm: "CSETM", aux: "CCop", earlyOk: true}, // auxint(flags) ? -1 : 0
 
 		// conditional comparison instructions; auxint is

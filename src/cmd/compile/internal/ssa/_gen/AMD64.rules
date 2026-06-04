@@ -405,6 +405,14 @@
 (CondSelect <t> x y (SET(EQ|NE|L|G|LE|GE|A|B|AE|BE|EQF|NEF|GF|GEF) cond)) && is16BitInt(t)
     => (CMOVW(EQ|NE|LT|GT|LE|GE|HI|CS|CC|LS|EQF|NEF|GTF|GEF) y x cond)
 
+// Float min/max comparison-select idioms lower to a single instruction.
+// These ops carry their semantics directly (no embedded comparison), so the
+// lowering always triggers.
+(Min64FSel ...) => (MINSD ...)
+(Min32FSel ...) => (MINSS ...)
+(Max64FSel ...) => (MAXSD ...)
+(Max32FSel ...) => (MAXSS ...)
+
 (CondSelect <t> x y check) && !check.Type.IsFlags() && check.Type.Size() == 8 && (is64BitInt(t) || isPtr(t))
     => (CMOVQNE y x (CMPQconst [0] check))
 (CondSelect <t> x y check) && !check.Type.IsFlags() && check.Type.Size() == 8 && is32BitInt(t)

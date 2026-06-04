@@ -219,6 +219,85 @@ func Float32Max(a, b float32) float32 {
 	return max(a, b)
 }
 
+// The "a < b ? a : b" idiom has the same NaN and signed-zero behavior as a
+// single MINSD/MINSS, so it should compile to one instruction rather than a
+// compare and branch.
+func Float64MinBranch(a, b float64) float64 {
+	r := b
+	if a < b {
+		r = a
+	}
+	// amd64:"MINSD"
+	// arm64:"FCSELD"
+	return r
+}
+
+func Float32MinBranch(a, b float32) float32 {
+	r := b
+	if a < b {
+		r = a
+	}
+	// amd64:"MINSS"
+	// arm64:"FCSELS"
+	return r
+}
+
+func Float64MaxBranch(a, b float64) float64 {
+	r := b
+	if a > b {
+		r = a
+	}
+	// amd64:"MAXSD"
+	// arm64:"FCSELD"
+	return r
+}
+
+func Float32MaxBranch(a, b float32) float32 {
+	r := b
+	if a > b {
+		r = a
+	}
+	// amd64:"MAXSS"
+	// arm64:"FCSELS"
+	return r
+}
+
+// The if/else form lowers the same way as the assign form above.
+func Float64MinIfElse(a, b float64) float64 {
+	var r float64
+	if a < b {
+		r = a
+	} else {
+		r = b
+	}
+	// amd64:"MINSD"
+	// arm64:"FCSELD"
+	return r
+}
+
+// Non-strict comparisons (<=, >=) take the branch on equal operands, so they
+// do NOT match MINSD/MAXSD semantics (which prefer the second operand) and
+// must be left as a compare and branch.
+func Float64MinLeqNotFused(a, b float64) float64 {
+	r := b
+	if a <= b {
+		r = a
+	}
+	// amd64:-"MINSD"
+	// arm64:-"FCSELD"
+	return r
+}
+
+// riscv64 has no FP conditional-select, so the idiom stays a branch there.
+func Float64MinBranchRISCV(a, b float64) float64 {
+	r := b
+	if a < b {
+		r = a
+	}
+	// riscv64:-"FMIN"
+	return r
+}
+
 // ------------------------ //
 //  Constant Optimizations  //
 // ------------------------ //

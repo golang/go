@@ -107,6 +107,10 @@ func rewriteValueARM64(v *Value) bool {
 		return rewriteValueARM64_OpARM64FCMPD(v)
 	case OpARM64FCMPS:
 		return rewriteValueARM64_OpARM64FCMPS(v)
+	case OpARM64FCSELD:
+		return rewriteValueARM64_OpARM64FCSELD(v)
+	case OpARM64FCSELS:
+		return rewriteValueARM64_OpARM64FCSELS(v)
 	case OpARM64FCVTDS:
 		return rewriteValueARM64_OpARM64FCVTDS(v)
 	case OpARM64FLDPQ:
@@ -1495,9 +1499,13 @@ func rewriteValueARM64(v *Value) bool {
 	case OpMax32F:
 		v.Op = OpARM64FMAXS
 		return true
+	case OpMax32FSel:
+		return rewriteValueARM64_OpMax32FSel(v)
 	case OpMax64F:
 		v.Op = OpARM64FMAXD
 		return true
+	case OpMax64FSel:
+		return rewriteValueARM64_OpMax64FSel(v)
 	case OpMaxFloat32x4:
 		v.Op = OpARM64VFMAX4S
 		return true
@@ -1528,9 +1536,13 @@ func rewriteValueARM64(v *Value) bool {
 	case OpMin32F:
 		v.Op = OpARM64FMINS
 		return true
+	case OpMin32FSel:
+		return rewriteValueARM64_OpMin32FSel(v)
 	case OpMin64F:
 		v.Op = OpARM64FMIND
 		return true
+	case OpMin64FSel:
+		return rewriteValueARM64_OpMin64FSel(v)
 	case OpMinFloat32x4:
 		v.Op = OpARM64VFMIN4S
 		return true
@@ -6024,6 +6036,48 @@ func rewriteValueARM64_OpARM64FCMPS(v *Value) bool {
 		v0 := b.NewValue0(v.Pos, OpARM64FCMPS0, types.TypeFlags)
 		v0.AddArg(x)
 		v.AddArg(v0)
+		return true
+	}
+	return false
+}
+func rewriteValueARM64_OpARM64FCSELD(v *Value) bool {
+	v_2 := v.Args[2]
+	v_1 := v.Args[1]
+	v_0 := v.Args[0]
+	// match: (FCSELD [cc] x y (InvertFlags cmp))
+	// result: (FCSELD [arm64Invert(cc)] x y cmp)
+	for {
+		cc := auxIntToOp(v.AuxInt)
+		x := v_0
+		y := v_1
+		if v_2.Op != OpARM64InvertFlags {
+			break
+		}
+		cmp := v_2.Args[0]
+		v.reset(OpARM64FCSELD)
+		v.AuxInt = opToAuxInt(arm64Invert(cc))
+		v.AddArg3(x, y, cmp)
+		return true
+	}
+	return false
+}
+func rewriteValueARM64_OpARM64FCSELS(v *Value) bool {
+	v_2 := v.Args[2]
+	v_1 := v.Args[1]
+	v_0 := v.Args[0]
+	// match: (FCSELS [cc] x y (InvertFlags cmp))
+	// result: (FCSELS [arm64Invert(cc)] x y cmp)
+	for {
+		cc := auxIntToOp(v.AuxInt)
+		x := v_0
+		y := v_1
+		if v_2.Op != OpARM64InvertFlags {
+			break
+		}
+		cmp := v_2.Args[0]
+		v.reset(OpARM64FCSELS)
+		v.AuxInt = opToAuxInt(arm64Invert(cc))
+		v.AddArg3(x, y, cmp)
 		return true
 	}
 	return false
@@ -21167,6 +21221,74 @@ func rewriteValueARM64_OpLsh64x8(v *Value) bool {
 		return true
 	}
 	return false
+}
+func rewriteValueARM64_OpMax32FSel(v *Value) bool {
+	v_1 := v.Args[1]
+	v_0 := v.Args[0]
+	b := v.Block
+	// match: (Max32FSel x y)
+	// result: (FCSELS [OpARM64GreaterThanF] x y (FCMPS x y))
+	for {
+		x := v_0
+		y := v_1
+		v.reset(OpARM64FCSELS)
+		v.AuxInt = opToAuxInt(OpARM64GreaterThanF)
+		v0 := b.NewValue0(v.Pos, OpARM64FCMPS, types.TypeFlags)
+		v0.AddArg2(x, y)
+		v.AddArg3(x, y, v0)
+		return true
+	}
+}
+func rewriteValueARM64_OpMax64FSel(v *Value) bool {
+	v_1 := v.Args[1]
+	v_0 := v.Args[0]
+	b := v.Block
+	// match: (Max64FSel x y)
+	// result: (FCSELD [OpARM64GreaterThanF] x y (FCMPD x y))
+	for {
+		x := v_0
+		y := v_1
+		v.reset(OpARM64FCSELD)
+		v.AuxInt = opToAuxInt(OpARM64GreaterThanF)
+		v0 := b.NewValue0(v.Pos, OpARM64FCMPD, types.TypeFlags)
+		v0.AddArg2(x, y)
+		v.AddArg3(x, y, v0)
+		return true
+	}
+}
+func rewriteValueARM64_OpMin32FSel(v *Value) bool {
+	v_1 := v.Args[1]
+	v_0 := v.Args[0]
+	b := v.Block
+	// match: (Min32FSel x y)
+	// result: (FCSELS [OpARM64LessThanF] x y (FCMPS x y))
+	for {
+		x := v_0
+		y := v_1
+		v.reset(OpARM64FCSELS)
+		v.AuxInt = opToAuxInt(OpARM64LessThanF)
+		v0 := b.NewValue0(v.Pos, OpARM64FCMPS, types.TypeFlags)
+		v0.AddArg2(x, y)
+		v.AddArg3(x, y, v0)
+		return true
+	}
+}
+func rewriteValueARM64_OpMin64FSel(v *Value) bool {
+	v_1 := v.Args[1]
+	v_0 := v.Args[0]
+	b := v.Block
+	// match: (Min64FSel x y)
+	// result: (FCSELD [OpARM64LessThanF] x y (FCMPD x y))
+	for {
+		x := v_0
+		y := v_1
+		v.reset(OpARM64FCSELD)
+		v.AuxInt = opToAuxInt(OpARM64LessThanF)
+		v0 := b.NewValue0(v.Pos, OpARM64FCMPD, types.TypeFlags)
+		v0.AddArg2(x, y)
+		v.AddArg3(x, y, v0)
+		return true
+	}
 }
 func rewriteValueARM64_OpMod16(v *Value) bool {
 	v_1 := v.Args[1]

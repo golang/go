@@ -110,6 +110,71 @@ func canCondSelect(v *Value, arch string, loadAddr *sparseSet) bool {
 	}
 }
 
+// floatMinMaxSelOp returns the comparison-select op to use for a float-typed
+// phi that implements the min/max branch idiom, or OpInvalid if the phi is not
+// such an idiom. trueVal is the phi argument chosen when cond is true, falseVal
+// otherwise. The strict forms "a < b ? a : b" (min) and "a < b ? b : a" (max)
+// match the Min/Max*FSel ops exactly, including their NaN and signed-zero
+// behavior. Those ops lower unconditionally on the supported architectures, so
+// there is no risk of an unlowerable value. Greater comparisons are
+// canonicalized to Less with swapped operands during SSA building, so only Less
+// needs to be matched here.
+func floatMinMaxSelOp(cond, trueVal, falseVal *Value) Op {
+	switch trueVal.Block.Func.Config.arch {
+	case "amd64", "arm64":
+	default:
+		return OpInvalid
+	}
+	switch cond.Op {
+	case OpLess32F, OpLess64F:
+	default:
+		return OpInvalid
+	}
+	min := trueVal == cond.Args[0] && falseVal == cond.Args[1]
+	max := trueVal == cond.Args[1] && falseVal == cond.Args[0]
+	switch {
+	case min && trueVal.Type.Size() == 8:
+		return OpMin64FSel
+	case min && trueVal.Type.Size() == 4:
+		return OpMin32FSel
+	case max && trueVal.Type.Size() == 8:
+		return OpMax64FSel
+	case max && trueVal.Type.Size() == 4:
+		return OpMax32FSel
+	}
+	return OpInvalid
+}
+
+// canSelectPhi reports whether phi v can be rewritten as a CondSelect or a
+// float min/max-select op. cond is the branch condition. When !swap, v.Args[0]
+// is chosen when cond is true; otherwise v.Args[1] is chosen.
+func canSelectPhi(v *Value, loadAddr *sparseSet, cond *Value, swap bool) bool {
+	if canCondSelect(v, v.Block.Func.Config.arch, loadAddr) {
+		return true
+	}
+	trueVal, falseVal := v.Args[0], v.Args[1]
+	if swap {
+		trueVal, falseVal = falseVal, trueVal
+	}
+	return floatMinMaxSelOp(cond, trueVal, falseVal) != OpInvalid
+}
+
+// rewritePhiAsSelect rewrites the eligible phi v (see canSelectPhi) into a
+// CondSelect or a float min/max-select op. When !swap, v.Args[0] is chosen
+// when cond is true; otherwise v.Args[1] is chosen. The arguments are swapped
+// first if needed so that Args[0] is the value chosen when cond is true.
+func rewritePhiAsSelect(v *Value, swap bool, cond *Value) {
+	if swap {
+		v.Args[0], v.Args[1] = v.Args[1], v.Args[0]
+	}
+	if op := floatMinMaxSelOp(cond, v.Args[0], v.Args[1]); op != OpInvalid {
+		v.Op = op
+		return
+	}
+	v.Op = OpCondSelect
+	v.AddArg(cond)
+}
+
 // elimIf converts the one-way branch starting at dom in f to a conditional move if possible.
 // loadAddr is a set of values which are used to compute the address of a load.
 // Those values are exempt from CMOV generation.
@@ -137,13 +202,16 @@ func elimIf(f *Func, loadAddr *sparseSet, dom *Block) bool {
 	// Now decide if fusing 'simple' into dom+post
 	// looks profitable.
 
+	// Replace Phi instructions in b with CondSelect instructions
+	swap := (post.Preds[0].Block() == dom) != (dom.Succs[0].Block() == post)
+
 	// Check that there are Phis, and that all of them
 	// can be safely rewritten to CondSelect.
 	hasphis := false
 	for _, v := range post.Values {
 		if v.Op == OpPhi {
 			hasphis = true
-			if !canCondSelect(v, f.Config.arch, loadAddr) {
+			if !canSelectPhi(v, loadAddr, dom.Controls[0], swap) {
 				return false
 			}
 		}
@@ -161,18 +229,11 @@ func elimIf(f *Func, loadAddr *sparseSet, dom *Block) bool {
 	if len(simple.Values) > maxfuseinsts || !canSpeculativelyExecute(simple) {
 		return false
 	}
-
-	// Replace Phi instructions in b with CondSelect instructions
-	swap := (post.Preds[0].Block() == dom) != (dom.Succs[0].Block() == post)
 	for _, v := range post.Values {
 		if v.Op != OpPhi {
 			continue
 		}
-		v.Op = OpCondSelect
-		if swap {
-			v.Args[0], v.Args[1] = v.Args[1], v.Args[0]
-		}
-		v.AddArg(dom.Controls[0])
+		rewritePhiAsSelect(v, swap, dom.Controls[0])
 	}
 
 	// Put all of the instructions into 'dom'
@@ -329,11 +390,12 @@ func elimIfElse(f *Func, loadAddr *sparseSet, b *Block) bool {
 	if len(post.Preds) != 2 || post == b {
 		return false
 	}
+	swap := post.Preds[0].Block() != b.Succs[0].Block()
 	hasphis := false
 	for _, v := range post.Values {
 		if v.Op == OpPhi {
 			hasphis = true
-			if !canCondSelect(v, f.Config.arch, loadAddr) {
+			if !canSelectPhi(v, loadAddr, b.Controls[0], swap) {
 				return false
 			}
 		}
@@ -347,17 +409,12 @@ func elimIfElse(f *Func, loadAddr *sparseSet, b *Block) bool {
 		return false
 	}
 
-	// now we're committed: rewrite each Phi as a CondSelect
-	swap := post.Preds[0].Block() != b.Succs[0].Block()
+	// now we're committed: rewrite each Phi as a select
 	for _, v := range post.Values {
 		if v.Op != OpPhi {
 			continue
 		}
-		v.Op = OpCondSelect
-		if swap {
-			v.Args[0], v.Args[1] = v.Args[1], v.Args[0]
-		}
-		v.AddArg(b.Controls[0])
+		rewritePhiAsSelect(v, swap, b.Controls[0])
 	}
 
 	// Move the contents of all of these

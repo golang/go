@@ -5034,8 +5034,14 @@ func rewriteValueAMD64(v *Value) bool {
 		return rewriteValueAMD64_OpLsh8x8(v)
 	case OpMax32F:
 		return rewriteValueAMD64_OpMax32F(v)
+	case OpMax32FSel:
+		v.Op = OpAMD64MAXSS
+		return true
 	case OpMax64F:
 		return rewriteValueAMD64_OpMax64F(v)
+	case OpMax64FSel:
+		v.Op = OpAMD64MAXSD
+		return true
 	case OpMaxFloat32x16:
 		v.Op = OpAMD64VMAXPS512
 		return true
@@ -5128,8 +5134,14 @@ func rewriteValueAMD64(v *Value) bool {
 		return true
 	case OpMin32F:
 		return rewriteValueAMD64_OpMin32F(v)
+	case OpMin32FSel:
+		v.Op = OpAMD64MINSS
+		return true
 	case OpMin64F:
 		return rewriteValueAMD64_OpMin64F(v)
+	case OpMin64FSel:
+		v.Op = OpAMD64MINSD
+		return true
 	case OpMinFloat32x16:
 		v.Op = OpAMD64VMINPS512
 		return true
