@@ -1875,10 +1875,10 @@
 
 // remove flags → bool → flags roundtrip
 // Only do it if the flag generating instruction is local otherwise the likelihood flagalloc won't undo this optimization and makes things worse are slim.
-(NE t:(TESTQ x:(MOVBQZX s:(SET(EQ|NE|L|G|LE|GE|A|B|AE|BE|EQF|NEF|GF|GEF) flags)) x) yes no) && t.Block == s.Block => ((EQ|NE|LT|GT|LE|GE|UGT|ULT|UGE|ULE|EQF|NEF|UGE|UGT) flags yes no)
-(NE t:(TESTL x:(MOVBQZX s:(SET(EQ|NE|L|G|LE|GE|A|B|AE|BE|EQF|NEF|GF|GEF) flags)) x) yes no) && t.Block == s.Block => ((EQ|NE|LT|GT|LE|GE|UGT|ULT|UGE|ULE|EQF|NEF|UGE|UGT) flags yes no)
-(NE t:(TESTW x:(MOVBQZX s:(SET(EQ|NE|L|G|LE|GE|A|B|AE|BE|EQF|NEF|GF|GEF) flags)) x) yes no) && t.Block == s.Block => ((EQ|NE|LT|GT|LE|GE|UGT|ULT|UGE|ULE|EQF|NEF|UGE|UGT) flags yes no)
-(NE t:(TESTB            s:(SET(EQ|NE|L|G|LE|GE|A|B|AE|BE|EQF|NEF|GF|GEF) flags)  s) yes no) && t.Block == s.Block => ((EQ|NE|LT|GT|LE|GE|UGT|ULT|UGE|ULE|EQF|NEF|UGE|UGT) flags yes no)
+(NE t:(TESTQ x:(MOVBQZX s:(SET(EQ|NE|L|G|LE|GE|A|B|AE|BE|EQF|NEF|GF|GEF) flags)) x) yes no) && t.Block == s.Block => ((EQ|NE|LT|GT|LE|GE|UGT|ULT|UGE|ULE|EQF|NEF|UGT|UGE) flags yes no)
+(NE t:(TESTL x:(MOVBQZX s:(SET(EQ|NE|L|G|LE|GE|A|B|AE|BE|EQF|NEF|GF|GEF) flags)) x) yes no) && t.Block == s.Block => ((EQ|NE|LT|GT|LE|GE|UGT|ULT|UGE|ULE|EQF|NEF|UGT|UGE) flags yes no)
+(NE t:(TESTW x:(MOVBQZX s:(SET(EQ|NE|L|G|LE|GE|A|B|AE|BE|EQF|NEF|GF|GEF) flags)) x) yes no) && t.Block == s.Block => ((EQ|NE|LT|GT|LE|GE|UGT|ULT|UGE|ULE|EQF|NEF|UGT|UGE) flags yes no)
+(NE t:(TESTB            s:(SET(EQ|NE|L|G|LE|GE|A|B|AE|BE|EQF|NEF|GF|GEF) flags)  s) yes no) && t.Block == s.Block => ((EQ|NE|LT|GT|LE|GE|UGT|ULT|UGE|ULE|EQF|NEF|UGT|UGE) flags yes no)
 
 (CMOVQNE yes no t:(TESTQ x:(MOVBQZX s:(SET(EQ|NE|L|G|LE|GE|A|B|AE|BE|EQF|NEF|GF|GEF) flags)) x)) && t.Block == s.Block => (CMOVQ(EQ|NE|LT|GT|LE|GE|HI|CS|CC|LS|EQF|NEF|GTF|GEF) yes no flags)
 (CMOVQNE yes no t:(TESTL x:(MOVBQZX s:(SET(EQ|NE|L|G|LE|GE|A|B|AE|BE|EQF|NEF|GF|GEF) flags)) x)) && t.Block == s.Block => (CMOVQ(EQ|NE|LT|GT|LE|GE|HI|CS|CC|LS|EQF|NEF|GTF|GEF) yes no flags)
