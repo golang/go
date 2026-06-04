@@ -7847,8 +7847,6 @@ const (
 	OpLessUint32x4
 	OpLessUint32x16
 	OpLessUint64x8
-	OpLookupOrKeepInt8x16
-	OpLookupOrKeepUint8x16
 	OpLookupOrZeroInt8x16
 	OpLookupOrZeroUint8x16
 	OpMaxFloat32x4
@@ -110504,16 +110502,6 @@ var opcodeTable = [...]opInfo{
 	{
 		name:    "LessUint64x8",
 		argLen:  2,
-		generic: true,
-	},
-	{
-		name:    "LookupOrKeepInt8x16",
-		argLen:  3,
-		generic: true,
-	},
-	{
-		name:    "LookupOrKeepUint8x16",
-		argLen:  3,
 		generic: true,
 	},
 	{

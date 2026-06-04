@@ -175,7 +175,8 @@
     elemBits: 8
 
 # LookupOrKeep — TBX (table lookup extended, keeps original for out-of-range)
-- go: LookupOrKeep
+- go: lookupOrKeep
+  noGenericOps: "true"
   regexpTag: "move"
   asm: "VTBX"
   in:

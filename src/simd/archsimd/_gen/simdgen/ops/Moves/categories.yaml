@@ -27,7 +27,7 @@
   constImm: 1
   documentation: !string |-
     // NAME returns the upper half of x.
-- go: LookupOrKeep
+- go: lookupOrKeep
   commutative: false
   documentation: !string |-
     // NAME looks up table. If an index is out of range, the result is the corresponding element of keep.

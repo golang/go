@@ -187,8 +187,6 @@ func simdARM64Intrinsics(addF func(pkg, fn string, b intrinsicBuilder, archFamil
 	addF(simdPackage, "Uint8x16.LeadingZeros", opLen1(ssa.OpLeadingZerosUint8x16, types.TypeVec128), sys.ARM64)
 	addF(simdPackage, "Uint16x8.LeadingZeros", opLen1(ssa.OpLeadingZerosUint16x8, types.TypeVec128), sys.ARM64)
 	addF(simdPackage, "Uint32x4.LeadingZeros", opLen1(ssa.OpLeadingZerosUint32x4, types.TypeVec128), sys.ARM64)
-	addF(simdPackage, "Int8x16.LookupOrKeep", opLen3(ssa.OpLookupOrKeepInt8x16, types.TypeVec128), sys.ARM64)
-	addF(simdPackage, "Uint8x16.LookupOrKeep", opLen3(ssa.OpLookupOrKeepUint8x16, types.TypeVec128), sys.ARM64)
 	addF(simdPackage, "Int8x16.LookupOrZero", opLen2(ssa.OpLookupOrZeroInt8x16, types.TypeVec128), sys.ARM64)
 	addF(simdPackage, "Uint8x16.LookupOrZero", opLen2(ssa.OpLookupOrZeroUint8x16, types.TypeVec128), sys.ARM64)
 	addF(simdPackage, "Float32x4.Max", opLen2(ssa.OpMaxFloat32x4, types.TypeVec128), sys.ARM64)

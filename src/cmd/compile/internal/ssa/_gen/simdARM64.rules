@@ -213,8 +213,6 @@
 (LeadingZerosUint8x16 ...) => (VCLZ16B ...) // pureVreg
 (LeadingZerosUint16x8 ...) => (VCLZ8H ...) // pureVreg
 (LeadingZerosUint32x4 ...) => (VCLZ4S ...) // pureVreg
-(LookupOrKeepInt8x16 ...) => (VTBX16B ...) // pureVreg
-(LookupOrKeepUint8x16 ...) => (VTBX16B ...) // pureVreg
 (LookupOrZeroInt8x16 ...) => (VTBL16B ...) // pureVreg
 (LookupOrZeroUint8x16 ...) => (VTBL16B ...) // pureVreg
 (MaxFloat32x4 ...) => (VFMAX4S ...) // pureVreg
