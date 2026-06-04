@@ -234,26 +234,6 @@ func (from Int64x2) ToMask() (to Mask64x2) {
 	return from.NotEqual(Int64x2{})
 }
 
-// ToMask returns a mask whose i'th element is set if x[i] is non-zero.
-func (from Uint8x16) ToMask() (to Mask8x16) {
-	return from.NotEqual(Uint8x16{})
-}
-
-// ToMask returns a mask whose i'th element is set if x[i] is non-zero.
-func (from Uint16x8) ToMask() (to Mask16x8) {
-	return from.NotEqual(Uint16x8{})
-}
-
-// ToMask returns a mask whose i'th element is set if x[i] is non-zero.
-func (from Uint32x4) ToMask() (to Mask32x4) {
-	return from.NotEqual(Uint32x4{})
-}
-
-// ToMask returns a mask whose i'th element is set if x[i] is non-zero.
-func (from Uint64x2) ToMask() (to Mask64x2) {
-	return from.NotEqual(Uint64x2{})
-}
-
 // RotateAllLeft rotates all elements left by the specified amount
 //
 // Emulated

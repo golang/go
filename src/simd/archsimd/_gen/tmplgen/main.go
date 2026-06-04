@@ -210,6 +210,11 @@ var arm64IntegerShapes = &shapes{
 	uints: []int{8, 16, 32, 64},
 }
 
+var arm64IntShapes = &shapes{
+	vecs: []int{128},
+	ints: []int{8, 16, 32, 64},
+}
+
 // arm64UintToIntShapes maps unsigned shapes to signed output type for mixed-type shift helpers.
 // The output function maps uint→int so templates can use OVType/OEtype for the second operand type.
 var arm64UintToIntShapes = &shapes{
@@ -1210,7 +1215,7 @@ func (from {{.Base}}{{.WxC}}) ToMask() (to Mask{{.WxC}}) {
 }
 `)
 
-var arm64MaskCvtTemplate = shapedTemplateOf(arm64IntegerShapes, "Mask conversions", `
+var arm64MaskCvtTemplate = shapedTemplateOf(arm64IntShapes, "Mask conversions", `
 // ToMask returns a mask whose i'th element is set if x[i] is non-zero.
 func (from {{.Base}}{{.WxC}}) ToMask() (to Mask{{.WxC}}) {
 	return from.NotEqual({{.Base}}{{.WxC}}{})
@@ -1300,11 +1305,6 @@ func test{{.VType}}Compare(t *testing.T, f func(_, _ archsimd.{{.VType}}) archsi
 	})
 }
 `)
-
-var arm64IntShapes = &shapes{
-	vecs: []int{128},
-	ints: []int{8, 16, 32, 64},
-}
 
 var arm64MaskToString = shapedTemplateOf(arm64IntShapes, "arm64_maskToString", `
 // String returns a string representation of SIMD mask x.
