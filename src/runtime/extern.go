@@ -95,6 +95,19 @@ It is a comma-separated list of name=val pairs setting these named variables:
 	where each object is allocated on a unique page and addresses are
 	never recycled.
 
+	epollpwait2: setting epollpwait2=1 on Linux makes the network poller use the
+	epoll_pwait2 system call, when available (Linux 5.11+, and not blocked by
+	seccomp), to wait for I/O with nanosecond-resolution timeouts instead of
+	epoll_wait's millisecond-rounded ones. This gives goroutines waiting on
+	sub-millisecond deadlines more precise wakeups. To limit the increase in
+	wakeup frequency that would otherwise result from losing epoll_wait's
+	implicit 1ms coalescing, the runtime applies graduated bucketing scaled
+	to roughly 1% of the requested delay: delays under 100µs round up to the
+	nearest microsecond, under 1ms to the nearest 10µs, under 10ms to the
+	nearest 100µs, and longer delays to the nearest millisecond. Timers
+	within the same bucket share a single wakeup.
+	It defaults to epollpwait2=0. It has no effect on other platforms.
+
 	gccheckmark: setting gccheckmark=1 enables verification of the
 	garbage collector's concurrent mark phase by performing a
 	second mark pass while the world is stopped.  If the second

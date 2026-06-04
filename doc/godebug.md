@@ -154,6 +154,22 @@ for example,
 see the [runtime documentation](/pkg/runtime#hdr-Environment_Variables)
 and the [go command documentation](/cmd/go#hdr-Build_and_test_caching).
 
+### Go 1.28
+
+Go 1.28 added a new `epollpwait2` setting on Linux that controls whether the
+network poller uses the `epoll_pwait2` system call, when available (Linux 5.11+
+and not blocked by seccomp), instead of `epoll_wait`. The `epoll_pwait2` call
+accepts a nanosecond-precision timeout, removing the implicit 1ms rounding that
+`epoll_wait` applies to sub-millisecond deadlines. To limit the increase in
+wakeup frequency that would otherwise result from losing `epoll_wait`'s implicit
+1ms coalescing, the runtime applies graduated bucketing: delays under 100µs
+round up to the nearest microsecond, under 1ms to the nearest 10µs, under 10ms
+to the nearest 100µs, and longer delays to the nearest millisecond, so that
+timers within the same bucket share a single wakeup. The default
+`epollpwait2=0` retains the existing `epoll_wait` behavior. Setting
+`epollpwait2=1` opts in to nanosecond-precision wakeups. This setting has no
+effect on non-Linux platforms or when running on Linux kernels older than 5.11.
+
 ### Go 1.27
 
 Go 1.27 removed the `gotypesalias` setting, as noted in the [Go 1.22](#go-122) section.

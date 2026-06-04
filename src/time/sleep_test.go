@@ -976,10 +976,19 @@ func BenchmarkStaggeredTickerLatency(b *testing.B) {
 		b.Skip("skipping with GOMAXPROCS < 2 or NumCPU < GOMAXPROCS")
 	}
 
-	const delay = 3 * Millisecond
+	type tickerCase struct {
+		delay   Duration
+		workDur Duration
+	}
+	cases := []tickerCase{
+		{300 * Microsecond, 30 * Microsecond},
+		{3 * Millisecond, 300 * Microsecond},
+		{3 * Millisecond, 2 * Millisecond},
+	}
 
-	for _, dur := range []Duration{300 * Microsecond, 2 * Millisecond} {
-		b.Run(fmt.Sprintf("work-dur=%s", dur), func(b *testing.B) {
+	for _, tc := range cases {
+		delay, dur := tc.delay, tc.workDur
+		b.Run(fmt.Sprintf("delay=%s/work-dur=%s", delay, dur), func(b *testing.B) {
 			for tickersPerP := 1; tickersPerP < int(delay/dur)+1; tickersPerP++ {
 				tickerCount := gmp * tickersPerP
 				b.Run(fmt.Sprintf("tickers-per-P=%d", tickersPerP), func(b *testing.B) {
