@@ -740,7 +740,7 @@ func writeSIMDFeatures(ops []Operation) *bytes.Buffer {
 
 // writeSIMDStubs returns two bytes.Buffers containing the declarations for the public
 // and internal-use vector intrinsics.
-func writeSIMDStubs(ops []Operation, typeMap simdTypeMap) (f, fI *bytes.Buffer) {
+func writeSIMDStubs(ops []Operation, typeMap simdTypeMap, doDeprecatedPuns bool) (f, fI *bytes.Buffer) {
 	f = new(bytes.Buffer)
 	fI = new(bytes.Buffer)
 	f.WriteString(simdPackageHeader())
@@ -799,8 +799,10 @@ func writeSIMDStubs(ops []Operation, typeMap simdTypeMap) (f, fI *bytes.Buffer) 
 	for _, conv := range vectorConversions {
 		from, to := &conv.Tsrc, &conv.Tdst
 
-		if err := sgutil.AsOp.Execute(f, sgutil.Conversion(from, to)); err != nil {
-			panic(fmt.Errorf("failed to execute vectorConversion template: %w", err))
+		if doDeprecatedPuns {
+			if err := sgutil.AsOp.Execute(f, sgutil.Conversion(from, to)); err != nil {
+				panic(fmt.Errorf("failed to execute vectorConversion template: %w", err))
+			}
 		}
 
 		// New style factored conversion intrinsics

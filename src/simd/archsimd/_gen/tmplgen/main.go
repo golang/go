@@ -327,7 +327,7 @@ func oneTemplate(t *template.Template, baseType string, width, count int, out io
 		aOrAn = "an"
 	}
 	oxFF := fmt.Sprintf("0x%x", uint64((1<<count)-1))
-	t.Execute(out, templateData{
+	err := t.Execute(out, templateData{
 		VType:  vType,
 		AOrAn:  aOrAn,
 		EWidth: width,
@@ -343,6 +343,9 @@ func oneTemplate(t *template.Template, baseType string, width, count int, out io
 		OCount: oc,
 		OEType: oEType,
 	})
+	if err != nil {
+		panic(fmt.Errorf("template execute failed, %v", err))
+	}
 }
 
 // forTemplates expands the template sat.t for each shape
@@ -1203,10 +1206,18 @@ var getHiTemplateArm64 = shapedTemplateOf(arm64Shapes, "arm64_HiToLo methods", `
 // 64 bits replaced with the upper 64 bits of x.
 func (x {{.VType}}) HiToLo() {{.VType}} {
 	var z {{.VType}}
-{{- if and (eq .Base "Float") (eq .EWidth 64)}}
+{{- if (eq .EWidth 64)}}
+{{-  if (eq .Base "Uint")}}
 	return z.SetElem(0, x.GetElem(1))
+{{-  else}}
+	return z.ToBits().SetElem(0, x.ToBits().GetElem(1)).BitsTo{{.Base}}{{.EWidth}}()
+{{-  end}}
 {{- else}}
-	return z.AsFloat64x2().SetElem(0, x.AsFloat64x2().GetElem(1)).As{{.VType}}()
+{{-  if (eq .Base "Uint")}}
+	return z.ReshapeToUint64s().SetElem(0, x.ReshapeToUint64s().GetElem(1)).ReshapeToUint{{.EWidth}}s()
+{{-  else}}
+	return z.ToBits().ReshapeToUint64s().SetElem(0, x.ToBits().ReshapeToUint64s().GetElem(1)).ReshapeToUint{{.EWidth}}s().BitsTo{{.Base}}{{.EWidth}}()
+{{-  end}}
 {{- end}}
 }
 `)
@@ -1258,8 +1269,10 @@ func (x {{.VType}}) Masked(mask Mask{{.WxC}}) {{.VType}} {
 	im := mask.ToInt{{.WxC}}()
 {{- if eq .Base "Int" }}
 	return im.And(x)
+{{- else if eq .Base "Uint" }}
+	return im.And(x.BitsToInt{{.EWidth}}()).ToBits()
 {{- else }}
-	return im.And(x.AsInt{{.WxC}}()).As{{.VType}}()
+	return im.And(x.ToBits().BitsToInt{{.EWidth}}()).ToBits().BitsTo{{.Base}}{{.EWidth}}()
 {{- end }}
 }
 
@@ -1268,19 +1281,21 @@ func (x {{.VType}}) IfElse(mask Mask{{.WxC}}, y {{.VType}}) {{.VType}} {
 {{- if eq .WxC "8x16" }}
 {{-   if eq .Base "Int" }}
 	return x.bitSelect(y, mask.ToInt8x16())
+{{- else if eq .Base "Uint" }}
+	return x.BitsToInt8().bitSelect(y.BitsToInt8(), mask.ToInt8x16()).ToBits()
 {{-   else }}
-	return x.AsInt8x16().bitSelect(y.AsInt8x16(), mask.ToInt8x16()).As{{.VType}}()
+	return x.ToBits().BitsToInt8().bitSelect(y.ToBits().BitsToInt8(), mask.ToInt8x16()).ToBits().BitsTo{{.Base}}{{.EWidth}}()
 {{-   end }}
-{{- else if eq .Base "Int" }}
-	im := mask.ToInt{{.WxC}}().AsInt8x16()
-	ix := x.AsInt8x16()
-	iy := y.AsInt8x16()
-	return ix.bitSelect(iy, im).As{{.VType}}()
+{{- else if eq .Base "Uint" }}
+	im := mask.ToInt{{.WxC}}().ToBits().ReshapeToUint8s().BitsToInt8()
+	ix := x.ReshapeToUint8s().BitsToInt8()
+	iy := y.ReshapeToUint8s().BitsToInt8()
+	return ix.bitSelect(iy, im).ToBits().ReshapeToUint{{.EWidth}}s()
 {{- else }}
-	im := mask.ToInt{{.WxC}}().AsInt8x16()
-	ix := x.AsInt{{.WxC}}().AsInt8x16()
-	iy := y.AsInt{{.WxC}}().AsInt8x16()
-	return ix.bitSelect(iy, im).As{{.VType}}()
+	im := mask.ToInt{{.WxC}}().ToBits().ReshapeToUint8s().BitsToInt8()
+	ix := x.ToBits().ReshapeToUint8s().BitsToInt8()
+	iy := y.ToBits().ReshapeToUint8s().BitsToInt8()
+	return ix.bitSelect(iy, im).ToBits().ReshapeToUint{{.EWidth}}s().BitsTo{{.Base}}{{.EWidth}}()
 {{- end }}
 }
 `)

@@ -533,7 +533,7 @@ func writeGoDefs(path string, cl unify.Closure) error {
 	if archLower == "amd64" {
 		formatWriteAndClose(writeSIMDFeatures(deduped), path, "src/"+simdPackage+"/cpu.go")
 	}
-	f, fI := writeSIMDStubs(deduped, typeMap)
+	f, fI := writeSIMDStubs(deduped, typeMap, archLower == "amd64")
 	formatWriteAndClose(f, path, "src/"+simdPackage+"/ops_"+archLower+".go")
 	formatWriteAndClose(fI, path, "src/"+simdPackage+"/ops_internal_"+archLower+".go")
 	formatWriteAndClose(writeSIMDIntrinsics(deduped, typeMap), path, "src/cmd/compile/internal/ssagen/simd"+archUpper+"intrinsics.go")
