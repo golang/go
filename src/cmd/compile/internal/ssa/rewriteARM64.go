@@ -866,6 +866,54 @@ func rewriteValueARM64(v *Value) bool {
 	case OpConcatAddPairsUint64x2:
 		v.Op = OpARM64VADDP2D
 		return true
+	case OpConcatEvenInt16x8:
+		v.Op = OpARM64VUZP18H
+		return true
+	case OpConcatEvenInt32x4:
+		v.Op = OpARM64VUZP14S
+		return true
+	case OpConcatEvenInt64x2:
+		v.Op = OpARM64VUZP12D
+		return true
+	case OpConcatEvenInt8x16:
+		v.Op = OpARM64VUZP116B
+		return true
+	case OpConcatEvenUint16x8:
+		v.Op = OpARM64VUZP18H
+		return true
+	case OpConcatEvenUint32x4:
+		v.Op = OpARM64VUZP14S
+		return true
+	case OpConcatEvenUint64x2:
+		v.Op = OpARM64VUZP12D
+		return true
+	case OpConcatEvenUint8x16:
+		v.Op = OpARM64VUZP116B
+		return true
+	case OpConcatOddInt16x8:
+		v.Op = OpARM64VUZP28H
+		return true
+	case OpConcatOddInt32x4:
+		v.Op = OpARM64VUZP24S
+		return true
+	case OpConcatOddInt64x2:
+		v.Op = OpARM64VUZP22D
+		return true
+	case OpConcatOddInt8x16:
+		v.Op = OpARM64VUZP216B
+		return true
+	case OpConcatOddUint16x8:
+		v.Op = OpARM64VUZP28H
+		return true
+	case OpConcatOddUint32x4:
+		v.Op = OpARM64VUZP24S
+		return true
+	case OpConcatOddUint64x2:
+		v.Op = OpARM64VUZP22D
+		return true
+	case OpConcatOddUint8x16:
+		v.Op = OpARM64VUZP216B
+		return true
 	case OpConcatShiftBytesRightUint8x16:
 		v.Op = OpARM64VEXT16B
 		return true
@@ -993,54 +1041,6 @@ func rewriteValueARM64(v *Value) bool {
 		return true
 	case OpCvtBoolToUint8:
 		v.Op = OpCopy
-		return true
-	case OpDeinterleaveEvenInt16x8:
-		v.Op = OpARM64VUZP18H
-		return true
-	case OpDeinterleaveEvenInt32x4:
-		v.Op = OpARM64VUZP14S
-		return true
-	case OpDeinterleaveEvenInt64x2:
-		v.Op = OpARM64VUZP12D
-		return true
-	case OpDeinterleaveEvenInt8x16:
-		v.Op = OpARM64VUZP116B
-		return true
-	case OpDeinterleaveEvenUint16x8:
-		v.Op = OpARM64VUZP18H
-		return true
-	case OpDeinterleaveEvenUint32x4:
-		v.Op = OpARM64VUZP14S
-		return true
-	case OpDeinterleaveEvenUint64x2:
-		v.Op = OpARM64VUZP12D
-		return true
-	case OpDeinterleaveEvenUint8x16:
-		v.Op = OpARM64VUZP116B
-		return true
-	case OpDeinterleaveOddInt16x8:
-		v.Op = OpARM64VUZP28H
-		return true
-	case OpDeinterleaveOddInt32x4:
-		v.Op = OpARM64VUZP24S
-		return true
-	case OpDeinterleaveOddInt64x2:
-		v.Op = OpARM64VUZP22D
-		return true
-	case OpDeinterleaveOddInt8x16:
-		v.Op = OpARM64VUZP216B
-		return true
-	case OpDeinterleaveOddUint16x8:
-		v.Op = OpARM64VUZP28H
-		return true
-	case OpDeinterleaveOddUint32x4:
-		v.Op = OpARM64VUZP24S
-		return true
-	case OpDeinterleaveOddUint64x2:
-		v.Op = OpARM64VUZP22D
-		return true
-	case OpDeinterleaveOddUint8x16:
-		v.Op = OpARM64VUZP216B
 		return true
 	case OpDiv16:
 		return rewriteValueARM64_OpDiv16(v)
@@ -1259,6 +1259,30 @@ func rewriteValueARM64(v *Value) bool {
 	case OpInterCall:
 		v.Op = OpARM64CALLinter
 		return true
+	case OpInterleaveEvenInt16x8:
+		v.Op = OpARM64VTRN18H
+		return true
+	case OpInterleaveEvenInt32x4:
+		v.Op = OpARM64VTRN14S
+		return true
+	case OpInterleaveEvenInt64x2:
+		v.Op = OpARM64VTRN12D
+		return true
+	case OpInterleaveEvenInt8x16:
+		v.Op = OpARM64VTRN116B
+		return true
+	case OpInterleaveEvenUint16x8:
+		v.Op = OpARM64VTRN18H
+		return true
+	case OpInterleaveEvenUint32x4:
+		v.Op = OpARM64VTRN14S
+		return true
+	case OpInterleaveEvenUint64x2:
+		v.Op = OpARM64VTRN12D
+		return true
+	case OpInterleaveEvenUint8x16:
+		v.Op = OpARM64VTRN116B
+		return true
 	case OpInterleaveHiInt16x8:
 		v.Op = OpARM64VZIP28H
 		return true
@@ -1306,6 +1330,30 @@ func rewriteValueARM64(v *Value) bool {
 		return true
 	case OpInterleaveLoUint8x16:
 		v.Op = OpARM64VZIP116B
+		return true
+	case OpInterleaveOddInt16x8:
+		v.Op = OpARM64VTRN28H
+		return true
+	case OpInterleaveOddInt32x4:
+		v.Op = OpARM64VTRN24S
+		return true
+	case OpInterleaveOddInt64x2:
+		v.Op = OpARM64VTRN22D
+		return true
+	case OpInterleaveOddInt8x16:
+		v.Op = OpARM64VTRN216B
+		return true
+	case OpInterleaveOddUint16x8:
+		v.Op = OpARM64VTRN28H
+		return true
+	case OpInterleaveOddUint32x4:
+		v.Op = OpARM64VTRN24S
+		return true
+	case OpInterleaveOddUint64x2:
+		v.Op = OpARM64VTRN22D
+		return true
+	case OpInterleaveOddUint8x16:
+		v.Op = OpARM64VTRN216B
 		return true
 	case OpIsInBounds:
 		return rewriteValueARM64_OpIsInBounds(v)
@@ -2186,54 +2234,6 @@ func rewriteValueARM64(v *Value) bool {
 		return true
 	case OpTailCallInter:
 		v.Op = OpARM64CALLtailinter
-		return true
-	case OpTransposeEvenInt16x8:
-		v.Op = OpARM64VTRN18H
-		return true
-	case OpTransposeEvenInt32x4:
-		v.Op = OpARM64VTRN14S
-		return true
-	case OpTransposeEvenInt64x2:
-		v.Op = OpARM64VTRN12D
-		return true
-	case OpTransposeEvenInt8x16:
-		v.Op = OpARM64VTRN116B
-		return true
-	case OpTransposeEvenUint16x8:
-		v.Op = OpARM64VTRN18H
-		return true
-	case OpTransposeEvenUint32x4:
-		v.Op = OpARM64VTRN14S
-		return true
-	case OpTransposeEvenUint64x2:
-		v.Op = OpARM64VTRN12D
-		return true
-	case OpTransposeEvenUint8x16:
-		v.Op = OpARM64VTRN116B
-		return true
-	case OpTransposeOddInt16x8:
-		v.Op = OpARM64VTRN28H
-		return true
-	case OpTransposeOddInt32x4:
-		v.Op = OpARM64VTRN24S
-		return true
-	case OpTransposeOddInt64x2:
-		v.Op = OpARM64VTRN22D
-		return true
-	case OpTransposeOddInt8x16:
-		v.Op = OpARM64VTRN216B
-		return true
-	case OpTransposeOddUint16x8:
-		v.Op = OpARM64VTRN28H
-		return true
-	case OpTransposeOddUint32x4:
-		v.Op = OpARM64VTRN24S
-		return true
-	case OpTransposeOddUint64x2:
-		v.Op = OpARM64VTRN22D
-		return true
-	case OpTransposeOddUint8x16:
-		v.Op = OpARM64VTRN216B
 		return true
 	case OpTrunc:
 		v.Op = OpARM64FRINTZD

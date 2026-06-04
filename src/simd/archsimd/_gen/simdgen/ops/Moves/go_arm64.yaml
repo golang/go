@@ -226,8 +226,8 @@
   out:
   - *any128
 
-# DeinterleaveEven — UZP1 (extract even-indexed elements)
-- go: DeinterleaveEven
+# ConcatEven — UZP1 (extract even-indexed elements)
+- go: ConcatEven
   asm: "VUZP1"
   in:
   - *any128
@@ -235,8 +235,8 @@
   out:
   - *any128
 
-# DeinterleaveOdd — UZP2 (extract odd-indexed elements)
-- go: DeinterleaveOdd
+# ConcatOdd — UZP2 (extract odd-indexed elements)
+- go: ConcatOdd
   asm: "VUZP2"
   in:
   - *any128
@@ -244,8 +244,8 @@
   out:
   - *any128
 
-# TransposeEven — TRN1 (transpose even-position pairs)
-- go: TransposeEven
+# InterleaveEven — TRN1 (transpose even-position pairs)
+- go: InterleaveEven
   asm: "VTRN1"
   in:
   - *any128
@@ -253,8 +253,8 @@
   out:
   - *any128
 
-# TransposeOdd — TRN2 (transpose odd-position pairs)
-- go: TransposeOdd
+# InterleaveOdd — TRN2 (transpose odd-position pairs)
+- go: InterleaveOdd
   asm: "VTRN2"
   in:
   - *any128
