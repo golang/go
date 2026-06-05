@@ -22,12 +22,14 @@ func Emulated() bool {
 	return true
 }
 
-// EmulatedCarrylessMultiply returns whether CarrylessMultiply is emulated.
-// This sometimes matters to choice of algorithm (e.g., when computing CRC).
-// The emulation's execution time does not depend on its inputs, so it is
-// okay in that sense.
-func EmulatedCarrylessMultiply() bool {
-	return true
+// HasHardwareCarrylessMultiply returns whether this platform
+// has a hardware-implemented version of carryless multiply.
+// With default GODEBUG=simd settings, if this is false,
+// it is emulated and merely slow, but with non-default settings
+// this can indicate the possibility of a missing instruction
+// that will fail ("SIGILL") if it is executed.
+func HasHardwareCarrylessMultiply() bool {
+	return false
 }
 
 type _simd struct {
@@ -289,8 +291,9 @@ func (x Int8s) Store(s []int8) {
 }
 
 // StorePart stores a partial vector into the slice s.
-func (x Int8s) StorePart(s []int8) {
+func (x Int8s) StorePart(s []int8) int {
 	x.Store(s)
+	return min(len(s), x.Len())
 }
 
 // String returns a string representation of the vector.
@@ -650,8 +653,9 @@ func (x Int16s) Store(s []int16) {
 }
 
 // StorePart stores a partial vector into the slice s.
-func (x Int16s) StorePart(s []int16) {
+func (x Int16s) StorePart(s []int16) int {
 	x.Store(s)
+	return min(len(s), x.Len())
 }
 
 // String returns a string representation of the vector.
@@ -1004,8 +1008,9 @@ func (x Int32s) Store(s []int32) {
 }
 
 // StorePart stores a partial vector into the slice s.
-func (x Int32s) StorePart(s []int32) {
+func (x Int32s) StorePart(s []int32) int {
 	x.Store(s)
+	return min(len(s), x.Len())
 }
 
 // String returns a string representation of the vector.
@@ -1247,8 +1252,9 @@ func (x Int64s) Store(s []int64) {
 }
 
 // StorePart stores a partial vector into the slice s.
-func (x Int64s) StorePart(s []int64) {
+func (x Int64s) StorePart(s []int64) int {
 	x.Store(s)
+	return min(len(s), x.Len())
 }
 
 // String returns a string representation of the vector.
@@ -1483,8 +1489,9 @@ func (x Uint8s) Store(s []uint8) {
 }
 
 // StorePart stores a partial vector into the slice s.
-func (x Uint8s) StorePart(s []uint8) {
+func (x Uint8s) StorePart(s []uint8) int {
 	x.Store(s)
+	return min(len(s), x.Len())
 }
 
 // String returns a string representation of the vector.
@@ -1831,8 +1838,9 @@ func (x Uint16s) Store(s []uint16) {
 }
 
 // StorePart stores a partial vector into the slice s.
-func (x Uint16s) StorePart(s []uint16) {
+func (x Uint16s) StorePart(s []uint16) int {
 	x.Store(s)
+	return min(len(s), x.Len())
 }
 
 // String returns a string representation of the vector.
@@ -2156,8 +2164,9 @@ func (x Uint32s) Store(s []uint32) {
 }
 
 // StorePart stores a partial vector into the slice s.
-func (x Uint32s) StorePart(s []uint32) {
+func (x Uint32s) StorePart(s []uint32) int {
 	x.Store(s)
+	return min(len(s), x.Len())
 }
 
 // String returns a string representation of the vector.
@@ -2405,8 +2414,9 @@ func (x Uint64s) Store(s []uint64) {
 }
 
 // StorePart stores a partial vector into the slice s.
-func (x Uint64s) StorePart(s []uint64) {
+func (x Uint64s) StorePart(s []uint64) int {
 	x.Store(s)
+	return min(len(s), x.Len())
 }
 
 // String returns a string representation of the vector.
@@ -2709,8 +2719,9 @@ func (x Float32s) Store(s []float32) {
 }
 
 // StorePart stores a partial vector into the slice s.
-func (x Float32s) StorePart(s []float32) {
+func (x Float32s) StorePart(s []float32) int {
 	x.Store(s)
+	return min(len(s), x.Len())
 }
 
 // String returns a string representation of the vector.
@@ -2982,8 +2993,9 @@ func (x Float64s) Store(s []float64) {
 }
 
 // StorePart stores a partial vector into the slice s.
-func (x Float64s) StorePart(s []float64) {
+func (x Float64s) StorePart(s []float64) int {
 	x.Store(s)
+	return min(len(s), x.Len())
 }
 
 // String returns a string representation of the vector.
@@ -3166,11 +3178,11 @@ func (x Uint64s) mwl(y Uint64s) Uint64s {
 
 var (
 	// For mK, bits J such that J mod 5 == K are set
-	m0 = newT(0x0084210842108421, 0x1108421084210842)
-	m1 = newT(0x1108421084210842, 0x3210842108421084)
-	m2 = newT(0x3210842108421084, 0x8421084210842108)
+	m0 = newT(0x1084210842108421, 0x2108421084210842)
+	m1 = newT(0x2108421084210842, 0x4210842108421084)
+	m2 = newT(0x4210842108421084, 0x8421084210842108)
 	m3 = newT(0x8421084210842108, 0x0842108421084210)
-	m4 = newT(0x0842108421084210, 0x0084210842108421)
+	m4 = newT(0x0842108421084210, 0x1084210842108421)
 )
 
 func (x Uint64s) clmul(y Uint64s) Uint64s {
@@ -3230,4 +3242,73 @@ func (x Uint64s) CarrylessMultiplyOdd(y Uint64s) Uint64s {
 	x.a = x.b
 	y.a = y.b
 	return x.clmul(y)
+}
+
+const (
+	by8  = 0x0101010101010101
+	by16 = 0x0001000100010001
+)
+
+// BroadcastInt8 fills the elements of a slice with its argument value.
+func BroadcastInt8s(x int8) Int8s {
+	v := (255 & uint64(x)) * by8
+	return Int8s{a: v, b: v}
+}
+
+// BroadcastInt16 fills the elements of a slice with its argument value.
+func BroadcastInt16s(x int16) Int16s {
+	v := (65535 & uint64(x)) * by16
+	return Int16s{a: v, b: v}
+}
+
+// BroadcastInt32 fills the elements of a slice with its argument value.
+func BroadcastInt32s(x int32) Int32s {
+	v := uint64(x) & 0xffffffff
+	v = v<<32 | v
+	return Int32s{a: v, b: v}
+}
+
+// BroadcastInt64 fills the elements of a slice with its argument value.
+func BroadcastInt64s(x int64) Int64s {
+	v := uint64(x)
+	return Int64s{a: v, b: v}
+}
+
+// BroadcastUint8 fills the elements of a slice with its argument value.
+func BroadcastUint8s(x uint8) Uint8s {
+	v := uint64(x) * by8
+	return Uint8s{a: v, b: v}
+
+}
+
+// BroadcastUint16 fills the elements of a slice with its argument value.
+func BroadcastUint16s(x uint16) Uint16s {
+	v := uint64(x) * by16
+	return Uint16s{a: v, b: v}
+
+}
+
+// BroadcastUint32 fills the elements of a slice with its argument value.
+func BroadcastUint32s(x uint32) Uint32s {
+	v := uint64(x)
+	v = v<<32 | v
+	return Uint32s{a: v, b: v}
+}
+
+// BroadcastUint64 fills the elements of a slice with its argument value.
+func BroadcastUint64s(x uint64) Uint64s {
+	return Uint64s{a: x, b: x}
+}
+
+// BroadcastFloat32 fills the elements of a slice with its argument value.
+func BroadcastFloat32s(x float32) Float32s {
+	v := uint64(math.Float32bits(x))
+	v = v<<32 | v
+	return Float32s{a: v, b: v}
+}
+
+// BroadcastFloat64 fills the elements of a slice with its argument value.
+func BroadcastFloat64s(x float64) Float64s {
+	v := math.Float64bits(x)
+	return Float64s{a: v, b: v}
 }

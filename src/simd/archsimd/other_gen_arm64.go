@@ -144,134 +144,74 @@ func (x Float64x2) String() string {
 	return sliceToString(s[:])
 }
 
-// SetHi returns a vector with the lower 64 bits of x preserved and the upper
-// 64 bits replaced with the lower 64 bits of the parameter lo.
-func (x Int8x16) SetHi(lo Int8x16) Int8x16 {
-	return x.AsFloat64x2().SetElem(1, lo.AsFloat64x2().GetElem(0)).AsInt8x16()
-}
-
-// SetHi returns a vector with the lower 64 bits of x preserved and the upper
-// 64 bits replaced with the lower 64 bits of the parameter lo.
-func (x Int16x8) SetHi(lo Int16x8) Int16x8 {
-	return x.AsFloat64x2().SetElem(1, lo.AsFloat64x2().GetElem(0)).AsInt16x8()
-}
-
-// SetHi returns a vector with the lower 64 bits of x preserved and the upper
-// 64 bits replaced with the lower 64 bits of the parameter lo.
-func (x Int32x4) SetHi(lo Int32x4) Int32x4 {
-	return x.AsFloat64x2().SetElem(1, lo.AsFloat64x2().GetElem(0)).AsInt32x4()
-}
-
-// SetHi returns a vector with the lower 64 bits of x preserved and the upper
-// 64 bits replaced with the lower 64 bits of the parameter lo.
-func (x Int64x2) SetHi(lo Int64x2) Int64x2 {
-	return x.AsFloat64x2().SetElem(1, lo.AsFloat64x2().GetElem(0)).AsInt64x2()
-}
-
-// SetHi returns a vector with the lower 64 bits of x preserved and the upper
-// 64 bits replaced with the lower 64 bits of the parameter lo.
-func (x Uint8x16) SetHi(lo Uint8x16) Uint8x16 {
-	return x.AsFloat64x2().SetElem(1, lo.AsFloat64x2().GetElem(0)).AsUint8x16()
-}
-
-// SetHi returns a vector with the lower 64 bits of x preserved and the upper
-// 64 bits replaced with the lower 64 bits of the parameter lo.
-func (x Uint16x8) SetHi(lo Uint16x8) Uint16x8 {
-	return x.AsFloat64x2().SetElem(1, lo.AsFloat64x2().GetElem(0)).AsUint16x8()
-}
-
-// SetHi returns a vector with the lower 64 bits of x preserved and the upper
-// 64 bits replaced with the lower 64 bits of the parameter lo.
-func (x Uint32x4) SetHi(lo Uint32x4) Uint32x4 {
-	return x.AsFloat64x2().SetElem(1, lo.AsFloat64x2().GetElem(0)).AsUint32x4()
-}
-
-// SetHi returns a vector with the lower 64 bits of x preserved and the upper
-// 64 bits replaced with the lower 64 bits of the parameter lo.
-func (x Uint64x2) SetHi(lo Uint64x2) Uint64x2 {
-	return x.AsFloat64x2().SetElem(1, lo.AsFloat64x2().GetElem(0)).AsUint64x2()
-}
-
-// SetHi returns a vector with the lower 64 bits of x preserved and the upper
-// 64 bits replaced with the lower 64 bits of the parameter lo.
-func (x Float32x4) SetHi(lo Float32x4) Float32x4 {
-	return x.AsFloat64x2().SetElem(1, lo.AsFloat64x2().GetElem(0)).AsFloat32x4()
-}
-
-// SetHi returns a vector with the lower 64 bits of x preserved and the upper
-// 64 bits replaced with the lower 64 bits of the parameter lo.
-func (x Float64x2) SetHi(lo Float64x2) Float64x2 {
-	return x.SetElem(1, lo.GetElem(0))
-}
-
-// GetHi returns a vector with the upper 64 bits zeroed and the lower
+// HiToLo returns a vector with the upper 64 bits zeroed and the lower
 // 64 bits replaced with the upper 64 bits of x.
-func (x Int8x16) GetHi() Int8x16 {
+func (x Int8x16) HiToLo() Int8x16 {
 	var z Int8x16
-	return z.AsFloat64x2().SetElem(0, x.AsFloat64x2().GetElem(1)).AsInt8x16()
+	return z.ToBits().ReshapeToUint64s().SetElem(0, x.ToBits().ReshapeToUint64s().GetElem(1)).ReshapeToUint8s().BitsToInt8()
 }
 
-// GetHi returns a vector with the upper 64 bits zeroed and the lower
+// HiToLo returns a vector with the upper 64 bits zeroed and the lower
 // 64 bits replaced with the upper 64 bits of x.
-func (x Int16x8) GetHi() Int16x8 {
+func (x Int16x8) HiToLo() Int16x8 {
 	var z Int16x8
-	return z.AsFloat64x2().SetElem(0, x.AsFloat64x2().GetElem(1)).AsInt16x8()
+	return z.ToBits().ReshapeToUint64s().SetElem(0, x.ToBits().ReshapeToUint64s().GetElem(1)).ReshapeToUint16s().BitsToInt16()
 }
 
-// GetHi returns a vector with the upper 64 bits zeroed and the lower
+// HiToLo returns a vector with the upper 64 bits zeroed and the lower
 // 64 bits replaced with the upper 64 bits of x.
-func (x Int32x4) GetHi() Int32x4 {
+func (x Int32x4) HiToLo() Int32x4 {
 	var z Int32x4
-	return z.AsFloat64x2().SetElem(0, x.AsFloat64x2().GetElem(1)).AsInt32x4()
+	return z.ToBits().ReshapeToUint64s().SetElem(0, x.ToBits().ReshapeToUint64s().GetElem(1)).ReshapeToUint32s().BitsToInt32()
 }
 
-// GetHi returns a vector with the upper 64 bits zeroed and the lower
+// HiToLo returns a vector with the upper 64 bits zeroed and the lower
 // 64 bits replaced with the upper 64 bits of x.
-func (x Int64x2) GetHi() Int64x2 {
+func (x Int64x2) HiToLo() Int64x2 {
 	var z Int64x2
-	return z.AsFloat64x2().SetElem(0, x.AsFloat64x2().GetElem(1)).AsInt64x2()
+	return z.ToBits().SetElem(0, x.ToBits().GetElem(1)).BitsToInt64()
 }
 
-// GetHi returns a vector with the upper 64 bits zeroed and the lower
+// HiToLo returns a vector with the upper 64 bits zeroed and the lower
 // 64 bits replaced with the upper 64 bits of x.
-func (x Uint8x16) GetHi() Uint8x16 {
+func (x Uint8x16) HiToLo() Uint8x16 {
 	var z Uint8x16
-	return z.AsFloat64x2().SetElem(0, x.AsFloat64x2().GetElem(1)).AsUint8x16()
+	return z.ReshapeToUint64s().SetElem(0, x.ReshapeToUint64s().GetElem(1)).ReshapeToUint8s()
 }
 
-// GetHi returns a vector with the upper 64 bits zeroed and the lower
+// HiToLo returns a vector with the upper 64 bits zeroed and the lower
 // 64 bits replaced with the upper 64 bits of x.
-func (x Uint16x8) GetHi() Uint16x8 {
+func (x Uint16x8) HiToLo() Uint16x8 {
 	var z Uint16x8
-	return z.AsFloat64x2().SetElem(0, x.AsFloat64x2().GetElem(1)).AsUint16x8()
+	return z.ReshapeToUint64s().SetElem(0, x.ReshapeToUint64s().GetElem(1)).ReshapeToUint16s()
 }
 
-// GetHi returns a vector with the upper 64 bits zeroed and the lower
+// HiToLo returns a vector with the upper 64 bits zeroed and the lower
 // 64 bits replaced with the upper 64 bits of x.
-func (x Uint32x4) GetHi() Uint32x4 {
+func (x Uint32x4) HiToLo() Uint32x4 {
 	var z Uint32x4
-	return z.AsFloat64x2().SetElem(0, x.AsFloat64x2().GetElem(1)).AsUint32x4()
+	return z.ReshapeToUint64s().SetElem(0, x.ReshapeToUint64s().GetElem(1)).ReshapeToUint32s()
 }
 
-// GetHi returns a vector with the upper 64 bits zeroed and the lower
+// HiToLo returns a vector with the upper 64 bits zeroed and the lower
 // 64 bits replaced with the upper 64 bits of x.
-func (x Uint64x2) GetHi() Uint64x2 {
+func (x Uint64x2) HiToLo() Uint64x2 {
 	var z Uint64x2
-	return z.AsFloat64x2().SetElem(0, x.AsFloat64x2().GetElem(1)).AsUint64x2()
-}
-
-// GetHi returns a vector with the upper 64 bits zeroed and the lower
-// 64 bits replaced with the upper 64 bits of x.
-func (x Float32x4) GetHi() Float32x4 {
-	var z Float32x4
-	return z.AsFloat64x2().SetElem(0, x.AsFloat64x2().GetElem(1)).AsFloat32x4()
-}
-
-// GetHi returns a vector with the upper 64 bits zeroed and the lower
-// 64 bits replaced with the upper 64 bits of x.
-func (x Float64x2) GetHi() Float64x2 {
-	var z Float64x2
 	return z.SetElem(0, x.GetElem(1))
+}
+
+// HiToLo returns a vector with the upper 64 bits zeroed and the lower
+// 64 bits replaced with the upper 64 bits of x.
+func (x Float32x4) HiToLo() Float32x4 {
+	var z Float32x4
+	return z.ToBits().ReshapeToUint64s().SetElem(0, x.ToBits().ReshapeToUint64s().GetElem(1)).ReshapeToUint32s().BitsToFloat32()
+}
+
+// HiToLo returns a vector with the upper 64 bits zeroed and the lower
+// 64 bits replaced with the upper 64 bits of x.
+func (x Float64x2) HiToLo() Float64x2 {
+	var z Float64x2
+	return z.ToBits().SetElem(0, x.ToBits().GetElem(1)).BitsToFloat64()
 }
 
 // ToMask returns a mask whose i'th element is set if x[i] is non-zero.
@@ -292,26 +232,6 @@ func (from Int32x4) ToMask() (to Mask32x4) {
 // ToMask returns a mask whose i'th element is set if x[i] is non-zero.
 func (from Int64x2) ToMask() (to Mask64x2) {
 	return from.NotEqual(Int64x2{})
-}
-
-// ToMask returns a mask whose i'th element is set if x[i] is non-zero.
-func (from Uint8x16) ToMask() (to Mask8x16) {
-	return from.NotEqual(Uint8x16{})
-}
-
-// ToMask returns a mask whose i'th element is set if x[i] is non-zero.
-func (from Uint16x8) ToMask() (to Mask16x8) {
-	return from.NotEqual(Uint16x8{})
-}
-
-// ToMask returns a mask whose i'th element is set if x[i] is non-zero.
-func (from Uint32x4) ToMask() (to Mask32x4) {
-	return from.NotEqual(Uint32x4{})
-}
-
-// ToMask returns a mask whose i'th element is set if x[i] is non-zero.
-func (from Uint64x2) ToMask() (to Mask64x2) {
-	return from.NotEqual(Uint64x2{})
 }
 
 // RotateAllLeft rotates all elements left by the specified amount

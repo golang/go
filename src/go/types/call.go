@@ -878,6 +878,7 @@ func (check *Checker) selector(x *operand, e *ast.SelectorExpr, wantType bool) {
 	case *Func:
 		check.objDecl(obj) // ensure fully set-up signature
 		check.addDeclDep(obj)
+		// TODO(mark): Assert that sig.rparams is nil here?
 
 		if x.mode() == typexpr {
 			// method expression

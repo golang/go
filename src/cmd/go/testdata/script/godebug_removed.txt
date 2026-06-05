@@ -1,0 +1,89 @@
+# The gotypesalias GODEBUG setting was introduced with Go 1.22 and removed
+# with Go 1.27 but the GODEBUG behavior of the tool chain is independent of
+# the module version; only the tool version matters (go.dev/issue/76163).
+cp go.mod.20 go.mod
+
+# Go 1.20 must accept the removed GODEBUG gotypesalias with default value
+go build -n godebugok.go
+! stderr 'use of removed'
+
+# This also applies to go vet
+go vet godebugok.go
+! stderr .
+
+# Go 1.20 must not accept the removed GODEBUG gotypesalias with old value
+! go build -n godebugold.go
+stderr 'use of removed'
+
+! go vet godebugold.go
+stderr 'use of removed'
+
+# If the GODEBUG setting is valid in the .mod file the build succeeds.
+cp go.mod.20.godebugok go.mod
+go build -n main.go
+! stderr 'use of removed'
+
+# In this case, setting an invalid value in the .go file leads to build failure.
+! go build -n godebugold.go
+stderr 'use of removed'
+
+# If the GODEBUG setting is invalid in the .mod file the build fails.
+cp go.mod.20.godebugold go.mod
+! go build -n main.go
+stderr 'use of removed'
+
+# In this case, setting a valid value in the .go file does not remedy the failure.
+! go build -n godebugok.go
+#stderr 'use of removed'
+
+[short] skip
+
+# GODEBUGs set in the environment are simply passed along by the go command.
+cp go.mod.20 go.mod
+env GODEBUG=gotypesalias=0
+go run printgodebug.go
+stdout gotypesalias=0
+
+env GODEBUG=gotypesalias=1
+go run printgodebug.go
+stdout gotypesalias=1
+
+-- go.mod.20 --
+go 1.20
+module m
+
+-- go.mod.20.godebugok --
+go 1.20
+module m
+godebug gotypesalias=1
+
+-- go.mod.20.godebugold --
+go 1.20
+module m
+godebug gotypesalias=0
+
+-- main.go --
+package main
+func main() {}
+
+-- godebugok.go --
+//go:debug gotypesalias=1
+
+package main
+func main() {}
+
+-- godebugold.go --
+//go:debug gotypesalias=0
+
+package main
+func main() {}
+
+-- printgodebug.go --
+package main
+
+import "fmt"
+import "os"
+
+func main() {
+        fmt.Println(os.Getenv("GODEBUG"))
+}

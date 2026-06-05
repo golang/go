@@ -333,8 +333,19 @@ func (r *Rewriter) shouldIncludeDecl(decl syntax.Decl) bool {
 	// with "tofrom_".
 	if r.analyzer.inSimd {
 		theFile := decl.Pos().Base().Filename()
-		// within the compiler paths use "/" as a separator.
-		if simdSlash := strings.LastIndex(theFile, simdPkg+"/"); simdSlash == -1 || !strings.HasPrefix(theFile[simdSlash:], simdPkg+"/tofrom_") {
+
+		lastSlash := strings.LastIndex(theFile, simdPkg+"/")
+		lastBackslash := strings.LastIndex(theFile, simdPkg+"\\")
+
+		// Windows paths can be chaos, all we care, is whether the very last part
+		// of the path is any-path-separator + "tofrom_" + anything-else, given that
+		// we already know that we are in the simd package.
+		maxSlash := max(lastSlash, lastBackslash)
+		if maxSlash == -1 {
+			return false
+		}
+		if !strings.HasPrefix(theFile[maxSlash:], simdPkg+"/tofrom_") &&
+			!strings.HasPrefix(theFile[maxSlash:], simdPkg+"\\tofrom_") {
 			return false
 		}
 	}

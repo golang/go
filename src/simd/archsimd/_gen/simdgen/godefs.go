@@ -183,13 +183,14 @@ func (o *Operation) DecodeUnified(v *unify.Value) error {
 				vregIns++
 			}
 		}
+		// note this is arm64-specific
 		switch vregIns {
 		case 2:
 			// Binary: MulLong, AddLong, SubLong, etc.
-			o.Documentation += "\n// For the high-indexed elements, use GetHi:\n//\n//\tx.GetHi()." + o.Go + "(y.GetHi())"
+			o.Documentation += "\n// For the high-indexed elements, use HiToLo:\n//\n//\tx.HiToLo()." + o.Go + "(y.HiToLo())"
 		case 1:
 			// Unary: ShiftLeftLongConst, etc.
-			o.Documentation += "\n// For the high-indexed elements, use GetHi:\n//\n//\tx.GetHi()." + o.Go + "(...)"
+			o.Documentation += "\n// For the high-indexed elements, use HiToLo:\n//\n//\tx.HiToLo()." + o.Go + "(...)"
 		}
 	}
 
@@ -532,7 +533,7 @@ func writeGoDefs(path string, cl unify.Closure) error {
 	if archLower == "amd64" {
 		formatWriteAndClose(writeSIMDFeatures(deduped), path, "src/"+simdPackage+"/cpu.go")
 	}
-	f, fI := writeSIMDStubs(deduped, typeMap)
+	f, fI := writeSIMDStubs(deduped, typeMap, archLower == "amd64")
 	formatWriteAndClose(f, path, "src/"+simdPackage+"/ops_"+archLower+".go")
 	formatWriteAndClose(fI, path, "src/"+simdPackage+"/ops_internal_"+archLower+".go")
 	formatWriteAndClose(writeSIMDIntrinsics(deduped, typeMap), path, "src/cmd/compile/internal/ssagen/simd"+archUpper+"intrinsics.go")

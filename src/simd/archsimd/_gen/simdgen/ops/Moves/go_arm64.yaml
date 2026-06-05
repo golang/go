@@ -47,7 +47,7 @@
 - go: SetElem
   asm: "VMOV"
   SSAVariant: "ins0"
-  specialLower: !string "match [0] (VMOVI16B [0]) y:(VDUP%sextr [i] _) => y"
+  specialLower: !string "match (%h [0] (VMOVI16B [0]) y:(VDUP%sextr [i] _)) => y"
   in:
   - *immIndex
   - &imm0
@@ -66,7 +66,7 @@
   asm: "VDUP"
   SSAVariant: "bcast"
   constImm: 0
-  specialLower: !string "match [i] (VMOV%sins [j] _ (MOVDconst [c])) && i == j && c>=-128 && c<=255 => (VMOVI%a [uint8(c)])"
+  specialLower: !string "match (%h [i] (VMOV%sins [j] _ (MOVDconst [c]))) && i == j && c>=-128 && c<=255 => (VMOVI%a [uint8(c)])"
   in:
   - &immLane0
     name: "@" # tag "fully constant" (no aux field needed)
@@ -127,7 +127,7 @@
 # Other types cast to Int8x16 before calling bitSelect.
 - go: bitSelect
   asm: "VBIT"
-  specialLower: !string "match x y (VNOT16B mask) => (VBIF16B x y mask)"
+  specialLower: !string "match (%h x y (VNOT16B mask)) => (VBIF16B x y mask)"
   in:
   - &v8
     go: $t
@@ -145,7 +145,7 @@
 # bitSelectNot — VBIF (bit insert if false, internal)
 - go: bitSelectNot
   asm: "VBIF"
-  specialLower: !string "match x y (VNOT16B mask) => (VBIT16B x y mask)"
+  specialLower: !string "match (%h x y (VNOT16B mask)) => (VBIT16B x y mask)"
   in:
   - *v8
   - *v8
@@ -175,7 +175,8 @@
     elemBits: 8
 
 # LookupOrKeep — TBX (table lookup extended, keeps original for out-of-range)
-- go: LookupOrKeep
+- go: lookupOrKeep
+  noGenericOps: "true"
   regexpTag: "move"
   asm: "VTBX"
   in:
@@ -226,8 +227,8 @@
   out:
   - *any128
 
-# DeinterleaveEven — UZP1 (extract even-indexed elements)
-- go: DeinterleaveEven
+# ConcatEven — UZP1 (extract even-indexed elements)
+- go: ConcatEven
   asm: "VUZP1"
   in:
   - *any128
@@ -235,8 +236,8 @@
   out:
   - *any128
 
-# DeinterleaveOdd — UZP2 (extract odd-indexed elements)
-- go: DeinterleaveOdd
+# ConcatOdd — UZP2 (extract odd-indexed elements)
+- go: ConcatOdd
   asm: "VUZP2"
   in:
   - *any128
@@ -244,8 +245,8 @@
   out:
   - *any128
 
-# TransposeEven — TRN1 (transpose even-position pairs)
-- go: TransposeEven
+# InterleaveEven — TRN1 (transpose even-position pairs)
+- go: InterleaveEven
   asm: "VTRN1"
   in:
   - *any128
@@ -253,8 +254,8 @@
   out:
   - *any128
 
-# TransposeOdd — TRN2 (transpose odd-position pairs)
-- go: TransposeOdd
+# InterleaveOdd — TRN2 (transpose odd-position pairs)
+- go: InterleaveOdd
   asm: "VTRN2"
   in:
   - *any128

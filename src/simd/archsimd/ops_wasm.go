@@ -1454,35 +1454,35 @@ func (x Uint64x2) Xor(y Uint64x2) Uint64x2
 // Asm: V128Xor
 func (x Mask64x2) Xor(y Mask64x2) Mask64x2
 
-// ToMask translates a Int8x16 vector to a Mask8x16 mask vector
+// ToMask translates an Int8x16 vector to a Mask8x16 mask vector
 // zero becomes false, not-zero becomes true
 func (x Int8x16) ToMask() Mask8x16
 
-// ToInt8x16 translates a Mask8x16 mask vector to a Int8x16 int vector
+// ToInt8x16 translates a Mask8x16 mask vector to an Int8x16 int vector
 // false becomes zero, true becomes -1
 func (x Mask8x16) ToInt8x16() Int8x16
 
-// ToMask translates a Int16x8 vector to a Mask16x8 mask vector
+// ToMask translates an Int16x8 vector to a Mask16x8 mask vector
 // zero becomes false, not-zero becomes true
 func (x Int16x8) ToMask() Mask16x8
 
-// ToInt16x8 translates a Mask16x8 mask vector to a Int16x8 int vector
+// ToInt16x8 translates a Mask16x8 mask vector to an Int16x8 int vector
 // false becomes zero, true becomes -1
 func (x Mask16x8) ToInt16x8() Int16x8
 
-// ToMask translates a Int32x4 vector to a Mask32x4 mask vector
+// ToMask translates an Int32x4 vector to a Mask32x4 mask vector
 // zero becomes false, not-zero becomes true
 func (x Int32x4) ToMask() Mask32x4
 
-// ToInt32x4 translates a Mask32x4 mask vector to a Int32x4 int vector
+// ToInt32x4 translates a Mask32x4 mask vector to an Int32x4 int vector
 // false becomes zero, true becomes -1
 func (x Mask32x4) ToInt32x4() Int32x4
 
-// ToMask translates a Int64x2 vector to a Mask64x2 mask vector
+// ToMask translates an Int64x2 vector to a Mask64x2 mask vector
 // zero becomes false, not-zero becomes true
 func (x Int64x2) ToMask() Mask64x2
 
-// ToInt64x2 translates a Mask64x2 mask vector to a Int64x2 int vector
+// ToInt64x2 translates a Mask64x2 mask vector to an Int64x2 int vector
 // false becomes zero, true becomes -1
 func (x Mask64x2) ToInt64x2() Int64x2
 

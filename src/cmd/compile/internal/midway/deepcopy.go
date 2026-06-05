@@ -140,18 +140,23 @@ func (c *DeepCopier) OnSelector(se *syntax.SelectorExpr) syntax.Expr {
 			// This first little bit detects name = Load-Type-Width-s-{,Part}
 			// and converts the name to Type-Width-s (for nameToWidth), sets isLoad,
 			// and initializes the suffix appropriately.
-			isLoad := false
+			prefix := ""
 			nameSuffix := ""
 			name := se.Sel.Value
 			end := len(name)
 			if strings.HasPrefix(name, "Load") {
-				isLoad = true
+				prefix = "Load"
 				if strings.HasSuffix(name, "Part") {
 					end = strings.Index(name, "Part")
 					nameSuffix = "Part"
 				}
 				name = name[len("Load"):end]
 			}
+			if strings.HasPrefix(name, "Broadcast") {
+				prefix = "Broadcast"
+				name = name[len("Broadcast"):end]
+			}
+
 			width := nameToElemBitWidth(name)
 			if width > 0 {
 				archsimdId := syntax.NewName(se.Pos(), archPkg)
@@ -168,9 +173,7 @@ func (c *DeepCopier) OnSelector(se *syntax.SelectorExpr) syntax.Expr {
 				count := c.VecLen / width
 				base := name[:len(name)-1]
 				newName := fmt.Sprintf("%sx%d", base, count)
-				if isLoad {
-					newName = "Load" + newName + nameSuffix
-				}
+				newName = prefix + newName + nameSuffix
 
 				newSelId := syntax.NewName(se.Sel.Pos(), newName)
 
@@ -289,7 +292,6 @@ func (c *DeepCopier) CopyName(id *syntax.Name, isDef bool) *syntax.Name {
 		return match
 	}
 	newId := syntax.NewName(id.Pos(), id.Value)
-	newId.SetTypeInfo(id.GetTypeInfo())
 	if isDef {
 		c.registerDef(newId, id)
 	} else {
@@ -315,7 +317,6 @@ func (c *DeepCopier) CopyNameExpr(id *syntax.Name) syntax.Expr {
 	}
 
 	newId := syntax.NewName(id.Pos(), id.Value)
-	newId.SetTypeInfo(id.GetTypeInfo())
 	c.mapUse(newId, id)
 	return newId
 }
@@ -350,7 +351,6 @@ func (c *DeepCopier) CopyExpr(e syntax.Expr) syntax.Expr {
 	case *syntax.SelectorExpr:
 		if sub := c.OnSelector(e); sub != nil {
 			sub.SetPos(e.Pos())
-			sub.SetTypeInfo(e.GetTypeInfo()) // Copy type info
 			if sel := c.info.Selections[e]; sel != nil {
 				c.info.Selections[sub.(*syntax.SelectorExpr)] = sel
 			}

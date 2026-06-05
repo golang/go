@@ -27,7 +27,7 @@
   constImm: 1
   documentation: !string |-
     // NAME returns the upper half of x.
-- go: LookupOrKeep
+- go: lookupOrKeep
   commutative: false
   documentation: !string |-
     // NAME looks up table. If an index is out of range, the result is the corresponding element of keep.
@@ -302,23 +302,23 @@
     // NAME concatenates x and y and shifts it right by shift bytes.
     // The result vector will be the lower half of the concatenated vector.
     // This operation is performed grouped by each 16 byte.
-- go: DeinterleaveEven
+- go: ConcatEven
   commutative: false
   documentation: !string |-
-    // NAME deinterleaves even-indexed elements from the concatenation of x and y.
+    // NAME concatenates even-indexed elements from the concatenation of x and y.
     // For x = [x0,x1,x2,x3] and y = [y0,y1,y2,y3], result = [x0,x2,y0,y2].
-- go: DeinterleaveOdd
+- go: ConcatOdd
   commutative: false
   documentation: !string |-
-    // NAME deinterleaves odd-indexed elements from the concatenation of x and y.
+    // NAME concatenates odd-indexed elements from the concatenation of x and y.
     // For x = [x0,x1,x2,x3] and y = [y0,y1,y2,y3], result = [x1,x3,y1,y3].
-- go: TransposeEven
+- go: InterleaveEven
   commutative: false
   documentation: !string |-
-    // NAME transposes 2-element pairs at even positions from x and y.
+    // NAME interleaves even elements from x and y.
     // For x = [a0,a1,a2,a3] and y = [b0,b1,b2,b3], result = [a0,b0,a2,b2].
-- go: TransposeOdd
+- go: InterleaveOdd
   commutative: false
   documentation: !string |-
-    // NAME transposes 2-element pairs at odd positions from x and y.
+    // NAME interleaves odd elements from x and y.
     // For x = [a0,a1,a2,a3] and y = [b0,b1,b2,b3], result = [a1,b1,a3,b3].

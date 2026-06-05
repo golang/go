@@ -4191,32 +4191,6 @@ func (x Float64x4) MulAddOddSubEven(y Float64x4, z Float64x4) Float64x4
 // Asm: VFMSUBADD213PD, CPU Feature: AVX512
 func (x Float64x8) MulAddOddSubEven(y Float64x8, z Float64x8) Float64x8
 
-/* MulEvenWiden */
-
-// MulEvenWiden multiplies even-indexed elements, widening the result.
-// Result[i] = v1[2*i] * v2[2*i].
-//
-// Asm: VPMULDQ, CPU Feature: AVX
-func (x Int32x4) MulEvenWiden(y Int32x4) Int64x2
-
-// MulEvenWiden multiplies even-indexed elements, widening the result.
-// Result[i] = v1[2*i] * v2[2*i].
-//
-// Asm: VPMULDQ, CPU Feature: AVX2
-func (x Int32x8) MulEvenWiden(y Int32x8) Int64x4
-
-// MulEvenWiden multiplies even-indexed elements, widening the result.
-// Result[i] = v1[2*i] * v2[2*i].
-//
-// Asm: VPMULUDQ, CPU Feature: AVX
-func (x Uint32x4) MulEvenWiden(y Uint32x4) Uint64x2
-
-// MulEvenWiden multiplies even-indexed elements, widening the result.
-// Result[i] = v1[2*i] * v2[2*i].
-//
-// Asm: VPMULUDQ, CPU Feature: AVX2
-func (x Uint32x8) MulEvenWiden(y Uint32x8) Uint64x4
-
 /* MulHigh */
 
 // MulHigh multiplies elements and stores the high part of the result.
@@ -4280,6 +4254,32 @@ func (x Int32x4) MulSign(y Int32x4) Int32x4
 //
 // Asm: VPSIGND, CPU Feature: AVX2
 func (x Int32x8) MulSign(y Int32x8) Int32x8
+
+/* MulWidenEven */
+
+// MulWidenEven multiplies even-indexed elements, widening the result.
+// Result[i] = v1[2*i] * v2[2*i].
+//
+// Asm: VPMULDQ, CPU Feature: AVX
+func (x Int32x4) MulWidenEven(y Int32x4) Int64x2
+
+// MulWidenEven multiplies even-indexed elements, widening the result.
+// Result[i] = v1[2*i] * v2[2*i].
+//
+// Asm: VPMULDQ, CPU Feature: AVX2
+func (x Int32x8) MulWidenEven(y Int32x8) Int64x4
+
+// MulWidenEven multiplies even-indexed elements, widening the result.
+// Result[i] = v1[2*i] * v2[2*i].
+//
+// Asm: VPMULUDQ, CPU Feature: AVX
+func (x Uint32x4) MulWidenEven(y Uint32x4) Uint64x2
+
+// MulWidenEven multiplies even-indexed elements, widening the result.
+// Result[i] = v1[2*i] * v2[2*i].
+//
+// Asm: VPMULUDQ, CPU Feature: AVX2
+func (x Uint32x8) MulWidenEven(y Uint32x8) Uint64x4
 
 /* NotEqual */
 

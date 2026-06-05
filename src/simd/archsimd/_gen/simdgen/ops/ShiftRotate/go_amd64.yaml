@@ -37,6 +37,7 @@
   - *int
 
 - go: shiftAllLeftConst
+  SSAVariant: "const" # to avoid its name colliding with reg version of this instruction, amend this to its ssa op name.
   nameAndSizeCheck: true
   specialLower: "if a==0 => x"
   asm: "VPSLL[WDQ]"
@@ -48,6 +49,7 @@
   out:
   - *any
 - go: shiftAllRightConst
+  SSAVariant: "const" # to avoid its name colliding with reg version of this instruction, amend this to its ssa op name.
   nameAndSizeCheck: true
   specialLower: "if a==0 => x"
   asm: "VPSRA[WDQ]"
@@ -57,6 +59,7 @@
   out:
   - *int
 - go: shiftAllRightConst
+  SSAVariant: "const" # to avoid its name colliding with reg version of this instruction, amend this to its ssa op name.
   nameAndSizeCheck: true
   specialLower: "if a==0 => x"
   asm: "VPSRL[WDQ]"

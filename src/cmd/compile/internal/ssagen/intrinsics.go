@@ -2313,6 +2313,12 @@ func opLen4Imm8(op ssa.Op, t *types.Type, offset int) func(s *state, n *ir.CallE
 	}
 }
 
+func simdBroadcast(op ssa.Op) func(s *state, n *ir.CallExpr, args []*ssa.Value) *ssa.Value {
+	return func(s *state, n *ir.CallExpr, args []*ssa.Value) *ssa.Value {
+		return s.newValue2(op, n.Type(), args[0], s.mem())
+	}
+}
+
 func simdLoad() func(s *state, n *ir.CallExpr, args []*ssa.Value) *ssa.Value {
 	return func(s *state, n *ir.CallExpr, args []*ssa.Value) *ssa.Value {
 		return s.newValue2(ssa.OpLoad, n.Type(), args[0], s.mem())

@@ -5286,18 +5286,6 @@ func rewriteValueAMD64(v *Value) bool {
 	case OpMulAddOddSubEvenFloat64x8:
 		v.Op = OpAMD64VFMSUBADD213PD512
 		return true
-	case OpMulEvenWidenInt32x4:
-		v.Op = OpAMD64VPMULDQ128
-		return true
-	case OpMulEvenWidenInt32x8:
-		v.Op = OpAMD64VPMULDQ256
-		return true
-	case OpMulEvenWidenUint32x4:
-		v.Op = OpAMD64VPMULUDQ128
-		return true
-	case OpMulEvenWidenUint32x8:
-		v.Op = OpAMD64VPMULUDQ256
-		return true
 	case OpMulFloat32x16:
 		v.Op = OpAMD64VMULPS512
 		return true
@@ -5405,6 +5393,18 @@ func rewriteValueAMD64(v *Value) bool {
 		return true
 	case OpMulUint64x8:
 		v.Op = OpAMD64VPMULLQ512
+		return true
+	case OpMulWidenEvenInt32x4:
+		v.Op = OpAMD64VPMULDQ128
+		return true
+	case OpMulWidenEvenInt32x8:
+		v.Op = OpAMD64VPMULDQ256
+		return true
+	case OpMulWidenEvenUint32x4:
+		v.Op = OpAMD64VPMULUDQ128
+		return true
+	case OpMulWidenEvenUint32x8:
+		v.Op = OpAMD64VPMULUDQ256
 		return true
 	case OpNeg16:
 		v.Op = OpAMD64NEGL
@@ -29934,102 +29934,6 @@ func rewriteValueAMD64_OpAMD64ORQ(v *Value) bool {
 			v.reset(OpAMD64ORQconst)
 			v.AuxInt = int32ToAuxInt(c)
 			v.AddArg(x)
-			return true
-		}
-		break
-	}
-	// match: (ORQ (SHRQ lo bits) (SHLQ hi (NEGQ bits)))
-	// result: (SHRDQ lo hi bits)
-	for {
-		for _i0 := 0; _i0 <= 1; _i0, v_0, v_1 = _i0+1, v_1, v_0 {
-			if v_0.Op != OpAMD64SHRQ {
-				continue
-			}
-			bits := v_0.Args[1]
-			lo := v_0.Args[0]
-			if v_1.Op != OpAMD64SHLQ {
-				continue
-			}
-			_ = v_1.Args[1]
-			hi := v_1.Args[0]
-			v_1_1 := v_1.Args[1]
-			if v_1_1.Op != OpAMD64NEGQ || bits != v_1_1.Args[0] {
-				continue
-			}
-			v.reset(OpAMD64SHRDQ)
-			v.AddArg3(lo, hi, bits)
-			return true
-		}
-		break
-	}
-	// match: (ORQ (SHLQ lo bits) (SHRQ hi (NEGQ bits)))
-	// result: (SHLDQ lo hi bits)
-	for {
-		for _i0 := 0; _i0 <= 1; _i0, v_0, v_1 = _i0+1, v_1, v_0 {
-			if v_0.Op != OpAMD64SHLQ {
-				continue
-			}
-			bits := v_0.Args[1]
-			lo := v_0.Args[0]
-			if v_1.Op != OpAMD64SHRQ {
-				continue
-			}
-			_ = v_1.Args[1]
-			hi := v_1.Args[0]
-			v_1_1 := v_1.Args[1]
-			if v_1_1.Op != OpAMD64NEGQ || bits != v_1_1.Args[0] {
-				continue
-			}
-			v.reset(OpAMD64SHLDQ)
-			v.AddArg3(lo, hi, bits)
-			return true
-		}
-		break
-	}
-	// match: (ORQ (SHRXQ lo bits) (SHLXQ hi (NEGQ bits)))
-	// result: (SHRDQ lo hi bits)
-	for {
-		for _i0 := 0; _i0 <= 1; _i0, v_0, v_1 = _i0+1, v_1, v_0 {
-			if v_0.Op != OpAMD64SHRXQ {
-				continue
-			}
-			bits := v_0.Args[1]
-			lo := v_0.Args[0]
-			if v_1.Op != OpAMD64SHLXQ {
-				continue
-			}
-			_ = v_1.Args[1]
-			hi := v_1.Args[0]
-			v_1_1 := v_1.Args[1]
-			if v_1_1.Op != OpAMD64NEGQ || bits != v_1_1.Args[0] {
-				continue
-			}
-			v.reset(OpAMD64SHRDQ)
-			v.AddArg3(lo, hi, bits)
-			return true
-		}
-		break
-	}
-	// match: (ORQ (SHLXQ lo bits) (SHRXQ hi (NEGQ bits)))
-	// result: (SHLDQ lo hi bits)
-	for {
-		for _i0 := 0; _i0 <= 1; _i0, v_0, v_1 = _i0+1, v_1, v_0 {
-			if v_0.Op != OpAMD64SHLXQ {
-				continue
-			}
-			bits := v_0.Args[1]
-			lo := v_0.Args[0]
-			if v_1.Op != OpAMD64SHRXQ {
-				continue
-			}
-			_ = v_1.Args[1]
-			hi := v_1.Args[0]
-			v_1_1 := v_1.Args[1]
-			if v_1_1.Op != OpAMD64NEGQ || bits != v_1_1.Args[0] {
-				continue
-			}
-			v.reset(OpAMD64SHLDQ)
-			v.AddArg3(lo, hi, bits)
 			return true
 		}
 		break

@@ -1039,22 +1039,6 @@ var nameConstraintsTests = []nameConstraintsTest{
 		},
 	},
 	{
-		name: "IPv4-mapped-IPv6 exclusion does not affect IPv4",
-		roots: []constraintsSpec{
-			{
-				bad: []string{"ip:::ffff:1.2.3.4/128"},
-			},
-		},
-		intermediates: [][]constraintsSpec{
-			{
-				{},
-			},
-		},
-		leaf: leafSpec{
-			sans: []string{"ip:1.2.3.4"},
-		},
-	},
-	{
 		name: "URI constraint not matched by URN",
 		roots: []constraintsSpec{
 			{

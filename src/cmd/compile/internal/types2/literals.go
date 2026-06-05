@@ -187,16 +187,12 @@ func (check *Checker) compositeLit(x *operand, e *syntax.CompositeLit, hint Type
 					check.errorf(kv.Key, MissingLitField, "%s is not a field", kv.Key)
 					continue
 				}
-				if check.allowVersion(go1_27) {
-					if indirect {
-						check.errorf(kv.Key, InvalidLitField, "invalid implicit pointer indirection to reach %s", kv.Key)
-						continue
-					}
-				} else {
-					if len(index) > 1 {
-						check.errorf(kv.Key, InvalidLitField, "cannot use promoted field %s in struct literal of type %s", fieldPath(utyp, index), base)
-						continue
-					}
+				if len(index) > 1 && !check.verifyVersionf(kv.Key, go1_27, "use of promoted field %s in struct literal of type %s", fieldPath(utyp, index), base) {
+					continue
+				}
+				if indirect {
+					check.errorf(kv.Key, InvalidLitField, "invalid implicit pointer indirection to reach %s", kv.Key)
+					continue
 				}
 				check.recordUse(key, fld)
 				etyp := fld.typ

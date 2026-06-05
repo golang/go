@@ -10,6 +10,7 @@ import (
 	"crypto"
 	"crypto/ecdh"
 	"crypto/elliptic"
+	internalrand "crypto/internal/rand"
 	"crypto/rand"
 	"crypto/tls/internal/fips140tls"
 	"crypto/x509"
@@ -1404,8 +1405,21 @@ func TestHandshakeServerEd25519(t *testing.T) {
 	runServerTestTLS13(t, test)
 }
 
+// zeroSource is an io.Reader that returns an unlimited number of zero bytes.
+type zeroSource struct{}
+
+func (zeroSource) Read(b []byte) (n int, err error) {
+	clear(b)
+	return len(b), nil
+}
+
 func benchmarkHandshakeServer(b *testing.B, version uint16, cipherSuite uint16, curve CurveID, cert []byte, key crypto.PrivateKey) {
 	config := testConfigServer.Clone()
+
+	// cryptotest.SetGlobalRandom does not support *testing.B
+	internalrand.SetTestingReader(zeroSource{})
+	defer internalrand.SetTestingReader(nil)
+
 	config.CipherSuites = []uint16{cipherSuite}
 	config.CurvePreferences = []CurveID{curve}
 	config.Certificates = make([]Certificate, 1)
@@ -1418,6 +1432,7 @@ func benchmarkHandshakeServer(b *testing.B, version uint16, cipherSuite uint16, 
 	go func() {
 		config := testConfigClient.Clone()
 		config.MaxVersion = version
+		config.CipherSuites = []uint16{cipherSuite}
 		config.CurvePreferences = []CurveID{curve}
 		client := Client(clientConn, config)
 		client.Handshake()

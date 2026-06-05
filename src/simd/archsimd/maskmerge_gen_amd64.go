@@ -599,6 +599,9 @@ func (x Int8x64) Merge(y Int8x64, mask Mask8x64) Int8x64 {
 	return x.IfElse(mask, y)
 }
 
+// IfElse returns x but with elements set to y where mask is false.
+//
+// Emulated, CPU Feature: AVX512
 func (x Int8x64) IfElse(mask Mask8x64, y Int8x64) Int8x64 {
 	return y.blendMasked(x, mask)
 }
@@ -622,6 +625,9 @@ func (x Int16x32) Merge(y Int16x32, mask Mask16x32) Int16x32 {
 	return x.IfElse(mask, y)
 }
 
+// IfElse returns x but with elements set to y where mask is false.
+//
+// Emulated, CPU Feature: AVX512
 func (x Int16x32) IfElse(mask Mask16x32, y Int16x32) Int16x32 {
 	return y.blendMasked(x, mask)
 }
@@ -645,6 +651,9 @@ func (x Int32x16) Merge(y Int32x16, mask Mask32x16) Int32x16 {
 	return x.IfElse(mask, y)
 }
 
+// IfElse returns x but with elements set to y where mask is false.
+//
+// Emulated, CPU Feature: AVX512
 func (x Int32x16) IfElse(mask Mask32x16, y Int32x16) Int32x16 {
 	return y.blendMasked(x, mask)
 }
@@ -668,6 +677,9 @@ func (x Int64x8) Merge(y Int64x8, mask Mask64x8) Int64x8 {
 	return x.IfElse(mask, y)
 }
 
+// IfElse returns x but with elements set to y where mask is false.
+//
+// Emulated, CPU Feature: AVX512
 func (x Int64x8) IfElse(mask Mask64x8, y Int64x8) Int64x8 {
 	return y.blendMasked(x, mask)
 }
@@ -691,6 +703,9 @@ func (x Uint8x64) Merge(y Uint8x64, mask Mask8x64) Uint8x64 {
 	return x.IfElse(mask, y)
 }
 
+// IfElse returns x but with elements set to y where mask is false.
+//
+// Emulated, CPU Feature: AVX512
 func (x Uint8x64) IfElse(mask Mask8x64, y Uint8x64) Uint8x64 {
 	ix := x.AsInt8x64()
 	iy := y.AsInt8x64()
@@ -716,6 +731,9 @@ func (x Uint16x32) Merge(y Uint16x32, mask Mask16x32) Uint16x32 {
 	return x.IfElse(mask, y)
 }
 
+// IfElse returns x but with elements set to y where mask is false.
+//
+// Emulated, CPU Feature: AVX512
 func (x Uint16x32) IfElse(mask Mask16x32, y Uint16x32) Uint16x32 {
 	ix := x.AsInt16x32()
 	iy := y.AsInt16x32()
@@ -741,6 +759,9 @@ func (x Uint32x16) Merge(y Uint32x16, mask Mask32x16) Uint32x16 {
 	return x.IfElse(mask, y)
 }
 
+// IfElse returns x but with elements set to y where mask is false.
+//
+// Emulated, CPU Feature: AVX512
 func (x Uint32x16) IfElse(mask Mask32x16, y Uint32x16) Uint32x16 {
 	ix := x.AsInt32x16()
 	iy := y.AsInt32x16()
@@ -766,6 +787,9 @@ func (x Uint64x8) Merge(y Uint64x8, mask Mask64x8) Uint64x8 {
 	return x.IfElse(mask, y)
 }
 
+// IfElse returns x but with elements set to y where mask is false.
+//
+// Emulated, CPU Feature: AVX512
 func (x Uint64x8) IfElse(mask Mask64x8, y Uint64x8) Uint64x8 {
 	ix := x.AsInt64x8()
 	iy := y.AsInt64x8()
@@ -791,6 +815,9 @@ func (x Float32x16) Merge(y Float32x16, mask Mask32x16) Float32x16 {
 	return x.IfElse(mask, y)
 }
 
+// IfElse returns x but with elements set to y where mask is false.
+//
+// Emulated, CPU Feature: AVX512
 func (x Float32x16) IfElse(mask Mask32x16, y Float32x16) Float32x16 {
 	ix := x.AsInt32x16()
 	iy := y.AsInt32x16()
@@ -816,6 +843,9 @@ func (x Float64x8) Merge(y Float64x8, mask Mask64x8) Float64x8 {
 	return x.IfElse(mask, y)
 }
 
+// IfElse returns x but with elements set to y where mask is false.
+//
+// Emulated, CPU Feature: AVX512
 func (x Float64x8) IfElse(mask Mask64x8, y Float64x8) Float64x8 {
 	ix := x.AsInt64x8()
 	iy := y.AsInt64x8()

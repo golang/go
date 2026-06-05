@@ -210,6 +210,11 @@ var arm64IntegerShapes = &shapes{
 	uints: []int{8, 16, 32, 64},
 }
 
+var arm64IntShapes = &shapes{
+	vecs: []int{128},
+	ints: []int{8, 16, 32, 64},
+}
+
 // arm64UintToIntShapes maps unsigned shapes to signed output type for mixed-type shift helpers.
 // The output function maps uint→int so templates can use OVType/OEtype for the second operand type.
 var arm64UintToIntShapes = &shapes{
@@ -322,7 +327,7 @@ func oneTemplate(t *template.Template, baseType string, width, count int, out io
 		aOrAn = "an"
 	}
 	oxFF := fmt.Sprintf("0x%x", uint64((1<<count)-1))
-	t.Execute(out, templateData{
+	err := t.Execute(out, templateData{
 		VType:  vType,
 		AOrAn:  aOrAn,
 		EWidth: width,
@@ -338,6 +343,9 @@ func oneTemplate(t *template.Template, baseType string, width, count int, out io
 		OCount: oc,
 		OEType: oEType,
 	})
+	if err != nil {
+		panic(fmt.Errorf("template execute failed, %v", err))
+	}
 }
 
 // forTemplates expands the template sat.t for each shape
@@ -789,17 +797,18 @@ func Load{{.VType}}Part(s []{{.Etype}}) ({{.VType}}, int) {
 // StorePart stores the {{.Count}} elements of x into the slice s.
 // It stores as many elements as will fit in s.
 // If s has {{.Count}} or more elements, the method is equivalent to x.Store.
-func (x {{.VType}}) StorePart(s []{{.Etype}}) {
+func (x {{.VType}}) StorePart(s []{{.Etype}}) int {
 	l := len(s)
 	if l >= {{.Count}} {
 		x.Store(s)
-		return
+		return {{.Count}}
 	}
 	if l == 0 {
-		return
+		return 0
 	}
 	mask := Mask{{.WxC}}FromBits({{.OxFF}} >> ({{.Count}} - l))
 	x.StoreArrayMasked(pa{{.VType}}(s), mask)
+	return l
 }
 `)
 
@@ -1135,6 +1144,9 @@ func (x {{.VType}}) Merge(y {{.VType}}, mask Mask{{.WxC}}) {{.VType}} {
    return x.IfElse(mask, y)
 }
 
+// IfElse returns x but with elements set to y where mask is false.
+//
+// Emulated, CPU Feature: AVX512
 func (x {{.VType}}) IfElse(mask Mask{{.WxC}}, y {{.VType}}) {{.VType}} {
 {{- if eq .Base "Int" }}
 	return y.blendMasked(x, mask)
@@ -1190,27 +1202,23 @@ func (x {{.VType}}) String() string {
 }
 `)
 
-var setHiTemplateArm64 = shapedTemplateOf(arm64Shapes, "arm64_SetHi methods", `
-// SetHi returns a vector with the lower 64 bits of x preserved and the upper
-// 64 bits replaced with the lower 64 bits of the parameter lo.
-func (x {{.VType}}) SetHi(lo {{.VType}}) {{.VType}} {
-{{- if and (eq .Base "Float") (eq .EWidth 64)}}
-	return x.SetElem(1, lo.GetElem(0))
-{{- else}}
-	return x.AsFloat64x2().SetElem(1, lo.AsFloat64x2().GetElem(0)).As{{.VType}}()
-{{- end}}
-}
-`)
-
-var getHiTemplateArm64 = shapedTemplateOf(arm64Shapes, "arm64_GetHi methods", `
-// GetHi returns a vector with the upper 64 bits zeroed and the lower
+var getHiTemplateArm64 = shapedTemplateOf(arm64Shapes, "arm64_HiToLo methods", `
+// HiToLo returns a vector with the upper 64 bits zeroed and the lower
 // 64 bits replaced with the upper 64 bits of x.
-func (x {{.VType}}) GetHi() {{.VType}} {
+func (x {{.VType}}) HiToLo() {{.VType}} {
 	var z {{.VType}}
-{{- if and (eq .Base "Float") (eq .EWidth 64)}}
+{{- if (eq .EWidth 64)}}
+{{-  if (eq .Base "Uint")}}
 	return z.SetElem(0, x.GetElem(1))
+{{-  else}}
+	return z.ToBits().SetElem(0, x.ToBits().GetElem(1)).BitsTo{{.Base}}{{.EWidth}}()
+{{-  end}}
 {{- else}}
-	return z.AsFloat64x2().SetElem(0, x.AsFloat64x2().GetElem(1)).As{{.VType}}()
+{{-  if (eq .Base "Uint")}}
+	return z.ReshapeToUint64s().SetElem(0, x.ReshapeToUint64s().GetElem(1)).ReshapeToUint{{.EWidth}}s()
+{{-  else}}
+	return z.ToBits().ReshapeToUint64s().SetElem(0, x.ToBits().ReshapeToUint64s().GetElem(1)).ReshapeToUint{{.EWidth}}s().BitsTo{{.Base}}{{.EWidth}}()
+{{-  end}}
 {{- end}}
 }
 `)
@@ -1222,7 +1230,7 @@ func (from {{.Base}}{{.WxC}}) ToMask() (to Mask{{.WxC}}) {
 }
 `)
 
-var arm64MaskCvtTemplate = shapedTemplateOf(arm64IntegerShapes, "Mask conversions", `
+var arm64MaskCvtTemplate = shapedTemplateOf(arm64IntShapes, "Mask conversions", `
 // ToMask returns a mask whose i'th element is set if x[i] is non-zero.
 func (from {{.Base}}{{.WxC}}) ToMask() (to Mask{{.WxC}}) {
 	return from.NotEqual({{.Base}}{{.WxC}}{})
@@ -1262,36 +1270,33 @@ func (x {{.VType}}) Masked(mask Mask{{.WxC}}) {{.VType}} {
 	im := mask.ToInt{{.WxC}}()
 {{- if eq .Base "Int" }}
 	return im.And(x)
+{{- else if eq .Base "Uint" }}
+	return im.And(x.BitsToInt{{.EWidth}}()).ToBits()
 {{- else }}
-	return im.And(x.AsInt{{.WxC}}()).As{{.VType}}()
+	return im.And(x.ToBits().BitsToInt{{.EWidth}}()).ToBits().BitsTo{{.Base}}{{.EWidth}}()
 {{- end }}
 }
 
-// Merge returns x but with elements set to y where mask is true.
-//
-// Deprecated: use x.IfElse(mask, y)
-func (x {{.VType}}) Merge(y {{.VType}}, mask Mask{{.WxC}}) {{.VType}} {
-	return x.IfElse(mask, y)
-}
-
-// IfElse returns x but with elements set to y where mask is true.
+// IfElse returns x but with elements set to y where mask is false.
 func (x {{.VType}}) IfElse(mask Mask{{.WxC}}, y {{.VType}}) {{.VType}} {
 {{- if eq .WxC "8x16" }}
 {{-   if eq .Base "Int" }}
 	return x.bitSelect(y, mask.ToInt8x16())
+{{- else if eq .Base "Uint" }}
+	return x.BitsToInt8().bitSelect(y.BitsToInt8(), mask.ToInt8x16()).ToBits()
 {{-   else }}
-	return x.AsInt8x16().bitSelect(y.AsInt8x16(), mask.ToInt8x16()).As{{.VType}}()
+	return x.ToBits().BitsToInt8().bitSelect(y.ToBits().BitsToInt8(), mask.ToInt8x16()).ToBits().BitsTo{{.Base}}{{.EWidth}}()
 {{-   end }}
-{{- else if eq .Base "Int" }}
-	im := mask.ToInt{{.WxC}}().AsInt8x16()
-	ix := x.AsInt8x16()
-	iy := y.AsInt8x16()
-	return ix.bitSelect(iy, im).As{{.VType}}()
+{{- else if eq .Base "Uint" }}
+	im := mask.ToInt{{.WxC}}().ToBits().ReshapeToUint8s().BitsToInt8()
+	ix := x.ReshapeToUint8s().BitsToInt8()
+	iy := y.ReshapeToUint8s().BitsToInt8()
+	return ix.bitSelect(iy, im).ToBits().ReshapeToUint{{.EWidth}}s()
 {{- else }}
-	im := mask.ToInt{{.WxC}}().AsInt8x16()
-	ix := x.AsInt{{.WxC}}().AsInt8x16()
-	iy := y.AsInt{{.WxC}}().AsInt8x16()
-	return ix.bitSelect(iy, im).As{{.VType}}()
+	im := mask.ToInt{{.WxC}}().ToBits().ReshapeToUint8s().BitsToInt8()
+	ix := x.ToBits().ReshapeToUint8s().BitsToInt8()
+	iy := y.ToBits().ReshapeToUint8s().BitsToInt8()
+	return ix.bitSelect(iy, im).ToBits().ReshapeToUint{{.EWidth}}s().BitsTo{{.Base}}{{.EWidth}}()
 {{- end }}
 }
 `)
@@ -1312,11 +1317,6 @@ func test{{.VType}}Compare(t *testing.T, f func(_, _ archsimd.{{.VType}}) archsi
 	})
 }
 `)
-
-var arm64IntShapes = &shapes{
-	vecs: []int{128},
-	ints: []int{8, 16, 32, 64},
-}
 
 var arm64MaskToString = shapedTemplateOf(arm64IntShapes, "arm64_maskToString", `
 // String returns a string representation of SIMD mask x.
@@ -1448,7 +1448,6 @@ func main() {
 		one(*opArm64, prologue,
 			broadcastTemplateArm64,
 			stringTemplateArm64,
-			setHiTemplateArm64,
 			getHiTemplateArm64,
 			arm64MaskCvtTemplate,
 			shapeAndTemplate{neonIntShiftAllShapes, intRotateAllTemplate},

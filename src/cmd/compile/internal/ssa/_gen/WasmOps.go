@@ -151,6 +151,10 @@ func init() {
 		v1gpv   = regInfo{inputs: []regMask{v128, gp}, outputs: []regMask{v128}}
 		v1fp32v = regInfo{inputs: []regMask{v128, fp32}, outputs: []regMask{v128}}
 		v1fp64v = regInfo{inputs: []regMask{v128, fp64}, outputs: []regMask{v128}}
+
+		gpv   = regInfo{inputs: []regMask{gp}, outputs: []regMask{v128}}
+		fp32v = regInfo{inputs: []regMask{fp32}, outputs: []regMask{v128}}
+		fp64v = regInfo{inputs: []regMask{fp64}, outputs: []regMask{v128}}
 	)
 
 	var WasmOps = []opData{
@@ -300,7 +304,7 @@ func init() {
 		{name: "I64Popcnt", asm: "I64Popcnt", argLength: 1, reg: gp11, typ: "Int64", earlyOk: true}, // popcnt(arg0)
 	}
 
-	WasmOps = append(WasmOps, simdWasmOps(vload, vstore, v11, v21, v31, v11gp, v11fp32, v11fp64, v1gpv, v1fp32v, v1fp64v)...)
+	WasmOps = append(WasmOps, simdWasmOps(vload, vstore, v11, v21, v31, v11gp, v11fp32, v11fp64, v1gpv, v1fp32v, v1fp64v, gpv, fp32v, fp64v)...)
 
 	archs = append(archs, arch{
 		name:            "Wasm",

@@ -496,7 +496,12 @@ func parseSANExtension(der cryptobyte.String) (dnsNames, emailAddresses []string
 			uris = append(uris, uri)
 		case nameTypeIP:
 			switch len(data) {
-			case net.IPv4len, net.IPv6len:
+			case net.IPv6len:
+				if net.IP(data).To4() != nil {
+					return errors.New("x509: SAN iPAddress contains IPv4-mapped IPv6 address")
+				}
+				ipAddresses = append(ipAddresses, data)
+			case net.IPv4len:
 				ipAddresses = append(ipAddresses, data)
 			default:
 				return errors.New("x509: cannot parse IP address of length " + strconv.Itoa(len(data)))
@@ -681,6 +686,10 @@ func parseNameConstraintsExtension(out *Certificate, e pkix.Extension) (unhandle
 
 				if !isValidIPMask(mask) {
 					return nil, nil, nil, nil, fmt.Errorf("x509: IP constraint contained invalid mask %x", mask)
+				}
+
+				if len(ip) == net.IPv6len && net.IP(ip).To4() != nil {
+					return nil, nil, nil, nil, errors.New("x509: IP constraint contained IPv4-mapped IPv6 address")
 				}
 
 				ips = append(ips, &net.IPNet{IP: net.IP(ip), Mask: net.IPMask(mask)})

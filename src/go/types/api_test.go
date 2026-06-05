@@ -1023,11 +1023,11 @@ func (r *N[C]) n() {  }
 	if gn != dn {
 		t.Errorf(`N.Method(...) returns %v for "m", but Info.Defs has %v`, gm, dm)
 	}
-	if dmm != dm {
-		t.Errorf(`Inside "m", r.m uses %v, want the defined func %v`, dmm, dm)
+	if dmm == dm {
+		t.Errorf(`Inside "m", r.m uses %v, want a func distinct from %v`, dmm, dm)
 	}
 	if dmn == dn {
-		t.Errorf(`Inside "m", r.n uses %v, want a func distinct from %v`, dmm, dm)
+		t.Errorf(`Inside "m", r.n uses %v, want a func distinct from %v`, dmn, dn)
 	}
 }
 

@@ -199,7 +199,7 @@ func issue15755() {
 	_ = x == y
 
 	// related: we should see an error since the result of f1 is ([]int, int)
-	var u, v []int = f1 /* ERROR "cannot use f1" */ ()
+	var u, v []int = f1 /* ERROR "cannot use 2nd function result" */ ()
 	_ = u
 	_ = v
 }

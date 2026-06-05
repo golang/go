@@ -737,28 +737,82 @@ printloop:
 }
 
 // funcNamePiecesForPrint returns the function name for printing to the user.
-// It returns three pieces so it doesn't need an allocation for string
+// It returns five pieces so it doesn't need an allocation for string
 // concatenation.
-func funcNamePiecesForPrint(name string) (string, string, string) {
+func funcNamePiecesForPrint(name string) (string, string, string, string, string) {
 	// Replace the shape name in generic function with "...".
 	i := bytealg.IndexByteString(name, '[')
 	if i < 0 {
-		return name, "", ""
+		return name, "", "", "", ""
 	}
 	j := len(name) - 1
 	for name[j] != ']' {
 		j--
 	}
 	if j <= i {
-		return name, "", ""
+		return name, "", "", "", ""
 	}
-	return name[:i], "[...]", name[j+1:]
+
+	interior := name[i+1 : j] // '[' interior ']'
+	// This is an early-out to skip the more-detailed parsing that
+	// follows -- if there's no '[' in the interior, that implies
+	// (assuming balanced brackets) no ']' in the interior, and thus
+	// this will be the answer. If brackets are not balanced
+	// (malformed input, which was already a risk), this will
+	// eat/hide the unbalanced "]".
+	if bytealg.IndexByteString(interior, '[') < 0 {
+		return name[:i], "[...]", name[j+1:], "", ""
+	}
+	// Generic method of generic type.
+	// know interior contains at least "...[..."
+	// expect interior contains "...]___[...".
+	// don't know whether "..." contains balanced brackets or not.
+	// or the compiler might have a bug in its naming-things department.
+	// hope to return name[:i], "[...]", ___, "[...]", name[j+1:]
+	depth := 1 // beginning after first "[", looking for balancing "]"
+	rbr, lbr := -1, -1
+	for k, c := range interior {
+		if c == '[' {
+			depth++
+			if depth != 1 {
+				continue
+			}
+			// rbr != -1 because rbr is only assigned if depth == 0
+			lbr = k
+			break // success, depth == 1, rbr >= 0, lbr > rbr
+		}
+		if c == ']' {
+			depth--
+			if depth < 0 {
+				break // malformed "...]...]"
+			}
+			if depth != 0 {
+				continue
+			}
+			// cannot execute this twice; depth == 0 -> { ']' -> malformed, '[' -> success }
+			rbr = k
+		}
+	}
+	if depth == 1 {
+		if rbr >= 0 && lbr > rbr {
+			return name[:i], "[...]", interior[rbr+1 : lbr], "[...]", name[j+1:]
+		}
+		if rbr == -1 && lbr == -1 {
+			// the bracket seen in the interior must have been balanced in a "[]" pattern, not "]["
+			// return the single-brackets (not a generic method of a generic type) result
+			return name[:i], "[...]", name[j+1:], "", ""
+		}
+	}
+
+	// malformed, return the whole name
+	return name, "", "", "", ""
+
 }
 
 // funcNameForPrint returns the function name for printing to the user.
 func funcNameForPrint(name string) string {
-	a, b, c := funcNamePiecesForPrint(name)
-	return a + b + c
+	a, b, c, d, e := funcNamePiecesForPrint(name)
+	return a + b + c + d + e
 }
 
 // printFuncName prints a function name. name is the function name in
@@ -768,8 +822,8 @@ func printFuncName(name string) {
 		print("panic")
 		return
 	}
-	a, b, c := funcNamePiecesForPrint(name)
-	print(a, b, c)
+	a, b, c, d, e := funcNamePiecesForPrint(name)
+	print(a, b, c, d, e)
 }
 
 func printcreatedby(gp *g) {

@@ -39,7 +39,7 @@ func (x Uint64x2) CarrylessMultiplyEven(y Uint64x2) Uint64x2 {
 //
 // Asm: PMULL, CPU Feature: PMULL
 func (x Uint64x2) CarrylessMultiplyOdd(y Uint64x2) Uint64x2 {
-	return x.GetHi().carrylessMultiplyWidenLo(y.GetHi())
+	return x.HiToLo().carrylessMultiplyWidenLo(y.HiToLo())
 }
 
 // CarrylessMultiplyOddEven computes the carryless
@@ -57,7 +57,7 @@ func (x Uint64x2) CarrylessMultiplyOdd(y Uint64x2) Uint64x2 {
 //
 // Asm: PMULL, CPU Feature: PMULL
 func (x Uint64x2) CarrylessMultiplyOddEven(y Uint64x2) Uint64x2 {
-	return x.GetHi().carrylessMultiplyWidenLo(y)
+	return x.HiToLo().carrylessMultiplyWidenLo(y)
 }
 
 // CarrylessMultiplyEvenOdd computes the carryless
@@ -75,5 +75,5 @@ func (x Uint64x2) CarrylessMultiplyOddEven(y Uint64x2) Uint64x2 {
 //
 // Asm: PMULL, CPU Feature: PMULL
 func (x Uint64x2) CarrylessMultiplyEvenOdd(y Uint64x2) Uint64x2 {
-	return x.carrylessMultiplyWidenLo(y.GetHi())
+	return x.carrylessMultiplyWidenLo(y.HiToLo())
 }

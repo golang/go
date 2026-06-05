@@ -22,6 +22,16 @@ func Emulated() bool {
 	return true
 }
 
+// HasHardwareCarrylessMultiply returns whether this platform
+// has a hardware-implemented version of carryless multiply.
+// With default GODEBUG=simd settings, if this is false,
+// it is emulated and merely slow, but with non-default settings
+// this can indicate the possibility of a missing instruction
+// that will fail ("SIGILL") if it is executed.
+func HasHardwareCarrylessMultiply() bool {
+	return false
+}
+
 type _simd struct {
 	_ [0]func(*_simd) *_simd
 }
@@ -281,8 +291,9 @@ func (x Int8s) Store(s []int8) {
 }
 
 // StorePart stores a partial vector into the slice s.
-func (x Int8s) StorePart(s []int8) {
+func (x Int8s) StorePart(s []int8) int {
 	x.Store(s)
+	return min(len(s), x.Len())
 }
 
 // String returns a string representation of the vector.
@@ -642,8 +653,9 @@ func (x Int16s) Store(s []int16) {
 }
 
 // StorePart stores a partial vector into the slice s.
-func (x Int16s) StorePart(s []int16) {
+func (x Int16s) StorePart(s []int16) int {
 	x.Store(s)
+	return min(len(s), x.Len())
 }
 
 // String returns a string representation of the vector.
@@ -996,8 +1008,9 @@ func (x Int32s) Store(s []int32) {
 }
 
 // StorePart stores a partial vector into the slice s.
-func (x Int32s) StorePart(s []int32) {
+func (x Int32s) StorePart(s []int32) int {
 	x.Store(s)
+	return min(len(s), x.Len())
 }
 
 // String returns a string representation of the vector.
@@ -1239,8 +1252,9 @@ func (x Int64s) Store(s []int64) {
 }
 
 // StorePart stores a partial vector into the slice s.
-func (x Int64s) StorePart(s []int64) {
+func (x Int64s) StorePart(s []int64) int {
 	x.Store(s)
+	return min(len(s), x.Len())
 }
 
 // String returns a string representation of the vector.
@@ -1475,8 +1489,9 @@ func (x Uint8s) Store(s []uint8) {
 }
 
 // StorePart stores a partial vector into the slice s.
-func (x Uint8s) StorePart(s []uint8) {
+func (x Uint8s) StorePart(s []uint8) int {
 	x.Store(s)
+	return min(len(s), x.Len())
 }
 
 // String returns a string representation of the vector.
@@ -1823,8 +1838,9 @@ func (x Uint16s) Store(s []uint16) {
 }
 
 // StorePart stores a partial vector into the slice s.
-func (x Uint16s) StorePart(s []uint16) {
+func (x Uint16s) StorePart(s []uint16) int {
 	x.Store(s)
+	return min(len(s), x.Len())
 }
 
 // String returns a string representation of the vector.
@@ -2148,8 +2164,9 @@ func (x Uint32s) Store(s []uint32) {
 }
 
 // StorePart stores a partial vector into the slice s.
-func (x Uint32s) StorePart(s []uint32) {
+func (x Uint32s) StorePart(s []uint32) int {
 	x.Store(s)
+	return min(len(s), x.Len())
 }
 
 // String returns a string representation of the vector.
@@ -2397,8 +2414,9 @@ func (x Uint64s) Store(s []uint64) {
 }
 
 // StorePart stores a partial vector into the slice s.
-func (x Uint64s) StorePart(s []uint64) {
+func (x Uint64s) StorePart(s []uint64) int {
 	x.Store(s)
+	return min(len(s), x.Len())
 }
 
 // String returns a string representation of the vector.
@@ -2701,8 +2719,9 @@ func (x Float32s) Store(s []float32) {
 }
 
 // StorePart stores a partial vector into the slice s.
-func (x Float32s) StorePart(s []float32) {
+func (x Float32s) StorePart(s []float32) int {
 	x.Store(s)
+	return min(len(s), x.Len())
 }
 
 // String returns a string representation of the vector.
@@ -2974,8 +2993,9 @@ func (x Float64s) Store(s []float64) {
 }
 
 // StorePart stores a partial vector into the slice s.
-func (x Float64s) StorePart(s []float64) {
+func (x Float64s) StorePart(s []float64) int {
 	x.Store(s)
+	return min(len(s), x.Len())
 }
 
 // String returns a string representation of the vector.
@@ -3157,38 +3177,40 @@ func (x Uint64s) mwl(y Uint64s) Uint64s {
 }
 
 var (
-	m1 = newT(0x1084210842108421, 0x2108421084210842)
-	m2 = newT(0x2108421084210842, 0x4210842108421084)
-	m3 = newT(0x4210842108421084, 0x8421084210842108)
-	m4 = newT(0x8421084210842108, 0x0842108421084210)
-	m5 = newT(0x0842108421084210, 0x1084210842108421)
+	// For mK, bits J such that J mod 5 == K are set
+	m0 = newT(0x1084210842108421, 0x2108421084210842)
+	m1 = newT(0x2108421084210842, 0x4210842108421084)
+	m2 = newT(0x4210842108421084, 0x8421084210842108)
+	m3 = newT(0x8421084210842108, 0x0842108421084210)
+	m4 = newT(0x0842108421084210, 0x1084210842108421)
 )
 
 func (x Uint64s) clmul(y Uint64s) Uint64s {
+	x0 := x.And(m0)
 	x1 := x.And(m1)
 	x2 := x.And(m2)
 	x3 := x.And(m3)
 	x4 := x.And(m4)
-	x5 := x.And(m5)
 
+	y0 := y.And(m0)
 	y1 := y.And(m1)
 	y2 := y.And(m2)
 	y3 := y.And(m3)
 	y4 := y.And(m4)
-	y5 := y.And(m5)
 
-	// sum of x, y indices == K mod 5; mask index = K-1
-	z := (x1.mwl(y1)).Xor(x2.mwl(y5)).Xor(x5.mwl(y2)).Xor(x3.mwl(y4)).Xor(x4.mwl(y3)).And(m1)
-	z = (x4.mwl(y4)).Xor(x3.mwl(y5)).Xor(x5.mwl(y3)).Xor(x1.mwl(y2)).Xor(x2.mwl(y1)).And(m2).Or(z)
-	z = (x2.mwl(y2)).Xor(x4.mwl(y5)).Xor(x5.mwl(y4)).Xor(x1.mwl(y3)).Xor(x3.mwl(y1)).And(m3).Or(z)
-	z = (x5.mwl(y5)).Xor(x1.mwl(y4)).Xor(x4.mwl(y1)).Xor(x2.mwl(y3)).Xor(x3.mwl(y2)).And(m4).Or(z)
-	z = (x3.mwl(y3)).Xor(x1.mwl(y5)).Xor(x5.mwl(y1)).Xor(x2.mwl(y4)).Xor(x4.mwl(y2)).And(m5).Or(z)
+	// sum of x, y indices == K mod 5; mask index = K
+	z := (x0.mwl(y0)).Xor(x1.mwl(y4)).Xor(x4.mwl(y1)).Xor(x2.mwl(y3)).Xor(x3.mwl(y2)).And(m0)
+	z = (x3.mwl(y3)).Xor(x2.mwl(y4)).Xor(x4.mwl(y2)).Xor(x0.mwl(y1)).Xor(x1.mwl(y0)).And(m1).Or(z)
+	z = (x1.mwl(y1)).Xor(x3.mwl(y4)).Xor(x4.mwl(y3)).Xor(x0.mwl(y2)).Xor(x2.mwl(y0)).And(m2).Or(z)
+	z = (x4.mwl(y4)).Xor(x0.mwl(y3)).Xor(x3.mwl(y0)).Xor(x1.mwl(y2)).Xor(x2.mwl(y1)).And(m3).Or(z)
+	z = (x2.mwl(y2)).Xor(x0.mwl(y4)).Xor(x4.mwl(y0)).Xor(x1.mwl(y3)).Xor(x3.mwl(y1)).And(m4).Or(z)
 
 	return z
 }
 
 // CarrylessMultiplyEven computes the carryless
 // multiplications of selected even halves of the elements of x and y.
+// The result fills the 128 bits of each even-odd pair.
 //
 // A carryless multiplication uses bitwise XOR instead of
 // add-with-carry, for example (in base two):
@@ -3205,6 +3227,7 @@ func (x Uint64s) CarrylessMultiplyEven(y Uint64s) Uint64s {
 
 // CarrylessMultiplyOdd computes the carryless
 // multiplications of selected odd halves of the elements of x and y.
+// The result fills the 128 bits of each even-odd pair.
 //
 // A carryless multiplication uses bitwise XOR instead of
 // add-with-carry, for example (in base two):
@@ -3219,4 +3242,73 @@ func (x Uint64s) CarrylessMultiplyOdd(y Uint64s) Uint64s {
 	x.a = x.b
 	y.a = y.b
 	return x.clmul(y)
+}
+
+const (
+	by8  = 0x0101010101010101
+	by16 = 0x0001000100010001
+)
+
+// BroadcastInt8 fills the elements of a slice with its argument value.
+func BroadcastInt8s(x int8) Int8s {
+	v := (255 & uint64(x)) * by8
+	return Int8s{a: v, b: v}
+}
+
+// BroadcastInt16 fills the elements of a slice with its argument value.
+func BroadcastInt16s(x int16) Int16s {
+	v := (65535 & uint64(x)) * by16
+	return Int16s{a: v, b: v}
+}
+
+// BroadcastInt32 fills the elements of a slice with its argument value.
+func BroadcastInt32s(x int32) Int32s {
+	v := uint64(x) & 0xffffffff
+	v = v<<32 | v
+	return Int32s{a: v, b: v}
+}
+
+// BroadcastInt64 fills the elements of a slice with its argument value.
+func BroadcastInt64s(x int64) Int64s {
+	v := uint64(x)
+	return Int64s{a: v, b: v}
+}
+
+// BroadcastUint8 fills the elements of a slice with its argument value.
+func BroadcastUint8s(x uint8) Uint8s {
+	v := uint64(x) * by8
+	return Uint8s{a: v, b: v}
+
+}
+
+// BroadcastUint16 fills the elements of a slice with its argument value.
+func BroadcastUint16s(x uint16) Uint16s {
+	v := uint64(x) * by16
+	return Uint16s{a: v, b: v}
+
+}
+
+// BroadcastUint32 fills the elements of a slice with its argument value.
+func BroadcastUint32s(x uint32) Uint32s {
+	v := uint64(x)
+	v = v<<32 | v
+	return Uint32s{a: v, b: v}
+}
+
+// BroadcastUint64 fills the elements of a slice with its argument value.
+func BroadcastUint64s(x uint64) Uint64s {
+	return Uint64s{a: x, b: x}
+}
+
+// BroadcastFloat32 fills the elements of a slice with its argument value.
+func BroadcastFloat32s(x float32) Float32s {
+	v := uint64(math.Float32bits(x))
+	v = v<<32 | v
+	return Float32s{a: v, b: v}
+}
+
+// BroadcastFloat64 fills the elements of a slice with its argument value.
+func BroadcastFloat64s(x float64) Float64s {
+	v := math.Float64bits(x)
+	return Float64s{a: v, b: v}
 }

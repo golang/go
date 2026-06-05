@@ -23,6 +23,9 @@ func LoadInt8s([]int8) Int8s
 // LoadInt8Part loads a partial slice of int8 into an Int8s vector, returning the vector and the number of elements loaded.
 func LoadInt8sPart([]int8) (Int8s, int)
 
+// BroadcastInt8 fills the elements of a slice with its argument value.
+func BroadcastInt8s(int8) Int8s
+
 // Abs returns the element-wise absolute value of x.
 func (x Int8s) Abs() Int8s
 
@@ -90,7 +93,7 @@ func (x Int8s) Or(y Int8s) Int8s
 func (x Int8s) Store(s []int8)
 
 // StoreSlicePart stores a partial vector into the slice s.
-func (x Int8s) StorePart(s []int8)
+func (x Int8s) StorePart(s []int8) int
 
 // String returns a string representation of the vector.
 func (x Int8s) String() string
@@ -121,6 +124,9 @@ func LoadInt16s([]int16) Int16s
 
 // LoadInt16Part loads a partial slice of int16 into an Int16s vector, returning the vector and the number of elements loaded.
 func LoadInt16sPart([]int16) (Int16s, int)
+
+// BroadcastInt16 fills the elements of a slice with its argument value.
+func BroadcastInt16s(int16) Int16s
 
 // Abs returns the element-wise absolute value of x.
 func (x Int16s) Abs() Int16s
@@ -201,7 +207,7 @@ func (x Int16s) ShiftAllRight(shift uint64) Int16s
 func (x Int16s) Store(s []int16)
 
 // StoreSlicePart stores a partial vector into the slice s.
-func (x Int16s) StorePart(s []int16)
+func (x Int16s) StorePart(s []int16) int
 
 // String returns a string representation of the vector.
 func (x Int16s) String() string
@@ -232,6 +238,9 @@ func LoadInt32s([]int32) Int32s
 
 // LoadInt32Part loads a partial slice of int32 into an Int32s vector, returning the vector and the number of elements loaded.
 func LoadInt32sPart([]int32) (Int32s, int)
+
+// BroadcastInt32 fills the elements of a slice with its argument value.
+func BroadcastInt32s(int32) Int32s
 
 // Abs returns the element-wise absolute value of x.
 func (x Int32s) Abs() Int32s
@@ -312,7 +321,7 @@ func (x Int32s) ShiftAllRight(shift uint64) Int32s
 func (x Int32s) Store(s []int32)
 
 // StoreSlicePart stores a partial vector into the slice s.
-func (x Int32s) StorePart(s []int32)
+func (x Int32s) StorePart(s []int32) int
 
 // String returns a string representation of the vector.
 func (x Int32s) String() string
@@ -340,6 +349,9 @@ func LoadInt64s([]int64) Int64s
 
 // LoadInt64Part loads a partial slice of int64 into an Int64s vector, returning the vector and the number of elements loaded.
 func LoadInt64sPart([]int64) (Int64s, int)
+
+// BroadcastInt64 fills the elements of a slice with its argument value.
+func BroadcastInt64s(int64) Int64s
 
 // Add returns the element-wise sum of x and y.
 func (x Int64s) Add(y Int64s) Int64s
@@ -402,7 +414,7 @@ func (x Int64s) ShiftAllLeft(shift uint64) Int64s
 func (x Int64s) Store(s []int64)
 
 // StoreSlicePart stores a partial vector into the slice s.
-func (x Int64s) StorePart(s []int64)
+func (x Int64s) StorePart(s []int64) int
 
 // String returns a string representation of the vector.
 func (x Int64s) String() string
@@ -430,6 +442,9 @@ func LoadUint8s([]uint8) Uint8s
 
 // LoadUint8Part loads a partial slice of uint8 into an Uint8s vector, returning the vector and the number of elements loaded.
 func LoadUint8sPart([]uint8) (Uint8s, int)
+
+// BroadcastUint8 fills the elements of a slice with its argument value.
+func BroadcastUint8s(uint8) Uint8s
 
 // Add returns the element-wise sum of x and y.
 func (x Uint8s) Add(y Uint8s) Uint8s
@@ -495,7 +510,7 @@ func (x Uint8s) ReshapeToUint64s() Uint64s
 func (x Uint8s) Store(s []uint8)
 
 // StoreSlicePart stores a partial vector into the slice s.
-func (x Uint8s) StorePart(s []uint8)
+func (x Uint8s) StorePart(s []uint8) int
 
 // String returns a string representation of the vector.
 func (x Uint8s) String() string
@@ -520,6 +535,9 @@ func LoadUint16s([]uint16) Uint16s
 
 // LoadUint16Part loads a partial slice of uint16 into an Uint16s vector, returning the vector and the number of elements loaded.
 func LoadUint16sPart([]uint16) (Uint16s, int)
+
+// BroadcastUint16 fills the elements of a slice with its argument value.
+func BroadcastUint16s(uint16) Uint16s
 
 // Add returns the element-wise sum of x and y.
 func (x Uint16s) Add(y Uint16s) Uint16s
@@ -609,7 +627,7 @@ func (x Uint16s) ShiftAllRight(shift uint64) Uint16s
 func (x Uint16s) Store(s []uint16)
 
 // StoreSlicePart stores a partial vector into the slice s.
-func (x Uint16s) StorePart(s []uint16)
+func (x Uint16s) StorePart(s []uint16) int
 
 // String returns a string representation of the vector.
 func (x Uint16s) String() string
@@ -634,6 +652,9 @@ func LoadUint32s([]uint32) Uint32s
 
 // LoadUint32Part loads a partial slice of uint32 into an Uint32s vector, returning the vector and the number of elements loaded.
 func LoadUint32sPart([]uint32) (Uint32s, int)
+
+// BroadcastUint32 fills the elements of a slice with its argument value.
+func BroadcastUint32s(uint32) Uint32s
 
 // Add returns the element-wise sum of x and y.
 func (x Uint32s) Add(y Uint32s) Uint32s
@@ -720,7 +741,7 @@ func (x Uint32s) ShiftAllRight(shift uint64) Uint32s
 func (x Uint32s) Store(s []uint32)
 
 // StoreSlicePart stores a partial vector into the slice s.
-func (x Uint32s) StorePart(s []uint32)
+func (x Uint32s) StorePart(s []uint32) int
 
 // String returns a string representation of the vector.
 func (x Uint32s) String() string
@@ -742,6 +763,9 @@ func LoadUint64s([]uint64) Uint64s
 
 // LoadUint64Part loads a partial slice of uint64 into an Uint64s vector, returning the vector and the number of elements loaded.
 func LoadUint64sPart([]uint64) (Uint64s, int)
+
+// BroadcastUint64 fills the elements of a slice with its argument value.
+func BroadcastUint64s(uint64) Uint64s
 
 // Add returns the element-wise sum of x and y.
 func (x Uint64s) Add(y Uint64s) Uint64s
@@ -851,7 +875,7 @@ func (x Uint64s) ShiftAllRight(shift uint64) Uint64s
 func (x Uint64s) Store(s []uint64)
 
 // StoreSlicePart stores a partial vector into the slice s.
-func (x Uint64s) StorePart(s []uint64)
+func (x Uint64s) StorePart(s []uint64) int
 
 // String returns a string representation of the vector.
 func (x Uint64s) String() string
@@ -873,6 +897,9 @@ func LoadFloat32s([]float32) Float32s
 
 // LoadFloat32Part loads a partial slice of float32 into an Float32s vector, returning the vector and the number of elements loaded.
 func LoadFloat32sPart([]float32) (Float32s, int)
+
+// BroadcastFloat32 fills the elements of a slice with its argument value.
+func BroadcastFloat32s(float32) Float32s
 
 // Abs returns the element-wise absolute value of x.
 func (x Float32s) Abs() Float32s
@@ -935,7 +962,7 @@ func (x Float32s) Sqrt() Float32s
 func (x Float32s) Store(s []float32)
 
 // StoreSlicePart stores a partial vector into the slice s.
-func (x Float32s) StorePart(s []float32)
+func (x Float32s) StorePart(s []float32) int
 
 // String returns a string representation of the vector.
 func (x Float32s) String() string
@@ -957,6 +984,9 @@ func LoadFloat64s([]float64) Float64s
 
 // LoadFloat64Part loads a partial slice of float64 into an Float64s vector, returning the vector and the number of elements loaded.
 func LoadFloat64sPart([]float64) (Float64s, int)
+
+// BroadcastFloat64 fills the elements of a slice with its argument value.
+func BroadcastFloat64s(float64) Float64s
 
 // Abs returns the element-wise absolute value of x.
 func (x Float64s) Abs() Float64s
@@ -1016,7 +1046,7 @@ func (x Float64s) Sqrt() Float64s
 func (x Float64s) Store(s []float64)
 
 // StoreSlicePart stores a partial vector into the slice s.
-func (x Float64s) StorePart(s []float64)
+func (x Float64s) StorePart(s []float64) int
 
 // String returns a string representation of the vector.
 func (x Float64s) String() string

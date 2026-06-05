@@ -452,6 +452,15 @@ package simd`)
 				}
 				pf("func Load%ssPart([]%s) (%ss, int)\n", elem, toScalar(elem), elem)
 
+				broadcastComment := comments.Functions["Broadcast"+elem]
+				if broadcastComment == "" && comments.Functions["default_Broadcast"] != "" {
+					broadcastComment = fmt.Sprintf(comments.Functions["default_Broadcast"], elem)
+				}
+				if broadcastComment != "" {
+					pf("// %s\n", broadcastComment)
+				}
+				pf("func Broadcast%ss(%s) %ss\n", elem, toScalar(elem), elem)
+
 			}
 
 			for _, m := range intersection {
@@ -579,6 +588,7 @@ package simd`)
 					scalar := toScalar(elem)
 					pf("func Load%s(s []%s) %s {\n\treturn %s(archsimd.Load%s(s))\n}\n", t, scalar, t, t, t)
 					pf("func Load%sPart(s []%s) (%s, int) {\n\tv, n := archsimd.Load%sPart(s)\n\treturn %s(v), n\n}\n", t, scalar, t, t, t)
+					pf("func Broadcast%s(x %s) %s {\n\treturn %s(archsimd.Broadcast%s(x))\n}\n", t, scalar, t, t, t)
 				}
 			}
 			nl()

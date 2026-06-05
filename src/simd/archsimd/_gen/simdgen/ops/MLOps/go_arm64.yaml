@@ -3,7 +3,7 @@
 # VMLA: Vd = Vn*Vm + Vd
 - go: MulAdd
   asm: "VMLA"
-  specialLower: !string "earlymatch x y z => (VMLA%a z x y)"
+  specialLower: !string "earlymatch (%g x y z) => (VMLA%a z x y)"
   documentation: !string |-
     // NAME computes (x * y) + z.
   in:
@@ -18,7 +18,7 @@
 # VFMLA: Vd = Vn*Vm + Vd
 - go: MulAdd
   asm: "VFMLA"
-  specialLower: !string "earlymatch x y z => (VFMLA%a z x y)"
+  specialLower: !string "earlymatch (%g x y z) => (VFMLA%a z x y)"
   documentation: !string |-
     // NAME performs a fused (x * y) + z.
   in:

@@ -15,20 +15,20 @@ type Int8x16 struct {
 	vals    [16]int8
 }
 
-// Len returns the number of elements in a Int8x16.
+// Len returns the number of elements in an Int8x16.
 func (x Int8x16) Len() int { return 16 }
 
-// LoadInt8x16Array loads a Int8x16 from a [16]int8.
+// LoadInt8x16Array loads an Int8x16 from a [16]int8.
 //
 //go:noescape
 func LoadInt8x16Array(y *[16]int8) Int8x16
 
-// LoadInt8x16 loads a Int8x16 from a slice of at least 16 int8s.
+// LoadInt8x16 loads an Int8x16 from a slice of at least 16 int8s.
 func LoadInt8x16(s []int8) Int8x16 {
 	return LoadInt8x16Array((*[16]int8)(s))
 }
 
-// StoreArray stores a Int8x16 to a [16]int8.
+// StoreArray stores an Int8x16 to a [16]int8.
 //
 //go:noescape
 func (x Int8x16) StoreArray(y *[16]int8)
@@ -38,26 +38,29 @@ func (x Int8x16) Store(s []int8) {
 	x.StoreArray((*[16]int8)(s))
 }
 
+// BroadcastInt8x16 broadcasts an int8 to all elements of an Int8x16 vector.
+func BroadcastInt8x16(x int8) Int8x16
+
 // Int16x8 is a 128-bit SIMD vector of 8 int16s.
 type Int16x8 struct {
 	int16x8 v128
 	vals    [8]int16
 }
 
-// Len returns the number of elements in a Int16x8.
+// Len returns the number of elements in an Int16x8.
 func (x Int16x8) Len() int { return 8 }
 
-// LoadInt16x8Array loads a Int16x8 from a [8]int16.
+// LoadInt16x8Array loads an Int16x8 from a [8]int16.
 //
 //go:noescape
 func LoadInt16x8Array(y *[8]int16) Int16x8
 
-// LoadInt16x8 loads a Int16x8 from a slice of at least 8 int16s.
+// LoadInt16x8 loads an Int16x8 from a slice of at least 8 int16s.
 func LoadInt16x8(s []int16) Int16x8 {
 	return LoadInt16x8Array((*[8]int16)(s))
 }
 
-// StoreArray stores a Int16x8 to a [8]int16.
+// StoreArray stores an Int16x8 to a [8]int16.
 //
 //go:noescape
 func (x Int16x8) StoreArray(y *[8]int16)
@@ -67,26 +70,29 @@ func (x Int16x8) Store(s []int16) {
 	x.StoreArray((*[8]int16)(s))
 }
 
+// BroadcastInt16x8 broadcasts an int16 to all elements of an Int16x8 vector.
+func BroadcastInt16x8(x int16) Int16x8
+
 // Int32x4 is a 128-bit SIMD vector of 4 int32s.
 type Int32x4 struct {
 	int32x4 v128
 	vals    [4]int32
 }
 
-// Len returns the number of elements in a Int32x4.
+// Len returns the number of elements in an Int32x4.
 func (x Int32x4) Len() int { return 4 }
 
-// LoadInt32x4Array loads a Int32x4 from a [4]int32.
+// LoadInt32x4Array loads an Int32x4 from a [4]int32.
 //
 //go:noescape
 func LoadInt32x4Array(y *[4]int32) Int32x4
 
-// LoadInt32x4 loads a Int32x4 from a slice of at least 4 int32s.
+// LoadInt32x4 loads an Int32x4 from a slice of at least 4 int32s.
 func LoadInt32x4(s []int32) Int32x4 {
 	return LoadInt32x4Array((*[4]int32)(s))
 }
 
-// StoreArray stores a Int32x4 to a [4]int32.
+// StoreArray stores an Int32x4 to a [4]int32.
 //
 //go:noescape
 func (x Int32x4) StoreArray(y *[4]int32)
@@ -96,26 +102,29 @@ func (x Int32x4) Store(s []int32) {
 	x.StoreArray((*[4]int32)(s))
 }
 
+// BroadcastInt32x4 broadcasts an int32 to all elements of an Int32x4 vector.
+func BroadcastInt32x4(x int32) Int32x4
+
 // Int64x2 is a 128-bit SIMD vector of 2 int64s.
 type Int64x2 struct {
 	int64x2 v128
 	vals    [2]int64
 }
 
-// Len returns the number of elements in a Int64x2.
+// Len returns the number of elements in an Int64x2.
 func (x Int64x2) Len() int { return 2 }
 
-// LoadInt64x2Array loads a Int64x2 from a [2]int64.
+// LoadInt64x2Array loads an Int64x2 from a [2]int64.
 //
 //go:noescape
 func LoadInt64x2Array(y *[2]int64) Int64x2
 
-// LoadInt64x2 loads a Int64x2 from a slice of at least 2 int64s.
+// LoadInt64x2 loads an Int64x2 from a slice of at least 2 int64s.
 func LoadInt64x2(s []int64) Int64x2 {
 	return LoadInt64x2Array((*[2]int64)(s))
 }
 
-// StoreArray stores a Int64x2 to a [2]int64.
+// StoreArray stores an Int64x2 to a [2]int64.
 //
 //go:noescape
 func (x Int64x2) StoreArray(y *[2]int64)
@@ -124,6 +133,9 @@ func (x Int64x2) StoreArray(y *[2]int64)
 func (x Int64x2) Store(s []int64) {
 	x.StoreArray((*[2]int64)(s))
 }
+
+// BroadcastInt64x2 broadcasts an int64 to all elements of an Int64x2 vector.
+func BroadcastInt64x2(x int64) Int64x2
 
 // Uint8x16 is a 128-bit SIMD vector of 16 uint8s.
 type Uint8x16 struct {
@@ -154,6 +166,9 @@ func (x Uint8x16) Store(s []uint8) {
 	x.StoreArray((*[16]uint8)(s))
 }
 
+// BroadcastUint8x16 broadcasts a uint8 to all elements of a Uint8x16 vector.
+func BroadcastUint8x16(x uint8) Uint8x16
+
 // Uint16x8 is a 128-bit SIMD vector of 8 uint16s.
 type Uint16x8 struct {
 	uint16x8 v128
@@ -182,6 +197,9 @@ func (x Uint16x8) StoreArray(y *[8]uint16)
 func (x Uint16x8) Store(s []uint16) {
 	x.StoreArray((*[8]uint16)(s))
 }
+
+// BroadcastUint16x8 broadcasts a uint16 to all elements of a Uint16x8 vector.
+func BroadcastUint16x8(x uint16) Uint16x8
 
 // Uint32x4 is a 128-bit SIMD vector of 4 uint32s.
 type Uint32x4 struct {
@@ -212,6 +230,9 @@ func (x Uint32x4) Store(s []uint32) {
 	x.StoreArray((*[4]uint32)(s))
 }
 
+// BroadcastUint32x4 broadcasts a uint32 to all elements of a Uint32x4 vector.
+func BroadcastUint32x4(x uint32) Uint32x4
+
 // Uint64x2 is a 128-bit SIMD vector of 2 uint64s.
 type Uint64x2 struct {
 	uint64x2 v128
@@ -240,6 +261,9 @@ func (x Uint64x2) StoreArray(y *[2]uint64)
 func (x Uint64x2) Store(s []uint64) {
 	x.StoreArray((*[2]uint64)(s))
 }
+
+// BroadcastUint64x2 broadcasts a uint64 to all elements of a Uint64x2 vector.
+func BroadcastUint64x2(x uint64) Uint64x2
 
 // Float32x4 is a 128-bit SIMD vector of 4 float32s.
 type Float32x4 struct {
@@ -270,6 +294,9 @@ func (x Float32x4) Store(s []float32) {
 	x.StoreArray((*[4]float32)(s))
 }
 
+// BroadcastFloat32x4 broadcasts a float32 to all elements of a Float32x4 vector.
+func BroadcastFloat32x4(x float32) Float32x4
+
 // Float64x2 is a 128-bit SIMD vector of 2 float64s.
 type Float64x2 struct {
 	float64x2 v128
@@ -298,6 +325,9 @@ func (x Float64x2) StoreArray(y *[2]float64)
 func (x Float64x2) Store(s []float64) {
 	x.StoreArray((*[2]float64)(s))
 }
+
+// BroadcastFloat64x2 broadcasts a float64 to all elements of a Float64x2 vector.
+func BroadcastFloat64x2(x float64) Float64x2
 
 // Mask8x16 is a 128-bit SIMD mask of 16 int8s.
 type Mask8x16 struct {

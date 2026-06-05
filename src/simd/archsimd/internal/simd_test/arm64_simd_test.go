@@ -112,20 +112,6 @@ func TestLookupOrZero(t *testing.T) {
 	checkSlices(t, got, want)
 }
 
-func TestLookupOrKeep(t *testing.T) {
-	// Out-of-range indices keep the existing (receiver) lane value.
-	existing := []int8{100, 101, 102, 103, 104, 105, 106, 107, 108, 109, 110, 111, 112, 113, 114, 115}
-	table := []int8{1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16}
-	indices := []int8{0, 1, 2, 3, -1, -1, 6, 7, 8, 9, -1, -1, 12, 13, 14, 15}
-	want := []int8{1, 2, 3, 4, 104, 105, 7, 8, 9, 10, 110, 111, 13, 14, 15, 16}
-	got := make([]int8, 16)
-	archsimd.LoadInt8x16(existing).LookupOrKeep(
-		archsimd.LoadInt8x16(table),
-		archsimd.LoadInt8x16(indices),
-	).Store(got)
-	checkSlices(t, got, want)
-}
-
 func TestClMul(t *testing.T) {
 	var x = archsimd.LoadUint64x2([]uint64{1, 5})
 	var y = archsimd.LoadUint64x2([]uint64{3, 9})

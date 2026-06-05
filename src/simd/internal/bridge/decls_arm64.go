@@ -19,6 +19,9 @@ func LoadFloat32x4Part(s []float32) (Float32x4, int) {
 	v, n := archsimd.LoadFloat32x4Part(s)
 	return Float32x4(v), n
 }
+func BroadcastFloat32x4(x float32) Float32x4 {
+	return Float32x4(archsimd.BroadcastFloat32x4(x))
+}
 
 type Float64x2 archsimd.Float64x2
 
@@ -28,6 +31,9 @@ func LoadFloat64x2(s []float64) Float64x2 {
 func LoadFloat64x2Part(s []float64) (Float64x2, int) {
 	v, n := archsimd.LoadFloat64x2Part(s)
 	return Float64x2(v), n
+}
+func BroadcastFloat64x2(x float64) Float64x2 {
+	return Float64x2(archsimd.BroadcastFloat64x2(x))
 }
 
 type Int16x8 archsimd.Int16x8
@@ -39,6 +45,9 @@ func LoadInt16x8Part(s []int16) (Int16x8, int) {
 	v, n := archsimd.LoadInt16x8Part(s)
 	return Int16x8(v), n
 }
+func BroadcastInt16x8(x int16) Int16x8 {
+	return Int16x8(archsimd.BroadcastInt16x8(x))
+}
 
 type Int32x4 archsimd.Int32x4
 
@@ -48,6 +57,9 @@ func LoadInt32x4(s []int32) Int32x4 {
 func LoadInt32x4Part(s []int32) (Int32x4, int) {
 	v, n := archsimd.LoadInt32x4Part(s)
 	return Int32x4(v), n
+}
+func BroadcastInt32x4(x int32) Int32x4 {
+	return Int32x4(archsimd.BroadcastInt32x4(x))
 }
 
 type Int64x2 archsimd.Int64x2
@@ -59,6 +71,9 @@ func LoadInt64x2Part(s []int64) (Int64x2, int) {
 	v, n := archsimd.LoadInt64x2Part(s)
 	return Int64x2(v), n
 }
+func BroadcastInt64x2(x int64) Int64x2 {
+	return Int64x2(archsimd.BroadcastInt64x2(x))
+}
 
 type Int8x16 archsimd.Int8x16
 
@@ -68,6 +83,9 @@ func LoadInt8x16(s []int8) Int8x16 {
 func LoadInt8x16Part(s []int8) (Int8x16, int) {
 	v, n := archsimd.LoadInt8x16Part(s)
 	return Int8x16(v), n
+}
+func BroadcastInt8x16(x int8) Int8x16 {
+	return Int8x16(archsimd.BroadcastInt8x16(x))
 }
 
 type Mask16x8 archsimd.Mask16x8
@@ -83,6 +101,9 @@ func LoadUint16x8Part(s []uint16) (Uint16x8, int) {
 	v, n := archsimd.LoadUint16x8Part(s)
 	return Uint16x8(v), n
 }
+func BroadcastUint16x8(x uint16) Uint16x8 {
+	return Uint16x8(archsimd.BroadcastUint16x8(x))
+}
 
 type Uint32x4 archsimd.Uint32x4
 
@@ -92,6 +113,9 @@ func LoadUint32x4(s []uint32) Uint32x4 {
 func LoadUint32x4Part(s []uint32) (Uint32x4, int) {
 	v, n := archsimd.LoadUint32x4Part(s)
 	return Uint32x4(v), n
+}
+func BroadcastUint32x4(x uint32) Uint32x4 {
+	return Uint32x4(archsimd.BroadcastUint32x4(x))
 }
 
 type Uint64x2 archsimd.Uint64x2
@@ -103,6 +127,9 @@ func LoadUint64x2Part(s []uint64) (Uint64x2, int) {
 	v, n := archsimd.LoadUint64x2Part(s)
 	return Uint64x2(v), n
 }
+func BroadcastUint64x2(x uint64) Uint64x2 {
+	return Uint64x2(archsimd.BroadcastUint64x2(x))
+}
 
 type Uint8x16 archsimd.Uint8x16
 
@@ -112,6 +139,9 @@ func LoadUint8x16(s []uint8) Uint8x16 {
 func LoadUint8x16Part(s []uint8) (Uint8x16, int) {
 	v, n := archsimd.LoadUint8x16Part(s)
 	return Uint8x16(v), n
+}
+func BroadcastUint8x16(x uint8) Uint8x16 {
+	return Uint8x16(archsimd.BroadcastUint8x16(x))
 }
 
 func (x Int8x16) Abs() Int8x16 {
@@ -202,8 +232,8 @@ func (x Int8x16) Store(s []int8) {
 	(archsimd.Int8x16(x)).Store(s)
 }
 
-func (x Int8x16) StorePart(s []int8) {
-	(archsimd.Int8x16(x)).StorePart(s)
+func (x Int8x16) StorePart(s []int8) int {
+	return (archsimd.Int8x16(x)).StorePart(s)
 }
 
 func (x Int8x16) String() string {
@@ -334,8 +364,8 @@ func (x Int16x8) Store(s []int16) {
 	(archsimd.Int16x8(x)).Store(s)
 }
 
-func (x Int16x8) StorePart(s []int16) {
-	(archsimd.Int16x8(x)).StorePart(s)
+func (x Int16x8) StorePart(s []int16) int {
+	return (archsimd.Int16x8(x)).StorePart(s)
 }
 
 func (x Int16x8) String() string {
@@ -466,8 +496,8 @@ func (x Int32x4) Store(s []int32) {
 	(archsimd.Int32x4(x)).Store(s)
 }
 
-func (x Int32x4) StorePart(s []int32) {
-	(archsimd.Int32x4(x)).StorePart(s)
+func (x Int32x4) StorePart(s []int32) int {
+	return (archsimd.Int32x4(x)).StorePart(s)
 }
 
 func (x Int32x4) String() string {
@@ -570,8 +600,8 @@ func (x Int64x2) Store(s []int64) {
 	(archsimd.Int64x2(x)).Store(s)
 }
 
-func (x Int64x2) StorePart(s []int64) {
-	(archsimd.Int64x2(x)).StorePart(s)
+func (x Int64x2) StorePart(s []int64) int {
+	return (archsimd.Int64x2(x)).StorePart(s)
 }
 
 func (x Int64x2) String() string {
@@ -678,8 +708,8 @@ func (x Uint8x16) Store(s []uint8) {
 	(archsimd.Uint8x16(x)).Store(s)
 }
 
-func (x Uint8x16) StorePart(s []uint8) {
-	(archsimd.Uint8x16(x)).StorePart(s)
+func (x Uint8x16) StorePart(s []uint8) int {
+	return (archsimd.Uint8x16(x)).StorePart(s)
 }
 
 func (x Uint8x16) String() string {
@@ -814,8 +844,8 @@ func (x Uint16x8) Store(s []uint16) {
 	(archsimd.Uint16x8(x)).Store(s)
 }
 
-func (x Uint16x8) StorePart(s []uint16) {
-	(archsimd.Uint16x8(x)).StorePart(s)
+func (x Uint16x8) StorePart(s []uint16) int {
+	return (archsimd.Uint16x8(x)).StorePart(s)
 }
 
 func (x Uint16x8) String() string {
@@ -946,8 +976,8 @@ func (x Uint32x4) Store(s []uint32) {
 	(archsimd.Uint32x4(x)).Store(s)
 }
 
-func (x Uint32x4) StorePart(s []uint32) {
-	(archsimd.Uint32x4(x)).StorePart(s)
+func (x Uint32x4) StorePart(s []uint32) int {
+	return (archsimd.Uint32x4(x)).StorePart(s)
 }
 
 func (x Uint32x4) String() string {
@@ -1070,8 +1100,8 @@ func (x Uint64x2) Store(s []uint64) {
 	(archsimd.Uint64x2(x)).Store(s)
 }
 
-func (x Uint64x2) StorePart(s []uint64) {
-	(archsimd.Uint64x2(x)).StorePart(s)
+func (x Uint64x2) StorePart(s []uint64) int {
+	return (archsimd.Uint64x2(x)).StorePart(s)
 }
 
 func (x Uint64x2) String() string {
@@ -1166,8 +1196,8 @@ func (x Float32x4) Store(s []float32) {
 	(archsimd.Float32x4(x)).Store(s)
 }
 
-func (x Float32x4) StorePart(s []float32) {
-	(archsimd.Float32x4(x)).StorePart(s)
+func (x Float32x4) StorePart(s []float32) int {
+	return (archsimd.Float32x4(x)).StorePart(s)
 }
 
 func (x Float32x4) String() string {
@@ -1258,8 +1288,8 @@ func (x Float64x2) Store(s []float64) {
 	(archsimd.Float64x2(x)).Store(s)
 }
 
-func (x Float64x2) StorePart(s []float64) {
-	(archsimd.Float64x2(x)).StorePart(s)
+func (x Float64x2) StorePart(s []float64) int {
+	return (archsimd.Float64x2(x)).StorePart(s)
 }
 
 func (x Float64x2) String() string {

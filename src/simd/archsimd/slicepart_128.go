@@ -135,14 +135,14 @@ func LoadUint8x16Part(s []uint8) (Uint8x16, int) {
 // StorePart stores the elements of x into the slice s.
 // It stores as many elements as will fit in s.
 // If s has 16 or more elements, the method is equivalent to x.Store.
-func (x Uint8x16) StorePart(s []uint8) {
+func (x Uint8x16) StorePart(s []uint8) int {
 	l := len(s)
 	if l >= 16 {
 		x.Store(s)
-		return
+		return 16
 	}
 	if l == 0 {
-		return
+		return 0
 	}
 	if l >= 8 { // 8-15
 		*uint64atP8(&s[0]) = x.ReshapeToUint64s().GetElem(0)
@@ -182,6 +182,7 @@ func (x Uint8x16) StorePart(s []uint8) {
 	} else { // l == 1
 		s[0] = x.GetElem(0)
 	}
+	return l
 }
 
 // LoadUint16x8Part loads a Uint16x8 from the slice s.
@@ -220,14 +221,14 @@ func LoadUint16x8Part(s []uint16) (Uint16x8, int) {
 // StorePart stores the elements of x into the slice s.
 // It stores as many elements as will fit in s.
 // If s has 8 or more elements, the method is equivalent to x.Store.
-func (x Uint16x8) StorePart(s []uint16) {
+func (x Uint16x8) StorePart(s []uint16) int {
 	l := len(s)
 	if l >= 8 {
 		x.Store(s)
-		return
+		return 8
 	}
 	if l == 0 {
-		return
+		return 0
 	}
 	if l >= 4 { // 4-7
 		*uint64atP16(&s[0]) = x.ReshapeToUint64s().GetElem(0)
@@ -247,7 +248,7 @@ func (x Uint16x8) StorePart(s []uint16) {
 	} else { // l == 1
 		s[0] = x.GetElem(0)
 	}
-	return
+	return l
 }
 
 // LoadInt8x16Part loads a Int8x16 from the slice s, it returns the loaded vector and the
@@ -267,12 +268,12 @@ func LoadInt8x16Part(s []int8) (Int8x16, int) {
 // StorePart stores the 16 elements of x into the slice s.
 // It stores as many elements as will fit in s.
 // If s has 16 or more elements, the method is equivalent to x.Store.
-func (x Int8x16) StorePart(s []int8) {
+func (x Int8x16) StorePart(s []int8) int {
 	if len(s) == 0 {
-		return
+		return 0
 	}
 	t := unsafe.Slice((*uint8)(unsafe.Pointer(&s[0])), len(s))
-	x.ToBits().StorePart(t)
+	return x.ToBits().StorePart(t)
 }
 
 // LoadInt16x8Part loads a Int16x8 from the slice s, it returns the loaded vector and the
@@ -292,10 +293,10 @@ func LoadInt16x8Part(s []int16) (Int16x8, int) {
 // StorePart stores the 8 elements of x into the slice s.
 // It stores as many elements as will fit in s.
 // If s has 8 or more elements, the method is equivalent to x.Store.
-func (x Int16x8) StorePart(s []int16) {
+func (x Int16x8) StorePart(s []int16) int {
 	if len(s) == 0 {
-		return
+		return 0
 	}
 	t := unsafe.Slice((*uint16)(unsafe.Pointer(&s[0])), len(s))
-	x.ToBits().StorePart(t)
+	return x.ToBits().StorePart(t)
 }

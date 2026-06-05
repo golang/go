@@ -3,7 +3,7 @@
   commutative: true
   documentation: !string |-
     // NAME multiplies corresponding elements of two vectors, modulo 2ⁿ.
-- go: MulEvenWiden
+- go: MulWidenEven
   commutative: true
   documentation: !string |-
     // NAME multiplies even-indexed elements, widening the result.
