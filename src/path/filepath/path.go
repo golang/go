@@ -195,8 +195,12 @@ func Rel(basePath, targPath string) (string, error) {
 	if base == "." {
 		base = ""
 	} else if base == "" && filepathlite.VolumeNameLen(baseVol) > 2 /* isUNC */ {
-		// Treat any targetpath matching `\\host\share` basePath as absolute path.
+		// Treat a bare UNC volume like `\\host\share` as its root directory.
 		base = string(Separator)
+	}
+	if targ == "" && filepathlite.VolumeNameLen(targVol) > 2 /* isUNC */ {
+		// Treat a bare UNC volume like `\\host\share` as its root directory.
+		targ = string(Separator)
 	}
 
 	// Can't use IsAbs - `\a` and `a` are both relative in Windows.

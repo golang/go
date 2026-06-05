@@ -719,12 +719,11 @@ func TestRelUNC(t *testing.T) {
 		{`\\host\share\dir`, `\\host\share\dir\file.txt`, `file.txt`, false},
 		{`\\host\share\dir`, `\\host\share\file.txt`, `..\file.txt`, false},
 		{`\\host\share\dir\file.txt`, `\\host\share\dir`, `..`, false},
+		{`\\host\share\`, `\\host\share`, `.`, false},
+		{`\\host\share\dir`, `\\host\share`, `..`, false},
 		{`\\host\share`, `\\host\other\file.txt`, ``, true},
 		{`\\host\share`, filepath.Clean(`\\host\other\`), ``, true},
 		{`\\host\share`, filepath.Clean(`\\other\share\`), ``, true},
-		// TODO: These cases should be supported, but currently fail.
-		{`\\host\share\`, `\\host\share`, `.`, true},
-		{`\\host\share\dir`, `\\host\share`, `..`, true},
 	}
 
 	for _, test := range tests {
