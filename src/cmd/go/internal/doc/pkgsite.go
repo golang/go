@@ -58,7 +58,7 @@ func buildPkgsite(ctx context.Context) string {
 		}
 	}()
 
-	const version = "v0.0.0-20251223195805-1a3bd3c788fe"
+	const version = "v0.0.0-20260605201217-deb78785c3ce"
 	pkgVers := "golang.org/x/pkgsite/cmd/internal/doc@" + version
 	pkgOpts := load.PackageOpts{MainOnly: true}
 	pkgs, err := load.PackagesAndErrorsOutsideModule(loader, ctx, pkgOpts, []string{pkgVers})
