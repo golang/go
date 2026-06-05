@@ -8121,26 +8121,6 @@ const (
 	OpReciprocalSqrtFloat64x2
 	OpReciprocalSqrtFloat64x4
 	OpReciprocalSqrtFloat64x8
-	OpReduceMaxFloat32x4
-	OpReduceMaxInt8x16
-	OpReduceMaxInt16x8
-	OpReduceMaxInt32x4
-	OpReduceMaxUint8x16
-	OpReduceMaxUint16x8
-	OpReduceMaxUint32x4
-	OpReduceMinFloat32x4
-	OpReduceMinInt8x16
-	OpReduceMinInt16x8
-	OpReduceMinInt32x4
-	OpReduceMinUint8x16
-	OpReduceMinUint16x8
-	OpReduceMinUint32x4
-	OpReduceSumInt8x16
-	OpReduceSumInt16x8
-	OpReduceSumInt32x4
-	OpReduceSumUint8x16
-	OpReduceSumUint16x8
-	OpReduceSumUint32x4
 	OpRotateAllLeftVarInt8x16
 	OpRotateAllLeftVarInt16x8
 	OpRotateAllLeftVarInt32x4
@@ -8598,6 +8578,26 @@ const (
 	Opbroadcast1To64MaskedUint8x16
 	Opbroadcast1To64Uint8x16
 	OpcarrylessMultiplyWidenLoUint64x2
+	OpreduceMaxFloat32x4
+	OpreduceMaxInt8x16
+	OpreduceMaxInt16x8
+	OpreduceMaxInt32x4
+	OpreduceMaxUint8x16
+	OpreduceMaxUint16x8
+	OpreduceMaxUint32x4
+	OpreduceMinFloat32x4
+	OpreduceMinInt8x16
+	OpreduceMinInt16x8
+	OpreduceMinInt32x4
+	OpreduceMinUint8x16
+	OpreduceMinUint16x8
+	OpreduceMinUint32x4
+	OpreduceSumInt8x16
+	OpreduceSumInt16x8
+	OpreduceSumInt32x4
+	OpreduceSumUint8x16
+	OpreduceSumUint16x8
+	OpreduceSumUint32x4
 	OpAESRoundKeyGenAssistUint32x4
 	OpCeilScaledFloat32x4
 	OpCeilScaledFloat32x8
@@ -112029,106 +112029,6 @@ var opcodeTable = [...]opInfo{
 		generic: true,
 	},
 	{
-		name:    "ReduceMaxFloat32x4",
-		argLen:  1,
-		generic: true,
-	},
-	{
-		name:    "ReduceMaxInt8x16",
-		argLen:  1,
-		generic: true,
-	},
-	{
-		name:    "ReduceMaxInt16x8",
-		argLen:  1,
-		generic: true,
-	},
-	{
-		name:    "ReduceMaxInt32x4",
-		argLen:  1,
-		generic: true,
-	},
-	{
-		name:    "ReduceMaxUint8x16",
-		argLen:  1,
-		generic: true,
-	},
-	{
-		name:    "ReduceMaxUint16x8",
-		argLen:  1,
-		generic: true,
-	},
-	{
-		name:    "ReduceMaxUint32x4",
-		argLen:  1,
-		generic: true,
-	},
-	{
-		name:    "ReduceMinFloat32x4",
-		argLen:  1,
-		generic: true,
-	},
-	{
-		name:    "ReduceMinInt8x16",
-		argLen:  1,
-		generic: true,
-	},
-	{
-		name:    "ReduceMinInt16x8",
-		argLen:  1,
-		generic: true,
-	},
-	{
-		name:    "ReduceMinInt32x4",
-		argLen:  1,
-		generic: true,
-	},
-	{
-		name:    "ReduceMinUint8x16",
-		argLen:  1,
-		generic: true,
-	},
-	{
-		name:    "ReduceMinUint16x8",
-		argLen:  1,
-		generic: true,
-	},
-	{
-		name:    "ReduceMinUint32x4",
-		argLen:  1,
-		generic: true,
-	},
-	{
-		name:    "ReduceSumInt8x16",
-		argLen:  1,
-		generic: true,
-	},
-	{
-		name:    "ReduceSumInt16x8",
-		argLen:  1,
-		generic: true,
-	},
-	{
-		name:    "ReduceSumInt32x4",
-		argLen:  1,
-		generic: true,
-	},
-	{
-		name:    "ReduceSumUint8x16",
-		argLen:  1,
-		generic: true,
-	},
-	{
-		name:    "ReduceSumUint16x8",
-		argLen:  1,
-		generic: true,
-	},
-	{
-		name:    "ReduceSumUint32x4",
-		argLen:  1,
-		generic: true,
-	},
-	{
 		name:    "RotateAllLeftVarInt8x16",
 		argLen:  2,
 		generic: true,
@@ -114437,6 +114337,106 @@ var opcodeTable = [...]opInfo{
 		argLen:      2,
 		commutative: true,
 		generic:     true,
+	},
+	{
+		name:    "reduceMaxFloat32x4",
+		argLen:  1,
+		generic: true,
+	},
+	{
+		name:    "reduceMaxInt8x16",
+		argLen:  1,
+		generic: true,
+	},
+	{
+		name:    "reduceMaxInt16x8",
+		argLen:  1,
+		generic: true,
+	},
+	{
+		name:    "reduceMaxInt32x4",
+		argLen:  1,
+		generic: true,
+	},
+	{
+		name:    "reduceMaxUint8x16",
+		argLen:  1,
+		generic: true,
+	},
+	{
+		name:    "reduceMaxUint16x8",
+		argLen:  1,
+		generic: true,
+	},
+	{
+		name:    "reduceMaxUint32x4",
+		argLen:  1,
+		generic: true,
+	},
+	{
+		name:    "reduceMinFloat32x4",
+		argLen:  1,
+		generic: true,
+	},
+	{
+		name:    "reduceMinInt8x16",
+		argLen:  1,
+		generic: true,
+	},
+	{
+		name:    "reduceMinInt16x8",
+		argLen:  1,
+		generic: true,
+	},
+	{
+		name:    "reduceMinInt32x4",
+		argLen:  1,
+		generic: true,
+	},
+	{
+		name:    "reduceMinUint8x16",
+		argLen:  1,
+		generic: true,
+	},
+	{
+		name:    "reduceMinUint16x8",
+		argLen:  1,
+		generic: true,
+	},
+	{
+		name:    "reduceMinUint32x4",
+		argLen:  1,
+		generic: true,
+	},
+	{
+		name:    "reduceSumInt8x16",
+		argLen:  1,
+		generic: true,
+	},
+	{
+		name:    "reduceSumInt16x8",
+		argLen:  1,
+		generic: true,
+	},
+	{
+		name:    "reduceSumInt32x4",
+		argLen:  1,
+		generic: true,
+	},
+	{
+		name:    "reduceSumUint8x16",
+		argLen:  1,
+		generic: true,
+	},
+	{
+		name:    "reduceSumUint16x8",
+		argLen:  1,
+		generic: true,
+	},
+	{
+		name:    "reduceSumUint32x4",
+		argLen:  1,
+		generic: true,
 	},
 	{
 		name:    "AESRoundKeyGenAssistUint32x4",

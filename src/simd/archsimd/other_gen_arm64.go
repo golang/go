@@ -377,3 +377,143 @@ func (x Uint64x2) RotateAllRight(dist uint64) Uint64x2 {
 	ndist := 64 - dist
 	return x.ShiftAllLeft(ndist).Or(x.ShiftAllRight(dist))
 }
+
+// ReduceSum reduces x by summing all elements.
+//
+// Emulated, CPU Feature: NEON
+func (x Int8x16) ReduceSum() int8 {
+	return x.reduceSum().GetElem(0)
+}
+
+// ReduceSum reduces x by summing all elements.
+//
+// Emulated, CPU Feature: NEON
+func (x Int16x8) ReduceSum() int16 {
+	return x.reduceSum().GetElem(0)
+}
+
+// ReduceSum reduces x by summing all elements.
+//
+// Emulated, CPU Feature: NEON
+func (x Int32x4) ReduceSum() int32 {
+	return x.reduceSum().GetElem(0)
+}
+
+// ReduceSum reduces x by summing all elements.
+//
+// Emulated, CPU Feature: NEON
+func (x Uint8x16) ReduceSum() uint8 {
+	return x.reduceSum().GetElem(0)
+}
+
+// ReduceSum reduces x by summing all elements.
+//
+// Emulated, CPU Feature: NEON
+func (x Uint16x8) ReduceSum() uint16 {
+	return x.reduceSum().GetElem(0)
+}
+
+// ReduceSum reduces x by summing all elements.
+//
+// Emulated, CPU Feature: NEON
+func (x Uint32x4) ReduceSum() uint32 {
+	return x.reduceSum().GetElem(0)
+}
+
+// ReduceMax reduces x by taking the maximum of all elements.
+//
+// Emulated, CPU Feature: NEON
+func (x Int8x16) ReduceMax() int8 {
+	return x.reduceMax().GetElem(0)
+}
+
+// ReduceMin reduces x by taking the minimum of all elements.
+//
+// Emulated, CPU Feature: NEON
+func (x Int8x16) ReduceMin() int8 {
+	return x.reduceMin().GetElem(0)
+}
+
+// ReduceMax reduces x by taking the maximum of all elements.
+//
+// Emulated, CPU Feature: NEON
+func (x Int16x8) ReduceMax() int16 {
+	return x.reduceMax().GetElem(0)
+}
+
+// ReduceMin reduces x by taking the minimum of all elements.
+//
+// Emulated, CPU Feature: NEON
+func (x Int16x8) ReduceMin() int16 {
+	return x.reduceMin().GetElem(0)
+}
+
+// ReduceMax reduces x by taking the maximum of all elements.
+//
+// Emulated, CPU Feature: NEON
+func (x Int32x4) ReduceMax() int32 {
+	return x.reduceMax().GetElem(0)
+}
+
+// ReduceMin reduces x by taking the minimum of all elements.
+//
+// Emulated, CPU Feature: NEON
+func (x Int32x4) ReduceMin() int32 {
+	return x.reduceMin().GetElem(0)
+}
+
+// ReduceMax reduces x by taking the maximum of all elements.
+//
+// Emulated, CPU Feature: NEON
+func (x Uint8x16) ReduceMax() uint8 {
+	return x.reduceMax().GetElem(0)
+}
+
+// ReduceMin reduces x by taking the minimum of all elements.
+//
+// Emulated, CPU Feature: NEON
+func (x Uint8x16) ReduceMin() uint8 {
+	return x.reduceMin().GetElem(0)
+}
+
+// ReduceMax reduces x by taking the maximum of all elements.
+//
+// Emulated, CPU Feature: NEON
+func (x Uint16x8) ReduceMax() uint16 {
+	return x.reduceMax().GetElem(0)
+}
+
+// ReduceMin reduces x by taking the minimum of all elements.
+//
+// Emulated, CPU Feature: NEON
+func (x Uint16x8) ReduceMin() uint16 {
+	return x.reduceMin().GetElem(0)
+}
+
+// ReduceMax reduces x by taking the maximum of all elements.
+//
+// Emulated, CPU Feature: NEON
+func (x Uint32x4) ReduceMax() uint32 {
+	return x.reduceMax().GetElem(0)
+}
+
+// ReduceMin reduces x by taking the minimum of all elements.
+//
+// Emulated, CPU Feature: NEON
+func (x Uint32x4) ReduceMin() uint32 {
+	return x.reduceMin().GetElem(0)
+}
+
+// ReduceMax reduces x by taking the maximum of all elements.
+//
+// Emulated, CPU Feature: NEON
+func (x Float32x4) ReduceMax() float32 {
+	return x.reduceMax().GetElem(0)
+}
+
+// ReduceMin reduces x by taking the minimum of all elements.
+//
+// Emulated, CPU Feature: NEON
+func (x Float32x4) ReduceMin() float32 {
+	return x.reduceMin().GetElem(0)
+}

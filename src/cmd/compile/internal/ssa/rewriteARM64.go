@@ -1818,66 +1818,6 @@ func rewriteValueARM64(v *Value) bool {
 		return rewriteValueARM64_OpPrefetchCacheStreamed(v)
 	case OpPubBarrier:
 		return rewriteValueARM64_OpPubBarrier(v)
-	case OpReduceMaxFloat32x4:
-		v.Op = OpARM64VFMAXV4S
-		return true
-	case OpReduceMaxInt16x8:
-		v.Op = OpARM64VSMAXV8H
-		return true
-	case OpReduceMaxInt32x4:
-		v.Op = OpARM64VSMAXV4S
-		return true
-	case OpReduceMaxInt8x16:
-		v.Op = OpARM64VSMAXV16B
-		return true
-	case OpReduceMaxUint16x8:
-		v.Op = OpARM64VUMAXV8H
-		return true
-	case OpReduceMaxUint32x4:
-		v.Op = OpARM64VUMAXV4S
-		return true
-	case OpReduceMaxUint8x16:
-		v.Op = OpARM64VUMAXV16B
-		return true
-	case OpReduceMinFloat32x4:
-		v.Op = OpARM64VFMINV4S
-		return true
-	case OpReduceMinInt16x8:
-		v.Op = OpARM64VSMINV8H
-		return true
-	case OpReduceMinInt32x4:
-		v.Op = OpARM64VSMINV4S
-		return true
-	case OpReduceMinInt8x16:
-		v.Op = OpARM64VSMINV16B
-		return true
-	case OpReduceMinUint16x8:
-		v.Op = OpARM64VUMINV8H
-		return true
-	case OpReduceMinUint32x4:
-		v.Op = OpARM64VUMINV4S
-		return true
-	case OpReduceMinUint8x16:
-		v.Op = OpARM64VUMINV16B
-		return true
-	case OpReduceSumInt16x8:
-		v.Op = OpARM64VADDV8H
-		return true
-	case OpReduceSumInt32x4:
-		v.Op = OpARM64VADDV4S
-		return true
-	case OpReduceSumInt8x16:
-		v.Op = OpARM64VADDV16B
-		return true
-	case OpReduceSumUint16x8:
-		v.Op = OpARM64VADDV8H
-		return true
-	case OpReduceSumUint32x4:
-		v.Op = OpARM64VADDV4S
-		return true
-	case OpReduceSumUint8x16:
-		v.Op = OpARM64VADDV16B
-		return true
 	case OpRotateLeft16:
 		return rewriteValueARM64_OpRotateLeft16(v)
 	case OpRotateLeft32:
@@ -2363,6 +2303,66 @@ func rewriteValueARM64(v *Value) bool {
 		return rewriteValueARM64_Opbroadcast1To8Uint16x8(v)
 	case OpcarrylessMultiplyWidenLoUint64x2:
 		v.Op = OpARM64VPMULL2D
+		return true
+	case OpreduceMaxFloat32x4:
+		v.Op = OpARM64VFMAXV4S
+		return true
+	case OpreduceMaxInt16x8:
+		v.Op = OpARM64VSMAXV8H
+		return true
+	case OpreduceMaxInt32x4:
+		v.Op = OpARM64VSMAXV4S
+		return true
+	case OpreduceMaxInt8x16:
+		v.Op = OpARM64VSMAXV16B
+		return true
+	case OpreduceMaxUint16x8:
+		v.Op = OpARM64VUMAXV8H
+		return true
+	case OpreduceMaxUint32x4:
+		v.Op = OpARM64VUMAXV4S
+		return true
+	case OpreduceMaxUint8x16:
+		v.Op = OpARM64VUMAXV16B
+		return true
+	case OpreduceMinFloat32x4:
+		v.Op = OpARM64VFMINV4S
+		return true
+	case OpreduceMinInt16x8:
+		v.Op = OpARM64VSMINV8H
+		return true
+	case OpreduceMinInt32x4:
+		v.Op = OpARM64VSMINV4S
+		return true
+	case OpreduceMinInt8x16:
+		v.Op = OpARM64VSMINV16B
+		return true
+	case OpreduceMinUint16x8:
+		v.Op = OpARM64VUMINV8H
+		return true
+	case OpreduceMinUint32x4:
+		v.Op = OpARM64VUMINV4S
+		return true
+	case OpreduceMinUint8x16:
+		v.Op = OpARM64VUMINV16B
+		return true
+	case OpreduceSumInt16x8:
+		v.Op = OpARM64VADDV8H
+		return true
+	case OpreduceSumInt32x4:
+		v.Op = OpARM64VADDV4S
+		return true
+	case OpreduceSumInt8x16:
+		v.Op = OpARM64VADDV16B
+		return true
+	case OpreduceSumUint16x8:
+		v.Op = OpARM64VADDV8H
+		return true
+	case OpreduceSumUint32x4:
+		v.Op = OpARM64VADDV4S
+		return true
+	case OpreduceSumUint8x16:
+		v.Op = OpARM64VADDV16B
 		return true
 	}
 	return false

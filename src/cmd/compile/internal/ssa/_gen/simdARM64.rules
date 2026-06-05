@@ -285,26 +285,6 @@
 (OrNotUint16x8 ...) => (VORN16B ...) // pureVreg
 (OrNotUint32x4 ...) => (VORN16B ...) // pureVreg
 (OrNotUint64x2 ...) => (VORN16B ...) // pureVreg
-(ReduceMaxFloat32x4 ...) => (VFMAXV4S ...) // pureVreg
-(ReduceMaxInt8x16 ...) => (VSMAXV16B ...) // pureVreg
-(ReduceMaxInt16x8 ...) => (VSMAXV8H ...) // pureVreg
-(ReduceMaxInt32x4 ...) => (VSMAXV4S ...) // pureVreg
-(ReduceMaxUint8x16 ...) => (VUMAXV16B ...) // pureVreg
-(ReduceMaxUint16x8 ...) => (VUMAXV8H ...) // pureVreg
-(ReduceMaxUint32x4 ...) => (VUMAXV4S ...) // pureVreg
-(ReduceMinFloat32x4 ...) => (VFMINV4S ...) // pureVreg
-(ReduceMinInt8x16 ...) => (VSMINV16B ...) // pureVreg
-(ReduceMinInt16x8 ...) => (VSMINV8H ...) // pureVreg
-(ReduceMinInt32x4 ...) => (VSMINV4S ...) // pureVreg
-(ReduceMinUint8x16 ...) => (VUMINV16B ...) // pureVreg
-(ReduceMinUint16x8 ...) => (VUMINV8H ...) // pureVreg
-(ReduceMinUint32x4 ...) => (VUMINV4S ...) // pureVreg
-(ReduceSumInt8x16 ...) => (VADDV16B ...) // pureVreg
-(ReduceSumInt16x8 ...) => (VADDV8H ...) // pureVreg
-(ReduceSumInt32x4 ...) => (VADDV4S ...) // pureVreg
-(ReduceSumUint8x16 ...) => (VADDV16B ...) // pureVreg
-(ReduceSumUint16x8 ...) => (VADDV8H ...) // pureVreg
-(ReduceSumUint32x4 ...) => (VADDV4S ...) // pureVreg
 (RoundFloat32x4 ...) => (VFRINTN4S ...) // pureVreg
 (RoundFloat64x2 ...) => (VFRINTN2D ...) // pureVreg
 (SaturateToInt8Int16x8 ...) => (VSQXTN8H ...) // pureVreg
@@ -412,6 +392,26 @@
 (VDUPBbcast [i] (VMOVBins [j] _ (MOVDconst [c]))) && i == j && c>=-128 && c<=255 => (VMOVI16B [uint8(c)]) // specialLower
 (broadcast1To16Uint8x16 x) => (VDUPBbcast [0] x) // pureVreg
 (carrylessMultiplyWidenLoUint64x2 ...) => (VPMULL2D ...) // pureVreg
+(reduceMaxFloat32x4 ...) => (VFMAXV4S ...) // pureVreg
+(reduceMaxInt8x16 ...) => (VSMAXV16B ...) // pureVreg
+(reduceMaxInt16x8 ...) => (VSMAXV8H ...) // pureVreg
+(reduceMaxInt32x4 ...) => (VSMAXV4S ...) // pureVreg
+(reduceMaxUint8x16 ...) => (VUMAXV16B ...) // pureVreg
+(reduceMaxUint16x8 ...) => (VUMAXV8H ...) // pureVreg
+(reduceMaxUint32x4 ...) => (VUMAXV4S ...) // pureVreg
+(reduceMinFloat32x4 ...) => (VFMINV4S ...) // pureVreg
+(reduceMinInt8x16 ...) => (VSMINV16B ...) // pureVreg
+(reduceMinInt16x8 ...) => (VSMINV8H ...) // pureVreg
+(reduceMinInt32x4 ...) => (VSMINV4S ...) // pureVreg
+(reduceMinUint8x16 ...) => (VUMINV16B ...) // pureVreg
+(reduceMinUint16x8 ...) => (VUMINV8H ...) // pureVreg
+(reduceMinUint32x4 ...) => (VUMINV4S ...) // pureVreg
+(reduceSumInt8x16 ...) => (VADDV16B ...) // pureVreg
+(reduceSumInt16x8 ...) => (VADDV8H ...) // pureVreg
+(reduceSumInt32x4 ...) => (VADDV4S ...) // pureVreg
+(reduceSumUint8x16 ...) => (VADDV16B ...) // pureVreg
+(reduceSumUint16x8 ...) => (VADDV8H ...) // pureVreg
+(reduceSumUint32x4 ...) => (VADDV4S ...) // pureVreg
 (VSHL16B [a] x) && a==0 => x // asmRule
 (VSHL8H [a] x) && a==0 => x // asmRule
 (VSHL4S [a] x) && a==0 => x // asmRule
