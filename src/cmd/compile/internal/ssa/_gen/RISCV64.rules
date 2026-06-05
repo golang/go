@@ -885,3 +885,14 @@
 (OR (CZEROEQZ x:(ANDI <t> [c] z) cond) y:(CZERONEZ z cond)) => (OR x y)
 (OR (CZEROEQZ <t> x cond) (CZERONEZ <t> ((ADDI|ORI|XORI) [c] x) cond)) => ((ADD|OR|XOR) x (CZERONEZ <t> (MOVDconst [c]) cond))
 (OR (CZEROEQZ <t> ((ADDI|ORI|XORI) [c] x) cond) (CZERONEZ <t> x cond)) => ((ADD|OR|XOR) x (CZEROEQZ <t> (MOVDconst [c]) cond))
+
+// Strength reduction for multiplication by a constant.
+(MUL x (MOVDconst [c])) && c%3 == 0 && isPowerOfTwo(c/3) && buildcfg.GORISCV64 >= 22 => (SLLI [log64(c/3)] (SH1ADD <x.Type> x x))
+(MUL x (MOVDconst [c])) && c%5 == 0 && isPowerOfTwo(c/5) && buildcfg.GORISCV64 >= 22 => (SLLI [log64(c/5)] (SH2ADD <x.Type> x x))
+(MUL x (MOVDconst [c])) && c%9 == 0 && isPowerOfTwo(c/9) && buildcfg.GORISCV64 >= 22 => (SLLI [log64(c/9)] (SH3ADD <x.Type> x x))
+
+// 32-bit multiply by constant (int32/uint32).
+(MULW x (MOVDconst [c])) && c%3 == 0 && isPowerOfTwo(c/3) && buildcfg.GORISCV64 >= 22 => (SLLIW [log64(c/3)] (SH1ADD <x.Type> x x))
+(MULW x (MOVDconst [c])) && c%5 == 0 && isPowerOfTwo(c/5) && buildcfg.GORISCV64 >= 22 => (SLLIW [log64(c/5)] (SH2ADD <x.Type> x x))
+(MULW x (MOVDconst [c])) && c%9 == 0 && isPowerOfTwo(c/9) && buildcfg.GORISCV64 >= 22 => (SLLIW [log64(c/9)] (SH3ADD <x.Type> x x))
+

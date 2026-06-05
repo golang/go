@@ -615,6 +615,10 @@ func rewriteValueRISCV64(v *Value) bool {
 		return rewriteValueRISCV64_OpRISCV64MOVWstore(v)
 	case OpRISCV64MOVWstorezero:
 		return rewriteValueRISCV64_OpRISCV64MOVWstorezero(v)
+	case OpRISCV64MUL:
+		return rewriteValueRISCV64_OpRISCV64MUL(v)
+	case OpRISCV64MULW:
+		return rewriteValueRISCV64_OpRISCV64MULW(v)
 	case OpRISCV64NEG:
 		return rewriteValueRISCV64_OpRISCV64NEG(v)
 	case OpRISCV64NEGW:
@@ -7022,6 +7026,150 @@ func rewriteValueRISCV64_OpRISCV64MOVWstorezero(v *Value) bool {
 		v.Aux = symToAux(sym)
 		v.AddArg2(base, mem)
 		return true
+	}
+	return false
+}
+func rewriteValueRISCV64_OpRISCV64MUL(v *Value) bool {
+	v_1 := v.Args[1]
+	v_0 := v.Args[0]
+	b := v.Block
+	// match: (MUL x (MOVDconst [c]))
+	// cond: c%3 == 0 && isPowerOfTwo(c/3) && buildcfg.GORISCV64 >= 22
+	// result: (SLLI [log64(c/3)] (SH1ADD <x.Type> x x))
+	for {
+		for _i0 := 0; _i0 <= 1; _i0, v_0, v_1 = _i0+1, v_1, v_0 {
+			x := v_0
+			if v_1.Op != OpRISCV64MOVDconst {
+				continue
+			}
+			c := auxIntToInt64(v_1.AuxInt)
+			if !(c%3 == 0 && isPowerOfTwo(c/3) && buildcfg.GORISCV64 >= 22) {
+				continue
+			}
+			v.reset(OpRISCV64SLLI)
+			v.AuxInt = int64ToAuxInt(log64(c / 3))
+			v0 := b.NewValue0(v.Pos, OpRISCV64SH1ADD, x.Type)
+			v0.AddArg2(x, x)
+			v.AddArg(v0)
+			return true
+		}
+		break
+	}
+	// match: (MUL x (MOVDconst [c]))
+	// cond: c%5 == 0 && isPowerOfTwo(c/5) && buildcfg.GORISCV64 >= 22
+	// result: (SLLI [log64(c/5)] (SH2ADD <x.Type> x x))
+	for {
+		for _i0 := 0; _i0 <= 1; _i0, v_0, v_1 = _i0+1, v_1, v_0 {
+			x := v_0
+			if v_1.Op != OpRISCV64MOVDconst {
+				continue
+			}
+			c := auxIntToInt64(v_1.AuxInt)
+			if !(c%5 == 0 && isPowerOfTwo(c/5) && buildcfg.GORISCV64 >= 22) {
+				continue
+			}
+			v.reset(OpRISCV64SLLI)
+			v.AuxInt = int64ToAuxInt(log64(c / 5))
+			v0 := b.NewValue0(v.Pos, OpRISCV64SH2ADD, x.Type)
+			v0.AddArg2(x, x)
+			v.AddArg(v0)
+			return true
+		}
+		break
+	}
+	// match: (MUL x (MOVDconst [c]))
+	// cond: c%9 == 0 && isPowerOfTwo(c/9) && buildcfg.GORISCV64 >= 22
+	// result: (SLLI [log64(c/9)] (SH3ADD <x.Type> x x))
+	for {
+		for _i0 := 0; _i0 <= 1; _i0, v_0, v_1 = _i0+1, v_1, v_0 {
+			x := v_0
+			if v_1.Op != OpRISCV64MOVDconst {
+				continue
+			}
+			c := auxIntToInt64(v_1.AuxInt)
+			if !(c%9 == 0 && isPowerOfTwo(c/9) && buildcfg.GORISCV64 >= 22) {
+				continue
+			}
+			v.reset(OpRISCV64SLLI)
+			v.AuxInt = int64ToAuxInt(log64(c / 9))
+			v0 := b.NewValue0(v.Pos, OpRISCV64SH3ADD, x.Type)
+			v0.AddArg2(x, x)
+			v.AddArg(v0)
+			return true
+		}
+		break
+	}
+	return false
+}
+func rewriteValueRISCV64_OpRISCV64MULW(v *Value) bool {
+	v_1 := v.Args[1]
+	v_0 := v.Args[0]
+	b := v.Block
+	// match: (MULW x (MOVDconst [c]))
+	// cond: c%3 == 0 && isPowerOfTwo(c/3) && buildcfg.GORISCV64 >= 22
+	// result: (SLLIW [log64(c/3)] (SH1ADD <x.Type> x x))
+	for {
+		for _i0 := 0; _i0 <= 1; _i0, v_0, v_1 = _i0+1, v_1, v_0 {
+			x := v_0
+			if v_1.Op != OpRISCV64MOVDconst {
+				continue
+			}
+			c := auxIntToInt64(v_1.AuxInt)
+			if !(c%3 == 0 && isPowerOfTwo(c/3) && buildcfg.GORISCV64 >= 22) {
+				continue
+			}
+			v.reset(OpRISCV64SLLIW)
+			v.AuxInt = int64ToAuxInt(log64(c / 3))
+			v0 := b.NewValue0(v.Pos, OpRISCV64SH1ADD, x.Type)
+			v0.AddArg2(x, x)
+			v.AddArg(v0)
+			return true
+		}
+		break
+	}
+	// match: (MULW x (MOVDconst [c]))
+	// cond: c%5 == 0 && isPowerOfTwo(c/5) && buildcfg.GORISCV64 >= 22
+	// result: (SLLIW [log64(c/5)] (SH2ADD <x.Type> x x))
+	for {
+		for _i0 := 0; _i0 <= 1; _i0, v_0, v_1 = _i0+1, v_1, v_0 {
+			x := v_0
+			if v_1.Op != OpRISCV64MOVDconst {
+				continue
+			}
+			c := auxIntToInt64(v_1.AuxInt)
+			if !(c%5 == 0 && isPowerOfTwo(c/5) && buildcfg.GORISCV64 >= 22) {
+				continue
+			}
+			v.reset(OpRISCV64SLLIW)
+			v.AuxInt = int64ToAuxInt(log64(c / 5))
+			v0 := b.NewValue0(v.Pos, OpRISCV64SH2ADD, x.Type)
+			v0.AddArg2(x, x)
+			v.AddArg(v0)
+			return true
+		}
+		break
+	}
+	// match: (MULW x (MOVDconst [c]))
+	// cond: c%9 == 0 && isPowerOfTwo(c/9) && buildcfg.GORISCV64 >= 22
+	// result: (SLLIW [log64(c/9)] (SH3ADD <x.Type> x x))
+	for {
+		for _i0 := 0; _i0 <= 1; _i0, v_0, v_1 = _i0+1, v_1, v_0 {
+			x := v_0
+			if v_1.Op != OpRISCV64MOVDconst {
+				continue
+			}
+			c := auxIntToInt64(v_1.AuxInt)
+			if !(c%9 == 0 && isPowerOfTwo(c/9) && buildcfg.GORISCV64 >= 22) {
+				continue
+			}
+			v.reset(OpRISCV64SLLIW)
+			v.AuxInt = int64ToAuxInt(log64(c / 9))
+			v0 := b.NewValue0(v.Pos, OpRISCV64SH3ADD, x.Type)
+			v0.AddArg2(x, x)
+			v.AddArg(v0)
+			return true
+		}
+		break
 	}
 	return false
 }
