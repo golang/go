@@ -468,6 +468,9 @@ func startCommand(s *State, name, path string, args []string, cancel func(*exec.
 
 	wait := func(s *State) (stdout, stderr string, err error) {
 		err = cmd.Wait()
+		if errors.Is(err, exec.ErrWaitDelay) {
+			err = fmt.Errorf("%w: output pipes not closed after waiting %v", err, cmd.WaitDelay)
+		}
 		return stdoutBuf.String(), stderrBuf.String(), err
 	}
 	return wait, nil
