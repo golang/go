@@ -42,6 +42,7 @@ func pickUnusedPort() (int, error) {
 
 // buildPkgsite builds a pkgsite binary whose build may be cached.
 func buildPkgsite(ctx context.Context) string {
+	load.ClearPackageCache()
 	loader := modload.NewLoader()
 
 	// Set the builder to have no module root so we can build a pkg@version pattern.
@@ -58,7 +59,10 @@ func buildPkgsite(ctx context.Context) string {
 		}
 	}()
 
-	const version = "v0.0.0-20260605201217-deb78785c3ce"
+	version := "v0.0.0-20260605201217-deb78785c3ce"
+	if os.Getenv("TEST_GODOC_BUILD_ONLY") != "" {
+		version = "v0.1.0"
+	}
 	pkgVers := "golang.org/x/pkgsite/cmd/internal/doc@" + version
 	pkgOpts := load.PackageOpts{MainOnly: true}
 	pkgs, err := load.PackagesAndErrorsOutsideModule(loader, ctx, pkgOpts, []string{pkgVers})
@@ -124,6 +128,9 @@ func doPkgsite(ctx context.Context, urlPath, fragment string) error {
 	}
 
 	pkgsite := buildPkgsite(ctx)
+	if os.Getenv("TEST_GODOC_BUILD_ONLY") != "" {
+		return nil
+	}
 	cmd := exec.Command(pkgsite, "-gorepo", cfg.GOROOT, "-http", addr, "-open", path)
 	cmd.Env = env
 	cmd.Stdout = os.Stderr
