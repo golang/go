@@ -42,6 +42,12 @@
 (SUBQborrow x (MOVQconst [c])) && is32Bit(c) => (SUBQconstborrow x [int32(c)])
 (Select1 (NEGLflags (MOVQconst [0]))) => (FlagEQ)
 (Select1 (NEGLflags (MOVBQZX (SETB x)))) => x
+// Absorb InvertFlags into ADCQ/SBBQ: CF(InvertFlags(f)) = SETA(f), so
+// re-materialize the carry/borrow through the SETA+NEGLflags path.
+(ADCQ x y (InvertFlags f)) => (ADCQ x y (Select1 <types.TypeFlags> (NEGLflags (MOVBQZX <types.Types[types.TUINT32]> (SETA <types.Types[types.TUINT8]> f)))))
+(ADCQconst x [c] (InvertFlags f)) => (ADCQconst x [c] (Select1 <types.TypeFlags> (NEGLflags (MOVBQZX <types.Types[types.TUINT32]> (SETA <types.Types[types.TUINT8]> f)))))
+(SBBQ x y (InvertFlags f)) => (SBBQ x y (Select1 <types.TypeFlags> (NEGLflags (MOVBQZX <types.Types[types.TUINT32]> (SETA <types.Types[types.TUINT8]> f)))))
+(SBBQconst x [c] (InvertFlags f)) => (SBBQconst x [c] (Select1 <types.TypeFlags> (NEGLflags (MOVBQZX <types.Types[types.TUINT32]> (SETA <types.Types[types.TUINT8]> f)))))
 
 
 (Mul64uhilo ...) => (MULQU2 ...)

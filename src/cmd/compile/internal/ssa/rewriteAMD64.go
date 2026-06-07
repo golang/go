@@ -7494,6 +7494,8 @@ func rewriteValueAMD64_OpAMD64ADCQ(v *Value) bool {
 	v_2 := v.Args[2]
 	v_1 := v.Args[1]
 	v_0 := v.Args[0]
+	b := v.Block
+	typ := &b.Func.Config.Types
 	// match: (ADCQ x (MOVQconst [c]) carry)
 	// cond: is32Bit(c)
 	// result: (ADCQconst x [int32(c)] carry)
@@ -7527,11 +7529,34 @@ func rewriteValueAMD64_OpAMD64ADCQ(v *Value) bool {
 		v.AddArg2(x, y)
 		return true
 	}
+	// match: (ADCQ x y (InvertFlags f))
+	// result: (ADCQ x y (Select1 <types.TypeFlags> (NEGLflags (MOVBQZX <types.Types[types.TUINT32]> (SETA <types.Types[types.TUINT8]> f)))))
+	for {
+		x := v_0
+		y := v_1
+		if v_2.Op != OpAMD64InvertFlags {
+			break
+		}
+		f := v_2.Args[0]
+		v.reset(OpAMD64ADCQ)
+		v0 := b.NewValue0(v.Pos, OpSelect1, types.TypeFlags)
+		v1 := b.NewValue0(v.Pos, OpAMD64NEGLflags, types.NewTuple(typ.UInt32, types.TypeFlags))
+		v2 := b.NewValue0(v.Pos, OpAMD64MOVBQZX, types.Types[types.TUINT32])
+		v3 := b.NewValue0(v.Pos, OpAMD64SETA, types.Types[types.TUINT8])
+		v3.AddArg(f)
+		v2.AddArg(v3)
+		v1.AddArg(v2)
+		v0.AddArg(v1)
+		v.AddArg3(x, y, v0)
+		return true
+	}
 	return false
 }
 func rewriteValueAMD64_OpAMD64ADCQconst(v *Value) bool {
 	v_1 := v.Args[1]
 	v_0 := v.Args[0]
+	b := v.Block
+	typ := &b.Func.Config.Types
 	// match: (ADCQconst x [c] (FlagEQ))
 	// result: (ADDQconstcarry x [c])
 	for {
@@ -7543,6 +7568,28 @@ func rewriteValueAMD64_OpAMD64ADCQconst(v *Value) bool {
 		v.reset(OpAMD64ADDQconstcarry)
 		v.AuxInt = int32ToAuxInt(c)
 		v.AddArg(x)
+		return true
+	}
+	// match: (ADCQconst x [c] (InvertFlags f))
+	// result: (ADCQconst x [c] (Select1 <types.TypeFlags> (NEGLflags (MOVBQZX <types.Types[types.TUINT32]> (SETA <types.Types[types.TUINT8]> f)))))
+	for {
+		c := auxIntToInt32(v.AuxInt)
+		x := v_0
+		if v_1.Op != OpAMD64InvertFlags {
+			break
+		}
+		f := v_1.Args[0]
+		v.reset(OpAMD64ADCQconst)
+		v.AuxInt = int32ToAuxInt(c)
+		v0 := b.NewValue0(v.Pos, OpSelect1, types.TypeFlags)
+		v1 := b.NewValue0(v.Pos, OpAMD64NEGLflags, types.NewTuple(typ.UInt32, types.TypeFlags))
+		v2 := b.NewValue0(v.Pos, OpAMD64MOVBQZX, types.Types[types.TUINT32])
+		v3 := b.NewValue0(v.Pos, OpAMD64SETA, types.Types[types.TUINT8])
+		v3.AddArg(f)
+		v2.AddArg(v3)
+		v1.AddArg(v2)
+		v0.AddArg(v1)
+		v.AddArg2(x, v0)
 		return true
 	}
 	return false
@@ -31447,6 +31494,8 @@ func rewriteValueAMD64_OpAMD64SBBQ(v *Value) bool {
 	v_2 := v.Args[2]
 	v_1 := v.Args[1]
 	v_0 := v.Args[0]
+	b := v.Block
+	typ := &b.Func.Config.Types
 	// match: (SBBQ x (MOVQconst [c]) borrow)
 	// cond: is32Bit(c)
 	// result: (SBBQconst x [int32(c)] borrow)
@@ -31475,6 +31524,27 @@ func rewriteValueAMD64_OpAMD64SBBQ(v *Value) bool {
 		}
 		v.reset(OpAMD64SUBQborrow)
 		v.AddArg2(x, y)
+		return true
+	}
+	// match: (SBBQ x y (InvertFlags f))
+	// result: (SBBQ x y (Select1 <types.TypeFlags> (NEGLflags (MOVBQZX <types.Types[types.TUINT32]> (SETA <types.Types[types.TUINT8]> f)))))
+	for {
+		x := v_0
+		y := v_1
+		if v_2.Op != OpAMD64InvertFlags {
+			break
+		}
+		f := v_2.Args[0]
+		v.reset(OpAMD64SBBQ)
+		v0 := b.NewValue0(v.Pos, OpSelect1, types.TypeFlags)
+		v1 := b.NewValue0(v.Pos, OpAMD64NEGLflags, types.NewTuple(typ.UInt32, types.TypeFlags))
+		v2 := b.NewValue0(v.Pos, OpAMD64MOVBQZX, types.Types[types.TUINT32])
+		v3 := b.NewValue0(v.Pos, OpAMD64SETA, types.Types[types.TUINT8])
+		v3.AddArg(f)
+		v2.AddArg(v3)
+		v1.AddArg(v2)
+		v0.AddArg(v1)
+		v.AddArg3(x, y, v0)
 		return true
 	}
 	return false
@@ -31536,6 +31606,8 @@ func rewriteValueAMD64_OpAMD64SBBQcarrymask(v *Value) bool {
 func rewriteValueAMD64_OpAMD64SBBQconst(v *Value) bool {
 	v_1 := v.Args[1]
 	v_0 := v.Args[0]
+	b := v.Block
+	typ := &b.Func.Config.Types
 	// match: (SBBQconst x [c] (FlagEQ))
 	// result: (SUBQconstborrow x [c])
 	for {
@@ -31547,6 +31619,28 @@ func rewriteValueAMD64_OpAMD64SBBQconst(v *Value) bool {
 		v.reset(OpAMD64SUBQconstborrow)
 		v.AuxInt = int32ToAuxInt(c)
 		v.AddArg(x)
+		return true
+	}
+	// match: (SBBQconst x [c] (InvertFlags f))
+	// result: (SBBQconst x [c] (Select1 <types.TypeFlags> (NEGLflags (MOVBQZX <types.Types[types.TUINT32]> (SETA <types.Types[types.TUINT8]> f)))))
+	for {
+		c := auxIntToInt32(v.AuxInt)
+		x := v_0
+		if v_1.Op != OpAMD64InvertFlags {
+			break
+		}
+		f := v_1.Args[0]
+		v.reset(OpAMD64SBBQconst)
+		v.AuxInt = int32ToAuxInt(c)
+		v0 := b.NewValue0(v.Pos, OpSelect1, types.TypeFlags)
+		v1 := b.NewValue0(v.Pos, OpAMD64NEGLflags, types.NewTuple(typ.UInt32, types.TypeFlags))
+		v2 := b.NewValue0(v.Pos, OpAMD64MOVBQZX, types.Types[types.TUINT32])
+		v3 := b.NewValue0(v.Pos, OpAMD64SETA, types.Types[types.TUINT8])
+		v3.AddArg(f)
+		v2.AddArg(v3)
+		v1.AddArg(v2)
+		v0.AddArg(v1)
+		v.AddArg2(x, v0)
 		return true
 	}
 	return false
