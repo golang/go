@@ -330,3 +330,14 @@ func Sleep(d time.Duration) {
 	time.Sleep(d)
 	Wait()
 }
+
+// Subtest is a convenience function that runs f in a subtest of t called name.
+//
+// It is exactly equivalent to calling t.Run with a function that calls [Test].
+func Subtest(t *testing.T, name string, f func(*testing.T)) {
+	t.Helper()
+	t.Run(name, func(t *testing.T) {
+		t.Helper()
+		Test(t, f)
+	})
+}
