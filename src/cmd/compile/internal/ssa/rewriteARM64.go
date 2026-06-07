@@ -22941,7 +22941,7 @@ func rewriteValueARM64_OpRsh64x32(v *Value) bool {
 	}
 	// match: (Rsh64x32 <t> x y)
 	// cond: !shiftIsBounded(v)
-	// result: (SRA x (CSEL [OpARM64LessThanU] <y.Type> y (Const64 <y.Type> [63]) (CMPconst [64] y)))
+	// result: (SRA x (CSEL [OpARM64LessThanU] <y.Type> y (Const64 <y.Type> [63]) (CMPWconst [64] y)))
 	for {
 		x := v_0
 		y := v_1
@@ -22953,8 +22953,8 @@ func rewriteValueARM64_OpRsh64x32(v *Value) bool {
 		v0.AuxInt = opToAuxInt(OpARM64LessThanU)
 		v1 := b.NewValue0(v.Pos, OpConst64, y.Type)
 		v1.AuxInt = int64ToAuxInt(63)
-		v2 := b.NewValue0(v.Pos, OpARM64CMPconst, types.TypeFlags)
-		v2.AuxInt = int64ToAuxInt(64)
+		v2 := b.NewValue0(v.Pos, OpARM64CMPWconst, types.TypeFlags)
+		v2.AuxInt = int32ToAuxInt(64)
 		v2.AddArg(y)
 		v0.AddArg3(y, v1, v2)
 		v.AddArg2(x, v0)
