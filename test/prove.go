@@ -2896,5 +2896,37 @@ func useInt(a int) {
 func useSlice(a []int) {
 }
 
+func testSubSlicingAdd(buf []byte) {
+	if len(buf) >= 128 {
+		for i := 0; i <= len(buf)-128; i += 128 { // ERROR "Induction variable:"
+			_ = buf[i : i+32]     // ERROR "Proved IsSliceInBounds"
+			_ = buf[i+32 : i+64]  // ERROR "Proved IsSliceInBounds"
+			_ = buf[i+64 : i+96]  // ERROR "Proved IsSliceInBounds"
+			_ = buf[i+96 : i+128] // ERROR "Proved IsSliceInBounds"
+		}
+	}
+}
+
+func testSubSlicingSub(buf []byte, i int) {
+	if i >= 128 && i <= len(buf) {
+		_ = buf[i-128 : i-96] // ERROR "Proved IsSliceInBounds$"
+		_ = buf[i-96 : i-64]  // ERROR "Proved IsSliceInBounds$"
+		_ = buf[i-64 : i-32]  // ERROR "Proved IsSliceInBounds$"
+		_ = buf[i-32 : i]     // ERROR "Proved IsSliceInBounds$"
+	}
+}
+
+func testSubSlicingAddCanOverflow(buf []byte, i int8) {
+	if int(i) < len(buf)-10 {
+		_ = buf[i+1 : i+10]
+	}
+}
+
+func testSubSlicingSubCanUnderflow(buf []byte, i uint) {
+	if i <= uint(len(buf)) {
+		_ = buf[i-64 : i-32]
+	}
+}
+
 func main() {
 }

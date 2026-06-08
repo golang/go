@@ -307,58 +307,58 @@ func CmpLogicalToZero(a, b, c uint32, d, e, f, g uint64) uint64 {
 // var + const
 // 'x-const' might be canonicalized to 'x+(-const)', so we check both
 // CMN and CMP for subtraction expressions to make the pattern robust.
-func CmpToZero_ex1(a int64, e int32) int {
+func CmpToZero_ex1(a [6]int64, e [4]int32) int {
 	// arm64:`CMN` -`ADD` `(BMI|BPL)`
-	if a+3 < 0 {
+	if a[0]+3 < 0 {
 		return 1
 	}
 
 	// arm64:`CMN` -`ADD` `BEQ` `(BMI|BPL)`
-	if a+5 <= 0 {
+	if a[1]+5 <= 0 {
 		return 1
 	}
 
 	// arm64:`CMN` -`ADD` `(BMI|BPL)`
-	if a+13 >= 0 {
+	if a[2]+13 >= 0 {
 		return 2
 	}
 
 	// arm64:`CMP|CMN` -`(ADD|SUB)` `(BMI|BPL)`
-	if a-7 < 0 {
+	if a[3]-7 < 0 {
 		return 3
 	}
 
 	// arm64:`SUB` `TBZ`
-	if a-11 >= 0 {
+	if a[4]-11 >= 0 {
 		return 4
 	}
 
 	// arm64:`SUB` `CMP` `BGT`
-	if a-19 > 0 {
+	if a[5]-19 > 0 {
 		return 4
 	}
 
 	// arm64:`CMNW` -`ADDW` `(BMI|BPL)`
 	// arm:`CMN` -`ADD` `(BMI|BPL)`
-	if e+3 < 0 {
+	if e[0]+3 < 0 {
 		return 5
 	}
 
 	// arm64:`CMNW` -`ADDW` `(BMI|BPL)`
 	// arm:`CMN` -`ADD` `(BMI|BPL)`
-	if e+13 >= 0 {
+	if e[1]+13 >= 0 {
 		return 6
 	}
 
 	// arm64:`CMPW|CMNW` `(BMI|BPL)`
 	// arm:`CMP|CMN` -`(ADD|SUB)` `(BMI|BPL)`
-	if e-7 < 0 {
+	if e[2]-7 < 0 {
 		return 7
 	}
 
 	// arm64:`SUB` `TBNZ`
 	// arm:`SUB` -`(BMI|BPL)`
-	if e-11 >= 0 {
+	if e[3]-11 >= 0 {
 		return 8
 	}
 
