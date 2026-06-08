@@ -1389,6 +1389,11 @@
 (GreaterThanF     (InvertFlags x)) => (LessThanF x)
 (GreaterEqualF    (InvertFlags x)) => (LessEqualF x)
 
+(GreaterEqual (CMPconst x [0])) => (XORconst [1] (SRLconst <v.Type> [63] x))
+(LessThan (CMPconst x [0])) => (SRLconst [63] x)
+(GreaterEqual (CMPWconst x [0])) => (XORconst [1] (UBFX <v.Type> [armBFAuxInt(31,1)] x))
+(LessThan (CMPWconst x [0])) => (UBFX [armBFAuxInt(31,1)] x)
+
 // Don't bother extending if we're not using the higher bits.
 (MOV(B|BU)reg x) && v.Type.Size() <= 1 => x
 (MOV(H|HU)reg x) && v.Type.Size() <= 2 => x

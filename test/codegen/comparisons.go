@@ -590,6 +590,23 @@ func CmpToOneU_ex2(a uint8, b uint16, c uint32, d uint64) int {
 	return 0
 }
 
+func int64LtZero(x int64) bool {
+	// arm64: `LSR [$]63`
+	return x < 0
+}
+func int64GeZero(x int64) bool {
+	// arm64: `LSR [$]63` `EOR [$]1`
+	return x >= 0
+}
+func int32LtZero(x int32) bool {
+	// arm64: `UBFX [$]31, R[0-9]+, [$]1,`
+	return x < 0
+}
+func int32GeZero(x int32) bool {
+	// arm64: `UBFX [$]31, R[0-9]+, [$]1,` `EOR [$]1`
+	return x >= 0
+}
+
 // Check that small memequals are replaced with eq instructions
 
 func equalConstString1() bool {
@@ -748,7 +765,7 @@ func cmpToCmnLessThan(a, b, c, d int) int {
 	if a*b+c < 0 {
 		c3 = 1
 	}
-	// arm64:`MSUB` `CSET LT` -`CMN`
+	// arm64:`MSUB` `LSR`
 	if a-b*c < 0 {
 		c4 = 1
 	}
@@ -817,7 +834,7 @@ func cmpToCmnGreaterThanEqual(a, b, c, d int) int {
 	if a*b+c >= 0 {
 		c3 = 1
 	}
-	// arm64:`MSUB` `CSET GE` -`CMN`
+	// arm64:`MSUB` `LSR` `EOR [$]1`
 	if a-b*c >= 0 {
 		c4 = 1
 	}

@@ -7736,6 +7736,36 @@ func rewriteValueARM64_OpARM64GreaterEqual(v *Value) bool {
 		v.AddArg(x)
 		return true
 	}
+	// match: (GreaterEqual (CMPconst x [0]))
+	// result: (XORconst [1] (SRLconst <v.Type> [63] x))
+	for {
+		if v_0.Op != OpARM64CMPconst || auxIntToInt64(v_0.AuxInt) != 0 {
+			break
+		}
+		x := v_0.Args[0]
+		v.reset(OpARM64XORconst)
+		v.AuxInt = int64ToAuxInt(1)
+		v0 := b.NewValue0(v.Pos, OpARM64SRLconst, v.Type)
+		v0.AuxInt = int64ToAuxInt(63)
+		v0.AddArg(x)
+		v.AddArg(v0)
+		return true
+	}
+	// match: (GreaterEqual (CMPWconst x [0]))
+	// result: (XORconst [1] (UBFX <v.Type> [armBFAuxInt(31,1)] x))
+	for {
+		if v_0.Op != OpARM64CMPWconst || auxIntToInt32(v_0.AuxInt) != 0 {
+			break
+		}
+		x := v_0.Args[0]
+		v.reset(OpARM64XORconst)
+		v.AuxInt = int64ToAuxInt(1)
+		v0 := b.NewValue0(v.Pos, OpARM64UBFX, v.Type)
+		v0.AuxInt = arm64BitFieldToAuxInt(armBFAuxInt(31, 1))
+		v0.AddArg(x)
+		v.AddArg(v0)
+		return true
+	}
 	return false
 }
 func rewriteValueARM64_OpARM64GreaterEqualF(v *Value) bool {
@@ -8412,6 +8442,30 @@ func rewriteValueARM64_OpARM64LessThan(v *Value) bool {
 		}
 		x := v_0.Args[0]
 		v.reset(OpARM64GreaterThan)
+		v.AddArg(x)
+		return true
+	}
+	// match: (LessThan (CMPconst x [0]))
+	// result: (SRLconst [63] x)
+	for {
+		if v_0.Op != OpARM64CMPconst || auxIntToInt64(v_0.AuxInt) != 0 {
+			break
+		}
+		x := v_0.Args[0]
+		v.reset(OpARM64SRLconst)
+		v.AuxInt = int64ToAuxInt(63)
+		v.AddArg(x)
+		return true
+	}
+	// match: (LessThan (CMPWconst x [0]))
+	// result: (UBFX [armBFAuxInt(31,1)] x)
+	for {
+		if v_0.Op != OpARM64CMPWconst || auxIntToInt32(v_0.AuxInt) != 0 {
+			break
+		}
+		x := v_0.Args[0]
+		v.reset(OpARM64UBFX)
+		v.AuxInt = arm64BitFieldToAuxInt(armBFAuxInt(31, 1))
 		v.AddArg(x)
 		return true
 	}
