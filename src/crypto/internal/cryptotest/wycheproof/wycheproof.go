@@ -12,6 +12,7 @@ import (
 	"crypto/internal/cryptotest"
 	"encoding/hex"
 	"encoding/json"
+	"flag"
 	"fmt"
 	"internal/testenv"
 	"os"
@@ -19,6 +20,11 @@ import (
 	"reflect"
 	"testing"
 )
+
+// wycheproofDir, if set, points to a local Wycheproof checkout that
+// LoadVectorFile should read test vectors from.
+var wycheproofDir = flag.String("wycheproof-dir", "",
+	"path to a local Wycheproof checkout to load test vectors from.")
 
 // LoadVectorFile unmarshals Wycheproof JSON test vector file by name.
 //
@@ -35,10 +41,16 @@ func LoadVectorFile(t *testing.T, filename string, value any) {
 	// vector JSON from that module clone. The version is pinned to whatever
 	// the _schema generator was last run against (see schemaversion.go), so
 	// the vectors match the generated schema.go.
-	wycheproofDir := cryptotest.FetchModule(
-		t, "github.com/c2sp/wycheproof", wycheproofVersion)
+	//
+	// If -wycheproof-dir is set, read from that local checkout instead, to
+	// support testing local updates to Wycheproof.
+	dir := *wycheproofDir
+	if dir == "" {
+		dir = cryptotest.FetchModule(
+			t, "github.com/c2sp/wycheproof", wycheproofVersion)
+	}
 
-	content, err := os.ReadFile(path.Join(wycheproofDir, "testvectors_v1", filename))
+	content, err := os.ReadFile(path.Join(dir, "testvectors_v1", filename))
 	if err != nil {
 		t.Fatalf("missing Wycheproof vector file %q: %v", filename, err)
 	}
