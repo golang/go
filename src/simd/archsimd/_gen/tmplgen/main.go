@@ -1266,17 +1266,19 @@ var getHiTemplateArm64 = shapedTemplateOf(arm64Shapes, "arm64_HiToLo methods", `
 // 64 bits replaced with the upper 64 bits of x.
 func (x {{.VType}}) HiToLo() {{.VType}} {
 	var z {{.VType}}
-{{- if (eq .EWidth 64)}}
-{{-  if (eq .Base "Uint")}}
+{{- if and (eq .Base "Float") (eq .EWidth 64)}}
 	return z.SetElem(0, x.GetElem(1))
+{{- else if (eq .EWidth 64)}}
+{{-  if (eq .Base "Uint")}}
+	return z.BitsToFloat64().SetElem(0, x.BitsToFloat64().GetElem(1)).ToBits()
 {{-  else}}
-	return z.ToBits().SetElem(0, x.ToBits().GetElem(1)).BitsTo{{.Base}}{{.EWidth}}()
+	return z.ToBits().BitsToFloat64().SetElem(0, x.ToBits().BitsToFloat64().GetElem(1)).ToBits().BitsTo{{.Base}}{{.EWidth}}()
 {{-  end}}
 {{- else}}
 {{-  if (eq .Base "Uint")}}
-	return z.ReshapeToUint64s().SetElem(0, x.ReshapeToUint64s().GetElem(1)).ReshapeToUint{{.EWidth}}s()
+	return z.ReshapeToUint64s().BitsToFloat64().SetElem(0, x.ReshapeToUint64s().BitsToFloat64().GetElem(1)).ToBits().ReshapeToUint{{.EWidth}}s()
 {{-  else}}
-	return z.ToBits().ReshapeToUint64s().SetElem(0, x.ToBits().ReshapeToUint64s().GetElem(1)).ReshapeToUint{{.EWidth}}s().BitsTo{{.Base}}{{.EWidth}}()
+	return z.ToBits().ReshapeToUint64s().BitsToFloat64().SetElem(0, x.ToBits().ReshapeToUint64s().BitsToFloat64().GetElem(1)).ToBits().ReshapeToUint{{.EWidth}}s().BitsTo{{.Base}}{{.EWidth}}()
 {{-  end}}
 {{- end}}
 }
