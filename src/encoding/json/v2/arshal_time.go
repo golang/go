@@ -55,7 +55,7 @@ func makeTimeArshaler(fncs *arshaler, t reflect.Type) *arshaler {
 			} else {
 				// TODO(https://go.dev/issue/71631): Decide on default duration representation.
 				var workaround string
-				if internal.ExpJSONFormat {
+				if mo.Flags.Get(jsonflags.FormatTagSupported) {
 					workaround = "; specify an explicit format"
 				}
 				return newMarshalErrorBefore(enc, t, errors.New("no default representation"+workaround))
@@ -87,7 +87,7 @@ func makeTimeArshaler(fncs *arshaler, t reflect.Type) *arshaler {
 			} else {
 				// TODO(https://go.dev/issue/71631): Decide on default duration representation.
 				var workaround string
-				if internal.ExpJSONFormat {
+				if uo.Flags.Get(jsonflags.FormatTagSupported) {
 					workaround = "; specify an explicit format"
 				}
 				return newUnmarshalErrorBeforeWithSkipping(dec, t, errors.New("no default representation"+workaround))

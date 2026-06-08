@@ -1129,6 +1129,8 @@ func makeStructArshaler(t reflect.Type) *arshaler {
 		once.Do(init)
 		if errInit != nil && !mo.Flags.Get(jsonflags.ReportErrorsWithLegacySemantics) {
 			return newMarshalErrorBefore(enc, errInit.GoType, errInit.Err)
+		} else if fields.errUnsupportedFormat != nil && !mo.Flags.Get(jsonflags.FormatTagSupported) {
+			return newMarshalErrorBefore(enc, fields.errUnsupportedFormat.GoType, fields.errUnsupportedFormat.Err)
 		}
 
 		if err := enc.WriteToken(jsontext.BeginObject); err != nil {
@@ -1305,6 +1307,8 @@ func makeStructArshaler(t reflect.Type) *arshaler {
 			once.Do(init)
 			if errInit != nil && !uo.Flags.Get(jsonflags.ReportErrorsWithLegacySemantics) {
 				return newUnmarshalErrorAfter(dec, errInit.GoType, errInit.Err)
+			} else if fields.errUnsupportedFormat != nil && !uo.Flags.Get(jsonflags.FormatTagSupported) {
+				return newUnmarshalErrorAfter(dec, fields.errUnsupportedFormat.GoType, fields.errUnsupportedFormat.Err)
 			}
 
 			var seenIdxs uintSet

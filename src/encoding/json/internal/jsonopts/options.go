@@ -17,6 +17,11 @@ type Options interface {
 	JSONOptions(internal.NotForPublicUse)
 }
 
+// experimentalFormatTagSupporter is a special option method that allows
+// [github.com/go-json-experiment/json.ExperimentalSupportFormatTag]
+// to enable experimental `format` tag functionality at runtime.
+type experimentalFormatTagSupporter interface{ ExperimentalSupportFormatTag() bool }
+
 // Struct is the combination of all options in struct form.
 // This is efficient to pass down the call stack and to query.
 type Struct struct {
@@ -85,6 +90,10 @@ func GetOption[T any](opts Options, setter func(T) Options) (T, bool) {
 			return any(true).(T), true // check also whether the option is specified via a `string` tag
 		}
 		return any(v).(T), ok
+	case experimentalFormatTagSupporter:
+		v := structOpts.Flags.Get(jsonflags.FormatTagSupported)
+		ok := structOpts.Flags.Has(jsonflags.FormatTagSupported)
+		return any(v).(T), ok
 	case Indent:
 		if !structOpts.Flags.Has(jsonflags.Indent) {
 			return zero, false
@@ -122,6 +131,12 @@ func (dst *Struct) Join(srcs ...Options) {
 			continue
 		case jsonflags.Bools:
 			dst.Flags.Set(src)
+		case experimentalFormatTagSupporter:
+			if src.ExperimentalSupportFormatTag() {
+				dst.Flags.Set(jsonflags.FormatTagSupported | 1)
+			} else {
+				dst.Flags.Set(jsonflags.FormatTagSupported | 0)
+			}
 		case Indent:
 			dst.Flags.Set(jsonflags.Multiline | jsonflags.Indent | 1)
 			dst.Indent = string(src)
