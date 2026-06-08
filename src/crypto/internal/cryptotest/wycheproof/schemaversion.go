@@ -8,4 +8,4 @@ package wycheproof
 
 // wycheproofVersion is the github.com/c2sp/wycheproof module version that
 // schema.go was generated against.
-const wycheproofVersion = "v0.0.0-20260428174413-4d535535851f"
+const wycheproofVersion = "v0.0.0-20260606153636-6d7cccd0fcb1"
