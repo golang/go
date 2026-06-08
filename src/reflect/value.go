@@ -2038,8 +2038,10 @@ func (v Value) OverflowUint(x uint64) bool {
 //
 // If v's Kind is [Func], the returned pointer is an underlying
 // code pointer, but not necessarily enough to identify a
-// single function uniquely. The only guarantee is that the
-// result is zero if and only if v is a nil func Value.
+// single function uniquely. In particular, functions with equal
+// code pointers may not have identical behaviors when called.
+// The only guarantee is that the result is zero if and only if
+// v is a nil func Value.
 //
 // If v's Kind is [Slice], the returned pointer is to the first
 // element of the slice. If the slice is nil the returned value
