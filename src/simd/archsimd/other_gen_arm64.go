@@ -148,70 +148,70 @@ func (x Float64x2) String() string {
 // 64 bits replaced with the upper 64 bits of x.
 func (x Int8x16) HiToLo() Int8x16 {
 	var z Int8x16
-	return z.ToBits().ReshapeToUint64s().SetElem(0, x.ToBits().ReshapeToUint64s().GetElem(1)).ReshapeToUint8s().BitsToInt8()
+	return z.ToBits().ReshapeToUint64s().BitsToFloat64().SetElem(0, x.ToBits().ReshapeToUint64s().BitsToFloat64().GetElem(1)).ToBits().ReshapeToUint8s().BitsToInt8()
 }
 
 // HiToLo returns a vector with the upper 64 bits zeroed and the lower
 // 64 bits replaced with the upper 64 bits of x.
 func (x Int16x8) HiToLo() Int16x8 {
 	var z Int16x8
-	return z.ToBits().ReshapeToUint64s().SetElem(0, x.ToBits().ReshapeToUint64s().GetElem(1)).ReshapeToUint16s().BitsToInt16()
+	return z.ToBits().ReshapeToUint64s().BitsToFloat64().SetElem(0, x.ToBits().ReshapeToUint64s().BitsToFloat64().GetElem(1)).ToBits().ReshapeToUint16s().BitsToInt16()
 }
 
 // HiToLo returns a vector with the upper 64 bits zeroed and the lower
 // 64 bits replaced with the upper 64 bits of x.
 func (x Int32x4) HiToLo() Int32x4 {
 	var z Int32x4
-	return z.ToBits().ReshapeToUint64s().SetElem(0, x.ToBits().ReshapeToUint64s().GetElem(1)).ReshapeToUint32s().BitsToInt32()
+	return z.ToBits().ReshapeToUint64s().BitsToFloat64().SetElem(0, x.ToBits().ReshapeToUint64s().BitsToFloat64().GetElem(1)).ToBits().ReshapeToUint32s().BitsToInt32()
 }
 
 // HiToLo returns a vector with the upper 64 bits zeroed and the lower
 // 64 bits replaced with the upper 64 bits of x.
 func (x Int64x2) HiToLo() Int64x2 {
 	var z Int64x2
-	return z.ToBits().SetElem(0, x.ToBits().GetElem(1)).BitsToInt64()
+	return z.ToBits().BitsToFloat64().SetElem(0, x.ToBits().BitsToFloat64().GetElem(1)).ToBits().BitsToInt64()
 }
 
 // HiToLo returns a vector with the upper 64 bits zeroed and the lower
 // 64 bits replaced with the upper 64 bits of x.
 func (x Uint8x16) HiToLo() Uint8x16 {
 	var z Uint8x16
-	return z.ReshapeToUint64s().SetElem(0, x.ReshapeToUint64s().GetElem(1)).ReshapeToUint8s()
+	return z.ReshapeToUint64s().BitsToFloat64().SetElem(0, x.ReshapeToUint64s().BitsToFloat64().GetElem(1)).ToBits().ReshapeToUint8s()
 }
 
 // HiToLo returns a vector with the upper 64 bits zeroed and the lower
 // 64 bits replaced with the upper 64 bits of x.
 func (x Uint16x8) HiToLo() Uint16x8 {
 	var z Uint16x8
-	return z.ReshapeToUint64s().SetElem(0, x.ReshapeToUint64s().GetElem(1)).ReshapeToUint16s()
+	return z.ReshapeToUint64s().BitsToFloat64().SetElem(0, x.ReshapeToUint64s().BitsToFloat64().GetElem(1)).ToBits().ReshapeToUint16s()
 }
 
 // HiToLo returns a vector with the upper 64 bits zeroed and the lower
 // 64 bits replaced with the upper 64 bits of x.
 func (x Uint32x4) HiToLo() Uint32x4 {
 	var z Uint32x4
-	return z.ReshapeToUint64s().SetElem(0, x.ReshapeToUint64s().GetElem(1)).ReshapeToUint32s()
+	return z.ReshapeToUint64s().BitsToFloat64().SetElem(0, x.ReshapeToUint64s().BitsToFloat64().GetElem(1)).ToBits().ReshapeToUint32s()
 }
 
 // HiToLo returns a vector with the upper 64 bits zeroed and the lower
 // 64 bits replaced with the upper 64 bits of x.
 func (x Uint64x2) HiToLo() Uint64x2 {
 	var z Uint64x2
-	return z.SetElem(0, x.GetElem(1))
+	return z.BitsToFloat64().SetElem(0, x.BitsToFloat64().GetElem(1)).ToBits()
 }
 
 // HiToLo returns a vector with the upper 64 bits zeroed and the lower
 // 64 bits replaced with the upper 64 bits of x.
 func (x Float32x4) HiToLo() Float32x4 {
 	var z Float32x4
-	return z.ToBits().ReshapeToUint64s().SetElem(0, x.ToBits().ReshapeToUint64s().GetElem(1)).ReshapeToUint32s().BitsToFloat32()
+	return z.ToBits().ReshapeToUint64s().BitsToFloat64().SetElem(0, x.ToBits().ReshapeToUint64s().BitsToFloat64().GetElem(1)).ToBits().ReshapeToUint32s().BitsToFloat32()
 }
 
 // HiToLo returns a vector with the upper 64 bits zeroed and the lower
 // 64 bits replaced with the upper 64 bits of x.
 func (x Float64x2) HiToLo() Float64x2 {
 	var z Float64x2
-	return z.ToBits().SetElem(0, x.ToBits().GetElem(1)).BitsToFloat64()
+	return z.SetElem(0, x.GetElem(1))
 }
 
 // ToMask returns a mask whose i'th element is set if x[i] is non-zero.

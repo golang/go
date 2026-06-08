@@ -26,6 +26,7 @@ func spillAroundCall(a archsimd.Int8x16) archsimd.Int8x16 {
 var (
 	sinkU8  archsimd.Uint8x16
 	sinkI8  archsimd.Int8x16
+	sinkU16 archsimd.Uint16x8
 	sinkU32 archsimd.Uint32x4
 	sinkU64 archsimd.Uint64x2
 	sinkF32 archsimd.Float32x4
@@ -76,46 +77,35 @@ func shiftAllImmFold(k int) {
 
 func setHiUint32(x, lo archsimd.Uint32x4) {
 	// arm64:`VMOV V1.D\[0\], V0.D\[1\]`
-	sinkU32 = x.SetHi(lo)
+	sinkU32 = loToHiUint32Vec(x, lo)
 }
 
 func setHiFloat64(x, lo archsimd.Float64x2) {
 	// arm64:`VMOV V1.D\[0\], V0.D\[1\]`
-	sinkF64 = x.SetHi(lo)
+	sinkF64 = x.SetElem(1, lo.GetElem(0))
 }
 
 func getHiFloat32(x archsimd.Float32x4) {
 	// arm64:`VDUP V0.D\[1\],`
-	sinkF32 = x.GetHi()
+	sinkF32 = x.HiToLo()
 }
 
 func getHiFloat64(x archsimd.Float64x2) {
 	// arm64:`VDUP V0.D\[1\],`
-	sinkF64 = x.GetHi()
-}
-
-func foldGetHiSetHiShifts(x archsimd.Uint32x4) archsimd.Uint16x8 {
-	shrN := x.ShiftRightNarrowConst(16)         // arm64: `VSHRN [$]16, V0.S4, V[0-9]+.H4`
-	trunc := x.ShiftRightNarrowConst(0)         // arm64: `VXTN V0.S4, V[0-9]+.H4` -`VSHRN`
-	shlLo := x.ShiftLeftWidenLoConst(1)         // arm64: `VUSHLL [$]1, V0.S2, V[0-9]+.D2`
-	shlHi := x.GetHi().ShiftLeftWidenLoConst(1) // arm64: `VUSHLL2 [$]1, V0.S4, V[0-9]+.D2` -`VDUP`
-	sum := shrN.Add(trunc)
-	combined := sum.SetHi(x.ShiftRightNarrowConst(15)) // arm64: `VSHRN2 [$]15, V0.S4, V[0-9]+.H8` -`VMOV.*D\[`
-	sinkU64 = shlLo.Sub(shlHi)
-	return combined
+	sinkF64 = x.HiToLo()
 }
 
 func foldGetHiSetHiMuls(a, b archsimd.Uint16x8) archsimd.Uint16x8 {
-	wLo := a.MulWidenLo(b)                    // arm64: `VUMULL V0.H4, V1.H4, V[0-9].S4`
-	wHi := a.GetHi().MulWidenLo(b.GetHi())    // arm64: `VUMULL2 V1.H8, V0.H8, V[0-9].S4` -`VDUP`
-	wHiRight := wHi.ShiftRightNarrowConst(16) // arm64: -`.*`
-	wLoRight := wLo.ShiftRightNarrowConst(16) // arm64: `VSHRN [$]16, V[0-9]+.S4, V0.H4`
-	return wLoRight.SetHi(wHiRight)           // arm64: `VSHRN2 [$]16, V[0-9]+.S4, V0.H8` -`VMOV.*D\[`
+	wLo := a.MulWidenLo(b)                     // arm64: `VUMULL V0.H4, V1.H4, V[0-9].S4`
+	wHi := a.HiToLo().MulWidenLo(b.HiToLo())   // arm64: `VUMULL2 V1.H8, V0.H8, V[0-9].S4` -`VDUP`
+	narrowLo := wLo.TruncToUint16()            // arm64: `VXTN V[0-9]+.S4, V0.H4`
+	narrowHi := wHi.TruncToUint16()            // folded into next line
+	return loToHiUint16Vec(narrowLo, narrowHi) // arm64: `VXTN2 V[0-9]+.S4, V0.H8`
 }
 
 func carrylessMultiplies(x, y archsimd.Uint64x2) archsimd.Uint64x2 {
-	lo := x.CarrylessMultiplyEven(y) // arm64:`VPMULL V` -`VPMULL2`
-	hi := x.CarrylessMultiplyOdd(y)  // arm64:`VPMULL2 V` -`VPMULL `
+	lo := x.CarrylessMultiplyEven(y)                   // arm64:`VPMULL V` -`VPMULL2`
+	hi := x.HiToLo().CarrylessMultiplyEven(y.HiToLo()) // arm64:`VPMULL2 V` -`VPMULL `
 	return lo.Xor(hi)
 }
 
@@ -129,4 +119,20 @@ func mergeWithNotMask(x, y archsimd.Int8x16, mask archsimd.Mask8x16, f1, f2 arch
 	fne := f1.IfElse(eq, f2) // arm64:`VBIT`
 	feq := f1.IfElse(ne, f2) // arm64:`VBIF`
 	sinkF32 = fne.Add(feq)
+}
+
+// loToHiUint32Vec returns a vector with the lower 64 bits of x preserved and
+// the upper 64 bits replaced with the lower 64 bits of lo.
+// It routes through Float64x2 to stay in the FP/SIMD register file,
+// avoiding a round-trip through a GP register.
+func loToHiUint32Vec(x, lo archsimd.Uint32x4) archsimd.Uint32x4 {
+	return x.ReshapeToUint64s().BitsToFloat64().SetElem(1, lo.ReshapeToUint64s().BitsToFloat64().GetElem(0)).ToBits().ReshapeToUint32s()
+}
+
+// loToHiUint16Vec returns a vector with the lower 64 bits of x preserved and
+// the upper 64 bits replaced with the lower 64 bits of lo.
+// It routes through Float64x2 to stay in the FP/SIMD register file,
+// avoiding a round-trip through a GP register.
+func loToHiUint16Vec(x, lo archsimd.Uint16x8) archsimd.Uint16x8 {
+	return x.ReshapeToUint64s().BitsToFloat64().SetElem(1, lo.ReshapeToUint64s().BitsToFloat64().GetElem(0)).ToBits().ReshapeToUint16s()
 }
