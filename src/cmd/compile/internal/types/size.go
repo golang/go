@@ -469,10 +469,10 @@ func simdify(st *Type, isTag bool) {
 	st.align = 8
 	st.alg = ANOALG // not comparable with ==
 	st.intRegs = 0
-	st.isSIMD = true
+	st.flags |= typeIsSIMD
 	if isTag {
 		st.width = 0
-		st.isSIMDTag = true
+		st.flags |= typeIsSIMDTag
 		st.floatRegs = 0
 	} else {
 		st.floatRegs = 1
@@ -584,7 +584,7 @@ func CalcStructSize(t *Type) {
 		}
 	}
 
-	if len(t.Fields()) >= 1 && t.Fields()[0].Type.isSIMDTag {
+	if len(t.Fields()) >= 1 && t.Fields()[0].Type.flags&typeIsSIMDTag != 0 {
 		// this catches `type Foo simd.Whatever` -- Foo is also SIMD.
 		simdify(t, false)
 	}
