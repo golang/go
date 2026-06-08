@@ -114,7 +114,10 @@ const (
 	ELF32RELSIZE  = 8
 )
 
-var elfstrdat []byte
+var (
+	elfstrdat []byte
+	elfstroff map[string]int
+)
 
 // ELFRESERVE is the total amount of space to reserve at the
 // start of the file for Header, PHeaders, SHeaders, and interp.
