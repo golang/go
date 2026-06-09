@@ -477,6 +477,23 @@ func (fc *frameCache) getMetaHeadersFrame() *MetaHeadersFrame {
 	return &fc.metaHeadersFrame
 }
 
+// maxRetainedMetaFields caps the number of fields a header block may
+// have for its Fields backing array to be kept in the cached
+// MetaHeadersFrame for the next meta parse. Above the cap, the array
+// is dropped when the frame is invalidated and the next parse pays
+// the modest append-growth cost again.
+//
+// The check is on the length of the parsed block, not on the capacity
+// of its backing array: append rounds capacity up to a size class, so
+// the capacity never equals this constant, and checking it would drop
+// the array for every block bigger than the largest size class below
+// the cap (35 fields as of this writing), silently defeating the
+// reuse for exactly the header-heavy connections that need it most.
+// Retained memory stays bounded either way: a block of at most
+// maxRetainedMetaFields fields has a backing array of at most the
+// next size class up.
+const maxRetainedMetaFields = 64
+
 // NewFramer returns a Framer that writes frames to w and reads them from r.
 func NewFramer(w io.Writer, r io.Reader) *Framer {
 	fr := &Framer{
@@ -546,6 +563,16 @@ func terminalReadFrameError(err error) bool {
 // responsible for the error.
 func (fr *Framer) ReadFrameHeader() (FrameHeader, error) {
 	fr.errDetail = nil
+	// The previous frame's contract ends at this call, not when the
+	// next frame arrives: invalidate it before blocking on the header
+	// read, so that a cached frame does not pin what it parsed (in
+	// particular a MetaHeadersFrame's decoded header fields) for as
+	// long as the connection sits idle. ReadFrameForHeader invalidates
+	// again for callers that read the header themselves; invalidate
+	// is idempotent.
+	if fr.lastFrame != nil {
+		fr.lastFrame.invalidate()
+	}
 	fh, err := readFrameHeader(fr.headerBuf[:], fr.r)
 	if err != nil {
 		return fh, err
@@ -1672,7 +1699,8 @@ type MetaHeadersFrame struct {
 	// Fields are the fields contained in the HEADERS and
 	// CONTINUATION frames. The underlying slice is owned by the
 	// Framer and must not be retained after the next call to
-	// ReadFrame.
+	// ReadFrame: when [Framer.SetReuseFrames] is in effect, the next
+	// meta parse clears and overwrites the backing array in place.
 	//
 	// Fields are guaranteed to be in the correct http2 order and
 	// not have unknown pseudo header fields or invalid header
@@ -1714,8 +1742,29 @@ func (mh *MetaHeadersFrame) checkOwned() {
 // next ReadFrame call (which invalidates the Framer's lastFrame)
 // revokes ownership of the whole MetaHeadersFrame, not only of the
 // embedded HeadersFrame.
+//
+// It also releases the parsed header fields. The Fields contract ends
+// here, and header values can hold secrets (Cookie, Authorization,
+// HPACK Sensitive fields), so the strings are dropped now instead of
+// staying reachable from the cached frame until the next HEADERS
+// frame arrives on the connection, which on an idle connection may
+// be never. The backing array is kept for the next meta parse unless
+// the block was larger than maxRetainedMetaFields, so a single large
+// HEADERS frame cannot permanently inflate per-connection memory.
+//
+// Clearing the slice's length is enough to clear the whole backing
+// array: the slots in [len, cap) are already zero, because
+// readMetaFrame is the only writer of the array, it only ever writes
+// through append, and an append that grows the array gets fresh
+// (zeroed) memory and copies only the live elements into it.
 func (mh *MetaHeadersFrame) invalidate() {
 	mh.owned = false
+	if len(mh.Fields) > maxRetainedMetaFields {
+		mh.Fields = nil
+	} else {
+		clear(mh.Fields)
+		mh.Fields = mh.Fields[:0]
+	}
 	mh.HeadersFrame.invalidate()
 }
 
@@ -1820,11 +1869,31 @@ func (fr *Framer) readMetaFrame(hf *HeadersFrame) (Frame, error) {
 		return nil, errors.New("illegal use of AllowIllegalReads with ReadMetaHeaders")
 	}
 	mh := fr.frameCache.getMetaHeadersFrame()
-	// Wholesale reset so values from a previous parse (Fields,
-	// Truncated, or any future-added field) cannot leak through.
+	// Reuse the Fields backing array from the previous parse. It is
+	// non-nil only when mh is the cached frame, so without
+	// SetReuseFrames every parse still gets a fresh array. The
+	// MetaHeadersFrame.Fields contract (the slice is owned by the
+	// Framer and must not be retained past the next ReadFrame) is
+	// what makes the in-place overwrite legal.
+	//
+	// The cached frame was the Framer's lastFrame, so the ReadFrame
+	// call that led here has already run invalidate, which cleared
+	// the array (or dropped it, if the previous block was too large
+	// to retain). Repeat that here rather than rely on it: a parse
+	// that failed before making mh the lastFrame leaves its partial
+	// Fields behind, and clearing an already-cleared slice is cheap.
+	fields := mh.Fields
+	if len(fields) > maxRetainedMetaFields {
+		fields = nil
+	} else {
+		clear(fields)
+	}
+	// Wholesale reset so values from a previous parse (Truncated, or
+	// any future-added field) cannot leak through.
 	*mh = MetaHeadersFrame{
 		HeadersFrame: hf,
 	}
+	mh.Fields = fields[:0]
 	var remainSize = fr.maxHeaderListSize()
 	var sawRegular bool
 	var headerCount int
