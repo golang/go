@@ -163,6 +163,16 @@ func (x Uint64x2) OnesCount() Uint64x2 {
 	return x.BitsToInt64().OnesCount().ToBits()
 }
 
+// MulAdd returns elementwise x * y + z.
+func (x Float32x4) MulAdd(y Float32x4, z Float32x4) Float32x4 {
+	return x.Mul(y).Add(z)
+}
+
+// MulAdd returns elementwise x * y + z.
+func (x Float64x2) MulAdd(y Float64x2, z Float64x2) Float64x2 {
+	return x.Mul(y).Add(z)
+}
+
 // CarrylessMultiplyEven computes the carryless
 // multiplications of selected even halves of the elements of x and y.
 //

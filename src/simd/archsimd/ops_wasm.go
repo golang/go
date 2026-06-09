@@ -805,16 +805,6 @@ func (x Uint64x2) Mul(y Uint64x2) Uint64x2
 // Asm: F64x2Mul
 func (x Float64x2) Mul(y Float64x2) Float64x2
 
-// MulAdd returns the elementwise multiply-add of x, y, and z.
-//
-// Asm: F32x4RelaxedMadd
-func (x Float32x4) MulAdd(y Float32x4, z Float32x4) Float32x4
-
-// MulAdd returns the elementwise multiply-add of x, y, and z.
-//
-// Asm: F64x2RelaxedMadd
-func (x Float64x2) MulAdd(y Float64x2, z Float64x2) Float64x2
-
 // MulWidenHi returns the doubled-width product of respective elements of the upper halves of x and y.
 //
 //	Result[i] = x[i+8] * y[i+8], for 0 <= i < 8 == |x|/2.

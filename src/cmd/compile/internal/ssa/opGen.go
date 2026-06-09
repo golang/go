@@ -6567,13 +6567,11 @@ const (
 	OpWasmF32x4Pmin
 	OpWasmF32x4RelaxedMax
 	OpWasmF32x4RelaxedMin
-	OpWasmF32x4RelaxedNmadd
 	OpWasmI64x2AllTrue
 	OpWasmF64x2Pmax
 	OpWasmF64x2Pmin
 	OpWasmF64x2RelaxedMax
 	OpWasmF64x2RelaxedMin
-	OpWasmF64x2RelaxedNmadd
 	OpWasmI8x16Abs
 	OpWasmI16x8Abs
 	OpWasmI32x4Abs
@@ -6697,8 +6695,6 @@ const (
 	OpWasmF32x4Mul
 	OpWasmI64x2Mul
 	OpWasmF64x2Mul
-	OpWasmF32x4RelaxedMadd
-	OpWasmF64x2RelaxedMadd
 	OpWasmI16x8ExtmulHighI8x16S
 	OpWasmI16x8ExtmulHighI8x16U
 	OpWasmI32x4ExtmulHighI16x8S
@@ -101989,21 +101985,6 @@ var opcodeTable = [...]opInfo{
 		},
 	},
 	{
-		name:   "F32x4RelaxedNmadd",
-		argLen: 3,
-		asm:    wasm.AF32x4RelaxedNmadd,
-		reg: regInfo{
-			inputs: []inputInfo{
-				{0, regMask{v1: 18446462598732840960, v2: 0}}, // V0 V1 V2 V3 V4 V5 V6 V7 V8 V9 V10 V11 V12 V13 V14 V15
-				{1, regMask{v1: 18446462598732840960, v2: 0}}, // V0 V1 V2 V3 V4 V5 V6 V7 V8 V9 V10 V11 V12 V13 V14 V15
-				{2, regMask{v1: 18446462598732840960, v2: 0}}, // V0 V1 V2 V3 V4 V5 V6 V7 V8 V9 V10 V11 V12 V13 V14 V15
-			},
-			outputs: []outputInfo{
-				{0, regMask{v1: 18446462598732840960, v2: 0}}, // V0 V1 V2 V3 V4 V5 V6 V7 V8 V9 V10 V11 V12 V13 V14 V15
-			},
-		},
-	},
-	{
 		name:   "I64x2AllTrue",
 		argLen: 1,
 		asm:    wasm.AI64x2AllTrue,
@@ -102070,21 +102051,6 @@ var opcodeTable = [...]opInfo{
 			inputs: []inputInfo{
 				{0, regMask{v1: 18446462598732840960, v2: 0}}, // V0 V1 V2 V3 V4 V5 V6 V7 V8 V9 V10 V11 V12 V13 V14 V15
 				{1, regMask{v1: 18446462598732840960, v2: 0}}, // V0 V1 V2 V3 V4 V5 V6 V7 V8 V9 V10 V11 V12 V13 V14 V15
-			},
-			outputs: []outputInfo{
-				{0, regMask{v1: 18446462598732840960, v2: 0}}, // V0 V1 V2 V3 V4 V5 V6 V7 V8 V9 V10 V11 V12 V13 V14 V15
-			},
-		},
-	},
-	{
-		name:   "F64x2RelaxedNmadd",
-		argLen: 3,
-		asm:    wasm.AF64x2RelaxedNmadd,
-		reg: regInfo{
-			inputs: []inputInfo{
-				{0, regMask{v1: 18446462598732840960, v2: 0}}, // V0 V1 V2 V3 V4 V5 V6 V7 V8 V9 V10 V11 V12 V13 V14 V15
-				{1, regMask{v1: 18446462598732840960, v2: 0}}, // V0 V1 V2 V3 V4 V5 V6 V7 V8 V9 V10 V11 V12 V13 V14 V15
-				{2, regMask{v1: 18446462598732840960, v2: 0}}, // V0 V1 V2 V3 V4 V5 V6 V7 V8 V9 V10 V11 V12 V13 V14 V15
 			},
 			outputs: []outputInfo{
 				{0, regMask{v1: 18446462598732840960, v2: 0}}, // V0 V1 V2 V3 V4 V5 V6 V7 V8 V9 V10 V11 V12 V13 V14 V15
@@ -103814,36 +103780,6 @@ var opcodeTable = [...]opInfo{
 			inputs: []inputInfo{
 				{0, regMask{v1: 18446462598732840960, v2: 0}}, // V0 V1 V2 V3 V4 V5 V6 V7 V8 V9 V10 V11 V12 V13 V14 V15
 				{1, regMask{v1: 18446462598732840960, v2: 0}}, // V0 V1 V2 V3 V4 V5 V6 V7 V8 V9 V10 V11 V12 V13 V14 V15
-			},
-			outputs: []outputInfo{
-				{0, regMask{v1: 18446462598732840960, v2: 0}}, // V0 V1 V2 V3 V4 V5 V6 V7 V8 V9 V10 V11 V12 V13 V14 V15
-			},
-		},
-	},
-	{
-		name:   "F32x4RelaxedMadd",
-		argLen: 3,
-		asm:    wasm.AF32x4RelaxedMadd,
-		reg: regInfo{
-			inputs: []inputInfo{
-				{0, regMask{v1: 18446462598732840960, v2: 0}}, // V0 V1 V2 V3 V4 V5 V6 V7 V8 V9 V10 V11 V12 V13 V14 V15
-				{1, regMask{v1: 18446462598732840960, v2: 0}}, // V0 V1 V2 V3 V4 V5 V6 V7 V8 V9 V10 V11 V12 V13 V14 V15
-				{2, regMask{v1: 18446462598732840960, v2: 0}}, // V0 V1 V2 V3 V4 V5 V6 V7 V8 V9 V10 V11 V12 V13 V14 V15
-			},
-			outputs: []outputInfo{
-				{0, regMask{v1: 18446462598732840960, v2: 0}}, // V0 V1 V2 V3 V4 V5 V6 V7 V8 V9 V10 V11 V12 V13 V14 V15
-			},
-		},
-	},
-	{
-		name:   "F64x2RelaxedMadd",
-		argLen: 3,
-		asm:    wasm.AF64x2RelaxedMadd,
-		reg: regInfo{
-			inputs: []inputInfo{
-				{0, regMask{v1: 18446462598732840960, v2: 0}}, // V0 V1 V2 V3 V4 V5 V6 V7 V8 V9 V10 V11 V12 V13 V14 V15
-				{1, regMask{v1: 18446462598732840960, v2: 0}}, // V0 V1 V2 V3 V4 V5 V6 V7 V8 V9 V10 V11 V12 V13 V14 V15
-				{2, regMask{v1: 18446462598732840960, v2: 0}}, // V0 V1 V2 V3 V4 V5 V6 V7 V8 V9 V10 V11 V12 V13 V14 V15
 			},
 			outputs: []outputInfo{
 				{0, regMask{v1: 18446462598732840960, v2: 0}}, // V0 V1 V2 V3 V4 V5 V6 V7 V8 V9 V10 V11 V12 V13 V14 V15

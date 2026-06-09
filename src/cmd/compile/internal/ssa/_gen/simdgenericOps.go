@@ -712,10 +712,10 @@ func simdGenericOps() []opData {
 		{name: "MulAddEvenSubOddFloat64x2", argLength: 3},                               // ARCH:amd64
 		{name: "MulAddEvenSubOddFloat64x4", argLength: 3},                               // ARCH:amd64
 		{name: "MulAddEvenSubOddFloat64x8", argLength: 3},                               // ARCH:amd64
-		{name: "MulAddFloat32x4", argLength: 3},                                         // ARCH:amd64,arm64,wasm
+		{name: "MulAddFloat32x4", argLength: 3},                                         // ARCH:amd64,arm64
 		{name: "MulAddFloat32x8", argLength: 3},                                         // ARCH:amd64
 		{name: "MulAddFloat32x16", argLength: 3},                                        // ARCH:amd64
-		{name: "MulAddFloat64x2", argLength: 3},                                         // ARCH:amd64,arm64,wasm
+		{name: "MulAddFloat64x2", argLength: 3},                                         // ARCH:amd64,arm64
 		{name: "MulAddFloat64x4", argLength: 3},                                         // ARCH:amd64
 		{name: "MulAddFloat64x8", argLength: 3},                                         // ARCH:amd64
 		{name: "MulAddInt8x16", argLength: 3},                                           // ARCH:arm64

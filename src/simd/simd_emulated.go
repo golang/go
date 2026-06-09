@@ -2677,7 +2677,7 @@ func (x Float32s) Mul(y Float32s) Float32s {
 func (x Float32s) MulAdd(y, z Float32s) Float32s {
 	var res Float32s
 	for i := 0; i < 4; i++ {
-		res.set(i, x.get(i)+y.get(i)*z.get(i))
+		res.set(i, x.get(i)*y.get(i)+z.get(i))
 	}
 	return res
 }
@@ -2948,8 +2948,8 @@ func (x Float64s) Mul(y Float64s) Float64s {
 // MulAdd returns x * y + z element-wise.
 func (x Float64s) MulAdd(y, z Float64s) Float64s {
 	var res Float64s
-	res.set(0, x.get(0)+y.get(0)*z.get(0))
-	res.set(1, x.get(1)+y.get(1)*z.get(1))
+	res.set(0, x.get(0)*y.get(0)+z.get(0))
+	res.set(1, x.get(1)*y.get(1)+z.get(1))
 	return res
 }
 
