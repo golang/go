@@ -5,6 +5,7 @@
 package midway
 
 import (
+	"cmd/compile/internal/base"
 	"cmd/compile/internal/syntax"
 	"cmd/compile/internal/types2"
 )
@@ -148,6 +149,9 @@ func (a *Analyzer) markIfDependent(obj types2.Object) bool {
 	}
 
 	if isDep {
+		if base.Debug.Simd > 0 {
+			base.Warn("%v is simd-dependent", obj)
+		}
 		a.dependentObj[obj] = true
 	}
 	return isDep
