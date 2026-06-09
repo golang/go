@@ -55,10 +55,7 @@
 //     In contrast, v2 marshals a nil Go slice or Go map as
 //     an empty JSON array or JSON object, respectively.
 //     The [jsonv2.FormatNilSliceAsNull] and [jsonv2.FormatNilMapAsNull] options
-//     control this behavior difference. To explicitly specify a Go struct field
-//     to use a particular representation for nil, either the `format:emitempty`
-//     or `format:emitnull` field option can be specified.
-//     Field-specified options take precedence over caller-specified options.
+//     control this behavior difference.
 //
 //   - In v1, a Go array may be unmarshaled from a JSON array of any length.
 //     In contrast, in v2 a Go array must be unmarshaled from a JSON array
@@ -68,9 +65,6 @@
 //   - In v1, a Go byte array is represented as a JSON array of JSON numbers.
 //     In contrast, in v2 a Go byte array is represented as a Base64-encoded JSON string.
 //     The [FormatByteArrayAsArray] option controls this behavior difference.
-//     To explicitly specify a Go struct field to use a particular representation,
-//     either the `format:array` or `format:base64` field option can be specified.
-//     Field-specified options take precedence over caller-specified options.
 //
 //   - In v1, MarshalJSON methods declared on a pointer receiver are only called
 //     if the Go value is addressable. In contrast, in v2 a MarshalJSON method
@@ -121,9 +115,6 @@
 //     the decimal number of nanoseconds. In contrast, in v2 a [time.Duration]
 //     has no default representation and results in a runtime error.
 //     The [FormatDurationAsNano] option controls this behavior difference.
-//     To explicitly specify a Go struct field to use a particular representation,
-//     either the `format:nano` or `format:units` field option can be specified.
-//     Field-specified options take precedence over caller-specified options.
 //
 //   - In v1, errors are never reported at runtime for Go struct types
 //     that have some form of structural error (e.g., a malformed tag option).
@@ -285,8 +276,6 @@ func CallMethodsWithLegacySemantics(v bool) Options {
 // FormatByteArrayAsArray specifies that a Go [N]byte is
 // formatted as a normal Go array in contrast to the v2 default of
 // formatting [N]byte as using binary data encoding (RFC 4648).
-// If a struct field has a `format` tag option,
-// then the specified formatting takes precedence.
 //
 // This affects either marshaling or unmarshaling.
 // The v1 default is true.
@@ -328,8 +317,6 @@ func FormatBytesWithLegacySemantics(v bool) Options {
 // FormatDurationAsNano specifies that a [time.Duration] is
 // formatted as a JSON number representing the number of nanoseconds
 // in contrast to the v2 default of reporting an error.
-// If a duration field has a `format` tag option,
-// then the specified formatting takes precedence.
 //
 // This affects either marshaling or unmarshaling.
 // The v1 default is true.
