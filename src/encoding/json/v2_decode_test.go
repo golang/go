@@ -1718,6 +1718,8 @@ type All struct {
 	Interface  any
 	PInterface *any
 
+	InvalidInline int `json:",inline"` // issue #79921: invalid `inline` tag option should be ignored
+
 	unexported int
 }
 
@@ -1753,15 +1755,16 @@ var allValue = All{
 		"19": {Tag: "tag19"},
 		"20": nil,
 	},
-	EmptyMap:    map[string]Small{},
-	Slice:       []Small{{Tag: "tag20"}, {Tag: "tag21"}},
-	SliceP:      []*Small{{Tag: "tag22"}, nil, {Tag: "tag23"}},
-	EmptySlice:  []Small{},
-	StringSlice: []string{"str24", "str25", "str26"},
-	ByteSlice:   []byte{27, 28, 29},
-	Small:       Small{Tag: "tag30"},
-	PSmall:      &Small{Tag: "tag31"},
-	Interface:   5.2,
+	EmptyMap:      map[string]Small{},
+	Slice:         []Small{{Tag: "tag20"}, {Tag: "tag21"}},
+	SliceP:        []*Small{{Tag: "tag22"}, nil, {Tag: "tag23"}},
+	EmptySlice:    []Small{},
+	StringSlice:   []string{"str24", "str25", "str26"},
+	ByteSlice:     []byte{27, 28, 29},
+	Small:         Small{Tag: "tag30"},
+	PSmall:        &Small{Tag: "tag31"},
+	Interface:     5.2,
+	InvalidInline: 123,
 }
 
 var pallValue = All{
@@ -1876,7 +1879,8 @@ var allValueIndent = `{
 	},
 	"PPSmall": null,
 	"Interface": 5.2,
-	"PInterface": null
+	"PInterface": null,
+	"InvalidInline": 123
 }`
 
 var allValueCompact = stripWhitespace(allValueIndent)
@@ -1965,7 +1969,8 @@ var pallValueIndent = `{
 		"Tag": "tag31"
 	},
 	"Interface": null,
-	"PInterface": 5.2
+	"PInterface": 5.2,
+	"InvalidInline": 0
 }`
 
 var pallValueCompact = stripWhitespace(pallValueIndent)

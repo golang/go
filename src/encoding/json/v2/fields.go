@@ -131,14 +131,17 @@ func makeStructFields(root reflect.Type) (fs structFields, serr *SemanticError) 
 					f.inline = true // implied by use of Go embedding without an explicit name
 				}
 			}
-			if f.inline {
+
+			var handleInline, handleField func()
+			handleInline = func() {
 				// Handle an inlined field that serializes to/from
 				// zero or more JSON object members.
 
 				if f.fieldOptions != (fieldOptions{name: f.name, quotedName: f.quotedName, inline: true}) {
 					serr = orErrorf(serr, t, "Go struct field %s cannot have any options other than `inline` specified", sf.Name)
 					if f.hasName {
-						continue // invalid inlined field; treat as ignored
+						handleField()
+						return // invalid inlined field; treat as regular field
 					}
 					f.fieldOptions = fieldOptions{name: f.name, quotedName: f.quotedName, inline: f.inline}
 				}
@@ -157,26 +160,28 @@ func makeStructFields(root reflect.Type) (fs structFields, serr *SemanticError) 
 						queue = append(queue, queueEntry{tf, f.index, !seen[tf]})
 					}
 					seen[tf] = true
-					continue
+					return
 				} else if !sf.IsExported() {
 					serr = orErrorf(serr, t, "inlined Go struct field %s is not exported", sf.Name)
-					continue // invalid inlined field; treat as ignored
+					return // invalid inlined field; treat as ignored
 				}
 
 				// Handle an inlined field that serializes to/from any number of
-				// JSON object members backed by a Go map or jsontext.Value.
+				// JSON object members back by a Go map or jsontext.Value.
 				switch {
 				case tf == jsontextValueType:
 					f.fncs = nil // specially handled in arshal_inlined.go
 				case tf.Kind() == reflect.Map && tf.Key().Kind() == reflect.String:
 					if implementsAny(tf.Key(), allMethodTypes...) {
 						serr = orErrorf(serr, t, "inlined map field %s of type %s must have a string key that does not implement marshal or unmarshal methods", sf.Name, tf)
-						continue // invalid inlined field; treat as ignored
+						handleField()
+						return // invalid inlined field; treat as regular field
 					}
 					f.fncs = lookupArshaler(tf.Elem())
 				default:
 					serr = orErrorf(serr, t, "inlined Go struct field %s of type %s must be a Go struct, Go map of string key, or jsontext.Value", sf.Name, tf)
-					continue // invalid inlined field; treat as ignored
+					handleField()
+					return // invalid inlined field; treat as regular field
 				}
 
 				// Reject multiple inlined fallback fields within the same struct.
@@ -188,7 +193,8 @@ func makeStructFields(root reflect.Type) (fs structFields, serr *SemanticError) 
 				inlinedFallbackIndex = i
 
 				inlinedFallbacks = append(inlinedFallbacks, f)
-			} else {
+			}
+			handleField = func() {
 				// Handle normal Go struct field that serializes to/from
 				// a single JSON object member.
 
@@ -199,14 +205,14 @@ func makeStructFields(root reflect.Type) (fs structFields, serr *SemanticError) 
 					tf := indirectType(f.typ)
 					if !(sf.Anonymous && tf.Kind() == reflect.Struct) {
 						serr = orErrorf(serr, t, "Go struct field %s is not exported", sf.Name)
-						continue
+						return
 					}
 					// Unfortunately, methods on the unexported field
 					// still cannot be called.
 					if implementsAny(tf, allMethodTypes...) ||
 						(f.omitzero && implementsAny(tf, isZeroerType)) {
 						serr = orErrorf(serr, t, "Go struct field %s is not exported for method calls", sf.Name)
-						continue
+						return
 					}
 				}
 
@@ -252,6 +258,12 @@ func makeStructFields(root reflect.Type) (fs structFields, serr *SemanticError) 
 				if f.format != "" && fs.errUnsupportedFormat == nil {
 					fs.errUnsupportedFormat = &SemanticError{GoType: t, Err: fmt.Errorf("Go struct field %s has unsupported `format` tag option", sf.Name)}
 				}
+			}
+
+			if f.inline {
+				handleInline()
+			} else {
+				handleField()
 			}
 		}
 
