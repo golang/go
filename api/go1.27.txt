@@ -49,6 +49,7 @@ pkg crypto/tls, const MLDSA87 SignatureScheme #78888
 pkg crypto/tls, const MLKEM1024 = 514 #78543
 pkg crypto/tls, const MLKEM1024 CurveID #78543
 pkg crypto/tls, type Config struct, Rand //deprecated #79367
+pkg crypto/tls, type ConnectionState struct, LocalCertificate [][]uint8 #24673
 pkg crypto/tls, type QUICConfig struct, ClientHelloInfoConn net.Conn #77363
 pkg crypto/x509, const MLDSA = 5 #78888
 pkg crypto/x509, const MLDSA PublicKeyAlgorithm #78888

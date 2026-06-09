@@ -325,6 +325,11 @@ type ConnectionState struct {
 	// are a server, or if we received a HelloRetryRequest if we are a client.
 	HelloRetryRequest bool
 
+	// LocalCertificate is the certificate chain presented to the peer, if any,
+	// during the handshake. This field is only populated for connections which
+	// are not resumed (DidResume is false).
+	LocalCertificate [][]byte
+
 	// ekm is a closure exposed via ExportKeyingMaterial.
 	ekm func(label string, context []byte, length int) ([]byte, error)
 
