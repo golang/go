@@ -25,6 +25,10 @@ type Decoder struct {
 	// hadPeeked reports whether [Decoder.More] was called.
 	// It is reset by [Decoder.Decode] and [Decoder.Token].
 	hadPeeked bool
+
+	// hadEOF reports whether [Decoder.Token] had hit [io.EOF].
+	// It is reset by [Decoder.Decode] and [Decoder.Token].
+	hadEOF bool
 }
 
 // NewDecoder returns a new decoder that reads from r.
@@ -82,6 +86,7 @@ func (dec *Decoder) Decode(v any) error {
 		return dec.err
 	}
 	dec.hadPeeked = false
+	dec.hadEOF = false
 	return jsonv2.Unmarshal(b, v, dec.opts)
 }
 
@@ -224,6 +229,7 @@ func (dec *Decoder) Token() (Token, error) {
 		// truncated within a JSON token such as a literal, number, or string.
 		if errors.Is(err, io.ErrUnexpectedEOF) {
 			if len(bytes.Trim(dec.dec.UnreadBuffer(), " \r\n\t,:")) == 0 {
+				dec.hadEOF = true
 				return nil, io.EOF
 			}
 			return nil, io.ErrUnexpectedEOF
@@ -231,6 +237,7 @@ func (dec *Decoder) Token() (Token, error) {
 		return nil, transformSyntacticError(err)
 	}
 	dec.hadPeeked = false
+	dec.hadEOF = false
 	switch k := tok.Kind(); k {
 	case 'n':
 		return nil, nil
@@ -282,7 +289,7 @@ func (dec *Decoder) More() bool {
 // and the beginning of the next token.
 func (dec *Decoder) InputOffset() int64 {
 	offset := dec.dec.InputOffset()
-	if dec.hadPeeked {
+	if dec.hadPeeked || dec.hadEOF {
 		// Historically, InputOffset reported the location of
 		// the end of the most recently returned token
 		// unless [Decoder.More] is called, in which case, it reported
@@ -292,6 +299,12 @@ func (dec *Decoder) InputOffset() int64 {
 		if len(trailingTokens) > 0 {
 			leadingWhitespace := len(unreadBuffer) - len(trailingTokens)
 			offset += int64(leadingWhitespace)
+
+			// If [Decoder.Token] had encountered [io.EOF],
+			// then it also includes the upcoming comma or colon.
+			if dec.hadEOF && (trailingTokens[0] == ',' || trailingTokens[0] == ':') {
+				offset++
+			}
 		}
 	}
 	return offset
