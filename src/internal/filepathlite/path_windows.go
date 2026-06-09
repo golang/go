@@ -225,7 +225,7 @@ func volumeNameLen(path string) int {
 		// Windows's own GetFullPathName will happily remove the first
 		// component of the path in this space, converting
 		// \\.\unc\a\b\..\c into \\.\unc\a\c.
-		return uncLen(path, len(`\\.\UNC\`))
+		return validVolumeNameLen(path, uncLen(path, len(`\\.\UNC\`)))
 
 	case pathHasPrefixFold(path, `\\.`) ||
 		pathHasPrefixFold(path, `\\?`) || pathHasPrefixFold(path, `\??`):
@@ -240,15 +240,28 @@ func volumeNameLen(path string) int {
 		}
 		_, rest, ok := cutPath(path[4:])
 		if !ok {
-			return len(path)
+			return validVolumeNameLen(path, len(path))
 		}
-		return len(path) - len(rest) - 1
+		return validVolumeNameLen(path, len(path)-len(rest)-1)
 
 	case len(path) >= 2 && IsPathSeparator(path[1]):
 		// Path starts with \\, and is a UNC path.
-		return uncLen(path, 2)
+		return validVolumeNameLen(path, uncLen(path, 2))
 	}
 	return 0
+}
+
+// validVolumeNameLen returns n if path[:n] is a valid Windows volume name.
+// If the volume name contains a ".." path component, it returns 0.
+func validVolumeNameLen(path string, n int) int {
+	for p := path[:n]; p != ""; {
+		var part string
+		part, p, _ = cutPath(p)
+		if part == ".." {
+			return 0
+		}
+	}
+	return n
 }
 
 // pathHasPrefixFold tests whether the path s begins with prefix,
