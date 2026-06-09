@@ -1342,6 +1342,150 @@ func TestMetaHeadersFrameAccessorPanicsWhenStale(t *testing.T) {
 	}
 }
 
+// TestReadMetaFrameReusesFieldsSlice verifies that, when
+// SetReuseFrames is in effect, readMetaFrame reuses the backing array
+// of MetaHeadersFrame.Fields across parses instead of growing a fresh
+// slice from nil each time. The Fields documentation already forbids
+// retaining the slice past the next ReadFrame, and the package's
+// consumers copy field strings into their own header maps
+// synchronously, so the in-place overwrite is within contract.
+func TestReadMetaFrameReusesFieldsSlice(t *testing.T) {
+	fr, buf := testFramer()
+	fr.SetReuseFrames()
+	fr.ReadMetaHeaders = hpack.NewDecoder(initialHeaderTableSize, nil)
+
+	readMeta := func() *MetaHeadersFrame {
+		t.Helper()
+		f, err := fr.ReadFrame()
+		if err != nil {
+			t.Fatal(err)
+		}
+		mh, ok := f.(*MetaHeadersFrame)
+		if !ok {
+			t.Fatalf("got %T, want *MetaHeadersFrame", f)
+		}
+		return mh
+	}
+
+	// First read populates the cached slice.
+	writeMetaHeaders(t, fr, 1, ":method", "GET", ":path", "/a", ":scheme", "http", ":authority", "x")
+	mh := readMeta()
+	if len(mh.Fields) != 4 {
+		t.Fatalf("first parse: got %d fields, want 4", len(mh.Fields))
+	}
+	backing1 := unsafe.SliceData(mh.Fields)
+
+	// A second read of the same shape must reuse the backing array.
+	buf.Reset()
+	writeMetaHeaders(t, fr, 3, ":method", "POST", ":path", "/b", ":scheme", "https", ":authority", "y")
+	mh = readMeta()
+	if len(mh.Fields) != 4 {
+		t.Fatalf("second parse: got %d fields, want 4", len(mh.Fields))
+	}
+	if backing := unsafe.SliceData(mh.Fields); backing != backing1 {
+		t.Errorf("Fields backing array changed between equal-size reads: have %p, want %p", backing, backing1)
+	}
+
+	// A larger read may grow the slice; a subsequent equal-size read
+	// must then reuse the grown array.
+	buf.Reset()
+	writeMetaHeaders(t, fr, 5,
+		":method", "GET", ":path", "/c", ":scheme", "http", ":authority", "z",
+		"x-a", "1", "x-b", "2", "x-c", "3", "x-d", "4")
+	mh = readMeta()
+	if len(mh.Fields) != 8 {
+		t.Fatalf("third parse: got %d fields, want 8", len(mh.Fields))
+	}
+	backing3 := unsafe.SliceData(mh.Fields)
+
+	buf.Reset()
+	writeMetaHeaders(t, fr, 7,
+		":method", "GET", ":path", "/d", ":scheme", "http", ":authority", "z",
+		"x-a", "5", "x-b", "6", "x-c", "7", "x-d", "8")
+	mh = readMeta()
+	if backing := unsafe.SliceData(mh.Fields); backing != backing3 {
+		t.Errorf("Fields backing array changed after equal-size read: have %p, want %p", backing, backing3)
+	}
+}
+
+// TestReadMetaFrameFieldsClearsSensitiveTail verifies the memory
+// hygiene of the Fields reuse: header values can hold secrets, so the
+// retained backing array must be cleared before reuse. After a parse
+// shorter than its predecessor, no slot beyond the new length may
+// still reference the earlier parse's strings.
+func TestReadMetaFrameFieldsClearsSensitiveTail(t *testing.T) {
+	fr, buf := testFramer()
+	fr.SetReuseFrames()
+	fr.ReadMetaHeaders = hpack.NewDecoder(initialHeaderTableSize, nil)
+
+	const secret = "secret-cookie-value-do-not-retain"
+	writeMetaHeaders(t, fr, 1,
+		":method", "GET", ":path", "/", ":scheme", "http", ":authority", "x",
+		"cookie", secret)
+	if _, err := fr.ReadFrame(); err != nil {
+		t.Fatal(err)
+	}
+
+	// Shorter second parse: the slots beyond its length must have
+	// been cleared, not merely left beyond the slice length.
+	buf.Reset()
+	writeMetaHeaders(t, fr, 3, ":method", "GET", ":path", "/", ":scheme", "http", ":authority", "x")
+	f, err := fr.ReadFrame()
+	if err != nil {
+		t.Fatal(err)
+	}
+	mh := f.(*MetaHeadersFrame)
+
+	full := mh.Fields[:cap(mh.Fields)]
+	for i := len(mh.Fields); i < len(full); i++ {
+		if full[i] != (hpack.HeaderField{}) {
+			t.Errorf("Fields slot %d beyond len not cleared: %+v", i, full[i])
+		}
+		if full[i].Value == secret {
+			t.Errorf("Fields slot %d still references the previous parse's secret", i)
+		}
+	}
+}
+
+// TestReadMetaFrameFieldsRetentionCap verifies that a single large
+// HEADERS frame does not permanently inflate the per-Framer Fields
+// cache: an array grown past maxRetainedMetaFields is dropped at the
+// start of the next parse.
+func TestReadMetaFrameFieldsRetentionCap(t *testing.T) {
+	fr, buf := testFramer()
+	fr.SetReuseFrames()
+	fr.ReadMetaHeaders = hpack.NewDecoder(initialHeaderTableSize, nil)
+
+	big := []string{":method", "GET", ":path", "/", ":scheme", "http", ":authority", "x"}
+	for i := 0; i < 2*maxRetainedMetaFields; i++ {
+		big = append(big, fmt.Sprintf("x-h-%03d", i), "v")
+	}
+	writeMetaHeaders(t, fr, 1, big...)
+	f, err := fr.ReadFrame()
+	if err != nil {
+		t.Fatal(err)
+	}
+	mh := f.(*MetaHeadersFrame)
+	if cap(mh.Fields) <= maxRetainedMetaFields {
+		t.Fatalf("test setup: large parse cap = %d, want > %d", cap(mh.Fields), maxRetainedMetaFields)
+	}
+	bigBacking := unsafe.SliceData(mh.Fields)
+
+	buf.Reset()
+	writeMetaHeaders(t, fr, 3, ":method", "GET", ":path", "/", ":scheme", "http", ":authority", "x")
+	f, err = fr.ReadFrame()
+	if err != nil {
+		t.Fatal(err)
+	}
+	mh = f.(*MetaHeadersFrame)
+	if backing := unsafe.SliceData(mh.Fields); backing == bigBacking {
+		t.Errorf("oversized Fields backing array was retained across parses")
+	}
+	if cap(mh.Fields) > maxRetainedMetaFields {
+		t.Errorf("cap(Fields) = %d after small parse, want <= %d", cap(mh.Fields), maxRetainedMetaFields)
+	}
+}
+
 func TestWritePing(t *testing.T)    { testWritePing(t, false) }
 func TestWritePingAck(t *testing.T) { testWritePing(t, true) }
 
