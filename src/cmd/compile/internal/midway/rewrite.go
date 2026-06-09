@@ -93,7 +93,12 @@ func (r *Rewriter) generateDispatchers(fileAST *syntax.File) {
 			}
 
 			if r.analyzer.HasDependentSignature(sig) {
-				// Drop dependent signatures entirely
+				if o := r.info.Defs[d.Name]; o != nil && !o.Exported() {
+					// Drop unexported dependent signatures entirely
+					continue
+				}
+				d.Body = r.blockOf(d.Pos(), r.panicStmt(d.Pos(), "unexpected call of original function rewritten to specialized SIMD"))
+				newDecls = append(newDecls, d)
 				continue
 			}
 
@@ -102,17 +107,9 @@ func (r *Rewriter) generateDispatchers(fileAST *syntax.File) {
 			newDecls = append(newDecls, d)
 
 		case *syntax.VarDecl:
-			// Filter specs conceptually based on dependents
-			keep := false
-			for _, name := range d.NameList {
-				if !r.analyzer.dependentObj[r.info.Defs[name]] {
-					keep = true
-					break // Keep entire var decl if any name is clean, else drop
-				}
-			}
-			if keep {
-				newDecls = append(newDecls, d)
-			}
+			// Keep var decls even if rewritten, so that pre-rewrite code parses correctly.
+			// TODO figure out how to deal with side-effects in initializers.
+			newDecls = append(newDecls, d)
 		case *syntax.TypeDecl:
 			if !r.analyzer.dependentObj[r.info.Defs[d.Name]] || r.analyzer.inSimd {
 				newDecls = append(newDecls, d)
@@ -285,20 +282,33 @@ func (r *Rewriter) createDispatcherBody(d *syntax.FuncDecl, sig *types2.Signatur
 		switchStmt.Body = append(switchStmt.Body, caseClause)
 	}
 
-	fnName := "panic"
-	fnIdent := pe(syntax.NewName(d.Pos(), fnName))
+	panicStmt := r.panicStmt(d.Pos(), "unsupported vector size in simd-rewritten code")
+	return r.blockOf(d.Pos(), switchStmt, panicStmt)
+}
 
+func (r *Rewriter) blockOf(p syntax.Pos, stmts ...syntax.Stmt) *syntax.BlockStmt {
+	for _, s := range stmts {
+		s.SetPos(p)
+	}
+	blockStmt := &syntax.BlockStmt{List: stmts}
+	blockStmt.SetPos(p)
+	return blockStmt
+}
+
+func (r *Rewriter) panicStmt(p syntax.Pos, unquotedMessage string) *syntax.ExprStmt {
+	pe := func(e syntax.Expr) syntax.Expr {
+		e.SetPos(p)
+		return e
+	}
+	fnName := "panic"
+	fnIdent := pe(syntax.NewName(p, fnName))
 	callExpr := pe(&syntax.CallExpr{
 		Fun:     fnIdent,
-		ArgList: []syntax.Expr{pe(&syntax.BasicLit{Value: "\"unsupported vector size in simd-rewritten code\"", Kind: syntax.StringLit})},
+		ArgList: []syntax.Expr{pe(&syntax.BasicLit{Value: `"` + unquotedMessage + `"`, Kind: syntax.StringLit})},
 	})
-
 	panicStmt := &syntax.ExprStmt{X: callExpr}
-	blockStmt := &syntax.BlockStmt{List: []syntax.Stmt{ps(switchStmt), ps(panicStmt)}}
-
-	blockStmt.SetPos(d.Pos())
-
-	return blockStmt
+	panicStmt.SetPos(p)
+	return panicStmt
 }
 
 func (r *Rewriter) generateForSize(fileAST *syntax.File, k int, newDecls []syntax.Decl) []syntax.Decl {
