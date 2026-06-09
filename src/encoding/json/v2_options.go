@@ -488,7 +488,12 @@ func ReportErrorsWithLegacySemantics(v bool) Options {
 // StringifyWithLegacySemantics specifies that the `string` tag option
 // may stringify bools and string values. It only takes effect on fields
 // where the top-level type is a bool, string, numeric kind, or a pointer to
-// such a kind.
+// such a kind. In contrast, the v2 default only allows the `string` tag option
+// on Go types that would have otherwise serialized as a JSON number,
+// and stringifies the JSON number within a JSON string. In particular,
+// the v2 default does not stringify Go bools and strings.
+// If [ReportErrorsWithLegacySemantics] is false,
+// then incorrect usages of `string` results in a runtime error.
 //
 // When marshaling, such Go values are serialized as their usual JSON
 // representation, but quoted within a JSON string.
@@ -498,6 +503,8 @@ func ReportErrorsWithLegacySemantics(v bool) Options {
 // Note that the Go number grammar is a superset of the JSON number grammar.
 // A JSON null quoted in a JSON string is a valid substitute for JSON null
 // while unmarshaling into a Go value that `string` takes effect on.
+// In contrast, the v2 default rejects stringified numbers outside of the
+// grammar for a JSON number and also rejects a JSON null quoted in a JSON string.
 //
 // This affects either marshaling or unmarshaling.
 // The v1 default is true.
@@ -513,6 +520,8 @@ func StringifyWithLegacySemantics(v bool) Options {
 // from input JSON arrays of any length. If the JSON array is too short,
 // then the remaining Go array elements are zeroed. If the JSON array
 // is too long, then the excess JSON array elements are skipped over.
+// In contrast, the v2 default expects that Go arrays be unmarshaled
+// from input JSON arrays of the exact same length.
 //
 // This only affects unmarshaling and is ignored when marshaling.
 // The v1 default is true.
