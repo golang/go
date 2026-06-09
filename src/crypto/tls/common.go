@@ -927,6 +927,11 @@ type EncryptedClientHelloKey struct {
 	//   - DHKEM(P-384, HKDF-SHA384) (0x0011)
 	//   - DHKEM(P-521, HKDF-SHA512) (0x0012)
 	//   - DHKEM(X25519, HKDF-SHA256) (0x0020)
+	//   - ML-KEM-768 (0x0041)
+	//   - ML-KEM-1024 (0x0042)
+	//   - MLKEM768-P256 (0x0050)
+	//   - MLKEM1024-P384 (0x0051)
+	//   - MLKEM768-X25519 (0x647a)
 	//
 	// and as KDF one of
 	//
