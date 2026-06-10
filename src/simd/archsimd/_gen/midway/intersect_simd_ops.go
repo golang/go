@@ -345,12 +345,13 @@ func main() {
 
 // Computed intersection of methods for supported SIMD architectures and vector widths
 
-package simd`)
+package simd
 
-		if c := comments.Types["_simd"]; c != "" {
-			pf("// %s\n", c)
-		}
-		p("type _simd struct {\n\t_ [0]func(*_simd) *_simd\n}\n")
+import "simd/internal/bridge"
+
+// internal SIMD marker, and hard dependence on simd/internal/bridge
+type _simd bridge.ZeroSized
+`)
 
 		sigForMethod := make(map[string]*ast.FuncDecl)
 

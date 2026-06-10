@@ -6,10 +6,10 @@
 
 package simd
 
-// internal SIMD marker.
-type _simd struct {
-	_ [0]func(*_simd) *_simd
-}
+import "simd/internal/bridge"
+
+// internal SIMD marker, and hard dependence on simd/internal/bridge
+type _simd bridge.ZeroSized
 
 // Int8s represents a vector of 8-bit signed integers.
 type Int8s struct {

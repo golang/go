@@ -10,6 +10,7 @@ import (
 	"fmt"
 	"math"
 	"math/bits"
+	"simd/internal/bridge"
 )
 
 // VectorSize returns the bit length of the emulated vector (fixed to 128).
@@ -32,9 +33,7 @@ func HasHardwareCarrylessMultiply() bool {
 	return false
 }
 
-type _simd struct {
-	_ [0]func(*_simd) *_simd
-}
+type _simd bridge.ZeroSized
 
 // Int8s represents a 128-bit vector of 16 int8 elements.
 type Int8s struct {
