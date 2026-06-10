@@ -339,7 +339,8 @@ func (e *encoderState) UnwriteOnlyObjectMemberName() string {
 // to provide an end object delimiter when the encoder is finishing an array.
 // If the provided token is invalid, then it reports a [SyntacticError] and
 // the internal state remains unchanged. The offset reported
-// in [SyntacticError] will be relative to the [Encoder.OutputOffset].
+// in [SyntacticError] will be the [Encoder.OutputOffset] plus any delimiter
+// or whitespace characters that would have preceded the provided token.
 func (e *Encoder) WriteToken(t Token) error {
 	return e.s.WriteToken(t)
 }
@@ -518,8 +519,8 @@ func (e *encoderState) AppendRaw(k Kind, safeASCII bool, appendFn func([]byte) (
 // The provided value kind must be consistent with the JSON grammar
 // (see examples on [Encoder.WriteToken]). If the provided value is invalid,
 // then it reports a [SyntacticError] and the internal state remains unchanged.
-// The offset reported in [SyntacticError] will be relative to the
-// [Encoder.OutputOffset] plus the offset into v of any encountered syntax error.
+// The offset reported in [SyntacticError] will be the [Encoder.OutputOffset]
+// plus the offset into v of any encountered syntax error.
 func (e *Encoder) WriteValue(v Value) error {
 	return e.s.WriteValue(v)
 }
@@ -912,7 +913,9 @@ func (e *Encoder) OutputOffset() int64 {
 //	b = append(b, '"')
 //	... := e.WriteValue(b)
 //
-// It is the user's responsibility to ensure that the value is valid JSON.
+// WriteValue expects a JSON value. Using AvailableBuffer to manually construct
+// a value requires caution to avoid producing an invalid JSON value that would
+// then cause WriteValue to fail.
 func (e *Encoder) AvailableBuffer() []byte {
 	// NOTE: We don't return e.Buf[len(e.Buf):cap(e.Buf)] since WriteValue would
 	// need to take special care to avoid mangling the data while reformatting.
@@ -931,7 +934,25 @@ func (e *Encoder) AvailableBuffer() []byte {
 // Each level on the stack represents a nested JSON object or array.
 // It is incremented whenever a [BeginObject] or [BeginArray] token is encountered
 // and decremented whenever an [EndObject] or [EndArray] token is encountered.
-// The depth is zero-indexed, where zero represents the top-level JSON value.
+//
+// StackDepth returns 0 when not inside any object or array.
+// In particular, it returns 0 before any tokens have been written,
+// after any top-level value has been written, and between values
+// when encoding a stream of top-level values (e.g., NDJSON).
+// StackDepth returns 1 inside a top-level object or array,
+// 2 inside a nested object or array, and so on.
+//
+// For example, consider encoding the following JSON:
+//
+//	{"a": [1, 2], "b": {"c": 3}}
+//
+// While encoding, StackDepth would report the following:
+//
+//   - At the start, StackDepth reports 0.
+//   - After encoding the outer '{', StackDepth reports 1.
+//   - After encoding the inner '[', StackDepth reports 2.
+//   - After encoding the inner ']', StackDepth reports 1.
+//   - After encoding the outer '}', StackDepth reports 0.
 func (e *Encoder) StackDepth() int {
 	// NOTE: Keep in sync with Decoder.StackDepth.
 	return e.s.Tokens.Depth() - 1
@@ -945,7 +966,7 @@ func (e *Encoder) StackDepth() int {
 //   - [KindBeginObject] for a level representing a JSON object, and
 //   - [KindBeginArray] for a level representing a JSON array.
 //
-// It also reports the length of that JSON object or array.
+// It also reports the length of that JSON object or array encoded so far.
 // Each name and value in a JSON object is counted separately,
 // so the effective number of members would be half the length.
 // A complete JSON object must have an even length.

@@ -1159,7 +1159,25 @@ func (d *Decoder) UnreadBuffer() []byte {
 // Each level on the stack represents a nested JSON object or array.
 // It is incremented whenever a [BeginObject] or [BeginArray] token is encountered
 // and decremented whenever an [EndObject] or [EndArray] token is encountered.
-// The depth is zero-indexed, where zero represents the top-level JSON value.
+//
+// StackDepth returns 0 when not inside any object or array.
+// In particular, it returns 0 before any tokens have been read,
+// after any top-level value has been read, and between values
+// when decoding a stream of top-level values (e.g., NDJSON).
+// StackDepth returns 1 inside a top-level object or array,
+// 2 inside a nested object or array, and so on.
+//
+// For example, consider decoding the following JSON:
+//
+//	{"a": [1, 2], "b": {"c": 3}}
+//
+// While decoding, StackDepth would report the following:
+//
+//   - At the start, StackDepth reports 0.
+//   - After decoding the outer '{', StackDepth reports 1.
+//   - After decoding the inner '[', StackDepth reports 2.
+//   - After decoding the inner ']', StackDepth reports 1.
+//   - After decoding the outer '}', StackDepth reports 0.
 func (d *Decoder) StackDepth() int {
 	// NOTE: Keep in sync with Encoder.StackDepth.
 	return d.s.Tokens.Depth() - 1
@@ -1173,7 +1191,7 @@ func (d *Decoder) StackDepth() int {
 //   - [KindBeginObject] for a level representing a JSON object, and
 //   - [KindBeginArray] for a level representing a JSON array.
 //
-// It also reports the length of that JSON object or array.
+// It also reports the length of that JSON object or array decoded so far.
 // Each name and value in a JSON object is counted separately,
 // so the effective number of members would be half the length.
 // A complete JSON object must have an even length.
