@@ -1241,7 +1241,7 @@ var unmarshalTests = []struct {
 		in:       `1`,
 		ptr:      new(chan int),
 		out:      (chan int)(nil),
-		err:      &UnmarshalTypeError{Value: "number", Type: reflect.TypeFor[chan int](), Offset: len64(``)},
+		err:      &UnmarshalTypeError{Value: "number", Type: reflect.TypeFor[chan int](), Offset: len64(`1`)},
 	},
 
 	// #75619
@@ -1298,6 +1298,23 @@ var unmarshalTests = []struct {
 			X float64 `json:",string"`
 		}),
 		err: &UnmarshalTypeError{Value: "number 1.5e1_", Type: reflect.TypeFor[float64](), Field: "X", Offset: len64(`{"X": "1.5e1_"`)},
+	},
+	{
+		CaseName: Name("UnsupportedTypes"),
+		in:       `{"A":null,"B":[1,2,3],"C":321,"D":"X"}`,
+		ptr: &struct {
+			A chan int
+			B complex128
+			C int
+			D func()
+		}{},
+		out: struct {
+			A chan int
+			B complex128
+			C int
+			D func()
+		}{C: 321},
+		err: &UnmarshalTypeError{Value: "array", Type: reflect.TypeFor[complex128](), Field: "B", Offset: len64(`{"A":null,"B":[`)},
 	},
 }
 
