@@ -746,11 +746,11 @@ func (t *tester) registerTests() {
 		}
 	}
 
-	// Test GOEXPERIMENT=jsonv2.
-	if !strings.Contains(goexperiment, "jsonv2") {
-		t.registerTest("GOEXPERIMENT=jsonv2 go test encoding/json/...", &goTest{
-			variant: "jsonv2",
-			env:     []string{"GOEXPERIMENT=" + goexperiments("jsonv2")},
+	// Test GOEXPERIMENT=nojsonv2.
+	if !strings.Contains(goexperiment, "nojsonv2") {
+		t.registerTest("GOEXPERIMENT=nojsonv2 go test encoding/json/...", &goTest{
+			variant: "nojsonv2",
+			env:     []string{"GOEXPERIMENT=" + goexperiments("nojsonv2")},
 			pkg:     "encoding/json/...",
 		})
 	}
