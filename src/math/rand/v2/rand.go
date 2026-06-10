@@ -12,6 +12,9 @@
 // Top-level functions, such as [Float64] and [Int],
 // are safe for concurrent use by multiple goroutines.
 //
+// The [PCG] source is a fast general-purpose pseudo-random generator.
+// The [ChaCha8] source trades speed for stronger resistance to prediction.
+//
 // This package's outputs might be easily predictable regardless of how it's
 // seeded. For random numbers suitable for security-sensitive work, see the
 // [crypto/rand] package.
