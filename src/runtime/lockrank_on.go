@@ -21,9 +21,6 @@ var worldIsStopped atomic.Uint32
 type lockRankStruct struct {
 	// static lock ranking of the lock
 	rank lockRank
-	// pad field to make sure lockRankStruct is a multiple of 8 bytes, even on
-	// 32-bit systems.
-	pad int
 }
 
 // lockInit(l *mutex, rank int) sets the rank of lock before it is used.

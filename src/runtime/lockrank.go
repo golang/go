@@ -2,7 +2,7 @@
 
 package runtime
 
-type lockRank int
+type lockRank int64
 
 // Constants representing the ranks of all non-leaf runtime locks, in rank order.
 // Locks with lower rank must be taken before locks with higher rank,
