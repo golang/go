@@ -219,25 +219,25 @@ func volumeNameLen(path string) int {
 		// Path does not have a volume component.
 		return 0
 
-	case pathHasPrefixFold(path, `\\.\UNC`):
-		// We're going to treat the UNC host and share as part of the volume
-		// prefix for historical reasons, but this isn't really principled;
-		// Windows's own GetFullPathName will happily remove the first
-		// component of the path in this space, converting
-		// \\.\unc\a\b\..\c into \\.\unc\a\c.
-		return validVolumeNameLen(path, uncLen(path, len(`\\.\UNC\`)))
-
 	case pathHasPrefixFold(path, `\\.`) ||
 		pathHasPrefixFold(path, `\\?`) || pathHasPrefixFold(path, `\??`):
-		// Path starts with \\.\, and is a Local Device path; or
-		// path starts with \\?\ or \??\ and is a Root Local Device path.
+		// Path starts with a device prefix: \\.\ for Local Device paths,
+		// or \\?\ or \??\ for Root Local Device paths.
+		switch {
+		case len(path) == 3:
+			return 3 // exactly \\., \\?, or \??
+		case pathHasPrefixFold(path[4:], `UNC`):
+			// We're going to treat the UNC host and share as part of the volume
+			// prefix for historical reasons, but this isn't really principled;
+			// Windows's own GetFullPathName will happily remove the first
+			// component of the path in this space, converting
+			// \\.\unc\a\b\..\c into \\.\unc\a\c.
+			return validVolumeNameLen(path, uncLen(path, len(`\\.\UNC\`)))
+		}
 		//
-		// We treat the next component after the \\.\ prefix as
+		// We treat the next component after the device prefix as
 		// part of the volume name, which means Clean(`\\?\c:\`)
 		// won't remove the trailing \. (See #64028.)
-		if len(path) == 3 {
-			return 3 // exactly \\.
-		}
 		_, rest, ok := cutPath(path[4:])
 		if !ok {
 			return validVolumeNameLen(path, len(path))
