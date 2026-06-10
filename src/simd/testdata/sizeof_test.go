@@ -4,11 +4,11 @@
 
 //go:build goexperiment.simd
 
-package simd_test
+package testdata_test
 
 import (
 	"simd"
-	"simd/testdata"
+	"simd/testdata/pkg"
 	"testing"
 	"unsafe"
 )
@@ -19,8 +19,8 @@ func TestSizeof(t *testing.T) {
 	var f float32
 	sv0 := int(unsafe.Sizeof(v))
 	sv1 := v.Len() * int(unsafe.Sizeof(f))
-	sV := int(unsafe.Sizeof(testdata.V))
-	sF := int(unsafe.Sizeof(testdata.F()))
+	sV := int(unsafe.Sizeof(pkg.V))
+	sF := int(unsafe.Sizeof(pkg.F()))
 	if sv0 != sv1 {
 		t.Errorf("sv0=%d and sv1=%d should be equal but are not", sv0, sv1)
 	}
