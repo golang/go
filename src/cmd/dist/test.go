@@ -588,15 +588,7 @@ func (t *tester) registerStdTest(pkg string) {
 		defer timelog("end", dt.name)
 		ranGoTest = true
 
-		timeoutSec := 180 * time.Second
-		for _, pkg := range stdMatches {
-			if pkg == "cmd/go" {
-				timeoutSec *= 3
-				break
-			}
-		}
 		return (&goTest{
-			timeout: timeoutSec,
 			gcflags: gcflags,
 			pkgs:    stdMatches,
 		}).run(t)
