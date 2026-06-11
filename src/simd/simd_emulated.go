@@ -10,7 +10,6 @@ import (
 	"fmt"
 	"math"
 	"math/bits"
-	"simd/internal/bridge"
 )
 
 // VectorSize returns the bit length of the emulated vector (fixed to 128).
@@ -31,14 +30,6 @@ func Emulated() bool {
 // that will fail ("SIGILL") if it is executed.
 func HasHardwareCarrylessMultiply() bool {
 	return false
-}
-
-type _simd bridge.ZeroSized
-
-// Int8s represents a 128-bit vector of 16 int8 elements.
-type Int8s struct {
-	_    _simd
-	a, b uint64
 }
 
 // LoadInt8s loads a slice of int8 into an Int8s vector.
@@ -353,12 +344,6 @@ func (x Int8s) ConvertToUint8() Uint8s {
 // ToBits reinterprets the vector bits as a Uint8s vector.
 func (x Int8s) ToBits() Uint8s {
 	return Uint8s{a: x.a, b: x.b}
-}
-
-// Int16s represents a 128-bit vector of 8 int16 elements.
-type Int16s struct {
-	_    _simd
-	a, b uint64
 }
 
 // LoadInt16s loads a slice of int16 into an Int16s vector.
@@ -717,12 +702,6 @@ func (x Int16s) ToBits() Uint16s {
 	return Uint16s{a: x.a, b: x.b}
 }
 
-// Int32s represents a 128-bit vector of 4 int32 elements.
-type Int32s struct {
-	_    _simd
-	a, b uint64
-}
-
 // LoadInt32s loads a slice of int32 into an Int32s vector.
 func LoadInt32s(s []int32) Int32s {
 	var a, b uint64
@@ -1056,12 +1035,6 @@ func (x Int32s) ToBits() Uint32s {
 	return Uint32s{a: x.a, b: x.b}
 }
 
-// Int64s represents a 128-bit vector of 2 int64 elements.
-type Int64s struct {
-	_    _simd
-	a, b uint64
-}
-
 // LoadInt64s loads a slice of int64 into an Int64s vector.
 func LoadInt64s(s []int64) Int64s {
 	var a, b uint64
@@ -1291,12 +1264,6 @@ func (x Int64s) ConvertToUint64() Uint64s {
 // ToBits reinterprets the vector bits as a Uint64s vector.
 func (x Int64s) ToBits() Uint64s {
 	return Uint64s{a: x.a, b: x.b}
-}
-
-// Uint8s represents a 128-bit vector of 16 uint8 elements.
-type Uint8s struct {
-	_    _simd
-	a, b uint64
 }
 
 // LoadUint8s loads a slice of uint8 into an Uint8s vector.
@@ -1554,12 +1521,6 @@ func (x Uint8s) ReshapeToUint32s() Uint32s {
 // ReshapeToUint64s reinterprets the vector bits as a Uint64s vector.
 func (x Uint8s) ReshapeToUint64s() Uint64s {
 	return Uint64s{a: x.a, b: x.b}
-}
-
-// Uint16s represents a 128-bit vector of 8 uint16 elements.
-type Uint16s struct {
-	_    _simd
-	a, b uint64
 }
 
 // LoadUint16s loads a slice of uint16 into an Uint16s vector.
@@ -1905,12 +1866,6 @@ func (x Uint16s) ReshapeToUint8s() Uint8s {
 	return Uint8s{a: x.a, b: x.b}
 }
 
-// Uint32s represents a 128-bit vector of 4 uint32 elements.
-type Uint32s struct {
-	_    _simd
-	a, b uint64
-}
-
 // LoadUint32s loads a slice of uint32 into an Uint32s vector.
 func LoadUint32s(s []uint32) Uint32s {
 	var a, b uint64
@@ -2221,12 +2176,6 @@ func (x Uint32s) ReshapeToUint8s() Uint8s {
 	return Uint8s{a: x.a, b: x.b}
 }
 
-// Uint64s represents a 128-bit vector of 2 uint64 elements.
-type Uint64s struct {
-	_    _simd
-	a, b uint64
-}
-
 // LoadUint64s loads a slice of uint64 into an Uint64s vector.
 func LoadUint64s(s []uint64) Uint64s {
 	var a, b uint64
@@ -2461,12 +2410,6 @@ func (x Uint64s) ReshapeToUint32s() Uint32s {
 // ReshapeToUint8s reinterprets the vector bits as a Uint8s vector.
 func (x Uint64s) ReshapeToUint8s() Uint8s {
 	return Uint8s{a: x.a, b: x.b}
-}
-
-// Float32s represents a 128-bit vector of 4 float32 elements.
-type Float32s struct {
-	_    _simd
-	a, b uint64
 }
 
 // LoadFloat32s loads a slice of float32 into an Float32s vector.
@@ -2751,12 +2694,6 @@ func (x Float32s) ToBits() Uint32s {
 	return Uint32s{a: x.a, b: x.b}
 }
 
-// Float64s represents a 128-bit vector of 2 float64 elements.
-type Float64s struct {
-	_    _simd
-	a, b uint64
-}
-
 // LoadFloat64s loads a slice of float64 into an Float64s vector.
 func LoadFloat64s(s []float64) Float64s {
 	var a, b uint64
@@ -3020,12 +2957,6 @@ func (x Float64s) ToBits() Uint64s {
 	return Uint64s{a: x.a, b: x.b}
 }
 
-// Mask8s represents a 128-bit mask vector for 16 int8/uint8 elements.
-type Mask8s struct {
-	_    _simd
-	a, b uint64
-}
-
 func (x *Mask8s) set(i int, v bool) {
 	if v {
 		if i < 8 {
@@ -3056,12 +2987,6 @@ func (x Mask8s) String() string {
 // ToInt8s converts the mask to an Int8s vector.
 func (x Mask8s) ToInt8s() Int8s {
 	return Int8s{a: x.a, b: x.b}
-}
-
-// Mask16s represents a 128-bit mask vector for 8 int16/uint16 elements.
-type Mask16s struct {
-	_    _simd
-	a, b uint64
 }
 
 func (x *Mask16s) set(i int, v bool) {
@@ -3096,12 +3021,6 @@ func (x Mask16s) ToInt16s() Int16s {
 	return Int16s{a: x.a, b: x.b}
 }
 
-// Mask32s represents a 128-bit mask vector for 4 int32/uint32/float32 elements.
-type Mask32s struct {
-	_    _simd
-	a, b uint64
-}
-
 func (x *Mask32s) set(i int, v bool) {
 	if v {
 		if i < 2 {
@@ -3132,12 +3051,6 @@ func (x Mask32s) String() string {
 // ToInt32s converts the mask to an Int32s vector.
 func (x Mask32s) ToInt32s() Int32s {
 	return Int32s{a: x.a, b: x.b}
-}
-
-// Mask64s represents a 128-bit mask vector for 2 int64/uint64/float64 elements.
-type Mask64s struct {
-	_    _simd
-	a, b uint64
 }
 
 func (x *Mask64s) set(i int, v bool) {
