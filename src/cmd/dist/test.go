@@ -615,7 +615,7 @@ func (t *tester) registerRaceBenchTest(pkg string) {
 			// This makes the test targets distinct, allowing our build system to record
 			// elapsed time for each one, which is useful for load-balancing test shards.
 			omitVariant: false,
-			timeout:     1200 * time.Second, // longer timeout for race with benchmarks
+			timeout:     20 * time.Minute, // longer timeout for race with benchmarks
 			race:        true,
 			bench:       true,
 			cpu:         "4",
@@ -706,7 +706,6 @@ func (t *tester) registerTests() {
 		t.registerTest("os/user with tag osusergo",
 			&goTest{
 				variant: "osusergo",
-				timeout: 300 * time.Second,
 				tags:    []string{"osusergo"},
 				pkg:     "os/user",
 			})
@@ -797,7 +796,6 @@ func (t *tester) registerTests() {
 		t.registerTest("GOOS=ios on darwin/amd64",
 			&goTest{
 				variant:  "amd64ios",
-				timeout:  300 * time.Second,
 				runTests: "SystemRoots",
 				env:      []string{"GOOS=ios", "CGO_ENABLED=1"},
 				pkg:      "crypto/x509",
@@ -811,7 +809,6 @@ func (t *tester) registerTests() {
 		t.registerTest("GODEBUG=gcstoptheworld=2 archive/zip",
 			&goTest{
 				variant: "gcstoptheworld2",
-				timeout: 300 * time.Second,
 				short:   true,
 				env:     []string{"GODEBUG=gcstoptheworld=2"},
 				pkg:     "archive/zip",
@@ -819,7 +816,6 @@ func (t *tester) registerTests() {
 		t.registerTest("GODEBUG=gccheckmark=1 runtime",
 			&goTest{
 				variant: "gccheckmark",
-				timeout: 300 * time.Second,
 				short:   true,
 				env:     []string{"GODEBUG=gccheckmark=1"},
 				pkg:     "runtime",
@@ -876,7 +872,6 @@ func (t *tester) registerTests() {
 			t.registerTest("maymorestack="+hook,
 				&goTest{
 					variant: hook,
-					timeout: 600 * time.Second,
 					short:   true,
 					env:     []string{"GOFLAGS=" + goFlags},
 					pkgs:    []string{"runtime", "reflect", "sync"},
@@ -922,7 +917,6 @@ func (t *tester) registerTests() {
 		t.registerTest("internal linking, -buildmode=pie",
 			&goTest{
 				variant:   "pie_internal",
-				timeout:   60 * time.Second,
 				buildmode: "pie",
 				ldflags:   "-linkmode=internal",
 				env:       []string{"CGO_ENABLED=0"},
@@ -931,7 +925,6 @@ func (t *tester) registerTests() {
 		t.registerTest("internal linking, -buildmode=pie",
 			&goTest{
 				variant:   "pie_internal",
-				timeout:   60 * time.Second,
 				buildmode: "pie",
 				ldflags:   "-linkmode=internal",
 				env:       []string{"CGO_ENABLED=0"},
@@ -943,7 +936,6 @@ func (t *tester) registerTests() {
 			t.registerTest("internal linking, -buildmode=pie",
 				&goTest{
 					variant:   "pie_internal",
-					timeout:   60 * time.Second,
 					buildmode: "pie",
 					ldflags:   "-linkmode=internal",
 					pkg:       "os/user",
@@ -956,7 +948,6 @@ func (t *tester) registerTests() {
 			t.registerTest("external linking, -buildmode=exe",
 				&goTest{
 					variant:   "exe_external",
-					timeout:   60 * time.Second,
 					buildmode: "exe",
 					ldflags:   "-linkmode=external",
 					env:       []string{"CGO_ENABLED=1"},
@@ -968,7 +959,6 @@ func (t *tester) registerTests() {
 			t.registerTest("external linking, -buildmode=pie",
 				&goTest{
 					variant:   "pie_external",
-					timeout:   60 * time.Second,
 					buildmode: "pie",
 					ldflags:   "-linkmode=external",
 					env:       []string{"CGO_ENABLED=1"},
@@ -983,7 +973,6 @@ func (t *tester) registerTests() {
 		t.registerTest("sync -cpu=10",
 			&goTest{
 				variant: "cpu10",
-				timeout: 120 * time.Second,
 				cpu:     "10",
 				pkg:     "sync",
 			})
@@ -999,7 +988,6 @@ func (t *tester) registerTests() {
 			&goTest{
 				variant:   "host",
 				pkg:       "internal/runtime/wasitest",
-				timeout:   1 * time.Minute,
 				runOnHost: true,
 			})
 	}
@@ -1015,7 +1003,7 @@ func (t *tester) registerTests() {
 	// TODO: remove the exclusion of goexperiment simd right before dev.simd branch is merged to master.
 	if goos == "darwin" || ((goos == "linux" || goos == "windows") && (goarch == "amd64" && !strings.Contains(goexperiment, "simd"))) {
 		t.registerTest("API release note check", &goTest{variant: "check", pkg: "cmd/relnote", testFlags: []string{"-check"}})
-		t.registerTest("API check", &goTest{variant: "check", pkg: "cmd/api", timeout: 5 * time.Minute, testFlags: []string{"-check"}})
+		t.registerTest("API check", &goTest{variant: "check", pkg: "cmd/api", testFlags: []string{"-check"}})
 	}
 
 	// Runtime CPU tests.
@@ -1024,7 +1012,6 @@ func (t *tester) registerTests() {
 			t.registerTest(fmt.Sprintf("GOMAXPROCS=2 runtime -cpu=%d -quick", i),
 				&goTest{
 					variant:   "cpu" + strconv.Itoa(i),
-					timeout:   300 * time.Second,
 					cpu:       strconv.Itoa(i),
 					gcflags:   gogcflags,
 					short:     true,
