@@ -314,20 +314,29 @@ func testName(pkg, variant string) string {
 // goTest represents all options to a "go test" command. The final command will
 // combine configuration from goTest and tester flags.
 type goTest struct {
-	timeout  time.Duration // If non-zero, override timeout
-	short    bool          // If true, force -short
-	tags     []string      // Build tags
-	race     bool          // Force -race
-	bench    bool          // Run benchmarks (briefly), not tests.
-	runTests string        // Regexp of tests to run
-	cpu      string        // If non-empty, -cpu flag
-	skip     string        // If non-empty, -skip flag
+	short    bool     // If true, force -short
+	tags     []string // Build tags
+	race     bool     // Force -race
+	bench    bool     // Run benchmarks (briefly), not tests.
+	runTests string   // Regexp of tests to run
+	cpu      string   // If non-empty, -cpu flag
+	skip     string   // If non-empty, -skip flag
 
 	gcflags   string // If non-empty, build with -gcflags=all=X
 	ldflags   string // If non-empty, build with -ldflags=X
 	buildmode string // If non-empty, -buildmode flag
 
 	env []string // Environment variables to add, as KEY=VAL. KEY= unsets a variable
+
+	// timeout optionally raises the per-package test timeout to be at least this long.
+	// The zero value means to stay with the default test timeout.
+	// When adding new tests, this field generally doesn't need to be set, not unless
+	// the go commmand's default test timeout proves to be insufficient.
+	//
+	// In either case, the per-package test timeout get scaled by a multiplier,
+	// and applied only if the end result is longer than the go command's default
+	// test timeout.
+	timeout time.Duration
 
 	runOnHost bool // When cross-compiling, run this test on the host instead of guest
 
@@ -357,6 +366,18 @@ type goTest struct {
 func (opts *goTest) compileOnly() bool {
 	return opts.runTests == "^$" && !opts.bench
 }
+
+// scaledTimeout reports the per-package test timeout scaled by t.timeoutScale.
+func (opts *goTest) scaledTimeout(t *tester) time.Duration {
+	d := goTestDefaultTimeout
+	if opts.timeout != 0 {
+		d = opts.timeout
+	}
+	d *= time.Duration(t.timeoutScale)
+	return d
+}
+
+const goTestDefaultTimeout = 10 * time.Minute // Default value of go test -timeout flag.
 
 // bgCommand returns a go test Cmd and a post-Run flush function. The result
 // will write its output to stdout and stderr. If stdout==stderr, bgCommand
@@ -425,13 +446,9 @@ func (opts *goTest) run(t *tester) error {
 // The caller must call setupCmd on the resulting exec.Cmd to set its directory
 // and environment.
 func (opts *goTest) buildArgs(t *tester) (build, run, pkgs, testFlags []string, setupCmd func(*exec.Cmd)) {
-	run = append(run, "-count=1") // Disallow caching
-	if opts.timeout != 0 {
-		d := opts.timeout * time.Duration(t.timeoutScale)
+	run = append(run, "-count=1") // Disallow caching.
+	if d := opts.scaledTimeout(t); d > goTestDefaultTimeout {
 		run = append(run, "-timeout="+d.String())
-	} else if t.timeoutScale != 1 {
-		const goTestDefaultTimeout = 10 * time.Minute // Default value of go test -timeout flag.
-		run = append(run, "-timeout="+(goTestDefaultTimeout*time.Duration(t.timeoutScale)).String())
 	}
 	if opts.short || t.short {
 		run = append(run, "-short")
@@ -573,20 +590,9 @@ func (t *tester) registerStdTest(pkg string) {
 
 		timeoutSec := 180 * time.Second
 		for _, pkg := range stdMatches {
-			switch pkg {
-			case "cmd/go":
+			if pkg == "cmd/go" {
 				timeoutSec *= 3
-			case "cmd/cgo/internal/testshared":
-				// This package can take 2-3 minutes to test, so 3 min timeout causes
-				// flaky failures, like https://ci.chromium.org/b/8679277370961616529.
-				// Use the default timeout for it rather than the custom 3 minute one.
-				timeoutSec = 0
-			case "internal/godebugs":
-				// This package can take 5-6 minutes to test when the asan mode is on.
-				// The asan modifier scales the timeout by 2, but even 3*2 minutes is
-				// sometimes not enough. See go.dev/issue/78392.
-				// Use the default timeout for it rather than the custom 3 minute one.
-				timeoutSec = 0
+				break
 			}
 		}
 		return (&goTest{
