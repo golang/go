@@ -2598,14 +2598,17 @@ func (r *reader) expr() (res ir.Node) {
 		// spec: "If the type is a type parameter, the constant is converted
 		// into a non-constant value of the type parameter."
 		if dstTypeParam && ir.IsConstNode(x) {
-			val := typecheck.ConvertVal(x.Val(), typ, false)
-			base.AssertfAt(val.Kind() != constant.Unknown, pos, "invalid constant conversion to %v: %v", typ, x.Val())
-			x = ir.NewBasicLit(x.Pos(), typ, val)
-
-			// Wrap in an OCONVNOP node to ensure result is non-constant.
-			n := Implicit(ir.NewConvExpr(pos, ir.OCONVNOP, typ, x))
-			n.SetTypecheck(1)
-			return n
+			// ConvertVal only handles conversions to constant types.
+			if v := typecheck.ConvertVal(x.Val(), typ, false); v.Kind() != constant.Unknown {
+				x = ir.NewBasicLit(x.Pos(), typ, v)
+				// Wrap in an OCONVNOP node to ensure result is non-constant.
+				n := Implicit(ir.NewConvExpr(pos, ir.OCONVNOP, typ, x))
+				n.SetTypecheck(1)
+				return n
+			}
+			// A Go language constant could be converted to a non-constant value,
+			// like converting string to []byte/[]rune. In this case, just construct
+			// the conversion expression as usual, see #79960.
 		}
 
 		// TODO(mdempsky): Stop constructing expressions of untyped type.
