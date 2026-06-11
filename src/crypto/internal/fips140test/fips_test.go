@@ -36,6 +36,7 @@ import (
 	"crypto/internal/fips140/tls13"
 	"crypto/rand"
 	"encoding/hex"
+	"runtime"
 	"runtime/debug"
 	"strings"
 	"testing"
@@ -50,6 +51,7 @@ func moduleStatus(t *testing.T) {
 
 	t.Logf("Module name: %s", fips140.Name())
 	t.Logf("Module version: %s", fips140.Version())
+	t.Logf("GOOS/GOARCH: %s/%s", runtime.GOOS, runtime.GOARCH)
 
 	if noPAAPAI {
 		t.Log("PAA/PAI disabled")
