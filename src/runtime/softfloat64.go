@@ -124,6 +124,17 @@ func fpack64(sign, mant uint64, exp int, trunc uint64) uint64 {
 		}
 		// repeat expecting denormal
 		mant, exp, trunc = mant0, exp0, trunc0
+		// Re-normalize the mantissa before aligning it to the subnormal
+		// exponent. When the caller passed a mantissa that was heavily
+		// cancelled (fadd64 subtracting two near-equal operands), mant0 can be
+		// far below 1<<mantbits64 while exp0 is still a normal-range exponent;
+		// without this the loop below would shift right (the wrong direction)
+		// and return a wrongly scaled subnormal. No-op for already-normalized
+		// callers (fmul64/fdiv64/conversions).
+		for mant < 1<<mantbits64 {
+			mant <<= 1
+			exp--
+		}
 		for exp < bias64 {
 			trunc |= mant & 1
 			mant >>= 1
@@ -175,6 +186,11 @@ func fpack32(sign, mant uint32, exp int, trunc uint32) uint32 {
 		}
 		// repeat expecting denormal
 		mant, exp, trunc = mant0, exp0, trunc0
+		// Re-normalize before aligning to the subnormal exponent; see fpack64.
+		for mant < 1<<mantbits32 {
+			mant <<= 1
+			exp--
+		}
 		for exp < bias32 {
 			trunc |= mant & 1
 			mant >>= 1
