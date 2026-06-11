@@ -204,9 +204,10 @@ func Append17(n int) []int {
 	for i, x := range r {
 		println(i, x)
 	}
-	// "range r" keeps pointer to backing store of r, there
-	// should not be `moveSliceNoCapNoScan` here, see #79909.
-	// amd64:-`.*moveSliceNoCapNoScan\b`
+	// "range r" keeps pointer to backing store of r. Our analysis
+	// is not yet precise enough to know it is OK in this case, so
+	// currently no `moveSliceNoCapNoScan` here. See #79909.
+	// amd64:-`.*moveSlice`
 	return r
 }
 
