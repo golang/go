@@ -193,8 +193,8 @@ func TestIndentErrors(t *testing.T) {
 		in  string
 		err error
 	}{
-		{Name(""), `{"X": "foo", "Y"}`, &SyntaxError{"invalid character '}' after object key", 17}},
-		{Name(""), `{"X": "foo" "Y": "bar"}`, &SyntaxError{"invalid character '\"' after object key:value pair", 13}},
+		{Name(""), `{"X": "foo", "Y"}`, &SyntaxError{"invalid character '}' after object key", len64(`{"X": "foo", "Y"}`)}},
+		{Name(""), `{"X": "foo" "Y": "bar"}`, &SyntaxError{"invalid character '\"' after object key:value pair", len64(`{"X": "foo" "`)}},
 	}
 	for _, tt := range tests {
 		t.Run(tt.Name, func(t *testing.T) {

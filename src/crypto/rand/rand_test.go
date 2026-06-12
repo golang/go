@@ -16,6 +16,7 @@ import (
 	"reflect"
 	"sync"
 	"testing"
+	"testing/synctest"
 )
 
 // These tests are mostly duplicates of the tests in crypto/internal/sysrand,
@@ -192,6 +193,14 @@ func TestReadError(t *testing.T) {
 	if !bytes.Contains(out, []byte(exp)) {
 		t.Errorf("subprocess output does not contain %q: %s", exp, out)
 	}
+}
+
+func TestSynctest(t *testing.T) {
+	// https://go.dev/issue/78557
+	synctest.Test(t, func(t *testing.T) {
+		Read(make([]byte, 32))
+		Read(make([]byte, 32))
+	})
 }
 
 func BenchmarkRead(b *testing.B) {

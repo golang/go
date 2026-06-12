@@ -1017,8 +1017,8 @@ func (r *N[C]) n() {  }
 	if gn != dn {
 		t.Errorf(`N.Method(...) returns %v for "n", but Info.Defs has %v`, gn, dn)
 	}
-	if dmm != dm {
-		t.Errorf(`Inside "m", r.m uses %v, want the defined func %v`, dmm, dm)
+	if dmm == dm {
+		t.Errorf(`Inside "m", r.m uses %v, want a func distinct from %v`, dmm, dm)
 	}
 	if dmn == dn {
 		t.Errorf(`Inside "m", r.n uses %v, want a func distinct from %v`, dmn, dn)
@@ -3108,5 +3108,58 @@ func (recv T) f(param int) (result int) {
 	}
 	if !slices.Equal(got, want) {
 		t.Errorf("got:\n%s\nwant:\n%s", got, want)
+	}
+}
+
+func TestIssue79657(t *testing.T) {
+	src := `package p
+
+type T[P any] struct{}
+func (T[P])  M() {}
+func (T[P])  N[Q any]() {}
+func (*T[P]) L[Q any]() {}
+
+var (
+	x = T[int]{}
+	_ = x.M
+	_ = T[int].M
+	_ = x.N[bool]
+	_ = T[int].N[bool]
+	_ = x.L[bool]
+	_ = (*T[int]).L[bool]
+)
+`
+
+	info := &Info{Instances: make(map[*syntax.Name]Instance)}
+	mustTypecheck(src, nil, info)
+
+	test := func(inst Instance, want string) {
+		if recv := inst.Type.(*Signature).Recv(); recv != nil {
+			if got := recv.Type().String(); got != want {
+				t.Errorf("instance %v has receiver type %s, want %s", inst, got, want)
+			}
+		} else {
+			t.Errorf("instance %v has no receiver", inst)
+		}
+	}
+
+	n, l := 0, 0
+	for id, inst := range info.Instances {
+		switch id.Value {
+		case "M":
+			t.Errorf("unexpected instance %v", inst)
+		case "N":
+			n++
+			test(inst, "p.T[int]")
+		case "L":
+			l++
+			test(inst, "*p.T[int]")
+		}
+	}
+	if n != 2 {
+		t.Errorf("found %d instances of N, want 2", n)
+	}
+	if l != 2 {
+		t.Errorf("found %d instances of L, want 2", l)
 	}
 }

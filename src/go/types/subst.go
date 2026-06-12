@@ -249,6 +249,7 @@ func (subst *subster) typ(typ Type) Type {
 				tparams: tparams,
 				// instantiated signatures have a nil scope
 				recv:     recv,
+				recvold:  t.recvold,
 				params:   params,
 				results:  results,
 				variadic: t.variadic,

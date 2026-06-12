@@ -1,6 +1,6 @@
 <!--{
 	"Title": "The Go Programming Language Specification",
-	"Subtitle": "Language version go1.27 (April 9, 2026)",
+	"Subtitle": "Language version go1.27 (May 26, 2026)",
 	"Path": "/ref/spec"
 }-->
 
@@ -1987,6 +1987,13 @@ and at least one of <code>V</code> or <code>T</code> is not a <a href="#Types">n
 <code>x</code> <a href="#Implementing_an_interface">implements</a> <code>T</code>.
 </li>
 <li>
+<code>x</code> is a (possibly partially instantiated) generic function, <code>T</code>
+is a function type, and any type arguments not provided explicitly for <code>x</code>
+can be <a href="#Type_inference">inferred</a> such that (after full instantiation)
+<code>x</code> and <code>T</code> have identical underlying types
+[<a href="#Go_1.27">Go 1.27</a>].
+</li>
+<li>
 <code>x</code> is the predeclared identifier <code>nil</code> and <code>T</code>
 is a pointer, function, slice, map, channel, or interface type,
 but not a type parameter.
@@ -2947,7 +2954,7 @@ func IndexRune(s string, r rune) int {
 
 <p>
 If the function declaration specifies <a href="#Type_parameter_declarations">type parameters</a>,
-the function name denotes a <i>generic function</i>.
+the function name denotes a <i>generic function</i> [<a href="#Go_1.18">Go 1.18</a>].
 A generic function must be <a href="#Instantiations">instantiated</a> before it can be
 called or used as a value.
 </p>
@@ -3076,7 +3083,7 @@ func (*IPair) Second() int  { … }  // illegal: alias must not denote instantia
 <p>
 If the method declaration specifies <a href="#Type_parameter_declarations">type parameters</a>
 (possibly in addition to type parameters declared by the receiver specification), the method name denotes
-a <i>generic method</i>.
+a <i>generic method</i> [<a href="#Go_1.27">Go 1.27</a>].
 Like a generic function, a generic method must be <a href="#Instantiations">instantiated</a> before it can
 be called or used as a value.
 </p>
@@ -4378,7 +4385,7 @@ with the same underlying array.
 
 <p>
 A generic function, method, or type is <i>instantiated</i> by substituting <i>type arguments</i>
-for the type parameters [<a href="#Go_1.18">Go 1.18</a>].
+for the type parameters [<a href="#Go_1.18">Go 1.18</a>][<a href="#Go_1.27">Go 1.27</a>].
 Instantiation proceeds in two steps:
 </p>
 
@@ -4575,11 +4582,16 @@ Type equations are always solved for the bound type parameters only.
 </p>
 
 <p>
-Type inference supports calls of generic functions and assignments
-of generic functions to (explicitly function-typed) variables.
-This includes passing generic functions as arguments to other
-(possibly also generic) functions, and returning generic functions
-as results.
+Type inference supports calls of generic functions and any use of
+a generic function in a context where the function must be
+<a href="#Assignability">assignable</a> to a (non-generic)
+function type.
+The latter includes assigning a generic function to a variable
+(including passing it as an argument to another function),
+converting a generic function to a function type, and others.
+</p>
+
+<p>
 Type inference operates on a set of equations specific to each of
 these cases.
 The equations are as follows (type argument lists are omitted for clarity):
@@ -4588,12 +4600,12 @@ The equations are as follows (type argument lists are omitted for clarity):
 <ul>
 <li>
 	<p>
-	For a function call <code>f(a<sub>0</sub>, a<sub>1</sub>, …)</code> where
+	In a function call <code>f(a<sub>0</sub>, a<sub>1</sub>, …)</code> where
 	<code>f</code> or a function argument <code>a<sub>i</sub></code> is
 	a generic function:
 	<br>
 	Each pair <code>(a<sub>i</sub>, p<sub>i</sub>)</code> of corresponding
-	function arguments and parameters where <code>a<sub>i</sub></code> is not an
+	function arguments and parameters of <code>f</code>where <code>a<sub>i</sub></code> is not an
 	<a href="#Constants">untyped constant</a> yields an equation
 	<code>typeof(p<sub>i</sub>) ≡<sub>A</sub> typeof(a<sub>i</sub>)</code>.
 	<br>
@@ -4605,19 +4617,10 @@ The equations are as follows (type argument lists are omitted for clarity):
 </li>
 <li>
 	<p>
-	For an assignment <code>v = f</code> of a generic function <code>f</code> to a
-	(non-generic) variable <code>v</code> of function type:
+	In a context where a generic function <code>f</code> must be
+	<a href="#Assignability">assignable</a> to a (non-generic) function type <code>T</code>:
 	<br>
-	<code>typeof(v) ≡<sub>A</sub> typeof(f)</code>.
-	</p>
-</li>
-<li>
-	<p>
-	For a return statement <code>return …, f, … </code> where <code>f</code> is a
-	generic function returned as a result to a (non-generic) result variable
-	<code>r</code> of function type:
-	<br>
-	<code>typeof(r) ≡<sub>A</sub> typeof(f)</code>.
+	<code>typeof(f) ≡<sub>A</sub> T</code>.
 	</p>
 </li>
 </ul>
@@ -8838,6 +8841,10 @@ An <a href="#Alias_declarations">alias declaration</a> may declare
 
 <h4 id="Go_1.27">Go 1.27</h4>
 <ul>
+<li>
+Function <a href="#Type_inference">type inference</a> applies in all
+<a href="#Assignability">assignment contexts</a> involving functions.
+</li>
 <li>
 A <a href="#Method_declarations">method declaration</a> may declare
 <a href="#Type_parameter_declarations">type parameters</a>.

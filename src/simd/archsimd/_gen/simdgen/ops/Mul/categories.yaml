@@ -2,8 +2,8 @@
 - go: Mul
   commutative: true
   documentation: !string |-
-    // NAME multiplies corresponding elements of two vectors.
-- go: MulEvenWiden
+    // NAME multiplies corresponding elements of two vectors, modulo 2ⁿ.
+- go: MulWidenEven
   commutative: true
   documentation: !string |-
     // NAME multiplies even-indexed elements, widening the result.
@@ -12,3 +12,7 @@
   commutative: true
   documentation: !string |-
     // NAME multiplies elements and stores the high part of the result.
+- go: MulWidenLo
+  commutative: true
+  documentation: !string |-
+    // NAME multiplies corresponding low-indexed elements and produces a result with double the element width.

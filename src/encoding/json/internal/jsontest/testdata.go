@@ -500,7 +500,7 @@ type (
 		Coordinates          any             `json:"coordinates"`
 		Place                any             `json:"place"`
 		Contributors         any             `json:"contributors"`
-		RetweeetedStatus     *twitterStatus  `json:"retweeted_status"`
+		RetweetedStatus      *twitterStatus  `json:"retweeted_status"`
 		RetweetCount         int             `json:"retweet_count"`
 		FavoriteCount        int             `json:"favorite_count"`
 		Entities             twitterEntities `json:"entities,omitempty"`

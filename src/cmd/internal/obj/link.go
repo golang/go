@@ -799,6 +799,7 @@ const (
 	WasmF32
 	WasmF64
 	WasmPtr
+	WasmV128
 
 	// bool is not really a wasm type, but we allow it on wasmimport/wasmexport
 	// function parameters/results. 32-bit on Wasm side, 8-bit on Go side.

@@ -1,4 +1,4 @@
-# github.com/google/pprof v0.0.0-20260115054156-294ebfa9ad83
+# github.com/google/pprof v0.0.0-20260507013755-92041b743c96
 ## explicit; go 1.24.0
 github.com/google/pprof/driver
 github.com/google/pprof/internal/binutils
@@ -25,10 +25,10 @@ golang.org/x/arch/ppc64/ppc64asm
 golang.org/x/arch/riscv64/riscv64asm
 golang.org/x/arch/s390x/s390xasm
 golang.org/x/arch/x86/x86asm
-# golang.org/x/build v0.0.0-20260122183339-3ba88df37c64
-## explicit; go 1.24.9
+# golang.org/x/build v0.0.0-20260522210304-d55d0041b921
+## explicit; go 1.25.0
 golang.org/x/build/relnote
-# golang.org/x/mod v0.36.1-0.20260513122029-343ee60345a1
+# golang.org/x/mod v0.36.1-0.20260520130633-087f6515dd3b
 ## explicit; go 1.25.0
 golang.org/x/mod/internal/lazyregexp
 golang.org/x/mod/modfile
@@ -43,12 +43,12 @@ golang.org/x/mod/zip
 ## explicit; go 1.25.0
 golang.org/x/sync/errgroup
 golang.org/x/sync/semaphore
-# golang.org/x/sys v0.44.0
+# golang.org/x/sys v0.45.0
 ## explicit; go 1.25.0
 golang.org/x/sys/plan9
 golang.org/x/sys/unix
 golang.org/x/sys/windows
-# golang.org/x/telemetry v0.0.0-20260508192327-42602be52be6
+# golang.org/x/telemetry v0.0.0-20260519152614-eab6ae52b5e2
 ## explicit; go 1.25.0
 golang.org/x/telemetry
 golang.org/x/telemetry/counter
@@ -60,8 +60,8 @@ golang.org/x/telemetry/internal/crashmonitor
 golang.org/x/telemetry/internal/mmap
 golang.org/x/telemetry/internal/telemetry
 golang.org/x/telemetry/internal/upload
-# golang.org/x/term v0.39.0
-## explicit; go 1.24.0
+# golang.org/x/term v0.43.0
+## explicit; go 1.25.0
 golang.org/x/term
 # golang.org/x/text v0.37.0
 ## explicit; go 1.25.0
@@ -73,7 +73,7 @@ golang.org/x/text/internal/tag
 golang.org/x/text/language
 golang.org/x/text/transform
 golang.org/x/text/unicode/norm
-# golang.org/x/tools v0.45.1-0.20260520211234-69238901bf50
+# golang.org/x/tools v0.45.1-0.20260604184323-2111063761b3
 ## explicit; go 1.25.0
 golang.org/x/tools/cmd/bisect
 golang.org/x/tools/cover

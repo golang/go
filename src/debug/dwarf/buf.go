@@ -146,7 +146,10 @@ func (b *buf) varint() (c uint64, bits uint) {
 
 // Unsigned int is just a varint.
 func (b *buf) uint() uint64 {
-	x, _ := b.varint()
+	x, bits := b.varint()
+	if bits == 0 {
+		b.error("underflow")
+	}
 	return x
 }
 
@@ -156,6 +159,9 @@ func (b *buf) int() int64 {
 	x := int64(ux)
 	if x&(1<<(bits-1)) != 0 {
 		x |= -1 << bits
+	}
+	if bits == 0 {
+		b.error("underflow")
 	}
 	return x
 }

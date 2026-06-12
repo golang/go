@@ -28,7 +28,7 @@ func checkValid(data []byte) error {
 	d := export.GetBufferedDecoder(data)
 	defer export.PutBufferedDecoder(d)
 	xd := export.Decoder(d)
-	xd.Struct.Flags.Set(jsonflags.AllowDuplicateNames | jsonflags.AllowInvalidUTF8 | 1)
+	xd.Struct.Flags.Set(jsonflags.ReportErrorsWithLegacySemantics | jsonflags.AllowDuplicateNames | jsonflags.AllowInvalidUTF8 | 1)
 	if _, err := d.ReadValue(); err != nil {
 		if err == io.EOF {
 			offset := d.InputOffset() + int64(len(d.UnreadBuffer()))

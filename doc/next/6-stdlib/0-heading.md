@@ -1,2 +1,0 @@
-## Standard library {#library}
-

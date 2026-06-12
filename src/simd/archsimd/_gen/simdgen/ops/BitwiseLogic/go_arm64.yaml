@@ -1,0 +1,43 @@
+!sum
+- go: And
+  asm: "VAND"
+  in:
+  - &any
+    go: $t
+  - *any
+  out:
+  - *any
+- go: Or
+  asm: "VORR"
+  in:
+  - *any
+  - *any
+  out:
+  - *any
+- go: Xor
+  asm: "VEOR"
+  in:
+  - *any
+  - *any
+  out:
+  - *any
+- go: AndNot
+  asm: "VBIC"
+  in:
+  - *any
+  - *any
+  out:
+  - *any
+- go: OrNot
+  asm: "VORN"
+  in:
+  - *any
+  - *any
+  out:
+  - *any
+- go: Not
+  asm: "VNOT"
+  in:
+  - *any
+  out:
+  - *any

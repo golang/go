@@ -9,6 +9,7 @@ import (
 	"errors"
 	"fmt"
 	"os"
+	"slices"
 	"strconv"
 	"strings"
 	"unicode"
@@ -105,8 +106,7 @@ func (x *FileSyntax) addLine(hint Expr, tokens ...string) *Line {
 	if hint == nil {
 		// If no hint given, add to the last statement of the given type.
 	Loop:
-		for i := len(x.Stmt) - 1; i >= 0; i-- {
-			stmt := x.Stmt[i]
+		for _, stmt := range slices.Backward(x.Stmt) {
 			switch stmt := stmt.(type) {
 			case *Line:
 				if stmt.Token != nil && stmt.Token[0] == tokens[0] {
@@ -718,9 +718,7 @@ func (in *input) assignComments() {
 	}
 
 	// Assign suffix comments to syntax immediately before.
-	for i := len(in.post) - 1; i >= 0; i-- {
-		x := in.post[i]
-
+	for _, x := range slices.Backward(in.post) {
 		start, end := x.Span()
 		if debug {
 			fmt.Fprintf(os.Stderr, "post %T :%d:%d #%d :%d:%d #%d\n", x, start.Line, start.LineRune, start.Byte, end.Line, end.LineRune, end.Byte)

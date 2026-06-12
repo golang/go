@@ -8,6 +8,7 @@ import (
 	"internal/bytealg"
 	"internal/poll"
 	"internal/stringslite"
+	"internal/testlog"
 	"io"
 	"runtime"
 	"sync"
@@ -559,6 +560,12 @@ func (f *File) Chdir() error {
 	defer f.decref()
 	if e := syscall.Fchdir(f.sysfd); e != nil {
 		return &PathError{Op: "chdir", Path: f.name, Err: e}
+	}
+	if log := testlog.Logger(); log != nil {
+		wd, err := Getwd()
+		if err == nil {
+			log.Chdir(wd)
+		}
 	}
 	return nil
 }

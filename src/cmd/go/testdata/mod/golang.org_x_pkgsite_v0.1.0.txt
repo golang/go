@@ -1,0 +1,20 @@
+example doc server
+
+-- .info --
+{"Version":"v0.1.0"}
+-- .mod --
+module golang.org/x/pkgsite
+
+go 1.23
+-- go.mod --
+module golang.org/x/pkgsite
+
+go 1.23
+-- cmd/internal/doc/main.go --
+package main
+
+import "fmt"
+
+func main() {
+	fmt.Println("fake pkgsite doc server v0.1.0")
+}

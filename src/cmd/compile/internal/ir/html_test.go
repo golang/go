@@ -67,7 +67,7 @@ func TestHTMLWriter(t *testing.T) {
 	fn.Body = []Node{n2}
 	w.WritePhase("phase3", "Phase 3")
 
-	w.Close()
+	w.Close("Writing html ast output for %s to %s\n", PkgFuncName(w.Func), w.path)
 
 	// Verify file exists and has content
 	content, err := os.ReadFile(outFile)

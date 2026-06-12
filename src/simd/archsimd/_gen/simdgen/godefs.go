@@ -7,13 +7,14 @@ package main
 import (
 	"fmt"
 	"log"
+	"math/rand/v2"
 	"regexp"
 	"slices"
 	"strconv"
 	"strings"
 	"unicode"
 
-	"simd/archsimd/_gen/unify"
+	"_gen/unify"
 )
 
 type Operation struct {
@@ -47,10 +48,15 @@ type rawOperation struct {
 
 	GoArch       string  // GOARCH for this definition
 	Asm          string  // Assembly mnemonic
+	Arrangement  *string // optional Arrangement for ARM64 SIMD operations (e.g., "4S", "2D")
 	OperandOrder *string // optional Operand order for better Go declarations
 	// Optional tag to indicate this operation is paired with special generic->machine ssa lowering rules.
 	// Should be paired with special templates in gen_simdrules.go
 	SpecialLower *string
+	// HiHalfAsm is the assembly mnemonic for the hi-half "2" variant of this operation,
+	// specified in go_arm64.yaml (e.g., "VSHRN2", "VUMULL2").
+	// When non-nil, simdgen generates the "2" variant machine op and folding rules.
+	HiHalfAsm *string
 
 	In              []Operand // Parameters
 	InVariant       []Operand // Optional parameters
@@ -98,6 +104,38 @@ func (o *Operation) SkipMaskedMethod() bool {
 	return false
 }
 
+// hiHalfKind returns "narrow" or "long" based on whether the operation narrows or widens its elements.
+// Returns "" if HiHalfAsm is nil or classification is ambiguous.
+func (o *Operation) hiHalfKind() string {
+	if o.HiHalfAsm == nil {
+		return ""
+	}
+	// Find the first vreg input and the first vreg output to compare elemBits.
+	var inElemBits, outElemBits *int
+	for i := range o.In {
+		if o.In[i].Class == "vreg" && o.In[i].ElemBits != nil {
+			inElemBits = o.In[i].ElemBits
+			break
+		}
+	}
+	for i := range o.Out {
+		if o.Out[i].Class == "vreg" && o.Out[i].ElemBits != nil {
+			outElemBits = o.Out[i].ElemBits
+			break
+		}
+	}
+	if inElemBits == nil || outElemBits == nil {
+		return ""
+	}
+	if *outElemBits < *inElemBits {
+		return "narrow"
+	}
+	if *outElemBits > *inElemBits {
+		return "long"
+	}
+	return ""
+}
+
 var reForName = regexp.MustCompile(`\bNAME\b`)
 
 func (o *Operation) DecodeUnified(v *unify.Value) error {
@@ -135,13 +173,34 @@ func (o *Operation) DecodeUnified(v *unify.Value) error {
 
 	o.In = append(o.rawOperation.In, o.rawOperation.InVariant...)
 
+	// For operations that read only the lower half of input registers (indicated by hiHalfAsm),
+	// add a doc note showing the compositional pattern for the upper half.
+	if o.rawOperation.HiHalfAsm != nil && o.hiHalfKind() == "long" {
+		// Count vector-register inputs (exclude immediates/scalars).
+		vregIns := 0
+		for _, in := range o.In {
+			if in.Class == "vreg" {
+				vregIns++
+			}
+		}
+		// note this is arm64-specific
+		switch vregIns {
+		case 2:
+			// Binary: MulLong, AddLong, SubLong, etc.
+			o.Documentation += "\n// For the high-indexed elements, use HiToLo:\n//\n//\tx.HiToLo()." + o.Go + "(y.HiToLo())"
+		case 1:
+			// Unary: ShiftLeftLongConst, etc.
+			o.Documentation += "\n// For the high-indexed elements, use HiToLo:\n//\n//\tx.HiToLo()." + o.Go + "(...)"
+		}
+	}
+
 	// For down conversions, the high elements are zeroed if the result has more elements.
 	// TODO: we should encode this logic in the YAML file, instead of hardcoding it here.
 	if len(o.In) > 0 && len(o.Out) > 0 {
 		inLanes := o.In[0].Lanes
 		outLanes := o.Out[0].Lanes
 		if inLanes != nil && outLanes != nil && *inLanes < *outLanes {
-			if (strings.Contains(o.Go, "Saturate") || strings.Contains(o.Go, "Truncate")) &&
+			if (strings.Contains(o.Go, "Saturate") || strings.Contains(o.Go, "TruncTo")) &&
 				!strings.Contains(o.Go, "Concat") {
 				o.Documentation += "\n// Results are packed to low elements in the returned vector, its upper elements are zeroed."
 			}
@@ -189,7 +248,12 @@ func machineOpName(maskType maskShape, gOp Operation) string {
 	if maskType == OneMask {
 		asm += "Masked"
 	}
-	asm = fmt.Sprintf("%s%d", asm, gOp.VectorWidth())
+	// For ARM64, use arrangement to create distinct SSA op names
+	if gOp.Arrangement != nil && *gOp.Arrangement != "" {
+		asm = fmt.Sprintf("%s%s", asm, *gOp.Arrangement)
+	} else {
+		asm = fmt.Sprintf("%s%d", asm, gOp.VectorWidth())
+	}
 	if gOp.SSAVariant != nil {
 		asm += *gOp.SSAVariant
 	}
@@ -276,6 +340,9 @@ func compareOperands(x, y *Operand) int {
 		if c := compareIntPointers(x.Bits, y.Bits); c != 0 {
 			return c
 		}
+		if c := compareIntPointers(x.ListNumber, y.ListNumber); c != 0 {
+			return c
+		}
 		return 0
 	}
 }
@@ -296,6 +363,7 @@ type Operand struct {
 	// The compiler will right-shift the user-passed value by ImmOffset and set it as the AuxInt
 	// field of the operation.
 	ImmOffset *string
+	ImmMax    *int    // optional maximum immediate, also highest case in immediate jump table
 	Name      *string // optional name in the Go intrinsic declaration
 	Lanes     *int    // *Lanes equals Bits/ElemBits except for scalars, when *Lanes == 1
 	// TreatLikeAScalarOfSize means only the lower $TreatLikeAScalarOfSize bits of the vector
@@ -317,6 +385,10 @@ type Operand struct {
 	OverwriteBits *int
 	// FixedReg is the name of the fixed registers
 	FixedReg *string
+	// If non-nil, marks this vreg as a register list operand (for TBL/TBX).
+	// Currently only list number 0 is supported (we might need to teach regalloc handle register lists
+	// to support more than one register in the list).
+	ListNumber *int
 }
 
 // isDigit returns true if the byte is an ASCII digit.
@@ -360,6 +432,10 @@ func compareNatural(s1, s2 string) int {
 			if num1 > num2 {
 				return 1
 			}
+			// "1" < "01".  Don't expect it in simdgen, but just in case.
+			if ln1, ln2 := i-numStart1, j-numStart2; ln1 != ln2 {
+				return ln1 - ln2
+			}
 			// If numbers are equal, continue to the next segment.
 		} else {
 			// Non-digit comparison.
@@ -378,8 +454,10 @@ func compareNatural(s1, s2 string) int {
 	return strings.Compare(s1, s2)
 }
 
-const generatedHeader = `// Code generated by 'simdgen -o godefs -goroot $GOROOT -xedPath $XED_PATH go.yaml types.yaml categories.yaml'; DO NOT EDIT.
-`
+// generatedHeader returns the architecture-specific header for generated files.
+func generatedHeader() string {
+	return CurrentArch().GeneratedHeader
+}
 
 func writeGoDefs(path string, cl unify.Closure) error {
 	// TODO: Merge operations with the same signature but multiple
@@ -400,6 +478,11 @@ func writeGoDefs(path string, cl unify.Closure) error {
 		op.adjustAsm()
 		ops = append(ops, op)
 	}
+
+	rand.Shuffle(len(ops), func(i, j int) {
+		ops[i], ops[j] = ops[j], ops[i]
+	})
+
 	slices.SortFunc(ops, compareOperations)
 	// The parsed XED data might contain duplicates, like
 	// 512 bits VPADDP.
@@ -407,7 +490,7 @@ func writeGoDefs(path string, cl unify.Closure) error {
 	slices.SortFunc(deduped, compareOperations)
 
 	if *Verbose {
-		log.Printf("dedup len: %d\n", len(ops))
+		log.Printf("dedup len: %d, ops len: %d\n", len(deduped), len(ops))
 	}
 	var err error
 	if err = overwrite(deduped); err != nil {
@@ -435,18 +518,30 @@ func writeGoDefs(path string, cl unify.Closure) error {
 		log.Printf("dedup len: %d\n", len(deduped))
 	}
 	reportXEDInconsistency(deduped)
+
+	// Sorting again, just in case.
+	slices.SortFunc(deduped, compareOperations)
+
 	typeMap := parseSIMDTypes(deduped)
 
-	formatWriteAndClose(writeSIMDTypes(typeMap), path, "src/"+simdPackage+"/types_amd64.go")
-	formatWriteAndClose(writeSIMDFeatures(deduped), path, "src/"+simdPackage+"/cpu.go")
-	f, fI := writeSIMDStubs(deduped, typeMap)
-	formatWriteAndClose(f, path, "src/"+simdPackage+"/ops_amd64.go")
-	formatWriteAndClose(fI, path, "src/"+simdPackage+"/ops_internal_amd64.go")
-	formatWriteAndClose(writeSIMDIntrinsics(deduped, typeMap), path, "src/cmd/compile/internal/ssagen/simdintrinsics.go")
-	formatWriteAndClose(writeSIMDGenericOps(deduped), path, "src/cmd/compile/internal/ssa/_gen/simdgenericOps.go")
-	formatWriteAndClose(writeSIMDMachineOps(deduped), path, "src/cmd/compile/internal/ssa/_gen/simdAMD64ops.go")
-	formatWriteAndClose(writeSIMDSSA(deduped), path, "src/cmd/compile/internal/amd64/simdssa.go")
-	writeAndClose(writeSIMDRules(deduped).Bytes(), path, "src/cmd/compile/internal/ssa/_gen/simdAMD64.rules")
+	archInfo := CurrentArch()
+	archLower := archInfo.Arch
+	archUpper := archInfo.ArchUpper
+
+	formatWriteAndClose(writeSIMDTypes(typeMap), path, "src/"+simdPackage+"/types_"+archLower+".go")
+	// TODO: Enable CPU feature generation for non-x86 architectures.
+	if archLower == "amd64" {
+		formatWriteAndClose(writeSIMDFeatures(deduped), path, "src/"+simdPackage+"/cpu.go")
+	}
+	f, fI := writeSIMDStubs(deduped, typeMap, archLower == "amd64")
+	formatWriteAndClose(f, path, "src/"+simdPackage+"/ops_"+archLower+".go")
+	formatWriteAndClose(fI, path, "src/"+simdPackage+"/ops_internal_"+archLower+".go")
+	formatWriteAndClose(writeSIMDIntrinsics(deduped, typeMap), path, "src/cmd/compile/internal/ssagen/simd"+archUpper+"intrinsics.go")
+	const simdGenericOpsFile = "src/cmd/compile/internal/ssa/_gen/simdgenericOps.go"
+	formatWriteAndClose(writeSIMDGenericOps(deduped, path+"/"+simdGenericOpsFile), path, simdGenericOpsFile)
+	formatWriteAndClose(writeSIMDMachineOps(deduped), path, "src/cmd/compile/internal/ssa/_gen/simd"+archUpper+"ops.go")
+	formatWriteAndClose(writeSIMDSSA(deduped), path, "src/cmd/compile/internal/"+archLower+"/simdssa.go")
+	writeAndClose(writeSIMDRules(deduped).Bytes(), path, "src/cmd/compile/internal/ssa/_gen/simd"+archUpper+".rules")
 
 	return nil
 }

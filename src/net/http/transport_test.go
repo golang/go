@@ -2052,6 +2052,51 @@ func testTransportGzipShort(t *testing.T, mode testMode) {
 	}
 }
 
+func TestTransportGzipConcurrentCloseAndRead(t *testing.T) {
+	runSynctest(t, testTransportGzipConcurrentCloseAndRead, http3SkippedMode)
+}
+func testTransportGzipConcurrentCloseAndRead(t *testing.T, mode testMode) {
+	cst := newClientServerTest(t, mode, HandlerFunc(func(w ResponseWriter, r *Request) {
+		// Only send the gzip header with no body.
+		w.Header().Set("Content-Encoding", "gzip")
+		w.WriteHeader(200)
+		w.(Flusher).Flush()
+	}), optFakeNet)
+	// Avoid response body draining in HTTP/1.
+	if mode == http1Mode {
+		cst.tr.DisableKeepAlives = true
+	}
+
+	res, err := cst.c.Get(cst.ts.URL)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	// Read from the response body in a goroutine while it is empty.
+	// This will block indefinitely.
+	readErrCh := make(chan error, 1)
+	go func() {
+		var buf [10]byte
+		_, err := res.Body.Read(buf[:])
+		readErrCh <- err
+	}()
+	synctest.Wait()
+
+	if err := res.Body.Close(); err != nil {
+		t.Fatal(err)
+	}
+	synctest.Wait()
+
+	select {
+	case err := <-readErrCh:
+		if err == nil {
+			t.Error("Read returned nil error, want error")
+		}
+	default:
+		t.Fatal("Read did not unblock on Close")
+	}
+}
+
 // Wait until number of goroutines is no greater than nmax, or time out.
 func waitNumGoroutine(nmax int) int {
 	nfinal := runtime.NumGoroutine()

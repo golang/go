@@ -878,6 +878,7 @@ func (check *Checker) selector(x *operand, e *ast.SelectorExpr, wantType bool) {
 	case *Func:
 		check.objDecl(obj) // ensure fully set-up signature
 		check.addDeclDep(obj)
+		// TODO(mark): Assert that sig.rparams is nil here?
 
 		if x.mode() == typexpr {
 			// method expression
@@ -913,6 +914,7 @@ func (check *Checker) selector(x *operand, e *ast.SelectorExpr, wantType bool) {
 			x.mode_ = value
 			x.typ_ = &Signature{
 				tparams:  sig.tparams,
+				recvold:  methodExprSentinel,
 				params:   NewTuple(params...),
 				results:  sig.results,
 				variadic: sig.variadic,
@@ -971,8 +973,9 @@ func (check *Checker) selector(x *operand, e *ast.SelectorExpr, wantType bool) {
 
 			x.mode_ = value
 
-			// remove receiver
+			// remove/stash receiver
 			sig := *obj.typ.(*Signature)
+			sig.recvold = sig.recv
 			sig.recv = nil
 			x.typ_ = &sig
 		}

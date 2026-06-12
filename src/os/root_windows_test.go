@@ -11,6 +11,7 @@ import (
 	"fmt"
 	"internal/strconv"
 	"internal/syscall/windows"
+	"internal/testenv"
 	"os"
 	"path/filepath"
 	"syscall"
@@ -60,6 +61,8 @@ func TestRootWindowsCaseInsensitivity(t *testing.T) {
 // TestRootSymlinkRelativity tests that symlinks created using Root.Symlink have the
 // same SYMLINK_FLAG_RELATIVE value as ones creates using os.Symlink.
 func TestRootSymlinkRelativity(t *testing.T) {
+	testenv.MustHaveSymlink(t)
+
 	dir := t.TempDir()
 	root, err := os.OpenRoot(dir)
 	if err != nil {
@@ -161,6 +164,8 @@ func readSymlinkReparseData(name string) (*windows.SymbolicLinkReparseBuffer, er
 // TestRootSymlinkToDirectory tests that Root.Symlink creates directory links
 // when the target is a directory contained within the root.
 func TestRootSymlinkToDirectory(t *testing.T) {
+	testenv.MustHaveSymlink(t)
+
 	dir := t.TempDir()
 	root, err := os.OpenRoot(dir)
 	if err != nil {

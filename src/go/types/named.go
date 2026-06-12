@@ -411,9 +411,13 @@ func (t *Named) NumMethods() int {
 
 // Method returns the i'th method of named type t for 0 <= i < t.NumMethods().
 //
-// For an ordinary or instantiated type t, the receiver base type of this
-// method is the named type t. For an uninstantiated generic type t, each
-// method receiver is instantiated with its receiver type parameters.
+// For an ordinary or instantiated type t, the receiver base type of this method
+// is the named type t. The returned Func's Signature will not have receiver
+// type parameters.
+//
+// For an uninstantiated generic type t, each method receiver is instantiated with
+// its receiver type parameters. The returned Func's Signature will have the
+// receiver type parameters used to instantiate the receiver.
 //
 // Methods are numbered deterministically: given the same list of source files
 // presented to the type checker, or the same sequence of NewMethod and AddMethod
@@ -455,62 +459,65 @@ func (t *Named) Method(i int) *Func {
 }
 
 // expandMethod substitutes type arguments in the i'th method for an
-// instantiated receiver.
+// instantiated receiver. A returned Func's Signature never has
+// receiver type parameters.
 func (t *Named) expandMethod(i int) *Func {
-	// t.orig.methods is not lazy. origm is the method instantiated with its
-	// receiver type parameters (the "origin" method).
-	origm := t.inst.orig.Method(i)
-	assert(origm != nil)
+	// t.orig.methods is not lazy. orig is the declared function on t, which
+	// must have receiver type parameters (since t is generic).
+	orig := t.inst.orig.Method(i)
+	assert(orig != nil)
 
 	check := t.check
 	// Ensure that the original method is type-checked.
 	if check != nil {
-		check.objDecl(origm)
+		check.objDecl(orig)
 	}
 
-	origSig := origm.typ.(*Signature)
-	rbase, _ := deref(origSig.Recv().Type())
+	oldSig := orig.typ.(*Signature)
+	rtpars := oldSig.rparams.list()
+	rtargs := t.inst.targs.list()
 
-	// If rbase is t, then origm is already the instantiated method we're looking
-	// for. In this case, we return origm to preserve the invariant that
-	// traversing Method->Receiver Type->Method should get back to the same
-	// method.
+	// Consider:
 	//
-	// This occurs if t is instantiated with the receiver type parameters, as in
-	// the use of m in func (r T[_]) m() { r.m() }.
-	if rbase == t {
-		return origm
-	}
+	// 	type T[P any] struct{}
+	// 	func (t T[P]) m() { t.m() }
+	//
+	// At t.m, m is expanded for T[P] to get a new Func, which must be different from
+	// the declared Func for the origin method T.m; notably, the Func for t.m lacks
+	// receiver type parameters, since it is instantiated (as opposed to declared)
+	// and thus no longer generic. One must not return the origin method here.
 
-	sig := origSig
 	// We can only substitute if we have a correspondence between type arguments
 	// and type parameters. This check is necessary in the presence of invalid
 	// code.
-	if origSig.RecvTypeParams().Len() == t.inst.targs.Len() {
-		smap := makeSubstMap(origSig.RecvTypeParams().list(), t.inst.targs.list())
+	newSig := oldSig
+	if len(rtpars) == len(rtargs) {
+		smap := makeSubstMap(rtpars, rtargs)
 		var ctxt *Context
 		if check != nil {
 			ctxt = check.context()
 		}
-		sig = check.subst(origm.pos, origSig, smap, t, ctxt).(*Signature)
+		newSig = check.subst(orig.pos, oldSig, smap, t, ctxt).(*Signature)
 	}
 
-	if sig == origSig {
+	if newSig == oldSig {
 		// No substitution occurred, but we still need to create a new signature to
 		// hold the instantiated receiver.
-		copy := *origSig
-		sig = &copy
+		copy := *oldSig
+		newSig = &copy
 	}
 
 	var rtyp Type
-	if origm.hasPtrRecv() {
+	if orig.hasPtrRecv() {
 		rtyp = NewPointer(t)
 	} else {
 		rtyp = t
 	}
 
-	sig.recv = cloneVar(origSig.recv, rtyp)
-	return cloneFunc(origm, sig)
+	newSig.recv = cloneVar(oldSig.recv, rtyp)
+	newSig.rparams = nil
+
+	return cloneFunc(orig, newSig)
 }
 
 // SetUnderlying sets the underlying type and marks t as complete.

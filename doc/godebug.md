@@ -168,6 +168,8 @@ Go 1.27 removed the `tls10server` setting, as noted in the [Go 1.22](#go-122) se
 
 Go 1.27 removed the `x509keypairleaf` setting, as noted in the [Go 1.23](#go-123) section.
 
+Go 1.27 removed the `asynctimerchan` setting, as noted in the [Go 1.23](#go-123) section.
+
 Go 1.27 added a new `htmlmetacontenturlescape` setting that controls whether
 html/template will escape URLs in the `url=` portion of the content attribute of
 HTML meta tags. The default `htmlmetacontentescape=1` will cause URLs to be
@@ -347,7 +349,7 @@ Go 1.23 changed the channels created by package time to be unbuffered
 (synchronous), which makes correct use of the [`Timer.Stop`](/pkg/time/#Timer.Stop)
 and [`Timer.Reset`](/pkg/time/#Timer.Reset) method results much easier.
 The [`asynctimerchan` setting](/pkg/time/#NewTimer) disables this change.
-There are no runtime metrics for this change,
+There are no runtime metrics for this change.
 This setting will be removed in Go 1.27.
 
 Go 1.23 changed the mode bits reported by [`os.Lstat`](/pkg/os#Lstat) and [`os.Stat`](/pkg/os#Stat)

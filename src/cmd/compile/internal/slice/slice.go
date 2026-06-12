@@ -361,10 +361,11 @@ func analyze(fn *ir.Func) {
 				}
 			}
 		case ir.ORANGE:
-			// Range over slice is ok.
 			n := n.(*ir.RangeStmt)
 			if i := tracking(n.X); i != nil {
 				i.okUses++
+				// Range over slice keeps a pointer to the backing store, see #79909.
+				addTransition(i, n)
 			}
 		case ir.OAS:
 			n := n.(*ir.AssignStmt)

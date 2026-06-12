@@ -35,12 +35,7 @@ func TestHMACWycheproof(t *testing.T) {
 		wycheproof.LoadVectorFile(t, file, &testdata)
 
 		for _, tg := range testdata.TestGroups {
-			// Skip test groups where the tag length does not equal the
-			// hash length, since crypto/hmac does not support generating
-			// these truncated tags.
-			if tg.TagSize/8 != h().Size() {
-				continue
-			}
+			tagSize := tg.TagSize / 8
 
 			for _, tv := range tg.Tests {
 				t.Run(wycheproof.TestName(file, tv), func(t *testing.T) {
@@ -48,7 +43,9 @@ func TestHMACWycheproof(t *testing.T) {
 
 					hm := hmac.New(h, wycheproof.MustDecodeHex(tv.Key))
 					hm.Write(wycheproof.MustDecodeHex(tv.Msg))
-					got := bytes.Equal(wycheproof.MustDecodeHex(tv.Tag), hm.Sum(nil))
+					// Truncate the computed tag to match the expected tag size.
+					computedTag := hm.Sum(nil)[:tagSize]
+					got := bytes.Equal(wycheproof.MustDecodeHex(tv.Tag), computedTag)
 					want := wycheproof.ShouldPass(t, tv.Result, tv.Flags, nil)
 					if want != got {
 						t.Errorf("unexpected result")

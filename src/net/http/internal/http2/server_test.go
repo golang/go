@@ -1959,6 +1959,64 @@ func TestServerRejectsContentLengthWithSignNewRequests(t *testing.T) {
 	}
 }
 
+func TestServerContentLengthDuplicates(t *testing.T) {
+	tests := []struct {
+		name     string
+		clValues []string
+		wantOk   bool
+	}{
+		{
+			name:     "single value",
+			clValues: []string{"123"},
+			wantOk:   true,
+		},
+		{
+			name:     "identical duplicate values",
+			clValues: []string{"123", "123", "123"},
+			wantOk:   true,
+		},
+		{
+			name:     "identical duplicate values with extra whitespace",
+			clValues: []string{"123", " 123", "123"},
+			wantOk:   false,
+		},
+		{
+			name:     "different duplicate values",
+			clValues: []string{"123", "321", "123"},
+			wantOk:   false,
+		},
+	}
+	for _, tt := range tests {
+		synctestSubtest(t, tt.name, func(t testing.TB) {
+			st := newServerTester(t, func(w http.ResponseWriter, r *http.Request) {
+				w.WriteHeader(200)
+			})
+			defer st.Close()
+			st.greet()
+
+			headers := []string{":method", "GET"}
+			for _, val := range tt.clValues {
+				headers = append(headers, "content-length", val)
+			}
+			st.writeHeaders(HeadersFrameParam{
+				StreamID:      1,
+				BlockFragment: st.encodeHeader(headers...),
+				EndStream:     false,
+				EndHeaders:    true,
+			})
+			if tt.wantOk {
+				st.wantHeaders(wantHeader{
+					streamID:  1,
+					endStream: true,
+					header:    http.Header{":status": []string{"200"}},
+				})
+			} else {
+				st.wantRSTStream(1, ErrCodeProtocol)
+			}
+		})
+	}
+}
+
 func TestServer_Response_Data_Sniff_DoesntOverride(t *testing.T) {
 	synctestTest(t, testServer_Response_Data_Sniff_DoesntOverride)
 }

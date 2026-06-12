@@ -191,7 +191,7 @@ func simdCreditMultiplier(fn *ir.Func) int32 {
 	// awesome SIMD performance will be missed.
 	for _, v := range fn.ClosureVars {
 		if v.Type().IsSIMD() {
-			return 11 // 11 ought to be enough.
+			return 16 // <strike>11</strike> 16 ought to be enough.
 		}
 	}
 

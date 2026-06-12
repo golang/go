@@ -147,7 +147,7 @@ func CanonicalizeRawInts(v bool) Options {
 // It is safe to canonicalize a serialized single precision number and
 // parse it back as a single precision number and expect the same value.
 // If a number exceeds ±1.7976931348623157e+308, which is the maximum
-// finite number, then it saturated at that value and formatted as such.
+// finite number, then it is saturated at that value and formatted as such.
 //
 // This only affects encoding and is ignored when decoding.
 func CanonicalizeRawFloats(v bool) Options {

@@ -80,7 +80,7 @@ func embedlitUnnest(pass *analysis.Pass, info *types.Info, curLit inspector.Curs
 	// be promoted, and calculates the corresponding edits.
 	var checkLit func(lit *ast.CompositeLit)
 	checkLit = func(lit *ast.CompositeLit) {
-		for _, elt := range lit.Elts {
+		for i, elt := range lit.Elts {
 			// Can't promote an unkeyed field; would result in a syntax error.
 			if kv, ok := elt.(*ast.KeyValueExpr); ok {
 				if innerLit := isEmbeddedFieldLit(info, compLitType, kv); innerLit != nil {
@@ -102,13 +102,57 @@ func embedlitUnnest(pass *analysis.Pass, info *types.Info, curLit inspector.Curs
 						!moreiters.Empty(astutil.Comments(file, closingPos, innerLit.Rbrace+1)) {
 						continue
 					}
+					// Delete starting from the key to the character right after the
+					// opening brace of the inner literal:
+					// T{U: U{f: v, ...}}
+					//   -----
+					startPos := kv.Pos()
+					endPos := innerLit.Lbrace + 1
+
+					// Delete the entire line if the key and its opening brace are
+					// together on their own line. This prevents leaving behind unneeded
+					// blank lines inside struct literals that `gofmt` will not remove.
+					// T{
+					// 		U: U{    <- delete entire line
+					// 			f: v,
+					//		}
+					//	}
+					//
+					tokFile := pass.Fset.File(kv.Pos())
+					lineOf := func(pos token.Pos) int {
+						return tokFile.PositionFor(pos, false).Line
+					}
+					curLine := lineOf(kv.Pos())
+					var prevLine int
+					if i == 0 {
+						// First element, so the previous line is the parent lbrace.
+						prevLine = lineOf(lit.Lbrace)
+					} else {
+						prevLine = lineOf(lit.Elts[i-1].End())
+					}
+
+					// We can safely delete the entire line if the key value expression is
+					// on a different line than the previous element, and the closing
+					// brace of the inner literal is on a different line than its opening
+					// brace.
+					if prevLine < curLine && curLine < tokFile.LineCount() && // (1-based)
+						lineOf(innerLit.Lbrace) < lineOf(innerLit.Rbrace) {
+						lineStart := tokFile.LineStart(curLine)
+						nextLineStart := tokFile.LineStart(curLine + 1)
+						// Check that there are no comments on the line we are going to delete.
+						if moreiters.Empty(astutil.Comments(file, lineStart, nextLineStart)) {
+							startPos = tokFile.LineStart(curLine)
+							endPos = nextLineStart
+						}
+					}
+
 					edits = append(edits, []analysis.TextEdit{
 						// T{U: U{f: v, ...}}
 						//   -----         -
 						{
 							// Delete the key and the opening brace of the inner struct literal.
-							Pos: kv.Pos(),
-							End: innerLit.Lbrace + 1,
+							Pos: startPos,
+							End: endPos,
 						},
 						{
 							// Delete the corresponding closing brace, including preceding

@@ -2416,7 +2416,7 @@ var instructions = [ALAST & obj.AMask]instructionData{
 	ALD & obj.AMask: {enc: iIIEncoding},
 	ASD & obj.AMask: {enc: sIEncoding},
 
-	// 7.1: CSR Instructions
+	// 6.1: CSR Instructions
 	ACSRRC & obj.AMask:  {enc: iIIEncoding, immForm: ACSRRCI},
 	ACSRRCI & obj.AMask: {enc: iIIEncoding},
 	ACSRRS & obj.AMask:  {enc: iIIEncoding, immForm: ACSRRSI},
@@ -2424,11 +2424,11 @@ var instructions = [ALAST & obj.AMask]instructionData{
 	ACSRRW & obj.AMask:  {enc: iIIEncoding, immForm: ACSRRWI},
 	ACSRRWI & obj.AMask: {enc: iIIEncoding},
 
-	// 12.3: "Zicond" Extension for Integer Conditional Operations
+	// 11.1: Integer Conditional Operations (Zicond)
 	ACZERONEZ & obj.AMask: {enc: rIIIEncoding, ternary: true},
 	ACZEROEQZ & obj.AMask: {enc: rIIIEncoding, ternary: true},
 
-	// 13.1: Multiplication Operations
+	// 12.1: Multiplication Operations
 	AMUL & obj.AMask:    {enc: rIIIEncoding, ternary: true},
 	AMULH & obj.AMask:   {enc: rIIIEncoding, ternary: true},
 	AMULHU & obj.AMask:  {enc: rIIIEncoding, ternary: true},
@@ -2443,13 +2443,13 @@ var instructions = [ALAST & obj.AMask]instructionData{
 	AREMW & obj.AMask:   {enc: rIIIEncoding, ternary: true},
 	AREMUW & obj.AMask:  {enc: rIIIEncoding, ternary: true},
 
-	// 14.2: Load-Reserved/Store-Conditional Instructions (Zalrsc)
+	// 13.2: Load-Reserved/Store-Conditional Instructions (Zalrsc)
 	ALRW & obj.AMask: {enc: rIIIEncoding},
 	ALRD & obj.AMask: {enc: rIIIEncoding},
 	ASCW & obj.AMask: {enc: rIIIEncoding},
 	ASCD & obj.AMask: {enc: rIIIEncoding},
 
-	// 14.4: Atomic Memory Operations (Zaamo)
+	// 13.4: Atomic Memory Operations (Zaamo)
 	AAMOSWAPW & obj.AMask: {enc: rIIIEncoding},
 	AAMOSWAPD & obj.AMask: {enc: rIIIEncoding},
 	AAMOADDW & obj.AMask:  {enc: rIIIEncoding},
@@ -2469,11 +2469,11 @@ var instructions = [ALAST & obj.AMask]instructionData{
 	AAMOMINUW & obj.AMask: {enc: rIIIEncoding},
 	AAMOMINUD & obj.AMask: {enc: rIIIEncoding},
 
-	// 20.5: Single-Precision Load and Store Instructions
+	// 21.5: Single-Precision Load and Store Instructions
 	AFLW & obj.AMask: {enc: iFEncoding},
 	AFSW & obj.AMask: {enc: sFEncoding},
 
-	// 20.6: Single-Precision Floating-Point Computational Instructions
+	// 21.6: Single-Precision Floating-Point Computational Instructions
 	AFADDS & obj.AMask:   {enc: rFFFEncoding},
 	AFSUBS & obj.AMask:   {enc: rFFFEncoding},
 	AFMULS & obj.AMask:   {enc: rFFFEncoding},
@@ -2486,7 +2486,7 @@ var instructions = [ALAST & obj.AMask]instructionData{
 	AFNMSUBS & obj.AMask: {enc: rFFFFEncoding},
 	AFNMADDS & obj.AMask: {enc: rFFFFEncoding},
 
-	// 20.7: Single-Precision Floating-Point Conversion and Move Instructions
+	// 21.7: Single-Precision Floating-Point Conversion and Move Instructions
 	AFCVTWS & obj.AMask:  {enc: rFIEncoding},
 	AFCVTLS & obj.AMask:  {enc: rFIEncoding},
 	AFCVTSW & obj.AMask:  {enc: rIFEncoding},
@@ -2501,19 +2501,19 @@ var instructions = [ALAST & obj.AMask]instructionData{
 	AFMVXW & obj.AMask:   {enc: rFIEncoding},
 	AFMVWX & obj.AMask:   {enc: rIFEncoding},
 
-	// 20.8: Single-Precision Floating-Point Compare Instructions
+	// 21.8: Single-Precision Floating-Point Compare Instructions
 	AFEQS & obj.AMask: {enc: rFFIEncoding},
 	AFLTS & obj.AMask: {enc: rFFIEncoding},
 	AFLES & obj.AMask: {enc: rFFIEncoding},
 
-	// 20.9: Single-Precision Floating-Point Classify Instruction
+	// 21.9: Single-Precision Floating-Point Classify Instruction
 	AFCLASSS & obj.AMask: {enc: rFIEncoding},
 
-	// 12.3: Double-Precision Load and Store Instructions
+	// 22.3: Double-Precision Load and Store Instructions
 	AFLD & obj.AMask: {enc: iFEncoding},
 	AFSD & obj.AMask: {enc: sFEncoding},
 
-	// 21.4: Double-Precision Floating-Point Computational Instructions
+	// 22.4: Double-Precision Floating-Point Computational Instructions
 	AFADDD & obj.AMask:   {enc: rFFFEncoding},
 	AFSUBD & obj.AMask:   {enc: rFFFEncoding},
 	AFMULD & obj.AMask:   {enc: rFFFEncoding},
@@ -2526,7 +2526,7 @@ var instructions = [ALAST & obj.AMask]instructionData{
 	AFNMSUBD & obj.AMask: {enc: rFFFFEncoding},
 	AFNMADDD & obj.AMask: {enc: rFFFFEncoding},
 
-	// 21.5: Double-Precision Floating-Point Conversion and Move Instructions
+	// 22.5: Double-Precision Floating-Point Conversion and Move Instructions
 	AFCVTWD & obj.AMask:  {enc: rFIEncoding},
 	AFCVTLD & obj.AMask:  {enc: rFIEncoding},
 	AFCVTDW & obj.AMask:  {enc: rIFEncoding},
@@ -2543,19 +2543,19 @@ var instructions = [ALAST & obj.AMask]instructionData{
 	AFMVXD & obj.AMask:   {enc: rFIEncoding},
 	AFMVDX & obj.AMask:   {enc: rIFEncoding},
 
-	// 21.6: Double-Precision Floating-Point Compare Instructions
+	// 22.6: Double-Precision Floating-Point Compare Instructions
 	AFEQD & obj.AMask: {enc: rFFIEncoding},
 	AFLTD & obj.AMask: {enc: rFFIEncoding},
 	AFLED & obj.AMask: {enc: rFFIEncoding},
 
-	// 21.7: Double-Precision Floating-Point Classify Instruction
+	// 22.7: Double-Precision Floating-Point Classify Instruction
 	AFCLASSD & obj.AMask: {enc: rFIEncoding},
 
 	//
 	// "C" Extension for Compressed Instructions, Version 2.0
 	//
 
-	// 26.3.1: Compressed Stack-Pointer-Based Loads and Stores
+	// 28.3.1: Compressed Stack-Pointer-Based Loads and Stores
 	ACLWSP & obj.AMask:  {enc: ciEncoding},
 	ACLDSP & obj.AMask:  {enc: ciEncoding},
 	ACFLDSP & obj.AMask: {enc: ciEncoding},
@@ -2563,7 +2563,7 @@ var instructions = [ALAST & obj.AMask]instructionData{
 	ACSDSP & obj.AMask:  {enc: cssEncoding},
 	ACFSDSP & obj.AMask: {enc: cssEncoding},
 
-	// 26.3.2: Compressed Register-Based Loads and Stores
+	// 28.3.2: Compressed Register-Based Loads and Stores
 	ACLW & obj.AMask:  {enc: clEncoding},
 	ACLD & obj.AMask:  {enc: clEncoding},
 	ACFLD & obj.AMask: {enc: clEncoding},
@@ -2571,18 +2571,18 @@ var instructions = [ALAST & obj.AMask]instructionData{
 	ACSD & obj.AMask:  {enc: csEncoding},
 	ACFSD & obj.AMask: {enc: csEncoding},
 
-	// 26.4: Compressed Control Transfer Instructions
+	// 28.4: Compressed Control Transfer Instructions
 	ACJ & obj.AMask:    {enc: cjEncoding},
 	ACJR & obj.AMask:   {enc: crEncoding},
 	ACJALR & obj.AMask: {enc: crEncoding},
 	ACBEQZ & obj.AMask: {enc: cbEncoding},
 	ACBNEZ & obj.AMask: {enc: cbEncoding},
 
-	// 26.5.1: Compressed Integer Constant-Generation Instructions
+	// 28.5.1: Compressed Integer Constant-Generation Instructions
 	ACLI & obj.AMask:  {enc: ciEncoding},
 	ACLUI & obj.AMask: {enc: ciEncoding},
 
-	// 26.5.2: Compressed Integer Register-Immediate Operations
+	// 28.5.2: Compressed Integer Register-Immediate Operations
 	ACADDI & obj.AMask:     {enc: ciEncoding, ternary: true},
 	ACADDIW & obj.AMask:    {enc: ciEncoding, ternary: true},
 	ACADDI16SP & obj.AMask: {enc: ciEncoding, ternary: true},
@@ -2592,7 +2592,7 @@ var instructions = [ALAST & obj.AMask]instructionData{
 	ACSRAI & obj.AMask:     {enc: cbEncoding, ternary: true},
 	ACANDI & obj.AMask:     {enc: cbEncoding, ternary: true},
 
-	// 26.5.3: Compressed Integer Register-Register Operations
+	// 28.5.3: Compressed Integer Register-Register Operations
 	ACMV & obj.AMask:   {enc: crEncoding},
 	ACADD & obj.AMask:  {enc: crEncoding, immForm: ACADDI, ternary: true},
 	ACAND & obj.AMask:  {enc: caEncoding, immForm: ACANDI, ternary: true},
@@ -2602,17 +2602,17 @@ var instructions = [ALAST & obj.AMask]instructionData{
 	ACADDW & obj.AMask: {enc: caEncoding, immForm: ACADDIW, ternary: true},
 	ACSUBW & obj.AMask: {enc: caEncoding, ternary: true},
 
-	// 26.5.5: Compressed NOP Instruction
+	// 28.5.5: Compressed NOP Instruction
 	ACNOP & obj.AMask: {enc: ciEncoding},
 
-	// 26.5.6: Compressed Breakpoint Instruction
+	// 28.5.6: Compressed Breakpoint Instruction
 	ACEBREAK & obj.AMask: {enc: crEncoding},
 
 	//
 	// "B" Extension for Bit Manipulation, Version 1.0.0
 	//
 
-	// 28.4.1: Address Generation Instructions (Zba)
+	// 30.2: Address Generation Instructions (Zba)
 	AADDUW & obj.AMask:    {enc: rIIIEncoding, ternary: true},
 	ASH1ADD & obj.AMask:   {enc: rIIIEncoding, ternary: true},
 	ASH1ADDUW & obj.AMask: {enc: rIIIEncoding, ternary: true},
@@ -2622,7 +2622,7 @@ var instructions = [ALAST & obj.AMask]instructionData{
 	ASH3ADDUW & obj.AMask: {enc: rIIIEncoding, ternary: true},
 	ASLLIUW & obj.AMask:   {enc: iIIEncoding, ternary: true},
 
-	// 28.4.2: Basic Bit Manipulation (Zbb)
+	// 30.3: Basic Bit Manipulation (Zbb)
 	AANDN & obj.AMask:  {enc: rIIIEncoding, ternary: true},
 	ACLZ & obj.AMask:   {enc: rIIEncoding},
 	ACLZW & obj.AMask:  {enc: rIIEncoding},
@@ -2639,8 +2639,6 @@ var instructions = [ALAST & obj.AMask]instructionData{
 	ASEXTH & obj.AMask: {enc: rIIEncoding},
 	AXNOR & obj.AMask:  {enc: rIIIEncoding, ternary: true},
 	AZEXTH & obj.AMask: {enc: rIIEncoding},
-
-	// 28.4.2: Bitwise Rotation (Zbb)
 	AROL & obj.AMask:   {enc: rIIIEncoding, ternary: true},
 	AROLW & obj.AMask:  {enc: rIIIEncoding, ternary: true},
 	AROR & obj.AMask:   {enc: rIIIEncoding, immForm: ARORI, ternary: true},
@@ -2650,12 +2648,12 @@ var instructions = [ALAST & obj.AMask]instructionData{
 	AORCB & obj.AMask:  {enc: rIIEncoding},
 	AREV8 & obj.AMask:  {enc: rIIEncoding},
 
-	// 28.4.3: Carry-less Multiplication (Zbc)
+	// 30.4: Carry-less Multiplication (Zbc)
 	ACLMUL & obj.AMask:  {enc: rIIIEncoding, ternary: true},
 	ACLMULH & obj.AMask: {enc: rIIIEncoding, ternary: true},
 	ACLMULR & obj.AMask: {enc: rIIIEncoding, ternary: true},
 
-	// 28.4.4: Single-bit Instructions (Zbs)
+	// 30.5: Single-bit Instructions (Zbs)
 	ABCLR & obj.AMask:  {enc: rIIIEncoding, immForm: ABCLRI, ternary: true},
 	ABCLRI & obj.AMask: {enc: iIIEncoding, ternary: true},
 	ABEXT & obj.AMask:  {enc: rIIIEncoding, immForm: ABEXTI, ternary: true},
@@ -2686,7 +2684,7 @@ var instructions = [ALAST & obj.AMask]instructionData{
 	AVLMV & obj.AMask:   {enc: iVEncoding},
 	AVSMV & obj.AMask:   {enc: sVEncoding},
 
-	// 31.7.5: Vector Strided Instructions
+	// 31.7.5: Vector Constant-Stride Instructions
 	AVLSE8V & obj.AMask:  {enc: iIIVEncoding},
 	AVLSE16V & obj.AMask: {enc: iIIVEncoding},
 	AVLSE32V & obj.AMask: {enc: iIIVEncoding},
@@ -2714,153 +2712,157 @@ var instructions = [ALAST & obj.AMask]instructionData{
 	AVSOXEI32V & obj.AMask: {enc: sVIVEncoding},
 	AVSOXEI64V & obj.AMask: {enc: sVIVEncoding},
 
-	// 31.7.7: Unit-stride Fault-Only-First Loads
+	// 31.7.7: Vector Unit-Stride Fault-Only-First Loads
 	AVLE8FFV & obj.AMask:  {enc: iVEncoding},
 	AVLE16FFV & obj.AMask: {enc: iVEncoding},
 	AVLE32FFV & obj.AMask: {enc: iVEncoding},
 	AVLE64FFV & obj.AMask: {enc: iVEncoding},
 
-	// 31.7.8: Vector Load/Store Segment Instructions
-	AVLSEG2E8V & obj.AMask:     {enc: iVEncoding},
-	AVLSEG3E8V & obj.AMask:     {enc: iVEncoding},
-	AVLSEG4E8V & obj.AMask:     {enc: iVEncoding},
-	AVLSEG5E8V & obj.AMask:     {enc: iVEncoding},
-	AVLSEG6E8V & obj.AMask:     {enc: iVEncoding},
-	AVLSEG7E8V & obj.AMask:     {enc: iVEncoding},
-	AVLSEG8E8V & obj.AMask:     {enc: iVEncoding},
-	AVLSEG2E16V & obj.AMask:    {enc: iVEncoding},
-	AVLSEG3E16V & obj.AMask:    {enc: iVEncoding},
-	AVLSEG4E16V & obj.AMask:    {enc: iVEncoding},
-	AVLSEG5E16V & obj.AMask:    {enc: iVEncoding},
-	AVLSEG6E16V & obj.AMask:    {enc: iVEncoding},
-	AVLSEG7E16V & obj.AMask:    {enc: iVEncoding},
-	AVLSEG8E16V & obj.AMask:    {enc: iVEncoding},
-	AVLSEG2E32V & obj.AMask:    {enc: iVEncoding},
-	AVLSEG3E32V & obj.AMask:    {enc: iVEncoding},
-	AVLSEG4E32V & obj.AMask:    {enc: iVEncoding},
-	AVLSEG5E32V & obj.AMask:    {enc: iVEncoding},
-	AVLSEG6E32V & obj.AMask:    {enc: iVEncoding},
-	AVLSEG7E32V & obj.AMask:    {enc: iVEncoding},
-	AVLSEG8E32V & obj.AMask:    {enc: iVEncoding},
-	AVLSEG2E64V & obj.AMask:    {enc: iVEncoding},
-	AVLSEG3E64V & obj.AMask:    {enc: iVEncoding},
-	AVLSEG4E64V & obj.AMask:    {enc: iVEncoding},
-	AVLSEG5E64V & obj.AMask:    {enc: iVEncoding},
-	AVLSEG6E64V & obj.AMask:    {enc: iVEncoding},
-	AVLSEG7E64V & obj.AMask:    {enc: iVEncoding},
-	AVLSEG8E64V & obj.AMask:    {enc: iVEncoding},
-	AVSSEG2E8V & obj.AMask:     {enc: sVEncoding},
-	AVSSEG3E8V & obj.AMask:     {enc: sVEncoding},
-	AVSSEG4E8V & obj.AMask:     {enc: sVEncoding},
-	AVSSEG5E8V & obj.AMask:     {enc: sVEncoding},
-	AVSSEG6E8V & obj.AMask:     {enc: sVEncoding},
-	AVSSEG7E8V & obj.AMask:     {enc: sVEncoding},
-	AVSSEG8E8V & obj.AMask:     {enc: sVEncoding},
-	AVSSEG2E16V & obj.AMask:    {enc: sVEncoding},
-	AVSSEG3E16V & obj.AMask:    {enc: sVEncoding},
-	AVSSEG4E16V & obj.AMask:    {enc: sVEncoding},
-	AVSSEG5E16V & obj.AMask:    {enc: sVEncoding},
-	AVSSEG6E16V & obj.AMask:    {enc: sVEncoding},
-	AVSSEG7E16V & obj.AMask:    {enc: sVEncoding},
-	AVSSEG8E16V & obj.AMask:    {enc: sVEncoding},
-	AVSSEG2E32V & obj.AMask:    {enc: sVEncoding},
-	AVSSEG3E32V & obj.AMask:    {enc: sVEncoding},
-	AVSSEG4E32V & obj.AMask:    {enc: sVEncoding},
-	AVSSEG5E32V & obj.AMask:    {enc: sVEncoding},
-	AVSSEG6E32V & obj.AMask:    {enc: sVEncoding},
-	AVSSEG7E32V & obj.AMask:    {enc: sVEncoding},
-	AVSSEG8E32V & obj.AMask:    {enc: sVEncoding},
-	AVSSEG2E64V & obj.AMask:    {enc: sVEncoding},
-	AVSSEG3E64V & obj.AMask:    {enc: sVEncoding},
-	AVSSEG4E64V & obj.AMask:    {enc: sVEncoding},
-	AVSSEG5E64V & obj.AMask:    {enc: sVEncoding},
-	AVSSEG6E64V & obj.AMask:    {enc: sVEncoding},
-	AVSSEG7E64V & obj.AMask:    {enc: sVEncoding},
-	AVSSEG8E64V & obj.AMask:    {enc: sVEncoding},
-	AVLSEG2E8FFV & obj.AMask:   {enc: iVEncoding},
-	AVLSEG3E8FFV & obj.AMask:   {enc: iVEncoding},
-	AVLSEG4E8FFV & obj.AMask:   {enc: iVEncoding},
-	AVLSEG5E8FFV & obj.AMask:   {enc: iVEncoding},
-	AVLSEG6E8FFV & obj.AMask:   {enc: iVEncoding},
-	AVLSEG7E8FFV & obj.AMask:   {enc: iVEncoding},
-	AVLSEG8E8FFV & obj.AMask:   {enc: iVEncoding},
-	AVLSEG2E16FFV & obj.AMask:  {enc: iVEncoding},
-	AVLSEG3E16FFV & obj.AMask:  {enc: iVEncoding},
-	AVLSEG4E16FFV & obj.AMask:  {enc: iVEncoding},
-	AVLSEG5E16FFV & obj.AMask:  {enc: iVEncoding},
-	AVLSEG6E16FFV & obj.AMask:  {enc: iVEncoding},
-	AVLSEG7E16FFV & obj.AMask:  {enc: iVEncoding},
-	AVLSEG8E16FFV & obj.AMask:  {enc: iVEncoding},
-	AVLSEG2E32FFV & obj.AMask:  {enc: iVEncoding},
-	AVLSEG3E32FFV & obj.AMask:  {enc: iVEncoding},
-	AVLSEG4E32FFV & obj.AMask:  {enc: iVEncoding},
-	AVLSEG5E32FFV & obj.AMask:  {enc: iVEncoding},
-	AVLSEG6E32FFV & obj.AMask:  {enc: iVEncoding},
-	AVLSEG7E32FFV & obj.AMask:  {enc: iVEncoding},
-	AVLSEG8E32FFV & obj.AMask:  {enc: iVEncoding},
-	AVLSEG2E64FFV & obj.AMask:  {enc: iVEncoding},
-	AVLSEG3E64FFV & obj.AMask:  {enc: iVEncoding},
-	AVLSEG4E64FFV & obj.AMask:  {enc: iVEncoding},
-	AVLSEG5E64FFV & obj.AMask:  {enc: iVEncoding},
-	AVLSEG6E64FFV & obj.AMask:  {enc: iVEncoding},
-	AVLSEG7E64FFV & obj.AMask:  {enc: iVEncoding},
-	AVLSEG8E64FFV & obj.AMask:  {enc: iVEncoding},
-	AVLSSEG2E8V & obj.AMask:    {enc: iIIVEncoding},
-	AVLSSEG3E8V & obj.AMask:    {enc: iIIVEncoding},
-	AVLSSEG4E8V & obj.AMask:    {enc: iIIVEncoding},
-	AVLSSEG5E8V & obj.AMask:    {enc: iIIVEncoding},
-	AVLSSEG6E8V & obj.AMask:    {enc: iIIVEncoding},
-	AVLSSEG7E8V & obj.AMask:    {enc: iIIVEncoding},
-	AVLSSEG8E8V & obj.AMask:    {enc: iIIVEncoding},
-	AVLSSEG2E16V & obj.AMask:   {enc: iIIVEncoding},
-	AVLSSEG3E16V & obj.AMask:   {enc: iIIVEncoding},
-	AVLSSEG4E16V & obj.AMask:   {enc: iIIVEncoding},
-	AVLSSEG5E16V & obj.AMask:   {enc: iIIVEncoding},
-	AVLSSEG6E16V & obj.AMask:   {enc: iIIVEncoding},
-	AVLSSEG7E16V & obj.AMask:   {enc: iIIVEncoding},
-	AVLSSEG8E16V & obj.AMask:   {enc: iIIVEncoding},
-	AVLSSEG2E32V & obj.AMask:   {enc: iIIVEncoding},
-	AVLSSEG3E32V & obj.AMask:   {enc: iIIVEncoding},
-	AVLSSEG4E32V & obj.AMask:   {enc: iIIVEncoding},
-	AVLSSEG5E32V & obj.AMask:   {enc: iIIVEncoding},
-	AVLSSEG6E32V & obj.AMask:   {enc: iIIVEncoding},
-	AVLSSEG7E32V & obj.AMask:   {enc: iIIVEncoding},
-	AVLSSEG8E32V & obj.AMask:   {enc: iIIVEncoding},
-	AVLSSEG2E64V & obj.AMask:   {enc: iIIVEncoding},
-	AVLSSEG3E64V & obj.AMask:   {enc: iIIVEncoding},
-	AVLSSEG4E64V & obj.AMask:   {enc: iIIVEncoding},
-	AVLSSEG5E64V & obj.AMask:   {enc: iIIVEncoding},
-	AVLSSEG6E64V & obj.AMask:   {enc: iIIVEncoding},
-	AVLSSEG7E64V & obj.AMask:   {enc: iIIVEncoding},
-	AVLSSEG8E64V & obj.AMask:   {enc: iIIVEncoding},
-	AVSSSEG2E8V & obj.AMask:    {enc: sVIIEncoding},
-	AVSSSEG3E8V & obj.AMask:    {enc: sVIIEncoding},
-	AVSSSEG4E8V & obj.AMask:    {enc: sVIIEncoding},
-	AVSSSEG5E8V & obj.AMask:    {enc: sVIIEncoding},
-	AVSSSEG6E8V & obj.AMask:    {enc: sVIIEncoding},
-	AVSSSEG7E8V & obj.AMask:    {enc: sVIIEncoding},
-	AVSSSEG8E8V & obj.AMask:    {enc: sVIIEncoding},
-	AVSSSEG2E16V & obj.AMask:   {enc: sVIIEncoding},
-	AVSSSEG3E16V & obj.AMask:   {enc: sVIIEncoding},
-	AVSSSEG4E16V & obj.AMask:   {enc: sVIIEncoding},
-	AVSSSEG5E16V & obj.AMask:   {enc: sVIIEncoding},
-	AVSSSEG6E16V & obj.AMask:   {enc: sVIIEncoding},
-	AVSSSEG7E16V & obj.AMask:   {enc: sVIIEncoding},
-	AVSSSEG8E16V & obj.AMask:   {enc: sVIIEncoding},
-	AVSSSEG2E32V & obj.AMask:   {enc: sVIIEncoding},
-	AVSSSEG3E32V & obj.AMask:   {enc: sVIIEncoding},
-	AVSSSEG4E32V & obj.AMask:   {enc: sVIIEncoding},
-	AVSSSEG5E32V & obj.AMask:   {enc: sVIIEncoding},
-	AVSSSEG6E32V & obj.AMask:   {enc: sVIIEncoding},
-	AVSSSEG7E32V & obj.AMask:   {enc: sVIIEncoding},
-	AVSSSEG8E32V & obj.AMask:   {enc: sVIIEncoding},
-	AVSSSEG2E64V & obj.AMask:   {enc: sVIIEncoding},
-	AVSSSEG3E64V & obj.AMask:   {enc: sVIIEncoding},
-	AVSSSEG4E64V & obj.AMask:   {enc: sVIIEncoding},
-	AVSSSEG5E64V & obj.AMask:   {enc: sVIIEncoding},
-	AVSSSEG6E64V & obj.AMask:   {enc: sVIIEncoding},
-	AVSSSEG7E64V & obj.AMask:   {enc: sVIIEncoding},
-	AVSSSEG8E64V & obj.AMask:   {enc: sVIIEncoding},
+	// 31.7.8.1: Vector Unit-Stride Segment Loads and Stores
+	AVLSEG2E8V & obj.AMask:    {enc: iVEncoding},
+	AVLSEG3E8V & obj.AMask:    {enc: iVEncoding},
+	AVLSEG4E8V & obj.AMask:    {enc: iVEncoding},
+	AVLSEG5E8V & obj.AMask:    {enc: iVEncoding},
+	AVLSEG6E8V & obj.AMask:    {enc: iVEncoding},
+	AVLSEG7E8V & obj.AMask:    {enc: iVEncoding},
+	AVLSEG8E8V & obj.AMask:    {enc: iVEncoding},
+	AVLSEG2E16V & obj.AMask:   {enc: iVEncoding},
+	AVLSEG3E16V & obj.AMask:   {enc: iVEncoding},
+	AVLSEG4E16V & obj.AMask:   {enc: iVEncoding},
+	AVLSEG5E16V & obj.AMask:   {enc: iVEncoding},
+	AVLSEG6E16V & obj.AMask:   {enc: iVEncoding},
+	AVLSEG7E16V & obj.AMask:   {enc: iVEncoding},
+	AVLSEG8E16V & obj.AMask:   {enc: iVEncoding},
+	AVLSEG2E32V & obj.AMask:   {enc: iVEncoding},
+	AVLSEG3E32V & obj.AMask:   {enc: iVEncoding},
+	AVLSEG4E32V & obj.AMask:   {enc: iVEncoding},
+	AVLSEG5E32V & obj.AMask:   {enc: iVEncoding},
+	AVLSEG6E32V & obj.AMask:   {enc: iVEncoding},
+	AVLSEG7E32V & obj.AMask:   {enc: iVEncoding},
+	AVLSEG8E32V & obj.AMask:   {enc: iVEncoding},
+	AVLSEG2E64V & obj.AMask:   {enc: iVEncoding},
+	AVLSEG3E64V & obj.AMask:   {enc: iVEncoding},
+	AVLSEG4E64V & obj.AMask:   {enc: iVEncoding},
+	AVLSEG5E64V & obj.AMask:   {enc: iVEncoding},
+	AVLSEG6E64V & obj.AMask:   {enc: iVEncoding},
+	AVLSEG7E64V & obj.AMask:   {enc: iVEncoding},
+	AVLSEG8E64V & obj.AMask:   {enc: iVEncoding},
+	AVSSEG2E8V & obj.AMask:    {enc: sVEncoding},
+	AVSSEG3E8V & obj.AMask:    {enc: sVEncoding},
+	AVSSEG4E8V & obj.AMask:    {enc: sVEncoding},
+	AVSSEG5E8V & obj.AMask:    {enc: sVEncoding},
+	AVSSEG6E8V & obj.AMask:    {enc: sVEncoding},
+	AVSSEG7E8V & obj.AMask:    {enc: sVEncoding},
+	AVSSEG8E8V & obj.AMask:    {enc: sVEncoding},
+	AVSSEG2E16V & obj.AMask:   {enc: sVEncoding},
+	AVSSEG3E16V & obj.AMask:   {enc: sVEncoding},
+	AVSSEG4E16V & obj.AMask:   {enc: sVEncoding},
+	AVSSEG5E16V & obj.AMask:   {enc: sVEncoding},
+	AVSSEG6E16V & obj.AMask:   {enc: sVEncoding},
+	AVSSEG7E16V & obj.AMask:   {enc: sVEncoding},
+	AVSSEG8E16V & obj.AMask:   {enc: sVEncoding},
+	AVSSEG2E32V & obj.AMask:   {enc: sVEncoding},
+	AVSSEG3E32V & obj.AMask:   {enc: sVEncoding},
+	AVSSEG4E32V & obj.AMask:   {enc: sVEncoding},
+	AVSSEG5E32V & obj.AMask:   {enc: sVEncoding},
+	AVSSEG6E32V & obj.AMask:   {enc: sVEncoding},
+	AVSSEG7E32V & obj.AMask:   {enc: sVEncoding},
+	AVSSEG8E32V & obj.AMask:   {enc: sVEncoding},
+	AVSSEG2E64V & obj.AMask:   {enc: sVEncoding},
+	AVSSEG3E64V & obj.AMask:   {enc: sVEncoding},
+	AVSSEG4E64V & obj.AMask:   {enc: sVEncoding},
+	AVSSEG5E64V & obj.AMask:   {enc: sVEncoding},
+	AVSSEG6E64V & obj.AMask:   {enc: sVEncoding},
+	AVSSEG7E64V & obj.AMask:   {enc: sVEncoding},
+	AVSSEG8E64V & obj.AMask:   {enc: sVEncoding},
+	AVLSEG2E8FFV & obj.AMask:  {enc: iVEncoding},
+	AVLSEG3E8FFV & obj.AMask:  {enc: iVEncoding},
+	AVLSEG4E8FFV & obj.AMask:  {enc: iVEncoding},
+	AVLSEG5E8FFV & obj.AMask:  {enc: iVEncoding},
+	AVLSEG6E8FFV & obj.AMask:  {enc: iVEncoding},
+	AVLSEG7E8FFV & obj.AMask:  {enc: iVEncoding},
+	AVLSEG8E8FFV & obj.AMask:  {enc: iVEncoding},
+	AVLSEG2E16FFV & obj.AMask: {enc: iVEncoding},
+	AVLSEG3E16FFV & obj.AMask: {enc: iVEncoding},
+	AVLSEG4E16FFV & obj.AMask: {enc: iVEncoding},
+	AVLSEG5E16FFV & obj.AMask: {enc: iVEncoding},
+	AVLSEG6E16FFV & obj.AMask: {enc: iVEncoding},
+	AVLSEG7E16FFV & obj.AMask: {enc: iVEncoding},
+	AVLSEG8E16FFV & obj.AMask: {enc: iVEncoding},
+	AVLSEG2E32FFV & obj.AMask: {enc: iVEncoding},
+	AVLSEG3E32FFV & obj.AMask: {enc: iVEncoding},
+	AVLSEG4E32FFV & obj.AMask: {enc: iVEncoding},
+	AVLSEG5E32FFV & obj.AMask: {enc: iVEncoding},
+	AVLSEG6E32FFV & obj.AMask: {enc: iVEncoding},
+	AVLSEG7E32FFV & obj.AMask: {enc: iVEncoding},
+	AVLSEG8E32FFV & obj.AMask: {enc: iVEncoding},
+	AVLSEG2E64FFV & obj.AMask: {enc: iVEncoding},
+	AVLSEG3E64FFV & obj.AMask: {enc: iVEncoding},
+	AVLSEG4E64FFV & obj.AMask: {enc: iVEncoding},
+	AVLSEG5E64FFV & obj.AMask: {enc: iVEncoding},
+	AVLSEG6E64FFV & obj.AMask: {enc: iVEncoding},
+	AVLSEG7E64FFV & obj.AMask: {enc: iVEncoding},
+	AVLSEG8E64FFV & obj.AMask: {enc: iVEncoding},
+
+	// 31.7.8.2: Vector Constant-Stride Segment Loads and Stores
+	AVLSSEG2E8V & obj.AMask:  {enc: iIIVEncoding},
+	AVLSSEG3E8V & obj.AMask:  {enc: iIIVEncoding},
+	AVLSSEG4E8V & obj.AMask:  {enc: iIIVEncoding},
+	AVLSSEG5E8V & obj.AMask:  {enc: iIIVEncoding},
+	AVLSSEG6E8V & obj.AMask:  {enc: iIIVEncoding},
+	AVLSSEG7E8V & obj.AMask:  {enc: iIIVEncoding},
+	AVLSSEG8E8V & obj.AMask:  {enc: iIIVEncoding},
+	AVLSSEG2E16V & obj.AMask: {enc: iIIVEncoding},
+	AVLSSEG3E16V & obj.AMask: {enc: iIIVEncoding},
+	AVLSSEG4E16V & obj.AMask: {enc: iIIVEncoding},
+	AVLSSEG5E16V & obj.AMask: {enc: iIIVEncoding},
+	AVLSSEG6E16V & obj.AMask: {enc: iIIVEncoding},
+	AVLSSEG7E16V & obj.AMask: {enc: iIIVEncoding},
+	AVLSSEG8E16V & obj.AMask: {enc: iIIVEncoding},
+	AVLSSEG2E32V & obj.AMask: {enc: iIIVEncoding},
+	AVLSSEG3E32V & obj.AMask: {enc: iIIVEncoding},
+	AVLSSEG4E32V & obj.AMask: {enc: iIIVEncoding},
+	AVLSSEG5E32V & obj.AMask: {enc: iIIVEncoding},
+	AVLSSEG6E32V & obj.AMask: {enc: iIIVEncoding},
+	AVLSSEG7E32V & obj.AMask: {enc: iIIVEncoding},
+	AVLSSEG8E32V & obj.AMask: {enc: iIIVEncoding},
+	AVLSSEG2E64V & obj.AMask: {enc: iIIVEncoding},
+	AVLSSEG3E64V & obj.AMask: {enc: iIIVEncoding},
+	AVLSSEG4E64V & obj.AMask: {enc: iIIVEncoding},
+	AVLSSEG5E64V & obj.AMask: {enc: iIIVEncoding},
+	AVLSSEG6E64V & obj.AMask: {enc: iIIVEncoding},
+	AVLSSEG7E64V & obj.AMask: {enc: iIIVEncoding},
+	AVLSSEG8E64V & obj.AMask: {enc: iIIVEncoding},
+	AVSSSEG2E8V & obj.AMask:  {enc: sVIIEncoding},
+	AVSSSEG3E8V & obj.AMask:  {enc: sVIIEncoding},
+	AVSSSEG4E8V & obj.AMask:  {enc: sVIIEncoding},
+	AVSSSEG5E8V & obj.AMask:  {enc: sVIIEncoding},
+	AVSSSEG6E8V & obj.AMask:  {enc: sVIIEncoding},
+	AVSSSEG7E8V & obj.AMask:  {enc: sVIIEncoding},
+	AVSSSEG8E8V & obj.AMask:  {enc: sVIIEncoding},
+	AVSSSEG2E16V & obj.AMask: {enc: sVIIEncoding},
+	AVSSSEG3E16V & obj.AMask: {enc: sVIIEncoding},
+	AVSSSEG4E16V & obj.AMask: {enc: sVIIEncoding},
+	AVSSSEG5E16V & obj.AMask: {enc: sVIIEncoding},
+	AVSSSEG6E16V & obj.AMask: {enc: sVIIEncoding},
+	AVSSSEG7E16V & obj.AMask: {enc: sVIIEncoding},
+	AVSSSEG8E16V & obj.AMask: {enc: sVIIEncoding},
+	AVSSSEG2E32V & obj.AMask: {enc: sVIIEncoding},
+	AVSSSEG3E32V & obj.AMask: {enc: sVIIEncoding},
+	AVSSSEG4E32V & obj.AMask: {enc: sVIIEncoding},
+	AVSSSEG5E32V & obj.AMask: {enc: sVIIEncoding},
+	AVSSSEG6E32V & obj.AMask: {enc: sVIIEncoding},
+	AVSSSEG7E32V & obj.AMask: {enc: sVIIEncoding},
+	AVSSSEG8E32V & obj.AMask: {enc: sVIIEncoding},
+	AVSSSEG2E64V & obj.AMask: {enc: sVIIEncoding},
+	AVSSSEG3E64V & obj.AMask: {enc: sVIIEncoding},
+	AVSSSEG4E64V & obj.AMask: {enc: sVIIEncoding},
+	AVSSSEG5E64V & obj.AMask: {enc: sVIIEncoding},
+	AVSSSEG6E64V & obj.AMask: {enc: sVIIEncoding},
+	AVSSSEG7E64V & obj.AMask: {enc: sVIIEncoding},
+	AVSSSEG8E64V & obj.AMask: {enc: sVIIEncoding},
+
+	// 31.7.8.3: Vector Indexed Segment Loads and Stores
 	AVLOXSEG2EI8V & obj.AMask:  {enc: iVIVEncoding},
 	AVLOXSEG3EI8V & obj.AMask:  {enc: iVIVEncoding},
 	AVLOXSEG4EI8V & obj.AMask:  {enc: iVIVEncoding},
@@ -3410,7 +3412,7 @@ var instructions = [ALAST & obj.AMask]instructionData{
 	AVMV4RV & obj.AMask: {enc: rVVEncoding},
 	AVMV8RV & obj.AMask: {enc: rVVEncoding},
 
-	// 32.2.1: Vector Basic Bit-manipulation
+	// 33.2.1: Vector Basic Bit-manipulation
 	AVANDNVV & obj.AMask: {enc: rVVVEncoding},
 	AVANDNVX & obj.AMask: {enc: rVIVEncoding},
 	AVBREVV & obj.AMask:  {enc: rVVEncoding},
@@ -3428,7 +3430,7 @@ var instructions = [ALAST & obj.AMask]instructionData{
 	AVWSLLVX & obj.AMask: {enc: rVIVEncoding},
 	AVWSLLVI & obj.AMask: {enc: rVVuEncoding},
 
-	// 32.2.2: Vector Carryless Multiplication
+	// 33.2.2: Vector Carryless Multiplication
 	AVCLMULVV & obj.AMask:  {enc: rVVVEncoding},
 	AVCLMULVX & obj.AMask:  {enc: rVIVEncoding},
 	AVCLMULHVV & obj.AMask: {enc: rVVVEncoding},

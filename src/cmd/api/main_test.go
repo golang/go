@@ -17,6 +17,7 @@ import (
 	"go/parser"
 	"go/token"
 	"go/types"
+	"internal/buildcfg"
 	"internal/testenv"
 	"io"
 	"log"
@@ -116,6 +117,15 @@ func Check(t *testing.T) {
 
 	for _, c := range contexts {
 		c.Compiler = build.Default.Compiler
+
+		// Include baseline goexperiment.* tool tags.
+		baseline, err := buildcfg.ParseGOEXPERIMENT(c.GOOS, c.GOARCH, "")
+		if err != nil {
+			t.Fatal(err)
+		}
+		for _, exp := range baseline.Enabled() {
+			c.ToolTags = append(c.ToolTags, "goexperiment."+exp)
+		}
 	}
 
 	walkers := make([]*Walker, len(contexts))

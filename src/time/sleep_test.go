@@ -797,16 +797,6 @@ func TestResetResult(t *testing.T) {
 // consistently indicates whether a value can be read from the channel.
 // Issue #69312.
 func testStopResetResult(t *testing.T, testStop bool) {
-	for _, name := range []string{"0", "1", "2"} {
-		t.Run("asynctimerchan="+name, func(t *testing.T) {
-			testStopResetResultGODEBUG(t, testStop, name)
-		})
-	}
-}
-
-func testStopResetResultGODEBUG(t *testing.T, testStop bool, godebug string) {
-	t.Setenv("GODEBUG", "asynctimerchan="+godebug)
-
 	stopOrReset := func(timer *Timer) bool {
 		if testStop {
 			return timer.Stop()
