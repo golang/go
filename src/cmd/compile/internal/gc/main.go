@@ -48,6 +48,7 @@ import (
 // hcrash(), in which case, we pass the panic on through.
 func handlePanic() {
 	ir.CloseHTMLWriters()
+	noder.CloseHTMLWriters()
 	if err := recover(); err != nil {
 		if err == "-h" {
 			// Force real panic now with -h option (hcrash) - the error

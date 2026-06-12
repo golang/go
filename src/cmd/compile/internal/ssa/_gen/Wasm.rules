@@ -223,6 +223,7 @@
 // Lowering loads
 (Load <t> ptr mem) && is32BitFloat(t) => (F32Load ptr mem)
 (Load <t> ptr mem) && is64BitFloat(t) => (F64Load ptr mem)
+(Load <t> ptr mem) && t.Size() == 16 => (V128Load ptr mem)
 (Load <t> ptr mem) && t.Size() == 8 => (I64Load ptr mem)
 (Load <t> ptr mem) && t.Size() == 4 && !t.IsSigned() => (I64Load32U ptr mem)
 (Load <t> ptr mem) && t.Size() == 4 &&  t.IsSigned() => (I64Load32S ptr mem)
@@ -234,10 +235,13 @@
 // Lowering stores
 (Store {t} ptr val mem) && is64BitFloat(t) => (F64Store ptr val mem)
 (Store {t} ptr val mem) && is32BitFloat(t) => (F32Store ptr val mem)
+(Store {t} ptr val mem) && t.Size() == 16 => (V128Store ptr val mem)
 (Store {t} ptr val mem) && t.Size() == 8 => (I64Store ptr val mem)
 (Store {t} ptr val mem) && t.Size() == 4 => (I64Store32 ptr val mem)
 (Store {t} ptr val mem) && t.Size() == 2 => (I64Store16 ptr val mem)
 (Store {t} ptr val mem) && t.Size() == 1 => (I64Store8 ptr val mem)
+
+(ZeroSIMD <t>) => (V128Zero <t>)
 
 // Lowering moves
 (Move [0] _ _ mem) => mem

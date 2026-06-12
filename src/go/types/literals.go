@@ -191,16 +191,12 @@ func (check *Checker) compositeLit(x *operand, e *ast.CompositeLit, hint Type) {
 					check.errorf(kv.Key, MissingLitField, "%s is not a field", kv.Key)
 					continue
 				}
-				if check.allowVersion(go1_27) {
-					if indirect {
-						check.errorf(kv.Key, InvalidLitField, "invalid implicit pointer indirection to reach %s", kv.Key)
-						continue
-					}
-				} else {
-					if len(index) > 1 {
-						check.errorf(kv.Key, InvalidLitField, "cannot use promoted field %s in struct literal of type %s", fieldPath(utyp, index), base)
-						continue
-					}
+				if len(index) > 1 && !check.verifyVersionf(kv.Key, go1_27, "use of promoted field %s in struct literal of type %s", fieldPath(utyp, index), base) {
+					continue
+				}
+				if indirect {
+					check.errorf(kv.Key, InvalidLitField, "invalid implicit pointer indirection to reach %s", kv.Key)
+					continue
 				}
 				check.recordUse(key, fld)
 				etyp := fld.typ
@@ -237,7 +233,14 @@ func (check *Checker) compositeLit(x *operand, e *ast.CompositeLit, hint Type) {
 				check.assignment(x, etyp, "struct literal")
 			}
 			if len(e.Elts) < len(fields) {
-				check.errorf(inNode(e, e.Rbrace), InvalidStructLit, "too few values in struct literal of type %s", base)
+				var hint string
+				for _, fld := range fields {
+					if !fld.Exported() && fld.pkg != check.pkg {
+						hint = " (type has unexported fields - use key:value pairs)"
+						break
+					}
+				}
+				check.errorf(inNode(e, e.Rbrace), InvalidStructLit, "too few values in struct literal of type %s%s", base, hint)
 				// ok to continue
 			}
 		}

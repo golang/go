@@ -325,7 +325,7 @@ func generateGo(w io.Writer, g *dag.Graph) {
 
 package runtime
 
-type lockRank int
+type lockRank int64
 
 `)
 

@@ -138,7 +138,7 @@ func GetPackage(modroot, pkgdir string) (*IndexPackage, error) {
 	if !errors.Is(err, errNotFromModuleCache) {
 		return nil, err
 	}
-	if cfg.BuildContext.Compiler == "gccgo" && str.HasPathPrefix(modroot, cfg.GOROOTsrc) {
+	if cfg.BuildContext.Compiler == "gccgo" && str.HasFilePathPrefix(modroot, cfg.GOROOTsrc) {
 		return nil, err // gccgo has no sources for GOROOT packages.
 	}
 	// The pkgdir for fips140 has been replaced in the fsys overlay,
@@ -403,6 +403,7 @@ func (rp *IndexPackage) Import(bctxt build.Context, mode build.ImportMode) (p *b
 
 	// goroot and gopath
 	inTestdata := func(sub string) bool {
+		sub = filepath.ToSlash(sub)
 		return strings.Contains(sub, "/testdata/") || strings.HasSuffix(sub, "/testdata") || str.HasPathPrefix(sub, "testdata")
 	}
 	var pkga string

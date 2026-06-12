@@ -41,7 +41,7 @@ import (
 //	e.WriteValue(Value(`{"k":"v"}`)) // {"k":"v"}
 //	e.WriteToken(EndObject)          // }
 //
-// The above is one of many possible sequence of calls and
+// The above is one of many possible sequences of calls and
 // may not represent the most sensible method to call for any given token/value.
 // For example, it is probably more common to call [Encoder.WriteToken] with a string
 // for object names.
@@ -96,7 +96,7 @@ func NewEncoder(w io.Writer, opts ...Options) *Encoder {
 
 // Reset resets an encoder such that it is writing afresh to w and
 // configured with the provided options. Reset must not be called on
-// a Encoder passed to the [encoding/json/v2.MarshalerTo.MarshalJSONTo] method
+// an Encoder passed to the [encoding/json/v2.MarshalerTo.MarshalJSONTo] method
 // or the [encoding/json/v2.MarshalToFunc] function.
 func (e *Encoder) Reset(w io.Writer, opts ...Options) {
 	switch {
@@ -124,17 +124,8 @@ func (e *encoderState) reset(b []byte, w io.Writer, opts ...Options) {
 	opts2 := jsonopts.Struct{} // avoid mutating e.Struct in case it is part of opts
 	opts2.Join(opts...)
 	e.Struct = opts2
-	if e.Flags.Get(jsonflags.Multiline) {
-		if !e.Flags.Has(jsonflags.SpaceAfterColon) {
-			e.Flags.Set(jsonflags.SpaceAfterColon | 1)
-		}
-		if !e.Flags.Has(jsonflags.SpaceAfterComma) {
-			e.Flags.Set(jsonflags.SpaceAfterComma | 0)
-		}
-		if !e.Flags.Has(jsonflags.Indent) {
-			e.Flags.Set(jsonflags.Indent | 1)
-			e.Indent = "\t"
-		}
+	if e.Struct.Flags.Get(jsonflags.Multiline) {
+		e.Struct.InitializeMultiline()
 	}
 }
 
@@ -149,6 +140,8 @@ func (e *encoderState) reset(b []byte, w io.Writer, opts ...Options) {
 func (e *Encoder) Options() Options {
 	return &e.s.Struct
 }
+
+func (e *encoderState) options() *jsonopts.Struct { return &e.Struct }
 
 // NeedFlush determines whether to flush at this point.
 func (e *encoderState) NeedFlush() bool {
@@ -178,7 +171,7 @@ func (e *encoderState) Flush() error {
 
 	// Specialize bytes.Buffer for better performance.
 	if bb, ok := e.wr.(*bytes.Buffer); ok {
-		// If e.buf already aliases the internal buffer of bb,
+		// If e.Buf already aliases the internal buffer of bb,
 		// then the Write call simply increments the internal offset,
 		// otherwise Write operates as expected.
 		// See https://go.dev/issue/42986.
@@ -213,7 +206,7 @@ func (e *encoderState) Flush() error {
 	e.Buf = e.Buf[:0]
 
 	// Check whether to grow the buffer.
-	// Note that cap(e.buf) may already exceed maxBufferSize since
+	// Note that cap(e.Buf) may already exceed maxBufferSize since
 	// an append elsewhere already grew it to store a large token.
 	const maxBufferSize = 4 << 10
 	const growthSizeFactor = 2 // higher value is faster
@@ -229,7 +222,7 @@ func (e *encoderState) Flush() error {
 
 	return nil
 }
-func (d *encodeBuffer) offsetAt(pos int) int64   { return d.baseOffset + int64(pos) }
+func (e *encodeBuffer) offsetAt(pos int) int64   { return e.baseOffset + int64(pos) }
 func (e *encodeBuffer) previousOffsetEnd() int64 { return e.baseOffset + int64(len(e.Buf)) }
 func (e *encodeBuffer) unflushedBuffer() []byte  { return e.Buf }
 
@@ -346,7 +339,8 @@ func (e *encoderState) UnwriteOnlyObjectMemberName() string {
 // to provide an end object delimiter when the encoder is finishing an array.
 // If the provided token is invalid, then it reports a [SyntacticError] and
 // the internal state remains unchanged. The offset reported
-// in [SyntacticError] will be relative to the [Encoder.OutputOffset].
+// in [SyntacticError] will be the [Encoder.OutputOffset] plus any delimiter
+// or whitespace characters that would have preceded the provided token.
 func (e *Encoder) WriteToken(t Token) error {
 	return e.s.WriteToken(t)
 }
@@ -405,6 +399,7 @@ func (e *encoderState) WriteToken(t Token) error {
 		if !e.Flags.Get(jsonflags.AllowDuplicateNames) {
 			e.Namespaces.push()
 		}
+		e.Flags.Clear(jsonflags.TagFlags) // tags only apply to current depth
 	case '}':
 		b = append(b, '}')
 		if err = e.Tokens.popObject(); err != nil {
@@ -417,6 +412,7 @@ func (e *encoderState) WriteToken(t Token) error {
 	case '[':
 		b = append(b, '[')
 		err = e.Tokens.pushArray()
+		e.Flags.Clear(jsonflags.TagFlags) // tags only apply to current depth
 	case ']':
 		b = append(b, ']')
 		err = e.Tokens.popArray()
@@ -482,7 +478,7 @@ func (e *encoderState) AppendRaw(k Kind, safeASCII bool, appendFn func([]byte) (
 		if e.Tokens.Last.NeedObjectName() {
 			if !e.Flags.Get(jsonflags.AllowDuplicateNames) {
 				if !e.Tokens.Last.isValidNamespace() {
-					return wrapSyntacticError(e, err, pos, +1)
+					return wrapSyntacticError(e, errInvalidNamespace, pos, +1)
 				}
 				if e.Tokens.Last.isActiveNamespace() && !e.Namespaces.Last().insertQuoted(b[pos:], isVerbatim) {
 					err = wrapWithObjectName(ErrDuplicateName, b[pos:])
@@ -523,8 +519,8 @@ func (e *encoderState) AppendRaw(k Kind, safeASCII bool, appendFn func([]byte) (
 // The provided value kind must be consistent with the JSON grammar
 // (see examples on [Encoder.WriteToken]). If the provided value is invalid,
 // then it reports a [SyntacticError] and the internal state remains unchanged.
-// The offset reported in [SyntacticError] will be relative to the
-// [Encoder.OutputOffset] plus the offset into v of any encountered syntax error.
+// The offset reported in [SyntacticError] will be the [Encoder.OutputOffset]
+// plus the offset into v of any encountered syntax error.
 func (e *Encoder) WriteValue(v Value) error {
 	return e.s.WriteValue(v)
 }
@@ -541,7 +537,7 @@ func (e *encoderState) WriteValue(v Value) error {
 	}
 	pos := len(b) // offset before the value
 
-	// Append the value the output.
+	// Append the value to the output.
 	var n int
 	n += jsonwire.ConsumeWhitespace(v[n:])
 	b, m, err := e.reformatValue(b, v[n:], e.Tokens.Depth())
@@ -715,7 +711,7 @@ func (e *encoderState) reformatValue(dst []byte, src Value, depth int) ([]byte, 
 }
 
 // reformatObject parses a JSON object from the start of src and
-// appends it to the end of src, reformatting whitespace and strings as needed.
+// appends it to the end of dst, reformatting whitespace and strings as needed.
 // It returns the extended dst buffer and the number of consumed input bytes.
 func (e *encoderState) reformatObject(dst []byte, src Value, depth int) ([]byte, int, error) {
 	// Append object begin.
@@ -911,19 +907,21 @@ func (e *Encoder) OutputOffset() int64 {
 //
 // Example usage:
 //
-//	b := d.AvailableBuffer()
+//	b := e.AvailableBuffer()
 //	b = append(b, '"')
 //	b = appendString(b, v) // append the string formatting of v
 //	b = append(b, '"')
-//	... := d.WriteValue(b)
+//	... := e.WriteValue(b)
 //
-// It is the user's responsibility to ensure that the value is valid JSON.
+// WriteValue expects a JSON value. Using AvailableBuffer to manually construct
+// a value requires caution to avoid producing an invalid JSON value that would
+// then cause WriteValue to fail.
 func (e *Encoder) AvailableBuffer() []byte {
-	// NOTE: We don't return e.buf[len(e.buf):cap(e.buf)] since WriteValue would
+	// NOTE: We don't return e.Buf[len(e.Buf):cap(e.Buf)] since WriteValue would
 	// need to take special care to avoid mangling the data while reformatting.
-	// WriteValue can't easily identify whether the input Value aliases e.buf
+	// WriteValue can't easily identify whether the input Value aliases e.Buf
 	// without using unsafe.Pointer. Thus, we just return a different buffer.
-	// Should this ever alias e.buf, we need to consider how it operates with
+	// Should this ever alias e.Buf, we need to consider how it operates with
 	// the specialized performance optimization for bytes.Buffer.
 	n := 1 << bits.Len(uint(e.s.maxValue|63)) // fast approximation for max length
 	if cap(e.s.availBuffer) < n {
@@ -936,7 +934,25 @@ func (e *Encoder) AvailableBuffer() []byte {
 // Each level on the stack represents a nested JSON object or array.
 // It is incremented whenever a [BeginObject] or [BeginArray] token is encountered
 // and decremented whenever an [EndObject] or [EndArray] token is encountered.
-// The depth is zero-indexed, where zero represents the top-level JSON value.
+//
+// StackDepth returns 0 when not inside any object or array.
+// In particular, it returns 0 before any tokens have been written,
+// after any top-level value has been written, and between values
+// when encoding a stream of top-level values (e.g., NDJSON).
+// StackDepth returns 1 inside a top-level object or array,
+// 2 inside a nested object or array, and so on.
+//
+// For example, consider encoding the following JSON:
+//
+//	{"a": [1, 2], "b": {"c": 3}}
+//
+// While encoding, StackDepth would report the following:
+//
+//   - At the start, StackDepth reports 0.
+//   - After encoding the outer '{', StackDepth reports 1.
+//   - After encoding the inner '[', StackDepth reports 2.
+//   - After encoding the inner ']', StackDepth reports 1.
+//   - After encoding the outer '}', StackDepth reports 0.
 func (e *Encoder) StackDepth() int {
 	// NOTE: Keep in sync with Decoder.StackDepth.
 	return e.s.Tokens.Depth() - 1
@@ -950,7 +966,7 @@ func (e *Encoder) StackDepth() int {
 //   - [KindBeginObject] for a level representing a JSON object, and
 //   - [KindBeginArray] for a level representing a JSON array.
 //
-// It also reports the length of that JSON object or array.
+// It also reports the length of that JSON object or array encoded so far.
 // Each name and value in a JSON object is counted separately,
 // so the effective number of members would be half the length.
 // A complete JSON object must have an even length.

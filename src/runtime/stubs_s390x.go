@@ -10,7 +10,12 @@ import "unsafe"
 //
 // load_g is also called from runtime/cgo.
 //
-//go:linknamestd load_g
+// load_g should be an internal detail,
+// but widely used packages access it using linkname.
+// Notable members of the hall of shame include:
+//   - github.com/ebitengine/purego
+//
+//go:linkname load_g
 func load_g()
 func save_g()
 

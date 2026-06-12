@@ -1339,7 +1339,9 @@ func (check *Checker) multiExpr(e syntax.Expr, allowCommaOk bool) (list []*opera
 		// multiple values
 		list = make([]*operand, t.Len())
 		for i, v := range t.vars {
-			list[i] = &operand{mode_: value, expr: e, typ_: v.typ}
+			// create a dummy expression (in place of e) for better error messages
+			dummy := syntax.NewName(syntax.StartPos(e), nth(i+1, "function result"))
+			list[i] = &operand{mode_: value, expr: dummy, typ_: v.typ}
 		}
 		return
 	}
@@ -1347,15 +1349,37 @@ func (check *Checker) multiExpr(e syntax.Expr, allowCommaOk bool) (list []*opera
 	// exactly one (possibly invalid or comma-ok) value
 	list = []*operand{&x}
 	if allowCommaOk && (x.mode() == mapindex || x.mode() == commaok || x.mode() == commaerr) {
-		x2 := &operand{mode_: value, expr: e, typ_: Typ[UntypedBool]}
+		var what string = "ok value of (comma, ok) expression"
+		var typ Type = Typ[UntypedBool]
 		if x.mode() == commaerr {
-			x2.typ_ = universeError
+			what = "err value of (comma, err) expression"
+			typ = universeError
 		}
+		// create a dummy expression (in place of e) for better error messages
+		dummy := syntax.NewName(syntax.StartPos(e), what)
+		x2 := &operand{mode_: value, expr: dummy, typ_: typ}
 		list = append(list, x2)
 		commaOk = true
 	}
 
 	return
+}
+
+// nth returns a string of the form "nth " + what, where nth
+// stands for 1st, 2nd, 3rd, 4th, etc. depending on n.
+func nth(n int, what string) string {
+	var ext string
+	switch n {
+	case 1:
+		ext = "st"
+	case 2:
+		ext = "nd"
+	case 3:
+		ext = "rd"
+	default:
+		ext = "th"
+	}
+	return fmt.Sprintf("%d%s %s", n, ext, what)
 }
 
 // exprOrType typechecks expression or type e and initializes x with the expression value or type.

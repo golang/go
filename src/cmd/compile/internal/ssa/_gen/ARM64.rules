@@ -174,8 +174,8 @@
 (Rsh64Ux32 <t> x y) && !shiftIsBounded(v) => (CSEL [OpARM64LessThanU] (SRL <t> x y) (Const64 <t> [0]) (CMPWconst [64] y))
 (Rsh64Ux(16|8) <t> [bounded] x y) && !shiftIsBounded(v) => (Rsh64Ux32 <t> [bounded] x (ZeroExt(16|8)to32 y))
 
-(Rsh64x64 <t> x y) && !shiftIsBounded(v) => (SRA x (CSEL [OpARM64LessThanU] <y.Type> y (Const64 <y.Type> [63]) (CMPconst [64] y)))
-(Rsh64x32 <t> x y) && !shiftIsBounded(v) => (SRA x (CSEL [OpARM64LessThanU] <y.Type> y (Const64 <y.Type> [63]) (CMPconst [64] y)))
+(Rsh64x64 <t> x y) && !shiftIsBounded(v) => (SRA x (CSEL [OpARM64LessThanU] <y.Type> y (Const64 <y.Type> [63]) (CMPconst  [64] y)))
+(Rsh64x32 <t> x y) && !shiftIsBounded(v) => (SRA x (CSEL [OpARM64LessThanU] <y.Type> y (Const64 <y.Type> [63]) (CMPWconst [64] y)))
 (Rsh64x(16|8) <t> [bounded] x y) && !shiftIsBounded(v) => (Rsh64x32 <t> [bounded] x (ZeroExt(16|8)to32 y))
 
 // constants
@@ -320,6 +320,7 @@
 (Load <t> ptr mem) && (is64BitInt(t) || isPtr(t)) => (MOVDload ptr mem)
 (Load <t> ptr mem) && is32BitFloat(t) => (FMOVSload ptr mem)
 (Load <t> ptr mem) && is64BitFloat(t) => (FMOVDload ptr mem)
+(Load <t> ptr mem) && t.Size() == 16 => (FMOVQload ptr mem)
 
 // stores
 (Store {t} ptr val mem) && t.Size() == 1 => (MOVBstore ptr val mem)
@@ -328,6 +329,7 @@
 (Store {t} ptr val mem) && t.Size() == 8 && !t.IsFloat() => (MOVDstore ptr val mem)
 (Store {t} ptr val mem) && t.Size() == 4 &&  t.IsFloat() => (FMOVSstore ptr val mem)
 (Store {t} ptr val mem) && t.Size() == 8 &&  t.IsFloat() => (FMOVDstore ptr val mem)
+(Store {t} ptr val mem) && t.Size() == 16 => (FMOVQstore ptr val mem)
 
 // zeroing
 (Zero [0] _   mem) => mem
@@ -1671,6 +1673,7 @@
 (SBFX [bfc] s:(SLLconst [sc] x))
 	&& s.Uses == 1
 	&& sc > bfc.lsb()
+	&& sc < bfc.lsb()+bfc.width()
 	=> (SBFIZ [armBFAuxInt(sc - bfc.lsb(), bfc.width() - (sc-bfc.lsb()))] x)
 
 // ubfiz
@@ -1850,3 +1853,6 @@
 (ANDconst [0xffffffff] x) => (MOVWUreg x)
 (ANDconst [0xffff    ] x) => (MOVHUreg x)
 (ANDconst [0xff      ] x) => (MOVBUreg x)
+
+// SIMD zero
+(ZeroSIMD <t>) && t.Size() == 16 => (VMOVI16B [0] <t>)

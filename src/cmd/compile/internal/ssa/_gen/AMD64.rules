@@ -42,6 +42,12 @@
 (SUBQborrow x (MOVQconst [c])) && is32Bit(c) => (SUBQconstborrow x [int32(c)])
 (Select1 (NEGLflags (MOVQconst [0]))) => (FlagEQ)
 (Select1 (NEGLflags (MOVBQZX (SETB x)))) => x
+// Absorb InvertFlags into ADCQ/SBBQ: CF(InvertFlags(f)) = SETA(f), so
+// re-materialize the carry/borrow through the SETA+NEGLflags path.
+(ADCQ x y (InvertFlags f)) => (ADCQ x y (Select1 <types.TypeFlags> (NEGLflags (MOVBQZX <types.Types[types.TUINT32]> (SETA <types.Types[types.TUINT8]> f)))))
+(ADCQconst x [c] (InvertFlags f)) => (ADCQconst x [c] (Select1 <types.TypeFlags> (NEGLflags (MOVBQZX <types.Types[types.TUINT32]> (SETA <types.Types[types.TUINT8]> f)))))
+(SBBQ x y (InvertFlags f)) => (SBBQ x y (Select1 <types.TypeFlags> (NEGLflags (MOVBQZX <types.Types[types.TUINT32]> (SETA <types.Types[types.TUINT8]> f)))))
+(SBBQconst x [c] (InvertFlags f)) => (SBBQconst x [c] (Select1 <types.TypeFlags> (NEGLflags (MOVBQZX <types.Types[types.TUINT32]> (SETA <types.Types[types.TUINT8]> f)))))
 
 
 (Mul64uhilo ...) => (MULQU2 ...)
@@ -824,10 +830,6 @@
 ((SHRW|SARW)const           x [0]) => x
 ((SHRB|SARB)const           x [0]) => x
 ((ROLQ|ROLL|ROLW|ROLB)const x [0]) => x
-
-// Multi-register shifts
-(ORQ (SH(R|L)Q lo bits) (SH(L|R)Q hi (NEGQ bits))) => (SH(R|L)DQ lo hi bits)
-(ORQ (SH(R|L)XQ lo bits) (SH(L|R)XQ hi (NEGQ bits))) => (SH(R|L)DQ lo hi bits)
 
 // Note: the word and byte shifts keep the low 5 bits (not the low 4 or 3 bits)
 // because the x86 instructions are defined to use all 5 bits of the shift even
@@ -1733,6 +1735,72 @@
 (ZeroSIMD <t>) && t.Size() == 32 => (Zero256 <t>)
 (ZeroSIMD <t>) && t.Size() == 64 => (Zero512 <t>)
 
+// optimize x.IsNaN().Or(y.IsNaN())
+// do these before the mask rewrites
+(VPOR128 (VCMPP(S|D)128 [3] x x) (VCMPP(S|D)128 [3] y y)) => (VCMPP(S|D)128 [3] x y)
+(VPOR256 (VCMPP(S|D)256 [3] x x) (VCMPP(S|D)256 [3] y y)) => (VCMPP(S|D)256 [3] x y)
+(VPORD512 (VPMOVMToVec32x16 (VCMPPS512 [3] x x)) (VPMOVMToVec32x16 (VCMPPS512 [3] y y))) =>
+	(VPMOVMToVec32x16 (VCMPPS512 [3] x y))
+(VPORD512 (VPMOVMToVec64x8  (VCMPPD512 [3] x x)) (VPMOVMToVec64x8  (VCMPPD512 [3] y y))) =>
+	(VPMOVMToVec64x8  (VCMPPD512 [3] x y))
+
+// Include these rules because you never know about rewrite order
+(KANDQ (VCMPPD512 [3] x x) (VCMPPD512 [3] y y)) => (VCMPPD512 [3] x x)
+(KANDD (VCMPPS512 [3] x x) (VCMPPS512 [3] y y)) => (VCMPPS512 [3] x y)
+
+// These larger simplifying rules must come before the smaller simplifying rules that might break them).
+// Rewrite rules for binary logical mask operations that apply to 8-bit elements (B, for bytes) of 128, 256, and 512-bit vectors
+(VPAND128 (VPMOVMToVec8x16 x) (VPMOVMToVec8x16 y)) && v.Block.CPUfeatures.hasFeature(CPUavx512) => (VPMOVMToVec8x16 (KANDB x y))
+(VPAND256 (VPMOVMToVec8x32 x) (VPMOVMToVec8x32 y)) && v.Block.CPUfeatures.hasFeature(CPUavx512) => (VPMOVMToVec8x32 (KANDB x y))
+(VPANDD512 (VPMOVMToVec8x64 x) (VPMOVMToVec8x64 y)) && v.Block.CPUfeatures.hasFeature(CPUavx512) => (VPMOVMToVec8x64 (KANDB x y))
+
+(VPOR128 (VPMOVMToVec8x16 x) (VPMOVMToVec8x16 y)) && v.Block.CPUfeatures.hasFeature(CPUavx512) => (VPMOVMToVec8x16 (KORB x y))
+(VPOR256 (VPMOVMToVec8x32 x) (VPMOVMToVec8x32 y)) && v.Block.CPUfeatures.hasFeature(CPUavx512) => (VPMOVMToVec8x32 (KORB x y))
+(VPORD512 (VPMOVMToVec8x64 x) (VPMOVMToVec8x64 y)) && v.Block.CPUfeatures.hasFeature(CPUavx512) => (VPMOVMToVec8x64 (KORB x y))
+
+(VPXOR128 (VPMOVMToVec8x16 x) (VPMOVMToVec8x16 y)) && v.Block.CPUfeatures.hasFeature(CPUavx512) => (VPMOVMToVec8x16 (KXORB x y))
+(VPXOR256 (VPMOVMToVec8x32 x) (VPMOVMToVec8x32 y)) && v.Block.CPUfeatures.hasFeature(CPUavx512) => (VPMOVMToVec8x32 (KXORB x y))
+(VPXORD512 (VPMOVMToVec8x64 x) (VPMOVMToVec8x64 y)) && v.Block.CPUfeatures.hasFeature(CPUavx512) => (VPMOVMToVec8x64 (KXORB x y))
+
+// Rewrite rules for binary logical mask operations that apply to 16-bit elements (W, for words) of 128, 256, and 512-bit vectors
+(VPAND128 (VPMOVMToVec16x8 x) (VPMOVMToVec16x8 y)) && v.Block.CPUfeatures.hasFeature(CPUavx512) => (VPMOVMToVec16x8 (KANDW x y))
+(VPAND256 (VPMOVMToVec16x16 x) (VPMOVMToVec16x16 y)) && v.Block.CPUfeatures.hasFeature(CPUavx512) => (VPMOVMToVec16x16 (KANDW x y))
+(VPANDD512 (VPMOVMToVec16x32 x) (VPMOVMToVec16x32 y)) && v.Block.CPUfeatures.hasFeature(CPUavx512) => (VPMOVMToVec16x32 (KANDW x y))
+
+(VPOR128 (VPMOVMToVec16x8 x) (VPMOVMToVec16x8 y)) && v.Block.CPUfeatures.hasFeature(CPUavx512) => (VPMOVMToVec16x8 (KORW x y))
+(VPOR256 (VPMOVMToVec16x16 x) (VPMOVMToVec16x16 y)) && v.Block.CPUfeatures.hasFeature(CPUavx512) => (VPMOVMToVec16x16 (KORW x y))
+(VPORD512 (VPMOVMToVec16x32 x) (VPMOVMToVec16x32 y)) && v.Block.CPUfeatures.hasFeature(CPUavx512) => (VPMOVMToVec16x32 (KORW x y))
+
+(VPXOR128 (VPMOVMToVec16x8 x) (VPMOVMToVec16x8 y)) && v.Block.CPUfeatures.hasFeature(CPUavx512) => (VPMOVMToVec16x8 (KXORW x y))
+(VPXOR256 (VPMOVMToVec16x16 x) (VPMOVMToVec16x16 y)) && v.Block.CPUfeatures.hasFeature(CPUavx512) => (VPMOVMToVec16x16 (KXORW x y))
+(VPXORD512 (VPMOVMToVec16x32 x) (VPMOVMToVec16x32 y)) && v.Block.CPUfeatures.hasFeature(CPUavx512) => (VPMOVMToVec16x32 (KXORW x y))
+
+// Rewrite rules for binary logical mask operations that apply to 32-bit elements (D, for doublewords) of 128, 256, and 512-bit vectors
+(VPAND128 (VPMOVMToVec32x4 x) (VPMOVMToVec32x4 y)) && v.Block.CPUfeatures.hasFeature(CPUavx512) => (VPMOVMToVec32x4 (KANDD x y))
+(VPAND256 (VPMOVMToVec32x8 x) (VPMOVMToVec32x8 y)) && v.Block.CPUfeatures.hasFeature(CPUavx512) => (VPMOVMToVec32x8 (KANDD x y))
+(VPANDD512 (VPMOVMToVec32x16 x) (VPMOVMToVec32x16 y)) && v.Block.CPUfeatures.hasFeature(CPUavx512) => (VPMOVMToVec32x16 (KANDD x y))
+
+(VPOR128 (VPMOVMToVec32x4 x) (VPMOVMToVec32x4 y)) && v.Block.CPUfeatures.hasFeature(CPUavx512) => (VPMOVMToVec32x4 (KORD x y))
+(VPOR256 (VPMOVMToVec32x8 x) (VPMOVMToVec32x8 y)) && v.Block.CPUfeatures.hasFeature(CPUavx512) => (VPMOVMToVec32x8 (KORD x y))
+(VPORD512 (VPMOVMToVec32x16 x) (VPMOVMToVec32x16 y)) && v.Block.CPUfeatures.hasFeature(CPUavx512) => (VPMOVMToVec32x16 (KORD x y))
+
+(VPXOR128 (VPMOVMToVec32x4 x) (VPMOVMToVec32x4 y)) && v.Block.CPUfeatures.hasFeature(CPUavx512) => (VPMOVMToVec32x4 (KXORD x y))
+(VPXOR256 (VPMOVMToVec32x8 x) (VPMOVMToVec32x8 y)) && v.Block.CPUfeatures.hasFeature(CPUavx512) => (VPMOVMToVec32x8 (KXORD x y))
+(VPXORD512 (VPMOVMToVec32x16 x) (VPMOVMToVec32x16 y)) && v.Block.CPUfeatures.hasFeature(CPUavx512) => (VPMOVMToVec32x16 (KXORD x y))
+
+// Rewrite rules for binary logical mask operations that apply to 64-bit elements (Q, for quadwords) of 128, 256, and 512-bit vectors
+(VPAND128 (VPMOVMToVec64x2 x) (VPMOVMToVec64x2 y)) && v.Block.CPUfeatures.hasFeature(CPUavx512) => (VPMOVMToVec64x2 (KANDQ x y))
+(VPAND256 (VPMOVMToVec64x4 x) (VPMOVMToVec64x4 y)) && v.Block.CPUfeatures.hasFeature(CPUavx512) => (VPMOVMToVec64x4 (KANDQ x y))
+(VPANDD512 (VPMOVMToVec64x8 x) (VPMOVMToVec64x8 y)) && v.Block.CPUfeatures.hasFeature(CPUavx512) => (VPMOVMToVec64x8 (KANDQ x y))
+
+(VPOR128 (VPMOVMToVec64x2 x) (VPMOVMToVec64x2 y)) && v.Block.CPUfeatures.hasFeature(CPUavx512) => (VPMOVMToVec64x2 (KORQ x y))
+(VPOR256 (VPMOVMToVec64x4 x) (VPMOVMToVec64x4 y)) && v.Block.CPUfeatures.hasFeature(CPUavx512) => (VPMOVMToVec64x4 (KORQ x y))
+(VPORD512 (VPMOVMToVec64x8 x) (VPMOVMToVec64x8 y)) && v.Block.CPUfeatures.hasFeature(CPUavx512) => (VPMOVMToVec64x8 (KORQ x y))
+
+(VPXOR128 (VPMOVMToVec64x2 x) (VPMOVMToVec64x2 y)) && v.Block.CPUfeatures.hasFeature(CPUavx512) => (VPMOVMToVec64x2 (KXORQ x y))
+(VPXOR256 (VPMOVMToVec64x4 x) (VPMOVMToVec64x4 y)) && v.Block.CPUfeatures.hasFeature(CPUavx512) => (VPMOVMToVec64x4 (KXORQ x y))
+(VPXORD512 (VPMOVMToVec64x8 x) (VPMOVMToVec64x8 y)) && v.Block.CPUfeatures.hasFeature(CPUavx512) => (VPMOVMToVec64x8 (KXORQ x y))
+
 (VPMOVVec8x16ToM (VPMOVMToVec8x16 x)) => x
 (VPMOVVec8x32ToM (VPMOVMToVec8x32 x)) => x
 (VPMOVVec8x64ToM (VPMOVMToVec8x64 x)) => x
@@ -1804,14 +1872,6 @@
 (EQ (VPTEST x:(VPAND(D|Q)512 j k) y) yes no) && x == y && x.Uses == 2 => (EQ (VPTEST j k) yes no)
 (EQ (VPTEST x:(VPANDN(128|256) j k) y) yes no) && x == y && x.Uses == 2 => (ULT (VPTEST k j) yes no) // AndNot has swapped its operand order
 (EQ (VPTEST x:(VPANDN(D|Q)512 j k) y) yes no) && x == y && x.Uses == 2 => (ULT (VPTEST k j) yes no) // AndNot has swapped its operand order
-
-// optimize x.IsNaN().Or(y.IsNaN())
-(VPOR128 (VCMPP(S|D)128 [3] x x) (VCMPP(S|D)128 [3] y y)) => (VCMPP(S|D)128 [3] x y)
-(VPOR256 (VCMPP(S|D)256 [3] x x) (VCMPP(S|D)256 [3] y y)) => (VCMPP(S|D)256 [3] x y)
-(VPORD512 (VPMOVMToVec32x16 (VCMPPS512 [3] x x)) (VPMOVMToVec32x16 (VCMPPS512 [3] y y))) =>
-	(VPMOVMToVec32x16 (VCMPPS512 [3] x y))
-(VPORD512 (VPMOVMToVec64x8  (VCMPPD512 [3] x x)) (VPMOVMToVec64x8  (VCMPPD512 [3] y y))) =>
-	(VPMOVMToVec64x8  (VCMPPD512 [3] x y))
 
 // remove flags → bool → flags roundtrip
 // Only do it if the flag generating instruction is local otherwise the likelihood flagalloc won't undo this optimization and makes things worse are slim.

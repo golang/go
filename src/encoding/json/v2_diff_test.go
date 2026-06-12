@@ -342,28 +342,33 @@ func TestStringOption(t *testing.T) {
 				}
 				return s
 			}
+			quoteOnlyV2 := func(s string) string {
+				if json.Version == "v2" {
+					s = quote(s)
+				}
+				return s
+			}
 			want := strings.Join([]string{
 				`{`,
 				`"String":` + quoteOnlyV1(`"string"`) + `,`, // in v1, Go strings are also stringified
 				`"Bool":` + quoteOnlyV1("true") + `,`,       // in v1, Go bools are also stringified
 				`"Int":` + quote("1") + `,`,
 				`"Float":` + quote("1") + `,`,
-				`"Map":{"Name":1},`,     // No recursive stringification
-				`"Struct":{"Field":1},`, // No recursive stringification
-				`"Slice":[1],`,          // No recursive stringification
-				`"Array":[1],`,          // No recursive stringification
+				`"Map":{"Name":1},`,     // no recursive stringification
+				`"Struct":{"Field":1},`, // no recursive stringification
+				`"Slice":[1],`,          // no recursive stringification
+				`"Array":[1],`,          // no recursive stringification
 				`"PointerA":null,`,
-				`"PointerB":` + quote("1") + `,`, // numbers are stringified after a single pointer indirection
-				`"PointerC":1,`,                  // No recursive stringification
+				`"PointerB":` + quote("1") + `,`,       // numbers are stringified after a single pointer indirection
+				`"PointerC":` + quoteOnlyV2("1") + `,`, // in v2, numbers are stringified through all pointer indirections
 				`"InterfaceA":null,`,
-				`"InterfaceB":1`, // No recursive stringification
+				`"InterfaceB":` + quoteOnlyV2("1"), // in v2, numbers are stringified through all interface indirections
 				`}`}, "")
 			var got []byte
 			var err error
 			if json.Version == "v2" {
-				// Suppress type errors in v2, so we can
-				// compare the affects regardless of type
-				// errors.
+				// Suppress type errors in v2,
+				// so we can compare the effects regardless of type errors.
 				got, err = jsonv2.Marshal(in, jsonv1.ReportErrorsWithLegacySemantics(true))
 			} else {
 				got, err = json.Marshal(in)

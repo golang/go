@@ -1,0 +1,91 @@
+!sum
+- go: Add
+  asm: "VADD|VFADD"
+  in:
+  - &any
+    go: $t
+  - *any
+  out:
+  - *any
+- go: Sub
+  asm: "VSUB|VFSUB"
+  in:
+  - *any
+  - *any
+  out:
+  - *any
+
+# Signed saturating add — VSQADD
+- go: AddSaturated
+  signed: true
+  asm: "VSQADD"
+  in:
+  - &int
+    go: $t
+    base: int
+  - *int
+  out:
+  - *int
+
+# Unsigned saturating add — VUQADD
+- go: AddSaturated
+  signed: false
+  asm: "VUQADD"
+  in:
+  - &uint
+    go: $t
+    base: uint
+  - *uint
+  out:
+  - *uint
+
+# Signed saturating subtract — VSQSUB
+- go: SubSaturated
+  signed: true
+  asm: "VSQSUB"
+  in:
+  - *int
+  - *int
+  out:
+  - *int
+
+# Unsigned saturating subtract — VUQSUB
+- go: SubSaturated
+  signed: false
+  asm: "VUQSUB"
+  in:
+  - *uint
+  - *uint
+  out:
+  - *uint
+
+# Horizontal add of pairs (concatenated) — VADDP (int)
+- go: ConcatAddPairs
+  signed: true
+  asm: "VADDP"
+  in:
+  - *int
+  - *int
+  out:
+  - *int
+
+# Horizontal add of pairs (concatenated) — VADDP (uint)
+- go: ConcatAddPairs
+  signed: false
+  asm: "VADDP"
+  in:
+  - *uint
+  - *uint
+  out:
+  - *uint
+
+# Horizontal add of pairs (concatenated) — VFADDP (float)
+- go: ConcatAddPairs
+  asm: "VFADDP"
+  in:
+  - &fp
+    go: $t
+    base: float
+  - *fp
+  out:
+  - *fp

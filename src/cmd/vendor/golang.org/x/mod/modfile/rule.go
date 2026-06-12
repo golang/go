@@ -1784,8 +1784,7 @@ func removeDups(syntax *FileSyntax, exclude *[]*Exclude, replace *[]*Replace, to
 	// Remove duplicate replacements.
 	// Later replacements take priority over earlier ones.
 	haveReplace := make(map[module.Version]bool)
-	for i := len(*replace) - 1; i >= 0; i-- {
-		x := (*replace)[i]
+	for _, x := range slices.Backward(*replace) {
 		if haveReplace[x.Old] {
 			kill[x.Syntax] = true
 			continue

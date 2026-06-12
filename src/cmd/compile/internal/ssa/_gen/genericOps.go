@@ -755,6 +755,10 @@ var genericBlocks = []blockData{
 
 func init() {
 	genericOps = append(genericOps, simdGenericOps()...)
+	// When adding SIMD for another architecture, it may be useful to temporarily
+	// maintain a separate list of generic operations till that work stabilizes.
+	// For example:
+	// genericOps = append(genericOps, simdGenericOpsWasm()...)
 	archs = append(archs, arch{
 		name:    "generic",
 		ops:     genericOps,

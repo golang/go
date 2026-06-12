@@ -816,14 +816,7 @@ func reflect_chanrecv(c *hchan, nb bool, elem unsafe.Pointer) (selected bool, re
 }
 
 func chanlen(c *hchan) int {
-	if c == nil {
-		return 0
-	}
-	async := debug.asynctimerchan.Load() != 0
-	if c.timer != nil && async {
-		c.timer.maybeRunChan(c)
-	}
-	if c.timer != nil && !async {
+	if c == nil || c.timer != nil {
 		// timer channels have a buffered implementation
 		// but present to users as unbuffered, so that we can
 		// undo sends without users noticing.
@@ -833,14 +826,7 @@ func chanlen(c *hchan) int {
 }
 
 func chancap(c *hchan) int {
-	if c == nil {
-		return 0
-	}
-	if c.timer != nil {
-		async := debug.asynctimerchan.Load() != 0
-		if async {
-			return int(c.dataqsiz)
-		}
+	if c == nil || c.timer != nil {
 		// timer channels have a buffered implementation
 		// but present to users as unbuffered, so that we can
 		// undo sends without users noticing.

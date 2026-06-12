@@ -12,7 +12,7 @@ import (
 )
 
 func load(s []float64) archsimd.Float64x4 {
-	return archsimd.LoadFloat64x4((*[4]float64)(s[:4]))
+	return archsimd.LoadFloat64x4Array((*[4]float64)(s[:4]))
 }
 
 type S1 = archsimd.Float64x4
@@ -28,7 +28,7 @@ func (s S2) Load(a []float64) S2 {
 }
 
 func (s S2) Store(a *[4]float64) {
-	archsimd.Float64x4(s).Store(a)
+	archsimd.Float64x4(s).StoreArray(a)
 }
 
 func (s S2) Add(a S2) S2 {
@@ -62,7 +62,7 @@ func ip64_1(a, b []float64) float64 {
 		sum = sum.Add(va.Mul(vb))
 	}
 	var tmp [4]float64
-	sum.Store(&tmp)
+	sum.StoreArray(&tmp)
 	return tmp[0] + tmp[1] + tmp[2] + tmp[3]
 }
 
@@ -77,7 +77,7 @@ func ip64_1a(a, b []float64) float64 {
 		sum = FMA(sum, va, vb)
 	}
 	var tmp [4]float64
-	sum.Store(&tmp)
+	sum.StoreArray(&tmp)
 	return tmp[0] + tmp[1] + tmp[2] + tmp[3]
 }
 
@@ -112,7 +112,7 @@ func ip64_3(a, b []float64) float64 {
 		sum = S3{sum.Add(va.Mul(vb))}
 	}
 	var tmp [4]float64
-	sum.Store(&tmp)
+	sum.StoreArray(&tmp)
 	return tmp[0] + tmp[1] + tmp[2] + tmp[3]
 }
 

@@ -106,6 +106,31 @@ func (tr *transport) decInFlightDials() {
 func (tr *transport) initEndpoint() (err error) {
 	tr.mu.Lock()
 	defer tr.mu.Unlock()
+	// This might cause rare issues on Darwin. Unlike Linux, Darwin kernel
+	// seems to have the following behaviors:
+	// - After closing a UDP socket, the port that was bound to the socket
+	//   might not be immediately usable again.
+	// - When doing IPv6 dual-stack binding (e.g., bind to ":0"), it will
+	//   happily bind the IPv6 port, even when the IPv4 port is unavailable.
+	//
+	// When both of these are combined, in practice, it is possible for the
+	// following to happen:
+	// 1. Transport binds ":0", creating a dual-stack IPv6 UDP socket.
+	//    Everything works as expected.
+	// 2. At some point, CloseIdleConnections is called and the socket is
+	//    closed.
+	// 3. Soon after, a new dial is started, and a new dual-stack IPv6 socket
+	//    is coincidentally assigned the same port as the previous socket.
+	// 4. If the IPv4 port is still unavailable, Darwin's permissive binding
+	//    behavior will cause us to have a socket that silently is unable to
+	//    receive packets on its IPv4 address.
+	// 5. If the dial target is an IPv4 address, transport will be able to send
+	//    packets to the target, but will be unable to receive its reply.
+	//
+	// TransportOpts.ListenQUIC can technically be configured to avoid
+	// dual-stack binding to avoid this issue, and high socket churn is
+	// probably uncommon for regular use cases. However, finding a workaround
+	// for this eventually would be ideal.
 	if tr.endpoint == nil {
 		tr.endpoint, err = tr.listenQUIC(":0", tr.config)
 	}

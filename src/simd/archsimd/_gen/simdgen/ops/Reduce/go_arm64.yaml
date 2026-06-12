@@ -1,0 +1,71 @@
+!sum
+
+# Sum all elements — VADDV (integer)
+- go: reduceSum
+  asm: "VADDV"
+  in:
+  - &any
+    go: $t
+    base: int|uint
+  out:
+  - &scalarOut
+    go: $t
+    treatLikeAScalarOfSize: 0
+
+# Max of all elements — VSMAXV (signed)
+- go: reduceMax
+  signed: true
+  asm: "VSMAXV"
+  in:
+  - &int
+    go: $t
+    base: int
+  out:
+  - *scalarOut
+
+# Max of all elements — VUMAXV (unsigned)
+- go: reduceMax
+  signed: false
+  asm: "VUMAXV"
+  in:
+  - &uint
+    go: $t
+    base: uint
+  out:
+  - *scalarOut
+
+# Max of all elements — VFMAXV (float32)
+- go: reduceMax
+  asm: "VFMAXV"
+  in:
+  - &fp
+    go: $t
+    base: float
+  out:
+  - *scalarOut
+
+# Min of all elements — VSMINV (signed)
+- go: reduceMin
+  signed: true
+  asm: "VSMINV"
+  in:
+  - *int
+  out:
+  - *scalarOut
+
+# Min of all elements — VUMINV (unsigned)
+- go: reduceMin
+  signed: false
+  asm: "VUMINV"
+  in:
+  - *uint
+  out:
+  - *scalarOut
+
+# Min of all elements — VFMINV (float32)
+- go: reduceMin
+  asm: "VFMINV"
+  in:
+  - *fp
+  out:
+  - *scalarOut

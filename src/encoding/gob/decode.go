@@ -594,7 +594,13 @@ func decodeIntoValue(state *decoderState, op decOp, isPtr bool, value reflect.Va
 func (dec *Decoder) decodeMap(mtyp reflect.Type, state *decoderState, value reflect.Value, keyOp, elemOp decOp, ovfl error) {
 	n := int(state.decodeUint())
 	if value.IsNil() {
-		value.Set(reflect.MakeMapWithSize(mtyp, n))
+		// This is a map, not a slice, but capping the
+		// size works either way.
+		safe := saferio.SliceCapWithSize(uint64(mtyp.Elem().Size()), uint64(n))
+		if safe < 0 {
+			safe = 1
+		}
+		value.Set(reflect.MakeMapWithSize(mtyp, safe))
 	}
 	keyIsPtr := mtyp.Key().Kind() == reflect.Pointer
 	elemIsPtr := mtyp.Elem().Kind() == reflect.Pointer

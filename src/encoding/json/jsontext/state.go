@@ -439,7 +439,7 @@ const (
 	stateTypeObject stateEntry = 0x8000_0000_0000_0000
 	stateTypeArray  stateEntry = 0x0000_0000_0000_0000
 
-	// The name check mask (2 bit) records whether to update
+	// The name check mask (2 bits) records whether to update
 	// the namespaces for the current JSON object and
 	// whether the namespace is valid.
 	stateNamespaceMask    stateEntry = 0x6000_0000_0000_0000
@@ -502,7 +502,7 @@ func (e *stateEntry) Increment() {
 }
 
 // decrement decrements the number of elements for the current object or array.
-// It is the callers responsibility to ensure that e.length > 0.
+// It is the caller's responsibility to ensure that e.length > 0.
 func (e *stateEntry) decrement() {
 	(*e)--
 }
@@ -575,7 +575,7 @@ func (ns *objectNameStack) getUnquoted(i int) []byte {
 	if i == 0 {
 		return ns.unquotedNames[:ns.offsets[0]]
 	} else {
-		return ns.unquotedNames[ns.offsets[i-1]:ns.offsets[i-0]]
+		return ns.unquotedNames[ns.offsets[i-1]:ns.offsets[i]]
 	}
 }
 
@@ -706,7 +706,7 @@ func (nss *objectNamespaceStack) pop() {
 }
 
 // objectNamespace is the namespace for a JSON object.
-// In contrast to objectNameStack, this needs to remember a all names
+// In contrast to objectNameStack, this needs to remember all names
 // per JSON object.
 //
 // The zero value is an empty namespace ready for use.
@@ -747,7 +747,7 @@ func (ns *objectNamespace) getUnquoted(i int) []byte {
 	if i == 0 {
 		return ns.allUnquotedNames[:ns.endOffsets[0]]
 	} else {
-		return ns.allUnquotedNames[ns.endOffsets[i-1]:ns.endOffsets[i-0]]
+		return ns.allUnquotedNames[ns.endOffsets[i-1]:ns.endOffsets[i]]
 	}
 }
 

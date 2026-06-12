@@ -146,6 +146,11 @@ func (check *Checker) instance(pos syntax.Pos, orig genericType, targs []Type, e
 
 	case *Signature:
 		assert(expanding == nil) // function instances cannot be reached from Named types
+		// Note that orig may be a generic method on a generic type. In that case, orig
+		// is an instantiated type. It will not have receiver type parameters, but will
+		// still have ordinary type parameters.
+		assert(orig.RecvTypeParams() == nil)
+		assert(orig.TypeParams() != nil)
 
 		tparams := orig.TypeParams()
 		// TODO(gri) investigate if this is needed (type argument and parameter count seem to be correct here)

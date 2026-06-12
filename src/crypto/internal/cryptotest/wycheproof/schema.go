@@ -93,7 +93,7 @@ type AeadTestSchemaV1Json struct {
 	Algorithm string `json:"algorithm"`
 
 	// DEPRECATED: prefer "source" property in test group
-	GeneratorVersion *string `json:"generatorVersion,omitempty"`
+	GeneratorVersion *string `json:"generatorVersion,omitempty,omitzero"`
 
 	// additional documentation
 	Header []string `json:"header"`
@@ -1010,7 +1010,7 @@ type DaeadTestSchemaV1Json struct {
 	Algorithm string `json:"algorithm"`
 
 	// DEPRECATED: prefer "source" property in test group
-	GeneratorVersion *string `json:"generatorVersion,omitempty"`
+	GeneratorVersion *string `json:"generatorVersion,omitempty,omitzero"`
 
 	// additional documentation
 	Header []string `json:"header"`
@@ -1100,7 +1100,7 @@ type DaeadTestVector struct {
 	Ct string `json:"ct"`
 
 	// A list of flags
-	Flags []string `json:"flags,omitempty"`
+	Flags []string `json:"flags,omitempty,omitzero"`
 
 	// the key
 	Key string `json:"key"`
@@ -1243,7 +1243,7 @@ type DsaP1363VerifySchemaV1Json struct {
 	Algorithm string `json:"algorithm"`
 
 	// DEPRECATED: prefer "source" property in test group
-	GeneratorVersion *string `json:"generatorVersion,omitempty"`
+	GeneratorVersion *string `json:"generatorVersion,omitempty,omitzero"`
 
 	// additional documentation
 	Header []string `json:"header"`
@@ -1495,7 +1495,7 @@ type DsaVerifySchemaV1Json struct {
 	Algorithm string `json:"algorithm"`
 
 	// DEPRECATED: prefer "source" property in test group
-	GeneratorVersion *string `json:"generatorVersion,omitempty"`
+	GeneratorVersion *string `json:"generatorVersion,omitempty,omitzero"`
 
 	// additional documentation
 	Header []string `json:"header"`
@@ -1591,7 +1591,7 @@ type EcCurveTestSchemaJson struct {
 	Algorithm EcCurveTestSchemaJsonAlgorithm `json:"algorithm"`
 
 	// DEPRECATED: prefer "source" property in test group
-	GeneratorVersion *string `json:"generatorVersion,omitempty"`
+	GeneratorVersion *string `json:"generatorVersion,omitempty,omitzero"`
 
 	// additional documentation
 	Header []string `json:"header"`
@@ -1706,10 +1706,10 @@ type EcCurveTestTestsElem struct {
 	B string `json:"b"`
 
 	// A brief description of the test case
-	Comment *string `json:"comment,omitempty"`
+	Comment *string `json:"comment,omitempty,omitzero"`
 
 	// A list of flags
-	Flags []string `json:"flags,omitempty"`
+	Flags []string `json:"flags,omitempty,omitzero"`
 
 	// x coordinate of the curve's generator
 	Gx string `json:"gx"`
@@ -1724,7 +1724,7 @@ type EcCurveTestTestsElem struct {
 	N string `json:"n"`
 
 	// Name identifying the elliptic curve
-	Name *string `json:"name,omitempty"`
+	Name *string `json:"name,omitempty,omitzero"`
 
 	// Object identifier of the ellptic curve
 	Oid string `json:"oid"`
@@ -1733,7 +1733,7 @@ type EcCurveTestTestsElem struct {
 	P string `json:"p"`
 
 	// Standard containing the domain parameters
-	Ref *string `json:"ref,omitempty"`
+	Ref *string `json:"ref,omitempty,omitzero"`
 
 	// Result corresponds to the JSON schema field "result".
 	Result Result `json:"result"`
@@ -2000,7 +2000,7 @@ type EcdhEcpointTestSchemaV1Json struct {
 	Algorithm string `json:"algorithm"`
 
 	// DEPRECATED: prefer "source" property in test group
-	GeneratorVersion *string `json:"generatorVersion,omitempty"`
+	GeneratorVersion *string `json:"generatorVersion,omitempty,omitzero"`
 
 	// additional documentation
 	Header []string `json:"header"`
@@ -2218,7 +2218,7 @@ type EcdhPemTestSchemaV1Json struct {
 	Algorithm string `json:"algorithm"`
 
 	// DEPRECATED: prefer "source" property in test group
-	GeneratorVersion *string `json:"generatorVersion,omitempty"`
+	GeneratorVersion *string `json:"generatorVersion,omitempty,omitzero"`
 
 	// additional documentation
 	Header []string `json:"header"`
@@ -2436,7 +2436,7 @@ type EcdhTestSchemaV1Json struct {
 	Algorithm string `json:"algorithm"`
 
 	// DEPRECATED: prefer "source" property in test group
-	GeneratorVersion *string `json:"generatorVersion,omitempty"`
+	GeneratorVersion *string `json:"generatorVersion,omitempty,omitzero"`
 
 	// additional documentation
 	Header []string `json:"header"`
@@ -2654,7 +2654,7 @@ type EcdhWebcryptoTestSchemaV1Json struct {
 	Algorithm string `json:"algorithm"`
 
 	// DEPRECATED: prefer "source" property in test group
-	GeneratorVersion *string `json:"generatorVersion,omitempty"`
+	GeneratorVersion *string `json:"generatorVersion,omitempty,omitzero"`
 
 	// additional documentation
 	Header []string `json:"header"`
@@ -2806,7 +2806,7 @@ type EcdsaP1363TestGroup struct {
 	PublicKeyDer string `json:"publicKeyDer"`
 
 	// PublicKeyJwk corresponds to the JSON schema field "publicKeyJwk".
-	PublicKeyJwk *JsonWebKey `json:"publicKeyJwk,omitempty"`
+	PublicKeyJwk *JsonWebKey `json:"publicKeyJwk,omitempty,omitzero"`
 
 	// Pem encoded public key
 	PublicKeyPem string `json:"publicKeyPem"`
@@ -2893,7 +2893,7 @@ type EcdsaP1363VerifySchemaV1Json struct {
 	Algorithm string `json:"algorithm"`
 
 	// DEPRECATED: prefer "source" property in test group
-	GeneratorVersion *string `json:"generatorVersion,omitempty"`
+	GeneratorVersion *string `json:"generatorVersion,omitempty,omitzero"`
 
 	// additional documentation
 	Header []string `json:"header"`
@@ -3064,7 +3064,7 @@ type EcdsaVerifySchemaV1Json struct {
 	Algorithm string `json:"algorithm"`
 
 	// DEPRECATED: prefer "source" property in test group
-	GeneratorVersion *string `json:"generatorVersion,omitempty"`
+	GeneratorVersion *string `json:"generatorVersion,omitempty,omitzero"`
 
 	// additional documentation
 	Header []string `json:"header"`
@@ -3151,7 +3151,7 @@ type EddsaTestGroup struct {
 	PublicKeyDer string `json:"publicKeyDer"`
 
 	// the public key in webcrypto format
-	PublicKeyJwk *JsonWebKey `json:"publicKeyJwk,omitempty"`
+	PublicKeyJwk *JsonWebKey `json:"publicKeyJwk,omitempty,omitzero"`
 
 	// PEM encoded public key
 	PublicKeyPem string `json:"publicKeyPem"`
@@ -3232,7 +3232,7 @@ type EddsaVerifySchemaV1Json struct {
 	Algorithm string `json:"algorithm"`
 
 	// DEPRECATED: prefer "source" property in test group
-	GeneratorVersion *string `json:"generatorVersion,omitempty"`
+	GeneratorVersion *string `json:"generatorVersion,omitempty,omitzero"`
 
 	// additional documentation
 	Header []string `json:"header"`
@@ -3385,7 +3385,7 @@ type HkdfTestSchemaV1Json struct {
 	Algorithm string `json:"algorithm"`
 
 	// DEPRECATED: prefer "source" property in test group
-	GeneratorVersion *string `json:"generatorVersion,omitempty"`
+	GeneratorVersion *string `json:"generatorVersion,omitempty,omitzero"`
 
 	// additional documentation
 	Header []string `json:"header"`
@@ -3615,7 +3615,7 @@ type IndCpaTestSchemaV1Json struct {
 	Algorithm string `json:"algorithm"`
 
 	// DEPRECATED: prefer "source" property in test group
-	GeneratorVersion *string `json:"generatorVersion,omitempty"`
+	GeneratorVersion *string `json:"generatorVersion,omitempty,omitzero"`
 
 	// additional documentation
 	Header []string `json:"header"`
@@ -3761,7 +3761,7 @@ func (j *IndCpaTestVector) UnmarshalJSON(value []byte) error {
 
 type JsonWebCryptoSchemaV1Json struct {
 	// DEPRECATED: prefer "source" property in test group
-	GeneratorVersion *string `json:"generatorVersion,omitempty"`
+	GeneratorVersion *string `json:"generatorVersion,omitempty,omitzero"`
 
 	// additional documentation
 	Header []string `json:"header"`
@@ -3839,13 +3839,13 @@ func (j *JsonWebCryptoSchemaV1Json) UnmarshalJSON(value []byte) error {
 
 type JsonWebCryptoTestGroup struct {
 	// a description of what these tests have in common
-	Comment *string `json:"comment,omitempty"`
+	Comment *string `json:"comment,omitempty,omitzero"`
 
 	// the private or secret key in webcrypto format
-	Private JsonWebKeyOrKeyset `json:"private,omitempty"`
+	Private JsonWebKeyOrKeyset `json:"private,omitempty,omitzero"`
 
 	// [optional] the public key in webcrypto format
-	Public JsonWebKeyOrKeyset `json:"public,omitempty"`
+	Public JsonWebKeyOrKeyset `json:"public,omitempty,omitzero"`
 
 	// Source corresponds to the JSON schema field "source".
 	Source Source `json:"source"`
@@ -3854,7 +3854,7 @@ type JsonWebCryptoTestGroup struct {
 	Tests []JsonWebCryptoTestVector `json:"tests"`
 
 	// Type corresponds to the JSON schema field "type".
-	Type *JsonWebCryptoTestGroupType `json:"type,omitempty"`
+	Type *JsonWebCryptoTestGroupType `json:"type,omitempty,omitzero"`
 }
 
 type JsonWebCryptoTestGroupType string
@@ -3914,13 +3914,13 @@ type JsonWebCryptoTestVector struct {
 	Flags []string `json:"flags"`
 
 	// The JSON Web Encryption
-	Jwe interface{} `json:"jwe,omitempty"`
+	Jwe interface{} `json:"jwe,omitempty,omitzero"`
 
 	// The JSON Web Signature
-	Jws interface{} `json:"jws,omitempty"`
+	Jws interface{} `json:"jws,omitempty,omitzero"`
 
 	// [optional] Plaintext
-	Pt *string `json:"pt,omitempty"`
+	Pt *string `json:"pt,omitempty,omitzero"`
 
 	// Result corresponds to the JSON schema field "result".
 	Result Result `json:"result"`
@@ -3958,7 +3958,7 @@ func (j *JsonWebCryptoTestVector) UnmarshalJSON(value []byte) error {
 
 type JsonWebEncryptionSchemaV1Json struct {
 	// DEPRECATED: prefer "source" property in test group
-	GeneratorVersion *string `json:"generatorVersion,omitempty"`
+	GeneratorVersion *string `json:"generatorVersion,omitempty,omitzero"`
 
 	// additional documentation
 	Header []string `json:"header"`
@@ -4036,13 +4036,13 @@ func (j *JsonWebEncryptionSchemaV1Json) UnmarshalJSON(value []byte) error {
 
 type JsonWebEncryptionTestGroup struct {
 	// a description of what these tests have in common
-	Comment *string `json:"comment,omitempty"`
+	Comment *string `json:"comment,omitempty,omitzero"`
 
 	// the private key
-	Private *JsonWebKey `json:"private,omitempty"`
+	Private *JsonWebKey `json:"private,omitempty,omitzero"`
 
 	// the [optional] public key
-	Public *JsonWebKey `json:"public,omitempty"`
+	Public *JsonWebKey `json:"public,omitempty,omitzero"`
 
 	// Source corresponds to the JSON schema field "source".
 	Source Source `json:"source"`
@@ -4051,7 +4051,7 @@ type JsonWebEncryptionTestGroup struct {
 	Tests []JsonWebEncryptionTestVector `json:"tests"`
 
 	// Type corresponds to the JSON schema field "type".
-	Type *JsonWebEncryptionTestGroupType `json:"type,omitempty"`
+	Type *JsonWebEncryptionTestGroupType `json:"type,omitempty,omitzero"`
 }
 
 type JsonWebEncryptionTestGroupType string
@@ -4117,7 +4117,7 @@ type JsonWebEncryptionTestVector struct {
 	Jwe string `json:"jwe"`
 
 	// [optional] Plaintext
-	Pt *string `json:"pt,omitempty"`
+	Pt *string `json:"pt,omitempty,omitzero"`
 
 	// Result corresponds to the JSON schema field "result".
 	Result Result `json:"result"`
@@ -4163,55 +4163,55 @@ func (j *JsonWebEncryptionTestVector) UnmarshalJSON(value []byte) error {
 // https://tools.ietf.org/html/rfc7518#section-6
 type JsonWebKey struct {
 	// the encryption/signing algorithm to use
-	Alg *string `json:"alg,omitempty"`
+	Alg *string `json:"alg,omitempty,omitzero"`
 
 	// which defined curve to use
-	Crv *JsonWebKeyCrv `json:"crv,omitempty"`
+	Crv *JsonWebKeyCrv `json:"crv,omitempty,omitzero"`
 
 	// the private key value of an EC key or private exponent for RSA
-	D *string `json:"d,omitempty"`
+	D *string `json:"d,omitempty,omitzero"`
 
 	// the first factor Chinese Remainder Theorem exponent of an RSA key
-	Dp *string `json:"dp,omitempty"`
+	Dp *string `json:"dp,omitempty,omitzero"`
 
 	// the second factor Chinese Remainder Theorem exponent of an RSA key
-	Dq *string `json:"dq,omitempty"`
+	Dq *string `json:"dq,omitempty,omitzero"`
 
 	// the public exponent of an RSA key
-	E *string `json:"e,omitempty"`
+	E *string `json:"e,omitempty,omitzero"`
 
 	// the secret key value of an oct key
-	K *string `json:"k,omitempty"`
+	K *string `json:"k,omitempty,omitzero"`
 
 	// an alternative to use
-	KeyOps []string `json:"key_ops,omitempty"`
+	KeyOps []string `json:"key_ops,omitempty,omitzero"`
 
 	// the ID of the key entry
-	Kid *string `json:"kid,omitempty"`
+	Kid *string `json:"kid,omitempty,omitzero"`
 
 	// the family of algorithms the key belongs to
-	Kty *JsonWebKeyKty `json:"kty,omitempty"`
+	Kty *JsonWebKeyKty `json:"kty,omitempty,omitzero"`
 
 	// the public modulus of an RSA key
-	N *string `json:"n,omitempty"`
+	N *string `json:"n,omitempty,omitzero"`
 
 	// the first prime factgor of an RSA key
-	P *string `json:"p,omitempty"`
+	P *string `json:"p,omitempty,omitzero"`
 
 	// the second prime factor of an RSA key
-	Q *string `json:"q,omitempty"`
+	Q *string `json:"q,omitempty,omitzero"`
 
 	// the first factor Chinese Remainder Theorem coefficient of an RSA key
-	Qi *string `json:"qi,omitempty"`
+	Qi *string `json:"qi,omitempty,omitzero"`
 
 	// what type of crypto operation to perform
-	Use *JsonWebKeyUse `json:"use,omitempty"`
+	Use *JsonWebKeyUse `json:"use,omitempty,omitzero"`
 
 	// the x-coordinate of an EC key point
-	X *string `json:"x,omitempty"`
+	X *string `json:"x,omitempty,omitzero"`
 
 	// the y-coordinate of an EC key point
-	Y *string `json:"y,omitempty"`
+	Y *string `json:"y,omitempty,omitzero"`
 }
 
 type JsonWebKeyCrv string
@@ -4298,7 +4298,7 @@ type JsonWebKeyOrKeyset interface{}
 
 type JsonWebKeySchemaV1Json struct {
 	// DEPRECATED: prefer "source" property in test group
-	GeneratorVersion *string `json:"generatorVersion,omitempty"`
+	GeneratorVersion *string `json:"generatorVersion,omitempty,omitzero"`
 
 	// additional documentation
 	Header []string `json:"header"`
@@ -4376,13 +4376,13 @@ func (j *JsonWebKeySchemaV1Json) UnmarshalJSON(value []byte) error {
 
 type JsonWebKeyTestGroup struct {
 	// a description of what these tests have in common
-	Comment *string `json:"comment,omitempty"`
+	Comment *string `json:"comment,omitempty,omitzero"`
 
 	// the private or secret keyset in webcrypto format
-	Private *JsonWebKeyset `json:"private,omitempty"`
+	Private *JsonWebKeyset `json:"private,omitempty,omitzero"`
 
 	// the public keyset in webcrypto format
-	Public *JsonWebKeyset `json:"public,omitempty"`
+	Public *JsonWebKeyset `json:"public,omitempty,omitzero"`
 
 	// Source corresponds to the JSON schema field "source".
 	Source Source `json:"source"`
@@ -4391,7 +4391,7 @@ type JsonWebKeyTestGroup struct {
 	Tests []JsonWebKeyTestVector `json:"tests"`
 
 	// Type corresponds to the JSON schema field "type".
-	Type *JsonWebKeyTestGroupType `json:"type,omitempty"`
+	Type *JsonWebKeyTestGroupType `json:"type,omitempty,omitzero"`
 }
 
 type JsonWebKeyTestGroupType string
@@ -4523,12 +4523,12 @@ func (j *JsonWebKeyUse) UnmarshalJSON(value []byte) error {
 // see https://tools.ietf.org/html/rfc7517#section-5
 type JsonWebKeyset struct {
 	// Keys corresponds to the JSON schema field "keys".
-	Keys []JsonWebKey `json:"keys,omitempty"`
+	Keys []JsonWebKey `json:"keys,omitempty,omitzero"`
 }
 
 type JsonWebSignatureSchemaV1Json struct {
 	// DEPRECATED: prefer "source" property in test group
-	GeneratorVersion *string `json:"generatorVersion,omitempty"`
+	GeneratorVersion *string `json:"generatorVersion,omitempty,omitzero"`
 
 	// additional documentation
 	Header []string `json:"header"`
@@ -4606,13 +4606,13 @@ func (j *JsonWebSignatureSchemaV1Json) UnmarshalJSON(value []byte) error {
 
 type JsonWebSignatureTestGroup struct {
 	// a description of what these tests have in common
-	Comment *string `json:"comment,omitempty"`
+	Comment *string `json:"comment,omitempty,omitzero"`
 
 	// the private or secret key in webcrypto format
-	Private *JsonWebKey `json:"private,omitempty"`
+	Private *JsonWebKey `json:"private,omitempty,omitzero"`
 
 	// [optional] the public key in webcrypto format
-	Public *JsonWebKey `json:"public,omitempty"`
+	Public *JsonWebKey `json:"public,omitempty,omitzero"`
 
 	// Source corresponds to the JSON schema field "source".
 	Source Source `json:"source"`
@@ -4621,7 +4621,7 @@ type JsonWebSignatureTestGroup struct {
 	Tests []JsonWebSignatureTestVector `json:"tests"`
 
 	// Type corresponds to the JSON schema field "type".
-	Type *JsonWebSignatureTestGroupType `json:"type,omitempty"`
+	Type *JsonWebSignatureTestGroupType `json:"type,omitempty,omitzero"`
 }
 
 type JsonWebSignatureTestGroupType string
@@ -4794,7 +4794,7 @@ type KeywrapTestSchemaV1Json struct {
 	Algorithm string `json:"algorithm"`
 
 	// DEPRECATED: prefer "source" property in test group
-	GeneratorVersion *string `json:"generatorVersion,omitempty"`
+	GeneratorVersion *string `json:"generatorVersion,omitempty,omitzero"`
 
 	// additional documentation
 	Header []string `json:"header"`
@@ -4984,7 +4984,7 @@ type MLKEMDecapsTestGroupTestsElem struct {
 	C string `json:"c"`
 
 	// A brief description of the test case
-	Comment *string `json:"comment,omitempty"`
+	Comment *string `json:"comment,omitempty,omitzero"`
 
 	// The full decapsulation key
 	Dk string `json:"dk"`
@@ -5096,7 +5096,7 @@ type MLKEMEncapsTestGroup struct {
 	Tests []MLKEMEncapsTestGroupTestsElem `json:"tests"`
 
 	// A legacy field, test files contain only one type per file
-	Type *MLKEMEncapsTestGroupType `json:"type,omitempty"`
+	Type *MLKEMEncapsTestGroupType `json:"type,omitempty,omitzero"`
 }
 
 type MLKEMEncapsTestGroupParameterSet string
@@ -5139,7 +5139,7 @@ type MLKEMEncapsTestGroupTestsElem struct {
 	C string `json:"c"`
 
 	// A brief description of the test case
-	Comment *string `json:"comment,omitempty"`
+	Comment *string `json:"comment,omitempty,omitzero"`
 
 	// The encapsulation key
 	Ek string `json:"ek"`
@@ -5147,7 +5147,7 @@ type MLKEMEncapsTestGroupTestsElem struct {
 	// A list of flags
 	Flags []string `json:"flags"`
 
-	// The ML-KEM.Encaps_internal m input
+	// The ML-KEM.Encaps_internal m input, a 32-byte value
 	M string `json:"m"`
 
 	// Result corresponds to the JSON schema field "result".
@@ -5188,6 +5188,12 @@ func (j *MLKEMEncapsTestGroupTestsElem) UnmarshalJSON(value []byte) error {
 	var plain Plain
 	if err := json.Unmarshal(value, &plain); err != nil {
 		return err
+	}
+	if utf8.RuneCountInString(string(plain.M)) < 64 {
+		return fmt.Errorf("field %s length: must be >= %d", "m", 64)
+	}
+	if utf8.RuneCountInString(string(plain.M)) > 64 {
+		return fmt.Errorf("field %s length: must be <= %d", "m", 64)
 	}
 	*j = MLKEMEncapsTestGroupTestsElem(plain)
 	return nil
@@ -5294,7 +5300,7 @@ func (j *MLKEMKeyGenTestGroupParameterSet) UnmarshalJSON(value []byte) error {
 
 type MLKEMKeyGenTestGroupTestsElem struct {
 	// A brief description of the test case
-	Comment *string `json:"comment,omitempty"`
+	Comment *string `json:"comment,omitempty,omitzero"`
 
 	// The expected expanded decapsulation key
 	Dk string `json:"dk"`
@@ -5303,7 +5309,7 @@ type MLKEMKeyGenTestGroupTestsElem struct {
 	Ek string `json:"ek"`
 
 	// A list of flags
-	Flags []string `json:"flags,omitempty"`
+	Flags []string `json:"flags,omitempty,omitzero"`
 
 	// Result corresponds to the JSON schema field "result".
 	Result Result `json:"result"`
@@ -5455,10 +5461,10 @@ type MLKEMTestGroupTestsElem struct {
 	C string `json:"c"`
 
 	// A brief description of the test case
-	Comment *string `json:"comment,omitempty"`
+	Comment *string `json:"comment,omitempty,omitzero"`
 
 	// The encapsulation key derived from the seed
-	Ek *string `json:"ek,omitempty"`
+	Ek *string `json:"ek,omitempty,omitzero"`
 
 	// A list of flags
 	Flags []string `json:"flags"`
@@ -5641,7 +5647,7 @@ type MacTestSchemaV1Json struct {
 	Algorithm string `json:"algorithm"`
 
 	// DEPRECATED: prefer "source" property in test group
-	GeneratorVersion *string `json:"generatorVersion,omitempty"`
+	GeneratorVersion *string `json:"generatorVersion,omitempty,omitzero"`
 
 	// additional documentation
 	Header []string `json:"header"`
@@ -5865,7 +5871,7 @@ type MacWithIvTestSchemaV1Json struct {
 	Algorithm string `json:"algorithm"`
 
 	// DEPRECATED: prefer "source" property in test group
-	GeneratorVersion *string `json:"generatorVersion,omitempty"`
+	GeneratorVersion *string `json:"generatorVersion,omitempty,omitzero"`
 
 	// additional documentation
 	Header []string `json:"header"`
@@ -6087,7 +6093,7 @@ func (j *MlDsaSignNoSeedTestGroup) UnmarshalJSON(value []byte) error {
 
 type MlDsaSignTestGroup struct {
 	// Private key as a DER-encoded PrivateKeyInfo, using the seed form
-	PrivateKeyPkcs8 *string `json:"privateKeyPkcs8,omitempty"`
+	PrivateKeyPkcs8 *string `json:"privateKeyPkcs8,omitempty,omitzero"`
 
 	// 32-byte seed that generated the private key
 	PrivateSeed string `json:"privateSeed"`
@@ -6174,7 +6180,7 @@ type MlDsaVerifyTestGroup struct {
 	PublicKeyDer string `json:"publicKeyDer"`
 
 	// Source corresponds to the JSON schema field "source".
-	Source *Source `json:"source,omitempty"`
+	Source *Source `json:"source,omitempty,omitzero"`
 
 	// Tests corresponds to the JSON schema field "tests".
 	Tests []MlDsaVerifyTestVector `json:"tests"`
@@ -6243,7 +6249,7 @@ type MlDsaVerifyTestVector struct {
 	Comment string `json:"comment"`
 
 	// [optional] The additional context string (empty if not provided)
-	Ctx *string `json:"ctx,omitempty"`
+	Ctx *string `json:"ctx,omitempty,omitzero"`
 
 	// A list of flags
 	Flags []string `json:"flags"`
@@ -6461,7 +6467,7 @@ type MldsaVerifySchemaJson struct {
 	Algorithm string `json:"algorithm"`
 
 	// DEPRECATED: prefer "source" property in test group
-	GeneratorVersion *string `json:"generatorVersion,omitempty"`
+	GeneratorVersion *string `json:"generatorVersion,omitempty,omitzero"`
 
 	// additional documentation
 	Header []string `json:"header"`
@@ -6545,10 +6551,10 @@ type MlkemEncapsTestSchemaJson struct {
 	Algorithm MlkemEncapsTestSchemaJsonAlgorithm `json:"algorithm"`
 
 	// additional documentation
-	Header []string `json:"header,omitempty"`
+	Header []string `json:"header,omitempty,omitzero"`
 
 	// Notes corresponds to the JSON schema field "notes".
-	Notes Notes `json:"notes,omitempty"`
+	Notes Notes `json:"notes,omitempty,omitzero"`
 
 	// the number of test vectors in this test
 	NumberOfTests int `json:"numberOfTests"`
@@ -6648,10 +6654,10 @@ type MlkemKeygenSeedTestSchemaJson struct {
 	Algorithm MlkemKeygenSeedTestSchemaJsonAlgorithm `json:"algorithm"`
 
 	// additional documentation
-	Header []string `json:"header,omitempty"`
+	Header []string `json:"header,omitempty,omitzero"`
 
 	// Notes corresponds to the JSON schema field "notes".
-	Notes Notes `json:"notes,omitempty"`
+	Notes Notes `json:"notes,omitempty,omitzero"`
 
 	// the number of test vectors in this test
 	NumberOfTests int `json:"numberOfTests"`
@@ -6751,10 +6757,10 @@ type MlkemSemiExpandedDecapsTestSchemaJson struct {
 	Algorithm MlkemSemiExpandedDecapsTestSchemaJsonAlgorithm `json:"algorithm"`
 
 	// additional documentation
-	Header []string `json:"header,omitempty"`
+	Header []string `json:"header,omitempty,omitzero"`
 
 	// Notes corresponds to the JSON schema field "notes".
-	Notes Notes `json:"notes,omitempty"`
+	Notes Notes `json:"notes,omitempty,omitzero"`
 
 	// the number of test vectors in this test
 	NumberOfTests int `json:"numberOfTests"`
@@ -6854,10 +6860,10 @@ type MlkemTestSchemaJson struct {
 	Algorithm MlkemTestSchemaJsonAlgorithm `json:"algorithm"`
 
 	// additional documentation
-	Header []string `json:"header,omitempty"`
+	Header []string `json:"header,omitempty,omitzero"`
 
 	// Notes corresponds to the JSON schema field "notes".
-	Notes Notes `json:"notes,omitempty"`
+	Notes Notes `json:"notes,omitempty,omitzero"`
 
 	// the number of test vectors in this test
 	NumberOfTests int `json:"numberOfTests"`
@@ -6957,16 +6963,16 @@ type NoteEntry struct {
 	BugType string `json:"bugType"`
 
 	// A list of potentially related CVEs
-	Cves []string `json:"cves,omitempty"`
+	Cves []string `json:"cves,omitempty,omitzero"`
 
 	// A description of the flag
-	Description *string `json:"description,omitempty"`
+	Description *string `json:"description,omitempty,omitzero"`
 
 	// The expected effect of failing the test vector
-	Effect *string `json:"effect,omitempty"`
+	Effect *string `json:"effect,omitempty,omitzero"`
 
 	// A list of potentially related references
-	Links []string `json:"links,omitempty"`
+	Links []string `json:"links,omitempty,omitzero"`
 }
 
 // UnmarshalJSON implements json.Unmarshaler.
@@ -6988,6 +6994,257 @@ func (j *NoteEntry) UnmarshalJSON(value []byte) error {
 }
 
 type Notes map[string]NoteEntry
+
+type PbkdfTestGroup struct {
+	// Source corresponds to the JSON schema field "source".
+	Source *Source `json:"source,omitempty,omitzero"`
+
+	// Tests corresponds to the JSON schema field "tests".
+	Tests []PbkdfTestVector `json:"tests"`
+
+	// Type corresponds to the JSON schema field "type".
+	Type PbkdfTestGroupType `json:"type"`
+}
+
+type PbkdfTestGroupType string
+
+const PbkdfTestGroupTypePbkdfTest PbkdfTestGroupType = "PbkdfTest"
+
+var enumValues_PbkdfTestGroupType = []interface{}{
+	"PbkdfTest",
+}
+
+// UnmarshalJSON implements json.Unmarshaler.
+func (j *PbkdfTestGroupType) UnmarshalJSON(value []byte) error {
+	var v string
+	if err := json.Unmarshal(value, &v); err != nil {
+		return err
+	}
+	var ok bool
+	for _, expected := range enumValues_PbkdfTestGroupType {
+		if reflect.DeepEqual(v, expected) {
+			ok = true
+			break
+		}
+	}
+	if !ok {
+		return fmt.Errorf("invalid value (expected one of %#v): %#v", enumValues_PbkdfTestGroupType, v)
+	}
+	*j = PbkdfTestGroupType(v)
+	return nil
+}
+
+// UnmarshalJSON implements json.Unmarshaler.
+func (j *PbkdfTestGroup) UnmarshalJSON(value []byte) error {
+	var raw map[string]interface{}
+	if err := json.Unmarshal(value, &raw); err != nil {
+		return err
+	}
+	if _, ok := raw["tests"]; raw != nil && !ok {
+		return fmt.Errorf("field tests in PbkdfTestGroup: required")
+	}
+	if _, ok := raw["type"]; raw != nil && !ok {
+		return fmt.Errorf("field type in PbkdfTestGroup: required")
+	}
+	type Plain PbkdfTestGroup
+	var plain Plain
+	if err := json.Unmarshal(value, &plain); err != nil {
+		return err
+	}
+	*j = PbkdfTestGroup(plain)
+	return nil
+}
+
+type PbkdfTestSchemaJson struct {
+	// Algorithm corresponds to the JSON schema field "algorithm".
+	Algorithm PbkdfTestSchemaJsonAlgorithm `json:"algorithm"`
+
+	// DEPRECATED: prefer "source" property in test group
+	GeneratorVersion *string `json:"generatorVersion,omitempty,omitzero"`
+
+	// Additional documentation
+	Header []string `json:"header"`
+
+	// Notes corresponds to the JSON schema field "notes".
+	Notes Notes `json:"notes"`
+
+	// The number of test vectors in this test
+	NumberOfTests int `json:"numberOfTests"`
+
+	// Schema corresponds to the JSON schema field "schema".
+	Schema PbkdfTestSchemaJsonSchema `json:"schema"`
+
+	// TestGroups corresponds to the JSON schema field "testGroups".
+	TestGroups []PbkdfTestGroup `json:"testGroups"`
+}
+
+type PbkdfTestSchemaJsonAlgorithm string
+
+const PbkdfTestSchemaJsonAlgorithmPBKDF2HMACSHA1 PbkdfTestSchemaJsonAlgorithm = "PBKDF2-HMACSHA1"
+const PbkdfTestSchemaJsonAlgorithmPBKDF2HMACSHA224 PbkdfTestSchemaJsonAlgorithm = "PBKDF2-HMACSHA224"
+const PbkdfTestSchemaJsonAlgorithmPBKDF2HMACSHA256 PbkdfTestSchemaJsonAlgorithm = "PBKDF2-HMACSHA256"
+const PbkdfTestSchemaJsonAlgorithmPBKDF2HMACSHA384 PbkdfTestSchemaJsonAlgorithm = "PBKDF2-HMACSHA384"
+const PbkdfTestSchemaJsonAlgorithmPBKDF2HMACSHA512 PbkdfTestSchemaJsonAlgorithm = "PBKDF2-HMACSHA512"
+
+var enumValues_PbkdfTestSchemaJsonAlgorithm = []interface{}{
+	"PBKDF2-HMACSHA1",
+	"PBKDF2-HMACSHA224",
+	"PBKDF2-HMACSHA256",
+	"PBKDF2-HMACSHA384",
+	"PBKDF2-HMACSHA512",
+}
+
+// UnmarshalJSON implements json.Unmarshaler.
+func (j *PbkdfTestSchemaJsonAlgorithm) UnmarshalJSON(value []byte) error {
+	var v string
+	if err := json.Unmarshal(value, &v); err != nil {
+		return err
+	}
+	var ok bool
+	for _, expected := range enumValues_PbkdfTestSchemaJsonAlgorithm {
+		if reflect.DeepEqual(v, expected) {
+			ok = true
+			break
+		}
+	}
+	if !ok {
+		return fmt.Errorf("invalid value (expected one of %#v): %#v", enumValues_PbkdfTestSchemaJsonAlgorithm, v)
+	}
+	*j = PbkdfTestSchemaJsonAlgorithm(v)
+	return nil
+}
+
+type PbkdfTestSchemaJsonSchema string
+
+const PbkdfTestSchemaJsonSchemaPbkdfTestSchemaJson PbkdfTestSchemaJsonSchema = "pbkdf_test_schema.json"
+
+var enumValues_PbkdfTestSchemaJsonSchema = []interface{}{
+	"pbkdf_test_schema.json",
+}
+
+// UnmarshalJSON implements json.Unmarshaler.
+func (j *PbkdfTestSchemaJsonSchema) UnmarshalJSON(value []byte) error {
+	var v string
+	if err := json.Unmarshal(value, &v); err != nil {
+		return err
+	}
+	var ok bool
+	for _, expected := range enumValues_PbkdfTestSchemaJsonSchema {
+		if reflect.DeepEqual(v, expected) {
+			ok = true
+			break
+		}
+	}
+	if !ok {
+		return fmt.Errorf("invalid value (expected one of %#v): %#v", enumValues_PbkdfTestSchemaJsonSchema, v)
+	}
+	*j = PbkdfTestSchemaJsonSchema(v)
+	return nil
+}
+
+// UnmarshalJSON implements json.Unmarshaler.
+func (j *PbkdfTestSchemaJson) UnmarshalJSON(value []byte) error {
+	var raw map[string]interface{}
+	if err := json.Unmarshal(value, &raw); err != nil {
+		return err
+	}
+	if _, ok := raw["algorithm"]; raw != nil && !ok {
+		return fmt.Errorf("field algorithm in PbkdfTestSchemaJson: required")
+	}
+	if _, ok := raw["header"]; raw != nil && !ok {
+		return fmt.Errorf("field header in PbkdfTestSchemaJson: required")
+	}
+	if _, ok := raw["notes"]; raw != nil && !ok {
+		return fmt.Errorf("field notes in PbkdfTestSchemaJson: required")
+	}
+	if _, ok := raw["numberOfTests"]; raw != nil && !ok {
+		return fmt.Errorf("field numberOfTests in PbkdfTestSchemaJson: required")
+	}
+	if _, ok := raw["schema"]; raw != nil && !ok {
+		return fmt.Errorf("field schema in PbkdfTestSchemaJson: required")
+	}
+	if _, ok := raw["testGroups"]; raw != nil && !ok {
+		return fmt.Errorf("field testGroups in PbkdfTestSchemaJson: required")
+	}
+	type Plain PbkdfTestSchemaJson
+	var plain Plain
+	if err := json.Unmarshal(value, &plain); err != nil {
+		return err
+	}
+	*j = PbkdfTestSchemaJson(plain)
+	return nil
+}
+
+type PbkdfTestVector struct {
+	// A brief description of the test case
+	Comment string `json:"comment"`
+
+	// The derived key
+	Dk string `json:"dk"`
+
+	// The length of the derived key in bytes
+	DkLen int `json:"dkLen"`
+
+	// A list of flags
+	Flags []string `json:"flags"`
+
+	// The number of iterations for the key derivation
+	IterationCount int `json:"iterationCount"`
+
+	// The password as a hex-encoded byte string
+	Password string `json:"password"`
+
+	// Result corresponds to the JSON schema field "result".
+	Result Result `json:"result"`
+
+	// The salt for the key derivation
+	Salt string `json:"salt"`
+
+	// Identifier of the test case
+	TcId int `json:"tcId"`
+}
+
+// UnmarshalJSON implements json.Unmarshaler.
+func (j *PbkdfTestVector) UnmarshalJSON(value []byte) error {
+	var raw map[string]interface{}
+	if err := json.Unmarshal(value, &raw); err != nil {
+		return err
+	}
+	if _, ok := raw["comment"]; raw != nil && !ok {
+		return fmt.Errorf("field comment in PbkdfTestVector: required")
+	}
+	if _, ok := raw["dk"]; raw != nil && !ok {
+		return fmt.Errorf("field dk in PbkdfTestVector: required")
+	}
+	if _, ok := raw["dkLen"]; raw != nil && !ok {
+		return fmt.Errorf("field dkLen in PbkdfTestVector: required")
+	}
+	if _, ok := raw["flags"]; raw != nil && !ok {
+		return fmt.Errorf("field flags in PbkdfTestVector: required")
+	}
+	if _, ok := raw["iterationCount"]; raw != nil && !ok {
+		return fmt.Errorf("field iterationCount in PbkdfTestVector: required")
+	}
+	if _, ok := raw["password"]; raw != nil && !ok {
+		return fmt.Errorf("field password in PbkdfTestVector: required")
+	}
+	if _, ok := raw["result"]; raw != nil && !ok {
+		return fmt.Errorf("field result in PbkdfTestVector: required")
+	}
+	if _, ok := raw["salt"]; raw != nil && !ok {
+		return fmt.Errorf("field salt in PbkdfTestVector: required")
+	}
+	if _, ok := raw["tcId"]; raw != nil && !ok {
+		return fmt.Errorf("field tcId in PbkdfTestVector: required")
+	}
+	type Plain PbkdfTestVector
+	var plain Plain
+	if err := json.Unmarshal(value, &plain); err != nil {
+		return err
+	}
+	*j = PbkdfTestVector(plain)
+	return nil
+}
 
 type PrimalityTestGroup struct {
 	// Source corresponds to the JSON schema field "source".
@@ -7057,7 +7314,7 @@ type PrimalityTestSchemaV1Json struct {
 	Algorithm string `json:"algorithm"`
 
 	// DEPRECATED: prefer "source" property in test group
-	GeneratorVersion *string `json:"generatorVersion,omitempty"`
+	GeneratorVersion *string `json:"generatorVersion,omitempty,omitzero"`
 
 	// additional documentation
 	Header []string `json:"header"`
@@ -7185,25 +7442,25 @@ func (j *PrimalityTestVector) UnmarshalJSON(value []byte) error {
 
 type PrivateKey struct {
 	// Coefficient corresponds to the JSON schema field "coefficient".
-	Coefficient *string `json:"coefficient,omitempty"`
+	Coefficient *string `json:"coefficient,omitempty,omitzero"`
 
 	// Exponent1 corresponds to the JSON schema field "exponent1".
-	Exponent1 *string `json:"exponent1,omitempty"`
+	Exponent1 *string `json:"exponent1,omitempty,omitzero"`
 
 	// Exponent2 corresponds to the JSON schema field "exponent2".
-	Exponent2 *string `json:"exponent2,omitempty"`
+	Exponent2 *string `json:"exponent2,omitempty,omitzero"`
 
 	// Modulus corresponds to the JSON schema field "modulus".
 	Modulus string `json:"modulus"`
 
 	// OtherPrimeInfos corresponds to the JSON schema field "otherPrimeInfos".
-	OtherPrimeInfos [][]string `json:"otherPrimeInfos,omitempty"`
+	OtherPrimeInfos [][]string `json:"otherPrimeInfos,omitempty,omitzero"`
 
 	// Prime1 corresponds to the JSON schema field "prime1".
-	Prime1 *string `json:"prime1,omitempty"`
+	Prime1 *string `json:"prime1,omitempty,omitzero"`
 
 	// Prime2 corresponds to the JSON schema field "prime2".
-	Prime2 *string `json:"prime2,omitempty"`
+	Prime2 *string `json:"prime2,omitempty,omitzero"`
 
 	// PrivateExponent corresponds to the JSON schema field "privateExponent".
 	PrivateExponent string `json:"privateExponent"`
@@ -7310,10 +7567,10 @@ func (j *PublicKey) UnmarshalJSON(value []byte) error {
 // Recipient specific information Section 7.2.1 of RFC 7516
 type Recipient struct {
 	// EncryptedKey corresponds to the JSON schema field "encrypted_key".
-	EncryptedKey *string `json:"encrypted_key,omitempty"`
+	EncryptedKey *string `json:"encrypted_key,omitempty,omitzero"`
 
 	// header information that is not integrity protected
-	Header RecipientHeader `json:"header,omitempty"`
+	Header RecipientHeader `json:"header,omitempty,omitzero"`
 }
 
 // header information that is not integrity protected
@@ -7356,7 +7613,7 @@ type RsaesOaepDecryptSchemaV1Json struct {
 	Algorithm string `json:"algorithm"`
 
 	// DEPRECATED: prefer "source" property in test group
-	GeneratorVersion *string `json:"generatorVersion,omitempty"`
+	GeneratorVersion *string `json:"generatorVersion,omitempty,omitzero"`
 
 	// additional documentation
 	Header []string `json:"header"`
@@ -7449,7 +7706,7 @@ type RsaesOaepTestGroup struct {
 	PrivateKey PrivateKey `json:"privateKey"`
 
 	// PrivateKeyJwk corresponds to the JSON schema field "privateKeyJwk".
-	PrivateKeyJwk *JsonWebKey `json:"privateKeyJwk,omitempty"`
+	PrivateKeyJwk *JsonWebKey `json:"privateKeyJwk,omitempty,omitzero"`
 
 	// Pem encoded private key
 	PrivateKeyPem string `json:"privateKeyPem"`
@@ -7607,7 +7864,7 @@ type RsaesPkcs1DecryptSchemaV1Json struct {
 	Algorithm string `json:"algorithm"`
 
 	// DEPRECATED: prefer "source" property in test group
-	GeneratorVersion *string `json:"generatorVersion,omitempty"`
+	GeneratorVersion *string `json:"generatorVersion,omitempty,omitzero"`
 
 	// additional documentation
 	Header []string `json:"header"`
@@ -7694,7 +7951,7 @@ type RsaesPkcs1TestGroup struct {
 	PrivateKey PrivateKey `json:"privateKey"`
 
 	// JWK encoded private key
-	PrivateKeyJwk *JsonWebKey `json:"privateKeyJwk,omitempty"`
+	PrivateKeyJwk *JsonWebKey `json:"privateKeyJwk,omitempty,omitzero"`
 
 	// Pem encoded private key
 	PrivateKeyPem string `json:"privateKeyPem"`
@@ -7837,7 +8094,7 @@ type RsassaPkcs1GenTestGroup struct {
 	KeyDer string `json:"keyDer"`
 
 	// [Optional] Private key in JWK format
-	KeyJwk *JsonWebKey `json:"keyJwk,omitempty"`
+	KeyJwk *JsonWebKey `json:"keyJwk,omitempty,omitzero"`
 
 	// Pem encoded public key
 	KeyPem string `json:"keyPem"`
@@ -7849,7 +8106,7 @@ type RsassaPkcs1GenTestGroup struct {
 	PrivateKey PrivateKey `json:"privateKey"`
 
 	// [Optional] Private key in JWK format
-	PrivateKeyJwk *JsonWebKey `json:"privateKeyJwk,omitempty"`
+	PrivateKeyJwk *JsonWebKey `json:"privateKeyJwk,omitempty,omitzero"`
 
 	// Pem encoded private key
 	PrivateKeyPem string `json:"privateKeyPem"`
@@ -8029,7 +8286,7 @@ func (j *RsassaPkcs1GenerateSchemaV1Json) UnmarshalJSON(value []byte) error {
 
 type RsassaPkcs1TestGroup struct {
 	// KeyJwk corresponds to the JSON schema field "keyJwk".
-	KeyJwk *JsonWebKey `json:"keyJwk,omitempty"`
+	KeyJwk *JsonWebKey `json:"keyJwk,omitempty,omitzero"`
 
 	// the size of the modulus in bits
 	KeySize int `json:"keySize"`
@@ -8163,7 +8420,7 @@ type RsassaPkcs1VerifySchemaV1Json struct {
 	Algorithm string `json:"algorithm"`
 
 	// DEPRECATED: prefer "source" property in test group
-	GeneratorVersion *string `json:"generatorVersion,omitempty"`
+	GeneratorVersion *string `json:"generatorVersion,omitempty,omitzero"`
 
 	// additional documentation
 	Header []string `json:"header"`
@@ -8262,7 +8519,7 @@ type RsassaPssTestGroup struct {
 	PublicKeyDer string `json:"publicKeyDer"`
 
 	// PublicKeyJwk corresponds to the JSON schema field "publicKeyJwk".
-	PublicKeyJwk *JsonWebKey `json:"publicKeyJwk,omitempty"`
+	PublicKeyJwk *JsonWebKey `json:"publicKeyJwk,omitempty,omitzero"`
 
 	// Pem encoded public key
 	PublicKeyPem string `json:"publicKeyPem"`
@@ -8449,7 +8706,7 @@ type RsassaPssVerifySchemaV1Json struct {
 	Algorithm string `json:"algorithm"`
 
 	// DEPRECATED: prefer "source" property in test group
-	GeneratorVersion *string `json:"generatorVersion,omitempty"`
+	GeneratorVersion *string `json:"generatorVersion,omitempty,omitzero"`
 
 	// additional documentation
 	Header []string `json:"header"`
@@ -8621,7 +8878,7 @@ type XdhAsnCompSchemaV1Json struct {
 	Algorithm string `json:"algorithm"`
 
 	// DEPRECATED: prefer "source" property in test group
-	GeneratorVersion *string `json:"generatorVersion,omitempty"`
+	GeneratorVersion *string `json:"generatorVersion,omitempty,omitzero"`
 
 	// additional documentation
 	Header []string `json:"header"`
@@ -8833,7 +9090,7 @@ type XdhCompSchemaV1Json struct {
 	Algorithm string `json:"algorithm"`
 
 	// DEPRECATED: prefer "source" property in test group
-	GeneratorVersion *string `json:"generatorVersion,omitempty"`
+	GeneratorVersion *string `json:"generatorVersion,omitempty,omitzero"`
 
 	// additional documentation
 	Header []string `json:"header"`
@@ -8917,7 +9174,7 @@ type XdhJwkCompSchemaV1Json struct {
 	Algorithm string `json:"algorithm"`
 
 	// DEPRECATED: prefer "source" property in test group
-	GeneratorVersion *string `json:"generatorVersion,omitempty"`
+	GeneratorVersion *string `json:"generatorVersion,omitempty,omitzero"`
 
 	// additional documentation
 	Header []string `json:"header"`
@@ -9129,7 +9386,7 @@ type XdhPemCompSchemaV1Json struct {
 	Algorithm string `json:"algorithm"`
 
 	// DEPRECATED: prefer "source" property in test group
-	GeneratorVersion *string `json:"generatorVersion,omitempty"`
+	GeneratorVersion *string `json:"generatorVersion,omitempty,omitzero"`
 
 	// additional documentation
 	Header []string `json:"header"`

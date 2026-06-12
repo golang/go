@@ -5377,3 +5377,83 @@ rnVLSDqKkbgKCwwRPEiw8SU8WZu5zwG9ygURLGN4obLeSQU8UHyCteEbbpGrstXp
 AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAQMEhUdHiUs
 -----END CERTIFICATE-----
 `
+
+const ipv4MappedSANCert = "308201a33082010ca003020102020101300d06092a864886f70d01010b05003000301e170d3236303431393135353233345a170d3236303432313135353233345a300030819f300d06092a864886f70d010101050003818d0030818902818100b1a1e0945b9289c4d3f1329f8a982c4a2dcd59bfd372fb8085a9c517554607ebd2f7990eef216ac9f4605f71a03b04f42a5255b158cf8e0844191f5119348baa44c35056e20609bcf9510f30ead4b481c81d7865fb27b8e0090e112b717f3ee08cdfc4012da1f1f7cf2a1bc34c73a54a12b06372d09714742dd7895eadde4aa50203010001a32d302b30290603551d110101ff041f301d82096c6f63616c686f7374871000000000000000000000ffffc0000201300d06092a864886f70d01010b0500038181002d2cdad074598049ad1c119711adbb0616495c5f27eb22e0df54fe9b35c3c4d379e27bf65b47c4ecd46eda09019dd0e57311ce13cd88a0fbff0d056a39ab69c6665303fd1e754777d86b57d12491be9f9200b4067ca1d5fc1988c3f09a4fe950c69e924b7bfd167b4c38ead525471ba9b1852ba6f5d783c4ca34a93aa70c23bf"
+
+const ipv4MappedConstraintCert = "308201c23082012ba003020102020101300d06092a864886f70d01010b05003000301e170d3236303431393135333435315a170d3236303432313135333435315a300030819f300d06092a864886f70d010101050003818d0030818902818100b1a1e0945b9289c4d3f1329f8a982c4a2dcd59bfd372fb8085a9c517554607ebd2f7990eef216ac9f4605f71a03b04f42a5255b158cf8e0844191f5119348baa44c35056e20609bcf9510f30ead4b481c81d7865fb27b8e0090e112b717f3ee08cdfc4012da1f1f7cf2a1bc34c73a54a12b06372d09714742dd7895eadde4aa50203010001a34c304a30170603551d110101ff040d300b82096c6f63616c686f7374302f0603551d1e04283026a1243022872000000000000000000000ffffc0000201ffffffffffffffffffffffffffffffff300d06092a864886f70d01010b050003818100973c4ba96f538b2fbd38a71be95e9953777b949f93ea6e4de09aeef6d19bb20cf07daf2896d4662f22ca8cfb239df6ab723b8cb0b80486ff1242124b61d5eca92824aa8cc2b8bf58e2a237cbf4db43ebfd01c4960dc546f5e139612db0059c9c413c565facc191af601ef968c17acd9476e5393778656c51a0979d66508e77e6"
+
+func TestIPv4MappedIPsParse(t *testing.T) {
+	for _, tc := range []struct {
+		name string
+		der  string
+	}{
+		{
+			name: "SAN",
+			der:  ipv4MappedSANCert,
+		},
+		{
+			name: "constraint",
+			der:  ipv4MappedConstraintCert,
+		},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			der, err := hex.DecodeString(tc.der)
+			if err != nil {
+				t.Fatalf("hex.DecodeString() unexpected error: %v", err)
+			}
+
+			expectedErrSuffix := "IPv4-mapped IPv6 address"
+
+			_, err = ParseCertificate(der)
+			if err == nil {
+				t.Fatal("expected error when parsing certificate containing IPv4-mapped IPv6 address")
+			} else if !strings.Contains(err.Error(), expectedErrSuffix) {
+				t.Fatalf("unexpected error: %v, want suffix: %s", err, expectedErrSuffix)
+			}
+		})
+	}
+}
+
+func TestIPv4MappedIPsSANCreate(t *testing.T) {
+	tmpl := Certificate{
+		SerialNumber: big.NewInt(1),
+		NotBefore:    time.Now().Add(-24 * time.Hour),
+		NotAfter:     time.Now().Add(24 * time.Hour),
+		DNSNames:     []string{"localhost"},
+		IPAddresses:  []net.IP{net.ParseIP("::ffff:192.0.2.1")},
+	}
+
+	der, err := CreateCertificate(rand.Reader, &tmpl, &tmpl, rsaPrivateKey.Public(), rsaPrivateKey)
+	if err != nil {
+		t.Fatalf("unexpected error creating certificate: %v", err)
+	}
+
+	cert, err := ParseCertificate(der)
+	if err != nil {
+		t.Fatalf("unexpected error parsing certificate: %v", err)
+	}
+
+	if len(cert.IPAddresses) != 1 {
+		t.Fatalf("unexpected number of IP addresses in parsed certificate, got %d, want 1", len(cert.IPAddresses))
+	}
+
+	if len(cert.IPAddresses[0]) != net.IPv4len {
+		t.Fatalf("unexpected IP address length in parsed certificate, got %d, want %d", len(cert.IPAddresses[0]), net.IPv4len)
+	}
+}
+
+func TestIPv4MappedIPsConstraintCreate(t *testing.T) {
+	_, mappedNetwork, _ := net.ParseCIDR("::ffff:192.0.2.1/128")
+	tmpl := Certificate{
+		SerialNumber:      big.NewInt(1),
+		NotBefore:         time.Now().Add(-24 * time.Hour),
+		NotAfter:          time.Now().Add(24 * time.Hour),
+		DNSNames:          []string{"localhost"},
+		PermittedIPRanges: []*net.IPNet{mappedNetwork},
+	}
+
+	_, err := CreateCertificate(rand.Reader, &tmpl, &tmpl, rsaPrivateKey.Public(), rsaPrivateKey)
+	if err == nil {
+		t.Fatalf("unexpected success creating certificate with IPv4-mapped IPv6 address constraint")
+	}
+}

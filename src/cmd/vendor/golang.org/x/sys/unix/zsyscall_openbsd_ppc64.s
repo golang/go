@@ -597,6 +597,30 @@ TEXT libc_pwrite_trampoline<>(SB),NOSPLIT,$0-0
 GLOBL	·libc_pwrite_trampoline_addr(SB), RODATA, $8
 DATA	·libc_pwrite_trampoline_addr(SB)/8, $libc_pwrite_trampoline<>(SB)
 
+TEXT libc_readv_trampoline<>(SB),NOSPLIT,$0-0
+	CALL	libc_readv(SB)
+	RET
+GLOBL	·libc_readv_trampoline_addr(SB), RODATA, $8
+DATA	·libc_readv_trampoline_addr(SB)/8, $libc_readv_trampoline<>(SB)
+
+TEXT libc_writev_trampoline<>(SB),NOSPLIT,$0-0
+	CALL	libc_writev(SB)
+	RET
+GLOBL	·libc_writev_trampoline_addr(SB), RODATA, $8
+DATA	·libc_writev_trampoline_addr(SB)/8, $libc_writev_trampoline<>(SB)
+
+TEXT libc_preadv_trampoline<>(SB),NOSPLIT,$0-0
+	CALL	libc_preadv(SB)
+	RET
+GLOBL	·libc_preadv_trampoline_addr(SB), RODATA, $8
+DATA	·libc_preadv_trampoline_addr(SB)/8, $libc_preadv_trampoline<>(SB)
+
+TEXT libc_pwritev_trampoline<>(SB),NOSPLIT,$0-0
+	CALL	libc_pwritev(SB)
+	RET
+GLOBL	·libc_pwritev_trampoline_addr(SB), RODATA, $8
+DATA	·libc_pwritev_trampoline_addr(SB)/8, $libc_pwritev_trampoline<>(SB)
+
 TEXT libc_read_trampoline<>(SB),NOSPLIT,$0-0
 	CALL	libc_read(SB)
 	RET

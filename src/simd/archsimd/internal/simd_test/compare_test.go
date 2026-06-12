@@ -11,10 +11,6 @@ import (
 	"testing"
 )
 
-// AVX 2 lacks most comparisons, but they can be synthesized
-// from > and =
-var comparisonFixed bool = archsimd.X86.AVX512()
-
 func TestLess(t *testing.T) {
 	testFloat32x4Compare(t, archsimd.Float32x4.Less, lessSlice[float32])
 	testFloat32x8Compare(t, archsimd.Float32x8.Less, lessSlice[float32])

@@ -826,8 +826,60 @@ func (t testTracebackGenericTyp[P]) M(buf []byte) int {
 	return runtime.Stack(buf[:], false)
 }
 
+//go:noinline
+func (t testTracebackGenericTyp[P]) G[R any](buf []byte) R {
+	var r R
+	switch p := (any(&r)).(type) {
+	case *int:
+		*p = runtime.Stack(buf[:], false)
+	}
+	return r
+}
+
 func (t testTracebackGenericTyp[P]) Inlined(buf []byte) int {
 	return runtime.Stack(buf[:], false)
+}
+
+func (t testTracebackGenericTyp[P]) InlinedGeneric[R any](buf []byte) R {
+	var r R
+	switch p := (any(&r)).(type) {
+	case *int:
+		*p = runtime.Stack(buf[:], false)
+	}
+	return r
+}
+
+func TestTraceBackPieces(t *testing.T) {
+	// FuncNamePiecesForPrint
+	tests := []struct {
+		name   string
+		expect string
+	}{
+		// These are not necessarily "best" results, they are just current practice
+		{"a[b]", "a|[...]|||"},
+		{"a[b]c", "a|[...]|c||"},
+		{"a[[b]]c", "a|[...]|c||"},
+		{"a[b]]c", "a|[...]|c||"}, // malformed input
+		{"a[[]b]c", "a|[...]|c||"},
+		{"a[b].c[d]e", "a|[...]|.c|[...]|e"},
+		{"a[[b]].c[d]e", "a|[...]|.c|[...]|e"},
+		{"a[b].c[[d]]e", "a|[...]|.c|[...]|e"},
+		{"a.c[[d]]e", "a.c|[...]|e||"},
+		{"a[b].c[[d]]e", "a|[...]|.c|[...]|e"},
+		{"a[b].c[d].e[f].g", "a|[...]|.c|[...]|.g"}, // not an expected input; second "..." = "d].e[f". ok?
+		{"a[b[[[].c[[d]]e", "a[b[[[].c[[d]]e||||"},  // malformed, get original back
+		{"a[[b].c[[d]]e", "a[[b].c[[d]]e||||"},      // malformed, get original back
+		{"a[[b]].c[d]]e", "a|[...]|.c|[...]|e"},     // malformed, but digested; second "..." = "d]". ok?
+	}
+
+	for i, test := range tests {
+		a, b, c, d, e := runtime.FuncNamePiecesForPrint(test.name)
+		got := a + "|" + b + "|" + c + "|" + d + "|" + e
+		if test.expect != got {
+			t.Errorf("for %s (test %d) expected %s but got %s", test.name, i, test.expect, got)
+		}
+	}
+
 }
 
 func TestTracebackGeneric(t *testing.T) {
@@ -858,6 +910,16 @@ func TestTracebackGeneric(t *testing.T) {
 		{
 			func(buf []byte) int { return x.Inlined(buf) },
 			"testTracebackGenericTyp[...].Inlined(",
+		},
+		// generic method, not inlined
+		{
+			x.G[int],
+			"testTracebackGenericTyp[...].G[...](",
+		},
+		// generic method, inlined
+		{
+			func(buf []byte) int { return x.InlinedGeneric[int](buf) },
+			"testTracebackGenericTyp[...].InlinedGeneric[...](",
 		},
 	}
 	var buf [1000]byte

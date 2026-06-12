@@ -1,1 +1,0 @@
-pkg crypto/tls, type Config struct, Rand //deprecated #79367

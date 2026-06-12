@@ -136,7 +136,7 @@ func (e *UnmarshalTypeError) Error() string {
 		// Go representation for the JSON value.
 		// The logic in jsontext represents paths using a JSON Pointer,
 		// which is agnostic to the Go type system.
-		// Trying to convert a JSON Pointer into a UnmarshalTypeError.Field
+		// Trying to convert a JSON Pointer into an UnmarshalTypeError.Field
 		// is difficult. As a heuristic, if the last path token looks like
 		// an index into a JSON array (e.g., ".foo.bar.0"),
 		// avoid the phrase "Go struct field ".

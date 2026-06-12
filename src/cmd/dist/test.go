@@ -746,11 +746,11 @@ func (t *tester) registerTests() {
 		}
 	}
 
-	// Test GOEXPERIMENT=jsonv2.
-	if !strings.Contains(goexperiment, "jsonv2") {
-		t.registerTest("GOEXPERIMENT=jsonv2 go test encoding/json/...", &goTest{
-			variant: "jsonv2",
-			env:     []string{"GOEXPERIMENT=" + goexperiments("jsonv2")},
+	// Test GOEXPERIMENT=nojsonv2.
+	if !strings.Contains(goexperiment, "nojsonv2") {
+		t.registerTest("GOEXPERIMENT=nojsonv2 go test encoding/json/...", &goTest{
+			variant: "nojsonv2",
+			env:     []string{"GOEXPERIMENT=" + goexperiments("nojsonv2")},
 			pkg:     "encoding/json/...",
 		})
 	}
@@ -764,13 +764,23 @@ func (t *tester) registerTests() {
 		})
 	}
 
-	// Test GOEXPERIMENT=simd on amd64.
-	if goarch == "amd64" && !strings.Contains(goexperiment, "simd") {
-		t.registerTest("GOEXPERIMENT=simd go test simd/archsimd/...", &goTest{
+	// Test GOEXPERIMENT=simd.
+	if !strings.Contains(goexperiment, "simd") {
+		// simd package is portable.
+		t.registerTest("GOEXPERIMENT=simd go test simd", &goTest{
 			variant: "simd",
 			env:     []string{"GOEXPERIMENT=" + goexperiments("simd")},
-			pkg:     "simd/archsimd/...",
+			pkg:     "simd",
 		})
+		// simd/archsimd supports amd64, arm64, and wasm.
+		archsimdSupported := goarch == "amd64" || goarch == "arm64" || goarch == "wasm"
+		if archsimdSupported {
+			t.registerTest("GOEXPERIMENT=simd go test simd/archsimd/...", &goTest{
+				variant: "simd",
+				env:     []string{"GOEXPERIMENT=" + goexperiments("simd")},
+				pkg:     "simd/archsimd/...",
+			})
+		}
 	}
 
 	// Test ios/amd64 for the iOS simulator.

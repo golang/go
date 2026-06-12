@@ -210,7 +210,12 @@ func noEscapePtr[T any](p *T) *T {
 // When fn is nil (frame is saved g), call dropm instead,
 // this is used when the C thread is exiting.
 //
-//go:linknamestd cgocallback
+// cgocallback should be an internal detail,
+// but widely used packages access it using linkname.
+// Notable members of the hall of shame include:
+//   - github.com/ebitengine/purego
+//
+//go:linkname cgocallback
 func cgocallback(fn, frame, ctxt uintptr)
 
 func gogo(buf *gobuf)

@@ -34,11 +34,11 @@ import (
 //     return the end of the consumed JSON token as a position,
 //     also relative to the start of Decoder.buf.
 //
-//   - In the event of an I/O errors or state machine violations,
+//   - In the event of an I/O error or state machine violations,
 //     the implementation avoids mutating the state of Decoder
 //     (aside from the book-keeping needed to implement Decoder.fetch).
 //     For this reason, only Decoder.ReadToken and Decoder.ReadValue are
-//     responsible for updated Decoder.prevStart and Decoder.prevEnd.
+//     responsible for updating Decoder.prevStart and Decoder.prevEnd.
 //
 //   - For performance, much of the implementation uses the pattern of calling
 //     the inlinable consumeXXX functions first, and if more work is necessary,
@@ -71,7 +71,7 @@ import (
 //	d.ReadValue() // {"k":"v"}
 //	d.ReadToken() // }
 //
-// The above is one of many possible sequence of calls and
+// The above is one of many possible sequences of calls and
 // may not represent the most sensible method to call for any given token/value.
 // For example, it is probably more common to call [Decoder.ReadToken] to obtain a
 // string token for object names.
@@ -126,7 +126,7 @@ func NewDecoder(r io.Reader, opts ...Options) *Decoder {
 }
 
 // Reset resets a decoder such that it is reading afresh from r and
-// configured with the provided options. Reset must not be called on an
+// configured with the provided options. Reset must not be called on
 // a Decoder passed to the [encoding/json/v2.UnmarshalerFrom.UnmarshalJSONFrom] method
 // or the [encoding/json/v2.UnmarshalFromFunc] function.
 func (d *Decoder) Reset(r io.Reader, opts ...Options) {
@@ -166,6 +166,8 @@ func (d *Decoder) Options() Options {
 	return &d.s.Struct
 }
 
+func (d *decoderState) options() *jsonopts.Struct { return &d.Struct }
+
 var errBufferWriteAfterNext = errors.New("invalid bytes.Buffer.Write call after calling bytes.Buffer.Next")
 
 // fetch reads at least 1 byte from the underlying io.Reader.
@@ -193,7 +195,7 @@ func (d *decoderState) fetch() error {
 			// may overwrite the contents of the current buffer.
 			//
 			// The user is trying to use a bytes.Buffer as a pipe,
-			// but a bytes.Buffer is poor implementation of a pipe,
+			// but a bytes.Buffer is a poor implementation of a pipe,
 			// the purpose-built io.Pipe should be used instead.
 			return &ioError{action: "read", err: errBufferWriteAfterNext}
 		}
@@ -621,6 +623,7 @@ func (d *decoderState) ReadToken() (Token, error) {
 		if !d.Flags.Get(jsonflags.AllowDuplicateNames) {
 			d.Namespaces.push()
 		}
+		d.Flags.Clear(jsonflags.TagFlags) // tags only apply to current depth
 		pos += 1
 		d.prevStart, d.prevEnd = pos, pos
 		return BeginObject, nil
@@ -641,6 +644,7 @@ func (d *decoderState) ReadToken() (Token, error) {
 		if err = d.Tokens.pushArray(); err != nil {
 			return Token{}, wrapSyntacticError(d, err, pos, +1)
 		}
+		d.Flags.Clear(jsonflags.TagFlags) // tags only apply to current depth
 		pos += 1
 		d.prevStart, d.prevEnd = pos, pos
 		return BeginArray, nil
@@ -1155,7 +1159,25 @@ func (d *Decoder) UnreadBuffer() []byte {
 // Each level on the stack represents a nested JSON object or array.
 // It is incremented whenever a [BeginObject] or [BeginArray] token is encountered
 // and decremented whenever an [EndObject] or [EndArray] token is encountered.
-// The depth is zero-indexed, where zero represents the top-level JSON value.
+//
+// StackDepth returns 0 when not inside any object or array.
+// In particular, it returns 0 before any tokens have been read,
+// after any top-level value has been read, and between values
+// when decoding a stream of top-level values (e.g., NDJSON).
+// StackDepth returns 1 inside a top-level object or array,
+// 2 inside a nested object or array, and so on.
+//
+// For example, consider decoding the following JSON:
+//
+//	{"a": [1, 2], "b": {"c": 3}}
+//
+// While decoding, StackDepth would report the following:
+//
+//   - At the start, StackDepth reports 0.
+//   - After decoding the outer '{', StackDepth reports 1.
+//   - After decoding the inner '[', StackDepth reports 2.
+//   - After decoding the inner ']', StackDepth reports 1.
+//   - After decoding the outer '}', StackDepth reports 0.
 func (d *Decoder) StackDepth() int {
 	// NOTE: Keep in sync with Encoder.StackDepth.
 	return d.s.Tokens.Depth() - 1
@@ -1169,7 +1191,7 @@ func (d *Decoder) StackDepth() int {
 //   - [KindBeginObject] for a level representing a JSON object, and
 //   - [KindBeginArray] for a level representing a JSON array.
 //
-// It also reports the length of that JSON object or array.
+// It also reports the length of that JSON object or array decoded so far.
 // Each name and value in a JSON object is counted separately,
 // so the effective number of members would be half the length.
 // A complete JSON object must have an even length.

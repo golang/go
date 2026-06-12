@@ -430,7 +430,9 @@ mapping:
 				// Llvm buildid protocol: the first two characters of the build id
 				// are used as directory, and the remaining part is in the filename.
 				// e.g. `/ab/cdef0123456.debug`
-				fileNames = append(fileNames, filepath.Join(path, m.BuildID[:2], m.BuildID[2:]+".debug"))
+				if len(m.BuildID) >= 2 {
+					fileNames = append(fileNames, filepath.Join(path, m.BuildID[:2], m.BuildID[2:]+".debug"))
+				}
 			}
 			if m.File != "" {
 				// Try both the basename and the full path, to support the same directory

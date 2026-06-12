@@ -12,14 +12,13 @@ import (
 )
 
 type (
-	// Hasher and HasherIgnoreTags define hash functions and
-	// equivalence relations for [Types] that are consistent with
-	// [Identical] and [IdenticalIgnoreTags], respectively.
-	// They use the same hash function, which ignores tags;
-	// only the Equal methods vary.
-	//
+	// Hasher defines a hash function and equivalence relation
+	// for [Types] that is consistent with [Identical].
 	// Hashers are stateless.
-	Hasher           struct{}
+	Hasher struct{}
+
+	// HasherIgnoreTags is a variant of [Hasher] that is
+	// consistent with [IdenticalIgnoreTags].
 	HasherIgnoreTags struct{}
 )
 
@@ -28,10 +27,21 @@ var (
 	_ maphash.Hasher[Type] = HasherIgnoreTags{}
 )
 
-func (Hasher) Hash(h *maphash.Hash, t Type)           { hasher{inGenericSig: false}.hash(h, t) }
-func (HasherIgnoreTags) Hash(h *maphash.Hash, t Type) { hasher{inGenericSig: false}.hash(h, t) }
-func (Hasher) Equal(x, y Type) bool                   { return Identical(x, y) }
-func (HasherIgnoreTags) Equal(x, y Type) bool         { return IdenticalIgnoreTags(x, y) }
+func (Hasher) Hash(h *maphash.Hash, t Type) {
+	// The two hashers use essentially the same hash function,
+	// which ignores tags; only the Equal methods vary.
+	// But for future-proofing we gratuitously force them
+	// to differ by one byte.
+	h.WriteByte(0)
+	hasher{inGenericSig: false}.hash(h, t)
+}
+func (HasherIgnoreTags) Hash(h *maphash.Hash, t Type) {
+	h.WriteByte(1)
+	hasher{inGenericSig: false}.hash(h, t)
+}
+
+func (Hasher) Equal(x, y Type) bool           { return Identical(x, y) }
+func (HasherIgnoreTags) Equal(x, y Type) bool { return IdenticalIgnoreTags(x, y) }
 
 // hasher holds the state of a single hash traversal, namely,
 // whether we are inside the signature of a generic function.

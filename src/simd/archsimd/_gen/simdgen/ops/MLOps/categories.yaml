@@ -22,19 +22,16 @@
     // NAME performs dot products on pairs of elements of y and z and then adds x.
 - go: MulAdd
   commutative: false
-  documentation: !string |-
-    // NAME performs a fused (x * y) + z.
-- go: MulAddSub
+- go: MulAddEvenSubOdd
   commutative: false
   documentation: !string |-
     // NAME performs a fused (x * y) - z for odd-indexed elements, and (x * y) + z for even-indexed elements.
-- go: MulSubAdd
+- go: MulAddOddSubEven
   commutative: false
   documentation: !string |-
     // NAME performs a fused (x * y) + z for odd-indexed elements, and (x * y) - z for even-indexed elements.
-- go: SumAbsDiff
+- go: SumOf8AbsDiff
   commutative: false
   documentation: !string |-
-    // NAME sums the absolute distance of the two input vectors, each adjacent 8 bytes as a group. The output sum will
-    // be a vector of word-sized elements whose each 4*n-th element contains the sum of the n-th input group. The other elements in the result vector are zeroed.
-    // This method could be seen as the norm of the L1 distance of each adjacent 8-byte vector group of the two input vectors.
+    // NAME computes the absolute difference of x and y and sums each group of 8 results.
+    // This method could be seen as the norm of the L1 distance of each 8-element group of the two input vectors.

@@ -27,7 +27,6 @@ type Info struct {
 // (Otherwise the test in this package will fail.)
 var All = []Info{
 	{Name: "allowmultiplevcs", Package: "cmd/go"},
-	{Name: "asynctimerchan", Package: "time", Changed: 23, Old: "1"},
 	{Name: "containermaxprocs", Package: "runtime", Changed: 25, Old: "0"},
 	{Name: "cryptocustomrand", Package: "crypto", Changed: 26, Old: "1"},
 	{Name: "dataindependenttiming", Package: "crypto/subtle", Opaque: true},
@@ -82,24 +81,36 @@ var All = []Info{
 	{Name: "zipinsecurepath", Package: "archive/zip"},
 }
 
+// A RemovedInfo describes a GODEBUG setting that has been removed.
+//
+// Per the policy for removing GODEBUG settings (go.dev/issue/76163), using any non-"old"
+// value for the removed setting is permissible. Using an old value, indicating a non-final
+// default value for that setting, leads to a build or vet error.
+// To support multiple "old" values (see asynctimerchan), the Old field is a predicate.
 type RemovedInfo struct {
-	Name    string // name of the removed GODEBUG setting.
-	Removed int    // minor version of Go, when the removal happened
+	Name    string            // name of the removed GODEBUG setting.
+	Removed int               // minor version of Go, when the removal happened
+	Old     func(string) bool // reports whether the GODEBUG value (argument) is an old (invalid) value
 }
 
 // Removed contains all GODEBUGs that we have removed.
 //
 // Every removed GODEBUG must have a corresponding section in doc/godebug.md,
-// since cmd/go links to this document when a removed GODEBUG is used.
+// since cmd/go links to that document when a removed GODEBUG is used.
 var Removed = []RemovedInfo{
-	{Name: "x509sha1", Removed: 24},
-	{Name: "gotypesalias", Removed: 27},
-	{Name: "tlsunsafeekm", Removed: 27},    // Old: "1"
-	{Name: "tlsrsakex", Removed: 27},       // Old: "1"
-	{Name: "tls3des", Removed: 27},         // Old: "1"
-	{Name: "tls10server", Removed: 27},     // Old: "1"
-	{Name: "x509keypairleaf", Removed: 27}, // Old: "0"
+	{Name: "x509sha1", Removed: 24, Old: one},                                                       // Old: "1"
+	{Name: "tlskyber", Removed: 24, Old: zero},                                                      // Old: "0"
+	{Name: "gotypesalias", Removed: 27, Old: zero},                                                  // Old: "0"
+	{Name: "tlsunsafeekm", Removed: 27, Old: one},                                                   // Old: "1"
+	{Name: "tlsrsakex", Removed: 27, Old: one},                                                      // Old: "1"
+	{Name: "tls3des", Removed: 27, Old: one},                                                        // Old: "1"
+	{Name: "tls10server", Removed: 27, Old: one},                                                    // Old: "1"
+	{Name: "x509keypairleaf", Removed: 27, Old: zero},                                               // Old: "0"
+	{Name: "asynctimerchan", Removed: 27, Old: func(s string) bool { return s == "1" || s == "2" }}, // Old: "1" or "2"
 }
+
+func zero(s string) bool { return s == "0" }
+func one(s string) bool  { return s == "1" }
 
 // Lookup returns the Info with the given name.
 func Lookup(name string) *Info {

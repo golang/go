@@ -80,13 +80,14 @@
 //
 //   - string: The "string" option specifies that [StringifyNumbers] be set
 //     when marshaling or unmarshaling a struct field value.
-//     This causes numeric types (or a pointer to a numeric type) to be encoded
-//     as a JSON number within a JSON string, and to be decoded from a JSON
-//     string containing the JSON number without any surrounding whitespace.
-//     The "string" option does not apply recursively. Specifically, `string`
-//     will not stringify bool, string, or numeric kinds within a composite
-//     data type (e.g., array, slice, struct, map, or interface).
-//     Applying this option to an invalid type causes a runtime error.
+//     This causes types that would normally be encoded as a JSON number
+//     to instead be encoded as a JSON number quoted within a JSON string,
+//     and to be decoded from a JSON string containing the JSON number
+//     without any surrounding whitespace.
+//     The "string" option only applies to the top-level of the Go struct field value.
+//     Specifically, for the default representation of composite Go data types
+//     (e.g., array, slice, struct, or map), it will not stringify JSON numbers
+//     within such types. Applying this option to invalid types causes a runtime error.
 //     This extra level of encoding is often necessary since many JSON parsers
 //     cannot precisely represent 64-bit integers.
 //

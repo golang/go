@@ -42,6 +42,7 @@ type arch struct {
 	fpregmask          regMask
 	fp32regmask        regMask
 	fp64regmask        regMask
+	simdregmask        regMask
 	specialregmask     regMask
 	framepointerreg    int8
 	linkreg            int8
@@ -71,6 +72,7 @@ type opData struct {
 	zeroWidth         bool   // op never translates into any machine code. example: copy, which may sometimes translate to machine code, is not zero-width.
 	unsafePoint       bool   // this op is an unsafe point, i.e. not safe for async preemption
 	fixedReg          bool   // this op will be assigned a fixed register
+	earlyOk           bool   // executing this op in an earlier block is ok
 	symEffect         string // effect this op has on symbol in aux
 	scale             uint8  // amd64/386 indexed load scale
 }
@@ -392,6 +394,9 @@ func genOp() {
 			if v.fixedReg {
 				fmt.Fprintln(w, "fixedReg: true,")
 			}
+			if v.earlyOk {
+				fmt.Fprintln(w, "earlyOk: true,")
+			}
 			if v.unsafePoint {
 				fmt.Fprintln(w, "unsafePoint: true,")
 			}
@@ -541,6 +546,9 @@ func genOp() {
 		}
 		if !a.fp64regmask.empty() {
 			fmt.Fprintf(w, "var fp64RegMask%s = regMask{v1: %d, v2: %d}\n", a.name, a.fp64regmask.v1, a.fp64regmask.v2)
+		}
+		if !a.simdregmask.empty() {
+			fmt.Fprintf(w, "var simdRegMask%s = regMask{v1: %d, v2: %d}\n", a.name, a.simdregmask.v1, a.simdregmask.v2)
 		}
 		fmt.Fprintf(w, "var specialRegMask%s = regMask{v1: %d, v2: %d}\n", a.name, a.specialregmask.v1, a.specialregmask.v2)
 		fmt.Fprintf(w, "var framepointerReg%s = int8(%d)\n", a.name, a.framepointerreg)
