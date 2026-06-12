@@ -52,15 +52,22 @@ type genericType interface {
 // count is incorrect; for *Named types, a panic may occur later inside the
 // *Named API.
 func Instantiate(ctxt *Context, orig Type, targs []Type, validate bool) (Type, error) {
-	assert(len(targs) > 0)
+	if len(targs) == 0 {
+		panic(sprintf(nil, nil, false, "cannot instantiate %v: empty type argument list", orig))
+	}
 	if ctxt == nil {
 		ctxt = NewContext()
 	}
-	orig_ := orig.(genericType) // signature of Instantiate must not change for backward-compatibility
+	orig_, ok := orig.(genericType) // signature of Instantiate must not change for backward-compatibility
+	if !ok {
+		panic(sprintf(nil, nil, false, "cannot instantiate %v: non-generic type %T supplied, expected *Named, *Alias, or *Signature", orig, orig))
+	}
 
 	if validate {
 		tparams := orig_.TypeParams().list()
-		assert(len(tparams) > 0)
+		if len(tparams) == 0 {
+			panic(sprintf(nil, nil, false, "cannot instantiate %v: has no type parameters", orig))
+		}
 		if len(targs) != len(tparams) {
 			return nil, fmt.Errorf("got %d type arguments but %s has %d type parameters", len(targs), orig, len(tparams))
 		}
