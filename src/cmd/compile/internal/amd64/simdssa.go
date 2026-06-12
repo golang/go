@@ -1717,7 +1717,7 @@ func ssaGenSIMDValue(s *ssagen.State, v *ssa.Value) bool {
 		ssa.OpAMD64VPINSRQ128,
 		ssa.OpAMD64VPINSRB128,
 		ssa.OpAMD64VPINSRW128:
-		p = simdVgpvImm8(s, v)
+		p = simdVgpvImm(s, v)
 
 	case ssa.OpAMD64VPEXTRD128,
 		ssa.OpAMD64VPEXTRQ128,

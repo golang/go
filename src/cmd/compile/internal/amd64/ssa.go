@@ -2093,6 +2093,15 @@ func simdVgpvImm8(s *ssagen.State, v *ssa.Value) *obj.Prog {
 	p.To.Reg = simdReg(v)
 	return p
 }
+func simdVgpvImm(s *ssagen.State, v *ssa.Value) *obj.Prog {
+	// within simdgen, the choice of intrinsic shape and the output
+	// intruction format are linked.  In the case of VgpImm, there is
+	// a difference in the intrinsic, but no difference in the
+	// instruction, it is just like VgpvImm8.
+	//
+	// See also, simdVgpImm and simdVgpImm8
+	return simdVgpvImm8(s, v)
+}
 
 // Example instruction: VPCMPD $1, Z1, Z2, K1
 func simdV2kImm8(s *ssagen.State, v *ssa.Value) *obj.Prog {
