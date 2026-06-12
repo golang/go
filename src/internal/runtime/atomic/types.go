@@ -585,3 +585,8 @@ func (*noCopy) Unlock() {}
 // This struct is recognized by a special case in the compiler
 // and will not work if copied to any other package.
 type align64 struct{}
+
+// align128 may be added to structs that must be 128-bit aligned.
+// This struct is recognized by a special case in the compiler
+// and will not work if copied to any other package.
+type align128 struct{}
