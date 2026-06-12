@@ -21,7 +21,7 @@ type genericType interface {
 }
 
 // Instantiate instantiates the type orig with the given type arguments targs.
-// orig must be an *Alias, *Named, or *Signature type. If there is no error,
+// orig must be a generic *Alias, *Named, or *Signature type. If there is no error,
 // the resulting Type is an instantiated type of the same kind (*Alias, *Named
 // or *Signature, respectively).
 //
@@ -36,16 +36,16 @@ type genericType interface {
 // signatures will yield different instances. The use of a shared context does
 // not guarantee that identical instances are deduplicated in all cases.
 //
-// If validate is set, Instantiate verifies that the number of type arguments
-// and parameters match, and that the type arguments satisfy their respective
-// type constraints. If verification fails, the resulting error may wrap an
-// *ArgumentError indicating which type argument did not satisfy its type parameter
-// constraint, and why.
+// If validate is set, Instantiate verifies that the type orig is in fact generic,
+// that the number of type arguments and parameters match, and that the type arguments
+// satisfy their respective type constraints.
+// If verification fails, the resulting error may wrap an *ArgumentError indicating
+// which type argument did not satisfy its type parameter constraint, and why.
 //
-// If validate is not set, Instantiate does not verify the type argument count
-// or whether the type arguments satisfy their constraints. Instantiate is
-// guaranteed to not return an error, but may panic. Specifically, for
-// *Signature types, Instantiate will panic immediately if the type argument
+// If validate is not set, Instantiate does not check if orig is generic, verify the
+// type argument count, or check whether the type arguments satisfy their constraints.
+// Instantiate is guaranteed to not return an error, but may panic. Specifically,
+// for *Signature types, Instantiate will panic immediately if the type argument
 // count is incorrect; for *Named types, a panic may occur later inside the
 // *Named API.
 func Instantiate(ctxt *Context, orig Type, targs []Type, validate bool) (Type, error) {
@@ -57,7 +57,9 @@ func Instantiate(ctxt *Context, orig Type, targs []Type, validate bool) (Type, e
 
 	if validate {
 		tparams := orig_.TypeParams().list()
-		assert(len(tparams) > 0)
+		if len(tparams) == 0 {
+			return nil, fmt.Errorf("%s is not generic", orig_)
+		}
 		if len(targs) != len(tparams) {
 			return nil, fmt.Errorf("got %d type arguments but %s has %d type parameters", len(targs), orig, len(tparams))
 		}
