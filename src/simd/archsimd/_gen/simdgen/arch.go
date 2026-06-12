@@ -38,6 +38,7 @@ var amd64RegInfoKeys = []string{
 	"vfpkv",
 	"vgpvImm8",
 	"vgpImm8",
+	"vgpImm",
 	"v2kvImm8",
 	"vkvload",
 	"v21load",
