@@ -7,7 +7,6 @@ package noder
 import (
 	"cmp"
 	"fmt"
-	"internal/buildcfg"
 	"internal/pkgbits"
 	"internal/types/errors"
 	"io"
@@ -26,13 +25,8 @@ import (
 )
 
 // uirVersion is the unified IR version to use for encoding/decoding.
-// Use V4 for generic methods if the GOEXPERIMENT is enabled.
-var uirVersion = func() pkgbits.Version {
-	if buildcfg.Experiment.GenericMethods {
-		return pkgbits.V4
-	}
-	return pkgbits.V3
-}()
+// Use V4 for generic methods.
+const uirVersion = pkgbits.V4
 
 // localPkgReader holds the package reader used for reading the local
 // package. It exists so the unified IR linker can refer back to it
