@@ -6688,8 +6688,10 @@ func (s *state) addNamedValue(n *ir.Name, v *ssa.Value) {
 	loc := ssa.LocalSlot{N: n, Type: n.Type(), Off: 0}
 	values, ok := s.f.NamedValues[loc]
 	if !ok {
-		s.f.Names = append(s.f.Names, &loc)
-		s.f.CanonicalLocalSlots[loc] = &loc
+		locp := new(ssa.LocalSlot)
+		*locp = loc
+		s.f.Names = append(s.f.Names, locp)
+		s.f.CanonicalLocalSlots[loc] = locp
 	}
 	s.f.NamedValues[loc] = append(values, v)
 }
