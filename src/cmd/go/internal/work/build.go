@@ -765,7 +765,7 @@ func InstallPackages(ld *modload.Loader, ctx context.Context, patterns []string,
 				// The ones inside GOPATH should have a target (in GOPATH/pkg)
 				// or else something is wrong and worth reporting (like a ConflictDir).
 			case p.Name != "main" && p.Module != nil:
-				// Non-executables have no target (except the cache) when building with modules.
+				base.Errorf("go: package %s is not a main package", p.ImportPath)
 			case p.Name != "main" && p.Standard && p.Internal.Build.PkgObj == "":
 				// Most packages in std do not need an installed .a, because they can be
 				// rebuilt and used directly from the build cache.
