@@ -44,6 +44,8 @@ Integer:
 	%o	base 8
 	%O	base 8 with 0o prefix
 	%q	a single-quoted character literal safely escaped with Go syntax.
+		Note: %q is not valid for integers; use %d or the corresponding
+		character with %c instead.
 	%x	base 16, with lower-case letters for a-f
 	%X	base 16, with upper-case letters for A-F
 	%U	Unicode format: U+1234; same as "U+%04X"
@@ -68,7 +70,8 @@ Floating-point and complex constituents:
 String and slice of bytes (treated equivalently with these verbs):
 
 	%s	the uninterpreted bytes of the string or slice
-	%q	a double-quoted string safely escaped with Go syntax
+	%q	a double-quoted string safely escaped with Go syntax.
+		Note: %q is not valid for integers; use %d instead.
 	%x	base 16, lower-case, two characters per byte
 	%X	base 16, upper-case, two characters per byte
 
