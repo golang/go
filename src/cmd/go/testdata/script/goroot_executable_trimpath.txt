@@ -59,6 +59,15 @@ exec $WORK/bin/check$GOEXE $WORK/new/bin/go$GOEXE $WORK/new
 exec $WORK/bin/check$GOEXE $WORK/new/bin/${GOOS}_${GOARCH}/go$GOEXE $WORK/new
 ! stderr 'GOPATH set to GOROOT'
 
+# Issue 78844: 'go doc' should use the recovered GOROOT when loading
+# standard-library packages, even if GOPATH contains a package with the
+# same import path.
+symlink $WORK/new/src -> $TESTGOROOT/src
+env GOPATH=$WORK/gopath
+mkdir $GOPATH/src/sync
+exec $WORK/new/bin/go$GOEXE doc sync.WaitGroup
+stdout '^func \(wg \*WaitGroup\) Go\(f func\(\)\)'
+
 -- check.go --
 package main
 
@@ -96,3 +105,12 @@ func main() {
 	fmt.Fprintf(os.Stderr, "go env GOROOT: %s\n", goroot)
 
 }
+
+-- $GOPATH/src/sync/waitgroup.go --
+package sync
+
+type WaitGroup struct{}
+
+func (*WaitGroup) Add(int) {}
+func (*WaitGroup) Done()   {}
+func (*WaitGroup) Wait()   {}
