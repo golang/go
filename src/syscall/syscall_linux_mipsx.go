@@ -13,6 +13,7 @@ const (
 	_SYS_clone3     = 4435
 	_SYS_faccessat2 = 4439
 	_SYS_fchmodat2  = 4452
+	_SYS_setns      = SYS_SETNS
 )
 
 // Syscall9 is accessed via assembly in x/sys/unix.
