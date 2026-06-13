@@ -12,6 +12,8 @@ func archauxv(tag, val uintptr) {
 	switch tag {
 	case _AT_HWCAP:
 		cpu.HWCap = uint(val)
+	case _AT_HWCAP2:
+		cpu.HWCap2 = uint(val)
 	}
 }
 

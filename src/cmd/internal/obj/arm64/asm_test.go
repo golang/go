@@ -397,3 +397,54 @@ func TestPCALIGN(t *testing.T) {
 		}
 	}
 }
+
+// TestMOPSEncoding verifies CPYP/CPYM/CPYE and SETP/SETM/SETE (FEAT_MOPS) instructions encode correctly.
+func TestMOPSEncoding(t *testing.T) {
+	testenv.MustHaveGoBuild(t)
+
+	dir := t.TempDir()
+	src := filepath.Join(dir, "mops.s")
+	obj := filepath.Join(dir, "mops.o")
+
+	const code = `TEXT ·f(SB),$0-0
+CPYP (R1), R2, (R0)
+CPYM (R1), R2, (R0)
+CPYE (R1), R2, (R0)
+SETP R1, R2, (R0)
+SETM R1, R2, (R0)
+SETE R1, R2, (R0)
+RET
+`
+	if err := os.WriteFile(src, []byte(code), 0644); err != nil {
+		t.Fatal(err)
+	}
+
+	cmd := testenv.Command(t, testenv.GoToolPath(t), "tool", "asm", "-o", obj, src)
+	cmd.Env = append(os.Environ(), "GOOS=linux", "GOARCH=arm64")
+	if out, err := cmd.CombinedOutput(); err != nil {
+		t.Fatalf("assembly failed: %v\n%s", err, out)
+	}
+
+	cmd = testenv.Command(t, testenv.GoToolPath(t), "tool", "objdump", obj)
+	out, err := cmd.CombinedOutput()
+	if err != nil {
+		t.Fatalf("objdump failed: %v\n%s", err, out)
+	}
+
+	// Expected encodings for CPYP/CPYM/CPYE (R1), R2, (R0):
+	// op=0x1d000400 | op1<<22 | Xs<<16 | Xn<<5 | Xd
+	// Expected encodings for SETP/SETM/SETE R1, R2, (R0):
+	// op=0x1d000c00 | op1<<22 | Xs<<16 | Xn<<5 | Xd
+	for _, tt := range []struct{ name, want string }{
+		{"CPYP", "1d010440"},
+		{"CPYM", "1d410440"},
+		{"CPYE", "1d810440"},
+		{"SETP", "1d010c40"},
+		{"SETM", "1d410c40"},
+		{"SETE", "1d810c40"},
+	} {
+		if !bytes.Contains(out, []byte(tt.want)) {
+			t.Errorf("%s encoding %s not found in objdump output:\n%s", tt.name, tt.want, out)
+		}
+	}
+}

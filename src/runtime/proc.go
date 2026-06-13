@@ -785,6 +785,7 @@ func cpuinit(env string) {
 
 	case "arm64":
 		arm64HasATOMICS = cpu.ARM64.HasATOMICS
+		arm64HasMOPS = cpu.ARM64.HasMOPS
 
 	case "loong64":
 		loong64HasLAMCAS = cpu.Loong64.HasLAMCAS
