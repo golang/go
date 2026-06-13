@@ -18,23 +18,22 @@ import "errors"
 func (t Time) appendFormatRFC3339(b []byte, nanos bool) []byte {
 	_, offset, abs := t.locabs()
 
-	// Format date.
+	// Format date and time.
 	year, month, day := abs.days().date()
-	b = appendInt(b, year, 4)
-	b = append(b, '-')
-	b = appendInt(b, int(month), 2)
-	b = append(b, '-')
-	b = appendInt(b, day, 2)
-
-	b = append(b, 'T')
-
-	// Format time.
 	hour, min, sec := abs.clock()
-	b = appendInt(b, hour, 2)
-	b = append(b, ':')
-	b = appendInt(b, min, 2)
-	b = append(b, ':')
-	b = appendInt(b, sec, 2)
+
+	b = appendIntWidth4(b, year)
+	b = append(b, '-',
+		tensDigit[month], onesDigit[month],
+		'-',
+		tensDigit[day], onesDigit[day],
+		'T',
+		tensDigit[hour], onesDigit[hour],
+		':',
+		tensDigit[min], onesDigit[min],
+		':',
+		tensDigit[sec], onesDigit[sec],
+	)
 
 	if nanos {
 		std := stdFracSecond(stdFracSecond9, 9, '.')
@@ -53,9 +52,19 @@ func (t Time) appendFormatRFC3339(b []byte, nanos bool) []byte {
 	} else {
 		b = append(b, '+')
 	}
-	b = appendInt(b, zone/60, 2)
-	b = append(b, ':')
-	b = appendInt(b, zone%60, 2)
+
+	if zone > 3600 {
+		b = appendInt(b, zone/60, 2)
+		b = append(b, ':',
+			tensDigit[zone%60], onesDigit[zone%60])
+		return b
+	}
+
+	b = append(b,
+		tensDigit[zone/60], onesDigit[zone/60],
+		':',
+		tensDigit[zone%60], onesDigit[zone%60],
+	)
 	return b
 }
 
