@@ -43,7 +43,8 @@ Integer:
 	%d	base 10
 	%o	base 8
 	%O	base 8 with 0o prefix
-	%q	a single-quoted character literal safely escaped with Go syntax.
+	%q	equivalent to issuing a single-quoted character literal (for a rune or
+		Unicode code point, not an arbitrary integer; for integers use %d, %x, etc.)
 	%x	base 16, with lower-case letters for a-f
 	%X	base 16, with upper-case letters for A-F
 	%U	Unicode format: U+1234; same as "U+%04X"
