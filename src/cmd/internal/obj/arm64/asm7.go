@@ -193,8 +193,14 @@ var atomicSWP = map[obj.As]uint32{
 	ACASALB: 0<<30 | 0x47<<21 | 0x3f<<10,
 }
 var atomicCASP = map[obj.As]uint32{
-	ACASPD: 1<<30 | 0x41<<21 | 0x1f<<10,
-	ACASPW: 0<<30 | 0x41<<21 | 0x1f<<10,
+	ACASPD:   1<<30 | 0x41<<21 | 0x1f<<10,
+	ACASPW:   0<<30 | 0x41<<21 | 0x1f<<10,
+	ACASPAD:  1<<30 | 0x43<<21 | 0x1f<<10,
+	ACASPAW:  0<<30 | 0x43<<21 | 0x1f<<10,
+	ACASPLD:  1<<30 | 0x41<<21 | 0x3f<<10,
+	ACASPLW:  0<<30 | 0x41<<21 | 0x3f<<10,
+	ACASPALD: 1<<30 | 0x43<<21 | 0x3f<<10,
+	ACASPALW: 0<<30 | 0x43<<21 | 0x3f<<10,
 }
 
 var oprange [obj.AllowedOpCodes][]Optab
@@ -2874,6 +2880,12 @@ func buildop(ctxt *obj.Link) {
 
 		case ACASPD:
 			oprangeset(ACASPW, t)
+			oprangeset(ACASPAD, t)
+			oprangeset(ACASPAW, t)
+			oprangeset(ACASPLD, t)
+			oprangeset(ACASPLW, t)
+			oprangeset(ACASPALD, t)
+			oprangeset(ACASPALW, t)
 		case ABEQ:
 			oprangeset(ABNE, t)
 			oprangeset(ABCS, t)
