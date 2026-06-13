@@ -103,7 +103,8 @@ func NewTestTimeoutHandler(handler Handler, ctx context.Context) Handler {
 }
 
 func ResetCachedEnvironment() {
-	resetProxyConfig()
+	envProxyOnce = sync.Once{}
+	envProxyFuncValue = nil
 }
 
 func (t *Transport) NumPendingRequestsForTesting() int {
