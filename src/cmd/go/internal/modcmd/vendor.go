@@ -350,6 +350,7 @@ func vendorPkg(s *modload.Loader, vdir, pkg string) {
 			if err != nil {
 				return err
 			}
+			defer r.Close()
 			if err := os.MkdirAll(filepath.Dir(embedDst), 0777); err != nil {
 				return err
 			}
@@ -357,11 +358,12 @@ func vendorPkg(s *modload.Loader, vdir, pkg string) {
 			if err != nil {
 				return err
 			}
+			defer w.Close()
 			if _, err := io.Copy(w, r); err != nil {
 				return err
 			}
-			r.Close()
-			return w.Close()
+
+			return nil
 		}()
 		if err != nil {
 			if vendorE {
