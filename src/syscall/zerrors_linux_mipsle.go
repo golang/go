@@ -1810,3 +1810,7 @@ var signals = [...]string{
 	30: "CPU time limit exceeded",
 	31: "file size limit exceeded",
 }
+
+const (
+	_PR_SET_NO_NEW_PRIVS = PR_SET_NO_NEW_PRIVS
+)
