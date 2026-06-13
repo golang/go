@@ -1239,6 +1239,31 @@ func TestNoPackageClauseWhenNoMatch(t *testing.T) {
 	}
 }
 
+func TestMetaPackage(t *testing.T) {
+	maybeSkip(t)
+	for _, args := range [][]string{
+		{"std"},
+		{"cmd"},
+		{"all"},
+		{"tool"},
+		{"work"},
+		{"std", "Foo"},
+	} {
+		var b strings.Builder
+		var flagSet flag.FlagSet
+		err := do(t.Context(), &b, &flagSet, args)
+		if err == nil {
+			t.Fatalf("expected error for go doc %s; got output:\n%s", strings.Join(args, " "), b.String())
+		}
+		if want := "go doc does not support meta-package argument " + args[0]; !strings.Contains(err.Error(), want) {
+			t.Fatalf("unexpected error for go doc %s: %v", strings.Join(args, " "), err)
+		}
+		if b.Len() != 0 {
+			t.Fatalf("go doc %s produced unexpected output:\n%s", strings.Join(args, " "), b.String())
+		}
+	}
+}
+
 type trimTest struct {
 	path   string
 	prefix string
