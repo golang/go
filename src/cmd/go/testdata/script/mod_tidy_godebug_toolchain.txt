@@ -1,0 +1,13 @@
+env TESTGO_VERSION=go1.26.0
+env TESTGO_VERSION_SWITCH=switch
+env GOTOOLCHAIN=auto
+
+go mod init m
+go get go@1.25.0
+go mod edit -godebug default=go1.26.0
+go mod tidy
+grep 'toolchain go1.26.0' go.mod
+
+env TESTGO_VERSION=go1.25.0
+go list -m
+stdout '^m$'
