@@ -322,6 +322,7 @@ func (s *Server) serveConn(c net.Conn, opts *ServeConnOpts, newf func(*serverCon
 	fr.ReadMetaHeaders = hpack.NewDecoder(uint32(conf.MaxDecoderHeaderTableSize), nil)
 	fr.MaxHeaderListSize = sc.maxHeaderListSize()
 	fr.SetMaxReadFrameSize(uint32(conf.MaxReadFrameSize))
+	fr.setReuseFramesFromGODEBUG()
 	sc.framer = fr
 
 	if tc, ok := c.(connectionStater); ok {
@@ -1498,6 +1499,11 @@ func (sc *serverConn) processPing(f *PingFrame) error {
 		// PROTOCOL_ERROR."
 		return sc.countError("ping_on_stream", ConnectionError(ErrCodeProtocol))
 	}
+	// writePingAck retains f past this readMore cycle: the ack is
+	// written asynchronously by the write scheduler, possibly after
+	// the read loop has parsed the next frame. That is safe only
+	// because PingFrame is not part of the Framer's frameCache; if it
+	// is ever added there, copy f.Data before queueing the ack.
 	sc.writeFrame(FrameWriteRequest{write: writePingAck{f}})
 	return nil
 }
