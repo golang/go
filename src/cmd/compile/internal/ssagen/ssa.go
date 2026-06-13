@@ -7518,6 +7518,13 @@ func genssa(f *ssa.Func, pp *objw.Progs) {
 
 	defframe(&s, e, f)
 
+	// Let the backend run a final pass over the generated Progs (e.g. arm64
+	// fuses adjacent spill/reload MOVDs into STP/LDP). Branch and jump-table
+	// targets are resolved and the frame size is final at this point.
+	if Arch.SSAGenFinish != nil {
+		Arch.SSAGenFinish(s.pp)
+	}
+
 	f.HTMLWriter.Close()
 	f.HTMLWriter = nil
 }

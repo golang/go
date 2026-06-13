@@ -1104,3 +1104,28 @@ func dwstoreOrder(p *struct {
 	p.e = true
 	p.b = b
 }
+
+// --------------------------------------------------- //
+//    arm64 spill/reload pair coalescing               //
+// --------------------------------------------------- //
+
+// Spills and reloads do not exist when the SSA pair pass runs: regalloc
+// inserts them later, so they never get a chance to be fused by that pass.
+// A late Prog-level pass in cmd/compile/internal/arm64 catches adjacent
+// spill/reload pairs that target the same base register at consecutive
+// 8-byte offsets. These tests pin down that behavior.
+
+//go:noinline
+func dwpairClobber() {}
+
+// Two distinct values that need to survive a call: regalloc spills both,
+// and the late pass coalesces the adjacent reloads into a single LDP. The
+// pattern requires a spill-slot (SP) base so that a frame-pointer epilogue
+// LDP, which uses (RSP), cannot satisfy it.
+func dwpairSpillReloadDistinct(p, q *int) (int, int) {
+	a := *p
+	b := *q
+	dwpairClobber()
+	// arm64:`LDP\s.+\(SP\), \(R[0-9]+, R[0-9]+\)`
+	return a, b
+}
