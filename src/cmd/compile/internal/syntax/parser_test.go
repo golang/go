@@ -13,6 +13,7 @@ import (
 	"path/filepath"
 	"regexp"
 	"runtime"
+	"slices"
 	"strings"
 	"sync"
 	"testing"
@@ -36,6 +37,92 @@ func TestVerify(t *testing.T) {
 		return // error already reported
 	}
 	verifyPrint(t, *src_, ast)
+}
+
+// To run only this benchmark and obtain results for benchstat:
+// go test -bench=ParseStdLib -benchtime=5s -run none -count=20
+func BenchmarkParseStdLib(b *testing.B) {
+	if testing.Short() {
+		b.Skip("skipping test in short mode")
+	}
+	var skipRx *regexp.Regexp
+	if *skip != "" {
+		var err error
+		skipRx, err = regexp.Compile(*skip)
+		if err != nil {
+			b.Fatalf("invalid argument for -skip (%v)", err)
+		}
+	}
+	// We read in all files to ignore
+	type file struct {
+		name string
+		base *PosBase
+		data []byte // data populated only for files being tested.
+		size int64
+	}
+	var files []file
+	goroot := testenv.GOROOT(b)
+	dirs := []string{
+		filepath.Join(goroot, "src"),
+		filepath.Join(goroot, "misc"),
+	}
+	for _, dir := range dirs {
+		walkDirs(b, dir, func(filename string) {
+			if skipRx != nil && skipRx.MatchString(filename) {
+				// Always report skipped files since regexp
+				// typos can lead to surprising results.
+				fmt.Printf("skipping %s\n", filename)
+				return
+			}
+			info, err := os.Stat(filename)
+			if err != nil {
+				b.Fatal(err)
+			}
+			files = append(files, file{
+				name: filename,
+				size: info.Size(),
+				base: NewFileBase(filename),
+			})
+		})
+	}
+	const numberOfFiles = 10
+	if len(files) < numberOfFiles*2 {
+		b.Error("too few files matched to run")
+	}
+	loadFile := func(f *file) {
+		var err error
+		f.data, err = os.ReadFile(f.name)
+		if err != nil {
+			b.Fatal(err)
+		}
+	}
+	slices.SortStableFunc(files, func(a, b file) int {
+		return int(a.size - b.size)
+	})
+	// We load the files we'll be testing into memory to avoid noise introduced by operating system.
+	for i := 0; i < numberOfFiles; i++ {
+		loadFile(&files[i])              // Load smallest files.
+		loadFile(&files[len(files)-i-1]) // Load largest files.
+	}
+	b.ResetTimer()
+	b.Run(fmt.Sprintf("longest %d files", numberOfFiles), func(b *testing.B) {
+		var buf bytes.Reader
+		for i := 0; i < b.N; i++ {
+			for _, file := range files[len(files)-numberOfFiles:] {
+				buf.Reset(file.data)
+				Parse(file.base, &buf, nil, nil, 0)
+			}
+		}
+	})
+	b.Run(fmt.Sprintf("shortest %d files", numberOfFiles), func(b *testing.B) {
+		var buf bytes.Reader
+		for i := 0; i < b.N; i++ {
+			for _, file := range files[:numberOfFiles] {
+				buf.Reset(file.data)
+				Parse(file.base, &buf, nil, nil, 0)
+			}
+		}
+	})
 }
 
 func TestStdLib(t *testing.T) {
@@ -123,7 +210,7 @@ func TestStdLib(t *testing.T) {
 	fmt.Printf("allocated %.3fMb (%.3fMb/s)\n", dm, dm/dt.Seconds())
 }
 
-func walkDirs(t *testing.T, dir string, action func(string)) {
+func walkDirs(t testing.TB, dir string, action func(string)) {
 	entries, err := os.ReadDir(dir)
 	if err != nil {
 		t.Error(err)
