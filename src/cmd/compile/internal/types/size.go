@@ -68,7 +68,7 @@ var defercalc int
 
 // RoundUp rounds o to a multiple of r, r is a power of 2.
 func RoundUp(o int64, r int64) int64 {
-	if r < 1 || r > 8 || r&(r-1) != 0 {
+	if r < 1 || r > 16 || r&(r-1) != 0 {
 		base.Fatalf("Round %d", r)
 	}
 	return (o + r - 1) &^ (r - 1)
@@ -491,6 +491,9 @@ func CalcStructSize(t *Type) {
 		switch {
 		case sym.Name == "align64" && isAtomicStdPkg(sym.Pkg):
 			maxAlign = 8
+
+		case sym.Name == "align128" && isAtomicStdPkg(sym.Pkg):
+			maxAlign = 16
 
 		case buildcfg.Experiment.SIMD && (sym.Pkg.Path == "simd/archsimd") && len(t.Fields()) >= 1:
 			// This gates the experiment -- without it, no user-visible types can be "simd".
