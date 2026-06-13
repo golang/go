@@ -173,6 +173,9 @@ func findHomeDirInRegistry(uid string) (dir string, e error) {
 func lookupGroupName(groupname string) (string, error) {
 	sid, _, t, e := syscall.LookupSID("", groupname)
 	if e != nil {
+		if errors.Is(e, windows.ERROR_NONE_MAPPED) {
+			return "", UnknownGroupError(groupname)
+		}
 		return "", e
 	}
 	if !isValidGroupAccountType(t) {
@@ -454,6 +457,9 @@ func newUserFromSid(usid *syscall.SID) (*User, error) {
 func lookupUser(username string) (*User, error) {
 	sid, _, t, e := syscall.LookupSID("", username)
 	if e != nil {
+		if errors.Is(e, windows.ERROR_NONE_MAPPED) {
+			return nil, UnknownUserError(username)
+		}
 		return nil, e
 	}
 	if !isValidUserAccountType(sid, t) {
