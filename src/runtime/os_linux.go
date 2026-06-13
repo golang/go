@@ -355,6 +355,7 @@ func osinit() {
 	physHugePageSize = getHugePageSize()
 	vgetrandomInit()
 	configure64bitsTimeOn32BitsArchitectures()
+	netpollEpollPwait2Init()
 }
 
 var urandom_dev = []byte("/dev/urandom\x00")
