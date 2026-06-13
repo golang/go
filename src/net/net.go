@@ -91,8 +91,7 @@ requires passing -lresolv when linking the C code.
 
 On Plan 9, the resolver always accesses /net/cs and /net/dns.
 
-On Windows, in Go 1.18.x and earlier, the resolver always used C
-library functions, such as GetAddrInfo and DnsQuery.
+On Windows, since Go 1.19, the resolver prefers the system DNS resolver (using GetAddrInfo and DnsQuery) but may fall back to using C library functions if the system resolver is unavailable.
 */
 package net
 
