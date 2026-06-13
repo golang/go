@@ -266,6 +266,22 @@ var replaceFuncTests = []ReplaceFuncTest{
 	{"[a-c]*", func(s string) string { return "x" + s + "y" }, "defabcdef", "xydxyexyfxabcydxyexyfxy"},
 }
 
+type ReplaceFuncSubmatchTest struct {
+	pattern       string
+	replacement   func([]string) string
+	input, output string
+}
+
+var replaceFuncSubmatchTests = []ReplaceFuncSubmatchTest{
+	{"[a-c]+", func(g []string) string { return "x" + g[0] + "y" }, "defdef", "defdef"},
+	{"[a-c]", func(g []string) string { return "x" + g[0] + "y" }, "defabcdef", "defxayxbyxcydef"},
+	{"[a-c]+", func(g []string) string { return "x" + g[0] + "y" }, "defabcdef", "defxabcydef"},
+	{"[a-c]*", func(g []string) string { return "x" + g[0] + "y" }, "defabcdef", "xydxyexyfxabcydxyexyfxy"},
+	{"<<placeholder\\.(\\d+)>>", func(g []string) string { return "-" + g[1] + "-" }, "a<<placeholder.1>>b<<placeholder.2>>c<<placeholder.3>>d", "a-1-b-2-c-3-d"},
+	{"(\\w+)\\s+(\\w+)", func(g []string) string { return g[2] + " " + g[1] }, "hello world", "world hello"},
+	{"[aeiou]", func(g []string) string { return "" }, "hello", "hll"},
+}
+
 func TestReplaceAll(t *testing.T) {
 	for _, tc := range replaceTests {
 		re, err := Compile(tc.pattern)
@@ -346,6 +362,36 @@ func TestReplaceAllFunc(t *testing.T) {
 		}
 		// now try bytes
 		actual = string(re.ReplaceAllFunc([]byte(tc.input), func(s []byte) []byte { return []byte(tc.replacement(string(s))) }))
+		if actual != tc.output {
+			t.Errorf("%q.ReplaceFunc(%q,fn) = %q; want %q",
+				tc.pattern, tc.input, actual, tc.output)
+		}
+	}
+}
+
+func TestReplaceAllSubmatchFunc(t *testing.T) {
+	for _, tc := range replaceFuncSubmatchTests {
+		re, err := Compile(tc.pattern)
+		if err != nil {
+			t.Errorf("Unexpected error compiling %q: %v", tc.pattern, err)
+			continue
+		}
+		actual := re.ReplaceAllStringSubmatchFunc(tc.input, tc.replacement)
+		if actual != tc.output {
+			t.Errorf("%q.ReplaceFunc(%q,fn) = %q; want %q",
+				tc.pattern, tc.input, actual, tc.output)
+		}
+		// now try bytes
+		actual = string(re.ReplaceAllSubmatchFunc(
+			[]byte(tc.input),
+			func(g [][]byte) []byte {
+				stringGroups := make([]string, len(g))
+				for i, group := range g {
+					stringGroups[i] = string(group)
+				}
+				return []byte(tc.replacement(stringGroups))
+			},
+		))
 		if actual != tc.output {
 			t.Errorf("%q.ReplaceFunc(%q,fn) = %q; want %q",
 				tc.pattern, tc.input, actual, tc.output)
