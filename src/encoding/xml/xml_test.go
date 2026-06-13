@@ -31,6 +31,89 @@ func (t *toks) Token() (Token, error) {
 	return tok, nil
 }
 
+func TestDecodeBadName(t *testing.T) {
+	tests := []struct {
+		name    string
+		invalid string
+		message string
+	}{
+		{
+			name:    "Number after colon",
+			invalid: `<a:1/>`,
+			message: "invalid XML name: 1",
+		},
+		{
+			name:    "Two colons at end",
+			invalid: `<a::/>`,
+			message: "expected element name after <",
+		},
+		{
+			name:    "Two colons together in middle",
+			invalid: "<a::a/>",
+			message: "expected element name after <",
+		},
+		{
+			name:    "Colon at end",
+			invalid: "<a:/>",
+			message: "expected element name after <",
+		},
+		{
+			name:    "Colon at start",
+			invalid: "<:a/>",
+			message: "expected element name after <",
+		},
+		{
+			name:    "Number after colon in attribute",
+			invalid: `<a a:1=""/>`,
+			message: "invalid XML name: 1",
+		},
+		{
+			name:    "Two colons separate",
+			invalid: `<a a:b:c="1"/>`,
+			message: "colon after prefixed XML name a:b",
+		},
+		{
+			name:    "Two colons at end",
+			invalid: `<a a::="1"/>`,
+			message: "expected attribute name in element",
+		},
+		{
+			name:    "Two colons together in middle",
+			invalid: `<a a::a="1"/>`,
+			message: "expected attribute name in element",
+		},
+		{
+			name:    "Colon at end",
+			invalid: `<a a:="1"/>`,
+			message: "expected attribute name in element",
+		},
+		{
+			name:    "Colon at start",
+			invalid: `<a :a="1"/>`,
+			message: "expected attribute name in element",
+		},
+	}
+	for i, j := range tests {
+		t.Run(j.name, func(t *testing.T) {
+			d := NewDecoder(strings.NewReader(j.invalid))
+			tok, err := d.RawToken()
+			if tok != nil {
+				t.Fatalf("%d: d.Decode: expected nil token, got %#v", i, tok)
+			}
+			if err == nil {
+				t.Fatalf("%d: d.Decode: expected non-nil error, got nil", i)
+			}
+			syntaxError, ok := err.(*SyntaxError)
+			if !ok {
+				t.Fatalf("%d: d.Decode: expected syntax error", i)
+			}
+			if syntaxError.Msg != j.message {
+				t.Errorf("%d: bad message: expected %q, got %q", i, j.message, syntaxError.Msg)
+			}
+		})
+	}
+}
+
 func TestDecodeEOF(t *testing.T) {
 	start := StartElement{Name: Name{Local: "test"}}
 	tests := []struct {
@@ -1154,12 +1237,12 @@ func TestIssue20396(t *testing.T) {
 		wantErr error
 	}{
 		{`<a:te:st xmlns:a="abcd"/>`, // Issue 20396
-			UnmarshalError("XML syntax error on line 1: expected element name after <")},
+			UnmarshalError("XML syntax error on line 1: colon after prefixed XML name a:te")},
 		{`<a:te=st xmlns:a="abcd"/>`, attrError},
 		{`<a:te&st xmlns:a="abcd"/>`, attrError},
 		{`<a:test xmlns:a="abcd"/>`, nil},
 		{`<a:te:st xmlns:a="abcd">1</a:te:st>`,
-			UnmarshalError("XML syntax error on line 1: expected element name after <")},
+			UnmarshalError("XML syntax error on line 1: colon after prefixed XML name a:te")},
 		{`<a:te=st xmlns:a="abcd">1</a:te=st>`, attrError},
 		{`<a:te&st xmlns:a="abcd">1</a:te&st>`, attrError},
 		{`<a:test xmlns:a="abcd">1</a:test>`, nil},
@@ -1348,7 +1431,6 @@ func testRoundTrip(t *testing.T, input string) {
 
 func TestRoundTrip(t *testing.T) {
 	tests := map[string]string{
-		"trailing colon":         `<foo abc:="x"></foo>`,
 		"comments in directives": `<!ENTITY x<!<!-- c1 [ " -->--x --> > <e></e> <!DOCTYPE xxx [ x<!-- c2 " -->--x ]>`,
 	}
 	for name, input := range tests {
