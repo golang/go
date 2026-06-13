@@ -3,6 +3,9 @@
 // license that can be found in the LICENSE file.
 
 // Package slices defines various functions useful with slices of any type.
+//
+// Unless otherwise documented, functions that modify and return a slice
+// may reuse the backing array of the input slice.
 package slices
 
 import (
