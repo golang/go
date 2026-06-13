@@ -1359,9 +1359,17 @@ func offsetLabelName(ldr *loader.Loader, s loader.Sym, off int64) string {
 }
 
 // Convert the direct jump relocation r to refer to a trampoline if the target is too far.
+// Also handles Cortex-A53 erratum 843419 for ADRP relocations.
 func trampoline(ctxt *ld.Link, ldr *loader.Loader, ri int, rs, s loader.Sym) {
 	relocs := ldr.Relocs(s)
 	r := relocs.At(ri)
+
+	// Cortex-A53 erratum 843419: check ADRP relocations for dangerous page offsets.
+	if isErratum843419Reloc(r.Type()) {
+		erratum843419Check(ctxt, ldr, ri, rs, s)
+		return
+	}
+
 	const pcrel = 1
 	switch r.Type() {
 	case objabi.ElfRelocOffset + objabi.RelocType(elf.R_AARCH64_CALL26),
