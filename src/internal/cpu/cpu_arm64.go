@@ -21,6 +21,7 @@ func doinit() {
 		{Name: "atomics", Feature: &ARM64.HasATOMICS},
 		{Name: "cpuid", Feature: &ARM64.HasCPUID},
 		{Name: "isNeoverse", Feature: &ARM64.IsNeoverse},
+		{Name: "mops", Feature: &ARM64.HasMOPS},
 	}
 
 	// arm64 uses different ways to detect CPU features at runtime depending on the operating system.
@@ -31,6 +32,8 @@ func getisar0() uint64
 
 func getisar1() uint64
 
+func getisar2() uint64
+
 func getpfr0() uint64
 
 func getMIDR() uint64
@@ -39,7 +42,7 @@ func extractBits(data uint64, start, end uint) uint {
 	return (uint)(data>>start) & ((1 << (end - start + 1)) - 1)
 }
 
-func parseARM64SystemRegisters(isar0, isa1, pfr0 uint64) {
+func parseARM64SystemRegisters(isar0, isa1, pfr0, isar2 uint64) {
 	// ID_AA64ISAR0_EL1
 	// https://developer.arm.com/documentation/ddi0601/2025-03/AArch64-Registers/ID-AA64ISAR0-EL1--AArch64-Instruction-Set-Attribute-Register-0
 	switch extractBits(isar0, 4, 7) {
@@ -86,5 +89,12 @@ func parseARM64SystemRegisters(isar0, isa1, pfr0 uint64) {
 	switch extractBits(pfr0, 48, 51) {
 	case 1:
 		ARM64.HasDIT = true
+	}
+
+	// ID_AA64ISAR2_EL1
+	// https://developer.arm.com/documentation/ddi0601/2025-03/AArch64-Registers/ID-AA64ISAR2-EL1--AArch64-Instruction-Set-Attribute-Register-2
+	switch extractBits(isar2, 16, 19) {
+	case 1:
+		ARM64.HasMOPS = true
 	}
 }
