@@ -130,8 +130,23 @@ func fuzzInstrumentFlags() []string {
 }
 
 func instrumentInit() {
-	if !cfg.BuildRace && !cfg.BuildMSan && !cfg.BuildASan {
+	if !cfg.BuildRace && !cfg.BuildMSan && !cfg.BuildASan && !cfg.BuildRacelite {
 		return
+	}
+	if cfg.BuildRace && cfg.BuildRacelite {
+		fmt.Fprintf(os.Stderr, "go: may not use -race and -racelite simultaneously\n")
+		base.SetExitStatus(2)
+		base.Exit()
+	}
+	if cfg.BuildRacelite && cfg.BuildMSan {
+		fmt.Fprintf(os.Stderr, "go: may not use -racelite and -msan simultaneously\n")
+		base.SetExitStatus(2)
+		base.Exit()
+	}
+	if cfg.BuildRacelite && cfg.BuildASan {
+		fmt.Fprintf(os.Stderr, "go: may not use -racelite and -asan simultaneously\n")
+		base.SetExitStatus(2)
+		base.Exit()
 	}
 	if cfg.BuildRace && cfg.BuildMSan {
 		fmt.Fprintf(os.Stderr, "go: may not use -race and -msan simultaneously\n")
@@ -177,6 +192,9 @@ func instrumentInit() {
 	}
 
 	mode := "race"
+	if cfg.BuildRacelite {
+		mode = "racelite"
+	}
 	if cfg.BuildMSan {
 		mode = "msan"
 		// MSAN needs PIE on all platforms except linux/amd64.

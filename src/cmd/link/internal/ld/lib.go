@@ -395,6 +395,9 @@ func libinit(ctxt *Link) {
 	} else if *flagRace {
 		suffixsep = "_"
 		suffix = "race"
+	} else if *flagRacelite {
+		suffixsep = "_"
+		suffix = "racelite"
 	} else if *flagMsan {
 		suffixsep = "_"
 		suffix = "msan"

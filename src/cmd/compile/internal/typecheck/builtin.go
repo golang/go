@@ -222,6 +222,8 @@ var runtimeDecls = [...]struct {
 	{"racefuncexit", funcTag, 9},
 	{"raceread", funcTag, 33},
 	{"racewrite", funcTag, 33},
+	{"raceliteread", funcTag, 33},
+	{"racelitewrite", funcTag, 33},
 	{"racereadrange", funcTag, 152},
 	{"racewriterange", funcTag, 152},
 	{"msanread", funcTag, 152},
