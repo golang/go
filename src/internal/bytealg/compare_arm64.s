@@ -39,11 +39,17 @@ TEXT cmpbody<>(SB),NOSPLIT|NOFRAME,$0-0
 	CSEL	LT, R3, R1, R6    // R6 is min(R1, R3)
 
 	CBZ	R6, samebytes
-	BIC	$0xf, R6, R10
-	CBZ	R10, small        // length < 16
-	ADD	R0, R10           // end of chunk16
-	// length >= 16
-chunk16_loop:
+	BIC	$0x1f, R6, R10
+	CBZ	R10, chunk16      // length < 32, try single chunk16
+	ADD	R0, R10           // end of chunk32
+	// length >= 32
+chunk32_loop:
+	LDP.P	16(R0), (R4, R8)
+	LDP.P	16(R2), (R5, R9)
+	CMP	R4, R5
+	BNE	cmp
+	CMP	R8, R9
+	BNE	cmpnext
 	LDP.P	16(R0), (R4, R8)
 	LDP.P	16(R2), (R5, R9)
 	CMP	R4, R5
@@ -51,7 +57,20 @@ chunk16_loop:
 	CMP	R8, R9
 	BNE	cmpnext
 	CMP	R10, R0
-	BNE	chunk16_loop
+	BNE	chunk32_loop
+	AND	$0x1f, R6, R6     // remaining 0-31 bytes
+	CBZ	R6, samebytes
+	// handle remaining 0-31 bytes: one possible 16-byte chunk then tail
+	TBZ	$4, R6, small_direct
+chunk16:
+	TBZ	$4, R6, small     // length < 16
+	LDP.P	16(R0), (R4, R8)
+	LDP.P	16(R2), (R5, R9)
+	CMP	R4, R5
+	BNE	cmp
+	CMP	R8, R9
+	BNE	cmpnext
+small_direct:
 	AND	$0xf, R6, R6
 	CBZ	R6, samebytes
 	SUBS	$8, R6
