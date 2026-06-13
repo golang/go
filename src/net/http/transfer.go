@@ -146,6 +146,20 @@ func newTransferWriter(r any) (t *transferWriter, err error) {
 		t.Trailer = nil
 	}
 
+	// Validate Trailer names and values. The names are later written
+	// unmodified on the "Trailer:" line of the header, so invalid bytes
+	// (in particular CR and LF) would permit header injection. (Issue 78775.)
+	for k, vv := range t.Trailer {
+		if !httpguts.ValidHeaderFieldName(k) {
+			return nil, badStringError("invalid Trailer key", k)
+		}
+		for _, v := range vv {
+			if !httpguts.ValidHeaderFieldValue(v) {
+				return nil, badStringError("invalid Trailer value for key", k)
+			}
+		}
+	}
+
 	return t, nil
 }
 
