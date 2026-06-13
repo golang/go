@@ -92,6 +92,11 @@ var elementContentType = [...]state{
 func tTag(c context, s []byte) (context, int) {
 	// Find the attribute name.
 	i := eatWhiteSpace(s, 0)
+	if i > 0 {
+		// Whitespace after a tag or attribute name confirms the name
+		// is complete, so clear the partial name flag.
+		c.partialName = false
+	}
 	if i == len(s) {
 		return c, len(s)
 	}
@@ -136,12 +141,16 @@ func tTag(c context, s []byte) (context, int) {
 		}
 	}
 
+	partial := false
 	if j == len(s) {
 		state = stateAttrName
+		// The attribute name runs to the end of the text node and
+		// may be continued by a subsequent template action.
+		partial = true
 	} else {
 		state = stateAfterName
 	}
-	return context{state: state, element: c.element, attr: attr}, j
+	return context{state: state, element: c.element, attr: attr, partialName: partial}, j
 }
 
 // tAttrName is the context transition function for stateAttrName.
@@ -151,6 +160,7 @@ func tAttrName(c context, s []byte) (context, int) {
 		return context{state: stateError, err: err}, len(s)
 	} else if i != len(s) {
 		c.state = stateAfterName
+		c.partialName = false
 	}
 	return c, i
 }
