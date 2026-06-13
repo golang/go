@@ -36,6 +36,11 @@ func testVarint(t *testing.T, x int64) {
 		t.Errorf("Varint(%d): got n = %d; want %d", x, m, n)
 	}
 
+	l := SizeVarint(x)
+	if n != l {
+		t.Errorf("SizeVarint(%d): got n = %d, want %d", x, m, l)
+	}
+
 	buf2 := []byte("prefix")
 	buf2 = AppendVarint(buf2, x)
 	if string(buf2) != "prefix"+string(buf[:n]) {
@@ -60,6 +65,11 @@ func testUvarint(t *testing.T, x uint64) {
 	}
 	if n != m {
 		t.Errorf("Uvarint(%d): got n = %d; want %d", x, m, n)
+	}
+
+	l := SizeUvarint(x)
+	if n != l {
+		t.Errorf("SizeUvarint(%d): got n = %d, want %d", x, m, l)
 	}
 
 	buf2 := []byte("prefix")
