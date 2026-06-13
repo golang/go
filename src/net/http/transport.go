@@ -2050,8 +2050,7 @@ func (t *Transport) dialConn(ctx context.Context, cm connectMethod, isClientConn
 	}
 
 	// Possible unencrypted HTTP/2 with prior knowledge.
-	unencryptedHTTP2 := pconn.tlsState == nil &&
-		t.Protocols != nil &&
+	unencryptedHTTP2 := t.Protocols != nil &&
 		t.Protocols.UnencryptedHTTP2() &&
 		!t.Protocols.HTTP1()
 
