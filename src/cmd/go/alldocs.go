@@ -179,6 +179,8 @@
 //		arguments to pass on each gccgo compiler/linker invocation.
 //	-gcflags '[pattern=]arg list'
 //		arguments to pass on each go tool compile invocation.
+//	-fullpath
+//		show full file names in error messages.
 //	-installsuffix suffix
 //		a suffix to use in the name of the package installation directory,
 //		in order to keep output separate from default builds.
