@@ -351,6 +351,24 @@ func removedirat(dirfd syscall.Handle, name string) error {
 	return windows.Deleteat(dirfd, name, windows.FILE_DIRECTORY_FILE)
 }
 
+// timeToFiletime converts a time.Time to a syscall.Filetime without
+// using time.UnixNano(), which overflows int64 for dates before 1677
+// or after 2262. See #75542.
+func timeToFiletime(t time.Time) syscall.Filetime {
+	// Windows FILETIME is 100-nanosecond intervals since January 1, 1601.
+	// Compute seconds and nanoseconds separately to avoid int64 overflow.
+	sec := t.Unix()
+	nsec := int64(t.Nanosecond())
+	// Convert to 100-nanosecond ticks since Unix epoch.
+	ticks := sec*1e7 + nsec/100
+	// Shift epoch from 1970 to 1601 (difference is 11644473600 seconds = 116444736000000000 ticks).
+	ticks += 116444736000000000
+	return syscall.Filetime{
+		LowDateTime:  uint32(ticks & 0xffffffff),
+		HighDateTime: uint32(ticks >> 32 & 0xffffffff),
+	}
+}
+
 func chtimesat(dirfd syscall.Handle, name string, atime time.Time, mtime time.Time) error {
 	h, err := windows.Openat(dirfd, name, syscall.O_CLOEXEC|windows.O_NOFOLLOW_ANY|windows.O_WRITE_ATTRS, 0)
 	if err == syscall.ELOOP || err == syscall.ENOTDIR {
@@ -365,10 +383,12 @@ func chtimesat(dirfd syscall.Handle, name string, atime time.Time, mtime time.Ti
 	a := syscall.Filetime{}
 	w := syscall.Filetime{}
 	if !atime.IsZero() {
-		a = syscall.NsecToFiletime(atime.UnixNano())
+		// Use timeToFiletime instead of UnixNano() to avoid
+		// int64 overflow for extreme timestamps. See #75542.
+		a = timeToFiletime(atime)
 	}
 	if !mtime.IsZero() {
-		w = syscall.NsecToFiletime(mtime.UnixNano())
+		w = timeToFiletime(mtime)
 	}
 	return syscall.SetFileTime(h, nil, &a, &w)
 }
