@@ -63,7 +63,7 @@ func (r *Resolver) lookupIP(ctx context.Context, network, host string) (addrs []
 	if order == hostLookupCgo {
 		return cgoLookupIP(ctx, network, host)
 	}
-	ips, _, err := r.goLookupIPCNAMEOrder(ctx, network, host, order, conf)
+	ips, _, err := r.goLookupIPCNAME(ctx, network, host, order, conf)
 	return ips, err
 }
 

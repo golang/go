@@ -10,6 +10,7 @@ import (
 	"internal/nettrace"
 	"internal/singleflight"
 	"internal/stringslite"
+	"math/rand/v2"
 	"net/netip"
 	"sync"
 
@@ -373,7 +374,18 @@ func (r *Resolver) lookupIPAddr(ctx context.Context, network, host string) ([]IP
 			addrs, _ := r.Val.([]IPAddr)
 			trace.DNSDone(ipAddrsEface(addrs), r.Shared, err)
 		}
-		return lookupIPReturn(r.Val, err, r.Shared)
+		// shuffle resolved addrs before sort by RFC6724 for connection load-balancing
+		// See https://github.com/golang/go/issues/34511
+		// See https://github.com/grafana/loki/issues/3301
+		// See https://github.com/grafana/loki/issues/9239
+		// See https://github.com/restic/restic/issues/4444
+		// See https://github.com/golang/go/issues/31698
+		addrs, err := lookupIPReturn(r.Val, err, r.Shared)
+		rand.Shuffle(len(addrs), func(i, j int) {
+			addrs[i], addrs[j] = addrs[j], addrs[i]
+		})
+		sortByRFC6724(addrs)
+		return addrs, err
 	}
 }
 
