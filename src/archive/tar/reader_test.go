@@ -1684,6 +1684,38 @@ func TestInsecurePaths(t *testing.T) {
 	}
 }
 
+func TestInsecureLinkname(t *testing.T) {
+	t.Setenv("GODEBUG", "tarinsecurepath=0")
+	var buf bytes.Buffer
+	tw := NewWriter(&buf)
+	tw.WriteHeader(&Header{
+		Name:     "secure",
+		Typeflag: TypeSymlink,
+		Linkname: "../outside",
+	})
+	const nextPath = "inside"
+	tw.WriteHeader(&Header{Name: nextPath})
+	tw.Close()
+
+	tr := NewReader(&buf)
+	h, err := tr.Next()
+	if err != ErrInsecurePath {
+		t.Fatalf("tr.Next for insecure linkname: got err %v, want ErrInsecurePath", err)
+	}
+	if h.Name != "secure" {
+		t.Fatalf("tr.Next for insecure linkname: got name %q, want %q", h.Name, "secure")
+	}
+
+	// Error should not be sticky.
+	h, err = tr.Next()
+	if err != nil {
+		t.Fatalf("tr.Next after insecure linkname: got err %v, want nil", err)
+	}
+	if h.Name != nextPath {
+		t.Fatalf("tr.Next after insecure linkname: got name %q, want %q", h.Name, nextPath)
+	}
+}
+
 func TestDisableInsecurePathCheck(t *testing.T) {
 	t.Setenv("GODEBUG", "tarinsecurepath=1")
 	var buf bytes.Buffer
