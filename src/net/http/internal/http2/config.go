@@ -22,6 +22,7 @@ type Config struct {
 	PingTimeout                   time.Duration
 	WriteByteTimeout              time.Duration
 	PermitProhibitedCipherSuites  bool
+	EnableConnectProtocol         bool
 	CountError                    func(errType string)
 }
 
@@ -111,6 +112,9 @@ func fillNetHTTPConfig(conf *Config, h2 Config) {
 	}
 	if h2.PermitProhibitedCipherSuites {
 		conf.PermitProhibitedCipherSuites = true
+	}
+	if h2.EnableConnectProtocol {
+		conf.EnableConnectProtocol = true
 	}
 	if h2.CountError != nil {
 		conf.CountError = h2.CountError

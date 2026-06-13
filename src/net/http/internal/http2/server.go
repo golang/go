@@ -481,6 +481,8 @@ type serverConn struct {
 	// Used for RFC 9218 prioritization.
 	hasIntermediary bool // connection is done via an intermediary / proxy
 	priorityAware   bool // the client has sent priority signal, meaning that it is aware of it.
+
+	extendedConnectAllowed bool // server advertised ENABLE_CONNECT_PROTOCOL to this client
 }
 
 func (sc *serverConn) writeSchedIgnoresRFC7540() bool {
@@ -779,7 +781,8 @@ func (sc *serverConn) serve(conf Config) {
 		{SettingHeaderTableSize, uint32(conf.MaxDecoderHeaderTableSize)},
 		{SettingInitialWindowSize, uint32(sc.initialStreamRecvWindowSize)},
 	}
-	if !disableExtendedConnectProtocol {
+	if conf.EnableConnectProtocol || !disableExtendedConnectProtocol {
+		sc.extendedConnectAllowed = true
 		settings = append(settings, Setting{SettingEnableConnectProtocol, 1})
 	}
 	if sc.writeSchedIgnoresRFC7540() {
@@ -2134,7 +2137,7 @@ func (sc *serverConn) newWriterAndRequest(st *stream, f *MetaHeadersFrame) (*res
 	}
 
 	// extended connect is disabled, so we should not see :protocol
-	if disableExtendedConnectProtocol && rp.Protocol != "" {
+	if !sc.extendedConnectAllowed && rp.Protocol != "" {
 		return nil, nil, sc.countError("bad_connect", streamError(f.StreamID, ErrCodeProtocol))
 	}
 
