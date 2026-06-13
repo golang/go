@@ -8,6 +8,7 @@ package tar
 
 import (
 	"io/fs"
+	"math"
 	"os/user"
 	"runtime"
 	"strconv"
@@ -28,8 +29,17 @@ func statUnix(fi fs.FileInfo, h *Header, doNameLookups bool) error {
 	if !ok {
 		return nil
 	}
-	h.Uid = int(sys.Uid)
-	h.Gid = int(sys.Gid)
+	// Clamp Uid and Gid to prevent negative wrap-around on 32-bit architectures
+	if int64(sys.Uid) > math.MaxInt {
+		h.Uid = math.MaxInt
+	} else {
+		h.Uid = int(sys.Uid)
+	}
+	if int64(sys.Gid) > math.MaxInt {
+		h.Gid = math.MaxInt
+	} else {
+		h.Gid = int(sys.Gid)
+	}
 	if doNameLookups {
 		// Best effort at populating Uname and Gname.
 		// The os/user functions may fail for any number of reasons
