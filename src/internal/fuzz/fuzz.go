@@ -126,10 +126,14 @@ func CoordinateFuzzing(ctx context.Context, opts CoordinateFuzzingOpts) (err err
 			}
 		}
 
-		if err == fuzzCtx.Err() || isInterruptError(err) {
+		if err == ctx.Err() || err == fuzzCtx.Err() || isInterruptError(err) {
 			// Suppress cancellation errors and terminations due to SIGINT.
 			// The messages are not helpful since either the user triggered the error
 			// (with ^C) or another more helpful message will be printed (a crasher).
+			//
+			// Also check ctx.Err() because when ctx's deadline expires, there
+			// is a window where ctx.Err() is set but fuzzCtx (a child) has
+			// not yet been canceled. See go.dev/issue/75804.
 			err = nil
 		}
 		if err != nil && (fuzzErr == nil || fuzzErr == ctx.Err()) {
