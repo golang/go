@@ -198,6 +198,9 @@ const (
 	// offset from the thread local base.
 	C_TLS_IE
 
+	// TLS "var" in general dynamic mode: generates LDR + ADD PC + BL __tls_get_addr.
+	C_TLS_GD
+
 	C_TEXTSIZE
 
 	C_GOK

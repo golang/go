@@ -46,6 +46,32 @@ func main() {
 	ctxt.Flag_dynlink = *flags.Dynlink
 	ctxt.Flag_linkshared = *flags.Linkshared
 	ctxt.Flag_shared = *flags.Shared || *flags.Dynlink
+	switch *flags.TLSModel {
+	case "auto":
+		// Default: GD is set externally by the go command for c-shared/c-archive.
+		// When not explicitly set, defaults to IE/LE based on Flag_shared.
+	case "GD":
+		ctxt.Flag_tlsgd = true
+	case "IE":
+		ctxt.Flag_tlsgd = false
+	default:
+		log.Printf("unknown -tls=%s; must be auto, GD, or IE", *flags.TLSModel)
+		os.Exit(2)
+	}
+	// Set preprocessor define so runtime assembly can use #ifdef TLS_GD.
+	// Only set for architectures with actual GD TLS instruction generation.
+	// Other architectures fall back to IE instructions regardless of Flag_tlsgd.
+	if ctxt.Flag_tlsgd {
+		switch ctxt.Arch.Name {
+		case "arm64", "amd64", "riscv64":
+			flags.D = append(flags.D, "TLS_GD=1")
+		// ARM32: GD TLS assembler/linker support is implemented (case 112/113,
+		// R_TLS_GD, R_ARM_TLS_GD32) and the library loads on musl, but a
+		// separate pre-existing runtime init crash (#19938) prevents it from
+		// working. Default to IE until that's fixed. Users can try -tls=GD
+		// manually once the runtime issue is resolved.
+		}
+	}
 	ctxt.Flag_maymorestack = flags.DebugFlags.MayMoreStack
 	ctxt.Debugpcln = flags.DebugFlags.PCTab
 	ctxt.IsAsm = true
