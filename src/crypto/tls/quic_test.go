@@ -467,22 +467,26 @@ func TestQUICECHKeyError(t *testing.T) {
 	cli := newTestQUICClient(t, clientConfig)
 	cli.conn.SetTransportParameters(nil)
 	srv := newTestQUICServer(t, serverConfig)
-
-	if err := runTestQUICConnection(context.Background(), cli, srv, nil); err != errTransportParametersRequired {
-		t.Fatalf("handshake with no client parameters: %v; want errTransportParametersRequired", err)
-	}
 	srv.conn.SetTransportParameters(nil)
-	if err := runTestQUICConnection(context.Background(), cli, srv, nil); err == nil {
+	// Since adding ECH GREASE the client sends a GREASE'd ECH extension on every
+	// TLS 1.3 ClientHello, so the server invokes GetEncryptedClientHelloKeys
+	// during readClientHello and aborts before EncryptedExtensions are built.
+	//
+	// runTestQUICConnection short-circuits the event loop when HandleData errors,
+	// so the server-side gotError is never polled. Instead, we assert against
+	// the returned error directly (it is wrapped with AlertError by quicError).
+	//
+	// Ordering against transport-parameter signalling is covered by
+	// TestQUICDelayedTransportParameters.
+	err := runTestQUICConnection(context.Background(), cli, srv, nil)
+	if err == nil {
 		t.Fatalf("handshake with GetEncryptedClientHelloKeys errors: nil, want error")
 	}
-	if srv.gotError == nil {
-		t.Fatalf("after GetEncryptedClientHelloKeys error, server did not see QUICErrorEvent")
+	if _, ok := errors.AsType[AlertError](err); !ok {
+		t.Errorf("connection handshake terminated with error %T (%v), want AlertError", err, err)
 	}
-	if _, ok := errors.AsType[AlertError](srv.gotError); !ok {
-		t.Errorf("connection handshake terminated with error %T, want AlertError", srv.gotError)
-	}
-	if !errors.Is(srv.gotError, getECHKeysError) {
-		t.Errorf("connection handshake terminated with error %v, want error returned by GetEncryptedClientHelloKeys", srv.gotError)
+	if !errors.Is(err, getECHKeysError) {
+		t.Errorf("connection handshake terminated with error %v, want error returned by GetEncryptedClientHelloKeys", err)
 	}
 }
 

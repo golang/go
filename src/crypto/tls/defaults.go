@@ -19,6 +19,11 @@ var tlsmlkem = godebug.New("tlsmlkem")
 // tlssecpmlkem=0 restores the pre-Go 1.26 default key exchanges.
 var tlssecpmlkem = godebug.New("tlssecpmlkem")
 
+// tlsechgrease=0 disables sending a GREASE'd encrypted_client_hello extension
+// on outer ClientHellos when no ECHConfigList is configured, restoring the
+// pre-Go 1.28 behavior. See RFC 9849, Section 6.2.
+var tlsechgrease = godebug.New("tlsechgrease")
+
 // defaultCurveEnabled returns whether the key exchange c is enabled by default.
 func defaultCurveEnabled(c CurveID) bool {
 	switch c {

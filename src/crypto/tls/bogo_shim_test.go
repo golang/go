@@ -95,6 +95,7 @@ var (
 	echServerConfig            = flagStringSlice("ech-server-config", "")
 	echServerKey               = flagStringSlice("ech-server-key", "")
 	echServerRetryConfig       = flagStringSlice("ech-is-retry-config", "")
+	enableECHGrease            = flag.Bool("enable-ech-grease", false, "")
 
 	expectSessionMiss = flag.Bool("expect-session-miss", false, "")
 
@@ -189,6 +190,20 @@ func bogoShim() {
 	}
 
 	fmt.Printf("BoGo shim flags: %q", os.Args[1:])
+
+	// BoGo gates GREASE'd ECH per-handshake with the -enable-ech-grease flag,
+	// however crypto/tls always enables it.
+	//
+	// For now, we use the GODEBUG to model this flag's behavior at the shim
+	// level so that BoGo tests written against a non-greasing client (e.g.
+	// TLS-ECH-Client-UnsolictedHRRExtension) can still exercise the non-grease
+	// code path.
+	//
+	// When the GODEBUG goes away, we will update bogo_config.json to skip
+	// these tests since there will be no non-GREASE codepath exposed to test.
+	if !*enableECHGrease {
+		os.Setenv("GODEBUG", os.Getenv("GODEBUG")+",tlsechgrease=0")
+	}
 
 	// Test with both the default and insecure cipher suites.
 	var ciphersuites []uint16

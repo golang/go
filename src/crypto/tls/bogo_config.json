@@ -20,10 +20,8 @@
         "TLS-ECH-Client-Reject-NoChannelID-TLS13": "We don't support sending channel ID",
         "TLS-ECH-Client-Reject-NoChannelID-TLS12": "We don't support sending channel ID",
 
-        "TLS-ECH-Client-GREASE-IgnoreHRRExtension": "We don't support ECH GREASE because we don't fallback to plaintext",
-        "TLS-ECH-Client-NoSupportedConfigs-GREASE": "We don't support ECH GREASE because we don't fallback to plaintext",
-        "TLS-ECH-Client-GREASEExtensions": "We don't support ECH GREASE because we don't fallback to plaintext",
-        "TLS-ECH-Client-GREASE-NoOverrideName": "We don't support ECH GREASE because we don't fallback to plaintext",
+        "TLS-ECH-Client-NoSupportedConfigs-GREASE": "We error on a configured ECHConfigList that has no compatible entries rather than falling back to GREASE",
+        "TLS-ECH-Client-GREASEExtensions": "Tests general TLS extension GREASE, which we don't implement",
 
         "TLS-ECH-Client-UnsolicitedInnerServerNameAck": "We don't allow sending empty SNI without skipping certificate verification, TODO: could add special flag to bogo to indicate 'empty sni'",
 

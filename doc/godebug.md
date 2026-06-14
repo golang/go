@@ -156,6 +156,13 @@ and the [go command documentation](/cmd/go#hdr-Build_and_test_caching).
 
 ### Go 1.28
 
+Go 1.28 added a new `tlsechgrease` setting that controls whether crypto/tls
+sends a GREASE'd `encrypted_client_hello` extension on outer ClientHellos when
+no real ECH configuration is available (RFC 9849, Section 6.2). The default
+`tlsechgrease=1` enables GREASE for TLS 1.3-capable handshakes. Setting
+`tlsechgrease=0` disables it and restores the pre-Go 1.28 behavior of sending
+no ECH extension when none is configured.
+
 Go 1.28 changed
 [`net/http.FileServer`](/pkg/net/http#FileServer),
 [`net/http.FileServerFS`](/pkg/net/http#FileServerFS),

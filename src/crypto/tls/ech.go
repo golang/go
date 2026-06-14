@@ -6,15 +6,25 @@ package tls
 
 import (
 	"bytes"
+	"crypto/ecdh"
 	"crypto/hpke"
+	"crypto/tls/internal/fips140tls"
 	"errors"
 	"fmt"
+	"io"
 	"net/netip"
 	"slices"
 	"strings"
 
 	"golang.org/x/crypto/cryptobyte"
 )
+
+// echAEADTagLen is the AEAD tag length used to size HPKE ciphertexts in the
+// outer encrypted_client_hello extension. All HPKE AEADs supported by
+// crypto/hpke (AES-128-GCM, AES-256-GCM, ChaCha20Poly1305) use a 16 byte tag.
+// If support is added for an AEAD with a different tag length this constant
+// must also be replaced with a per-AEAD constant.
+const echAEADTagLen = 16
 
 type echCipher struct {
 	KDFID  uint16
@@ -452,10 +462,7 @@ func computeAndUpdateOuterECHExtension(outer, inner *clientHelloMsg, ech *echCli
 	if err != nil {
 		return err
 	}
-	// NOTE: the tag lengths for all of the supported AEADs are the same (16
-	// bytes), so we have hardcoded it here. If we add support for another AEAD
-	// with a different tag length, we will need to change this.
-	encryptedLen := len(encodedInner) + 16 // AEAD tag length
+	encryptedLen := len(encodedInner) + echAEADTagLen
 	outer.encryptedClientHello, err = generateOuterECHExt(ech.config.ConfigID, ech.kdfID, ech.aeadID, encapKey, make([]byte, encryptedLen))
 	if err != nil {
 		return err
@@ -671,6 +678,59 @@ func (c *Conn) processECHClientHello(outer *clientHelloMsg, echKeys []EncryptedC
 	}
 
 	return outer, nil, nil
+}
+
+// newGreaseECHExtension builds a GREASE'd encrypted_client_hello extension.
+//
+// This extension is placed in the outer ClientHello derived from hello, as
+// specified in RFC 9849, Section 6.2.
+func newGreaseECHExtension(rand io.Reader, hello *clientHelloMsg) ([]byte, error) {
+	const echGreaseMaxNameLength = 128
+
+	kdfID := hpke.HKDFSHA256().ID()
+	aeads := []hpke.AEAD{
+		hpke.AES128GCM(),
+		hpke.AES256GCM(),
+		hpke.ChaCha20Poly1305(),
+	}
+	if fips140tls.Required() {
+		aeads = aeads[:2]
+	}
+
+	var b [2]byte
+	if _, err := io.ReadFull(rand, b[:]); err != nil {
+		return nil, err
+	}
+	aeadID := aeads[int(b[0])%len(aeads)].ID()
+	configID := b[1]
+
+	// For ECH GREASE we only need an encoded ephemeral pubkey to encap to.
+	// We generate a throw-away key pair for this purpose.
+	curve := ecdh.X25519()
+	if fips140tls.Required() {
+		curve = ecdh.P256()
+	}
+	priv, err := curve.GenerateKey(rand)
+	if err != nil {
+		return nil, err
+	}
+	enc := priv.PublicKey().Bytes()
+
+	// Size the payload to L+echAEADTagLen, where L is the size of the
+	// EncodedClientHelloInner the client would produce if greasing matched a
+	// real ECH config with echGreaseMaxNameLength.
+	inner := hello.clone()
+	inner.encryptedClientHello = []byte{byte(innerECHExt)}
+	encoded, err := encodeInnerClientHello(inner, echGreaseMaxNameLength)
+	if err != nil {
+		return nil, err
+	}
+	payload := make([]byte, len(encoded)+echAEADTagLen)
+	if _, err := io.ReadFull(rand, payload); err != nil {
+		return nil, err
+	}
+
+	return generateOuterECHExt(configID, kdfID, aeadID, enc, payload)
 }
 
 func buildRetryConfigList(keys []EncryptedClientHelloKey) ([]byte, error) {

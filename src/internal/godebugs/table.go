@@ -62,6 +62,7 @@ var All = []Info{
 	{Name: "randseednop", Package: "math/rand", Changed: 24, Old: "0"},
 	{Name: "rsa1024min", Package: "crypto/rsa", Changed: 24, Old: "0"},
 	{Name: "tarinsecurepath", Package: "archive/tar"},
+	{Name: "tlsechgrease", Package: "crypto/tls", Changed: 28, Old: "0"},
 	{Name: "tlsmaxrsasize", Package: "crypto/tls"},
 	{Name: "tlsmlkem", Package: "crypto/tls", Changed: 24, Old: "0", Opaque: true},
 	{Name: "tlssecpmlkem", Package: "crypto/tls", Changed: 26, Old: "0", Opaque: true},

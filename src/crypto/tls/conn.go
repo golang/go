@@ -70,6 +70,9 @@ type Conn struct {
 	// or sending NewSessionTicket messages.
 	resumptionSecret []byte
 	echAccepted      bool
+	// echGrease is true when the client sent a GREASE'd ECH extension
+	// instead of a real one.
+	echGrease bool
 
 	// ticketKeys is the set of active session ticket keys for this
 	// connection. The first one is used to encrypt new tickets and

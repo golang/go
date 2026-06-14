@@ -202,6 +202,19 @@ func (c *Conn) makeClientHello() (*clientHelloMsg, *keySharePrivateKeys, *echCli
 		if err != nil {
 			return nil, nil, nil, err
 		}
+	} else if slices.Contains(supportedVersions, VersionTLS13) {
+		// Without a real ECHConfigList, attach a GREASE'd ECH extension so the
+		// outer ClientHello is indistinguishable from one carrying real ECH.
+		// See RFC 9849, Section 6.2. Skipped if GODEBUG=tlsechgrease=0.
+		if tlsechgrease.Value() == "0" {
+			tlsechgrease.IncNonDefault()
+		} else {
+			hello.encryptedClientHello, err = newGreaseECHExtension(config.rand(), hello)
+			if err != nil {
+				return nil, nil, nil, err
+			}
+			c.echGrease = true
+		}
 	}
 
 	return hello, keyShareKeys, ech, nil
@@ -338,6 +351,12 @@ func (c *Conn) clientHandshake(ctx context.Context) (err error) {
 			echContext:   ech,
 		}
 		return hs.handshake()
+	}
+
+	// ECH is a TLS 1.3+ extension.
+	if serverHello.encryptedClientHello != nil {
+		c.sendAlert(alertUnsupportedExtension)
+		return errors.New("tls: server sent encrypted_client_hello extension in a non-TLS 1.3 ServerHello")
 	}
 
 	hs := &clientHandshakeState{
