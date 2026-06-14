@@ -654,15 +654,76 @@ func findNextPackage(pkg string) (string, bool) {
 	}
 	pkg = path.Clean(pkg)
 	pkgSuffix := "/" + pkg
+	deferInternal := !hasPathElement(pkg, "internal")
 	for {
 		d, ok := dirs.Next()
 		if !ok {
-			return "", false
+			return nextDeferredInternalMatch(pkg)
 		}
 		if d.importPath == pkg || strings.HasSuffix(d.importPath, pkgSuffix) {
+			if deferInternal && hasPathElement(d.importPath, "internal") {
+				deferInternalPackageMatch(pkg, d.importPath)
+				continue
+			}
+			noteNonInternalPackageMatch(pkg)
 			return d.importPath, true
 		}
 	}
+}
+
+type packageMatchState struct {
+	pkg             string
+	internal        []string
+	haveNonInternal bool
+}
+
+var packageMatches packageMatchState
+
+func resetPackageMatchState() {
+	packageMatches = packageMatchState{}
+}
+
+func matchState(pkg string) *packageMatchState {
+	if packageMatches.pkg != pkg {
+		packageMatches = packageMatchState{pkg: pkg}
+	}
+	return &packageMatches
+}
+
+func deferInternalPackageMatch(pkg, importPath string) {
+	state := matchState(pkg)
+	if state.haveNonInternal {
+		return
+	}
+	state.internal = append(state.internal, importPath)
+}
+
+func noteNonInternalPackageMatch(pkg string) {
+	state := matchState(pkg)
+	state.haveNonInternal = true
+	state.internal = nil
+}
+
+func nextDeferredInternalMatch(pkg string) (string, bool) {
+	state := matchState(pkg)
+	if state.haveNonInternal || len(state.internal) == 0 {
+		return "", false
+	}
+	importPath := state.internal[0]
+	state.internal = state.internal[1:]
+	if len(state.internal) == 0 {
+		resetPackageMatchState()
+	}
+	return importPath, true
+}
+
+func hasPathElement(p, elem string) bool {
+	for _, part := range strings.Split(path.Clean(p), "/") {
+		if part == elem {
+			return true
+		}
+	}
+	return false
 }
 
 // splitGopath splits $GOPATH into a list of roots.
