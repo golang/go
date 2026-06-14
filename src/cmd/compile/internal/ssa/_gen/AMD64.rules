@@ -1891,6 +1891,19 @@
 (VMOVDQUload(128|256|512) [off1] {sym1} x:(LEAQ [off2] {sym2} base) mem) && is32Bit(int64(off1)+int64(off2)) && canMergeSym(sym1, sym2) => (VMOVDQUload(128|256|512) [off1+off2] {mergeSym(sym1, sym2)} base mem)
 (VMOVDQUstore(128|256|512) [off1] {sym1} x:(LEAQ [off2] {sym2} base) val mem) && is32Bit(int64(off1)+int64(off2)) && canMergeSym(sym1, sym2) => (VMOVDQUstore(128|256|512) [off1+off2] {mergeSym(sym1, sym2)} base val mem)
 
+// Multiplication of numbers that are the power of 2 can be converted to left shift log(x)
+(VPMULLQ128 x (VPBROADCASTQ128 (VMOVQ (MOVQconst [c])))) && isPowerOfTwo(c) => (VPSLLQ128const [uint8(log64(c))] x)
+(VPMULLQ256 x (VPBROADCASTQ256 (VMOVQ (MOVQconst [c])))) && isPowerOfTwo(c) => (VPSLLQ256const [uint8(log64(c))] x)
+(VPMULLQ512 x (VPBROADCASTQ512 (VMOVQ (MOVQconst [c])))) && isPowerOfTwo(c) => (VPSLLQ512const [uint8(log64(c))] x)
+
+(VPMULLD128 x (VPBROADCASTD128 (VMOVD (MOVLconst [c])))) && isPowerOfTwo(c) => (VPSLLD128const [uint8(log32(int32(c)))] x)
+(VPMULLD256 x (VPBROADCASTD256 (VMOVD (MOVLconst [c])))) && isPowerOfTwo(c) => (VPSLLD256const [uint8(log32(int32(c)))] x)
+(VPMULLD512 x (VPBROADCASTD512 (VMOVD (MOVLconst [c])))) && isPowerOfTwo(c) => (VPSLLD512const [uint8(log32(int32(c)))] x)
+
+(VPMULLW128 x (VPBROADCASTW128 (VMOVQ (MOVLconst [c])))) && isPowerOfTwo(c) => (VPSLLW128const [uint8(log16(int16(c)))] x) // use VMOVQ because VMOVW doesn't exist
+(VPMULLW256 x (VPBROADCASTW256 (VMOVQ (MOVLconst [c])))) && isPowerOfTwo(c) => (VPSLLW256const [uint8(log16(int16(c)))] x)
+(VPMULLW512 x (VPBROADCASTW512 (VMOVQ (MOVLconst [c])))) && isPowerOfTwo(c) => (VPSLLW512const [uint8(log16(int16(c)))] x)
+
 // 2-op VPTEST optimizations
 (SETEQ (VPTEST x:(VPAND(128|256) j k) y)) && x == y && x.Uses == 2 => (SETEQ (VPTEST j k))
 (SETEQ (VPTEST x:(VPAND(D|Q)512 j k) y)) && x == y && x.Uses == 2 => (SETEQ (VPTEST j k))
