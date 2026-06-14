@@ -119,7 +119,7 @@ func parseECHConfig(enc []byte) (skip bool, ec echConfig, err error) {
 	return false, ec, nil
 }
 
-// parseECHConfigList parses a draft-ietf-tls-esni-18 ECHConfigList, returning a
+// parseECHConfigList parses a RFC 9849 ECHConfigList, returning a
 // slice of parsed ECHConfigs, in the same order they were parsed, or an error
 // if the list is malformed.
 func parseECHConfigList(data []byte) ([]echConfig, error) {
