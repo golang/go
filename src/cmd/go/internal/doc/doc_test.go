@@ -1144,6 +1144,40 @@ func TestMultiplePackages(t *testing.T) {
 	}
 }
 
+func TestInternalPackagesArePreferredLast(t *testing.T) {
+	if testing.Short() {
+		t.Skip("scanning file system takes too long")
+	}
+	maybeSkip(t)
+	var b bytes.Buffer
+	var flagSet flag.FlagSet
+	err := do(t.Context(), &b, &flagSet, []string{"synctest.Wait"})
+	if err != nil {
+		t.Fatalf("unexpected error from synctest.Wait: %v", err)
+	}
+	out := b.String()
+	if !strings.Contains(out, `package synctest // import "testing/synctest"`) {
+		t.Fatalf("synctest.Wait resolved to wrong package:\n%s", out)
+	}
+	if strings.Contains(out, `internal/synctest`) {
+		t.Fatalf("synctest.Wait resolved to internal package:\n%s", out)
+	}
+
+	b.Reset()
+	flagSet = flag.FlagSet{}
+	err = do(t.Context(), &b, &flagSet, []string{"synctest.DoesNotExist"})
+	if err == nil {
+		t.Fatal("expected error from synctest.DoesNotExist")
+	}
+	errStr := err.Error()
+	if !strings.Contains(errStr, "testing/synctest") {
+		t.Fatalf("error %q should contain testing/synctest", errStr)
+	}
+	if strings.Contains(errStr, "internal/synctest") {
+		t.Fatalf("error %q should not contain internal/synctest", errStr)
+	}
+}
+
 // Test the code to look up packages when given two args. First test case is
 //
 //	go doc binary BigEndian

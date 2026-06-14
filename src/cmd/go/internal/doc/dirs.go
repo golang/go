@@ -44,6 +44,7 @@ var dirs Dirs
 // dirsInit starts the scanning of package directories in GOROOT and GOPATH. Any
 // extra paths passed to it are included in the channel.
 func dirsInit(extra ...Dir) {
+	resetPackageMatchState()
 	dirs.hist = make([]Dir, 0, 1000)
 	dirs.hist = append(dirs.hist, extra...)
 	dirs.scan = make(chan Dir)
@@ -61,6 +62,7 @@ func goCmd() string {
 // Reset puts the scan back at the beginning.
 func (d *Dirs) Reset() {
 	d.offset = 0
+	resetPackageMatchState()
 }
 
 // Next returns the next directory in the scan. The boolean
