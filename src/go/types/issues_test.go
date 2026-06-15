@@ -1229,7 +1229,7 @@ var f = genericF[string, float64]
 				t.Errorf("%s[bool, int]: got no error", name)
 				return
 			}
-			want := fmt.Sprintf("%s is not generic", typ)
+			want := fmt.Sprintf("cannot instantiate non-generic %s: has no type parameters", typ)
 			if err.Error() != want {
 				t.Errorf("%s[bool, int]: got %q, want %q", name, err.Error(), want)
 			}
