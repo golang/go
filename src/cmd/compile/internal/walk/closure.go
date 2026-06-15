@@ -217,7 +217,7 @@ func methodValueWrapper(dot *ir.SelectorExpr) *ir.Name {
 
 	meth := dot.Sel
 	rcvrtype := dot.X.Type()
-	sym := ir.MethodSymSuffix(rcvrtype, meth, "-fm")
+	sym := ir.ReceiverMethodSymSuffix(rcvrtype, meth, "-fm")
 
 	if sym.Uniq() {
 		return sym.Def.(*ir.Name)

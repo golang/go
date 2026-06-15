@@ -428,8 +428,10 @@ type Field struct {
 	// the function name node.
 	Nname Object
 
-	// Offset in bytes of this field or method within its enclosing struct
-	// or interface Type. For parameters, this is BADWIDTH.
+	// Offset in bytes of this field within its enclosing struct. For interface
+	// methods, this is the byte offset of the method's entry in an itab's Fun
+	// array. For promoted, non-interface methods, this is the offset from the
+	// wrapper receiver to the wrapped receiver. For parameters, this is BADWIDTH.
 	Offset int64
 }
 

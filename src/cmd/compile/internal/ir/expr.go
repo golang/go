@@ -581,7 +581,8 @@ func (n *SelectorExpr) FuncName() *Name {
 	if n.Op() != OMETHEXPR {
 		panic(n.no("FuncName"))
 	}
-	fn := NewNameAt(n.Selection.Pos, MethodSym(n.X.Type(), n.Sel), n.Type())
+	sym, _ := MethodSym(n.X.Type(), n.Selection)
+	fn := NewNameAt(n.Selection.Pos, sym, n.Type())
 	fn.Class = PFUNC
 	if n.Selection.Nname != nil {
 		// TODO(austin): Nname is nil for interface method
@@ -1172,24 +1173,75 @@ func RecvParamNames(ft *types.Type) []Node {
 	return args
 }
 
-// MethodSym returns the method symbol representing a method name
-// associated with a specific receiver type.
-//
-// Method symbols can be used to distinguish the same method appearing
-// in different method sets. For example, T.M and (*T).M have distinct
-// method symbols.
-//
-// The returned symbol will be marked as a function.
-func MethodSym(recv *types.Type, msym *types.Sym) *types.Sym {
-	sym := MethodSymSuffix(recv, msym, "")
+// MethodSym returns the method function symbol for recv. The second result
+// reports whether the symbol is a shared promoted wrapper.
+func MethodSym(recv *types.Type, method *types.Field) (*types.Sym, bool) {
+	if method.Embedded == 1 && recv.IsPtr() && method.Offset != types.BADWIDTH {
+		wrappee := method.Type.Recv().Type
+		return promotedWrapperSym(recv, wrappee, method.Sym, method.Offset), true
+	}
+	return ReceiverMethodSym(recv, method.Sym), false
+}
+
+// ReceiverMethodSym returns the receiver-named method function symbol.
+func ReceiverMethodSym(recv *types.Type, msym *types.Sym) *types.Sym {
+	sym := ReceiverMethodSymSuffix(recv, msym, "")
 	sym.SetFunc(true)
 	return sym
 }
 
-// MethodSymSuffix is like MethodSym, but allows attaching a
-// distinguisher suffix. To avoid collisions, the suffix must not
-// start with a letter, number, or period.
-func MethodSymSuffix(recv *types.Type, msym *types.Sym, suffix string) *types.Sym {
+// promotedWrapperSym returns the symbol for a shared promoted method wrapper
+// that adjusts its pointer receiver by offset before calling msym on wrappee.
+func promotedWrapperSym(wrapper, wrappee *types.Type, msym *types.Sym, offset int64) *types.Sym {
+	if msym.IsBlank() {
+		base.Fatalf("blank method name")
+	}
+
+	// derefs == 0: T; not shared because its ABI depends on the concrete T.
+	// derefs == 1: *T; used for pointer-shaped receivers.
+	// derefs == 2: **T; used for not-in-heap T, where *T is scalar-shaped.
+	derefs := 0
+	for t := wrapper; t.IsPtr(); t = t.Elem() {
+		derefs++
+	}
+
+	// Pointers to not-in-heap types are scalar-shaped and use a different
+	// receiver pointer map from ordinary pointers.
+	recvMode := ""
+	if wrapper.Elem().NotInHeap() {
+		recvMode = "n"
+	}
+
+	rsym := wrapper.Sym()
+	if wrapper.IsPtr() {
+		if rsym != nil {
+			base.Fatalf("declared pointer receiver type: %v", wrapper)
+		}
+		rsym = wrapper.Elem().Sym()
+	}
+	rpkg := Pkgs.Go
+	if rsym != nil {
+		rpkg = rsym.Pkg
+	}
+
+	var b bytes.Buffer
+	fmt.Fprintf(&b, ".embed.%-S.", wrappee)
+	if !types.IsExported(msym.Name) {
+		b.WriteString(msym.Pkg.Prefix)
+		b.WriteString(".")
+	}
+	b.WriteString(msym.Name)
+	fmt.Fprintf(&b, ".%d%s.%d", derefs, recvMode, offset)
+
+	sym := rpkg.LookupBytes(b.Bytes())
+	sym.SetFunc(true)
+	return sym
+}
+
+// ReceiverMethodSymSuffix is like ReceiverMethodSym, but allows attaching a
+// distinguisher suffix. To avoid collisions, the suffix must not start with a
+// letter, number, or period.
+func ReceiverMethodSymSuffix(recv *types.Type, msym *types.Sym, suffix string) *types.Sym {
 	if msym.IsBlank() {
 		base.Fatalf("blank method name")
 	}
