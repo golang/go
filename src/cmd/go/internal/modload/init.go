@@ -2305,7 +2305,7 @@ func CheckGodebug(verb, k, v string) error {
 	for _, info := range godebugs.Removed {
 		if info.Name == k {
 			if info.Old(v) {
-				return fmt.Errorf("use of removed %s %q with old value %q (see https://go.dev/doc/godebug#go-1%v)", verb, k, v, info.Removed)
+				return fmt.Errorf("removed GODEBUG %q set to old value %q (https://go.dev/doc/godebug#go-1%v)", k, v, info.Removed)
 			}
 			// Using a removed GODEBUG setting with a non-old value is ok (see go.dev/issue/76163).
 			return nil

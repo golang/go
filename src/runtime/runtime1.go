@@ -476,6 +476,7 @@ func reparsedebugvars(env string) {
 // when initialization has progressed sufficiently.
 var invalidGODEBUG struct {
 	key, value string
+	removed    int
 }
 
 // parsegodebug parses the godebug string, updating variables listed in dbgvars.
@@ -525,6 +526,7 @@ func parsegodebug(godebug string, seen map[string]bool) {
 					if info.Old(value) {
 						invalidGODEBUG.key = key
 						invalidGODEBUG.value = value
+						invalidGODEBUG.removed = info.Removed
 						return // this skips the cgocheck below but we're about to fatal anyway
 					}
 					break
