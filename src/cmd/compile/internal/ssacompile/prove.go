@@ -1237,6 +1237,7 @@ func getSliceInfo(vp *ssa.Value) (inf sliceInfo) {
 func prove(f *ssa.Func) {
 	// Find induction variables.
 	var indVars map[*ssa.Block][]indVar
+	var headerIndVars map[*ssa.Block][]indVar
 	for _, v := range findIndVar(f) {
 		ind := v.ind
 		if len(ind.Args) != 2 {
@@ -1250,8 +1251,10 @@ func prove(f *ssa.Func) {
 			// ind or nxt is used inside the loop, add it for the facts table
 			if indVars == nil {
 				indVars = make(map[*ssa.Block][]indVar)
+				headerIndVars = make(map[*ssa.Block][]indVar)
 			}
 			indVars[v.entry] = append(indVars[v.entry], v)
+			headerIndVars[ind.Block] = append(headerIndVars[ind.Block], v)
 			continue
 		} else {
 			// Since this induction variable is not used for anything but counting the iterations,
@@ -1343,6 +1346,11 @@ func prove(f *ssa.Func) {
 			// that is bound to this block.
 			for _, iv := range indVars[node.block] {
 				addIndVarRestrictions(ft, parent, iv)
+			}
+
+			// Entering a loop header block, add facts about the induction variables' init bounds.
+			for _, iv := range headerIndVars[node.block] {
+				addIndVarInitRestrictions(ft, parent, iv)
 			}
 
 			// Add results of reaching this block via a branch from
@@ -1796,6 +1804,33 @@ func getBranch(sdom ssa.SparseTree, p *ssa.Block, b *ssa.Block) branch {
 		}
 	}
 	return unknown
+}
+
+// addIndVarInitRestrictions updates the factsTables ft with the init value
+// learned from the induction variable indVar which drives the loop
+// starting in Block b.
+func addIndVarInitRestrictions(ft *factsTable, b *ssa.Block, iv indVar) {
+	if iv.flags&indVarDownward == 0 {
+		// upward counting loop, the init value is the min
+		d := signed
+		if ft.isNonNegative(iv.min) {
+			d |= unsigned
+		}
+		if iv.flags&indVarMinExc == 0 {
+			addRestrictions(b, ft, d, iv.min, iv.ind, lt|eq)
+		} else {
+			addRestrictions(b, ft, d, iv.min, iv.ind, lt)
+		}
+	} else {
+		// downward counting loop, the init value is the max.
+		// We must only use signed domain because iv.ind can become
+		// negative on the exit iteration, violating unsigned iv.ind <= iv.max.
+		if iv.flags&indVarMaxInc == 0 {
+			addRestrictions(b, ft, signed, iv.ind, iv.max, lt)
+		} else {
+			addRestrictions(b, ft, signed, iv.ind, iv.max, lt|eq)
+		}
+	}
 }
 
 // addIndVarRestrictions updates the factsTables ft with the facts

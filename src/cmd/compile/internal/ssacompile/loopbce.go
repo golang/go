@@ -17,8 +17,9 @@ import (
 type indVarFlags uint8
 
 const (
-	indVarMinExc indVarFlags = 1 << iota // minimum value is exclusive (default: inclusive)
-	indVarMaxInc                         // maximum value is inclusive (default: exclusive)
+	indVarMinExc   indVarFlags = 1 << iota // minimum value is exclusive (default: inclusive)
+	indVarMaxInc                           // maximum value is inclusive (default: exclusive)
+	indVarDownward                         // downward counting loop (default: upward)
 )
 
 type indVar struct {
@@ -331,7 +332,7 @@ nextblock:
 				} else {
 					min = limit
 					max = init
-					flags |= indVarMaxInc
+					flags |= indVarMaxInc | indVarDownward
 					if !inclusive {
 						flags |= indVarMinExc
 					}
@@ -353,7 +354,7 @@ nextblock:
 					step:  step,
 					flags: flags,
 				})
-				b.Logf("found induction variable %v (inc = %v, min = %v, max = %v)\n", ind, inc, min, max)
+				b.Logf("found induction variable %v (inc = %v, min = %v, max = %v), downward=%t\n", ind, inc, min, max, flags&indVarDownward != 0)
 			}
 		}
 	}
