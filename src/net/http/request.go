@@ -279,6 +279,10 @@ type Request struct {
 	// the request body is read. Once the body returns EOF, the caller must
 	// not mutate Trailer.
 	//
+	// Writing a request whose Trailer contains a key with invalid bytes
+	// (such as CR or LF), or such a value present when Write begins,
+	// returns an error.
+	//
 	// Few HTTP clients, servers, or proxies support HTTP trailers.
 	Trailer Header
 
