@@ -441,7 +441,7 @@ func PopulateABIInRegArgOps(f *Func) {
 	// slots that is type-insenstitive.
 	sc := newSlotCanonicalizer()
 	for _, sl := range f.Names {
-		sc.lookup(*sl)
+		sc.lookup(sl)
 	}
 
 	// Add slot -> value entry to f.NamedValues if not already present.
@@ -449,8 +449,7 @@ func PopulateABIInRegArgOps(f *Func) {
 		values, ok := f.NamedValues[sl]
 		if !ok {
 			// Haven't seen this slot yet.
-			sla := f.localSlotAddr(sl)
-			f.Names = append(f.Names, sla)
+			f.Names = append(f.Names, sl)
 		} else {
 			for _, ev := range values {
 				if v == ev {
@@ -592,14 +591,14 @@ func BuildFuncDebug(ctxt *obj.Link, f *Func, loggingLevel int, stackOffset func(
 	state.slots = state.slots[:0]
 	state.vars = state.vars[:0]
 	for i, slot := range f.Names {
-		state.slots = append(state.slots, *slot)
+		state.slots = append(state.slots, slot)
 		if ir.IsSynthetic(slot.N) || !IsVarWantedForDebug(slot.N) {
 			continue
 		}
 
 		topSlot := slot
 		for topSlot.SplitOf != nil {
-			topSlot = topSlot.SplitOf
+			topSlot = *topSlot.SplitOf
 		}
 		if _, ok := state.varParts[topSlot.N]; !ok {
 			state.vars = append(state.vars, topSlot.N)
@@ -660,7 +659,7 @@ func BuildFuncDebug(ctxt *obj.Link, f *Func, loggingLevel int, stackOffset func(
 		if ir.IsSynthetic(slot.N) || !IsVarWantedForDebug(slot.N) {
 			continue
 		}
-		for _, value := range f.NamedValues[*slot] {
+		for _, value := range f.NamedValues[slot] {
 			state.valueNames[value.ID] = append(state.valueNames[value.ID], SlotID(i))
 		}
 	}
