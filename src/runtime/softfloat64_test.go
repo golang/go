@@ -36,14 +36,12 @@ func TestFloat64(t *testing.T) {
 		math.Inf(-1),
 		0.1,
 		1.5,
-		1.9999999999999998,     // all 1s mantissa
-		1.3333333333333333,     // 1.010101010101...
-		1.1428571428571428,     // 1.001001001001...
-		1.112536929253601e-308, // first normal
-		// Two near-equal opposite-sign normals whose sum cancels into a
-		// subnormal; exercises the fpack64 denormal path.
-		math.Float64frombits(9333378022939403091),
-		math.Float64frombits(110005986185704326),
+		1.9999999999999998,      // all 1s mantissa
+		1.3333333333333333,      // 1.010101010101...
+		1.1428571428571428,      // 1.001001001001...
+		1.112536929253601e-308,  // first normal
+		-2.662107816930723e-301, // #79964: two near-equal opposite-sign
+		2.662107858822336e-301,  // normals cancelling to a subnormal
 		2,
 		4,
 		8,
