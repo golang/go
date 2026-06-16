@@ -101,19 +101,19 @@
 //     The 'strict' value specifies that matching is case-sensitive.
 //     This takes precedence over the [MatchCaseInsensitiveNames] option.
 //
-//   - inline: The "inline" option specifies that
+//   - embed: The "embed" option specifies that
 //     the JSON representable content of this field type is to be promoted
 //     as if they were specified in the parent struct.
 //     It is the JSON equivalent of Go struct embedding.
-//     A Go embedded field is implicitly inlined unless an explicit JSON name
-//     is specified. The inlined field must be a Go struct
+//     A Go embedded field is implicitly JSON embedded unless
+//     an explicit JSON name is specified. The embedded field must be a Go struct
 //     (that does not implement any JSON methods), [jsontext.Value],
 //     map[~string]T, or an unnamed pointer to such types. When marshaling,
-//     inlined fields from a pointer type are omitted if it is nil.
-//     Inlined fields of type [jsontext.Value] and map[~string]T are called
-//     “inlined fallbacks” as they can represent all possible
+//     embedded fields from a pointer type are omitted if it is nil.
+//     Embedded fields of type [jsontext.Value] and map[~string]T are called
+//     “embedded fallbacks” as they can represent all possible
 //     JSON object members not directly handled by the parent struct.
-//     Only one inlined fallback field may be specified in a struct,
+//     Only one embedded fallback field may be specified in a struct,
 //     while many non-fallback fields may be specified. This option
 //     must not be specified with any other option (including the JSON name).
 //
@@ -129,8 +129,8 @@
 // Every Go struct corresponds to a list of JSON representable fields
 // which is constructed by performing a breadth-first search over
 // all struct fields (excluding unexported or ignored fields),
-// where the search recursively descends into inlined structs.
-// The set of non-inlined fields in a struct must have unique JSON names.
+// where the search recursively descends into embedded structs.
+// The set of non-embedded fields in a struct must have unique JSON names.
 // If multiple fields all have the same JSON name, then the one
 // at shallowest depth takes precedence and the other fields at deeper depths
 // are excluded from the list of JSON representable fields.

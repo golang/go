@@ -29,10 +29,10 @@ type isZeroer interface {
 var isZeroerType = reflect.TypeFor[isZeroer]()
 
 type structFields struct {
-	flattened       []structField // listed in depth-first ordering
-	byActualName    map[string]*structField
-	byFoldedName    map[string][]*structField
-	inlinedFallback *structField
+	flattened        []structField // listed in depth-first ordering
+	byActualName     map[string]*structField
+	byFoldedName     map[string][]*structField
+	embeddedFallback *structField
 
 	errUnsupportedFormat *SemanticError
 }
@@ -53,8 +53,8 @@ func (sf *structFields) reindex() {
 	for i := range sf.flattened {
 		reindex(&sf.flattened[i])
 	}
-	if sf.inlinedFallback != nil {
-		reindex(sf.inlinedFallback)
+	if sf.embeddedFallback != nil {
+		reindex(sf.embeddedFallback)
 	}
 }
 
@@ -87,20 +87,20 @@ func makeStructFields(root reflect.Type) (fs structFields, serr *SemanticError) 
 	type queueEntry struct {
 		typ           reflect.Type
 		index         []int
-		visitChildren bool // whether to recursively visit inlined field in this struct
+		visitChildren bool // whether to recursively visit embedded field in this struct
 	}
 	queue := []queueEntry{{root, nil, true}}
 	seen := map[reflect.Type]bool{root: true}
 
 	// Perform a breadth-first search over all reachable fields.
 	// This ensures that len(f.index) will be monotonically increasing.
-	var allFields, inlinedFallbacks []structField
+	var allFields, embeddedFallbacks []structField
 	for queueIndex < len(queue) {
 		qe := queue[queueIndex]
 		queueIndex++
 
 		t := qe.typ
-		inlinedFallbackIndex := -1         // index of last inlined fallback field in current struct
+		embeddedFallbackIndex := -1        // index of last embedded fallback field in current struct
 		namesIndex := make(map[string]int) // index of each field with a given JSON object name in current struct
 		var hasAnyJSONTag bool             // whether any Go struct field has a `json` tag
 		var hasAnyJSONField bool           // whether any JSON serializable fields exist in current struct
@@ -128,32 +128,32 @@ func makeStructFields(root reflect.Type) (fs structFields, serr *SemanticError) 
 				if indirectType(f.typ).Kind() != reflect.Struct {
 					serr = orErrorf(serr, t, "embedded Go struct field %s of non-struct type must be explicitly given a JSON name", sf.Name)
 				} else {
-					f.inline = true // implied by use of Go embedding without an explicit name
+					f.embed = true // implied by use of Go embedding without an explicit name
 				}
 			}
 
-			var handleInline, handleField func()
-			handleInline = func() {
-				// Handle an inlined field that serializes to/from
+			var handleEmbed, handleField func()
+			handleEmbed = func() {
+				// Handle an embedded field that serializes to/from
 				// zero or more JSON object members.
 
-				if f.fieldOptions != (fieldOptions{name: f.name, quotedName: f.quotedName, inline: true}) {
-					serr = orErrorf(serr, t, "Go struct field %s cannot have any options other than `inline` specified", sf.Name)
+				if f.fieldOptions != (fieldOptions{name: f.name, quotedName: f.quotedName, embed: true}) {
+					serr = orErrorf(serr, t, "Go struct field %s cannot have any options other than `embed` specified", sf.Name)
 					if f.hasName {
 						handleField()
-						return // invalid inlined field; treat as regular field
+						return // invalid embedded field; treat as regular field
 					}
-					f.fieldOptions = fieldOptions{name: f.name, quotedName: f.quotedName, inline: f.inline}
+					f.fieldOptions = fieldOptions{name: f.name, quotedName: f.quotedName, embed: f.embed}
 				}
 
 				// Reject any types with custom serialization otherwise
-				// it becomes impossible to know what sub-fields to inline.
+				// it becomes impossible to know what sub-fields to embed.
 				tf := indirectType(f.typ)
 				if implementsAny(tf, allMethodTypes...) && tf != jsontextValueType {
-					serr = orErrorf(serr, t, "inlined Go struct field %s of type %s must not implement marshal or unmarshal methods", sf.Name, tf)
+					serr = orErrorf(serr, t, "embedded Go struct field %s of type %s must not implement marshal or unmarshal methods", sf.Name, tf)
 				}
 
-				// Handle an inlined field that serializes to/from
+				// Handle an embedded field that serializes to/from
 				// a finite number of JSON object members backed by a Go struct.
 				if tf.Kind() == reflect.Struct {
 					if qe.visitChildren {
@@ -162,37 +162,37 @@ func makeStructFields(root reflect.Type) (fs structFields, serr *SemanticError) 
 					seen[tf] = true
 					return
 				} else if !sf.IsExported() {
-					serr = orErrorf(serr, t, "inlined Go struct field %s is not exported", sf.Name)
-					return // invalid inlined field; treat as ignored
+					serr = orErrorf(serr, t, "embedded Go struct field %s is not exported", sf.Name)
+					return // invalid embedded field; treat as ignored
 				}
 
-				// Handle an inlined field that serializes to/from any number of
+				// Handle an embedded field that serializes to/from any number of
 				// JSON object members back by a Go map or jsontext.Value.
 				switch {
 				case tf == jsontextValueType:
-					f.fncs = nil // specially handled in arshal_inlined.go
+					f.fncs = nil // specially handled in arshal_embedded.go
 				case tf.Kind() == reflect.Map && tf.Key().Kind() == reflect.String:
 					if implementsAny(tf.Key(), allMethodTypes...) {
-						serr = orErrorf(serr, t, "inlined map field %s of type %s must have a string key that does not implement marshal or unmarshal methods", sf.Name, tf)
+						serr = orErrorf(serr, t, "embedded map field %s of type %s must have a string key that does not implement marshal or unmarshal methods", sf.Name, tf)
 						handleField()
-						return // invalid inlined field; treat as regular field
+						return // invalid embedded field; treat as regular field
 					}
 					f.fncs = lookupArshaler(tf.Elem())
 				default:
-					serr = orErrorf(serr, t, "inlined Go struct field %s of type %s must be a Go struct, Go map of string key, or jsontext.Value", sf.Name, tf)
+					serr = orErrorf(serr, t, "embedded Go struct field %s of type %s must be a Go struct, Go map of string key, or jsontext.Value", sf.Name, tf)
 					handleField()
-					return // invalid inlined field; treat as regular field
+					return // invalid embedded field; treat as regular field
 				}
 
-				// Reject multiple inlined fallback fields within the same struct.
-				if inlinedFallbackIndex >= 0 {
-					serr = orErrorf(serr, t, "inlined Go struct fields %s and %s cannot both be a Go map or jsontext.Value", t.Field(inlinedFallbackIndex).Name, sf.Name)
-					// Still append f to inlinedFallbacks as there is still a
-					// check for a dominant inlined fallback before returning.
+				// Reject multiple embedded fallback fields within the same struct.
+				if embeddedFallbackIndex >= 0 {
+					serr = orErrorf(serr, t, "embedded Go struct fields %s and %s cannot both be a Go map or jsontext.Value", t.Field(embeddedFallbackIndex).Name, sf.Name)
+					// Still append f to embeddedFallbacks as there is still a
+					// check for a dominant embedded fallback before returning.
 				}
-				inlinedFallbackIndex = i
+				embeddedFallbackIndex = i
 
-				inlinedFallbacks = append(inlinedFallbacks, f)
+				embeddedFallbacks = append(embeddedFallbacks, f)
 			}
 			handleField = func() {
 				// Handle normal Go struct field that serializes to/from
@@ -260,8 +260,8 @@ func makeStructFields(root reflect.Type) (fs structFields, serr *SemanticError) 
 				}
 			}
 
-			if f.inline {
-				handleInline()
+			if f.embed {
+				handleEmbed()
 			} else {
 				handleField()
 			}
@@ -347,8 +347,8 @@ func makeStructFields(root reflect.Type) (fs structFields, serr *SemanticError) 
 			fs.byFoldedName[foldedName] = fields
 		}
 	}
-	if n := len(inlinedFallbacks); n == 1 || (n > 1 && len(inlinedFallbacks[0].index) != len(inlinedFallbacks[1].index)) {
-		fs.inlinedFallback = &inlinedFallbacks[0] // dominant inlined fallback field
+	if n := len(embeddedFallbacks); n == 1 || (n > 1 && len(embeddedFallbacks[0].index) != len(embeddedFallbacks[1].index)) {
+		fs.embeddedFallback = &embeddedFallbacks[0] // dominant embedded fallback field
 	}
 	fs.reindex()
 	return fs, serr
@@ -397,7 +397,7 @@ type fieldOptions struct {
 	hasName        bool
 	nameNeedEscape bool
 	casing         int8 // either 0, caseIgnore, or caseStrict
-	inline         bool
+	embed          bool
 	omitzero       bool
 	omitempty      bool
 	string         bool
@@ -518,8 +518,8 @@ func parseFieldOptions(sf reflect.StructField) (out fieldOptions, ignored bool, 
 			default:
 				err = cmp.Or(err, fmt.Errorf("Go struct field %s has unknown `case:%s` tag value", sf.Name, rawOpt))
 			}
-		case "inline":
-			out.inline = true
+		case "embed":
+			out.embed = true
 		case "omitzero":
 			out.omitzero = true
 		case "omitempty":
@@ -548,7 +548,7 @@ func parseFieldOptions(sf reflect.StructField) (out fieldOptions, ignored bool, 
 			// This catches invalid mutants such as "omitEmpty" or "omit_empty".
 			normOpt := strings.ReplaceAll(strings.ToLower(opt), "_", "")
 			switch normOpt {
-			case "case", "inline", "omitzero", "omitempty", "string", "format":
+			case "case", "embed", "omitzero", "omitempty", "string", "format":
 				err = cmp.Or(err, fmt.Errorf("Go struct field %s has invalid appearance of `%s` tag option; specify `%s` instead", sf.Name, opt, normOpt))
 			}
 

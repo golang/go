@@ -194,7 +194,7 @@ func OmitZeroStructFields(v bool) Options {
 //
 // This affects either marshaling or unmarshaling.
 // For marshaling, this option may alter the detection of duplicate names
-// (assuming [jsontext.AllowDuplicateNames] is false) from inlined fields
+// (assuming [jsontext.AllowDuplicateNames] is false) from embedded fields
 // if it matches one of the declared fields in the Go struct.
 func MatchCaseInsensitiveNames(v bool) Options {
 	if v {

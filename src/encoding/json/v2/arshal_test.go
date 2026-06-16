@@ -440,84 +440,84 @@ type (
 	structTimeFormatStringInvalid struct {
 		T time.Time `json:",string,format:RFC3339"`
 	}
-	structInlined struct {
-		X             structInlinedL1 `json:",inline"`
-		*StructEmbed2                 // implicit inline
+	structEmbedded struct {
+		X             structEmbeddedL1 `json:",embed"`
+		*StructEmbed2                  // implicit embed
 	}
-	structInlinedL1 struct {
-		X            *structInlinedL2 `json:",inline"`
-		StructEmbed1 `json:",inline"`
+	structEmbeddedL1 struct {
+		X            *structEmbeddedL2 `json:",embed"`
+		StructEmbed1 `json:",embed"`
 	}
-	structInlinedL2       struct{ A, B, C string }
-	StructEmbed1          struct{ C, D, E string }
-	StructEmbed2          struct{ E, F, G string }
-	structInlineTextValue struct {
+	structEmbeddedL2     struct{ A, B, C string }
+	StructEmbed1         struct{ C, D, E string }
+	StructEmbed2         struct{ E, F, G string }
+	structEmbedTextValue struct {
 		A int            `json:",omitzero"`
-		X jsontext.Value `json:",inline"`
+		X jsontext.Value `json:",embed"`
 		B int            `json:",omitzero"`
 	}
-	structInlinePointerTextValue struct {
+	structEmbedPointerTextValue struct {
 		A int             `json:",omitzero"`
-		X *jsontext.Value `json:",inline"`
+		X *jsontext.Value `json:",embed"`
 		B int             `json:",omitzero"`
 	}
-	structInlinePointerInlineTextValue struct {
+	structEmbedPointerEmbedTextValue struct {
 		X *struct {
 			A int
-			X jsontext.Value `json:",inline"`
-		} `json:",inline"`
+			X jsontext.Value `json:",embed"`
+		} `json:",embed"`
 	}
-	structInlineInlinePointerTextValue struct {
+	structEmbedEmbedPointerTextValue struct {
 		X struct {
-			X *jsontext.Value `json:",inline"`
-		} `json:",inline"`
+			X *jsontext.Value `json:",embed"`
+		} `json:",embed"`
 	}
-	structInlineMapStringAny struct {
+	structEmbedMapStringAny struct {
 		A int        `json:",omitzero"`
-		X jsonObject `json:",inline"`
+		X jsonObject `json:",embed"`
 		B int        `json:",omitzero"`
 	}
-	structInlinePointerMapStringAny struct {
+	structEmbedPointerMapStringAny struct {
 		A int         `json:",omitzero"`
-		X *jsonObject `json:",inline"`
+		X *jsonObject `json:",embed"`
 		B int         `json:",omitzero"`
 	}
-	structInlinePointerInlineMapStringAny struct {
+	structEmbedPointerEmbedMapStringAny struct {
 		X *struct {
 			A int
-			X jsonObject `json:",inline"`
-		} `json:",inline"`
+			X jsonObject `json:",embed"`
+		} `json:",embed"`
 	}
-	structInlineInlinePointerMapStringAny struct {
+	structEmbedEmbedPointerMapStringAny struct {
 		X struct {
-			X *jsonObject `json:",inline"`
-		} `json:",inline"`
+			X *jsonObject `json:",embed"`
+		} `json:",embed"`
 	}
-	structInlineMapStringInt struct {
-		X map[string]int `json:",inline"`
+	structEmbedMapStringInt struct {
+		X map[string]int `json:",embed"`
 	}
-	structInlineMapNamedStringInt struct {
-		X map[namedString]int `json:",inline"`
+	structEmbedMapNamedStringInt struct {
+		X map[namedString]int `json:",embed"`
 	}
-	structInlineMapNamedStringAny struct {
+	structEmbedMapNamedStringAny struct {
 		A int                 `json:",omitzero"`
-		X map[namedString]any `json:",inline"`
+		X map[namedString]any `json:",embed"`
 		B int                 `json:",omitzero"`
 	}
-	structNoCaseInlineTextValue struct {
+	structNoCaseEmbedTextValue struct {
 		AAA  string         `json:",omitempty,case:strict"`
 		AA_b string         `json:",omitempty"`
 		AaA  string         `json:",omitempty,case:ignore"`
 		AAa  string         `json:",omitempty,case:ignore"`
 		Aaa  string         `json:",omitempty"`
-		X    jsontext.Value `json:",inline"`
+		X    jsontext.Value `json:",embed"`
 	}
-	structNoCaseInlineMapStringAny struct {
+	structNoCaseEmbedMapStringAny struct {
 		AAA string     `json:",omitempty"`
 		AaA string     `json:",omitempty,case:ignore"`
 		AAa string     `json:",omitempty,case:ignore"`
 		Aaa string     `json:",omitempty"`
-		X   jsonObject `json:",inline"`
+		X   jsonObject `json:",embed"`
 	}
 
 	allMethods struct {
@@ -595,12 +595,12 @@ type (
 	pointerStringer struct{}
 
 	cyclicA struct {
-		B1 cyclicB `json:",inline"`
-		B2 cyclicB `json:",inline"`
+		B1 cyclicB `json:",embed"`
+		B2 cyclicB `json:",embed"`
 	}
 	cyclicB struct {
 		F int
-		A *cyclicA `json:",inline"`
+		A *cyclicA `json:",embed"`
 	}
 )
 
@@ -2542,234 +2542,234 @@ func TestMarshal(t *testing.T) {
 		want:    `{"Interface"`,
 		wantErr: EM(errInvalidFormatFlag).withPos(`{"Interface":`, "/Interface").withType(0, T[any]()),
 	}, {
-		name: jsontest.Name("Structs/Inline/Zero"),
-		in:   structInlined{},
+		name: jsontest.Name("Structs/Embed/Zero"),
+		in:   structEmbedded{},
 		want: `{"D":""}`,
 	}, {
-		name: jsontest.Name("Structs/Inline/Alloc"),
-		in: structInlined{
-			X: structInlinedL1{
-				X:            &structInlinedL2{},
+		name: jsontest.Name("Structs/Embed/Alloc"),
+		in: structEmbedded{
+			X: structEmbeddedL1{
+				X:            &structEmbeddedL2{},
 				StructEmbed1: StructEmbed1{},
 			},
 			StructEmbed2: &StructEmbed2{},
 		},
 		want: `{"A":"","B":"","D":"","E":"","F":"","G":""}`,
 	}, {
-		name: jsontest.Name("Structs/Inline/NonZero"),
-		in: structInlined{
-			X: structInlinedL1{
-				X:            &structInlinedL2{A: "A1", B: "B1", C: "C1"},
+		name: jsontest.Name("Structs/Embed/NonZero"),
+		in: structEmbedded{
+			X: structEmbeddedL1{
+				X:            &structEmbeddedL2{A: "A1", B: "B1", C: "C1"},
 				StructEmbed1: StructEmbed1{C: "C2", D: "D2", E: "E2"},
 			},
 			StructEmbed2: &StructEmbed2{E: "E3", F: "F3", G: "G3"},
 		},
 		want: `{"A":"A1","B":"B1","D":"D2","E":"E3","F":"F3","G":"G3"}`,
 	}, {
-		name: jsontest.Name("Structs/Inline/DualCycle"),
+		name: jsontest.Name("Structs/Embed/DualCycle"),
 		in: cyclicA{
 			B1: cyclicB{F: 1}, // B1.F ignored since it conflicts with B2.F
 			B2: cyclicB{F: 2}, // B2.F ignored since it conflicts with B1.F
 		},
 		want: `{}`,
 	}, {
-		name: jsontest.Name("Structs/InlinedFallback/TextValue/Nil"),
-		in:   structInlineTextValue{X: jsontext.Value(nil)},
+		name: jsontest.Name("Structs/EmbeddedFallback/TextValue/Nil"),
+		in:   structEmbedTextValue{X: jsontext.Value(nil)},
 		want: `{}`,
 	}, {
-		name: jsontest.Name("Structs/InlinedFallback/TextValue/Empty"),
-		in:   structInlineTextValue{X: jsontext.Value("")},
+		name: jsontest.Name("Structs/EmbeddedFallback/TextValue/Empty"),
+		in:   structEmbedTextValue{X: jsontext.Value("")},
 		want: `{}`,
 	}, {
-		name: jsontest.Name("Structs/InlinedFallback/TextValue/NonEmptyN1"),
-		in:   structInlineTextValue{X: jsontext.Value(` { "fizz" : "buzz" } `)},
+		name: jsontest.Name("Structs/EmbeddedFallback/TextValue/NonEmptyN1"),
+		in:   structEmbedTextValue{X: jsontext.Value(` { "fizz" : "buzz" } `)},
 		want: `{"fizz":"buzz"}`,
 	}, {
-		name: jsontest.Name("Structs/InlinedFallback/TextValue/NonEmptyN2"),
-		in:   structInlineTextValue{X: jsontext.Value(` { "fizz" : "buzz" , "foo" : "bar" } `)},
+		name: jsontest.Name("Structs/EmbeddedFallback/TextValue/NonEmptyN2"),
+		in:   structEmbedTextValue{X: jsontext.Value(` { "fizz" : "buzz" , "foo" : "bar" } `)},
 		want: `{"fizz":"buzz","foo":"bar"}`,
 	}, {
-		name: jsontest.Name("Structs/InlinedFallback/TextValue/NonEmptyWithOthers"),
-		in: structInlineTextValue{
+		name: jsontest.Name("Structs/EmbeddedFallback/TextValue/NonEmptyWithOthers"),
+		in: structEmbedTextValue{
 			A: 1,
 			X: jsontext.Value(` { "fizz" : "buzz" , "foo" : "bar" } `),
 			B: 2,
 		},
-		// NOTE: Inlined fallback fields are always serialized last.
+		// NOTE: Embedded fallback fields are always serialized last.
 		want: `{"A":1,"B":2,"fizz":"buzz","foo":"bar"}`,
 	}, {
-		name:    jsontest.Name("Structs/InlinedFallback/TextValue/RejectDuplicateNames"),
+		name:    jsontest.Name("Structs/EmbeddedFallback/TextValue/RejectDuplicateNames"),
 		opts:    []Options{jsontext.AllowDuplicateNames(false)},
-		in:      structInlineTextValue{X: jsontext.Value(` { "fizz" : "buzz" , "fizz" : "buzz" } `)},
+		in:      structEmbedTextValue{X: jsontext.Value(` { "fizz" : "buzz" , "fizz" : "buzz" } `)},
 		want:    `{"fizz":"buzz"`,
 		wantErr: newDuplicateNameError("/fizz", nil, len64(`{"fizz":"buzz"`)),
 	}, {
-		name: jsontest.Name("Structs/InlinedFallback/TextValue/AllowDuplicateNames"),
+		name: jsontest.Name("Structs/EmbeddedFallback/TextValue/AllowDuplicateNames"),
 		opts: []Options{jsontext.AllowDuplicateNames(true)},
-		in:   structInlineTextValue{X: jsontext.Value(` { "fizz" : "buzz" , "fizz" : "buzz" } `)},
+		in:   structEmbedTextValue{X: jsontext.Value(` { "fizz" : "buzz" , "fizz" : "buzz" } `)},
 		want: `{"fizz":"buzz","fizz":"buzz"}`,
 	}, {
-		name:    jsontest.Name("Structs/InlinedFallback/TextValue/RejectInvalidUTF8"),
+		name:    jsontest.Name("Structs/EmbeddedFallback/TextValue/RejectInvalidUTF8"),
 		opts:    []Options{jsontext.AllowInvalidUTF8(false)},
-		in:      structInlineTextValue{X: jsontext.Value(`{"` + "\xde\xad\xbe\xef" + `":"value"}`)},
+		in:      structEmbedTextValue{X: jsontext.Value(`{"` + "\xde\xad\xbe\xef" + `":"value"}`)},
 		want:    `{`,
 		wantErr: newInvalidUTF8Error(len64(`{"`+"\xde\xad"), ""),
 	}, {
-		name: jsontest.Name("Structs/InlinedFallback/TextValue/AllowInvalidUTF8"),
+		name: jsontest.Name("Structs/EmbeddedFallback/TextValue/AllowInvalidUTF8"),
 		opts: []Options{jsontext.AllowInvalidUTF8(true)},
-		in:   structInlineTextValue{X: jsontext.Value(`{"` + "\xde\xad\xbe\xef" + `":"value"}`)},
+		in:   structEmbedTextValue{X: jsontext.Value(`{"` + "\xde\xad\xbe\xef" + `":"value"}`)},
 		want: `{"ޭ��":"value"}`,
 	}, {
-		name:    jsontest.Name("Structs/InlinedFallback/TextValue/InvalidWhitespace"),
-		in:      structInlineTextValue{X: jsontext.Value("\n\r\t ")},
+		name:    jsontest.Name("Structs/EmbeddedFallback/TextValue/InvalidWhitespace"),
+		in:      structEmbedTextValue{X: jsontext.Value("\n\r\t ")},
 		want:    `{`,
 		wantErr: EM(io.ErrUnexpectedEOF).withPos(`{`, "").withType(0, T[jsontext.Value]()),
 	}, {
-		name:    jsontest.Name("Structs/InlinedFallback/TextValue/InvalidObject"),
-		in:      structInlineTextValue{X: jsontext.Value(` true `)},
+		name:    jsontest.Name("Structs/EmbeddedFallback/TextValue/InvalidObject"),
+		in:      structEmbedTextValue{X: jsontext.Value(` true `)},
 		want:    `{`,
-		wantErr: EM(errRawInlinedNotObject).withPos(`{`, "").withType(0, T[jsontext.Value]()),
+		wantErr: EM(errRawEmbedNotObject).withPos(`{`, "").withType(0, T[jsontext.Value]()),
 	}, {
-		name:    jsontest.Name("Structs/InlinedFallback/TextValue/InvalidObjectName"),
-		in:      structInlineTextValue{X: jsontext.Value(` { true : false } `)},
+		name:    jsontest.Name("Structs/EmbeddedFallback/TextValue/InvalidObjectName"),
+		in:      structEmbedTextValue{X: jsontext.Value(` { true : false } `)},
 		want:    `{`,
 		wantErr: EM(newNonStringNameError(len64(" { "), "")).withPos(`{`, "").withType(0, T[jsontext.Value]()),
 	}, {
-		name:    jsontest.Name("Structs/InlinedFallback/TextValue/InvalidEndObject"),
-		in:      structInlineTextValue{X: jsontext.Value(` { "name" : false , } `)},
+		name:    jsontest.Name("Structs/EmbeddedFallback/TextValue/InvalidEndObject"),
+		in:      structEmbedTextValue{X: jsontext.Value(` { "name" : false , } `)},
 		want:    `{"name":false`,
 		wantErr: EM(newInvalidCharacterError(",", "at start of value", len64(` { "name" : false `), "")).withPos(`{"name":false,`, "").withType(0, T[jsontext.Value]()),
 	}, {
-		name:    jsontest.Name("Structs/InlinedFallback/TextValue/InvalidDualObject"),
-		in:      structInlineTextValue{X: jsontext.Value(`{}{}`)},
+		name:    jsontest.Name("Structs/EmbeddedFallback/TextValue/InvalidDualObject"),
+		in:      structEmbedTextValue{X: jsontext.Value(`{}{}`)},
 		want:    `{`,
 		wantErr: EM(newInvalidCharacterError("{", "after top-level value", len64(`{}`), "")).withPos(`{`, "").withType(0, T[jsontext.Value]()),
 	}, {
-		name: jsontest.Name("Structs/InlinedFallback/TextValue/Nested/Nil"),
-		in:   structInlinePointerInlineTextValue{},
+		name: jsontest.Name("Structs/EmbeddedFallback/TextValue/Nested/Nil"),
+		in:   structEmbedPointerEmbedTextValue{},
 		want: `{}`,
 	}, {
-		name: jsontest.Name("Structs/InlinedFallback/PointerTextValue/Nil"),
-		in:   structInlinePointerTextValue{},
+		name: jsontest.Name("Structs/EmbeddedFallback/PointerTextValue/Nil"),
+		in:   structEmbedPointerTextValue{},
 		want: `{}`,
 	}, {
-		name: jsontest.Name("Structs/InlinedFallback/PointerTextValue/NonEmpty"),
-		in:   structInlinePointerTextValue{X: addr(jsontext.Value(` { "fizz" : "buzz" } `))},
+		name: jsontest.Name("Structs/EmbeddedFallback/PointerTextValue/NonEmpty"),
+		in:   structEmbedPointerTextValue{X: addr(jsontext.Value(` { "fizz" : "buzz" } `))},
 		want: `{"fizz":"buzz"}`,
 	}, {
-		name: jsontest.Name("Structs/InlinedFallback/PointerTextValue/Nested/Nil"),
-		in:   structInlineInlinePointerTextValue{},
+		name: jsontest.Name("Structs/EmbeddedFallback/PointerTextValue/Nested/Nil"),
+		in:   structEmbedEmbedPointerTextValue{},
 		want: `{}`,
 	}, {
-		name: jsontest.Name("Structs/InlinedFallback/MapStringAny/Nil"),
-		in:   structInlineMapStringAny{X: nil},
+		name: jsontest.Name("Structs/EmbeddedFallback/MapStringAny/Nil"),
+		in:   structEmbedMapStringAny{X: nil},
 		want: `{}`,
 	}, {
-		name: jsontest.Name("Structs/InlinedFallback/MapStringAny/Empty"),
-		in:   structInlineMapStringAny{X: make(jsonObject)},
+		name: jsontest.Name("Structs/EmbeddedFallback/MapStringAny/Empty"),
+		in:   structEmbedMapStringAny{X: make(jsonObject)},
 		want: `{}`,
 	}, {
-		name: jsontest.Name("Structs/InlinedFallback/MapStringAny/NonEmptyN1"),
-		in:   structInlineMapStringAny{X: jsonObject{"fizz": nil}},
+		name: jsontest.Name("Structs/EmbeddedFallback/MapStringAny/NonEmptyN1"),
+		in:   structEmbedMapStringAny{X: jsonObject{"fizz": nil}},
 		want: `{"fizz":null}`,
 	}, {
-		name:         jsontest.Name("Structs/InlinedFallback/MapStringAny/NonEmptyN2"),
-		in:           structInlineMapStringAny{X: jsonObject{"fizz": time.Time{}, "buzz": math.Pi}},
+		name:         jsontest.Name("Structs/EmbeddedFallback/MapStringAny/NonEmptyN2"),
+		in:           structEmbedMapStringAny{X: jsonObject{"fizz": time.Time{}, "buzz": math.Pi}},
 		want:         `{"buzz":3.141592653589793,"fizz":"0001-01-01T00:00:00Z"}`,
 		canonicalize: true,
 	}, {
-		name: jsontest.Name("Structs/InlinedFallback/MapStringAny/NonEmptyWithOthers"),
-		in: structInlineMapStringAny{
+		name: jsontest.Name("Structs/EmbeddedFallback/MapStringAny/NonEmptyWithOthers"),
+		in: structEmbedMapStringAny{
 			A: 1,
 			X: jsonObject{"fizz": nil},
 			B: 2,
 		},
-		// NOTE: Inlined fallback fields are always serialized last.
+		// NOTE: Embedded fallback fields are always serialized last.
 		want: `{"A":1,"B":2,"fizz":null}`,
 	}, {
-		name:    jsontest.Name("Structs/InlinedFallback/MapStringAny/RejectInvalidUTF8"),
+		name:    jsontest.Name("Structs/EmbeddedFallback/MapStringAny/RejectInvalidUTF8"),
 		opts:    []Options{jsontext.AllowInvalidUTF8(false)},
-		in:      structInlineMapStringAny{X: jsonObject{"\xde\xad\xbe\xef": nil}},
+		in:      structEmbedMapStringAny{X: jsonObject{"\xde\xad\xbe\xef": nil}},
 		want:    `{`,
 		wantErr: EM(jsonwire.ErrInvalidUTF8).withPos(`{`, "").withType(0, stringType),
 	}, {
-		name: jsontest.Name("Structs/InlinedFallback/MapStringAny/AllowInvalidUTF8"),
+		name: jsontest.Name("Structs/EmbeddedFallback/MapStringAny/AllowInvalidUTF8"),
 		opts: []Options{jsontext.AllowInvalidUTF8(true)},
-		in:   structInlineMapStringAny{X: jsonObject{"\xde\xad\xbe\xef": nil}},
+		in:   structEmbedMapStringAny{X: jsonObject{"\xde\xad\xbe\xef": nil}},
 		want: `{"ޭ��":null}`,
 	}, {
-		name:    jsontest.Name("Structs/InlinedFallback/MapStringAny/InvalidValue"),
+		name:    jsontest.Name("Structs/EmbeddedFallback/MapStringAny/InvalidValue"),
 		opts:    []Options{jsontext.AllowInvalidUTF8(true)},
-		in:      structInlineMapStringAny{X: jsonObject{"name": make(chan string)}},
+		in:      structEmbedMapStringAny{X: jsonObject{"name": make(chan string)}},
 		want:    `{"name"`,
 		wantErr: EM(nil).withPos(`{"name":`, "/name").withType(0, T[chan string]()),
 	}, {
-		name: jsontest.Name("Structs/InlinedFallback/MapStringAny/Nested/Nil"),
-		in:   structInlinePointerInlineMapStringAny{},
+		name: jsontest.Name("Structs/EmbeddedFallback/MapStringAny/Nested/Nil"),
+		in:   structEmbedPointerEmbedMapStringAny{},
 		want: `{}`,
 	}, {
-		name: jsontest.Name("Structs/InlinedFallback/MapStringAny/MarshalFunc"),
+		name: jsontest.Name("Structs/EmbeddedFallback/MapStringAny/MarshalFunc"),
 		opts: []Options{
 			WithMarshalers(MarshalFunc(func(v float64) ([]byte, error) {
 				return []byte(fmt.Sprintf(`"%v"`, v)), nil
 			})),
 		},
-		in:   structInlineMapStringAny{X: jsonObject{"fizz": 3.14159}},
+		in:   structEmbedMapStringAny{X: jsonObject{"fizz": 3.14159}},
 		want: `{"fizz":"3.14159"}`,
 	}, {
-		name: jsontest.Name("Structs/InlinedFallback/PointerMapStringAny/Nil"),
-		in:   structInlinePointerMapStringAny{X: nil},
+		name: jsontest.Name("Structs/EmbeddedFallback/PointerMapStringAny/Nil"),
+		in:   structEmbedPointerMapStringAny{X: nil},
 		want: `{}`,
 	}, {
-		name: jsontest.Name("Structs/InlinedFallback/PointerMapStringAny/NonEmpty"),
-		in:   structInlinePointerMapStringAny{X: addr(jsonObject{"name": "value"})},
+		name: jsontest.Name("Structs/EmbeddedFallback/PointerMapStringAny/NonEmpty"),
+		in:   structEmbedPointerMapStringAny{X: addr(jsonObject{"name": "value"})},
 		want: `{"name":"value"}`,
 	}, {
-		name: jsontest.Name("Structs/InlinedFallback/PointerMapStringAny/Nested/Nil"),
-		in:   structInlineInlinePointerMapStringAny{},
+		name: jsontest.Name("Structs/EmbeddedFallback/PointerMapStringAny/Nested/Nil"),
+		in:   structEmbedEmbedPointerMapStringAny{},
 		want: `{}`,
 	}, {
-		name: jsontest.Name("Structs/InlinedFallback/MapStringInt"),
-		in: structInlineMapStringInt{
+		name: jsontest.Name("Structs/EmbeddedFallback/MapStringInt"),
+		in: structEmbedMapStringInt{
 			X: map[string]int{"zero": 0, "one": 1, "two": 2},
 		},
 		want:         `{"one":1,"two":2,"zero":0}`,
 		canonicalize: true,
 	}, {
-		name: jsontest.Name("Structs/InlinedFallback/MapStringInt/Deterministic"),
+		name: jsontest.Name("Structs/EmbeddedFallback/MapStringInt/Deterministic"),
 		opts: []Options{Deterministic(true)},
-		in: structInlineMapStringInt{
+		in: structEmbedMapStringInt{
 			X: map[string]int{"zero": 0, "one": 1, "two": 2},
 		},
 		want: `{"one":1,"two":2,"zero":0}`,
 	}, {
-		name: jsontest.Name("Structs/InlinedFallback/MapStringInt/Deterministic+AllowInvalidUTF8+RejectDuplicateNames"),
+		name: jsontest.Name("Structs/EmbeddedFallback/MapStringInt/Deterministic+AllowInvalidUTF8+RejectDuplicateNames"),
 		opts: []Options{Deterministic(true), jsontext.AllowInvalidUTF8(true), jsontext.AllowDuplicateNames(false)},
-		in: structInlineMapStringInt{
+		in: structEmbedMapStringInt{
 			X: map[string]int{"\xff": 0, "\xfe": 1},
 		},
 		want:    `{"�":1`,
 		wantErr: newDuplicateNameError("", []byte(`"�"`), len64(`{"�":1`)),
 	}, {
-		name: jsontest.Name("Structs/InlinedFallback/MapStringInt/Deterministic+AllowInvalidUTF8+AllowDuplicateNames"),
+		name: jsontest.Name("Structs/EmbeddedFallback/MapStringInt/Deterministic+AllowInvalidUTF8+AllowDuplicateNames"),
 		opts: []Options{Deterministic(true), jsontext.AllowInvalidUTF8(true), jsontext.AllowDuplicateNames(true)},
-		in: structInlineMapStringInt{
+		in: structEmbedMapStringInt{
 			X: map[string]int{"\xff": 0, "\xfe": 1},
 		},
 		want: `{"�":1,"�":0}`,
 	}, {
-		name: jsontest.Name("Structs/InlinedFallback/MapStringInt/StringifiedNumbers"),
+		name: jsontest.Name("Structs/EmbeddedFallback/MapStringInt/StringifiedNumbers"),
 		opts: []Options{StringifyNumbers(true)},
-		in: structInlineMapStringInt{
+		in: structEmbedMapStringInt{
 			X: map[string]int{"zero": 0, "one": 1, "two": 2},
 		},
 		want:         `{"one":"1","two":"2","zero":"0"}`,
 		canonicalize: true,
 	}, {
-		name: jsontest.Name("Structs/InlinedFallback/MapStringInt/MarshalFunc"),
+		name: jsontest.Name("Structs/EmbeddedFallback/MapStringInt/MarshalFunc"),
 		opts: []Options{
 			WithMarshalers(JoinMarshalers(
-				// Marshalers do not affect the string key of inlined maps.
+				// Marshalers do not affect the string key of embedded maps.
 				MarshalFunc(func(v string) ([]byte, error) {
 					return []byte(fmt.Sprintf(`"%q"`, strings.ToUpper(v))), nil
 				}),
@@ -2778,136 +2778,136 @@ func TestMarshal(t *testing.T) {
 				}),
 			)),
 		},
-		in: structInlineMapStringInt{
+		in: structEmbedMapStringInt{
 			X: map[string]int{"zero": 0, "one": 1, "two": 2},
 		},
 		want:         `{"one":"1","two":"2","zero":"0"}`,
 		canonicalize: true,
 	}, {
-		name: jsontest.Name("Structs/InlinedFallback/MapNamedStringInt"),
-		in: structInlineMapNamedStringInt{
+		name: jsontest.Name("Structs/EmbeddedFallback/MapNamedStringInt"),
+		in: structEmbedMapNamedStringInt{
 			X: map[namedString]int{"zero": 0, "one": 1, "two": 2},
 		},
 		want:         `{"one":1,"two":2,"zero":0}`,
 		canonicalize: true,
 	}, {
-		name: jsontest.Name("Structs/InlinedFallback/MapNamedStringInt/Deterministic"),
+		name: jsontest.Name("Structs/EmbeddedFallback/MapNamedStringInt/Deterministic"),
 		opts: []Options{Deterministic(true)},
-		in: structInlineMapNamedStringInt{
+		in: structEmbedMapNamedStringInt{
 			X: map[namedString]int{"zero": 0, "one": 1, "two": 2},
 		},
 		want: `{"one":1,"two":2,"zero":0}`,
 	}, {
-		name: jsontest.Name("Structs/InlinedFallback/MapNamedStringAny/Nil"),
-		in:   structInlineMapNamedStringAny{X: nil},
+		name: jsontest.Name("Structs/EmbeddedFallback/MapNamedStringAny/Nil"),
+		in:   structEmbedMapNamedStringAny{X: nil},
 		want: `{}`,
 	}, {
-		name: jsontest.Name("Structs/InlinedFallback/MapNamedStringAny/Empty"),
-		in:   structInlineMapNamedStringAny{X: make(map[namedString]any)},
+		name: jsontest.Name("Structs/EmbeddedFallback/MapNamedStringAny/Empty"),
+		in:   structEmbedMapNamedStringAny{X: make(map[namedString]any)},
 		want: `{}`,
 	}, {
-		name: jsontest.Name("Structs/InlinedFallback/MapNamedStringAny/NonEmptyN1"),
-		in:   structInlineMapNamedStringAny{X: map[namedString]any{"fizz": nil}},
+		name: jsontest.Name("Structs/EmbeddedFallback/MapNamedStringAny/NonEmptyN1"),
+		in:   structEmbedMapNamedStringAny{X: map[namedString]any{"fizz": nil}},
 		want: `{"fizz":null}`,
 	}, {
-		name:         jsontest.Name("Structs/InlinedFallback/MapNamedStringAny/NonEmptyN2"),
-		in:           structInlineMapNamedStringAny{X: map[namedString]any{"fizz": time.Time{}, "buzz": math.Pi}},
+		name:         jsontest.Name("Structs/EmbeddedFallback/MapNamedStringAny/NonEmptyN2"),
+		in:           structEmbedMapNamedStringAny{X: map[namedString]any{"fizz": time.Time{}, "buzz": math.Pi}},
 		want:         `{"buzz":3.141592653589793,"fizz":"0001-01-01T00:00:00Z"}`,
 		canonicalize: true,
 	}, {
-		name: jsontest.Name("Structs/InlinedFallback/MapNamedStringAny/NonEmptyWithOthers"),
-		in: structInlineMapNamedStringAny{
+		name: jsontest.Name("Structs/EmbeddedFallback/MapNamedStringAny/NonEmptyWithOthers"),
+		in: structEmbedMapNamedStringAny{
 			A: 1,
 			X: map[namedString]any{"fizz": nil},
 			B: 2,
 		},
-		// NOTE: Inlined fallback fields are always serialized last.
+		// NOTE: Embedded fallback fields are always serialized last.
 		want: `{"A":1,"B":2,"fizz":null}`,
 	}, {
-		name:    jsontest.Name("Structs/InlinedFallback/MapNamedStringAny/RejectInvalidUTF8"),
+		name:    jsontest.Name("Structs/EmbeddedFallback/MapNamedStringAny/RejectInvalidUTF8"),
 		opts:    []Options{jsontext.AllowInvalidUTF8(false)},
-		in:      structInlineMapNamedStringAny{X: map[namedString]any{"\xde\xad\xbe\xef": nil}},
+		in:      structEmbedMapNamedStringAny{X: map[namedString]any{"\xde\xad\xbe\xef": nil}},
 		want:    `{`,
 		wantErr: EM(jsonwire.ErrInvalidUTF8).withPos(`{`, "").withType(0, T[namedString]()),
 	}, {
-		name: jsontest.Name("Structs/InlinedFallback/MapNamedStringAny/AllowInvalidUTF8"),
+		name: jsontest.Name("Structs/EmbeddedFallback/MapNamedStringAny/AllowInvalidUTF8"),
 		opts: []Options{jsontext.AllowInvalidUTF8(true)},
-		in:   structInlineMapNamedStringAny{X: map[namedString]any{"\xde\xad\xbe\xef": nil}},
+		in:   structEmbedMapNamedStringAny{X: map[namedString]any{"\xde\xad\xbe\xef": nil}},
 		want: `{"ޭ��":null}`,
 	}, {
-		name:    jsontest.Name("Structs/InlinedFallback/MapNamedStringAny/InvalidValue"),
+		name:    jsontest.Name("Structs/EmbeddedFallback/MapNamedStringAny/InvalidValue"),
 		opts:    []Options{jsontext.AllowInvalidUTF8(true)},
-		in:      structInlineMapNamedStringAny{X: map[namedString]any{"name": make(chan string)}},
+		in:      structEmbedMapNamedStringAny{X: map[namedString]any{"name": make(chan string)}},
 		want:    `{"name"`,
 		wantErr: EM(nil).withPos(`{"name":`, "/name").withType(0, T[chan string]()),
 	}, {
-		name: jsontest.Name("Structs/InlinedFallback/MapNamedStringAny/MarshalFunc"),
+		name: jsontest.Name("Structs/EmbeddedFallback/MapNamedStringAny/MarshalFunc"),
 		opts: []Options{
 			WithMarshalers(MarshalFunc(func(v float64) ([]byte, error) {
 				return []byte(fmt.Sprintf(`"%v"`, v)), nil
 			})),
 		},
-		in:   structInlineMapNamedStringAny{X: map[namedString]any{"fizz": 3.14159}},
+		in:   structEmbedMapNamedStringAny{X: map[namedString]any{"fizz": 3.14159}},
 		want: `{"fizz":"3.14159"}`,
 	}, {
-		name: jsontest.Name("Structs/DuplicateName/NoCaseInlineTextValue/Other"),
-		in: structNoCaseInlineTextValue{
+		name: jsontest.Name("Structs/DuplicateName/NoCaseEmbedTextValue/Other"),
+		in: structNoCaseEmbedTextValue{
 			X: jsontext.Value(`{"dupe":"","dupe":""}`),
 		},
 		want:    `{"dupe":""`,
 		wantErr: newDuplicateNameError("", []byte(`"dupe"`), len64(`{"dupe":""`)),
 	}, {
-		name: jsontest.Name("Structs/DuplicateName/NoCaseInlineTextValue/Other/AllowDuplicateNames"),
+		name: jsontest.Name("Structs/DuplicateName/NoCaseEmbedTextValue/Other/AllowDuplicateNames"),
 		opts: []Options{jsontext.AllowDuplicateNames(true)},
-		in: structNoCaseInlineTextValue{
+		in: structNoCaseEmbedTextValue{
 			X: jsontext.Value(`{"dupe": "", "dupe": ""}`),
 		},
 		want: `{"dupe":"","dupe":""}`,
 	}, {
-		name: jsontest.Name("Structs/DuplicateName/NoCaseInlineTextValue/ExactDifferent"),
-		in: structNoCaseInlineTextValue{
+		name: jsontest.Name("Structs/DuplicateName/NoCaseEmbedTextValue/ExactDifferent"),
+		in: structNoCaseEmbedTextValue{
 			X: jsontext.Value(`{"Aaa": "", "AaA": "", "AAa": "", "AAA": ""}`),
 		},
 		want: `{"Aaa":"","AaA":"","AAa":"","AAA":""}`,
 	}, {
-		name: jsontest.Name("Structs/DuplicateName/NoCaseInlineTextValue/ExactConflict"),
-		in: structNoCaseInlineTextValue{
+		name: jsontest.Name("Structs/DuplicateName/NoCaseEmbedTextValue/ExactConflict"),
+		in: structNoCaseEmbedTextValue{
 			X: jsontext.Value(`{"Aaa": "", "Aaa": ""}`),
 		},
 		want:    `{"Aaa":""`,
 		wantErr: newDuplicateNameError("", []byte(`"Aaa"`), len64(`{"Aaa":""`)),
 	}, {
-		name: jsontest.Name("Structs/DuplicateName/NoCaseInlineTextValue/ExactConflict/AllowDuplicateNames"),
+		name: jsontest.Name("Structs/DuplicateName/NoCaseEmbedTextValue/ExactConflict/AllowDuplicateNames"),
 		opts: []Options{jsontext.AllowDuplicateNames(true)},
-		in: structNoCaseInlineTextValue{
+		in: structNoCaseEmbedTextValue{
 			X: jsontext.Value(`{"Aaa": "", "Aaa": ""}`),
 		},
 		want: `{"Aaa":"","Aaa":""}`,
 	}, {
-		name: jsontest.Name("Structs/DuplicateName/NoCaseInlineTextValue/NoCaseConflict"),
-		in: structNoCaseInlineTextValue{
+		name: jsontest.Name("Structs/DuplicateName/NoCaseEmbedTextValue/NoCaseConflict"),
+		in: structNoCaseEmbedTextValue{
 			X: jsontext.Value(`{"Aaa": "", "AaA": "", "aaa": ""}`),
 		},
 		want:    `{"Aaa":"","AaA":""`,
 		wantErr: newDuplicateNameError("", []byte(`"aaa"`), len64(`{"Aaa":"","AaA":""`)),
 	}, {
-		name: jsontest.Name("Structs/DuplicateName/NoCaseInlineTextValue/NoCaseConflict/AllowDuplicateNames"),
+		name: jsontest.Name("Structs/DuplicateName/NoCaseEmbedTextValue/NoCaseConflict/AllowDuplicateNames"),
 		opts: []Options{jsontext.AllowDuplicateNames(true)},
-		in: structNoCaseInlineTextValue{
+		in: structNoCaseEmbedTextValue{
 			X: jsontext.Value(`{"Aaa": "", "AaA": "", "aaa": ""}`),
 		},
 		want: `{"Aaa":"","AaA":"","aaa":""}`,
 	}, {
-		name: jsontest.Name("Structs/DuplicateName/NoCaseInlineTextValue/ExactDifferentWithField"),
-		in: structNoCaseInlineTextValue{
+		name: jsontest.Name("Structs/DuplicateName/NoCaseEmbedTextValue/ExactDifferentWithField"),
+		in: structNoCaseEmbedTextValue{
 			AAA: "x",
 			AaA: "x",
 			X:   jsontext.Value(`{"Aaa": ""}`),
 		},
 		want: `{"AAA":"x","AaA":"x","Aaa":""}`,
 	}, {
-		name: jsontest.Name("Structs/DuplicateName/NoCaseInlineTextValue/ExactConflictWithField"),
-		in: structNoCaseInlineTextValue{
+		name: jsontest.Name("Structs/DuplicateName/NoCaseEmbedTextValue/ExactConflictWithField"),
+		in: structNoCaseEmbedTextValue{
 			AAA: "x",
 			AaA: "x",
 			X:   jsontext.Value(`{"AAA": ""}`),
@@ -2915,8 +2915,8 @@ func TestMarshal(t *testing.T) {
 		want:    `{"AAA":"x","AaA":"x"`,
 		wantErr: newDuplicateNameError("", []byte(`"AAA"`), len64(`{"AAA":"x","AaA":"x"`)),
 	}, {
-		name: jsontest.Name("Structs/DuplicateName/NoCaseInlineTextValue/NoCaseConflictWithField"),
-		in: structNoCaseInlineTextValue{
+		name: jsontest.Name("Structs/DuplicateName/NoCaseEmbedTextValue/NoCaseConflictWithField"),
+		in: structNoCaseEmbedTextValue{
 			AAA: "x",
 			AaA: "x",
 			X:   jsontext.Value(`{"aaa": ""}`),
@@ -2925,7 +2925,7 @@ func TestMarshal(t *testing.T) {
 		wantErr: newDuplicateNameError("", []byte(`"aaa"`), len64(`{"AAA":"x","AaA":"x"`)),
 	}, {
 		name: jsontest.Name("Structs/DuplicateName/MatchCaseInsensitiveDelimiter"),
-		in: structNoCaseInlineTextValue{
+		in: structNoCaseEmbedTextValue{
 			AaA: "x",
 			X:   jsontext.Value(`{"aa_a": ""}`),
 		},
@@ -2934,7 +2934,7 @@ func TestMarshal(t *testing.T) {
 	}, {
 		name: jsontest.Name("Structs/DuplicateName/MatchCaseSensitiveDelimiter"),
 		opts: []Options{jsonflags.MatchCaseSensitiveDelimiter | 1},
-		in: structNoCaseInlineTextValue{
+		in: structNoCaseEmbedTextValue{
 			AaA: "x",
 			X:   jsontext.Value(`{"aa_a": ""}`),
 		},
@@ -2942,7 +2942,7 @@ func TestMarshal(t *testing.T) {
 	}, {
 		name: jsontest.Name("Structs/DuplicateName/MatchCaseInsensitiveNames+MatchCaseSensitiveDelimiter"),
 		opts: []Options{MatchCaseInsensitiveNames(true), jsonflags.MatchCaseSensitiveDelimiter | 1},
-		in: structNoCaseInlineTextValue{
+		in: structNoCaseEmbedTextValue{
 			AaA: "x",
 			X:   jsontext.Value(`{"aa_a": ""}`),
 		},
@@ -2950,30 +2950,30 @@ func TestMarshal(t *testing.T) {
 	}, {
 		name: jsontest.Name("Structs/DuplicateName/MatchCaseInsensitiveNames+MatchCaseSensitiveDelimiter"),
 		opts: []Options{MatchCaseInsensitiveNames(true), jsonflags.MatchCaseSensitiveDelimiter | 1},
-		in: structNoCaseInlineTextValue{
+		in: structNoCaseEmbedTextValue{
 			AA_b: "x",
 			X:    jsontext.Value(`{"aa_b": ""}`),
 		},
 		want:    `{"AA_b":"x"`,
 		wantErr: newDuplicateNameError("", []byte(`"aa_b"`), len64(`{"AA_b":"x"`)),
 	}, {
-		name: jsontest.Name("Structs/DuplicateName/NoCaseInlineMapStringAny/ExactDifferent"),
-		in: structNoCaseInlineMapStringAny{
+		name: jsontest.Name("Structs/DuplicateName/NoCaseEmbedMapStringAny/ExactDifferent"),
+		in: structNoCaseEmbedMapStringAny{
 			X: jsonObject{"Aaa": "", "AaA": "", "AAa": "", "AAA": ""},
 		},
 		want:         `{"AAA":"","AAa":"","AaA":"","Aaa":""}`,
 		canonicalize: true,
 	}, {
-		name: jsontest.Name("Structs/DuplicateName/NoCaseInlineMapStringAny/ExactDifferentWithField"),
-		in: structNoCaseInlineMapStringAny{
+		name: jsontest.Name("Structs/DuplicateName/NoCaseEmbedMapStringAny/ExactDifferentWithField"),
+		in: structNoCaseEmbedMapStringAny{
 			AAA: "x",
 			AaA: "x",
 			X:   jsonObject{"Aaa": ""},
 		},
 		want: `{"AAA":"x","AaA":"x","Aaa":""}`,
 	}, {
-		name: jsontest.Name("Structs/DuplicateName/NoCaseInlineMapStringAny/ExactConflictWithField"),
-		in: structNoCaseInlineMapStringAny{
+		name: jsontest.Name("Structs/DuplicateName/NoCaseEmbedMapStringAny/ExactConflictWithField"),
+		in: structNoCaseEmbedMapStringAny{
 			AAA: "x",
 			AaA: "x",
 			X:   jsonObject{"AAA": ""},
@@ -2981,8 +2981,8 @@ func TestMarshal(t *testing.T) {
 		want:    `{"AAA":"x","AaA":"x"`,
 		wantErr: newDuplicateNameError("", []byte(`"AAA"`), len64(`{"AAA":"x","AaA":"x"`)),
 	}, {
-		name: jsontest.Name("Structs/DuplicateName/NoCaseInlineMapStringAny/NoCaseConflictWithField"),
-		in: structNoCaseInlineMapStringAny{
+		name: jsontest.Name("Structs/DuplicateName/NoCaseEmbedMapStringAny/NoCaseConflictWithField"),
+		in: structNoCaseEmbedMapStringAny{
 			AAA: "x",
 			AaA: "x",
 			X:   jsonObject{"aaa": ""},
@@ -4014,10 +4014,10 @@ func TestMarshal(t *testing.T) {
 		in:   structOmitZeroAll{},
 		want: `{}`,
 	}, {
-		name: jsontest.Name("Functions/Struct/Inlined"),
+		name: jsontest.Name("Functions/Struct/Embedded"),
 		opts: []Options{
 			WithMarshalers(JoinMarshalers(
-				MarshalFunc(func(v structInlinedL1) ([]byte, error) {
+				MarshalFunc(func(v structEmbeddedL1) ([]byte, error) {
 					panic("should not be called")
 				}),
 				MarshalToFunc(func(enc *jsontext.Encoder, v *StructEmbed2) error {
@@ -4025,7 +4025,7 @@ func TestMarshal(t *testing.T) {
 				}),
 			)),
 		},
-		in:   structInlined{},
+		in:   structEmbedded{},
 		want: `{"D":""}`,
 	}, {
 		name: jsontest.Name("Functions/Slice/Elem"),
@@ -6731,265 +6731,265 @@ func TestUnmarshal(t *testing.T) {
 		inVal:   new(structFormatInvalid),
 		wantErr: EU(errInvalidFormatFlag).withPos(`{"Interface": `, "/Interface").withType(0, T[any]()),
 	}, {
-		name:  jsontest.Name("Structs/Inline/Zero"),
+		name:  jsontest.Name("Structs/Embed/Zero"),
 		inBuf: `{"D":""}`,
-		inVal: new(structInlined),
-		want:  new(structInlined),
+		inVal: new(structEmbedded),
+		want:  new(structEmbedded),
 	}, {
-		name:  jsontest.Name("Structs/Inline/Alloc"),
+		name:  jsontest.Name("Structs/Embed/Alloc"),
 		inBuf: `{"E":"","F":"","G":"","A":"","B":"","D":""}`,
-		inVal: new(structInlined),
-		want: addr(structInlined{
-			X: structInlinedL1{
-				X:            &structInlinedL2{},
+		inVal: new(structEmbedded),
+		want: addr(structEmbedded{
+			X: structEmbeddedL1{
+				X:            &structEmbeddedL2{},
 				StructEmbed1: StructEmbed1{},
 			},
 			StructEmbed2: &StructEmbed2{},
 		}),
 	}, {
-		name:  jsontest.Name("Structs/Inline/NonZero"),
+		name:  jsontest.Name("Structs/Embed/NonZero"),
 		inBuf: `{"E":"E3","F":"F3","G":"G3","A":"A1","B":"B1","D":"D2"}`,
-		inVal: new(structInlined),
-		want: addr(structInlined{
-			X: structInlinedL1{
-				X:            &structInlinedL2{A: "A1", B: "B1" /* C: "C1" */},
+		inVal: new(structEmbedded),
+		want: addr(structEmbedded{
+			X: structEmbeddedL1{
+				X:            &structEmbeddedL2{A: "A1", B: "B1" /* C: "C1" */},
 				StructEmbed1: StructEmbed1{ /* C: "C2" */ D: "D2" /* E: "E2" */},
 			},
 			StructEmbed2: &StructEmbed2{E: "E3", F: "F3", G: "G3"},
 		}),
 	}, {
-		name:  jsontest.Name("Structs/Inline/Merge"),
+		name:  jsontest.Name("Structs/Embed/Merge"),
 		inBuf: `{"E":"E3","F":"F3","G":"G3","A":"A1","B":"B1","D":"D2"}`,
-		inVal: addr(structInlined{
-			X: structInlinedL1{
-				X:            &structInlinedL2{B: "##", C: "C1"},
+		inVal: addr(structEmbedded{
+			X: structEmbeddedL1{
+				X:            &structEmbeddedL2{B: "##", C: "C1"},
 				StructEmbed1: StructEmbed1{C: "C2", E: "E2"},
 			},
 			StructEmbed2: &StructEmbed2{E: "##", G: "G3"},
 		}),
-		want: addr(structInlined{
-			X: structInlinedL1{
-				X:            &structInlinedL2{A: "A1", B: "B1", C: "C1"},
+		want: addr(structEmbedded{
+			X: structEmbeddedL1{
+				X:            &structEmbeddedL2{A: "A1", B: "B1", C: "C1"},
 				StructEmbed1: StructEmbed1{C: "C2", D: "D2", E: "E2"},
 			},
 			StructEmbed2: &StructEmbed2{E: "E3", F: "F3", G: "G3"},
 		}),
 	}, {
-		name:  jsontest.Name("Structs/InlinedFallback/TextValue/Noop"),
+		name:  jsontest.Name("Structs/EmbeddedFallback/TextValue/Noop"),
 		inBuf: `{"A":1,"B":2}`,
-		inVal: new(structInlineTextValue),
-		want:  addr(structInlineTextValue{A: 1, X: jsontext.Value(nil), B: 2}),
+		inVal: new(structEmbedTextValue),
+		want:  addr(structEmbedTextValue{A: 1, X: jsontext.Value(nil), B: 2}),
 	}, {
-		name:  jsontest.Name("Structs/InlinedFallback/TextValue/MergeN1/Nil"),
+		name:  jsontest.Name("Structs/EmbeddedFallback/TextValue/MergeN1/Nil"),
 		inBuf: `{"A":1,"fizz":"buzz","B":2}`,
-		inVal: new(structInlineTextValue),
-		want:  addr(structInlineTextValue{A: 1, X: jsontext.Value(`{"fizz":"buzz"}`), B: 2}),
+		inVal: new(structEmbedTextValue),
+		want:  addr(structEmbedTextValue{A: 1, X: jsontext.Value(`{"fizz":"buzz"}`), B: 2}),
 	}, {
-		name:  jsontest.Name("Structs/InlinedFallback/TextValue/MergeN1/Empty"),
+		name:  jsontest.Name("Structs/EmbeddedFallback/TextValue/MergeN1/Empty"),
 		inBuf: `{"A":1,"fizz":"buzz","B":2}`,
-		inVal: addr(structInlineTextValue{X: jsontext.Value{}}),
-		want:  addr(structInlineTextValue{A: 1, X: jsontext.Value(`{"fizz":"buzz"}`), B: 2}),
+		inVal: addr(structEmbedTextValue{X: jsontext.Value{}}),
+		want:  addr(structEmbedTextValue{A: 1, X: jsontext.Value(`{"fizz":"buzz"}`), B: 2}),
 	}, {
-		name:    jsontest.Name("Structs/InlinedFallback/TextValue/MergeN1/Whitespace"),
+		name:    jsontest.Name("Structs/EmbeddedFallback/TextValue/MergeN1/Whitespace"),
 		inBuf:   `{"A":1,"fizz":"buzz","B":2}`,
-		inVal:   addr(structInlineTextValue{X: jsontext.Value("\n\r\t ")}),
-		want:    addr(structInlineTextValue{A: 1, X: jsontext.Value("")}),
-		wantErr: EU(errRawInlinedNotObject).withPos(`{"A":1,`, "/fizz").withType('"', T[jsontext.Value]()),
+		inVal:   addr(structEmbedTextValue{X: jsontext.Value("\n\r\t ")}),
+		want:    addr(structEmbedTextValue{A: 1, X: jsontext.Value("")}),
+		wantErr: EU(errRawEmbedNotObject).withPos(`{"A":1,`, "/fizz").withType('"', T[jsontext.Value]()),
 	}, {
-		name:    jsontest.Name("Structs/InlinedFallback/TextValue/MergeN1/Null"),
+		name:    jsontest.Name("Structs/EmbeddedFallback/TextValue/MergeN1/Null"),
 		inBuf:   `{"A":1,"fizz":"buzz","B":2}`,
-		inVal:   addr(structInlineTextValue{X: jsontext.Value("null")}),
-		want:    addr(structInlineTextValue{A: 1, X: jsontext.Value("null")}),
-		wantErr: EU(errRawInlinedNotObject).withPos(`{"A":1,`, "/fizz").withType('"', T[jsontext.Value]()),
+		inVal:   addr(structEmbedTextValue{X: jsontext.Value("null")}),
+		want:    addr(structEmbedTextValue{A: 1, X: jsontext.Value("null")}),
+		wantErr: EU(errRawEmbedNotObject).withPos(`{"A":1,`, "/fizz").withType('"', T[jsontext.Value]()),
 	}, {
-		name:  jsontest.Name("Structs/InlinedFallback/TextValue/MergeN1/ObjectN0"),
+		name:  jsontest.Name("Structs/EmbeddedFallback/TextValue/MergeN1/ObjectN0"),
 		inBuf: `{"A":1,"fizz":"buzz","B":2}`,
-		inVal: addr(structInlineTextValue{X: jsontext.Value(` { } `)}),
-		want:  addr(structInlineTextValue{A: 1, X: jsontext.Value(` {"fizz":"buzz"}`), B: 2}),
+		inVal: addr(structEmbedTextValue{X: jsontext.Value(` { } `)}),
+		want:  addr(structEmbedTextValue{A: 1, X: jsontext.Value(` {"fizz":"buzz"}`), B: 2}),
 	}, {
-		name:  jsontest.Name("Structs/InlinedFallback/TextValue/MergeN2/ObjectN1"),
+		name:  jsontest.Name("Structs/EmbeddedFallback/TextValue/MergeN2/ObjectN1"),
 		inBuf: `{"A":1,"fizz":"buzz","B":2,"foo": [ 1 , 2 , 3 ]}`,
-		inVal: addr(structInlineTextValue{X: jsontext.Value(` { "fizz" : "buzz" } `)}),
-		want:  addr(structInlineTextValue{A: 1, X: jsontext.Value(` { "fizz" : "buzz","fizz":"buzz","foo":[ 1 , 2 , 3 ]}`), B: 2}),
+		inVal: addr(structEmbedTextValue{X: jsontext.Value(` { "fizz" : "buzz" } `)}),
+		want:  addr(structEmbedTextValue{A: 1, X: jsontext.Value(` { "fizz" : "buzz","fizz":"buzz","foo":[ 1 , 2 , 3 ]}`), B: 2}),
 	}, {
-		name:  jsontest.Name("Structs/InlinedFallback/TextValue/Merge/EndObject"),
+		name:  jsontest.Name("Structs/EmbeddedFallback/TextValue/Merge/EndObject"),
 		inBuf: `{"A":1,"fizz":"buzz","B":2}`,
-		inVal: addr(structInlineTextValue{X: jsontext.Value(` } `)}),
+		inVal: addr(structEmbedTextValue{X: jsontext.Value(` } `)}),
 		// NOTE: This produces invalid output,
 		// but the value being merged into is already invalid.
-		want: addr(structInlineTextValue{A: 1, X: jsontext.Value(`,"fizz":"buzz"}`), B: 2}),
+		want: addr(structEmbedTextValue{A: 1, X: jsontext.Value(`,"fizz":"buzz"}`), B: 2}),
 	}, {
-		name:    jsontest.Name("Structs/InlinedFallback/TextValue/MergeInvalidValue"),
+		name:    jsontest.Name("Structs/EmbeddedFallback/TextValue/MergeInvalidValue"),
 		inBuf:   `{"A":1,"fizz":nil,"B":2}`,
-		inVal:   new(structInlineTextValue),
-		want:    addr(structInlineTextValue{A: 1, X: jsontext.Value(`{"fizz":`)}),
+		inVal:   new(structEmbedTextValue),
+		want:    addr(structEmbedTextValue{A: 1, X: jsontext.Value(`{"fizz":`)}),
 		wantErr: newInvalidCharacterError("i", "in literal null (expecting 'u')", len64(`{"A":1,"fizz":n`), "/fizz"),
 	}, {
-		name:  jsontest.Name("Structs/InlinedFallback/TextValue/CaseSensitive"),
+		name:  jsontest.Name("Structs/EmbeddedFallback/TextValue/CaseSensitive"),
 		inBuf: `{"A":1,"fizz":"buzz","B":2,"a":3}`,
-		inVal: new(structInlineTextValue),
-		want:  addr(structInlineTextValue{A: 1, X: jsontext.Value(`{"fizz":"buzz","a":3}`), B: 2}),
+		inVal: new(structEmbedTextValue),
+		want:  addr(structEmbedTextValue{A: 1, X: jsontext.Value(`{"fizz":"buzz","a":3}`), B: 2}),
 	}, {
-		name:    jsontest.Name("Structs/InlinedFallback/TextValue/RejectDuplicateNames"),
+		name:    jsontest.Name("Structs/EmbeddedFallback/TextValue/RejectDuplicateNames"),
 		opts:    []Options{jsontext.AllowDuplicateNames(false)},
 		inBuf:   `{"A":1,"fizz":"buzz","B":2,"fizz":"buzz"}`,
-		inVal:   new(structInlineTextValue),
-		want:    addr(structInlineTextValue{A: 1, X: jsontext.Value(`{"fizz":"buzz"}`), B: 2}),
+		inVal:   new(structEmbedTextValue),
+		want:    addr(structEmbedTextValue{A: 1, X: jsontext.Value(`{"fizz":"buzz"}`), B: 2}),
 		wantErr: newDuplicateNameError("", []byte(`"fizz"`), len64(`{"A":1,"fizz":"buzz","B":2,`)),
 	}, {
-		name:  jsontest.Name("Structs/InlinedFallback/TextValue/AllowDuplicateNames"),
+		name:  jsontest.Name("Structs/EmbeddedFallback/TextValue/AllowDuplicateNames"),
 		opts:  []Options{jsontext.AllowDuplicateNames(true)},
 		inBuf: `{"A":1,"fizz":"buzz","B":2,"fizz":"buzz"}`,
-		inVal: new(structInlineTextValue),
-		want:  addr(structInlineTextValue{A: 1, X: jsontext.Value(`{"fizz":"buzz","fizz":"buzz"}`), B: 2}),
+		inVal: new(structEmbedTextValue),
+		want:  addr(structEmbedTextValue{A: 1, X: jsontext.Value(`{"fizz":"buzz","fizz":"buzz"}`), B: 2}),
 	}, {
-		name:  jsontest.Name("Structs/InlinedFallback/TextValue/Nested/Noop"),
+		name:  jsontest.Name("Structs/EmbeddedFallback/TextValue/Nested/Noop"),
 		inBuf: `{}`,
-		inVal: new(structInlinePointerInlineTextValue),
-		want:  new(structInlinePointerInlineTextValue),
+		inVal: new(structEmbedPointerEmbedTextValue),
+		want:  new(structEmbedPointerEmbedTextValue),
 	}, {
-		name:  jsontest.Name("Structs/InlinedFallback/TextValue/Nested/Alloc"),
+		name:  jsontest.Name("Structs/EmbeddedFallback/TextValue/Nested/Alloc"),
 		inBuf: `{"A":1,"fizz":"buzz"}`,
-		inVal: new(structInlinePointerInlineTextValue),
-		want: addr(structInlinePointerInlineTextValue{
+		inVal: new(structEmbedPointerEmbedTextValue),
+		want: addr(structEmbedPointerEmbedTextValue{
 			X: &struct {
 				A int
-				X jsontext.Value `json:",inline"`
+				X jsontext.Value `json:",embed"`
 			}{A: 1, X: jsontext.Value(`{"fizz":"buzz"}`)},
 		}),
 	}, {
-		name:  jsontest.Name("Structs/InlinedFallback/TextValue/Nested/Merge"),
+		name:  jsontest.Name("Structs/EmbeddedFallback/TextValue/Nested/Merge"),
 		inBuf: `{"fizz":"buzz"}`,
-		inVal: addr(structInlinePointerInlineTextValue{
+		inVal: addr(structEmbedPointerEmbedTextValue{
 			X: &struct {
 				A int
-				X jsontext.Value `json:",inline"`
+				X jsontext.Value `json:",embed"`
 			}{A: 1},
 		}),
-		want: addr(structInlinePointerInlineTextValue{
+		want: addr(structEmbedPointerEmbedTextValue{
 			X: &struct {
 				A int
-				X jsontext.Value `json:",inline"`
+				X jsontext.Value `json:",embed"`
 			}{A: 1, X: jsontext.Value(`{"fizz":"buzz"}`)},
 		}),
 	}, {
-		name:  jsontest.Name("Structs/InlinedFallback/PointerTextValue/Noop"),
+		name:  jsontest.Name("Structs/EmbeddedFallback/PointerTextValue/Noop"),
 		inBuf: `{"A":1,"B":2}`,
-		inVal: new(structInlinePointerTextValue),
-		want:  addr(structInlinePointerTextValue{A: 1, X: nil, B: 2}),
+		inVal: new(structEmbedPointerTextValue),
+		want:  addr(structEmbedPointerTextValue{A: 1, X: nil, B: 2}),
 	}, {
-		name:  jsontest.Name("Structs/InlinedFallback/PointerTextValue/Alloc"),
+		name:  jsontest.Name("Structs/EmbeddedFallback/PointerTextValue/Alloc"),
 		inBuf: `{"A":1,"fizz":"buzz","B":2}`,
-		inVal: new(structInlinePointerTextValue),
-		want:  addr(structInlinePointerTextValue{A: 1, X: addr(jsontext.Value(`{"fizz":"buzz"}`)), B: 2}),
+		inVal: new(structEmbedPointerTextValue),
+		want:  addr(structEmbedPointerTextValue{A: 1, X: addr(jsontext.Value(`{"fizz":"buzz"}`)), B: 2}),
 	}, {
-		name:  jsontest.Name("Structs/InlinedFallback/PointerTextValue/Merge"),
+		name:  jsontest.Name("Structs/EmbeddedFallback/PointerTextValue/Merge"),
 		inBuf: `{"A":1,"fizz":"buzz","B":2}`,
-		inVal: addr(structInlinePointerTextValue{X: addr(jsontext.Value(`{"fizz":"buzz"}`))}),
-		want:  addr(structInlinePointerTextValue{A: 1, X: addr(jsontext.Value(`{"fizz":"buzz","fizz":"buzz"}`)), B: 2}),
+		inVal: addr(structEmbedPointerTextValue{X: addr(jsontext.Value(`{"fizz":"buzz"}`))}),
+		want:  addr(structEmbedPointerTextValue{A: 1, X: addr(jsontext.Value(`{"fizz":"buzz","fizz":"buzz"}`)), B: 2}),
 	}, {
-		name:  jsontest.Name("Structs/InlinedFallback/PointerTextValue/Nested/Nil"),
+		name:  jsontest.Name("Structs/EmbeddedFallback/PointerTextValue/Nested/Nil"),
 		inBuf: `{"fizz":"buzz"}`,
-		inVal: new(structInlineInlinePointerTextValue),
-		want: addr(structInlineInlinePointerTextValue{
+		inVal: new(structEmbedEmbedPointerTextValue),
+		want: addr(structEmbedEmbedPointerTextValue{
 			X: struct {
-				X *jsontext.Value `json:",inline"`
+				X *jsontext.Value `json:",embed"`
 			}{X: addr(jsontext.Value(`{"fizz":"buzz"}`))},
 		}),
 	}, {
-		name:  jsontest.Name("Structs/InlinedFallback/MapStringAny/Noop"),
+		name:  jsontest.Name("Structs/EmbeddedFallback/MapStringAny/Noop"),
 		inBuf: `{"A":1,"B":2}`,
-		inVal: new(structInlineMapStringAny),
-		want:  addr(structInlineMapStringAny{A: 1, X: nil, B: 2}),
+		inVal: new(structEmbedMapStringAny),
+		want:  addr(structEmbedMapStringAny{A: 1, X: nil, B: 2}),
 	}, {
-		name:  jsontest.Name("Structs/InlinedFallback/MapStringAny/MergeN1/Nil"),
+		name:  jsontest.Name("Structs/EmbeddedFallback/MapStringAny/MergeN1/Nil"),
 		inBuf: `{"A":1,"fizz":"buzz","B":2}`,
-		inVal: new(structInlineMapStringAny),
-		want:  addr(structInlineMapStringAny{A: 1, X: jsonObject{"fizz": "buzz"}, B: 2}),
+		inVal: new(structEmbedMapStringAny),
+		want:  addr(structEmbedMapStringAny{A: 1, X: jsonObject{"fizz": "buzz"}, B: 2}),
 	}, {
-		name:  jsontest.Name("Structs/InlinedFallback/MapStringAny/MergeN1/Empty"),
+		name:  jsontest.Name("Structs/EmbeddedFallback/MapStringAny/MergeN1/Empty"),
 		inBuf: `{"A":1,"fizz":"buzz","B":2}`,
-		inVal: addr(structInlineMapStringAny{X: jsonObject{}}),
-		want:  addr(structInlineMapStringAny{A: 1, X: jsonObject{"fizz": "buzz"}, B: 2}),
+		inVal: addr(structEmbedMapStringAny{X: jsonObject{}}),
+		want:  addr(structEmbedMapStringAny{A: 1, X: jsonObject{"fizz": "buzz"}, B: 2}),
 	}, {
-		name:  jsontest.Name("Structs/InlinedFallback/MapStringAny/MergeN1/ObjectN1"),
+		name:  jsontest.Name("Structs/EmbeddedFallback/MapStringAny/MergeN1/ObjectN1"),
 		inBuf: `{"A":1,"fizz":{"charlie":"DELTA","echo":"foxtrot"},"B":2}`,
-		inVal: addr(structInlineMapStringAny{X: jsonObject{"fizz": jsonObject{
+		inVal: addr(structEmbedMapStringAny{X: jsonObject{"fizz": jsonObject{
 			"alpha":   "bravo",
 			"charlie": "delta",
 		}}}),
-		want: addr(structInlineMapStringAny{A: 1, X: jsonObject{"fizz": jsonObject{
+		want: addr(structEmbedMapStringAny{A: 1, X: jsonObject{"fizz": jsonObject{
 			"alpha":   "bravo",
 			"charlie": "DELTA",
 			"echo":    "foxtrot",
 		}}, B: 2}),
 	}, {
-		name:  jsontest.Name("Structs/InlinedFallback/MapStringAny/MergeN2/ObjectN1"),
+		name:  jsontest.Name("Structs/EmbeddedFallback/MapStringAny/MergeN2/ObjectN1"),
 		inBuf: `{"A":1,"fizz":"buzz","B":2,"foo": [ 1 , 2 , 3 ]}`,
-		inVal: addr(structInlineMapStringAny{X: jsonObject{"fizz": "wuzz"}}),
-		want:  addr(structInlineMapStringAny{A: 1, X: jsonObject{"fizz": "buzz", "foo": jsonArray{1.0, 2.0, 3.0}}, B: 2}),
+		inVal: addr(structEmbedMapStringAny{X: jsonObject{"fizz": "wuzz"}}),
+		want:  addr(structEmbedMapStringAny{A: 1, X: jsonObject{"fizz": "buzz", "foo": jsonArray{1.0, 2.0, 3.0}}, B: 2}),
 	}, {
-		name:    jsontest.Name("Structs/InlinedFallback/MapStringAny/MergeInvalidValue"),
+		name:    jsontest.Name("Structs/EmbeddedFallback/MapStringAny/MergeInvalidValue"),
 		inBuf:   `{"A":1,"fizz":nil,"B":2}`,
-		inVal:   new(structInlineMapStringAny),
-		want:    addr(structInlineMapStringAny{A: 1, X: jsonObject{"fizz": nil}}),
+		inVal:   new(structEmbedMapStringAny),
+		want:    addr(structEmbedMapStringAny{A: 1, X: jsonObject{"fizz": nil}}),
 		wantErr: newInvalidCharacterError("i", "in literal null (expecting 'u')", len64(`{"A":1,"fizz":n`), "/fizz"),
 	}, {
-		name:    jsontest.Name("Structs/InlinedFallback/MapStringAny/MergeInvalidValue/Existing"),
+		name:    jsontest.Name("Structs/EmbeddedFallback/MapStringAny/MergeInvalidValue/Existing"),
 		inBuf:   `{"A":1,"fizz":nil,"B":2}`,
-		inVal:   addr(structInlineMapStringAny{A: 1, X: jsonObject{"fizz": true}}),
-		want:    addr(structInlineMapStringAny{A: 1, X: jsonObject{"fizz": true}}),
+		inVal:   addr(structEmbedMapStringAny{A: 1, X: jsonObject{"fizz": true}}),
+		want:    addr(structEmbedMapStringAny{A: 1, X: jsonObject{"fizz": true}}),
 		wantErr: newInvalidCharacterError("i", "in literal null (expecting 'u')", len64(`{"A":1,"fizz":n`), "/fizz"),
 	}, {
-		name:  jsontest.Name("Structs/InlinedFallback/MapStringAny/CaseSensitive"),
+		name:  jsontest.Name("Structs/EmbeddedFallback/MapStringAny/CaseSensitive"),
 		inBuf: `{"A":1,"fizz":"buzz","B":2,"a":3}`,
-		inVal: new(structInlineMapStringAny),
-		want:  addr(structInlineMapStringAny{A: 1, X: jsonObject{"fizz": "buzz", "a": 3.0}, B: 2}),
+		inVal: new(structEmbedMapStringAny),
+		want:  addr(structEmbedMapStringAny{A: 1, X: jsonObject{"fizz": "buzz", "a": 3.0}, B: 2}),
 	}, {
-		name:    jsontest.Name("Structs/InlinedFallback/MapStringAny/RejectDuplicateNames"),
+		name:    jsontest.Name("Structs/EmbeddedFallback/MapStringAny/RejectDuplicateNames"),
 		opts:    []Options{jsontext.AllowDuplicateNames(false)},
 		inBuf:   `{"A":1,"fizz":"buzz","B":2,"fizz":"buzz"}`,
-		inVal:   new(structInlineMapStringAny),
-		want:    addr(structInlineMapStringAny{A: 1, X: jsonObject{"fizz": "buzz"}, B: 2}),
+		inVal:   new(structEmbedMapStringAny),
+		want:    addr(structEmbedMapStringAny{A: 1, X: jsonObject{"fizz": "buzz"}, B: 2}),
 		wantErr: newDuplicateNameError("", []byte(`"fizz"`), len64(`{"A":1,"fizz":"buzz","B":2,`)),
 	}, {
-		name:  jsontest.Name("Structs/InlinedFallback/MapStringAny/AllowDuplicateNames"),
+		name:  jsontest.Name("Structs/EmbeddedFallback/MapStringAny/AllowDuplicateNames"),
 		opts:  []Options{jsontext.AllowDuplicateNames(true)},
 		inBuf: `{"A":1,"fizz":{"one":1,"two":-2},"B":2,"fizz":{"two":2,"three":3}}`,
-		inVal: new(structInlineMapStringAny),
-		want:  addr(structInlineMapStringAny{A: 1, X: jsonObject{"fizz": jsonObject{"one": 1.0, "two": 2.0, "three": 3.0}}, B: 2}),
+		inVal: new(structEmbedMapStringAny),
+		want:  addr(structEmbedMapStringAny{A: 1, X: jsonObject{"fizz": jsonObject{"one": 1.0, "two": 2.0, "three": 3.0}}, B: 2}),
 	}, {
-		name:  jsontest.Name("Structs/InlinedFallback/MapStringAny/Nested/Noop"),
+		name:  jsontest.Name("Structs/EmbeddedFallback/MapStringAny/Nested/Noop"),
 		inBuf: `{}`,
-		inVal: new(structInlinePointerInlineMapStringAny),
-		want:  new(structInlinePointerInlineMapStringAny),
+		inVal: new(structEmbedPointerEmbedMapStringAny),
+		want:  new(structEmbedPointerEmbedMapStringAny),
 	}, {
-		name:  jsontest.Name("Structs/InlinedFallback/MapStringAny/Nested/Alloc"),
+		name:  jsontest.Name("Structs/EmbeddedFallback/MapStringAny/Nested/Alloc"),
 		inBuf: `{"A":1,"fizz":"buzz"}`,
-		inVal: new(structInlinePointerInlineMapStringAny),
-		want: addr(structInlinePointerInlineMapStringAny{
+		inVal: new(structEmbedPointerEmbedMapStringAny),
+		want: addr(structEmbedPointerEmbedMapStringAny{
 			X: &struct {
 				A int
-				X jsonObject `json:",inline"`
+				X jsonObject `json:",embed"`
 			}{A: 1, X: jsonObject{"fizz": "buzz"}},
 		}),
 	}, {
-		name:  jsontest.Name("Structs/InlinedFallback/MapStringAny/Nested/Merge"),
+		name:  jsontest.Name("Structs/EmbeddedFallback/MapStringAny/Nested/Merge"),
 		inBuf: `{"fizz":"buzz"}`,
-		inVal: addr(structInlinePointerInlineMapStringAny{
+		inVal: addr(structEmbedPointerEmbedMapStringAny{
 			X: &struct {
 				A int
-				X jsonObject `json:",inline"`
+				X jsonObject `json:",embed"`
 			}{A: 1},
 		}),
-		want: addr(structInlinePointerInlineMapStringAny{
+		want: addr(structEmbedPointerEmbedMapStringAny{
 			X: &struct {
 				A int
-				X jsonObject `json:",inline"`
+				X jsonObject `json:",embed"`
 			}{A: 1, X: jsonObject{"fizz": "buzz"}},
 		}),
 	}, {
-		name: jsontest.Name("Structs/InlinedFallback/MapStringInt/UnmarshalFunc"),
+		name: jsontest.Name("Structs/EmbeddedFallback/MapStringInt/UnmarshalFunc"),
 		opts: []Options{
 			WithUnmarshalers(UnmarshalFunc(func(b []byte, v *any) error {
 				var err error
@@ -6998,64 +6998,64 @@ func TestUnmarshal(t *testing.T) {
 			})),
 		},
 		inBuf: `{"D":"1.1","E":"2.2","F":"3.3"}`,
-		inVal: new(structInlineMapStringAny),
-		want:  addr(structInlineMapStringAny{X: jsonObject{"D": 1.1, "E": 2.2, "F": 3.3}}),
+		inVal: new(structEmbedMapStringAny),
+		want:  addr(structEmbedMapStringAny{X: jsonObject{"D": 1.1, "E": 2.2, "F": 3.3}}),
 	}, {
-		name:  jsontest.Name("Structs/InlinedFallback/PointerMapStringAny/Noop"),
+		name:  jsontest.Name("Structs/EmbeddedFallback/PointerMapStringAny/Noop"),
 		inBuf: `{"A":1,"B":2}`,
-		inVal: new(structInlinePointerMapStringAny),
-		want:  addr(structInlinePointerMapStringAny{A: 1, X: nil, B: 2}),
+		inVal: new(structEmbedPointerMapStringAny),
+		want:  addr(structEmbedPointerMapStringAny{A: 1, X: nil, B: 2}),
 	}, {
-		name:  jsontest.Name("Structs/InlinedFallback/PointerMapStringAny/Alloc"),
+		name:  jsontest.Name("Structs/EmbeddedFallback/PointerMapStringAny/Alloc"),
 		inBuf: `{"A":1,"fizz":"buzz","B":2}`,
-		inVal: new(structInlinePointerMapStringAny),
-		want:  addr(structInlinePointerMapStringAny{A: 1, X: addr(jsonObject{"fizz": "buzz"}), B: 2}),
+		inVal: new(structEmbedPointerMapStringAny),
+		want:  addr(structEmbedPointerMapStringAny{A: 1, X: addr(jsonObject{"fizz": "buzz"}), B: 2}),
 	}, {
-		name:  jsontest.Name("Structs/InlinedFallback/PointerMapStringAny/Merge"),
+		name:  jsontest.Name("Structs/EmbeddedFallback/PointerMapStringAny/Merge"),
 		inBuf: `{"A":1,"fizz":"wuzz","B":2}`,
-		inVal: addr(structInlinePointerMapStringAny{X: addr(jsonObject{"fizz": "buzz"})}),
-		want:  addr(structInlinePointerMapStringAny{A: 1, X: addr(jsonObject{"fizz": "wuzz"}), B: 2}),
+		inVal: addr(structEmbedPointerMapStringAny{X: addr(jsonObject{"fizz": "buzz"})}),
+		want:  addr(structEmbedPointerMapStringAny{A: 1, X: addr(jsonObject{"fizz": "wuzz"}), B: 2}),
 	}, {
-		name:  jsontest.Name("Structs/InlinedFallback/PointerMapStringAny/Nested/Nil"),
+		name:  jsontest.Name("Structs/EmbeddedFallback/PointerMapStringAny/Nested/Nil"),
 		inBuf: `{"fizz":"buzz"}`,
-		inVal: new(structInlineInlinePointerMapStringAny),
-		want: addr(structInlineInlinePointerMapStringAny{
+		inVal: new(structEmbedEmbedPointerMapStringAny),
+		want: addr(structEmbedEmbedPointerMapStringAny{
 			X: struct {
-				X *jsonObject `json:",inline"`
+				X *jsonObject `json:",embed"`
 			}{X: addr(jsonObject{"fizz": "buzz"})},
 		}),
 	}, {
-		name:  jsontest.Name("Structs/InlinedFallback/MapStringInt"),
+		name:  jsontest.Name("Structs/EmbeddedFallback/MapStringInt"),
 		inBuf: `{"zero": 0, "one": 1, "two": 2}`,
-		inVal: new(structInlineMapStringInt),
-		want: addr(structInlineMapStringInt{
+		inVal: new(structEmbedMapStringInt),
+		want: addr(structEmbedMapStringInt{
 			X: map[string]int{"zero": 0, "one": 1, "two": 2},
 		}),
 	}, {
-		name:  jsontest.Name("Structs/InlinedFallback/MapStringInt/Null"),
+		name:  jsontest.Name("Structs/EmbeddedFallback/MapStringInt/Null"),
 		inBuf: `{"zero": 0, "one": null, "two": 2}`,
-		inVal: new(structInlineMapStringInt),
-		want: addr(structInlineMapStringInt{
+		inVal: new(structEmbedMapStringInt),
+		want: addr(structEmbedMapStringInt{
 			X: map[string]int{"zero": 0, "one": 0, "two": 2},
 		}),
 	}, {
-		name:  jsontest.Name("Structs/InlinedFallback/MapStringInt/Invalid"),
+		name:  jsontest.Name("Structs/EmbeddedFallback/MapStringInt/Invalid"),
 		inBuf: `{"zero": 0, "one": {}, "two": 2}`,
-		inVal: new(structInlineMapStringInt),
-		want: addr(structInlineMapStringInt{
+		inVal: new(structEmbedMapStringInt),
+		want: addr(structEmbedMapStringInt{
 			X: map[string]int{"zero": 0, "one": 0},
 		}),
 		wantErr: EU(nil).withPos(`{"zero": 0, "one": `, "/one").withType('{', T[int]()),
 	}, {
-		name:  jsontest.Name("Structs/InlinedFallback/MapStringInt/StringifiedNumbers"),
+		name:  jsontest.Name("Structs/EmbeddedFallback/MapStringInt/StringifiedNumbers"),
 		opts:  []Options{StringifyNumbers(true)},
 		inBuf: `{"zero": "0", "one": "1", "two": "2"}`,
-		inVal: new(structInlineMapStringInt),
-		want: addr(structInlineMapStringInt{
+		inVal: new(structEmbedMapStringInt),
+		want: addr(structEmbedMapStringInt{
 			X: map[string]int{"zero": 0, "one": 1, "two": 2},
 		}),
 	}, {
-		name: jsontest.Name("Structs/InlinedFallback/MapStringInt/UnmarshalFunc"),
+		name: jsontest.Name("Structs/EmbeddedFallback/MapStringInt/UnmarshalFunc"),
 		opts: []Options{
 			WithUnmarshalers(UnmarshalFunc(func(b []byte, v *int) error {
 				i, err := strconv.ParseInt(string(bytes.Trim(b, `"`)), 10, 64)
@@ -7067,43 +7067,43 @@ func TestUnmarshal(t *testing.T) {
 			})),
 		},
 		inBuf: `{"zero": "0", "one": "1", "two": "2"}`,
-		inVal: new(structInlineMapStringInt),
-		want: addr(structInlineMapStringInt{
+		inVal: new(structEmbedMapStringInt),
+		want: addr(structEmbedMapStringInt{
 			X: map[string]int{"zero": 0, "one": 1, "two": 2},
 		}),
 	}, {
-		name:  jsontest.Name("Structs/InlinedFallback/MapNamedStringInt"),
+		name:  jsontest.Name("Structs/EmbeddedFallback/MapNamedStringInt"),
 		inBuf: `{"zero": 0, "one": 1, "two": 2}`,
-		inVal: new(structInlineMapNamedStringInt),
-		want: addr(structInlineMapNamedStringInt{
+		inVal: new(structEmbedMapNamedStringInt),
+		want: addr(structEmbedMapNamedStringInt{
 			X: map[namedString]int{"zero": 0, "one": 1, "two": 2},
 		}),
 	}, {
-		name:  jsontest.Name("Structs/InlinedFallback/MapNamedStringInt/Null"),
+		name:  jsontest.Name("Structs/EmbeddedFallback/MapNamedStringInt/Null"),
 		inBuf: `{"zero": 0, "one": null, "two": 2}`,
-		inVal: new(structInlineMapNamedStringInt),
-		want: addr(structInlineMapNamedStringInt{
+		inVal: new(structEmbedMapNamedStringInt),
+		want: addr(structEmbedMapNamedStringInt{
 			X: map[namedString]int{"zero": 0, "one": 0, "two": 2},
 		}),
 	}, {
-		name:  jsontest.Name("Structs/InlinedFallback/MapNamedStringInt/Invalid"),
+		name:  jsontest.Name("Structs/EmbeddedFallback/MapNamedStringInt/Invalid"),
 		inBuf: `{"zero": 0, "one": {}, "two": 2}`,
-		inVal: new(structInlineMapNamedStringInt),
-		want: addr(structInlineMapNamedStringInt{
+		inVal: new(structEmbedMapNamedStringInt),
+		want: addr(structEmbedMapNamedStringInt{
 			X: map[namedString]int{"zero": 0, "one": 0},
 		}),
 		wantErr: EU(nil).withPos(`{"zero": 0, "one": `, "/one").withType('{', T[int]()),
 	}, {
-		name:  jsontest.Name("Structs/InlinedFallback/MapNamedStringInt/StringifiedNumbers"),
+		name:  jsontest.Name("Structs/EmbeddedFallback/MapNamedStringInt/StringifiedNumbers"),
 		opts:  []Options{StringifyNumbers(true)},
 		inBuf: `{"zero": "0", "one": 1, "two": "2"}`,
-		inVal: new(structInlineMapNamedStringInt),
-		want: addr(structInlineMapNamedStringInt{
+		inVal: new(structEmbedMapNamedStringInt),
+		want: addr(structEmbedMapNamedStringInt{
 			X: map[namedString]int{"zero": 0, "one": 0},
 		}),
 		wantErr: EU(nil).withPos(`{"zero": "0", "one": `, "/one").withType('0', T[int]()),
 	}, {
-		name: jsontest.Name("Structs/InlinedFallback/MapNamedStringInt/UnmarshalFunc"),
+		name: jsontest.Name("Structs/EmbeddedFallback/MapNamedStringInt/UnmarshalFunc"),
 		opts: []Options{
 			WithUnmarshalers(UnmarshalFunc(func(b []byte, v *int) error {
 				i, err := strconv.ParseInt(string(bytes.Trim(b, `"`)), 10, 64)
@@ -7115,78 +7115,78 @@ func TestUnmarshal(t *testing.T) {
 			})),
 		},
 		inBuf: `{"zero": "0", "one": "1", "two": "2"}`,
-		inVal: new(structInlineMapNamedStringInt),
-		want: addr(structInlineMapNamedStringInt{
+		inVal: new(structEmbedMapNamedStringInt),
+		want: addr(structEmbedMapNamedStringInt{
 			X: map[namedString]int{"zero": 0, "one": 1, "two": 2},
 		}),
 	}, {
-		name:  jsontest.Name("Structs/InlinedFallback/MapNamedStringAny/Noop"),
+		name:  jsontest.Name("Structs/EmbeddedFallback/MapNamedStringAny/Noop"),
 		inBuf: `{"A":1,"B":2}`,
-		inVal: new(structInlineMapNamedStringAny),
-		want:  addr(structInlineMapNamedStringAny{A: 1, X: nil, B: 2}),
+		inVal: new(structEmbedMapNamedStringAny),
+		want:  addr(structEmbedMapNamedStringAny{A: 1, X: nil, B: 2}),
 	}, {
-		name:  jsontest.Name("Structs/InlinedFallback/MapNamedStringAny/MergeN1/Nil"),
+		name:  jsontest.Name("Structs/EmbeddedFallback/MapNamedStringAny/MergeN1/Nil"),
 		inBuf: `{"A":1,"fizz":"buzz","B":2}`,
-		inVal: new(structInlineMapNamedStringAny),
-		want:  addr(structInlineMapNamedStringAny{A: 1, X: map[namedString]any{"fizz": "buzz"}, B: 2}),
+		inVal: new(structEmbedMapNamedStringAny),
+		want:  addr(structEmbedMapNamedStringAny{A: 1, X: map[namedString]any{"fizz": "buzz"}, B: 2}),
 	}, {
-		name:  jsontest.Name("Structs/InlinedFallback/MapNamedStringAny/MergeN1/Empty"),
+		name:  jsontest.Name("Structs/EmbeddedFallback/MapNamedStringAny/MergeN1/Empty"),
 		inBuf: `{"A":1,"fizz":"buzz","B":2}`,
-		inVal: addr(structInlineMapNamedStringAny{X: map[namedString]any{}}),
-		want:  addr(structInlineMapNamedStringAny{A: 1, X: map[namedString]any{"fizz": "buzz"}, B: 2}),
+		inVal: addr(structEmbedMapNamedStringAny{X: map[namedString]any{}}),
+		want:  addr(structEmbedMapNamedStringAny{A: 1, X: map[namedString]any{"fizz": "buzz"}, B: 2}),
 	}, {
-		name:  jsontest.Name("Structs/InlinedFallback/MapNamedStringAny/MergeN1/ObjectN1"),
+		name:  jsontest.Name("Structs/EmbeddedFallback/MapNamedStringAny/MergeN1/ObjectN1"),
 		inBuf: `{"A":1,"fizz":{"charlie":"DELTA","echo":"foxtrot"},"B":2}`,
-		inVal: addr(structInlineMapNamedStringAny{X: map[namedString]any{"fizz": jsonObject{
+		inVal: addr(structEmbedMapNamedStringAny{X: map[namedString]any{"fizz": jsonObject{
 			"alpha":   "bravo",
 			"charlie": "delta",
 		}}}),
-		want: addr(structInlineMapNamedStringAny{A: 1, X: map[namedString]any{"fizz": jsonObject{
+		want: addr(structEmbedMapNamedStringAny{A: 1, X: map[namedString]any{"fizz": jsonObject{
 			"alpha":   "bravo",
 			"charlie": "DELTA",
 			"echo":    "foxtrot",
 		}}, B: 2}),
 	}, {
-		name:  jsontest.Name("Structs/InlinedFallback/MapNamedStringAny/MergeN2/ObjectN1"),
+		name:  jsontest.Name("Structs/EmbeddedFallback/MapNamedStringAny/MergeN2/ObjectN1"),
 		inBuf: `{"A":1,"fizz":"buzz","B":2,"foo": [ 1 , 2 , 3 ]}`,
-		inVal: addr(structInlineMapNamedStringAny{X: map[namedString]any{"fizz": "wuzz"}}),
-		want:  addr(structInlineMapNamedStringAny{A: 1, X: map[namedString]any{"fizz": "buzz", "foo": jsonArray{1.0, 2.0, 3.0}}, B: 2}),
+		inVal: addr(structEmbedMapNamedStringAny{X: map[namedString]any{"fizz": "wuzz"}}),
+		want:  addr(structEmbedMapNamedStringAny{A: 1, X: map[namedString]any{"fizz": "buzz", "foo": jsonArray{1.0, 2.0, 3.0}}, B: 2}),
 	}, {
-		name:    jsontest.Name("Structs/InlinedFallback/MapNamedStringAny/MergeInvalidValue"),
+		name:    jsontest.Name("Structs/EmbeddedFallback/MapNamedStringAny/MergeInvalidValue"),
 		inBuf:   `{"A":1,"fizz":nil,"B":2}`,
-		inVal:   new(structInlineMapNamedStringAny),
-		want:    addr(structInlineMapNamedStringAny{A: 1, X: map[namedString]any{"fizz": nil}}),
+		inVal:   new(structEmbedMapNamedStringAny),
+		want:    addr(structEmbedMapNamedStringAny{A: 1, X: map[namedString]any{"fizz": nil}}),
 		wantErr: newInvalidCharacterError("i", "in literal null (expecting 'u')", len64(`{"A":1,"fizz":n`), "/fizz"),
 	}, {
-		name:    jsontest.Name("Structs/InlinedFallback/MapNamedStringAny/MergeInvalidValue/Existing"),
+		name:    jsontest.Name("Structs/EmbeddedFallback/MapNamedStringAny/MergeInvalidValue/Existing"),
 		inBuf:   `{"A":1,"fizz":nil,"B":2}`,
-		inVal:   addr(structInlineMapNamedStringAny{A: 1, X: map[namedString]any{"fizz": true}}),
-		want:    addr(structInlineMapNamedStringAny{A: 1, X: map[namedString]any{"fizz": true}}),
+		inVal:   addr(structEmbedMapNamedStringAny{A: 1, X: map[namedString]any{"fizz": true}}),
+		want:    addr(structEmbedMapNamedStringAny{A: 1, X: map[namedString]any{"fizz": true}}),
 		wantErr: newInvalidCharacterError("i", "in literal null (expecting 'u')", len64(`{"A":1,"fizz":n`), "/fizz"),
 	}, {
-		name:  jsontest.Name("Structs/InlinedFallback/MapNamedStringAny/CaseSensitive"),
+		name:  jsontest.Name("Structs/EmbeddedFallback/MapNamedStringAny/CaseSensitive"),
 		inBuf: `{"A":1,"fizz":"buzz","B":2,"a":3}`,
-		inVal: new(structInlineMapNamedStringAny),
-		want:  addr(structInlineMapNamedStringAny{A: 1, X: map[namedString]any{"fizz": "buzz", "a": 3.0}, B: 2}),
+		inVal: new(structEmbedMapNamedStringAny),
+		want:  addr(structEmbedMapNamedStringAny{A: 1, X: map[namedString]any{"fizz": "buzz", "a": 3.0}, B: 2}),
 	}, {
-		name:    jsontest.Name("Structs/InlinedFallback/MapNamedStringAny/RejectDuplicateNames"),
+		name:    jsontest.Name("Structs/EmbeddedFallback/MapNamedStringAny/RejectDuplicateNames"),
 		opts:    []Options{jsontext.AllowDuplicateNames(false)},
 		inBuf:   `{"A":1,"fizz":"buzz","B":2,"fizz":"buzz"}`,
-		inVal:   new(structInlineMapNamedStringAny),
-		want:    addr(structInlineMapNamedStringAny{A: 1, X: map[namedString]any{"fizz": "buzz"}, B: 2}),
+		inVal:   new(structEmbedMapNamedStringAny),
+		want:    addr(structEmbedMapNamedStringAny{A: 1, X: map[namedString]any{"fizz": "buzz"}, B: 2}),
 		wantErr: newDuplicateNameError("", []byte(`"fizz"`), len64(`{"A":1,"fizz":"buzz","B":2,`)),
 	}, {
-		name:  jsontest.Name("Structs/InlinedFallback/MapNamedStringAny/AllowDuplicateNames"),
+		name:  jsontest.Name("Structs/EmbeddedFallback/MapNamedStringAny/AllowDuplicateNames"),
 		opts:  []Options{jsontext.AllowDuplicateNames(true)},
 		inBuf: `{"A":1,"fizz":{"one":1,"two":-2},"B":2,"fizz":{"two":2,"three":3}}`,
-		inVal: new(structInlineMapNamedStringAny),
-		want:  addr(structInlineMapNamedStringAny{A: 1, X: map[namedString]any{"fizz": map[string]any{"one": 1.0, "two": 2.0, "three": 3.0}}, B: 2}),
+		inVal: new(structEmbedMapNamedStringAny),
+		want:  addr(structEmbedMapNamedStringAny{A: 1, X: map[namedString]any{"fizz": map[string]any{"one": 1.0, "two": 2.0, "three": 3.0}}, B: 2}),
 	}, {
-		name:  jsontest.Name("Structs/InlinedFallback/RejectUnknownMembers"),
+		name:  jsontest.Name("Structs/EmbeddedFallback/RejectUnknownMembers"),
 		opts:  []Options{RejectUnknownMembers(true)},
 		inBuf: `{"A":1,"fizz":"buzz","B":2}`,
-		inVal: new(structInlineTextValue),
-		want: addr(structInlineTextValue{
+		inVal: new(structEmbedTextValue),
+		want: addr(structEmbedTextValue{
 			A: 1,
 			X: jsontext.Value(`{"fizz":"buzz"}`),
 			B: 2,
@@ -7257,51 +7257,51 @@ func TestUnmarshal(t *testing.T) {
 	}, {
 		name:  jsontest.Name("Structs/DuplicateName/NoCase/ExactDifferent"),
 		inBuf: `{"AAA":"AAA","AaA":"AaA","AAa":"AAa","Aaa":"Aaa"}`,
-		inVal: addr(structNoCaseInlineTextValue{}),
-		want:  addr(structNoCaseInlineTextValue{AAA: "AAA", AaA: "AaA", AAa: "AAa", Aaa: "Aaa"}),
+		inVal: addr(structNoCaseEmbedTextValue{}),
+		want:  addr(structNoCaseEmbedTextValue{AAA: "AAA", AaA: "AaA", AAa: "AAa", Aaa: "Aaa"}),
 	}, {
 		name:    jsontest.Name("Structs/DuplicateName/NoCase/ExactConflict"),
 		inBuf:   `{"AAA":"AAA","AAA":"AAA"}`,
-		inVal:   addr(structNoCaseInlineTextValue{}),
-		want:    addr(structNoCaseInlineTextValue{AAA: "AAA"}),
+		inVal:   addr(structNoCaseEmbedTextValue{}),
+		want:    addr(structNoCaseEmbedTextValue{AAA: "AAA"}),
 		wantErr: newDuplicateNameError("", []byte(`"AAA"`), len64(`{"AAA":"AAA",`)),
 	}, {
 		name:  jsontest.Name("Structs/DuplicateName/NoCase/OverwriteExact"),
 		inBuf: `{"AAA":"after"}`,
-		inVal: addr(structNoCaseInlineTextValue{AAA: "before"}),
-		want:  addr(structNoCaseInlineTextValue{AAA: "after"}),
+		inVal: addr(structNoCaseEmbedTextValue{AAA: "before"}),
+		want:  addr(structNoCaseEmbedTextValue{AAA: "after"}),
 	}, {
 		name:    jsontest.Name("Structs/DuplicateName/NoCase/NoCaseConflict"),
 		inBuf:   `{"aaa":"aaa","aaA":"aaA"}`,
-		inVal:   addr(structNoCaseInlineTextValue{}),
-		want:    addr(structNoCaseInlineTextValue{AaA: "aaa"}),
+		inVal:   addr(structNoCaseEmbedTextValue{}),
+		want:    addr(structNoCaseEmbedTextValue{AaA: "aaa"}),
 		wantErr: newDuplicateNameError("", []byte(`"aaA"`), len64(`{"aaa":"aaa",`)),
 	}, {
 		name:    jsontest.Name("Structs/DuplicateName/NoCase/OverwriteNoCase"),
 		inBuf:   `{"aaa":"aaa","aaA":"aaA"}`,
-		inVal:   addr(structNoCaseInlineTextValue{}),
-		want:    addr(structNoCaseInlineTextValue{AaA: "aaa"}),
+		inVal:   addr(structNoCaseEmbedTextValue{}),
+		want:    addr(structNoCaseEmbedTextValue{AaA: "aaa"}),
 		wantErr: newDuplicateNameError("", []byte(`"aaA"`), len64(`{"aaa":"aaa",`)),
 	}, {
-		name:  jsontest.Name("Structs/DuplicateName/Inline/Unknown"),
+		name:  jsontest.Name("Structs/DuplicateName/Embed/Unknown"),
 		inBuf: `{"unknown":""}`,
-		inVal: addr(structNoCaseInlineTextValue{}),
-		want:  addr(structNoCaseInlineTextValue{X: jsontext.Value(`{"unknown":""}`)}),
+		inVal: addr(structNoCaseEmbedTextValue{}),
+		want:  addr(structNoCaseEmbedTextValue{X: jsontext.Value(`{"unknown":""}`)}),
 	}, {
-		name:  jsontest.Name("Structs/DuplicateName/Inline/UnknownMerge"),
+		name:  jsontest.Name("Structs/DuplicateName/Embed/UnknownMerge"),
 		inBuf: `{"unknown":""}`,
-		inVal: addr(structNoCaseInlineTextValue{X: jsontext.Value(`{"unknown":""}`)}),
-		want:  addr(structNoCaseInlineTextValue{X: jsontext.Value(`{"unknown":"","unknown":""}`)}),
+		inVal: addr(structNoCaseEmbedTextValue{X: jsontext.Value(`{"unknown":""}`)}),
+		want:  addr(structNoCaseEmbedTextValue{X: jsontext.Value(`{"unknown":"","unknown":""}`)}),
 	}, {
-		name:  jsontest.Name("Structs/DuplicateName/Inline/NoCaseOkay"),
+		name:  jsontest.Name("Structs/DuplicateName/Embed/NoCaseOkay"),
 		inBuf: `{"b":"","B":""}`,
-		inVal: addr(structNoCaseInlineTextValue{}),
-		want:  addr(structNoCaseInlineTextValue{X: jsontext.Value(`{"b":"","B":""}`)}),
+		inVal: addr(structNoCaseEmbedTextValue{}),
+		want:  addr(structNoCaseEmbedTextValue{X: jsontext.Value(`{"b":"","B":""}`)}),
 	}, {
-		name:    jsontest.Name("Structs/DuplicateName/Inline/ExactConflict"),
+		name:    jsontest.Name("Structs/DuplicateName/Embed/ExactConflict"),
 		inBuf:   `{"b":"","b":""}`,
-		inVal:   addr(structNoCaseInlineTextValue{}),
-		want:    addr(structNoCaseInlineTextValue{X: jsontext.Value(`{"b":""}`)}),
+		inVal:   addr(structNoCaseEmbedTextValue{}),
+		want:    addr(structNoCaseEmbedTextValue{X: jsontext.Value(`{"b":""}`)}),
 		wantErr: newDuplicateNameError("", []byte(`"b"`), len64(`{"b":"",`)),
 	}, {
 		name:    jsontest.Name("Structs/Invalid/ErrUnexpectedEOF"),
@@ -8443,10 +8443,10 @@ func TestUnmarshal(t *testing.T) {
 		inVal: addr(structScalars{}),
 		want:  addr(structScalars{Bool: true, String: "called2", Bytes: []byte("called3"), Int: 123, Uint: 456, Float: 789}),
 	}, {
-		name: jsontest.Name("Functions/Struct/Inlined"),
+		name: jsontest.Name("Functions/Struct/Embedded"),
 		opts: []Options{
 			WithUnmarshalers(JoinUnmarshalers(
-				UnmarshalFunc(func([]byte, *structInlinedL1) error {
+				UnmarshalFunc(func([]byte, *structEmbeddedL1) error {
 					panic("should not be called")
 				}),
 				UnmarshalFromFunc(func(dec *jsontext.Decoder, v *StructEmbed2) error {
@@ -8455,10 +8455,10 @@ func TestUnmarshal(t *testing.T) {
 			)),
 		},
 		inBuf: `{"E":"E3","F":"F3","G":"G3","A":"A1","B":"B1","D":"D2"}`,
-		inVal: new(structInlined),
-		want: addr(structInlined{
-			X: structInlinedL1{
-				X:            &structInlinedL2{A: "A1", B: "B1" /* C: "C1" */},
+		inVal: new(structEmbedded),
+		want: addr(structEmbedded{
+			X: structEmbeddedL1{
+				X:            &structEmbeddedL2{A: "A1", B: "B1" /* C: "C1" */},
 				StructEmbed1: StructEmbed1{ /* C: "C2" */ D: "D2" /* E: "E2" */},
 			},
 			StructEmbed2: &StructEmbed2{E: "E3", F: "F3", G: "G3"},
