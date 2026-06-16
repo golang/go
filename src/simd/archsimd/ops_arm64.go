@@ -1469,6 +1469,13 @@ func (x Uint32x4) OrNot(y Uint32x4) Uint32x4
 // Asm: VORN, CPU Feature: NEON
 func (x Uint64x2) OrNot(y Uint64x2) Uint64x2
 
+/* Reverse64 */
+
+// Reverse64 reverses the order of the elements within each 64-bit lane of x.
+//
+// Asm: VREV64, CPU Feature: NEON
+func (x Float32x4) Reverse64() Float32x4
+
 /* Round */
 
 // Round rounds elements to the nearest integer, rounding ties to even.

@@ -262,3 +262,16 @@
   - *any128
   out:
   - *any128
+
+# Reverse64 VREV64 (reverse the two 32-bit elements in each 64-bit lane)
+- go: Reverse64
+  asm: "VREV64"
+  in:
+  - &reverse64f32
+    go: $t
+    base: int
+    bits: 128
+    elemBits: 32
+    OverwriteBase: float
+  out:
+  - *reverse64f32

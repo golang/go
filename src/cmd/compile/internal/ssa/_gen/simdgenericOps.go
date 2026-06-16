@@ -918,6 +918,7 @@ func simdGenericOps() []opData {
 		{name: "ReciprocalSqrtFloat64x2", argLength: 1},                                 // ARCH:amd64
 		{name: "ReciprocalSqrtFloat64x4", argLength: 1},                                 // ARCH:amd64
 		{name: "ReciprocalSqrtFloat64x8", argLength: 1},                                 // ARCH:amd64
+		{name: "Reverse64Float32x4", argLength: 1},                                      // ARCH:arm64
 		{name: "RotateAllLeftVarInt8x16", argLength: 2},                                 // ARCH:wasm
 		{name: "RotateAllLeftVarInt16x8", argLength: 2},                                 // ARCH:wasm
 		{name: "RotateAllLeftVarInt32x4", argLength: 2},                                 // ARCH:wasm
