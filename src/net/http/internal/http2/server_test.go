@@ -5030,6 +5030,65 @@ func testServerPathInitialSlashes(t testing.TB) {
 	}
 }
 
+// "An endpoint MUST treat a change to SETTINGS_INITIAL_WINDOW_SIZE
+// that causes any flow-control window to exceed the maximum size as
+// a connection error (Section 5.4.1) of type FLOW_CONTROL_ERROR."
+// -- https://www.rfc-editor.org/rfc/rfc9113.html#section-6.9.2-7
+func TestServerSettingsFlowControlUpdateBeyondLimit(t *testing.T) {
+	synctestTest(t, testServerSettingsFlowControlUpdateBeyondLimit)
+}
+func testServerSettingsFlowControlUpdateBeyondLimit(t testing.TB) {
+	st := newServerTester(t, nil)
+	st.greet()
+
+	st.writeHeaders(HeadersFrameParam{
+		StreamID:      1, // clients send odd numbers
+		BlockFragment: st.encodeHeader(":method", "POST"),
+		EndStream:     false, // data coming
+		EndHeaders:    true,
+	})
+
+	// Give this stream some additional flow control.
+	const windowIncrease = 1000
+	st.writeWindowUpdate(1, windowIncrease)
+	st.wantIdle()
+
+	// Adjust the initial flow control window. The stream is now over the limit.
+	const maxWindowSize = (1 << 31) - 1 // RFC 9113, 6.9.1
+	const maxInitialWindowSize = maxWindowSize - windowIncrease
+	st.writeSettings(Setting{SettingInitialWindowSize, maxInitialWindowSize + 1})
+	st.wantGoAway(1, ErrCodeFlowControl)
+}
+
+// Counterpart to TestServerSettingsFlowControlUpdateBeyondLimit:
+// A SETTINGS update which doesn't quite put a stream over the flow control limit.
+func TestServerSettingsFlowControlUpdateWithinLimit(t *testing.T) {
+	synctestTest(t, testServerSettingsFlowControlUpdateWithinLimit)
+}
+func testServerSettingsFlowControlUpdateWithinLimit(t testing.TB) {
+	st := newServerTester(t, nil)
+	st.greet()
+
+	st.writeHeaders(HeadersFrameParam{
+		StreamID:      1, // clients send odd numbers
+		BlockFragment: st.encodeHeader(":method", "POST"),
+		EndStream:     false, // data coming
+		EndHeaders:    true,
+	})
+
+	// Give this stream some additional flow control.
+	const windowIncrease = 1000
+	st.writeWindowUpdate(1, windowIncrease)
+	st.wantIdle()
+
+	// Adjust the initial flow control window. The stream is just within the limit.
+	const maxWindowSize = (1 << 31) - 1 // RFC 9113, 6.9.1
+	const maxInitialWindowSize = maxWindowSize - windowIncrease
+	st.writeSettings(Setting{SettingInitialWindowSize, maxInitialWindowSize})
+	st.wantSettingsAck()
+	st.wantIdle()
+}
+
 func TestConsistentConstants(t *testing.T) {
 	if h1, h2 := http.DefaultMaxHeaderBytes, http2.DefaultMaxHeaderBytes; h1 != h2 {
 		t.Errorf("DefaultMaxHeaderBytes: http (%v) != http2 (%v)", h1, h2)
