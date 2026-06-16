@@ -18,8 +18,8 @@ import (
 	. "net/http/internal/http2"
 )
 
-func TestServer_Push_Success(t *testing.T) { synctestTest(t, testServer_Push_Success) }
-func testServer_Push_Success(t testing.TB) {
+func TestServer_Push_Success(t *testing.T) { synctest.Test(t, testServer_Push_Success) }
+func testServer_Push_Success(t *testing.T) {
 	const (
 		mainBody   = "<html>index page</html>"
 		pushedBody = "<html>pushed page</html>"
@@ -244,8 +244,8 @@ func testServer_Push_Success(t testing.TB) {
 	}
 }
 
-func TestServer_Push_SuccessNoRace(t *testing.T) { synctestTest(t, testServer_Push_SuccessNoRace) }
-func testServer_Push_SuccessNoRace(t testing.TB) {
+func TestServer_Push_SuccessNoRace(t *testing.T) { synctest.Test(t, testServer_Push_SuccessNoRace) }
+func testServer_Push_SuccessNoRace(t *testing.T) {
 	// Regression test for issue #18326. Ensure the request handler can mutate
 	// pushed request headers without racing with the PUSH_PROMISE write.
 	errc := make(chan error, 2)
@@ -290,9 +290,9 @@ func testServer_Push_SuccessNoRace(t testing.TB) {
 }
 
 func TestServer_Push_RejectRecursivePush(t *testing.T) {
-	synctestTest(t, testServer_Push_RejectRecursivePush)
+	synctest.Test(t, testServer_Push_RejectRecursivePush)
 }
-func testServer_Push_RejectRecursivePush(t testing.TB) {
+func testServer_Push_RejectRecursivePush(t *testing.T) {
 	// Expect two requests, but might get three if there's a bug and the second push succeeds.
 	errc := make(chan error, 3)
 	handler := func(w http.ResponseWriter, r *http.Request) error {
@@ -329,11 +329,11 @@ func testServer_Push_RejectRecursivePush(t testing.TB) {
 }
 
 func testServer_Push_RejectSingleRequest(t *testing.T, doPush func(http.Pusher, *http.Request) error, settings ...Setting) {
-	synctestTest(t, func(t testing.TB) {
+	synctest.Test(t, func(t *testing.T) {
 		testServer_Push_RejectSingleRequest_Bubble(t, doPush, settings...)
 	})
 }
-func testServer_Push_RejectSingleRequest_Bubble(t testing.TB, doPush func(http.Pusher, *http.Request) error, settings ...Setting) {
+func testServer_Push_RejectSingleRequest_Bubble(t *testing.T, doPush func(http.Pusher, *http.Request) error, settings ...Setting) {
 	// Expect one request, but might get two if there's a bug and the push succeeds.
 	errc := make(chan error, 2)
 	st := newServerTester(t, func(w http.ResponseWriter, r *http.Request) {
@@ -437,9 +437,9 @@ func TestServer_Push_RejectForbiddenHeader(t *testing.T) {
 }
 
 func TestServer_Push_StateTransitions(t *testing.T) {
-	synctestTest(t, testServer_Push_StateTransitions)
+	synctest.Test(t, testServer_Push_StateTransitions)
 }
-func testServer_Push_StateTransitions(t testing.TB) {
+func testServer_Push_StateTransitions(t *testing.T) {
 	const body = "foo"
 
 	gotPromise := make(chan bool)
@@ -493,9 +493,9 @@ func testServer_Push_StateTransitions(t testing.TB) {
 }
 
 func TestServer_Push_RejectAfterGoAway(t *testing.T) {
-	synctestTest(t, testServer_Push_RejectAfterGoAway)
+	synctest.Test(t, testServer_Push_RejectAfterGoAway)
 }
-func testServer_Push_RejectAfterGoAway(t testing.TB) {
+func testServer_Push_RejectAfterGoAway(t *testing.T) {
 	ready := make(chan struct{})
 	errc := make(chan error, 2)
 	st := newServerTester(t, func(w http.ResponseWriter, r *http.Request) {
@@ -518,8 +518,8 @@ func testServer_Push_RejectAfterGoAway(t testing.TB) {
 	}
 }
 
-func TestServer_Push_Underflow(t *testing.T) { synctestTest(t, testServer_Push_Underflow) }
-func testServer_Push_Underflow(t testing.TB) {
+func TestServer_Push_Underflow(t *testing.T) { synctest.Test(t, testServer_Push_Underflow) }
+func testServer_Push_Underflow(t *testing.T) {
 	// Test for #63511: Send several requests which generate PUSH_PROMISE responses,
 	// verify they all complete successfully.
 	st := newServerTester(t, func(w http.ResponseWriter, r *http.Request) {

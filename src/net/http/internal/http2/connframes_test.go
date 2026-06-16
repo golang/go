@@ -20,7 +20,7 @@ import (
 )
 
 type testConnFramer struct {
-	t   testing.TB
+	t   *testing.T
 	fr  *Framer
 	dec *hpack.Decoder
 }
@@ -45,7 +45,7 @@ type readFramer interface {
 }
 
 // readFrame reads a frame of a specific type.
-func readFrame[T any](t testing.TB, framer readFramer) T {
+func readFrame[T any](t *testing.T, framer readFramer) T {
 	t.Helper()
 	var v T
 	fr := framer.readFrame()

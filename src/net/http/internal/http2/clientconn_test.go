@@ -28,8 +28,8 @@ import (
 )
 
 // TestTestClientConn demonstrates usage of testClientConn.
-func TestTestClientConn(t *testing.T) { synctestTest(t, testTestClientConn) }
-func testTestClientConn(t testing.TB) {
+func TestTestClientConn(t *testing.T) { synctest.Test(t, testTestClientConn) }
+func testTestClientConn(t *testing.T) {
 	// newTestClientConn creates a *ClientConn and surrounding test infrastructure.
 	tc := newTestClientConn(t)
 
@@ -96,7 +96,7 @@ func testTestClientConn(t testing.TB) {
 // testClientConn manages synchronization, so tests can generally be written as
 // a linear sequence of actions and validations without additional synchronization.
 type testClientConn struct {
-	t testing.TB
+	t *testing.T
 
 	tr *Transport
 	fr *Framer
@@ -111,7 +111,7 @@ type testClientConn struct {
 	netconn *synctestNetConn
 }
 
-func newTestClientConnFromClientConn(t testing.TB, tr *Transport, cc *ClientConn) *testClientConn {
+func newTestClientConnFromClientConn(t *testing.T, tr *Transport, cc *ClientConn) *testClientConn {
 	tc := &testClientConn{
 		t:  t,
 		tr: tr,
@@ -153,7 +153,7 @@ func (tc *testClientConn) readClientPreface() {
 	}
 }
 
-func newTestClientConn(t testing.TB, opts ...any) *testClientConn {
+func newTestClientConn(t *testing.T, opts ...any) *testClientConn {
 	t.Helper()
 
 	tt := newTestTransport(t, opts...)
@@ -388,7 +388,7 @@ func (tc *testClientConn) inflowWindow(streamID uint32) int32 {
 
 // testRoundTrip manages a RoundTrip in progress.
 type testRoundTrip struct {
-	t       testing.TB
+	t       *testing.T
 	resp    *http.Response
 	respErr error
 	donec   chan struct{}
@@ -519,13 +519,13 @@ func diffHeaders(got, want http.Header) string {
 // Tests that aren't specifically exercising RoundTrip's retry loop or connection pooling
 // should use testClientConn instead.
 type testTransport struct {
-	t   testing.TB
+	t   *testing.T
 	tr1 *http.Transport
 
 	ccs []*testClientConn
 }
 
-func newTestTransport(t testing.TB, opts ...any) *testTransport {
+func newTestTransport(t *testing.T, opts ...any) *testTransport {
 	t.Helper()
 	tt := &testTransport{
 		t: t,
