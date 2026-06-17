@@ -79,10 +79,10 @@ stderr 'invalid //go:debug: value contains space'
 # Programs in Go 1.21 work module should trigger run-time error.
 cp go.mod.21 go.mod
 ! go run .
-stderr 'panic: panic called with nil argument'
+stderr 'runtime error: panic called with nil argument'
 
 ! go run rsc.io/panicnil
-stderr 'panic: panic called with nil argument'
+stderr 'runtime error: panic called with nil argument'
 
 # Programs in Go 1.20 work module use old panic nil behavior.
 cp go.mod.20 go.mod
@@ -99,7 +99,7 @@ stderr 'panic: nil'
 
 rm go.mod
 ! go run rsc.io/panicnil@v1.1.0
-stderr 'panic: panic called with nil argument'
+stderr 'runtime error: panic called with nil argument'
 
 -- go.work.21 --
 go 1.21
