@@ -5,6 +5,7 @@
 package runtime_test
 
 import (
+	"runtime"
 	"slices"
 	"strings"
 	"testing"
@@ -96,5 +97,61 @@ func TestPanicRecoverSpeed(t *testing.T) {
 	t.Logf("a: %v, b: %v, m: %v", a, b, m)
 	if m > 3.5 {
 		t.Errorf("more than 2x time increase: %v", m)
+	}
+}
+
+// Test that panics with nil arguments produce the prefix
+// "runtime error:" per https://golang.org/issues/63813.
+func TestPanicNilErrorPrefix(t *testing.T) {
+	tests := []struct {
+		name      string
+		wantPanic string
+		fn        func()
+	}{
+		{
+			name:      "panic(nil)",
+			wantPanic: "runtime error: panic with nil argument",
+			fn: func() {
+				panic(nil)
+			},
+		},
+		{
+			name:      "panic((any)(nil))",
+			wantPanic: "runtime error: panic with nil argument",
+			fn: func() {
+				var foo any = nil
+				panic(foo)
+			},
+		},
+		{
+			name:      "panic((error)(nil))",
+			wantPanic: "runtime error: panic with nil argument",
+			fn: func() {
+				var err error
+				panic(err)
+			},
+		},
+	}
+
+	for _, tt := range tests {
+		tt := tt
+		t.Run(tt.name, func(t *testing.T) {
+			defer func() {
+				r := recover()
+				if r == nil {
+					t.Fatal("expected a panic")
+				}
+
+				re, ok := r.(runtime.Error)
+				if !ok {
+					t.Fatalf("wrong panic type: got %T, want runtime.Error", r)
+				}
+				if !strings.Contains(re.Error(), "runtime error: panic called with nil argument") {
+					t.Fatalf("mismatched message, missing `runtime error: panic with nil`, : got:\n%s", re.Error())
+				}
+			}()
+
+			tt.fn()
+		})
 	}
 }
