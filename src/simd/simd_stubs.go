@@ -78,10 +78,10 @@ func (x Int8s) NotEqual(y Int8s) Mask8s
 // Or returns the bitwise OR of x and y.
 func (x Int8s) Or(y Int8s) Int8s
 
-// StoreSlice stores the vector elements into the slice s.
+// Store stores the vector elements into the slice s.
 func (x Int8s) Store(s []int8)
 
-// StoreSlicePart stores a partial vector into the slice s.
+// StorePart stores a partial vector into the slice s and returns the number actually stored.
 func (x Int8s) StorePart(s []int8) int
 
 // String returns a string representation of the vector.
@@ -186,10 +186,10 @@ func (x Int16s) ShiftAllLeft(shift uint64) Int16s
 // ShiftAllRight shifts all elements right by y bits.
 func (x Int16s) ShiftAllRight(shift uint64) Int16s
 
-// StoreSlice stores the vector elements into the slice s.
+// Store stores the vector elements into the slice s.
 func (x Int16s) Store(s []int16)
 
-// StoreSlicePart stores a partial vector into the slice s.
+// StorePart stores a partial vector into the slice s and returns the number actually stored.
 func (x Int16s) StorePart(s []int16) int
 
 // String returns a string representation of the vector.
@@ -294,10 +294,10 @@ func (x Int32s) ShiftAllLeft(shift uint64) Int32s
 // ShiftAllRight shifts all elements right by y bits.
 func (x Int32s) ShiftAllRight(shift uint64) Int32s
 
-// StoreSlice stores the vector elements into the slice s.
+// Store stores the vector elements into the slice s.
 func (x Int32s) Store(s []int32)
 
-// StoreSlicePart stores a partial vector into the slice s.
+// StorePart stores a partial vector into the slice s and returns the number actually stored.
 func (x Int32s) StorePart(s []int32) int
 
 // String returns a string representation of the vector.
@@ -381,10 +381,10 @@ func (x Int64s) RotateAllRight(dist uint64) Int64s
 // ShiftAllLeft shifts all elements left by y bits.
 func (x Int64s) ShiftAllLeft(shift uint64) Int64s
 
-// StoreSlice stores the vector elements into the slice s.
+// Store stores the vector elements into the slice s.
 func (x Int64s) Store(s []int64)
 
-// StoreSlicePart stores a partial vector into the slice s.
+// StorePart stores a partial vector into the slice s and returns the number actually stored.
 func (x Int64s) StorePart(s []int64) int
 
 // String returns a string representation of the vector.
@@ -471,10 +471,10 @@ func (x Uint8s) ReshapeToUint32s() Uint32s
 // ReshapeToUint64s reinterprets the vector bits as a Uint64s vector.
 func (x Uint8s) ReshapeToUint64s() Uint64s
 
-// StoreSlice stores the vector elements into the slice s.
+// Store stores the vector elements into the slice s.
 func (x Uint8s) Store(s []uint8)
 
-// StoreSlicePart stores a partial vector into the slice s.
+// StorePart stores a partial vector into the slice s and returns the number actually stored.
 func (x Uint8s) StorePart(s []uint8) int
 
 // String returns a string representation of the vector.
@@ -582,10 +582,10 @@ func (x Uint16s) ShiftAllLeft(shift uint64) Uint16s
 // ShiftAllRight shifts all elements right by y bits.
 func (x Uint16s) ShiftAllRight(shift uint64) Uint16s
 
-// StoreSlice stores the vector elements into the slice s.
+// Store stores the vector elements into the slice s.
 func (x Uint16s) Store(s []uint16)
 
-// StoreSlicePart stores a partial vector into the slice s.
+// StorePart stores a partial vector into the slice s and returns the number actually stored.
 func (x Uint16s) StorePart(s []uint16) int
 
 // String returns a string representation of the vector.
@@ -690,10 +690,10 @@ func (x Uint32s) ShiftAllLeft(shift uint64) Uint32s
 // ShiftAllRight shifts all elements right by y bits.
 func (x Uint32s) ShiftAllRight(shift uint64) Uint32s
 
-// StoreSlice stores the vector elements into the slice s.
+// Store stores the vector elements into the slice s.
 func (x Uint32s) Store(s []uint32)
 
-// StoreSlicePart stores a partial vector into the slice s.
+// StorePart stores a partial vector into the slice s and returns the number actually stored.
 func (x Uint32s) StorePart(s []uint32) int
 
 // String returns a string representation of the vector.
@@ -818,10 +818,10 @@ func (x Uint64s) ShiftAllLeft(shift uint64) Uint64s
 // ShiftAllRight shifts all elements right by y bits.
 func (x Uint64s) ShiftAllRight(shift uint64) Uint64s
 
-// StoreSlice stores the vector elements into the slice s.
+// Store stores the vector elements into the slice s.
 func (x Uint64s) Store(s []uint64)
 
-// StoreSlicePart stores a partial vector into the slice s.
+// StorePart stores a partial vector into the slice s and returns the number actually stored.
 func (x Uint64s) StorePart(s []uint64) int
 
 // String returns a string representation of the vector.
@@ -899,10 +899,10 @@ func (x Float32s) NotEqual(y Float32s) Mask32s
 // Sqrt returns the element-wise square root of x.
 func (x Float32s) Sqrt() Float32s
 
-// StoreSlice stores the vector elements into the slice s.
+// Store stores the vector elements into the slice s.
 func (x Float32s) Store(s []float32)
 
-// StoreSlicePart stores a partial vector into the slice s.
+// StorePart stores a partial vector into the slice s and returns the number actually stored.
 func (x Float32s) StorePart(s []float32) int
 
 // String returns a string representation of the vector.
@@ -977,10 +977,10 @@ func (x Float64s) NotEqual(y Float64s) Mask64s
 // Sqrt returns the element-wise square root of x.
 func (x Float64s) Sqrt() Float64s
 
-// StoreSlice stores the vector elements into the slice s.
+// Store stores the vector elements into the slice s.
 func (x Float64s) Store(s []float64)
 
-// StoreSlicePart stores a partial vector into the slice s.
+// StorePart stores a partial vector into the slice s and returns the number actually stored.
 func (x Float64s) StorePart(s []float64) int
 
 // String returns a string representation of the vector.
