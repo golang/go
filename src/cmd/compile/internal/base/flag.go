@@ -215,7 +215,7 @@ func ParseFlags() {
 	if Flag.Racelite && Flag.RaceliteMatch != "" {
 		re, err := regexp.Compile(Flag.RaceliteMatch)
 		if err != nil {
-			log.Fatalf("invalid -racelite pattern: %s\nerror: %v", Flag.Racelite, err)
+			log.Fatalf("invalid -racelite pattern: %s\nerror: %v", Flag.RaceliteMatch, err)
 		}
 		Flag.Racelite = Flag.Racelite && re.MatchString(Ctxt.Pkgpath)
 	}
