@@ -35,8 +35,9 @@ const _Class_name = "ClassUnknownClassAddressClassBlockClassConstantClassExprLoc
 var _Class_index = [...]uint16{0, 12, 24, 34, 47, 59, 68, 80, 95, 106, 123, 137, 154, 165, 182, 196, 208, 220, 232, 248, 266}
 
 func (i Class) String() string {
-	if i < 0 || i >= Class(len(_Class_index)-1) {
+	idx := int(i) - 0
+	if i < 0 || idx >= len(_Class_index)-1 {
 		return "Class(" + strconv.FormatInt(int64(i), 10) + ")"
 	}
-	return _Class_name[_Class_index[i]:_Class_index[i+1]]
+	return _Class_name[_Class_index[idx]:_Class_index[idx+1]]
 }

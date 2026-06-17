@@ -5,6 +5,7 @@
 package midway
 
 import (
+	"cmd/compile/internal/base"
 	"cmd/compile/internal/syntax"
 	"cmd/compile/internal/types2"
 )
@@ -74,11 +75,9 @@ func (a *Analyzer) hasBodyDependency(fn *syntax.FuncDecl) bool {
 		return false
 	}
 	// Walk the body and check identifiers
+	// This will also note any variable references that are dependent.
 	found := false
 	syntax.Inspect(fn.Body, func(n syntax.Node) bool {
-		if found {
-			return false
-		}
 		if id, ok := n.(*syntax.Name); ok {
 			obj := a.info.Uses[id]
 			if obj == nil {
@@ -98,6 +97,12 @@ func (a *Analyzer) hasBodyDependency(fn *syntax.FuncDecl) bool {
 					}
 				}
 				if a.isDependentType(obj.Type()) {
+					// Whatever this is, it makes the outer object dependent.
+					// If this is a variable with dependent type, mark the variable as
+					// dependent, so that references to it become dependent.
+					if obj, ok := obj.(*types2.Var); ok {
+						a.dependentObj[obj] = true
+					}
 					found = true
 					return false
 				}
@@ -144,6 +149,9 @@ func (a *Analyzer) markIfDependent(obj types2.Object) bool {
 	}
 
 	if isDep {
+		if base.Debug.Simd > 0 {
+			base.Warn("%v is simd-dependent", obj)
+		}
 		a.dependentObj[obj] = true
 	}
 	return isDep

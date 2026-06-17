@@ -24,6 +24,16 @@ import (
 	"cmd/go/internal/work"
 )
 
+// pkgsiteCmdInternalDocVersion controls the version of the golang.org/x/pkgsite/cmd/internal/doc
+// module to build in buildPkgsite.
+//
+// This version is maintained, like other golang.org/x dependencies, via the go.dev/issue/36905 process.
+//
+// To make that process easier, the exact name and file location of this constant are known
+// to the [golang.org/x/build/cmd/updatestd] command. If this constant needs to be renamed
+// or moved to another .go file, update that code too.
+const pkgsiteCmdInternalDocVersion = "v0.0.0-20260605201217-deb78785c3ce"
+
 // pickUnusedPort finds an unused port by trying to listen on port 0
 // and letting the OS pick a port, then closing that connection and
 // returning that port number.
@@ -59,7 +69,7 @@ func buildPkgsite(ctx context.Context) string {
 		}
 	}()
 
-	version := "v0.0.0-20260605201217-deb78785c3ce"
+	version := pkgsiteCmdInternalDocVersion
 	if os.Getenv("TEST_GODOC_BUILD_ONLY") != "" {
 		version = "v0.1.0"
 	}

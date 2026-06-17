@@ -1030,12 +1030,18 @@ func (check *Checker) hasVarSize(t Type) bool {
 			return true
 		}
 
-		check.push(t.obj)
+		obj := t.obj
+		check.push(obj)
 		defer check.pop()
 
 		// Careful, we're inspecting t.fromRHS, so we need to unpack first.
 		t.unpack()
 		varSize := check.hasVarSize(t.rhs())
+
+		// Special case for portable simd types that rewrite to unknown sizes.
+		if pkg := obj.Pkg(); pkg != nil && pkg.Path() == "simd" && obj.Name() == "_simd" {
+			varSize = true
+		}
 
 		t.mu.Lock()
 		defer t.mu.Unlock()

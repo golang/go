@@ -21,8 +21,9 @@ const _element_name = "elementNoneelementScriptelementStyleelementTextareaelemen
 var _element_index = [...]uint8{0, 11, 24, 36, 51, 63, 74}
 
 func (i element) String() string {
-	if i >= element(len(_element_index)-1) {
+	idx := int(i) - 0
+	if i < 0 || idx >= len(_element_index)-1 {
 		return "element(" + strconv.FormatInt(int64(i), 10) + ")"
 	}
-	return _element_name[_element_index[i]:_element_index[i+1]]
+	return _element_name[_element_index[idx]:_element_index[idx+1]]
 }

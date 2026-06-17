@@ -2700,20 +2700,14 @@ func (rl *clientConnReadLoop) processSettingsNoWrite(f *SettingsFrame) error {
 		case SettingMaxHeaderListSize:
 			cc.peerMaxHeaderListSize = uint64(s.Val)
 		case SettingInitialWindowSize:
-			// Values above the maximum flow-control
-			// window size of 2^31-1 MUST be treated as a
-			// connection error (Section 5.4.1) of type
-			// FLOW_CONTROL_ERROR.
-			if s.Val > math.MaxInt32 {
-				return ConnectionError(ErrCodeFlowControl)
-			}
-
 			// Adjust flow control of currently-open
 			// frames by the difference of the old initial
 			// window size and this one.
 			delta := int32(s.Val) - int32(cc.initialWindowSize)
 			for _, cs := range cc.streams {
-				cs.flow.add(delta)
+				if !cs.flow.add(delta) {
+					return ConnectionError(ErrCodeFlowControl)
+				}
 			}
 			cc.cond.Broadcast()
 

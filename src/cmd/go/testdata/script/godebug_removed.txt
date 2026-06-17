@@ -5,7 +5,7 @@ cp go.mod.20 go.mod
 
 # Go 1.20 must accept the removed GODEBUG gotypesalias with default value
 go build -n godebugok.go
-! stderr 'use of removed'
+! stderr 'removed GODEBUG "gotypesalias" set to old value "0"'
 
 # This also applies to go vet
 go vet godebugok.go
@@ -13,40 +13,45 @@ go vet godebugok.go
 
 # Go 1.20 must not accept the removed GODEBUG gotypesalias with old value
 ! go build -n godebugold.go
-stderr 'use of removed'
+stderr 'removed GODEBUG "gotypesalias" set to old value "0"'
 
 ! go vet godebugold.go
-stderr 'use of removed'
+stderr 'removed GODEBUG "gotypesalias" set to old value "0"'
 
 # If the GODEBUG setting is valid in the .mod file the build succeeds.
 cp go.mod.20.godebugok go.mod
 go build -n main.go
-! stderr 'use of removed'
+! stderr 'removed GODEBUG "gotypesalias" set to old value "0"'
 
 # In this case, setting an invalid value in the .go file leads to build failure.
 ! go build -n godebugold.go
-stderr 'use of removed'
+stderr 'removed GODEBUG "gotypesalias" set to old value "0"'
 
 # If the GODEBUG setting is invalid in the .mod file the build fails.
 cp go.mod.20.godebugold go.mod
 ! go build -n main.go
-stderr 'use of removed'
+stderr 'removed GODEBUG "gotypesalias" set to old value "0"'
 
 # In this case, setting a valid value in the .go file does not remedy the failure.
 ! go build -n godebugok.go
-#stderr 'use of removed'
+stderr 'removed GODEBUG "gotypesalias" set to old value "0"'
 
 [short] skip
 
-# GODEBUGs set in the environment are simply passed along by the go command.
+# Using a removed GODEBUG with old value in the environment causes panic at startup.
 cp go.mod.20 go.mod
 env GODEBUG=gotypesalias=0
-go run printgodebug.go
-stdout gotypesalias=0
+! go run printgodebug.go
+stderr 'removed GODEBUG "gotypesalias" set to old value "0"'
 
+# Using a removed GODEBUG with default value in the environment is ok.
 env GODEBUG=gotypesalias=1
 go run printgodebug.go
 stdout gotypesalias=1
+
+# Setting a removed GODEBUG with old value in the environment during runtime is not guarded against.
+go run setgodebug.go
+stdout gotypesalias=0
 
 -- go.mod.20 --
 go 1.20
@@ -85,5 +90,16 @@ import "fmt"
 import "os"
 
 func main() {
+        fmt.Println(os.Getenv("GODEBUG"))
+}
+
+-- setgodebug.go --
+package main
+
+import "fmt"
+import "os"
+
+func main() {
+        os.Setenv("GODEBUG", "gotypesalias=0")
         fmt.Println(os.Getenv("GODEBUG"))
 }

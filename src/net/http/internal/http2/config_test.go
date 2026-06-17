@@ -7,13 +7,14 @@ package http2_test
 import (
 	"net/http"
 	"testing"
+	"testing/synctest"
 	"time"
 
 	. "net/http/internal/http2"
 )
 
-func TestConfigServerSettings(t *testing.T) { synctestTest(t, testConfigServerSettings) }
-func testConfigServerSettings(t testing.TB) {
+func TestConfigServerSettings(t *testing.T) { synctest.Test(t, testConfigServerSettings) }
+func testConfigServerSettings(t *testing.T) {
 	config := &http.HTTP2Config{
 		MaxConcurrentStreams:          1,
 		MaxDecoderHeaderTableSize:     1<<20 + 2,
@@ -38,8 +39,8 @@ func testConfigServerSettings(t testing.TB) {
 	})
 }
 
-func TestConfigTransportSettings(t *testing.T) { synctestTest(t, testConfigTransportSettings) }
-func testConfigTransportSettings(t testing.TB) {
+func TestConfigTransportSettings(t *testing.T) { synctest.Test(t, testConfigTransportSettings) }
+func testConfigTransportSettings(t *testing.T) {
 	config := &http.HTTP2Config{
 		MaxConcurrentStreams:          1, // ignored by Transport
 		MaxDecoderHeaderTableSize:     1<<20 + 2,
@@ -62,8 +63,8 @@ func testConfigTransportSettings(t testing.TB) {
 	tc.wantWindowUpdate(0, uint32(config.MaxReceiveBufferPerConnection))
 }
 
-func TestConfigPingTimeoutServer(t *testing.T) { synctestTest(t, testConfigPingTimeoutServer) }
-func testConfigPingTimeoutServer(t testing.TB) {
+func TestConfigPingTimeoutServer(t *testing.T) { synctest.Test(t, testConfigPingTimeoutServer) }
+func testConfigPingTimeoutServer(t *testing.T) {
 	st := newServerTester(t, func(w http.ResponseWriter, r *http.Request) {
 	}, func(h2 *http.HTTP2Config) {
 		h2.SendPingTimeout = 2 * time.Second
@@ -77,8 +78,8 @@ func testConfigPingTimeoutServer(t testing.TB) {
 	st.wantClosed()
 }
 
-func TestConfigPingTimeoutTransport(t *testing.T) { synctestTest(t, testConfigPingTimeoutTransport) }
-func testConfigPingTimeoutTransport(t testing.TB) {
+func TestConfigPingTimeoutTransport(t *testing.T) { synctest.Test(t, testConfigPingTimeoutTransport) }
+func testConfigPingTimeoutTransport(t *testing.T) {
 	tc := newTestClientConn(t, func(h2 *http.HTTP2Config) {
 		h2.SendPingTimeout = 2 * time.Second
 		h2.PingTimeout = 3 * time.Second

@@ -3,7 +3,7 @@
 # for removed GODEBUGs.
 
 ! go list
-stderr '^go.mod:3: use of removed godebug "x509sha1" with old value "1" \(see https://go.dev/doc/godebug#go-124\)'
+stderr '^go.mod:3: removed GODEBUG "x509sha1" set to old value "1" \(https://go.dev/doc/godebug#go-124\)'
 
 -- go.mod --
 module example.com/bar

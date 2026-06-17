@@ -941,10 +941,10 @@ func loadPackageData(ld *modload.Loader, ctx context.Context, path, parentPath, 
 				buildContext.GOPATH = "" // Clear GOPATH so packages are imported as pure module packages
 			}
 			modroot := modload.PackageModRoot(ld, ctx, r.path)
-			if modroot == "" && str.HasPathPrefix(r.dir, cfg.GOROOTsrc) {
+			if modroot == "" && str.HasFilePathPrefix(r.dir, cfg.GOROOTsrc) {
 				modroot = cfg.GOROOTsrc
 				gorootSrcCmd := filepath.Join(cfg.GOROOTsrc, "cmd")
-				if str.HasPathPrefix(r.dir, gorootSrcCmd) {
+				if str.HasFilePathPrefix(r.dir, gorootSrcCmd) {
 					modroot = gorootSrcCmd
 				}
 			}

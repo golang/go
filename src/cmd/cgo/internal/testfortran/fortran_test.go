@@ -47,7 +47,7 @@ func TestFortran(t *testing.T) {
 		switch runtime.GOOS {
 		case "darwin":
 			libExt = "dylib"
-		case "aix", "openbsd":
+		case "aix", "openbsd", "windows":
 			libExt = "a"
 		}
 		libName := "libgfortran." + libExt
