@@ -2953,6 +2953,9 @@ func testLocalCertificate(t *testing.T, version uint16, callback bool) {
 
 	clientConfig.MinVersion, serverConfig.MinVersion = version, version
 	clientConfig.MaxVersion, serverConfig.MaxVersion = version, version
+	if version < VersionTLS12 {
+		skipFIPS(t)
+	}
 	serverConfig.ClientAuth = RequestClientCert
 
 	serverCert, clientCert := testConfigServer.Certificates[0], testConfigClient.Certificates[0]
@@ -3009,6 +3012,9 @@ func testLocalCertificateResumption(t *testing.T, version uint16, callback bool)
 
 	clientConfig.MinVersion, serverConfig.MinVersion = version, version
 	clientConfig.MaxVersion, serverConfig.MaxVersion = version, version
+	if version < VersionTLS12 {
+		skipFIPS(t)
+	}
 	clientConfig.ClientSessionCache = NewLRUClientSessionCache(1)
 	serverConfig.ClientAuth = RequestClientCert
 
