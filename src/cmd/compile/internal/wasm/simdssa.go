@@ -119,8 +119,7 @@ func ssaGenSIMDValue(s *ssagen.State, v *ssa.Value, extend bool) bool {
 		getValue128(s, v.Args[0])
 		getValue32(s, v.Args[1])
 		s.Prog(v.Op.Asm())
-	case ssa.OpWasmF32x4RelaxedNmadd, ssa.OpWasmF64x2RelaxedNmadd, ssa.OpWasmV128Bitselect,
-		ssa.OpWasmF32x4RelaxedMadd, ssa.OpWasmF64x2RelaxedMadd:
+	case ssa.OpWasmV128Bitselect:
 		getValue128(s, v.Args[0])
 		getValue128(s, v.Args[1])
 		getValue128(s, v.Args[2])

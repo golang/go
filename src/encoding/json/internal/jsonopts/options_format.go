@@ -2,19 +2,61 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-//go:build goexperiment.jsonv2 && goexperiment.jsonformat
+//go:build goexperiment.jsonv2
 
-// # Format Tag Option
+package jsonopts
+
+// NOTE: While [ExperimentalSupportFormatTag] is exported,
+// it is in an internal package and thus inaccessible for public use.
 //
-// The `format` tag option is experimental,
-// and not subject to the Go 1 compatibility promise.
-// It only exists when building with the GOEXPERIMENT=jsonformat environment variable set.
+// The [github.com/go-json-experiment/json] module is kept in sync
+// with the Go standard standard library and will expose this option
+// in a way that public code can now directly reference.
+
+type supportFormatTag struct {
+	Options
+	v bool
+}
+
+var (
+	enableFormatTag  = supportFormatTag{v: true}
+	disableFormatTag = supportFormatTag{v: false}
+)
+
+// ExperimentalSupportFormatTag is a marker method that is specially
+// recognized by the "encoding/json/v2" runtime.
+func (o *supportFormatTag) ExperimentalSupportFormatTag() bool {
+	return o.v
+}
+
+// ExperimentalSupportFormatTag enables support for the `format` tag.
 //
-// Some Go types support alternative JSON representations as specified below.
-// The `format` tag option is a key-value pair specified as "format:value"
-// where the value must be either a literal consisting of letters and numbers
-// (e.g., "format:RFC3339") or a single-quoted string literal
-// (e.g., "format:'2006-01-02'"). The interpretation of the format option
+// WARNING: This is an experimental feature and will be removed in the future
+// as either a failed experiment or be formally included in "encoding/json/v2"
+// in some semantically similar form, in which case, users of this option
+// must migrate to the officially supported feature.
+//
+// The `format` tag was originally part of the "encoding/json/v2" experiment
+// but support for it was removed (see https://go.dev/issue/79071) for the
+// initial release of "encoding/json/v2" in light of the anticipation that
+// the Go language might support typed struct tags (https://go.dev/issue/74472).
+//
+// Typed struct tags are a more expressive and type-safe way to express format
+// attributes than the bespoke `format` tag option that implements a miniature
+// domain-specific language (DSL) within the "json" package itself.
+//
+// While "encoding/json/v2" was in the experimental phase,
+// some users were already depending on the `format` tag option.
+// This experimental option exists to provide a temporary workaround
+// until the (hopeful) inclusion of typed struct tags and support for
+// formatting directives in "encoding/json/v2" using that language mechanism.
+//
+// This option enables support for the `format` tag option, which specifies
+// a format flag used to specialize the formatting of the field value.
+// The option is a key-value pair specified as "format:value" where
+// the value must be either a literal consisting of letters and numbers
+// (e.g., `format:RFC3339`) or a single-quoted string literal
+// (e.g., `format:'2006-01-02'`). The interpretation of the format flag
 // is determined by the struct field type.
 //
 // Go types with alternative representations are as follows:
@@ -73,4 +115,10 @@
 //     If the format is "iso8601", it is represented as a JSON string using the
 //     ISO 8601 standard for durations (e.g., "PT1H30M" for 1 hour 30 minutes)
 //     using only accurate units of hours, minutes, and seconds.
-package json
+func ExperimentalSupportFormatTag(v bool) Options {
+	if v {
+		return &enableFormatTag
+	} else {
+		return &disableFormatTag
+	}
+}

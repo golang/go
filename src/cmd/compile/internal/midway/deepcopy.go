@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"strings"
 
+	"cmd/compile/internal/base"
 	"cmd/compile/internal/syntax"
 	"cmd/compile/internal/types2"
 )
@@ -71,10 +72,17 @@ func (c *DeepCopier) OnName(id *syntax.Name) *syntax.Name {
 	if obj == nil {
 		return nil
 	}
+	// Don't rename methods of dependent types
+	if c.analyzer.isDependentMethod[obj] {
+		return nil
+	}
 
-	if c.analyzer.dependentObj[obj] || isBaseSimdTypeObj(obj) {
+	if c.analyzer.isDependentObj[obj] || isBaseSimdTypeObj(obj) {
 		newId := syntax.NewName(id.Pos(), id.Value+c.suffix)
 		// Object link will be handled manually in deepcopier Use/Def mapper
+		if base.Debug.Simd > 0 {
+			base.Warn("%s: rewriting name %s to %s", id.Pos().String(), id.Value, newId.Value)
+		}
 		return newId
 	}
 	return nil
@@ -94,7 +102,7 @@ func (c *DeepCopier) OnNameExpr(id *syntax.Name) syntax.Expr {
 	if isBaseSimdTypeObj(obj) {
 		// if it is a name, that means that this is in the simd package,
 		// and the name must be replaced with a selector referencing
-		// the architecture-dependent packages..
+		// the architecture-dependent packages.
 		name := id.Value
 		width := nameToElemBitWidth(name)
 		if width > 0 {
@@ -122,9 +130,12 @@ func (c *DeepCopier) OnNameExpr(id *syntax.Name) syntax.Expr {
 		}
 	}
 
-	if c.analyzer.dependentObj[obj] {
+	if c.analyzer.isDependentObj[obj] {
 		newId := syntax.NewName(id.Pos(), id.Value+c.suffix)
 		// Object link will be handled manually in deepcopier Use/Def mapper
+		if base.Debug.Simd > 0 {
+			base.Warn("%s: rewriting name %s to %s", id.Pos().String(), id.Value, newId.Value)
+		}
 		return newId
 	}
 	return nil

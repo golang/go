@@ -21,16 +21,27 @@ func TestRSAOAEPDecryptWycheproof(t *testing.T) {
 		"SmallIntegerCiphertext": true,
 	}
 
-	// TODO(XXX): support test files with different hashes for MGF/label
 	for _, file := range []string{
 		"rsa_oaep_2048_sha1_mgf1sha1_test.json",
+		"rsa_oaep_2048_sha224_mgf1sha1_test.json",
 		"rsa_oaep_2048_sha224_mgf1sha224_test.json",
+		"rsa_oaep_2048_sha256_mgf1sha1_test.json",
 		"rsa_oaep_2048_sha256_mgf1sha256_test.json",
+		"rsa_oaep_2048_sha384_mgf1sha1_test.json",
 		"rsa_oaep_2048_sha384_mgf1sha384_test.json",
+		"rsa_oaep_2048_sha512_224_mgf1sha1_test.json",
+		"rsa_oaep_2048_sha512_224_mgf1sha512_224_test.json",
+		"rsa_oaep_2048_sha512_mgf1sha1_test.json",
 		"rsa_oaep_2048_sha512_mgf1sha512_test.json",
+		"rsa_oaep_3072_sha256_mgf1sha1_test.json",
 		"rsa_oaep_3072_sha256_mgf1sha256_test.json",
+		"rsa_oaep_3072_sha512_256_mgf1sha1_test.json",
+		"rsa_oaep_3072_sha512_256_mgf1sha512_256_test.json",
+		"rsa_oaep_3072_sha512_mgf1sha1_test.json",
 		"rsa_oaep_3072_sha512_mgf1sha512_test.json",
+		"rsa_oaep_4096_sha256_mgf1sha1_test.json",
 		"rsa_oaep_4096_sha256_mgf1sha256_test.json",
+		"rsa_oaep_4096_sha512_mgf1sha1_test.json",
 		"rsa_oaep_4096_sha512_mgf1sha512_test.json",
 		"rsa_oaep_misc_test.json",
 	} {
@@ -38,17 +49,13 @@ func TestRSAOAEPDecryptWycheproof(t *testing.T) {
 		wycheproof.LoadVectorFile(t, file, &testdata)
 
 		for _, tg := range testdata.TestGroups {
-			// TODO(XXX): support rsa_oaep_misc_test test cases with different hashes for MGF/label
-			if tg.MgfSha != tg.Sha {
-				t.Skip("test cases with different hashes for MGF/label not yet supported")
-			}
-
 			rawPriv, err := x509.ParsePKCS8PrivateKey(wycheproof.MustDecodeHex(tg.PrivateKeyPkcs8))
 			if err != nil {
 				t.Fatalf("%s failed to parse PKCS #8 private key: %s", file, err)
 			}
 			priv := rawPriv.(*rsa.PrivateKey)
 			hash := wycheproof.ParseHash(tg.Sha)
+			mgfHash := wycheproof.ParseHash(tg.MgfSha)
 
 			for _, tv := range tg.Tests {
 				t.Run(wycheproof.TestName(file, tv), func(t *testing.T) {
@@ -57,7 +64,12 @@ func TestRSAOAEPDecryptWycheproof(t *testing.T) {
 					ct := wycheproof.MustDecodeHex(tv.Ct)
 					label := wycheproof.MustDecodeHex(tv.Label)
 					wantPass := wycheproof.ShouldPass(t, tv.Result, tv.Flags, flagsShouldPass)
-					plaintext, err := rsa.DecryptOAEP(hash.New(), nil, priv, ct, label)
+					opts := &rsa.OAEPOptions{
+						Hash:    hash,
+						MGFHash: mgfHash,
+						Label:   label,
+					}
+					plaintext, err := priv.Decrypt(nil, ct, opts)
 					if wantPass {
 						if err != nil {
 							t.Fatalf("expected success: %s", err)
@@ -67,6 +79,50 @@ func TestRSAOAEPDecryptWycheproof(t *testing.T) {
 						}
 					} else if err == nil {
 						t.Errorf("expected failure")
+					}
+				})
+			}
+		}
+	}
+}
+
+func TestRSAPKCS1DecryptWycheproof(t *testing.T) {
+	for _, file := range []string{
+		"rsa_pkcs1_2048_test.json",
+		"rsa_pkcs1_3072_test.json",
+		"rsa_pkcs1_4096_test.json",
+	} {
+		var testdata wycheproof.RsaesPkcs1DecryptSchemaV1Json
+		wycheproof.LoadVectorFile(t, file, &testdata)
+
+		for _, tg := range testdata.TestGroups {
+			rawPriv, err := x509.ParsePKCS8PrivateKey(wycheproof.MustDecodeHex(tg.PrivateKeyPkcs8))
+			if err != nil {
+				t.Fatalf("%s: failed to parse PKCS #8 private key: %v", file, err)
+			}
+			priv := rawPriv.(*rsa.PrivateKey)
+
+			for _, tv := range tg.Tests {
+				t.Run(wycheproof.TestName(file, tv), func(t *testing.T) {
+					t.Parallel()
+
+					ct := wycheproof.MustDecodeHex(tv.Ct)
+					expectedMsg := wycheproof.MustDecodeHex(tv.Msg)
+					wantPass := wycheproof.ShouldPass(t, tv.Result, tv.Flags, nil)
+
+					plaintext, err := rsa.DecryptPKCS1v15(nil, priv, ct)
+					if err != nil {
+						if wantPass {
+							t.Fatalf("DecryptPKCS1v15: %v", err)
+						}
+						return
+					}
+					if !wantPass {
+						t.Errorf("DecryptPKCS1v15 unexpectedly succeeded")
+						return
+					}
+					if !bytes.Equal(plaintext, expectedMsg) {
+						t.Errorf("plaintext mismatch: got %x, want %x", plaintext, expectedMsg)
 					}
 				})
 			}
@@ -170,7 +226,7 @@ func TestRSAPSSSignaturesWycheproof(t *testing.T) {
 		"rsa_pss_3072_sha256_mgf1_32_test.json": {67, 68, 69, 70, 71, 72},
 		"rsa_pss_4096_sha256_mgf1_32_test.json": {67, 68, 69, 70, 71, 72},
 		"rsa_pss_4096_sha512_mgf1_32_test.json": {136, 137, 138, 139, 140, 141},
-		// "rsa_pss_misc_test.json": nil,  // TODO: This ones seems to be broken right now, but can enable later on.
+		"rsa_pss_misc_test.json":                nil,
 	}
 
 	for file, overrideIDs := range filesOverrideToPassZeroSLen {
@@ -178,6 +234,13 @@ func TestRSAPSSSignaturesWycheproof(t *testing.T) {
 		wycheproof.LoadVectorFile(t, file, &testdata)
 
 		for _, tg := range testdata.TestGroups {
+			// Go's PSS implementation doesn't support different hash
+			// algorithms for message digest and MGF1. See #46233.
+			// Skip the affected test groups in rsa_pss_misc_test.json.
+			if file == "rsa_pss_misc_test.json" && tg.Sha != tg.MgfSha {
+				continue
+			}
+
 			hash := wycheproof.ParseHash(tg.Sha)
 
 			pub, err := x509.ParsePKCS1PublicKey(wycheproof.MustDecodeHex(tg.PublicKeyAsn))

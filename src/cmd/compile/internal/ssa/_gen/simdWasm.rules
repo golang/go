@@ -153,8 +153,6 @@
 (MulInt64x2 ...) => (I64x2Mul ...)
 (MulUint64x2 ...) => (I64x2Mul ...)
 (MulFloat64x2 ...) => (F64x2Mul ...)
-(MulAddFloat32x4 ...) => (F32x4RelaxedMadd ...)
-(MulAddFloat64x2 ...) => (F64x2RelaxedMadd ...)
 (MulWidenHiInt8x16 ...) => (I16x8ExtmulHighI8x16S ...)
 (MulWidenHiUint8x16 ...) => (I16x8ExtmulHighI8x16U ...)
 (MulWidenHiInt16x8 ...) => (I32x4ExtmulHighI16x8S ...)

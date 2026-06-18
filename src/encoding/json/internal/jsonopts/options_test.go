@@ -94,6 +94,30 @@ func TestJoin(t *testing.T) {
 			v2.IndentPrefix = "  "
 			return &v2
 		}(),
+	}, {
+		in: ExperimentalSupportFormatTag(true),
+		want: func() *Struct {
+			v2 := DefaultOptionsV2
+			v2.Flags.Set(jsonflags.Indent | 1)
+			v2.Flags.Set(jsonflags.IndentPrefix | 1)
+			v2.Flags.Set(jsonflags.Multiline | 1)
+			v2.Flags.Set(jsonflags.FormatTagSupported | 1)
+			v2.Indent = "  "
+			v2.IndentPrefix = "  "
+			return &v2
+		}(),
+	}, {
+		in: &Struct{Flags: jsonflags.Flags{Presence: uint64(jsonflags.FormatTagSupported)}},
+		want: func() *Struct {
+			v2 := DefaultOptionsV2
+			v2.Flags.Set(jsonflags.Indent | 1)
+			v2.Flags.Set(jsonflags.IndentPrefix | 1)
+			v2.Flags.Set(jsonflags.Multiline | 1)
+			v2.Flags.Set(jsonflags.FormatTagSupported | 0)
+			v2.Indent = "  "
+			v2.IndentPrefix = "  "
+			return &v2
+		}(),
 	}}
 	got := new(Struct)
 	for i, tt := range tests {
@@ -106,7 +130,7 @@ func TestJoin(t *testing.T) {
 
 func TestGet(t *testing.T) {
 	opts := &Struct{
-		Flags:        makeFlags(jsonflags.Indent|jsonflags.Deterministic|jsonflags.Marshalers|1, jsonflags.Multiline|0),
+		Flags:        makeFlags(jsonflags.Indent|jsonflags.Deterministic|jsonflags.Marshalers|jsonflags.FormatTagSupported|1, jsonflags.Multiline|0),
 		CoderValues:  CoderValues{Indent: "\t"},
 		ArshalValues: ArshalValues{Marshalers: new(json.Marshalers)},
 	}
@@ -157,6 +181,12 @@ func TestGet(t *testing.T) {
 	}
 	if v, ok := json.GetOption(json.DefaultOptionsV2(), json.WithMarshalers); v != nil || ok {
 		t.Errorf(`GetOption(..., WithMarshalers) = (%v, %v), want (nil, false)`, v, ok)
+	}
+	if v, ok := json.GetOption(opts, ExperimentalSupportFormatTag); !v || !ok {
+		t.Errorf(`GetOption(..., ExperimentalSupportFormatTag) = (%v, %v), want (true, true)`, v, ok)
+	}
+	if v, ok := json.GetOption(json.DefaultOptionsV2(), ExperimentalSupportFormatTag); v || ok {
+		t.Errorf(`GetOption(..., ExperimentalSupportFormatTag) = (%v, %v), want (false, false)`, v, ok)
 	}
 }
 

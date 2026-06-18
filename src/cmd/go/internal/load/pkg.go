@@ -634,7 +634,17 @@ func (sp *ImportStack) shorterThan(t []string) bool {
 // packageCache is a lookup cache for LoadImport,
 // so that if we look up a package multiple times
 // we return the same pointer each time.
+//
+// TODO: associate the packageCache with the module loader state, so that
+// different module loaders use different caches.
 var packageCache = map[string]*Package{}
+
+// ClearPackageCache clears the package cache.
+// It cannot be used concurrently with calls to LoadImport or other functions
+// that use packageCache without synchronization.
+func ClearPackageCache() {
+	clear(packageCache)
+}
 
 // dirToImportPath returns the pseudo-import path we use for a package
 // outside the Go path. It begins with _/ and then contains the full path
@@ -931,10 +941,10 @@ func loadPackageData(ld *modload.Loader, ctx context.Context, path, parentPath, 
 				buildContext.GOPATH = "" // Clear GOPATH so packages are imported as pure module packages
 			}
 			modroot := modload.PackageModRoot(ld, ctx, r.path)
-			if modroot == "" && str.HasPathPrefix(r.dir, cfg.GOROOTsrc) {
+			if modroot == "" && str.HasFilePathPrefix(r.dir, cfg.GOROOTsrc) {
 				modroot = cfg.GOROOTsrc
 				gorootSrcCmd := filepath.Join(cfg.GOROOTsrc, "cmd")
-				if str.HasPathPrefix(r.dir, gorootSrcCmd) {
+				if str.HasFilePathPrefix(r.dir, gorootSrcCmd) {
 					modroot = gorootSrcCmd
 				}
 			}

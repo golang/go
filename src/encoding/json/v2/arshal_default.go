@@ -1129,6 +1129,8 @@ func makeStructArshaler(t reflect.Type) *arshaler {
 		once.Do(init)
 		if errInit != nil && !mo.Flags.Get(jsonflags.ReportErrorsWithLegacySemantics) {
 			return newMarshalErrorBefore(enc, errInit.GoType, errInit.Err)
+		} else if fields.errUnsupportedFormat != nil && !mo.Flags.Get(jsonflags.FormatTagSupported) {
+			return newMarshalErrorBefore(enc, fields.errUnsupportedFormat.GoType, fields.errUnsupportedFormat.Err)
 		}
 
 		if err := enc.WriteToken(jsontext.BeginObject); err != nil {
@@ -1143,7 +1145,7 @@ func makeStructArshaler(t reflect.Type) *arshaler {
 			if len(f.index) > 0 {
 				v = v.fieldByIndex(f.index, false)
 				if !v.IsValid() {
-					continue // implies a nil inlined field
+					continue // implies a nil embedded field
 				}
 			}
 
@@ -1243,17 +1245,17 @@ func makeStructArshaler(t reflect.Type) *arshaler {
 
 			// Remember the previous written object member.
 			// The set of seen fields only needs to be updated to detect
-			// duplicate names with those from the inlined fallback.
-			if !mo.Flags.Get(jsonflags.AllowDuplicateNames) && fields.inlinedFallback != nil {
+			// duplicate names with those from the embedded fallback.
+			if !mo.Flags.Get(jsonflags.AllowDuplicateNames) && fields.embeddedFallback != nil {
 				seenIdxs.insert(uint(f.id))
 			}
 			prevIdx = f.id
 		}
-		if fields.inlinedFallback != nil {
+		if fields.embeddedFallback != nil {
 			var insertUnquotedName func([]byte) bool
 			if !mo.Flags.Get(jsonflags.AllowDuplicateNames) {
 				insertUnquotedName = func(name []byte) bool {
-					// Check that the name from inlined fallback does not match
+					// Check that the name from embedded fallback does not match
 					// one of the previously marshaled names from known fields.
 					if foldedFields := fields.lookupByFoldedName(name); len(foldedFields) > 0 {
 						if f := fields.byActualName[string(name)]; f != nil {
@@ -1267,11 +1269,11 @@ func makeStructArshaler(t reflect.Type) *arshaler {
 					}
 
 					// Check that the name does not match any other name
-					// previously marshaled from the inlined fallback.
+					// previously marshaled from the embedded fallback.
 					return xe.Namespaces.Last().InsertUnquoted(name)
 				}
 			}
-			if err := marshalInlinedFallbackAll(enc, va, mo, fields.inlinedFallback, insertUnquotedName); err != nil {
+			if err := marshalEmbeddedFallbackAll(enc, va, mo, fields.embeddedFallback, insertUnquotedName); err != nil {
 				return err
 			}
 		}
@@ -1305,6 +1307,8 @@ func makeStructArshaler(t reflect.Type) *arshaler {
 			once.Do(init)
 			if errInit != nil && !uo.Flags.Get(jsonflags.ReportErrorsWithLegacySemantics) {
 				return newUnmarshalErrorAfter(dec, errInit.GoType, errInit.Err)
+			} else if fields.errUnsupportedFormat != nil && !uo.Flags.Get(jsonflags.FormatTagSupported) {
+				return newUnmarshalErrorAfter(dec, fields.errUnsupportedFormat.GoType, fields.errUnsupportedFormat.Err)
 			}
 
 			var seenIdxs uintSet
@@ -1327,7 +1331,7 @@ func makeStructArshaler(t reflect.Type) *arshaler {
 						}
 					}
 					if f == nil {
-						if uo.Flags.Get(jsonflags.RejectUnknownMembers) && fields.inlinedFallback == nil {
+						if uo.Flags.Get(jsonflags.RejectUnknownMembers) && fields.embeddedFallback == nil {
 							err := newUnmarshalErrorAfter(dec, t, ErrUnknownName)
 							if !uo.Flags.Get(jsonflags.ReportErrorsWithLegacySemantics) {
 								return err
@@ -1339,14 +1343,14 @@ func makeStructArshaler(t reflect.Type) *arshaler {
 							return newDuplicateNameError(dec.StackPointer(), nil, dec.InputOffset()-len64(val))
 						}
 
-						if fields.inlinedFallback == nil {
+						if fields.embeddedFallback == nil {
 							// Skip unknown value since we have no place to store it.
 							if err := dec.SkipValue(); err != nil {
 								return err
 							}
 						} else {
 							// Unmarshal into a value capable of storing arbitrary object members.
-							if err := unmarshalInlinedFallbackNext(dec, va, uo, fields.inlinedFallback, val, name); err != nil {
+							if err := unmarshalEmbeddedFallbackNext(dec, va, uo, fields.embeddedFallback, val, name); err != nil {
 								if isFatalError(err, uo.Flags) {
 									return err
 								}
@@ -1963,6 +1967,19 @@ func makeInvalidArshaler(t reflect.Type) *arshaler {
 		return newMarshalErrorBefore(enc, t, nil)
 	}
 	fncs.unmarshal = func(dec *jsontext.Decoder, va addressableValue, uo *jsonopts.Struct) error {
+		// Under legacy error semantics, unmarshal continues on even with errors.
+		// Thus, always consume the value first.
+		// As a special-case, null is permitted for unsupported types.
+		if uo.Flags.Get(jsonflags.ReportErrorsWithLegacySemantics) {
+			switch val, err := dec.ReadValue(); {
+			case err != nil:
+				return err
+			case val.Kind() == 'n':
+				return nil
+			default:
+				return newUnmarshalErrorAfter(dec, t, nil)
+			}
+		}
 		return newUnmarshalErrorBefore(dec, t, nil)
 	}
 	return &fncs

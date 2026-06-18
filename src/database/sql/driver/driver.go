@@ -452,6 +452,9 @@ type ScanContext internal.ScanContext
 // to scan directly into the user-provided destination.
 //
 // RowsColumnScanner supersedes the [Rows.Next] method.
+//
+// As of Go 1.27, database/sql will not call Next if a Rows implements RowsColumnScanner.
+// Rows implementations may still implement the Next method to support older versions of Go.
 type RowsColumnScanner interface {
 	Rows
 

@@ -1,9 +1,14 @@
+// compile
+
 // Copyright 2026 The Go Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-//go:build goexperiment.jsonv2 && goexperiment.jsonformat
+package p
 
-package internal
+func f[T []byte | []rune]() {
+	_ = T("")
+}
 
-const ExpJSONFormat = true
+var _ = f[[]rune]
+var _ = f[[]byte]

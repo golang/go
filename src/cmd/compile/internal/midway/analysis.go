@@ -5,41 +5,58 @@
 package midway
 
 import (
+	"cmd/compile/internal/base"
 	"cmd/compile/internal/syntax"
 	"cmd/compile/internal/types2"
 )
 
 // Analyzer holds the state for SIMD dependency analysis
 type Analyzer struct {
-	pkg          *types2.Package
-	info         *types2.Info
-	dependentObj map[types2.Object]bool
-	visited      map[types2.Type]bool
-	inSimd       bool
+	pkg                *types2.Package
+	info               *types2.Info
+	isDependentObj     map[types2.Object]bool // does an Object depend on a simd type in some way?
+	isDependentMethod  map[types2.Object]bool // is this dependent Object also a method? (methods are not renamed, their types are)
+	hasDependentMethod map[types2.Type]bool   // is this a type that has a dependent method?
+	visited            map[types2.Type]bool   // if in map, type has been visited, and value is whether type is dependent
+	inSimd             bool                   // true if the current package is the simd package (which is a special case)
 }
 
 func NewAnalyzer(pkg *types2.Package, info *types2.Info) *Analyzer {
 	return &Analyzer{
-		pkg:          pkg,
-		info:         info,
-		dependentObj: make(map[types2.Object]bool),
-		visited:      make(map[types2.Type]bool),
-		inSimd:       pkg.Path() == simdPkg,
+		pkg:                pkg,
+		info:               info,
+		isDependentObj:     make(map[types2.Object]bool),
+		isDependentMethod:  make(map[types2.Object]bool),
+		hasDependentMethod: make(map[types2.Type]bool),
+		visited:            make(map[types2.Type]bool),
+		inSimd:             pkg.Path() == simdPkg,
 	}
 }
 
 // Analyze builds the set of SIMD-dependent objects
 func (a *Analyzer) Analyze(files []*syntax.File) bool {
 	// Phase 1: Seed dependence from types and signatures
-	for _, obj := range a.info.Defs {
-		if obj != nil {
-			a.markIfDependent(obj)
+	hdmsize := len(a.hasDependentMethod)
+
+	for {
+		for _, obj := range a.info.Defs {
+			if obj != nil {
+				a.markIfDependent(obj)
+			}
 		}
-	}
-	for _, obj := range a.info.Uses {
-		if obj != nil {
-			a.markIfDependent(obj)
+		for _, obj := range a.info.Uses {
+			if obj != nil {
+				a.markIfDependent(obj)
+			}
 		}
+		if hdmsize == len(a.hasDependentMethod) {
+			break
+		}
+		if base.Debug.Simd > 0 {
+			base.Warn("hasDependentMethod increased from %d to %d", hdmsize, len(a.hasDependentMethod))
+		}
+		hdmsize = len(a.hasDependentMethod)
+		clear(a.visited)
 	}
 
 	// Phase 2: Transitive closure via function bodies
@@ -53,12 +70,12 @@ func (a *Analyzer) Analyze(files []*syntax.File) bool {
 						continue
 					}
 					obj := a.info.Defs[fn.Name]
-					if obj == nil || a.dependentObj[obj] {
+					if obj == nil || a.isDependentObj[obj] {
 						continue
 					}
 
 					if a.hasBodyDependency(fn) {
-						a.dependentObj[obj] = true
+						a.isDependentObj[obj] = true
 						changed = true
 					}
 				}
@@ -66,7 +83,7 @@ func (a *Analyzer) Analyze(files []*syntax.File) bool {
 		}
 	}
 
-	return len(a.dependentObj) > 0
+	return len(a.isDependentObj) > 0
 }
 
 func (a *Analyzer) hasBodyDependency(fn *syntax.FuncDecl) bool {
@@ -74,11 +91,9 @@ func (a *Analyzer) hasBodyDependency(fn *syntax.FuncDecl) bool {
 		return false
 	}
 	// Walk the body and check identifiers
+	// This will also note any variable references that are dependent.
 	found := false
 	syntax.Inspect(fn.Body, func(n syntax.Node) bool {
-		if found {
-			return false
-		}
 		if id, ok := n.(*syntax.Name); ok {
 			obj := a.info.Uses[id]
 			if obj == nil {
@@ -86,7 +101,7 @@ func (a *Analyzer) hasBodyDependency(fn *syntax.FuncDecl) bool {
 			}
 			if obj != nil {
 				if _, isFunc := obj.(*types2.Func); !isFunc {
-					if a.dependentObj[obj] {
+					if a.isDependentObj[obj] {
 						found = true
 						return false
 					}
@@ -98,6 +113,14 @@ func (a *Analyzer) hasBodyDependency(fn *syntax.FuncDecl) bool {
 					}
 				}
 				if a.isDependentType(obj.Type()) {
+					// Whatever this is, it makes the outer object dependent.
+					// If this is a package variable with dependent type, mark the
+					// variable as dependent, so that references to it become dependent.
+					if obj, ok := obj.(*types2.Var); ok && obj.Kind() == types2.PackageVar {
+						// everything else is nested within a dependent function/struct/scope
+						// and does not need its own renaming
+						a.isDependentObj[obj] = true
+					}
 					found = true
 					return false
 				}
@@ -113,11 +136,12 @@ func (a *Analyzer) hasBodyDependency(fn *syntax.FuncDecl) bool {
 }
 
 func (a *Analyzer) markIfDependent(obj types2.Object) bool {
-	if a.dependentObj[obj] {
+	if a.isDependentObj[obj] {
 		return true
 	}
 
 	isDep := false
+	isDepMeth := false
 	switch obj := obj.(type) {
 	case *types2.Var:
 		if obj.Pkg() == a.pkg && obj.Parent() == a.pkg.Scope() {
@@ -134,6 +158,11 @@ func (a *Analyzer) markIfDependent(obj types2.Object) bool {
 				isDep = true
 			} else if named, ok := rcv.Type().(*types2.Named); !ok || !isBaseSimdType(named) {
 				isDep = true
+				t := rcv.Type()
+				if !a.isDependentType(t) {
+					a.markHasMethod(t)
+				}
+				isDepMeth = true
 			}
 		}
 	}
@@ -144,7 +173,16 @@ func (a *Analyzer) markIfDependent(obj types2.Object) bool {
 	}
 
 	if isDep {
-		a.dependentObj[obj] = true
+		if base.Debug.Simd > 0 {
+			base.Warn("%s: %v is simd-dependent", obj.Pos().String(), obj)
+		}
+		a.isDependentObj[obj] = true
+	}
+	if isDepMeth {
+		if base.Debug.Simd > 0 {
+			base.Warn("%s: %v is simd-dependent method", obj.Pos().String(), obj)
+		}
+		a.isDependentMethod[obj] = true
 	}
 	return isDep
 }
@@ -156,6 +194,9 @@ func (a *Analyzer) isDependentType(t types2.Type) bool {
 func (a *Analyzer) checkTypeRecursive(t types2.Type) bool {
 	if t == nil {
 		return false
+	}
+	if a.hasDependentMethod[t] {
+		a.visited[t] = true
 	}
 	if b, ok := a.visited[t]; ok {
 		return b // Break cycles
@@ -209,6 +250,28 @@ func (a *Analyzer) checkTypeRecursive(t types2.Type) bool {
 		return memo(a.checkTypeRecursive(types2.Unalias(t)))
 	}
 	return false
+}
+
+// This attempts to mark types that are not otherwise dependent
+// as being dependent, if they have a method with a dependent
+// signature.
+func (a *Analyzer) markHasMethod(t types2.Type) {
+	if t == nil {
+		return
+	}
+	if a.hasDependentMethod[t] {
+		return
+	}
+
+	a.hasDependentMethod[t] = true
+
+	switch t := t.(type) {
+	case *types2.Pointer:
+		a.markHasMethod(t.Elem())
+	case *types2.Alias:
+		a.markHasMethod(t.Rhs())
+	}
+	return
 }
 
 func isBaseSimdType(t *types2.Named) bool {

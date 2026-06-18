@@ -19,30 +19,30 @@ import (
 	"encoding/json/jsontext"
 )
 
-// This package supports "inlining" a Go struct field, where the contents
+// This package supports "embedding" a Go struct field, where the contents
 // of the serialized field (which must be a JSON object) are treated as if
 // they are part of the parent Go struct (which represents a JSON object).
 //
-// Generally, inlined fields are of a Go struct type, where the fields of the
+// Generally, embedded fields are of a Go struct type, where the fields of the
 // nested struct are virtually hoisted up to the parent struct using rules
 // similar to how Go embedding works (but operating within the JSON namespace).
 //
-// However, inlined fields may also be of a Go map type with a string key or
-// a jsontext.Value. Such inlined fields are called "fallback" fields since they
+// However, embedded fields may also be of a Go map type with a string key or
+// a jsontext.Value. Such embedded fields are called "fallback" fields since they
 // represent any arbitrary JSON object member. Explicitly named fields take
-// precedence over the inlined fallback. Only one inlined fallback is allowed.
+// precedence over the embedded fallback. Only one embedded fallback is allowed.
 
-var errRawInlinedNotObject = errors.New("inlined raw value must be a JSON object")
+var errRawEmbedNotObject = errors.New("embedded raw value must be a JSON object")
 
 var jsontextValueType = reflect.TypeFor[jsontext.Value]()
 
-// marshalInlinedFallbackAll marshals all the members in an inlined fallback.
-func marshalInlinedFallbackAll(enc *jsontext.Encoder, va addressableValue, mo *jsonopts.Struct, f *structField, insertUnquotedName func([]byte) bool) error {
+// marshalEmbeddedFallbackAll marshals all the members in an embedded fallback.
+func marshalEmbeddedFallbackAll(enc *jsontext.Encoder, va addressableValue, mo *jsonopts.Struct, f *structField, insertUnquotedName func([]byte) bool) error {
 	v := addressableValue{va.Field(f.index0), va.forcedAddr} // addressable if struct value is addressable
 	if len(f.index) > 0 {
 		v = v.fieldByIndex(f.index, false)
 		if !v.IsValid() {
-			return nil // implies a nil inlined field
+			return nil // implies a nil embedded field
 		}
 	}
 	v = v.indirect(false)
@@ -69,7 +69,7 @@ func marshalInlinedFallbackAll(enc *jsontext.Encoder, va addressableValue, mo *j
 			return newMarshalErrorBefore(enc, v.Type(), err)
 		}
 		if tok.Kind() != '{' {
-			return newMarshalErrorBefore(enc, v.Type(), errRawInlinedNotObject)
+			return newMarshalErrorBefore(enc, v.Type(), errRawEmbedNotObject)
 		}
 		for dec.PeekKind() != '}' {
 			// Parse the JSON object name.
@@ -165,8 +165,8 @@ func marshalInlinedFallbackAll(enc *jsontext.Encoder, va addressableValue, mo *j
 	}
 }
 
-// unmarshalInlinedFallbackNext unmarshals only the next member in an inlined fallback.
-func unmarshalInlinedFallbackNext(dec *jsontext.Decoder, va addressableValue, uo *jsonopts.Struct, f *structField, quotedName, unquotedName []byte) error {
+// unmarshalEmbeddedFallbackNext unmarshals only the next member in an embedded fallback.
+func unmarshalEmbeddedFallbackNext(dec *jsontext.Decoder, va addressableValue, uo *jsonopts.Struct, f *structField, quotedName, unquotedName []byte) error {
 	v := addressableValue{va.Field(f.index0), va.forcedAddr} // addressable if struct value is addressable
 	if len(f.index) > 0 {
 		v = v.fieldByIndex(f.index, true)
@@ -188,7 +188,7 @@ func unmarshalInlinedFallbackNext(dec *jsontext.Decoder, va addressableValue, uo
 					*b = append(*b, ',')
 				}
 			} else {
-				return newUnmarshalErrorAfterWithSkipping(dec, v.Type(), errRawInlinedNotObject)
+				return newUnmarshalErrorAfterWithSkipping(dec, v.Type(), errRawEmbedNotObject)
 			}
 		}
 		*b = append(*b, quotedName...)

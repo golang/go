@@ -3183,3 +3183,39 @@ func dsaSelfSignedCNX(t *testing.T) []byte {
 	}
 	return dsaDER
 }
+
+func TestVerifyHostnameIPAddresses(t *testing.T) {
+	cert := &Certificate{
+		IPAddresses: []net.IP{
+			net.ParseIP("192.0.2.1"),
+			net.ParseIP("fe80::1"),
+		},
+	}
+
+	tests := []struct {
+		name  string
+		host  string
+		match bool
+	}{
+		{name: "IPv4", host: "192.0.2.1", match: true},
+		{name: "IPv4 bracketed", host: "[192.0.2.1]", match: true},
+		{name: "IPv4 mismatch", host: "192.0.2.2"},
+		{name: "IPv6", host: "fe80::1", match: true},
+		{name: "IPv6 bracketed", host: "[fe80::1]", match: true},
+		{name: "IPv6 with zone", host: "fe80::1%eth0", match: true},
+		{name: "IPv6 with zone bracketed", host: "[fe80::1%eth0]", match: true},
+		{name: "IPv6 mismatch", host: "fe80::2"},
+		{name: "IPv6 with zone mismatch", host: "fe80::2%eth0"},
+	}
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			err := cert.VerifyHostname(tc.host)
+			if tc.match && err != nil {
+				t.Errorf("VerifyHostname(%q) = %v, want nil", tc.host, err)
+			}
+			if !tc.match && err == nil {
+				t.Errorf("VerifyHostname(%q) = nil, want error", tc.host)
+			}
+		})
+	}
+}

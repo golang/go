@@ -78,7 +78,7 @@ type tester struct {
 
 	tests        []distTest // use addTest to extend
 	testNames    map[string]bool
-	timeoutScale int
+	timeoutScale int // a non-negative integer factor to scale test timeout by; defaults to 1
 
 	worklist []*work
 }
@@ -573,9 +573,20 @@ func (t *tester) registerStdTest(pkg string) {
 
 		timeoutSec := 180 * time.Second
 		for _, pkg := range stdMatches {
-			if pkg == "cmd/go" {
+			switch pkg {
+			case "cmd/go":
 				timeoutSec *= 3
-				break
+			case "cmd/cgo/internal/testshared":
+				// This package can take 2-3 minutes to test, so 3 min timeout causes
+				// flaky failures, like https://ci.chromium.org/b/8679277370961616529.
+				// Use the default timeout for it rather than the custom 3 minute one.
+				timeoutSec = 0
+			case "internal/godebugs":
+				// This package can take 5-6 minutes to test when the asan mode is on.
+				// The asan modifier scales the timeout by 2, but even 3*2 minutes is
+				// sometimes not enough. See go.dev/issue/78392.
+				// Use the default timeout for it rather than the custom 3 minute one.
+				timeoutSec = 0
 			}
 		}
 		return (&goTest{
@@ -746,11 +757,11 @@ func (t *tester) registerTests() {
 		}
 	}
 
-	// Test GOEXPERIMENT=jsonv2.
-	if !strings.Contains(goexperiment, "jsonv2") {
-		t.registerTest("GOEXPERIMENT=jsonv2 go test encoding/json/...", &goTest{
-			variant: "jsonv2",
-			env:     []string{"GOEXPERIMENT=" + goexperiments("jsonv2")},
+	// Test GOEXPERIMENT=nojsonv2.
+	if !strings.Contains(goexperiment, "nojsonv2") {
+		t.registerTest("GOEXPERIMENT=nojsonv2 go test encoding/json/...", &goTest{
+			variant: "nojsonv2",
+			env:     []string{"GOEXPERIMENT=" + goexperiments("nojsonv2")},
 			pkg:     "encoding/json/...",
 		})
 	}

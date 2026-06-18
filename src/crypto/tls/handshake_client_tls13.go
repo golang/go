@@ -756,6 +756,10 @@ func (hs *clientHandshakeStateTLS13) sendClientCertificate() error {
 		return err
 	}
 
+	if cert != nil {
+		hs.c.localCertificate = cert.Certificate
+	}
+
 	certMsg := new(certificateMsgTLS13)
 
 	certMsg.certificate = *cert

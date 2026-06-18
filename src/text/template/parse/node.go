@@ -171,9 +171,9 @@ func (c *CommentNode) String() string {
 }
 
 func (c *CommentNode) writeTo(sb *strings.Builder) {
-	sb.WriteString("{{")
+	sb.WriteString(c.tr.leftDelim)
 	sb.WriteString(c.Text)
-	sb.WriteString("}}")
+	sb.WriteString(c.tr.rightDelim)
 }
 
 func (c *CommentNode) tree() *Tree {
@@ -277,9 +277,9 @@ func (a *ActionNode) String() string {
 }
 
 func (a *ActionNode) writeTo(sb *strings.Builder) {
-	sb.WriteString("{{")
+	sb.WriteString(a.tr.leftDelim)
 	a.Pipe.writeTo(sb)
-	sb.WriteString("}}")
+	sb.WriteString(a.tr.rightDelim)
 }
 
 func (a *ActionNode) tree() *Tree {
@@ -793,7 +793,7 @@ func (t *Tree) newEnd(pos Pos) *endNode {
 }
 
 func (e *endNode) String() string {
-	return "{{end}}"
+	return e.tr.leftDelim + "end" + e.tr.rightDelim
 }
 
 func (e *endNode) writeTo(sb *strings.Builder) {
@@ -825,7 +825,7 @@ func (e *elseNode) Type() NodeType {
 }
 
 func (e *elseNode) String() string {
-	return "{{else}}"
+	return e.tr.leftDelim + "else" + e.tr.rightDelim
 }
 
 func (e *elseNode) writeTo(sb *strings.Builder) {
@@ -869,17 +869,21 @@ func (b *BranchNode) writeTo(sb *strings.Builder) {
 	default:
 		panic("unknown branch type")
 	}
-	sb.WriteString("{{")
+	sb.WriteString(b.tr.leftDelim)
 	sb.WriteString(name)
 	sb.WriteByte(' ')
 	b.Pipe.writeTo(sb)
-	sb.WriteString("}}")
+	sb.WriteString(b.tr.rightDelim)
 	b.List.writeTo(sb)
 	if b.ElseList != nil {
-		sb.WriteString("{{else}}")
+		sb.WriteString(b.tr.leftDelim)
+		sb.WriteString("else")
+		sb.WriteString(b.tr.rightDelim)
 		b.ElseList.writeTo(sb)
 	}
-	sb.WriteString("{{end}}")
+	sb.WriteString(b.tr.leftDelim)
+	sb.WriteString("end")
+	sb.WriteString(b.tr.rightDelim)
 }
 
 func (b *BranchNode) tree() *Tree {
@@ -925,9 +929,9 @@ func (t *Tree) newBreak(pos Pos, line int) *BreakNode {
 }
 
 func (b *BreakNode) Copy() Node                  { return b.tr.newBreak(b.Pos, b.Line) }
-func (b *BreakNode) String() string              { return "{{break}}" }
+func (b *BreakNode) String() string              { return b.tr.leftDelim + "break" + b.tr.rightDelim }
 func (b *BreakNode) tree() *Tree                 { return b.tr }
-func (b *BreakNode) writeTo(sb *strings.Builder) { sb.WriteString("{{break}}") }
+func (b *BreakNode) writeTo(sb *strings.Builder) { sb.WriteString(b.String()) }
 
 // ContinueNode represents a {{continue}} action.
 type ContinueNode struct {
@@ -942,9 +946,9 @@ func (t *Tree) newContinue(pos Pos, line int) *ContinueNode {
 }
 
 func (c *ContinueNode) Copy() Node                  { return c.tr.newContinue(c.Pos, c.Line) }
-func (c *ContinueNode) String() string              { return "{{continue}}" }
+func (c *ContinueNode) String() string              { return c.tr.leftDelim + "continue" + c.tr.rightDelim }
 func (c *ContinueNode) tree() *Tree                 { return c.tr }
-func (c *ContinueNode) writeTo(sb *strings.Builder) { sb.WriteString("{{continue}}") }
+func (c *ContinueNode) writeTo(sb *strings.Builder) { sb.WriteString(c.String()) }
 
 // RangeNode represents a {{range}} action and its commands.
 type RangeNode struct {
@@ -993,13 +997,14 @@ func (t *TemplateNode) String() string {
 }
 
 func (t *TemplateNode) writeTo(sb *strings.Builder) {
-	sb.WriteString("{{template ")
+	sb.WriteString(t.tr.leftDelim)
+	sb.WriteString("template ")
 	sb.WriteString(strconv.Quote(t.Name))
 	if t.Pipe != nil {
 		sb.WriteByte(' ')
 		t.Pipe.writeTo(sb)
 	}
-	sb.WriteString("}}")
+	sb.WriteString(t.tr.rightDelim)
 }
 
 func (t *TemplateNode) tree() *Tree {

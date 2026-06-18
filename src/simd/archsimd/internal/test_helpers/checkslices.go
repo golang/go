@@ -32,7 +32,7 @@ func CheckSlices[T number](t *testing.T, got, want []T) bool {
 	return CheckSlicesLogInput[T](t, got, want, 0.0, nil)
 }
 
-// CheckSlices compares two slices for equality,
+// CheckSlicesLogInput compares two slices for equality,
 // reporting a test error if there is a problem,
 // and also consumes the two slices so that a
 // test/benchmark won't be dead-code eliminated.

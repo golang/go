@@ -6,17 +6,6 @@
 
 package simd
 
-// internal SIMD marker.
-type _simd struct {
-	_ [0]func(*_simd) *_simd
-}
-
-// Int8s represents a vector of 8-bit signed integers.
-type Int8s struct {
-	_       _simd
-	atLeast [2]uint64 // the actual vector size may be larger.
-}
-
 // LoadInt8 loads a slice of int8 into an Int8s vector.
 func LoadInt8s([]int8) Int8s
 
@@ -89,10 +78,10 @@ func (x Int8s) NotEqual(y Int8s) Mask8s
 // Or returns the bitwise OR of x and y.
 func (x Int8s) Or(y Int8s) Int8s
 
-// StoreSlice stores the vector elements into the slice s.
+// Store stores the vector elements into the slice s.
 func (x Int8s) Store(s []int8)
 
-// StoreSlicePart stores a partial vector into the slice s.
+// StorePart stores a partial vector into the slice s and returns the number actually stored.
 func (x Int8s) StorePart(s []int8) int
 
 // String returns a string representation of the vector.
@@ -112,12 +101,6 @@ func (x Int8s) ToMask() (to Mask8s)
 
 // Xor returns the bitwise XOR of x and y.
 func (x Int8s) Xor(y Int8s) Int8s
-
-// Int16s represents a vector of 16-bit signed integers.
-type Int16s struct {
-	_       _simd
-	atLeast [2]uint64 // the actual vector size may be larger.
-}
 
 // LoadInt16 loads a slice of int16 into an Int16s vector.
 func LoadInt16s([]int16) Int16s
@@ -203,10 +186,10 @@ func (x Int16s) ShiftAllLeft(shift uint64) Int16s
 // ShiftAllRight shifts all elements right by y bits.
 func (x Int16s) ShiftAllRight(shift uint64) Int16s
 
-// StoreSlice stores the vector elements into the slice s.
+// Store stores the vector elements into the slice s.
 func (x Int16s) Store(s []int16)
 
-// StoreSlicePart stores a partial vector into the slice s.
+// StorePart stores a partial vector into the slice s and returns the number actually stored.
 func (x Int16s) StorePart(s []int16) int
 
 // String returns a string representation of the vector.
@@ -226,12 +209,6 @@ func (x Int16s) ToMask() (to Mask16s)
 
 // Xor returns the bitwise XOR of x and y.
 func (x Int16s) Xor(y Int16s) Int16s
-
-// Int32s represents a vector of 32-bit signed integers.
-type Int32s struct {
-	_       _simd
-	atLeast [2]uint64 // the actual vector size may be larger.
-}
 
 // LoadInt32 loads a slice of int32 into an Int32s vector.
 func LoadInt32s([]int32) Int32s
@@ -317,10 +294,10 @@ func (x Int32s) ShiftAllLeft(shift uint64) Int32s
 // ShiftAllRight shifts all elements right by y bits.
 func (x Int32s) ShiftAllRight(shift uint64) Int32s
 
-// StoreSlice stores the vector elements into the slice s.
+// Store stores the vector elements into the slice s.
 func (x Int32s) Store(s []int32)
 
-// StoreSlicePart stores a partial vector into the slice s.
+// StorePart stores a partial vector into the slice s and returns the number actually stored.
 func (x Int32s) StorePart(s []int32) int
 
 // String returns a string representation of the vector.
@@ -337,12 +314,6 @@ func (x Int32s) ToMask() (to Mask32s)
 
 // Xor returns the bitwise XOR of x and y.
 func (x Int32s) Xor(y Int32s) Int32s
-
-// Int64s represents a vector of 64-bit signed integers.
-type Int64s struct {
-	_       _simd
-	atLeast [2]uint64 // the actual vector size may be larger.
-}
 
 // LoadInt64 loads a slice of int64 into an Int64s vector.
 func LoadInt64s([]int64) Int64s
@@ -410,10 +381,10 @@ func (x Int64s) RotateAllRight(dist uint64) Int64s
 // ShiftAllLeft shifts all elements left by y bits.
 func (x Int64s) ShiftAllLeft(shift uint64) Int64s
 
-// StoreSlice stores the vector elements into the slice s.
+// Store stores the vector elements into the slice s.
 func (x Int64s) Store(s []int64)
 
-// StoreSlicePart stores a partial vector into the slice s.
+// StorePart stores a partial vector into the slice s and returns the number actually stored.
 func (x Int64s) StorePart(s []int64) int
 
 // String returns a string representation of the vector.
@@ -430,12 +401,6 @@ func (x Int64s) ToMask() (to Mask64s)
 
 // Xor returns the bitwise XOR of x and y.
 func (x Int64s) Xor(y Int64s) Int64s
-
-// Uint8s represents a vector of 8-bit unsigned integers.
-type Uint8s struct {
-	_       _simd
-	atLeast [2]uint64 // the actual vector size may be larger.
-}
 
 // LoadUint8 loads a slice of uint8 into an Uint8s vector.
 func LoadUint8s([]uint8) Uint8s
@@ -506,10 +471,10 @@ func (x Uint8s) ReshapeToUint32s() Uint32s
 // ReshapeToUint64s reinterprets the vector bits as a Uint64s vector.
 func (x Uint8s) ReshapeToUint64s() Uint64s
 
-// StoreSlice stores the vector elements into the slice s.
+// Store stores the vector elements into the slice s.
 func (x Uint8s) Store(s []uint8)
 
-// StoreSlicePart stores a partial vector into the slice s.
+// StorePart stores a partial vector into the slice s and returns the number actually stored.
 func (x Uint8s) StorePart(s []uint8) int
 
 // String returns a string representation of the vector.
@@ -523,12 +488,6 @@ func (x Uint8s) SubSaturated(y Uint8s) Uint8s
 
 // Xor returns the bitwise XOR of x and y.
 func (x Uint8s) Xor(y Uint8s) Uint8s
-
-// Uint16s represents a vector of 16-bit unsigned integers.
-type Uint16s struct {
-	_       _simd
-	atLeast [2]uint64 // the actual vector size may be larger.
-}
 
 // LoadUint16 loads a slice of uint16 into an Uint16s vector.
 func LoadUint16s([]uint16) Uint16s
@@ -623,10 +582,10 @@ func (x Uint16s) ShiftAllLeft(shift uint64) Uint16s
 // ShiftAllRight shifts all elements right by y bits.
 func (x Uint16s) ShiftAllRight(shift uint64) Uint16s
 
-// StoreSlice stores the vector elements into the slice s.
+// Store stores the vector elements into the slice s.
 func (x Uint16s) Store(s []uint16)
 
-// StoreSlicePart stores a partial vector into the slice s.
+// StorePart stores a partial vector into the slice s and returns the number actually stored.
 func (x Uint16s) StorePart(s []uint16) int
 
 // String returns a string representation of the vector.
@@ -640,12 +599,6 @@ func (x Uint16s) SubSaturated(y Uint16s) Uint16s
 
 // Xor returns the bitwise XOR of x and y.
 func (x Uint16s) Xor(y Uint16s) Uint16s
-
-// Uint32s represents a vector of 32-bit unsigned integers.
-type Uint32s struct {
-	_       _simd
-	atLeast [2]uint64 // the actual vector size may be larger.
-}
 
 // LoadUint32 loads a slice of uint32 into an Uint32s vector.
 func LoadUint32s([]uint32) Uint32s
@@ -737,10 +690,10 @@ func (x Uint32s) ShiftAllLeft(shift uint64) Uint32s
 // ShiftAllRight shifts all elements right by y bits.
 func (x Uint32s) ShiftAllRight(shift uint64) Uint32s
 
-// StoreSlice stores the vector elements into the slice s.
+// Store stores the vector elements into the slice s.
 func (x Uint32s) Store(s []uint32)
 
-// StoreSlicePart stores a partial vector into the slice s.
+// StorePart stores a partial vector into the slice s and returns the number actually stored.
 func (x Uint32s) StorePart(s []uint32) int
 
 // String returns a string representation of the vector.
@@ -751,12 +704,6 @@ func (x Uint32s) Sub(y Uint32s) Uint32s
 
 // Xor returns the bitwise XOR of x and y.
 func (x Uint32s) Xor(y Uint32s) Uint32s
-
-// Uint64s represents a vector of 64-bit unsigned integers.
-type Uint64s struct {
-	_       _simd
-	atLeast [2]uint64 // the actual vector size may be larger.
-}
 
 // LoadUint64 loads a slice of uint64 into an Uint64s vector.
 func LoadUint64s([]uint64) Uint64s
@@ -871,10 +818,10 @@ func (x Uint64s) ShiftAllLeft(shift uint64) Uint64s
 // ShiftAllRight shifts all elements right by y bits.
 func (x Uint64s) ShiftAllRight(shift uint64) Uint64s
 
-// StoreSlice stores the vector elements into the slice s.
+// Store stores the vector elements into the slice s.
 func (x Uint64s) Store(s []uint64)
 
-// StoreSlicePart stores a partial vector into the slice s.
+// StorePart stores a partial vector into the slice s and returns the number actually stored.
 func (x Uint64s) StorePart(s []uint64) int
 
 // String returns a string representation of the vector.
@@ -885,12 +832,6 @@ func (x Uint64s) Sub(y Uint64s) Uint64s
 
 // Xor returns the bitwise XOR of x and y.
 func (x Uint64s) Xor(y Uint64s) Uint64s
-
-// Float32s represents a vector of 32-bit floating-point numbers.
-type Float32s struct {
-	_       _simd
-	atLeast [2]uint64 // the actual vector size may be larger.
-}
 
 // LoadFloat32 loads a slice of float32 into an Float32s vector.
 func LoadFloat32s([]float32) Float32s
@@ -958,10 +899,10 @@ func (x Float32s) NotEqual(y Float32s) Mask32s
 // Sqrt returns the element-wise square root of x.
 func (x Float32s) Sqrt() Float32s
 
-// StoreSlice stores the vector elements into the slice s.
+// Store stores the vector elements into the slice s.
 func (x Float32s) Store(s []float32)
 
-// StoreSlicePart stores a partial vector into the slice s.
+// StorePart stores a partial vector into the slice s and returns the number actually stored.
 func (x Float32s) StorePart(s []float32) int
 
 // String returns a string representation of the vector.
@@ -972,12 +913,6 @@ func (x Float32s) Sub(y Float32s) Float32s
 
 // ToBits reinterprets the vector bits as an unsigned integer vector.
 func (x Float32s) ToBits() Uint32s
-
-// Float64s represents a vector of 64-bit floating-point numbers.
-type Float64s struct {
-	_       _simd
-	atLeast [2]uint64 // the actual vector size may be larger.
-}
 
 // LoadFloat64 loads a slice of float64 into an Float64s vector.
 func LoadFloat64s([]float64) Float64s
@@ -1042,10 +977,10 @@ func (x Float64s) NotEqual(y Float64s) Mask64s
 // Sqrt returns the element-wise square root of x.
 func (x Float64s) Sqrt() Float64s
 
-// StoreSlice stores the vector elements into the slice s.
+// Store stores the vector elements into the slice s.
 func (x Float64s) Store(s []float64)
 
-// StoreSlicePart stores a partial vector into the slice s.
+// StorePart stores a partial vector into the slice s and returns the number actually stored.
 func (x Float64s) StorePart(s []float64) int
 
 // String returns a string representation of the vector.
@@ -1056,12 +991,6 @@ func (x Float64s) Sub(y Float64s) Float64s
 
 // ToBits reinterprets the vector bits as an unsigned integer vector.
 func (x Float64s) ToBits() Uint64s
-
-// Mask8s represents a boolean mask for Int8s/Uint8s vectors.
-type Mask8s struct {
-	_       _simd
-	atLeast [2]uint64 // the actual vector size may be larger.
-}
 
 // And returns the bitwise AND of x and y.
 func (x Mask8s) And(y Mask8s) Mask8s
@@ -1075,12 +1004,6 @@ func (x Mask8s) String() string
 // ToInt8s converts the mask to an Int8s vector.
 func (x Mask8s) ToInt8s() (to Int8s)
 
-// Mask16s represents a boolean mask for Int16s/Uint16s vectors.
-type Mask16s struct {
-	_       _simd
-	atLeast [2]uint64 // the actual vector size may be larger.
-}
-
 // And returns the bitwise AND of x and y.
 func (x Mask16s) And(y Mask16s) Mask16s
 
@@ -1093,12 +1016,6 @@ func (x Mask16s) String() string
 // ToInt16s converts the mask to an Int16s vector.
 func (x Mask16s) ToInt16s() (to Int16s)
 
-// Mask32s represents a boolean mask for Int32s/Uint32s vectors.
-type Mask32s struct {
-	_       _simd
-	atLeast [2]uint64 // the actual vector size may be larger.
-}
-
 // And returns the bitwise AND of x and y.
 func (x Mask32s) And(y Mask32s) Mask32s
 
@@ -1110,12 +1027,6 @@ func (x Mask32s) String() string
 
 // ToInt32s converts the mask to an Int32s vector.
 func (x Mask32s) ToInt32s() (to Int32s)
-
-// Mask64s represents a boolean mask for Int64s/Uint64s vectors.
-type Mask64s struct {
-	_       _simd
-	atLeast [2]uint64 // the actual vector size may be larger.
-}
 
 // And returns the bitwise AND of x and y.
 func (x Mask64s) And(y Mask64s) Mask64s

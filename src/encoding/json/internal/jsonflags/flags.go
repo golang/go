@@ -132,6 +132,7 @@ const (
 	Unmarshalers              // unmarshal only; non-boolean flag
 	StringTag                 // marshal or unmarshal
 	FormatTag                 // marshal or unmarshal; non-boolean flag
+	FormatTagSupported        // marshal or unmarshal
 
 	maxArshalV2Flag
 )
@@ -158,7 +159,7 @@ const (
 )
 
 // bitsUsed is the number of bits used in the 64-bit boolean flags
-const bitsUsed = 42
+const bitsUsed = 43
 
 // Static compile check that bitsUsed and maxArshalV1Flag are in sync.
 const _ = uint64((1<<bitsUsed)-maxArshalV1Flag) + uint64(maxArshalV1Flag-(1<<bitsUsed))

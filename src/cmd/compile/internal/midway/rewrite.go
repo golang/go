@@ -5,6 +5,7 @@
 package midway
 
 import (
+	"cmd/compile/internal/base"
 	"cmd/compile/internal/syntax"
 	"cmd/compile/internal/types2"
 	"fmt"
@@ -36,6 +37,128 @@ import (
 // modified to allow access in special cases (like this one).  This allows the
 // rewritten code to reference types, functions, and methods that are not
 // accessible otherwise.
+//
+// The rewrite works in phases.  The first is "analysis", to discover functions,
+// types, methods, and variables that depend on "simd" types.  "Depend on" means
+// any mention of a simd type, and for types, also includes types that have a
+// simd-dependent method.  Dependent functions are split into two categories;
+// those whose dependence includes their signature, and those that do not.
+// The second category forms the boundary between code that depends on simd and
+// code that does not.  Notice that there cannot be a boundary method, because
+// (by design) the receiver type is simd-dependent and thus a dependent method
+// also has a dependent type in its signature.
+//
+// The second phase rewrites such "boundary" functions into a "dispatch" version
+// and (later, third phase) "specialized" versions.  The dispatch function
+// will choose which specialized version to call based on which simd implementation
+// has been chosen, and forward parameters and results to/from that specialized version
+// of the function.  The dispatch version shares the same name as the original function.
+// Note that this applies to functions only, and not methods.
+
+// The third phase specializes dependent functions (both kinds), methods,
+// global variables, and types into size/emulation/feature-specific variants.
+// Except for methods, this is done by adding a suffix beginning with "@" to
+// the name.  Because "@" cannot appear in legal Go identifiers this removes
+// the risk of a naming overlap.  Methods are specialized, but not renamed,
+// because their receiver type is renamed instead.  Not changing method names
+// preserves interface satisfaction, for example in the case of generic interfaces.
+//
+// Non-boundary dependent function and methods are not rewritten into dispatch
+// functions/methods, but remain in the generated code because they must be
+// present in the export data so that other packages that import them will still
+// compile before rewriting.  Their bodies are replaced with panic(...) to allow
+// compilation while preventing even worse chaos in the event of a bug either in
+// the compiler or through ambitious use of reflection or assembly language.
+//
+
+/* Example rewrites
+
+// Type alias, global variable, and init function:
+
+// before:
+type MyInt8s = simd.Int8s
+func Generic[T haslen](x int) int {
+    var v T
+    return x + v.Len()
+}
+var VL int
+func init() {
+    VL = Generic[MyInt8s](1)
+}
+// dispatch:
+func init() {
+    switch simd.VectorBitSize() {
+    case
+        128:
+            init@simd128()
+            return
+    case 256:
+            init@simd256()
+            return
+    case 512:
+            init@simd512()
+            return
+    default:
+        panic("unsupported vector size")
+    }
+}
+// specialized (128)
+type MyInt8s@simd128 = archsimd.Int8x16
+func init@simd128() {
+        VL = Generic[MyInt8s@simd128](1)
+}
+
+
+// structure containing simd fields, and with simd methods
+
+// before
+// A struct dependent on SIMD
+type VectorC struct {
+    Field simd.Float32s
+}
+func (v *VectorC) MethodOfSimd() bool {
+    return false
+}
+func (v VectorC) Data() simd.Float32s {
+    return v.Field
+}
+func (v VectorC) Foo(x VectorC) VectorC {
+    return VectorC{Field: v.Field.Add(x.Field)}
+}
+
+// dispatch
+// technically there is none, but functions with panicking bodies
+// remain because code must pass type checking before rewriting.
+type VectorC struct {
+    Field simd.Float32s
+}
+func (v *VectorC) MethodOfSimd() bool {
+    panic(...)
+}
+func (v VectorC) Data() simd.Float32s {
+    panic(...)
+}
+func (v VectorC) Foo(x VectorC) VectorC {
+    panic(...)
+}
+
+// specialized (128)
+
+// A struct dependent on SIMD
+type VectorC@simd128 struct {
+    Field bridge.Float32x4
+}
+func (v *VectorC@simd128) MethodOfSimd() bool {
+    return false
+}
+func (v VectorC@simd128) Data() bridge.Float32x4 {
+    return v.Field
+}
+func (v VectorC@simd128) Foo(x VectorC@simd128) VectorC@simd128 {
+    return VectorC@simd128{Field: v.Field.Add(x.Field)}
+}
+
+*/
 
 type Rewriter struct {
 	pkg      *types2.Package
@@ -64,6 +187,7 @@ func (r *Rewriter) Rewrite(files []*syntax.File) {
 		}
 
 		// Then replace original functions with dispatchers.
+		// This also edits the DeclList of fileAST.
 		r.generateDispatchers(fileAST)
 
 		fileAST.DeclList = append(fileAST.DeclList, newDecls...)
@@ -73,6 +197,8 @@ func (r *Rewriter) Rewrite(files []*syntax.File) {
 func (r *Rewriter) generateDispatchers(fileAST *syntax.File) {
 	var newDecls []syntax.Decl
 
+	change := false
+
 	for _, decl := range fileAST.DeclList {
 		switch d := decl.(type) {
 		case *syntax.FuncDecl:
@@ -81,7 +207,7 @@ func (r *Rewriter) generateDispatchers(fileAST *syntax.File) {
 				continue
 			}
 			obj := r.info.Defs[d.Name]
-			if !r.analyzer.dependentObj[obj] || r.analyzer.inSimd {
+			if !r.analyzer.isDependentObj[obj] || r.analyzer.inSimd {
 				newDecls = append(newDecls, d)
 				continue
 			}
@@ -92,8 +218,14 @@ func (r *Rewriter) generateDispatchers(fileAST *syntax.File) {
 				continue
 			}
 
+			change = true
 			if r.analyzer.HasDependentSignature(sig) {
-				// Drop dependent signatures entirely
+				if base.Debug.Simd > 0 {
+					base.Warn("%s: removing body of dependent-sig original function %v", d.Pos().String(), d.Name.Value)
+				}
+				d.Body = r.blockOf(d.Pos(), r.panicStmt(d.Pos(),
+					"unexpected call of original function rewritten to specialized SIMD"))
+				newDecls = append(newDecls, d)
 				continue
 			}
 
@@ -102,24 +234,21 @@ func (r *Rewriter) generateDispatchers(fileAST *syntax.File) {
 			newDecls = append(newDecls, d)
 
 		case *syntax.VarDecl:
-			// Filter specs conceptually based on dependents
-			keep := false
-			for _, name := range d.NameList {
-				if !r.analyzer.dependentObj[r.info.Defs[name]] {
-					keep = true
-					break // Keep entire var decl if any name is clean, else drop
-				}
-			}
-			if keep {
-				newDecls = append(newDecls, d)
-			}
+			// Keep var decls even if rewritten, so that pre-rewrite code parses correctly.
+			// TODO figure out how to deal with side-effects in initializers.
+			newDecls = append(newDecls, d)
+
 		case *syntax.TypeDecl:
-			if !r.analyzer.dependentObj[r.info.Defs[d.Name]] || r.analyzer.inSimd {
-				newDecls = append(newDecls, d)
-			}
+			// Keep all types; we need the untranslated copy if a method referencing it
+			// needs to typecheck pre-translation.
+			newDecls = append(newDecls, d)
 		default:
 			newDecls = append(newDecls, decl)
 		}
+	}
+
+	if !change {
+		return
 	}
 
 	fileAST.DeclList = newDecls
@@ -128,18 +257,22 @@ func (r *Rewriter) generateDispatchers(fileAST *syntax.File) {
 		// Inject an import to the bridge package (if not exists)
 		hasArchSimd := false
 		var simdImport *syntax.ImportDecl
+		p := fileAST.Pos()
 		for _, decl := range fileAST.DeclList {
 			if imp, ok := decl.(*syntax.ImportDecl); ok {
 				if imp.Path.Value == `"`+archFullPkg+`"` {
 					hasArchSimd = true
+					if simdImport == nil {
+						p = imp.Pos()
+					}
 				}
 				if imp.Path.Value == `"`+simdPkg+`"` {
 					simdImport = imp
+					p = imp.Pos()
 				}
-
 			}
 		}
-		p := simdImport.Pos()
+
 		if !hasArchSimd {
 			r.injectImport(fileAST, archFullPkg, p)
 		}
@@ -285,20 +418,33 @@ func (r *Rewriter) createDispatcherBody(d *syntax.FuncDecl, sig *types2.Signatur
 		switchStmt.Body = append(switchStmt.Body, caseClause)
 	}
 
-	fnName := "panic"
-	fnIdent := pe(syntax.NewName(d.Pos(), fnName))
+	panicStmt := r.panicStmt(d.Pos(), "unsupported vector size in simd-rewritten code")
+	return r.blockOf(d.Pos(), switchStmt, panicStmt)
+}
 
+func (r *Rewriter) blockOf(p syntax.Pos, stmts ...syntax.Stmt) *syntax.BlockStmt {
+	for _, s := range stmts {
+		s.SetPos(p)
+	}
+	blockStmt := &syntax.BlockStmt{List: stmts}
+	blockStmt.SetPos(p)
+	return blockStmt
+}
+
+func (r *Rewriter) panicStmt(p syntax.Pos, unquotedMessage string) *syntax.ExprStmt {
+	pe := func(e syntax.Expr) syntax.Expr {
+		e.SetPos(p)
+		return e
+	}
+	fnName := "panic"
+	fnIdent := pe(syntax.NewName(p, fnName))
 	callExpr := pe(&syntax.CallExpr{
 		Fun:     fnIdent,
-		ArgList: []syntax.Expr{pe(&syntax.BasicLit{Value: "\"unsupported vector size in simd-rewritten code\"", Kind: syntax.StringLit})},
+		ArgList: []syntax.Expr{pe(&syntax.BasicLit{Value: `"` + unquotedMessage + `"`, Kind: syntax.StringLit})},
 	})
-
 	panicStmt := &syntax.ExprStmt{X: callExpr}
-	blockStmt := &syntax.BlockStmt{List: []syntax.Stmt{ps(switchStmt), ps(panicStmt)}}
-
-	blockStmt.SetPos(d.Pos())
-
-	return blockStmt
+	panicStmt.SetPos(p)
+	return panicStmt
 }
 
 func (r *Rewriter) generateForSize(fileAST *syntax.File, k int, newDecls []syntax.Decl) []syntax.Decl {
@@ -353,13 +499,13 @@ func (r *Rewriter) shouldIncludeDecl(decl syntax.Decl) bool {
 	switch d := decl.(type) {
 	case *syntax.FuncDecl:
 		if d.Name != nil {
-			return r.analyzer.dependentObj[r.info.Defs[d.Name]]
+			return r.analyzer.isDependentObj[r.info.Defs[d.Name]]
 		}
 	case *syntax.TypeDecl:
-		return r.analyzer.dependentObj[r.info.Defs[d.Name]]
+		return r.analyzer.isDependentObj[r.info.Defs[d.Name]]
 	case *syntax.VarDecl:
 		for _, name := range d.NameList {
-			if r.analyzer.dependentObj[r.info.Defs[name]] {
+			if r.analyzer.isDependentObj[r.info.Defs[name]] {
 				return true
 			}
 		}

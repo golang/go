@@ -806,12 +806,6 @@ func rewriteValueWasm(v *Value) bool {
 	case OpMul8:
 		v.Op = OpWasmI64Mul
 		return true
-	case OpMulAddFloat32x4:
-		v.Op = OpWasmF32x4RelaxedMadd
-		return true
-	case OpMulAddFloat64x2:
-		v.Op = OpWasmF64x2RelaxedMadd
-		return true
 	case OpMulFloat32x4:
 		v.Op = OpWasmF32x4Mul
 		return true

@@ -1241,7 +1241,7 @@ var unmarshalTests = []struct {
 		in:       `1`,
 		ptr:      new(chan int),
 		out:      (chan int)(nil),
-		err:      &UnmarshalTypeError{Value: "number", Type: reflect.TypeFor[chan int](), Offset: len64(``)},
+		err:      &UnmarshalTypeError{Value: "number", Type: reflect.TypeFor[chan int](), Offset: len64(`1`)},
 	},
 
 	// #75619
@@ -1298,6 +1298,23 @@ var unmarshalTests = []struct {
 			X float64 `json:",string"`
 		}),
 		err: &UnmarshalTypeError{Value: "number 1.5e1_", Type: reflect.TypeFor[float64](), Field: "X", Offset: len64(`{"X": "1.5e1_"`)},
+	},
+	{
+		CaseName: Name("UnsupportedTypes"),
+		in:       `{"A":null,"B":[1,2,3],"C":321,"D":"X"}`,
+		ptr: &struct {
+			A chan int
+			B complex128
+			C int
+			D func()
+		}{},
+		out: struct {
+			A chan int
+			B complex128
+			C int
+			D func()
+		}{C: 321},
+		err: &UnmarshalTypeError{Value: "array", Type: reflect.TypeFor[complex128](), Field: "B", Offset: len64(`{"A":null,"B":[`)},
 	},
 }
 
@@ -1718,6 +1735,8 @@ type All struct {
 	Interface  any
 	PInterface *any
 
+	InvalidEmbed int `json:",embed"` // issue #79921: invalid `embed` tag option should be ignored
+
 	unexported int
 }
 
@@ -1753,15 +1772,16 @@ var allValue = All{
 		"19": {Tag: "tag19"},
 		"20": nil,
 	},
-	EmptyMap:    map[string]Small{},
-	Slice:       []Small{{Tag: "tag20"}, {Tag: "tag21"}},
-	SliceP:      []*Small{{Tag: "tag22"}, nil, {Tag: "tag23"}},
-	EmptySlice:  []Small{},
-	StringSlice: []string{"str24", "str25", "str26"},
-	ByteSlice:   []byte{27, 28, 29},
-	Small:       Small{Tag: "tag30"},
-	PSmall:      &Small{Tag: "tag31"},
-	Interface:   5.2,
+	EmptyMap:     map[string]Small{},
+	Slice:        []Small{{Tag: "tag20"}, {Tag: "tag21"}},
+	SliceP:       []*Small{{Tag: "tag22"}, nil, {Tag: "tag23"}},
+	EmptySlice:   []Small{},
+	StringSlice:  []string{"str24", "str25", "str26"},
+	ByteSlice:    []byte{27, 28, 29},
+	Small:        Small{Tag: "tag30"},
+	PSmall:       &Small{Tag: "tag31"},
+	Interface:    5.2,
+	InvalidEmbed: 123,
 }
 
 var pallValue = All{
@@ -1876,7 +1896,8 @@ var allValueIndent = `{
 	},
 	"PPSmall": null,
 	"Interface": 5.2,
-	"PInterface": null
+	"PInterface": null,
+	"InvalidEmbed": 123
 }`
 
 var allValueCompact = stripWhitespace(allValueIndent)
@@ -1965,7 +1986,8 @@ var pallValueIndent = `{
 		"Tag": "tag31"
 	},
 	"Interface": null,
-	"PInterface": 5.2
+	"PInterface": 5.2,
+	"InvalidEmbed": 0
 }`
 
 var pallValueCompact = stripWhitespace(pallValueIndent)

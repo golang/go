@@ -561,14 +561,17 @@ func arrayClear(wbPos src.XPos, a ir.Node, nrange *ir.RangeStmt) ir.Node {
 	}
 
 	// Convert to
-	// if len(a) != 0 {
+	// if ln := len(a); ln != 0 {
 	// 	hp = &a[0]
 	// 	hn = len(a)*sizeof(elem(a))
 	// 	memclr{NoHeap,Has}Pointers(hp, hn)
-	// 	i = len(a) - 1
+	// 	i = ln - 1
 	// }
 	n := ir.NewIfStmt(base.Pos, nil, nil, nil)
-	n.Cond = ir.NewBinaryExpr(base.Pos, ir.ONE, ir.NewUnaryExpr(base.Pos, ir.OLEN, a), ir.NewInt(base.Pos, 0))
+	ln := typecheck.TempAt(base.Pos, ir.CurFunc, types.Types[types.TINT])
+	as := ir.NewAssignStmt(base.Pos, ln, ir.NewUnaryExpr(base.Pos, ir.OLEN, a))
+	n.PtrInit().Append(typecheck.Stmt(as))
+	n.Cond = ir.NewBinaryExpr(base.Pos, ir.ONE, ln, ir.NewInt(base.Pos, 0))
 
 	// hp = &a[0]
 	hp := typecheck.TempAt(base.Pos, ir.CurFunc, types.Types[types.TUNSAFEPTR])
@@ -580,7 +583,7 @@ func arrayClear(wbPos src.XPos, a ir.Node, nrange *ir.RangeStmt) ir.Node {
 
 	// hn = len(a) * sizeof(elem(a))
 	hn := typecheck.TempAt(base.Pos, ir.CurFunc, types.Types[types.TUINTPTR])
-	mul := typecheck.Conv(ir.NewBinaryExpr(base.Pos, ir.OMUL, ir.NewUnaryExpr(base.Pos, ir.OLEN, a), ir.NewInt(base.Pos, elemsize)), types.Types[types.TUINTPTR])
+	mul := typecheck.Conv(ir.NewBinaryExpr(base.Pos, ir.OMUL, ln, ir.NewInt(base.Pos, elemsize)), types.Types[types.TUINTPTR])
 	n.Body.Append(ir.NewAssignStmt(base.Pos, hn, mul))
 
 	var fn ir.Node
@@ -597,7 +600,7 @@ func arrayClear(wbPos src.XPos, a ir.Node, nrange *ir.RangeStmt) ir.Node {
 
 	// For array range clear, also set "i = len(a) - 1"
 	if nrange != nil {
-		idx := ir.NewAssignStmt(base.Pos, nrange.Key, typecheck.Conv(ir.NewBinaryExpr(base.Pos, ir.OSUB, ir.NewUnaryExpr(base.Pos, ir.OLEN, a), ir.NewInt(base.Pos, 1)), nrange.Key.Type()))
+		idx := ir.NewAssignStmt(base.Pos, nrange.Key, typecheck.Conv(ir.NewBinaryExpr(base.Pos, ir.OSUB, ln, ir.NewInt(base.Pos, 1)), nrange.Key.Type()))
 		n.Body.Append(idx)
 	}
 

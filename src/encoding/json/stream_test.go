@@ -633,4 +633,36 @@ func TestDecoderInputOffset(t *testing.T) {
 	if len(wantOffsets)+len(wantMores) > 0 {
 		t.Fatal("unconsumed testdata")
 	}
+
+	t.Run("ArrayEOF", func(t *testing.T) {
+		d := NewDecoder(strings.NewReader(` [ "fizz" , `))
+		for {
+			if _, err := d.Token(); err == io.EOF {
+				break
+			} else if err != nil {
+				t.Fatalf("Token error: %v", err)
+			}
+		}
+		got := d.InputOffset()
+		want := len64(` [ "fizz" ,`)
+		if got != want {
+			t.Errorf("InputOffset = %v, want %v", got, want)
+		}
+	})
+
+	t.Run("ObjectEOF", func(t *testing.T) {
+		d := NewDecoder(strings.NewReader(` { "fizz" : `))
+		for {
+			if _, err := d.Token(); err == io.EOF {
+				break
+			} else if err != nil {
+				t.Fatalf("Token error: %v", err)
+			}
+		}
+		got := d.InputOffset()
+		want := len64(` { "fizz" :`)
+		if got != want {
+			t.Errorf("InputOffset = %v, want %v", got, want)
+		}
+	})
 }

@@ -244,6 +244,82 @@ func TestSlicesInt8GetElem(t *testing.T) {
 
 }
 
+var seventeen = uint8(17)
+
+func TestSlicesInt8GetElem16(t *testing.T) {
+	defer func() {
+		if r := recover(); r != nil {
+			t.Logf("Saw EXPECTED panic %v", r)
+		} else {
+			t.Errorf("Did not see expected panic")
+		}
+	}()
+	a := []int8{1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16}
+	v := archsimd.LoadInt8x16(a)
+	e := v.GetElem(seventeen - 1)
+	t.Errorf("Should have panicked, e=%v", e)
+}
+
+func TestSlicesInt8GetElem16const(t *testing.T) {
+	defer func() {
+		if r := recover(); r != nil {
+			t.Logf("Saw EXPECTED panic %v", r)
+		} else {
+			t.Errorf("Did not see expected panic")
+		}
+	}()
+	a := []int8{1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16}
+	v := archsimd.LoadInt8x16(a)
+	e := v.GetElem(16)
+	t.Errorf("Should have panicked, e=%v", e)
+}
+
+func TestSlicesInt8GetElem15(t *testing.T) {
+	a := []int8{1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16}
+	v := archsimd.LoadInt8x16(a)
+	e := v.GetElem(seventeen - 2)
+	if e != a[15] {
+		t.Errorf("GetElem(15) = %d != a[15] = %d", e, a[15])
+	}
+}
+
+func TestSlicesInt8GetElem15const(t *testing.T) {
+	a := []int8{1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16}
+	v := archsimd.LoadInt8x16(a)
+	e := v.GetElem(15)
+	if e != a[15] {
+		t.Errorf("GetElem(15) = %d != a[15] = %d", e, a[15])
+	}
+}
+
+func TestSlicesInt8SetElem17(t *testing.T) {
+	defer func() {
+		if r := recover(); r != nil {
+			t.Logf("Saw EXPECTED panic %v", r)
+		} else {
+			t.Errorf("Did not see expected panic")
+		}
+	}()
+	a := []int8{1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16}
+	v := archsimd.LoadInt8x16(a)
+	e := v.SetElem(seventeen, 18).GetElem(2)
+	t.Errorf("Should have panicked, e=%v", e)
+}
+
+func TestSlicesInt8SetElem17const(t *testing.T) {
+	defer func() {
+		if r := recover(); r != nil {
+			t.Logf("Saw EXPECTED panic %v", r)
+		} else {
+			t.Errorf("Did not see expected panic")
+		}
+	}()
+	a := []int8{1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16}
+	v := archsimd.LoadInt8x16(a)
+	e := v.SetElem(17, 18).GetElem(2)
+	t.Errorf("Should have panicked, e=%v", e)
+}
+
 func TestSlicesInt8TooShortLoad(t *testing.T) {
 	if !archsimd.X86.AVX2() {
 		t.Skip("Test requires X86.AVX2, not available on this hardware")
@@ -1191,7 +1267,7 @@ func applyTo3(x, y, z archsimd.Int32x16, f func(x, y, z int32) int32) []int32 {
 	return r
 }
 
-// applyTo3 returns a 16-element slice of the results of
+// applyTo4 returns a 16-element slice of the results of
 // applying f to the respective elements of vectors x, y, z, and w.
 func applyTo4(x, y, z, w archsimd.Int32x16, f func(x, y, z, w int32) int32) []int32 {
 	ax, ay, az, aw := a(), a(), a(), a()

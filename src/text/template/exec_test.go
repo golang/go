@@ -927,7 +927,6 @@ func TestDelims(t *testing.T) {
 	const hello = "Hello, world"
 	var value = struct{ Str string }{hello}
 	for i := 0; i < len(delimPairs); i += 2 {
-		text := ".Str"
 		left := delimPairs[i+0]
 		trueLeft := left
 		right := delimPairs[i+1]
@@ -938,15 +937,21 @@ func TestDelims(t *testing.T) {
 		if right == "" { // default case
 			trueRight = "}}"
 		}
-		text = trueLeft + text + trueRight
-		// Now add a comment
-		text += trueLeft + "/*comment*/" + trueRight
-		// Now add  an action containing a string.
-		text += trueLeft + `"` + trueLeft + `"` + trueRight
+		action := trueLeft + ".Str" + trueRight
+		// A comment, which is not preserved in the parse tree.
+		comment := trueLeft + "/*comment*/" + trueRight
+		// An action containing a string that looks like the left delimiter.
+		strAction := trueLeft + `"` + trueLeft + `"` + trueRight
+		text := action + comment + strAction
 		// At this point text looks like `{{.Str}}{{/*comment*/}}{{"{{"}}`.
 		tmpl, err := New("delims").Delims(left, right).Parse(text)
 		if err != nil {
 			t.Fatalf("delim %q text %q parse err %s", left, text, err)
+		}
+		// The parse tree's String form should roundtrip back to the input,
+		// using the custom delimiters, modulo the dropped comment.
+		if got, want := tmpl.Root.String(), action+strAction; got != want {
+			t.Errorf("delim %q: String() = %q, want %q", left, got, want)
 		}
 		var b = new(strings.Builder)
 		err = tmpl.Execute(b, value)

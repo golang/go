@@ -18,8 +18,9 @@ const _jsCtx_name = "jsCtxRegexpjsCtxDivOpjsCtxUnknown"
 var _jsCtx_index = [...]uint8{0, 11, 21, 33}
 
 func (i jsCtx) String() string {
-	if i >= jsCtx(len(_jsCtx_index)-1) {
+	idx := int(i) - 0
+	if i < 0 || idx >= len(_jsCtx_index)-1 {
 		return "jsCtx(" + strconv.FormatInt(int64(i), 10) + ")"
 	}
-	return _jsCtx_name[_jsCtx_index[i]:_jsCtx_index[i+1]]
+	return _jsCtx_name[_jsCtx_index[idx]:_jsCtx_index[idx+1]]
 }

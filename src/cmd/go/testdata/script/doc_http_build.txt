@@ -1,0 +1,4 @@
+# This test builds the pkgsite doc binary using the local script test proxy.
+env TEST_GODOC_BUILD_ONLY=1
+
+go doc -http fmt

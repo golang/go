@@ -741,7 +741,7 @@ var (
 		"ge_u":         "GreaterEqual",
 		"lt_u":         "Less",
 		"gt_u":         "Greater",
-		"relaxed_madd": "MulAdd",
+		"relaxed_madd": "-",
 		"shl":          "ShiftAllLeft",
 
 		"extract_lane":   "GetElem",
@@ -887,7 +887,7 @@ func initWasmOps() {
 
 	addWasmOps(floats, f_2, 2, binShape)
 
-	addWasmOps(floats, f_3, 3, nil)
+	// addWasmOps(floats, f_3, 3, nil) // relaxed_madd does not work
 	// addWasmOps(ints, i_3, 3, nil)
 	addWasmOps(ints, i_t, 1, isTest)
 

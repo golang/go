@@ -455,15 +455,12 @@ func fmaSlice[T float](x, y, z []T) []T {
 }
 
 // reduceSlice reduces x using fn as the combining operation.
-// The result is a vector with the reduced value in element 0 and zeros elsewhere.
-func reduceSlice[T number](x []T, fn func(a, b T) T) []T {
+func reduceSlice[T number](x []T, fn func(a, b T) T) T {
 	acc := x[0]
 	for _, v := range x[1:] {
 		acc = fn(acc, v)
 	}
-	out := make([]T, len(x))
-	out[0] = acc
-	return out
+	return acc
 }
 
 func satToInt8[T integer](x T) int8 {
