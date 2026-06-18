@@ -73,7 +73,7 @@ var export = jsontext.Internal.Export(&internal.AllowInternalUse)
 // Functions or methods that operate on *T are only called when encoding
 // a value of type T (by taking its address) or a non-nil value of *T.
 // Marshal ensures that a value is always addressable
-// (by boxing it on the heap if necessary) so that
+// (by copying the value if necessary) so that
 // these functions and methods can be consistently called. For performance,
 // it is recommended that Marshal be passed a non-nil pointer to the value.
 //
@@ -265,8 +265,12 @@ func marshalEncode(out *jsontext.Encoder, in any, mo *jsonopts.Struct) (err erro
 // Functions or methods that operate on *T are only called when decoding
 // a value of type T (by taking its address) or a non-nil value of *T.
 // Unmarshal ensures that a value is always addressable
-// (by boxing it on the heap if necessary) so that
+// (by copying the value if necessary) so that
 // these functions and methods can be consistently called.
+// If a value must be shallow copied to call a pointer-receiver
+// [Unmarshaler], [UnmarshalerFrom], or [encoding.TextUnmarshaler] method,
+// then any mutations performed by the method are shallow copied back
+// into the destination value.
 //
 // The input is decoded into the output according to the following rules:
 //
