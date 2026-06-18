@@ -892,17 +892,18 @@ func Load{{.VType}}Part(s []{{.Etype}}) ({{.VType}}, int) {
 // StorePart stores the {{.Count}} elements of x into the slice s.
 // It stores as many elements as will fit in s.
 // If s has {{.Count}} or more elements, the method is equivalent to x.Store.
-func (x {{.VType}}) StorePart(s []{{.Etype}}) {
+func (x {{.VType}}) StorePart(s []{{.Etype}}) int {
 	l := len(s)
 	if l >= {{.Count}} {
 		x.Store(s)
-		return
+		return {{.Count}}
 	}
 	if l == 0 {
-		return
+		return 0
 	}
 	mask := vecMask{{.EWidth}}[len(vecMask{{.EWidth}})/2-l:]
 	x.StoreArrayMasked(pa{{.VType}}(s), LoadInt{{.WxC}}(mask).asMask())
+	return l
 }
 `)
 
@@ -924,12 +925,12 @@ func Load{{.VType}}Part(s []{{.Etype}}) ({{.VType}}, int) {
 // StorePart stores the {{.Count}} elements of x into the slice s.
 // It stores as many elements as will fit in s.
 // If s has {{.Count}} or more elements, the method is equivalent to x.Store.
-func (x {{.VType}}) StorePart(s []{{.Etype}}) {
+func (x {{.VType}}) StorePart(s []{{.Etype}}) int {
 	if len(s) == 0 {
-		return
+		return 0
 	}
 	t := unsafe.Slice((*int{{.EWidth}})(unsafe.Pointer(&s[0])), len(s))
-	x.AsInt{{.WxC}}().StorePart(t)
+	return x.AsInt{{.WxC}}().StorePart(t)
 }
 `)
 
