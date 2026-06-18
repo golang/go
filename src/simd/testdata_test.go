@@ -24,6 +24,15 @@ func common(t *testing.T, dir, what, failWith string) {
 	args = append(args, what)
 	cmd := testenv.Command(t, testenv.GoToolPath(t), args...)
 
+	goexp := os.Getenv("GOEXPERIMENT")
+	if !strings.Contains(","+goexp+",", ",simd,") {
+		if goexp != "" {
+			goexp += ","
+		}
+		goexp += "simd"
+	}
+	cmd.Env = append(cmd.Environ(), "GOEXPERIMENT="+goexp)
+
 	if failWith == "" {
 		cmd.Stdout = os.Stdout
 		cmd.Stderr = os.Stderr
