@@ -146,6 +146,13 @@ func newTransferWriter(r any) (t *transferWriter, err error) {
 		t.Trailer = nil
 	}
 
+	// Validate Trailer names and values. The names are later written
+	// unmodified on the "Trailer:" line of the header, so invalid bytes
+	// (in particular CR and LF) would permit header injection. (Issue 78775.)
+	if err := validateHeaders(t.Trailer); err != "" {
+		return nil, fmt.Errorf("net/http: invalid trailer %s", err)
+	}
+
 	return t, nil
 }
 

@@ -122,5 +122,7 @@ type Response struct {
 
 	// DiskPath is the absolute path on disk of the body corresponding to a
 	// "get" (on cache hit) or "put" request's ActionID.
+	// By convention, cached files are stored without any filename extensions.
+	// Some tools may filter out files with extensions.
 	DiskPath string `json:",omitempty"`
 }

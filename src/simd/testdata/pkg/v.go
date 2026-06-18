@@ -4,7 +4,7 @@
 
 //go:build goexperiment.simd
 
-package testdata
+package pkg
 
 // For testing purposes, F and V are exported simd types,
 // and should have the proper (variable) unsafe.Sizeof

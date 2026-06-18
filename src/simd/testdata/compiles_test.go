@@ -4,7 +4,7 @@
 
 //go:build goexperiment.simd
 
-package main
+package testdata_test
 
 // For testing purposes, this SHOULD compile, because
 // the "simd" type whose unsafe.Sizeof is used in a
@@ -13,14 +13,16 @@ package main
 
 import (
 	"simd/testdata/simd"
+	"testing"
 	"unsafe"
 )
 
-var v [1]simd.HasConstantSize24
-var u [unsafe.Sizeof(v)]byte
+var v_for_sizeof [1]simd.HasConstantSize24
+var u [unsafe.Sizeof(v_for_sizeof)]byte
 
-func main() {
+func TestCompiles(t *testing.T) {
+
 	if len(u) != 24 {
-		println("FAIL")
+		t.Errorf("len(u) is %d, instead of expected 24", len(u))
 	}
 }

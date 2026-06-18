@@ -388,7 +388,7 @@ func (check *Checker) genericExprList(elist []syntax.Expr) (resList []*operand, 
 	}
 
 	// Before Go 1.21, uninstantiated or partially instantiated argument functions are
-	// nor permitted. Checker.funcInst must infer missing type arguments in that case.
+	// not permitted. Checker.funcInst must infer missing type arguments in that case.
 	infer := true // for -lang < go1.21
 	n := len(elist)
 	if n > 0 && check.allowVersion(go1_21) {
