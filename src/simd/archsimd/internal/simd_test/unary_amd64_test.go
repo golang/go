@@ -12,32 +12,46 @@ import (
 	"testing"
 )
 
-func TestAbsFP(t *testing.T) {
-	testFloat32x4Unary(t, archsimd.Float32x4.Abs, map1[float32](abs))
+func TestAbsAMD64(t *testing.T) {
 	testFloat32x8Unary(t, archsimd.Float32x8.Abs, map1[float32](abs))
-	testFloat64x2Unary(t, archsimd.Float64x2.Abs, map1[float64](abs))
 	testFloat64x4Unary(t, archsimd.Float64x4.Abs, map1[float64](abs))
+	if archsimd.X86.AVX2() {
+		testInt8x32Unary(t, archsimd.Int8x32.Abs, map1[int8](abs))
+		testInt16x16Unary(t, archsimd.Int16x16.Abs, map1[int16](abs))
+		testInt32x8Unary(t, archsimd.Int32x8.Abs, map1[int32](abs))
+	}
 	if archsimd.X86.AVX512() {
-		testFloat32x16Unary(t, archsimd.Float32x16.Abs, map1[float32](abs)) // missing
-		testFloat64x8Unary(t, archsimd.Float64x8.Abs, map1[float64](abs))   // missing
+		testInt8x64Unary(t, archsimd.Int8x64.Abs, map1[int8](abs))
+		testInt16x32Unary(t, archsimd.Int16x32.Abs, map1[int16](abs))
+		testInt32x16Unary(t, archsimd.Int32x16.Abs, map1[int32](abs))
+		testInt64x4Unary(t, archsimd.Int64x4.Abs, map1[int64](abs))
+		testInt64x8Unary(t, archsimd.Int64x8.Abs, map1[int64](abs))
+		testFloat32x16Unary(t, archsimd.Float32x16.Abs, map1[float32](abs))
+		testFloat64x8Unary(t, archsimd.Float64x8.Abs, map1[float64](abs))
 	}
 }
 
-func TestNegFP(t *testing.T) {
-	testFloat32x4Unary(t, archsimd.Float32x4.Neg, map1[float32](neg))
+func TestNegAMD64(t *testing.T) {
 	testFloat32x8Unary(t, archsimd.Float32x8.Neg, map1[float32](neg))
-	testFloat64x2Unary(t, archsimd.Float64x2.Neg, map1[float64](neg))
 	testFloat64x4Unary(t, archsimd.Float64x4.Neg, map1[float64](neg))
+	if archsimd.X86.AVX2() {
+		testInt8x32Unary(t, archsimd.Int8x32.Neg, map1[int8](neg))
+		testInt16x16Unary(t, archsimd.Int16x16.Neg, map1[int16](neg))
+		testInt32x8Unary(t, archsimd.Int32x8.Neg, map1[int32](neg))
+		testInt64x4Unary(t, archsimd.Int64x4.Neg, map1[int64](neg))
+	}
 	if archsimd.X86.AVX512() {
-		testFloat32x16Unary(t, archsimd.Float32x16.Neg, map1[float32](neg)) // missing
-		testFloat64x8Unary(t, archsimd.Float64x8.Neg, map1[float64](neg))   // missing
+		testFloat32x16Unary(t, archsimd.Float32x16.Neg, map1[float32](neg))
+		testFloat64x8Unary(t, archsimd.Float64x8.Neg, map1[float64](neg))
+		testInt8x64Unary(t, archsimd.Int8x64.Neg, map1[int8](neg))
+		testInt16x32Unary(t, archsimd.Int16x32.Neg, map1[int16](neg))
+		testInt32x16Unary(t, archsimd.Int32x16.Neg, map1[int32](neg))
+		testInt64x8Unary(t, archsimd.Int64x8.Neg, map1[int64](neg))
 	}
 }
 
-func TestCeil(t *testing.T) {
-	testFloat32x4Unary(t, archsimd.Float32x4.Ceil, ceilSlice[float32])
+func TestCeilAMD64(t *testing.T) {
 	testFloat32x8Unary(t, archsimd.Float32x8.Ceil, ceilSlice[float32])
-	testFloat64x2Unary(t, archsimd.Float64x2.Ceil, ceilSlice[float64])
 	testFloat64x4Unary(t, archsimd.Float64x4.Ceil, ceilSlice[float64])
 	if archsimd.X86.AVX512() {
 		// testFloat32x16Unary(t, archsimd.Float32x16.Ceil, ceilSlice[float32]) // missing
@@ -45,10 +59,8 @@ func TestCeil(t *testing.T) {
 	}
 }
 
-func TestFloor(t *testing.T) {
-	testFloat32x4Unary(t, archsimd.Float32x4.Floor, floorSlice[float32])
+func TestFloorAMD64(t *testing.T) {
 	testFloat32x8Unary(t, archsimd.Float32x8.Floor, floorSlice[float32])
-	testFloat64x2Unary(t, archsimd.Float64x2.Floor, floorSlice[float64])
 	testFloat64x4Unary(t, archsimd.Float64x4.Floor, floorSlice[float64])
 	if archsimd.X86.AVX512() {
 		// testFloat32x16Unary(t, archsimd.Float32x16.Floor, floorSlice[float32]) // missing
@@ -56,10 +68,8 @@ func TestFloor(t *testing.T) {
 	}
 }
 
-func TestTrunc(t *testing.T) {
-	testFloat32x4Unary(t, archsimd.Float32x4.Trunc, truncSlice[float32])
+func TestTruncAMD64(t *testing.T) {
 	testFloat32x8Unary(t, archsimd.Float32x8.Trunc, truncSlice[float32])
-	testFloat64x2Unary(t, archsimd.Float64x2.Trunc, truncSlice[float64])
 	testFloat64x4Unary(t, archsimd.Float64x4.Trunc, truncSlice[float64])
 	if archsimd.X86.AVX512() {
 		// testFloat32x16Unary(t, archsimd.Float32x16.Trunc, truncSlice[float32]) // missing
@@ -67,10 +77,8 @@ func TestTrunc(t *testing.T) {
 	}
 }
 
-func TestRound(t *testing.T) {
-	testFloat32x4Unary(t, archsimd.Float32x4.Round, roundSlice[float32])
+func TestRoundAMD64(t *testing.T) {
 	testFloat32x8Unary(t, archsimd.Float32x8.Round, roundSlice[float32])
-	testFloat64x2Unary(t, archsimd.Float64x2.Round, roundSlice[float64])
 	testFloat64x4Unary(t, archsimd.Float64x4.Round, roundSlice[float64])
 	if archsimd.X86.AVX512() {
 		// testFloat32x16Unary(t, archsimd.Float32x16.Round, roundSlice[float32]) // missing
@@ -78,10 +86,8 @@ func TestRound(t *testing.T) {
 	}
 }
 
-func TestSqrt(t *testing.T) {
-	testFloat32x4Unary(t, archsimd.Float32x4.Sqrt, sqrtSlice[float32])
+func TestSqrtAMD64(t *testing.T) {
 	testFloat32x8Unary(t, archsimd.Float32x8.Sqrt, sqrtSlice[float32])
-	testFloat64x2Unary(t, archsimd.Float64x2.Sqrt, sqrtSlice[float64])
 	testFloat64x4Unary(t, archsimd.Float64x4.Sqrt, sqrtSlice[float64])
 	if archsimd.X86.AVX512() {
 		testFloat32x16Unary(t, archsimd.Float32x16.Sqrt, sqrtSlice[float32])
@@ -89,41 +95,13 @@ func TestSqrt(t *testing.T) {
 	}
 }
 
-func TestNot(t *testing.T) {
-	testInt8x16Unary(t, archsimd.Int8x16.Not, map1[int8](not))
+func TestNotAMD64(t *testing.T) {
 	testInt16x8Unary(t, archsimd.Int16x8.Not, map1[int16](not))
-	testInt32x4Unary(t, archsimd.Int32x4.Not, map1[int32](not))
 
 	if archsimd.X86.AVX2() {
 		testInt8x32Unary(t, archsimd.Int8x32.Not, map1[int8](not))
 		testInt16x16Unary(t, archsimd.Int16x16.Not, map1[int16](not))
 		testInt32x8Unary(t, archsimd.Int32x8.Not, map1[int32](not))
-	}
-}
-
-func TestAbsolute(t *testing.T) {
-	testInt8x16Unary(t, archsimd.Int8x16.Abs, map1[int8](abs))
-	testInt16x8Unary(t, archsimd.Int16x8.Abs, map1[int16](abs))
-	testInt32x4Unary(t, archsimd.Int32x4.Abs, map1[int32](abs))
-	testFloat32x4Unary(t, archsimd.Float32x4.Abs, map1[float32](abs))
-	testFloat64x2Unary(t, archsimd.Float64x2.Abs, map1[float64](abs))
-
-	if archsimd.X86.AVX2() {
-		testInt8x32Unary(t, archsimd.Int8x32.Abs, map1[int8](abs))
-		testInt16x16Unary(t, archsimd.Int16x16.Abs, map1[int16](abs))
-		testInt32x8Unary(t, archsimd.Int32x8.Abs, map1[int32](abs))
-		testFloat32x8Unary(t, archsimd.Float32x8.Abs, map1[float32](abs))
-		testFloat64x4Unary(t, archsimd.Float64x4.Abs, map1[float64](abs))
-	}
-	if archsimd.X86.AVX512() {
-		testInt8x64Unary(t, archsimd.Int8x64.Abs, map1[int8](abs))
-		testInt16x32Unary(t, archsimd.Int16x32.Abs, map1[int16](abs))
-		testInt32x16Unary(t, archsimd.Int32x16.Abs, map1[int32](abs))
-		testInt64x2Unary(t, archsimd.Int64x2.Abs, map1[int64](abs))
-		testInt64x4Unary(t, archsimd.Int64x4.Abs, map1[int64](abs))
-		testInt64x8Unary(t, archsimd.Int64x8.Abs, map1[int64](abs))
-		testFloat32x16Unary(t, archsimd.Float32x16.Abs, map1[float32](abs))
-		testFloat64x8Unary(t, archsimd.Float64x8.Abs, map1[float64](abs))
 	}
 }
 
@@ -338,5 +316,45 @@ func TestSaturate(t *testing.T) {
 		testUint64x2ConvertToUint32(t, archsimd.Uint64x2.SaturateToUint32, map1n[uint64](satToUint32, 4))
 		testUint64x4ConvertToUint32(t, archsimd.Uint64x4.SaturateToUint32, map1[uint64](satToUint32))
 		testUint64x8ConvertToUint32(t, archsimd.Uint64x8.SaturateToUint32, map1[uint64](satToUint32))
+	}
+}
+
+func TestOnesCountAMD64(t *testing.T) {
+	if archsimd.X86.AVX512BITALG() {
+		// 128-bit
+		testInt16x8Unary(t, archsimd.Int16x8.OnesCount, map1[int16](onesCount))
+		testUint16x8Unary(t, archsimd.Uint16x8.OnesCount, map1[uint16](onesCount))
+
+		// 256-bit
+		testInt8x32Unary(t, archsimd.Int8x32.OnesCount, map1[int8](onesCount))
+		testUint8x32Unary(t, archsimd.Uint8x32.OnesCount, map1[uint8](onesCount))
+		testInt16x16Unary(t, archsimd.Int16x16.OnesCount, map1[int16](onesCount))
+		testUint16x16Unary(t, archsimd.Uint16x16.OnesCount, map1[uint16](onesCount))
+
+		// 512-bit
+		testInt8x64Unary(t, archsimd.Int8x64.OnesCount, map1[int8](onesCount))
+		testUint8x64Unary(t, archsimd.Uint8x64.OnesCount, map1[uint8](onesCount))
+		testInt16x32Unary(t, archsimd.Int16x32.OnesCount, map1[int16](onesCount))
+		testUint16x32Unary(t, archsimd.Uint16x32.OnesCount, map1[uint16](onesCount))
+	}
+
+	if archsimd.X86.AVX512VPOPCNTDQ() {
+		// 128-bit
+		testInt32x4Unary(t, archsimd.Int32x4.OnesCount, map1[int32](onesCount))
+		testUint32x4Unary(t, archsimd.Uint32x4.OnesCount, map1[uint32](onesCount))
+		testInt64x2Unary(t, archsimd.Int64x2.OnesCount, map1[int64](onesCount))
+		testUint64x2Unary(t, archsimd.Uint64x2.OnesCount, map1[uint64](onesCount))
+
+		// 256-bit
+		testInt32x8Unary(t, archsimd.Int32x8.OnesCount, map1[int32](onesCount))
+		testUint32x8Unary(t, archsimd.Uint32x8.OnesCount, map1[uint32](onesCount))
+		testInt64x4Unary(t, archsimd.Int64x4.OnesCount, map1[int64](onesCount))
+		testUint64x4Unary(t, archsimd.Uint64x4.OnesCount, map1[uint64](onesCount))
+
+		// 512-bit
+		testInt32x16Unary(t, archsimd.Int32x16.OnesCount, map1[int32](onesCount))
+		testUint32x16Unary(t, archsimd.Uint32x16.OnesCount, map1[uint32](onesCount))
+		testInt64x8Unary(t, archsimd.Int64x8.OnesCount, map1[int64](onesCount))
+		testUint64x8Unary(t, archsimd.Uint64x8.OnesCount, map1[uint64](onesCount))
 	}
 }

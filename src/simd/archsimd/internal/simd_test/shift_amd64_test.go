@@ -11,7 +11,7 @@ import (
 	"testing"
 )
 
-func TestRotateAllLeft(t *testing.T) {
+func TestRotateAllLeftAMD64(t *testing.T) {
 	x := uint8(0x81)
 	if y := rotl(x, 1); y != 3 {
 		t.Errorf("Expected 3, got 0x%x", y)
@@ -24,12 +24,6 @@ func TestRotateAllLeft(t *testing.T) {
 	}
 
 	for i := uint64(0); i < 65; i++ {
-		testUint64x2Unary(t, curry2(archsimd.Uint64x2.RotateAllLeft, i), rotlOfSlice[uint64](i))
-		testUint32x4Unary(t, curry2(archsimd.Uint32x4.RotateAllLeft, i), rotlOfSlice[uint32](i))
-		//		testUint16x8Unary(t, curry2(archsimd.Uint16x8.RotateAllLeft, i), rotlOfSlice[uint16](i))
-		//		testUint8x16Unary(t, curry2(archsimd.Uint8x16.RotateAllLeft, i), rotlOfSlice[uint8](i))
-	}
-	for i := uint64(0); i < 65; i++ {
 		testUint64x4Unary(t, curry2(archsimd.Uint64x4.RotateAllLeft, i), rotlOfSlice[uint64](i))
 		testUint32x8Unary(t, curry2(archsimd.Uint32x8.RotateAllLeft, i), rotlOfSlice[uint32](i))
 		//		testUint16x16Unary(t, curry2(archsimd.Uint16x16.RotateAllLeft, i), rotlOfSlice[uint16](i))
@@ -38,7 +32,7 @@ func TestRotateAllLeft(t *testing.T) {
 
 }
 
-func TestRotateAllRight(t *testing.T) {
+func TestRotateAllRightAMD64(t *testing.T) {
 	x := uint8(0x81)
 	if y := rotr(x, 1); y != 0xc0 {
 		t.Errorf("Expected 0xc0, got 0x%x", y)
@@ -50,12 +44,6 @@ func TestRotateAllRight(t *testing.T) {
 		t.Errorf("Expected 0x18, got 0x%x", y)
 	}
 
-	for i := uint64(0); i < 65; i++ {
-		testUint64x2Unary(t, curry2(archsimd.Uint64x2.RotateAllRight, i), rotrOfSlice[uint64](i))
-		testUint32x4Unary(t, curry2(archsimd.Uint32x4.RotateAllRight, i), rotrOfSlice[uint32](i))
-		//		testUint16x8Unary(t, curry2(archsimd.Uint16x8.RotateAllLeft, i), rotlOfSlice[uint16](i))
-		//		testUint8x16Unary(t, curry2(archsimd.Uint8x16.RotateAllLeft, i), rotlOfSlice[uint8](i))
-	}
 	for i := uint64(0); i < 65; i++ {
 		testUint64x4Unary(t, curry2(archsimd.Uint64x4.RotateAllRight, i), rotrOfSlice[uint64](i))
 		testUint32x8Unary(t, curry2(archsimd.Uint32x8.RotateAllRight, i), rotrOfSlice[uint32](i))
