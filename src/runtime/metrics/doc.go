@@ -285,6 +285,10 @@ Below is the full list of supported metrics, ordered lexicographically.
 		The number of non-default behaviors executed by the os/exec
 		package due to a non-default GODEBUG=execerrdot=... setting.
 
+	/godebug/non-default-behavior/fips140ems:events
+		The number of non-default behaviors executed by the crypto/tls
+		package due to a non-default GODEBUG=fips140ems=... setting.
+
 	/godebug/non-default-behavior/gocachehash:events
 		The number of non-default behaviors executed by the cmd/go
 		package due to a non-default GODEBUG=gocachehash=... setting.

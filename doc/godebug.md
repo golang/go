@@ -153,6 +153,10 @@ and the [go command documentation](/cmd/go#hdr-Build_and_test_caching).
 
 ### Go 1.26
 
+Go 1.26.6 added a `fips140ems` setting that when set to `0` disables the
+enforcement of Extended Master Secret in FIPS 140-3 mode. There is no change in
+default behavior.
+
 Go 1.26.1 added a new `htmlmetacontenturlescape` setting that controls whether
 html/template will escape URLs in the `url=` portion of the content attribute of
 HTML meta tags. The default `htmlmetacontentescape=1` will cause URLs to be
