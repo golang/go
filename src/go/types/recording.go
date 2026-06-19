@@ -144,14 +144,14 @@ func (check *Checker) recordInstance(expr ast.Expr, targs []Type, typ Type) {
 				copy.recv = pars.vars[0]
 				pars.vars = pars.vars[1:]
 				copy.params = &pars
-				m[ident] = Instance{newTypeList(targs), &copy}
+				m[ident] = Instance{NewTypeList(targs), &copy}
 				return
 			}
 			copy.recv = sig.recvold
-			m[ident] = Instance{newTypeList(targs), &copy}
+			m[ident] = Instance{NewTypeList(targs), &copy}
 			return
 		}
-		m[ident] = Instance{newTypeList(targs), typ}
+		m[ident] = Instance{NewTypeList(targs), typ}
 	}
 }
 
