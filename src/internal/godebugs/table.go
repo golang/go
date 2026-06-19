@@ -34,6 +34,7 @@ var All = []Info{
 	{Name: "embedfollowsymlinks", Package: "cmd/go"},
 	{Name: "execerrdot", Package: "os/exec"},
 	{Name: "fips140", Package: "crypto/fips140", Opaque: true, Immutable: true},
+	{Name: "fips140ems", Package: "crypto/tls"},
 	{Name: "gocachehash", Package: "cmd/go"},
 	{Name: "gocachetest", Package: "cmd/go"},
 	{Name: "gocacheverify", Package: "cmd/go"},

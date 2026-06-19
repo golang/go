@@ -170,6 +170,10 @@ this setting and default was backported to Go 1.25.4 and Go 1.24.10.
 
 ### Go 1.25
 
+Go 1.25.13 added a `fips140ems` setting that when set to `0` disables the
+enforcement of Extended Master Secret in FIPS 140-3 mode. There is no change in
+default behavior.
+
 Go 1.25.8 added a new `htmlmetacontenturlescape` setting that controls whether
 html/template will escape URLs in the `url=` portion of the content attribute of
 HTML meta tags. The default `htmlmetacontentescape=1` will cause URLs to be
