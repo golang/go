@@ -350,6 +350,10 @@ func (c *Conn) clientHandshake(ctx context.Context) (err error) {
 	return hs.handshake()
 }
 
+// fips140ems is a GODEBUG variable that can be set to 0 to disable the
+// enforcement of Extended Master Secret in FIPS 140-3 mode.
+var fips140ems = godebug.New("fips140ems")
+
 func (c *Conn) loadSession(hello *clientHelloMsg) (
 	session *SessionState, earlySecret *tls13.EarlySecret, binderKey []byte, err error) {
 	if c.config.SessionTicketsDisabled || c.config.ClientSessionCache == nil {
@@ -434,7 +438,10 @@ func (c *Conn) loadSession(hello *clientHelloMsg) (
 
 		// FIPS 140-3 requires the use of Extended Master Secret.
 		if !session.extMasterSecret && fips140tls.Required() {
-			return nil, nil, nil, nil
+			if fips140ems.Value() != "0" {
+				return nil, nil, nil, nil
+			}
+			fips140ems.IncNonDefault()
 		}
 
 		hello.sessionTicket = session.ticket
@@ -766,8 +773,11 @@ func (hs *clientHandshakeState) doFullHandshake() error {
 			hs.finishedHash.Sum())
 	} else {
 		if fips140tls.Required() {
-			c.sendAlert(alertHandshakeFailure)
-			return errors.New("tls: FIPS 140-3 requires the use of Extended Master Secret")
+			if fips140ems.Value() != "0" {
+				c.sendAlert(alertHandshakeFailure)
+				return errors.New("tls: FIPS 140-3 requires the use of Extended Master Secret")
+			}
+			fips140ems.IncNonDefault()
 		}
 		hs.masterSecret = masterFromPreMasterSecret(c.vers, hs.suite, preMasterSecret,
 			hs.hello.random, hs.serverHello.random)
