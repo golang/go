@@ -57,17 +57,18 @@ func (b *batch) walkAll() {
 	b.heapLoc.queuedWalkAll = true
 
 	var walkgen uint32
+	walkOneTodo := newQueue(len(b.allLocs) + 3)
 	for todo.len() > 0 {
 		root := todo.popFront()
 		root.queuedWalkAll = false
 		walkgen++
-		b.walkOne(root, walkgen, enqueue)
+		b.walkOne(root, walkgen, enqueue, walkOneTodo)
 	}
 }
 
 // walkOne computes the minimal number of dereferences from root to
 // all other locations.
-func (b *batch) walkOne(root *location, walkgen uint32, enqueue func(*location)) {
+func (b *batch) walkOne(root *location, walkgen uint32, enqueue func(*location), todo *queue) {
 	// The data flow graph has negative edges (from addressing
 	// operations), so we use the Bellman-Ford algorithm. However,
 	// we don't have to worry about infinite negative cycles since
@@ -91,7 +92,7 @@ func (b *batch) walkOne(root *location, walkgen uint32, enqueue func(*location))
 		}
 	}
 
-	todo := newQueue(1)
+	todo.reset()
 	todo.pushFront(root)
 
 	for todo.len() > 0 {
@@ -348,6 +349,12 @@ func newQueue(capacity int) *queue {
 	capacity = max(capacity, 2)
 	capacity = 1 << bits.Len64(uint64(capacity-1)) // round up to a power of 2
 	return &queue{locs: make([]*location, capacity)}
+}
+
+func (q *queue) reset() {
+	q.head = 0
+	q.tail = 0
+	q.elems = 0
 }
 
 // pushFront adds an element to the front of the queue.
