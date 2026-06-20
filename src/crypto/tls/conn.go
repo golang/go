@@ -1604,6 +1604,12 @@ func (c *Conn) handshakeContext(ctx context.Context) (ret error) {
 }
 
 // ConnectionState returns basic TLS details about the connection.
+//
+// The returned [ConnectionState] is only meaningful after the handshake has
+// completed, as reported by [ConnectionState.HandshakeComplete]; before then
+// its fields are not populated. The handshake is run automatically by the
+// first [Conn.Read] or [Conn.Write], or it can be triggered explicitly with
+// [Conn.Handshake].
 func (c *Conn) ConnectionState() ConnectionState {
 	c.handshakeMutex.Lock()
 	defer c.handshakeMutex.Unlock()
