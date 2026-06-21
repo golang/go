@@ -394,6 +394,9 @@ func init() {
 			faultOnNilArg1: true,
 			addrSinkArg0:   true,
 			addrSinkArg1:   true,
+			// We do not save RVV in async preemption yet
+			// so mark this as an unsafe point.
+			unsafePoint: true,
 		},
 
 		// Atomic loads.
