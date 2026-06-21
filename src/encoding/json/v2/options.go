@@ -190,7 +190,7 @@ func OmitZeroStructFields(v bool) Options {
 // MatchCaseInsensitiveNames specifies that JSON object members are matched
 // against Go struct fields using a case-insensitive match of the name.
 // If a name matches multiple fields, it chooses the field with an exact
-// match of the name, otherwise it uses the field that appears first.
+// match of the name, otherwise it reports an error.
 // Go struct fields explicitly marked with `case:strict` or `case:ignore`
 // always use case-sensitive (or case-insensitive) name matching,
 // regardless of the value of this option.
