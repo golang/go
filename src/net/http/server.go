@@ -2747,7 +2747,7 @@ func (mux *ServeMux) findHandler(r *Request) (h Handler, patStr string, _ *patte
 			if n != nil {
 				patStr = n.pattern.String()
 			}
-			u := &url.URL{Path: path, RawQuery: r.URL.RawQuery}
+			u := urlFromEscaped(path, r.URL.RawQuery)
 			return RedirectHandler(u.String(), StatusTemporaryRedirect), patStr, nil, nil
 		}
 	}
@@ -2792,10 +2792,33 @@ func (mux *ServeMux) matchOrRedirect(host, method, path string, u *url.URL) (_ *
 			// of findHandler, and that method returns before it does the "n == nil" check where
 			// the first return value matters. We return it here only to make the pattern available
 			// to findHandler.
-			return n2, nil, &url.URL{Path: cleanPath(u.Path) + "/", RawQuery: u.RawQuery}
+			return n2, nil, urlFromEscaped(path, u.RawQuery)
 		}
 	}
 	return n, matches, nil
+}
+
+// urlFromEscaped returns a url.URL constructed from an escaped path and a raw
+// query.
+//
+// It ensures that the Path and RawPath fields are in sync by unescaping the
+// escaped path. Populating only the Path field and leaving RawPath empty (or
+// failing to keep them in sync) can cause url.URL.String to produce a URL with
+// either unexpected escaping (e.g., double-escaping "%" into "%25" in an
+// already escaped path) or a lack thereof (e.g., losing the escaping of "%2f"
+// and turning it into a literal path separator "/").
+func urlFromEscaped(escaped, rawQuery string) *url.URL {
+	unescaped, err := url.PathUnescape(escaped)
+	// Should be impossible, since ServeMux will reject unparsable URLs way
+	// earlier.
+	if err != nil {
+		unescaped = escaped
+	}
+	return &url.URL{
+		Path:     unescaped,
+		RawPath:  escaped,
+		RawQuery: rawQuery,
+	}
 }
 
 // exactMatch reports whether the node's pattern exactly matches the path.
