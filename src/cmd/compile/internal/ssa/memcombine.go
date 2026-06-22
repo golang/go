@@ -90,7 +90,54 @@ func memcombineLoads(f *Func) {
 // idx may be nil, in which case it is treated as 0.
 type BaseAddress struct {
 	ptr *Value
-	idx *Value
+	idx Index
+}
+
+// Index represents an address index in the form exp<<shift.
+//
+// The shift is typically introduced by slice indexing (log2(element size)),
+// but may also originate from shifts in the source expression.
+type Index struct {
+	exp   *Value
+	shift int64
+}
+
+func getConst(v *Value) (int64, bool) {
+	if v.Op == OpConst32 || v.Op == OpConst64 {
+		return v.AuxInt, true
+	}
+	return 0, false
+}
+
+func peelAdd(v *Value) (exp *Value, imm int64) {
+	if v == nil {
+		return nil, 0
+	}
+
+	if v.Op == OpAdd32 || v.Op == OpAdd64 {
+		if imm, ok := getConst(v.Args[0]); ok {
+			return v.Args[1], imm
+		}
+
+		if imm, ok := getConst(v.Args[1]); ok {
+			return v.Args[0], imm
+		}
+	}
+
+	return v, 0
+}
+
+func peelShift(v *Value) (exp *Value, shift int64) {
+	if v == nil {
+		return nil, 0
+	}
+
+	if v.Op == OpLsh64x64 || v.Op == OpLsh32x64 || v.Op == OpLsh16x64 {
+		if imm, ok := getConst(v.Args[1]); ok {
+			return v.Args[0], imm
+		}
+	}
+	return v, 0
 }
 
 // splitPtr returns the base address of ptr and any
@@ -98,33 +145,54 @@ type BaseAddress struct {
 // BaseAddress{ptr,nil},0 is always a valid result, but splitPtr
 // tries to peel away as many constants into off as possible.
 func splitPtr(ptr *Value) (BaseAddress, int64) {
-	var idx *Value
+	var idx Index
 	var off int64
 	for {
 		if ptr.Op == OpOffPtr {
 			off += ptr.AuxInt
 			ptr = ptr.Args[0]
-		} else if ptr.Op == OpAddPtr {
-			if idx != nil {
+			continue
+		}
+
+		if ptr.Op == OpAddPtr {
+			if idx.exp != nil {
 				// We have two or more indexing values.
 				// Pick the first one we found.
-				return BaseAddress{ptr: ptr, idx: idx}, off
+				break
 			}
-			idx = ptr.Args[1]
-			if idx.Op == OpAdd32 || idx.Op == OpAdd64 {
-				if idx.Args[0].Op == OpConst32 || idx.Args[0].Op == OpConst64 {
-					off += idx.Args[0].AuxInt
-					idx = idx.Args[1]
-				} else if idx.Args[1].Op == OpConst32 || idx.Args[1].Op == OpConst64 {
-					off += idx.Args[1].AuxInt
-					idx = idx.Args[0]
-				}
-			}
+
+			// Common slice indexing patterns:
+			//
+			// exp
+			// exp + offset
+			// (exp << shift) + offset
+			// (exp+imm)<<shift + offset
+			//
+			// where shift is typically log2(element size).
+
+			idx.exp = ptr.Args[1]
 			ptr = ptr.Args[0]
-		} else {
-			return BaseAddress{ptr: ptr, idx: idx}, off
+
+			// Peel offset
+			var offset int64
+			idx.exp, offset = peelAdd(idx.exp)
+			off += offset
+
+			// Peel shift
+			idx.exp, idx.shift = peelShift(idx.exp)
+
+			// Peel imm
+			var imm int64
+			idx.exp, imm = peelAdd(idx.exp)
+
+			off += imm << idx.shift
+			continue
 		}
+
+		break
 	}
+
+	return BaseAddress{ptr: ptr, idx: idx}, off
 }
 
 func combineLoads(root *Value, n int64) bool {
@@ -203,11 +271,7 @@ func combineLoads(root *Value, n int64) bool {
 		}
 		shift := int64(0)
 		if v.Op == shiftOp {
-			if v.Args[1].Op != OpConst64 {
-				return false
-			}
-			shift = v.Args[1].AuxInt
-			v = v.Args[0]
+			v, shift = peelShift(v)
 			if v.Uses != 1 {
 				return false
 			}

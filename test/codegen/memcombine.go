@@ -344,6 +344,52 @@ func load_be_byte8_uint64_idx8(s []byte, idx int) uint64 {
 	return uint64(s[idx<<3])<<56 | uint64(s[(idx<<3)+1])<<48 | uint64(s[(idx<<3)+2])<<40 | uint64(s[(idx<<3)+3])<<32 | uint64(s[(idx<<3)+4])<<24 | uint64(s[(idx<<3)+5])<<16 | uint64(s[(idx<<3)+6])<<8 | uint64(s[(idx<<3)+7])
 }
 
+// Check combining of different int types
+
+func load_le_2uint16_uint32(s []uint16) uint32 {
+	// arm64:`MOVWU \(R[0-9]+\)` -`ORR` -`MOVHU`
+	// 386:`MOVL \([A-Z]+\)` -`MOVWLZX` -`ORL`
+	// amd64:`MOVL \([A-Z]+\)` -`MOVWLZX` -`ORL`
+	// ppc64le:`MOVWZ \(R[0-9]+\)` -`MOVHZ`
+	return uint32(s[0]) | uint32(s[1])<<16
+}
+
+func load_le_2uint16_uint32_idx(s []uint16, idx int) uint32 {
+	// arm64:`MOVWU \(R[0-9]+\)` -`ORR` -`MOVHU`
+	// 386:`MOVL \([A-Z]+\)` -`MOVWLZX` -`ORL`
+	// amd64:`MOVL \([A-Z]+\)` -`MOVWLZX` -`ORL`
+	// ppc64le:`MOVWZ \(R[0-9]+\)` -`MOVHZ`
+	return uint32(s[idx]) | uint32(s[idx+1])<<16
+}
+
+func load_le_4uint16_uint64(s []uint16) uint64 {
+	// arm64:`MOVD \(R[0-9]+\)` -`ORR` -`MOVHU`
+	// amd64:`MOVQ \([A-Z]+\)` -`ORQ` -`MOVWLZX`
+	// ppc64le:`MOVD \(R[0-9]+\)` -`MOVHZ`
+	return uint64(s[0]) | uint64(s[1])<<16 | uint64(s[2])<<32 | uint64(s[3])<<48
+}
+
+func load_le_4uint16_uint64_idx(s []uint16, idx int) uint64 {
+	// arm64:`MOVD \(R[0-9]+\)` -`ORR` -`MOVHU`
+	// amd64:`MOVQ \([A-Z]+\)` -`ORQ` -`MOVWLZX`
+	// ppc64le:`MOVD \(R[0-9]+\)` -`MOVHZ`
+	return uint64(s[idx]) | uint64(s[idx+1])<<16 | uint64(s[idx+2])<<32 | uint64(s[idx+3])<<48
+}
+
+func load_le_2uint32_uint64(s []uint32) uint64 {
+	// arm64:`MOVD \(R[0-9]+\)` -`ORR` -`LDPW` -`MOVWU`
+	// amd64:`MOVQ \([A-Z]+\)` -`ORQ` -`MOVL`
+	// ppc64le:`MOVD \(R[0-9]+\)` -`MOVWZ`
+	return uint64(s[0]) | uint64(s[1])<<32
+}
+
+func load_le_2uint32_uint64_idx(s []uint32, idx int) uint64 {
+	// arm64:`MOVD \(R[0-9]+\)` -`ORR` -`LDPW` -`MOVWU`
+	// amd64:`MOVQ \([A-Z]+\)` -`ORQ` -`MOVL`
+	// ppc64le:`MOVD \(R[0-9]+\)` -`MOVWZ`
+	return uint64(s[idx]) | uint64(s[idx+1])<<32
+}
+
 // Some tougher cases for the memcombine pass.
 
 func reassoc_load_uint32(b []byte) uint32 {
