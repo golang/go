@@ -912,7 +912,7 @@ func TryInlineCall(callerfn *ir.Func, call *ir.CallExpr, bigCaller bool, profile
 	}
 
 	if fn := inlCallee(callerfn, call.Fun, profile, false); fn != nil && typecheck.HaveInlineBody(fn) {
-		return mkinlcall(callerfn, call, fn, bigCaller, closureCalledOnce)
+		return mkinlcall(callerfn, call, fn, bigCaller, closureCalledOnce, profile)
 	}
 	return nil
 }
@@ -960,7 +960,7 @@ var SSADumpInline = func(*ir.Func) {}
 
 // InlineCall allows the inliner implementation to be overridden.
 // If it returns nil, the function will not be inlined.
-var InlineCall = func(callerfn *ir.Func, call *ir.CallExpr, fn *ir.Func, inlIndex int) *ir.InlinedCallExpr {
+var InlineCall = func(callerfn *ir.Func, call *ir.CallExpr, fn *ir.Func, inlIndex int, profile *pgoir.Profile) *ir.InlinedCallExpr {
 	base.Fatalf("inline.InlineCall not overridden")
 	panic("unreachable")
 }
@@ -1155,7 +1155,7 @@ func canInlineCallExpr(callerfn *ir.Func, n *ir.CallExpr, callee *ir.Func, bigCa
 // The result of mkinlcall MUST be assigned back to n, e.g.
 //
 //	n.Left = mkinlcall(n.Left, fn, isddd)
-func mkinlcall(callerfn *ir.Func, n *ir.CallExpr, fn *ir.Func, bigCaller, closureCalledOnce bool) *ir.InlinedCallExpr {
+func mkinlcall(callerfn *ir.Func, n *ir.CallExpr, fn *ir.Func, bigCaller, closureCalledOnce bool, profile *pgoir.Profile) *ir.InlinedCallExpr {
 	ok, score, hot := canInlineCallExpr(callerfn, n, fn, bigCaller, closureCalledOnce, true)
 	if !ok {
 		return nil
@@ -1236,7 +1236,7 @@ func mkinlcall(callerfn *ir.Func, n *ir.CallExpr, fn *ir.Func, bigCaller, closur
 		fmt.Printf("%v: Before inlining: %+v\n", ir.Line(n), n)
 	}
 
-	res := InlineCall(callerfn, n, fn, inlIndex)
+	res := InlineCall(callerfn, n, fn, inlIndex, profile)
 
 	if res == nil {
 		base.FatalfAt(n.Pos(), "inlining call to %v failed", fn.Nname.DiagName())
