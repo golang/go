@@ -7555,6 +7555,36 @@ func testServerReadAfterHandlerAbort100Continue(t *testing.T, mode testMode) {
 	readyc <- struct{}{} // server finishes reading from the request body
 }
 
+// Issue 75933.
+func TestServerExpect100ContinueUnreadBody(t *testing.T) {
+	run(t, testServerExpect100ContinueUnreadBody)
+}
+func testServerExpect100ContinueUnreadBody(t *testing.T, mode testMode) {
+	cst := newClientServerTest(t, mode, HandlerFunc(func(w ResponseWriter, r *Request) {
+		w.WriteHeader(StatusOK)
+		// Make sure that Read after not sending status 100 does not hang.
+		// TODO: Read in this situation should return an error.
+		io.ReadAll(r.Body)
+	}))
+
+	req, _ := NewRequest("POST", cst.ts.URL, strings.NewReader("some body"))
+	req.Header.Set("Expect", "100-continue")
+
+	// Set a short timeout on the client to catch the hang quickly.
+	cst.c.Timeout = 2 * time.Second
+	cst.tr.ExpectContinueTimeout = 10 * time.Second
+
+	resp, err := cst.c.Do(req)
+	if err != nil {
+		t.Fatalf("Request failed: %v (likely due to hang)", err)
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != StatusOK {
+		t.Errorf("expected 200 OK, got %v", resp.Status)
+	}
+}
+
 func TestInvalidChunkedBodies(t *testing.T) {
 	for _, test := range []struct {
 		name string

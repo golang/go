@@ -570,11 +570,30 @@ func (w *response) requestTooLarge() {
 	}
 }
 
-// disableWriteContinue stops Request.Body.Read from sending an automatic 100-Continue.
-// If a 100-Continue is being written, it waits for it to complete before continuing.
-func (w *response) disableWriteContinue() {
+// disableWriteContinue stops Request.Body.Read from sending an automatic
+// 100 Continue. As the name implies, it is only useful when the request
+// expects a 100 Continue and the body is wrapped in an expectContinueReader;
+// otherwise, it is a no-op.
+// If a 100-Continue is being written, it waits for it to complete before
+// continuing. If skipDrain is true, it also prevents the server from draining
+// the request body and flags the connection to be closed after the reply, as
+// the client will never send the body.
+func (w *response) disableWriteContinue(skipDrain bool) {
+	ecr, ok := w.reqBody.(*expectContinueReader)
+	if !ok {
+		return
+	}
 	w.writeContinueMu.Lock()
-	w.canWriteContinue.Store(false)
+	if w.canWriteContinue.Load() {
+		w.canWriteContinue.Store(false)
+		if skipDrain {
+			// Make sure that the connection will not be reused by sending
+			// "Connection: close" header in the response.
+			w.closeAfterReply = true
+			// Ensure that the body will not be drained in Close.
+			ecr.closed.Store(true)
+		}
+	}
 	w.writeContinueMu.Unlock()
 }
 
@@ -983,7 +1002,12 @@ func (ecr *expectContinueReader) Read(p []byte) (n int, err error) {
 }
 
 func (ecr *expectContinueReader) Close() error {
-	ecr.closed.Store(true)
+	if ecr.resp.canWriteContinue.Load() {
+		ecr.resp.disableWriteContinue(true)
+	}
+	if ecr.closed.Swap(true) {
+		return nil
+	}
 	return ecr.readCloser.Close()
 }
 
@@ -1185,10 +1209,12 @@ func (w *response) WriteHeader(code int) {
 	}
 	checkWriteHeaderCode(code)
 
-	if code < 101 || code > 199 {
-		// Sending a 100 Continue or any non-1xx header disables the
-		// automatically-sent 100 Continue from Request.Body.Read.
-		w.disableWriteContinue()
+	// Sending a 100 Continue or any non-1XX header disables the
+	// automatically-sent 100 Continue from Request.Body.Read. If it is a final
+	// response (200 or higher), we skip draining the request body, which the
+	// client will never send.
+	if code == 100 || code >= 200 {
+		w.disableWriteContinue(code >= 200)
 	}
 
 	// Handle informational headers.
@@ -1663,7 +1689,7 @@ func (w *response) write(lenData int, dataB []byte, dataS string) (n int, err er
 
 	if w.canWriteContinue.Load() {
 		// Body reader wants to write 100 Continue but hasn't yet. Tell it not to.
-		w.disableWriteContinue()
+		w.disableWriteContinue(true)
 	}
 
 	if !w.wroteHeader {
@@ -1700,6 +1726,10 @@ func (w *response) finishRequest() {
 	w.conn.bufw.Flush()
 
 	w.conn.r.abortPendingRead()
+
+	if w.canWriteContinue.Load() {
+		w.disableWriteContinue(true)
+	}
 
 	// Close the body (regardless of w.closeAfterReply) so we can
 	// re-use its bufio.Reader later safely.
@@ -1931,7 +1961,7 @@ func (c *conn) serve(ctx context.Context) {
 		}
 		if inFlightResponse != nil {
 			inFlightResponse.cancelCtx()
-			inFlightResponse.disableWriteContinue()
+			inFlightResponse.disableWriteContinue(true)
 		}
 		if !c.hijacked() {
 			if inFlightResponse != nil {
@@ -2094,6 +2124,7 @@ func (c *conn) serve(ctx context.Context) {
 				// Wrap the Body reader with one that replies on the connection
 				req.Body = &expectContinueReader{readCloser: req.Body, resp: w}
 				w.canWriteContinue.Store(true)
+				w.reqBody = req.Body
 			}
 		} else if req.Header.get("Expect") != "" {
 			w.sendExpectationFailed()
@@ -2257,7 +2288,7 @@ func (w *response) Hijack() (rwc net.Conn, buf *bufio.ReadWriter, err error) {
 	if w.handlerDone.Load() {
 		panic("net/http: Hijack called after ServeHTTP finished")
 	}
-	w.disableWriteContinue()
+	w.disableWriteContinue(false)
 	if w.wroteHeader {
 		w.cw.flush()
 	}
