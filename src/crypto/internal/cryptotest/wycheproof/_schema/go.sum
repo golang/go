@@ -1,7 +1,7 @@
 dario.cat/mergo v1.0.2 h1:85+piFYR1tMbRrLcDwR18y4UKJ3aH1Tbzi24VRW1TK8=
 dario.cat/mergo v1.0.2/go.mod h1:E/hbnu0NxMFBjpMIE34DRGLWqDy0g5FuKDhCb31ngxA=
-github.com/c2sp/wycheproof v0.0.0-20260606153636-6d7cccd0fcb1 h1:veaGluF2y7kZnV/owZzY3FuOZWZQdzqnIcJsbJpFV7A=
-github.com/c2sp/wycheproof v0.0.0-20260606153636-6d7cccd0fcb1/go.mod h1:/5JsOpi3fKmnnig5BQ2mz49TNtnrD308VfTVHcbr5x4=
+github.com/c2sp/wycheproof v0.0.0-20260625212325-ee7b4f7e6119 h1:jOCu6erj86P93+eFn8Qxp6XLwftn1nW0C9RUx7xZwZg=
+github.com/c2sp/wycheproof v0.0.0-20260625212325-ee7b4f7e6119/go.mod h1:/5JsOpi3fKmnnig5BQ2mz49TNtnrD308VfTVHcbr5x4=
 github.com/davecgh/go-spew v0.0.0-20161028175848-04cdfd42973b/go.mod h1:J7Y8YcW2NihsgmVo/mv3lAwl/skON4iLHjSsI+c5H38=
 github.com/davecgh/go-spew v1.1.1 h1:vj9j/u1bqnvCEfJOwUhtlOARqs3+rkHYY13jYWTU97c=
 github.com/davecgh/go-spew v1.1.1/go.mod h1:J7Y8YcW2NihsgmVo/mv3lAwl/skON4iLHjSsI+c5H38=
