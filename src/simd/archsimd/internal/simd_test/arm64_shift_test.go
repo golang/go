@@ -39,104 +39,6 @@ func TestShiftSaturated(t *testing.T) {
 	testUint64x2Shift(t, archsimd.Uint64x2.ShiftSaturated, shiftSaturatingUnsignedSlice[uint64, int64])
 }
 
-var testShiftConstAmt uint64 = 3
-
-func TestShiftLeftConst(t *testing.T) {
-	// Signed
-	testInt8x16ShiftConst(t, archsimd.Int8x16.ShiftAllLeft, shiftLeftByConstSlice[int8])
-	testInt16x8ShiftConst(t, archsimd.Int16x8.ShiftAllLeft, shiftLeftByConstSlice[int16])
-	testInt32x4ShiftConst(t, archsimd.Int32x4.ShiftAllLeft, shiftLeftByConstSlice[int32])
-	testInt64x2ShiftConst(t, archsimd.Int64x2.ShiftAllLeft, shiftLeftByConstSlice[int64])
-	// Unsigned
-	testUint8x16ShiftConst(t, archsimd.Uint8x16.ShiftAllLeft, shiftLeftByConstSlice[uint8])
-	testUint16x8ShiftConst(t, archsimd.Uint16x8.ShiftAllLeft, shiftLeftByConstSlice[uint16])
-	testUint32x4ShiftConst(t, archsimd.Uint32x4.ShiftAllLeft, shiftLeftByConstSlice[uint32])
-	testUint64x2ShiftConst(t, archsimd.Uint64x2.ShiftAllLeft, shiftLeftByConstSlice[uint64])
-
-	// Variable shift amount to prevent constant folding
-	forSlice(t, int32s, 4, func(x []int32) bool {
-		a := archsimd.LoadInt32x4(x)
-		g := make([]int32, 4)
-		a.ShiftAllLeft(testShiftConstAmt).Store(g)
-		w := shiftLeftByConstSlice(x, testShiftConstAmt)
-		return checkSlicesLogInput(t, g, w, 0.0, func() { t.Helper(); t.Logf("x=%v, amt=%d", x, testShiftConstAmt) })
-	})
-}
-
-func TestShiftRightConst(t *testing.T) {
-	// Signed (arithmetic right shift)
-	testInt8x16ShiftConst(t, archsimd.Int8x16.ShiftAllRight, shiftRightByConstSlice[int8])
-	testInt16x8ShiftConst(t, archsimd.Int16x8.ShiftAllRight, shiftRightByConstSlice[int16])
-	testInt32x4ShiftConst(t, archsimd.Int32x4.ShiftAllRight, shiftRightByConstSlice[int32])
-	testInt64x2ShiftConst(t, archsimd.Int64x2.ShiftAllRight, shiftRightByConstSlice[int64])
-	// Unsigned (logical right shift)
-	testUint8x16ShiftConst(t, archsimd.Uint8x16.ShiftAllRight, shiftRightByConstSlice[uint8])
-	testUint16x8ShiftConst(t, archsimd.Uint16x8.ShiftAllRight, shiftRightByConstSlice[uint16])
-	testUint32x4ShiftConst(t, archsimd.Uint32x4.ShiftAllRight, shiftRightByConstSlice[uint32])
-	testUint64x2ShiftConst(t, archsimd.Uint64x2.ShiftAllRight, shiftRightByConstSlice[uint64])
-
-	// Variable shift amount to prevent constant folding
-	forSlice(t, int32s, 4, func(x []int32) bool {
-		a := archsimd.LoadInt32x4(x)
-		g := make([]int32, 4)
-		a.ShiftAllRight(testShiftConstAmt).Store(g)
-		w := shiftRightByConstSlice(x, testShiftConstAmt)
-		return checkSlicesLogInput(t, g, w, 0.0, func() { t.Helper(); t.Logf("x=%v, amt=%d", x, testShiftConstAmt) })
-	})
-}
-
-// testShiftAllAmts contains shift amounts for ShiftAll tests, including
-// in-range amounts for all element sizes and out-of-range amounts to
-// verify CSEL/CMPconst clamping logic in the lowering rules.
-var testShiftAllAmts = []uint64{0, 1, 3, 7, 15, 31, 63, 128, 1024}
-
-// testShiftAllVarAmt is a non-constant shift amount to prevent constant folding.
-var testShiftAllVarAmt uint64 = 3
-
-func TestShiftAllLeft(t *testing.T) {
-	// Signed
-	testInt8x16ShiftAll(t, archsimd.Int8x16.ShiftAllLeft, shiftAllLeftSlice[int8])
-	testInt16x8ShiftAll(t, archsimd.Int16x8.ShiftAllLeft, shiftAllLeftSlice[int16])
-	testInt32x4ShiftAll(t, archsimd.Int32x4.ShiftAllLeft, shiftAllLeftSlice[int32])
-	testInt64x2ShiftAll(t, archsimd.Int64x2.ShiftAllLeft, shiftAllLeftSlice[int64])
-	// Unsigned
-	testUint8x16ShiftAll(t, archsimd.Uint8x16.ShiftAllLeft, shiftAllLeftSlice[uint8])
-	testUint16x8ShiftAll(t, archsimd.Uint16x8.ShiftAllLeft, shiftAllLeftSlice[uint16])
-	testUint32x4ShiftAll(t, archsimd.Uint32x4.ShiftAllLeft, shiftAllLeftSlice[uint32])
-	testUint64x2ShiftAll(t, archsimd.Uint64x2.ShiftAllLeft, shiftAllLeftSlice[uint64])
-
-	// Variable shift amount to prevent constant folding
-	forSlice(t, int32s, 4, func(x []int32) bool {
-		a := archsimd.LoadInt32x4(x)
-		g := make([]int32, 4)
-		a.ShiftAllLeft(testShiftAllVarAmt).Store(g)
-		w := shiftAllLeftSlice(x, testShiftAllVarAmt)
-		return checkSlicesLogInput(t, g, w, 0.0, func() { t.Helper(); t.Logf("x=%v, amt=%d", x, testShiftAllVarAmt) })
-	})
-}
-
-func TestShiftAllRight(t *testing.T) {
-	// Signed (arithmetic right shift)
-	testInt8x16ShiftAll(t, archsimd.Int8x16.ShiftAllRight, shiftAllRightSlice[int8])
-	testInt16x8ShiftAll(t, archsimd.Int16x8.ShiftAllRight, shiftAllRightSlice[int16])
-	testInt32x4ShiftAll(t, archsimd.Int32x4.ShiftAllRight, shiftAllRightSlice[int32])
-	testInt64x2ShiftAll(t, archsimd.Int64x2.ShiftAllRight, shiftAllRightSlice[int64])
-	// Unsigned (logical right shift)
-	testUint8x16ShiftAll(t, archsimd.Uint8x16.ShiftAllRight, shiftAllRightSlice[uint8])
-	testUint16x8ShiftAll(t, archsimd.Uint16x8.ShiftAllRight, shiftAllRightSlice[uint16])
-	testUint32x4ShiftAll(t, archsimd.Uint32x4.ShiftAllRight, shiftAllRightSlice[uint32])
-	testUint64x2ShiftAll(t, archsimd.Uint64x2.ShiftAllRight, shiftAllRightSlice[uint64])
-
-	// Variable shift amount to prevent constant folding
-	forSlice(t, int32s, 4, func(x []int32) bool {
-		a := archsimd.LoadInt32x4(x)
-		g := make([]int32, 4)
-		a.ShiftAllRight(testShiftAllVarAmt).Store(g)
-		w := shiftAllRightSlice(x, testShiftAllVarAmt)
-		return checkSlicesLogInput(t, g, w, 0.0, func() { t.Helper(); t.Logf("x=%v, amt=%d", x, testShiftAllVarAmt) })
-	})
-}
-
 func TestConcatShiftBytesRight(t *testing.T) {
 	hide := hideConst[uint64]
 
@@ -166,4 +68,11 @@ func TestConcatShiftBytesRight(t *testing.T) {
 				csbr(hide(shift)))
 		}
 	})
+}
+
+func TestShiftAll8(t *testing.T) {
+	testInt8x16ShiftAll(t, archsimd.Int8x16.ShiftAllLeft, shiftAllLeftSlice[int8])
+	testUint8x16ShiftAll(t, archsimd.Uint8x16.ShiftAllLeft, shiftAllLeftSlice[uint8])
+	testInt8x16ShiftAll(t, archsimd.Int8x16.ShiftAllRight, shiftAllRightSlice[int8])
+	testUint8x16ShiftAll(t, archsimd.Uint8x16.ShiftAllRight, shiftAllRightSlice[uint8])
 }

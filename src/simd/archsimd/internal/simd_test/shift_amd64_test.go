@@ -238,3 +238,48 @@ func TestConcatShiftBytesRight(t *testing.T) {
 		}
 	})
 }
+
+func TestShiftAllAMD64(t *testing.T) {
+	if archsimd.X86.AVX2() {
+		// ShiftAllLeft
+		testInt16x16ShiftAll(t, archsimd.Int16x16.ShiftAllLeft, shiftAllLeftSlice[int16])
+		testInt32x8ShiftAll(t, archsimd.Int32x8.ShiftAllLeft, shiftAllLeftSlice[int32])
+		testInt64x4ShiftAll(t, archsimd.Int64x4.ShiftAllLeft, shiftAllLeftSlice[int64])
+		testUint16x16ShiftAll(t, archsimd.Uint16x16.ShiftAllLeft, shiftAllLeftSlice[uint16])
+		testUint32x8ShiftAll(t, archsimd.Uint32x8.ShiftAllLeft, shiftAllLeftSlice[uint32])
+		testUint64x4ShiftAll(t, archsimd.Uint64x4.ShiftAllLeft, shiftAllLeftSlice[uint64])
+
+		// ShiftAllRight signed
+		testInt16x16ShiftAll(t, archsimd.Int16x16.ShiftAllRight, shiftAllRightSlice[int16])
+		testInt32x8ShiftAll(t, archsimd.Int32x8.ShiftAllRight, shiftAllRightSlice[int32])
+		// Int64x4 ShiftAllRight requires AVX-512
+
+		// ShiftAllRight unsigned
+		testUint16x16ShiftAll(t, archsimd.Uint16x16.ShiftAllRight, shiftAllRightSlice[uint16])
+		testUint32x8ShiftAll(t, archsimd.Uint32x8.ShiftAllRight, shiftAllRightSlice[uint32])
+		testUint64x4ShiftAll(t, archsimd.Uint64x4.ShiftAllRight, shiftAllRightSlice[uint64])
+	}
+
+	if archsimd.X86.AVX512() {
+		// 512-bit vectors (AVX512)
+		// ShiftAllLeft
+		testInt16x32ShiftAll(t, archsimd.Int16x32.ShiftAllLeft, shiftAllLeftSlice[int16])
+		testInt32x16ShiftAll(t, archsimd.Int32x16.ShiftAllLeft, shiftAllLeftSlice[int32])
+		testInt64x8ShiftAll(t, archsimd.Int64x8.ShiftAllLeft, shiftAllLeftSlice[int64])
+		testUint16x32ShiftAll(t, archsimd.Uint16x32.ShiftAllLeft, shiftAllLeftSlice[uint16])
+		testUint32x16ShiftAll(t, archsimd.Uint32x16.ShiftAllLeft, shiftAllLeftSlice[uint32])
+		testUint64x8ShiftAll(t, archsimd.Uint64x8.ShiftAllLeft, shiftAllLeftSlice[uint64])
+
+		// ShiftAllRight signed
+		testInt16x32ShiftAll(t, archsimd.Int16x32.ShiftAllRight, shiftAllRightSlice[int16])
+		testInt32x16ShiftAll(t, archsimd.Int32x16.ShiftAllRight, shiftAllRightSlice[int32])
+		testInt64x8ShiftAll(t, archsimd.Int64x8.ShiftAllRight, shiftAllRightSlice[int64])
+		// 256-bit Int64x4 ShiftAllRight (requires AVX-512)
+		testInt64x4ShiftAll(t, archsimd.Int64x4.ShiftAllRight, shiftAllRightSlice[int64])
+
+		// ShiftAllRight unsigned
+		testUint16x32ShiftAll(t, archsimd.Uint16x32.ShiftAllRight, shiftAllRightSlice[uint16])
+		testUint32x16ShiftAll(t, archsimd.Uint32x16.ShiftAllRight, shiftAllRightSlice[uint32])
+		testUint64x8ShiftAll(t, archsimd.Uint64x8.ShiftAllRight, shiftAllRightSlice[uint64])
+	}
+}
