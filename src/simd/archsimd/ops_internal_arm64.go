@@ -6,16 +6,16 @@ package archsimd
 
 /* bitSelect */
 
-// bitSelect selects bits from y where mask is 1, keeps bits from x where mask is 0.
+// bitSelect returns the bitwise selection if mask[i] then x[i] else y[i].
 //
-// Asm: VBIT, CPU Feature: NEON
+// Asm: VBIF, CPU Feature: NEON
 func (x Int8x16) bitSelect(y Int8x16, mask Int8x16) Int8x16
 
 /* bitSelectNot */
 
-// bitSelectNot selects bits from y where mask is 0, keeps bits from x where mask is 1.
+// bitSelectNot returns the bitwise selection if mask[i] then y[i] else x[i].
 //
-// Asm: VBIF, CPU Feature: NEON
+// Asm: VBIT, CPU Feature: NEON
 func (x Int8x16) bitSelectNot(y Int8x16, mask Int8x16) Int8x16
 
 /* broadcast1To2 */

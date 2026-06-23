@@ -272,8 +272,8 @@ func ssaGenSIMDValue(s *ssagen.State, v *ssa.Value) bool {
 		p = simdV21Imm(s, v, arm64.ARNG_16B)
 
 	case ssa.OpARM64VMLA16B,
-		ssa.OpARM64VBIT16B,
-		ssa.OpARM64VBIF16B:
+		ssa.OpARM64VBIF16B,
+		ssa.OpARM64VBIT16B:
 		p = simdV31ResultInArg0(s, v, arm64.ARNG_16B)
 
 	case ssa.OpARM64VFMLA2D:

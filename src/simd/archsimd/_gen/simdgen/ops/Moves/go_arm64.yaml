@@ -122,12 +122,12 @@
   out:
   - *bcast64
 
-# bitSelect — VBIT (bit insert if true, internal)
-# Only Int8x16 is needed since VBIT operates on the full 128-bit register.
+# bitSelect — VBIF (bit insert if false, internal)
+# Only Int8x16 is needed since VBIF operates on the full 128-bit register.
 # Other types cast to Int8x16 before calling bitSelect.
 - go: bitSelect
-  asm: "VBIT"
-  specialLower: !string "match (%h x y (VNOT16B mask)) => (VBIF16B x y mask)"
+  asm: "VBIF"
+  specialLower: !string "match (%h x y (VNOT16B mask)) => (VBIT16B x y mask)"
   in:
   - &v8
     go: $t
@@ -142,10 +142,10 @@
   out:
   - *v8
 
-# bitSelectNot — VBIF (bit insert if false, internal)
+# bitSelectNot — VBIT (bit insert if true, internal)
 - go: bitSelectNot
-  asm: "VBIF"
-  specialLower: !string "match (%h x y (VNOT16B mask)) => (VBIT16B x y mask)"
+  asm: "VBIT"
+  specialLower: !string "match (%h x y (VNOT16B mask)) => (VBIF16B x y mask)"
   in:
   - *v8
   - *v8

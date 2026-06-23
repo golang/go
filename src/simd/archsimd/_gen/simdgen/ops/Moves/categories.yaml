@@ -85,11 +85,11 @@
 - go: bitSelect
   commutative: false
   documentation: !string |-
-    // NAME selects bits from y where mask is 1, keeps bits from x where mask is 0.
+    // NAME returns the bitwise selection if mask[i] then x[i] else y[i].
 - go: bitSelectNot
   commutative: false
   documentation: !string |-
-    // NAME selects bits from y where mask is 0, keeps bits from x where mask is 1.
+    // NAME returns the bitwise selection if mask[i] then y[i] else x[i].
 - go: move
   commutative: false
   noTypes: "true"
