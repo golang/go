@@ -63,19 +63,14 @@ func mallocgcSlowPathStub(size uintptr, typ *_type, needzero bool, spc spanClass
 // WARNING: mallocStub does not do any work for sanitizers so callers need
 // to steer out of this codepath early if sanitizers are enabled.
 func mallocStub(size uintptr, typ *_type, needzero bool) unsafe.Pointer {
-	if isSlowPath_ && isTiny_ {
-		// secret code, need to avoid the tiny allocator since it might keep
-		// co-located values alive longer and prevent timely zero-ing
-		//
-		// Call directly into the NoScan allocator.
-		// See go.dev/issue/76356
-		gp := getg()
-		if goexperiment.RuntimeSecret && gp.secret > 0 {
-			return mallocgcSmallNoScanSC2(size, typ, needzero)
+	if doubleCheckMalloc {
+		if gcphase == _GCmarktermination {
+			throw("mallocgc called with gcphase == _GCmarktermination")
 		}
 	}
 
 	if !isSlowPath_ {
+		// Fast path. Do we need to fall back to slow path?
 		forceSlowPath := debug.malloc || gcBlackenEnabled != 0 || (goexperiment.RuntimeSecret && getg().secret > 0)
 
 		if forceSlowPath {
@@ -87,30 +82,44 @@ func mallocStub(size uintptr, typ *_type, needzero bool) unsafe.Pointer {
 				return mallocgcSlowPathStub(size, typ, needzero, spc, elemsize)
 			}
 		}
-	}
 
-	if doubleCheckMalloc {
-		if gcphase == _GCmarktermination {
-			throw("mallocgc called with gcphase == _GCmarktermination")
+		// It's possible for any malloc to trigger sweeping, which may
+		// in turn queue finalizers. Record this dynamic lock edge.
+		// N.B. Compiled away if lockrank experiment is not enabled.
+		lockRankMayQueueFinalizer()
+	} else {
+		// Slow path.
+		if isTiny_ {
+			// secret code, need to avoid the tiny allocator since
+			// it might keep co-located values alive longer and
+			// prevent timely zero-ing.
+			//
+			// Call directly into the NoScan allocator.
+			// See go.dev/issue/76356
+			gp := getg()
+			if goexperiment.RuntimeSecret && gp.secret > 0 {
+				return mallocgcSmallNoScanSC2(size, typ, needzero)
+			}
 		}
-	}
 
-	// It's possible for any malloc to trigger sweeping, which may in
-	// turn queue finalizers. Record this dynamic lock edge.
-	// N.B. Compiled away if lockrank experiment is not enabled.
-	lockRankMayQueueFinalizer()
+		// It's possible for any malloc to trigger sweeping, which may
+		// in turn queue finalizers. Record this dynamic lock edge.
+		// N.B. Compiled away if lockrank experiment is not enabled.
+		lockRankMayQueueFinalizer()
 
-	// Pre-malloc debug hooks.
-	if isSlowPath_ && debug.malloc {
-		if x := preMallocgcDebug(size, typ); x != nil {
-			return x
+		// Pre-malloc debug hooks.
+		if debug.malloc {
+			if x := preMallocgcDebug(size, typ); x != nil {
+				return x
+			}
 		}
-	}
 
-	// Assist the GC if needed. (On the reuse path, we currently compensate for this;
-	// changes here might require changes there.)
-	if isSlowPath_ && gcBlackenEnabled != 0 {
-		deductAssistCredit(size)
+		// Assist the GC if needed. (On the reuse path, we currently
+		// compensate for this; changes here might require changes
+		// there.)
+		if gcBlackenEnabled != 0 {
+			deductAssistCredit(size)
+		}
 	}
 
 	// Actually do the allocation.

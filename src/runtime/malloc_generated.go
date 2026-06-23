@@ -11,6 +11,11 @@ import (
 )
 
 func mallocgcSmallScanNoHeaderSC1(size uintptr, typ *_type, needzero bool) unsafe.Pointer {
+	if doubleCheckMalloc {
+		if gcphase == _GCmarktermination {
+			throw("mallocgc called with gcphase == _GCmarktermination")
+		}
+	}
 
 	forceSlowPath := debug.malloc || gcBlackenEnabled != 0 || (goexperiment.RuntimeSecret && getg().secret > 0)
 
@@ -20,12 +25,6 @@ func mallocgcSmallScanNoHeaderSC1(size uintptr, typ *_type, needzero bool) unsaf
 		const elemsize = uintptr(8)
 		return mallocgcSmallScanSlowPath(size, typ, needzero, spc, elemsize)
 
-	}
-
-	if doubleCheckMalloc {
-		if gcphase == _GCmarktermination {
-			throw("mallocgc called with gcphase == _GCmarktermination")
-		}
 	}
 
 	lockRankMayQueueFinalizer()
@@ -161,6 +160,11 @@ func mallocgcSmallScanNoHeaderSC1(size uintptr, typ *_type, needzero bool) unsaf
 }
 
 func mallocgcSmallScanNoHeaderSC2(size uintptr, typ *_type, needzero bool) unsafe.Pointer {
+	if doubleCheckMalloc {
+		if gcphase == _GCmarktermination {
+			throw("mallocgc called with gcphase == _GCmarktermination")
+		}
+	}
 
 	forceSlowPath := debug.malloc || gcBlackenEnabled != 0 || (goexperiment.RuntimeSecret && getg().secret > 0)
 
@@ -170,12 +174,6 @@ func mallocgcSmallScanNoHeaderSC2(size uintptr, typ *_type, needzero bool) unsaf
 		const elemsize = uintptr(16)
 		return mallocgcSmallScanSlowPath(size, typ, needzero, spc, elemsize)
 
-	}
-
-	if doubleCheckMalloc {
-		if gcphase == _GCmarktermination {
-			throw("mallocgc called with gcphase == _GCmarktermination")
-		}
 	}
 
 	lockRankMayQueueFinalizer()
@@ -311,6 +309,11 @@ func mallocgcSmallScanNoHeaderSC2(size uintptr, typ *_type, needzero bool) unsaf
 }
 
 func mallocgcSmallScanNoHeaderSC3(size uintptr, typ *_type, needzero bool) unsafe.Pointer {
+	if doubleCheckMalloc {
+		if gcphase == _GCmarktermination {
+			throw("mallocgc called with gcphase == _GCmarktermination")
+		}
+	}
 
 	forceSlowPath := debug.malloc || gcBlackenEnabled != 0 || (goexperiment.RuntimeSecret && getg().secret > 0)
 
@@ -320,12 +323,6 @@ func mallocgcSmallScanNoHeaderSC3(size uintptr, typ *_type, needzero bool) unsaf
 		const elemsize = uintptr(24)
 		return mallocgcSmallScanSlowPath(size, typ, needzero, spc, elemsize)
 
-	}
-
-	if doubleCheckMalloc {
-		if gcphase == _GCmarktermination {
-			throw("mallocgc called with gcphase == _GCmarktermination")
-		}
 	}
 
 	lockRankMayQueueFinalizer()
@@ -461,6 +458,11 @@ func mallocgcSmallScanNoHeaderSC3(size uintptr, typ *_type, needzero bool) unsaf
 }
 
 func mallocgcSmallScanNoHeaderSC4(size uintptr, typ *_type, needzero bool) unsafe.Pointer {
+	if doubleCheckMalloc {
+		if gcphase == _GCmarktermination {
+			throw("mallocgc called with gcphase == _GCmarktermination")
+		}
+	}
 
 	forceSlowPath := debug.malloc || gcBlackenEnabled != 0 || (goexperiment.RuntimeSecret && getg().secret > 0)
 
@@ -470,12 +472,6 @@ func mallocgcSmallScanNoHeaderSC4(size uintptr, typ *_type, needzero bool) unsaf
 		const elemsize = uintptr(32)
 		return mallocgcSmallScanSlowPath(size, typ, needzero, spc, elemsize)
 
-	}
-
-	if doubleCheckMalloc {
-		if gcphase == _GCmarktermination {
-			throw("mallocgc called with gcphase == _GCmarktermination")
-		}
 	}
 
 	lockRankMayQueueFinalizer()
@@ -611,6 +607,11 @@ func mallocgcSmallScanNoHeaderSC4(size uintptr, typ *_type, needzero bool) unsaf
 }
 
 func mallocgcSmallScanNoHeaderSC5(size uintptr, typ *_type, needzero bool) unsafe.Pointer {
+	if doubleCheckMalloc {
+		if gcphase == _GCmarktermination {
+			throw("mallocgc called with gcphase == _GCmarktermination")
+		}
+	}
 
 	forceSlowPath := debug.malloc || gcBlackenEnabled != 0 || (goexperiment.RuntimeSecret && getg().secret > 0)
 
@@ -620,12 +621,6 @@ func mallocgcSmallScanNoHeaderSC5(size uintptr, typ *_type, needzero bool) unsaf
 		const elemsize = uintptr(48)
 		return mallocgcSmallScanSlowPath(size, typ, needzero, spc, elemsize)
 
-	}
-
-	if doubleCheckMalloc {
-		if gcphase == _GCmarktermination {
-			throw("mallocgc called with gcphase == _GCmarktermination")
-		}
 	}
 
 	lockRankMayQueueFinalizer()
@@ -761,6 +756,11 @@ func mallocgcSmallScanNoHeaderSC5(size uintptr, typ *_type, needzero bool) unsaf
 }
 
 func mallocgcSmallScanNoHeaderSC6(size uintptr, typ *_type, needzero bool) unsafe.Pointer {
+	if doubleCheckMalloc {
+		if gcphase == _GCmarktermination {
+			throw("mallocgc called with gcphase == _GCmarktermination")
+		}
+	}
 
 	forceSlowPath := debug.malloc || gcBlackenEnabled != 0 || (goexperiment.RuntimeSecret && getg().secret > 0)
 
@@ -770,12 +770,6 @@ func mallocgcSmallScanNoHeaderSC6(size uintptr, typ *_type, needzero bool) unsaf
 		const elemsize = uintptr(64)
 		return mallocgcSmallScanSlowPath(size, typ, needzero, spc, elemsize)
 
-	}
-
-	if doubleCheckMalloc {
-		if gcphase == _GCmarktermination {
-			throw("mallocgc called with gcphase == _GCmarktermination")
-		}
 	}
 
 	lockRankMayQueueFinalizer()
@@ -911,6 +905,11 @@ func mallocgcSmallScanNoHeaderSC6(size uintptr, typ *_type, needzero bool) unsaf
 }
 
 func mallocgcSmallScanNoHeaderSC7(size uintptr, typ *_type, needzero bool) unsafe.Pointer {
+	if doubleCheckMalloc {
+		if gcphase == _GCmarktermination {
+			throw("mallocgc called with gcphase == _GCmarktermination")
+		}
+	}
 
 	forceSlowPath := debug.malloc || gcBlackenEnabled != 0 || (goexperiment.RuntimeSecret && getg().secret > 0)
 
@@ -920,12 +919,6 @@ func mallocgcSmallScanNoHeaderSC7(size uintptr, typ *_type, needzero bool) unsaf
 		const elemsize = uintptr(80)
 		return mallocgcSmallScanSlowPath(size, typ, needzero, spc, elemsize)
 
-	}
-
-	if doubleCheckMalloc {
-		if gcphase == _GCmarktermination {
-			throw("mallocgc called with gcphase == _GCmarktermination")
-		}
 	}
 
 	lockRankMayQueueFinalizer()
@@ -1061,6 +1054,11 @@ func mallocgcSmallScanNoHeaderSC7(size uintptr, typ *_type, needzero bool) unsaf
 }
 
 func mallocgcTinySC2(size uintptr, typ *_type, needzero bool) unsafe.Pointer {
+	if doubleCheckMalloc {
+		if gcphase == _GCmarktermination {
+			throw("mallocgc called with gcphase == _GCmarktermination")
+		}
+	}
 
 	forceSlowPath := debug.malloc || gcBlackenEnabled != 0 || (goexperiment.RuntimeSecret && getg().secret > 0)
 
@@ -1068,12 +1066,6 @@ func mallocgcTinySC2(size uintptr, typ *_type, needzero bool) unsafe.Pointer {
 
 		return mallocgcTinySlowPath(size, typ, needzero)
 
-	}
-
-	if doubleCheckMalloc {
-		if gcphase == _GCmarktermination {
-			throw("mallocgc called with gcphase == _GCmarktermination")
-		}
 	}
 
 	lockRankMayQueueFinalizer()
@@ -1165,6 +1157,11 @@ func mallocgcTinySC2(size uintptr, typ *_type, needzero bool) unsafe.Pointer {
 }
 
 func mallocgcSmallNoScanSC2(size uintptr, typ *_type, needzero bool) unsafe.Pointer {
+	if doubleCheckMalloc {
+		if gcphase == _GCmarktermination {
+			throw("mallocgc called with gcphase == _GCmarktermination")
+		}
+	}
 
 	forceSlowPath := debug.malloc || gcBlackenEnabled != 0 || (goexperiment.RuntimeSecret && getg().secret > 0)
 
@@ -1174,12 +1171,6 @@ func mallocgcSmallNoScanSC2(size uintptr, typ *_type, needzero bool) unsafe.Poin
 		const elemsize = uintptr(16)
 		return mallocgcSmallNoScanSlowPath(size, typ, needzero, spc, elemsize)
 
-	}
-
-	if doubleCheckMalloc {
-		if gcphase == _GCmarktermination {
-			throw("mallocgc called with gcphase == _GCmarktermination")
-		}
 	}
 
 	lockRankMayQueueFinalizer()
@@ -1261,6 +1252,11 @@ func mallocgcSmallNoScanSC2(size uintptr, typ *_type, needzero bool) unsafe.Poin
 }
 
 func mallocgcSmallNoScanSC3(size uintptr, typ *_type, needzero bool) unsafe.Pointer {
+	if doubleCheckMalloc {
+		if gcphase == _GCmarktermination {
+			throw("mallocgc called with gcphase == _GCmarktermination")
+		}
+	}
 
 	forceSlowPath := debug.malloc || gcBlackenEnabled != 0 || (goexperiment.RuntimeSecret && getg().secret > 0)
 
@@ -1270,12 +1266,6 @@ func mallocgcSmallNoScanSC3(size uintptr, typ *_type, needzero bool) unsafe.Poin
 		const elemsize = uintptr(24)
 		return mallocgcSmallNoScanSlowPath(size, typ, needzero, spc, elemsize)
 
-	}
-
-	if doubleCheckMalloc {
-		if gcphase == _GCmarktermination {
-			throw("mallocgc called with gcphase == _GCmarktermination")
-		}
 	}
 
 	lockRankMayQueueFinalizer()
@@ -1357,6 +1347,11 @@ func mallocgcSmallNoScanSC3(size uintptr, typ *_type, needzero bool) unsafe.Poin
 }
 
 func mallocgcSmallNoScanSC4(size uintptr, typ *_type, needzero bool) unsafe.Pointer {
+	if doubleCheckMalloc {
+		if gcphase == _GCmarktermination {
+			throw("mallocgc called with gcphase == _GCmarktermination")
+		}
+	}
 
 	forceSlowPath := debug.malloc || gcBlackenEnabled != 0 || (goexperiment.RuntimeSecret && getg().secret > 0)
 
@@ -1366,12 +1361,6 @@ func mallocgcSmallNoScanSC4(size uintptr, typ *_type, needzero bool) unsafe.Poin
 		const elemsize = uintptr(32)
 		return mallocgcSmallNoScanSlowPath(size, typ, needzero, spc, elemsize)
 
-	}
-
-	if doubleCheckMalloc {
-		if gcphase == _GCmarktermination {
-			throw("mallocgc called with gcphase == _GCmarktermination")
-		}
 	}
 
 	lockRankMayQueueFinalizer()
@@ -1453,6 +1442,11 @@ func mallocgcSmallNoScanSC4(size uintptr, typ *_type, needzero bool) unsafe.Poin
 }
 
 func mallocgcSmallNoScanSC5(size uintptr, typ *_type, needzero bool) unsafe.Pointer {
+	if doubleCheckMalloc {
+		if gcphase == _GCmarktermination {
+			throw("mallocgc called with gcphase == _GCmarktermination")
+		}
+	}
 
 	forceSlowPath := debug.malloc || gcBlackenEnabled != 0 || (goexperiment.RuntimeSecret && getg().secret > 0)
 
@@ -1462,12 +1456,6 @@ func mallocgcSmallNoScanSC5(size uintptr, typ *_type, needzero bool) unsafe.Poin
 		const elemsize = uintptr(48)
 		return mallocgcSmallNoScanSlowPath(size, typ, needzero, spc, elemsize)
 
-	}
-
-	if doubleCheckMalloc {
-		if gcphase == _GCmarktermination {
-			throw("mallocgc called with gcphase == _GCmarktermination")
-		}
 	}
 
 	lockRankMayQueueFinalizer()
@@ -1549,6 +1537,11 @@ func mallocgcSmallNoScanSC5(size uintptr, typ *_type, needzero bool) unsafe.Poin
 }
 
 func mallocgcSmallNoScanSC6(size uintptr, typ *_type, needzero bool) unsafe.Pointer {
+	if doubleCheckMalloc {
+		if gcphase == _GCmarktermination {
+			throw("mallocgc called with gcphase == _GCmarktermination")
+		}
+	}
 
 	forceSlowPath := debug.malloc || gcBlackenEnabled != 0 || (goexperiment.RuntimeSecret && getg().secret > 0)
 
@@ -1558,12 +1551,6 @@ func mallocgcSmallNoScanSC6(size uintptr, typ *_type, needzero bool) unsafe.Poin
 		const elemsize = uintptr(64)
 		return mallocgcSmallNoScanSlowPath(size, typ, needzero, spc, elemsize)
 
-	}
-
-	if doubleCheckMalloc {
-		if gcphase == _GCmarktermination {
-			throw("mallocgc called with gcphase == _GCmarktermination")
-		}
 	}
 
 	lockRankMayQueueFinalizer()
@@ -1645,6 +1632,11 @@ func mallocgcSmallNoScanSC6(size uintptr, typ *_type, needzero bool) unsafe.Poin
 }
 
 func mallocgcSmallNoScanSC7(size uintptr, typ *_type, needzero bool) unsafe.Pointer {
+	if doubleCheckMalloc {
+		if gcphase == _GCmarktermination {
+			throw("mallocgc called with gcphase == _GCmarktermination")
+		}
+	}
 
 	forceSlowPath := debug.malloc || gcBlackenEnabled != 0 || (goexperiment.RuntimeSecret && getg().secret > 0)
 
@@ -1654,12 +1646,6 @@ func mallocgcSmallNoScanSC7(size uintptr, typ *_type, needzero bool) unsafe.Poin
 		const elemsize = uintptr(80)
 		return mallocgcSmallNoScanSlowPath(size, typ, needzero, spc, elemsize)
 
-	}
-
-	if doubleCheckMalloc {
-		if gcphase == _GCmarktermination {
-			throw("mallocgc called with gcphase == _GCmarktermination")
-		}
 	}
 
 	lockRankMayQueueFinalizer()
@@ -1741,16 +1727,15 @@ func mallocgcSmallNoScanSC7(size uintptr, typ *_type, needzero bool) unsafe.Poin
 }
 
 func mallocgcTinySlowPath(size uintptr, typ *_type, needzero bool) unsafe.Pointer {
-
-	gp := getg()
-	if goexperiment.RuntimeSecret && gp.secret > 0 {
-		return mallocgcSmallNoScanSC2(size, typ, needzero)
-	}
-
 	if doubleCheckMalloc {
 		if gcphase == _GCmarktermination {
 			throw("mallocgc called with gcphase == _GCmarktermination")
 		}
+	}
+
+	gp := getg()
+	if goexperiment.RuntimeSecret && gp.secret > 0 {
+		return mallocgcSmallNoScanSC2(size, typ, needzero)
 	}
 
 	lockRankMayQueueFinalizer()
