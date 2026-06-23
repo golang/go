@@ -163,6 +163,7 @@ func dirList(w ResponseWriter, r *Request, f File) {
 	w.Header().Set("Content-Type", "text/html; charset=utf-8")
 	fmt.Fprintf(w, "<!doctype html>\n")
 	fmt.Fprintf(w, "<meta name=\"viewport\" content=\"width=device-width\">\n")
+	fmt.Fprintf(w, "<meta name=\"color-scheme\" content=\"light dark\">\n")
 	fmt.Fprintf(w, "<pre>\n")
 	for i, n := 0, dirs.len(); i < n; i++ {
 		name := dirs.name(i)

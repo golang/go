@@ -338,7 +338,7 @@ func TestFileServerCleans(t *testing.T) {
 
 func TestFileServerEscapesNames(t *testing.T) { run(t, testFileServerEscapesNames) }
 func testFileServerEscapesNames(t *testing.T, mode testMode) {
-	const dirListPrefix = "<!doctype html>\n<meta name=\"viewport\" content=\"width=device-width\">\n<pre>\n"
+	const dirListPrefix = "<!doctype html>\n<meta name=\"viewport\" content=\"width=device-width\">\n<meta name=\"color-scheme\" content=\"light dark\">\n<pre>\n"
 	const dirListSuffix = "\n</pre>\n"
 	tests := []struct {
 		name, escaped string
