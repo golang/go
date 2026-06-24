@@ -464,12 +464,17 @@ func (check *Checker) stmt(ctxt stmtContext, s ast.Stmt) {
 	case *ast.SendStmt:
 		var ch, val operand
 		check.expr(nil, &ch, s.Chan)
-		check.genericExpr(&val, s.Value, nil)
-		if !ch.isValid() || !val.isValid() {
-			return
-		}
-		if elem := check.chanElem(inNode(s, s.Arrow), &ch, false); elem != nil {
-			check.assignment(&val, elem, "send")
+		if ch.isValid() {
+			// extract a target type for the sent value
+			// TODO(mark): use T in an upcoming CL
+			T := check.chanElem(inNode(s, s.Arrow), &ch, false)
+			check.genericExpr(&val, s.Value, nil)
+			if T != nil {
+				check.assignment(&val, T, "send")
+			}
+		} else {
+			// no target type, don't drop work on the floor
+			check.genericExpr(&val, s.Value, nil)
 		}
 
 	case *ast.IncDecStmt:
