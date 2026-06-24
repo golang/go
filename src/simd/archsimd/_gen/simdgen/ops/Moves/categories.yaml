@@ -183,6 +183,10 @@
   commutative: false
   documentation: !string |-
     // NAME interleaves the elements of the low half of each 128-bit subvector of x and y.
+- go: Reverse64
+  commutative: false
+  documentation: !string |-
+    // NAME reverses the order of the elements within each 64-bit lane of x.
 
 - go: concatSelectedConstant
   commutative: false

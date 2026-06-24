@@ -5106,6 +5106,7 @@ const (
 	OpARM64VORR16B
 	OpARM64VPMULL2D
 	OpARM64VPMULL2_2D
+	OpARM64VREV644S
 	OpARM64VSCVTF2D
 	OpARM64VSCVTF4S
 	OpARM64VSMAX4S
@@ -8117,6 +8118,7 @@ const (
 	OpReciprocalSqrtFloat64x2
 	OpReciprocalSqrtFloat64x4
 	OpReciprocalSqrtFloat64x8
+	OpReverse64Float32x4
 	OpRotateAllLeftVarInt8x16
 	OpRotateAllLeftVarInt16x8
 	OpRotateAllLeftVarInt32x4
@@ -81292,6 +81294,19 @@ var opcodeTable = [...]opInfo{
 		},
 	},
 	{
+		name:   "VREV644S",
+		argLen: 1,
+		asm:    arm64.AVREV64,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{0, regMask{v1: 9223372034707292160, v2: 0}}, // F0 F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15 F16 F17 F18 F19 F20 F21 F22 F23 F24 F25 F26 F27 F28 F29 F30 F31
+			},
+			outputs: []outputInfo{
+				{0, regMask{v1: 9223372034707292160, v2: 0}}, // F0 F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15 F16 F17 F18 F19 F20 F21 F22 F23 F24 F25 F26 F27 F28 F29 F30 F31
+			},
+		},
+	},
+	{
 		name:   "VSCVTF2D",
 		argLen: 1,
 		asm:    arm64.AVSCVTF,
@@ -111961,6 +111976,11 @@ var opcodeTable = [...]opInfo{
 	},
 	{
 		name:    "ReciprocalSqrtFloat64x8",
+		argLen:  1,
+		generic: true,
+	},
+	{
+		name:    "Reverse64Float32x4",
 		argLen:  1,
 		generic: true,
 	},

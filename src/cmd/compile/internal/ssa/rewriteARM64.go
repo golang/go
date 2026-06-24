@@ -1818,6 +1818,9 @@ func rewriteValueARM64(v *Value) bool {
 		return rewriteValueARM64_OpPrefetchCacheStreamed(v)
 	case OpPubBarrier:
 		return rewriteValueARM64_OpPubBarrier(v)
+	case OpReverse64Float32x4:
+		v.Op = OpARM64VREV644S
+		return true
 	case OpRotateLeft16:
 		return rewriteValueARM64_OpRotateLeft16(v)
 	case OpRotateLeft32:

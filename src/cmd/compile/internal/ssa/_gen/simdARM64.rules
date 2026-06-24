@@ -285,6 +285,7 @@
 (OrNotUint16x8 ...) => (VORN16B ...) // pureVreg
 (OrNotUint32x4 ...) => (VORN16B ...) // pureVreg
 (OrNotUint64x2 ...) => (VORN16B ...) // pureVreg
+(Reverse64Float32x4 ...) => (VREV644S ...) // pureVreg
 (RoundFloat32x4 ...) => (VFRINTN4S ...) // pureVreg
 (RoundFloat64x2 ...) => (VFRINTN2D ...) // pureVreg
 (SaturateToInt8Int16x8 ...) => (VSQXTN8H ...) // pureVreg

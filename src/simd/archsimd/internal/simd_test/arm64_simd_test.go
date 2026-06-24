@@ -112,6 +112,12 @@ func TestLookupOrZero(t *testing.T) {
 	checkSlices(t, got, want)
 }
 
+func TestReverse64(t *testing.T) {
+	s := make([]float32, 4, 4)
+	archsimd.LoadFloat32x4([]float32{1, 2, 3, 4}).Reverse64().Store(s)
+	checkSlices(t, s, []float32{2, 1, 4, 3})
+}
+
 func TestClMul(t *testing.T) {
 	var x = archsimd.LoadUint64x2([]uint64{1, 5})
 	var y = archsimd.LoadUint64x2([]uint64{3, 9})

@@ -47,6 +47,7 @@ func ssaGenSIMDValue(s *ssagen.State, v *ssa.Value) bool {
 		ssa.OpARM64VCLZ4S,
 		ssa.OpARM64VFNEG4S,
 		ssa.OpARM64VNEG4S,
+		ssa.OpARM64VREV644S,
 		ssa.OpARM64VFRINTN4S,
 		ssa.OpARM64VFSQRT4S,
 		ssa.OpARM64VFRINTZ4S:
