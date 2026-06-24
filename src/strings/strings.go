@@ -1083,6 +1083,34 @@ func trimRightUnicode(s, cutset string) string {
 	return s
 }
 
+func trimSpaceUnicode(s string) string {
+	for len(s) > 0 {
+		r, n := rune(s[0]), 1
+		if r >= utf8.RuneSelf {
+			r, n = utf8.DecodeRuneInString(s)
+		}
+		if !stringslite.IsSpace(r) {
+			break
+		}
+		s = s[n:]
+	}
+	return trimRightSpaceUnicode(s)
+}
+
+func trimRightSpaceUnicode(s string) string {
+	for len(s) > 0 {
+		r, n := rune(s[len(s)-1]), 1
+		if r >= utf8.RuneSelf {
+			r, n = utf8.DecodeLastRuneInString(s)
+		}
+		if !stringslite.IsSpace(r) {
+			break
+		}
+		s = s[:len(s)-n]
+	}
+	return s
+}
+
 // TrimSpace returns a slice (substring) of the string s,
 // with all leading and trailing white space removed,
 // as defined by Unicode.
@@ -1092,7 +1120,7 @@ func TrimSpace(s string) string {
 		if c >= utf8.RuneSelf {
 			// If we run into a non-ASCII byte, fall back to the
 			// slower unicode-aware method on the remaining bytes.
-			return TrimFunc(s[lo:], unicode.IsSpace)
+			return trimSpaceUnicode(s[lo:])
 		}
 		if asciiSpace[c] != 0 {
 			continue
@@ -1102,7 +1130,7 @@ func TrimSpace(s string) string {
 		for hi := len(s) - 1; hi >= 0; hi-- {
 			c := s[hi]
 			if c >= utf8.RuneSelf {
-				return TrimRightFunc(s[:hi+1], unicode.IsSpace)
+				return trimRightSpaceUnicode(s[:hi+1])
 			}
 			if asciiSpace[c] == 0 {
 				// At this point, s[:hi+1] starts and ends with ASCII
