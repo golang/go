@@ -271,6 +271,46 @@ func TestIsUpper(t *testing.T) {
 	}
 }
 
+func TestIsZeroStride(t *testing.T) {
+	// A caller-built RangeTable may carry a range whose Stride is 0. Such a
+	// degenerate range must not make Is divide by zero when it tests a rune
+	// inside it; it is treated like Stride == 1, so every rune in [Lo, Hi]
+	// is a member. Exercises the linear search paths of is16 and is32.
+	tests := []struct {
+		name string
+		tab  *RangeTable
+		in   rune
+		want bool
+	}{
+		{"R16 linear member", &RangeTable{R16: []Range16{{Lo: 0x41, Hi: 0x43, Stride: 0}}}, 'B', true},
+		{"R16 linear non-member", &RangeTable{R16: []Range16{{Lo: 0x41, Hi: 0x43, Stride: 0}}}, 'D', false},
+		{"R32 linear member", &RangeTable{R32: []Range32{{Lo: 0x10000, Hi: 0x10002, Stride: 0}}}, 0x10001, true},
+		{"R32 linear non-member", &RangeTable{R32: []Range32{{Lo: 0x10000, Hi: 0x10002, Stride: 0}}}, 0x10003, false},
+	}
+	for _, tt := range tests {
+		if got := Is(tt.tab, tt.in); got != tt.want {
+			t.Errorf("%s: Is = %v, want %v", tt.name, got, tt.want)
+		}
+	}
+
+	// Binary-search path in is16: more than linearMax (18) ranges, with the
+	// queried rune above MaxLatin1, so the linear fast path is not taken.
+	var r16 []Range16
+	for i := 0; i < 20; i++ {
+		lo := uint16(0x100 + i*4)
+		r16 = append(r16, Range16{Lo: lo, Hi: lo + 1, Stride: 0})
+	}
+	tab := &RangeTable{R16: r16}
+	for _, r := range []rune{rune(r16[0].Lo), rune(r16[0].Hi), rune(r16[len(r16)-1].Lo), rune(r16[len(r16)-1].Hi)} {
+		if !Is(tab, r) {
+			t.Errorf("Is(zero-stride R16 binary, %#U) = false, want true", r)
+		}
+	}
+	if Is(tab, rune(r16[0].Hi+1)) {
+		t.Errorf("Is(zero-stride R16 binary, U+%04X) = true, want false", r16[0].Hi+1)
+	}
+}
+
 func caseString(c int) string {
 	switch c {
 	case UpperCase:
