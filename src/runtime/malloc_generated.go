@@ -17,9 +17,14 @@ func mallocgcSmallScanNoHeaderSC1(size uintptr, typ *_type, needzero bool) unsaf
 		}
 	}
 
+	var mp *m
+
+	mp = acquirem()
+
 	forceSlowPath := debug.malloc || gcBlackenEnabled != 0 || (goexperiment.RuntimeSecret && getg().secret > 0)
 
 	if forceSlowPath {
+		releasem(mp)
 
 		const spc = spanClass(1<<1) | spanClass(0)
 		const elemsize = uintptr(8)
@@ -32,7 +37,6 @@ func mallocgcSmallScanNoHeaderSC1(size uintptr, typ *_type, needzero bool) unsaf
 	const sizeclass = 1
 	const elemsize = 8
 
-	mp := acquirem()
 	if doubleCheckMalloc {
 
 		doubleCheckSmallScanNoHeader(size, typ, mp)
@@ -166,9 +170,14 @@ func mallocgcSmallScanNoHeaderSC2(size uintptr, typ *_type, needzero bool) unsaf
 		}
 	}
 
+	var mp *m
+
+	mp = acquirem()
+
 	forceSlowPath := debug.malloc || gcBlackenEnabled != 0 || (goexperiment.RuntimeSecret && getg().secret > 0)
 
 	if forceSlowPath {
+		releasem(mp)
 
 		const spc = spanClass(2<<1) | spanClass(0)
 		const elemsize = uintptr(16)
@@ -181,7 +190,6 @@ func mallocgcSmallScanNoHeaderSC2(size uintptr, typ *_type, needzero bool) unsaf
 	const sizeclass = 2
 	const elemsize = 16
 
-	mp := acquirem()
 	if doubleCheckMalloc {
 
 		doubleCheckSmallScanNoHeader(size, typ, mp)
@@ -315,9 +323,14 @@ func mallocgcSmallScanNoHeaderSC3(size uintptr, typ *_type, needzero bool) unsaf
 		}
 	}
 
+	var mp *m
+
+	mp = acquirem()
+
 	forceSlowPath := debug.malloc || gcBlackenEnabled != 0 || (goexperiment.RuntimeSecret && getg().secret > 0)
 
 	if forceSlowPath {
+		releasem(mp)
 
 		const spc = spanClass(3<<1) | spanClass(0)
 		const elemsize = uintptr(24)
@@ -330,7 +343,6 @@ func mallocgcSmallScanNoHeaderSC3(size uintptr, typ *_type, needzero bool) unsaf
 	const sizeclass = 3
 	const elemsize = 24
 
-	mp := acquirem()
 	if doubleCheckMalloc {
 
 		doubleCheckSmallScanNoHeader(size, typ, mp)
@@ -464,9 +476,14 @@ func mallocgcSmallScanNoHeaderSC4(size uintptr, typ *_type, needzero bool) unsaf
 		}
 	}
 
+	var mp *m
+
+	mp = acquirem()
+
 	forceSlowPath := debug.malloc || gcBlackenEnabled != 0 || (goexperiment.RuntimeSecret && getg().secret > 0)
 
 	if forceSlowPath {
+		releasem(mp)
 
 		const spc = spanClass(4<<1) | spanClass(0)
 		const elemsize = uintptr(32)
@@ -479,7 +496,6 @@ func mallocgcSmallScanNoHeaderSC4(size uintptr, typ *_type, needzero bool) unsaf
 	const sizeclass = 4
 	const elemsize = 32
 
-	mp := acquirem()
 	if doubleCheckMalloc {
 
 		doubleCheckSmallScanNoHeader(size, typ, mp)
@@ -613,9 +629,14 @@ func mallocgcSmallScanNoHeaderSC5(size uintptr, typ *_type, needzero bool) unsaf
 		}
 	}
 
+	var mp *m
+
+	mp = acquirem()
+
 	forceSlowPath := debug.malloc || gcBlackenEnabled != 0 || (goexperiment.RuntimeSecret && getg().secret > 0)
 
 	if forceSlowPath {
+		releasem(mp)
 
 		const spc = spanClass(5<<1) | spanClass(0)
 		const elemsize = uintptr(48)
@@ -628,7 +649,6 @@ func mallocgcSmallScanNoHeaderSC5(size uintptr, typ *_type, needzero bool) unsaf
 	const sizeclass = 5
 	const elemsize = 48
 
-	mp := acquirem()
 	if doubleCheckMalloc {
 
 		doubleCheckSmallScanNoHeader(size, typ, mp)
@@ -762,9 +782,14 @@ func mallocgcSmallScanNoHeaderSC6(size uintptr, typ *_type, needzero bool) unsaf
 		}
 	}
 
+	var mp *m
+
+	mp = acquirem()
+
 	forceSlowPath := debug.malloc || gcBlackenEnabled != 0 || (goexperiment.RuntimeSecret && getg().secret > 0)
 
 	if forceSlowPath {
+		releasem(mp)
 
 		const spc = spanClass(6<<1) | spanClass(0)
 		const elemsize = uintptr(64)
@@ -777,7 +802,6 @@ func mallocgcSmallScanNoHeaderSC6(size uintptr, typ *_type, needzero bool) unsaf
 	const sizeclass = 6
 	const elemsize = 64
 
-	mp := acquirem()
 	if doubleCheckMalloc {
 
 		doubleCheckSmallScanNoHeader(size, typ, mp)
@@ -911,9 +935,14 @@ func mallocgcSmallScanNoHeaderSC7(size uintptr, typ *_type, needzero bool) unsaf
 		}
 	}
 
+	var mp *m
+
+	mp = acquirem()
+
 	forceSlowPath := debug.malloc || gcBlackenEnabled != 0 || (goexperiment.RuntimeSecret && getg().secret > 0)
 
 	if forceSlowPath {
+		releasem(mp)
 
 		const spc = spanClass(7<<1) | spanClass(0)
 		const elemsize = uintptr(80)
@@ -926,7 +955,6 @@ func mallocgcSmallScanNoHeaderSC7(size uintptr, typ *_type, needzero bool) unsaf
 	const sizeclass = 7
 	const elemsize = 80
 
-	mp := acquirem()
 	if doubleCheckMalloc {
 
 		doubleCheckSmallScanNoHeader(size, typ, mp)
@@ -1060,9 +1088,14 @@ func mallocgcTinySC2(size uintptr, typ *_type, needzero bool) unsafe.Pointer {
 		}
 	}
 
+	var mp *m
+
+	mp = acquirem()
+
 	forceSlowPath := debug.malloc || gcBlackenEnabled != 0 || (goexperiment.RuntimeSecret && getg().secret > 0)
 
 	if forceSlowPath {
+		releasem(mp)
 
 		return mallocgcTinySlowPath(size, typ, needzero)
 
@@ -1072,7 +1105,6 @@ func mallocgcTinySC2(size uintptr, typ *_type, needzero bool) unsafe.Pointer {
 
 	const elemsize = 16
 
-	mp := acquirem()
 	if doubleCheckMalloc {
 		doubleCheckTiny(size, typ, mp)
 	}
@@ -1163,9 +1195,14 @@ func mallocgcSmallNoScanSC2(size uintptr, typ *_type, needzero bool) unsafe.Poin
 		}
 	}
 
+	var mp *m
+
+	mp = acquirem()
+
 	forceSlowPath := debug.malloc || gcBlackenEnabled != 0 || (goexperiment.RuntimeSecret && getg().secret > 0)
 
 	if forceSlowPath {
+		releasem(mp)
 
 		const spc = spanClass(2<<1) | spanClass(1)
 		const elemsize = uintptr(16)
@@ -1178,7 +1215,6 @@ func mallocgcSmallNoScanSC2(size uintptr, typ *_type, needzero bool) unsafe.Poin
 	const sizeclass = 2
 	const elemsize = 16
 
-	mp := acquirem()
 	if doubleCheckMalloc {
 
 		doubleCheckSmallNoScan(typ, mp)
@@ -1258,9 +1294,14 @@ func mallocgcSmallNoScanSC3(size uintptr, typ *_type, needzero bool) unsafe.Poin
 		}
 	}
 
+	var mp *m
+
+	mp = acquirem()
+
 	forceSlowPath := debug.malloc || gcBlackenEnabled != 0 || (goexperiment.RuntimeSecret && getg().secret > 0)
 
 	if forceSlowPath {
+		releasem(mp)
 
 		const spc = spanClass(3<<1) | spanClass(1)
 		const elemsize = uintptr(24)
@@ -1273,7 +1314,6 @@ func mallocgcSmallNoScanSC3(size uintptr, typ *_type, needzero bool) unsafe.Poin
 	const sizeclass = 3
 	const elemsize = 24
 
-	mp := acquirem()
 	if doubleCheckMalloc {
 
 		doubleCheckSmallNoScan(typ, mp)
@@ -1353,9 +1393,14 @@ func mallocgcSmallNoScanSC4(size uintptr, typ *_type, needzero bool) unsafe.Poin
 		}
 	}
 
+	var mp *m
+
+	mp = acquirem()
+
 	forceSlowPath := debug.malloc || gcBlackenEnabled != 0 || (goexperiment.RuntimeSecret && getg().secret > 0)
 
 	if forceSlowPath {
+		releasem(mp)
 
 		const spc = spanClass(4<<1) | spanClass(1)
 		const elemsize = uintptr(32)
@@ -1368,7 +1413,6 @@ func mallocgcSmallNoScanSC4(size uintptr, typ *_type, needzero bool) unsafe.Poin
 	const sizeclass = 4
 	const elemsize = 32
 
-	mp := acquirem()
 	if doubleCheckMalloc {
 
 		doubleCheckSmallNoScan(typ, mp)
@@ -1448,9 +1492,14 @@ func mallocgcSmallNoScanSC5(size uintptr, typ *_type, needzero bool) unsafe.Poin
 		}
 	}
 
+	var mp *m
+
+	mp = acquirem()
+
 	forceSlowPath := debug.malloc || gcBlackenEnabled != 0 || (goexperiment.RuntimeSecret && getg().secret > 0)
 
 	if forceSlowPath {
+		releasem(mp)
 
 		const spc = spanClass(5<<1) | spanClass(1)
 		const elemsize = uintptr(48)
@@ -1463,7 +1512,6 @@ func mallocgcSmallNoScanSC5(size uintptr, typ *_type, needzero bool) unsafe.Poin
 	const sizeclass = 5
 	const elemsize = 48
 
-	mp := acquirem()
 	if doubleCheckMalloc {
 
 		doubleCheckSmallNoScan(typ, mp)
@@ -1543,9 +1591,14 @@ func mallocgcSmallNoScanSC6(size uintptr, typ *_type, needzero bool) unsafe.Poin
 		}
 	}
 
+	var mp *m
+
+	mp = acquirem()
+
 	forceSlowPath := debug.malloc || gcBlackenEnabled != 0 || (goexperiment.RuntimeSecret && getg().secret > 0)
 
 	if forceSlowPath {
+		releasem(mp)
 
 		const spc = spanClass(6<<1) | spanClass(1)
 		const elemsize = uintptr(64)
@@ -1558,7 +1611,6 @@ func mallocgcSmallNoScanSC6(size uintptr, typ *_type, needzero bool) unsafe.Poin
 	const sizeclass = 6
 	const elemsize = 64
 
-	mp := acquirem()
 	if doubleCheckMalloc {
 
 		doubleCheckSmallNoScan(typ, mp)
@@ -1638,9 +1690,14 @@ func mallocgcSmallNoScanSC7(size uintptr, typ *_type, needzero bool) unsafe.Poin
 		}
 	}
 
+	var mp *m
+
+	mp = acquirem()
+
 	forceSlowPath := debug.malloc || gcBlackenEnabled != 0 || (goexperiment.RuntimeSecret && getg().secret > 0)
 
 	if forceSlowPath {
+		releasem(mp)
 
 		const spc = spanClass(7<<1) | spanClass(1)
 		const elemsize = uintptr(80)
@@ -1653,7 +1710,6 @@ func mallocgcSmallNoScanSC7(size uintptr, typ *_type, needzero bool) unsafe.Poin
 	const sizeclass = 7
 	const elemsize = 80
 
-	mp := acquirem()
 	if doubleCheckMalloc {
 
 		doubleCheckSmallNoScan(typ, mp)
@@ -1733,6 +1789,8 @@ func mallocgcTinySlowPath(size uintptr, typ *_type, needzero bool) unsafe.Pointe
 		}
 	}
 
+	var mp *m
+
 	gp := getg()
 	if goexperiment.RuntimeSecret && gp.secret > 0 {
 		return mallocgcSmallNoScanSC2(size, typ, needzero)
@@ -1758,9 +1816,10 @@ func mallocgcTinySlowPath(size uintptr, typ *_type, needzero bool) unsafe.Pointe
 		}
 	}
 
+	mp = acquirem()
+
 	const elemsize = 16
 
-	mp := acquirem()
 	if doubleCheckMalloc {
 		doubleCheckTiny(size, typ, mp)
 	}
@@ -1876,6 +1935,8 @@ func mallocgcSmallScanSlowPath(size uintptr, typ *_type, needzero bool, spc span
 		}
 	}
 
+	var mp *m
+
 	lockRankMayQueueFinalizer()
 
 	if debug.malloc {
@@ -1896,7 +1957,8 @@ func mallocgcSmallScanSlowPath(size uintptr, typ *_type, needzero bool, spc span
 		}
 	}
 
-	mp := acquirem()
+	mp = acquirem()
+
 	if doubleCheckMalloc {
 
 		doubleCheckSmallScanNoHeader(size, typ, mp)
@@ -2050,6 +2112,8 @@ func mallocgcSmallNoScanSlowPath(size uintptr, typ *_type, needzero bool, spc sp
 		}
 	}
 
+	var mp *m
+
 	lockRankMayQueueFinalizer()
 
 	if debug.malloc {
@@ -2070,7 +2134,8 @@ func mallocgcSmallNoScanSlowPath(size uintptr, typ *_type, needzero bool, spc sp
 		}
 	}
 
-	mp := acquirem()
+	mp = acquirem()
+
 	if doubleCheckMalloc {
 
 		doubleCheckSmallNoScan(typ, mp)
