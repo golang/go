@@ -231,7 +231,7 @@ var unaryFlaky = &shapes{ // for tests that support flaky equality
 
 var ternaryFlaky = &shapes{ // for tests that support flaky equality
 	vecs:   []int{128, 256, 512},
-	floats: []int{32},
+	floats: []int{32, 64},
 }
 
 var avx2SignedComparisons = &shapes{
@@ -674,8 +674,6 @@ func test{{.VType}}TernaryFlaky(t *testing.T, f func(x, y, z archsimd.{{.VType}}
 
 var ternaryTemplate = templateOf("ternary_helpers", ternaryTestTemplateText)
 var ternaryFlakyTemplate = shapedTemplateOf(ternaryFlaky, "ternary_helpers", ternaryFlakyTestTemplateText)
-var ternaryTemplateArm64 = shapedTemplateOf(arm64Shapes, "ternary_arm64_helpers", ternaryTestTemplateText)
-var ternaryFlakyTemplateArm64 = shapedTemplateOf(arm64Shapes, "ternary_arm64_helpers", ternaryFlakyTestTemplateText)
 
 const reduceTestTemplateText = `
 func test{{.VType}}Reduce(t *testing.T, f func(_ archsimd.{{.VType}}) {{.Etype}}, want func(_ []{{.Etype}}) {{.Etype}}) {
@@ -1391,7 +1389,7 @@ func main() {
 	bh := flag.String("bh", TD+"binary_helpers_%W_test.go", "file name for binary test helpers")
 	uh := flag.String("uh", TD+"unary_helpers_%W_test.go", "file name for unary test helpers")
 	cvh := flag.String("cvh", TD+"convert_helpers_%W_test.go", "file name for conversion test helpers")
-	th := flag.String("th", TD+"ternary_helpers_test.go", "file name for ternary test helpers")
+	th := flag.String("th", TD+"ternary_helpers_%W_test.go", "file name for ternary test helpers")
 	ch := flag.String("ch", TD+"compare_helpers_%W_test.go", "file name for compare test helpers")
 	cmh := flag.String("cmh", TD+"comparemasked_helpers_test.go", "file name for compare-masked test helpers")
 	sh := flag.String("sh", TD+"shift_helpers_%W_test.go", "file name for shift test helpers")
@@ -1401,7 +1399,6 @@ func main() {
 	shArm64 := flag.String("shArm64", TD+"arm64_shift_helpers_test.go", "file name for ARM64 shift test helpers")
 	cmArm64 := flag.String("cmArm64", SIMD+"compare_gen_arm64.go", "file name for ARM64 comparison operations")
 	mmArm64 := flag.String("mmArm64", SIMD+"maskmerge_gen_arm64.go", "file name for ARM64 mask/merge operations")
-	thArm64 := flag.String("thArm64", TD+"ternary_arm64_helpers_test.go", "file name for ARM64 ternary test helpers")
 	rhArm64 := flag.String("rhArm64", TD+"reduce_arm64_helpers_test.go", "file name for ARM64 reduce test helpers")
 	flag.Parse()
 
@@ -1507,9 +1504,6 @@ func main() {
 			arm64MaskedMergeTemplate,
 			arm64MaskToString,
 		)
-	}
-	if *thArm64 != "" {
-		oneArch(*thArm64, "arm64", curryTestPrologue("ternary simd methods"), filterAll, ternaryTemplateArm64, ternaryFlakyTemplateArm64)
 	}
 	if *rhArm64 != "" {
 		oneArch(*rhArm64, "arm64", reduceTestPrologue, filterAll, reduceTestTemplateArm64)
