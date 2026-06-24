@@ -628,9 +628,13 @@ func (span *mspan) writeHeapBitsSmall(x, dataSize uintptr, typ *_type) (scanSize
 	// Create repetitions of the bitmap if we have a small slice backing store.
 	src := src0
 	if typ.Size_ == goarch.PtrSize {
-		src = (1 << (dataSize / goarch.PtrSize)) - 1
+		size := dataSize
+        if asanenabled {
+            size = actualSize(dataSize)
+        }
+        src = (1 << (size / goarch.PtrSize)) - 1
 		// This object is all pointers, so scanSize is just dataSize.
-		scanSize = dataSize
+		scanSize = size
 	} else {
 		// N.B. We rely on dataSize being an exact multiple of the type size.
 		// The alternative is to be defensive and mask out src to the length
@@ -810,6 +814,9 @@ func doubleCheckHeapType(x, dataSize uintptr, gctyp *_type, header **_type, span
 	maxIterBytes := span.elemsize
 	if header == nil {
 		maxIterBytes = dataSize
+		if asanenabled && gctyp.Size_ == goarch.PtrSize {
+            maxIterBytes = actualSize(dataSize)
+        }
 	}
 	off := alignUp(uintptr(cheaprand())%dataSize, goarch.PtrSize)
 	size := dataSize - off
@@ -836,6 +843,9 @@ func doubleCheckHeapPointers(x, dataSize uintptr, typ *_type, header **_type, sp
 	maxIterBytes := span.elemsize
 	if header == nil {
 		maxIterBytes = dataSize
+		if asanenabled && gctyp.Size_ == goarch.PtrSize {
+            maxIterBytes = actualSize(dataSize)
+        }
 	}
 	bad := false
 	for i := uintptr(0); i < maxIterBytes; i += goarch.PtrSize {
