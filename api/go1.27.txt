@@ -278,6 +278,9 @@ pkg math/big, const Trunc RoundingMode #76821
 pkg math/big, method (*Int) Divide(*Int, *Int, *Int, RoundingMode) (*Int, *Int) #76821
 pkg math/rand/v2, method (*Rand) N[$0 intType]($0) $0 #77853
 pkg net/http, type Server struct, DisableClientPriority bool #75500
+pkg net/http, const DefaultMaxHeaderValueCount = 500 #79936
+pkg net/http, const DefaultMaxHeaderValueCount ideal-int #79936
+pkg net/http, type Server struct, MaxHeaderValueCount int #79936
 pkg net/http/httptest, func NewTestServer(testing.TB, http.Handler) *Server #76608
 pkg net/url, method (*URL) Clone() *URL #73450
 pkg net/url, method (Values) Clone() Values #73450

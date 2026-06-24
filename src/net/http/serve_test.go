@@ -3355,12 +3355,16 @@ func TestStripPrefixNotModifyRequest(t *testing.T) {
 
 func TestRequestLimit(t *testing.T) { run(t, testRequestLimit, http3SkippedMode) }
 func testRequestLimit(t *testing.T, mode testMode) {
+	bytesPerHeader := len("header12345: val12345\r\n")
+	numHeaders := ((DefaultMaxHeaderBytes + 4096) / bytesPerHeader) + 1
+
 	cst := newClientServerTest(t, mode, HandlerFunc(func(w ResponseWriter, r *Request) {
 		t.Fatalf("didn't expect to get request in Handler")
-	}), optQuietLog)
+	}), func(s *Server) {
+		s.MaxHeaderValueCount = numHeaders
+	}, optQuietLog)
 	req, _ := NewRequest("GET", cst.ts.URL, nil)
-	var bytesPerHeader = len("header12345: val12345\r\n")
-	for i := 0; i < ((DefaultMaxHeaderBytes+4096)/bytesPerHeader)+1; i++ {
+	for i := range numHeaders {
 		req.Header.Set(fmt.Sprintf("header%05d", i), fmt.Sprintf("val%05d", i))
 	}
 	res, err := cst.c.Do(req)
@@ -3386,6 +3390,164 @@ func testRequestLimit(t *testing.T, mode testMode) {
 		if res.StatusCode != 431 {
 			t.Fatalf("expected 431 response status; got: %d %s", res.StatusCode, res.Status)
 		}
+	}
+}
+
+func TestRequestHeaderValueCountLimit(t *testing.T) {
+	run(t, testRequestHeaderValueCountLimit, http3SkippedMode)
+}
+func testRequestHeaderValueCountLimit(t *testing.T, mode testMode) {
+	tests := []struct {
+		name       string
+		limit      int
+		setup      func(req *Request)
+		wantStatus int
+	}{
+		{
+			name:  "below limit",
+			limit: 15,
+			setup: func(req *Request) {
+				// Send considerably below the limit, to account for the client
+				// automatically adding pseudo-headers and headers that it can
+				// infer.
+				for i := range 5 {
+					req.Header.Add(fmt.Sprintf("X-Header-%d", i), "val")
+				}
+			},
+			wantStatus: 200,
+		},
+		{
+			name:  "above limit",
+			limit: 15,
+			setup: func(req *Request) {
+				for i := range 16 {
+					req.Header.Add(fmt.Sprintf("X-Header-%d", i), "val")
+				}
+			},
+			wantStatus: 431,
+		},
+		{
+			name:  "comma separated values count as one",
+			limit: 15,
+			setup: func(req *Request) {
+				vals := make([]string, 16)
+				for i := range vals {
+					vals[i] = "val"
+				}
+				req.Header.Add("X-Comma", strings.Join(vals, ", "))
+			},
+			wantStatus: 200,
+		},
+		{
+			name:  "multiple values count as multiple",
+			limit: 15,
+			setup: func(req *Request) {
+				for range 16 {
+					req.Header.Add("X-Repeated", "val")
+				}
+			},
+			wantStatus: 431,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			cst := newClientServerTest(t, mode, HandlerFunc(func(w ResponseWriter, r *Request) {
+				w.WriteHeader(StatusOK)
+			}), func(s *Server) {
+				s.MaxHeaderValueCount = tt.limit
+			}, optQuietLog)
+
+			req, _ := NewRequest("GET", cst.ts.URL, nil)
+			tt.setup(req)
+
+			res, err := cst.c.Do(req)
+			if err != nil {
+				t.Fatal(err)
+			}
+			defer res.Body.Close()
+			if res.StatusCode != tt.wantStatus {
+				t.Errorf("got status %d, want %d", res.StatusCode, tt.wantStatus)
+			}
+		})
+	}
+}
+
+func TestRequestTrailerHeaderValueCountLimit(t *testing.T) {
+	// HTTP/1 has a static limit for trailer headers that are not affected by
+	// settings such as MaxHeaderBytes and MaxHeaderValueCount.
+	run(t, testRequestTrailerHeaderValueCountLimit, []testMode{http2Mode})
+}
+func testRequestTrailerHeaderValueCountLimit(t *testing.T, mode testMode) {
+	tests := []struct {
+		name    string
+		limit   int
+		setup   func(req *Request)
+		wantErr bool
+	}{
+		{
+			name:  "below limit",
+			limit: 15,
+			setup: func(req *Request) {
+				req.Trailer = make(Header)
+				for i := range 14 {
+					req.Trailer.Add(fmt.Sprintf("X-Trailer-%d", i), "val")
+				}
+			},
+		},
+		{
+			name:  "above limit",
+			limit: 15,
+			setup: func(req *Request) {
+				req.Trailer = make(Header)
+				for i := range 16 {
+					req.Trailer.Add(fmt.Sprintf("X-Trailer-%d", i), "val")
+				}
+			},
+			wantErr: true,
+		},
+		{
+			name:  "comma separated values count as one",
+			limit: 15,
+			setup: func(req *Request) {
+				req.Trailer = make(Header)
+				vals := make([]string, 16)
+				for i := range vals {
+					vals[i] = "val"
+				}
+				req.Trailer.Add("X-Comma-Trailer", strings.Join(vals, ", "))
+			},
+		},
+		{
+			name:  "multiple values count as multiple",
+			limit: 15,
+			setup: func(req *Request) {
+				req.Trailer = make(Header)
+				for range 16 {
+					req.Trailer.Add("X-Repeated-Trailer", "val")
+				}
+			},
+			wantErr: true,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			cst := newClientServerTest(t, mode, HandlerFunc(func(w ResponseWriter, r *Request) {
+				io.Copy(io.Discard, r.Body)
+			}), func(s *Server) {
+				s.MaxHeaderValueCount = tt.limit
+			}, optQuietLog)
+
+			req, _ := NewRequest("GET", cst.ts.URL, strings.NewReader("some body"))
+			tt.setup(req)
+
+			res, err := cst.c.Do(req)
+			if (err != nil) != tt.wantErr {
+				t.Fatalf("got error %v, want %v", err, tt.wantErr)
+			}
+			if err == nil {
+				res.Body.Close()
+			}
+		})
 	}
 }
 

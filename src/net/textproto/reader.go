@@ -18,7 +18,7 @@ import (
 )
 
 // TODO: This should be a distinguishable error (ErrMessageTooLarge)
-// to allow mime/multipart to detect it.
+// to allow mime/multipart and net/http to detect it.
 var errMessageTooLarge = errors.New("message too large")
 
 // A Reader implements convenience methods for reading requests
@@ -508,11 +508,18 @@ func (r *Reader) ReadMIMEHeader() (MIMEHeader, error) {
 	return readMIMEHeader(r, math.MaxInt64, math.MaxInt64)
 }
 
-// readMIMEHeader is accessed from mime/multipart.
+// readMIMEHeader should be an internal detail,
+// but widely used packages access it using linkname.
+// Notable members of the hall of shame include:
+//   - github.com/qtgolang/SunnyNet
+//
+// Do not remove or change the type signature.
+// See go.dev/issue/67401.
+//
 //go:linkname readMIMEHeader
 
 // readMIMEHeader is a version of ReadMIMEHeader which takes a limit on the header size.
-// It is called by the mime/multipart package.
+// It is called by the mime/multipart and net/http package.
 func readMIMEHeader(r *Reader, maxMemory, maxHeaders int64) (MIMEHeader, error) {
 	// Avoid lots of small slice allocations later by allocating one
 	// large one ahead of time which we'll cut up into smaller

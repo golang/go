@@ -938,11 +938,23 @@ func putBufioWriter(bw *bufio.Writer) {
 // This can be overridden by setting [Server.MaxHeaderBytes].
 const DefaultMaxHeaderBytes = 1 << 20 // 1 MB
 
+// DefaultMaxHeaderValueCount is the maximum permitted number of
+// header values in an HTTP request.
+// This can be overridden by setting [Server.MaxHeaderValueCount].
+const DefaultMaxHeaderValueCount = 500
+
 func (s *Server) maxHeaderBytes() int {
 	if s.MaxHeaderBytes > 0 {
 		return s.MaxHeaderBytes
 	}
 	return DefaultMaxHeaderBytes
+}
+
+func (s *Server) maxHeaderValueCount() int {
+	if s.MaxHeaderValueCount > 0 {
+		return s.MaxHeaderValueCount
+	}
+	return DefaultMaxHeaderValueCount
 }
 
 func (s *Server) initialReadLimitSize() int64 {
@@ -1044,7 +1056,7 @@ func (c *conn) readRequest(ctx context.Context) (w *response, err error) {
 		peek, _ := c.bufr.Peek(4) // ReadRequest will get err below
 		c.bufr.Discard(numLeadingCRorLF(peek))
 	}
-	req, err := readRequest(c.bufr)
+	req, err := readRequestLimit(c.bufr, int64(c.server.maxHeaderValueCount()))
 	if err != nil {
 		if c.r.hitReadLimit() {
 			return nil, errTooLarge
@@ -3128,6 +3140,14 @@ type Server struct {
 	// size of the request body.
 	// If zero, DefaultMaxHeaderBytes is used.
 	MaxHeaderBytes int
+
+	// MaxHeaderValueCount controls the maximum number of header
+	// values that the server is willing to parse from a request.
+	// If zero, DefaultMaxHeaderValueCount is used.
+	// Note that comma-separated values in a single header line are
+	// counted once, while values sent as multiple header lines are
+	// counted multiple times.
+	MaxHeaderValueCount int
 
 	// TLSNextProto optionally specifies a function to take over
 	// ownership of the provided TLS connection when an ALPN
