@@ -978,18 +978,11 @@ func (c *conn) readRequest(ctx context.Context) (w *response, err error) {
 		return nil, ErrHijacked
 	}
 
-	var (
-		wholeReqDeadline time.Time // or zero if none
-		hdrDeadline      time.Time // or zero if none
-	)
 	t0 := time.Now()
-	if d := c.server.readHeaderTimeout(); d > 0 {
-		hdrDeadline = t0.Add(d)
-	}
+	var wholeReqDeadline time.Time // or zero if none
 	if d := c.server.ReadTimeout; d > 0 {
 		wholeReqDeadline = t0.Add(d)
 	}
-	c.rwc.SetReadDeadline(hdrDeadline)
 	if d := c.server.WriteTimeout; d > 0 {
 		defer func() {
 			c.rwc.SetWriteDeadline(time.Now().Add(d))
@@ -1045,10 +1038,7 @@ func (c *conn) readRequest(ctx context.Context) (w *response, err error) {
 		body.doEarlyClose = true
 	}
 
-	// Adjust the read deadline if necessary.
-	if !hdrDeadline.Equal(wholeReqDeadline) {
-		c.rwc.SetReadDeadline(wholeReqDeadline)
-	}
+	c.rwc.SetReadDeadline(wholeReqDeadline)
 
 	w = &response{
 		conn:          c,
@@ -1981,6 +1971,10 @@ func (c *conn) serve(ctx context.Context) {
 	c.bufr = newBufioReader(c.r)
 	c.bufw = newBufioWriterSize(checkConnErrorWriter{c}, 4<<10)
 
+	if d := c.server.readHeaderTimeout(); d > 0 {
+		c.rwc.SetReadDeadline(time.Now().Add(d))
+	}
+
 	protos := c.server.protocols()
 	if c.tlsState == nil && protos.UnencryptedHTTP2() {
 		if c.maybeServeUnencryptedHTTP2(ctx) {
@@ -2110,7 +2104,11 @@ func (c *conn) serve(ctx context.Context) {
 			return
 		}
 
-		c.rwc.SetReadDeadline(time.Time{})
+		if d := c.server.readHeaderTimeout(); d > 0 {
+			c.rwc.SetReadDeadline(time.Now().Add(d))
+		} else {
+			c.rwc.SetReadDeadline(time.Time{})
+		}
 	}
 }
 
