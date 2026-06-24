@@ -124,6 +124,8 @@ func (check *Checker) compositeLit(U Type, x *operand, e *syntax.CompositeLit, h
 		typ = check.typ(e.Type)
 		base = typ
 
+	// The hint mechanism is kept around to avoid reporting a false "need Go 1.28" error
+	// for users of a Go 1.27 compiler.
 	case hint != nil:
 		// no composite literal type present - use hint (element type of enclosing type)
 		typ = hint
@@ -136,11 +138,25 @@ func (check *Checker) compositeLit(U Type, x *operand, e *syntax.CompositeLit, h
 		isElem = true
 
 	default:
-		// TODO(gri) provide better error messages depending on context
-		check.error(e, UntypedLit, "missing type in composite literal")
-		// continue with invalid type so that elements are "used" (go.dev/issue/69092)
-		typ = Typ[Invalid]
-		base = typ
+		// no composite literal type or hint present - use assignment context (if available and past Go 1.28)
+		if U != nil {
+			// report a version error only if we have an inferred type
+			check.verifyVersionf(e, go1_28, "missing type in composite literal")
+			// continue with the inferred type regardless of version
+			typ = U
+			base = typ
+			// *T implies &T{}
+			u, _ := commonUnder(base, nil)
+			if b, ok := deref(u); ok {
+				base = b
+			}
+		} else {
+			// TODO(gri) provide better error messages depending on context
+			check.error(e, UntypedLit, "missing type in composite literal")
+			// continue with invalid type so that elements are "used" (go.dev/issue/69092)
+			typ = Typ[Invalid]
+			base = typ
+		}
 	}
 
 	// We cannot create a literal of an incomplete type; make sure it's complete.
