@@ -1396,10 +1396,10 @@ func main() {
 	// ARM64-specific
 	slArm64 := flag.String("slArm64", SIMD+"slice_gen_arm64.go", "file name for ARM64 slice operations")
 	opArm64 := flag.String("opArm64", SIMD+"other_gen_arm64.go", "file name for ARM64 other operations")
-	shArm64 := flag.String("shArm64", TD+"arm64_shift_helpers_test.go", "file name for ARM64 shift test helpers")
+	shArm64 := flag.String("shArm64", TD+"shift_helpers_arm64_test.go", "file name for ARM64 shift test helpers")
 	cmArm64 := flag.String("cmArm64", SIMD+"compare_gen_arm64.go", "file name for ARM64 comparison operations")
 	mmArm64 := flag.String("mmArm64", SIMD+"maskmerge_gen_arm64.go", "file name for ARM64 mask/merge operations")
-	rhArm64 := flag.String("rhArm64", TD+"reduce_arm64_helpers_test.go", "file name for ARM64 reduce test helpers")
+	rhArm64 := flag.String("rhArm64", TD+"reduce_helpers_arm64_test.go", "file name for ARM64 reduce test helpers")
 	flag.Parse()
 
 	if *sl != "" {
