@@ -210,7 +210,7 @@ func (check *Checker) callExpr(x *operand, call *ast.CallExpr) exprKind {
 		case 0:
 			check.errorf(inNode(call, call.Rparen), WrongArgCount, "missing argument in conversion to %s", T)
 		case 1:
-			check.expr(newTarget(T, "conversion"), x, call.Args[0])
+			check.expr(newTarget(T, "conversion"), nil, x, call.Args[0])
 			if x.isValid() {
 				if hasDots(call) {
 					check.errorf(call.Args[0], BadDotDotDotSyntax, "invalid use of ... in conversion to %s", T)
@@ -360,7 +360,7 @@ func (check *Checker) exprList(elist []ast.Expr) (xlist []*operand) {
 		xlist = make([]*operand, n)
 		for i, e := range elist {
 			var x operand
-			check.expr(nil, &x, e)
+			check.expr(nil, nil, &x, e)
 			xlist[i] = &x
 		}
 	}
@@ -417,7 +417,7 @@ func (check *Checker) genericExprList(elist []ast.Expr) (resList []*operand, tar
 			resList = []*operand{&x}
 		} else {
 			// x is not a function instantiation (it may still be a generic function).
-			check.rawExpr(nil, &x, e, nil, true)
+			check.rawExpr(nil, nil, &x, e, nil, true)
 			check.exclude(&x, 1<<novalue|1<<builtin|1<<typexpr)
 			if t, ok := x.typ().(*Tuple); ok && x.isValid() {
 				// x is a function call returning multiple values; it cannot be generic.
@@ -451,7 +451,7 @@ func (check *Checker) genericExprList(elist []ast.Expr) (resList []*operand, tar
 				}
 			} else {
 				// x is exactly one value (possibly invalid or uninstantiated generic function).
-				check.genericExpr(&x, e, nil)
+				check.genericExpr(nil, &x, e, nil)
 			}
 			resList[i] = &x
 		}
@@ -1048,7 +1048,7 @@ func (check *Checker) use1(e ast.Expr, lhs bool) bool {
 			check.usedVars[v] = v_used // restore v.used
 		}
 	default:
-		check.rawExpr(nil, &x, e, nil, true)
+		check.rawExpr(nil, nil, &x, e, nil, true)
 	}
 	return x.isValid()
 }

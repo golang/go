@@ -108,7 +108,7 @@ func (check *Checker) funcLit(x *operand, e *ast.FuncLit) {
 	}
 }
 
-func (check *Checker) compositeLit(x *operand, e *ast.CompositeLit, hint Type) {
+func (check *Checker) compositeLit(U Type, x *operand, e *ast.CompositeLit, hint Type) {
 	var typ, base Type
 	var isElem bool // true if composite literal is an element of an enclosing composite literal
 
@@ -174,7 +174,7 @@ func (check *Checker) compositeLit(x *operand, e *ast.CompositeLit, hint Type) {
 				key, _ := kv.Key.(*ast.Ident)
 				// do all possible checks early (before exiting due to errors)
 				// so we don't drop information on the floor
-				check.genericExpr(x, kv.Value, nil)
+				check.genericExpr(nil, x, kv.Value, nil)
 				if key == nil {
 					check.errorf(kv, InvalidLitField, "invalid field name %s in struct literal", kv.Key)
 					continue
@@ -218,7 +218,7 @@ func (check *Checker) compositeLit(x *operand, e *ast.CompositeLit, hint Type) {
 					check.error(kv, MixedStructLit, "mixture of field:value and value elements in struct literal")
 					continue
 				}
-				check.genericExpr(x, e, nil)
+				check.genericExpr(nil, x, e, nil)
 				if i >= len(fields) {
 					check.errorf(x, InvalidStructLit, "too many values in struct literal of type %s", base)
 					break // cannot continue
@@ -281,7 +281,7 @@ func (check *Checker) compositeLit(x *operand, e *ast.CompositeLit, hint Type) {
 				check.error(e, MissingLitKey, "missing key in map literal")
 				continue
 			}
-			check.genericExpr(x, kv.Key, utyp.key)
+			check.genericExpr(nil, x, kv.Key, utyp.key)
 			check.assignment(x, utyp.key, "map literal")
 			if !x.isValid() {
 				continue
@@ -306,7 +306,7 @@ func (check *Checker) compositeLit(x *operand, e *ast.CompositeLit, hint Type) {
 					continue
 				}
 			}
-			check.genericExpr(x, kv.Value, utyp.elem)
+			check.genericExpr(nil, x, kv.Value, utyp.elem)
 			check.assignment(x, utyp.elem, "map literal")
 		}
 
@@ -383,7 +383,7 @@ func (check *Checker) indexedElts(elts []ast.Expr, typ Type, length int64) int64
 
 		// check element against composite literal element type
 		var x operand
-		check.genericExpr(&x, eval, typ)
+		check.genericExpr(nil, &x, eval, typ)
 		check.assignment(&x, typ, "array or slice literal")
 	}
 	return max
