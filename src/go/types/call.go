@@ -210,7 +210,7 @@ func (check *Checker) callExpr(x *operand, call *ast.CallExpr) exprKind {
 		case 0:
 			check.errorf(inNode(call, call.Rparen), WrongArgCount, "missing argument in conversion to %s", T)
 		case 1:
-			check.expr(newTarget(T, "conversion"), nil, x, call.Args[0])
+			check.expr(newTarget(T, "conversion"), T, x, call.Args[0])
 			if x.isValid() {
 				if hasDots(call) {
 					check.errorf(call.Args[0], BadDotDotDotSyntax, "invalid use of ... in conversion to %s", T)

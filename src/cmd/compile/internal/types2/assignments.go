@@ -265,7 +265,7 @@ func (check *Checker) assignVar(lhs, rhs syntax.Expr, x *operand, context string
 			}
 		}
 		x = new(operand)
-		check.expr(target, nil, x, rhs)
+		check.expr(target, T, x, rhs)
 	}
 
 	if T == nil && context == "assignment" {
@@ -407,7 +407,7 @@ func (check *Checker) initVars(lhs []*Var, orig_rhs []syntax.Expr, returnStmt sy
 			if returnStmt != nil && desc == "" {
 				desc = "result variable"
 			}
-			check.expr(newTarget(lhs.typ, desc), nil, &x, orig_rhs[i])
+			check.expr(newTarget(lhs.typ, desc), lhs.typ, &x, orig_rhs[i])
 			check.initVar(lhs, &x, context)
 		}
 		return

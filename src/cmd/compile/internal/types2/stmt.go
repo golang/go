@@ -467,7 +467,7 @@ func (check *Checker) stmt(ctxt stmtContext, s syntax.Stmt) {
 			// try to get a target type for the sent value
 			// TODO(mark): use T in an upcoming CL
 			T := check.chanElem(s, &ch, false)
-			check.genericExpr(nil, &val, s.Value, nil)
+			check.genericExpr(T, &val, s.Value, nil)
 			if T != nil {
 				check.assignment(&val, T, "send")
 			}

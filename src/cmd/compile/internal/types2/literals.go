@@ -293,7 +293,7 @@ func (check *Checker) compositeLit(U Type, x *operand, e *syntax.CompositeLit, h
 				check.error(e, MissingLitKey, "missing key in map literal")
 				continue
 			}
-			check.genericExpr(nil, x, kv.Key, utyp.key)
+			check.genericExpr(utyp.key, x, kv.Key, utyp.key)
 			check.assignment(x, utyp.key, "map literal")
 			if !x.isValid() {
 				continue
@@ -318,7 +318,7 @@ func (check *Checker) compositeLit(U Type, x *operand, e *syntax.CompositeLit, h
 					continue
 				}
 			}
-			check.genericExpr(nil, x, kv.Value, utyp.elem)
+			check.genericExpr(utyp.elem, x, kv.Value, utyp.elem)
 			check.assignment(x, utyp.elem, "map literal")
 		}
 
@@ -395,7 +395,7 @@ func (check *Checker) indexedElts(elts []syntax.Expr, typ Type, length int64) in
 
 		// check element against composite literal element type
 		var x operand
-		check.genericExpr(nil, &x, eval, typ)
+		check.genericExpr(typ, &x, eval, typ)
 		check.assignment(&x, typ, "array or slice literal")
 	}
 	return max

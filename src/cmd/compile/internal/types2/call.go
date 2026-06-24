@@ -208,7 +208,7 @@ func (check *Checker) callExpr(x *operand, call *syntax.CallExpr) exprKind {
 		case 0:
 			check.errorf(call, WrongArgCount, "missing argument in conversion to %s", T)
 		case 1:
-			check.expr(newTarget(T, "conversion"), nil, x, call.ArgList[0])
+			check.expr(newTarget(T, "conversion"), T, x, call.ArgList[0])
 			if x.isValid() {
 				if t, _ := T.Underlying().(*Interface); t != nil && !isTypeParam(T) {
 					if !t.IsMethodSet() {

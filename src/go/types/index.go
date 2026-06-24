@@ -115,7 +115,7 @@ func (check *Checker) indexExpr(x *operand, e *indexedExpr) (isFuncInst bool) {
 			return false
 		}
 		var key operand
-		check.genericExpr(nil, &key, index, nil)
+		check.genericExpr(typ.key, &key, index, nil)
 		check.assignment(&key, typ.key, "map index")
 		// ok to continue even if indexing failed - map element type is known
 		x.mode_ = mapindex
@@ -189,7 +189,7 @@ func (check *Checker) indexExpr(x *operand, e *indexedExpr) (isFuncInst bool) {
 					return false
 				}
 				var k operand
-				check.genericExpr(nil, &k, index, nil)
+				check.genericExpr(key, &k, index, nil)
 				check.assignment(&k, key, "map index")
 				// ok to continue even if indexing failed - map element type is known
 				x.mode_ = mapindex
