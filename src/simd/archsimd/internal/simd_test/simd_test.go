@@ -277,3 +277,103 @@ func testManyFloats(a1, a2, a3, a4, a5, a6, a7, a8, a9, a10, a11, a12, a13, a14,
 	float64Sink -= a31
 	float64Sink /= a32
 }
+
+func TestSlicesInt8SetElem(t *testing.T) {
+	a := []int8{1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16,
+		17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32}
+	v := archsimd.LoadInt8x16(a)
+
+	v = v.SetElem(3, 13)
+	a[3] = 13
+
+	b := make([]int8, 16, 16)
+	v.Store(b)
+	checkSlices(t, a, b)
+}
+
+func TestSlicesInt8GetElem(t *testing.T) {
+	a := []int8{1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16,
+		17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32}
+	v := archsimd.LoadInt8x16(a)
+	e := v.GetElem(2)
+	if e != a[2] {
+		t.Errorf("GetElem(2) = %d != a[2] = %d", e, a[2])
+	}
+
+}
+
+var seventeen = uint8(17)
+
+func TestSlicesInt8GetElem16(t *testing.T) {
+	defer func() {
+		if r := recover(); r != nil {
+			t.Logf("Saw EXPECTED panic %v", r)
+		} else {
+			t.Errorf("Did not see expected panic")
+		}
+	}()
+	a := []int8{1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16}
+	v := archsimd.LoadInt8x16(a)
+	e := v.GetElem(seventeen - 1)
+	t.Errorf("Should have panicked, e=%v", e)
+}
+
+func TestSlicesInt8GetElem16const(t *testing.T) {
+	defer func() {
+		if r := recover(); r != nil {
+			t.Logf("Saw EXPECTED panic %v", r)
+		} else {
+			t.Errorf("Did not see expected panic")
+		}
+	}()
+	a := []int8{1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16}
+	v := archsimd.LoadInt8x16(a)
+	e := v.GetElem(16)
+	t.Errorf("Should have panicked, e=%v", e)
+}
+
+func TestSlicesInt8GetElem15(t *testing.T) {
+	a := []int8{1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16}
+	v := archsimd.LoadInt8x16(a)
+	e := v.GetElem(seventeen - 2)
+	if e != a[15] {
+		t.Errorf("GetElem(15) = %d != a[15] = %d", e, a[15])
+	}
+}
+
+func TestSlicesInt8GetElem15const(t *testing.T) {
+	a := []int8{1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16}
+	v := archsimd.LoadInt8x16(a)
+	e := v.GetElem(15)
+	if e != a[15] {
+		t.Errorf("GetElem(15) = %d != a[15] = %d", e, a[15])
+	}
+}
+
+func TestSlicesInt8SetElem17(t *testing.T) {
+	defer func() {
+		if r := recover(); r != nil {
+			t.Logf("Saw EXPECTED panic %v", r)
+		} else {
+			t.Errorf("Did not see expected panic")
+		}
+	}()
+	a := []int8{1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16}
+	v := archsimd.LoadInt8x16(a)
+	e := v.SetElem(seventeen, 18).GetElem(2)
+	t.Errorf("Should have panicked, e=%v", e)
+}
+
+func TestSlicesInt8SetElem17const(t *testing.T) {
+	defer func() {
+		if r := recover(); r != nil {
+			t.Logf("Saw EXPECTED panic %v", r)
+		} else {
+			t.Errorf("Did not see expected panic")
+		}
+	}()
+	a := []int8{1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16}
+	v := archsimd.LoadInt8x16(a)
+	e := v.SetElem(17, 18).GetElem(2)
+	t.Errorf("Should have panicked, e=%v", e)
+}
