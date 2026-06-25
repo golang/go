@@ -170,3 +170,76 @@ scanLit:
 	}
 	return
 }
+
+func TestResolveFile(t *testing.T) {
+	const src = `package p; var x = 1; var y = x`
+	fset := token.NewFileSet()
+	f, err := ParseFile(fset, "example.com/p", src, SkipObjectResolution)
+	if err != nil {
+		t.Fatal(err)
+	}
+	xspec := f.Decls[0].(*ast.GenDecl).Specs[0].(*ast.ValueSpec)
+	yspec := f.Decls[1].(*ast.GenDecl).Specs[0].(*ast.ValueSpec)
+	x := xspec.Names[0]
+	y := yspec.Names[0]
+	xref := yspec.Values[0].(*ast.Ident)
+
+	// before
+	if x.Name != "x" {
+		t.Fatalf("x: wrong Ident")
+	}
+	if y.Name != "y" {
+		t.Fatalf("y: wrong Ident")
+	}
+	if xref.Name != "x" {
+		t.Fatalf("xref: wrong Ident")
+	}
+	if x.Obj != nil {
+		t.Fatalf("ParseFile(SkipObjectResolution) unexpectedly set x.Obj")
+	}
+	if y.Obj != nil {
+		t.Fatalf("ParseFile(SkipObjectResolution) unexpectedly set y.Obj")
+	}
+	if xref.Obj != nil {
+		t.Fatalf("ParseFile(SkipObjectResolution) unexpectedly set xref.Obj")
+	}
+
+	ResolveFile(f)
+
+	// after
+	if x.Obj == nil {
+		t.Fatalf("after ResolveFile, x.Obj is nil")
+	}
+	if y.Obj == nil {
+		t.Fatalf("after ResolveFile, y.Obj is nil")
+	}
+	if xref.Obj == nil {
+		t.Fatalf("after ResolveFile, xref.Obj is nil")
+	}
+	if x.Obj.Kind != ast.Var {
+		t.Errorf("after ResolveFile, x.Obj.Kind = %d, want Var", x.Obj.Kind)
+	}
+	if y.Obj.Kind != ast.Var {
+		t.Errorf("after ResolveFile, y.Obj.Kind = %d, want Var", y.Obj.Kind)
+	}
+	if xref.Obj.Kind != ast.Var {
+		t.Errorf("after ResolveFile, xref.Obj.Kind = %d, want Var", x.Obj.Kind)
+	}
+	if x.Obj.Name != "x" {
+		t.Errorf("after ResolveFile, x.Obj.Name = %q, want \"x\"", x.Obj.Name)
+	}
+	if y.Obj.Name != "y" {
+		t.Errorf("after ResolveFile, y.Obj.Name = %q, want \"y\"", y.Obj.Name)
+	}
+	if xref.Obj != x.Obj {
+		t.Errorf("after ResolveFile, x.Obj != xref.Obj")
+	}
+	if x.Obj.Decl != xspec {
+		t.Errorf("after ResolveFile, x.Obj.Decl = %+[1]v (%[1]T), want xspec", x.Obj.Decl)
+	}
+	if y.Obj.Decl != yspec {
+		t.Errorf("after ResolveFile, y.Obj.Decl = %+[1]v (%[1]T), want yspec", y.Obj.Decl)
+	}
+
+	ResolveFile(f) // idempotent; no ill effects
+}
