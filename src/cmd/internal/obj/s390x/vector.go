@@ -581,6 +581,14 @@ func vop(as obj.As) (opcode, es, cs uint32) {
 		return op_VLEIG, 0, 0
 	case AVLEIB:
 		return op_VLEIB, 0, 0
+	case AVLER:
+		return op_VLER, 0, 0
+	case AVLERH:
+		return op_VLER, 1, 0
+	case AVLERF:
+		return op_VLER, 2, 0
+	case AVLERG:
+		return op_VLER, 3, 0
 	case AVFI:
 		return op_VFI, 0, 0
 	case AVFIDB:
@@ -913,6 +921,14 @@ func vop(as obj.As) (opcode, es, cs uint32) {
 		return op_VSTEG, 0, 0
 	case AVSTEB:
 		return op_VSTEB, 0, 0
+	case AVSTER:
+		return op_VSTER, 0, 0
+	case AVSTERH:
+		return op_VSTER, 1, 0
+	case AVSTERF:
+		return op_VSTER, 2, 0
+	case AVSTERG:
+		return op_VSTER, 3, 0
 	case AVSTM:
 		return op_VSTM, 0, 0
 	case AVSTRL:

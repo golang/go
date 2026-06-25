@@ -1109,6 +1109,9 @@ func buildop(ctxt *obj.Link) {
 			opset(AVLREPH, r)
 			opset(AVLREPF, r)
 			opset(AVLREPG, r)
+			opset(AVLERH, r)
+			opset(AVLERF, r)
+			opset(AVLERG, r)
 		case AVLEG:
 			opset(AVLBB, r)
 			opset(AVLEB, r)
@@ -1116,10 +1119,17 @@ func buildop(ctxt *obj.Link) {
 			opset(AVLEF, r)
 			opset(AVLEG, r)
 			opset(AVLREP, r)
+			opset(AVLLEZ, r)
+			opset(AVLER, r)
+		case AVST:
+			opset(AVSTERH, r)
+			opset(AVSTERF, r)
+			opset(AVSTERG, r)
 		case AVSTEG:
 			opset(AVSTEB, r)
 			opset(AVSTEH, r)
 			opset(AVSTEF, r)
+			opset(AVSTER, r)
 		case AVSCEG:
 			opset(AVSCEF, r)
 		case AVGEG:
@@ -2582,6 +2592,7 @@ const (
 	op_VLEIF  uint32 = 0xE743 // 	VRI-a	VECTOR LOAD ELEMENT IMMEDIATE (32)
 	op_VLEIG  uint32 = 0xE742 // 	VRI-a	VECTOR LOAD ELEMENT IMMEDIATE (64)
 	op_VLEIB  uint32 = 0xE740 // 	VRI-a	VECTOR LOAD ELEMENT IMMEDIATE (8)
+	op_VLER   uint32 = 0xE607 // 	VRX	VECTOR LOAD ELEMENTS REVERSED
 	op_VFI    uint32 = 0xE7C7 // 	VRR-a	VECTOR LOAD FP INTEGER
 	op_VLGV   uint32 = 0xE721 // 	VRS-c	VECTOR LOAD GR FROM VR ELEMENT
 	op_VLLEZ  uint32 = 0xE704 // 	VRX	VECTOR LOAD LOGICAL ELEMENT AND ZERO
@@ -2637,6 +2648,7 @@ const (
 	op_VSTEF  uint32 = 0xE70B // 	VRX	VECTOR STORE ELEMENT (32)
 	op_VSTEG  uint32 = 0xE70A // 	VRX	VECTOR STORE ELEMENT (64)
 	op_VSTEB  uint32 = 0xE708 // 	VRX	VECTOR STORE ELEMENT (8)
+	op_VSTER  uint32 = 0xE60F // 	VRX	VECTOR STORE ELEMENTS REVERSED
 	op_VSTM   uint32 = 0xE73E // 	VRS-a	VECTOR STORE MULTIPLE
 	op_VSTRL  uint32 = 0xE63D // 	VSI	VECTOR STORE RIGHTMOST WITH LENGTH
 	op_VSTL   uint32 = 0xE73F // 	VRS-b	VECTOR STORE WITH LENGTH
