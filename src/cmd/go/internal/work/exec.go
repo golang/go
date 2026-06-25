@@ -322,7 +322,7 @@ func (b *Builder) buildActionID(a *Action) cache.ActionID {
 		fmt.Fprintf(h, "CC=%q %q %q %q\n", ccExe, cppflags, cflags, ldflags)
 		// Include the C compiler tool ID so that if the C
 		// compiler changes we rebuild the package.
-		if ccID, _, err := b.gccToolID(ccExe[0], "c"); err == nil {
+		if ccID, _, err := b.gccToolID(ccExe[0], "c", false); err == nil {
 			fmt.Fprintf(h, "CC ID=%q\n", ccID)
 		} else {
 			fmt.Fprintf(h, "CC ID ERROR=%q\n", err)
@@ -330,7 +330,7 @@ func (b *Builder) buildActionID(a *Action) cache.ActionID {
 		if len(p.CXXFiles)+len(p.SwigCXXFiles) > 0 {
 			cxxExe := b.cxxExe()
 			fmt.Fprintf(h, "CXX=%q %q\n", cxxExe, cxxflags)
-			if cxxID, _, err := b.gccToolID(cxxExe[0], "c++"); err == nil {
+			if cxxID, _, err := b.gccToolID(cxxExe[0], "c++", false); err == nil {
 				fmt.Fprintf(h, "CXX ID=%q\n", cxxID)
 			} else {
 				fmt.Fprintf(h, "CXX ID ERROR=%q\n", err)
@@ -339,7 +339,7 @@ func (b *Builder) buildActionID(a *Action) cache.ActionID {
 		if len(p.FFiles) > 0 {
 			fcExe := b.fcExe()
 			fmt.Fprintf(h, "FC=%q %q\n", fcExe, fflags)
-			if fcID, _, err := b.gccToolID(fcExe[0], "f95"); err == nil {
+			if fcID, _, err := b.gccToolID(fcExe[0], "f95", false); err == nil {
 				fmt.Fprintf(h, "FC ID=%q\n", fcID)
 			} else {
 				fmt.Fprintf(h, "FC ID ERROR=%q\n", err)
@@ -395,7 +395,7 @@ func (b *Builder) buildActionID(a *Action) cache.ActionID {
 		}
 
 	case "gccgo":
-		id, _, err := b.gccToolID(BuildToolchain.compiler(), "go")
+		id, _, err := b.gccToolID(BuildToolchain.compiler(), "go", true)
 		if err != nil {
 			base.Fatalf("%v", err)
 		}
@@ -403,7 +403,7 @@ func (b *Builder) buildActionID(a *Action) cache.ActionID {
 		fmt.Fprintf(h, "pkgpath %s\n", gccgoPkgpath(p))
 		fmt.Fprintf(h, "ar %q\n", BuildToolchain.(gccgoToolchain).ar())
 		if len(p.SFiles) > 0 {
-			id, _, _ = b.gccToolID(BuildToolchain.compiler(), "assembler-with-cpp")
+			id, _, _ = b.gccToolID(BuildToolchain.compiler(), "assembler-with-cpp", true)
 			// Ignore error; different assembler versions
 			// are unlikely to make any difference anyhow.
 			fmt.Fprintf(h, "asm %q\n", id)
@@ -1614,7 +1614,7 @@ func (b *Builder) printLinkerConfig(h io.Writer, p *load.Package) {
 		// Or external linker settings and flags?
 
 	case "gccgo":
-		id, _, err := b.gccToolID(BuildToolchain.linker(), "go")
+		id, _, err := b.gccToolID(BuildToolchain.linker(), "go", true)
 		if err != nil {
 			base.Fatalf("%v", err)
 		}
@@ -2743,7 +2743,7 @@ func (b *Builder) gccCompilerID(compiler string) (id cache.ActionID, ok bool) {
 	// The first one is the compiler executable we invoke.
 	// The second is the underlying compiler as reported by -v -###
 	// (see b.gccToolID implementation in buildid.go).
-	toolID, exe2, err := b.gccToolID(compiler, "c")
+	toolID, exe2, err := b.gccToolID(compiler, "c", false)
 	if err != nil {
 		return cache.ActionID{}, false
 	}
