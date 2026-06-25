@@ -7686,97 +7686,183 @@ func testServerTLSNextProtos(t *testing.T, mode testMode) {
 	}
 }
 
-func TestServerCONNECTSuccess(t *testing.T) {
-	synctest.Test(t, func(t *testing.T) {
-		const code = 200
-		body := []byte("body")
-		srv := &Server{
-			Handler: HandlerFunc(func(w ResponseWriter, req *Request) {
-				w.WriteHeader(code)
-				w.Write(body)
-			}),
-		}
-		l := fakeNetListen()
-		defer l.Close()
-		go srv.Serve(l)
+func TestServerConnectionReuse(t *testing.T) {
+	for _, test := range []struct {
+		name             string
+		message          []string
+		handler          HandlerFunc
+		continueBodySize int
+		want100Continue  bool
+		wantResponse     int
+		wantReused       bool
+		skip             string
+	}{{
+		name: "small body",
+		message: []string{
+			"POST / HTTP/1.1",
+			"Host: example.tld",
+			"Content-Length: 1",
+			"",
+			"x",
+		},
+		wantResponse: 200,
+		wantReused:   true,
+	}, {
+		name: "large body",
+		message: []string{
+			"POST / HTTP/1.1",
+			"Host: example.tld",
+			"Content-Length: 300000", // more than maxPostHandlerReadBytes
+			"",
+			// body is never sent
+		},
+		wantResponse: 200,
+		wantReused:   false,
+	}, {
+		name: "small body full duplex",
+		message: []string{
+			"POST / HTTP/1.1",
+			"Host: example.tld",
+			"Content-Length: 1",
+			"",
+			"x",
+		},
+		handler: func(w ResponseWriter, req *Request) {
+			// Enable full duplex to avoid trying to read the request before
+			// writing the response.
+			NewResponseController(w).EnableFullDuplex()
+		},
+		wantResponse: 200,
+		wantReused:   true,
+	}, {
+		name: "large body full duplex",
+		message: []string{
+			"POST / HTTP/1.1",
+			"Host: example.tld",
+			"Content-Length: 300000", // more than maxPostHandlerReadBytes
+			"",
+			// body is never sent
+		},
+		handler: func(w ResponseWriter, req *Request) {
+			// Enable full duplex to avoid trying to read the request before
+			// writing the response.
+			NewResponseController(w).EnableFullDuplex()
+		},
+		wantResponse: 200,
+		wantReused:   false,
+	}, {
+		// Send a request with a 1-byte body, which the server handler never reads.
+		// We should either send a 100-Continue and read the body
+		// or we should close the connection.
+		//
+		// Right now, the server hangs trying to read the request body
+		// the client isn't sending.
+		skip: "https://go.dev/issue/75933",
 
-		conn := l.connect()
-		defer conn.Close()
-		io.WriteString(conn, "CONNECT backend.example.tld:80 HTTP/1.1\r\nHost: example.tld\r\n\r\n")
+		name: "100-continue unconsumed small body",
+		message: []string{
+			"POST / HTTP/1.1",
+			"Host: example.tld",
+			"Expect: 100-continue",
+			"Content-Length: 1",
+			"",
+			// body is never sent
+		},
+		want100Continue: false,
+		wantResponse:    200,
+		wantReused:      true,
+	}, {
+		name: "100-continue unconsumed large body",
+		message: []string{
+			"POST / HTTP/1.1",
+			"Host: example.tld",
+			"Expect: 100-continue",
+			"Content-Length: 300000", // more than maxPostHandlerReadBytes
+			"",
+			// body is never sent
+		},
+		want100Continue: false,
+		wantResponse:    200,
+		wantReused:      false,
+	}, {
+		name: "100-continue consumed small body",
+		message: []string{
+			"POST / HTTP/1.1",
+			"Host: example.tld",
+			"Expect: 100-continue",
+			"Content-Length: 1",
+			"",
+		},
+		handler: func(w ResponseWriter, req *Request) {
+			io.Copy(io.Discard, req.Body)
+		},
+		want100Continue:  true,
+		continueBodySize: 1,
+		wantResponse:     200,
+		wantReused:       true,
+	}, {
+		name: "small wrapped body",
+		message: []string{
+			"POST / HTTP/1.1",
+			"Host: example.tld",
+			"Content-Length: 1",
+			"",
+			"x",
+		},
+		handler: func(w ResponseWriter, req *Request) {
+			// Enable full duplex to avoid trying to read the request before
+			// writing the response.
+			NewResponseController(w).EnableFullDuplex()
 
-		bufr := bufio.NewReader(conn)
-		synctest.Wait()
-		resp, err := ReadResponse(bufr, nil)
-		if err != nil {
-			t.Fatal(err)
-		}
-		if resp.StatusCode != code {
-			t.Errorf("response status = %v, want %v", resp.StatusCode, code)
-		}
-		if resp.ContentLength != -1 {
-			t.Errorf("Content-Length: %v; want absent", resp.ContentLength)
-		}
-		if len(resp.TransferEncoding) > 0 {
-			t.Errorf("Transfer-Encoding: %q; want absent", resp.TransferEncoding)
-		}
-		for _, h := range []string{"Content-Length", "Transfer-Encoding"} {
-			if got, ok := resp.Header[h]; ok {
-				t.Errorf("response header %q = %q; want absent", h, got)
+			// Middleware wraps the Request.Body in some other type.
+			req.Body = struct{ io.ReadCloser }{req.Body}
+		},
+		wantResponse: 200,
+		wantReused:   true,
+	}, {
+		name: "large wrapped body",
+		message: []string{
+			"POST / HTTP/1.1",
+			"Host: example.tld",
+			"Content-Length: 300000", // more than maxPostHandlerReadBytes
+			"",
+		},
+		handler: func(w ResponseWriter, req *Request) {
+			// Enable full duplex to avoid trying to read the request before
+			// writing the response.
+			NewResponseController(w).EnableFullDuplex()
+
+			// Middleware wraps the Request.Body in some other type.
+			req.Body = struct{ io.ReadCloser }{req.Body}
+		},
+		wantResponse: 200,
+		wantReused:   false,
+	}} {
+		t.Run(test.name, func(t *testing.T) {
+			if test.skip != "" {
+				t.Skip(test.skip)
 			}
-		}
-		got := make([]byte, len(body))
-		if _, err := io.ReadFull(bufr, got); err != nil || !bytes.Equal(got, body) {
-			t.Fatalf("want bytes %q, got %q (err %v)", body, got, err)
-		}
-		if !conn.IsClosedByPeer() {
-			t.Errorf("connection not closed by peer")
-		}
-		if got, err := bufr.Peek(32); len(got) != 0 || err != io.EOF {
-			t.Errorf("read from conn: %q, %v; expect conn to be closed", got, err)
-		}
-	})
-}
-
-func TestServerCONNECTFailure(t *testing.T) {
-	synctest.Test(t, func(t *testing.T) {
-		const code = 409
-		body := []byte("body")
-		srv := &Server{
-			Handler: HandlerFunc(func(w ResponseWriter, req *Request) {
-				w.Header().Set("Content-Length", strconv.Itoa(len(body)))
-				w.WriteHeader(code)
-				w.Write(body)
-			}),
-		}
-		l := fakeNetListen()
-		defer l.Close()
-		go srv.Serve(l)
-
-		conn := l.connect()
-		defer conn.Close()
-		io.WriteString(conn, "CONNECT backend.example.tld:80 HTTP/1.1\r\nHost: example.tld\r\n\r\n")
-
-		bufr := bufio.NewReader(conn)
-		synctest.Wait()
-		resp, err := ReadResponse(bufr, nil)
-		if err != nil {
-			t.Fatal(err)
-		}
-		if resp.StatusCode != code {
-			t.Errorf("response status = %v, want %v", resp.StatusCode, code)
-		}
-		if !resp.Close {
-			t.Errorf("Connection: close not set; want it to be")
-		}
-		got := make([]byte, len(body))
-		if _, err := io.ReadFull(bufr, got); err != nil || !bytes.Equal(got, body) {
-			t.Fatalf("want bytes %q, got %q (err %v)", body, got, err)
-		}
-		if !conn.IsClosedByPeer() {
-			t.Errorf("connection not closed by peer")
-		}
-		if got, err := bufr.Peek(32); len(got) != 0 || err != io.EOF {
-			t.Errorf("read from conn: %q, %v; expect conn to be closed", got, err)
-		}
-	})
+			synctest.Test(t, func(t *testing.T) {
+				st := newHTTP1ServerTest(t, test.handler)
+				conn := st.dial()
+				conn.writeMessage(test.message...)
+				resp := conn.readResponse()
+				if got, want := resp.StatusCode == 100, test.want100Continue; got != want {
+					t.Fatalf("100-Continue response: %v, want %v", got, want)
+				}
+				if resp.StatusCode == 100 {
+					conn.conn.Write(bytes.Repeat([]byte("x"), test.continueBodySize))
+					resp = conn.readResponse()
+				}
+				if got, want := resp.StatusCode, test.wantResponse; got != want {
+					t.Fatalf("got response %v, want %v", got, want)
+				}
+				if test.wantReused {
+					conn.wantIdle()
+				} else {
+					conn.wantClosed()
+				}
+			})
+		})
+	}
 }

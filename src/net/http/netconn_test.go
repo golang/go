@@ -226,6 +226,12 @@ func (c *fakeNetConn) SetReadBufferSize(size int) {
 	c.loc.setReadBufferSize(size)
 }
 
+func (c *fakeNetConn) SetReadError(err error) {
+	c.loc.lock()
+	c.loc.readErr = err
+	c.loc.unlock()
+}
+
 // fakeNetConnHalf is one data flow in the connection created by fakeNetPipe.
 // Each half contains a buffer. Writes to the half push to the buffer, and reads pull from it.
 type fakeNetConnHalf struct {
