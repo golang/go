@@ -838,6 +838,9 @@ type body struct {
 var ErrBodyReadAfterClose = errors.New("http: invalid Read on closed Body")
 
 func (b *body) Read(p []byte) (n int, err error) {
+	if b == nil {
+		return 0, io.EOF
+	}
 	b.mu.Lock()
 	defer b.mu.Unlock()
 	if b.closed {
@@ -978,6 +981,9 @@ func (b *body) unreadDataSizeLocked() int64 {
 }
 
 func (b *body) Close() error {
+	if b == nil {
+		return nil
+	}
 	b.mu.Lock()
 	defer b.mu.Unlock()
 	if b.closed {
@@ -1001,12 +1007,11 @@ func (b *body) Close() error {
 			var n int64
 			// Consume the body, or, which will also lead to us reading
 			// the trailer headers after the body, if present.
-			n, err = io.CopyN(io.Discard, bodyLocked{b}, maxPostHandlerReadBytes)
-			if err == io.EOF {
-				err = nil
-			}
-			if n == maxPostHandlerReadBytes {
-				b.earlyClose = true
+			n, err = io.CopyN(io.Discard, bodyLocked{b}, maxPostHandlerReadBytes+1)
+			b.earlyClose = true
+			if err == io.EOF && n <= maxPostHandlerReadBytes {
+				b.earlyClose = false
+				b.sawEOF = true
 			}
 		}
 	default:
@@ -1027,12 +1032,18 @@ func (b *body) didEarlyClose() bool {
 // bodyRemains reports whether future Read calls might
 // yield data.
 func (b *body) bodyRemains() bool {
+	if b == nil {
+		return false
+	}
 	b.mu.Lock()
 	defer b.mu.Unlock()
 	return !b.sawEOF
 }
 
 func (b *body) registerOnHitEOF(fn func()) {
+	if b == nil {
+		return
+	}
 	b.mu.Lock()
 	defer b.mu.Unlock()
 	b.onHitEOF = fn
