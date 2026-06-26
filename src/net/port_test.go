@@ -30,6 +30,7 @@ var parsePortTests = []struct {
 	{"1073741823", 1<<30 - 1, false},
 	{"1073741824", 1<<30 - 1, false},
 	{"1073741825", 1<<30 - 1, false},
+	{"4294985376", 1<<30 - 1, false},
 
 	// Others
 	{"abc", 0, true},
