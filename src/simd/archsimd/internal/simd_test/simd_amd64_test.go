@@ -1350,3 +1350,218 @@ func TestSaturateConcat(t *testing.T) {
 		})
 	}
 }
+
+func testMaskOr8x64(t *testing.T) {
+	if !archsimd.X86.AVX512() {
+		return // compiler needs to see check+return to ensure mask register use
+	}
+	s := make([]int8, 64)
+	want := []int8{-1, 0, 0, 0, 0, 0, 0, 0, -1, 0, 0, 0, -1, 0, 0, 0,
+		-1, 0, 0, 0, 0, 0, 0, 0, -1, 0, 0, 0, 0, -1, 0, 0,
+		-1, 0, 0, 0, 0, 0, 0, 0, -1, 0, 0, 0, 0, 0, -1, 0,
+		-1, 0, 0, 0, 0, 0, 0, 0, -1, 0, 0, 0, 0, 0, 0, -1}
+	var a archsimd.Int8x64
+	b := archsimd.LoadInt8x64(want)
+	m1 := a.Less(a)
+	m2 := b.Less(a)
+	m3 := m1.Or(m2)
+	c := m3.ToInt8x64()
+	c.Store(s)
+	checkSlices(t, s, want)
+}
+
+func testMaskOr16x32(t *testing.T) {
+	if !archsimd.X86.AVX512() {
+		return // compiler needs to see check+return to ensure mask register use
+	}
+	s := make([]int16, 32)
+	want := []int16{-1, 0, 0, 0, 0, 0, 0, 0, -1, 0, 0, 0, 0, 0, -1, 0,
+		-1, 0, 0, 0, 0, 0, 0, 0, -1, 0, 0, 0, 0, 0, 0, -1}
+	var a archsimd.Int16x32
+	b := archsimd.LoadInt16x32(want)
+	m1 := a.Less(a)
+	m2 := b.Less(a)
+	m3 := m1.Or(m2)
+	c := m3.ToInt16x32()
+	c.Store(s)
+	checkSlices(t, s, want)
+}
+
+func testMaskOr32x16(t *testing.T) {
+	if !archsimd.X86.AVX512() {
+		return // compiler needs to see check+return to ensure mask register use
+	}
+	s := make([]int32, 16)
+	want := []int32{-1, 0, 0, 0, 0, 0, 0, 0, -1, 0, 0, 0, 0, 0, 0, -1}
+	var a archsimd.Int32x16
+	b := archsimd.LoadInt32x16(want)
+	m1 := a.Less(a)
+	m2 := b.Less(a)
+	m3 := m1.Or(m2)
+	c := m3.ToInt32x16()
+	c.Store(s)
+	checkSlices(t, s, want)
+}
+
+func testMaskOr64x8(t *testing.T) {
+	if !archsimd.X86.AVX512() {
+		return // compiler needs to see check+return to ensure mask register use
+	}
+	s := make([]int64, 8)
+	want := []int64{-1, 0, 0, 0, 0, 0, -1, -1}
+	var a archsimd.Int64x8
+	b := archsimd.LoadInt64x8(want)
+	m1 := a.Less(a)
+	m2 := b.Less(a)
+	m3 := m1.Or(m2)
+	c := m3.ToInt64x8()
+	c.Store(s)
+	checkSlices(t, s, want)
+}
+
+func testMaskOr8x32(t *testing.T) {
+	if !archsimd.X86.AVX512() {
+		return // compiler needs to see check+return to ensure mask register use
+	}
+	s := make([]int8, 32)
+	want := []int8{-1, 0, 0, 0, 0, 0, 0, 0, -1, 0, 0, 0, 0, 0, -1, 0,
+		-1, 0, 0, 0, 0, 0, 0, 0, -1, 0, 0, 0, 0, 0, 0, -1}
+	var a archsimd.Int8x32
+	b := archsimd.LoadInt8x32(want)
+	m1 := a.Less(a)
+	m2 := b.Less(a)
+	m3 := m1.Or(m2)
+	c := m3.ToInt8x32()
+	c.Store(s)
+	checkSlices(t, s, want)
+}
+
+func testMaskOr16x16(t *testing.T) {
+	if !archsimd.X86.AVX512() {
+		return // compiler needs to see check+return to ensure mask register use
+	}
+	s := make([]int16, 16)
+	want := []int16{-1, 0, 0, 0, 0, 0, 0, 0, -1, 0, 0, 0, 0, 0, -1, -1}
+	var a archsimd.Int16x16
+	b := archsimd.LoadInt16x16(want)
+	m1 := a.Less(a)
+	m2 := b.Less(a)
+	m3 := m1.Or(m2)
+	c := m3.ToInt16x16()
+	c.Store(s)
+	checkSlices(t, s, want)
+}
+
+func testMaskOr32x8(t *testing.T) {
+	if !archsimd.X86.AVX512() {
+		return // compiler needs to see check+return to ensure mask register use
+	}
+	s := make([]int32, 8)
+	want := []int32{-1, 0, 0, 0, 0, 0, -1, -1}
+	var a archsimd.Int32x8
+	b := archsimd.LoadInt32x8(want)
+	m1 := a.Less(a)
+	m2 := b.Less(a)
+	m3 := m1.Or(m2)
+	c := m3.ToInt32x8()
+	c.Store(s)
+	checkSlices(t, s, want)
+}
+
+func testMaskOr64x4(t *testing.T) {
+	if !archsimd.X86.AVX512() {
+		return // compiler needs to see check+return to ensure mask register use
+	}
+	s := make([]int64, 4)
+	want := []int64{-1, 0, 0, -1}
+	var a archsimd.Int64x4
+	b := archsimd.LoadInt64x4(want)
+	m1 := a.Less(a)
+	m2 := b.Less(a)
+	m3 := m1.Or(m2)
+	c := m3.ToInt64x4()
+	c.Store(s)
+	checkSlices(t, s, want)
+}
+
+func testMaskOr8x16(t *testing.T) {
+	if !archsimd.X86.AVX512() {
+		return // compiler needs to see check+return to ensure mask register use
+	}
+	s := make([]int8, 16)
+	want := []int8{-1, 0, 0, 0, 0, 0, 0, 0, -1, 0, 0, 0, 0, 0, -1, -1}
+	var a archsimd.Int8x16
+	b := archsimd.LoadInt8x16(want)
+	m1 := a.Less(a)
+	m2 := b.Less(a)
+	m3 := m1.Or(m2)
+	c := m3.ToInt8x16()
+	c.Store(s)
+	checkSlices(t, s, want)
+}
+
+func testMaskOr16x8(t *testing.T) {
+	if !archsimd.X86.AVX512() {
+		return // compiler needs to see check+return to ensure mask register use
+	}
+	s := make([]int16, 8)
+	want := []int16{-1, 0, 0, 0, 0, 0, -1, -1}
+	var a archsimd.Int16x8
+	b := archsimd.LoadInt16x8(want)
+	m1 := a.Less(a)
+	m2 := b.Less(a)
+	m3 := m1.Or(m2)
+	c := m3.ToInt16x8()
+	c.Store(s)
+	checkSlices(t, s, want)
+}
+
+func testMaskOr32x4(t *testing.T) {
+	if !archsimd.X86.AVX512() {
+		return // compiler needs to see check+return to ensure mask register use
+	}
+	s := make([]int32, 4)
+	want := []int32{-1, 0, 0, -1}
+	var a archsimd.Int32x4
+	b := archsimd.LoadInt32x4(want)
+	m1 := a.Less(a)
+	m2 := b.Less(a)
+	m3 := m1.Or(m2)
+	c := m3.ToInt32x4()
+	c.Store(s)
+	checkSlices(t, s, want)
+}
+
+func testMaskOr64x2(t *testing.T) {
+	if !archsimd.X86.AVX512() {
+		return // compiler needs to see check+return to ensure mask register use
+	}
+	s := make([]int64, 2)
+	want := []int64{-1, 0}
+	var a archsimd.Int64x2
+	b := archsimd.LoadInt64x2(want)
+	m1 := a.Less(a)
+	m2 := b.Less(a)
+	m3 := m1.Or(m2)
+	c := m3.ToInt64x2()
+	c.Store(s)
+	checkSlices(t, s, want)
+}
+
+func TestMaskOr(t *testing.T) {
+	if !archsimd.X86.AVX512() {
+		t.Skip("Test requires X86.AVX512, not available on this hardware")
+	}
+	testMaskOr8x64(t)
+	testMaskOr16x32(t)
+	testMaskOr32x16(t)
+	testMaskOr64x8(t)
+	testMaskOr8x32(t)
+	testMaskOr16x16(t)
+	testMaskOr32x8(t)
+	testMaskOr64x4(t)
+	testMaskOr8x16(t)
+	testMaskOr16x8(t)
+	testMaskOr32x4(t)
+	testMaskOr64x2(t)
+}
