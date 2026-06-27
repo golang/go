@@ -43,7 +43,7 @@ func initWasmSIMD() {
 	makeSimdOp1Imm8 := func(op ssa.Op, immLimit uint64) func(s *state, n *ir.CallExpr, args []*ssa.Value) *ssa.Value {
 		return func(s *state, n *ir.CallExpr, args []*ssa.Value) *ssa.Value {
 			t := n.Type()
-			if args[1].Op == ssa.OpConst8 {
+			if args[1].Op == ssa.OpConst8 && uint64(args[1].AuxInt) < immLimit {
 				return s.newValue1I(op, t, args[1].AuxInt, args[0])
 			}
 			return immJumpTableN(s, args[1], n, immLimit, func(sNew *state, idx int) {
@@ -56,7 +56,7 @@ func initWasmSIMD() {
 	makeSimdOp2Imm8 := func(op ssa.Op, immLimit uint64) func(s *state, n *ir.CallExpr, args []*ssa.Value) *ssa.Value {
 		return func(s *state, n *ir.CallExpr, args []*ssa.Value) *ssa.Value {
 			t := types.TypeVec128
-			if args[1].Op == ssa.OpConst8 {
+			if args[1].Op == ssa.OpConst8 && uint64(args[1].AuxInt) < immLimit {
 				return s.newValue2I(op, t, args[1].AuxInt, args[0], args[2])
 			}
 			return immJumpTableN(s, args[1], n, immLimit, func(sNew *state, idx int) {

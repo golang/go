@@ -13,7 +13,11 @@ import (
 func (f *File) lstatatNolog(name string) (FileInfo, error) {
 	var fs fileStat
 	if err := f.pfd.Fstatat(name, &fs.sys, unix.AT_SYMLINK_NOFOLLOW); err != nil {
-		return nil, f.wrapErr("fstatat", err)
+		err = f.wrapErr("fstatat", err)
+		if pe, ok := err.(*PathError); ok {
+			pe.Path = pe.Path + string(PathSeparator) + name
+		}
+		return nil, err
 	}
 	fillFileStatFromSys(&fs, name)
 	return &fs, nil
