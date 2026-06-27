@@ -3928,15 +3928,15 @@ func (x Mask8x64) String() string {
 	return (archsimd.Mask8x64(x)).String()
 }
 
-func (x Mask8x16) ToInt8x16() Int8x16 {
+func (x Mask8x16) ToInt8s() Int8x16 {
 	return Int8x16((archsimd.Mask8x16(x)).ToInt8x16())
 }
 
-func (x Mask8x32) ToInt8x32() Int8x32 {
+func (x Mask8x32) ToInt8s() Int8x32 {
 	return Int8x32((archsimd.Mask8x32(x)).ToInt8x32())
 }
 
-func (x Mask8x64) ToInt8x64() Int8x64 {
+func (x Mask8x64) ToInt8s() Int8x64 {
 	return Int8x64((archsimd.Mask8x64(x)).ToInt8x64())
 }
 
@@ -3976,15 +3976,15 @@ func (x Mask16x8) String() string {
 	return (archsimd.Mask16x8(x)).String()
 }
 
-func (x Mask16x16) ToInt16x16() Int16x16 {
+func (x Mask16x16) ToInt16s() Int16x16 {
 	return Int16x16((archsimd.Mask16x16(x)).ToInt16x16())
 }
 
-func (x Mask16x32) ToInt16x32() Int16x32 {
+func (x Mask16x32) ToInt16s() Int16x32 {
 	return Int16x32((archsimd.Mask16x32(x)).ToInt16x32())
 }
 
-func (x Mask16x8) ToInt16x8() Int16x8 {
+func (x Mask16x8) ToInt16s() Int16x8 {
 	return Int16x8((archsimd.Mask16x8(x)).ToInt16x8())
 }
 
@@ -4024,15 +4024,15 @@ func (x Mask32x8) String() string {
 	return (archsimd.Mask32x8(x)).String()
 }
 
-func (x Mask32x16) ToInt32x16() Int32x16 {
+func (x Mask32x16) ToInt32s() Int32x16 {
 	return Int32x16((archsimd.Mask32x16(x)).ToInt32x16())
 }
 
-func (x Mask32x4) ToInt32x4() Int32x4 {
+func (x Mask32x4) ToInt32s() Int32x4 {
 	return Int32x4((archsimd.Mask32x4(x)).ToInt32x4())
 }
 
-func (x Mask32x8) ToInt32x8() Int32x8 {
+func (x Mask32x8) ToInt32s() Int32x8 {
 	return Int32x8((archsimd.Mask32x8(x)).ToInt32x8())
 }
 
@@ -4072,14 +4072,14 @@ func (x Mask64x8) String() string {
 	return (archsimd.Mask64x8(x)).String()
 }
 
-func (x Mask64x2) ToInt64x2() Int64x2 {
+func (x Mask64x2) ToInt64s() Int64x2 {
 	return Int64x2((archsimd.Mask64x2(x)).ToInt64x2())
 }
 
-func (x Mask64x4) ToInt64x4() Int64x4 {
+func (x Mask64x4) ToInt64s() Int64x4 {
 	return Int64x4((archsimd.Mask64x4(x)).ToInt64x4())
 }
 
-func (x Mask64x8) ToInt64x8() Int64x8 {
+func (x Mask64x8) ToInt64s() Int64x8 {
 	return Int64x8((archsimd.Mask64x8(x)).ToInt64x8())
 }

@@ -8,6 +8,7 @@ package simd_test
 
 import (
 	"simd"
+	"slices"
 	"testing"
 )
 
@@ -445,4 +446,14 @@ func TestBroadcast(t *testing.T) {
 
 	testBroadcast(t, float32(99991111), simd.BroadcastFloat32s)
 	testBroadcast(t, float64(112233445599887766), simd.BroadcastFloat64s)
+}
+
+func TestMaskToInt(t *testing.T) {
+	topBits := simd.BroadcastUint8s(0x80)
+	got := make([]int8, topBits.Len())
+	topBits.Equal(topBits).ToInt8s().Store(got)
+	want := slices.Repeat([]int8{-1}, topBits.Len())
+	if !slices.Equal(want, got) {
+		t.Errorf("Wanted %v, got %v", want, got)
+	}
 }
