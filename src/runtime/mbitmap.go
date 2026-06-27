@@ -625,32 +625,29 @@ func (span *mspan) writeHeapBitsSmall(x, dataSize uintptr, typ *_type) (scanSize
 	// The objects here are always really small, so a single load is sufficient.
 	src0 := readUintptr(getGCMask(typ))
 
+	// When ASAN is enabled, a redzone is appended to the data, and the redzone would affect
+    // bitmap calculation by being incorrectly marked as pointers.
+    originDataSize := dataSize
+    if asanenabled {
+        dataSize = actualSize(originDataSize)
+    }
 	// Create repetitions of the bitmap if we have a small slice backing store.
 	src := src0
 	if typ.Size_ == goarch.PtrSize {
-		size := dataSize
-        if asanenabled {
-            size = actualSize(dataSize)
-        }
-        src = (1 << (size / goarch.PtrSize)) - 1
+        src = (1 << (dataSize / goarch.PtrSize)) - 1
 		// This object is all pointers, so scanSize is just dataSize.
-		scanSize = size
+		scanSize = dataSize
 	} else {
 		// N.B. We rely on dataSize being an exact multiple of the type size.
 		// The alternative is to be defensive and mask out src to the length
 		// of dataSize. The purpose is to save on one additional masking operation.
-		if doubleCheckHeapSetType && !asanenabled && dataSize%typ.Size_ != 0 {
+		if doubleCheckHeapSetType && dataSize%typ.Size_ != 0 {
 			throw("runtime: (*mspan).writeHeapBitsSmall: dataSize is not a multiple of typ.Size_")
 		}
 		scanSize = typ.PtrBytes
 		for i := typ.Size_; i < dataSize; i += typ.Size_ {
 			src |= src0 << (i / goarch.PtrSize)
 			scanSize += typ.Size_
-		}
-		if asanenabled {
-			// Mask src down to dataSize. dataSize is going to be a strange size because of
-			// the redzone required for allocations when asan is enabled.
-			src &= (1 << (dataSize / goarch.PtrSize)) - 1
 		}
 	}
 
@@ -814,7 +811,7 @@ func doubleCheckHeapType(x, dataSize uintptr, gctyp *_type, header **_type, span
 	maxIterBytes := span.elemsize
 	if header == nil {
 		maxIterBytes = dataSize
-		if asanenabled && gctyp.Size_ == goarch.PtrSize {
+		if asanenabled {
             maxIterBytes = actualSize(dataSize)
         }
 	}
@@ -843,7 +840,7 @@ func doubleCheckHeapPointers(x, dataSize uintptr, typ *_type, header **_type, sp
 	maxIterBytes := span.elemsize
 	if header == nil {
 		maxIterBytes = dataSize
-		if asanenabled && gctyp.Size_ == goarch.PtrSize {
+		if asanenabled {
             maxIterBytes = actualSize(dataSize)
         }
 	}
