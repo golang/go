@@ -2483,3 +2483,29 @@ func redZoneSize(userSize uintptr) uintptr {
 		return 16 << 7
 	}
 }
+
+// actualSize computes the user allocation size from the total size including redzone.
+// Refer to the implementation of the compiler-rt.
+func actualSize(allocSize uintptr) uintptr {
+    if !asanenabled{
+           return allocSize
+    }
+    switch {
+    case allocSize > (1<<16) - 1024 + 16<<6:
+        return allocSize - 16<<7
+    case allocSize > (1<<15) - 512 + 16<<5:
+        return allocSize - 16<<6
+    case allocSize > (1<<14) - 256 + 16<<4:
+        return allocSize - 16<<5
+    case allocSize > 4096 - 128 + 16<<3:
+        return allocSize - 16<<4
+    case allocSize > 512 - 64 + 16<<2:
+        return allocSize - 16<<3
+    case allocSize > 128 - 32 + 16<<1:
+        return allocSize - 16<<2
+    case allocSize > 64 - 16 + 16<<0:
+        return allocSize - 16<<1
+    default:
+        return allocSize - 16<<0
+    }
+}
