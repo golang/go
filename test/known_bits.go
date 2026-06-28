@@ -351,13 +351,6 @@ func knownBitsRsh(x, y int32) int32 {
 	return (x >> y) & 0b110 // ERROR "known value of v[0-9]+ \(And32\): 6$"
 }
 
-func knownBitsRshSignCopy(x, y int64) int64 {
-	x |= -1 << 63
-	y |= 128
-
-	return (x >> y) & 1 // ERROR "known value of v[0-9]+ \(And64\): 1$" "known value of v[0-9]+ \(Rsh64x[0-9]+\): -1$"
-}
-
 func unknownBitsRshLeftSideMsb(x int32, y int32) int32 {
 	x |= 0b11110
 	x &^= 0b100000

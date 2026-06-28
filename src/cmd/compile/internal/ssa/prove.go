@@ -106,13 +106,7 @@ func InitLimit(v *Value) Limit {
 		lim = lim.signedMin(0)
 	}
 
-	// signed <-> unsigned propagation
-	if lim.Min >= 0 {
-		lim = lim.UnsignedMinMax(uint64(lim.Min), uint64(lim.Max))
-	}
-	if FitsInBitsU(lim.Umax, uint(8*v.Type.Size()-1)) {
-		lim = lim.SignedMinMax(int64(lim.Umin), int64(lim.Umax))
-	}
+	lim = lim.PropagateUnsignedSignedRelationship(uint(v.Type.Size()) * 8)
 
 	return lim
 }
@@ -230,6 +224,28 @@ func safeAddU(x, y uint64, b uint) (uint64, bool) {
 		return 0, false
 	}
 	return s, true
+}
+
+func (l Limit) PropagateUnsignedSignedRelationship(bitsize uint) Limit {
+	if l.Unsat() {
+		return l
+	}
+	if signWithBitsize(l.Min, bitsize) == signWithBitsize(l.Max, bitsize) {
+		l = l.UnsignedMinMax(ConvertIntWithBitsize[uint64](l.Min, bitsize), ConvertIntWithBitsize[uint64](l.Max, bitsize))
+	}
+
+	sumin, sumax := ConvertIntWithBitsize[int64](l.Umin, bitsize), ConvertIntWithBitsize[int64](l.Umax, bitsize)
+	if signWithBitsize(sumin, bitsize) == signWithBitsize(sumax, bitsize) {
+		l = l.SignedMinMax(sumin, sumax)
+	}
+
+	return l
+}
+
+// signWithBitsize returns -1 for negative numbers, 0 otherwise,
+// interpreting x as an int of size bitsize.
+func signWithBitsize(x int64, bitsize uint) int64 {
+	return (x << (64 - bitsize)) >> 63
 }
 
 func (l Limit) String() string {

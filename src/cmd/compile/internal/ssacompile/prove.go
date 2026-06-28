@@ -297,13 +297,7 @@ func (ft *factsTable) newLimit(v *ssa.Value, newLim ssa.Limit) {
 	// Merge old and new information.
 	lim := oldLim.Intersect(newLim)
 
-	// signed <-> unsigned propagation
-	if lim.Min >= 0 {
-		lim = lim.UnsignedMinMax(uint64(lim.Min), uint64(lim.Max))
-	}
-	if ssa.FitsInBitsU(lim.Umax, uint(8*v.Type.Size()-1)) {
-		lim = lim.SignedMinMax(int64(lim.Umin), int64(lim.Umax))
-	}
+	lim = lim.PropagateUnsignedSignedRelationship(uint(v.Type.Size()) * 8)
 
 	if lim == oldLim {
 		return // nothing new to record
