@@ -259,18 +259,32 @@ func noLimitForBitsize(bitsize uint) limit {
 }
 
 func convertIntWithBitsize[Target uint64 | int64, Source uint64 | int64](x Source, bitsize uint) Target {
-	switch bitsize {
-	case 64:
-		return Target(x)
-	case 32:
-		return Target(int32(x))
-	case 16:
-		return Target(int16(x))
-	case 8:
-		return Target(int8(x))
-	default:
-		panic("unreachable")
+	if Target(0)-1 < 0 {
+		// Signed target: sign-extend the low bitsize bits.
+		switch bitsize {
+		case 64:
+			return Target(int64(x))
+		case 32:
+			return Target(int32(x))
+		case 16:
+			return Target(int16(x))
+		case 8:
+			return Target(int8(x))
+		}
+	} else {
+		// Unsigned target: zero-extend the low bitsize bits.
+		switch bitsize {
+		case 64:
+			return Target(uint64(x))
+		case 32:
+			return Target(uint32(x))
+		case 16:
+			return Target(uint16(x))
+		case 8:
+			return Target(uint8(x))
+		}
 	}
+	panic("unreachable")
 }
 
 // unsignedFixedLeadingBits extracts the all the most significant fixed bits from the limit.
