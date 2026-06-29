@@ -102,8 +102,6 @@ func (e *Encoder) Reset(w io.Writer, opts ...Options) {
 	switch {
 	case e == nil:
 		panic("jsontext: invalid nil Encoder")
-	case w == nil:
-		panic("jsontext: invalid nil io.Writer")
 	case e.s.Flags.Get(jsonflags.WithinArshalCall):
 		panic("jsontext: cannot reset Encoder passed to json.MarshalerTo")
 	}
