@@ -1207,16 +1207,7 @@ func TestClMul(t *testing.T) {
 
 }
 
-func addPairsSlice[T number](a, b []T) []T {
-	r := make([]T, len(a))
-	for i := range len(a) / 2 {
-		r[i] = a[2*i] + a[2*i+1]
-		r[i+len(a)/2] = b[2*i] + b[2*i+1]
-	}
-	return r
-}
-
-func subPairsSlice[T number](a, b []T) []T {
+func concatSubPairsSlice[T number](a, b []T) []T {
 	r := make([]T, len(a))
 	for i := range len(a) / 2 {
 		r[i] = a[2*i] - a[2*i+1]
@@ -1229,7 +1220,7 @@ func addPairsGroupedSlice[T number](a, b []T) []T {
 	group := int(128 / unsafe.Sizeof(a[0]))
 	r := make([]T, 0, len(a))
 	for i := range len(a) / group {
-		r = append(r, addPairsSlice(a[i*group:(i+1)*group], b[i*group:(i+1)*group])...)
+		r = append(r, concatAddPairsSlice(a[i*group:(i+1)*group], b[i*group:(i+1)*group])...)
 	}
 	return r
 }
@@ -1238,24 +1229,24 @@ func subPairsGroupedSlice[T number](a, b []T) []T {
 	group := int(128 / unsafe.Sizeof(a[0]))
 	r := make([]T, 0, len(a))
 	for i := range len(a) / group {
-		r = append(r, subPairsSlice(a[i*group:(i+1)*group], b[i*group:(i+1)*group])...)
+		r = append(r, concatSubPairsSlice(a[i*group:(i+1)*group], b[i*group:(i+1)*group])...)
 	}
 	return r
 }
 
 func TestAddSubPairs(t *testing.T) {
-	testInt16x8Binary(t, archsimd.Int16x8.ConcatAddPairs, addPairsSlice[int16])
-	testInt16x8Binary(t, archsimd.Int16x8.ConcatSubPairs, subPairsSlice[int16])
-	testUint16x8Binary(t, archsimd.Uint16x8.ConcatAddPairs, addPairsSlice[uint16])
-	testUint16x8Binary(t, archsimd.Uint16x8.ConcatSubPairs, subPairsSlice[uint16])
-	testInt32x4Binary(t, archsimd.Int32x4.ConcatAddPairs, addPairsSlice[int32])
-	testInt32x4Binary(t, archsimd.Int32x4.ConcatSubPairs, subPairsSlice[int32])
-	testUint32x4Binary(t, archsimd.Uint32x4.ConcatAddPairs, addPairsSlice[uint32])
-	testUint32x4Binary(t, archsimd.Uint32x4.ConcatSubPairs, subPairsSlice[uint32])
-	testFloat32x4Binary(t, archsimd.Float32x4.ConcatAddPairs, addPairsSlice[float32])
-	testFloat32x4Binary(t, archsimd.Float32x4.ConcatSubPairs, subPairsSlice[float32])
-	testFloat64x2Binary(t, archsimd.Float64x2.ConcatAddPairs, addPairsSlice[float64])
-	testFloat64x2Binary(t, archsimd.Float64x2.ConcatSubPairs, subPairsSlice[float64])
+	testInt16x8Binary(t, archsimd.Int16x8.ConcatAddPairs, concatAddPairsSlice[int16])
+	testInt16x8Binary(t, archsimd.Int16x8.ConcatSubPairs, concatSubPairsSlice[int16])
+	testUint16x8Binary(t, archsimd.Uint16x8.ConcatAddPairs, concatAddPairsSlice[uint16])
+	testUint16x8Binary(t, archsimd.Uint16x8.ConcatSubPairs, concatSubPairsSlice[uint16])
+	testInt32x4Binary(t, archsimd.Int32x4.ConcatAddPairs, concatAddPairsSlice[int32])
+	testInt32x4Binary(t, archsimd.Int32x4.ConcatSubPairs, concatSubPairsSlice[int32])
+	testUint32x4Binary(t, archsimd.Uint32x4.ConcatAddPairs, concatAddPairsSlice[uint32])
+	testUint32x4Binary(t, archsimd.Uint32x4.ConcatSubPairs, concatSubPairsSlice[uint32])
+	testFloat32x4Binary(t, archsimd.Float32x4.ConcatAddPairs, concatAddPairsSlice[float32])
+	testFloat32x4Binary(t, archsimd.Float32x4.ConcatSubPairs, concatSubPairsSlice[float32])
+	testFloat64x2Binary(t, archsimd.Float64x2.ConcatAddPairs, concatAddPairsSlice[float64])
+	testFloat64x2Binary(t, archsimd.Float64x2.ConcatSubPairs, concatSubPairsSlice[float64])
 
 	// Grouped versions
 	if archsimd.X86.AVX2() {

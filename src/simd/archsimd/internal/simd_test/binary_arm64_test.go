@@ -33,6 +33,21 @@ func TestConcatOdd(t *testing.T) {
 	testUint64x2Binary(t, archsimd.Uint64x2.ConcatOdd, deinterleaveSlice[uint64](128, true))
 }
 
+func TestConcatAddPairs(t *testing.T) {
+	testFloat32x4Binary(t, archsimd.Float32x4.ConcatAddPairs, concatAddPairsSlice[float32])
+	testFloat64x2Binary(t, archsimd.Float64x2.ConcatAddPairs, concatAddPairsSlice[float64])
+
+	testInt8x16Binary(t, archsimd.Int8x16.ConcatAddPairs, concatAddPairsSlice[int8])
+	testInt16x8Binary(t, archsimd.Int16x8.ConcatAddPairs, concatAddPairsSlice[int16])
+	testInt32x4Binary(t, archsimd.Int32x4.ConcatAddPairs, concatAddPairsSlice[int32])
+	testInt64x2Binary(t, archsimd.Int64x2.ConcatAddPairs, concatAddPairsSlice[int64])
+
+	testUint8x16Binary(t, archsimd.Uint8x16.ConcatAddPairs, concatAddPairsSlice[uint8])
+	testUint16x8Binary(t, archsimd.Uint16x8.ConcatAddPairs, concatAddPairsSlice[uint16])
+	testUint32x4Binary(t, archsimd.Uint32x4.ConcatAddPairs, concatAddPairsSlice[uint32])
+	testUint64x2Binary(t, archsimd.Uint64x2.ConcatAddPairs, concatAddPairsSlice[uint64])
+}
+
 func TestInterleaveEven(t *testing.T) {
 	testInt8x16Binary(t, archsimd.Int8x16.InterleaveEven, transposeSlice[int8](128, false))
 	testInt16x8Binary(t, archsimd.Int16x8.InterleaveEven, transposeSlice[int16](128, false))

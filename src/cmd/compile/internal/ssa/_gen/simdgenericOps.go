@@ -195,11 +195,13 @@ func simdGenericOps() []opData {
 		{name: "ConcatAddPairsGroupedInt32x8", argLength: 2},                            // ARCH:amd64
 		{name: "ConcatAddPairsGroupedUint16x16", argLength: 2},                          // ARCH:amd64
 		{name: "ConcatAddPairsGroupedUint32x8", argLength: 2},                           // ARCH:amd64
+		{name: "ConcatAddPairsInt8x16", argLength: 2},                                   // ARCH:arm64
 		{name: "ConcatAddPairsInt16x8", argLength: 2},                                   // ARCH:amd64,arm64
 		{name: "ConcatAddPairsInt32x4", argLength: 2},                                   // ARCH:amd64,arm64
 		{name: "ConcatAddPairsInt64x2", argLength: 2},                                   // ARCH:arm64
 		{name: "ConcatAddPairsSaturatedGroupedInt16x16", argLength: 2},                  // ARCH:amd64
 		{name: "ConcatAddPairsSaturatedInt16x8", argLength: 2},                          // ARCH:amd64
+		{name: "ConcatAddPairsUint8x16", argLength: 2},                                  // ARCH:arm64
 		{name: "ConcatAddPairsUint16x8", argLength: 2},                                  // ARCH:amd64,arm64
 		{name: "ConcatAddPairsUint32x4", argLength: 2},                                  // ARCH:amd64,arm64
 		{name: "ConcatAddPairsUint64x2", argLength: 2},                                  // ARCH:arm64

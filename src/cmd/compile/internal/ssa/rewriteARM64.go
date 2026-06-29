@@ -857,6 +857,9 @@ func rewriteValueARM64(v *Value) bool {
 	case OpConcatAddPairsInt64x2:
 		v.Op = OpARM64VADDP2D
 		return true
+	case OpConcatAddPairsInt8x16:
+		v.Op = OpARM64VADDP16B
+		return true
 	case OpConcatAddPairsUint16x8:
 		v.Op = OpARM64VADDP8H
 		return true
@@ -865,6 +868,9 @@ func rewriteValueARM64(v *Value) bool {
 		return true
 	case OpConcatAddPairsUint64x2:
 		v.Op = OpARM64VADDP2D
+		return true
+	case OpConcatAddPairsUint8x16:
+		v.Op = OpARM64VADDP16B
 		return true
 	case OpConcatEvenInt16x8:
 		v.Op = OpARM64VUZP18H
