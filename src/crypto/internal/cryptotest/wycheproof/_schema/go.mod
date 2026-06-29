@@ -15,3 +15,5 @@ require (
 	github.com/sanity-io/litter v1.5.8 // indirect
 	github.com/sosodev/duration v1.4.0 // indirect
 )
+
+replace github.com/atombender/go-jsonschema => github.com/filippo-claude/go-jsonschema v0.23.2-0.20260625215234-f867483bec31
