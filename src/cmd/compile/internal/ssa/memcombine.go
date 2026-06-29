@@ -13,20 +13,21 @@ import (
 )
 
 // memcombine combines smaller loads and stores into larger ones.
-// We ensure this generates good code for encoding/binary operations.
-// It may help other cases also.
+// This produces good code for encoding/binary operations and may help other
+// cases too. On architectures that do not allow unaligned accesses, the pass
+// uses pointer alignment facts to avoid introducing unaligned wider operations.
 func memcombine(f *Func) {
-	// This optimization requires that the architecture has
-	// unaligned loads and unaligned stores.
+	var ptrAlignments []int8
 	if !f.Config.unalignedOK {
-		return
+		ptrAlignments = f.Cache.allocInt8Slice(f.NumValues())
+		defer f.Cache.freeInt8Slice(ptrAlignments)
+		computePtrAlignments(f, ptrAlignments)
 	}
-
-	memcombineLoads(f)
-	memcombineStores(f)
+	memcombineLoads(f, ptrAlignments)
+	memcombineStores(f, ptrAlignments)
 }
 
-func memcombineLoads(f *Func) {
+func memcombineLoads(f *Func, ptrAlignments []int8) {
 	// Find "OR trees" to start with.
 	mark := f.newSparseSet(f.NumValues())
 	defer f.retSparseSet(mark)
@@ -77,7 +78,7 @@ func memcombineLoads(f *Func) {
 				continue
 			}
 			for n := max; n > 1; n /= 2 {
-				if combineLoads(v, n) {
+				if combineLoads(v, n, ptrAlignments) {
 					break
 				}
 			}
@@ -195,7 +196,90 @@ func splitPtr(ptr *Value) (BaseAddress, int64) {
 	return BaseAddress{ptr: ptr, idx: idx}, off
 }
 
-func combineLoads(root *Value, n int64) bool {
+// computePtrAlignments computes pointer alignment facts from typed base pointers
+// and constant offsets.
+func computePtrAlignments(f *Func, ptrAlignments []int8) {
+	for _, b := range slices.Backward(f.postorder()) {
+		for _, v := range b.Values {
+			ptrAlignments[v.ID] = int8(valuePtrAlignment(v, ptrAlignments))
+		}
+	}
+}
+
+// ptrAlignment only reads already-computed facts. Zero/not-yet-known means
+// alignment 1, avoiding recursive Phi/cycle walks.
+func ptrAlignment(ptr *Value, ptrAlignments []int8) int64 {
+	if align := ptrAlignments[ptr.ID]; align > 0 {
+		return int64(align)
+	}
+	return 1
+}
+
+// valuePtrAlignment computes one entry in ptrAlignments.
+func valuePtrAlignment(v *Value, ptrAlignments []int8) int64 {
+	// computePtrAlignments visits every SSA value, not just pointer values.
+	if !v.Type.IsPtr() {
+		return 1
+	}
+
+	switch v.Op {
+	case OpOffPtr:
+		return offsetAlignment(ptrAlignment(v.Args[0], ptrAlignments), v.AuxInt)
+	case OpCopy, OpNilCheck:
+		return ptrAlignment(v.Args[0], ptrAlignments)
+	case OpAddr, OpLocalAddr, OpArg, OpArgIntReg:
+		return typeAlignment(v.Type.Elem())
+	case OpPhi:
+		align := ptrAlignment(v.Args[0], ptrAlignments)
+		for _, arg := range v.Args[1:] {
+			if argAlign := ptrAlignment(arg, ptrAlignments); argAlign < align {
+				align = argAlign
+			}
+		}
+		return align
+	}
+	return 1
+}
+
+// typeAlignment returns a conservative alignment for t without calling
+// Type.Alignment, which may try to calculate type sizes while the compiler
+// back end is running concurrently.
+func typeAlignment(t *types.Type) int64 {
+	switch t.Kind() {
+	case types.TBOOL, types.TINT8, types.TUINT8:
+		return 1
+	case types.TINT16, types.TUINT16:
+		return 2
+	case types.TINT32, types.TUINT32, types.TFLOAT32, types.TCOMPLEX64:
+		return 4
+	case types.TINT64, types.TUINT64, types.TFLOAT64, types.TCOMPLEX128:
+		return 8
+	case types.TINT, types.TUINT, types.TUINTPTR, types.TPTR, types.TUNSAFEPTR, types.TSTRING, types.TSLICE, types.TFUNC, types.TMAP, types.TCHAN:
+		return int64(types.PtrSize)
+	case types.TARRAY:
+		return typeAlignment(t.Elem())
+	case types.TSTRUCT:
+		align := int64(1)
+		for _, f := range t.Fields() {
+			fieldAlign := typeAlignment(f.Type)
+			if fieldAlign > align {
+				align = fieldAlign
+			}
+		}
+		return align
+	}
+	return 1
+}
+
+func offsetAlignment(align, off int64) int64 {
+	off &= align - 1
+	if off == 0 {
+		return align
+	}
+	return off & -off
+}
+
+func combineLoads(root *Value, n int64, ptrAlignments []int8) bool {
 	orOp := root.Op
 	var shiftOp Op
 	switch orOp {
@@ -307,6 +391,9 @@ func combineLoads(root *Value, n int64) bool {
 			return false
 		}
 	}
+	if !root.Block.Func.Config.unalignedOK && ptrAlignment(r[0].load.Args[0], ptrAlignments) < n*size {
+		return false
+	}
 
 	// Check for reads in little-endian or big-endian order.
 	shift0 := r[0].shift
@@ -394,7 +481,7 @@ func combineLoads(root *Value, n int64) bool {
 	return true
 }
 
-func memcombineStores(f *Func) {
+func memcombineStores(f *Func, ptrAlignments []int8) {
 	mark := f.newSparseSet(f.NumValues())
 	defer f.retSparseSet(mark)
 	var order []*Value
@@ -438,13 +525,13 @@ func memcombineStores(f *Func) {
 				continue
 			}
 
-			combineStores(v)
+			combineStores(v, ptrAlignments)
 		}
 	}
 }
 
 // combineStores tries to combine the stores ending in root.
-func combineStores(root *Value) {
+func combineStores(root *Value, ptrAlignments []int8) {
 	// Helper functions.
 	maxRegSize := root.Block.Func.Config.RegSize
 	type StoreRecord struct {
@@ -625,6 +712,9 @@ func combineStores(root *Value) {
 	}
 	// Memory location we're going to write at (the lowest one).
 	ptr := a[0].store.Args[0]
+	if !root.Block.Func.Config.unalignedOK && ptrAlignment(ptr, ptrAlignments) < aTotalSize {
+		return
+	}
 
 	// Check for constant stores
 	isConst := true
@@ -718,6 +808,9 @@ func combineStores(root *Value) {
 	if loadMem != nil {
 		// Modify the first load to do a larger load instead.
 		load := a[0].store.Args[1]
+		if !root.Block.Func.Config.unalignedOK && ptrAlignment(load.Args[0], ptrAlignments) < aTotalSize {
+			return
+		}
 		switch aTotalSize {
 		case 2:
 			load.Type = types.Types[types.TUINT16]
