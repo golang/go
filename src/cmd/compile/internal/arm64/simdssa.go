@@ -135,6 +135,7 @@ func ssaGenSIMDValue(s *ssagen.State, v *ssa.Value) bool {
 		ssaop.OpARM64VBIC16B,
 		ssaop.OpARM64VSRHADD16B,
 		ssaop.OpARM64VURHADD16B,
+		ssaop.OpARM64VADDP16B,
 		ssaop.OpARM64VUZP116B,
 		ssaop.OpARM64VUZP216B,
 		ssaop.OpARM64VCMEQ16B,

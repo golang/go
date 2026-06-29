@@ -4741,6 +4741,7 @@ const (
 	OpARM64VADDP2D
 	OpARM64VADDP4S
 	OpARM64VADDP8H
+	OpARM64VADDP16B
 	OpARM64VADDV4S
 	OpARM64VADDV8H
 	OpARM64VADDV16B
@@ -7419,11 +7420,13 @@ const (
 	OpConcatAddPairsInt16x8
 	OpConcatAddPairsInt32x4
 	OpConcatAddPairsInt64x2
+	OpConcatAddPairsInt8x16
 	OpConcatAddPairsSaturatedGroupedInt16x16
 	OpConcatAddPairsSaturatedInt16x8
 	OpConcatAddPairsUint16x8
 	OpConcatAddPairsUint32x4
 	OpConcatAddPairsUint64x2
+	OpConcatAddPairsUint8x16
 	OpConcatEvenInt16x8
 	OpConcatEvenInt32x4
 	OpConcatEvenInt64x2
@@ -81755,6 +81758,20 @@ var OpcodeTable = [...]OpInfo{
 		},
 	},
 	{
+		Name:   "VADDP16B",
+		ArgLen: 2,
+		asm:    arm64.AVADDP,
+		Reg: RegInfo{
+			Inputs: []InputInfo{
+				{0, RegMask{V1: 9223372034707292160, V2: 0}}, // F0 F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15 F16 F17 F18 F19 F20 F21 F22 F23 F24 F25 F26 F27 F28 F29 F30 F31
+				{1, RegMask{V1: 9223372034707292160, V2: 0}}, // F0 F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15 F16 F17 F18 F19 F20 F21 F22 F23 F24 F25 F26 F27 F28 F29 F30 F31
+			},
+			Outputs: []OutputInfo{
+				{0, RegMask{V1: 9223372034707292160, V2: 0}}, // F0 F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15 F16 F17 F18 F19 F20 F21 F22 F23 F24 F25 F26 F27 F28 F29 F30 F31
+			},
+		},
+	},
+	{
 		Name:   "VADDV4S",
 		ArgLen: 1,
 		asm:    arm64.AVADDV,
@@ -114323,6 +114340,11 @@ var OpcodeTable = [...]OpInfo{
 		Generic: true,
 	},
 	{
+		Name:    "ConcatAddPairsInt8x16",
+		ArgLen:  2,
+		Generic: true,
+	},
+	{
 		Name:    "ConcatAddPairsSaturatedGroupedInt16x16",
 		ArgLen:  2,
 		Generic: true,
@@ -114344,6 +114366,11 @@ var OpcodeTable = [...]OpInfo{
 	},
 	{
 		Name:    "ConcatAddPairsUint64x2",
+		ArgLen:  2,
+		Generic: true,
+	},
+	{
+		Name:    "ConcatAddPairsUint8x16",
 		ArgLen:  2,
 		Generic: true,
 	},

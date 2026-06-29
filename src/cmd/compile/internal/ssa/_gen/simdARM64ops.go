@@ -15,6 +15,7 @@ func simdARM64Ops(v11, v21, v31, vgp, vgpv, vfpv regInfo) []opData {
 		{name: "VADDP2D", argLength: 2, reg: v21, asm: "VADDP", typ: "Vec128"},
 		{name: "VADDP4S", argLength: 2, reg: v21, asm: "VADDP", typ: "Vec128"},
 		{name: "VADDP8H", argLength: 2, reg: v21, asm: "VADDP", typ: "Vec128"},
+		{name: "VADDP16B", argLength: 2, reg: v21, asm: "VADDP", typ: "Vec128"},
 		{name: "VADDV4S", argLength: 1, reg: v11, asm: "VADDV", typ: "Vec128"},
 		{name: "VADDV8H", argLength: 1, reg: v11, asm: "VADDV", typ: "Vec128"},
 		{name: "VADDV16B", argLength: 1, reg: v11, asm: "VADDV", typ: "Vec128"},

@@ -994,6 +994,9 @@ func RewriteValue(v *ssa.Value) bool {
 	case ssaop.OpConcatAddPairsInt64x2:
 		v.Op = ssaop.OpARM64VADDP2D
 		return true
+	case ssaop.OpConcatAddPairsInt8x16:
+		v.Op = ssaop.OpARM64VADDP16B
+		return true
 	case ssaop.OpConcatAddPairsUint16x8:
 		v.Op = ssaop.OpARM64VADDP8H
 		return true
@@ -1002,6 +1005,9 @@ func RewriteValue(v *ssa.Value) bool {
 		return true
 	case ssaop.OpConcatAddPairsUint64x2:
 		v.Op = ssaop.OpARM64VADDP2D
+		return true
+	case ssaop.OpConcatAddPairsUint8x16:
+		v.Op = ssaop.OpARM64VADDP16B
 		return true
 	case ssaop.OpConcatEvenInt16x8:
 		v.Op = ssaop.OpARM64VUZP18H

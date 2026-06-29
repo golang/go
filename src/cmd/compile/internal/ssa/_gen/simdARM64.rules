@@ -86,9 +86,11 @@
 (CeilFloat64x2 ...) => (VFRINTP2D ...) // pureVreg
 (ConcatAddPairsFloat32x4 ...) => (VFADDP4S ...) // pureVreg
 (ConcatAddPairsFloat64x2 ...) => (VFADDP2D ...) // pureVreg
+(ConcatAddPairsInt8x16 ...) => (VADDP16B ...) // pureVreg
 (ConcatAddPairsInt16x8 ...) => (VADDP8H ...) // pureVreg
 (ConcatAddPairsInt32x4 ...) => (VADDP4S ...) // pureVreg
 (ConcatAddPairsInt64x2 ...) => (VADDP2D ...) // pureVreg
+(ConcatAddPairsUint8x16 ...) => (VADDP16B ...) // pureVreg
 (ConcatAddPairsUint16x8 ...) => (VADDP8H ...) // pureVreg
 (ConcatAddPairsUint32x4 ...) => (VADDP4S ...) // pureVreg
 (ConcatAddPairsUint64x2 ...) => (VADDP2D ...) // pureVreg

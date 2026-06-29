@@ -276,6 +276,12 @@ func (x Float64x2) ConcatAddPairs(y Float64x2) Float64x2
 // For x = [x0, x1, x2, x3, ...] and y = [y0, y1, y2, y3, ...], the result is [x0+x1, x2+x3, ..., y0+y1, y2+y3, ...].
 //
 // Asm: VADDP, CPU Feature: NEON
+func (x Int8x16) ConcatAddPairs(y Int8x16) Int8x16
+
+// ConcatAddPairs horizontally adds adjacent pairs of elements.
+// For x = [x0, x1, x2, x3, ...] and y = [y0, y1, y2, y3, ...], the result is [x0+x1, x2+x3, ..., y0+y1, y2+y3, ...].
+//
+// Asm: VADDP, CPU Feature: NEON
 func (x Int16x8) ConcatAddPairs(y Int16x8) Int16x8
 
 // ConcatAddPairs horizontally adds adjacent pairs of elements.
@@ -289,6 +295,12 @@ func (x Int32x4) ConcatAddPairs(y Int32x4) Int32x4
 //
 // Asm: VADDP, CPU Feature: NEON
 func (x Int64x2) ConcatAddPairs(y Int64x2) Int64x2
+
+// ConcatAddPairs horizontally adds adjacent pairs of elements.
+// For x = [x0, x1, x2, x3, ...] and y = [y0, y1, y2, y3, ...], the result is [x0+x1, x2+x3, ..., y0+y1, y2+y3, ...].
+//
+// Asm: VADDP, CPU Feature: NEON
+func (x Uint8x16) ConcatAddPairs(y Uint8x16) Uint8x16
 
 // ConcatAddPairs horizontally adds adjacent pairs of elements.
 // For x = [x0, x1, x2, x3, ...] and y = [y0, y1, y2, y3, ...], the result is [x0+x1, x2+x3, ..., y0+y1, y2+y3, ...].
