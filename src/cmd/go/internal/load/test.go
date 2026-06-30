@@ -17,6 +17,7 @@ import (
 	"internal/lazytemplate"
 	"maps"
 	"path/filepath"
+	"runtime"
 	"slices"
 	"sort"
 	"strings"
@@ -27,6 +28,7 @@ import (
 	"cmd/go/internal/modload"
 	"cmd/go/internal/str"
 	"cmd/go/internal/trace"
+	"cmd/internal/par"
 )
 
 var TestMainDeps = []string{
@@ -629,18 +631,61 @@ func loadTestFuncs(ptest *Package) (*testFuncs, error) {
 	t := &testFuncs{
 		Package: ptest,
 	}
-	var err error
-	for _, file := range ptest.TestGoFiles {
-		if lerr := t.load(filepath.Join(ptest.Dir, file), "_test", &t.ImportTest, &t.NeedTest); lerr != nil && err == nil {
-			err = lerr
-		}
+
+	nTest := len(ptest.TestGoFiles)
+	results := make([]testFileResult, nTest+len(ptest.XTestGoFiles))
+	q := par.NewQueue(runtime.GOMAXPROCS(0))
+	for i, file := range ptest.TestGoFiles {
+		q.Add(func() {
+			results[i] = loadTestFuncFile(ptest, filepath.Join(ptest.Dir, file), "_test")
+		})
 	}
-	for _, file := range ptest.XTestGoFiles {
-		if lerr := t.load(filepath.Join(ptest.Dir, file), "_xtest", &t.ImportXtest, &t.NeedXtest); lerr != nil && err == nil {
-			err = lerr
+	for i, file := range ptest.XTestGoFiles {
+		q.Add(func() {
+			results[nTest+i] = loadTestFuncFile(ptest, filepath.Join(ptest.Dir, file), "_xtest")
+		})
+	}
+	<-q.Idle()
+
+	var err error
+	for i := range results {
+		r := &results[i]
+		if r.err != nil && err == nil {
+			err = r.err
 		}
+		t.Tests = append(t.Tests, r.funcs.Tests...)
+		t.Benchmarks = append(t.Benchmarks, r.funcs.Benchmarks...)
+		t.FuzzTargets = append(t.FuzzTargets, r.funcs.FuzzTargets...)
+		t.Examples = append(t.Examples, r.funcs.Examples...)
+		if r.funcs.TestMain != nil {
+			if t.TestMain != nil && err == nil {
+				err = errors.New("multiple definitions of TestMain")
+			} else if t.TestMain == nil {
+				t.TestMain = r.funcs.TestMain
+			}
+		}
+		t.ImportTest = t.ImportTest || r.funcs.ImportTest
+		t.NeedTest = t.NeedTest || r.funcs.NeedTest
+		t.ImportXtest = t.ImportXtest || r.funcs.ImportXtest
+		t.NeedXtest = t.NeedXtest || r.funcs.NeedXtest
 	}
 	return t, err
+}
+
+type testFileResult struct {
+	funcs testFuncs
+	err   error
+}
+
+func loadTestFuncFile(ptest *Package, filename, pkg string) testFileResult {
+	tf := &testFuncs{Package: ptest}
+	var err error
+	if pkg == "_test" {
+		err = tf.load(token.NewFileSet(), filename, pkg, &tf.ImportTest, &tf.NeedTest)
+	} else {
+		err = tf.load(token.NewFileSet(), filename, pkg, &tf.ImportXtest, &tf.NeedXtest)
+	}
+	return testFileResult{*tf, err}
 }
 
 // formatTestmain returns the content of the _testmain.go file for t.
@@ -727,16 +772,14 @@ type testFunc struct {
 	Unordered bool   // output is allowed to be unordered.
 }
 
-var testFileSet = token.NewFileSet()
-
-func (t *testFuncs) load(filename, pkg string, doImport, seen *bool) error {
+func (t *testFuncs) load(fset *token.FileSet, filename, pkg string, doImport, seen *bool) error {
 	// Pass in the overlaid source if we have an overlay for this file.
 	src, err := fsys.Open(filename)
 	if err != nil {
 		return err
 	}
 	defer src.Close()
-	f, err := parser.ParseFile(testFileSet, filename, src, parser.ParseComments|parser.SkipObjectResolution)
+	f, err := parser.ParseFile(fset, filename, src, parser.ParseComments|parser.SkipObjectResolution)
 	if err != nil {
 		return err
 	}
@@ -756,7 +799,7 @@ func (t *testFuncs) load(filename, pkg string, doImport, seen *bool) error {
 				*doImport, *seen = true, true
 				continue
 			}
-			err := checkTestFunc(n, "M")
+			err := checkTestFunc(fset, n, "M")
 			if err != nil {
 				return err
 			}
@@ -766,21 +809,21 @@ func (t *testFuncs) load(filename, pkg string, doImport, seen *bool) error {
 			t.TestMain = &testFunc{pkg, name, "", false}
 			*doImport, *seen = true, true
 		case isTest(name, "Test"):
-			err := checkTestFunc(n, "T")
+			err := checkTestFunc(fset, n, "T")
 			if err != nil {
 				return err
 			}
 			t.Tests = append(t.Tests, testFunc{pkg, name, "", false})
 			*doImport, *seen = true, true
 		case isTest(name, "Benchmark"):
-			err := checkTestFunc(n, "B")
+			err := checkTestFunc(fset, n, "B")
 			if err != nil {
 				return err
 			}
 			t.Benchmarks = append(t.Benchmarks, testFunc{pkg, name, "", false})
 			*doImport, *seen = true, true
 		case isTest(name, "Fuzz"):
-			err := checkTestFunc(n, "F")
+			err := checkTestFunc(fset, n, "F")
 			if err != nil {
 				return err
 			}
@@ -802,7 +845,7 @@ func (t *testFuncs) load(filename, pkg string, doImport, seen *bool) error {
 	return nil
 }
 
-func checkTestFunc(fn *ast.FuncDecl, arg string) error {
+func checkTestFunc(fset *token.FileSet, fn *ast.FuncDecl, arg string) error {
 	var why string
 	if !isTestFunc(fn, arg) {
 		why = fmt.Sprintf("must be: func %s(%s *testing.%s)", fn.Name.String(), strings.ToLower(arg), arg)
@@ -811,7 +854,7 @@ func checkTestFunc(fn *ast.FuncDecl, arg string) error {
 		why = "test functions cannot have type parameters"
 	}
 	if why != "" {
-		pos := testFileSet.Position(fn.Pos())
+		pos := fset.Position(fn.Pos())
 		return fmt.Errorf("%s: wrong signature for %s, %s", pos, fn.Name.String(), why)
 	}
 	return nil
