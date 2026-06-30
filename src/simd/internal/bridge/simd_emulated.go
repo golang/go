@@ -7,7 +7,7 @@
 package bridge
 
 import (
-	"fmt"
+	"internal/strconv"
 	"math"
 	"math/bits"
 )
@@ -30,6 +30,43 @@ func Emulated() bool {
 // that will fail ("SIGILL") if it is executed.
 func HasHardwareCarrylessMultiply() bool {
 	return false
+}
+
+type number interface {
+	~int | ~int8 | ~int16 | ~int32 | ~int64 | ~uint | ~uint8 | ~uint16 | ~uint32 | ~uint64 | ~uintptr | ~float32 | ~float64
+}
+
+func sliceToString[T number](x []T) string {
+	s := ""
+	pfx := "{"
+	for _, y := range x {
+		s += pfx
+		pfx = ","
+		switch e := any(y).(type) {
+		case int8:
+			s += strconv.Itoa(int(e))
+		case int16:
+			s += strconv.Itoa(int(e))
+		case int32:
+			s += strconv.Itoa(int(e))
+		case int64:
+			s += strconv.Itoa(int(e))
+		case uint8:
+			s += strconv.FormatUint(uint64(e), 10)
+		case uint16:
+			s += strconv.FormatUint(uint64(e), 10)
+		case uint32:
+			s += strconv.FormatUint(uint64(e), 10)
+		case uint64:
+			s += strconv.FormatUint(uint64(e), 10)
+		case float32:
+			s += strconv.FormatFloat(float64(e), 'g', -1, 32)
+		case float64:
+			s += strconv.FormatFloat(e, 'g', -1, 64)
+		}
+	}
+	s += "}"
+	return s
 }
 
 type _simd struct {
@@ -302,7 +339,7 @@ func (x Int8s) String() string {
 	for i := 0; i < 16; i++ {
 		parts[i] = x.get(i)
 	}
-	return fmt.Sprint(parts)
+	return sliceToString(parts[:])
 }
 
 // Sub returns the element-wise difference of x and y.
@@ -664,7 +701,7 @@ func (x Int16s) String() string {
 	for i := 0; i < 8; i++ {
 		parts[i] = x.get(i)
 	}
-	return fmt.Sprint(parts)
+	return sliceToString(parts[:])
 }
 
 // Sub returns the element-wise difference of x and y.
@@ -1019,7 +1056,7 @@ func (x Int32s) String() string {
 	for i := 0; i < 4; i++ {
 		parts[i] = x.get(i)
 	}
-	return fmt.Sprint(parts)
+	return sliceToString(parts[:])
 }
 
 // Sub returns the element-wise difference of x and y.
@@ -1259,7 +1296,7 @@ func (x Int64s) StorePart(s []int64) int {
 
 // String returns a string representation of the vector.
 func (x Int64s) String() string {
-	return fmt.Sprint([2]int64{int64(x.a), int64(x.b)})
+	return sliceToString([]int64{int64(x.a), int64(x.b)})
 }
 
 // Sub returns the element-wise difference of x and y.
@@ -1500,7 +1537,7 @@ func (x Uint8s) String() string {
 	for i := 0; i < 16; i++ {
 		parts[i] = x.get(i)
 	}
-	return fmt.Sprint(parts)
+	return sliceToString(parts[:])
 }
 
 // Sub returns the element-wise difference of x and y.
@@ -1849,7 +1886,7 @@ func (x Uint16s) String() string {
 	for i := 0; i < 8; i++ {
 		parts[i] = x.get(i)
 	}
-	return fmt.Sprint(parts)
+	return sliceToString(parts[:])
 }
 
 // Sub returns the element-wise difference of x and y.
@@ -2175,7 +2212,7 @@ func (x Uint32s) String() string {
 	for i := 0; i < 4; i++ {
 		parts[i] = x.get(i)
 	}
-	return fmt.Sprint(parts)
+	return sliceToString(parts[:])
 }
 
 // Sub returns the element-wise difference of x and y.
@@ -2421,7 +2458,7 @@ func (x Uint64s) StorePart(s []uint64) int {
 
 // String returns a string representation of the vector.
 func (x Uint64s) String() string {
-	return fmt.Sprint([2]uint64{x.a, x.b})
+	return sliceToString([]uint64{x.a, x.b})
 }
 
 // Sub returns the element-wise difference of x and y.
@@ -2736,7 +2773,7 @@ func (x Float32s) String() string {
 	for i := 0; i < 4; i++ {
 		parts[i] = x.get(i)
 	}
-	return fmt.Sprint(parts)
+	return sliceToString(parts[:])
 }
 
 // Sub returns the element-wise difference of x and y.
@@ -3006,7 +3043,7 @@ func (x Float64s) StorePart(s []float64) int {
 
 // String returns a string representation of the vector.
 func (x Float64s) String() string {
-	return fmt.Sprint([2]float64{x.get(0), x.get(1)})
+	return sliceToString([]float64{x.get(0), x.get(1)})
 }
 
 // Sub returns the element-wise difference of x and y.
@@ -3052,7 +3089,9 @@ func (x Mask8s) Or(y Mask8s) Mask8s {
 
 // String returns a string representation of the vector.
 func (x Mask8s) String() string {
-	return fmt.Sprintf("{a:%#x, b:%#x}", x.a, x.b)
+	var s [16]int8
+	x.ToInt8s().Neg().Store(s[:])
+	return sliceToString(s[:])
 }
 
 // ToInt8s converts the mask to an Int8s vector.
@@ -3090,7 +3129,9 @@ func (x Mask16s) Or(y Mask16s) Mask16s {
 
 // String returns a string representation of the vector.
 func (x Mask16s) String() string {
-	return fmt.Sprintf("{a:%#x, b:%#x}", x.a, x.b)
+	var s [8]int16
+	x.ToInt16s().Neg().Store(s[:])
+	return sliceToString(s[:])
 }
 
 // ToInt16s converts the mask to an Int16s vector.
@@ -3128,7 +3169,9 @@ func (x Mask32s) Or(y Mask32s) Mask32s {
 
 // String returns a string representation of the vector.
 func (x Mask32s) String() string {
-	return fmt.Sprintf("{a:%#x, b:%#x}", x.a, x.b)
+	var s [4]int32
+	x.ToInt32s().Neg().Store(s[:])
+	return sliceToString(s[:])
 }
 
 // ToInt32s converts the mask to an Int32s vector.
@@ -3164,7 +3207,9 @@ func (x Mask64s) Or(y Mask64s) Mask64s {
 
 // String returns a string representation of the vector.
 func (x Mask64s) String() string {
-	return fmt.Sprintf("{a:%#x, b:%#x}", x.a, x.b)
+	var s [2]int64
+	x.ToInt64s().Neg().Store(s[:])
+	return sliceToString(s[:])
 }
 
 // ToInt64s converts the mask to an Int64s vector.
