@@ -61,7 +61,7 @@ stderr '^go: rsc.io/nonexist.fossil/hello: GOVCS disallows using fossil for publ
 # git is OK by default
 env GOVCS=
 env GONOSUMDB='*'
-[net:rsc.io] [git] [!short] go get rsc.io/sampler
+[git] [!short] go get vcs-test.golang.org/git/hello.git
 
 # hg is OK by default
 env GOVCS=
