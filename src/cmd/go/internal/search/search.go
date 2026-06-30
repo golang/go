@@ -8,8 +8,11 @@ import (
 	"cmd/go/internal/base"
 	"cmd/go/internal/cfg"
 	"cmd/go/internal/fsys"
+	"cmd/go/internal/imports"
+	"cmd/go/internal/modindex"
 	"cmd/go/internal/str"
 	"cmd/internal/pkgpattern"
+	"errors"
 	"fmt"
 	"go/build"
 	"io/fs"
@@ -342,6 +345,7 @@ func (m *Match) MatchDirs(modRoots []string) {
 	}
 
 	ignorePatterns := parseIgnorePatterns(modRoot)
+	tags := imports.Tags()
 	// If dir is actually a symlink to a directory,
 	// we want to follow it (see https://go.dev/issue/50807).
 	// Add a trailing separator to force that to happen.
@@ -397,6 +401,19 @@ func (m *Match) MatchDirs(modRoots []string) {
 			return nil
 		}
 
+		if modRoot := moduleRootContaining(modRoots, absPath); modRoot != "" {
+			hasPackage, ok, err := indexedPackage(modRoot, absPath, tags)
+			if err != nil {
+				return err
+			}
+			if ok {
+				if hasPackage {
+					m.Dirs = append(m.Dirs, name)
+				}
+				return nil
+			}
+		}
+
 		// We keep the directory if we can import it, or if we can't import it
 		// due to invalid Go source files. This means that directories containing
 		// parse errors will be built (and fail) instead of being silently skipped
@@ -419,6 +436,28 @@ func (m *Match) MatchDirs(modRoots []string) {
 	if err != nil {
 		m.AddError(err)
 	}
+}
+
+func moduleRootContaining(modRoots []string, absPath string) string {
+	var modRoot string
+	for _, root := range modRoots {
+		if root != "" && str.HasFilePathPrefix(absPath, root) && len(root) > len(modRoot) {
+			modRoot = root
+		}
+	}
+	return modRoot
+}
+
+func indexedPackage(modRoot, absPath string, tags map[string]bool) (hasPackage, ok bool, err error) {
+	ip, err := modindex.GetPackage(modRoot, absPath)
+	if errors.Is(err, modindex.ErrNotIndexed) {
+		return false, false, nil
+	}
+	if err != nil {
+		return false, true, err
+	}
+	_, _, err = ip.ScanDir(tags)
+	return err != imports.ErrNoGo, true, nil
 }
 
 // WarnUnmatched warns about patterns that didn't match any packages.
