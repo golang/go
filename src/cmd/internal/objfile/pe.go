@@ -44,9 +44,11 @@ func (f *peFile) symbols() ([]Sym, error) {
 	// That is, there can be BSS symbols at the end of the page
 	// that holds the last data symbols.
 	var bssAddr uint32
+	var bssSectionNumber int16
 	for _, s := range f.pe.Symbols {
 		if s.Name == "runtime.bss" {
 			bssAddr = s.Value
+			bssSectionNumber = s.SectionNumber
 			break
 		}
 	}
@@ -84,7 +86,7 @@ func (f *peFile) symbols() ([]Sym, error) {
 			case ch&data != 0:
 				if ch&permW == 0 {
 					sym.Code = 'R'
-				} else if bssAddr > 0 && s.Value >= bssAddr {
+				} else if bssSectionNumber == s.SectionNumber && bssAddr > 0 && s.Value >= bssAddr {
 					// Past runtime.bss is BSS.
 					sym.Code = 'B'
 				} else if s.Value >= sect.Size {
