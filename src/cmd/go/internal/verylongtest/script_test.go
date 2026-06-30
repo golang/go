@@ -8,7 +8,10 @@ import (
 	"cmd/internal/script"
 	"cmd/internal/script/scripttest"
 	"internal/testenv"
+	"io/fs"
+	"os"
 	"os/exec"
+	"path/filepath"
 	"runtime"
 	"testing"
 )
@@ -22,6 +25,15 @@ func TestScript(t *testing.T) {
 	testenv.SkipIfShortAndSlow(t)
 
 	engine, env := scripttest.NewEngine(t, nil)
+	modcache := filepath.Join(t.TempDir(), "modcache")
+	env = append(env, "GOMODCACHE="+modcache)
+	// Remove write only permissions on GOMODCACHE so we can clear its files.
+	t.Cleanup(func() {
+		filepath.WalkDir(modcache, func(path string, info fs.DirEntry, err error) error {
+			os.Chmod(path, 0777)
+			return nil
+		})
+	})
 	env = append(env, "GOROOT="+runtime.GOROOT())
 	engine.Conds["net"] = script.PrefixCondition("can connect to external network host <suffix>", hasNet)
 	engine.Conds["git"] = script.OnceCondition("the 'git' executable exists and provides the standard CLI", hasWorkingGit)
