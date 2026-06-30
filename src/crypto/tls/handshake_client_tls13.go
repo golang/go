@@ -774,6 +774,7 @@ func (hs *clientHandshakeStateTLS13) sendClientCertificate() error {
 		AcceptableCAs:    hs.certReq.certificateAuthorities,
 		SignatureSchemes: hs.certReq.supportedSignatureAlgorithms,
 		Version:          c.vers,
+		RATLSChallenge:   hs.certReq.raTLSChallenge,
 		ctx:              hs.ctx,
 	})
 	if err != nil {
