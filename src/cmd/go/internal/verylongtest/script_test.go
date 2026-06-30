@@ -5,15 +5,13 @@
 package verylongtest
 
 import (
+	"cmd/internal/script"
 	"cmd/internal/script/scripttest"
-	"flag"
 	"internal/testenv"
+	"os/exec"
+	"runtime"
 	"testing"
 )
-
-//go:generate go test cmd/go/internal/verylongtest -v -run=TestScript/README --fixreadme
-
-var fixReadme = flag.Bool("fixreadme", false, "if true, update README for script tests")
 
 func TestScript(t *testing.T) {
 	if testing.Short() {
@@ -22,5 +20,24 @@ func TestScript(t *testing.T) {
 	}
 	testenv.MustHaveGoBuild(t)
 	testenv.SkipIfShortAndSlow(t)
-	scripttest.RunToolScriptTest(t, nil, "testdata/script", *fixReadme)
+
+	engine, env := scripttest.NewEngine(t, nil)
+	env = append(env, "GOROOT="+runtime.GOROOT())
+	engine.Conds["net"] = script.PrefixCondition("can connect to external network host <suffix>", hasNet)
+	engine.Conds["git"] = script.OnceCondition("the 'git' executable exists and provides the standard CLI", hasWorkingGit)
+	scripttest.RunTests(t, t.Context(), engine, env, "testdata/script/*.txt")
+}
+
+func hasNet(*script.State, string) (bool, error) {
+	return testenv.HasExternalNetwork(), nil
+}
+
+func hasWorkingGit() (bool, error) {
+	if runtime.GOOS == "plan9" {
+		// The Git command is usually not the real Git on Plan 9.
+		// See https://golang.org/issues/29640.
+		return false, nil
+	}
+	_, err := exec.LookPath("git")
+	return err == nil, nil
 }
