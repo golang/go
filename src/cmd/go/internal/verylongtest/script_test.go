@@ -7,8 +7,11 @@ package verylongtest
 import (
 	"cmd/internal/script"
 	"cmd/internal/script/scripttest"
+	"fmt"
 	"internal/testenv"
 	"io/fs"
+	"net"
+	"net/http"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -35,9 +38,31 @@ func TestScript(t *testing.T) {
 		})
 	})
 	env = append(env, "GOROOT="+runtime.GOROOT())
+	go404proxyAddr := start404Proxy(t)
+	env = append(env, "TESTGO_404_PROXY_ADDR="+go404proxyAddr)
 	engine.Conds["net"] = script.PrefixCondition("can connect to external network host <suffix>", hasNet)
 	engine.Conds["git"] = script.OnceCondition("the 'git' executable exists and provides the standard CLI", hasWorkingGit)
 	scripttest.RunTests(t, t.Context(), engine, env, "testdata/script/*.txt")
+}
+
+func start404Proxy(t *testing.T) string {
+	addr := "localhost:0"
+	l, err := net.Listen("tcp", addr)
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() {
+		if err := l.Close(); err != nil {
+			t.Fatal(err)
+		}
+	})
+	proxyAddr := l.Addr().String()
+	proxyURL := "http://" + proxyAddr + "/mod"
+	fmt.Fprintf(os.Stderr, "404 test proxy running at %s\n", proxyURL)
+	go http.Serve(l, http.HandlerFunc(func(rw http.ResponseWriter, rew *http.Request) {
+		rw.WriteHeader(http.StatusNotFound)
+	}))
+	return proxyURL
 }
 
 func hasNet(*script.State, string) (bool, error) {

@@ -84,21 +84,6 @@ func get(security SecurityMode, url *urlpkg.URL) (*Response, error) {
 
 	if intercept.TestHooksEnabled {
 		switch url.Host {
-		case "proxy.golang.org":
-			if os.Getenv("TESTGOPROXY404") == "1" {
-				res := &Response{
-					URL:        url.Redacted(),
-					Status:     "404 testing",
-					StatusCode: 404,
-					Header:     make(map[string][]string),
-					Body:       http.NoBody,
-				}
-				if cfg.BuildX {
-					fmt.Fprintf(os.Stderr, "# get %s: %v (%.3fs)\n", url.Redacted(), res.Status, time.Since(start).Seconds())
-				}
-				return res, nil
-			}
-
 		case "localhost.localdev":
 			return nil, fmt.Errorf("no such host localhost.localdev")
 
