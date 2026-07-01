@@ -215,7 +215,16 @@ func (*clientHelloMsg) Generate(rand *rand.Rand, size int) reflect.Value {
 	case 2:
 		m.pskModes = []uint8{pskModeDHE, pskModePlain}
 	}
-	for i := 0; i < rand.Intn(5); i++ {
+	// clientHelloMsg.marshal uses echInner == false. If m.encryptedClientHello > 0 and
+	// does not equal []byte{innerECHExt}, then the psk extension will be omitted,
+	// so either only emit empty encryptedClientHello and psk, encryptedClientHello with
+	// []byte{innerECHExt} and psk, or random encryptedClientHello and no psk.
+	if rand.Intn(10) > 5 {
+		m.encryptedClientHello = randomBytes(rand.Intn(50)+1, rand)
+	} else {
+		if rand.Intn(10) > 5 {
+			m.encryptedClientHello = []byte{byte(innerECHExt)}
+		}
 		var psk pskIdentity
 		psk.obfuscatedTicketAge = uint32(rand.Intn(500000))
 		psk.label = randomBytes(rand.Intn(500)+1, rand)
@@ -227,9 +236,6 @@ func (*clientHelloMsg) Generate(rand *rand.Rand, size int) reflect.Value {
 	}
 	if rand.Intn(10) > 5 {
 		m.earlyData = true
-	}
-	if rand.Intn(10) > 5 {
-		m.encryptedClientHello = randomBytes(rand.Intn(50)+1, rand)
 	}
 
 	return reflect.ValueOf(m)
@@ -578,4 +584,89 @@ func TestRejectDuplicateExtensions(t *testing.T) {
 	if serverHelloCopy.unmarshal(serverHelloBytes) {
 		t.Fatal("Unmarshaled ServerHello with duplicate extensions")
 	}
+}
+
+func TestECHRemoveOuterPSK(t *testing.T) {
+	r := rand.New(rand.NewSource(0))
+
+	for _, tc := range []struct {
+		name          string
+		echInner      bool
+		echExt        []byte
+		expectRemoved bool
+	}{
+		{
+			name:          "echInner true",
+			echInner:      true,
+			expectRemoved: false,
+		},
+		{
+			name:          "echInner true, no ech ext",
+			echInner:      true,
+			expectRemoved: false,
+		},
+		{
+			name:          "echInner true, ech ext present",
+			echInner:      true,
+			echExt:        []byte{254},
+			expectRemoved: false,
+		},
+		{
+			name:          "echInner true, ech ext present, inner ech sentinel",
+			echInner:      true,
+			echExt:        []byte{byte(innerECHExt)},
+			expectRemoved: false,
+		},
+		{
+			name:          "echInner false, no ech ext",
+			echInner:      false,
+			expectRemoved: false,
+		},
+		{
+			name:          "echInner false, ech ext present",
+			echInner:      false,
+			echExt:        []byte{254},
+			expectRemoved: true,
+		},
+		{
+			name:          "echInner false, ech ext present, inner ech sentinel",
+			echInner:      false,
+			echExt:        []byte{byte(innerECHExt)},
+			expectRemoved: false,
+		},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			ch := (&clientHelloMsg{}).Generate(r, 0).Interface().(*clientHelloMsg)
+
+			ch.pskBinders = [][]byte{[]byte("test")}
+			ch.pskIdentities = []pskIdentity{{label: []byte("test")}}
+			ch.encryptedClientHello = tc.echExt
+
+			b, err := ch.marshalMsg(tc.echInner)
+			if err != nil {
+				t.Fatal(err)
+			}
+			var rch clientHelloMsg
+			if !rch.unmarshal(b) {
+				t.Fatal("Failed to unmarshal ClientHello")
+			}
+
+			if tc.expectRemoved {
+				if rch.pskIdentities != nil {
+					t.Error("expected PSK identities to be removed")
+				}
+				if rch.pskBinders != nil {
+					t.Error("expected PSK binders to be removed")
+				}
+			} else {
+				if rch.pskIdentities == nil {
+					t.Error("expected PSK identities to be present")
+				}
+				if rch.pskBinders == nil {
+					t.Error("expected PSK binders to be present")
+				}
+			}
+		})
+	}
+
 }

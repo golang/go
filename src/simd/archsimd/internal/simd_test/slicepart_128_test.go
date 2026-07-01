@@ -169,3 +169,16 @@ func TestPartFloat64(t *testing.T) {
 		}
 	}
 }
+
+func TestStorePartReturnValues128(t *testing.T) {
+	testStorePartReturnValue[int8, archsimd.Int8x16](t)
+	testStorePartReturnValue[uint8, archsimd.Uint8x16](t)
+	testStorePartReturnValue[int16, archsimd.Int16x8](t)
+	testStorePartReturnValue[uint16, archsimd.Uint16x8](t)
+	testStorePartReturnValue[int32, archsimd.Int32x4](t)
+	testStorePartReturnValue[uint32, archsimd.Uint32x4](t)
+	testStorePartReturnValue[int64, archsimd.Int64x2](t)
+	testStorePartReturnValue[uint64, archsimd.Uint64x2](t)
+	testStorePartReturnValue[float32, archsimd.Float32x4](t)
+	testStorePartReturnValue[float64, archsimd.Float64x2](t)
+}

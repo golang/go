@@ -80,7 +80,7 @@ func LookupFunc(fullName string) (*ir.Func, error) {
 // readBodies to post-process any funcs on the "todoBodies" list
 // that were added as a result of the lookup operations.
 func PostLookupCleanup() {
-	readBodies(typecheck.Target, false)
+	readBodies(typecheck.Target, false, nil)
 }
 
 func lookupFunction(pkg *types.Pkg, symName string) (*ir.Func, error) {
@@ -205,7 +205,7 @@ func unified(m posMap, noders []*noder) {
 	r := localPkgReader.newReader(pkgbits.SectionMeta, pkgbits.PrivateRootIdx, pkgbits.SyncPrivate)
 	r.pkgInit(types.LocalPkg, target)
 
-	readBodies(target, false)
+	readBodies(target, false, nil)
 
 	// Check that nothing snuck past typechecking.
 	for _, fn := range target.Funcs {
@@ -239,7 +239,7 @@ func unified(m posMap, noders []*noder) {
 // If duringInlining is true, then the inline.InlineDecls is called as
 // necessary on instantiations of imported generic functions, so their
 // inlining costs can be computed.
-func readBodies(target *ir.Package, duringInlining bool) {
+func readBodies(target *ir.Package, duringInlining bool, profile *pgoir.Profile) {
 	var inlDecls []*ir.Func
 
 	// Don't use range--bodyIdx can add closures to todoBodies.
@@ -306,7 +306,7 @@ func readBodies(target *ir.Package, duringInlining bool) {
 
 		oldLowerM := base.Flag.LowerM
 		base.Flag.LowerM = 0
-		inline.CanInlineFuncs(inlDecls, nil)
+		inline.CanInlineFuncs(inlDecls, profile)
 		base.Flag.LowerM = oldLowerM
 
 		for _, fn := range inlDecls {

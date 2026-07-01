@@ -358,6 +358,7 @@ var excluded = map[string]bool{
 	"builtin":                       true,
 	"cmd/compile/internal/ssa/_gen": true,
 	"crypto/internal/cryptotest/wycheproof/_schema": true,
+	"crypto/internal/cryptotest/x509limbo/_schema":  true,
 	"runtime/_mkmalloc":                             true,
 	"simd/archsimd/_gen/midway":                     true,
 	"simd/archsimd/_gen/sgutil":                     true,

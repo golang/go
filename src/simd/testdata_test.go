@@ -9,11 +9,12 @@ package simd_test
 import (
 	"internal/testenv"
 	"os"
+	"runtime"
 	"strings"
 	"testing"
 )
 
-func common(t *testing.T, dir, what, failWith string) {
+func common(t *testing.T, dir, what, failWith string, moreEnv ...string) {
 	t.Helper()
 	t.Logf("subprocess test in testdata")
 	testenv.MustHaveGoRun(t)
@@ -23,6 +24,16 @@ func common(t *testing.T, dir, what, failWith string) {
 	}
 	args = append(args, what)
 	cmd := testenv.Command(t, testenv.GoToolPath(t), args...)
+
+	goexp := os.Getenv("GOEXPERIMENT")
+	if !strings.Contains(","+goexp+",", ",simd,") {
+		if goexp != "" {
+			goexp += ","
+		}
+		goexp += "simd"
+	}
+	cmd.Env = append(cmd.Environ(), "GOEXPERIMENT="+goexp)
+	cmd.Env = append(cmd.Env, moreEnv...)
 
 	if failWith == "" {
 		cmd.Stdout = os.Stdout
@@ -60,4 +71,11 @@ func TestCompileOk(t *testing.T) {
 func TestCompileError(t *testing.T) {
 	common(t, "testdata", "errors_test.go",
 		"array length unsafe.Sizeof(v_from_simd) (value of type uintptr) must be constant")
+}
+
+func TestToString(t *testing.T) {
+	common(t, "testdata", "tostring_test.go", "")
+	if runtime.GOARCH == "amd64" || runtime.GOARCH == "arm64" {
+		common(t, "testdata", "tostring_test.go", "", "GODEBUG=simd=0")
+	}
 }

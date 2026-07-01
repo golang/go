@@ -82,6 +82,7 @@ func JoinOptions(srcs ...Options) Options {
 
 // GetOption returns the value stored in opts with the provided setter,
 // reporting whether the value is present.
+// If not present, the returned value is the zero value for type T.
 //
 // Example usage:
 //
@@ -188,14 +189,25 @@ func OmitZeroStructFields(v bool) Options {
 
 // MatchCaseInsensitiveNames specifies that JSON object members are matched
 // against Go struct fields using a case-insensitive match of the name.
+// If a name matches multiple fields, it chooses the field with an exact
+// match of the name, otherwise it reports an error.
 // Go struct fields explicitly marked with `case:strict` or `case:ignore`
 // always use case-sensitive (or case-insensitive) name matching,
 // regardless of the value of this option.
 //
 // This affects either marshaling or unmarshaling.
-// For marshaling, this option may alter the detection of duplicate names
-// (assuming [jsontext.AllowDuplicateNames] is false) from embedded fields
-// if it matches one of the declared fields in the Go struct.
+//
+// By matching names in a case-insensitive manner, it also affects the detection
+// of duplicate names (assuming [jsontext.AllowDuplicateNames] is false) since
+// variations of the same name may match the same Go struct field.
+// For example, when unmarshaling, the names "foo" and "Foo" may both
+// match the same Go struct field and therefore be considered a duplicate name.
+// When marshaling, normally it is impossible for any two Go struct fields to
+// serialize in a way where they unmarshal into the same Go struct field
+// since they all have unique exact names.
+// However, with the use of an embedded fallback, it is possible for the
+// embedded fallback to contain a name that also matches the name for
+// a Go struct field, resulting in a duplicate name error.
 func MatchCaseInsensitiveNames(v bool) Options {
 	if v {
 		return jsonflags.MatchCaseInsensitiveNames | 1

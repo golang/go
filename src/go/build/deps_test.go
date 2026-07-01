@@ -781,6 +781,9 @@ var depsRules = `
 	crypto/internal/cryptotest, encoding/hex
 	< crypto/internal/cryptotest/wycheproof;
 
+	FMT, encoding/json, time, regexp
+	< crypto/internal/cryptotest/x509limbo;
+
 	CGO, FMT
 	< crypto/internal/sysrand/internal/seccomp;
 

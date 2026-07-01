@@ -460,6 +460,11 @@ func ParseTimeWithLooseRFC3339(v bool) Options {
 //     are ignored and the Go struct uses a best-effort representation.
 //     In contrast, the v2 semantic is to report a runtime error.
 //
+//   - When unmarshaling with [jsonv2.MatchCaseInsensitiveNames], if a JSON
+//     object name has a non-exact match with multiple Go struct fields, then
+//     an error is not reported and instead the first declared field is used.
+//     In contrast, the v2 semantic is to report a runtime error.
+//
 //   - When unmarshaling, the syntactic structure of the JSON input
 //     is fully validated before performing the semantic unmarshaling
 //     of the JSON data into the Go value. Practically speaking,

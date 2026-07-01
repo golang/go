@@ -204,7 +204,6 @@ type commonHandler struct {
 }
 
 func (h *commonHandler) clone() *commonHandler {
-	// We can't use assignment because we can't copy the mutex.
 	return &commonHandler{
 		json:              h.json,
 		opts:              h.opts,

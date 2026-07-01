@@ -1316,7 +1316,7 @@ func (x Mask8x16) String() string {
 	return (archsimd.Mask8x16(x)).String()
 }
 
-func (x Mask8x16) ToInt8x16() Int8x16 {
+func (x Mask8x16) ToInt8s() Int8x16 {
 	return Int8x16((archsimd.Mask8x16(x)).ToInt8x16())
 }
 
@@ -1332,7 +1332,7 @@ func (x Mask16x8) String() string {
 	return (archsimd.Mask16x8(x)).String()
 }
 
-func (x Mask16x8) ToInt16x8() Int16x8 {
+func (x Mask16x8) ToInt16s() Int16x8 {
 	return Int16x8((archsimd.Mask16x8(x)).ToInt16x8())
 }
 
@@ -1348,7 +1348,7 @@ func (x Mask32x4) String() string {
 	return (archsimd.Mask32x4(x)).String()
 }
 
-func (x Mask32x4) ToInt32x4() Int32x4 {
+func (x Mask32x4) ToInt32s() Int32x4 {
 	return Int32x4((archsimd.Mask32x4(x)).ToInt32x4())
 }
 
@@ -1364,6 +1364,6 @@ func (x Mask64x2) String() string {
 	return (archsimd.Mask64x2(x)).String()
 }
 
-func (x Mask64x2) ToInt64x2() Int64x2 {
+func (x Mask64x2) ToInt64s() Int64x2 {
 	return Int64x2((archsimd.Mask64x2(x)).ToInt64x2())
 }

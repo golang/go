@@ -235,6 +235,31 @@ func TestRootSymlinkToDirectory(t *testing.T) {
 	}
 }
 
+func TestRootSymlinkNormalization(t *testing.T) {
+	if !testenv.HasSymlink() {
+		t.Skip("skipping test; no symlink support")
+	}
+	const content = "dir/target" // same as file name
+	dir := makefs(t, []string{
+		"dir/target",
+	})
+	root, err := os.OpenRoot(dir)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer root.Close()
+	if err := root.Symlink("dir/target", "link"); err != nil {
+		t.Fatal(err)
+	}
+	got, err := os.ReadFile(dir + "/link")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if string(got) != content {
+		t.Fatalf("read link contents %q, want %q", got, content)
+	}
+}
+
 func TestRootOpenFileTruncateNamedPipe(t *testing.T) {
 	t.Parallel()
 	name := pipeName()

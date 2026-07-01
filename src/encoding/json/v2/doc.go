@@ -97,7 +97,8 @@
 //     the value must either be 'ignore' or 'strict'.
 //     The 'ignore' value specifies that matching is case-insensitive
 //     where dashes and underscores are also ignored. If multiple fields match,
-//     the first declared field in breadth-first order takes precedence.
+//     then the field with an exact name match is selected, otherwise an error
+//     is reported due to an ambiguous set of candidate fields to unmarshal into.
 //     The 'strict' value specifies that matching is case-sensitive.
 //     This takes precedence over the [MatchCaseInsensitiveNames] option.
 //

@@ -63,22 +63,26 @@ func mallocgcSlowPathStub(size uintptr, typ *_type, needzero bool, spc spanClass
 // WARNING: mallocStub does not do any work for sanitizers so callers need
 // to steer out of this codepath early if sanitizers are enabled.
 func mallocStub(size uintptr, typ *_type, needzero bool) unsafe.Pointer {
-	if isSlowPath_ && isTiny_ {
-		// secret code, need to avoid the tiny allocator since it might keep
-		// co-located values alive longer and prevent timely zero-ing
-		//
-		// Call directly into the NoScan allocator.
-		// See go.dev/issue/76356
-		gp := getg()
-		if goexperiment.RuntimeSecret && gp.secret > 0 {
-			return mallocgcSmallNoScanSC2(size, typ, needzero)
+	if doubleCheckMalloc {
+		if gcphase == _GCmarktermination {
+			throw("mallocgc called with gcphase == _GCmarktermination")
 		}
 	}
 
+	var mp *m
 	if !isSlowPath_ {
+		// Fast path.
+
+		// The fast path assumes that GC marking is not running. We
+		// must acquirem to ensure the GC does not start after we
+		// check.
+		mp = acquirem()
+
+		// Do we need to fall back to slow path?
 		forceSlowPath := debug.malloc || gcBlackenEnabled != 0 || (goexperiment.RuntimeSecret && getg().secret > 0)
 
 		if forceSlowPath {
+			releasem(mp) // Slow path will reacquire.
 			if isTiny_ {
 				return mallocgcTinySlowPath(size, typ, needzero)
 			} else {
@@ -87,34 +91,50 @@ func mallocStub(size uintptr, typ *_type, needzero bool) unsafe.Pointer {
 				return mallocgcSlowPathStub(size, typ, needzero, spc, elemsize)
 			}
 		}
-	}
 
-	if doubleCheckMalloc {
-		if gcphase == _GCmarktermination {
-			throw("mallocgc called with gcphase == _GCmarktermination")
+		// It's possible for any malloc to trigger sweeping, which may
+		// in turn queue finalizers. Record this dynamic lock edge.
+		// N.B. Compiled away if lockrank experiment is not enabled.
+		lockRankMayQueueFinalizer()
+	} else {
+		// Slow path.
+		if isTiny_ {
+			// secret code, need to avoid the tiny allocator since
+			// it might keep co-located values alive longer and
+			// prevent timely zero-ing.
+			//
+			// Call directly into the NoScan allocator.
+			// See go.dev/issue/76356
+			gp := getg()
+			if goexperiment.RuntimeSecret && gp.secret > 0 {
+				return mallocgcSmallNoScanSC2(size, typ, needzero)
+			}
 		}
-	}
 
-	// It's possible for any malloc to trigger sweeping, which may in
-	// turn queue finalizers. Record this dynamic lock edge.
-	// N.B. Compiled away if lockrank experiment is not enabled.
-	lockRankMayQueueFinalizer()
+		// It's possible for any malloc to trigger sweeping, which may
+		// in turn queue finalizers. Record this dynamic lock edge.
+		// N.B. Compiled away if lockrank experiment is not enabled.
+		lockRankMayQueueFinalizer()
 
-	// Pre-malloc debug hooks.
-	if isSlowPath_ && debug.malloc {
-		if x := preMallocgcDebug(size, typ); x != nil {
-			return x
+		// Pre-malloc debug hooks.
+		if debug.malloc {
+			if x := preMallocgcDebug(size, typ); x != nil {
+				return x
+			}
 		}
-	}
 
-	// Assist the GC if needed. (On the reuse path, we currently compensate for this;
-	// changes here might require changes there.)
-	if isSlowPath_ && gcBlackenEnabled != 0 {
-		deductAssistCredit(size)
+		// Assist the GC if needed. (On the reuse path, we currently
+		// compensate for this; changes here might require changes
+		// there.)
+		if gcBlackenEnabled != 0 {
+			deductAssistCredit(size)
+		}
+
+		mp = acquirem()
 	}
 
 	// Actually do the allocation.
-	return inlinedMalloc(size, typ, needzero)
+	return inlinedMalloc(mp, size, typ, needzero)
 }
 
 func postMallocgc(x unsafe.Pointer, typ *_type, size uintptr, elemsize uintptr) {
@@ -163,7 +183,10 @@ func deductAssistCredit(size uintptr) {
 // will be replaced with the inlined body of smallStub or tinyStub when generating the
 // size-specialized malloc function. See the comment at the top of this file for more
 // information.
-func inlinedMalloc(size uintptr, typ *_type, needzero bool) unsafe.Pointer {
+//
+// The caller must acquirem prior to calling inlinedMalloc, which will releasem
+// before returning.
+func inlinedMalloc(mp *m, size uintptr, typ *_type, needzero bool) unsafe.Pointer {
 	return unsafe.Pointer(uintptr(0))
 }
 
@@ -182,12 +205,13 @@ func doubleCheckSmallScanNoHeader(size uintptr, typ *_type, mp *m) {
 	}
 }
 
-func smallStub(size uintptr, typ *_type, needzero bool) unsafe.Pointer {
+// The caller must acquirem prior to calling smallStub, which will releasem
+// before returning.
+func smallStub(mp *m, size uintptr, typ *_type, needzero bool) unsafe.Pointer {
 	const sizeclass = sizeclass_
 	const elemsize = elemsize_
 
 	// Set mp.mallocing to keep from being preempted by GC.
-	mp := acquirem()
 	if doubleCheckMalloc {
 		if isNoScan_ {
 			doubleCheckSmallNoScan(typ, mp)
@@ -331,11 +355,12 @@ func doubleCheckTiny(size uintptr, typ *_type, mp *m) {
 	}
 }
 
-func tinyStub(size uintptr, typ *_type, needzero bool) unsafe.Pointer {
+// The caller must acquirem prior to calling tinyStub, which will releasem
+// before returning.
+func tinyStub(mp *m, size uintptr, typ *_type, needzero bool) unsafe.Pointer {
 	const elemsize = elemsize_
 
 	// Set mp.mallocing to keep from being preempted by GC.
-	mp := acquirem()
 	if doubleCheckMalloc {
 		doubleCheckTiny(size, typ, mp)
 	}

@@ -88,6 +88,7 @@ func TestConnPartialWrite(t *testing.T) {
 			if want := data[:readSize]; !bytes.Equal(got, want) {
 				t.Errorf("read %q, want %q", got, want)
 			}
+			synctest.Wait()
 			rconn.Close()
 		}()
 		n, err := wconn.Write(data)

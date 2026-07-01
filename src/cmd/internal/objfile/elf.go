@@ -52,7 +52,11 @@ func (f *elfFile) symbols() ([]Sym, error) {
 			case elf.SHF_ALLOC:
 				sym.Code = 'R'
 			case elf.SHF_ALLOC | elf.SHF_WRITE:
-				sym.Code = 'D'
+				if sect.Type == elf.SHT_NOBITS {
+					sym.Code = 'B'
+				} else {
+					sym.Code = 'D'
+				}
 			}
 		}
 		if elf.ST_BIND(s.Info) == elf.STB_LOCAL {

@@ -110,14 +110,14 @@ func carrylessMultiplies(x, y archsimd.Uint64x2) archsimd.Uint64x2 {
 }
 
 func mergeWithNotMask(x, y archsimd.Int8x16, mask archsimd.Mask8x16, f1, f2 archsimd.Float32x4) {
-	// arm64:`VBIF` -`VBIT` -`VNOT`
+	// arm64:`VBIT` -`VBIF` -`VNOT`
 	sinkI8 = x.IfElse(mask.Not(), y)
 	// arm64: `VFCMEQ`
 	eq := f1.Equal(f2)
 	// The next line `ne` should be CSEd with `eq` above
 	ne := f1.NotEqual(f2)    // arm64: -`.*`
-	fne := f1.IfElse(eq, f2) // arm64:`VBIT`
-	feq := f1.IfElse(ne, f2) // arm64:`VBIF`
+	feq := f1.IfElse(eq, f2) // arm64:`VBIF`
+	fne := f1.IfElse(ne, f2) // arm64:`VBIT`
 	sinkF32 = fne.Add(feq)
 }
 

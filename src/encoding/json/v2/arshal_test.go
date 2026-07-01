@@ -7220,10 +7220,17 @@ func TestUnmarshal(t *testing.T) {
 		inVal: new(structNoCase),
 		want:  addr(structNoCase{AaA: "AaA", AAa: "AAa", Aaa: "Aaa", AAA: "AAA", AA_A: "AA_A"}),
 	}, {
-		name:  jsontest.Name("Structs/NoCase/CaseInsensitiveDefault"),
+		name:  jsontest.Name("Structs/NoCase/CaseInsensitiveDefault/Ambiguous"),
+		opts:  []Options{jsonflags.ReportErrorsWithLegacySemantics | 1},
 		inBuf: `{"aa_a":"aa_a"}`,
 		inVal: new(structNoCase),
 		want:  addr(structNoCase{AaA: "aa_a"}),
+	}, {
+		name:    jsontest.Name("Structs/NoCase/CaseInsensitiveDefault/Ambiguous"),
+		inBuf:   `{"aa_a":"aa_a"}`,
+		inVal:   new(structNoCase),
+		want:    addr(structNoCase{}),
+		wantErr: EU(errAmbiguousName).withPos(`{`, "/aa_a").withType('"', T[structNoCase]()),
 	}, {
 		name:  jsontest.Name("Structs/NoCase/MatchCaseSensitiveDelimiter"),
 		opts:  []Options{jsonflags.MatchCaseSensitiveDelimiter | 1},
@@ -7238,17 +7245,24 @@ func TestUnmarshal(t *testing.T) {
 		want:  addr(structNoCase{AA_A: "aa_a"}),
 	}, {
 		name:  jsontest.Name("Structs/NoCase/Merge/AllowDuplicateNames"),
-		opts:  []Options{jsontext.AllowDuplicateNames(true)},
+		opts:  []Options{jsontext.AllowDuplicateNames(true), jsonflags.ReportErrorsWithLegacySemantics | 1},
 		inBuf: `{"AaA":"AaA","aaa":"aaa","aAa":"aAa"}`,
 		inVal: new(structNoCase),
 		want:  addr(structNoCase{AaA: "aAa"}),
 	}, {
-		name:    jsontest.Name("Structs/NoCase/Merge/RejectDuplicateNames"),
+		name:    jsontest.Name("Structs/NoCase/Merge/AllowDuplicateNames/Ambiguous"),
+		opts:    []Options{jsontext.AllowDuplicateNames(true)},
+		inBuf:   `{"AaA":"AaA","aaa":"aaa","aAa":"aAa"}`,
+		inVal:   new(structNoCase),
+		want:    addr(structNoCase{AaA: "AaA"}),
+		wantErr: EU(errAmbiguousName).withPos(`{"AaA":"AaA",`, "/aaa").withType('"', T[structNoCase]()),
+	}, {
+		name:    jsontest.Name("Structs/NoCase/Merge/RejectDuplicateNames/Ambiguous"),
 		opts:    []Options{jsontext.AllowDuplicateNames(false)},
 		inBuf:   `{"AaA":"AaA","aaa":"aaa"}`,
 		inVal:   new(structNoCase),
 		want:    addr(structNoCase{AaA: "AaA"}),
-		wantErr: newDuplicateNameError("", []byte(`"aaa"`), len64(`{"AaA":"AaA",`)),
+		wantErr: EU(errAmbiguousName).withPos(`{"AaA":"AaA",`, "/aaa").withType('"', T[structNoCase]()),
 	}, {
 		name:  jsontest.Name("Structs/CaseSensitive"),
 		inBuf: `{"BOOL": true, "STRING": "hello", "BYTES": "AQID", "INT": -64, "UINT": 64, "FLOAT": 3.14159}`,
@@ -7271,17 +7285,11 @@ func TestUnmarshal(t *testing.T) {
 		inVal: addr(structNoCaseEmbedTextValue{AAA: "before"}),
 		want:  addr(structNoCaseEmbedTextValue{AAA: "after"}),
 	}, {
-		name:    jsontest.Name("Structs/DuplicateName/NoCase/NoCaseConflict"),
-		inBuf:   `{"aaa":"aaa","aaA":"aaA"}`,
+		name:    jsontest.Name("Structs/AmbiguousName/NoCase"),
+		inBuf:   `{"aaa":"aaa"}`,
 		inVal:   addr(structNoCaseEmbedTextValue{}),
-		want:    addr(structNoCaseEmbedTextValue{AaA: "aaa"}),
-		wantErr: newDuplicateNameError("", []byte(`"aaA"`), len64(`{"aaa":"aaa",`)),
-	}, {
-		name:    jsontest.Name("Structs/DuplicateName/NoCase/OverwriteNoCase"),
-		inBuf:   `{"aaa":"aaa","aaA":"aaA"}`,
-		inVal:   addr(structNoCaseEmbedTextValue{}),
-		want:    addr(structNoCaseEmbedTextValue{AaA: "aaa"}),
-		wantErr: newDuplicateNameError("", []byte(`"aaA"`), len64(`{"aaa":"aaa",`)),
+		want:    addr(structNoCaseEmbedTextValue{}),
+		wantErr: EU(errAmbiguousName).withPos(`{`, "/aaa").withType('"', T[structNoCaseEmbedTextValue]()),
 	}, {
 		name:  jsontest.Name("Structs/DuplicateName/Embed/Unknown"),
 		inBuf: `{"unknown":""}`,
