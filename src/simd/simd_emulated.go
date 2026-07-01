@@ -33,7 +33,7 @@ func HasHardwareCarrylessMultiply() bool {
 }
 
 type number interface {
-	~int | ~int8 | ~int16 | ~int32 | ~int64 | ~uint | ~uint8 | ~uint16 | ~uint32 | ~uint64 | ~uintptr | ~float32 | ~float64
+	~int8 | ~int16 | ~int32 | ~int64 | ~uint8 | ~uint16 | ~uint32 | ~uint64 | ~float32 | ~float64
 }
 
 func sliceToString[T number](x []T) string {
@@ -50,7 +50,7 @@ func sliceToString[T number](x []T) string {
 		case int32:
 			s += strconv.Itoa(int(e))
 		case int64:
-			s += strconv.Itoa(int(e))
+			s += strconv.FormatInt(int64(e), 10)
 		case uint8:
 			s += strconv.FormatUint(uint64(e), 10)
 		case uint16:
@@ -2651,7 +2651,6 @@ func (x Float32s) Mul(y Float32s) Float32s {
 	res.set(1, x.get(1)*y.get(1))
 	res.set(2, x.get(2)*y.get(2))
 	res.set(3, x.get(3)*y.get(3))
-
 	return res
 }
 
