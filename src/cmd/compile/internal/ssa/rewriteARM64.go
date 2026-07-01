@@ -2276,10 +2276,10 @@ func rewriteValueARM64(v *Value) bool {
 	case OpZeroSIMD:
 		return rewriteValueARM64_OpZeroSIMD(v)
 	case OpbitSelectInt8x16:
-		v.Op = OpARM64VBIT16B
+		v.Op = OpARM64VBIF16B
 		return true
 	case OpbitSelectNotInt8x16:
-		v.Op = OpARM64VBIF16B
+		v.Op = OpARM64VBIT16B
 		return true
 	case Opbroadcast1To16Int8x16:
 		return rewriteValueARM64_Opbroadcast1To16Int8x16(v)

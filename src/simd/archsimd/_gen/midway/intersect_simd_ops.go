@@ -669,7 +669,12 @@ package simd
 						if fd == nil {
 							continue
 						}
-						pf("func (x %s) %s(", t, fd.Name.Name)
+						bridgeName := fd.Name.Name
+						if strings.HasPrefix(t, "Mask") && strings.HasPrefix(bridgeName, "ToInt") {
+							x := strings.Index(bridgeName, "x")
+							bridgeName = bridgeName[:x] + "s"
+						}
+						pf("func (x %s) %s(", t, bridgeName)
 						var args []string
 						if fd.Type.Params != nil {
 							paramCount := 0

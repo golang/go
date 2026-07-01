@@ -2,11 +2,12 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-//go:build goexperiment.simd && wasm
+//go:build goexperiment.simd && (amd64 || wasm || arm64)
 
 package simd_test
 
 import (
+	"runtime"
 	"simd/archsimd"
 	"testing"
 )
@@ -75,6 +76,13 @@ func TestShiftAll(t *testing.T) {
 		func(x archsimd.Int32x4) archsimd.Int32x4 { return x.ShiftAllLeft(hide(0x1000)) },
 		map1(func(x int32) int32 { return x << hide(0x1000) }))
 
+	testInt16x8ShiftAll(t, archsimd.Int16x8.ShiftAllLeft, shiftAllLeftSlice[int16])
+	testInt32x4ShiftAll(t, archsimd.Int32x4.ShiftAllLeft, shiftAllLeftSlice[int32])
+	testInt64x2ShiftAll(t, archsimd.Int64x2.ShiftAllLeft, shiftAllLeftSlice[int64])
+	testUint16x8ShiftAll(t, archsimd.Uint16x8.ShiftAllLeft, shiftAllLeftSlice[uint16])
+	testUint32x4ShiftAll(t, archsimd.Uint32x4.ShiftAllLeft, shiftAllLeftSlice[uint32])
+	testUint64x2ShiftAll(t, archsimd.Uint64x2.ShiftAllLeft, shiftAllLeftSlice[uint64])
+
 	// Signed ShiftAllRight
 
 	testInt32x4Unary(t,
@@ -91,6 +99,12 @@ func TestShiftAll(t *testing.T) {
 		func(x archsimd.Int32x4) archsimd.Int32x4 { return x.ShiftAllRight(hide(0x1000)) },
 		map1(func(x int32) int32 { return x >> hide(0x1000) }))
 
+	testInt16x8ShiftAll(t, archsimd.Int16x8.ShiftAllRight, shiftAllRightSlice[int16])
+	testInt32x4ShiftAll(t, archsimd.Int32x4.ShiftAllRight, shiftAllRightSlice[int32])
+	if runtime.GOARCH != "amd64" || archsimd.X86.AVX512() {
+		testInt64x2ShiftAll(t, archsimd.Int64x2.ShiftAllRight, shiftAllRightSlice[int64])
+	}
+
 	// Unsigned ShiftAllRight
 
 	testUint32x4Unary(t,
@@ -106,4 +120,10 @@ func TestShiftAll(t *testing.T) {
 	testUint32x4Unary(t,
 		func(x archsimd.Uint32x4) archsimd.Uint32x4 { return x.ShiftAllRight(hide(0x1000)) },
 		map1(func(x uint32) uint32 { return x >> hide(0x1000) }))
+
+	testUint16x8ShiftAll(t, archsimd.Uint16x8.ShiftAllRight, shiftAllRightSlice[uint16])
+	testUint32x4ShiftAll(t, archsimd.Uint32x4.ShiftAllRight, shiftAllRightSlice[uint32])
+	testUint64x2ShiftAll(t, archsimd.Uint64x2.ShiftAllRight, shiftAllRightSlice[uint64])
 }
+
+var testShiftAllAmts = []uint64{0, 1, 3, 7, 15, 31, 63, 128, 1024}

@@ -12,6 +12,9 @@
 // Top-level functions, such as [Float64] and [Int],
 // are safe for concurrent use by multiple goroutines.
 //
+// The [ChaCha8] source is a general-purpose source resistant to prediction.
+// The [PCG] source is faster but unfit for security-relevant purposes.
+//
 // This package's outputs might be easily predictable regardless of how it's
 // seeded. For random numbers suitable for security-sensitive work, see the
 // [crypto/rand] package.

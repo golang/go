@@ -376,10 +376,10 @@
 (XorUint16x8 ...) => (VEOR16B ...) // pureVreg
 (XorUint32x4 ...) => (VEOR16B ...) // pureVreg
 (XorUint64x2 ...) => (VEOR16B ...) // pureVreg
-(bitSelectInt8x16 ...) => (VBIT16B ...) // pureVreg
-(VBIT16B x y (VNOT16B mask)) => (VBIF16B x y mask) // specialLower
-(bitSelectNotInt8x16 ...) => (VBIF16B ...) // pureVreg
+(bitSelectInt8x16 ...) => (VBIF16B ...) // pureVreg
 (VBIF16B x y (VNOT16B mask)) => (VBIT16B x y mask) // specialLower
+(bitSelectNotInt8x16 ...) => (VBIT16B ...) // pureVreg
+(VBIT16B x y (VNOT16B mask)) => (VBIF16B x y mask) // specialLower
 (broadcast1To2Float64x2 x) => (VDUPDbcast [0] x) // pureVreg
 (broadcast1To2Int64x2 x) => (VDUPDbcast [0] x) // pureVreg
 (broadcast1To2Uint64x2 x) => (VDUPDbcast [0] x) // pureVreg

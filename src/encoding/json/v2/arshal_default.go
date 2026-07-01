@@ -1324,11 +1324,17 @@ func makeStructArshaler(t reflect.Type) *arshaler {
 				name := jsonwire.UnquoteMayCopy(val, flags.IsVerbatim())
 				f := fields.byActualName[string(name)]
 				if f == nil {
+					var numMatch int
 					for _, f2 := range fields.lookupByFoldedName(name) {
 						if f2.matchFoldedName(name, &uo.Flags) {
-							f = f2
-							break
+							if f == nil {
+								f = f2 // use first seen name by breadth-first order
+							}
+							numMatch++
 						}
+					}
+					if numMatch > 1 && !uo.Flags.Get(jsonflags.ReportErrorsWithLegacySemantics) {
+						return newUnmarshalErrorAfter(dec, t, errAmbiguousName)
 					}
 					if f == nil {
 						if uo.Flags.Get(jsonflags.RejectUnknownMembers) && fields.embeddedFallback == nil {

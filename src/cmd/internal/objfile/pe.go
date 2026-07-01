@@ -34,6 +34,25 @@ func (f *peFile) symbols() ([]Sym, error) {
 
 	imageBase, _ := f.imageBase()
 
+	// When using internal linking we currently put BSS into the
+	// .data section. In order to set the B code correctly,
+	// we find the address of runtime.bss. Anything in a data section
+	// past runtime.bss is a BSS symbol.
+	//
+	// Just checking the section size in insufficient,
+	// as it will be rounded up to the page size.
+	// That is, there can be BSS symbols at the end of the page
+	// that holds the last data symbols.
+	var bssAddr uint32
+	var bssSectionNumber int16
+	for _, s := range f.pe.Symbols {
+		if s.Name == "runtime.bss" {
+			bssAddr = s.Value
+			bssSectionNumber = s.SectionNumber
+			break
+		}
+	}
+
 	var syms []Sym
 	for _, s := range f.pe.Symbols {
 		const (
@@ -67,6 +86,12 @@ func (f *peFile) symbols() ([]Sym, error) {
 			case ch&data != 0:
 				if ch&permW == 0 {
 					sym.Code = 'R'
+				} else if bssSectionNumber == s.SectionNumber && bssAddr > 0 && s.Value >= bssAddr {
+					// Past runtime.bss is BSS.
+					sym.Code = 'B'
+				} else if s.Value >= sect.Size {
+					// Past section size is BSS.
+					sym.Code = 'B'
 				} else {
 					sym.Code = 'D'
 				}

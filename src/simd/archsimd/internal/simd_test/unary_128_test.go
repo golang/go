@@ -2,11 +2,12 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-//go:build goexperiment.simd && wasm
+//go:build goexperiment.simd && (amd64 || wasm || arm64)
 
 package simd_test
 
 import (
+	"runtime"
 	"simd/archsimd"
 	"testing"
 )
@@ -46,25 +47,30 @@ func TestNot(t *testing.T) {
 	testInt64x2Unary(t, archsimd.Int64x2.Not, map1[int64](not))
 }
 
-func TestAbsolute(t *testing.T) {
+func TestAbs(t *testing.T) {
+	testFloat32x4Unary(t, archsimd.Float32x4.Abs, map1[float32](abs))
+	testFloat64x2Unary(t, archsimd.Float64x2.Abs, map1[float64](abs))
 	testInt8x16Unary(t, archsimd.Int8x16.Abs, map1[int8](abs))
 	testInt16x8Unary(t, archsimd.Int16x8.Abs, map1[int16](abs))
 	testInt32x4Unary(t, archsimd.Int32x4.Abs, map1[int32](abs))
+	if runtime.GOARCH != "amd64" || archsimd.X86.AVX512() {
+		testInt64x2Unary(t, archsimd.Int64x2.Abs, map1[int64](abs))
+	}
+}
+
+func TestNeg(t *testing.T) {
+	testFloat32x4Unary(t, archsimd.Float32x4.Neg, map1[float32](neg))
+	testFloat64x2Unary(t, archsimd.Float64x2.Neg, map1[float64](neg))
+	testInt8x16Unary(t, archsimd.Int8x16.Neg, map1[int8](neg))
+	testInt16x8Unary(t, archsimd.Int16x8.Neg, map1[int16](neg))
+	testInt32x4Unary(t, archsimd.Int32x4.Neg, map1[int32](neg))
+	testInt64x2Unary(t, archsimd.Int64x2.Neg, map1[int64](neg))
 }
 
 func TestOnesCount(t *testing.T) {
+	if runtime.GOARCH == "amd64" && !archsimd.X86.AVX512BITALG() {
+		t.Skip("OnesCount on 128-bit 8-bit vectors on amd64 requires AVX512BITALG")
+	}
 	testInt8x16Unary(t, archsimd.Int8x16.OnesCount, map1[int8](onesCount))
-	testInt16x8Unary(t, archsimd.Int16x8.OnesCount, map1[int16](onesCount))
-	testInt32x4Unary(t, archsimd.Int32x4.OnesCount, map1[int32](onesCount))
+	testUint8x16Unary(t, archsimd.Uint8x16.OnesCount, map1[uint8](onesCount))
 }
-
-// func TestConvert(t *testing.T) {
-// 	testFloat64x2ConvertToFloat32(t, archsimd.Float64x2.ConvertToFloat32, map1n[float64](toFloat32, 4))
-// 	testFloat32x4ConvertToFloat64(t, archsimd.Float32x4.ConvertToFloat64, map1[float32](toFloat64))
-
-// 	testFloat32x4ConvertToInt32(t, archsimd.Float32x4.ConvertToInt32, map1[float32](floatToInt32_x86))
-// 	testFloat64x2ConvertToInt32(t, archsimd.Float64x2.ConvertToInt32, map1n[float64](floatToInt32_x86, 4))
-
-// 	testInt32x4ConvertToFloat32(t, archsimd.Int32x4.ConvertToFloat32, map1[int32](toFloat32))
-// 	testInt32x4ConvertToFloat64(t, archsimd.Int32x4.ConvertToFloat64, map1[int32](toFloat64))
-// }
