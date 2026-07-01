@@ -1360,8 +1360,14 @@ func testTransportChecksRequestHeaderListSize(t *testing.T) {
 }
 
 func TestTransportChecksResponseHeaderListSize(t *testing.T) {
-	synctest.Test(t, testTransportChecksResponseHeaderListSize)
+	t.Run("headers", func(t *testing.T) {
+		synctest.Test(t, testTransportChecksResponseHeaderListSize)
+	})
+	t.Run("trailers", func(t *testing.T) {
+		synctest.Test(t, testTransportChecksResponseTrailerHeaderListSize)
+	})
 }
+
 func testTransportChecksResponseHeaderListSize(t *testing.T) {
 	tc := newTestClientConn(t)
 	tc.greet()
@@ -1406,6 +1412,55 @@ func testTransportChecksResponseHeaderListSize(t *testing.T) {
 		}
 		t.Fatalf("RoundTrip Error = %v (and %d bytes of response headers); want errResponseHeaderListSize", err, size)
 	}
+}
+
+func testTransportChecksResponseTrailerHeaderListSize(t *testing.T) {
+	tc := newTestClientConn(t)
+	tc.greet()
+
+	req, _ := http.NewRequest("GET", "https://dummy.tld/", nil)
+	rt := tc.roundTrip(req)
+
+	tc.wantFrameType(FrameHeaders)
+	tc.writeHeaders(HeadersFrameParam{
+		StreamID:   rt.streamID(),
+		EndHeaders: true,
+		EndStream:  false,
+		BlockFragment: tc.makeHeaderBlockFragment(
+			":status", "200",
+			"trailer", "x-trailer",
+		),
+	})
+	rt.wantStatus(200)
+
+	var hdr []string
+	large := strings.Repeat("a", 1<<10)
+	for range 5042 {
+		hdr = append(hdr, large, large)
+	}
+	hbf := tc.makeHeaderBlockFragment(hdr...)
+	// Note: this number might change if our hpack implementation changes.
+	if size, want := len(hbf), 6328; size != want {
+		t.Fatalf("encoding over 10MB of duplicate keypairs took %d bytes; expected %d", size, want)
+	}
+	tc.writeHeaders(HeadersFrameParam{
+		StreamID:      rt.streamID(),
+		EndHeaders:    true,
+		EndStream:     true,
+		BlockFragment: hbf,
+	})
+
+	_, err := rt.readBody()
+	if e, ok := err.(StreamError); ok {
+		err = e.Cause
+	}
+	if err != ErrResponseHeaderListSize {
+		t.Errorf("Read = %v, want %v", err, ErrResponseHeaderListSize)
+	}
+	// Verify that this is treated as a StreamError that does not close the
+	// whole connection down.
+	tc.wantFrameType(FrameRSTStream)
+	tc.wantIdle()
 }
 
 func TestTransportCookieHeaderSplit(t *testing.T) { synctest.Test(t, testTransportCookieHeaderSplit) }
