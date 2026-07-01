@@ -36,8 +36,8 @@ type Func struct {
 	HTMLWriter     *HTMLWriter    // html writer, for debugging
 	PrintOrHtmlSSA bool           // true if GOSSAFUNC matches, true even if fe.Log() (spew phase results to stdout) is false.  There's an odd dependence on this in debug.go for method logf.
 	ruleMatches    map[string]int // number of times countRule was called during compilation for any given string
-	ABI0           *abi.ABIConfig // A copy, for no-sync access
-	ABI1           *abi.ABIConfig // A copy, for no-sync access
+	ABI0           *abi.ABIConfig // ABI configuration for ABI0
+	ABI1           *abi.ABIConfig // ABI configuration for ABIInternal
 	ABISelf        *abi.ABIConfig // ABI for function being compiled
 	ABIDefault     *abi.ABIConfig // ABI for rtcall and other no-parsed-signature/pragma functions.
 
