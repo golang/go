@@ -347,6 +347,53 @@ fallback:
 	MOV	T0, ret+0(FP)
 	RET
 
+// func vgetrandom1(buf *byte, length uintptr, flags uint32, state uintptr, stateSize uintptr) int
+TEXT runtime·vgetrandom1<ABIInternal>(SB),NOSPLIT,$40-48
+	MOV	X2, X18
+	MOV	runtime·vdsoGetrandomSym(SB), X28
+	MOV	g_m(g), X19
+
+	MOV	m_vdsoPC(X19), X6
+	MOV	X6, 24(X2)
+	MOV	m_vdsoSP(X19), X7
+	MOV	X7, 32(X2)
+
+	MOV	X1, m_vdsoPC(X19)
+	MOV	$ret-8(FP), X6	// caller's SP
+	MOV	X6, m_vdsoSP(X19)
+
+	MOV	m_curg(X19), X7
+	BNE	g, X7, noswitch
+	MOV	m_g0(X19), X7
+	MOV	(g_sched+gobuf_sp)(X7), X2
+noswitch:
+	ANDI	$~15, X2	// 16-byte align SP for vDSO (per RISC-V psABI)
+
+	MOVBU	runtime·iscgo(SB), X20
+	BNEZ	X20, nosaveg
+	MOV	m_gsignal(X19), X20
+	BEQZ	X20, nosaveg
+	BEQ	g, X20, nosaveg
+	MOV	(g_stack+stack_lo)(X20), X20
+	MOV	g, (X20)
+
+	JALR	X1, X28
+
+	MOV	ZERO, (X20)
+	JMP	restore
+
+nosaveg:
+	JALR	X1, X28
+
+restore:
+	MOV	X18, X2
+	MOV	24(X2), X6
+	MOV	X6, m_vdsoPC(X19)
+	MOV	32(X2), X7
+	MOV	X7, m_vdsoSP(X19)
+	ADD	$0, X10, X10 // return value from vDSO
+	RET
+
 // func rtsigprocmask(how int32, new, old *sigset, size int32)
 TEXT runtime·rtsigprocmask(SB),NOSPLIT|NOFRAME,$0-28
 	MOVW	how+0(FP), A0
