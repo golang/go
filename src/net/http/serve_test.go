@@ -3416,9 +3416,7 @@ func testRequestHeaderValueCountLimit(t *testing.T, mode testMode) {
 }
 
 func TestRequestTrailerHeaderValueCountLimit(t *testing.T) {
-	// HTTP/1 has a static limit for trailer headers that are not affected by
-	// settings such as MaxHeaderBytes and MaxHeaderValueCount.
-	run(t, testRequestTrailerHeaderValueCountLimit, []testMode{http2Mode})
+	run(t, testRequestTrailerHeaderValueCountLimit, http3SkippedMode)
 }
 func testRequestTrailerHeaderValueCountLimit(t *testing.T, mode testMode) {
 	tests := []struct {
@@ -3475,17 +3473,23 @@ func testRequestTrailerHeaderValueCountLimit(t *testing.T, mode testMode) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			cst := newClientServerTest(t, mode, HandlerFunc(func(w ResponseWriter, r *Request) {
-				io.Copy(io.Discard, r.Body)
+				_, err := io.Copy(io.Discard, r.Body)
+				if (err != nil) != tt.wantErr {
+					t.Errorf("Read = %v, want %v", err, tt.wantErr)
+				}
 			}), func(s *Server) {
 				s.MaxHeaderValueCount = tt.limit
 			}, optQuietLog)
 
 			req, _ := NewRequest("GET", cst.ts.URL, strings.NewReader("some body"))
+			req.TransferEncoding = []string{"chunked"}
 			tt.setup(req)
 
+			// Do will return an error in HTTP/2 due to RST_STREAM, but will
+			// succeed in HTTP/1.
 			res, err := cst.c.Do(req)
-			if (err != nil) != tt.wantErr {
-				t.Fatalf("got error %v, want %v", err, tt.wantErr)
+			if err != nil && !tt.wantErr {
+				t.Fatalf("unexpected Do error: %v", err)
 			}
 			if err == nil {
 				res.Body.Close()
