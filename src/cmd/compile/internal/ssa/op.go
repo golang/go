@@ -47,6 +47,8 @@ type opInfo struct {
 	unsafePoint       bool      // this op is an unsafe point, i.e. not safe for async preemption
 	fixedReg          bool      // this op will be assigned a fixed register
 	earlyOk           bool      // executing this op in an earlier block is ok
+	addrSinkArg0      bool      // the address in arg0 does not propagate to the result
+	addrSinkArg1      bool      // the address in arg1 does not propagate to the result
 	symEffect         SymEffect // effect this op has on symbol in aux
 	scale             uint8     // amd64/386 indexed load scale
 }

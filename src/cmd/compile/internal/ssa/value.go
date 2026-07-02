@@ -665,3 +665,15 @@ func CanSSA(t *types.Type) bool {
 		return true
 	}
 }
+
+// AddrSinkArg reports whether the idx'th argument is known
+// to not propagate to the output value.
+func (v *Value) AddrSinkArg(idx int) bool {
+	if idx == 0 {
+		return opcodeTable[v.Op].addrSinkArg0
+	}
+	if idx == 1 {
+		return opcodeTable[v.Op].addrSinkArg1
+	}
+	return false
+}
