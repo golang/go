@@ -1618,6 +1618,37 @@ func TestFileChdir(t *testing.T) {
 	}
 }
 
+func TestFileChdirFromTempDir(t *testing.T) {
+	// This is most useful when the original working directory and TempDir are on
+	// different volumes, such as a network-mounted working directory and a local
+	// system temporary directory.
+	// See https://go.dev/issue/80130.
+	wd, err := Getwd()
+	if err != nil {
+		t.Fatalf("Getwd: %v", err)
+	}
+	defer func() {
+		if err := Chdir(wd); err != nil {
+			t.Errorf("restore wd: %v", err)
+		}
+	}()
+
+	fd, err := Open(".")
+	if err != nil {
+		t.Fatalf("Open .: %v", err)
+	}
+	defer fd.Close()
+
+	tmp := t.TempDir()
+	if err := Chdir(tmp); err != nil {
+		t.Fatalf("Chdir %s: %v", tmp, err)
+	}
+
+	if err := fd.Chdir(); err != nil {
+		t.Fatalf("fd.Chdir: %v", err)
+	}
+}
+
 // TestFileChdirTestlog verifies that (*File).Chdir notifies the testlog,
 // just like os.Chdir does. cmd/go's test cache relies on every working
 // directory change being recorded so that relative paths logged by later
