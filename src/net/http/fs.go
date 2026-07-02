@@ -1001,7 +1001,16 @@ type httpRange struct {
 }
 
 func (r httpRange) contentRange(size int64) string {
-	return fmt.Sprintf("bytes %d-%d/%d", r.start, r.start+r.length-1, size)
+	buf := make([]byte, 0, 80)
+	buf = append(buf, "bytes "...)
+
+	buf = strconv.AppendInt(buf, r.start, 10)
+	buf = append(buf, '-')
+
+	buf = strconv.AppendInt(buf, r.start+r.length-1, 10)
+	buf = append(buf, '/')
+	buf = strconv.AppendInt(buf, size, 10)
+	return string(buf)
 }
 
 func (r httpRange) mimeHeader(contentType string, size int64) textproto.MIMEHeader {
