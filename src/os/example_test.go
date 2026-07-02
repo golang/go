@@ -246,7 +246,7 @@ func ExampleWriteFile() {
 
 func ExampleMkdir() {
 	err := os.Mkdir("testdir", 0750)
-	if err != nil && !os.IsExist(err) {
+	if err != nil && !errors.Is(err, fs.ErrExist) {
 		log.Fatal(err)
 	}
 	err = os.WriteFile("testdir/testfile.txt", []byte("Hello, Gophers!"), 0660)
@@ -365,7 +365,7 @@ func ExampleUserConfigDir() {
 		configPath = filepath.Join(dir, "ExampleUserConfigDir", "example.conf")
 		var err error
 		origConfig, err = os.ReadFile(configPath)
-		if err != nil && !os.IsNotExist(err) {
+		if err != nil && !errors.Is(err, fs.ErrNotExist) {
 			// The user has a config file but we couldn't read it.
 			// Report the error instead of ignoring their configuration.
 			log.Fatal(err)
