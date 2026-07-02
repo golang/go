@@ -137,7 +137,10 @@ func IsARM64TBL(op obj.As) bool {
 // destination is a register pair that require special handling.
 func IsARM64CASP(op obj.As) bool {
 	switch op {
-	case arm64.ACASPD, arm64.ACASPW:
+	case arm64.ACASPD, arm64.ACASPW,
+		arm64.ACASPAD, arm64.ACASPAW,
+		arm64.ACASPALD, arm64.ACASPALW,
+		arm64.ACASPLD, arm64.ACASPLW:
 		return true
 	}
 	return false
