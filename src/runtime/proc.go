@@ -5511,6 +5511,12 @@ func saveAncestors(callergp *g) *[]ancestorInfo {
 	return ancestorsp
 }
 
+// maxCachedStackSize bounds the size of a dead goroutine's stack that we keep
+// on the free-g list for reuse instead of freeing. Stacks larger than this are
+// freed. The per-P free-g list is already capped at 64 entries, so the extra
+// memory retained is bounded at 64*maxCachedStackSize per P (~8 MiB at 128 KiB).
+const maxCachedStackSize = 128 << 10 // 128 KiB
+
 // Put on gfree list.
 // If local list is too long, transfer a batch to the global list.
 func gfput(pp *p, gp *g) {
@@ -5520,8 +5526,10 @@ func gfput(pp *p, gp *g) {
 
 	stksize := gp.stack.hi - gp.stack.lo
 
-	if stksize != uintptr(startingStackSize) {
-		// non-standard stack size - free it.
+	if stksize > maxCachedStackSize {
+		// Free stacks larger than the cap. Smaller (possibly grown) stacks are
+		// retained on the free-g list so a future goroutine can reuse them
+		// instead of paying to grow again.
 		stackfree(gp.stack)
 		gp.stack.lo = 0
 		gp.stack.hi = 0
@@ -5578,23 +5586,8 @@ retry:
 	if gp == nil {
 		return nil
 	}
-	if gp.stack.lo != 0 && gp.stack.hi-gp.stack.lo != uintptr(startingStackSize) {
-		// Deallocate old stack. We kept it in gfput because it was the
-		// right size when the goroutine was put on the free list, but
-		// the right size has changed since then.
-		systemstack(func() {
-			stackfree(gp.stack)
-			gp.stack.lo = 0
-			gp.stack.hi = 0
-			gp.stackguard0 = 0
-			if valgrindenabled {
-				valgrindDeregisterStack(gp.valgrindStackID)
-				gp.valgrindStackID = 0
-			}
-		})
-	}
 	if gp.stack.lo == 0 {
-		// Stack was deallocated in gfput or just above. Allocate a new one.
+		// Stack was deallocated in gfput. Allocate a new one.
 		systemstack(func() {
 			gp.stack = stackalloc(startingStackSize)
 			if valgrindenabled {
