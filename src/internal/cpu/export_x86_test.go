@@ -8,4 +8,5 @@ package cpu
 
 var (
 	GetGOAMD64level = getGOAMD64level
+	Cpuid           = cpuid
 )
