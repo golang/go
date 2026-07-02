@@ -1,0 +1,48 @@
+# go.dev/issue/63507: in a module whose go.mod has no go directive,
+# 'go get go@version' synthesizes the current version internally. The change
+# must be reported as the directive being added, not as a spurious downgrade
+# from the go command's own version.
+
+env TESTGO_VERSION=go1.99
+
+# No go directive: 'go get go@1.20' adds one. It must not look like a downgrade
+# from go1.99.
+go get go@1.20
+stderr '^go: added go 1.20$'
+! stderr 'downgraded'
+grep '^go 1.20$' go.mod
+
+# No go directive + 'go get go@<current>': the go command would write the same
+# synthesized version, so this is a no-op change and must stay silent rather
+# than report a spurious "added"/"upgraded"/"downgraded" go line. The matching
+# toolchain is implicit, so no toolchain line is written or reported either.
+cp go.mod.none go.mod
+go get go@1.99
+! stderr 'go: (added|upgraded|downgraded) go'
+! stderr 'toolchain'
+grep '^go 1.99$' go.mod
+! grep '^toolchain' go.mod
+
+# An existing, higher go directive is still reported as a real downgrade.
+cp go.mod.high go.mod
+go get go@1.20
+stderr '^go: downgraded go 1.25 => 1.20$'
+
+# An existing, lower go directive is still reported as a real upgrade.
+cp go.mod.low go.mod
+go get go@1.20
+stderr '^go: upgraded go 1.18 => 1.20$'
+
+-- go.mod --
+module example.com/m
+
+-- go.mod.none --
+module example.com/m
+
+-- go.mod.high --
+module example.com/m
+go 1.25
+
+-- go.mod.low --
+module example.com/m
+go 1.18
