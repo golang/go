@@ -30,27 +30,27 @@ func rewrite(fn *ir.Func) {
 		return
 	}
 
-	var ret *ir.ReturnStmt
-	nreturns := 0
+	var returns []*ir.ReturnStmt
 	hasDefer := false
 	ir.VisitList(fn.Body, func(n ir.Node) {
 		switch n := n.(type) {
 		case *ir.ReturnStmt:
-			nreturns++
-			ret = n
+			returns = append(returns, n)
 		case *ir.GoDeferStmt:
 			if n.Op() == ir.ODEFER {
 				hasDefer = true
 			}
 		}
 	})
-	if hasDefer || nreturns != 1 || ret == nil || len(ret.Results) == 0 {
+	if hasDefer || len(returns) == 0 {
 		return
 	}
 
 	results := fn.Type().Results()
-	if len(ret.Results) != len(results) {
-		return
+	for _, ret := range returns {
+		if len(ret.Results) == 0 || len(ret.Results) != len(results) {
+			return
+		}
 	}
 
 	// candidates maps each local variable to the result slot whose storage
@@ -65,8 +65,21 @@ func rewrite(fn *ir.Func) {
 		}
 		out := result.Nname.(*ir.Name)
 
-		local, ok := ret.Results[i].(*ir.Name)
-		if !ok || !isCandidateLocal(local, result) {
+		var local *ir.Name
+		for _, ret := range returns {
+			n, ok := ret.Results[i].(*ir.Name)
+			if !ok || !isCandidateLocal(n, result) {
+				local = nil
+				break
+			}
+			if local == nil {
+				local = n
+			} else if local != n {
+				local = nil
+				break
+			}
+		}
+		if local == nil {
 			continue
 		}
 		if prev, ok := candidates[local]; ok && prev != out {

@@ -21,3 +21,18 @@ func resultSlotArray(x uint64) [16]byte {
 	// amd64:-`.*\.ret\+` -`.*MOVUPS.*~r0`
 	return ret
 }
+
+//go:noinline
+func resultSlotArrayMultipleReturns(x uint64, c bool) [16]byte {
+	var ret [16]byte
+	// amd64:-`.*\.ret\+`
+	use16(ret[:8], x)
+	if c {
+		// amd64:-`.*\.ret\+` -`.*MOVUPS.*~r0`
+		return ret
+	}
+	// amd64:-`.*\.ret\+`
+	use16(ret[8:], x)
+	// amd64:-`.*\.ret\+` -`.*MOVUPS.*~r0`
+	return ret
+}

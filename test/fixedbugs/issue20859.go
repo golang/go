@@ -36,6 +36,17 @@ func captured(x byte) [16]byte {
 	return ret
 }
 
+//go:noinline
+func multi(x byte, c bool) [16]byte {
+	var ret [16]byte
+	ret[4] = x
+	if c {
+		return ret
+	}
+	ret[5] = x + 1
+	return ret
+}
+
 func check(name string, got, want [16]byte) {
 	if got != want {
 		panic(name)
@@ -56,4 +67,10 @@ func main() {
 	want = [16]byte{}
 	want[2] = 13
 	check("captured", captured(13), want)
+
+	want = [16]byte{}
+	want[4] = 15
+	check("multi true", multi(15, true), want)
+	want[5] = 16
+	check("multi false", multi(15, false), want)
 }
