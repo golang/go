@@ -168,7 +168,7 @@ func unpackEface(i any) Value {
 	return Value{t, e.Data, f}
 }
 
-// A ValueError occurs when a Value method is invoked on
+// A ValueError occurs when a Value method is invoked using
 // a [Value] that does not support it. Such cases are documented
 // in the description of each method.
 type ValueError struct {
@@ -178,9 +178,9 @@ type ValueError struct {
 
 func (e *ValueError) Error() string {
 	if e.Kind == 0 {
-		return "reflect: call of " + e.Method + " on zero Value"
+		return "reflect: call of " + e.Method + " with zero Value"
 	}
-	return "reflect: call of " + e.Method + " on " + e.Kind.String() + " Value"
+	return "reflect: call of " + e.Method + " with " + e.Kind.String() + " Value"
 }
 
 // valueMethodName returns the name of the exported calling method on Value.
