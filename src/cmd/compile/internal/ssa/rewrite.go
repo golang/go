@@ -2825,17 +2825,12 @@ func bool2int(x bool) int {
 func rewriteCondSelectIntoMath(config *Config, op Op, constant int64) bool {
 	switch config.arch {
 	case "amd64":
-		if constant == 1 {
-			return true
-		}
-		switch op {
-		case OpAdd64, OpAdd32, OpAdd16, OpAdd8:
-			switch constant {
-			case 2, 4, 8:
-				// Implemented with LEA a + b * displacement form
-				return true
-			}
-		}
+		// constant=1 is a zext, Add with 2/4/8 uses LEA,
+		// the rest strength-reduce Mul(powerOf2, bool) to SHL.
+		// SHL is 1:3 latency vs CMOV's 2:2, but better for
+		// accumulation chains (e.g. flag packing) where the
+		// independent shift chains execute in parallel.
+		return isPowerOfTwo(uint64(constant))
 	case "arm64":
 		switch op {
 		case OpAdd64, OpAdd32, OpAdd16, OpAdd8:

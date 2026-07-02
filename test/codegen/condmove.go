@@ -754,6 +754,7 @@ func cmovmathxor2(a uint, b bool) uint {
 	if b {
 		a ^= 2
 	}
+	// amd64:"XORQ" -"CMOV"
 	// arm64:"EOR R[0-9]+<<1" -"CSEL" -"MUL"
 	// ppc64x: "ISEL" -"MUL"
 	return a
@@ -762,6 +763,7 @@ func cmovmathxor2else(a uint, b bool) uint {
 	if !b {
 		a ^= 2
 	}
+	// amd64:"XORQ" -"CMOV"
 	// arm64:"EOR R[0-9]+<<1" -"CSEL" -"MUL"
 	// ppc64x: "ISEL" -"MUL"
 	return a
@@ -781,6 +783,38 @@ func cmovmathxor9223372036854775808else(a uint, b bool) uint {
 	}
 	// arm64:"EOR R[0-9]+<<63" -"CSEL" -"MUL"
 	// ppc64x: "ISEL" -"MUL"
+	return a
+}
+
+func cmovmathor4(a uint, b bool) uint {
+	if b {
+		a |= 4
+	}
+	// amd64:"ORQ" -"CMOV"
+	return a
+}
+
+func cmovmathor4else(a uint, b bool) uint {
+	if !b {
+		a |= 4
+	}
+	// amd64:"ORQ" -"CMOV"
+	return a
+}
+
+func cmovmathadd16(a uint, b bool) uint {
+	if b {
+		a += 16
+	}
+	// amd64:"ADDQ" -"CMOV"
+	return a
+}
+
+func cmovmathsub16(a uint, b bool) uint {
+	if b {
+		a -= 16
+	}
+	// amd64:"SUBQ" -"CMOV"
 	return a
 }
 
