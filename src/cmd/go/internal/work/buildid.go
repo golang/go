@@ -193,7 +193,7 @@ func (b *Builder) toolID(name string) string {
 //
 // For these tools we have no -V=full option to dump the build ID,
 // but we can run the tool with -v -### to reliably get the compiler proper
-// and hash that. That will work in the presence of -toolexec.
+// and hash that.
 //
 // In order to get reproducible builds for released compilers, we
 // detect a released compiler by the absence of "experimental" in the
@@ -203,7 +203,14 @@ func (b *Builder) toolID(name string) string {
 // The caller assumes that stat of the exe can be used, combined with the id,
 // to detect changes in the underlying compiler. The returned exe can be empty,
 // which means to rely only on the id.
-func (b *Builder) gccToolID(name, language string) (id, exe string, err error) {
+//
+// useToolexec reports whether the version probe should be run under
+// cfg.BuildToolexec. It is true only for gccgo, which is treated as a Go
+// toolchain compiler (like cmd/compile) and so is probed under -toolexec. It is
+// false for the C, C++, and Fortran compilers driven by cgo: those are not
+// otherwise invoked under -toolexec, so probing them under -toolexec would be
+// inconsistent (see go.dev/issue/64580).
+func (b *Builder) gccToolID(name, language string, useToolexec bool) (id, exe string, err error) {
 	//TODO: Use par.Cache instead of a mutex and a map. See Builder.toolID.
 	key := name + "." + language
 	b.id.Lock()
@@ -218,7 +225,10 @@ func (b *Builder) gccToolID(name, language string) (id, exe string, err error) {
 	// Invoke the driver with -### to see the subcommands and the
 	// version strings. Use -x to set the language. Pretend to
 	// compile an empty file on standard input.
-	cmdline := str.StringList(cfg.BuildToolexec, name, "-###", "-x", language, "-c", "-")
+	cmdline := str.StringList(name, "-###", "-x", language, "-c", "-")
+	if useToolexec {
+		cmdline = str.StringList(cfg.BuildToolexec, cmdline)
+	}
 	cmd := exec.Command(cmdline[0], cmdline[1:]...)
 	// Force untranslated output so that we see the string "version".
 	cmd.Env = append(os.Environ(), "LC_ALL=C")
