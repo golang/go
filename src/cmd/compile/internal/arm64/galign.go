@@ -24,4 +24,5 @@ func Init(arch *ssagen.ArchInfo) {
 	arch.SSAGenBlock = ssaGenBlock
 	arch.LoadRegResult = loadRegResult
 	arch.SpillArgReg = spillArgReg
+	arch.SSAGenFinish = ssaGenFinish
 }

@@ -7397,6 +7397,18 @@ func genssa(f *ssa.Func, pp *objw.Progs) {
 		fi.JumpTables = append(fi.JumpTables, obj.JumpTable{Sym: jt.Aux.(*obj.LSym), Targets: targets})
 	}
 
+	// Finalize the frame, then let the backend run a final pass over the
+	// generated Progs (e.g. arm64 fuses adjacent spill/reload MOVDs into
+	// STP/LDP). Branch and jump-table targets are resolved at this point.
+	// Doing this before the debug dumps below means -S and GOSSAFUNC's genssa
+	// output reflect the instructions that are actually assembled. defframe
+	// must run first: it finalizes the frame size, which the backend pass
+	// depends on.
+	defframe(&s, e, f)
+	if Arch.SSAGenFinish != nil {
+		Arch.SSAGenFinish(s.pp)
+	}
+
 	if e.log { // spew to stdout
 		filename := ""
 		for p := s.pp.Text; p != nil; p = p.Link {
@@ -7515,8 +7527,6 @@ func genssa(f *ssa.Func, pp *objw.Progs) {
 			fi.Close()
 		}
 	}
-
-	defframe(&s, e, f)
 
 	f.HTMLWriter.Close()
 	f.HTMLWriter = nil
