@@ -299,11 +299,12 @@ func (t *transferWriter) writeHeader(w io.Writer, trace *httptrace.ClientTrace) 
 		if _, err := io.WriteString(w, "Content-Length: "); err != nil {
 			return err
 		}
-		if _, err := io.WriteString(w, strconv.FormatInt(t.ContentLength, 10)+"\r\n"); err != nil {
+		contentLength := strconv.FormatInt(t.ContentLength, 10)
+		if _, err := io.WriteString(w, contentLength+"\r\n"); err != nil {
 			return err
 		}
 		if trace != nil && trace.WroteHeaderField != nil {
-			trace.WroteHeaderField("Content-Length", []string{strconv.FormatInt(t.ContentLength, 10)})
+			trace.WroteHeaderField("Content-Length", []string{contentLength})
 		}
 	} else if chunked(t.TransferEncoding) {
 		if _, err := io.WriteString(w, "Transfer-Encoding: chunked\r\n"); err != nil {
