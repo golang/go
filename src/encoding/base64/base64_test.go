@@ -197,6 +197,36 @@ func TestDecoder(t *testing.T) {
 	}
 }
 
+func TestDecoderChunking(t *testing.T) {
+	// The decoder must behave identically to decoding the whole input at
+	// once, regardless of how the underlying reader chunks the input.
+	// See golang.org/issue/31626.
+	tests := []struct {
+		enc *Encoding
+		in  string
+	}{
+		{StdEncoding, "Rw==bw=="},     // padding inside the stream
+		{StdEncoding, "AAAA####"},     // error offset must not reset per chunk
+		{StdEncoding, "Rw==x"},        // trailing garbage after a padded group
+		{StdEncoding, "Rw===="},       // extra padding after a padded group
+		{StdEncoding, "AAAABBBBCCCC"}, // valid input
+		{StdEncoding, "AAAABB=="},     // valid input with padding
+		{RawStdEncoding, "AAAABB"},    // valid input, no padding
+		{RawStdEncoding, "AAAA#B"},    // invalid byte in final fragment
+	}
+	for _, tt := range tests {
+		want, wantErr := tt.enc.DecodeString(tt.in)
+		for i := 0; i <= len(tt.in); i++ {
+			r := io.MultiReader(strings.NewReader(tt.in[:i]), strings.NewReader(tt.in[i:]))
+			got, gotErr := io.ReadAll(NewDecoder(tt.enc, r))
+			if !bytes.Equal(got, want) || gotErr != wantErr {
+				t.Errorf("Decode(%q) with split at %d = %q, %v; want %q, %v",
+					tt.in, i, got, gotErr, want, wantErr)
+			}
+		}
+	}
+}
+
 func TestDecoderBuffering(t *testing.T) {
 	for bs := 1; bs <= 12; bs++ {
 		decoder := NewDecoder(StdEncoding, strings.NewReader(bigtest.encoded))
