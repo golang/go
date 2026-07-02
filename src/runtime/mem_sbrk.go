@@ -227,6 +227,7 @@ func sysFreeOS(v unsafe.Pointer, n uintptr) {
 }
 
 func sysUnusedOS(v unsafe.Pointer, n uintptr) {
+	sysUnusedOSImpl(v, n)
 }
 
 func sysUsedOS(v unsafe.Pointer, n uintptr) {
@@ -285,6 +286,10 @@ func sysReserveAlignedSbrk(size, align uintptr) (unsafe.Pointer, uintptr) {
 			p = start
 			return
 		}
+
+		// Let platform sbrk implementations initialize their backing store before
+		// computing the aligned address from bloc.
+		sbrk(0)
 
 		// Round up bloc to align, then allocate size.
 		p = alignUp(bloc, align)
