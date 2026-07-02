@@ -68,9 +68,11 @@ func rewrite(fn *ir.Func) {
 		var local *ir.Name
 		for _, ret := range returns {
 			n, ok := ret.Results[i].(*ir.Name)
-			if !ok || !isCandidateLocal(n, result) {
-				local = nil
-				break
+			if !ok {
+				continue
+			}
+			if !isCandidateLocal(n, result) {
+				continue
 			}
 			if local == nil {
 				local = n
