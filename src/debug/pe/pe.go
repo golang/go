@@ -14,6 +14,37 @@ type FileHeader struct {
 	Characteristics      uint16
 }
 
+// BigObjHeader represents the ANON_OBJECT_HEADER_BIGOBJ structure
+// used in bigobj COFF format. This format allows for more than 65535 sections.
+type BigObjHeader struct {
+	Sig1                 uint16 // Must be 0x0
+	Sig2                 uint16 // Must be 0xFFFF
+	Version              uint16 // Currently 2
+	Machine              uint16
+	TimeDateStamp        uint32
+	ClassID              [16]uint8 // GUID that identifies this as bigobj format
+	SizeOfData           uint32
+	Flags                uint32
+	MetaDataSize         uint32
+	MetaDataOffset       uint32
+	NumberOfSections     uint32 // 32-bit field (vs 16-bit in regular COFF)
+	PointerToSymbolTable uint32
+	NumberOfSymbols      uint32
+}
+
+// BigObj signature constants
+const (
+	BigObjSig1    = 0x0
+	BigObjSig2    = 0xFFFF
+	BigObjVersion = 2
+)
+
+// The GUID that identifies a file as bigobj format
+var BigObjClassID = [16]uint8{
+	0xC7, 0xA1, 0xBA, 0xD1, 0xEE, 0xBA, 0xA9, 0x4B,
+	0xAF, 0x20, 0xFA, 0xF6, 0x6A, 0xA4, 0xDC, 0xB8,
+}
+
 type DataDirectory struct {
 	VirtualAddress uint32
 	Size           uint32
