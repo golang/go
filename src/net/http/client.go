@@ -823,8 +823,11 @@ func (c *Client) makeHeadersCopier(ireq *Request) func(req *Request, stripSensit
 			sensitive := false
 			body := false
 			switch CanonicalHeaderKey(k) {
+			case "Proxy-Authorization":
+				continue
+
 			case "Authorization", "Www-Authenticate", "Cookie", "Cookie2",
-				"Proxy-Authorization", "Proxy-Authenticate":
+				"Proxy-Authenticate":
 				sensitive = true
 
 			case "Content-Encoding", "Content-Language", "Content-Location",
