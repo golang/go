@@ -68,6 +68,7 @@ type DebugFlags struct {
 	PCTab                 string `help:"print named pc-value table\nOne of: pctospadj, pctofile, pctoline, pctoinline, pctopcdata"`
 	Panic                 int    `help:"show all compiler panics"`
 	Reshape               int    `help:"print information about expression reshaping"`
+	RewriteResults        int    `help:"rewrite returned local variables to use result parameter storage" concurrent:"ok"`
 	Shapify               int    `help:"print information about shaping recursive types"`
 	Simd                  int    `help:"print information about simd analysis and code transformation" concurrent:"ok"`
 	Slice                 int    `help:"print information about slice compilation"`

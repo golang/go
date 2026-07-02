@@ -160,7 +160,7 @@ func CmpWithAdd(a float64, b float64) bool {
 // ---------------- //
 
 func ArrayZero() [16]byte {
-	// amd64:"MOVUPS"
+	// amd64:-"MOVUPS"
 	var a [16]byte
 	return a
 }
