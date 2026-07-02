@@ -53,20 +53,28 @@ func NewReader(r io.Reader) *Reader {
 // Programs that want to accept non-local names can ignore
 // the [ErrInsecurePath] error and use the returned header.
 func (tr *Reader) Next() (*Header, error) {
-	if tr.err != nil {
-		return nil, tr.err
-	}
-	hdr, err := tr.next()
-	tr.err = err
-	if err == nil && !filepath.IsLocal(hdr.Name) {
-		if tarinsecurepath.Value() == "0" {
-			tarinsecurepath.IncNonDefault()
-			err = ErrInsecurePath
-		}
-	}
-	return hdr, err
-}
+    if tr.err != nil {
+        return nil, tr.err
+    }
+    hdr, err := tr.next()
+    tr.err = err
+    if err == nil {
+    	insecure := !filepath.IsLocal(hdr.Name)
 
+    	if hdr.Linkname != "" {
+    	    link := path.Clean(hdr.Linkname)
+   	     if !filepath.IsLocal(link) {
+   	         insecure = true
+    	    }
+    	}
+
+    	if insecure && tarinsecurepath.Value() == "0" {
+  	      	tarinsecurepath.IncNonDefault()
+   	     	err = ErrInsecurePath
+   	 	}
+	}
+    return hdr, err
+}
 func (tr *Reader) next() (*Header, error) {
 	var paxHdrs map[string]string
 	var gnuLongName, gnuLongLink string
