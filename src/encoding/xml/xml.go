@@ -610,6 +610,11 @@ func (d *Decoder) rawToken() (Token, error) {
 			}
 			return nil, d.err
 		}
+		if len(target) >= 3 && target[0:3] != xmlPrefix &&
+		   (target[0] | 0x20) == 'x' && (target[1] | 0x20) == 'm' && (target[2] | 0x20) == 'l' {
+			d.err = d.syntaxError("Processing instruction name is reserved")
+			return nil, d.err
+		}
 		d.space()
 		d.buf.Reset()
 		var b0 byte
