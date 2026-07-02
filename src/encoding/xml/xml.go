@@ -1170,15 +1170,28 @@ func (d *Decoder) nsname() (name Name, ok bool) {
 	if !ok {
 		return
 	}
-	if strings.Count(s, ":") > 1 {
-		return name, false
-	} else if space, local, ok := strings.Cut(s, ":"); !ok || space == "" || local == "" {
-		name.Local = s
-	} else {
-		name.Space = space
-		name.Local = local
+	// XML does not allow a document to end with a name, so there must
+	// be another byte.
+	b, ok := d.mustgetc()
+	if !ok {
+		return
 	}
-	return name, true
+	if b != ':' {
+		d.ungetc(b)
+		name.Local = s
+		return
+	}
+	n, ok := d.name()
+	if ok {
+		// give a better error message than would otherwise be possible
+		if d.nextByte == ':' {
+			d.err = d.syntaxError("colon after prefixed XML name " + string(s) + ":" + string(n))
+			return name, false
+		}
+		name.Space = s
+		name.Local = n
+	}
+	return
 }
 
 // Get name: /first(first|second)*/
@@ -1230,7 +1243,7 @@ func isNameByte(c byte) bool {
 	return 'A' <= c && c <= 'Z' ||
 		'a' <= c && c <= 'z' ||
 		'0' <= c && c <= '9' ||
-		c == '_' || c == ':' || c == '.' || c == '-'
+		c == '_' || c == '.' || c == '-'
 }
 
 func isName(s []byte) bool {
@@ -1288,7 +1301,6 @@ func isNameString(s string) bool {
 
 var first = &unicode.RangeTable{
 	R16: []unicode.Range16{
-		{0x003A, 0x003A, 1},
 		{0x0041, 0x005A, 1},
 		{0x005F, 0x005F, 1},
 		{0x0061, 0x007A, 1},
