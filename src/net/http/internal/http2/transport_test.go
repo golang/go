@@ -3503,6 +3503,11 @@ func benchSimpleRoundTrip(b *testing.B, nReqHeaders, nResHeader int) {
 		},
 		optQuiet,
 	)
+	// Make the server accept as much headers as the client plans
+	// on sending.
+	// Also liberally allow an additional 30 headers to account
+	// for the client automatically adding inferred headers.
+	ts.Config.MaxHeaderValueCount = 30 + nReqHeaders
 
 	tr := newTransport(b)
 
