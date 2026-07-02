@@ -6,6 +6,7 @@
 // If a feature is supported, there's no need to check it at runtime every time.
 
 #ifdef GOAMD64_v2
+#define hasCMPXCHG16B
 #define hasPOPCNT
 #define hasSSE42
 #endif
@@ -13,6 +14,7 @@
 #ifdef GOAMD64_v3
 #define hasAVX
 #define hasAVX2
+#define hasCMPXCHG16B
 #define hasPOPCNT
 #define hasSSE42
 #endif
@@ -23,6 +25,7 @@
 #define hasAVX512F
 #define hasAVX512BW
 #define hasAVX512VL
+#define hasCMPXCHG16B
 #define hasPOPCNT
 #define hasSSE42
 #endif
