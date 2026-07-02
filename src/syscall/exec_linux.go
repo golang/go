@@ -104,12 +104,20 @@ type SysProcAttr struct {
 	// users this should be set to false for mappings work.
 	GidMappingsEnableSetgroups bool
 	AmbientCaps                []uintptr // Ambient capabilities.
+	NoNewPrivs                 bool      // Call prctl(PR_SET_NO_NEW_PRIVS) before exec.
 	UseCgroupFD                bool      // Whether to make use of the CgroupFD field.
 	CgroupFD                   int       // File descriptor of a cgroup to put the new process into.
 	// PidFD, if not nil, is used to store the pidfd of a child, if the
 	// functionality is supported by the kernel, or -1. Note *PidFD is
 	// changed only if the process starts successfully.
 	PidFD *int
+	// UseLandlock places the child into a Landlock restriction by
+	// calling landlock_restrict_self(LandlockFD, LandlockFlags) before exec.
+	//
+	// Generally this should be combined with setting NoNewPrivs.
+	UseLandlock   bool
+	LandlockFD    int    // FD of a Landlock ruleset.
+	LandlockFlags uint32 // Flags to landlock_restrict_self.
 }
 
 var (
@@ -656,6 +664,22 @@ func forkAndExecInChild1(argv0 *byte, argv, envv []*byte, chroot, dir *byte, att
 		_, _, err1 = RawSyscall6(SYS_PRLIMIT64, 0, RLIMIT_NOFILE, 0, uintptr(unsafe.Pointer(&lim)), 0, 0)
 		if err1 != 0 || (lim.Cur == rlim.Max-1 && lim.Max == rlim.Max) {
 			RawSyscall6(SYS_PRLIMIT64, 0, RLIMIT_NOFILE, uintptr(unsafe.Pointer(rlim)), 0, 0, 0)
+		}
+	}
+
+	// Call prctl(PR_SET_NO_NEW_PRIVS).
+	if sys.NoNewPrivs {
+		_, _, err1 = RawSyscall6(SYS_PRCTL, _PR_SET_NO_NEW_PRIVS, 1, 0, 0, 0, 0)
+		if err1 != 0 {
+			goto childerror
+		}
+	}
+
+	// Enforce a Landlock policy if requested.
+	if sys.UseLandlock {
+		_, _, err1 = RawSyscall(_SYS_landlock_restrict_self, uintptr(sys.LandlockFD), uintptr(sys.LandlockFlags), 0)
+		if err1 != 0 {
+			goto childerror
 		}
 	}
 

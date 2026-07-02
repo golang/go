@@ -352,3 +352,7 @@ const (
 	SYS_PROCESS_VM_READV       = 376
 	SYS_PROCESS_VM_WRITEV      = 377
 )
+
+const (
+	_SYS_landlock_restrict_self = 446
+)
