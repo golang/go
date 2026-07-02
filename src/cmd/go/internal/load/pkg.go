@@ -2489,6 +2489,9 @@ func (p *Package) setBuildInfo(ctx context.Context, f *modfetch.Fetcher, autoVCS
 	if cfg.BuildRace {
 		appendSetting("-race", "true")
 	}
+	if cfg.BuildRacelite {
+		appendSetting("-racelite", "true")
+	}
 	if tags := cfg.BuildContext.BuildTags; len(tags) > 0 {
 		appendSetting("-tags", strings.Join(tags, ","))
 	}

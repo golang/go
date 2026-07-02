@@ -337,6 +337,7 @@ func main() {
 	if raceenabled {
 		racefini() // does not return
 	}
+	racelitecount()
 
 	exit(0)
 	for {
@@ -353,6 +354,7 @@ func os_beforeExit(exitCode int) {
 	if exitCode == 0 && raceenabled {
 		racefini()
 	}
+	racelitecount()
 
 	// See comment in main, above.
 	if exitCode == 0 && asanenabled && (isarchive || islibrary || NumCgoCall() > 1) {
@@ -895,6 +897,7 @@ func schedinit() {
 	typelinksinit() // uses maps, activeModules
 	itabsinit()     // uses activeModules
 	stkobjinit()    // must run before GC starts
+	raceliteinit()  // activates Racelite if it is enabled
 
 	sigsave(&gp.m.sigmask)
 	initSigmask = gp.m.sigmask
@@ -1478,6 +1481,7 @@ const (
 	stwForTestReadMemStatsSlow                      // "ReadMemStatsSlow (test)"
 	stwForTestPageCachePagesLeaked                  // "PageCachePagesLeaked (test)"
 	stwForTestResetDebugLog                         // "ResetDebugLog (test)"
+	stwRacelite                                     // "racelite"
 )
 
 func (r stwReason) String() string {
@@ -1509,6 +1513,7 @@ var stwReasonStrings = [...]string{
 	stwForTestReadMemStatsSlow:     "ReadMemStatsSlow (test)",
 	stwForTestPageCachePagesLeaked: "PageCachePagesLeaked (test)",
 	stwForTestResetDebugLog:        "ResetDebugLog (test)",
+	stwRacelite:                    "racelite",
 }
 
 // worldStop provides context from the stop-the-world required by the
@@ -6555,6 +6560,9 @@ func sysmon() {
 			delay = 10 * 1000
 		}
 		usleep(delay)
+
+		// Refresh Racelite sampler and cool down PC.
+		racelitetick(delay)
 
 		// sysmon should not enter deep sleep if schedtrace is enabled so that
 		// it can print that information at the right time.
