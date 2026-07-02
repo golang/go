@@ -32,6 +32,13 @@ stdout -count=5 'FAIL - '
 ! go test ./failfast_test.go -run='TestParallelFailingSubtestsA' -failfast=true
 stdout -count=1 'FAIL - '
 
+# a failure in a cleanup of a test with a parallel subtest must stop failfast
+# (go.dev/issue/61034)
+! go test ./failfast_test.go -run='TestCleanupFailingWithParallelSubtestA|TestFailingB' -failfast=true
+stdout -count=1 'FAIL - '
+! go test ./failfast_test.go -run='TestCleanupFailingWithParallelSubtestA|TestFailingB' -failfast=false
+stdout -count=2 'FAIL - '
+
 # only parallels
 ! go test ./failfast_test.go -run='TestParallelFailing[AB]' -failfast=false
 stdout -count=2 'FAIL - '
@@ -106,6 +113,18 @@ func TestFailingSubtestsA(t *testing.T) {
 	})
 	t.Run("TestFailingSubtestsA2", func(t *testing.T) {
 		t.Errorf("FAIL - %s", t.Name())
+	})
+}
+
+func TestCleanupFailingWithParallelSubtestA(t *testing.T) {
+	// Regression test for go.dev/issue/61034: a failure in a Cleanup
+	// function must be counted for -failfast even when the test has a
+	// parallel subtest.
+	t.Cleanup(func() {
+		t.Errorf("FAIL - %s", t.Name())
+	})
+	t.Run("sub", func(t *testing.T) {
+		t.Parallel()
 	})
 }
 

@@ -2037,11 +2037,6 @@ func tRunner(t *T, fn func(t *T)) {
 	defer func() {
 		t.checkRaces()
 
-		// TODO(#61034): This is the wrong place for this check.
-		if t.Failed() {
-			numFailed.Add(1)
-		}
-
 		// Check if the test panicked or Goexited inappropriately.
 		//
 		// If this happens in a normal test, print output but continue panicking.
@@ -2170,6 +2165,14 @@ func tRunner(t *T, fn func(t *T)) {
 		for root := &t.common; root.parent != nil; root = root.parent {
 			root.flushPartial()
 		}
+
+		// Record this test's failure for -failfast. This must happen after the
+		// test's cleanup functions have run, since a cleanup may call t.Fail.
+		// See go.dev/issue/61034.
+		if t.Failed() {
+			numFailed.Add(1)
+		}
+
 		t.report() // Report after all subtests have finished.
 
 		// Do not lock t.done to allow race detector to detect race in case
