@@ -234,7 +234,30 @@ func mincore(addr unsafe.Pointer, n uintptr, dst *byte) int32
 
 var auxvreadbuf [128]uintptr
 
+// libinitArgvSafe reports whether argc/argv from .init_array are safe
+// to dereference. On glibc, .init_array functions receive (argc, argv,
+// envp) as a non-standard extension. On musl/bionic/other libc, they
+// receive no arguments per the ELF ABI, so argv contains garbage.
+// Detection uses a weak reference to gnu_get_libc_version set during
+// _cgo_init (which runs before sysargs). See go.dev/issue/13492.
+func libinitArgvSafe() bool {
+	return _cgo_isglibc != nil && *(*byte)(unsafe.Pointer(_cgo_isglibc)) != 0
+}
+
 func sysargs(argc int32, argv **byte) {
+	if islibrary || isarchive {
+		// In library/archive mode, argc/argv from .init_array may be
+		// garbage. On glibc, .init_array functions receive (argc, argv,
+		// envp) as a non-standard extension. On musl/bionic, they
+		// receive nothing (registers contain garbage per ELF ABI).
+		// Even on glibc, validate argc as a sanity check.
+		// See go.dev/issue/13492.
+		if !libinitArgvSafe() || argc < 0 || argc > 1<<16 {
+			sysargsFromProc()
+			return
+		}
+	}
+
 	n := argc + 1
 
 	// skip over argv, envp to get to auxv
@@ -255,6 +278,13 @@ func sysargs(argc int32, argv **byte) {
 	// In some situations we don't get a loader-provided
 	// auxv, such as when loaded as a library on Android.
 	// Fall back to /proc/self/auxv.
+	sysargsFromProc()
+}
+
+// sysargsFromProc reads auxiliary vector data from /proc/self/auxv.
+// Used when argv-based auxv discovery is not possible (library mode)
+// or when the loader did not provide auxv via argv.
+func sysargsFromProc() {
 	fd := open(&procAuxv[0], 0 /* O_RDONLY */, 0)
 	if fd < 0 {
 		// On Android, /proc/self/auxv might be unreadable (issue 9229), so we fallback to
@@ -280,7 +310,7 @@ func sysargs(argc int32, argv **byte) {
 		return
 	}
 
-	n = read(fd, noescape(unsafe.Pointer(&auxvreadbuf[0])), int32(unsafe.Sizeof(auxvreadbuf)))
+	n := read(fd, noescape(unsafe.Pointer(&auxvreadbuf[0])), int32(unsafe.Sizeof(auxvreadbuf)))
 	closefd(fd)
 	if n < 0 {
 		return
@@ -369,7 +399,55 @@ func readRandom(r []byte) int {
 }
 
 func goenvs() {
+	if (islibrary || isarchive) && !libinitArgvSafe() {
+		// In library/archive mode on non-glibc systems, argv contains
+		// garbage so we cannot walk argv to find envp. Read from
+		// /proc/self/environ instead. See go.dev/issue/13492.
+		goenvs_lib()
+		return
+	}
 	goenvs_unix()
+}
+
+var procEnviron = []byte("/proc/self/environ\x00")
+
+// goenvs_lib reads environment variables from /proc/self/environ for use
+// in library/archive mode where argv-based environment discovery is unsafe.
+func goenvs_lib() {
+	// /proc/self/environ contains NUL-separated KEY=VALUE pairs.
+	const bufSize = 8 << 10 // 8KB; we are on the system stack (64KB)
+	var buf [bufSize]byte
+
+	fd := open(&procEnviron[0], 0 /* O_RDONLY */, 0)
+	if fd < 0 {
+		envs = make([]string, 0)
+		return
+	}
+	n := read(fd, noescape(unsafe.Pointer(&buf[0])), int32(bufSize))
+	closefd(fd)
+	if n <= 0 {
+		envs = make([]string, 0)
+		return
+	}
+
+	// Count NUL-separated entries.
+	count := 0
+	for i := int32(0); i < n; i++ {
+		if buf[i] == 0 {
+			count++
+		}
+	}
+
+	envs = make([]string, 0, count)
+	start := 0
+	for i := int32(0); i < n; i++ {
+		if buf[i] == 0 {
+			if i > int32(start) {
+				envs = append(envs, gostring(&buf[start]))
+			}
+			start = int(i) + 1
+		}
+	}
 }
 
 // Called to do synchronous initialization of Go code built with

@@ -22,6 +22,7 @@ import "unsafe"
 //go:linkname _cgo_pthread_key_created _cgo_pthread_key_created
 //go:linkname _cgo_bindm _cgo_bindm
 //go:linkname _cgo_getstackbound _cgo_getstackbound
+//go:linkname _cgo_isglibc _cgo_isglibc
 
 var (
 	_cgo_init                     unsafe.Pointer
@@ -36,6 +37,7 @@ var (
 	_cgo_pthread_key_created      unsafe.Pointer
 	_cgo_bindm                    unsafe.Pointer
 	_cgo_getstackbound            unsafe.Pointer
+	_cgo_isglibc                  unsafe.Pointer
 )
 
 // iscgo is set to true by the runtime/cgo package

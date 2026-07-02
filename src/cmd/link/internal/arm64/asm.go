@@ -567,6 +567,19 @@ func elfreloc1(ctxt *ld.Link, out *ld.OutBuf, ldr *loader.Loader, s loader.Sym, 
 		out.Write64(uint64(r.Xadd))
 		out.Write64(uint64(sectoff + 4))
 		out.Write64(uint64(elf.R_AARCH64_TLSIE_LD64_GOTTPREL_LO12_NC) | uint64(elfsym)<<32)
+	case objabi.R_ARM64_TLS_GD:
+		// TLSDESC sequence: adrp x0; ldr x1,[x0]; add x0,x0; blr x1
+		// Emit 4 relocations for the 4-instruction sequence.
+		out.Write64(uint64(elf.R_AARCH64_TLSDESC_ADR_PAGE21) | uint64(elfsym)<<32)
+		out.Write64(uint64(r.Xadd))
+		out.Write64(uint64(sectoff + 4))
+		out.Write64(uint64(elf.R_AARCH64_TLSDESC_LD64_LO12_NC) | uint64(elfsym)<<32)
+		out.Write64(uint64(r.Xadd))
+		out.Write64(uint64(sectoff + 8))
+		out.Write64(uint64(elf.R_AARCH64_TLSDESC_ADD_LO12_NC) | uint64(elfsym)<<32)
+		out.Write64(uint64(r.Xadd))
+		out.Write64(uint64(sectoff + 12))
+		out.Write64(uint64(elf.R_AARCH64_TLSDESC_CALL) | uint64(elfsym)<<32)
 	case objabi.R_ARM64_GOTPCREL:
 		out.Write64(uint64(elf.R_AARCH64_ADR_GOT_PAGE) | uint64(elfsym)<<32)
 		out.Write64(uint64(r.Xadd))
@@ -877,6 +890,10 @@ func archreloc(target *ld.Target, ldr *loader.Loader, syms *ld.ArchSyms, r loade
 			nExtReloc = 2 // need two ELF relocations. see elfreloc1
 			return val, nExtReloc, isOk
 
+		case objabi.R_ARM64_TLS_GD:
+			nExtReloc = 4 // TLSDESC needs four ELF relocations. see elfreloc1
+			return val, nExtReloc, isOk
+
 		case objabi.R_ADDR:
 			if target.IsWindows() && r.Add() != 0 {
 				if r.Siz() == 8 {
@@ -994,6 +1011,9 @@ func archreloc(target *ld.Target, ldr *loader.Loader, syms *ld.ArchSyms, r loade
 		} else {
 			log.Fatalf("cannot handle R_ARM64_TLS_IE (sym %s) when linking internally", ldr.SymName(s))
 		}
+
+	case objabi.R_ARM64_TLS_GD:
+		log.Fatalf("cannot handle R_ARM64_TLS_GD (sym %s) when linking internally", ldr.SymName(s))
 
 	case objabi.R_CALLARM64:
 		var t int64
@@ -1137,7 +1157,8 @@ func extreloc(target *ld.Target, ldr *loader.Loader, r loader.Reloc, s loader.Sy
 		return rr, true
 	case objabi.R_CALLARM64,
 		objabi.R_ARM64_TLS_LE,
-		objabi.R_ARM64_TLS_IE:
+		objabi.R_ARM64_TLS_IE,
+		objabi.R_ARM64_TLS_GD:
 		return ld.ExtrelocSimple(ldr, r), true
 	}
 	return loader.ExtReloc{}, false
