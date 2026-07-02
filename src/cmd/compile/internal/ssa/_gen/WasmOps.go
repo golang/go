@@ -164,9 +164,9 @@ func init() {
 		{name: "LoweredClosureCall", argLength: 3, reg: regInfo{inputs: []regMask{gp, gp, regMask{}}, clobbers: callerSave}, aux: "CallOff", call: true},    // call function via closure. arg0=codeptr, arg1=closure, arg2=mem, auxint=argsize, returns mem
 		{name: "LoweredInterCall", argLength: 2, reg: regInfo{inputs: []regMask{gp}, clobbers: callerSave}, aux: "CallOff", call: true},                     // call fn by pointer. arg0=codeptr, arg1=mem, auxint=argsize, returns mem
 
-		{name: "LoweredAddr", argLength: 1, reg: gp11, aux: "SymOff", rematerializeable: true, symEffect: "Addr", earlyOk: true}, // returns base+aux+auxint, arg0=base
-		{name: "LoweredMove", argLength: 3, reg: regInfo{inputs: []regMask{gp, gp}}, aux: "Int64"},                               // large move. arg0=dst, arg1=src, arg2=mem, auxint=len, returns mem
-		{name: "LoweredZero", argLength: 2, reg: regInfo{inputs: []regMask{gp}}, aux: "Int64"},                                   // large zeroing. arg0=start, arg1=mem, auxint=len, returns mem
+		{name: "LoweredAddr", argLength: 1, reg: gp11, aux: "SymOff", rematerializeable: true, symEffect: "Addr", earlyOk: true},           // returns base+aux+auxint, arg0=base
+		{name: "LoweredMove", argLength: 3, reg: regInfo{inputs: []regMask{gp, gp}}, aux: "Int64", addrSinkArg0: true, addrSinkArg1: true}, // large move. arg0=dst, arg1=src, arg2=mem, auxint=len, returns mem
+		{name: "LoweredZero", argLength: 2, reg: regInfo{inputs: []regMask{gp}}, aux: "Int64", addrSinkArg0: true},                         // large zeroing. arg0=start, arg1=mem, auxint=len, returns mem
 
 		{name: "LoweredGetClosurePtr", reg: gp01},                                                                          // returns wasm.REG_CTXT, the closure pointer
 		{name: "LoweredGetCallerPC", reg: gp01, rematerializeable: true},                                                   // returns the PC of the caller of the current function
@@ -188,29 +188,29 @@ func init() {
 		{name: "Select", asm: "Select", argLength: 3, reg: gp31, earlyOk: true},   // returns arg0 if arg2 != 0, otherwise returns arg1
 		{name: "SelectV", asm: "Select", argLength: 3, reg: v2gpv, earlyOk: true}, // returns arg0 if arg2 != 0, otherwise returns arg1
 
-		{name: "I64Load8U", asm: "I64Load8U", argLength: 2, reg: gpload, aux: "Int64", typ: "UInt8"},    // read unsigned 8-bit integer from address arg0+aux, arg1=mem
-		{name: "I64Load8S", asm: "I64Load8S", argLength: 2, reg: gpload, aux: "Int64", typ: "Int8"},     // read signed 8-bit integer from address arg0+aux, arg1=mem
-		{name: "I64Load16U", asm: "I64Load16U", argLength: 2, reg: gpload, aux: "Int64", typ: "UInt16"}, // read unsigned 16-bit integer from address arg0+aux, arg1=mem
-		{name: "I64Load16S", asm: "I64Load16S", argLength: 2, reg: gpload, aux: "Int64", typ: "Int16"},  // read signed 16-bit integer from address arg0+aux, arg1=mem
-		{name: "I64Load32U", asm: "I64Load32U", argLength: 2, reg: gpload, aux: "Int64", typ: "UInt32"}, // read unsigned 32-bit integer from address arg0+aux, arg1=mem
-		{name: "I64Load32S", asm: "I64Load32S", argLength: 2, reg: gpload, aux: "Int64", typ: "Int32"},  // read signed 32-bit integer from address arg0+aux, arg1=mem
-		{name: "I64Load", asm: "I64Load", argLength: 2, reg: gpload, aux: "Int64", typ: "UInt64"},       // read 64-bit integer from address arg0+aux, arg1=mem
-		{name: "I64Store8", asm: "I64Store8", argLength: 3, reg: gpstore, aux: "Int64", typ: "Mem"},     // store 8-bit integer arg1 at address arg0+aux, arg2=mem, returns mem
-		{name: "I64Store16", asm: "I64Store16", argLength: 3, reg: gpstore, aux: "Int64", typ: "Mem"},   // store 16-bit integer arg1 at address arg0+aux, arg2=mem, returns mem
-		{name: "I64Store32", asm: "I64Store32", argLength: 3, reg: gpstore, aux: "Int64", typ: "Mem"},   // store 32-bit integer arg1 at address arg0+aux, arg2=mem, returns mem
-		{name: "I64Store", asm: "I64Store", argLength: 3, reg: gpstore, aux: "Int64", typ: "Mem"},       // store 64-bit integer arg1 at address arg0+aux, arg2=mem, returns mem
+		{name: "I64Load8U", asm: "I64Load8U", argLength: 2, reg: gpload, aux: "Int64", typ: "UInt8", addrSinkArg0: true},    // read unsigned 8-bit integer from address arg0+aux, arg1=mem
+		{name: "I64Load8S", asm: "I64Load8S", argLength: 2, reg: gpload, aux: "Int64", typ: "Int8", addrSinkArg0: true},     // read signed 8-bit integer from address arg0+aux, arg1=mem
+		{name: "I64Load16U", asm: "I64Load16U", argLength: 2, reg: gpload, aux: "Int64", typ: "UInt16", addrSinkArg0: true}, // read unsigned 16-bit integer from address arg0+aux, arg1=mem
+		{name: "I64Load16S", asm: "I64Load16S", argLength: 2, reg: gpload, aux: "Int64", typ: "Int16", addrSinkArg0: true},  // read signed 16-bit integer from address arg0+aux, arg1=mem
+		{name: "I64Load32U", asm: "I64Load32U", argLength: 2, reg: gpload, aux: "Int64", typ: "UInt32", addrSinkArg0: true}, // read unsigned 32-bit integer from address arg0+aux, arg1=mem
+		{name: "I64Load32S", asm: "I64Load32S", argLength: 2, reg: gpload, aux: "Int64", typ: "Int32", addrSinkArg0: true},  // read signed 32-bit integer from address arg0+aux, arg1=mem
+		{name: "I64Load", asm: "I64Load", argLength: 2, reg: gpload, aux: "Int64", typ: "UInt64", addrSinkArg0: true},       // read 64-bit integer from address arg0+aux, arg1=mem
+		{name: "I64Store8", asm: "I64Store8", argLength: 3, reg: gpstore, aux: "Int64", typ: "Mem", addrSinkArg0: true},     // store 8-bit integer arg1 at address arg0+aux, arg2=mem, returns mem
+		{name: "I64Store16", asm: "I64Store16", argLength: 3, reg: gpstore, aux: "Int64", typ: "Mem", addrSinkArg0: true},   // store 16-bit integer arg1 at address arg0+aux, arg2=mem, returns mem
+		{name: "I64Store32", asm: "I64Store32", argLength: 3, reg: gpstore, aux: "Int64", typ: "Mem", addrSinkArg0: true},   // store 32-bit integer arg1 at address arg0+aux, arg2=mem, returns mem
+		{name: "I64Store", asm: "I64Store", argLength: 3, reg: gpstore, aux: "Int64", typ: "Mem", addrSinkArg0: true},       // store 64-bit integer arg1 at address arg0+aux, arg2=mem, returns mem
 
-		{name: "F32Load", asm: "F32Load", argLength: 2, reg: fp32load, aux: "Int64", typ: "Float32"}, // read 32-bit float from address arg0+aux, arg1=mem
-		{name: "F64Load", asm: "F64Load", argLength: 2, reg: fp64load, aux: "Int64", typ: "Float64"}, // read 64-bit float from address arg0+aux, arg1=mem
-		{name: "F32Store", asm: "F32Store", argLength: 3, reg: fp32store, aux: "Int64", typ: "Mem"},  // store 32-bit float arg1 at address arg0+aux, arg2=mem, returns mem
-		{name: "F64Store", asm: "F64Store", argLength: 3, reg: fp64store, aux: "Int64", typ: "Mem"},  // store 64-bit float arg1 at address arg0+aux, arg2=mem, returns mem
+		{name: "F32Load", asm: "F32Load", argLength: 2, reg: fp32load, aux: "Int64", typ: "Float32", addrSinkArg0: true}, // read 32-bit float from address arg0+aux, arg1=mem
+		{name: "F64Load", asm: "F64Load", argLength: 2, reg: fp64load, aux: "Int64", typ: "Float64", addrSinkArg0: true}, // read 64-bit float from address arg0+aux, arg1=mem
+		{name: "F32Store", asm: "F32Store", argLength: 3, reg: fp32store, aux: "Int64", typ: "Mem", addrSinkArg0: true},  // store 32-bit float arg1 at address arg0+aux, arg2=mem, returns mem
+		{name: "F64Store", asm: "F64Store", argLength: 3, reg: fp64store, aux: "Int64", typ: "Mem", addrSinkArg0: true},  // store 64-bit float arg1 at address arg0+aux, arg2=mem, returns mem
 
 		{name: "I64Const", reg: gp01, aux: "Int64", rematerializeable: true, typ: "Int64", earlyOk: true},        // returns the constant integer aux
 		{name: "F32Const", reg: fp32_01, aux: "Float32", rematerializeable: true, typ: "Float32", earlyOk: true}, // returns the constant float aux
 		{name: "F64Const", reg: fp64_01, aux: "Float64", rematerializeable: true, typ: "Float64", earlyOk: true}, // returns the constant float aux
 
-		{name: "V128Load", asm: "V128Load", argLength: 2, reg: vload, aux: "Int64", typ: "V128"},   // read 128-bit vector from address arg0+aux, arg1=mem
-		{name: "V128Store", asm: "V128Store", argLength: 3, reg: vstore, aux: "Int64", typ: "Mem"}, // store 128-bit vector arg1 at address arg0+aux, arg2=mem, returns mem
+		{name: "V128Load", asm: "V128Load", argLength: 2, reg: vload, aux: "Int64", typ: "V128", addrSinkArg0: true},   // read 128-bit vector from address arg0+aux, arg1=mem
+		{name: "V128Store", asm: "V128Store", argLength: 3, reg: vstore, aux: "Int64", typ: "Mem", addrSinkArg0: true}, // store 128-bit vector arg1 at address arg0+aux, arg2=mem, returns mem
 		{name: "V128Zero", argLength: 0, reg: v01, asm: "V128Const", typ: "V128"},
 
 		{name: "I64Eqz", asm: "I64Eqz", argLength: 1, reg: gp11, typ: "Bool", earlyOk: true}, // arg0 == 0
