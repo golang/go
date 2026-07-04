@@ -2826,7 +2826,7 @@ func rewriteCondSelectIntoMath(config *Config, op Op, constant int64) bool {
 	switch config.arch {
 	case "amd64":
 		// constant=1 becomes zext, add 2/4/8 becomes lea, rest becomes shl.
-		// shl has worse single latency (1:3 vs 2:2) but parallelizes in chains.
+		// shl has asymmetric latency (1:3 vs 2:2) but performs better in accumulation chains.
 		return isPowerOfTwo(uint64(constant))
 	case "arm64":
 		switch op {
