@@ -265,7 +265,6 @@ func (n *Named) unpack() *Named {
 		assert(n.inst == nil)    // cannot import an instantiation
 
 		tparams, underlying, methods, delayed := n.loader(n)
-		n.loader = nil
 
 		n.tparams = bindTParams(tparams)
 		n.fromRHS = underlying // for cycle detection
@@ -275,6 +274,7 @@ func (n *Named) unpack() *Named {
 		for _, f := range delayed {
 			f()
 		}
+		n.loader = nil // nil here to avoid deadlock calling delayed functions. issue #80258
 	}
 
 	n.setState(lazyLoaded | unpacked | hasMethods)
@@ -669,6 +669,10 @@ func (n *Named) resolveUnderlying() {
 
 	for _, t := range path {
 		func() {
+			// t.loader is non-nil when *Named.unpack() call *Named.resolveUnderlying() on delayed functions f().
+			if t.loader != nil {
+				return
+			}
 			t.mu.Lock()
 			defer t.mu.Unlock()
 			// Careful, t.underlying has lock-free readers. Since we might be racing

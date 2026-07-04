@@ -1,0 +1,24 @@
+go run main.go
+! stdout .
+
+-- main.go --
+package main
+
+import "example/p"
+
+var T p.I
+
+func main() {
+}
+
+-- go.mod --
+module example
+
+go 1.27
+-- p/p.go --
+
+package p
+
+type I int
+
+func (i *I) M[V I]() {}
