@@ -124,6 +124,15 @@
 //		Supported only on darwin/amd64, darwin/arm64, freebsd/amd64, linux/amd64,
 //		linux/arm64 (only for 48-bit VMA), linux/ppc64le, linux/riscv64 and
 //		windows/amd64.
+//	-static
+//		produce a statically linked binary. On Linux, this passes
+//		-extldflags=-static to the linker and enables the osusergo and netgo
+//		build tags to avoid dynamic linking of libc for name resolution and
+//		user lookup. On macOS, iOS, FreeBSD, OpenBSD, and NetBSD, only the
+//		pure-Go net and os/user implementations are selected (full static
+//		linking is not supported by the system linker).
+//		Cannot be used with -buildmode=c-shared, -buildmode=shared,
+//		-buildmode=plugin, or -linkshared.
 //	-msan
 //		enable interoperation with memory sanitizer.
 //		Supported only on linux/amd64, linux/arm64, linux/loong64, freebsd/amd64
