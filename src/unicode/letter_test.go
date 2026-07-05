@@ -271,6 +271,14 @@ func TestIsUpper(t *testing.T) {
 	}
 }
 
+func TestIsZeroStride(t *testing.T) {
+	// A RangeTable range with Stride == 0 must not cause Is to divide by zero.
+	tab := &RangeTable{R16: []Range16{{Lo: 'A', Hi: 'A', Stride: 0}}}
+	if !Is(tab, 'A') {
+		t.Errorf("Is(tab, 'A') = false, want true")
+	}
+}
+
 func caseString(c int) string {
 	switch c {
 	case UpperCase:

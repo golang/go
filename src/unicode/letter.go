@@ -96,7 +96,7 @@ func is16(ranges []Range16, r uint16) bool {
 				return false
 			}
 			if r <= range_.Hi {
-				return range_.Stride == 1 || (r-range_.Lo)%range_.Stride == 0
+				return range_.Stride <= 1 || (r-range_.Lo)%range_.Stride == 0
 			}
 		}
 		return false
@@ -109,7 +109,7 @@ func is16(ranges []Range16, r uint16) bool {
 		m := int(uint(lo+hi) >> 1)
 		range_ := &ranges[m]
 		if range_.Lo <= r && r <= range_.Hi {
-			return range_.Stride == 1 || (r-range_.Lo)%range_.Stride == 0
+			return range_.Stride <= 1 || (r-range_.Lo)%range_.Stride == 0
 		}
 		if r < range_.Lo {
 			hi = m
@@ -129,7 +129,7 @@ func is32(ranges []Range32, r uint32) bool {
 				return false
 			}
 			if r <= range_.Hi {
-				return range_.Stride == 1 || (r-range_.Lo)%range_.Stride == 0
+				return range_.Stride <= 1 || (r-range_.Lo)%range_.Stride == 0
 			}
 		}
 		return false
@@ -142,7 +142,7 @@ func is32(ranges []Range32, r uint32) bool {
 		m := int(uint(lo+hi) >> 1)
 		range_ := ranges[m]
 		if range_.Lo <= r && r <= range_.Hi {
-			return range_.Stride == 1 || (r-range_.Lo)%range_.Stride == 0
+			return range_.Stride <= 1 || (r-range_.Lo)%range_.Stride == 0
 		}
 		if r < range_.Lo {
 			hi = m
