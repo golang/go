@@ -45,35 +45,27 @@ func NewReader(r io.Reader) *Reader {
 // Any remaining data in the current file is automatically discarded.
 // At the end of the archive, Next returns the error io.EOF.
 //
-// If Next encounters a non-local name (as defined by [filepath.IsLocal])
-// and the GODEBUG environment variable contains `tarinsecurepath=0`,
-// Next returns the header with an [ErrInsecurePath] error.
-// A future version of Go may introduce this behavior by default.
+// If Next encounters a non-local name or link name (as defined by
+// [filepath.IsLocal]) and the GODEBUG environment variable contains
+// `tarinsecurepath=0`, Next returns the header with an [ErrInsecurePath]
+// error. A future version of Go may introduce this behavior by default.
 // Programs that want to accept non-local names can ignore
 // the [ErrInsecurePath] error and use the returned header.
 func (tr *Reader) Next() (*Header, error) {
-    if tr.err != nil {
-        return nil, tr.err
-    }
-    hdr, err := tr.next()
-    tr.err = err
-    if err == nil {
-    	insecure := !filepath.IsLocal(hdr.Name)
-
-    	if hdr.Linkname != "" {
-    	    link := path.Clean(hdr.Linkname)
-   	     if !filepath.IsLocal(link) {
-   	         insecure = true
-    	    }
-    	}
-
-    	if insecure && tarinsecurepath.Value() == "0" {
-  	      	tarinsecurepath.IncNonDefault()
-   	     	err = ErrInsecurePath
-   	 	}
+	if tr.err != nil {
+		return nil, tr.err
 	}
-    return hdr, err
+	hdr, err := tr.next()
+	tr.err = err
+	if err == nil && (!filepath.IsLocal(hdr.Name) || (hdr.Linkname != "" && !filepath.IsLocal(hdr.Linkname))) {
+		if tarinsecurepath.Value() == "0" {
+			tarinsecurepath.IncNonDefault()
+			err = ErrInsecurePath
+		}
+	}
+	return hdr, err
 }
+
 func (tr *Reader) next() (*Header, error) {
 	var paxHdrs map[string]string
 	var gnuLongName, gnuLongLink string
