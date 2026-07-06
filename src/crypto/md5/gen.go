@@ -14,6 +14,7 @@ package main
 import (
 	"bytes"
 	"flag"
+	"fmt"
 	"go/format"
 	"log"
 	"os"
@@ -61,6 +62,26 @@ var funcs = template.FuncMap{
 	"rotate":  rotate,
 	"idx":     idx,
 	"seq":     seq,
+	"add":     func(a, b int) int { return a + b },
+	"khex":    khex,
+}
+
+// khex formats table entries for inclusion in the _K table,
+// four entries per line.
+func khex(table []uint32) string {
+	s := new(strings.Builder)
+	for i, v := range table {
+		if i%4 == 0 {
+			fmt.Fprint(s, "\t")
+		}
+		fmt.Fprintf(s, "%#08x,", v)
+		if i%4 == 3 {
+			fmt.Fprint(s, "\n")
+		} else {
+			fmt.Fprint(s, " ")
+		}
+	}
+	return s.String()
 }
 
 func dup(count int, x []int) []int {
@@ -224,25 +245,25 @@ func blockGeneric(dig *digest, p []byte) {
 
 		// round 1
 		{{range $i, $s := dup 4 .Shift1 -}}
-			{{printf "arg0 = arg1 + bits.RotateLeft32((((arg2^arg3)&arg1)^arg3)+(arg0+x%x+%#08x), %d)" (idx 1 $i) (index $.Table1 $i) $s | relabel}}
+			{{printf "arg0 = arg1 + bits.RotateLeft32((((arg2^arg3)&arg1)^arg3)+(arg0+x%x+_K[%d]), %d)" (idx 1 $i) (add 0 $i) $s | relabel}}
 			{{rotate -}}
 		{{end}}
 
 		// round 2
 		{{range $i, $s := dup 4 .Shift2 -}}
-			{{printf "arg0 = arg1 + bits.RotateLeft32(((arg1&arg3)|(arg2&^arg3))+(arg0+x%x+%#08x), %d)" (idx 2 $i) (index $.Table2 $i) $s | relabel}}
+			{{printf "arg0 = arg1 + bits.RotateLeft32(((arg1&arg3)|(arg2&^arg3))+(arg0+x%x+_K[%d]), %d)" (idx 2 $i) (add 16 $i) $s | relabel}}
 			{{rotate -}}
 		{{end}}
 
 		// round 3
 		{{range $i, $s := dup 4 .Shift3 -}}
-			{{printf "arg0 = arg1 + bits.RotateLeft32((arg1^(arg2^arg3))+(arg0+x%x+%#08x), %d)" (idx 3 $i) (index $.Table3 $i) $s | relabel}}
+			{{printf "arg0 = arg1 + bits.RotateLeft32((arg1^(arg2^arg3))+(arg0+x%x+_K[%d]), %d)" (idx 3 $i) (add 32 $i) $s | relabel}}
 			{{rotate -}}
 		{{end}}
 
 		// round 4
 		{{range $i, $s := dup 4 .Shift4 -}}
-			{{printf "arg0 = arg1 + bits.RotateLeft32((arg2^(arg1|^arg3))+(arg0+x%x+%#08x), %d)" (idx 4 $i) (index $.Table4 $i) $s | relabel}}
+			{{printf "arg0 = arg1 + bits.RotateLeft32((arg2^(arg1|^arg3))+(arg0+x%x+_K[%d]), %d)" (idx 4 $i) (add 48 $i) $s | relabel}}
 			{{rotate -}}
 		{{end}}
 
@@ -255,5 +276,18 @@ func blockGeneric(dig *digest, p []byte) {
 
 	// save state
 	dig.s[0], dig.s[1], dig.s[2], dig.s[3] = a, b, c, d
+}
+
+// _K holds per-step additive constants.
+// _K[i] = int((1<<32) * abs(sin(i+1 radians)))
+var _K = [64]uint32{
+	// round 1
+{{khex .Table1}}
+	// round 2
+{{khex .Table2}}
+	// round 3
+{{khex .Table3}}
+	// round 4
+{{khex .Table4}}
 }
 `

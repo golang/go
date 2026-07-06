@@ -42,76 +42,76 @@ func blockGeneric(dig *digest, p []byte) {
 		xf := byteorder.LEUint32(q[4*0xf:])
 
 		// round 1
-		a = b + bits.RotateLeft32((((c^d)&b)^d)+(a+x0+0xd76aa478), 7)
-		d = a + bits.RotateLeft32((((b^c)&a)^c)+(d+x1+0xe8c7b756), 12)
-		c = d + bits.RotateLeft32((((a^b)&d)^b)+(c+x2+0x242070db), 17)
-		b = c + bits.RotateLeft32((((d^a)&c)^a)+(b+x3+0xc1bdceee), 22)
-		a = b + bits.RotateLeft32((((c^d)&b)^d)+(a+x4+0xf57c0faf), 7)
-		d = a + bits.RotateLeft32((((b^c)&a)^c)+(d+x5+0x4787c62a), 12)
-		c = d + bits.RotateLeft32((((a^b)&d)^b)+(c+x6+0xa8304613), 17)
-		b = c + bits.RotateLeft32((((d^a)&c)^a)+(b+x7+0xfd469501), 22)
-		a = b + bits.RotateLeft32((((c^d)&b)^d)+(a+x8+0x698098d8), 7)
-		d = a + bits.RotateLeft32((((b^c)&a)^c)+(d+x9+0x8b44f7af), 12)
-		c = d + bits.RotateLeft32((((a^b)&d)^b)+(c+xa+0xffff5bb1), 17)
-		b = c + bits.RotateLeft32((((d^a)&c)^a)+(b+xb+0x895cd7be), 22)
-		a = b + bits.RotateLeft32((((c^d)&b)^d)+(a+xc+0x6b901122), 7)
-		d = a + bits.RotateLeft32((((b^c)&a)^c)+(d+xd+0xfd987193), 12)
-		c = d + bits.RotateLeft32((((a^b)&d)^b)+(c+xe+0xa679438e), 17)
-		b = c + bits.RotateLeft32((((d^a)&c)^a)+(b+xf+0x49b40821), 22)
+		a = b + bits.RotateLeft32((((c^d)&b)^d)+(a+x0+_K[0]), 7)
+		d = a + bits.RotateLeft32((((b^c)&a)^c)+(d+x1+_K[1]), 12)
+		c = d + bits.RotateLeft32((((a^b)&d)^b)+(c+x2+_K[2]), 17)
+		b = c + bits.RotateLeft32((((d^a)&c)^a)+(b+x3+_K[3]), 22)
+		a = b + bits.RotateLeft32((((c^d)&b)^d)+(a+x4+_K[4]), 7)
+		d = a + bits.RotateLeft32((((b^c)&a)^c)+(d+x5+_K[5]), 12)
+		c = d + bits.RotateLeft32((((a^b)&d)^b)+(c+x6+_K[6]), 17)
+		b = c + bits.RotateLeft32((((d^a)&c)^a)+(b+x7+_K[7]), 22)
+		a = b + bits.RotateLeft32((((c^d)&b)^d)+(a+x8+_K[8]), 7)
+		d = a + bits.RotateLeft32((((b^c)&a)^c)+(d+x9+_K[9]), 12)
+		c = d + bits.RotateLeft32((((a^b)&d)^b)+(c+xa+_K[10]), 17)
+		b = c + bits.RotateLeft32((((d^a)&c)^a)+(b+xb+_K[11]), 22)
+		a = b + bits.RotateLeft32((((c^d)&b)^d)+(a+xc+_K[12]), 7)
+		d = a + bits.RotateLeft32((((b^c)&a)^c)+(d+xd+_K[13]), 12)
+		c = d + bits.RotateLeft32((((a^b)&d)^b)+(c+xe+_K[14]), 17)
+		b = c + bits.RotateLeft32((((d^a)&c)^a)+(b+xf+_K[15]), 22)
 
 		// round 2
-		a = b + bits.RotateLeft32(((b&d)|(c&^d))+(a+x1+0xf61e2562), 5)
-		d = a + bits.RotateLeft32(((a&c)|(b&^c))+(d+x6+0xc040b340), 9)
-		c = d + bits.RotateLeft32(((d&b)|(a&^b))+(c+xb+0x265e5a51), 14)
-		b = c + bits.RotateLeft32(((c&a)|(d&^a))+(b+x0+0xe9b6c7aa), 20)
-		a = b + bits.RotateLeft32(((b&d)|(c&^d))+(a+x5+0xd62f105d), 5)
-		d = a + bits.RotateLeft32(((a&c)|(b&^c))+(d+xa+0x02441453), 9)
-		c = d + bits.RotateLeft32(((d&b)|(a&^b))+(c+xf+0xd8a1e681), 14)
-		b = c + bits.RotateLeft32(((c&a)|(d&^a))+(b+x4+0xe7d3fbc8), 20)
-		a = b + bits.RotateLeft32(((b&d)|(c&^d))+(a+x9+0x21e1cde6), 5)
-		d = a + bits.RotateLeft32(((a&c)|(b&^c))+(d+xe+0xc33707d6), 9)
-		c = d + bits.RotateLeft32(((d&b)|(a&^b))+(c+x3+0xf4d50d87), 14)
-		b = c + bits.RotateLeft32(((c&a)|(d&^a))+(b+x8+0x455a14ed), 20)
-		a = b + bits.RotateLeft32(((b&d)|(c&^d))+(a+xd+0xa9e3e905), 5)
-		d = a + bits.RotateLeft32(((a&c)|(b&^c))+(d+x2+0xfcefa3f8), 9)
-		c = d + bits.RotateLeft32(((d&b)|(a&^b))+(c+x7+0x676f02d9), 14)
-		b = c + bits.RotateLeft32(((c&a)|(d&^a))+(b+xc+0x8d2a4c8a), 20)
+		a = b + bits.RotateLeft32(((b&d)|(c&^d))+(a+x1+_K[16]), 5)
+		d = a + bits.RotateLeft32(((a&c)|(b&^c))+(d+x6+_K[17]), 9)
+		c = d + bits.RotateLeft32(((d&b)|(a&^b))+(c+xb+_K[18]), 14)
+		b = c + bits.RotateLeft32(((c&a)|(d&^a))+(b+x0+_K[19]), 20)
+		a = b + bits.RotateLeft32(((b&d)|(c&^d))+(a+x5+_K[20]), 5)
+		d = a + bits.RotateLeft32(((a&c)|(b&^c))+(d+xa+_K[21]), 9)
+		c = d + bits.RotateLeft32(((d&b)|(a&^b))+(c+xf+_K[22]), 14)
+		b = c + bits.RotateLeft32(((c&a)|(d&^a))+(b+x4+_K[23]), 20)
+		a = b + bits.RotateLeft32(((b&d)|(c&^d))+(a+x9+_K[24]), 5)
+		d = a + bits.RotateLeft32(((a&c)|(b&^c))+(d+xe+_K[25]), 9)
+		c = d + bits.RotateLeft32(((d&b)|(a&^b))+(c+x3+_K[26]), 14)
+		b = c + bits.RotateLeft32(((c&a)|(d&^a))+(b+x8+_K[27]), 20)
+		a = b + bits.RotateLeft32(((b&d)|(c&^d))+(a+xd+_K[28]), 5)
+		d = a + bits.RotateLeft32(((a&c)|(b&^c))+(d+x2+_K[29]), 9)
+		c = d + bits.RotateLeft32(((d&b)|(a&^b))+(c+x7+_K[30]), 14)
+		b = c + bits.RotateLeft32(((c&a)|(d&^a))+(b+xc+_K[31]), 20)
 
 		// round 3
-		a = b + bits.RotateLeft32((b^(c^d))+(a+x5+0xfffa3942), 4)
-		d = a + bits.RotateLeft32((a^(b^c))+(d+x8+0x8771f681), 11)
-		c = d + bits.RotateLeft32((d^(a^b))+(c+xb+0x6d9d6122), 16)
-		b = c + bits.RotateLeft32((c^(d^a))+(b+xe+0xfde5380c), 23)
-		a = b + bits.RotateLeft32((b^(c^d))+(a+x1+0xa4beea44), 4)
-		d = a + bits.RotateLeft32((a^(b^c))+(d+x4+0x4bdecfa9), 11)
-		c = d + bits.RotateLeft32((d^(a^b))+(c+x7+0xf6bb4b60), 16)
-		b = c + bits.RotateLeft32((c^(d^a))+(b+xa+0xbebfbc70), 23)
-		a = b + bits.RotateLeft32((b^(c^d))+(a+xd+0x289b7ec6), 4)
-		d = a + bits.RotateLeft32((a^(b^c))+(d+x0+0xeaa127fa), 11)
-		c = d + bits.RotateLeft32((d^(a^b))+(c+x3+0xd4ef3085), 16)
-		b = c + bits.RotateLeft32((c^(d^a))+(b+x6+0x04881d05), 23)
-		a = b + bits.RotateLeft32((b^(c^d))+(a+x9+0xd9d4d039), 4)
-		d = a + bits.RotateLeft32((a^(b^c))+(d+xc+0xe6db99e5), 11)
-		c = d + bits.RotateLeft32((d^(a^b))+(c+xf+0x1fa27cf8), 16)
-		b = c + bits.RotateLeft32((c^(d^a))+(b+x2+0xc4ac5665), 23)
+		a = b + bits.RotateLeft32((b^(c^d))+(a+x5+_K[32]), 4)
+		d = a + bits.RotateLeft32((a^(b^c))+(d+x8+_K[33]), 11)
+		c = d + bits.RotateLeft32((d^(a^b))+(c+xb+_K[34]), 16)
+		b = c + bits.RotateLeft32((c^(d^a))+(b+xe+_K[35]), 23)
+		a = b + bits.RotateLeft32((b^(c^d))+(a+x1+_K[36]), 4)
+		d = a + bits.RotateLeft32((a^(b^c))+(d+x4+_K[37]), 11)
+		c = d + bits.RotateLeft32((d^(a^b))+(c+x7+_K[38]), 16)
+		b = c + bits.RotateLeft32((c^(d^a))+(b+xa+_K[39]), 23)
+		a = b + bits.RotateLeft32((b^(c^d))+(a+xd+_K[40]), 4)
+		d = a + bits.RotateLeft32((a^(b^c))+(d+x0+_K[41]), 11)
+		c = d + bits.RotateLeft32((d^(a^b))+(c+x3+_K[42]), 16)
+		b = c + bits.RotateLeft32((c^(d^a))+(b+x6+_K[43]), 23)
+		a = b + bits.RotateLeft32((b^(c^d))+(a+x9+_K[44]), 4)
+		d = a + bits.RotateLeft32((a^(b^c))+(d+xc+_K[45]), 11)
+		c = d + bits.RotateLeft32((d^(a^b))+(c+xf+_K[46]), 16)
+		b = c + bits.RotateLeft32((c^(d^a))+(b+x2+_K[47]), 23)
 
 		// round 4
-		a = b + bits.RotateLeft32((c^(b|^d))+(a+x0+0xf4292244), 6)
-		d = a + bits.RotateLeft32((b^(a|^c))+(d+x7+0x432aff97), 10)
-		c = d + bits.RotateLeft32((a^(d|^b))+(c+xe+0xab9423a7), 15)
-		b = c + bits.RotateLeft32((d^(c|^a))+(b+x5+0xfc93a039), 21)
-		a = b + bits.RotateLeft32((c^(b|^d))+(a+xc+0x655b59c3), 6)
-		d = a + bits.RotateLeft32((b^(a|^c))+(d+x3+0x8f0ccc92), 10)
-		c = d + bits.RotateLeft32((a^(d|^b))+(c+xa+0xffeff47d), 15)
-		b = c + bits.RotateLeft32((d^(c|^a))+(b+x1+0x85845dd1), 21)
-		a = b + bits.RotateLeft32((c^(b|^d))+(a+x8+0x6fa87e4f), 6)
-		d = a + bits.RotateLeft32((b^(a|^c))+(d+xf+0xfe2ce6e0), 10)
-		c = d + bits.RotateLeft32((a^(d|^b))+(c+x6+0xa3014314), 15)
-		b = c + bits.RotateLeft32((d^(c|^a))+(b+xd+0x4e0811a1), 21)
-		a = b + bits.RotateLeft32((c^(b|^d))+(a+x4+0xf7537e82), 6)
-		d = a + bits.RotateLeft32((b^(a|^c))+(d+xb+0xbd3af235), 10)
-		c = d + bits.RotateLeft32((a^(d|^b))+(c+x2+0x2ad7d2bb), 15)
-		b = c + bits.RotateLeft32((d^(c|^a))+(b+x9+0xeb86d391), 21)
+		a = b + bits.RotateLeft32((c^(b|^d))+(a+x0+_K[48]), 6)
+		d = a + bits.RotateLeft32((b^(a|^c))+(d+x7+_K[49]), 10)
+		c = d + bits.RotateLeft32((a^(d|^b))+(c+xe+_K[50]), 15)
+		b = c + bits.RotateLeft32((d^(c|^a))+(b+x5+_K[51]), 21)
+		a = b + bits.RotateLeft32((c^(b|^d))+(a+xc+_K[52]), 6)
+		d = a + bits.RotateLeft32((b^(a|^c))+(d+x3+_K[53]), 10)
+		c = d + bits.RotateLeft32((a^(d|^b))+(c+xa+_K[54]), 15)
+		b = c + bits.RotateLeft32((d^(c|^a))+(b+x1+_K[55]), 21)
+		a = b + bits.RotateLeft32((c^(b|^d))+(a+x8+_K[56]), 6)
+		d = a + bits.RotateLeft32((b^(a|^c))+(d+xf+_K[57]), 10)
+		c = d + bits.RotateLeft32((a^(d|^b))+(c+x6+_K[58]), 15)
+		b = c + bits.RotateLeft32((d^(c|^a))+(b+xd+_K[59]), 21)
+		a = b + bits.RotateLeft32((c^(b|^d))+(a+x4+_K[60]), 6)
+		d = a + bits.RotateLeft32((b^(a|^c))+(d+xb+_K[61]), 10)
+		c = d + bits.RotateLeft32((a^(d|^b))+(c+x2+_K[62]), 15)
+		b = c + bits.RotateLeft32((d^(c|^a))+(b+x9+_K[63]), 21)
 
 		// add saved state
 		a += aa
@@ -122,4 +122,32 @@ func blockGeneric(dig *digest, p []byte) {
 
 	// save state
 	dig.s[0], dig.s[1], dig.s[2], dig.s[3] = a, b, c, d
+}
+
+// _K holds per-step additive constants.
+// _K[i] = int((1<<32) * abs(sin(i+1 radians)))
+var _K = [64]uint32{
+	// round 1
+	0xd76aa478, 0xe8c7b756, 0x242070db, 0xc1bdceee,
+	0xf57c0faf, 0x4787c62a, 0xa8304613, 0xfd469501,
+	0x698098d8, 0x8b44f7af, 0xffff5bb1, 0x895cd7be,
+	0x6b901122, 0xfd987193, 0xa679438e, 0x49b40821,
+
+	// round 2
+	0xf61e2562, 0xc040b340, 0x265e5a51, 0xe9b6c7aa,
+	0xd62f105d, 0x02441453, 0xd8a1e681, 0xe7d3fbc8,
+	0x21e1cde6, 0xc33707d6, 0xf4d50d87, 0x455a14ed,
+	0xa9e3e905, 0xfcefa3f8, 0x676f02d9, 0x8d2a4c8a,
+
+	// round 3
+	0xfffa3942, 0x8771f681, 0x6d9d6122, 0xfde5380c,
+	0xa4beea44, 0x4bdecfa9, 0xf6bb4b60, 0xbebfbc70,
+	0x289b7ec6, 0xeaa127fa, 0xd4ef3085, 0x04881d05,
+	0xd9d4d039, 0xe6db99e5, 0x1fa27cf8, 0xc4ac5665,
+
+	// round 4
+	0xf4292244, 0x432aff97, 0xab9423a7, 0xfc93a039,
+	0x655b59c3, 0x8f0ccc92, 0xffeff47d, 0x85845dd1,
+	0x6fa87e4f, 0xfe2ce6e0, 0xa3014314, 0x4e0811a1,
+	0xf7537e82, 0xbd3af235, 0x2ad7d2bb, 0xeb86d391,
 }
