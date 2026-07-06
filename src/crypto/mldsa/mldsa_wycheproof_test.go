@@ -12,7 +12,6 @@ import (
 	"crypto/internal/cryptotest/wycheproof"
 	internalmldsa "crypto/internal/fips140/mldsa"
 	"crypto/mldsa"
-	"encoding/json"
 	"slices"
 	"testing"
 )
@@ -95,9 +94,7 @@ func TestSignSeedWycheproof(t *testing.T) {
 				expectedPublicKey = wycheproof.MustDecodeHex(pk)
 			}
 
-			for _, raw := range tg.Tests {
-				tv := decodeMLDSASignTestVector(t, raw)
-
+			for _, tv := range tg.Tests {
 				t.Run(wycheproof.TestName(file, tv), func(t *testing.T) {
 					t.Parallel()
 
@@ -128,7 +125,7 @@ func TestSignSeedWycheproof(t *testing.T) {
 	}
 }
 
-func runSignTest(t *testing.T, priv *mldsa.PrivateKey, tv mldsaSignTestVector, shouldPass bool) {
+func runSignTest(t *testing.T, priv *mldsa.PrivateKey, tv wycheproof.MlDsaSignTestVector, shouldPass bool) {
 	t.Helper()
 
 	var msg, μ []byte
@@ -213,9 +210,7 @@ func TestMLDSASignSeedRandomizedWycheproof(t *testing.T) {
 				expectedPublicKey = wycheproof.MustDecodeHex(pk)
 			}
 
-			for _, raw := range tg.Tests {
-				tv := decodeMLDSASignTestVector(t, raw)
-
+			for _, tv := range tg.Tests {
 				t.Run(wycheproof.TestName(file, tv), func(t *testing.T) {
 					t.Parallel()
 
@@ -242,7 +237,7 @@ func TestMLDSASignSeedRandomizedWycheproof(t *testing.T) {
 	}
 }
 
-func runRandomizedSignTest(t *testing.T, priv *internalmldsa.PrivateKey, tv mldsaSignTestVector, shouldPass bool) {
+func runRandomizedSignTest(t *testing.T, priv *internalmldsa.PrivateKey, tv wycheproof.MlDsaSignTestVector, shouldPass bool) {
 	t.Helper()
 
 	var msg, μ []byte
@@ -334,8 +329,7 @@ func TestMLDSANoSeedWycheproof(t *testing.T) {
 				expectedPublicKey = wycheproof.MustDecodeHex(pk)
 			}
 
-			for _, raw := range tg.Tests {
-				tv := decodeMLDSASignTestVector(t, raw)
+			for _, tv := range tg.Tests {
 				t.Run(wycheproof.TestName(file, tv), func(t *testing.T) {
 					t.Parallel()
 
@@ -380,35 +374,4 @@ func newPrivateKeyFromSeedFn(t *testing.T, algorithm string) func([]byte) (*inte
 	}
 	t.Fatalf("unknown algorithm: %s", algorithm)
 	return nil
-}
-
-// mldsaSignTestVector is a typed view of wycheproof.MlDsaSignTestVector,
-// which the schema generator emits as interface{} because of the schema's
-// conditional clauses.
-type mldsaSignTestVector struct {
-	TcId    int               `json:"tcId"`
-	Comment string            `json:"comment"`
-	Msg     *string           `json:"msg,omitempty"`
-	Ctx     *string           `json:"ctx,omitempty"`
-	Mu      *string           `json:"mu,omitempty"`
-	Rnd     *string           `json:"rnd,omitempty"`
-	Sig     string            `json:"sig"`
-	Result  wycheproof.Result `json:"result"`
-	Flags   []string          `json:"flags"`
-}
-
-// decodeMLDSASignTestVector roundtrips an interface{} typed raw
-// MlDsaSignTestVector to produce a typed MLDSASignTestVector.
-// This is a workaround for a limitation of the schema generator.
-func decodeMLDSASignTestVector(t *testing.T, raw wycheproof.MlDsaSignTestVector) mldsaSignTestVector {
-	t.Helper()
-	b, err := json.Marshal(raw)
-	if err != nil {
-		t.Fatalf("re-marshal sign test vector: %v", err)
-	}
-	var tv mldsaSignTestVector
-	if err := json.Unmarshal(b, &tv); err != nil {
-		t.Fatalf("decode sign test vector: %v", err)
-	}
-	return tv
 }

@@ -1,12 +1,12 @@
 dario.cat/mergo v1.0.2 h1:85+piFYR1tMbRrLcDwR18y4UKJ3aH1Tbzi24VRW1TK8=
 dario.cat/mergo v1.0.2/go.mod h1:E/hbnu0NxMFBjpMIE34DRGLWqDy0g5FuKDhCb31ngxA=
-github.com/atombender/go-jsonschema v0.23.1 h1:hpj94ehS+gpVvd1NJSTE0BMtWIpab06ObCz57rwo37c=
-github.com/atombender/go-jsonschema v0.23.1/go.mod h1:4SrgNrwGKijxhewvpPQ8HKEbin5Q2N4Tk+pFKW77HEk=
 github.com/c2sp/wycheproof v0.0.0-20260606153636-6d7cccd0fcb1 h1:veaGluF2y7kZnV/owZzY3FuOZWZQdzqnIcJsbJpFV7A=
 github.com/c2sp/wycheproof v0.0.0-20260606153636-6d7cccd0fcb1/go.mod h1:/5JsOpi3fKmnnig5BQ2mz49TNtnrD308VfTVHcbr5x4=
 github.com/davecgh/go-spew v0.0.0-20161028175848-04cdfd42973b/go.mod h1:J7Y8YcW2NihsgmVo/mv3lAwl/skON4iLHjSsI+c5H38=
 github.com/davecgh/go-spew v1.1.1 h1:vj9j/u1bqnvCEfJOwUhtlOARqs3+rkHYY13jYWTU97c=
 github.com/davecgh/go-spew v1.1.1/go.mod h1:J7Y8YcW2NihsgmVo/mv3lAwl/skON4iLHjSsI+c5H38=
+github.com/filippo-claude/go-jsonschema v0.23.2-0.20260625215234-f867483bec31 h1:c2W1mlsq9K/W+GPQWycHmGxTq4/RkWgDHOY99K+rtaw=
+github.com/filippo-claude/go-jsonschema v0.23.2-0.20260625215234-f867483bec31/go.mod h1:4SrgNrwGKijxhewvpPQ8HKEbin5Q2N4Tk+pFKW77HEk=
 github.com/goccy/go-yaml v1.19.2 h1:PmFC1S6h8ljIz6gMRBopkjP1TVT7xuwrButHID66PoM=
 github.com/goccy/go-yaml v1.19.2/go.mod h1:XBurs7gK8ATbW4ZPGKgcbrY1Br56PdM69F7LkFRi1kA=
 github.com/google/go-cmp v0.7.0 h1:wk8382ETsv4JYUZwIsn6YpYiWiBsYLSJiTsyBybVuN8=
