@@ -360,17 +360,25 @@ func canMergeLoad(target, load *Value) bool {
 		}
 	}
 
+	f := target.Block.Func
+	visited := f.newSparseSet(f.NumValues())
+	defer f.retSparseSet(visited)
+
 	// memPreds contains memory states known to be predecessors of load's
 	// memory state. It is lazily initialized.
 	var memPreds map[*Value]bool
-	for i := 0; len(args) > 0; i++ {
-		const limit = 100
-		if i >= limit {
-			// Give up if we have done a lot of iterations.
+	for len(args) > 0 {
+		const limit = 2048 // enough to comfortably cover unrolled crypto blocks
+		if visited.size() >= limit {
+			// Give up if we have visited a lot of values.
 			return false
 		}
 		v := args[len(args)-1]
 		args = args[:len(args)-1]
+		if visited.contains(v.ID) {
+			continue
+		}
+		visited.add(v.ID)
 		if target.Block.ID != v.Block.ID {
 			// Since target and load are in the same block
 			// we can stop searching when we leave the block.
