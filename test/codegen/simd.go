@@ -113,25 +113,25 @@ func sftImmVPSRL() archsimd.Uint32x4 {
 
 func aLtbLtc8_avx512(a, b, c archsimd.Int8x64) archsimd.Mask8x64 {
 	// the vector length implies AVX512 implies the mask operations.
-	// amd64:`KANDB`
+	// amd64:`KANDQ`
 	return a.Less(b).And(b.Less(c))
 }
 
 func aLtbORbLtc8_avx512(a, b, c archsimd.Int8x64) archsimd.Mask8x64 {
 	// the vector length implies AVX512 implies the mask operations.
-	// amd64:`KORB`
+	// amd64:`KORQ`
 	return a.Less(b).Or(b.Less(c))
 }
 
 func aLtbLtc64_avx512(a, b, c archsimd.Int64x8) archsimd.Mask64x8 {
 	// the vector length implies AVX512 implies the mask operations.
-	// amd64:`KANDQ`
+	// amd64:`KANDB`
 	return a.Less(b).And(b.Less(c))
 }
 
 func aLtbORbLtc64_avx512(a, b, c archsimd.Int64x8) archsimd.Mask64x8 {
 	// the vector length implies AVX512 implies the mask operations.
-	// amd64:`KORQ`
+	// amd64:`KORB`
 	return a.Less(b).Or(b.Less(c))
 }
 
