@@ -12,7 +12,7 @@ import (
 	"math/bits"
 )
 
-// VectorSize returns the bit length of the emulated vector (fixed to 128).
+// VectorBitSize returns the bit length of the emulated vector (fixed to 128).
 func VectorBitSize() int {
 	return 128
 }
@@ -3210,65 +3210,65 @@ const (
 	by16 = 0x0001000100010001
 )
 
-// BroadcastInt8 fills the elements of a slice with its argument value.
+// BroadcastInt8s fills the elements of a slice with its argument value.
 func BroadcastInt8s(x int8) Int8s {
 	v := (255 & uint64(x)) * by8
 	return Int8s{a: v, b: v}
 }
 
-// BroadcastInt16 fills the elements of a slice with its argument value.
+// BroadcastInt16s fills the elements of a slice with its argument value.
 func BroadcastInt16s(x int16) Int16s {
 	v := (65535 & uint64(x)) * by16
 	return Int16s{a: v, b: v}
 }
 
-// BroadcastInt32 fills the elements of a slice with its argument value.
+// BroadcastInt32s fills the elements of a slice with its argument value.
 func BroadcastInt32s(x int32) Int32s {
 	v := uint64(x) & 0xffffffff
 	v = v<<32 | v
 	return Int32s{a: v, b: v}
 }
 
-// BroadcastInt64 fills the elements of a slice with its argument value.
+// BroadcastInt64s fills the elements of a slice with its argument value.
 func BroadcastInt64s(x int64) Int64s {
 	v := uint64(x)
 	return Int64s{a: v, b: v}
 }
 
-// BroadcastUint8 fills the elements of a slice with its argument value.
+// BroadcastUint8s fills the elements of a slice with its argument value.
 func BroadcastUint8s(x uint8) Uint8s {
 	v := uint64(x) * by8
 	return Uint8s{a: v, b: v}
 
 }
 
-// BroadcastUint16 fills the elements of a slice with its argument value.
+// BroadcastUint16s fills the elements of a slice with its argument value.
 func BroadcastUint16s(x uint16) Uint16s {
 	v := uint64(x) * by16
 	return Uint16s{a: v, b: v}
 
 }
 
-// BroadcastUint32 fills the elements of a slice with its argument value.
+// BroadcastUint32s fills the elements of a slice with its argument value.
 func BroadcastUint32s(x uint32) Uint32s {
 	v := uint64(x)
 	v = v<<32 | v
 	return Uint32s{a: v, b: v}
 }
 
-// BroadcastUint64 fills the elements of a slice with its argument value.
+// BroadcastUint64s fills the elements of a slice with its argument value.
 func BroadcastUint64s(x uint64) Uint64s {
 	return Uint64s{a: x, b: x}
 }
 
-// BroadcastFloat32 fills the elements of a slice with its argument value.
+// BroadcastFloat32s fills the elements of a slice with its argument value.
 func BroadcastFloat32s(x float32) Float32s {
 	v := uint64(math.Float32bits(x))
 	v = v<<32 | v
 	return Float32s{a: v, b: v}
 }
 
-// BroadcastFloat64 fills the elements of a slice with its argument value.
+// BroadcastFloat64s fills the elements of a slice with its argument value.
 func BroadcastFloat64s(x float64) Float64s {
 	v := math.Float64bits(x)
 	return Float64s{a: v, b: v}
