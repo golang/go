@@ -54,6 +54,7 @@ threadentry(void *v)
 	ts = *(ThreadStart*)v;
 	_cgo_tsan_acquire();
 	free(v);
+	v = NULL;
 	_cgo_tsan_release();
 
 	if (x_cgo_threadentry_platform != NULL) {
