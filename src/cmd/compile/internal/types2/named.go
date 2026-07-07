@@ -231,9 +231,6 @@ func (n *Named) unpack() *Named {
 		return n
 	}
 
-	// underlying comes after unpacking, do not set it
-	defer (func() { assert(!n.stateHas(hasUnder)) })()
-
 	if n.inst != nil {
 		assert(n.fromRHS == nil) // instantiated types are not declared types
 		assert(n.loader == nil)  // cannot import an instantiation
@@ -250,6 +247,8 @@ func (n *Named) unpack() *Named {
 		} else {
 			n.setState(lazyLoaded | unpacked)
 		}
+		// underlying comes after unpacking, do not set it
+		assert(!n.stateHas(hasUnder))
 		return n
 	}
 
@@ -268,16 +267,23 @@ func (n *Named) unpack() *Named {
 		n.loader = nil
 
 		n.tparams = bindTParams(tparams)
+		n.underlying = underlying
 		n.fromRHS = underlying // for cycle detection
 		n.methods = methods
 
-		n.setState(lazyLoaded) // avoid deadlock calling delayed functions
+		// Careful: A delayed function could need the underlying type of
+		// the type we are loading, so we must advance to hasUnder to
+		// avoid a deadlock (see go.dev/issue/80258).
+		n.setState(lazyLoaded | unpacked | hasMethods | hasUnder)
 		for _, f := range delayed {
 			f()
 		}
+		return n
 	}
 
+	// underlying comes after unpacking, do not set it
 	n.setState(lazyLoaded | unpacked | hasMethods)
+	assert(!n.stateHas(hasUnder))
 	return n
 }
 
