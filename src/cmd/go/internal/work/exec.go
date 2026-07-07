@@ -395,7 +395,7 @@ func (b *Builder) buildActionID(a *Action) cache.ActionID {
 		}
 
 	case "gccgo":
-		id, _, err := b.gccToolID(BuildToolchain.compiler(), "go")
+		id, _, err := b.gccgoToolID(BuildToolchain.compiler(), "go")
 		if err != nil {
 			base.Fatalf("%v", err)
 		}
@@ -403,7 +403,7 @@ func (b *Builder) buildActionID(a *Action) cache.ActionID {
 		fmt.Fprintf(h, "pkgpath %s\n", gccgoPkgpath(p))
 		fmt.Fprintf(h, "ar %q\n", BuildToolchain.(gccgoToolchain).ar())
 		if len(p.SFiles) > 0 {
-			id, _, _ = b.gccToolID(BuildToolchain.compiler(), "assembler-with-cpp")
+			id, _, _ = b.gccgoToolID(BuildToolchain.compiler(), "assembler-with-cpp")
 			// Ignore error; different assembler versions
 			// are unlikely to make any difference anyhow.
 			fmt.Fprintf(h, "asm %q\n", id)
@@ -1730,7 +1730,7 @@ func (b *Builder) printLinkerConfig(h io.Writer, p *load.Package) {
 		// Or external linker settings and flags?
 
 	case "gccgo":
-		id, _, err := b.gccToolID(BuildToolchain.linker(), "go")
+		id, _, err := b.gccgoToolID(BuildToolchain.linker(), "go")
 		if err != nil {
 			base.Fatalf("%v", err)
 		}
@@ -2855,7 +2855,7 @@ func (b *Builder) gccCompilerID(compiler string) (id cache.ActionID, ok bool) {
 	// For now, there are only at most two filenames in the stat information.
 	// The first one is the compiler executable we invoke.
 	// The second is the underlying compiler as reported by -v -###
-	// (see b.gccToolID implementation in buildid.go).
+	// (see b.gccToolIDPrefix implementation in buildid.go).
 	toolID, exe2, err := b.gccToolID(compiler, "c")
 	if err != nil {
 		return cache.ActionID{}, false

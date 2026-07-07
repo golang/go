@@ -183,7 +183,22 @@ func (b *Builder) toolID(name string) string {
 	})
 }
 
-// gccToolID returns the unique ID to use for a tool that is invoked
+// gccToolID returns the unique ID to use for a C, C++, or Fortran compiler
+// driven by cgo. Those compilers are not otherwise invoked under -toolexec, so
+// their version probe is not run under -toolexec either (see
+// go.dev/issue/64580).
+func (b *Builder) gccToolID(name, language string) (id, exe string, err error) {
+	return b.gccToolIDPrefix(name, language, nil)
+}
+
+// gccgoToolID returns the unique ID to use for the gccgo compiler. gccgo is a
+// Go toolchain compiler, treated like cmd/compile, so its version probe is run
+// under cfg.BuildToolexec.
+func (b *Builder) gccgoToolID(name, language string) (id, exe string, err error) {
+	return b.gccToolIDPrefix(name, language, cfg.BuildToolexec)
+}
+
+// gccToolIDPrefix returns the unique ID to use for a tool that is invoked
 // by the GCC driver. This is used particularly for gccgo, but this can also
 // be used for gcc, g++, gfortran, etc.; those tools all use the GCC
 // driver under different names. The approach used here should also
@@ -193,17 +208,21 @@ func (b *Builder) toolID(name string) string {
 //
 // For these tools we have no -V=full option to dump the build ID,
 // but we can run the tool with -v -### to reliably get the compiler proper
-// and hash that. That will work in the presence of -toolexec.
+// and hash that.
 //
 // In order to get reproducible builds for released compilers, we
 // detect a released compiler by the absence of "experimental" in the
 // --version output, and in that case we just use the version string.
 //
-// gccToolID also returns the underlying executable for the compiler.
+// gccToolIDPrefix also returns the underlying executable for the compiler.
 // The caller assumes that stat of the exe can be used, combined with the id,
 // to detect changes in the underlying compiler. The returned exe can be empty,
 // which means to rely only on the id.
-func (b *Builder) gccToolID(name, language string) (id, exe string, err error) {
+//
+// prefix is prepended to the probe command line so that callers can run the
+// probe under cfg.BuildToolexec. Callers should generally use the gccToolID
+// and gccgoToolID wrappers rather than calling gccToolIDPrefix directly.
+func (b *Builder) gccToolIDPrefix(name, language string, prefix []string) (id, exe string, err error) {
 	//TODO: Use par.Cache instead of a mutex and a map. See Builder.toolID.
 	key := name + "." + language
 	b.id.Lock()
@@ -218,7 +237,7 @@ func (b *Builder) gccToolID(name, language string) (id, exe string, err error) {
 	// Invoke the driver with -### to see the subcommands and the
 	// version strings. Use -x to set the language. Pretend to
 	// compile an empty file on standard input.
-	cmdline := str.StringList(cfg.BuildToolexec, name, "-###", "-x", language, "-c", "-")
+	cmdline := str.StringList(prefix, name, "-###", "-x", language, "-c", "-")
 	cmd := exec.Command(cmdline[0], cmdline[1:]...)
 	// Force untranslated output so that we see the string "version".
 	cmd.Env = append(os.Environ(), "LC_ALL=C")
