@@ -9,7 +9,7 @@ package arm64
 import (
 	"sort"
 
-	"_gen/unify"
+	"simd/archsimd/_gen/unify"
 
 	"golang.org/x/arch/arm64/instgen/xmlspec"
 )

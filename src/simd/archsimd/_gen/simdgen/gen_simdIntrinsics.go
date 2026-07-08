@@ -5,9 +5,9 @@
 package main
 
 import (
-	"_gen/sgutil"
 	"bytes"
 	"fmt"
+	"simd/archsimd/_gen/sgutil"
 	"slices"
 	"text/template"
 )

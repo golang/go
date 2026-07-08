@@ -8,7 +8,6 @@ package main
 // slice operations and tests
 
 import (
-	"_gen/sgutil"
 	"bufio"
 	"bytes"
 	"flag"
@@ -16,6 +15,7 @@ import (
 	"go/format"
 	"io"
 	"os"
+	"simd/archsimd/_gen/sgutil"
 	"strings"
 	"text/template"
 )

@@ -14,7 +14,7 @@ import (
 	"strings"
 	"unicode"
 
-	"_gen/unify"
+	"simd/archsimd/_gen/unify"
 )
 
 type Operation struct {
