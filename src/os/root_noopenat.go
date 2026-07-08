@@ -143,6 +143,9 @@ func rootMkdir(r *Root, name string, perm FileMode) error {
 	if err := checkPathEscapes(r, name); err != nil {
 		return &PathError{Op: "mkdirat", Path: name, Err: err}
 	}
+	if name == "" {
+		return &PathError{Op: "mkdirat", Path: name, Err: syscall.ENOENT}
+	}
 	if err := Mkdir(joinPath(r.root.name, name), perm); err != nil {
 		return &PathError{Op: "mkdirat", Path: name, Err: underlyingError(err)}
 	}
@@ -157,6 +160,9 @@ func rootMkdirAll(r *Root, name string, perm FileMode) error {
 	// and we want to preserve that property.
 	if err := checkPathEscapes(r, name); err == errPathEscapes {
 		return &PathError{Op: "mkdirat", Path: name, Err: err}
+	}
+	if name == "" {
+		return &PathError{Op: "mkdirat", Path: name, Err: syscall.ENOENT}
 	}
 	prefix := r.root.name + string(PathSeparator)
 	if err := MkdirAll(prefix+name, perm); err != nil {
