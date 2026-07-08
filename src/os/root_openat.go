@@ -114,7 +114,7 @@ func rootMkdir(r *Root, name string, perm FileMode) error {
 		// (POSIX.1-2024 4.16 says that the trailing slash should cause
 		// resolution to follow the symlink, but we're trying to match
 		// platform semantics, not implement POSIX.)
-		flags = doInRootNoHandleTerminalSlash
+		flags |= doInRootNoHandleTerminalSlash
 	}
 	_, err := doInRoot(r, name, flags, nil, func(parent sysfdType, name string, endsInSlash bool) (struct{}, error) {
 		return struct{}{}, mkdirat(parent, name, perm)
@@ -167,6 +167,12 @@ func rootMkdirAll(r *Root, fullname string, perm FileMode) error {
 					fi, e := r.Stat(fullname)
 					if e == nil && fi.Mode().IsDir() {
 						err = nil
+					} else if e == nil {
+						err = syscall.ENOTDIR
+					} else if !IsNotExist(e) {
+						// EPERM, ELOOP, etc.,
+						// probably more useful than EEXIST.
+						err = e
 					}
 				}
 			}
@@ -177,7 +183,12 @@ func rootMkdirAll(r *Root, fullname string, perm FileMode) error {
 		}
 		return struct{}{}, &PathError{Op: "mkdirat", Err: err}
 	}
-	_, err := doInRoot(r, fullname, 0, openDirFunc, openLastComponentFunc)
+	flags := uint(doInRootCreatingDirectory)
+	switch runtime.GOOS {
+	case "linux", "windows":
+		flags |= doInRootNoHandleTerminalSlash // see rootMkdir
+	}
+	_, err := doInRoot(r, fullname, flags, openDirFunc, openLastComponentFunc)
 	if err != nil {
 		if _, ok := err.(*PathError); !ok {
 			err = &PathError{Op: "mkdirat", Path: fullname, Err: err}
@@ -232,7 +243,7 @@ func rootRename(r *Root, oldname, newname string) error {
 	_, err := doInRoot(r, oldname, 0, nil, func(oldparent sysfdType, oldname string, oldEndsInSlash bool) (struct{}, error) {
 		flags := uint(doInRootCreatingDirectory)
 		if runtime.GOOS == "windows" {
-			flags = doInRootNoHandleTerminalSlash
+			flags |= doInRootNoHandleTerminalSlash
 		}
 		_, err := doInRoot(r, newname, flags, nil, func(newparent sysfdType, newname string, newEndsInSlash bool) (struct{}, error) {
 			if runtime.GOOS != "windows" && newEndsInSlash {
@@ -268,7 +279,7 @@ func rootLink(r *Root, oldname, newname string) error {
 		flags := uint(0)
 		if runtime.GOOS == "windows" {
 			// Windows doesn't pay attention to trailing slashes in the link target.
-			flags = doInRootNoHandleTerminalSlash
+			flags |= doInRootNoHandleTerminalSlash
 		}
 		_, err := doInRoot(r, newname, flags, nil, func(newparent sysfdType, newname string, newEndsInSlash bool) (struct{}, error) {
 			return struct{}{}, linkat(oldparent, oldname, newparent, newname)
