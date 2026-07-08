@@ -825,10 +825,11 @@ func preprocess(ctxt *obj.Link, cursym *obj.LSym, newprog obj.ProgAlloc) {
 			p.To = obj.Addr{}
 
 			needSpRestore, needBpRestore := localoffset != 0, bpsize > 0
-			// We can't use LEAVE with assembly because the go asm promise
-			// it will insert save and restores for BP. Thus many pieces
-			// of code use BP as a scratch register.
-			if !ctxt.IsAsm && needSpRestore && needBpRestore {
+			// We can't use LEAVE with ABI0 assembly because the go
+			// asm promise it will insert save and restores for BP.
+			// Thus many pieces of code use BP as a scratch register.
+			asmSafe := !ctxt.IsAsm || cursym.ABI() == obj.ABIInternal
+			if asmSafe && needSpRestore && needBpRestore {
 				p.As = ALEAVEQ
 				p.Spadj = -localoffset - int32(bpsize)
 				p = obj.Appendp(p, newprog)
