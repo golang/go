@@ -190,13 +190,14 @@ func (check *Checker) compositeLit(U Type, x *operand, e *ast.CompositeLit, hint
 				key, _ := kv.Key.(*ast.Ident)
 				// do all possible checks early (before exiting due to errors)
 				// so we don't drop information on the floor
-				check.genericExpr(nil, x, kv.Value, nil)
 				if key == nil {
+					check.genericExpr(nil, x, kv.Value, nil)
 					check.errorf(kv, InvalidLitField, "invalid field name %s in struct literal", kv.Key)
 					continue
 				}
 				obj, index, indirect := lookupFieldOrMethod(utyp, false, check.pkg, key.Name, false)
 				if obj == nil {
+					check.genericExpr(nil, x, kv.Value, nil)
 					alt, _, _ := lookupFieldOrMethod(utyp, false, check.pkg, key.Name, true)
 					msg := check.lookupError(base, key.Name, alt, true)
 					check.error(kv.Key, MissingLitField, msg)
@@ -204,9 +205,13 @@ func (check *Checker) compositeLit(U Type, x *operand, e *ast.CompositeLit, hint
 				}
 				fld, _ := obj.(*Var)
 				if fld == nil {
+					check.genericExpr(nil, x, kv.Value, nil)
 					check.errorf(kv.Key, MissingLitField, "%s is not a field", kv.Key)
 					continue
 				}
+				// we can now check the value using the field target type
+				etyp := fld.typ
+				check.genericExpr(etyp, x, kv.Value, nil)
 				if len(index) > 1 && !check.verifyVersionf(kv.Key, go1_27, "use of promoted field %s in struct literal of type %s", fieldPath(utyp, index), base) {
 					continue
 				}
@@ -215,7 +220,6 @@ func (check *Checker) compositeLit(U Type, x *operand, e *ast.CompositeLit, hint
 					continue
 				}
 				check.recordUse(key, fld)
-				etyp := fld.typ
 				check.assignment(x, etyp, "struct literal")
 				if alt, n := visited.insert(index, fld); n != 0 {
 					if fld == alt {
@@ -234,18 +238,19 @@ func (check *Checker) compositeLit(U Type, x *operand, e *ast.CompositeLit, hint
 					check.error(kv, MixedStructLit, "mixture of field:value and value elements in struct literal")
 					continue
 				}
-				check.genericExpr(nil, x, e, nil)
 				if i >= len(fields) {
+					check.genericExpr(nil, x, e, nil)
 					check.errorf(x, InvalidStructLit, "too many values in struct literal of type %s", base)
 					break // cannot continue
 				}
 				// i < len(fields)
 				fld := fields[i]
+				etyp := fld.typ
+				check.genericExpr(etyp, x, e, nil)
 				if !fld.Exported() && fld.pkg != check.pkg {
 					check.errorf(x, UnexportedLitField, "implicit assignment to unexported field %s in struct literal of type %s", fld.name, base)
 					continue
 				}
-				etyp := fld.typ
 				check.assignment(x, etyp, "struct literal")
 			}
 			if len(e.Elts) < len(fields) {

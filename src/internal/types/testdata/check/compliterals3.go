@@ -20,9 +20,9 @@ var (
        _ map[string]int = {"foo": 0, "bar": 1}
 )
 
-// var (
-//        _ = struct{ f struct { f int }}{{1}}
-// )
+var (
+       _ = struct{ f struct { f int }}{{1}}
+)
 
 func _() []int {
        return nil

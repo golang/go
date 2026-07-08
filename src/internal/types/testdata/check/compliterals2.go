@@ -46,21 +46,21 @@ func _[P map[T]int](x P) {
         _ = x[{ /* ERROR "requires go1.28 or later" */ }]
 }
 
-// // value of a struct literal with keys / values
-// func _() {
-//         type S struct {
-//                 f T
-//         }
-//         _ = S{f: { /* ERROR "requires go1.28 or later" */ }}
-// }
+// value of a struct literal with keys / values
+func _() {
+        type S struct {
+                f T
+        }
+        _ = S{f: { /* ERROR "requires go1.28 or later" */ }}
+}
 
-// // value of a struct literal without keys / values
-// func _() {
-//         type S struct {
-//                 f T
-//         }
-//         _ = S{{ /* ERROR "requires go1.28 or later" */ }}
-// }
+// value of a struct literal without keys / values
+func _() {
+        type S struct {
+                f T
+        }
+        _ = S{{ /* ERROR "requires go1.28 or later" */ }}
+}
 
 // values sent to a channel
 func _() {

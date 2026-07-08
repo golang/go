@@ -44,8 +44,8 @@ type Ti int
 
 var (
 	_ = &T{0, 0, "", nil}               // ok
-	_ = &T{i: 0, f: 0, s: "", next: {}} // ERROR "missing type in composite literal|omit types within composite literal"
-	_ = &T{0, 0, "", {}}                // ERROR "missing type in composite literal|omit types within composite literal"
+	_ = &T{i: 0, f: 0, s: "", next: {}} // ok since Go 1.28
+	_ = &T{0, 0, "", {}}                // ok since Go 1.28
 	_ = TP{i: 0, f: 0, s: ""}           // ERROR "invalid composite literal type TP"
 	_ = &Ti{}                           // ERROR "invalid composite literal type Ti|expected.*type for composite literal"
 )

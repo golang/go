@@ -43,21 +43,21 @@ func _[P map[T]int](x P) {
         _ = x[{}]
 }
 
-// // value of a struct literal with keys / values
-// func _() {
-//         type S struct {
-//                 f T
-//         }
-//         _ = S{f: {}}
-// }
+// value of a struct literal with keys / values
+func _() {
+        type S struct {
+                f T
+        }
+        _ = S{f: {}}
+}
 
-// // value of a struct literal without keys / values
-// func _() {
-//         type S struct {
-//                 f T
-//         }
-//         _ = S{{}}
-// }
+// value of a struct literal without keys / values
+func _() {
+        type S struct {
+                f T
+        }
+        _ = S{{}}
+}
 
 // values sent to a channel
 func _() {
