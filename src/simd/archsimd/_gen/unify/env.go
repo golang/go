@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"iter"
 	"reflect"
+	"slices"
 	"strings"
 	"sync/atomic"
 )
@@ -389,10 +390,8 @@ type smallSet[T comparable] struct {
 // Has returns whether val is in set.
 func (s *smallSet[T]) Has(val T) bool {
 	arr := s.array[:s.n]
-	for i := range arr {
-		if arr[i] == val {
-			return true
-		}
+	if slices.Contains(arr, val) {
+		return true
 	}
 	_, ok := s.m[val]
 	return ok

@@ -16,7 +16,7 @@ import (
 
 var arm64Path = flag.String("arm64Path", "", "Path to ARM64 XML definitions")
 
-func requireEqual(t *testing.T, expected, actual interface{}) bool {
+func requireEqual(t *testing.T, expected, actual any) bool {
 	t.Helper()
 	if !reflect.DeepEqual(expected, actual) {
 		t.Errorf("❌ expected %v, got %v", expected, actual)
@@ -32,7 +32,7 @@ func requireEqual(t *testing.T, expected, actual interface{}) bool {
 	return true
 }
 
-func matchEqual(t *testing.T, expected, actual interface{}) bool {
+func matchEqual(t *testing.T, expected, actual any) bool {
 	t.Helper()
 	eq := reflect.DeepEqual(expected, actual)
 	if eq && expected != nil {
@@ -57,7 +57,7 @@ func arngs(t *testing.T, instr *Instruction, expectedArrangements []string, expe
 	requireEqual(t, expectedShape, actualShape)
 }
 
-func ops(t *testing.T, instr *Instruction, expectedOps []string, equal func(*testing.T, interface{}, interface{}) bool) bool {
+func ops(t *testing.T, instr *Instruction, expectedOps []string, equal func(*testing.T, any, any) bool) bool {
 	t.Helper()
 	templates := instr.templates()
 	if !equal(t, 1, len(templates)) {
