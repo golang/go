@@ -3215,6 +3215,10 @@ func TestRootMultiReadFile(t *testing.T) {
 		case runtime.GOOS == "plan9":
 			// Plan9 lets you read from directories.
 			// Just rely on consistency checks.
+		case runtime.GOOS == "netbsd":
+			// See https://go.dev/issue/80322:
+			// NetBSD builder appears to be succeeding on read-from-dir as well.
+			return "", gotErr
 		case test.target.finalKind() == testFileDir:
 			test.wantError(t, gotErr, errAny)
 		case test.target.anySlashSuffix():
