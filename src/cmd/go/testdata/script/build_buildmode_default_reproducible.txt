@@ -1,0 +1,37 @@
+# Issue 63559: building with -buildmode=default should produce
+# a binary identical to one built with the buildmode that default
+# resolves to, and the build info stamped into the binary should
+# record the resolved buildmode.
+
+[short] skip 'links binaries'
+# gccgo does not set -fPIE for the default->pie case (unlike explicit
+# -buildmode=pie), so the two binaries would not be identical there.
+[compiler:gccgo] skip
+
+# Build with -buildmode=default and, separately, with the buildmode that
+# default resolves to. Use distinct build caches so that the second build
+# cannot be served from the first build's link cache: the binaries must be
+# byte-identical because they are truly reproducible, not because one was
+# copied from the other.
+env GOCACHE=$WORK/cache-default
+go build -buildmode=default -o default$GOEXE .
+
+env GOCACHE=$WORK/cache-explicit
+[!default-pie] go build -buildmode=exe -o explicit$GOEXE .
+[default-pie] go build -buildmode=pie -o explicit$GOEXE .
+
+cmp -q default$GOEXE explicit$GOEXE
+
+# The build info must record the resolved buildmode, not the literal "default".
+go version -m default$GOEXE
+[!default-pie] stdout -buildmode=exe
+[default-pie] stdout -buildmode=pie
+
+-- go.mod --
+module m
+
+go 1.26
+-- main.go --
+package main
+
+func main() {}
