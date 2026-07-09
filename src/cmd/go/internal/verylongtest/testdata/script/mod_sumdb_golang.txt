@@ -14,6 +14,7 @@
 [!net:proxy.golang.org] skip
 [!net:sum.golang.org] skip
 [!git] skip
+env GOMODCACHE=$WORK/modcache # we clean the modcache below
 env GOSUMDB=sum.golang.org
 env GOPROXY=direct
 
@@ -64,16 +65,16 @@ cmp go.sum saved.sum
 
 # test fallback to direct
 
-env TESTGOPROXY404=1
+env GOPROXY=$TESTGO_404_PROXY_ADDR,direct
 go clean -modcache
 rm go.sum
 
 go list -mod=mod -x -m all  # Download go.mod files
-stderr 'proxy.golang.org.*404 testing'
+stderr $TESTGO_404_PROXY_ADDR.*'404 Not Found'
 stderr github.com/rsc
 
 go list -mod=mod -x rsc.io/quote  # Download module source.
-stderr 'proxy.golang.org.*404 testing'
+stderr $TESTGO_404_PROXY_ADDR.*'404 Not Found'
 stderr github.com/rsc
 
 cmp go.sum saved.sum

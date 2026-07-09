@@ -821,6 +821,63 @@ func testServerTimeoutsWithTimeout(t *testing.T, timeout time.Duration, mode tes
 	return nil
 }
 
+func TestServerUnencryptedHTTP2HeaderTimeout(t *testing.T) {
+	for _, test := range []struct {
+		name string
+		f    func(*fakeNetConn)
+	}{{
+		name: "client sends nothing",
+		f: func(conn *fakeNetConn) {
+		},
+	}, {
+		name: "client sends slowly",
+		f: func(conn *fakeNetConn) {
+			// Trickling out writes should not extend the deadline.
+			conn.Write([]byte("PRI"))
+			time.Sleep(100 * time.Millisecond)
+			conn.Write([]byte(" * "))
+			time.Sleep(100 * time.Millisecond)
+			conn.Write([]byte("HTT"))
+			time.Sleep(100 * time.Millisecond)
+		},
+	}, {
+		name: "header read expires",
+		f: func(conn *fakeNetConn) {
+			// Time spent waiting for the HTTP/2 preface should count against
+			// time spent waiting for HTTP/1 headers.
+			time.Sleep(100 * time.Millisecond)
+			conn.Write([]byte("GET / HTTP/1.1\r\nHost: example.tld\r\n"))
+		},
+	}} {
+		t.Run(test.name, func(t *testing.T) {
+			synctest.Test(t, func(t *testing.T) {
+				listener := fakeNetListen()
+				defer listener.Close()
+
+				srv := &Server{
+					Protocols:         new(Protocols),
+					ReadHeaderTimeout: 1 * time.Second,
+				}
+				srv.Protocols.SetHTTP1(true)
+				srv.Protocols.SetUnencryptedHTTP2(true)
+				go srv.Serve(listener)
+
+				conn := listener.connect()
+				go test.f(conn)
+
+				start := time.Now()
+				_, err := io.ReadAll(conn)
+				if err != nil {
+					t.Errorf("ReadAll from server: %v, want EOF", err)
+				}
+				if got, want := time.Since(start), srv.ReadHeaderTimeout; got != want {
+					t.Errorf("connection closed after %v, want %v", got, want)
+				}
+			})
+		})
+	}
+}
+
 func TestServerReadTimeout(t *testing.T) { run(t, testServerReadTimeout, http3SkippedMode) }
 func testServerReadTimeout(t *testing.T, mode testMode) {
 	respBody := "response body"
@@ -3298,12 +3355,16 @@ func TestStripPrefixNotModifyRequest(t *testing.T) {
 
 func TestRequestLimit(t *testing.T) { run(t, testRequestLimit, http3SkippedMode) }
 func testRequestLimit(t *testing.T, mode testMode) {
+	bytesPerHeader := len("header12345: val12345\r\n")
+	numHeaders := ((DefaultMaxHeaderBytes + 4096) / bytesPerHeader) + 1
+
 	cst := newClientServerTest(t, mode, HandlerFunc(func(w ResponseWriter, r *Request) {
 		t.Fatalf("didn't expect to get request in Handler")
-	}), optQuietLog)
+	}), func(s *Server) {
+		s.MaxHeaderValueCount = numHeaders
+	}, optQuietLog)
 	req, _ := NewRequest("GET", cst.ts.URL, nil)
-	var bytesPerHeader = len("header12345: val12345\r\n")
-	for i := 0; i < ((DefaultMaxHeaderBytes+4096)/bytesPerHeader)+1; i++ {
+	for i := range numHeaders {
 		req.Header.Set(fmt.Sprintf("header%05d", i), fmt.Sprintf("val%05d", i))
 	}
 	res, err := cst.c.Do(req)
@@ -3329,6 +3390,168 @@ func testRequestLimit(t *testing.T, mode testMode) {
 		if res.StatusCode != 431 {
 			t.Fatalf("expected 431 response status; got: %d %s", res.StatusCode, res.Status)
 		}
+	}
+}
+
+func TestRequestHeaderValueCountLimit(t *testing.T) {
+	run(t, testRequestHeaderValueCountLimit, http3SkippedMode)
+}
+func testRequestHeaderValueCountLimit(t *testing.T, mode testMode) {
+	tests := []struct {
+		name       string
+		limit      int
+		setup      func(req *Request)
+		wantStatus int
+	}{
+		{
+			name:  "below limit",
+			limit: 15,
+			setup: func(req *Request) {
+				// Send considerably below the limit, to account for the client
+				// automatically adding pseudo-headers and headers that it can
+				// infer.
+				for i := range 5 {
+					req.Header.Add(fmt.Sprintf("X-Header-%d", i), "val")
+				}
+			},
+			wantStatus: 200,
+		},
+		{
+			name:  "above limit",
+			limit: 15,
+			setup: func(req *Request) {
+				for i := range 16 {
+					req.Header.Add(fmt.Sprintf("X-Header-%d", i), "val")
+				}
+			},
+			wantStatus: 431,
+		},
+		{
+			name:  "comma separated values count as one",
+			limit: 15,
+			setup: func(req *Request) {
+				vals := make([]string, 16)
+				for i := range vals {
+					vals[i] = "val"
+				}
+				req.Header.Add("X-Comma", strings.Join(vals, ", "))
+			},
+			wantStatus: 200,
+		},
+		{
+			name:  "multiple values count as multiple",
+			limit: 15,
+			setup: func(req *Request) {
+				for range 16 {
+					req.Header.Add("X-Repeated", "val")
+				}
+			},
+			wantStatus: 431,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			cst := newClientServerTest(t, mode, HandlerFunc(func(w ResponseWriter, r *Request) {
+				w.WriteHeader(StatusOK)
+			}), func(s *Server) {
+				s.MaxHeaderValueCount = tt.limit
+			}, optQuietLog)
+
+			req, _ := NewRequest("GET", cst.ts.URL, nil)
+			tt.setup(req)
+
+			res, err := cst.c.Do(req)
+			if err != nil {
+				t.Fatal(err)
+			}
+			defer res.Body.Close()
+			if res.StatusCode != tt.wantStatus {
+				t.Errorf("got status %d, want %d", res.StatusCode, tt.wantStatus)
+			}
+		})
+	}
+}
+
+func TestRequestTrailerHeaderValueCountLimit(t *testing.T) {
+	run(t, testRequestTrailerHeaderValueCountLimit, http3SkippedMode)
+}
+func testRequestTrailerHeaderValueCountLimit(t *testing.T, mode testMode) {
+	tests := []struct {
+		name    string
+		limit   int
+		setup   func(req *Request)
+		wantErr bool
+	}{
+		{
+			name:  "below limit",
+			limit: 15,
+			setup: func(req *Request) {
+				req.Trailer = make(Header)
+				for i := range 14 {
+					req.Trailer.Add(fmt.Sprintf("X-Trailer-%d", i), "val")
+				}
+			},
+		},
+		{
+			name:  "above limit",
+			limit: 15,
+			setup: func(req *Request) {
+				req.Trailer = make(Header)
+				for i := range 16 {
+					req.Trailer.Add(fmt.Sprintf("X-Trailer-%d", i), "val")
+				}
+			},
+			wantErr: true,
+		},
+		{
+			name:  "comma separated values count as one",
+			limit: 15,
+			setup: func(req *Request) {
+				req.Trailer = make(Header)
+				vals := make([]string, 16)
+				for i := range vals {
+					vals[i] = "val"
+				}
+				req.Trailer.Add("X-Comma-Trailer", strings.Join(vals, ", "))
+			},
+		},
+		{
+			name:  "multiple values count as multiple",
+			limit: 15,
+			setup: func(req *Request) {
+				req.Trailer = make(Header)
+				for range 16 {
+					req.Trailer.Add("X-Repeated-Trailer", "val")
+				}
+			},
+			wantErr: true,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			cst := newClientServerTest(t, mode, HandlerFunc(func(w ResponseWriter, r *Request) {
+				_, err := io.Copy(io.Discard, r.Body)
+				if (err != nil) != tt.wantErr {
+					t.Errorf("Read = %v, want %v", err, tt.wantErr)
+				}
+			}), func(s *Server) {
+				s.MaxHeaderValueCount = tt.limit
+			}, optQuietLog)
+
+			req, _ := NewRequest("GET", cst.ts.URL, strings.NewReader("some body"))
+			req.TransferEncoding = []string{"chunked"}
+			tt.setup(req)
+
+			// Do will return an error in HTTP/2 due to RST_STREAM, but will
+			// succeed in HTTP/1.
+			res, err := cst.c.Do(req)
+			if err != nil && !tt.wantErr {
+				t.Fatalf("unexpected Do error: %v", err)
+			}
+			if err == nil {
+				res.Body.Close()
+			}
+		})
 	}
 }
 
@@ -7553,6 +7776,36 @@ func testServerReadAfterHandlerAbort100Continue(t *testing.T, mode testMode) {
 	}
 	readyc <- struct{}{} // server starts reading from the request body
 	readyc <- struct{}{} // server finishes reading from the request body
+}
+
+// Issue 75933.
+func TestServerExpect100ContinueUnreadBody(t *testing.T) {
+	run(t, testServerExpect100ContinueUnreadBody)
+}
+func testServerExpect100ContinueUnreadBody(t *testing.T, mode testMode) {
+	cst := newClientServerTest(t, mode, HandlerFunc(func(w ResponseWriter, r *Request) {
+		w.WriteHeader(StatusOK)
+		// Make sure that Read after not sending status 100 does not hang.
+		// TODO: Read in this situation should return an error.
+		io.ReadAll(r.Body)
+	}))
+
+	req, _ := NewRequest("POST", cst.ts.URL, strings.NewReader("some body"))
+	req.Header.Set("Expect", "100-continue")
+
+	// Set a short timeout on the client to catch the hang quickly.
+	cst.c.Timeout = 2 * time.Second
+	cst.tr.ExpectContinueTimeout = 10 * time.Second
+
+	resp, err := cst.c.Do(req)
+	if err != nil {
+		t.Fatalf("Request failed: %v (likely due to hang)", err)
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != StatusOK {
+		t.Errorf("expected 200 OK, got %v", resp.Status)
+	}
 }
 
 func TestInvalidChunkedBodies(t *testing.T) {

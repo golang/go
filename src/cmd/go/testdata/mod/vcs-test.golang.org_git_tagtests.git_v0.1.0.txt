@@ -1,0 +1,9 @@
+There's a tagtests git repo, but add a proxy version, so we
+can test that it's not available in mod_gonoproxy.
+
+-- .mod --
+module vcs-test.golang.org/git/tagtests.git
+-- .info --
+{"Version":"v0.1.0"}
+-- tagtests.go --
+package tagtests

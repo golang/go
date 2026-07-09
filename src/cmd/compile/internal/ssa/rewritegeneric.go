@@ -14845,17 +14845,16 @@ func rewriteValuegeneric_OpLsh16x16(v *Value) bool {
 	v_1 := v.Args[1]
 	v_0 := v.Args[0]
 	b := v.Block
-	// match: (Lsh16x16 <t> x (Const16 [c]))
-	// result: (Lsh16x64 x (Const64 <t> [int64(uint16(c))]))
+	// match: (Lsh16x16 x (Const16 [c]))
+	// result: (Lsh16x64 x (Const64 <types.Types[types.TUINT64]> [int64(uint16(c))]))
 	for {
-		t := v.Type
 		x := v_0
 		if v_1.Op != OpConst16 {
 			break
 		}
 		c := auxIntToInt16(v_1.AuxInt)
 		v.reset(OpLsh16x64)
-		v0 := b.NewValue0(v.Pos, OpConst64, t)
+		v0 := b.NewValue0(v.Pos, OpConst64, types.Types[types.TUINT64])
 		v0.AuxInt = int64ToAuxInt(int64(uint16(c)))
 		v.AddArg2(x, v0)
 		return true
@@ -14897,17 +14896,16 @@ func rewriteValuegeneric_OpLsh16x32(v *Value) bool {
 	v_1 := v.Args[1]
 	v_0 := v.Args[0]
 	b := v.Block
-	// match: (Lsh16x32 <t> x (Const32 [c]))
-	// result: (Lsh16x64 x (Const64 <t> [int64(uint32(c))]))
+	// match: (Lsh16x32 x (Const32 [c]))
+	// result: (Lsh16x64 x (Const64 <types.Types[types.TUINT64]> [int64(uint32(c))]))
 	for {
-		t := v.Type
 		x := v_0
 		if v_1.Op != OpConst32 {
 			break
 		}
 		c := auxIntToInt32(v_1.AuxInt)
 		v.reset(OpLsh16x64)
-		v0 := b.NewValue0(v.Pos, OpConst64, t)
+		v0 := b.NewValue0(v.Pos, OpConst64, types.Types[types.TUINT64])
 		v0.AuxInt = int64ToAuxInt(int64(uint32(c)))
 		v.AddArg2(x, v0)
 		return true
@@ -15324,17 +15322,16 @@ func rewriteValuegeneric_OpLsh16x8(v *Value) bool {
 	v_1 := v.Args[1]
 	v_0 := v.Args[0]
 	b := v.Block
-	// match: (Lsh16x8 <t> x (Const8 [c]))
-	// result: (Lsh16x64 x (Const64 <t> [int64(uint8(c))]))
+	// match: (Lsh16x8 x (Const8 [c]))
+	// result: (Lsh16x64 x (Const64 <types.Types[types.TUINT64]> [int64(uint8(c))]))
 	for {
-		t := v.Type
 		x := v_0
 		if v_1.Op != OpConst8 {
 			break
 		}
 		c := auxIntToInt8(v_1.AuxInt)
 		v.reset(OpLsh16x64)
-		v0 := b.NewValue0(v.Pos, OpConst64, t)
+		v0 := b.NewValue0(v.Pos, OpConst64, types.Types[types.TUINT64])
 		v0.AuxInt = int64ToAuxInt(int64(uint8(c)))
 		v.AddArg2(x, v0)
 		return true
@@ -15376,17 +15373,16 @@ func rewriteValuegeneric_OpLsh32x16(v *Value) bool {
 	v_1 := v.Args[1]
 	v_0 := v.Args[0]
 	b := v.Block
-	// match: (Lsh32x16 <t> x (Const16 [c]))
-	// result: (Lsh32x64 x (Const64 <t> [int64(uint16(c))]))
+	// match: (Lsh32x16 x (Const16 [c]))
+	// result: (Lsh32x64 x (Const64 <types.Types[types.TUINT64]> [int64(uint16(c))]))
 	for {
-		t := v.Type
 		x := v_0
 		if v_1.Op != OpConst16 {
 			break
 		}
 		c := auxIntToInt16(v_1.AuxInt)
 		v.reset(OpLsh32x64)
-		v0 := b.NewValue0(v.Pos, OpConst64, t)
+		v0 := b.NewValue0(v.Pos, OpConst64, types.Types[types.TUINT64])
 		v0.AuxInt = int64ToAuxInt(int64(uint16(c)))
 		v.AddArg2(x, v0)
 		return true
@@ -15428,17 +15424,16 @@ func rewriteValuegeneric_OpLsh32x32(v *Value) bool {
 	v_1 := v.Args[1]
 	v_0 := v.Args[0]
 	b := v.Block
-	// match: (Lsh32x32 <t> x (Const32 [c]))
-	// result: (Lsh32x64 x (Const64 <t> [int64(uint32(c))]))
+	// match: (Lsh32x32 x (Const32 [c]))
+	// result: (Lsh32x64 x (Const64 <types.Types[types.TUINT64]> [int64(uint32(c))]))
 	for {
-		t := v.Type
 		x := v_0
 		if v_1.Op != OpConst32 {
 			break
 		}
 		c := auxIntToInt32(v_1.AuxInt)
 		v.reset(OpLsh32x64)
-		v0 := b.NewValue0(v.Pos, OpConst64, t)
+		v0 := b.NewValue0(v.Pos, OpConst64, types.Types[types.TUINT64])
 		v0.AuxInt = int64ToAuxInt(int64(uint32(c)))
 		v.AddArg2(x, v0)
 		return true
@@ -15855,17 +15850,16 @@ func rewriteValuegeneric_OpLsh32x8(v *Value) bool {
 	v_1 := v.Args[1]
 	v_0 := v.Args[0]
 	b := v.Block
-	// match: (Lsh32x8 <t> x (Const8 [c]))
-	// result: (Lsh32x64 x (Const64 <t> [int64(uint8(c))]))
+	// match: (Lsh32x8 x (Const8 [c]))
+	// result: (Lsh32x64 x (Const64 <types.Types[types.TUINT64]> [int64(uint8(c))]))
 	for {
-		t := v.Type
 		x := v_0
 		if v_1.Op != OpConst8 {
 			break
 		}
 		c := auxIntToInt8(v_1.AuxInt)
 		v.reset(OpLsh32x64)
-		v0 := b.NewValue0(v.Pos, OpConst64, t)
+		v0 := b.NewValue0(v.Pos, OpConst64, types.Types[types.TUINT64])
 		v0.AuxInt = int64ToAuxInt(int64(uint8(c)))
 		v.AddArg2(x, v0)
 		return true
@@ -15907,17 +15901,16 @@ func rewriteValuegeneric_OpLsh64x16(v *Value) bool {
 	v_1 := v.Args[1]
 	v_0 := v.Args[0]
 	b := v.Block
-	// match: (Lsh64x16 <t> x (Const16 [c]))
-	// result: (Lsh64x64 x (Const64 <t> [int64(uint16(c))]))
+	// match: (Lsh64x16 x (Const16 [c]))
+	// result: (Lsh64x64 x (Const64 <types.Types[types.TUINT64]> [int64(uint16(c))]))
 	for {
-		t := v.Type
 		x := v_0
 		if v_1.Op != OpConst16 {
 			break
 		}
 		c := auxIntToInt16(v_1.AuxInt)
 		v.reset(OpLsh64x64)
-		v0 := b.NewValue0(v.Pos, OpConst64, t)
+		v0 := b.NewValue0(v.Pos, OpConst64, types.Types[types.TUINT64])
 		v0.AuxInt = int64ToAuxInt(int64(uint16(c)))
 		v.AddArg2(x, v0)
 		return true
@@ -15959,17 +15952,16 @@ func rewriteValuegeneric_OpLsh64x32(v *Value) bool {
 	v_1 := v.Args[1]
 	v_0 := v.Args[0]
 	b := v.Block
-	// match: (Lsh64x32 <t> x (Const32 [c]))
-	// result: (Lsh64x64 x (Const64 <t> [int64(uint32(c))]))
+	// match: (Lsh64x32 x (Const32 [c]))
+	// result: (Lsh64x64 x (Const64 <types.Types[types.TUINT64]> [int64(uint32(c))]))
 	for {
-		t := v.Type
 		x := v_0
 		if v_1.Op != OpConst32 {
 			break
 		}
 		c := auxIntToInt32(v_1.AuxInt)
 		v.reset(OpLsh64x64)
-		v0 := b.NewValue0(v.Pos, OpConst64, t)
+		v0 := b.NewValue0(v.Pos, OpConst64, types.Types[types.TUINT64])
 		v0.AuxInt = int64ToAuxInt(int64(uint32(c)))
 		v.AddArg2(x, v0)
 		return true
@@ -16386,17 +16378,16 @@ func rewriteValuegeneric_OpLsh64x8(v *Value) bool {
 	v_1 := v.Args[1]
 	v_0 := v.Args[0]
 	b := v.Block
-	// match: (Lsh64x8 <t> x (Const8 [c]))
-	// result: (Lsh64x64 x (Const64 <t> [int64(uint8(c))]))
+	// match: (Lsh64x8 x (Const8 [c]))
+	// result: (Lsh64x64 x (Const64 <types.Types[types.TUINT64]> [int64(uint8(c))]))
 	for {
-		t := v.Type
 		x := v_0
 		if v_1.Op != OpConst8 {
 			break
 		}
 		c := auxIntToInt8(v_1.AuxInt)
 		v.reset(OpLsh64x64)
-		v0 := b.NewValue0(v.Pos, OpConst64, t)
+		v0 := b.NewValue0(v.Pos, OpConst64, types.Types[types.TUINT64])
 		v0.AuxInt = int64ToAuxInt(int64(uint8(c)))
 		v.AddArg2(x, v0)
 		return true
@@ -16438,17 +16429,16 @@ func rewriteValuegeneric_OpLsh8x16(v *Value) bool {
 	v_1 := v.Args[1]
 	v_0 := v.Args[0]
 	b := v.Block
-	// match: (Lsh8x16 <t> x (Const16 [c]))
-	// result: (Lsh8x64 x (Const64 <t> [int64(uint16(c))]))
+	// match: (Lsh8x16 x (Const16 [c]))
+	// result: (Lsh8x64 x (Const64 <types.Types[types.TUINT64]> [int64(uint16(c))]))
 	for {
-		t := v.Type
 		x := v_0
 		if v_1.Op != OpConst16 {
 			break
 		}
 		c := auxIntToInt16(v_1.AuxInt)
 		v.reset(OpLsh8x64)
-		v0 := b.NewValue0(v.Pos, OpConst64, t)
+		v0 := b.NewValue0(v.Pos, OpConst64, types.Types[types.TUINT64])
 		v0.AuxInt = int64ToAuxInt(int64(uint16(c)))
 		v.AddArg2(x, v0)
 		return true
@@ -16490,17 +16480,16 @@ func rewriteValuegeneric_OpLsh8x32(v *Value) bool {
 	v_1 := v.Args[1]
 	v_0 := v.Args[0]
 	b := v.Block
-	// match: (Lsh8x32 <t> x (Const32 [c]))
-	// result: (Lsh8x64 x (Const64 <t> [int64(uint32(c))]))
+	// match: (Lsh8x32 x (Const32 [c]))
+	// result: (Lsh8x64 x (Const64 <types.Types[types.TUINT64]> [int64(uint32(c))]))
 	for {
-		t := v.Type
 		x := v_0
 		if v_1.Op != OpConst32 {
 			break
 		}
 		c := auxIntToInt32(v_1.AuxInt)
 		v.reset(OpLsh8x64)
-		v0 := b.NewValue0(v.Pos, OpConst64, t)
+		v0 := b.NewValue0(v.Pos, OpConst64, types.Types[types.TUINT64])
 		v0.AuxInt = int64ToAuxInt(int64(uint32(c)))
 		v.AddArg2(x, v0)
 		return true
@@ -16917,17 +16906,16 @@ func rewriteValuegeneric_OpLsh8x8(v *Value) bool {
 	v_1 := v.Args[1]
 	v_0 := v.Args[0]
 	b := v.Block
-	// match: (Lsh8x8 <t> x (Const8 [c]))
-	// result: (Lsh8x64 x (Const64 <t> [int64(uint8(c))]))
+	// match: (Lsh8x8 x (Const8 [c]))
+	// result: (Lsh8x64 x (Const64 <types.Types[types.TUINT64]> [int64(uint8(c))]))
 	for {
-		t := v.Type
 		x := v_0
 		if v_1.Op != OpConst8 {
 			break
 		}
 		c := auxIntToInt8(v_1.AuxInt)
 		v.reset(OpLsh8x64)
-		v0 := b.NewValue0(v.Pos, OpConst64, t)
+		v0 := b.NewValue0(v.Pos, OpConst64, types.Types[types.TUINT64])
 		v0.AuxInt = int64ToAuxInt(int64(uint8(c)))
 		v.AddArg2(x, v0)
 		return true
@@ -30221,17 +30209,16 @@ func rewriteValuegeneric_OpRsh16Ux16(v *Value) bool {
 	v_1 := v.Args[1]
 	v_0 := v.Args[0]
 	b := v.Block
-	// match: (Rsh16Ux16 <t> x (Const16 [c]))
-	// result: (Rsh16Ux64 x (Const64 <t> [int64(uint16(c))]))
+	// match: (Rsh16Ux16 x (Const16 [c]))
+	// result: (Rsh16Ux64 x (Const64 <types.Types[types.TUINT64]> [int64(uint16(c))]))
 	for {
-		t := v.Type
 		x := v_0
 		if v_1.Op != OpConst16 {
 			break
 		}
 		c := auxIntToInt16(v_1.AuxInt)
 		v.reset(OpRsh16Ux64)
-		v0 := b.NewValue0(v.Pos, OpConst64, t)
+		v0 := b.NewValue0(v.Pos, OpConst64, types.Types[types.TUINT64])
 		v0.AuxInt = int64ToAuxInt(int64(uint16(c)))
 		v.AddArg2(x, v0)
 		return true
@@ -30273,17 +30260,16 @@ func rewriteValuegeneric_OpRsh16Ux32(v *Value) bool {
 	v_1 := v.Args[1]
 	v_0 := v.Args[0]
 	b := v.Block
-	// match: (Rsh16Ux32 <t> x (Const32 [c]))
-	// result: (Rsh16Ux64 x (Const64 <t> [int64(uint32(c))]))
+	// match: (Rsh16Ux32 x (Const32 [c]))
+	// result: (Rsh16Ux64 x (Const64 <types.Types[types.TUINT64]> [int64(uint32(c))]))
 	for {
-		t := v.Type
 		x := v_0
 		if v_1.Op != OpConst32 {
 			break
 		}
 		c := auxIntToInt32(v_1.AuxInt)
 		v.reset(OpRsh16Ux64)
-		v0 := b.NewValue0(v.Pos, OpConst64, t)
+		v0 := b.NewValue0(v.Pos, OpConst64, types.Types[types.TUINT64])
 		v0.AuxInt = int64ToAuxInt(int64(uint32(c)))
 		v.AddArg2(x, v0)
 		return true
@@ -30530,17 +30516,16 @@ func rewriteValuegeneric_OpRsh16Ux8(v *Value) bool {
 	v_1 := v.Args[1]
 	v_0 := v.Args[0]
 	b := v.Block
-	// match: (Rsh16Ux8 <t> x (Const8 [c]))
-	// result: (Rsh16Ux64 x (Const64 <t> [int64(uint8(c))]))
+	// match: (Rsh16Ux8 x (Const8 [c]))
+	// result: (Rsh16Ux64 x (Const64 <types.Types[types.TUINT64]> [int64(uint8(c))]))
 	for {
-		t := v.Type
 		x := v_0
 		if v_1.Op != OpConst8 {
 			break
 		}
 		c := auxIntToInt8(v_1.AuxInt)
 		v.reset(OpRsh16Ux64)
-		v0 := b.NewValue0(v.Pos, OpConst64, t)
+		v0 := b.NewValue0(v.Pos, OpConst64, types.Types[types.TUINT64])
 		v0.AuxInt = int64ToAuxInt(int64(uint8(c)))
 		v.AddArg2(x, v0)
 		return true
@@ -30582,17 +30567,16 @@ func rewriteValuegeneric_OpRsh16x16(v *Value) bool {
 	v_1 := v.Args[1]
 	v_0 := v.Args[0]
 	b := v.Block
-	// match: (Rsh16x16 <t> x (Const16 [c]))
-	// result: (Rsh16x64 x (Const64 <t> [int64(uint16(c))]))
+	// match: (Rsh16x16 x (Const16 [c]))
+	// result: (Rsh16x64 x (Const64 <types.Types[types.TUINT64]> [int64(uint16(c))]))
 	for {
-		t := v.Type
 		x := v_0
 		if v_1.Op != OpConst16 {
 			break
 		}
 		c := auxIntToInt16(v_1.AuxInt)
 		v.reset(OpRsh16x64)
-		v0 := b.NewValue0(v.Pos, OpConst64, t)
+		v0 := b.NewValue0(v.Pos, OpConst64, types.Types[types.TUINT64])
 		v0.AuxInt = int64ToAuxInt(int64(uint16(c)))
 		v.AddArg2(x, v0)
 		return true
@@ -30634,17 +30618,16 @@ func rewriteValuegeneric_OpRsh16x32(v *Value) bool {
 	v_1 := v.Args[1]
 	v_0 := v.Args[0]
 	b := v.Block
-	// match: (Rsh16x32 <t> x (Const32 [c]))
-	// result: (Rsh16x64 x (Const64 <t> [int64(uint32(c))]))
+	// match: (Rsh16x32 x (Const32 [c]))
+	// result: (Rsh16x64 x (Const64 <types.Types[types.TUINT64]> [int64(uint32(c))]))
 	for {
-		t := v.Type
 		x := v_0
 		if v_1.Op != OpConst32 {
 			break
 		}
 		c := auxIntToInt32(v_1.AuxInt)
 		v.reset(OpRsh16x64)
-		v0 := b.NewValue0(v.Pos, OpConst64, t)
+		v0 := b.NewValue0(v.Pos, OpConst64, types.Types[types.TUINT64])
 		v0.AuxInt = int64ToAuxInt(int64(uint32(c)))
 		v.AddArg2(x, v0)
 		return true
@@ -30795,17 +30778,16 @@ func rewriteValuegeneric_OpRsh16x8(v *Value) bool {
 	v_1 := v.Args[1]
 	v_0 := v.Args[0]
 	b := v.Block
-	// match: (Rsh16x8 <t> x (Const8 [c]))
-	// result: (Rsh16x64 x (Const64 <t> [int64(uint8(c))]))
+	// match: (Rsh16x8 x (Const8 [c]))
+	// result: (Rsh16x64 x (Const64 <types.Types[types.TUINT64]> [int64(uint8(c))]))
 	for {
-		t := v.Type
 		x := v_0
 		if v_1.Op != OpConst8 {
 			break
 		}
 		c := auxIntToInt8(v_1.AuxInt)
 		v.reset(OpRsh16x64)
-		v0 := b.NewValue0(v.Pos, OpConst64, t)
+		v0 := b.NewValue0(v.Pos, OpConst64, types.Types[types.TUINT64])
 		v0.AuxInt = int64ToAuxInt(int64(uint8(c)))
 		v.AddArg2(x, v0)
 		return true
@@ -30847,17 +30829,16 @@ func rewriteValuegeneric_OpRsh32Ux16(v *Value) bool {
 	v_1 := v.Args[1]
 	v_0 := v.Args[0]
 	b := v.Block
-	// match: (Rsh32Ux16 <t> x (Const16 [c]))
-	// result: (Rsh32Ux64 x (Const64 <t> [int64(uint16(c))]))
+	// match: (Rsh32Ux16 x (Const16 [c]))
+	// result: (Rsh32Ux64 x (Const64 <types.Types[types.TUINT64]> [int64(uint16(c))]))
 	for {
-		t := v.Type
 		x := v_0
 		if v_1.Op != OpConst16 {
 			break
 		}
 		c := auxIntToInt16(v_1.AuxInt)
 		v.reset(OpRsh32Ux64)
-		v0 := b.NewValue0(v.Pos, OpConst64, t)
+		v0 := b.NewValue0(v.Pos, OpConst64, types.Types[types.TUINT64])
 		v0.AuxInt = int64ToAuxInt(int64(uint16(c)))
 		v.AddArg2(x, v0)
 		return true
@@ -30899,17 +30880,16 @@ func rewriteValuegeneric_OpRsh32Ux32(v *Value) bool {
 	v_1 := v.Args[1]
 	v_0 := v.Args[0]
 	b := v.Block
-	// match: (Rsh32Ux32 <t> x (Const32 [c]))
-	// result: (Rsh32Ux64 x (Const64 <t> [int64(uint32(c))]))
+	// match: (Rsh32Ux32 x (Const32 [c]))
+	// result: (Rsh32Ux64 x (Const64 <types.Types[types.TUINT64]> [int64(uint32(c))]))
 	for {
-		t := v.Type
 		x := v_0
 		if v_1.Op != OpConst32 {
 			break
 		}
 		c := auxIntToInt32(v_1.AuxInt)
 		v.reset(OpRsh32Ux64)
-		v0 := b.NewValue0(v.Pos, OpConst64, t)
+		v0 := b.NewValue0(v.Pos, OpConst64, types.Types[types.TUINT64])
 		v0.AuxInt = int64ToAuxInt(int64(uint32(c)))
 		v.AddArg2(x, v0)
 		return true
@@ -31174,17 +31154,16 @@ func rewriteValuegeneric_OpRsh32Ux8(v *Value) bool {
 	v_1 := v.Args[1]
 	v_0 := v.Args[0]
 	b := v.Block
-	// match: (Rsh32Ux8 <t> x (Const8 [c]))
-	// result: (Rsh32Ux64 x (Const64 <t> [int64(uint8(c))]))
+	// match: (Rsh32Ux8 x (Const8 [c]))
+	// result: (Rsh32Ux64 x (Const64 <types.Types[types.TUINT64]> [int64(uint8(c))]))
 	for {
-		t := v.Type
 		x := v_0
 		if v_1.Op != OpConst8 {
 			break
 		}
 		c := auxIntToInt8(v_1.AuxInt)
 		v.reset(OpRsh32Ux64)
-		v0 := b.NewValue0(v.Pos, OpConst64, t)
+		v0 := b.NewValue0(v.Pos, OpConst64, types.Types[types.TUINT64])
 		v0.AuxInt = int64ToAuxInt(int64(uint8(c)))
 		v.AddArg2(x, v0)
 		return true
@@ -31226,17 +31205,16 @@ func rewriteValuegeneric_OpRsh32x16(v *Value) bool {
 	v_1 := v.Args[1]
 	v_0 := v.Args[0]
 	b := v.Block
-	// match: (Rsh32x16 <t> x (Const16 [c]))
-	// result: (Rsh32x64 x (Const64 <t> [int64(uint16(c))]))
+	// match: (Rsh32x16 x (Const16 [c]))
+	// result: (Rsh32x64 x (Const64 <types.Types[types.TUINT64]> [int64(uint16(c))]))
 	for {
-		t := v.Type
 		x := v_0
 		if v_1.Op != OpConst16 {
 			break
 		}
 		c := auxIntToInt16(v_1.AuxInt)
 		v.reset(OpRsh32x64)
-		v0 := b.NewValue0(v.Pos, OpConst64, t)
+		v0 := b.NewValue0(v.Pos, OpConst64, types.Types[types.TUINT64])
 		v0.AuxInt = int64ToAuxInt(int64(uint16(c)))
 		v.AddArg2(x, v0)
 		return true
@@ -31278,17 +31256,16 @@ func rewriteValuegeneric_OpRsh32x32(v *Value) bool {
 	v_1 := v.Args[1]
 	v_0 := v.Args[0]
 	b := v.Block
-	// match: (Rsh32x32 <t> x (Const32 [c]))
-	// result: (Rsh32x64 x (Const64 <t> [int64(uint32(c))]))
+	// match: (Rsh32x32 x (Const32 [c]))
+	// result: (Rsh32x64 x (Const64 <types.Types[types.TUINT64]> [int64(uint32(c))]))
 	for {
-		t := v.Type
 		x := v_0
 		if v_1.Op != OpConst32 {
 			break
 		}
 		c := auxIntToInt32(v_1.AuxInt)
 		v.reset(OpRsh32x64)
-		v0 := b.NewValue0(v.Pos, OpConst64, t)
+		v0 := b.NewValue0(v.Pos, OpConst64, types.Types[types.TUINT64])
 		v0.AuxInt = int64ToAuxInt(int64(uint32(c)))
 		v.AddArg2(x, v0)
 		return true
@@ -31457,17 +31434,16 @@ func rewriteValuegeneric_OpRsh32x8(v *Value) bool {
 	v_1 := v.Args[1]
 	v_0 := v.Args[0]
 	b := v.Block
-	// match: (Rsh32x8 <t> x (Const8 [c]))
-	// result: (Rsh32x64 x (Const64 <t> [int64(uint8(c))]))
+	// match: (Rsh32x8 x (Const8 [c]))
+	// result: (Rsh32x64 x (Const64 <types.Types[types.TUINT64]> [int64(uint8(c))]))
 	for {
-		t := v.Type
 		x := v_0
 		if v_1.Op != OpConst8 {
 			break
 		}
 		c := auxIntToInt8(v_1.AuxInt)
 		v.reset(OpRsh32x64)
-		v0 := b.NewValue0(v.Pos, OpConst64, t)
+		v0 := b.NewValue0(v.Pos, OpConst64, types.Types[types.TUINT64])
 		v0.AuxInt = int64ToAuxInt(int64(uint8(c)))
 		v.AddArg2(x, v0)
 		return true
@@ -31509,17 +31485,16 @@ func rewriteValuegeneric_OpRsh64Ux16(v *Value) bool {
 	v_1 := v.Args[1]
 	v_0 := v.Args[0]
 	b := v.Block
-	// match: (Rsh64Ux16 <t> x (Const16 [c]))
-	// result: (Rsh64Ux64 x (Const64 <t> [int64(uint16(c))]))
+	// match: (Rsh64Ux16 x (Const16 [c]))
+	// result: (Rsh64Ux64 x (Const64 <types.Types[types.TUINT64]> [int64(uint16(c))]))
 	for {
-		t := v.Type
 		x := v_0
 		if v_1.Op != OpConst16 {
 			break
 		}
 		c := auxIntToInt16(v_1.AuxInt)
 		v.reset(OpRsh64Ux64)
-		v0 := b.NewValue0(v.Pos, OpConst64, t)
+		v0 := b.NewValue0(v.Pos, OpConst64, types.Types[types.TUINT64])
 		v0.AuxInt = int64ToAuxInt(int64(uint16(c)))
 		v.AddArg2(x, v0)
 		return true
@@ -31561,17 +31536,16 @@ func rewriteValuegeneric_OpRsh64Ux32(v *Value) bool {
 	v_1 := v.Args[1]
 	v_0 := v.Args[0]
 	b := v.Block
-	// match: (Rsh64Ux32 <t> x (Const32 [c]))
-	// result: (Rsh64Ux64 x (Const64 <t> [int64(uint32(c))]))
+	// match: (Rsh64Ux32 x (Const32 [c]))
+	// result: (Rsh64Ux64 x (Const64 <types.Types[types.TUINT64]> [int64(uint32(c))]))
 	for {
-		t := v.Type
 		x := v_0
 		if v_1.Op != OpConst32 {
 			break
 		}
 		c := auxIntToInt32(v_1.AuxInt)
 		v.reset(OpRsh64Ux64)
-		v0 := b.NewValue0(v.Pos, OpConst64, t)
+		v0 := b.NewValue0(v.Pos, OpConst64, types.Types[types.TUINT64])
 		v0.AuxInt = int64ToAuxInt(int64(uint32(c)))
 		v.AddArg2(x, v0)
 		return true
@@ -31854,17 +31828,16 @@ func rewriteValuegeneric_OpRsh64Ux8(v *Value) bool {
 	v_1 := v.Args[1]
 	v_0 := v.Args[0]
 	b := v.Block
-	// match: (Rsh64Ux8 <t> x (Const8 [c]))
-	// result: (Rsh64Ux64 x (Const64 <t> [int64(uint8(c))]))
+	// match: (Rsh64Ux8 x (Const8 [c]))
+	// result: (Rsh64Ux64 x (Const64 <types.Types[types.TUINT64]> [int64(uint8(c))]))
 	for {
-		t := v.Type
 		x := v_0
 		if v_1.Op != OpConst8 {
 			break
 		}
 		c := auxIntToInt8(v_1.AuxInt)
 		v.reset(OpRsh64Ux64)
-		v0 := b.NewValue0(v.Pos, OpConst64, t)
+		v0 := b.NewValue0(v.Pos, OpConst64, types.Types[types.TUINT64])
 		v0.AuxInt = int64ToAuxInt(int64(uint8(c)))
 		v.AddArg2(x, v0)
 		return true
@@ -31906,17 +31879,16 @@ func rewriteValuegeneric_OpRsh64x16(v *Value) bool {
 	v_1 := v.Args[1]
 	v_0 := v.Args[0]
 	b := v.Block
-	// match: (Rsh64x16 <t> x (Const16 [c]))
-	// result: (Rsh64x64 x (Const64 <t> [int64(uint16(c))]))
+	// match: (Rsh64x16 x (Const16 [c]))
+	// result: (Rsh64x64 x (Const64 <types.Types[types.TUINT64]> [int64(uint16(c))]))
 	for {
-		t := v.Type
 		x := v_0
 		if v_1.Op != OpConst16 {
 			break
 		}
 		c := auxIntToInt16(v_1.AuxInt)
 		v.reset(OpRsh64x64)
-		v0 := b.NewValue0(v.Pos, OpConst64, t)
+		v0 := b.NewValue0(v.Pos, OpConst64, types.Types[types.TUINT64])
 		v0.AuxInt = int64ToAuxInt(int64(uint16(c)))
 		v.AddArg2(x, v0)
 		return true
@@ -31958,17 +31930,16 @@ func rewriteValuegeneric_OpRsh64x32(v *Value) bool {
 	v_1 := v.Args[1]
 	v_0 := v.Args[0]
 	b := v.Block
-	// match: (Rsh64x32 <t> x (Const32 [c]))
-	// result: (Rsh64x64 x (Const64 <t> [int64(uint32(c))]))
+	// match: (Rsh64x32 x (Const32 [c]))
+	// result: (Rsh64x64 x (Const64 <types.Types[types.TUINT64]> [int64(uint32(c))]))
 	for {
-		t := v.Type
 		x := v_0
 		if v_1.Op != OpConst32 {
 			break
 		}
 		c := auxIntToInt32(v_1.AuxInt)
 		v.reset(OpRsh64x64)
-		v0 := b.NewValue0(v.Pos, OpConst64, t)
+		v0 := b.NewValue0(v.Pos, OpConst64, types.Types[types.TUINT64])
 		v0.AuxInt = int64ToAuxInt(int64(uint32(c)))
 		v.AddArg2(x, v0)
 		return true
@@ -32155,17 +32126,16 @@ func rewriteValuegeneric_OpRsh64x8(v *Value) bool {
 	v_1 := v.Args[1]
 	v_0 := v.Args[0]
 	b := v.Block
-	// match: (Rsh64x8 <t> x (Const8 [c]))
-	// result: (Rsh64x64 x (Const64 <t> [int64(uint8(c))]))
+	// match: (Rsh64x8 x (Const8 [c]))
+	// result: (Rsh64x64 x (Const64 <types.Types[types.TUINT64]> [int64(uint8(c))]))
 	for {
-		t := v.Type
 		x := v_0
 		if v_1.Op != OpConst8 {
 			break
 		}
 		c := auxIntToInt8(v_1.AuxInt)
 		v.reset(OpRsh64x64)
-		v0 := b.NewValue0(v.Pos, OpConst64, t)
+		v0 := b.NewValue0(v.Pos, OpConst64, types.Types[types.TUINT64])
 		v0.AuxInt = int64ToAuxInt(int64(uint8(c)))
 		v.AddArg2(x, v0)
 		return true
@@ -32207,17 +32177,16 @@ func rewriteValuegeneric_OpRsh8Ux16(v *Value) bool {
 	v_1 := v.Args[1]
 	v_0 := v.Args[0]
 	b := v.Block
-	// match: (Rsh8Ux16 <t> x (Const16 [c]))
-	// result: (Rsh8Ux64 x (Const64 <t> [int64(uint16(c))]))
+	// match: (Rsh8Ux16 x (Const16 [c]))
+	// result: (Rsh8Ux64 x (Const64 <types.Types[types.TUINT64]> [int64(uint16(c))]))
 	for {
-		t := v.Type
 		x := v_0
 		if v_1.Op != OpConst16 {
 			break
 		}
 		c := auxIntToInt16(v_1.AuxInt)
 		v.reset(OpRsh8Ux64)
-		v0 := b.NewValue0(v.Pos, OpConst64, t)
+		v0 := b.NewValue0(v.Pos, OpConst64, types.Types[types.TUINT64])
 		v0.AuxInt = int64ToAuxInt(int64(uint16(c)))
 		v.AddArg2(x, v0)
 		return true
@@ -32259,17 +32228,16 @@ func rewriteValuegeneric_OpRsh8Ux32(v *Value) bool {
 	v_1 := v.Args[1]
 	v_0 := v.Args[0]
 	b := v.Block
-	// match: (Rsh8Ux32 <t> x (Const32 [c]))
-	// result: (Rsh8Ux64 x (Const64 <t> [int64(uint32(c))]))
+	// match: (Rsh8Ux32 x (Const32 [c]))
+	// result: (Rsh8Ux64 x (Const64 <types.Types[types.TUINT64]> [int64(uint32(c))]))
 	for {
-		t := v.Type
 		x := v_0
 		if v_1.Op != OpConst32 {
 			break
 		}
 		c := auxIntToInt32(v_1.AuxInt)
 		v.reset(OpRsh8Ux64)
-		v0 := b.NewValue0(v.Pos, OpConst64, t)
+		v0 := b.NewValue0(v.Pos, OpConst64, types.Types[types.TUINT64])
 		v0.AuxInt = int64ToAuxInt(int64(uint32(c)))
 		v.AddArg2(x, v0)
 		return true
@@ -32498,17 +32466,16 @@ func rewriteValuegeneric_OpRsh8Ux8(v *Value) bool {
 	v_1 := v.Args[1]
 	v_0 := v.Args[0]
 	b := v.Block
-	// match: (Rsh8Ux8 <t> x (Const8 [c]))
-	// result: (Rsh8Ux64 x (Const64 <t> [int64(uint8(c))]))
+	// match: (Rsh8Ux8 x (Const8 [c]))
+	// result: (Rsh8Ux64 x (Const64 <types.Types[types.TUINT64]> [int64(uint8(c))]))
 	for {
-		t := v.Type
 		x := v_0
 		if v_1.Op != OpConst8 {
 			break
 		}
 		c := auxIntToInt8(v_1.AuxInt)
 		v.reset(OpRsh8Ux64)
-		v0 := b.NewValue0(v.Pos, OpConst64, t)
+		v0 := b.NewValue0(v.Pos, OpConst64, types.Types[types.TUINT64])
 		v0.AuxInt = int64ToAuxInt(int64(uint8(c)))
 		v.AddArg2(x, v0)
 		return true
@@ -32550,17 +32517,16 @@ func rewriteValuegeneric_OpRsh8x16(v *Value) bool {
 	v_1 := v.Args[1]
 	v_0 := v.Args[0]
 	b := v.Block
-	// match: (Rsh8x16 <t> x (Const16 [c]))
-	// result: (Rsh8x64 x (Const64 <t> [int64(uint16(c))]))
+	// match: (Rsh8x16 x (Const16 [c]))
+	// result: (Rsh8x64 x (Const64 <types.Types[types.TUINT64]> [int64(uint16(c))]))
 	for {
-		t := v.Type
 		x := v_0
 		if v_1.Op != OpConst16 {
 			break
 		}
 		c := auxIntToInt16(v_1.AuxInt)
 		v.reset(OpRsh8x64)
-		v0 := b.NewValue0(v.Pos, OpConst64, t)
+		v0 := b.NewValue0(v.Pos, OpConst64, types.Types[types.TUINT64])
 		v0.AuxInt = int64ToAuxInt(int64(uint16(c)))
 		v.AddArg2(x, v0)
 		return true
@@ -32602,17 +32568,16 @@ func rewriteValuegeneric_OpRsh8x32(v *Value) bool {
 	v_1 := v.Args[1]
 	v_0 := v.Args[0]
 	b := v.Block
-	// match: (Rsh8x32 <t> x (Const32 [c]))
-	// result: (Rsh8x64 x (Const64 <t> [int64(uint32(c))]))
+	// match: (Rsh8x32 x (Const32 [c]))
+	// result: (Rsh8x64 x (Const64 <types.Types[types.TUINT64]> [int64(uint32(c))]))
 	for {
-		t := v.Type
 		x := v_0
 		if v_1.Op != OpConst32 {
 			break
 		}
 		c := auxIntToInt32(v_1.AuxInt)
 		v.reset(OpRsh8x64)
-		v0 := b.NewValue0(v.Pos, OpConst64, t)
+		v0 := b.NewValue0(v.Pos, OpConst64, types.Types[types.TUINT64])
 		v0.AuxInt = int64ToAuxInt(int64(uint32(c)))
 		v.AddArg2(x, v0)
 		return true
@@ -32744,17 +32709,16 @@ func rewriteValuegeneric_OpRsh8x8(v *Value) bool {
 	v_1 := v.Args[1]
 	v_0 := v.Args[0]
 	b := v.Block
-	// match: (Rsh8x8 <t> x (Const8 [c]))
-	// result: (Rsh8x64 x (Const64 <t> [int64(uint8(c))]))
+	// match: (Rsh8x8 x (Const8 [c]))
+	// result: (Rsh8x64 x (Const64 <types.Types[types.TUINT64]> [int64(uint8(c))]))
 	for {
-		t := v.Type
 		x := v_0
 		if v_1.Op != OpConst8 {
 			break
 		}
 		c := auxIntToInt8(v_1.AuxInt)
 		v.reset(OpRsh8x64)
-		v0 := b.NewValue0(v.Pos, OpConst64, t)
+		v0 := b.NewValue0(v.Pos, OpConst64, types.Types[types.TUINT64])
 		v0.AuxInt = int64ToAuxInt(int64(uint8(c)))
 		v.AddArg2(x, v0)
 		return true

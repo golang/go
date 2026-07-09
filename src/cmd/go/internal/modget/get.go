@@ -1467,6 +1467,7 @@ func (r *resolver) resolveQueries(ld *modload.Loader, ctx context.Context, queri
 // applyUpgrades returns with changed=false.
 func (r *resolver) applyUpgrades(ld *modload.Loader, ctx context.Context, upgrades []pathSet) (changed bool) {
 	defer base.ExitIfErrors()
+	sw := toolchain.NewSwitcher(ld)
 
 	// Arbitrarily add a "latest" version that provides each missing package, but
 	// do not mark the version as resolved: we still want to allow the explicit
@@ -1474,7 +1475,7 @@ func (r *resolver) applyUpgrades(ld *modload.Loader, ctx context.Context, upgrad
 	var tentative []module.Version
 	for _, cs := range upgrades {
 		if cs.err != nil {
-			base.Error(cs.err)
+			sw.Error(cs.err)
 			continue
 		}
 
@@ -1489,6 +1490,8 @@ func (r *resolver) applyUpgrades(ld *modload.Loader, ctx context.Context, upgrad
 		}
 		tentative = append(tentative, m)
 	}
+	// Switch if necessary. Otherwise, report the errors from sw.Error above.
+	sw.Switch(ctx)
 	base.ExitIfErrors()
 
 	changed = r.updateBuildList(ld, ctx, tentative)

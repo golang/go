@@ -5,7 +5,6 @@
 
 [short] skip 'constructs a local git repo'
 [!git] skip
-[!net:github.com] skip 'does not actually use github.com because of insteadOf, but silence network check just in case'
 
 # Redirect git to a test-specific .gitconfig.
 # GIT_CONFIG_GLOBAL suffices for git 2.32.0 and newer.

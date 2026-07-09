@@ -3573,9 +3573,6 @@ func (r *reader) pkgInitOrder(target *ir.Package) {
 	// Outline (if legal/profitable) global map inits.
 	staticinit.OutlineMapInits(fn)
 
-	// Split large init function.
-	staticinit.SplitLargeInit(fn)
-
 	target.Inits = append(target.Inits, fn)
 }
 

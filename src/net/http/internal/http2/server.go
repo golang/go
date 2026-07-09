@@ -321,6 +321,7 @@ func (s *Server) serveConn(c net.Conn, opts *ServeConnOpts, newf func(*serverCon
 	}
 	fr.ReadMetaHeaders = hpack.NewDecoder(uint32(conf.MaxDecoderHeaderTableSize), nil)
 	fr.MaxHeaderListSize = sc.maxHeaderListSize()
+	fr.MaxHeaderValueCount = sc.hs.MaxHeaderValueCount()
 	fr.SetMaxReadFrameSize(uint32(conf.MaxReadFrameSize))
 	sc.framer = fr
 
@@ -2029,6 +2030,9 @@ func (st *stream) processTrailerHeaders(f *MetaHeadersFrame) error {
 
 	if len(f.PseudoFields()) > 0 {
 		return sc.countError("trailers_pseudo", streamError(st.id, ErrCodeProtocol))
+	}
+	if f.Truncated {
+		return sc.countError("trailers_too_large", streamError(st.id, ErrCodeProtocol))
 	}
 	if st.trailer != nil {
 		for _, hf := range f.RegularFields() {

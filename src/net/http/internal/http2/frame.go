@@ -333,6 +333,12 @@ type Framer struct {
 	// If the limit is hit, MetaHeadersFrame.Truncated is set true.
 	MaxHeaderListSize uint32
 
+	// MaxHeaderValueCount is the maximum permitted number of
+	// header values.
+	// It's used only if ReadMetaHeaders is set; 0 means no limit.
+	// If the limit is hit, MetaHeadersFrame.Truncated is set true.
+	MaxHeaderValueCount int
+
 	// TODO: track which type of frame & with which flags was sent
 	// last. Then return an error (unless AllowIllegalWrites) if
 	// we're in the middle of a header block and a
@@ -354,6 +360,10 @@ func (fr *Framer) maxHeaderListSize() uint32 {
 		return 16 << 20 // sane default, per docs
 	}
 	return fr.MaxHeaderListSize
+}
+
+func (fr *Framer) maxHeaderValueCount() int {
+	return fr.MaxHeaderValueCount
 }
 
 func (f *Framer) startWrite(ftype FrameType, flags Flags, streamID uint32) {
@@ -1715,6 +1725,7 @@ func (fr *Framer) readMetaFrame(hf *HeadersFrame) (Frame, error) {
 	}
 	var remainSize = fr.maxHeaderListSize()
 	var sawRegular bool
+	var headerCount int
 
 	var invalid error // pseudo header field errors
 	hdec := fr.ReadMetaHeaders
@@ -1723,6 +1734,13 @@ func (fr *Framer) readMetaFrame(hf *HeadersFrame) (Frame, error) {
 	hdec.SetEmitFunc(func(hf hpack.HeaderField) {
 		if VerboseLogs && fr.logReads {
 			fr.debugReadLoggerf("http2: decoded hpack field %+v", hf)
+		}
+		headerCount++
+		if limit := fr.maxHeaderValueCount(); limit > 0 && headerCount > limit {
+			hdec.SetEmitEnabled(false)
+			mh.Truncated = true
+			remainSize = 0
+			return
 		}
 		if !httpguts.ValidHeaderFieldValue(hf.Value) {
 			// Don't include the value in the error, because it may be sensitive.

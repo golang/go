@@ -35,21 +35,24 @@ env GOPROXY=off
 ! go get golang.org/x/text
 stderr '^go: golang.org/x/text: module lookup disabled by GOPROXY=off$'
 
+[short] skip 'the rest of the test uses git'
+
 # GONOPROXY bypasses proxy
-[!net:rsc.io] skip
 [!git] skip
+env GOPROXY=$proxy
+env GOSUMDB=$sumdb
 env GOPRIVATE=none
-env GONOPROXY='*/fortune'
-! go get rsc.io/fortune # does not exist in real world, only on test proxy
+env GONOPROXY='*/git/proxyonly.git'
+! go get vcs-test.golang.org/git/proxyonly.git  # does not exist in vcstest, only on test proxy
 stderr 'git ls-remote'
 
-[!net:golang.org] skip
-env GOSUMDB=
+env GOSUMDB=off
 env GONOPROXY=
-env GOPRIVATE='*/x'
-go get golang.org/x/text
+env GOPRIVATE='*/git/tagtests.git'
+go get vcs-test.golang.org/git/tagtests.git
 go list -m all
-! stdout 'text.*v0.0.0-2017' # should not have the version from the proxy
+stdout '^vcs-test.golang.org/git/tagtests.git v0.2.2$'
+! stdout 'tagtests.git v0.1.0' # should not have the version from the proxy
 
 -- go.mod.orig --
 module m

@@ -247,6 +247,7 @@ func scriptEnv(srv *vcstest.Server, srvCertFile string) ([]string, error) {
 		"TESTGO_VCSTEST_CERT=" + srvCertFile,
 		"TESTGONETWORK=panic", // cleared by the [net] condition
 		"GOSUMDB=" + testSumDBVerifierKey,
+		"TESTGO_SUMDB=" + testSumDBName,
 		"GONOPROXY=",
 		"GONOSUMDB=",
 		"GOVCS=*:all",
