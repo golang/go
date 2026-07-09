@@ -1567,7 +1567,7 @@ func removeSymbolsExcept(s, allowed string) string {
 
 // TempDir returns a temporary directory for the test to use.
 // The directory is automatically removed when the test and
-// all its subtests complete.
+// all its subtests complete, and should not be accessed after that.
 // Each subsequent call to TempDir returns a unique directory;
 // if the directory creation fails, TempDir terminates the test by calling Fatal.
 // If the environment variable GOTMPDIR is set, the temporary directory will
