@@ -314,9 +314,17 @@ func (s *state) walkIfOrWith(typ parse.NodeType, dot reflect.Value, pipe *parse.
 	}
 }
 
-// IsTrue reports whether the value is 'true', in the sense of not the zero of its type,
-// and whether the value has a meaningful truth value. This is the definition of
-// truth used by if and other such actions.
+// IsTrue reports whether the value is true, in the sense of being nonzero,
+// nonempty, or non-nil, and whether the value has a meaningful truth value.
+// This is the definition of truth used in "if" actions and elsewhere in
+// templates:
+//
+//   - A boolean value is true if it is true.
+//   - A numeric value is true if it is nonzero.
+//   - An array, map, slice, or string value is true if its length is
+//     greater than zero.
+//   - Any other value is true if it is non-nil; struct values are
+//     never nil, and therefore always true.
 func IsTrue(val any) (truth, ok bool) {
 	return isTrue(reflect.ValueOf(val))
 }
