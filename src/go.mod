@@ -4,7 +4,7 @@ go 1.25
 
 require (
 	golang.org/x/crypto v0.39.0
-	golang.org/x/net v0.41.1-0.20260417201234-a9171bc8c6f1
+	golang.org/x/net v0.41.1-0.20260708234123-5ef02b8d6d76
 )
 
 require (
