@@ -50,9 +50,9 @@ func f(s []int) {
        s = {"foo" /* ERRORx "cannot use .* as int value" */ }
 }
 
-// func _() {
-//        f({})
-// }
+func _() {
+       f({})
+}
 
 type S2 struct {
        f func(x int)

@@ -23,17 +23,17 @@ func _() {
         _ = x // "use" it
 }
 
-// // argument to function call
-// func _() {
-//         f := func(_ T) {}
-//         f({ /* ERROR "requires go1.28 or later" */ })
-// }
+// argument to function call
+func _() {
+        f := func(_ int, _ T) {}
+        f(42, { /* ERROR "requires go1.28 or later" */ })
+}
 
-// // argument to function call with variadic arguments
-// func _() {
-//         f := func(_ ...T) {}
-//         f({ /* ERROR "requires go1.28 or later" */ }, { /* ERROR "requires go1.28 or later" */ })
-// }
+// argument to function call with variadic arguments
+func _() {
+        f := func(_ int, _ ...T) {}
+        f(42, { /* ERROR "requires go1.28 or later" */ }, { /* ERROR "requires go1.28 or later" */ })
+}
 
 // map index expression
 func _() {

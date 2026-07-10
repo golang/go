@@ -20,17 +20,17 @@ func _() {
         _ = x // "use" it
 }
 
-// // argument to function call
-// func _() {
-//         f := func(_ T) {}
-//         f({})
-// }
+// argument to function call
+func _() {
+        f := func(_ int, _ T) {}
+        f(42, {})
+}
 
-// // argument to function call with variadic arguments
-// func _() {
-//         f := func(_ ...T) {}
-//         f({}, {})
-// }
+// argument to function call with variadic arguments
+func _() {
+        f := func(_ int, _ ...T) {}
+        f(42, {}, {})
+}
 
 // map index expression
 func _() {

@@ -306,7 +306,7 @@ func (check *Checker) callExpr(x *operand, call *syntax.CallExpr) exprKind {
 	}
 
 	// evaluate arguments
-	args, atargs := check.genericExprList(call.ArgList)
+	args, atargs := check.genericExprList(sig.argType, call.ArgList)
 	sig = check.arguments(call, sig, targs, xlist, args, atargs)
 
 	if wasGeneric && sig.TypeParams().Len() == 0 {
@@ -367,12 +367,13 @@ func (check *Checker) exprList(elist []syntax.Expr) (xlist []*operand) {
 
 // genericExprList is like exprList but result operands may be uninstantiated or partially
 // instantiated generic functions (where constraint information is insufficient to infer
-// the missing type arguments) for Go 1.21 and later.
+// the missing type arguments) for Go 1.21 and later. Additionally, typeAt must return the
+// corresponding target type for each operand, or nil if none exists.
 // For each non-generic or uninstantiated generic operand, the corresponding targsList and
 // elements do not exist (targsList is nil) or the elements are nil.
 // For each partially instantiated generic function operand, the corresponding
 // targsList elements are the operand's partial type arguments.
-func (check *Checker) genericExprList(elist []syntax.Expr) (resList []*operand, targsList [][]Type) {
+func (check *Checker) genericExprList(typeAt func(int) Type, elist []syntax.Expr) (resList []*operand, targsList [][]Type) {
 	if debug {
 		defer func() {
 			// type arguments must only exist for partially instantiated functions
@@ -415,7 +416,7 @@ func (check *Checker) genericExprList(elist []syntax.Expr) (resList []*operand, 
 			resList = []*operand{&x}
 		} else {
 			// x is not a function instantiation (it may still be a generic function).
-			check.rawExpr(nil, nil, &x, e, nil, true)
+			check.rawExpr(nil, typeAt(0), &x, e, nil, true)
 			check.exclude(&x, 1<<novalue|1<<builtin|1<<typexpr)
 			if t, ok := x.typ().(*Tuple); ok && x.isValid() {
 				// x is a function call returning multiple values; it cannot be generic.
@@ -449,7 +450,7 @@ func (check *Checker) genericExprList(elist []syntax.Expr) (resList []*operand, 
 				}
 			} else {
 				// x is exactly one value (possibly invalid or uninstantiated generic function).
-				check.genericExpr(nil, &x, e, nil)
+				check.genericExpr(typeAt(i), &x, e, nil)
 			}
 			resList[i] = &x
 		}
