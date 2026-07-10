@@ -2166,7 +2166,12 @@ func (v Value) Set(x Value) {
 	x.mustBeExported() // do not let unexported x leak
 	var target unsafe.Pointer
 	if v.kind() == Interface {
-		target = v.ptr
+		// x.assignTo below uses target as a scratch space, which
+		// then will be assigned back to v in the code below.
+		// So it is a self-assignment, therefore does not cause
+		// escape, but the compiler cannot see it. Mark it noescape
+		// to help the compiler.
+		target = abi.NoEscape(v.ptr)
 	}
 	x = x.assignTo("reflect.Set", v.typ(), target)
 	if x.flag&flagIndir != 0 {
