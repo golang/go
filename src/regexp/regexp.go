@@ -4,10 +4,10 @@
 
 // Package regexp implements regular expression search.
 //
-// The syntax of the regular expressions accepted is the same
-// general syntax used by Perl, Python, and other languages.
-// More precisely, it is the syntax accepted by RE2 and described at
-// https://golang.org/s/re2syntax, except for \C.
+// The syntax of the regular expressions accepted is that of RE2,
+// described at https://go.dev/s/re2syntax, except for \C.
+// Users of regular expressions in Perl, Python, and other languages
+// will find it familiar.
 // For an overview of the syntax, see the [regexp/syntax] package.
 //
 // The regexp implementation provided by this package is
