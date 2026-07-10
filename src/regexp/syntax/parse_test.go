@@ -618,6 +618,10 @@ var stringTests = []struct {
 	{`[Aa][Bb]*[Cc]`, `(?i:AB*C)`},
 	{`A(?:[Bb][Cc]|[Dd])[Zz]`, `A(?i:(?:BC|D)Z)`},
 	{`[Aa](?:[Bb][Cc]|[Dd])Z`, `(?i:A(?:BC|D))Z`},
+	{`[Aa][Bb][Kk]`, `(?i:AB)[Kk]`},
+	{`[Aa][Bb][KkK]`, `(?i:AB[KkK])`},
+	{`[Aa][Bb][O-u]`, `(?i:AB)[O-u]`},
+	{`(?i)[0-24-6A]`, `[0-24-6Aa]`},
 }
 
 func TestString(t *testing.T) {

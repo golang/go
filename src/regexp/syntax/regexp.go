@@ -147,18 +147,10 @@ func calcFlags(re *Regexp, flags *map[*Regexp]printFlags) (must, cant printFlags
 		return 0, 0
 
 	case OpCharClass:
-		// If literal is fold-sensitive, return 0, flagI - (?i) has been compiled out.
-		// If literal is not fold-sensitive, return 0, 0.
-		for i := 0; i < len(re.Rune); i += 2 {
-			lo := max(minFold, re.Rune[i])
-			hi := min(maxFold, re.Rune[i+1])
-			for r := lo; r <= hi; r++ {
-				for f := unicode.SimpleFold(r); f != r; f = unicode.SimpleFold(f) {
-					if !(lo <= f && f <= hi) && !inCharClass(f, re.Rune) {
-						return 0, flagI
-					}
-				}
-			}
+		// If character class is fold-sensitive, we can't use flagI - it's not
+		// safe to include this with other subexpressions that use (?i).
+		if charClassIsFoldSensitive(re) {
+			return 0, flagI
 		}
 		return 0, 0
 
@@ -219,6 +211,94 @@ func calcFlags(re *Regexp, flags *map[*Regexp]printFlags) (must, cant printFlags
 		}
 		return 0, allCant
 	}
+}
+
+// charClassIsFoldSensitive reports, for an OpCharClass node, whether some rune
+// in one of its ranges may have a fold variant which is not in any of its
+// ranges. For performance reasons, it may return true even for
+// non-fold-sensitive OpCharClass nodes.
+func charClassIsFoldSensitive(re *Regexp) bool {
+	// Avoid degenerate cases by capping total iterations.
+	const maxIter = 100
+	var iter int
+	if includesMostFoldableRunes(re) {
+		// Many common classes, such as \W, include a huge range of runes,
+		// and exclude only a few runes within [minFold, maxFold]. In these
+		// cases, to avoid needing to check hundreds of thousands of runes,
+		// loop over runes which are *not* in the class, and check if *they*
+		// have a fold variant which *is* in the class (a symmetric property).
+		for i := 0; i <= len(re.Rune); i += 2 {
+			// [minFold, re.Rune[0]-1], [re.Rune[1]+1, re.Rune[2]-1], ..., [re.Rune[len(re.Rune)-1]+1, maxFold]
+			lo := rune(minFold)
+			hi := rune(maxFold)
+			if i > 0 {
+				lo = max(lo, re.Rune[i-1]+1)
+			}
+			if i < len(re.Rune) {
+				hi = min(hi, re.Rune[i]-1)
+			}
+			for r := lo; r <= hi; r++ {
+				iter++
+				if iter > maxIter {
+					return true
+				}
+				// For each rune, we only need to check one rune that it folds
+				// to, not everything *those* runes fold to. If the class is
+				// fold-sensitive, then iteration will eventually find a rune
+				// which folds to one inside the class, or will hit the
+				// iteration limit - either way, we'll correctly return true.
+				if f := unicode.SimpleFold(r); f != r && inCharClass(f, re.Rune) {
+					return true
+				}
+			}
+		}
+		return false
+	}
+
+	for i := 0; i < len(re.Rune); i += 2 {
+		lo := max(minFold, re.Rune[i])
+		hi := min(maxFold, re.Rune[i+1])
+		for r := lo; r <= hi; r++ {
+			iter++
+			if iter > maxIter {
+				return true
+			}
+			// As above, we only need to check one rune here.
+			if f := unicode.SimpleFold(r); f != r && !(lo <= f && f <= hi) && !inCharClass(f, re.Rune) {
+				return true
+			}
+		}
+	}
+	return false
+}
+
+// includesMostFoldableRunes reports whether re's runes cover a majority of the
+// foldable Unicode rune range.
+func includesMostFoldableRunes(re *Regexp) bool {
+	if len(re.Rune) == 0 {
+		return false
+	}
+	// To avoid having to iterate in the common case, check the distance from
+	// the highest to lowest rune (which will generally be very small) before
+	// checking each range.
+	totalRangeWidth := min(maxFold, re.Rune[len(re.Rune)-1]) - max(minFold, re.Rune[0])
+	const foldableRangeSize = maxFold - minFold + 1
+	return totalRangeWidth >= foldableRangeSize/2 &&
+		runesInFoldableRange(re) >= foldableRangeSize/2
+}
+
+// runesInFoldableRange gives the number of runes in re that are within the
+// foldable Unicode rune range.
+func runesInFoldableRange(re *Regexp) int {
+	var total int
+	for i := 0; i < len(re.Rune); i += 2 {
+		lo := re.Rune[i]
+		hi := re.Rune[i+1]
+		if lo <= maxFold && hi >= minFold {
+			total += int(min(hi, maxFold) - max(lo, minFold) + 1)
+		}
+	}
+	return total
 }
 
 // writeRegexp writes the Perl syntax for the regular expression re to b.
