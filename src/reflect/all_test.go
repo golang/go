@@ -4796,6 +4796,60 @@ func TestConvertPanic(t *testing.T) {
 	})
 }
 
+type issue80332ZeroLen struct {
+	Type
+}
+
+func (z issue80332ZeroLen) Len() int {
+	return 0
+}
+
+func TestIssue80332(t *testing.T) {
+	type helper struct {
+		x [1]int
+		y uintptr
+	}
+	var e helper
+	value := ValueOf(e.x[:])
+	fakeType := issue80332ZeroLen{TypeOf([2]int{})}
+
+	shouldPanic("reflect: cannot convert slice with length 1 to array with length 2", func() {
+		_ = value.Convert(fakeType)
+	})
+}
+
+type issue80332FakeChan struct {
+	Type
+}
+
+func (c issue80332FakeChan) Kind() Kind {
+	return Chan
+}
+
+func (c issue80332FakeChan) ChanDir() ChanDir {
+	return BothDir
+}
+
+type issue80332FakeMap struct {
+	Type
+}
+
+func (m issue80332FakeMap) Kind() Kind {
+	return Map
+}
+
+func TestIssue80332Others(t *testing.T) {
+	fakeChan := issue80332FakeChan{TypeOf(0)}
+	shouldPanic("reflect.MakeChan of non-chan type", func() {
+		_ = MakeChan(fakeChan, 0)
+	})
+
+	fakeMap := issue80332FakeMap{TypeOf(0)}
+	shouldPanic("reflect.MakeMapWithSize of non-map type", func() {
+		_ = MakeMapWithSize(fakeMap, 0)
+	})
+}
+
 func TestConvertSlice2Array(t *testing.T) {
 	s := make([]int, 4)
 	p := [4]int{}
