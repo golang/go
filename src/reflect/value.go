@@ -3083,6 +3083,7 @@ func unsafe_NewArray(*abi.Type, int) unsafe.Pointer
 // MakeSlice creates a new zero-initialized slice value
 // for the specified slice type, length, and capacity.
 func MakeSlice(typ Type, len, cap int) Value {
+	typ = toType(typ.common())
 	if typ.Kind() != Slice {
 		panic("reflect.MakeSlice of non-slice type")
 	}
@@ -3112,6 +3113,7 @@ func SliceAt(typ Type, p unsafe.Pointer, n int) Value {
 
 // MakeChan creates a new channel with the specified type and buffer size.
 func MakeChan(typ Type, buffer int) Value {
+	typ = toType(typ.common())
 	if typ.Kind() != Chan {
 		panic("reflect.MakeChan of non-chan type")
 	}
@@ -3134,6 +3136,7 @@ func MakeMap(typ Type) Value {
 // MakeMapWithSize creates a new map with the specified type
 // and initial space for approximately n elements.
 func MakeMapWithSize(typ Type, n int) Value {
+	typ = toType(typ.common())
 	if typ.Kind() != Map {
 		panic("reflect.MakeMapWithSize of non-map type")
 	}
@@ -3260,6 +3263,7 @@ func (v Value) Convert(t Type) Value {
 	if v.flag&flagMethod != 0 {
 		v = makeMethodValue("Convert", v)
 	}
+	t = toType(t.common())
 	op := convertOp(t.common(), v.typ())
 	if op == nil {
 		panic("reflect.Value.Convert: value of type " + stringFor(v.typ()) + " cannot be converted to type " + t.String())
@@ -3271,6 +3275,7 @@ func (v Value) Convert(t Type) Value {
 // If v.CanConvert(t) returns true then v.Convert(t) will not panic.
 func (v Value) CanConvert(t Type) bool {
 	vt := v.Type()
+	t = toType(t.common())
 	if !vt.ConvertibleTo(t) {
 		return false
 	}
