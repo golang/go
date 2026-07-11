@@ -351,6 +351,8 @@ func (b *Builder) buildActionID(a *Action) cache.ActionID {
 	}
 
 	// Input files.
+	// TODO(matloob): once the build action depends on the cgo actions, we can
+	// use those actions' outputs instead of the file names and hashes.
 	inputFiles := str.StringList(
 		p.GoFiles,
 		p.CgoFiles,
@@ -452,27 +454,6 @@ func (b *Builder) addCToolchainIDs(h io.Writer, p *load.Package) {
 	}
 }
 
-// needCgoHdr reports whether the actions triggered by this one
-// expect to be able to access the cgo-generated header file.
-func (b *Builder) needCgoHdr(a *Action) bool {
-	// If this build triggers a header install, run cgo to get the header.
-	if !b.IsCmdList && (a.Package.UsesCgo() || a.Package.UsesSwig()) && (cfg.BuildBuildmode == "c-archive" || cfg.BuildBuildmode == "c-shared") {
-		for _, t1 := range a.triggers {
-			if t1.Mode == "install header" {
-				return true
-			}
-		}
-		for _, t1 := range a.triggers {
-			for _, t2 := range t1.triggers {
-				if t2.Mode == "install header" {
-					return true
-				}
-			}
-		}
-	}
-	return false
-}
-
 // allowedVersion reports whether the version v is an allowed version of go
 // (one that we can compile).
 // v is known to be of the form "1.23".
@@ -518,7 +499,6 @@ func (b *Builder) needsBuild(a *Action) bool {
 
 const (
 	needBuild uint32 = 1 << iota
-	needCgoHdr
 	needVet
 	needCompiledGoFiles
 )
@@ -540,7 +520,6 @@ func (b *Builder) checkCacheForBuild(a, buildAction *Action) (_ *checkCacheProvi
 
 	cachedBuild := false
 	need := bit(needBuild, !b.IsCmdList && buildAction.needBuild || b.NeedExport) |
-		bit(needCgoHdr, b.needCgoHdr(buildAction)) |
 		bit(needVet, buildAction.needVet) |
 		bit(needCompiledGoFiles, b.NeedCompiledGoFiles)
 
@@ -550,7 +529,7 @@ func (b *Builder) checkCacheForBuild(a, buildAction *Action) (_ *checkCacheProvi
 	if b.useCache(buildAction, b.buildActionID(a), p.Target, need&needBuild != 0) {
 		// We found the main output in the cache.
 		// If we don't need any other outputs, we can stop.
-		// Otherwise, we need to write files to a.Objdir (needVet, needCgoHdr).
+		// Otherwise, we need to write files to a.Objdir (needVet).
 		// Remember that we might have them in cache
 		// and check again after we create a.Objdir.
 		cachedBuild = true
@@ -602,13 +581,6 @@ func (b *Builder) checkCacheForBuild(a, buildAction *Action) (_ *checkCacheProvi
 
 	if err := sh.Mkdir(buildAction.Objdir); err != nil {
 		return nil, err
-	}
-
-	// Load cached cgo header, but only if we're skipping the main build (cachedBuild==true).
-	if cachedBuild && need&needCgoHdr != 0 {
-		if err := b.loadCachedCgoHdr(buildAction); err == nil {
-			need &^= needCgoHdr
-		}
 	}
 
 	// Load cached vet config, but only if that's all we have left
@@ -737,8 +709,6 @@ func (b *Builder) build(ctx context.Context, a *Action) (err error) {
 	}
 
 	need := cacheProvider.need
-	need &^= needCgoHdr // handled by run cgo action // TODO: accumulate "negative" need bits from actions
-
 	if need == 0 {
 		return
 	}
@@ -815,11 +785,6 @@ func (b *Builder) build(ctx context.Context, a *Action) (err error) {
 		}
 		cgoObjects = append(cgoObjects, outObj...)
 		gofiles = append(gofiles, outGo...)
-
-		switch cfg.BuildBuildmode {
-		case "c-archive", "c-shared":
-			b.cacheCgoHdr(a)
-		}
 	}
 
 	var srcfiles []string // .go and non-.go
@@ -1097,16 +1062,6 @@ func (b *Builder) loadCachedObjdirFile(a *Action, c cache.Cache, name string) er
 	return b.Shell(a).CopyFile(a.Objdir+name, cached, 0666, true)
 }
 
-func (b *Builder) cacheCgoHdr(a *Action) {
-	c := cache.Default()
-	b.cacheObjdirFile(a, c, "_cgo_install.h")
-}
-
-func (b *Builder) loadCachedCgoHdr(a *Action) error {
-	c := cache.Default()
-	return b.loadCachedObjdirFile(a, c, "_cgo_install.h")
-}
-
 func (b *Builder) cacheSrcFiles(a *Action, srcfiles []string) {
 	c := cache.Default()
 	var buf bytes.Buffer
@@ -1250,6 +1205,198 @@ func (b *Builder) coverActionID(a *Action, covMetaFileName string) cache.ActionI
 	}
 
 	return h.Sum()
+}
+
+// cgoCompileActionID returns the action ID for the action to compile
+// a file with the C compiler for cgo.
+func (b *Builder) cgoCompileActionID(a *Action, f string, flags []string) cache.ActionID {
+	h := cache.NewHash("cgo compile file")
+	p := a.Package
+
+	fmt.Fprintf(h, "goos %s goarch %s\n", cfg.Goos, cfg.Goarch)
+
+	fmt.Fprintf(h, "file %s %s\n", filepath.Base(f), b.fileHash(f))
+	fmt.Fprintf(h, "flags %q\n", replaceAll(flags, a.Objdir, "$OBJDIR/"))
+
+	// Package origin, trimpath and Goroot affect the -ffile-prefix-map
+	// flag added during C compilation, which changes the DWARF paths
+	// in the resulting .o file.
+	b.addPackageOrigin(h, p)
+	if cfg.BuildTrimpath {
+		fmt.Fprintln(h, "trimpath")
+	}
+
+	// This has too much information.
+	// We only need to choose CC/CXX/FC based on which kind of compilation this
+	// action is doing. Perhaps we could add a getCCIDFunc to cgoCompileActor?
+	// It also includes the flags which are be unnecessary because we know which
+	// flags are passed.
+	b.addCToolchainIDs(h, p)
+
+	return h.Sum()
+}
+
+// cgoRunActionID returns the ActionID for the action that runs
+// the cgo command.
+func (b *Builder) cgoRunActionID(a *Action) cache.ActionID {
+	p := a.Package
+	h := cache.NewHash("cgo " + p.ImportPath)
+
+	fmt.Fprintf(h, "goos %s goarch %s\n", cfg.Goos, cfg.Goarch)
+
+	fmt.Fprintf(h, "cgo %q\n", b.toolID("cgo"))
+
+	// cgo mixes the import path into its generated symbol names
+	// (_cgo_<hash>_Cfunc_*), so the generated files are only valid
+	// for the same import path. The hash name argument of NewHash
+	// is debug-only, so the import path must also be written here.
+	fmt.Fprintf(h, "import %q\n", p.ImportPath)
+
+	// Add p.Dir, which is needed because cgo embeds absolute
+	// source paths in //line directives of its generated files.
+	// TODO(matloob): Can we change that?
+	fmt.Fprintf(h, "dir %s\n", p.Dir)
+	b.addCToolchainIDs(h, p) // incorporates c/c++/fflags
+
+	// msan/asan cause -fsanitize to be passed
+	fmt.Fprintf(h, "msan %v asan %v\n", cfg.BuildMSan, cfg.BuildASan)
+	// exportheader signifies whether _cgo_install.h will be produced
+	fmt.Fprintf(h, "exportheader %v\n", cfg.BuildBuildmode == "c-archive" || cfg.BuildBuildmode == "c-shared")
+	// gccgopkgpath affects cgo's produced symbol names
+	if cfg.BuildToolchainName == "gccgo" {
+		fmt.Fprintf(h, "gccgopkgpath %s\n", gccgoPkgpath(p))
+	}
+
+	// Whether there are Obj-C/C++/Fortran files will affect the flags produced.
+	fmt.Fprintf(h, "mfiles %v cxxfiles %v ffiles %v\n", len(p.MFiles) > 0, len(p.CXXFiles)+len(p.SwigCXXFiles) > 0, len(p.FFiles) > 0)
+
+	// Cgo and swig input files. These are the direct inputs to the cgo tool.
+	if p.Internal.Cover.Mode != "" {
+		// Use cover action id: cover will generate the new cgo files.
+		for _, dep := range a.Deps {
+			if dep.Mode == "cover" {
+				fmt.Fprintf(h, "cover %x\n", dep.actionID)
+				break
+			}
+		}
+	} else {
+		for _, file := range p.CgoFiles {
+			fmt.Fprintf(h, "file %s %s\n", file, b.fileHash(filepath.Join(p.Dir, file)))
+		}
+	}
+	for _, file := range str.StringList(p.SwigFiles, p.SwigCXXFiles) {
+		fmt.Fprintf(h, "file %s %s\n", file, b.fileHash(filepath.Join(p.Dir, file)))
+	}
+
+	return h.Sum()
+}
+
+// runCgoProviderCached is the JSON-serializable form of a runCgoProvider
+// stored in the action cache. All files are relative to objdir.
+type runCgoProviderCached struct {
+	CFLAGS, CXXFLAGS, FFLAGS, LDFLAGS []string
+	NotCompatibleForInternalLinking   bool
+	GoFiles                           []string // list for the provider
+	Files                             []string // files to restore to objdir
+}
+
+func replaceAll(strs []string, from, to string) []string {
+	var replaced []string
+	for _, s := range strs {
+		replaced = append(replaced, strings.ReplaceAll(s, from, to))
+	}
+	return replaced
+}
+
+func (b *Builder) cacheRunCgoOutputs(a *Action, pr *runCgoProvider) error {
+	c := cache.Default()
+
+	// TODO(matloob): map on a seq would be nice
+	trimObjdirPrefix := func(files []string) []string {
+		var trimmed []string
+		for _, f := range files {
+			trimmed = append(trimmed, strings.TrimPrefix(f, a.Objdir))
+		}
+		return trimmed
+	}
+
+	cgo2Files := func(cgo1Files []string) []string {
+		var cgo2 []string
+		for _, f := range cgo1Files {
+			if base, ok := strings.CutSuffix(f, ".cgo1.go"); ok {
+				cgo2 = append(cgo2, base+".cgo2.c")
+			}
+		}
+		return cgo2
+	}
+
+	_, outC, outCXX := b.swigOutputs(a.Package, a.Objdir)
+	files := str.StringList(
+		[]string{"_cgo_export.c", "_cgo_export.h", "_cgo_main.c"},
+		trimObjdirPrefix(pr.goFiles),
+		trimObjdirPrefix(cgo2Files(pr.goFiles)),
+		trimObjdirPrefix(outC),
+		trimObjdirPrefix(outCXX))
+	for _, name := range []string{"_cgo_install.h", "_cgo_defun.c", "_cgo_flags"} {
+		if _, err := os.Stat(a.Objdir + name); err == nil {
+			files = append(files, name)
+		}
+	}
+	for _, file := range files {
+		if err := b.cacheObjdirFile(a, c, file); err != nil {
+			return err
+		}
+	}
+
+	cached := runCgoProviderCached{
+		CFLAGS:                          replaceAll(pr.CFLAGS, a.Objdir, "$OBJDIR/"),
+		CXXFLAGS:                        replaceAll(pr.CXXFLAGS, a.Objdir, "$OBJDIR/"),
+		FFLAGS:                          replaceAll(pr.FFLAGS, a.Objdir, "$OBJDIR/"),
+		LDFLAGS:                         replaceAll(pr.LDFLAGS, a.Objdir, "$OBJDIR/"),
+		NotCompatibleForInternalLinking: pr.notCompatibleForInternalLinking,
+		GoFiles:                         trimObjdirPrefix(pr.goFiles),
+		Files:                           files,
+	}
+	data, err := json.Marshal(cached)
+	if err != nil {
+		return err
+	}
+	cache.PutBytes(c, cache.Subkey(a.actionID, "cgorunprovider"), data)
+	return nil
+}
+
+func (b *Builder) loadCachedRunCgoOutputs(a *Action) (*runCgoProvider, error) {
+	c := cache.Default()
+
+	var cached runCgoProviderCached
+	js, _, err := cache.GetBytes(c, cache.Subkey(a.actionID, "cgorunprovider"))
+	if err != nil {
+		return nil, err
+	} else if err := json.Unmarshal(js, &cached); err != nil {
+		return nil, err
+	}
+
+	for _, name := range cached.Files {
+		if err := b.loadCachedObjdirFile(a, c, name); err != nil {
+			return nil, err
+		}
+	}
+
+	var goFilesObjdir []string
+	for _, f := range cached.GoFiles {
+		goFilesObjdir = append(goFilesObjdir, a.Objdir+f)
+	}
+
+	pr := &runCgoProvider{
+		CFLAGS:                          replaceAll(cached.CFLAGS, "$OBJDIR/", a.Objdir),
+		CXXFLAGS:                        replaceAll(cached.CXXFLAGS, "$OBJDIR/", a.Objdir),
+		FFLAGS:                          replaceAll(cached.FFLAGS, "$OBJDIR/", a.Objdir),
+		LDFLAGS:                         replaceAll(cached.LDFLAGS, "$OBJDIR/", a.Objdir),
+		notCompatibleForInternalLinking: cached.NotCompatibleForInternalLinking,
+		goFiles:                         goFilesObjdir,
+	}
+
+	return pr, nil
 }
 
 func (b *Builder) loadCachedSrcFiles(a *Action) ([]string, error) {
@@ -2419,7 +2566,7 @@ func (b *Builder) gcc(a *Action, workdir, out string, flags []string, cfile stri
 // gas runs the gcc c compiler to create an object file from a single C assembly file.
 func (b *Builder) gas(a *Action, workdir, out string, flags []string, sfile string) error {
 	p := a.Package
-	data, err := os.ReadFile(filepath.Join(p.Dir, sfile))
+	data, err := os.ReadFile(sfile)
 	if err == nil {
 		if bytes.HasPrefix(data, []byte("TEXT")) || bytes.Contains(data, []byte("\nTEXT")) ||
 			bytes.HasPrefix(data, []byte("DATA")) || bytes.Contains(data, []byte("\nDATA")) ||
@@ -3034,7 +3181,7 @@ func mustGetCoverInfo(a *Action) *coverProvider {
 	panic("unreachable")
 }
 
-func (b *Builder) runCgo(ctx context.Context, a *Action) error {
+func (b *Builder) runCgo(_ context.Context, a *Action) error {
 	p := a.Package
 	sh := b.Shell(a)
 	objdir := a.Objdir
@@ -3046,6 +3193,13 @@ func (b *Builder) runCgo(ctx context.Context, a *Action) error {
 	nonGoFileLists := [][]string{p.CFiles, p.SFiles, p.CXXFiles, p.HFiles, p.FFiles}
 	if err := b.computeNonGoOverlay(a, p, sh, objdir, nonGoFileLists); err != nil {
 		return err
+	}
+
+	a.actionID = b.cgoRunActionID(a)
+	if pr, err := b.loadCachedRunCgoOutputs(a); err == nil {
+		pr.nonGoOverlay = a.nonGoOverlay
+		a.Provider = pr
+		return nil
 	}
 
 	cgofiles := slices.Clip(p.CgoFiles)
@@ -3230,6 +3384,13 @@ func (b *Builder) runCgo(ctx context.Context, a *Action) error {
 		notCompatibleForInternalLinking: notCompatibleWithInternalLinking,
 		nonGoOverlay:                    a.nonGoOverlay,
 		goFiles:                         gofiles,
+	}
+
+	if !cfg.BuildN {
+		pr := a.Provider.(*runCgoProvider)
+		if err := b.cacheRunCgoOutputs(a, pr); err != nil {
+			return err
+		}
 	}
 
 	return nil

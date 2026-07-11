@@ -15,7 +15,7 @@ stdout '^false \[\]'
 [short] skip
 go list -find -compiled net
 go list -find -compiled -x net
-! stderr 'cgo'
+! stderr 'cgo -objdir' # we shouldn't invoke cgo.
 
 -- x/y/z/z.go --
 package z
