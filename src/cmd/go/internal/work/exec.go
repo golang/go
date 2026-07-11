@@ -272,35 +272,7 @@ func (b *Builder) buildActionID(a *Action) cache.ActionID {
 	// If not, the reason is already recorded in buildGcflags.
 	fmt.Fprintf(h, "compile\n")
 
-	// Include information about the origin of the package that
-	// may be embedded in the debug info for the object file.
-	if cfg.BuildTrimpath {
-		// When -trimpath is used with a package built from the module cache,
-		// its debug information refers to the module path and version
-		// instead of the directory.
-		if p.Module != nil {
-			fmt.Fprintf(h, "module %s@%s\n", p.Module.Path, p.Module.Version)
-		}
-	} else if p.Goroot {
-		// The Go compiler always hides the exact value of $GOROOT
-		// when building things in GOROOT.
-		//
-		// The C compiler does not, but for packages in GOROOT we rewrite the path
-		// as though -trimpath were set. This used to be so that we did not invalidate
-		// the build cache (and especially precompiled archive files) when changing
-		// GOROOT_FINAL, but we no longer ship precompiled archive files as of Go 1.20
-		// (https://go.dev/issue/47257) and no longer support GOROOT_FINAL
-		// (https://go.dev/issue/62047).
-		// TODO(bcmills): Figure out whether this behavior is still useful.
-		//
-		// b.WorkDir is always either trimmed or rewritten to
-		// the literal string "/tmp/go-build".
-	} else if !strings.HasPrefix(p.Dir, b.WorkDir) {
-		// -trimpath is not set and no other rewrite rules apply,
-		// so the object file may refer to the absolute directory
-		// containing the package.
-		fmt.Fprintf(h, "dir %s\n", p.Dir)
-	}
+	b.addPackageOrigin(h, p)
 
 	if p.Module != nil {
 		fmt.Fprintf(h, "go %s\n", p.Module.GoVersion)
@@ -314,39 +286,7 @@ func (b *Builder) buildActionID(a *Action) cache.ActionID {
 	if p.Internal.ForceLibrary {
 		fmt.Fprintf(h, "forcelibrary\n")
 	}
-	if len(p.CgoFiles)+len(p.SwigFiles)+len(p.SwigCXXFiles) > 0 {
-		fmt.Fprintf(h, "cgo %q\n", b.toolID("cgo"))
-		cppflags, cflags, cxxflags, fflags, ldflags, _ := b.CFlags(p)
-
-		ccExe := b.ccExe()
-		fmt.Fprintf(h, "CC=%q %q %q %q\n", ccExe, cppflags, cflags, ldflags)
-		// Include the C compiler tool ID so that if the C
-		// compiler changes we rebuild the package.
-		if ccID, _, err := b.gccToolID(ccExe[0], "c"); err == nil {
-			fmt.Fprintf(h, "CC ID=%q\n", ccID)
-		} else {
-			fmt.Fprintf(h, "CC ID ERROR=%q\n", err)
-		}
-		if len(p.CXXFiles)+len(p.SwigCXXFiles) > 0 {
-			cxxExe := b.cxxExe()
-			fmt.Fprintf(h, "CXX=%q %q\n", cxxExe, cxxflags)
-			if cxxID, _, err := b.gccToolID(cxxExe[0], "c++"); err == nil {
-				fmt.Fprintf(h, "CXX ID=%q\n", cxxID)
-			} else {
-				fmt.Fprintf(h, "CXX ID ERROR=%q\n", err)
-			}
-		}
-		if len(p.FFiles) > 0 {
-			fcExe := b.fcExe()
-			fmt.Fprintf(h, "FC=%q %q\n", fcExe, fflags)
-			if fcID, _, err := b.gccToolID(fcExe[0], "f95"); err == nil {
-				fmt.Fprintf(h, "FC ID=%q\n", fcID)
-			} else {
-				fmt.Fprintf(h, "FC ID ERROR=%q\n", err)
-			}
-		}
-		// TODO(rsc): Should we include the SWIG version?
-	}
+	b.addCToolchainIDs(h, p)
 	if p.Internal.Cover.Mode != "" {
 		fmt.Fprintf(h, "cover %q %q\n", p.Internal.Cover.Mode, b.toolID("cover"))
 	}
@@ -439,6 +379,77 @@ func (b *Builder) buildActionID(a *Action) cache.ActionID {
 	}
 
 	return h.Sum()
+}
+
+// addPackageOrigin writes information about the origin of the package that
+// may be embedded in the debug info for the object file. It is used by
+// buildActionID.
+func (b *Builder) addPackageOrigin(h io.Writer, p *load.Package) {
+	if cfg.BuildTrimpath {
+		// When -trimpath is used with a package built from the module cache,
+		// its debug information refers to the module path and version
+		// instead of the directory.
+		if p.Module != nil {
+			fmt.Fprintf(h, "module %s@%s\n", p.Module.Path, p.Module.Version)
+		}
+	} else if p.Goroot {
+		// The Go compiler always hides the exact value of $GOROOT
+		// when building things in GOROOT.
+		//
+		// The C compiler does not, but for packages in GOROOT we rewrite the path
+		// as though -trimpath were set. This used to be so that we did not invalidate
+		// the build cache (and especially precompiled archive files) when changing
+		// GOROOT_FINAL, but we no longer ship precompiled archive files as of Go 1.20
+		// (https://go.dev/issue/47257) and no longer support GOROOT_FINAL
+		// (https://go.dev/issue/62047).
+		// TODO(bcmills): Figure out whether this behavior is still useful.
+		//
+		// b.WorkDir is always either trimmed or rewritten to
+		// the literal string "/tmp/go-build".
+	} else if !strings.HasPrefix(p.Dir, b.WorkDir) {
+		// -trimpath is not set and no other rewrite rules apply,
+		// so the object file may refer to the absolute directory
+		// containing the package.
+		fmt.Fprintf(h, "dir %s\n", p.Dir)
+	}
+}
+
+// addCToolchainIDs adds the C toolchain hashes and flags to the hash writer.
+// It is used by buildActionID.
+func (b *Builder) addCToolchainIDs(h io.Writer, p *load.Package) {
+	if len(p.CgoFiles)+len(p.SwigFiles)+len(p.SwigCXXFiles) > 0 {
+		fmt.Fprintf(h, "cgo %q\n", b.toolID("cgo"))
+		cppflags, cflags, cxxflags, fflags, ldflags, _ := b.CFlags(p)
+
+		ccExe := b.ccExe()
+		fmt.Fprintf(h, "CC=%q %q %q %q\n", ccExe, cppflags, cflags, ldflags)
+		// Include the C compiler tool ID so that if the C
+		// compiler changes we rebuild the package.
+		if ccID, _, err := b.gccToolID(ccExe[0], "c"); err == nil {
+			fmt.Fprintf(h, "CC ID=%q\n", ccID)
+		} else {
+			fmt.Fprintf(h, "CC ID ERROR=%q\n", err)
+		}
+		if len(p.CXXFiles)+len(p.SwigCXXFiles) > 0 {
+			cxxExe := b.cxxExe()
+			fmt.Fprintf(h, "CXX=%q %q\n", cxxExe, cxxflags)
+			if cxxID, _, err := b.gccToolID(cxxExe[0], "c++"); err == nil {
+				fmt.Fprintf(h, "CXX ID=%q\n", cxxID)
+			} else {
+				fmt.Fprintf(h, "CXX ID ERROR=%q\n", err)
+			}
+		}
+		if len(p.FFiles) > 0 {
+			fcExe := b.fcExe()
+			fmt.Fprintf(h, "FC=%q %q\n", fcExe, fflags)
+			if fcID, _, err := b.gccToolID(fcExe[0], "f95"); err == nil {
+				fmt.Fprintf(h, "FC ID=%q\n", fcID)
+			} else {
+				fmt.Fprintf(h, "FC ID ERROR=%q\n", err)
+			}
+		}
+		// TODO(rsc): Should we include the SWIG version?
+	}
 }
 
 // needCgoHdr reports whether the actions triggered by this one
