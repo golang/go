@@ -8,9 +8,13 @@ package auth
 import (
 	"cmd/go/internal/base"
 	"cmd/go/internal/cfg"
+	"cmd/go/internal/web/intercept"
+	"cmd/internal/quoted"
 	"fmt"
 	"log"
+	"net"
 	"net/http"
+	"net/url"
 	"os"
 	"path/filepath"
 	"slices"
@@ -19,9 +23,42 @@ import (
 )
 
 var (
-	credentialCache sync.Map // prefix → http.Header
-	authOnce        sync.Once
+	credentialCache        sync.Map // prefix → http.Header
+	clientCertificateCache sync.Map // origin → ClientCertificate
+	authOnce               sync.Once
 )
+
+// A ClientCertificate describes a certificate and private key to use for
+// HTTPS requests to Origin. CertFile may contain both the certificate and key,
+// in which case KeyFile is equal to CertFile.
+type ClientCertificate struct {
+	Origin   string
+	CertFile string
+	KeyFile  string
+}
+
+// ClientCertificateForRequest returns the client certificate configured for
+// req's HTTPS origin, as derived from req.URL. When test hooks are enabled,
+// req.Host takes precedence over req.URL.Host so that test interceptors,
+// which rewrite req.URL to point at a local test server, preserve the logical
+// request origin. req.Host must never influence the origin otherwise: a
+// certificate must not be selected by a Host header that differs from the
+// host the connection is made to.
+func ClientCertificateForRequest(req *http.Request) (ClientCertificate, bool) {
+	host := req.URL.Host
+	if intercept.TestHooksEnabled && req.Host != "" {
+		host = req.Host
+	}
+	origin, err := canonicalHTTPSOrigin(&url.URL{Scheme: req.URL.Scheme, Host: host})
+	if err != nil {
+		return ClientCertificate{}, false
+	}
+	cert, ok := clientCertificateCache.Load(origin)
+	if !ok {
+		return ClientCertificate{}, false
+	}
+	return cert.(ClientCertificate), true
+}
 
 // AddCredentials populates the request header with the user's credentials
 // as specified by the GOAUTH environment variable.
@@ -43,12 +80,16 @@ func AddCredentials(client *http.Client, req *http.Request, res *http.Response, 
 		// First fetch must have failed; re-invoke GOAUTH commands with url.
 		runGoAuth(client, res, url)
 	}
-	return loadCredential(req, req.URL.String())
+	found := loadCredential(req, req.URL.String())
+	if _, ok := ClientCertificateForRequest(req); ok {
+		found = true
+	}
+	return found
 }
 
 // runGoAuth executes authentication commands specified by the GOAUTH
-// environment variable handling 'off', 'netrc', and 'git' methods specially,
-// and storing retrieved credentials for future access.
+// environment variable handling 'off', 'netrc', 'git', and 'mtls' methods
+// specially, and storing retrieved credentials for future access.
 func runGoAuth(client *http.Client, res *http.Response, url string) {
 	var cmdErrs []error // store GOAUTH command errors to log later.
 	goAuthCmds := strings.Split(cfg.GOAUTH, ";")
@@ -112,6 +153,16 @@ func runGoAuth(client *http.Client, res *http.Response, url string) {
 			} else {
 				storeCredential(prefix, header)
 			}
+		case "mtls":
+			words, err := quoted.Split(command)
+			if err != nil {
+				base.Fatalf("go: cannot parse GOAUTH=mtls command %q: %v", command, err)
+			}
+			cert, err := parseClientCertificate(words)
+			if err != nil {
+				base.Fatalf("go: GOAUTH=mtls: %v", err)
+			}
+			clientCertificateCache.Store(cert.Origin, cert)
 		default:
 			credentials, err := runAuthCommand(command, url, res)
 			if err != nil {
@@ -128,14 +179,65 @@ func runGoAuth(client *http.Client, res *http.Response, url string) {
 	// If no GOAUTH command provided a credential for the given url
 	// and an error occurred, log the error.
 	if cfg.BuildX && url != "" {
-		req := &http.Request{Header: make(http.Header)}
-		if ok := loadCredential(req, url); !ok && len(cmdErrs) > 0 {
+		req, err := http.NewRequest("GET", url, nil)
+		hasCredential := err == nil && loadCredential(req, url)
+		if err == nil {
+			_, hasClientCertificate := ClientCertificateForRequest(req)
+			hasCredential = hasCredential || hasClientCertificate
+		}
+		if !hasCredential && len(cmdErrs) > 0 {
 			log.Printf("GOAUTH encountered errors for %s:", url)
 			for _, err := range cmdErrs {
 				log.Printf("  %v", err)
 			}
 		}
 	}
+}
+
+func parseClientCertificate(words []string) (ClientCertificate, error) {
+	if len(words) != 3 && len(words) != 4 {
+		return ClientCertificate{}, fmt.Errorf("usage: mtls https-origin cert-file [key-file]")
+	}
+	u, err := url.ParseRequestURI(words[1])
+	if err != nil {
+		return ClientCertificate{}, fmt.Errorf("invalid HTTPS origin %q: %v", words[1], err)
+	}
+	origin, err := canonicalHTTPSOrigin(u)
+	if err != nil {
+		return ClientCertificate{}, err
+	}
+	if !filepath.IsAbs(words[2]) {
+		return ClientCertificate{}, fmt.Errorf("certificate file must be an absolute path")
+	}
+	keyFile := words[2]
+	if len(words) == 4 {
+		keyFile = words[3]
+		if !filepath.IsAbs(keyFile) {
+			return ClientCertificate{}, fmt.Errorf("key file must be an absolute path")
+		}
+	}
+	return ClientCertificate{Origin: origin, CertFile: words[2], KeyFile: keyFile}, nil
+}
+
+func canonicalHTTPSOrigin(u *url.URL) (string, error) {
+	if u.Scheme != "https" || u.Host == "" || u.User != nil || (u.Path != "" && u.Path != "/") || u.ForceQuery || u.RawQuery != "" || u.Fragment != "" {
+		return "", fmt.Errorf("origin must be an HTTPS URL without user information, a non-root path, query, or fragment")
+	}
+	host := strings.TrimSuffix(u.Hostname(), ".")
+	if host == "" {
+		return "", fmt.Errorf("HTTPS origin is missing a hostname")
+	}
+	for i := 0; i < len(host); i++ {
+		if host[i] >= 0x80 {
+			return "", fmt.Errorf("HTTPS origin hostname must use ASCII or Punycode")
+		}
+	}
+	host = strings.ToLower(host)
+	port := u.Port()
+	if port == "" {
+		port = "443"
+	}
+	return "https://" + net.JoinHostPort(host, port), nil
 }
 
 // loadCredential retrieves cached credentials for the given url and adds
