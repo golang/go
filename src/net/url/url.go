@@ -411,6 +411,16 @@ func Parse(rawURL string) (*URL, error) {
 	return url, nil
 }
 
+// MustParse calls [Parse](rawURL) and panics on error.
+// It is intended for use with hard-coded strings representing valid urls.
+func MustParse(rawURL string) *URL {
+	url, err := Parse(rawURL)
+	if err != nil {
+		panic(err)
+	}
+	return url
+}
+
 // ParseRequestURI parses a raw url into a [URL] structure. It assumes that
 // url was received in an HTTP request, so the url is interpreted
 // only as an absolute URI or an absolute path.
