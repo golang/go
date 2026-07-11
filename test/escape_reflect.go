@@ -56,8 +56,7 @@ func string2(x int) string {
 	return v.String()
 }
 
-// Unfortunate: should only escape to result.
-func interface1(x any) any { // ERROR "leaking param: x$"
+func interface1(x any) any { // ERROR "leaking param: x to result ~r0 level=0"
 	v := reflect.ValueOf(x)
 	return v.Interface()
 }
@@ -67,14 +66,12 @@ func interface2(x int) any {
 	return v.Interface()
 }
 
-// Unfortunate: should not escape.
 func interface3(x int) int {
-	v := reflect.ValueOf(x) // ERROR "x escapes to heap"
+	v := reflect.ValueOf(x) // ERROR "x does not escape"
 	return v.Interface().(int)
 }
 
-// Unfortunate: should only escape to result.
-func interface4(x *int) any { // ERROR "leaking param: x$"
+func interface4(x *int) any { // ERROR "leaking param: x to result ~r0 level=0"
 	v := reflect.ValueOf(x)
 	return v.Interface()
 }
@@ -252,13 +249,13 @@ func index5(x string) byte { // ERROR "x does not escape"
 }
 
 // Unfortunate: x (the interface storage) doesn't need to escape as the function takes a scalar arg.
-func call1(f func(int), x int) { // ERROR "leaking param: f$"
+func call1(f func(int), x int) { // ERROR "leaking param content: f"
 	fv := reflect.ValueOf(f)
 	v := reflect.ValueOf(x)     // ERROR "x escapes to heap"
 	fv.Call([]reflect.Value{v}) // ERROR "\[\]reflect\.Value{\.\.\.} does not escape"
 }
 
-func call2(f func(*int), x *int) { // ERROR "leaking param: f$" "leaking param: x$"
+func call2(f func(*int), x *int) { // ERROR "leaking param content: f" "leaking param: x$"
 	fv := reflect.ValueOf(f)
 	v := reflect.ValueOf(x)
 	fv.Call([]reflect.Value{v}) // ERROR "\[\]reflect.Value{\.\.\.} does not escape"
@@ -451,7 +448,7 @@ func setitervalue2(v reflect.Value, m map[string]string) { // ERROR "leaking par
 // Unfortunate: s doesn't need escape, only leak to result.
 // And x (interface storage) doesn't need to escape.
 func append1(s []int, x int) []int { // ERROR "leaking param: s$"
-	sv := reflect.ValueOf(s)     // ERROR "s escapes to heap"
+	sv := reflect.ValueOf(s)     // ERROR "s does not escape"
 	xv := reflect.ValueOf(x)     // ERROR "x escapes to heap"
 	rv := reflect.Append(sv, xv) // ERROR "... argument does not escape"
 	return rv.Interface().([]int)
