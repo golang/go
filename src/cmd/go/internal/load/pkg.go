@@ -2011,6 +2011,10 @@ func (p *Package) load(ld *modload.Loader, ctx context.Context, opts PackageOpts
 	stk.Push(ImportInfo{Pkg: path, Pos: extractFirstImport(importPos)})
 	defer stk.Pop()
 
+	if p.BinaryOnly {
+		setError(errors.New("binary-only packages are no longer supported"))
+	}
+
 	pkgPath := p.ImportPath
 	if p.Internal.CmdlineFiles {
 		pkgPath = "command-line-arguments"

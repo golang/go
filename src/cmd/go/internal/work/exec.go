@@ -510,7 +510,6 @@ const (
 	needCgoHdr
 	needVet
 	needCompiledGoFiles
-	needStale
 )
 
 // checkCacheForBuild checks the cache for the outputs of the buildAction to determine
@@ -534,43 +533,41 @@ func (b *Builder) checkCacheForBuild(a, buildAction *Action) (_ *checkCacheProvi
 		bit(needVet, buildAction.needVet) |
 		bit(needCompiledGoFiles, b.NeedCompiledGoFiles)
 
-	if !p.BinaryOnly {
-		// We pass 'a' (this checkCacheAction) to buildActionID so that we use its dependencies,
-		// which are the actual package dependencies, rather than the buildAction's dependencies
-		// which also includes this action and the cover action.
-		if b.useCache(buildAction, b.buildActionID(a), p.Target, need&needBuild != 0) {
-			// We found the main output in the cache.
-			// If we don't need any other outputs, we can stop.
-			// Otherwise, we need to write files to a.Objdir (needVet, needCgoHdr).
-			// Remember that we might have them in cache
-			// and check again after we create a.Objdir.
-			cachedBuild = true
-			buildAction.output = []byte{} // start saving output in case we miss any cache results
-			need &^= needBuild
-			if b.NeedExport {
-				p.Export = buildAction.built
-				p.BuildID = buildAction.buildID
-			}
-			if need&needCompiledGoFiles != 0 {
-				if err := b.loadCachedCompiledGoFiles(buildAction); err == nil {
-					need &^= needCompiledGoFiles
-				}
-			}
+	// We pass 'a' (this checkCacheAction) to buildActionID so that we use its dependencies,
+	// which are the actual package dependencies, rather than the buildAction's dependencies
+	// which also includes this action and the cover action.
+	if b.useCache(buildAction, b.buildActionID(a), p.Target, need&needBuild != 0) {
+		// We found the main output in the cache.
+		// If we don't need any other outputs, we can stop.
+		// Otherwise, we need to write files to a.Objdir (needVet, needCgoHdr).
+		// Remember that we might have them in cache
+		// and check again after we create a.Objdir.
+		cachedBuild = true
+		buildAction.output = []byte{} // start saving output in case we miss any cache results
+		need &^= needBuild
+		if b.NeedExport {
+			p.Export = buildAction.built
+			p.BuildID = buildAction.buildID
 		}
-
-		// Source files might be cached, even if the full action is not
-		// (e.g., go list -compiled -find).
-		if !cachedBuild && need&needCompiledGoFiles != 0 {
+		if need&needCompiledGoFiles != 0 {
 			if err := b.loadCachedCompiledGoFiles(buildAction); err == nil {
 				need &^= needCompiledGoFiles
 			}
 		}
-
-		if need == 0 {
-			return &checkCacheProvider{need: need}, nil
-		}
-		defer b.flushOutput(a)
 	}
+
+	// Source files might be cached, even if the full action is not
+	// (e.g., go list -compiled -find).
+	if !cachedBuild && need&needCompiledGoFiles != 0 {
+		if err := b.loadCachedCompiledGoFiles(buildAction); err == nil {
+			need &^= needCompiledGoFiles
+		}
+	}
+
+	if need == 0 {
+		return &checkCacheProvider{need: need}, nil
+	}
+	defer b.flushOutput(a)
 
 	defer func() {
 		if err != nil && b.IsCmdList && b.NeedError && p.Error == nil {
@@ -582,17 +579,6 @@ func (b *Builder) checkCacheForBuild(a, buildAction *Action) (_ *checkCacheProvi
 		// Don't try to build anything for packages with errors. There may be a
 		// problem with the inputs that makes the package unsafe to build.
 		return nil, p.Error
-	}
-
-	// TODO(matloob): return early for binary-only packages so that we don't need to indent
-	// the core of this function in the if !p.BinaryOnly block above.
-	if p.BinaryOnly {
-		p.Stale = true
-		p.StaleReason = "binary-only packages are no longer supported"
-		if b.IsCmdList {
-			return &checkCacheProvider{need: 0}, nil
-		}
-		return nil, errors.New("binary-only packages are no longer supported")
 	}
 
 	if p.Module != nil && !allowedVersion(p.Module.GoVersion) {
