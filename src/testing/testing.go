@@ -1017,7 +1017,7 @@ var (
 // may be called simultaneously from multiple goroutines.
 type T struct {
 	common
-	denyParallel bool
+	denyParallel string
 	tstate       *testState // For running tests and subtests.
 }
 
@@ -1916,8 +1916,8 @@ func (t *T) Parallel() {
 	if t.isSynctest {
 		panic("testing: t.Parallel called inside synctest bubble")
 	}
-	if t.denyParallel {
-		panic(parallelConflict)
+	if t.denyParallel != "" {
+		panic(fmt.Sprintf("testing: test using %s can not use t.Parallel", t.denyParallel))
 	}
 	if t.parent.barrier == nil {
 		// T.Parallel has no effect when fuzzing.
@@ -1978,10 +1978,10 @@ func (t *T) Parallel() {
 //
 //go:linkname checkParallel testing.checkParallel
 func checkParallel(t *T) {
-	t.checkParallel()
+	t.checkParallel("cryptotest.SetGlobalRandom")
 }
 
-func (t *T) checkParallel() {
+func (t *T) checkParallel(call string) {
 	// Non-parallel subtests that have parallel ancestors may still
 	// run in parallel with other tests: they are only non-parallel
 	// with respect to the other subtests of the same parent.
@@ -1989,11 +1989,13 @@ func (t *T) checkParallel() {
 	// to deny those if the current test or any parent is parallel.
 	for c := &t.common; c != nil; c = c.parent {
 		if c.isParallel {
-			panic(parallelConflict)
+			panic(fmt.Sprintf("testing: test using t.Parallel can not use %s", call))
 		}
 	}
 
-	t.denyParallel = true
+	if t.denyParallel == "" {
+		t.denyParallel = call
+	}
 }
 
 // Setenv calls os.Setenv(key, value) and uses Cleanup to
@@ -2003,7 +2005,7 @@ func (t *T) checkParallel() {
 // Because Setenv affects the whole process, it cannot be used
 // in parallel tests or tests with parallel ancestors.
 func (t *T) Setenv(key, value string) {
-	t.checkParallel()
+	t.checkParallel("t.Setenv")
 	t.common.Setenv(key, value)
 }
 
@@ -2014,7 +2016,7 @@ func (t *T) Setenv(key, value string) {
 // Because Chdir affects the whole process, it cannot be used
 // in parallel tests or tests with parallel ancestors.
 func (t *T) Chdir(dir string) {
-	t.checkParallel()
+	t.checkParallel("t.Chdir")
 	t.common.Chdir(dir)
 }
 
