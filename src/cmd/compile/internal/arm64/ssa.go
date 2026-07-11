@@ -466,7 +466,7 @@ func simdV11Narrow(s *ssagen.State, v *ssa.Value, arrangement int16) *obj.Prog {
 	return p
 }
 
-// simdV21Narrow2 generates a a destructive (updating upper half only) narrow "2" instruction,
+// simdV21Narrow2 generates a destructive (updating upper half only) narrow "2" instruction,
 // e.g. XTN2 V1.4S, V0.8H. The arrangement parameter specifies the source arrangement.
 func simdV21Narrow2(s *ssagen.State, v *ssa.Value, arrangement int16) *obj.Prog {
 	p := s.Prog(v.Op.Asm())
