@@ -372,7 +372,7 @@ func (b *Builder) buildActionID(a *Action) cache.ActionID {
 	}
 	for _, a1 := range a.Deps {
 		p1 := a1.Package
-		if p1 != nil {
+		if p1 != nil && p1 != p { // p can show up in its own action deps in a cache or cgo action
 			fmt.Fprintf(h, "import %s %s\n", p1.ImportPath, contentID(a1.buildID))
 		}
 		if a1.Mode == "preprocess PGO profile" {
@@ -491,111 +491,6 @@ OverlayLoop:
 	return nil
 }
 
-// needsBuild reports whether the Action (which must be mode "build") needs
-// to produce the built output.
-func (b *Builder) needsBuild(a *Action) bool {
-	return !b.IsCmdList && a.needBuild || b.NeedExport
-}
-
-const (
-	needBuild uint32 = 1 << iota
-	needVet
-	needCompiledGoFiles
-)
-
-// checkCacheForBuild checks the cache for the outputs of the buildAction to determine
-// what work needs to be done by it and the actions preceding it. a is the action
-// currently being run, which has an actor of type *checkCacheActor and is a dependency
-// of the buildAction.
-func (b *Builder) checkCacheForBuild(a, buildAction *Action) (_ *checkCacheProvider, err error) {
-	p := buildAction.Package
-	sh := b.Shell(a)
-
-	bit := func(x uint32, b bool) uint32 {
-		if b {
-			return x
-		}
-		return 0
-	}
-
-	cachedBuild := false
-	need := bit(needBuild, !b.IsCmdList && buildAction.needBuild || b.NeedExport) |
-		bit(needVet, buildAction.needVet) |
-		bit(needCompiledGoFiles, b.NeedCompiledGoFiles)
-
-	// We pass 'a' (this checkCacheAction) to buildActionID so that we use its dependencies,
-	// which are the actual package dependencies, rather than the buildAction's dependencies
-	// which also includes this action and the cover action.
-	if b.useCache(buildAction, b.buildActionID(a), p.Target, need&needBuild != 0) {
-		// We found the main output in the cache.
-		// If we don't need any other outputs, we can stop.
-		// Otherwise, we need to write files to a.Objdir (needVet).
-		// Remember that we might have them in cache
-		// and check again after we create a.Objdir.
-		cachedBuild = true
-		buildAction.output = []byte{} // start saving output in case we miss any cache results
-		need &^= needBuild
-		if b.NeedExport {
-			p.Export = buildAction.built
-			p.BuildID = buildAction.buildID
-		}
-		if need&needCompiledGoFiles != 0 {
-			if err := b.loadCachedCompiledGoFiles(buildAction); err == nil {
-				need &^= needCompiledGoFiles
-			}
-		}
-	}
-
-	// Source files might be cached, even if the full action is not
-	// (e.g., go list -compiled -find).
-	if !cachedBuild && need&needCompiledGoFiles != 0 {
-		if err := b.loadCachedCompiledGoFiles(buildAction); err == nil {
-			need &^= needCompiledGoFiles
-		}
-	}
-
-	if need == 0 {
-		return &checkCacheProvider{need: need}, nil
-	}
-	defer b.flushOutput(a)
-
-	defer func() {
-		if err != nil && b.IsCmdList && b.NeedError && p.Error == nil {
-			p.Error = &load.PackageError{Err: err}
-		}
-	}()
-
-	if p.Error != nil {
-		// Don't try to build anything for packages with errors. There may be a
-		// problem with the inputs that makes the package unsafe to build.
-		return nil, p.Error
-	}
-
-	if p.Module != nil && !allowedVersion(p.Module.GoVersion) {
-		return nil, errors.New("module requires Go " + p.Module.GoVersion + " or later")
-	}
-
-	if err := b.checkDirectives(buildAction); err != nil {
-		return nil, err
-	}
-
-	if err := sh.Mkdir(buildAction.Objdir); err != nil {
-		return nil, err
-	}
-
-	// Load cached vet config, but only if that's all we have left
-	// (need == needVet, not testing just the one bit).
-	// If we are going to do a full build anyway,
-	// we're going to regenerate the files in the build action anyway.
-	if need == needVet {
-		if err := b.loadCachedVet(buildAction, a.Deps); err == nil {
-			need &^= needVet
-		}
-	}
-
-	return &checkCacheProvider{need: need}, nil
-}
-
 func (b *Builder) runCover(ctx context.Context, a *Action) error {
 	p := a.Package
 	sh := b.Shell(a)
@@ -691,24 +586,102 @@ func (b *Builder) build(ctx context.Context, a *Action) (err error) {
 	p := a.Package
 	sh := b.Shell(a)
 
-	var cacheProvider *checkCacheProvider
+	bit := func(x uint32, b bool) uint32 {
+		if b {
+			return x
+		}
+		return 0
+	}
+
+	const (
+		needBuild uint32 = 1 << iota
+		needVet
+		needCompiledGoFiles
+	)
+
+	cachedBuild := false
+	need := bit(needBuild, !b.IsCmdList && a.needBuild || b.NeedExport) |
+		bit(needVet, a.needVet) |
+		bit(needCompiledGoFiles, b.NeedCompiledGoFiles)
+
+	if b.useCache(a, b.buildActionID(a), p.Target, need&needBuild != 0) {
+		// We found the main output in the cache.
+		// If we don't need any other outputs, we can stop.
+		// Otherwise, we need to write files to a.Objdir (needVet).
+		// Remember that we might have them in cache
+		// and check again after we create a.Objdir.
+		cachedBuild = true
+		a.output = []byte{} // start saving output in case we miss any cache results
+		need &^= needBuild
+		if b.NeedExport {
+			p.Export = a.built
+			p.BuildID = a.buildID
+		}
+		if need&needCompiledGoFiles != 0 {
+			if err := b.loadCachedCompiledGoFiles(a); err == nil {
+				need &^= needCompiledGoFiles
+			}
+		}
+	}
+
+	// Source files might be cached, even if the full action is not
+	// (e.g., go list -compiled -find).
+	if !cachedBuild && need&needCompiledGoFiles != 0 {
+		if err := b.loadCachedCompiledGoFiles(a); err == nil {
+			need &^= needCompiledGoFiles
+		}
+	}
+
+	if need == 0 {
+		return nil
+	}
+	defer b.flushOutput(a)
+
+	defer func() {
+		if err != nil && b.IsCmdList && b.NeedError && p.Error == nil {
+			p.Error = &load.PackageError{Err: err}
+		}
+	}()
+
+	if p.Error != nil {
+		// Don't try to build anything for packages with errors. There may be a
+		// problem with the inputs that makes the package unsafe to build.
+		return p.Error
+	}
+
+	if p.Module != nil && !allowedVersion(p.Module.GoVersion) {
+		return errors.New("module requires Go " + p.Module.GoVersion + " or later")
+	}
+
+	if err := b.checkDirectives(a); err != nil {
+		return err
+	}
+
+	if err := sh.Mkdir(a.Objdir); err != nil {
+		return err
+	}
+
+	// Load cached vet config, but only if that's all we have left
+	// (need == needVet, not testing just the one bit).
+	// If we are going to do a full build anyway,
+	// we're going to regenerate the files in the build action anyway.
+	if need == needVet {
+		if err := b.loadCachedVet(a, a.Deps); err == nil {
+			need &^= needVet
+		}
+	}
+
 	var coverPr *coverProvider
 	var runCgoPr *runCgoProvider
 	for _, dep := range a.Deps {
 		switch pr := dep.Provider.(type) {
 		case *coverProvider:
 			coverPr = pr
-		case *checkCacheProvider:
-			cacheProvider = pr
 		case *runCgoProvider:
 			runCgoPr = pr
 		}
 	}
-	if cacheProvider == nil {
-		base.Fatalf("internal error: could not find checkCacheProvider")
-	}
 
-	need := cacheProvider.need
 	if need == 0 {
 		return
 	}
@@ -774,7 +747,6 @@ func (b *Builder) build(ctx context.Context, a *Action) (err error) {
 		} else {
 			sfiles = nil
 		}
-
 		outGo, outObj, err := b.processCgoOutputs(a, runCgoPr, base.Tool("cgo"), objdir)
 
 		if err != nil {

@@ -526,37 +526,6 @@ func (p *pgoActor) Act(b *Builder, ctx context.Context, a *Action) error {
 	return nil
 }
 
-type checkCacheProvider struct {
-	need uint32 // What work do successive actions within this package's build need to do? Combination of need bits used in build actions.
-}
-
-// The actor to check the cache to determine what work needs to be done for the action.
-// It checks the cache and sets the need bits depending on the build mode and what's available
-// in the cache, so the cover and compile actions know what to do.
-// Currently, we don't cache the outputs of the individual actions composing the build
-// for a single package (such as the output of the cover actor) separately from the
-// output of the final build, but if we start doing so, we could schedule the run cgo
-// and cgo compile actions earlier because they wouldn't depend on the builds of the
-// dependencies of the package they belong to.
-type checkCacheActor struct {
-	buildAction *Action
-}
-
-func (cca *checkCacheActor) Act(b *Builder, ctx context.Context, a *Action) error {
-	buildAction := cca.buildAction
-	if buildAction.Mode == "build-install" {
-		// (*Builder).installAction can rewrite the build action with its install action,
-		// making the true build action its dependency. Fetch the build action in that case.
-		buildAction = buildAction.Deps[0]
-	}
-	pr, err := b.checkCacheForBuild(a, buildAction)
-	if err != nil {
-		return err
-	}
-	a.Provider = pr
-	return nil
-}
-
 type coverProvider struct {
 	// name of static metadata file fragment emitted by the cover
 	// tool as part of the package cover action, for selected
@@ -692,16 +661,6 @@ func (b *Builder) CompileAction(mode, depMode BuildMode, p *load.Package) *Actio
 			})
 			a.Deps = append(a.Deps, coverAction)
 		}
-
-		// Create a cache action.
-		cacheAction := &Action{
-			Mode:    "build check cache",
-			Package: p,
-			Actor:   &checkCacheActor{buildAction: a},
-			Objdir:  a.Objdir,
-			Deps:    a.Deps, // Need outputs of dependency build actions to generate action id.
-		}
-		a.Deps = append(a.Deps, cacheAction)
 
 		// Create actions to run swig and cgo if needed. These actions
 		// cache their outputs independently under their own action IDs.
