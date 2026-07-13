@@ -333,8 +333,11 @@ type FuncMap = template.FuncMap
 // Funcs adds the elements of the argument map to the template's function map.
 // It must be called before the template is parsed.
 // It panics if a value in the map is not a function with appropriate return
-// type. However, it is legal to overwrite elements of the map. The return
-// value is the template, so calls can be chained.
+// type or if the name cannot be used syntactically as a function in a template.
+// A valid function name is a sequence of letters, digits, and underscores,
+// starting with a letter or an underscore.
+// It is legal to overwrite elements of the map. The return value is the template,
+// so calls can be chained.
 func (t *Template) Funcs(funcMap FuncMap) *Template {
 	t.text.Funcs(template.FuncMap(funcMap))
 	return t
