@@ -224,11 +224,15 @@ func (enc *Encoder) EncodeToken(t Token) error {
 	case CharData:
 		escapeText(p, t, false)
 	case Comment:
-		if bytes.Contains(t, endComment) {
-			return fmt.Errorf("xml: EncodeToken of Comment containing --> marker")
+		if bytes.Contains(t, ddBytes) {
+			return fmt.Errorf("xml: EncodeToken of Comment containing -- marker")
 		}
 		p.WriteString("<!--")
 		p.Write(t)
+		if len(t) > 0 && t[len(t)-1] == '-' {
+			// "--->" is invalid grammar. Make it "- -->"
+			p.WriteByte(' ')
+		}
 		p.WriteString("-->")
 		return p.cachedWriteError()
 	case ProcInst:
