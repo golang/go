@@ -7,6 +7,7 @@ import "math/bits"
 import "cmd/internal/obj"
 import "cmd/compile/internal/types"
 import "cmd/compile/internal/ir"
+import "cmd/compile/internal/ssa/block"
 
 func rewriteValuegeneric(v *Value) bool {
 	switch v.Op {
@@ -40337,13 +40338,13 @@ func rewriteValuegeneric_OpZeroExt8to64(v *Value) bool {
 }
 func rewriteBlockgeneric(b *Block) bool {
 	switch b.Kind {
-	case BlockIf:
+	case block.BlockIf:
 		// match: (If (Not cond) yes no)
 		// result: (If cond no yes)
 		for b.Controls[0].Op == OpNot {
 			v_0 := b.Controls[0]
 			cond := v_0.Args[0]
-			b.resetWithControl(BlockIf, cond)
+			b.resetWithControl(block.BlockIf, cond)
 			b.swapSuccessors()
 			return true
 		}
@@ -40356,7 +40357,7 @@ func rewriteBlockgeneric(b *Block) bool {
 			if !(c) {
 				break
 			}
-			b.Reset(BlockFirst)
+			b.Reset(block.BlockFirst)
 			return true
 		}
 		// match: (If (ConstBool [c]) yes no)
@@ -40368,7 +40369,7 @@ func rewriteBlockgeneric(b *Block) bool {
 			if !(!c) {
 				break
 			}
-			b.Reset(BlockFirst)
+			b.Reset(block.BlockFirst)
 			b.swapSuccessors()
 			return true
 		}

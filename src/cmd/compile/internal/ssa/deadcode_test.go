@@ -5,6 +5,7 @@
 package ssa
 
 import (
+	"cmd/compile/internal/ssa/block"
 	"cmd/compile/internal/types"
 	"fmt"
 	"strconv"
@@ -83,7 +84,7 @@ func TestNeverTaken(t *testing.T) {
 	Deadcode(fun.f)
 	CheckFunc(fun.f)
 
-	if fun.blocks["entry"].Kind != BlockPlain {
+	if fun.blocks["entry"].Kind != block.BlockPlain {
 		t.Errorf("if(false) not simplified")
 	}
 	for _, b := range fun.f.Blocks {
@@ -120,7 +121,7 @@ func TestNestedDeadBlocks(t *testing.T) {
 	CheckFunc(fun.f)
 	Deadcode(fun.f)
 	CheckFunc(fun.f)
-	if fun.blocks["entry"].Kind != BlockPlain {
+	if fun.blocks["entry"].Kind != block.BlockPlain {
 		t.Errorf("if(false) not simplified")
 	}
 	for _, b := range fun.f.Blocks {

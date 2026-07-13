@@ -11,6 +11,7 @@ import (
 	"cmd/compile/internal/ir"
 	"cmd/compile/internal/logopt"
 	"cmd/compile/internal/ssa"
+	"cmd/compile/internal/ssa/block"
 	"cmd/compile/internal/ssagen"
 	"cmd/compile/internal/types"
 	"cmd/internal/obj"
@@ -963,34 +964,34 @@ func ssaGenValue(s *ssagen.State, v *ssa.Value) {
 	}
 }
 
-var blockJump = map[ssa.BlockKind]struct {
+var blockJump = map[block.BlockKind]struct {
 	asm, invasm obj.As
 }{
-	ssa.BlockMIPSEQ:  {mips.ABEQ, mips.ABNE},
-	ssa.BlockMIPSNE:  {mips.ABNE, mips.ABEQ},
-	ssa.BlockMIPSLTZ: {mips.ABLTZ, mips.ABGEZ},
-	ssa.BlockMIPSGEZ: {mips.ABGEZ, mips.ABLTZ},
-	ssa.BlockMIPSLEZ: {mips.ABLEZ, mips.ABGTZ},
-	ssa.BlockMIPSGTZ: {mips.ABGTZ, mips.ABLEZ},
-	ssa.BlockMIPSFPT: {mips.ABFPT, mips.ABFPF},
-	ssa.BlockMIPSFPF: {mips.ABFPF, mips.ABFPT},
+	block.BlockMIPSEQ:  {mips.ABEQ, mips.ABNE},
+	block.BlockMIPSNE:  {mips.ABNE, mips.ABEQ},
+	block.BlockMIPSLTZ: {mips.ABLTZ, mips.ABGEZ},
+	block.BlockMIPSGEZ: {mips.ABGEZ, mips.ABLTZ},
+	block.BlockMIPSLEZ: {mips.ABLEZ, mips.ABGTZ},
+	block.BlockMIPSGTZ: {mips.ABGTZ, mips.ABLEZ},
+	block.BlockMIPSFPT: {mips.ABFPT, mips.ABFPF},
+	block.BlockMIPSFPF: {mips.ABFPF, mips.ABFPT},
 }
 
 func ssaGenBlock(s *ssagen.State, b, next *ssa.Block) {
 	switch b.Kind {
-	case ssa.BlockPlain, ssa.BlockDefer:
+	case block.BlockPlain, block.BlockDefer:
 		if b.Succs[0].Block() != next {
 			p := s.Prog(obj.AJMP)
 			p.To.Type = obj.TYPE_BRANCH
 			s.Branches = append(s.Branches, ssagen.Branch{P: p, B: b.Succs[0].Block()})
 		}
-	case ssa.BlockExit, ssa.BlockRetJmp:
-	case ssa.BlockRet:
+	case block.BlockExit, block.BlockRetJmp:
+	case block.BlockRet:
 		s.Prog(obj.ARET)
-	case ssa.BlockMIPSEQ, ssa.BlockMIPSNE,
-		ssa.BlockMIPSLTZ, ssa.BlockMIPSGEZ,
-		ssa.BlockMIPSLEZ, ssa.BlockMIPSGTZ,
-		ssa.BlockMIPSFPT, ssa.BlockMIPSFPF:
+	case block.BlockMIPSEQ, block.BlockMIPSNE,
+		block.BlockMIPSLTZ, block.BlockMIPSGEZ,
+		block.BlockMIPSLEZ, block.BlockMIPSGTZ,
+		block.BlockMIPSFPT, block.BlockMIPSFPF:
 		jmp := blockJump[b.Kind]
 		var p *obj.Prog
 		switch next {

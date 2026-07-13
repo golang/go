@@ -7,6 +7,8 @@ package ssa
 import (
 	"slices"
 	"strings"
+
+	"cmd/compile/internal/ssa/block"
 )
 
 func (kb *knownBitsState) fold(v *Value) (value, known int64) {
@@ -261,9 +263,9 @@ func (kb *knownBitsState) isLiveOutEdge(b *Block, index uint) bool {
 	}
 
 	switch b.Kind {
-	case BlockFirst:
+	case block.BlockFirst:
 		return index == 0
-	case BlockPlain, BlockIf, BlockDefer, BlockRet, BlockRetJmp, BlockExit, BlockJumpTable:
+	case block.BlockPlain, block.BlockIf, block.BlockDefer, block.BlockRet, block.BlockRetJmp, block.BlockExit, block.BlockJumpTable:
 		return true
 	default:
 		panic("unreachable; unknown block kind")

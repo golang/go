@@ -10,6 +10,7 @@ import (
 	"cmd/compile/internal/logopt"
 	"cmd/compile/internal/objw"
 	"cmd/compile/internal/ssa"
+	"cmd/compile/internal/ssa/block"
 	"cmd/compile/internal/ssagen"
 	"cmd/compile/internal/types"
 	"cmd/internal/obj"
@@ -2066,38 +2067,38 @@ var blockJump = [...]struct {
 	asm, invasm     obj.As
 	asmeq, invasmun bool
 }{
-	ssa.BlockPPC64EQ: {ppc64.ABEQ, ppc64.ABNE, false, false},
-	ssa.BlockPPC64NE: {ppc64.ABNE, ppc64.ABEQ, false, false},
+	block.BlockPPC64EQ: {ppc64.ABEQ, ppc64.ABNE, false, false},
+	block.BlockPPC64NE: {ppc64.ABNE, ppc64.ABEQ, false, false},
 
-	ssa.BlockPPC64LT: {ppc64.ABLT, ppc64.ABGE, false, false},
-	ssa.BlockPPC64GE: {ppc64.ABGE, ppc64.ABLT, false, false},
-	ssa.BlockPPC64LE: {ppc64.ABLE, ppc64.ABGT, false, false},
-	ssa.BlockPPC64GT: {ppc64.ABGT, ppc64.ABLE, false, false},
+	block.BlockPPC64LT: {ppc64.ABLT, ppc64.ABGE, false, false},
+	block.BlockPPC64GE: {ppc64.ABGE, ppc64.ABLT, false, false},
+	block.BlockPPC64LE: {ppc64.ABLE, ppc64.ABGT, false, false},
+	block.BlockPPC64GT: {ppc64.ABGT, ppc64.ABLE, false, false},
 
 	// TODO: need to work FP comparisons into block jumps
-	ssa.BlockPPC64FLT: {ppc64.ABLT, ppc64.ABGE, false, false},
-	ssa.BlockPPC64FGE: {ppc64.ABGT, ppc64.ABLT, true, true}, // GE = GT or EQ; !GE = LT or UN
-	ssa.BlockPPC64FLE: {ppc64.ABLT, ppc64.ABGT, true, true}, // LE = LT or EQ; !LE = GT or UN
-	ssa.BlockPPC64FGT: {ppc64.ABGT, ppc64.ABLE, false, false},
+	block.BlockPPC64FLT: {ppc64.ABLT, ppc64.ABGE, false, false},
+	block.BlockPPC64FGE: {ppc64.ABGT, ppc64.ABLT, true, true}, // GE = GT or EQ; !GE = LT or UN
+	block.BlockPPC64FLE: {ppc64.ABLT, ppc64.ABGT, true, true}, // LE = LT or EQ; !LE = GT or UN
+	block.BlockPPC64FGT: {ppc64.ABGT, ppc64.ABLE, false, false},
 }
 
 func ssaGenBlock(s *ssagen.State, b, next *ssa.Block) {
 	switch b.Kind {
-	case ssa.BlockPlain, ssa.BlockDefer:
+	case block.BlockPlain, block.BlockDefer:
 		if b.Succs[0].Block() != next {
 			p := s.Prog(obj.AJMP)
 			p.To.Type = obj.TYPE_BRANCH
 			s.Branches = append(s.Branches, ssagen.Branch{P: p, B: b.Succs[0].Block()})
 		}
-	case ssa.BlockExit, ssa.BlockRetJmp:
-	case ssa.BlockRet:
+	case block.BlockExit, block.BlockRetJmp:
+	case block.BlockRet:
 		s.Prog(obj.ARET)
 
-	case ssa.BlockPPC64EQ, ssa.BlockPPC64NE,
-		ssa.BlockPPC64LT, ssa.BlockPPC64GE,
-		ssa.BlockPPC64LE, ssa.BlockPPC64GT,
-		ssa.BlockPPC64FLT, ssa.BlockPPC64FGE,
-		ssa.BlockPPC64FLE, ssa.BlockPPC64FGT:
+	case block.BlockPPC64EQ, block.BlockPPC64NE,
+		block.BlockPPC64LT, block.BlockPPC64GE,
+		block.BlockPPC64LE, block.BlockPPC64GT,
+		block.BlockPPC64FLT, block.BlockPPC64FGE,
+		block.BlockPPC64FLE, block.BlockPPC64FGT:
 		jmp := blockJump[b.Kind]
 		switch next {
 		case b.Succs[0].Block():

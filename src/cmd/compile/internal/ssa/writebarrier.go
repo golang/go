@@ -6,6 +6,7 @@ package ssa
 
 import (
 	"cmd/compile/internal/reflectdata"
+	"cmd/compile/internal/ssa/block"
 	"cmd/compile/internal/types"
 	"cmd/internal/obj"
 	"cmd/internal/objabi"
@@ -350,7 +351,7 @@ func writebarrier(f *Func) {
 		}
 
 		// Build branch point.
-		bThen := f.NewBlock(BlockPlain)
+		bThen := f.NewBlock(block.BlockPlain)
 		bEnd := f.NewBlock(b.Kind)
 		bThen.Pos = pos
 		bEnd.Pos = b.Pos
@@ -369,7 +370,7 @@ func writebarrier(f *Func) {
 		cfgtypes := &f.Config.Types
 		flag := b.NewValue2(pos, OpLoad, cfgtypes.UInt32, wbaddr, mem)
 		flag = b.NewValue2(pos, OpNeq32, cfgtypes.Bool, flag, const0)
-		b.Kind = BlockIf
+		b.Kind = block.BlockIf
 		b.SetControl(flag)
 		b.Likely = BranchUnlikely
 		b.Succs = b.Succs[:0]

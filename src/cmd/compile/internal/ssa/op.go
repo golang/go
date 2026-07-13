@@ -204,7 +204,7 @@ func archRegForAbiReg(r abi.RegIndex, c *Config) uint8 {
 // package (assembler).
 func ObjRegForAbiReg(r abi.RegIndex, c *Config) int16 {
 	m := archRegForAbiReg(r, c)
-	return c.registers[m].objNum
+	return c.registers[m].ObjNum
 }
 
 // ArgWidth returns the amount of stack needed for all the inputs

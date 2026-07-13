@@ -6,6 +6,7 @@ package ssa
 
 import (
 	"cmd/compile/internal/ir"
+	"cmd/compile/internal/ssa/block"
 	"cmd/compile/internal/types"
 	"cmd/internal/obj"
 	"slices"
@@ -307,7 +308,7 @@ func pairLoads(f *Func) {
 }
 
 func memoryBarrierTest(b *Block) bool {
-	if b.Kind != BlockARM64NZW {
+	if b.Kind != block.BlockARM64NZW {
 		return false
 	}
 	c := b.Controls[0]

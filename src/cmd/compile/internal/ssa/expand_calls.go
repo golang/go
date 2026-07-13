@@ -8,6 +8,7 @@ import (
 	"cmd/compile/internal/abi"
 	"cmd/compile/internal/base"
 	"cmd/compile/internal/ir"
+	"cmd/compile/internal/ssa/block"
 	"cmd/compile/internal/types"
 	"cmd/internal/src"
 	"fmt"
@@ -801,7 +802,7 @@ func (x *expandState) rewriteWideSelectToStores(pos src.XPos, b *Block, containe
 }
 
 func isBlockMultiValueExit(b *Block) bool {
-	return (b.Kind == BlockRet || b.Kind == BlockRetJmp) && b.Controls[0] != nil && b.Controls[0].Op == OpMakeResult
+	return (b.Kind == block.BlockRet || b.Kind == block.BlockRetJmp) && b.Controls[0] != nil && b.Controls[0].Op == OpMakeResult
 }
 
 type Abi1RO uint8 // An offset within a parameter's slice of register indices, for abi1.

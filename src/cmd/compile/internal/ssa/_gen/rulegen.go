@@ -609,6 +609,7 @@ func fprint(w io.Writer, n Node) {
 			"cmd/compile/internal/base",
 			"cmd/compile/internal/types",
 			"cmd/compile/internal/ir",
+			"cmd/compile/internal/ssa/block",
 		}, n.Arch.imports...) {
 			fmt.Fprintf(w, "import %q\n", path)
 		}
@@ -1498,12 +1499,12 @@ func splitNameExpr(arg string) (name, expr string) {
 func getBlockInfo(op string, arch arch) (name string, data blockData) {
 	for _, b := range genericBlocks {
 		if b.name == op {
-			return "Block" + op, b
+			return "block.Block" + op, b
 		}
 	}
 	for _, b := range arch.blocks {
 		if b.name == op {
-			return "Block" + arch.name + op, b
+			return "block.Block" + arch.name + op, b
 		}
 	}
 	log.Fatalf("could not find block data for %s", op)

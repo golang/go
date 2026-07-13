@@ -4,6 +4,8 @@
 
 package ssa
 
+import blockpkg "cmd/compile/internal/ssa/block"
+
 // ----------------------------------------------------------------------------
 // Sparse Conditional Constant Propagation
 //
@@ -500,17 +502,17 @@ func (t *worklist) visitValue(val *Value) {
 // branch destination corresponding to lattice value of condition value.
 func (t *worklist) propagate(block *Block) {
 	switch block.Kind {
-	case BlockExit, BlockRet, BlockRetJmp, BlockInvalid:
+	case blockpkg.BlockExit, blockpkg.BlockRet, blockpkg.BlockRetJmp, blockpkg.BlockInvalid:
 		// control flow ends, do nothing then
 		break
-	case BlockDefer:
+	case blockpkg.BlockDefer:
 		// we know nothing about control flow, add all branch destinations
 		t.edges = append(t.edges, block.Succs...)
-	case BlockFirst:
+	case blockpkg.BlockFirst:
 		fallthrough // always takes the first branch
-	case BlockPlain:
+	case blockpkg.BlockPlain:
 		t.edges = append(t.edges, block.Succs[0])
-	case BlockIf, BlockJumpTable:
+	case blockpkg.BlockIf, blockpkg.BlockJumpTable:
 		cond := block.ControlValues()[0]
 		condLattice := t.getLatticeCell(cond)
 		if condLattice.tag == bottom {
@@ -519,7 +521,7 @@ func (t *worklist) propagate(block *Block) {
 		} else if condLattice.tag == constant {
 			// add branchIdx destinations depends on its condition
 			var branchIdx int64
-			if block.Kind == BlockIf {
+			if block.Kind == blockpkg.BlockIf {
 				branchIdx = 1 - condLattice.val.AuxInt
 			} else {
 				branchIdx = condLattice.val.AuxInt
@@ -542,13 +544,13 @@ func (t *worklist) propagate(block *Block) {
 // and thus can be removed in further deadcode phase
 func rewireSuccessor(block *Block, constVal *Value) bool {
 	switch block.Kind {
-	case BlockIf:
+	case blockpkg.BlockIf:
 		block.removeEdge(int(constVal.AuxInt))
-		block.Kind = BlockPlain
+		block.Kind = blockpkg.BlockPlain
 		block.Likely = BranchUnknown
 		block.ResetControls()
 		return true
-	case BlockJumpTable:
+	case blockpkg.BlockJumpTable:
 		// Remove everything but the known taken branch.
 		idx := int(constVal.AuxInt)
 		if idx < 0 || idx >= len(block.Succs) {
@@ -562,7 +564,7 @@ func rewireSuccessor(block *Block, constVal *Value) bool {
 		for len(block.Succs) > 1 {
 			block.removeEdge(1)
 		}
-		block.Kind = BlockPlain
+		block.Kind = blockpkg.BlockPlain
 		block.Likely = BranchUnknown
 		block.ResetControls()
 		return true

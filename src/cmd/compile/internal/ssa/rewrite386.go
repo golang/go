@@ -4,6 +4,7 @@ package ssa
 
 import "math"
 import "cmd/compile/internal/types"
+import "cmd/compile/internal/ssa/block"
 
 func rewriteValue386(v *Value) bool {
 	switch v.Op {
@@ -10857,139 +10858,139 @@ func rewriteValue386_OpZeromask(v *Value) bool {
 }
 func rewriteBlock386(b *Block) bool {
 	switch b.Kind {
-	case Block386EQ:
+	case block.Block386EQ:
 		// match: (EQ (InvertFlags cmp) yes no)
 		// result: (EQ cmp yes no)
 		for b.Controls[0].Op == Op386InvertFlags {
 			v_0 := b.Controls[0]
 			cmp := v_0.Args[0]
-			b.resetWithControl(Block386EQ, cmp)
+			b.resetWithControl(block.Block386EQ, cmp)
 			return true
 		}
 		// match: (EQ (FlagEQ) yes no)
 		// result: (First yes no)
 		for b.Controls[0].Op == Op386FlagEQ {
-			b.Reset(BlockFirst)
+			b.Reset(block.BlockFirst)
 			return true
 		}
 		// match: (EQ (FlagLT_ULT) yes no)
 		// result: (First no yes)
 		for b.Controls[0].Op == Op386FlagLT_ULT {
-			b.Reset(BlockFirst)
+			b.Reset(block.BlockFirst)
 			b.swapSuccessors()
 			return true
 		}
 		// match: (EQ (FlagLT_UGT) yes no)
 		// result: (First no yes)
 		for b.Controls[0].Op == Op386FlagLT_UGT {
-			b.Reset(BlockFirst)
+			b.Reset(block.BlockFirst)
 			b.swapSuccessors()
 			return true
 		}
 		// match: (EQ (FlagGT_ULT) yes no)
 		// result: (First no yes)
 		for b.Controls[0].Op == Op386FlagGT_ULT {
-			b.Reset(BlockFirst)
+			b.Reset(block.BlockFirst)
 			b.swapSuccessors()
 			return true
 		}
 		// match: (EQ (FlagGT_UGT) yes no)
 		// result: (First no yes)
 		for b.Controls[0].Op == Op386FlagGT_UGT {
-			b.Reset(BlockFirst)
+			b.Reset(block.BlockFirst)
 			b.swapSuccessors()
 			return true
 		}
-	case Block386GE:
+	case block.Block386GE:
 		// match: (GE (InvertFlags cmp) yes no)
 		// result: (LE cmp yes no)
 		for b.Controls[0].Op == Op386InvertFlags {
 			v_0 := b.Controls[0]
 			cmp := v_0.Args[0]
-			b.resetWithControl(Block386LE, cmp)
+			b.resetWithControl(block.Block386LE, cmp)
 			return true
 		}
 		// match: (GE (FlagEQ) yes no)
 		// result: (First yes no)
 		for b.Controls[0].Op == Op386FlagEQ {
-			b.Reset(BlockFirst)
+			b.Reset(block.BlockFirst)
 			return true
 		}
 		// match: (GE (FlagLT_ULT) yes no)
 		// result: (First no yes)
 		for b.Controls[0].Op == Op386FlagLT_ULT {
-			b.Reset(BlockFirst)
+			b.Reset(block.BlockFirst)
 			b.swapSuccessors()
 			return true
 		}
 		// match: (GE (FlagLT_UGT) yes no)
 		// result: (First no yes)
 		for b.Controls[0].Op == Op386FlagLT_UGT {
-			b.Reset(BlockFirst)
+			b.Reset(block.BlockFirst)
 			b.swapSuccessors()
 			return true
 		}
 		// match: (GE (FlagGT_ULT) yes no)
 		// result: (First yes no)
 		for b.Controls[0].Op == Op386FlagGT_ULT {
-			b.Reset(BlockFirst)
+			b.Reset(block.BlockFirst)
 			return true
 		}
 		// match: (GE (FlagGT_UGT) yes no)
 		// result: (First yes no)
 		for b.Controls[0].Op == Op386FlagGT_UGT {
-			b.Reset(BlockFirst)
+			b.Reset(block.BlockFirst)
 			return true
 		}
-	case Block386GT:
+	case block.Block386GT:
 		// match: (GT (InvertFlags cmp) yes no)
 		// result: (LT cmp yes no)
 		for b.Controls[0].Op == Op386InvertFlags {
 			v_0 := b.Controls[0]
 			cmp := v_0.Args[0]
-			b.resetWithControl(Block386LT, cmp)
+			b.resetWithControl(block.Block386LT, cmp)
 			return true
 		}
 		// match: (GT (FlagEQ) yes no)
 		// result: (First no yes)
 		for b.Controls[0].Op == Op386FlagEQ {
-			b.Reset(BlockFirst)
+			b.Reset(block.BlockFirst)
 			b.swapSuccessors()
 			return true
 		}
 		// match: (GT (FlagLT_ULT) yes no)
 		// result: (First no yes)
 		for b.Controls[0].Op == Op386FlagLT_ULT {
-			b.Reset(BlockFirst)
+			b.Reset(block.BlockFirst)
 			b.swapSuccessors()
 			return true
 		}
 		// match: (GT (FlagLT_UGT) yes no)
 		// result: (First no yes)
 		for b.Controls[0].Op == Op386FlagLT_UGT {
-			b.Reset(BlockFirst)
+			b.Reset(block.BlockFirst)
 			b.swapSuccessors()
 			return true
 		}
 		// match: (GT (FlagGT_ULT) yes no)
 		// result: (First yes no)
 		for b.Controls[0].Op == Op386FlagGT_ULT {
-			b.Reset(BlockFirst)
+			b.Reset(block.BlockFirst)
 			return true
 		}
 		// match: (GT (FlagGT_UGT) yes no)
 		// result: (First yes no)
 		for b.Controls[0].Op == Op386FlagGT_UGT {
-			b.Reset(BlockFirst)
+			b.Reset(block.BlockFirst)
 			return true
 		}
-	case BlockIf:
+	case block.BlockIf:
 		// match: (If (SETL cmp) yes no)
 		// result: (LT cmp yes no)
 		for b.Controls[0].Op == Op386SETL {
 			v_0 := b.Controls[0]
 			cmp := v_0.Args[0]
-			b.resetWithControl(Block386LT, cmp)
+			b.resetWithControl(block.Block386LT, cmp)
 			return true
 		}
 		// match: (If (SETLE cmp) yes no)
@@ -10997,7 +10998,7 @@ func rewriteBlock386(b *Block) bool {
 		for b.Controls[0].Op == Op386SETLE {
 			v_0 := b.Controls[0]
 			cmp := v_0.Args[0]
-			b.resetWithControl(Block386LE, cmp)
+			b.resetWithControl(block.Block386LE, cmp)
 			return true
 		}
 		// match: (If (SETG cmp) yes no)
@@ -11005,7 +11006,7 @@ func rewriteBlock386(b *Block) bool {
 		for b.Controls[0].Op == Op386SETG {
 			v_0 := b.Controls[0]
 			cmp := v_0.Args[0]
-			b.resetWithControl(Block386GT, cmp)
+			b.resetWithControl(block.Block386GT, cmp)
 			return true
 		}
 		// match: (If (SETGE cmp) yes no)
@@ -11013,7 +11014,7 @@ func rewriteBlock386(b *Block) bool {
 		for b.Controls[0].Op == Op386SETGE {
 			v_0 := b.Controls[0]
 			cmp := v_0.Args[0]
-			b.resetWithControl(Block386GE, cmp)
+			b.resetWithControl(block.Block386GE, cmp)
 			return true
 		}
 		// match: (If (SETEQ cmp) yes no)
@@ -11021,7 +11022,7 @@ func rewriteBlock386(b *Block) bool {
 		for b.Controls[0].Op == Op386SETEQ {
 			v_0 := b.Controls[0]
 			cmp := v_0.Args[0]
-			b.resetWithControl(Block386EQ, cmp)
+			b.resetWithControl(block.Block386EQ, cmp)
 			return true
 		}
 		// match: (If (SETNE cmp) yes no)
@@ -11029,7 +11030,7 @@ func rewriteBlock386(b *Block) bool {
 		for b.Controls[0].Op == Op386SETNE {
 			v_0 := b.Controls[0]
 			cmp := v_0.Args[0]
-			b.resetWithControl(Block386NE, cmp)
+			b.resetWithControl(block.Block386NE, cmp)
 			return true
 		}
 		// match: (If (SETB cmp) yes no)
@@ -11037,7 +11038,7 @@ func rewriteBlock386(b *Block) bool {
 		for b.Controls[0].Op == Op386SETB {
 			v_0 := b.Controls[0]
 			cmp := v_0.Args[0]
-			b.resetWithControl(Block386ULT, cmp)
+			b.resetWithControl(block.Block386ULT, cmp)
 			return true
 		}
 		// match: (If (SETBE cmp) yes no)
@@ -11045,7 +11046,7 @@ func rewriteBlock386(b *Block) bool {
 		for b.Controls[0].Op == Op386SETBE {
 			v_0 := b.Controls[0]
 			cmp := v_0.Args[0]
-			b.resetWithControl(Block386ULE, cmp)
+			b.resetWithControl(block.Block386ULE, cmp)
 			return true
 		}
 		// match: (If (SETA cmp) yes no)
@@ -11053,7 +11054,7 @@ func rewriteBlock386(b *Block) bool {
 		for b.Controls[0].Op == Op386SETA {
 			v_0 := b.Controls[0]
 			cmp := v_0.Args[0]
-			b.resetWithControl(Block386UGT, cmp)
+			b.resetWithControl(block.Block386UGT, cmp)
 			return true
 		}
 		// match: (If (SETAE cmp) yes no)
@@ -11061,7 +11062,7 @@ func rewriteBlock386(b *Block) bool {
 		for b.Controls[0].Op == Op386SETAE {
 			v_0 := b.Controls[0]
 			cmp := v_0.Args[0]
-			b.resetWithControl(Block386UGE, cmp)
+			b.resetWithControl(block.Block386UGE, cmp)
 			return true
 		}
 		// match: (If (SETO cmp) yes no)
@@ -11069,7 +11070,7 @@ func rewriteBlock386(b *Block) bool {
 		for b.Controls[0].Op == Op386SETO {
 			v_0 := b.Controls[0]
 			cmp := v_0.Args[0]
-			b.resetWithControl(Block386OS, cmp)
+			b.resetWithControl(block.Block386OS, cmp)
 			return true
 		}
 		// match: (If (SETGF cmp) yes no)
@@ -11077,7 +11078,7 @@ func rewriteBlock386(b *Block) bool {
 		for b.Controls[0].Op == Op386SETGF {
 			v_0 := b.Controls[0]
 			cmp := v_0.Args[0]
-			b.resetWithControl(Block386UGT, cmp)
+			b.resetWithControl(block.Block386UGT, cmp)
 			return true
 		}
 		// match: (If (SETGEF cmp) yes no)
@@ -11085,7 +11086,7 @@ func rewriteBlock386(b *Block) bool {
 		for b.Controls[0].Op == Op386SETGEF {
 			v_0 := b.Controls[0]
 			cmp := v_0.Args[0]
-			b.resetWithControl(Block386UGE, cmp)
+			b.resetWithControl(block.Block386UGE, cmp)
 			return true
 		}
 		// match: (If (SETEQF cmp) yes no)
@@ -11093,7 +11094,7 @@ func rewriteBlock386(b *Block) bool {
 		for b.Controls[0].Op == Op386SETEQF {
 			v_0 := b.Controls[0]
 			cmp := v_0.Args[0]
-			b.resetWithControl(Block386EQF, cmp)
+			b.resetWithControl(block.Block386EQF, cmp)
 			return true
 		}
 		// match: (If (SETNEF cmp) yes no)
@@ -11101,7 +11102,7 @@ func rewriteBlock386(b *Block) bool {
 		for b.Controls[0].Op == Op386SETNEF {
 			v_0 := b.Controls[0]
 			cmp := v_0.Args[0]
-			b.resetWithControl(Block386NEF, cmp)
+			b.resetWithControl(block.Block386NEF, cmp)
 			return true
 		}
 		// match: (If cond yes no)
@@ -11110,93 +11111,93 @@ func rewriteBlock386(b *Block) bool {
 			cond := b.Controls[0]
 			v0 := b.NewValue0(cond.Pos, Op386TESTB, types.TypeFlags)
 			v0.AddArg2(cond, cond)
-			b.resetWithControl(Block386NE, v0)
+			b.resetWithControl(block.Block386NE, v0)
 			return true
 		}
-	case Block386LE:
+	case block.Block386LE:
 		// match: (LE (InvertFlags cmp) yes no)
 		// result: (GE cmp yes no)
 		for b.Controls[0].Op == Op386InvertFlags {
 			v_0 := b.Controls[0]
 			cmp := v_0.Args[0]
-			b.resetWithControl(Block386GE, cmp)
+			b.resetWithControl(block.Block386GE, cmp)
 			return true
 		}
 		// match: (LE (FlagEQ) yes no)
 		// result: (First yes no)
 		for b.Controls[0].Op == Op386FlagEQ {
-			b.Reset(BlockFirst)
+			b.Reset(block.BlockFirst)
 			return true
 		}
 		// match: (LE (FlagLT_ULT) yes no)
 		// result: (First yes no)
 		for b.Controls[0].Op == Op386FlagLT_ULT {
-			b.Reset(BlockFirst)
+			b.Reset(block.BlockFirst)
 			return true
 		}
 		// match: (LE (FlagLT_UGT) yes no)
 		// result: (First yes no)
 		for b.Controls[0].Op == Op386FlagLT_UGT {
-			b.Reset(BlockFirst)
+			b.Reset(block.BlockFirst)
 			return true
 		}
 		// match: (LE (FlagGT_ULT) yes no)
 		// result: (First no yes)
 		for b.Controls[0].Op == Op386FlagGT_ULT {
-			b.Reset(BlockFirst)
+			b.Reset(block.BlockFirst)
 			b.swapSuccessors()
 			return true
 		}
 		// match: (LE (FlagGT_UGT) yes no)
 		// result: (First no yes)
 		for b.Controls[0].Op == Op386FlagGT_UGT {
-			b.Reset(BlockFirst)
+			b.Reset(block.BlockFirst)
 			b.swapSuccessors()
 			return true
 		}
-	case Block386LT:
+	case block.Block386LT:
 		// match: (LT (InvertFlags cmp) yes no)
 		// result: (GT cmp yes no)
 		for b.Controls[0].Op == Op386InvertFlags {
 			v_0 := b.Controls[0]
 			cmp := v_0.Args[0]
-			b.resetWithControl(Block386GT, cmp)
+			b.resetWithControl(block.Block386GT, cmp)
 			return true
 		}
 		// match: (LT (FlagEQ) yes no)
 		// result: (First no yes)
 		for b.Controls[0].Op == Op386FlagEQ {
-			b.Reset(BlockFirst)
+			b.Reset(block.BlockFirst)
 			b.swapSuccessors()
 			return true
 		}
 		// match: (LT (FlagLT_ULT) yes no)
 		// result: (First yes no)
 		for b.Controls[0].Op == Op386FlagLT_ULT {
-			b.Reset(BlockFirst)
+			b.Reset(block.BlockFirst)
 			return true
 		}
 		// match: (LT (FlagLT_UGT) yes no)
 		// result: (First yes no)
 		for b.Controls[0].Op == Op386FlagLT_UGT {
-			b.Reset(BlockFirst)
+			b.Reset(block.BlockFirst)
 			return true
 		}
 		// match: (LT (FlagGT_ULT) yes no)
 		// result: (First no yes)
 		for b.Controls[0].Op == Op386FlagGT_ULT {
-			b.Reset(BlockFirst)
+			b.Reset(block.BlockFirst)
 			b.swapSuccessors()
 			return true
 		}
 		// match: (LT (FlagGT_UGT) yes no)
 		// result: (First no yes)
 		for b.Controls[0].Op == Op386FlagGT_UGT {
-			b.Reset(BlockFirst)
+			b.Reset(block.BlockFirst)
 			b.swapSuccessors()
 			return true
 		}
-	case Block386NE:
+	case block.Block386NE:
 		// match: (NE (TESTB (SETL cmp) (SETL cmp)) yes no)
 		// result: (LT cmp yes no)
 		for b.Controls[0].Op == Op386TESTB {
@@ -11211,7 +11212,7 @@ func rewriteBlock386(b *Block) bool {
 			if v_0_1.Op != Op386SETL || cmp != v_0_1.Args[0] {
 				break
 			}
-			b.resetWithControl(Block386LT, cmp)
+			b.resetWithControl(block.Block386LT, cmp)
 			return true
 		}
 		// match: (NE (TESTB (SETLE cmp) (SETLE cmp)) yes no)
@@ -11228,7 +11229,7 @@ func rewriteBlock386(b *Block) bool {
 			if v_0_1.Op != Op386SETLE || cmp != v_0_1.Args[0] {
 				break
 			}
-			b.resetWithControl(Block386LE, cmp)
+			b.resetWithControl(block.Block386LE, cmp)
 			return true
 		}
 		// match: (NE (TESTB (SETG cmp) (SETG cmp)) yes no)
@@ -11245,7 +11246,7 @@ func rewriteBlock386(b *Block) bool {
 			if v_0_1.Op != Op386SETG || cmp != v_0_1.Args[0] {
 				break
 			}
-			b.resetWithControl(Block386GT, cmp)
+			b.resetWithControl(block.Block386GT, cmp)
 			return true
 		}
 		// match: (NE (TESTB (SETGE cmp) (SETGE cmp)) yes no)
@@ -11262,7 +11263,7 @@ func rewriteBlock386(b *Block) bool {
 			if v_0_1.Op != Op386SETGE || cmp != v_0_1.Args[0] {
 				break
 			}
-			b.resetWithControl(Block386GE, cmp)
+			b.resetWithControl(block.Block386GE, cmp)
 			return true
 		}
 		// match: (NE (TESTB (SETEQ cmp) (SETEQ cmp)) yes no)
@@ -11279,7 +11280,7 @@ func rewriteBlock386(b *Block) bool {
 			if v_0_1.Op != Op386SETEQ || cmp != v_0_1.Args[0] {
 				break
 			}
-			b.resetWithControl(Block386EQ, cmp)
+			b.resetWithControl(block.Block386EQ, cmp)
 			return true
 		}
 		// match: (NE (TESTB (SETNE cmp) (SETNE cmp)) yes no)
@@ -11296,7 +11297,7 @@ func rewriteBlock386(b *Block) bool {
 			if v_0_1.Op != Op386SETNE || cmp != v_0_1.Args[0] {
 				break
 			}
-			b.resetWithControl(Block386NE, cmp)
+			b.resetWithControl(block.Block386NE, cmp)
 			return true
 		}
 		// match: (NE (TESTB (SETB cmp) (SETB cmp)) yes no)
@@ -11313,7 +11314,7 @@ func rewriteBlock386(b *Block) bool {
 			if v_0_1.Op != Op386SETB || cmp != v_0_1.Args[0] {
 				break
 			}
-			b.resetWithControl(Block386ULT, cmp)
+			b.resetWithControl(block.Block386ULT, cmp)
 			return true
 		}
 		// match: (NE (TESTB (SETBE cmp) (SETBE cmp)) yes no)
@@ -11330,7 +11331,7 @@ func rewriteBlock386(b *Block) bool {
 			if v_0_1.Op != Op386SETBE || cmp != v_0_1.Args[0] {
 				break
 			}
-			b.resetWithControl(Block386ULE, cmp)
+			b.resetWithControl(block.Block386ULE, cmp)
 			return true
 		}
 		// match: (NE (TESTB (SETA cmp) (SETA cmp)) yes no)
@@ -11347,7 +11348,7 @@ func rewriteBlock386(b *Block) bool {
 			if v_0_1.Op != Op386SETA || cmp != v_0_1.Args[0] {
 				break
 			}
-			b.resetWithControl(Block386UGT, cmp)
+			b.resetWithControl(block.Block386UGT, cmp)
 			return true
 		}
 		// match: (NE (TESTB (SETAE cmp) (SETAE cmp)) yes no)
@@ -11364,7 +11365,7 @@ func rewriteBlock386(b *Block) bool {
 			if v_0_1.Op != Op386SETAE || cmp != v_0_1.Args[0] {
 				break
 			}
-			b.resetWithControl(Block386UGE, cmp)
+			b.resetWithControl(block.Block386UGE, cmp)
 			return true
 		}
 		// match: (NE (TESTB (SETO cmp) (SETO cmp)) yes no)
@@ -11381,7 +11382,7 @@ func rewriteBlock386(b *Block) bool {
 			if v_0_1.Op != Op386SETO || cmp != v_0_1.Args[0] {
 				break
 			}
-			b.resetWithControl(Block386OS, cmp)
+			b.resetWithControl(block.Block386OS, cmp)
 			return true
 		}
 		// match: (NE (TESTB (SETGF cmp) (SETGF cmp)) yes no)
@@ -11398,7 +11399,7 @@ func rewriteBlock386(b *Block) bool {
 			if v_0_1.Op != Op386SETGF || cmp != v_0_1.Args[0] {
 				break
 			}
-			b.resetWithControl(Block386UGT, cmp)
+			b.resetWithControl(block.Block386UGT, cmp)
 			return true
 		}
 		// match: (NE (TESTB (SETGEF cmp) (SETGEF cmp)) yes no)
@@ -11415,7 +11416,7 @@ func rewriteBlock386(b *Block) bool {
 			if v_0_1.Op != Op386SETGEF || cmp != v_0_1.Args[0] {
 				break
 			}
-			b.resetWithControl(Block386UGE, cmp)
+			b.resetWithControl(block.Block386UGE, cmp)
 			return true
 		}
 		// match: (NE (TESTB (SETEQF cmp) (SETEQF cmp)) yes no)
@@ -11432,7 +11433,7 @@ func rewriteBlock386(b *Block) bool {
 			if v_0_1.Op != Op386SETEQF || cmp != v_0_1.Args[0] {
 				break
 			}
-			b.resetWithControl(Block386EQF, cmp)
+			b.resetWithControl(block.Block386EQF, cmp)
 			return true
 		}
 		// match: (NE (TESTB (SETNEF cmp) (SETNEF cmp)) yes no)
@@ -11449,7 +11450,7 @@ func rewriteBlock386(b *Block) bool {
 			if v_0_1.Op != Op386SETNEF || cmp != v_0_1.Args[0] {
 				break
 			}
-			b.resetWithControl(Block386NEF, cmp)
+			b.resetWithControl(block.Block386NEF, cmp)
 			return true
 		}
 		// match: (NE (InvertFlags cmp) yes no)
@@ -11457,203 +11458,203 @@ func rewriteBlock386(b *Block) bool {
 		for b.Controls[0].Op == Op386InvertFlags {
 			v_0 := b.Controls[0]
 			cmp := v_0.Args[0]
-			b.resetWithControl(Block386NE, cmp)
+			b.resetWithControl(block.Block386NE, cmp)
 			return true
 		}
 		// match: (NE (FlagEQ) yes no)
 		// result: (First no yes)
 		for b.Controls[0].Op == Op386FlagEQ {
-			b.Reset(BlockFirst)
+			b.Reset(block.BlockFirst)
 			b.swapSuccessors()
 			return true
 		}
 		// match: (NE (FlagLT_ULT) yes no)
 		// result: (First yes no)
 		for b.Controls[0].Op == Op386FlagLT_ULT {
-			b.Reset(BlockFirst)
+			b.Reset(block.BlockFirst)
 			return true
 		}
 		// match: (NE (FlagLT_UGT) yes no)
 		// result: (First yes no)
 		for b.Controls[0].Op == Op386FlagLT_UGT {
-			b.Reset(BlockFirst)
+			b.Reset(block.BlockFirst)
 			return true
 		}
 		// match: (NE (FlagGT_ULT) yes no)
 		// result: (First yes no)
 		for b.Controls[0].Op == Op386FlagGT_ULT {
-			b.Reset(BlockFirst)
+			b.Reset(block.BlockFirst)
 			return true
 		}
 		// match: (NE (FlagGT_UGT) yes no)
 		// result: (First yes no)
 		for b.Controls[0].Op == Op386FlagGT_UGT {
-			b.Reset(BlockFirst)
+			b.Reset(block.BlockFirst)
 			return true
 		}
-	case Block386UGE:
+	case block.Block386UGE:
 		// match: (UGE (InvertFlags cmp) yes no)
 		// result: (ULE cmp yes no)
 		for b.Controls[0].Op == Op386InvertFlags {
 			v_0 := b.Controls[0]
 			cmp := v_0.Args[0]
-			b.resetWithControl(Block386ULE, cmp)
+			b.resetWithControl(block.Block386ULE, cmp)
 			return true
 		}
 		// match: (UGE (FlagEQ) yes no)
 		// result: (First yes no)
 		for b.Controls[0].Op == Op386FlagEQ {
-			b.Reset(BlockFirst)
+			b.Reset(block.BlockFirst)
 			return true
 		}
 		// match: (UGE (FlagLT_ULT) yes no)
 		// result: (First no yes)
 		for b.Controls[0].Op == Op386FlagLT_ULT {
-			b.Reset(BlockFirst)
+			b.Reset(block.BlockFirst)
 			b.swapSuccessors()
 			return true
 		}
 		// match: (UGE (FlagLT_UGT) yes no)
 		// result: (First yes no)
 		for b.Controls[0].Op == Op386FlagLT_UGT {
-			b.Reset(BlockFirst)
+			b.Reset(block.BlockFirst)
 			return true
 		}
 		// match: (UGE (FlagGT_ULT) yes no)
 		// result: (First no yes)
 		for b.Controls[0].Op == Op386FlagGT_ULT {
-			b.Reset(BlockFirst)
+			b.Reset(block.BlockFirst)
 			b.swapSuccessors()
 			return true
 		}
 		// match: (UGE (FlagGT_UGT) yes no)
 		// result: (First yes no)
 		for b.Controls[0].Op == Op386FlagGT_UGT {
-			b.Reset(BlockFirst)
+			b.Reset(block.BlockFirst)
 			return true
 		}
-	case Block386UGT:
+	case block.Block386UGT:
 		// match: (UGT (InvertFlags cmp) yes no)
 		// result: (ULT cmp yes no)
 		for b.Controls[0].Op == Op386InvertFlags {
 			v_0 := b.Controls[0]
 			cmp := v_0.Args[0]
-			b.resetWithControl(Block386ULT, cmp)
+			b.resetWithControl(block.Block386ULT, cmp)
 			return true
 		}
 		// match: (UGT (FlagEQ) yes no)
 		// result: (First no yes)
 		for b.Controls[0].Op == Op386FlagEQ {
-			b.Reset(BlockFirst)
+			b.Reset(block.BlockFirst)
 			b.swapSuccessors()
 			return true
 		}
 		// match: (UGT (FlagLT_ULT) yes no)
 		// result: (First no yes)
 		for b.Controls[0].Op == Op386FlagLT_ULT {
-			b.Reset(BlockFirst)
+			b.Reset(block.BlockFirst)
 			b.swapSuccessors()
 			return true
 		}
 		// match: (UGT (FlagLT_UGT) yes no)
 		// result: (First yes no)
 		for b.Controls[0].Op == Op386FlagLT_UGT {
-			b.Reset(BlockFirst)
+			b.Reset(block.BlockFirst)
 			return true
 		}
 		// match: (UGT (FlagGT_ULT) yes no)
 		// result: (First no yes)
 		for b.Controls[0].Op == Op386FlagGT_ULT {
-			b.Reset(BlockFirst)
+			b.Reset(block.BlockFirst)
 			b.swapSuccessors()
 			return true
 		}
 		// match: (UGT (FlagGT_UGT) yes no)
 		// result: (First yes no)
 		for b.Controls[0].Op == Op386FlagGT_UGT {
-			b.Reset(BlockFirst)
+			b.Reset(block.BlockFirst)
 			return true
 		}
-	case Block386ULE:
+	case block.Block386ULE:
 		// match: (ULE (InvertFlags cmp) yes no)
 		// result: (UGE cmp yes no)
 		for b.Controls[0].Op == Op386InvertFlags {
 			v_0 := b.Controls[0]
 			cmp := v_0.Args[0]
-			b.resetWithControl(Block386UGE, cmp)
+			b.resetWithControl(block.Block386UGE, cmp)
 			return true
 		}
 		// match: (ULE (FlagEQ) yes no)
 		// result: (First yes no)
 		for b.Controls[0].Op == Op386FlagEQ {
-			b.Reset(BlockFirst)
+			b.Reset(block.BlockFirst)
 			return true
 		}
 		// match: (ULE (FlagLT_ULT) yes no)
 		// result: (First yes no)
 		for b.Controls[0].Op == Op386FlagLT_ULT {
-			b.Reset(BlockFirst)
+			b.Reset(block.BlockFirst)
 			return true
 		}
 		// match: (ULE (FlagLT_UGT) yes no)
 		// result: (First no yes)
 		for b.Controls[0].Op == Op386FlagLT_UGT {
-			b.Reset(BlockFirst)
+			b.Reset(block.BlockFirst)
 			b.swapSuccessors()
 			return true
 		}
 		// match: (ULE (FlagGT_ULT) yes no)
 		// result: (First yes no)
 		for b.Controls[0].Op == Op386FlagGT_ULT {
-			b.Reset(BlockFirst)
+			b.Reset(block.BlockFirst)
 			return true
 		}
 		// match: (ULE (FlagGT_UGT) yes no)
 		// result: (First no yes)
 		for b.Controls[0].Op == Op386FlagGT_UGT {
-			b.Reset(BlockFirst)
+			b.Reset(block.BlockFirst)
 			b.swapSuccessors()
 			return true
 		}
-	case Block386ULT:
+	case block.Block386ULT:
 		// match: (ULT (InvertFlags cmp) yes no)
 		// result: (UGT cmp yes no)
 		for b.Controls[0].Op == Op386InvertFlags {
 			v_0 := b.Controls[0]
 			cmp := v_0.Args[0]
-			b.resetWithControl(Block386UGT, cmp)
+			b.resetWithControl(block.Block386UGT, cmp)
 			return true
 		}
 		// match: (ULT (FlagEQ) yes no)
 		// result: (First no yes)
 		for b.Controls[0].Op == Op386FlagEQ {
-			b.Reset(BlockFirst)
+			b.Reset(block.BlockFirst)
 			b.swapSuccessors()
 			return true
 		}
 		// match: (ULT (FlagLT_ULT) yes no)
 		// result: (First yes no)
 		for b.Controls[0].Op == Op386FlagLT_ULT {
-			b.Reset(BlockFirst)
+			b.Reset(block.BlockFirst)
 			return true
 		}
 		// match: (ULT (FlagLT_UGT) yes no)
 		// result: (First no yes)
 		for b.Controls[0].Op == Op386FlagLT_UGT {
-			b.Reset(BlockFirst)
+			b.Reset(block.BlockFirst)
 			b.swapSuccessors()
 			return true
 		}
 		// match: (ULT (FlagGT_ULT) yes no)
 		// result: (First yes no)
 		for b.Controls[0].Op == Op386FlagGT_ULT {
-			b.Reset(BlockFirst)
+			b.Reset(block.BlockFirst)
 			return true
 		}
 		// match: (ULT (FlagGT_UGT) yes no)
 		// result: (First no yes)
 		for b.Controls[0].Op == Op386FlagGT_UGT {
-			b.Reset(BlockFirst)
+			b.Reset(block.BlockFirst)
 			b.swapSuccessors()
 			return true
 		}

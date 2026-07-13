@@ -12,6 +12,7 @@ import (
 	"cmd/compile/internal/base"
 	"cmd/compile/internal/ir"
 	"cmd/compile/internal/ssa"
+	"cmd/compile/internal/ssa/block"
 	"cmd/compile/internal/typecheck"
 	"cmd/compile/internal/types"
 	"cmd/internal/sys"
@@ -334,11 +335,11 @@ func initIntrinsics(cfg *intrinsicBuildConfig) {
 			addr := s.entryNewValue1A(ssa.OpAddr, types.Types[types.TBOOL].PtrTo(), ir.Syms.Loong64HasDBAR_HINTS, s.sb)
 			v := s.load(types.Types[types.TBOOL], addr)
 			b := s.endBlock()
-			b.Kind = ssa.BlockIf
+			b.Kind = block.BlockIf
 			b.SetControl(v)
-			bTrue := s.f.NewBlock(ssa.BlockPlain)
-			bFalse := s.f.NewBlock(ssa.BlockPlain)
-			bEnd := s.f.NewBlock(ssa.BlockPlain)
+			bTrue := s.f.NewBlock(block.BlockPlain)
+			bFalse := s.f.NewBlock(block.BlockPlain)
+			bEnd := s.f.NewBlock(block.BlockPlain)
 			b.AddEdgeTo(bTrue)
 			b.AddEdgeTo(bFalse)
 			b.Likely = ssa.BranchLikely
@@ -407,11 +408,11 @@ func initIntrinsics(cfg *intrinsicBuildConfig) {
 				addr := s.entryNewValue1A(ssa.OpAddr, types.Types[types.TBOOL].PtrTo(), ir.Syms.ARM64HasATOMICS, s.sb)
 				v := s.load(types.Types[types.TBOOL], addr)
 				b := s.endBlock()
-				b.Kind = ssa.BlockIf
+				b.Kind = block.BlockIf
 				b.SetControl(v)
-				bTrue := s.f.NewBlock(ssa.BlockPlain)
-				bFalse := s.f.NewBlock(ssa.BlockPlain)
-				bEnd := s.f.NewBlock(ssa.BlockPlain)
+				bTrue := s.f.NewBlock(block.BlockPlain)
+				bFalse := s.f.NewBlock(block.BlockPlain)
+				bEnd := s.f.NewBlock(block.BlockPlain)
 				b.AddEdgeTo(bTrue)
 				b.AddEdgeTo(bFalse)
 				b.Likely = ssa.BranchLikely
@@ -465,11 +466,11 @@ func initIntrinsics(cfg *intrinsicBuildConfig) {
 			addr := s.entryNewValue1A(ssa.OpAddr, types.Types[types.TBOOL].PtrTo(), ir.Syms.Loong64HasLAM_BH, s.sb)
 			v := s.load(types.Types[types.TBOOL], addr)
 			b := s.endBlock()
-			b.Kind = ssa.BlockIf
+			b.Kind = block.BlockIf
 			b.SetControl(v)
-			bTrue := s.f.NewBlock(ssa.BlockPlain)
-			bFalse := s.f.NewBlock(ssa.BlockPlain)
-			bEnd := s.f.NewBlock(ssa.BlockPlain)
+			bTrue := s.f.NewBlock(block.BlockPlain)
+			bFalse := s.f.NewBlock(block.BlockPlain)
+			bEnd := s.f.NewBlock(block.BlockPlain)
 			b.AddEdgeTo(bTrue)
 			b.AddEdgeTo(bFalse)
 			b.Likely = ssa.BranchLikely // most loong64 machines support the amswapdb.b
@@ -568,11 +569,11 @@ func initIntrinsics(cfg *intrinsicBuildConfig) {
 			addr := s.entryNewValue1A(ssa.OpAddr, types.Types[types.TBOOL].PtrTo(), ir.Syms.Loong64HasLAMCAS, s.sb)
 			v := s.load(types.Types[types.TBOOL], addr)
 			b := s.endBlock()
-			b.Kind = ssa.BlockIf
+			b.Kind = block.BlockIf
 			b.SetControl(v)
-			bTrue := s.f.NewBlock(ssa.BlockPlain)
-			bFalse := s.f.NewBlock(ssa.BlockPlain)
-			bEnd := s.f.NewBlock(ssa.BlockPlain)
+			bTrue := s.f.NewBlock(block.BlockPlain)
+			bFalse := s.f.NewBlock(block.BlockPlain)
+			bEnd := s.f.NewBlock(block.BlockPlain)
 			b.AddEdgeTo(bTrue)
 			b.AddEdgeTo(bFalse)
 			b.Likely = ssa.BranchLikely
@@ -789,11 +790,11 @@ func initIntrinsics(cfg *intrinsicBuildConfig) {
 
 			v := s.entryNewValue0A(ssa.OpHasCPUFeature, types.Types[types.TBOOL], ir.Syms.X86HasFMA)
 			b := s.endBlock()
-			b.Kind = ssa.BlockIf
+			b.Kind = block.BlockIf
 			b.SetControl(v)
-			bTrue := s.f.NewBlock(ssa.BlockPlain)
-			bFalse := s.f.NewBlock(ssa.BlockPlain)
-			bEnd := s.f.NewBlock(ssa.BlockPlain)
+			bTrue := s.f.NewBlock(block.BlockPlain)
+			bFalse := s.f.NewBlock(block.BlockPlain)
+			bEnd := s.f.NewBlock(block.BlockPlain)
 			b.AddEdgeTo(bTrue)
 			b.AddEdgeTo(bFalse)
 			b.Likely = ssa.BranchLikely // >= haswell cpus are common
@@ -818,11 +819,11 @@ func initIntrinsics(cfg *intrinsicBuildConfig) {
 			addr := s.entryNewValue1A(ssa.OpAddr, types.Types[types.TBOOL].PtrTo(), ir.Syms.ARMHasVFPv4, s.sb)
 			v := s.load(types.Types[types.TBOOL], addr)
 			b := s.endBlock()
-			b.Kind = ssa.BlockIf
+			b.Kind = block.BlockIf
 			b.SetControl(v)
-			bTrue := s.f.NewBlock(ssa.BlockPlain)
-			bFalse := s.f.NewBlock(ssa.BlockPlain)
-			bEnd := s.f.NewBlock(ssa.BlockPlain)
+			bTrue := s.f.NewBlock(block.BlockPlain)
+			bFalse := s.f.NewBlock(block.BlockPlain)
+			bEnd := s.f.NewBlock(block.BlockPlain)
 			b.AddEdgeTo(bTrue)
 			b.AddEdgeTo(bFalse)
 			b.Likely = ssa.BranchLikely
@@ -851,11 +852,11 @@ func initIntrinsics(cfg *intrinsicBuildConfig) {
 
 			v := s.entryNewValue0A(ssa.OpHasCPUFeature, types.Types[types.TBOOL], ir.Syms.X86HasSSE41)
 			b := s.endBlock()
-			b.Kind = ssa.BlockIf
+			b.Kind = block.BlockIf
 			b.SetControl(v)
-			bTrue := s.f.NewBlock(ssa.BlockPlain)
-			bFalse := s.f.NewBlock(ssa.BlockPlain)
-			bEnd := s.f.NewBlock(ssa.BlockPlain)
+			bTrue := s.f.NewBlock(block.BlockPlain)
+			bFalse := s.f.NewBlock(block.BlockPlain)
+			bEnd := s.f.NewBlock(block.BlockPlain)
 			b.AddEdgeTo(bTrue)
 			b.AddEdgeTo(bFalse)
 			b.Likely = ssa.BranchLikely // most machines have sse4.1 nowadays
@@ -893,11 +894,11 @@ func initIntrinsics(cfg *intrinsicBuildConfig) {
 			addr := s.entryNewValue1A(ssa.OpAddr, types.Types[types.TBOOL].PtrTo(), ir.Syms.Loong64HasLSX, s.sb)
 			v := s.load(types.Types[types.TBOOL], addr)
 			b := s.endBlock()
-			b.Kind = ssa.BlockIf
+			b.Kind = block.BlockIf
 			b.SetControl(v)
-			bTrue := s.f.NewBlock(ssa.BlockPlain)
-			bFalse := s.f.NewBlock(ssa.BlockPlain)
-			bEnd := s.f.NewBlock(ssa.BlockPlain)
+			bTrue := s.f.NewBlock(block.BlockPlain)
+			bFalse := s.f.NewBlock(block.BlockPlain)
+			bEnd := s.f.NewBlock(block.BlockPlain)
 			b.AddEdgeTo(bTrue)
 			b.AddEdgeTo(bFalse)
 			b.Likely = ssa.BranchLikely // most loong64 machines support the LSX
@@ -1110,11 +1111,11 @@ func initIntrinsics(cfg *intrinsicBuildConfig) {
 
 			v := s.entryNewValue0A(ssa.OpHasCPUFeature, types.Types[types.TBOOL], ir.Syms.X86HasPOPCNT)
 			b := s.endBlock()
-			b.Kind = ssa.BlockIf
+			b.Kind = block.BlockIf
 			b.SetControl(v)
-			bTrue := s.f.NewBlock(ssa.BlockPlain)
-			bFalse := s.f.NewBlock(ssa.BlockPlain)
-			bEnd := s.f.NewBlock(ssa.BlockPlain)
+			bTrue := s.f.NewBlock(block.BlockPlain)
+			bFalse := s.f.NewBlock(block.BlockPlain)
+			bEnd := s.f.NewBlock(block.BlockPlain)
 			b.AddEdgeTo(bTrue)
 			b.AddEdgeTo(bFalse)
 			b.Likely = ssa.BranchLikely // most machines have popcnt nowadays
@@ -1140,11 +1141,11 @@ func initIntrinsics(cfg *intrinsicBuildConfig) {
 			addr := s.entryNewValue1A(ssa.OpAddr, types.Types[types.TBOOL].PtrTo(), ir.Syms.Loong64HasLSX, s.sb)
 			v := s.load(types.Types[types.TBOOL], addr)
 			b := s.endBlock()
-			b.Kind = ssa.BlockIf
+			b.Kind = block.BlockIf
 			b.SetControl(v)
-			bTrue := s.f.NewBlock(ssa.BlockPlain)
-			bFalse := s.f.NewBlock(ssa.BlockPlain)
-			bEnd := s.f.NewBlock(ssa.BlockPlain)
+			bTrue := s.f.NewBlock(block.BlockPlain)
+			bFalse := s.f.NewBlock(block.BlockPlain)
+			bEnd := s.f.NewBlock(block.BlockPlain)
 			b.AddEdgeTo(bTrue)
 			b.AddEdgeTo(bFalse)
 			b.Likely = ssa.BranchLikely // most loong64 machines support the LSX
@@ -1174,11 +1175,11 @@ func initIntrinsics(cfg *intrinsicBuildConfig) {
 			addr := s.entryNewValue1A(ssa.OpAddr, types.Types[types.TBOOL].PtrTo(), ir.Syms.RISCV64HasZbb, s.sb)
 			v := s.load(types.Types[types.TBOOL], addr)
 			b := s.endBlock()
-			b.Kind = ssa.BlockIf
+			b.Kind = block.BlockIf
 			b.SetControl(v)
-			bTrue := s.f.NewBlock(ssa.BlockPlain)
-			bFalse := s.f.NewBlock(ssa.BlockPlain)
-			bEnd := s.f.NewBlock(ssa.BlockPlain)
+			bTrue := s.f.NewBlock(block.BlockPlain)
+			bFalse := s.f.NewBlock(block.BlockPlain)
+			bEnd := s.f.NewBlock(block.BlockPlain)
 			b.AddEdgeTo(bTrue)
 			b.AddEdgeTo(bFalse)
 			b.Likely = ssa.BranchLikely // Majority of RISC-V support Zbb.
@@ -1981,7 +1982,7 @@ func immJumpTable(s *state, idx *ssa.Value, intrinsicCall *ir.CallExpr, genOp fu
 	}
 
 	// Make blocks we'll need.
-	bEnd := s.f.NewBlock(ssa.BlockPlain)
+	bEnd := s.f.NewBlock(block.BlockPlain)
 
 	if !idx.Type.IsKind(types.TUINT8) && !idx.Type.IsKind(types.TUINT64) {
 		panic("immJumpTable expects uint8 or uint64 value")
@@ -1992,13 +1993,13 @@ func immJumpTable(s *state, idx *ssa.Value, intrinsicCall *ir.CallExpr, genOp fu
 	idx = s.conv(nil, idx, idx.Type, t)
 
 	b := s.curBlock
-	b.Kind = ssa.BlockJumpTable
+	b.Kind = block.BlockJumpTable
 	b.Pos = intrinsicCall.Pos()
 
 	b.SetControl(idx)
 	targets := [256]*ssa.Block{}
 	for i := range 256 {
-		t := s.f.NewBlock(ssa.BlockPlain)
+		t := s.f.NewBlock(block.BlockPlain)
 		targets[i] = t
 		b.AddEdgeTo(t)
 	}
@@ -2007,7 +2008,7 @@ func immJumpTable(s *state, idx *ssa.Value, intrinsicCall *ir.CallExpr, genOp fu
 	for i, t := range targets {
 		s.startBlock(t)
 		genOp(s, i)
-		if t.Kind != ssa.BlockExit {
+		if t.Kind != block.BlockExit {
 			t.AddEdgeTo(bEnd)
 		}
 		s.endBlock()
@@ -2024,10 +2025,10 @@ func branchTableImm8(s *state, idx *ssa.Value, intrinsicCall *ir.CallExpr, genOp
 
 func branchTableN(s *state, idx *ssa.Value, intrinsicCall *ir.CallExpr, genOp func(*state, int), immLimit uint64, preChecked bool) *ssa.Value {
 	// Make blocks we'll need.
-	bEnd := s.f.NewBlock(ssa.BlockPlain)
-	bPanic := s.f.NewBlock(ssa.BlockPlain)
+	bEnd := s.f.NewBlock(block.BlockPlain)
+	bPanic := s.f.NewBlock(block.BlockPlain)
 
-	jt := s.f.NewBlock(ssa.BlockPlain)
+	jt := s.f.NewBlock(block.BlockPlain)
 
 	t := types.Types[types.TUINTPTR]
 	idx = s.conv(nil, idx, idx.Type, t)
@@ -2037,7 +2038,7 @@ func branchTableN(s *state, idx *ssa.Value, intrinsicCall *ir.CallExpr, genOp fu
 		width := s.uintptrConstant(immLimit)
 		cmp := s.newValue2(s.ssaOp(ir.OLT, t), types.Types[types.TBOOL], idx, width)
 		bb := s.endBlock()
-		bb.Kind = ssa.BlockIf
+		bb.Kind = block.BlockIf
 		bb.SetControl(cmp)
 		bb.AddEdgeTo(jt)             // in range - use jump table
 		bb.AddEdgeTo(bPanic)         // out of range - panic
@@ -2052,7 +2053,7 @@ func branchTableN(s *state, idx *ssa.Value, intrinsicCall *ir.CallExpr, genOp fu
 	}
 
 	s.startBlock(jt)
-	jt.Kind = ssa.BlockPlain
+	jt.Kind = block.BlockPlain
 	jt.Pos = intrinsicCall.Pos()
 
 	branchTableNInner(s, idx, 0, immLimit, genOp, bEnd)
@@ -2070,7 +2071,7 @@ func branchTableNInner(s *state, idx *ssa.Value, lowInclusive, len uint64, genOp
 	if len == 1 {
 		genOp(s, int(lowInclusive+len-1))
 		if s.curBlock != nil { // if genOp was "panic" then curBlock is already ended and nil
-			if s.curBlock.Kind != ssa.BlockExit {
+			if s.curBlock.Kind != block.BlockExit {
 				s.curBlock.AddEdgeTo(bEnd)
 			}
 			s.endBlock()
@@ -2078,13 +2079,13 @@ func branchTableNInner(s *state, idx *ssa.Value, lowInclusive, len uint64, genOp
 		return
 	}
 
-	s.curBlock.Kind = ssa.BlockIf
+	s.curBlock.Kind = block.BlockIf
 	cmp := s.newValue2(s.ssaOp(ir.OLT, t), types.Types[types.TBOOL], idx, s.uintptrConstant(lowInclusive+len/2))
 	bb := s.endBlock()
-	bb.Kind = ssa.BlockIf
+	bb.Kind = block.BlockIf
 	bb.SetControl(cmp)
-	bMatch := s.f.NewBlock(ssa.BlockPlain)
-	bNext := s.f.NewBlock(ssa.BlockPlain)
+	bMatch := s.f.NewBlock(block.BlockPlain)
+	bNext := s.f.NewBlock(block.BlockPlain)
 	bb.AddEdgeTo(bMatch)
 	bb.AddEdgeTo(bNext)
 	s.startBlock(bMatch)
@@ -2106,10 +2107,10 @@ func immJumpTableN(s *state, idx *ssa.Value, intrinsicCall *ir.CallExpr, immLimi
 	}
 
 	// Make blocks we'll need.
-	bEnd := s.f.NewBlock(ssa.BlockPlain)
-	bPanic := s.f.NewBlock(ssa.BlockPlain)
+	bEnd := s.f.NewBlock(block.BlockPlain)
+	bPanic := s.f.NewBlock(block.BlockPlain)
 
-	jt := s.f.NewBlock(ssa.BlockJumpTable)
+	jt := s.f.NewBlock(block.BlockJumpTable)
 
 	t := types.Types[types.TUINTPTR]
 	idx = s.conv(nil, idx, idx.Type, t)
@@ -2118,7 +2119,7 @@ func immJumpTableN(s *state, idx *ssa.Value, intrinsicCall *ir.CallExpr, immLimi
 	// Begin with a bounds check
 	cmp := s.newValue2(s.ssaOp(ir.OLT, t), types.Types[types.TBOOL], idx, width)
 	bb := s.endBlock()
-	bb.Kind = ssa.BlockIf
+	bb.Kind = block.BlockIf
 	bb.SetControl(cmp)
 	bb.AddEdgeTo(jt)             // in range - use jump table
 	bb.AddEdgeTo(bPanic)         // out of range - panic
@@ -2129,7 +2130,7 @@ func immJumpTableN(s *state, idx *ssa.Value, intrinsicCall *ir.CallExpr, immLimi
 	s.endBlock()
 
 	s.startBlock(jt)
-	jt.Kind = ssa.BlockJumpTable
+	jt.Kind = block.BlockJumpTable
 	jt.Pos = intrinsicCall.Pos()
 	if base.Flag.Cfg.SpectreIndex {
 		// Potential Spectre vulnerability hardening?
@@ -2138,7 +2139,7 @@ func immJumpTableN(s *state, idx *ssa.Value, intrinsicCall *ir.CallExpr, immLimi
 	jt.SetControl(idx)
 	targets := make([]*ssa.Block, immLimit, immLimit)
 	for i := range immLimit {
-		t := s.f.NewBlock(ssa.BlockPlain)
+		t := s.f.NewBlock(block.BlockPlain)
 		targets[i] = t
 		jt.AddEdgeTo(t)
 	}
@@ -2147,7 +2148,7 @@ func immJumpTableN(s *state, idx *ssa.Value, intrinsicCall *ir.CallExpr, immLimi
 	for i, t := range targets {
 		s.startBlock(t)
 		genOp(s, i)
-		if t.Kind != ssa.BlockExit {
+		if t.Kind != block.BlockExit {
 			t.AddEdgeTo(bEnd)
 		}
 		s.endBlock()

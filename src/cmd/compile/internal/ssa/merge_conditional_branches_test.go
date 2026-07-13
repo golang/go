@@ -5,28 +5,29 @@
 package ssa
 
 import (
+	"cmd/compile/internal/ssa/block"
 	"cmd/compile/internal/types"
 	"testing"
 )
 
 // ARM64Lt specifies BlockARM64LT
 func ARM64Lt(cond, sub, alt string) ctrl {
-	return ctrl{BlockARM64LT, cond, []string{sub, alt}}
+	return ctrl{block.BlockARM64LT, cond, []string{sub, alt}}
 }
 
 // ARM64Gt specifies BlockARM64GT
 func ARM64Gt(cond, sub, alt string) ctrl {
-	return ctrl{BlockARM64GT, cond, []string{sub, alt}}
+	return ctrl{block.BlockARM64GT, cond, []string{sub, alt}}
 }
 
 // ARM64Ne specifies BlockARM64NE
 func ARM64Ne(cond, sub, alt string) ctrl {
-	return ctrl{BlockARM64NE, cond, []string{sub, alt}}
+	return ctrl{block.BlockARM64NE, cond, []string{sub, alt}}
 }
 
 // ARM64Eq specifies BlockARM64EQ
 func ARM64Eq(cond, sub, alt string) ctrl {
-	return ctrl{BlockARM64EQ, cond, []string{sub, alt}}
+	return ctrl{block.BlockARM64EQ, cond, []string{sub, alt}}
 }
 
 // isNewConditionCorrect verifies that a block has been correctly transformed
@@ -39,7 +40,7 @@ func ARM64Eq(cond, sub, alt string) ctrl {
 // - The constant value being compared is 4
 // Returns true if all conditions match the expected transformation pattern
 func isNewConditionCorrect(b *Block) bool {
-	if b.Kind != BlockARM64LT {
+	if b.Kind != block.BlockARM64LT {
 		return false
 	}
 
@@ -163,7 +164,7 @@ func TestMergeConditionalBranchesWithoutPointers(t *testing.T) {
 		entryBlock := fun.blocks["entry"]
 		secondBlock := fun.blocks["second_comparison"]
 
-		if secondBlock.Kind != BlockPlain || len(secondBlock.Values) != 0 {
+		if secondBlock.Kind != block.BlockPlain || len(secondBlock.Values) != 0 {
 			t.Errorf("Block with second condition wasn't cleaned")
 		}
 
@@ -275,7 +276,7 @@ func TestNoCCMPWithPointerAndMemoryLoad(t *testing.T) {
 		}
 
 		// The optimization shouldn't merge these blocks because of the memory operation
-		if secondBlock.Kind == BlockPlain {
+		if secondBlock.Kind == block.BlockPlain {
 			t.Errorf("Block with memory load was incorrectly cleaned")
 		}
 	})

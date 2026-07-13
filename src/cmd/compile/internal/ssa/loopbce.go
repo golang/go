@@ -6,6 +6,7 @@ package ssa
 
 import (
 	"cmd/compile/internal/base"
+	"cmd/compile/internal/ssa/block"
 	"cmd/compile/internal/types"
 	"fmt"
 )
@@ -120,7 +121,7 @@ func findIndVar(f *Func) []indVar {
 
 nextblock:
 	for _, b := range f.Blocks {
-		if b.Kind != BlockIf {
+		if b.Kind != block.BlockIf {
 			continue
 		}
 		c := b.Controls[0]

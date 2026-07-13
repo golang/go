@@ -5,6 +5,7 @@
 package ssa
 
 import (
+	"cmd/compile/internal/ssa/ssabase"
 	"cmd/compile/internal/types"
 	"cmd/internal/obj/x86"
 	"fmt"
@@ -401,7 +402,7 @@ func TestPreload(t *testing.T) {
 
 	v := f.values["phi"]
 	loc := f.f.RegAlloc[v.ID]
-	if _, ok := loc.(*Register); !ok {
+	if _, ok := loc.(*ssabase.Register); !ok {
 		t.Errorf("Expects to use a register for phi, but got: %s\n%v", loc, f.f)
 	}
 }

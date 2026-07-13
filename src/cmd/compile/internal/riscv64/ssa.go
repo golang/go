@@ -10,6 +10,7 @@ import (
 	"cmd/compile/internal/logopt"
 	"cmd/compile/internal/objw"
 	"cmd/compile/internal/ssa"
+	"cmd/compile/internal/ssa/block"
 	"cmd/compile/internal/ssagen"
 	"cmd/compile/internal/types"
 	"cmd/internal/obj"
@@ -1000,36 +1001,36 @@ func ssaGenValue(s *ssagen.State, v *ssa.Value) {
 }
 
 var blockBranch = [...]obj.As{
-	ssa.BlockRISCV64BEQ:  riscv.ABEQ,
-	ssa.BlockRISCV64BEQZ: riscv.ABEQZ,
-	ssa.BlockRISCV64BGE:  riscv.ABGE,
-	ssa.BlockRISCV64BGEU: riscv.ABGEU,
-	ssa.BlockRISCV64BGEZ: riscv.ABGEZ,
-	ssa.BlockRISCV64BGTZ: riscv.ABGTZ,
-	ssa.BlockRISCV64BLEZ: riscv.ABLEZ,
-	ssa.BlockRISCV64BLT:  riscv.ABLT,
-	ssa.BlockRISCV64BLTU: riscv.ABLTU,
-	ssa.BlockRISCV64BLTZ: riscv.ABLTZ,
-	ssa.BlockRISCV64BNE:  riscv.ABNE,
-	ssa.BlockRISCV64BNEZ: riscv.ABNEZ,
+	block.BlockRISCV64BEQ:  riscv.ABEQ,
+	block.BlockRISCV64BEQZ: riscv.ABEQZ,
+	block.BlockRISCV64BGE:  riscv.ABGE,
+	block.BlockRISCV64BGEU: riscv.ABGEU,
+	block.BlockRISCV64BGEZ: riscv.ABGEZ,
+	block.BlockRISCV64BGTZ: riscv.ABGTZ,
+	block.BlockRISCV64BLEZ: riscv.ABLEZ,
+	block.BlockRISCV64BLT:  riscv.ABLT,
+	block.BlockRISCV64BLTU: riscv.ABLTU,
+	block.BlockRISCV64BLTZ: riscv.ABLTZ,
+	block.BlockRISCV64BNE:  riscv.ABNE,
+	block.BlockRISCV64BNEZ: riscv.ABNEZ,
 }
 
 func ssaGenBlock(s *ssagen.State, b, next *ssa.Block) {
 	s.SetPos(b.Pos)
 
 	switch b.Kind {
-	case ssa.BlockPlain, ssa.BlockDefer:
+	case block.BlockPlain, block.BlockDefer:
 		if b.Succs[0].Block() != next {
 			p := s.Prog(obj.AJMP)
 			p.To.Type = obj.TYPE_BRANCH
 			s.Branches = append(s.Branches, ssagen.Branch{P: p, B: b.Succs[0].Block()})
 		}
-	case ssa.BlockExit, ssa.BlockRetJmp:
-	case ssa.BlockRet:
+	case block.BlockExit, block.BlockRetJmp:
+	case block.BlockRet:
 		s.Prog(obj.ARET)
-	case ssa.BlockRISCV64BEQ, ssa.BlockRISCV64BEQZ, ssa.BlockRISCV64BNE, ssa.BlockRISCV64BNEZ,
-		ssa.BlockRISCV64BLT, ssa.BlockRISCV64BLEZ, ssa.BlockRISCV64BGE, ssa.BlockRISCV64BGEZ,
-		ssa.BlockRISCV64BLTZ, ssa.BlockRISCV64BGTZ, ssa.BlockRISCV64BLTU, ssa.BlockRISCV64BGEU:
+	case block.BlockRISCV64BEQ, block.BlockRISCV64BEQZ, block.BlockRISCV64BNE, block.BlockRISCV64BNEZ,
+		block.BlockRISCV64BLT, block.BlockRISCV64BLEZ, block.BlockRISCV64BGE, block.BlockRISCV64BGEZ,
+		block.BlockRISCV64BLTZ, block.BlockRISCV64BGTZ, block.BlockRISCV64BLTU, block.BlockRISCV64BGEU:
 
 		as := blockBranch[b.Kind]
 		invAs := riscv.InvertBranch(as)
@@ -1052,14 +1053,14 @@ func ssaGenBlock(s *ssagen.State, b, next *ssa.Block) {
 
 		p.From.Type = obj.TYPE_REG
 		switch b.Kind {
-		case ssa.BlockRISCV64BEQ, ssa.BlockRISCV64BNE, ssa.BlockRISCV64BLT, ssa.BlockRISCV64BGE, ssa.BlockRISCV64BLTU, ssa.BlockRISCV64BGEU:
+		case block.BlockRISCV64BEQ, block.BlockRISCV64BNE, block.BlockRISCV64BLT, block.BlockRISCV64BGE, block.BlockRISCV64BLTU, block.BlockRISCV64BGEU:
 			if b.NumControls() != 2 {
 				b.Fatalf("Unexpected number of controls (%d != 2): %s", b.NumControls(), b.LongString())
 			}
 			p.From.Reg = b.Controls[0].Reg()
 			p.Reg = b.Controls[1].Reg()
 
-		case ssa.BlockRISCV64BEQZ, ssa.BlockRISCV64BNEZ, ssa.BlockRISCV64BGEZ, ssa.BlockRISCV64BLEZ, ssa.BlockRISCV64BLTZ, ssa.BlockRISCV64BGTZ:
+		case block.BlockRISCV64BEQZ, block.BlockRISCV64BNEZ, block.BlockRISCV64BGEZ, block.BlockRISCV64BLEZ, block.BlockRISCV64BLTZ, block.BlockRISCV64BGTZ:
 			if b.NumControls() != 1 {
 				b.Fatalf("Unexpected number of controls (%d != 1): %s", b.NumControls(), b.LongString())
 			}

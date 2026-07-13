@@ -4,6 +4,8 @@
 
 package ssa
 
+import "cmd/compile/internal/ssa/block"
+
 // fuseIntInRange transforms integer range checks to remove the short-circuit operator. For example,
 // it would convert `if 1 <= x && x < 5 { ... }` into `if (1 <= x) & (x < 5) { ... }`. Rewrite rules
 // can then optimize these into unsigned range checks, `if unsigned(x-1) < 4 { ... }` in this case.
@@ -59,7 +61,7 @@ func fuseComparisons(b *Block, canOptControls func(a, b *Value, op Op) bool) boo
 		return false
 	}
 	p := b.Preds[0].Block()
-	if b.Kind != BlockIf || p.Kind != BlockIf {
+	if b.Kind != block.BlockIf || p.Kind != block.BlockIf {
 		return false
 	}
 
@@ -112,7 +114,7 @@ func fuseComparisons(b *Block, canOptControls func(a, b *Value, op Op) bool) boo
 
 		// Modify p so that it jumps directly to b.
 		p.removeEdge(i)
-		p.Kind = BlockPlain
+		p.Kind = block.BlockPlain
 		p.Likely = BranchUnknown
 		p.ResetControls()
 

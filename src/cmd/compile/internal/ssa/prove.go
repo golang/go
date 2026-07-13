@@ -5,6 +5,7 @@
 package ssa
 
 import (
+	"cmd/compile/internal/ssa/block"
 	"cmd/compile/internal/types"
 	"cmd/internal/src"
 	"cmp"
@@ -2213,7 +2214,7 @@ func getBranch(sdom SparseTree, p *Block, b *Block) branch {
 		return unknown
 	}
 	switch p.Kind {
-	case BlockIf:
+	case block.BlockIf:
 		// If p and p.Succs[0] are dominators it means that every path
 		// from entry to b passes through p and p.Succs[0]. We care that
 		// no path from entry to b passes through p.Succs[1]. If p.Succs[0]
@@ -2226,7 +2227,7 @@ func getBranch(sdom SparseTree, p *Block, b *Block) branch {
 		if sdom.IsAncestorEq(p.Succs[1].b, b) && len(p.Succs[1].b.Preds) == 1 {
 			return negative
 		}
-	case BlockJumpTable:
+	case block.BlockJumpTable:
 		// TODO: this loop can lead to quadratic behavior, as
 		// getBranch can be called len(p.Succs) times.
 		for i, e := range p.Succs {
@@ -2616,7 +2617,7 @@ func addLocalFactsPhi(ft *factsTable, v *Value) {
 	case bx.uniquePred() == by.uniquePred():
 		z = bx.uniquePred()
 	}
-	if z == nil || z.Kind != BlockIf {
+	if z == nil || z.Kind != block.BlockIf {
 		return
 	}
 	c := z.Controls[0]
@@ -3030,7 +3031,7 @@ func simplifyBlock(sdom SparseTree, ft *factsTable, b *Block) {
 		}
 	}
 
-	if b.Kind != BlockIf {
+	if b.Kind != block.BlockIf {
 		return
 	}
 
@@ -3081,7 +3082,7 @@ func removeBranch(b *Block, branch branch) {
 		b.Pos = b.Pos.WithIsStmt()
 	}
 	if branch == positive || branch == negative {
-		b.Kind = BlockFirst
+		b.Kind = block.BlockFirst
 		b.ResetControls()
 		if branch == positive {
 			b.swapSuccessors()

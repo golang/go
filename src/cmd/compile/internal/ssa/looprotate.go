@@ -6,6 +6,8 @@ package ssa
 
 import (
 	"slices"
+
+	"cmd/compile/internal/ssa/block"
 )
 
 // loopRotate converts loops with a check-loop-condition-at-beginning
@@ -106,7 +108,7 @@ func loopRotate(f *Func) {
 		b := loop.header
 		var p *Block // b's in-loop predecessor
 		for _, e := range b.Preds {
-			if e.b.Kind != BlockPlain {
+			if e.b.Kind != block.BlockPlain {
 				continue
 			}
 			if loopnest.b2l[e.b.ID] != loop {

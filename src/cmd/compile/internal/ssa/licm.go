@@ -4,6 +4,8 @@
 
 package ssa
 
+import "cmd/compile/internal/ssa/block"
+
 // We are looking for loops with following structure
 // (loop bodies may have control flow inside):
 //
@@ -123,11 +125,11 @@ func licm(f *Func) {
 				inIdx = 1
 			}
 			dest := h.Preds[inIdx].b
-			if dest.Kind != BlockPlain {
+			if dest.Kind != block.BlockPlain {
 				outIdx := h.Preds[inIdx].i
 				// Introduce a new block between the loop
 				// header predecessor and the loop header itself.
-				mid := f.NewBlock(BlockPlain)
+				mid := f.NewBlock(block.BlockPlain)
 				mid.Pos = dest.Pos
 				// Splice into graph.
 				mid.Preds = append(mid.Preds, Edge{dest, outIdx})

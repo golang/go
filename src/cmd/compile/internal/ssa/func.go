@@ -8,6 +8,8 @@ import (
 	"cmd/compile/internal/abi"
 	"cmd/compile/internal/base"
 	"cmd/compile/internal/ir"
+	"cmd/compile/internal/ssa/block"
+	"cmd/compile/internal/ssa/ssabase"
 	"cmd/compile/internal/typecheck"
 	"cmd/compile/internal/types"
 	"cmd/internal/obj"
@@ -54,7 +56,7 @@ type Func struct {
 	RegAlloc []Location
 
 	// temporary registers allocated to rare instructions
-	tempRegs map[ID]*Register
+	tempRegs map[ID]*ssabase.Register
 
 	// map from LocalSlot to set of Values that we want to store in that slot.
 	NamedValues map[LocalSlot][]*Value
@@ -418,7 +420,7 @@ func (f *Func) freeValue(v *Value) {
 }
 
 // NewBlock allocates a new Block of the given kind and places it at the end of f.Blocks.
-func (f *Func) NewBlock(kind BlockKind) *Block {
+func (f *Func) NewBlock(kind block.BlockKind) *Block {
 	var b *Block
 	if f.freeBlocks != nil {
 		b = f.freeBlocks

@@ -5,6 +5,7 @@
 package ssa
 
 import (
+	"cmd/compile/internal/ssa/block"
 	"cmd/internal/src"
 	"fmt"
 )
@@ -86,14 +87,14 @@ func fuse(f *Func, typ fuseType) {
 //
 // TODO: If ss doesn't contain any OpPhis, are s0 and s1 dead code anyway.
 func fuseBlockIf(b *Block) bool {
-	if b.Kind != BlockIf {
+	if b.Kind != block.BlockIf {
 		return false
 	}
 	// It doesn't matter how much Preds does s0 or s1 have.
 	var ss0, ss1 *Block
 	s0 := b.Succs[0].b
 	i0 := b.Succs[0].i
-	if s0.Kind != BlockPlain || !isEmpty(s0) {
+	if s0.Kind != block.BlockPlain || !isEmpty(s0) {
 		s0, ss0 = b, s0
 	} else {
 		ss0 = s0.Succs[0].b
@@ -101,14 +102,14 @@ func fuseBlockIf(b *Block) bool {
 	}
 	s1 := b.Succs[1].b
 	i1 := b.Succs[1].i
-	if s1.Kind != BlockPlain || !isEmpty(s1) {
+	if s1.Kind != block.BlockPlain || !isEmpty(s1) {
 		s1, ss1 = b, s1
 	} else {
 		ss1 = s1.Succs[0].b
 		i1 = s1.Succs[0].i
 	}
 	if ss0 != ss1 {
-		if s0.Kind == BlockPlain && isEmpty(s0) && s1.Kind == BlockPlain && isEmpty(s1) {
+		if s0.Kind == block.BlockPlain && isEmpty(s0) && s1.Kind == block.BlockPlain && isEmpty(s1) {
 			// Two special cases where both s0, s1 and ss are empty blocks.
 			if s0 == ss1 {
 				s0, ss0 = b, ss1
@@ -144,13 +145,13 @@ func fuseBlockIf(b *Block) bool {
 		}
 		b.Values = append(b.Values, s0.Values...)
 		// Clear s0.
-		s0.Kind = BlockInvalid
+		s0.Kind = block.BlockInvalid
 		s0.Values = nil
 		s0.Succs = nil
 		s0.Preds = nil
 	}
 
-	b.Kind = BlockPlain
+	b.Kind = block.BlockPlain
 	b.Likely = BranchUnknown
 	b.ResetControls()
 	// The values in b may be dead codes, and clearing them in time may
@@ -192,7 +193,7 @@ func isEmpty(b *Block) bool {
 // last (multiple successors means not BlockPlain).
 // Cycles are handled and merged into b's successor.
 func fuseBlockPlain(b *Block) bool {
-	if b.Kind != BlockPlain {
+	if b.Kind != block.BlockPlain {
 		return false
 	}
 
@@ -202,13 +203,13 @@ func fuseBlockPlain(b *Block) bool {
 	}
 
 	// find earliest block in run.  Avoid simple cycles.
-	for len(b.Preds) == 1 && b.Preds[0].b != c && b.Preds[0].b.Kind == BlockPlain {
+	for len(b.Preds) == 1 && b.Preds[0].b != c && b.Preds[0].b.Kind == block.BlockPlain {
 		b = b.Preds[0].b
 	}
 
 	// find latest block in run.  Still beware of simple cycles.
 	for {
-		if c.Kind != BlockPlain {
+		if c.Kind != block.BlockPlain {
 			break
 		} // Has exactly 1 successor
 		cNext := c.Succs[0].b
@@ -334,7 +335,7 @@ func fuseBlockPlain(b *Block) bool {
 	for bx := b; bx != c; bx = b_next {
 		b_next = bx.Succs[0].b
 
-		bx.Kind = BlockInvalid
+		bx.Kind = block.BlockInvalid
 		bx.Values = nil
 		bx.Preds = nil
 		bx.Succs = nil

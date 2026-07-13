@@ -6,6 +6,7 @@ package ssa
 
 import (
 	"cmd/compile/internal/ir"
+	"cmd/compile/internal/ssa/block"
 	"cmd/internal/obj/s390x"
 	"math"
 	"math/bits"
@@ -37,7 +38,7 @@ func checkFunc(f *Func) {
 		}
 
 		switch b.Kind {
-		case BlockExit:
+		case block.BlockExit:
 			if len(b.Succs) != 0 {
 				f.Fatalf("exit block %s has successors", b)
 			}
@@ -47,7 +48,7 @@ func checkFunc(f *Func) {
 			if !b.Controls[0].Type.IsMemory() {
 				f.Fatalf("exit block %s has non-memory control value %s", b, b.Controls[0].LongString())
 			}
-		case BlockRet:
+		case block.BlockRet:
 			if len(b.Succs) != 0 {
 				f.Fatalf("ret block %s has successors", b)
 			}
@@ -57,7 +58,7 @@ func checkFunc(f *Func) {
 			if !b.Controls[0].Type.IsMemory() {
 				f.Fatalf("ret block %s has non-memory control value %s", b, b.Controls[0].LongString())
 			}
-		case BlockRetJmp:
+		case block.BlockRetJmp:
 			if len(b.Succs) != 0 {
 				f.Fatalf("retjmp block %s len(Succs)==%d, want 0", b, len(b.Succs))
 			}
@@ -67,14 +68,14 @@ func checkFunc(f *Func) {
 			if !b.Controls[0].Type.IsMemory() {
 				f.Fatalf("retjmp block %s has non-memory control value %s", b, b.Controls[0].LongString())
 			}
-		case BlockPlain:
+		case block.BlockPlain:
 			if len(b.Succs) != 1 {
 				f.Fatalf("plain block %s len(Succs)==%d, want 1", b, len(b.Succs))
 			}
 			if b.NumControls() != 0 {
 				f.Fatalf("plain block %s has non-nil control %s", b, b.Controls[0].LongString())
 			}
-		case BlockIf:
+		case block.BlockIf:
 			if len(b.Succs) != 2 {
 				f.Fatalf("if block %s len(Succs)==%d, want 2", b, len(b.Succs))
 			}
@@ -84,7 +85,7 @@ func checkFunc(f *Func) {
 			if !b.Controls[0].Type.IsBoolean() {
 				f.Fatalf("if block %s has non-bool control value %s", b, b.Controls[0].LongString())
 			}
-		case BlockDefer:
+		case block.BlockDefer:
 			if len(b.Succs) != 2 {
 				f.Fatalf("defer block %s len(Succs)==%d, want 2", b, len(b.Succs))
 			}
@@ -94,14 +95,14 @@ func checkFunc(f *Func) {
 			if !b.Controls[0].Type.IsMemory() {
 				f.Fatalf("defer block %s has non-memory control value %s", b, b.Controls[0].LongString())
 			}
-		case BlockFirst:
+		case block.BlockFirst:
 			if len(b.Succs) != 2 {
 				f.Fatalf("plain/dead block %s len(Succs)==%d, want 2", b, len(b.Succs))
 			}
 			if b.NumControls() != 0 {
 				f.Fatalf("plain/dead block %s has a control value", b)
 			}
-		case BlockJumpTable:
+		case block.BlockJumpTable:
 			if b.NumControls() != 1 {
 				f.Fatalf("jumpTable block %s has no control value", b)
 			}

@@ -12,6 +12,7 @@ import (
 	"cmd/compile/internal/ir"
 	"cmd/compile/internal/logopt"
 	"cmd/compile/internal/ssa"
+	"cmd/compile/internal/ssa/block"
 	"cmd/compile/internal/ssagen"
 	"cmd/compile/internal/types"
 	"cmd/internal/obj"
@@ -1066,20 +1067,20 @@ func ssaGenValue(s *ssagen.State, v *ssa.Value) {
 var blockJump = [...]struct {
 	asm, invasm obj.As
 }{
-	ssa.Block386EQ:  {x86.AJEQ, x86.AJNE},
-	ssa.Block386NE:  {x86.AJNE, x86.AJEQ},
-	ssa.Block386LT:  {x86.AJLT, x86.AJGE},
-	ssa.Block386GE:  {x86.AJGE, x86.AJLT},
-	ssa.Block386LE:  {x86.AJLE, x86.AJGT},
-	ssa.Block386GT:  {x86.AJGT, x86.AJLE},
-	ssa.Block386OS:  {x86.AJOS, x86.AJOC},
-	ssa.Block386OC:  {x86.AJOC, x86.AJOS},
-	ssa.Block386ULT: {x86.AJCS, x86.AJCC},
-	ssa.Block386UGE: {x86.AJCC, x86.AJCS},
-	ssa.Block386UGT: {x86.AJHI, x86.AJLS},
-	ssa.Block386ULE: {x86.AJLS, x86.AJHI},
-	ssa.Block386ORD: {x86.AJPC, x86.AJPS},
-	ssa.Block386NAN: {x86.AJPS, x86.AJPC},
+	block.Block386EQ:  {x86.AJEQ, x86.AJNE},
+	block.Block386NE:  {x86.AJNE, x86.AJEQ},
+	block.Block386LT:  {x86.AJLT, x86.AJGE},
+	block.Block386GE:  {x86.AJGE, x86.AJLT},
+	block.Block386LE:  {x86.AJLE, x86.AJGT},
+	block.Block386GT:  {x86.AJGT, x86.AJLE},
+	block.Block386OS:  {x86.AJOS, x86.AJOC},
+	block.Block386OC:  {x86.AJOC, x86.AJOS},
+	block.Block386ULT: {x86.AJCS, x86.AJCC},
+	block.Block386UGE: {x86.AJCC, x86.AJCS},
+	block.Block386UGT: {x86.AJHI, x86.AJLS},
+	block.Block386ULE: {x86.AJLS, x86.AJHI},
+	block.Block386ORD: {x86.AJPC, x86.AJPS},
+	block.Block386NAN: {x86.AJPS, x86.AJPC},
 }
 
 var eqfJumps = [2][2]ssagen.IndexJump{
@@ -1093,28 +1094,28 @@ var nefJumps = [2][2]ssagen.IndexJump{
 
 func ssaGenBlock(s *ssagen.State, b, next *ssa.Block) {
 	switch b.Kind {
-	case ssa.BlockPlain, ssa.BlockDefer:
+	case block.BlockPlain, block.BlockDefer:
 		if b.Succs[0].Block() != next {
 			p := s.Prog(obj.AJMP)
 			p.To.Type = obj.TYPE_BRANCH
 			s.Branches = append(s.Branches, ssagen.Branch{P: p, B: b.Succs[0].Block()})
 		}
-	case ssa.BlockExit, ssa.BlockRetJmp:
-	case ssa.BlockRet:
+	case block.BlockExit, block.BlockRetJmp:
+	case block.BlockRet:
 		s.Prog(obj.ARET)
 
-	case ssa.Block386EQF:
+	case block.Block386EQF:
 		s.CombJump(b, next, &eqfJumps)
 
-	case ssa.Block386NEF:
+	case block.Block386NEF:
 		s.CombJump(b, next, &nefJumps)
 
-	case ssa.Block386EQ, ssa.Block386NE,
-		ssa.Block386LT, ssa.Block386GE,
-		ssa.Block386LE, ssa.Block386GT,
-		ssa.Block386OS, ssa.Block386OC,
-		ssa.Block386ULT, ssa.Block386UGT,
-		ssa.Block386ULE, ssa.Block386UGE:
+	case block.Block386EQ, block.Block386NE,
+		block.Block386LT, block.Block386GE,
+		block.Block386LE, block.Block386GT,
+		block.Block386OS, block.Block386OC,
+		block.Block386ULT, block.Block386UGT,
+		block.Block386ULE, block.Block386UGE:
 		jmp := blockJump[b.Kind]
 		switch next {
 		case b.Succs[0].Block():

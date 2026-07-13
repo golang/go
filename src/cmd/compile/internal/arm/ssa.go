@@ -14,6 +14,7 @@ import (
 	"cmd/compile/internal/ir"
 	"cmd/compile/internal/logopt"
 	"cmd/compile/internal/ssa"
+	"cmd/compile/internal/ssa/block"
 	"cmd/compile/internal/ssagen"
 	"cmd/compile/internal/types"
 	"cmd/internal/obj"
@@ -1038,21 +1039,21 @@ var condBits = map[ssa.Op]uint8{
 	ssa.OpARMGreaterEqualU: arm.C_SCOND_HS,
 }
 
-var blockJump = map[ssa.BlockKind]struct {
+var blockJump = map[block.BlockKind]struct {
 	asm, invasm obj.As
 }{
-	ssa.BlockARMEQ:     {arm.ABEQ, arm.ABNE},
-	ssa.BlockARMNE:     {arm.ABNE, arm.ABEQ},
-	ssa.BlockARMLT:     {arm.ABLT, arm.ABGE},
-	ssa.BlockARMGE:     {arm.ABGE, arm.ABLT},
-	ssa.BlockARMLE:     {arm.ABLE, arm.ABGT},
-	ssa.BlockARMGT:     {arm.ABGT, arm.ABLE},
-	ssa.BlockARMULT:    {arm.ABLO, arm.ABHS},
-	ssa.BlockARMUGE:    {arm.ABHS, arm.ABLO},
-	ssa.BlockARMUGT:    {arm.ABHI, arm.ABLS},
-	ssa.BlockARMULE:    {arm.ABLS, arm.ABHI},
-	ssa.BlockARMLTnoov: {arm.ABMI, arm.ABPL},
-	ssa.BlockARMGEnoov: {arm.ABPL, arm.ABMI},
+	block.BlockARMEQ:     {arm.ABEQ, arm.ABNE},
+	block.BlockARMNE:     {arm.ABNE, arm.ABEQ},
+	block.BlockARMLT:     {arm.ABLT, arm.ABGE},
+	block.BlockARMGE:     {arm.ABGE, arm.ABLT},
+	block.BlockARMLE:     {arm.ABLE, arm.ABGT},
+	block.BlockARMGT:     {arm.ABGT, arm.ABLE},
+	block.BlockARMULT:    {arm.ABLO, arm.ABHS},
+	block.BlockARMUGE:    {arm.ABHS, arm.ABLO},
+	block.BlockARMUGT:    {arm.ABHI, arm.ABLS},
+	block.BlockARMULE:    {arm.ABLS, arm.ABHI},
+	block.BlockARMLTnoov: {arm.ABMI, arm.ABPL},
+	block.BlockARMGEnoov: {arm.ABPL, arm.ABMI},
 }
 
 // To model a 'LEnoov' ('<=' without overflow checking) branching.
@@ -1069,24 +1070,24 @@ var gtJumps = [2][2]ssagen.IndexJump{
 
 func ssaGenBlock(s *ssagen.State, b, next *ssa.Block) {
 	switch b.Kind {
-	case ssa.BlockPlain, ssa.BlockDefer:
+	case block.BlockPlain, block.BlockDefer:
 		if b.Succs[0].Block() != next {
 			p := s.Prog(obj.AJMP)
 			p.To.Type = obj.TYPE_BRANCH
 			s.Branches = append(s.Branches, ssagen.Branch{P: p, B: b.Succs[0].Block()})
 		}
 
-	case ssa.BlockExit, ssa.BlockRetJmp:
+	case block.BlockExit, block.BlockRetJmp:
 
-	case ssa.BlockRet:
+	case block.BlockRet:
 		s.Prog(obj.ARET)
 
-	case ssa.BlockARMEQ, ssa.BlockARMNE,
-		ssa.BlockARMLT, ssa.BlockARMGE,
-		ssa.BlockARMLE, ssa.BlockARMGT,
-		ssa.BlockARMULT, ssa.BlockARMUGT,
-		ssa.BlockARMULE, ssa.BlockARMUGE,
-		ssa.BlockARMLTnoov, ssa.BlockARMGEnoov:
+	case block.BlockARMEQ, block.BlockARMNE,
+		block.BlockARMLT, block.BlockARMGE,
+		block.BlockARMLE, block.BlockARMGT,
+		block.BlockARMULT, block.BlockARMUGT,
+		block.BlockARMULE, block.BlockARMUGE,
+		block.BlockARMLTnoov, block.BlockARMGEnoov:
 		jmp := blockJump[b.Kind]
 		switch next {
 		case b.Succs[0].Block():
@@ -1103,10 +1104,10 @@ func ssaGenBlock(s *ssagen.State, b, next *ssa.Block) {
 			}
 		}
 
-	case ssa.BlockARMLEnoov:
+	case block.BlockARMLEnoov:
 		s.CombJump(b, next, &leJumps)
 
-	case ssa.BlockARMGTnoov:
+	case block.BlockARMGTnoov:
 		s.CombJump(b, next, &gtJumps)
 
 	default:

@@ -4,7 +4,10 @@
 
 package ssa
 
-import "cmd/internal/src"
+import (
+	"cmd/compile/internal/ssa/block"
+	"cmd/internal/src"
+)
 
 // branchelim tries to eliminate branches by
 // generating CondSelect instructions.
@@ -114,7 +117,7 @@ func elimIf(f *Func, loadAddr *sparseSet, dom *Block) bool {
 	// See if dom is an If with one arm that
 	// is trivial and succeeded by the other
 	// successor of dom.
-	if dom.Kind != BlockIf || dom.Likely != BranchUnknown {
+	if dom.Kind != block.BlockIf || dom.Likely != BranchUnknown {
 		return false
 	}
 	var simple, post *Block
@@ -288,7 +291,7 @@ func elimIf(f *Func, loadAddr *sparseSet, dom *Block) bool {
 
 // is this a BlockPlain with one predecessor?
 func isLeafPlain(b *Block) bool {
-	return b.Kind == BlockPlain && len(b.Preds) == 1
+	return b.Kind == block.BlockPlain && len(b.Preds) == 1
 }
 
 func clobberBlock(b *Block) {
@@ -298,7 +301,7 @@ func clobberBlock(b *Block) {
 	b.Aux = nil
 	b.ResetControls()
 	b.Likely = BranchUnknown
-	b.Kind = BlockInvalid
+	b.Kind = block.BlockInvalid
 }
 
 // elimIfElse converts the two-way branch starting at dom in f to a conditional move if possible.
@@ -308,7 +311,7 @@ func elimIfElse(f *Func, loadAddr *sparseSet, b *Block) bool {
 	// See if 'b' ends in an if/else: it should
 	// have two successors, both of which are BlockPlain
 	// and succeeded by the same block.
-	if b.Kind != BlockIf || b.Likely != BranchUnknown {
+	if b.Kind != block.BlockIf || b.Likely != BranchUnknown {
 		return false
 	}
 	yes, no := b.Succs[0].Block(), b.Succs[1].Block()
