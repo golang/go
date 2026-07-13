@@ -2614,12 +2614,7 @@ func (b *Builder) compilerCmd(compiler []string, incdir, workdir string) []strin
 	// gcc-4.5 and beyond require explicit "-pthread" flag
 	// for multithreading with pthread library.
 	if cfg.BuildContext.CgoEnabled {
-		switch cfg.Goos {
-		case "windows":
-			a = append(a, "-mthreads")
-		default:
-			a = append(a, "-pthread")
-		}
+		a = append(a, "-pthread")
 	}
 
 	if cfg.Goos == "aix" {
