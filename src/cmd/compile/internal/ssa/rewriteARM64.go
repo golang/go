@@ -14682,6 +14682,40 @@ func rewriteValueARM64_OpARM64NotEqual(v *Value) bool {
 		v.AddArg(v0)
 		return true
 	}
+	// match: (NotEqual (TSTconst [c] x))
+	// cond: oneBit(c)
+	// result: (UBFX [armBFAuxInt(int64(ntz64(c)), 1)] x)
+	for {
+		if v_0.Op != OpARM64TSTconst {
+			break
+		}
+		c := auxIntToInt64(v_0.AuxInt)
+		x := v_0.Args[0]
+		if !(oneBit(c)) {
+			break
+		}
+		v.reset(OpARM64UBFX)
+		v.AuxInt = arm64BitFieldToAuxInt(armBFAuxInt(int64(ntz64(c)), 1))
+		v.AddArg(x)
+		return true
+	}
+	// match: (NotEqual (TSTWconst [c] x))
+	// cond: oneBit(c)
+	// result: (UBFX [armBFAuxInt(int64(ntz32(c)), 1)] x)
+	for {
+		if v_0.Op != OpARM64TSTWconst {
+			break
+		}
+		c := auxIntToInt32(v_0.AuxInt)
+		x := v_0.Args[0]
+		if !(oneBit(c)) {
+			break
+		}
+		v.reset(OpARM64UBFX)
+		v.AuxInt = arm64BitFieldToAuxInt(armBFAuxInt(int64(ntz32(c)), 1))
+		v.AddArg(x)
+		return true
+	}
 	// match: (NotEqual (CMP x z:(NEG y)))
 	// cond: z.Uses == 1
 	// result: (NotEqual (CMN x y))
