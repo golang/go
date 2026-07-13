@@ -75,6 +75,7 @@ func (sFn *specFunc) expand(ctx context, opts *LoadOptions) []*Func {
 		if fn == nil {
 			continue
 		}
+		fn.typeParamVars = typeParamVars
 
 		funcs = append(funcs, fn)
 	}
@@ -88,6 +89,9 @@ func (sFn *specFunc) expand(ctx context, opts *LoadOptions) []*Func {
 
 func (sFn *specFunc) instantiate(ctx context, b *specexpr.Bindings, argGet map[*types.Var]func(*specexpr.Bindings) specexpr.Type) *Func {
 	var f Func
+
+	f.specFunc = sFn
+	f.instance = b
 
 	// Function or method?
 	var method bool

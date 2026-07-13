@@ -6,6 +6,7 @@ package specgen
 
 import (
 	"fmt"
+	"go/types"
 	"simd/archsimd/_gen/specgen/specexpr"
 	"strings"
 )
@@ -23,6 +24,12 @@ type Func struct {
 
 	In  []Arg
 	Out []Arg
+
+	// specFunc and instance describe the underlying spec function and its
+	// instantiation that led to this API function.
+	specFunc      *specFunc
+	typeParamVars map[*types.TypeParam]specexpr.Variable
+	instance      *specexpr.Bindings
 }
 
 type Arg struct {
@@ -75,4 +82,31 @@ func (f *Func) Decl() string {
 	}
 	buf.WriteString(f.Signature())
 	return buf.String()
+}
+
+// SpecFunc returns information about the spec package function that generated
+// f. name is the name of the function in the spec package, sig is its
+// uninstantiated signature type, and typeArgs is a slice of the type arguments
+// it was instantiated on to construct f.
+func (f *Func) SpecFunc() (name string, sig *types.Signature, typeArgs []types.Type) {
+	sFn := f.specFunc
+
+	// Build instantiated signature
+	for _, tparam := range sFn.TypeParams {
+		val := f.instance.Get(f.typeParamVars[tparam])
+		switch val := val.(type) {
+		case specexpr.Type:
+			typeArgs = append(typeArgs, specTypeToType(sFn.Pkg, val))
+		case specexpr.Num:
+			wt := sFn.Pkg.WidthTypes[val]
+			if wt == nil {
+				panic(fmt.Sprintf("no spec package type for width %s", val))
+			}
+			typeArgs = append(typeArgs, wt)
+		default:
+			panic("unexpected type parameter value")
+		}
+	}
+
+	return sFn.Name, sFn.Sig, typeArgs
 }

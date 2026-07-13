@@ -20,7 +20,7 @@ import (
 )
 
 var (
-	flagTools = flagVar("tools", ToolSet{"tmplgen": true, "simdgen": true, "wasmgen": true, "midway": true}, "comma-separated list of tools (or +/-tools) to run")
+	flagTools = flagVar("tools", ToolSet{"tmplgen": true, "simdgen": true, "wasmgen": true, "midway": true, "refgen": true}, "comma-separated list of tools (or +/-tools) to run")
 
 	flagN         = flag.Bool("n", false, "dry run")
 	flagXedPath   = sgutil.FlagXEDPath(".")
@@ -153,6 +153,10 @@ func main() {
 		} else {
 			fmt.Fprintf(os.Stderr, "# skipping %s gen because we're not writing to -goroot\n", ssaGenPath)
 		}
+	}
+
+	if flagTools["refgen"] {
+		doGen("cmd/refgen", &files)
 	}
 
 	if flagTools["midway"] {

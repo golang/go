@@ -162,6 +162,41 @@ func shapeWidthVal(t types.Type) specexpr.Num {
 	panic(fmt.Sprintf("parsing width type %s: %s", t, err))
 }
 
+var basicToBasic = map[specexpr.Basic]types.BasicKind{
+	{Base: "int", Bits: 0}:    types.Int,
+	{Base: "int", Bits: 8}:    types.Int8,
+	{Base: "int", Bits: 16}:   types.Int16,
+	{Base: "int", Bits: 32}:   types.Int32,
+	{Base: "int", Bits: 64}:   types.Int64,
+	{Base: "uint", Bits: 0}:   types.Uint,
+	{Base: "uint", Bits: 8}:   types.Uint8,
+	{Base: "uint", Bits: 16}:  types.Uint16,
+	{Base: "uint", Bits: 32}:  types.Uint32,
+	{Base: "uint", Bits: 64}:  types.Uint64,
+	{Base: "float", Bits: 32}: types.Float32,
+	{Base: "float", Bits: 64}: types.Float64,
+}
+
+func specTypeToType(pkg *specPackage, t specexpr.Type) types.Type {
+	switch t := t.(type) {
+	case specexpr.Basic:
+		var t2 types.Type
+		if t.Base == "Mask" {
+			t2 = pkg.ElemTypes[t]
+		} else {
+			if kind, ok := basicToBasic[t]; ok {
+				t2 = types.Typ[kind]
+			}
+		}
+		if t2 == nil {
+			panic(fmt.Sprintf("unknown basic type %s", t))
+		}
+		return t2
+	}
+	// TODO: Implement other specexpr.Type types if we need them
+	panic(fmt.Sprintf("unimplemented specTypeToType for %T", t))
+}
+
 type argBinder struct {
 	ctx        context
 	pkg        *specPackage

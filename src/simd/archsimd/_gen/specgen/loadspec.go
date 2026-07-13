@@ -25,6 +25,9 @@ type specPackage struct {
 	TypeElems  map[types.Type]specexpr.Basic
 	TypeWidths map[types.Type]specexpr.Num
 
+	ElemTypes  map[specexpr.Basic]types.Type
+	WidthTypes map[specexpr.Num]types.Type
+
 	VecType   types.Type // Uninstantiated Vec type
 	ArrayType types.Type // Uninstantiated Array type
 	UintNType types.Type // Uninstantiated UintN type
@@ -186,17 +189,21 @@ func loadSpecPackage(ctx context, dir string, opts *LoadOptions) *specPackage {
 
 	// Gather types corresponding to shape constraints
 	typeElems := make(map[types.Type]specexpr.Basic)
+	elemTypes := make(map[specexpr.Basic]types.Type)
 	if eltOrMask := lookupType("EltOrMask"); eltOrMask != nil {
 		for _, elt := range typeSet(eltOrMask) {
 			basic := shapeElemType(elt)
 			typeElems[elt] = basic
+			elemTypes[basic] = elt
 		}
 	}
 	typeWidths := make(map[types.Type]specexpr.Num)
+	widthTypes := make(map[specexpr.Num]types.Type)
 	if width := lookupType("Width"); width != nil {
 		for _, width := range typeSet(width) {
 			val := shapeWidthVal(width)
 			typeWidths[width] = val
+			widthTypes[val] = width
 		}
 	}
 
@@ -212,6 +219,8 @@ func loadSpecPackage(ctx context, dir string, opts *LoadOptions) *specPackage {
 		Funcs:      funcs,
 		TypeElems:  typeElems,
 		TypeWidths: typeWidths,
+		ElemTypes:  elemTypes,
+		WidthTypes: widthTypes,
 		VecType:    vecType,
 		ArrayType:  arrayType,
 		UintNType:  uintNType,

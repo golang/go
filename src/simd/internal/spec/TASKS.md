@@ -25,7 +25,7 @@ Tasks
   Maybe the hand-written code still lives directly in archsimd, but as
   unexported function, and the generator writes the trivial exported API glue
   for these.
-- [ ] Generate a full reference implementation for testing that provides the
-  SIMD API but just wraps the spec package.
+- [x] Generate a full reference implementation for testing that provides the
+  SIMD API but just wraps the spec package. (Done: _gen/cmd/refgen)
 - [ ] Generate conformance tests of the archsimd API against the spec testing
   layer.
