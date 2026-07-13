@@ -63,7 +63,7 @@ func ExampleCmd_Run() {
 }
 
 func ExampleCmd_Start() {
-	cmd := exec.Command("sleep", "5")
+	cmd := exec.Command("echo", "hello", "world")
 	err := cmd.Start()
 	if err != nil {
 		log.Fatal(err)
