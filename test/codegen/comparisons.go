@@ -940,3 +940,26 @@ func bijectiveMul(x uint) bool {
 	// arm64: -"MUL"
 	return x*1337 == 42
 }
+
+// ------------------------- //
+//    Inverted conditions    //
+// ------------------------- //
+
+// A materialized condition negated with XOR $1 (e.g. the Not that the
+// generic "x == nil" rewrite introduces) folds the negation into the
+// condition instead of emitting CSET + EOR $1.
+
+func invertedCondEqNilPtr(p *int) bool {
+	// arm64:`CSET EQ` -`EOR`
+	return p == nil
+}
+
+func invertedCondEqNilIface(err error) bool {
+	// arm64:`CSET EQ` -`EOR`
+	return err == nil
+}
+
+func invertedCondNotLessF(a, b float64) bool {
+	// arm64:`CSET PL` -`EOR`
+	return !(a < b)
+}
