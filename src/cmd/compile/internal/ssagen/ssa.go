@@ -223,12 +223,11 @@ func InitTables() {
 // any ABI wrapper that is present is nosplit, hence a precise
 // stack map is not needed there (the parameters survive only long
 // enough to call the wrapped assembly function).
-// This always returns a freshly copied ABI.
 func AbiForBodylessFuncStackMap(fn *ir.Func) *abi.ABIConfig {
-	return ssaConfig.ABI0.Copy() // No idea what races will result, be safe
+	return ssaConfig.ABI0
 }
 
-// abiForFunc implements ABI policy for a function, but does not return a copy of the ABI.
+// abiForFunc implements ABI policy for a function.
 // Passing a nil function returns the default ABI based on experiment configuration.
 func abiForFunc(fn *ir.Func, abi0, abi1 *abi.ABIConfig) *abi.ABIConfig {
 	if buildcfg.Experiment.RegabiArgs {

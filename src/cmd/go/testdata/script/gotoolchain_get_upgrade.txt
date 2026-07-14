@@ -1,0 +1,39 @@
+env TESTGO_VERSION=go1.21
+env TESTGO_VERSION_SWITCH=switch
+
+# Control case: get module@version should switch toolchain versions.
+cp go.mod.orig go.mod
+go get example.com/increasegoreq@v0.0.2
+stderr 'go: module example.com/increasegoreq@v0.0.2 requires go >= 1.23; switching to go1.23.9'
+cmp go.mod go.mod.want
+
+# #79917: get ./... should also switch toolchain versions.
+cp go.mod.orig go.mod
+go get -u ./...
+stderr 'go: module example.com/increasegoreq@v0.0.2 requires go >= 1.23; switching to go1.23.9'
+cmp go.mod go.mod.want
+
+# go get -u without arguments (default to .) should also switch toolchains
+cp go.mod.orig go.mod
+go get -u
+stderr 'go: module example.com/increasegoreq@v0.0.2 requires go >= 1.23; switching to go1.23.9'
+cmp go.mod go.mod.want
+
+-- go.mod.orig --
+module m
+
+go 1.21
+
+require example.com/increasegoreq v0.0.1
+-- go.mod.want --
+module m
+
+go 1.23
+
+require example.com/increasegoreq v0.0.2
+-- main.go --
+package main
+
+import _ "example.com/increasegoreq"
+
+func main() {}

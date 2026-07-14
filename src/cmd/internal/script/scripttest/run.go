@@ -12,6 +12,7 @@ import (
 	"fmt"
 	"internal/testenv"
 	"internal/txtar"
+	"io/fs"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -254,6 +255,11 @@ func RunTests(t *testing.T, ctx context.Context, engine *script.Engine, env []st
 				t.Fatal(err)
 			}
 
+			// Call fixPermissions at the end of the test case in case
+			// it uses the go modcache, which writes read-only files.
+			// fixPermissions fixes up the permissions so a later removal can succeed.
+			defer fixPermissions(t, workdir)
+
 			// Unpack archive.
 			a, err := txtar.ParseFile(file)
 			if err != nil {
@@ -276,6 +282,21 @@ func RunTests(t *testing.T, ctx context.Context, engine *script.Engine, env []st
 			Run(t, engine, s, file, bytes.NewReader(a.Comment))
 		})
 	}
+}
+
+func fixPermissions(t *testing.T, dir string) {
+	t.Helper()
+
+	// module cache has 0444 directories;
+	// make them writable in order to remove content.
+	filepath.WalkDir(dir, func(path string, info fs.DirEntry, err error) error {
+		// chmod not only directories, but also things that we couldn't even stat
+		// due to permission errors: they may also be unreadable directories.
+		if err != nil || info.IsDir() {
+			os.Chmod(path, 0777)
+		}
+		return nil
+	})
 }
 
 // InitScriptDirs sets up directories for executing a script test.

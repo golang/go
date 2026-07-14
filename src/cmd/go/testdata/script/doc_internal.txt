@@ -1,0 +1,32 @@
+# go doc prefers non-internal packages for shorthand package paths.
+
+env GO111MODULE=off
+cd example.com/z/docpick
+
+go doc docpick.Public
+stdout 'package docpick // import "example.com/z/docpick"'
+stdout 'func Public'
+! stdout 'internal/docpick'
+
+! go doc docpick.DoesNotExist
+stderr 'doc: no symbol DoesNotExist in package example.com/z/docpick'
+! stderr 'internal/docpick'
+
+go doc onlyinternal.Only
+stdout 'package onlyinternal // import "example.com/internal/onlyinternal"'
+stdout 'func Only'
+
+-- example.com/internal/docpick/doc.go --
+package docpick
+
+func Internal() {}
+
+-- example.com/internal/onlyinternal/doc.go --
+package onlyinternal
+
+func Only() {}
+
+-- example.com/z/docpick/doc.go --
+package docpick
+
+func Public() {}

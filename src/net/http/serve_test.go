@@ -821,6 +821,63 @@ func testServerTimeoutsWithTimeout(t *testing.T, timeout time.Duration, mode tes
 	return nil
 }
 
+func TestServerUnencryptedHTTP2HeaderTimeout(t *testing.T) {
+	for _, test := range []struct {
+		name string
+		f    func(*fakeNetConn)
+	}{{
+		name: "client sends nothing",
+		f: func(conn *fakeNetConn) {
+		},
+	}, {
+		name: "client sends slowly",
+		f: func(conn *fakeNetConn) {
+			// Trickling out writes should not extend the deadline.
+			conn.Write([]byte("PRI"))
+			time.Sleep(100 * time.Millisecond)
+			conn.Write([]byte(" * "))
+			time.Sleep(100 * time.Millisecond)
+			conn.Write([]byte("HTT"))
+			time.Sleep(100 * time.Millisecond)
+		},
+	}, {
+		name: "header read expires",
+		f: func(conn *fakeNetConn) {
+			// Time spent waiting for the HTTP/2 preface should count against
+			// time spent waiting for HTTP/1 headers.
+			time.Sleep(100 * time.Millisecond)
+			conn.Write([]byte("GET / HTTP/1.1\r\nHost: example.tld\r\n"))
+		},
+	}} {
+		t.Run(test.name, func(t *testing.T) {
+			synctest.Test(t, func(t *testing.T) {
+				listener := fakeNetListen()
+				defer listener.Close()
+
+				srv := &Server{
+					Protocols:         new(Protocols),
+					ReadHeaderTimeout: 1 * time.Second,
+				}
+				srv.Protocols.SetHTTP1(true)
+				srv.Protocols.SetUnencryptedHTTP2(true)
+				go srv.Serve(listener)
+
+				conn := listener.connect()
+				go test.f(conn)
+
+				start := time.Now()
+				_, err := io.ReadAll(conn)
+				if err != nil {
+					t.Errorf("ReadAll from server: %v, want EOF", err)
+				}
+				if got, want := time.Since(start), srv.ReadHeaderTimeout; got != want {
+					t.Errorf("connection closed after %v, want %v", got, want)
+				}
+			})
+		})
+	}
+}
+
 func TestServerReadTimeout(t *testing.T) { run(t, testServerReadTimeout, http3SkippedMode) }
 func testServerReadTimeout(t *testing.T, mode testMode) {
 	respBody := "response body"
@@ -3416,9 +3473,7 @@ func testRequestHeaderValueCountLimit(t *testing.T, mode testMode) {
 }
 
 func TestRequestTrailerHeaderValueCountLimit(t *testing.T) {
-	// HTTP/1 has a static limit for trailer headers that are not affected by
-	// settings such as MaxHeaderBytes and MaxHeaderValueCount.
-	run(t, testRequestTrailerHeaderValueCountLimit, []testMode{http2Mode})
+	run(t, testRequestTrailerHeaderValueCountLimit, http3SkippedMode)
 }
 func testRequestTrailerHeaderValueCountLimit(t *testing.T, mode testMode) {
 	tests := []struct {
@@ -3475,17 +3530,23 @@ func testRequestTrailerHeaderValueCountLimit(t *testing.T, mode testMode) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			cst := newClientServerTest(t, mode, HandlerFunc(func(w ResponseWriter, r *Request) {
-				io.Copy(io.Discard, r.Body)
+				_, err := io.Copy(io.Discard, r.Body)
+				if (err != nil) != tt.wantErr {
+					t.Errorf("Read = %v, want %v", err, tt.wantErr)
+				}
 			}), func(s *Server) {
 				s.MaxHeaderValueCount = tt.limit
 			}, optQuietLog)
 
 			req, _ := NewRequest("GET", cst.ts.URL, strings.NewReader("some body"))
+			req.TransferEncoding = []string{"chunked"}
 			tt.setup(req)
 
+			// Do will return an error in HTTP/2 due to RST_STREAM, but will
+			// succeed in HTTP/1.
 			res, err := cst.c.Do(req)
-			if (err != nil) != tt.wantErr {
-				t.Fatalf("got error %v, want %v", err, tt.wantErr)
+			if err != nil && !tt.wantErr {
+				t.Fatalf("unexpected Do error: %v", err)
 			}
 			if err == nil {
 				res.Body.Close()
@@ -7876,4 +7937,185 @@ func TestServerHTTP2Disabled(t *testing.T) {
 		synctest.Wait()
 		srv.Shutdown(t.Context())
 	})
+}
+
+func TestServerConnectionReuse(t *testing.T) {
+	for _, test := range []struct {
+		name             string
+		message          []string
+		handler          HandlerFunc
+		continueBodySize int
+		want100Continue  bool
+		wantResponse     int
+		wantReused       bool
+		skip             string
+	}{{
+		name: "small body",
+		message: []string{
+			"POST / HTTP/1.1",
+			"Host: example.tld",
+			"Content-Length: 1",
+			"",
+			"x",
+		},
+		wantResponse: 200,
+		wantReused:   true,
+	}, {
+		name: "large body",
+		message: []string{
+			"POST / HTTP/1.1",
+			"Host: example.tld",
+			"Content-Length: 300000", // more than maxPostHandlerReadBytes
+			"",
+			// body is never sent
+		},
+		wantResponse: 200,
+		wantReused:   false,
+	}, {
+		name: "small body full duplex",
+		message: []string{
+			"POST / HTTP/1.1",
+			"Host: example.tld",
+			"Content-Length: 1",
+			"",
+			"x",
+		},
+		handler: func(w ResponseWriter, req *Request) {
+			// Enable full duplex to avoid trying to read the request before
+			// writing the response.
+			NewResponseController(w).EnableFullDuplex()
+		},
+		wantResponse: 200,
+		wantReused:   true,
+	}, {
+		name: "large body full duplex",
+		message: []string{
+			"POST / HTTP/1.1",
+			"Host: example.tld",
+			"Content-Length: 300000", // more than maxPostHandlerReadBytes
+			"",
+			// body is never sent
+		},
+		handler: func(w ResponseWriter, req *Request) {
+			// Enable full duplex to avoid trying to read the request before
+			// writing the response.
+			NewResponseController(w).EnableFullDuplex()
+		},
+		wantResponse: 200,
+		wantReused:   false,
+	}, {
+		// Send a request with a 1-byte body, which the server handler never reads.
+		// We should either send a 100-Continue and read the body
+		// or we should close the connection.
+		//
+		// Right now, the server hangs trying to read the request body
+		// the client isn't sending.
+		skip: "https://go.dev/issue/75933",
+
+		name: "100-continue unconsumed small body",
+		message: []string{
+			"POST / HTTP/1.1",
+			"Host: example.tld",
+			"Expect: 100-continue",
+			"Content-Length: 1",
+			"",
+			// body is never sent
+		},
+		want100Continue: false,
+		wantResponse:    200,
+		wantReused:      true,
+	}, {
+		name: "100-continue unconsumed large body",
+		message: []string{
+			"POST / HTTP/1.1",
+			"Host: example.tld",
+			"Expect: 100-continue",
+			"Content-Length: 300000", // more than maxPostHandlerReadBytes
+			"",
+			// body is never sent
+		},
+		want100Continue: false,
+		wantResponse:    200,
+		wantReused:      false,
+	}, {
+		name: "100-continue consumed small body",
+		message: []string{
+			"POST / HTTP/1.1",
+			"Host: example.tld",
+			"Expect: 100-continue",
+			"Content-Length: 1",
+			"",
+		},
+		handler: func(w ResponseWriter, req *Request) {
+			io.Copy(io.Discard, req.Body)
+		},
+		want100Continue:  true,
+		continueBodySize: 1,
+		wantResponse:     200,
+		wantReused:       true,
+	}, {
+		name: "small wrapped body",
+		message: []string{
+			"POST / HTTP/1.1",
+			"Host: example.tld",
+			"Content-Length: 1",
+			"",
+			"x",
+		},
+		handler: func(w ResponseWriter, req *Request) {
+			// Enable full duplex to avoid trying to read the request before
+			// writing the response.
+			NewResponseController(w).EnableFullDuplex()
+
+			// Middleware wraps the Request.Body in some other type.
+			req.Body = struct{ io.ReadCloser }{req.Body}
+		},
+		wantResponse: 200,
+		wantReused:   true,
+	}, {
+		name: "large wrapped body",
+		message: []string{
+			"POST / HTTP/1.1",
+			"Host: example.tld",
+			"Content-Length: 300000", // more than maxPostHandlerReadBytes
+			"",
+		},
+		handler: func(w ResponseWriter, req *Request) {
+			// Enable full duplex to avoid trying to read the request before
+			// writing the response.
+			NewResponseController(w).EnableFullDuplex()
+
+			// Middleware wraps the Request.Body in some other type.
+			req.Body = struct{ io.ReadCloser }{req.Body}
+		},
+		wantResponse: 200,
+		wantReused:   false,
+	}} {
+		t.Run(test.name, func(t *testing.T) {
+			if test.skip != "" {
+				t.Skip(test.skip)
+			}
+			synctest.Test(t, func(t *testing.T) {
+				st := newHTTP1ServerTest(t, test.handler)
+				conn := st.dial()
+				conn.writeMessage(test.message...)
+				resp := conn.readResponse()
+				if got, want := resp.StatusCode == 100, test.want100Continue; got != want {
+					t.Fatalf("100-Continue response: %v, want %v", got, want)
+				}
+				if resp.StatusCode == 100 {
+					conn.conn.Write(bytes.Repeat([]byte("x"), test.continueBodySize))
+					resp = conn.readResponse()
+				}
+				if got, want := resp.StatusCode, test.wantResponse; got != want {
+					t.Fatalf("got response %v, want %v", got, want)
+				}
+				if test.wantReused {
+					conn.wantIdle()
+				} else {
+					conn.wantClosed()
+				}
+			})
+		})
+	}
 }

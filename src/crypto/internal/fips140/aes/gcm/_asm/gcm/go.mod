@@ -1,4 +1,4 @@
-module crypto/aes/_asm/gcm
+module crypto/internal/fips140/aes/gcm/_asm/gcm
 
 go 1.24
 

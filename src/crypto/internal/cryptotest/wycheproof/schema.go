@@ -4980,6 +4980,10 @@ func (j *MLKEMDecapsTestGroupParameterSet) UnmarshalJSON(value []byte) error {
 }
 
 type MLKEMDecapsTestGroupTestsElem struct {
+	// If present, the shared key the implementation MUST return on a successful
+	// Decapsulate call.
+	K *string `json:"K,omitempty,omitzero"`
+
 	// An input ciphertext
 	C string `json:"c"`
 
@@ -4988,6 +4992,9 @@ type MLKEMDecapsTestGroupTestsElem struct {
 
 	// The full decapsulation key
 	Dk string `json:"dk"`
+
+	// The encapsulation key bytes of dk.
+	Ek string `json:"ek"`
 
 	// A list of flags
 	Flags []string `json:"flags"`
@@ -5010,6 +5017,9 @@ func (j *MLKEMDecapsTestGroupTestsElem) UnmarshalJSON(value []byte) error {
 	}
 	if _, ok := raw["dk"]; raw != nil && !ok {
 		return fmt.Errorf("field dk in MLKEMDecapsTestGroupTestsElem: required")
+	}
+	if _, ok := raw["ek"]; raw != nil && !ok {
+		return fmt.Errorf("field ek in MLKEMDecapsTestGroupTestsElem: required")
 	}
 	if _, ok := raw["flags"]; raw != nil && !ok {
 		return fmt.Errorf("field flags in MLKEMDecapsTestGroupTestsElem: required")

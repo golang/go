@@ -5,9 +5,7 @@
 # gopkg.in path.
 
 skip 'skipping test that depends on an unreliable third-party server; see https://go.dev/issue/54503'
-	# TODO(#54043): Make this test hermetic and re-enable it.
-
-[!net:gopkg.in] skip
+# TODO(#54503): Make this work without needing the external network, and then re-enable.
 [!git] skip
 
 env GO111MODULE=on

@@ -1,4 +1,4 @@
-module sha3/_asm
+module crypto/internal/fips140/sha3/_asm
 
 go 1.22
 

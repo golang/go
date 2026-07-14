@@ -1,4 +1,4 @@
-module _gen
+module simd/archsimd/_gen
 
 go 1.25.0
 

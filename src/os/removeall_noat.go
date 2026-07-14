@@ -19,6 +19,12 @@ func removeAll(path string) error {
 		return nil
 	}
 
+	// Consistency with Root.RemoveAll: Strip trailing /s from the path,
+	// so RemoveAll("not_a_directory/") succeeds.
+	for len(path) > 1 && IsPathSeparator(path[len(path)-1]) {
+		path = path[:len(path)-1]
+	}
+
 	// The rmdir system call permits removing "." on Plan 9,
 	// so we don't permit it to remain consistent with the
 	// "at" implementation of RemoveAll.
