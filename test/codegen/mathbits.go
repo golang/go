@@ -763,6 +763,19 @@ func Add64MPanicOnOverflowGT(a, b [2]uint64) [2]uint64 {
 	return r
 }
 
+func issue80399add(a, b [2]uint64, s uint64) uint64 {
+	_, c := bits.Add64(a[0], b[0], 0)
+	_, c2 := bits.Add64(a[1], b[1], c)
+	// amd64:-"SET" -"MOVBLZX" "ADCQ"
+	return s + c2
+}
+func issue80399sub(a, b [2]uint64, s uint64) uint64 {
+	_, c := bits.Add64(a[0], b[0], 0)
+	_, c2 := bits.Add64(a[1], b[1], c)
+	// amd64:-"SET" -"MOVBLZX" "SBBQ"
+	return s - c2
+}
+
 // Verify independent carry chain operations are scheduled efficiently
 // and do not cause unnecessary save/restore of the CA bit.
 //

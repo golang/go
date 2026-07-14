@@ -8143,6 +8143,30 @@ func rewriteValueAMD64_OpAMD64ADDLmodify(v *Value) bool {
 func rewriteValueAMD64_OpAMD64ADDQ(v *Value) bool {
 	v_1 := v.Args[1]
 	v_0 := v.Args[0]
+	b := v.Block
+	typ := &b.Func.Config.Types
+	// match: (ADDQ x (MOVBQZX (SETB flags)))
+	// result: (Select0 (ADCQconst [0] x flags))
+	for {
+		for _i0 := 0; _i0 <= 1; _i0, v_0, v_1 = _i0+1, v_1, v_0 {
+			x := v_0
+			if v_1.Op != OpAMD64MOVBQZX {
+				continue
+			}
+			v_1_0 := v_1.Args[0]
+			if v_1_0.Op != OpAMD64SETB {
+				continue
+			}
+			flags := v_1_0.Args[0]
+			v.reset(OpSelect0)
+			v0 := b.NewValue0(v.Pos, OpAMD64ADCQconst, types.NewTuple(typ.UInt64, types.TypeFlags))
+			v0.AuxInt = int32ToAuxInt(0)
+			v0.AddArg2(x, flags)
+			v.AddArg(v0)
+			return true
+		}
+		break
+	}
 	// match: (ADDQ (SHRQconst [1] x) (SHRQconst [1] x))
 	// result: (ANDQconst [-2] x)
 	for {
@@ -40322,6 +40346,26 @@ func rewriteValueAMD64_OpAMD64SUBQ(v *Value) bool {
 	v_1 := v.Args[1]
 	v_0 := v.Args[0]
 	b := v.Block
+	typ := &b.Func.Config.Types
+	// match: (SUBQ x (MOVBQZX (SETB flags)))
+	// result: (Select0 (SBBQconst [0] x flags))
+	for {
+		x := v_0
+		if v_1.Op != OpAMD64MOVBQZX {
+			break
+		}
+		v_1_0 := v_1.Args[0]
+		if v_1_0.Op != OpAMD64SETB {
+			break
+		}
+		flags := v_1_0.Args[0]
+		v.reset(OpSelect0)
+		v0 := b.NewValue0(v.Pos, OpAMD64SBBQconst, types.NewTuple(typ.UInt64, types.TypeFlags))
+		v0.AuxInt = int32ToAuxInt(0)
+		v0.AddArg2(x, flags)
+		v.AddArg(v0)
+		return true
+	}
 	// match: (SUBQ x (MOVQconst [c]))
 	// cond: is32Bit(c)
 	// result: (SUBQconst x [int32(c)])
