@@ -13,20 +13,26 @@ import (
 
 // TooNewStdSymbols computes the set of package-level symbols
 // exported by pkg that are not available at the specified version.
-// The result maps each symbol to its minimum version.
 //
 // The pkg is allowed to contain type errors.
-func TooNewStdSymbols(pkg *types.Package, version string) map[types.Object]string {
-	disallowed := make(map[types.Object]string)
+func TooNewStdSymbols(pkg *types.Package, version string) map[types.Object]stdlib.Symbol {
+	disallowed := make(map[types.Object]stdlib.Symbol)
+
+	// Some symbols are accessible before their release but
+	// only with specific build tags unknown to us here.
+	// Avoid false positives in such cases.
+	if pkg.Path() == "testing/synctest" && versions.AtLeast(version, "go1.24") {
+		// requires go1.24 && goexperiment.synctest || go1.25
+		return disallowed
+	}
 
 	// Pass 1: package-level symbols.
 	symbols := stdlib.PackageSymbols[pkg.Path()]
 	for _, sym := range symbols {
-		symver := sym.Version.String()
-		if versions.Before(version, symver) {
+		if versions.Before(version, sym.Version.String()) {
 			switch sym.Kind {
 			case stdlib.Func, stdlib.Var, stdlib.Const, stdlib.Type:
-				disallowed[pkg.Scope().Lookup(sym.Name)] = symver
+				disallowed[pkg.Scope().Lookup(sym.Name)] = sym
 			}
 		}
 	}
@@ -60,28 +66,36 @@ func TooNewStdSymbols(pkg *types.Package, version string) map[types.Object]strin
 	// spuriously cause the analyzer to report a reference to a
 	// too-new symbol even though this expression compiles just
 	// fine (with the fake implementation) using go1.21.
+	var noSym stdlib.Symbol
+	depth := make(map[types.Object]int)
 	for _, sym := range symbols {
-		symVersion := sym.Version.String()
-		if !versions.Before(version, symVersion) {
+		if !versions.Before(version, sym.Version.String()) {
 			continue // allowed
 		}
 
 		var obj types.Object
+		var indices []int
 		switch sym.Kind {
 		case stdlib.Field:
 			typename, name := sym.SplitField()
-			if t := pkg.Scope().Lookup(typename); t != nil && disallowed[t] == "" {
-				obj, _, _ = types.LookupFieldOrMethod(t.Type(), false, pkg, name)
+			if t := pkg.Scope().Lookup(typename); t != nil && disallowed[t] == noSym {
+				obj, indices, _ = types.LookupFieldOrMethod(t.Type(), false, pkg, name)
 			}
 
 		case stdlib.Method:
 			ptr, recvname, name := sym.SplitMethod()
-			if t := pkg.Scope().Lookup(recvname); t != nil && disallowed[t] == "" {
-				obj, _, _ = types.LookupFieldOrMethod(t.Type(), ptr, pkg, name)
+			if t := pkg.Scope().Lookup(recvname); t != nil && disallowed[t] == noSym {
+				obj, indices, _ = types.LookupFieldOrMethod(t.Type(), ptr, pkg, name)
 			}
 		}
 		if obj != nil {
-			disallowed[obj] = symVersion
+			// In the presence of embedding, two or more "pkg.T.name"
+			// strings may map to the same types.Object.
+			// Prefer the Object with the shorter index path.
+			if min, ok := depth[obj]; !ok || len(indices) < min {
+				depth[obj] = len(indices)
+				disallowed[obj] = sym
+			}
 		}
 	}
 
