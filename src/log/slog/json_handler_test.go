@@ -104,6 +104,8 @@ type jsonMarshalerError struct {
 	jsonMarshaler
 }
 
+var _ error = jsonMarshalerError{}
+
 func (jsonMarshalerError) Error() string { return "oops" }
 
 func TestAppendJSONValue(t *testing.T) {
