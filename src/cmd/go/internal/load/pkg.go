@@ -630,21 +630,6 @@ func (sp *ImportStack) shorterThan(t []string) bool {
 	return false // they are equal
 }
 
-// packageCache is a lookup cache for LoadImport,
-// so that if we look up a package multiple times
-// we return the same pointer each time.
-//
-// TODO: associate the packageCache with the module loader state, so that
-// different module loaders use different caches.
-var packageCache = map[string]*Package{}
-
-// ClearPackageCache clears the package cache.
-// It cannot be used concurrently with calls to LoadImport or other functions
-// that use packageCache without synchronization.
-func ClearPackageCache() {
-	clear(packageCache)
-}
-
 // dirToImportPath returns the pseudo-import path we use for a package
 // outside the Go path. It begins with _/ and then contains the full path
 // to the directory. If the package lives in c:\home\gopher\my\pkg then
@@ -769,8 +754,9 @@ func loadImport(ld *modload.Loader, ctx context.Context, opts PackageOpts, pre *
 	}
 
 	importPath := bp.ImportPath
-	p := packageCache[importPath]
-	if p != nil {
+	var p *Package
+	if cp := ld.PackageCache()[importPath]; cp != nil {
+		p = cp.(*Package)
 		stk.Push(ImportInfo{Pkg: path, Pos: extractFirstImport(importPos)})
 		p = reusePackage(p, stk)
 		stk.Pop()
@@ -779,7 +765,7 @@ func loadImport(ld *modload.Loader, ctx context.Context, opts PackageOpts, pre *
 		p = new(Package)
 		p.Internal.Local = build.IsLocalImport(path)
 		p.ImportPath = importPath
-		packageCache[importPath] = p
+		ld.PackageCache()[importPath] = p
 
 		setCmdline(p)
 		setToolFlags(ld, p)

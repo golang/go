@@ -399,6 +399,7 @@ func (ld *Loader) setState(new *Loader) (old *Loader) {
 		requirements:    ld.requirements,
 		workFilePath:    ld.workFilePath,
 		fetcher:         ld.fetcher,
+		packageCache:    ld.packageCache,
 	}
 	ld.initialized = new.initialized
 	ld.ForceUseModules = new.ForceUseModules
@@ -412,6 +413,7 @@ func (ld *Loader) setState(new *Loader) (old *Loader) {
 	// the go.sum file, so save and restore it along with the
 	// modload state.
 	old.fetcher = ld.fetcher.SetState(new.fetcher)
+	ld.packageCache = new.packageCache
 
 	return old
 }
@@ -460,22 +462,30 @@ type Loader struct {
 	// disabled
 	workFilePath string
 	fetcher      *modfetch.Fetcher
+
+	// PackageCache is a lookup cache for LoadImport,
+	// so that if we look up a package multiple times
+	// we return the same pointer each time.
+	packageCache map[string]any
 }
 
 func NewLoader() *Loader {
 	s := new(Loader)
 	s.fetcher = modfetch.NewFetcher()
+	s.packageCache = make(map[string]any)
 	return s
 }
 
 func NewDisabledState() *Loader {
 	fips140.Init()
-	return &Loader{initialized: true, modulesEnabled: false}
+	return &Loader{initialized: true, modulesEnabled: false, packageCache: make(map[string]any)}
 }
 
 func (ld *Loader) Fetcher() *modfetch.Fetcher {
 	return ld.fetcher
 }
+
+func (ld *Loader) PackageCache() map[string]any { return ld.packageCache }
 
 // Init determines whether module mode is enabled, locates the root of the
 // current module (if any), sets environment variables for Git subprocesses, and

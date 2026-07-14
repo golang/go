@@ -52,7 +52,6 @@ func pickUnusedPort() (int, error) {
 
 // buildPkgsite builds a pkgsite binary whose build may be cached.
 func buildPkgsite(ctx context.Context) string {
-	load.ClearPackageCache()
 	loader := modload.NewLoader()
 
 	// Set the builder to have no module root so we can build a pkg@version pattern.
