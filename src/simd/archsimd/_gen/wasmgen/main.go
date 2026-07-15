@@ -263,15 +263,15 @@ var allFlags = []OpFlags{
 
 func (o OpFlags) String() string {
 	sep := ""
-	ret := ""
+	var ret strings.Builder
 
 	for _, x := range allFlags {
 		if x&o != 0 {
-			ret += sep + x.OneString()
+			ret.WriteString(sep + x.OneString())
 			sep = "+"
 		}
 	}
-	return ret
+	return ret.String()
 }
 
 // wasmOp represents a WebAssembly SIMD instruction.
@@ -337,7 +337,7 @@ func (o *wasmOp) ImmName() string {
 
 func snakeToCamel(s string) string {
 	capnext := true
-	result := ""
+	var result strings.Builder
 	for _, c := range s {
 		if c == '_' {
 			capnext = true
@@ -351,9 +351,9 @@ func snakeToCamel(s string) string {
 				capnext = false
 			}
 		}
-		result += string(c)
+		result.WriteString(string(c))
 	}
-	return result
+	return result.String()
 }
 
 // Op returns the snakeToCamel version of the WASM operation,

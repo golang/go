@@ -86,10 +86,7 @@ func (op *Operand) instantiate(arrangement Arrangement, ashape ArngShape, vregPo
 			op.Lanes = arrangement.bits / (arrangement.elemBits / 2)
 		case ashape == LongArngs && vregPos == 0:
 			op.ElemBits = arrangement.elemBits * 2
-			op.Bits = arrangement.bits * 2
-			if op.Bits > 128 {
-				op.Bits = 128
-			}
+			op.Bits = min(arrangement.bits*2, 128)
 			op.Lanes = arrangement.bits / op.ElemBits
 		case ashape == WideArngs && vregPos == 2:
 			op.ElemBits = arrangement.elemBits / 2
@@ -203,8 +200,8 @@ func tokenizeTemplate(template string) []token {
 // stripMnemonic removes the instruction mnemonic from the template string.
 // For example, "ADD  <Vd>.<T>, <Vn>.<T>, <Vm>.<T>" becomes "<Vd>.<T>, <Vn>.<T>, <Vm>.<T>".
 func stripMnemonic(template string) string {
-	if idx := strings.Index(template, " "); idx >= 0 {
-		return strings.TrimSpace(template[idx+1:])
+	if _, after, ok := strings.Cut(template, " "); ok {
+		return strings.TrimSpace(after)
 	}
 	return template
 }
