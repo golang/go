@@ -139,7 +139,7 @@ func (check *checker) nonGoFile(pos token.Pos, fullText string) {
 				inStar = false
 				continue
 			}
-			line, inStar = stringsCutPrefix(line, "/*")
+			line, inStar = strings.CutPrefix(line, "/*")
 			if !inStar {
 				break
 			}
@@ -193,12 +193,4 @@ func (check *checker) comment(pos token.Pos, line string) {
 			check.pass.Reportf(pos, "//go:debug directive only valid before package declaration")
 		}
 	}
-}
-
-// Go 1.20 strings.CutPrefix.
-func stringsCutPrefix(s, prefix string) (after string, found bool) {
-	if !strings.HasPrefix(s, prefix) {
-		return s, false
-	}
-	return s[len(prefix):], true
 }

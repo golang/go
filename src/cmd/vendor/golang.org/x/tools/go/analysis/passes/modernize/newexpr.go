@@ -53,7 +53,8 @@ func run(pass *analysis.Pass) (any, error) {
 							if sig.Results().Len() == 1 &&
 								is[*types.Pointer](sig.Results().At(0).Type()) && // => no iface conversion
 								sig.Params().Len() == 1 &&
-								sig.Params().At(0) == v {
+								sig.Params().At(0) == v &&
+								!sig.Variadic() { // we can't safely transform a variadic function call, so skip them
 
 								// Export a fact for each one.
 								pass.ExportObjectFact(fn, &newLike{})

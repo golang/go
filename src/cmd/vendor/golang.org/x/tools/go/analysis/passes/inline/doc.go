@@ -10,7 +10,12 @@ and uses of constants marked with a "//go:fix inline" directive.
 
 inline: apply fixes based on 'go:fix inline' comment directives
 
-The inline analyzer inlines functions and constants that are marked for inlining.
+The inline analyzer inlines functions, constants, and type aliases
+that are marked for inlining.
+
+Use this command to apply (just) inline fixes en masse:
+
+	$ go fix -inline ./...
 
 ## Functions
 
@@ -61,12 +66,6 @@ inliner machinery is capable of replacing f by a function literal,
 func(){...}(). However, the inline analyzer discards all such
 "literalizations" unconditionally, again on grounds of style.)
 
-A call to a function F from its dedicated test (TestF) is not inlined,
-since the purpose of the test is to exercise F itself, even when
-it's a deprecated function to which other calls should be inlined.
-This is not true for type aliases; see https://go.dev/issue/79271.
-See further discussion in https://go.dev/issue/79272.
-
 ## Constants
 
 Given a constant that is marked for inlining, like this one:
@@ -96,14 +95,30 @@ or before a group, applying to every constant in the group:
 	//go:fix inline
 	const (
 		Ptr = Pointer
-	    Val = Value
+		Val = Value
 	)
 
-The proposal https://go.dev/issue/32816 introduces the "//go:fix inline" directives.
+## Type aliases
 
-You can use this command to apply inline fixes en masse:
+Similar to named constants, a type alias can also be marked for inlining:
 
-	$ go run golang.org/x/tools/go/analysis/passes/inline/cmd/inline@latest -fix ./...
+	//go:fix inline
+	type A = newpkg.A
+
+The analyzer will replace all references to the annotated type
+(A) by the type on the right-hand side of the declaration (newpkg.A).
+
+## Tests
+
+A use of a function, named constant, or type alias X from its
+dedicated test (TestX), is not inlined, since the purpose of the test
+is to exercise X itself, even if it is deprecated and other uses of it
+should be inlined.
+This applies to benchmarks and examples too, and follows the usual
+conventions of test function naming.
+
+Similarly, if the symbol X is declared in a file named foo.go, any use
+of it within a file named foo_test.go will also not be inlined.
 
 # Analyzer gofixdirective
 

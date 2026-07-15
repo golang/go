@@ -109,7 +109,7 @@ func (g *Group) TryGo(f func() error) bool {
 	if g.sem != nil {
 		select {
 		case g.sem <- token{}:
-			// Note: this allows barging iff channels in general allow barging.
+			// Note: this allows barging if and only if channels in general allow barging.
 		default:
 			return false
 		}

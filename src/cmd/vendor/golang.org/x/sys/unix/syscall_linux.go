@@ -1874,6 +1874,7 @@ func Dup2(oldfd, newfd int) error {
 //sys	Dup3(oldfd int, newfd int, flags int) (err error)
 //sysnb	EpollCreate1(flag int) (fd int, err error)
 //sysnb	EpollCtl(epfd int, op int, fd int, event *EpollEvent) (err error)
+//sys	EpollWait(epfd int, events []EpollEvent, msec int) (n int, err error) = SYS_EPOLL_PWAIT
 //sys	Eventfd(initval uint, flags int) (fd int, err error) = SYS_EVENTFD2
 //sys	Exit(code int) = SYS_EXIT_GROUP
 //sys	Fallocate(fd int, mode uint32, off int64, len int64) (err error)

@@ -8,7 +8,6 @@ import (
 	"fmt"
 	"go/ast"
 	"go/types"
-	_ "unsafe" // for go:linkname hack
 )
 
 // CallKind describes the function position of an [*ast.CallExpr].
@@ -72,11 +71,15 @@ func ClassifyCall(info *types.Info, call *ast.CallExpr) CallKind {
 	if tv.IsBuiltin() {
 		return CallBuiltin
 	}
-	obj := info.Uses[UsedIdent(info, call.Fun)]
+	id := UsedIdent(info, call.Fun)
+	if id == nil {
+		return CallDynamic
+	}
+	obj := info.Uses[id]
 	// Classify the call by the type of the object, if any.
 	switch obj := obj.(type) {
 	case *types.Func:
-		if interfaceMethod(obj) {
+		if isInterfaceMethod(obj) {
 			return CallInterface
 		}
 		return CallStatic
@@ -127,11 +130,66 @@ func ClassifyCall(info *types.Info, call *ast.CallExpr) CallKind {
 // Note: if e is an instantiated function or method, UsedIdent returns
 // the corresponding generic function or method on the generic type.
 func UsedIdent(info *types.Info, e ast.Expr) *ast.Ident {
-	return usedIdent(info, e)
+	if info.Types == nil || info.Uses == nil {
+		panic("one of info.Types or info.Uses is nil; both must be populated")
+	}
+	// Look through type instantiation if necessary.
+	switch d := ast.Unparen(e).(type) {
+	case *ast.IndexExpr:
+		if info.Types[d.Index].IsType() {
+			e = d.X
+		}
+	case *ast.IndexListExpr:
+		e = d.X
+	}
+
+	switch e := ast.Unparen(e).(type) {
+	// info.Uses always has the object we want, even for selector expressions.
+	// We don't need info.Selections.
+	// See go/types/recording.go:recordSelection.
+	case *ast.Ident:
+		return e
+	case *ast.SelectorExpr:
+		return e.Sel
+	}
+	return nil
 }
 
-//go:linkname usedIdent golang.org/x/tools/go/types/typeutil.usedIdent
-func usedIdent(info *types.Info, e ast.Expr) *ast.Ident
+// See [golang.org/x/tools/go/types/typeutil.Callee].
+func Callee(info *types.Info, call *ast.CallExpr) types.Object {
+	id := UsedIdent(info, call.Fun)
+	if id == nil {
+		return nil
+	}
+	obj := info.Uses[id]
+	if obj == nil {
+		return nil
+	}
+	if _, ok := obj.(*types.TypeName); ok {
+		return nil
+	}
+	return obj
+}
 
-//go:linkname interfaceMethod golang.org/x/tools/go/types/typeutil.interfaceMethod
-func interfaceMethod(f *types.Func) bool
+// See [golang.org/x/tools/go/types/typeutil.StaticCallee].
+func StaticCallee(info *types.Info, call *ast.CallExpr) *types.Func {
+	id := UsedIdent(info, call.Fun)
+	if id == nil {
+		return nil
+	}
+	obj := info.Uses[id]
+	if obj == nil {
+		return nil
+	}
+	fn, _ := obj.(*types.Func)
+	if fn == nil || isInterfaceMethod(fn) {
+		return nil
+	}
+	return fn
+}
+
+// isInterfaceMethod reports whether its argument is a method of an interface.
+func isInterfaceMethod(f *types.Func) bool {
+	recv := f.Signature().Recv()
+	return recv != nil && types.IsInterface(recv.Type())
+}
