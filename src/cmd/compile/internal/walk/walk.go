@@ -17,8 +17,11 @@ import (
 	"cmd/internal/src"
 )
 
-// The constant is known to runtime.
-const tmpstringbufsize = 32
+// These constants are known to runtime (see runtime.tmpStringBufSize).
+const (
+	tmpstringbufsize = 64
+	tmprunebufsize   = 32
+)
 
 func Walk(fn *ir.Func) {
 	ir.CurFunc = fn
