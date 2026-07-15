@@ -95,6 +95,13 @@ func fuseComparisons(b *Block, canOptControls func(a, b *Value, op Op) bool) boo
 			return false
 		}
 
+		// if the destination block has any phis that are differentiated between
+		// the edge being removed and the other edge, removing it will change
+		// the behavior of the program
+		if hasDifferentiatedPhi(p.Succs[i], b.Succs[i]) {
+			continue
+		}
+
 		// Logically combine the control values for p and b.
 		v := b.NewValue0(bc.Pos, op, bc.Type)
 		v.AddArg(pc)
@@ -113,6 +120,24 @@ func fuseComparisons(b *Block, canOptControls func(a, b *Value, op Op) bool) boo
 	}
 
 	// TODO: could negate condition(s) to merge controls.
+	return false
+}
+
+func hasDifferentiatedPhi(x Edge, y Edge) bool {
+	b := x.Block()
+	if y.Block() != b {
+		panic("non matching edges")
+	}
+	xi := x.i
+	yi := y.i
+	for _, v := range b.Values {
+		if v.Op != OpPhi {
+			continue
+		}
+		if v.Args[xi] != v.Args[yi] {
+			return true
+		}
+	}
 	return false
 }
 

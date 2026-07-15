@@ -267,6 +267,38 @@ func TestFuseSideEffects(t *testing.T) {
 	}
 }
 
+func TestFuseHandlesDifferentiatedPhi(t *testing.T) {
+	c := testConfig(t)
+	fun := c.Fun("entry",
+		Bloc("entry",
+			Valu("mem", OpInitMem, types.TypeMem, 0, nil),
+			Valu("a1", OpArg, c.config.Types.UInt64, 0, nil),
+			Valu("sb", OpSB, c.config.Types.Uintptr, 0, nil),
+			Valu("constTrue", OpConstBool, c.config.Types.Bool, 1, nil),
+			Valu("lower", OpConst64, c.config.Types.UInt64, 16, nil),
+			Valu("upper", OpConst64, c.config.Types.UInt64, 512, nil),
+			Goto("checkUpper")),
+		Bloc("checkUpper",
+			Valu("bool1", OpLeq64U, c.config.Types.Bool, 0, nil, "a1", "upper"),
+			If("bool1", "checkLower", "exit")),
+		Bloc("checkLower",
+			Valu("bool2", OpLeq64U, c.config.Types.Bool, 0, nil, "lower", "a1"),
+			If("bool2", "empty", "exit")),
+		Bloc("empty",
+			Goto("exit")),
+		Bloc("exit",
+			Valu("phi", OpPhi, c.config.Types.Bool, 0, nil, "bool1", "constTrue", "constTrue"),
+			Exit("mem")))
+
+	CheckFunc(fun.f)
+	fuse(fun.f, fuseTypeIntInRange)
+	phi := fun.values["phi"]
+	cTrue := fun.values["constTrue"]
+	if phi.Op == OpCopy && phi.Args[0] == cTrue {
+		t.Errorf("phi mangled into always true")
+	}
+}
+
 func BenchmarkFuse(b *testing.B) {
 	for _, n := range [...]int{1, 10, 100, 1000, 10000} {
 		b.Run(strconv.Itoa(n), func(b *testing.B) {
