@@ -3180,7 +3180,7 @@ type Server struct {
 	h2            *http2Server
 	h2Config      http2ExternalServerConfig
 	h2IdleTimeout time.Duration
-	h3            *http3ServerHandler
+	h3Server      http3Server
 
 	listenerGroup sync.WaitGroup
 }
@@ -3199,6 +3199,11 @@ func (s *Server) Close() error {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	err := s.closeListenersLocked()
+	if s.h3Server != nil {
+		ctx, cancel := context.WithCancel(context.Background())
+		cancel()
+		go s.h3Server.Shutdown(ctx)
+	}
 
 	// Unlock s.mu while waiting for listenerGroup.
 	// The group Add and Done calls are made with s.mu held,
@@ -3248,12 +3253,12 @@ func (s *Server) Shutdown(ctx context.Context) error {
 	s.inShutdown.Store(true)
 
 	s.mu.Lock()
-	if s.h3 != nil {
-		s.h3.shutdownCtx = ctx
-	}
 	lnerr := s.closeListenersLocked()
 	for _, f := range s.onShutdown {
 		go f()
+	}
+	if s.h3Server != nil {
+		go s.h3Server.Shutdown(ctx)
 	}
 	s.mu.Unlock()
 	s.listenerGroup.Wait()
@@ -3502,18 +3507,24 @@ var ErrServerClosed = errors.New("http: Server closed")
 // Serve always returns a non-nil error and closes l.
 // After [Server.Shutdown] or [Server.Close], the returned error is [ErrServerClosed].
 func (s *Server) Serve(l net.Listener) error {
-	if conf, ok := l.(http2ExternalServerConfig); ok {
-		// This is the sneaky path we use to let x/net/http2 wrap an http.Server:
-		// http2.ConfigureServer calls http.Server.Serve with a net.Listener that
-		// implements a certain interface, which we recognize here as an attempt
-		// to associate an http2.Server with us.
-		//
-		// (This is about as principled as the way we (ab)use Transport.RegisterProtocol,
-		// which is to say not at all. It's worth it.)
+	// This is the sneaky path we use to let x/net/http2 wrap an http.Server
+	// and x/net/http3 install an HTTP/3 implementation:
+	// http2.ConfigureServer calls http.Server.Serve with a net.Listener that
+	// implements a certain interface, which we recognize here as an attempt
+	// to associate an http2.Server with us.
+	//
+	// (This is about as principled as the way we (ab)use Transport.RegisterProtocol,
+	// which is to say not at all. It's worth it.)
+	//
+	// Server.Serve never returns a nil error under normal circumstances.
+	// Returning nil on success informs our caller that we support this
+	// sneaky registration mechanism.
+	switch conf := l.(type) {
+	case http2ExternalServerConfig:
 		s.setHTTP2Config(conf)
-		// Server.Serve never returns a nil error under normal circumstances.
-		// Returning nil here informs our caller that we support this sneaky
-		// registration mechanism.
+		return nil
+	case http3Server:
+		s.setHTTP3Server(conf)
 		return nil
 	}
 
@@ -3615,6 +3626,17 @@ func (s *Server) ServeTLS(l net.Listener, certFile, keyFile string) error {
 	// before we clone it and create the TLS Listener.
 	if err := s.setupHTTP2_ServeTLS(); err != nil {
 		return err
+	}
+	if s.h3Server != nil {
+		// Temporary, test-only way to serve HTTP/3 from a PacketConn:
+		// Pass it to ServeTLS wrapped in a net.Listener.
+		// The caller should pass a net.Listener that immediately returns an error
+		// if passed to a Server that doesn't support this path.
+		if x, ok := l.(interface {
+			HTTP3PacketConn() net.PacketConn
+		}); ok {
+			return s.serveHTTP3(x.HTTP3PacketConn(), certFile, keyFile)
+		}
 	}
 
 	var nextProtos []string
@@ -3902,33 +3924,15 @@ func (s *Server) ListenAndServeTLS(certFile, keyFile string) error {
 
 	p := s.protocols()
 	if p.http3() {
-		fn, ok := s.TLSNextProto["http/3"]
-		if !ok {
-			return errors.New("http: Server.Protocols contains HTTP3, but Server does not support HTTP/3")
-		}
-		config, err := s.setupTLSConfig(certFile, keyFile, []string{"h3"})
-		if err != nil {
-			return err
-		}
-		errc := make(chan error, 1)
-		s.mu.Lock()
-		s.h3 = &http3ServerHandler{
-			handler:   serverHandler{s},
-			tlsConfig: config,
-			baseCtx:   context.WithValue(context.Background(), ServerContextKey, s),
-			errc:      errc,
-		}
-		s.mu.Unlock()
-		go fn(s, nil, s.h3)
-		if err := <-errc; err != nil {
-			return err
-		}
+		// TODO: Support HTTP/3 here.
+		// For now, tests use Server.ServeTLS.
+		return errors.New("http: Server.Protocols contains HTTP3, but Server does not support HTTP/3")
 	}
-
 	// Only start a TCP listener if HTTP/1 or HTTP/2 is used.
 	if !p.HTTP1() && !p.HTTP2() && !p.UnencryptedHTTP2() {
-		return nil
+		return errors.New("http: no protocols configured")
 	}
+
 	ln, err := net.Listen("tcp", addr)
 	if err != nil {
 		return err

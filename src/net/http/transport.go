@@ -414,7 +414,7 @@ type dialClientConner interface {
 	// The internal state hook need not be called after synchronous changes
 	// to the state: Close, Reserve, Release, and RoundTrip calls
 	// which don't start a request do not need to call the hook.
-	DialClientConn(ctx context.Context, address string, proxy *url.URL, internalStateHook func()) (RoundTripper, error)
+	DialClientConn(ctx context.Context, address string, proxy *url.URL, tlsConfig *tls.Config, internalStateHook func()) (RoundTripper, error)
 }
 
 type closeIdleConnectionser interface {
@@ -925,10 +925,21 @@ func (t *Transport) registerProtocol(scheme string, rt RoundTripper) error {
 	}
 
 	if scheme == "http/3" {
+		if t.h3Transport != nil {
+			panic("http: HTTP/3 Transport already registered")
+		}
 		var ok bool
 		if t.h3Transport, ok = rt.(dialClientConner); !ok {
 			panic("http: HTTP/3 RoundTripper does not implement DialClientConn")
 		}
+		// Notify the HTTP/3 transport of successful registration.
+		// (Since RegisterProtocol doesn't return anything, we call a method here.)
+		if r, ok := rt.(interface {
+			Registered(*Transport)
+		}); ok {
+			r.Registered(t)
+		}
+		return nil
 	}
 
 	oldMap, _ := t.altProto.Load().(map[string]RoundTripper)
@@ -1777,19 +1788,26 @@ func (t *Transport) decConnsPerHost(key connectMethodKey) {
 	}
 }
 
+func (t *Transport) tlsConfigForDial(host string) (*tls.Config, error) {
+	firstTLSHost, _, err := net.SplitHostPort(host)
+	if err != nil {
+		return nil, err
+	}
+	cfg := cloneTLSConfig(t.TLSClientConfig)
+	if cfg.ServerName == "" {
+		cfg.ServerName = firstTLSHost
+	}
+	return cfg, nil
+}
+
 // Add TLS to a persistent connection, i.e. negotiate a TLS session. If pconn is already a TLS
 // tunnel, this function establishes a nested TLS session inside the encrypted channel.
 // The remote endpoint's name may be overridden by TLSClientConfig.ServerName.
 func (pconn *persistConn) addTLS(ctx context.Context, addr string, trace *httptrace.ClientTrace) error {
-	// Initiate TLS and check remote host name against certificate.
-	cfg := cloneTLSConfig(pconn.t.TLSClientConfig)
-	if cfg.ServerName == "" {
-		name, _, err := net.SplitHostPort(addr)
-		if err != nil {
-			pconn.conn.Close()
-			return err
-		}
-		cfg.ServerName = name
+	cfg, err := pconn.t.tlsConfigForDial(addr)
+	if err != nil {
+		pconn.conn.Close()
+		return err
 	}
 	if pconn.cacheKey.onlyH1 {
 		cfg.NextProtos = nil
@@ -1852,7 +1870,12 @@ func (t *Transport) dialConn(ctx context.Context, cm connectMethod, isClientConn
 		if t.h3Transport == nil {
 			return nil, errors.New("http: Transport.Protocols contains HTTP3, but Transport does not support HTTP/3")
 		}
-		rt, err := t.h3Transport.DialClientConn(ctx, cm.addr(), cm.proxyURL, internalStateHook)
+		tlsConfig, err := t.tlsConfigForDial(cm.addr())
+		if err != nil {
+			return nil, err
+		}
+		tlsConfig.NextProtos = []string{"h3"}
+		rt, err := t.h3Transport.DialClientConn(ctx, cm.addr(), cm.proxyURL, tlsConfig, internalStateHook)
 		if err != nil {
 			return nil, err
 		}
