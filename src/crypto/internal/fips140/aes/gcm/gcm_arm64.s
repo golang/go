@@ -378,9 +378,6 @@ TEXT ·gcmAesEnc(SB),NOSPLIT,$0
 #define ks R4
 #define tPtr R5
 #define srcPtrLen R6
-#define aluCTR R7
-#define aluTMP R8
-#define aluK R9
 #define NR R10
 #define H0 R11
 #define H1 R12
@@ -414,6 +411,66 @@ TEXT ·gcmAesEnc(SB),NOSPLIT,$0
 	AESE	K.B16, B5.B16    \
 	AESE	K.B16, B6.B16    \
 	AESE	K.B16, B7.B16
+
+// tailLoad reads the srcPtrLen bytes at srcPtr into the low bytes of
+// X, zero-padded, loading 8, 4, 2, and 1 bytes at a time to avoid
+// reading past the end of the source buffer. It also builds in T3 a
+// mask of the bytes within the source length. It clobbers H0 and H1.
+#define tailLoad(X) \
+	VEOR	X.B16, X.B16, X.B16           \
+	VEOR	T3.B16, T3.B16, T3.B16        \
+	MOVD	$-1, H1                       \
+	ADD	srcPtrLen, srcPtr             \
+	TBZ	$3, srcPtrLen, tailLoad4      \
+	MOVD.W	-8(srcPtr), H0                \
+	VMOV	H0, X.D[0]                    \
+	VMOV	H1, T3.D[0]                   \
+tailLoad4: \
+	TBZ	$2, srcPtrLen, tailLoad2      \
+	MOVW.W	-4(srcPtr), H0                \
+	VEXT	$12, X.B16, ZERO.B16, X.B16   \
+	VEXT	$12, T3.B16, ZERO.B16, T3.B16 \
+	VMOV	H0, X.S[0]                    \
+	VMOV	H1, T3.S[0]                   \
+tailLoad2: \
+	TBZ	$1, srcPtrLen, tailLoad1      \
+	MOVH.W	-2(srcPtr), H0                \
+	VEXT	$14, X.B16, ZERO.B16, X.B16   \
+	VEXT	$14, T3.B16, ZERO.B16, T3.B16 \
+	VMOV	H0, X.H[0]                    \
+	VMOV	H1, T3.H[0]                   \
+tailLoad1: \
+	TBZ	$0, srcPtrLen, tailLoad0      \
+	MOVB.W	-1(srcPtr), H0                \
+	VEXT	$15, X.B16, ZERO.B16, X.B16   \
+	VEXT	$15, T3.B16, ZERO.B16, T3.B16 \
+	VMOV	H0, X.B[0]                    \
+	VMOV	H1, T3.B[0]                   \
+tailLoad0:
+
+// tailStore writes the low srcPtrLen bytes of X to dstPtr, storing 8,
+// 4, 2, and 1 bytes at a time to avoid writing past the end of the
+// destination buffer. It clobbers X and H0.
+#define tailStore(X) \
+	TBZ	$3, srcPtrLen, tailStore4  \
+	VMOV	X.D[0], H0                 \
+	MOVD.P	H0, 8(dstPtr)              \
+	VEXT	$8, ZERO.B16, X.B16, X.B16 \
+tailStore4: \
+	TBZ	$2, srcPtrLen, tailStore2  \
+	VMOV	X.S[0], H0                 \
+	MOVW.P	H0, 4(dstPtr)              \
+	VEXT	$4, ZERO.B16, X.B16, X.B16 \
+tailStore2: \
+	TBZ	$1, srcPtrLen, tailStore1  \
+	VMOV	X.H[0], H0                 \
+	MOVH.P	H0, 2(dstPtr)              \
+	VEXT	$2, ZERO.B16, X.B16, X.B16 \
+tailStore1: \
+	TBZ	$0, srcPtrLen, tailStore0  \
+	VMOV	X.B[0], H0                 \
+	MOVB.P	H0, 1(dstPtr)              \
+tailStore0:
 
 	MOVD	productTable+0(FP), pTbl
 	MOVD	dst+8(FP), dstPtr
@@ -618,9 +675,9 @@ singlesLoop:
 		AESE	B3.B16, B0.B16
 singlesLast:
 		VEOR	T0.B16, B0.B16, B0.B16
-encReduce:
-		VST1.P	[B0.B16], 16(dstPtr)
 
+		VST1.P	[B0.B16], 16(dstPtr)
+encReduce:
 		VREV64	B0.B16, B0.B16
 		VEOR	ACC0.B16, B0.B16, B0.B16
 
@@ -636,40 +693,8 @@ encReduce:
 tail:
 	CBZ	srcPtrLen, done
 
-	VEOR	T0.B16, T0.B16, T0.B16
-	VEOR	T3.B16, T3.B16, T3.B16
-	MOVD	$0, H1
-	SUB	$1, H1
-	ADD	srcPtrLen, srcPtr
+	tailLoad(T0)
 
-	TBZ	$3, srcPtrLen, ld4
-	MOVD.W	-8(srcPtr), H0
-	VMOV	H0, T0.D[0]
-	VMOV	H1, T3.D[0]
-ld4:
-	TBZ	$2, srcPtrLen, ld2
-	MOVW.W	-4(srcPtr), H0
-	VEXT	$12, T0.B16, ZERO.B16, T0.B16
-	VEXT	$12, T3.B16, ZERO.B16, T3.B16
-	VMOV	H0, T0.S[0]
-	VMOV	H1, T3.S[0]
-ld2:
-	TBZ	$1, srcPtrLen, ld1
-	MOVH.W	-2(srcPtr), H0
-	VEXT	$14, T0.B16, ZERO.B16, T0.B16
-	VEXT	$14, T3.B16, ZERO.B16, T3.B16
-	VMOV	H0, T0.H[0]
-	VMOV	H1, T3.H[0]
-ld1:
-	TBZ	$0, srcPtrLen, ld0
-	MOVB.W	-1(srcPtr), H0
-	VEXT	$15, T0.B16, ZERO.B16, T0.B16
-	VEXT	$15, T3.B16, ZERO.B16, T3.B16
-	VMOV	H0, T0.B[0]
-	VMOV	H1, T3.B[0]
-ld0:
-
-	MOVD	ZR, srcPtrLen
 	VEOR	KLAST.B16, T0.B16, T0.B16
 	VREV32	CTR.B16, B0.B16
 
@@ -706,6 +731,13 @@ ld0:
 tailLast:
 	VEOR	T0.B16, B0.B16, B0.B16
 	VAND	T3.B16, B0.B16, B0.B16
+
+	// Store from a copy, since tailStore clobbers its argument and
+	// B0 is the GHASH input of encReduce.
+	VMOV	B0.B16, T0.B16
+	tailStore(T0)
+	MOVD	ZR, srcPtrLen
+
 	B	encReduce
 
 done:
@@ -971,43 +1003,12 @@ tail:
 tailLast:
 	VEOR	KLAST.B16, B0.B16, B0.B16
 
-	// Assuming it is safe to load past dstPtr due to the presence of the tag
-	VLD1	(srcPtr), [B5.B16]
+	tailLoad(B5)
 
 	VEOR	B5.B16, B0.B16, B0.B16
 
-	VEOR	T3.B16, T3.B16, T3.B16
-	MOVD	$0, H1
-	SUB	$1, H1
+	tailStore(B0)
 
-	TBZ	$3, srcPtrLen, ld4
-	VMOV	B0.D[0], H0
-	MOVD.P	H0, 8(dstPtr)
-	VMOV	H1, T3.D[0]
-	VEXT	$8, ZERO.B16, B0.B16, B0.B16
-ld4:
-	TBZ	$2, srcPtrLen, ld2
-	VMOV	B0.S[0], H0
-	MOVW.P	H0, 4(dstPtr)
-	VEXT	$12, T3.B16, ZERO.B16, T3.B16
-	VMOV	H1, T3.S[0]
-	VEXT	$4, ZERO.B16, B0.B16, B0.B16
-ld2:
-	TBZ	$1, srcPtrLen, ld1
-	VMOV	B0.H[0], H0
-	MOVH.P	H0, 2(dstPtr)
-	VEXT	$14, T3.B16, ZERO.B16, T3.B16
-	VMOV	H1, T3.H[0]
-	VEXT	$2, ZERO.B16, B0.B16, B0.B16
-ld1:
-	TBZ	$0, srcPtrLen, ld0
-	VMOV	B0.B[0], H0
-	MOVB.P	H0, 1(dstPtr)
-	VEXT	$15, T3.B16, ZERO.B16, T3.B16
-	VMOV	H1, T3.B[0]
-ld0:
-
-	VAND	T3.B16, B5.B16, B5.B16
 	VREV64	B5.B16, B5.B16
 
 	VEOR	ACC0.B16, B5.B16, B5.B16
