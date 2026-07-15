@@ -577,7 +577,7 @@ func testSegments(t *testing.T, segments []segment, filename string) {
 	// verify scan
 	var S Scanner
 	file := fset.AddFile(filename, fset.Base(), len(src))
-	S.Init(file, []byte(src), func(pos token.Position, msg string) { t.Error(Error{pos, msg}) }, dontInsertSemis)
+	S.Init(file, []byte(src), func(pos token.Position, msg string) { t.Error(&Error{pos, msg}) }, dontInsertSemis)
 	for _, s := range segments {
 		p, _, lit := S.Scan()
 		pos := file.Position(p)

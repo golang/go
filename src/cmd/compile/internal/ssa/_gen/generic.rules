@@ -74,6 +74,13 @@
 (PopCount32 (Const32 [c])) && config.PtrSize == 4 => (Const32 [int32(bits.OnesCount32(uint32(c)))])
 (PopCount16 (Const16 [c])) && config.PtrSize == 4 => (Const32 [int32(bits.OnesCount16(uint16(c)))])
 (PopCount8  (Const8  [c])) && config.PtrSize == 4 => (Const32 [int32(bits.OnesCount8(uint8(c)))])
+(Bswap64 (Const64 [c])) => (Const64 [int64(bits.ReverseBytes64(uint64(c)))])
+(Bswap32 (Const32 [c])) => (Const32 [int32(bits.ReverseBytes32(uint32(c)))])
+(Bswap16 (Const16 [c])) => (Const16 [int16(bits.ReverseBytes16(uint16(c)))])
+(BitRev64 (Const64 [c])) => (Const64 [int64(bits.Reverse64(uint64(c)))])
+(BitRev32 (Const32 [c])) => (Const32 [int32(bits.Reverse32(uint32(c)))])
+(BitRev16 (Const16 [c])) => (Const16 [int16(bits.Reverse16(uint16(c)))])
+(BitRev8  (Const8  [c])) => (Const8  [int8(bits.Reverse8(uint8(c)))])
 (Add64carry (Const64 <t> [x]) (Const64 [y]) (Const64 [c])) && c >= 0 && c <= 1 => (MakeTuple (Const64 <t> [bitsAdd64(x, y, c).sum]) (Const64 <t> [bitsAdd64(x, y, c).carry]))
 
 (Trunc16to8  (ZeroExt8to16  x)) => x

@@ -7,6 +7,7 @@
 package os
 
 import (
+	"io/fs"
 	"runtime"
 	"slices"
 	"sync"
@@ -66,7 +67,7 @@ func (r *root) Name() string {
 }
 
 func rootChmod(r *Root, name string, mode FileMode) error {
-	_, err := doInRoot(r, name, nil, func(parent sysfdType, name string) (struct{}, error) {
+	_, err := doInRoot(r, name, 0, nil, func(parent sysfdType, name string, endsInSlash bool) (struct{}, error) {
 		return struct{}{}, chmodat(parent, name, mode)
 	})
 	if err != nil {
@@ -76,7 +77,7 @@ func rootChmod(r *Root, name string, mode FileMode) error {
 }
 
 func rootChown(r *Root, name string, uid, gid int) error {
-	_, err := doInRoot(r, name, nil, func(parent sysfdType, name string) (struct{}, error) {
+	_, err := doInRoot(r, name, 0, nil, func(parent sysfdType, name string, endsInSlash bool) (struct{}, error) {
 		return struct{}{}, chownat(parent, name, uid, gid)
 	})
 	if err != nil {
@@ -86,27 +87,36 @@ func rootChown(r *Root, name string, uid, gid int) error {
 }
 
 func rootLchown(r *Root, name string, uid, gid int) error {
-	_, err := doInRoot(r, name, nil, func(parent sysfdType, name string) (struct{}, error) {
+	_, err := doInRoot(r, name, 0, nil, func(parent sysfdType, name string, endsInSlash bool) (struct{}, error) {
 		return struct{}{}, lchownat(parent, name, uid, gid)
 	})
 	if err != nil {
 		return &PathError{Op: "lchownat", Path: name, Err: err}
 	}
-	return err
+	return nil
 }
 
 func rootChtimes(r *Root, name string, atime time.Time, mtime time.Time) error {
-	_, err := doInRoot(r, name, nil, func(parent sysfdType, name string) (struct{}, error) {
+	_, err := doInRoot(r, name, 0, nil, func(parent sysfdType, name string, endsInSlash bool) (struct{}, error) {
 		return struct{}{}, chtimesat(parent, name, atime, mtime)
 	})
 	if err != nil {
 		return &PathError{Op: "chtimesat", Path: name, Err: err}
 	}
-	return err
+	return nil
 }
 
 func rootMkdir(r *Root, name string, perm FileMode) error {
-	_, err := doInRoot(r, name, nil, func(parent sysfdType, name string) (struct{}, error) {
+	flags := uint(doInRootCreatingDirectory)
+	switch runtime.GOOS {
+	case "linux", "windows":
+		// These platforms do not follow "symlink" on "mkdir symlink/".
+		// (POSIX.1-2024 4.16 says that the trailing slash should cause
+		// resolution to follow the symlink, but we're trying to match
+		// platform semantics, not implement POSIX.)
+		flags |= doInRootNoHandleTerminalSlash
+	}
+	_, err := doInRoot(r, name, flags, nil, func(parent sysfdType, name string, endsInSlash bool) (struct{}, error) {
 		return struct{}{}, mkdirat(parent, name, perm)
 	})
 	if err != nil {
@@ -140,7 +150,7 @@ func rootMkdirAll(r *Root, fullname string, perm FileMode) error {
 		panic("unreachable")
 	}
 	// openLastComponentFunc opens the last path component.
-	openLastComponentFunc := func(parent sysfdType, name string) (struct{}, error) {
+	openLastComponentFunc := func(parent sysfdType, name string, endsInSlash bool) (struct{}, error) {
 		err := mkdirat(parent, name, perm)
 		if err == syscall.EEXIST {
 			mode, e := modeAt(parent, name)
@@ -157,6 +167,12 @@ func rootMkdirAll(r *Root, fullname string, perm FileMode) error {
 					fi, e := r.Stat(fullname)
 					if e == nil && fi.Mode().IsDir() {
 						err = nil
+					} else if e == nil {
+						err = syscall.ENOTDIR
+					} else if !IsNotExist(e) {
+						// EPERM, ELOOP, etc.,
+						// probably more useful than EEXIST.
+						err = e
 					}
 				}
 			}
@@ -167,7 +183,12 @@ func rootMkdirAll(r *Root, fullname string, perm FileMode) error {
 		}
 		return struct{}{}, &PathError{Op: "mkdirat", Err: err}
 	}
-	_, err := doInRoot(r, fullname, openDirFunc, openLastComponentFunc)
+	flags := uint(doInRootCreatingDirectory)
+	switch runtime.GOOS {
+	case "linux", "windows":
+		flags |= doInRootNoHandleTerminalSlash // see rootMkdir
+	}
+	_, err := doInRoot(r, fullname, flags, openDirFunc, openLastComponentFunc)
 	if err != nil {
 		if _, ok := err.(*PathError); !ok {
 			err = &PathError{Op: "mkdirat", Path: fullname, Err: err}
@@ -177,7 +198,7 @@ func rootMkdirAll(r *Root, fullname string, perm FileMode) error {
 }
 
 func rootReadlink(r *Root, name string) (string, error) {
-	target, err := doInRoot(r, name, nil, func(parent sysfdType, name string) (string, error) {
+	target, err := doInRoot(r, name, 0, nil, func(parent sysfdType, name string, endsInSlash bool) (string, error) {
 		return readlinkat(parent, name)
 	})
 	if err != nil {
@@ -187,7 +208,7 @@ func rootReadlink(r *Root, name string) (string, error) {
 }
 
 func rootRemove(r *Root, name string) error {
-	_, err := doInRoot(r, name, nil, func(parent sysfdType, name string) (struct{}, error) {
+	_, err := doInRoot(r, name, 0, nil, func(parent sysfdType, name string, endsInSlash bool) (struct{}, error) {
 		return struct{}{}, removeat(parent, name)
 	})
 	if err != nil {
@@ -206,7 +227,7 @@ func rootRemoveAll(r *Root, name string) error {
 		// Consistency with os.RemoveAll: Return EINVAL when trying to remove .
 		return &PathError{Op: "RemoveAll", Path: name, Err: syscall.EINVAL}
 	}
-	_, err := doInRoot(r, name, nil, func(parent sysfdType, name string) (struct{}, error) {
+	_, err := doInRoot(r, name, 0, nil, func(parent sysfdType, name string, endsInSlash bool) (struct{}, error) {
 		return struct{}{}, removeAllFrom(parent, name)
 	})
 	if IsNotExist(err) {
@@ -219,8 +240,30 @@ func rootRemoveAll(r *Root, name string) error {
 }
 
 func rootRename(r *Root, oldname, newname string) error {
-	_, err := doInRoot(r, oldname, nil, func(oldparent sysfdType, oldname string) (struct{}, error) {
-		_, err := doInRoot(r, newname, nil, func(newparent sysfdType, newname string) (struct{}, error) {
+	_, err := doInRoot(r, oldname, 0, nil, func(oldparent sysfdType, oldname string, oldEndsInSlash bool) (struct{}, error) {
+		flags := uint(doInRootCreatingDirectory)
+		if runtime.GOOS == "windows" {
+			flags |= doInRootNoHandleTerminalSlash
+		}
+		_, err := doInRoot(r, newname, flags, nil, func(newparent sysfdType, newname string, newEndsInSlash bool) (struct{}, error) {
+			if runtime.GOOS != "windows" && newEndsInSlash {
+				oldMode, err := modeAt(oldparent, oldname)
+				if err != nil {
+					return struct{}{}, err
+				}
+				if oldMode.Type() != fs.ModeDir {
+					return struct{}{}, syscall.ENOTDIR
+				}
+			}
+			// Same checks as applied by rename (in file_unix.go):
+			fi, err := lstatat(newparent, newname)
+			if err == nil && fi.IsDir() {
+				if ofi, err := lstatat(oldparent, oldname); err != nil {
+					return struct{}{}, err
+				} else if newname == oldname || !SameFile(fi, ofi) {
+					return struct{}{}, syscall.EEXIST
+				}
+			}
 			return struct{}{}, renameat(oldparent, oldname, newparent, newname)
 		})
 		return struct{}{}, err
@@ -232,8 +275,13 @@ func rootRename(r *Root, oldname, newname string) error {
 }
 
 func rootLink(r *Root, oldname, newname string) error {
-	_, err := doInRoot(r, oldname, nil, func(oldparent sysfdType, oldname string) (struct{}, error) {
-		_, err := doInRoot(r, newname, nil, func(newparent sysfdType, newname string) (struct{}, error) {
+	_, err := doInRoot(r, oldname, 0, nil, func(oldparent sysfdType, oldname string, oldEndsInSlash bool) (struct{}, error) {
+		flags := uint(0)
+		if runtime.GOOS == "windows" {
+			// Windows doesn't pay attention to trailing slashes in the link target.
+			flags |= doInRootNoHandleTerminalSlash
+		}
+		_, err := doInRoot(r, newname, flags, nil, func(newparent sysfdType, newname string, newEndsInSlash bool) (struct{}, error) {
 			return struct{}{}, linkat(oldparent, oldname, newparent, newname)
 		})
 		return struct{}{}, err
@@ -244,31 +292,58 @@ func rootLink(r *Root, oldname, newname string) error {
 	return err
 }
 
+// Flags for doInRoot.
+const (
+	// doInRootNoHandleTerminalSlash prevents doInRoot from applying special handling
+	// for paths which end in one or more slashes.
+	doInRootNoHandleTerminalSlash = 1 << iota
+
+	// doInRootCreatingDirectory indicates that the operation is creating a directory.
+	// When a path ends in /, the last path component may name a file which does not exist.
+	doInRootCreatingDirectory
+
+	// doInRootAlwaysResolveTerminalSlash causes doInRoot to resolve symlinks in the last
+	// path component when a path ends in /, even on Windows. For example, this causes
+	// doInRoot to resolve "symlink/" as the link target of "symlink".
+	//
+	// POSIX path operations resolve symlinks in this case.
+	// Most Windows operations do not.
+	// This flag enforces the POSIX behavior.
+	doInRootAlwaysResolveTerminalSlash
+)
+
 // doInRoot performs an operation on a path in a Root.
 //
 // It calls f with the FD or handle for the directory containing the last
-// path element, and the name of the last path element.
+// path element, the name of the last path element (not including slashes),
+// and a boolean indicating whether the original path ended in one or more slashes.
 //
 // For example, given the path a/b/c it calls f with the FD for a/b and the name "c".
+//
+// It applies special handling for paths ending in a slash: When a path ends in a slash
+// (for example "a/b/"), doInRoot will check the final component ("b") before calling f.
+// If the final component is a symlink, doInRoot will resolve it.
+// If the final component is neither a symlink nor a directory, doInRoot will return ENOTDIR.
+// This behavior may be disabled by passing the doInRootNoHandleTerminalSlash flag.
 //
 // If openDirFunc is non-nil, it is called to open intermediate path elements.
 // For example, given the path a/b/c openDirFunc will be called to open a and a/b in turn.
 //
 // f or openDirFunc may return errSymlink to indicate that the path element is a symlink
 // which should be followed. Note that this can result in f being called multiple times
-// with different names. For example, give the path "link" which is a symlink to "target",
+// with different names. For example, given the path "link" which is a symlink to "target",
 // f is called with the path "link", returns errSymlink("target"), and is called again with
 // the path "target".
 //
 // If f or openDirFunc return a *PathError, doInRoot will set PathError.Path to the
 // full path which caused the error.
-func doInRoot[T any](r *Root, name string, openDirFunc func(parent sysfdType, name string) (sysfdType, error), f func(parent sysfdType, name string) (T, error)) (ret T, err error) {
+func doInRoot[T any](r *Root, name string, flags uint, openDirFunc func(parent sysfdType, name string) (sysfdType, error), f func(parent sysfdType, name string, endsInSlash bool) (T, error)) (ret T, err error) {
 	if err := r.root.incref(); err != nil {
 		return ret, err
 	}
 	defer r.root.decref()
 
-	parts, suffixSep, err := splitPathInRoot(name, nil, nil)
+	parts, endsInSlash, err := splitPathInRoot(name, nil, nil)
 	if err != nil {
 		return ret, err
 	}
@@ -332,15 +407,43 @@ Loop:
 		}
 
 		if i == len(parts)-1 {
+			err = nil
+			if endsInSlash && flags&doInRootNoHandleTerminalSlash == 0 {
+				var fi FileInfo
+				fi, err = lstatat(dirfd, parts[i])
+				switch {
+				case IsNotExist(err) && flags&doInRootCreatingDirectory != 0:
+					// The path ends in a slash, the last path component
+					// does not exist, and we creating a directory.
+					// This is fine.
+					err = nil
+				case err != nil:
+					return
+				case fi.Mode().Type() == fs.ModeDir:
+				case fi.Mode().Type() == fs.ModeSymlink:
+					if runtime.GOOS != "windows" || flags&doInRootAlwaysResolveTerminalSlash != 0 {
+						err = checkSymlink(dirfd, parts[i], syscall.ENOTDIR)
+					} else {
+						if !isDirectoryLink(fi) {
+							err = syscall.ENOTDIR
+						}
+					}
+				default:
+					err = syscall.ENOTDIR
+					return
+				}
+			}
+
 			// This is the last path element.
 			// Call f to decide what to do with it.
 			// If f returns errSymlink, this element is a symlink
 			// which should be followed.
-			// suffixSep contains any trailing separator characters
-			// which we rejoin to the final part at this time.
-			ret, err = f(dirfd, parts[i]+suffixSep)
+			// suffixSep contains any trailing separator characters.
 			if err == nil {
-				return
+				ret, err = f(dirfd, parts[i], endsInSlash)
+				if err == nil {
+					return
+				}
 			}
 		} else {
 			var fd sysfdType
@@ -360,18 +463,15 @@ Loop:
 			if symlinks > rootMaxSymlinks {
 				return ret, syscall.ELOOP
 			}
-			newparts, newSuffixSep, err := splitPathInRoot(string(e), parts[:i], parts[i+1:])
+			lastPart := i == len(parts)-1
+			newparts, newEndsInSlash, err := splitPathInRoot(string(e), parts[:i], parts[i+1:])
 			if err != nil {
 				return ret, err
 			}
-			if i == len(parts)-1 {
-				// suffixSep contains any trailing path separator characters
-				// in the link target.
-				// If we are replacing the remainder of the path, retain these.
-				// If we're replacing some intermediate component of the path,
-				// ignore them, since intermediate components must always be
-				// directories.
-				suffixSep = newSuffixSep
+			if lastPart && newEndsInSlash {
+				// If a link target in the final path component ends in a slash,
+				// then the path now ends in a slash.
+				endsInSlash = true
 			}
 			if len(newparts) < i || !slices.Equal(parts[:i], newparts[:i]) {
 				// Some component in the path which we have already traversed
@@ -397,6 +497,14 @@ Loop:
 
 		i++
 	}
+}
+
+func modeAt(parent sysfdType, name string) (FileMode, error) {
+	fi, err := lstatat(parent, name)
+	if err != nil {
+		return 0, err
+	}
+	return fi.Mode(), nil
 }
 
 // errSymlink reports that a file being operated on is actually a symlink,

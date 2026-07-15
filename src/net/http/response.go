@@ -13,6 +13,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"math"
 	"net/textproto"
 	"net/url"
 	"strconv"
@@ -199,7 +200,7 @@ func ReadResponse(r *bufio.Reader, req *Request) (*Response, error) {
 
 	fixPragmaCacheControl(resp.Header)
 
-	err = readTransfer(resp, r)
+	err = readTransfer(resp, r, math.MaxInt64)
 	if err != nil {
 		return nil, err
 	}

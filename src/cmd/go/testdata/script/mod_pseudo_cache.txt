@@ -1,5 +1,5 @@
-[!net:golang.org] skip
 [!git] skip
+[short] skip
 
 env GO111MODULE=on
 env GOPROXY=direct
@@ -9,21 +9,21 @@ env GOSUMDB=off
 # pseudo-version of a commit, future resolution of that commit by hash should
 # choose the highest appropriate pseudo-version instead of the cached one.
 
-go mod download -json golang.org/x/text@v0.0.0-20171215141712-a1b916ed6726
-stdout '"Version": "v0.0.0-20171215141712-a1b916ed6726",'
+go mod download -json vcs-test.golang.org/git/commit-after-tag.git@v0.0.0-20190715211727-b325d8217783
+stdout '"Version": "v0.0.0-20190715211727-b325d8217783",'
 
 # If GOPROXY is 'off', lookups should use whatever pseudo-version is available.
 env GOPROXY=off
-go mod download -json golang.org/x/text@a1b916ed6726
-stdout '"Version": "v0.0.0-20171215141712-a1b916ed6726",'
+go mod download -json vcs-test.golang.org/git/commit-after-tag.git@b325d8217783
+stdout '"Version": "v0.0.0-20190715211727-b325d8217783",'
 
 # If we can re-resolve the commit to a pseudo-version, fetching the commit by
 # hash should use the highest such pseudo-version appropriate to the commit.
 env GOPROXY=direct
-go mod download -json golang.org/x/text@a1b916ed6726
-stdout '"Version": "v0.3.1-0.20171215141712-a1b916ed6726",'
+go mod download -json vcs-test.golang.org/git/commit-after-tag.git@b325d8217783
+stdout '"Version": "v1.0.1-0.20190715211727-b325d8217783",'
 
 # If GOPROXY is 'off', lookups should use the highest pseudo-version in the cache.
 env GOPROXY=off
-go mod download -json golang.org/x/text@a1b916ed6726
-stdout '"Version": "v0.3.1-0.20171215141712-a1b916ed6726",'
+go mod download -json vcs-test.golang.org/git/commit-after-tag.git@b325d8217783
+stdout '"Version": "v1.0.1-0.20190715211727-b325d8217783",'

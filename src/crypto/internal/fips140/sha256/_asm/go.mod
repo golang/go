@@ -1,4 +1,4 @@
-module crypto/sha256/_asm
+module crypto/internal/fips140/sha256/_asm
 
 go 1.24
 

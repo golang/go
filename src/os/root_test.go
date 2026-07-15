@@ -7,10 +7,12 @@ package os_test
 import (
 	"bytes"
 	"errors"
+	"flag"
 	"fmt"
 	"internal/testenv"
 	"io"
 	"io/fs"
+	"iter"
 	"net"
 	"os"
 	"path"
@@ -55,7 +57,7 @@ func testMaybeRooted(t *testing.T, f func(t *testing.T, r *os.Root)) {
 //
 // makefs calls t.Skip if the layout contains features not supported by the current GOOS.
 func makefs(t *testing.T, fs []string) string {
-	root := path.Join(t.TempDir(), "ROOT")
+	root := filepath.Join(t.TempDir(), "ROOT")
 	if err := os.Mkdir(root, 0o777); err != nil {
 		t.Fatal(err)
 	}
@@ -219,6 +221,22 @@ var rootTestCases = []rootTest{{
 	open:   "link/target",
 	target: "dir/target",
 }, {
+	name: "slash after symlink to file",
+	fs: []string{
+		"link => ../ROOT/target",
+	},
+	open:      "link/",
+	target:    "target",
+	wantError: true,
+}, {
+	name: "slash after symlink to dir",
+	fs: []string{
+		"link => ../ROOT/target",
+		"target/",
+	},
+	open:      "link/",
+	wantError: true,
+}, {
 	name: "symlink dotdot dotdot slash",
 	fs: []string{
 		"dir/link => ../../",
@@ -259,8 +277,10 @@ var rootTestCases = []rootTest{{
 	open:      "../",
 	wantError: true,
 }, {
-	name:      "path with dotdot dotdot slash",
-	fs:        []string{},
+	name: "path with dotdot dotdot slash",
+	fs: []string{
+		"a/",
+	},
 	open:      "a/../../",
 	wantError: true,
 }, {
@@ -536,13 +556,10 @@ func TestRootMkdir(t *testing.T) {
 	for _, test := range rootTestCases {
 		test.run(t, func(t *testing.T, target string, root *os.Root) {
 			wantError := test.wantError
-			if !wantError {
-				fi, err := os.Lstat(filepath.Join(root.Name(), test.open))
-				if err == nil && fi.Mode().Type() == fs.ModeSymlink {
-					// This case is trying to mkdir("some symlink"),
-					// which is an error.
-					wantError = true
-				}
+			if test.ltarget != "" {
+				// This case is trying to mkdir("some symlink"),
+				// which is an error (but not an escape).
+				wantError = true
 			}
 
 			err := root.Mkdir(test.open, 0o777)
@@ -568,18 +585,20 @@ func TestRootMkdir(t *testing.T) {
 
 func TestRootMkdirAll(t *testing.T) {
 	for _, test := range rootTestCases {
+		if test.name == "directory does not exist" {
+			// Test expects error, mkdirall creates the missing directory.
+			// TestRootMultiMkdirAll covers this case better anyway, just skip.
+			continue
+		}
 		test.run(t, func(t *testing.T, target string, root *os.Root) {
 			wantError := test.wantError
-			if !wantError {
-				fi, err := os.Lstat(filepath.Join(root.Name(), test.open))
-				if err == nil && fi.Mode().Type() == fs.ModeSymlink {
-					// This case is trying to mkdir("some symlink"),
-					// which is an error.
-					wantError = true
-				}
+			if test.ltarget != "" {
+				// This case is trying to mkdir("some symlink"),
+				// which is an error (but not an escape).
+				wantError = true
 			}
 
-			err := root.Mkdir(test.open, 0o777)
+			err := root.MkdirAll(test.open, 0o777)
 			if errEndsTest(t, err, wantError, "root.MkdirAll(%q)", test.open) {
 				return
 			}
@@ -682,6 +701,15 @@ func TestRootRemoveDirectory(t *testing.T) {
 func TestRootRemoveAll(t *testing.T) {
 	for _, test := range rootTestCases {
 		test.run(t, func(t *testing.T, target string, root *os.Root) {
+			if strings.HasSuffix(test.open, "/") {
+				// The test is removing a file with a trailing /.
+				// RemoveAll ignores trailing /s
+				// If the file is a symlink, it will remove the symlink.
+				fullname := filepath.Join(root.Name(), test.open)
+				if st, err := os.Lstat(fullname); err == nil && st.Mode().Type() == fs.ModeSymlink {
+					test.ltarget = test.open
+				}
+			}
 			wantError := test.wantError
 			if test.ltarget != "" {
 				// Remove doesn't follow symlinks in the final path component,
@@ -960,6 +988,15 @@ func testRootMoveTo(t *testing.T, rename bool) {
 				t.Fatal(err)
 			}
 
+			if runtime.GOOS == "windows" && strings.HasSuffix(test.open, "/") {
+				// Windows will ignore trailing slashes in the rename/link target.
+				p := strings.TrimSuffix(test.open, "/")
+				st, err := root.Lstat(p)
+				if err == nil && st.Mode().Type() == fs.ModeSymlink {
+					test.ltarget = p
+				}
+			}
+
 			target = test.target
 			wantError := test.wantError
 			if test.ltarget != "" {
@@ -1121,6 +1158,16 @@ var rootConsistencyTestCases = []rootConsistencyTest{{
 		"link => target",
 	},
 	open: "link/",
+	check: func(t *testing.T) {
+		if runtime.GOOS == "linux" && strings.HasPrefix(t.Name(), "TestRootConsistencyRename/") {
+			// Linux does not resolve "symlink" in rename("symlink/", "target").
+			t.Skip("known inconsistency on linux")
+		}
+		if strings.HasPrefix(t.Name(), "TestRootConsistencyRemoveAll/") {
+			// Root.RemoveAll and os.RemoveAll are not always consistent here.
+			t.Skip("known inconsistency in RemoveAll")
+		}
+	},
 }, {
 	name: "symlink slash dot",
 	fs: []string{
@@ -1128,17 +1175,6 @@ var rootConsistencyTestCases = []rootConsistencyTest{{
 		"link => target",
 	},
 	open: "link/.",
-}, {
-	name: "file symlink slash",
-	fs: []string{
-		"target",
-		"link => target",
-	},
-	open: "link/",
-	detailedErrorMismatch: func(t *testing.T) bool {
-		// os.Create returns ENOTDIR or EISDIR depending on the platform.
-		return runtime.GOOS == "js"
-	},
 }, {
 	name: "unresolved symlink",
 	fs: []string{
@@ -1208,13 +1244,19 @@ var rootConsistencyTestCases = []rootConsistencyTest{{
 		return runtime.GOOS == "windows"
 	},
 	check: func(t *testing.T) {
-		if runtime.GOOS == "windows" && strings.HasPrefix(t.Name(), "TestRootConsistencyRemoveAll/") {
-			// Root.RemoveAll notices that a/ is not a directory,
-			// and returns success.
-			// os.RemoveAll tries to open a/ and fails because
-			// it is not a regular file.
-			// The inconsistency here isn't worth fixing, so just skip this test.
-			t.Skip("known inconsistency on windows")
+		if strings.HasPrefix(t.Name(), "TestRootConsistencyRemoveAll/") {
+			switch runtime.GOOS {
+			case "windows":
+				// Root.RemoveAll notices that a/ is not a directory,
+				// and returns success.
+				// os.RemoveAll tries to open a/ and fails because
+				// it is not a regular file.
+				// The inconsistency here isn't worth fixing, so just skip this test.
+				t.Skip("known inconsistency on windows")
+			case "js":
+				// GOOS=js behavior varies with what the underlying OS is.
+				t.Skip("known inconsistency with GOOS=js")
+			}
 		}
 	},
 }, {
@@ -2068,5 +2110,1391 @@ func TestRootNoLstat(t *testing.T) {
 		if got, want := names, []string{"file"}; !slices.Equal(got, want) {
 			t.Fatalf(`Open("subdir").Readdirnames(-1) = %q, want %q`, got, want)
 		}
+	})
+}
+
+// A rootMultiTest is state for testing an os.Root operation in one configuration among many.
+// Each execution of a rootMultiTest varies in several ways:
+//
+//   - With or without an *os.Root, to check consistency between root/non-root operations.
+//   - With a target that may be a file, directory, symlink, or entirely absent.
+//   - With various paths referencing the target: "target", "DIR/../target", etc.
+//   - When the target is a symlink, with various link target paths.
+//
+// For example, a single test execution might be:
+// In an *os.Root, copy "source" to "DIR/../target".
+// "source" is a file, and "target" is a symlink to "../ROOT/s_target". "s_target" is a directory.
+// (In this case, we expect the test to fail due to the path escape in the symlink.)
+type rootMultiTest struct {
+	// dir is the directory containing the test.
+	// dir will always contain a directory named "ROOT"
+	// and a subdir named "ROOT/DIR".
+	dir string
+
+	// root is the *Root for the test. May be nil.
+	root *os.Root
+
+	// source and target are files acted on by the test.
+	// target is always set; source is only set for tests which request two files.
+	source testFileDesc
+	target testFileDesc
+
+	// sourcePath and targetPath are the paths which should be used to acceess
+	// the source/target.
+	sourcePath string
+	targetPath string
+
+	sourceInfo os.FileInfo
+	targetInfo os.FileInfo
+
+	// op is the operation being performed, used for reporting errors.
+	op string
+}
+
+var testVerbose = flag.Bool("verbose", false, "verbose")
+
+// A rootMultiTest function may return this error to disable
+// the check that in-root and out-of-root functions have the same outcome.
+var errSkipRootConsistencyCheck = errors.New("skip root consistency check")
+
+// runRootMultiTest runs f in a variety of configurations.
+// See above.
+func runRootMultiTest(t *testing.T, f func(*testing.T, *rootMultiTest) (string, error)) {
+	for target := range allTestFileDescs() {
+		t.Run(target.String(), func(t *testing.T) {
+			var source testFileDesc // unused
+			runRootMultiTestDescs(t, source, target, f)
+		})
+	}
+}
+
+// runRootMultiTest2 runs f in a variety of configurations,
+// with both source and target files.
+// See above.
+func runRootMultiTest2(t *testing.T, f func(*testing.T, *rootMultiTest) (string, error)) {
+	// A "simple" desc is one which contains only direct references.
+	// When not running the comprehensive (but slow) set of test variations,
+	// we only test variations where at least one of source and target is simple.
+	isSimple := func(desc testFileDesc) bool {
+		if desc.ref.template != "BASE" {
+			return false
+		}
+		if desc.kind == testFileSymlink && desc.target.ref.template != "BASE" {
+			return false
+		}
+		return true
+	}
+	for source := range allTestFileDescs() {
+		for target := range allTestFileDescs() {
+			if !*rootComprehensive && !isSimple(source) && !isSimple(target) {
+				continue
+			}
+			name := fmt.Sprintf("%s_to_%s", source, target)
+			t.Run(name, func(t *testing.T) {
+				runRootMultiTestDescs(t, source, target, f)
+			})
+		}
+	}
+}
+
+// setOp sets the operation performed by the test (logged in errors).
+//
+// This currently assumes the operation will be a method of os.Root and a function in os
+// (e.g., root.Open/os.Open).
+func (test *rootMultiTest) setOp(format string, a ...any) {
+	if test.root != nil {
+		test.op = "root."
+	} else {
+		test.op = "os."
+	}
+	test.op += fmt.Sprintf(format, a...)
+}
+
+var errAny = errors.New("any error")
+
+func (test *rootMultiTest) errorf(t *testing.T, format string, args ...any) {
+	t.Errorf("%v:", test.op)
+	t.Fatalf("  "+format, args...)
+}
+
+// wantError tests whether got matches want.
+// If want is errAny, got may be any non-nil error.
+func (test *rootMultiTest) wantError(t *testing.T, got, want error) {
+	t.Helper()
+	if errors.Is(got, want) || (got != nil && want == errAny) {
+		return
+	}
+	t.Fatalf("%v:\ngot error:  %v\nwant error: %v", test.op, got, want)
+}
+
+func runRootMultiTestDescs(t *testing.T, source, target testFileDesc, f func(*testing.T, *rootMultiTest) (string, error)) {
+	rootTest := newRootTest(t, source, target, true)
+	osTest := newRootTest(t, source, target, false)
+
+	initialContent := dirTreeContents(t, rootTest.dir)
+	t.Cleanup(func() {
+		if t.Failed() {
+			t.Log("Initial directory contents:")
+			for _, line := range initialContent {
+				t.Logf("  %v", line)
+			}
+		}
+	})
+
+	rootResult, rootErr := f(t, rootTest)
+
+	if runtime.GOOS == "darwin" {
+		// Darwin appears to have a kernel bug which causes restrictions on paths
+		// with a trailing / to not be applied during uncached path lookups.
+		// These restrictions are applied during cached lookups, so the results
+		// of operating on /-suffixed paths are inconsistent.
+		//
+		// An example of this Darwin behavior (as of 25.4.0) is:
+		//   $ mkdir -p test/dir
+		//   $ echo hello > test/file
+		//   $ ln -s dir/../file test/link
+		//   $ cat test/link/
+		//   hello
+		//   $ cat test/link/
+		//   cat: test/link/: Not a directory
+		//
+		// Since Darwin isn't consistent with itself, we can't verify that we're
+		// consistent with it.
+		if rootTest.source.anySlashSuffix() || rootTest.target.anySlashSuffix() {
+			return
+		}
+	}
+
+	if runtime.GOOS == "wasip1" || runtime.GOOS == "js" {
+		// WASI runtimes don't have any consistent behavior for handling paths with
+		// a trailing /, so skip consistency tests for these paths.
+		if rootTest.source.anySlashSuffix() || rootTest.target.anySlashSuffix() {
+			return
+		}
+	}
+
+	osResult, osErr := f(t, osTest)
+
+	t.Cleanup(func() {
+		if t.Failed() || !*testVerbose {
+			return
+		}
+		rootContent := dirTreeContents(t, rootTest.dir)
+		osContent := dirTreeContents(t, osTest.dir)
+		t.Log("Initial directory contents:")
+		for _, line := range initialContent {
+			t.Logf("  %v", line)
+		}
+		t.Logf("%v:", rootTest.op)
+		t.Logf("  result: %v", rootResult)
+		t.Logf("  error: %v", rootErr)
+		for _, line := range rootContent {
+			t.Logf("  %v", line)
+		}
+		t.Logf("%v:", osTest.op)
+		t.Logf("  result: %v", osResult)
+		t.Logf("  error: %v", osErr)
+		for _, line := range osContent {
+			t.Logf("  %v", line)
+		}
+	})
+
+	if errors.Is(rootErr, os.ErrPathEscapes) {
+		// os.Root forbids this operation (and is therefore not consistent with
+		// the non-root version).
+		return
+	}
+
+	if rootErr == errSkipRootConsistencyCheck || osErr == errSkipRootConsistencyCheck {
+		return
+	}
+
+	// Consistency check: Performing the same operation in and out of a root
+	// should produce the same results.
+	if rootResult != osResult {
+		t.Errorf("inconsistent results in/out of root")
+		t.Errorf("%v:", rootTest.op)
+		t.Errorf("  result: %v", rootResult)
+		t.Errorf("%v:", osTest.op)
+		t.Errorf("  result: %v", osResult)
+	}
+	if (rootErr == nil) != (osErr == nil) {
+		t.Errorf("inconsistent errors in/out of root")
+		t.Errorf("%v:", rootTest.op)
+		t.Errorf("  error: %v", rootErr)
+		t.Errorf("%v:", osTest.op)
+		t.Errorf("  error: %v", osErr)
+	}
+
+	// Filesystem consistency check: Same files in the same places.
+	rootContent := dirTreeContents(t, rootTest.dir)
+	osContent := dirTreeContents(t, osTest.dir)
+	if !slices.Equal(rootContent, osContent) {
+		t.Errorf("inconsistent filesystem after running in/out of root")
+		t.Errorf("%v:", rootTest.op)
+		for _, line := range rootContent {
+			t.Errorf("  %v", line)
+		}
+		t.Errorf("%v:", osTest.op)
+		for _, line := range osContent {
+			t.Errorf("  %v", line)
+		}
+	}
+}
+
+func newRootTest(t *testing.T, source, target testFileDesc, inRoot bool) *rootMultiTest {
+	dir := makefs(t, []string{
+		"DIR/",
+	})
+	var root *os.Root
+	if inRoot {
+		var err error
+		root, err = os.OpenRoot(dir)
+		if err != nil {
+			t.Fatal(err)
+		}
+		t.Cleanup(func() {
+			root.Close()
+		})
+	}
+	test := &rootMultiTest{
+		dir:    dir,
+		root:   root,
+		source: source,
+		target: target,
+	}
+	createFile := func(name string, desc testFileDesc) (path string, fi os.FileInfo) {
+		if desc.kind == testFileUnused {
+			return "", nil
+		}
+		fi = desc.create(t, dir, name, name)
+		path = desc.ref.path(dir, name)
+		if !inRoot && !filepath.IsAbs(path) {
+			path = dir + "/" + path
+		}
+		return path, fi
+	}
+	test.sourcePath, test.sourceInfo = createFile("source", source)
+	test.targetPath, test.targetInfo = createFile("target", target)
+	return test
+}
+
+// testFileKind is a kind of file.
+type testFileKind int
+
+const (
+	testFileUnused  = testFileKind(iota)
+	testFileAbsent  // file does not exist
+	testFileFile    // regular file
+	testFileDir     // directory
+	testFileSymlink // symlink
+	testFileMax
+
+	// testFileError represents a path which fails during resolution,
+	// such as "a/b" where "a" does not exist.
+	testFileError
+)
+
+func (kind testFileKind) String() string {
+	switch kind {
+	case testFileUnused:
+		return "unused"
+	case testFileAbsent:
+		return "absent"
+	case testFileFile:
+		return "file"
+	case testFileDir:
+		return "dir"
+	case testFileSymlink:
+		return "symlink"
+	case testFileError:
+		return "error"
+	default:
+		return fmt.Sprintf("testFileKind(%d)", kind)
+	}
+}
+
+// testFileRef is a kind of reference to a file.
+//
+// Many path names can refer to the same file: f, ./f, /abs/path/to/f, somedir/../f, etc.
+// A testFileRef describes some form of reference.
+type testFileRef struct {
+	// name is the name of the reference (not the file name).
+	// These are a bit cryptic to keep test names short:
+	// s (/ slash), p (.. parent), b (base), d (directory), r (root)
+	name string
+
+	// template is a template path.
+	//
+	// templates assume that the file is contained in a directory named "ROOT",
+	// and that "ROOT/DIR" exists and is a directory.
+	//
+	// The string BASE in the template may be replaced with the file's basename.
+	//
+	// Absolute path templates start with /ROOT.
+	template string
+
+	// escapes indicates whether the path escapes the current directory.
+	escapes bool
+}
+
+var testFileRefs = []testFileRef{
+	{escapes: false, name: "b", template: "BASE"},
+	{escapes: false, name: "bs", template: "BASE/"},
+	{escapes: false, name: "dpb", template: "DIR/../BASE"},
+	{escapes: false, name: "dpbs", template: "DIR/../BASE/"},
+	{escapes: true, name: "prb", template: "../ROOT/BASE"},
+	{escapes: true, name: "prbs", template: "../ROOT/BASE/"},
+	{escapes: true, name: "srb", template: "/ROOT/BASE"},
+	{escapes: true, name: "srbs", template: "/ROOT/BASE/"},
+}
+
+// testFileLimitedRefs is a smaller set of references which do not exercise path escapes
+// (see allTestFileDescs).
+var testFileLimitedRefs = testFileRefs[0:2]
+
+// path creates a path using the template.
+//
+// dir is the absolute path to the root directory (which must be named "ROOT").
+// base is the name of the target file within the root directory.
+func (ref testFileRef) path(dir, base string) string {
+	p := ref.template
+	p = strings.ReplaceAll(p, "BASE", base)
+	if trim, ok := strings.CutPrefix(p, "/ROOT"); ok {
+		p = dir + trim
+	}
+	return p
+}
+
+// hasSlashSuffix reports whether the file reference ends in a /.
+func (ref testFileRef) hasSlashSuffix() bool {
+	return strings.HasSuffix(ref.template, "/")
+}
+
+// testFileDesc is a description of a type of file, combining the kind and reference type.
+//
+// Some sample testFileDescs:
+//   - "name", a plain file.
+//   - "DIR/../name", a directory
+//   - "name/", where name is a symlink to "DIR/../target/", where target is a plain file.
+type testFileDesc struct {
+	kind   testFileKind
+	ref    testFileRef
+	target *testFileDesc // symlink target, nil when kind is not testFileSymlink
+}
+
+var rootComprehensive = flag.Bool("root_comprehensive", false,
+	"run many more os.Root test variations (slow, uncertain value)")
+
+// allTestFileDescs returns an iterator over all the testFileDescs we use in tests.
+func allTestFileDescs() iter.Seq[testFileDesc] {
+	// A testFileDesc contains a reference type ("name", "d/../name", "../r/name", etc.) and
+	// a file kind (file, directory, symlink, etc.).
+	//
+	// When the kind is symlink, the desc contains a reference type and file kind for
+	// the link target as well. We only exercise one level of symlink (although we
+	// could do more), so this means a testFileDesc effectively contains four axes of
+	// variation: ref, kind, symlink ref, symlink kind.
+	//
+	// For example:
+	//
+	//   - "name" is a file
+	//   - "d/../name" is a directory
+	//   - "name" is a symlink to "name2" which is a file
+	//   - "d/../name" is a symlink to "d/../name2" which is a directory
+	//   - etc.
+	//
+	// It is feasible to test every possible variation of these four axes,
+	// but this is quite a few tests and gets quite slow. So by default we exclude
+	// some variations. We test:
+	//
+	//   - every reference to every kind, except symlink
+	//   - direct and direct/ references to a symlink to every reference to a file
+	//   - a direct reference to a symlink to a direct reference to every kind (except file)
+	//
+	// The full set of variations may be enabled with the -comprehensive_root_tests flag.
+
+	return func(yield func(testFileDesc) bool) {
+		// Every type of reference to every type of file, except symlink.
+		for _, ref := range testFileRefs {
+			for kind := range testFileMax {
+				if kind == testFileUnused || kind == testFileSymlink {
+					continue
+				}
+				desc := testFileDesc{
+					kind: kind,
+					ref:  ref,
+				}
+				if !yield(desc) {
+					return
+				}
+			}
+		}
+
+		// Unless we're being comprehensive, only direct references to symlinks.
+		refs := testFileRefs
+		if !*rootComprehensive {
+			refs = testFileLimitedRefs
+		}
+		for _, ref := range refs {
+			for linkKind := range testFileMax {
+				if linkKind == testFileUnused || linkKind == testFileSymlink {
+					continue
+				}
+
+				linkRefs := testFileRefs
+				if !*rootComprehensive && linkKind != testFileFile && linkKind != testFileDir {
+					linkRefs = testFileLimitedRefs
+				}
+				for _, linkRef := range linkRefs {
+					desc := testFileDesc{
+						kind: testFileSymlink,
+						ref:  ref,
+						target: &testFileDesc{
+							kind: linkKind,
+							ref:  linkRef,
+						},
+					}
+					if !yield(desc) {
+						return
+					}
+				}
+			}
+		}
+	}
+}
+
+// String returns the target name.
+//
+// These are somewhat cryptic to keep test names short.
+// For example, "bsSdpbD" is:
+//
+//	bs  - "BASE/"
+//	S   - symlink
+//	dpb - "DIR/../BASE"
+//	D   - directory
+//
+// So, open "file1/", where file1 is a symlink to "DIR/../file2", where file2 is a directory.
+func (desc testFileDesc) String() string {
+	s := desc.ref.name + strings.ToUpper(desc.kind.String()[:1])
+	if desc.kind == testFileSymlink {
+		s += desc.target.String()
+	}
+	return s
+}
+
+// escapes reports whether accessing this file escapes the root,
+// either because the file name escapes or because some element of a symlink chain escapes.
+func (desc testFileDesc) escapes() bool {
+	if desc.ref.escapes {
+		return true
+	}
+	if desc.kind == testFileSymlink {
+		return desc.target.escapes()
+	}
+	return false
+}
+
+func (desc testFileDesc) lescapes() bool {
+	if desc.ref.escapes {
+		return true
+	}
+	if runtime.GOOS == "windows" {
+		// On POSIX filesystems, a trailing slash at the end of a path causes
+		// symlinks in the last path component to be resolved.
+		// On Windows, a trailing slash does not cause symlink resolution.
+		return false
+	}
+	if desc.ref.hasSlashSuffix() && desc.kind == testFileSymlink {
+		return desc.target.escapes()
+	}
+	return false
+}
+
+// finalKind reports the kind of the file after following all symlinks.
+func (desc testFileDesc) finalKind() testFileKind {
+	if desc.kind == testFileSymlink {
+		return desc.target.finalKind()
+	}
+	return desc.kind
+}
+
+func (desc testFileDesc) lfinalKind() testFileKind {
+	switch runtime.GOOS {
+	case "windows":
+		if desc.ref.hasSlashSuffix() && desc.kind == testFileSymlink && desc.target.kind != testFileDir {
+			return testFileError
+		}
+	default:
+		if desc.ref.hasSlashSuffix() && desc.kind == testFileSymlink {
+			return desc.target.finalKind()
+		}
+	}
+	return desc.kind
+}
+
+func (desc testFileDesc) isError() bool {
+	if runtime.GOOS == "js" {
+		return false
+	}
+	var isError func(desc testFileDesc, hasSuffix bool) bool
+	isError = func(desc testFileDesc, hasSuffix bool) bool {
+		if desc.ref.escapes {
+			return false
+		}
+		if desc.ref.hasSlashSuffix() {
+			hasSuffix = true
+		}
+		switch desc.kind {
+		case testFileDir:
+			return false
+		case testFileSymlink:
+			if runtime.GOOS == "windows" && hasSuffix && desc.target.kind != testFileDir {
+				return true
+			}
+			return isError(*desc.target, hasSuffix)
+		default:
+			return hasSuffix
+		}
+	}
+	return isError(desc, false)
+}
+
+func (desc testFileDesc) isSymlinkToDir() bool {
+	if desc.kind != testFileSymlink {
+		return false
+	}
+	if desc.ref.escapes {
+		return false
+	}
+	if desc.finalKind() == testFileDir {
+		return true
+	}
+	return false
+}
+
+// anySlashSuffix reports whether any of the names in the file
+// (either the initial name, or a symlink target)
+// include a trailing /.
+func (desc testFileDesc) anySlashSuffix() bool {
+	name := desc.ref.template
+	if len(name) > 0 && os.IsPathSeparator(name[len(name)-1]) {
+		return true
+	}
+	if desc.kind == testFileSymlink {
+		return desc.target.anySlashSuffix()
+	}
+	return false
+}
+
+// anySlashSuffix reports whether the name of the file includes a trailing /.
+func (desc testFileDesc) slashSuffix() bool {
+	name := desc.ref.template
+	if len(name) > 0 && os.IsPathSeparator(name[len(name)-1]) {
+		return true
+	}
+	return false
+}
+
+// create creates the file(s) for this descriptor.
+//
+// dir is the test root directory.
+// base is the base name of the file we will open within the root.
+// (If there are symlinks, base is the start of the symlink chain.)
+//
+// Tests may create, delete, or move files, which makes it useful to have a way to identify
+// and track the files that existed at the start of the test. The token parameter identifies
+// which file we're creating. When symlinks are involved, the token is used in creating the
+// final, non-symlink file.
+func (desc testFileDesc) create(t *testing.T, dir, base, token string) (fi os.FileInfo) {
+	path := filepath.Join(dir, base)
+	switch desc.kind {
+	case testFileAbsent:
+		// File does not exist.
+	case testFileFile:
+		// Regular file. We use the token as the file contents.
+		if err := os.WriteFile(path, []byte(token), 0o666); err != nil {
+			t.Fatal(err)
+		}
+	case testFileDir:
+		// Directory. We create a subdir within the directory named "c_"+token.
+		// (The "c_" prefix is to distinguish this subdir from any files that may
+		// have the same name as the token.)
+		if err := os.Mkdir(path, 0o777); err != nil {
+			t.Fatal(err)
+		}
+	case testFileSymlink:
+		// Symlink. We create a symlink target named "s_"+base.
+		if runtime.GOOS == "plan9" {
+			t.Skip("symlinks not supported on " + runtime.GOOS)
+		}
+		linktarget := desc.target.ref.path(dir, "s_"+base)
+		if runtime.GOOS == "wasip1" && filepath.IsAbs(linktarget) {
+			t.Skip("absolute link targets not supported on " + runtime.GOOS)
+		}
+		fi = desc.target.create(t, dir, "s_"+base, token)
+		if err := os.Symlink(linktarget, path); err != nil {
+			t.Fatal(err)
+		}
+	default:
+		t.Fatalf("can't create file of kind: %v", desc.kind)
+	}
+	if desc.kind == testFileFile || desc.kind == testFileDir {
+		var err error
+		fi, err = os.Lstat(path)
+		if err != nil {
+			t.Fatal(err)
+		}
+	}
+	return fi
+}
+
+// testRootDescribeFile returns a string identifying a file.
+//
+// It returns "" if f is nil.
+// It returns "source" or "target" if f is the source or target file in the test.
+// Otherwise, it returns "unknown file".
+func (test *rootMultiTest) describeFile(t *testing.T, f *os.File) string {
+	if f == nil {
+		return ""
+	}
+	fi, err := f.Stat()
+	if err != nil {
+		t.Fatal(err)
+	}
+	switch {
+	case os.SameFile(fi, test.sourceInfo):
+		return "source"
+	case os.SameFile(fi, test.targetInfo):
+		return "target"
+	default:
+		return "unknown file"
+	}
+}
+
+// dirTreeContents returns a description of the contents of directory.
+// For example:
+//
+//	drwxrwxrwx dir/
+//	-rw-rw-rw- dir/file "file contents"
+//	Lrw-rw-rw- symlink => dir/file
+func dirTreeContents(t *testing.T, dir string) (contents []string) {
+	root, err := os.OpenRoot(dir)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer root.Close()
+	fs.WalkDir(root.FS(), ".", func(path string, d fs.DirEntry, err error) error {
+		if path == "." {
+			return nil
+		}
+		info, err := d.Info()
+		if err != nil {
+			t.Fatal(err)
+		}
+		ent := info.Mode().String() + " " + path
+		switch d.Type() {
+		case fs.ModeDir:
+			ent += "/"
+		case fs.ModeSymlink:
+			target, err := root.Readlink(path)
+			if err != nil {
+				t.Fatal(err)
+			}
+			if filepath.IsAbs(target) {
+				relPath, err := filepath.Rel(dir, target)
+				if err == nil && filepath.IsLocal(relPath) {
+					target = "/.../" + relPath
+				}
+			}
+			ent += " => " + target
+		default:
+			f, err := root.Open(path)
+			if err != nil {
+				ent += " (unreadable)"
+			} else {
+				content, err := io.ReadAll(f)
+				if err != nil {
+					t.Fatal(err)
+				}
+				ent += fmt.Sprintf(" %q", content)
+			}
+		}
+		contents = append(contents, ent)
+		return nil
+	})
+	return contents
+}
+
+// TestRootMultiOpen tests os.Root.Open.
+//
+// This also serves as a prototypical example of using rootMultiTest
+// (see also the doc comment on rootMultiTest above).
+func TestRootMultiOpen(t *testing.T) {
+	runRootMultiTest(t, func(t *testing.T, test *rootMultiTest) (string, error) {
+		// This function will be run many times, with different inputs:
+		//   - in and out of a Root
+		//   - opening a file, directory, symlink, or nothing at all
+		//   - opening various names: target, DIR/../target, /abs/path/to/target, etc.
+		//
+		// The test function should perform the requested operation
+		// (for example: open "target" in a Root),
+		// verify that the result is consistent with expectations,
+		// and then return a description of the result.
+		//
+		// The returned description is used to validate consistent behavior
+		// between operations in and out of a Root.
+		var open = os.Open
+		if test.root != nil {
+			open = test.root.Open
+		}
+
+		test.setOp("Open(%q)", test.targetPath) // test's operation, for errors
+		f, gotErr := open(test.targetPath)
+		if gotErr == nil {
+			defer f.Close()
+		}
+
+		// testRootDescribeFile returns a string identifying a file.
+		//
+		// This is always "source" or "target" for the source/target files in a test,
+		// or "" if f is nil.
+		// (Note that most tests use only a target file, no source.)
+		got := test.describeFile(t, f)
+
+		switch {
+		case test.root != nil && test.target.escapes():
+			// The operation escapes the root.
+			test.wantError(t, gotErr, os.ErrPathEscapes)
+		case test.target.finalKind() == testFileAbsent:
+			// The file does not exist ("absent").
+			test.wantError(t, gotErr, errAny)
+		case test.target.anySlashSuffix():
+			// The file name or a symlink target contain a trailing slash.
+			// Trailing slashes are handled differently on different platforms,
+			// so we won't try to assert an outcome when they are present.
+			// runRootMultiTest will verify that root.Open and os.Open
+			// produce consistent results.
+		default:
+			// We should have successfully opened the file.
+			test.wantError(t, gotErr, nil)
+			if want := "target"; got != want {
+				t.Fatalf("opened file %q, want %q", got, want)
+			}
+		}
+
+		// Return the name of the file opened (possibly "" for nothing) and the error.
+		// runRootMultiTest will compare the results for in-a-root and out-of-a-root
+		// to validate that they are the same.
+		return got, gotErr
+	})
+}
+
+func TestRootMultiChmod(t *testing.T) {
+	if runtime.GOOS == "wasip1" {
+		t.Skip("Chmod not supported on " + runtime.GOOS)
+	}
+	runRootMultiTest(t, func(t *testing.T, test *rootMultiTest) (string, error) {
+		var (
+			chmod = os.Chmod
+			stat  = os.Stat
+			lstat = os.Lstat
+		)
+		if test.root != nil {
+			chmod = test.root.Chmod
+			stat = test.root.Stat
+			lstat = test.root.Lstat
+		}
+
+		// Using the wrong mode here can cause problems during test cleanup,
+		// if we leave a temp dir with a mode that prevents listing or removing
+		// its contents.
+		//
+		// read+execute permissions let us list directory contents,
+		// and we restore writability before deleting the temp dir.
+		wantMode := os.FileMode(0o500) // readable, executable
+		if runtime.GOOS == "windows" {
+			// On Windows, the only modes we support are the default (777/rwx)
+			// or read-only (444/r-x). Making a directory read-only doesn't prevent
+			// listing its contents, so we can use 444 here.
+			wantMode = 0o444 // readable
+		}
+		t.Cleanup(func() {
+			chmod(test.targetPath, 0o700)
+		})
+
+		test.setOp("Chmod(%q, %o)", test.targetPath, wantMode)
+		gotErr := chmod(test.targetPath, wantMode)
+
+		escapes := test.target.escapes()
+		targetKind := test.target.finalKind()
+		if runtime.GOOS == "windows" {
+			// On Windows, Chmod("symlink") affects the link, not its target.
+			// See issue #71492.
+			stat = lstat
+			escapes = test.target.ref.escapes
+			targetKind = test.target.kind
+		}
+
+		var gotMode fs.FileMode
+		switch {
+		case test.root != nil && escapes:
+			test.wantError(t, gotErr, os.ErrPathEscapes)
+		case targetKind == testFileAbsent:
+			test.wantError(t, gotErr, errAny)
+		case test.target.anySlashSuffix():
+			// Don't expect anything, just be consistent with the OS.
+		default:
+			test.wantError(t, gotErr, nil)
+
+			fi, err := stat(test.targetPath)
+			if err != nil {
+				t.Fatalf("could not stat target: %v", err)
+			}
+			if runtime.GOOS == "windows" && !fi.Mode().IsRegular() {
+				// See issue #71492.
+				break
+			}
+
+			gotMode = fi.Mode() & fs.ModePerm
+			if gotMode != wantMode {
+				t.Fatalf("file %q:\ngot mode:  %v\nwant mode: %v", test.targetPath, gotMode, wantMode)
+			}
+		}
+
+		if runtime.GOOS == "windows" && test.root == nil && gotErr != nil {
+			// On Windows, os.Chmod calls GetFileAttributes on the target.
+			// This seems to fail in a number of situations where the os.Root
+			// chmod path works. For now, just skip the consistency check
+			// when os.Chmod fails.
+			return "", errSkipRootConsistencyCheck
+		}
+
+		return gotMode.String(), gotErr
+	})
+}
+
+func TestRootMultiCreate(t *testing.T) {
+	runRootMultiTest(t, func(t *testing.T, test *rootMultiTest) (string, error) {
+		var create = os.Create
+		if test.root != nil {
+			create = test.root.Create
+		}
+
+		test.setOp("Create(%q)", test.targetPath) // test's operation, for errors
+		f, gotErr := create(test.targetPath)
+		if gotErr == nil {
+			defer f.Close()
+		}
+
+		switch {
+		case test.target.isError():
+			test.wantError(t, gotErr, errAny)
+		case runtime.GOOS == "windows" && test.target.isSymlinkToDir():
+			// The error here is because the link is a Windows directory link,
+			// not because the link target is a directory.
+			test.wantError(t, gotErr, errAny)
+		case test.root != nil && test.target.escapes():
+			// The operation escapes the root.
+			test.wantError(t, gotErr, os.ErrPathEscapes)
+		default:
+		}
+
+		return "", gotErr
+	})
+}
+
+func TestRootMultiLink(t *testing.T) {
+	if runtime.GOOS == "wasip1" {
+		switch os.Getenv("GOWASIRUNTIME") {
+		case "", "wasmtime":
+			// This test fails when run with wasmtime, because os.RemoveAll fails
+			// to remove the test tempdir.
+			t.Skip("test seems to tickle a wasmtime bug")
+		}
+	}
+	testenv.MustHaveLink(t)
+	runRootMultiTest2(t, func(t *testing.T, test *rootMultiTest) (string, error) {
+		var (
+			rename = os.Link
+		)
+		if test.root != nil {
+			rename = test.root.Link
+		}
+
+		test.setOp("Link(%q, %q)", test.sourcePath, test.targetPath)
+		gotErr := rename(test.sourcePath, test.targetPath)
+
+		switch {
+		case test.root != nil && test.source.lescapes():
+			test.wantError(t, gotErr, os.ErrPathEscapes)
+		case test.source.lfinalKind() == testFileAbsent:
+			test.wantError(t, gotErr, errAny)
+		case test.source.kind == testFileSymlink:
+			// os.Link(old, new) may or may not deference old when it is a symlink.
+			// POSIX says that link(2) should deference the source, but implementations
+			// are inconsistent.
+			return "", errSkipRootConsistencyCheck
+		case test.source.slashSuffix() && test.source.lfinalKind() != testFileDir:
+			test.wantError(t, gotErr, errAny)
+		}
+		return "", gotErr
+	})
+}
+
+func TestRootMultiLstat(t *testing.T) {
+	runRootMultiTest(t, func(t *testing.T, test *rootMultiTest) (string, error) {
+		var (
+			lstat = os.Lstat
+		)
+		if test.root != nil {
+			lstat = test.root.Lstat
+		}
+
+		test.setOp("Lstat(%q)", test.targetPath)
+		gotStat, gotErr := lstat(test.targetPath)
+
+		result := ""
+		if gotStat != nil {
+			result = gotStat.Mode().String()
+		}
+
+		escapes := test.target.lescapes()
+		finalKind := test.target.lfinalKind()
+		if runtime.GOOS == "windows" && test.target.ref.hasSlashSuffix() {
+			// When the target of lstat has a trailing slash,
+			// Windows follows it.
+			escapes = test.target.escapes()
+			finalKind = test.target.finalKind()
+		}
+
+		switch {
+		case test.root != nil && escapes:
+			test.wantError(t, gotErr, os.ErrPathEscapes)
+		case test.target.kind == testFileAbsent:
+			// Target does not exist.
+			test.wantError(t, gotErr, errAny)
+		case finalKind == testFileSymlink:
+			test.wantError(t, gotErr, nil)
+			if got, want := gotStat.Mode().Type(), fs.ModeSymlink; got != want {
+				test.errorf(t, "got mode %v, want %v", got, want)
+			}
+		case gotErr != nil:
+		default:
+			if !os.SameFile(gotStat, test.targetInfo) {
+				test.errorf(t, "stat result is not for target file; want it to be")
+			}
+		}
+
+		return result, gotErr
+	})
+}
+
+func TestRootMultiMkdir(t *testing.T) {
+	runRootMultiTest(t, func(t *testing.T, test *rootMultiTest) (string, error) {
+		var (
+			mkdir = os.Mkdir
+			stat  = os.Stat
+		)
+		if test.root != nil {
+			mkdir = test.root.Mkdir
+			stat = test.root.Stat
+		}
+
+		test.setOp("Mkdir(%q, 0o777)", test.targetPath)
+		gotErr := mkdir(test.targetPath, 0o777)
+
+		switch {
+		case test.root != nil && test.target.ref.escapes:
+			// "mkdir ../target", or equivalent escaping path.
+			test.wantError(t, gotErr, os.ErrPathEscapes)
+		case test.target.slashSuffix() && test.target.kind == testFileSymlink:
+			// "mkdir symlink/", inconsistent behavior across platforms
+			// as to whether this follows the symlink or not.
+			//
+			// If the symlink escapes, this needs to be some kind of error though.
+			if test.root != nil && test.target.escapes() {
+				test.wantError(t, gotErr, errAny)
+			}
+			if runtime.GOOS == "openbsd" {
+				// Known inconsistency: OpenBSD doesn't resolve the final
+				// symlink when creating a directory.
+				return "", errSkipRootConsistencyCheck
+			}
+		case test.target.kind != testFileAbsent:
+			// "mkdir target", where target exists.
+			test.wantError(t, gotErr, errAny)
+		default:
+			test.wantError(t, gotErr, nil)
+			fi, err := stat(test.targetPath)
+			if err != nil {
+				t.Fatalf("could not stat target: %v", err)
+			}
+			if !fi.IsDir() {
+				t.Fatalf("%q: not a directory, expected it to be", test.targetPath)
+			}
+		}
+		return "", gotErr
+	})
+}
+
+func TestRootMultiMkdirAllShallow(t *testing.T) {
+	runRootMultiTest(t, func(t *testing.T, test *rootMultiTest) (string, error) {
+		return testRootMultiMkdirAll(t, test, test.targetPath)
+	})
+}
+
+func TestRootMultiMkdirAllDeep(t *testing.T) {
+	runRootMultiTest(t, func(t *testing.T, test *rootMultiTest) (string, error) {
+		targetPath := test.targetPath
+		if len(targetPath) > 0 && os.IsPathSeparator(targetPath[len(targetPath)-1]) {
+			targetPath += "a/b/"
+		} else {
+			targetPath += "/a/b"
+		}
+		return testRootMultiMkdirAll(t, test, targetPath)
+	})
+}
+
+func testRootMultiMkdirAll(t *testing.T, test *rootMultiTest, targetPath string) (string, error) {
+	var mkdirAll = os.MkdirAll
+	if test.root != nil {
+		mkdirAll = test.root.MkdirAll
+	}
+
+	test.setOp("MkdirAll(%q, 0o777)", targetPath)
+	gotErr := mkdirAll(targetPath, 0o777)
+
+	switch {
+	case test.root != nil && test.target.lescapes():
+		// "mkdir ../target", or equivalent escaping path.
+		test.wantError(t, gotErr, os.ErrPathEscapes)
+	case test.root != nil && test.target.escapes():
+		// "mkdir ../target", or equivalent escaping path.
+		test.wantError(t, gotErr, errAny)
+		return "", errSkipRootConsistencyCheck
+	case test.root != nil && test.target.kind == testFileSymlink && test.target.target.kind == testFileAbsent && targetPath != test.targetPath:
+		// A minor inconsistency between Root.MkdirAll and os.MkdirAll:
+		// When an intermediate component of the tree being constructed is a
+		// dangling symlink, Root.MkdirAll will follow the symlink and create
+		// its target directory, while os.MkdirAll will fail with an error.
+		return "", errSkipRootConsistencyCheck
+	default:
+	}
+	return "", gotErr
+}
+
+func TestRootMultiRename(t *testing.T) {
+	if runtime.GOOS == "wasip1" {
+		switch os.Getenv("GOWASIRUNTIME") {
+		case "", "wasmtime":
+			// This test fails when run with wasmtime, because os.RemoveAll fails
+			// to remove the test tempdir.
+			t.Skip("test seems to tickle a wasmtime bug")
+		}
+	}
+	runRootMultiTest2(t, func(t *testing.T, test *rootMultiTest) (string, error) {
+		var (
+			rename = os.Rename
+		)
+		if test.root != nil {
+			rename = test.root.Rename
+		}
+
+		// TODO: target directory (if any) should be empty
+
+		test.setOp("Rename(%q, %q)", test.sourcePath, test.targetPath)
+		gotErr := rename(test.sourcePath, test.targetPath)
+
+		if runtime.GOOS == "windows" &&
+			(test.source.finalKind() != test.target.finalKind() || test.source.kind == testFileSymlink || test.target.kind == testFileSymlink) {
+			// os.Rename on Windows is implemented using MoveFileEx,
+			// while Root.Rename is implemented using NtSetInformationFileEx
+			// with an explicit request for POSIX semantics.
+			//
+			// This means the two do not behave the same when renaming
+			// a file onto a directory or vice-versa.
+			//
+			// We should make this consistent, but for now just skip
+			// the consistency checks in this case.
+			return "", errSkipRootConsistencyCheck
+		}
+
+		switch {
+		case test.root != nil && test.source.lescapes():
+			test.wantError(t, gotErr, os.ErrPathEscapes)
+		case test.source.lfinalKind() == testFileAbsent:
+			test.wantError(t, gotErr, errAny)
+		case test.source.slashSuffix() && test.source.lfinalKind() != testFileDir && runtime.GOOS != "js":
+			test.wantError(t, gotErr, errAny)
+		case test.root != nil && test.target.lescapes():
+			test.wantError(t, gotErr, os.ErrPathEscapes)
+		case runtime.GOOS == "plan9":
+			// Plan9 rename behaves differently.
+			// Just rely on consistency checks.
+		case test.target.lfinalKind() == testFileDir:
+			// POSIX rename() will replace an empty target directory,
+			// but os.Rename will not.
+			test.wantError(t, gotErr, errAny)
+		case test.source.lfinalKind() == testFileDir && test.target.lfinalKind() != testFileAbsent:
+			test.wantError(t, gotErr, errAny)
+		case test.source.anySlashSuffix() || test.target.anySlashSuffix():
+			if runtime.GOOS == "openbsd" {
+				// Known inconsistency: OpenBSD doesn't resolve the final
+				// symlink when creating a directory.
+				return "", errSkipRootConsistencyCheck
+			}
+		default:
+			test.wantError(t, gotErr, nil)
+			// TODO: check that the file is in its new location
+		}
+
+		if runtime.GOOS == "linux" && (test.source.slashSuffix() || test.target.slashSuffix()) {
+			return "", errSkipRootConsistencyCheck
+		}
+
+		return "", gotErr
+	})
+}
+
+func TestRootMultiReadFile(t *testing.T) {
+	runRootMultiTest(t, func(t *testing.T, test *rootMultiTest) (string, error) {
+		var readFile = os.ReadFile
+		if test.root != nil {
+			readFile = test.root.ReadFile
+		}
+
+		test.setOp("ReadFile(%q)", test.targetPath)
+		data, gotErr := readFile(test.targetPath)
+		var got string
+		if gotErr == nil {
+			got = string(data)
+		}
+
+		switch {
+		case test.root != nil && test.target.escapes():
+			test.wantError(t, gotErr, os.ErrPathEscapes)
+		case test.target.finalKind() == testFileAbsent:
+			test.wantError(t, gotErr, errAny)
+		case runtime.GOOS == "plan9":
+			// Plan9 lets you read from directories.
+			// Just rely on consistency checks.
+		case runtime.GOOS == "netbsd":
+			// See https://go.dev/issue/80322:
+			// NetBSD builder appears to be succeeding on read-from-dir as well.
+			return "", gotErr
+		case test.target.finalKind() == testFileDir:
+			test.wantError(t, gotErr, errAny)
+		case test.target.anySlashSuffix():
+			// Trailing slashes are handled differently on different platforms,
+			// so we won't try to assert an outcome when they are present.
+			// runRootMultiTest will verify that root.ReadFile and os.ReadFile
+			// produce consistent results.
+		default:
+			test.wantError(t, gotErr, nil)
+			if want := "target"; got != want {
+				t.Fatalf("read file content %q, want %q", got, want)
+			}
+		}
+
+		return got, gotErr
+	})
+}
+
+func TestRootMultiStat(t *testing.T) {
+	runRootMultiTest(t, func(t *testing.T, test *rootMultiTest) (string, error) {
+		var stat = os.Stat
+		if test.root != nil {
+			stat = test.root.Stat
+		}
+
+		test.setOp("Stat(%q)", test.targetPath)
+		gotStat, gotErr := stat(test.targetPath)
+
+		switch {
+		case test.target.isError():
+			test.wantError(t, gotErr, errAny)
+		case test.root != nil && test.target.escapes():
+			test.wantError(t, gotErr, os.ErrPathEscapes)
+		case test.target.finalKind() == testFileAbsent:
+			test.wantError(t, gotErr, errAny)
+		case test.target.anySlashSuffix():
+		default:
+			test.wantError(t, gotErr, nil)
+			if !os.SameFile(gotStat, test.targetInfo) {
+				test.errorf(t, "stat result is not for target file; want it to be")
+			}
+		}
+		return "", gotErr
+	})
+}
+
+func TestRootMultiRemove(t *testing.T) {
+	runRootMultiTest(t, func(t *testing.T, test *rootMultiTest) (string, error) {
+		var remove = os.Remove
+		if test.root != nil {
+			remove = test.root.Remove
+		}
+
+		test.setOp("Remove(%q)", test.targetPath)
+		gotErr := remove(test.targetPath)
+
+		switch {
+		case test.root != nil && test.target.lescapes():
+			test.wantError(t, gotErr, os.ErrPathEscapes)
+		case test.target.kind == testFileAbsent:
+			test.wantError(t, gotErr, errAny)
+		case test.target.anySlashSuffix():
+			if runtime.GOOS == "linux" {
+				// Linux treats rmdir("symlink/") as an error when
+				// "symlink" is a symlink to a directory.
+				// Root.Remove prefers the POSIX interpretation
+				// of resolving the symlink.
+				return "", errSkipRootConsistencyCheck
+			}
+		default:
+			test.wantError(t, gotErr, nil)
+		}
+		return "", gotErr
+	})
+}
+
+func TestRootMultiRemoveAll(t *testing.T) {
+	runRootMultiTest(t, func(t *testing.T, test *rootMultiTest) (string, error) {
+		var removeAll = os.RemoveAll
+		if test.root != nil {
+			removeAll = test.root.RemoveAll
+		}
+
+		test.setOp("RemoveAll(%q)", test.targetPath)
+		gotErr := removeAll(test.targetPath)
+
+		switch {
+		case test.root != nil && test.target.ref.escapes:
+			// This is only checking target.ref.escapes,
+			// not target.lescapes(), because RemoveAll strips
+			// terminal slashes.
+			test.wantError(t, gotErr, os.ErrPathEscapes)
+		case test.target.anySlashSuffix():
+			// We are inconsistent on some platforms on whether
+			// RemoveAll("symlink/") removes the link or the link target.
+			// Something worth addressing, but for now skip the check.
+			return "", errSkipRootConsistencyCheck
+		default:
+			test.wantError(t, gotErr, nil)
+		}
+		return "", gotErr
+	})
+}
+
+func TestRootMultiChtimes(t *testing.T) {
+	runRootMultiTest(t, func(t *testing.T, test *rootMultiTest) (string, error) {
+		var chtimes = os.Chtimes
+		if test.root != nil {
+			chtimes = test.root.Chtimes
+		}
+
+		now := time.Now()
+		test.setOp("Chtimes(%q, %v, %v)", test.targetPath, now, now)
+		gotErr := chtimes(test.targetPath, now, now)
+
+		switch {
+		case test.target.isError():
+			test.wantError(t, gotErr, errAny)
+		case test.root != nil && test.target.escapes():
+			test.wantError(t, gotErr, os.ErrPathEscapes)
+		case test.target.finalKind() == testFileAbsent:
+			test.wantError(t, gotErr, errAny)
+		case test.target.anySlashSuffix():
+		default:
+			test.wantError(t, gotErr, nil)
+		}
+		return "", gotErr
+	})
+}
+
+func TestRootMultiReadlink(t *testing.T) {
+	runRootMultiTest(t, func(t *testing.T, test *rootMultiTest) (string, error) {
+		var readlink = os.Readlink
+		if test.root != nil {
+			readlink = test.root.Readlink
+		}
+
+		test.setOp("Readlink(%q)", test.targetPath)
+		got, gotErr := readlink(test.targetPath)
+		if suffix, ok := strings.CutPrefix(got, test.dir); ok {
+			// Replace absolute path prefix with /.../
+			got = "/..." + suffix
+		}
+
+		switch {
+		case test.root != nil && test.target.lescapes():
+			test.wantError(t, gotErr, os.ErrPathEscapes)
+		case test.target.kind != testFileSymlink:
+			test.wantError(t, gotErr, errAny)
+		case test.target.anySlashSuffix():
+		default:
+			test.wantError(t, gotErr, nil)
+		}
+		return got, gotErr
+	})
+}
+
+func TestRootMultiWriteFile(t *testing.T) {
+	runRootMultiTest(t, func(t *testing.T, test *rootMultiTest) (string, error) {
+		var writeFile = os.WriteFile
+		if test.root != nil {
+			writeFile = test.root.WriteFile
+		}
+
+		test.setOp("WriteFile(%q, ...)", test.targetPath)
+		gotErr := writeFile(test.targetPath, []byte("data"), 0o666)
+
+		switch {
+		case test.target.isError():
+			test.wantError(t, gotErr, errAny)
+		case runtime.GOOS == "windows" && test.target.isSymlinkToDir():
+			test.wantError(t, gotErr, errAny)
+		case test.root != nil && test.target.escapes():
+			test.wantError(t, gotErr, os.ErrPathEscapes)
+		case test.target.finalKind() == testFileDir:
+			test.wantError(t, gotErr, errAny)
+		case test.target.anySlashSuffix():
+		default:
+			test.wantError(t, gotErr, nil)
+		}
+		return "", gotErr
+	})
+}
+
+func TestRootMultiOpenFile(t *testing.T) {
+	runRootMultiTest(t, func(t *testing.T, test *rootMultiTest) (string, error) {
+		var openFile = os.OpenFile
+		if test.root != nil {
+			openFile = test.root.OpenFile
+		}
+
+		test.setOp("OpenFile(%q, O_RDONLY, 0)", test.targetPath)
+		f, gotErr := openFile(test.targetPath, os.O_RDONLY, 0)
+		if gotErr == nil {
+			defer f.Close()
+		}
+
+		got := test.describeFile(t, f)
+
+		switch {
+		case test.root != nil && test.target.escapes():
+			test.wantError(t, gotErr, os.ErrPathEscapes)
+		case test.target.finalKind() == testFileAbsent:
+			test.wantError(t, gotErr, errAny)
+		case test.target.anySlashSuffix():
+		default:
+			test.wantError(t, gotErr, nil)
+			if want := "target"; got != want {
+				t.Fatalf("opened file %q, want %q", got, want)
+			}
+		}
+
+		return got, gotErr
 	})
 }

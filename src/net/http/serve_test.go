@@ -3355,12 +3355,16 @@ func TestStripPrefixNotModifyRequest(t *testing.T) {
 
 func TestRequestLimit(t *testing.T) { run(t, testRequestLimit, http3SkippedMode) }
 func testRequestLimit(t *testing.T, mode testMode) {
+	bytesPerHeader := len("header12345: val12345\r\n")
+	numHeaders := ((DefaultMaxHeaderBytes + 4096) / bytesPerHeader) + 1
+
 	cst := newClientServerTest(t, mode, HandlerFunc(func(w ResponseWriter, r *Request) {
 		t.Fatalf("didn't expect to get request in Handler")
-	}), optQuietLog)
+	}), func(s *Server) {
+		s.MaxHeaderValueCount = numHeaders
+	}, optQuietLog)
 	req, _ := NewRequest("GET", cst.ts.URL, nil)
-	var bytesPerHeader = len("header12345: val12345\r\n")
-	for i := 0; i < ((DefaultMaxHeaderBytes+4096)/bytesPerHeader)+1; i++ {
+	for i := range numHeaders {
 		req.Header.Set(fmt.Sprintf("header%05d", i), fmt.Sprintf("val%05d", i))
 	}
 	res, err := cst.c.Do(req)
@@ -3386,6 +3390,168 @@ func testRequestLimit(t *testing.T, mode testMode) {
 		if res.StatusCode != 431 {
 			t.Fatalf("expected 431 response status; got: %d %s", res.StatusCode, res.Status)
 		}
+	}
+}
+
+func TestRequestHeaderValueCountLimit(t *testing.T) {
+	run(t, testRequestHeaderValueCountLimit, http3SkippedMode)
+}
+func testRequestHeaderValueCountLimit(t *testing.T, mode testMode) {
+	tests := []struct {
+		name       string
+		limit      int
+		setup      func(req *Request)
+		wantStatus int
+	}{
+		{
+			name:  "below limit",
+			limit: 15,
+			setup: func(req *Request) {
+				// Send considerably below the limit, to account for the client
+				// automatically adding pseudo-headers and headers that it can
+				// infer.
+				for i := range 5 {
+					req.Header.Add(fmt.Sprintf("X-Header-%d", i), "val")
+				}
+			},
+			wantStatus: 200,
+		},
+		{
+			name:  "above limit",
+			limit: 15,
+			setup: func(req *Request) {
+				for i := range 16 {
+					req.Header.Add(fmt.Sprintf("X-Header-%d", i), "val")
+				}
+			},
+			wantStatus: 431,
+		},
+		{
+			name:  "comma separated values count as one",
+			limit: 15,
+			setup: func(req *Request) {
+				vals := make([]string, 16)
+				for i := range vals {
+					vals[i] = "val"
+				}
+				req.Header.Add("X-Comma", strings.Join(vals, ", "))
+			},
+			wantStatus: 200,
+		},
+		{
+			name:  "multiple values count as multiple",
+			limit: 15,
+			setup: func(req *Request) {
+				for range 16 {
+					req.Header.Add("X-Repeated", "val")
+				}
+			},
+			wantStatus: 431,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			cst := newClientServerTest(t, mode, HandlerFunc(func(w ResponseWriter, r *Request) {
+				w.WriteHeader(StatusOK)
+			}), func(s *Server) {
+				s.MaxHeaderValueCount = tt.limit
+			}, optQuietLog)
+
+			req, _ := NewRequest("GET", cst.ts.URL, nil)
+			tt.setup(req)
+
+			res, err := cst.c.Do(req)
+			if err != nil {
+				t.Fatal(err)
+			}
+			defer res.Body.Close()
+			if res.StatusCode != tt.wantStatus {
+				t.Errorf("got status %d, want %d", res.StatusCode, tt.wantStatus)
+			}
+		})
+	}
+}
+
+func TestRequestTrailerHeaderValueCountLimit(t *testing.T) {
+	run(t, testRequestTrailerHeaderValueCountLimit, http3SkippedMode)
+}
+func testRequestTrailerHeaderValueCountLimit(t *testing.T, mode testMode) {
+	tests := []struct {
+		name    string
+		limit   int
+		setup   func(req *Request)
+		wantErr bool
+	}{
+		{
+			name:  "below limit",
+			limit: 15,
+			setup: func(req *Request) {
+				req.Trailer = make(Header)
+				for i := range 14 {
+					req.Trailer.Add(fmt.Sprintf("X-Trailer-%d", i), "val")
+				}
+			},
+		},
+		{
+			name:  "above limit",
+			limit: 15,
+			setup: func(req *Request) {
+				req.Trailer = make(Header)
+				for i := range 16 {
+					req.Trailer.Add(fmt.Sprintf("X-Trailer-%d", i), "val")
+				}
+			},
+			wantErr: true,
+		},
+		{
+			name:  "comma separated values count as one",
+			limit: 15,
+			setup: func(req *Request) {
+				req.Trailer = make(Header)
+				vals := make([]string, 16)
+				for i := range vals {
+					vals[i] = "val"
+				}
+				req.Trailer.Add("X-Comma-Trailer", strings.Join(vals, ", "))
+			},
+		},
+		{
+			name:  "multiple values count as multiple",
+			limit: 15,
+			setup: func(req *Request) {
+				req.Trailer = make(Header)
+				for range 16 {
+					req.Trailer.Add("X-Repeated-Trailer", "val")
+				}
+			},
+			wantErr: true,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			cst := newClientServerTest(t, mode, HandlerFunc(func(w ResponseWriter, r *Request) {
+				_, err := io.Copy(io.Discard, r.Body)
+				if (err != nil) != tt.wantErr {
+					t.Errorf("Read = %v, want %v", err, tt.wantErr)
+				}
+			}), func(s *Server) {
+				s.MaxHeaderValueCount = tt.limit
+			}, optQuietLog)
+
+			req, _ := NewRequest("GET", cst.ts.URL, strings.NewReader("some body"))
+			req.TransferEncoding = []string{"chunked"}
+			tt.setup(req)
+
+			// Do will return an error in HTTP/2 due to RST_STREAM, but will
+			// succeed in HTTP/1.
+			res, err := cst.c.Do(req)
+			if err != nil && !tt.wantErr {
+				t.Fatalf("unexpected Do error: %v", err)
+			}
+			if err == nil {
+				res.Body.Close()
+			}
+		})
 	}
 }
 
@@ -7771,4 +7937,185 @@ func TestServerHTTP2Disabled(t *testing.T) {
 		synctest.Wait()
 		srv.Shutdown(t.Context())
 	})
+}
+
+func TestServerConnectionReuse(t *testing.T) {
+	for _, test := range []struct {
+		name             string
+		message          []string
+		handler          HandlerFunc
+		continueBodySize int
+		want100Continue  bool
+		wantResponse     int
+		wantReused       bool
+		skip             string
+	}{{
+		name: "small body",
+		message: []string{
+			"POST / HTTP/1.1",
+			"Host: example.tld",
+			"Content-Length: 1",
+			"",
+			"x",
+		},
+		wantResponse: 200,
+		wantReused:   true,
+	}, {
+		name: "large body",
+		message: []string{
+			"POST / HTTP/1.1",
+			"Host: example.tld",
+			"Content-Length: 300000", // more than maxPostHandlerReadBytes
+			"",
+			// body is never sent
+		},
+		wantResponse: 200,
+		wantReused:   false,
+	}, {
+		name: "small body full duplex",
+		message: []string{
+			"POST / HTTP/1.1",
+			"Host: example.tld",
+			"Content-Length: 1",
+			"",
+			"x",
+		},
+		handler: func(w ResponseWriter, req *Request) {
+			// Enable full duplex to avoid trying to read the request before
+			// writing the response.
+			NewResponseController(w).EnableFullDuplex()
+		},
+		wantResponse: 200,
+		wantReused:   true,
+	}, {
+		name: "large body full duplex",
+		message: []string{
+			"POST / HTTP/1.1",
+			"Host: example.tld",
+			"Content-Length: 300000", // more than maxPostHandlerReadBytes
+			"",
+			// body is never sent
+		},
+		handler: func(w ResponseWriter, req *Request) {
+			// Enable full duplex to avoid trying to read the request before
+			// writing the response.
+			NewResponseController(w).EnableFullDuplex()
+		},
+		wantResponse: 200,
+		wantReused:   false,
+	}, {
+		// Send a request with a 1-byte body, which the server handler never reads.
+		// We should either send a 100-Continue and read the body
+		// or we should close the connection.
+		//
+		// Right now, the server hangs trying to read the request body
+		// the client isn't sending.
+		skip: "https://go.dev/issue/75933",
+
+		name: "100-continue unconsumed small body",
+		message: []string{
+			"POST / HTTP/1.1",
+			"Host: example.tld",
+			"Expect: 100-continue",
+			"Content-Length: 1",
+			"",
+			// body is never sent
+		},
+		want100Continue: false,
+		wantResponse:    200,
+		wantReused:      true,
+	}, {
+		name: "100-continue unconsumed large body",
+		message: []string{
+			"POST / HTTP/1.1",
+			"Host: example.tld",
+			"Expect: 100-continue",
+			"Content-Length: 300000", // more than maxPostHandlerReadBytes
+			"",
+			// body is never sent
+		},
+		want100Continue: false,
+		wantResponse:    200,
+		wantReused:      false,
+	}, {
+		name: "100-continue consumed small body",
+		message: []string{
+			"POST / HTTP/1.1",
+			"Host: example.tld",
+			"Expect: 100-continue",
+			"Content-Length: 1",
+			"",
+		},
+		handler: func(w ResponseWriter, req *Request) {
+			io.Copy(io.Discard, req.Body)
+		},
+		want100Continue:  true,
+		continueBodySize: 1,
+		wantResponse:     200,
+		wantReused:       true,
+	}, {
+		name: "small wrapped body",
+		message: []string{
+			"POST / HTTP/1.1",
+			"Host: example.tld",
+			"Content-Length: 1",
+			"",
+			"x",
+		},
+		handler: func(w ResponseWriter, req *Request) {
+			// Enable full duplex to avoid trying to read the request before
+			// writing the response.
+			NewResponseController(w).EnableFullDuplex()
+
+			// Middleware wraps the Request.Body in some other type.
+			req.Body = struct{ io.ReadCloser }{req.Body}
+		},
+		wantResponse: 200,
+		wantReused:   true,
+	}, {
+		name: "large wrapped body",
+		message: []string{
+			"POST / HTTP/1.1",
+			"Host: example.tld",
+			"Content-Length: 300000", // more than maxPostHandlerReadBytes
+			"",
+		},
+		handler: func(w ResponseWriter, req *Request) {
+			// Enable full duplex to avoid trying to read the request before
+			// writing the response.
+			NewResponseController(w).EnableFullDuplex()
+
+			// Middleware wraps the Request.Body in some other type.
+			req.Body = struct{ io.ReadCloser }{req.Body}
+		},
+		wantResponse: 200,
+		wantReused:   false,
+	}} {
+		t.Run(test.name, func(t *testing.T) {
+			if test.skip != "" {
+				t.Skip(test.skip)
+			}
+			synctest.Test(t, func(t *testing.T) {
+				st := newHTTP1ServerTest(t, test.handler)
+				conn := st.dial()
+				conn.writeMessage(test.message...)
+				resp := conn.readResponse()
+				if got, want := resp.StatusCode == 100, test.want100Continue; got != want {
+					t.Fatalf("100-Continue response: %v, want %v", got, want)
+				}
+				if resp.StatusCode == 100 {
+					conn.conn.Write(bytes.Repeat([]byte("x"), test.continueBodySize))
+					resp = conn.readResponse()
+				}
+				if got, want := resp.StatusCode, test.wantResponse; got != want {
+					t.Fatalf("got response %v, want %v", got, want)
+				}
+				if test.wantReused {
+					conn.wantIdle()
+				} else {
+					conn.wantClosed()
+				}
+			})
+		})
+	}
 }

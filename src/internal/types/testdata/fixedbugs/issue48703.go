@@ -6,11 +6,6 @@ package p
 
 import "unsafe"
 
-// The actual example from the issue.
-type List[P any] struct{}
-
-func (_ List[P]) m() (_ List[List[P]]) { return }
-
 // Other types of recursion through methods.
 type R[P any] int
 

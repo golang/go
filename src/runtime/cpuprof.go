@@ -66,6 +66,13 @@ var cpuprof cpuProfile
 // the [testing] package's -test.cpuprofile flag instead of calling
 // SetCPUProfileRate directly.
 func SetCPUProfileRate(hz int) {
+	setCPUProfileRate(hz, true)
+}
+
+// setCPUProfileRate sets the CPU profiling rate to hz. Setting a non-zero rate
+// when the rate is already non-zero is a no-op. An error is printed in this case
+// if warn is true.
+func setCPUProfileRate(hz int, warn bool) {
 	// Clamp hz to something reasonable.
 	if hz < 0 {
 		hz = 0
@@ -77,7 +84,9 @@ func SetCPUProfileRate(hz int) {
 	lock(&cpuprof.lock)
 	if hz > 0 {
 		if cpuprof.on || cpuprof.log != nil {
-			print("runtime: cannot set cpu profile rate until previous profile has finished.\n")
+			if warn {
+				print("runtime: cannot set cpu profile rate until previous profile has finished.\n")
+			}
 			unlock(&cpuprof.lock)
 			return
 		}
@@ -207,6 +216,15 @@ func (p *cpuProfile) addExtra() {
 // or the [testing] package's -test.cpuprofile flag instead.
 func CPUProfile() []byte {
 	panic("CPUProfile no longer available")
+}
+
+// pprof_setCPUProfileRate is provided to runtime/pprof.StartCPUProfile,
+// to enable CPU profiling without logging an error if the user has already
+// configured the profiling rate.
+//
+//go:linkname pprof_setCPUProfileRate
+func pprof_setCPUProfileRate(hz int) {
+	setCPUProfileRate(hz, false)
 }
 
 // runtime/pprof.runtime_cyclesPerSecond should be an internal detail,

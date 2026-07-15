@@ -2,14 +2,8 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-//go:build !amd64
+package p
 
-package main
+type List[P /* ERROR "instantiation cycle" */ any] struct{}
 
-import (
-	"simd"
-)
-
-func sum(x simd.Float32s) float32 {
-	return boringSum(x)
-}
+func (_ List[P]) m() (_ List[List[P]]) { return }

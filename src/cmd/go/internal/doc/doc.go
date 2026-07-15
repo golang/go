@@ -425,20 +425,11 @@ func parseArgs(ctx context.Context, flagSet *flag.FlagSet, args []string) (pkg *
 		if err == nil {
 			return pkg, arg, args[1], false
 		}
-		for {
-			importPath, ok := findNextPackage(arg)
-			if !ok {
-				break
-			}
-			if version != "" {
-				if pkg, err = loadVersioned(ctx, loader, importPath, version); err == nil {
-					return pkg, arg, args[1], true
-				}
-			} else {
-				if pkg, err = loadPackage(ctx, loader, importPath); err == nil {
-					return pkg, arg, args[1], true
-				}
-			}
+		if p, findErr, ok := findPackage(arg, importPkg); ok {
+			pkg = p
+			return pkg, arg, args[1], true
+		} else if findErr != nil {
+			err = findErr
 		}
 		if version != "" {
 			log.Fatal(err)
@@ -501,18 +492,8 @@ func parseArgs(ctx context.Context, flagSet *flag.FlagSet, args []string) (pkg *
 		// See if we have the basename or tail of a package, as in json for encoding/json
 		// or ivy/value for robpike.io/ivy/value.
 		pkgName := arg[:period]
-		for {
-			importPath, ok := findNextPackage(pkgName)
-			if !ok {
-				break
-			}
-			if version != "" {
-				if pkg, err = loadVersioned(ctx, loader, importPath, version); err == nil {
-					return pkg, arg[0:period], symbol, true
-				}
-			} else if pkg, err = loadPackage(ctx, loader, importPath); err == nil {
-				return pkg, arg[0:period], symbol, true
-			}
+		if pkg, _, ok := findPackage(pkgName, importPkg); ok {
+			return pkg, arg[0:period], symbol, true
 		}
 		dirs.Reset() // Next iteration of for loop must scan all the directories again.
 	}
@@ -554,6 +535,82 @@ func parseArgs(ctx context.Context, flagSet *flag.FlagSet, args []string) (pkg *
 	}
 	// Guess it's a symbol in the current directory.
 	return mustLoadPackage(ctx, loader, wd), "", arg, false
+}
+
+// findPackage returns the first successfully imported package matching the query pkg.
+// It updates dirs.offset to the candidate's nextOffset so that subsequent searches
+// work across retry loops.
+//
+// (pkg, nil, true)  => imported a package
+// (nil, err, false) => all imports failed (along with last error)
+// (nil, nil, false) => no matching packages
+func findPackage(pkg string, importPkg func(string) (*load.Package, error)) (*load.Package, error, bool) {
+	var lastErr error
+	for _, m := range matchingPackages(pkg) {
+		p, err := importPkg(m.importPath)
+		if err == nil {
+			dirs.offset = m.nextOffset
+			return p, nil, true
+		}
+		lastErr = err
+	}
+	return nil, lastErr, false
+}
+
+type packageMatch struct {
+	importPath string
+	nextOffset int
+}
+
+func matchingPackages(pkg string) []packageMatch {
+	// TODO(adonovan): once go1.28 tree opens, refactor matchingPackages to use
+	// iter.Seq[string] to encapsulate iteration state and avoid global vars.
+	if filepath.IsAbs(pkg) {
+		if dirs.offset == 0 {
+			dirs.offset = -1
+			return []packageMatch{{importPath: pkg, nextOffset: -1}}
+		}
+		return nil
+	}
+	if pkg == "" || token.IsExported(pkg) { // Upper case symbol cannot be a package name.
+		return nil
+	}
+	pkg = path.Clean(pkg)
+	pkgSuffix := "/" + pkg
+	deferInternal := !hasPathElement(pkg, "internal")
+	// Prefer non-internal packages unless pkg is itself internal.
+	// Scanning directories is cheap compared to loading packages, so
+	// collect all matches and sort internal matches to the end.
+	var matches []packageMatch
+	var nonInternal []packageMatch
+	var internal []packageMatch
+	for {
+		d, ok := dirs.Next()
+		if !ok {
+			break
+		}
+		if d.importPath != pkg && !strings.HasSuffix(d.importPath, pkgSuffix) {
+			continue
+		}
+		m := packageMatch{importPath: d.importPath, nextOffset: dirs.offset}
+		if !deferInternal {
+			matches = append(matches, m)
+		} else if hasPathElement(d.importPath, "internal") {
+			internal = append(internal, m)
+		} else {
+			nonInternal = append(nonInternal, m)
+		}
+	}
+	if !deferInternal {
+		return matches
+	}
+	if len(nonInternal) == 0 {
+		return internal
+	}
+	// If the last non-internal match is returned, later retries should
+	// not fall through to internal-only matches for the same package path.
+	nonInternal[len(nonInternal)-1].nextOffset = dirs.offset
+	return append(nonInternal, internal...)
 }
 
 func loadPackage(ctx context.Context, loader *modload.Loader, pattern string) (*load.Package, error) {
@@ -639,30 +696,13 @@ func isExported(name string) bool {
 	return unexported || token.IsExported(name)
 }
 
-// findNextPackage returns the next import path that matches the
-// (perhaps partial) package path pkg. The boolean reports if any match was found.
-func findNextPackage(pkg string) (string, bool) {
-	if filepath.IsAbs(pkg) {
-		if dirs.offset == 0 {
-			dirs.offset = -1
-			return pkg, true
-		}
-		return "", false
-	}
-	if pkg == "" || token.IsExported(pkg) { // Upper case symbol cannot be a package name.
-		return "", false
-	}
-	pkg = path.Clean(pkg)
-	pkgSuffix := "/" + pkg
-	for {
-		d, ok := dirs.Next()
-		if !ok {
-			return "", false
-		}
-		if d.importPath == pkg || strings.HasSuffix(d.importPath, pkgSuffix) {
-			return d.importPath, true
+func hasPathElement(p, elem string) bool {
+	for part := range strings.SplitSeq(path.Clean(p), "/") {
+		if part == elem {
+			return true
 		}
 	}
+	return false
 }
 
 // splitGopath splits $GOPATH into a list of roots.

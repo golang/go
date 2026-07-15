@@ -1,0 +1,23 @@
+handle git
+
+env GIT_AUTHOR_NAME='Gopher'
+env GIT_AUTHOR_EMAIL='gopher@golang.org'
+env GIT_COMMITTER_NAME=$GIT_AUTHOR_NAME
+env GIT_COMMITTER_EMAIL=$GIT_AUTHOR_EMAIL
+
+git init
+
+at 2018-09-27T20:40:31+00:00
+
+git add .gitattributes go.mod export_subst.go
+git commit -m 'initial commit'
+git branch -m master
+
+-- .gitattributes --
+export_subst.go export-subst
+-- go.mod --
+module vcs-test.golang.org/git/export-subst.git
+-- export_subst.go --
+package export_subst
+
+const CommitHash = "$Format:%H$"

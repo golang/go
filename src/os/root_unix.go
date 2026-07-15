@@ -62,7 +62,7 @@ func newRoot(fd int, name string) (*Root, error) {
 
 // openRootInRoot is Root.OpenRoot.
 func openRootInRoot(r *Root, name string) (*Root, error) {
-	fd, err := doInRoot(r, name, nil, func(parent int, name string) (fd int, err error) {
+	fd, err := doInRoot(r, name, 0, nil, func(parent int, name string, endsInSlash bool) (fd int, err error) {
 		ignoringEINTR(func() error {
 			fd, err = unix.Openat(parent, name, syscall.O_NOFOLLOW|syscall.O_CLOEXEC, 0)
 			if isNoFollowErr(err) {
@@ -80,9 +80,10 @@ func openRootInRoot(r *Root, name string) (*Root, error) {
 
 // rootOpenFileNolog is Root.OpenFile.
 func rootOpenFileNolog(root *Root, name string, flag int, perm FileMode) (*File, error) {
-	fd, err := doInRoot(root, name, nil, func(parent int, name string) (fd int, err error) {
+	fd, err := doInRoot(root, name, 0, nil, func(parent int, name string, endsInSlash bool) (fd int, err error) {
 		ignoringEINTR(func() error {
-			fd, err = unix.Openat(parent, name, syscall.O_NOFOLLOW|syscall.O_CLOEXEC|flag, uint32(perm))
+			openFlag := syscall.O_NOFOLLOW | syscall.O_CLOEXEC | flag
+			fd, err = unix.Openat(parent, name, openFlag, uint32(perm))
 			if err != nil {
 				// Never follow symlinks when O_CREATE|O_EXCL, no matter
 				// what error the OS returns.
@@ -129,16 +130,15 @@ func rootOpenDir(parent int, name string) (int, error) {
 }
 
 func rootStat(r *Root, name string, lstat bool) (FileInfo, error) {
-	fi, err := doInRoot(r, name, nil, func(parent sysfdType, n string) (FileInfo, error) {
-		var fs fileStat
-		if err := unix.Fstatat(parent, n, &fs.sys, unix.AT_SYMLINK_NOFOLLOW); err != nil {
+	fi, err := doInRoot(r, name, 0, nil, func(parent sysfdType, n string, endsInSlash bool) (FileInfo, error) {
+		fi, err := lstatatWithName(parent, name, n)
+		if err != nil {
 			return nil, err
 		}
-		fillFileStatFromSys(&fs, name)
-		if !lstat && fs.Mode()&ModeSymlink != 0 {
+		if !lstat && fi.Mode()&ModeSymlink != 0 {
 			return nil, checkSymlink(parent, n, syscall.ELOOP)
 		}
-		return &fs, nil
+		return fi, nil
 	})
 	if err != nil {
 		return nil, &PathError{Op: "statat", Path: name, Err: err}
@@ -147,7 +147,7 @@ func rootStat(r *Root, name string, lstat bool) (FileInfo, error) {
 }
 
 func rootSymlink(r *Root, oldname, newname string) error {
-	_, err := doInRoot(r, newname, nil, func(parent sysfdType, name string) (struct{}, error) {
+	_, err := doInRoot(r, newname, 0, nil, func(parent sysfdType, name string, endsInSlash bool) (struct{}, error) {
 		return struct{}{}, symlinkat(oldname, parent, name)
 	})
 	if err != nil {
@@ -257,13 +257,17 @@ func symlinkat(oldname string, newfd int, newname string) error {
 	return unix.Symlinkat(oldname, newfd, newname)
 }
 
-func modeAt(parent int, name string) (FileMode, error) {
+func lstatat(parent int, name string) (FileInfo, error) {
+	return lstatatWithName(parent, name, name)
+}
+
+func lstatatWithName(parent int, origName, name string) (FileInfo, error) {
 	var fs fileStat
 	if err := unix.Fstatat(parent, name, &fs.sys, unix.AT_SYMLINK_NOFOLLOW); err != nil {
-		return 0, err
+		return nil, err
 	}
-	fillFileStatFromSys(&fs, name)
-	return fs.mode, nil
+	fillFileStatFromSys(&fs, origName)
+	return &fs, nil
 }
 
 // checkSymlink resolves the symlink name in parent,
@@ -300,4 +304,11 @@ func readlinkat(fd int, name string) (string, error) {
 			return string(b[0:n]), nil
 		}
 	}
+}
+
+// isDirectoryLink always returns false, because Unix systems don't have separate
+// symlink types for files and directories.
+// (See the Windows version of this function for more details.)
+func isDirectoryLink(fi FileInfo) bool {
+	return false
 }

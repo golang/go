@@ -49,6 +49,19 @@ func TestDirFSReadLink(t *testing.T) {
 			t.Errorf("fs.ReadLink(fsys, %q) = %q, %v; want %q, <nil>", name, got, err, want)
 		}
 	}
+
+	const nonesuch = "dir/nonesuch"
+	_, err := fs.ReadLink(fsys, nonesuch)
+	if err == nil {
+		t.Fatal("fs.ReadLink of nonexistent file succeeded")
+	}
+	pe, ok := err.(*PathError)
+	if !ok {
+		t.Fatalf("fs.ReadLink error type = %T; want *PathError", err)
+	}
+	if pe.Path != nonesuch {
+		t.Errorf("fs.ReadLink(%q) error path = %q; want %q", nonesuch, pe.Path, nonesuch)
+	}
 }
 
 func TestDirFSLstat(t *testing.T) {
@@ -77,6 +90,19 @@ func TestDirFSLstat(t *testing.T) {
 		if got != want || err != nil {
 			t.Errorf("fs.Lstat(fsys, %q).Mode().Type() = %v, %v; want %v, <nil>", name, got, err, want)
 		}
+	}
+
+	const nonesuch = "dir/nonesuch"
+	_, err := fs.Lstat(fsys, nonesuch)
+	if err == nil {
+		t.Fatal("fs.Lstat of nonexistent file succeeded")
+	}
+	pe, ok := err.(*PathError)
+	if !ok {
+		t.Fatalf("fs.Lstat error type = %T; want *PathError", err)
+	}
+	if pe.Path != nonesuch {
+		t.Errorf("fs.Lstat(%q) error path = %q; want %q", nonesuch, pe.Path, nonesuch)
 	}
 }
 

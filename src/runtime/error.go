@@ -103,6 +103,8 @@ func (e errorAddressString) Error() string {
 	return "runtime error: " + e.msg
 }
 
+var _ error = errorAddressString{}
+
 // Addr returns the memory address where a fault occurred.
 // The address provided is best-effort.
 // The veracity of the result may depend on the platform.
@@ -123,6 +125,8 @@ func (e plainError) Error() string {
 	return string(e)
 }
 
+var _ error = plainError("")
+
 // A boundsError represents an indexing or slicing operation gone wrong.
 type boundsError struct {
 	x int64
@@ -134,6 +138,8 @@ type boundsError struct {
 	signed bool
 	code   abi.BoundsErrorCode
 }
+
+var _ error = boundsError{}
 
 // boundsErrorFmts provide error text for various out-of-bounds panics.
 // Note: if you change these strings, you should adjust the size of the buffer
