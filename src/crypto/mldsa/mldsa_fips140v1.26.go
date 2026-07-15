@@ -103,13 +103,16 @@ var errInvalidSignerOpts = errors.New("mldsa: invalid SignerOpts")
 //
 // [pre-hashed μ message representative]: https://www.rfc-editor.org/rfc/rfc9881.html#externalmu
 func (sk *PrivateKey) Sign(_ io.Reader, message []byte, opts crypto.SignerOpts) (signature []byte, err error) {
+	if sk.k == (mldsa.PrivateKey{}) {
+		return nil, errors.New("mldsa: zero private key")
+	}
 	if opts == nil {
 		opts = &Options{}
 	}
 	switch opts.HashFunc() {
 	case 0:
 		var context string
-		if opts, ok := opts.(*Options); ok {
+		if opts, ok := opts.(*Options); ok && opts != nil {
 			context = opts.Context
 		}
 		return mldsa.Sign(&sk.k, message, context)
@@ -123,13 +126,16 @@ func (sk *PrivateKey) Sign(_ io.Reader, message []byte, opts crypto.SignerOpts) 
 // SignDeterministic works like [PrivateKey.Sign], but the signature is
 // deterministic.
 func (sk *PrivateKey) SignDeterministic(message []byte, opts crypto.SignerOpts) (signature []byte, err error) {
+	if sk.k == (mldsa.PrivateKey{}) {
+		return nil, errors.New("mldsa: zero private key")
+	}
 	if opts == nil {
 		opts = &Options{}
 	}
 	switch opts.HashFunc() {
 	case 0:
 		var context string
-		if opts, ok := opts.(*Options); ok {
+		if opts, ok := opts.(*Options); ok && opts != nil {
 			context = opts.Context
 		}
 		return mldsa.SignDeterministic(&sk.k, message, context)
@@ -209,6 +215,9 @@ func (pk *PublicKey) Parameters() Parameters {
 func Verify(pk *PublicKey, message []byte, signature []byte, opts *Options) error {
 	if pk == nil {
 		return errors.New("mldsa: nil public key")
+	}
+	if pk.p == (mldsa.PublicKey{}) {
+		return errors.New("mldsa: zero public key")
 	}
 	if opts == nil {
 		opts = &Options{}
