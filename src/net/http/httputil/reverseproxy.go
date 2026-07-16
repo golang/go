@@ -108,6 +108,7 @@ func (r *ProxyRequest) SetXForwarded() {
 // If the server responds with a 101 Switching Protocols response,
 // the subsequent data from client and server are forwarded
 // unmodified. For example, ReverseProxy forwards WebSocket connections.
+// Upgrades to "h2c" (unencrypted HTTP/2) are not forwarded.
 //
 // Hop-by-hop headers (see RFC 9110, section 7.6.1), including
 // Connection, Proxy-Connection, Keep-Alive, Proxy-Authenticate,
@@ -376,6 +377,7 @@ var hopHeaders = []string{
 	"Trailer", // not Trailers per URL above; https://www.rfc-editor.org/errata_search.php?eid=4522
 	"Transfer-Encoding",
 	"Upgrade",
+	"HTTP2-Settings", // RFC 7540
 }
 
 func (p *ReverseProxy) defaultErrorHandler(rw http.ResponseWriter, req *http.Request, err error) {
@@ -476,6 +478,11 @@ func (p *ReverseProxy) ServeHTTP(rw http.ResponseWriter, req *http.Request) {
 			p.getErrorHandler()(rw, req, fmt.Errorf("client tried to use Upgrade header on non-HTTP/1 connection"))
 			return
 		}
+		if httpguts.HeaderValuesContainsToken([]string{reqUpType}, "h2c") {
+			// Don't allow clients to switch the connection to unencrypted HTTP/2,
+			// which allows sending further requests that bypass ReverseProxy's hooks.
+			reqUpType = ""
+		}
 	}
 	removeHopByHopHeaders(outreq.Header)
 
@@ -568,7 +575,7 @@ func (p *ReverseProxy) ServeHTTP(rw http.ResponseWriter, req *http.Request) {
 		return
 	}
 
-	// Deal with 101 Switching Protocols responses: (WebSocket, h2c, etc)
+	// Deal with 101 Switching Protocols responses: (WebSocket, etc.)
 	if res.StatusCode == http.StatusSwitchingProtocols {
 		if !p.modifyResponse(rw, res, outreq) {
 			return

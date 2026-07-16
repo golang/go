@@ -1749,6 +1749,49 @@ func TestReverseProxyUpgradeNoCloseWrite(t *testing.T) {
 	<-backendDone
 }
 
+func TestReverseProxyUpgradeH2C(t *testing.T) {
+	backendServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if h, ok := r.Header["Connection"]; ok {
+			if slices.Equal(r.Header["Upgrade"], []string{"websocket"}) {
+				return
+			}
+			t.Errorf("unexpected Connection header: %q", h)
+		}
+		if h, ok := r.Header["Upgrade"]; ok {
+			t.Errorf("unexpected Upgrade header: %q", h)
+		}
+	}))
+	defer backendServer.Close()
+
+	backURL, _ := url.Parse(backendServer.URL)
+	rproxy := NewSingleHostReverseProxy(backURL)
+	rproxy.ErrorLog = log.New(io.Discard, "", 0) // quiet for tests
+
+	frontendProxy := httptest.NewServer(rproxy)
+	defer frontendProxy.Close()
+
+	for _, upgrade := range [][]string{
+		{"h2c"},
+		{" h2c "},
+		{"H2C"},
+		{"websocket, h2c"},
+		{"websocket", "h2c"},
+	} {
+		req, _ := http.NewRequest("GET", frontendProxy.URL, nil)
+		req.Header.Set("Connection", "Upgrade")
+		req.Header["Upgrade"] = upgrade
+
+		res, err := frontendProxy.Client().Do(req)
+		if err != nil {
+			t.Fatal(err)
+		}
+		res.Body.Close()
+		if res.StatusCode != 200 {
+			t.Fatalf("status = %v; want 200", res.Status)
+		}
+	}
+}
+
 func TestUnannouncedTrailer(t *testing.T) {
 	backend := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusOK)
