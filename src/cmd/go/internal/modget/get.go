@@ -1635,10 +1635,9 @@ func (r *resolver) checkPackageProblems(ld *modload.Loader, ctx context.Context,
 	// We'll also report issues for retracted and deprecated modules using the workspace
 	// info, but switch back to single module mode when fetching sums so that we update
 	// the single module's go.sum file.
-	var exitWorkspace func()
 	if r.workspace != nil && r.workspace.hasModule(ld.MainModules.Versions()[0].Path) {
 		var err error
-		exitWorkspace, err = modload.EnterWorkspace(ld, ctx)
+		ld, err = ld.NewForWorkspace(ctx)
 		if err != nil {
 			// A TooNewError can happen for
 			// go get go@newversion when all the required modules
@@ -1767,16 +1766,6 @@ func (r *resolver) checkPackageProblems(ld *modload.Loader, ctx context.Context,
 			}
 			deprecations[i].message = modload.ShortMessage(deprecation, "")
 		})
-	}
-
-	// exit the workspace if we had entered it earlier. We want to add the sums
-	// to the go.sum file for the module we're running go get from.
-	if exitWorkspace != nil {
-		// Wait for retraction and deprecation checks (that depend on the global
-		// modload state containing the workspace) to finish before we reset the
-		// state back to single module mode.
-		<-r.work.Idle()
-		exitWorkspace()
 	}
 
 	// Load sums for updated modules that had sums before. When we update a

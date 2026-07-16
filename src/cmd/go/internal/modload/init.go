@@ -55,22 +55,18 @@ var (
 	gopath string
 )
 
-// EnterModule resets MainModules and requirements to refer to just this one module.
-func EnterModule(ld *Loader, ctx context.Context, enterModroot string) {
-	ld.MainModules = nil // reset MainModules
-	ld.requirements = nil
-	ld.workFilePath = "" // Force module mode
-	ld.Fetcher().Reset()
-
-	ld.modRoots = []string{enterModroot}
+// NewForModroot creates a new module loader in single-module mode for the module at
+// the given modroot..
+func NewForModroot(ctx context.Context, modroot string) *Loader {
+	ld := NewLoader()
+	ld.modRoots = []string{modroot}
 	LoadModFile(ld, ctx)
+	return ld
 }
 
-// EnterWorkspace enters workspace mode from module mode, applying the updated requirements to the main
-// module to that module in the workspace. There should be no calls to any of the exported
-// functions of the modload package running concurrently with a call to EnterWorkspace as
-// EnterWorkspace will modify the global state they depend on in a non-thread-safe way.
-func EnterWorkspace(ld *Loader, ctx context.Context) (exit func(), err error) {
+// NewForWorkspace creates a new loader for workspace mode from the given module mode loader ld,
+// applying ld's updated requirements to the main module to the corresponding module in the workspace.
+func (ld *Loader) NewForWorkspace(ctx context.Context) (*Loader, error) {
 	// Find the identity of the main module that will be updated before we reset modload state.
 	mm := ld.MainModules.mustGetSingleMainModule(ld)
 	// Get the updated modfile we will use for that module.
@@ -79,8 +75,8 @@ func EnterWorkspace(ld *Loader, ctx context.Context) (exit func(), err error) {
 		return nil, err
 	}
 
-	// Reset the state to a clean state.
-	oldstate := ld.setState(NewLoader())
+	// Create a new loader in workspace mode
+	ld = NewLoader()
 	ld.ForceUseModules = true
 
 	// Load in workspace mode.
@@ -91,9 +87,7 @@ func EnterWorkspace(ld *Loader, ctx context.Context) (exit func(), err error) {
 	*ld.MainModules.ModFile(mm) = *updatedmodfile
 	ld.requirements = requirementsFromModFiles(ld, ld.MainModules.workFile, slices.Collect(maps.Values(ld.MainModules.modFiles)))
 
-	return func() {
-		ld.setState(oldstate)
-	}, nil
+	return ld, err
 }
 
 type MainModuleSet struct {
