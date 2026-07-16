@@ -1381,6 +1381,28 @@ func (s *regAllocState) regalloc(f *Func) {
 				}
 			}
 
+			// Look for loop headers of loops that contain unavoidable calls.
+			// That call will clobber all registers.
+			// Any value that's unused before the first such call is doomed.
+			// To avoid pointless backedge reloads, free such doomed values instead,
+			// and reload them lazily at their first use, after the call.
+			//
+			//	v := ...      // in a register
+			//	for ... {
+			//		...       // no use of v
+			//		f()       // clobbers registers
+			//		... = v   // reload v here, not on the backedge
+			//	}
+			doomDist := int32(math.MaxInt32)
+			if l := s.loopnest.b2l[b.ID]; l != nil && l.header == b && l.containsUnavoidableCall {
+				// The first call, if any, is at s.nextCall[0].
+				// A call in a later block is at least unlikelyDistance away.
+				doomDist = unlikelyDistance
+				if len(s.nextCall) > 0 {
+					doomDist = min(doomDist, s.nextCall[0])
+				}
+			}
+
 			// Save the starting state for use by merge edges.
 			// We append to a stack allocated variable that we'll
 			// later copy into s.startRegs in one fell swoop, to save
@@ -1394,6 +1416,11 @@ func (s *regAllocState) regalloc(f *Func) {
 				if phiUsed.hasReg(r) {
 					// Skip registers that phis used, we'll handle those
 					// specially during merge edge processing.
+					continue
+				}
+				// Drop values doomed by an intervening unavoidable call.
+				if s.values[v.ID].uses.dist >= doomDist && s.allocatable.hasReg(r) && !opcodeTable[v.Op].fixedReg {
+					s.freeReg(r)
 					continue
 				}
 				regList = append(regList, startReg{r, v, s.regs[r].c, s.values[v.ID].uses.pos})
