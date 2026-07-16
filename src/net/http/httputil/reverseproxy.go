@@ -104,12 +104,17 @@ func (r *ProxyRequest) SetXForwarded() {
 // 1xx responses are forwarded to the client if the underlying
 // transport supports ClientTrace.Got1xxResponse.
 //
+// Upgrade requests (RFC 9110, section 7.8) are forwarded.
+// If the server responds with a 101 Switching Protocols response,
+// the subsequent data from client and server are forwarded
+// unmodified. For example, ReverseProxy forwards WebSocket connections.
+//
 // Hop-by-hop headers (see RFC 9110, section 7.6.1), including
 // Connection, Proxy-Connection, Keep-Alive, Proxy-Authenticate,
-// Proxy-Authorization, TE, Trailer, Transfer-Encoding, and Upgrade,
+// Proxy-Authorization, TE, Trailer, and Transfer-Encoding
 // are removed from client requests and backend responses.
-// The Rewrite function may be used to add hop-by-hop headers to the request,
-// and the ModifyResponse function may be used to remove them from the response.
+// Hop-by-hop Upgrade headers are preserved as described above.
+// The Rewrite function may be used to add hop-by-hop headers to the request.
 type ReverseProxy struct {
 	// Rewrite must be a function which modifies
 	// the request into a new request to be sent
