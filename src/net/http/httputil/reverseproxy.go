@@ -471,6 +471,12 @@ func (p *ReverseProxy) ServeHTTP(rw http.ResponseWriter, req *http.Request) {
 		p.getErrorHandler()(rw, req, fmt.Errorf("client tried to switch to invalid protocol %q", reqUpType))
 		return
 	}
+	if reqUpType != "" {
+		if req.ProtoMajor != 1 || req.ProtoMinor != 1 {
+			p.getErrorHandler()(rw, req, fmt.Errorf("client tried to use Upgrade header on non-HTTP/1 connection"))
+			return
+		}
+	}
 	removeHopByHopHeaders(outreq.Header)
 
 	// Issue 21096: tell backend applications that care about trailer support
