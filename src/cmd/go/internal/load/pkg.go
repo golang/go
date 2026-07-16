@@ -3569,6 +3569,27 @@ func SelectCoverPackages(s *modload.Loader, roots []*Package, match []func(*modl
 				haveMatch = true
 			}
 		}
+		// If using the race detector, silently ignore attempts to run
+		// coverage on the runtime packages. It will cause the race
+		// detector to be invoked before it has been initialized. Note
+		// the use of "regonly" instead of just ignoring the package
+		// completely-- we do this due to the requirements of the
+		// package ID numbering scheme. See the comment in
+		// $GOROOT/src/internal/coverage/pkid.go dealing with
+		// hard-coding of runtime package IDs.
+		cmode := cfg.BuildCoverMode
+		if cfg.BuildRace && p.Standard && objabi.LookupPkgSpecial(p.ImportPath).Runtime {
+			cmode = "regonly"
+		}
+
+		// If -coverpkg is in effect and for some reason we don't want
+		// coverage data for the main package, make sure that we at
+		// least process it for registration hooks.
+		if includeMain && p.Name == "main" && !haveMatch {
+			haveMatch = true
+			cmode = "regonly"
+		}
+
 		if !haveMatch {
 			continue
 		}
@@ -3597,27 +3618,6 @@ func SelectCoverPackages(s *modload.Loader, roots []*Package, match []func(*modl
 		if cfg.BuildCoverMode == "atomic" && p.Standard &&
 			(p.ImportPath == "sync/atomic" || p.ImportPath == "internal/runtime/atomic") {
 			continue
-		}
-
-		// If using the race detector, silently ignore attempts to run
-		// coverage on the runtime packages. It will cause the race
-		// detector to be invoked before it has been initialized. Note
-		// the use of "regonly" instead of just ignoring the package
-		// completely-- we do this due to the requirements of the
-		// package ID numbering scheme. See the comment in
-		// $GOROOT/src/internal/coverage/pkid.go dealing with
-		// hard-coding of runtime package IDs.
-		cmode := cfg.BuildCoverMode
-		if cfg.BuildRace && p.Standard && objabi.LookupPkgSpecial(p.ImportPath).Runtime {
-			cmode = "regonly"
-		}
-
-		// If -coverpkg is in effect and for some reason we don't want
-		// coverage data for the main package, make sure that we at
-		// least process it for registration hooks.
-		if includeMain && p.Name == "main" && !haveMatch {
-			haveMatch = true
-			cmode = "regonly"
 		}
 
 		// Mark package for instrumentation.
