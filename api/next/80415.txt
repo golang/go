@@ -1,0 +1,14 @@
+pkg syscall (windows-386), type AppContainer struct #80415
+pkg syscall (windows-386), type AppContainer struct, Capabilities []SIDAndAttributes #80415
+pkg syscall (windows-386), type AppContainer struct, SID *SID #80415
+pkg syscall (windows-386), type SysProcAttr struct, AppContainer *AppContainer #80415
+pkg syscall (windows-386), type SysProcAttr struct, Console Handle #80415
+pkg syscall (windows-386), type SysProcAttr struct, Desktop string #80415
+pkg syscall (windows-386), type SysProcAttr struct, Jobs []Handle #80415
+pkg syscall (windows-amd64), type AppContainer struct #80415
+pkg syscall (windows-amd64), type AppContainer struct, Capabilities []SIDAndAttributes #80415
+pkg syscall (windows-amd64), type AppContainer struct, SID *SID #80415
+pkg syscall (windows-amd64), type SysProcAttr struct, AppContainer *AppContainer #80415
+pkg syscall (windows-amd64), type SysProcAttr struct, Console Handle #80415
+pkg syscall (windows-amd64), type SysProcAttr struct, Desktop string #80415
+pkg syscall (windows-amd64), type SysProcAttr struct, Jobs []Handle #80415
