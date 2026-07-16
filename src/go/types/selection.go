@@ -95,6 +95,7 @@ func (s *Selection) Obj() Object { return s.obj }
 func (s *Selection) Type() Type {
 	switch s.kind {
 	case MethodVal:
+		// TODO(mark) Align this with call.go if possible.
 		// The type of x.f is a method with its receiver type set
 		// to the type of x.
 		sig := *s.obj.(*Func).typ.(*Signature)
@@ -110,6 +111,7 @@ func (s *Selection) Type() Type {
 		// TODO(gri) Compute this eagerly to avoid allocations.
 		sig := *s.obj.(*Func).typ.(*Signature)
 		arg0 := *sig.recv
+		sig.recvold = sig.recv // stash receiver (for consistency with call.go)
 		sig.recv = nil
 		arg0.typ = s.recv
 		var params []*Var
@@ -120,7 +122,7 @@ func (s *Selection) Type() Type {
 		return &sig
 	}
 
-	// In all other cases, the type of x.f is the type of x.
+	// In all other cases, the type of x.f is the type of f.
 	return s.obj.Type()
 }
 

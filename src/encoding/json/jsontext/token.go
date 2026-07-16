@@ -430,7 +430,7 @@ func (t Token) float(bits int) (float64, error) {
 		case "-Infinity":
 			return math.Inf(-1), nil
 		}
-		// TODO: Should this be a error instead of a panic?
+		// TODO: Should this be an error instead of a panic?
 		// We can safely switch from a panic to an error in the future.
 	}
 

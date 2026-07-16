@@ -25,6 +25,9 @@ stderr '^go: creating work dir: \w+ '$GOTMPDIR
 go list -x .
 ! stderr 'creating work dir'
 stdout m
+go list -compiled -x -f '{{.CompiledGoFiles}}' .
+! stderr 'creating work dir'
+stdout '\[hello.go\]'
 go list -m all
 stdout m
 ! go list -x -export .

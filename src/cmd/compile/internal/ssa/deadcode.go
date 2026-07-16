@@ -213,7 +213,7 @@ func deadcode(f *Func) {
 	for _, name := range f.Names {
 		j := 0
 		s.clear()
-		values := f.NamedValues[*name]
+		values := f.NamedValues[name]
 		for _, v := range values {
 			if live[v.ID] && !s.contains(v.ID) {
 				values[j] = v
@@ -222,14 +222,14 @@ func deadcode(f *Func) {
 			}
 		}
 		if j == 0 {
-			delete(f.NamedValues, *name)
+			delete(f.NamedValues, name)
 		} else {
 			f.Names[i] = name
 			i++
 			for k := len(values) - 1; k >= j; k-- {
 				values[k] = nil
 			}
-			f.NamedValues[*name] = values[:j]
+			f.NamedValues[name] = values[:j]
 		}
 	}
 	clear(f.Names[i:])

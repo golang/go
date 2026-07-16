@@ -1,12 +1,12 @@
 dario.cat/mergo v1.0.2 h1:85+piFYR1tMbRrLcDwR18y4UKJ3aH1Tbzi24VRW1TK8=
 dario.cat/mergo v1.0.2/go.mod h1:E/hbnu0NxMFBjpMIE34DRGLWqDy0g5FuKDhCb31ngxA=
-github.com/atombender/go-jsonschema v0.22.0 h1:7H48X5fUccsfsacar5UfP6nnOXuQzmnr6lQmH/Fj2pQ=
-github.com/atombender/go-jsonschema v0.22.0/go.mod h1:8Q281v0ozTIfvdnbwDoWQDIk0syH6F0Fpoq+Z1cs+rM=
-github.com/c2sp/wycheproof v0.0.0-20260428174413-4d535535851f h1:6z0faT+gbElCKVknQwZnn2qJbdJR9HtwztdczFm4/Ns=
-github.com/c2sp/wycheproof v0.0.0-20260428174413-4d535535851f/go.mod h1:Gab+FzXqmNn5Uzs1+9wyVUe/Dao7XiyY3xfx2Kg+IGM=
+github.com/c2sp/wycheproof v0.0.0-20260625212325-ee7b4f7e6119 h1:jOCu6erj86P93+eFn8Qxp6XLwftn1nW0C9RUx7xZwZg=
+github.com/c2sp/wycheproof v0.0.0-20260625212325-ee7b4f7e6119/go.mod h1:/5JsOpi3fKmnnig5BQ2mz49TNtnrD308VfTVHcbr5x4=
 github.com/davecgh/go-spew v0.0.0-20161028175848-04cdfd42973b/go.mod h1:J7Y8YcW2NihsgmVo/mv3lAwl/skON4iLHjSsI+c5H38=
 github.com/davecgh/go-spew v1.1.1 h1:vj9j/u1bqnvCEfJOwUhtlOARqs3+rkHYY13jYWTU97c=
 github.com/davecgh/go-spew v1.1.1/go.mod h1:J7Y8YcW2NihsgmVo/mv3lAwl/skON4iLHjSsI+c5H38=
+github.com/filippo-claude/go-jsonschema v0.23.2-0.20260625215234-f867483bec31 h1:c2W1mlsq9K/W+GPQWycHmGxTq4/RkWgDHOY99K+rtaw=
+github.com/filippo-claude/go-jsonschema v0.23.2-0.20260625215234-f867483bec31/go.mod h1:4SrgNrwGKijxhewvpPQ8HKEbin5Q2N4Tk+pFKW77HEk=
 github.com/goccy/go-yaml v1.19.2 h1:PmFC1S6h8ljIz6gMRBopkjP1TVT7xuwrButHID66PoM=
 github.com/goccy/go-yaml v1.19.2/go.mod h1:XBurs7gK8ATbW4ZPGKgcbrY1Br56PdM69F7LkFRi1kA=
 github.com/google/go-cmp v0.7.0 h1:wk8382ETsv4JYUZwIsn6YpYiWiBsYLSJiTsyBybVuN8=
@@ -18,8 +18,8 @@ github.com/pmezard/go-difflib v1.0.0 h1:4DBwDE0NGyQoBHbLQYPwSUPoCMWR5BEzIk/f1lZb
 github.com/pmezard/go-difflib v1.0.0/go.mod h1:iKH77koFhYxTK1pcRnkKkqfTogsbg7gZNVY4sRDYZ/4=
 github.com/sanity-io/litter v1.5.8 h1:uM/2lKrWdGbRXDrIq08Lh9XtVYoeGtcQxk9rtQ7+rYg=
 github.com/sanity-io/litter v1.5.8/go.mod h1:9gzJgR2i4ZpjZHsKvUXIRQVk7P+yM3e+jAF7bU2UI5U=
-github.com/sosodev/duration v1.3.1 h1:qtHBDMQ6lvMQsL15g4aopM4HEfOaYuhWBw3NPTtlqq4=
-github.com/sosodev/duration v1.3.1/go.mod h1:RQIBBX0+fMLc/D9+Jb/fwvVmo0eZvDDEERAikUR6SDg=
+github.com/sosodev/duration v1.4.0 h1:35ed0KiVFriGHHzZZJaZLgmTEEICIyt8Sx0RQfj9IjE=
+github.com/sosodev/duration v1.4.0/go.mod h1:RQIBBX0+fMLc/D9+Jb/fwvVmo0eZvDDEERAikUR6SDg=
 github.com/stretchr/testify v0.0.0-20161117074351-18a02ba4a312/go.mod h1:a8OnRcib4nhh0OaRAV+Yts87kKdq0PP7pXfy6kDkUVs=
 github.com/stretchr/testify v1.11.1 h1:7s2iGBzp5EwR7/aIZr8ao5+dra3wiQyKjjFuvgVKu7U=
 github.com/stretchr/testify v1.11.1/go.mod h1:wZwfW3scLgRK+23gO65QZefKpKQRnfz6sD981Nm4B6U=

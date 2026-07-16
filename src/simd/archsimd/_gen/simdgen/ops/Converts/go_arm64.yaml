@@ -1,6 +1,6 @@
 !sum
 
-- go: TruncateToInt8
+- go: TruncToInt8
   asm: "VXTN"
   hiHalfAsm: "VXTN2"
   in:
@@ -10,7 +10,7 @@
     - base: int
       bits: 128
 
-- go: TruncateToUint8
+- go: TruncToUint8
   asm: "VXTN"
   hiHalfAsm: "VXTN2"
   in:
@@ -20,7 +20,7 @@
     - base: uint
       bits: 128
 
-- go: TruncateToInt16
+- go: TruncToInt16
   asm: "VXTN"
   hiHalfAsm: "VXTN2"
   in:
@@ -30,7 +30,7 @@
     - base: int
       bits: 128
 
-- go: TruncateToUint16
+- go: TruncToUint16
   asm: "VXTN"
   hiHalfAsm: "VXTN2"
   in:
@@ -40,7 +40,7 @@
     - base: uint
       bits: 128
 
-- go: TruncateToInt32
+- go: TruncToInt32
   asm: "VXTN"
   hiHalfAsm: "VXTN2"
   in:
@@ -50,7 +50,7 @@
     - base: int
       bits: 128
 
-- go: TruncateToUint32
+- go: TruncToUint32
   asm: "VXTN"
   hiHalfAsm: "VXTN2"
   in:

@@ -2119,7 +2119,7 @@ func isFixedLoad(v *Value, sym Sym, off int64) bool {
 		for _, f := range rttype.Type.Fields() {
 			if f.Offset == off && copyCompatibleType(v.Type, f.Type) {
 				switch f.Sym.Name {
-				case "Size_", "PtrBytes", "Hash", "Kind_", "GCData":
+				case "Size_", "PtrBytes", "Hash", "Kind_", "GCData", "TFlag":
 					return true
 				default:
 					// fmt.Println("unknown field", f.Sym.Name)
@@ -2194,6 +2194,10 @@ func rewriteFixedLoad(v *Value, sym Sym, sb *Value, off int64) *Value {
 				case "Hash":
 					v.reset(OpConst32)
 					v.AuxInt = int64(int32(types.TypeHash(t)))
+					return v
+				case "TFlag":
+					v.reset(OpConst8)
+					v.AuxInt = int64(t.TFlag())
 					return v
 				case "Kind_":
 					v.reset(OpConst8)
@@ -2825,17 +2829,9 @@ func bool2int(x bool) int {
 func rewriteCondSelectIntoMath(config *Config, op Op, constant int64) bool {
 	switch config.arch {
 	case "amd64":
-		if constant == 1 {
-			return true
-		}
-		switch op {
-		case OpAdd64, OpAdd32, OpAdd16, OpAdd8:
-			switch constant {
-			case 2, 4, 8:
-				// Implemented with LEA a + b * displacement form
-				return true
-			}
-		}
+		// constant=1 becomes zext, add 2/4/8 becomes lea, rest becomes shl.
+		// shl has asymmetric latency (1:3 vs 2:2) but performs better in accumulation chains.
+		return isPowerOfTwo(uint64(constant))
 	case "arm64":
 		switch op {
 		case OpAdd64, OpAdd32, OpAdd16, OpAdd8:
@@ -2890,4 +2886,19 @@ func modularMultiplicativeInverse(x uint64) (y uint64) {
 	y *= 2 - x*y // 48 bits
 	y *= 2 - x*y // 96 bits; good enough
 	return
+}
+
+func invertibleBool(op Op) bool {
+	switch op {
+	case OpLess64, OpLess32, OpLess16, OpLess8,
+		OpLeq64, OpLeq32, OpLeq16, OpLeq8,
+		OpLess64U, OpLess32U, OpLess16U, OpLess8U,
+		OpLeq64U, OpLeq32U, OpLeq16U, OpLeq8U,
+		OpEq64, OpEq32, OpEq16, OpEq8,
+		OpNeq64, OpNeq32, OpNeq16, OpNeq8,
+		OpNot:
+		return true
+	default:
+		return false
+	}
 }

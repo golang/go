@@ -765,10 +765,30 @@ func TestEncodedLen(t *testing.T) {
 		tests = append(tests, test{rawStdEncoding, (math.MaxInt-4)/8 + 1, 1844674407370955162})
 		tests = append(tests, test{rawStdEncoding, math.MaxInt/8*5 + 4, math.MaxInt})
 	}
+	tests = append(tests, test{StdEncoding, math.MaxInt / 8 * 5, math.MaxInt - 7})
 	for _, tt := range tests {
 		if got := tt.enc.EncodedLen(tt.n); int64(got) != tt.want {
 			t.Errorf("EncodedLen(%d): got %d, want %d", tt.n, got, tt.want)
 		}
+	}
+}
+
+func TestEncodedLenOverflow(t *testing.T) {
+	for _, tt := range []struct {
+		enc *Encoding
+		n   int
+	}{
+		{StdEncoding, math.MaxInt/8*5 + 1},
+		{StdEncoding.WithPadding(NoPadding), math.MaxInt/8*5 + 5},
+	} {
+		func() {
+			defer func() {
+				if recover() == nil {
+					t.Errorf("EncodedLen(%d) did not panic", tt.n)
+				}
+			}()
+			tt.enc.EncodedLen(tt.n)
+		}()
 	}
 }
 

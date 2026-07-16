@@ -10,6 +10,7 @@ import (
 	"bytes"
 	"errors"
 	"fmt"
+	"io"
 	"log"
 	"net/http"
 	"net/netip"
@@ -269,38 +270,38 @@ func Example_omitFields() {
 	// }
 }
 
-// JSON objects can be inlined within a parent object similar to
+// JSON objects can be embedded within a parent object similar to
 // how Go structs can be embedded within a parent struct.
-// The inlining rules are similar to those of Go embedding,
+// The JSON embedding rules are similar to those of Go embedding,
 // but operates upon the JSON namespace.
-func Example_inlinedFields() {
+func Example_embeddedFields() {
 	// Base is embedded within Container.
 	type Base struct {
 		// ID is promoted into the JSON object for Container.
 		ID string
 		// Type is ignored due to presence of Container.Type.
 		Type string
-		// Time cancels out with Container.Inlined.Time.
+		// Time cancels out with Container.Embed.Time.
 		Time time.Time
 	}
 	// Other is embedded within Container.
 	type Other struct{ Cost float64 }
 	// Container embeds Base and Other.
 	type Container struct {
-		// Base is an embedded struct and is implicitly JSON inlined.
+		// Base is an embedded struct and is implicitly JSON embedded.
 		Base
 		// Type takes precedence over Base.Type.
 		Type int
-		// Inlined is a named Go field, but is explicitly JSON inlined.
-		Inlined struct {
+		// Embed is a named Go field, but is explicitly JSON embedded.
+		Embed struct {
 			// User is promoted into the JSON object for Container.
 			User string
 			// Time cancels out with Base.Time.
 			Time string
-		} `json:",inline"`
+		} `json:",embed"`
 		// ID does not conflict with Base.ID since the JSON name is different.
 		ID string `json:"uuid"`
-		// Other is not JSON inlined since it has an explicit JSON name.
+		// Other is not JSON embedded since it has an explicit JSON name.
 		Other `json:"other"`
 	}
 
@@ -558,4 +559,32 @@ func ExampleWithUnmarshalers_recordOffsets() {
 
 	// Output:
 	// 3:3: source and destination must both be specified
+}
+
+// UnmarshalDecode can be used to unmarshal a stream of whitespace-delimited
+// JSON values.
+func ExampleUnmarshalDecode_stream() {
+	const jsonStream = `
+	{"Name": "Platypus", "Order": "Monotremata"}
+	{"Name": "Quoll",    "Order": "Dasyuromorphia"}
+	{"Name": "Gopher",   "Order": "Rodentia"}
+`
+	type Animal struct {
+		Name  string
+		Order string
+	}
+	dec := jsontext.NewDecoder(strings.NewReader(jsonStream))
+	for {
+		var a Animal
+		if err := json.UnmarshalDecode(dec, &a); err == io.EOF {
+			break
+		} else if err != nil {
+			log.Fatal(err)
+		}
+		fmt.Printf("%s: %s\n", a.Name, a.Order)
+	}
+	// Output:
+	// Platypus: Monotremata
+	// Quoll: Dasyuromorphia
+	// Gopher: Rodentia
 }

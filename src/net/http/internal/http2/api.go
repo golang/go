@@ -107,6 +107,7 @@ type TransportConfig interface {
 // ServerConfig is configuration from an http.Server.
 type ServerConfig interface {
 	MaxHeaderBytes() int
+	MaxHeaderValueCount() int
 	ConnState(net.Conn, ConnState)
 	DoKeepAlives() bool
 	WriteTimeout() time.Duration

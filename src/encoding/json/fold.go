@@ -38,7 +38,7 @@ func appendFoldedName(out, in []byte) []byte {
 	return out
 }
 
-// foldRune is returns the smallest rune for all runes in the same fold set.
+// foldRune returns the smallest rune for all runes in the same fold set.
 func foldRune(r rune) rune {
 	for {
 		r2 := unicode.SimpleFold(r)

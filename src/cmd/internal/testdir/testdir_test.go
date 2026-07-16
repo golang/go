@@ -52,7 +52,11 @@ var (
 // the linux-amd64 builder that's already very fast, so we get more
 // test coverage on trybots. See https://go.dev/issue/34297.
 func defaultAllCodeGen() bool {
-	return testenv.Builder() == "gotip-linux-amd64"
+	// Note: Checking with HasPrefix allows us to enable -all_codegen
+	// on builders with experimental features like `gotip-linux-amd64-simd`
+	//
+	// See issue #79899.
+	return strings.HasPrefix(testenv.Builder(), "gotip-linux-amd64")
 }
 
 var (
@@ -366,6 +370,7 @@ func goDirPackages(t *testing.T, dir string, singlefilepkgs bool) []*goDirPkg {
 type context struct {
 	GOOS       string
 	GOARCH     string
+	allGOARCH  bool
 	cgoEnabled bool
 	noOptEnv   bool
 }
@@ -376,16 +381,31 @@ func shouldTest(src string, goos, goarch string) (ok bool, whyNot string) {
 	if *runSkips {
 		return true, ""
 	}
+
+	allGOARCH := false
 	for _, line := range strings.Split(src, "\n") {
 		if strings.HasPrefix(line, "package ") {
 			break
 		}
 
+		if *allCodegen && strings.TrimSpace(strings.TrimPrefix(line, "//")) == "asmcheck" {
+			// For asmcheck tests run under -all_codegen, treat all GOARCH build tags as satisied.
+			// These tests only verify generated assembly and can be cross-compiled, so they
+			// should not be skipped just because the host GOARCH doesn't match.
+			//
+			// For example: previously, test/codegen/simd_arm64.go was skipped on
+			// CI because the only builder with GOEXPERIMENT=simd was amd64, while the
+			// test file also requires arm64.
+			//
+			// See issue #79899.
+			allGOARCH = true
+		}
 		if expr, err := constraint.Parse(line); err == nil {
 			gcFlags := os.Getenv("GO_GCFLAGS")
 			ctxt := &context{
 				GOOS:       goos,
 				GOARCH:     goarch,
+				allGOARCH:  allGOARCH,
 				cgoEnabled: cgoEnabled,
 				noOptEnv:   strings.Contains(gcFlags, "-N") || strings.Contains(gcFlags, "-l"),
 			}
@@ -423,10 +443,19 @@ func (ctxt *context) match(name string) bool {
 		return true
 	}
 
-	if name == ctxt.GOOS || name == ctxt.GOARCH || name == "gc" {
+	if name == ctxt.GOOS || name == "gc" {
 		return true
 	}
 
+	if ctxt.allGOARCH {
+		if _, ok := archVariants[name]; ok {
+			return ok
+		}
+	} else {
+		if name == ctxt.GOARCH {
+			return true
+		}
+	}
 	if ctxt.noOptEnv && name == "gcflags_noopt" {
 		return true
 	}

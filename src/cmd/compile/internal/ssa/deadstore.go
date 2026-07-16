@@ -130,9 +130,10 @@ func dse(f *Func) {
 				ptr = ptr.Args[0]
 			}
 			var sz int64
-			if v.Op == OpStore || v.Op == OpMove {
+			switch v.Op {
+			case OpStore:
 				sz = v.Aux.(*types.Type).Size()
-			} else { // OpZero
+			case OpZero, OpMove:
 				sz = v.AuxInt
 			}
 			if ptr.Op == OpLocalAddr {

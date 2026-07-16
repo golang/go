@@ -526,7 +526,7 @@ func TestDialerLocalAddr(t *testing.T) {
 	type test struct {
 		network, raddr string
 		laddr          Addr
-		error
+		error          error
 	}
 	var tests = []test{
 		{"tcp4", "127.0.0.1", nil, nil},

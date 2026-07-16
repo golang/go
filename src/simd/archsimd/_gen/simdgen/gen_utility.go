@@ -429,6 +429,13 @@ func (op Operation) ImmName() string {
 	return op.Op0Name("constant")
 }
 
+func (op Operation) ImmType() string {
+	if strings.Contains(op.Go, "Shift") || strings.Contains(op.Go, "Rotate") {
+		return "uint64"
+	}
+	return "uint8"
+}
+
 func (o Operand) OpName(s string) string {
 	if n := o.Name; n != nil {
 		return *n
@@ -912,7 +919,7 @@ func (o *Operation) hasMaskedMerging(maskType maskShape, outType outShape) bool 
 		// asmRule and argsMatchRule/earlyMatchRule should not affect masked merging
 		ok, _, _ := parseAsmRule(*o.SpecialLower)
 		if !ok {
-			ok, _, _, _, _ = parseArgsMatchRule(*o.SpecialLower)
+			ok, _, _ = parseArgsMatchRule(*o.SpecialLower)
 			if !ok {
 				return false
 			}

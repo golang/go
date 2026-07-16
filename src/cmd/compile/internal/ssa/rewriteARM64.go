@@ -412,6 +412,8 @@ func rewriteValueARM64(v *Value) bool {
 		return rewriteValueARM64_OpARM64VMOVDins0(v)
 	case OpARM64VMOVSins0:
 		return rewriteValueARM64_OpARM64VMOVSins0(v)
+	case OpARM64VPMULL2D:
+		return rewriteValueARM64_OpARM64VPMULL2D(v)
 	case OpARM64VSHL16B:
 		return rewriteValueARM64_OpARM64VSHL16B(v)
 	case OpARM64VSHL2D:
@@ -864,6 +866,54 @@ func rewriteValueARM64(v *Value) bool {
 	case OpConcatAddPairsUint64x2:
 		v.Op = OpARM64VADDP2D
 		return true
+	case OpConcatEvenInt16x8:
+		v.Op = OpARM64VUZP18H
+		return true
+	case OpConcatEvenInt32x4:
+		v.Op = OpARM64VUZP14S
+		return true
+	case OpConcatEvenInt64x2:
+		v.Op = OpARM64VUZP12D
+		return true
+	case OpConcatEvenInt8x16:
+		v.Op = OpARM64VUZP116B
+		return true
+	case OpConcatEvenUint16x8:
+		v.Op = OpARM64VUZP18H
+		return true
+	case OpConcatEvenUint32x4:
+		v.Op = OpARM64VUZP14S
+		return true
+	case OpConcatEvenUint64x2:
+		v.Op = OpARM64VUZP12D
+		return true
+	case OpConcatEvenUint8x16:
+		v.Op = OpARM64VUZP116B
+		return true
+	case OpConcatOddInt16x8:
+		v.Op = OpARM64VUZP28H
+		return true
+	case OpConcatOddInt32x4:
+		v.Op = OpARM64VUZP24S
+		return true
+	case OpConcatOddInt64x2:
+		v.Op = OpARM64VUZP22D
+		return true
+	case OpConcatOddInt8x16:
+		v.Op = OpARM64VUZP216B
+		return true
+	case OpConcatOddUint16x8:
+		v.Op = OpARM64VUZP28H
+		return true
+	case OpConcatOddUint32x4:
+		v.Op = OpARM64VUZP24S
+		return true
+	case OpConcatOddUint64x2:
+		v.Op = OpARM64VUZP22D
+		return true
+	case OpConcatOddUint8x16:
+		v.Op = OpARM64VUZP216B
+		return true
 	case OpConcatShiftBytesRightUint8x16:
 		v.Op = OpARM64VEXT16B
 		return true
@@ -991,54 +1041,6 @@ func rewriteValueARM64(v *Value) bool {
 		return true
 	case OpCvtBoolToUint8:
 		v.Op = OpCopy
-		return true
-	case OpDeinterleaveEvenInt16x8:
-		v.Op = OpARM64VUZP18H
-		return true
-	case OpDeinterleaveEvenInt32x4:
-		v.Op = OpARM64VUZP14S
-		return true
-	case OpDeinterleaveEvenInt64x2:
-		v.Op = OpARM64VUZP12D
-		return true
-	case OpDeinterleaveEvenInt8x16:
-		v.Op = OpARM64VUZP116B
-		return true
-	case OpDeinterleaveEvenUint16x8:
-		v.Op = OpARM64VUZP18H
-		return true
-	case OpDeinterleaveEvenUint32x4:
-		v.Op = OpARM64VUZP14S
-		return true
-	case OpDeinterleaveEvenUint64x2:
-		v.Op = OpARM64VUZP12D
-		return true
-	case OpDeinterleaveEvenUint8x16:
-		v.Op = OpARM64VUZP116B
-		return true
-	case OpDeinterleaveOddInt16x8:
-		v.Op = OpARM64VUZP28H
-		return true
-	case OpDeinterleaveOddInt32x4:
-		v.Op = OpARM64VUZP24S
-		return true
-	case OpDeinterleaveOddInt64x2:
-		v.Op = OpARM64VUZP22D
-		return true
-	case OpDeinterleaveOddInt8x16:
-		v.Op = OpARM64VUZP216B
-		return true
-	case OpDeinterleaveOddUint16x8:
-		v.Op = OpARM64VUZP28H
-		return true
-	case OpDeinterleaveOddUint32x4:
-		v.Op = OpARM64VUZP24S
-		return true
-	case OpDeinterleaveOddUint64x2:
-		v.Op = OpARM64VUZP22D
-		return true
-	case OpDeinterleaveOddUint8x16:
-		v.Op = OpARM64VUZP216B
 		return true
 	case OpDiv16:
 		return rewriteValueARM64_OpDiv16(v)
@@ -1257,6 +1259,30 @@ func rewriteValueARM64(v *Value) bool {
 	case OpInterCall:
 		v.Op = OpARM64CALLinter
 		return true
+	case OpInterleaveEvenInt16x8:
+		v.Op = OpARM64VTRN18H
+		return true
+	case OpInterleaveEvenInt32x4:
+		v.Op = OpARM64VTRN14S
+		return true
+	case OpInterleaveEvenInt64x2:
+		v.Op = OpARM64VTRN12D
+		return true
+	case OpInterleaveEvenInt8x16:
+		v.Op = OpARM64VTRN116B
+		return true
+	case OpInterleaveEvenUint16x8:
+		v.Op = OpARM64VTRN18H
+		return true
+	case OpInterleaveEvenUint32x4:
+		v.Op = OpARM64VTRN14S
+		return true
+	case OpInterleaveEvenUint64x2:
+		v.Op = OpARM64VTRN12D
+		return true
+	case OpInterleaveEvenUint8x16:
+		v.Op = OpARM64VTRN116B
+		return true
 	case OpInterleaveHiInt16x8:
 		v.Op = OpARM64VZIP28H
 		return true
@@ -1304,6 +1330,30 @@ func rewriteValueARM64(v *Value) bool {
 		return true
 	case OpInterleaveLoUint8x16:
 		v.Op = OpARM64VZIP116B
+		return true
+	case OpInterleaveOddInt16x8:
+		v.Op = OpARM64VTRN28H
+		return true
+	case OpInterleaveOddInt32x4:
+		v.Op = OpARM64VTRN24S
+		return true
+	case OpInterleaveOddInt64x2:
+		v.Op = OpARM64VTRN22D
+		return true
+	case OpInterleaveOddInt8x16:
+		v.Op = OpARM64VTRN216B
+		return true
+	case OpInterleaveOddUint16x8:
+		v.Op = OpARM64VTRN28H
+		return true
+	case OpInterleaveOddUint32x4:
+		v.Op = OpARM64VTRN24S
+		return true
+	case OpInterleaveOddUint64x2:
+		v.Op = OpARM64VTRN22D
+		return true
+	case OpInterleaveOddUint8x16:
+		v.Op = OpARM64VTRN216B
 		return true
 	case OpIsInBounds:
 		return rewriteValueARM64_OpIsInBounds(v)
@@ -1391,12 +1441,6 @@ func rewriteValueARM64(v *Value) bool {
 		return rewriteValueARM64_OpLoad(v)
 	case OpLocalAddr:
 		return rewriteValueARM64_OpLocalAddr(v)
-	case OpLookupOrKeepInt8x16:
-		v.Op = OpARM64VTBX16B
-		return true
-	case OpLookupOrKeepUint8x16:
-		v.Op = OpARM64VTBX16B
-		return true
 	case OpLookupOrZeroInt8x16:
 		v.Op = OpARM64VTBL16B
 		return true
@@ -1548,6 +1592,22 @@ func rewriteValueARM64(v *Value) bool {
 	case OpMul8:
 		v.Op = OpARM64MULW
 		return true
+	case OpMulAddFloat32x4:
+		return rewriteValueARM64_OpMulAddFloat32x4(v)
+	case OpMulAddFloat64x2:
+		return rewriteValueARM64_OpMulAddFloat64x2(v)
+	case OpMulAddInt16x8:
+		return rewriteValueARM64_OpMulAddInt16x8(v)
+	case OpMulAddInt32x4:
+		return rewriteValueARM64_OpMulAddInt32x4(v)
+	case OpMulAddInt8x16:
+		return rewriteValueARM64_OpMulAddInt8x16(v)
+	case OpMulAddUint16x8:
+		return rewriteValueARM64_OpMulAddUint16x8(v)
+	case OpMulAddUint32x4:
+		return rewriteValueARM64_OpMulAddUint32x4(v)
+	case OpMulAddUint8x16:
+		return rewriteValueARM64_OpMulAddUint8x16(v)
 	case OpMulFloat32x4:
 		v.Op = OpARM64VFMUL4S
 		return true
@@ -1563,24 +1623,6 @@ func rewriteValueARM64(v *Value) bool {
 	case OpMulInt8x16:
 		v.Op = OpARM64VMUL16B
 		return true
-	case OpMulLoLongInt16x8:
-		v.Op = OpARM64VSMULL8H
-		return true
-	case OpMulLoLongInt32x4:
-		v.Op = OpARM64VSMULL4S
-		return true
-	case OpMulLoLongInt8x16:
-		v.Op = OpARM64VSMULL16B
-		return true
-	case OpMulLoLongUint16x8:
-		v.Op = OpARM64VUMULL8H
-		return true
-	case OpMulLoLongUint32x4:
-		v.Op = OpARM64VUMULL4S
-		return true
-	case OpMulLoLongUint8x16:
-		v.Op = OpARM64VUMULL16B
-		return true
 	case OpMulUint16x8:
 		v.Op = OpARM64VMUL8H
 		return true
@@ -1589,6 +1631,24 @@ func rewriteValueARM64(v *Value) bool {
 		return true
 	case OpMulUint8x16:
 		v.Op = OpARM64VMUL16B
+		return true
+	case OpMulWidenLoInt16x8:
+		v.Op = OpARM64VSMULL8H
+		return true
+	case OpMulWidenLoInt32x4:
+		v.Op = OpARM64VSMULL4S
+		return true
+	case OpMulWidenLoInt8x16:
+		v.Op = OpARM64VSMULL16B
+		return true
+	case OpMulWidenLoUint16x8:
+		v.Op = OpARM64VUMULL8H
+		return true
+	case OpMulWidenLoUint32x4:
+		v.Op = OpARM64VUMULL4S
+		return true
+	case OpMulWidenLoUint8x16:
+		v.Op = OpARM64VUMULL16B
 		return true
 	case OpNeg16:
 		v.Op = OpARM64NEG
@@ -1758,66 +1818,6 @@ func rewriteValueARM64(v *Value) bool {
 		return rewriteValueARM64_OpPrefetchCacheStreamed(v)
 	case OpPubBarrier:
 		return rewriteValueARM64_OpPubBarrier(v)
-	case OpReduceMaxFloat32x4:
-		v.Op = OpARM64VFMAXV4S
-		return true
-	case OpReduceMaxInt16x8:
-		v.Op = OpARM64VSMAXV8H
-		return true
-	case OpReduceMaxInt32x4:
-		v.Op = OpARM64VSMAXV4S
-		return true
-	case OpReduceMaxInt8x16:
-		v.Op = OpARM64VSMAXV16B
-		return true
-	case OpReduceMaxUint16x8:
-		v.Op = OpARM64VUMAXV8H
-		return true
-	case OpReduceMaxUint32x4:
-		v.Op = OpARM64VUMAXV4S
-		return true
-	case OpReduceMaxUint8x16:
-		v.Op = OpARM64VUMAXV16B
-		return true
-	case OpReduceMinFloat32x4:
-		v.Op = OpARM64VFMINV4S
-		return true
-	case OpReduceMinInt16x8:
-		v.Op = OpARM64VSMINV8H
-		return true
-	case OpReduceMinInt32x4:
-		v.Op = OpARM64VSMINV4S
-		return true
-	case OpReduceMinInt8x16:
-		v.Op = OpARM64VSMINV16B
-		return true
-	case OpReduceMinUint16x8:
-		v.Op = OpARM64VUMINV8H
-		return true
-	case OpReduceMinUint32x4:
-		v.Op = OpARM64VUMINV4S
-		return true
-	case OpReduceMinUint8x16:
-		v.Op = OpARM64VUMINV16B
-		return true
-	case OpReduceSumInt16x8:
-		v.Op = OpARM64VADDV8H
-		return true
-	case OpReduceSumInt32x4:
-		v.Op = OpARM64VADDV4S
-		return true
-	case OpReduceSumInt8x16:
-		v.Op = OpARM64VADDV16B
-		return true
-	case OpReduceSumUint16x8:
-		v.Op = OpARM64VADDV8H
-		return true
-	case OpReduceSumUint32x4:
-		v.Op = OpARM64VADDV4S
-		return true
-	case OpReduceSumUint8x16:
-		v.Op = OpARM64VADDV16B
-		return true
 	case OpRotateLeft16:
 		return rewriteValueARM64_OpRotateLeft16(v)
 	case OpRotateLeft32:
@@ -2015,105 +2015,6 @@ func rewriteValueARM64(v *Value) bool {
 	case OpShiftInt8x16:
 		v.Op = OpARM64VSSHL16B
 		return true
-	case OpShiftLeftConstInt16x8:
-		v.Op = OpARM64VSHL8H
-		return true
-	case OpShiftLeftConstInt32x4:
-		v.Op = OpARM64VSHL4S
-		return true
-	case OpShiftLeftConstInt64x2:
-		v.Op = OpARM64VSHL2D
-		return true
-	case OpShiftLeftConstInt8x16:
-		v.Op = OpARM64VSHL16B
-		return true
-	case OpShiftLeftConstUint16x8:
-		v.Op = OpARM64VSHL8H
-		return true
-	case OpShiftLeftConstUint32x4:
-		v.Op = OpARM64VSHL4S
-		return true
-	case OpShiftLeftConstUint64x2:
-		v.Op = OpARM64VSHL2D
-		return true
-	case OpShiftLeftConstUint8x16:
-		v.Op = OpARM64VSHL16B
-		return true
-	case OpShiftLeftLoLongConstInt16x8:
-		v.Op = OpARM64VSSHLL8H
-		return true
-	case OpShiftLeftLoLongConstInt32x4:
-		v.Op = OpARM64VSSHLL4S
-		return true
-	case OpShiftLeftLoLongConstInt8x16:
-		v.Op = OpARM64VSSHLL16B
-		return true
-	case OpShiftLeftLoLongConstUint16x8:
-		v.Op = OpARM64VUSHLL8H
-		return true
-	case OpShiftLeftLoLongConstUint32x4:
-		v.Op = OpARM64VUSHLL4S
-		return true
-	case OpShiftLeftLoLongConstUint8x16:
-		v.Op = OpARM64VUSHLL16B
-		return true
-	case OpShiftLeftSaturatedConstInt16x8:
-		v.Op = OpARM64VSQSHL8Hconst
-		return true
-	case OpShiftLeftSaturatedConstInt32x4:
-		v.Op = OpARM64VSQSHL4Sconst
-		return true
-	case OpShiftLeftSaturatedConstInt64x2:
-		v.Op = OpARM64VSQSHL2Dconst
-		return true
-	case OpShiftLeftSaturatedConstInt8x16:
-		v.Op = OpARM64VSQSHL16Bconst
-		return true
-	case OpShiftLeftSaturatedConstUint16x8:
-		v.Op = OpARM64VUQSHL8Hconst
-		return true
-	case OpShiftLeftSaturatedConstUint32x4:
-		v.Op = OpARM64VUQSHL4Sconst
-		return true
-	case OpShiftLeftSaturatedConstUint64x2:
-		v.Op = OpARM64VUQSHL2Dconst
-		return true
-	case OpShiftLeftSaturatedConstUint8x16:
-		v.Op = OpARM64VUQSHL16Bconst
-		return true
-	case OpShiftRightConstInt16x8:
-		v.Op = OpARM64VSSHR8H
-		return true
-	case OpShiftRightConstInt32x4:
-		v.Op = OpARM64VSSHR4S
-		return true
-	case OpShiftRightConstInt64x2:
-		v.Op = OpARM64VSSHR2D
-		return true
-	case OpShiftRightConstInt8x16:
-		v.Op = OpARM64VSSHR16B
-		return true
-	case OpShiftRightConstUint16x8:
-		v.Op = OpARM64VUSHR8H
-		return true
-	case OpShiftRightConstUint32x4:
-		v.Op = OpARM64VUSHR4S
-		return true
-	case OpShiftRightConstUint64x2:
-		v.Op = OpARM64VUSHR2D
-		return true
-	case OpShiftRightConstUint8x16:
-		v.Op = OpARM64VUSHR16B
-		return true
-	case OpShiftRightNarrowConstUint16x8:
-		v.Op = OpARM64VSHRN8H
-		return true
-	case OpShiftRightNarrowConstUint32x4:
-		v.Op = OpARM64VSHRN4S
-		return true
-	case OpShiftRightNarrowConstUint64x2:
-		v.Op = OpARM64VSHRN2D
-		return true
 	case OpShiftSaturatedInt16x8:
 		v.Op = OpARM64VSQSHL8H
 		return true
@@ -2268,54 +2169,6 @@ func rewriteValueARM64(v *Value) bool {
 	case OpTailCallInter:
 		v.Op = OpARM64CALLtailinter
 		return true
-	case OpTransposeEvenInt16x8:
-		v.Op = OpARM64VTRN18H
-		return true
-	case OpTransposeEvenInt32x4:
-		v.Op = OpARM64VTRN14S
-		return true
-	case OpTransposeEvenInt64x2:
-		v.Op = OpARM64VTRN12D
-		return true
-	case OpTransposeEvenInt8x16:
-		v.Op = OpARM64VTRN116B
-		return true
-	case OpTransposeEvenUint16x8:
-		v.Op = OpARM64VTRN18H
-		return true
-	case OpTransposeEvenUint32x4:
-		v.Op = OpARM64VTRN14S
-		return true
-	case OpTransposeEvenUint64x2:
-		v.Op = OpARM64VTRN12D
-		return true
-	case OpTransposeEvenUint8x16:
-		v.Op = OpARM64VTRN116B
-		return true
-	case OpTransposeOddInt16x8:
-		v.Op = OpARM64VTRN28H
-		return true
-	case OpTransposeOddInt32x4:
-		v.Op = OpARM64VTRN24S
-		return true
-	case OpTransposeOddInt64x2:
-		v.Op = OpARM64VTRN22D
-		return true
-	case OpTransposeOddInt8x16:
-		v.Op = OpARM64VTRN216B
-		return true
-	case OpTransposeOddUint16x8:
-		v.Op = OpARM64VTRN28H
-		return true
-	case OpTransposeOddUint32x4:
-		v.Op = OpARM64VTRN24S
-		return true
-	case OpTransposeOddUint64x2:
-		v.Op = OpARM64VTRN22D
-		return true
-	case OpTransposeOddUint8x16:
-		v.Op = OpARM64VTRN216B
-		return true
 	case OpTrunc:
 		v.Op = OpARM64FRINTZD
 		return true
@@ -2343,22 +2196,22 @@ func rewriteValueARM64(v *Value) bool {
 	case OpTruncFloat64x2:
 		v.Op = OpARM64VFRINTZ2D
 		return true
-	case OpTruncateToInt16Int32x4:
+	case OpTruncToInt16Int32x4:
 		v.Op = OpARM64VXTN4S
 		return true
-	case OpTruncateToInt32Int64x2:
+	case OpTruncToInt32Int64x2:
 		v.Op = OpARM64VXTN2D
 		return true
-	case OpTruncateToInt8Int16x8:
+	case OpTruncToInt8Int16x8:
 		v.Op = OpARM64VXTN8H
 		return true
-	case OpTruncateToUint16Uint32x4:
+	case OpTruncToUint16Uint32x4:
 		v.Op = OpARM64VXTN4S
 		return true
-	case OpTruncateToUint32Uint64x2:
+	case OpTruncToUint32Uint64x2:
 		v.Op = OpARM64VXTN2D
 		return true
-	case OpTruncateToUint8Uint16x8:
+	case OpTruncToUint8Uint16x8:
 		v.Op = OpARM64VXTN8H
 		return true
 	case OpWB:
@@ -2423,10 +2276,10 @@ func rewriteValueARM64(v *Value) bool {
 	case OpZeroSIMD:
 		return rewriteValueARM64_OpZeroSIMD(v)
 	case OpbitSelectInt8x16:
-		v.Op = OpARM64VBIT16B
+		v.Op = OpARM64VBIF16B
 		return true
 	case OpbitSelectNotInt8x16:
-		v.Op = OpARM64VBIF16B
+		v.Op = OpARM64VBIT16B
 		return true
 	case Opbroadcast1To16Int8x16:
 		return rewriteValueARM64_Opbroadcast1To16Int8x16(v)
@@ -2448,6 +2301,69 @@ func rewriteValueARM64(v *Value) bool {
 		return rewriteValueARM64_Opbroadcast1To8Int16x8(v)
 	case Opbroadcast1To8Uint16x8:
 		return rewriteValueARM64_Opbroadcast1To8Uint16x8(v)
+	case OpcarrylessMultiplyWidenLoUint64x2:
+		v.Op = OpARM64VPMULL2D
+		return true
+	case OpreduceMaxFloat32x4:
+		v.Op = OpARM64VFMAXV4S
+		return true
+	case OpreduceMaxInt16x8:
+		v.Op = OpARM64VSMAXV8H
+		return true
+	case OpreduceMaxInt32x4:
+		v.Op = OpARM64VSMAXV4S
+		return true
+	case OpreduceMaxInt8x16:
+		v.Op = OpARM64VSMAXV16B
+		return true
+	case OpreduceMaxUint16x8:
+		v.Op = OpARM64VUMAXV8H
+		return true
+	case OpreduceMaxUint32x4:
+		v.Op = OpARM64VUMAXV4S
+		return true
+	case OpreduceMaxUint8x16:
+		v.Op = OpARM64VUMAXV16B
+		return true
+	case OpreduceMinFloat32x4:
+		v.Op = OpARM64VFMINV4S
+		return true
+	case OpreduceMinInt16x8:
+		v.Op = OpARM64VSMINV8H
+		return true
+	case OpreduceMinInt32x4:
+		v.Op = OpARM64VSMINV4S
+		return true
+	case OpreduceMinInt8x16:
+		v.Op = OpARM64VSMINV16B
+		return true
+	case OpreduceMinUint16x8:
+		v.Op = OpARM64VUMINV8H
+		return true
+	case OpreduceMinUint32x4:
+		v.Op = OpARM64VUMINV4S
+		return true
+	case OpreduceMinUint8x16:
+		v.Op = OpARM64VUMINV16B
+		return true
+	case OpreduceSumInt16x8:
+		v.Op = OpARM64VADDV8H
+		return true
+	case OpreduceSumInt32x4:
+		v.Op = OpARM64VADDV4S
+		return true
+	case OpreduceSumInt8x16:
+		v.Op = OpARM64VADDV16B
+		return true
+	case OpreduceSumUint16x8:
+		v.Op = OpARM64VADDV8H
+		return true
+	case OpreduceSumUint32x4:
+		v.Op = OpARM64VADDV4S
+		return true
+	case OpreduceSumUint8x16:
+		v.Op = OpARM64VADDV16B
+		return true
 	}
 	return false
 }
@@ -5862,31 +5778,6 @@ func rewriteValueARM64_OpARM64Equal(v *Value) bool {
 		v.AddArg(v0)
 		return true
 	}
-	// match: (Equal (CMPconst [0] z:(MSUB a x y)))
-	// cond: z.Uses == 1
-	// result: (Equal (CMP a (MUL <x.Type> x y)))
-	for {
-		if v_0.Op != OpARM64CMPconst || auxIntToInt64(v_0.AuxInt) != 0 {
-			break
-		}
-		z := v_0.Args[0]
-		if z.Op != OpARM64MSUB {
-			break
-		}
-		y := z.Args[2]
-		a := z.Args[0]
-		x := z.Args[1]
-		if !(z.Uses == 1) {
-			break
-		}
-		v.reset(OpARM64Equal)
-		v0 := b.NewValue0(v.Pos, OpARM64CMP, types.TypeFlags)
-		v1 := b.NewValue0(v.Pos, OpARM64MUL, x.Type)
-		v1.AddArg2(x, y)
-		v0.AddArg2(a, v1)
-		v.AddArg(v0)
-		return true
-	}
 	// match: (Equal (CMPWconst [0] z:(MADDW a x y)))
 	// cond: z.Uses == 1
 	// result: (Equal (CMNW a (MULW <x.Type> x y)))
@@ -5907,6 +5798,31 @@ func rewriteValueARM64_OpARM64Equal(v *Value) bool {
 		v.reset(OpARM64Equal)
 		v0 := b.NewValue0(v.Pos, OpARM64CMNW, types.TypeFlags)
 		v1 := b.NewValue0(v.Pos, OpARM64MULW, x.Type)
+		v1.AddArg2(x, y)
+		v0.AddArg2(a, v1)
+		v.AddArg(v0)
+		return true
+	}
+	// match: (Equal (CMPconst [0] z:(MSUB a x y)))
+	// cond: z.Uses == 1
+	// result: (Equal (CMP a (MUL <x.Type> x y)))
+	for {
+		if v_0.Op != OpARM64CMPconst || auxIntToInt64(v_0.AuxInt) != 0 {
+			break
+		}
+		z := v_0.Args[0]
+		if z.Op != OpARM64MSUB {
+			break
+		}
+		y := z.Args[2]
+		a := z.Args[0]
+		x := z.Args[1]
+		if !(z.Uses == 1) {
+			break
+		}
+		v.reset(OpARM64Equal)
+		v0 := b.NewValue0(v.Pos, OpARM64CMP, types.TypeFlags)
+		v1 := b.NewValue0(v.Pos, OpARM64MUL, x.Type)
 		v1.AddArg2(x, y)
 		v0.AddArg2(a, v1)
 		v.AddArg(v0)
@@ -7773,31 +7689,6 @@ func rewriteValueARM64_OpARM64GreaterEqual(v *Value) bool {
 		v.AddArg(v0)
 		return true
 	}
-	// match: (GreaterEqual (CMPconst [0] z:(MSUB a x y)))
-	// cond: z.Uses == 1
-	// result: (GreaterEqualNoov (CMP a (MUL <x.Type> x y)))
-	for {
-		if v_0.Op != OpARM64CMPconst || auxIntToInt64(v_0.AuxInt) != 0 {
-			break
-		}
-		z := v_0.Args[0]
-		if z.Op != OpARM64MSUB {
-			break
-		}
-		y := z.Args[2]
-		a := z.Args[0]
-		x := z.Args[1]
-		if !(z.Uses == 1) {
-			break
-		}
-		v.reset(OpARM64GreaterEqualNoov)
-		v0 := b.NewValue0(v.Pos, OpARM64CMP, types.TypeFlags)
-		v1 := b.NewValue0(v.Pos, OpARM64MUL, x.Type)
-		v1.AddArg2(x, y)
-		v0.AddArg2(a, v1)
-		v.AddArg(v0)
-		return true
-	}
 	// match: (GreaterEqual (CMPWconst [0] z:(MADDW a x y)))
 	// cond: z.Uses == 1
 	// result: (GreaterEqualNoov (CMNW a (MULW <x.Type> x y)))
@@ -7817,31 +7708,6 @@ func rewriteValueARM64_OpARM64GreaterEqual(v *Value) bool {
 		}
 		v.reset(OpARM64GreaterEqualNoov)
 		v0 := b.NewValue0(v.Pos, OpARM64CMNW, types.TypeFlags)
-		v1 := b.NewValue0(v.Pos, OpARM64MULW, x.Type)
-		v1.AddArg2(x, y)
-		v0.AddArg2(a, v1)
-		v.AddArg(v0)
-		return true
-	}
-	// match: (GreaterEqual (CMPWconst [0] z:(MSUBW a x y)))
-	// cond: z.Uses == 1
-	// result: (GreaterEqualNoov (CMPW a (MULW <x.Type> x y)))
-	for {
-		if v_0.Op != OpARM64CMPWconst || auxIntToInt32(v_0.AuxInt) != 0 {
-			break
-		}
-		z := v_0.Args[0]
-		if z.Op != OpARM64MSUBW {
-			break
-		}
-		y := z.Args[2]
-		a := z.Args[0]
-		x := z.Args[1]
-		if !(z.Uses == 1) {
-			break
-		}
-		v.reset(OpARM64GreaterEqualNoov)
-		v0 := b.NewValue0(v.Pos, OpARM64CMPW, types.TypeFlags)
 		v1 := b.NewValue0(v.Pos, OpARM64MULW, x.Type)
 		v1.AddArg2(x, y)
 		v0.AddArg2(a, v1)
@@ -7870,6 +7736,36 @@ func rewriteValueARM64_OpARM64GreaterEqual(v *Value) bool {
 		v.AddArg(x)
 		return true
 	}
+	// match: (GreaterEqual (CMPconst x [0]))
+	// result: (XORconst [1] (SRLconst <v.Type> [63] x))
+	for {
+		if v_0.Op != OpARM64CMPconst || auxIntToInt64(v_0.AuxInt) != 0 {
+			break
+		}
+		x := v_0.Args[0]
+		v.reset(OpARM64XORconst)
+		v.AuxInt = int64ToAuxInt(1)
+		v0 := b.NewValue0(v.Pos, OpARM64SRLconst, v.Type)
+		v0.AuxInt = int64ToAuxInt(63)
+		v0.AddArg(x)
+		v.AddArg(v0)
+		return true
+	}
+	// match: (GreaterEqual (CMPWconst x [0]))
+	// result: (XORconst [1] (UBFX <v.Type> [armBFAuxInt(31,1)] x))
+	for {
+		if v_0.Op != OpARM64CMPWconst || auxIntToInt32(v_0.AuxInt) != 0 {
+			break
+		}
+		x := v_0.Args[0]
+		v.reset(OpARM64XORconst)
+		v.AuxInt = int64ToAuxInt(1)
+		v0 := b.NewValue0(v.Pos, OpARM64UBFX, v.Type)
+		v0.AuxInt = arm64BitFieldToAuxInt(armBFAuxInt(31, 1))
+		v0.AddArg(x)
+		v.AddArg(v0)
+		return true
+	}
 	return false
 }
 func rewriteValueARM64_OpARM64GreaterEqualF(v *Value) bool {
@@ -7889,8 +7785,6 @@ func rewriteValueARM64_OpARM64GreaterEqualF(v *Value) bool {
 }
 func rewriteValueARM64_OpARM64GreaterEqualNoov(v *Value) bool {
 	v_0 := v.Args[0]
-	b := v.Block
-	typ := &b.Func.Config.Types
 	// match: (GreaterEqualNoov (FlagConstant [fc]))
 	// result: (MOVDconst [b2i(fc.geNoov())])
 	for {
@@ -7900,22 +7794,6 @@ func rewriteValueARM64_OpARM64GreaterEqualNoov(v *Value) bool {
 		fc := auxIntToFlagConstant(v_0.AuxInt)
 		v.reset(OpARM64MOVDconst)
 		v.AuxInt = int64ToAuxInt(b2i(fc.geNoov()))
-		return true
-	}
-	// match: (GreaterEqualNoov (InvertFlags x))
-	// result: (CSINC [OpARM64NotEqual] (LessThanNoov <typ.Bool> x) (MOVDconst [0]) x)
-	for {
-		if v_0.Op != OpARM64InvertFlags {
-			break
-		}
-		x := v_0.Args[0]
-		v.reset(OpARM64CSINC)
-		v.AuxInt = opToAuxInt(OpARM64NotEqual)
-		v0 := b.NewValue0(v.Pos, OpARM64LessThanNoov, typ.Bool)
-		v0.AddArg(x)
-		v1 := b.NewValue0(v.Pos, OpARM64MOVDconst, typ.UInt64)
-		v1.AuxInt = int64ToAuxInt(0)
-		v.AddArg3(v0, v1, x)
 		return true
 	}
 	return false
@@ -8520,31 +8398,6 @@ func rewriteValueARM64_OpARM64LessThan(v *Value) bool {
 		v.AddArg(v0)
 		return true
 	}
-	// match: (LessThan (CMPconst [0] z:(MSUB a x y)))
-	// cond: z.Uses == 1
-	// result: (LessThanNoov (CMP a (MUL <x.Type> x y)))
-	for {
-		if v_0.Op != OpARM64CMPconst || auxIntToInt64(v_0.AuxInt) != 0 {
-			break
-		}
-		z := v_0.Args[0]
-		if z.Op != OpARM64MSUB {
-			break
-		}
-		y := z.Args[2]
-		a := z.Args[0]
-		x := z.Args[1]
-		if !(z.Uses == 1) {
-			break
-		}
-		v.reset(OpARM64LessThanNoov)
-		v0 := b.NewValue0(v.Pos, OpARM64CMP, types.TypeFlags)
-		v1 := b.NewValue0(v.Pos, OpARM64MUL, x.Type)
-		v1.AddArg2(x, y)
-		v0.AddArg2(a, v1)
-		v.AddArg(v0)
-		return true
-	}
 	// match: (LessThan (CMPWconst [0] z:(MADDW a x y)))
 	// cond: z.Uses == 1
 	// result: (LessThanNoov (CMNW a (MULW <x.Type> x y)))
@@ -8564,31 +8417,6 @@ func rewriteValueARM64_OpARM64LessThan(v *Value) bool {
 		}
 		v.reset(OpARM64LessThanNoov)
 		v0 := b.NewValue0(v.Pos, OpARM64CMNW, types.TypeFlags)
-		v1 := b.NewValue0(v.Pos, OpARM64MULW, x.Type)
-		v1.AddArg2(x, y)
-		v0.AddArg2(a, v1)
-		v.AddArg(v0)
-		return true
-	}
-	// match: (LessThan (CMPWconst [0] z:(MSUBW a x y)))
-	// cond: z.Uses == 1
-	// result: (LessThanNoov (CMPW a (MULW <x.Type> x y)))
-	for {
-		if v_0.Op != OpARM64CMPWconst || auxIntToInt32(v_0.AuxInt) != 0 {
-			break
-		}
-		z := v_0.Args[0]
-		if z.Op != OpARM64MSUBW {
-			break
-		}
-		y := z.Args[2]
-		a := z.Args[0]
-		x := z.Args[1]
-		if !(z.Uses == 1) {
-			break
-		}
-		v.reset(OpARM64LessThanNoov)
-		v0 := b.NewValue0(v.Pos, OpARM64CMPW, types.TypeFlags)
 		v1 := b.NewValue0(v.Pos, OpARM64MULW, x.Type)
 		v1.AddArg2(x, y)
 		v0.AddArg2(a, v1)
@@ -8617,6 +8445,30 @@ func rewriteValueARM64_OpARM64LessThan(v *Value) bool {
 		v.AddArg(x)
 		return true
 	}
+	// match: (LessThan (CMPconst x [0]))
+	// result: (SRLconst [63] x)
+	for {
+		if v_0.Op != OpARM64CMPconst || auxIntToInt64(v_0.AuxInt) != 0 {
+			break
+		}
+		x := v_0.Args[0]
+		v.reset(OpARM64SRLconst)
+		v.AuxInt = int64ToAuxInt(63)
+		v.AddArg(x)
+		return true
+	}
+	// match: (LessThan (CMPWconst x [0]))
+	// result: (UBFX [armBFAuxInt(31,1)] x)
+	for {
+		if v_0.Op != OpARM64CMPWconst || auxIntToInt32(v_0.AuxInt) != 0 {
+			break
+		}
+		x := v_0.Args[0]
+		v.reset(OpARM64UBFX)
+		v.AuxInt = arm64BitFieldToAuxInt(armBFAuxInt(31, 1))
+		v.AddArg(x)
+		return true
+	}
 	return false
 }
 func rewriteValueARM64_OpARM64LessThanF(v *Value) bool {
@@ -8636,8 +8488,6 @@ func rewriteValueARM64_OpARM64LessThanF(v *Value) bool {
 }
 func rewriteValueARM64_OpARM64LessThanNoov(v *Value) bool {
 	v_0 := v.Args[0]
-	b := v.Block
-	typ := &b.Func.Config.Types
 	// match: (LessThanNoov (FlagConstant [fc]))
 	// result: (MOVDconst [b2i(fc.ltNoov())])
 	for {
@@ -8647,20 +8497,6 @@ func rewriteValueARM64_OpARM64LessThanNoov(v *Value) bool {
 		fc := auxIntToFlagConstant(v_0.AuxInt)
 		v.reset(OpARM64MOVDconst)
 		v.AuxInt = int64ToAuxInt(b2i(fc.ltNoov()))
-		return true
-	}
-	// match: (LessThanNoov (InvertFlags x))
-	// result: (CSEL0 [OpARM64NotEqual] (GreaterEqualNoov <typ.Bool> x) x)
-	for {
-		if v_0.Op != OpARM64InvertFlags {
-			break
-		}
-		x := v_0.Args[0]
-		v.reset(OpARM64CSEL0)
-		v.AuxInt = opToAuxInt(OpARM64NotEqual)
-		v0 := b.NewValue0(v.Pos, OpARM64GreaterEqualNoov, typ.Bool)
-		v0.AddArg(x)
-		v.AddArg2(v0, x)
 		return true
 	}
 	return false
@@ -14927,31 +14763,6 @@ func rewriteValueARM64_OpARM64NotEqual(v *Value) bool {
 		v.AddArg(v0)
 		return true
 	}
-	// match: (NotEqual (CMPconst [0] z:(MSUB a x y)))
-	// cond: z.Uses == 1
-	// result: (NotEqual (CMP a (MUL <x.Type> x y)))
-	for {
-		if v_0.Op != OpARM64CMPconst || auxIntToInt64(v_0.AuxInt) != 0 {
-			break
-		}
-		z := v_0.Args[0]
-		if z.Op != OpARM64MSUB {
-			break
-		}
-		y := z.Args[2]
-		a := z.Args[0]
-		x := z.Args[1]
-		if !(z.Uses == 1) {
-			break
-		}
-		v.reset(OpARM64NotEqual)
-		v0 := b.NewValue0(v.Pos, OpARM64CMP, types.TypeFlags)
-		v1 := b.NewValue0(v.Pos, OpARM64MUL, x.Type)
-		v1.AddArg2(x, y)
-		v0.AddArg2(a, v1)
-		v.AddArg(v0)
-		return true
-	}
 	// match: (NotEqual (CMPWconst [0] z:(MADDW a x y)))
 	// cond: z.Uses == 1
 	// result: (NotEqual (CMNW a (MULW <x.Type> x y)))
@@ -14972,6 +14783,31 @@ func rewriteValueARM64_OpARM64NotEqual(v *Value) bool {
 		v.reset(OpARM64NotEqual)
 		v0 := b.NewValue0(v.Pos, OpARM64CMNW, types.TypeFlags)
 		v1 := b.NewValue0(v.Pos, OpARM64MULW, x.Type)
+		v1.AddArg2(x, y)
+		v0.AddArg2(a, v1)
+		v.AddArg(v0)
+		return true
+	}
+	// match: (NotEqual (CMPconst [0] z:(MSUB a x y)))
+	// cond: z.Uses == 1
+	// result: (NotEqual (CMP a (MUL <x.Type> x y)))
+	for {
+		if v_0.Op != OpARM64CMPconst || auxIntToInt64(v_0.AuxInt) != 0 {
+			break
+		}
+		z := v_0.Args[0]
+		if z.Op != OpARM64MSUB {
+			break
+		}
+		y := z.Args[2]
+		a := z.Args[0]
+		x := z.Args[1]
+		if !(z.Uses == 1) {
+			break
+		}
+		v.reset(OpARM64NotEqual)
+		v0 := b.NewValue0(v.Pos, OpARM64CMP, types.TypeFlags)
+		v1 := b.NewValue0(v.Pos, OpARM64MUL, x.Type)
 		v1.AddArg2(x, y)
 		v0.AddArg2(a, v1)
 		v.AddArg(v0)
@@ -16096,7 +15932,7 @@ func rewriteValueARM64_OpARM64SBFX(v *Value) bool {
 		return true
 	}
 	// match: (SBFX [bfc] s:(SLLconst [sc] x))
-	// cond: s.Uses == 1 && sc > bfc.lsb()
+	// cond: s.Uses == 1 && sc > bfc.lsb() && sc < bfc.lsb()+bfc.width()
 	// result: (SBFIZ [armBFAuxInt(sc - bfc.lsb(), bfc.width() - (sc-bfc.lsb()))] x)
 	for {
 		bfc := auxIntToArm64BitField(v.AuxInt)
@@ -16106,7 +15942,7 @@ func rewriteValueARM64_OpARM64SBFX(v *Value) bool {
 		}
 		sc := auxIntToInt64(s.AuxInt)
 		x := s.Args[0]
-		if !(s.Uses == 1 && sc > bfc.lsb()) {
+		if !(s.Uses == 1 && sc > bfc.lsb() && sc < bfc.lsb()+bfc.width()) {
 			break
 		}
 		v.reset(OpARM64SBFIZ)
@@ -18490,6 +18326,29 @@ func rewriteValueARM64_OpARM64VMOVSins0(v *Value) bool {
 		}
 		v.copyOf(y)
 		return true
+	}
+	return false
+}
+func rewriteValueARM64_OpARM64VPMULL2D(v *Value) bool {
+	v_1 := v.Args[1]
+	v_0 := v.Args[0]
+	// match: (VPMULL2D (VDUPDextr [1] x) (VDUPDextr [1] y))
+	// result: (VPMULL2_2D x y)
+	for {
+		for _i0 := 0; _i0 <= 1; _i0, v_0, v_1 = _i0+1, v_1, v_0 {
+			if v_0.Op != OpARM64VDUPDextr || auxIntToUint8(v_0.AuxInt) != 1 {
+				continue
+			}
+			x := v_0.Args[0]
+			if v_1.Op != OpARM64VDUPDextr || auxIntToUint8(v_1.AuxInt) != 1 {
+				continue
+			}
+			y := v_1.Args[0]
+			v.reset(OpARM64VPMULL2_2D)
+			v.AddArg2(x, y)
+			return true
+		}
+		break
 	}
 	return false
 }
@@ -21916,6 +21775,126 @@ func rewriteValueARM64_OpMove(v *Value) bool {
 	}
 	return false
 }
+func rewriteValueARM64_OpMulAddFloat32x4(v *Value) bool {
+	v_2 := v.Args[2]
+	v_1 := v.Args[1]
+	v_0 := v.Args[0]
+	// match: (MulAddFloat32x4 x y z)
+	// result: (VFMLA4S z x y)
+	for {
+		x := v_0
+		y := v_1
+		z := v_2
+		v.reset(OpARM64VFMLA4S)
+		v.AddArg3(z, x, y)
+		return true
+	}
+}
+func rewriteValueARM64_OpMulAddFloat64x2(v *Value) bool {
+	v_2 := v.Args[2]
+	v_1 := v.Args[1]
+	v_0 := v.Args[0]
+	// match: (MulAddFloat64x2 x y z)
+	// result: (VFMLA2D z x y)
+	for {
+		x := v_0
+		y := v_1
+		z := v_2
+		v.reset(OpARM64VFMLA2D)
+		v.AddArg3(z, x, y)
+		return true
+	}
+}
+func rewriteValueARM64_OpMulAddInt16x8(v *Value) bool {
+	v_2 := v.Args[2]
+	v_1 := v.Args[1]
+	v_0 := v.Args[0]
+	// match: (MulAddInt16x8 x y z)
+	// result: (VMLA8H z x y)
+	for {
+		x := v_0
+		y := v_1
+		z := v_2
+		v.reset(OpARM64VMLA8H)
+		v.AddArg3(z, x, y)
+		return true
+	}
+}
+func rewriteValueARM64_OpMulAddInt32x4(v *Value) bool {
+	v_2 := v.Args[2]
+	v_1 := v.Args[1]
+	v_0 := v.Args[0]
+	// match: (MulAddInt32x4 x y z)
+	// result: (VMLA4S z x y)
+	for {
+		x := v_0
+		y := v_1
+		z := v_2
+		v.reset(OpARM64VMLA4S)
+		v.AddArg3(z, x, y)
+		return true
+	}
+}
+func rewriteValueARM64_OpMulAddInt8x16(v *Value) bool {
+	v_2 := v.Args[2]
+	v_1 := v.Args[1]
+	v_0 := v.Args[0]
+	// match: (MulAddInt8x16 x y z)
+	// result: (VMLA16B z x y)
+	for {
+		x := v_0
+		y := v_1
+		z := v_2
+		v.reset(OpARM64VMLA16B)
+		v.AddArg3(z, x, y)
+		return true
+	}
+}
+func rewriteValueARM64_OpMulAddUint16x8(v *Value) bool {
+	v_2 := v.Args[2]
+	v_1 := v.Args[1]
+	v_0 := v.Args[0]
+	// match: (MulAddUint16x8 x y z)
+	// result: (VMLA8H z x y)
+	for {
+		x := v_0
+		y := v_1
+		z := v_2
+		v.reset(OpARM64VMLA8H)
+		v.AddArg3(z, x, y)
+		return true
+	}
+}
+func rewriteValueARM64_OpMulAddUint32x4(v *Value) bool {
+	v_2 := v.Args[2]
+	v_1 := v.Args[1]
+	v_0 := v.Args[0]
+	// match: (MulAddUint32x4 x y z)
+	// result: (VMLA4S z x y)
+	for {
+		x := v_0
+		y := v_1
+		z := v_2
+		v.reset(OpARM64VMLA4S)
+		v.AddArg3(z, x, y)
+		return true
+	}
+}
+func rewriteValueARM64_OpMulAddUint8x16(v *Value) bool {
+	v_2 := v.Args[2]
+	v_1 := v.Args[1]
+	v_0 := v.Args[0]
+	// match: (MulAddUint8x16 x y z)
+	// result: (VMLA16B z x y)
+	for {
+		x := v_0
+		y := v_1
+		z := v_2
+		v.reset(OpARM64VMLA16B)
+		v.AddArg3(z, x, y)
+		return true
+	}
+}
 func rewriteValueARM64_OpNeq16(v *Value) bool {
 	v_1 := v.Args[1]
 	v_0 := v.Args[0]
@@ -22882,7 +22861,7 @@ func rewriteValueARM64_OpRsh64x32(v *Value) bool {
 	}
 	// match: (Rsh64x32 <t> x y)
 	// cond: !shiftIsBounded(v)
-	// result: (SRA x (CSEL [OpARM64LessThanU] <y.Type> y (Const64 <y.Type> [63]) (CMPconst [64] y)))
+	// result: (SRA x (CSEL [OpARM64LessThanU] <y.Type> y (Const64 <y.Type> [63]) (CMPWconst [64] y)))
 	for {
 		x := v_0
 		y := v_1
@@ -22894,8 +22873,8 @@ func rewriteValueARM64_OpRsh64x32(v *Value) bool {
 		v0.AuxInt = opToAuxInt(OpARM64LessThanU)
 		v1 := b.NewValue0(v.Pos, OpConst64, y.Type)
 		v1.AuxInt = int64ToAuxInt(63)
-		v2 := b.NewValue0(v.Pos, OpARM64CMPconst, types.TypeFlags)
-		v2.AuxInt = int64ToAuxInt(64)
+		v2 := b.NewValue0(v.Pos, OpARM64CMPWconst, types.TypeFlags)
+		v2.AuxInt = int32ToAuxInt(64)
 		v2.AddArg(y)
 		v0.AddArg3(y, v1, v2)
 		v.AddArg2(x, v0)
@@ -24726,31 +24705,6 @@ func rewriteBlockARM64(b *Block) bool {
 			b.resetWithControl(BlockARM64EQ, v0)
 			return true
 		}
-		// match: (EQ (CMPconst [0] z:(MSUB a x y)) yes no)
-		// cond: z.Uses==1
-		// result: (EQ (CMP a (MUL <x.Type> x y)) yes no)
-		for b.Controls[0].Op == OpARM64CMPconst {
-			v_0 := b.Controls[0]
-			if auxIntToInt64(v_0.AuxInt) != 0 {
-				break
-			}
-			z := v_0.Args[0]
-			if z.Op != OpARM64MSUB {
-				break
-			}
-			y := z.Args[2]
-			a := z.Args[0]
-			x := z.Args[1]
-			if !(z.Uses == 1) {
-				break
-			}
-			v0 := b.NewValue0(v_0.Pos, OpARM64CMP, types.TypeFlags)
-			v1 := b.NewValue0(v_0.Pos, OpARM64MUL, x.Type)
-			v1.AddArg2(x, y)
-			v0.AddArg2(a, v1)
-			b.resetWithControl(BlockARM64EQ, v0)
-			return true
-		}
 		// match: (EQ (CMPWconst [0] z:(MADDW a x y)) yes no)
 		// cond: z.Uses==1
 		// result: (EQ (CMNW a (MULW <x.Type> x y)) yes no)
@@ -24771,6 +24725,31 @@ func rewriteBlockARM64(b *Block) bool {
 			}
 			v0 := b.NewValue0(v_0.Pos, OpARM64CMNW, types.TypeFlags)
 			v1 := b.NewValue0(v_0.Pos, OpARM64MULW, x.Type)
+			v1.AddArg2(x, y)
+			v0.AddArg2(a, v1)
+			b.resetWithControl(BlockARM64EQ, v0)
+			return true
+		}
+		// match: (EQ (CMPconst [0] z:(MSUB a x y)) yes no)
+		// cond: z.Uses==1
+		// result: (EQ (CMP a (MUL <x.Type> x y)) yes no)
+		for b.Controls[0].Op == OpARM64CMPconst {
+			v_0 := b.Controls[0]
+			if auxIntToInt64(v_0.AuxInt) != 0 {
+				break
+			}
+			z := v_0.Args[0]
+			if z.Op != OpARM64MSUB {
+				break
+			}
+			y := z.Args[2]
+			a := z.Args[0]
+			x := z.Args[1]
+			if !(z.Uses == 1) {
+				break
+			}
+			v0 := b.NewValue0(v_0.Pos, OpARM64CMP, types.TypeFlags)
+			v1 := b.NewValue0(v_0.Pos, OpARM64MUL, x.Type)
 			v1.AddArg2(x, y)
 			v0.AddArg2(a, v1)
 			b.resetWithControl(BlockARM64EQ, v0)
@@ -25128,31 +25107,6 @@ func rewriteBlockARM64(b *Block) bool {
 			b.resetWithControl(BlockARM64GEnoov, v0)
 			return true
 		}
-		// match: (GE (CMPconst [0] z:(MSUB a x y)) yes no)
-		// cond: z.Uses==1
-		// result: (GEnoov (CMP a (MUL <x.Type> x y)) yes no)
-		for b.Controls[0].Op == OpARM64CMPconst {
-			v_0 := b.Controls[0]
-			if auxIntToInt64(v_0.AuxInt) != 0 {
-				break
-			}
-			z := v_0.Args[0]
-			if z.Op != OpARM64MSUB {
-				break
-			}
-			y := z.Args[2]
-			a := z.Args[0]
-			x := z.Args[1]
-			if !(z.Uses == 1) {
-				break
-			}
-			v0 := b.NewValue0(v_0.Pos, OpARM64CMP, types.TypeFlags)
-			v1 := b.NewValue0(v_0.Pos, OpARM64MUL, x.Type)
-			v1.AddArg2(x, y)
-			v0.AddArg2(a, v1)
-			b.resetWithControl(BlockARM64GEnoov, v0)
-			return true
-		}
 		// match: (GE (CMPWconst [0] z:(MADDW a x y)) yes no)
 		// cond: z.Uses==1
 		// result: (GEnoov (CMNW a (MULW <x.Type> x y)) yes no)
@@ -25172,31 +25126,6 @@ func rewriteBlockARM64(b *Block) bool {
 				break
 			}
 			v0 := b.NewValue0(v_0.Pos, OpARM64CMNW, types.TypeFlags)
-			v1 := b.NewValue0(v_0.Pos, OpARM64MULW, x.Type)
-			v1.AddArg2(x, y)
-			v0.AddArg2(a, v1)
-			b.resetWithControl(BlockARM64GEnoov, v0)
-			return true
-		}
-		// match: (GE (CMPWconst [0] z:(MSUBW a x y)) yes no)
-		// cond: z.Uses==1
-		// result: (GEnoov (CMPW a (MULW <x.Type> x y)) yes no)
-		for b.Controls[0].Op == OpARM64CMPWconst {
-			v_0 := b.Controls[0]
-			if auxIntToInt32(v_0.AuxInt) != 0 {
-				break
-			}
-			z := v_0.Args[0]
-			if z.Op != OpARM64MSUBW {
-				break
-			}
-			y := z.Args[2]
-			a := z.Args[0]
-			x := z.Args[1]
-			if !(z.Uses == 1) {
-				break
-			}
-			v0 := b.NewValue0(v_0.Pos, OpARM64CMPW, types.TypeFlags)
 			v1 := b.NewValue0(v_0.Pos, OpARM64MULW, x.Type)
 			v1.AddArg2(x, y)
 			v0.AddArg2(a, v1)
@@ -25284,14 +25213,6 @@ func rewriteBlockARM64(b *Block) bool {
 			}
 			b.Reset(BlockFirst)
 			b.swapSuccessors()
-			return true
-		}
-		// match: (GEnoov (InvertFlags cmp) yes no)
-		// result: (LEnoov cmp yes no)
-		for b.Controls[0].Op == OpARM64InvertFlags {
-			v_0 := b.Controls[0]
-			cmp := v_0.Args[0]
-			b.resetWithControl(BlockARM64LEnoov, cmp)
 			return true
 		}
 	case BlockARM64GT:
@@ -25524,31 +25445,6 @@ func rewriteBlockARM64(b *Block) bool {
 			b.resetWithControl(BlockARM64GTnoov, v0)
 			return true
 		}
-		// match: (GT (CMPconst [0] z:(MSUB a x y)) yes no)
-		// cond: z.Uses==1
-		// result: (GTnoov (CMP a (MUL <x.Type> x y)) yes no)
-		for b.Controls[0].Op == OpARM64CMPconst {
-			v_0 := b.Controls[0]
-			if auxIntToInt64(v_0.AuxInt) != 0 {
-				break
-			}
-			z := v_0.Args[0]
-			if z.Op != OpARM64MSUB {
-				break
-			}
-			y := z.Args[2]
-			a := z.Args[0]
-			x := z.Args[1]
-			if !(z.Uses == 1) {
-				break
-			}
-			v0 := b.NewValue0(v_0.Pos, OpARM64CMP, types.TypeFlags)
-			v1 := b.NewValue0(v_0.Pos, OpARM64MUL, x.Type)
-			v1.AddArg2(x, y)
-			v0.AddArg2(a, v1)
-			b.resetWithControl(BlockARM64GTnoov, v0)
-			return true
-		}
 		// match: (GT (CMPWconst [0] z:(MADDW a x y)) yes no)
 		// cond: z.Uses==1
 		// result: (GTnoov (CMNW a (MULW <x.Type> x y)) yes no)
@@ -25568,31 +25464,6 @@ func rewriteBlockARM64(b *Block) bool {
 				break
 			}
 			v0 := b.NewValue0(v_0.Pos, OpARM64CMNW, types.TypeFlags)
-			v1 := b.NewValue0(v_0.Pos, OpARM64MULW, x.Type)
-			v1.AddArg2(x, y)
-			v0.AddArg2(a, v1)
-			b.resetWithControl(BlockARM64GTnoov, v0)
-			return true
-		}
-		// match: (GT (CMPWconst [0] z:(MSUBW a x y)) yes no)
-		// cond: z.Uses==1
-		// result: (GTnoov (CMPW a (MULW <x.Type> x y)) yes no)
-		for b.Controls[0].Op == OpARM64CMPWconst {
-			v_0 := b.Controls[0]
-			if auxIntToInt32(v_0.AuxInt) != 0 {
-				break
-			}
-			z := v_0.Args[0]
-			if z.Op != OpARM64MSUBW {
-				break
-			}
-			y := z.Args[2]
-			a := z.Args[0]
-			x := z.Args[1]
-			if !(z.Uses == 1) {
-				break
-			}
-			v0 := b.NewValue0(v_0.Pos, OpARM64CMPW, types.TypeFlags)
 			v1 := b.NewValue0(v_0.Pos, OpARM64MULW, x.Type)
 			v1.AddArg2(x, y)
 			v0.AddArg2(a, v1)
@@ -25656,14 +25527,6 @@ func rewriteBlockARM64(b *Block) bool {
 			}
 			b.Reset(BlockFirst)
 			b.swapSuccessors()
-			return true
-		}
-		// match: (GTnoov (InvertFlags cmp) yes no)
-		// result: (LTnoov cmp yes no)
-		for b.Controls[0].Op == OpARM64InvertFlags {
-			v_0 := b.Controls[0]
-			cmp := v_0.Args[0]
-			b.resetWithControl(BlockARM64LTnoov, cmp)
 			return true
 		}
 	case BlockIf:
@@ -26030,31 +25893,6 @@ func rewriteBlockARM64(b *Block) bool {
 			b.resetWithControl(BlockARM64LEnoov, v0)
 			return true
 		}
-		// match: (LE (CMPconst [0] z:(MSUB a x y)) yes no)
-		// cond: z.Uses==1
-		// result: (LEnoov (CMP a (MUL <x.Type> x y)) yes no)
-		for b.Controls[0].Op == OpARM64CMPconst {
-			v_0 := b.Controls[0]
-			if auxIntToInt64(v_0.AuxInt) != 0 {
-				break
-			}
-			z := v_0.Args[0]
-			if z.Op != OpARM64MSUB {
-				break
-			}
-			y := z.Args[2]
-			a := z.Args[0]
-			x := z.Args[1]
-			if !(z.Uses == 1) {
-				break
-			}
-			v0 := b.NewValue0(v_0.Pos, OpARM64CMP, types.TypeFlags)
-			v1 := b.NewValue0(v_0.Pos, OpARM64MUL, x.Type)
-			v1.AddArg2(x, y)
-			v0.AddArg2(a, v1)
-			b.resetWithControl(BlockARM64LEnoov, v0)
-			return true
-		}
 		// match: (LE (CMPWconst [0] z:(MADDW a x y)) yes no)
 		// cond: z.Uses==1
 		// result: (LEnoov (CMNW a (MULW <x.Type> x y)) yes no)
@@ -26074,31 +25912,6 @@ func rewriteBlockARM64(b *Block) bool {
 				break
 			}
 			v0 := b.NewValue0(v_0.Pos, OpARM64CMNW, types.TypeFlags)
-			v1 := b.NewValue0(v_0.Pos, OpARM64MULW, x.Type)
-			v1.AddArg2(x, y)
-			v0.AddArg2(a, v1)
-			b.resetWithControl(BlockARM64LEnoov, v0)
-			return true
-		}
-		// match: (LE (CMPWconst [0] z:(MSUBW a x y)) yes no)
-		// cond: z.Uses==1
-		// result: (LEnoov (CMPW a (MULW <x.Type> x y)) yes no)
-		for b.Controls[0].Op == OpARM64CMPWconst {
-			v_0 := b.Controls[0]
-			if auxIntToInt32(v_0.AuxInt) != 0 {
-				break
-			}
-			z := v_0.Args[0]
-			if z.Op != OpARM64MSUBW {
-				break
-			}
-			y := z.Args[2]
-			a := z.Args[0]
-			x := z.Args[1]
-			if !(z.Uses == 1) {
-				break
-			}
-			v0 := b.NewValue0(v_0.Pos, OpARM64CMPW, types.TypeFlags)
 			v1 := b.NewValue0(v_0.Pos, OpARM64MULW, x.Type)
 			v1.AddArg2(x, y)
 			v0.AddArg2(a, v1)
@@ -26162,14 +25975,6 @@ func rewriteBlockARM64(b *Block) bool {
 			}
 			b.Reset(BlockFirst)
 			b.swapSuccessors()
-			return true
-		}
-		// match: (LEnoov (InvertFlags cmp) yes no)
-		// result: (GEnoov cmp yes no)
-		for b.Controls[0].Op == OpARM64InvertFlags {
-			v_0 := b.Controls[0]
-			cmp := v_0.Args[0]
-			b.resetWithControl(BlockARM64GEnoov, cmp)
 			return true
 		}
 	case BlockARM64LT:
@@ -26402,31 +26207,6 @@ func rewriteBlockARM64(b *Block) bool {
 			b.resetWithControl(BlockARM64LTnoov, v0)
 			return true
 		}
-		// match: (LT (CMPconst [0] z:(MSUB a x y)) yes no)
-		// cond: z.Uses==1
-		// result: (LTnoov (CMP a (MUL <x.Type> x y)) yes no)
-		for b.Controls[0].Op == OpARM64CMPconst {
-			v_0 := b.Controls[0]
-			if auxIntToInt64(v_0.AuxInt) != 0 {
-				break
-			}
-			z := v_0.Args[0]
-			if z.Op != OpARM64MSUB {
-				break
-			}
-			y := z.Args[2]
-			a := z.Args[0]
-			x := z.Args[1]
-			if !(z.Uses == 1) {
-				break
-			}
-			v0 := b.NewValue0(v_0.Pos, OpARM64CMP, types.TypeFlags)
-			v1 := b.NewValue0(v_0.Pos, OpARM64MUL, x.Type)
-			v1.AddArg2(x, y)
-			v0.AddArg2(a, v1)
-			b.resetWithControl(BlockARM64LTnoov, v0)
-			return true
-		}
 		// match: (LT (CMPWconst [0] z:(MADDW a x y)) yes no)
 		// cond: z.Uses==1
 		// result: (LTnoov (CMNW a (MULW <x.Type> x y)) yes no)
@@ -26446,31 +26226,6 @@ func rewriteBlockARM64(b *Block) bool {
 				break
 			}
 			v0 := b.NewValue0(v_0.Pos, OpARM64CMNW, types.TypeFlags)
-			v1 := b.NewValue0(v_0.Pos, OpARM64MULW, x.Type)
-			v1.AddArg2(x, y)
-			v0.AddArg2(a, v1)
-			b.resetWithControl(BlockARM64LTnoov, v0)
-			return true
-		}
-		// match: (LT (CMPWconst [0] z:(MSUBW a x y)) yes no)
-		// cond: z.Uses==1
-		// result: (LTnoov (CMPW a (MULW <x.Type> x y)) yes no)
-		for b.Controls[0].Op == OpARM64CMPWconst {
-			v_0 := b.Controls[0]
-			if auxIntToInt32(v_0.AuxInt) != 0 {
-				break
-			}
-			z := v_0.Args[0]
-			if z.Op != OpARM64MSUBW {
-				break
-			}
-			y := z.Args[2]
-			a := z.Args[0]
-			x := z.Args[1]
-			if !(z.Uses == 1) {
-				break
-			}
-			v0 := b.NewValue0(v_0.Pos, OpARM64CMPW, types.TypeFlags)
 			v1 := b.NewValue0(v_0.Pos, OpARM64MULW, x.Type)
 			v1.AddArg2(x, y)
 			v0.AddArg2(a, v1)
@@ -26558,14 +26313,6 @@ func rewriteBlockARM64(b *Block) bool {
 			}
 			b.Reset(BlockFirst)
 			b.swapSuccessors()
-			return true
-		}
-		// match: (LTnoov (InvertFlags cmp) yes no)
-		// result: (GTnoov cmp yes no)
-		for b.Controls[0].Op == OpARM64InvertFlags {
-			v_0 := b.Controls[0]
-			cmp := v_0.Args[0]
-			b.resetWithControl(BlockARM64GTnoov, cmp)
 			return true
 		}
 	case BlockARM64NE:
@@ -26860,31 +26607,6 @@ func rewriteBlockARM64(b *Block) bool {
 			b.resetWithControl(BlockARM64NE, v0)
 			return true
 		}
-		// match: (NE (CMPconst [0] z:(MSUB a x y)) yes no)
-		// cond: z.Uses==1
-		// result: (NE (CMP a (MUL <x.Type> x y)) yes no)
-		for b.Controls[0].Op == OpARM64CMPconst {
-			v_0 := b.Controls[0]
-			if auxIntToInt64(v_0.AuxInt) != 0 {
-				break
-			}
-			z := v_0.Args[0]
-			if z.Op != OpARM64MSUB {
-				break
-			}
-			y := z.Args[2]
-			a := z.Args[0]
-			x := z.Args[1]
-			if !(z.Uses == 1) {
-				break
-			}
-			v0 := b.NewValue0(v_0.Pos, OpARM64CMP, types.TypeFlags)
-			v1 := b.NewValue0(v_0.Pos, OpARM64MUL, x.Type)
-			v1.AddArg2(x, y)
-			v0.AddArg2(a, v1)
-			b.resetWithControl(BlockARM64NE, v0)
-			return true
-		}
 		// match: (NE (CMPWconst [0] z:(MADDW a x y)) yes no)
 		// cond: z.Uses==1
 		// result: (NE (CMNW a (MULW <x.Type> x y)) yes no)
@@ -26905,6 +26627,31 @@ func rewriteBlockARM64(b *Block) bool {
 			}
 			v0 := b.NewValue0(v_0.Pos, OpARM64CMNW, types.TypeFlags)
 			v1 := b.NewValue0(v_0.Pos, OpARM64MULW, x.Type)
+			v1.AddArg2(x, y)
+			v0.AddArg2(a, v1)
+			b.resetWithControl(BlockARM64NE, v0)
+			return true
+		}
+		// match: (NE (CMPconst [0] z:(MSUB a x y)) yes no)
+		// cond: z.Uses==1
+		// result: (NE (CMP a (MUL <x.Type> x y)) yes no)
+		for b.Controls[0].Op == OpARM64CMPconst {
+			v_0 := b.Controls[0]
+			if auxIntToInt64(v_0.AuxInt) != 0 {
+				break
+			}
+			z := v_0.Args[0]
+			if z.Op != OpARM64MSUB {
+				break
+			}
+			y := z.Args[2]
+			a := z.Args[0]
+			x := z.Args[1]
+			if !(z.Uses == 1) {
+				break
+			}
+			v0 := b.NewValue0(v_0.Pos, OpARM64CMP, types.TypeFlags)
+			v1 := b.NewValue0(v_0.Pos, OpARM64MUL, x.Type)
 			v1.AddArg2(x, y)
 			v0.AddArg2(a, v1)
 			b.resetWithControl(BlockARM64NE, v0)

@@ -16,7 +16,6 @@ import (
 	"strings"
 	"sync"
 
-	"encoding/json/internal"
 	"encoding/json/internal/jsonflags"
 	"encoding/json/internal/jsonopts"
 	"encoding/json/internal/jsonwire"
@@ -39,6 +38,10 @@ import (
 //
 // This error is only returned if [RejectUnknownMembers] is true.
 var ErrUnknownName = errors.New("unknown object member name")
+
+// errAmbiguousName indicates a JSON object member could be unmarshal
+// into multiple candidate Go struct fields.
+var errAmbiguousName = errors.New("ambiguous object member name")
 
 const errorPrefix = "json: "
 
@@ -76,7 +79,7 @@ type SemanticError struct {
 
 	action string // either "marshal" or "unmarshal"
 
-	// ByteOffset indicates that an error occurred after this byte offset.
+	// ByteOffset indicates that an error occurred at or after this byte offset.
 	ByteOffset int64
 	// JSONPointer indicates that an error occurred within this JSON value
 	// as indicated using the JSON Pointer notation (see RFC 6901).
@@ -100,9 +103,9 @@ type coder interface {
 	Options() Options
 }
 
-// newInvalidFormatError wraps err in a SemanticError because
+// newInvalidFormatError constructs a SemanticError because
 // the current type t cannot handle the provided options format.
-// This error must be called before producing or consuming the next value.
+// This function must be called before producing or consuming the next value.
 //
 // If [jsonflags.ReportErrorsWithLegacySemantics] is specified,
 // then this automatically skips the next value when unmarshaling
@@ -160,8 +163,17 @@ func newUnmarshalErrorBeforeWithSkipping(d *jsontext.Decoder, t reflect.Type, er
 // is positioned right after the previous token or value, which caused an error.
 func newUnmarshalErrorAfter(d *jsontext.Decoder, t reflect.Type, err error) error {
 	tokOrVal := export.Decoder(d).PreviousTokenOrValue()
+	byteOffset := d.InputOffset() - int64(len(tokOrVal))
+	if export.Decoder(d).Flags.Get(jsonflags.ReportErrorsWithLegacySemantics) {
+		// NOTE: In v1, the offset pointed to the end of the bad token or value.
+		if k := jsontext.Value(tokOrVal).Kind(); k == '[' || k == '{' {
+			byteOffset++ // add just the '[' or '{'
+		} else {
+			byteOffset += int64(len(tokOrVal))
+		}
+	}
 	return &SemanticError{action: "unmarshal", GoType: t, Err: toUnexpectedEOF(err),
-		ByteOffset:  d.InputOffset() - int64(len(tokOrVal)),
+		ByteOffset:  byteOffset,
 		JSONPointer: jsontext.Pointer(export.Decoder(d).AppendStackPointer(nil, -1)),
 		JSONKind:    jsontext.Value(tokOrVal).Kind()}
 }
@@ -388,9 +400,9 @@ func (e *SemanticError) Error() string {
 	}
 
 	// Special handling for unknown names.
-	if e.Err == ErrUnknownName {
+	if e.Err == ErrUnknownName || e.Err == errAmbiguousName {
 		sb.WriteString(": ")
-		sb.WriteString(ErrUnknownName.Error())
+		sb.WriteString(e.Err.Error())
 		sb.WriteString(" ")
 		sb.WriteString(strconv.Quote(e.JSONPointer.LastToken()))
 		if parent := e.JSONPointer.Parent(); parent != "" {
@@ -450,21 +462,4 @@ func toUnexpectedEOF(err error) error {
 		return io.ErrUnexpectedEOF
 	}
 	return err
-}
-
-// newInvalidStringTagError returns an error for a `string` tag on a field with
-// an invalid type. The error should be wrapped with appropriate context after
-// creation.
-func newInvalidStringTagError(field string, legacy bool) error {
-	if legacy {
-		if internal.ExpJSONFormat {
-			return fmt.Errorf("Go struct field %s has invalid `string` tag: field must be a numeric type, string, or bool (or pointer to such), or type with a format tag converting to a numeric type", field)
-		}
-		return fmt.Errorf("Go struct field %s has invalid `string` tag: field must be a numeric type, string, or bool (or pointer to such)", field)
-	}
-
-	if internal.ExpJSONFormat {
-		return fmt.Errorf("Go struct field %s has invalid `string` tag: field must be a numeric type (or pointer to such), or type with a format tag converting to a numeric type", field)
-	}
-	return fmt.Errorf("Go struct field %s has invalid `string` tag: field must be a numeric type (or pointer to such)", field)
 }

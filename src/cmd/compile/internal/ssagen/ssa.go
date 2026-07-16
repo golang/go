@@ -223,12 +223,11 @@ func InitTables() {
 // any ABI wrapper that is present is nosplit, hence a precise
 // stack map is not needed there (the parameters survive only long
 // enough to call the wrapped assembly function).
-// This always returns a freshly copied ABI.
 func AbiForBodylessFuncStackMap(fn *ir.Func) *abi.ABIConfig {
-	return ssaConfig.ABI0.Copy() // No idea what races will result, be safe
+	return ssaConfig.ABI0
 }
 
-// abiForFunc implements ABI policy for a function, but does not return a copy of the ABI.
+// abiForFunc implements ABI policy for a function.
 // Passing a nil function returns the default ABI based on experiment configuration.
 func abiForFunc(fn *ir.Func, abi0, abi1 *abi.ABIConfig) *abi.ABIConfig {
 	if buildcfg.Experiment.RegabiArgs {
@@ -6689,8 +6688,7 @@ func (s *state) addNamedValue(n *ir.Name, v *ssa.Value) {
 	loc := ssa.LocalSlot{N: n, Type: n.Type(), Off: 0}
 	values, ok := s.f.NamedValues[loc]
 	if !ok {
-		s.f.Names = append(s.f.Names, &loc)
-		s.f.CanonicalLocalSlots[loc] = &loc
+		s.f.Names = append(s.f.Names, loc)
 	}
 	s.f.NamedValues[loc] = append(values, v)
 }
@@ -7397,6 +7395,18 @@ func genssa(f *ssa.Func, pp *objw.Progs) {
 		fi.JumpTables = append(fi.JumpTables, obj.JumpTable{Sym: jt.Aux.(*obj.LSym), Targets: targets})
 	}
 
+	// Finalize the frame, then let the backend run a final pass over the
+	// generated Progs (e.g. arm64 fuses adjacent spill/reload MOVDs into
+	// STP/LDP). Branch and jump-table targets are resolved at this point.
+	// Doing this before the debug dumps below means -S and GOSSAFUNC's genssa
+	// output reflect the instructions that are actually assembled. defframe
+	// must run first: it finalizes the frame size, which the backend pass
+	// depends on.
+	defframe(&s, e, f)
+	if Arch.SSAGenFinish != nil {
+		Arch.SSAGenFinish(s.pp)
+	}
+
 	if e.log { // spew to stdout
 		filename := ""
 		for p := s.pp.Text; p != nil; p = p.Link {
@@ -7515,8 +7525,6 @@ func genssa(f *ssa.Func, pp *objw.Progs) {
 			fi.Close()
 		}
 	}
-
-	defframe(&s, e, f)
 
 	f.HTMLWriter.Close()
 	f.HTMLWriter = nil

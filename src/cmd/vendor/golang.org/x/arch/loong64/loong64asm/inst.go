@@ -63,6 +63,26 @@ func (i Inst) String() string {
 			op = "bgez"
 			args = append(args[:1], args[2:]...)
 		}
+
+	case RDTIMEH_W:
+		// rdtimeh.w rd, zero => rdcntvh.w rd
+		if i.Args[1].(Reg) == R0 && i.Args[0].(Reg) != R0 {
+			op = "rdcntvh.w"
+			args = args[:1]
+		}
+
+	case RDTIMEL_W:
+		// rdtimel.w zero, rj => rdcntid.w rj
+		if i.Args[0].(Reg) == R0 && i.Args[1].(Reg) != R0 {
+			op = "rdcntid.w"
+			args = args[1:]
+		}
+
+		// rdtimel.w rd, zero => rdcntvl.w rd
+		if i.Args[0].(Reg) != R0 && i.Args[1].(Reg) == R0 {
+			op = "rdcntvl.w"
+			args = args[:1]
+		}
 	}
 
 	if len(args) == 0 {

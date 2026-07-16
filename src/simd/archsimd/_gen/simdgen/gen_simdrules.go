@@ -11,10 +11,12 @@ import (
 	"strings"
 	"text/template"
 	"unicode"
+
+	"simd/archsimd/_gen/sgutil"
 )
 
 type tplRuleData struct {
-	tplName        string // e.g. "sftimm"
+	TplName        string // e.g. "sftimm"
 	GoOp           string // e.g. "ShiftAllLeft"
 	GoType         string // e.g. "Uint32x8"
 	Args           string // e.g. "x y"
@@ -30,33 +32,43 @@ type tplRuleData struct {
 	RuleCond       string // e.g. "a==0" -- condition for asmRule or argsMatchRule.
 	RuleOut        string // e.g. "y" -- output of an asmRule or argsMatchRule.
 	RuleArgs       string // custom args pattern for argsMatchRule.
+	Rule           string // the whole rule
+}
+
+// Helper type to make template map initialization less repetitive
+// (and also remove a chance for errors.)
+type ruleTemplateMap struct {
+	sgutil.InsertMap[string, *template.Template]
+}
+
+// Add creates a template named "name" after appending "// {{.TmplName}}\n" to the
+// template, and returns the input so that additions may be chained.
+// This helps make template initialization easy to order and easy to read.
+func (rtm *ruleTemplateMap) Add(name string, templ string) *ruleTemplateMap {
+	// Append debugging comment AND end of line
+	templ += " // {{.TplName}}\n"
+	ct := sgutil.TemplateNamed(name, templ)
+	rtm.InsertMap.Put(name, ct)
+	return rtm
 }
 
 var (
-	ruleTemplates = template.Must(template.New("simdRules").Parse(`
-{{define "pureVreg"}}({{.GoOp}}{{.GoType}} {{.Args}}) => ({{.Asm}} {{.ArgsOut}})
-{{end}}
-{{define "maskIn"}}({{.GoOp}}{{.GoType}} {{.Args}} mask) => ({{.Asm}} {{.ArgsOut}} ({{.MaskInConvert}} <types.TypeMask> mask))
-{{end}}
-{{define "maskOut"}}({{.GoOp}}{{.GoType}} {{.Args}}) => ({{.MaskOutConvert}} ({{.Asm}} {{.ArgsOut}}))
-{{end}}
-{{define "maskInMaskOut"}}({{.GoOp}}{{.GoType}} {{.Args}} mask) => ({{.MaskOutConvert}} ({{.Asm}} {{.ArgsOut}} ({{.MaskInConvert}} <types.TypeMask> mask)))
-{{end}}
-{{define "sftimm"}}({{.Asm}} x (MOVQconst [c])) => ({{.Asm}}const [amd64CapAVXShift(c)] x)
-{{end}}
-{{define "asmRule"}}({{.Asm}} {{.Args}}) {{.RuleCond}} => {{.RuleOut}}
-{{end}}
-{{define "argsMatchRule"}}({{.Asm}} {{.RuleArgs}}) {{.RuleCond}} => {{.RuleOut}}
-{{end}}
-{{define "earlyMatchRule"}}({{.GoOp}}{{.GoType}} {{.RuleArgs}}) {{.RuleCond}}=> {{.RuleOut}}
-{{end}}
-{{define "masksftimm"}}({{.Asm}} x (MOVQconst [c]) mask) => ({{.Asm}}const [amd64CapAVXShift(c)] x mask)
-{{end}}
-{{define "vregMem"}}({{.Asm}} {{.ArgsLoadAddr}}) && canMergeLoad(v, l) && clobber(l) => ({{.Asm}}load {{.ArgsAddr}})
-{{end}}
-{{define "vregMemFeatCheck"}}({{.Asm}} {{.ArgsLoadAddr}}) && {{.FeatCheck}} && canMergeLoad(v, l) && clobber(l)=> ({{.Asm}}load {{.ArgsAddr}})
-{{end}}
-`))
+	// ORDER MATTERS.  These should appear in most-to-least-specific order
+	// TODO: vregMemFeatCheck is not necessarily in the right place; there was an order,
+	// this was copied from it, but vregMemFeatCheck was not in it.  It's not clear
+	// it was ever used.
+	// It's also not clear that this is strictly most-to-least-specific?
+	ruleTemplates = new(ruleTemplateMap).
+		Add("masksftimm", `({{.Asm}} x (MOVQconst [c]) mask) => ({{.Asm}}const [amd64CapAVXShift(c)] x mask)`).
+		Add("sftimm", `({{.Asm}} x (MOVQconst [c])) => ({{.Asm}}const [amd64CapAVXShift(c)] x)`).
+		Add("maskInMaskOut", `({{.GoOp}}{{.GoType}} {{.Args}} mask) => ({{.MaskOutConvert}} ({{.Asm}} {{.ArgsOut}} ({{.MaskInConvert}} <types.TypeMask> mask)))`).
+		Add("maskOut", `({{.GoOp}}{{.GoType}} {{.Args}}) => ({{.MaskOutConvert}} ({{.Asm}} {{.ArgsOut}}))`).
+		Add("maskIn", `({{.GoOp}}{{.GoType}} {{.Args}} mask) => ({{.Asm}} {{.ArgsOut}} ({{.MaskInConvert}} <types.TypeMask> mask))`).
+		Add("pureVreg", `({{.GoOp}}{{.GoType}} {{.Args}}) => ({{.Asm}} {{.ArgsOut}})`).
+		Add("vregMem", `({{.Asm}} {{.ArgsLoadAddr}}) && canMergeLoad(v, l) && clobber(l) => ({{.Asm}}load {{.ArgsAddr}})`).
+		Add("vregMemFeatCheck", `({{.Asm}} {{.ArgsLoadAddr}}) && {{.FeatCheck}} && canMergeLoad(v, l) && clobber(l) => ({{.Asm}}load {{.ArgsAddr}})`).
+		Add("asmRule", `({{.Asm}} {{.Args}}) {{.RuleCond}} => {{.RuleOut}}`).
+		Add("specialLower", `{{.Rule}}`)
 )
 
 func (d tplRuleData) MaskOptimization(asmCheck map[string]bool) string {
@@ -95,20 +107,6 @@ func (d tplRuleData) MaskOptimization(asmCheck map[string]bool) string {
 	return fmt.Sprintf("(VMOVDQU%dMasked%s (%s %s) mask) => (%s %s mask)\n", d.ElementSize, size, asmNoMask, d.Args, d.Asm, d.Args)
 }
 
-// SSA rewrite rules need to appear in a most-to-least-specific order.  This works for that.
-var tmplOrder = map[string]int{
-	"masksftimm":     0,
-	"sftimm":         1,
-	"maskInMaskOut":  2,
-	"maskOut":        3,
-	"maskIn":         4,
-	"pureVreg":       5,
-	"vregMem":        6,
-	"asmRule":        7,
-	"argsMatchRule":  8,
-	"earlyMatchRule": 9,
-}
-
 func compareTplRuleData(x, y tplRuleData) int {
 	if c := compareNatural(x.GoOp, y.GoOp); c != 0 {
 		return c
@@ -119,18 +117,10 @@ func compareTplRuleData(x, y tplRuleData) int {
 	if c := compareNatural(x.Args, y.Args); c != 0 {
 		return c
 	}
-	if x.tplName == y.tplName {
+	if x.TplName == y.TplName {
 		return 0
 	}
-	xo, xok := tmplOrder[x.tplName]
-	yo, yok := tmplOrder[y.tplName]
-	if !xok {
-		panic(fmt.Errorf("Unexpected template name %s, please add to tmplOrder", x.tplName))
-	}
-	if !yok {
-		panic(fmt.Errorf("Unexpected template name %s, please add to tmplOrder", y.tplName))
-	}
-	return xo - yo
+	return ruleTemplates.Compare(x.TplName, y.TplName)
 }
 
 // parseAsmRule tries to parse given string as it would be asmRule:
@@ -141,13 +131,13 @@ func compareTplRuleData(x, y tplRuleData) int {
 // lowering for an instruction which doesn't support zero immediate encoding:
 // (VUSRA4S [a] x y) && a==0 => (VADD4S x y)
 func parseAsmRule(rule string) (bool, string, string) {
-	arrowIndex := strings.Index(rule, "=>")
-	if arrowIndex == -1 {
+	before, after, ok := strings.Cut(rule, "=>")
+	if !ok {
 		return false, "", ""
 	}
 
-	condPart := rule[:arrowIndex]
-	outPart := rule[arrowIndex+len("=>"):]
+	condPart := before
+	outPart := after
 
 	// Check if condPart starts with "if" followed by at least one space.
 	cond := strings.TrimPrefix(condPart, "if")
@@ -175,42 +165,14 @@ func parseAsmRule(rule string) (bool, string, string) {
 // (VDUPSbcast [0] (VMOVSins [0] _ (MOVDconst [c]))) && uint64(c)<= 255 => (VMOVI4S [uint8(c)])
 // The specifiers currently supported are only arm64-specific, it may be generalized in the expandFormatSpecifiers function in future.
 // The "earlymatch" variant uses GoOp instead of Asm on the left-hand side, replacing the default lowering rule.
-func parseArgsMatchRule(rule string) (bool, string, string, string, bool) {
-	isEarly := false
-	rest := ""
+func parseArgsMatchRule(rule string) (bool, bool, string) {
 	if strings.HasPrefix(rule, "earlymatch ") {
-		isEarly = true
-		rest = rule[len("earlymatch "):]
+		return true, true, rule[len("earlymatch "):]
 	} else if strings.HasPrefix(rule, "match ") {
-		rest = rule[len("match "):]
+		return true, false, rule[len("match "):]
 	} else {
-		return false, "", "", "", false
+		return false, false, rule
 	}
-
-	arrowIndex := strings.Index(rest, "=>")
-	if arrowIndex == -1 {
-		return false, "", "", "", false
-	}
-
-	condPart := rest[:arrowIndex]
-	outPart := rest[arrowIndex+len("=>"):]
-
-	// Split args and optional condition on "&&".
-	args := condPart
-	cond := ""
-	if andIndex := strings.Index(condPart, "&&"); andIndex != -1 {
-		args = strings.TrimSpace(condPart[:andIndex])
-		cond = strings.TrimSpace(condPart[andIndex+len("&&"):])
-	} else {
-		args = strings.TrimSpace(args)
-	}
-
-	out := strings.TrimSpace(outPart)
-	if args == "" || out == "" {
-		return false, "", "", "", false
-	}
-
-	return true, args, cond, out, isEarly
 }
 
 // expandFormatSpecifiers replaces format specifiers in s with concrete values
@@ -345,9 +307,9 @@ func writeSIMDRules(ops []Operation) *bytes.Buffer {
 					sftimmCheck[data.Asm] = true
 					sftImmData := data
 					if tplName == "maskIn" {
-						sftImmData.tplName = "masksftimm"
+						sftImmData.TplName = "masksftimm"
 					} else {
-						sftImmData.tplName = "sftimm"
+						sftImmData.TplName = "sftimm"
 					}
 					allData = append(allData, sftImmData)
 					asmCheck[sftImmData.Asm+"const"] = true
@@ -356,7 +318,7 @@ func writeSIMDRules(ops []Operation) *bytes.Buffer {
 				if _, done := ruleDone[data.Asm]; !done {
 					ruleDone[data.Asm] = struct{}{}
 					optData := data
-					optData.tplName = "asmRule"
+					optData.TplName = "asmRule"
 					optData.RuleCond = cond
 					if cond != "" {
 						optData.RuleCond = "&& " + cond
@@ -367,7 +329,7 @@ func writeSIMDRules(ops []Operation) *bytes.Buffer {
 					}
 					allData = append(allData, optData)
 				}
-			} else if ok, matchArgs, cond, out, isEarly := parseArgsMatchRule(*gOp.SpecialLower); ok {
+			} else if ok, isEarly, rest := parseArgsMatchRule(*gOp.SpecialLower); ok {
 				key := data.Asm
 				if isEarly {
 					key = data.GoOp + data.GoType
@@ -383,17 +345,14 @@ func writeSIMDRules(ops []Operation) *bytes.Buffer {
 						}
 					}
 					optData := data
-					if isEarly {
-						optData.tplName = "earlyMatchRule"
-					} else {
-						optData.tplName = "argsMatchRule"
-					}
-					optData.RuleArgs = expandFormatSpecifiers(matchArgs, elemBits)
-					optData.RuleCond = expandFormatSpecifiers(cond, elemBits)
-					if optData.RuleCond != "" {
-						optData.RuleCond = "&& " + optData.RuleCond
-					}
-					optData.RuleOut = expandFormatSpecifiers(out, elemBits)
+					optData.Rule = rest
+					optData.Rule = expandFormatSpecifiers(optData.Rule, elemBits)
+					optData.TplName = "specialLower"
+					// %g is the generic operation name
+					optData.Rule = strings.ReplaceAll(optData.Rule, "%g", optData.GoOp+optData.GoType)
+					// %h is the hardware operation name
+					optData.Rule = strings.ReplaceAll(optData.Rule, "%h", optData.Asm)
+
 					allData = append(allData, optData)
 				}
 				if isEarly {
@@ -452,9 +411,9 @@ func writeSIMDRules(ops []Operation) *bytes.Buffer {
 						"AVX512": "v.Block.CPUfeatures.hasFeature(CPUavx512)",
 					}
 					memOpData.FeatCheck = knownFeatChecks[feat2]
-					memOpData.tplName = "vregMemFeatCheck"
+					memOpData.TplName = "vregMemFeatCheck"
 				} else {
-					memOpData.tplName = "vregMem"
+					memOpData.TplName = "vregMem"
 				}
 				memOptData = append(memOptData, memOpData)
 				asmCheck[memOpData.Asm+"load"] = true
@@ -503,7 +462,7 @@ func writeSIMDRules(ops []Operation) *bytes.Buffer {
 			data.Args = "..."
 			data.ArgsOut = "..."
 		}
-		data.tplName = tplName
+		data.TplName = tplName
 		if opr.NoGenericOps != nil && *opr.NoGenericOps == "true" ||
 			opr.SkipMaskedMethod() {
 			optData = append(optData, data)
@@ -521,15 +480,19 @@ func writeSIMDRules(ops []Operation) *bytes.Buffer {
 	}
 
 	for _, data := range allData {
-		if err := ruleTemplates.ExecuteTemplate(buffer, data.tplName, data); err != nil {
-			panic(fmt.Errorf("failed to execute template %s for %s: %w", data.tplName, data.GoOp+data.GoType, err))
+		tpl := ruleTemplates.Get(data.TplName)
+		if tpl == nil {
+			panic(fmt.Errorf("template %s not found", data.TplName))
+		}
+		if err := tpl.Execute(buffer, data); err != nil {
+			panic(fmt.Errorf("failed to execute template %s for %s: %w", data.TplName, data.GoOp+data.GoType, err))
 		}
 	}
 
 	seen := make(map[string]bool)
 
 	for _, data := range optData {
-		if data.tplName == "maskIn" {
+		if data.TplName == "maskIn" {
 			rule := data.MaskOptimization(asmCheck)
 			if seen[rule] {
 				continue
@@ -552,18 +515,25 @@ func writeSIMDRules(ops []Operation) *bytes.Buffer {
 	}
 
 	for _, data := range memOptData {
-		if err := ruleTemplates.ExecuteTemplate(buffer, data.tplName, data); err != nil {
-			panic(fmt.Errorf("failed to execute template %s for %s: %w", data.tplName, data.Asm, err))
+		tpl := ruleTemplates.Get(data.TplName)
+		if tpl == nil {
+			panic(fmt.Errorf("template %s not found", data.TplName))
+		}
+		if err := tpl.Execute(buffer, data); err != nil {
+			panic(fmt.Errorf("failed to execute template %s for %s: %w", data.TplName, data.Asm, err))
 		}
 	}
 
 	return buffer
 }
 
-// generateHiHalfFoldingRules generates folding rules that combine SetHi/GetHi patterns
+// Note: SetHi was removed (temporarily?) from 1.27, but may return in some form
+// and these optimizations may apply to the equivalent idioms.
+//
+// generateHiHalfFoldingRules generates folding rules that combine SetHi/HiToLo patterns
 // with narrow/long base operations into the hi-half "2" variant instruction.
 //
-// x.GetHi() is lowered as (VDUPDextr[1] x)
+// x.HiToLo() is lowered as (VDUPDextr[1] x)
 //
 // x.SetHi(lo) is lowered as (VMOVDins0 [1] x (VDUPDextr [0] lo))
 //
@@ -571,11 +541,11 @@ func writeSIMDRules(ops []Operation) *bytes.Buffer {
 //
 //	(VMOVDins0 [1] dst y:(VSHRN4S [a] x)) => (VSHRN2_4S dst [a] x)
 //
-// Unary Long (e.g., USHLL) getting high half (GetHi) as input:
+// Unary Long (e.g., USHLL) getting high half (HiToLo) as input:
 //
 //	(VUSHLL4H [a] (VDUPDextr [1] x)) => (VUSHLL2_4H [a] x)
 //
-// Binary Long (e.g., UMULL, SMULL), both inputs from GetHi:
+// Binary Long (e.g., UMULL, SMULL), both inputs from HiToLo:
 //
 //	(VUMULL4H (VDUPDextr [1] x) (VDUPDextr [1] y)) => (VUMULL2_4H x y)
 func generateHiHalfFoldingRules(ops []Operation) []string {
@@ -611,6 +581,10 @@ func generateHiHalfFoldingRules(ops []Operation) []string {
 		case "narrow":
 			switch vregInCnt {
 			case 1:
+				// Note, at least for 1.27, SetHi is not supported, because it is an emulated instruction,
+				// not part of the scalable set, and though it is intended to mimic the similar instruction
+				// on amd64, it is actually slightly different.
+				//
 				// Narrow: the value used by SetHi may be produced with asm2 (hiHalf) variant.
 				// TODO: Maybe have a separate rule: (VMOVDins0 [c] dst (VDUPDextr [0] src)) => (VMOVDins0 [c] dst src)
 				if hasImm {
@@ -624,14 +598,14 @@ func generateHiHalfFoldingRules(ops []Operation) []string {
 		case "long":
 			switch vregInCnt {
 			case 1:
-				// Long: input from GetHi (VDUPDextr [1]), prefer hiHalf variant.
+				// Long: input from HiToLo (VDUPDextr [1]), prefer hiHalf variant.
 				if hasImm {
 					rules = append(rules, fmt.Sprintf("(%s [a] (VDUPDextr [1] x)) => (%s [a] x)\n", asm, asm2))
 				} else {
 					rules = append(rules, fmt.Sprintf("(%s (VDUPDextr [1] x)) => (%s x)\n", asm, asm2))
 				}
 			case 2:
-				// Binary Long: both inputs are from GetHi, fold into hiHalf variant.
+				// Binary Long: both inputs are from HiToLo, fold into hiHalf variant.
 				rules = append(rules, fmt.Sprintf("(%s (VDUPDextr [1] x) (VDUPDextr [1] y)) => (%s x y)\n", asm, asm2))
 			default:
 				panic("unsupported yet folding long ops cases")

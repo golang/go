@@ -36,8 +36,8 @@ type Func struct {
 	HTMLWriter     *HTMLWriter    // html writer, for debugging
 	PrintOrHtmlSSA bool           // true if GOSSAFUNC matches, true even if fe.Log() (spew phase results to stdout) is false.  There's an odd dependence on this in debug.go for method logf.
 	ruleMatches    map[string]int // number of times countRule was called during compilation for any given string
-	ABI0           *abi.ABIConfig // A copy, for no-sync access
-	ABI1           *abi.ABIConfig // A copy, for no-sync access
+	ABI0           *abi.ABIConfig // ABI configuration for ABI0
+	ABI1           *abi.ABIConfig // ABI configuration for ABIInternal
 	ABISelf        *abi.ABIConfig // ABI for function being compiled
 	ABIDefault     *abi.ABIConfig // ABI for rtcall and other no-parsed-signature/pragma functions.
 
@@ -60,7 +60,7 @@ type Func struct {
 	NamedValues map[LocalSlot][]*Value
 	// Names is a copy of NamedValues.Keys. We keep a separate list
 	// of keys to make iteration order deterministic.
-	Names []*LocalSlot
+	Names []LocalSlot
 	// Canonicalize root/top-level local slots, and canonicalize their pieces.
 	// Because LocalSlot pieces refer to their parents with a pointer, this ensures that equivalent slots really are equal.
 	CanonicalLocalSlots  map[LocalSlot]*LocalSlot
@@ -181,6 +181,8 @@ func (f *Func) retPoset(po *poset) {
 	f.Cache.scrPoset = append(f.Cache.scrPoset, po)
 }
 
+// localSlotAddr returns a stable canonical *LocalSlot for slot, created on
+// first use. SplitOf parents need it: f.Names holds values, not pointers.
 func (f *Func) localSlotAddr(slot LocalSlot) *LocalSlot {
 	a, ok := f.CanonicalLocalSlots[slot]
 	if !ok {

@@ -122,7 +122,9 @@ func runBuiltTestProgErr(t *testing.T, exe, name string, env ...string) (string,
 		if _, ok := err.(*exec.ExitError); ok {
 			t.Logf("%v: %v", cmd, err)
 		} else if errors.Is(err, exec.ErrWaitDelay) {
-			t.Fatalf("%v: %v", cmd, err)
+			// Report the WaitDelay to help with triage. If it shows a small value like 100ms,
+			// it might not be enough for slow builders. See watchflakes issue #76685.
+			t.Fatalf("%v: %v: output pipes not closed after waiting %v", cmd, err, cmd.WaitDelay)
 		} else {
 			t.Fatalf("%v failed to start: %v", cmd, err)
 		}
@@ -686,10 +688,7 @@ func TestConcurrentMapWrites(t *testing.T) {
 	testenv.MustHaveGoRun(t)
 	output := runTestProg(t, "testprog", "concurrentMapWrites")
 	want := "fatal error: concurrent map writes\n"
-	// Concurrent writes can corrupt the map in a way that we
-	// detect with a separate throw.
-	want2 := "fatal error: small map with no empty slot (concurrent map writes?)\n"
-	if !strings.HasPrefix(output, want) && !strings.HasPrefix(output, want2) {
+	if !strings.HasPrefix(output, want) {
 		t.Fatalf("output does not start with %q:\n%s", want, output)
 	}
 }
@@ -703,10 +702,7 @@ func TestConcurrentMapReadWrite(t *testing.T) {
 	testenv.MustHaveGoRun(t)
 	output := runTestProg(t, "testprog", "concurrentMapReadWrite")
 	want := "fatal error: concurrent map read and map write\n"
-	// Concurrent writes can corrupt the map in a way that we
-	// detect with a separate throw.
-	want2 := "fatal error: small map with no empty slot (concurrent map writes?)\n"
-	if !strings.HasPrefix(output, want) && !strings.HasPrefix(output, want2) {
+	if !strings.HasPrefix(output, want) {
 		t.Fatalf("output does not start with %q:\n%s", want, output)
 	}
 }
@@ -720,10 +716,7 @@ func TestConcurrentMapIterateWrite(t *testing.T) {
 	testenv.MustHaveGoRun(t)
 	output := runTestProg(t, "testprog", "concurrentMapIterateWrite")
 	want := "fatal error: concurrent map iteration and map write\n"
-	// Concurrent writes can corrupt the map in a way that we
-	// detect with a separate throw.
-	want2 := "fatal error: small map with no empty slot (concurrent map writes?)\n"
-	if !strings.HasPrefix(output, want) && !strings.HasPrefix(output, want2) {
+	if !strings.HasPrefix(output, want) {
 		t.Fatalf("output does not start with %q:\n%s", want, output)
 	}
 }
@@ -749,10 +742,7 @@ func TestConcurrentMapWritesIssue69447(t *testing.T) {
 			continue
 		}
 		want := "fatal error: concurrent map writes\n"
-		// Concurrent writes can corrupt the map in a way that we
-		// detect with a separate throw.
-		want2 := "fatal error: small map with no empty slot (concurrent map writes?)\n"
-		if !strings.HasPrefix(output, want) && !strings.HasPrefix(output, want2) {
+		if !strings.HasPrefix(output, want) {
 			t.Fatalf("output does not start with %q:\n%s", want, output)
 		}
 	}

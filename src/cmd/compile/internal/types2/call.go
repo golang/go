@@ -388,7 +388,7 @@ func (check *Checker) genericExprList(elist []syntax.Expr) (resList []*operand, 
 	}
 
 	// Before Go 1.21, uninstantiated or partially instantiated argument functions are
-	// nor permitted. Checker.funcInst must infer missing type arguments in that case.
+	// not permitted. Checker.funcInst must infer missing type arguments in that case.
 	infer := true // for -lang < go1.21
 	n := len(elist)
 	if n > 0 && check.allowVersion(go1_21) {
@@ -875,6 +875,7 @@ func (check *Checker) selector(x *operand, e *syntax.SelectorExpr, wantType bool
 	case *Func:
 		check.objDecl(obj) // ensure fully set-up signature
 		check.addDeclDep(obj)
+		// TODO(mark): Assert that sig.rparams is nil here?
 
 		if x.mode() == typexpr {
 			// method expression
@@ -910,6 +911,7 @@ func (check *Checker) selector(x *operand, e *syntax.SelectorExpr, wantType bool
 			x.mode_ = value
 			x.typ_ = &Signature{
 				tparams:  sig.tparams,
+				recvold:  methodExprSentinel,
 				params:   NewTuple(params...),
 				results:  sig.results,
 				variadic: sig.variadic,
@@ -923,8 +925,9 @@ func (check *Checker) selector(x *operand, e *syntax.SelectorExpr, wantType bool
 
 			x.mode_ = value
 
-			// remove receiver
+			// remove/stash receiver
 			sig := *obj.typ.(*Signature)
+			sig.recvold = sig.recv
 			sig.recv = nil
 			x.typ_ = &sig
 		}

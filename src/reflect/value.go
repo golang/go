@@ -2038,8 +2038,10 @@ func (v Value) OverflowUint(x uint64) bool {
 //
 // If v's Kind is [Func], the returned pointer is an underlying
 // code pointer, but not necessarily enough to identify a
-// single function uniquely. The only guarantee is that the
-// result is zero if and only if v is a nil func Value.
+// single function uniquely. In particular, functions with equal
+// code pointers may not have identical behaviors when called.
+// The only guarantee is that the result is zero if and only if
+// v is a nil func Value.
 //
 // If v's Kind is [Slice], the returned pointer is to the first
 // element of the slice. If the slice is nil the returned value
@@ -2164,7 +2166,12 @@ func (v Value) Set(x Value) {
 	x.mustBeExported() // do not let unexported x leak
 	var target unsafe.Pointer
 	if v.kind() == Interface {
-		target = v.ptr
+		// x.assignTo below uses target as a scratch space, which
+		// then will be assigned back to v in the code below.
+		// So it is a self-assignment, therefore does not cause
+		// escape, but the compiler cannot see it. Mark it noescape
+		// to help the compiler.
+		target = abi.NoEscape(v.ptr)
 	}
 	x = x.assignTo("reflect.Set", v.typ(), target)
 	if x.flag&flagIndir != 0 {
@@ -3081,6 +3088,7 @@ func unsafe_NewArray(*abi.Type, int) unsafe.Pointer
 // MakeSlice creates a new zero-initialized slice value
 // for the specified slice type, length, and capacity.
 func MakeSlice(typ Type, len, cap int) Value {
+	typ = toType(typ.common())
 	if typ.Kind() != Slice {
 		panic("reflect.MakeSlice of non-slice type")
 	}
@@ -3110,6 +3118,7 @@ func SliceAt(typ Type, p unsafe.Pointer, n int) Value {
 
 // MakeChan creates a new channel with the specified type and buffer size.
 func MakeChan(typ Type, buffer int) Value {
+	typ = toType(typ.common())
 	if typ.Kind() != Chan {
 		panic("reflect.MakeChan of non-chan type")
 	}
@@ -3132,6 +3141,7 @@ func MakeMap(typ Type) Value {
 // MakeMapWithSize creates a new map with the specified type
 // and initial space for approximately n elements.
 func MakeMapWithSize(typ Type, n int) Value {
+	typ = toType(typ.common())
 	if typ.Kind() != Map {
 		panic("reflect.MakeMapWithSize of non-map type")
 	}
@@ -3258,6 +3268,7 @@ func (v Value) Convert(t Type) Value {
 	if v.flag&flagMethod != 0 {
 		v = makeMethodValue("Convert", v)
 	}
+	t = toType(t.common())
 	op := convertOp(t.common(), v.typ())
 	if op == nil {
 		panic("reflect.Value.Convert: value of type " + stringFor(v.typ()) + " cannot be converted to type " + t.String())
@@ -3269,6 +3280,7 @@ func (v Value) Convert(t Type) Value {
 // If v.CanConvert(t) returns true then v.Convert(t) will not panic.
 func (v Value) CanConvert(t Type) bool {
 	vt := v.Type()
+	t = toType(t.common())
 	if !vt.ConvertibleTo(t) {
 		return false
 	}

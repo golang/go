@@ -24,6 +24,16 @@ import (
 	"cmd/go/internal/work"
 )
 
+// pkgsiteCmdInternalDocVersion controls the version of the golang.org/x/pkgsite/cmd/internal/doc
+// module to build in buildPkgsite.
+//
+// This version is maintained, like other golang.org/x dependencies, via the go.dev/issue/36905 process.
+//
+// To make that process easier, the exact name and file location of this constant are known
+// to the [golang.org/x/build/cmd/updatestd] command. If this constant needs to be renamed
+// or moved to another .go file, update that code too.
+const pkgsiteCmdInternalDocVersion = "v0.0.0-20260716130756-7a55b7dd9a2a"
+
 // pickUnusedPort finds an unused port by trying to listen on port 0
 // and letting the OS pick a port, then closing that connection and
 // returning that port number.
@@ -42,6 +52,7 @@ func pickUnusedPort() (int, error) {
 
 // buildPkgsite builds a pkgsite binary whose build may be cached.
 func buildPkgsite(ctx context.Context) string {
+	load.ClearPackageCache()
 	loader := modload.NewLoader()
 
 	// Set the builder to have no module root so we can build a pkg@version pattern.
@@ -58,7 +69,10 @@ func buildPkgsite(ctx context.Context) string {
 		}
 	}()
 
-	const version = "v0.0.0-20251223195805-1a3bd3c788fe"
+	version := pkgsiteCmdInternalDocVersion
+	if os.Getenv("TEST_GODOC_BUILD_ONLY") != "" {
+		version = "v0.1.0"
+	}
 	pkgVers := "golang.org/x/pkgsite/cmd/internal/doc@" + version
 	pkgOpts := load.PackageOpts{MainOnly: true}
 	pkgs, err := load.PackagesAndErrorsOutsideModule(loader, ctx, pkgOpts, []string{pkgVers})
@@ -79,6 +93,12 @@ func buildPkgsite(ctx context.Context) string {
 	a := b.LinkAction(loader, work.ModeBuild, work.ModeBuild, p)
 	a.CacheExecutable = true
 	b.Do(ctx, a)
+
+	// Both paths return an executable in GOCACHE: CachedExecutable is set on
+	// fresh builds, while BuiltTarget is set on cache hits.
+	if cached := a.CachedExecutable(); cached != "" {
+		return cached
+	}
 	return a.BuiltTarget()
 }
 
@@ -124,6 +144,12 @@ func doPkgsite(ctx context.Context, urlPath, fragment string) error {
 	}
 
 	pkgsite := buildPkgsite(ctx)
+	if os.Getenv("TEST_GODOC_BUILD_ONLY") != "" {
+		if _, err := os.Stat(pkgsite); err != nil {
+			return fmt.Errorf("built pkgsite binary does not exist: %w", err)
+		}
+		return nil
+	}
 	cmd := exec.Command(pkgsite, "-gorepo", cfg.GOROOT, "-http", addr, "-open", path)
 	cmd.Env = env
 	cmd.Stdout = os.Stderr

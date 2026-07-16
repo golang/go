@@ -79,18 +79,6 @@ func rewriteValueWasm(v *Value) bool {
 	case OpAddSaturatedUint8x16:
 		v.Op = OpWasmI8x16AddSatU
 		return true
-	case OpAddUint16x8:
-		v.Op = OpWasmI16x8Add
-		return true
-	case OpAddUint32x4:
-		v.Op = OpWasmI32x4Add
-		return true
-	case OpAddUint64x2:
-		v.Op = OpWasmI64x2Add
-		return true
-	case OpAddUint8x16:
-		v.Op = OpWasmI8x16Add
-		return true
 	case OpAddr:
 		return rewriteValueWasm_OpAddr(v)
 	case OpAnd16:
@@ -195,6 +183,24 @@ func rewriteValueWasm(v *Value) bool {
 		return true
 	case OpBitSelectUint8x16:
 		v.Op = OpWasmV128Bitselect
+		return true
+	case OpBroadcastFloat32x4:
+		v.Op = OpWasmF32x4Splat
+		return true
+	case OpBroadcastFloat64x2:
+		v.Op = OpWasmF64x2Splat
+		return true
+	case OpBroadcastInt16x8:
+		v.Op = OpWasmI16x8Splat
+		return true
+	case OpBroadcastInt32x4:
+		v.Op = OpWasmI32x4Splat
+		return true
+	case OpBroadcastInt64x2:
+		v.Op = OpWasmI64x2Splat
+		return true
+	case OpBroadcastInt8x16:
+		v.Op = OpWasmI8x16Splat
 		return true
 	case OpCeil:
 		v.Op = OpWasmF64Ceil
@@ -800,12 +806,6 @@ func rewriteValueWasm(v *Value) bool {
 	case OpMul8:
 		v.Op = OpWasmI64Mul
 		return true
-	case OpMulAddFloat32x4:
-		v.Op = OpWasmF32x4RelaxedMadd
-		return true
-	case OpMulAddFloat64x2:
-		v.Op = OpWasmF64x2RelaxedMadd
-		return true
 	case OpMulFloat32x4:
 		v.Op = OpWasmF32x4Mul
 		return true
@@ -829,6 +829,42 @@ func rewriteValueWasm(v *Value) bool {
 		return true
 	case OpMulUint64x2:
 		v.Op = OpWasmI64x2Mul
+		return true
+	case OpMulWidenHiInt16x8:
+		v.Op = OpWasmI32x4ExtmulHighI16x8S
+		return true
+	case OpMulWidenHiInt32x4:
+		v.Op = OpWasmI64x2ExtmulHighI32x4S
+		return true
+	case OpMulWidenHiInt8x16:
+		v.Op = OpWasmI16x8ExtmulHighI8x16S
+		return true
+	case OpMulWidenHiUint16x8:
+		v.Op = OpWasmI32x4ExtmulHighI16x8U
+		return true
+	case OpMulWidenHiUint32x4:
+		v.Op = OpWasmI64x2ExtmulHighI32x4U
+		return true
+	case OpMulWidenHiUint8x16:
+		v.Op = OpWasmI16x8ExtmulHighI8x16U
+		return true
+	case OpMulWidenLoInt16x8:
+		v.Op = OpWasmI32x4ExtmulLowI16x8S
+		return true
+	case OpMulWidenLoInt32x4:
+		v.Op = OpWasmI64x2ExtmulLowI32x4S
+		return true
+	case OpMulWidenLoInt8x16:
+		v.Op = OpWasmI16x8ExtmulLowI8x16S
+		return true
+	case OpMulWidenLoUint16x8:
+		v.Op = OpWasmI32x4ExtmulLowI16x8U
+		return true
+	case OpMulWidenLoUint32x4:
+		v.Op = OpWasmI64x2ExtmulLowI32x4U
+		return true
+	case OpMulWidenLoUint8x16:
+		v.Op = OpWasmI16x8ExtmulLowI8x16U
 		return true
 	case OpNeg16:
 		return rewriteValueWasm_OpNeg16(v)
@@ -1265,18 +1301,6 @@ func rewriteValueWasm(v *Value) bool {
 		return true
 	case OpSubSaturatedUint8x16:
 		v.Op = OpWasmI8x16SubSatU
-		return true
-	case OpSubUint16x8:
-		v.Op = OpWasmI16x8Sub
-		return true
-	case OpSubUint32x4:
-		v.Op = OpWasmI32x4Sub
-		return true
-	case OpSubUint64x2:
-		v.Op = OpWasmI64x2Sub
-		return true
-	case OpSubUint8x16:
-		v.Op = OpWasmI8x16Sub
 		return true
 	case OpTailCall:
 		v.Op = OpWasmLoweredTailCall

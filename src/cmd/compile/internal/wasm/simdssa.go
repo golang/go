@@ -39,6 +39,18 @@ func ssaGenSIMDValue(s *ssagen.State, v *ssa.Value, extend bool) bool {
 		getValue64(s, v.Args[1])
 		p := s.Prog(v.Op.Asm())
 		p.To = obj.Addr{Type: obj.TYPE_CONST, Offset: v.AuxInt}
+	case ssa.OpWasmI8x16Splat, ssa.OpWasmI16x8Splat, ssa.OpWasmI32x4Splat:
+		getValue32(s, v.Args[0])
+		s.Prog(v.Op.Asm())
+	case ssa.OpWasmI64x2Splat:
+		getValue64(s, v.Args[0])
+		s.Prog(v.Op.Asm())
+	case ssa.OpWasmF32x4Splat:
+		getValueFxx(s, v.Args[0])
+		s.Prog(v.Op.Asm())
+	case ssa.OpWasmF64x2Splat:
+		getValueFxx(s, v.Args[0])
+		s.Prog(v.Op.Asm())
 	case ssa.OpWasmI8x16AllTrue, ssa.OpWasmV128AnyTrue, ssa.OpWasmI16x8AllTrue,
 		ssa.OpWasmI32x4AllTrue, ssa.OpWasmI64x2AllTrue, ssa.OpWasmI8x16Abs,
 		ssa.OpWasmI16x8Abs, ssa.OpWasmI32x4Abs, ssa.OpWasmF32x4Abs,
@@ -87,6 +99,10 @@ func ssaGenSIMDValue(s *ssagen.State, v *ssa.Value, extend bool) bool {
 		ssa.OpWasmI32x4MinS, ssa.OpWasmI32x4MinU, ssa.OpWasmF32x4Min,
 		ssa.OpWasmF64x2Min, ssa.OpWasmI16x8Mul, ssa.OpWasmI32x4Mul,
 		ssa.OpWasmF32x4Mul, ssa.OpWasmI64x2Mul, ssa.OpWasmF64x2Mul,
+		ssa.OpWasmI16x8ExtmulHighI8x16S, ssa.OpWasmI16x8ExtmulHighI8x16U, ssa.OpWasmI32x4ExtmulHighI16x8S,
+		ssa.OpWasmI32x4ExtmulHighI16x8U, ssa.OpWasmI64x2ExtmulHighI32x4S, ssa.OpWasmI64x2ExtmulHighI32x4U,
+		ssa.OpWasmI16x8ExtmulLowI8x16S, ssa.OpWasmI16x8ExtmulLowI8x16U, ssa.OpWasmI32x4ExtmulLowI16x8S,
+		ssa.OpWasmI32x4ExtmulLowI16x8U, ssa.OpWasmI64x2ExtmulLowI32x4S, ssa.OpWasmI64x2ExtmulLowI32x4U,
 		ssa.OpWasmI8x16Ne, ssa.OpWasmI16x8Ne, ssa.OpWasmI32x4Ne,
 		ssa.OpWasmF32x4Ne, ssa.OpWasmI64x2Ne, ssa.OpWasmF64x2Ne,
 		ssa.OpWasmV128Or, ssa.OpWasmI8x16Sub, ssa.OpWasmI16x8Sub,
@@ -103,8 +119,7 @@ func ssaGenSIMDValue(s *ssagen.State, v *ssa.Value, extend bool) bool {
 		getValue128(s, v.Args[0])
 		getValue32(s, v.Args[1])
 		s.Prog(v.Op.Asm())
-	case ssa.OpWasmF32x4RelaxedNmadd, ssa.OpWasmF64x2RelaxedNmadd, ssa.OpWasmV128Bitselect,
-		ssa.OpWasmF32x4RelaxedMadd, ssa.OpWasmF64x2RelaxedMadd:
+	case ssa.OpWasmV128Bitselect:
 		getValue128(s, v.Args[0])
 		getValue128(s, v.Args[1])
 		getValue128(s, v.Args[2])

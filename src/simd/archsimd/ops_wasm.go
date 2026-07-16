@@ -805,15 +805,89 @@ func (x Uint64x2) Mul(y Uint64x2) Uint64x2
 // Asm: F64x2Mul
 func (x Float64x2) Mul(y Float64x2) Float64x2
 
-// MulAdd returns the elementwise multiply-add of x, y, and z.
+// MulWidenHi returns the doubled-width product of respective elements of the upper halves of x and y.
 //
-// Asm: F32x4RelaxedMadd
-func (x Float32x4) MulAdd(y Float32x4, z Float32x4) Float32x4
+//	Result[i] = x[i+8] * y[i+8], for 0 <= i < 8 == |x|/2.
+//
+// Asm: I16x8ExtmulHighI8x16S
+func (x Int8x16) MulWidenHi(y Int8x16) Int16x8
 
-// MulAdd returns the elementwise multiply-add of x, y, and z.
+// MulWidenHi returns the doubled-width product of respective elements of the upper halves of x and y.
 //
-// Asm: F64x2RelaxedMadd
-func (x Float64x2) MulAdd(y Float64x2, z Float64x2) Float64x2
+//	Result[i] = x[i+8] * y[i+8], for 0 <= i < 8 == |x|/2.
+//
+// Asm: I16x8ExtmulHighI8x16U
+func (x Uint8x16) MulWidenHi(y Uint8x16) Uint16x8
+
+// MulWidenHi returns the doubled-width product of respective elements of the upper halves of x and y.
+//
+//	Result[i] = x[i+4] * y[i+4], for 0 <= i < 4 == |x|/2.
+//
+// Asm: I32x4ExtmulHighI16x8S
+func (x Int16x8) MulWidenHi(y Int16x8) Int32x4
+
+// MulWidenHi returns the doubled-width product of respective elements of the upper halves of x and y.
+//
+//	Result[i] = x[i+4] * y[i+4], for 0 <= i < 4 == |x|/2.
+//
+// Asm: I32x4ExtmulHighI16x8U
+func (x Uint16x8) MulWidenHi(y Uint16x8) Uint32x4
+
+// MulWidenHi returns the doubled-width product of respective elements of the upper halves of x and y.
+//
+//	Result[i] = x[i+2] * y[i+2], for 0 <= i < 2 == |x|/2.
+//
+// Asm: I64x2ExtmulHighI32x4S
+func (x Int32x4) MulWidenHi(y Int32x4) Int64x2
+
+// MulWidenHi returns the doubled-width product of respective elements of the upper halves of x and y.
+//
+//	Result[i] = x[i+2] * y[i+2], for 0 <= i < 2 == |x|/2.
+//
+// Asm: I64x2ExtmulHighI32x4U
+func (x Uint32x4) MulWidenHi(y Uint32x4) Uint64x2
+
+// MulWidenLo returns the doubled-width product of respective elements of the lower halves of x and y.
+//
+//	Result[i] = x[i] * y[i], for 0 <= i < 8 == |x|/2.
+//
+// Asm: I16x8ExtmulLowI8x16S
+func (x Int8x16) MulWidenLo(y Int8x16) Int16x8
+
+// MulWidenLo returns the doubled-width product of respective elements of the lower halves of x and y.
+//
+//	Result[i] = x[i] * y[i], for 0 <= i < 8 == |x|/2.
+//
+// Asm: I16x8ExtmulLowI8x16U
+func (x Uint8x16) MulWidenLo(y Uint8x16) Uint16x8
+
+// MulWidenLo returns the doubled-width product of respective elements of the lower halves of x and y.
+//
+//	Result[i] = x[i] * y[i], for 0 <= i < 4 == |x|/2.
+//
+// Asm: I32x4ExtmulLowI16x8S
+func (x Int16x8) MulWidenLo(y Int16x8) Int32x4
+
+// MulWidenLo returns the doubled-width product of respective elements of the lower halves of x and y.
+//
+//	Result[i] = x[i] * y[i], for 0 <= i < 4 == |x|/2.
+//
+// Asm: I32x4ExtmulLowI16x8U
+func (x Uint16x8) MulWidenLo(y Uint16x8) Uint32x4
+
+// MulWidenLo returns the doubled-width product of respective elements of the lower halves of x and y.
+//
+//	Result[i] = x[i] * y[i], for 0 <= i < 2 == |x|/2.
+//
+// Asm: I64x2ExtmulLowI32x4S
+func (x Int32x4) MulWidenLo(y Int32x4) Int64x2
+
+// MulWidenLo returns the doubled-width product of respective elements of the lower halves of x and y.
+//
+//	Result[i] = x[i] * y[i], for 0 <= i < 2 == |x|/2.
+//
+// Asm: I64x2ExtmulLowI32x4U
+func (x Uint32x4) MulWidenLo(y Uint32x4) Uint64x2
 
 // Neg returns the elementwise negation of x.
 //
@@ -1003,82 +1077,82 @@ func (x Mask64x2) Or(y Mask64x2) Mask64x2
 // RotateAllLeft
 //
 // Asm: I8x16RotateAllLeft
-func (x Int8x16) RotateAllLeft(shift uint8) Int8x16
+func (x Int8x16) RotateAllLeft(shift uint64) Int8x16
 
 // RotateAllLeft
 //
 // Asm: I8x16RotateAllLeft
-func (x Uint8x16) RotateAllLeft(shift uint8) Uint8x16
+func (x Uint8x16) RotateAllLeft(shift uint64) Uint8x16
 
 // RotateAllLeft
 //
 // Asm: I16x8RotateAllLeft
-func (x Int16x8) RotateAllLeft(shift uint8) Int16x8
+func (x Int16x8) RotateAllLeft(shift uint64) Int16x8
 
 // RotateAllLeft
 //
 // Asm: I16x8RotateAllLeft
-func (x Uint16x8) RotateAllLeft(shift uint8) Uint16x8
+func (x Uint16x8) RotateAllLeft(shift uint64) Uint16x8
 
 // RotateAllLeft
 //
 // Asm: I32x4RotateAllLeft
-func (x Int32x4) RotateAllLeft(shift uint8) Int32x4
+func (x Int32x4) RotateAllLeft(shift uint64) Int32x4
 
 // RotateAllLeft
 //
 // Asm: I32x4RotateAllLeft
-func (x Uint32x4) RotateAllLeft(shift uint8) Uint32x4
+func (x Uint32x4) RotateAllLeft(shift uint64) Uint32x4
 
 // RotateAllLeft
 //
 // Asm: I64x2RotateAllLeft
-func (x Int64x2) RotateAllLeft(shift uint8) Int64x2
+func (x Int64x2) RotateAllLeft(shift uint64) Int64x2
 
 // RotateAllLeft
 //
 // Asm: I64x2RotateAllLeft
-func (x Uint64x2) RotateAllLeft(shift uint8) Uint64x2
+func (x Uint64x2) RotateAllLeft(shift uint64) Uint64x2
 
 // RotateAllRight
 //
 // Asm: I8x16RotateAllRight
-func (x Int8x16) RotateAllRight(shift uint8) Int8x16
+func (x Int8x16) RotateAllRight(shift uint64) Int8x16
 
 // RotateAllRight
 //
 // Asm: I8x16RotateAllRight
-func (x Uint8x16) RotateAllRight(shift uint8) Uint8x16
+func (x Uint8x16) RotateAllRight(shift uint64) Uint8x16
 
 // RotateAllRight
 //
 // Asm: I16x8RotateAllRight
-func (x Int16x8) RotateAllRight(shift uint8) Int16x8
+func (x Int16x8) RotateAllRight(shift uint64) Int16x8
 
 // RotateAllRight
 //
 // Asm: I16x8RotateAllRight
-func (x Uint16x8) RotateAllRight(shift uint8) Uint16x8
+func (x Uint16x8) RotateAllRight(shift uint64) Uint16x8
 
 // RotateAllRight
 //
 // Asm: I32x4RotateAllRight
-func (x Int32x4) RotateAllRight(shift uint8) Int32x4
+func (x Int32x4) RotateAllRight(shift uint64) Int32x4
 
 // RotateAllRight
 //
 // Asm: I32x4RotateAllRight
-func (x Uint32x4) RotateAllRight(shift uint8) Uint32x4
+func (x Uint32x4) RotateAllRight(shift uint64) Uint32x4
 
 // RotateAllRight
 //
 // Asm: I64x2RotateAllRight
-func (x Int64x2) RotateAllRight(shift uint8) Int64x2
+func (x Int64x2) RotateAllRight(shift uint64) Int64x2
 
 // RotateAllRight
 //
 // Asm: I64x2RotateAllRight
-func (x Uint64x2) RotateAllRight(shift uint8) Uint64x2
+func (x Uint64x2) RotateAllRight(shift uint64) Uint64x2
 
 // Round returns the elementwise nearest integer, rounding ties to even.
 //
@@ -1370,35 +1444,35 @@ func (x Uint64x2) Xor(y Uint64x2) Uint64x2
 // Asm: V128Xor
 func (x Mask64x2) Xor(y Mask64x2) Mask64x2
 
-// ToMask translates a Int8x16 vector to a Mask8x16 mask vector
+// ToMask translates an Int8x16 vector to a Mask8x16 mask vector
 // zero becomes false, not-zero becomes true
 func (x Int8x16) ToMask() Mask8x16
 
-// ToInt8x16 translates a Mask8x16 mask vector to a Int8x16 int vector
+// ToInt8x16 translates a Mask8x16 mask vector to an Int8x16 int vector
 // false becomes zero, true becomes -1
 func (x Mask8x16) ToInt8x16() Int8x16
 
-// ToMask translates a Int16x8 vector to a Mask16x8 mask vector
+// ToMask translates an Int16x8 vector to a Mask16x8 mask vector
 // zero becomes false, not-zero becomes true
 func (x Int16x8) ToMask() Mask16x8
 
-// ToInt16x8 translates a Mask16x8 mask vector to a Int16x8 int vector
+// ToInt16x8 translates a Mask16x8 mask vector to an Int16x8 int vector
 // false becomes zero, true becomes -1
 func (x Mask16x8) ToInt16x8() Int16x8
 
-// ToMask translates a Int32x4 vector to a Mask32x4 mask vector
+// ToMask translates an Int32x4 vector to a Mask32x4 mask vector
 // zero becomes false, not-zero becomes true
 func (x Int32x4) ToMask() Mask32x4
 
-// ToInt32x4 translates a Mask32x4 mask vector to a Int32x4 int vector
+// ToInt32x4 translates a Mask32x4 mask vector to an Int32x4 int vector
 // false becomes zero, true becomes -1
 func (x Mask32x4) ToInt32x4() Int32x4
 
-// ToMask translates a Int64x2 vector to a Mask64x2 mask vector
+// ToMask translates an Int64x2 vector to a Mask64x2 mask vector
 // zero becomes false, not-zero becomes true
 func (x Int64x2) ToMask() Mask64x2
 
-// ToInt64x2 translates a Mask64x2 mask vector to a Int64x2 int vector
+// ToInt64x2 translates a Mask64x2 mask vector to an Int64x2 int vector
 // false becomes zero, true becomes -1
 func (x Mask64x2) ToInt64x2() Int64x2
 

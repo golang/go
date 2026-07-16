@@ -169,6 +169,11 @@ func newIPNetConstraints(l []*net.IPNet) interface {
 	}
 	var ipv4, ipv6 []*net.IPNet
 	for _, n := range l {
+		// Subtrees may carry non-zero host bits. Sort and search need the masked
+		// network address, so use a copy and leave the parsed constraint as encoded.
+		if masked := n.IP.Mask(n.Mask); masked != nil && !masked.Equal(n.IP) {
+			n = &net.IPNet{IP: masked, Mask: n.Mask}
+		}
 		if len(n.IP) == net.IPv4len {
 			ipv4 = append(ipv4, n)
 		} else {

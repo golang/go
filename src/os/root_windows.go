@@ -119,7 +119,9 @@ func newRoot(fd syscall.Handle, name string) (*Root, error) {
 
 // openRootInRoot is Root.OpenRoot.
 func openRootInRoot(r *Root, name string) (*Root, error) {
-	fd, err := doInRoot(r, name, nil, rootOpenDir)
+	fd, err := doInRoot(r, name, 0, nil, func(parent syscall.Handle, name string, endsInSlash bool) (syscall.Handle, error) {
+		return rootOpenDir(parent, name)
+	})
 	if err != nil {
 		return nil, &PathError{Op: "openat", Path: name, Err: err}
 	}
@@ -128,7 +130,10 @@ func openRootInRoot(r *Root, name string) (*Root, error) {
 
 // rootOpenFileNolog is Root.OpenFile.
 func rootOpenFileNolog(root *Root, name string, flag int, perm FileMode) (*File, error) {
-	fd, err := doInRoot(root, name, nil, func(parent syscall.Handle, name string) (syscall.Handle, error) {
+	fd, err := doInRoot(root, name, doInRootNoHandleTerminalSlash, nil, func(parent syscall.Handle, name string, endsInSlash bool) (syscall.Handle, error) {
+		if endsInSlash {
+			flag |= windows.O_DIRECTORY
+		}
 		return openat(parent, name, uint64(flag), perm)
 	})
 	if err != nil {
@@ -204,15 +209,16 @@ func rootOpenDir(parent syscall.Handle, name string) (syscall.Handle, error) {
 }
 
 func rootStat(r *Root, name string, lstat bool) (FileInfo, error) {
-	if len(name) > 0 && IsPathSeparator(name[len(name)-1]) {
-		// When a filename ends with a path separator,
-		// Lstat behaves like Stat.
+	var flags uint
+	if lstat {
+		// Follow symlinks in the last path component when the path
+		// ends with a path separator.
 		//
-		// This behavior is not based on a principled decision here,
-		// merely the empirical evidence that Lstat behaves this way.
-		lstat = false
+		// This is not the usual behavior for Windows path resolution,
+		// but empirically os.Lstat behaves this way.
+		flags = doInRootAlwaysResolveTerminalSlash
 	}
-	fi, err := doInRoot(r, name, nil, func(parent syscall.Handle, n string) (FileInfo, error) {
+	fi, err := doInRoot(r, name, flags, nil, func(parent syscall.Handle, n string, endsInSlash bool) (FileInfo, error) {
 		fd, err := openat(parent, n, windows.O_FILE_FLAG_OPEN_REPARSE_POINT, 0)
 		if err != nil {
 			return nil, err
@@ -241,6 +247,10 @@ func rootSymlink(r *Root, oldname, newname string) error {
 	if oldname == "" {
 		return syscall.EINVAL
 	}
+
+	// Windows treats / and \ as equivalent almost everywhere, but not in symlink targets.
+	// Match os.Symlink behavior and convert / to \.
+	oldname = filepathlite.FromSlash(oldname)
 
 	// CreateSymbolicLinkW converts volume-relative paths into absolute ones.
 	// Do the same.
@@ -274,7 +284,7 @@ func rootSymlink(r *Root, oldname, newname string) error {
 		flags |= windows.SYMLINKAT_RELATIVE
 	}
 
-	_, err := doInRoot(r, newname, nil, func(parent sysfdType, name string) (struct{}, error) {
+	_, err := doInRoot(r, newname, 0, nil, func(parent sysfdType, name string, endsInSlash bool) (struct{}, error) {
 		return struct{}{}, windows.Symlinkat(oldname, parent, name, flags)
 	})
 	if err != nil {
@@ -381,6 +391,18 @@ func linkat(oldfd syscall.Handle, oldname string, newfd syscall.Handle, newname 
 	return windows.Linkat(oldfd, oldname, newfd, newname)
 }
 
+// checkSymlink resolves the symlink name in parent,
+// and returns errSymlink with the link contents.
+//
+// If name is not a symlink, return origError.
+func checkSymlink(parent syscall.Handle, name string, origError error) error {
+	link, err := readlinkat(parent, name)
+	if err != nil {
+		return origError
+	}
+	return errSymlink(link)
+}
+
 func readlinkat(dirfd syscall.Handle, name string) (string, error) {
 	fd, err := openat(dirfd, name, windows.O_FILE_FLAG_OPEN_REPARSE_POINT, 0)
 	if err != nil {
@@ -390,15 +412,23 @@ func readlinkat(dirfd syscall.Handle, name string) (string, error) {
 	return readReparseLinkHandle(fd)
 }
 
-func modeAt(parent syscall.Handle, name string) (FileMode, error) {
-	fd, err := openat(parent, name, windows.O_FILE_FLAG_OPEN_REPARSE_POINT|windows.O_DIRECTORY, 0)
+func lstatat(parent syscall.Handle, name string) (FileInfo, error) {
+	fd, err := openat(parent, name, windows.O_FILE_FLAG_OPEN_REPARSE_POINT, 0)
 	if err != nil {
-		return 0, err
+		return nil, err
 	}
 	defer syscall.CloseHandle(fd)
 	fi, err := statHandle(name, fd)
 	if err != nil {
-		return 0, err
+		return nil, err
 	}
-	return fi.Mode(), nil
+	return fi, nil
+}
+
+// isDirectoryLink reports whether fi (assumed to be a symlink) is a directory link.
+// Windows symlinks come in two flavors: file and directory. This function distinguishes
+// between the two.
+func isDirectoryLink(fi FileInfo) bool {
+	fs, ok := fi.(*fileStat)
+	return ok && fs.FileAttributes&syscall.FILE_ATTRIBUTE_DIRECTORY != 0
 }

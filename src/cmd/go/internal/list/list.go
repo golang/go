@@ -719,7 +719,22 @@ func runList(ctx context.Context, cmd *base.Command, args []string) {
 
 	// Do we need to run a build to gather information?
 	needStale := (listJson && listJsonFields.needAny("Stale", "StaleReason")) || strings.Contains(*listFmt, ".Stale")
-	if needStale || *listExport || *listCompiled {
+	var buildPkgs []*load.Package
+	if needStale || *listExport || (*listCompiled && cfg.BuildCover) {
+		buildPkgs = pkgs
+	} else if *listCompiled {
+		// In the non-cover case, for pure-Go packages, package loading already knows the complete set
+		// of files passed to the compiler, so no build action is needed.
+		for _, p := range pkgs {
+			if p.UsesCgo() || p.UsesSwig() {
+				// Keep using the builder for packages that generate Go sources.
+				buildPkgs = append(buildPkgs, p)
+				continue
+			}
+			p.CompiledGoFiles = str.StringList(p.GoFiles)
+		}
+	}
+	if len(buildPkgs) > 0 {
 		b := work.NewBuilder("", moduleLoader.VendorDirOrEmpty)
 		if *listE {
 			b.AllowErrors = true
@@ -738,7 +753,7 @@ func runList(ctx context.Context, cmd *base.Command, args []string) {
 		}
 		a := &work.Action{}
 		// TODO: Use pkgsFilter?
-		for _, p := range pkgs {
+		for _, p := range buildPkgs {
 			if len(p.GoFiles)+len(p.CgoFiles) > 0 {
 				a.Deps = append(a.Deps, b.AutoAction(moduleLoader, work.ModeInstall, work.ModeInstall, p))
 			}

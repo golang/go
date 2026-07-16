@@ -206,6 +206,10 @@ func sysAllocOS(n uintptr, _ string) unsafe.Pointer {
 }
 
 func sysFreeOS(v unsafe.Pointer, n uintptr) {
+	if v == nil {
+		// A failed sysReserveOS returns nil, so freeing it is a no-op.
+		return
+	}
 	systemstack(func() {
 		lock(&memlock)
 		if uintptr(v)+n == bloc {

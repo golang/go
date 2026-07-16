@@ -427,21 +427,21 @@ func TestDecodeInStream(t *testing.T) {
 		{CaseName: Name(""), json: ` [{"a": 1} {"a": 2}] `, expTokens: []any{
 			Delim('['),
 			decodeThis{map[string]any{"a": float64(1)}},
-			decodeThis{&SyntaxError{"invalid character '{' after array element", len64(` [{"a": 1} `)}},
+			decodeThis{&SyntaxError{"invalid character '{' after array element", len64(` [{"a": 1} {`)}},
 		}},
 		{CaseName: Name(""), json: `{ "` + strings.Repeat("a", 513) + `" 1 }`, expTokens: []any{
 			Delim('{'), strings.Repeat("a", 513),
-			decodeThis{&SyntaxError{"invalid character '1' after object key", len64(`{ "` + strings.Repeat("a", 513) + `" `)}},
+			decodeThis{&SyntaxError{"invalid character '1' after object key", len64(`{ "`) + 513 + len64(`" 1`)}},
 		}},
 		{CaseName: Name(""), json: `{ "\a" }`, expTokens: []any{
 			Delim('{'),
-			&SyntaxError{"invalid escape sequence `\\a` in string", len64(`{ "`)},
+			&SyntaxError{"invalid escape sequence `\\a` in string", len64(`{ "\a`)},
 		}},
 		{CaseName: Name(""), json: ` \a`, expTokens: []any{
-			&SyntaxError{"invalid character '\\\\' looking for beginning of value", len64(` `)},
+			&SyntaxError{"invalid character '\\\\' looking for beginning of value", len64(` \`)},
 		}},
 		{CaseName: Name(""), json: `,`, expTokens: []any{
-			&SyntaxError{"invalid character ',' looking for beginning of value", 0},
+			&SyntaxError{"invalid character ',' looking for beginning of value", len64(`,`)},
 		}},
 	}
 	for _, tt := range tests {
@@ -468,7 +468,7 @@ func TestDecodeInStream(t *testing.T) {
 				}
 				if errWant, ok := want.(error); ok {
 					if err == nil || !reflect.DeepEqual(err, errWant) {
-						t.Fatalf("%s:\n\tinput: %s\n\tgot error:  %v\n\twant error: %v", tt.Where, tt.json, err, errWant)
+						t.Fatalf("%s:\n\tinput: %s\n\tgot error:  %#v\n\twant error: %#v", tt.Where, tt.json, err, errWant)
 					}
 					break
 				} else if err != nil {
@@ -526,18 +526,18 @@ func TestTokenError(t *testing.T) {
 		{in: `{"`, err: io.ErrUnexpectedEOF},
 		{in: `{"k"`, err: io.EOF},
 		{in: `{"k":`, err: io.EOF},
-		{in: `{"k",`, err: &SyntaxError{"invalid character ',' after object key", int64(len(`{"k"`))}},
-		{in: `{"k"}`, err: &SyntaxError{"invalid character '}' after object key", int64(len(`{"k"`))}},
+		{in: `{"k",`, err: &SyntaxError{"invalid character ',' after object key", len64(`{"k",`)}},
+		{in: `{"k"}`, err: &SyntaxError{"invalid character '}' after object key", len64(`{"k"}`)}},
 		{in: ` [0`, err: io.EOF},
 		{in: `[0.`, err: io.ErrUnexpectedEOF},
-		{in: `[0. `, err: &SyntaxError{"invalid character ' ' in numeric literal", int64(len(`[0.`))}},
+		{in: `[0. `, err: &SyntaxError{"invalid character ' ' in numeric literal", len64(`[0. `)}},
 		{in: `[0,`, err: io.EOF},
-		{in: `[0:`, err: &SyntaxError{"invalid character ':' after array element", int64(len(`[0`))}},
+		{in: `[0:`, err: &SyntaxError{"invalid character ':' after array element", len64(`[0:`)}},
 		{in: `n`, err: io.ErrUnexpectedEOF},
 		{in: `nul`, err: io.ErrUnexpectedEOF},
-		{in: `fal `, err: &SyntaxError{"invalid character ' ' in literal false (expecting 's')", int64(len(`fal`))}},
+		{in: `fal `, err: &SyntaxError{"invalid character ' ' in literal false (expecting 's')", len64(`fal `)}},
 		{in: `false`, err: io.EOF},
-		{in: `  1e1000`, err: &UnmarshalTypeError{Value: "number 1e1000", Type: reflect.TypeFor[float64](), Offset: int64(len(`  `))}},
+		{in: `  1e1000`, err: &UnmarshalTypeError{Value: "number 1e1000", Type: reflect.TypeFor[float64](), Offset: len64(`  1e1000`)}},
 	}
 	for _, tt := range tests {
 		d := NewDecoder(strings.NewReader(tt.in))
@@ -614,6 +614,38 @@ func TestDecoderInputOffset(t *testing.T) {
 	if len(wantOffsets)+len(wantMores) > 0 {
 		t.Fatal("unconsumed testdata")
 	}
+
+	t.Run("ArrayEOF", func(t *testing.T) {
+		d := NewDecoder(strings.NewReader(` [ "fizz" , `))
+		for {
+			if _, err := d.Token(); err == io.EOF {
+				break
+			} else if err != nil {
+				t.Fatalf("Token error: %v", err)
+			}
+		}
+		got := d.InputOffset()
+		want := len64(` [ "fizz" ,`)
+		if got != want {
+			t.Errorf("InputOffset = %v, want %v", got, want)
+		}
+	})
+
+	t.Run("ObjectEOF", func(t *testing.T) {
+		d := NewDecoder(strings.NewReader(` { "fizz" : `))
+		for {
+			if _, err := d.Token(); err == io.EOF {
+				break
+			} else if err != nil {
+				t.Fatalf("Token error: %v", err)
+			}
+		}
+		got := d.InputOffset()
+		want := len64(` { "fizz" :`)
+		if got != want {
+			t.Errorf("InputOffset = %v, want %v", got, want)
+		}
+	})
 }
 
 func TestDecoderMaxBytesError(t *testing.T) {

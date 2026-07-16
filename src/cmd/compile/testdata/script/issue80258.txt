@@ -1,0 +1,25 @@
+go build main.go
+! stdout .
+! stderr .
+
+-- main.go --
+package main
+
+import "m/p"
+
+func main() {
+    var _ p.T
+}
+
+-- go.mod --
+module m
+
+go 1.27
+
+-- p/p.go --
+
+package p
+
+type T int
+
+func (T) M[P T]() {}

@@ -45,26 +45,3 @@ rm $GOPATH/pkg/mod/cache/download/sumdb
 stderr 'panic: use of network' # test catches network access
 env GOSUMDB=$oldsumdb
 
-# Test a real GOTOOLCHAIN
-[short] skip
-[!net:golang.org] skip
-[!net:sum.golang.org] skip
-[!GOOS:darwin] [!GOOS:windows] [!GOOS:linux] skip
-[!GOARCH:amd64] [!GOARCH:arm64] skip
-
-env GOPROXY=
-[go-builder] env GOSUMDB=
-[!go-builder] env GOSUMDB=sum.golang.org  # Set explicitly in case GOROOT/go.env is modified.
-env GOTOOLCHAIN=go1.20.1
-
-	# Avoid resolving a "go1.20.1" from the user's real $PATH.
-	# That would not only cause the "downloading go1.20.1" message
-	# to be suppressed, but may spuriously fail:
-	# golang.org/dl/go1.20.1 expects to find its GOROOT in $HOME/sdk,
-	# but the script environment sets HOME=/no-home.
-env PATH=
-env path=
-
-go version
-stderr '^go: downloading go1.20.1 '
-stdout go1.20.1

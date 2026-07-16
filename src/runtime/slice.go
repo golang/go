@@ -480,10 +480,11 @@ func moveSliceNoCap(et *_type, old unsafe.Pointer, len int) (unsafe.Pointer, int
 	}
 	lenmem := uintptr(len) * et.Size_
 	capmem := roundupsize(lenmem, false)
-	new := mallocgc(capmem, et, true)
+	cap := capmem / et.Size_
+	new := mallocgc(cap*et.Size_, et, true)
 	bulkBarrierPreWriteSrcOnly(uintptr(new), uintptr(old), lenmem, et)
 	memmove(new, old, lenmem)
-	return new, len, int(capmem / et.Size_)
+	return new, len, int(cap)
 }
 
 // moveSliceNoCapNoScan is a combination of moveSliceNoScan and moveSliceNoCap.

@@ -226,7 +226,7 @@ func getgFromTLS(s *ssagen.State, r int16) {
 
 func ssaGenValue(s *ssagen.State, v *ssa.Value) {
 	switch v.Op {
-	case ssa.OpAMD64VFMADD231SD, ssa.OpAMD64VFMADD231SS:
+	case ssa.OpAMD64VFMADD231SD, ssa.OpAMD64VFMADD231SS, ssa.OpAMD64VFMSUB231SD, ssa.OpAMD64VFMSUB231SS:
 		p := s.Prog(v.Op.Asm())
 		p.From = obj.Addr{Type: obj.TYPE_REG, Reg: v.Args[2].Reg()}
 		p.To = obj.Addr{Type: obj.TYPE_REG, Reg: v.Reg()}
@@ -312,15 +312,6 @@ func ssaGenValue(s *ssagen.State, v *ssa.Value) {
 		p.To.Type = obj.TYPE_REG
 		p.To.Reg = v.Reg()
 		p.From.Reg = x86.REG_X15
-
-	case ssa.OpAMD64SHRDQ, ssa.OpAMD64SHLDQ:
-		p := s.Prog(v.Op.Asm())
-		lo, hi, bits := v.Args[0].Reg(), v.Args[1].Reg(), v.Args[2].Reg()
-		p.From.Type = obj.TYPE_REG
-		p.From.Reg = bits
-		p.To.Type = obj.TYPE_REG
-		p.To.Reg = lo
-		p.AddRestSourceReg(hi)
 
 	case ssa.OpAMD64BLSIQ, ssa.OpAMD64BLSIL,
 		ssa.OpAMD64BLSMSKQ, ssa.OpAMD64BLSMSKL,
@@ -748,25 +739,9 @@ func ssaGenValue(s *ssagen.State, v *ssa.Value) {
 		ssa.OpAMD64LEAW1, ssa.OpAMD64LEAW2, ssa.OpAMD64LEAW4, ssa.OpAMD64LEAW8:
 		p := s.Prog(v.Op.Asm())
 		memIdx(&p.From, v)
-		o := v.Reg()
-		p.To.Type = obj.TYPE_REG
-		p.To.Reg = o
-		if v.AuxInt != 0 && v.Aux == nil {
-			// Emit an additional LEA to add the displacement instead of creating a slow 3 operand LEA.
-			switch v.Op {
-			case ssa.OpAMD64LEAQ1, ssa.OpAMD64LEAQ2, ssa.OpAMD64LEAQ4, ssa.OpAMD64LEAQ8:
-				p = s.Prog(x86.ALEAQ)
-			case ssa.OpAMD64LEAL1, ssa.OpAMD64LEAL2, ssa.OpAMD64LEAL4, ssa.OpAMD64LEAL8:
-				p = s.Prog(x86.ALEAL)
-			case ssa.OpAMD64LEAW1, ssa.OpAMD64LEAW2, ssa.OpAMD64LEAW4, ssa.OpAMD64LEAW8:
-				p = s.Prog(x86.ALEAW)
-			}
-			p.From.Type = obj.TYPE_MEM
-			p.From.Reg = o
-			p.To.Type = obj.TYPE_REG
-			p.To.Reg = o
-		}
 		ssagen.AddAux(&p.From, v)
+		p.To.Type = obj.TYPE_REG
+		p.To.Reg = v.Reg()
 	case ssa.OpAMD64LEAQ, ssa.OpAMD64LEAL, ssa.OpAMD64LEAW:
 		p := s.Prog(v.Op.Asm())
 		p.From.Type = obj.TYPE_MEM
@@ -2102,6 +2077,15 @@ func simdVgpvImm8(s *ssagen.State, v *ssa.Value) *obj.Prog {
 	p.To.Reg = simdReg(v)
 	return p
 }
+func simdVgpvImm(s *ssagen.State, v *ssa.Value) *obj.Prog {
+	// within simdgen, the choice of intrinsic shape and the output
+	// intruction format are linked.  In the case of VgpImm, there is
+	// a difference in the intrinsic, but no difference in the
+	// instruction, it is just like VgpvImm8.
+	//
+	// See also, simdVgpImm and simdVgpImm8
+	return simdVgpvImm8(s, v)
+}
 
 // Example instruction: VPCMPD $1, Z1, Z2, K1
 func simdV2kImm8(s *ssagen.State, v *ssa.Value) *obj.Prog {
@@ -2202,6 +2186,14 @@ func simdVgpImm8(s *ssagen.State, v *ssa.Value) *obj.Prog {
 	p.To.Type = obj.TYPE_REG
 	p.To.Reg = v.Reg()
 	return p
+}
+
+func simdVgpImm(s *ssagen.State, v *ssa.Value) *obj.Prog {
+	// within simdgen, the choice of intrinsic shape and the output
+	// intruction format are linked.  In the case of VgpImm, there is
+	// a difference in the intrinsic, but no difference in the
+	// instruction, it is just like VgpImm8.
+	return simdVgpImm8(s, v)
 }
 
 // Currently unused

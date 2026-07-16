@@ -35,7 +35,7 @@ import (
 //
 //	opt := Options{"Deterministic": true}
 //
-// [JoinOptions] composes multiple options values to together:
+// [JoinOptions] composes multiple options values together:
 //
 //	out := JoinOptions(opts...)
 //
@@ -48,7 +48,7 @@ import (
 //		}
 //	}
 //
-// [GetOption] looks up the value of options parameter:
+// [GetOption] looks up the value of an options parameter:
 //
 //	v, ok := GetOption(opts, Deterministic)
 //
@@ -82,6 +82,7 @@ func JoinOptions(srcs ...Options) Options {
 
 // GetOption returns the value stored in opts with the provided setter,
 // reporting whether the value is present.
+// If not present, the returned value is the zero value for type T.
 //
 // Example usage:
 //
@@ -102,10 +103,19 @@ func DefaultOptionsV2() Options {
 	return &jsonopts.DefaultOptionsV2
 }
 
-// StringifyNumbers specifies that numeric Go types should be marshaled
-// as a JSON string containing the equivalent JSON number value.
-// When unmarshaling, numeric Go types are parsed from a JSON string
+// StringifyNumbers specifies that types that would normally be
+// encoded as a JSON number to instead be encoded as a JSON string
+// containing the equivalent JSON number value.
+// When unmarshaling, the value is parsed from a JSON string
 // containing the JSON number without any surrounding whitespace.
+//
+// When the `string` tag option is specified on a Go struct field,
+// this option is applied for the top-level JSON value for that field.
+// Unless StringifyNumbers was applied globally, the option does not
+// recursively apply to nested JSON numbers within a JSON object or array.
+// A Go type with custom marshal/unmarshal that represents a JSON number
+// should respect the StringifyNumbers option and if specified
+// serialize as a JSON number within a JSON string.
 //
 // According to RFC 8259, section 6, a JSON implementation may choose to
 // limit the representation of a JSON number to an IEEE 754 binary64 value.
@@ -179,14 +189,25 @@ func OmitZeroStructFields(v bool) Options {
 
 // MatchCaseInsensitiveNames specifies that JSON object members are matched
 // against Go struct fields using a case-insensitive match of the name.
+// If a name matches multiple fields, it chooses the field with an exact
+// match of the name, otherwise it reports an error.
 // Go struct fields explicitly marked with `case:strict` or `case:ignore`
 // always use case-sensitive (or case-insensitive) name matching,
 // regardless of the value of this option.
 //
 // This affects either marshaling or unmarshaling.
-// For marshaling, this option may alter the detection of duplicate names
-// (assuming [jsontext.AllowDuplicateNames] is false) from inlined fields
-// if it matches one of the declared fields in the Go struct.
+//
+// By matching names in a case-insensitive manner, it also affects the detection
+// of duplicate names (assuming [jsontext.AllowDuplicateNames] is false) since
+// variations of the same name may match the same Go struct field.
+// For example, when unmarshaling, the names "foo" and "Foo" may both
+// match the same Go struct field and therefore be considered a duplicate name.
+// When marshaling, normally it is impossible for any two Go struct fields to
+// serialize in a way where they unmarshal into the same Go struct field
+// since they all have unique exact names.
+// However, with the use of an embedded fallback, it is possible for the
+// embedded fallback to contain a name that also matches the name for
+// a Go struct field, resulting in a duplicate name error.
 func MatchCaseInsensitiveNames(v bool) Options {
 	if v {
 		return jsonflags.MatchCaseInsensitiveNames | 1

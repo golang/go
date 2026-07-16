@@ -29,6 +29,12 @@ func time_runtimeNow() (sec int64, nsec int32, mono int64) {
 	return time_now()
 }
 
+//go:linkname crypto_internal_fips140deps_time_monoTime crypto/internal/fips140deps/time.monoTime
+func crypto_internal_fips140deps_time_monoTime() (mono int64) {
+	_, _, mono = time_now()
+	return mono
+}
+
 //go:linkname time_runtimeNano time.runtimeNano
 func time_runtimeNano() int64 {
 	gp := getg()
@@ -1223,7 +1229,7 @@ func (t *timer) unlockAndRun(now int64, bubble *synctestBubble) {
 	}
 }
 
-// verifyTimerHeap verifies that the timers is in a valid state.
+// verify verifies that the timer heap is in a valid state.
 // This is only for debugging, and is only called if verifyTimers is true.
 // The caller must have locked ts.
 func (ts *timers) verify() {

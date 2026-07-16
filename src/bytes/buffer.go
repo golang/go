@@ -311,9 +311,9 @@ func (b *Buffer) WriteByte(c byte) error {
 }
 
 // WriteRune appends the UTF-8 encoding of Unicode code point r to the
-// buffer, returning its length and an error, which is always nil but is
-// included to match [bufio.Writer]'s WriteRune. The buffer is grown as needed;
-// if it becomes too large, WriteRune will panic with [ErrTooLarge].
+// buffer, returning the number of bytes written and a nil error. The nil
+// error is included to match [bufio.Writer]'s WriteRune. The buffer is grown
+// as needed; if it becomes too large, WriteRune will panic with [ErrTooLarge].
 func (b *Buffer) WriteRune(r rune) (n int, err error) {
 	// Compare as uint32 to correctly handle negative runes.
 	if uint32(r) < utf8.RuneSelf {

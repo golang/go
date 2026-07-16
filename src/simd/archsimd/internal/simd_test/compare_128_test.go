@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-//go:build goexperiment.simd && wasm
+//go:build goexperiment.simd && (amd64 || wasm || arm64)
 
 package simd_test
 
@@ -22,7 +22,7 @@ func TestLess(t *testing.T) {
 
 	testUint16x8Compare(t, archsimd.Uint16x8.Less, lessSlice[uint16])
 	testUint32x4Compare(t, archsimd.Uint32x4.Less, lessSlice[uint32])
-	// testUint64x2Compare(t, archsimd.Uint64x2.Less, lessSlice[uint64])
+	testUint64x2Compare(t, archsimd.Uint64x2.Less, lessSlice[uint64])
 	testUint8x16Compare(t, archsimd.Uint8x16.Less, lessSlice[uint8])
 }
 
@@ -37,7 +37,7 @@ func TestLessEqual(t *testing.T) {
 
 	testUint16x8Compare(t, archsimd.Uint16x8.LessEqual, lessEqualSlice[uint16])
 	testUint32x4Compare(t, archsimd.Uint32x4.LessEqual, lessEqualSlice[uint32])
-	// testUint64x2Compare(t, archsimd.Uint64x2.LessEqual, lessEqualSlice[uint64])
+	testUint64x2Compare(t, archsimd.Uint64x2.LessEqual, lessEqualSlice[uint64])
 	testUint8x16Compare(t, archsimd.Uint8x16.LessEqual, lessEqualSlice[uint8])
 }
 
@@ -52,7 +52,7 @@ func TestGreater(t *testing.T) {
 
 	testUint16x8Compare(t, archsimd.Uint16x8.Greater, greaterSlice[uint16])
 	testUint32x4Compare(t, archsimd.Uint32x4.Greater, greaterSlice[uint32])
-	// testUint64x2Compare(t, archsimd.Uint64x2.Greater, greaterSlice[uint64])
+	testUint64x2Compare(t, archsimd.Uint64x2.Greater, greaterSlice[uint64])
 	testUint8x16Compare(t, archsimd.Uint8x16.Greater, greaterSlice[uint8])
 }
 
@@ -67,7 +67,7 @@ func TestGreaterEqual(t *testing.T) {
 
 	testUint16x8Compare(t, archsimd.Uint16x8.GreaterEqual, greaterEqualSlice[uint16])
 	testUint32x4Compare(t, archsimd.Uint32x4.GreaterEqual, greaterEqualSlice[uint32])
-	// testUint64x2Compare(t, archsimd.Uint64x2.GreaterEqual, greaterEqualSlice[uint64])
+	testUint64x2Compare(t, archsimd.Uint64x2.GreaterEqual, greaterEqualSlice[uint64])
 	testUint8x16Compare(t, archsimd.Uint8x16.GreaterEqual, greaterEqualSlice[uint8])
 }
 
@@ -118,3 +118,77 @@ func TestNotEqual(t *testing.T) {
 // 			return x.IsNaN().Or(y.IsNaN())
 // 		}, want64)
 // }
+
+func TestMasked(t *testing.T) {
+	// Test Masked for Int8x16
+	forSlicePair(t, int8s, 16, func(x, y []int8) bool {
+		t.Helper()
+		a := archsimd.LoadInt8x16(x)
+		mask := archsimd.LoadInt8x16(y).Greater(archsimd.Int8x16{}) // mask: y > 0
+		g := make([]int8, 16)
+		a.Masked(mask).Store(g)
+		w := make([]int8, 16)
+		for i := range w {
+			if y[i] > 0 {
+				w[i] = x[i]
+			}
+		}
+		return checkSlicesLogInput(t, g, w, 0.0, func() { t.Helper(); t.Logf("x=%v, y=%v", x, y) })
+	})
+
+	// Test Masked for Float64x2
+	forSlicePair(t, float64s, 2, func(x, y []float64) bool {
+		t.Helper()
+		a := archsimd.LoadFloat64x2(x)
+		mask := archsimd.LoadFloat64x2(y).Greater(archsimd.Float64x2{}) // mask: y > 0
+		g := make([]float64, 2)
+		a.Masked(mask).Store(g)
+		w := make([]float64, 2)
+		for i := range w {
+			if y[i] > 0 {
+				w[i] = x[i]
+			}
+		}
+		return checkSlicesLogInput(t, g, w, 0.0, func() { t.Helper(); t.Logf("x=%v, y=%v", x, y) })
+	})
+}
+
+func TestIfElse(t *testing.T) {
+	// Test Merge for Int8x16
+	forSliceTriple(t, int8s, 16, func(x, y, m []int8) bool {
+		t.Helper()
+		a := archsimd.LoadInt8x16(x)
+		b := archsimd.LoadInt8x16(y)
+		mask := archsimd.LoadInt8x16(m).Greater(archsimd.Int8x16{}) // mask: m > 0
+		g := make([]int8, 16)
+		a.IfElse(mask, b).Store(g)
+		w := make([]int8, 16)
+		for i := range w {
+			if m[i] > 0 {
+				w[i] = x[i]
+			} else {
+				w[i] = y[i]
+			}
+		}
+		return checkSlicesLogInput(t, g, w, 0.0, func() { t.Helper(); t.Logf("x=%v, y=%v, m=%v", x, y, m) })
+	})
+
+	// Test Merge for Float32x4
+	forSliceTriple(t, float32s, 4, func(x, y, m []float32) bool {
+		t.Helper()
+		a := archsimd.LoadFloat32x4(x)
+		b := archsimd.LoadFloat32x4(y)
+		mask := archsimd.LoadFloat32x4(m).Greater(archsimd.Float32x4{}) // mask: m > 0
+		g := make([]float32, 4)
+		a.IfElse(mask, b).Store(g)
+		w := make([]float32, 4)
+		for i := range w {
+			if m[i] > 0 {
+				w[i] = x[i]
+			} else {
+				w[i] = y[i]
+			}
+		}
+		return checkSlicesLogInput(t, g, w, 0.0, func() { t.Helper(); t.Logf("x=%v, y=%v, m=%v", x, y, m) })
+	})
+}

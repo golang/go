@@ -9,6 +9,7 @@ package simd_test
 import (
 	"fmt"
 	"math"
+	"reflect"
 	"simd/archsimd/internal/test_helpers"
 	"testing"
 	"unsafe"
@@ -291,4 +292,73 @@ func forSlicePairMasked[T number](t *testing.T, s []T, n int, f func(a, b []T, m
 //go:noinline
 func hideConst[T number](x T) T {
 	return x
+}
+
+func testStorePartRV[T number, V any](t *testing.T, name string, n int, val V, storePart func(v V, s []T) int) {
+	t.Helper()
+	// empty slice
+	{
+		s := make([]T, 0)
+		rv := storePart(val, s)
+		if rv != 0 {
+			t.Errorf("%s: StorePart on empty slice returned %d, expected 0", name, rv)
+		}
+	}
+
+	// single-element slice
+	{
+		s := make([]T, 1)
+		rv := storePart(val, s)
+		if rv != 1 {
+			t.Errorf("%s: StorePart on 1-element slice returned %d, expected 1", name, rv)
+		}
+	}
+
+	// longer-than-vector slice
+	{
+		s := make([]T, n+5)
+		rv := storePart(val, s)
+		if rv != n {
+			t.Errorf("%s: StorePart on %d-element slice (longer than %d) returned %d, expected %d", name, n+5, n, rv, n)
+		}
+	}
+}
+
+type HasLenAndStorePart[T number] interface {
+	StorePart(s []T) int
+	Len() int
+}
+
+func testStorePartReturnValue[T number, V HasLenAndStorePart[T]](t *testing.T) {
+	t.Helper()
+	var v V
+	n := v.Len()
+	name := reflect.TypeOf(v).Name()
+	// empty slice
+	{
+		s := make([]T, 0)
+		rv := v.StorePart(s)
+		if rv != 0 {
+			t.Errorf("%s: StorePart on empty slice returned %d, expected 0", name, rv)
+		}
+	}
+
+	// single-element slice
+	{
+		s := make([]T, 1)
+		rv := v.StorePart(s)
+		if rv != 1 {
+			t.Errorf("%s: StorePart on 1-element slice returned %d, expected 1", name, rv)
+		}
+	}
+
+	// longer-than-vector slice
+	{
+		s := make([]T, n+5)
+		rv := v.StorePart(s)
+		if rv != n {
+			t.Errorf("%s: StorePart on %d-element slice (longer than %d) returned %d, expected %d", name, n+5, n, rv, n)
+		}
+	}
+	t.Logf("tested %s", name)
 }

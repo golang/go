@@ -9,7 +9,6 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
-	"fmt"
 	"internal/goexperiment"
 	"io"
 	"log/slog/internal/buffer"
@@ -54,6 +53,39 @@ func TestJSONHandler(t *testing.T) {
 	}
 }
 
+func TestJSONHandlerMarshalerEscaping(t *testing.T) {
+	var buf bytes.Buffer
+	h := NewJSONHandler(&buf, nil)
+	r := NewRecord(testTime, LevelInfo, "m", 0)
+	r.AddAttrs(Any("m", jsonMarshaler{marshalerASCII}))
+	if err := h.Handle(t.Context(), r); err != nil {
+		t.Fatal(err)
+	}
+	got := bytes.TrimSuffix(buf.Bytes(), []byte{'\n'})
+	if !json.Valid(got) {
+		t.Fatalf("output is not valid JSON: %q", got)
+	}
+	for _, escaped := range []string{`\"`, `\\`, `\t`, `\n`, `\u0000`} {
+		if !bytes.Contains(got, []byte(escaped)) {
+			t.Errorf("output %q does not contain JSON escape %q", got, escaped)
+		}
+	}
+	for i := byte(0); i < 0x20; i++ {
+		if bytes.IndexByte(got, i) >= 0 {
+			t.Errorf("output %q contains unescaped control character %#x", got, i)
+		}
+	}
+	var record struct {
+		M []string `json:"m"`
+	}
+	if err := json.Unmarshal(got, &record); err != nil {
+		t.Fatal(err)
+	}
+	if len(record.M) != 1 || record.M[0] != marshalerASCII {
+		t.Errorf("marshaled value = %q, want %q", record.M, []string{marshalerASCII})
+	}
+}
+
 // for testing json.Marshaler
 type jsonMarshaler struct {
 	s string
@@ -65,12 +97,14 @@ func (j jsonMarshaler) MarshalJSON() ([]byte, error) {
 	if j.s == "" {
 		return nil, errors.New("json: empty string")
 	}
-	return []byte(fmt.Sprintf(`[%q]`, j.s)), nil
+	return json.Marshal([]string{j.s})
 }
 
 type jsonMarshalerError struct {
 	jsonMarshaler
 }
+
+var _ error = jsonMarshalerError{}
 
 func (jsonMarshalerError) Error() string { return "oops" }
 

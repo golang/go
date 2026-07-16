@@ -16,7 +16,6 @@ import (
 	"golang.org/x/tools/go/ast/inspector"
 	"golang.org/x/tools/internal/analysis/analyzerutil"
 	"golang.org/x/tools/internal/astutil"
-	"golang.org/x/tools/internal/goplsexport"
 	"golang.org/x/tools/internal/refactor"
 	"golang.org/x/tools/internal/typesinternal"
 	"golang.org/x/tools/internal/versions"
@@ -29,17 +28,13 @@ import (
 // func Slice(ptr *ArbitraryType, len IntegerType) []ArbitraryType
 // func SliceData(slice []ArbitraryType) *ArbitraryType
 
+// TODO(adonovan): needs a proposal for a public symbol.
 var unsafeFuncsAnalyzer = &analysis.Analyzer{
 	Name:     "unsafefuncs",
 	Doc:      analyzerutil.MustExtractDoc(doc, "unsafefuncs"),
 	Requires: []*analysis.Analyzer{inspect.Analyzer},
 	Run:      unsafefuncs,
 	URL:      "https://pkg.go.dev/golang.org/x/tools/go/analysis/passes/modernize#unsafefuncs",
-}
-
-func init() {
-	// Export to gopls until this is a published modernizer.
-	goplsexport.UnsafeFuncsModernizer = unsafeFuncsAnalyzer
 }
 
 func unsafefuncs(pass *analysis.Pass) (any, error) {

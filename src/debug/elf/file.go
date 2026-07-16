@@ -763,12 +763,11 @@ func getString(section []byte, start int) (string, bool) {
 		return "", false
 	}
 
-	for end := start; end < len(section); end++ {
-		if section[end] == 0 {
-			return string(section[start:end]), true
-		}
+	end := bytes.IndexByte(section[start:], 0)
+	if end < 0 {
+		return "", false
 	}
-	return "", false
+	return string(section[start : start+end]), true
 }
 
 // Section returns a section with the given name, or nil if no such
@@ -1552,6 +1551,9 @@ func (f *File) dynamicVersions(str []byte) error {
 				deps = append(deps, depName)
 			}
 
+			if vnext == 0 {
+				break
+			}
 			j += int(vnext)
 		}
 

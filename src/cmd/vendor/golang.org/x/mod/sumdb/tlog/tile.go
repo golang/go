@@ -22,7 +22,7 @@ import (
 // of the form tile/H/L/NNN[.p/W].
 // The .p/W suffix is present only for partial tiles, meaning W < 2**H.
 // The NNN element is an encoding of N into 3-digit path elements.
-// All but the last path element begins with an "x".
+// All but the last path element begin with an "x".
 // For example,
 // Tile{H: 3, L: 4, N: 1234067, W: 1}'s path
 // is tile/3/4/x001/x234/067.p/1, and

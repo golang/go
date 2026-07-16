@@ -260,6 +260,10 @@ var depsRules = `
 
 	FMT, encoding < flag;
 
+	FMT, simd/archsimd < simd/internal/bridge;
+
+	simd/internal/bridge < simd;
+
 	fmt !< encoding/base32, encoding/base64;
 
 	FMT, encoding, encoding/base32, encoding/base64, encoding/binary,
@@ -776,6 +780,9 @@ var depsRules = `
 
 	crypto/internal/cryptotest, encoding/hex
 	< crypto/internal/cryptotest/wycheproof;
+
+	FMT, encoding/json, time, regexp
+	< crypto/internal/cryptotest/x509limbo;
 
 	CGO, FMT
 	< crypto/internal/sysrand/internal/seccomp;

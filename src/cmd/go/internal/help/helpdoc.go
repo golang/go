@@ -924,6 +924,10 @@ The output is voluminous but can be useful for debugging the cache.
 
 GODEBUG=gocachetest=1 causes the go command to print details of its
 decisions about whether to reuse a cached test result.
+
+The GOCACHEPROG environment variable can be used to provide an
+externally managed build cache. For details see:
+"go doc cmd/go/internal/cacheprog".
 `,
 }
 

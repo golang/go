@@ -13,9 +13,9 @@
 
 # Integer multiplications.
 
-# MulEvenWiden
+# MulWidenEven
 # Dword only.
-- go: MulEvenWiden
+- go: MulWidenEven
   asm: "VPMULDQ"
   in:
   - &intNot64
@@ -27,7 +27,7 @@
   - &int2
     go: $t2
     base: int
-- go: MulEvenWiden
+- go: MulWidenEven
   asm: "VPMULUDQ"
   in:
   - &uintNot64

@@ -15,7 +15,6 @@ import (
 
 	"cmd/compile/internal/base"
 	"cmd/compile/internal/bitvec"
-	"cmd/compile/internal/compare"
 	"cmd/compile/internal/ir"
 	"cmd/compile/internal/objw"
 	"cmd/compile/internal/rttype"
@@ -57,7 +56,7 @@ type typeSig struct {
 func commonSize() int { return int(rttype.Type.Size()) } // Sizeof(runtime._type{})
 
 func uncommonSize(t *types.Type) int { // Sizeof(runtime.uncommontype{})
-	if t.Sym() == nil && len(methods(t)) == 0 {
+	if t.TFlag()&abi.TFlagUncommon == 0 {
 		return 0
 	}
 	return int(rttype.UncommonType.Size())
@@ -464,20 +463,6 @@ func dcommontype(c rttype.Cursor, t *types.Type) {
 	c.Field("PtrBytes").WriteUintptr(uint64(ptrdata))
 	c.Field("Hash").WriteUint32(types.TypeHash(t))
 
-	var tflag abi.TFlag
-	if uncommonSize(t) != 0 {
-		tflag |= abi.TFlagUncommon
-	}
-	if t.Sym() != nil && t.Sym().Name != "" {
-		tflag |= abi.TFlagNamed
-	}
-	if compare.IsRegularMemory(t) {
-		tflag |= abi.TFlagRegularMemory
-	}
-	if onDemand {
-		tflag |= abi.TFlagGCMaskOnDemand
-	}
-
 	exported := false
 	p := t.NameString()
 	// If we're writing out type T,
@@ -485,9 +470,8 @@ func dcommontype(c rttype.Cursor, t *types.Type) {
 	// Use the string "*T"[1:] for "T", so that the two
 	// share storage. This is a cheap way to reduce the
 	// amount of space taken up by reflect strings.
-	if !strings.HasPrefix(p, "*") {
+	if t.TFlag()&abi.TFlagExtraStar != 0 {
 		p = "*" + p
-		tflag |= abi.TFlagExtraStar
 		if t.Sym() != nil {
 			exported = types.IsExported(t.Sym().Name)
 		}
@@ -496,15 +480,8 @@ func dcommontype(c rttype.Cursor, t *types.Type) {
 			exported = types.IsExported(t.Elem().Sym().Name)
 		}
 	}
-	if types.IsDirectIface(t) {
-		tflag |= abi.TFlagDirectIface
-	}
 
-	if tflag != abi.TFlag(uint8(tflag)) {
-		// this should optimize away completely
-		panic("Unexpected change in size of abi.TFlag")
-	}
-	c.Field("TFlag").WriteUint8(uint8(tflag))
+	c.Field("TFlag").WriteUint8(uint8(t.TFlag()))
 
 	// runtime (and common sense) expects alignment to be a power of two.
 	i := int(uint8(t.Alignment()))
@@ -1254,7 +1231,7 @@ func GCSym(t *types.Type, onDemandAllowed bool) (lsym *obj.LSym, ptrdata int64) 
 // When write is true, it writes the symbol data.
 func dgcsym(t *types.Type, write, onDemandAllowed bool) (lsym *obj.LSym, onDemand bool, ptrdata int64) {
 	ptrdata = types.PtrDataSize(t)
-	if !onDemandAllowed || ptrdata/int64(types.PtrSize) <= abi.MaxPtrmaskBytes*8 {
+	if !onDemandAllowed || t.TFlag()&abi.TFlagGCMaskOnDemand == 0 {
 		lsym = dgcptrmask(t, write)
 		return
 	}

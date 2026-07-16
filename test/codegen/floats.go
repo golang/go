@@ -89,6 +89,7 @@ func FusedSub32_a(x, y, z float32) float32 {
 	// ppc64x:"FMSUBS "
 	// riscv64:"FMSUBS "
 	// loong64:"FMSUBF "
+	// amd64/v3:"VFMSUB231SS "
 	return x*y - z
 }
 
@@ -114,6 +115,7 @@ func FusedSub64_a(x, y, z float64) float64 {
 	// ppc64x:"FMSUB "
 	// riscv64:"FMSUBD "
 	// loong64:"FMSUBD "
+	// amd64/v3:"VFMSUB231SD "
 	return x*y - z
 }
 
@@ -221,6 +223,7 @@ func Float32Max(a, b float32) float32 {
 
 func Float32ConstantZero() float32 {
 	// arm64:"FMOVS ZR,"
+	// riscv64:"MOVF X0,"
 	return 0.0
 }
 
@@ -234,11 +237,13 @@ func Float32Constant() float32 {
 	// ppc64x/power8:"FMOVS [$]f32\\.42440000\\(SB\\)"
 	// ppc64x/power9:"FMOVS [$]f32\\.42440000\\(SB\\)"
 	// ppc64x/power10:"XXSPLTIDP [$]1111752704,"
+	// riscv64:"MOVF [$]f32\\.42440000\\(SB\\)"
 	return 49.0
 }
 
 func Float64ConstantZero() float64 {
 	// arm64:"FMOVD ZR,"
+	// riscv64:"MOVD X0,"
 	return 0.0
 }
 
@@ -252,6 +257,7 @@ func Float64Constant() float64 {
 	// ppc64x/power8:"FMOVD [$]f64\\.4048800000000000\\(SB\\)"
 	// ppc64x/power9:"FMOVD [$]f64\\.4048800000000000\\(SB\\)"
 	// ppc64x/power10:"XXSPLTIDP [$]1111752704,"
+	// riscv64:"MOVD [$]f64\\.4048800000000000\\(SB\\)"
 	return 49.0
 }
 

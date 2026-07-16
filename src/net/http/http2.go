@@ -186,7 +186,8 @@ type http2ServerConfig struct {
 	s *Server
 }
 
-func (s http2ServerConfig) MaxHeaderBytes() int { return s.s.MaxHeaderBytes }
+func (s http2ServerConfig) MaxHeaderBytes() int      { return s.s.MaxHeaderBytes }
+func (s http2ServerConfig) MaxHeaderValueCount() int { return s.s.maxHeaderValueCount() }
 func (s http2ServerConfig) ConnState(c net.Conn, st http2.ConnState) {
 	if s.s.ConnState != nil {
 		s.s.ConnState(c, ConnState(st))

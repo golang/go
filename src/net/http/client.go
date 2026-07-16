@@ -25,6 +25,8 @@ import (
 	"sync"
 	"sync/atomic"
 	"time"
+
+	"golang.org/x/net/http/httpguts"
 )
 
 // A Client is an HTTP client. Its zero value ([DefaultClient]) is a
@@ -589,6 +591,13 @@ func urlErrorOp(method string) string {
 // The [NewRequest] function automatically sets GetBody for common
 // standard library body types.
 //
+// Note that the [Client] redirect behavior does not follow the WHATWG
+// Fetch standard. This is because it was written before established
+// standards existed. As such, by modern standards, [Client] has a
+// rather permissive behavior. For example, sensitive headers are
+// retained on redirect to a subdomain or to a different scheme on the
+// same host.
+//
 // Any returned error will be of type [*url.Error]. The url.Error
 // value's Timeout method will report true if the request timed out.
 func (c *Client) Do(req *Request) (*Response, error) {
@@ -1019,9 +1028,14 @@ func shouldCopyHeaderOnRedirect(initial, dest *url.URL) bool {
 	// directly, we don't know their scope, so we assume
 	// it's for *.domain.com.
 
-	ihost := idnaASCIIFromURL(initial)
-	dhost := idnaASCIIFromURL(dest)
-	return isDomainOrSubdomain(dhost, ihost)
+	ihost, err1 := httpguts.PunycodeHostPort(initial.Hostname())
+	dhost, err2 := httpguts.PunycodeHostPort(dest.Hostname())
+	if err1 != nil || err2 != nil {
+		return false
+	}
+	ihost, ok1 := ascii.ToLower(ihost)
+	dhost, ok2 := ascii.ToLower(dhost)
+	return ok1 && ok2 && isDomainOrSubdomain(dhost, ihost)
 }
 
 // isDomainOrSubdomain reports whether sub is a subdomain (or exact

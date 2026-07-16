@@ -328,7 +328,7 @@ func readGoInfo(f io.Reader, info *fileInfo) error {
 			if !isValidImport(path) {
 				// The parser used to return a parse error for invalid import paths, but
 				// no longer does, so check for and create the error here instead.
-				info.parseErr = scanner.Error{Pos: info.fset.Position(spec.Pos()), Msg: "invalid import path: " + path}
+				info.parseErr = &scanner.Error{Pos: info.fset.Position(spec.Pos()), Msg: "invalid import path: " + path}
 				info.imports = nil
 				return nil
 			}

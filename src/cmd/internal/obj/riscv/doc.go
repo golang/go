@@ -71,9 +71,9 @@ that ensure they are hardware supported.
 The file asm_riscv64.h defines macros for each RISC-V extension that is enabled
 by setting the GORISCV64 environment variable to a value other than [rva20u64].
 For example, if GORISCV64=rva22u64 the macros hasZba, hasZbb and hasZbs will be
-defined. If GORISCV64=rva23u64 hasV will be defined in addition to hasZba,
-hasZbb and hasZbs. These macros can be used to determine whether it's safe
-to use an instruction in hand-written assembly.
+defined. If GORISCV64=rva23u64, hasV, hasZfa and hasZicond will be defined in
+addition to hasZba, hasZbb and hasZbs. These macros can be used to determine
+whether it's safe to use an instruction in hand-written assembly.
 
 It is not always necessary to include asm_riscv64.h and use #ifdefs in your
 code to safely take advantage of instructions present in the [rva22u64]

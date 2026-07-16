@@ -1860,6 +1860,12 @@ func TestShouldCopyHeaderOnRedirect(t *testing.T) {
 		{"http://foo.com:443/", "https://foo.com/", true},
 		{"http://foo.com:443/", "https://sub.foo.com/", true},
 		{"http://foo.com:1234/", "http://foo.com/", true},
+
+		{"http://foobar.com/", "http://fooBAR.com/", true},
+
+		{"http://example.com/", "http://evil。example.com/", false},
+		{"http://example.com/", "http://ｅxample.com/", false},
+		{"http://süb.example.com/", "http://sÜb.example.com/", false},
 	}
 	for i, tt := range tests {
 		u0, err := url.Parse(tt.initialURL)
@@ -2234,7 +2240,7 @@ func testClientCallsCloseOnlyOnce(t *testing.T, mode testMode) {
 	// Issue occurred non-deterministically: needed to occur after a successful
 	// write (into TCP buffer) but before end of body.
 	for i := 0; i < 50 && !t.Failed(); i++ {
-		body := &issue40382Body{t: t, n: 300000}
+		body := &issue40382Body{t: t, n: 256 << 10} // maxPostHandlerReadBytes large
 		req, err := NewRequest(MethodPost, cst.ts.URL, body)
 		if err != nil {
 			t.Fatal(err)

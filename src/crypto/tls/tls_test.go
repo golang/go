@@ -2678,6 +2678,7 @@ func TestECH(t *testing.T) {
 	clientConfig.RootCAs.AddCert(secretCert)
 	clientConfig.RootCAs.AddCert(publicCert)
 	clientConfig.EncryptedClientHelloConfigList = echConfigList
+	clientConfig.ClientSessionCache = NewLRUClientSessionCache(2)
 	serverConfig.InsecureSkipVerify = false
 	serverConfig.Time = nil
 	serverConfig.MinVersion = VersionTLS13
@@ -2931,4 +2932,143 @@ func testInvalidSignatureHandshake(t *testing.T, clientConfig, serverConfig *Con
 	s.Close()
 	<-done
 	return
+}
+
+func TestKeyLogWriterErr(t *testing.T) {
+	var f *os.File // typed nil
+	err := (&Config{KeyLogWriter: f}).writeKeyLog("CLIENT_RANDOM", make([]byte, 32), make([]byte, 48))
+	if err == nil {
+		t.Fatal("writeKeyLog: expected error, got nil")
+	}
+
+	if want := os.ErrInvalid; !errors.Is(err, os.ErrInvalid) {
+		t.Errorf("got %v, want %v", err, want)
+	}
+	if got, want := err.Error(), "KeyLogWriter"; !strings.Contains(got, want) {
+		t.Errorf("got %q, want %q", got, want)
+	}
+}
+
+func testLocalCertificate(t *testing.T, version uint16, callback bool) {
+	clientConfig, serverConfig := testConfigClient.Clone(), testConfigServer.Clone()
+
+	clientConfig.MinVersion, serverConfig.MinVersion = version, version
+	clientConfig.MaxVersion, serverConfig.MaxVersion = version, version
+	if version < VersionTLS12 {
+		skipFIPS(t)
+	}
+	serverConfig.ClientAuth = RequestClientCert
+
+	serverCert, clientCert := testConfigServer.Certificates[0], testConfigClient.Certificates[0]
+
+	if callback {
+		clientConfig.GetClientCertificate = func(_ *CertificateRequestInfo) (*Certificate, error) {
+			return &Certificate{
+				Certificate: clientCert.Certificate,
+				PrivateKey:  clientCert.PrivateKey,
+			}, nil
+		}
+		clientConfig.Certificates = nil
+		serverConfig.GetCertificate = func(_ *ClientHelloInfo) (*Certificate, error) {
+			return &Certificate{
+				Certificate: serverCert.Certificate,
+				PrivateKey:  serverCert.PrivateKey,
+			}, nil
+		}
+		serverConfig.Certificates = nil
+	}
+
+	ss, cs, err := testHandshake(t, clientConfig, serverConfig)
+	if err != nil {
+		t.Fatalf("unexpected failure: %s", err)
+	}
+
+	if !slices.EqualFunc(ss.LocalCertificate, serverCert.Certificate, bytes.Equal) {
+		t.Errorf("unexpected server local certificate: %x, want %x", ss.LocalCertificate, serverCert.Certificate)
+	}
+
+	if !slices.EqualFunc(cs.LocalCertificate, clientCert.Certificate, bytes.Equal) {
+		t.Errorf("unexpected client local certificate: %x, want %x", cs.LocalCertificate, clientCert.Certificate)
+	}
+}
+
+func TestLocalCertificate(t *testing.T) {
+	for _, useCallback := range []bool{true, false} {
+		name := "UseCertificates"
+		if useCallback {
+			name = "UseCallbacks"
+		}
+		t.Run(name, func(t *testing.T) {
+			for _, v := range []uint16{VersionTLS10, VersionTLS11, VersionTLS12, VersionTLS13} {
+				t.Run(VersionName(v), func(t *testing.T) {
+					testLocalCertificate(t, v, useCallback)
+				})
+			}
+		})
+	}
+}
+
+func testLocalCertificateResumption(t *testing.T, version uint16, callback bool) {
+	clientConfig, serverConfig := testConfigClient.Clone(), testConfigServer.Clone()
+
+	clientConfig.MinVersion, serverConfig.MinVersion = version, version
+	clientConfig.MaxVersion, serverConfig.MaxVersion = version, version
+	if version < VersionTLS12 {
+		skipFIPS(t)
+	}
+	clientConfig.ClientSessionCache = NewLRUClientSessionCache(1)
+	serverConfig.ClientAuth = RequestClientCert
+
+	serverCert, clientCert := testConfigServer.Certificates[0], testConfigClient.Certificates[0]
+
+	if callback {
+		clientConfig.GetClientCertificate = func(_ *CertificateRequestInfo) (*Certificate, error) {
+			return &Certificate{
+				Certificate: clientCert.Certificate,
+				PrivateKey:  clientCert.PrivateKey,
+			}, nil
+		}
+		clientConfig.Certificates = nil
+		serverConfig.GetCertificate = func(_ *ClientHelloInfo) (*Certificate, error) {
+			return &Certificate{
+				Certificate: serverCert.Certificate,
+				PrivateKey:  serverCert.PrivateKey,
+			}, nil
+		}
+		serverConfig.Certificates = nil
+	}
+
+	if _, _, err := testHandshake(t, clientConfig, serverConfig); err != nil {
+		t.Fatalf("first handshake failed: %s", err)
+	}
+
+	ss, cs, err := testHandshake(t, clientConfig, serverConfig)
+	if err != nil {
+		t.Fatalf("second handshake failed: %s", err)
+	}
+	if !ss.DidResume || !cs.DidResume {
+		t.Fatalf("second handshake did not resume (server=%v client=%v)", ss.DidResume, cs.DidResume)
+	}
+	if ss.LocalCertificate != nil {
+		t.Errorf("server LocalCertificate on resumed connection: got %x, want nil", ss.LocalCertificate)
+	}
+	if cs.LocalCertificate != nil {
+		t.Errorf("client LocalCertificate on resumed connection: got %x, want nil", cs.LocalCertificate)
+	}
+}
+
+func TestLocalCertificateResumption(t *testing.T) {
+	for _, useCallback := range []bool{true, false} {
+		name := "UseCertificates"
+		if useCallback {
+			name = "UseCallbacks"
+		}
+		t.Run(name, func(t *testing.T) {
+			for _, v := range []uint16{VersionTLS10, VersionTLS11, VersionTLS12, VersionTLS13} {
+				t.Run(VersionName(v), func(t *testing.T) {
+					testLocalCertificateResumption(t, v, useCallback)
+				})
+			}
+		})
+	}
 }

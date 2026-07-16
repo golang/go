@@ -426,12 +426,13 @@ func (cw *chunkWriter) close() {
 // A response represents the server side of an HTTP response.
 type response struct {
 	conn             *conn
-	req              *Request // request for this response
-	reqBody          io.ReadCloser
+	req              *Request           // request for this response
+	reqBody          *body              // nil when NoBody
 	cancelCtx        context.CancelFunc // when ServeHTTP exits
 	wroteHeader      bool               // a non-1xx header has been (logically) written
 	wants10KeepAlive bool               // HTTP/1.0 w/ Connection "keep-alive"
 	wantsClose       bool               // HTTP request has Connection "close"
+	ecReader         *expectContinueReader
 
 	// canWriteContinue is an atomic boolean that says whether or
 	// not a 100 Continue header can be written to the
@@ -570,11 +571,29 @@ func (w *response) requestTooLarge() {
 	}
 }
 
-// disableWriteContinue stops Request.Body.Read from sending an automatic 100-Continue.
-// If a 100-Continue is being written, it waits for it to complete before continuing.
-func (w *response) disableWriteContinue() {
+// disableWriteContinue stops Request.Body.Read from sending an automatic
+// 100 Continue. As the name implies, it is only useful when the request
+// expects a 100 Continue and the body is wrapped in an expectContinueReader;
+// otherwise, it is a no-op.
+// If a 100-Continue is being written, it waits for it to complete before
+// continuing. If skipDrain is true, it also prevents the server from draining
+// the request body and flags the connection to be closed after the reply, as
+// the client will never send the body.
+func (w *response) disableWriteContinue(skipDrain bool) {
+	if w.ecReader == nil {
+		return
+	}
 	w.writeContinueMu.Lock()
-	w.canWriteContinue.Store(false)
+	if w.canWriteContinue.Load() {
+		w.canWriteContinue.Store(false)
+		if skipDrain {
+			// Make sure that the connection will not be reused by sending
+			// "Connection: close" header in the response.
+			w.closeAfterReply = true
+			// Ensure that the body will not be drained in Close.
+			w.ecReader.closed.Store(true)
+		}
+	}
 	w.writeContinueMu.Unlock()
 }
 
@@ -919,11 +938,23 @@ func putBufioWriter(bw *bufio.Writer) {
 // This can be overridden by setting [Server.MaxHeaderBytes].
 const DefaultMaxHeaderBytes = 1 << 20 // 1 MB
 
+// DefaultMaxHeaderValueCount is the maximum permitted number of
+// header values in an HTTP request.
+// This can be overridden by setting [Server.MaxHeaderValueCount].
+const DefaultMaxHeaderValueCount = 500
+
 func (s *Server) maxHeaderBytes() int {
 	if s.MaxHeaderBytes > 0 {
 		return s.MaxHeaderBytes
 	}
 	return DefaultMaxHeaderBytes
+}
+
+func (s *Server) maxHeaderValueCount() int {
+	if s.MaxHeaderValueCount > 0 {
+		return s.MaxHeaderValueCount
+	}
+	return DefaultMaxHeaderValueCount
 }
 
 func (s *Server) initialReadLimitSize() int64 {
@@ -958,7 +989,6 @@ type expectContinueReader struct {
 	resp       *response
 	readCloser io.ReadCloser
 	closed     atomic.Bool
-	sawEOF     atomic.Bool
 }
 
 func (ecr *expectContinueReader) Read(p []byte) (n int, err error) {
@@ -975,15 +1005,16 @@ func (ecr *expectContinueReader) Read(p []byte) (n int, err error) {
 		}
 		w.writeContinueMu.Unlock()
 	}
-	n, err = ecr.readCloser.Read(p)
-	if err == io.EOF {
-		ecr.sawEOF.Store(true)
-	}
-	return
+	return ecr.readCloser.Read(p)
 }
 
 func (ecr *expectContinueReader) Close() error {
-	ecr.closed.Store(true)
+	if ecr.resp.canWriteContinue.Load() {
+		ecr.resp.disableWriteContinue(true)
+	}
+	if ecr.closed.Swap(true) {
+		return nil
+	}
 	return ecr.readCloser.Close()
 }
 
@@ -1003,18 +1034,11 @@ func (c *conn) readRequest(ctx context.Context) (w *response, err error) {
 		return nil, ErrHijacked
 	}
 
-	var (
-		wholeReqDeadline time.Time // or zero if none
-		hdrDeadline      time.Time // or zero if none
-	)
 	t0 := time.Now()
-	if d := c.server.readHeaderTimeout(); d > 0 {
-		hdrDeadline = t0.Add(d)
-	}
+	var wholeReqDeadline time.Time // or zero if none
 	if d := c.server.ReadTimeout; d > 0 {
 		wholeReqDeadline = t0.Add(d)
 	}
-	c.rwc.SetReadDeadline(hdrDeadline)
 	if d := c.server.WriteTimeout; d > 0 {
 		defer func() {
 			c.rwc.SetWriteDeadline(time.Now().Add(d))
@@ -1027,7 +1051,7 @@ func (c *conn) readRequest(ctx context.Context) (w *response, err error) {
 		peek, _ := c.bufr.Peek(4) // ReadRequest will get err below
 		c.bufr.Discard(numLeadingCRorLF(peek))
 	}
-	req, err := readRequest(c.bufr)
+	req, err := readRequestLimit(c.bufr, int64(c.server.maxHeaderValueCount()))
 	if err != nil {
 		if c.r.hitReadLimit() {
 			return nil, errTooLarge
@@ -1066,20 +1090,23 @@ func (c *conn) readRequest(ctx context.Context) (w *response, err error) {
 	req.ctx = ctx
 	req.RemoteAddr = c.remoteAddr
 	req.TLS = c.tlsState
-	if body, ok := req.Body.(*body); ok {
-		body.doEarlyClose = true
+	var reqBody *body
+	switch b := req.Body.(type) {
+	case noBody:
+	case *body:
+		reqBody = b
+		reqBody.doEarlyClose = true
+	default:
+		panic(fmt.Errorf("http: unexpected request body type %T", req.Body))
 	}
 
-	// Adjust the read deadline if necessary.
-	if !hdrDeadline.Equal(wholeReqDeadline) {
-		c.rwc.SetReadDeadline(wholeReqDeadline)
-	}
+	c.rwc.SetReadDeadline(wholeReqDeadline)
 
 	w = &response{
 		conn:          c,
 		cancelCtx:     cancelCtx,
 		req:           req,
-		reqBody:       req.Body,
+		reqBody:       reqBody,
 		handlerHeader: make(Header),
 		contentLength: -1,
 
@@ -1185,10 +1212,12 @@ func (w *response) WriteHeader(code int) {
 	}
 	checkWriteHeaderCode(code)
 
-	if code < 101 || code > 199 {
-		// Sending a 100 Continue or any non-1xx header disables the
-		// automatically-sent 100 Continue from Request.Body.Read.
-		w.disableWriteContinue()
+	// Sending a 100 Continue or any non-1XX header disables the
+	// automatically-sent 100 Continue from Request.Body.Read. If it is a final
+	// response (200 or higher), we skip draining the request body, which the
+	// client will never send.
+	if code == 100 || code >= 200 {
+		w.disableWriteContinue(code >= 200)
 	}
 
 	// Handle informational headers.
@@ -1397,7 +1426,7 @@ func (cw *chunkWriter) writeHeader(p []byte) {
 	// than to read the body. For now, assume that if we're sending
 	// headers, the handler is done reading the body and we should
 	// drop the connection if we haven't seen EOF.
-	if ecr, ok := w.req.Body.(*expectContinueReader); ok && !ecr.sawEOF.Load() {
+	if w.ecReader != nil && w.reqBody.bodyRemains() {
 		w.closeAfterReply = true
 	}
 
@@ -1415,53 +1444,28 @@ func (cw *chunkWriter) writeHeader(p []byte) {
 	// before reading a response may deadlock in this case.
 	// This behavior has been present since CL 5268043 (2011), however,
 	// so it doesn't seem to be causing problems.
-	if w.req.ContentLength != 0 && !w.closeAfterReply && !w.fullDuplex {
+	if w.req.ContentLength != 0 && w.reqBody != nil && !w.closeAfterReply && !w.fullDuplex {
 		var discard, tooBig bool
-
-		switch bdy := w.req.Body.(type) {
-		case *expectContinueReader:
-			// We only get here if we have already fully consumed the request body
-			// (see above).
-		case *body:
-			bdy.mu.Lock()
-			switch {
-			case bdy.closed:
-				if !bdy.sawEOF {
-					// Body was closed in handler with non-EOF error.
-					w.closeAfterReply = true
-				}
-			case bdy.unreadDataSizeLocked() >= maxPostHandlerReadBytes:
-				tooBig = true
-			default:
-				discard = true
+		w.reqBody.mu.Lock()
+		switch {
+		case w.reqBody.closed:
+			if !w.reqBody.sawEOF {
+				// Body was closed in handler with non-EOF error.
+				w.closeAfterReply = true
 			}
-			bdy.mu.Unlock()
+		case w.reqBody.unreadDataSizeLocked() >= maxPostHandlerReadBytes:
+			tooBig = true
 		default:
 			discard = true
 		}
+		w.reqBody.mu.Unlock()
 
 		if discard {
-			_, err := io.CopyN(io.Discard, w.reqBody, maxPostHandlerReadBytes+1)
-			switch err {
-			case nil:
-				// There must be even more data left over.
-				tooBig = true
-			case ErrBodyReadAfterClose:
-				// Body was already consumed and closed.
-			case io.EOF:
-				// The remaining body was just consumed, close it.
-				err = w.reqBody.Close()
-				if err != nil {
-					w.closeAfterReply = true
-				}
-			default:
-				// Some other kind of error occurred, like a read timeout, or
-				// corrupt chunked encoding. In any case, whatever remains
-				// on the wire must not be parsed as another HTTP request.
+			w.reqBody.Close()
+			if w.reqBody.didEarlyClose() {
 				w.closeAfterReply = true
 			}
 		}
-
 		if tooBig {
 			w.requestTooLarge()
 			delHeader("Connection")
@@ -1663,7 +1667,7 @@ func (w *response) write(lenData int, dataB []byte, dataS string) (n int, err er
 
 	if w.canWriteContinue.Load() {
 		// Body reader wants to write 100 Continue but hasn't yet. Tell it not to.
-		w.disableWriteContinue()
+		w.disableWriteContinue(true)
 	}
 
 	if !w.wroteHeader {
@@ -1700,9 +1704,16 @@ func (w *response) finishRequest() {
 	w.conn.bufw.Flush()
 
 	w.conn.r.abortPendingRead()
+	w.reqBody.registerOnHitEOF(nil) // prevent new background read from starting
+
+	if w.canWriteContinue.Load() {
+		w.disableWriteContinue(true)
+	}
 
 	// Close the body (regardless of w.closeAfterReply) so we can
 	// re-use its bufio.Reader later safely.
+	//
+	// In full-duplex mode, this may also drain the remaining request body.
 	w.reqBody.Close()
 
 	if w.req.MultipartForm != nil {
@@ -1739,8 +1750,7 @@ func (w *response) shouldReuseConnection() bool {
 }
 
 func (w *response) closedRequestBodyEarly() bool {
-	body, ok := w.req.Body.(*body)
-	return ok && body.didEarlyClose()
+	return w.reqBody != nil && w.reqBody.didEarlyClose()
 }
 
 func (w *response) Flush() {
@@ -1931,7 +1941,7 @@ func (c *conn) serve(ctx context.Context) {
 		}
 		if inFlightResponse != nil {
 			inFlightResponse.cancelCtx()
-			inFlightResponse.disableWriteContinue()
+			inFlightResponse.disableWriteContinue(true)
 		}
 		if !c.hijacked() {
 			if inFlightResponse != nil {
@@ -2025,6 +2035,10 @@ func (c *conn) serve(ctx context.Context) {
 	c.bufr = newBufioReader(c.r)
 	c.bufw = newBufioWriterSize(checkConnErrorWriter{c}, 4<<10)
 
+	if d := c.server.readHeaderTimeout(); d > 0 {
+		c.rwc.SetReadDeadline(time.Now().Add(d))
+	}
+
 	protos := c.server.protocols()
 	if c.tlsState == nil && protos.UnencryptedHTTP2() {
 		if c.maybeServeUnencryptedHTTP2(ctx) {
@@ -2092,8 +2106,9 @@ func (c *conn) serve(ctx context.Context) {
 		if req.expectsContinue() {
 			if req.ProtoAtLeast(1, 1) && req.ContentLength != 0 {
 				// Wrap the Body reader with one that replies on the connection
-				req.Body = &expectContinueReader{readCloser: req.Body, resp: w}
+				w.ecReader = &expectContinueReader{readCloser: req.Body, resp: w}
 				w.canWriteContinue.Store(true)
+				req.Body = w.ecReader
 			}
 		} else if req.Header.get("Expect") != "" {
 			w.sendExpectationFailed()
@@ -2102,8 +2117,11 @@ func (c *conn) serve(ctx context.Context) {
 
 		c.curReq.Store(w)
 
-		if requestBodyRemains(req.Body) {
-			registerOnHitEOF(req.Body, w.conn.r.startBackgroundRead)
+		// Start background read, which detects when a client has closed its connection
+		// while a request handler is still running. When the request has a body, we
+		// start the background read only after the entire body has been consumed.
+		if w.reqBody.bodyRemains() {
+			w.reqBody.registerOnHitEOF(w.conn.r.startBackgroundRead)
 		} else {
 			w.conn.r.startBackgroundRead()
 		}
@@ -2156,7 +2174,11 @@ func (c *conn) serve(ctx context.Context) {
 			return
 		}
 
-		c.rwc.SetReadDeadline(time.Time{})
+		if d := c.server.readHeaderTimeout(); d > 0 {
+			c.rwc.SetReadDeadline(time.Now().Add(d))
+		} else {
+			c.rwc.SetReadDeadline(time.Time{})
+		}
 	}
 }
 
@@ -2257,7 +2279,7 @@ func (w *response) Hijack() (rwc net.Conn, buf *bufio.ReadWriter, err error) {
 	if w.handlerDone.Load() {
 		panic("net/http: Hijack called after ServeHTTP finished")
 	}
-	w.disableWriteContinue()
+	w.disableWriteContinue(false)
 	if w.wroteHeader {
 		w.cw.flush()
 	}
@@ -2300,33 +2322,6 @@ func (w *response) closeNotify() {
 	w.closeNotifyTriggered = true
 	if w.closeNotifyCh != nil {
 		w.closeNotifyCh <- true
-	}
-}
-
-func registerOnHitEOF(rc io.ReadCloser, fn func()) {
-	switch v := rc.(type) {
-	case *expectContinueReader:
-		registerOnHitEOF(v.readCloser, fn)
-	case *body:
-		v.registerOnHitEOF(fn)
-	default:
-		panic("unexpected type " + fmt.Sprintf("%T", rc))
-	}
-}
-
-// requestBodyRemains reports whether future calls to Read
-// on rc might yield more data.
-func requestBodyRemains(rc io.ReadCloser) bool {
-	if rc == NoBody {
-		return false
-	}
-	switch v := rc.(type) {
-	case *expectContinueReader:
-		return requestBodyRemains(v.readCloser)
-	case *body:
-		return v.bodyRemains()
-	default:
-		panic("unexpected type " + fmt.Sprintf("%T", rc))
 	}
 }
 
@@ -2747,7 +2742,7 @@ func (mux *ServeMux) findHandler(r *Request) (h Handler, patStr string, _ *patte
 			if n != nil {
 				patStr = n.pattern.String()
 			}
-			u := &url.URL{Path: path, RawQuery: r.URL.RawQuery}
+			u := urlFromEscaped(path, r.URL.RawQuery)
 			return RedirectHandler(u.String(), StatusTemporaryRedirect), patStr, nil, nil
 		}
 	}
@@ -2792,10 +2787,33 @@ func (mux *ServeMux) matchOrRedirect(host, method, path string, u *url.URL) (_ *
 			// of findHandler, and that method returns before it does the "n == nil" check where
 			// the first return value matters. We return it here only to make the pattern available
 			// to findHandler.
-			return n2, nil, &url.URL{Path: cleanPath(u.Path) + "/", RawQuery: u.RawQuery}
+			return n2, nil, urlFromEscaped(path, u.RawQuery)
 		}
 	}
 	return n, matches, nil
+}
+
+// urlFromEscaped returns a url.URL constructed from an escaped path and a raw
+// query.
+//
+// It ensures that the Path and RawPath fields are in sync by unescaping the
+// escaped path. Populating only the Path field and leaving RawPath empty (or
+// failing to keep them in sync) can cause url.URL.String to produce a URL with
+// either unexpected escaping (e.g., double-escaping "%" into "%25" in an
+// already escaped path) or a lack thereof (e.g., losing the escaping of "%2f"
+// and turning it into a literal path separator "/").
+func urlFromEscaped(escaped, rawQuery string) *url.URL {
+	unescaped, err := url.PathUnescape(escaped)
+	// Should be impossible, since ServeMux will reject unparsable URLs way
+	// earlier.
+	if err != nil {
+		unescaped = escaped
+	}
+	return &url.URL{
+		Path:     unescaped,
+		RawPath:  escaped,
+		RawQuery: rawQuery,
+	}
 }
 
 // exactMatch reports whether the node's pattern exactly matches the path.
@@ -3076,6 +3094,14 @@ type Server struct {
 	// size of the request body.
 	// If zero, DefaultMaxHeaderBytes is used.
 	MaxHeaderBytes int
+
+	// MaxHeaderValueCount controls the maximum number of header
+	// values that the server is willing to parse from a request.
+	// If zero, DefaultMaxHeaderValueCount is used.
+	// Note that comma-separated values in a single header line are
+	// counted once, while values sent as multiple header lines are
+	// counted multiple times.
+	MaxHeaderValueCount int
 
 	// TLSNextProto optionally specifies a function to take over
 	// ownership of the provided TLS connection when an ALPN

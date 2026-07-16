@@ -45,11 +45,12 @@ type makeFuncImpl struct {
 // The Examples section of the documentation includes an illustration
 // of how to use MakeFunc to build a swap function for different types.
 func MakeFunc(typ Type, fn func(args []Value) (results []Value)) Value {
+	t := typ.common()
+	typ = toType(t) // for #80332, ensure t's exported methods are not shadowed
 	if typ.Kind() != Func {
 		panic("reflect: call of MakeFunc with non-Func type")
 	}
 
-	t := typ.common()
 	ftyp := (*funcType)(unsafe.Pointer(t))
 
 	code := abi.FuncPCABI0(makeFuncStub)

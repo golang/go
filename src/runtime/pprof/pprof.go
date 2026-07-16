@@ -904,7 +904,7 @@ func StartCPUProfile(w io.Writer) error {
 		return fmt.Errorf("cpu profiling already in use")
 	}
 	cpu.profiling = true
-	runtime.SetCPUProfileRate(hz)
+	pprof_setCPUProfileRate(hz)
 	go profileWriter(w)
 	return nil
 }
@@ -952,7 +952,7 @@ func StopCPUProfile() {
 		return
 	}
 	cpu.profiling = false
-	runtime.SetCPUProfileRate(0)
+	pprof_setCPUProfileRate(0)
 	<-cpu.done
 }
 
@@ -1055,3 +1055,6 @@ func pprof_fpunwindExpand(dst, src []uintptr) int
 
 //go:linkname pprof_makeProfStack runtime.pprof_makeProfStack
 func pprof_makeProfStack() []uintptr
+
+//go:linkname pprof_setCPUProfileRate runtime.pprof_setCPUProfileRate
+func pprof_setCPUProfileRate(hz int)

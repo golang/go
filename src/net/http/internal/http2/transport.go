@@ -2319,6 +2319,14 @@ func (rl *clientConnReadLoop) processTrailers(cs *clientStream, f *MetaHeadersFr
 		// TODO: ConnectionError might be overly harsh? Check.
 		return ConnectionError(ErrCodeProtocol)
 	}
+	if f.Truncated {
+		rl.endStreamError(cs, StreamError{
+			StreamID: f.StreamID,
+			Code:     ErrCodeProtocol,
+			Cause:    errResponseHeaderListSize,
+		})
+		return nil
+	}
 
 	trailer := make(Header)
 	for _, hf := range f.RegularFields() {
@@ -2700,20 +2708,14 @@ func (rl *clientConnReadLoop) processSettingsNoWrite(f *SettingsFrame) error {
 		case SettingMaxHeaderListSize:
 			cc.peerMaxHeaderListSize = uint64(s.Val)
 		case SettingInitialWindowSize:
-			// Values above the maximum flow-control
-			// window size of 2^31-1 MUST be treated as a
-			// connection error (Section 5.4.1) of type
-			// FLOW_CONTROL_ERROR.
-			if s.Val > math.MaxInt32 {
-				return ConnectionError(ErrCodeFlowControl)
-			}
-
 			// Adjust flow control of currently-open
 			// frames by the difference of the old initial
 			// window size and this one.
 			delta := int32(s.Val) - int32(cc.initialWindowSize)
 			for _, cs := range cc.streams {
-				cs.flow.add(delta)
+				if !cs.flow.add(delta) {
+					return ConnectionError(ErrCodeFlowControl)
+				}
 			}
 			cc.cond.Broadcast()
 
@@ -2991,7 +2993,22 @@ func (gz *gzipReader) acquire() (*gzip.Reader, error) {
 		return nil, gz.zerr
 	}
 	if gz.zr == nil {
-		gz.zr, gz.zerr = gzipPoolGet(gz.body)
+		// gzipPoolGet might block indefinitely since it reads the gzip header.
+		// Therefore, drop mu temporarily when using gzipPoolGet.
+		// We set zerr to errConcurrentReadOnResBody to prevent concurrent read
+		// even when mu is temporarily dropped.
+		gz.zerr = errConcurrentReadOnResBody
+		gz.mu.Unlock()
+		zr, err := gzipPoolGet(gz.body)
+		gz.mu.Lock()
+		// Guard against Close being called while gzipPoolGet is running.
+		if gz.zerr != errConcurrentReadOnResBody {
+			if zr != nil {
+				gzipPoolPut(zr)
+			}
+			return nil, gz.zerr
+		}
+		gz.zr, gz.zerr = zr, err
 		if gz.zerr != nil {
 			return nil, gz.zerr
 		}

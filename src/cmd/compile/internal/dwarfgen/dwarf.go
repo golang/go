@@ -360,10 +360,14 @@ func createConservativeVar(fnsym *obj.LSym, fn *ir.Func, n *ir.Name, closureVars
 		DictIndex:     n.DictIndex,
 		ClosureOffset: closureOffset(n, closureVars),
 	}
-	if n.Esc() == ir.EscHeap {
-		if n.Heapaddr == nil {
-			base.Fatalf("invalid heap allocated var without Heapaddr")
-		}
+	if n.Esc() == ir.EscHeap && n.Heapaddr != nil {
+		// The variable was promoted to the heap and has a known heap
+		// address, so describe its location by dereferencing the pointer
+		// stored at its stack offset. A heap-escaped variable may have no
+		// Heapaddr if it was declared in unreachable code: escape analysis
+		// marks it as heap-allocated, but SSA generation skips the dead
+		// declaration and never allocates the address. In that case fall
+		// through and emit a conservative variable with no location list.
 		debug := fn.DebugInfo.(*ssa.FuncDebug)
 		list := createHeapDerefLocationList(n, debug.EntryID)
 		dvar.PutLocationList = func(listSym, startPC dwarf.Sym) {

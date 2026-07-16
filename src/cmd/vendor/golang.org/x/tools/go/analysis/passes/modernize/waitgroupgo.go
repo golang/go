@@ -9,6 +9,7 @@ import (
 	"fmt"
 	"go/ast"
 	"go/printer"
+	"go/types"
 	"slices"
 
 	"golang.org/x/tools/go/analysis"
@@ -112,7 +113,7 @@ func waitgroup(pass *analysis.Pass) (any, error) {
 			astutil.EqualSyntax(ast.Unparen(deferStmt.Call.Fun).(*ast.SelectorExpr).X, addCallRecv) {
 			doneStmt = deferStmt // "defer wg.Done()"
 
-		} else if lastStmt, ok := list[len(list)-1].(*ast.ExprStmt); ok {
+		} else if lastStmt, ok := list[len(list)-1].(*ast.ExprStmt); ok && cannotRecover(lit.Body, info) {
 			if doneCall, ok := lastStmt.X.(*ast.CallExpr); ok &&
 				typeutil.Callee(info, doneCall) == syncWaitGroupDone &&
 				astutil.EqualSyntax(ast.Unparen(doneCall.Fun).(*ast.SelectorExpr).X, addCallRecv) {
@@ -174,4 +175,45 @@ func waitgroup(pass *analysis.Pass) (any, error) {
 		})
 	}
 	return nil, nil
+}
+
+// cannotRecover reports whether no panic arising in body can be
+// recovered. It conservatively treats a defer of anything but a
+// recover-free function literal (e.g. a named function) as able to recover.
+func cannotRecover(body *ast.BlockStmt, info *types.Info) bool {
+	res := true
+	ast.Inspect(body, func(n ast.Node) bool {
+		switch n := n.(type) {
+		case *ast.DeferStmt:
+			lit, ok := ast.Unparen(n.Call.Fun).(*ast.FuncLit)
+			if !ok || containsRecover(lit.Body, info) {
+				res = false
+			}
+			// Each defer is fully handled here; don't descend into it.
+			return false
+		case *ast.FuncLit:
+			// Defers in nested functions cannot recover panics from this body.
+			return false
+		}
+		return true
+	})
+	return res
+}
+
+func containsRecover(body *ast.BlockStmt, info *types.Info) bool {
+	found := false
+	ast.Inspect(body, func(n ast.Node) bool {
+		switch n := n.(type) {
+		case *ast.CallExpr:
+			if typeutil.Callee(info, n) == builtinRecover {
+				found = true
+				return false
+			}
+		case *ast.FuncLit:
+			// Recover calls in nested functions cannot recover panics from body.
+			return false
+		}
+		return true
+	})
+	return found
 }

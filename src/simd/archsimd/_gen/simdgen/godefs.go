@@ -7,13 +7,14 @@ package main
 import (
 	"fmt"
 	"log"
+	"math/rand/v2"
 	"regexp"
 	"slices"
 	"strconv"
 	"strings"
 	"unicode"
 
-	"_gen/unify"
+	"simd/archsimd/_gen/unify"
 )
 
 type Operation struct {
@@ -182,13 +183,14 @@ func (o *Operation) DecodeUnified(v *unify.Value) error {
 				vregIns++
 			}
 		}
+		// note this is arm64-specific
 		switch vregIns {
 		case 2:
 			// Binary: MulLong, AddLong, SubLong, etc.
-			o.Documentation += "\n// For the high-indexed elements, use GetHi:\n//\n//\tx.GetHi()." + o.Go + "(y.GetHi())"
+			o.Documentation += "\n// For the high-indexed elements, use HiToLo:\n//\n//\tx.HiToLo()." + o.Go + "(y.HiToLo())"
 		case 1:
 			// Unary: ShiftLeftLongConst, etc.
-			o.Documentation += "\n// For the high-indexed elements, use GetHi:\n//\n//\tx.GetHi()." + o.Go + "(...)"
+			o.Documentation += "\n// For the high-indexed elements, use HiToLo:\n//\n//\tx.HiToLo()." + o.Go + "(...)"
 		}
 	}
 
@@ -198,7 +200,7 @@ func (o *Operation) DecodeUnified(v *unify.Value) error {
 		inLanes := o.In[0].Lanes
 		outLanes := o.Out[0].Lanes
 		if inLanes != nil && outLanes != nil && *inLanes < *outLanes {
-			if (strings.Contains(o.Go, "Saturate") || strings.Contains(o.Go, "Truncate")) &&
+			if (strings.Contains(o.Go, "Saturate") || strings.Contains(o.Go, "TruncTo")) &&
 				!strings.Contains(o.Go, "Concat") {
 				o.Documentation += "\n// Results are packed to low elements in the returned vector, its upper elements are zeroed."
 			}
@@ -430,6 +432,10 @@ func compareNatural(s1, s2 string) int {
 			if num1 > num2 {
 				return 1
 			}
+			// "1" < "01".  Don't expect it in simdgen, but just in case.
+			if ln1, ln2 := i-numStart1, j-numStart2; ln1 != ln2 {
+				return ln1 - ln2
+			}
 			// If numbers are equal, continue to the next segment.
 		} else {
 			// Non-digit comparison.
@@ -472,6 +478,11 @@ func writeGoDefs(path string, cl unify.Closure) error {
 		op.adjustAsm()
 		ops = append(ops, op)
 	}
+
+	rand.Shuffle(len(ops), func(i, j int) {
+		ops[i], ops[j] = ops[j], ops[i]
+	})
+
 	slices.SortFunc(ops, compareOperations)
 	// The parsed XED data might contain duplicates, like
 	// 512 bits VPADDP.
@@ -479,7 +490,7 @@ func writeGoDefs(path string, cl unify.Closure) error {
 	slices.SortFunc(deduped, compareOperations)
 
 	if *Verbose {
-		log.Printf("dedup len: %d\n", len(ops))
+		log.Printf("dedup len: %d, ops len: %d\n", len(deduped), len(ops))
 	}
 	var err error
 	if err = overwrite(deduped); err != nil {
@@ -507,6 +518,10 @@ func writeGoDefs(path string, cl unify.Closure) error {
 		log.Printf("dedup len: %d\n", len(deduped))
 	}
 	reportXEDInconsistency(deduped)
+
+	// Sorting again, just in case.
+	slices.SortFunc(deduped, compareOperations)
+
 	typeMap := parseSIMDTypes(deduped)
 
 	archInfo := CurrentArch()
@@ -518,7 +533,7 @@ func writeGoDefs(path string, cl unify.Closure) error {
 	if archLower == "amd64" {
 		formatWriteAndClose(writeSIMDFeatures(deduped), path, "src/"+simdPackage+"/cpu.go")
 	}
-	f, fI := writeSIMDStubs(deduped, typeMap)
+	f, fI := writeSIMDStubs(deduped, typeMap, archLower == "amd64")
 	formatWriteAndClose(f, path, "src/"+simdPackage+"/ops_"+archLower+".go")
 	formatWriteAndClose(fI, path, "src/"+simdPackage+"/ops_internal_"+archLower+".go")
 	formatWriteAndClose(writeSIMDIntrinsics(deduped, typeMap), path, "src/cmd/compile/internal/ssagen/simd"+archUpper+"intrinsics.go")

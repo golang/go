@@ -138,12 +138,12 @@ var filemap = map[string]action{
 	"errors_test.go":  func(f *ast.File) { renameIdents(f, "nopos->noposn") },
 	"errsupport.go":   nil,
 	"gccgosizes.go":   nil,
-	"gcsizes.go":      func(f *ast.File) { renameIdents(f, "IsSyncAtomicAlign64->_IsSyncAtomicAlign64") },
+	"gcsizes.go":      func(f *ast.File) { renameIdents(f, "IsSyncAtomicAlign64->_IsSyncAtomicAlign64", "IsSyncAtomicAlign128->_IsSyncAtomicAlign128") },
 	"hilbert_test.go": func(f *ast.File) { renameImportPath(f, `"cmd/compile/internal/types2"->"go/types"`) },
 	"infer.go":        func(f *ast.File) { fixTokenPos(f); fixInferSig(f) },
 	"initorder.go":    nil,
 	// "initorder.go": fixErrErrorfCall, // disabled for now due to unresolved error_ use implications for gopls
-	"instantiate.go":      func(f *ast.File) { fixTokenPos(f); fixCheckErrorfCall(f) },
+	"instantiate.go":      func(f *ast.File) { fixTokenPos(f); fixCheckErrorfCall(f); fixSprintf(f) },
 	"instantiate_test.go": func(f *ast.File) { renameImportPath(f, `"cmd/compile/internal/types2"->"go/types"`) },
 	"literals.go": func(f *ast.File) {
 		insertImportPath(f, `"go/token"`)
@@ -193,7 +193,7 @@ var filemap = map[string]action{
 	},
 	"scope.go":         func(f *ast.File) { fixTokenPos(f); renameIdents(f, "InsertLazy->_InsertLazy") },
 	"selection.go":     nil,
-	"sizes.go":         func(f *ast.File) { renameIdents(f, "IsSyncAtomicAlign64->_IsSyncAtomicAlign64") },
+	"sizes.go":         func(f *ast.File) { renameIdents(f, "IsSyncAtomicAlign64->_IsSyncAtomicAlign64", "IsSyncAtomicAlign128->_IsSyncAtomicAlign128") },
 	"slice.go":         nil,
 	"subst.go":         func(f *ast.File) { fixTokenPos(f); renameSelectors(f, "Trace->_Trace") },
 	"termlist.go":      nil,
@@ -212,6 +212,7 @@ var filemap = map[string]action{
 	"universe.go":      fixGlobalTypVarDecl,
 	"util_test.go":     fixTokenPos,
 	"validtype.go":     func(f *ast.File) { fixTokenPos(f); renameSelectors(f, "Trace->_Trace") },
+	"version.go":       func(f *ast.File) { renameIdents(f, "poser->positioner") },
 }
 
 // TODO(gri) We should be able to make these rewriters more configurable/composable.

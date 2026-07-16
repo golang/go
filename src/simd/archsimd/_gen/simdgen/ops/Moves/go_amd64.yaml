@@ -1,6 +1,6 @@
 !sum
 - go: SetElem
-  asm: "VPINSR[BWDQ]"
+  asm: "VPINSRB"
   in:
   - &t
     class: vreg
@@ -8,15 +8,60 @@
   - class: greg
     base: $b
     lanes: 1 # Scalar, darn it!
-  - &imm
-    class: immediate
+  - class: immediate
     immOffset: 0
+    immMax: 15
+    name: index
+  out:
+  - *t
+- go: SetElem
+  asm: "VPINSRW"
+  in:
+  - &t
+    class: vreg
+    base: $b
+  - class: greg
+    base: $b
+    lanes: 1 # Scalar, darn it!
+  - class: immediate
+    immOffset: 0
+    immMax: 7
+    name: index
+  out:
+  - *t
+- go: SetElem
+  asm: "VPINSRD"
+  in:
+  - &t
+    class: vreg
+    base: $b
+  - class: greg
+    base: $b
+    lanes: 1 # Scalar, darn it!
+  - class: immediate
+    immOffset: 0
+    immMax: 3
+    name: index
+  out:
+  - *t
+- go: SetElem
+  asm: "VPINSRQ"
+  in:
+  - &t
+    class: vreg
+    base: $b
+  - class: greg
+    base: $b
+    lanes: 1 # Scalar, darn it!
+  - class: immediate
+    immOffset: 0
+    immMax: 1
     name: index
   out:
   - *t
 
 - go: SetElem
-  asm: "VPINSR[DQ]"
+  asm: "VPINSRD"
   in:
   - &t
     class: vreg
@@ -26,9 +71,26 @@
     base: int
     OverwriteBase: float
     lanes: 1 # Scalar, darn it!
-  - &imm
-    class: immediate
+  - class: immediate
     immOffset: 0
+    immMax: 3
+    name: index
+  out:
+  - *t
+- go: SetElem
+  asm: "VPINSRQ"
+  in:
+  - &t
+    class: vreg
+    base: int
+    OverwriteBase: float
+  - class: greg
+    base: int
+    OverwriteBase: float
+    lanes: 1 # Scalar, darn it!
+  - class: immediate
+    immOffset: 0
+    immMax: 1
     name: index
   out:
   - *t
@@ -36,11 +98,14 @@
 - go: GetElem # VPEXTRB 128 bit
   asm: VPEXTRB
   in:
-    - bits: 128
-      base: $b
-      class: vreg
-      elemBits: 8
-    - *imm
+  - bits: 128
+    base: $b
+    class: vreg
+    elemBits: 8
+  - class: immediate
+    immOffset: 0
+    immMax: 15
+    name: index
   out:
     - bits: 32
       base: $b
@@ -50,11 +115,14 @@
 - go: GetElem # VPEXTRW 128 bit
   asm: VPEXTRW
   in:
-    - bits: 128
-      base: $b
-      class: vreg
-      elemBits: 16
-    - *imm
+  - bits: 128
+    base: $b
+    class: vreg
+    elemBits: 16
+  - class: immediate
+    immOffset: 0
+    immMax: 7
+    name: index
   out:
     - bits: 32
       base: $b
@@ -62,25 +130,63 @@
       overwriteBits: 16 # The XED data specification is wrong, correct it to the right bits
 
 - go: GetElem
-  asm: "VPEXTR[DQ]"
+  asm: "VPEXTRD"
   in:
   - class: vreg
     base: $b
     elemBits: $e
-  - *imm
+  - class: immediate
+    immOffset: 0
+    immMax: 3
+    name: index
   out:
   - class: greg
     base: $b
     bits: $e
 
 - go: GetElem
-  asm: "VPEXTR[DQ]"
+  asm: "VPEXTRQ"
+  in:
+  - class: vreg
+    base: $b
+    elemBits: $e
+  - class: immediate
+    immOffset: 0
+    immMax: 1
+    name: index
+  out:
+  - class: greg
+    base: $b
+    bits: $e
+
+- go: GetElem
+  asm: "VPEXTRD"
   in:
   - class: vreg
     base: int
     elemBits: $e
     OverwriteBase: float
-  - *imm
+  - class: immediate
+    immOffset: 0
+    immMax: 3
+    name: index
+  out:
+  - class: greg
+    base: int
+    bits: $e
+    OverwriteBase: float
+
+- go: GetElem
+  asm: "VPEXTRQ"
+  in:
+  - class: vreg
+    base: int
+    elemBits: $e
+    OverwriteBase: float
+  - class: immediate
+    immOffset: 0
+    immMax: 1
+    name: index
   out:
   - class: greg
     base: int

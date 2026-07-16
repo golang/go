@@ -1,4 +1,4 @@
-module _mkmalloc
+module runtime/_mkmalloc
 
 go 1.26
 

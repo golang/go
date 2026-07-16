@@ -943,53 +943,66 @@ type kernelVersion struct {
 }
 
 // getKernelVersion returns major and minor kernel version numbers
-// parsed from the uname release field.
-func getKernelVersion() kernelVersion {
+// parsed from the uname release field. ok reports whether parsing
+// succeeded; on failure callers must pick a default rather than
+// failing, because this is called during osinit before the runtime
+// is fully initialized and a throw here is unrecoverable.
+func getKernelVersion() (kv kernelVersion, ok bool) {
 	var buf linux.Utsname
 	if e := linux.Uname(&buf); e != 0 {
-		throw("uname failed")
+		return kernelVersion{}, false
 	}
-
 	rel := gostringnocopy(&buf.Release[0])
 	major, minor, _, ok := parseRelease(rel)
 	if !ok {
-		throw("failed to parse kernel version from uname")
+		return kernelVersion{}, false
 	}
-	return kernelVersion{major: major, minor: minor}
+	return kernelVersion{major: major, minor: minor}, true
 }
 
-// parseRelease parses a dot-separated version number. It follows the
-// semver syntax, but allows the minor and patch versions to be
-// elided.
+// parseRelease parses a dot-separated version number from the prefix
+// of rel. It returns ok=true only if at least the major and minor
+// components were successfully parsed; the patch component is
+// best-effort. Trailing vendor or build suffixes such as
+// "-generic", "+", "_hi3535", or "-rc1" are ignored.
 func parseRelease(rel string) (major, minor, patch int, ok bool) {
-	// Strip anything after a dash or plus.
-	for i := 0; i < len(rel); i++ {
-		if rel[i] == '-' || rel[i] == '+' {
-			rel = rel[:i]
-			break
+	// next consumes a run of decimal digits from the front of rel,
+	// returning the parsed value. If the digits are followed by a
+	// '.', it is consumed and more is set so the caller knows to
+	// parse another component; otherwise scanning terminates and
+	// the rest of rel is discarded.
+	next := func() (n int, more, ok bool) {
+		i := 0
+		for i < len(rel) && rel[i] >= '0' && rel[i] <= '9' {
+			i++
 		}
+		if i == 0 {
+			return 0, false, false
+		}
+		n, err := strconv.Atoi(rel[:i])
+		if err != nil {
+			return 0, false, false
+		}
+		if i < len(rel) && rel[i] == '.' {
+			rel = rel[i+1:]
+			return n, true, true
+		}
+		rel = ""
+		return n, false, true
 	}
 
-	next := func() (int, bool) {
-		for i := 0; i < len(rel); i++ {
-			if rel[i] == '.' {
-				ver, err := strconv.Atoi(rel[:i])
-				rel = rel[i+1:]
-				return ver, err == nil
-			}
-		}
-		ver, err := strconv.Atoi(rel)
-		rel = ""
-		return ver, err == nil
+	var more bool
+	if major, more, ok = next(); !ok || !more {
+		return 0, 0, 0, false
 	}
-	if major, ok = next(); !ok || rel == "" {
-		return
+	if minor, more, ok = next(); !ok {
+		return 0, 0, 0, false
 	}
-	if minor, ok = next(); !ok || rel == "" {
-		return
+	if !more {
+		return major, minor, 0, true
 	}
-	patch, ok = next()
-	return
+	patch, _, _ = next()
+	return major, minor, patch, true
 }
 
 // GE checks if the running kernel version

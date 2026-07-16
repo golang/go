@@ -280,7 +280,7 @@ func processFile(filename string, info fs.FileInfo, in io.Reader, r *reporter) e
 			}
 
 			perm := info.Mode().Perm()
-			if err := writeFile(filename, src, res, perm, info.Size()); err != nil {
+			if err := writeFile(filename, src, res, perm); err != nil {
 				return err
 			}
 		}
@@ -465,7 +465,7 @@ func fileWeight(path string, info fs.FileInfo) int64 {
 }
 
 // writeFile updates a file with the new formatted data.
-func writeFile(filename string, orig, formatted []byte, perm fs.FileMode, size int64) error {
+func writeFile(filename string, orig, formatted []byte, perm fs.FileMode) error {
 	// Make a temporary backup file before rewriting the original file.
 	bakname, err := backupFile(filename, orig, perm)
 	if err != nil {
@@ -489,7 +489,7 @@ func writeFile(filename string, orig, formatted []byte, perm fs.FileMode, size i
 	}
 
 	n, err := fout.Write(formatted)
-	if err == nil && int64(n) < size {
+	if err == nil {
 		err = fout.Truncate(int64(n))
 	}
 

@@ -21,7 +21,7 @@ type genericType interface {
 }
 
 // Instantiate instantiates the type orig with the given type arguments targs.
-// orig must be an *Alias, *Named, or *Signature type. If there is no error,
+// orig must be a generic *Alias, *Named, or *Signature type. If there is no error,
 // the resulting Type is an instantiated type of the same kind (*Alias, *Named
 // or *Signature, respectively).
 //
@@ -36,30 +36,37 @@ type genericType interface {
 // signatures will yield different instances. The use of a shared context does
 // not guarantee that identical instances are deduplicated in all cases.
 //
-// If validate is set, Instantiate verifies that the number of type arguments
-// and parameters match, and that the type arguments satisfy their respective
-// type constraints. If verification fails, the resulting error may wrap an
-// *ArgumentError indicating which type argument did not satisfy its type parameter
-// constraint, and why.
+// If validate is set, Instantiate verifies that the type orig is in fact generic,
+// that the number of type arguments and parameters match, and that the type arguments
+// satisfy their respective type constraints.
+// If verification fails, the resulting error may wrap an *ArgumentError indicating
+// which type argument did not satisfy its type parameter constraint, and why.
 //
-// If validate is not set, Instantiate does not verify the type argument count
-// or whether the type arguments satisfy their constraints. Instantiate is
-// guaranteed to not return an error, but may panic. Specifically, for
-// *Signature types, Instantiate will panic immediately if the type argument
+// If validate is not set, Instantiate does not check if orig is generic, verify the
+// type argument count, or check whether the type arguments satisfy their constraints.
+// Instantiate is guaranteed to not return an error, but may panic. Specifically,
+// for *Signature types, Instantiate will panic immediately if the type argument
 // count is incorrect; for *Named types, a panic may occur later inside the
 // *Named API.
 func Instantiate(ctxt *Context, orig Type, targs []Type, validate bool) (Type, error) {
-	assert(len(targs) > 0)
 	if ctxt == nil {
 		ctxt = NewContext()
 	}
-	orig_ := orig.(genericType) // signature of Instantiate must not change for backward-compatibility
+	orig_, ok := orig.(genericType) // signature of Instantiate must not change for backward-compatibility
+	if !ok {
+		panic(sprintf(nil, false, "cannot instantiate non-generic %s: expected *Named, *Alias, or *Signature", orig))
+	}
+	if len(targs) == 0 {
+		panic(sprintf(nil, false, "cannot instantiate %s: empty type argument list", orig))
+	}
 
 	if validate {
 		tparams := orig_.TypeParams().list()
-		assert(len(tparams) > 0)
+		if len(tparams) == 0 {
+			return nil, fmt.Errorf("cannot instantiate non-generic %s: has no type parameters", orig)
+		}
 		if len(targs) != len(tparams) {
-			return nil, fmt.Errorf("got %d type arguments but %s has %d type parameters", len(targs), orig, len(tparams))
+			return nil, fmt.Errorf("cannot instantiate %s: got %d type arguments but have %d type parameters", orig, len(targs), len(tparams))
 		}
 		if i, err := (*Checker)(nil).verify(nopos, tparams, targs, ctxt); err != nil {
 			return nil, &ArgumentError{i, err}
@@ -146,6 +153,11 @@ func (check *Checker) instance(pos syntax.Pos, orig genericType, targs []Type, e
 
 	case *Signature:
 		assert(expanding == nil) // function instances cannot be reached from Named types
+		// Note that orig may be a generic method on a generic type. In that case, orig
+		// is an instantiated type. It will not have receiver type parameters, but will
+		// still have ordinary type parameters.
+		assert(orig.RecvTypeParams() == nil)
+		assert(orig.TypeParams() != nil)
 
 		tparams := orig.TypeParams()
 		// TODO(gri) investigate if this is needed (type argument and parameter count seem to be correct here)
@@ -245,7 +257,7 @@ func (check *Checker) implements(V, T Type, constraint bool, cause *string) bool
 		if cause != nil {
 			var detail string
 			if isInterfacePtr(Tu) {
-				detail = check.sprintf("type %s is pointer to interface, not interface", T)
+				detail = check.interfacePtrError(T)
 			} else {
 				detail = check.sprintf("%s is not an interface", T)
 			}

@@ -174,8 +174,8 @@
 (Rsh64Ux32 <t> x y) && !shiftIsBounded(v) => (CSEL [OpARM64LessThanU] (SRL <t> x y) (Const64 <t> [0]) (CMPWconst [64] y))
 (Rsh64Ux(16|8) <t> [bounded] x y) && !shiftIsBounded(v) => (Rsh64Ux32 <t> [bounded] x (ZeroExt(16|8)to32 y))
 
-(Rsh64x64 <t> x y) && !shiftIsBounded(v) => (SRA x (CSEL [OpARM64LessThanU] <y.Type> y (Const64 <y.Type> [63]) (CMPconst [64] y)))
-(Rsh64x32 <t> x y) && !shiftIsBounded(v) => (SRA x (CSEL [OpARM64LessThanU] <y.Type> y (Const64 <y.Type> [63]) (CMPconst [64] y)))
+(Rsh64x64 <t> x y) && !shiftIsBounded(v) => (SRA x (CSEL [OpARM64LessThanU] <y.Type> y (Const64 <y.Type> [63]) (CMPconst  [64] y)))
+(Rsh64x32 <t> x y) && !shiftIsBounded(v) => (SRA x (CSEL [OpARM64LessThanU] <y.Type> y (Const64 <y.Type> [63]) (CMPWconst [64] y)))
 (Rsh64x(16|8) <t> [bounded] x y) && !shiftIsBounded(v) => (Rsh64x32 <t> [bounded] x (ZeroExt(16|8)to32 y))
 
 // constants
@@ -590,9 +590,15 @@
 ((Equal|NotEqual|LessThan|GreaterEqual) (CMPconst  [0] z:(ADD        x y))) && z.Uses == 1 => ((Equal|NotEqual|LessThanNoov|GreaterEqualNoov) (CMN  x y))
 ((Equal|NotEqual|LessThan|GreaterEqual) (CMPWconst [0] z:(ADD        x y))) && z.Uses == 1 => ((Equal|NotEqual|LessThanNoov|GreaterEqualNoov) (CMNW x y))
 ((Equal|NotEqual|LessThan|GreaterEqual) (CMPconst  [0] z:(MADD     a x y))) && z.Uses == 1 => ((Equal|NotEqual|LessThanNoov|GreaterEqualNoov) (CMN  a (MUL  <x.Type> x y)))
-((Equal|NotEqual|LessThan|GreaterEqual) (CMPconst  [0] z:(MSUB     a x y))) && z.Uses == 1 => ((Equal|NotEqual|LessThanNoov|GreaterEqualNoov) (CMP  a (MUL  <x.Type> x y)))
 ((Equal|NotEqual|LessThan|GreaterEqual) (CMPWconst [0] z:(MADDW    a x y))) && z.Uses == 1 => ((Equal|NotEqual|LessThanNoov|GreaterEqualNoov) (CMNW a (MULW <x.Type> x y)))
-((Equal|NotEqual|LessThan|GreaterEqual) (CMPWconst [0] z:(MSUBW    a x y))) && z.Uses == 1 => ((Equal|NotEqual|LessThanNoov|GreaterEqualNoov) (CMPW a (MULW <x.Type> x y)))
+
+// Skip LessThan/GreaterEqual in the following rewrites.
+// MSUB[W] a x y is a-x*y, which folds to a CMP.
+// That can end up being reversed into InvertFlags.
+// But absorbing InvertFlags into a no-overflow comparison flips < and >,
+// which is wrong when the difference is the minimum int.
+((Equal|NotEqual) (CMPconst  [0] z:(MSUB     a x y))) && z.Uses == 1 => ((Equal|NotEqual) (CMP  a (MUL  <x.Type> x y)))
+((Equal|NotEqual) (CMPWconst [0] z:(MSUBW    a x y))) && z.Uses == 1 => ((Equal|NotEqual) (CMPW a (MULW <x.Type> x y)))
 
 ((CMPconst|CMNconst)   [c] y) && c < 0 && c != -1<<63 => ((CMNconst|CMPconst)   [-c] y)
 ((CMPWconst|CMNWconst) [c] y) && c < 0 && c != -1<<31 => ((CMNWconst|CMPWconst) [-c] y)
@@ -609,9 +615,10 @@
 ((ZW|NZW) sub:(SUBconst [c] y)) && sub.Uses == 1 => ((EQ|NE) (CMPWconst [int32(c)] y))
 
 ((EQ|NE|LT|LE|GT|GE) (CMPconst  [0] z:(MADD a x y))  yes no) && z.Uses==1 => ((EQ|NE|LTnoov|LEnoov|GTnoov|GEnoov) (CMN  a (MUL  <x.Type> x y)) yes no)
-((EQ|NE|LT|LE|GT|GE) (CMPconst  [0] z:(MSUB a x y))  yes no) && z.Uses==1 => ((EQ|NE|LTnoov|LEnoov|GTnoov|GEnoov) (CMP  a (MUL  <x.Type> x y)) yes no)
 ((EQ|NE|LT|LE|GT|GE) (CMPWconst [0] z:(MADDW a x y)) yes no) && z.Uses==1 => ((EQ|NE|LTnoov|LEnoov|GTnoov|GEnoov) (CMNW a (MULW <x.Type> x y)) yes no)
-((EQ|NE|LT|LE|GT|GE) (CMPWconst [0] z:(MSUBW a x y)) yes no) && z.Uses==1 => ((EQ|NE|LTnoov|LEnoov|GTnoov|GEnoov) (CMPW a (MULW <x.Type> x y)) yes no)
+// No ordering ops here; see comments above about MSUB[W].
+((EQ|NE) (CMPconst  [0] z:(MSUB a x y))  yes no) && z.Uses==1 => ((EQ|NE) (CMP  a (MUL  <x.Type> x y)) yes no)
+((EQ|NE) (CMPWconst [0] z:(MSUBW a x y)) yes no) && z.Uses==1 => ((EQ|NE) (CMPW a (MULW <x.Type> x y)) yes no)
 
 // Absorb bit-tests into block
 (Z   (ANDconst  [c] x) yes no) && oneBit(c) => (TBZ  [int64(ntz64(c))] x yes no)
@@ -1343,10 +1350,6 @@
 (FGT (InvertFlags cmp) yes no) => (FLT cmp yes no)
 (FLE (InvertFlags cmp) yes no) => (FGE cmp yes no)
 (FGE (InvertFlags cmp) yes no) => (FLE cmp yes no)
-(LTnoov (InvertFlags cmp) yes no) => (GTnoov cmp yes no)
-(GEnoov (InvertFlags cmp) yes no) => (LEnoov cmp yes no)
-(LEnoov (InvertFlags cmp) yes no) => (GEnoov cmp yes no)
-(GTnoov (InvertFlags cmp) yes no) => (LTnoov cmp yes no)
 
 // absorb InvertFlags into conditional instructions
 (CSEL  [cc] x y (InvertFlags cmp)) => (CSEL  [arm64Invert(cc)] x y cmp)
@@ -1385,8 +1388,11 @@
 (LessEqualF       (InvertFlags x)) => (GreaterEqualF x)
 (GreaterThanF     (InvertFlags x)) => (LessThanF x)
 (GreaterEqualF    (InvertFlags x)) => (LessEqualF x)
-(LessThanNoov     (InvertFlags x)) => (CSEL0 [OpARM64NotEqual] (GreaterEqualNoov <typ.Bool> x) x)
-(GreaterEqualNoov (InvertFlags x)) => (CSINC [OpARM64NotEqual] (LessThanNoov <typ.Bool> x) (MOVDconst [0]) x)
+
+(GreaterEqual (CMPconst x [0])) => (XORconst [1] (SRLconst <v.Type> [63] x))
+(LessThan (CMPconst x [0])) => (SRLconst [63] x)
+(GreaterEqual (CMPWconst x [0])) => (XORconst [1] (UBFX <v.Type> [armBFAuxInt(31,1)] x))
+(LessThan (CMPWconst x [0])) => (UBFX [armBFAuxInt(31,1)] x)
 
 // Don't bother extending if we're not using the higher bits.
 (MOV(B|BU)reg x) && v.Type.Size() <= 1 => x
@@ -1673,6 +1679,7 @@
 (SBFX [bfc] s:(SLLconst [sc] x))
 	&& s.Uses == 1
 	&& sc > bfc.lsb()
+	&& sc < bfc.lsb()+bfc.width()
 	=> (SBFIZ [armBFAuxInt(sc - bfc.lsb(), bfc.width() - (sc-bfc.lsb()))] x)
 
 // ubfiz

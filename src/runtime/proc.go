@@ -217,6 +217,13 @@ func main() {
 	gcenable()
 	defaultGOMAXPROCSUpdateEnable() // don't STW before runtime initialized.
 
+	// If we encountered a removed GODEBUG during startup we can panic now.
+	if k := invalidGODEBUG.key; k != "" {
+		v := invalidGODEBUG.value
+		r := strconv.Itoa(invalidGODEBUG.removed)
+		fatal(`removed GODEBUG "` + k + `" set to old value "` + v + `" in environment (https://go.dev/doc/godebug#go-1` + r + `)`)
+	}
+
 	mainInitDoneChan = make(chan bool)
 	if iscgo {
 		if _cgo_pthread_key_created == nil {
@@ -1111,7 +1118,7 @@ func (mp *m) hasCgoOnStack() bool {
 const (
 	// osHasLowResTimer indicates that the platform's internal timer system has a low resolution,
 	// typically on the order of 1 ms or more.
-	osHasLowResTimer = GOOS == "windows" || GOOS == "openbsd" || GOOS == "netbsd"
+	osHasLowResTimer = GOOS == "windows" || GOOS == "openbsd" || GOOS == "netbsd" || GOOS == "plan9"
 
 	// osHasLowResClockInt is osHasLowResClock but in integer form, so it can be used to create
 	// constants conditionally.

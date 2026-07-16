@@ -25,10 +25,10 @@ import (
 )
 
 func main() {
-	ouputName := "schema.go"
+	outputName := "schema.go"
 	cfg := generator.Config{
 		DefaultPackageName: "wycheproof",
-		DefaultOutputName:  ouputName,
+		DefaultOutputName:  outputName,
 		Tags:               []string{"json"},
 		Warner: func(message string) {
 			log.Printf("go-jsonschema: %s", message)
@@ -83,11 +83,11 @@ func main() {
 	if sourceCount := len(sources); sourceCount != 1 {
 		log.Fatalf("expected to generate 1 source file, got %d\n", sourceCount)
 	}
-	content, ok := sources[ouputName]
+	content, ok := sources[outputName]
 	if !ok {
-		log.Fatalf("missing generated %q output file source", ouputName)
+		log.Fatalf("missing generated %q output file source", outputName)
 	}
-	outFile := filepath.Join("../", ouputName)
+	outFile := filepath.Join("../", outputName)
 	if err := os.WriteFile(outFile, content, 0644); err != nil {
 		log.Fatalf("error writing file %s: %v\n", outFile, err)
 	}

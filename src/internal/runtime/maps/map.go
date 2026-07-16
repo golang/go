@@ -177,6 +177,25 @@ import (
 // For (b), we must adjust the current directory index when the directory
 // grows. This is more straightforward, as the directory orders remains the
 // same after grow, so we just double the index if the directory size doubles.
+//
+// Hashing Pointers
+//
+// Keys in Go maps can be pointers, or contain pointers.  The hash of
+// a pointer is a somewhat tricky concept, as pointers to stack
+// objects can change during a stack copy. Because we hash a pointer
+// by just hashing its uintptr-converted value, the hash of a key can
+// potentially become stale across any stack copy.
+//
+// For keys that are stored into maps, we must avoid this. All key
+// arguments to map assignments must have their pointer targets marked
+// as escaping so that the hash of the key in the map is stable. This
+// is true even when the map itself does not escape and can live on
+// the stack.
+//
+// For keys that are used for lookup (or delete), it turns out that
+// escaping is not required. If we are looking up a pointer which
+// points to the stack, the hash value is ~irrelevant, as the key is
+// guaranteed to not be in the map (due to the previous paragraph).
 
 // Extracts the H1 portion of a hash: the 57 upper bits.
 // TODO(prattmic): what about 32-bit systems?

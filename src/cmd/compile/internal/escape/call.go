@@ -204,6 +204,8 @@ func (e *escape) call(ks []hole, call ir.Node) {
 			e.discard(arg)
 		}
 		e.discard(call.RType)
+		// Note: keys used in map deletes do not need to escape.
+		// See "Hashing Pointers" doc in internal/runtime/maps/map.go.
 
 	case ir.OMIN, ir.OMAX:
 		call := call.(*ir.CallExpr)

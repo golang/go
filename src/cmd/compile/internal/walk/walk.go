@@ -184,7 +184,8 @@ func mkmapnames(base string, ptr string) mapnames {
 	return mapnames{base, base + "_fast32", base + "_fast32" + ptr, base + "_fast64", base + "_fast64" + ptr, base + "_faststr"}
 }
 
-var mapaccess = mkmapnames("mapaccess2", "")
+var mapaccess1 = mkmapnames("mapaccess1", "")
+var mapaccess2 = mkmapnames("mapaccess2", "")
 var mapassign = mkmapnames("mapassign", "ptr")
 var mapdelete = mkmapnames("mapdelete", "")
 
@@ -336,10 +337,16 @@ func mayCall(n ir.Node) bool {
 			return true
 
 		case ir.OINDEX, ir.OSLICE, ir.OSLICEARR, ir.OSLICE3, ir.OSLICE3ARR, ir.OSLICESTR,
-			ir.ODEREF, ir.ODOTPTR, ir.ODOTTYPE, ir.ODYNAMICDOTTYPE, ir.ODIV, ir.OMOD,
+			ir.ODEREF, ir.ODOTPTR, ir.ODOTTYPE, ir.ODYNAMICDOTTYPE, ir.OMOD,
 			ir.OSLICE2ARR, ir.OSLICE2ARRPTR:
 			// These ops might panic, make sure they are done
 			// before we start marshaling args for a call. See issue 16760.
+			return true
+		case ir.ODIV:
+			n := n.(*ir.BinaryExpr)
+			if types.IsFloat[n.X.Type().Kind()] {
+				return ssagen.Arch.SoftFloat
+			}
 			return true
 
 		case ir.OANDAND, ir.OOROR:

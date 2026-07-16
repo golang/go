@@ -768,12 +768,18 @@ func (st *state) inlineCall() (*inlineCallResult, error) {
 		}
 	}
 
-	typeArgs := st.typeArguments(caller.Call)
-	if len(typeArgs) != len(callee.TypeParams) {
-		return nil, fmt.Errorf("cannot inline: type parameter inference is not yet supported")
-	}
-	if err := substituteTypeParams(logf, callee.TypeParams, typeArgs, params, replaceCalleeID); err != nil {
-		return nil, err
+	// Substitute type parameters in calleeDecl AST with type arguments from the
+	// call, and synchronize the parameter metadata.
+	{
+		typeArgs := st.typeArguments(caller.Call)
+		if len(typeArgs) != len(callee.TypeParams) {
+			return nil, fmt.Errorf("cannot inline: type parameter inference is not yet supported")
+		}
+		if err := substituteTypeParams(logf, callee.TypeParams, typeArgs, replaceCalleeID); err != nil {
+			return nil, err
+		}
+		// Synchronize the parameters' type pointers with the mutated calleeDecl.
+		syncParamFieldTypes(calleeDecl, params)
 	}
 
 	// Log effective arguments.
@@ -1506,9 +1512,9 @@ type parameter struct {
 // variadic elimination, and may be unpacked into variadic calls.
 type replacer = func(offset int, repl ast.Expr, unpackVariadic bool)
 
-// substituteTypeParams replaces type parameters in the callee with the corresponding type arguments
-// from the call.
-func substituteTypeParams(logf logger, typeParams []*paramInfo, typeArgs []*argument, params []*parameter, replace replacer) error {
+// substituteTypeParams replaces type parameters in the callee with the
+// corresponding type arguments from the call.
+func substituteTypeParams(logf logger, typeParams []*paramInfo, typeArgs []*argument, replace replacer) error {
 	assert(len(typeParams) == len(typeArgs), "mismatched number of type params/args")
 	for i, paramInfo := range typeParams {
 		arg := typeArgs[i]
@@ -1522,31 +1528,37 @@ func substituteTypeParams(logf logger, typeParams []*paramInfo, typeArgs []*argu
 		for _, ref := range paramInfo.Refs {
 			replace(ref.Offset, internalastutil.CloneNode(arg.expr), false)
 		}
-		// Also replace parameter field types.
-		// TODO(jba): find a way to do this that is not so slow and clumsy.
-		// Ideally, we'd walk each p.fieldType once, replacing all type params together.
-		for _, p := range params {
-			if id, ok := p.fieldType.(*ast.Ident); ok && id.Name == paramInfo.Name {
-				p.fieldType = arg.expr
-			} else {
-				for _, id := range identsNamed(p.fieldType, paramInfo.Name) {
-					replaceNode(p.fieldType, id, arg.expr)
-				}
-			}
-		}
 	}
 	return nil
 }
 
-func identsNamed(n ast.Node, name string) []*ast.Ident {
-	var ids []*ast.Ident
-	ast.Inspect(n, func(n ast.Node) bool {
-		if id, ok := n.(*ast.Ident); ok && id.Name == name {
-			ids = append(ids, id)
+// syncParamFieldTypes synchronizes the fieldType of each parameter in params
+// with the mutated calleeDecl AST. This is necessary because substituteTypeParams
+// mutates the calleeDecl AST, replacing type nodes, but params still references
+// the original (now outdated) type nodes.
+func syncParamFieldTypes(calleeDecl *ast.FuncDecl, params []*parameter) {
+	var i int
+	setFieldType := func(t ast.Expr) {
+		assert(i < len(params), "mismatched parameter count")
+		params[i].fieldType = t
+		i++
+	}
+
+	if calleeDecl.Recv != nil && len(calleeDecl.Recv.List) > 0 {
+		setFieldType(calleeDecl.Recv.List[0].Type)
+	}
+	if calleeDecl.Type.Params != nil {
+		for _, field := range calleeDecl.Type.Params.List {
+			if field.Names == nil {
+				setFieldType(field.Type)
+			} else {
+				for range field.Names {
+					setFieldType(field.Type)
+				}
+			}
 		}
-		return true
-	})
-	return ids
+	}
+	assert(i == len(params), "mismatched parameter count")
 }
 
 // substitute implements parameter elimination by substitution.

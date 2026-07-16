@@ -1280,3 +1280,27 @@ func TestDecoderOverflow(t *testing.T) {
 		t.Fatalf("expected an error")
 	}
 }
+
+// Issue 79756.
+func TestLargeMap(t *testing.T) {
+	t.Parallel()
+	type array [8192]byte
+	const entries = 2500 // enough to allocate a smaller map
+	m := make(map[int16]array, entries)
+	for i := range entries {
+		m[int16(i)] = array{}
+	}
+	var b bytes.Buffer
+	enc := NewEncoder(&b)
+	if err := enc.Encode(m); err != nil {
+		t.Fatal(err)
+	}
+	dec := NewDecoder(&b)
+	m = nil
+	if err := dec.Decode(&m); err != nil {
+		t.Fatal(err)
+	}
+	if len(m) != entries {
+		t.Errorf("got %d entries, want %d", len(m), entries)
+	}
+}

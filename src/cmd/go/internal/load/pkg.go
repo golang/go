@@ -234,6 +234,7 @@ type PackageInternal struct {
 	Cover             CoverSetup          // coverage mode and other setup info of -cover is being applied to this package
 	OmitDebug         bool                // tell linker not to write debug information
 	GobinSubdir       bool                // install target would be subdir of GOBIN
+	InternalImportOk  bool                // this package may be imported even though it is internal
 	BuildInfo         *debug.BuildInfo    // add this info to package main
 	TestmainGo        *[]byte             // content for _testmain.go
 	Embed             map[string][]string // //go:embed comment mapping
@@ -376,7 +377,6 @@ func (p *Package) Resolve(s *modload.Loader, imports []string) []string {
 // CoverSetup holds parameters related to coverage setup for a given package (covermode, etc).
 type CoverSetup struct {
 	Mode    string // coverage mode for this package
-	Cfg     string // path to config file to pass to "go tool cover"
 	GenMeta bool   // ask cover tool to emit a static meta data if set
 }
 
@@ -633,7 +633,17 @@ func (sp *ImportStack) shorterThan(t []string) bool {
 // packageCache is a lookup cache for LoadImport,
 // so that if we look up a package multiple times
 // we return the same pointer each time.
+//
+// TODO: associate the packageCache with the module loader state, so that
+// different module loaders use different caches.
 var packageCache = map[string]*Package{}
+
+// ClearPackageCache clears the package cache.
+// It cannot be used concurrently with calls to LoadImport or other functions
+// that use packageCache without synchronization.
+func ClearPackageCache() {
+	clear(packageCache)
+}
 
 // dirToImportPath returns the pseudo-import path we use for a package
 // outside the Go path. It begins with _/ and then contains the full path
@@ -684,6 +694,9 @@ const (
 	// cmdlinePkgLiteral is for a package mentioned on the command line
 	// without using any wildcards or meta-patterns.
 	cmdlinePkgLiteral
+
+	// allow simd/internal/bridge
+	allowSimdInternalBridge
 )
 
 // LoadPackage does Load import, but without a parent package load context
@@ -786,10 +799,12 @@ func loadImport(ld *modload.Loader, ctx context.Context, opts PackageOpts, pre *
 		}
 	}
 
-	// Checked on every import because the rules depend on the code doing the importing.
-	if perr := disallowInternal(ld, ctx, srcDir, parent, parentPath, p, stk); perr != nil {
-		perr.setPos(importPos)
-		return p, perr
+	if mode&allowSimdInternalBridge == 0 || path != SimdBridgePkg { // Special case for just this import.
+		// Checked on every import because the rules depend on the code doing the importing.
+		if perr := disallowInternal(ld, ctx, srcDir, parent, parentPath, p, stk); perr != nil {
+			perr.setPos(importPos)
+			return p, perr
+		}
 	}
 	if mode&ResolveImport != 0 {
 		if perr := disallowVendor(srcDir, path, parentPath, p, stk); perr != nil {
@@ -925,10 +940,10 @@ func loadPackageData(ld *modload.Loader, ctx context.Context, path, parentPath, 
 				buildContext.GOPATH = "" // Clear GOPATH so packages are imported as pure module packages
 			}
 			modroot := modload.PackageModRoot(ld, ctx, r.path)
-			if modroot == "" && str.HasPathPrefix(r.dir, cfg.GOROOTsrc) {
+			if modroot == "" && str.HasFilePathPrefix(r.dir, cfg.GOROOTsrc) {
 				modroot = cfg.GOROOTsrc
 				gorootSrcCmd := filepath.Join(cfg.GOROOTsrc, "cmd")
-				if str.HasPathPrefix(r.dir, gorootSrcCmd) {
+				if str.HasFilePathPrefix(r.dir, gorootSrcCmd) {
 					modroot = gorootSrcCmd
 				}
 			}
@@ -1771,6 +1786,25 @@ func (p *Package) DefaultExecName() string {
 	return p.exeFromImportPath()
 }
 
+// The package used for rewriting "simd"
+const SimdBridgePkg = "simd/internal/bridge"
+
+// hasSimd encodes the conditions under which the presence/absence of
+// imports of "simd" is interesting, i.e., if there is intrinsic
+// support, and hence some rewriting of AST to use the intrinsics.
+// This is used for both build and test (and perhaps in other contexts to
+// be discovered later).
+func hasSimd(imports []string) (hasSimd bool) {
+	if cfg.BuildContext.GOARCH == "wasm" || cfg.BuildContext.GOARCH == "amd64" || cfg.BuildContext.GOARCH == "arm64" {
+		for _, imp := range imports {
+			if imp == "simd" {
+				hasSimd = true
+			}
+		}
+	}
+	return
+}
+
 // load populates p using information from bp, err, which should
 // be the result of calling build.Context.Import.
 // stk contains the import stack, not including path itself.
@@ -1910,6 +1944,12 @@ func (p *Package) load(ld *modload.Loader, ctx context.Context, opts PackageOpts
 		}
 	}
 
+	allowInternalSimdImport := 0
+	if hasSimd := hasSimd(p.Imports); hasSimd {
+		addImport(SimdBridgePkg, true)
+		allowInternalSimdImport = allowSimdInternalBridge
+	}
+
 	if !opts.IgnoreImports {
 		// Cgo translation adds imports of "unsafe", "runtime/cgo" and "syscall",
 		// except for certain packages, to avoid circular dependencies.
@@ -2029,7 +2069,7 @@ func (p *Package) load(ld *modload.Loader, ctx context.Context, opts PackageOpts
 		if path == "C" {
 			continue
 		}
-		p1, err := loadImport(ld, ctx, opts, nil, path, p.Dir, p, stk, p.Internal.Build.ImportPos[path], ResolveImport)
+		p1, err := loadImport(ld, ctx, opts, nil, path, p.Dir, p, stk, p.Internal.Build.ImportPos[path], ResolveImport|allowInternalSimdImport)
 		if err != nil && p.Error == nil {
 			p.Error = err
 			p.Incomplete = true

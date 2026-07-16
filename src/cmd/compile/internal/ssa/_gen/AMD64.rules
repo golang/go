@@ -42,7 +42,16 @@
 (SUBQborrow x (MOVQconst [c])) && is32Bit(c) => (SUBQconstborrow x [int32(c)])
 (Select1 (NEGLflags (MOVQconst [0]))) => (FlagEQ)
 (Select1 (NEGLflags (MOVBQZX (SETB x)))) => x
-
+// Absorb InvertFlags into ADCQ/SBBQ: CF(InvertFlags(f)) = SETA(f), so
+// re-materialize the carry/borrow through the SETA+NEGLflags path.
+(ADCQ x y (InvertFlags f)) => (ADCQ x y (Select1 <types.TypeFlags> (NEGLflags (MOVBQZX <types.Types[types.TUINT32]> (SETA <types.Types[types.TUINT8]> f)))))
+(ADCQconst x [c] (InvertFlags f)) => (ADCQconst x [c] (Select1 <types.TypeFlags> (NEGLflags (MOVBQZX <types.Types[types.TUINT32]> (SETA <types.Types[types.TUINT8]> f)))))
+(SBBQ x y (InvertFlags f)) => (SBBQ x y (Select1 <types.TypeFlags> (NEGLflags (MOVBQZX <types.Types[types.TUINT32]> (SETA <types.Types[types.TUINT8]> f)))))
+(SBBQconst x [c] (InvertFlags f)) => (SBBQconst x [c] (Select1 <types.TypeFlags> (NEGLflags (MOVBQZX <types.Types[types.TUINT32]> (SETA <types.Types[types.TUINT8]> f)))))
+// ADDQ/SUBQ an from a carry flag into ADCQ/SBBQ
+// TODO: maybe add ADCL and SBBL ?
+(ADDQ x (MOVBQZX (SETB flags))) => (Select0 (ADCQconst [0] x flags))
+(SUBQ x (MOVBQZX (SETB flags))) => (Select0 (SBBQconst [0] x flags))
 
 (Mul64uhilo ...) => (MULQU2 ...)
 (Div128u ...) => (DIVQU2 ...)
@@ -825,10 +834,6 @@
 ((SHRB|SARB)const           x [0]) => x
 ((ROLQ|ROLL|ROLW|ROLB)const x [0]) => x
 
-// Multi-register shifts
-(ORQ (SH(R|L)Q lo bits) (SH(L|R)Q hi (NEGQ bits))) => (SH(R|L)DQ lo hi bits)
-(ORQ (SH(R|L)XQ lo bits) (SH(L|R)XQ hi (NEGQ bits))) => (SH(R|L)DQ lo hi bits)
-
 // Note: the word and byte shifts keep the low 5 bits (not the low 4 or 3 bits)
 // because the x86 instructions are defined to use all 5 bits of the shift even
 // for the small shifts. I don't think we'll ever generate a weird shift (e.g.
@@ -1497,6 +1502,7 @@
 
 // Detect FMA
 (ADDS(S|D) (MULS(S|D) x y) z) && buildcfg.GOAMD64 >= 3 && z.Block.Func.useFMA(v) => (VFMADD231S(S|D) z x y)
+(SUBS(S|D) (MULS(S|D) x y) z) && buildcfg.GOAMD64 >= 3 && z.Block.Func.useFMA(v) => (VFMSUB231S(S|D) z x y)
 
 // Redirect stores to use the other register set.
 (MOVQstore  [off] {sym} ptr (MOVQf2i val) mem) => (MOVSDstore [off] {sym} ptr val mem)
@@ -1743,61 +1749,61 @@
 	(VPMOVMToVec64x8  (VCMPPD512 [3] x y))
 
 // Include these rules because you never know about rewrite order
-(KANDQ (VCMPPD512 [3] x x) (VCMPPD512 [3] y y)) => (VCMPPD512 [3] x x)
-(KANDD (VCMPPS512 [3] x x) (VCMPPS512 [3] y y)) => (VCMPPS512 [3] x y)
+(KANDB (VCMPPD512 [3] x x) (VCMPPD512 [3] y y)) => (VCMPPD512 [3] x x) // 512 = 64x8 -> KANDB
+(KANDW (VCMPPS512 [3] x x) (VCMPPS512 [3] y y)) => (VCMPPS512 [3] x y) // 512 = 32x16 -> KANDW
 
 // These larger simplifying rules must come before the smaller simplifying rules that might break them).
 // Rewrite rules for binary logical mask operations that apply to 8-bit elements (B, for bytes) of 128, 256, and 512-bit vectors
-(VPAND128 (VPMOVMToVec8x16 x) (VPMOVMToVec8x16 y)) && v.Block.CPUfeatures.hasFeature(CPUavx512) => (VPMOVMToVec8x16 (KANDB x y))
-(VPAND256 (VPMOVMToVec8x32 x) (VPMOVMToVec8x32 y)) && v.Block.CPUfeatures.hasFeature(CPUavx512) => (VPMOVMToVec8x32 (KANDB x y))
-(VPANDD512 (VPMOVMToVec8x64 x) (VPMOVMToVec8x64 y)) && v.Block.CPUfeatures.hasFeature(CPUavx512) => (VPMOVMToVec8x64 (KANDB x y))
+(VPAND128 (VPMOVMToVec8x16 x) (VPMOVMToVec8x16 y)) && v.Block.CPUfeatures.hasFeature(CPUavx512) => (VPMOVMToVec8x16 (KANDW x y))
+(VPAND256 (VPMOVMToVec8x32 x) (VPMOVMToVec8x32 y)) && v.Block.CPUfeatures.hasFeature(CPUavx512) => (VPMOVMToVec8x32 (KANDD x y))
+(VPANDD512 (VPMOVMToVec8x64 x) (VPMOVMToVec8x64 y)) && v.Block.CPUfeatures.hasFeature(CPUavx512) => (VPMOVMToVec8x64 (KANDQ x y))
 
-(VPOR128 (VPMOVMToVec8x16 x) (VPMOVMToVec8x16 y)) && v.Block.CPUfeatures.hasFeature(CPUavx512) => (VPMOVMToVec8x16 (KORB x y))
-(VPOR256 (VPMOVMToVec8x32 x) (VPMOVMToVec8x32 y)) && v.Block.CPUfeatures.hasFeature(CPUavx512) => (VPMOVMToVec8x32 (KORB x y))
-(VPORD512 (VPMOVMToVec8x64 x) (VPMOVMToVec8x64 y)) && v.Block.CPUfeatures.hasFeature(CPUavx512) => (VPMOVMToVec8x64 (KORB x y))
+(VPOR128 (VPMOVMToVec8x16 x) (VPMOVMToVec8x16 y)) && v.Block.CPUfeatures.hasFeature(CPUavx512) => (VPMOVMToVec8x16 (KORW x y))
+(VPOR256 (VPMOVMToVec8x32 x) (VPMOVMToVec8x32 y)) && v.Block.CPUfeatures.hasFeature(CPUavx512) => (VPMOVMToVec8x32 (KORD x y))
+(VPORD512 (VPMOVMToVec8x64 x) (VPMOVMToVec8x64 y)) && v.Block.CPUfeatures.hasFeature(CPUavx512) => (VPMOVMToVec8x64 (KORQ x y))
 
-(VPXOR128 (VPMOVMToVec8x16 x) (VPMOVMToVec8x16 y)) && v.Block.CPUfeatures.hasFeature(CPUavx512) => (VPMOVMToVec8x16 (KXORB x y))
-(VPXOR256 (VPMOVMToVec8x32 x) (VPMOVMToVec8x32 y)) && v.Block.CPUfeatures.hasFeature(CPUavx512) => (VPMOVMToVec8x32 (KXORB x y))
-(VPXORD512 (VPMOVMToVec8x64 x) (VPMOVMToVec8x64 y)) && v.Block.CPUfeatures.hasFeature(CPUavx512) => (VPMOVMToVec8x64 (KXORB x y))
+(VPXOR128 (VPMOVMToVec8x16 x) (VPMOVMToVec8x16 y)) && v.Block.CPUfeatures.hasFeature(CPUavx512) => (VPMOVMToVec8x16 (KXORW x y))
+(VPXOR256 (VPMOVMToVec8x32 x) (VPMOVMToVec8x32 y)) && v.Block.CPUfeatures.hasFeature(CPUavx512) => (VPMOVMToVec8x32 (KXORD x y))
+(VPXORD512 (VPMOVMToVec8x64 x) (VPMOVMToVec8x64 y)) && v.Block.CPUfeatures.hasFeature(CPUavx512) => (VPMOVMToVec8x64 (KXORQ x y))
 
 // Rewrite rules for binary logical mask operations that apply to 16-bit elements (W, for words) of 128, 256, and 512-bit vectors
-(VPAND128 (VPMOVMToVec16x8 x) (VPMOVMToVec16x8 y)) && v.Block.CPUfeatures.hasFeature(CPUavx512) => (VPMOVMToVec16x8 (KANDW x y))
+(VPAND128 (VPMOVMToVec16x8 x) (VPMOVMToVec16x8 y)) && v.Block.CPUfeatures.hasFeature(CPUavx512) => (VPMOVMToVec16x8 (KANDB x y))
 (VPAND256 (VPMOVMToVec16x16 x) (VPMOVMToVec16x16 y)) && v.Block.CPUfeatures.hasFeature(CPUavx512) => (VPMOVMToVec16x16 (KANDW x y))
-(VPANDD512 (VPMOVMToVec16x32 x) (VPMOVMToVec16x32 y)) && v.Block.CPUfeatures.hasFeature(CPUavx512) => (VPMOVMToVec16x32 (KANDW x y))
+(VPANDD512 (VPMOVMToVec16x32 x) (VPMOVMToVec16x32 y)) && v.Block.CPUfeatures.hasFeature(CPUavx512) => (VPMOVMToVec16x32 (KANDD x y))
 
-(VPOR128 (VPMOVMToVec16x8 x) (VPMOVMToVec16x8 y)) && v.Block.CPUfeatures.hasFeature(CPUavx512) => (VPMOVMToVec16x8 (KORW x y))
+(VPOR128 (VPMOVMToVec16x8 x) (VPMOVMToVec16x8 y)) && v.Block.CPUfeatures.hasFeature(CPUavx512) => (VPMOVMToVec16x8 (KORB x y))
 (VPOR256 (VPMOVMToVec16x16 x) (VPMOVMToVec16x16 y)) && v.Block.CPUfeatures.hasFeature(CPUavx512) => (VPMOVMToVec16x16 (KORW x y))
-(VPORD512 (VPMOVMToVec16x32 x) (VPMOVMToVec16x32 y)) && v.Block.CPUfeatures.hasFeature(CPUavx512) => (VPMOVMToVec16x32 (KORW x y))
+(VPORD512 (VPMOVMToVec16x32 x) (VPMOVMToVec16x32 y)) && v.Block.CPUfeatures.hasFeature(CPUavx512) => (VPMOVMToVec16x32 (KORD x y))
 
-(VPXOR128 (VPMOVMToVec16x8 x) (VPMOVMToVec16x8 y)) && v.Block.CPUfeatures.hasFeature(CPUavx512) => (VPMOVMToVec16x8 (KXORW x y))
+(VPXOR128 (VPMOVMToVec16x8 x) (VPMOVMToVec16x8 y)) && v.Block.CPUfeatures.hasFeature(CPUavx512) => (VPMOVMToVec16x8 (KXORB x y))
 (VPXOR256 (VPMOVMToVec16x16 x) (VPMOVMToVec16x16 y)) && v.Block.CPUfeatures.hasFeature(CPUavx512) => (VPMOVMToVec16x16 (KXORW x y))
-(VPXORD512 (VPMOVMToVec16x32 x) (VPMOVMToVec16x32 y)) && v.Block.CPUfeatures.hasFeature(CPUavx512) => (VPMOVMToVec16x32 (KXORW x y))
+(VPXORD512 (VPMOVMToVec16x32 x) (VPMOVMToVec16x32 y)) && v.Block.CPUfeatures.hasFeature(CPUavx512) => (VPMOVMToVec16x32 (KXORD x y))
 
 // Rewrite rules for binary logical mask operations that apply to 32-bit elements (D, for doublewords) of 128, 256, and 512-bit vectors
-(VPAND128 (VPMOVMToVec32x4 x) (VPMOVMToVec32x4 y)) && v.Block.CPUfeatures.hasFeature(CPUavx512) => (VPMOVMToVec32x4 (KANDD x y))
-(VPAND256 (VPMOVMToVec32x8 x) (VPMOVMToVec32x8 y)) && v.Block.CPUfeatures.hasFeature(CPUavx512) => (VPMOVMToVec32x8 (KANDD x y))
-(VPANDD512 (VPMOVMToVec32x16 x) (VPMOVMToVec32x16 y)) && v.Block.CPUfeatures.hasFeature(CPUavx512) => (VPMOVMToVec32x16 (KANDD x y))
+(VPAND128 (VPMOVMToVec32x4 x) (VPMOVMToVec32x4 y)) && v.Block.CPUfeatures.hasFeature(CPUavx512) => (VPMOVMToVec32x4 (KANDB x y))
+(VPAND256 (VPMOVMToVec32x8 x) (VPMOVMToVec32x8 y)) && v.Block.CPUfeatures.hasFeature(CPUavx512) => (VPMOVMToVec32x8 (KANDB x y))
+(VPANDD512 (VPMOVMToVec32x16 x) (VPMOVMToVec32x16 y)) && v.Block.CPUfeatures.hasFeature(CPUavx512) => (VPMOVMToVec32x16 (KANDW x y))
 
-(VPOR128 (VPMOVMToVec32x4 x) (VPMOVMToVec32x4 y)) && v.Block.CPUfeatures.hasFeature(CPUavx512) => (VPMOVMToVec32x4 (KORD x y))
-(VPOR256 (VPMOVMToVec32x8 x) (VPMOVMToVec32x8 y)) && v.Block.CPUfeatures.hasFeature(CPUavx512) => (VPMOVMToVec32x8 (KORD x y))
-(VPORD512 (VPMOVMToVec32x16 x) (VPMOVMToVec32x16 y)) && v.Block.CPUfeatures.hasFeature(CPUavx512) => (VPMOVMToVec32x16 (KORD x y))
+(VPOR128 (VPMOVMToVec32x4 x) (VPMOVMToVec32x4 y)) && v.Block.CPUfeatures.hasFeature(CPUavx512) => (VPMOVMToVec32x4 (KORB x y))
+(VPOR256 (VPMOVMToVec32x8 x) (VPMOVMToVec32x8 y)) && v.Block.CPUfeatures.hasFeature(CPUavx512) => (VPMOVMToVec32x8 (KORB x y))
+(VPORD512 (VPMOVMToVec32x16 x) (VPMOVMToVec32x16 y)) && v.Block.CPUfeatures.hasFeature(CPUavx512) => (VPMOVMToVec32x16 (KORW x y))
 
-(VPXOR128 (VPMOVMToVec32x4 x) (VPMOVMToVec32x4 y)) && v.Block.CPUfeatures.hasFeature(CPUavx512) => (VPMOVMToVec32x4 (KXORD x y))
-(VPXOR256 (VPMOVMToVec32x8 x) (VPMOVMToVec32x8 y)) && v.Block.CPUfeatures.hasFeature(CPUavx512) => (VPMOVMToVec32x8 (KXORD x y))
-(VPXORD512 (VPMOVMToVec32x16 x) (VPMOVMToVec32x16 y)) && v.Block.CPUfeatures.hasFeature(CPUavx512) => (VPMOVMToVec32x16 (KXORD x y))
+(VPXOR128 (VPMOVMToVec32x4 x) (VPMOVMToVec32x4 y)) && v.Block.CPUfeatures.hasFeature(CPUavx512) => (VPMOVMToVec32x4 (KXORB x y))
+(VPXOR256 (VPMOVMToVec32x8 x) (VPMOVMToVec32x8 y)) && v.Block.CPUfeatures.hasFeature(CPUavx512) => (VPMOVMToVec32x8 (KXORB x y))
+(VPXORD512 (VPMOVMToVec32x16 x) (VPMOVMToVec32x16 y)) && v.Block.CPUfeatures.hasFeature(CPUavx512) => (VPMOVMToVec32x16 (KXORW x y))
 
 // Rewrite rules for binary logical mask operations that apply to 64-bit elements (Q, for quadwords) of 128, 256, and 512-bit vectors
-(VPAND128 (VPMOVMToVec64x2 x) (VPMOVMToVec64x2 y)) && v.Block.CPUfeatures.hasFeature(CPUavx512) => (VPMOVMToVec64x2 (KANDQ x y))
-(VPAND256 (VPMOVMToVec64x4 x) (VPMOVMToVec64x4 y)) && v.Block.CPUfeatures.hasFeature(CPUavx512) => (VPMOVMToVec64x4 (KANDQ x y))
-(VPANDD512 (VPMOVMToVec64x8 x) (VPMOVMToVec64x8 y)) && v.Block.CPUfeatures.hasFeature(CPUavx512) => (VPMOVMToVec64x8 (KANDQ x y))
+(VPAND128 (VPMOVMToVec64x2 x) (VPMOVMToVec64x2 y)) && v.Block.CPUfeatures.hasFeature(CPUavx512) => (VPMOVMToVec64x2 (KANDB x y))
+(VPAND256 (VPMOVMToVec64x4 x) (VPMOVMToVec64x4 y)) && v.Block.CPUfeatures.hasFeature(CPUavx512) => (VPMOVMToVec64x4 (KANDB x y))
+(VPANDD512 (VPMOVMToVec64x8 x) (VPMOVMToVec64x8 y)) && v.Block.CPUfeatures.hasFeature(CPUavx512) => (VPMOVMToVec64x8 (KANDB x y))
 
-(VPOR128 (VPMOVMToVec64x2 x) (VPMOVMToVec64x2 y)) && v.Block.CPUfeatures.hasFeature(CPUavx512) => (VPMOVMToVec64x2 (KORQ x y))
-(VPOR256 (VPMOVMToVec64x4 x) (VPMOVMToVec64x4 y)) && v.Block.CPUfeatures.hasFeature(CPUavx512) => (VPMOVMToVec64x4 (KORQ x y))
-(VPORD512 (VPMOVMToVec64x8 x) (VPMOVMToVec64x8 y)) && v.Block.CPUfeatures.hasFeature(CPUavx512) => (VPMOVMToVec64x8 (KORQ x y))
+(VPOR128 (VPMOVMToVec64x2 x) (VPMOVMToVec64x2 y)) && v.Block.CPUfeatures.hasFeature(CPUavx512) => (VPMOVMToVec64x2 (KORB x y))
+(VPOR256 (VPMOVMToVec64x4 x) (VPMOVMToVec64x4 y)) && v.Block.CPUfeatures.hasFeature(CPUavx512) => (VPMOVMToVec64x4 (KORB x y))
+(VPORD512 (VPMOVMToVec64x8 x) (VPMOVMToVec64x8 y)) && v.Block.CPUfeatures.hasFeature(CPUavx512) => (VPMOVMToVec64x8 (KORB x y))
 
-(VPXOR128 (VPMOVMToVec64x2 x) (VPMOVMToVec64x2 y)) && v.Block.CPUfeatures.hasFeature(CPUavx512) => (VPMOVMToVec64x2 (KXORQ x y))
-(VPXOR256 (VPMOVMToVec64x4 x) (VPMOVMToVec64x4 y)) && v.Block.CPUfeatures.hasFeature(CPUavx512) => (VPMOVMToVec64x4 (KXORQ x y))
-(VPXORD512 (VPMOVMToVec64x8 x) (VPMOVMToVec64x8 y)) && v.Block.CPUfeatures.hasFeature(CPUavx512) => (VPMOVMToVec64x8 (KXORQ x y))
+(VPXOR128 (VPMOVMToVec64x2 x) (VPMOVMToVec64x2 y)) && v.Block.CPUfeatures.hasFeature(CPUavx512) => (VPMOVMToVec64x2 (KXORB x y))
+(VPXOR256 (VPMOVMToVec64x4 x) (VPMOVMToVec64x4 y)) && v.Block.CPUfeatures.hasFeature(CPUavx512) => (VPMOVMToVec64x4 (KXORB x y))
+(VPXORD512 (VPMOVMToVec64x8 x) (VPMOVMToVec64x8 y)) && v.Block.CPUfeatures.hasFeature(CPUavx512) => (VPMOVMToVec64x8 (KXORB x y))
 
 (VPMOVVec8x16ToM (VPMOVMToVec8x16 x)) => x
 (VPMOVVec8x32ToM (VPMOVMToVec8x32 x)) => x
@@ -1873,10 +1879,10 @@
 
 // remove flags → bool → flags roundtrip
 // Only do it if the flag generating instruction is local otherwise the likelihood flagalloc won't undo this optimization and makes things worse are slim.
-(NE t:(TESTQ x:(MOVBQZX s:(SET(EQ|NE|L|G|LE|GE|A|B|AE|BE|EQF|NEF|GF|GEF) flags)) x) yes no) && t.Block == s.Block => ((EQ|NE|LT|GT|LE|GE|UGT|ULT|UGE|ULE|EQF|NEF|UGE|UGT) flags yes no)
-(NE t:(TESTL x:(MOVBQZX s:(SET(EQ|NE|L|G|LE|GE|A|B|AE|BE|EQF|NEF|GF|GEF) flags)) x) yes no) && t.Block == s.Block => ((EQ|NE|LT|GT|LE|GE|UGT|ULT|UGE|ULE|EQF|NEF|UGE|UGT) flags yes no)
-(NE t:(TESTW x:(MOVBQZX s:(SET(EQ|NE|L|G|LE|GE|A|B|AE|BE|EQF|NEF|GF|GEF) flags)) x) yes no) && t.Block == s.Block => ((EQ|NE|LT|GT|LE|GE|UGT|ULT|UGE|ULE|EQF|NEF|UGE|UGT) flags yes no)
-(NE t:(TESTB            s:(SET(EQ|NE|L|G|LE|GE|A|B|AE|BE|EQF|NEF|GF|GEF) flags)  s) yes no) && t.Block == s.Block => ((EQ|NE|LT|GT|LE|GE|UGT|ULT|UGE|ULE|EQF|NEF|UGE|UGT) flags yes no)
+(NE t:(TESTQ x:(MOVBQZX s:(SET(EQ|NE|L|G|LE|GE|A|B|AE|BE|EQF|NEF|GF|GEF) flags)) x) yes no) && t.Block == s.Block => ((EQ|NE|LT|GT|LE|GE|UGT|ULT|UGE|ULE|EQF|NEF|UGT|UGE) flags yes no)
+(NE t:(TESTL x:(MOVBQZX s:(SET(EQ|NE|L|G|LE|GE|A|B|AE|BE|EQF|NEF|GF|GEF) flags)) x) yes no) && t.Block == s.Block => ((EQ|NE|LT|GT|LE|GE|UGT|ULT|UGE|ULE|EQF|NEF|UGT|UGE) flags yes no)
+(NE t:(TESTW x:(MOVBQZX s:(SET(EQ|NE|L|G|LE|GE|A|B|AE|BE|EQF|NEF|GF|GEF) flags)) x) yes no) && t.Block == s.Block => ((EQ|NE|LT|GT|LE|GE|UGT|ULT|UGE|ULE|EQF|NEF|UGT|UGE) flags yes no)
+(NE t:(TESTB            s:(SET(EQ|NE|L|G|LE|GE|A|B|AE|BE|EQF|NEF|GF|GEF) flags)  s) yes no) && t.Block == s.Block => ((EQ|NE|LT|GT|LE|GE|UGT|ULT|UGE|ULE|EQF|NEF|UGT|UGE) flags yes no)
 
 (CMOVQNE yes no t:(TESTQ x:(MOVBQZX s:(SET(EQ|NE|L|G|LE|GE|A|B|AE|BE|EQF|NEF|GF|GEF) flags)) x)) && t.Block == s.Block => (CMOVQ(EQ|NE|LT|GT|LE|GE|HI|CS|CC|LS|EQF|NEF|GTF|GEF) yes no flags)
 (CMOVQNE yes no t:(TESTL x:(MOVBQZX s:(SET(EQ|NE|L|G|LE|GE|A|B|AE|BE|EQF|NEF|GF|GEF) flags)) x)) && t.Block == s.Block => (CMOVQ(EQ|NE|LT|GT|LE|GE|HI|CS|CC|LS|EQF|NEF|GTF|GEF) yes no flags)

@@ -49,13 +49,13 @@ func main() {
 
 	fmt.Println()
 
-	for j := uint8(0); j < 18; j++ {
+	for j := uint64(0); j < 18; j++ {
 		fmt.Printf("%v.RAL(%d)=%v\n", i, j, i.RotateAllLeft(j))
 	}
 
 	fmt.Println()
 
-	for j := uint8(0); j < 18; j++ {
+	for j := uint64(0); j < 18; j++ {
 		fmt.Printf("%v.RAr(%d)=%v\n", i, j, i.RotateAllRight(j))
 	}
 

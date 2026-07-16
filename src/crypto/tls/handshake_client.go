@@ -728,6 +728,10 @@ func (hs *clientHandshakeState) doFullHandshake() error {
 		}
 	}
 
+	if chainToSend != nil {
+		hs.c.localCertificate = chainToSend.Certificate
+	}
+
 	shd, ok := msg.(*serverHelloDoneMsg)
 	if !ok {
 		c.sendAlert(alertUnexpectedMessage)

@@ -53,6 +53,36 @@ func TestMincoreErrorSign(t *testing.T) {
 	}
 }
 
+func TestParseRelease(t *testing.T) {
+	tests := []struct {
+		in                  string
+		major, minor, patch int
+		ok                  bool
+	}{
+		{"6.1.0", 6, 1, 0, true},
+		{"5.15.0-91-generic", 5, 15, 0, true},
+		{"4.19.0+", 4, 19, 0, true},
+		{"6.6.0-rc1", 6, 6, 0, true},
+		// Synology embedded Linux appends a platform identifier
+		// after an underscore.
+		{"3.4.35_hi3535", 3, 4, 35, true},
+		{"2.6.32_synology", 2, 6, 32, true},
+		{"3.10", 3, 10, 0, true},
+		// A single component is not enough; major+minor required.
+		{"3", 0, 0, 0, false},
+		{"3-rc1", 0, 0, 0, false},
+		{"", 0, 0, 0, false},
+		{"bogus", 0, 0, 0, false},
+	}
+	for _, tt := range tests {
+		major, minor, patch, ok := ParseRelease(tt.in)
+		if major != tt.major || minor != tt.minor || patch != tt.patch || ok != tt.ok {
+			t.Errorf("ParseRelease(%q) = (%d, %d, %d, %v); want (%d, %d, %d, %v)",
+				tt.in, major, minor, patch, ok, tt.major, tt.minor, tt.patch, tt.ok)
+		}
+	}
+}
+
 func TestKernelStructSize(t *testing.T) {
 	// Check that the Go definitions of structures exchanged with the kernel are
 	// the same size as what the kernel defines.

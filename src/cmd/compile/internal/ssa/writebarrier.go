@@ -326,31 +326,25 @@ func writebarrier(f *Func) {
 			tmp *Value // address of temporary we've copied the volatile value into
 		}
 		var volatiles []volatileCopy
-
-		if !(f.ABIDefault == f.ABI1 && len(f.Config.intParamRegs) >= 3) {
-			// We don't need to do this if the calls we're going to do take
-			// all their arguments in registers.
-			// 3 is the magic number because it covers wbZero, wbMove, cgoCheckMemmove.
-		copyLoop:
-			for _, w := range stores {
-				if w.Op == OpMoveWB {
-					val := w.Args[1]
-					if isVolatile(val) {
-						for _, c := range volatiles {
-							if val == c.src {
-								continue copyLoop // already copied
-							}
+	copyLoop:
+		for _, w := range stores {
+			if w.Op == OpMoveWB {
+				val := w.Args[1]
+				if isVolatile(val) {
+					for _, c := range volatiles {
+						if val == c.src {
+							continue copyLoop // already copied
 						}
-
-						t := val.Type.Elem()
-						tmp := f.NewLocal(w.Pos, t)
-						mem = b.NewValue1A(w.Pos, OpVarDef, types.TypeMem, tmp, mem)
-						tmpaddr := b.NewValue2A(w.Pos, OpLocalAddr, t.PtrTo(), tmp, sp, mem)
-						siz := t.Size()
-						mem = b.NewValue3I(w.Pos, OpMove, types.TypeMem, siz, tmpaddr, val, mem)
-						mem.Aux = t
-						volatiles = append(volatiles, volatileCopy{val, tmpaddr})
 					}
+
+					t := val.Type.Elem()
+					tmp := f.NewLocal(w.Pos, t)
+					mem = b.NewValue1A(w.Pos, OpVarDef, types.TypeMem, tmp, mem)
+					tmpaddr := b.NewValue2A(w.Pos, OpLocalAddr, t.PtrTo(), tmp, sp, mem)
+					siz := t.Size()
+					mem = b.NewValue3I(w.Pos, OpMove, types.TypeMem, siz, tmpaddr, val, mem)
+					mem.Aux = t
+					volatiles = append(volatiles, volatileCopy{val, tmpaddr})
 				}
 			}
 		}

@@ -258,6 +258,8 @@ type synctestDeadlockError struct {
 	bubble *synctestBubble
 }
 
+var _ error = synctestDeadlockError{}
+
 func (e synctestDeadlockError) Error() string {
 	return e.reason
 }

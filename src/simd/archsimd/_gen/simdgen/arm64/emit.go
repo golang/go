@@ -8,7 +8,7 @@ import (
 	"fmt"
 	"strings"
 
-	"_gen/unify"
+	"simd/archsimd/_gen/unify"
 )
 
 // asComment formats text as a comment

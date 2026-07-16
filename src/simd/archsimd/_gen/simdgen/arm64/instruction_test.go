@@ -16,7 +16,7 @@ import (
 
 var arm64Path = flag.String("arm64Path", "", "Path to ARM64 XML definitions")
 
-func requireEqual(t *testing.T, expected, actual interface{}) bool {
+func requireEqual(t *testing.T, expected, actual any) bool {
 	t.Helper()
 	if !reflect.DeepEqual(expected, actual) {
 		t.Errorf("❌ expected %v, got %v", expected, actual)
@@ -32,7 +32,7 @@ func requireEqual(t *testing.T, expected, actual interface{}) bool {
 	return true
 }
 
-func matchEqual(t *testing.T, expected, actual interface{}) bool {
+func matchEqual(t *testing.T, expected, actual any) bool {
 	t.Helper()
 	eq := reflect.DeepEqual(expected, actual)
 	if eq && expected != nil {
@@ -57,7 +57,7 @@ func arngs(t *testing.T, instr *Instruction, expectedArrangements []string, expe
 	requireEqual(t, expectedShape, actualShape)
 }
 
-func ops(t *testing.T, instr *Instruction, expectedOps []string, equal func(*testing.T, interface{}, interface{}) bool) bool {
+func ops(t *testing.T, instr *Instruction, expectedOps []string, equal func(*testing.T, any, any) bool) bool {
 	t.Helper()
 	templates := instr.templates()
 	if !equal(t, 1, len(templates)) {
@@ -121,6 +121,8 @@ var (
 	integerUpTo8Bits  = []string{"int8:16B", "int8:8B", "uint8:16B", "uint8:8B"}
 	integerUpTo16Bits = append([]string{"int16:4H", "int16:8H", "uint16:4H", "uint16:8H"}, integerUpTo8Bits...)
 	integerUpTo32Bits = append([]string{"int32:2S", "int32:4S", "uint32:2S", "uint32:4S"}, integerUpTo16Bits...)
+	integerWideOnly   = []string{"int16:8H", "int32:4S", "int64:2D", "uint16:8H", "uint32:4S", "uint64:2D"}
+	polynomialArrngs  = []string{"int8:8B", "int8:16B", "int64:1D", "int64:2D", "uint8:8B", "uint8:16B", "uint64:1D", "uint64:2D"}
 	integer32And8Bits = append([]string{"int32:2S", "int32:4S", "uint32:2S", "uint32:4S"}, integerUpTo8Bits...)
 	addvArngs         = append([]string{"int32:4S", "uint32:4S"}, integerUpTo16Bits...)
 	integer           = append([]string{"int64:2D", "uint64:2D"}, integerUpTo32Bits...)
@@ -153,7 +155,7 @@ var arm64InstructionTests = []Arm64InstructionTestSpec{
 	{"^FADDP$", matchOps(binary), requireArngs(floating, DefaultArngs), emitsDefs(3)},
 	{"^FADDP$", matchOps(unary), requireArngs([]string{"float32:2S", "float64:2D"}, DefaultArngs), emitsDefs(2)},
 	{"^SABA$", matchOps(threeArgsResultInArg0), requireArngs(integerUpTo32Bits, DefaultArngs), emitsDefs(12)},
-	{"^SABAL$", matchOps(threeArgsResultInArg0), requireArngs(integer, LongArngs), emitsDefs(14)},
+	{"^SABAL$", matchOps(threeArgsResultInArg0), requireArngs(integerUpTo32Bits, LongArngs), emitsDefs(12)},
 	{"^F(ADD|SUB|DIV)$", requireOps(binary), requireArngs(floating, DefaultArngs), emitsDefs(3)},
 	{"^(AND|ORR|EOR|BIC|ORN)$", matchOps(binary), requireArngs(bitwise, DefaultArngs), emitsDefs(14)},
 	{"^NOT$", requireOps(unary), requireArngs(bitwise, DefaultArngs), emitsDefs(14)},
@@ -193,11 +195,11 @@ var arm64InstructionTests = []Arm64InstructionTestSpec{
 	{"^SHL$", requireOps(unaryWithImm), requireArngs(integer, DefaultArngs), emitsDefs(14)},
 	{"^(S|U)SHR$", requireOps(unaryWithImm), requireArngs(integer, DefaultArngs), emitsDefs(14)},
 	{"^(S|U)SRA$", requireOps(unaryWithImmResultInArg0), requireArngs(integer, DefaultArngs), emitsDefs(14)},
-	{"^(S|U)SHLL$", requireOps(unaryWithImm), requireArngs(integer, LongArngs), emitsDefs(14)},
-	{"^SADALP$", matchOps(twoArgsResultInArg0), requireArngs(integerWith1D, LongArngs), emitsDefs(16)},
-	{"^((S|U)ADDLP)$", requireOps(unary), requireArngs(integerWith1D, LongArngs), emitsDefs(16)},
-	{"^(R?(ADD|SUB)HN)$", requireOps(binary), requireArngs(integer, NarrowArngs), emitsDefs(14)},
-	{"^SHRN$", requireOps(unaryWithImm), requireArngs(integer, NarrowArngs), emitsDefs(14)},
+	{"^(S|U)SHLL$", requireOps(unaryWithImm), requireArngs(integerUpTo32Bits, LongArngs), emitsDefs(12)},
+	{"^SADALP$", matchOps(twoArgsResultInArg0), requireArngs(integerUpTo32Bits, LongArngs), emitsDefs(12)},
+	{"^((S|U)ADDLP)$", requireOps(unary), requireArngs(integerUpTo32Bits, LongArngs), emitsDefs(12)},
+	{"^(R?(ADD|SUB)HN)$", requireOps(binary), requireArngs(integerWideOnly, NarrowArngs), emitsDefs(6)},
+	{"^SHRN$", requireOps(unaryWithImm), requireArngs(integerWideOnly, NarrowArngs), emitsDefs(6)},
 	{"^(CLZ|CLS)$", requireOps(unary), requireArngs(integerUpTo32Bits, DefaultArngs), emitsDefs(12)},
 	{"^(CNT|RBIT)$", requireOps(unary), requireArngs(integerUpTo8Bits, DefaultArngs), emitsDefs(4)},
 	{"^(S|U)R?HADD$", matchOps(binary), requireArngs(integerUpTo32Bits, DefaultArngs), emitsDefs(12)},
@@ -205,16 +207,17 @@ var arm64InstructionTests = []Arm64InstructionTestSpec{
 	{"^FMUL$", matchOps(binary), requireArngs(floating, DefaultArngs), emitsDefs(3)},
 	{"^F(MLA|MLS)$", matchOps(threeArgsResultInArg0), requireArngs(floating, DefaultArngs), emitsDefs(3)},
 	{"^MUL$", matchOps(binary), requireArngs(integerUpTo32Bits, DefaultArngs), emitsDefs(12)},
-	{"^((S|U)MULL)$", matchOps(binary), requireArngs(integer, LongArngs), emitsDefs(14)},
+	{"^((S|U)MULL)$", matchOps(binary), requireArngs(integerUpTo32Bits, LongArngs), emitsDefs(12)},
 	{"^(MLA|MLS)$", matchOps(threeArgsResultInArg0), requireArngs(integerUpTo32Bits, DefaultArngs), emitsDefs(12)},
-	{"^((S|U)Q)?XTN$", requireOps(unary), requireArngs(integer, NarrowArngs), emitsDefs(14)},
-	{"^(S|U)XTL$", requireOps(unary), requireArngs(integer, LongArngs), emitsDefs(14)},
+	{"^((S|U)Q)?XTN$", requireOps(unary), requireArngs(integerWideOnly, NarrowArngs), emitsDefs(6)},
+	{"^(S|U)XTL$", requireOps(unary), requireArngs(integerUpTo32Bits, LongArngs), emitsDefs(12)},
 	{"^FCVT[NMPZ](S|U)$", matchOps(unary), requireArngs(floating, DefaultArngs), emitsDefs(3)},
 	{"^(S|U)CVTF$", matchOps(unary), requireArngs(floating, DefaultArngs), emitsDefs(3)},
-	{"^(S|U)ADDW$", requireOps(binary), requireArngs(integer, WideArngs), emitsDefs(14)},
-	{"^(S|U)SUBW$", requireOps(binary), requireArngs(integer, WideArngs), emitsDefs(14)},
-	{"^FCVTL$", requireOps(unary), requireArngs(floating, LongArngs), emitsDefs(3)},
+	{"^(S|U)ADDW$", requireOps(binary), requireArngs(integerWideOnly, WideArngs), emitsDefs(6)},
+	{"^(S|U)SUBW$", requireOps(binary), requireArngs(integerWideOnly, WideArngs), emitsDefs(6)},
+	{"^FCVTL$", requireOps(unary), requireArngs([]string{"float32:2S", "float32:4S"}, LongArngs), emitsDefs(2)},
 	{"^USDOT$", matchOps(threeArgsResultInArg0), requireArngs(integer32And8Bits, UnsupportedArngs), emitsDefs(0)},
+	{"^PMULL$", matchOps(binary), requireArngs(polynomialArrngs, LongArngs), emitsDefs(8)},
 }
 
 func TestArm64Instructions(t *testing.T) {

@@ -17,7 +17,6 @@ import (
 	"golang.org/x/tools/internal/analysis/analyzerutil"
 	typeindexanalyzer "golang.org/x/tools/internal/analysis/typeindex"
 	"golang.org/x/tools/internal/astutil"
-	"golang.org/x/tools/internal/refactor"
 	"golang.org/x/tools/internal/typesinternal"
 	"golang.org/x/tools/internal/typesinternal/typeindex"
 	"golang.org/x/tools/internal/versions"
@@ -92,11 +91,20 @@ func reflecttypefor(pass *analysis.Pass) (any, error) {
 			continue
 		}
 
+		// Don't offer the fix if it would erase a reference to a
+		// (non-type) symbol, as this may break intended coupling.
+		// Examples:
+		//   TypeOf(0)       -> TypeFor[int]()  // ok
+		//   TypeOf(pkg.Var) -> TypeFor[int]()  // bad: loses connection to pkg.Var
+		//   TypeOf(uint(0)) -> TypeFor[uint]() // ok: (most) type symbols are preserved
+		if usesNonTypeSymbol(info, expr) {
+			continue
+		}
+
 		file := astutil.EnclosingFile(curCall)
 		if !analyzerutil.FileUsesGoVersion(pass, file, versions.Go1_22) {
 			continue // TypeFor requires go1.22
 		}
-		tokFile := pass.Fset.File(file.Pos())
 
 		// Format the type as valid Go syntax.
 		// TODO(adonovan): FileQualifier needs to respect
@@ -127,14 +135,6 @@ func reflecttypefor(pass *analysis.Pass) (any, error) {
 			continue
 		}
 
-		// If the call argument contains the last use
-		// of a variable, as in:
-		//	var zero T
-		//	reflect.TypeOf(zero)
-		// remove the declaration of that variable.
-		curArg0 := curCall.ChildAt(edge.CallExpr_Args, 0)
-		edits = append(edits, refactor.DeleteUnusedVars(index, info, tokFile, curArg0)...)
-
 		pass.Report(analysis.Diagnostic{
 			Pos:     call.Fun.Pos(),
 			End:     call.Fun.End(),
@@ -161,6 +161,33 @@ func reflecttypefor(pass *analysis.Pass) (any, error) {
 	}
 
 	return nil, nil
+}
+
+// usesNonTypeSymbol reports whether expr uses a non-type symbol:
+// a value-level object (a var, const, or func) or any other named entity
+// whose identifier would disappear in a TypeFor replacement. We suppress
+// the fix in that case so the rewrite does not erase a symbol the author
+// named on purpose, for example reflect.TypeOf(f), reflect.TypeOf(x.Field),
+// or a named array length such as [arrayLen]byte.
+//
+// Type names, package names, nil, and builtins are not such symbols: they
+// either reappear in the type argument (e.g. T in reflect.TypeOf(T{})) or
+// are irrelevant to it, so the rewrite is allowed.
+func usesNonTypeSymbol(info *types.Info, expr ast.Expr) bool {
+	for n := range ast.Preorder(expr) {
+		id, ok := n.(*ast.Ident)
+		if !ok {
+			continue
+		}
+		switch info.Uses[id].(type) {
+		case *types.TypeName, *types.PkgName, *types.Nil, *types.Builtin:
+			// Type-level names reappear in (or are irrelevant to) the
+			// type argument, so they may be erased safely.
+		default:
+			return true
+		}
+	}
+	return false
 }
 
 // isComplicatedType reports whether type t is complicated, e.g. it is or contains an

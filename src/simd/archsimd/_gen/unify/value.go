@@ -140,7 +140,7 @@ type Decoder interface {
 	DecodeUnified(v *Value) error
 }
 
-var decoderType = reflect.TypeOf((*Decoder)(nil)).Elem()
+var decoderType = reflect.TypeFor[Decoder]()
 
 // Provenance iterates over all of the source Values that have contributed to
 // this Value.

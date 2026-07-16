@@ -30,6 +30,8 @@ func (t *rtype) Key() Type {
 func MapOf(key, elem Type) Type {
 	ktyp := key.common()
 	etyp := elem.common()
+	key = toType(ktyp)
+	elem = toType(etyp)
 
 	if ktyp.Equal == nil {
 		panic("reflect.MapOf: invalid key type " + stringFor(ktyp))

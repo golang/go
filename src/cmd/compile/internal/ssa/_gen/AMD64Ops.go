@@ -159,7 +159,6 @@ func init() {
 		gp21sp2        = regInfo{inputs: []regMask{gp, gpsp}, outputs: gponly}
 		gp21sb         = regInfo{inputs: []regMask{gpspsbg, gpsp}, outputs: gponly}
 		gp21shift      = regInfo{inputs: []regMask{gp, cx}, outputs: []regMask{gp}}
-		gp31shift      = regInfo{inputs: []regMask{gp, gp, cx}, outputs: []regMask{gp}}
 		gp11div        = regInfo{inputs: []regMask{ax, gpsp.minus(dx)}, outputs: []regMask{ax, dx}}
 		gp21hmul       = regInfo{inputs: []regMask{ax, gpsp}, outputs: []regMask{dx}, clobbers: ax}
 		gp21flags      = regInfo{inputs: []regMask{gp, gp}, outputs: []regMask{gp, regMask{}}}
@@ -576,11 +575,6 @@ func init() {
 		{name: "SARWconst", argLength: 1, reg: gp11, asm: "SARW", aux: "Int8", resultInArg0: true, clobberFlags: true, earlyOk: true},
 		{name: "SARBconst", argLength: 1, reg: gp11, asm: "SARB", aux: "Int8", resultInArg0: true, clobberFlags: true, earlyOk: true},
 
-		// unsigned arg0 >> arg2, shifting in bits from arg1 (==(arg1<<64+arg0)>>arg2, keeping low 64 bits), shift amount is mod 64
-		{name: "SHRDQ", argLength: 3, reg: gp31shift, asm: "SHRQ", resultInArg0: true, clobberFlags: true, earlyOk: true},
-		// unsigned arg0 << arg2, shifting in bits from arg1 (==(arg0<<64+arg1)<<arg2, keeping high 64 bits), shift amount is mod 64
-		{name: "SHLDQ", argLength: 3, reg: gp31shift, asm: "SHLQ", resultInArg0: true, clobberFlags: true, earlyOk: true},
-
 		// RO{L,R}x: rotate instructions
 		// computes arg0 rotate (L=left,R=right) arg1 bits.
 		// Bits are rotated within the low (Q=64,L=32,W=16,B=8) bits of the register.
@@ -814,6 +808,9 @@ func init() {
 		// arg0 + arg1*arg2, with no intermediate rounding.
 		{name: "VFMADD231SS", argLength: 3, reg: fp31, resultInArg0: true, asm: "VFMADD231SS"},
 		{name: "VFMADD231SD", argLength: 3, reg: fp31, resultInArg0: true, asm: "VFMADD231SD"},
+		// arg1*arg2 - arg0, with no intermediate rounding.
+		{name: "VFMSUB231SS", argLength: 3, reg: fp31, resultInArg0: true, asm: "VFMSUB231SS"},
+		{name: "VFMSUB231SD", argLength: 3, reg: fp31, resultInArg0: true, asm: "VFMSUB231SD"},
 
 		// Note that these operations don't exactly match the semantics of Go's
 		// builtin min. In particular, these aren't commutative, because on various

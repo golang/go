@@ -79,7 +79,7 @@ TEXT runtime·thr_start(SB),NOSPLIT,$0
 	// set up g
 	MOV	m_g0(A0), g
 	MOV	A0, g_m(g)
-	CALL	emptyfunc<>(SB)	 // fault if stack check is wrong
+	CALL	runtime·stackcheck(SB)	// fault if stack check is wrong
 	CALL	runtime·mstart(SB)
 
 	WORD	$0	// crash

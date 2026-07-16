@@ -80,18 +80,16 @@ func embedlitUnnest(pass *analysis.Pass, info *types.Info, curLit inspector.Curs
 	// be promoted, and calculates the corresponding edits.
 	var checkLit func(lit *ast.CompositeLit)
 	checkLit = func(lit *ast.CompositeLit) {
-		for _, elt := range lit.Elts {
+		for i, elt := range lit.Elts {
 			// Can't promote an unkeyed field; would result in a syntax error.
 			if kv, ok := elt.(*ast.KeyValueExpr); ok {
 				if innerLit := isEmbeddedFieldLit(info, compLitType, kv); innerLit != nil {
+					// Inv: len(innerLit.Elts) > 0. We skip empty struct literals.
 					// Emit edits to delete the unnecessary embedded field type specifier
 					// and its closing brace.
-					closingPos := innerLit.Rbrace
-					if len(innerLit.Elts) > 0 {
-						// Delete any inner trailing commas or white space. Extra trailing commas
-						// would result in invalid code.
-						closingPos = innerLit.Elts[len(innerLit.Elts)-1].End()
-					}
+					// Delete any inner trailing commas or white space. Extra trailing commas
+					// would result in invalid code.
+					closingPos := innerLit.Elts[len(innerLit.Elts)-1].End()
 					file := astutil.EnclosingFile(curLit)
 					// Enable modernizer only for Go1.27.
 					if !analyzerutil.FileUsesGoVersion(pass, file, versions.Go1_27) {
@@ -102,13 +100,57 @@ func embedlitUnnest(pass *analysis.Pass, info *types.Info, curLit inspector.Curs
 						!moreiters.Empty(astutil.Comments(file, closingPos, innerLit.Rbrace+1)) {
 						continue
 					}
+					// Delete starting from the key to the character right after the
+					// opening brace of the inner literal:
+					// T{U: U{f: v, ...}}
+					//   -----
+					startPos := kv.Pos()
+					endPos := innerLit.Lbrace + 1
+
+					// Delete the entire line if the key and its opening brace are
+					// together on their own line. This prevents leaving behind unneeded
+					// blank lines inside struct literals that `gofmt` will not remove.
+					// T{
+					// 		U: U{    <- delete entire line
+					// 			f: v,
+					//		}
+					//	}
+					//
+					tokFile := pass.Fset.File(kv.Pos())
+					lineOf := func(pos token.Pos) int {
+						return tokFile.PositionFor(pos, false).Line
+					}
+					curLine := lineOf(kv.Pos())
+					var prevLine int
+					if i == 0 {
+						// First element, so the previous line is the parent lbrace.
+						prevLine = lineOf(lit.Lbrace)
+					} else {
+						prevLine = lineOf(lit.Elts[i-1].End())
+					}
+
+					// We can safely delete the entire line if the key value expression is
+					// alone on its line: it starts on a new line relative to the previous
+					// element (prevLine < curLine), and the first element of the inner
+					// literal starts on a subsequent line.
+					if prevLine < curLine && curLine < tokFile.LineCount() && // (1-based)
+						lineOf(innerLit.Elts[0].Pos()) > curLine {
+						lineStart := tokFile.LineStart(curLine)
+						nextLineStart := tokFile.LineStart(curLine + 1)
+						// Check that there are no comments on the line we are going to delete.
+						if moreiters.Empty(astutil.Comments(file, lineStart, nextLineStart)) {
+							startPos = tokFile.LineStart(curLine)
+							endPos = nextLineStart
+						}
+					}
+
 					edits = append(edits, []analysis.TextEdit{
 						// T{U: U{f: v, ...}}
 						//   -----         -
 						{
 							// Delete the key and the opening brace of the inner struct literal.
-							Pos: kv.Pos(),
-							End: innerLit.Lbrace + 1,
+							Pos: startPos,
+							End: endPos,
 						},
 						{
 							// Delete the corresponding closing brace, including preceding
@@ -167,15 +209,25 @@ func embedlitCombine(pass *analysis.Pass, index *typeindex.Index, info *types.In
 	case edge.AssignStmt_Rhs:
 		assign := curLit.Parent().Node().(*ast.AssignStmt)
 		// TODO(mkalil): Handle lhs forms that aren't idents, i.e. x.y[i] = T{...}.
-		if id, ok := assign.Lhs[curLit.ParentEdgeIndex()].(*ast.Ident); ok {
+		// TODO(mkalil): Handle multi-assignments like t1, t2 := A{}, B{}
+		if len(assign.Lhs) != 1 {
+			return nil
+		}
+		if id, ok := assign.Lhs[0].(*ast.Ident); ok {
 			lhs = id
 			curStmt = curLit.Parent()
 		}
 	case edge.ValueSpec_Values:
 		spec := curLit.Parent().Node().(*ast.ValueSpec)
-		lhs = spec.Names[curLit.ParentEdgeIndex()]
+		// TODO(mkalil): Handle multi-declarations like var (x = A{}; y = B{}) or var x, y = ...
+		if len(spec.Names) != 1 {
+			return nil
+		}
+		lhs = spec.Names[0]
 		if decl, ok := moreiters.First(curLit.Enclosing((*ast.DeclStmt)(nil))); ok {
-			curStmt = decl
+			if gdecl, ok := decl.Node().(*ast.DeclStmt).Decl.(*ast.GenDecl); ok && len(gdecl.Specs) == 1 {
+				curStmt = decl
+			}
 		}
 	default:
 		return nil
@@ -189,7 +241,8 @@ func embedlitCombine(pass *analysis.Pass, index *typeindex.Index, info *types.In
 		tObj = info.ObjectOf(lhs)
 		// Marks the contiguous block of embedded field assign statements that will
 		// be moved into the struct initialization.
-		firstStmt, lastStmt inspector.Cursor
+		firstStmt, lastStmt  inspector.Cursor
+		hasEmbeddedSelection bool
 	)
 stmtloop:
 	for {
@@ -220,6 +273,15 @@ stmtloop:
 		if obj != tObj {
 			break
 		}
+		// The selection is from an embedded field if it directly
+		// assigns an embedded struct field (t.B = B{...}) or if
+		// the length of the index path is greater than one.
+		seln := info.Selections[sel]
+		if v, ok := seln.Obj().(*types.Var); ok && v.Embedded() ||
+			len(seln.Index()) > 1 {
+			hasEmbeddedSelection = true
+		}
+
 		rhsCur := curStmt.ChildAt(edge.AssignStmt_Rhs, 0)
 		if uses(index, rhsCur, tObj) {
 			break
@@ -242,7 +304,8 @@ stmtloop:
 		lastStmt = curStmt
 	}
 
-	if !firstStmt.Valid() {
+	if !firstStmt.Valid() || !hasEmbeddedSelection {
+		// We should not suggest a fix if none of the selections are from embedded fields.
 		return nil
 	}
 

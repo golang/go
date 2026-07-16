@@ -356,6 +356,9 @@ func runSemiExpandedDecapsTest(t *testing.T, paramSet wycheproof.MLKEMDecapsTest
 		if !bytes.Equal(mlkem.TestingOnlyExpandedBytes768(dk), dkBytes) {
 			t.Errorf("expanded decapsulation key roundtrip mismatch")
 		}
+		if want := wycheproof.MustDecodeHex(tv.Ek); !bytes.Equal(dk.EncapsulationKey().Bytes(), want) {
+			t.Errorf("encapsulation key mismatch:\n got: %x\nwant: %x", dk.EncapsulationKey().Bytes(), want)
+		}
 		k, err := dk.Decapsulate(ciphertext)
 		if err != nil {
 			if shouldPass {
@@ -367,16 +370,11 @@ func runSemiExpandedDecapsTest(t *testing.T, paramSet wycheproof.MLKEMDecapsTest
 			t.Errorf("Decapsulate unexpectedly succeeded")
 			return
 		}
-		if len(k) != SharedKeySize {
-			t.Errorf("shared key has wrong length: got %d, want %d", len(k), SharedKeySize)
+		if tv.K == nil {
+			t.Fatalf("Decapsulate succeeded but test vector has no expected K")
 		}
-		kFresh, cFresh := dk.EncapsulationKey().Encapsulate()
-		kRT, err := dk.Decapsulate(cFresh)
-		if err != nil {
-			t.Fatalf("Decapsulate of fresh ciphertext: %v", err)
-		}
-		if !bytes.Equal(kFresh, kRT) {
-			t.Errorf("encaps/decaps roundtrip key mismatch")
+		if want := wycheproof.MustDecodeHex(*tv.K); !bytes.Equal(k, want) {
+			t.Errorf("shared key mismatch:\n got: %x\nwant: %x", k, want)
 		}
 
 	case wycheproof.MLKEMDecapsTestGroupParameterSetMLKEM1024:
@@ -390,6 +388,9 @@ func runSemiExpandedDecapsTest(t *testing.T, paramSet wycheproof.MLKEMDecapsTest
 		if !bytes.Equal(mlkem.TestingOnlyExpandedBytes1024(dk), dkBytes) {
 			t.Errorf("expanded decapsulation key roundtrip mismatch")
 		}
+		if want := wycheproof.MustDecodeHex(tv.Ek); !bytes.Equal(dk.EncapsulationKey().Bytes(), want) {
+			t.Errorf("encapsulation key mismatch:\n got: %x\nwant: %x", dk.EncapsulationKey().Bytes(), want)
+		}
 		k, err := dk.Decapsulate(ciphertext)
 		if err != nil {
 			if shouldPass {
@@ -401,16 +402,11 @@ func runSemiExpandedDecapsTest(t *testing.T, paramSet wycheproof.MLKEMDecapsTest
 			t.Errorf("Decapsulate unexpectedly succeeded")
 			return
 		}
-		if len(k) != SharedKeySize {
-			t.Errorf("shared key has wrong length: got %d, want %d", len(k), SharedKeySize)
+		if tv.K == nil {
+			t.Fatalf("Decapsulate succeeded but test vector has no expected K")
 		}
-		kFresh, cFresh := dk.EncapsulationKey().Encapsulate()
-		kRT, err := dk.Decapsulate(cFresh)
-		if err != nil {
-			t.Fatalf("Decapsulate of fresh ciphertext: %v", err)
-		}
-		if !bytes.Equal(kFresh, kRT) {
-			t.Errorf("encaps/decaps roundtrip key mismatch")
+		if want := wycheproof.MustDecodeHex(*tv.K); !bytes.Equal(k, want) {
+			t.Errorf("shared key mismatch:\n got: %x\nwant: %x", k, want)
 		}
 
 	default:

@@ -1076,29 +1076,17 @@ func mallocgc(size uintptr, typ *_type, needzero bool) unsafe.Pointer {
 		return unsafe.Pointer(&zerobase)
 	}
 
-	if sizeSpecializedMallocEnabled {
-		if size < uintptr(len(mallocNoScanTable)) {
-			if typ == nil || !typ.Pointers() {
-				if size >= maxTinySize {
-					return mallocNoScanTable[size](size, typ, needzero)
-				}
-				return mallocgcTinySC2(size, typ, needzero)
-			} else {
-				if !needzero {
-					throw("objects with pointers must be zeroed")
-				}
-				return mallocScanTable[size](size, typ, needzero)
+	if sizeSpecializedMallocEnabled && size < uintptr(len(mallocNoScanTable)) {
+		if typ == nil || !typ.Pointers() {
+			if size >= maxTinySize {
+				return mallocNoScanTable[size](size, typ, needzero)
 			}
-		}
-		if heapBitsInSpan(size) {
-			noscan := typ == nil || !typ.Pointers()
-			sc := gc.SizeToSizeClass8[divRoundUp(size, gc.SmallSizeDiv)]
-			elemsize := uintptr(gc.SizeClassToSize[sc])
-			spc := makeSpanClass(sc, noscan)
-			if noscan {
-				return mallocgcSmallNoScanSlowPath(size, typ, needzero, spc, elemsize)
+			return mallocgcTinySC2(size, typ, needzero)
+		} else {
+			if !needzero {
+				throw("objects with pointers must be zeroed")
 			}
-			return mallocgcSmallScanSlowPath(size, typ, needzero, spc, elemsize)
+			return mallocScanTable[size](size, typ, needzero)
 		}
 	}
 
@@ -1139,7 +1127,11 @@ func mallocgc(size uintptr, typ *_type, needzero bool) unsafe.Pointer {
 				if !needzero {
 					throw("objects with pointers must be zeroed")
 				}
-				x, elemsize = mallocgcSmallScanHeader(size, typ)
+				if heapBitsInSpan(size) {
+					x, elemsize = mallocgcSmallScanNoHeader(size, typ)
+				} else {
+					x, elemsize = mallocgcSmallScanHeader(size, typ)
+				}
 			}
 		} else {
 			x, elemsize = mallocgcLarge(size, typ, needzero)
@@ -1188,10 +1180,6 @@ func mallocgc(size uintptr, typ *_type, needzero bool) unsafe.Pointer {
 	if asanenabled {
 		// Poison the space between the end of the requested size of x
 		// and the end of the slot. Unpoison the requested allocation.
-		frag := elemsize - size
-		if typ != nil && typ.Pointers() && !heapBitsInSpan(elemsize) && size <= maxSmallSize-gc.MallocHeaderSize {
-			frag -= gc.MallocHeaderSize
-		}
 		asanpoison(unsafe.Add(x, size-asanRZ), asanRZ)
 		asanunpoison(x, size-asanRZ)
 	}

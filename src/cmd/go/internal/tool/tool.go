@@ -22,6 +22,7 @@ import (
 	"slices"
 	"sort"
 	"strings"
+	"time"
 
 	"cmd/go/internal/base"
 	"cmd/go/internal/cfg"
@@ -392,15 +393,30 @@ func runBuiltTool(toolName string, env, cmdline []string) error {
 		return nil
 	}
 
-	toolCmd := &exec.Cmd{
-		Path:   cmdline[0],
-		Args:   cmdline,
-		Stdin:  os.Stdin,
-		Stdout: os.Stdout,
-		Stderr: os.Stderr,
-		Env:    env,
+	// The tool was just linked and cached into $GOCACHE (CacheExecutable), and
+	// is executed from there. A concurrent go process may still hold a writable
+	// descriptor to the same cached file, so the exec can fail with ETXTBSY
+	// ("text file busy"). Retry a few times with backoff, matching base.RunStdin
+	// and (*runTestActor).Act in cmd/go/internal/test. See #22220, #22315, #78204.
+	var toolCmd *exec.Cmd
+	var err error
+	for try := range 3 {
+		toolCmd = &exec.Cmd{
+			Path:   cmdline[0],
+			Args:   cmdline,
+			Stdin:  os.Stdin,
+			Stdout: os.Stdout,
+			Stderr: os.Stderr,
+			Env:    env,
+		}
+		err = toolCmd.Start()
+		if err == nil || !base.IsETXTBSY(err) {
+			break
+		}
+		// Another go process likely still has the cached file open for
+		// writing; it will close it shortly. Sleep and retry.
+		time.Sleep(100 * time.Millisecond << uint(try))
 	}
-	err := toolCmd.Start()
 	if err == nil {
 		c := make(chan os.Signal, 100)
 		signal.Notify(c, signalsToForward...)

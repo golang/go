@@ -14,7 +14,7 @@ import (
 	"strconv"
 	"strings"
 
-	"_gen/unify"
+	"simd/archsimd/_gen/unify"
 
 	"golang.org/x/arch/x86/xeddata"
 	"gopkg.in/yaml.v3"
@@ -667,7 +667,7 @@ func inferMaskSizes(ops []operand) error {
 	return nil
 }
 
-// addOperandstoDef adds "in", "inVariant", and "out" to an instruction Def.
+// addOperandsToDef adds "in", "inVariant", and "out" to an instruction Def.
 //
 // Optional mask input operands are added to the inVariant field if
 // variant&instVariantMasked, and omitted otherwise.

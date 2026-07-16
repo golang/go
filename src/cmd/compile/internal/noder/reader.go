@@ -11,6 +11,7 @@ import (
 	"internal/buildcfg"
 	"internal/pkgbits"
 	"path/filepath"
+	"slices"
 	"strings"
 
 	"cmd/compile/internal/base"
@@ -19,6 +20,7 @@ import (
 	"cmd/compile/internal/inline/interleaved"
 	"cmd/compile/internal/ir"
 	"cmd/compile/internal/objw"
+	"cmd/compile/internal/pgoir"
 	"cmd/compile/internal/reflectdata"
 	"cmd/compile/internal/staticinit"
 	"cmd/compile/internal/typecheck"
@@ -1376,7 +1378,19 @@ func (r *reader) addBody(fn *ir.Func, method *types.Sym) {
 
 func (pri pkgReaderIndex) funcBody(fn *ir.Func) {
 	r := pri.asReader(pkgbits.SectionBody, pkgbits.SyncFuncBody)
+	panicking := true
+	defer func() {
+		if panicking {
+			// TODO not sure what the best way to print in this context is.
+			// If code panics in unified IR reading, you want *something* like this.
+			// Whoever ends up debugging the next unified IR failure, please
+			// improve this (base.Warnf?) if you can figure out how.
+			fmt.Printf("****** panic traversed funcBody of %v\n", fn)
+		}
+	}()
 	r.funcBody(fn)
+	panicking = false
+
 }
 
 // funcBody reads a function body definition from the element
@@ -2583,6 +2597,22 @@ func (r *reader) expr() (res ir.Node) {
 		identical := r.Bool()
 		x := r.expr()
 
+		// spec: "If the type is a type parameter, the constant is converted
+		// into a non-constant value of the type parameter."
+		if dstTypeParam && ir.IsConstNode(x) {
+			// ConvertVal only handles conversions to constant types.
+			if v := typecheck.ConvertVal(x.Val(), typ, false); v.Kind() != constant.Unknown {
+				x = ir.NewBasicLit(x.Pos(), typ, v)
+				// Wrap in an OCONVNOP node to ensure result is non-constant.
+				n := Implicit(ir.NewConvExpr(pos, ir.OCONVNOP, typ, x))
+				n.SetTypecheck(1)
+				return n
+			}
+			// A Go language constant could be converted to a non-constant value,
+			// like converting string to []byte/[]rune. In this case, just construct
+			// the conversion expression as usual, see #79960.
+		}
+
 		// TODO(mdempsky): Stop constructing expressions of untyped type.
 		x = typecheck.DefaultLit(x, typ)
 
@@ -2615,13 +2645,6 @@ func (r *reader) expr() (res ir.Node) {
 			}
 		}
 
-		// spec: "If the type is a type parameter, the constant is converted
-		// into a non-constant value of the type parameter."
-		if dstTypeParam && ir.IsConstNode(n) {
-			// Wrap in an OCONVNOP node to ensure result is non-constant.
-			n = Implicit(ir.NewConvExpr(pos, ir.OCONVNOP, n.Type(), n))
-			n.SetTypecheck(1)
-		}
 		return n
 
 	case exprRuntimeBuiltin:
@@ -3520,6 +3543,51 @@ func (r *reader) pkgInitOrder(target *ir.Package) {
 	typecheck.DeclFunc(fn)
 	r.curfn = fn
 
+	var varInitFns []*ir.Func
+	if len(initOrder) <= maxInitStatements {
+		fn.Body = r.doPkgInitOrder(initOrder)
+	} else {
+		varInitFns = r.splitLargeInitOrder(initOrder)
+		calls := make([]ir.Node, len(varInitFns))
+		for i, varInitFn := range varInitFns {
+			ir.WithFunc(fn, func() {
+				calls[i] = typecheck.Call(varInitFn.Pos(), varInitFn.Nname, nil, false)
+			})
+		}
+		fn.Body = calls
+	}
+
+	typecheck.FinishFuncBody()
+	r.curfn = nil
+	r.locals = nil
+
+	// Outline (if legal/profitable) global map inits.
+	staticinit.OutlineMapInits(fn)
+	for _, varInitFn := range varInitFns {
+		staticinit.OutlineMapInits(varInitFn)
+	}
+
+	target.Inits = append(target.Inits, fn)
+	target.Inits = append(target.Inits, varInitFns...)
+}
+
+const maxInitStatements = 1000
+
+func (r *reader) generateVarInitFunc(body []ir.Node) *ir.Func {
+	fn := staticinit.GenerateVarInitFunc()
+	typecheck.DeclFunc(fn)
+
+	old := r.curfn
+	r.curfn = fn
+	fn.Body = r.doPkgInitOrder(body)
+	r.curfn = old
+
+	typecheck.FinishFuncBody()
+
+	return fn
+}
+
+func (r *reader) doPkgInitOrder(initOrder []ir.Node) []ir.Node {
 	for i := range initOrder {
 		lhs := make([]ir.Node, r.Len())
 		for j := range lhs {
@@ -3541,20 +3609,15 @@ func (r *reader) pkgInitOrder(target *ir.Package) {
 
 		initOrder[i] = as
 	}
+	return initOrder
+}
 
-	fn.Body = initOrder
-
-	typecheck.FinishFuncBody()
-	r.curfn = nil
-	r.locals = nil
-
-	// Outline (if legal/profitable) global map inits.
-	staticinit.OutlineMapInits(fn)
-
-	// Split large init function.
-	staticinit.SplitLargeInit(fn)
-
-	target.Inits = append(target.Inits, fn)
+func (r *reader) splitLargeInitOrder(initOrder []ir.Node) []*ir.Func {
+	var initFuncs []*ir.Func
+	for chunk := range slices.Chunk(initOrder, maxInitStatements) {
+		initFuncs = append(initFuncs, r.generateVarInitFunc(chunk))
+	}
+	return initFuncs
 }
 
 func (r *reader) pkgDecls(target *ir.Package) {
@@ -3661,7 +3724,7 @@ var inlgen = 0
 
 // unifiedInlineCall implements inline.NewInline by re-reading the function
 // body from its Unified IR export data.
-func unifiedInlineCall(callerfn *ir.Func, call *ir.CallExpr, fn *ir.Func, inlIndex int) *ir.InlinedCallExpr {
+func unifiedInlineCall(callerfn *ir.Func, call *ir.CallExpr, fn *ir.Func, inlIndex int, profile *pgoir.Profile) *ir.InlinedCallExpr {
 	pri, ok := bodyReaderFor(fn)
 	if !ok {
 		base.FatalfAt(call.Pos(), "cannot inline call to %v: missing inline body", fn)
@@ -3775,7 +3838,7 @@ func unifiedInlineCall(callerfn *ir.Func, call *ir.CallExpr, fn *ir.Func, inlInd
 		// potentially be recursively inlined themselves; but we shouldn't
 		// need to read in the non-inlined bodies for the declarations
 		// themselves. But currently it's an easy fix to #50552.
-		readBodies(typecheck.Target, true)
+		readBodies(typecheck.Target, true, profile)
 
 		// Replace any "return" statements within the function body.
 		var edit func(ir.Node) ir.Node
