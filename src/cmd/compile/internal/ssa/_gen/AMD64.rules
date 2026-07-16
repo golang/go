@@ -1503,6 +1503,7 @@
 // Detect FMA
 (ADDS(S|D) (MULS(S|D) x y) z) && buildcfg.GOAMD64 >= 3 && z.Block.Func.useFMA(v) => (VFMADD231S(S|D) z x y)
 (SUBS(S|D) (MULS(S|D) x y) z) && buildcfg.GOAMD64 >= 3 && z.Block.Func.useFMA(v) => (VFMSUB231S(S|D) z x y)
+(SUBS(S|D) x (MULS(S|D) y z)) && buildcfg.GOAMD64 >= 3 && z.Block.Func.useFMA(v) => (VFNMADD231S(S|D) x y z)
 
 // Redirect stores to use the other register set.
 (MOVQstore  [off] {sym} ptr (MOVQf2i val) mem) => (MOVSDstore [off] {sym} ptr val mem)

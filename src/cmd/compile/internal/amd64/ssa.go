@@ -226,7 +226,7 @@ func getgFromTLS(s *ssagen.State, r int16) {
 
 func ssaGenValue(s *ssagen.State, v *ssa.Value) {
 	switch v.Op {
-	case ssa.OpAMD64VFMADD231SD, ssa.OpAMD64VFMADD231SS, ssa.OpAMD64VFMSUB231SD, ssa.OpAMD64VFMSUB231SS:
+	case ssa.OpAMD64VFMADD231SD, ssa.OpAMD64VFMADD231SS, ssa.OpAMD64VFMSUB231SD, ssa.OpAMD64VFMSUB231SS, ssa.OpAMD64VFNMADD231SD, ssa.OpAMD64VFNMADD231SS:
 		p := s.Prog(v.Op.Asm())
 		p.From = obj.Addr{Type: obj.TYPE_REG, Reg: v.Args[2].Reg()}
 		p.To = obj.Addr{Type: obj.TYPE_REG, Reg: v.Reg()}

@@ -811,6 +811,9 @@ func init() {
 		// arg1*arg2 - arg0, with no intermediate rounding.
 		{name: "VFMSUB231SS", argLength: 3, reg: fp31, resultInArg0: true, asm: "VFMSUB231SS"},
 		{name: "VFMSUB231SD", argLength: 3, reg: fp31, resultInArg0: true, asm: "VFMSUB231SD"},
+		// arg0 - arg1*arg2, with no intermediate rounding.
+		{name: "VFNMADD231SS", argLength: 3, reg: fp31, resultInArg0: true, asm: "VFNMADD231SS"},
+		{name: "VFNMADD231SD", argLength: 3, reg: fp31, resultInArg0: true, asm: "VFNMADD231SD"},
 
 		// Note that these operations don't exactly match the semantics of Go's
 		// builtin min. In particular, these aren't commutative, because on various

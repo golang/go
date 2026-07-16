@@ -40683,6 +40683,29 @@ func rewriteValueAMD64_OpAMD64SUBSD(v *Value) bool {
 		v.AddArg3(z, x, y)
 		return true
 	}
+	// match: (SUBSD x (MULSD y z))
+	// cond: buildcfg.GOAMD64 >= 3 && z.Block.Func.useFMA(v)
+	// result: (VFNMADD231SD x y z)
+	for {
+		x := v_0
+		if v_1.Op != OpAMD64MULSD {
+			break
+		}
+		_ = v_1.Args[1]
+		v_1_0 := v_1.Args[0]
+		v_1_1 := v_1.Args[1]
+		for _i0 := 0; _i0 <= 1; _i0, v_1_0, v_1_1 = _i0+1, v_1_1, v_1_0 {
+			y := v_1_0
+			z := v_1_1
+			if !(buildcfg.GOAMD64 >= 3 && z.Block.Func.useFMA(v)) {
+				continue
+			}
+			v.reset(OpAMD64VFNMADD231SD)
+			v.AddArg3(x, y, z)
+			return true
+		}
+		break
+	}
 	return false
 }
 func rewriteValueAMD64_OpAMD64SUBSDload(v *Value) bool {
@@ -40799,6 +40822,29 @@ func rewriteValueAMD64_OpAMD64SUBSS(v *Value) bool {
 		v.reset(OpAMD64VFMSUB231SS)
 		v.AddArg3(z, x, y)
 		return true
+	}
+	// match: (SUBSS x (MULSS y z))
+	// cond: buildcfg.GOAMD64 >= 3 && z.Block.Func.useFMA(v)
+	// result: (VFNMADD231SS x y z)
+	for {
+		x := v_0
+		if v_1.Op != OpAMD64MULSS {
+			break
+		}
+		_ = v_1.Args[1]
+		v_1_0 := v_1.Args[0]
+		v_1_1 := v_1.Args[1]
+		for _i0 := 0; _i0 <= 1; _i0, v_1_0, v_1_1 = _i0+1, v_1_1, v_1_0 {
+			y := v_1_0
+			z := v_1_1
+			if !(buildcfg.GOAMD64 >= 3 && z.Block.Func.useFMA(v)) {
+				continue
+			}
+			v.reset(OpAMD64VFNMADD231SS)
+			v.AddArg3(x, y, z)
+			return true
+		}
+		break
 	}
 	return false
 }
