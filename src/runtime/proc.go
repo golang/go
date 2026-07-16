@@ -1930,6 +1930,7 @@ func mstart1() {
 	gp.sched.g = guintptr(unsafe.Pointer(gp))
 	gp.sched.pc = sys.GetCallerPC()
 	gp.sched.sp = sys.GetCallerSP()
+	gp.sched.bp = getcallerfp()
 
 	asminit()
 	minit()
