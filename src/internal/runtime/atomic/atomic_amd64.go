@@ -111,10 +111,10 @@ func Oruintptr(ptr *uintptr, val uintptr) uintptr
 //go:noescape
 func Cas64(ptr *uint64, old, new uint64) bool
 
-// Cas128 atomically compares the 16 bytes at *ptr to (old1, old2) and,
-// if equal, replaces them with (new1, new2), returning whether the swap
+// Cas128 atomically compares the 16 bytes at *ptr to old1, old2 and,
+// if equal, replaces them with new1, new2, returning whether the swap
 // happened. The two halves correspond to consecutive uint64s in memory:
-// ((*ptr)[0], (*ptr)[1]). ptr must be 16-byte aligned.
+// (*ptr)[0], (*ptr)[1]. ptr must be 16-byte aligned.
 //
 //go:noescape
 func Cas128(ptr *[2]uint64, old1, old2, new1, new2 uint64) bool
