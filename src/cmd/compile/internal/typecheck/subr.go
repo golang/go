@@ -96,9 +96,10 @@ func AddImplicitDots(n *ir.SelectorExpr) *ir.SelectorExpr {
 // CalcMethods calculates all the methods (including embedding) of a non-interface
 // type t.
 func CalcMethods(t *types.Type) {
-	if t == nil || len(t.AllMethods()) != 0 {
+	if t == nil || t.MethodsComputed() {
 		return
 	}
+	defer t.SetMethodsComputed(true)
 
 	// mark top-level method symbols
 	// so that expand1 doesn't consider them.
