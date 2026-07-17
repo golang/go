@@ -174,7 +174,10 @@ func knownBits(f *Func) {
 
 	for _, b := range slices.Backward(blocks) {
 		for _, v := range b.Values {
-			if v.Uses == 0 || !(v.Type.IsInteger() || v.Type.IsBoolean()) {
+			if v.Uses == 0 && f.pass.debug == 0 {
+				continue
+			}
+			if !(v.Type.IsInteger() || v.Type.IsBoolean()) {
 				continue
 			}
 			switch v.Op {

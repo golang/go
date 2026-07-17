@@ -179,7 +179,7 @@ func knownBitsNeqFalse(x uint64, cond bool) bool {
 	if cond {
 		x |= 42
 	}
-	x |= 1<<32 - 1
+	x |= 1<<32 - 1      // ERROR "known value of v[0-9]+ \(Or64\): -1$"
 	return x != 1<<64-1 // ERROR "known value of v[0-9]+ \(Neq64\): false$"
 }
 
@@ -222,9 +222,7 @@ func knownBitsCvtBoolToUint8True(x int64, cond bool) uint8 {
 		x |= 1
 		x |= 4
 	}
-	// I would expect "known value of v[0-9]+ \(And64\): 6$" to be required, but somehow it's not there even tho the AND is being folded.
-	// I think it's an issue with the And's LOC meaning known bits prints it without a LOC and errorcheck skips it.
-	r := cvtBoolToUint8(x&6 == 6) // ERROR "known value of v[0-9]+ \(Eq64\): true$" "known value of v[0-9]+ \(CvtBoolToUint8\): 1$"
+	r := cvtBoolToUint8(x&6 == 6) // ERROR "known value of v[0-9]+ \(And64\): 6$" "known value of v[0-9]+ \(Eq64\): true$" "known value of v[0-9]+ \(CvtBoolToUint8\): 1$"
 	if cond {
 		r |= 4 // ERROR "known value of v[0-9]+ \(Or8\): 5$"
 	}
@@ -357,7 +355,7 @@ func knownBitsRshSignCopy(x, y int64) int64 {
 	x |= -1 << 63
 	y |= 128
 
-	return (x >> y) & 1 // ERROR "known value of v[0-9]+ \(And64\): 1$"
+	return (x >> y) & 1 // ERROR "known value of v[0-9]+ \(And64\): 1$" "known value of v[0-9]+ \(Rsh64x[0-9]+\): -1$"
 }
 
 func unknownBitsRshLeftSideMsb(x int32, y int32) int32 {
