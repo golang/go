@@ -152,26 +152,35 @@ func dataWord(conv *ir.ConvExpr, init *ir.Nodes) ir.Node {
 
 	// Try a bunch of cases to avoid an allocation.
 	var value ir.Node
+	byteVal, isConst := smallIntConst(n)
 	switch {
 	case fromType.Size() == 0:
 		// n is zero-sized. Use zerobase.
 		diagnose("using global for zero-sized interface value", n)
 		cheapExpr(n, init) // Evaluate n for side-effects. See issue 19246.
 		value = ir.NewLinksymExpr(base.Pos, ir.Syms.Zerobase, types.Types[types.TUINTPTR])
-	case isBool || fromType.Size() == 1 && isInteger:
-		// n is a bool/byte. Use staticuint64s[n * 8] on little-endian
-		// and staticuint64s[n * 8 + 7] on big-endian.
-		diagnose("using global for single-byte interface value", n)
-		n = cheapExpr(n, init)
-		n = soleComponent(init, n)
+	case isBool || isInteger && (fromType.Size() == 1 || isConst):
+		// n is a bool, a single-byte integer, or a compile-time constant in [0, 255].
+		// Use staticuint64s[n * 8] on little-endian and staticuint64s[n * 8 + 7] on big-endian.
+		diagnose("using global for small integer/boolean interface value", n)
+		if isConst {
+			n = ir.NewBasicLit(base.Pos, types.Types[types.TUINT8], constant.MakeInt64(int64(byteVal)))
+		} else {
+			n = cheapExpr(n, init)
+			n = soleComponent(init, n)
+			base.Assert(fromType.Size() == 1)
+		}
+
 		// byteindex widens n so that the multiplication doesn't overflow.
 		index := ir.NewBinaryExpr(base.Pos, ir.OLSH, byteindex(n), ir.NewInt(base.Pos, 3))
 		if ssagen.Arch.LinkArch.ByteOrder == binary.BigEndian {
-			index = ir.NewBinaryExpr(base.Pos, ir.OADD, index, ir.NewInt(base.Pos, 7))
+			index = ir.NewBinaryExpr(base.Pos, ir.OADD, index, ir.NewInt(base.Pos, 8-fromType.Size()))
 		}
 		// The actual type is [256]uint64, but we use [256*8]uint8 so we can address
 		// individual bytes.
-		staticuint64s := ir.NewLinksymExpr(base.Pos, ir.Syms.Staticuint64s, types.NewArray(types.Types[types.TUINT8], 256*8))
+		t := types.NewArray(types.Types[types.TUINT8], 256*8)
+		types.CalcSize(t)
+		staticuint64s := ir.NewLinksymExpr(base.Pos, ir.Syms.Staticuint64s, t)
 		xe := ir.NewIndexExpr(base.Pos, staticuint64s, index)
 		xe.SetBounded(true)
 		value = xe
@@ -242,6 +251,65 @@ func dataWord(conv *ir.ConvExpr, init *ir.Nodes) ir.Node {
 	call := ir.NewCallExpr(base.Pos, ir.OCALL, fn, nil)
 	call.Args = args
 	return safeExpr(walkExpr(typecheck.Expr(call), init), init)
+}
+
+// smallIntConst returns the byte value of n if it is a compile-time
+// constant in the range [0, 255] (either a literal or a readonly global stmp).
+func smallIntConst(n ir.Node) (byte, bool) {
+	if ir.IsConst(n, constant.Int) {
+		val := ir.Int64Val(n)
+		if val >= 0 && val <= 255 {
+			return byte(val), true
+		}
+	}
+	if ir.IsConst(n, constant.Bool) {
+		if ir.BoolVal(n) {
+			return 1, true
+		}
+		return 0, true
+	}
+
+	if n.Op() == ir.ONAME && n.Name().Readonly() {
+		t := n.Type()
+		if !t.IsBoolean() && !t.IsInteger() {
+			return 0, false
+		}
+		size := t.Size()
+
+		sym := n.Name().Linksym()
+		if sym == nil {
+			return 0, false
+		}
+		p := sym.P
+		var byteVal byte
+
+		// Determine the Least Significant Byte (LSB) index based on architecture.
+		lsbIdx := int64(0)
+		if ssagen.Arch.LinkArch.ByteOrder == binary.BigEndian {
+			lsbIdx = size - 1
+		}
+
+		if lsbIdx < int64(len(p)) {
+			byteVal = p[lsbIdx]
+		}
+
+		// Ensure all non-LSB bytes in the integer representation are zero (value fits in a byte).
+		for i := int64(0); i < size; i++ {
+			if i == lsbIdx {
+				continue
+			}
+			var b byte
+			if i < int64(len(p)) {
+				b = p[i]
+			}
+			if b != 0 {
+				return 0, false
+			}
+		}
+		return byteVal, true
+	}
+
+	return 0, false
 }
 
 // walkBytesRunesToString walks an OBYTES2STR or ORUNES2STR node.
