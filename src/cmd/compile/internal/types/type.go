@@ -203,8 +203,6 @@ type Type struct {
 	flags bitset16
 	alg   AlgKind // valid if Align > 0
 
-	tflag uint8
-
 	// size of prefix of object that contains all pointers. valid if Align > 0.
 	// Note that for pointers, this is always PtrSize even if the element type
 	// is NotInHeap. See size.go:PtrDataSize for details.
@@ -236,7 +234,6 @@ const (
 	typeIsFullyInstantiated
 	typeIsSIMDTag // type is the SIMD marker type
 	typeIsSIMD    // type contains the SIMD marker type
-	typeMethodsComputed
 )
 
 func (t *Type) NotInHeap() bool           { return t.flags&typeNotInHeap != 0 }
@@ -246,14 +243,12 @@ func (t *Type) Recur() bool               { return t.flags&typeRecur != 0 }
 func (t *Type) IsShape() bool             { return t.flags&typeIsShape != 0 }
 func (t *Type) HasShape() bool            { return t.flags&typeHasShape != 0 }
 func (t *Type) IsFullyInstantiated() bool { return t.flags&typeIsFullyInstantiated != 0 }
-func (t *Type) MethodsComputed() bool     { return t.flags&typeMethodsComputed != 0 }
 
 func (t *Type) SetNotInHeap(b bool)           { t.flags.set(typeNotInHeap, b) }
 func (t *Type) SetNoalg(b bool)               { t.flags.set(typeNoalg, b) }
 func (t *Type) SetDeferwidth(b bool)          { t.flags.set(typeDeferwidth, b) }
 func (t *Type) SetRecur(b bool)               { t.flags.set(typeRecur, b) }
 func (t *Type) SetIsFullyInstantiated(b bool) { t.flags.set(typeIsFullyInstantiated, b) }
-func (t *Type) SetMethodsComputed(b bool)     { t.flags.set(typeMethodsComputed, b) }
 
 // Should always do SetHasShape(true) when doing SetIsShape(true).
 func (t *Type) SetIsShape(b bool)  { t.flags.set(typeIsShape, b) }
