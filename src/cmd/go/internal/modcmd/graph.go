@@ -40,13 +40,11 @@ See https://go.dev/ref/mod#go-mod-graph for more about 'go mod graph'.
 	Run: runGraph,
 }
 
-var (
-	graphGo goVersionFlag
-)
+var graphGo goVersionFlag
 
 func init() {
-	cmdGraph.Flag.Var(&graphGo, "go", "")
-	cmdGraph.Flag.BoolVar(&cfg.BuildX, "x", false, "")
+	cmdGraph.Flag.Var(&graphGo, "go", "specifies the Go `version` of modules whose graph is listed")
+	cmdGraph.Flag.BoolVar(&cfg.BuildX, "x", false, "print the commands")
 	base.AddChdirFlag(&cmdGraph.Flag)
 	base.AddModCommonFlags(&cmdGraph.Flag)
 }

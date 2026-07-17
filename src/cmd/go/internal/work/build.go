@@ -263,8 +263,10 @@ var (
 	forcedGccgoflags []string // internally-forced flags for gccgo
 )
 
-var BuildToolchain toolchain = noToolchain{}
-var ldBuildmode string
+var (
+	BuildToolchain toolchain = noToolchain{}
+	ldBuildmode    string
+)
 
 // buildCompiler implements flag.Var.
 // It implements Set by updating both
@@ -312,19 +314,19 @@ const (
 func AddBuildFlags(cmd *base.Command, mask BuildFlagMask) {
 	base.AddBuildFlagsNX(&cmd.Flag)
 	base.AddChdirFlag(&cmd.Flag)
-	cmd.Flag.BoolVar(&cfg.BuildA, "a", false, "")
-	cmd.Flag.IntVar(&cfg.BuildP, "p", cfg.BuildP, "")
+	cmd.Flag.BoolVar(&cfg.BuildA, "a", false, "force rebuilding of packages that are already up-to-date")
+	cmd.Flag.IntVar(&cfg.BuildP, "p", cfg.BuildP, "the number of programs, such as build commands or test binaries, that can be run in parallel")
 	if mask&OmitVFlag == 0 {
-		cmd.Flag.BoolVar(&cfg.BuildV, "v", false, "")
+		cmd.Flag.BoolVar(&cfg.BuildV, "v", false, "print the names of packages as they are compiled")
 	}
 
-	cmd.Flag.BoolVar(&cfg.BuildASan, "asan", false, "")
-	cmd.Flag.Var(&load.BuildAsmflags, "asmflags", "")
-	cmd.Flag.Var(buildCompiler{}, "compiler", "")
-	cmd.Flag.StringVar(&cfg.BuildBuildmode, "buildmode", "default", "")
-	cmd.Flag.Var((*buildvcsFlag)(&cfg.BuildBuildvcs), "buildvcs", "")
-	cmd.Flag.Var(&load.BuildGcflags, "gcflags", "")
-	cmd.Flag.Var(&load.BuildGccgoflags, "gccgoflags", "")
+	cmd.Flag.BoolVar(&cfg.BuildASan, "asan", false, "enable interoperation with address sanitizer")
+	cmd.Flag.Var(&load.BuildAsmflags, "asmflags", "`arguments` to pass on each go tool asm invocation")
+	cmd.Flag.Var(buildCompiler{}, "compiler", "`name` of compiler to use, as in runtime.Compiler: gccgo, gc")
+	cmd.Flag.StringVar(&cfg.BuildBuildmode, "buildmode", "default", "build `mode` to use; see 'go help buildmode' for details: archive, c-archive, c-shared, default, shared, exe, pie, plugin")
+	cmd.Flag.Var((*buildvcsFlag)(&cfg.BuildBuildvcs), "buildvcs", "whether to stamp binaries with version control information: true, false, auto")
+	cmd.Flag.Var(&load.BuildGcflags, "gcflags", "`arguments` to pass on each go tool compile invocation")
+	cmd.Flag.Var(&load.BuildGccgoflags, "gccgoflags", "`arguments` to pass on each gccgo compiler/linker invocation")
 	if mask&OmitModFlag == 0 {
 		base.AddModFlag(&cmd.Flag)
 	}
@@ -334,26 +336,26 @@ func AddBuildFlags(cmd *base.Command, mask BuildFlagMask) {
 		// Add the overlay flag even when we don't add the rest of the mod common flags.
 		// This only affects 'go get' in GOPATH mode, but add the flag anyway for
 		// consistency.
-		cmd.Flag.StringVar(&fsys.OverlayFile, "overlay", "", "")
+		cmd.Flag.StringVar(&fsys.OverlayFile, "overlay", "", "read a JSON config `file` that provides an overlay for build operations")
 	}
-	cmd.Flag.StringVar(&cfg.BuildContext.InstallSuffix, "installsuffix", "", "")
+	cmd.Flag.StringVar(&cfg.BuildContext.InstallSuffix, "installsuffix", "", "a `suffix` to use in the name of the package installation directory, to keep output separate from default builds")
 	if mask&(OmitBuildOnlyFlags|OmitJSONFlag) == 0 {
 		// TODO(#62250): OmitBuildOnlyFlags should apply to many more flags
 		// here, but we let a bunch of flags slip in before we realized that
 		// many of them don't make sense for most subcommands. We might even
 		// want to separate "AddBuildFlags" and "AddSelectionFlags".
-		cmd.Flag.BoolVar(&cfg.BuildJSON, "json", false, "")
+		cmd.Flag.BoolVar(&cfg.BuildJSON, "json", false, "emit build output in JSON suitable for automated processing; see 'go help buildjson'")
 	}
-	cmd.Flag.Var(&load.BuildLdflags, "ldflags", "")
-	cmd.Flag.BoolVar(&cfg.BuildLinkshared, "linkshared", false, "")
-	cmd.Flag.BoolVar(&cfg.BuildMSan, "msan", false, "")
-	cmd.Flag.StringVar(&cfg.BuildPGO, "pgo", "auto", "")
-	cmd.Flag.StringVar(&cfg.BuildPkgdir, "pkgdir", "", "")
-	cmd.Flag.BoolVar(&cfg.BuildRace, "race", false, "")
-	cmd.Flag.Var((*tagsFlag)(&cfg.BuildContext.BuildTags), "tags", "")
-	cmd.Flag.Var((*base.StringsFlag)(&cfg.BuildToolexec), "toolexec", "")
-	cmd.Flag.BoolVar(&cfg.BuildTrimpath, "trimpath", false, "")
-	cmd.Flag.BoolVar(&cfg.BuildWork, "work", false, "")
+	cmd.Flag.Var(&load.BuildLdflags, "ldflags", "`arguments` to pass on each go tool link invocation")
+	cmd.Flag.BoolVar(&cfg.BuildLinkshared, "linkshared", false, "build code that will be linked against shared libraries previously created with -buildmode=shared")
+	cmd.Flag.BoolVar(&cfg.BuildMSan, "msan", false, "enable interoperation with memory sanitizer")
+	cmd.Flag.StringVar(&cfg.BuildPGO, "pgo", "auto", "specify the `file` path of a profile for profile-guided optimization (PGO); special name \"auto\" selects default.pgo, \"off\" turns off PGO")
+	cmd.Flag.StringVar(&cfg.BuildPkgdir, "pkgdir", "", "install and load all packages from `dir` instead of the usual locations")
+	cmd.Flag.BoolVar(&cfg.BuildRace, "race", false, "enable data race detection")
+	cmd.Flag.Var((*tagsFlag)(&cfg.BuildContext.BuildTags), "tags", "a comma-separated list of additional build `tags` to consider satisfied during the build")
+	cmd.Flag.Var((*base.StringsFlag)(&cfg.BuildToolexec), "toolexec", "a `program` to use to invoke toolchain programs like vet and asm; see 'go help build'")
+	cmd.Flag.BoolVar(&cfg.BuildTrimpath, "trimpath", false, "remove all file system paths from the resulting executable")
+	cmd.Flag.BoolVar(&cfg.BuildWork, "work", false, "print the name of the temporary work directory and do not delete it when exiting")
 
 	// Undocumented, unstable debugging flags.
 	cmd.Flag.StringVar(&cfg.DebugActiongraph, "debug-actiongraph", "", "")
@@ -365,11 +367,11 @@ func AddBuildFlags(cmd *base.Command, mask BuildFlagMask) {
 // We add -cover{mode,pkg} to the build command and only
 // -coverprofile to the test command.
 func AddCoverFlags(cmd *base.Command, coverProfileFlag *string) {
-	cmd.Flag.BoolVar(&cfg.BuildCover, "cover", false, "")
-	cmd.Flag.Var(coverFlag{(*coverModeFlag)(&cfg.BuildCoverMode)}, "covermode", "")
-	cmd.Flag.Var(coverFlag{commaListFlag{&cfg.BuildCoverPkg}}, "coverpkg", "")
+	cmd.Flag.BoolVar(&cfg.BuildCover, "cover", false, "enable code coverage instrumentation")
+	cmd.Flag.Var(coverFlag{(*coverModeFlag)(&cfg.BuildCoverMode)}, "covermode", "set the `mode` for coverage analysis: set, count, atomic")
+	cmd.Flag.Var(coverFlag{commaListFlag{&cfg.BuildCoverPkg}}, "coverpkg", "apply coverage analysis to each package whose import path matches the `patterns`")
 	if coverProfileFlag != nil {
-		cmd.Flag.Var(coverFlag{V: stringFlag{coverProfileFlag}}, "coverprofile", "")
+		cmd.Flag.Var(coverFlag{V: stringFlag{coverProfileFlag}}, "coverprofile", "write a coverage profile to `file`")
 	}
 }
 
@@ -413,7 +415,7 @@ func (f *buildvcsFlag) Set(s string) error {
 	if err != nil {
 		return errors.New("value is neither 'auto' nor a valid bool")
 	}
-	*f = (buildvcsFlag)(strconv.FormatBool(b)) // convert to canonical "true" or "false"
+	*f = buildvcsFlag(strconv.FormatBool(b)) // convert to canonical "true" or "false"
 	return nil
 }
 
@@ -916,7 +918,12 @@ func FindExecCmd() []string {
 // A coverFlag is a flag.Value that also implies -cover.
 type coverFlag struct{ V flag.Value }
 
-func (f coverFlag) String() string { return f.V.String() }
+func (f coverFlag) String() string {
+	if f.V == nil {
+		return ""
+	}
+	return f.V.String()
+}
 
 func (f coverFlag) Set(value string) error {
 	if err := f.V.Set(value); err != nil {
@@ -928,7 +935,7 @@ func (f coverFlag) Set(value string) error {
 
 type coverModeFlag string
 
-func (f *coverModeFlag) String() string { return string(*f) }
+func (f coverModeFlag) String() string { return string(f) }
 func (f *coverModeFlag) Set(value string) error {
 	switch value {
 	case "", "set", "count", "atomic":

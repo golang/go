@@ -22,8 +22,6 @@ import (
 	"sync"
 	"text/template"
 
-	"golang.org/x/sync/semaphore"
-
 	"cmd/go/internal/base"
 	"cmd/go/internal/cache"
 	"cmd/go/internal/cfg"
@@ -32,6 +30,8 @@ import (
 	"cmd/go/internal/modload"
 	"cmd/go/internal/str"
 	"cmd/go/internal/work"
+
+	"golang.org/x/sync/semaphore"
 )
 
 var CmdList = &base.Command{
@@ -348,24 +348,24 @@ func init() {
 	// Omit build -json because list has its own -json
 	work.AddBuildFlags(CmdList, work.OmitJSONFlag)
 	work.AddCoverFlags(CmdList, nil)
-	CmdList.Flag.Var(&listJsonFields, "json", "")
+	CmdList.Flag.Var(&listJsonFields, "json", "print the package data in JSON format; optionally specify a comma-separated list of field names to include")
 }
 
 var (
-	listCompiled   = CmdList.Flag.Bool("compiled", false, "")
-	listDeps       = CmdList.Flag.Bool("deps", false, "")
-	listE          = CmdList.Flag.Bool("e", false, "")
-	listExport     = CmdList.Flag.Bool("export", false, "")
-	listFmt        = CmdList.Flag.String("f", "", "")
-	listFind       = CmdList.Flag.Bool("find", false, "")
+	listCompiled   = CmdList.Flag.Bool("compiled", false, "set CompiledGoFiles to the Go source files presented to the compiler")
+	listDeps       = CmdList.Flag.Bool("deps", false, "iterate through all dependencies, not just those explicitly listed")
+	listE          = CmdList.Flag.Bool("e", false, "change the handling of erroneous packages")
+	listExport     = CmdList.Flag.Bool("export", false, "set Export to the file name of the up-to-date export data for the package")
+	listFmt        = CmdList.Flag.String("f", "", "specify an alternate `format` for the list, using the syntax of package template")
+	listFind       = CmdList.Flag.Bool("find", false, "do not resolve dependencies; print only the matching packages")
 	listJson       bool
 	listJsonFields jsonFlag // If not empty, only output these fields.
-	listM          = CmdList.Flag.Bool("m", false, "")
-	listRetracted  = CmdList.Flag.Bool("retracted", false, "")
-	listReuse      = CmdList.Flag.String("reuse", "", "")
-	listTest       = CmdList.Flag.Bool("test", false, "")
-	listU          = CmdList.Flag.Bool("u", false, "")
-	listVersions   = CmdList.Flag.Bool("versions", false, "")
+	listM          = CmdList.Flag.Bool("m", false, "list modules instead of packages")
+	listRetracted  = CmdList.Flag.Bool("retracted", false, "show retracted modules")
+	listReuse      = CmdList.Flag.String("reuse", "", "reuse output from a previous list run stored in the named `file`")
+	listTest       = CmdList.Flag.Bool("test", false, "show not only the named packages but also their test binaries")
+	listU          = CmdList.Flag.Bool("u", false, "add information about available upgrades")
+	listVersions   = CmdList.Flag.Bool("versions", false, "show the list of all known versions for a module")
 )
 
 // A StringsFlag is a command-line flag that interprets its argument

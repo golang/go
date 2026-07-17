@@ -43,7 +43,7 @@ func TestChdir(t *testing.T) {
 		f := cmd.Flag.Lookup("C")
 		if f == nil {
 			t.Errorf("%s has no -C flag", name)
-		} else if f.Usage != "AddChdirFlag" {
+		} else if f.Usage != "change to `dir` before running the command" {
 			t.Errorf("%s has -C flag but not from AddChdirFlag", name)
 		}
 	}

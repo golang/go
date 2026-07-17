@@ -105,12 +105,12 @@ func init() {
 	// break init cycle
 	CmdClean.Run = runClean
 
-	CmdClean.Flag.BoolVar(&cleanI, "i", false, "")
-	CmdClean.Flag.BoolVar(&cleanR, "r", false, "")
-	CmdClean.Flag.BoolVar(&cleanCache, "cache", false, "")
-	CmdClean.Flag.BoolVar(&cleanFuzzcache, "fuzzcache", false, "")
-	CmdClean.Flag.BoolVar(&cleanModcache, "modcache", false, "")
-	CmdClean.Flag.BoolVar(&cleanTestcache, "testcache", false, "")
+	CmdClean.Flag.BoolVar(&cleanI, "i", false, "remove the corresponding installed archive or binary (what 'go install' would create)")
+	CmdClean.Flag.BoolVar(&cleanR, "r", false, "apply clean recursively to all the dependencies of the packages named by the import paths")
+	CmdClean.Flag.BoolVar(&cleanCache, "cache", false, "remove the entire go build cache")
+	CmdClean.Flag.BoolVar(&cleanFuzzcache, "fuzzcache", false, "remove all cached fuzzing values")
+	CmdClean.Flag.BoolVar(&cleanModcache, "modcache", false, "remove the entire module download cache, including unpacked source code of versioned dependencies")
+	CmdClean.Flag.BoolVar(&cleanTestcache, "testcache", false, "expire all test results in the go build cache")
 
 	// -n and -x are important enough to be
 	// mentioned explicitly in the docs but they

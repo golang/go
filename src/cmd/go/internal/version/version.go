@@ -54,9 +54,9 @@ func init() {
 }
 
 var (
-	versionM    = CmdVersion.Flag.Bool("m", false, "")
-	versionV    = CmdVersion.Flag.Bool("v", false, "")
-	versionJson = CmdVersion.Flag.Bool("json", false, "")
+	versionM    = CmdVersion.Flag.Bool("m", false, "print each `file`'s embedded module version information, when available")
+	versionV    = CmdVersion.Flag.Bool("v", false, "report unrecognized files found during a directory scan")
+	versionJson = CmdVersion.Flag.Bool("json", false, "print the runtime/debug.BuildInfo in JSON format; requires -m")
 )
 
 func runVersion(ctx context.Context, cmd *base.Command, args []string) {
