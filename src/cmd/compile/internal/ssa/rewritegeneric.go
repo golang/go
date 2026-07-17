@@ -4172,6 +4172,24 @@ func rewriteValuegeneric_OpAndB(v *Value) bool {
 	v_1 := v.Args[1]
 	v_0 := v.Args[0]
 	b := v.Block
+	// match: (AndB (ConstBool [c]) (ConstBool [d]))
+	// result: (ConstBool [c&&d])
+	for {
+		for _i0 := 0; _i0 <= 1; _i0, v_0, v_1 = _i0+1, v_1, v_0 {
+			if v_0.Op != OpConstBool {
+				continue
+			}
+			c := auxIntToBool(v_0.AuxInt)
+			if v_1.Op != OpConstBool {
+				continue
+			}
+			d := auxIntToBool(v_1.AuxInt)
+			v.reset(OpConstBool)
+			v.AuxInt = boolToAuxInt(c && d)
+			return true
+		}
+		break
+	}
 	// match: (AndB (Leq64 (Const64 [c]) x) (Less64 x (Const64 [d])))
 	// cond: d >= c
 	// result: (Less64U (Sub64 <x.Type> x (Const64 <x.Type> [c])) (Const64 <x.Type> [d-c]))
@@ -5657,6 +5675,42 @@ func rewriteValuegeneric_OpAndB(v *Value) bool {
 					return true
 				}
 			}
+		}
+		break
+	}
+	// match: (AndB x x)
+	// result: x
+	for {
+		x := v_0
+		if x != v_1 {
+			break
+		}
+		v.copyOf(x)
+		return true
+	}
+	// match: (AndB (ConstBool [true]) x)
+	// result: x
+	for {
+		for _i0 := 0; _i0 <= 1; _i0, v_0, v_1 = _i0+1, v_1, v_0 {
+			if v_0.Op != OpConstBool || auxIntToBool(v_0.AuxInt) != true {
+				continue
+			}
+			x := v_1
+			v.copyOf(x)
+			return true
+		}
+		break
+	}
+	// match: (AndB (ConstBool [false]) _)
+	// result: (ConstBool [false])
+	for {
+		for _i0 := 0; _i0 <= 1; _i0, v_0, v_1 = _i0+1, v_1, v_0 {
+			if v_0.Op != OpConstBool || auxIntToBool(v_0.AuxInt) != false {
+				continue
+			}
+			v.reset(OpConstBool)
+			v.AuxInt = boolToAuxInt(false)
+			return true
 		}
 		break
 	}
@@ -25786,6 +25840,24 @@ func rewriteValuegeneric_OpOrB(v *Value) bool {
 	v_0 := v.Args[0]
 	b := v.Block
 	typ := &b.Func.Config.Types
+	// match: (OrB (ConstBool [c]) (ConstBool [d]))
+	// result: (ConstBool [c||d])
+	for {
+		for _i0 := 0; _i0 <= 1; _i0, v_0, v_1 = _i0+1, v_1, v_0 {
+			if v_0.Op != OpConstBool {
+				continue
+			}
+			c := auxIntToBool(v_0.AuxInt)
+			if v_1.Op != OpConstBool {
+				continue
+			}
+			d := auxIntToBool(v_1.AuxInt)
+			v.reset(OpConstBool)
+			v.AuxInt = boolToAuxInt(c || d)
+			return true
+		}
+		break
+	}
 	// match: (OrB (Less64 (Const64 [c]) x) (Less64 x (Const64 [d])))
 	// cond: c >= d
 	// result: (Less64U (Const64 <x.Type> [c-d]) (Sub64 <x.Type> x (Const64 <x.Type> [d])))
@@ -27822,6 +27894,42 @@ func rewriteValuegeneric_OpOrB(v *Value) bool {
 			v0 := b.NewValue0(v.Pos, OpLess32F, typ.Bool)
 			v0.AddArg2(neg, y)
 			v.AddArg(v0)
+			return true
+		}
+		break
+	}
+	// match: (OrB x x)
+	// result: x
+	for {
+		x := v_0
+		if x != v_1 {
+			break
+		}
+		v.copyOf(x)
+		return true
+	}
+	// match: (OrB (ConstBool [false]) x)
+	// result: x
+	for {
+		for _i0 := 0; _i0 <= 1; _i0, v_0, v_1 = _i0+1, v_1, v_0 {
+			if v_0.Op != OpConstBool || auxIntToBool(v_0.AuxInt) != false {
+				continue
+			}
+			x := v_1
+			v.copyOf(x)
+			return true
+		}
+		break
+	}
+	// match: (OrB (ConstBool [true]) _)
+	// result: (ConstBool [true])
+	for {
+		for _i0 := 0; _i0 <= 1; _i0, v_0, v_1 = _i0+1, v_1, v_0 {
+			if v_0.Op != OpConstBool || auxIntToBool(v_0.AuxInt) != true {
+				continue
+			}
+			v.reset(OpConstBool)
+			v.AuxInt = boolToAuxInt(true)
 			return true
 		}
 		break

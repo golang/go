@@ -158,17 +158,19 @@
     (Rsh64Ux64 <typ.UInt64> x (Const64 <typ.UInt64> [64 - log64u(uint64(c))]))
     (Lsh64x64  <typ.UInt64> x (Const64 <typ.UInt64> [log64u(uint64(c))])))
 
-(And8   (Const8 [c])   (Const8 [d]))   => (Const8  [c&d])
-(And16  (Const16 [c])  (Const16 [d]))  => (Const16 [c&d])
-(And32  (Const32 [c])  (Const32 [d]))  => (Const32 [c&d])
-(And64  (Const64 [c])  (Const64 [d]))  => (Const64 [c&d])
+(AndB  (ConstBool [c]) (ConstBool [d])) => (ConstBool [c&&d])
+(And8  (Const8    [c]) (Const8    [d])) => (Const8    [c&d])
+(And16 (Const16   [c]) (Const16   [d])) => (Const16   [c&d])
+(And32 (Const32   [c]) (Const32   [d])) => (Const32   [c&d])
+(And64 (Const64   [c]) (Const64   [d])) => (Const64   [c&d])
 
-(Or8   (Const8 [c])   (Const8 [d]))   => (Const8  [c|d])
-(Or16  (Const16 [c])  (Const16 [d]))  => (Const16 [c|d])
-(Or32  (Const32 [c])  (Const32 [d]))  => (Const32 [c|d])
-(Or64  (Const64 [c])  (Const64 [d]))  => (Const64 [c|d])
+(OrB  (ConstBool [c]) (ConstBool [d])) => (ConstBool [c||d])
+(Or8  (Const8    [c]) (Const8    [d])) => (Const8    [c|d])
+(Or16 (Const16   [c]) (Const16   [d])) => (Const16   [c|d])
+(Or32 (Const32   [c]) (Const32   [d])) => (Const32   [c|d])
+(Or64 (Const64   [c]) (Const64   [d])) => (Const64   [c|d])
 
-(Xor8   (Const8 [c])   (Const8 [d]))   => (Const8  [c^d])
+(Xor8   (Const8  [c])  (Const8  [d]))  => (Const8  [c^d])
 (Xor16  (Const16 [c])  (Const16 [d]))  => (Const16 [c^d])
 (Xor32  (Const32 [c])  (Const32 [d]))  => (Const32 [c^d])
 (Xor64  (Const64 [c])  (Const64 [d]))  => (Const64 [c^d])
@@ -643,15 +645,19 @@
 (Leq64F  (Const64F [c]) (Const64F [d])) => (ConstBool [c <= d])
 
 // simplifications
-(Or(64|32|16|8) x x) => x
+(Or(64|32|16|8|B) x x) => x
 (Or(64|32|16|8) (Const(64|32|16|8)  [0]) x) => x
 (Or(64|32|16|8) (Const(64|32|16|8) [-1]) _) => (Const(64|32|16|8) [-1])
 (Or(64|32|16|8) (Com(64|32|16|8)     x)  x) => (Const(64|32|16|8) [-1])
+(OrB (ConstBool [false]) x) => x
+(OrB (ConstBool [true])  _) => (ConstBool [true])
 
-(And(64|32|16|8) x x) => x
+(And(64|32|16|8|B) x x) => x
 (And(64|32|16|8) (Const(64|32|16|8) [-1]) x) => x
 (And(64|32|16|8) (Const(64|32|16|8)  [0]) _) => (Const(64|32|16|8) [0])
 (And(64|32|16|8) (Com(64|32|16|8)     x)  x) => (Const(64|32|16|8) [0])
+(AndB (ConstBool [true])  x) => x
+(AndB (ConstBool [false]) _) => (ConstBool [false])
 
 (Xor(64|32|16|8) x x) => (Const(64|32|16|8) [0])
 (Xor(64|32|16|8) (Const(64|32|16|8) [0]) x) => x
