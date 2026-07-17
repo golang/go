@@ -13,6 +13,7 @@ import (
 	"os/exec"
 	"runtime"
 	"slices"
+	"strings"
 	"testing"
 	"time"
 )
@@ -59,13 +60,7 @@ func TestInterruptCmd(t *testing.T) {
 	if err == nil {
 		t.Fatal("expected Wait failure")
 	} else if err, ok := err.(*exec.ExitError); ok {
-		expectedError := "signal: interrupt"
-		if runtime.GOOS == "windows" {
-			expectedError = "exit status 1"
-		}
-		if err.Error() != expectedError {
-			t.Fatalf("unexpected error while exiting executable: got=%q, want=%q", err.Error(), expectedError)
-		}
+		checkInterruptCmdError(t, err)
 	} else {
 		t.Fatalf("unexpected error while running executable: %s\n%s", err, string(buf))
 	}
@@ -73,6 +68,30 @@ func TestInterruptCmd(t *testing.T) {
 	err = <-interruptCmdErr
 	if err != nil {
 		t.Errorf("InterruptCmd failed: %v", err)
+	}
+}
+
+// checkInterruptCmdError calls t.Fatal if err is interrupt cmd error.
+func checkInterruptCmdError(t *testing.T, err error) {
+	errstr := err.Error()
+	if runtime.GOOS == "plan9" {
+		expectedPrefixError := "exit status: "
+		if !strings.HasPrefix(errstr, expectedPrefixError) {
+			t.Fatalf("unexpected error prefix while exiting executable: got=%q, want=%q", errstr, expectedPrefixError)
+		}
+		expectedSuffixError := ": interrupt'"
+		if !strings.HasSuffix(errstr, expectedSuffixError) {
+			t.Fatalf("unexpected error suffix while exiting executable: got=%q, want=%q", errstr, expectedSuffixError)
+		}
+		return
+	}
+
+	expectedError := "signal: interrupt"
+	if runtime.GOOS == "windows" {
+		expectedError = "exit status 1"
+	}
+	if errstr != expectedError {
+		t.Fatalf("unexpected error while exiting executable: got=%q, want=%q", errstr, expectedError)
 	}
 }
 
