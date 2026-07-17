@@ -48,6 +48,7 @@ import (
 	"time"
 
 	"golang.org/x/net/http/httpguts"
+	"golang.org/x/net/idna"
 )
 
 // TODO: test 5 pipelined requests with responses: 1) OK, 2) OK, Connection: Close
@@ -5946,6 +5947,71 @@ func testTransportIDNA(t *testing.T, mode testMode) {
 		}
 		t.Errorf("Response body wasn't from Handler. Got:\n%s\n", out)
 	}
+}
+
+// Issue 80417: the address the request is dialed to and the Host header
+// (HTTP/1) / :authority pseudo-header (HTTP/2) must be computed with the same
+// IDNA processing. The dial target uses UTS #46 processing (with mapping), so
+// the host header must too. Otherwise a request can be dialed to one host
+// while announcing a different one, which can be used to bypass SSRF filters
+// that inspect URL.Hostname.
+func TestTransportIDNAMapping(t *testing.T) { run(t, testTransportIDNAMapping, http3SkippedMode) }
+func testTransportIDNAMapping(t *testing.T, mode testMode) {
+	// uniDomain maps to mappedDomain under UTS #46 processing (the profile
+	// used to pick the dial address). idna.ToASCII (Punycode only, without
+	// mapping, which used to be used for the Host header) instead produces a
+	// different, "xn--"-prefixed name; verify the two disagree so this test
+	// actually exercises the mapping.
+	const uniDomain = "ⓖⓞⓟⓗⓔⓡ.example"
+	mappedDomain, err := idna.Lookup.ToASCII(uniDomain)
+	if err != nil {
+		t.Fatalf("idna.Lookup.ToASCII(%q) = %v", uniDomain, err)
+	}
+	if puny, err := idna.ToASCII(uniDomain); err == nil && puny == mappedDomain {
+		t.Fatalf("test host %q does not distinguish IDNA profiles", uniDomain)
+	}
+
+	var port string
+	cst := newClientServerTest(t, mode, HandlerFunc(func(w ResponseWriter, r *Request) {
+		if want := mappedDomain + ":" + port; r.Host != want {
+			t.Errorf("Host header = %q; want %q", r.Host, want)
+		}
+	}), func(tr *Transport) {
+		if tr.TLSClientConfig != nil {
+			tr.TLSClientConfig.InsecureSkipVerify = true
+		}
+	})
+
+	ip, port, err := net.SplitHostPort(cst.ts.Listener.Addr().String())
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	// Install a fake DNS server. The dial must be for the mapped domain, not
+	// the raw Unicode host or its Punycode-only encoding.
+	ctx := context.WithValue(context.Background(), nettrace.LookupIPAltResolverKey{}, func(ctx context.Context, network, host string) ([]net.IPAddr, error) {
+		if host != mappedDomain {
+			t.Errorf("got DNS host lookup for %q/%q; want %q", network, host, mappedDomain)
+			return nil, nil
+		}
+		return []net.IPAddr{{IP: net.ParseIP(ip)}}, nil
+	})
+
+	req, _ := NewRequest("GET", cst.scheme()+"://"+uniDomain+":"+port, nil)
+	trace := &httptrace.ClientTrace{
+		GetConn: func(hostPort string) {
+			if want := net.JoinHostPort(mappedDomain, port); hostPort != want {
+				t.Errorf("getting conn for %q; want %q", hostPort, want)
+			}
+		},
+	}
+	req = req.WithContext(httptrace.WithClientTrace(ctx, trace))
+
+	res, err := cst.tr.RoundTrip(req)
+	if err != nil {
+		t.Fatal(err)
+	}
+	res.Body.Close()
 }
 
 // Issue 13290: send User-Agent in proxy CONNECT
