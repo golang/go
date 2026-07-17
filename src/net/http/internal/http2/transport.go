@@ -394,7 +394,12 @@ func authorityAddr(scheme string, authority string) (addr string) {
 			port = "80"
 		}
 	}
-	if a, err := idna.ToASCII(host); err == nil {
+	// Use the same UTS #46 processing (with mapping) that net/http uses to
+	// choose the address to dial (see idnaASCII/canonicalAddr in the
+	// net/http Transport) and to write the Host / :authority header, so the
+	// connection pool key, the dialed address, and the header all agree.
+	// See https://go.dev/issue/80417.
+	if a, err := idna.Lookup.ToASCII(host); err == nil {
 		host = a
 	}
 	// IPv6 address literal, without a port:
