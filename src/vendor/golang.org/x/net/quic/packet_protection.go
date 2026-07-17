@@ -100,7 +100,7 @@ func (k headerKey) unprotect(pkt []byte, pnumOff int, pnumMax packetNumber) (hdr
 	return hdr, pay, pnum, nil
 }
 
-// headerProtection is the  header_protection function as defined in:
+// headerProtection is the header_protection function as defined in:
 // https://www.rfc-editor.org/rfc/rfc9001#section-5.4.1
 //
 // This function takes a sample of the packet ciphertext

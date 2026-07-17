@@ -34,7 +34,7 @@ func (h Hash) MarshalJSON() ([]byte, error) {
 	return []byte(`"` + h.String() + `"`), nil
 }
 
-// UnmarshalJSON unmarshals a hash from JSON string containing the a base64-encoded hash.
+// UnmarshalJSON unmarshals a hash from a JSON string containing a base64-encoded hash.
 func (h *Hash) UnmarshalJSON(data []byte) error {
 	if len(data) != 1+44+1 || data[0] != '"' || data[len(data)-2] != '=' || data[len(data)-1] != '"' {
 		return errors.New("cannot decode hash")
@@ -246,7 +246,7 @@ var emptyHash = Hash{
 // TreeHash computes the hash for the root of the tree with n records,
 // using the HashReader to obtain previously stored hashes
 // (those returned by StoredHashes during the writes of those n records).
-// TreeHash makes a single call to ReadHash requesting at most 1 + log₂ n hashes.
+// TreeHash makes a single call to ReadHashes requesting at most 1 + log₂ n hashes.
 func TreeHash(n int64, r HashReader) (Hash, error) {
 	if n == 0 {
 		return emptyHash, nil

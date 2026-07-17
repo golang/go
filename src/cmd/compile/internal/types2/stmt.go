@@ -177,7 +177,7 @@ func (check *Checker) suspendedCall(keyword string, call syntax.Expr) {
 
 	var x operand
 	var msg string
-	switch check.rawExpr(nil, &x, call, nil, false) {
+	switch check.rawExpr(nil, nil, &x, call, nil, false) {
 	case conversion:
 		msg = "requires function call, not conversion"
 	case expression:
@@ -237,7 +237,7 @@ func (check *Checker) caseValues(x *operand, values []syntax.Expr, seen valueMap
 L:
 	for _, e := range values {
 		var v operand
-		check.expr(nil, &v, e)
+		check.expr(nil, nil, &v, e)
 		if !x.isValid() || !v.isValid() {
 			continue L
 		}
@@ -311,7 +311,7 @@ L:
 		// The spec allows the value nil instead of a type.
 		if check.isNil(e) {
 			T = nil
-			check.expr(nil, &dummy, e) // run e through expr so we get the usual Info recordings
+			check.expr(nil, nil, &dummy, e) // run e through expr so we get the usual Info recordings
 		} else {
 			T = check.varType(e)
 			if !isValid(T) {
@@ -363,7 +363,7 @@ L:
 		// The spec allows the value nil instead of a type.
 		var hash string
 		if check.isNil(e) {
-			check.expr(nil, &dummy, e) // run e through expr so we get the usual Info recordings
+			check.expr(nil, nil, &dummy, e) // run e through expr so we get the usual Info recordings
 			T = nil
 			hash = "<nil>" // avoid collision with a type named nil
 		} else {
@@ -441,7 +441,7 @@ func (check *Checker) stmt(ctxt stmtContext, s syntax.Stmt) {
 		// function and method calls and receive operations can appear
 		// in statement context. Such statements may be parenthesized."
 		var x operand
-		kind := check.rawExpr(nil, &x, s.X, nil, false)
+		kind := check.rawExpr(nil, nil, &x, s.X, nil, false)
 		var msg string
 		var code Code
 		switch x.mode() {
@@ -462,13 +462,18 @@ func (check *Checker) stmt(ctxt stmtContext, s syntax.Stmt) {
 
 	case *syntax.SendStmt:
 		var ch, val operand
-		check.expr(nil, &ch, s.Chan)
-		check.genericExpr(&val, s.Value, nil)
-		if !ch.isValid() || !val.isValid() {
-			return
-		}
-		if elem := check.chanElem(s, &ch, false); elem != nil {
-			check.assignment(&val, elem, "send")
+		check.expr(nil, nil, &ch, s.Chan)
+		if ch.isValid() {
+			// try to get a target type for the sent value
+			// TODO(mark): use T in an upcoming CL
+			T := check.chanElem(s, &ch, false)
+			check.genericExpr(T, &val, s.Value, nil)
+			if T != nil {
+				check.assignment(&val, T, "send")
+			}
+		} else {
+			// no target type, don't drop work on the floor
+			check.genericExpr(nil, &val, s.Value, nil)
 		}
 
 	case *syntax.AssignStmt:
@@ -476,7 +481,7 @@ func (check *Checker) stmt(ctxt stmtContext, s syntax.Stmt) {
 			// x++ or x--
 			// (no need to call unpackExpr as s.Lhs must be single-valued)
 			var x operand
-			check.expr(nil, &x, s.Lhs)
+			check.expr(nil, nil, &x, s.Lhs)
 			if !x.isValid() {
 				return
 			}
@@ -591,7 +596,7 @@ func (check *Checker) stmt(ctxt stmtContext, s syntax.Stmt) {
 
 		check.simpleStmt(s.Init)
 		var x operand
-		check.expr(nil, &x, s.Cond)
+		check.expr(nil, nil, &x, s.Cond)
 		if x.isValid() && !allBoolean(x.typ()) {
 			check.error(s.Cond, InvalidCond, "non-boolean condition in if statement")
 		}
@@ -693,7 +698,7 @@ func (check *Checker) stmt(ctxt stmtContext, s syntax.Stmt) {
 		check.simpleStmt(s.Init)
 		if s.Cond != nil {
 			var x operand
-			check.expr(nil, &x, s.Cond)
+			check.expr(nil, nil, &x, s.Cond)
 			if x.isValid() && !allBoolean(x.typ()) {
 				check.error(s.Cond, InvalidCond, "non-boolean condition in for statement")
 			}
@@ -717,7 +722,7 @@ func (check *Checker) switchStmt(inner stmtContext, s *syntax.SwitchStmt) {
 
 	var x operand
 	if s.Tag != nil {
-		check.expr(nil, &x, s.Tag)
+		check.expr(nil, nil, &x, s.Tag)
 		// By checking assignment of x to an invisible temporary
 		// (as a compiler would), we get all the relevant checks.
 		check.assignment(&x, nil, "switch expression")
@@ -784,7 +789,7 @@ func (check *Checker) typeSwitchStmt(inner stmtContext, s *syntax.SwitchStmt, gu
 	var sx *operand // switch expression against which cases are compared against; nil if invalid
 	{
 		var x operand
-		check.expr(nil, &x, guard.X)
+		check.expr(nil, nil, &x, guard.X)
 		if x.isValid() {
 			if isTypeParam(x.typ()) {
 				check.errorf(&x, InvalidTypeSwitch, "cannot use type switch on type parameter value %s", &x)

@@ -78,10 +78,12 @@ var Suite = []*analysis.Analyzer{
 	lostcancel.Analyzer,
 	nilfunc.Analyzer,
 	printf.Analyzer,
+	// scannererr.Analyzer, // TODO(adonovan): add to go vet for 1.28 after the freeze (#17747)
 	// shadow.Analyzer omitted: too noisy
 	shift.Analyzer,
 	sigchanyzer.Analyzer,
 	slog.Analyzer,
+	// sqlrowserr.Analyzer, // TODO(adonovan): add to go vet for 1.28 after the freeze (#17747)
 	stdmethods.Analyzer,
 	stdversion.Analyzer,
 	stringintconv.Analyzer,

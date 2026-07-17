@@ -460,7 +460,7 @@ func (c *Client) checkTrees(older tlog.Tree, olderNote []byte, newer tlog.Tree, 
 	// on the continued availability of the misbehaving server.
 	// Preparing this data only reuses the tiled hashes needed for
 	// tlog.TreeHash(older.N, thr) above, so assuming thr is caching tiles,
-	// there are no new access to the server here, and these operations cannot fail.
+	// there are no new accesses to the server here, and these operations cannot fail.
 	fmt.Fprintf(&buf, "proof of misbehavior:\n\t%v", h)
 	if p, err := tlog.ProveTree(newer.N, older.N, thr); err != nil {
 		fmt.Fprintf(&buf, "\tinternal error: %v\n", err)

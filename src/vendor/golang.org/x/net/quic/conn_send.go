@@ -313,7 +313,7 @@ func (c *Conn) appendFrames(now time.Time, space numberSpace, pnum packetNumber,
 	//
 	// A client discards Initial keys when it first sends a Handshake packet
 	// (RFC 9001 Section 4.9.1). Handshake keys are discarded when the handshake
-	// is confirmed (RFC 9001 Section  4.9.2). The PTO timer is not set for the
+	// is confirmed (RFC 9001 Section 4.9.2). The PTO timer is not set for the
 	// Application Data packet number space until the handshake is confirmed
 	// (RFC 9002 Section 6.2.1). Therefore, the only times a PTO probe can fire
 	// while data for multiple spaces is in flight are:

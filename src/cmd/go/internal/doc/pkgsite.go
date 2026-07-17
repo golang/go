@@ -32,7 +32,7 @@ import (
 // To make that process easier, the exact name and file location of this constant are known
 // to the [golang.org/x/build/cmd/updatestd] command. If this constant needs to be renamed
 // or moved to another .go file, update that code too.
-const pkgsiteCmdInternalDocVersion = "v0.0.0-20260605201217-deb78785c3ce"
+const pkgsiteCmdInternalDocVersion = "v0.0.0-20260716130756-7a55b7dd9a2a"
 
 // pickUnusedPort finds an unused port by trying to listen on port 0
 // and letting the OS pick a port, then closing that connection and

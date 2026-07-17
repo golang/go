@@ -32,7 +32,7 @@ var ErrorsAsTypeAnalyzer = &analysis.Analyzer{
 	Run:      errorsastype,
 }
 
-// errorsastype offers a fix to replace error.As with the newer
+// errorsastype offers a fix to replace errors.As with the newer
 // errors.AsType[T] following this pattern:
 //
 //	var myerr *MyErr
@@ -228,11 +228,19 @@ func canUseErrorsAsType(info *types.Info, index *typeindex.Index, curCall inspec
 		len(curDecl.Node().(*ast.GenDecl).Specs) != 1 {
 		return // not a simple "var v T" decl
 	}
+	if curDecl.ParentEdgeKind() != edge.DeclStmt_Decl {
+		return // package-level var, not a local declaration statement
+	}
+	// AsType requires that its type argument implements error.
+	// Reject if v does not implement error.
+	if !types.AssignableTo(v.Type(), errorType) {
+		return
+	}
 
 	// Have:
 	//   var v *MyErr
 	//   ...
 	//   if errors.As(err, &v) { ... }
 	// with no uses of v outside the IfStmt.
-	return v, curDecl.Parent(), curIfStmt // curDecl.Parent() is a DeclStmt
+	return v, curDecl.Parent(), curIfStmt
 }

@@ -18,12 +18,12 @@ import (
 	"golang.org/x/tools/internal/analysis/analyzerutil"
 	typeindexanalyzer "golang.org/x/tools/internal/analysis/typeindex"
 	"golang.org/x/tools/internal/astutil"
-	"golang.org/x/tools/internal/goplsexport"
 	"golang.org/x/tools/internal/refactor"
 	"golang.org/x/tools/internal/typesinternal/typeindex"
 	"golang.org/x/tools/internal/versions"
 )
 
+// TODO(adonovan): needs a proposal for a public symbol.
 var slicesBackwardAnalyzer = &analysis.Analyzer{
 	Name: "slicesbackward",
 	Doc:  analyzerutil.MustExtractDoc(doc, "slicesbackward"),
@@ -33,11 +33,6 @@ var slicesBackwardAnalyzer = &analysis.Analyzer{
 	},
 	Run: slicesbackward,
 	URL: "https://pkg.go.dev/golang.org/x/tools/go/analysis/passes/modernize#slicesbackward",
-}
-
-func init() {
-	// Export to gopls until this is a published modernizer.
-	goplsexport.SlicesBackwardModernizer = slicesBackwardAnalyzer
 }
 
 // slicesbackward offers a fix to replace a manually-written backward loop:
