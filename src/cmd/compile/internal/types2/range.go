@@ -32,7 +32,7 @@ func (check *Checker) rangeStmt(inner stmtContext, rangeStmt *syntax.ForStmt, no
 	// described situation.
 
 	check.hasCallOrRecv = false
-	check.expr(nil, &x, rangeVar)
+	check.expr(nil, nil, &x, rangeVar)
 
 	if isTypes2 && x.isValid() && sValue == nil && !check.hasCallOrRecv {
 		if t, ok := arrayPtrDeref(x.typ().Underlying()).(*Array); ok {

@@ -174,7 +174,7 @@ func (check *Checker) suspendedCall(keyword string, call *ast.CallExpr) {
 	var x operand
 	var msg string
 	var code Code
-	switch check.rawExpr(nil, &x, call, nil, false) {
+	switch check.rawExpr(nil, nil, &x, call, nil, false) {
 	case conversion:
 		msg = "requires function call, not conversion"
 		code = InvalidDefer
@@ -238,7 +238,7 @@ func (check *Checker) caseValues(x *operand, values []ast.Expr, seen valueMap) {
 L:
 	for _, e := range values {
 		var v operand
-		check.expr(nil, &v, e)
+		check.expr(nil, nil, &v, e)
 		if !x.isValid() || !v.isValid() {
 			continue L
 		}
@@ -312,7 +312,7 @@ L:
 		// The spec allows the value nil instead of a type.
 		if check.isNil(e) {
 			T = nil
-			check.expr(nil, &dummy, e) // run e through expr so we get the usual Info recordings
+			check.expr(nil, nil, &dummy, e) // run e through expr so we get the usual Info recordings
 		} else {
 			T = check.varType(e)
 			if !isValid(T) {
@@ -364,7 +364,7 @@ L:
 		// The spec allows the value nil instead of a type.
 		var hash string
 		if check.isNil(e) {
-			check.expr(nil, &dummy, e) // run e through expr so we get the usual Info recordings
+			check.expr(nil, nil, &dummy, e) // run e through expr so we get the usual Info recordings
 			T = nil
 			hash = "<nil>" // avoid collision with a type named nil
 		} else {
@@ -442,7 +442,7 @@ func (check *Checker) stmt(ctxt stmtContext, s ast.Stmt) {
 		// function and method calls and receive operations can appear
 		// in statement context. Such statements may be parenthesized."
 		var x operand
-		kind := check.rawExpr(nil, &x, s.X, nil, false)
+		kind := check.rawExpr(nil, nil, &x, s.X, nil, false)
 		var msg string
 		var code Code
 		switch x.mode() {
@@ -463,13 +463,18 @@ func (check *Checker) stmt(ctxt stmtContext, s ast.Stmt) {
 
 	case *ast.SendStmt:
 		var ch, val operand
-		check.expr(nil, &ch, s.Chan)
-		check.genericExpr(&val, s.Value, nil)
-		if !ch.isValid() || !val.isValid() {
-			return
-		}
-		if elem := check.chanElem(inNode(s, s.Arrow), &ch, false); elem != nil {
-			check.assignment(&val, elem, "send")
+		check.expr(nil, nil, &ch, s.Chan)
+		if ch.isValid() {
+			// extract a target type for the sent value
+			// TODO(mark): use T in an upcoming CL
+			T := check.chanElem(inNode(s, s.Arrow), &ch, false)
+			check.genericExpr(T, &val, s.Value, nil)
+			if T != nil {
+				check.assignment(&val, T, "send")
+			}
+		} else {
+			// no target type, don't drop work on the floor
+			check.genericExpr(nil, &val, s.Value, nil)
 		}
 
 	case *ast.IncDecStmt:
@@ -485,7 +490,7 @@ func (check *Checker) stmt(ctxt stmtContext, s ast.Stmt) {
 		}
 
 		var x operand
-		check.expr(nil, &x, s.X)
+		check.expr(nil, nil, &x, s.X)
 		if !x.isValid() {
 			return
 		}
@@ -608,7 +613,7 @@ func (check *Checker) stmt(ctxt stmtContext, s ast.Stmt) {
 
 		check.simpleStmt(s.Init)
 		var x operand
-		check.expr(nil, &x, s.Cond)
+		check.expr(nil, nil, &x, s.Cond)
 		if x.isValid() && !allBoolean(x.typ()) {
 			check.error(s.Cond, InvalidCond, "non-boolean condition in if statement")
 		}
@@ -632,7 +637,7 @@ func (check *Checker) stmt(ctxt stmtContext, s ast.Stmt) {
 		check.simpleStmt(s.Init)
 		var x operand
 		if s.Tag != nil {
-			check.expr(nil, &x, s.Tag)
+			check.expr(nil, nil, &x, s.Tag)
 			// By checking assignment of x to an invisible temporary
 			// (as a compiler would), we get all the relevant checks.
 			check.assignment(&x, nil, "switch expression")
@@ -727,7 +732,7 @@ func (check *Checker) stmt(ctxt stmtContext, s ast.Stmt) {
 		var sx *operand // switch expression against which cases are compared against; nil if invalid
 		{
 			var x operand
-			check.expr(nil, &x, expr.X)
+			check.expr(nil, nil, &x, expr.X)
 			if x.isValid() {
 				if isTypeParam(x.typ()) {
 					check.errorf(&x, InvalidTypeSwitch, "cannot use type switch on type parameter value %s", &x)
@@ -836,7 +841,7 @@ func (check *Checker) stmt(ctxt stmtContext, s ast.Stmt) {
 		check.simpleStmt(s.Init)
 		if s.Cond != nil {
 			var x operand
-			check.expr(nil, &x, s.Cond)
+			check.expr(nil, nil, &x, s.Cond)
 			if x.isValid() && !allBoolean(x.typ()) {
 				check.error(s.Cond, InvalidCond, "non-boolean condition in for statement")
 			}
