@@ -1780,10 +1780,15 @@ func (t *Transport) decConnsPerHost(key connectMethodKey) {
 // Add TLS to a persistent connection, i.e. negotiate a TLS session. If pconn is already a TLS
 // tunnel, this function establishes a nested TLS session inside the encrypted channel.
 // The remote endpoint's name may be overridden by TLSClientConfig.ServerName.
-func (pconn *persistConn) addTLS(ctx context.Context, name string, trace *httptrace.ClientTrace) error {
+func (pconn *persistConn) addTLS(ctx context.Context, addr string, trace *httptrace.ClientTrace) error {
 	// Initiate TLS and check remote host name against certificate.
 	cfg := cloneTLSConfig(pconn.t.TLSClientConfig)
 	if cfg.ServerName == "" {
+		name, _, err := net.SplitHostPort(addr)
+		if err != nil {
+			pconn.conn.Close()
+			return err
+		}
 		cfg.ServerName = name
 	}
 	if pconn.cacheKey.onlyH1 {
@@ -1925,11 +1930,7 @@ func (t *Transport) dialConn(ctx context.Context, cm connectMethod, isClientConn
 		}
 		pconn.conn = conn
 		if cm.scheme() == "https" {
-			var firstTLSHost string
-			if firstTLSHost, _, err = net.SplitHostPort(cm.addr()); err != nil {
-				return nil, wrapErr(err)
-			}
-			if err = pconn.addTLS(ctx, firstTLSHost, trace); err != nil {
+			if err = pconn.addTLS(ctx, cm.addr(), trace); err != nil {
 				return nil, wrapErr(err)
 			}
 		}
@@ -2046,7 +2047,7 @@ func (t *Transport) dialConn(ctx context.Context, cm connectMethod, isClientConn
 	}
 
 	if cm.proxyURL != nil && cm.targetScheme == "https" {
-		if err := pconn.addTLS(ctx, cm.tlsHost(), trace); err != nil {
+		if err := pconn.addTLS(ctx, cm.targetAddr, trace); err != nil {
 			return nil, err
 		}
 	}
@@ -2212,13 +2213,6 @@ func (cm *connectMethod) addr() string {
 		return canonicalAddr(cm.proxyURL)
 	}
 	return cm.targetAddr
-}
-
-// tlsHost returns the host name to match against the peer's
-// TLS certificate.
-func (cm *connectMethod) tlsHost() string {
-	h := cm.targetAddr
-	return removePort(h)
 }
 
 // connectMethodKey is the map key version of connectMethod, with a
