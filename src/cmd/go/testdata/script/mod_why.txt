@@ -1,4 +1,16 @@
 env GO111MODULE=on
+
+# 'go mod why -m' should reject malformed module paths before loading
+# the module graph.
+! go mod why -m golang.org/x/text/
+stderr '^go mod why: malformed module path "golang.org/x/text/": trailing slash$'
+
+# Module patterns should validate the literal path around each wildcard.
+! go mod why -m golang.org//x/...
+stderr '^go mod why: malformed module path "golang.org//x/...": double slash$'
+! go mod why -m golang.org/...//.../text
+stderr '^go mod why: malformed module path "golang.org/...//.../text": double slash$'
+
 [short] skip
 
 # Populate go.sum.
@@ -16,6 +28,14 @@ cmp stdout why-language.txt
 # why a module?
 go mod why -m golang.org...
 cmp stdout why-text-module.txt
+
+# Module patterns may contain multiple wildcards.
+go mod why -m golang...org/.../te...
+cmp stdout why-text-module.txt
+
+# Module paths that are valid only when replaced should be accepted.
+go mod why -m mymodule/nested
+cmp stdout why-replaced-module.txt
 
 # why a package used only in tests?
 go mod why rsc.io/testonly
@@ -56,6 +76,10 @@ cmp go.mod go.mod.orig
 -- go.mod --
 module mymodule
 require rsc.io/quote v1.5.2
+replace mymodule/nested => ./nested
+
+-- nested/go.mod --
+module mymodule/nested
 
 -- x/x.go --
 package x
@@ -90,6 +114,9 @@ mymodule/y.test
 rsc.io/quote
 rsc.io/sampler
 golang.org/x/text/language
+-- why-replaced-module.txt --
+# mymodule/nested
+(main module does not need module mymodule/nested)
 -- why-testonly.txt --
 # rsc.io/testonly
 mymodule/y
