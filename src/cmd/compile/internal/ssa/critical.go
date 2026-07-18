@@ -4,7 +4,10 @@
 
 package ssa
 
-import "cmd/compile/internal/ssa/block"
+import (
+	"cmd/compile/internal/ssa/block"
+	"cmd/compile/internal/ssa/ssaop"
+)
 
 // critical splits critical edges (those that go from a block with
 // more than one outedge to a block with more than one inedge).
@@ -26,7 +29,7 @@ func critical(f *Func) {
 		// block, this is easier to handle than the general
 		// case of a block with multiple phi values.
 		for _, v := range b.Values {
-			if v.Op == OpPhi {
+			if v.Op == ssaop.OpPhi {
 				if phi != nil {
 					phi = nil
 					break

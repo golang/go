@@ -5,6 +5,7 @@
 package ssa
 
 import (
+	"cmd/compile/internal/ssa/ssaop"
 	"cmd/compile/internal/types"
 	"testing"
 )
@@ -15,13 +16,13 @@ func TestWriteBarrierStoreOrder(t *testing.T) {
 	ptrType := c.config.Types.BytePtr
 	fun := c.Fun("entry",
 		Bloc("entry",
-			Valu("start", OpInitMem, types.TypeMem, 0, nil),
-			Valu("sb", OpSB, c.config.Types.Uintptr, 0, nil),
-			Valu("sp", OpSP, c.config.Types.Uintptr, 0, nil),
-			Valu("v", OpConstNil, ptrType, 0, nil),
-			Valu("addr1", OpAddr, ptrType, 0, nil, "sb"),
-			Valu("wb2", OpStore, types.TypeMem, 0, ptrType, "addr1", "v", "wb1"),
-			Valu("wb1", OpStore, types.TypeMem, 0, ptrType, "addr1", "v", "start"), // wb1 and wb2 are out of order
+			Valu("start", ssaop.OpInitMem, types.TypeMem, 0, nil),
+			Valu("sb", ssaop.OpSB, c.config.Types.Uintptr, 0, nil),
+			Valu("sp", ssaop.OpSP, c.config.Types.Uintptr, 0, nil),
+			Valu("v", ssaop.OpConstNil, ptrType, 0, nil),
+			Valu("addr1", ssaop.OpAddr, ptrType, 0, nil, "sb"),
+			Valu("wb2", ssaop.OpStore, types.TypeMem, 0, ptrType, "addr1", "v", "wb1"),
+			Valu("wb1", ssaop.OpStore, types.TypeMem, 0, ptrType, "addr1", "v", "start"), // wb1 and wb2 are out of order
 			Goto("exit")),
 		Bloc("exit",
 			Exit("wb2")))
@@ -39,15 +40,15 @@ func TestWriteBarrierPhi(t *testing.T) {
 	ptrType := c.config.Types.BytePtr
 	fun := c.Fun("entry",
 		Bloc("entry",
-			Valu("start", OpInitMem, types.TypeMem, 0, nil),
-			Valu("sb", OpSB, c.config.Types.Uintptr, 0, nil),
-			Valu("sp", OpSP, c.config.Types.Uintptr, 0, nil),
+			Valu("start", ssaop.OpInitMem, types.TypeMem, 0, nil),
+			Valu("sb", ssaop.OpSB, c.config.Types.Uintptr, 0, nil),
+			Valu("sp", ssaop.OpSP, c.config.Types.Uintptr, 0, nil),
 			Goto("loop")),
 		Bloc("loop",
-			Valu("phi", OpPhi, types.TypeMem, 0, nil, "start", "wb"),
-			Valu("v", OpConstNil, ptrType, 0, nil),
-			Valu("addr", OpAddr, ptrType, 0, nil, "sb"),
-			Valu("wb", OpStore, types.TypeMem, 0, ptrType, "addr", "v", "phi"), // has write barrier
+			Valu("phi", ssaop.OpPhi, types.TypeMem, 0, nil, "start", "wb"),
+			Valu("v", ssaop.OpConstNil, ptrType, 0, nil),
+			Valu("addr", ssaop.OpAddr, ptrType, 0, nil, "sb"),
+			Valu("wb", ssaop.OpStore, types.TypeMem, 0, ptrType, "addr", "v", "phi"), // has write barrier
 			Goto("loop")))
 
 	CheckFunc(fun.f)

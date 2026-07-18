@@ -5,6 +5,7 @@
 package ssa
 
 import (
+	"cmd/compile/internal/ssa/ssaop"
 	"cmd/compile/internal/types"
 	"cmp"
 	"slices"
@@ -17,7 +18,7 @@ func decomposeBuiltin(f *Func) {
 	// Decompose phis
 	for _, b := range f.Blocks {
 		for _, v := range b.Values {
-			if v.Op != OpPhi {
+			if v.Op != ssaop.OpPhi {
 				continue
 			}
 			decomposeBuiltinPhi(v)
@@ -45,7 +46,7 @@ func decomposeBuiltin(f *Func) {
 			hiName, loName := f.SplitInt64(f.LocalSlotAddr(name))
 			newNames = maybeAppend2(f, newNames, hiName, loName)
 			for j, v := range f.NamedValues[name] {
-				if v.Op != OpInt64Make {
+				if v.Op != ssaop.OpInt64Make {
 					continue
 				}
 				f.NamedValues[*hiName] = append(f.NamedValues[*hiName], v.Args[0])
@@ -56,7 +57,7 @@ func decomposeBuiltin(f *Func) {
 			rName, iName := f.SplitComplex(f.LocalSlotAddr(name))
 			newNames = maybeAppend2(f, newNames, rName, iName)
 			for j, v := range f.NamedValues[name] {
-				if v.Op != OpComplexMake {
+				if v.Op != ssaop.OpComplexMake {
 					continue
 				}
 				f.NamedValues[*rName] = append(f.NamedValues[*rName], v.Args[0])
@@ -67,7 +68,7 @@ func decomposeBuiltin(f *Func) {
 			ptrName, lenName := f.SplitString(f.LocalSlotAddr(name))
 			newNames = maybeAppend2(f, newNames, ptrName, lenName)
 			for j, v := range f.NamedValues[name] {
-				if v.Op != OpStringMake {
+				if v.Op != ssaop.OpStringMake {
 					continue
 				}
 				f.NamedValues[*ptrName] = append(f.NamedValues[*ptrName], v.Args[0])
@@ -79,7 +80,7 @@ func decomposeBuiltin(f *Func) {
 			newNames = maybeAppend2(f, newNames, ptrName, lenName)
 			newNames = maybeAppend(f, newNames, capName)
 			for j, v := range f.NamedValues[name] {
-				if v.Op != OpSliceMake {
+				if v.Op != ssaop.OpSliceMake {
 					continue
 				}
 				f.NamedValues[*ptrName] = append(f.NamedValues[*ptrName], v.Args[0])
@@ -91,7 +92,7 @@ func decomposeBuiltin(f *Func) {
 			typeName, dataName := f.SplitInterface(f.LocalSlotAddr(name))
 			newNames = maybeAppend2(f, newNames, typeName, dataName)
 			for j, v := range f.NamedValues[name] {
-				if v.Op != OpIMake {
+				if v.Op != ssaop.OpIMake {
 					continue
 				}
 				f.NamedValues[*typeName] = append(f.NamedValues[*typeName], v.Args[0])
@@ -145,13 +146,13 @@ func decomposeStringPhi(v *Value) {
 	ptrType := types.BytePtr
 	lenType := types.Int
 
-	ptr := v.Block.NewValue0(v.Pos, OpPhi, ptrType)
-	len := v.Block.NewValue0(v.Pos, OpPhi, lenType)
+	ptr := v.Block.NewValue0(v.Pos, ssaop.OpPhi, ptrType)
+	len := v.Block.NewValue0(v.Pos, ssaop.OpPhi, lenType)
 	for _, a := range v.Args {
-		ptr.AddArg(a.Block.NewValue1(v.Pos, OpStringPtr, ptrType, a))
-		len.AddArg(a.Block.NewValue1(v.Pos, OpStringLen, lenType, a))
+		ptr.AddArg(a.Block.NewValue1(v.Pos, ssaop.OpStringPtr, ptrType, a))
+		len.AddArg(a.Block.NewValue1(v.Pos, ssaop.OpStringLen, lenType, a))
 	}
-	v.Reset(OpStringMake)
+	v.Reset(ssaop.OpStringMake)
 	v.AddArg(ptr)
 	v.AddArg(len)
 }
@@ -161,15 +162,15 @@ func decomposeSlicePhi(v *Value) {
 	ptrType := v.Type.Elem().PtrTo()
 	lenType := types.Int
 
-	ptr := v.Block.NewValue0(v.Pos, OpPhi, ptrType)
-	len := v.Block.NewValue0(v.Pos, OpPhi, lenType)
-	cap := v.Block.NewValue0(v.Pos, OpPhi, lenType)
+	ptr := v.Block.NewValue0(v.Pos, ssaop.OpPhi, ptrType)
+	len := v.Block.NewValue0(v.Pos, ssaop.OpPhi, lenType)
+	cap := v.Block.NewValue0(v.Pos, ssaop.OpPhi, lenType)
 	for _, a := range v.Args {
-		ptr.AddArg(a.Block.NewValue1(v.Pos, OpSlicePtr, ptrType, a))
-		len.AddArg(a.Block.NewValue1(v.Pos, OpSliceLen, lenType, a))
-		cap.AddArg(a.Block.NewValue1(v.Pos, OpSliceCap, lenType, a))
+		ptr.AddArg(a.Block.NewValue1(v.Pos, ssaop.OpSlicePtr, ptrType, a))
+		len.AddArg(a.Block.NewValue1(v.Pos, ssaop.OpSliceLen, lenType, a))
+		cap.AddArg(a.Block.NewValue1(v.Pos, ssaop.OpSliceCap, lenType, a))
 	}
-	v.Reset(OpSliceMake)
+	v.Reset(ssaop.OpSliceMake)
 	v.AddArg(ptr)
 	v.AddArg(len)
 	v.AddArg(cap)
@@ -184,13 +185,13 @@ func decomposeInt64Phi(v *Value) {
 		partType = cfgtypes.UInt32
 	}
 
-	hi := v.Block.NewValue0(v.Pos, OpPhi, partType)
-	lo := v.Block.NewValue0(v.Pos, OpPhi, cfgtypes.UInt32)
+	hi := v.Block.NewValue0(v.Pos, ssaop.OpPhi, partType)
+	lo := v.Block.NewValue0(v.Pos, ssaop.OpPhi, cfgtypes.UInt32)
 	for _, a := range v.Args {
-		hi.AddArg(a.Block.NewValue1(v.Pos, OpInt64Hi, partType, a))
-		lo.AddArg(a.Block.NewValue1(v.Pos, OpInt64Lo, cfgtypes.UInt32, a))
+		hi.AddArg(a.Block.NewValue1(v.Pos, ssaop.OpInt64Hi, partType, a))
+		lo.AddArg(a.Block.NewValue1(v.Pos, ssaop.OpInt64Lo, cfgtypes.UInt32, a))
 	}
-	v.Reset(OpInt64Make)
+	v.Reset(ssaop.OpInt64Make)
 	v.AddArg(hi)
 	v.AddArg(lo)
 }
@@ -207,13 +208,13 @@ func decomposeComplexPhi(v *Value) {
 		v.Fatalf("decomposeComplexPhi: bad complex size %d", z)
 	}
 
-	real := v.Block.NewValue0(v.Pos, OpPhi, partType)
-	imag := v.Block.NewValue0(v.Pos, OpPhi, partType)
+	real := v.Block.NewValue0(v.Pos, ssaop.OpPhi, partType)
+	imag := v.Block.NewValue0(v.Pos, ssaop.OpPhi, partType)
 	for _, a := range v.Args {
-		real.AddArg(a.Block.NewValue1(v.Pos, OpComplexReal, partType, a))
-		imag.AddArg(a.Block.NewValue1(v.Pos, OpComplexImag, partType, a))
+		real.AddArg(a.Block.NewValue1(v.Pos, ssaop.OpComplexReal, partType, a))
+		imag.AddArg(a.Block.NewValue1(v.Pos, ssaop.OpComplexImag, partType, a))
 	}
-	v.Reset(OpComplexMake)
+	v.Reset(ssaop.OpComplexMake)
 	v.AddArg(real)
 	v.AddArg(imag)
 }
@@ -222,13 +223,13 @@ func decomposeInterfacePhi(v *Value) {
 	uintptrType := v.Block.Func.Config.Types.Uintptr
 	ptrType := v.Block.Func.Config.Types.BytePtr
 
-	itab := v.Block.NewValue0(v.Pos, OpPhi, uintptrType)
-	data := v.Block.NewValue0(v.Pos, OpPhi, ptrType)
+	itab := v.Block.NewValue0(v.Pos, ssaop.OpPhi, uintptrType)
+	data := v.Block.NewValue0(v.Pos, ssaop.OpPhi, ptrType)
 	for _, a := range v.Args {
-		itab.AddArg(a.Block.NewValue1(v.Pos, OpITab, uintptrType, a))
-		data.AddArg(a.Block.NewValue1(v.Pos, OpIData, ptrType, a))
+		itab.AddArg(a.Block.NewValue1(v.Pos, ssaop.OpITab, uintptrType, a))
+		data.AddArg(a.Block.NewValue1(v.Pos, ssaop.OpIData, ptrType, a))
 	}
-	v.Reset(OpIMake)
+	v.Reset(ssaop.OpIMake)
 	v.AddArg(itab)
 	v.AddArg(data)
 }
@@ -236,7 +237,7 @@ func decomposeInterfacePhi(v *Value) {
 func decomposeUser(f *Func) {
 	for _, b := range f.Blocks {
 		for _, v := range b.Values {
-			if v.Op != OpPhi {
+			if v.Op != ssaop.OpPhi {
 				continue
 			}
 			decomposeUserPhi(v)
@@ -278,7 +279,7 @@ func decomposeUserArrayInto(f *Func, name *LocalSlot, slots []LocalSlot) []Local
 	elemName := f.SplitArray(name)
 	var keep []*Value
 	for _, v := range f.NamedValues[*name] {
-		if v.Op != OpArrayMake1 {
+		if v.Op != ssaop.OpArrayMake1 {
 			keep = append(keep, v)
 			continue
 		}
@@ -321,7 +322,7 @@ func decomposeUserStructInto(f *Func, name *LocalSlot, slots []LocalSlot) []Loca
 	var keep []*Value
 	// create named values for each struct field
 	for _, v := range f.NamedValues[*name] {
-		if v.Op != OpStructMake || len(v.Args) != n {
+		if v.Op != ssaop.OpStructMake || len(v.Args) != n {
 			keep = append(keep, v)
 			continue
 		}
@@ -363,20 +364,20 @@ func decomposeUserPhi(v *Value) {
 func decomposeStructPhi(v *Value) {
 	t := v.Type
 	if t.Size() == 0 {
-		v.Reset(OpEmpty)
+		v.Reset(ssaop.OpEmpty)
 		return
 	}
 	n := t.NumFields()
 	fields := make([]*Value, 0, MaxStruct)
 	for i := 0; i < n; i++ {
-		fields = append(fields, v.Block.NewValue0(v.Pos, OpPhi, t.FieldType(i)))
+		fields = append(fields, v.Block.NewValue0(v.Pos, ssaop.OpPhi, t.FieldType(i)))
 	}
 	for _, a := range v.Args {
 		for i := 0; i < n; i++ {
-			fields[i].AddArg(a.Block.NewValue1I(v.Pos, OpStructSelect, t.FieldType(i), int64(i), a))
+			fields[i].AddArg(a.Block.NewValue1I(v.Pos, ssaop.OpStructSelect, t.FieldType(i), int64(i), a))
 		}
 	}
-	v.Reset(OpStructMake)
+	v.Reset(ssaop.OpStructMake)
 	v.AddArgs(fields...)
 
 	// Recursively decompose phis for each field.
@@ -390,17 +391,17 @@ func decomposeStructPhi(v *Value) {
 func decomposeArrayPhi(v *Value) {
 	t := v.Type
 	if t.Size() == 0 {
-		v.Reset(OpEmpty)
+		v.Reset(ssaop.OpEmpty)
 		return
 	}
 	if t.NumElem() != 1 {
 		v.Fatalf("SSAable array must have no more than 1 element")
 	}
-	elem := v.Block.NewValue0(v.Pos, OpPhi, t.Elem())
+	elem := v.Block.NewValue0(v.Pos, ssaop.OpPhi, t.Elem())
 	for _, a := range v.Args {
-		elem.AddArg(a.Block.NewValue1I(v.Pos, OpArraySelect, t.Elem(), 0, a))
+		elem.AddArg(a.Block.NewValue1I(v.Pos, ssaop.OpArraySelect, t.Elem(), 0, a))
 	}
-	v.Reset(OpArrayMake1)
+	v.Reset(ssaop.OpArrayMake1)
 	v.AddArg(elem)
 
 	// Recursively decompose elem phi.
@@ -444,7 +445,7 @@ func deleteNamedVals(f *Func, toDelete []namedVal) {
 		vals := f.NamedValues[loc]
 		last := len(vals)
 		for j := len(vals) - 1; j >= 0; j-- {
-			if vals[j].Op == OpInvalid {
+			if vals[j].Op == ssaop.OpInvalid {
 				last--
 				vals[j] = vals[last]
 				vals[last] = nil

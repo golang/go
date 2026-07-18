@@ -4,7 +4,10 @@
 
 package ssa
 
-import "cmd/compile/internal/base"
+import (
+	"cmd/compile/internal/base"
+	"cmd/compile/internal/ssa/ssaop"
+)
 
 // tighten moves Values closer to the Blocks in which they are used.
 // This can reduce the amount of register spilling required,
@@ -38,14 +41,14 @@ func tighten(f *Func) {
 				continue
 			}
 			switch v.Op {
-			case OpPhi, OpArg, OpArgIntReg, OpArgFloatReg, OpSelect0, OpSelect1, OpSelectN:
+			case ssaop.OpPhi, ssaop.OpArg, ssaop.OpArgIntReg, ssaop.OpArgFloatReg, ssaop.OpSelect0, ssaop.OpSelect1, ssaop.OpSelectN:
 				// Phis need to stay in their block.
 				// Arg must stay in the entry block.
 				// Tuple selectors must stay with the tuple generator.
 				// SelectN is typically, ultimately, a register.
 				continue
 			}
-			if OpcodeTable[v.Op].NilCheck {
+			if ssaop.OpcodeTable[v.Op].NilCheck {
 				// Nil checks need to stay in their block. See issue 72860.
 				continue
 			}
@@ -55,7 +58,7 @@ func tighten(f *Func) {
 			for _, a := range v.Args {
 				// SP and SB are special registers and have no effect on
 				// the allocation of general-purpose registers.
-				if a.NeedRegister() && a.Op != OpSB && a.Op != OpSP {
+				if a.NeedRegister() && a.Op != ssaop.OpSB && a.Op != ssaop.OpSP {
 					distinctArgs.Add(a.ID)
 				}
 			}
@@ -99,7 +102,7 @@ func tighten(f *Func) {
 						continue
 					}
 					use := b
-					if v.Op == OpPhi {
+					if v.Op == ssaop.OpPhi {
 						use = b.Preds[i].B
 					}
 					if target[a.ID] == nil {
@@ -181,7 +184,7 @@ func tighten(f *Func) {
 func phiTighten(f *Func) {
 	for _, b := range f.Blocks {
 		for _, v := range b.Values {
-			if v.Op != OpPhi {
+			if v.Op != ssaop.OpPhi {
 				continue
 			}
 			for i, a := range v.Args {
@@ -230,11 +233,11 @@ func memState(f *Func, startMem, endMem []*Value) {
 	for _, b := range f.Blocks {
 		for _, v := range b.Values {
 			var mem *Value
-			if v.Op == OpPhi {
+			if v.Op == ssaop.OpPhi {
 				if v.Type.IsMemory() {
 					mem = v
 				}
-			} else if v.Op == OpInitMem {
+			} else if v.Op == ssaop.OpInitMem {
 				mem = v // This is actually not needed.
 			} else if a := v.MemoryArg(); a != nil && a.Block != b {
 				// The only incoming memory value doesn't belong to this block.
@@ -263,7 +266,7 @@ func memState(f *Func, startMem, endMem []*Value) {
 			if endMem[pb.ID] != nil {
 				continue
 			}
-			if mem.Op == OpPhi && mem.Block == top {
+			if mem.Op == ssaop.OpPhi && mem.Block == top {
 				endMem[pb.ID] = mem.Args[i]
 			} else {
 				endMem[pb.ID] = mem

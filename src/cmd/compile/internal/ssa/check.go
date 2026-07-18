@@ -7,6 +7,7 @@ package ssa
 import (
 	"cmd/compile/internal/ir"
 	"cmd/compile/internal/ssa/block"
+	"cmd/compile/internal/ssa/ssaop"
 	"cmd/internal/obj/s390x"
 	"math"
 	"math/bits"
@@ -114,7 +115,7 @@ func checkFunc(f *Func) {
 		for _, v := range b.Values {
 			// Check to make sure argument count makes sense (argLen of -1 indicates
 			// variable length args)
-			nArgs := OpcodeTable[v.Op].ArgLen
+			nArgs := ssaop.OpcodeTable[v.Op].ArgLen
 			if nArgs != -1 && int32(len(v.Args)) != nArgs {
 				f.Fatalf("value %s has %d args, expected %d", v.LongString(),
 					len(v.Args), nArgs)
@@ -124,39 +125,39 @@ func checkFunc(f *Func) {
 			canHaveAux := false
 			canHaveAuxInt := false
 			// TODO: enforce types of Aux in this switch (like auxString does below)
-			switch OpcodeTable[v.Op].AuxType {
-			case AuxTypeNone:
-			case AuxTypeBool:
+			switch ssaop.OpcodeTable[v.Op].AuxType {
+			case ssaop.AuxTypeNone:
+			case ssaop.AuxTypeBool:
 				if v.AuxInt < 0 || v.AuxInt > 1 {
 					f.Fatalf("bad bool AuxInt value for %v", v)
 				}
 				canHaveAuxInt = true
-			case AuxTypeInt8:
+			case ssaop.AuxTypeInt8:
 				if v.AuxInt != int64(int8(v.AuxInt)) {
 					f.Fatalf("bad int8 AuxInt value for %v", v)
 				}
 				canHaveAuxInt = true
-			case AuxTypeInt16:
+			case ssaop.AuxTypeInt16:
 				if v.AuxInt != int64(int16(v.AuxInt)) {
 					f.Fatalf("bad int16 AuxInt value for %v", v)
 				}
 				canHaveAuxInt = true
-			case AuxTypeInt32:
+			case ssaop.AuxTypeInt32:
 				if v.AuxInt != int64(int32(v.AuxInt)) {
 					f.Fatalf("bad int32 AuxInt value for %v", v)
 				}
 				canHaveAuxInt = true
-			case AuxTypeInt64, AuxTypeARM64BitField, AuxTypeARM64ConditionalParams:
+			case ssaop.AuxTypeInt64, ssaop.AuxTypeARM64BitField, ssaop.AuxTypeARM64ConditionalParams:
 				canHaveAuxInt = true
-			case AuxTypeInt128:
+			case ssaop.AuxTypeInt128:
 				// AuxInt must be zero, so leave canHaveAuxInt set to false.
-			case AuxTypeUInt8:
+			case ssaop.AuxTypeUInt8:
 				// Cast to int8 due to requirement of AuxInt, check its comment for details.
 				if v.AuxInt != int64(int8(v.AuxInt)) {
 					f.Fatalf("bad uint8 AuxInt value for %v, saw %d but need %d", v, v.AuxInt, int64(int8(v.AuxInt)))
 				}
 				canHaveAuxInt = true
-			case AuxTypeFloat32:
+			case ssaop.AuxTypeFloat32:
 				canHaveAuxInt = true
 				if math.IsNaN(v.AuxFloat()) {
 					f.Fatalf("value %v has an AuxInt that encodes a NaN", v)
@@ -164,60 +165,60 @@ func checkFunc(f *Func) {
 				if !isExactFloat32(v.AuxFloat()) {
 					f.Fatalf("value %v has an AuxInt value that is not an exact float32", v)
 				}
-			case AuxTypeFloat64:
+			case ssaop.AuxTypeFloat64:
 				canHaveAuxInt = true
 				if math.IsNaN(v.AuxFloat()) {
 					f.Fatalf("value %v has an AuxInt that encodes a NaN", v)
 				}
-			case AuxTypeString:
+			case ssaop.AuxTypeString:
 				if _, ok := v.Aux.(StringAux); !ok {
 					f.Fatalf("value %v has Aux type %T, want string", v, v.Aux)
 				}
 				canHaveAux = true
-			case AuxTypeCallOff:
+			case ssaop.AuxTypeCallOff:
 				canHaveAuxInt = true
 				fallthrough
-			case AuxTypeCall:
+			case ssaop.AuxTypeCall:
 				if ac, ok := v.Aux.(*AuxCall); ok {
-					if v.Op == OpStaticCall && ac.Fn == nil {
+					if v.Op == ssaop.OpStaticCall && ac.Fn == nil {
 						f.Fatalf("value %v has *AuxCall with nil Fn", v)
 					}
 				} else {
 					f.Fatalf("value %v has Aux type %T, want *AuxCall", v, v.Aux)
 				}
 				canHaveAux = true
-			case AuxTypeNameOffsetInt8:
+			case ssaop.AuxTypeNameOffsetInt8:
 				if _, ok := v.Aux.(*AuxNameOffset); !ok {
 					f.Fatalf("value %v has Aux type %T, want *AuxNameOffset", v, v.Aux)
 				}
 				canHaveAux = true
 				canHaveAuxInt = true
-			case AuxTypeSym, AuxTypeTyp:
+			case ssaop.AuxTypeSym, ssaop.AuxTypeTyp:
 				canHaveAux = true
-			case AuxTypeSymOff, AuxTypeSymValAndOff, AuxTypeTypSize:
+			case ssaop.AuxTypeSymOff, ssaop.AuxTypeSymValAndOff, ssaop.AuxTypeTypSize:
 				canHaveAuxInt = true
 				canHaveAux = true
-			case AuxTypeCCop:
-				if OpcodeTable[Op(v.AuxInt)].Name == "OpInvalid" {
+			case ssaop.AuxTypeCCop:
+				if ssaop.OpcodeTable[ssaop.Op(v.AuxInt)].Name == "OpInvalid" {
 					f.Fatalf("value %v has an AuxInt value that is not a valid opcode", v)
 				}
 				canHaveAuxInt = true
-			case AuxTypeS390XCCMask:
+			case ssaop.AuxTypeS390XCCMask:
 				if _, ok := v.Aux.(s390x.CCMask); !ok {
 					f.Fatalf("bad type %T for S390XCCMask in %v", v.Aux, v)
 				}
 				canHaveAux = true
-			case AuxTypeS390XRotateParams:
+			case ssaop.AuxTypeS390XRotateParams:
 				if _, ok := v.Aux.(s390x.RotateParams); !ok {
 					f.Fatalf("bad type %T for S390XRotateParams in %v", v.Aux, v)
 				}
 				canHaveAux = true
-			case AuxTypeFlagConstant:
+			case ssaop.AuxTypeFlagConstant:
 				if v.AuxInt < 0 || v.AuxInt > 15 {
 					f.Fatalf("bad FlagConstant AuxInt value for %v", v)
 				}
 				canHaveAuxInt = true
-			case AuxTypePanicBoundsC, AuxTypePanicBoundsCC:
+			case ssaop.AuxTypePanicBoundsC, ssaop.AuxTypePanicBoundsCC:
 				canHaveAux = true
 				canHaveAuxInt = true
 			default:
@@ -234,7 +235,7 @@ func checkFunc(f *Func) {
 				if arg == nil {
 					f.Fatalf("value %s has nil arg", v.LongString())
 				}
-				if v.Op != OpPhi {
+				if v.Op != ssaop.OpPhi {
 					// For non-Phi ops, memory args must be last, if present
 					if arg.Type.IsMemory() && i != len(v.Args)-1 {
 						f.Fatalf("value %s has non-final memory arg (%d < %d)", v.LongString(), i, len(v.Args)-1)
@@ -250,24 +251,24 @@ func checkFunc(f *Func) {
 			if v.Block != b {
 				f.Fatalf("%s.block != %s", v, b)
 			}
-			if v.Op == OpPhi && len(v.Args) != len(b.Preds) {
+			if v.Op == ssaop.OpPhi && len(v.Args) != len(b.Preds) {
 				f.Fatalf("phi length %s does not match pred length %d for block %s", v.LongString(), len(b.Preds), b)
 			}
 
-			if v.Op == OpAddr {
+			if v.Op == ssaop.OpAddr {
 				if len(v.Args) == 0 {
 					f.Fatalf("no args for OpAddr %s", v.LongString())
 				}
-				if v.Args[0].Op != OpSB {
+				if v.Args[0].Op != ssaop.OpSB {
 					f.Fatalf("bad arg to OpAddr %v", v)
 				}
 			}
 
-			if v.Op == OpLocalAddr {
+			if v.Op == ssaop.OpLocalAddr {
 				if len(v.Args) != 2 {
 					f.Fatalf("wrong # of args for OpLocalAddr %s", v.LongString())
 				}
-				if v.Args[0].Op != OpSP {
+				if v.Args[0].Op != ssaop.OpSP {
 					f.Fatalf("bad arg 0 to OpLocalAddr %v", v)
 				}
 				if !v.Args[1].Type.IsMemory() {
@@ -275,7 +276,7 @@ func checkFunc(f *Func) {
 				}
 			}
 
-			if (v.Op == OpStructMake || v.Op == OpArrayMake1) && v.Type.Size() == 0 {
+			if (v.Op == ssaop.OpStructMake || v.Op == ssaop.OpArrayMake1) && v.Type.Size() == 0 {
 				f.Fatalf("zero-sized Make; use Empty instead %v", v)
 			}
 
@@ -286,22 +287,22 @@ func checkFunc(f *Func) {
 			// Check types.
 			// TODO: more type checks?
 			switch c := f.Config; v.Op {
-			case OpSP, OpSB:
+			case ssaop.OpSP, ssaop.OpSB:
 				if v.Type != c.Types.Uintptr {
 					f.Fatalf("bad %s type: want uintptr, have %s",
 						v.Op, v.Type.String())
 				}
-			case OpStringLen:
+			case ssaop.OpStringLen:
 				if v.Type != c.Types.Int {
 					f.Fatalf("bad %s type: want int, have %s",
 						v.Op, v.Type.String())
 				}
-			case OpLoad:
+			case ssaop.OpLoad:
 				if !v.Args[1].Type.IsMemory() {
 					f.Fatalf("bad arg 1 type to %s: want mem, have %s",
 						v.Op, v.Args[1].Type.String())
 				}
-			case OpStore:
+			case ssaop.OpStore:
 				if !v.Type.IsMemory() {
 					f.Fatalf("bad %s type: want mem, have %s",
 						v.Op, v.Type.String())
@@ -310,24 +311,24 @@ func checkFunc(f *Func) {
 					f.Fatalf("bad arg 2 type to %s: want mem, have %s",
 						v.Op, v.Args[2].Type.String())
 				}
-			case OpCondSelect:
+			case ssaop.OpCondSelect:
 				if !v.Args[2].Type.IsBoolean() {
 					f.Fatalf("bad arg 2 type to %s: want boolean, have %s",
 						v.Op, v.Args[2].Type.String())
 				}
-			case OpAddPtr:
+			case ssaop.OpAddPtr:
 				if !v.Args[0].Type.IsPtrShaped() && v.Args[0].Type != c.Types.Uintptr {
 					f.Fatalf("bad arg 0 type to %s: want ptr, have %s", v.Op, v.Args[0].LongString())
 				}
 				if !v.Args[1].Type.IsInteger() {
 					f.Fatalf("bad arg 1 type to %s: want integer, have %s", v.Op, v.Args[1].LongString())
 				}
-			case OpVarDef:
+			case ssaop.OpVarDef:
 				n := v.Aux.(*ir.Name)
 				if !n.Type().HasPointers() && !IsMergeCandidate(n) {
 					f.Fatalf("vardef must be merge candidate or have pointer type %s", v.Aux.(*ir.Name).Type().String())
 				}
-			case OpNilCheck:
+			case ssaop.OpNilCheck:
 				// nil checks have pointer type before scheduling, and
 				// void type after scheduling.
 				if f.Scheduled {
@@ -355,33 +356,33 @@ func checkFunc(f *Func) {
 			// It also can't handle ops with args of different types, like shifts.
 			var argSize int64
 			switch v.Op {
-			case OpAdd8, OpSub8, OpMul8, OpDiv8, OpDiv8u, OpMod8, OpMod8u,
-				OpAnd8, OpOr8, OpXor8,
-				OpEq8, OpNeq8, OpLess8, OpLeq8,
-				OpNeg8, OpCom8,
-				OpSignExt8to16, OpSignExt8to32, OpSignExt8to64,
-				OpZeroExt8to16, OpZeroExt8to32, OpZeroExt8to64:
+			case ssaop.OpAdd8, ssaop.OpSub8, ssaop.OpMul8, ssaop.OpDiv8, ssaop.OpDiv8u, ssaop.OpMod8, ssaop.OpMod8u,
+				ssaop.OpAnd8, ssaop.OpOr8, ssaop.OpXor8,
+				ssaop.OpEq8, ssaop.OpNeq8, ssaop.OpLess8, ssaop.OpLeq8,
+				ssaop.OpNeg8, ssaop.OpCom8,
+				ssaop.OpSignExt8to16, ssaop.OpSignExt8to32, ssaop.OpSignExt8to64,
+				ssaop.OpZeroExt8to16, ssaop.OpZeroExt8to32, ssaop.OpZeroExt8to64:
 				argSize = 1
-			case OpAdd16, OpSub16, OpMul16, OpDiv16, OpDiv16u, OpMod16, OpMod16u,
-				OpAnd16, OpOr16, OpXor16,
-				OpEq16, OpNeq16, OpLess16, OpLeq16,
-				OpNeg16, OpCom16,
-				OpSignExt16to32, OpSignExt16to64,
-				OpZeroExt16to32, OpZeroExt16to64,
-				OpTrunc16to8:
+			case ssaop.OpAdd16, ssaop.OpSub16, ssaop.OpMul16, ssaop.OpDiv16, ssaop.OpDiv16u, ssaop.OpMod16, ssaop.OpMod16u,
+				ssaop.OpAnd16, ssaop.OpOr16, ssaop.OpXor16,
+				ssaop.OpEq16, ssaop.OpNeq16, ssaop.OpLess16, ssaop.OpLeq16,
+				ssaop.OpNeg16, ssaop.OpCom16,
+				ssaop.OpSignExt16to32, ssaop.OpSignExt16to64,
+				ssaop.OpZeroExt16to32, ssaop.OpZeroExt16to64,
+				ssaop.OpTrunc16to8:
 				argSize = 2
-			case OpAdd32, OpSub32, OpMul32, OpDiv32, OpDiv32u, OpMod32, OpMod32u,
-				OpAnd32, OpOr32, OpXor32,
-				OpEq32, OpNeq32, OpLess32, OpLeq32,
-				OpNeg32, OpCom32,
-				OpSignExt32to64, OpZeroExt32to64,
-				OpTrunc32to8, OpTrunc32to16:
+			case ssaop.OpAdd32, ssaop.OpSub32, ssaop.OpMul32, ssaop.OpDiv32, ssaop.OpDiv32u, ssaop.OpMod32, ssaop.OpMod32u,
+				ssaop.OpAnd32, ssaop.OpOr32, ssaop.OpXor32,
+				ssaop.OpEq32, ssaop.OpNeq32, ssaop.OpLess32, ssaop.OpLeq32,
+				ssaop.OpNeg32, ssaop.OpCom32,
+				ssaop.OpSignExt32to64, ssaop.OpZeroExt32to64,
+				ssaop.OpTrunc32to8, ssaop.OpTrunc32to16:
 				argSize = 4
-			case OpAdd64, OpSub64, OpMul64, OpDiv64, OpDiv64u, OpMod64, OpMod64u,
-				OpAnd64, OpOr64, OpXor64,
-				OpEq64, OpNeq64, OpLess64, OpLeq64,
-				OpNeg64, OpCom64,
-				OpTrunc64to8, OpTrunc64to16, OpTrunc64to32:
+			case ssaop.OpAdd64, ssaop.OpSub64, ssaop.OpMul64, ssaop.OpDiv64, ssaop.OpDiv64u, ssaop.OpMod64, ssaop.OpMod64u,
+				ssaop.OpAnd64, ssaop.OpOr64, ssaop.OpXor64,
+				ssaop.OpEq64, ssaop.OpNeq64, ssaop.OpLess64, ssaop.OpLeq64,
+				ssaop.OpNeg64, ssaop.OpCom64,
+				ssaop.OpTrunc64to8, ssaop.OpTrunc64to16, ssaop.OpTrunc64to32:
 				argSize = 8
 			}
 			if argSize != 0 {
@@ -453,7 +454,7 @@ func checkFunc(f *Func) {
 				for i, arg := range v.Args {
 					x := arg.Block
 					y := b
-					if v.Op == OpPhi {
+					if v.Op == ssaop.OpPhi {
 						y = b.Preds[i].B
 					}
 					if !domCheck(f, sdom, x, y) {
@@ -528,7 +529,7 @@ func memCheck(f *Func) {
 	// For the same reason, disable this check if some memory ops are unused.
 	for _, b := range f.Blocks {
 		for _, v := range b.Values {
-			if (v.Op == OpCopy || v.Uses == 0) && v.Type.IsMemory() {
+			if (v.Op == ssaop.OpCopy || v.Uses == 0) && v.Type.IsMemory() {
 				return
 			}
 		}
@@ -545,7 +546,7 @@ func memCheck(f *Func) {
 		// ops that generate memory values.
 		ss.Clear()
 		for _, v := range b.Values {
-			if v.Op == OpPhi || !v.Type.IsMemory() {
+			if v.Op == ssaop.OpPhi || !v.Type.IsMemory() {
 				continue
 			}
 			if m := v.MemoryArg(); m != nil {
@@ -569,7 +570,7 @@ func memCheck(f *Func) {
 		// Take any memory arg.
 		if lastmem[b.ID] == nil {
 			for _, v := range b.Values {
-				if v.Op == OpPhi {
+				if v.Op == ssaop.OpPhi {
 					continue
 				}
 				m := v.MemoryArg()
@@ -606,7 +607,7 @@ func memCheck(f *Func) {
 	// Check merge points.
 	for _, b := range f.Blocks {
 		for _, v := range b.Values {
-			if v.Op == OpPhi && v.Type.IsMemory() {
+			if v.Op == ssaop.OpPhi && v.Type.IsMemory() {
 				for i, a := range v.Args {
 					if a != lastmem[b.Preds[i].B.ID] {
 						f.Fatalf("inconsistent memory phi %s %d %s %s", v.LongString(), i, a, lastmem[b.Preds[i].B.ID])
@@ -621,7 +622,7 @@ func memCheck(f *Func) {
 		for _, b := range f.Blocks {
 			var mem *Value // the current live memory in the block
 			for _, v := range b.Values {
-				if v.Op == OpPhi {
+				if v.Op == ssaop.OpPhi {
 					if v.Type.IsMemory() {
 						mem = v
 					}
@@ -649,7 +650,7 @@ func memCheck(f *Func) {
 			seenNonPhi := false
 			for _, v := range b.Values {
 				switch v.Op {
-				case OpPhi:
+				case ssaop.OpPhi:
 					if seenNonPhi {
 						f.Fatalf("phi after non-phi @ %s: %s", b, v)
 					}

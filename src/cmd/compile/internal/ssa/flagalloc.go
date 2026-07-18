@@ -4,7 +4,10 @@
 
 package ssa
 
-import "cmd/compile/internal/ssa/block"
+import (
+	"cmd/compile/internal/ssa/block"
+	"cmd/compile/internal/ssa/ssaop"
+)
 
 // flagalloc allocates the flag register among all the flag-generating
 // instructions. Flag values are recomputed if they need to be
@@ -127,7 +130,7 @@ func flagalloc(f *Func) {
 			}
 		}
 		for _, v := range oldSched {
-			if v.Op == OpPhi && v.Type.IsFlags() {
+			if v.Op == ssaop.OpPhi && v.Type.IsFlags() {
 				f.Fatalf("phi of flags not supported: %s", v.LongString())
 			}
 
@@ -203,7 +206,7 @@ func flagalloc(f *Func) {
 	for i := 0; i < len(remove); i++ {
 		v := remove[i]
 		if v.Uses == 0 {
-			v.Reset(OpInvalid)
+			v.Reset(ssaop.OpInvalid)
 			continue
 		}
 		// Remove v.
@@ -232,7 +235,7 @@ func flagalloc(f *Func) {
 		i := 0
 		for j := 0; j < len(b.Values); j++ {
 			v := b.Values[j]
-			if v.Op == OpInvalid {
+			if v.Op == ssaop.OpInvalid {
 				continue
 			}
 			b.Values[i] = v
@@ -243,7 +246,7 @@ func flagalloc(f *Func) {
 }
 
 func (v *Value) ClobbersFlags() bool {
-	if OpcodeTable[v.Op].ClobberFlags {
+	if ssaop.OpcodeTable[v.Op].ClobberFlags {
 		return true
 	}
 	if v.Type.IsTuple() && (v.Type.FieldType(0).IsFlags() || v.Type.FieldType(1).IsFlags()) {

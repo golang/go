@@ -7,6 +7,7 @@ package ssa
 import (
 	"cmd/compile/internal/base"
 	"cmd/compile/internal/logopt"
+	"cmd/compile/internal/ssa/ssaop"
 	"cmd/compile/internal/types"
 	"cmd/internal/obj"
 	"cmd/internal/obj/s390x"
@@ -67,7 +68,7 @@ func applyRewrite(f *Func, rb BlockRewriter, rv ValueRewriter, deadcode DeadValu
 				b0.Succs = append([]Edge{}, b.Succs...) // make a new copy, not aliasing
 			}
 			for i, c := range b.ControlValues() {
-				for c.Op == OpCopy {
+				for c.Op == ssaop.OpCopy {
 					c = c.Args[0]
 					b.ReplaceControl(i, c)
 				}
@@ -89,12 +90,12 @@ func applyRewrite(f *Func, rb BlockRewriter, rv ValueRewriter, deadcode DeadValu
 					v0.Args = append([]*Value{}, v.Args...) // make a new copy, not aliasing
 				}
 				if v.Uses == 0 && v.Removeable() {
-					if v.Op != OpInvalid && deadcode == RemoveDeadValues {
+					if v.Op != ssaop.OpInvalid && deadcode == RemoveDeadValues {
 						// Reset any values that are now unused, so that we decrement
 						// the use count of all of its arguments.
 						// Not quite a deadcode pass, because it does not handle cycles.
 						// But it should help Uses==1 rules to fire.
-						v.Reset(OpInvalid)
+						v.Reset(ssaop.OpInvalid)
 						deadChange = true
 					}
 					// No point rewriting values which aren't used.
@@ -114,7 +115,7 @@ func applyRewrite(f *Func, rb BlockRewriter, rv ValueRewriter, deadcode DeadValu
 				// of a value so that a x.Uses==1 rule condition
 				// fires reliably.
 				for i, a := range v.Args {
-					if a.Op != OpCopy {
+					if a.Op != ssaop.OpCopy {
 						continue
 					}
 					aa := copySource(a)
@@ -141,7 +142,7 @@ func applyRewrite(f *Func, rb BlockRewriter, rv ValueRewriter, deadcode DeadValu
 					vchange = true
 					for a.Uses == 0 {
 						b := a.Args[0]
-						a.Reset(OpInvalid)
+						a.Reset(ssaop.OpInvalid)
 						a = b
 					}
 				}
@@ -201,7 +202,7 @@ func applyRewrite(f *Func, rb BlockRewriter, rv ValueRewriter, deadcode DeadValu
 		j := 0
 		for i, v := range b.Values {
 			vl := v.Pos
-			if v.Op == OpInvalid {
+			if v.Op == ssaop.OpInvalid {
 				if v.Pos.IsStmt() == src.PosIsStmt {
 					pendingLines.Set(vl, int32(b.ID))
 				}
@@ -285,7 +286,7 @@ func CanMergeLoadClobber(target, load, x *Value) bool {
 	//  1) target is x's only use.
 	//  2) target is not in a deeper loop than x.
 	switch {
-	case x.Uses == 2 && x.Op == OpPhi && len(x.Args) == 2 && (x.Args[0] == target || x.Args[1] == target) && target.Uses == 1:
+	case x.Uses == 2 && x.Op == ssaop.OpPhi && len(x.Args) == 2 && (x.Args[0] == target || x.Args[1] == target) && target.Uses == 1:
 		// This is a simple detector to determine that x is probably
 		// not live after target. (It does not need to be perfect,
 		// regalloc will issue a reg-reg move to save it if we are wrong.)
@@ -367,7 +368,7 @@ func CanMergeLoad(target, load *Value) bool {
 			// we can stop searching when we leave the block.
 			continue
 		}
-		if v.Op == OpPhi {
+		if v.Op == ssaop.OpPhi {
 			// A Phi implies we have reached the top of the block.
 			// The memory phi, if it exists, is always
 			// the first logical store in the block.
@@ -378,7 +379,7 @@ func CanMergeLoad(target, load *Value) bool {
 			// to be very rare.
 			return false
 		}
-		if v.Op.SymEffect()&SymAddr != 0 {
+		if v.Op.SymEffect()&ssaop.SymAddr != 0 {
 			// This case prevents an operation that calculates the
 			// address of a local variable from being forced to schedule
 			// before its corresponding VarDef.
@@ -401,7 +402,7 @@ func CanMergeLoad(target, load *Value) bool {
 				m := mem
 				const limit = 50
 				for i := 0; i < limit; i++ {
-					if m.Op == OpPhi {
+					if m.Op == ssaop.OpPhi {
 						// The memory phi, if it exists, is always
 						// the first logical store in the block.
 						break
@@ -643,7 +644,7 @@ func AuxIntToArm64BitField(i int64) Arm64BitField {
 }
 func AuxIntToArm64ConditionalParams(i int64) Arm64ConditionalParams {
 	var params Arm64ConditionalParams
-	params.Cond = Op(i & 0xffff)
+	params.Cond = ssaop.Op(i & 0xffff)
 	i >>= 16
 	params.NzcvVal = uint8(i & 0x0f)
 	i >>= 4
@@ -656,8 +657,8 @@ func AuxIntToFlagConstant(x int64) FlagConstant {
 	return FlagConstant(x)
 }
 
-func AuxIntToOp(cc int64) Op {
-	return Op(cc)
+func AuxIntToOp(cc int64) ssaop.Op {
+	return ssaop.Op(cc)
 }
 
 func BoolToAuxInt(b bool) int64 {
@@ -715,7 +716,7 @@ func FlagConstantToAuxInt(x FlagConstant) int64 {
 	return int64(x)
 }
 
-func OpToAuxInt(o Op) int64 {
+func OpToAuxInt(o ssaop.Op) int64 {
 	return int64(o)
 }
 
@@ -782,10 +783,10 @@ func IsSamePtr(p1, p2 *Value) bool {
 		return true
 	}
 	if p1.Op != p2.Op {
-		for p1.Op == OpOffPtr && p1.AuxInt == 0 {
+		for p1.Op == ssaop.OpOffPtr && p1.AuxInt == 0 {
 			p1 = p1.Args[0]
 		}
-		for p2.Op == OpOffPtr && p2.AuxInt == 0 {
+		for p2.Op == ssaop.OpOffPtr && p2.AuxInt == 0 {
 			p2 = p2.Args[0]
 		}
 		if p1 == p2 {
@@ -796,11 +797,11 @@ func IsSamePtr(p1, p2 *Value) bool {
 		}
 	}
 	switch p1.Op {
-	case OpOffPtr:
+	case ssaop.OpOffPtr:
 		return p1.AuxInt == p2.AuxInt && IsSamePtr(p1.Args[0], p2.Args[0])
-	case OpAddr, OpLocalAddr:
+	case ssaop.OpAddr, ssaop.OpLocalAddr:
 		return p1.Aux == p2.Aux
-	case OpAddPtr:
+	case ssaop.OpAddPtr:
 		return p1.Args[1] == p2.Args[1] && IsSamePtr(p1.Args[0], p2.Args[0])
 	}
 	return false
@@ -825,11 +826,11 @@ func Disjoint1(p1 *Value, n1 int64, p2 *Value, n2 int64) bool {
 	}
 	baseAndOffset := func(ptr *Value) (base *Value, offset int64) {
 		base, offset = ptr, 0
-		for base.Op == OpOffPtr {
+		for base.Op == ssaop.OpOffPtr {
 			offset += base.AuxInt
 			base = base.Args[0]
 		}
-		if OpcodeTable[base.Op].NilCheck {
+		if ssaop.OpcodeTable[base.Op].NilCheck {
 			base = base.Args[0]
 		}
 		return base, offset
@@ -850,17 +851,17 @@ func Disjoint1(p1 *Value, n1 int64, p2 *Value, n2 int64) bool {
 	// If one pointer is on the stack and the other is an argument
 	// then they can't overlap.
 	switch p1.Op {
-	case OpAddr, OpLocalAddr:
-		if p2.Op == OpAddr || p2.Op == OpLocalAddr || p2.Op == OpSP {
+	case ssaop.OpAddr, ssaop.OpLocalAddr:
+		if p2.Op == ssaop.OpAddr || p2.Op == ssaop.OpLocalAddr || p2.Op == ssaop.OpSP {
 			return true
 		}
-		return (p2.Op == OpArg || p2.Op == OpArgIntReg) && p1.Args[0].Op == OpSP
-	case OpArg, OpArgIntReg:
-		if p2.Op == OpSP || p2.Op == OpLocalAddr {
+		return (p2.Op == ssaop.OpArg || p2.Op == ssaop.OpArgIntReg) && p1.Args[0].Op == ssaop.OpSP
+	case ssaop.OpArg, ssaop.OpArgIntReg:
+		if p2.Op == ssaop.OpSP || p2.Op == ssaop.OpLocalAddr {
 			return true
 		}
-	case OpSP:
-		return p2.Op == OpAddr || p2.Op == OpLocalAddr || p2.Op == OpArg || p2.Op == OpArgIntReg || p2.Op == OpSP
+	case ssaop.OpSP:
+		return p2.Op == ssaop.OpAddr || p2.Op == ssaop.OpLocalAddr || p2.Op == ssaop.OpArg || p2.Op == ssaop.OpArgIntReg || p2.Op == ssaop.OpSP
 	}
 	return false
 }
@@ -969,7 +970,7 @@ found:
 //	B) decrement use counts of the values' args.
 func Clobber(vv ...*Value) bool {
 	for _, v := range vv {
-		v.Reset(OpInvalid)
+		v.Reset(ssaop.OpInvalid)
 		// Note: leave v.Block intact.  The Block field is used after clobber.
 	}
 	return true
@@ -980,7 +981,7 @@ func Clobber(vv ...*Value) bool {
 // use counts of v's args when v is dead and never used.
 func ClobberIfDead(v *Value) bool {
 	if v.Uses == 1 {
-		v.Reset(OpInvalid)
+		v.Reset(ssaop.OpInvalid)
 	}
 	// Note: leave v.Block intact.  The Block field is used after clobberIfDead.
 	return true
@@ -1079,27 +1080,27 @@ func zeroUpperBits(x *Value, bits int64, depth int) bool {
 		// sign bit, so a restore zero-extends.
 		return false
 	}
-	if int64(OpcodeTable[x.Op].ZeroUpperBits) >= bits {
+	if int64(ssaop.OpcodeTable[x.Op].ZeroUpperBits) >= bits {
 		return true
 	}
 	switch x.Op {
-	case OpAMD64MOVQconst, OpAMD64MOVLconst:
+	case ssaop.OpAMD64MOVQconst, ssaop.OpAMD64MOVLconst:
 		// A constant qualifies whenever its value fits the claimed width.
 		// (MOVLconst always zeroes the upper 32 bits, so for bits==32 it
 		// is already handled by its zeroUpperBits attribute.)
 		return uint64(x.AuxInt)>>(64-bits) == 0
-	case OpArg: // note: but not ArgIntReg
+	case ssaop.OpArg: // note: but not ArgIntReg
 		// amd64 always loads args from the stack unsigned.
 		// most other architectures load them sign/zero extended based on the type.
 		return 8*x.Type.Size() == 64-bits && x.Block.Func.Config.Arch == "amd64"
-	case OpSelect0, OpSelect1:
+	case ssaop.OpSelect0, ssaop.OpSelect1:
 		// A Select names one register result of a tuple-producing op, so
 		// the question is what that op's write does. The op's attribute
 		// covers every integer result; a Select of a non-covered result
 		// (flags, memory) never appears as an operand of the rules that
 		// ask about upper bits.
-		return int64(OpcodeTable[x.Args[0].Op].ZeroUpperBits) >= bits
-	case OpPhi:
+		return int64(ssaop.OpcodeTable[x.Args[0].Op].ZeroUpperBits) >= bits
+	case ssaop.OpPhi:
 		// Phis can use each-other as an arguments, instead of tracking visited values,
 		// just limit recursion depth.
 		if depth <= 0 {
@@ -1362,8 +1363,8 @@ func (bfc Arm64BitField) Width() int64 {
 }
 
 // encodes condition code and NZCV flags into result.
-func arm64ConditionalParamsAuxInt(cond Op, nzcv uint8) Arm64ConditionalParams {
-	if cond < OpARM64Equal || cond > OpARM64GreaterEqualU {
+func arm64ConditionalParamsAuxInt(cond ssaop.Op, nzcv uint8) Arm64ConditionalParams {
+	if cond < ssaop.OpARM64Equal || cond > ssaop.OpARM64GreaterEqualU {
 		panic("Wrong conditional operation")
 	}
 	if nzcv&0x0f != nzcv {
@@ -1373,7 +1374,7 @@ func arm64ConditionalParamsAuxInt(cond Op, nzcv uint8) Arm64ConditionalParams {
 }
 
 // encodes condition code, NZCV flags and constant value into auxint.
-func arm64ConditionalParamsAuxIntWithValue(cond Op, nzcv uint8, value uint8) Arm64ConditionalParams {
+func arm64ConditionalParamsAuxIntWithValue(cond ssaop.Op, nzcv uint8, value uint8) Arm64ConditionalParams {
 	if value&0x1f != value {
 		panic("Wrong value of constant")
 	}
@@ -1638,7 +1639,7 @@ func RewriteStructStore(v *Value) *Value {
 	b := v.Block
 	dst := v.Args[0]
 	x := v.Args[1]
-	if x.Op != OpStructMake {
+	if x.Op != ssaop.OpStructMake {
 		base.Fatalf("invalid struct store: %v", x)
 	}
 	mem := v.Args[2]
@@ -1647,8 +1648,8 @@ func RewriteStructStore(v *Value) *Value {
 	for i, arg := range x.Args {
 		ft := t.FieldType(i)
 
-		addr := b.NewValue1I(v.Pos, OpOffPtr, ft.PtrTo(), t.FieldOff(i), dst)
-		mem = b.NewValue3A(v.Pos, OpStore, types.TypeMem, TypeToAux(ft), addr, arg, mem)
+		addr := b.NewValue1I(v.Pos, ssaop.OpOffPtr, ft.PtrTo(), t.FieldOff(i), dst)
+		mem = b.NewValue3A(v.Pos, ssaop.OpStore, types.TypeMem, TypeToAux(ft), addr, arg, mem)
 	}
 
 	return mem
@@ -1694,7 +1695,7 @@ func ImakeOfStructMake(v *Value) *Value {
 			break
 		}
 	}
-	return v.Block.NewValue2(v.Pos, OpIMake, v.Type, v.Args[0], arg)
+	return v.Block.NewValue2(v.Pos, ssaop.OpIMake, v.Type, v.Args[0], arg)
 }
 
 func ModularMultiplicativeInverse(x uint64) (y uint64) {

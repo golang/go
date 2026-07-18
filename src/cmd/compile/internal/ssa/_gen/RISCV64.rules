@@ -294,27 +294,27 @@
 // knows what variables are being read/written by the ops.
 (MOV(B|BU|H|HU|W|WU|D)load [off1] {sym1} (MOVaddr [off2] {sym2} base) mem) &&
 	Is32Bit(int64(off1)+int64(off2)) && CanMergeSym(sym1, sym2) &&
-	(base.Op != OpSB || !config.Ctxt.Flag_dynlink) =>
+	(base.Op != ssaop.OpSB || !config.Ctxt.Flag_dynlink) =>
 	(MOV(B|BU|H|HU|W|WU|D)load [off1+off2] {MergeSym(sym1,sym2)} base mem)
 
 (FMOV(W|D)load [off1] {sym1} (MOVaddr [off2] {sym2} base) mem) &&
 	Is32Bit(int64(off1)+int64(off2)) && CanMergeSym(sym1, sym2) &&
-	(base.Op != OpSB || !config.Ctxt.Flag_dynlink) =>
+	(base.Op != ssaop.OpSB || !config.Ctxt.Flag_dynlink) =>
 	(FMOV(W|D)load [off1+off2] {MergeSym(sym1,sym2)} base mem)
 
 (MOV(B|H|W|D)store [off1] {sym1} (MOVaddr [off2] {sym2} base) val mem) &&
 	Is32Bit(int64(off1)+int64(off2)) && CanMergeSym(sym1, sym2) &&
-	(base.Op != OpSB || !config.Ctxt.Flag_dynlink) =>
+	(base.Op != ssaop.OpSB || !config.Ctxt.Flag_dynlink) =>
 	(MOV(B|H|W|D)store [off1+off2] {MergeSym(sym1,sym2)} base val mem)
 
 (MOV(B|H|W|D)storezero [off1] {sym1} (MOVaddr [off2] {sym2} base) mem) &&
 	CanMergeSym(sym1,sym2) && Is32Bit(int64(off1)+int64(off2)) &&
-	(base.Op != OpSB || !config.Ctxt.Flag_dynlink) =>
+	(base.Op != ssaop.OpSB || !config.Ctxt.Flag_dynlink) =>
 	(MOV(B|H|W|D)storezero [off1+off2] {MergeSym(sym1,sym2)} base mem)
 
 (FMOV(W|D)store [off1] {sym1} (MOVaddr [off2] {sym2} base) val mem) &&
 	Is32Bit(int64(off1)+int64(off2)) && CanMergeSym(sym1, sym2) &&
-	(base.Op != OpSB || !config.Ctxt.Flag_dynlink) =>
+	(base.Op != ssaop.OpSB || !config.Ctxt.Flag_dynlink) =>
 	(FMOV(W|D)store [off1+off2] {MergeSym(sym1,sym2)} base val mem)
 
 (MOV(B|BU|H|HU|W|WU|D)load [off1] {sym} (ADDI [off2] base) mem) && Is32Bit(int64(off1)+off2) =>

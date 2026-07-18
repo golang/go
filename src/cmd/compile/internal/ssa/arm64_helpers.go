@@ -4,7 +4,10 @@
 
 package ssa
 
-import "math/bits"
+import (
+	"cmd/compile/internal/ssa/ssaop"
+	"math/bits"
+)
 
 // returns the bitfield width of mask >> rshift for arm64 bitfield ops.
 func arm64BFWidth(mask, rshift int64) int64 {
@@ -20,42 +23,42 @@ func arm64BFWidth(mask, rshift int64) int64 {
 // that the same result would be produced if the arguments
 // to the flag-generating instruction were reversed, e.g.
 // (InvertFlags (CMP x y)) -> (CMP y x)
-func arm64Invert(op Op) Op {
+func arm64Invert(op ssaop.Op) ssaop.Op {
 	switch op {
-	case OpARM64LessThan:
-		return OpARM64GreaterThan
-	case OpARM64LessThanU:
-		return OpARM64GreaterThanU
-	case OpARM64GreaterThan:
-		return OpARM64LessThan
-	case OpARM64GreaterThanU:
-		return OpARM64LessThanU
-	case OpARM64LessEqual:
-		return OpARM64GreaterEqual
-	case OpARM64LessEqualU:
-		return OpARM64GreaterEqualU
-	case OpARM64GreaterEqual:
-		return OpARM64LessEqual
-	case OpARM64GreaterEqualU:
-		return OpARM64LessEqualU
-	case OpARM64Equal, OpARM64NotEqual:
+	case ssaop.OpARM64LessThan:
+		return ssaop.OpARM64GreaterThan
+	case ssaop.OpARM64LessThanU:
+		return ssaop.OpARM64GreaterThanU
+	case ssaop.OpARM64GreaterThan:
+		return ssaop.OpARM64LessThan
+	case ssaop.OpARM64GreaterThanU:
+		return ssaop.OpARM64LessThanU
+	case ssaop.OpARM64LessEqual:
+		return ssaop.OpARM64GreaterEqual
+	case ssaop.OpARM64LessEqualU:
+		return ssaop.OpARM64GreaterEqualU
+	case ssaop.OpARM64GreaterEqual:
+		return ssaop.OpARM64LessEqual
+	case ssaop.OpARM64GreaterEqualU:
+		return ssaop.OpARM64LessEqualU
+	case ssaop.OpARM64Equal, ssaop.OpARM64NotEqual:
 		return op
-	case OpARM64LessThanF:
-		return OpARM64GreaterThanF
-	case OpARM64GreaterThanF:
-		return OpARM64LessThanF
-	case OpARM64LessEqualF:
-		return OpARM64GreaterEqualF
-	case OpARM64GreaterEqualF:
-		return OpARM64LessEqualF
-	case OpARM64NotLessThanF:
-		return OpARM64NotGreaterThanF
-	case OpARM64NotGreaterThanF:
-		return OpARM64NotLessThanF
-	case OpARM64NotLessEqualF:
-		return OpARM64NotGreaterEqualF
-	case OpARM64NotGreaterEqualF:
-		return OpARM64NotLessEqualF
+	case ssaop.OpARM64LessThanF:
+		return ssaop.OpARM64GreaterThanF
+	case ssaop.OpARM64GreaterThanF:
+		return ssaop.OpARM64LessThanF
+	case ssaop.OpARM64LessEqualF:
+		return ssaop.OpARM64GreaterEqualF
+	case ssaop.OpARM64GreaterEqualF:
+		return ssaop.OpARM64LessEqualF
+	case ssaop.OpARM64NotLessThanF:
+		return ssaop.OpARM64NotGreaterThanF
+	case ssaop.OpARM64NotGreaterThanF:
+		return ssaop.OpARM64NotLessThanF
+	case ssaop.OpARM64NotLessEqualF:
+		return ssaop.OpARM64NotGreaterEqualF
+	case ssaop.OpARM64NotGreaterEqualF:
+		return ssaop.OpARM64NotLessEqualF
 	default:
 		panic("unreachable")
 	}
@@ -66,44 +69,44 @@ func arm64Invert(op Op) Op {
 //
 // For floating point, it's more subtle because NaN is unordered. We do
 // !LessThanF -> NotLessThanF, the latter takes care of NaNs.
-func arm64Negate(op Op) Op {
+func arm64Negate(op ssaop.Op) ssaop.Op {
 	switch op {
-	case OpARM64LessThan:
-		return OpARM64GreaterEqual
-	case OpARM64LessThanU:
-		return OpARM64GreaterEqualU
-	case OpARM64GreaterThan:
-		return OpARM64LessEqual
-	case OpARM64GreaterThanU:
-		return OpARM64LessEqualU
-	case OpARM64LessEqual:
-		return OpARM64GreaterThan
-	case OpARM64LessEqualU:
-		return OpARM64GreaterThanU
-	case OpARM64GreaterEqual:
-		return OpARM64LessThan
-	case OpARM64GreaterEqualU:
-		return OpARM64LessThanU
-	case OpARM64Equal:
-		return OpARM64NotEqual
-	case OpARM64NotEqual:
-		return OpARM64Equal
-	case OpARM64LessThanF:
-		return OpARM64NotLessThanF
-	case OpARM64NotLessThanF:
-		return OpARM64LessThanF
-	case OpARM64LessEqualF:
-		return OpARM64NotLessEqualF
-	case OpARM64NotLessEqualF:
-		return OpARM64LessEqualF
-	case OpARM64GreaterThanF:
-		return OpARM64NotGreaterThanF
-	case OpARM64NotGreaterThanF:
-		return OpARM64GreaterThanF
-	case OpARM64GreaterEqualF:
-		return OpARM64NotGreaterEqualF
-	case OpARM64NotGreaterEqualF:
-		return OpARM64GreaterEqualF
+	case ssaop.OpARM64LessThan:
+		return ssaop.OpARM64GreaterEqual
+	case ssaop.OpARM64LessThanU:
+		return ssaop.OpARM64GreaterEqualU
+	case ssaop.OpARM64GreaterThan:
+		return ssaop.OpARM64LessEqual
+	case ssaop.OpARM64GreaterThanU:
+		return ssaop.OpARM64LessEqualU
+	case ssaop.OpARM64LessEqual:
+		return ssaop.OpARM64GreaterThan
+	case ssaop.OpARM64LessEqualU:
+		return ssaop.OpARM64GreaterThanU
+	case ssaop.OpARM64GreaterEqual:
+		return ssaop.OpARM64LessThan
+	case ssaop.OpARM64GreaterEqualU:
+		return ssaop.OpARM64LessThanU
+	case ssaop.OpARM64Equal:
+		return ssaop.OpARM64NotEqual
+	case ssaop.OpARM64NotEqual:
+		return ssaop.OpARM64Equal
+	case ssaop.OpARM64LessThanF:
+		return ssaop.OpARM64NotLessThanF
+	case ssaop.OpARM64NotLessThanF:
+		return ssaop.OpARM64LessThanF
+	case ssaop.OpARM64LessEqualF:
+		return ssaop.OpARM64NotLessEqualF
+	case ssaop.OpARM64NotLessEqualF:
+		return ssaop.OpARM64LessEqualF
+	case ssaop.OpARM64GreaterThanF:
+		return ssaop.OpARM64NotGreaterThanF
+	case ssaop.OpARM64NotGreaterThanF:
+		return ssaop.OpARM64GreaterThanF
+	case ssaop.OpARM64GreaterEqualF:
+		return ssaop.OpARM64NotGreaterEqualF
+	case ssaop.OpARM64NotGreaterEqualF:
+		return ssaop.OpARM64GreaterEqualF
 	default:
 		panic("unreachable")
 	}
@@ -112,12 +115,12 @@ func arm64Negate(op Op) Op {
 // evaluate an ARM64 op against a flags value
 // that is potentially constant; return 1 for true,
 // -1 for false, and 0 for not constant.
-func ccARM64Eval(op Op, flags *Value) int {
+func ccARM64Eval(op ssaop.Op, flags *Value) int {
 	fop := flags.Op
-	if fop == OpARM64InvertFlags {
+	if fop == ssaop.OpARM64InvertFlags {
 		return -ccARM64Eval(op, flags.Args[0])
 	}
-	if fop != OpARM64FlagConstant {
+	if fop != ssaop.OpARM64FlagConstant {
 		return 0
 	}
 	fc := FlagConstant(flags.AuxInt)
@@ -128,25 +131,25 @@ func ccARM64Eval(op Op, flags *Value) int {
 		return -1
 	}
 	switch op {
-	case OpARM64Equal:
+	case ssaop.OpARM64Equal:
 		return b2i(fc.Eq())
-	case OpARM64NotEqual:
+	case ssaop.OpARM64NotEqual:
 		return b2i(fc.Ne())
-	case OpARM64LessThan:
+	case ssaop.OpARM64LessThan:
 		return b2i(fc.Lt())
-	case OpARM64LessThanU:
+	case ssaop.OpARM64LessThanU:
 		return b2i(fc.Ult())
-	case OpARM64GreaterThan:
+	case ssaop.OpARM64GreaterThan:
 		return b2i(fc.Gt())
-	case OpARM64GreaterThanU:
+	case ssaop.OpARM64GreaterThanU:
 		return b2i(fc.Ugt())
-	case OpARM64LessEqual:
+	case ssaop.OpARM64LessEqual:
 		return b2i(fc.Le())
-	case OpARM64LessEqualU:
+	case ssaop.OpARM64LessEqualU:
 		return b2i(fc.Ule())
-	case OpARM64GreaterEqual:
+	case ssaop.OpARM64GreaterEqual:
 		return b2i(fc.Ge())
-	case OpARM64GreaterEqualU:
+	case ssaop.OpARM64GreaterEqualU:
 		return b2i(fc.Uge())
 	}
 	return 0

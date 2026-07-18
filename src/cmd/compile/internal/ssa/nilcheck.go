@@ -7,6 +7,7 @@ package ssa
 import (
 	"cmd/compile/internal/ir"
 	"cmd/compile/internal/ssa/block"
+	"cmd/compile/internal/ssa/ssaop"
 	"cmd/internal/src"
 	"internal/buildcfg"
 )
@@ -57,7 +58,7 @@ func nilcheckelim(f *Func) {
 			// We also assume unsafe pointer arithmetic generates non-nil pointers. See #27180.
 			// We assume that SlicePtr is non-nil because we do a bounds check
 			// before the slice access (and all cap>0 slices have a non-nil ptr). See #30366.
-			if v.Op == OpAddr || v.Op == OpLocalAddr || v.Op == OpAddPtr || v.Op == OpOffPtr || v.Op == OpAdd32 || v.Op == OpAdd64 || v.Op == OpSub32 || v.Op == OpSub64 || v.Op == OpSlicePtr {
+			if v.Op == ssaop.OpAddr || v.Op == ssaop.OpLocalAddr || v.Op == ssaop.OpAddPtr || v.Op == ssaop.OpOffPtr || v.Op == ssaop.OpAdd32 || v.Op == ssaop.OpAdd64 || v.Op == ssaop.OpSub32 || v.Op == ssaop.OpSub64 || v.Op == ssaop.OpSlicePtr {
 				nonNilValues[v.ID] = v
 			}
 		}
@@ -69,7 +70,7 @@ func nilcheckelim(f *Func) {
 			for _, v := range b.Values {
 				// phis whose arguments are all non-nil
 				// are non-nil
-				if v.Op == OpPhi {
+				if v.Op == ssaop.OpPhi {
 					argsNonNil := true
 					for _, a := range v.Args {
 						if nonNilValues[a.ID] == nil {
@@ -106,7 +107,7 @@ func nilcheckelim(f *Func) {
 			// First, see if we're dominated by an explicit nil check.
 			if len(b.Preds) == 1 {
 				p := b.Preds[0].B
-				if p.Kind == block.BlockIf && p.Controls[0].Op == OpIsNonNil && p.Succs[0].B == b {
+				if p.Kind == block.BlockIf && p.Controls[0].Op == ssaop.OpIsNonNil && p.Succs[0].B == b {
 					if ptr := p.Controls[0].Args[0]; nonNilValues[ptr.ID] == nil {
 						nonNilValues[ptr.ID] = ptr
 						work = append(work, bp{op: ClearPtr, ptr: ptr})
@@ -123,7 +124,7 @@ func nilcheckelim(f *Func) {
 			// Next, process values in the block.
 			for _, v := range b.Values {
 				switch v.Op {
-				case OpIsNonNil:
+				case ssaop.OpIsNonNil:
 					ptr := v.Args[0]
 					if nonNilValues[ptr.ID] != nil {
 						if v.Pos.IsStmt() == src.PosIsStmt { // Boolean true is a terrible statement boundary.
@@ -131,10 +132,10 @@ func nilcheckelim(f *Func) {
 							v.Pos = v.Pos.WithNotStmt()
 						}
 						// This is a redundant explicit nil check.
-						v.Reset(OpConstBool)
+						v.Reset(ssaop.OpConstBool)
 						v.AuxInt = 1 // true
 					}
-				case OpNilCheck:
+				case ssaop.OpNilCheck:
 					ptr := v.Args[0]
 					if nilCheck := nonNilValues[ptr.ID]; nilCheck != nil {
 						// This is a redundant implicit nil check.
@@ -146,7 +147,7 @@ func nilcheckelim(f *Func) {
 						if v.Pos.IsStmt() == src.PosIsStmt { // About to lose a statement boundary
 							pendingLines.Add(v.Pos)
 						}
-						v.Op = OpCopy
+						v.Op = ssaop.OpCopy
 						v.SetArgs1(nilCheck)
 						continue
 					}
@@ -213,7 +214,7 @@ func nilcheckelim2(f *Func) {
 		firstToRemove := len(b.Values)
 		for i := len(b.Values) - 1; i >= 0; i-- {
 			v := b.Values[i]
-			if OpcodeTable[v.Op].NilCheck && unnecessary.Contains(v.Args[0].ID) {
+			if ssaop.OpcodeTable[v.Op].NilCheck && unnecessary.Contains(v.Args[0].ID) {
 				if f.Fe.Debug_checknil() && v.Pos.Line() > 1 {
 					f.Warnl(v.Pos, "removed nil check")
 				}
@@ -233,12 +234,12 @@ func nilcheckelim2(f *Func) {
 					pendingLines.Add(v.Pos)
 				}
 
-				v.Reset(OpUnknown)
+				v.Reset(ssaop.OpUnknown)
 				firstToRemove = i
 				continue
 			}
 			if v.Type.IsMemory() || v.Type.IsTuple() && v.Type.FieldType(1).IsMemory() {
-				if v.Op == OpVarLive || (v.Op == OpVarDef && !v.Aux.(*ir.Name).Type().HasPointers()) {
+				if v.Op == ssaop.OpVarLive || (v.Op == ssaop.OpVarDef && !v.Aux.(*ir.Name).Type().HasPointers()) {
 					// These ops don't really change memory.
 					continue
 					// Note: OpVarDef requires that the defined variable not have pointers.
@@ -272,11 +273,11 @@ func nilcheckelim2(f *Func) {
 			// Find any pointers that this op is guaranteed to fault on if nil.
 			var ptrstore [2]*Value
 			ptrs := ptrstore[:0]
-			if OpcodeTable[v.Op].FaultOnNilArg0 && (faultOnLoad || v.Type.IsMemory()) {
+			if ssaop.OpcodeTable[v.Op].FaultOnNilArg0 && (faultOnLoad || v.Type.IsMemory()) {
 				// On AIX, only writing will fault.
 				ptrs = append(ptrs, v.Args[0])
 			}
-			if OpcodeTable[v.Op].FaultOnNilArg1 && (faultOnLoad || (v.Type.IsMemory() && v.Op != OpPPC64LoweredMove)) {
+			if ssaop.OpcodeTable[v.Op].FaultOnNilArg1 && (faultOnLoad || (v.Type.IsMemory() && v.Op != ssaop.OpPPC64LoweredMove)) {
 				// On AIX, only writing will fault.
 				// LoweredMove is a special case because it's considered as a "mem" as it stores on arg0 but arg1 is accessed as a load and should be checked.
 				ptrs = append(ptrs, v.Args[1])
@@ -284,29 +285,29 @@ func nilcheckelim2(f *Func) {
 
 			for _, ptr := range ptrs {
 				// Check to make sure the offset is small.
-				switch OpcodeTable[v.Op].AuxType {
-				case AuxTypeSym:
+				switch ssaop.OpcodeTable[v.Op].AuxType {
+				case ssaop.AuxTypeSym:
 					if v.Aux != nil {
 						continue
 					}
-				case AuxTypeSymOff:
+				case ssaop.AuxTypeSymOff:
 					if v.Aux != nil || v.AuxInt < 0 || v.AuxInt >= minZeroPage {
 						continue
 					}
-				case AuxTypeSymValAndOff:
+				case ssaop.AuxTypeSymValAndOff:
 					off := ValAndOff(v.AuxInt).Off()
 					if v.Aux != nil || off < 0 || off >= minZeroPage {
 						continue
 					}
-				case AuxTypeInt32:
+				case ssaop.AuxTypeInt32:
 					// Mips uses this auxType for atomic add constant. It does not affect the effective address.
-				case AuxTypeInt64:
+				case ssaop.AuxTypeInt64:
 					// ARM uses this auxType for duffcopy/duffzero/alignment info.
 					// It does not affect the effective address.
-				case AuxTypeNone:
+				case ssaop.AuxTypeNone:
 					// offset is zero.
 				default:
-					v.Fatalf("can't handle aux %s (type %d) yet\n", v.AuxString(), int(OpcodeTable[v.Op].AuxType))
+					v.Fatalf("can't handle aux %s (type %d) yet\n", v.AuxString(), int(ssaop.OpcodeTable[v.Op].AuxType))
 				}
 				// This instruction is guaranteed to fault if ptr is nil.
 				// Any previous nil check op is unnecessary.
@@ -317,7 +318,7 @@ func nilcheckelim2(f *Func) {
 		i := firstToRemove
 		for j := i; j < len(b.Values); j++ {
 			v := b.Values[j]
-			if v.Op != OpUnknown {
+			if v.Op != ssaop.OpUnknown {
 				if !NotStmtBoundary(v.Op) && pendingLines.Contains(v.Pos) { // Late in compilation, so any remaining NotStmt values are probably okay now.
 					v.Pos = v.Pos.WithIsStmt()
 					pendingLines.Remove(v.Pos)

@@ -166,16 +166,16 @@
 (Rsh64Ux(64|32|16|8) <t> x y) && ShiftIsBounded(v) => (SRL <t> x y)
 
 // shift value may be out of range, use CMP + CSEL instead
-(Lsh64x64 <t> x y) && !ShiftIsBounded(v) => (CSEL [OpARM64LessThanU] (SLL <t> x y) (Const64 <t> [0]) (CMPconst  [64] y))
-(Lsh64x32 <t> x y) && !ShiftIsBounded(v) => (CSEL [OpARM64LessThanU] (SLL <t> x y) (Const64 <t> [0]) (CMPWconst [64] y))
+(Lsh64x64 <t> x y) && !ShiftIsBounded(v) => (CSEL [ssaop.OpARM64LessThanU] (SLL <t> x y) (Const64 <t> [0]) (CMPconst  [64] y))
+(Lsh64x32 <t> x y) && !ShiftIsBounded(v) => (CSEL [ssaop.OpARM64LessThanU] (SLL <t> x y) (Const64 <t> [0]) (CMPWconst [64] y))
 (Lsh64x(16|8) <t> [bounded] x y) && !ShiftIsBounded(v) => (Lsh64x32 <t> [bounded] x (ZeroExt(16|8)to32 y))
 
-(Rsh64Ux64 <t> x y) && !ShiftIsBounded(v) => (CSEL [OpARM64LessThanU] (SRL <t> x y) (Const64 <t> [0]) (CMPconst  [64] y))
-(Rsh64Ux32 <t> x y) && !ShiftIsBounded(v) => (CSEL [OpARM64LessThanU] (SRL <t> x y) (Const64 <t> [0]) (CMPWconst [64] y))
+(Rsh64Ux64 <t> x y) && !ShiftIsBounded(v) => (CSEL [ssaop.OpARM64LessThanU] (SRL <t> x y) (Const64 <t> [0]) (CMPconst  [64] y))
+(Rsh64Ux32 <t> x y) && !ShiftIsBounded(v) => (CSEL [ssaop.OpARM64LessThanU] (SRL <t> x y) (Const64 <t> [0]) (CMPWconst [64] y))
 (Rsh64Ux(16|8) <t> [bounded] x y) && !ShiftIsBounded(v) => (Rsh64Ux32 <t> [bounded] x (ZeroExt(16|8)to32 y))
 
-(Rsh64x64 <t> x y) && !ShiftIsBounded(v) => (SRA x (CSEL [OpARM64LessThanU] <y.Type> y (Const64 <y.Type> [63]) (CMPconst  [64] y)))
-(Rsh64x32 <t> x y) && !ShiftIsBounded(v) => (SRA x (CSEL [OpARM64LessThanU] <y.Type> y (Const64 <y.Type> [63]) (CMPWconst [64] y)))
+(Rsh64x64 <t> x y) && !ShiftIsBounded(v) => (SRA x (CSEL [ssaop.OpARM64LessThanU] <y.Type> y (Const64 <y.Type> [63]) (CMPconst  [64] y)))
+(Rsh64x32 <t> x y) && !ShiftIsBounded(v) => (SRA x (CSEL [ssaop.OpARM64LessThanU] <y.Type> y (Const64 <y.Type> [63]) (CMPWconst [64] y)))
 (Rsh64x(16|8) <t> [bounded] x y) && !ShiftIsBounded(v) => (Rsh64x32 <t> [bounded] x (ZeroExt(16|8)to32 y))
 
 // constants
@@ -301,14 +301,14 @@
 // Float min/max comparison-select idioms lower to a compare plus FCSEL on the
 // FP registers. The ops carry their semantics directly, so lowering always
 // triggers.
-(Min64FSel x y) => (FCSELD [OpARM64LessThanF] x y (FCMPD x y))
-(Min32FSel x y) => (FCSELS [OpARM64LessThanF] x y (FCMPS x y))
-(Max64FSel x y) => (FCSELD [OpARM64GreaterThanF] x y (FCMPD x y))
-(Max32FSel x y) => (FCSELS [OpARM64GreaterThanF] x y (FCMPS x y))
+(Min64FSel x y) => (FCSELD [ssaop.OpARM64LessThanF] x y (FCMPD x y))
+(Min32FSel x y) => (FCSELS [ssaop.OpARM64LessThanF] x y (FCMPS x y))
+(Max64FSel x y) => (FCSELD [ssaop.OpARM64GreaterThanF] x y (FCMPD x y))
+(Max32FSel x y) => (FCSELS [ssaop.OpARM64GreaterThanF] x y (FCMPS x y))
 
 // CSEL needs a flag-generating argument. Synthesize a TSTW if necessary.
 (CondSelect x y boolval) && FlagArg(boolval) != nil => (CSEL [boolval.Op] x y FlagArg(boolval))
-(CondSelect x y boolval) && FlagArg(boolval) == nil => (CSEL [OpARM64NotEqual] x y (TSTWconst [1] boolval))
+(CondSelect x y boolval) && FlagArg(boolval) == nil => (CSEL [ssaop.OpARM64NotEqual] x y (TSTWconst [1] boolval))
 
 (OffPtr [off] ptr:(SP)) && Is32Bit(off) => (MOVDaddr [int32(off)] ptr)
 (OffPtr [off] ptr) => (ADDconst [off] ptr)
@@ -679,40 +679,40 @@
 // be rewritten to use the GOT via REGTMP, which currently cannot handle
 // large offset.
 (MOVBload [off1] {sym} (ADDconst [off2] ptr) mem) && Is32Bit(int64(off1)+off2)
-	&& (ptr.Op != OpSB || !config.Ctxt.Flag_dynlink) =>
+	&& (ptr.Op != ssaop.OpSB || !config.Ctxt.Flag_dynlink) =>
 	(MOVBload [off1+int32(off2)] {sym} ptr mem)
 (MOVBUload [off1] {sym} (ADDconst [off2] ptr) mem) && Is32Bit(int64(off1)+off2)
-	&& (ptr.Op != OpSB || !config.Ctxt.Flag_dynlink) =>
+	&& (ptr.Op != ssaop.OpSB || !config.Ctxt.Flag_dynlink) =>
 	(MOVBUload [off1+int32(off2)] {sym} ptr mem)
 (MOVHload [off1] {sym} (ADDconst [off2] ptr) mem) && Is32Bit(int64(off1)+off2)
-	&& (ptr.Op != OpSB || !config.Ctxt.Flag_dynlink) =>
+	&& (ptr.Op != ssaop.OpSB || !config.Ctxt.Flag_dynlink) =>
 	(MOVHload [off1+int32(off2)] {sym} ptr mem)
 (MOVHUload [off1] {sym} (ADDconst [off2] ptr) mem) && Is32Bit(int64(off1)+off2)
-	&& (ptr.Op != OpSB || !config.Ctxt.Flag_dynlink) =>
+	&& (ptr.Op != ssaop.OpSB || !config.Ctxt.Flag_dynlink) =>
 	(MOVHUload [off1+int32(off2)] {sym} ptr mem)
 (MOVWload [off1] {sym} (ADDconst [off2] ptr) mem) && Is32Bit(int64(off1)+off2)
-	&& (ptr.Op != OpSB || !config.Ctxt.Flag_dynlink) =>
+	&& (ptr.Op != ssaop.OpSB || !config.Ctxt.Flag_dynlink) =>
 	(MOVWload [off1+int32(off2)] {sym} ptr mem)
 (MOVWUload [off1] {sym} (ADDconst [off2] ptr) mem) && Is32Bit(int64(off1)+off2)
-	&& (ptr.Op != OpSB || !config.Ctxt.Flag_dynlink) =>
+	&& (ptr.Op != ssaop.OpSB || !config.Ctxt.Flag_dynlink) =>
 	(MOVWUload [off1+int32(off2)] {sym} ptr mem)
 (MOVDload [off1] {sym} (ADDconst [off2] ptr) mem) && Is32Bit(int64(off1)+off2)
-	&& (ptr.Op != OpSB || !config.Ctxt.Flag_dynlink) =>
+	&& (ptr.Op != ssaop.OpSB || !config.Ctxt.Flag_dynlink) =>
 	(MOVDload [off1+int32(off2)] {sym} ptr mem)
 (LDP [off1] {sym} (ADDconst [off2] ptr) mem) && Is32Bit(int64(off1)+off2)
-	&& (ptr.Op != OpSB || !config.Ctxt.Flag_dynlink) =>
+	&& (ptr.Op != ssaop.OpSB || !config.Ctxt.Flag_dynlink) =>
 	(LDP [off1+int32(off2)] {sym} ptr mem)
 (FMOVSload [off1] {sym} (ADDconst [off2] ptr) mem) && Is32Bit(int64(off1)+off2)
-	&& (ptr.Op != OpSB || !config.Ctxt.Flag_dynlink) =>
+	&& (ptr.Op != ssaop.OpSB || !config.Ctxt.Flag_dynlink) =>
 	(FMOVSload [off1+int32(off2)] {sym} ptr mem)
 (FMOVDload [off1] {sym} (ADDconst [off2] ptr) mem) && Is32Bit(int64(off1)+off2)
-	&& (ptr.Op != OpSB || !config.Ctxt.Flag_dynlink) =>
+	&& (ptr.Op != ssaop.OpSB || !config.Ctxt.Flag_dynlink) =>
 	(FMOVDload [off1+int32(off2)] {sym} ptr mem)
 (FMOVQload [off1] {sym} (ADDconst [off2] ptr) mem) && Is32Bit(int64(off1)+off2)
-	&& (ptr.Op != OpSB || !config.Ctxt.Flag_dynlink) =>
+	&& (ptr.Op != ssaop.OpSB || !config.Ctxt.Flag_dynlink) =>
 	(FMOVQload [off1+int32(off2)] {sym} ptr mem)
 (FLDPQ [off1] {sym} (ADDconst [off2] ptr) mem) && Is32Bit(int64(off1)+off2)
-	&& (ptr.Op != OpSB || !config.Ctxt.Flag_dynlink) =>
+	&& (ptr.Op != ssaop.OpSB || !config.Ctxt.Flag_dynlink) =>
 	(FLDPQ [off1+int32(off2)] {sym} ptr mem)
 
 // register indexed load
@@ -779,31 +779,31 @@
 (FMOVSloadidx4 ptr (MOVDconst [c]) mem) && Is32Bit(c<<2) => (FMOVSload ptr [int32(c)<<2] mem)
 
 (MOVBstore [off1] {sym} (ADDconst [off2] ptr) val mem) && Is32Bit(int64(off1)+off2)
-	&& (ptr.Op != OpSB || !config.Ctxt.Flag_dynlink) =>
+	&& (ptr.Op != ssaop.OpSB || !config.Ctxt.Flag_dynlink) =>
 	(MOVBstore [off1+int32(off2)] {sym} ptr val mem)
 (MOVHstore [off1] {sym} (ADDconst [off2] ptr) val mem) && Is32Bit(int64(off1)+off2)
-	&& (ptr.Op != OpSB || !config.Ctxt.Flag_dynlink) =>
+	&& (ptr.Op != ssaop.OpSB || !config.Ctxt.Flag_dynlink) =>
 	(MOVHstore [off1+int32(off2)] {sym} ptr val mem)
 (MOVWstore [off1] {sym} (ADDconst [off2] ptr) val mem) && Is32Bit(int64(off1)+off2)
-	&& (ptr.Op != OpSB || !config.Ctxt.Flag_dynlink) =>
+	&& (ptr.Op != ssaop.OpSB || !config.Ctxt.Flag_dynlink) =>
 	(MOVWstore [off1+int32(off2)] {sym} ptr val mem)
 (MOVDstore [off1] {sym} (ADDconst [off2] ptr) val mem) && Is32Bit(int64(off1)+off2)
-	&& (ptr.Op != OpSB || !config.Ctxt.Flag_dynlink) =>
+	&& (ptr.Op != ssaop.OpSB || !config.Ctxt.Flag_dynlink) =>
 	(MOVDstore [off1+int32(off2)] {sym} ptr val mem)
 (STP [off1] {sym} (ADDconst [off2] ptr) val1 val2 mem) && Is32Bit(int64(off1)+off2)
-	&& (ptr.Op != OpSB || !config.Ctxt.Flag_dynlink) =>
+	&& (ptr.Op != ssaop.OpSB || !config.Ctxt.Flag_dynlink) =>
 	(STP [off1+int32(off2)] {sym} ptr val1 val2 mem)
 (FMOVSstore [off1] {sym} (ADDconst [off2] ptr) val mem) && Is32Bit(int64(off1)+off2)
-	&& (ptr.Op != OpSB || !config.Ctxt.Flag_dynlink) =>
+	&& (ptr.Op != ssaop.OpSB || !config.Ctxt.Flag_dynlink) =>
 	(FMOVSstore [off1+int32(off2)] {sym} ptr val mem)
 (FMOVDstore [off1] {sym} (ADDconst [off2] ptr) val mem) && Is32Bit(int64(off1)+off2)
-	&& (ptr.Op != OpSB || !config.Ctxt.Flag_dynlink) =>
+	&& (ptr.Op != ssaop.OpSB || !config.Ctxt.Flag_dynlink) =>
 	(FMOVDstore [off1+int32(off2)] {sym} ptr val mem)
 (FMOVQstore [off1] {sym} (ADDconst [off2] ptr) val mem) && Is32Bit(int64(off1)+off2)
-	&& (ptr.Op != OpSB || !config.Ctxt.Flag_dynlink) =>
+	&& (ptr.Op != ssaop.OpSB || !config.Ctxt.Flag_dynlink) =>
 	(FMOVQstore [off1+int32(off2)] {sym} ptr val mem)
 (FSTPQ [off1] {sym} (ADDconst [off2] ptr) val1 val2 mem) && Is32Bit(int64(off1)+off2)
-	&& (ptr.Op != OpSB || !config.Ctxt.Flag_dynlink) =>
+	&& (ptr.Op != ssaop.OpSB || !config.Ctxt.Flag_dynlink) =>
 	(FSTPQ [off1+int32(off2)] {sym} ptr val1 val2 mem)
 
 // register indexed store
@@ -853,88 +853,88 @@
 
 (MOVBload [off1] {sym1} (MOVDaddr [off2] {sym2} ptr) mem)
 	&& CanMergeSym(sym1,sym2) && Is32Bit(int64(off1)+int64(off2))
-	&& (ptr.Op != OpSB || !config.Ctxt.Flag_dynlink) =>
+	&& (ptr.Op != ssaop.OpSB || !config.Ctxt.Flag_dynlink) =>
 	(MOVBload [off1+off2] {MergeSym(sym1,sym2)} ptr mem)
 (MOVBUload [off1] {sym1} (MOVDaddr [off2] {sym2} ptr) mem)
 	&& CanMergeSym(sym1,sym2) && Is32Bit(int64(off1)+int64(off2))
-	&& (ptr.Op != OpSB || !config.Ctxt.Flag_dynlink) =>
+	&& (ptr.Op != ssaop.OpSB || !config.Ctxt.Flag_dynlink) =>
 	(MOVBUload [off1+off2] {MergeSym(sym1,sym2)} ptr mem)
 (MOVHload [off1] {sym1} (MOVDaddr [off2] {sym2} ptr) mem)
 	&& CanMergeSym(sym1,sym2) && Is32Bit(int64(off1)+int64(off2))
-	&& (ptr.Op != OpSB || !config.Ctxt.Flag_dynlink) =>
+	&& (ptr.Op != ssaop.OpSB || !config.Ctxt.Flag_dynlink) =>
 	(MOVHload [off1+off2] {MergeSym(sym1,sym2)} ptr mem)
 (MOVHUload [off1] {sym1} (MOVDaddr [off2] {sym2} ptr) mem)
 	&& CanMergeSym(sym1,sym2) && Is32Bit(int64(off1)+int64(off2))
-	&& (ptr.Op != OpSB || !config.Ctxt.Flag_dynlink) =>
+	&& (ptr.Op != ssaop.OpSB || !config.Ctxt.Flag_dynlink) =>
 	(MOVHUload [off1+off2] {MergeSym(sym1,sym2)} ptr mem)
 (MOVWload [off1] {sym1} (MOVDaddr [off2] {sym2} ptr) mem)
 	&& CanMergeSym(sym1,sym2) && Is32Bit(int64(off1)+int64(off2))
-	&& (ptr.Op != OpSB || !config.Ctxt.Flag_dynlink) =>
+	&& (ptr.Op != ssaop.OpSB || !config.Ctxt.Flag_dynlink) =>
 	(MOVWload [off1+off2] {MergeSym(sym1,sym2)} ptr mem)
 (MOVWUload [off1] {sym1} (MOVDaddr [off2] {sym2} ptr) mem)
 	&& CanMergeSym(sym1,sym2) && Is32Bit(int64(off1)+int64(off2))
-	&& (ptr.Op != OpSB || !config.Ctxt.Flag_dynlink) =>
+	&& (ptr.Op != ssaop.OpSB || !config.Ctxt.Flag_dynlink) =>
 	(MOVWUload [off1+off2] {MergeSym(sym1,sym2)} ptr mem)
 (MOVDload [off1] {sym1} (MOVDaddr [off2] {sym2} ptr) mem)
 	&& CanMergeSym(sym1,sym2) && Is32Bit(int64(off1)+int64(off2))
-	&& (ptr.Op != OpSB || !config.Ctxt.Flag_dynlink) =>
+	&& (ptr.Op != ssaop.OpSB || !config.Ctxt.Flag_dynlink) =>
 	(MOVDload [off1+off2] {MergeSym(sym1,sym2)} ptr mem)
 (LDP [off1] {sym1} (MOVDaddr [off2] {sym2} ptr) mem)
 	&& CanMergeSym(sym1,sym2) && Is32Bit(int64(off1)+int64(off2))
-	&& (ptr.Op != OpSB || !config.Ctxt.Flag_dynlink) =>
+	&& (ptr.Op != ssaop.OpSB || !config.Ctxt.Flag_dynlink) =>
 	(LDP [off1+off2] {MergeSym(sym1,sym2)} ptr mem)
 (FMOVSload [off1] {sym1} (MOVDaddr [off2] {sym2} ptr) mem)
 	&& CanMergeSym(sym1,sym2) && Is32Bit(int64(off1)+int64(off2))
-	&& (ptr.Op != OpSB || !config.Ctxt.Flag_dynlink) =>
+	&& (ptr.Op != ssaop.OpSB || !config.Ctxt.Flag_dynlink) =>
 	(FMOVSload [off1+off2] {MergeSym(sym1,sym2)} ptr mem)
 (FMOVDload [off1] {sym1} (MOVDaddr [off2] {sym2} ptr) mem)
 	&& CanMergeSym(sym1,sym2) && Is32Bit(int64(off1)+int64(off2))
-	&& (ptr.Op != OpSB || !config.Ctxt.Flag_dynlink) =>
+	&& (ptr.Op != ssaop.OpSB || !config.Ctxt.Flag_dynlink) =>
 	(FMOVDload [off1+off2] {MergeSym(sym1,sym2)} ptr mem)
 (FMOVQload [off1] {sym1} (MOVDaddr [off2] {sym2} ptr) mem)
 	&& CanMergeSym(sym1,sym2) && Is32Bit(int64(off1)+int64(off2))
-	&& (ptr.Op != OpSB || !config.Ctxt.Flag_dynlink) =>
+	&& (ptr.Op != ssaop.OpSB || !config.Ctxt.Flag_dynlink) =>
 	(FMOVQload [off1+off2] {MergeSym(sym1,sym2)} ptr mem)
 (FLDPQ [off1] {sym1} (MOVDaddr [off2] {sym2} ptr) mem)
 	&& CanMergeSym(sym1,sym2) && Is32Bit(int64(off1)+int64(off2))
-	&& (ptr.Op != OpSB || !config.Ctxt.Flag_dynlink) =>
+	&& (ptr.Op != ssaop.OpSB || !config.Ctxt.Flag_dynlink) =>
 	(FLDPQ [off1+off2] {MergeSym(sym1,sym2)} ptr mem)
 
 (MOVBstore [off1] {sym1} (MOVDaddr [off2] {sym2} ptr) val mem)
 	&& CanMergeSym(sym1,sym2) && Is32Bit(int64(off1)+int64(off2))
-	&& (ptr.Op != OpSB || !config.Ctxt.Flag_dynlink) =>
+	&& (ptr.Op != ssaop.OpSB || !config.Ctxt.Flag_dynlink) =>
 	(MOVBstore [off1+off2] {MergeSym(sym1,sym2)} ptr val mem)
 (MOVHstore [off1] {sym1} (MOVDaddr [off2] {sym2} ptr) val mem)
 	&& CanMergeSym(sym1,sym2) && Is32Bit(int64(off1)+int64(off2))
-	&& (ptr.Op != OpSB || !config.Ctxt.Flag_dynlink) =>
+	&& (ptr.Op != ssaop.OpSB || !config.Ctxt.Flag_dynlink) =>
 	(MOVHstore [off1+off2] {MergeSym(sym1,sym2)} ptr val mem)
 (MOVWstore [off1] {sym1} (MOVDaddr [off2] {sym2} ptr) val mem)
 	&& CanMergeSym(sym1,sym2) && Is32Bit(int64(off1)+int64(off2))
-	&& (ptr.Op != OpSB || !config.Ctxt.Flag_dynlink) =>
+	&& (ptr.Op != ssaop.OpSB || !config.Ctxt.Flag_dynlink) =>
 	(MOVWstore [off1+off2] {MergeSym(sym1,sym2)} ptr val mem)
 (MOVDstore [off1] {sym1} (MOVDaddr [off2] {sym2} ptr) val mem)
 	&& CanMergeSym(sym1,sym2) && Is32Bit(int64(off1)+int64(off2))
-	&& (ptr.Op != OpSB || !config.Ctxt.Flag_dynlink) =>
+	&& (ptr.Op != ssaop.OpSB || !config.Ctxt.Flag_dynlink) =>
 	(MOVDstore [off1+off2] {MergeSym(sym1,sym2)} ptr val mem)
 (STP [off1] {sym1} (MOVDaddr [off2] {sym2} ptr) val1 val2 mem)
 	&& CanMergeSym(sym1,sym2) && Is32Bit(int64(off1)+int64(off2))
-	&& (ptr.Op != OpSB || !config.Ctxt.Flag_dynlink) =>
+	&& (ptr.Op != ssaop.OpSB || !config.Ctxt.Flag_dynlink) =>
 	(STP [off1+off2] {MergeSym(sym1,sym2)} ptr val1 val2 mem)
 (FMOVSstore [off1] {sym1} (MOVDaddr [off2] {sym2} ptr) val mem)
 	&& CanMergeSym(sym1,sym2) && Is32Bit(int64(off1)+int64(off2))
-	&& (ptr.Op != OpSB || !config.Ctxt.Flag_dynlink) =>
+	&& (ptr.Op != ssaop.OpSB || !config.Ctxt.Flag_dynlink) =>
 	(FMOVSstore [off1+off2] {MergeSym(sym1,sym2)} ptr val mem)
 (FMOVDstore [off1] {sym1} (MOVDaddr [off2] {sym2} ptr) val mem)
 	&& CanMergeSym(sym1,sym2) && Is32Bit(int64(off1)+int64(off2))
-	&& (ptr.Op != OpSB || !config.Ctxt.Flag_dynlink) =>
+	&& (ptr.Op != ssaop.OpSB || !config.Ctxt.Flag_dynlink) =>
 	(FMOVDstore [off1+off2] {MergeSym(sym1,sym2)} ptr val mem)
 (FMOVQstore [off1] {sym1} (MOVDaddr [off2] {sym2} ptr) val mem)
 	&& CanMergeSym(sym1,sym2) && Is32Bit(int64(off1)+int64(off2))
-	&& (ptr.Op != OpSB || !config.Ctxt.Flag_dynlink) =>
+	&& (ptr.Op != ssaop.OpSB || !config.Ctxt.Flag_dynlink) =>
 	(FMOVQstore [off1+off2] {MergeSym(sym1,sym2)} ptr val mem)
 (FSTPQ [off1] {sym1} (MOVDaddr [off2] {sym2} ptr) val1 val2 mem)
 	&& CanMergeSym(sym1,sym2) && Is32Bit(int64(off1)+int64(off2))
-	&& (ptr.Op != OpSB || !config.Ctxt.Flag_dynlink) =>
+	&& (ptr.Op != ssaop.OpSB || !config.Ctxt.Flag_dynlink) =>
 	(FSTPQ [off1+off2] {MergeSym(sym1,sym2)} ptr val1 val2 mem)
 
 // replace load from same location as preceding store with zero/sign extension (or copy in case of full width)
@@ -1438,13 +1438,13 @@
 (CSETM [cc]     flag) && ccARM64Eval(cc, flag) < 0 => (MOVDconst [0])
 
 // absorb flags back into boolean CSEL
-(CSEL [cc] x y (CMPWconst [0] boolval)) && cc == OpARM64NotEqual && FlagArg(boolval) != nil =>
+(CSEL [cc] x y (CMPWconst [0] boolval)) && cc == ssaop.OpARM64NotEqual && FlagArg(boolval) != nil =>
       (CSEL [boolval.Op] x y FlagArg(boolval))
-(CSEL [cc] x y (CMPWconst [0] boolval)) && cc == OpARM64Equal && FlagArg(boolval) != nil =>
+(CSEL [cc] x y (CMPWconst [0] boolval)) && cc == ssaop.OpARM64Equal && FlagArg(boolval) != nil =>
       (CSEL [arm64Negate(boolval.Op)] x y FlagArg(boolval))
-(CSEL0 [cc] x (CMPWconst [0] boolval)) && cc == OpARM64NotEqual && FlagArg(boolval) != nil =>
+(CSEL0 [cc] x (CMPWconst [0] boolval)) && cc == ssaop.OpARM64NotEqual && FlagArg(boolval) != nil =>
       (CSEL0 [boolval.Op] x FlagArg(boolval))
-(CSEL0 [cc] x (CMPWconst [0] boolval)) && cc == OpARM64Equal && FlagArg(boolval) != nil =>
+(CSEL0 [cc] x (CMPWconst [0] boolval)) && cc == ssaop.OpARM64Equal && FlagArg(boolval) != nil =>
       (CSEL0 [arm64Negate(boolval.Op)] x FlagArg(boolval))
 
 // absorb shifts into ops

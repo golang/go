@@ -2,51 +2,53 @@
 
 package ssa
 
+import "cmd/compile/internal/ssa/ssaop"
+
 func rewriteValueAMD64splitload(v *Value) bool {
 	switch v.Op {
-	case OpAMD64CMPBconstload:
+	case ssaop.OpAMD64CMPBconstload:
 		return rewriteValueAMD64splitload_OpAMD64CMPBconstload(v)
-	case OpAMD64CMPBconstloadidx1:
+	case ssaop.OpAMD64CMPBconstloadidx1:
 		return rewriteValueAMD64splitload_OpAMD64CMPBconstloadidx1(v)
-	case OpAMD64CMPBload:
+	case ssaop.OpAMD64CMPBload:
 		return rewriteValueAMD64splitload_OpAMD64CMPBload(v)
-	case OpAMD64CMPBloadidx1:
+	case ssaop.OpAMD64CMPBloadidx1:
 		return rewriteValueAMD64splitload_OpAMD64CMPBloadidx1(v)
-	case OpAMD64CMPLconstload:
+	case ssaop.OpAMD64CMPLconstload:
 		return rewriteValueAMD64splitload_OpAMD64CMPLconstload(v)
-	case OpAMD64CMPLconstloadidx1:
+	case ssaop.OpAMD64CMPLconstloadidx1:
 		return rewriteValueAMD64splitload_OpAMD64CMPLconstloadidx1(v)
-	case OpAMD64CMPLconstloadidx4:
+	case ssaop.OpAMD64CMPLconstloadidx4:
 		return rewriteValueAMD64splitload_OpAMD64CMPLconstloadidx4(v)
-	case OpAMD64CMPLload:
+	case ssaop.OpAMD64CMPLload:
 		return rewriteValueAMD64splitload_OpAMD64CMPLload(v)
-	case OpAMD64CMPLloadidx1:
+	case ssaop.OpAMD64CMPLloadidx1:
 		return rewriteValueAMD64splitload_OpAMD64CMPLloadidx1(v)
-	case OpAMD64CMPLloadidx4:
+	case ssaop.OpAMD64CMPLloadidx4:
 		return rewriteValueAMD64splitload_OpAMD64CMPLloadidx4(v)
-	case OpAMD64CMPQconstload:
+	case ssaop.OpAMD64CMPQconstload:
 		return rewriteValueAMD64splitload_OpAMD64CMPQconstload(v)
-	case OpAMD64CMPQconstloadidx1:
+	case ssaop.OpAMD64CMPQconstloadidx1:
 		return rewriteValueAMD64splitload_OpAMD64CMPQconstloadidx1(v)
-	case OpAMD64CMPQconstloadidx8:
+	case ssaop.OpAMD64CMPQconstloadidx8:
 		return rewriteValueAMD64splitload_OpAMD64CMPQconstloadidx8(v)
-	case OpAMD64CMPQload:
+	case ssaop.OpAMD64CMPQload:
 		return rewriteValueAMD64splitload_OpAMD64CMPQload(v)
-	case OpAMD64CMPQloadidx1:
+	case ssaop.OpAMD64CMPQloadidx1:
 		return rewriteValueAMD64splitload_OpAMD64CMPQloadidx1(v)
-	case OpAMD64CMPQloadidx8:
+	case ssaop.OpAMD64CMPQloadidx8:
 		return rewriteValueAMD64splitload_OpAMD64CMPQloadidx8(v)
-	case OpAMD64CMPWconstload:
+	case ssaop.OpAMD64CMPWconstload:
 		return rewriteValueAMD64splitload_OpAMD64CMPWconstload(v)
-	case OpAMD64CMPWconstloadidx1:
+	case ssaop.OpAMD64CMPWconstloadidx1:
 		return rewriteValueAMD64splitload_OpAMD64CMPWconstloadidx1(v)
-	case OpAMD64CMPWconstloadidx2:
+	case ssaop.OpAMD64CMPWconstloadidx2:
 		return rewriteValueAMD64splitload_OpAMD64CMPWconstloadidx2(v)
-	case OpAMD64CMPWload:
+	case ssaop.OpAMD64CMPWload:
 		return rewriteValueAMD64splitload_OpAMD64CMPWload(v)
-	case OpAMD64CMPWloadidx1:
+	case ssaop.OpAMD64CMPWloadidx1:
 		return rewriteValueAMD64splitload_OpAMD64CMPWloadidx1(v)
-	case OpAMD64CMPWloadidx2:
+	case ssaop.OpAMD64CMPWloadidx2:
 		return rewriteValueAMD64splitload_OpAMD64CMPWloadidx2(v)
 	}
 	return false
@@ -67,8 +69,8 @@ func rewriteValueAMD64splitload_OpAMD64CMPBconstload(v *Value) bool {
 		if !(vo.Val() == 0) {
 			break
 		}
-		v.Reset(OpAMD64TESTB)
-		x := b.NewValue0(v.Pos, OpAMD64MOVBload, typ.UInt8)
+		v.Reset(ssaop.OpAMD64TESTB)
+		x := b.NewValue0(v.Pos, ssaop.OpAMD64MOVBload, typ.UInt8)
 		x.AuxInt = Int32ToAuxInt(vo.Off())
 		x.Aux = SymToAux(sym)
 		x.AddArg2(ptr, mem)
@@ -86,9 +88,9 @@ func rewriteValueAMD64splitload_OpAMD64CMPBconstload(v *Value) bool {
 		if !(vo.Val() != 0) {
 			break
 		}
-		v.Reset(OpAMD64CMPBconst)
+		v.Reset(ssaop.OpAMD64CMPBconst)
 		v.AuxInt = Int8ToAuxInt(vo.Val8())
-		v0 := b.NewValue0(v.Pos, OpAMD64MOVBload, typ.UInt8)
+		v0 := b.NewValue0(v.Pos, ssaop.OpAMD64MOVBload, typ.UInt8)
 		v0.AuxInt = Int32ToAuxInt(vo.Off())
 		v0.Aux = SymToAux(sym)
 		v0.AddArg2(ptr, mem)
@@ -115,8 +117,8 @@ func rewriteValueAMD64splitload_OpAMD64CMPBconstloadidx1(v *Value) bool {
 		if !(vo.Val() == 0) {
 			break
 		}
-		v.Reset(OpAMD64TESTB)
-		x := b.NewValue0(v.Pos, OpAMD64MOVBloadidx1, typ.UInt8)
+		v.Reset(ssaop.OpAMD64TESTB)
+		x := b.NewValue0(v.Pos, ssaop.OpAMD64MOVBloadidx1, typ.UInt8)
 		x.AuxInt = Int32ToAuxInt(vo.Off())
 		x.Aux = SymToAux(sym)
 		x.AddArg3(ptr, idx, mem)
@@ -135,9 +137,9 @@ func rewriteValueAMD64splitload_OpAMD64CMPBconstloadidx1(v *Value) bool {
 		if !(vo.Val() != 0) {
 			break
 		}
-		v.Reset(OpAMD64CMPBconst)
+		v.Reset(ssaop.OpAMD64CMPBconst)
 		v.AuxInt = Int8ToAuxInt(vo.Val8())
-		v0 := b.NewValue0(v.Pos, OpAMD64MOVBloadidx1, typ.UInt8)
+		v0 := b.NewValue0(v.Pos, ssaop.OpAMD64MOVBloadidx1, typ.UInt8)
 		v0.AuxInt = Int32ToAuxInt(vo.Off())
 		v0.Aux = SymToAux(sym)
 		v0.AddArg3(ptr, idx, mem)
@@ -159,8 +161,8 @@ func rewriteValueAMD64splitload_OpAMD64CMPBload(v *Value) bool {
 		ptr := v_0
 		x := v_1
 		mem := v_2
-		v.Reset(OpAMD64CMPB)
-		v0 := b.NewValue0(v.Pos, OpAMD64MOVBload, x.Type)
+		v.Reset(ssaop.OpAMD64CMPB)
+		v0 := b.NewValue0(v.Pos, ssaop.OpAMD64MOVBload, x.Type)
 		v0.AuxInt = Int32ToAuxInt(off)
 		v0.Aux = SymToAux(sym)
 		v0.AddArg2(ptr, mem)
@@ -183,8 +185,8 @@ func rewriteValueAMD64splitload_OpAMD64CMPBloadidx1(v *Value) bool {
 		idx := v_1
 		x := v_2
 		mem := v_3
-		v.Reset(OpAMD64CMPB)
-		v0 := b.NewValue0(v.Pos, OpAMD64MOVBloadidx1, x.Type)
+		v.Reset(ssaop.OpAMD64CMPB)
+		v0 := b.NewValue0(v.Pos, ssaop.OpAMD64MOVBloadidx1, x.Type)
 		v0.AuxInt = Int32ToAuxInt(off)
 		v0.Aux = SymToAux(sym)
 		v0.AddArg3(ptr, idx, mem)
@@ -208,8 +210,8 @@ func rewriteValueAMD64splitload_OpAMD64CMPLconstload(v *Value) bool {
 		if !(vo.Val() == 0) {
 			break
 		}
-		v.Reset(OpAMD64TESTL)
-		x := b.NewValue0(v.Pos, OpAMD64MOVLload, typ.UInt32)
+		v.Reset(ssaop.OpAMD64TESTL)
+		x := b.NewValue0(v.Pos, ssaop.OpAMD64MOVLload, typ.UInt32)
 		x.AuxInt = Int32ToAuxInt(vo.Off())
 		x.Aux = SymToAux(sym)
 		x.AddArg2(ptr, mem)
@@ -227,9 +229,9 @@ func rewriteValueAMD64splitload_OpAMD64CMPLconstload(v *Value) bool {
 		if !(vo.Val() != 0) {
 			break
 		}
-		v.Reset(OpAMD64CMPLconst)
+		v.Reset(ssaop.OpAMD64CMPLconst)
 		v.AuxInt = Int32ToAuxInt(vo.Val())
-		v0 := b.NewValue0(v.Pos, OpAMD64MOVLload, typ.UInt32)
+		v0 := b.NewValue0(v.Pos, ssaop.OpAMD64MOVLload, typ.UInt32)
 		v0.AuxInt = Int32ToAuxInt(vo.Off())
 		v0.Aux = SymToAux(sym)
 		v0.AddArg2(ptr, mem)
@@ -256,8 +258,8 @@ func rewriteValueAMD64splitload_OpAMD64CMPLconstloadidx1(v *Value) bool {
 		if !(vo.Val() == 0) {
 			break
 		}
-		v.Reset(OpAMD64TESTL)
-		x := b.NewValue0(v.Pos, OpAMD64MOVLloadidx1, typ.UInt32)
+		v.Reset(ssaop.OpAMD64TESTL)
+		x := b.NewValue0(v.Pos, ssaop.OpAMD64MOVLloadidx1, typ.UInt32)
 		x.AuxInt = Int32ToAuxInt(vo.Off())
 		x.Aux = SymToAux(sym)
 		x.AddArg3(ptr, idx, mem)
@@ -276,9 +278,9 @@ func rewriteValueAMD64splitload_OpAMD64CMPLconstloadidx1(v *Value) bool {
 		if !(vo.Val() != 0) {
 			break
 		}
-		v.Reset(OpAMD64CMPLconst)
+		v.Reset(ssaop.OpAMD64CMPLconst)
 		v.AuxInt = Int32ToAuxInt(vo.Val())
-		v0 := b.NewValue0(v.Pos, OpAMD64MOVLloadidx1, typ.UInt32)
+		v0 := b.NewValue0(v.Pos, ssaop.OpAMD64MOVLloadidx1, typ.UInt32)
 		v0.AuxInt = Int32ToAuxInt(vo.Off())
 		v0.Aux = SymToAux(sym)
 		v0.AddArg3(ptr, idx, mem)
@@ -305,8 +307,8 @@ func rewriteValueAMD64splitload_OpAMD64CMPLconstloadidx4(v *Value) bool {
 		if !(vo.Val() == 0) {
 			break
 		}
-		v.Reset(OpAMD64TESTL)
-		x := b.NewValue0(v.Pos, OpAMD64MOVLloadidx4, typ.UInt32)
+		v.Reset(ssaop.OpAMD64TESTL)
+		x := b.NewValue0(v.Pos, ssaop.OpAMD64MOVLloadidx4, typ.UInt32)
 		x.AuxInt = Int32ToAuxInt(vo.Off())
 		x.Aux = SymToAux(sym)
 		x.AddArg3(ptr, idx, mem)
@@ -325,9 +327,9 @@ func rewriteValueAMD64splitload_OpAMD64CMPLconstloadidx4(v *Value) bool {
 		if !(vo.Val() != 0) {
 			break
 		}
-		v.Reset(OpAMD64CMPLconst)
+		v.Reset(ssaop.OpAMD64CMPLconst)
 		v.AuxInt = Int32ToAuxInt(vo.Val())
-		v0 := b.NewValue0(v.Pos, OpAMD64MOVLloadidx4, typ.UInt32)
+		v0 := b.NewValue0(v.Pos, ssaop.OpAMD64MOVLloadidx4, typ.UInt32)
 		v0.AuxInt = Int32ToAuxInt(vo.Off())
 		v0.Aux = SymToAux(sym)
 		v0.AddArg3(ptr, idx, mem)
@@ -349,8 +351,8 @@ func rewriteValueAMD64splitload_OpAMD64CMPLload(v *Value) bool {
 		ptr := v_0
 		x := v_1
 		mem := v_2
-		v.Reset(OpAMD64CMPL)
-		v0 := b.NewValue0(v.Pos, OpAMD64MOVLload, x.Type)
+		v.Reset(ssaop.OpAMD64CMPL)
+		v0 := b.NewValue0(v.Pos, ssaop.OpAMD64MOVLload, x.Type)
 		v0.AuxInt = Int32ToAuxInt(off)
 		v0.Aux = SymToAux(sym)
 		v0.AddArg2(ptr, mem)
@@ -373,8 +375,8 @@ func rewriteValueAMD64splitload_OpAMD64CMPLloadidx1(v *Value) bool {
 		idx := v_1
 		x := v_2
 		mem := v_3
-		v.Reset(OpAMD64CMPL)
-		v0 := b.NewValue0(v.Pos, OpAMD64MOVLloadidx1, x.Type)
+		v.Reset(ssaop.OpAMD64CMPL)
+		v0 := b.NewValue0(v.Pos, ssaop.OpAMD64MOVLloadidx1, x.Type)
 		v0.AuxInt = Int32ToAuxInt(off)
 		v0.Aux = SymToAux(sym)
 		v0.AddArg3(ptr, idx, mem)
@@ -397,8 +399,8 @@ func rewriteValueAMD64splitload_OpAMD64CMPLloadidx4(v *Value) bool {
 		idx := v_1
 		x := v_2
 		mem := v_3
-		v.Reset(OpAMD64CMPL)
-		v0 := b.NewValue0(v.Pos, OpAMD64MOVLloadidx4, x.Type)
+		v.Reset(ssaop.OpAMD64CMPL)
+		v0 := b.NewValue0(v.Pos, ssaop.OpAMD64MOVLloadidx4, x.Type)
 		v0.AuxInt = Int32ToAuxInt(off)
 		v0.Aux = SymToAux(sym)
 		v0.AddArg3(ptr, idx, mem)
@@ -422,8 +424,8 @@ func rewriteValueAMD64splitload_OpAMD64CMPQconstload(v *Value) bool {
 		if !(vo.Val() == 0) {
 			break
 		}
-		v.Reset(OpAMD64TESTQ)
-		x := b.NewValue0(v.Pos, OpAMD64MOVQload, typ.UInt64)
+		v.Reset(ssaop.OpAMD64TESTQ)
+		x := b.NewValue0(v.Pos, ssaop.OpAMD64MOVQload, typ.UInt64)
 		x.AuxInt = Int32ToAuxInt(vo.Off())
 		x.Aux = SymToAux(sym)
 		x.AddArg2(ptr, mem)
@@ -441,9 +443,9 @@ func rewriteValueAMD64splitload_OpAMD64CMPQconstload(v *Value) bool {
 		if !(vo.Val() != 0) {
 			break
 		}
-		v.Reset(OpAMD64CMPQconst)
+		v.Reset(ssaop.OpAMD64CMPQconst)
 		v.AuxInt = Int32ToAuxInt(vo.Val())
-		v0 := b.NewValue0(v.Pos, OpAMD64MOVQload, typ.UInt64)
+		v0 := b.NewValue0(v.Pos, ssaop.OpAMD64MOVQload, typ.UInt64)
 		v0.AuxInt = Int32ToAuxInt(vo.Off())
 		v0.Aux = SymToAux(sym)
 		v0.AddArg2(ptr, mem)
@@ -470,8 +472,8 @@ func rewriteValueAMD64splitload_OpAMD64CMPQconstloadidx1(v *Value) bool {
 		if !(vo.Val() == 0) {
 			break
 		}
-		v.Reset(OpAMD64TESTQ)
-		x := b.NewValue0(v.Pos, OpAMD64MOVQloadidx1, typ.UInt64)
+		v.Reset(ssaop.OpAMD64TESTQ)
+		x := b.NewValue0(v.Pos, ssaop.OpAMD64MOVQloadidx1, typ.UInt64)
 		x.AuxInt = Int32ToAuxInt(vo.Off())
 		x.Aux = SymToAux(sym)
 		x.AddArg3(ptr, idx, mem)
@@ -490,9 +492,9 @@ func rewriteValueAMD64splitload_OpAMD64CMPQconstloadidx1(v *Value) bool {
 		if !(vo.Val() != 0) {
 			break
 		}
-		v.Reset(OpAMD64CMPQconst)
+		v.Reset(ssaop.OpAMD64CMPQconst)
 		v.AuxInt = Int32ToAuxInt(vo.Val())
-		v0 := b.NewValue0(v.Pos, OpAMD64MOVQloadidx1, typ.UInt64)
+		v0 := b.NewValue0(v.Pos, ssaop.OpAMD64MOVQloadidx1, typ.UInt64)
 		v0.AuxInt = Int32ToAuxInt(vo.Off())
 		v0.Aux = SymToAux(sym)
 		v0.AddArg3(ptr, idx, mem)
@@ -519,8 +521,8 @@ func rewriteValueAMD64splitload_OpAMD64CMPQconstloadidx8(v *Value) bool {
 		if !(vo.Val() == 0) {
 			break
 		}
-		v.Reset(OpAMD64TESTQ)
-		x := b.NewValue0(v.Pos, OpAMD64MOVQloadidx8, typ.UInt64)
+		v.Reset(ssaop.OpAMD64TESTQ)
+		x := b.NewValue0(v.Pos, ssaop.OpAMD64MOVQloadidx8, typ.UInt64)
 		x.AuxInt = Int32ToAuxInt(vo.Off())
 		x.Aux = SymToAux(sym)
 		x.AddArg3(ptr, idx, mem)
@@ -539,9 +541,9 @@ func rewriteValueAMD64splitload_OpAMD64CMPQconstloadidx8(v *Value) bool {
 		if !(vo.Val() != 0) {
 			break
 		}
-		v.Reset(OpAMD64CMPQconst)
+		v.Reset(ssaop.OpAMD64CMPQconst)
 		v.AuxInt = Int32ToAuxInt(vo.Val())
-		v0 := b.NewValue0(v.Pos, OpAMD64MOVQloadidx8, typ.UInt64)
+		v0 := b.NewValue0(v.Pos, ssaop.OpAMD64MOVQloadidx8, typ.UInt64)
 		v0.AuxInt = Int32ToAuxInt(vo.Off())
 		v0.Aux = SymToAux(sym)
 		v0.AddArg3(ptr, idx, mem)
@@ -563,8 +565,8 @@ func rewriteValueAMD64splitload_OpAMD64CMPQload(v *Value) bool {
 		ptr := v_0
 		x := v_1
 		mem := v_2
-		v.Reset(OpAMD64CMPQ)
-		v0 := b.NewValue0(v.Pos, OpAMD64MOVQload, x.Type)
+		v.Reset(ssaop.OpAMD64CMPQ)
+		v0 := b.NewValue0(v.Pos, ssaop.OpAMD64MOVQload, x.Type)
 		v0.AuxInt = Int32ToAuxInt(off)
 		v0.Aux = SymToAux(sym)
 		v0.AddArg2(ptr, mem)
@@ -587,8 +589,8 @@ func rewriteValueAMD64splitload_OpAMD64CMPQloadidx1(v *Value) bool {
 		idx := v_1
 		x := v_2
 		mem := v_3
-		v.Reset(OpAMD64CMPQ)
-		v0 := b.NewValue0(v.Pos, OpAMD64MOVQloadidx1, x.Type)
+		v.Reset(ssaop.OpAMD64CMPQ)
+		v0 := b.NewValue0(v.Pos, ssaop.OpAMD64MOVQloadidx1, x.Type)
 		v0.AuxInt = Int32ToAuxInt(off)
 		v0.Aux = SymToAux(sym)
 		v0.AddArg3(ptr, idx, mem)
@@ -611,8 +613,8 @@ func rewriteValueAMD64splitload_OpAMD64CMPQloadidx8(v *Value) bool {
 		idx := v_1
 		x := v_2
 		mem := v_3
-		v.Reset(OpAMD64CMPQ)
-		v0 := b.NewValue0(v.Pos, OpAMD64MOVQloadidx8, x.Type)
+		v.Reset(ssaop.OpAMD64CMPQ)
+		v0 := b.NewValue0(v.Pos, ssaop.OpAMD64MOVQloadidx8, x.Type)
 		v0.AuxInt = Int32ToAuxInt(off)
 		v0.Aux = SymToAux(sym)
 		v0.AddArg3(ptr, idx, mem)
@@ -636,8 +638,8 @@ func rewriteValueAMD64splitload_OpAMD64CMPWconstload(v *Value) bool {
 		if !(vo.Val() == 0) {
 			break
 		}
-		v.Reset(OpAMD64TESTW)
-		x := b.NewValue0(v.Pos, OpAMD64MOVWload, typ.UInt16)
+		v.Reset(ssaop.OpAMD64TESTW)
+		x := b.NewValue0(v.Pos, ssaop.OpAMD64MOVWload, typ.UInt16)
 		x.AuxInt = Int32ToAuxInt(vo.Off())
 		x.Aux = SymToAux(sym)
 		x.AddArg2(ptr, mem)
@@ -655,9 +657,9 @@ func rewriteValueAMD64splitload_OpAMD64CMPWconstload(v *Value) bool {
 		if !(vo.Val() != 0) {
 			break
 		}
-		v.Reset(OpAMD64CMPWconst)
+		v.Reset(ssaop.OpAMD64CMPWconst)
 		v.AuxInt = Int16ToAuxInt(vo.Val16())
-		v0 := b.NewValue0(v.Pos, OpAMD64MOVWload, typ.UInt16)
+		v0 := b.NewValue0(v.Pos, ssaop.OpAMD64MOVWload, typ.UInt16)
 		v0.AuxInt = Int32ToAuxInt(vo.Off())
 		v0.Aux = SymToAux(sym)
 		v0.AddArg2(ptr, mem)
@@ -684,8 +686,8 @@ func rewriteValueAMD64splitload_OpAMD64CMPWconstloadidx1(v *Value) bool {
 		if !(vo.Val() == 0) {
 			break
 		}
-		v.Reset(OpAMD64TESTW)
-		x := b.NewValue0(v.Pos, OpAMD64MOVWloadidx1, typ.UInt16)
+		v.Reset(ssaop.OpAMD64TESTW)
+		x := b.NewValue0(v.Pos, ssaop.OpAMD64MOVWloadidx1, typ.UInt16)
 		x.AuxInt = Int32ToAuxInt(vo.Off())
 		x.Aux = SymToAux(sym)
 		x.AddArg3(ptr, idx, mem)
@@ -704,9 +706,9 @@ func rewriteValueAMD64splitload_OpAMD64CMPWconstloadidx1(v *Value) bool {
 		if !(vo.Val() != 0) {
 			break
 		}
-		v.Reset(OpAMD64CMPWconst)
+		v.Reset(ssaop.OpAMD64CMPWconst)
 		v.AuxInt = Int16ToAuxInt(vo.Val16())
-		v0 := b.NewValue0(v.Pos, OpAMD64MOVWloadidx1, typ.UInt16)
+		v0 := b.NewValue0(v.Pos, ssaop.OpAMD64MOVWloadidx1, typ.UInt16)
 		v0.AuxInt = Int32ToAuxInt(vo.Off())
 		v0.Aux = SymToAux(sym)
 		v0.AddArg3(ptr, idx, mem)
@@ -733,8 +735,8 @@ func rewriteValueAMD64splitload_OpAMD64CMPWconstloadidx2(v *Value) bool {
 		if !(vo.Val() == 0) {
 			break
 		}
-		v.Reset(OpAMD64TESTW)
-		x := b.NewValue0(v.Pos, OpAMD64MOVWloadidx2, typ.UInt16)
+		v.Reset(ssaop.OpAMD64TESTW)
+		x := b.NewValue0(v.Pos, ssaop.OpAMD64MOVWloadidx2, typ.UInt16)
 		x.AuxInt = Int32ToAuxInt(vo.Off())
 		x.Aux = SymToAux(sym)
 		x.AddArg3(ptr, idx, mem)
@@ -753,9 +755,9 @@ func rewriteValueAMD64splitload_OpAMD64CMPWconstloadidx2(v *Value) bool {
 		if !(vo.Val() != 0) {
 			break
 		}
-		v.Reset(OpAMD64CMPWconst)
+		v.Reset(ssaop.OpAMD64CMPWconst)
 		v.AuxInt = Int16ToAuxInt(vo.Val16())
-		v0 := b.NewValue0(v.Pos, OpAMD64MOVWloadidx2, typ.UInt16)
+		v0 := b.NewValue0(v.Pos, ssaop.OpAMD64MOVWloadidx2, typ.UInt16)
 		v0.AuxInt = Int32ToAuxInt(vo.Off())
 		v0.Aux = SymToAux(sym)
 		v0.AddArg3(ptr, idx, mem)
@@ -777,8 +779,8 @@ func rewriteValueAMD64splitload_OpAMD64CMPWload(v *Value) bool {
 		ptr := v_0
 		x := v_1
 		mem := v_2
-		v.Reset(OpAMD64CMPW)
-		v0 := b.NewValue0(v.Pos, OpAMD64MOVWload, x.Type)
+		v.Reset(ssaop.OpAMD64CMPW)
+		v0 := b.NewValue0(v.Pos, ssaop.OpAMD64MOVWload, x.Type)
 		v0.AuxInt = Int32ToAuxInt(off)
 		v0.Aux = SymToAux(sym)
 		v0.AddArg2(ptr, mem)
@@ -801,8 +803,8 @@ func rewriteValueAMD64splitload_OpAMD64CMPWloadidx1(v *Value) bool {
 		idx := v_1
 		x := v_2
 		mem := v_3
-		v.Reset(OpAMD64CMPW)
-		v0 := b.NewValue0(v.Pos, OpAMD64MOVWloadidx1, x.Type)
+		v.Reset(ssaop.OpAMD64CMPW)
+		v0 := b.NewValue0(v.Pos, ssaop.OpAMD64MOVWloadidx1, x.Type)
 		v0.AuxInt = Int32ToAuxInt(off)
 		v0.Aux = SymToAux(sym)
 		v0.AddArg3(ptr, idx, mem)
@@ -825,8 +827,8 @@ func rewriteValueAMD64splitload_OpAMD64CMPWloadidx2(v *Value) bool {
 		idx := v_1
 		x := v_2
 		mem := v_3
-		v.Reset(OpAMD64CMPW)
-		v0 := b.NewValue0(v.Pos, OpAMD64MOVWloadidx2, x.Type)
+		v.Reset(ssaop.OpAMD64CMPW)
+		v0 := b.NewValue0(v.Pos, ssaop.OpAMD64MOVWloadidx2, x.Type)
 		v0.AuxInt = Int32ToAuxInt(off)
 		v0.Aux = SymToAux(sym)
 		v0.AddArg3(ptr, idx, mem)

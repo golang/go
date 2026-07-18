@@ -4,6 +4,7 @@ package arm64
 
 import (
 	"cmd/compile/internal/ssa"
+	"cmd/compile/internal/ssa/ssaop"
 	"cmd/compile/internal/ssagen"
 	"cmd/internal/obj"
 	"cmd/internal/obj/arm64"
@@ -12,450 +13,450 @@ import (
 func ssaGenSIMDValue(s *ssagen.State, v *ssa.Value) bool {
 	var p *obj.Prog
 	switch v.Op {
-	case ssa.OpARM64VABS16B,
-		ssa.OpARM64VCLS16B,
-		ssa.OpARM64VCLZ16B,
-		ssa.OpARM64VNEG16B,
-		ssa.OpARM64VNOT16B,
-		ssa.OpARM64VCNT16B:
+	case ssaop.OpARM64VABS16B,
+		ssaop.OpARM64VCLS16B,
+		ssaop.OpARM64VCLZ16B,
+		ssaop.OpARM64VNEG16B,
+		ssaop.OpARM64VNOT16B,
+		ssaop.OpARM64VCNT16B:
 		p = simdV11(s, v, arm64.ARNG_16B)
 
-	case ssa.OpARM64VFABS2D,
-		ssa.OpARM64VABS2D,
-		ssa.OpARM64VFRINTP2D,
-		ssa.OpARM64VSCVTF2D,
-		ssa.OpARM64VUCVTF2D,
-		ssa.OpARM64VFCVTZS2D,
-		ssa.OpARM64VFCVTZU2D,
-		ssa.OpARM64VFRINTM2D,
-		ssa.OpARM64VFNEG2D,
-		ssa.OpARM64VNEG2D,
-		ssa.OpARM64VFRINTN2D,
-		ssa.OpARM64VFSQRT2D,
-		ssa.OpARM64VFRINTZ2D:
+	case ssaop.OpARM64VFABS2D,
+		ssaop.OpARM64VABS2D,
+		ssaop.OpARM64VFRINTP2D,
+		ssaop.OpARM64VSCVTF2D,
+		ssaop.OpARM64VUCVTF2D,
+		ssaop.OpARM64VFCVTZS2D,
+		ssaop.OpARM64VFCVTZU2D,
+		ssaop.OpARM64VFRINTM2D,
+		ssaop.OpARM64VFNEG2D,
+		ssaop.OpARM64VNEG2D,
+		ssaop.OpARM64VFRINTN2D,
+		ssaop.OpARM64VFSQRT2D,
+		ssaop.OpARM64VFRINTZ2D:
 		p = simdV11(s, v, arm64.ARNG_2D)
 
-	case ssa.OpARM64VFABS4S,
-		ssa.OpARM64VABS4S,
-		ssa.OpARM64VFRINTP4S,
-		ssa.OpARM64VSCVTF4S,
-		ssa.OpARM64VUCVTF4S,
-		ssa.OpARM64VFCVTZS4S,
-		ssa.OpARM64VFCVTZU4S,
-		ssa.OpARM64VFRINTM4S,
-		ssa.OpARM64VCLS4S,
-		ssa.OpARM64VCLZ4S,
-		ssa.OpARM64VFNEG4S,
-		ssa.OpARM64VNEG4S,
-		ssa.OpARM64VFRINTN4S,
-		ssa.OpARM64VFSQRT4S,
-		ssa.OpARM64VFRINTZ4S:
+	case ssaop.OpARM64VFABS4S,
+		ssaop.OpARM64VABS4S,
+		ssaop.OpARM64VFRINTP4S,
+		ssaop.OpARM64VSCVTF4S,
+		ssaop.OpARM64VUCVTF4S,
+		ssaop.OpARM64VFCVTZS4S,
+		ssaop.OpARM64VFCVTZU4S,
+		ssaop.OpARM64VFRINTM4S,
+		ssaop.OpARM64VCLS4S,
+		ssaop.OpARM64VCLZ4S,
+		ssaop.OpARM64VFNEG4S,
+		ssaop.OpARM64VNEG4S,
+		ssaop.OpARM64VFRINTN4S,
+		ssaop.OpARM64VFSQRT4S,
+		ssaop.OpARM64VFRINTZ4S:
 		p = simdV11(s, v, arm64.ARNG_4S)
 
-	case ssa.OpARM64VABS8H,
-		ssa.OpARM64VCLS8H,
-		ssa.OpARM64VCLZ8H,
-		ssa.OpARM64VNEG8H:
+	case ssaop.OpARM64VABS8H,
+		ssaop.OpARM64VCLS8H,
+		ssaop.OpARM64VCLZ8H,
+		ssaop.OpARM64VNEG8H:
 		p = simdV11(s, v, arm64.ARNG_8H)
 
-	case ssa.OpARM64VSHL16B,
-		ssa.OpARM64VSSHR16B,
-		ssa.OpARM64VUSHR16B,
-		ssa.OpARM64VSQSHL16Bconst,
-		ssa.OpARM64VUQSHL16Bconst:
+	case ssaop.OpARM64VSHL16B,
+		ssaop.OpARM64VSSHR16B,
+		ssaop.OpARM64VUSHR16B,
+		ssaop.OpARM64VSQSHL16Bconst,
+		ssaop.OpARM64VUQSHL16Bconst:
 		p = simdV11Imm(s, v, arm64.ARNG_16B)
 
-	case ssa.OpARM64VSHL2D,
-		ssa.OpARM64VSSHR2D,
-		ssa.OpARM64VUSHR2D,
-		ssa.OpARM64VSQSHL2Dconst,
-		ssa.OpARM64VUQSHL2Dconst:
+	case ssaop.OpARM64VSHL2D,
+		ssaop.OpARM64VSSHR2D,
+		ssaop.OpARM64VUSHR2D,
+		ssaop.OpARM64VSQSHL2Dconst,
+		ssaop.OpARM64VUQSHL2Dconst:
 		p = simdV11Imm(s, v, arm64.ARNG_2D)
 
-	case ssa.OpARM64VSHL4S,
-		ssa.OpARM64VSSHR4S,
-		ssa.OpARM64VUSHR4S,
-		ssa.OpARM64VSQSHL4Sconst,
-		ssa.OpARM64VUQSHL4Sconst:
+	case ssaop.OpARM64VSHL4S,
+		ssaop.OpARM64VSSHR4S,
+		ssaop.OpARM64VUSHR4S,
+		ssaop.OpARM64VSQSHL4Sconst,
+		ssaop.OpARM64VUQSHL4Sconst:
 		p = simdV11Imm(s, v, arm64.ARNG_4S)
 
-	case ssa.OpARM64VSHL8H,
-		ssa.OpARM64VSSHR8H,
-		ssa.OpARM64VUSHR8H,
-		ssa.OpARM64VSQSHL8Hconst,
-		ssa.OpARM64VUQSHL8Hconst:
+	case ssaop.OpARM64VSHL8H,
+		ssaop.OpARM64VSSHR8H,
+		ssaop.OpARM64VUSHR8H,
+		ssaop.OpARM64VSQSHL8Hconst,
+		ssaop.OpARM64VUQSHL8Hconst:
 		p = simdV11Imm(s, v, arm64.ARNG_8H)
 
-	case ssa.OpARM64VDUPBbcast:
+	case ssaop.OpARM64VDUPBbcast:
 		p = simdV11ImmIn1(s, v, arm64.ARNG_B)
 
-	case ssa.OpARM64VDUPDbcast:
+	case ssaop.OpARM64VDUPDbcast:
 		p = simdV11ImmIn1(s, v, arm64.ARNG_D)
 
-	case ssa.OpARM64VDUPHbcast:
+	case ssaop.OpARM64VDUPHbcast:
 		p = simdV11ImmIn1(s, v, arm64.ARNG_H)
 
-	case ssa.OpARM64VDUPSbcast:
+	case ssaop.OpARM64VDUPSbcast:
 		p = simdV11ImmIn1(s, v, arm64.ARNG_S)
 
-	case ssa.OpARM64VSMAXV16B,
-		ssa.OpARM64VUMAXV16B,
-		ssa.OpARM64VSMINV16B,
-		ssa.OpARM64VUMINV16B,
-		ssa.OpARM64VADDV16B:
+	case ssaop.OpARM64VSMAXV16B,
+		ssaop.OpARM64VUMAXV16B,
+		ssaop.OpARM64VSMINV16B,
+		ssaop.OpARM64VUMINV16B,
+		ssaop.OpARM64VADDV16B:
 		p = simdV11Scalar(s, v, arm64.ARNG_16B)
 
-	case ssa.OpARM64VFMAXV4S,
-		ssa.OpARM64VSMAXV4S,
-		ssa.OpARM64VUMAXV4S,
-		ssa.OpARM64VFMINV4S,
-		ssa.OpARM64VSMINV4S,
-		ssa.OpARM64VUMINV4S,
-		ssa.OpARM64VADDV4S:
+	case ssaop.OpARM64VFMAXV4S,
+		ssaop.OpARM64VSMAXV4S,
+		ssaop.OpARM64VUMAXV4S,
+		ssaop.OpARM64VFMINV4S,
+		ssaop.OpARM64VSMINV4S,
+		ssaop.OpARM64VUMINV4S,
+		ssaop.OpARM64VADDV4S:
 		p = simdV11Scalar(s, v, arm64.ARNG_4S)
 
-	case ssa.OpARM64VSMAXV8H,
-		ssa.OpARM64VUMAXV8H,
-		ssa.OpARM64VSMINV8H,
-		ssa.OpARM64VUMINV8H,
-		ssa.OpARM64VADDV8H:
+	case ssaop.OpARM64VSMAXV8H,
+		ssaop.OpARM64VUMAXV8H,
+		ssaop.OpARM64VSMINV8H,
+		ssaop.OpARM64VUMINV8H,
+		ssaop.OpARM64VADDV8H:
 		p = simdV11Scalar(s, v, arm64.ARNG_8H)
 
-	case ssa.OpARM64VDUPDextr:
+	case ssaop.OpARM64VDUPDextr:
 		p = simdV11ScalarImmIn1(s, v, arm64.ARNG_D)
 
-	case ssa.OpARM64VDUPSextr:
+	case ssaop.OpARM64VDUPSextr:
 		p = simdV11ScalarImmIn1(s, v, arm64.ARNG_S)
 
-	case ssa.OpARM64VADD16B,
-		ssa.OpARM64VSQADD16B,
-		ssa.OpARM64VUQADD16B,
-		ssa.OpARM64VAND16B,
-		ssa.OpARM64VBIC16B,
-		ssa.OpARM64VSRHADD16B,
-		ssa.OpARM64VURHADD16B,
-		ssa.OpARM64VUZP116B,
-		ssa.OpARM64VUZP216B,
-		ssa.OpARM64VCMEQ16B,
-		ssa.OpARM64VCMGT16B,
-		ssa.OpARM64VCMHI16B,
-		ssa.OpARM64VCMGE16B,
-		ssa.OpARM64VCMHS16B,
-		ssa.OpARM64VTRN116B,
-		ssa.OpARM64VZIP216B,
-		ssa.OpARM64VZIP116B,
-		ssa.OpARM64VTRN216B,
-		ssa.OpARM64VSMAX16B,
-		ssa.OpARM64VUMAX16B,
-		ssa.OpARM64VSMIN16B,
-		ssa.OpARM64VUMIN16B,
-		ssa.OpARM64VMUL16B,
-		ssa.OpARM64VORR16B,
-		ssa.OpARM64VORN16B,
-		ssa.OpARM64VSSHL16B,
-		ssa.OpARM64VUSHL16B,
-		ssa.OpARM64VSQSHL16B,
-		ssa.OpARM64VUQSHL16B,
-		ssa.OpARM64VSUB16B,
-		ssa.OpARM64VSQSUB16B,
-		ssa.OpARM64VUQSUB16B,
-		ssa.OpARM64VEOR16B:
+	case ssaop.OpARM64VADD16B,
+		ssaop.OpARM64VSQADD16B,
+		ssaop.OpARM64VUQADD16B,
+		ssaop.OpARM64VAND16B,
+		ssaop.OpARM64VBIC16B,
+		ssaop.OpARM64VSRHADD16B,
+		ssaop.OpARM64VURHADD16B,
+		ssaop.OpARM64VUZP116B,
+		ssaop.OpARM64VUZP216B,
+		ssaop.OpARM64VCMEQ16B,
+		ssaop.OpARM64VCMGT16B,
+		ssaop.OpARM64VCMHI16B,
+		ssaop.OpARM64VCMGE16B,
+		ssaop.OpARM64VCMHS16B,
+		ssaop.OpARM64VTRN116B,
+		ssaop.OpARM64VZIP216B,
+		ssaop.OpARM64VZIP116B,
+		ssaop.OpARM64VTRN216B,
+		ssaop.OpARM64VSMAX16B,
+		ssaop.OpARM64VUMAX16B,
+		ssaop.OpARM64VSMIN16B,
+		ssaop.OpARM64VUMIN16B,
+		ssaop.OpARM64VMUL16B,
+		ssaop.OpARM64VORR16B,
+		ssaop.OpARM64VORN16B,
+		ssaop.OpARM64VSSHL16B,
+		ssaop.OpARM64VUSHL16B,
+		ssaop.OpARM64VSQSHL16B,
+		ssaop.OpARM64VUQSHL16B,
+		ssaop.OpARM64VSUB16B,
+		ssaop.OpARM64VSQSUB16B,
+		ssaop.OpARM64VUQSUB16B,
+		ssaop.OpARM64VEOR16B:
 		p = simdV21(s, v, arm64.ARNG_16B)
 
-	case ssa.OpARM64VFADD2D,
-		ssa.OpARM64VADD2D,
-		ssa.OpARM64VSQADD2D,
-		ssa.OpARM64VUQADD2D,
-		ssa.OpARM64VFADDP2D,
-		ssa.OpARM64VADDP2D,
-		ssa.OpARM64VUZP12D,
-		ssa.OpARM64VUZP22D,
-		ssa.OpARM64VFDIV2D,
-		ssa.OpARM64VFCMEQ2D,
-		ssa.OpARM64VCMEQ2D,
-		ssa.OpARM64VFCMGT2D,
-		ssa.OpARM64VCMGT2D,
-		ssa.OpARM64VCMHI2D,
-		ssa.OpARM64VFCMGE2D,
-		ssa.OpARM64VCMGE2D,
-		ssa.OpARM64VCMHS2D,
-		ssa.OpARM64VTRN12D,
-		ssa.OpARM64VZIP22D,
-		ssa.OpARM64VZIP12D,
-		ssa.OpARM64VTRN22D,
-		ssa.OpARM64VFMAX2D,
-		ssa.OpARM64VFMIN2D,
-		ssa.OpARM64VFMUL2D,
-		ssa.OpARM64VSSHL2D,
-		ssa.OpARM64VUSHL2D,
-		ssa.OpARM64VSQSHL2D,
-		ssa.OpARM64VUQSHL2D,
-		ssa.OpARM64VFSUB2D,
-		ssa.OpARM64VSUB2D,
-		ssa.OpARM64VSQSUB2D,
-		ssa.OpARM64VUQSUB2D:
+	case ssaop.OpARM64VFADD2D,
+		ssaop.OpARM64VADD2D,
+		ssaop.OpARM64VSQADD2D,
+		ssaop.OpARM64VUQADD2D,
+		ssaop.OpARM64VFADDP2D,
+		ssaop.OpARM64VADDP2D,
+		ssaop.OpARM64VUZP12D,
+		ssaop.OpARM64VUZP22D,
+		ssaop.OpARM64VFDIV2D,
+		ssaop.OpARM64VFCMEQ2D,
+		ssaop.OpARM64VCMEQ2D,
+		ssaop.OpARM64VFCMGT2D,
+		ssaop.OpARM64VCMGT2D,
+		ssaop.OpARM64VCMHI2D,
+		ssaop.OpARM64VFCMGE2D,
+		ssaop.OpARM64VCMGE2D,
+		ssaop.OpARM64VCMHS2D,
+		ssaop.OpARM64VTRN12D,
+		ssaop.OpARM64VZIP22D,
+		ssaop.OpARM64VZIP12D,
+		ssaop.OpARM64VTRN22D,
+		ssaop.OpARM64VFMAX2D,
+		ssaop.OpARM64VFMIN2D,
+		ssaop.OpARM64VFMUL2D,
+		ssaop.OpARM64VSSHL2D,
+		ssaop.OpARM64VUSHL2D,
+		ssaop.OpARM64VSQSHL2D,
+		ssaop.OpARM64VUQSHL2D,
+		ssaop.OpARM64VFSUB2D,
+		ssaop.OpARM64VSUB2D,
+		ssaop.OpARM64VSQSUB2D,
+		ssaop.OpARM64VUQSUB2D:
 		p = simdV21(s, v, arm64.ARNG_2D)
 
-	case ssa.OpARM64VFADD4S,
-		ssa.OpARM64VADD4S,
-		ssa.OpARM64VSQADD4S,
-		ssa.OpARM64VUQADD4S,
-		ssa.OpARM64VSRHADD4S,
-		ssa.OpARM64VURHADD4S,
-		ssa.OpARM64VFADDP4S,
-		ssa.OpARM64VADDP4S,
-		ssa.OpARM64VUZP14S,
-		ssa.OpARM64VUZP24S,
-		ssa.OpARM64VFDIV4S,
-		ssa.OpARM64VFCMEQ4S,
-		ssa.OpARM64VCMEQ4S,
-		ssa.OpARM64VFCMGT4S,
-		ssa.OpARM64VCMGT4S,
-		ssa.OpARM64VCMHI4S,
-		ssa.OpARM64VFCMGE4S,
-		ssa.OpARM64VCMGE4S,
-		ssa.OpARM64VCMHS4S,
-		ssa.OpARM64VTRN14S,
-		ssa.OpARM64VZIP24S,
-		ssa.OpARM64VZIP14S,
-		ssa.OpARM64VTRN24S,
-		ssa.OpARM64VFMAX4S,
-		ssa.OpARM64VSMAX4S,
-		ssa.OpARM64VUMAX4S,
-		ssa.OpARM64VFMIN4S,
-		ssa.OpARM64VSMIN4S,
-		ssa.OpARM64VUMIN4S,
-		ssa.OpARM64VFMUL4S,
-		ssa.OpARM64VMUL4S,
-		ssa.OpARM64VSSHL4S,
-		ssa.OpARM64VUSHL4S,
-		ssa.OpARM64VSQSHL4S,
-		ssa.OpARM64VUQSHL4S,
-		ssa.OpARM64VFSUB4S,
-		ssa.OpARM64VSUB4S,
-		ssa.OpARM64VSQSUB4S,
-		ssa.OpARM64VUQSUB4S:
+	case ssaop.OpARM64VFADD4S,
+		ssaop.OpARM64VADD4S,
+		ssaop.OpARM64VSQADD4S,
+		ssaop.OpARM64VUQADD4S,
+		ssaop.OpARM64VSRHADD4S,
+		ssaop.OpARM64VURHADD4S,
+		ssaop.OpARM64VFADDP4S,
+		ssaop.OpARM64VADDP4S,
+		ssaop.OpARM64VUZP14S,
+		ssaop.OpARM64VUZP24S,
+		ssaop.OpARM64VFDIV4S,
+		ssaop.OpARM64VFCMEQ4S,
+		ssaop.OpARM64VCMEQ4S,
+		ssaop.OpARM64VFCMGT4S,
+		ssaop.OpARM64VCMGT4S,
+		ssaop.OpARM64VCMHI4S,
+		ssaop.OpARM64VFCMGE4S,
+		ssaop.OpARM64VCMGE4S,
+		ssaop.OpARM64VCMHS4S,
+		ssaop.OpARM64VTRN14S,
+		ssaop.OpARM64VZIP24S,
+		ssaop.OpARM64VZIP14S,
+		ssaop.OpARM64VTRN24S,
+		ssaop.OpARM64VFMAX4S,
+		ssaop.OpARM64VSMAX4S,
+		ssaop.OpARM64VUMAX4S,
+		ssaop.OpARM64VFMIN4S,
+		ssaop.OpARM64VSMIN4S,
+		ssaop.OpARM64VUMIN4S,
+		ssaop.OpARM64VFMUL4S,
+		ssaop.OpARM64VMUL4S,
+		ssaop.OpARM64VSSHL4S,
+		ssaop.OpARM64VUSHL4S,
+		ssaop.OpARM64VSQSHL4S,
+		ssaop.OpARM64VUQSHL4S,
+		ssaop.OpARM64VFSUB4S,
+		ssaop.OpARM64VSUB4S,
+		ssaop.OpARM64VSQSUB4S,
+		ssaop.OpARM64VUQSUB4S:
 		p = simdV21(s, v, arm64.ARNG_4S)
 
-	case ssa.OpARM64VADD8H,
-		ssa.OpARM64VSQADD8H,
-		ssa.OpARM64VUQADD8H,
-		ssa.OpARM64VSRHADD8H,
-		ssa.OpARM64VURHADD8H,
-		ssa.OpARM64VADDP8H,
-		ssa.OpARM64VUZP18H,
-		ssa.OpARM64VUZP28H,
-		ssa.OpARM64VCMEQ8H,
-		ssa.OpARM64VCMGT8H,
-		ssa.OpARM64VCMHI8H,
-		ssa.OpARM64VCMGE8H,
-		ssa.OpARM64VCMHS8H,
-		ssa.OpARM64VTRN18H,
-		ssa.OpARM64VZIP28H,
-		ssa.OpARM64VZIP18H,
-		ssa.OpARM64VTRN28H,
-		ssa.OpARM64VSMAX8H,
-		ssa.OpARM64VUMAX8H,
-		ssa.OpARM64VSMIN8H,
-		ssa.OpARM64VUMIN8H,
-		ssa.OpARM64VMUL8H,
-		ssa.OpARM64VSSHL8H,
-		ssa.OpARM64VUSHL8H,
-		ssa.OpARM64VSQSHL8H,
-		ssa.OpARM64VUQSHL8H,
-		ssa.OpARM64VSUB8H,
-		ssa.OpARM64VSQSUB8H,
-		ssa.OpARM64VUQSUB8H:
+	case ssaop.OpARM64VADD8H,
+		ssaop.OpARM64VSQADD8H,
+		ssaop.OpARM64VUQADD8H,
+		ssaop.OpARM64VSRHADD8H,
+		ssaop.OpARM64VURHADD8H,
+		ssaop.OpARM64VADDP8H,
+		ssaop.OpARM64VUZP18H,
+		ssaop.OpARM64VUZP28H,
+		ssaop.OpARM64VCMEQ8H,
+		ssaop.OpARM64VCMGT8H,
+		ssaop.OpARM64VCMHI8H,
+		ssaop.OpARM64VCMGE8H,
+		ssaop.OpARM64VCMHS8H,
+		ssaop.OpARM64VTRN18H,
+		ssaop.OpARM64VZIP28H,
+		ssaop.OpARM64VZIP18H,
+		ssaop.OpARM64VTRN28H,
+		ssaop.OpARM64VSMAX8H,
+		ssaop.OpARM64VUMAX8H,
+		ssaop.OpARM64VSMIN8H,
+		ssaop.OpARM64VUMIN8H,
+		ssaop.OpARM64VMUL8H,
+		ssaop.OpARM64VSSHL8H,
+		ssaop.OpARM64VUSHL8H,
+		ssaop.OpARM64VSQSHL8H,
+		ssaop.OpARM64VUQSHL8H,
+		ssaop.OpARM64VSUB8H,
+		ssaop.OpARM64VSQSUB8H,
+		ssaop.OpARM64VUQSUB8H:
 		p = simdV21(s, v, arm64.ARNG_8H)
 
-	case ssa.OpARM64VEXT16B:
+	case ssaop.OpARM64VEXT16B:
 		p = simdV21Imm(s, v, arm64.ARNG_16B)
 
-	case ssa.OpARM64VMLA16B,
-		ssa.OpARM64VBIF16B,
-		ssa.OpARM64VBIT16B:
+	case ssaop.OpARM64VMLA16B,
+		ssaop.OpARM64VBIF16B,
+		ssaop.OpARM64VBIT16B:
 		p = simdV31ResultInArg0(s, v, arm64.ARNG_16B)
 
-	case ssa.OpARM64VFMLA2D:
+	case ssaop.OpARM64VFMLA2D:
 		p = simdV31ResultInArg0(s, v, arm64.ARNG_2D)
 
-	case ssa.OpARM64VFMLA4S,
-		ssa.OpARM64VMLA4S:
+	case ssaop.OpARM64VFMLA4S,
+		ssaop.OpARM64VMLA4S:
 		p = simdV31ResultInArg0(s, v, arm64.ARNG_4S)
 
-	case ssa.OpARM64VMLA8H:
+	case ssaop.OpARM64VMLA8H:
 		p = simdV31ResultInArg0(s, v, arm64.ARNG_8H)
 
-	case ssa.OpARM64VMOVBextr:
+	case ssaop.OpARM64VMOVBextr:
 		p = simdVgpImmIn1(s, v, arm64.ARNG_B)
 
-	case ssa.OpARM64VMOVDextr:
+	case ssaop.OpARM64VMOVDextr:
 		p = simdVgpImmIn1(s, v, arm64.ARNG_D)
 
-	case ssa.OpARM64VMOVHextr:
+	case ssaop.OpARM64VMOVHextr:
 		p = simdVgpImmIn1(s, v, arm64.ARNG_H)
 
-	case ssa.OpARM64VMOVSextr:
+	case ssaop.OpARM64VMOVSextr:
 		p = simdVgpImmIn1(s, v, arm64.ARNG_S)
 
-	case ssa.OpARM64VMOVBins:
+	case ssaop.OpARM64VMOVBins:
 		p = simdVgpvResultInArg0ImmOutIn0(s, v, arm64.ARNG_B)
 
-	case ssa.OpARM64VMOVDins:
+	case ssaop.OpARM64VMOVDins:
 		p = simdVgpvResultInArg0ImmOutIn0(s, v, arm64.ARNG_D)
 
-	case ssa.OpARM64VMOVHins:
+	case ssaop.OpARM64VMOVHins:
 		p = simdVgpvResultInArg0ImmOutIn0(s, v, arm64.ARNG_H)
 
-	case ssa.OpARM64VMOVSins:
+	case ssaop.OpARM64VMOVSins:
 		p = simdVgpvResultInArg0ImmOutIn0(s, v, arm64.ARNG_S)
 
-	case ssa.OpARM64VMOVDins0:
+	case ssaop.OpARM64VMOVDins0:
 		p = simdVfpvResultInArg0ImmOutIn1(s, v, arm64.ARNG_D)
 
-	case ssa.OpARM64VMOVSins0:
+	case ssaop.OpARM64VMOVSins0:
 		p = simdVfpvResultInArg0ImmOutIn1(s, v, arm64.ARNG_S)
 
-	case ssa.OpARM64VSXTL16B,
-		ssa.OpARM64VUXTL16B:
+	case ssaop.OpARM64VSXTL16B,
+		ssaop.OpARM64VUXTL16B:
 		p = simdV11Long(s, v, arm64.ARNG_16B)
 
-	case ssa.OpARM64VFCVTL4S,
-		ssa.OpARM64VSXTL4S,
-		ssa.OpARM64VUXTL4S:
+	case ssaop.OpARM64VFCVTL4S,
+		ssaop.OpARM64VSXTL4S,
+		ssaop.OpARM64VUXTL4S:
 		p = simdV11Long(s, v, arm64.ARNG_4S)
 
-	case ssa.OpARM64VSXTL8H,
-		ssa.OpARM64VUXTL8H:
+	case ssaop.OpARM64VSXTL8H,
+		ssaop.OpARM64VUXTL8H:
 		p = simdV11Long(s, v, arm64.ARNG_8H)
 
-	case ssa.OpARM64VFCVTN2D,
-		ssa.OpARM64VSQXTN2D,
-		ssa.OpARM64VSQXTUN2D,
-		ssa.OpARM64VUQXTN2D,
-		ssa.OpARM64VXTN2D:
+	case ssaop.OpARM64VFCVTN2D,
+		ssaop.OpARM64VSQXTN2D,
+		ssaop.OpARM64VSQXTUN2D,
+		ssaop.OpARM64VUQXTN2D,
+		ssaop.OpARM64VXTN2D:
 		p = simdV11Narrow(s, v, arm64.ARNG_2D)
 
-	case ssa.OpARM64VSQXTN4S,
-		ssa.OpARM64VSQXTUN4S,
-		ssa.OpARM64VUQXTN4S,
-		ssa.OpARM64VXTN4S:
+	case ssaop.OpARM64VSQXTN4S,
+		ssaop.OpARM64VSQXTUN4S,
+		ssaop.OpARM64VUQXTN4S,
+		ssaop.OpARM64VXTN4S:
 		p = simdV11Narrow(s, v, arm64.ARNG_4S)
 
-	case ssa.OpARM64VSQXTN8H,
-		ssa.OpARM64VSQXTUN8H,
-		ssa.OpARM64VUQXTN8H,
-		ssa.OpARM64VXTN8H:
+	case ssaop.OpARM64VSQXTN8H,
+		ssaop.OpARM64VSQXTUN8H,
+		ssaop.OpARM64VUQXTN8H,
+		ssaop.OpARM64VXTN8H:
 		p = simdV11Narrow(s, v, arm64.ARNG_8H)
 
-	case ssa.OpARM64VSHRN2D:
+	case ssaop.OpARM64VSHRN2D:
 		p = simdV11ImmNarrow(s, v, arm64.ARNG_2D)
 
-	case ssa.OpARM64VSHRN4S:
+	case ssaop.OpARM64VSHRN4S:
 		p = simdV11ImmNarrow(s, v, arm64.ARNG_4S)
 
-	case ssa.OpARM64VSHRN8H:
+	case ssaop.OpARM64VSHRN8H:
 		p = simdV11ImmNarrow(s, v, arm64.ARNG_8H)
 
-	case ssa.OpARM64VSSHLL16B,
-		ssa.OpARM64VUSHLL16B:
+	case ssaop.OpARM64VSSHLL16B,
+		ssaop.OpARM64VUSHLL16B:
 		p = simdV11ImmLong(s, v, arm64.ARNG_16B)
 
-	case ssa.OpARM64VSSHLL4S,
-		ssa.OpARM64VUSHLL4S:
+	case ssaop.OpARM64VSSHLL4S,
+		ssaop.OpARM64VUSHLL4S:
 		p = simdV11ImmLong(s, v, arm64.ARNG_4S)
 
-	case ssa.OpARM64VSSHLL8H,
-		ssa.OpARM64VUSHLL8H:
+	case ssaop.OpARM64VSSHLL8H,
+		ssaop.OpARM64VUSHLL8H:
 		p = simdV11ImmLong(s, v, arm64.ARNG_8H)
 
-	case ssa.OpARM64VSMULL16B,
-		ssa.OpARM64VUMULL16B:
+	case ssaop.OpARM64VSMULL16B,
+		ssaop.OpARM64VUMULL16B:
 		p = simdV21Long(s, v, arm64.ARNG_16B)
 
-	case ssa.OpARM64VPMULL2D:
+	case ssaop.OpARM64VPMULL2D:
 		p = simdV21Long(s, v, arm64.ARNG_2D)
 
-	case ssa.OpARM64VSMULL4S,
-		ssa.OpARM64VUMULL4S:
+	case ssaop.OpARM64VSMULL4S,
+		ssaop.OpARM64VUMULL4S:
 		p = simdV21Long(s, v, arm64.ARNG_4S)
 
-	case ssa.OpARM64VSMULL8H,
-		ssa.OpARM64VUMULL8H:
+	case ssaop.OpARM64VSMULL8H,
+		ssaop.OpARM64VUMULL8H:
 		p = simdV21Long(s, v, arm64.ARNG_8H)
 
-	case ssa.OpARM64VSXTL2_16B,
-		ssa.OpARM64VUXTL2_16B:
+	case ssaop.OpARM64VSXTL2_16B,
+		ssaop.OpARM64VUXTL2_16B:
 		p = simdV11Long2(s, v, arm64.ARNG_16B)
 
-	case ssa.OpARM64VFCVTL2_4S,
-		ssa.OpARM64VSXTL2_4S,
-		ssa.OpARM64VUXTL2_4S:
+	case ssaop.OpARM64VFCVTL2_4S,
+		ssaop.OpARM64VSXTL2_4S,
+		ssaop.OpARM64VUXTL2_4S:
 		p = simdV11Long2(s, v, arm64.ARNG_4S)
 
-	case ssa.OpARM64VSXTL2_8H,
-		ssa.OpARM64VUXTL2_8H:
+	case ssaop.OpARM64VSXTL2_8H,
+		ssaop.OpARM64VUXTL2_8H:
 		p = simdV11Long2(s, v, arm64.ARNG_8H)
 
-	case ssa.OpARM64VFCVTN2_2D,
-		ssa.OpARM64VSQXTN2_2D,
-		ssa.OpARM64VSQXTUN2_2D,
-		ssa.OpARM64VUQXTN2_2D,
-		ssa.OpARM64VXTN2_2D:
+	case ssaop.OpARM64VFCVTN2_2D,
+		ssaop.OpARM64VSQXTN2_2D,
+		ssaop.OpARM64VSQXTUN2_2D,
+		ssaop.OpARM64VUQXTN2_2D,
+		ssaop.OpARM64VXTN2_2D:
 		p = simdV21Narrow2(s, v, arm64.ARNG_2D)
 
-	case ssa.OpARM64VSQXTN2_4S,
-		ssa.OpARM64VSQXTUN2_4S,
-		ssa.OpARM64VUQXTN2_4S,
-		ssa.OpARM64VXTN2_4S:
+	case ssaop.OpARM64VSQXTN2_4S,
+		ssaop.OpARM64VSQXTUN2_4S,
+		ssaop.OpARM64VUQXTN2_4S,
+		ssaop.OpARM64VXTN2_4S:
 		p = simdV21Narrow2(s, v, arm64.ARNG_4S)
 
-	case ssa.OpARM64VSQXTN2_8H,
-		ssa.OpARM64VSQXTUN2_8H,
-		ssa.OpARM64VUQXTN2_8H,
-		ssa.OpARM64VXTN2_8H:
+	case ssaop.OpARM64VSQXTN2_8H,
+		ssaop.OpARM64VSQXTUN2_8H,
+		ssaop.OpARM64VUQXTN2_8H,
+		ssaop.OpARM64VXTN2_8H:
 		p = simdV21Narrow2(s, v, arm64.ARNG_8H)
 
-	case ssa.OpARM64VSHRN2_2D:
+	case ssaop.OpARM64VSHRN2_2D:
 		p = simdV21ImmNarrow2(s, v, arm64.ARNG_2D)
 
-	case ssa.OpARM64VSHRN2_4S:
+	case ssaop.OpARM64VSHRN2_4S:
 		p = simdV21ImmNarrow2(s, v, arm64.ARNG_4S)
 
-	case ssa.OpARM64VSHRN2_8H:
+	case ssaop.OpARM64VSHRN2_8H:
 		p = simdV21ImmNarrow2(s, v, arm64.ARNG_8H)
 
-	case ssa.OpARM64VSSHLL2_16B,
-		ssa.OpARM64VUSHLL2_16B:
+	case ssaop.OpARM64VSSHLL2_16B,
+		ssaop.OpARM64VUSHLL2_16B:
 		p = simdV11ImmLong2(s, v, arm64.ARNG_16B)
 
-	case ssa.OpARM64VSSHLL2_4S,
-		ssa.OpARM64VUSHLL2_4S:
+	case ssaop.OpARM64VSSHLL2_4S,
+		ssaop.OpARM64VUSHLL2_4S:
 		p = simdV11ImmLong2(s, v, arm64.ARNG_4S)
 
-	case ssa.OpARM64VSSHLL2_8H,
-		ssa.OpARM64VUSHLL2_8H:
+	case ssaop.OpARM64VSSHLL2_8H,
+		ssaop.OpARM64VUSHLL2_8H:
 		p = simdV11ImmLong2(s, v, arm64.ARNG_8H)
 
-	case ssa.OpARM64VSMULL2_16B,
-		ssa.OpARM64VUMULL2_16B:
+	case ssaop.OpARM64VSMULL2_16B,
+		ssaop.OpARM64VUMULL2_16B:
 		p = simdV21Long2(s, v, arm64.ARNG_16B)
 
-	case ssa.OpARM64VPMULL2_2D:
+	case ssaop.OpARM64VPMULL2_2D:
 		p = simdV21Long2(s, v, arm64.ARNG_2D)
 
-	case ssa.OpARM64VSMULL2_4S,
-		ssa.OpARM64VUMULL2_4S:
+	case ssaop.OpARM64VSMULL2_4S,
+		ssaop.OpARM64VUMULL2_4S:
 		p = simdV21Long2(s, v, arm64.ARNG_4S)
 
-	case ssa.OpARM64VSMULL2_8H,
-		ssa.OpARM64VUMULL2_8H:
+	case ssaop.OpARM64VSMULL2_8H,
+		ssaop.OpARM64VUMULL2_8H:
 		p = simdV21Long2(s, v, arm64.ARNG_8H)
 
-	case ssa.OpARM64VTBL16B:
+	case ssaop.OpARM64VTBL16B:
 		p = simdV21List(s, v, arm64.ARNG_16B)
 
-	case ssa.OpARM64VTBX16B:
+	case ssaop.OpARM64VTBX16B:
 		p = simdV31ResultInArg0List(s, v, arm64.ARNG_16B)
 
 	default:

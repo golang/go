@@ -4,7 +4,10 @@
 
 package ssa
 
-import blockpkg "cmd/compile/internal/ssa/block"
+import (
+	blockpkg "cmd/compile/internal/ssa/block"
+	"cmd/compile/internal/ssa/ssaop"
+)
 
 // ----------------------------------------------------------------------------
 // Sparse Conditional Constant Propagation
@@ -94,7 +97,7 @@ func sccp(f *Func) {
 				t.visited[edge] = true
 				t.visitedBlock[dest.ID] = true
 				for _, val := range dest.Values {
-					if val.Op == OpPhi || !destVisited {
+					if val.Op == ssaop.OpPhi || !destVisited {
 						t.visitValue(val)
 					}
 				}
@@ -154,70 +157,70 @@ func possibleConst(val *Value) bool {
 		return true
 	}
 	switch val.Op {
-	case OpCopy:
+	case ssaop.OpCopy:
 		return true
-	case OpPhi:
+	case ssaop.OpPhi:
 		return true
 	case
 		// negate
-		OpNeg8, OpNeg16, OpNeg32, OpNeg64, OpNeg32F, OpNeg64F,
-		OpCom8, OpCom16, OpCom32, OpCom64,
+		ssaop.OpNeg8, ssaop.OpNeg16, ssaop.OpNeg32, ssaop.OpNeg64, ssaop.OpNeg32F, ssaop.OpNeg64F,
+		ssaop.OpCom8, ssaop.OpCom16, ssaop.OpCom32, ssaop.OpCom64,
 		// math
-		OpFloor, OpCeil, OpTrunc, OpRoundToEven, OpSqrt,
+		ssaop.OpFloor, ssaop.OpCeil, ssaop.OpTrunc, ssaop.OpRoundToEven, ssaop.OpSqrt,
 		// conversion
-		OpTrunc16to8, OpTrunc32to8, OpTrunc32to16, OpTrunc64to8,
-		OpTrunc64to16, OpTrunc64to32, OpCvt32to32F, OpCvt32to64F,
-		OpCvt64to32F, OpCvt64to64F, OpCvt32Fto32, OpCvt32Fto64,
-		OpCvt64Fto32, OpCvt64Fto64, OpCvt32Fto64F, OpCvt64Fto32F,
-		OpCvtBoolToUint8,
-		OpZeroExt8to16, OpZeroExt8to32, OpZeroExt8to64, OpZeroExt16to32,
-		OpZeroExt16to64, OpZeroExt32to64, OpSignExt8to16, OpSignExt8to32,
-		OpSignExt8to64, OpSignExt16to32, OpSignExt16to64, OpSignExt32to64,
+		ssaop.OpTrunc16to8, ssaop.OpTrunc32to8, ssaop.OpTrunc32to16, ssaop.OpTrunc64to8,
+		ssaop.OpTrunc64to16, ssaop.OpTrunc64to32, ssaop.OpCvt32to32F, ssaop.OpCvt32to64F,
+		ssaop.OpCvt64to32F, ssaop.OpCvt64to64F, ssaop.OpCvt32Fto32, ssaop.OpCvt32Fto64,
+		ssaop.OpCvt64Fto32, ssaop.OpCvt64Fto64, ssaop.OpCvt32Fto64F, ssaop.OpCvt64Fto32F,
+		ssaop.OpCvtBoolToUint8,
+		ssaop.OpZeroExt8to16, ssaop.OpZeroExt8to32, ssaop.OpZeroExt8to64, ssaop.OpZeroExt16to32,
+		ssaop.OpZeroExt16to64, ssaop.OpZeroExt32to64, ssaop.OpSignExt8to16, ssaop.OpSignExt8to32,
+		ssaop.OpSignExt8to64, ssaop.OpSignExt16to32, ssaop.OpSignExt16to64, ssaop.OpSignExt32to64,
 		// bit
-		OpCtz8, OpCtz16, OpCtz32, OpCtz64,
+		ssaop.OpCtz8, ssaop.OpCtz16, ssaop.OpCtz32, ssaop.OpCtz64,
 		// mask
-		OpSlicemask,
+		ssaop.OpSlicemask,
 		// safety check
-		OpIsNonNil,
+		ssaop.OpIsNonNil,
 		// not
-		OpNot:
+		ssaop.OpNot:
 		return true
 	case
 		// add
-		OpAdd64, OpAdd32, OpAdd16, OpAdd8,
-		OpAdd32F, OpAdd64F,
+		ssaop.OpAdd64, ssaop.OpAdd32, ssaop.OpAdd16, ssaop.OpAdd8,
+		ssaop.OpAdd32F, ssaop.OpAdd64F,
 		// sub
-		OpSub64, OpSub32, OpSub16, OpSub8,
-		OpSub32F, OpSub64F,
+		ssaop.OpSub64, ssaop.OpSub32, ssaop.OpSub16, ssaop.OpSub8,
+		ssaop.OpSub32F, ssaop.OpSub64F,
 		// mul
-		OpMul64, OpMul32, OpMul16, OpMul8,
-		OpMul32F, OpMul64F,
+		ssaop.OpMul64, ssaop.OpMul32, ssaop.OpMul16, ssaop.OpMul8,
+		ssaop.OpMul32F, ssaop.OpMul64F,
 		// div
-		OpDiv32F, OpDiv64F,
-		OpDiv8, OpDiv16, OpDiv32, OpDiv64,
-		OpDiv8u, OpDiv16u, OpDiv32u, OpDiv64u,
-		OpMod8, OpMod16, OpMod32, OpMod64,
-		OpMod8u, OpMod16u, OpMod32u, OpMod64u,
+		ssaop.OpDiv32F, ssaop.OpDiv64F,
+		ssaop.OpDiv8, ssaop.OpDiv16, ssaop.OpDiv32, ssaop.OpDiv64,
+		ssaop.OpDiv8u, ssaop.OpDiv16u, ssaop.OpDiv32u, ssaop.OpDiv64u,
+		ssaop.OpMod8, ssaop.OpMod16, ssaop.OpMod32, ssaop.OpMod64,
+		ssaop.OpMod8u, ssaop.OpMod16u, ssaop.OpMod32u, ssaop.OpMod64u,
 		// compare
-		OpEq64, OpEq32, OpEq16, OpEq8,
-		OpEq32F, OpEq64F,
-		OpLess64, OpLess32, OpLess16, OpLess8,
-		OpLess64U, OpLess32U, OpLess16U, OpLess8U,
-		OpLess32F, OpLess64F,
-		OpLeq64, OpLeq32, OpLeq16, OpLeq8,
-		OpLeq64U, OpLeq32U, OpLeq16U, OpLeq8U,
-		OpLeq32F, OpLeq64F,
-		OpEqB, OpNeqB,
+		ssaop.OpEq64, ssaop.OpEq32, ssaop.OpEq16, ssaop.OpEq8,
+		ssaop.OpEq32F, ssaop.OpEq64F,
+		ssaop.OpLess64, ssaop.OpLess32, ssaop.OpLess16, ssaop.OpLess8,
+		ssaop.OpLess64U, ssaop.OpLess32U, ssaop.OpLess16U, ssaop.OpLess8U,
+		ssaop.OpLess32F, ssaop.OpLess64F,
+		ssaop.OpLeq64, ssaop.OpLeq32, ssaop.OpLeq16, ssaop.OpLeq8,
+		ssaop.OpLeq64U, ssaop.OpLeq32U, ssaop.OpLeq16U, ssaop.OpLeq8U,
+		ssaop.OpLeq32F, ssaop.OpLeq64F,
+		ssaop.OpEqB, ssaop.OpNeqB,
 		// shift
-		OpLsh64x64, OpRsh64x64, OpRsh64Ux64, OpLsh32x64,
-		OpRsh32x64, OpRsh32Ux64, OpLsh16x64, OpRsh16x64,
-		OpRsh16Ux64, OpLsh8x64, OpRsh8x64, OpRsh8Ux64,
+		ssaop.OpLsh64x64, ssaop.OpRsh64x64, ssaop.OpRsh64Ux64, ssaop.OpLsh32x64,
+		ssaop.OpRsh32x64, ssaop.OpRsh32Ux64, ssaop.OpLsh16x64, ssaop.OpRsh16x64,
+		ssaop.OpRsh16Ux64, ssaop.OpLsh8x64, ssaop.OpRsh8x64, ssaop.OpRsh8Ux64,
 		// safety check
-		OpIsInBounds, OpIsSliceInBounds,
+		ssaop.OpIsInBounds, ssaop.OpIsSliceInBounds,
 		// bit
-		OpAnd8, OpAnd16, OpAnd32, OpAnd64,
-		OpOr8, OpOr16, OpOr32, OpOr64,
-		OpXor8, OpXor16, OpXor32, OpXor64:
+		ssaop.OpAnd8, ssaop.OpAnd16, ssaop.OpAnd32, ssaop.OpAnd64,
+		ssaop.OpOr8, ssaop.OpOr16, ssaop.OpOr32, ssaop.OpOr64,
+		ssaop.OpXor8, ssaop.OpXor16, ssaop.OpXor32, ssaop.OpXor64:
 		return true
 	default:
 		return false
@@ -238,8 +241,8 @@ func (t *worklist) getLatticeCell(val *Value) lattice {
 
 func isConst(val *Value) bool {
 	switch val.Op {
-	case OpConst64, OpConst32, OpConst16, OpConst8,
-		OpConstBool, OpConst32F, OpConst64F:
+	case ssaop.OpConst64, ssaop.OpConst32, ssaop.OpConst16, ssaop.OpConst8,
+		ssaop.OpConstBool, ssaop.OpConst32F, ssaop.OpConst64F:
 		return true
 	default:
 		return false
@@ -371,7 +374,7 @@ func computeLattice(f *Func, val *Value, args ...*Value) lattice {
 	// Either we can not match generic rules for given value or it does not
 	// satisfy additional constraints(e.g. divide by zero), in these cases, clean
 	// up temporary value immediately in case they are not dominated by their args.
-	constValue.Reset(OpInvalid)
+	constValue.Reset(ssaop.OpInvalid)
 	return lattice{bottom, nil}
 }
 
@@ -400,39 +403,39 @@ func (t *worklist) visitValue(val *Value) {
 
 	switch val.Op {
 	// they are constant values, aren't they?
-	case OpConst64, OpConst32, OpConst16, OpConst8,
-		OpConstBool, OpConst32F, OpConst64F: //TODO: support ConstNil ConstString etc
+	case ssaop.OpConst64, ssaop.OpConst32, ssaop.OpConst16, ssaop.OpConst8,
+		ssaop.OpConstBool, ssaop.OpConst32F, ssaop.OpConst64F: //TODO: support ConstNil ConstString etc
 		t.latticeCells[val] = lattice{constant, val}
 	// lattice value of copy(x) actually means lattice value of (x)
-	case OpCopy:
+	case ssaop.OpCopy:
 		t.latticeCells[val] = t.getLatticeCell(val.Args[0])
 	// phi should be processed specially
-	case OpPhi:
+	case ssaop.OpPhi:
 		t.latticeCells[val] = t.meet(val)
 	// fold 1-input operations:
 	case
 		// negate
-		OpNeg8, OpNeg16, OpNeg32, OpNeg64, OpNeg32F, OpNeg64F,
-		OpCom8, OpCom16, OpCom32, OpCom64,
+		ssaop.OpNeg8, ssaop.OpNeg16, ssaop.OpNeg32, ssaop.OpNeg64, ssaop.OpNeg32F, ssaop.OpNeg64F,
+		ssaop.OpCom8, ssaop.OpCom16, ssaop.OpCom32, ssaop.OpCom64,
 		// math
-		OpFloor, OpCeil, OpTrunc, OpRoundToEven, OpSqrt,
+		ssaop.OpFloor, ssaop.OpCeil, ssaop.OpTrunc, ssaop.OpRoundToEven, ssaop.OpSqrt,
 		// conversion
-		OpTrunc16to8, OpTrunc32to8, OpTrunc32to16, OpTrunc64to8,
-		OpTrunc64to16, OpTrunc64to32, OpCvt32to32F, OpCvt32to64F,
-		OpCvt64to32F, OpCvt64to64F, OpCvt32Fto32, OpCvt32Fto64,
-		OpCvt64Fto32, OpCvt64Fto64, OpCvt32Fto64F, OpCvt64Fto32F,
-		OpCvtBoolToUint8,
-		OpZeroExt8to16, OpZeroExt8to32, OpZeroExt8to64, OpZeroExt16to32,
-		OpZeroExt16to64, OpZeroExt32to64, OpSignExt8to16, OpSignExt8to32,
-		OpSignExt8to64, OpSignExt16to32, OpSignExt16to64, OpSignExt32to64,
+		ssaop.OpTrunc16to8, ssaop.OpTrunc32to8, ssaop.OpTrunc32to16, ssaop.OpTrunc64to8,
+		ssaop.OpTrunc64to16, ssaop.OpTrunc64to32, ssaop.OpCvt32to32F, ssaop.OpCvt32to64F,
+		ssaop.OpCvt64to32F, ssaop.OpCvt64to64F, ssaop.OpCvt32Fto32, ssaop.OpCvt32Fto64,
+		ssaop.OpCvt64Fto32, ssaop.OpCvt64Fto64, ssaop.OpCvt32Fto64F, ssaop.OpCvt64Fto32F,
+		ssaop.OpCvtBoolToUint8,
+		ssaop.OpZeroExt8to16, ssaop.OpZeroExt8to32, ssaop.OpZeroExt8to64, ssaop.OpZeroExt16to32,
+		ssaop.OpZeroExt16to64, ssaop.OpZeroExt32to64, ssaop.OpSignExt8to16, ssaop.OpSignExt8to32,
+		ssaop.OpSignExt8to64, ssaop.OpSignExt16to32, ssaop.OpSignExt16to64, ssaop.OpSignExt32to64,
 		// bit
-		OpCtz8, OpCtz16, OpCtz32, OpCtz64,
+		ssaop.OpCtz8, ssaop.OpCtz16, ssaop.OpCtz32, ssaop.OpCtz64,
 		// mask
-		OpSlicemask,
+		ssaop.OpSlicemask,
 		// safety check
-		OpIsNonNil,
+		ssaop.OpIsNonNil,
 		// not
-		OpNot:
+		ssaop.OpNot:
 		lt1 := t.getLatticeCell(val.Args[0])
 
 		if lt1.tag == constant {
@@ -444,41 +447,41 @@ func (t *worklist) visitValue(val *Value) {
 	// fold 2-input operations
 	case
 		// add
-		OpAdd64, OpAdd32, OpAdd16, OpAdd8,
-		OpAdd32F, OpAdd64F,
+		ssaop.OpAdd64, ssaop.OpAdd32, ssaop.OpAdd16, ssaop.OpAdd8,
+		ssaop.OpAdd32F, ssaop.OpAdd64F,
 		// sub
-		OpSub64, OpSub32, OpSub16, OpSub8,
-		OpSub32F, OpSub64F,
+		ssaop.OpSub64, ssaop.OpSub32, ssaop.OpSub16, ssaop.OpSub8,
+		ssaop.OpSub32F, ssaop.OpSub64F,
 		// mul
-		OpMul64, OpMul32, OpMul16, OpMul8,
-		OpMul32F, OpMul64F,
+		ssaop.OpMul64, ssaop.OpMul32, ssaop.OpMul16, ssaop.OpMul8,
+		ssaop.OpMul32F, ssaop.OpMul64F,
 		// div
-		OpDiv32F, OpDiv64F,
-		OpDiv8, OpDiv16, OpDiv32, OpDiv64,
-		OpDiv8u, OpDiv16u, OpDiv32u, OpDiv64u, //TODO: support div128u
+		ssaop.OpDiv32F, ssaop.OpDiv64F,
+		ssaop.OpDiv8, ssaop.OpDiv16, ssaop.OpDiv32, ssaop.OpDiv64,
+		ssaop.OpDiv8u, ssaop.OpDiv16u, ssaop.OpDiv32u, ssaop.OpDiv64u, //TODO: support div128u
 		// mod
-		OpMod8, OpMod16, OpMod32, OpMod64,
-		OpMod8u, OpMod16u, OpMod32u, OpMod64u,
+		ssaop.OpMod8, ssaop.OpMod16, ssaop.OpMod32, ssaop.OpMod64,
+		ssaop.OpMod8u, ssaop.OpMod16u, ssaop.OpMod32u, ssaop.OpMod64u,
 		// compare
-		OpEq64, OpEq32, OpEq16, OpEq8,
-		OpEq32F, OpEq64F,
-		OpLess64, OpLess32, OpLess16, OpLess8,
-		OpLess64U, OpLess32U, OpLess16U, OpLess8U,
-		OpLess32F, OpLess64F,
-		OpLeq64, OpLeq32, OpLeq16, OpLeq8,
-		OpLeq64U, OpLeq32U, OpLeq16U, OpLeq8U,
-		OpLeq32F, OpLeq64F,
-		OpEqB, OpNeqB,
+		ssaop.OpEq64, ssaop.OpEq32, ssaop.OpEq16, ssaop.OpEq8,
+		ssaop.OpEq32F, ssaop.OpEq64F,
+		ssaop.OpLess64, ssaop.OpLess32, ssaop.OpLess16, ssaop.OpLess8,
+		ssaop.OpLess64U, ssaop.OpLess32U, ssaop.OpLess16U, ssaop.OpLess8U,
+		ssaop.OpLess32F, ssaop.OpLess64F,
+		ssaop.OpLeq64, ssaop.OpLeq32, ssaop.OpLeq16, ssaop.OpLeq8,
+		ssaop.OpLeq64U, ssaop.OpLeq32U, ssaop.OpLeq16U, ssaop.OpLeq8U,
+		ssaop.OpLeq32F, ssaop.OpLeq64F,
+		ssaop.OpEqB, ssaop.OpNeqB,
 		// shift
-		OpLsh64x64, OpRsh64x64, OpRsh64Ux64, OpLsh32x64,
-		OpRsh32x64, OpRsh32Ux64, OpLsh16x64, OpRsh16x64,
-		OpRsh16Ux64, OpLsh8x64, OpRsh8x64, OpRsh8Ux64,
+		ssaop.OpLsh64x64, ssaop.OpRsh64x64, ssaop.OpRsh64Ux64, ssaop.OpLsh32x64,
+		ssaop.OpRsh32x64, ssaop.OpRsh32Ux64, ssaop.OpLsh16x64, ssaop.OpRsh16x64,
+		ssaop.OpRsh16Ux64, ssaop.OpLsh8x64, ssaop.OpRsh8x64, ssaop.OpRsh8Ux64,
 		// safety check
-		OpIsInBounds, OpIsSliceInBounds,
+		ssaop.OpIsInBounds, ssaop.OpIsSliceInBounds,
 		// bit
-		OpAnd8, OpAnd16, OpAnd32, OpAnd64,
-		OpOr8, OpOr16, OpOr32, OpOr64,
-		OpXor8, OpXor16, OpXor32, OpXor64:
+		ssaop.OpAnd8, ssaop.OpAnd16, ssaop.OpAnd32, ssaop.OpAnd64,
+		ssaop.OpOr8, ssaop.OpOr16, ssaop.OpOr32, ssaop.OpOr64,
+		ssaop.OpXor8, ssaop.OpXor16, ssaop.OpXor32, ssaop.OpXor64:
 		lt1 := t.getLatticeCell(val.Args[0])
 		lt2 := t.getLatticeCell(val.Args[1])
 

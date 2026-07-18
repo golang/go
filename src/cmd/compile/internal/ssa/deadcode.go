@@ -6,6 +6,7 @@ package ssa
 
 import (
 	"cmd/compile/internal/ssa/block"
+	"cmd/compile/internal/ssa/ssaop"
 	"cmd/internal/src"
 )
 
@@ -111,14 +112,14 @@ func LiveValues(f *Func, reachable []bool) (live []bool, liveOrderStmts []*Value
 			}
 		}
 		for _, v := range b.Values {
-			if (OpcodeTable[v.Op].Call || OpcodeTable[v.Op].HasSideEffects || OpcodeTable[v.Op].NilCheck) && !live[v.ID] {
+			if (ssaop.OpcodeTable[v.Op].Call || ssaop.OpcodeTable[v.Op].HasSideEffects || ssaop.OpcodeTable[v.Op].NilCheck) && !live[v.ID] {
 				live[v.ID] = true
 				q = append(q, v)
 				if v.Pos.IsStmt() != src.PosNotStmt {
 					liveOrderStmts = append(liveOrderStmts, v)
 				}
 			}
-			if v.Op == OpInlMark {
+			if v.Op == ssaop.OpInlMark {
 				if !liveInlIdx[int(v.AuxInt)] {
 					// We don't need marks for bodies that
 					// have been completely optimized away.
@@ -142,7 +143,7 @@ func LiveValues(f *Func, reachable []bool) (live []bool, liveOrderStmts []*Value
 		q[len(q)-1] = nil
 		q = q[:len(q)-1]
 		for i, x := range v.Args {
-			if v.Op == OpPhi && !reachable[v.Block.Preds[i].B.ID] {
+			if v.Op == ssaop.OpPhi && !reachable[v.Block.Preds[i].B.ID] {
 				continue
 			}
 			if !live[x.ID] {
@@ -322,7 +323,7 @@ func (b *Block) RemoveEdge(i int) {
 
 	// Remove phi args from c's phis.
 	for _, v := range c.Values {
-		if v.Op != OpPhi {
+		if v.Op != ssaop.OpPhi {
 			continue
 		}
 		c.RemovePhiArg(v, j)

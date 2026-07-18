@@ -10,6 +10,7 @@ import (
 
 	"cmd/compile/internal/ir"
 	"cmd/compile/internal/ssa"
+	"cmd/compile/internal/ssa/ssaop"
 	"cmd/compile/internal/types"
 	"cmd/internal/src"
 )
@@ -85,7 +86,7 @@ func (s *phiState) insertPhis() {
 	var vartypes []*types.Type
 	for _, b := range s.f.Blocks {
 		for _, v := range b.Values {
-			if v.Op != ssa.OpFwdRef {
+			if v.Op != ssaop.OpFwdRef {
 				continue
 			}
 			var_ := v.Aux.(fwdRefAux).N
@@ -94,7 +95,7 @@ func (s *phiState) insertPhis() {
 			if len(b.Preds) == 1 {
 				c := b.Preds[0].Block()
 				if w := s.defvars[c.ID][var_]; w != nil {
-					v.Op = ssa.OpCopy
+					v.Op = ssaop.OpCopy
 					v.Aux = nil
 					v.AddArg(w)
 					continue
@@ -173,7 +174,7 @@ levels:
 	s.queued = newSparseSet(s.f.NumBlocks())
 	s.hasPhi = newSparseSet(s.f.NumBlocks())
 	s.hasDef = newSparseSet(s.f.NumBlocks())
-	s.placeholder = s.s.entryNewValue0(ssa.OpUnknown, types.TypeInvalid)
+	s.placeholder = s.s.entryNewValue0(ssaop.OpUnknown, types.TypeInvalid)
 
 	// Generate phi ops for each variable.
 	for n := range vartypes {
@@ -186,12 +187,12 @@ levels:
 	// Erase variable numbers stored in AuxInt fields of phi ops. They are no longer needed.
 	for _, b := range s.f.Blocks {
 		for _, v := range b.Values {
-			if v.Op == ssa.OpPhi {
+			if v.Op == ssaop.OpPhi {
 				v.AuxInt = 0
 			}
 			// Any remaining FwdRefs are dead code.
-			if v.Op == ssa.OpFwdRef {
-				v.Op = ssa.OpUnknown
+			if v.Op == ssaop.OpFwdRef {
+				v.Op = ssaop.OpUnknown
 				v.Aux = nil
 			}
 		}
@@ -253,7 +254,7 @@ func (s *phiState) insertVarPhis(n int, var_ ir.Node, defs []*ssa.Block, typ *ty
 				}
 				// Add a phi to block c for variable n.
 				hasPhi.add(c.ID)
-				v := c.NewValue0I(s.s.blockStarts[b.ID], ssa.OpPhi, typ, int64(n))
+				v := c.NewValue0I(s.s.blockStarts[b.ID], ssaop.OpPhi, typ, int64(n))
 				// Note: we store the variable number in the phi's AuxInt field. Used temporarily by phi building.
 				if var_.Op() == ir.ONAME {
 					s.s.addNamedValue(var_.(*ir.Name), v)
@@ -320,7 +321,7 @@ func (s *phiState) resolveFwdRefs() {
 
 		// Process phis as new defs. They come before FwdRefs in this block.
 		for _, v := range b.Values {
-			if v.Op != ssa.OpPhi {
+			if v.Op != ssaop.OpPhi {
 				continue
 			}
 			n := int32(v.AuxInt)
@@ -332,11 +333,11 @@ func (s *phiState) resolveFwdRefs() {
 
 		// Replace a FwdRef op with the current incoming value for its variable.
 		for _, v := range b.Values {
-			if v.Op != ssa.OpFwdRef {
+			if v.Op != ssaop.OpFwdRef {
 				continue
 			}
 			n := s.varnum[v.Aux.(fwdRefAux).N]
-			v.Op = ssa.OpCopy
+			v.Op = ssaop.OpCopy
 			v.Aux = nil
 			v.AddArg(values[n])
 		}
@@ -359,13 +360,13 @@ func (s *phiState) resolveFwdRefs() {
 			c, i := e.Block(), e.Index()
 			for j := len(c.Values) - 1; j >= 0; j-- {
 				v := c.Values[j]
-				if v.Op != ssa.OpPhi {
+				if v.Op != ssaop.OpPhi {
 					break // All phis will be at the end of the block during phi building.
 				}
 				// Only set arguments that have been resolved.
 				// For very wide CFGs, this significantly speeds up phi resolution.
 				// See golang.org/issue/8225.
-				if w := values[v.AuxInt]; w.Op != ssa.OpUnknown {
+				if w := values[v.AuxInt]; w.Op != ssaop.OpUnknown {
 					v.SetArg(i, w)
 				}
 			}
@@ -462,7 +463,7 @@ func (s *simplePhiState) insertPhis() {
 	// Find FwdRef ops.
 	for _, b := range s.f.Blocks {
 		for _, v := range b.Values {
-			if v.Op != ssa.OpFwdRef {
+			if v.Op != ssaop.OpFwdRef {
 				continue
 			}
 			s.fwdrefs = append(s.fwdrefs, v)
@@ -488,7 +489,7 @@ loop:
 		if !s.reachable[b.ID] {
 			// This block is dead.
 			// It doesn't matter what we use here as long as it is well-formed.
-			v.Op = ssa.OpUnknown
+			v.Op = ssaop.OpUnknown
 			v.Aux = nil
 			continue
 		}
@@ -510,7 +511,7 @@ loop:
 			}
 			if w != nil {
 				// two witnesses, need a phi value
-				v.Op = ssa.OpPhi
+				v.Op = ssaop.OpPhi
 				v.AddArgs(args...)
 				v.Aux = nil
 				v.Pos = s.s.blockStarts[b.ID]
@@ -522,7 +523,7 @@ loop:
 			s.s.Fatalf("no witness for reachable phi %s", v)
 		}
 		// One witness. Make v a copy of w.
-		v.Op = ssa.OpCopy
+		v.Op = ssaop.OpCopy
 		v.Aux = nil
 		v.AddArg(w)
 	}
@@ -548,7 +549,7 @@ func (s *simplePhiState) lookupVarOutgoing(b *ssa.Block, t *types.Type, var_ ir.
 		}
 	}
 	// Generate a FwdRef for the variable and return that.
-	v := b.NewValue0A(line, ssa.OpFwdRef, t, fwdRefAux{N: var_})
+	v := b.NewValue0A(line, ssaop.OpFwdRef, t, fwdRefAux{N: var_})
 	s.defvars[b.ID][var_] = v
 	if var_.Op() == ir.ONAME {
 		s.s.addNamedValue(var_.(*ir.Name), v)

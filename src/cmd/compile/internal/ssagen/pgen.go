@@ -20,6 +20,7 @@ import (
 	"cmd/compile/internal/objw"
 	"cmd/compile/internal/pgoir"
 	"cmd/compile/internal/ssa"
+	"cmd/compile/internal/ssa/ssaop"
 	"cmd/compile/internal/types"
 	"cmd/internal/obj"
 	"cmd/internal/objabi"
@@ -152,7 +153,7 @@ func (s *ssafn) AllocFrame(f *ssa.Func) {
 			if n, ok := v.Aux.(*ir.Name); ok {
 				switch n.Class {
 				case ir.PPARAMOUT:
-					if n.IsOutputParamInRegisters() && v.Op == ssa.OpVarDef {
+					if n.IsOutputParamInRegisters() && v.Op == ssaop.OpVarDef {
 						// ignore VarDef, look for "real" uses.
 						// TODO: maybe do this for PAUTO as well?
 						continue

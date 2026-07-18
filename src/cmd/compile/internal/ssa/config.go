@@ -9,6 +9,7 @@ import (
 	"cmd/compile/internal/base"
 	"cmd/compile/internal/ir"
 	"cmd/compile/internal/ssa/ssabase"
+	"cmd/compile/internal/ssa/ssaop"
 	"cmd/compile/internal/types"
 	"cmd/internal/obj"
 	"cmd/internal/src"
@@ -28,12 +29,12 @@ type Config struct {
 	LateLowerValue ValueRewriter      // value lowering function that needs to be run after the first round; only used on some architectures
 	SplitLoad      ValueRewriter      // function for splitting merged load ops; only used on some architectures
 	Registers      []ssabase.Register // machine registers
-	GpRegMask      RegMask            // general purpose integer register mask
-	FpRegMask      RegMask            // floating point register mask
-	Fp32RegMask    RegMask            // floating point register mask
-	Fp64RegMask    RegMask            // floating point register mask
-	SimdRegMask    RegMask            // simd register mask; may be same as fpRegMask
-	SpecialRegMask RegMask            // special register mask
+	GpRegMask      ssaop.RegMask      // general purpose integer register mask
+	FpRegMask      ssaop.RegMask      // floating point register mask
+	Fp32RegMask    ssaop.RegMask      // floating point register mask
+	Fp64RegMask    ssaop.RegMask      // floating point register mask
+	SimdRegMask    ssaop.RegMask      // simd register mask; may be same as fpRegMask
+	SpecialRegMask ssaop.RegMask      // special register mask
 	IntParamRegs   []int8             // register numbers of integer param (in/out) registers
 	FloatParamRegs []int8             // register numbers of floating param (in/out) registers
 	ABI1           *abi.ABIConfig     // "ABIInternal" under development // TODO change comment when this becomes current
@@ -393,7 +394,7 @@ func NewConfig(arch string, types Types, ctxt *obj.Link, optimize, softfloat boo
 		// LoweredWB is secretly a CALL and CALLs on 386 in
 		// shared mode get rewritten by obj6.go to go through
 		// the GOT, which clobbers BX.
-		OpcodeTable[Op386LoweredWB].Reg.Clobbers = OpcodeTable[Op386LoweredWB].Reg.Clobbers.AddReg(3) // BX
+		ssaop.OpcodeTable[ssaop.Op386LoweredWB].Reg.Clobbers = ssaop.OpcodeTable[ssaop.Op386LoweredWB].Reg.Clobbers.AddReg(3) // BX
 	}
 
 	c.BuildRecipes(arch)
@@ -445,52 +446,52 @@ func (c *Config) BuildRecipes(arch string) {
 		// add
 		r(1, 1, 10,
 			func(m, x, y *Value) *Value {
-				v := m.Block.NewValue2(m.Pos, OpAMD64ADDQ, m.Type, x, y)
+				v := m.Block.NewValue2(m.Pos, ssaop.OpAMD64ADDQ, m.Type, x, y)
 				if m.Type.Size() == 4 {
-					v.Op = OpAMD64ADDL
+					v.Op = ssaop.OpAMD64ADDL
 				}
 				return v
 			})
 		// neg
 		r(-1, 0, 11,
 			func(m, x, y *Value) *Value {
-				v := m.Block.NewValue1(m.Pos, OpAMD64NEGQ, m.Type, x)
+				v := m.Block.NewValue1(m.Pos, ssaop.OpAMD64NEGQ, m.Type, x)
 				if m.Type.Size() == 4 {
-					v.Op = OpAMD64NEGL
+					v.Op = ssaop.OpAMD64NEGL
 				}
 				return v
 			})
 		// sub
 		r(1, -1, 11,
 			func(m, x, y *Value) *Value {
-				v := m.Block.NewValue2(m.Pos, OpAMD64SUBQ, m.Type, x, y)
+				v := m.Block.NewValue2(m.Pos, ssaop.OpAMD64SUBQ, m.Type, x, y)
 				if m.Type.Size() == 4 {
-					v.Op = OpAMD64SUBL
+					v.Op = ssaop.OpAMD64SUBL
 				}
 				return v
 			})
 		// lea
 		r(1, 2, 10,
 			func(m, x, y *Value) *Value {
-				v := m.Block.NewValue2(m.Pos, OpAMD64LEAQ2, m.Type, x, y)
+				v := m.Block.NewValue2(m.Pos, ssaop.OpAMD64LEAQ2, m.Type, x, y)
 				if m.Type.Size() == 4 {
-					v.Op = OpAMD64LEAL2
+					v.Op = ssaop.OpAMD64LEAL2
 				}
 				return v
 			})
 		r(1, 4, 10,
 			func(m, x, y *Value) *Value {
-				v := m.Block.NewValue2(m.Pos, OpAMD64LEAQ4, m.Type, x, y)
+				v := m.Block.NewValue2(m.Pos, ssaop.OpAMD64LEAQ4, m.Type, x, y)
 				if m.Type.Size() == 4 {
-					v.Op = OpAMD64LEAL4
+					v.Op = ssaop.OpAMD64LEAL4
 				}
 				return v
 			})
 		r(1, 8, 10,
 			func(m, x, y *Value) *Value {
-				v := m.Block.NewValue2(m.Pos, OpAMD64LEAQ8, m.Type, x, y)
+				v := m.Block.NewValue2(m.Pos, ssaop.OpAMD64LEAQ8, m.Type, x, y)
 				if m.Type.Size() == 4 {
-					v.Op = OpAMD64LEAL8
+					v.Op = ssaop.OpAMD64LEAL8
 				}
 				return v
 			})
@@ -498,9 +499,9 @@ func (c *Config) BuildRecipes(arch string) {
 		for i := 2; i < 64; i++ {
 			r(1<<i, 0, 11,
 				func(m, x, y *Value) *Value {
-					v := m.Block.NewValue1I(m.Pos, OpAMD64SHLQconst, m.Type, int64(i), x)
+					v := m.Block.NewValue1I(m.Pos, ssaop.OpAMD64SHLQconst, m.Type, int64(i), x)
 					if m.Type.Size() == 4 {
-						v.Op = OpAMD64SHLLconst
+						v.Op = ssaop.OpAMD64SHLLconst
 					}
 					return v
 				})
@@ -525,17 +526,17 @@ func (c *Config) BuildRecipes(arch string) {
 		// add
 		r(1, 1, 10,
 			func(m, x, y *Value) *Value {
-				return m.Block.NewValue2(m.Pos, OpARM64ADD, m.Type, x, y)
+				return m.Block.NewValue2(m.Pos, ssaop.OpARM64ADD, m.Type, x, y)
 			})
 		// neg
 		r(-1, 0, 10,
 			func(m, x, y *Value) *Value {
-				return m.Block.NewValue1(m.Pos, OpARM64NEG, m.Type, x)
+				return m.Block.NewValue1(m.Pos, ssaop.OpARM64NEG, m.Type, x)
 			})
 		// sub
 		r(1, -1, 10,
 			func(m, x, y *Value) *Value {
-				return m.Block.NewValue2(m.Pos, OpARM64SUB, m.Type, x, y)
+				return m.Block.NewValue2(m.Pos, ssaop.OpARM64SUB, m.Type, x, y)
 			})
 		// ADDshiftLL
 		for i := 1; i < 64; i++ {
@@ -545,7 +546,7 @@ func (c *Config) BuildRecipes(arch string) {
 			}
 			r(1, 1<<i, c,
 				func(m, x, y *Value) *Value {
-					return m.Block.NewValue2I(m.Pos, OpARM64ADDshiftLL, m.Type, int64(i), x, y)
+					return m.Block.NewValue2I(m.Pos, ssaop.OpARM64ADDshiftLL, m.Type, int64(i), x, y)
 				})
 		}
 		// NEGshiftLL
@@ -556,7 +557,7 @@ func (c *Config) BuildRecipes(arch string) {
 			}
 			r(-1<<i, 0, c,
 				func(m, x, y *Value) *Value {
-					return m.Block.NewValue1I(m.Pos, OpARM64NEGshiftLL, m.Type, int64(i), x)
+					return m.Block.NewValue1I(m.Pos, ssaop.OpARM64NEGshiftLL, m.Type, int64(i), x)
 				})
 		}
 		// SUBshiftLL
@@ -567,7 +568,7 @@ func (c *Config) BuildRecipes(arch string) {
 			}
 			r(1, -1<<i, c,
 				func(m, x, y *Value) *Value {
-					return m.Block.NewValue2I(m.Pos, OpARM64SUBshiftLL, m.Type, int64(i), x, y)
+					return m.Block.NewValue2I(m.Pos, ssaop.OpARM64SUBshiftLL, m.Type, int64(i), x, y)
 				})
 		}
 		// regular shifts
@@ -581,7 +582,7 @@ func (c *Config) BuildRecipes(arch string) {
 			}
 			r(1<<i, 0, c,
 				func(m, x, y *Value) *Value {
-					return m.Block.NewValue1I(m.Pos, OpARM64SLLconst, m.Type, int64(i), x)
+					return m.Block.NewValue1I(m.Pos, ssaop.OpARM64SLLconst, m.Type, int64(i), x)
 				})
 		}
 	case "loong64":
@@ -594,17 +595,17 @@ func (c *Config) BuildRecipes(arch string) {
 		// add
 		r(1, 1, 10,
 			func(m, x, y *Value) *Value {
-				return m.Block.NewValue2(m.Pos, OpLOONG64ADDV, m.Type, x, y)
+				return m.Block.NewValue2(m.Pos, ssaop.OpLOONG64ADDV, m.Type, x, y)
 			})
 		// neg
 		r(-1, 0, 10,
 			func(m, x, y *Value) *Value {
-				return m.Block.NewValue1(m.Pos, OpLOONG64NEGV, m.Type, x)
+				return m.Block.NewValue1(m.Pos, ssaop.OpLOONG64NEGV, m.Type, x)
 			})
 		// sub
 		r(1, -1, 10,
 			func(m, x, y *Value) *Value {
-				return m.Block.NewValue2(m.Pos, OpLOONG64SUBV, m.Type, x, y)
+				return m.Block.NewValue2(m.Pos, ssaop.OpLOONG64SUBV, m.Type, x, y)
 			})
 
 		// ADDshiftLLV
@@ -612,7 +613,7 @@ func (c *Config) BuildRecipes(arch string) {
 			c := 10
 			r(1, 1<<i, c,
 				func(m, x, y *Value) *Value {
-					return m.Block.NewValue2I(m.Pos, OpLOONG64ADDshiftLLV, m.Type, int64(i), x, y)
+					return m.Block.NewValue2I(m.Pos, ssaop.OpLOONG64ADDshiftLLV, m.Type, int64(i), x, y)
 				})
 		}
 
@@ -627,7 +628,7 @@ func (c *Config) BuildRecipes(arch string) {
 			}
 			r(1<<i, 0, c,
 				func(m, x, y *Value) *Value {
-					return m.Block.NewValue1I(m.Pos, OpLOONG64SLLVconst, m.Type, int64(i), x)
+					return m.Block.NewValue1I(m.Pos, ssaop.OpLOONG64SLLVconst, m.Type, int64(i), x)
 				})
 		}
 	}

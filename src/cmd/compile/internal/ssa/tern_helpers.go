@@ -2,6 +2,8 @@
 
 package ssa
 
+import "cmd/compile/internal/ssa/ssaop"
+
 type SIMDLogicalOP uint8
 
 const (
@@ -19,82 +21,82 @@ const (
 
 func classifyBooleanSIMD(v *Value) SIMDLogicalOP {
 	switch v.Op {
-	case OpAndInt8x16, OpAndInt16x8, OpAndInt32x4, OpAndInt64x2, OpAndInt8x32, OpAndInt16x16, OpAndInt32x8, OpAndInt64x4, OpAndInt8x64, OpAndInt16x32, OpAndInt32x16, OpAndInt64x8:
+	case ssaop.OpAndInt8x16, ssaop.OpAndInt16x8, ssaop.OpAndInt32x4, ssaop.OpAndInt64x2, ssaop.OpAndInt8x32, ssaop.OpAndInt16x16, ssaop.OpAndInt32x8, ssaop.OpAndInt64x4, ssaop.OpAndInt8x64, ssaop.OpAndInt16x32, ssaop.OpAndInt32x16, ssaop.OpAndInt64x8:
 		return sloAnd
 
-	case OpOrInt8x16, OpOrInt16x8, OpOrInt32x4, OpOrInt64x2, OpOrInt8x32, OpOrInt16x16, OpOrInt32x8, OpOrInt64x4, OpOrInt8x64, OpOrInt16x32, OpOrInt32x16, OpOrInt64x8:
+	case ssaop.OpOrInt8x16, ssaop.OpOrInt16x8, ssaop.OpOrInt32x4, ssaop.OpOrInt64x2, ssaop.OpOrInt8x32, ssaop.OpOrInt16x16, ssaop.OpOrInt32x8, ssaop.OpOrInt64x4, ssaop.OpOrInt8x64, ssaop.OpOrInt16x32, ssaop.OpOrInt32x16, ssaop.OpOrInt64x8:
 		return sloOr
 
-	case OpAndNotInt8x16, OpAndNotInt16x8, OpAndNotInt32x4, OpAndNotInt64x2, OpAndNotInt8x32, OpAndNotInt16x16, OpAndNotInt32x8, OpAndNotInt64x4, OpAndNotInt8x64, OpAndNotInt16x32, OpAndNotInt32x16, OpAndNotInt64x8:
+	case ssaop.OpAndNotInt8x16, ssaop.OpAndNotInt16x8, ssaop.OpAndNotInt32x4, ssaop.OpAndNotInt64x2, ssaop.OpAndNotInt8x32, ssaop.OpAndNotInt16x16, ssaop.OpAndNotInt32x8, ssaop.OpAndNotInt64x4, ssaop.OpAndNotInt8x64, ssaop.OpAndNotInt16x32, ssaop.OpAndNotInt32x16, ssaop.OpAndNotInt64x8:
 		return sloAndNot
-	case OpXorInt8x16:
-		if y := v.Args[1]; y.Op == OpEqualInt8x16 &&
+	case ssaop.OpXorInt8x16:
+		if y := v.Args[1]; y.Op == ssaop.OpEqualInt8x16 &&
 			y.Args[0] == y.Args[1] {
 			return sloNot
 		}
 		return sloXor
-	case OpXorInt16x8:
-		if y := v.Args[1]; y.Op == OpEqualInt16x8 &&
+	case ssaop.OpXorInt16x8:
+		if y := v.Args[1]; y.Op == ssaop.OpEqualInt16x8 &&
 			y.Args[0] == y.Args[1] {
 			return sloNot
 		}
 		return sloXor
-	case OpXorInt32x4:
-		if y := v.Args[1]; y.Op == OpEqualInt32x4 &&
+	case ssaop.OpXorInt32x4:
+		if y := v.Args[1]; y.Op == ssaop.OpEqualInt32x4 &&
 			y.Args[0] == y.Args[1] {
 			return sloNot
 		}
 		return sloXor
-	case OpXorInt64x2:
-		if y := v.Args[1]; y.Op == OpEqualInt64x2 &&
+	case ssaop.OpXorInt64x2:
+		if y := v.Args[1]; y.Op == ssaop.OpEqualInt64x2 &&
 			y.Args[0] == y.Args[1] {
 			return sloNot
 		}
 		return sloXor
-	case OpXorInt8x32:
-		if y := v.Args[1]; y.Op == OpEqualInt8x32 &&
+	case ssaop.OpXorInt8x32:
+		if y := v.Args[1]; y.Op == ssaop.OpEqualInt8x32 &&
 			y.Args[0] == y.Args[1] {
 			return sloNot
 		}
 		return sloXor
-	case OpXorInt16x16:
-		if y := v.Args[1]; y.Op == OpEqualInt16x16 &&
+	case ssaop.OpXorInt16x16:
+		if y := v.Args[1]; y.Op == ssaop.OpEqualInt16x16 &&
 			y.Args[0] == y.Args[1] {
 			return sloNot
 		}
 		return sloXor
-	case OpXorInt32x8:
-		if y := v.Args[1]; y.Op == OpEqualInt32x8 &&
+	case ssaop.OpXorInt32x8:
+		if y := v.Args[1]; y.Op == ssaop.OpEqualInt32x8 &&
 			y.Args[0] == y.Args[1] {
 			return sloNot
 		}
 		return sloXor
-	case OpXorInt64x4:
-		if y := v.Args[1]; y.Op == OpEqualInt64x4 &&
+	case ssaop.OpXorInt64x4:
+		if y := v.Args[1]; y.Op == ssaop.OpEqualInt64x4 &&
 			y.Args[0] == y.Args[1] {
 			return sloNot
 		}
 		return sloXor
-	case OpXorInt8x64:
-		if y := v.Args[1]; y.Op == OpEqualInt8x64 &&
+	case ssaop.OpXorInt8x64:
+		if y := v.Args[1]; y.Op == ssaop.OpEqualInt8x64 &&
 			y.Args[0] == y.Args[1] {
 			return sloNot
 		}
 		return sloXor
-	case OpXorInt16x32:
-		if y := v.Args[1]; y.Op == OpEqualInt16x32 &&
+	case ssaop.OpXorInt16x32:
+		if y := v.Args[1]; y.Op == ssaop.OpEqualInt16x32 &&
 			y.Args[0] == y.Args[1] {
 			return sloNot
 		}
 		return sloXor
-	case OpXorInt32x16:
-		if y := v.Args[1]; y.Op == OpEqualInt32x16 &&
+	case ssaop.OpXorInt32x16:
+		if y := v.Args[1]; y.Op == ssaop.OpEqualInt32x16 &&
 			y.Args[0] == y.Args[1] {
 			return sloNot
 		}
 		return sloXor
-	case OpXorInt64x8:
-		if y := v.Args[1]; y.Op == OpEqualInt64x8 &&
+	case ssaop.OpXorInt64x8:
+		if y := v.Args[1]; y.Op == ssaop.OpEqualInt64x8 &&
 			y.Args[0] == y.Args[1] {
 			return sloNot
 		}
@@ -104,56 +106,56 @@ func classifyBooleanSIMD(v *Value) SIMDLogicalOP {
 	return sloNone
 }
 
-func ternOpForLogical(op Op) Op {
+func ternOpForLogical(op ssaop.Op) ssaop.Op {
 	switch op {
-	case OpAndInt8x16, OpOrInt8x16, OpXorInt8x16, OpAndNotInt8x16:
-		return OpternInt32x4
-	case OpAndUint8x16, OpOrUint8x16, OpXorUint8x16, OpAndNotUint8x16:
-		return OpternUint32x4
-	case OpAndInt16x8, OpOrInt16x8, OpXorInt16x8, OpAndNotInt16x8:
-		return OpternInt32x4
-	case OpAndUint16x8, OpOrUint16x8, OpXorUint16x8, OpAndNotUint16x8:
-		return OpternUint32x4
-	case OpAndInt32x4, OpOrInt32x4, OpXorInt32x4, OpAndNotInt32x4:
-		return OpternInt32x4
-	case OpAndUint32x4, OpOrUint32x4, OpXorUint32x4, OpAndNotUint32x4:
-		return OpternUint32x4
-	case OpAndInt64x2, OpOrInt64x2, OpXorInt64x2, OpAndNotInt64x2:
-		return OpternInt64x2
-	case OpAndUint64x2, OpOrUint64x2, OpXorUint64x2, OpAndNotUint64x2:
-		return OpternUint64x2
-	case OpAndInt8x32, OpOrInt8x32, OpXorInt8x32, OpAndNotInt8x32:
-		return OpternInt32x8
-	case OpAndUint8x32, OpOrUint8x32, OpXorUint8x32, OpAndNotUint8x32:
-		return OpternUint32x8
-	case OpAndInt16x16, OpOrInt16x16, OpXorInt16x16, OpAndNotInt16x16:
-		return OpternInt32x8
-	case OpAndUint16x16, OpOrUint16x16, OpXorUint16x16, OpAndNotUint16x16:
-		return OpternUint32x8
-	case OpAndInt32x8, OpOrInt32x8, OpXorInt32x8, OpAndNotInt32x8:
-		return OpternInt32x8
-	case OpAndUint32x8, OpOrUint32x8, OpXorUint32x8, OpAndNotUint32x8:
-		return OpternUint32x8
-	case OpAndInt64x4, OpOrInt64x4, OpXorInt64x4, OpAndNotInt64x4:
-		return OpternInt64x4
-	case OpAndUint64x4, OpOrUint64x4, OpXorUint64x4, OpAndNotUint64x4:
-		return OpternUint64x4
-	case OpAndInt8x64, OpOrInt8x64, OpXorInt8x64, OpAndNotInt8x64:
-		return OpternInt32x16
-	case OpAndUint8x64, OpOrUint8x64, OpXorUint8x64, OpAndNotUint8x64:
-		return OpternUint32x16
-	case OpAndInt16x32, OpOrInt16x32, OpXorInt16x32, OpAndNotInt16x32:
-		return OpternInt32x16
-	case OpAndUint16x32, OpOrUint16x32, OpXorUint16x32, OpAndNotUint16x32:
-		return OpternUint32x16
-	case OpAndInt32x16, OpOrInt32x16, OpXorInt32x16, OpAndNotInt32x16:
-		return OpternInt32x16
-	case OpAndUint32x16, OpOrUint32x16, OpXorUint32x16, OpAndNotUint32x16:
-		return OpternUint32x16
-	case OpAndInt64x8, OpOrInt64x8, OpXorInt64x8, OpAndNotInt64x8:
-		return OpternInt64x8
-	case OpAndUint64x8, OpOrUint64x8, OpXorUint64x8, OpAndNotUint64x8:
-		return OpternUint64x8
+	case ssaop.OpAndInt8x16, ssaop.OpOrInt8x16, ssaop.OpXorInt8x16, ssaop.OpAndNotInt8x16:
+		return ssaop.OpternInt32x4
+	case ssaop.OpAndUint8x16, ssaop.OpOrUint8x16, ssaop.OpXorUint8x16, ssaop.OpAndNotUint8x16:
+		return ssaop.OpternUint32x4
+	case ssaop.OpAndInt16x8, ssaop.OpOrInt16x8, ssaop.OpXorInt16x8, ssaop.OpAndNotInt16x8:
+		return ssaop.OpternInt32x4
+	case ssaop.OpAndUint16x8, ssaop.OpOrUint16x8, ssaop.OpXorUint16x8, ssaop.OpAndNotUint16x8:
+		return ssaop.OpternUint32x4
+	case ssaop.OpAndInt32x4, ssaop.OpOrInt32x4, ssaop.OpXorInt32x4, ssaop.OpAndNotInt32x4:
+		return ssaop.OpternInt32x4
+	case ssaop.OpAndUint32x4, ssaop.OpOrUint32x4, ssaop.OpXorUint32x4, ssaop.OpAndNotUint32x4:
+		return ssaop.OpternUint32x4
+	case ssaop.OpAndInt64x2, ssaop.OpOrInt64x2, ssaop.OpXorInt64x2, ssaop.OpAndNotInt64x2:
+		return ssaop.OpternInt64x2
+	case ssaop.OpAndUint64x2, ssaop.OpOrUint64x2, ssaop.OpXorUint64x2, ssaop.OpAndNotUint64x2:
+		return ssaop.OpternUint64x2
+	case ssaop.OpAndInt8x32, ssaop.OpOrInt8x32, ssaop.OpXorInt8x32, ssaop.OpAndNotInt8x32:
+		return ssaop.OpternInt32x8
+	case ssaop.OpAndUint8x32, ssaop.OpOrUint8x32, ssaop.OpXorUint8x32, ssaop.OpAndNotUint8x32:
+		return ssaop.OpternUint32x8
+	case ssaop.OpAndInt16x16, ssaop.OpOrInt16x16, ssaop.OpXorInt16x16, ssaop.OpAndNotInt16x16:
+		return ssaop.OpternInt32x8
+	case ssaop.OpAndUint16x16, ssaop.OpOrUint16x16, ssaop.OpXorUint16x16, ssaop.OpAndNotUint16x16:
+		return ssaop.OpternUint32x8
+	case ssaop.OpAndInt32x8, ssaop.OpOrInt32x8, ssaop.OpXorInt32x8, ssaop.OpAndNotInt32x8:
+		return ssaop.OpternInt32x8
+	case ssaop.OpAndUint32x8, ssaop.OpOrUint32x8, ssaop.OpXorUint32x8, ssaop.OpAndNotUint32x8:
+		return ssaop.OpternUint32x8
+	case ssaop.OpAndInt64x4, ssaop.OpOrInt64x4, ssaop.OpXorInt64x4, ssaop.OpAndNotInt64x4:
+		return ssaop.OpternInt64x4
+	case ssaop.OpAndUint64x4, ssaop.OpOrUint64x4, ssaop.OpXorUint64x4, ssaop.OpAndNotUint64x4:
+		return ssaop.OpternUint64x4
+	case ssaop.OpAndInt8x64, ssaop.OpOrInt8x64, ssaop.OpXorInt8x64, ssaop.OpAndNotInt8x64:
+		return ssaop.OpternInt32x16
+	case ssaop.OpAndUint8x64, ssaop.OpOrUint8x64, ssaop.OpXorUint8x64, ssaop.OpAndNotUint8x64:
+		return ssaop.OpternUint32x16
+	case ssaop.OpAndInt16x32, ssaop.OpOrInt16x32, ssaop.OpXorInt16x32, ssaop.OpAndNotInt16x32:
+		return ssaop.OpternInt32x16
+	case ssaop.OpAndUint16x32, ssaop.OpOrUint16x32, ssaop.OpXorUint16x32, ssaop.OpAndNotUint16x32:
+		return ssaop.OpternUint32x16
+	case ssaop.OpAndInt32x16, ssaop.OpOrInt32x16, ssaop.OpXorInt32x16, ssaop.OpAndNotInt32x16:
+		return ssaop.OpternInt32x16
+	case ssaop.OpAndUint32x16, ssaop.OpOrUint32x16, ssaop.OpXorUint32x16, ssaop.OpAndNotUint32x16:
+		return ssaop.OpternUint32x16
+	case ssaop.OpAndInt64x8, ssaop.OpOrInt64x8, ssaop.OpXorInt64x8, ssaop.OpAndNotInt64x8:
+		return ssaop.OpternInt64x8
+	case ssaop.OpAndUint64x8, ssaop.OpOrUint64x8, ssaop.OpXorUint64x8, ssaop.OpAndNotUint64x8:
+		return ssaop.OpternUint64x8
 
 	}
 	return op

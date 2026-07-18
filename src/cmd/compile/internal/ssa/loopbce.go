@@ -7,6 +7,7 @@ package ssa
 import (
 	"cmd/compile/internal/base"
 	"cmd/compile/internal/ssa/block"
+	"cmd/compile/internal/ssa/ssaop"
 	"cmd/compile/internal/types"
 	"fmt"
 )
@@ -44,13 +45,13 @@ type indVar struct {
 // with nxt being (Add inc ind).
 // If it can't parse the induction variable correctly, it returns (nil, nil, nil).
 func parseIndVar(ind *Value) (min, inc, nxt *Value, loopReturn Edge) {
-	if ind.Op != OpPhi {
+	if ind.Op != ssaop.OpPhi {
 		return
 	}
 
-	if n := ind.Args[0]; (n.Op == OpAdd64 || n.Op == OpAdd32 || n.Op == OpAdd16 || n.Op == OpAdd8) && (n.Args[0] == ind || n.Args[1] == ind) {
+	if n := ind.Args[0]; (n.Op == ssaop.OpAdd64 || n.Op == ssaop.OpAdd32 || n.Op == ssaop.OpAdd16 || n.Op == ssaop.OpAdd8) && (n.Args[0] == ind || n.Args[1] == ind) {
 		min, nxt, loopReturn = ind.Args[1], n, ind.Block.Preds[0]
-	} else if n := ind.Args[1]; (n.Op == OpAdd64 || n.Op == OpAdd32 || n.Op == OpAdd16 || n.Op == OpAdd8) && (n.Args[0] == ind || n.Args[1] == ind) {
+	} else if n := ind.Args[1]; (n.Op == ssaop.OpAdd64 || n.Op == ssaop.OpAdd32 || n.Op == ssaop.OpAdd16 || n.Op == ssaop.OpAdd8) && (n.Args[0] == ind || n.Args[1] == ind) {
 		min, nxt, loopReturn = ind.Args[0], n, ind.Block.Preds[1]
 	} else {
 		// Not a recognized induction variable.
@@ -130,9 +131,9 @@ nextblock:
 			// TODO: Handle unsigned comparisons?
 			inclusive := false
 			switch c.Op {
-			case OpLeq64, OpLeq32, OpLeq16, OpLeq8:
+			case ssaop.OpLeq64, ssaop.OpLeq32, ssaop.OpLeq16, ssaop.OpLeq8:
 				inclusive = true
-			case OpLess64, OpLess32, OpLess16, OpLess8:
+			case ssaop.OpLess64, ssaop.OpLess32, ssaop.OpLess16, ssaop.OpLess8:
 			default:
 				continue nextblock
 			}
@@ -424,11 +425,11 @@ func findKNN(v *Value) (*Value, int64) {
 	var x, y *Value
 	x = v
 	switch v.Op {
-	case OpSub64, OpSub32, OpSub16, OpSub8:
+	case ssaop.OpSub64, ssaop.OpSub32, ssaop.OpSub16, ssaop.OpSub8:
 		x = v.Args[0]
 		y = v.Args[1]
 
-	case OpAdd64, OpAdd32, OpAdd16, OpAdd8:
+	case ssaop.OpAdd64, ssaop.OpAdd32, ssaop.OpAdd16, ssaop.OpAdd8:
 		x = v.Args[0]
 		y = v.Args[1]
 		if x.IsGenericIntConst() {
@@ -436,7 +437,7 @@ func findKNN(v *Value) (*Value, int64) {
 		}
 	}
 	switch x.Op {
-	case OpSliceLen, OpStringLen, OpSliceCap:
+	case ssaop.OpSliceLen, ssaop.OpStringLen, ssaop.OpSliceCap:
 	default:
 		return nil, 0
 	}
@@ -446,7 +447,7 @@ func findKNN(v *Value) (*Value, int64) {
 	if !y.IsGenericIntConst() {
 		return nil, 0
 	}
-	if v.Op == OpAdd64 || v.Op == OpAdd32 || v.Op == OpAdd16 || v.Op == OpAdd8 {
+	if v.Op == ssaop.OpAdd64 || v.Op == ssaop.OpAdd32 || v.Op == ssaop.OpAdd16 || v.Op == ssaop.OpAdd8 {
 		return x, -y.AuxInt
 	}
 	return x, y.AuxInt

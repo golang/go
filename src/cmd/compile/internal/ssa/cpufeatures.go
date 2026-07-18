@@ -6,6 +6,7 @@ package ssa
 
 import (
 	"cmd/compile/internal/ssa/block"
+	"cmd/compile/internal/ssa/ssaop"
 	"cmd/compile/internal/types"
 	"cmd/internal/obj"
 	"fmt"
@@ -33,19 +34,19 @@ func ifEffect(b *Block) (features CPUfeatures, taken int) {
 	}
 	c := b.Controls[0]
 
-	if c.Op == OpNot {
+	if c.Op == ssaop.OpNot {
 		taken = 1
 		c = c.Args[0]
 	}
-	if c.Op != OpLoad {
+	if c.Op != ssaop.OpLoad {
 		return
 	}
 	offPtr := c.Args[0]
-	if offPtr.Op != OpOffPtr {
+	if offPtr.Op != ssaop.OpOffPtr {
 		return
 	}
 	addr := offPtr.Args[0]
-	if addr.Op != OpAddr || addr.Args[0].Op != OpSB {
+	if addr.Op != ssaop.OpAddr || addr.Args[0].Op != ssaop.OpSB {
 		return
 	}
 	sym := addr.Aux.(*obj.LSym)

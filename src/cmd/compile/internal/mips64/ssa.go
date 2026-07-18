@@ -12,6 +12,7 @@ import (
 	"cmd/compile/internal/logopt"
 	"cmd/compile/internal/ssa"
 	"cmd/compile/internal/ssa/block"
+	"cmd/compile/internal/ssa/ssaop"
 	"cmd/compile/internal/ssagen"
 	"cmd/compile/internal/types"
 	"cmd/internal/obj"
@@ -84,7 +85,7 @@ func storeByType(t *types.Type, r int16) obj.As {
 
 func ssaGenValue(s *ssagen.State, v *ssa.Value) {
 	switch v.Op {
-	case ssa.OpCopy, ssa.OpMIPS64MOVVreg:
+	case ssaop.OpCopy, ssaop.OpMIPS64MOVVreg:
 		if v.Type.IsMemory() {
 			return
 		}
@@ -102,9 +103,9 @@ func ssaGenValue(s *ssagen.State, v *ssa.Value) {
 		p.From.Reg = x
 		p.To.Type = obj.TYPE_REG
 		p.To.Reg = y
-	case ssa.OpMIPS64MOVVnop, ssa.OpMIPS64ZERO:
+	case ssaop.OpMIPS64MOVVnop, ssaop.OpMIPS64ZERO:
 		// nothing to do
-	case ssa.OpLoadReg:
+	case ssaop.OpLoadReg:
 		if v.Type.IsFlags() {
 			v.Fatalf("load flags not implemented: %v", v.LongString())
 			return
@@ -114,7 +115,7 @@ func ssaGenValue(s *ssagen.State, v *ssa.Value) {
 		ssagen.AddrAuto(&p.From, v.Args[0])
 		p.To.Type = obj.TYPE_REG
 		p.To.Reg = r
-	case ssa.OpStoreReg:
+	case ssaop.OpStoreReg:
 		if v.Type.IsFlags() {
 			v.Fatalf("store flags not implemented: %v", v.LongString())
 			return
@@ -124,57 +125,57 @@ func ssaGenValue(s *ssagen.State, v *ssa.Value) {
 		p.From.Type = obj.TYPE_REG
 		p.From.Reg = r
 		ssagen.AddrAuto(&p.To, v)
-	case ssa.OpMIPS64ADDV,
-		ssa.OpMIPS64SUBV,
-		ssa.OpMIPS64AND,
-		ssa.OpMIPS64OR,
-		ssa.OpMIPS64XOR,
-		ssa.OpMIPS64NOR,
-		ssa.OpMIPS64SLLV,
-		ssa.OpMIPS64SRLV,
-		ssa.OpMIPS64SRAV,
-		ssa.OpMIPS64ADDF,
-		ssa.OpMIPS64ADDD,
-		ssa.OpMIPS64SUBF,
-		ssa.OpMIPS64SUBD,
-		ssa.OpMIPS64MULF,
-		ssa.OpMIPS64MULD,
-		ssa.OpMIPS64DIVF,
-		ssa.OpMIPS64DIVD:
+	case ssaop.OpMIPS64ADDV,
+		ssaop.OpMIPS64SUBV,
+		ssaop.OpMIPS64AND,
+		ssaop.OpMIPS64OR,
+		ssaop.OpMIPS64XOR,
+		ssaop.OpMIPS64NOR,
+		ssaop.OpMIPS64SLLV,
+		ssaop.OpMIPS64SRLV,
+		ssaop.OpMIPS64SRAV,
+		ssaop.OpMIPS64ADDF,
+		ssaop.OpMIPS64ADDD,
+		ssaop.OpMIPS64SUBF,
+		ssaop.OpMIPS64SUBD,
+		ssaop.OpMIPS64MULF,
+		ssaop.OpMIPS64MULD,
+		ssaop.OpMIPS64DIVF,
+		ssaop.OpMIPS64DIVD:
 		p := s.Prog(v.Op.Asm())
 		p.From.Type = obj.TYPE_REG
 		p.From.Reg = v.Args[1].Reg()
 		p.Reg = v.Args[0].Reg()
 		p.To.Type = obj.TYPE_REG
 		p.To.Reg = v.Reg()
-	case ssa.OpMIPS64SGT,
-		ssa.OpMIPS64SGTU:
+	case ssaop.OpMIPS64SGT,
+		ssaop.OpMIPS64SGTU:
 		p := s.Prog(v.Op.Asm())
 		p.From.Type = obj.TYPE_REG
 		p.From.Reg = v.Args[0].Reg()
 		p.Reg = v.Args[1].Reg()
 		p.To.Type = obj.TYPE_REG
 		p.To.Reg = v.Reg()
-	case ssa.OpMIPS64ADDVconst,
-		ssa.OpMIPS64SUBVconst,
-		ssa.OpMIPS64ANDconst,
-		ssa.OpMIPS64ORconst,
-		ssa.OpMIPS64XORconst,
-		ssa.OpMIPS64SLLVconst,
-		ssa.OpMIPS64SRLVconst,
-		ssa.OpMIPS64SRAVconst,
-		ssa.OpMIPS64SGTconst,
-		ssa.OpMIPS64SGTUconst:
+	case ssaop.OpMIPS64ADDVconst,
+		ssaop.OpMIPS64SUBVconst,
+		ssaop.OpMIPS64ANDconst,
+		ssaop.OpMIPS64ORconst,
+		ssaop.OpMIPS64XORconst,
+		ssaop.OpMIPS64SLLVconst,
+		ssaop.OpMIPS64SRLVconst,
+		ssaop.OpMIPS64SRAVconst,
+		ssaop.OpMIPS64SGTconst,
+		ssaop.OpMIPS64SGTUconst:
 		p := s.Prog(v.Op.Asm())
 		p.From.Type = obj.TYPE_CONST
 		p.From.Offset = v.AuxInt
 		p.Reg = v.Args[0].Reg()
 		p.To.Type = obj.TYPE_REG
 		p.To.Reg = v.Reg()
-	case ssa.OpMIPS64MULV,
-		ssa.OpMIPS64MULVU,
-		ssa.OpMIPS64DIVV,
-		ssa.OpMIPS64DIVVU:
+	case ssaop.OpMIPS64MULV,
+		ssaop.OpMIPS64MULVU,
+		ssaop.OpMIPS64DIVV,
+		ssaop.OpMIPS64DIVVU:
 		// HI, LO results exist in low quality registers that can't
 		// be stored without using REGTMP.
 		// This used to cause corruptions due to nested REGTMP issues
@@ -194,7 +195,7 @@ func ssaGenValue(s *ssagen.State, v *ssa.Value) {
 		p2.From.Reg = mips.REG_LO
 		p2.To.Type = obj.TYPE_REG
 		p2.To.Reg = v.Reg1()
-	case ssa.OpMIPS64MOVVconst:
+	case ssaop.OpMIPS64MOVVconst:
 		r := v.Reg()
 		p := s.Prog(v.Op.Asm())
 		p.From.Type = obj.TYPE_CONST
@@ -210,24 +211,24 @@ func ssaGenValue(s *ssagen.State, v *ssa.Value) {
 			p.To.Type = obj.TYPE_REG
 			p.To.Reg = r
 		}
-	case ssa.OpMIPS64MOVFconst,
-		ssa.OpMIPS64MOVDconst:
+	case ssaop.OpMIPS64MOVFconst,
+		ssaop.OpMIPS64MOVDconst:
 		p := s.Prog(v.Op.Asm())
 		p.From.Type = obj.TYPE_FCONST
 		p.From.Val = math.Float64frombits(uint64(v.AuxInt))
 		p.To.Type = obj.TYPE_REG
 		p.To.Reg = v.Reg()
-	case ssa.OpMIPS64CMPEQF,
-		ssa.OpMIPS64CMPEQD,
-		ssa.OpMIPS64CMPGEF,
-		ssa.OpMIPS64CMPGED,
-		ssa.OpMIPS64CMPGTF,
-		ssa.OpMIPS64CMPGTD:
+	case ssaop.OpMIPS64CMPEQF,
+		ssaop.OpMIPS64CMPEQD,
+		ssaop.OpMIPS64CMPGEF,
+		ssaop.OpMIPS64CMPGED,
+		ssaop.OpMIPS64CMPGTF,
+		ssaop.OpMIPS64CMPGTD:
 		p := s.Prog(v.Op.Asm())
 		p.From.Type = obj.TYPE_REG
 		p.From.Reg = v.Args[0].Reg()
 		p.Reg = v.Args[1].Reg()
-	case ssa.OpMIPS64MOVVaddr:
+	case ssaop.OpMIPS64MOVVaddr:
 		p := s.Prog(mips.AMOVV)
 		p.From.Type = obj.TYPE_ADDR
 		p.From.Reg = v.Args[0].Reg()
@@ -256,55 +257,55 @@ func ssaGenValue(s *ssagen.State, v *ssa.Value) {
 		}
 		p.To.Type = obj.TYPE_REG
 		p.To.Reg = v.Reg()
-	case ssa.OpMIPS64MOVBload,
-		ssa.OpMIPS64MOVBUload,
-		ssa.OpMIPS64MOVHload,
-		ssa.OpMIPS64MOVHUload,
-		ssa.OpMIPS64MOVWload,
-		ssa.OpMIPS64MOVWUload,
-		ssa.OpMIPS64MOVVload,
-		ssa.OpMIPS64MOVFload,
-		ssa.OpMIPS64MOVDload:
+	case ssaop.OpMIPS64MOVBload,
+		ssaop.OpMIPS64MOVBUload,
+		ssaop.OpMIPS64MOVHload,
+		ssaop.OpMIPS64MOVHUload,
+		ssaop.OpMIPS64MOVWload,
+		ssaop.OpMIPS64MOVWUload,
+		ssaop.OpMIPS64MOVVload,
+		ssaop.OpMIPS64MOVFload,
+		ssaop.OpMIPS64MOVDload:
 		p := s.Prog(v.Op.Asm())
 		p.From.Type = obj.TYPE_MEM
 		p.From.Reg = v.Args[0].Reg()
 		ssagen.AddAux(&p.From, v)
 		p.To.Type = obj.TYPE_REG
 		p.To.Reg = v.Reg()
-	case ssa.OpMIPS64MOVBstore,
-		ssa.OpMIPS64MOVHstore,
-		ssa.OpMIPS64MOVWstore,
-		ssa.OpMIPS64MOVVstore,
-		ssa.OpMIPS64MOVFstore,
-		ssa.OpMIPS64MOVDstore:
+	case ssaop.OpMIPS64MOVBstore,
+		ssaop.OpMIPS64MOVHstore,
+		ssaop.OpMIPS64MOVWstore,
+		ssaop.OpMIPS64MOVVstore,
+		ssaop.OpMIPS64MOVFstore,
+		ssaop.OpMIPS64MOVDstore:
 		p := s.Prog(v.Op.Asm())
 		p.From.Type = obj.TYPE_REG
 		p.From.Reg = v.Args[1].Reg()
 		p.To.Type = obj.TYPE_MEM
 		p.To.Reg = v.Args[0].Reg()
 		ssagen.AddAux(&p.To, v)
-	case ssa.OpMIPS64MOVBreg,
-		ssa.OpMIPS64MOVBUreg,
-		ssa.OpMIPS64MOVHreg,
-		ssa.OpMIPS64MOVHUreg,
-		ssa.OpMIPS64MOVWreg,
-		ssa.OpMIPS64MOVWUreg:
+	case ssaop.OpMIPS64MOVBreg,
+		ssaop.OpMIPS64MOVBUreg,
+		ssaop.OpMIPS64MOVHreg,
+		ssaop.OpMIPS64MOVHUreg,
+		ssaop.OpMIPS64MOVWreg,
+		ssaop.OpMIPS64MOVWUreg:
 		a := v.Args[0]
-		for a.Op == ssa.OpCopy || a.Op == ssa.OpMIPS64MOVVreg {
+		for a.Op == ssaop.OpCopy || a.Op == ssaop.OpMIPS64MOVVreg {
 			a = a.Args[0]
 		}
-		if a.Op == ssa.OpLoadReg && mips.REG_R0 <= a.Reg() && a.Reg() <= mips.REG_R31 {
+		if a.Op == ssaop.OpLoadReg && mips.REG_R0 <= a.Reg() && a.Reg() <= mips.REG_R31 {
 			// LoadReg from a narrower type does an extension, except loading
 			// to a floating point register. So only eliminate the extension
 			// if it is loaded to an integer register.
 			t := a.Type
 			switch {
-			case v.Op == ssa.OpMIPS64MOVBreg && t.Size() == 1 && t.IsSigned(),
-				v.Op == ssa.OpMIPS64MOVBUreg && t.Size() == 1 && !t.IsSigned(),
-				v.Op == ssa.OpMIPS64MOVHreg && t.Size() == 2 && t.IsSigned(),
-				v.Op == ssa.OpMIPS64MOVHUreg && t.Size() == 2 && !t.IsSigned(),
-				v.Op == ssa.OpMIPS64MOVWreg && t.Size() == 4 && t.IsSigned(),
-				v.Op == ssa.OpMIPS64MOVWUreg && t.Size() == 4 && !t.IsSigned():
+			case v.Op == ssaop.OpMIPS64MOVBreg && t.Size() == 1 && t.IsSigned(),
+				v.Op == ssaop.OpMIPS64MOVBUreg && t.Size() == 1 && !t.IsSigned(),
+				v.Op == ssaop.OpMIPS64MOVHreg && t.Size() == 2 && t.IsSigned(),
+				v.Op == ssaop.OpMIPS64MOVHUreg && t.Size() == 2 && !t.IsSigned(),
+				v.Op == ssaop.OpMIPS64MOVWreg && t.Size() == 4 && t.IsSigned(),
+				v.Op == ssaop.OpMIPS64MOVWUreg && t.Size() == 4 && !t.IsSigned():
 				// arg is a proper-typed load, already zero/sign-extended, don't extend again
 				if v.Reg() == v.Args[0].Reg() {
 					return
@@ -319,32 +320,32 @@ func ssaGenValue(s *ssagen.State, v *ssa.Value) {
 			}
 		}
 		fallthrough
-	case ssa.OpMIPS64MOVWF,
-		ssa.OpMIPS64MOVWD,
-		ssa.OpMIPS64TRUNCFW,
-		ssa.OpMIPS64TRUNCDW,
-		ssa.OpMIPS64MOVVF,
-		ssa.OpMIPS64MOVVD,
-		ssa.OpMIPS64TRUNCFV,
-		ssa.OpMIPS64TRUNCDV,
-		ssa.OpMIPS64MOVFD,
-		ssa.OpMIPS64MOVDF,
-		ssa.OpMIPS64MOVWfpgp,
-		ssa.OpMIPS64MOVWgpfp,
-		ssa.OpMIPS64MOVVfpgp,
-		ssa.OpMIPS64MOVVgpfp,
-		ssa.OpMIPS64NEGF,
-		ssa.OpMIPS64NEGD,
-		ssa.OpMIPS64ABSF,
-		ssa.OpMIPS64ABSD,
-		ssa.OpMIPS64SQRTF,
-		ssa.OpMIPS64SQRTD:
+	case ssaop.OpMIPS64MOVWF,
+		ssaop.OpMIPS64MOVWD,
+		ssaop.OpMIPS64TRUNCFW,
+		ssaop.OpMIPS64TRUNCDW,
+		ssaop.OpMIPS64MOVVF,
+		ssaop.OpMIPS64MOVVD,
+		ssaop.OpMIPS64TRUNCFV,
+		ssaop.OpMIPS64TRUNCDV,
+		ssaop.OpMIPS64MOVFD,
+		ssaop.OpMIPS64MOVDF,
+		ssaop.OpMIPS64MOVWfpgp,
+		ssaop.OpMIPS64MOVWgpfp,
+		ssaop.OpMIPS64MOVVfpgp,
+		ssaop.OpMIPS64MOVVgpfp,
+		ssaop.OpMIPS64NEGF,
+		ssaop.OpMIPS64NEGD,
+		ssaop.OpMIPS64ABSF,
+		ssaop.OpMIPS64ABSD,
+		ssaop.OpMIPS64SQRTF,
+		ssaop.OpMIPS64SQRTD:
 		p := s.Prog(v.Op.Asm())
 		p.From.Type = obj.TYPE_REG
 		p.From.Reg = v.Args[0].Reg()
 		p.To.Type = obj.TYPE_REG
 		p.To.Reg = v.Reg()
-	case ssa.OpMIPS64NEGV:
+	case ssaop.OpMIPS64NEGV:
 		// SUB from REGZERO
 		p := s.Prog(mips.ASUBVU)
 		p.From.Type = obj.TYPE_REG
@@ -352,7 +353,7 @@ func ssaGenValue(s *ssagen.State, v *ssa.Value) {
 		p.Reg = mips.REGZERO
 		p.To.Type = obj.TYPE_REG
 		p.To.Reg = v.Reg()
-	case ssa.OpMIPS64DUFFZERO:
+	case ssaop.OpMIPS64DUFFZERO:
 		// runtime.duffzero expects start address - 8 in R1
 		p := s.Prog(mips.ASUBVU)
 		p.From.Type = obj.TYPE_CONST
@@ -365,7 +366,7 @@ func ssaGenValue(s *ssagen.State, v *ssa.Value) {
 		p.To.Name = obj.NAME_EXTERN
 		p.To.Sym = ir.Syms.Duffzero
 		p.To.Offset = v.AuxInt
-	case ssa.OpMIPS64LoweredZero:
+	case ssaop.OpMIPS64LoweredZero:
 		// SUBV	$8, R1
 		// MOVV	R0, 8(R1)
 		// ADDV	$8, R1
@@ -409,13 +410,13 @@ func ssaGenValue(s *ssagen.State, v *ssa.Value) {
 		p4.Reg = mips.REG_R1
 		p4.To.Type = obj.TYPE_BRANCH
 		p4.To.SetTarget(p2)
-	case ssa.OpMIPS64DUFFCOPY:
+	case ssaop.OpMIPS64DUFFCOPY:
 		p := s.Prog(obj.ADUFFCOPY)
 		p.To.Type = obj.TYPE_MEM
 		p.To.Name = obj.NAME_EXTERN
 		p.To.Sym = ir.Syms.Duffcopy
 		p.To.Offset = v.AuxInt
-	case ssa.OpMIPS64LoweredMove:
+	case ssaop.OpMIPS64LoweredMove:
 		// SUBV	$8, R1
 		// MOVV	8(R1), Rtmp
 		// MOVV	Rtmp, (R2)
@@ -471,18 +472,18 @@ func ssaGenValue(s *ssagen.State, v *ssa.Value) {
 		p6.Reg = mips.REG_R1
 		p6.To.Type = obj.TYPE_BRANCH
 		p6.To.SetTarget(p2)
-	case ssa.OpMIPS64CALLstatic, ssa.OpMIPS64CALLclosure, ssa.OpMIPS64CALLinter:
+	case ssaop.OpMIPS64CALLstatic, ssaop.OpMIPS64CALLclosure, ssaop.OpMIPS64CALLinter:
 		s.Call(v)
-	case ssa.OpMIPS64CALLtail, ssa.OpMIPS64CALLtailinter:
+	case ssaop.OpMIPS64CALLtail, ssaop.OpMIPS64CALLtailinter:
 		s.TailCall(v)
-	case ssa.OpMIPS64LoweredWB:
+	case ssaop.OpMIPS64LoweredWB:
 		p := s.Prog(obj.ACALL)
 		p.To.Type = obj.TYPE_MEM
 		p.To.Name = obj.NAME_EXTERN
 		// AuxInt encodes how many buffer entries we need.
 		p.To.Sym = ir.Syms.GCWriteBarrier[v.AuxInt-1]
 
-	case ssa.OpMIPS64LoweredPanicBoundsRR, ssa.OpMIPS64LoweredPanicBoundsRC, ssa.OpMIPS64LoweredPanicBoundsCR, ssa.OpMIPS64LoweredPanicBoundsCC:
+	case ssaop.OpMIPS64LoweredPanicBoundsRR, ssaop.OpMIPS64LoweredPanicBoundsRC, ssaop.OpMIPS64LoweredPanicBoundsCR, ssaop.OpMIPS64LoweredPanicBoundsCC:
 		// Compute the constant we put in the PCData entry for this call.
 		code, signed := ssa.BoundsKind(v.AuxInt).Code()
 		xIsReg := false
@@ -490,12 +491,12 @@ func ssaGenValue(s *ssagen.State, v *ssa.Value) {
 		xVal := 0
 		yVal := 0
 		switch v.Op {
-		case ssa.OpMIPS64LoweredPanicBoundsRR:
+		case ssaop.OpMIPS64LoweredPanicBoundsRR:
 			xIsReg = true
 			xVal = int(v.Args[0].Reg() - mips.REG_R1)
 			yIsReg = true
 			yVal = int(v.Args[1].Reg() - mips.REG_R1)
-		case ssa.OpMIPS64LoweredPanicBoundsRC:
+		case ssaop.OpMIPS64LoweredPanicBoundsRC:
 			xIsReg = true
 			xVal = int(v.Args[0].Reg() - mips.REG_R1)
 			c := v.Aux.(ssa.PanicBoundsC).C
@@ -513,7 +514,7 @@ func ssaGenValue(s *ssagen.State, v *ssa.Value) {
 				p.To.Type = obj.TYPE_REG
 				p.To.Reg = mips.REG_R1 + int16(yVal)
 			}
-		case ssa.OpMIPS64LoweredPanicBoundsCR:
+		case ssaop.OpMIPS64LoweredPanicBoundsCR:
 			yIsReg = true
 			yVal = int(v.Args[0].Reg() - mips.REG_R1)
 			c := v.Aux.(ssa.PanicBoundsC).C
@@ -531,7 +532,7 @@ func ssaGenValue(s *ssagen.State, v *ssa.Value) {
 				p.To.Type = obj.TYPE_REG
 				p.To.Reg = mips.REG_R1 + int16(xVal)
 			}
-		case ssa.OpMIPS64LoweredPanicBoundsCC:
+		case ssaop.OpMIPS64LoweredPanicBoundsCC:
 			c := v.Aux.(ssa.PanicBoundsCC).Cx
 			if c >= 0 && c <= abi.BoundsMaxConst {
 				xVal = int(c)
@@ -568,12 +569,12 @@ func ssaGenValue(s *ssagen.State, v *ssa.Value) {
 		p.To.Name = obj.NAME_EXTERN
 		p.To.Sym = ir.Syms.PanicBounds
 
-	case ssa.OpMIPS64LoweredAtomicLoad8, ssa.OpMIPS64LoweredAtomicLoad32, ssa.OpMIPS64LoweredAtomicLoad64:
+	case ssaop.OpMIPS64LoweredAtomicLoad8, ssaop.OpMIPS64LoweredAtomicLoad32, ssaop.OpMIPS64LoweredAtomicLoad64:
 		as := mips.AMOVV
 		switch v.Op {
-		case ssa.OpMIPS64LoweredAtomicLoad8:
+		case ssaop.OpMIPS64LoweredAtomicLoad8:
 			as = mips.AMOVB
-		case ssa.OpMIPS64LoweredAtomicLoad32:
+		case ssaop.OpMIPS64LoweredAtomicLoad32:
 			as = mips.AMOVW
 		}
 		s.Prog(mips.ASYNC)
@@ -583,12 +584,12 @@ func ssaGenValue(s *ssagen.State, v *ssa.Value) {
 		p.To.Type = obj.TYPE_REG
 		p.To.Reg = v.Reg0()
 		s.Prog(mips.ASYNC)
-	case ssa.OpMIPS64LoweredAtomicStore8, ssa.OpMIPS64LoweredAtomicStore32, ssa.OpMIPS64LoweredAtomicStore64:
+	case ssaop.OpMIPS64LoweredAtomicStore8, ssaop.OpMIPS64LoweredAtomicStore32, ssaop.OpMIPS64LoweredAtomicStore64:
 		as := mips.AMOVV
 		switch v.Op {
-		case ssa.OpMIPS64LoweredAtomicStore8:
+		case ssaop.OpMIPS64LoweredAtomicStore8:
 			as = mips.AMOVB
-		case ssa.OpMIPS64LoweredAtomicStore32:
+		case ssaop.OpMIPS64LoweredAtomicStore32:
 			as = mips.AMOVW
 		}
 		s.Prog(mips.ASYNC)
@@ -598,9 +599,9 @@ func ssaGenValue(s *ssagen.State, v *ssa.Value) {
 		p.To.Type = obj.TYPE_MEM
 		p.To.Reg = v.Args[0].Reg()
 		s.Prog(mips.ASYNC)
-	case ssa.OpMIPS64LoweredAtomicStorezero32, ssa.OpMIPS64LoweredAtomicStorezero64:
+	case ssaop.OpMIPS64LoweredAtomicStorezero32, ssaop.OpMIPS64LoweredAtomicStorezero64:
 		as := mips.AMOVV
-		if v.Op == ssa.OpMIPS64LoweredAtomicStorezero32 {
+		if v.Op == ssaop.OpMIPS64LoweredAtomicStorezero32 {
 			as = mips.AMOVW
 		}
 		s.Prog(mips.ASYNC)
@@ -610,7 +611,7 @@ func ssaGenValue(s *ssagen.State, v *ssa.Value) {
 		p.To.Type = obj.TYPE_MEM
 		p.To.Reg = v.Args[0].Reg()
 		s.Prog(mips.ASYNC)
-	case ssa.OpMIPS64LoweredAtomicExchange32, ssa.OpMIPS64LoweredAtomicExchange64:
+	case ssaop.OpMIPS64LoweredAtomicExchange32, ssaop.OpMIPS64LoweredAtomicExchange64:
 		// SYNC
 		// MOVV	Rarg1, Rtmp
 		// LL	(Rarg0), Rout
@@ -619,7 +620,7 @@ func ssaGenValue(s *ssagen.State, v *ssa.Value) {
 		// SYNC
 		ll := mips.ALLV
 		sc := mips.ASCV
-		if v.Op == ssa.OpMIPS64LoweredAtomicExchange32 {
+		if v.Op == ssaop.OpMIPS64LoweredAtomicExchange32 {
 			ll = mips.ALL
 			sc = mips.ASC
 		}
@@ -645,7 +646,7 @@ func ssaGenValue(s *ssagen.State, v *ssa.Value) {
 		p3.To.Type = obj.TYPE_BRANCH
 		p3.To.SetTarget(p)
 		s.Prog(mips.ASYNC)
-	case ssa.OpMIPS64LoweredAtomicAdd32, ssa.OpMIPS64LoweredAtomicAdd64:
+	case ssaop.OpMIPS64LoweredAtomicAdd32, ssaop.OpMIPS64LoweredAtomicAdd64:
 		// SYNC
 		// LL	(Rarg0), Rout
 		// ADDV Rarg1, Rout, Rtmp
@@ -655,7 +656,7 @@ func ssaGenValue(s *ssagen.State, v *ssa.Value) {
 		// ADDV Rarg1, Rout
 		ll := mips.ALLV
 		sc := mips.ASCV
-		if v.Op == ssa.OpMIPS64LoweredAtomicAdd32 {
+		if v.Op == ssaop.OpMIPS64LoweredAtomicAdd32 {
 			ll = mips.ALL
 			sc = mips.ASC
 		}
@@ -688,7 +689,7 @@ func ssaGenValue(s *ssagen.State, v *ssa.Value) {
 		p4.Reg = v.Reg0()
 		p4.To.Type = obj.TYPE_REG
 		p4.To.Reg = v.Reg0()
-	case ssa.OpMIPS64LoweredAtomicAddconst32, ssa.OpMIPS64LoweredAtomicAddconst64:
+	case ssaop.OpMIPS64LoweredAtomicAddconst32, ssaop.OpMIPS64LoweredAtomicAddconst64:
 		// SYNC
 		// LL	(Rarg0), Rout
 		// ADDV $auxint, Rout, Rtmp
@@ -698,7 +699,7 @@ func ssaGenValue(s *ssagen.State, v *ssa.Value) {
 		// ADDV $auxint, Rout
 		ll := mips.ALLV
 		sc := mips.ASCV
-		if v.Op == ssa.OpMIPS64LoweredAtomicAddconst32 {
+		if v.Op == ssaop.OpMIPS64LoweredAtomicAddconst32 {
 			ll = mips.ALL
 			sc = mips.ASC
 		}
@@ -731,8 +732,8 @@ func ssaGenValue(s *ssagen.State, v *ssa.Value) {
 		p4.Reg = v.Reg0()
 		p4.To.Type = obj.TYPE_REG
 		p4.To.Reg = v.Reg0()
-	case ssa.OpMIPS64LoweredAtomicAnd32,
-		ssa.OpMIPS64LoweredAtomicOr32:
+	case ssaop.OpMIPS64LoweredAtomicAnd32,
+		ssaop.OpMIPS64LoweredAtomicOr32:
 		// SYNC
 		// LL	(Rarg0), Rtmp
 		// AND/OR	Rarg1, Rtmp
@@ -768,7 +769,7 @@ func ssaGenValue(s *ssagen.State, v *ssa.Value) {
 
 		s.Prog(mips.ASYNC)
 
-	case ssa.OpMIPS64LoweredAtomicCas32, ssa.OpMIPS64LoweredAtomicCas64:
+	case ssaop.OpMIPS64LoweredAtomicCas32, ssaop.OpMIPS64LoweredAtomicCas64:
 		// MOVV $0, Rout
 		// SYNC
 		// LL	(Rarg0), Rtmp
@@ -779,7 +780,7 @@ func ssaGenValue(s *ssagen.State, v *ssa.Value) {
 		// SYNC
 		ll := mips.ALLV
 		sc := mips.ASCV
-		if v.Op == ssa.OpMIPS64LoweredAtomicCas32 {
+		if v.Op == ssaop.OpMIPS64LoweredAtomicCas32 {
 			ll = mips.ALL
 			sc = mips.ASC
 		}
@@ -816,7 +817,7 @@ func ssaGenValue(s *ssagen.State, v *ssa.Value) {
 		p5.To.SetTarget(p1)
 		p6 := s.Prog(mips.ASYNC)
 		p2.To.SetTarget(p6)
-	case ssa.OpMIPS64LoweredNilCheck:
+	case ssaop.OpMIPS64LoweredNilCheck:
 		// Issue a load which will fault if arg is nil.
 		p := s.Prog(mips.AMOVB)
 		p.From.Type = obj.TYPE_MEM
@@ -830,13 +831,13 @@ func ssaGenValue(s *ssagen.State, v *ssa.Value) {
 		if base.Debug.Nil != 0 && v.Pos.Line() > 1 { // v.Pos.Line()==1 in generated wrappers
 			base.WarnfAt(v.Pos, "generated nil check")
 		}
-	case ssa.OpMIPS64FPFlagTrue,
-		ssa.OpMIPS64FPFlagFalse:
+	case ssaop.OpMIPS64FPFlagTrue,
+		ssaop.OpMIPS64FPFlagFalse:
 		// MOVV	$0, r
 		// BFPF	2(PC)
 		// MOVV	$1, r
 		branch := mips.ABFPF
-		if v.Op == ssa.OpMIPS64FPFlagFalse {
+		if v.Op == ssaop.OpMIPS64FPFlagFalse {
 			branch = mips.ABFPT
 		}
 		p := s.Prog(mips.AMOVV)
@@ -853,10 +854,10 @@ func ssaGenValue(s *ssagen.State, v *ssa.Value) {
 		p3.To.Reg = v.Reg()
 		p4 := s.Prog(obj.ANOP) // not a machine instruction, for branch to land
 		p2.To.SetTarget(p4)
-	case ssa.OpMIPS64LoweredGetClosurePtr:
+	case ssaop.OpMIPS64LoweredGetClosurePtr:
 		// Closure pointer is R22 (mips.REGCTXT).
 		ssagen.CheckLoweredGetClosurePtr(v)
-	case ssa.OpMIPS64LoweredGetCallerSP:
+	case ssaop.OpMIPS64LoweredGetCallerSP:
 		// caller's SP is FixedFrameSize below the address of the first arg
 		p := s.Prog(mips.AMOVV)
 		p.From.Type = obj.TYPE_ADDR
@@ -864,14 +865,14 @@ func ssaGenValue(s *ssagen.State, v *ssa.Value) {
 		p.From.Name = obj.NAME_PARAM
 		p.To.Type = obj.TYPE_REG
 		p.To.Reg = v.Reg()
-	case ssa.OpMIPS64LoweredGetCallerPC:
+	case ssaop.OpMIPS64LoweredGetCallerPC:
 		p := s.Prog(obj.AGETCALLERPC)
 		p.To.Type = obj.TYPE_REG
 		p.To.Reg = v.Reg()
-	case ssa.OpMIPS64LoweredPubBarrier:
+	case ssaop.OpMIPS64LoweredPubBarrier:
 		// SYNC
 		s.Prog(v.Op.Asm())
-	case ssa.OpClobber, ssa.OpClobberReg:
+	case ssaop.OpClobber, ssaop.OpClobberReg:
 		// TODO: implement for clobberdead experiment. Nop is ok for now.
 	default:
 		v.Fatalf("genValue not implemented: %s", v.LongString())

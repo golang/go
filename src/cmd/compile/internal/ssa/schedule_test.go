@@ -5,6 +5,7 @@
 package ssa
 
 import (
+	"cmd/compile/internal/ssa/ssaop"
 	"cmd/compile/internal/types"
 	"testing"
 )
@@ -14,15 +15,15 @@ func TestSchedule(t *testing.T) {
 	cases := []fun{
 		c.Fun("entry",
 			Bloc("entry",
-				Valu("mem0", OpInitMem, types.TypeMem, 0, nil),
-				Valu("ptr", OpConst64, c.config.Types.Int64, 0xABCD, nil),
-				Valu("v", OpConst64, c.config.Types.Int64, 12, nil),
-				Valu("mem1", OpStore, types.TypeMem, 0, c.config.Types.Int64, "ptr", "v", "mem0"),
-				Valu("mem2", OpStore, types.TypeMem, 0, c.config.Types.Int64, "ptr", "v", "mem1"),
-				Valu("mem3", OpStore, types.TypeMem, 0, c.config.Types.Int64, "ptr", "sum", "mem2"),
-				Valu("l1", OpLoad, c.config.Types.Int64, 0, nil, "ptr", "mem1"),
-				Valu("l2", OpLoad, c.config.Types.Int64, 0, nil, "ptr", "mem2"),
-				Valu("sum", OpAdd64, c.config.Types.Int64, 0, nil, "l1", "l2"),
+				Valu("mem0", ssaop.OpInitMem, types.TypeMem, 0, nil),
+				Valu("ptr", ssaop.OpConst64, c.config.Types.Int64, 0xABCD, nil),
+				Valu("v", ssaop.OpConst64, c.config.Types.Int64, 12, nil),
+				Valu("mem1", ssaop.OpStore, types.TypeMem, 0, c.config.Types.Int64, "ptr", "v", "mem0"),
+				Valu("mem2", ssaop.OpStore, types.TypeMem, 0, c.config.Types.Int64, "ptr", "v", "mem1"),
+				Valu("mem3", ssaop.OpStore, types.TypeMem, 0, c.config.Types.Int64, "ptr", "sum", "mem2"),
+				Valu("l1", ssaop.OpLoad, c.config.Types.Int64, 0, nil, "ptr", "mem1"),
+				Valu("l2", ssaop.OpLoad, c.config.Types.Int64, 0, nil, "ptr", "mem2"),
+				Valu("sum", ssaop.OpAdd64, c.config.Types.Int64, 0, nil, "l1", "l2"),
 				Goto("exit")),
 			Bloc("exit",
 				Exit("mem3"))),
@@ -65,14 +66,14 @@ func TestStoreOrder(t *testing.T) {
 	c := testConfig(t)
 	fun := c.Fun("entry",
 		Bloc("entry",
-			Valu("mem0", OpInitMem, types.TypeMem, 0, nil),
-			Valu("a", OpAdd64, c.config.Types.Int64, 0, nil, "b", "c"),                        // v2
-			Valu("b", OpLoad, c.config.Types.Int64, 0, nil, "ptr", "mem1"),                    // v3
-			Valu("c", OpNeg64, c.config.Types.Int64, 0, nil, "b"),                             // v4
-			Valu("mem1", OpStore, types.TypeMem, 0, c.config.Types.Int64, "ptr", "v", "mem0"), // v5
-			Valu("mem2", OpStore, types.TypeMem, 0, c.config.Types.Int64, "ptr", "a", "mem1"),
-			Valu("ptr", OpConst64, c.config.Types.Int64, 0xABCD, nil),
-			Valu("v", OpConst64, c.config.Types.Int64, 12, nil),
+			Valu("mem0", ssaop.OpInitMem, types.TypeMem, 0, nil),
+			Valu("a", ssaop.OpAdd64, c.config.Types.Int64, 0, nil, "b", "c"),                        // v2
+			Valu("b", ssaop.OpLoad, c.config.Types.Int64, 0, nil, "ptr", "mem1"),                    // v3
+			Valu("c", ssaop.OpNeg64, c.config.Types.Int64, 0, nil, "b"),                             // v4
+			Valu("mem1", ssaop.OpStore, types.TypeMem, 0, c.config.Types.Int64, "ptr", "v", "mem0"), // v5
+			Valu("mem2", ssaop.OpStore, types.TypeMem, 0, c.config.Types.Int64, "ptr", "a", "mem1"),
+			Valu("ptr", ssaop.OpConst64, c.config.Types.Int64, 0xABCD, nil),
+			Valu("v", ssaop.OpConst64, c.config.Types.Int64, 12, nil),
 			Goto("exit")),
 		Bloc("exit",
 			Exit("mem2")))
@@ -107,21 +108,21 @@ func TestCarryChainOrder(t *testing.T) {
 	c := testConfigARM64(t)
 	fun := c.Fun("entry",
 		Bloc("entry",
-			Valu("mem0", OpInitMem, types.TypeMem, 0, nil),
-			Valu("x", OpARM64MOVDconst, c.config.Types.UInt64, 5, nil),
-			Valu("y", OpARM64MOVDconst, c.config.Types.UInt64, 6, nil),
-			Valu("z", OpARM64MOVDconst, c.config.Types.UInt64, 7, nil),
-			Valu("A1", OpARM64ADDSflags, types.NewTuple(c.config.Types.UInt64, types.TypeFlags), 0, nil, "x", "z"), // x+z, set flags
-			Valu("A1carry", OpSelect1, types.TypeFlags, 0, nil, "A1"),
-			Valu("A2", OpARM64ADDSflags, types.NewTuple(c.config.Types.UInt64, types.TypeFlags), 0, nil, "y", "z"), // y+z, set flags
-			Valu("A2carry", OpSelect1, types.TypeFlags, 0, nil, "A2"),
-			Valu("A1value", OpSelect0, c.config.Types.UInt64, 0, nil, "A1"),
-			Valu("A1Carryvalue", OpARM64ADCzerocarry, c.config.Types.UInt64, 0, nil, "A1carry"), // 0+0+A1carry
-			Valu("A2value", OpSelect0, c.config.Types.UInt64, 0, nil, "A2"),
-			Valu("A2Carryvalue", OpARM64ADCzerocarry, c.config.Types.UInt64, 0, nil, "A2carry"), // 0+0+A2carry
-			Valu("ValueSum", OpARM64ADD, c.config.Types.UInt64, 0, nil, "A1value", "A2value"),
-			Valu("CarrySum", OpARM64ADD, c.config.Types.UInt64, 0, nil, "A1Carryvalue", "A2Carryvalue"),
-			Valu("Sum", OpARM64AND, c.config.Types.UInt64, 0, nil, "ValueSum", "CarrySum"),
+			Valu("mem0", ssaop.OpInitMem, types.TypeMem, 0, nil),
+			Valu("x", ssaop.OpARM64MOVDconst, c.config.Types.UInt64, 5, nil),
+			Valu("y", ssaop.OpARM64MOVDconst, c.config.Types.UInt64, 6, nil),
+			Valu("z", ssaop.OpARM64MOVDconst, c.config.Types.UInt64, 7, nil),
+			Valu("A1", ssaop.OpARM64ADDSflags, types.NewTuple(c.config.Types.UInt64, types.TypeFlags), 0, nil, "x", "z"), // x+z, set flags
+			Valu("A1carry", ssaop.OpSelect1, types.TypeFlags, 0, nil, "A1"),
+			Valu("A2", ssaop.OpARM64ADDSflags, types.NewTuple(c.config.Types.UInt64, types.TypeFlags), 0, nil, "y", "z"), // y+z, set flags
+			Valu("A2carry", ssaop.OpSelect1, types.TypeFlags, 0, nil, "A2"),
+			Valu("A1value", ssaop.OpSelect0, c.config.Types.UInt64, 0, nil, "A1"),
+			Valu("A1Carryvalue", ssaop.OpARM64ADCzerocarry, c.config.Types.UInt64, 0, nil, "A1carry"), // 0+0+A1carry
+			Valu("A2value", ssaop.OpSelect0, c.config.Types.UInt64, 0, nil, "A2"),
+			Valu("A2Carryvalue", ssaop.OpARM64ADCzerocarry, c.config.Types.UInt64, 0, nil, "A2carry"), // 0+0+A2carry
+			Valu("ValueSum", ssaop.OpARM64ADD, c.config.Types.UInt64, 0, nil, "A1value", "A2value"),
+			Valu("CarrySum", ssaop.OpARM64ADD, c.config.Types.UInt64, 0, nil, "A1Carryvalue", "A2Carryvalue"),
+			Valu("Sum", ssaop.OpARM64AND, c.config.Types.UInt64, 0, nil, "ValueSum", "CarrySum"),
 			Goto("exit")),
 		Bloc("exit",
 			Exit("mem0")),

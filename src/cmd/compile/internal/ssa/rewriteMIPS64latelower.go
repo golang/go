@@ -2,9 +2,11 @@
 
 package ssa
 
+import "cmd/compile/internal/ssa/ssaop"
+
 func rewriteValueMIPS64latelower(v *Value) bool {
 	switch v.Op {
-	case OpMIPS64MOVVconst:
+	case ssaop.OpMIPS64MOVVconst:
 		return rewriteValueMIPS64latelower_OpMIPS64MOVVconst(v)
 	}
 	return false
@@ -16,7 +18,7 @@ func rewriteValueMIPS64latelower_OpMIPS64MOVVconst(v *Value) bool {
 		if AuxIntToInt64(v.AuxInt) != 0 {
 			break
 		}
-		v.Reset(OpMIPS64ZERO)
+		v.Reset(ssaop.OpMIPS64ZERO)
 		return true
 	}
 	return false

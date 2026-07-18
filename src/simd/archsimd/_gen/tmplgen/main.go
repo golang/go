@@ -1388,7 +1388,7 @@ const TD = "../../internal/simd_test/"
 
 var SSA = "../../../../cmd/compile/internal/ssa/"
 
-var splitPhase = phase0Export
+var splitPhase = phase1Op
 
 var (
 	splitRewritesPath = "cmd/compile/internal/ssa"

@@ -5,19 +5,20 @@
 package ssa
 
 import (
+	"cmd/compile/internal/ssa/ssaop"
 	"cmd/internal/src"
 	"fmt"
 	"sort"
 )
 
-func isPoorStatementOp(op Op) bool {
+func isPoorStatementOp(op ssaop.Op) bool {
 	switch op {
 	// Note that Nilcheck often vanishes, but when it doesn't, you'd love to start the statement there
 	// so that a debugger-user sees the stop before the panic, and can examine the value.
-	case OpAddr, OpLocalAddr, OpOffPtr, OpStructSelect, OpPhi, OpITab, OpIData,
-		OpIMake, OpStringMake, OpSliceMake, OpStructMake,
-		OpConstBool, OpConst8, OpConst16, OpConst32, OpConst64, OpConst32F, OpConst64F, OpSB, OpSP,
-		OpArgIntReg, OpArgFloatReg:
+	case ssaop.OpAddr, ssaop.OpLocalAddr, ssaop.OpOffPtr, ssaop.OpStructSelect, ssaop.OpPhi, ssaop.OpITab, ssaop.OpIData,
+		ssaop.OpIMake, ssaop.OpStringMake, ssaop.OpSliceMake, ssaop.OpStructMake,
+		ssaop.OpConstBool, ssaop.OpConst8, ssaop.OpConst16, ssaop.OpConst32, ssaop.OpConst64, ssaop.OpConst32F, ssaop.OpConst64F, ssaop.OpSB, ssaop.OpSP,
+		ssaop.OpArgIntReg, ssaop.OpArgFloatReg:
 		return true
 	}
 	return false
@@ -60,9 +61,9 @@ func nextGoodStatementIndex(v *Value, i int, b *Block) int {
 // NotStmtBoundary reports whether a value with opcode op can never be a statement
 // boundary. Such values don't correspond to a user's understanding of a
 // statement boundary.
-func NotStmtBoundary(op Op) bool {
+func NotStmtBoundary(op ssaop.Op) bool {
 	switch op {
-	case OpCopy, OpPhi, OpVarDef, OpVarLive, OpUnknown, OpFwdRef, OpArg, OpArgIntReg, OpArgFloatReg:
+	case ssaop.OpCopy, ssaop.OpPhi, ssaop.OpVarDef, ssaop.OpVarLive, ssaop.OpUnknown, ssaop.OpFwdRef, ssaop.OpArg, ssaop.OpArgIntReg, ssaop.OpArgFloatReg:
 		return true
 	}
 	return false

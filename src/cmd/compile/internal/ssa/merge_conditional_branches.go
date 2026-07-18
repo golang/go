@@ -7,6 +7,7 @@ package ssa
 import (
 	"cmd/compile/internal/ssa/block"
 	blockpkg "cmd/compile/internal/ssa/block"
+	"cmd/compile/internal/ssa/ssaop"
 	"cmd/compile/internal/types"
 )
 
@@ -295,7 +296,7 @@ func checkSameValuesInPhiNodes(outerBlock, innerBlock *Block, outToCommonIndex, 
 
 	resultBlock := outerBlock.Succs[outToCommonIndex].Block()
 	for _, v := range resultBlock.Values {
-		if v.Op != OpPhi {
+		if v.Op != ssaop.OpPhi {
 			continue
 		}
 
@@ -326,7 +327,7 @@ func canValuesBeMoved(b *Block) bool {
 // Returns false for values that have side effects, are memory operations, phi nodes,
 // or nil checks, as moving these could change program semantics.
 func canValueBeMoved(v *Value) bool {
-	if v.Op == OpPhi {
+	if v.Op == ssaop.OpPhi {
 		return false
 	}
 	if v.Type.IsMemory() {
@@ -335,7 +336,7 @@ func canValueBeMoved(v *Value) bool {
 	if v.Op.HasSideEffects() {
 		return false
 	}
-	if OpcodeTable[v.Op].NilCheck {
+	if ssaop.OpcodeTable[v.Op].NilCheck {
 		return false
 	}
 	if v.MemoryArg() != nil {
@@ -382,14 +383,14 @@ func isComparisonOperation(value *Value) bool {
 	}
 
 	switch value.Op {
-	case OpARM64CMP,
-		OpARM64CMPconst,
-		OpARM64CMN,
-		OpARM64CMNconst,
-		OpARM64CMPW,
-		OpARM64CMPWconst,
-		OpARM64CMNW,
-		OpARM64CMNWconst:
+	case ssaop.OpARM64CMP,
+		ssaop.OpARM64CMPconst,
+		ssaop.OpARM64CMN,
+		ssaop.OpARM64CMNconst,
+		ssaop.OpARM64CMPW,
+		ssaop.OpARM64CMPWconst,
+		ssaop.OpARM64CMNW,
+		ssaop.OpARM64CMNWconst:
 		return true
 	default:
 		return false
@@ -454,7 +455,7 @@ func elimNestedBlock(b *Block, index int) {
 	b.RemoveSucc(index ^ 1)
 	notBothMetBlock.RemovePred(i)
 	for _, v := range notBothMetBlock.Values {
-		if v.Op != OpPhi {
+		if v.Op != ssaop.OpPhi {
 			continue
 		}
 		notBothMetBlock.RemovePhiArg(v, i)
@@ -494,19 +495,19 @@ func transformPrimaryComparisonValue(block *Block) {
 	switch block.Kind {
 	case blockpkg.BlockARM64Z:
 		arg0 := block.Controls[0]
-		controlValue := block.NewValue1I(arg0.Pos, OpARM64CMPconst, types.TypeFlags, 0, arg0)
+		controlValue := block.NewValue1I(arg0.Pos, ssaop.OpARM64CMPconst, types.TypeFlags, 0, arg0)
 		block.ResetWithControl(blockpkg.BlockARM64EQ, controlValue)
 	case blockpkg.BlockARM64NZ:
 		arg0 := block.Controls[0]
-		controlValue := block.NewValue1I(arg0.Pos, OpARM64CMPconst, types.TypeFlags, 0, arg0)
+		controlValue := block.NewValue1I(arg0.Pos, ssaop.OpARM64CMPconst, types.TypeFlags, 0, arg0)
 		block.ResetWithControl(blockpkg.BlockARM64NE, controlValue)
 	case blockpkg.BlockARM64ZW:
 		arg0 := block.Controls[0]
-		controlValue := block.NewValue1I(arg0.Pos, OpARM64CMPWconst, types.TypeFlags, 0, arg0)
+		controlValue := block.NewValue1I(arg0.Pos, ssaop.OpARM64CMPWconst, types.TypeFlags, 0, arg0)
 		block.ResetWithControl(blockpkg.BlockARM64EQ, controlValue)
 	case blockpkg.BlockARM64NZW:
 		arg0 := block.Controls[0]
-		controlValue := block.NewValue1I(arg0.Pos, OpARM64CMPWconst, types.TypeFlags, 0, arg0)
+		controlValue := block.NewValue1I(arg0.Pos, ssaop.OpARM64CMPWconst, types.TypeFlags, 0, arg0)
 		block.ResetWithControl(blockpkg.BlockARM64NE, controlValue)
 	default:
 		return
@@ -533,52 +534,52 @@ func transformDependentComparisonValue(block *Block) {
 		value := block.Controls[0]
 
 		switch value.Op {
-		case OpARM64CMPconst:
+		case ssaop.OpARM64CMPconst:
 			arg0 := value.Args[0]
 			auxConstant := AuxIntToInt64(value.AuxInt)
-			value.Reset(OpARM64CMP)
-			constantValue := block.Func.ConstVal(OpARM64MOVDconst, typ.UInt64, auxConstant, true)
+			value.Reset(ssaop.OpARM64CMP)
+			constantValue := block.Func.ConstVal(ssaop.OpARM64MOVDconst, typ.UInt64, auxConstant, true)
 			value.AddArg2(arg0, constantValue)
-		case OpARM64CMNconst:
+		case ssaop.OpARM64CMNconst:
 			arg0 := value.Args[0]
 			auxConstant := AuxIntToInt64(value.AuxInt)
-			value.Reset(OpARM64CMN)
-			constantValue := block.Func.ConstVal(OpARM64MOVDconst, typ.UInt64, auxConstant, true)
+			value.Reset(ssaop.OpARM64CMN)
+			constantValue := block.Func.ConstVal(ssaop.OpARM64MOVDconst, typ.UInt64, auxConstant, true)
 			value.AddArg2(arg0, constantValue)
-		case OpARM64CMPWconst:
+		case ssaop.OpARM64CMPWconst:
 			arg0 := value.Args[0]
 			auxConstant := AuxIntToInt32(value.AuxInt)
-			value.Reset(OpARM64CMPW)
-			constantValue := block.Func.ConstVal(OpARM64MOVDconst, typ.UInt64, int64(auxConstant), true)
+			value.Reset(ssaop.OpARM64CMPW)
+			constantValue := block.Func.ConstVal(ssaop.OpARM64MOVDconst, typ.UInt64, int64(auxConstant), true)
 			value.AddArg2(arg0, constantValue)
-		case OpARM64CMNWconst:
+		case ssaop.OpARM64CMNWconst:
 			arg0 := value.Args[0]
 			auxConstant := AuxIntToInt32(value.AuxInt)
-			value.Reset(OpARM64CMNW)
-			constantValue := block.Func.ConstVal(OpARM64MOVDconst, typ.UInt64, int64(auxConstant), true)
+			value.Reset(ssaop.OpARM64CMNW)
+			constantValue := block.Func.ConstVal(ssaop.OpARM64MOVDconst, typ.UInt64, int64(auxConstant), true)
 			value.AddArg2(arg0, constantValue)
 		default:
 			return
 		}
 	case blockpkg.BlockARM64Z:
 		arg0 := block.Controls[0]
-		arg1 := block.Func.ConstVal(OpARM64MOVDconst, typ.UInt64, 0, true)
-		comparisonValue := block.NewValue2(arg0.Pos, OpARM64CMP, types.TypeFlags, arg0, arg1)
+		arg1 := block.Func.ConstVal(ssaop.OpARM64MOVDconst, typ.UInt64, 0, true)
+		comparisonValue := block.NewValue2(arg0.Pos, ssaop.OpARM64CMP, types.TypeFlags, arg0, arg1)
 		block.ResetWithControl(blockpkg.BlockARM64EQ, comparisonValue)
 	case blockpkg.BlockARM64NZ:
 		arg0 := block.Controls[0]
-		arg1 := block.Func.ConstVal(OpARM64MOVDconst, typ.UInt64, 0, true)
-		comparisonValue := block.NewValue2(arg0.Pos, OpARM64CMP, types.TypeFlags, arg0, arg1)
+		arg1 := block.Func.ConstVal(ssaop.OpARM64MOVDconst, typ.UInt64, 0, true)
+		comparisonValue := block.NewValue2(arg0.Pos, ssaop.OpARM64CMP, types.TypeFlags, arg0, arg1)
 		block.ResetWithControl(blockpkg.BlockARM64NE, comparisonValue)
 	case blockpkg.BlockARM64ZW:
 		arg0 := block.Controls[0]
-		arg1 := block.Func.ConstVal(OpARM64MOVDconst, typ.UInt64, 0, true)
-		comparisonValue := block.NewValue2(arg0.Pos, OpARM64CMPW, types.TypeFlags, arg0, arg1)
+		arg1 := block.Func.ConstVal(ssaop.OpARM64MOVDconst, typ.UInt64, 0, true)
+		comparisonValue := block.NewValue2(arg0.Pos, ssaop.OpARM64CMPW, types.TypeFlags, arg0, arg1)
 		block.ResetWithControl(blockpkg.BlockARM64EQ, comparisonValue)
 	case blockpkg.BlockARM64NZW:
 		arg0 := block.Controls[0]
-		arg1 := block.Func.ConstVal(OpARM64MOVDconst, typ.UInt64, 0, true)
-		comparisonValue := block.NewValue2(arg0.Pos, OpARM64CMPW, types.TypeFlags, arg0, arg1)
+		arg1 := block.Func.ConstVal(ssaop.OpARM64MOVDconst, typ.UInt64, 0, true)
+		comparisonValue := block.NewValue2(arg0.Pos, ssaop.OpARM64CMPW, types.TypeFlags, arg0, arg1)
 		block.ResetWithControl(blockpkg.BlockARM64NE, comparisonValue)
 	default:
 		panic("Wrong block kind")
@@ -612,13 +613,13 @@ func fixComparisonWithConstant(block *Block, index int) {
 	// 1. Convert operation to constant form (CCMP -> CCMPconst, etc.)
 	// 2. Set the 'ind' flag for immediate mode
 	// 3. When constant is first operand (arg0), swap operands and invert condition
-	tryConvertToConstForm := func(value *Value, newOp Op, getImm func(int64) (uint8, bool)) {
+	tryConvertToConstForm := func(value *Value, newOp ssaop.Op, getImm func(int64) (uint8, bool)) {
 		params := value.AuxArm64ConditionalParams()
 		arg0 := value.Args[0]
 		arg1 := value.Args[1]
 		arg2 := value.Args[2]
 		// Check second operand for small constant
-		if arg1.Op == OpARM64MOVDconst {
+		if arg1.Op == ssaop.OpARM64MOVDconst {
 			if imm, ok := getImm(arg1.AuxInt); ok {
 				value.Reset(newOp)
 				params.ConstVal = imm
@@ -630,7 +631,7 @@ func fixComparisonWithConstant(block *Block, index int) {
 		}
 
 		// Check first operand for small constant
-		if arg0.Op == OpARM64MOVDconst {
+		if arg0.Op == ssaop.OpARM64MOVDconst {
 			if imm, ok := getImm(arg0.AuxInt); ok {
 				value.Reset(newOp)
 				invertConditionsInBlock(block, &params, index)
@@ -646,14 +647,14 @@ func fixComparisonWithConstant(block *Block, index int) {
 	// try to convert control value of block to constant form
 	controlValue := block.Controls[0]
 	switch controlValue.Op {
-	case OpARM64CCMP:
-		tryConvertToConstForm(controlValue, OpARM64CCMPconst, getImm64)
-	case OpARM64CCMN:
-		tryConvertToConstForm(controlValue, OpARM64CCMNconst, getImm64)
-	case OpARM64CCMPW:
-		tryConvertToConstForm(controlValue, OpARM64CCMPWconst, getImm32)
-	case OpARM64CCMNW:
-		tryConvertToConstForm(controlValue, OpARM64CCMNWconst, getImm32)
+	case ssaop.OpARM64CCMP:
+		tryConvertToConstForm(controlValue, ssaop.OpARM64CCMPconst, getImm64)
+	case ssaop.OpARM64CCMN:
+		tryConvertToConstForm(controlValue, ssaop.OpARM64CCMNconst, getImm64)
+	case ssaop.OpARM64CCMPW:
+		tryConvertToConstForm(controlValue, ssaop.OpARM64CCMPWconst, getImm32)
+	case ssaop.OpARM64CCMNW:
+		tryConvertToConstForm(controlValue, ssaop.OpARM64CCMNWconst, getImm32)
 	default:
 		return
 	}
@@ -707,24 +708,24 @@ func transformToConditionalComparisonValue(outerBlock *Block, outSuccIndex, inSu
 
 // transformOpToConditionalComparisonOperation maps standard comparison operations
 // to their conditional comparison counterparts (e.g., CMP -> CCMP, CMN -> CCMN).
-func transformOpToConditionalComparisonOperation(op Op) Op {
+func transformOpToConditionalComparisonOperation(op ssaop.Op) ssaop.Op {
 	switch op {
-	case OpARM64CMP:
-		return OpARM64CCMP
-	case OpARM64CMN:
-		return OpARM64CCMN
-	case OpARM64CMPconst:
-		return OpARM64CCMPconst
-	case OpARM64CMNconst:
-		return OpARM64CCMNconst
-	case OpARM64CMPW:
-		return OpARM64CCMPW
-	case OpARM64CMNW:
-		return OpARM64CCMNW
-	case OpARM64CMPWconst:
-		return OpARM64CCMPWconst
-	case OpARM64CMNWconst:
-		return OpARM64CCMNWconst
+	case ssaop.OpARM64CMP:
+		return ssaop.OpARM64CCMP
+	case ssaop.OpARM64CMN:
+		return ssaop.OpARM64CCMN
+	case ssaop.OpARM64CMPconst:
+		return ssaop.OpARM64CCMPconst
+	case ssaop.OpARM64CMNconst:
+		return ssaop.OpARM64CCMNconst
+	case ssaop.OpARM64CMPW:
+		return ssaop.OpARM64CCMPW
+	case ssaop.OpARM64CMNW:
+		return ssaop.OpARM64CCMNW
+	case ssaop.OpARM64CMPWconst:
+		return ssaop.OpARM64CCMPWconst
+	case ssaop.OpARM64CMNWconst:
+		return ssaop.OpARM64CCMNWconst
 	default:
 		panic("Incorrect operation")
 	}
@@ -743,28 +744,28 @@ func createConditionalParamsByBlockKind(outerKind, innerKind block.BlockKind) Ar
 
 // condByBlockKind maps block kinds to their corresponding condition codes
 // for ARM64 conditional execution.
-func condByBlockKind(kind block.BlockKind) Op {
+func condByBlockKind(kind block.BlockKind) ssaop.Op {
 	switch kind {
 	case block.BlockARM64EQ:
-		return OpARM64Equal
+		return ssaop.OpARM64Equal
 	case block.BlockARM64NE:
-		return OpARM64NotEqual
+		return ssaop.OpARM64NotEqual
 	case block.BlockARM64LT:
-		return OpARM64LessThan
+		return ssaop.OpARM64LessThan
 	case block.BlockARM64LE:
-		return OpARM64LessEqual
+		return ssaop.OpARM64LessEqual
 	case block.BlockARM64GT:
-		return OpARM64GreaterThan
+		return ssaop.OpARM64GreaterThan
 	case block.BlockARM64GE:
-		return OpARM64GreaterEqual
+		return ssaop.OpARM64GreaterEqual
 	case block.BlockARM64ULT:
-		return OpARM64LessThanU
+		return ssaop.OpARM64LessThanU
 	case block.BlockARM64ULE:
-		return OpARM64LessEqualU
+		return ssaop.OpARM64LessEqualU
 	case block.BlockARM64UGT:
-		return OpARM64GreaterThanU
+		return ssaop.OpARM64GreaterThanU
 	case block.BlockARM64UGE:
-		return OpARM64GreaterEqualU
+		return ssaop.OpARM64GreaterEqualU
 	default:
 		panic("Incorrect kind of Block")
 	}

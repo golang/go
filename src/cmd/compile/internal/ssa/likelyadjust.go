@@ -8,6 +8,7 @@ import (
 	"fmt"
 
 	"cmd/compile/internal/ssa/block"
+	"cmd/compile/internal/ssa/ssaop"
 )
 
 type Loop struct {
@@ -191,7 +192,7 @@ func likelyadjust(f *Func) {
 			}
 			// Look for calls in the block.  If there is one, make this block unlikely.
 			for _, v := range b.Values {
-				if OpcodeTable[v.Op].Call {
+				if ssaop.OpcodeTable[v.Op].Call {
 					local[b.ID] = blCALL
 					certain[b.ID] = max(blCALL, certain[b.Succs[0].B.ID])
 					break

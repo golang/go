@@ -6,6 +6,7 @@ package ssa
 
 import (
 	"cmd/compile/internal/base"
+	"cmd/compile/internal/ssa/ssaop"
 	"cmd/compile/internal/types"
 )
 
@@ -25,19 +26,19 @@ func amd64CapAVXShift(auxInt int64) uint8 {
 
 // flagify rewrites v which is (X ...) to (Select0 (Xflags ...)).
 func flagify(v *Value) bool {
-	var flagVersion Op
+	var flagVersion ssaop.Op
 	switch v.Op {
-	case OpAMD64ADDQconst:
-		flagVersion = OpAMD64ADDQconstflags
-	case OpAMD64ADDLconst:
-		flagVersion = OpAMD64ADDLconstflags
+	case ssaop.OpAMD64ADDQconst:
+		flagVersion = ssaop.OpAMD64ADDQconstflags
+	case ssaop.OpAMD64ADDLconst:
+		flagVersion = ssaop.OpAMD64ADDLconstflags
 	default:
 		base.Fatalf("can't flagify op %s", v.Op)
 	}
 	inner := v.CopyInto(v.Block)
 	inner.Op = flagVersion
 	inner.Type = types.NewTuple(v.Type, types.TypeFlags)
-	v.Reset(OpSelect0)
+	v.Reset(ssaop.OpSelect0)
 	v.AddArg(inner)
 	return true
 }
@@ -47,22 +48,22 @@ func sequentialAddresses(x, y *Value, n int64) bool {
 	if x == y && n == 0 {
 		return true
 	}
-	if x.Op == Op386ADDL && y.Op == Op386LEAL1 && y.AuxInt == n && y.Aux == nil &&
+	if x.Op == ssaop.Op386ADDL && y.Op == ssaop.Op386LEAL1 && y.AuxInt == n && y.Aux == nil &&
 		(x.Args[0] == y.Args[0] && x.Args[1] == y.Args[1] ||
 			x.Args[0] == y.Args[1] && x.Args[1] == y.Args[0]) {
 		return true
 	}
-	if x.Op == Op386LEAL1 && y.Op == Op386LEAL1 && y.AuxInt == x.AuxInt+n && x.Aux == y.Aux &&
+	if x.Op == ssaop.Op386LEAL1 && y.Op == ssaop.Op386LEAL1 && y.AuxInt == x.AuxInt+n && x.Aux == y.Aux &&
 		(x.Args[0] == y.Args[0] && x.Args[1] == y.Args[1] ||
 			x.Args[0] == y.Args[1] && x.Args[1] == y.Args[0]) {
 		return true
 	}
-	if x.Op == OpAMD64ADDQ && y.Op == OpAMD64LEAQ1 && y.AuxInt == n && y.Aux == nil &&
+	if x.Op == ssaop.OpAMD64ADDQ && y.Op == ssaop.OpAMD64LEAQ1 && y.AuxInt == n && y.Aux == nil &&
 		(x.Args[0] == y.Args[0] && x.Args[1] == y.Args[1] ||
 			x.Args[0] == y.Args[1] && x.Args[1] == y.Args[0]) {
 		return true
 	}
-	if x.Op == OpAMD64LEAQ1 && y.Op == OpAMD64LEAQ1 && y.AuxInt == x.AuxInt+n && x.Aux == y.Aux &&
+	if x.Op == ssaop.OpAMD64LEAQ1 && y.Op == ssaop.OpAMD64LEAQ1 && y.AuxInt == x.AuxInt+n && x.Aux == y.Aux &&
 		(x.Args[0] == y.Args[0] && x.Args[1] == y.Args[1] ||
 			x.Args[0] == y.Args[1] && x.Args[1] == y.Args[0]) {
 		return true

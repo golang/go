@@ -7,6 +7,7 @@ package ssa
 import (
 	"cmd/compile/internal/ir"
 	"cmd/compile/internal/ssa/block"
+	"cmd/compile/internal/ssa/ssaop"
 	"cmd/compile/internal/types"
 	"cmd/internal/obj"
 	"slices"
@@ -27,33 +28,33 @@ func pair(f *Func) {
 
 type pairInfo struct {
 	width int64 // width of one element in the pair, in bytes
-	pair  Op
+	pair  ssaop.Op
 }
 
 // All pairableLoad ops must take 2 arguments, a pointer and a memory.
 // They must also take an offset in Aux/AuxInt.
-var pairableLoads = map[Op]pairInfo{
-	OpARM64MOVDload:  {8, OpARM64LDP},
-	OpARM64MOVWUload: {4, OpARM64LDPW},
-	OpARM64MOVWload:  {4, OpARM64LDPSW},
+var pairableLoads = map[ssaop.Op]pairInfo{
+	ssaop.OpARM64MOVDload:  {8, ssaop.OpARM64LDP},
+	ssaop.OpARM64MOVWUload: {4, ssaop.OpARM64LDPW},
+	ssaop.OpARM64MOVWload:  {4, ssaop.OpARM64LDPSW},
 	// TODO: conceivably we could pair a signed and unsigned load
 	// if we knew the upper bits of one of them weren't being used.
-	OpARM64FMOVDload: {8, OpARM64FLDPD},
-	OpARM64FMOVSload: {4, OpARM64FLDPS},
+	ssaop.OpARM64FMOVDload: {8, ssaop.OpARM64FLDPD},
+	ssaop.OpARM64FMOVSload: {4, ssaop.OpARM64FLDPS},
 	// NEON loads
-	OpARM64FMOVQload: {16, OpARM64FLDPQ},
+	ssaop.OpARM64FMOVQload: {16, ssaop.OpARM64FLDPQ},
 }
 
 // All pairableStore keys must take 3 arguments, a pointer, a value, and a memory.
 // All pairableStore values must take 4 arguments, a pointer, 2 values, and a memory.
 // They must also take an offset in Aux/AuxInt.
-var pairableStores = map[Op]pairInfo{
-	OpARM64MOVDstore:  {8, OpARM64STP},
-	OpARM64MOVWstore:  {4, OpARM64STPW},
-	OpARM64FMOVDstore: {8, OpARM64FSTPD},
-	OpARM64FMOVSstore: {4, OpARM64FSTPS},
+var pairableStores = map[ssaop.Op]pairInfo{
+	ssaop.OpARM64MOVDstore:  {8, ssaop.OpARM64STP},
+	ssaop.OpARM64MOVWstore:  {4, ssaop.OpARM64STPW},
+	ssaop.OpARM64FMOVDstore: {8, ssaop.OpARM64FSTPD},
+	ssaop.OpARM64FMOVSstore: {4, ssaop.OpARM64FSTPS},
 	// NEON stores
-	OpARM64FMOVQstore: {16, OpARM64FSTPQ},
+	ssaop.OpARM64FMOVQstore: {16, ssaop.OpARM64FSTPQ},
 }
 
 // offsetOk returns true if a pair instruction should be used
@@ -199,9 +200,9 @@ func pairLoads(f *Func) {
 			load := b.NewValue2IA(x.Pos, pairableLoads[x.Op].pair, types.NewTuple(x.Type, y.Type), x.AuxInt, x.Aux, x.Args[0], x.Args[1])
 
 			// Modify x to be (Select0 load). Similar for y.
-			x.Reset(OpSelect0)
+			x.Reset(ssaop.OpSelect0)
 			x.SetArgs1(load)
-			y.Reset(OpSelect1)
+			y.Reset(ssaop.OpSelect1)
 			y.SetArgs1(load)
 
 			i++ // Skip y next time around the loop.
@@ -212,7 +213,7 @@ func pairLoads(f *Func) {
 	// Note that this is always safe to do if the memory arguments match.
 	// (But see the memory barrier case below.)
 	type nextBlockKey struct {
-		op     Op
+		op     ssaop.Op
 		ptr    ID
 		mem    ID
 		auxInt int64
@@ -277,12 +278,12 @@ func pairLoads(f *Func) {
 				load := b.NewValue2IA(x.Pos, info.pair, types.NewTuple(x.Type, y.Type), x.AuxInt, x.Aux, x.Args[0], x.Args[1])
 
 				// Modify x to be (Select0 load).
-				x.Reset(OpSelect0)
+				x.Reset(ssaop.OpSelect0)
 				x.SetArgs1(load)
 				// Modify y to be (Copy (Select1 load)).
 				// Note: the Select* needs to live in the load's block, not y's block.
-				y.Reset(OpCopy)
-				y.SetArgs1(b.NewValue1(y.Pos, OpSelect1, y.Type, load))
+				y.Reset(ssaop.OpCopy)
+				y.SetArgs1(b.NewValue1(y.Pos, ssaop.OpSelect1, y.Type, load))
 				nMoved++
 				continue
 			}
@@ -294,11 +295,11 @@ func pairLoads(f *Func) {
 				load := b.NewValue2IA(x.Pos, info.pair, types.NewTuple(y.Type, x.Type), y.AuxInt, x.Aux, x.Args[0], x.Args[1])
 
 				// Modify x to be (Select1 load).
-				x.Reset(OpSelect1)
+				x.Reset(ssaop.OpSelect1)
 				x.SetArgs1(load)
 				// Modify y to be (Copy (Select0 load)).
-				y.Reset(OpCopy)
-				y.SetArgs1(b.NewValue1(y.Pos, OpSelect0, y.Type, load))
+				y.Reset(ssaop.OpCopy)
+				y.SetArgs1(b.NewValue1(y.Pos, ssaop.OpSelect0, y.Type, load))
 				nMoved++
 				continue
 			}
@@ -311,7 +312,7 @@ func memoryBarrierTest(b *Block) bool {
 		return false
 	}
 	c := b.Controls[0]
-	if c.Op != OpARM64MOVWUload {
+	if c.Op != ssaop.OpARM64MOVWUload {
 		return false
 	}
 	if globl, ok := c.Aux.(*obj.LSym); ok {
@@ -373,7 +374,7 @@ func pairStores(f *Func) {
 				v.Pos = pos
 
 				// Make w just a memory copy.
-				w.Reset(OpCopy)
+				w.Reset(ssaop.OpCopy)
 				w.SetArgs1(wmem)
 
 				// Skip merged store (w)
@@ -387,7 +388,7 @@ func pairStores(f *Func) {
 	// prevStore returns the previous store in the
 	// same block, or nil if there are none.
 	prevStore := func(v *Value) *Value {
-		if v.Op == OpInitMem || v.Op == OpPhi {
+		if v.Op == ssaop.OpInitMem || v.Op == ssaop.OpPhi {
 			return nil
 		}
 		m := v.MemoryArg()
@@ -399,7 +400,7 @@ func pairStores(f *Func) {
 
 	// storeWidth returns the width of store,
 	// or 0 if it is not a store this pass understands.
-	storeWidth := func(op Op) int64 {
+	storeWidth := func(op ssaop.Op) int64 {
 		if info, ok := pairableStores[op]; ok {
 			return info.width
 		}
@@ -408,9 +409,9 @@ func pairStores(f *Func) {
 		// would flush the memory chain.
 		var width int64
 		switch op {
-		case OpARM64MOVHstore:
+		case ssaop.OpARM64MOVHstore:
 			width = 2
-		case OpARM64MOVBstore:
+		case ssaop.OpARM64MOVBstore:
 			width = 1
 		default:
 			width = 0

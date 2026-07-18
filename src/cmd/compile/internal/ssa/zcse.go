@@ -4,7 +4,10 @@
 
 package ssa
 
-import "cmd/compile/internal/types"
+import (
+	"cmd/compile/internal/ssa/ssaop"
+	"cmd/compile/internal/types"
+)
 
 // zcse does an initial pass of common-subexpression elimination on the
 // function for values with zero arguments to allow the more expensive cse
@@ -17,7 +20,7 @@ func zcse(f *Func) {
 	for _, b := range f.Blocks {
 		for i := 0; i < len(b.Values); i++ {
 			v := b.Values[i]
-			if OpcodeTable[v.Op].ArgLen == 0 {
+			if ssaop.OpcodeTable[v.Op].ArgLen == 0 {
 				key := vkey{v.Op, keyFor(v), v.Aux, v.Type}
 				if vals[key] == nil {
 					vals[key] = v
@@ -42,7 +45,7 @@ func zcse(f *Func) {
 	for _, b := range f.Blocks {
 		for _, v := range b.Values {
 			for i, a := range v.Args {
-				if OpcodeTable[a.Op].ArgLen == 0 {
+				if ssaop.OpcodeTable[a.Op].ArgLen == 0 {
 					key := vkey{a.Op, keyFor(a), a.Aux, a.Type}
 					if rv, ok := vals[key]; ok {
 						v.SetArg(i, rv)
@@ -55,7 +58,7 @@ func zcse(f *Func) {
 
 // vkey is a type used to uniquely identify a zero arg value.
 type vkey struct {
-	op Op
+	op ssaop.Op
 	ai int64       // aux int
 	ax Aux         // aux
 	t  *types.Type // type
@@ -65,13 +68,13 @@ type vkey struct {
 // zero arg value for the supported ops.
 func keyFor(v *Value) int64 {
 	switch v.Op {
-	case OpConst64, OpConst64F, OpConst32F:
+	case ssaop.OpConst64, ssaop.OpConst64F, ssaop.OpConst32F:
 		return v.AuxInt
-	case OpConst32:
+	case ssaop.OpConst32:
 		return int64(int32(v.AuxInt))
-	case OpConst16:
+	case ssaop.OpConst16:
 		return int64(int16(v.AuxInt))
-	case OpConst8, OpConstBool:
+	case ssaop.OpConst8, ssaop.OpConstBool:
 		return int64(int8(v.AuxInt))
 	default:
 		return v.AuxInt

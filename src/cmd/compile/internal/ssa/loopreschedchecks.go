@@ -6,6 +6,7 @@ package ssa
 
 import (
 	"cmd/compile/internal/ssa/block"
+	"cmd/compile/internal/ssa/ssaop"
 	"cmd/compile/internal/types"
 	"fmt"
 )
@@ -90,7 +91,7 @@ func insertLoopReschedChecks(f *Func) {
 
 	// It's possible that there is no memory state (no global/pointer loads/stores or calls)
 	if lastMems[f.Entry.ID] == nil {
-		lastMems[f.Entry.ID] = f.Entry.NewValue0(f.Entry.Pos, OpInitMem, types.TypeMem)
+		lastMems[f.Entry.ID] = f.Entry.NewValue0(f.Entry.Pos, ssaop.OpInitMem, types.TypeMem)
 	}
 
 	memDefsAtBlockEnds := f.Cache.AllocValueSlice(f.NumBlocks()) // For each block, the mem def seen at its bottom. Could be from earlier block.
@@ -122,7 +123,7 @@ func insertLoopReschedChecks(f *Func) {
 		var headerMemPhi *Value // look for header mem phi
 
 		for _, v := range h.Values {
-			if v.Op == OpPhi && v.Type.IsMemory() {
+			if v.Op == ssaop.OpPhi && v.Type.IsMemory() {
 				headerMemPhi = v
 			}
 		}
@@ -219,14 +220,14 @@ func insertLoopReschedChecks(f *Func) {
 
 		cfgtypes := &f.Config.Types
 		pt := cfgtypes.Uintptr
-		g := test.NewValue1(bb.Pos, OpGetG, pt, mem0)
-		sp := test.NewValue0(bb.Pos, OpSP, pt)
-		cmpOp := OpLess64U
+		g := test.NewValue1(bb.Pos, ssaop.OpGetG, pt, mem0)
+		sp := test.NewValue0(bb.Pos, ssaop.OpSP, pt)
+		cmpOp := ssaop.OpLess64U
 		if pt.Size() == 4 {
-			cmpOp = OpLess32U
+			cmpOp = ssaop.OpLess32U
 		}
-		limaddr := test.NewValue1I(bb.Pos, OpOffPtr, pt, 2*pt.Size(), g)
-		lim := test.NewValue2(bb.Pos, OpLoad, pt, limaddr, mem0)
+		limaddr := test.NewValue1I(bb.Pos, ssaop.OpOffPtr, pt, 2*pt.Size(), g)
+		lim := test.NewValue2(bb.Pos, ssaop.OpLoad, pt, limaddr, mem0)
 		cmp := test.NewValue2(bb.Pos, cmpOp, cfgtypes.Bool, sp, lim)
 		test.SetControl(cmp)
 
@@ -246,8 +247,8 @@ func insertLoopReschedChecks(f *Func) {
 		//    mem1 := call resched (mem0)
 		//    goto header
 		resched := f.Fe.Syslook("goschedguarded")
-		call := sched.NewValue1A(bb.Pos, OpStaticCall, types.TypeResultMem, StaticAuxCall(resched, bb.Func.ABIDefault.ABIAnalyzeTypes(nil, nil)), mem0)
-		mem1 := sched.NewValue1I(bb.Pos, OpSelectN, types.TypeMem, 0, call)
+		call := sched.NewValue1A(bb.Pos, ssaop.OpStaticCall, types.TypeResultMem, StaticAuxCall(resched, bb.Func.ABIDefault.ABIAnalyzeTypes(nil, nil)), mem0)
+		mem1 := sched.NewValue1I(bb.Pos, ssaop.OpSelectN, types.TypeMem, 0, call)
 		sched.AddEdgeTo(h)
 		headerMemPhi.AddArg(mem1)
 
@@ -258,7 +259,7 @@ func insertLoopReschedChecks(f *Func) {
 		// Except for mem phis, it will be the same value seen on the original
 		// backedge at index i.
 		for _, v := range h.Values {
-			if v.Op == OpPhi && v != headerMemPhi {
+			if v.Op == ssaop.OpPhi && v != headerMemPhi {
 				v.AddArg(v.Args[i])
 			}
 		}
@@ -275,7 +276,7 @@ func insertLoopReschedChecks(f *Func) {
 // newPhiFor inserts a new Phi function into b,
 // with all inputs set to v.
 func newPhiFor(b *Block, v *Value) *Value {
-	phiV := b.NewValue0(b.Pos, OpPhi, v.Type)
+	phiV := b.NewValue0(b.Pos, ssaop.OpPhi, v.Type)
 
 	for range b.Preds {
 		phiV.AddArg(v)
@@ -337,7 +338,7 @@ func rewriteNewPhis(h, b *Block, f *Func, defsForUses []*Value, newphis map[*Blo
 				s := e.B
 
 				for _, v := range s.Values {
-					if v.Op == OpPhi && v.Args[e.I] == x {
+					if v.Op == ssaop.OpPhi && v.Args[e.I] == x {
 						tgt := rewriteTarget{v, e.I}
 						*p = append(*p, tgt)
 						dfPhiTargets[tgt] = true
@@ -383,7 +384,7 @@ outer:
 		}
 		if x != nil {
 			for _, v := range s.Values {
-				if v.Op == OpPhi && v.Args[e.I] == x {
+				if v.Op == ssaop.OpPhi && v.Args[e.I] == x {
 					continue outer // successor s of b has an old phi function, so there is no need to add another.
 				}
 			}
@@ -414,7 +415,7 @@ func findLastMems(f *Func) []*Value {
 		stores = stores[:0]
 		var memPhi *Value
 		for _, v := range b.Values {
-			if v.Op == OpPhi {
+			if v.Op == ssaop.OpPhi {
 				if v.Type.IsMemory() {
 					memPhi = v
 				}
@@ -453,9 +454,9 @@ func findLastMems(f *Func) []*Value {
 		// the mem. This will generate ops we don't need, but
 		// it's the easiest thing to do.
 		if last.Type.IsTuple() {
-			last = b.NewValue1(last.Pos, OpSelect1, types.TypeMem, last)
+			last = b.NewValue1(last.Pos, ssaop.OpSelect1, types.TypeMem, last)
 		} else if last.Type.IsResults() {
-			last = b.NewValue1I(last.Pos, OpSelectN, types.TypeMem, int64(last.Type.NumFields()-1), last)
+			last = b.NewValue1I(last.Pos, ssaop.OpSelectN, types.TypeMem, int64(last.Type.NumFields()-1), last)
 		}
 
 		lastMems[b.ID] = last

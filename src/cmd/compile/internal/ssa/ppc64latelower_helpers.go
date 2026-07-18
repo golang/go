@@ -4,7 +4,10 @@
 
 package ssa
 
-import "cmd/compile/internal/types"
+import (
+	"cmd/compile/internal/ssa/ssaop"
+	"cmd/compile/internal/types"
+)
 
 // Convert a PPC64 opcode from the Op to OpCC form. This converts (op x y)
 // to (Select0 (opCC x y)) without having to explicitly fixup every user
@@ -32,25 +35,25 @@ import "cmd/compile/internal/types"
 //
 // Which makes it trivial to rewrite b using a lowering rule.
 func convertPPC64OpToOpCC(op *Value) *Value {
-	ccOpMap := map[Op]Op{
-		OpPPC64ADD:      OpPPC64ADDCC,
-		OpPPC64ADDconst: OpPPC64ADDCCconst,
-		OpPPC64AND:      OpPPC64ANDCC,
-		OpPPC64ANDN:     OpPPC64ANDNCC,
-		OpPPC64ANDconst: OpPPC64ANDCCconst,
-		OpPPC64CNTLZD:   OpPPC64CNTLZDCC,
-		OpPPC64MULHDU:   OpPPC64MULHDUCC,
-		OpPPC64NEG:      OpPPC64NEGCC,
-		OpPPC64NOR:      OpPPC64NORCC,
-		OpPPC64OR:       OpPPC64ORCC,
-		OpPPC64RLDICL:   OpPPC64RLDICLCC,
-		OpPPC64SUB:      OpPPC64SUBCC,
-		OpPPC64XOR:      OpPPC64XORCC,
+	ccOpMap := map[ssaop.Op]ssaop.Op{
+		ssaop.OpPPC64ADD:      ssaop.OpPPC64ADDCC,
+		ssaop.OpPPC64ADDconst: ssaop.OpPPC64ADDCCconst,
+		ssaop.OpPPC64AND:      ssaop.OpPPC64ANDCC,
+		ssaop.OpPPC64ANDN:     ssaop.OpPPC64ANDNCC,
+		ssaop.OpPPC64ANDconst: ssaop.OpPPC64ANDCCconst,
+		ssaop.OpPPC64CNTLZD:   ssaop.OpPPC64CNTLZDCC,
+		ssaop.OpPPC64MULHDU:   ssaop.OpPPC64MULHDUCC,
+		ssaop.OpPPC64NEG:      ssaop.OpPPC64NEGCC,
+		ssaop.OpPPC64NOR:      ssaop.OpPPC64NORCC,
+		ssaop.OpPPC64OR:       ssaop.OpPPC64ORCC,
+		ssaop.OpPPC64RLDICL:   ssaop.OpPPC64RLDICLCC,
+		ssaop.OpPPC64SUB:      ssaop.OpPPC64SUBCC,
+		ssaop.OpPPC64XOR:      ssaop.OpPPC64XORCC,
 	}
 	b := op.Block
 	opCC := b.NewValue0I(op.Pos, ccOpMap[op.Op], types.NewTuple(op.Type, types.TypeFlags), op.AuxInt)
 	opCC.AddArgs(op.Args...)
-	op.Reset(OpSelect0)
+	op.Reset(ssaop.OpSelect0)
 	op.AddArgs(opCC)
 	return op
 }

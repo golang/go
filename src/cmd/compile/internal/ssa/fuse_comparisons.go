@@ -4,7 +4,10 @@
 
 package ssa
 
-import "cmd/compile/internal/ssa/block"
+import (
+	"cmd/compile/internal/ssa/block"
+	"cmd/compile/internal/ssa/ssaop"
+)
 
 // fuseIntInRange transforms integer range checks to remove the short-circuit operator. For example,
 // it would convert `if 1 <= x && x < 5 { ... }` into `if (1 <= x) & (x < 5) { ... }`. Rewrite rules
@@ -56,7 +59,7 @@ func fuseSingleBitDifference(b *Block) bool {
 // In other words `if x || y { ... }` will become `if x | y { ... }` and `if x && y { ... }` will
 // become `if x & y { ... }`. This is a useful transformation because we can then use rewrite
 // rules to optimize `x | y` and `x & y`.
-func fuseComparisons(b *Block, canOptControls func(a, b *Value, op Op) bool) bool {
+func fuseComparisons(b *Block, canOptControls func(a, b *Value, op ssaop.Op) bool) bool {
 	if len(b.Preds) != 1 {
 		return false
 	}
@@ -75,7 +78,7 @@ func fuseComparisons(b *Block, canOptControls func(a, b *Value, op Op) bool) boo
 
 	// If the first (true) successors match then we have a disjunction (||).
 	// If the second (false) successors match then we have a conjunction (&&).
-	for i, op := range [2]Op{OpOrB, OpAndB} {
+	for i, op := range [2]ssaop.Op{ssaop.OpOrB, ssaop.OpAndB} {
 		if p.Succs[i].Block() != b.Succs[i].Block() {
 			continue
 		}
@@ -133,7 +136,7 @@ func hasDifferentiatedPhi(x Edge, y Edge) bool {
 	xi := x.I
 	yi := y.I
 	for _, v := range b.Values {
-		if v.Op != OpPhi {
+		if v.Op != ssaop.OpPhi {
 			continue
 		}
 		if v.Args[xi] != v.Args[yi] {
@@ -148,7 +151,7 @@ func hasDifferentiatedPhi(x Edge, y Edge) bool {
 func getConstIntArgIndex(v *Value) int {
 	for i, a := range v.Args {
 		switch a.Op {
-		case OpConst8, OpConst16, OpConst32, OpConst64:
+		case ssaop.OpConst8, ssaop.OpConst16, ssaop.OpConst32, ssaop.OpConst64:
 			return i
 		}
 	}
@@ -159,8 +162,8 @@ func getConstIntArgIndex(v *Value) int {
 // in the signed domain.
 func isSignedInequality(v *Value) bool {
 	switch v.Op {
-	case OpLess64, OpLess32, OpLess16, OpLess8,
-		OpLeq64, OpLeq32, OpLeq16, OpLeq8:
+	case ssaop.OpLess64, ssaop.OpLess32, ssaop.OpLess16, ssaop.OpLess8,
+		ssaop.OpLeq64, ssaop.OpLeq32, ssaop.OpLeq16, ssaop.OpLeq8:
 		return true
 	}
 	return false
@@ -171,10 +174,10 @@ func isSignedInequality(v *Value) bool {
 // unsigned "0 < x".
 func isUnsignedInequality(v *Value) bool {
 	switch v.Op {
-	case OpLess64U, OpLess32U, OpLess16U, OpLess8U,
-		OpLeq64U, OpLeq32U, OpLeq16U, OpLeq8U:
+	case ssaop.OpLess64U, ssaop.OpLess32U, ssaop.OpLess16U, ssaop.OpLess8U,
+		ssaop.OpLeq64U, ssaop.OpLeq32U, ssaop.OpLeq16U, ssaop.OpLeq8U:
 		return true
-	case OpNeq64, OpNeq32, OpNeq16, OpNeq8:
+	case ssaop.OpNeq64, ssaop.OpNeq32, ssaop.OpNeq16, ssaop.OpNeq8:
 		// "x != 0" is equivalent to the unsigned "0 < x", and is its
 		// canonical form; see "prefer equalities with zero" in generic.rules.
 		return isConstZero(v.Args[0]) || isConstZero(v.Args[1])
@@ -182,7 +185,7 @@ func isUnsignedInequality(v *Value) bool {
 	return false
 }
 
-func canOptIntInRange(x, y *Value, op Op) bool {
+func canOptIntInRange(x, y *Value, op ssaop.Op) bool {
 	// We need both inequalities to be either in the signed or unsigned domain.
 	// TODO(mundaym): it would also be good to merge when we have an Eq op that
 	// could be transformed into a Less/Leq. For example in the unsigned
@@ -222,8 +225,8 @@ func canOptIntInRange(x, y *Value, op Op) bool {
 //	v != v || v <= c => !(c <  v)
 //	v != v || c <  v => !(v <= c)
 //	v != v || c <= v => !(v <  c)
-func canOptNanCheck(x, y *Value, op Op) bool {
-	if op != OpOrB {
+func canOptNanCheck(x, y *Value, op ssaop.Op) bool {
+	if op != ssaop.OpOrB {
 		return false
 	}
 
@@ -233,34 +236,34 @@ func canOptNanCheck(x, y *Value, op Op) bool {
 		}
 		v := x.Args[0]
 		switch x.Op {
-		case OpNeq64F:
-			if y.Op != OpLess64F && y.Op != OpLeq64F {
+		case ssaop.OpNeq64F:
+			if y.Op != ssaop.OpLess64F && y.Op != ssaop.OpLeq64F {
 				return false
 			}
 			for j := 0; j <= 1; j++ {
 				a, b := y.Args[j], y.Args[j^1]
-				if a.Op != OpConst64F {
+				if a.Op != ssaop.OpConst64F {
 					continue
 				}
 				// Sign bit operations not affect NaN check results. This special case allows us
 				// to optimize statements like `if v != v || Abs(v) > c { ... }`.
-				if (b.Op == OpAbs || b.Op == OpNeg64F) && b.Args[0] == v {
+				if (b.Op == ssaop.OpAbs || b.Op == ssaop.OpNeg64F) && b.Args[0] == v {
 					return true
 				}
 				return b == v
 			}
-		case OpNeq32F:
-			if y.Op != OpLess32F && y.Op != OpLeq32F {
+		case ssaop.OpNeq32F:
+			if y.Op != ssaop.OpLess32F && y.Op != ssaop.OpLeq32F {
 				return false
 			}
 			for j := 0; j <= 1; j++ {
 				a, b := y.Args[j], y.Args[j^1]
-				if a.Op != OpConst32F {
+				if a.Op != ssaop.OpConst32F {
 					continue
 				}
 				// Sign bit operations not affect NaN check results. This special case allows us
 				// to optimize statements like `if v != v || -v > c { ... }`.
-				if b.Op == OpNeg32F && b.Args[0] == v {
+				if b.Op == ssaop.OpNeg32F && b.Args[0] == v {
 					return true
 				}
 				return b == v
@@ -276,17 +279,17 @@ func canOptNanCheck(x, y *Value, op Op) bool {
 //	v != c && v != d
 //
 // Where c and d are constant values that differ by a single bit.
-func canOptSingleBitDifference(x, y *Value, op Op) bool {
+func canOptSingleBitDifference(x, y *Value, op ssaop.Op) bool {
 	if x.Op != y.Op {
 		return false
 	}
 	switch x.Op {
-	case OpEq64, OpEq32, OpEq16, OpEq8:
-		if op != OpOrB {
+	case ssaop.OpEq64, ssaop.OpEq32, ssaop.OpEq16, ssaop.OpEq8:
+		if op != ssaop.OpOrB {
 			return false
 		}
-	case OpNeq64, OpNeq32, OpNeq16, OpNeq8:
-		if op != OpAndB {
+	case ssaop.OpNeq64, ssaop.OpNeq32, ssaop.OpNeq16, ssaop.OpNeq8:
+		if op != ssaop.OpAndB {
 			return false
 		}
 	default:

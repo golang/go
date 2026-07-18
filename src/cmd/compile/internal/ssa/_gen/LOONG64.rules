@@ -544,19 +544,19 @@
 // Do not fold global variable access in -dynlink mode, where it will be rewritten
 // to use the GOT via REGTMP, which currently cannot handle large offset.
 (MOV(B|BU|H|HU|W|WU|V|F|D)load [off1] {sym} (ADDVconst [off2] ptr) mem) && Is32Bit(int64(off1)+off2)
-	&& (ptr.Op != OpSB || !config.Ctxt.Flag_dynlink) =>
+	&& (ptr.Op != ssaop.OpSB || !config.Ctxt.Flag_dynlink) =>
 	(MOV(B|BU|H|HU|W|WU|V|F|D)load [off1+int32(off2)] {sym} ptr mem)
 
 (MOV(B|H|W|V|F|D)store [off1] {sym} (ADDVconst [off2] ptr) val mem) && Is32Bit(int64(off1)+off2)
-	&& (ptr.Op != OpSB || !config.Ctxt.Flag_dynlink) =>
+	&& (ptr.Op != ssaop.OpSB || !config.Ctxt.Flag_dynlink) =>
 	(MOV(B|H|W|V|F|D)store [off1+int32(off2)] {sym} ptr val mem)
 
 (MOV(B|BU|H|HU|W|WU|V|F|D)load [off1] {sym1} (MOVVaddr [off2] {sym2} ptr) mem) && CanMergeSym(sym1,sym2)
-	&& Is32Bit(int64(off1)+int64(off2)) && (ptr.Op != OpSB || !config.Ctxt.Flag_dynlink) =>
+	&& Is32Bit(int64(off1)+int64(off2)) && (ptr.Op != ssaop.OpSB || !config.Ctxt.Flag_dynlink) =>
 	(MOV(B|BU|H|HU|W|WU|V|F|D)load [off1+int32(off2)] {MergeSym(sym1,sym2)} ptr mem)
 
 (MOV(B|H|W|V|F|D)store [off1] {sym1} (MOVVaddr [off2] {sym2} ptr) val mem) && CanMergeSym(sym1,sym2)
-	&& Is32Bit(int64(off1)+int64(off2)) && (ptr.Op != OpSB || !config.Ctxt.Flag_dynlink) =>
+	&& Is32Bit(int64(off1)+int64(off2)) && (ptr.Op != ssaop.OpSB || !config.Ctxt.Flag_dynlink) =>
 	(MOV(B|H|W|V|F|D)store [off1+int32(off2)] {MergeSym(sym1,sym2)} ptr val mem)
 
 // don't extend after proper load

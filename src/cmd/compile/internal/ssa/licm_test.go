@@ -5,6 +5,7 @@
 package ssa
 
 import (
+	"cmd/compile/internal/ssa/ssaop"
 	"cmd/compile/internal/types"
 	"testing"
 )
@@ -13,16 +14,16 @@ func TestLICM(t *testing.T) {
 	c := testConfig(t)
 	fun := c.Fun("entry",
 		Bloc("entry",
-			Valu("mem", OpInitMem, types.TypeMem, 0, nil),
-			Valu("sp", OpSP, c.config.Types.Uintptr, 0, nil),
-			Valu("a", OpConst64, c.config.Types.Int64, 14, nil),
+			Valu("mem", ssaop.OpInitMem, types.TypeMem, 0, nil),
+			Valu("sp", ssaop.OpSP, c.config.Types.Uintptr, 0, nil),
+			Valu("a", ssaop.OpConst64, c.config.Types.Int64, 14, nil),
 			Goto("loop")),
 		Bloc("loop",
-			Valu("b", OpAMD64MOVQconst, c.config.Types.Int64, 26, nil),
-			Valu("sum", OpAMD64ADDQ, c.config.Types.Int64, 0, nil, "a", "b"),
-			Valu("load", OpLoad, c.config.Types.BytePtr, 0, nil, "sp", "mem"),
-			Valu("nilptr", OpConstNil, c.config.Types.BytePtr, 0, nil),
-			Valu("bool", OpNeqPtr, c.config.Types.Bool, 0, nil, "load", "nilptr"),
+			Valu("b", ssaop.OpAMD64MOVQconst, c.config.Types.Int64, 26, nil),
+			Valu("sum", ssaop.OpAMD64ADDQ, c.config.Types.Int64, 0, nil, "a", "b"),
+			Valu("load", ssaop.OpLoad, c.config.Types.BytePtr, 0, nil, "sp", "mem"),
+			Valu("nilptr", ssaop.OpConstNil, c.config.Types.BytePtr, 0, nil),
+			Valu("bool", ssaop.OpNeqPtr, c.config.Types.Bool, 0, nil, "load", "nilptr"),
 			If("bool", "loop", "exit")),
 		Bloc("exit",
 			Exit("mem")))
@@ -42,17 +43,17 @@ func TestLICMNewBlock(t *testing.T) {
 	c := testConfig(t)
 	fun := c.Fun("entry",
 		Bloc("entry",
-			Valu("mem", OpInitMem, types.TypeMem, 0, nil),
-			Valu("sp", OpSP, c.config.Types.Uintptr, 0, nil),
-			Valu("a", OpConst64, c.config.Types.Int64, 14, nil),
-			Valu("bool2", OpConstBool, c.config.Types.Bool, 0, nil),
+			Valu("mem", ssaop.OpInitMem, types.TypeMem, 0, nil),
+			Valu("sp", ssaop.OpSP, c.config.Types.Uintptr, 0, nil),
+			Valu("a", ssaop.OpConst64, c.config.Types.Int64, 14, nil),
+			Valu("bool2", ssaop.OpConstBool, c.config.Types.Bool, 0, nil),
 			If("bool2", "loop", "exit")),
 		Bloc("loop",
-			Valu("b", OpAMD64MOVQconst, c.config.Types.Int64, 26, nil),
-			Valu("sum", OpAMD64ADDQ, c.config.Types.Int64, 0, nil, "a", "b"),
-			Valu("load", OpLoad, c.config.Types.BytePtr, 0, nil, "sp", "mem"),
-			Valu("nilptr", OpConstNil, c.config.Types.BytePtr, 0, nil),
-			Valu("bool", OpNeqPtr, c.config.Types.Bool, 0, nil, "load", "nilptr"),
+			Valu("b", ssaop.OpAMD64MOVQconst, c.config.Types.Int64, 26, nil),
+			Valu("sum", ssaop.OpAMD64ADDQ, c.config.Types.Int64, 0, nil, "a", "b"),
+			Valu("load", ssaop.OpLoad, c.config.Types.BytePtr, 0, nil, "sp", "mem"),
+			Valu("nilptr", ssaop.OpConstNil, c.config.Types.BytePtr, 0, nil),
+			Valu("bool", ssaop.OpNeqPtr, c.config.Types.Bool, 0, nil, "load", "nilptr"),
 			If("bool", "loop", "exit")),
 		Bloc("exit",
 			Exit("mem")))

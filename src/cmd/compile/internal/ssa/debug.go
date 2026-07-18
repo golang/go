@@ -9,6 +9,7 @@ import (
 	"cmd/compile/internal/abt"
 	"cmd/compile/internal/ir"
 	"cmd/compile/internal/ssa/ssabase"
+	"cmd/compile/internal/ssa/ssaop"
 	"cmd/compile/internal/types"
 	"cmd/internal/dwarf"
 	"cmd/internal/obj"
@@ -182,19 +183,19 @@ func (loc VarLoc) intersect(other VarLoc) VarLoc {
 
 var BlockStart = &Value{
 	ID:  -10000,
-	Op:  OpInvalid,
+	Op:  ssaop.OpInvalid,
 	Aux: StringToAux("BlockStart"),
 }
 
 var BlockEnd = &Value{
 	ID:  -20000,
-	Op:  OpInvalid,
+	Op:  ssaop.OpInvalid,
 	Aux: StringToAux("BlockEnd"),
 }
 
 var FuncEnd = &Value{
 	ID:  -30000,
-	Op:  OpInvalid,
+	Op:  ssaop.OpInvalid,
 	Aux: StringToAux("FuncEnd"),
 }
 
@@ -498,7 +499,7 @@ func PopulateABIInRegArgOps(f *Func) {
 	// since the type we get from the ABI analyzer won't always match
 	// what the compiler uses when creating OpArg{Int,Float}Reg ops.
 	for _, v := range f.Entry.Values {
-		if v.Op == OpArgIntReg || v.Op == OpArgFloatReg {
+		if v.Op == ssaop.OpArgIntReg || v.Op == ssaop.OpArgFloatReg {
 			aux := v.Aux.(*AuxNameOffset)
 			sl := LocalSlot{N: aux.Name, Type: v.Type, Off: aux.Offset}
 			// install slot in lookup table
@@ -611,7 +612,7 @@ func BuildFuncDebug(ctxt *obj.Link, f *Func, loggingLevel int, stackOffset func(
 	// This would probably be better as an output from stackframe.
 	for _, b := range f.Blocks {
 		for _, v := range b.Values {
-			if v.Op == OpVarDef {
+			if v.Op == ssaop.OpVarDef {
 				n := v.Aux.(*ir.Name)
 				if ir.IsSynthetic(n) || !IsVarWantedForDebug(n) {
 					continue
@@ -732,13 +733,13 @@ func (state *DebugState) Liveness() []*BlockDebug {
 					// Loads and stores inherit the names of their sources.
 					var source *Value
 					switch v.Op {
-					case OpStoreReg:
+					case ssaop.OpStoreReg:
 						source = v.Args[0]
-					case OpLoadReg:
+					case ssaop.OpLoadReg:
 						switch a := v.Args[0]; a.Op {
-						case OpArg, OpPhi:
+						case ssaop.OpArg, ssaop.OpPhi:
 							source = a
-						case OpStoreReg:
+						case ssaop.OpStoreReg:
 							source = a.Args[0]
 						default:
 							if state.LoggingLevel > 1 {
@@ -1051,7 +1052,7 @@ func (state *DebugState) processValue(v *Value, vSlots []SlotID, vReg *ssabase.R
 	// Handle any register clobbering. Call operations, for example,
 	// clobber all registers even though they don't explicitly write to
 	// them.
-	clobbers := OpcodeTable[v.Op].Reg.Clobbers
+	clobbers := ssaop.OpcodeTable[v.Op].Reg.Clobbers
 	for {
 		if clobbers.Empty() {
 			break
@@ -1077,7 +1078,7 @@ func (state *DebugState) processValue(v *Value, vSlots []SlotID, vReg *ssabase.R
 	}
 
 	switch {
-	case v.Op == OpVarDef:
+	case v.Op == ssaop.OpVarDef:
 		n := v.Aux.(*ir.Name)
 		if ir.IsSynthetic(n) || !IsVarWantedForDebug(n) {
 			break
@@ -1085,19 +1086,19 @@ func (state *DebugState) processValue(v *Value, vSlots []SlotID, vReg *ssabase.R
 
 		slotID := state.VarParts[n][0]
 		var stackOffset StackOffset
-		if v.Op == OpVarDef {
+		if v.Op == ssaop.OpVarDef {
 			stackOffset = StackOffset(state.StackOffset(state.Slots[slotID])<<1 | 1)
 		}
 		setSlot(slotID, VarLoc{0, stackOffset})
 		if state.LoggingLevel > 1 {
-			if v.Op == OpVarDef {
+			if v.Op == ssaop.OpVarDef {
 				state.Logf("at %v: stack-only var %v now live\n", v, state.Slots[slotID])
 			} else {
 				state.Logf("at %v: stack-only var %v now dead\n", v, state.Slots[slotID])
 			}
 		}
 
-	case v.Op == OpArg:
+	case v.Op == ssaop.OpArg:
 		home := state.F.GetHome(v.ID).(LocalSlot)
 		stackOffset := state.StackOffset(home)<<1 | 1
 		for _, slot := range vSlots {
@@ -1111,7 +1112,7 @@ func (state *DebugState) processValue(v *Value, vSlots []SlotID, vReg *ssabase.R
 			setSlot(slot, VarLoc{0, StackOffset(stackOffset)})
 		}
 
-	case v.Op == OpStoreReg:
+	case v.Op == ssaop.OpStoreReg:
 		home := state.F.GetHome(v.ID).(LocalSlot)
 		stackOffset := state.StackOffset(home)<<1 | 1
 		for _, slot := range vSlots {
@@ -1248,15 +1249,15 @@ func (state *DebugState) BuildLocationLists(blockLocs []*BlockDebug) {
 		}
 
 		mustBeFirst := func(v *Value) bool {
-			return v.Op == OpPhi || v.Op.IsLoweredGetClosurePtr() ||
-				v.Op == OpArgIntReg || v.Op == OpArgFloatReg
+			return v.Op == ssaop.OpPhi || v.Op.IsLoweredGetClosurePtr() ||
+				v.Op == ssaop.OpArgIntReg || v.Op == ssaop.OpArgFloatReg
 		}
 
 		blockPrologComplete := func(v *Value) bool {
 			if b.ID != state.F.Entry.ID {
-				return !OpcodeTable[v.Op].ZeroWidth
+				return !ssaop.OpcodeTable[v.Op].ZeroWidth
 			} else {
-				return v.Op == OpInitMem
+				return v.Op == ssaop.OpInitMem
 			}
 		}
 
@@ -1286,7 +1287,7 @@ func (state *DebugState) BuildLocationLists(blockLocs []*BlockDebug) {
 				break
 			}
 			// Consider only "lifetime begins at block start" ops.
-			if !mustBeFirst(v) && v.Op != OpArg {
+			if !mustBeFirst(v) && v.Op != ssaop.OpArg {
 				continue
 			}
 			slots := state.ValueNames[v.ID]
@@ -1313,12 +1314,12 @@ func (state *DebugState) BuildLocationLists(blockLocs []*BlockDebug) {
 			reg, _ := state.F.GetHome(v.ID).(*ssabase.Register)
 			changed := state.processValue(v, slots, reg) // changed == added to state.changedVars
 
-			if OpcodeTable[v.Op].ZeroWidth {
+			if ssaop.OpcodeTable[v.Op].ZeroWidth {
 				if prologComplete && mustBeFirst(v) {
 					panic(fmt.Errorf("Unexpected placement of op '%s' appearing after non-pseudo-op at beginning of block %s in %s\n%s", v.LongString(), b, b.Func.Name, b.Func))
 				}
 				if changed {
-					if mustBeFirst(v) || v.Op == OpArg {
+					if mustBeFirst(v) || v.Op == ssaop.OpArg {
 						// already taken care of above
 						continue
 					}
@@ -1588,13 +1589,13 @@ func locatePrologEnd(f *Func, needCloCtx bool) (ID, *Value) {
 		}
 		regInputs, memInputs, spInputs := 0, 0, 0
 		for _, a := range v.Args {
-			if a.Op == OpArgIntReg || a.Op == OpArgFloatReg ||
+			if a.Op == ssaop.OpArgIntReg || a.Op == ssaop.OpArgFloatReg ||
 				(needCloCtx && a.Op.IsLoweredGetClosurePtr()) {
 				regInputs++
 				r = a.ID
 			} else if a.Type.IsMemory() {
 				memInputs++
-			} else if a.Op == OpSP {
+			} else if a.Op == ssaop.OpSP {
 				spInputs++
 			} else {
 				return false, r
@@ -1626,7 +1627,7 @@ func locatePrologEnd(f *Func, needCloCtx bool) (ID, *Value) {
 	// then we've arrived at the end of the prolog.
 	var cloRegStore *Value
 	for k, v := range f.Entry.Values {
-		if v.Op == OpArgIntReg || v.Op == OpArgFloatReg {
+		if v.Op == ssaop.OpArgIntReg || v.Op == ssaop.OpArgFloatReg {
 			regArgs = append(regArgs, v.ID)
 			continue
 		}

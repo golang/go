@@ -9,6 +9,7 @@ import (
 	"cmd/compile/internal/bitvec"
 	"cmd/compile/internal/ir"
 	"cmd/compile/internal/ssa"
+	"cmd/compile/internal/ssa/ssaop"
 	"cmd/internal/src"
 	"fmt"
 	"os"
@@ -496,7 +497,7 @@ func (cs *cstate) populateIndirectUseTable(cands []*ir.Name) ([]*ir.Name, []cand
 		for _, v := range b.Values {
 			if n, e := affectedVar(v); n != nil {
 				if _, ok := rawcands[n]; ok {
-					if e&ssa.SymAddr != 0 && v.Uses != 0 {
+					if e&ssaop.SymAddr != 0 && v.Uses != 0 {
 						// we're taking the address of candidate var n
 						if _, ok := pendingUses[v.ID]; ok {
 							// should never happen

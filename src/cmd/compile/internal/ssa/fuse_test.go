@@ -6,6 +6,7 @@ package ssa
 
 import (
 	"cmd/compile/internal/ssa/block"
+	"cmd/compile/internal/ssa/ssaop"
 	"cmd/compile/internal/types"
 	"fmt"
 	"strconv"
@@ -17,13 +18,13 @@ func TestFuseEliminatesOneBranch(t *testing.T) {
 	ptrType := c.config.Types.BytePtr
 	fun := c.Fun("entry",
 		Bloc("entry",
-			Valu("mem", OpInitMem, types.TypeMem, 0, nil),
-			Valu("sb", OpSB, c.config.Types.Uintptr, 0, nil),
+			Valu("mem", ssaop.OpInitMem, types.TypeMem, 0, nil),
+			Valu("sb", ssaop.OpSB, c.config.Types.Uintptr, 0, nil),
 			Goto("checkPtr")),
 		Bloc("checkPtr",
-			Valu("ptr1", OpLoad, ptrType, 0, nil, "sb", "mem"),
-			Valu("nilptr", OpConstNil, ptrType, 0, nil),
-			Valu("bool1", OpNeqPtr, c.config.Types.Bool, 0, nil, "ptr1", "nilptr"),
+			Valu("ptr1", ssaop.OpLoad, ptrType, 0, nil, "sb", "mem"),
+			Valu("nilptr", ssaop.OpConstNil, ptrType, 0, nil),
+			Valu("bool1", ssaop.OpNeqPtr, c.config.Types.Bool, 0, nil, "ptr1", "nilptr"),
 			If("bool1", "then", "exit")),
 		Bloc("then",
 			Goto("exit")),
@@ -45,13 +46,13 @@ func TestFuseEliminatesBothBranches(t *testing.T) {
 	ptrType := c.config.Types.BytePtr
 	fun := c.Fun("entry",
 		Bloc("entry",
-			Valu("mem", OpInitMem, types.TypeMem, 0, nil),
-			Valu("sb", OpSB, c.config.Types.Uintptr, 0, nil),
+			Valu("mem", ssaop.OpInitMem, types.TypeMem, 0, nil),
+			Valu("sb", ssaop.OpSB, c.config.Types.Uintptr, 0, nil),
 			Goto("checkPtr")),
 		Bloc("checkPtr",
-			Valu("ptr1", OpLoad, ptrType, 0, nil, "sb", "mem"),
-			Valu("nilptr", OpConstNil, ptrType, 0, nil),
-			Valu("bool1", OpNeqPtr, c.config.Types.Bool, 0, nil, "ptr1", "nilptr"),
+			Valu("ptr1", ssaop.OpLoad, ptrType, 0, nil, "sb", "mem"),
+			Valu("nilptr", ssaop.OpConstNil, ptrType, 0, nil),
+			Valu("bool1", ssaop.OpNeqPtr, c.config.Types.Bool, 0, nil, "ptr1", "nilptr"),
 			If("bool1", "then", "else")),
 		Bloc("then",
 			Goto("exit")),
@@ -78,20 +79,20 @@ func TestFuseHandlesPhis(t *testing.T) {
 	ptrType := c.config.Types.BytePtr
 	fun := c.Fun("entry",
 		Bloc("entry",
-			Valu("mem", OpInitMem, types.TypeMem, 0, nil),
-			Valu("sb", OpSB, c.config.Types.Uintptr, 0, nil),
+			Valu("mem", ssaop.OpInitMem, types.TypeMem, 0, nil),
+			Valu("sb", ssaop.OpSB, c.config.Types.Uintptr, 0, nil),
 			Goto("checkPtr")),
 		Bloc("checkPtr",
-			Valu("ptr1", OpLoad, ptrType, 0, nil, "sb", "mem"),
-			Valu("nilptr", OpConstNil, ptrType, 0, nil),
-			Valu("bool1", OpNeqPtr, c.config.Types.Bool, 0, nil, "ptr1", "nilptr"),
+			Valu("ptr1", ssaop.OpLoad, ptrType, 0, nil, "sb", "mem"),
+			Valu("nilptr", ssaop.OpConstNil, ptrType, 0, nil),
+			Valu("bool1", ssaop.OpNeqPtr, c.config.Types.Bool, 0, nil, "ptr1", "nilptr"),
 			If("bool1", "then", "else")),
 		Bloc("then",
 			Goto("exit")),
 		Bloc("else",
 			Goto("exit")),
 		Bloc("exit",
-			Valu("phi", OpPhi, ptrType, 0, nil, "ptr1", "ptr1"),
+			Valu("phi", ssaop.OpPhi, ptrType, 0, nil, "ptr1", "ptr1"),
 			Exit("mem")))
 
 	CheckFunc(fun.f)
@@ -123,8 +124,8 @@ func TestFuseEliminatesEmptyBlocks(t *testing.T) {
 	//     exit
 	fun := c.Fun("entry",
 		Bloc("entry",
-			Valu("mem", OpInitMem, types.TypeMem, 0, nil),
-			Valu("sb", OpSB, c.config.Types.Uintptr, 0, nil),
+			Valu("mem", ssaop.OpInitMem, types.TypeMem, 0, nil),
+			Valu("sb", ssaop.OpSB, c.config.Types.Uintptr, 0, nil),
 			Goto("z0")),
 		Bloc("z1",
 			Goto("z2")),
@@ -155,8 +156,8 @@ func TestFuseEliminatesEmptyBlocks(t *testing.T) {
 	//     exit
 	fun = c.Fun("entry",
 		Bloc("entry",
-			Valu("mem", OpInitMem, types.TypeMem, 0, nil),
-			Valu("c", OpArg, c.config.Types.Bool, 0, nil),
+			Valu("mem", ssaop.OpInitMem, types.TypeMem, 0, nil),
+			Valu("c", ssaop.OpArg, c.config.Types.Bool, 0, nil),
 			If("c", "z0", "z1")),
 		Bloc("z0",
 			Goto("exit")),
@@ -185,11 +186,11 @@ func TestFuseEliminatesEmptyBlocks(t *testing.T) {
 	//       exit
 	fun = c.Fun("entry",
 		Bloc("entry",
-			Valu("mem", OpInitMem, types.TypeMem, 0, nil),
-			Valu("c1", OpArg, c.config.Types.Bool, 0, nil),
+			Valu("mem", ssaop.OpInitMem, types.TypeMem, 0, nil),
+			Valu("c1", ssaop.OpArg, c.config.Types.Bool, 0, nil),
 			If("c1", "b0", "z0")),
 		Bloc("b0",
-			Valu("c2", OpArg, c.config.Types.Bool, 0, nil),
+			Valu("c2", ssaop.OpArg, c.config.Types.Bool, 0, nil),
 			If("c2", "z1", "z0")),
 		Bloc("z0",
 			Goto("exit")),
@@ -216,14 +217,14 @@ func TestFuseSideEffects(t *testing.T) {
 	// See issue #36005.
 	fun := c.Fun("entry",
 		Bloc("entry",
-			Valu("mem", OpInitMem, types.TypeMem, 0, nil),
-			Valu("b", OpArg, c.config.Types.Bool, 0, nil),
+			Valu("mem", ssaop.OpInitMem, types.TypeMem, 0, nil),
+			Valu("b", ssaop.OpArg, c.config.Types.Bool, 0, nil),
 			If("b", "then", "else")),
 		Bloc("then",
-			Valu("call1", OpStaticCall, types.TypeMem, 0, AuxCallLSym("_"), "mem"),
+			Valu("call1", ssaop.OpStaticCall, types.TypeMem, 0, AuxCallLSym("_"), "mem"),
 			Goto("empty")),
 		Bloc("else",
-			Valu("call2", OpStaticCall, types.TypeMem, 0, AuxCallLSym("_"), "mem"),
+			Valu("call2", ssaop.OpStaticCall, types.TypeMem, 0, AuxCallLSym("_"), "mem"),
 			Goto("empty")),
 		Bloc("empty",
 			Goto("loop")),
@@ -250,12 +251,12 @@ func TestFuseSideEffects(t *testing.T) {
 	//     exit
 	fun = c.Fun("entry",
 		Bloc("entry",
-			Valu("mem", OpInitMem, types.TypeMem, 0, nil),
-			Valu("c1", OpArg, c.config.Types.Bool, 0, nil),
-			Valu("p", OpArg, c.config.Types.IntPtr, 0, nil),
+			Valu("mem", ssaop.OpInitMem, types.TypeMem, 0, nil),
+			Valu("c1", ssaop.OpArg, c.config.Types.Bool, 0, nil),
+			Valu("p", ssaop.OpArg, c.config.Types.IntPtr, 0, nil),
 			If("c1", "z0", "exit")),
 		Bloc("z0",
-			Valu("nilcheck", OpNilCheck, c.config.Types.IntPtr, 0, nil, "p", "mem"),
+			Valu("nilcheck", ssaop.OpNilCheck, c.config.Types.IntPtr, 0, nil, "p", "mem"),
 			Goto("exit")),
 		Bloc("exit",
 			Exit("mem"),
@@ -272,30 +273,30 @@ func TestFuseHandlesDifferentiatedPhi(t *testing.T) {
 	c := testConfig(t)
 	fun := c.Fun("entry",
 		Bloc("entry",
-			Valu("mem", OpInitMem, types.TypeMem, 0, nil),
-			Valu("a1", OpArg, c.config.Types.UInt64, 0, nil),
-			Valu("sb", OpSB, c.config.Types.Uintptr, 0, nil),
-			Valu("constTrue", OpConstBool, c.config.Types.Bool, 1, nil),
-			Valu("lower", OpConst64, c.config.Types.UInt64, 16, nil),
-			Valu("upper", OpConst64, c.config.Types.UInt64, 512, nil),
+			Valu("mem", ssaop.OpInitMem, types.TypeMem, 0, nil),
+			Valu("a1", ssaop.OpArg, c.config.Types.UInt64, 0, nil),
+			Valu("sb", ssaop.OpSB, c.config.Types.Uintptr, 0, nil),
+			Valu("constTrue", ssaop.OpConstBool, c.config.Types.Bool, 1, nil),
+			Valu("lower", ssaop.OpConst64, c.config.Types.UInt64, 16, nil),
+			Valu("upper", ssaop.OpConst64, c.config.Types.UInt64, 512, nil),
 			Goto("checkUpper")),
 		Bloc("checkUpper",
-			Valu("bool1", OpLeq64U, c.config.Types.Bool, 0, nil, "a1", "upper"),
+			Valu("bool1", ssaop.OpLeq64U, c.config.Types.Bool, 0, nil, "a1", "upper"),
 			If("bool1", "checkLower", "exit")),
 		Bloc("checkLower",
-			Valu("bool2", OpLeq64U, c.config.Types.Bool, 0, nil, "lower", "a1"),
+			Valu("bool2", ssaop.OpLeq64U, c.config.Types.Bool, 0, nil, "lower", "a1"),
 			If("bool2", "empty", "exit")),
 		Bloc("empty",
 			Goto("exit")),
 		Bloc("exit",
-			Valu("phi", OpPhi, c.config.Types.Bool, 0, nil, "bool1", "constTrue", "constTrue"),
+			Valu("phi", ssaop.OpPhi, c.config.Types.Bool, 0, nil, "bool1", "constTrue", "constTrue"),
 			Exit("mem")))
 
 	CheckFunc(fun.f)
 	fuse(fun.f, fuseTypeIntInRange)
 	phi := fun.values["phi"]
 	cTrue := fun.values["constTrue"]
-	if phi.Op == OpCopy && phi.Args[0] == cTrue {
+	if phi.Op == ssaop.OpCopy && phi.Args[0] == cTrue {
 		t.Errorf("phi mangled into always true")
 	}
 }
@@ -308,9 +309,9 @@ func BenchmarkFuse(b *testing.B) {
 			blocks := make([]bloc, 0, 2*n+3)
 			blocks = append(blocks,
 				Bloc("entry",
-					Valu("mem", OpInitMem, types.TypeMem, 0, nil),
-					Valu("cond", OpArg, c.config.Types.Bool, 0, nil),
-					Valu("x", OpArg, c.config.Types.Int64, 0, nil),
+					Valu("mem", ssaop.OpInitMem, types.TypeMem, 0, nil),
+					Valu("cond", ssaop.OpArg, c.config.Types.Bool, 0, nil),
+					Valu("x", ssaop.OpArg, c.config.Types.Int64, 0, nil),
 					Goto("exit")))
 
 			phiArgs := make([]string, 0, 2*n)
@@ -323,7 +324,7 @@ func BenchmarkFuse(b *testing.B) {
 			}
 			blocks = append(blocks,
 				Bloc("merge",
-					Valu("phi", OpPhi, types.TypeMem, 0, nil, phiArgs...),
+					Valu("phi", ssaop.OpPhi, types.TypeMem, 0, nil, phiArgs...),
 					Goto("exit")),
 				Bloc("exit",
 					Exit("mem")))

@@ -4,7 +4,10 @@
 
 package ssa
 
-import "cmd/compile/internal/ssa/block"
+import (
+	"cmd/compile/internal/ssa/block"
+	"cmd/compile/internal/ssa/ssaop"
+)
 
 // shortcircuit finds situations where branch directions
 // are always correlated and rewrites the CFG to take
@@ -22,7 +25,7 @@ func shortcircuit(f *Func) {
 	var ct, cf *Value
 	for _, b := range f.Blocks {
 		for _, v := range b.Values {
-			if v.Op != OpPhi {
+			if v.Op != ssaop.OpPhi {
 				continue
 			}
 			if !v.Type.IsBoolean() {
@@ -116,19 +119,19 @@ func shortcircuitBlock(b *Block) bool {
 	ctl := b.Controls[0]
 	nval := 1 // the control value
 	var swap int64
-	for ctl.Uses == 1 && ctl.Block == b && (ctl.Op == OpCopy || ctl.Op == OpNot) {
-		if ctl.Op == OpNot {
+	for ctl.Uses == 1 && ctl.Block == b && (ctl.Op == ssaop.OpCopy || ctl.Op == ssaop.OpNot) {
+		if ctl.Op == ssaop.OpNot {
 			swap = 1 ^ swap
 		}
 		ctl = ctl.Args[0]
 		nval++ // wrapper around control value
 	}
-	if ctl.Op != OpPhi || ctl.Block != b || ctl.Uses != 1 {
+	if ctl.Op != ssaop.OpPhi || ctl.Block != b || ctl.Uses != 1 {
 		return false
 	}
 	nOtherPhi := 0
 	for _, w := range b.Values {
-		if w.Op == OpPhi && w != ctl {
+		if w.Op == ssaop.OpPhi && w != ctl {
 			nOtherPhi++
 		}
 	}
@@ -148,7 +151,7 @@ func shortcircuitBlock(b *Block) bool {
 		// are no longer trivial to do in any ordering. See issue 45175.
 		m := make(map[*Value]bool, 1+nOtherPhi)
 		for _, v := range b.Values {
-			if v.Op == OpPhi {
+			if v.Op == ssaop.OpPhi {
 				m[v] = true
 			}
 		}
@@ -164,7 +167,7 @@ func shortcircuitBlock(b *Block) bool {
 	// Locate index of first const phi arg.
 	cidx := -1
 	for i, a := range ctl.Args {
-		if a.Op == OpConstBool {
+		if a.Op == ssaop.OpConstBool {
 			cidx = i
 			break
 		}
@@ -208,7 +211,7 @@ func shortcircuitBlock(b *Block) bool {
 	// Fix up t to have one more predecessor.
 	t.Preds = append(t.Preds, Edge{p, pi})
 	for _, v := range t.Values {
-		if v.Op != OpPhi {
+		if v.Op != ssaop.OpPhi {
 			continue
 		}
 		v.AddArg(v.Args[te.I])
@@ -220,7 +223,7 @@ func shortcircuitBlock(b *Block) bool {
 		// thus modifying b.Values.
 		for i := 0; i < len(b.Values); i++ {
 			phi := b.Values[i]
-			if phi.Uses == 0 || phi == ctl || phi.Op != OpPhi {
+			if phi.Uses == 0 || phi == ctl || phi.Op != ssaop.OpPhi {
 				continue
 			}
 			fixPhi(phi, i)
@@ -233,7 +236,7 @@ func shortcircuitBlock(b *Block) bool {
 			// phi used to be evaluated prior to this block,
 			// and now it is evaluated in this block.
 			for _, v := range phi.Block.Values {
-				if v.Op != OpPhi || v == phi {
+				if v.Op != ssaop.OpPhi || v == phi {
 					continue
 				}
 				for j, a := range v.Args {
@@ -245,7 +248,7 @@ func shortcircuitBlock(b *Block) bool {
 			if phi.Uses != 0 {
 				PhiElimValue(phi)
 			} else {
-				phi.Reset(OpInvalid)
+				phi.Reset(ssaop.OpInvalid)
 			}
 			i-- // v.moveTo put a new value at index i; reprocess
 		}
@@ -254,7 +257,7 @@ func shortcircuitBlock(b *Block) bool {
 		// but the wrong number of arguments. Eliminate those.
 		for _, v := range b.Values {
 			if v.Uses == 0 {
-				v.Reset(OpInvalid)
+				v.Reset(ssaop.OpInvalid)
 			}
 		}
 	}
@@ -326,7 +329,7 @@ func shortcircuitPhiPlan(b *Block, ctl *Value, cidx int, ti int64) func(*Value, 
 				// Then move v to m and adjust its value accordingly;
 				// this handles all other uses of v.
 				argP, argQ := v.Args[cidx], v.Args[1^cidx]
-				phi := t.Func.NewValue(OpPhi, v.Type, t, v.Pos)
+				phi := t.Func.NewValue(ssaop.OpPhi, v.Type, t, v.Pos)
 				phi.AddArg2(argQ, argP)
 				t.ReplaceUses(v, phi)
 				for bb := range visited {
@@ -402,7 +405,7 @@ func shortcircuitPhiPlan(b *Block, ctl *Value, cidx int, ti int64) func(*Value, 
 		return func(v *Value, i int) {
 			// Replace any uses of v in t. Then move v to u.
 			argP, argQ := v.Args[cidx], v.Args[1^cidx]
-			phi := t.Func.NewValue(OpPhi, v.Type, t, v.Pos)
+			phi := t.Func.NewValue(ssaop.OpPhi, v.Type, t, v.Pos)
 			phi.AddArg2(argQ, argP)
 			t.ReplaceUses(v, phi)
 			if v.Uses == 0 {
@@ -443,7 +446,7 @@ func shortcircuitPhiPlan(b *Block, ctl *Value, cidx int, ti int64) func(*Value, 
 			argP, argQ := v.Args[cidx], v.Args[1^cidx]
 			// If there are no uses of v in t or x, this phi will be unused.
 			// That's OK; it's not worth the cost to prevent that.
-			phi := t.Func.NewValue(OpPhi, v.Type, t, v.Pos)
+			phi := t.Func.NewValue(ssaop.OpPhi, v.Type, t, v.Pos)
 			phi.AddArg2(argQ, argP)
 			t.ReplaceUses(v, phi)
 			if v.Uses == 0 {

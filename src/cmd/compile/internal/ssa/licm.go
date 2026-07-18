@@ -4,7 +4,10 @@
 
 package ssa
 
-import "cmd/compile/internal/ssa/block"
+import (
+	"cmd/compile/internal/ssa/block"
+	"cmd/compile/internal/ssa/ssaop"
+)
 
 // We are looking for loops with following structure
 // (loop bodies may have control flow inside):
@@ -59,9 +62,9 @@ func licm(f *Func) {
 			continue
 		}
 		for _, v := range b.Values {
-			if OpcodeTable[v.Op].EarlyOk {
+			if ssaop.OpcodeTable[v.Op].EarlyOk {
 				// Double check we didn't mark the wrong ops as earlyOk
-				if v.Type.IsMemory() || OpcodeTable[v.Op].NilCheck || OpcodeTable[v.Op].HasSideEffects || v.MemoryArg() != nil {
+				if v.Type.IsMemory() || ssaop.OpcodeTable[v.Op].NilCheck || ssaop.OpcodeTable[v.Op].HasSideEffects || v.MemoryArg() != nil {
 					v.Fatalf("op %s has bad earlyOk mark", v.Op)
 				}
 				if !v.Type.IsPtr() {
@@ -71,7 +74,7 @@ func licm(f *Func) {
 					continue // Ok to lift out of loop.
 				}
 			}
-			if v.Op == OpSelect0 || v.Op == OpSelect1 {
+			if v.Op == ssaop.OpSelect0 || v.Op == ssaop.OpSelect1 {
 				// These ops can (and must) move with the op they are selecting from.
 				continue
 			}

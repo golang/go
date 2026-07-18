@@ -38,6 +38,7 @@ package ssa
 
 import (
 	"cmd/compile/internal/ssa/block"
+	"cmd/compile/internal/ssa/ssaop"
 	"cmd/compile/internal/types"
 	"cmd/internal/obj"
 	"cmd/internal/src"
@@ -231,7 +232,7 @@ func Bloc(name string, entries ...any) bloc {
 }
 
 // Valu defines a value in a block.
-func Valu(name string, op Op, t *types.Type, auxint int64, aux Aux, args ...string) valu {
+func Valu(name string, op ssaop.Op, t *types.Type, auxint int64, aux Aux, args ...string) valu {
 	return valu{name, op, t, auxint, aux, args}
 }
 
@@ -283,7 +284,7 @@ type ctrl struct {
 
 type valu struct {
 	name   string
-	op     Op
+	op     ssaop.Op
 	t      *types.Type
 	auxint int64
 	aux    Aux
@@ -294,10 +295,10 @@ func TestArgs(t *testing.T) {
 	c := testConfig(t)
 	fun := c.Fun("entry",
 		Bloc("entry",
-			Valu("a", OpConst64, c.config.Types.Int64, 14, nil),
-			Valu("b", OpConst64, c.config.Types.Int64, 26, nil),
-			Valu("sum", OpAdd64, c.config.Types.Int64, 0, nil, "a", "b"),
-			Valu("mem", OpInitMem, types.TypeMem, 0, nil),
+			Valu("a", ssaop.OpConst64, c.config.Types.Int64, 14, nil),
+			Valu("b", ssaop.OpConst64, c.config.Types.Int64, 26, nil),
+			Valu("sum", ssaop.OpAdd64, c.config.Types.Int64, 0, nil, "a", "b"),
+			Valu("mem", ssaop.OpInitMem, types.TypeMem, 0, nil),
 			Goto("exit")),
 		Bloc("exit",
 			Exit("mem")))
@@ -317,19 +318,19 @@ func TestEquiv(t *testing.T) {
 		{
 			cfg.Fun("entry",
 				Bloc("entry",
-					Valu("a", OpConst64, cfg.config.Types.Int64, 14, nil),
-					Valu("b", OpConst64, cfg.config.Types.Int64, 26, nil),
-					Valu("sum", OpAdd64, cfg.config.Types.Int64, 0, nil, "a", "b"),
-					Valu("mem", OpInitMem, types.TypeMem, 0, nil),
+					Valu("a", ssaop.OpConst64, cfg.config.Types.Int64, 14, nil),
+					Valu("b", ssaop.OpConst64, cfg.config.Types.Int64, 26, nil),
+					Valu("sum", ssaop.OpAdd64, cfg.config.Types.Int64, 0, nil, "a", "b"),
+					Valu("mem", ssaop.OpInitMem, types.TypeMem, 0, nil),
 					Goto("exit")),
 				Bloc("exit",
 					Exit("mem"))),
 			cfg.Fun("entry",
 				Bloc("entry",
-					Valu("a", OpConst64, cfg.config.Types.Int64, 14, nil),
-					Valu("b", OpConst64, cfg.config.Types.Int64, 26, nil),
-					Valu("sum", OpAdd64, cfg.config.Types.Int64, 0, nil, "a", "b"),
-					Valu("mem", OpInitMem, types.TypeMem, 0, nil),
+					Valu("a", ssaop.OpConst64, cfg.config.Types.Int64, 14, nil),
+					Valu("b", ssaop.OpConst64, cfg.config.Types.Int64, 26, nil),
+					Valu("sum", ssaop.OpAdd64, cfg.config.Types.Int64, 0, nil, "a", "b"),
+					Valu("mem", ssaop.OpInitMem, types.TypeMem, 0, nil),
 					Goto("exit")),
 				Bloc("exit",
 					Exit("mem"))),
@@ -338,10 +339,10 @@ func TestEquiv(t *testing.T) {
 		{
 			cfg.Fun("entry",
 				Bloc("entry",
-					Valu("a", OpConst64, cfg.config.Types.Int64, 14, nil),
-					Valu("b", OpConst64, cfg.config.Types.Int64, 26, nil),
-					Valu("sum", OpAdd64, cfg.config.Types.Int64, 0, nil, "a", "b"),
-					Valu("mem", OpInitMem, types.TypeMem, 0, nil),
+					Valu("a", ssaop.OpConst64, cfg.config.Types.Int64, 14, nil),
+					Valu("b", ssaop.OpConst64, cfg.config.Types.Int64, 26, nil),
+					Valu("sum", ssaop.OpAdd64, cfg.config.Types.Int64, 0, nil, "a", "b"),
+					Valu("mem", ssaop.OpInitMem, types.TypeMem, 0, nil),
 					Goto("exit")),
 				Bloc("exit",
 					Exit("mem"))),
@@ -349,10 +350,10 @@ func TestEquiv(t *testing.T) {
 				Bloc("exit",
 					Exit("mem")),
 				Bloc("entry",
-					Valu("a", OpConst64, cfg.config.Types.Int64, 14, nil),
-					Valu("b", OpConst64, cfg.config.Types.Int64, 26, nil),
-					Valu("sum", OpAdd64, cfg.config.Types.Int64, 0, nil, "a", "b"),
-					Valu("mem", OpInitMem, types.TypeMem, 0, nil),
+					Valu("a", ssaop.OpConst64, cfg.config.Types.Int64, 14, nil),
+					Valu("b", ssaop.OpConst64, cfg.config.Types.Int64, 26, nil),
+					Valu("sum", ssaop.OpAdd64, cfg.config.Types.Int64, 0, nil, "a", "b"),
+					Valu("mem", ssaop.OpInitMem, types.TypeMem, 0, nil),
 					Goto("exit"))),
 		},
 	}
@@ -369,71 +370,71 @@ func TestEquiv(t *testing.T) {
 		{
 			cfg.Fun("entry",
 				Bloc("entry",
-					Valu("mem", OpInitMem, types.TypeMem, 0, nil),
+					Valu("mem", ssaop.OpInitMem, types.TypeMem, 0, nil),
 					Goto("exit")),
 				Bloc("exit",
 					Exit("mem"))),
 			cfg.Fun("entry",
 				Bloc("entry",
-					Valu("mem", OpInitMem, types.TypeMem, 0, nil),
+					Valu("mem", ssaop.OpInitMem, types.TypeMem, 0, nil),
 					Exit("mem"))),
 		},
 		// value order changed
 		{
 			cfg.Fun("entry",
 				Bloc("entry",
-					Valu("mem", OpInitMem, types.TypeMem, 0, nil),
-					Valu("b", OpConst64, cfg.config.Types.Int64, 26, nil),
-					Valu("a", OpConst64, cfg.config.Types.Int64, 14, nil),
+					Valu("mem", ssaop.OpInitMem, types.TypeMem, 0, nil),
+					Valu("b", ssaop.OpConst64, cfg.config.Types.Int64, 26, nil),
+					Valu("a", ssaop.OpConst64, cfg.config.Types.Int64, 14, nil),
 					Exit("mem"))),
 			cfg.Fun("entry",
 				Bloc("entry",
-					Valu("mem", OpInitMem, types.TypeMem, 0, nil),
-					Valu("a", OpConst64, cfg.config.Types.Int64, 14, nil),
-					Valu("b", OpConst64, cfg.config.Types.Int64, 26, nil),
+					Valu("mem", ssaop.OpInitMem, types.TypeMem, 0, nil),
+					Valu("a", ssaop.OpConst64, cfg.config.Types.Int64, 14, nil),
+					Valu("b", ssaop.OpConst64, cfg.config.Types.Int64, 26, nil),
 					Exit("mem"))),
 		},
 		// value auxint different
 		{
 			cfg.Fun("entry",
 				Bloc("entry",
-					Valu("mem", OpInitMem, types.TypeMem, 0, nil),
-					Valu("a", OpConst64, cfg.config.Types.Int64, 14, nil),
+					Valu("mem", ssaop.OpInitMem, types.TypeMem, 0, nil),
+					Valu("a", ssaop.OpConst64, cfg.config.Types.Int64, 14, nil),
 					Exit("mem"))),
 			cfg.Fun("entry",
 				Bloc("entry",
-					Valu("mem", OpInitMem, types.TypeMem, 0, nil),
-					Valu("a", OpConst64, cfg.config.Types.Int64, 26, nil),
+					Valu("mem", ssaop.OpInitMem, types.TypeMem, 0, nil),
+					Valu("a", ssaop.OpConst64, cfg.config.Types.Int64, 26, nil),
 					Exit("mem"))),
 		},
 		// value aux different
 		{
 			cfg.Fun("entry",
 				Bloc("entry",
-					Valu("mem", OpInitMem, types.TypeMem, 0, nil),
-					Valu("a", OpConstString, cfg.config.Types.String, 0, StringToAux("foo")),
+					Valu("mem", ssaop.OpInitMem, types.TypeMem, 0, nil),
+					Valu("a", ssaop.OpConstString, cfg.config.Types.String, 0, StringToAux("foo")),
 					Exit("mem"))),
 			cfg.Fun("entry",
 				Bloc("entry",
-					Valu("mem", OpInitMem, types.TypeMem, 0, nil),
-					Valu("a", OpConstString, cfg.config.Types.String, 0, StringToAux("bar")),
+					Valu("mem", ssaop.OpInitMem, types.TypeMem, 0, nil),
+					Valu("a", ssaop.OpConstString, cfg.config.Types.String, 0, StringToAux("bar")),
 					Exit("mem"))),
 		},
 		// value args different
 		{
 			cfg.Fun("entry",
 				Bloc("entry",
-					Valu("mem", OpInitMem, types.TypeMem, 0, nil),
-					Valu("a", OpConst64, cfg.config.Types.Int64, 14, nil),
-					Valu("b", OpConst64, cfg.config.Types.Int64, 26, nil),
-					Valu("sum", OpAdd64, cfg.config.Types.Int64, 0, nil, "a", "b"),
+					Valu("mem", ssaop.OpInitMem, types.TypeMem, 0, nil),
+					Valu("a", ssaop.OpConst64, cfg.config.Types.Int64, 14, nil),
+					Valu("b", ssaop.OpConst64, cfg.config.Types.Int64, 26, nil),
+					Valu("sum", ssaop.OpAdd64, cfg.config.Types.Int64, 0, nil, "a", "b"),
 					Exit("mem"))),
 			cfg.Fun("entry",
 				Bloc("entry",
-					Valu("mem", OpInitMem, types.TypeMem, 0, nil),
-					Valu("a", OpConst64, cfg.config.Types.Int64, 0, nil),
-					Valu("b", OpConst64, cfg.config.Types.Int64, 14, nil),
-					Valu("sum", OpAdd64, cfg.config.Types.Int64, 0, nil, "b", "a"),
+					Valu("mem", ssaop.OpInitMem, types.TypeMem, 0, nil),
+					Valu("a", ssaop.OpConst64, cfg.config.Types.Int64, 0, nil),
+					Valu("b", ssaop.OpConst64, cfg.config.Types.Int64, 14, nil),
+					Valu("sum", ssaop.OpAdd64, cfg.config.Types.Int64, 0, nil, "b", "a"),
 					Exit("mem"))),
 		},
 	}
@@ -452,7 +453,7 @@ func TestConstCache(t *testing.T) {
 	c := testConfig(t)
 	f := c.Fun("entry",
 		Bloc("entry",
-			Valu("mem", OpInitMem, types.TypeMem, 0, nil),
+			Valu("mem", ssaop.OpInitMem, types.TypeMem, 0, nil),
 			Exit("mem")))
 	v1 := f.f.ConstBool(c.config.Types.Bool, false)
 	v2 := f.f.ConstBool(c.config.Types.Bool, true)
@@ -471,8 +472,8 @@ func TestConstCache(t *testing.T) {
 
 // opcodeMap returns a map from opcode to the number of times that opcode
 // appears in the function.
-func opcodeMap(f *Func) map[Op]int {
-	m := map[Op]int{}
+func opcodeMap(f *Func) map[ssaop.Op]int {
+	m := map[ssaop.Op]int{}
 	for _, b := range f.Blocks {
 		for _, v := range b.Values {
 			m[v.Op]++
@@ -483,7 +484,7 @@ func opcodeMap(f *Func) map[Op]int {
 
 // checkOpcodeCounts checks that the number of opcodes listed in m agree with the
 // number of opcodes that appear in the function.
-func checkOpcodeCounts(t *testing.T, f *Func, m map[Op]int) {
+func checkOpcodeCounts(t *testing.T, f *Func, m map[ssaop.Op]int) {
 	n := opcodeMap(f)
 	for op, cnt := range m {
 		if n[op] != cnt {

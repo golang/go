@@ -14,22 +14,23 @@ import (
 	"cmd/compile/internal/ir"
 	"cmd/compile/internal/reflectdata"
 	"cmd/compile/internal/rttype"
+	"cmd/compile/internal/ssa/ssaop"
 	"cmd/compile/internal/typecheck"
 	"cmd/compile/internal/types"
 	"cmd/internal/obj"
 	"cmd/internal/objabi"
 )
 
-func addToSub(op Op) Op {
+func addToSub(op ssaop.Op) ssaop.Op {
 	switch op {
-	case OpAdd64:
-		return OpSub64
-	case OpAdd32:
-		return OpSub32
-	case OpAdd16:
-		return OpSub16
-	case OpAdd8:
-		return OpSub8
+	case ssaop.OpAdd64:
+		return ssaop.OpSub64
+	case ssaop.OpAdd32:
+		return ssaop.OpSub32
+	case ssaop.OpAdd16:
+		return ssaop.OpSub16
+	case ssaop.OpAdd8:
+		return ssaop.OpSub8
 	default:
 		panic(fmt.Sprintf("unexpected op %v", op))
 	}
@@ -104,7 +105,7 @@ func copyCompatibleType(t1, t2 *types.Type) bool {
 }
 
 func devirtLECall(v *Value, sym *obj.LSym) *Value {
-	v.Op = OpStaticLECall
+	v.Op = ssaop.OpStaticLECall
 	auxcall := v.Aux.(*AuxCall)
 	auxcall.Fn = sym
 	// Remove first arg
@@ -129,15 +130,15 @@ func hasSmallRotate(c *Config) bool {
 	}
 }
 
-func invertibleBool(op Op) bool {
+func invertibleBool(op ssaop.Op) bool {
 	switch op {
-	case OpLess64, OpLess32, OpLess16, OpLess8,
-		OpLeq64, OpLeq32, OpLeq16, OpLeq8,
-		OpLess64U, OpLess32U, OpLess16U, OpLess8U,
-		OpLeq64U, OpLeq32U, OpLeq16U, OpLeq8U,
-		OpEq64, OpEq32, OpEq16, OpEq8,
-		OpNeq64, OpNeq32, OpNeq16, OpNeq8,
-		OpNot:
+	case ssaop.OpLess64, ssaop.OpLess32, ssaop.OpLess16, ssaop.OpLess8,
+		ssaop.OpLeq64, ssaop.OpLeq32, ssaop.OpLeq16, ssaop.OpLeq8,
+		ssaop.OpLess64U, ssaop.OpLess32U, ssaop.OpLess16U, ssaop.OpLess8U,
+		ssaop.OpLeq64U, ssaop.OpLeq32U, ssaop.OpLeq16U, ssaop.OpLeq8U,
+		ssaop.OpEq64, ssaop.OpEq32, ssaop.OpEq16, ssaop.OpEq8,
+		ssaop.OpNeq64, ssaop.OpNeq32, ssaop.OpNeq16, ssaop.OpNeq8,
+		ssaop.OpNot:
 		return true
 	default:
 		return false
@@ -146,15 +147,15 @@ func invertibleBool(op Op) bool {
 
 func isConstZero(v *Value) bool {
 	switch v.Op {
-	case OpConstNil:
+	case ssaop.OpConstNil:
 		return true
-	case OpConst64, OpConst32, OpConst16, OpConst8, OpConstBool, OpConst32F, OpConst64F:
+	case ssaop.OpConst64, ssaop.OpConst32, ssaop.OpConst16, ssaop.OpConst8, ssaop.OpConstBool, ssaop.OpConst32F, ssaop.OpConst64F:
 		return v.AuxInt == 0
-	case OpStringMake, OpIMake, OpComplexMake:
+	case ssaop.OpStringMake, ssaop.OpIMake, ssaop.OpComplexMake:
 		return isConstZero(v.Args[0]) && isConstZero(v.Args[1])
-	case OpSliceMake:
+	case ssaop.OpSliceMake:
 		return isConstZero(v.Args[0]) && isConstZero(v.Args[1]) && isConstZero(v.Args[2])
-	case OpStringPtr, OpStringLen, OpSlicePtr, OpSliceLen, OpSliceCap, OpITab, OpIData, OpComplexReal, OpComplexImag:
+	case ssaop.OpStringPtr, ssaop.OpStringLen, ssaop.OpSlicePtr, ssaop.OpSliceLen, ssaop.OpSliceCap, ssaop.OpITab, ssaop.OpIData, ssaop.OpComplexReal, ssaop.OpComplexImag:
 		return isConstZero(v.Args[0])
 	}
 	return false
@@ -177,15 +178,15 @@ func isDirectAndComparableIface1(v *Value, depth int) bool {
 		return false
 	}
 	switch v.Op {
-	case OpITab:
+	case ssaop.OpITab:
 		return isDirectAndComparableIface2(v.Args[0], depth-1)
-	case OpAddr:
+	case ssaop.OpAddr:
 		lsym := v.Aux.(*obj.LSym)
 		if ii := lsym.ItabInfo(); ii != nil {
 			t := ii.Type.(*types.Type)
 			return types.IsDirectIface(t) && types.IsComparable(t)
 		}
-	case OpConstNil:
+	case ssaop.OpConstNil:
 		// We can treat this as direct, because if the itab is
 		// nil, the data field must be nil also.
 		return true
@@ -199,9 +200,9 @@ func isDirectAndComparableIface2(v *Value, depth int) bool {
 		return false
 	}
 	switch v.Op {
-	case OpIMake:
+	case ssaop.OpIMake:
 		return isDirectAndComparableIface1(v.Args[0], depth-1)
-	case OpPhi:
+	case ssaop.OpPhi:
 		for _, a := range v.Args {
 			if !isDirectAndComparableIface2(a, depth-1) {
 				return false
@@ -222,9 +223,9 @@ func isDirectAndComparableType(v *Value) bool {
 // v is a type
 func isDirectAndComparableType1(v *Value) bool {
 	switch v.Op {
-	case OpITab:
+	case ssaop.OpITab:
 		return isDirectAndComparableType2(v.Args[0])
-	case OpAddr:
+	case ssaop.OpAddr:
 		lsym := v.Aux.(*obj.LSym)
 		if ti := lsym.TypeInfo(); ti != nil {
 			t := ti.Type.(*types.Type)
@@ -237,7 +238,7 @@ func isDirectAndComparableType1(v *Value) bool {
 // v is an empty interface
 func isDirectAndComparableType2(v *Value) bool {
 	switch v.Op {
-	case OpIMake:
+	case ssaop.OpIMake:
 		return isDirectAndComparableType1(v.Args[0])
 	}
 	return false
@@ -316,41 +317,41 @@ func isNonNegative(v *Value) bool {
 	// The checks below depend only on the pattern of bits.
 
 	switch v.Op {
-	case OpConst64:
+	case ssaop.OpConst64:
 		return v.AuxInt >= 0
 
-	case OpConst32:
+	case ssaop.OpConst32:
 		return int32(v.AuxInt) >= 0
 
-	case OpConst16:
+	case ssaop.OpConst16:
 		return int16(v.AuxInt) >= 0
 
-	case OpConst8:
+	case ssaop.OpConst8:
 		return int8(v.AuxInt) >= 0
 
-	case OpStringLen, OpSliceLen, OpSliceCap,
-		OpZeroExt8to64, OpZeroExt16to64, OpZeroExt32to64,
-		OpZeroExt8to32, OpZeroExt16to32, OpZeroExt8to16,
-		OpCtz64, OpCtz32, OpCtz16, OpCtz8,
-		OpCtz64NonZero, OpCtz32NonZero, OpCtz16NonZero, OpCtz8NonZero,
-		OpBitLen64, OpBitLen32, OpBitLen16, OpBitLen8:
+	case ssaop.OpStringLen, ssaop.OpSliceLen, ssaop.OpSliceCap,
+		ssaop.OpZeroExt8to64, ssaop.OpZeroExt16to64, ssaop.OpZeroExt32to64,
+		ssaop.OpZeroExt8to32, ssaop.OpZeroExt16to32, ssaop.OpZeroExt8to16,
+		ssaop.OpCtz64, ssaop.OpCtz32, ssaop.OpCtz16, ssaop.OpCtz8,
+		ssaop.OpCtz64NonZero, ssaop.OpCtz32NonZero, ssaop.OpCtz16NonZero, ssaop.OpCtz8NonZero,
+		ssaop.OpBitLen64, ssaop.OpBitLen32, ssaop.OpBitLen16, ssaop.OpBitLen8:
 		return true
 
-	case OpRsh64Ux64, OpRsh32Ux64:
+	case ssaop.OpRsh64Ux64, ssaop.OpRsh32Ux64:
 		by := v.Args[1]
-		return by.Op == OpConst64 && by.AuxInt > 0
+		return by.Op == ssaop.OpConst64 && by.AuxInt > 0
 
-	case OpRsh64x64, OpRsh32x64, OpRsh8x64, OpRsh16x64, OpRsh32x32, OpRsh64x32,
-		OpSignExt32to64, OpSignExt16to64, OpSignExt8to64, OpSignExt16to32, OpSignExt8to32:
+	case ssaop.OpRsh64x64, ssaop.OpRsh32x64, ssaop.OpRsh8x64, ssaop.OpRsh16x64, ssaop.OpRsh32x32, ssaop.OpRsh64x32,
+		ssaop.OpSignExt32to64, ssaop.OpSignExt16to64, ssaop.OpSignExt8to64, ssaop.OpSignExt16to32, ssaop.OpSignExt8to32:
 		return isNonNegative(v.Args[0])
 
-	case OpAnd64, OpAnd32, OpAnd16, OpAnd8:
+	case ssaop.OpAnd64, ssaop.OpAnd32, ssaop.OpAnd16, ssaop.OpAnd8:
 		return isNonNegative(v.Args[0]) || isNonNegative(v.Args[1])
 
-	case OpMod64, OpMod32, OpMod16, OpMod8,
-		OpDiv64, OpDiv32, OpDiv16, OpDiv8,
-		OpOr64, OpOr32, OpOr16, OpOr8,
-		OpXor64, OpXor32, OpXor16, OpXor8:
+	case ssaop.OpMod64, ssaop.OpMod32, ssaop.OpMod16, ssaop.OpMod8,
+		ssaop.OpDiv64, ssaop.OpDiv32, ssaop.OpDiv16, ssaop.OpDiv8,
+		ssaop.OpOr64, ssaop.OpOr32, ssaop.OpOr16, ssaop.OpOr8,
+		ssaop.OpXor64, ssaop.OpXor32, ssaop.OpXor16, ssaop.OpXor8:
 		return isNonNegative(v.Args[0]) && isNonNegative(v.Args[1])
 
 		// We could handle OpPhi here, but the improvements from doing
@@ -360,10 +361,10 @@ func isNonNegative(v *Value) bool {
 }
 
 func isStackPtr(v *Value) bool {
-	for v.Op == OpOffPtr || v.Op == OpAddPtr {
+	for v.Op == ssaop.OpOffPtr || v.Op == ssaop.OpAddPtr {
 		v = v.Args[0]
 	}
-	return v.Op == OpSP || v.Op == OpLocalAddr
+	return v.Op == ssaop.OpSP || v.Op == ssaop.OpLocalAddr
 }
 
 // needRaceCleanup reports whether this call to racefuncenter/exit isn't needed.
@@ -378,7 +379,7 @@ func needRaceCleanup(sym *AuxCall, v *Value) bool {
 	for _, b := range f.Blocks {
 		for _, v := range b.Values {
 			switch v.Op {
-			case OpStaticCall, OpStaticLECall:
+			case ssaop.OpStaticCall, ssaop.OpStaticLECall:
 				// Check for racefuncenter will encounter racefuncexit and vice versa.
 				// Allow calls to panic*
 				s := v.Aux.(*AuxCall).Fn.String()
@@ -391,9 +392,9 @@ func needRaceCleanup(sym *AuxCall, v *Value) bool {
 				// If we encountered any call, we need to keep racefunc*,
 				// for accurate stacktraces.
 				return false
-			case OpPanicBounds, OpPanicExtend:
+			case ssaop.OpPanicBounds, ssaop.OpPanicExtend:
 				// Note: these are panic generators that are ok (like the static calls above).
-			case OpClosureCall, OpInterCall, OpClosureLECall, OpInterLECall:
+			case ssaop.OpClosureCall, ssaop.OpInterCall, ssaop.OpClosureLECall, ssaop.OpInterLECall:
 				// We must keep the race functions if there are any other call types.
 				return false
 			}
@@ -402,15 +403,15 @@ func needRaceCleanup(sym *AuxCall, v *Value) bool {
 	if IsSameCall(sym, "runtime.racefuncenter") {
 		// TODO REGISTER ABI this needs to be cleaned up.
 		// If we're removing racefuncenter, remove its argument as well.
-		if v.Args[0].Op != OpStore {
-			if v.Op == OpStaticLECall {
+		if v.Args[0].Op != ssaop.OpStore {
+			if v.Op == ssaop.OpStaticLECall {
 				// there is no store, yet.
 				return true
 			}
 			return false
 		}
 		mem := v.Args[0].Args[2]
-		v.Args[0].Reset(OpCopy)
+		v.Args[0].Reset(ssaop.OpCopy)
 		v.Args[0].AddArg(mem)
 	}
 	return true
@@ -491,14 +492,14 @@ func registerizable(b *Block, typ *types.Type) bool {
 // resetCopy resets v to be a copy of arg.
 // Always returns true.
 func resetCopy(v *Value, arg *Value) bool {
-	v.Reset(OpCopy)
+	v.Reset(ssaop.OpCopy)
 	v.AddArg(arg)
 	return true
 }
 
 // rewriteCondSelectIntoMath reports whether x OP (y * constant) should be used instead of a CondSelect.
 // x arbitrary, y in [0,1]
-func rewriteCondSelectIntoMath(config *Config, op Op, constant int64) bool {
+func rewriteCondSelectIntoMath(config *Config, op ssaop.Op, constant int64) bool {
 	switch config.Arch {
 	case "amd64":
 		// constant=1 becomes zext, add 2/4/8 becomes lea, rest becomes shl.
@@ -506,15 +507,15 @@ func rewriteCondSelectIntoMath(config *Config, op Op, constant int64) bool {
 		return IsPowerOfTwo(uint64(constant))
 	case "arm64":
 		switch op {
-		case OpAdd64, OpAdd32, OpAdd16, OpAdd8:
+		case ssaop.OpAdd64, ssaop.OpAdd32, ssaop.OpAdd16, ssaop.OpAdd8:
 			if constant == 1 {
 				return false // better done as CSINC
 			}
 			fallthrough
-		case OpSub64, OpSub32, OpSub16, OpSub8,
-			OpAnd64, OpAnd32, OpAnd16, OpAnd8,
-			OpOr64, OpOr32, OpOr16, OpOr8,
-			OpXor64, OpXor32, OpXor16, OpXor8:
+		case ssaop.OpSub64, ssaop.OpSub32, ssaop.OpSub16, ssaop.OpSub8,
+			ssaop.OpAnd64, ssaop.OpAnd32, ssaop.OpAnd16, ssaop.OpAnd8,
+			ssaop.OpOr64, ssaop.OpOr32, ssaop.OpOr16, ssaop.OpOr8,
+			ssaop.OpXor64, ssaop.OpXor32, ssaop.OpXor16, ssaop.OpXor8:
 			// Implemented using an inline LSL
 			return IsPowerOfTwo(uint64(constant))
 		default:
@@ -550,7 +551,7 @@ func rewriteFixedLoad(v *Value, sym Sym, sb *Value, off int64) *Value {
 					// itab._type might be put in an interface.
 					reflectdata.MarkTypeSymUsedInInterface(r.Sym, f.Fe.Func().Linksym())
 				}
-				v.Reset(OpAddr)
+				v.Reset(ssaop.OpAddr)
 				v.Aux = SymToAux(r.Sym)
 				v.AddArg(sb)
 				return v
@@ -566,9 +567,9 @@ func rewriteFixedLoad(v *Value, sym Sym, sb *Value, off int64) *Value {
 
 		t := ti.Type.(*types.Type)
 
-		ptrSizedOpConst := OpConst64
+		ptrSizedOpConst := ssaop.OpConst64
 		if f.Config.PtrSize == 4 {
-			ptrSizedOpConst = OpConst32
+			ptrSizedOpConst = ssaop.OpConst32
 		}
 
 		for _, f := range rttype.Type.Fields() {
@@ -583,20 +584,20 @@ func rewriteFixedLoad(v *Value, sym Sym, sb *Value, off int64) *Value {
 					v.AuxInt = types.PtrDataSize(t)
 					return v
 				case "Hash":
-					v.Reset(OpConst32)
+					v.Reset(ssaop.OpConst32)
 					v.AuxInt = int64(int32(types.TypeHash(t)))
 					return v
 				case "TFlag":
-					v.Reset(OpConst8)
+					v.Reset(ssaop.OpConst8)
 					v.AuxInt = int64(t.TFlag())
 					return v
 				case "Kind_":
-					v.Reset(OpConst8)
+					v.Reset(ssaop.OpConst8)
 					v.AuxInt = int64(int8(reflectdata.ABIKindOfType(t)))
 					return v
 				case "GCData":
 					gcdata, _ := reflectdata.GCSym(t, true)
-					v.Reset(OpAddr)
+					v.Reset(ssaop.OpAddr)
 					v.Aux = SymToAux(gcdata)
 					v.AddArg(sb)
 					return v
@@ -609,7 +610,7 @@ func rewriteFixedLoad(v *Value, sym Sym, sb *Value, off int64) *Value {
 		if t.IsPtr() && off == rttype.PtrType.OffsetOf("Elem") {
 			elemSym := reflectdata.TypeLinksym(t.Elem())
 			reflectdata.MarkTypeSymUsedInInterface(elemSym, f.Fe.Func().Linksym())
-			v.Reset(OpAddr)
+			v.Reset(ssaop.OpAddr)
 			v.Aux = SymToAux(elemSym)
 			v.AddArg(sb)
 			return v
@@ -631,11 +632,11 @@ func rewriteStructLoad(v *Value) *Value {
 	args := make([]*Value, t.NumFields())
 	for i := range args {
 		ft := t.FieldType(i)
-		addr := b.NewValue1I(v.Pos, OpOffPtr, ft.PtrTo(), t.FieldOff(i), ptr)
-		args[i] = b.NewValue2(v.Pos, OpLoad, ft, addr, mem)
+		addr := b.NewValue1I(v.Pos, ssaop.OpOffPtr, ft.PtrTo(), t.FieldOff(i), ptr)
+		args[i] = b.NewValue2(v.Pos, ssaop.OpLoad, ft, addr, mem)
 	}
 
-	v.Reset(OpStructMake)
+	v.Reset(ssaop.OpStructMake)
 	v.AddArgs(args...)
 	return v
 }

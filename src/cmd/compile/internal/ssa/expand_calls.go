@@ -9,6 +9,7 @@ import (
 	"cmd/compile/internal/base"
 	"cmd/compile/internal/ir"
 	"cmd/compile/internal/ssa/block"
+	"cmd/compile/internal/ssa/ssaop"
 	"cmd/compile/internal/types"
 	"cmd/internal/src"
 	"fmt"
@@ -42,13 +43,13 @@ func expandCalls(f *Func) {
 
 	// For 32-bit, need to deal with decomposition of 64-bit integers, which depends on endianness.
 	if f.Config.BigEndian {
-		x.firstOp = OpInt64Hi
-		x.secondOp = OpInt64Lo
+		x.firstOp = ssaop.OpInt64Hi
+		x.secondOp = ssaop.OpInt64Lo
 		x.firstType = x.typs.Int32
 		x.secondType = x.typs.UInt32
 	} else {
-		x.firstOp = OpInt64Lo
-		x.secondOp = OpInt64Hi
+		x.firstOp = ssaop.OpInt64Lo
+		x.secondOp = ssaop.OpInt64Hi
 		x.firstType = x.typs.UInt32
 		x.secondType = x.typs.Int32
 	}
@@ -68,17 +69,17 @@ func expandCalls(f *Func) {
 	for _, b := range f.Blocks {
 		for _, v := range b.Values {
 			switch v.Op {
-			case OpInitMem:
+			case ssaop.OpInitMem:
 				m0 = v
 
-			case OpClosureLECall, OpInterLECall, OpStaticLECall, OpTailLECall, OpTailLECallInter:
+			case ssaop.OpClosureLECall, ssaop.OpInterLECall, ssaop.OpStaticLECall, ssaop.OpTailLECall, ssaop.OpTailLECallInter:
 				calls = append(calls, v)
 
-			case OpArg:
+			case ssaop.OpArg:
 				args = append(args, v)
 
-			case OpStore:
-				if a := v.Args[1]; a.Op == OpSelectN && !CanSSA(a.Type) {
+			case ssaop.OpStore:
+				if a := v.Args[1]; a.Op == ssaop.OpSelectN && !CanSSA(a.Type) {
 					if a.Uses > 1 {
 						panic(fmt.Errorf("Saw double use of wide SelectN %s operand of Store %s",
 							a.LongString(), v.LongString()))
@@ -86,7 +87,7 @@ func expandCalls(f *Func) {
 					x.wideSelects[a] = v
 				}
 
-			case OpSelectN:
+			case ssaop.OpSelectN:
 				if v.Type == types.TypeMem {
 					// rewrite the mem selector in place
 					call := v.Args[0]
@@ -102,7 +103,7 @@ func expandCalls(f *Func) {
 					selects = append(selects, v)
 				}
 
-			case OpSelectNAddr:
+			case ssaop.OpSelectNAddr:
 				call := v.Args[0]
 				which := v.AuxInt
 				aux := call.Aux.(*AuxCall)
@@ -136,7 +137,7 @@ func expandCalls(f *Func) {
 
 	// Rewrite selects of results (which may be aggregates) into make-aggregates of register/memory-targeted selects
 	for _, v := range selects {
-		if v.Op == OpInvalid {
+		if v.Op == ssaop.OpInvalid {
 			continue
 		}
 
@@ -144,7 +145,7 @@ func expandCalls(f *Func) {
 		aux := call.Aux.(*AuxCall)
 		mem := x.memForCall[call.ID]
 		if mem == nil {
-			mem = call.Block.NewValue1I(call.Pos, OpSelectN, types.TypeMem, int64(aux.AbiInfo.OutRegistersUsed()), call)
+			mem = call.Block.NewValue1I(call.Pos, ssaop.OpSelectN, types.TypeMem, int64(aux.AbiInfo.OutRegistersUsed()), call)
 			x.memForCall[call.ID] = mem
 		}
 
@@ -168,7 +169,7 @@ func expandCalls(f *Func) {
 				auxBase := x.offsetFrom(x.f.Entry, x.sp, offset, types.NewPtr(v.Type))
 				// was Store dst, v, mem
 				// now Move dst, auxBase, mem
-				move := store.Block.NewValue3A(store.Pos, OpMove, types.TypeMem, v.Type, storeAddr, auxBase, mem)
+				move := store.Block.NewValue3A(store.Pos, ssaop.OpMove, types.TypeMem, v.Type, storeAddr, auxBase, mem)
 				move.AuxInt = v.Type.Size()
 				store.CopyOf(move)
 			}
@@ -185,7 +186,7 @@ func expandCalls(f *Func) {
 		x.rewriteSelectOrArg(call.Pos, call.Block, v, v, mem, v.Type, rc)
 	}
 
-	rewriteCall := func(v *Value, newOp Op, argStart int) {
+	rewriteCall := func(v *Value, newOp ssaop.Op, argStart int) {
 		// Break aggregate args passed to call into smaller pieces.
 		x.rewriteCallArgs(v, argStart)
 		v.Op = newOp
@@ -196,16 +197,16 @@ func expandCalls(f *Func) {
 	// Rewrite calls
 	for _, v := range calls {
 		switch v.Op {
-		case OpStaticLECall:
-			rewriteCall(v, OpStaticCall, 0)
-		case OpTailLECall:
-			rewriteCall(v, OpTailCall, 0)
-		case OpTailLECallInter:
-			rewriteCall(v, OpTailCallInter, 1)
-		case OpClosureLECall:
-			rewriteCall(v, OpClosureCall, 2)
-		case OpInterLECall:
-			rewriteCall(v, OpInterCall, 1)
+		case ssaop.OpStaticLECall:
+			rewriteCall(v, ssaop.OpStaticCall, 0)
+		case ssaop.OpTailLECall:
+			rewriteCall(v, ssaop.OpTailCall, 0)
+		case ssaop.OpTailLECallInter:
+			rewriteCall(v, ssaop.OpTailCallInter, 1)
+		case ssaop.OpClosureLECall:
+			rewriteCall(v, ssaop.OpClosureCall, 2)
+		case ssaop.OpInterLECall:
+			rewriteCall(v, ssaop.OpInterCall, 1)
 		}
 	}
 
@@ -235,18 +236,18 @@ func (x *expandState) rewriteFuncResults(v *Value, b *Block, aux *AuxCall) {
 		oldArgs = append(oldArgs, a)
 		i := int64(j)
 		auxType := aux.TypeOfResult(i)
-		auxBase := b.NewValue2A(v.Pos, OpLocalAddr, types.NewPtr(auxType), aux.NameOfResult(i), x.sp, mem)
+		auxBase := b.NewValue2A(v.Pos, ssaop.OpLocalAddr, types.NewPtr(auxType), aux.NameOfResult(i), x.sp, mem)
 		auxOffset := int64(0)
 		aRegs := aux.RegsOfResult(int64(j))
-		if a.Op == OpDereference {
-			a.Op = OpLoad
+		if a.Op == ssaop.OpDereference {
+			a.Op = ssaop.OpLoad
 		}
 		var rc registerCursor
 		var result *[]*Value
 		if len(aRegs) > 0 {
 			result = &allResults
 		} else {
-			if a.Op == OpLoad && a.Args[0].Op == OpLocalAddr && a.Args[0].Aux == aux.NameOfResult(i) {
+			if a.Op == ssaop.OpLoad && a.Args[0].Op == ssaop.OpLocalAddr && a.Args[0].Aux == aux.NameOfResult(i) {
 				continue // Self move to output parameter
 			}
 		}
@@ -283,10 +284,10 @@ func (x *expandState) rewriteCallArgs(v *Value, firstArg int) {
 	argsWithoutMem := v.Args[firstArg : len(v.Args)-1] // Also strip closure/interface Op-specific args
 
 	sp := x.sp
-	if v.Op == OpTailLECall || v.Op == OpTailLECallInter {
+	if v.Op == ssaop.OpTailLECall || v.Op == ssaop.OpTailLECallInter {
 		// For tail call, we unwind the frame before the call so we'll use the caller's
 		// SP.
-		sp = v.Block.NewValue1(src.NoXPos, OpGetCallerSP, x.typs.Uintptr, mem)
+		sp = v.Block.NewValue1(src.NoXPos, ssaop.OpGetCallerSP, x.typs.Uintptr, mem)
 	}
 
 	for i, a := range argsWithoutMem { // skip leading non-parameter SSA Args and trailing mem SSA Arg.
@@ -295,8 +296,8 @@ func (x *expandState) rewriteCallArgs(v *Value, firstArg int) {
 		aRegs := aux.RegsOfArg(auxI)
 		aType := aux.TypeOfArg(auxI)
 
-		if a.Op == OpDereference {
-			a.Op = OpLoad
+		if a.Op == ssaop.OpDereference {
+			a.Op = ssaop.OpLoad
 		}
 		var rc registerCursor
 		var result *[]*Value
@@ -306,7 +307,7 @@ func (x *expandState) rewriteCallArgs(v *Value, firstArg int) {
 		} else {
 			aOffset = aux.OffsetOfArg(auxI)
 		}
-		if v.Op == OpTailLECall && a.Op == OpArg && a.AuxInt == 0 {
+		if v.Op == ssaop.OpTailLECall && a.Op == ssaop.OpArg && a.AuxInt == 0 {
 			// It's common for a tail call passing the same arguments (e.g. method wrapper),
 			// so this would be a self copy. Detect this and optimize it out.
 			n := a.Aux.(*ir.Name)
@@ -336,7 +337,7 @@ func (x *expandState) rewriteCallArgs(v *Value, firstArg int) {
 	return
 }
 
-func (x *expandState) decomposePair(pos src.XPos, b *Block, a, mem *Value, t0, t1 *types.Type, o0, o1 Op, rc *registerCursor) *Value {
+func (x *expandState) decomposePair(pos src.XPos, b *Block, a, mem *Value, t0, t1 *types.Type, o0, o1 ssaop.Op, rc *registerCursor) *Value {
 	e := b.NewValue1(pos, o0, t0, a)
 	pos = pos.WithNotStmt()
 	mem = x.decomposeAsNecessary(pos, b, e, mem, rc.next(t0))
@@ -345,7 +346,7 @@ func (x *expandState) decomposePair(pos src.XPos, b *Block, a, mem *Value, t0, t
 	return mem
 }
 
-func (x *expandState) decomposeOne(pos src.XPos, b *Block, a, mem *Value, t0 *types.Type, o0 Op, rc *registerCursor) *Value {
+func (x *expandState) decomposeOne(pos src.XPos, b *Block, a, mem *Value, t0 *types.Type, o0 ssaop.Op, rc *registerCursor) *Value {
 	e := b.NewValue1(pos, o0, t0, a)
 	pos = pos.WithNotStmt()
 	mem = x.decomposeAsNecessary(pos, b, e, mem, rc.next(t0))
@@ -369,8 +370,8 @@ func (x *expandState) decomposeAsNecessary(pos src.XPos, b *Block, a, m0 *Value,
 	if at.Size() == 0 {
 		return m0
 	}
-	if a.Op == OpDereference {
-		a.Op = OpLoad // For purposes of parameter passing expansion, a Dereference is a Load.
+	if a.Op == ssaop.OpDereference {
+		a.Op = ssaop.OpLoad // For purposes of parameter passing expansion, a Dereference is a Load.
 	}
 
 	if !rc.hasRegs() && !CanSSA(at) {
@@ -378,8 +379,8 @@ func (x *expandState) decomposeAsNecessary(pos src.XPos, b *Block, a, m0 *Value,
 		if x.debug > 1 {
 			x.Printf("...recur store %s at %s\n", a.LongString(), dst.LongString())
 		}
-		if a.Op == OpLoad {
-			m0 = b.NewValue3A(pos, OpMove, types.TypeMem, at, dst, a.Args[0], m0)
+		if a.Op == ssaop.OpLoad {
+			m0 = b.NewValue3A(pos, ssaop.OpMove, types.TypeMem, at, dst, a.Args[0], m0)
 			m0.AuxInt = at.Size()
 			return m0
 		} else {
@@ -392,7 +393,7 @@ func (x *expandState) decomposeAsNecessary(pos src.XPos, b *Block, a, m0 *Value,
 	case types.TARRAY:
 		et := at.Elem()
 		for i := int64(0); i < at.NumElem(); i++ {
-			e := b.NewValue1I(pos, OpArraySelect, et, i, a)
+			e := b.NewValue1I(pos, ssaop.OpArraySelect, et, i, a)
 			pos = pos.WithNotStmt()
 			mem = x.decomposeAsNecessary(pos, b, e, mem, rc.next(et))
 		}
@@ -404,7 +405,7 @@ func (x *expandState) decomposeAsNecessary(pos src.XPos, b *Block, a, m0 *Value,
 		}
 		for i := 0; i < at.NumFields(); i++ {
 			et := at.Field(i).Type // might need to read offsets from the fields
-			e := b.NewValue1I(pos, OpStructSelect, et, int64(i), a)
+			e := b.NewValue1I(pos, ssaop.OpStructSelect, et, int64(i), a)
 			pos = pos.WithNotStmt()
 			if x.debug > 1 {
 				x.Printf("...recur decompose %s, %v\n", e.LongString(), et)
@@ -414,21 +415,21 @@ func (x *expandState) decomposeAsNecessary(pos src.XPos, b *Block, a, m0 *Value,
 		return mem
 
 	case types.TSLICE:
-		mem = x.decomposeOne(pos, b, a, mem, at.Elem().PtrTo(), OpSlicePtr, &rc)
+		mem = x.decomposeOne(pos, b, a, mem, at.Elem().PtrTo(), ssaop.OpSlicePtr, &rc)
 		pos = pos.WithNotStmt()
-		mem = x.decomposeOne(pos, b, a, mem, x.typs.Int, OpSliceLen, &rc)
-		return x.decomposeOne(pos, b, a, mem, x.typs.Int, OpSliceCap, &rc)
+		mem = x.decomposeOne(pos, b, a, mem, x.typs.Int, ssaop.OpSliceLen, &rc)
+		return x.decomposeOne(pos, b, a, mem, x.typs.Int, ssaop.OpSliceCap, &rc)
 
 	case types.TSTRING:
-		return x.decomposePair(pos, b, a, mem, x.typs.BytePtr, x.typs.Int, OpStringPtr, OpStringLen, &rc)
+		return x.decomposePair(pos, b, a, mem, x.typs.BytePtr, x.typs.Int, ssaop.OpStringPtr, ssaop.OpStringLen, &rc)
 
 	case types.TINTER:
-		mem = x.decomposeOne(pos, b, a, mem, x.typs.Uintptr, OpITab, &rc)
+		mem = x.decomposeOne(pos, b, a, mem, x.typs.Uintptr, ssaop.OpITab, &rc)
 		pos = pos.WithNotStmt()
 		// Immediate interfaces cause so many headaches.
-		if a.Op == OpIMake {
+		if a.Op == ssaop.OpIMake {
 			data := a.Args[1]
-			for data.Op == OpStructMake || data.Op == OpArrayMake1 {
+			for data.Op == ssaop.OpStructMake || data.Op == ssaop.OpArrayMake1 {
 				// A struct make might have a few zero-sized fields.
 				// Use the pointer-y one we know is there.
 				for _, a := range data.Args {
@@ -440,13 +441,13 @@ func (x *expandState) decomposeAsNecessary(pos src.XPos, b *Block, a, m0 *Value,
 			}
 			return x.decomposeAsNecessary(pos, b, data, mem, rc.next(data.Type))
 		}
-		return x.decomposeOne(pos, b, a, mem, x.typs.BytePtr, OpIData, &rc)
+		return x.decomposeOne(pos, b, a, mem, x.typs.BytePtr, ssaop.OpIData, &rc)
 
 	case types.TCOMPLEX64:
-		return x.decomposePair(pos, b, a, mem, x.typs.Float32, x.typs.Float32, OpComplexReal, OpComplexImag, &rc)
+		return x.decomposePair(pos, b, a, mem, x.typs.Float32, x.typs.Float32, ssaop.OpComplexReal, ssaop.OpComplexImag, &rc)
 
 	case types.TCOMPLEX128:
-		return x.decomposePair(pos, b, a, mem, x.typs.Float64, x.typs.Float64, OpComplexReal, OpComplexImag, &rc)
+		return x.decomposePair(pos, b, a, mem, x.typs.Float64, x.typs.Float64, ssaop.OpComplexReal, ssaop.OpComplexImag, &rc)
 
 	case types.TINT64:
 		if at.Size() > x.regSize {
@@ -470,7 +471,7 @@ func (x *expandState) decomposeAsNecessary(pos src.XPos, b *Block, a, m0 *Value,
 		if x.debug > 1 {
 			x.Printf("...recur store %s at %s\n", a.LongString(), dst.LongString())
 		}
-		mem = b.NewValue3A(pos, OpStore, types.TypeMem, at, dst, a, mem)
+		mem = b.NewValue3A(pos, ssaop.OpStore, types.TypeMem, at, dst, a, mem)
 	}
 
 	return mem
@@ -496,7 +497,7 @@ func (x *expandState) rewriteSelectOrArg(pos src.XPos, b *Block, container, a, m
 		return a
 	}
 
-	makeOf := func(a *Value, op Op, args []*Value) *Value {
+	makeOf := func(a *Value, op ssaop.Op, args []*Value) *Value {
 		if a == nil {
 			a = b.NewValue0(pos, op, at)
 			a.AddArgs(args...)
@@ -511,7 +512,7 @@ func (x *expandState) rewriteSelectOrArg(pos src.XPos, b *Block, container, a, m
 
 	if at.Size() == 0 {
 		// For consistency, create these values even though they'll ultimately be unused
-		return makeOf(a, OpEmpty, nil)
+		return makeOf(a, ssaop.OpEmpty, nil)
 	}
 
 	sk := selKey{from: container, size: 0, offsetOrIndex: rc.storeOffset, typ: at}
@@ -545,7 +546,7 @@ func (x *expandState) rewriteSelectOrArg(pos src.XPos, b *Block, container, a, m
 			e := x.rewriteSelectOrArg(pos, b, container, nil, m0, et, rc.next(et))
 			addArg(e)
 		}
-		a = makeOf(a, OpArrayMake1, args)
+		a = makeOf(a, ssaop.OpArrayMake1, args)
 		x.commonSelectors[sk] = a
 		return a
 
@@ -566,7 +567,7 @@ func (x *expandState) rewriteSelectOrArg(pos src.XPos, b *Block, container, a, m
 		if at.NumFields() > MaxStruct && !types.IsDirectIface(at) {
 			panic(fmt.Errorf("Too many fields (%d, %d bytes), container=%s", at.NumFields(), at.Size(), container.LongString()))
 		}
-		a = makeOf(a, OpStructMake, args)
+		a = makeOf(a, ssaop.OpStructMake, args)
 		x.commonSelectors[sk] = a
 		return a
 
@@ -575,7 +576,7 @@ func (x *expandState) rewriteSelectOrArg(pos src.XPos, b *Block, container, a, m
 		pos = pos.WithNotStmt()
 		addArg(x.rewriteSelectOrArg(pos, b, container, nil, m0, x.typs.Int, rc.next(x.typs.Int)))
 		addArg(x.rewriteSelectOrArg(pos, b, container, nil, m0, x.typs.Int, rc.next(x.typs.Int)))
-		a = makeOf(a, OpSliceMake, args)
+		a = makeOf(a, ssaop.OpSliceMake, args)
 		x.commonSelectors[sk] = a
 		return a
 
@@ -583,7 +584,7 @@ func (x *expandState) rewriteSelectOrArg(pos src.XPos, b *Block, container, a, m
 		addArg(x.rewriteSelectOrArg(pos, b, container, nil, m0, x.typs.BytePtr, rc.next(x.typs.BytePtr)))
 		pos = pos.WithNotStmt()
 		addArg(x.rewriteSelectOrArg(pos, b, container, nil, m0, x.typs.Int, rc.next(x.typs.Int)))
-		a = makeOf(a, OpStringMake, args)
+		a = makeOf(a, ssaop.OpStringMake, args)
 		x.commonSelectors[sk] = a
 		return a
 
@@ -591,7 +592,7 @@ func (x *expandState) rewriteSelectOrArg(pos src.XPos, b *Block, container, a, m
 		addArg(x.rewriteSelectOrArg(pos, b, container, nil, m0, x.typs.Uintptr, rc.next(x.typs.Uintptr)))
 		pos = pos.WithNotStmt()
 		addArg(x.rewriteSelectOrArg(pos, b, container, nil, m0, x.typs.BytePtr, rc.next(x.typs.BytePtr)))
-		a = makeOf(a, OpIMake, args)
+		a = makeOf(a, ssaop.OpIMake, args)
 		x.commonSelectors[sk] = a
 		return a
 
@@ -599,7 +600,7 @@ func (x *expandState) rewriteSelectOrArg(pos src.XPos, b *Block, container, a, m
 		addArg(x.rewriteSelectOrArg(pos, b, container, nil, m0, x.typs.Float32, rc.next(x.typs.Float32)))
 		pos = pos.WithNotStmt()
 		addArg(x.rewriteSelectOrArg(pos, b, container, nil, m0, x.typs.Float32, rc.next(x.typs.Float32)))
-		a = makeOf(a, OpComplexMake, args)
+		a = makeOf(a, ssaop.OpComplexMake, args)
 		x.commonSelectors[sk] = a
 		return a
 
@@ -607,7 +608,7 @@ func (x *expandState) rewriteSelectOrArg(pos src.XPos, b *Block, container, a, m
 		addArg(x.rewriteSelectOrArg(pos, b, container, nil, m0, x.typs.Float64, rc.next(x.typs.Float64)))
 		pos = pos.WithNotStmt()
 		addArg(x.rewriteSelectOrArg(pos, b, container, nil, m0, x.typs.Float64, rc.next(x.typs.Float64)))
-		a = makeOf(a, OpComplexMake, args)
+		a = makeOf(a, ssaop.OpComplexMake, args)
 		x.commonSelectors[sk] = a
 		return a
 
@@ -620,7 +621,7 @@ func (x *expandState) rewriteSelectOrArg(pos src.XPos, b *Block, container, a, m
 				// Int64Make args are big, little
 				args[0], args[1] = args[1], args[0]
 			}
-			a = makeOf(a, OpInt64Make, args)
+			a = makeOf(a, ssaop.OpInt64Make, args)
 			x.commonSelectors[sk] = a
 			return a
 		}
@@ -633,7 +634,7 @@ func (x *expandState) rewriteSelectOrArg(pos src.XPos, b *Block, container, a, m
 				// Int64Make args are big, little
 				args[0], args[1] = args[1], args[0]
 			}
-			a = makeOf(a, OpInt64Make, args)
+			a = makeOf(a, ssaop.OpInt64Make, args)
 			x.commonSelectors[sk] = a
 			return a
 		}
@@ -643,7 +644,7 @@ func (x *expandState) rewriteSelectOrArg(pos src.XPos, b *Block, container, a, m
 
 	// Depending on the container Op, the leaves are either OpSelectN or OpArg{Int,Float}Reg
 
-	if container.Op == OpArg {
+	if container.Op == ssaop.OpArg {
 		if rc.hasRegs() {
 			op, i := rc.ArgOpAndRegisterFor()
 			name := container.Aux.(*ir.Name)
@@ -663,14 +664,14 @@ func (x *expandState) rewriteSelectOrArg(pos src.XPos, b *Block, container, a, m
 				if a == nil {
 					aux := container.Aux
 					auxInt := container.AuxInt + rc.storeOffset
-					a = container.Block.NewValue0IA(container.Pos, OpArg, at, auxInt, aux)
+					a = container.Block.NewValue0IA(container.Pos, ssaop.OpArg, at, auxInt, aux)
 				} else {
 					// do nothing, the original should be okay.
 				}
 				x.commonArgs[key] = a
 			}
 		}
-	} else if container.Op == OpSelectN {
+	} else if container.Op == ssaop.OpSelectN {
 		call := container.Args[0]
 		aux := call.Aux.(*AuxCall)
 		which := container.AuxInt
@@ -685,11 +686,11 @@ func (x *expandState) rewriteSelectOrArg(pos src.XPos, b *Block, container, a, m
 				firstReg += uint32(len(aux.AbiInfo.OutParam(i).Registers))
 			}
 			reg := int64(rc.nextSlice + Abi1RO(firstReg))
-			a = makeOf(a, OpSelectN, []*Value{call})
+			a = makeOf(a, ssaop.OpSelectN, []*Value{call})
 			a.AuxInt = reg
 		} else {
 			off := x.offsetFrom(x.f.Entry, x.sp, rc.storeOffset+aux.OffsetOfResult(which), types.NewPtr(at))
-			a = makeOf(a, OpLoad, []*Value{off, m0})
+			a = makeOf(a, ssaop.OpLoad, []*Value{off, m0})
 		}
 
 	} else {
@@ -778,7 +779,7 @@ func (x *expandState) rewriteWideSelectToStores(pos src.XPos, b *Block, containe
 	}
 
 	// TODO could change treatment of too-large OpArg, would deal with it here.
-	if container.Op == OpSelectN {
+	if container.Op == ssaop.OpSelectN {
 		call := container.Args[0]
 		aux := call.Aux.(*AuxCall)
 		which := container.AuxInt
@@ -789,9 +790,9 @@ func (x *expandState) rewriteWideSelectToStores(pos src.XPos, b *Block, containe
 				firstReg += uint32(len(aux.AbiInfo.OutParam(i).Registers))
 			}
 			reg := int64(rc.nextSlice + Abi1RO(firstReg))
-			a := b.NewValue1I(pos, OpSelectN, at, reg, call)
+			a := b.NewValue1I(pos, ssaop.OpSelectN, at, reg, call)
 			dst := x.offsetFrom(b, rc.storeDest, rc.storeOffset, types.NewPtr(at))
-			m0 = b.NewValue3A(pos, OpStore, types.TypeMem, at, dst, a, m0)
+			m0 = b.NewValue3A(pos, ssaop.OpStore, types.TypeMem, at, dst, a, m0)
 		} else {
 			panic(fmt.Errorf("Expected rc to have registers"))
 		}
@@ -802,7 +803,7 @@ func (x *expandState) rewriteWideSelectToStores(pos src.XPos, b *Block, containe
 }
 
 func isBlockMultiValueExit(b *Block) bool {
-	return (b.Kind == block.BlockRet || b.Kind == block.BlockRetJmp) && b.Controls[0] != nil && b.Controls[0].Op == OpMakeResult
+	return (b.Kind == block.BlockRet || b.Kind == block.BlockRetJmp) && b.Controls[0] != nil && b.Controls[0].Op == ssaop.OpMakeResult
 }
 
 type Abi1RO uint8 // An offset within a parameter's slice of register indices, for abi1.
@@ -874,19 +875,19 @@ func (c *registerCursor) hasRegs() bool {
 	return len(c.regs) > 0
 }
 
-func (c *registerCursor) ArgOpAndRegisterFor() (Op, int64) {
+func (c *registerCursor) ArgOpAndRegisterFor() (ssaop.Op, int64) {
 	r := c.regs[c.nextSlice]
 	return ArgOpAndRegisterFor(r, c.config)
 }
 
 // ArgOpAndRegisterFor converts an abi register index into an ssa Op and corresponding
 // arg register index.
-func ArgOpAndRegisterFor(r abi.RegIndex, abiConfig *abi.ABIConfig) (Op, int64) {
+func ArgOpAndRegisterFor(r abi.RegIndex, abiConfig *abi.ABIConfig) (ssaop.Op, int64) {
 	i := abiConfig.FloatIndexFor(r)
 	if i >= 0 { // float PR
-		return OpArgFloatReg, i
+		return ssaop.OpArgFloatReg, i
 	}
-	return OpArgIntReg, int64(r)
+	return ssaop.OpArgIntReg, int64(r)
 }
 
 type selKey struct {
@@ -903,8 +904,8 @@ type expandState struct {
 	sp      *Value
 	typs    *Types
 
-	firstOp    Op          // for 64-bit integers on 32-bit machines, first word in memory
-	secondOp   Op          // for 64-bit integers on 32-bit machines, second word in memory
+	firstOp    ssaop.Op    // for 64-bit integers on 32-bit machines, first word in memory
+	secondOp   ssaop.Op    // for 64-bit integers on 32-bit machines, second word in memory
 	firstType  *types.Type // first half type, for Int64
 	secondType *types.Type // second half type, for Int64
 
@@ -928,19 +929,19 @@ func (x *expandState) offsetFrom(b *Block, from *Value, offset int64, pt *types.
 		}
 	}
 	// Simplify, canonicalize
-	for from.Op == OpOffPtr {
+	for from.Op == ssaop.OpOffPtr {
 		offset += from.AuxInt
 		from = from.Args[0]
 	}
 	if from == x.sp {
 		return x.f.ConstOffPtrSP(pt, offset, x.sp)
 	}
-	return b.NewValue1I(from.Pos.WithNotStmt(), OpOffPtr, pt, offset, from)
+	return b.NewValue1I(from.Pos.WithNotStmt(), ssaop.OpOffPtr, pt, offset, from)
 }
 
 // prAssignForArg returns the ABIParamAssignment for v, assumed to be an OpArg.
 func (x *expandState) prAssignForArg(v *Value) *abi.ABIParamAssignment {
-	if v.Op != OpArg {
+	if v.Op != ssaop.OpArg {
 		panic(fmt.Errorf("Wanted OpArg, instead saw %s", v.LongString()))
 	}
 	return ParamAssignmentForArgName(x.f, v.Aux.(*ir.Name))

@@ -4,6 +4,8 @@
 
 package ssa
 
+import "cmd/compile/internal/ssa/ssaop"
+
 // convert to machine-dependent ops.
 func lower(f *Func) {
 	// repeat rewrites until we find no more rewrites
@@ -25,17 +27,17 @@ func checkLower(f *Func) {
 	// rules may leave dead generic ops behind).
 	for _, b := range f.Blocks {
 		for _, v := range b.Values {
-			if !OpcodeTable[v.Op].Generic {
+			if !ssaop.OpcodeTable[v.Op].Generic {
 				continue // lowered
 			}
 			switch v.Op {
-			case OpSP, OpSPanchored, OpSB, OpInitMem, OpArg, OpArgIntReg, OpArgFloatReg, OpPhi, OpVarDef, OpVarLive, OpKeepAlive, OpSelect0, OpSelect1, OpSelectN, OpConvert, OpInlMark, OpWBend:
+			case ssaop.OpSP, ssaop.OpSPanchored, ssaop.OpSB, ssaop.OpInitMem, ssaop.OpArg, ssaop.OpArgIntReg, ssaop.OpArgFloatReg, ssaop.OpPhi, ssaop.OpVarDef, ssaop.OpVarLive, ssaop.OpKeepAlive, ssaop.OpSelect0, ssaop.OpSelect1, ssaop.OpSelectN, ssaop.OpConvert, ssaop.OpInlMark, ssaop.OpWBend:
 				continue // ok not to lower
-			case OpMakeResult:
+			case ssaop.OpMakeResult:
 				if b.Controls[0] == v {
 					continue
 				}
-			case OpGetG:
+			case ssaop.OpGetG:
 				if f.Config.HasGReg {
 					// has hardware g register, regalloc takes care of it
 					continue // ok not to lower

@@ -6,6 +6,7 @@ package ssa
 
 import (
 	"cmd/compile/internal/ssa/block"
+	"cmd/compile/internal/ssa/ssaop"
 	"cmd/compile/internal/types"
 	"fmt"
 	"strconv"
@@ -16,14 +17,14 @@ func TestDeadLoop(t *testing.T) {
 	c := testConfig(t)
 	fun := c.Fun("entry",
 		Bloc("entry",
-			Valu("mem", OpInitMem, types.TypeMem, 0, nil),
+			Valu("mem", ssaop.OpInitMem, types.TypeMem, 0, nil),
 			Goto("exit")),
 		Bloc("exit",
 			Exit("mem")),
 		// dead loop
 		Bloc("deadblock",
 			// dead value in dead block
-			Valu("deadval", OpConstBool, c.config.Types.Bool, 1, nil),
+			Valu("deadval", ssaop.OpConstBool, c.config.Types.Bool, 1, nil),
 			If("deadval", "deadblock", "exit")))
 
 	CheckFunc(fun.f)
@@ -46,8 +47,8 @@ func TestDeadValue(t *testing.T) {
 	c := testConfig(t)
 	fun := c.Fun("entry",
 		Bloc("entry",
-			Valu("mem", OpInitMem, types.TypeMem, 0, nil),
-			Valu("deadval", OpConst64, c.config.Types.Int64, 37, nil),
+			Valu("mem", ssaop.OpInitMem, types.TypeMem, 0, nil),
+			Valu("deadval", ssaop.OpConst64, c.config.Types.Int64, 37, nil),
 			Goto("exit")),
 		Bloc("exit",
 			Exit("mem")))
@@ -69,8 +70,8 @@ func TestNeverTaken(t *testing.T) {
 	c := testConfig(t)
 	fun := c.Fun("entry",
 		Bloc("entry",
-			Valu("cond", OpConstBool, c.config.Types.Bool, 0, nil),
-			Valu("mem", OpInitMem, types.TypeMem, 0, nil),
+			Valu("cond", ssaop.OpConstBool, c.config.Types.Bool, 0, nil),
+			Valu("mem", ssaop.OpInitMem, types.TypeMem, 0, nil),
 			If("cond", "then", "else")),
 		Bloc("then",
 			Goto("exit")),
@@ -104,8 +105,8 @@ func TestNestedDeadBlocks(t *testing.T) {
 	c := testConfig(t)
 	fun := c.Fun("entry",
 		Bloc("entry",
-			Valu("mem", OpInitMem, types.TypeMem, 0, nil),
-			Valu("cond", OpConstBool, c.config.Types.Bool, 0, nil),
+			Valu("mem", ssaop.OpInitMem, types.TypeMem, 0, nil),
+			Valu("cond", ssaop.OpConstBool, c.config.Types.Bool, 0, nil),
 			If("cond", "b2", "b4")),
 		Bloc("b2",
 			If("cond", "b3", "b4")),
@@ -146,7 +147,7 @@ func BenchmarkDeadCode(b *testing.B) {
 			blocks := make([]bloc, 0, n+2)
 			blocks = append(blocks,
 				Bloc("entry",
-					Valu("mem", OpInitMem, types.TypeMem, 0, nil),
+					Valu("mem", ssaop.OpInitMem, types.TypeMem, 0, nil),
 					Goto("exit")))
 			blocks = append(blocks, Bloc("exit", Exit("mem")))
 			for i := 0; i < n; i++ {

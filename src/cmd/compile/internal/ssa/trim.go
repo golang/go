@@ -6,6 +6,7 @@ package ssa
 
 import (
 	"cmd/compile/internal/ssa/block"
+	"cmd/compile/internal/ssa/ssaop"
 	"cmd/internal/src"
 )
 
@@ -58,7 +59,7 @@ func trim(f *Func) {
 		// account for the merge.
 		if ns > 1 {
 			for _, v := range s.Values {
-				if v.Op == OpPhi {
+				if v.Op == ssaop.OpPhi {
 					mergePhi(v, j, b)
 				}
 
@@ -67,7 +68,7 @@ func trim(f *Func) {
 			// phi-ops of `s`.
 			k := 0
 			for _, v := range b.Values {
-				if v.Op == OpPhi {
+				if v.Op == ssaop.OpPhi {
 					if v.Uses == 0 {
 						v.ResetArgs()
 						continue
@@ -121,7 +122,7 @@ func trim(f *Func) {
 // instructions.
 func emptyBlock(b *Block) bool {
 	for _, v := range b.Values {
-		if v.Op != OpPhi {
+		if v.Op != ssaop.OpPhi {
 			return false
 		}
 	}
@@ -148,7 +149,7 @@ func trimmableBlock(b *Block) bool {
 func mergePhi(v *Value, i int, b *Block) {
 	u := v.Args[i]
 	if u.Block == b {
-		if u.Op != OpPhi {
+		if u.Op != ssaop.OpPhi {
 			b.Func.Fatalf("value %s is not a phi operation", u.LongString())
 		}
 		// If the original block contained u = φ(u0, u1, ..., un) and

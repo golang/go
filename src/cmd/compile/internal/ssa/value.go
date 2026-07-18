@@ -7,6 +7,7 @@ package ssa
 import (
 	"cmd/compile/internal/ir"
 	"cmd/compile/internal/ssa/ssabase"
+	"cmd/compile/internal/ssa/ssaop"
 	"cmd/compile/internal/types"
 	"cmd/internal/src"
 	"fmt"
@@ -25,7 +26,7 @@ type Value struct {
 	ID ID
 
 	// The operation that computes this value. See op.go.
-	Op Op
+	Op ssaop.Op
 
 	// The type of this value. Normally this will be a Go type, but there
 	// are a few other pseudo-types, see ../types/type.go.
@@ -80,28 +81,28 @@ func (v *Value) String() string {
 }
 
 func (v *Value) AuxInt8() int8 {
-	if OpcodeTable[v.Op].AuxType != AuxTypeInt8 && OpcodeTable[v.Op].AuxType != AuxTypeNameOffsetInt8 {
+	if ssaop.OpcodeTable[v.Op].AuxType != ssaop.AuxTypeInt8 && ssaop.OpcodeTable[v.Op].AuxType != ssaop.AuxTypeNameOffsetInt8 {
 		v.Fatalf("op %s doesn't have an int8 aux field", v.Op)
 	}
 	return int8(v.AuxInt)
 }
 
 func (v *Value) AuxUInt8() uint8 {
-	if OpcodeTable[v.Op].AuxType != AuxTypeUInt8 {
+	if ssaop.OpcodeTable[v.Op].AuxType != ssaop.AuxTypeUInt8 {
 		v.Fatalf("op %s doesn't have a uint8 aux field", v.Op)
 	}
 	return uint8(v.AuxInt)
 }
 
 func (v *Value) AuxInt16() int16 {
-	if OpcodeTable[v.Op].AuxType != AuxTypeInt16 {
+	if ssaop.OpcodeTable[v.Op].AuxType != ssaop.AuxTypeInt16 {
 		v.Fatalf("op %s doesn't have an int16 aux field", v.Op)
 	}
 	return int16(v.AuxInt)
 }
 
 func (v *Value) AuxInt32() int32 {
-	if OpcodeTable[v.Op].AuxType != AuxTypeInt32 {
+	if ssaop.OpcodeTable[v.Op].AuxType != ssaop.AuxTypeInt32 {
 		v.Fatalf("op %s doesn't have an int32 aux field", v.Op)
 	}
 	return int32(v.AuxInt)
@@ -113,13 +114,13 @@ func (v *Value) AuxInt32() int32 {
 func (v *Value) AuxUnsigned() uint64 {
 	c := v.AuxInt
 	switch v.Op {
-	case OpConst64:
+	case ssaop.OpConst64:
 		return uint64(c)
-	case OpConst32:
+	case ssaop.OpConst32:
 		return uint64(uint32(c))
-	case OpConst16:
+	case ssaop.OpConst16:
 		return uint64(uint16(c))
-	case OpConst8:
+	case ssaop.OpConst8:
 		return uint64(uint8(c))
 	}
 	v.Fatalf("op %s isn't OpConst*", v.Op)
@@ -127,27 +128,27 @@ func (v *Value) AuxUnsigned() uint64 {
 }
 
 func (v *Value) AuxFloat() float64 {
-	if OpcodeTable[v.Op].AuxType != AuxTypeFloat32 && OpcodeTable[v.Op].AuxType != AuxTypeFloat64 {
+	if ssaop.OpcodeTable[v.Op].AuxType != ssaop.AuxTypeFloat32 && ssaop.OpcodeTable[v.Op].AuxType != ssaop.AuxTypeFloat64 {
 		v.Fatalf("op %s doesn't have a float aux field", v.Op)
 	}
 	return math.Float64frombits(uint64(v.AuxInt))
 }
 func (v *Value) AuxValAndOff() ValAndOff {
-	if OpcodeTable[v.Op].AuxType != AuxTypeSymValAndOff {
+	if ssaop.OpcodeTable[v.Op].AuxType != ssaop.AuxTypeSymValAndOff {
 		v.Fatalf("op %s doesn't have a ValAndOff aux field", v.Op)
 	}
 	return ValAndOff(v.AuxInt)
 }
 
 func (v *Value) AuxArm64BitField() Arm64BitField {
-	if OpcodeTable[v.Op].AuxType != AuxTypeARM64BitField {
+	if ssaop.OpcodeTable[v.Op].AuxType != ssaop.AuxTypeARM64BitField {
 		v.Fatalf("op %s doesn't have a ARM64BitField aux field", v.Op)
 	}
 	return Arm64BitField(v.AuxInt)
 }
 
 func (v *Value) AuxArm64ConditionalParams() Arm64ConditionalParams {
-	if OpcodeTable[v.Op].AuxType != AuxTypeARM64ConditionalParams {
+	if ssaop.OpcodeTable[v.Op].AuxType != ssaop.AuxTypeARM64ConditionalParams {
 		v.Fatalf("op %s doesn't have a ARM64ConditionalParams aux field", v.Op)
 	}
 	return AuxIntToArm64ConditionalParams(v.AuxInt)
@@ -191,28 +192,28 @@ func (v *Value) LongString() string {
 }
 
 func (v *Value) AuxString() string {
-	switch OpcodeTable[v.Op].AuxType {
-	case AuxTypeBool:
+	switch ssaop.OpcodeTable[v.Op].AuxType {
+	case ssaop.AuxTypeBool:
 		if v.AuxInt == 0 {
 			return " [false]"
 		} else {
 			return " [true]"
 		}
-	case AuxTypeInt8:
+	case ssaop.AuxTypeInt8:
 		return fmt.Sprintf(" [%d]", v.AuxInt8())
-	case AuxTypeInt16:
+	case ssaop.AuxTypeInt16:
 		return fmt.Sprintf(" [%d]", v.AuxInt16())
-	case AuxTypeInt32:
+	case ssaop.AuxTypeInt32:
 		return fmt.Sprintf(" [%d]", v.AuxInt32())
-	case AuxTypeInt64, AuxTypeInt128:
+	case ssaop.AuxTypeInt64, ssaop.AuxTypeInt128:
 		return fmt.Sprintf(" [%d]", v.AuxInt)
-	case AuxTypeUInt8:
+	case ssaop.AuxTypeUInt8:
 		return fmt.Sprintf(" [%d]", v.AuxUInt8())
-	case AuxTypeARM64BitField:
+	case ssaop.AuxTypeARM64BitField:
 		lsb := v.AuxArm64BitField().Lsb()
 		width := v.AuxArm64BitField().Width()
 		return fmt.Sprintf(" [lsb=%d,width=%d]", lsb, width)
-	case AuxTypeARM64ConditionalParams:
+	case ssaop.AuxTypeARM64ConditionalParams:
 		params := v.AuxArm64ConditionalParams()
 		cond := params.Cond
 		nzcv := params.Nzcv()
@@ -221,41 +222,41 @@ func (v *Value) AuxString() string {
 			return fmt.Sprintf(" [cond=%s,nzcv=%d,imm=%d]", cond, nzcv, imm)
 		}
 		return fmt.Sprintf(" [cond=%s,nzcv=%d]", cond, nzcv)
-	case AuxTypeFloat32, AuxTypeFloat64:
+	case ssaop.AuxTypeFloat32, ssaop.AuxTypeFloat64:
 		return fmt.Sprintf(" [%g]", v.AuxFloat())
-	case AuxTypeString:
+	case ssaop.AuxTypeString:
 		return fmt.Sprintf(" {%q}", v.Aux)
-	case AuxTypeSym, AuxTypeCall, AuxTypeTyp:
+	case ssaop.AuxTypeSym, ssaop.AuxTypeCall, ssaop.AuxTypeTyp:
 		if v.Aux != nil {
 			return fmt.Sprintf(" {%v}", v.Aux)
 		}
 		return ""
-	case AuxTypeSymOff, AuxTypeCallOff, AuxTypeTypSize, AuxTypeNameOffsetInt8:
+	case ssaop.AuxTypeSymOff, ssaop.AuxTypeCallOff, ssaop.AuxTypeTypSize, ssaop.AuxTypeNameOffsetInt8:
 		s := ""
 		if v.Aux != nil {
 			s = fmt.Sprintf(" {%v}", v.Aux)
 		}
-		if v.AuxInt != 0 || OpcodeTable[v.Op].AuxType == AuxTypeNameOffsetInt8 {
+		if v.AuxInt != 0 || ssaop.OpcodeTable[v.Op].AuxType == ssaop.AuxTypeNameOffsetInt8 {
 			s += fmt.Sprintf(" [%v]", v.AuxInt)
 		}
 		return s
-	case AuxTypeSymValAndOff:
+	case ssaop.AuxTypeSymValAndOff:
 		s := ""
 		if v.Aux != nil {
 			s = fmt.Sprintf(" {%v}", v.Aux)
 		}
 		return s + fmt.Sprintf(" [%s]", v.AuxValAndOff())
-	case AuxTypeCCop:
-		return fmt.Sprintf(" [%s]", Op(v.AuxInt))
-	case AuxTypeS390XCCMask, AuxTypeS390XRotateParams:
+	case ssaop.AuxTypeCCop:
+		return fmt.Sprintf(" [%s]", ssaop.Op(v.AuxInt))
+	case ssaop.AuxTypeS390XCCMask, ssaop.AuxTypeS390XRotateParams:
 		return fmt.Sprintf(" {%v}", v.Aux)
-	case AuxTypeFlagConstant:
+	case ssaop.AuxTypeFlagConstant:
 		return fmt.Sprintf("[%s]", FlagConstant(v.AuxInt))
-	case AuxTypeNone:
+	case ssaop.AuxTypeNone:
 		return ""
 	default:
 		// If you see this, add a case above instead.
-		return fmt.Sprintf("[auxtype=%d AuxInt=%d Aux=%v]", OpcodeTable[v.Op].AuxType, v.AuxInt, v.Aux)
+		return fmt.Sprintf("[auxtype=%d AuxInt=%d Aux=%v]", ssaop.OpcodeTable[v.Op].AuxType, v.AuxInt, v.Aux)
 	}
 }
 
@@ -374,7 +375,7 @@ func (v *Value) ResetArgs() {
 // of cmd/compile by almost 10%, and slows it down.
 //
 //go:noinline
-func (v *Value) Reset(op Op) {
+func (v *Value) Reset(op ssaop.Op) {
 	if v.InCache {
 		v.Block.Func.UnCache(v)
 	}
@@ -397,7 +398,7 @@ func (v *Value) InvalidateRecursively() bool {
 	if v.InCache {
 		v.Block.Func.UnCache(v)
 	}
-	v.Op = OpInvalid
+	v.Op = ssaop.OpInvalid
 
 	for _, a := range v.Args {
 		a.Uses--
@@ -428,7 +429,7 @@ func (v *Value) CopyOf(a *Value) {
 	if v.InCache {
 		v.Block.Func.UnCache(v)
 	}
-	v.Op = OpCopy
+	v.Op = ssaop.OpCopy
 	v.ResetArgs()
 	v.AddArg(a)
 	v.AuxInt = 0
@@ -481,7 +482,7 @@ func (v *Value) Fatalf(msg string, args ...any) {
 
 // IsGenericIntConst reports whether v is a generic integer constant.
 func (v *Value) IsGenericIntConst() bool {
-	return v != nil && (v.Op == OpConst64 || v.Op == OpConst32 || v.Op == OpConst16 || v.Op == OpConst8)
+	return v != nil && (v.Op == ssaop.OpConst64 || v.Op == ssaop.OpConst32 || v.Op == ssaop.OpConst16 || v.Op == ssaop.OpConst8)
 }
 
 // ResultReg returns the result register assigned to v, in cmd/internal/obj/$ARCH numbering.
@@ -549,7 +550,7 @@ func (v *Value) RegName() string {
 // The returned value, if non-nil, will be memory-typed (or a tuple with a memory-typed second part).
 // Otherwise, nil is returned.
 func (v *Value) MemoryArg() *Value {
-	if v.Op == OpPhi {
+	if v.Op == ssaop.OpPhi {
 		v.Fatalf("MemoryArg on Phi")
 	}
 	na := len(v.Args)
@@ -569,8 +570,8 @@ func (v *Value) LackingPos() bool {
 	// The exact definition of LackingPos is somewhat heuristically defined and may change
 	// in the future, for example if some of these operations are generated more carefully
 	// with respect to their source position.
-	return v.Op == OpVarDef || v.Op == OpVarLive || v.Op == OpPhi ||
-		(v.Op == OpFwdRef || v.Op == OpCopy) && v.Type == types.TypeMem
+	return v.Op == ssaop.OpVarDef || v.Op == ssaop.OpVarLive || v.Op == ssaop.OpPhi ||
+		(v.Op == ssaop.OpFwdRef || v.Op == ssaop.OpCopy) && v.Type == types.TypeMem
 }
 
 // Removeable reports whether the value v can be removed from the SSA graph entirely
@@ -580,7 +581,7 @@ func (v *Value) Removeable() bool {
 		// Void ops (inline marks), must stay.
 		return false
 	}
-	if OpcodeTable[v.Op].NilCheck {
+	if ssaop.OpcodeTable[v.Op].NilCheck {
 		// Nil pointer checks must stay.
 		return false
 	}
@@ -671,10 +672,10 @@ func CanSSA(t *types.Type) bool {
 // to not propagate to the output value.
 func (v *Value) AddrSinkArg(idx int) bool {
 	if idx == 0 {
-		return OpcodeTable[v.Op].AddrSinkArg0
+		return ssaop.OpcodeTable[v.Op].AddrSinkArg0
 	}
 	if idx == 1 {
-		return OpcodeTable[v.Op].AddrSinkArg1
+		return ssaop.OpcodeTable[v.Op].AddrSinkArg1
 	}
 	return false
 }

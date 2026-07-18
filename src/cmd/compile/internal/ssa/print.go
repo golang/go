@@ -9,6 +9,7 @@ import (
 	"io"
 	"strings"
 
+	"cmd/compile/internal/ssa/ssaop"
 	"cmd/internal/hash"
 	"cmd/internal/src"
 )
@@ -143,7 +144,7 @@ func FprintFunc(p funcPrinter, f *Func) {
 		// print phis first since all value cycles contain a phi
 		n := 0
 		for _, v := range b.Values {
-			if v.Op != OpPhi {
+			if v.Op != ssaop.OpPhi {
 				continue
 			}
 			p.Value(v, live[v.ID])

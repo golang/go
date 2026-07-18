@@ -3,18 +3,19 @@
 package ssa
 
 import "cmd/compile/internal/ssa/block"
+import "cmd/compile/internal/ssa/ssaop"
 
 func rewriteValueLOONG64latelower(v *Value) bool {
 	switch v.Op {
-	case OpLOONG64MOVBUreg:
+	case ssaop.OpLOONG64MOVBUreg:
 		return rewriteValueLOONG64latelower_OpLOONG64MOVBUreg(v)
-	case OpLOONG64MOVHUreg:
+	case ssaop.OpLOONG64MOVHUreg:
 		return rewriteValueLOONG64latelower_OpLOONG64MOVHUreg(v)
-	case OpLOONG64MOVVconst:
+	case ssaop.OpLOONG64MOVVconst:
 		return rewriteValueLOONG64latelower_OpLOONG64MOVVconst(v)
-	case OpLOONG64MOVWUreg:
+	case ssaop.OpLOONG64MOVWUreg:
 		return rewriteValueLOONG64latelower_OpLOONG64MOVWUreg(v)
-	case OpLOONG64SLLVconst:
+	case ssaop.OpLOONG64SLLVconst:
 		return rewriteValueLOONG64latelower_OpLOONG64SLLVconst(v)
 	}
 	return false
@@ -56,7 +57,7 @@ func rewriteValueLOONG64latelower_OpLOONG64MOVVconst(v *Value) bool {
 		if AuxIntToInt64(v.AuxInt) != 0 {
 			break
 		}
-		v.Reset(OpLOONG64ZERO)
+		v.Reset(ssaop.OpLOONG64ZERO)
 		return true
 	}
 	return false
@@ -85,7 +86,7 @@ func rewriteValueLOONG64latelower_OpLOONG64SLLVconst(v *Value) bool {
 			break
 		}
 		x := v_0
-		v.Reset(OpLOONG64ADDV)
+		v.Reset(ssaop.OpLOONG64ADDV)
 		v.AddArg2(x, x)
 		return true
 	}
@@ -96,7 +97,7 @@ func rewriteBlockLOONG64latelower(b *Block) bool {
 	case block.BlockLOONG64EQZ:
 		// match: (EQZ (XOR x y) yes no)
 		// result: (BEQ x y yes no)
-		for b.Controls[0].Op == OpLOONG64XOR {
+		for b.Controls[0].Op == ssaop.OpLOONG64XOR {
 			v_0 := b.Controls[0]
 			_ = v_0.Args[1]
 			v_0_0 := v_0.Args[0]
@@ -111,7 +112,7 @@ func rewriteBlockLOONG64latelower(b *Block) bool {
 	case block.BlockLOONG64NEZ:
 		// match: (NEZ (XOR x y) yes no)
 		// result: (BNE x y yes no)
-		for b.Controls[0].Op == OpLOONG64XOR {
+		for b.Controls[0].Op == ssaop.OpLOONG64XOR {
 			v_0 := b.Controls[0]
 			_ = v_0.Args[1]
 			v_0_0 := v_0.Args[0]

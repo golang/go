@@ -4,6 +4,8 @@
 
 package ssa
 
+import "cmd/compile/internal/ssa/ssaop"
+
 // tightenTupleSelectors ensures that tuple selectors (Select0, Select1,
 // and SelectN ops) are in the same block as their tuple generator. The
 // function also ensures that there are no duplicate tuple selectors.
@@ -24,15 +26,15 @@ func tightenTupleSelectors(f *Func) {
 			switch selector.Op {
 			default:
 				continue
-			case OpSelect1:
+			case ssaop.OpSelect1:
 				idx = 1
 				fallthrough
-			case OpSelect0:
+			case ssaop.OpSelect0:
 				tuple = selector.Args[0]
 				if !tuple.Type.IsTuple() {
 					f.Fatalf("arg of tuple selector %s is not a tuple: %s", selector.String(), tuple.LongString())
 				}
-			case OpSelectN:
+			case ssaop.OpSelectN:
 				tuple = selector.Args[0]
 				idx = int(selector.AuxInt)
 				if !tuple.Type.IsResults() {

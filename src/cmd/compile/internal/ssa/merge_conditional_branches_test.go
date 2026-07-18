@@ -6,6 +6,7 @@ package ssa
 
 import (
 	"cmd/compile/internal/ssa/block"
+	"cmd/compile/internal/ssa/ssaop"
 	"cmd/compile/internal/types"
 	"testing"
 )
@@ -45,12 +46,12 @@ func isNewConditionCorrect(b *Block) bool {
 	}
 
 	v := b.Controls[0]
-	if v.Op != OpARM64CCMPconst {
+	if v.Op != ssaop.OpARM64CCMPconst {
 		return false
 	}
 
 	params := v.AuxArm64ConditionalParams()
-	if params.Cond != OpARM64GreaterThan {
+	if params.Cond != ssaop.OpARM64GreaterThan {
 		return false
 	}
 	if params.Nzcv() != 1 {
@@ -70,7 +71,7 @@ func isNewConditionCorrect(b *Block) bool {
 // instructions or to ensure they were not generated when inappropriate.
 func containsOpARM64CCMP(b *Block) bool {
 	for _, v := range b.Values {
-		if v.Op == OpARM64CCMP || v.Op == OpARM64CCMPconst {
+		if v.Op == ssaop.OpARM64CCMP || v.Op == ssaop.OpARM64CCMPconst {
 			return true
 		}
 	}
@@ -92,22 +93,22 @@ func TestMergeConditionalBranchesWithoutPointers(t *testing.T) {
 		fun := c.Fun("entry",
 			Bloc("entry",
 				Valu("mem",
-					OpInitMem,
+					ssaop.OpInitMem,
 					types.TypeMem,
 					0, nil,
 				),
 				Valu("a",
-					OpArg,
+					ssaop.OpArg,
 					intType,
 					0, c.Temp(intType),
 				),
 				Valu("b",
-					OpArg,
+					ssaop.OpArg,
 					intType,
 					1, c.Temp(intType),
 				),
 				Valu("cond1",
-					OpARM64CMPconst,
+					ssaop.OpARM64CMPconst,
 					types.TypeFlags,
 					1, nil,
 					"a",
@@ -116,7 +117,7 @@ func TestMergeConditionalBranchesWithoutPointers(t *testing.T) {
 			),
 			Bloc("second_comparison",
 				Valu("cond2",
-					OpARM64CMPconst,
+					ssaop.OpARM64CMPconst,
 					types.TypeFlags,
 					4, nil,
 					"b",
@@ -125,12 +126,12 @@ func TestMergeConditionalBranchesWithoutPointers(t *testing.T) {
 			),
 			Bloc("ret_true",
 				Valu("const1",
-					OpARM64MOVDconst,
+					ssaop.OpARM64MOVDconst,
 					intType,
 					1, nil,
 				),
 				Valu("true_result",
-					OpMakeResult,
+					ssaop.OpMakeResult,
 					types.TypeMem,
 					0, nil,
 					"const1", "mem",
@@ -139,12 +140,12 @@ func TestMergeConditionalBranchesWithoutPointers(t *testing.T) {
 			),
 			Bloc("ret_false",
 				Valu("const0",
-					OpARM64MOVDconst,
+					ssaop.OpARM64MOVDconst,
 					intType,
 					0, nil,
 				),
 				Valu("false_result",
-					OpMakeResult,
+					ssaop.OpMakeResult,
 					types.TypeMem,
 					0, nil,
 					"const0", "mem",
@@ -184,17 +185,17 @@ func TestNoCCMPWithPointerAndMemoryLoad(t *testing.T) {
 		fun := c.Fun("entry",
 			Bloc("entry",
 				Valu("mem",
-					OpInitMem,
+					ssaop.OpInitMem,
 					types.TypeMem,
 					0, nil,
 				),
 				Valu("ptr",
-					OpArg,
+					ssaop.OpArg,
 					ptrType,
 					0, c.Temp(ptrType),
 				),
 				Valu("cond1",
-					OpARM64CMPconst,
+					ssaop.OpARM64CMPconst,
 					types.TypeFlags,
 					0, nil, // Compare with nil (0)
 					"ptr",
@@ -203,13 +204,13 @@ func TestNoCCMPWithPointerAndMemoryLoad(t *testing.T) {
 			),
 			Bloc("second_comparison",
 				Valu("load",
-					OpLoad,
+					ssaop.OpLoad,
 					intType,
 					0, nil,
 					"ptr", "mem",
 				),
 				Valu("cond2",
-					OpARM64CMPconst,
+					ssaop.OpARM64CMPconst,
 					types.TypeFlags,
 					3, nil, // Compare with 3
 					"load",
@@ -218,12 +219,12 @@ func TestNoCCMPWithPointerAndMemoryLoad(t *testing.T) {
 			),
 			Bloc("ret_true",
 				Valu("const1",
-					OpARM64MOVDconst,
+					ssaop.OpARM64MOVDconst,
 					intType,
 					1, nil,
 				),
 				Valu("true_result",
-					OpMakeResult,
+					ssaop.OpMakeResult,
 					types.TypeMem,
 					0, nil,
 					"const1", "mem",
@@ -232,12 +233,12 @@ func TestNoCCMPWithPointerAndMemoryLoad(t *testing.T) {
 			),
 			Bloc("ret_false",
 				Valu("const0",
-					OpARM64MOVDconst,
+					ssaop.OpARM64MOVDconst,
 					intType,
 					0, nil,
 				),
 				Valu("false_result",
-					OpMakeResult,
+					ssaop.OpMakeResult,
 					types.TypeMem,
 					0, nil,
 					"const0", "mem",
@@ -266,7 +267,7 @@ func TestNoCCMPWithPointerAndMemoryLoad(t *testing.T) {
 		// Verify that second block contains the load operation
 		hasLoad := false
 		for _, v := range secondBlock.Values {
-			if v.Op == OpLoad {
+			if v.Op == ssaop.OpLoad {
 				hasLoad = true
 				break
 			}

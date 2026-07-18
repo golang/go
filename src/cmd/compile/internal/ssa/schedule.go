@@ -6,6 +6,7 @@ package ssa
 
 import (
 	"cmd/compile/internal/base"
+	"cmd/compile/internal/ssa/ssaop"
 	"cmd/compile/internal/types"
 	"cmp"
 	"container/heap"
@@ -69,7 +70,7 @@ func (h ValHeap) Less(i, j int) bool {
 	if x.Pos != y.Pos { // Favor in-order line stepping
 		return x.Pos.Before(y.Pos)
 	}
-	if x.Op != OpPhi {
+	if x.Op != ssaop.OpPhi {
 		if c := len(x.Args) - len(y.Args); c != 0 {
 			return c > 0 // smaller args come later
 		}
@@ -136,13 +137,13 @@ func schedule(f *Func) {
 					f.Fatalf("LoweredGetClosurePtr appeared outside of entry block, b=%s", b.String())
 				}
 				score[v.ID] = ScorePhi
-			case OpcodeTable[v.Op].NilCheck:
+			case ssaop.OpcodeTable[v.Op].NilCheck:
 				// Nil checks must come before loads from the same address.
 				score[v.ID] = ScoreNilCheck
-			case v.Op == OpPhi:
+			case v.Op == ssaop.OpPhi:
 				// We want all the phis first.
 				score[v.ID] = ScorePhi
-			case v.Op == OpArgIntReg || v.Op == OpArgFloatReg:
+			case v.Op == ssaop.OpArgIntReg || v.Op == ssaop.OpArgFloatReg:
 				// In-register args must be scheduled as early as possible to ensure that they
 				// are not stomped (similar to the closure pointer above).
 				// In particular, they need to come before regular OpArg operations because
@@ -151,17 +152,17 @@ func schedule(f *Func) {
 					f.Fatalf("%s appeared outside of entry block, b=%s", v.Op, b.String())
 				}
 				score[v.ID] = ScorePhi
-			case v.Op == OpArg || v.Op == OpSP || v.Op == OpSB:
+			case v.Op == ssaop.OpArg || v.Op == ssaop.OpSP || v.Op == ssaop.OpSB:
 				// We want all the args as early as possible, for better debugging.
 				score[v.ID] = ScoreArg
-			case v.Op == OpInitMem:
+			case v.Op == ssaop.OpInitMem:
 				// Early, but after args. See debug.go:buildLocationLists
 				score[v.ID] = ScoreInitMem
 			case v.Type.IsMemory():
 				// Schedule stores as early as possible. This tends to
 				// reduce register pressure.
 				score[v.ID] = ScoreMemory
-			case v.Op == OpSelect0 || v.Op == OpSelect1 || v.Op == OpSelectN:
+			case v.Op == ssaop.OpSelect0 || v.Op == ssaop.OpSelect1 || v.Op == ssaop.OpSelectN:
 				// Tuple selectors need to appear immediately after the instruction
 				// that generates the tuple.
 				score[v.ID] = ScoreReadTuple
@@ -177,7 +178,7 @@ func schedule(f *Func) {
 				// which both read and generate flags are given ScoreReadFlags.
 				score[v.ID] = ScoreFlags
 			case (len(v.Args) == 1 &&
-				v.Args[0].Op == OpPhi &&
+				v.Args[0].Op == ssaop.OpPhi &&
 				v.Args[0].Uses > 1 &&
 				len(b.Succs) == 1 &&
 				b.Succs[0].B == v.Args[0].Block &&
@@ -231,7 +232,7 @@ func schedule(f *Func) {
 		edges = edges[:0]
 		// Standard edges: from the argument of a value to that value.
 		for _, v := range b.Values {
-			if v.Op == OpPhi {
+			if v.Op == ssaop.OpPhi {
 				// If a value is used by a phi, it does not induce
 				// a scheduling edge because that use is from the
 				// previous iteration.
@@ -248,14 +249,14 @@ func schedule(f *Func) {
 		// Store chains for different blocks overwrite each other, so
 		// the calculated store chain is good only for this block.
 		for _, v := range b.Values {
-			if v.Op != OpPhi && v.Op != OpInitMem && v.Type.IsMemory() {
+			if v.Op != ssaop.OpPhi && v.Op != ssaop.OpInitMem && v.Type.IsMemory() {
 				nextMem[v.MemoryArg().ID] = v
 			}
 		}
 
 		// Add edges to enforce that any load must come before the following store.
 		for _, v := range b.Values {
-			if v.Op == OpPhi || v.Type.IsMemory() {
+			if v.Op == ssaop.OpPhi || v.Type.IsMemory() {
 				continue
 			}
 			w := v.MemoryArg()
@@ -320,14 +321,14 @@ func schedule(f *Func) {
 	for _, b := range f.Blocks {
 		for _, v := range b.Values {
 			for i, a := range v.Args {
-				for a.Op == OpSPanchored || OpcodeTable[a.Op].NilCheck {
+				for a.Op == ssaop.OpSPanchored || ssaop.OpcodeTable[a.Op].NilCheck {
 					a = a.Args[0]
 					v.SetArg(i, a)
 				}
 			}
 		}
 		for i, c := range b.ControlValues() {
-			for c.Op == OpSPanchored || OpcodeTable[c.Op].NilCheck {
+			for c.Op == ssaop.OpSPanchored || ssaop.OpcodeTable[c.Op].NilCheck {
 				c = c.Args[0]
 				b.ReplaceControl(i, c)
 			}
@@ -336,7 +337,7 @@ func schedule(f *Func) {
 	for _, b := range f.Blocks {
 		i := 0
 		for _, v := range b.Values {
-			if v.Op == OpSPanchored {
+			if v.Op == ssaop.OpSPanchored {
 				// Free this value
 				if v.Uses != 0 {
 					base.Fatalf("SPAnchored still has %d uses", v.Uses)
@@ -344,7 +345,7 @@ func schedule(f *Func) {
 				v.ResetArgs()
 				f.FreeValue(v)
 			} else {
-				if OpcodeTable[v.Op].NilCheck {
+				if ssaop.OpcodeTable[v.Op].NilCheck {
 					if v.Uses != 0 {
 						base.Fatalf("nilcheck still has %d uses", v.Uses)
 					}
@@ -402,12 +403,12 @@ func storeOrder(values []*Value, sset *SparseSet, storeNumber []int32) []*Value 
 	for _, v := range values {
 		if v.Type.IsMemory() {
 			stores = append(stores, v)
-			if v.Op == OpInitMem || v.Op == OpPhi {
+			if v.Op == ssaop.OpInitMem || v.Op == ssaop.OpPhi {
 				continue
 			}
 			sset.Add(v.MemoryArg().ID) // record that v's memory arg is used
 		}
-		if v.Op == OpNilCheck {
+		if v.Op == ssaop.OpNilCheck {
 			hasNilCheck = true
 		}
 	}
@@ -442,7 +443,7 @@ func storeOrder(values []*Value, sset *SparseSet, storeNumber []int32) []*Value 
 		storeNumber[w.ID] = int32(3 * n)
 		count[3*n]++
 		sset.Add(w.ID)
-		if w.Op == OpInitMem || w.Op == OpPhi {
+		if w.Op == ssaop.OpInitMem || w.Op == ssaop.OpPhi {
 			if n != 1 {
 				f.Fatalf("store order is wrong: there are stores before %v", w)
 			}
@@ -465,7 +466,7 @@ func storeOrder(values []*Value, sset *SparseSet, storeNumber []int32) []*Value 
 				stack = stack[:len(stack)-1]
 				continue
 			}
-			if w.Op == OpPhi {
+			if w.Op == ssaop.OpPhi {
 				// Phi value doesn't depend on store in the current block.
 				// Do this early to avoid dependency cycle.
 				storeNumber[w.ID] = 2
@@ -495,7 +496,7 @@ func storeOrder(values []*Value, sset *SparseSet, storeNumber []int32) []*Value 
 			}
 
 			n := 3*max + 2
-			if w.Op == OpNilCheck {
+			if w.Op == ssaop.OpNilCheck {
 				n = 3*max + 1
 			}
 			storeNumber[w.ID] = n
@@ -529,7 +530,7 @@ func storeOrder(values []*Value, sset *SparseSet, storeNumber []int32) []*Value 
 	if hasNilCheck {
 		start := -1
 		for i, v := range order {
-			if v.Op == OpNilCheck {
+			if v.Op == ssaop.OpNilCheck {
 				if start == -1 {
 					start = i
 				}
@@ -556,7 +557,7 @@ func (v *Value) IsFlagOp() bool {
 	// PPC64 carry generators put their carry in a non-flag-typed register
 	// in their output.
 	switch v.Op {
-	case OpPPC64SUBC, OpPPC64ADDC, OpPPC64SUBCconst, OpPPC64ADDCconst:
+	case ssaop.OpPPC64SUBC, ssaop.OpPPC64ADDC, ssaop.OpPPC64SUBCconst, ssaop.OpPPC64ADDCconst:
 		return true
 	}
 	return false
@@ -572,7 +573,7 @@ func (v *Value) HasFlagInput() bool {
 	// PPC64 carry dependencies are conveyed through their final argument,
 	// so we treat those operations as taking flags as well.
 	switch v.Op {
-	case OpPPC64SUBE, OpPPC64ADDE, OpPPC64SUBZEzero, OpPPC64ADDZE, OpPPC64ADDZEzero:
+	case ssaop.OpPPC64SUBE, ssaop.OpPPC64ADDE, ssaop.OpPPC64SUBZEzero, ssaop.OpPPC64ADDZE, ssaop.OpPPC64ADDZEzero:
 		return true
 	}
 	return false

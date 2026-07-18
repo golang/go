@@ -5,6 +5,7 @@
 package ssa
 
 import (
+	"cmd/compile/internal/ssa/ssaop"
 	"cmd/compile/internal/types"
 	"math"
 )
@@ -20,44 +21,44 @@ func softfloat(f *Func) {
 			if v.Type.IsFloat() {
 				f.UnCache(v)
 				switch v.Op {
-				case OpPhi, OpLoad, OpArg:
+				case ssaop.OpPhi, ssaop.OpLoad, ssaop.OpArg:
 					if v.Type.Size() == 4 {
 						v.Type = f.Config.Types.UInt32
 					} else {
 						v.Type = f.Config.Types.UInt64
 					}
-				case OpConst32F:
-					v.Op = OpConst32
+				case ssaop.OpConst32F:
+					v.Op = ssaop.OpConst32
 					v.Type = f.Config.Types.UInt32
 					v.AuxInt = int64(int32(math.Float32bits(auxTo32F(v.AuxInt))))
-				case OpConst64F:
-					v.Op = OpConst64
+				case ssaop.OpConst64F:
+					v.Op = ssaop.OpConst64
 					v.Type = f.Config.Types.UInt64
-				case OpNeg32F:
+				case ssaop.OpNeg32F:
 					arg0 := v.Args[0]
-					v.Reset(OpXor32)
+					v.Reset(ssaop.OpXor32)
 					v.Type = f.Config.Types.UInt32
 					v.AddArg(arg0)
-					mask := v.Block.NewValue0(v.Pos, OpConst32, v.Type)
+					mask := v.Block.NewValue0(v.Pos, ssaop.OpConst32, v.Type)
 					mask.AuxInt = -0x80000000
 					v.AddArg(mask)
-				case OpNeg64F:
+				case ssaop.OpNeg64F:
 					arg0 := v.Args[0]
-					v.Reset(OpXor64)
+					v.Reset(ssaop.OpXor64)
 					v.Type = f.Config.Types.UInt64
 					v.AddArg(arg0)
-					mask := v.Block.NewValue0(v.Pos, OpConst64, v.Type)
+					mask := v.Block.NewValue0(v.Pos, ssaop.OpConst64, v.Type)
 					mask.AuxInt = -0x8000000000000000
 					v.AddArg(mask)
-				case OpRound32F:
-					v.Op = OpCopy
+				case ssaop.OpRound32F:
+					v.Op = ssaop.OpCopy
 					v.Type = f.Config.Types.UInt32
-				case OpRound64F:
-					v.Op = OpCopy
+				case ssaop.OpRound64F:
+					v.Op = ssaop.OpCopy
 					v.Type = f.Config.Types.UInt64
 				}
 				newInt64 = newInt64 || v.Type.Size() == 8
-			} else if (v.Op == OpStore || v.Op == OpZero || v.Op == OpMove) && v.Aux.(*types.Type).IsFloat() {
+			} else if (v.Op == ssaop.OpStore || v.Op == ssaop.OpZero || v.Op == ssaop.OpMove) && v.Aux.(*types.Type).IsFloat() {
 				switch size := v.Aux.(*types.Type).Size(); size {
 				case 4:
 					v.Aux = f.Config.Types.UInt32

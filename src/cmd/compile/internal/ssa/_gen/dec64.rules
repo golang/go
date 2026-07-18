@@ -237,29 +237,29 @@
 
 // turn x64 non-constant shifts to x32 shifts
 // if high 32-bit of the shift is nonzero, make a huge shift
-(Lsh64x64 x (Int64Make hi lo)) && hi.Op != OpConst32 =>
+(Lsh64x64 x (Int64Make hi lo)) && hi.Op != ssaop.OpConst32 =>
        (Lsh64x32 x (Or32 <typ.UInt32> (Zeromask hi) lo))
-(Rsh64x64 x (Int64Make hi lo)) && hi.Op != OpConst32 =>
+(Rsh64x64 x (Int64Make hi lo)) && hi.Op != ssaop.OpConst32 =>
        (Rsh64x32 x (Or32 <typ.UInt32> (Zeromask hi) lo))
-(Rsh64Ux64 x (Int64Make hi lo)) && hi.Op != OpConst32 =>
+(Rsh64Ux64 x (Int64Make hi lo)) && hi.Op != ssaop.OpConst32 =>
        (Rsh64Ux32 x (Or32 <typ.UInt32> (Zeromask hi) lo))
-(Lsh32x64 x (Int64Make hi lo)) && hi.Op != OpConst32 =>
+(Lsh32x64 x (Int64Make hi lo)) && hi.Op != ssaop.OpConst32 =>
        (Lsh32x32 x (Or32 <typ.UInt32> (Zeromask hi) lo))
-(Rsh32x64 x (Int64Make hi lo)) && hi.Op != OpConst32 =>
+(Rsh32x64 x (Int64Make hi lo)) && hi.Op != ssaop.OpConst32 =>
        (Rsh32x32 x (Or32 <typ.UInt32> (Zeromask hi) lo))
-(Rsh32Ux64 x (Int64Make hi lo)) && hi.Op != OpConst32 =>
+(Rsh32Ux64 x (Int64Make hi lo)) && hi.Op != ssaop.OpConst32 =>
        (Rsh32Ux32 x (Or32 <typ.UInt32> (Zeromask hi) lo))
-(Lsh16x64 x (Int64Make hi lo)) && hi.Op != OpConst32 =>
+(Lsh16x64 x (Int64Make hi lo)) && hi.Op != ssaop.OpConst32 =>
        (Lsh16x32 x (Or32 <typ.UInt32> (Zeromask hi) lo))
-(Rsh16x64 x (Int64Make hi lo)) && hi.Op != OpConst32 =>
+(Rsh16x64 x (Int64Make hi lo)) && hi.Op != ssaop.OpConst32 =>
        (Rsh16x32 x (Or32 <typ.UInt32> (Zeromask hi) lo))
-(Rsh16Ux64 x (Int64Make hi lo)) && hi.Op != OpConst32 =>
+(Rsh16Ux64 x (Int64Make hi lo)) && hi.Op != ssaop.OpConst32 =>
        (Rsh16Ux32 x (Or32 <typ.UInt32> (Zeromask hi) lo))
-(Lsh8x64 x (Int64Make hi lo)) && hi.Op != OpConst32 =>
+(Lsh8x64 x (Int64Make hi lo)) && hi.Op != ssaop.OpConst32 =>
        (Lsh8x32 x (Or32 <typ.UInt32> (Zeromask hi) lo))
-(Rsh8x64 x (Int64Make hi lo)) && hi.Op != OpConst32 =>
+(Rsh8x64 x (Int64Make hi lo)) && hi.Op != ssaop.OpConst32 =>
        (Rsh8x32 x (Or32 <typ.UInt32> (Zeromask hi) lo))
-(Rsh8Ux64 x (Int64Make hi lo)) && hi.Op != OpConst32 =>
+(Rsh8Ux64 x (Int64Make hi lo)) && hi.Op != ssaop.OpConst32 =>
        (Rsh8Ux32 x (Or32 <typ.UInt32> (Zeromask hi) lo))
 
 // Most general

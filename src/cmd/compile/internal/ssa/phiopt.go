@@ -4,7 +4,10 @@
 
 package ssa
 
-import "cmd/compile/internal/ssa/block"
+import (
+	"cmd/compile/internal/ssa/block"
+	"cmd/compile/internal/ssa/ssaop"
+)
 
 // phiopt eliminates boolean Phis based on the previous if.
 //
@@ -61,7 +64,7 @@ func phiopt(f *Func) {
 		}
 
 		for _, v := range b.Values {
-			if v.Op != OpPhi {
+			if v.Op != ssaop.OpPhi {
 				continue
 			}
 
@@ -78,9 +81,9 @@ func phiopt(f *Func) {
 			//   if a { x = true } else { x = false } with x = a
 			// and
 			//   if a { x = false } else { x = true } with x = !a
-			if v.Args[0].Op == OpConstBool && v.Args[1].Op == OpConstBool {
+			if v.Args[0].Op == ssaop.OpConstBool && v.Args[1].Op == ssaop.OpConstBool {
 				if v.Args[reverse].AuxInt != v.Args[1-reverse].AuxInt {
-					ops := [2]Op{OpNot, OpCopy}
+					ops := [2]ssaop.Op{ssaop.OpNot, ssaop.OpCopy}
 					v.Reset(ops[v.Args[reverse].AuxInt])
 					v.AddArg(b0.Controls[0])
 					if f.Pass.Debug > 0 {
@@ -95,9 +98,9 @@ func phiopt(f *Func) {
 			// Requires that value dominates x, meaning that regardless of a,
 			// value is always computed. This guarantees that the side effects
 			// of value are not seen if a is false.
-			if v.Args[reverse].Op == OpConstBool && v.Args[reverse].AuxInt == 1 {
+			if v.Args[reverse].Op == ssaop.OpConstBool && v.Args[reverse].AuxInt == 1 {
 				if tmp := v.Args[1-reverse]; sdom.IsAncestorEq(tmp.Block, b) {
-					v.Reset(OpOrB)
+					v.Reset(ssaop.OpOrB)
 					v.SetArgs2(b0.Controls[0], tmp)
 					if f.Pass.Debug > 0 {
 						f.Warnl(b.Pos, "converted OpPhi to %v", v.Op)
@@ -111,9 +114,9 @@ func phiopt(f *Func) {
 			// Requires that value dominates x, meaning that regardless of a,
 			// value is always computed. This guarantees that the side effects
 			// of value are not seen if a is false.
-			if v.Args[1-reverse].Op == OpConstBool && v.Args[1-reverse].AuxInt == 0 {
+			if v.Args[1-reverse].Op == ssaop.OpConstBool && v.Args[1-reverse].AuxInt == 0 {
 				if tmp := v.Args[reverse]; sdom.IsAncestorEq(tmp.Block, b) {
-					v.Reset(OpAndB)
+					v.Reset(ssaop.OpAndB)
 					v.SetArgs2(b0.Controls[0], tmp)
 					if f.Pass.Debug > 0 {
 						f.Warnl(b.Pos, "converted OpPhi to %v", v.Op)
@@ -126,7 +129,7 @@ func phiopt(f *Func) {
 			// Requires that value dominates x.
 			if v.Args[1-reverse] == b0.Controls[0] {
 				if tmp := v.Args[reverse]; sdom.IsAncestorEq(tmp.Block, b) {
-					v.Reset(OpAndB)
+					v.Reset(ssaop.OpAndB)
 					v.SetArgs2(b0.Controls[0], tmp)
 					if f.Pass.Debug > 0 {
 						f.Warnl(b.Pos, "converted OpPhi to %v", v.Op)
@@ -140,7 +143,7 @@ func phiopt(f *Func) {
 			// Requires that value dominates x.
 			if v.Args[reverse] == b0.Controls[0] {
 				if tmp := v.Args[1-reverse]; sdom.IsAncestorEq(tmp.Block, b) {
-					v.Reset(OpOrB)
+					v.Reset(ssaop.OpOrB)
 					v.SetArgs2(b0.Controls[0], tmp)
 					if f.Pass.Debug > 0 {
 						f.Warnl(b.Pos, "converted OpPhi to %v", v.Op)
@@ -203,10 +206,10 @@ func phiopt(f *Func) {
 		for _, v := range b.Values {
 			// find a phi value v = OpPhi (ConstBool [true]) (ConstBool [false]).
 			// TODO: v = OpPhi (ConstBool [true]) (Arg <bool> {value})
-			if v.Op != OpPhi {
+			if v.Op != ssaop.OpPhi {
 				continue
 			}
-			if v.Args[0].Op != OpConstBool || v.Args[1].Op != OpConstBool {
+			if v.Args[0].Op != ssaop.OpConstBool || v.Args[1].Op != ssaop.OpConstBool {
 				continue
 			}
 			if v.Args[0].AuxInt == v.Args[1].AuxInt {
@@ -295,7 +298,7 @@ func phioptint(v *Value, b0 *Block, reverse int) {
 	}
 
 	switch a0.Op {
-	case OpConst8, OpConst16, OpConst32, OpConst64:
+	case ssaop.OpConst8, ssaop.OpConst16, ssaop.OpConst32, ssaop.OpConst64:
 	default:
 		return
 	}
@@ -315,20 +318,20 @@ func phioptint(v *Value, b0 *Block, reverse int) {
 
 	a := b0.Controls[0]
 	if negate {
-		a = v.Block.NewValue1(v.Pos, OpNot, a.Type, a)
+		a = v.Block.NewValue1(v.Pos, ssaop.OpNot, a.Type, a)
 	}
 	v.AddArg(a)
 
-	cvt := v.Block.NewValue1(v.Pos, OpCvtBoolToUint8, v.Block.Func.Config.Types.UInt8, a)
+	cvt := v.Block.NewValue1(v.Pos, ssaop.OpCvtBoolToUint8, v.Block.Func.Config.Types.UInt8, a)
 	switch v.Type.Size() {
 	case 1:
-		v.Reset(OpCopy)
+		v.Reset(ssaop.OpCopy)
 	case 2:
-		v.Reset(OpZeroExt8to16)
+		v.Reset(ssaop.OpZeroExt8to16)
 	case 4:
-		v.Reset(OpZeroExt8to32)
+		v.Reset(ssaop.OpZeroExt8to32)
 	case 8:
-		v.Reset(OpZeroExt8to64)
+		v.Reset(ssaop.OpZeroExt8to64)
 	default:
 		v.Fatalf("bad int size %d", v.Type.Size())
 	}
@@ -345,7 +348,7 @@ func phioptint(v *Value, b0 *Block, reverse int) {
 // reverse is the predecessor from which the truth value comes.
 func convertPhi(b *Block, v *Value, reverse int) {
 	f := b.Func
-	ops := [2]Op{OpNot, OpCopy}
+	ops := [2]ssaop.Op{ssaop.OpNot, ssaop.OpCopy}
 	v.Reset(ops[v.Args[reverse].AuxInt])
 	v.AddArg(b.Controls[0])
 	if f.Pass.Debug > 0 {

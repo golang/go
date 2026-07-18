@@ -8,6 +8,7 @@ package ssa
 
 import (
 	"cmd/compile/internal/ir"
+	"cmd/compile/internal/ssa/ssaop"
 	"cmd/compile/internal/types"
 	"cmd/internal/src"
 	"fmt"
@@ -128,7 +129,7 @@ func (s *StackAllocState) Init(f *Func, spillLive [][]ID) {
 			if f.Pass.Debug > StackDebug && s.values[v.ID].needSlot {
 				fmt.Printf("%s needs a stack slot\n", v)
 			}
-			if v.Op == OpStoreReg {
+			if v.Op == ssaop.OpStoreReg {
 				s.values[v.Args[0].ID].spill = v
 			}
 		}
@@ -158,7 +159,7 @@ func (s *StackAllocState) Stackalloc() {
 		// Note: not "range f.NamedValues" above, because
 		// that would be nondeterministic.
 		for _, v := range f.NamedValues[name] {
-			if v.Op == OpArgIntReg || v.Op == OpArgFloatReg {
+			if v.Op == ssaop.OpArgIntReg || v.Op == ssaop.OpArgFloatReg {
 				aux := v.Aux.(*AuxNameOffset)
 				// Never let an arg be bound to a differently named thing.
 				if name.N != aux.Name || name.Off != aux.Offset {
@@ -167,7 +168,7 @@ func (s *StackAllocState) Stackalloc() {
 					}
 					continue
 				}
-			} else if name.N.Class == ir.PPARAM && v.Op != OpArg {
+			} else if name.N.Class == ir.PPARAM && v.Op != ssaop.OpArg {
 				// PPARAM's only bind to OpArg
 				if f.Pass.Debug > StackDebug {
 					fmt.Printf("stackalloc PPARAM name %s skipping non-Arg %s\n", name, v)
@@ -192,7 +193,7 @@ func (s *StackAllocState) Stackalloc() {
 		if v.Aux == nil {
 			f.Fatalf("%s has nil Aux\n", v.LongString())
 		}
-		if v.Op == OpArg {
+		if v.Op == ssaop.OpArg {
 			loc := LocalSlot{N: v.Aux.(*ir.Name), Type: v.Type, Off: v.AuxInt}
 			if f.Pass.Debug > StackDebug {
 				fmt.Printf("stackalloc OpArg %s to %s\n", v, loc)
@@ -253,7 +254,7 @@ func (s *StackAllocState) Stackalloc() {
 			// If this is a named value, try to use the name as
 			// the spill location.
 			var name LocalSlot
-			if v.Op == OpStoreReg {
+			if v.Op == ssaop.OpStoreReg {
 				name = names[v.Args[0].ID]
 			} else {
 				name = names[v.ID]
@@ -333,7 +334,7 @@ func (s *StackAllocState) computeLive(spillLive [][]ID) {
 				val := &s.values[a.ID]
 				useBlock := b
 				forceLiveout := false
-				if v.Op == OpPhi {
+				if v.Op == ssaop.OpPhi {
 					useBlock = b.Preds[i].B
 					forceLiveout = true
 					if spill := val.spill; spill != nil {
@@ -480,5 +481,5 @@ func (s *StackAllocState) buildInterferenceGraph() {
 }
 
 func hasAnyArgOp(v *Value) bool {
-	return v.Op == OpArg || v.Op == OpArgIntReg || v.Op == OpArgFloatReg
+	return v.Op == ssaop.OpArg || v.Op == ssaop.OpArgIntReg || v.Op == ssaop.OpArgFloatReg
 }

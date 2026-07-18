@@ -3,26 +3,27 @@
 package ssa
 
 import "internal/buildcfg"
+import "cmd/compile/internal/ssa/ssaop"
 
 func rewriteValueAMD64latelower(v *Value) bool {
 	switch v.Op {
-	case OpAMD64MOVBQZX:
+	case ssaop.OpAMD64MOVBQZX:
 		return rewriteValueAMD64latelower_OpAMD64MOVBQZX(v)
-	case OpAMD64MOVLQZX:
+	case ssaop.OpAMD64MOVLQZX:
 		return rewriteValueAMD64latelower_OpAMD64MOVLQZX(v)
-	case OpAMD64MOVWQZX:
+	case ssaop.OpAMD64MOVWQZX:
 		return rewriteValueAMD64latelower_OpAMD64MOVWQZX(v)
-	case OpAMD64SARL:
+	case ssaop.OpAMD64SARL:
 		return rewriteValueAMD64latelower_OpAMD64SARL(v)
-	case OpAMD64SARQ:
+	case ssaop.OpAMD64SARQ:
 		return rewriteValueAMD64latelower_OpAMD64SARQ(v)
-	case OpAMD64SHLL:
+	case ssaop.OpAMD64SHLL:
 		return rewriteValueAMD64latelower_OpAMD64SHLL(v)
-	case OpAMD64SHLQ:
+	case ssaop.OpAMD64SHLQ:
 		return rewriteValueAMD64latelower_OpAMD64SHLQ(v)
-	case OpAMD64SHRL:
+	case ssaop.OpAMD64SHRL:
 		return rewriteValueAMD64latelower_OpAMD64SHRL(v)
-	case OpAMD64SHRQ:
+	case ssaop.OpAMD64SHRQ:
 		return rewriteValueAMD64latelower_OpAMD64SHRQ(v)
 	}
 	return false
@@ -84,7 +85,7 @@ func rewriteValueAMD64latelower_OpAMD64SARL(v *Value) bool {
 		if !(buildcfg.GOAMD64 >= 3) {
 			break
 		}
-		v.Reset(OpAMD64SARXL)
+		v.Reset(ssaop.OpAMD64SARXL)
 		v.AddArg2(x, y)
 		return true
 	}
@@ -102,7 +103,7 @@ func rewriteValueAMD64latelower_OpAMD64SARQ(v *Value) bool {
 		if !(buildcfg.GOAMD64 >= 3) {
 			break
 		}
-		v.Reset(OpAMD64SARXQ)
+		v.Reset(ssaop.OpAMD64SARXQ)
 		v.AddArg2(x, y)
 		return true
 	}
@@ -120,7 +121,7 @@ func rewriteValueAMD64latelower_OpAMD64SHLL(v *Value) bool {
 		if !(buildcfg.GOAMD64 >= 3) {
 			break
 		}
-		v.Reset(OpAMD64SHLXL)
+		v.Reset(ssaop.OpAMD64SHLXL)
 		v.AddArg2(x, y)
 		return true
 	}
@@ -138,7 +139,7 @@ func rewriteValueAMD64latelower_OpAMD64SHLQ(v *Value) bool {
 		if !(buildcfg.GOAMD64 >= 3) {
 			break
 		}
-		v.Reset(OpAMD64SHLXQ)
+		v.Reset(ssaop.OpAMD64SHLXQ)
 		v.AddArg2(x, y)
 		return true
 	}
@@ -156,7 +157,7 @@ func rewriteValueAMD64latelower_OpAMD64SHRL(v *Value) bool {
 		if !(buildcfg.GOAMD64 >= 3) {
 			break
 		}
-		v.Reset(OpAMD64SHRXL)
+		v.Reset(ssaop.OpAMD64SHRXL)
 		v.AddArg2(x, y)
 		return true
 	}
@@ -174,7 +175,7 @@ func rewriteValueAMD64latelower_OpAMD64SHRQ(v *Value) bool {
 		if !(buildcfg.GOAMD64 >= 3) {
 			break
 		}
-		v.Reset(OpAMD64SHRXQ)
+		v.Reset(ssaop.OpAMD64SHRXQ)
 		v.AddArg2(x, y)
 		return true
 	}

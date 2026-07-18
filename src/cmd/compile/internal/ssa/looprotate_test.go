@@ -5,6 +5,7 @@
 package ssa
 
 import (
+	"cmd/compile/internal/ssa/ssaop"
 	"cmd/compile/internal/types"
 	"testing"
 )
@@ -13,8 +14,8 @@ func TestLoopRotateNested(t *testing.T) {
 	c := testConfig(t)
 	fun := c.Fun("entry",
 		Bloc("entry",
-			Valu("mem", OpInitMem, types.TypeMem, 0, nil),
-			Valu("constTrue", OpConstBool, types.Types[types.TBOOL], 1, nil),
+			Valu("mem", ssaop.OpInitMem, types.TypeMem, 0, nil),
+			Valu("constTrue", ssaop.OpConstBool, types.Types[types.TBOOL], 1, nil),
 			Goto("outerHeader")),
 		Bloc("outerHeader",
 			If("constTrue", "outerBody", "outerExit")),

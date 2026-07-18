@@ -265,7 +265,7 @@
 (LocalAddr <t> {sym} base _)  && !t.Elem().HasPointers() => (MOVDaddr {sym} base)
 (OffPtr [off] ptr) => (ADD (MOVDconst <typ.Int64> [off]) ptr)
 (MOVDaddr {sym} [n] p:(ADD x y)) && sym == nil && n == 0 => p
-(MOVDaddr {sym} [n] ptr) && sym == nil && n == 0 && (ptr.Op == OpArgIntReg || ptr.Op == OpPhi) => ptr
+(MOVDaddr {sym} [n] ptr) && sym == nil && n == 0 && (ptr.Op == ssaop.OpArgIntReg || ptr.Op == ssaop.OpPhi) => ptr
 
 (Ctz(64|32|16|8)NonZero ...) => (Ctz64 ...)
 
@@ -771,21 +771,21 @@
 // the temp register. So don't fold address of global in that case if there is more than
 // one use.
 (MOV(B|H|W|D)store [off1] {sym1} p:(MOVDaddr [off2] {sym2} ptr) val mem) && CanMergeSym(sym1,sym2)
-	&& ((Is16Bit(int64(off1+off2)) && (ptr.Op != OpSB || p.Uses == 1)) || (SupportsPPC64PCRel() && Is32Bit(int64(off1+off2)))) =>
+	&& ((Is16Bit(int64(off1+off2)) && (ptr.Op != ssaop.OpSB || p.Uses == 1)) || (SupportsPPC64PCRel() && Is32Bit(int64(off1+off2)))) =>
         (MOV(B|H|W|D)store [off1+off2] {MergeSym(sym1,sym2)} ptr val mem)
 
 (FMOV(S|D)store [off1] {sym1} p:(MOVDaddr [off2] {sym2} ptr) val mem) && CanMergeSym(sym1,sym2)
-	&& ((Is16Bit(int64(off1+off2)) && (ptr.Op != OpSB || p.Uses == 1)) || (SupportsPPC64PCRel() && Is32Bit(int64(off1+off2)))) =>
+	&& ((Is16Bit(int64(off1+off2)) && (ptr.Op != ssaop.OpSB || p.Uses == 1)) || (SupportsPPC64PCRel() && Is32Bit(int64(off1+off2)))) =>
         (FMOV(S|D)store [off1+off2] {MergeSym(sym1,sym2)} ptr val mem)
 
 (MOV(B|H|W)Zload [off1] {sym1} p:(MOVDaddr [off2] {sym2} ptr) mem) && CanMergeSym(sym1,sym2)
-	&& ((Is16Bit(int64(off1+off2)) && (ptr.Op != OpSB || p.Uses == 1)) || (SupportsPPC64PCRel() && Is32Bit(int64(off1+off2)))) =>
+	&& ((Is16Bit(int64(off1+off2)) && (ptr.Op != ssaop.OpSB || p.Uses == 1)) || (SupportsPPC64PCRel() && Is32Bit(int64(off1+off2)))) =>
         (MOV(B|H|W)Zload [off1+off2] {MergeSym(sym1,sym2)} ptr mem)
 (MOV(H|W|D)load [off1] {sym1} p:(MOVDaddr [off2] {sym2} ptr) mem) && CanMergeSym(sym1,sym2)
-	&& ((Is16Bit(int64(off1+off2)) && (ptr.Op != OpSB || p.Uses == 1)) || (SupportsPPC64PCRel() && Is32Bit(int64(off1+off2)))) =>
+	&& ((Is16Bit(int64(off1+off2)) && (ptr.Op != ssaop.OpSB || p.Uses == 1)) || (SupportsPPC64PCRel() && Is32Bit(int64(off1+off2)))) =>
         (MOV(H|W|D)load [off1+off2] {MergeSym(sym1,sym2)} ptr mem)
 (FMOV(S|D)load [off1] {sym1} p:(MOVDaddr [off2] {sym2} ptr) mem) && CanMergeSym(sym1,sym2)
-	&& ((Is16Bit(int64(off1+off2)) && (ptr.Op != OpSB || p.Uses == 1)) || (SupportsPPC64PCRel() && Is32Bit(int64(off1+off2)))) =>
+	&& ((Is16Bit(int64(off1+off2)) && (ptr.Op != ssaop.OpSB || p.Uses == 1)) || (SupportsPPC64PCRel() && Is32Bit(int64(off1+off2)))) =>
         (FMOV(S|D)load [off1+off2] {MergeSym(sym1,sym2)} ptr mem)
 
 // Fold offsets for loads.
@@ -820,7 +820,7 @@
 
 // Fold symbols into storezero
 (MOV(D|W|H|B)storezero [off1] {sym1} p:(MOVDaddr [off2] {sym2} x) mem) && CanMergeSym(sym1,sym2)
-	&& ((Is16Bit(int64(off1+off2)) && (x.Op != OpSB || p.Uses == 1)) || (SupportsPPC64PCRel() && Is32Bit(int64(off1+off2)))) =>
+	&& ((Is16Bit(int64(off1+off2)) && (x.Op != ssaop.OpSB || p.Uses == 1)) || (SupportsPPC64PCRel() && Is32Bit(int64(off1+off2)))) =>
     (MOV(D|W|H|B)storezero [off1+off2] {MergeSym(sym1,sym2)} x mem)
 
 // atomic intrinsics

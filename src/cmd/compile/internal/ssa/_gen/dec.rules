@@ -80,7 +80,7 @@
 
 // interface ops
 (ITab (IMake itab _)) => itab
-(IData (IMake _ data)) && data.Op != OpStructMake && data.Op != OpArrayMake1 => data
+(IData (IMake _ data)) && data.Op != ssaop.OpStructMake && data.Op != ssaop.OpArrayMake1 => data
 // Note: the conditional on data.Op ensures that StructMake/ArrayMake1 ops are
 // unwrapped before the IMake is thrown away. See issue 77534.
 

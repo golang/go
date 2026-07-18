@@ -5,6 +5,7 @@
 package ssa
 
 import (
+	"cmd/compile/internal/ssa/ssaop"
 	"cmd/compile/internal/types"
 	"cmd/internal/src"
 	"cmp"
@@ -102,7 +103,7 @@ func cse(f *Func) {
 		for i := 0; i < len(partition); i++ {
 			e := partition[i]
 
-			if OpcodeTable[e[0].Op].Commutative {
+			if ssaop.OpcodeTable[e[0].Op].Commutative {
 				// Order the first two args before comparison.
 				for _, v := range e {
 					if valueEqClass[v.Args[0].ID] > valueEqClass[v.Args[1].ID] {
@@ -144,7 +145,7 @@ func cse(f *Func) {
 				eqArgs := true
 				_, idxMem, _, _ := isMemUser(v)
 				for k, a := range v.Args {
-					if v.Op == OpLocalAddr && k == 1 {
+					if v.Op == ssaop.OpLocalAddr && k == 1 {
 						continue
 					}
 					var aId, bId ID
@@ -220,7 +221,7 @@ func cse(f *Func) {
 					return c
 				}
 			}
-			if v.Op == OpLocalAddr {
+			if v.Op == ssaop.OpLocalAddr {
 				// compare the memory args for OpLocalAddrs in the same block
 				vm := v.Args[1]
 				wm := w.Args[1]
@@ -290,7 +291,7 @@ func cse(f *Func) {
 		for _, v := range b.Values {
 			for i, w := range v.Args {
 				if x := rewrite[w.ID]; x != nil {
-					if w.Pos.IsStmt() == src.PosIsStmt && w.Op != OpNilCheck {
+					if w.Pos.IsStmt() == src.PosIsStmt && w.Op != ssaop.OpNilCheck {
 						// about to lose a statement marker, w
 						// w is an input to v; if they're in the same block
 						// and the same line, v is a good-enough new statement boundary.
@@ -306,7 +307,7 @@ func cse(f *Func) {
 		}
 		for i, v := range b.ControlValues() {
 			if x := rewrite[v.ID]; x != nil {
-				if v.Op == OpNilCheck {
+				if v.Op == ssaop.OpNilCheck {
 					// nilcheck pass will remove the nil checks and log
 					// them appropriately, so don't mess with them here.
 					continue
@@ -334,7 +335,7 @@ func storeOrdering(v *Value, cache []int32) int32 {
 			score += s
 			break
 		}
-		if w.Op == OpPhi || w.Op == OpInitMem {
+		if w.Op == ssaop.OpPhi || w.Op == ssaop.OpInitMem {
 			break
 		}
 		a := w.MemoryArg()
@@ -427,7 +428,7 @@ func cmpVal(v, w *Value, auxIDs AuxMap) types.Cmp {
 	if len(v.Args) != len(w.Args) {
 		return lt2Cmp(len(v.Args) < len(w.Args))
 	}
-	if v.Op == OpPhi && v.Block != w.Block {
+	if v.Op == ssaop.OpPhi && v.Block != w.Block {
 		return lt2Cmp(v.Block.ID < w.Block.ID)
 	}
 	if v.Type.IsMemory() {
@@ -438,7 +439,7 @@ func cmpVal(v, w *Value, auxIDs AuxMap) types.Cmp {
 	// OpSelect is a pseudo-op. We need to be more aggressive
 	// regarding CSE to keep multiple OpSelect's of the same
 	// argument from existing.
-	if v.Op != OpSelect0 && v.Op != OpSelect1 && v.Op != OpSelectN {
+	if v.Op != ssaop.OpSelect0 && v.Op != ssaop.OpSelect1 && v.Op != ssaop.OpSelectN {
 		if tc := v.Type.Compare(w.Type); tc != types.CMPeq {
 			return tc
 		}
@@ -461,9 +462,9 @@ func cmpVal(v, w *Value, auxIDs AuxMap) types.Cmp {
 // Return index of pointer argument, index of "memory" argument, the access width and true on such instructions, otherwise return (-1, -1, 0, false).
 func isMemUser(v *Value) (int, int, int64, bool) {
 	switch v.Op {
-	case OpLoad:
+	case ssaop.OpLoad:
 		return 0, 1, v.Type.Size(), true
-	case OpNilCheck:
+	case ssaop.OpNilCheck:
 		return 0, 1, 0, true
 	default:
 		return -1, -1, 0, false
@@ -475,11 +476,11 @@ func isMemUser(v *Value) (int, int, int64, bool) {
 // If the access width is 0, the pointer index may be -1 (no pointer operand is needed).
 func isMemDef(v *Value) (int, int, int64, bool) {
 	switch v.Op {
-	case OpStore:
+	case ssaop.OpStore:
 		return 0, 2, AuxToType(v.Aux).Size(), true
-	case OpVarDef:
+	case ssaop.OpVarDef:
 		return -1, 0, 0, true
-	case OpZero:
+	case ssaop.OpZero:
 		return 0, 1, v.AuxInt, true
 	default:
 		return -1, -1, 0, false

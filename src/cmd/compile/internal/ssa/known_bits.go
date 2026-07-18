@@ -9,6 +9,7 @@ import (
 	"strings"
 
 	"cmd/compile/internal/ssa/block"
+	"cmd/compile/internal/ssa/ssaop"
 )
 
 func (kb *knownBitsState) fold(v *Value) (value, known int64) {
@@ -52,30 +53,30 @@ func (kb *knownBitsState) fold(v *Value) (value, known int64) {
 
 	switch v.Op {
 	// TODO: rotates, ...
-	case OpConst64, OpConst32, OpConst16, OpConst8, OpConstBool:
+	case ssaop.OpConst64, ssaop.OpConst32, ssaop.OpConst16, ssaop.OpConst8, ssaop.OpConstBool:
 		return v.AuxInt, -1
-	case OpAnd64, OpAnd32, OpAnd16, OpAnd8, OpAndB:
+	case ssaop.OpAnd64, ssaop.OpAnd32, ssaop.OpAnd16, ssaop.OpAnd8, ssaop.OpAndB:
 		x, xk := kb.fold(v.Args[0])
 		y, yk := kb.fold(v.Args[1])
 		onesInBoth := x & y
 		zerosInX := ^x & xk
 		zerosInY := ^y & yk
 		return x & y, onesInBoth | zerosInX | zerosInY
-	case OpOr64, OpOr32, OpOr16, OpOr8, OpOrB:
+	case ssaop.OpOr64, ssaop.OpOr32, ssaop.OpOr16, ssaop.OpOr8, ssaop.OpOrB:
 		x, xk := kb.fold(v.Args[0])
 		y, yk := kb.fold(v.Args[1])
 		zerosInBoth := ^x & ^y & (xk & yk)
 		onesInX := x
 		onesInY := y
 		return x | y, onesInX | onesInY | zerosInBoth
-	case OpXor64, OpXor32, OpXor16, OpXor8:
+	case ssaop.OpXor64, ssaop.OpXor32, ssaop.OpXor16, ssaop.OpXor8:
 		x, xk := kb.fold(v.Args[0])
 		y, yk := kb.fold(v.Args[1])
 		return x ^ y, xk & yk
-	case OpCom64, OpCom32, OpCom16, OpCom8, OpNot:
+	case ssaop.OpCom64, ssaop.OpCom32, ssaop.OpCom16, ssaop.OpCom8, ssaop.OpNot:
 		x, xk := kb.fold(v.Args[0])
 		return ^x, xk
-	case OpPhi:
+	case ssaop.OpPhi:
 		set := false
 		for i, arg := range v.Args {
 			if !kb.isLiveInEdge(v.Block, uint(i)) {
@@ -94,13 +95,13 @@ func (kb *knownBitsState) fold(v *Value) (value, known int64) {
 			}
 		}
 		return value, known
-	case OpCopy, OpCvtBoolToUint8,
-		OpSignExt8to16, OpSignExt8to32, OpSignExt8to64, OpSignExt16to32, OpSignExt16to64, OpSignExt32to64,
+	case ssaop.OpCopy, ssaop.OpCvtBoolToUint8,
+		ssaop.OpSignExt8to16, ssaop.OpSignExt8to32, ssaop.OpSignExt8to64, ssaop.OpSignExt16to32, ssaop.OpSignExt16to64, ssaop.OpSignExt32to64,
 		// The defer block handles maintaining the sign-extension invariant using v.Type.Size()
 		// thus we can just pass Truncs as-is.
-		OpTrunc64to32, OpTrunc64to16, OpTrunc64to8, OpTrunc32to16, OpTrunc32to8, OpTrunc16to8:
+		ssaop.OpTrunc64to32, ssaop.OpTrunc64to16, ssaop.OpTrunc64to8, ssaop.OpTrunc32to16, ssaop.OpTrunc32to8, ssaop.OpTrunc16to8:
 		return kb.fold(v.Args[0])
-	case OpEq64, OpEq32, OpEq16, OpEq8, OpEqB:
+	case ssaop.OpEq64, ssaop.OpEq32, ssaop.OpEq16, ssaop.OpEq8, ssaop.OpEqB:
 		x, xk := kb.fold(v.Args[0])
 		y, yk := kb.fold(v.Args[1])
 		differentBits := x ^ y
@@ -111,7 +112,7 @@ func (kb *knownBitsState) fold(v *Value) (value, known int64) {
 			return BoolToAuxInt(x == y), -1
 		}
 		return 0, -1 << 1
-	case OpNeq64, OpNeq32, OpNeq16, OpNeq8, OpNeqB:
+	case ssaop.OpNeq64, ssaop.OpNeq32, ssaop.OpNeq16, ssaop.OpNeq8, ssaop.OpNeqB:
 		x, xk := kb.fold(v.Args[0])
 		y, yk := kb.fold(v.Args[1])
 		differentBits := x ^ y
@@ -122,31 +123,31 @@ func (kb *knownBitsState) fold(v *Value) (value, known int64) {
 			return BoolToAuxInt(x != y), -1
 		}
 		return 0, -1 << 1
-	case OpZeroExt8to16, OpZeroExt8to32, OpZeroExt8to64, OpZeroExt16to32, OpZeroExt16to64, OpZeroExt32to64:
+	case ssaop.OpZeroExt8to16, ssaop.OpZeroExt8to32, ssaop.OpZeroExt8to64, ssaop.OpZeroExt16to32, ssaop.OpZeroExt16to64, ssaop.OpZeroExt32to64:
 		x, k := kb.fold(v.Args[0])
 		srcSize := v.Args[0].Type.Size() * 8
 		mask := int64(1<<srcSize - 1)
 		return x & mask, k | ^mask
-	case OpLsh8x8, OpLsh16x8, OpLsh32x8, OpLsh64x8,
-		OpLsh8x16, OpLsh16x16, OpLsh32x16, OpLsh64x16,
-		OpLsh8x32, OpLsh16x32, OpLsh32x32, OpLsh64x32,
-		OpLsh8x64, OpLsh16x64, OpLsh32x64, OpLsh64x64:
+	case ssaop.OpLsh8x8, ssaop.OpLsh16x8, ssaop.OpLsh32x8, ssaop.OpLsh64x8,
+		ssaop.OpLsh8x16, ssaop.OpLsh16x16, ssaop.OpLsh32x16, ssaop.OpLsh64x16,
+		ssaop.OpLsh8x32, ssaop.OpLsh16x32, ssaop.OpLsh32x32, ssaop.OpLsh64x32,
+		ssaop.OpLsh8x64, ssaop.OpLsh16x64, ssaop.OpLsh32x64, ssaop.OpLsh64x64:
 		return kb.computeKnownBitsForShift(v, func(x, xk, xSize, shift int64) (value, known int64) {
 			return x << shift, xk<<shift | (1<<shift - 1)
 		})
-	case OpRsh8Ux8, OpRsh16Ux8, OpRsh32Ux8, OpRsh64Ux8,
-		OpRsh8Ux16, OpRsh16Ux16, OpRsh32Ux16, OpRsh64Ux16,
-		OpRsh8Ux32, OpRsh16Ux32, OpRsh32Ux32, OpRsh64Ux32,
-		OpRsh8Ux64, OpRsh16Ux64, OpRsh32Ux64, OpRsh64Ux64:
+	case ssaop.OpRsh8Ux8, ssaop.OpRsh16Ux8, ssaop.OpRsh32Ux8, ssaop.OpRsh64Ux8,
+		ssaop.OpRsh8Ux16, ssaop.OpRsh16Ux16, ssaop.OpRsh32Ux16, ssaop.OpRsh64Ux16,
+		ssaop.OpRsh8Ux32, ssaop.OpRsh16Ux32, ssaop.OpRsh32Ux32, ssaop.OpRsh64Ux32,
+		ssaop.OpRsh8Ux64, ssaop.OpRsh16Ux64, ssaop.OpRsh32Ux64, ssaop.OpRsh64Ux64:
 		return kb.computeKnownBitsForShift(v, func(x, xk, xSize, shift int64) (value, known int64) {
 			x &= (1<<xSize - 1)
 			xk |= -1 << xSize
 			return int64(uint64(x) >> shift), int64(uint64(xk)>>shift | (^uint64(0) << (64 - shift)))
 		})
-	case OpRsh8x8, OpRsh16x8, OpRsh32x8, OpRsh64x8,
-		OpRsh8x16, OpRsh16x16, OpRsh32x16, OpRsh64x16,
-		OpRsh8x32, OpRsh16x32, OpRsh32x32, OpRsh64x32,
-		OpRsh8x64, OpRsh16x64, OpRsh32x64, OpRsh64x64:
+	case ssaop.OpRsh8x8, ssaop.OpRsh16x8, ssaop.OpRsh32x8, ssaop.OpRsh64x8,
+		ssaop.OpRsh8x16, ssaop.OpRsh16x16, ssaop.OpRsh32x16, ssaop.OpRsh64x16,
+		ssaop.OpRsh8x32, ssaop.OpRsh16x32, ssaop.OpRsh32x32, ssaop.OpRsh64x32,
+		ssaop.OpRsh8x64, ssaop.OpRsh16x64, ssaop.OpRsh32x64, ssaop.OpRsh64x64:
 		return kb.computeKnownBitsForShift(v, func(x, xk, xSize, shift int64) (value, known int64) {
 			return x >> shift, xk >> shift
 		})
@@ -183,7 +184,7 @@ func KnownBits(f *Func) {
 				continue
 			}
 			switch v.Op {
-			case OpConst64, OpConst32, OpConst16, OpConst8, OpConstBool:
+			case ssaop.OpConst64, ssaop.OpConst32, ssaop.OpConst16, ssaop.OpConst8, ssaop.OpConstBool:
 				continue
 			}
 			val, k := kb.fold(v)

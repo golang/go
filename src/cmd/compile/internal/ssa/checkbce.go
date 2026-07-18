@@ -7,6 +7,7 @@ package ssa
 import (
 	"cmd/compile/internal/logopt"
 	"cmd/compile/internal/ssa/block"
+	"cmd/compile/internal/ssa/ssaop"
 )
 
 // checkbce prints all bounds checks that are present in the function.
@@ -23,15 +24,15 @@ func checkbce(f *Func) {
 			continue
 		}
 		for _, v := range b.Values {
-			if v.Op == OpIsInBounds || v.Op == OpIsSliceInBounds {
+			if v.Op == ssaop.OpIsInBounds || v.Op == ssaop.OpIsSliceInBounds {
 				if f.Pass.Debug > 0 {
 					f.Warnl(v.Pos, "Found %v", v.Op)
 				}
 				if logopt.Enabled() {
-					if v.Op == OpIsInBounds {
+					if v.Op == ssaop.OpIsInBounds {
 						logopt.LogOpt(v.Pos, "isInBounds", "checkbce", f.Name)
 					}
-					if v.Op == OpIsSliceInBounds {
+					if v.Op == ssaop.OpIsSliceInBounds {
 						logopt.LogOpt(v.Pos, "isSliceInBounds", "checkbce", f.Name)
 					}
 				}

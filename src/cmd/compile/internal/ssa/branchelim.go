@@ -6,6 +6,7 @@ package ssa
 
 import (
 	"cmd/compile/internal/ssa/block"
+	"cmd/compile/internal/ssa/ssaop"
 	"cmd/internal/src"
 )
 
@@ -35,9 +36,9 @@ func branchelim(f *Func) {
 	for _, b := range f.Blocks {
 		for _, v := range b.Values {
 			switch v.Op {
-			case OpLoad, OpAtomicLoad8, OpAtomicLoad32, OpAtomicLoad64, OpAtomicLoadPtr, OpAtomicLoadAcq32, OpAtomicLoadAcq64:
+			case ssaop.OpLoad, ssaop.OpAtomicLoad8, ssaop.OpAtomicLoad32, ssaop.OpAtomicLoad64, ssaop.OpAtomicLoadPtr, ssaop.OpAtomicLoadAcq32, ssaop.OpAtomicLoadAcq64:
 				loadAddr.Add(v.Args[0].ID)
-			case OpMove:
+			case ssaop.OpMove:
 				loadAddr.Add(v.Args[1].ID)
 			}
 		}
@@ -119,30 +120,30 @@ func canCondSelect(v *Value, arch string, loadAddr *SparseSet) bool {
 // there is no risk of an unlowerable value. Greater comparisons are
 // canonicalized to Less with swapped operands during SSA building, so only Less
 // needs to be matched here.
-func floatMinMaxSelOp(cond, trueVal, falseVal *Value) Op {
+func floatMinMaxSelOp(cond, trueVal, falseVal *Value) ssaop.Op {
 	switch trueVal.Block.Func.Config.Arch {
 	case "amd64", "arm64":
 	default:
-		return OpInvalid
+		return ssaop.OpInvalid
 	}
 	switch cond.Op {
-	case OpLess32F, OpLess64F:
+	case ssaop.OpLess32F, ssaop.OpLess64F:
 	default:
-		return OpInvalid
+		return ssaop.OpInvalid
 	}
 	min := trueVal == cond.Args[0] && falseVal == cond.Args[1]
 	max := trueVal == cond.Args[1] && falseVal == cond.Args[0]
 	switch {
 	case min && trueVal.Type.Size() == 8:
-		return OpMin64FSel
+		return ssaop.OpMin64FSel
 	case min && trueVal.Type.Size() == 4:
-		return OpMin32FSel
+		return ssaop.OpMin32FSel
 	case max && trueVal.Type.Size() == 8:
-		return OpMax64FSel
+		return ssaop.OpMax64FSel
 	case max && trueVal.Type.Size() == 4:
-		return OpMax32FSel
+		return ssaop.OpMax32FSel
 	}
-	return OpInvalid
+	return ssaop.OpInvalid
 }
 
 // canSelectPhi reports whether phi v can be rewritten as a CondSelect or a
@@ -156,7 +157,7 @@ func canSelectPhi(v *Value, loadAddr *SparseSet, cond *Value, swap bool) bool {
 	if swap {
 		trueVal, falseVal = falseVal, trueVal
 	}
-	return floatMinMaxSelOp(cond, trueVal, falseVal) != OpInvalid
+	return floatMinMaxSelOp(cond, trueVal, falseVal) != ssaop.OpInvalid
 }
 
 // rewritePhiAsSelect rewrites the eligible phi v (see canSelectPhi) into a
@@ -167,11 +168,11 @@ func rewritePhiAsSelect(v *Value, swap bool, cond *Value) {
 	if swap {
 		v.Args[0], v.Args[1] = v.Args[1], v.Args[0]
 	}
-	if op := floatMinMaxSelOp(cond, v.Args[0], v.Args[1]); op != OpInvalid {
+	if op := floatMinMaxSelOp(cond, v.Args[0], v.Args[1]); op != ssaop.OpInvalid {
 		v.Op = op
 		return
 	}
-	v.Op = OpCondSelect
+	v.Op = ssaop.OpCondSelect
 	v.AddArg(cond)
 }
 
@@ -209,7 +210,7 @@ func elimIf(f *Func, loadAddr *SparseSet, dom *Block) bool {
 	// can be safely rewritten to CondSelect.
 	hasphis := false
 	for _, v := range post.Values {
-		if v.Op == OpPhi {
+		if v.Op == ssaop.OpPhi {
 			hasphis = true
 			if !canSelectPhi(v, loadAddr, dom.Controls[0], swap) {
 				return false
@@ -230,7 +231,7 @@ func elimIf(f *Func, loadAddr *SparseSet, dom *Block) bool {
 		return false
 	}
 	for _, v := range post.Values {
-		if v.Op != OpPhi {
+		if v.Op != ssaop.OpPhi {
 			continue
 		}
 		rewritePhiAsSelect(v, swap, dom.Controls[0])
@@ -393,7 +394,7 @@ func elimIfElse(f *Func, loadAddr *SparseSet, b *Block) bool {
 	swap := post.Preds[0].Block() != b.Succs[0].Block()
 	hasphis := false
 	for _, v := range post.Values {
-		if v.Op == OpPhi {
+		if v.Op == ssaop.OpPhi {
 			hasphis = true
 			if !canSelectPhi(v, loadAddr, b.Controls[0], swap) {
 				return false
@@ -411,7 +412,7 @@ func elimIfElse(f *Func, loadAddr *SparseSet, b *Block) bool {
 
 	// now we're committed: rewrite each Phi as a select
 	for _, v := range post.Values {
-		if v.Op != OpPhi {
+		if v.Op != ssaop.OpPhi {
 			continue
 		}
 		rewritePhiAsSelect(v, swap, b.Controls[0])
@@ -460,7 +461,7 @@ func shouldElimIfElse(no, yes, post *Block, arch string) bool {
 		phi := 0
 		other := 0
 		for _, v := range post.Values {
-			if v.Op == OpPhi {
+			if v.Op == ssaop.OpPhi {
 				// Each phi results in CondSelect, which lowers into CMOV,
 				// CMOV has latency >1 on most CPUs.
 				phi++
@@ -494,40 +495,40 @@ func canSpeculativelyExecute(b *Block) bool {
 	// don't fuse memory ops, Phi ops, divides (can panic),
 	// or anything else with side-effects
 	for _, v := range b.Values {
-		if v.Op == OpPhi || isDivMod(v.Op) || isPtrArithmetic(v.Op) ||
-			v.Type.IsMemory() || OpcodeTable[v.Op].HasSideEffects {
+		if v.Op == ssaop.OpPhi || isDivMod(v.Op) || isPtrArithmetic(v.Op) ||
+			v.Type.IsMemory() || ssaop.OpcodeTable[v.Op].HasSideEffects {
 			return false
 		}
 
 		// Allow inlining markers to be speculatively executed
 		// even though they have a memory argument.
 		// See issue #74915.
-		if v.Op != OpInlMark && v.MemoryArg() != nil {
+		if v.Op != ssaop.OpInlMark && v.MemoryArg() != nil {
 			return false
 		}
 	}
 	return true
 }
 
-func isDivMod(op Op) bool {
+func isDivMod(op ssaop.Op) bool {
 	switch op {
-	case OpDiv8, OpDiv8u, OpDiv16, OpDiv16u,
-		OpDiv32, OpDiv32u, OpDiv64, OpDiv64u, OpDiv128u,
-		OpDiv32F, OpDiv64F,
-		OpMod8, OpMod8u, OpMod16, OpMod16u,
-		OpMod32, OpMod32u, OpMod64, OpMod64u:
+	case ssaop.OpDiv8, ssaop.OpDiv8u, ssaop.OpDiv16, ssaop.OpDiv16u,
+		ssaop.OpDiv32, ssaop.OpDiv32u, ssaop.OpDiv64, ssaop.OpDiv64u, ssaop.OpDiv128u,
+		ssaop.OpDiv32F, ssaop.OpDiv64F,
+		ssaop.OpMod8, ssaop.OpMod8u, ssaop.OpMod16, ssaop.OpMod16u,
+		ssaop.OpMod32, ssaop.OpMod32u, ssaop.OpMod64, ssaop.OpMod64u:
 		return true
 	default:
 		return false
 	}
 }
 
-func isPtrArithmetic(op Op) bool {
+func isPtrArithmetic(op ssaop.Op) bool {
 	// Pointer arithmetic can't be speculatively executed because the result
 	// may be an invalid pointer (if, for example, the condition is that the
 	// base pointer is not nil). See issue 56990.
 	switch op {
-	case OpOffPtr, OpAddPtr, OpSubPtr:
+	case ssaop.OpOffPtr, ssaop.OpAddPtr, ssaop.OpSubPtr:
 		return true
 	default:
 		return false

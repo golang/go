@@ -5,6 +5,7 @@
 package ssa
 
 import (
+	"cmd/compile/internal/ssa/ssaop"
 	"cmd/compile/internal/types"
 	"fmt"
 	"testing"
@@ -68,26 +69,26 @@ func genFunction(size int) []bloc {
 	valn := func(s string, m, n int) string { return fmt.Sprintf("%s%d-%d", s, m, n) }
 	blocs = append(blocs,
 		Bloc("entry",
-			Valu(valn("store", 0, 4), OpInitMem, types.TypeMem, 0, nil),
-			Valu("sb", OpSB, types.Types[types.TUINTPTR], 0, nil),
+			Valu(valn("store", 0, 4), ssaop.OpInitMem, types.TypeMem, 0, nil),
+			Valu("sb", ssaop.OpSB, types.Types[types.TUINTPTR], 0, nil),
 			Goto(blockn(1)),
 		),
 	)
 	for i := 1; i < size+1; i++ {
 		blocs = append(blocs, Bloc(blockn(i),
-			Valu(valn("v", i, 0), OpConstBool, types.Types[types.TBOOL], 1, nil),
-			Valu(valn("addr", i, 1), OpAddr, ptrType, 0, nil, "sb"),
-			Valu(valn("addr", i, 2), OpAddr, ptrType, 0, nil, "sb"),
-			Valu(valn("addr", i, 3), OpAddr, ptrType, 0, nil, "sb"),
-			Valu(valn("zero", i, 1), OpZero, types.TypeMem, 8, elemType, valn("addr", i, 3),
+			Valu(valn("v", i, 0), ssaop.OpConstBool, types.Types[types.TBOOL], 1, nil),
+			Valu(valn("addr", i, 1), ssaop.OpAddr, ptrType, 0, nil, "sb"),
+			Valu(valn("addr", i, 2), ssaop.OpAddr, ptrType, 0, nil, "sb"),
+			Valu(valn("addr", i, 3), ssaop.OpAddr, ptrType, 0, nil, "sb"),
+			Valu(valn("zero", i, 1), ssaop.OpZero, types.TypeMem, 8, elemType, valn("addr", i, 3),
 				valn("store", i-1, 4)),
-			Valu(valn("store", i, 1), OpStore, types.TypeMem, 0, elemType, valn("addr", i, 1),
+			Valu(valn("store", i, 1), ssaop.OpStore, types.TypeMem, 0, elemType, valn("addr", i, 1),
 				valn("v", i, 0), valn("zero", i, 1)),
-			Valu(valn("store", i, 2), OpStore, types.TypeMem, 0, elemType, valn("addr", i, 2),
+			Valu(valn("store", i, 2), ssaop.OpStore, types.TypeMem, 0, elemType, valn("addr", i, 2),
 				valn("v", i, 0), valn("store", i, 1)),
-			Valu(valn("store", i, 3), OpStore, types.TypeMem, 0, elemType, valn("addr", i, 1),
+			Valu(valn("store", i, 3), ssaop.OpStore, types.TypeMem, 0, elemType, valn("addr", i, 1),
 				valn("v", i, 0), valn("store", i, 2)),
-			Valu(valn("store", i, 4), OpStore, types.TypeMem, 0, elemType, valn("addr", i, 3),
+			Valu(valn("store", i, 4), ssaop.OpStore, types.TypeMem, 0, elemType, valn("addr", i, 3),
 				valn("v", i, 0), valn("store", i, 3)),
 			Goto(blockn(i+1))))
 	}

@@ -6,6 +6,7 @@ package ssa
 
 import (
 	"cmd/compile/internal/ssa/block"
+	"cmd/compile/internal/ssa/ssaop"
 	"cmd/compile/internal/types"
 	"testing"
 )
@@ -37,18 +38,18 @@ func TestBranchElimIf(t *testing.T) {
 			}
 			fun := c.Fun("entry",
 				Bloc("entry",
-					Valu("start", OpInitMem, types.TypeMem, 0, nil),
-					Valu("sb", OpSB, c.config.Types.Uintptr, 0, nil),
-					Valu("const1", OpConst32, intType, 1, nil),
-					Valu("const2", OpConst32, intType, 2, nil),
-					Valu("addr", OpAddr, boolType.PtrTo(), 0, nil, "sb"),
-					Valu("cond", OpLoad, boolType, 0, nil, "addr", "start"),
+					Valu("start", ssaop.OpInitMem, types.TypeMem, 0, nil),
+					Valu("sb", ssaop.OpSB, c.config.Types.Uintptr, 0, nil),
+					Valu("const1", ssaop.OpConst32, intType, 1, nil),
+					Valu("const2", ssaop.OpConst32, intType, 2, nil),
+					Valu("addr", ssaop.OpAddr, boolType.PtrTo(), 0, nil, "sb"),
+					Valu("cond", ssaop.OpLoad, boolType, 0, nil, "addr", "start"),
 					If("cond", "b2", "b3")),
 				Bloc("b2",
 					Goto("b3")),
 				Bloc("b3",
-					Valu("phi", OpPhi, intType, 0, nil, "const1", "const2"),
-					Valu("retstore", OpStore, types.TypeMem, 0, nil, "phi", "sb", "start"),
+					Valu("phi", ssaop.OpPhi, intType, 0, nil, "const1", "const2"),
+					Valu("retstore", ssaop.OpStore, types.TypeMem, 0, nil, "phi", "sb", "start"),
 					Exit("retstore")))
 
 			CheckFunc(fun.f)
@@ -62,7 +63,7 @@ func TestBranchElimIf(t *testing.T) {
 				if len(fun.f.Blocks) != 1 {
 					t.Fatalf("expected 1 block after branchelim and deadcode; found %d", len(fun.f.Blocks))
 				}
-				if fun.values["phi"].Op != OpCondSelect {
+				if fun.values["phi"].Op != ssaop.OpCondSelect {
 					t.Fatalf("expected phi op to be CondSelect; found op %s", fun.values["phi"].Op)
 				}
 				if fun.values["phi"].Args[2] != fun.values["cond"] {
@@ -89,20 +90,20 @@ func TestBranchElimIfElse(t *testing.T) {
 			intType := c.config.Types.Int32
 			fun := c.Fun("entry",
 				Bloc("entry",
-					Valu("start", OpInitMem, types.TypeMem, 0, nil),
-					Valu("sb", OpSB, c.config.Types.Uintptr, 0, nil),
-					Valu("const1", OpConst32, intType, 1, nil),
-					Valu("const2", OpConst32, intType, 2, nil),
-					Valu("addr", OpAddr, boolType.PtrTo(), 0, nil, "sb"),
-					Valu("cond", OpLoad, boolType, 0, nil, "addr", "start"),
+					Valu("start", ssaop.OpInitMem, types.TypeMem, 0, nil),
+					Valu("sb", ssaop.OpSB, c.config.Types.Uintptr, 0, nil),
+					Valu("const1", ssaop.OpConst32, intType, 1, nil),
+					Valu("const2", ssaop.OpConst32, intType, 2, nil),
+					Valu("addr", ssaop.OpAddr, boolType.PtrTo(), 0, nil, "sb"),
+					Valu("cond", ssaop.OpLoad, boolType, 0, nil, "addr", "start"),
 					If("cond", "b2", "b3")),
 				Bloc("b2",
 					Goto("b4")),
 				Bloc("b3",
 					Goto("b4")),
 				Bloc("b4",
-					Valu("phi", OpPhi, intType, 0, nil, "const1", "const2"),
-					Valu("retstore", OpStore, types.TypeMem, 0, nil, "phi", "sb", "start"),
+					Valu("phi", ssaop.OpPhi, intType, 0, nil, "const1", "const2"),
+					Valu("retstore", ssaop.OpStore, types.TypeMem, 0, nil, "phi", "sb", "start"),
 					Exit("retstore")))
 
 			CheckFunc(fun.f)
@@ -114,7 +115,7 @@ func TestBranchElimIfElse(t *testing.T) {
 			if len(fun.f.Blocks) != 1 {
 				t.Fatalf("expected 1 block after branchelim; found %d", len(fun.f.Blocks))
 			}
-			if fun.values["phi"].Op != OpCondSelect {
+			if fun.values["phi"].Op != ssaop.OpCondSelect {
 				t.Fatalf("expected phi op to be CondSelect; found op %s", fun.values["phi"].Op)
 			}
 			if fun.values["phi"].Args[2] != fun.values["cond"] {
@@ -141,15 +142,15 @@ func TestNoBranchElimLoop(t *testing.T) {
 			// way to arrive at a diamond CFG that is also a loop.
 			fun := c.Fun("entry",
 				Bloc("entry",
-					Valu("start", OpInitMem, types.TypeMem, 0, nil),
-					Valu("sb", OpSB, c.config.Types.Uintptr, 0, nil),
-					Valu("const2", OpConst32, intType, 2, nil),
-					Valu("const3", OpConst32, intType, 3, nil),
+					Valu("start", ssaop.OpInitMem, types.TypeMem, 0, nil),
+					Valu("sb", ssaop.OpSB, c.config.Types.Uintptr, 0, nil),
+					Valu("const2", ssaop.OpConst32, intType, 2, nil),
+					Valu("const3", ssaop.OpConst32, intType, 3, nil),
 					Goto("b5")),
 				Bloc("b2",
-					Valu("addr", OpAddr, boolType.PtrTo(), 0, nil, "sb"),
-					Valu("cond", OpLoad, boolType, 0, nil, "addr", "start"),
-					Valu("phi", OpPhi, intType, 0, nil, "const2", "const3"),
+					Valu("addr", ssaop.OpAddr, boolType.PtrTo(), 0, nil, "sb"),
+					Valu("cond", ssaop.OpLoad, boolType, 0, nil, "addr", "start"),
+					Valu("phi", ssaop.OpPhi, intType, 0, nil, "const2", "const3"),
 					If("cond", "b3", "b4")),
 				Bloc("b3",
 					Goto("b2")),
@@ -165,7 +166,7 @@ func TestNoBranchElimLoop(t *testing.T) {
 			if len(fun.f.Blocks) != 5 {
 				t.Errorf("expected 5 block after branchelim; found %d", len(fun.f.Blocks))
 			}
-			if fun.values["phi"].Op != OpPhi {
+			if fun.values["phi"].Op != ssaop.OpPhi {
 				t.Errorf("expected phi op to be CondSelect; found op %s", fun.values["phi"].Op)
 			}
 		})

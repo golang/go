@@ -5,730 +5,731 @@ package ssa
 import "math"
 import "cmd/compile/internal/types"
 import "cmd/compile/internal/ssa/block"
+import "cmd/compile/internal/ssa/ssaop"
 
 func rewriteValue386(v *Value) bool {
 	switch v.Op {
-	case Op386ADCL:
+	case ssaop.Op386ADCL:
 		return rewriteValue386_Op386ADCL(v)
-	case Op386ADDL:
+	case ssaop.Op386ADDL:
 		return rewriteValue386_Op386ADDL(v)
-	case Op386ADDLcarry:
+	case ssaop.Op386ADDLcarry:
 		return rewriteValue386_Op386ADDLcarry(v)
-	case Op386ADDLconst:
+	case ssaop.Op386ADDLconst:
 		return rewriteValue386_Op386ADDLconst(v)
-	case Op386ADDLconstmodify:
+	case ssaop.Op386ADDLconstmodify:
 		return rewriteValue386_Op386ADDLconstmodify(v)
-	case Op386ADDLload:
+	case ssaop.Op386ADDLload:
 		return rewriteValue386_Op386ADDLload(v)
-	case Op386ADDLmodify:
+	case ssaop.Op386ADDLmodify:
 		return rewriteValue386_Op386ADDLmodify(v)
-	case Op386ADDSD:
+	case ssaop.Op386ADDSD:
 		return rewriteValue386_Op386ADDSD(v)
-	case Op386ADDSDload:
+	case ssaop.Op386ADDSDload:
 		return rewriteValue386_Op386ADDSDload(v)
-	case Op386ADDSS:
+	case ssaop.Op386ADDSS:
 		return rewriteValue386_Op386ADDSS(v)
-	case Op386ADDSSload:
+	case ssaop.Op386ADDSSload:
 		return rewriteValue386_Op386ADDSSload(v)
-	case Op386ANDL:
+	case ssaop.Op386ANDL:
 		return rewriteValue386_Op386ANDL(v)
-	case Op386ANDLconst:
+	case ssaop.Op386ANDLconst:
 		return rewriteValue386_Op386ANDLconst(v)
-	case Op386ANDLconstmodify:
+	case ssaop.Op386ANDLconstmodify:
 		return rewriteValue386_Op386ANDLconstmodify(v)
-	case Op386ANDLload:
+	case ssaop.Op386ANDLload:
 		return rewriteValue386_Op386ANDLload(v)
-	case Op386ANDLmodify:
+	case ssaop.Op386ANDLmodify:
 		return rewriteValue386_Op386ANDLmodify(v)
-	case Op386CMPB:
+	case ssaop.Op386CMPB:
 		return rewriteValue386_Op386CMPB(v)
-	case Op386CMPBconst:
+	case ssaop.Op386CMPBconst:
 		return rewriteValue386_Op386CMPBconst(v)
-	case Op386CMPBload:
+	case ssaop.Op386CMPBload:
 		return rewriteValue386_Op386CMPBload(v)
-	case Op386CMPL:
+	case ssaop.Op386CMPL:
 		return rewriteValue386_Op386CMPL(v)
-	case Op386CMPLconst:
+	case ssaop.Op386CMPLconst:
 		return rewriteValue386_Op386CMPLconst(v)
-	case Op386CMPLload:
+	case ssaop.Op386CMPLload:
 		return rewriteValue386_Op386CMPLload(v)
-	case Op386CMPW:
+	case ssaop.Op386CMPW:
 		return rewriteValue386_Op386CMPW(v)
-	case Op386CMPWconst:
+	case ssaop.Op386CMPWconst:
 		return rewriteValue386_Op386CMPWconst(v)
-	case Op386CMPWload:
+	case ssaop.Op386CMPWload:
 		return rewriteValue386_Op386CMPWload(v)
-	case Op386DIVSD:
+	case ssaop.Op386DIVSD:
 		return rewriteValue386_Op386DIVSD(v)
-	case Op386DIVSDload:
+	case ssaop.Op386DIVSDload:
 		return rewriteValue386_Op386DIVSDload(v)
-	case Op386DIVSS:
+	case ssaop.Op386DIVSS:
 		return rewriteValue386_Op386DIVSS(v)
-	case Op386DIVSSload:
+	case ssaop.Op386DIVSSload:
 		return rewriteValue386_Op386DIVSSload(v)
-	case Op386LEAL:
+	case ssaop.Op386LEAL:
 		return rewriteValue386_Op386LEAL(v)
-	case Op386LEAL1:
+	case ssaop.Op386LEAL1:
 		return rewriteValue386_Op386LEAL1(v)
-	case Op386LEAL2:
+	case ssaop.Op386LEAL2:
 		return rewriteValue386_Op386LEAL2(v)
-	case Op386LEAL4:
+	case ssaop.Op386LEAL4:
 		return rewriteValue386_Op386LEAL4(v)
-	case Op386LEAL8:
+	case ssaop.Op386LEAL8:
 		return rewriteValue386_Op386LEAL8(v)
-	case Op386LoweredPanicBoundsRC:
+	case ssaop.Op386LoweredPanicBoundsRC:
 		return rewriteValue386_Op386LoweredPanicBoundsRC(v)
-	case Op386LoweredPanicBoundsRR:
+	case ssaop.Op386LoweredPanicBoundsRR:
 		return rewriteValue386_Op386LoweredPanicBoundsRR(v)
-	case Op386LoweredPanicExtendRC:
+	case ssaop.Op386LoweredPanicExtendRC:
 		return rewriteValue386_Op386LoweredPanicExtendRC(v)
-	case Op386LoweredPanicExtendRR:
+	case ssaop.Op386LoweredPanicExtendRR:
 		return rewriteValue386_Op386LoweredPanicExtendRR(v)
-	case Op386MOVBLSX:
+	case ssaop.Op386MOVBLSX:
 		return rewriteValue386_Op386MOVBLSX(v)
-	case Op386MOVBLSXload:
+	case ssaop.Op386MOVBLSXload:
 		return rewriteValue386_Op386MOVBLSXload(v)
-	case Op386MOVBLZX:
+	case ssaop.Op386MOVBLZX:
 		return rewriteValue386_Op386MOVBLZX(v)
-	case Op386MOVBload:
+	case ssaop.Op386MOVBload:
 		return rewriteValue386_Op386MOVBload(v)
-	case Op386MOVBstore:
+	case ssaop.Op386MOVBstore:
 		return rewriteValue386_Op386MOVBstore(v)
-	case Op386MOVBstoreconst:
+	case ssaop.Op386MOVBstoreconst:
 		return rewriteValue386_Op386MOVBstoreconst(v)
-	case Op386MOVLload:
+	case ssaop.Op386MOVLload:
 		return rewriteValue386_Op386MOVLload(v)
-	case Op386MOVLstore:
+	case ssaop.Op386MOVLstore:
 		return rewriteValue386_Op386MOVLstore(v)
-	case Op386MOVLstoreconst:
+	case ssaop.Op386MOVLstoreconst:
 		return rewriteValue386_Op386MOVLstoreconst(v)
-	case Op386MOVSDconst:
+	case ssaop.Op386MOVSDconst:
 		return rewriteValue386_Op386MOVSDconst(v)
-	case Op386MOVSDload:
+	case ssaop.Op386MOVSDload:
 		return rewriteValue386_Op386MOVSDload(v)
-	case Op386MOVSDstore:
+	case ssaop.Op386MOVSDstore:
 		return rewriteValue386_Op386MOVSDstore(v)
-	case Op386MOVSSconst:
+	case ssaop.Op386MOVSSconst:
 		return rewriteValue386_Op386MOVSSconst(v)
-	case Op386MOVSSload:
+	case ssaop.Op386MOVSSload:
 		return rewriteValue386_Op386MOVSSload(v)
-	case Op386MOVSSstore:
+	case ssaop.Op386MOVSSstore:
 		return rewriteValue386_Op386MOVSSstore(v)
-	case Op386MOVWLSX:
+	case ssaop.Op386MOVWLSX:
 		return rewriteValue386_Op386MOVWLSX(v)
-	case Op386MOVWLSXload:
+	case ssaop.Op386MOVWLSXload:
 		return rewriteValue386_Op386MOVWLSXload(v)
-	case Op386MOVWLZX:
+	case ssaop.Op386MOVWLZX:
 		return rewriteValue386_Op386MOVWLZX(v)
-	case Op386MOVWload:
+	case ssaop.Op386MOVWload:
 		return rewriteValue386_Op386MOVWload(v)
-	case Op386MOVWstore:
+	case ssaop.Op386MOVWstore:
 		return rewriteValue386_Op386MOVWstore(v)
-	case Op386MOVWstoreconst:
+	case ssaop.Op386MOVWstoreconst:
 		return rewriteValue386_Op386MOVWstoreconst(v)
-	case Op386MULL:
+	case ssaop.Op386MULL:
 		return rewriteValue386_Op386MULL(v)
-	case Op386MULLconst:
+	case ssaop.Op386MULLconst:
 		return rewriteValue386_Op386MULLconst(v)
-	case Op386MULLload:
+	case ssaop.Op386MULLload:
 		return rewriteValue386_Op386MULLload(v)
-	case Op386MULSD:
+	case ssaop.Op386MULSD:
 		return rewriteValue386_Op386MULSD(v)
-	case Op386MULSDload:
+	case ssaop.Op386MULSDload:
 		return rewriteValue386_Op386MULSDload(v)
-	case Op386MULSS:
+	case ssaop.Op386MULSS:
 		return rewriteValue386_Op386MULSS(v)
-	case Op386MULSSload:
+	case ssaop.Op386MULSSload:
 		return rewriteValue386_Op386MULSSload(v)
-	case Op386NEGL:
+	case ssaop.Op386NEGL:
 		return rewriteValue386_Op386NEGL(v)
-	case Op386NOTL:
+	case ssaop.Op386NOTL:
 		return rewriteValue386_Op386NOTL(v)
-	case Op386ORL:
+	case ssaop.Op386ORL:
 		return rewriteValue386_Op386ORL(v)
-	case Op386ORLconst:
+	case ssaop.Op386ORLconst:
 		return rewriteValue386_Op386ORLconst(v)
-	case Op386ORLconstmodify:
+	case ssaop.Op386ORLconstmodify:
 		return rewriteValue386_Op386ORLconstmodify(v)
-	case Op386ORLload:
+	case ssaop.Op386ORLload:
 		return rewriteValue386_Op386ORLload(v)
-	case Op386ORLmodify:
+	case ssaop.Op386ORLmodify:
 		return rewriteValue386_Op386ORLmodify(v)
-	case Op386ROLB:
+	case ssaop.Op386ROLB:
 		return rewriteValue386_Op386ROLB(v)
-	case Op386ROLBconst:
+	case ssaop.Op386ROLBconst:
 		return rewriteValue386_Op386ROLBconst(v)
-	case Op386ROLL:
+	case ssaop.Op386ROLL:
 		return rewriteValue386_Op386ROLL(v)
-	case Op386ROLLconst:
+	case ssaop.Op386ROLLconst:
 		return rewriteValue386_Op386ROLLconst(v)
-	case Op386ROLW:
+	case ssaop.Op386ROLW:
 		return rewriteValue386_Op386ROLW(v)
-	case Op386ROLWconst:
+	case ssaop.Op386ROLWconst:
 		return rewriteValue386_Op386ROLWconst(v)
-	case Op386SARB:
+	case ssaop.Op386SARB:
 		return rewriteValue386_Op386SARB(v)
-	case Op386SARBconst:
+	case ssaop.Op386SARBconst:
 		return rewriteValue386_Op386SARBconst(v)
-	case Op386SARL:
+	case ssaop.Op386SARL:
 		return rewriteValue386_Op386SARL(v)
-	case Op386SARLconst:
+	case ssaop.Op386SARLconst:
 		return rewriteValue386_Op386SARLconst(v)
-	case Op386SARW:
+	case ssaop.Op386SARW:
 		return rewriteValue386_Op386SARW(v)
-	case Op386SARWconst:
+	case ssaop.Op386SARWconst:
 		return rewriteValue386_Op386SARWconst(v)
-	case Op386SBBL:
+	case ssaop.Op386SBBL:
 		return rewriteValue386_Op386SBBL(v)
-	case Op386SBBLcarrymask:
+	case ssaop.Op386SBBLcarrymask:
 		return rewriteValue386_Op386SBBLcarrymask(v)
-	case Op386SETA:
+	case ssaop.Op386SETA:
 		return rewriteValue386_Op386SETA(v)
-	case Op386SETAE:
+	case ssaop.Op386SETAE:
 		return rewriteValue386_Op386SETAE(v)
-	case Op386SETB:
+	case ssaop.Op386SETB:
 		return rewriteValue386_Op386SETB(v)
-	case Op386SETBE:
+	case ssaop.Op386SETBE:
 		return rewriteValue386_Op386SETBE(v)
-	case Op386SETEQ:
+	case ssaop.Op386SETEQ:
 		return rewriteValue386_Op386SETEQ(v)
-	case Op386SETG:
+	case ssaop.Op386SETG:
 		return rewriteValue386_Op386SETG(v)
-	case Op386SETGE:
+	case ssaop.Op386SETGE:
 		return rewriteValue386_Op386SETGE(v)
-	case Op386SETL:
+	case ssaop.Op386SETL:
 		return rewriteValue386_Op386SETL(v)
-	case Op386SETLE:
+	case ssaop.Op386SETLE:
 		return rewriteValue386_Op386SETLE(v)
-	case Op386SETNE:
+	case ssaop.Op386SETNE:
 		return rewriteValue386_Op386SETNE(v)
-	case Op386SHLL:
+	case ssaop.Op386SHLL:
 		return rewriteValue386_Op386SHLL(v)
-	case Op386SHLLconst:
+	case ssaop.Op386SHLLconst:
 		return rewriteValue386_Op386SHLLconst(v)
-	case Op386SHRB:
+	case ssaop.Op386SHRB:
 		return rewriteValue386_Op386SHRB(v)
-	case Op386SHRBconst:
+	case ssaop.Op386SHRBconst:
 		return rewriteValue386_Op386SHRBconst(v)
-	case Op386SHRL:
+	case ssaop.Op386SHRL:
 		return rewriteValue386_Op386SHRL(v)
-	case Op386SHRLconst:
+	case ssaop.Op386SHRLconst:
 		return rewriteValue386_Op386SHRLconst(v)
-	case Op386SHRW:
+	case ssaop.Op386SHRW:
 		return rewriteValue386_Op386SHRW(v)
-	case Op386SHRWconst:
+	case ssaop.Op386SHRWconst:
 		return rewriteValue386_Op386SHRWconst(v)
-	case Op386SUBL:
+	case ssaop.Op386SUBL:
 		return rewriteValue386_Op386SUBL(v)
-	case Op386SUBLcarry:
+	case ssaop.Op386SUBLcarry:
 		return rewriteValue386_Op386SUBLcarry(v)
-	case Op386SUBLconst:
+	case ssaop.Op386SUBLconst:
 		return rewriteValue386_Op386SUBLconst(v)
-	case Op386SUBLload:
+	case ssaop.Op386SUBLload:
 		return rewriteValue386_Op386SUBLload(v)
-	case Op386SUBLmodify:
+	case ssaop.Op386SUBLmodify:
 		return rewriteValue386_Op386SUBLmodify(v)
-	case Op386SUBSD:
+	case ssaop.Op386SUBSD:
 		return rewriteValue386_Op386SUBSD(v)
-	case Op386SUBSDload:
+	case ssaop.Op386SUBSDload:
 		return rewriteValue386_Op386SUBSDload(v)
-	case Op386SUBSS:
+	case ssaop.Op386SUBSS:
 		return rewriteValue386_Op386SUBSS(v)
-	case Op386SUBSSload:
+	case ssaop.Op386SUBSSload:
 		return rewriteValue386_Op386SUBSSload(v)
-	case Op386XORL:
+	case ssaop.Op386XORL:
 		return rewriteValue386_Op386XORL(v)
-	case Op386XORLconst:
+	case ssaop.Op386XORLconst:
 		return rewriteValue386_Op386XORLconst(v)
-	case Op386XORLconstmodify:
+	case ssaop.Op386XORLconstmodify:
 		return rewriteValue386_Op386XORLconstmodify(v)
-	case Op386XORLload:
+	case ssaop.Op386XORLload:
 		return rewriteValue386_Op386XORLload(v)
-	case Op386XORLmodify:
+	case ssaop.Op386XORLmodify:
 		return rewriteValue386_Op386XORLmodify(v)
-	case OpAdd16:
-		v.Op = Op386ADDL
+	case ssaop.OpAdd16:
+		v.Op = ssaop.Op386ADDL
 		return true
-	case OpAdd32:
-		v.Op = Op386ADDL
+	case ssaop.OpAdd32:
+		v.Op = ssaop.Op386ADDL
 		return true
-	case OpAdd32F:
-		v.Op = Op386ADDSS
+	case ssaop.OpAdd32F:
+		v.Op = ssaop.Op386ADDSS
 		return true
-	case OpAdd32carry:
-		v.Op = Op386ADDLcarry
+	case ssaop.OpAdd32carry:
+		v.Op = ssaop.Op386ADDLcarry
 		return true
-	case OpAdd32carrywithcarry:
-		v.Op = Op386ADCLcarry
+	case ssaop.OpAdd32carrywithcarry:
+		v.Op = ssaop.Op386ADCLcarry
 		return true
-	case OpAdd32withcarry:
-		v.Op = Op386ADCL
+	case ssaop.OpAdd32withcarry:
+		v.Op = ssaop.Op386ADCL
 		return true
-	case OpAdd64F:
-		v.Op = Op386ADDSD
+	case ssaop.OpAdd64F:
+		v.Op = ssaop.Op386ADDSD
 		return true
-	case OpAdd8:
-		v.Op = Op386ADDL
+	case ssaop.OpAdd8:
+		v.Op = ssaop.Op386ADDL
 		return true
-	case OpAddPtr:
-		v.Op = Op386ADDL
+	case ssaop.OpAddPtr:
+		v.Op = ssaop.Op386ADDL
 		return true
-	case OpAddr:
+	case ssaop.OpAddr:
 		return rewriteValue386_OpAddr(v)
-	case OpAnd16:
-		v.Op = Op386ANDL
+	case ssaop.OpAnd16:
+		v.Op = ssaop.Op386ANDL
 		return true
-	case OpAnd32:
-		v.Op = Op386ANDL
+	case ssaop.OpAnd32:
+		v.Op = ssaop.Op386ANDL
 		return true
-	case OpAnd8:
-		v.Op = Op386ANDL
+	case ssaop.OpAnd8:
+		v.Op = ssaop.Op386ANDL
 		return true
-	case OpAndB:
-		v.Op = Op386ANDL
+	case ssaop.OpAndB:
+		v.Op = ssaop.Op386ANDL
 		return true
-	case OpAvg32u:
-		v.Op = Op386AVGLU
+	case ssaop.OpAvg32u:
+		v.Op = ssaop.Op386AVGLU
 		return true
-	case OpBswap16:
+	case ssaop.OpBswap16:
 		return rewriteValue386_OpBswap16(v)
-	case OpBswap32:
-		v.Op = Op386BSWAPL
+	case ssaop.OpBswap32:
+		v.Op = ssaop.Op386BSWAPL
 		return true
-	case OpClosureCall:
-		v.Op = Op386CALLclosure
+	case ssaop.OpClosureCall:
+		v.Op = ssaop.Op386CALLclosure
 		return true
-	case OpCom16:
-		v.Op = Op386NOTL
+	case ssaop.OpCom16:
+		v.Op = ssaop.Op386NOTL
 		return true
-	case OpCom32:
-		v.Op = Op386NOTL
+	case ssaop.OpCom32:
+		v.Op = ssaop.Op386NOTL
 		return true
-	case OpCom8:
-		v.Op = Op386NOTL
+	case ssaop.OpCom8:
+		v.Op = ssaop.Op386NOTL
 		return true
-	case OpConst16:
+	case ssaop.OpConst16:
 		return rewriteValue386_OpConst16(v)
-	case OpConst32:
-		v.Op = Op386MOVLconst
+	case ssaop.OpConst32:
+		v.Op = ssaop.Op386MOVLconst
 		return true
-	case OpConst32F:
-		v.Op = Op386MOVSSconst
+	case ssaop.OpConst32F:
+		v.Op = ssaop.Op386MOVSSconst
 		return true
-	case OpConst64F:
-		v.Op = Op386MOVSDconst
+	case ssaop.OpConst64F:
+		v.Op = ssaop.Op386MOVSDconst
 		return true
-	case OpConst8:
+	case ssaop.OpConst8:
 		return rewriteValue386_OpConst8(v)
-	case OpConstBool:
+	case ssaop.OpConstBool:
 		return rewriteValue386_OpConstBool(v)
-	case OpConstNil:
+	case ssaop.OpConstNil:
 		return rewriteValue386_OpConstNil(v)
-	case OpCtz16:
+	case ssaop.OpCtz16:
 		return rewriteValue386_OpCtz16(v)
-	case OpCtz16NonZero:
-		v.Op = Op386BSFL
+	case ssaop.OpCtz16NonZero:
+		v.Op = ssaop.Op386BSFL
 		return true
-	case OpCtz32:
-		v.Op = Op386LoweredCtz32
+	case ssaop.OpCtz32:
+		v.Op = ssaop.Op386LoweredCtz32
 		return true
-	case OpCtz32NonZero:
-		v.Op = Op386BSFL
+	case ssaop.OpCtz32NonZero:
+		v.Op = ssaop.Op386BSFL
 		return true
-	case OpCtz64On32:
-		v.Op = Op386LoweredCtz64
+	case ssaop.OpCtz64On32:
+		v.Op = ssaop.Op386LoweredCtz64
 		return true
-	case OpCtz8:
+	case ssaop.OpCtz8:
 		return rewriteValue386_OpCtz8(v)
-	case OpCtz8NonZero:
-		v.Op = Op386BSFL
+	case ssaop.OpCtz8NonZero:
+		v.Op = ssaop.Op386BSFL
 		return true
-	case OpCvt32Fto32:
-		v.Op = Op386CVTTSS2SL
+	case ssaop.OpCvt32Fto32:
+		v.Op = ssaop.Op386CVTTSS2SL
 		return true
-	case OpCvt32Fto64F:
-		v.Op = Op386CVTSS2SD
+	case ssaop.OpCvt32Fto64F:
+		v.Op = ssaop.Op386CVTSS2SD
 		return true
-	case OpCvt32to32F:
-		v.Op = Op386CVTSL2SS
+	case ssaop.OpCvt32to32F:
+		v.Op = ssaop.Op386CVTSL2SS
 		return true
-	case OpCvt32to64F:
-		v.Op = Op386CVTSL2SD
+	case ssaop.OpCvt32to64F:
+		v.Op = ssaop.Op386CVTSL2SD
 		return true
-	case OpCvt64Fto32:
-		v.Op = Op386CVTTSD2SL
+	case ssaop.OpCvt64Fto32:
+		v.Op = ssaop.Op386CVTTSD2SL
 		return true
-	case OpCvt64Fto32F:
-		v.Op = Op386CVTSD2SS
+	case ssaop.OpCvt64Fto32F:
+		v.Op = ssaop.Op386CVTSD2SS
 		return true
-	case OpCvtBoolToUint8:
-		v.Op = OpCopy
+	case ssaop.OpCvtBoolToUint8:
+		v.Op = ssaop.OpCopy
 		return true
-	case OpDiv16:
-		v.Op = Op386DIVW
+	case ssaop.OpDiv16:
+		v.Op = ssaop.Op386DIVW
 		return true
-	case OpDiv16u:
-		v.Op = Op386DIVWU
+	case ssaop.OpDiv16u:
+		v.Op = ssaop.Op386DIVWU
 		return true
-	case OpDiv32:
-		v.Op = Op386DIVL
+	case ssaop.OpDiv32:
+		v.Op = ssaop.Op386DIVL
 		return true
-	case OpDiv32F:
-		v.Op = Op386DIVSS
+	case ssaop.OpDiv32F:
+		v.Op = ssaop.Op386DIVSS
 		return true
-	case OpDiv32u:
-		v.Op = Op386DIVLU
+	case ssaop.OpDiv32u:
+		v.Op = ssaop.Op386DIVLU
 		return true
-	case OpDiv64F:
-		v.Op = Op386DIVSD
+	case ssaop.OpDiv64F:
+		v.Op = ssaop.Op386DIVSD
 		return true
-	case OpDiv8:
+	case ssaop.OpDiv8:
 		return rewriteValue386_OpDiv8(v)
-	case OpDiv8u:
+	case ssaop.OpDiv8u:
 		return rewriteValue386_OpDiv8u(v)
-	case OpEq16:
+	case ssaop.OpEq16:
 		return rewriteValue386_OpEq16(v)
-	case OpEq32:
+	case ssaop.OpEq32:
 		return rewriteValue386_OpEq32(v)
-	case OpEq32F:
+	case ssaop.OpEq32F:
 		return rewriteValue386_OpEq32F(v)
-	case OpEq64F:
+	case ssaop.OpEq64F:
 		return rewriteValue386_OpEq64F(v)
-	case OpEq8:
+	case ssaop.OpEq8:
 		return rewriteValue386_OpEq8(v)
-	case OpEqB:
+	case ssaop.OpEqB:
 		return rewriteValue386_OpEqB(v)
-	case OpEqPtr:
+	case ssaop.OpEqPtr:
 		return rewriteValue386_OpEqPtr(v)
-	case OpGetCallerPC:
-		v.Op = Op386LoweredGetCallerPC
+	case ssaop.OpGetCallerPC:
+		v.Op = ssaop.Op386LoweredGetCallerPC
 		return true
-	case OpGetCallerSP:
-		v.Op = Op386LoweredGetCallerSP
+	case ssaop.OpGetCallerSP:
+		v.Op = ssaop.Op386LoweredGetCallerSP
 		return true
-	case OpGetClosurePtr:
-		v.Op = Op386LoweredGetClosurePtr
+	case ssaop.OpGetClosurePtr:
+		v.Op = ssaop.Op386LoweredGetClosurePtr
 		return true
-	case OpGetG:
-		v.Op = Op386LoweredGetG
+	case ssaop.OpGetG:
+		v.Op = ssaop.Op386LoweredGetG
 		return true
-	case OpHmul32:
-		v.Op = Op386HMULL
+	case ssaop.OpHmul32:
+		v.Op = ssaop.Op386HMULL
 		return true
-	case OpHmul32u:
-		v.Op = Op386HMULLU
+	case ssaop.OpHmul32u:
+		v.Op = ssaop.Op386HMULLU
 		return true
-	case OpInterCall:
-		v.Op = Op386CALLinter
+	case ssaop.OpInterCall:
+		v.Op = ssaop.Op386CALLinter
 		return true
-	case OpIsInBounds:
+	case ssaop.OpIsInBounds:
 		return rewriteValue386_OpIsInBounds(v)
-	case OpIsNonNil:
+	case ssaop.OpIsNonNil:
 		return rewriteValue386_OpIsNonNil(v)
-	case OpIsSliceInBounds:
+	case ssaop.OpIsSliceInBounds:
 		return rewriteValue386_OpIsSliceInBounds(v)
-	case OpLeq16:
+	case ssaop.OpLeq16:
 		return rewriteValue386_OpLeq16(v)
-	case OpLeq16U:
+	case ssaop.OpLeq16U:
 		return rewriteValue386_OpLeq16U(v)
-	case OpLeq32:
+	case ssaop.OpLeq32:
 		return rewriteValue386_OpLeq32(v)
-	case OpLeq32F:
+	case ssaop.OpLeq32F:
 		return rewriteValue386_OpLeq32F(v)
-	case OpLeq32U:
+	case ssaop.OpLeq32U:
 		return rewriteValue386_OpLeq32U(v)
-	case OpLeq64F:
+	case ssaop.OpLeq64F:
 		return rewriteValue386_OpLeq64F(v)
-	case OpLeq8:
+	case ssaop.OpLeq8:
 		return rewriteValue386_OpLeq8(v)
-	case OpLeq8U:
+	case ssaop.OpLeq8U:
 		return rewriteValue386_OpLeq8U(v)
-	case OpLess16:
+	case ssaop.OpLess16:
 		return rewriteValue386_OpLess16(v)
-	case OpLess16U:
+	case ssaop.OpLess16U:
 		return rewriteValue386_OpLess16U(v)
-	case OpLess32:
+	case ssaop.OpLess32:
 		return rewriteValue386_OpLess32(v)
-	case OpLess32F:
+	case ssaop.OpLess32F:
 		return rewriteValue386_OpLess32F(v)
-	case OpLess32U:
+	case ssaop.OpLess32U:
 		return rewriteValue386_OpLess32U(v)
-	case OpLess64F:
+	case ssaop.OpLess64F:
 		return rewriteValue386_OpLess64F(v)
-	case OpLess8:
+	case ssaop.OpLess8:
 		return rewriteValue386_OpLess8(v)
-	case OpLess8U:
+	case ssaop.OpLess8U:
 		return rewriteValue386_OpLess8U(v)
-	case OpLoad:
+	case ssaop.OpLoad:
 		return rewriteValue386_OpLoad(v)
-	case OpLocalAddr:
+	case ssaop.OpLocalAddr:
 		return rewriteValue386_OpLocalAddr(v)
-	case OpLsh16x16:
+	case ssaop.OpLsh16x16:
 		return rewriteValue386_OpLsh16x16(v)
-	case OpLsh16x32:
+	case ssaop.OpLsh16x32:
 		return rewriteValue386_OpLsh16x32(v)
-	case OpLsh16x64:
+	case ssaop.OpLsh16x64:
 		return rewriteValue386_OpLsh16x64(v)
-	case OpLsh16x8:
+	case ssaop.OpLsh16x8:
 		return rewriteValue386_OpLsh16x8(v)
-	case OpLsh32x16:
+	case ssaop.OpLsh32x16:
 		return rewriteValue386_OpLsh32x16(v)
-	case OpLsh32x32:
+	case ssaop.OpLsh32x32:
 		return rewriteValue386_OpLsh32x32(v)
-	case OpLsh32x64:
+	case ssaop.OpLsh32x64:
 		return rewriteValue386_OpLsh32x64(v)
-	case OpLsh32x8:
+	case ssaop.OpLsh32x8:
 		return rewriteValue386_OpLsh32x8(v)
-	case OpLsh8x16:
+	case ssaop.OpLsh8x16:
 		return rewriteValue386_OpLsh8x16(v)
-	case OpLsh8x32:
+	case ssaop.OpLsh8x32:
 		return rewriteValue386_OpLsh8x32(v)
-	case OpLsh8x64:
+	case ssaop.OpLsh8x64:
 		return rewriteValue386_OpLsh8x64(v)
-	case OpLsh8x8:
+	case ssaop.OpLsh8x8:
 		return rewriteValue386_OpLsh8x8(v)
-	case OpMod16:
-		v.Op = Op386MODW
+	case ssaop.OpMod16:
+		v.Op = ssaop.Op386MODW
 		return true
-	case OpMod16u:
-		v.Op = Op386MODWU
+	case ssaop.OpMod16u:
+		v.Op = ssaop.Op386MODWU
 		return true
-	case OpMod32:
-		v.Op = Op386MODL
+	case ssaop.OpMod32:
+		v.Op = ssaop.Op386MODL
 		return true
-	case OpMod32u:
-		v.Op = Op386MODLU
+	case ssaop.OpMod32u:
+		v.Op = ssaop.Op386MODLU
 		return true
-	case OpMod8:
+	case ssaop.OpMod8:
 		return rewriteValue386_OpMod8(v)
-	case OpMod8u:
+	case ssaop.OpMod8u:
 		return rewriteValue386_OpMod8u(v)
-	case OpMove:
+	case ssaop.OpMove:
 		return rewriteValue386_OpMove(v)
-	case OpMul16:
-		v.Op = Op386MULL
+	case ssaop.OpMul16:
+		v.Op = ssaop.Op386MULL
 		return true
-	case OpMul32:
-		v.Op = Op386MULL
+	case ssaop.OpMul32:
+		v.Op = ssaop.Op386MULL
 		return true
-	case OpMul32F:
-		v.Op = Op386MULSS
+	case ssaop.OpMul32F:
+		v.Op = ssaop.Op386MULSS
 		return true
-	case OpMul32uhilo:
-		v.Op = Op386MULLQU
+	case ssaop.OpMul32uhilo:
+		v.Op = ssaop.Op386MULLQU
 		return true
-	case OpMul64F:
-		v.Op = Op386MULSD
+	case ssaop.OpMul64F:
+		v.Op = ssaop.Op386MULSD
 		return true
-	case OpMul8:
-		v.Op = Op386MULL
+	case ssaop.OpMul8:
+		v.Op = ssaop.Op386MULL
 		return true
-	case OpNeg16:
-		v.Op = Op386NEGL
+	case ssaop.OpNeg16:
+		v.Op = ssaop.Op386NEGL
 		return true
-	case OpNeg32:
-		v.Op = Op386NEGL
+	case ssaop.OpNeg32:
+		v.Op = ssaop.Op386NEGL
 		return true
-	case OpNeg32F:
+	case ssaop.OpNeg32F:
 		return rewriteValue386_OpNeg32F(v)
-	case OpNeg64F:
+	case ssaop.OpNeg64F:
 		return rewriteValue386_OpNeg64F(v)
-	case OpNeg8:
-		v.Op = Op386NEGL
+	case ssaop.OpNeg8:
+		v.Op = ssaop.Op386NEGL
 		return true
-	case OpNeq16:
+	case ssaop.OpNeq16:
 		return rewriteValue386_OpNeq16(v)
-	case OpNeq32:
+	case ssaop.OpNeq32:
 		return rewriteValue386_OpNeq32(v)
-	case OpNeq32F:
+	case ssaop.OpNeq32F:
 		return rewriteValue386_OpNeq32F(v)
-	case OpNeq64F:
+	case ssaop.OpNeq64F:
 		return rewriteValue386_OpNeq64F(v)
-	case OpNeq8:
+	case ssaop.OpNeq8:
 		return rewriteValue386_OpNeq8(v)
-	case OpNeqB:
+	case ssaop.OpNeqB:
 		return rewriteValue386_OpNeqB(v)
-	case OpNeqPtr:
+	case ssaop.OpNeqPtr:
 		return rewriteValue386_OpNeqPtr(v)
-	case OpNilCheck:
-		v.Op = Op386LoweredNilCheck
+	case ssaop.OpNilCheck:
+		v.Op = ssaop.Op386LoweredNilCheck
 		return true
-	case OpNot:
+	case ssaop.OpNot:
 		return rewriteValue386_OpNot(v)
-	case OpOffPtr:
+	case ssaop.OpOffPtr:
 		return rewriteValue386_OpOffPtr(v)
-	case OpOr16:
-		v.Op = Op386ORL
+	case ssaop.OpOr16:
+		v.Op = ssaop.Op386ORL
 		return true
-	case OpOr32:
-		v.Op = Op386ORL
+	case ssaop.OpOr32:
+		v.Op = ssaop.Op386ORL
 		return true
-	case OpOr8:
-		v.Op = Op386ORL
+	case ssaop.OpOr8:
+		v.Op = ssaop.Op386ORL
 		return true
-	case OpOrB:
-		v.Op = Op386ORL
+	case ssaop.OpOrB:
+		v.Op = ssaop.Op386ORL
 		return true
-	case OpPanicBounds:
-		v.Op = Op386LoweredPanicBoundsRR
+	case ssaop.OpPanicBounds:
+		v.Op = ssaop.Op386LoweredPanicBoundsRR
 		return true
-	case OpPanicExtend:
-		v.Op = Op386LoweredPanicExtendRR
+	case ssaop.OpPanicExtend:
+		v.Op = ssaop.Op386LoweredPanicExtendRR
 		return true
-	case OpRotateLeft16:
-		v.Op = Op386ROLW
+	case ssaop.OpRotateLeft16:
+		v.Op = ssaop.Op386ROLW
 		return true
-	case OpRotateLeft32:
-		v.Op = Op386ROLL
+	case ssaop.OpRotateLeft32:
+		v.Op = ssaop.Op386ROLL
 		return true
-	case OpRotateLeft8:
-		v.Op = Op386ROLB
+	case ssaop.OpRotateLeft8:
+		v.Op = ssaop.Op386ROLB
 		return true
-	case OpRound32F:
-		v.Op = OpCopy
+	case ssaop.OpRound32F:
+		v.Op = ssaop.OpCopy
 		return true
-	case OpRound64F:
-		v.Op = OpCopy
+	case ssaop.OpRound64F:
+		v.Op = ssaop.OpCopy
 		return true
-	case OpRsh16Ux16:
+	case ssaop.OpRsh16Ux16:
 		return rewriteValue386_OpRsh16Ux16(v)
-	case OpRsh16Ux32:
+	case ssaop.OpRsh16Ux32:
 		return rewriteValue386_OpRsh16Ux32(v)
-	case OpRsh16Ux64:
+	case ssaop.OpRsh16Ux64:
 		return rewriteValue386_OpRsh16Ux64(v)
-	case OpRsh16Ux8:
+	case ssaop.OpRsh16Ux8:
 		return rewriteValue386_OpRsh16Ux8(v)
-	case OpRsh16x16:
+	case ssaop.OpRsh16x16:
 		return rewriteValue386_OpRsh16x16(v)
-	case OpRsh16x32:
+	case ssaop.OpRsh16x32:
 		return rewriteValue386_OpRsh16x32(v)
-	case OpRsh16x64:
+	case ssaop.OpRsh16x64:
 		return rewriteValue386_OpRsh16x64(v)
-	case OpRsh16x8:
+	case ssaop.OpRsh16x8:
 		return rewriteValue386_OpRsh16x8(v)
-	case OpRsh32Ux16:
+	case ssaop.OpRsh32Ux16:
 		return rewriteValue386_OpRsh32Ux16(v)
-	case OpRsh32Ux32:
+	case ssaop.OpRsh32Ux32:
 		return rewriteValue386_OpRsh32Ux32(v)
-	case OpRsh32Ux64:
+	case ssaop.OpRsh32Ux64:
 		return rewriteValue386_OpRsh32Ux64(v)
-	case OpRsh32Ux8:
+	case ssaop.OpRsh32Ux8:
 		return rewriteValue386_OpRsh32Ux8(v)
-	case OpRsh32x16:
+	case ssaop.OpRsh32x16:
 		return rewriteValue386_OpRsh32x16(v)
-	case OpRsh32x32:
+	case ssaop.OpRsh32x32:
 		return rewriteValue386_OpRsh32x32(v)
-	case OpRsh32x64:
+	case ssaop.OpRsh32x64:
 		return rewriteValue386_OpRsh32x64(v)
-	case OpRsh32x8:
+	case ssaop.OpRsh32x8:
 		return rewriteValue386_OpRsh32x8(v)
-	case OpRsh8Ux16:
+	case ssaop.OpRsh8Ux16:
 		return rewriteValue386_OpRsh8Ux16(v)
-	case OpRsh8Ux32:
+	case ssaop.OpRsh8Ux32:
 		return rewriteValue386_OpRsh8Ux32(v)
-	case OpRsh8Ux64:
+	case ssaop.OpRsh8Ux64:
 		return rewriteValue386_OpRsh8Ux64(v)
-	case OpRsh8Ux8:
+	case ssaop.OpRsh8Ux8:
 		return rewriteValue386_OpRsh8Ux8(v)
-	case OpRsh8x16:
+	case ssaop.OpRsh8x16:
 		return rewriteValue386_OpRsh8x16(v)
-	case OpRsh8x32:
+	case ssaop.OpRsh8x32:
 		return rewriteValue386_OpRsh8x32(v)
-	case OpRsh8x64:
+	case ssaop.OpRsh8x64:
 		return rewriteValue386_OpRsh8x64(v)
-	case OpRsh8x8:
+	case ssaop.OpRsh8x8:
 		return rewriteValue386_OpRsh8x8(v)
-	case OpSelect0:
+	case ssaop.OpSelect0:
 		return rewriteValue386_OpSelect0(v)
-	case OpSelect1:
+	case ssaop.OpSelect1:
 		return rewriteValue386_OpSelect1(v)
-	case OpSignExt16to32:
-		v.Op = Op386MOVWLSX
+	case ssaop.OpSignExt16to32:
+		v.Op = ssaop.Op386MOVWLSX
 		return true
-	case OpSignExt8to16:
-		v.Op = Op386MOVBLSX
+	case ssaop.OpSignExt8to16:
+		v.Op = ssaop.Op386MOVBLSX
 		return true
-	case OpSignExt8to32:
-		v.Op = Op386MOVBLSX
+	case ssaop.OpSignExt8to32:
+		v.Op = ssaop.Op386MOVBLSX
 		return true
-	case OpSignmask:
+	case ssaop.OpSignmask:
 		return rewriteValue386_OpSignmask(v)
-	case OpSlicemask:
+	case ssaop.OpSlicemask:
 		return rewriteValue386_OpSlicemask(v)
-	case OpSqrt:
-		v.Op = Op386SQRTSD
+	case ssaop.OpSqrt:
+		v.Op = ssaop.Op386SQRTSD
 		return true
-	case OpSqrt32:
-		v.Op = Op386SQRTSS
+	case ssaop.OpSqrt32:
+		v.Op = ssaop.Op386SQRTSS
 		return true
-	case OpStaticCall:
-		v.Op = Op386CALLstatic
+	case ssaop.OpStaticCall:
+		v.Op = ssaop.Op386CALLstatic
 		return true
-	case OpStore:
+	case ssaop.OpStore:
 		return rewriteValue386_OpStore(v)
-	case OpSub16:
-		v.Op = Op386SUBL
+	case ssaop.OpSub16:
+		v.Op = ssaop.Op386SUBL
 		return true
-	case OpSub32:
-		v.Op = Op386SUBL
+	case ssaop.OpSub32:
+		v.Op = ssaop.Op386SUBL
 		return true
-	case OpSub32F:
-		v.Op = Op386SUBSS
+	case ssaop.OpSub32F:
+		v.Op = ssaop.Op386SUBSS
 		return true
-	case OpSub32carry:
-		v.Op = Op386SUBLcarry
+	case ssaop.OpSub32carry:
+		v.Op = ssaop.Op386SUBLcarry
 		return true
-	case OpSub32withcarry:
-		v.Op = Op386SBBL
+	case ssaop.OpSub32withcarry:
+		v.Op = ssaop.Op386SBBL
 		return true
-	case OpSub64F:
-		v.Op = Op386SUBSD
+	case ssaop.OpSub64F:
+		v.Op = ssaop.Op386SUBSD
 		return true
-	case OpSub8:
-		v.Op = Op386SUBL
+	case ssaop.OpSub8:
+		v.Op = ssaop.Op386SUBL
 		return true
-	case OpSubPtr:
-		v.Op = Op386SUBL
+	case ssaop.OpSubPtr:
+		v.Op = ssaop.Op386SUBL
 		return true
-	case OpTailCall:
-		v.Op = Op386CALLtail
+	case ssaop.OpTailCall:
+		v.Op = ssaop.Op386CALLtail
 		return true
-	case OpTailCallInter:
-		v.Op = Op386CALLtailinter
+	case ssaop.OpTailCallInter:
+		v.Op = ssaop.Op386CALLtailinter
 		return true
-	case OpTrunc16to8:
-		v.Op = OpCopy
+	case ssaop.OpTrunc16to8:
+		v.Op = ssaop.OpCopy
 		return true
-	case OpTrunc32to16:
-		v.Op = OpCopy
+	case ssaop.OpTrunc32to16:
+		v.Op = ssaop.OpCopy
 		return true
-	case OpTrunc32to8:
-		v.Op = OpCopy
+	case ssaop.OpTrunc32to8:
+		v.Op = ssaop.OpCopy
 		return true
-	case OpWB:
-		v.Op = Op386LoweredWB
+	case ssaop.OpWB:
+		v.Op = ssaop.Op386LoweredWB
 		return true
-	case OpXor16:
-		v.Op = Op386XORL
+	case ssaop.OpXor16:
+		v.Op = ssaop.Op386XORL
 		return true
-	case OpXor32:
-		v.Op = Op386XORL
+	case ssaop.OpXor32:
+		v.Op = ssaop.Op386XORL
 		return true
-	case OpXor8:
-		v.Op = Op386XORL
+	case ssaop.OpXor8:
+		v.Op = ssaop.Op386XORL
 		return true
-	case OpZero:
+	case ssaop.OpZero:
 		return rewriteValue386_OpZero(v)
-	case OpZeroExt16to32:
-		v.Op = Op386MOVWLZX
+	case ssaop.OpZeroExt16to32:
+		v.Op = ssaop.Op386MOVWLZX
 		return true
-	case OpZeroExt8to16:
-		v.Op = Op386MOVBLZX
+	case ssaop.OpZeroExt8to16:
+		v.Op = ssaop.Op386MOVBLZX
 		return true
-	case OpZeroExt8to32:
-		v.Op = Op386MOVBLZX
+	case ssaop.OpZeroExt8to32:
+		v.Op = ssaop.Op386MOVBLZX
 		return true
-	case OpZeromask:
+	case ssaop.OpZeromask:
 		return rewriteValue386_OpZeromask(v)
 	}
 	return false
@@ -742,12 +743,12 @@ func rewriteValue386_Op386ADCL(v *Value) bool {
 	for {
 		for _i0 := 0; _i0 <= 1; _i0, v_0, v_1 = _i0+1, v_1, v_0 {
 			x := v_0
-			if v_1.Op != Op386MOVLconst {
+			if v_1.Op != ssaop.Op386MOVLconst {
 				continue
 			}
 			c := AuxIntToInt32(v_1.AuxInt)
 			f := v_2
-			v.Reset(Op386ADCLconst)
+			v.Reset(ssaop.Op386ADCLconst)
 			v.AuxInt = Int32ToAuxInt(c)
 			v.AddArg2(x, f)
 			return true
@@ -765,7 +766,7 @@ func rewriteValue386_Op386ADDL(v *Value) bool {
 	for {
 		for _i0 := 0; _i0 <= 1; _i0, v_0, v_1 = _i0+1, v_1, v_0 {
 			x := v_0
-			if v_1.Op != Op386MOVLconst {
+			if v_1.Op != ssaop.Op386MOVLconst {
 				continue
 			}
 			t := v_1.Type
@@ -773,7 +774,7 @@ func rewriteValue386_Op386ADDL(v *Value) bool {
 			if !(!t.IsPtr()) {
 				continue
 			}
-			v.Reset(Op386ADDLconst)
+			v.Reset(ssaop.Op386ADDLconst)
 			v.AuxInt = Int32ToAuxInt(c)
 			v.AddArg(x)
 			return true
@@ -785,11 +786,11 @@ func rewriteValue386_Op386ADDL(v *Value) bool {
 	for {
 		for _i0 := 0; _i0 <= 1; _i0, v_0, v_1 = _i0+1, v_1, v_0 {
 			x := v_0
-			if v_1.Op != Op386SHLLconst || AuxIntToInt32(v_1.AuxInt) != 3 {
+			if v_1.Op != ssaop.Op386SHLLconst || AuxIntToInt32(v_1.AuxInt) != 3 {
 				continue
 			}
 			y := v_1.Args[0]
-			v.Reset(Op386LEAL8)
+			v.Reset(ssaop.Op386LEAL8)
 			v.AddArg2(x, y)
 			return true
 		}
@@ -800,11 +801,11 @@ func rewriteValue386_Op386ADDL(v *Value) bool {
 	for {
 		for _i0 := 0; _i0 <= 1; _i0, v_0, v_1 = _i0+1, v_1, v_0 {
 			x := v_0
-			if v_1.Op != Op386SHLLconst || AuxIntToInt32(v_1.AuxInt) != 2 {
+			if v_1.Op != ssaop.Op386SHLLconst || AuxIntToInt32(v_1.AuxInt) != 2 {
 				continue
 			}
 			y := v_1.Args[0]
-			v.Reset(Op386LEAL4)
+			v.Reset(ssaop.Op386LEAL4)
 			v.AddArg2(x, y)
 			return true
 		}
@@ -815,11 +816,11 @@ func rewriteValue386_Op386ADDL(v *Value) bool {
 	for {
 		for _i0 := 0; _i0 <= 1; _i0, v_0, v_1 = _i0+1, v_1, v_0 {
 			x := v_0
-			if v_1.Op != Op386SHLLconst || AuxIntToInt32(v_1.AuxInt) != 1 {
+			if v_1.Op != ssaop.Op386SHLLconst || AuxIntToInt32(v_1.AuxInt) != 1 {
 				continue
 			}
 			y := v_1.Args[0]
-			v.Reset(Op386LEAL2)
+			v.Reset(ssaop.Op386LEAL2)
 			v.AddArg2(x, y)
 			return true
 		}
@@ -830,14 +831,14 @@ func rewriteValue386_Op386ADDL(v *Value) bool {
 	for {
 		for _i0 := 0; _i0 <= 1; _i0, v_0, v_1 = _i0+1, v_1, v_0 {
 			x := v_0
-			if v_1.Op != Op386ADDL {
+			if v_1.Op != ssaop.Op386ADDL {
 				continue
 			}
 			y := v_1.Args[1]
 			if y != v_1.Args[0] {
 				continue
 			}
-			v.Reset(Op386LEAL2)
+			v.Reset(ssaop.Op386LEAL2)
 			v.AddArg2(x, y)
 			return true
 		}
@@ -848,7 +849,7 @@ func rewriteValue386_Op386ADDL(v *Value) bool {
 	for {
 		for _i0 := 0; _i0 <= 1; _i0, v_0, v_1 = _i0+1, v_1, v_0 {
 			x := v_0
-			if v_1.Op != Op386ADDL {
+			if v_1.Op != ssaop.Op386ADDL {
 				continue
 			}
 			_ = v_1.Args[1]
@@ -859,7 +860,7 @@ func rewriteValue386_Op386ADDL(v *Value) bool {
 					continue
 				}
 				y := v_1_1
-				v.Reset(Op386LEAL2)
+				v.Reset(ssaop.Op386LEAL2)
 				v.AddArg2(y, x)
 				return true
 			}
@@ -870,13 +871,13 @@ func rewriteValue386_Op386ADDL(v *Value) bool {
 	// result: (LEAL1 [c] x y)
 	for {
 		for _i0 := 0; _i0 <= 1; _i0, v_0, v_1 = _i0+1, v_1, v_0 {
-			if v_0.Op != Op386ADDLconst {
+			if v_0.Op != ssaop.Op386ADDLconst {
 				continue
 			}
 			c := AuxIntToInt32(v_0.AuxInt)
 			x := v_0.Args[0]
 			y := v_1
-			v.Reset(Op386LEAL1)
+			v.Reset(ssaop.Op386LEAL1)
 			v.AuxInt = Int32ToAuxInt(c)
 			v.AddArg2(x, y)
 			return true
@@ -884,21 +885,21 @@ func rewriteValue386_Op386ADDL(v *Value) bool {
 		break
 	}
 	// match: (ADDL x (LEAL [c] {s} y))
-	// cond: x.Op != OpSB && y.Op != OpSB
+	// cond: x.Op != ssaop.OpSB && y.Op != ssaop.OpSB
 	// result: (LEAL1 [c] {s} x y)
 	for {
 		for _i0 := 0; _i0 <= 1; _i0, v_0, v_1 = _i0+1, v_1, v_0 {
 			x := v_0
-			if v_1.Op != Op386LEAL {
+			if v_1.Op != ssaop.Op386LEAL {
 				continue
 			}
 			c := AuxIntToInt32(v_1.AuxInt)
 			s := AuxToSym(v_1.Aux)
 			y := v_1.Args[0]
-			if !(x.Op != OpSB && y.Op != OpSB) {
+			if !(x.Op != ssaop.OpSB && y.Op != ssaop.OpSB) {
 				continue
 			}
-			v.Reset(Op386LEAL1)
+			v.Reset(ssaop.Op386LEAL1)
 			v.AuxInt = Int32ToAuxInt(c)
 			v.Aux = SymToAux(s)
 			v.AddArg2(x, y)
@@ -913,7 +914,7 @@ func rewriteValue386_Op386ADDL(v *Value) bool {
 		for _i0 := 0; _i0 <= 1; _i0, v_0, v_1 = _i0+1, v_1, v_0 {
 			x := v_0
 			l := v_1
-			if l.Op != Op386MOVLload {
+			if l.Op != ssaop.Op386MOVLload {
 				continue
 			}
 			off := AuxIntToInt32(l.AuxInt)
@@ -923,7 +924,7 @@ func rewriteValue386_Op386ADDL(v *Value) bool {
 			if !(CanMergeLoadClobber(v, l, x) && Clobber(l)) {
 				continue
 			}
-			v.Reset(Op386ADDLload)
+			v.Reset(ssaop.Op386ADDLload)
 			v.AuxInt = Int32ToAuxInt(off)
 			v.Aux = SymToAux(sym)
 			v.AddArg3(x, ptr, mem)
@@ -936,11 +937,11 @@ func rewriteValue386_Op386ADDL(v *Value) bool {
 	for {
 		for _i0 := 0; _i0 <= 1; _i0, v_0, v_1 = _i0+1, v_1, v_0 {
 			x := v_0
-			if v_1.Op != Op386NEGL {
+			if v_1.Op != ssaop.Op386NEGL {
 				continue
 			}
 			y := v_1.Args[0]
-			v.Reset(Op386SUBL)
+			v.Reset(ssaop.Op386SUBL)
 			v.AddArg2(x, y)
 			return true
 		}
@@ -956,11 +957,11 @@ func rewriteValue386_Op386ADDLcarry(v *Value) bool {
 	for {
 		for _i0 := 0; _i0 <= 1; _i0, v_0, v_1 = _i0+1, v_1, v_0 {
 			x := v_0
-			if v_1.Op != Op386MOVLconst {
+			if v_1.Op != ssaop.Op386MOVLconst {
 				continue
 			}
 			c := AuxIntToInt32(v_1.AuxInt)
-			v.Reset(Op386ADDLconstcarry)
+			v.Reset(ssaop.Op386ADDLconstcarry)
 			v.AuxInt = Int32ToAuxInt(c)
 			v.AddArg(x)
 			return true
@@ -975,12 +976,12 @@ func rewriteValue386_Op386ADDLconst(v *Value) bool {
 	// result: (LEAL1 [c] x y)
 	for {
 		c := AuxIntToInt32(v.AuxInt)
-		if v_0.Op != Op386ADDL {
+		if v_0.Op != ssaop.Op386ADDL {
 			break
 		}
 		y := v_0.Args[1]
 		x := v_0.Args[0]
-		v.Reset(Op386LEAL1)
+		v.Reset(ssaop.Op386LEAL1)
 		v.AuxInt = Int32ToAuxInt(c)
 		v.AddArg2(x, y)
 		return true
@@ -990,7 +991,7 @@ func rewriteValue386_Op386ADDLconst(v *Value) bool {
 	// result: (LEAL [c+d] {s} x)
 	for {
 		c := AuxIntToInt32(v.AuxInt)
-		if v_0.Op != Op386LEAL {
+		if v_0.Op != ssaop.Op386LEAL {
 			break
 		}
 		d := AuxIntToInt32(v_0.AuxInt)
@@ -999,7 +1000,7 @@ func rewriteValue386_Op386ADDLconst(v *Value) bool {
 		if !(Is32Bit(int64(c) + int64(d))) {
 			break
 		}
-		v.Reset(Op386LEAL)
+		v.Reset(ssaop.Op386LEAL)
 		v.AuxInt = Int32ToAuxInt(c + d)
 		v.Aux = SymToAux(s)
 		v.AddArg(x)
@@ -1010,10 +1011,10 @@ func rewriteValue386_Op386ADDLconst(v *Value) bool {
 	for {
 		c := AuxIntToInt32(v.AuxInt)
 		x := v_0
-		if x.Op != OpSP {
+		if x.Op != ssaop.OpSP {
 			break
 		}
-		v.Reset(Op386LEAL)
+		v.Reset(ssaop.Op386LEAL)
 		v.AuxInt = Int32ToAuxInt(c)
 		v.AddArg(x)
 		return true
@@ -1023,7 +1024,7 @@ func rewriteValue386_Op386ADDLconst(v *Value) bool {
 	// result: (LEAL1 [c+d] {s} x y)
 	for {
 		c := AuxIntToInt32(v.AuxInt)
-		if v_0.Op != Op386LEAL1 {
+		if v_0.Op != ssaop.Op386LEAL1 {
 			break
 		}
 		d := AuxIntToInt32(v_0.AuxInt)
@@ -1033,7 +1034,7 @@ func rewriteValue386_Op386ADDLconst(v *Value) bool {
 		if !(Is32Bit(int64(c) + int64(d))) {
 			break
 		}
-		v.Reset(Op386LEAL1)
+		v.Reset(ssaop.Op386LEAL1)
 		v.AuxInt = Int32ToAuxInt(c + d)
 		v.Aux = SymToAux(s)
 		v.AddArg2(x, y)
@@ -1044,7 +1045,7 @@ func rewriteValue386_Op386ADDLconst(v *Value) bool {
 	// result: (LEAL2 [c+d] {s} x y)
 	for {
 		c := AuxIntToInt32(v.AuxInt)
-		if v_0.Op != Op386LEAL2 {
+		if v_0.Op != ssaop.Op386LEAL2 {
 			break
 		}
 		d := AuxIntToInt32(v_0.AuxInt)
@@ -1054,7 +1055,7 @@ func rewriteValue386_Op386ADDLconst(v *Value) bool {
 		if !(Is32Bit(int64(c) + int64(d))) {
 			break
 		}
-		v.Reset(Op386LEAL2)
+		v.Reset(ssaop.Op386LEAL2)
 		v.AuxInt = Int32ToAuxInt(c + d)
 		v.Aux = SymToAux(s)
 		v.AddArg2(x, y)
@@ -1065,7 +1066,7 @@ func rewriteValue386_Op386ADDLconst(v *Value) bool {
 	// result: (LEAL4 [c+d] {s} x y)
 	for {
 		c := AuxIntToInt32(v.AuxInt)
-		if v_0.Op != Op386LEAL4 {
+		if v_0.Op != ssaop.Op386LEAL4 {
 			break
 		}
 		d := AuxIntToInt32(v_0.AuxInt)
@@ -1075,7 +1076,7 @@ func rewriteValue386_Op386ADDLconst(v *Value) bool {
 		if !(Is32Bit(int64(c) + int64(d))) {
 			break
 		}
-		v.Reset(Op386LEAL4)
+		v.Reset(ssaop.Op386LEAL4)
 		v.AuxInt = Int32ToAuxInt(c + d)
 		v.Aux = SymToAux(s)
 		v.AddArg2(x, y)
@@ -1086,7 +1087,7 @@ func rewriteValue386_Op386ADDLconst(v *Value) bool {
 	// result: (LEAL8 [c+d] {s} x y)
 	for {
 		c := AuxIntToInt32(v.AuxInt)
-		if v_0.Op != Op386LEAL8 {
+		if v_0.Op != ssaop.Op386LEAL8 {
 			break
 		}
 		d := AuxIntToInt32(v_0.AuxInt)
@@ -1096,7 +1097,7 @@ func rewriteValue386_Op386ADDLconst(v *Value) bool {
 		if !(Is32Bit(int64(c) + int64(d))) {
 			break
 		}
-		v.Reset(Op386LEAL8)
+		v.Reset(ssaop.Op386LEAL8)
 		v.AuxInt = Int32ToAuxInt(c + d)
 		v.Aux = SymToAux(s)
 		v.AddArg2(x, y)
@@ -1118,11 +1119,11 @@ func rewriteValue386_Op386ADDLconst(v *Value) bool {
 	// result: (MOVLconst [c+d])
 	for {
 		c := AuxIntToInt32(v.AuxInt)
-		if v_0.Op != Op386MOVLconst {
+		if v_0.Op != ssaop.Op386MOVLconst {
 			break
 		}
 		d := AuxIntToInt32(v_0.AuxInt)
-		v.Reset(Op386MOVLconst)
+		v.Reset(ssaop.Op386MOVLconst)
 		v.AuxInt = Int32ToAuxInt(c + d)
 		return true
 	}
@@ -1130,12 +1131,12 @@ func rewriteValue386_Op386ADDLconst(v *Value) bool {
 	// result: (ADDLconst [c+d] x)
 	for {
 		c := AuxIntToInt32(v.AuxInt)
-		if v_0.Op != Op386ADDLconst {
+		if v_0.Op != ssaop.Op386ADDLconst {
 			break
 		}
 		d := AuxIntToInt32(v_0.AuxInt)
 		x := v_0.Args[0]
-		v.Reset(Op386ADDLconst)
+		v.Reset(ssaop.Op386ADDLconst)
 		v.AuxInt = Int32ToAuxInt(c + d)
 		v.AddArg(x)
 		return true
@@ -1153,7 +1154,7 @@ func rewriteValue386_Op386ADDLconstmodify(v *Value) bool {
 	for {
 		valoff1 := AuxIntToValAndOff(v.AuxInt)
 		sym := AuxToSym(v.Aux)
-		if v_0.Op != Op386ADDLconst {
+		if v_0.Op != ssaop.Op386ADDLconst {
 			break
 		}
 		off2 := AuxIntToInt32(v_0.AuxInt)
@@ -1162,29 +1163,29 @@ func rewriteValue386_Op386ADDLconstmodify(v *Value) bool {
 		if !(valoff1.CanAdd32(off2)) {
 			break
 		}
-		v.Reset(Op386ADDLconstmodify)
+		v.Reset(ssaop.Op386ADDLconstmodify)
 		v.AuxInt = ValAndOffToAuxInt(valoff1.AddOffset32(off2))
 		v.Aux = SymToAux(sym)
 		v.AddArg2(base, mem)
 		return true
 	}
 	// match: (ADDLconstmodify [valoff1] {sym1} (LEAL [off2] {sym2} base) mem)
-	// cond: valoff1.CanAdd32(off2) && CanMergeSym(sym1, sym2) && (base.Op != OpSB || !config.Ctxt.Flag_shared)
+	// cond: valoff1.CanAdd32(off2) && CanMergeSym(sym1, sym2) && (base.Op != ssaop.OpSB || !config.Ctxt.Flag_shared)
 	// result: (ADDLconstmodify [valoff1.AddOffset32(off2)] {MergeSym(sym1,sym2)} base mem)
 	for {
 		valoff1 := AuxIntToValAndOff(v.AuxInt)
 		sym1 := AuxToSym(v.Aux)
-		if v_0.Op != Op386LEAL {
+		if v_0.Op != ssaop.Op386LEAL {
 			break
 		}
 		off2 := AuxIntToInt32(v_0.AuxInt)
 		sym2 := AuxToSym(v_0.Aux)
 		base := v_0.Args[0]
 		mem := v_1
-		if !(valoff1.CanAdd32(off2) && CanMergeSym(sym1, sym2) && (base.Op != OpSB || !config.Ctxt.Flag_shared)) {
+		if !(valoff1.CanAdd32(off2) && CanMergeSym(sym1, sym2) && (base.Op != ssaop.OpSB || !config.Ctxt.Flag_shared)) {
 			break
 		}
-		v.Reset(Op386ADDLconstmodify)
+		v.Reset(ssaop.Op386ADDLconstmodify)
 		v.AuxInt = ValAndOffToAuxInt(valoff1.AddOffset32(off2))
 		v.Aux = SymToAux(MergeSym(sym1, sym2))
 		v.AddArg2(base, mem)
@@ -1205,7 +1206,7 @@ func rewriteValue386_Op386ADDLload(v *Value) bool {
 		off1 := AuxIntToInt32(v.AuxInt)
 		sym := AuxToSym(v.Aux)
 		val := v_0
-		if v_1.Op != Op386ADDLconst {
+		if v_1.Op != ssaop.Op386ADDLconst {
 			break
 		}
 		off2 := AuxIntToInt32(v_1.AuxInt)
@@ -1214,30 +1215,30 @@ func rewriteValue386_Op386ADDLload(v *Value) bool {
 		if !(Is32Bit(int64(off1) + int64(off2))) {
 			break
 		}
-		v.Reset(Op386ADDLload)
+		v.Reset(ssaop.Op386ADDLload)
 		v.AuxInt = Int32ToAuxInt(off1 + off2)
 		v.Aux = SymToAux(sym)
 		v.AddArg3(val, base, mem)
 		return true
 	}
 	// match: (ADDLload [off1] {sym1} val (LEAL [off2] {sym2} base) mem)
-	// cond: Is32Bit(int64(off1)+int64(off2)) && CanMergeSym(sym1, sym2) && (base.Op != OpSB || !config.Ctxt.Flag_shared)
+	// cond: Is32Bit(int64(off1)+int64(off2)) && CanMergeSym(sym1, sym2) && (base.Op != ssaop.OpSB || !config.Ctxt.Flag_shared)
 	// result: (ADDLload [off1+off2] {MergeSym(sym1,sym2)} val base mem)
 	for {
 		off1 := AuxIntToInt32(v.AuxInt)
 		sym1 := AuxToSym(v.Aux)
 		val := v_0
-		if v_1.Op != Op386LEAL {
+		if v_1.Op != ssaop.Op386LEAL {
 			break
 		}
 		off2 := AuxIntToInt32(v_1.AuxInt)
 		sym2 := AuxToSym(v_1.Aux)
 		base := v_1.Args[0]
 		mem := v_2
-		if !(Is32Bit(int64(off1)+int64(off2)) && CanMergeSym(sym1, sym2) && (base.Op != OpSB || !config.Ctxt.Flag_shared)) {
+		if !(Is32Bit(int64(off1)+int64(off2)) && CanMergeSym(sym1, sym2) && (base.Op != ssaop.OpSB || !config.Ctxt.Flag_shared)) {
 			break
 		}
-		v.Reset(Op386ADDLload)
+		v.Reset(ssaop.Op386ADDLload)
 		v.AuxInt = Int32ToAuxInt(off1 + off2)
 		v.Aux = SymToAux(MergeSym(sym1, sym2))
 		v.AddArg3(val, base, mem)
@@ -1257,7 +1258,7 @@ func rewriteValue386_Op386ADDLmodify(v *Value) bool {
 	for {
 		off1 := AuxIntToInt32(v.AuxInt)
 		sym := AuxToSym(v.Aux)
-		if v_0.Op != Op386ADDLconst {
+		if v_0.Op != ssaop.Op386ADDLconst {
 			break
 		}
 		off2 := AuxIntToInt32(v_0.AuxInt)
@@ -1267,19 +1268,19 @@ func rewriteValue386_Op386ADDLmodify(v *Value) bool {
 		if !(Is32Bit(int64(off1) + int64(off2))) {
 			break
 		}
-		v.Reset(Op386ADDLmodify)
+		v.Reset(ssaop.Op386ADDLmodify)
 		v.AuxInt = Int32ToAuxInt(off1 + off2)
 		v.Aux = SymToAux(sym)
 		v.AddArg3(base, val, mem)
 		return true
 	}
 	// match: (ADDLmodify [off1] {sym1} (LEAL [off2] {sym2} base) val mem)
-	// cond: Is32Bit(int64(off1)+int64(off2)) && CanMergeSym(sym1, sym2) && (base.Op != OpSB || !config.Ctxt.Flag_shared)
+	// cond: Is32Bit(int64(off1)+int64(off2)) && CanMergeSym(sym1, sym2) && (base.Op != ssaop.OpSB || !config.Ctxt.Flag_shared)
 	// result: (ADDLmodify [off1+off2] {MergeSym(sym1,sym2)} base val mem)
 	for {
 		off1 := AuxIntToInt32(v.AuxInt)
 		sym1 := AuxToSym(v.Aux)
-		if v_0.Op != Op386LEAL {
+		if v_0.Op != ssaop.Op386LEAL {
 			break
 		}
 		off2 := AuxIntToInt32(v_0.AuxInt)
@@ -1287,10 +1288,10 @@ func rewriteValue386_Op386ADDLmodify(v *Value) bool {
 		base := v_0.Args[0]
 		val := v_1
 		mem := v_2
-		if !(Is32Bit(int64(off1)+int64(off2)) && CanMergeSym(sym1, sym2) && (base.Op != OpSB || !config.Ctxt.Flag_shared)) {
+		if !(Is32Bit(int64(off1)+int64(off2)) && CanMergeSym(sym1, sym2) && (base.Op != ssaop.OpSB || !config.Ctxt.Flag_shared)) {
 			break
 		}
-		v.Reset(Op386ADDLmodify)
+		v.Reset(ssaop.Op386ADDLmodify)
 		v.AuxInt = Int32ToAuxInt(off1 + off2)
 		v.Aux = SymToAux(MergeSym(sym1, sym2))
 		v.AddArg3(base, val, mem)
@@ -1308,7 +1309,7 @@ func rewriteValue386_Op386ADDSD(v *Value) bool {
 		for _i0 := 0; _i0 <= 1; _i0, v_0, v_1 = _i0+1, v_1, v_0 {
 			x := v_0
 			l := v_1
-			if l.Op != Op386MOVSDload {
+			if l.Op != ssaop.Op386MOVSDload {
 				continue
 			}
 			off := AuxIntToInt32(l.AuxInt)
@@ -1318,7 +1319,7 @@ func rewriteValue386_Op386ADDSD(v *Value) bool {
 			if !(CanMergeLoadClobber(v, l, x) && Clobber(l)) {
 				continue
 			}
-			v.Reset(Op386ADDSDload)
+			v.Reset(ssaop.Op386ADDSDload)
 			v.AuxInt = Int32ToAuxInt(off)
 			v.Aux = SymToAux(sym)
 			v.AddArg3(x, ptr, mem)
@@ -1341,7 +1342,7 @@ func rewriteValue386_Op386ADDSDload(v *Value) bool {
 		off1 := AuxIntToInt32(v.AuxInt)
 		sym := AuxToSym(v.Aux)
 		val := v_0
-		if v_1.Op != Op386ADDLconst {
+		if v_1.Op != ssaop.Op386ADDLconst {
 			break
 		}
 		off2 := AuxIntToInt32(v_1.AuxInt)
@@ -1350,30 +1351,30 @@ func rewriteValue386_Op386ADDSDload(v *Value) bool {
 		if !(Is32Bit(int64(off1) + int64(off2))) {
 			break
 		}
-		v.Reset(Op386ADDSDload)
+		v.Reset(ssaop.Op386ADDSDload)
 		v.AuxInt = Int32ToAuxInt(off1 + off2)
 		v.Aux = SymToAux(sym)
 		v.AddArg3(val, base, mem)
 		return true
 	}
 	// match: (ADDSDload [off1] {sym1} val (LEAL [off2] {sym2} base) mem)
-	// cond: Is32Bit(int64(off1)+int64(off2)) && CanMergeSym(sym1, sym2) && (base.Op != OpSB || !config.Ctxt.Flag_shared)
+	// cond: Is32Bit(int64(off1)+int64(off2)) && CanMergeSym(sym1, sym2) && (base.Op != ssaop.OpSB || !config.Ctxt.Flag_shared)
 	// result: (ADDSDload [off1+off2] {MergeSym(sym1,sym2)} val base mem)
 	for {
 		off1 := AuxIntToInt32(v.AuxInt)
 		sym1 := AuxToSym(v.Aux)
 		val := v_0
-		if v_1.Op != Op386LEAL {
+		if v_1.Op != ssaop.Op386LEAL {
 			break
 		}
 		off2 := AuxIntToInt32(v_1.AuxInt)
 		sym2 := AuxToSym(v_1.Aux)
 		base := v_1.Args[0]
 		mem := v_2
-		if !(Is32Bit(int64(off1)+int64(off2)) && CanMergeSym(sym1, sym2) && (base.Op != OpSB || !config.Ctxt.Flag_shared)) {
+		if !(Is32Bit(int64(off1)+int64(off2)) && CanMergeSym(sym1, sym2) && (base.Op != ssaop.OpSB || !config.Ctxt.Flag_shared)) {
 			break
 		}
-		v.Reset(Op386ADDSDload)
+		v.Reset(ssaop.Op386ADDSDload)
 		v.AuxInt = Int32ToAuxInt(off1 + off2)
 		v.Aux = SymToAux(MergeSym(sym1, sym2))
 		v.AddArg3(val, base, mem)
@@ -1391,7 +1392,7 @@ func rewriteValue386_Op386ADDSS(v *Value) bool {
 		for _i0 := 0; _i0 <= 1; _i0, v_0, v_1 = _i0+1, v_1, v_0 {
 			x := v_0
 			l := v_1
-			if l.Op != Op386MOVSSload {
+			if l.Op != ssaop.Op386MOVSSload {
 				continue
 			}
 			off := AuxIntToInt32(l.AuxInt)
@@ -1401,7 +1402,7 @@ func rewriteValue386_Op386ADDSS(v *Value) bool {
 			if !(CanMergeLoadClobber(v, l, x) && Clobber(l)) {
 				continue
 			}
-			v.Reset(Op386ADDSSload)
+			v.Reset(ssaop.Op386ADDSSload)
 			v.AuxInt = Int32ToAuxInt(off)
 			v.Aux = SymToAux(sym)
 			v.AddArg3(x, ptr, mem)
@@ -1424,7 +1425,7 @@ func rewriteValue386_Op386ADDSSload(v *Value) bool {
 		off1 := AuxIntToInt32(v.AuxInt)
 		sym := AuxToSym(v.Aux)
 		val := v_0
-		if v_1.Op != Op386ADDLconst {
+		if v_1.Op != ssaop.Op386ADDLconst {
 			break
 		}
 		off2 := AuxIntToInt32(v_1.AuxInt)
@@ -1433,30 +1434,30 @@ func rewriteValue386_Op386ADDSSload(v *Value) bool {
 		if !(Is32Bit(int64(off1) + int64(off2))) {
 			break
 		}
-		v.Reset(Op386ADDSSload)
+		v.Reset(ssaop.Op386ADDSSload)
 		v.AuxInt = Int32ToAuxInt(off1 + off2)
 		v.Aux = SymToAux(sym)
 		v.AddArg3(val, base, mem)
 		return true
 	}
 	// match: (ADDSSload [off1] {sym1} val (LEAL [off2] {sym2} base) mem)
-	// cond: Is32Bit(int64(off1)+int64(off2)) && CanMergeSym(sym1, sym2) && (base.Op != OpSB || !config.Ctxt.Flag_shared)
+	// cond: Is32Bit(int64(off1)+int64(off2)) && CanMergeSym(sym1, sym2) && (base.Op != ssaop.OpSB || !config.Ctxt.Flag_shared)
 	// result: (ADDSSload [off1+off2] {MergeSym(sym1,sym2)} val base mem)
 	for {
 		off1 := AuxIntToInt32(v.AuxInt)
 		sym1 := AuxToSym(v.Aux)
 		val := v_0
-		if v_1.Op != Op386LEAL {
+		if v_1.Op != ssaop.Op386LEAL {
 			break
 		}
 		off2 := AuxIntToInt32(v_1.AuxInt)
 		sym2 := AuxToSym(v_1.Aux)
 		base := v_1.Args[0]
 		mem := v_2
-		if !(Is32Bit(int64(off1)+int64(off2)) && CanMergeSym(sym1, sym2) && (base.Op != OpSB || !config.Ctxt.Flag_shared)) {
+		if !(Is32Bit(int64(off1)+int64(off2)) && CanMergeSym(sym1, sym2) && (base.Op != ssaop.OpSB || !config.Ctxt.Flag_shared)) {
 			break
 		}
-		v.Reset(Op386ADDSSload)
+		v.Reset(ssaop.Op386ADDSSload)
 		v.AuxInt = Int32ToAuxInt(off1 + off2)
 		v.Aux = SymToAux(MergeSym(sym1, sym2))
 		v.AddArg3(val, base, mem)
@@ -1472,11 +1473,11 @@ func rewriteValue386_Op386ANDL(v *Value) bool {
 	for {
 		for _i0 := 0; _i0 <= 1; _i0, v_0, v_1 = _i0+1, v_1, v_0 {
 			x := v_0
-			if v_1.Op != Op386MOVLconst {
+			if v_1.Op != ssaop.Op386MOVLconst {
 				continue
 			}
 			c := AuxIntToInt32(v_1.AuxInt)
-			v.Reset(Op386ANDLconst)
+			v.Reset(ssaop.Op386ANDLconst)
 			v.AuxInt = Int32ToAuxInt(c)
 			v.AddArg(x)
 			return true
@@ -1490,7 +1491,7 @@ func rewriteValue386_Op386ANDL(v *Value) bool {
 		for _i0 := 0; _i0 <= 1; _i0, v_0, v_1 = _i0+1, v_1, v_0 {
 			x := v_0
 			l := v_1
-			if l.Op != Op386MOVLload {
+			if l.Op != ssaop.Op386MOVLload {
 				continue
 			}
 			off := AuxIntToInt32(l.AuxInt)
@@ -1500,7 +1501,7 @@ func rewriteValue386_Op386ANDL(v *Value) bool {
 			if !(CanMergeLoadClobber(v, l, x) && Clobber(l)) {
 				continue
 			}
-			v.Reset(Op386ANDLload)
+			v.Reset(ssaop.Op386ANDLload)
 			v.AuxInt = Int32ToAuxInt(off)
 			v.Aux = SymToAux(sym)
 			v.AddArg3(x, ptr, mem)
@@ -1526,12 +1527,12 @@ func rewriteValue386_Op386ANDLconst(v *Value) bool {
 	// result: (ANDLconst [c & d] x)
 	for {
 		c := AuxIntToInt32(v.AuxInt)
-		if v_0.Op != Op386ANDLconst {
+		if v_0.Op != ssaop.Op386ANDLconst {
 			break
 		}
 		d := AuxIntToInt32(v_0.AuxInt)
 		x := v_0.Args[0]
-		v.Reset(Op386ANDLconst)
+		v.Reset(ssaop.Op386ANDLconst)
 		v.AuxInt = Int32ToAuxInt(c & d)
 		v.AddArg(x)
 		return true
@@ -1544,7 +1545,7 @@ func rewriteValue386_Op386ANDLconst(v *Value) bool {
 		if !(c == 0) {
 			break
 		}
-		v.Reset(Op386MOVLconst)
+		v.Reset(ssaop.Op386MOVLconst)
 		v.AuxInt = Int32ToAuxInt(0)
 		return true
 	}
@@ -1564,11 +1565,11 @@ func rewriteValue386_Op386ANDLconst(v *Value) bool {
 	// result: (MOVLconst [c&d])
 	for {
 		c := AuxIntToInt32(v.AuxInt)
-		if v_0.Op != Op386MOVLconst {
+		if v_0.Op != ssaop.Op386MOVLconst {
 			break
 		}
 		d := AuxIntToInt32(v_0.AuxInt)
-		v.Reset(Op386MOVLconst)
+		v.Reset(ssaop.Op386MOVLconst)
 		v.AuxInt = Int32ToAuxInt(c & d)
 		return true
 	}
@@ -1585,7 +1586,7 @@ func rewriteValue386_Op386ANDLconstmodify(v *Value) bool {
 	for {
 		valoff1 := AuxIntToValAndOff(v.AuxInt)
 		sym := AuxToSym(v.Aux)
-		if v_0.Op != Op386ADDLconst {
+		if v_0.Op != ssaop.Op386ADDLconst {
 			break
 		}
 		off2 := AuxIntToInt32(v_0.AuxInt)
@@ -1594,29 +1595,29 @@ func rewriteValue386_Op386ANDLconstmodify(v *Value) bool {
 		if !(valoff1.CanAdd32(off2)) {
 			break
 		}
-		v.Reset(Op386ANDLconstmodify)
+		v.Reset(ssaop.Op386ANDLconstmodify)
 		v.AuxInt = ValAndOffToAuxInt(valoff1.AddOffset32(off2))
 		v.Aux = SymToAux(sym)
 		v.AddArg2(base, mem)
 		return true
 	}
 	// match: (ANDLconstmodify [valoff1] {sym1} (LEAL [off2] {sym2} base) mem)
-	// cond: valoff1.CanAdd32(off2) && CanMergeSym(sym1, sym2) && (base.Op != OpSB || !config.Ctxt.Flag_shared)
+	// cond: valoff1.CanAdd32(off2) && CanMergeSym(sym1, sym2) && (base.Op != ssaop.OpSB || !config.Ctxt.Flag_shared)
 	// result: (ANDLconstmodify [valoff1.AddOffset32(off2)] {MergeSym(sym1,sym2)} base mem)
 	for {
 		valoff1 := AuxIntToValAndOff(v.AuxInt)
 		sym1 := AuxToSym(v.Aux)
-		if v_0.Op != Op386LEAL {
+		if v_0.Op != ssaop.Op386LEAL {
 			break
 		}
 		off2 := AuxIntToInt32(v_0.AuxInt)
 		sym2 := AuxToSym(v_0.Aux)
 		base := v_0.Args[0]
 		mem := v_1
-		if !(valoff1.CanAdd32(off2) && CanMergeSym(sym1, sym2) && (base.Op != OpSB || !config.Ctxt.Flag_shared)) {
+		if !(valoff1.CanAdd32(off2) && CanMergeSym(sym1, sym2) && (base.Op != ssaop.OpSB || !config.Ctxt.Flag_shared)) {
 			break
 		}
-		v.Reset(Op386ANDLconstmodify)
+		v.Reset(ssaop.Op386ANDLconstmodify)
 		v.AuxInt = ValAndOffToAuxInt(valoff1.AddOffset32(off2))
 		v.Aux = SymToAux(MergeSym(sym1, sym2))
 		v.AddArg2(base, mem)
@@ -1637,7 +1638,7 @@ func rewriteValue386_Op386ANDLload(v *Value) bool {
 		off1 := AuxIntToInt32(v.AuxInt)
 		sym := AuxToSym(v.Aux)
 		val := v_0
-		if v_1.Op != Op386ADDLconst {
+		if v_1.Op != ssaop.Op386ADDLconst {
 			break
 		}
 		off2 := AuxIntToInt32(v_1.AuxInt)
@@ -1646,30 +1647,30 @@ func rewriteValue386_Op386ANDLload(v *Value) bool {
 		if !(Is32Bit(int64(off1) + int64(off2))) {
 			break
 		}
-		v.Reset(Op386ANDLload)
+		v.Reset(ssaop.Op386ANDLload)
 		v.AuxInt = Int32ToAuxInt(off1 + off2)
 		v.Aux = SymToAux(sym)
 		v.AddArg3(val, base, mem)
 		return true
 	}
 	// match: (ANDLload [off1] {sym1} val (LEAL [off2] {sym2} base) mem)
-	// cond: Is32Bit(int64(off1)+int64(off2)) && CanMergeSym(sym1, sym2) && (base.Op != OpSB || !config.Ctxt.Flag_shared)
+	// cond: Is32Bit(int64(off1)+int64(off2)) && CanMergeSym(sym1, sym2) && (base.Op != ssaop.OpSB || !config.Ctxt.Flag_shared)
 	// result: (ANDLload [off1+off2] {MergeSym(sym1,sym2)} val base mem)
 	for {
 		off1 := AuxIntToInt32(v.AuxInt)
 		sym1 := AuxToSym(v.Aux)
 		val := v_0
-		if v_1.Op != Op386LEAL {
+		if v_1.Op != ssaop.Op386LEAL {
 			break
 		}
 		off2 := AuxIntToInt32(v_1.AuxInt)
 		sym2 := AuxToSym(v_1.Aux)
 		base := v_1.Args[0]
 		mem := v_2
-		if !(Is32Bit(int64(off1)+int64(off2)) && CanMergeSym(sym1, sym2) && (base.Op != OpSB || !config.Ctxt.Flag_shared)) {
+		if !(Is32Bit(int64(off1)+int64(off2)) && CanMergeSym(sym1, sym2) && (base.Op != ssaop.OpSB || !config.Ctxt.Flag_shared)) {
 			break
 		}
-		v.Reset(Op386ANDLload)
+		v.Reset(ssaop.Op386ANDLload)
 		v.AuxInt = Int32ToAuxInt(off1 + off2)
 		v.Aux = SymToAux(MergeSym(sym1, sym2))
 		v.AddArg3(val, base, mem)
@@ -1689,7 +1690,7 @@ func rewriteValue386_Op386ANDLmodify(v *Value) bool {
 	for {
 		off1 := AuxIntToInt32(v.AuxInt)
 		sym := AuxToSym(v.Aux)
-		if v_0.Op != Op386ADDLconst {
+		if v_0.Op != ssaop.Op386ADDLconst {
 			break
 		}
 		off2 := AuxIntToInt32(v_0.AuxInt)
@@ -1699,19 +1700,19 @@ func rewriteValue386_Op386ANDLmodify(v *Value) bool {
 		if !(Is32Bit(int64(off1) + int64(off2))) {
 			break
 		}
-		v.Reset(Op386ANDLmodify)
+		v.Reset(ssaop.Op386ANDLmodify)
 		v.AuxInt = Int32ToAuxInt(off1 + off2)
 		v.Aux = SymToAux(sym)
 		v.AddArg3(base, val, mem)
 		return true
 	}
 	// match: (ANDLmodify [off1] {sym1} (LEAL [off2] {sym2} base) val mem)
-	// cond: Is32Bit(int64(off1)+int64(off2)) && CanMergeSym(sym1, sym2) && (base.Op != OpSB || !config.Ctxt.Flag_shared)
+	// cond: Is32Bit(int64(off1)+int64(off2)) && CanMergeSym(sym1, sym2) && (base.Op != ssaop.OpSB || !config.Ctxt.Flag_shared)
 	// result: (ANDLmodify [off1+off2] {MergeSym(sym1,sym2)} base val mem)
 	for {
 		off1 := AuxIntToInt32(v.AuxInt)
 		sym1 := AuxToSym(v.Aux)
-		if v_0.Op != Op386LEAL {
+		if v_0.Op != ssaop.Op386LEAL {
 			break
 		}
 		off2 := AuxIntToInt32(v_0.AuxInt)
@@ -1719,10 +1720,10 @@ func rewriteValue386_Op386ANDLmodify(v *Value) bool {
 		base := v_0.Args[0]
 		val := v_1
 		mem := v_2
-		if !(Is32Bit(int64(off1)+int64(off2)) && CanMergeSym(sym1, sym2) && (base.Op != OpSB || !config.Ctxt.Flag_shared)) {
+		if !(Is32Bit(int64(off1)+int64(off2)) && CanMergeSym(sym1, sym2) && (base.Op != ssaop.OpSB || !config.Ctxt.Flag_shared)) {
 			break
 		}
-		v.Reset(Op386ANDLmodify)
+		v.Reset(ssaop.Op386ANDLmodify)
 		v.AuxInt = Int32ToAuxInt(off1 + off2)
 		v.Aux = SymToAux(MergeSym(sym1, sym2))
 		v.AddArg3(base, val, mem)
@@ -1738,11 +1739,11 @@ func rewriteValue386_Op386CMPB(v *Value) bool {
 	// result: (CMPBconst x [int8(c)])
 	for {
 		x := v_0
-		if v_1.Op != Op386MOVLconst {
+		if v_1.Op != ssaop.Op386MOVLconst {
 			break
 		}
 		c := AuxIntToInt32(v_1.AuxInt)
-		v.Reset(Op386CMPBconst)
+		v.Reset(ssaop.Op386CMPBconst)
 		v.AuxInt = Int8ToAuxInt(int8(c))
 		v.AddArg(x)
 		return true
@@ -1750,13 +1751,13 @@ func rewriteValue386_Op386CMPB(v *Value) bool {
 	// match: (CMPB (MOVLconst [c]) x)
 	// result: (InvertFlags (CMPBconst x [int8(c)]))
 	for {
-		if v_0.Op != Op386MOVLconst {
+		if v_0.Op != ssaop.Op386MOVLconst {
 			break
 		}
 		c := AuxIntToInt32(v_0.AuxInt)
 		x := v_1
-		v.Reset(Op386InvertFlags)
-		v0 := b.NewValue0(v.Pos, Op386CMPBconst, types.TypeFlags)
+		v.Reset(ssaop.Op386InvertFlags)
+		v0 := b.NewValue0(v.Pos, ssaop.Op386CMPBconst, types.TypeFlags)
 		v0.AuxInt = Int8ToAuxInt(int8(c))
 		v0.AddArg(x)
 		v.AddArg(v0)
@@ -1771,8 +1772,8 @@ func rewriteValue386_Op386CMPB(v *Value) bool {
 		if !(CanonLessThan(x, y)) {
 			break
 		}
-		v.Reset(Op386InvertFlags)
-		v0 := b.NewValue0(v.Pos, Op386CMPB, types.TypeFlags)
+		v.Reset(ssaop.Op386InvertFlags)
+		v0 := b.NewValue0(v.Pos, ssaop.Op386CMPB, types.TypeFlags)
 		v0.AddArg2(y, x)
 		v.AddArg(v0)
 		return true
@@ -1782,7 +1783,7 @@ func rewriteValue386_Op386CMPB(v *Value) bool {
 	// result: (CMPBload {sym} [off] ptr x mem)
 	for {
 		l := v_0
-		if l.Op != Op386MOVBload {
+		if l.Op != ssaop.Op386MOVBload {
 			break
 		}
 		off := AuxIntToInt32(l.AuxInt)
@@ -1793,7 +1794,7 @@ func rewriteValue386_Op386CMPB(v *Value) bool {
 		if !(CanMergeLoad(v, l) && Clobber(l)) {
 			break
 		}
-		v.Reset(Op386CMPBload)
+		v.Reset(ssaop.Op386CMPBload)
 		v.AuxInt = Int32ToAuxInt(off)
 		v.Aux = SymToAux(sym)
 		v.AddArg3(ptr, x, mem)
@@ -1805,7 +1806,7 @@ func rewriteValue386_Op386CMPB(v *Value) bool {
 	for {
 		x := v_0
 		l := v_1
-		if l.Op != Op386MOVBload {
+		if l.Op != ssaop.Op386MOVBload {
 			break
 		}
 		off := AuxIntToInt32(l.AuxInt)
@@ -1815,8 +1816,8 @@ func rewriteValue386_Op386CMPB(v *Value) bool {
 		if !(CanMergeLoad(v, l) && Clobber(l)) {
 			break
 		}
-		v.Reset(Op386InvertFlags)
-		v0 := b.NewValue0(l.Pos, Op386CMPBload, types.TypeFlags)
+		v.Reset(ssaop.Op386InvertFlags)
+		v0 := b.NewValue0(l.Pos, ssaop.Op386CMPBload, types.TypeFlags)
 		v0.AuxInt = Int32ToAuxInt(off)
 		v0.Aux = SymToAux(sym)
 		v0.AddArg3(ptr, x, mem)
@@ -1833,14 +1834,14 @@ func rewriteValue386_Op386CMPBconst(v *Value) bool {
 	// result: (FlagEQ)
 	for {
 		y := AuxIntToInt8(v.AuxInt)
-		if v_0.Op != Op386MOVLconst {
+		if v_0.Op != ssaop.Op386MOVLconst {
 			break
 		}
 		x := AuxIntToInt32(v_0.AuxInt)
 		if !(int8(x) == y) {
 			break
 		}
-		v.Reset(Op386FlagEQ)
+		v.Reset(ssaop.Op386FlagEQ)
 		return true
 	}
 	// match: (CMPBconst (MOVLconst [x]) [y])
@@ -1848,14 +1849,14 @@ func rewriteValue386_Op386CMPBconst(v *Value) bool {
 	// result: (FlagLT_ULT)
 	for {
 		y := AuxIntToInt8(v.AuxInt)
-		if v_0.Op != Op386MOVLconst {
+		if v_0.Op != ssaop.Op386MOVLconst {
 			break
 		}
 		x := AuxIntToInt32(v_0.AuxInt)
 		if !(int8(x) < y && uint8(x) < uint8(y)) {
 			break
 		}
-		v.Reset(Op386FlagLT_ULT)
+		v.Reset(ssaop.Op386FlagLT_ULT)
 		return true
 	}
 	// match: (CMPBconst (MOVLconst [x]) [y])
@@ -1863,14 +1864,14 @@ func rewriteValue386_Op386CMPBconst(v *Value) bool {
 	// result: (FlagLT_UGT)
 	for {
 		y := AuxIntToInt8(v.AuxInt)
-		if v_0.Op != Op386MOVLconst {
+		if v_0.Op != ssaop.Op386MOVLconst {
 			break
 		}
 		x := AuxIntToInt32(v_0.AuxInt)
 		if !(int8(x) < y && uint8(x) > uint8(y)) {
 			break
 		}
-		v.Reset(Op386FlagLT_UGT)
+		v.Reset(ssaop.Op386FlagLT_UGT)
 		return true
 	}
 	// match: (CMPBconst (MOVLconst [x]) [y])
@@ -1878,14 +1879,14 @@ func rewriteValue386_Op386CMPBconst(v *Value) bool {
 	// result: (FlagGT_ULT)
 	for {
 		y := AuxIntToInt8(v.AuxInt)
-		if v_0.Op != Op386MOVLconst {
+		if v_0.Op != ssaop.Op386MOVLconst {
 			break
 		}
 		x := AuxIntToInt32(v_0.AuxInt)
 		if !(int8(x) > y && uint8(x) < uint8(y)) {
 			break
 		}
-		v.Reset(Op386FlagGT_ULT)
+		v.Reset(ssaop.Op386FlagGT_ULT)
 		return true
 	}
 	// match: (CMPBconst (MOVLconst [x]) [y])
@@ -1893,14 +1894,14 @@ func rewriteValue386_Op386CMPBconst(v *Value) bool {
 	// result: (FlagGT_UGT)
 	for {
 		y := AuxIntToInt8(v.AuxInt)
-		if v_0.Op != Op386MOVLconst {
+		if v_0.Op != ssaop.Op386MOVLconst {
 			break
 		}
 		x := AuxIntToInt32(v_0.AuxInt)
 		if !(int8(x) > y && uint8(x) > uint8(y)) {
 			break
 		}
-		v.Reset(Op386FlagGT_UGT)
+		v.Reset(ssaop.Op386FlagGT_UGT)
 		return true
 	}
 	// match: (CMPBconst (ANDLconst _ [m]) [n])
@@ -1908,14 +1909,14 @@ func rewriteValue386_Op386CMPBconst(v *Value) bool {
 	// result: (FlagLT_ULT)
 	for {
 		n := AuxIntToInt8(v.AuxInt)
-		if v_0.Op != Op386ANDLconst {
+		if v_0.Op != ssaop.Op386ANDLconst {
 			break
 		}
 		m := AuxIntToInt32(v_0.AuxInt)
 		if !(0 <= int8(m) && int8(m) < n) {
 			break
 		}
-		v.Reset(Op386FlagLT_ULT)
+		v.Reset(ssaop.Op386FlagLT_ULT)
 		return true
 	}
 	// match: (CMPBconst l:(ANDL x y) [0])
@@ -1926,7 +1927,7 @@ func rewriteValue386_Op386CMPBconst(v *Value) bool {
 			break
 		}
 		l := v_0
-		if l.Op != Op386ANDL {
+		if l.Op != ssaop.Op386ANDL {
 			break
 		}
 		y := l.Args[1]
@@ -1934,7 +1935,7 @@ func rewriteValue386_Op386CMPBconst(v *Value) bool {
 		if !(l.Uses == 1) {
 			break
 		}
-		v.Reset(Op386TESTB)
+		v.Reset(ssaop.Op386TESTB)
 		v.AddArg2(x, y)
 		return true
 	}
@@ -1946,7 +1947,7 @@ func rewriteValue386_Op386CMPBconst(v *Value) bool {
 			break
 		}
 		l := v_0
-		if l.Op != Op386ANDLconst {
+		if l.Op != ssaop.Op386ANDLconst {
 			break
 		}
 		c := AuxIntToInt32(l.AuxInt)
@@ -1954,7 +1955,7 @@ func rewriteValue386_Op386CMPBconst(v *Value) bool {
 		if !(l.Uses == 1) {
 			break
 		}
-		v.Reset(Op386TESTBconst)
+		v.Reset(ssaop.Op386TESTBconst)
 		v.AuxInt = Int8ToAuxInt(int8(c))
 		v.AddArg(x)
 		return true
@@ -1966,7 +1967,7 @@ func rewriteValue386_Op386CMPBconst(v *Value) bool {
 			break
 		}
 		x := v_0
-		v.Reset(Op386TESTB)
+		v.Reset(ssaop.Op386TESTB)
 		v.AddArg2(x, x)
 		return true
 	}
@@ -1976,7 +1977,7 @@ func rewriteValue386_Op386CMPBconst(v *Value) bool {
 	for {
 		c := AuxIntToInt8(v.AuxInt)
 		l := v_0
-		if l.Op != Op386MOVBload {
+		if l.Op != ssaop.Op386MOVBload {
 			break
 		}
 		off := AuxIntToInt32(l.AuxInt)
@@ -1987,7 +1988,7 @@ func rewriteValue386_Op386CMPBconst(v *Value) bool {
 			break
 		}
 		b = l.Block
-		v0 := b.NewValue0(l.Pos, Op386CMPBconstload, types.TypeFlags)
+		v0 := b.NewValue0(l.Pos, ssaop.Op386CMPBconstload, types.TypeFlags)
 		v.CopyOf(v0)
 		v0.AuxInt = ValAndOffToAuxInt(MakeValAndOff(int32(c), off))
 		v0.Aux = SymToAux(sym)
@@ -2006,12 +2007,12 @@ func rewriteValue386_Op386CMPBload(v *Value) bool {
 		off := AuxIntToInt32(v.AuxInt)
 		sym := AuxToSym(v.Aux)
 		ptr := v_0
-		if v_1.Op != Op386MOVLconst {
+		if v_1.Op != ssaop.Op386MOVLconst {
 			break
 		}
 		c := AuxIntToInt32(v_1.AuxInt)
 		mem := v_2
-		v.Reset(Op386CMPBconstload)
+		v.Reset(ssaop.Op386CMPBconstload)
 		v.AuxInt = ValAndOffToAuxInt(MakeValAndOff(int32(int8(c)), off))
 		v.Aux = SymToAux(sym)
 		v.AddArg2(ptr, mem)
@@ -2027,11 +2028,11 @@ func rewriteValue386_Op386CMPL(v *Value) bool {
 	// result: (CMPLconst x [c])
 	for {
 		x := v_0
-		if v_1.Op != Op386MOVLconst {
+		if v_1.Op != ssaop.Op386MOVLconst {
 			break
 		}
 		c := AuxIntToInt32(v_1.AuxInt)
-		v.Reset(Op386CMPLconst)
+		v.Reset(ssaop.Op386CMPLconst)
 		v.AuxInt = Int32ToAuxInt(c)
 		v.AddArg(x)
 		return true
@@ -2039,13 +2040,13 @@ func rewriteValue386_Op386CMPL(v *Value) bool {
 	// match: (CMPL (MOVLconst [c]) x)
 	// result: (InvertFlags (CMPLconst x [c]))
 	for {
-		if v_0.Op != Op386MOVLconst {
+		if v_0.Op != ssaop.Op386MOVLconst {
 			break
 		}
 		c := AuxIntToInt32(v_0.AuxInt)
 		x := v_1
-		v.Reset(Op386InvertFlags)
-		v0 := b.NewValue0(v.Pos, Op386CMPLconst, types.TypeFlags)
+		v.Reset(ssaop.Op386InvertFlags)
+		v0 := b.NewValue0(v.Pos, ssaop.Op386CMPLconst, types.TypeFlags)
 		v0.AuxInt = Int32ToAuxInt(c)
 		v0.AddArg(x)
 		v.AddArg(v0)
@@ -2060,8 +2061,8 @@ func rewriteValue386_Op386CMPL(v *Value) bool {
 		if !(CanonLessThan(x, y)) {
 			break
 		}
-		v.Reset(Op386InvertFlags)
-		v0 := b.NewValue0(v.Pos, Op386CMPL, types.TypeFlags)
+		v.Reset(ssaop.Op386InvertFlags)
+		v0 := b.NewValue0(v.Pos, ssaop.Op386CMPL, types.TypeFlags)
 		v0.AddArg2(y, x)
 		v.AddArg(v0)
 		return true
@@ -2071,7 +2072,7 @@ func rewriteValue386_Op386CMPL(v *Value) bool {
 	// result: (CMPLload {sym} [off] ptr x mem)
 	for {
 		l := v_0
-		if l.Op != Op386MOVLload {
+		if l.Op != ssaop.Op386MOVLload {
 			break
 		}
 		off := AuxIntToInt32(l.AuxInt)
@@ -2082,7 +2083,7 @@ func rewriteValue386_Op386CMPL(v *Value) bool {
 		if !(CanMergeLoad(v, l) && Clobber(l)) {
 			break
 		}
-		v.Reset(Op386CMPLload)
+		v.Reset(ssaop.Op386CMPLload)
 		v.AuxInt = Int32ToAuxInt(off)
 		v.Aux = SymToAux(sym)
 		v.AddArg3(ptr, x, mem)
@@ -2094,7 +2095,7 @@ func rewriteValue386_Op386CMPL(v *Value) bool {
 	for {
 		x := v_0
 		l := v_1
-		if l.Op != Op386MOVLload {
+		if l.Op != ssaop.Op386MOVLload {
 			break
 		}
 		off := AuxIntToInt32(l.AuxInt)
@@ -2104,8 +2105,8 @@ func rewriteValue386_Op386CMPL(v *Value) bool {
 		if !(CanMergeLoad(v, l) && Clobber(l)) {
 			break
 		}
-		v.Reset(Op386InvertFlags)
-		v0 := b.NewValue0(l.Pos, Op386CMPLload, types.TypeFlags)
+		v.Reset(ssaop.Op386InvertFlags)
+		v0 := b.NewValue0(l.Pos, ssaop.Op386CMPLload, types.TypeFlags)
 		v0.AuxInt = Int32ToAuxInt(off)
 		v0.Aux = SymToAux(sym)
 		v0.AddArg3(ptr, x, mem)
@@ -2122,14 +2123,14 @@ func rewriteValue386_Op386CMPLconst(v *Value) bool {
 	// result: (FlagEQ)
 	for {
 		y := AuxIntToInt32(v.AuxInt)
-		if v_0.Op != Op386MOVLconst {
+		if v_0.Op != ssaop.Op386MOVLconst {
 			break
 		}
 		x := AuxIntToInt32(v_0.AuxInt)
 		if !(x == y) {
 			break
 		}
-		v.Reset(Op386FlagEQ)
+		v.Reset(ssaop.Op386FlagEQ)
 		return true
 	}
 	// match: (CMPLconst (MOVLconst [x]) [y])
@@ -2137,14 +2138,14 @@ func rewriteValue386_Op386CMPLconst(v *Value) bool {
 	// result: (FlagLT_ULT)
 	for {
 		y := AuxIntToInt32(v.AuxInt)
-		if v_0.Op != Op386MOVLconst {
+		if v_0.Op != ssaop.Op386MOVLconst {
 			break
 		}
 		x := AuxIntToInt32(v_0.AuxInt)
 		if !(x < y && uint32(x) < uint32(y)) {
 			break
 		}
-		v.Reset(Op386FlagLT_ULT)
+		v.Reset(ssaop.Op386FlagLT_ULT)
 		return true
 	}
 	// match: (CMPLconst (MOVLconst [x]) [y])
@@ -2152,14 +2153,14 @@ func rewriteValue386_Op386CMPLconst(v *Value) bool {
 	// result: (FlagLT_UGT)
 	for {
 		y := AuxIntToInt32(v.AuxInt)
-		if v_0.Op != Op386MOVLconst {
+		if v_0.Op != ssaop.Op386MOVLconst {
 			break
 		}
 		x := AuxIntToInt32(v_0.AuxInt)
 		if !(x < y && uint32(x) > uint32(y)) {
 			break
 		}
-		v.Reset(Op386FlagLT_UGT)
+		v.Reset(ssaop.Op386FlagLT_UGT)
 		return true
 	}
 	// match: (CMPLconst (MOVLconst [x]) [y])
@@ -2167,14 +2168,14 @@ func rewriteValue386_Op386CMPLconst(v *Value) bool {
 	// result: (FlagGT_ULT)
 	for {
 		y := AuxIntToInt32(v.AuxInt)
-		if v_0.Op != Op386MOVLconst {
+		if v_0.Op != ssaop.Op386MOVLconst {
 			break
 		}
 		x := AuxIntToInt32(v_0.AuxInt)
 		if !(x > y && uint32(x) < uint32(y)) {
 			break
 		}
-		v.Reset(Op386FlagGT_ULT)
+		v.Reset(ssaop.Op386FlagGT_ULT)
 		return true
 	}
 	// match: (CMPLconst (MOVLconst [x]) [y])
@@ -2182,14 +2183,14 @@ func rewriteValue386_Op386CMPLconst(v *Value) bool {
 	// result: (FlagGT_UGT)
 	for {
 		y := AuxIntToInt32(v.AuxInt)
-		if v_0.Op != Op386MOVLconst {
+		if v_0.Op != ssaop.Op386MOVLconst {
 			break
 		}
 		x := AuxIntToInt32(v_0.AuxInt)
 		if !(x > y && uint32(x) > uint32(y)) {
 			break
 		}
-		v.Reset(Op386FlagGT_UGT)
+		v.Reset(ssaop.Op386FlagGT_UGT)
 		return true
 	}
 	// match: (CMPLconst (SHRLconst _ [c]) [n])
@@ -2197,14 +2198,14 @@ func rewriteValue386_Op386CMPLconst(v *Value) bool {
 	// result: (FlagLT_ULT)
 	for {
 		n := AuxIntToInt32(v.AuxInt)
-		if v_0.Op != Op386SHRLconst {
+		if v_0.Op != ssaop.Op386SHRLconst {
 			break
 		}
 		c := AuxIntToInt32(v_0.AuxInt)
 		if !(0 <= n && 0 < c && c <= 32 && (1<<uint64(32-c)) <= uint64(n)) {
 			break
 		}
-		v.Reset(Op386FlagLT_ULT)
+		v.Reset(ssaop.Op386FlagLT_ULT)
 		return true
 	}
 	// match: (CMPLconst (ANDLconst _ [m]) [n])
@@ -2212,14 +2213,14 @@ func rewriteValue386_Op386CMPLconst(v *Value) bool {
 	// result: (FlagLT_ULT)
 	for {
 		n := AuxIntToInt32(v.AuxInt)
-		if v_0.Op != Op386ANDLconst {
+		if v_0.Op != ssaop.Op386ANDLconst {
 			break
 		}
 		m := AuxIntToInt32(v_0.AuxInt)
 		if !(0 <= m && m < n) {
 			break
 		}
-		v.Reset(Op386FlagLT_ULT)
+		v.Reset(ssaop.Op386FlagLT_ULT)
 		return true
 	}
 	// match: (CMPLconst l:(ANDL x y) [0])
@@ -2230,7 +2231,7 @@ func rewriteValue386_Op386CMPLconst(v *Value) bool {
 			break
 		}
 		l := v_0
-		if l.Op != Op386ANDL {
+		if l.Op != ssaop.Op386ANDL {
 			break
 		}
 		y := l.Args[1]
@@ -2238,7 +2239,7 @@ func rewriteValue386_Op386CMPLconst(v *Value) bool {
 		if !(l.Uses == 1) {
 			break
 		}
-		v.Reset(Op386TESTL)
+		v.Reset(ssaop.Op386TESTL)
 		v.AddArg2(x, y)
 		return true
 	}
@@ -2250,7 +2251,7 @@ func rewriteValue386_Op386CMPLconst(v *Value) bool {
 			break
 		}
 		l := v_0
-		if l.Op != Op386ANDLconst {
+		if l.Op != ssaop.Op386ANDLconst {
 			break
 		}
 		c := AuxIntToInt32(l.AuxInt)
@@ -2258,7 +2259,7 @@ func rewriteValue386_Op386CMPLconst(v *Value) bool {
 		if !(l.Uses == 1) {
 			break
 		}
-		v.Reset(Op386TESTLconst)
+		v.Reset(ssaop.Op386TESTLconst)
 		v.AuxInt = Int32ToAuxInt(c)
 		v.AddArg(x)
 		return true
@@ -2270,7 +2271,7 @@ func rewriteValue386_Op386CMPLconst(v *Value) bool {
 			break
 		}
 		x := v_0
-		v.Reset(Op386TESTL)
+		v.Reset(ssaop.Op386TESTL)
 		v.AddArg2(x, x)
 		return true
 	}
@@ -2280,7 +2281,7 @@ func rewriteValue386_Op386CMPLconst(v *Value) bool {
 	for {
 		c := AuxIntToInt32(v.AuxInt)
 		l := v_0
-		if l.Op != Op386MOVLload {
+		if l.Op != ssaop.Op386MOVLload {
 			break
 		}
 		off := AuxIntToInt32(l.AuxInt)
@@ -2291,7 +2292,7 @@ func rewriteValue386_Op386CMPLconst(v *Value) bool {
 			break
 		}
 		b = l.Block
-		v0 := b.NewValue0(l.Pos, Op386CMPLconstload, types.TypeFlags)
+		v0 := b.NewValue0(l.Pos, ssaop.Op386CMPLconstload, types.TypeFlags)
 		v.CopyOf(v0)
 		v0.AuxInt = ValAndOffToAuxInt(MakeValAndOff(int32(c), off))
 		v0.Aux = SymToAux(sym)
@@ -2310,12 +2311,12 @@ func rewriteValue386_Op386CMPLload(v *Value) bool {
 		off := AuxIntToInt32(v.AuxInt)
 		sym := AuxToSym(v.Aux)
 		ptr := v_0
-		if v_1.Op != Op386MOVLconst {
+		if v_1.Op != ssaop.Op386MOVLconst {
 			break
 		}
 		c := AuxIntToInt32(v_1.AuxInt)
 		mem := v_2
-		v.Reset(Op386CMPLconstload)
+		v.Reset(ssaop.Op386CMPLconstload)
 		v.AuxInt = ValAndOffToAuxInt(MakeValAndOff(c, off))
 		v.Aux = SymToAux(sym)
 		v.AddArg2(ptr, mem)
@@ -2331,11 +2332,11 @@ func rewriteValue386_Op386CMPW(v *Value) bool {
 	// result: (CMPWconst x [int16(c)])
 	for {
 		x := v_0
-		if v_1.Op != Op386MOVLconst {
+		if v_1.Op != ssaop.Op386MOVLconst {
 			break
 		}
 		c := AuxIntToInt32(v_1.AuxInt)
-		v.Reset(Op386CMPWconst)
+		v.Reset(ssaop.Op386CMPWconst)
 		v.AuxInt = Int16ToAuxInt(int16(c))
 		v.AddArg(x)
 		return true
@@ -2343,13 +2344,13 @@ func rewriteValue386_Op386CMPW(v *Value) bool {
 	// match: (CMPW (MOVLconst [c]) x)
 	// result: (InvertFlags (CMPWconst x [int16(c)]))
 	for {
-		if v_0.Op != Op386MOVLconst {
+		if v_0.Op != ssaop.Op386MOVLconst {
 			break
 		}
 		c := AuxIntToInt32(v_0.AuxInt)
 		x := v_1
-		v.Reset(Op386InvertFlags)
-		v0 := b.NewValue0(v.Pos, Op386CMPWconst, types.TypeFlags)
+		v.Reset(ssaop.Op386InvertFlags)
+		v0 := b.NewValue0(v.Pos, ssaop.Op386CMPWconst, types.TypeFlags)
 		v0.AuxInt = Int16ToAuxInt(int16(c))
 		v0.AddArg(x)
 		v.AddArg(v0)
@@ -2364,8 +2365,8 @@ func rewriteValue386_Op386CMPW(v *Value) bool {
 		if !(CanonLessThan(x, y)) {
 			break
 		}
-		v.Reset(Op386InvertFlags)
-		v0 := b.NewValue0(v.Pos, Op386CMPW, types.TypeFlags)
+		v.Reset(ssaop.Op386InvertFlags)
+		v0 := b.NewValue0(v.Pos, ssaop.Op386CMPW, types.TypeFlags)
 		v0.AddArg2(y, x)
 		v.AddArg(v0)
 		return true
@@ -2375,7 +2376,7 @@ func rewriteValue386_Op386CMPW(v *Value) bool {
 	// result: (CMPWload {sym} [off] ptr x mem)
 	for {
 		l := v_0
-		if l.Op != Op386MOVWload {
+		if l.Op != ssaop.Op386MOVWload {
 			break
 		}
 		off := AuxIntToInt32(l.AuxInt)
@@ -2386,7 +2387,7 @@ func rewriteValue386_Op386CMPW(v *Value) bool {
 		if !(CanMergeLoad(v, l) && Clobber(l)) {
 			break
 		}
-		v.Reset(Op386CMPWload)
+		v.Reset(ssaop.Op386CMPWload)
 		v.AuxInt = Int32ToAuxInt(off)
 		v.Aux = SymToAux(sym)
 		v.AddArg3(ptr, x, mem)
@@ -2398,7 +2399,7 @@ func rewriteValue386_Op386CMPW(v *Value) bool {
 	for {
 		x := v_0
 		l := v_1
-		if l.Op != Op386MOVWload {
+		if l.Op != ssaop.Op386MOVWload {
 			break
 		}
 		off := AuxIntToInt32(l.AuxInt)
@@ -2408,8 +2409,8 @@ func rewriteValue386_Op386CMPW(v *Value) bool {
 		if !(CanMergeLoad(v, l) && Clobber(l)) {
 			break
 		}
-		v.Reset(Op386InvertFlags)
-		v0 := b.NewValue0(l.Pos, Op386CMPWload, types.TypeFlags)
+		v.Reset(ssaop.Op386InvertFlags)
+		v0 := b.NewValue0(l.Pos, ssaop.Op386CMPWload, types.TypeFlags)
 		v0.AuxInt = Int32ToAuxInt(off)
 		v0.Aux = SymToAux(sym)
 		v0.AddArg3(ptr, x, mem)
@@ -2426,14 +2427,14 @@ func rewriteValue386_Op386CMPWconst(v *Value) bool {
 	// result: (FlagEQ)
 	for {
 		y := AuxIntToInt16(v.AuxInt)
-		if v_0.Op != Op386MOVLconst {
+		if v_0.Op != ssaop.Op386MOVLconst {
 			break
 		}
 		x := AuxIntToInt32(v_0.AuxInt)
 		if !(int16(x) == y) {
 			break
 		}
-		v.Reset(Op386FlagEQ)
+		v.Reset(ssaop.Op386FlagEQ)
 		return true
 	}
 	// match: (CMPWconst (MOVLconst [x]) [y])
@@ -2441,14 +2442,14 @@ func rewriteValue386_Op386CMPWconst(v *Value) bool {
 	// result: (FlagLT_ULT)
 	for {
 		y := AuxIntToInt16(v.AuxInt)
-		if v_0.Op != Op386MOVLconst {
+		if v_0.Op != ssaop.Op386MOVLconst {
 			break
 		}
 		x := AuxIntToInt32(v_0.AuxInt)
 		if !(int16(x) < y && uint16(x) < uint16(y)) {
 			break
 		}
-		v.Reset(Op386FlagLT_ULT)
+		v.Reset(ssaop.Op386FlagLT_ULT)
 		return true
 	}
 	// match: (CMPWconst (MOVLconst [x]) [y])
@@ -2456,14 +2457,14 @@ func rewriteValue386_Op386CMPWconst(v *Value) bool {
 	// result: (FlagLT_UGT)
 	for {
 		y := AuxIntToInt16(v.AuxInt)
-		if v_0.Op != Op386MOVLconst {
+		if v_0.Op != ssaop.Op386MOVLconst {
 			break
 		}
 		x := AuxIntToInt32(v_0.AuxInt)
 		if !(int16(x) < y && uint16(x) > uint16(y)) {
 			break
 		}
-		v.Reset(Op386FlagLT_UGT)
+		v.Reset(ssaop.Op386FlagLT_UGT)
 		return true
 	}
 	// match: (CMPWconst (MOVLconst [x]) [y])
@@ -2471,14 +2472,14 @@ func rewriteValue386_Op386CMPWconst(v *Value) bool {
 	// result: (FlagGT_ULT)
 	for {
 		y := AuxIntToInt16(v.AuxInt)
-		if v_0.Op != Op386MOVLconst {
+		if v_0.Op != ssaop.Op386MOVLconst {
 			break
 		}
 		x := AuxIntToInt32(v_0.AuxInt)
 		if !(int16(x) > y && uint16(x) < uint16(y)) {
 			break
 		}
-		v.Reset(Op386FlagGT_ULT)
+		v.Reset(ssaop.Op386FlagGT_ULT)
 		return true
 	}
 	// match: (CMPWconst (MOVLconst [x]) [y])
@@ -2486,14 +2487,14 @@ func rewriteValue386_Op386CMPWconst(v *Value) bool {
 	// result: (FlagGT_UGT)
 	for {
 		y := AuxIntToInt16(v.AuxInt)
-		if v_0.Op != Op386MOVLconst {
+		if v_0.Op != ssaop.Op386MOVLconst {
 			break
 		}
 		x := AuxIntToInt32(v_0.AuxInt)
 		if !(int16(x) > y && uint16(x) > uint16(y)) {
 			break
 		}
-		v.Reset(Op386FlagGT_UGT)
+		v.Reset(ssaop.Op386FlagGT_UGT)
 		return true
 	}
 	// match: (CMPWconst (ANDLconst _ [m]) [n])
@@ -2501,14 +2502,14 @@ func rewriteValue386_Op386CMPWconst(v *Value) bool {
 	// result: (FlagLT_ULT)
 	for {
 		n := AuxIntToInt16(v.AuxInt)
-		if v_0.Op != Op386ANDLconst {
+		if v_0.Op != ssaop.Op386ANDLconst {
 			break
 		}
 		m := AuxIntToInt32(v_0.AuxInt)
 		if !(0 <= int16(m) && int16(m) < n) {
 			break
 		}
-		v.Reset(Op386FlagLT_ULT)
+		v.Reset(ssaop.Op386FlagLT_ULT)
 		return true
 	}
 	// match: (CMPWconst l:(ANDL x y) [0])
@@ -2519,7 +2520,7 @@ func rewriteValue386_Op386CMPWconst(v *Value) bool {
 			break
 		}
 		l := v_0
-		if l.Op != Op386ANDL {
+		if l.Op != ssaop.Op386ANDL {
 			break
 		}
 		y := l.Args[1]
@@ -2527,7 +2528,7 @@ func rewriteValue386_Op386CMPWconst(v *Value) bool {
 		if !(l.Uses == 1) {
 			break
 		}
-		v.Reset(Op386TESTW)
+		v.Reset(ssaop.Op386TESTW)
 		v.AddArg2(x, y)
 		return true
 	}
@@ -2539,7 +2540,7 @@ func rewriteValue386_Op386CMPWconst(v *Value) bool {
 			break
 		}
 		l := v_0
-		if l.Op != Op386ANDLconst {
+		if l.Op != ssaop.Op386ANDLconst {
 			break
 		}
 		c := AuxIntToInt32(l.AuxInt)
@@ -2547,7 +2548,7 @@ func rewriteValue386_Op386CMPWconst(v *Value) bool {
 		if !(l.Uses == 1) {
 			break
 		}
-		v.Reset(Op386TESTWconst)
+		v.Reset(ssaop.Op386TESTWconst)
 		v.AuxInt = Int16ToAuxInt(int16(c))
 		v.AddArg(x)
 		return true
@@ -2559,7 +2560,7 @@ func rewriteValue386_Op386CMPWconst(v *Value) bool {
 			break
 		}
 		x := v_0
-		v.Reset(Op386TESTW)
+		v.Reset(ssaop.Op386TESTW)
 		v.AddArg2(x, x)
 		return true
 	}
@@ -2569,7 +2570,7 @@ func rewriteValue386_Op386CMPWconst(v *Value) bool {
 	for {
 		c := AuxIntToInt16(v.AuxInt)
 		l := v_0
-		if l.Op != Op386MOVWload {
+		if l.Op != ssaop.Op386MOVWload {
 			break
 		}
 		off := AuxIntToInt32(l.AuxInt)
@@ -2580,7 +2581,7 @@ func rewriteValue386_Op386CMPWconst(v *Value) bool {
 			break
 		}
 		b = l.Block
-		v0 := b.NewValue0(l.Pos, Op386CMPWconstload, types.TypeFlags)
+		v0 := b.NewValue0(l.Pos, ssaop.Op386CMPWconstload, types.TypeFlags)
 		v.CopyOf(v0)
 		v0.AuxInt = ValAndOffToAuxInt(MakeValAndOff(int32(c), off))
 		v0.Aux = SymToAux(sym)
@@ -2599,12 +2600,12 @@ func rewriteValue386_Op386CMPWload(v *Value) bool {
 		off := AuxIntToInt32(v.AuxInt)
 		sym := AuxToSym(v.Aux)
 		ptr := v_0
-		if v_1.Op != Op386MOVLconst {
+		if v_1.Op != ssaop.Op386MOVLconst {
 			break
 		}
 		c := AuxIntToInt32(v_1.AuxInt)
 		mem := v_2
-		v.Reset(Op386CMPWconstload)
+		v.Reset(ssaop.Op386CMPWconstload)
 		v.AuxInt = ValAndOffToAuxInt(MakeValAndOff(int32(int16(c)), off))
 		v.Aux = SymToAux(sym)
 		v.AddArg2(ptr, mem)
@@ -2621,7 +2622,7 @@ func rewriteValue386_Op386DIVSD(v *Value) bool {
 	for {
 		x := v_0
 		l := v_1
-		if l.Op != Op386MOVSDload {
+		if l.Op != ssaop.Op386MOVSDload {
 			break
 		}
 		off := AuxIntToInt32(l.AuxInt)
@@ -2631,7 +2632,7 @@ func rewriteValue386_Op386DIVSD(v *Value) bool {
 		if !(CanMergeLoadClobber(v, l, x) && Clobber(l)) {
 			break
 		}
-		v.Reset(Op386DIVSDload)
+		v.Reset(ssaop.Op386DIVSDload)
 		v.AuxInt = Int32ToAuxInt(off)
 		v.Aux = SymToAux(sym)
 		v.AddArg3(x, ptr, mem)
@@ -2652,7 +2653,7 @@ func rewriteValue386_Op386DIVSDload(v *Value) bool {
 		off1 := AuxIntToInt32(v.AuxInt)
 		sym := AuxToSym(v.Aux)
 		val := v_0
-		if v_1.Op != Op386ADDLconst {
+		if v_1.Op != ssaop.Op386ADDLconst {
 			break
 		}
 		off2 := AuxIntToInt32(v_1.AuxInt)
@@ -2661,30 +2662,30 @@ func rewriteValue386_Op386DIVSDload(v *Value) bool {
 		if !(Is32Bit(int64(off1) + int64(off2))) {
 			break
 		}
-		v.Reset(Op386DIVSDload)
+		v.Reset(ssaop.Op386DIVSDload)
 		v.AuxInt = Int32ToAuxInt(off1 + off2)
 		v.Aux = SymToAux(sym)
 		v.AddArg3(val, base, mem)
 		return true
 	}
 	// match: (DIVSDload [off1] {sym1} val (LEAL [off2] {sym2} base) mem)
-	// cond: Is32Bit(int64(off1)+int64(off2)) && CanMergeSym(sym1, sym2) && (base.Op != OpSB || !config.Ctxt.Flag_shared)
+	// cond: Is32Bit(int64(off1)+int64(off2)) && CanMergeSym(sym1, sym2) && (base.Op != ssaop.OpSB || !config.Ctxt.Flag_shared)
 	// result: (DIVSDload [off1+off2] {MergeSym(sym1,sym2)} val base mem)
 	for {
 		off1 := AuxIntToInt32(v.AuxInt)
 		sym1 := AuxToSym(v.Aux)
 		val := v_0
-		if v_1.Op != Op386LEAL {
+		if v_1.Op != ssaop.Op386LEAL {
 			break
 		}
 		off2 := AuxIntToInt32(v_1.AuxInt)
 		sym2 := AuxToSym(v_1.Aux)
 		base := v_1.Args[0]
 		mem := v_2
-		if !(Is32Bit(int64(off1)+int64(off2)) && CanMergeSym(sym1, sym2) && (base.Op != OpSB || !config.Ctxt.Flag_shared)) {
+		if !(Is32Bit(int64(off1)+int64(off2)) && CanMergeSym(sym1, sym2) && (base.Op != ssaop.OpSB || !config.Ctxt.Flag_shared)) {
 			break
 		}
-		v.Reset(Op386DIVSDload)
+		v.Reset(ssaop.Op386DIVSDload)
 		v.AuxInt = Int32ToAuxInt(off1 + off2)
 		v.Aux = SymToAux(MergeSym(sym1, sym2))
 		v.AddArg3(val, base, mem)
@@ -2701,7 +2702,7 @@ func rewriteValue386_Op386DIVSS(v *Value) bool {
 	for {
 		x := v_0
 		l := v_1
-		if l.Op != Op386MOVSSload {
+		if l.Op != ssaop.Op386MOVSSload {
 			break
 		}
 		off := AuxIntToInt32(l.AuxInt)
@@ -2711,7 +2712,7 @@ func rewriteValue386_Op386DIVSS(v *Value) bool {
 		if !(CanMergeLoadClobber(v, l, x) && Clobber(l)) {
 			break
 		}
-		v.Reset(Op386DIVSSload)
+		v.Reset(ssaop.Op386DIVSSload)
 		v.AuxInt = Int32ToAuxInt(off)
 		v.Aux = SymToAux(sym)
 		v.AddArg3(x, ptr, mem)
@@ -2732,7 +2733,7 @@ func rewriteValue386_Op386DIVSSload(v *Value) bool {
 		off1 := AuxIntToInt32(v.AuxInt)
 		sym := AuxToSym(v.Aux)
 		val := v_0
-		if v_1.Op != Op386ADDLconst {
+		if v_1.Op != ssaop.Op386ADDLconst {
 			break
 		}
 		off2 := AuxIntToInt32(v_1.AuxInt)
@@ -2741,30 +2742,30 @@ func rewriteValue386_Op386DIVSSload(v *Value) bool {
 		if !(Is32Bit(int64(off1) + int64(off2))) {
 			break
 		}
-		v.Reset(Op386DIVSSload)
+		v.Reset(ssaop.Op386DIVSSload)
 		v.AuxInt = Int32ToAuxInt(off1 + off2)
 		v.Aux = SymToAux(sym)
 		v.AddArg3(val, base, mem)
 		return true
 	}
 	// match: (DIVSSload [off1] {sym1} val (LEAL [off2] {sym2} base) mem)
-	// cond: Is32Bit(int64(off1)+int64(off2)) && CanMergeSym(sym1, sym2) && (base.Op != OpSB || !config.Ctxt.Flag_shared)
+	// cond: Is32Bit(int64(off1)+int64(off2)) && CanMergeSym(sym1, sym2) && (base.Op != ssaop.OpSB || !config.Ctxt.Flag_shared)
 	// result: (DIVSSload [off1+off2] {MergeSym(sym1,sym2)} val base mem)
 	for {
 		off1 := AuxIntToInt32(v.AuxInt)
 		sym1 := AuxToSym(v.Aux)
 		val := v_0
-		if v_1.Op != Op386LEAL {
+		if v_1.Op != ssaop.Op386LEAL {
 			break
 		}
 		off2 := AuxIntToInt32(v_1.AuxInt)
 		sym2 := AuxToSym(v_1.Aux)
 		base := v_1.Args[0]
 		mem := v_2
-		if !(Is32Bit(int64(off1)+int64(off2)) && CanMergeSym(sym1, sym2) && (base.Op != OpSB || !config.Ctxt.Flag_shared)) {
+		if !(Is32Bit(int64(off1)+int64(off2)) && CanMergeSym(sym1, sym2) && (base.Op != ssaop.OpSB || !config.Ctxt.Flag_shared)) {
 			break
 		}
-		v.Reset(Op386DIVSSload)
+		v.Reset(ssaop.Op386DIVSSload)
 		v.AuxInt = Int32ToAuxInt(off1 + off2)
 		v.Aux = SymToAux(MergeSym(sym1, sym2))
 		v.AddArg3(val, base, mem)
@@ -2780,7 +2781,7 @@ func rewriteValue386_Op386LEAL(v *Value) bool {
 	for {
 		c := AuxIntToInt32(v.AuxInt)
 		s := AuxToSym(v.Aux)
-		if v_0.Op != Op386ADDLconst {
+		if v_0.Op != ssaop.Op386ADDLconst {
 			break
 		}
 		d := AuxIntToInt32(v_0.AuxInt)
@@ -2788,19 +2789,19 @@ func rewriteValue386_Op386LEAL(v *Value) bool {
 		if !(Is32Bit(int64(c) + int64(d))) {
 			break
 		}
-		v.Reset(Op386LEAL)
+		v.Reset(ssaop.Op386LEAL)
 		v.AuxInt = Int32ToAuxInt(c + d)
 		v.Aux = SymToAux(s)
 		v.AddArg(x)
 		return true
 	}
 	// match: (LEAL [c] {s} (ADDL x y))
-	// cond: x.Op != OpSB && y.Op != OpSB
+	// cond: x.Op != ssaop.OpSB && y.Op != ssaop.OpSB
 	// result: (LEAL1 [c] {s} x y)
 	for {
 		c := AuxIntToInt32(v.AuxInt)
 		s := AuxToSym(v.Aux)
-		if v_0.Op != Op386ADDL {
+		if v_0.Op != ssaop.Op386ADDL {
 			break
 		}
 		_ = v_0.Args[1]
@@ -2809,10 +2810,10 @@ func rewriteValue386_Op386LEAL(v *Value) bool {
 		for _i0 := 0; _i0 <= 1; _i0, v_0_0, v_0_1 = _i0+1, v_0_1, v_0_0 {
 			x := v_0_0
 			y := v_0_1
-			if !(x.Op != OpSB && y.Op != OpSB) {
+			if !(x.Op != ssaop.OpSB && y.Op != ssaop.OpSB) {
 				continue
 			}
-			v.Reset(Op386LEAL1)
+			v.Reset(ssaop.Op386LEAL1)
 			v.AuxInt = Int32ToAuxInt(c)
 			v.Aux = SymToAux(s)
 			v.AddArg2(x, y)
@@ -2826,7 +2827,7 @@ func rewriteValue386_Op386LEAL(v *Value) bool {
 	for {
 		off1 := AuxIntToInt32(v.AuxInt)
 		sym1 := AuxToSym(v.Aux)
-		if v_0.Op != Op386LEAL {
+		if v_0.Op != ssaop.Op386LEAL {
 			break
 		}
 		off2 := AuxIntToInt32(v_0.AuxInt)
@@ -2835,7 +2836,7 @@ func rewriteValue386_Op386LEAL(v *Value) bool {
 		if !(Is32Bit(int64(off1)+int64(off2)) && CanMergeSym(sym1, sym2)) {
 			break
 		}
-		v.Reset(Op386LEAL)
+		v.Reset(ssaop.Op386LEAL)
 		v.AuxInt = Int32ToAuxInt(off1 + off2)
 		v.Aux = SymToAux(MergeSym(sym1, sym2))
 		v.AddArg(x)
@@ -2847,7 +2848,7 @@ func rewriteValue386_Op386LEAL(v *Value) bool {
 	for {
 		off1 := AuxIntToInt32(v.AuxInt)
 		sym1 := AuxToSym(v.Aux)
-		if v_0.Op != Op386LEAL1 {
+		if v_0.Op != ssaop.Op386LEAL1 {
 			break
 		}
 		off2 := AuxIntToInt32(v_0.AuxInt)
@@ -2857,7 +2858,7 @@ func rewriteValue386_Op386LEAL(v *Value) bool {
 		if !(Is32Bit(int64(off1)+int64(off2)) && CanMergeSym(sym1, sym2)) {
 			break
 		}
-		v.Reset(Op386LEAL1)
+		v.Reset(ssaop.Op386LEAL1)
 		v.AuxInt = Int32ToAuxInt(off1 + off2)
 		v.Aux = SymToAux(MergeSym(sym1, sym2))
 		v.AddArg2(x, y)
@@ -2869,7 +2870,7 @@ func rewriteValue386_Op386LEAL(v *Value) bool {
 	for {
 		off1 := AuxIntToInt32(v.AuxInt)
 		sym1 := AuxToSym(v.Aux)
-		if v_0.Op != Op386LEAL2 {
+		if v_0.Op != ssaop.Op386LEAL2 {
 			break
 		}
 		off2 := AuxIntToInt32(v_0.AuxInt)
@@ -2879,7 +2880,7 @@ func rewriteValue386_Op386LEAL(v *Value) bool {
 		if !(Is32Bit(int64(off1)+int64(off2)) && CanMergeSym(sym1, sym2)) {
 			break
 		}
-		v.Reset(Op386LEAL2)
+		v.Reset(ssaop.Op386LEAL2)
 		v.AuxInt = Int32ToAuxInt(off1 + off2)
 		v.Aux = SymToAux(MergeSym(sym1, sym2))
 		v.AddArg2(x, y)
@@ -2891,7 +2892,7 @@ func rewriteValue386_Op386LEAL(v *Value) bool {
 	for {
 		off1 := AuxIntToInt32(v.AuxInt)
 		sym1 := AuxToSym(v.Aux)
-		if v_0.Op != Op386LEAL4 {
+		if v_0.Op != ssaop.Op386LEAL4 {
 			break
 		}
 		off2 := AuxIntToInt32(v_0.AuxInt)
@@ -2901,7 +2902,7 @@ func rewriteValue386_Op386LEAL(v *Value) bool {
 		if !(Is32Bit(int64(off1)+int64(off2)) && CanMergeSym(sym1, sym2)) {
 			break
 		}
-		v.Reset(Op386LEAL4)
+		v.Reset(ssaop.Op386LEAL4)
 		v.AuxInt = Int32ToAuxInt(off1 + off2)
 		v.Aux = SymToAux(MergeSym(sym1, sym2))
 		v.AddArg2(x, y)
@@ -2913,7 +2914,7 @@ func rewriteValue386_Op386LEAL(v *Value) bool {
 	for {
 		off1 := AuxIntToInt32(v.AuxInt)
 		sym1 := AuxToSym(v.Aux)
-		if v_0.Op != Op386LEAL8 {
+		if v_0.Op != ssaop.Op386LEAL8 {
 			break
 		}
 		off2 := AuxIntToInt32(v_0.AuxInt)
@@ -2923,7 +2924,7 @@ func rewriteValue386_Op386LEAL(v *Value) bool {
 		if !(Is32Bit(int64(off1)+int64(off2)) && CanMergeSym(sym1, sym2)) {
 			break
 		}
-		v.Reset(Op386LEAL8)
+		v.Reset(ssaop.Op386LEAL8)
 		v.AuxInt = Int32ToAuxInt(off1 + off2)
 		v.Aux = SymToAux(MergeSym(sym1, sym2))
 		v.AddArg2(x, y)
@@ -2935,22 +2936,22 @@ func rewriteValue386_Op386LEAL1(v *Value) bool {
 	v_1 := v.Args[1]
 	v_0 := v.Args[0]
 	// match: (LEAL1 [c] {s} (ADDLconst [d] x) y)
-	// cond: Is32Bit(int64(c)+int64(d)) && x.Op != OpSB
+	// cond: Is32Bit(int64(c)+int64(d)) && x.Op != ssaop.OpSB
 	// result: (LEAL1 [c+d] {s} x y)
 	for {
 		c := AuxIntToInt32(v.AuxInt)
 		s := AuxToSym(v.Aux)
 		for _i0 := 0; _i0 <= 1; _i0, v_0, v_1 = _i0+1, v_1, v_0 {
-			if v_0.Op != Op386ADDLconst {
+			if v_0.Op != ssaop.Op386ADDLconst {
 				continue
 			}
 			d := AuxIntToInt32(v_0.AuxInt)
 			x := v_0.Args[0]
 			y := v_1
-			if !(Is32Bit(int64(c)+int64(d)) && x.Op != OpSB) {
+			if !(Is32Bit(int64(c)+int64(d)) && x.Op != ssaop.OpSB) {
 				continue
 			}
-			v.Reset(Op386LEAL1)
+			v.Reset(ssaop.Op386LEAL1)
 			v.AuxInt = Int32ToAuxInt(c + d)
 			v.Aux = SymToAux(s)
 			v.AddArg2(x, y)
@@ -2965,11 +2966,11 @@ func rewriteValue386_Op386LEAL1(v *Value) bool {
 		s := AuxToSym(v.Aux)
 		for _i0 := 0; _i0 <= 1; _i0, v_0, v_1 = _i0+1, v_1, v_0 {
 			x := v_0
-			if v_1.Op != Op386SHLLconst || AuxIntToInt32(v_1.AuxInt) != 1 {
+			if v_1.Op != ssaop.Op386SHLLconst || AuxIntToInt32(v_1.AuxInt) != 1 {
 				continue
 			}
 			y := v_1.Args[0]
-			v.Reset(Op386LEAL2)
+			v.Reset(ssaop.Op386LEAL2)
 			v.AuxInt = Int32ToAuxInt(c)
 			v.Aux = SymToAux(s)
 			v.AddArg2(x, y)
@@ -2984,11 +2985,11 @@ func rewriteValue386_Op386LEAL1(v *Value) bool {
 		s := AuxToSym(v.Aux)
 		for _i0 := 0; _i0 <= 1; _i0, v_0, v_1 = _i0+1, v_1, v_0 {
 			x := v_0
-			if v_1.Op != Op386SHLLconst || AuxIntToInt32(v_1.AuxInt) != 2 {
+			if v_1.Op != ssaop.Op386SHLLconst || AuxIntToInt32(v_1.AuxInt) != 2 {
 				continue
 			}
 			y := v_1.Args[0]
-			v.Reset(Op386LEAL4)
+			v.Reset(ssaop.Op386LEAL4)
 			v.AuxInt = Int32ToAuxInt(c)
 			v.Aux = SymToAux(s)
 			v.AddArg2(x, y)
@@ -3003,11 +3004,11 @@ func rewriteValue386_Op386LEAL1(v *Value) bool {
 		s := AuxToSym(v.Aux)
 		for _i0 := 0; _i0 <= 1; _i0, v_0, v_1 = _i0+1, v_1, v_0 {
 			x := v_0
-			if v_1.Op != Op386SHLLconst || AuxIntToInt32(v_1.AuxInt) != 3 {
+			if v_1.Op != ssaop.Op386SHLLconst || AuxIntToInt32(v_1.AuxInt) != 3 {
 				continue
 			}
 			y := v_1.Args[0]
-			v.Reset(Op386LEAL8)
+			v.Reset(ssaop.Op386LEAL8)
 			v.AuxInt = Int32ToAuxInt(c)
 			v.Aux = SymToAux(s)
 			v.AddArg2(x, y)
@@ -3016,23 +3017,23 @@ func rewriteValue386_Op386LEAL1(v *Value) bool {
 		break
 	}
 	// match: (LEAL1 [off1] {sym1} (LEAL [off2] {sym2} x) y)
-	// cond: Is32Bit(int64(off1)+int64(off2)) && CanMergeSym(sym1, sym2) && x.Op != OpSB
+	// cond: Is32Bit(int64(off1)+int64(off2)) && CanMergeSym(sym1, sym2) && x.Op != ssaop.OpSB
 	// result: (LEAL1 [off1+off2] {MergeSym(sym1,sym2)} x y)
 	for {
 		off1 := AuxIntToInt32(v.AuxInt)
 		sym1 := AuxToSym(v.Aux)
 		for _i0 := 0; _i0 <= 1; _i0, v_0, v_1 = _i0+1, v_1, v_0 {
-			if v_0.Op != Op386LEAL {
+			if v_0.Op != ssaop.Op386LEAL {
 				continue
 			}
 			off2 := AuxIntToInt32(v_0.AuxInt)
 			sym2 := AuxToSym(v_0.Aux)
 			x := v_0.Args[0]
 			y := v_1
-			if !(Is32Bit(int64(off1)+int64(off2)) && CanMergeSym(sym1, sym2) && x.Op != OpSB) {
+			if !(Is32Bit(int64(off1)+int64(off2)) && CanMergeSym(sym1, sym2) && x.Op != ssaop.OpSB) {
 				continue
 			}
-			v.Reset(Op386LEAL1)
+			v.Reset(ssaop.Op386LEAL1)
 			v.AuxInt = Int32ToAuxInt(off1 + off2)
 			v.Aux = SymToAux(MergeSym(sym1, sym2))
 			v.AddArg2(x, y)
@@ -3048,7 +3049,7 @@ func rewriteValue386_Op386LEAL1(v *Value) bool {
 		sym1 := AuxToSym(v.Aux)
 		for _i0 := 0; _i0 <= 1; _i0, v_0, v_1 = _i0+1, v_1, v_0 {
 			x := v_0
-			if v_1.Op != Op386LEAL1 {
+			if v_1.Op != ssaop.Op386LEAL1 {
 				continue
 			}
 			off2 := AuxIntToInt32(v_1.AuxInt)
@@ -3057,7 +3058,7 @@ func rewriteValue386_Op386LEAL1(v *Value) bool {
 			if y != v_1.Args[0] || !(Is32Bit(int64(off1)+int64(off2)) && CanMergeSym(sym1, sym2)) {
 				continue
 			}
-			v.Reset(Op386LEAL2)
+			v.Reset(ssaop.Op386LEAL2)
 			v.AuxInt = Int32ToAuxInt(off1 + off2)
 			v.Aux = SymToAux(MergeSym(sym1, sym2))
 			v.AddArg2(x, y)
@@ -3073,7 +3074,7 @@ func rewriteValue386_Op386LEAL1(v *Value) bool {
 		sym1 := AuxToSym(v.Aux)
 		for _i0 := 0; _i0 <= 1; _i0, v_0, v_1 = _i0+1, v_1, v_0 {
 			x := v_0
-			if v_1.Op != Op386LEAL1 {
+			if v_1.Op != ssaop.Op386LEAL1 {
 				continue
 			}
 			off2 := AuxIntToInt32(v_1.AuxInt)
@@ -3089,7 +3090,7 @@ func rewriteValue386_Op386LEAL1(v *Value) bool {
 				if !(Is32Bit(int64(off1)+int64(off2)) && CanMergeSym(sym1, sym2)) {
 					continue
 				}
-				v.Reset(Op386LEAL2)
+				v.Reset(ssaop.Op386LEAL2)
 				v.AuxInt = Int32ToAuxInt(off1 + off2)
 				v.Aux = SymToAux(MergeSym(sym1, sym2))
 				v.AddArg2(y, x)
@@ -3106,7 +3107,7 @@ func rewriteValue386_Op386LEAL1(v *Value) bool {
 		}
 		x := v_0
 		y := v_1
-		v.Reset(Op386ADDL)
+		v.Reset(ssaop.Op386ADDL)
 		v.AddArg2(x, y)
 		return true
 	}
@@ -3116,42 +3117,42 @@ func rewriteValue386_Op386LEAL2(v *Value) bool {
 	v_1 := v.Args[1]
 	v_0 := v.Args[0]
 	// match: (LEAL2 [c] {s} (ADDLconst [d] x) y)
-	// cond: Is32Bit(int64(c)+int64(d)) && x.Op != OpSB
+	// cond: Is32Bit(int64(c)+int64(d)) && x.Op != ssaop.OpSB
 	// result: (LEAL2 [c+d] {s} x y)
 	for {
 		c := AuxIntToInt32(v.AuxInt)
 		s := AuxToSym(v.Aux)
-		if v_0.Op != Op386ADDLconst {
+		if v_0.Op != ssaop.Op386ADDLconst {
 			break
 		}
 		d := AuxIntToInt32(v_0.AuxInt)
 		x := v_0.Args[0]
 		y := v_1
-		if !(Is32Bit(int64(c)+int64(d)) && x.Op != OpSB) {
+		if !(Is32Bit(int64(c)+int64(d)) && x.Op != ssaop.OpSB) {
 			break
 		}
-		v.Reset(Op386LEAL2)
+		v.Reset(ssaop.Op386LEAL2)
 		v.AuxInt = Int32ToAuxInt(c + d)
 		v.Aux = SymToAux(s)
 		v.AddArg2(x, y)
 		return true
 	}
 	// match: (LEAL2 [c] {s} x (ADDLconst [d] y))
-	// cond: Is32Bit(int64(c)+2*int64(d)) && y.Op != OpSB
+	// cond: Is32Bit(int64(c)+2*int64(d)) && y.Op != ssaop.OpSB
 	// result: (LEAL2 [c+2*d] {s} x y)
 	for {
 		c := AuxIntToInt32(v.AuxInt)
 		s := AuxToSym(v.Aux)
 		x := v_0
-		if v_1.Op != Op386ADDLconst {
+		if v_1.Op != ssaop.Op386ADDLconst {
 			break
 		}
 		d := AuxIntToInt32(v_1.AuxInt)
 		y := v_1.Args[0]
-		if !(Is32Bit(int64(c)+2*int64(d)) && y.Op != OpSB) {
+		if !(Is32Bit(int64(c)+2*int64(d)) && y.Op != ssaop.OpSB) {
 			break
 		}
-		v.Reset(Op386LEAL2)
+		v.Reset(ssaop.Op386LEAL2)
 		v.AuxInt = Int32ToAuxInt(c + 2*d)
 		v.Aux = SymToAux(s)
 		v.AddArg2(x, y)
@@ -3163,11 +3164,11 @@ func rewriteValue386_Op386LEAL2(v *Value) bool {
 		c := AuxIntToInt32(v.AuxInt)
 		s := AuxToSym(v.Aux)
 		x := v_0
-		if v_1.Op != Op386SHLLconst || AuxIntToInt32(v_1.AuxInt) != 1 {
+		if v_1.Op != ssaop.Op386SHLLconst || AuxIntToInt32(v_1.AuxInt) != 1 {
 			break
 		}
 		y := v_1.Args[0]
-		v.Reset(Op386LEAL4)
+		v.Reset(ssaop.Op386LEAL4)
 		v.AuxInt = Int32ToAuxInt(c)
 		v.Aux = SymToAux(s)
 		v.AddArg2(x, y)
@@ -3179,33 +3180,33 @@ func rewriteValue386_Op386LEAL2(v *Value) bool {
 		c := AuxIntToInt32(v.AuxInt)
 		s := AuxToSym(v.Aux)
 		x := v_0
-		if v_1.Op != Op386SHLLconst || AuxIntToInt32(v_1.AuxInt) != 2 {
+		if v_1.Op != ssaop.Op386SHLLconst || AuxIntToInt32(v_1.AuxInt) != 2 {
 			break
 		}
 		y := v_1.Args[0]
-		v.Reset(Op386LEAL8)
+		v.Reset(ssaop.Op386LEAL8)
 		v.AuxInt = Int32ToAuxInt(c)
 		v.Aux = SymToAux(s)
 		v.AddArg2(x, y)
 		return true
 	}
 	// match: (LEAL2 [off1] {sym1} (LEAL [off2] {sym2} x) y)
-	// cond: Is32Bit(int64(off1)+int64(off2)) && CanMergeSym(sym1, sym2) && x.Op != OpSB
+	// cond: Is32Bit(int64(off1)+int64(off2)) && CanMergeSym(sym1, sym2) && x.Op != ssaop.OpSB
 	// result: (LEAL2 [off1+off2] {MergeSym(sym1,sym2)} x y)
 	for {
 		off1 := AuxIntToInt32(v.AuxInt)
 		sym1 := AuxToSym(v.Aux)
-		if v_0.Op != Op386LEAL {
+		if v_0.Op != ssaop.Op386LEAL {
 			break
 		}
 		off2 := AuxIntToInt32(v_0.AuxInt)
 		sym2 := AuxToSym(v_0.Aux)
 		x := v_0.Args[0]
 		y := v_1
-		if !(Is32Bit(int64(off1)+int64(off2)) && CanMergeSym(sym1, sym2) && x.Op != OpSB) {
+		if !(Is32Bit(int64(off1)+int64(off2)) && CanMergeSym(sym1, sym2) && x.Op != ssaop.OpSB) {
 			break
 		}
-		v.Reset(Op386LEAL2)
+		v.Reset(ssaop.Op386LEAL2)
 		v.AuxInt = Int32ToAuxInt(off1 + off2)
 		v.Aux = SymToAux(MergeSym(sym1, sym2))
 		v.AddArg2(x, y)
@@ -3218,7 +3219,7 @@ func rewriteValue386_Op386LEAL2(v *Value) bool {
 		off1 := AuxIntToInt32(v.AuxInt)
 		sym := AuxToSym(v.Aux)
 		x := v_0
-		if v_1.Op != Op386LEAL1 {
+		if v_1.Op != ssaop.Op386LEAL1 {
 			break
 		}
 		off2 := AuxIntToInt32(v_1.AuxInt)
@@ -3229,7 +3230,7 @@ func rewriteValue386_Op386LEAL2(v *Value) bool {
 		if y != v_1.Args[0] || !(Is32Bit(int64(off1) + 2*int64(off2))) {
 			break
 		}
-		v.Reset(Op386LEAL4)
+		v.Reset(ssaop.Op386LEAL4)
 		v.AuxInt = Int32ToAuxInt(off1 + 2*off2)
 		v.Aux = SymToAux(sym)
 		v.AddArg2(x, y)
@@ -3241,42 +3242,42 @@ func rewriteValue386_Op386LEAL4(v *Value) bool {
 	v_1 := v.Args[1]
 	v_0 := v.Args[0]
 	// match: (LEAL4 [c] {s} (ADDLconst [d] x) y)
-	// cond: Is32Bit(int64(c)+int64(d)) && x.Op != OpSB
+	// cond: Is32Bit(int64(c)+int64(d)) && x.Op != ssaop.OpSB
 	// result: (LEAL4 [c+d] {s} x y)
 	for {
 		c := AuxIntToInt32(v.AuxInt)
 		s := AuxToSym(v.Aux)
-		if v_0.Op != Op386ADDLconst {
+		if v_0.Op != ssaop.Op386ADDLconst {
 			break
 		}
 		d := AuxIntToInt32(v_0.AuxInt)
 		x := v_0.Args[0]
 		y := v_1
-		if !(Is32Bit(int64(c)+int64(d)) && x.Op != OpSB) {
+		if !(Is32Bit(int64(c)+int64(d)) && x.Op != ssaop.OpSB) {
 			break
 		}
-		v.Reset(Op386LEAL4)
+		v.Reset(ssaop.Op386LEAL4)
 		v.AuxInt = Int32ToAuxInt(c + d)
 		v.Aux = SymToAux(s)
 		v.AddArg2(x, y)
 		return true
 	}
 	// match: (LEAL4 [c] {s} x (ADDLconst [d] y))
-	// cond: Is32Bit(int64(c)+4*int64(d)) && y.Op != OpSB
+	// cond: Is32Bit(int64(c)+4*int64(d)) && y.Op != ssaop.OpSB
 	// result: (LEAL4 [c+4*d] {s} x y)
 	for {
 		c := AuxIntToInt32(v.AuxInt)
 		s := AuxToSym(v.Aux)
 		x := v_0
-		if v_1.Op != Op386ADDLconst {
+		if v_1.Op != ssaop.Op386ADDLconst {
 			break
 		}
 		d := AuxIntToInt32(v_1.AuxInt)
 		y := v_1.Args[0]
-		if !(Is32Bit(int64(c)+4*int64(d)) && y.Op != OpSB) {
+		if !(Is32Bit(int64(c)+4*int64(d)) && y.Op != ssaop.OpSB) {
 			break
 		}
-		v.Reset(Op386LEAL4)
+		v.Reset(ssaop.Op386LEAL4)
 		v.AuxInt = Int32ToAuxInt(c + 4*d)
 		v.Aux = SymToAux(s)
 		v.AddArg2(x, y)
@@ -3288,33 +3289,33 @@ func rewriteValue386_Op386LEAL4(v *Value) bool {
 		c := AuxIntToInt32(v.AuxInt)
 		s := AuxToSym(v.Aux)
 		x := v_0
-		if v_1.Op != Op386SHLLconst || AuxIntToInt32(v_1.AuxInt) != 1 {
+		if v_1.Op != ssaop.Op386SHLLconst || AuxIntToInt32(v_1.AuxInt) != 1 {
 			break
 		}
 		y := v_1.Args[0]
-		v.Reset(Op386LEAL8)
+		v.Reset(ssaop.Op386LEAL8)
 		v.AuxInt = Int32ToAuxInt(c)
 		v.Aux = SymToAux(s)
 		v.AddArg2(x, y)
 		return true
 	}
 	// match: (LEAL4 [off1] {sym1} (LEAL [off2] {sym2} x) y)
-	// cond: Is32Bit(int64(off1)+int64(off2)) && CanMergeSym(sym1, sym2) && x.Op != OpSB
+	// cond: Is32Bit(int64(off1)+int64(off2)) && CanMergeSym(sym1, sym2) && x.Op != ssaop.OpSB
 	// result: (LEAL4 [off1+off2] {MergeSym(sym1,sym2)} x y)
 	for {
 		off1 := AuxIntToInt32(v.AuxInt)
 		sym1 := AuxToSym(v.Aux)
-		if v_0.Op != Op386LEAL {
+		if v_0.Op != ssaop.Op386LEAL {
 			break
 		}
 		off2 := AuxIntToInt32(v_0.AuxInt)
 		sym2 := AuxToSym(v_0.Aux)
 		x := v_0.Args[0]
 		y := v_1
-		if !(Is32Bit(int64(off1)+int64(off2)) && CanMergeSym(sym1, sym2) && x.Op != OpSB) {
+		if !(Is32Bit(int64(off1)+int64(off2)) && CanMergeSym(sym1, sym2) && x.Op != ssaop.OpSB) {
 			break
 		}
-		v.Reset(Op386LEAL4)
+		v.Reset(ssaop.Op386LEAL4)
 		v.AuxInt = Int32ToAuxInt(off1 + off2)
 		v.Aux = SymToAux(MergeSym(sym1, sym2))
 		v.AddArg2(x, y)
@@ -3327,7 +3328,7 @@ func rewriteValue386_Op386LEAL4(v *Value) bool {
 		off1 := AuxIntToInt32(v.AuxInt)
 		sym := AuxToSym(v.Aux)
 		x := v_0
-		if v_1.Op != Op386LEAL1 {
+		if v_1.Op != ssaop.Op386LEAL1 {
 			break
 		}
 		off2 := AuxIntToInt32(v_1.AuxInt)
@@ -3338,7 +3339,7 @@ func rewriteValue386_Op386LEAL4(v *Value) bool {
 		if y != v_1.Args[0] || !(Is32Bit(int64(off1) + 4*int64(off2))) {
 			break
 		}
-		v.Reset(Op386LEAL8)
+		v.Reset(ssaop.Op386LEAL8)
 		v.AuxInt = Int32ToAuxInt(off1 + 4*off2)
 		v.Aux = SymToAux(sym)
 		v.AddArg2(x, y)
@@ -3350,64 +3351,64 @@ func rewriteValue386_Op386LEAL8(v *Value) bool {
 	v_1 := v.Args[1]
 	v_0 := v.Args[0]
 	// match: (LEAL8 [c] {s} (ADDLconst [d] x) y)
-	// cond: Is32Bit(int64(c)+int64(d)) && x.Op != OpSB
+	// cond: Is32Bit(int64(c)+int64(d)) && x.Op != ssaop.OpSB
 	// result: (LEAL8 [c+d] {s} x y)
 	for {
 		c := AuxIntToInt32(v.AuxInt)
 		s := AuxToSym(v.Aux)
-		if v_0.Op != Op386ADDLconst {
+		if v_0.Op != ssaop.Op386ADDLconst {
 			break
 		}
 		d := AuxIntToInt32(v_0.AuxInt)
 		x := v_0.Args[0]
 		y := v_1
-		if !(Is32Bit(int64(c)+int64(d)) && x.Op != OpSB) {
+		if !(Is32Bit(int64(c)+int64(d)) && x.Op != ssaop.OpSB) {
 			break
 		}
-		v.Reset(Op386LEAL8)
+		v.Reset(ssaop.Op386LEAL8)
 		v.AuxInt = Int32ToAuxInt(c + d)
 		v.Aux = SymToAux(s)
 		v.AddArg2(x, y)
 		return true
 	}
 	// match: (LEAL8 [c] {s} x (ADDLconst [d] y))
-	// cond: Is32Bit(int64(c)+8*int64(d)) && y.Op != OpSB
+	// cond: Is32Bit(int64(c)+8*int64(d)) && y.Op != ssaop.OpSB
 	// result: (LEAL8 [c+8*d] {s} x y)
 	for {
 		c := AuxIntToInt32(v.AuxInt)
 		s := AuxToSym(v.Aux)
 		x := v_0
-		if v_1.Op != Op386ADDLconst {
+		if v_1.Op != ssaop.Op386ADDLconst {
 			break
 		}
 		d := AuxIntToInt32(v_1.AuxInt)
 		y := v_1.Args[0]
-		if !(Is32Bit(int64(c)+8*int64(d)) && y.Op != OpSB) {
+		if !(Is32Bit(int64(c)+8*int64(d)) && y.Op != ssaop.OpSB) {
 			break
 		}
-		v.Reset(Op386LEAL8)
+		v.Reset(ssaop.Op386LEAL8)
 		v.AuxInt = Int32ToAuxInt(c + 8*d)
 		v.Aux = SymToAux(s)
 		v.AddArg2(x, y)
 		return true
 	}
 	// match: (LEAL8 [off1] {sym1} (LEAL [off2] {sym2} x) y)
-	// cond: Is32Bit(int64(off1)+int64(off2)) && CanMergeSym(sym1, sym2) && x.Op != OpSB
+	// cond: Is32Bit(int64(off1)+int64(off2)) && CanMergeSym(sym1, sym2) && x.Op != ssaop.OpSB
 	// result: (LEAL8 [off1+off2] {MergeSym(sym1,sym2)} x y)
 	for {
 		off1 := AuxIntToInt32(v.AuxInt)
 		sym1 := AuxToSym(v.Aux)
-		if v_0.Op != Op386LEAL {
+		if v_0.Op != ssaop.Op386LEAL {
 			break
 		}
 		off2 := AuxIntToInt32(v_0.AuxInt)
 		sym2 := AuxToSym(v_0.Aux)
 		x := v_0.Args[0]
 		y := v_1
-		if !(Is32Bit(int64(off1)+int64(off2)) && CanMergeSym(sym1, sym2) && x.Op != OpSB) {
+		if !(Is32Bit(int64(off1)+int64(off2)) && CanMergeSym(sym1, sym2) && x.Op != ssaop.OpSB) {
 			break
 		}
-		v.Reset(Op386LEAL8)
+		v.Reset(ssaop.Op386LEAL8)
 		v.AuxInt = Int32ToAuxInt(off1 + off2)
 		v.Aux = SymToAux(MergeSym(sym1, sym2))
 		v.AddArg2(x, y)
@@ -3423,12 +3424,12 @@ func rewriteValue386_Op386LoweredPanicBoundsRC(v *Value) bool {
 	for {
 		kind := AuxIntToInt64(v.AuxInt)
 		p := AuxToPanicBoundsC(v.Aux)
-		if v_0.Op != Op386MOVLconst {
+		if v_0.Op != ssaop.Op386MOVLconst {
 			break
 		}
 		c := AuxIntToInt32(v_0.AuxInt)
 		mem := v_1
-		v.Reset(Op386LoweredPanicBoundsCC)
+		v.Reset(ssaop.Op386LoweredPanicBoundsCC)
 		v.AuxInt = Int64ToAuxInt(kind)
 		v.Aux = PanicBoundsCCToAux(PanicBoundsCC{Cx: int64(c), Cy: p.C})
 		v.AddArg(mem)
@@ -3445,12 +3446,12 @@ func rewriteValue386_Op386LoweredPanicBoundsRR(v *Value) bool {
 	for {
 		kind := AuxIntToInt64(v.AuxInt)
 		x := v_0
-		if v_1.Op != Op386MOVLconst {
+		if v_1.Op != ssaop.Op386MOVLconst {
 			break
 		}
 		c := AuxIntToInt32(v_1.AuxInt)
 		mem := v_2
-		v.Reset(Op386LoweredPanicBoundsRC)
+		v.Reset(ssaop.Op386LoweredPanicBoundsRC)
 		v.AuxInt = Int64ToAuxInt(kind)
 		v.Aux = PanicBoundsCToAux(PanicBoundsC{C: int64(c)})
 		v.AddArg2(x, mem)
@@ -3460,13 +3461,13 @@ func rewriteValue386_Op386LoweredPanicBoundsRR(v *Value) bool {
 	// result: (LoweredPanicBoundsCR [kind] {PanicBoundsC{C:int64(c)}} y mem)
 	for {
 		kind := AuxIntToInt64(v.AuxInt)
-		if v_0.Op != Op386MOVLconst {
+		if v_0.Op != ssaop.Op386MOVLconst {
 			break
 		}
 		c := AuxIntToInt32(v_0.AuxInt)
 		y := v_1
 		mem := v_2
-		v.Reset(Op386LoweredPanicBoundsCR)
+		v.Reset(ssaop.Op386LoweredPanicBoundsCR)
 		v.AuxInt = Int64ToAuxInt(kind)
 		v.Aux = PanicBoundsCToAux(PanicBoundsC{C: int64(c)})
 		v.AddArg2(y, mem)
@@ -3483,16 +3484,16 @@ func rewriteValue386_Op386LoweredPanicExtendRC(v *Value) bool {
 	for {
 		kind := AuxIntToInt64(v.AuxInt)
 		p := AuxToPanicBoundsC(v.Aux)
-		if v_0.Op != Op386MOVLconst {
+		if v_0.Op != ssaop.Op386MOVLconst {
 			break
 		}
 		hi := AuxIntToInt32(v_0.AuxInt)
-		if v_1.Op != Op386MOVLconst {
+		if v_1.Op != ssaop.Op386MOVLconst {
 			break
 		}
 		lo := AuxIntToInt32(v_1.AuxInt)
 		mem := v_2
-		v.Reset(Op386LoweredPanicBoundsCC)
+		v.Reset(ssaop.Op386LoweredPanicBoundsCC)
 		v.AuxInt = Int64ToAuxInt(kind)
 		v.Aux = PanicBoundsCCToAux(PanicBoundsCC{Cx: int64(hi)<<32 + int64(uint32(lo)), Cy: p.C})
 		v.AddArg(mem)
@@ -3511,12 +3512,12 @@ func rewriteValue386_Op386LoweredPanicExtendRR(v *Value) bool {
 		kind := AuxIntToInt64(v.AuxInt)
 		hi := v_0
 		lo := v_1
-		if v_2.Op != Op386MOVLconst {
+		if v_2.Op != ssaop.Op386MOVLconst {
 			break
 		}
 		c := AuxIntToInt32(v_2.AuxInt)
 		mem := v_3
-		v.Reset(Op386LoweredPanicExtendRC)
+		v.Reset(ssaop.Op386LoweredPanicExtendRC)
 		v.AuxInt = Int64ToAuxInt(kind)
 		v.Aux = PanicBoundsCToAux(PanicBoundsC{C: int64(c)})
 		v.AddArg3(hi, lo, mem)
@@ -3526,17 +3527,17 @@ func rewriteValue386_Op386LoweredPanicExtendRR(v *Value) bool {
 	// result: (LoweredPanicBoundsCR [kind] {PanicBoundsC{C:int64(hi)<<32 + int64(uint32(lo))}} y mem)
 	for {
 		kind := AuxIntToInt64(v.AuxInt)
-		if v_0.Op != Op386MOVLconst {
+		if v_0.Op != ssaop.Op386MOVLconst {
 			break
 		}
 		hi := AuxIntToInt32(v_0.AuxInt)
-		if v_1.Op != Op386MOVLconst {
+		if v_1.Op != ssaop.Op386MOVLconst {
 			break
 		}
 		lo := AuxIntToInt32(v_1.AuxInt)
 		y := v_2
 		mem := v_3
-		v.Reset(Op386LoweredPanicBoundsCR)
+		v.Reset(ssaop.Op386LoweredPanicBoundsCR)
 		v.AuxInt = Int64ToAuxInt(kind)
 		v.Aux = PanicBoundsCToAux(PanicBoundsC{C: int64(hi)<<32 + int64(uint32(lo))})
 		v.AddArg2(y, mem)
@@ -3552,7 +3553,7 @@ func rewriteValue386_Op386MOVBLSX(v *Value) bool {
 	// result: @x.Block (MOVBLSXload <v.Type> [off] {sym} ptr mem)
 	for {
 		x := v_0
-		if x.Op != Op386MOVBload {
+		if x.Op != ssaop.Op386MOVBload {
 			break
 		}
 		off := AuxIntToInt32(x.AuxInt)
@@ -3563,7 +3564,7 @@ func rewriteValue386_Op386MOVBLSX(v *Value) bool {
 			break
 		}
 		b = x.Block
-		v0 := b.NewValue0(x.Pos, Op386MOVBLSXload, v.Type)
+		v0 := b.NewValue0(x.Pos, ssaop.Op386MOVBLSXload, v.Type)
 		v.CopyOf(v0)
 		v0.AuxInt = Int32ToAuxInt(off)
 		v0.Aux = SymToAux(sym)
@@ -3574,7 +3575,7 @@ func rewriteValue386_Op386MOVBLSX(v *Value) bool {
 	// cond: c & 0x80 == 0
 	// result: (ANDLconst [c & 0x7f] x)
 	for {
-		if v_0.Op != Op386ANDLconst {
+		if v_0.Op != ssaop.Op386ANDLconst {
 			break
 		}
 		c := AuxIntToInt32(v_0.AuxInt)
@@ -3582,7 +3583,7 @@ func rewriteValue386_Op386MOVBLSX(v *Value) bool {
 		if !(c&0x80 == 0) {
 			break
 		}
-		v.Reset(Op386ANDLconst)
+		v.Reset(ssaop.Op386ANDLconst)
 		v.AuxInt = Int32ToAuxInt(c & 0x7f)
 		v.AddArg(x)
 		return true
@@ -3601,7 +3602,7 @@ func rewriteValue386_Op386MOVBLSXload(v *Value) bool {
 		off := AuxIntToInt32(v.AuxInt)
 		sym := AuxToSym(v.Aux)
 		ptr := v_0
-		if v_1.Op != Op386MOVBstore {
+		if v_1.Op != ssaop.Op386MOVBstore {
 			break
 		}
 		off2 := AuxIntToInt32(v_1.AuxInt)
@@ -3611,27 +3612,27 @@ func rewriteValue386_Op386MOVBLSXload(v *Value) bool {
 		if !(sym == sym2 && off == off2 && IsSamePtr(ptr, ptr2)) {
 			break
 		}
-		v.Reset(Op386MOVBLSX)
+		v.Reset(ssaop.Op386MOVBLSX)
 		v.AddArg(x)
 		return true
 	}
 	// match: (MOVBLSXload [off1] {sym1} (LEAL [off2] {sym2} base) mem)
-	// cond: Is32Bit(int64(off1)+int64(off2)) && CanMergeSym(sym1, sym2) && (base.Op != OpSB || !config.Ctxt.Flag_shared)
+	// cond: Is32Bit(int64(off1)+int64(off2)) && CanMergeSym(sym1, sym2) && (base.Op != ssaop.OpSB || !config.Ctxt.Flag_shared)
 	// result: (MOVBLSXload [off1+off2] {MergeSym(sym1,sym2)} base mem)
 	for {
 		off1 := AuxIntToInt32(v.AuxInt)
 		sym1 := AuxToSym(v.Aux)
-		if v_0.Op != Op386LEAL {
+		if v_0.Op != ssaop.Op386LEAL {
 			break
 		}
 		off2 := AuxIntToInt32(v_0.AuxInt)
 		sym2 := AuxToSym(v_0.Aux)
 		base := v_0.Args[0]
 		mem := v_1
-		if !(Is32Bit(int64(off1)+int64(off2)) && CanMergeSym(sym1, sym2) && (base.Op != OpSB || !config.Ctxt.Flag_shared)) {
+		if !(Is32Bit(int64(off1)+int64(off2)) && CanMergeSym(sym1, sym2) && (base.Op != ssaop.OpSB || !config.Ctxt.Flag_shared)) {
 			break
 		}
-		v.Reset(Op386MOVBLSXload)
+		v.Reset(ssaop.Op386MOVBLSXload)
 		v.AuxInt = Int32ToAuxInt(off1 + off2)
 		v.Aux = SymToAux(MergeSym(sym1, sym2))
 		v.AddArg2(base, mem)
@@ -3643,10 +3644,10 @@ func rewriteValue386_Op386MOVBLSXload(v *Value) bool {
 	for {
 		off := AuxIntToInt32(v.AuxInt)
 		sym := AuxToSym(v.Aux)
-		if v_0.Op != OpSB || !(SymIsRO(sym)) {
+		if v_0.Op != ssaop.OpSB || !(SymIsRO(sym)) {
 			break
 		}
-		v.Reset(Op386MOVLconst)
+		v.Reset(ssaop.Op386MOVLconst)
 		v.AuxInt = Int32ToAuxInt(int32(int8(Read8(sym, int64(off)))))
 		return true
 	}
@@ -3660,7 +3661,7 @@ func rewriteValue386_Op386MOVBLZX(v *Value) bool {
 	// result: @x.Block (MOVBload <v.Type> [off] {sym} ptr mem)
 	for {
 		x := v_0
-		if x.Op != Op386MOVBload {
+		if x.Op != ssaop.Op386MOVBload {
 			break
 		}
 		off := AuxIntToInt32(x.AuxInt)
@@ -3671,7 +3672,7 @@ func rewriteValue386_Op386MOVBLZX(v *Value) bool {
 			break
 		}
 		b = x.Block
-		v0 := b.NewValue0(x.Pos, Op386MOVBload, v.Type)
+		v0 := b.NewValue0(x.Pos, ssaop.Op386MOVBload, v.Type)
 		v.CopyOf(v0)
 		v0.AuxInt = Int32ToAuxInt(off)
 		v0.Aux = SymToAux(sym)
@@ -3681,12 +3682,12 @@ func rewriteValue386_Op386MOVBLZX(v *Value) bool {
 	// match: (MOVBLZX (ANDLconst [c] x))
 	// result: (ANDLconst [c & 0xff] x)
 	for {
-		if v_0.Op != Op386ANDLconst {
+		if v_0.Op != ssaop.Op386ANDLconst {
 			break
 		}
 		c := AuxIntToInt32(v_0.AuxInt)
 		x := v_0.Args[0]
-		v.Reset(Op386ANDLconst)
+		v.Reset(ssaop.Op386ANDLconst)
 		v.AuxInt = Int32ToAuxInt(c & 0xff)
 		v.AddArg(x)
 		return true
@@ -3705,7 +3706,7 @@ func rewriteValue386_Op386MOVBload(v *Value) bool {
 		off := AuxIntToInt32(v.AuxInt)
 		sym := AuxToSym(v.Aux)
 		ptr := v_0
-		if v_1.Op != Op386MOVBstore {
+		if v_1.Op != ssaop.Op386MOVBstore {
 			break
 		}
 		off2 := AuxIntToInt32(v_1.AuxInt)
@@ -3715,7 +3716,7 @@ func rewriteValue386_Op386MOVBload(v *Value) bool {
 		if !(sym == sym2 && off == off2 && IsSamePtr(ptr, ptr2)) {
 			break
 		}
-		v.Reset(Op386MOVBLZX)
+		v.Reset(ssaop.Op386MOVBLZX)
 		v.AddArg(x)
 		return true
 	}
@@ -3725,7 +3726,7 @@ func rewriteValue386_Op386MOVBload(v *Value) bool {
 	for {
 		off1 := AuxIntToInt32(v.AuxInt)
 		sym := AuxToSym(v.Aux)
-		if v_0.Op != Op386ADDLconst {
+		if v_0.Op != ssaop.Op386ADDLconst {
 			break
 		}
 		off2 := AuxIntToInt32(v_0.AuxInt)
@@ -3734,29 +3735,29 @@ func rewriteValue386_Op386MOVBload(v *Value) bool {
 		if !(Is32Bit(int64(off1) + int64(off2))) {
 			break
 		}
-		v.Reset(Op386MOVBload)
+		v.Reset(ssaop.Op386MOVBload)
 		v.AuxInt = Int32ToAuxInt(off1 + off2)
 		v.Aux = SymToAux(sym)
 		v.AddArg2(ptr, mem)
 		return true
 	}
 	// match: (MOVBload [off1] {sym1} (LEAL [off2] {sym2} base) mem)
-	// cond: Is32Bit(int64(off1)+int64(off2)) && CanMergeSym(sym1, sym2) && (base.Op != OpSB || !config.Ctxt.Flag_shared)
+	// cond: Is32Bit(int64(off1)+int64(off2)) && CanMergeSym(sym1, sym2) && (base.Op != ssaop.OpSB || !config.Ctxt.Flag_shared)
 	// result: (MOVBload [off1+off2] {MergeSym(sym1,sym2)} base mem)
 	for {
 		off1 := AuxIntToInt32(v.AuxInt)
 		sym1 := AuxToSym(v.Aux)
-		if v_0.Op != Op386LEAL {
+		if v_0.Op != ssaop.Op386LEAL {
 			break
 		}
 		off2 := AuxIntToInt32(v_0.AuxInt)
 		sym2 := AuxToSym(v_0.Aux)
 		base := v_0.Args[0]
 		mem := v_1
-		if !(Is32Bit(int64(off1)+int64(off2)) && CanMergeSym(sym1, sym2) && (base.Op != OpSB || !config.Ctxt.Flag_shared)) {
+		if !(Is32Bit(int64(off1)+int64(off2)) && CanMergeSym(sym1, sym2) && (base.Op != ssaop.OpSB || !config.Ctxt.Flag_shared)) {
 			break
 		}
-		v.Reset(Op386MOVBload)
+		v.Reset(ssaop.Op386MOVBload)
 		v.AuxInt = Int32ToAuxInt(off1 + off2)
 		v.Aux = SymToAux(MergeSym(sym1, sym2))
 		v.AddArg2(base, mem)
@@ -3768,10 +3769,10 @@ func rewriteValue386_Op386MOVBload(v *Value) bool {
 	for {
 		off := AuxIntToInt32(v.AuxInt)
 		sym := AuxToSym(v.Aux)
-		if v_0.Op != OpSB || !(SymIsRO(sym)) {
+		if v_0.Op != ssaop.OpSB || !(SymIsRO(sym)) {
 			break
 		}
-		v.Reset(Op386MOVLconst)
+		v.Reset(ssaop.Op386MOVLconst)
 		v.AuxInt = Int32ToAuxInt(int32(Read8(sym, int64(off))))
 		return true
 	}
@@ -3789,12 +3790,12 @@ func rewriteValue386_Op386MOVBstore(v *Value) bool {
 		off := AuxIntToInt32(v.AuxInt)
 		sym := AuxToSym(v.Aux)
 		ptr := v_0
-		if v_1.Op != Op386MOVBLSX {
+		if v_1.Op != ssaop.Op386MOVBLSX {
 			break
 		}
 		x := v_1.Args[0]
 		mem := v_2
-		v.Reset(Op386MOVBstore)
+		v.Reset(ssaop.Op386MOVBstore)
 		v.AuxInt = Int32ToAuxInt(off)
 		v.Aux = SymToAux(sym)
 		v.AddArg3(ptr, x, mem)
@@ -3806,12 +3807,12 @@ func rewriteValue386_Op386MOVBstore(v *Value) bool {
 		off := AuxIntToInt32(v.AuxInt)
 		sym := AuxToSym(v.Aux)
 		ptr := v_0
-		if v_1.Op != Op386MOVBLZX {
+		if v_1.Op != ssaop.Op386MOVBLZX {
 			break
 		}
 		x := v_1.Args[0]
 		mem := v_2
-		v.Reset(Op386MOVBstore)
+		v.Reset(ssaop.Op386MOVBstore)
 		v.AuxInt = Int32ToAuxInt(off)
 		v.Aux = SymToAux(sym)
 		v.AddArg3(ptr, x, mem)
@@ -3823,7 +3824,7 @@ func rewriteValue386_Op386MOVBstore(v *Value) bool {
 	for {
 		off1 := AuxIntToInt32(v.AuxInt)
 		sym := AuxToSym(v.Aux)
-		if v_0.Op != Op386ADDLconst {
+		if v_0.Op != ssaop.Op386ADDLconst {
 			break
 		}
 		off2 := AuxIntToInt32(v_0.AuxInt)
@@ -3833,7 +3834,7 @@ func rewriteValue386_Op386MOVBstore(v *Value) bool {
 		if !(Is32Bit(int64(off1) + int64(off2))) {
 			break
 		}
-		v.Reset(Op386MOVBstore)
+		v.Reset(ssaop.Op386MOVBstore)
 		v.AuxInt = Int32ToAuxInt(off1 + off2)
 		v.Aux = SymToAux(sym)
 		v.AddArg3(ptr, val, mem)
@@ -3845,24 +3846,24 @@ func rewriteValue386_Op386MOVBstore(v *Value) bool {
 		off := AuxIntToInt32(v.AuxInt)
 		sym := AuxToSym(v.Aux)
 		ptr := v_0
-		if v_1.Op != Op386MOVLconst {
+		if v_1.Op != ssaop.Op386MOVLconst {
 			break
 		}
 		c := AuxIntToInt32(v_1.AuxInt)
 		mem := v_2
-		v.Reset(Op386MOVBstoreconst)
+		v.Reset(ssaop.Op386MOVBstoreconst)
 		v.AuxInt = ValAndOffToAuxInt(MakeValAndOff(c, off))
 		v.Aux = SymToAux(sym)
 		v.AddArg2(ptr, mem)
 		return true
 	}
 	// match: (MOVBstore [off1] {sym1} (LEAL [off2] {sym2} base) val mem)
-	// cond: Is32Bit(int64(off1)+int64(off2)) && CanMergeSym(sym1, sym2) && (base.Op != OpSB || !config.Ctxt.Flag_shared)
+	// cond: Is32Bit(int64(off1)+int64(off2)) && CanMergeSym(sym1, sym2) && (base.Op != ssaop.OpSB || !config.Ctxt.Flag_shared)
 	// result: (MOVBstore [off1+off2] {MergeSym(sym1,sym2)} base val mem)
 	for {
 		off1 := AuxIntToInt32(v.AuxInt)
 		sym1 := AuxToSym(v.Aux)
-		if v_0.Op != Op386LEAL {
+		if v_0.Op != ssaop.Op386LEAL {
 			break
 		}
 		off2 := AuxIntToInt32(v_0.AuxInt)
@@ -3870,10 +3871,10 @@ func rewriteValue386_Op386MOVBstore(v *Value) bool {
 		base := v_0.Args[0]
 		val := v_1
 		mem := v_2
-		if !(Is32Bit(int64(off1)+int64(off2)) && CanMergeSym(sym1, sym2) && (base.Op != OpSB || !config.Ctxt.Flag_shared)) {
+		if !(Is32Bit(int64(off1)+int64(off2)) && CanMergeSym(sym1, sym2) && (base.Op != ssaop.OpSB || !config.Ctxt.Flag_shared)) {
 			break
 		}
-		v.Reset(Op386MOVBstore)
+		v.Reset(ssaop.Op386MOVBstore)
 		v.AuxInt = Int32ToAuxInt(off1 + off2)
 		v.Aux = SymToAux(MergeSym(sym1, sym2))
 		v.AddArg3(base, val, mem)
@@ -3892,7 +3893,7 @@ func rewriteValue386_Op386MOVBstoreconst(v *Value) bool {
 	for {
 		sc := AuxIntToValAndOff(v.AuxInt)
 		s := AuxToSym(v.Aux)
-		if v_0.Op != Op386ADDLconst {
+		if v_0.Op != ssaop.Op386ADDLconst {
 			break
 		}
 		off := AuxIntToInt32(v_0.AuxInt)
@@ -3901,29 +3902,29 @@ func rewriteValue386_Op386MOVBstoreconst(v *Value) bool {
 		if !(sc.CanAdd32(off)) {
 			break
 		}
-		v.Reset(Op386MOVBstoreconst)
+		v.Reset(ssaop.Op386MOVBstoreconst)
 		v.AuxInt = ValAndOffToAuxInt(sc.AddOffset32(off))
 		v.Aux = SymToAux(s)
 		v.AddArg2(ptr, mem)
 		return true
 	}
 	// match: (MOVBstoreconst [sc] {sym1} (LEAL [off] {sym2} ptr) mem)
-	// cond: CanMergeSym(sym1, sym2) && sc.CanAdd32(off) && (ptr.Op != OpSB || !config.Ctxt.Flag_shared)
+	// cond: CanMergeSym(sym1, sym2) && sc.CanAdd32(off) && (ptr.Op != ssaop.OpSB || !config.Ctxt.Flag_shared)
 	// result: (MOVBstoreconst [sc.AddOffset32(off)] {MergeSym(sym1, sym2)} ptr mem)
 	for {
 		sc := AuxIntToValAndOff(v.AuxInt)
 		sym1 := AuxToSym(v.Aux)
-		if v_0.Op != Op386LEAL {
+		if v_0.Op != ssaop.Op386LEAL {
 			break
 		}
 		off := AuxIntToInt32(v_0.AuxInt)
 		sym2 := AuxToSym(v_0.Aux)
 		ptr := v_0.Args[0]
 		mem := v_1
-		if !(CanMergeSym(sym1, sym2) && sc.CanAdd32(off) && (ptr.Op != OpSB || !config.Ctxt.Flag_shared)) {
+		if !(CanMergeSym(sym1, sym2) && sc.CanAdd32(off) && (ptr.Op != ssaop.OpSB || !config.Ctxt.Flag_shared)) {
 			break
 		}
-		v.Reset(Op386MOVBstoreconst)
+		v.Reset(ssaop.Op386MOVBstoreconst)
 		v.AuxInt = ValAndOffToAuxInt(sc.AddOffset32(off))
 		v.Aux = SymToAux(MergeSym(sym1, sym2))
 		v.AddArg2(ptr, mem)
@@ -3943,7 +3944,7 @@ func rewriteValue386_Op386MOVLload(v *Value) bool {
 		off := AuxIntToInt32(v.AuxInt)
 		sym := AuxToSym(v.Aux)
 		ptr := v_0
-		if v_1.Op != Op386MOVLstore {
+		if v_1.Op != ssaop.Op386MOVLstore {
 			break
 		}
 		off2 := AuxIntToInt32(v_1.AuxInt)
@@ -3962,7 +3963,7 @@ func rewriteValue386_Op386MOVLload(v *Value) bool {
 	for {
 		off1 := AuxIntToInt32(v.AuxInt)
 		sym := AuxToSym(v.Aux)
-		if v_0.Op != Op386ADDLconst {
+		if v_0.Op != ssaop.Op386ADDLconst {
 			break
 		}
 		off2 := AuxIntToInt32(v_0.AuxInt)
@@ -3971,29 +3972,29 @@ func rewriteValue386_Op386MOVLload(v *Value) bool {
 		if !(Is32Bit(int64(off1) + int64(off2))) {
 			break
 		}
-		v.Reset(Op386MOVLload)
+		v.Reset(ssaop.Op386MOVLload)
 		v.AuxInt = Int32ToAuxInt(off1 + off2)
 		v.Aux = SymToAux(sym)
 		v.AddArg2(ptr, mem)
 		return true
 	}
 	// match: (MOVLload [off1] {sym1} (LEAL [off2] {sym2} base) mem)
-	// cond: Is32Bit(int64(off1)+int64(off2)) && CanMergeSym(sym1, sym2) && (base.Op != OpSB || !config.Ctxt.Flag_shared)
+	// cond: Is32Bit(int64(off1)+int64(off2)) && CanMergeSym(sym1, sym2) && (base.Op != ssaop.OpSB || !config.Ctxt.Flag_shared)
 	// result: (MOVLload [off1+off2] {MergeSym(sym1,sym2)} base mem)
 	for {
 		off1 := AuxIntToInt32(v.AuxInt)
 		sym1 := AuxToSym(v.Aux)
-		if v_0.Op != Op386LEAL {
+		if v_0.Op != ssaop.Op386LEAL {
 			break
 		}
 		off2 := AuxIntToInt32(v_0.AuxInt)
 		sym2 := AuxToSym(v_0.Aux)
 		base := v_0.Args[0]
 		mem := v_1
-		if !(Is32Bit(int64(off1)+int64(off2)) && CanMergeSym(sym1, sym2) && (base.Op != OpSB || !config.Ctxt.Flag_shared)) {
+		if !(Is32Bit(int64(off1)+int64(off2)) && CanMergeSym(sym1, sym2) && (base.Op != ssaop.OpSB || !config.Ctxt.Flag_shared)) {
 			break
 		}
-		v.Reset(Op386MOVLload)
+		v.Reset(ssaop.Op386MOVLload)
 		v.AuxInt = Int32ToAuxInt(off1 + off2)
 		v.Aux = SymToAux(MergeSym(sym1, sym2))
 		v.AddArg2(base, mem)
@@ -4005,10 +4006,10 @@ func rewriteValue386_Op386MOVLload(v *Value) bool {
 	for {
 		off := AuxIntToInt32(v.AuxInt)
 		sym := AuxToSym(v.Aux)
-		if v_0.Op != OpSB || !(SymIsRO(sym)) {
+		if v_0.Op != ssaop.OpSB || !(SymIsRO(sym)) {
 			break
 		}
-		v.Reset(Op386MOVLconst)
+		v.Reset(ssaop.Op386MOVLconst)
 		v.AuxInt = Int32ToAuxInt(int32(Read32(sym, int64(off), config.Ctxt.Arch.ByteOrder)))
 		return true
 	}
@@ -4026,7 +4027,7 @@ func rewriteValue386_Op386MOVLstore(v *Value) bool {
 	for {
 		off1 := AuxIntToInt32(v.AuxInt)
 		sym := AuxToSym(v.Aux)
-		if v_0.Op != Op386ADDLconst {
+		if v_0.Op != ssaop.Op386ADDLconst {
 			break
 		}
 		off2 := AuxIntToInt32(v_0.AuxInt)
@@ -4036,7 +4037,7 @@ func rewriteValue386_Op386MOVLstore(v *Value) bool {
 		if !(Is32Bit(int64(off1) + int64(off2))) {
 			break
 		}
-		v.Reset(Op386MOVLstore)
+		v.Reset(ssaop.Op386MOVLstore)
 		v.AuxInt = Int32ToAuxInt(off1 + off2)
 		v.Aux = SymToAux(sym)
 		v.AddArg3(ptr, val, mem)
@@ -4048,24 +4049,24 @@ func rewriteValue386_Op386MOVLstore(v *Value) bool {
 		off := AuxIntToInt32(v.AuxInt)
 		sym := AuxToSym(v.Aux)
 		ptr := v_0
-		if v_1.Op != Op386MOVLconst {
+		if v_1.Op != ssaop.Op386MOVLconst {
 			break
 		}
 		c := AuxIntToInt32(v_1.AuxInt)
 		mem := v_2
-		v.Reset(Op386MOVLstoreconst)
+		v.Reset(ssaop.Op386MOVLstoreconst)
 		v.AuxInt = ValAndOffToAuxInt(MakeValAndOff(c, off))
 		v.Aux = SymToAux(sym)
 		v.AddArg2(ptr, mem)
 		return true
 	}
 	// match: (MOVLstore [off1] {sym1} (LEAL [off2] {sym2} base) val mem)
-	// cond: Is32Bit(int64(off1)+int64(off2)) && CanMergeSym(sym1, sym2) && (base.Op != OpSB || !config.Ctxt.Flag_shared)
+	// cond: Is32Bit(int64(off1)+int64(off2)) && CanMergeSym(sym1, sym2) && (base.Op != ssaop.OpSB || !config.Ctxt.Flag_shared)
 	// result: (MOVLstore [off1+off2] {MergeSym(sym1,sym2)} base val mem)
 	for {
 		off1 := AuxIntToInt32(v.AuxInt)
 		sym1 := AuxToSym(v.Aux)
-		if v_0.Op != Op386LEAL {
+		if v_0.Op != ssaop.Op386LEAL {
 			break
 		}
 		off2 := AuxIntToInt32(v_0.AuxInt)
@@ -4073,10 +4074,10 @@ func rewriteValue386_Op386MOVLstore(v *Value) bool {
 		base := v_0.Args[0]
 		val := v_1
 		mem := v_2
-		if !(Is32Bit(int64(off1)+int64(off2)) && CanMergeSym(sym1, sym2) && (base.Op != OpSB || !config.Ctxt.Flag_shared)) {
+		if !(Is32Bit(int64(off1)+int64(off2)) && CanMergeSym(sym1, sym2) && (base.Op != ssaop.OpSB || !config.Ctxt.Flag_shared)) {
 			break
 		}
-		v.Reset(Op386MOVLstore)
+		v.Reset(ssaop.Op386MOVLstore)
 		v.AuxInt = Int32ToAuxInt(off1 + off2)
 		v.Aux = SymToAux(MergeSym(sym1, sym2))
 		v.AddArg3(base, val, mem)
@@ -4090,7 +4091,7 @@ func rewriteValue386_Op386MOVLstore(v *Value) bool {
 		sym := AuxToSym(v.Aux)
 		ptr := v_0
 		y := v_1
-		if y.Op != Op386ADDLload || AuxIntToInt32(y.AuxInt) != off || AuxToSym(y.Aux) != sym {
+		if y.Op != ssaop.Op386ADDLload || AuxIntToInt32(y.AuxInt) != off || AuxToSym(y.Aux) != sym {
 			break
 		}
 		mem := y.Args[2]
@@ -4098,7 +4099,7 @@ func rewriteValue386_Op386MOVLstore(v *Value) bool {
 		if ptr != y.Args[1] || mem != v_2 || !(y.Uses == 1 && Clobber(y)) {
 			break
 		}
-		v.Reset(Op386ADDLmodify)
+		v.Reset(ssaop.Op386ADDLmodify)
 		v.AuxInt = Int32ToAuxInt(off)
 		v.Aux = SymToAux(sym)
 		v.AddArg3(ptr, x, mem)
@@ -4112,7 +4113,7 @@ func rewriteValue386_Op386MOVLstore(v *Value) bool {
 		sym := AuxToSym(v.Aux)
 		ptr := v_0
 		y := v_1
-		if y.Op != Op386ANDLload || AuxIntToInt32(y.AuxInt) != off || AuxToSym(y.Aux) != sym {
+		if y.Op != ssaop.Op386ANDLload || AuxIntToInt32(y.AuxInt) != off || AuxToSym(y.Aux) != sym {
 			break
 		}
 		mem := y.Args[2]
@@ -4120,7 +4121,7 @@ func rewriteValue386_Op386MOVLstore(v *Value) bool {
 		if ptr != y.Args[1] || mem != v_2 || !(y.Uses == 1 && Clobber(y)) {
 			break
 		}
-		v.Reset(Op386ANDLmodify)
+		v.Reset(ssaop.Op386ANDLmodify)
 		v.AuxInt = Int32ToAuxInt(off)
 		v.Aux = SymToAux(sym)
 		v.AddArg3(ptr, x, mem)
@@ -4134,7 +4135,7 @@ func rewriteValue386_Op386MOVLstore(v *Value) bool {
 		sym := AuxToSym(v.Aux)
 		ptr := v_0
 		y := v_1
-		if y.Op != Op386ORLload || AuxIntToInt32(y.AuxInt) != off || AuxToSym(y.Aux) != sym {
+		if y.Op != ssaop.Op386ORLload || AuxIntToInt32(y.AuxInt) != off || AuxToSym(y.Aux) != sym {
 			break
 		}
 		mem := y.Args[2]
@@ -4142,7 +4143,7 @@ func rewriteValue386_Op386MOVLstore(v *Value) bool {
 		if ptr != y.Args[1] || mem != v_2 || !(y.Uses == 1 && Clobber(y)) {
 			break
 		}
-		v.Reset(Op386ORLmodify)
+		v.Reset(ssaop.Op386ORLmodify)
 		v.AuxInt = Int32ToAuxInt(off)
 		v.Aux = SymToAux(sym)
 		v.AddArg3(ptr, x, mem)
@@ -4156,7 +4157,7 @@ func rewriteValue386_Op386MOVLstore(v *Value) bool {
 		sym := AuxToSym(v.Aux)
 		ptr := v_0
 		y := v_1
-		if y.Op != Op386XORLload || AuxIntToInt32(y.AuxInt) != off || AuxToSym(y.Aux) != sym {
+		if y.Op != ssaop.Op386XORLload || AuxIntToInt32(y.AuxInt) != off || AuxToSym(y.Aux) != sym {
 			break
 		}
 		mem := y.Args[2]
@@ -4164,7 +4165,7 @@ func rewriteValue386_Op386MOVLstore(v *Value) bool {
 		if ptr != y.Args[1] || mem != v_2 || !(y.Uses == 1 && Clobber(y)) {
 			break
 		}
-		v.Reset(Op386XORLmodify)
+		v.Reset(ssaop.Op386XORLmodify)
 		v.AuxInt = Int32ToAuxInt(off)
 		v.Aux = SymToAux(sym)
 		v.AddArg3(ptr, x, mem)
@@ -4178,7 +4179,7 @@ func rewriteValue386_Op386MOVLstore(v *Value) bool {
 		sym := AuxToSym(v.Aux)
 		ptr := v_0
 		y := v_1
-		if y.Op != Op386ADDL {
+		if y.Op != ssaop.Op386ADDL {
 			break
 		}
 		_ = y.Args[1]
@@ -4186,7 +4187,7 @@ func rewriteValue386_Op386MOVLstore(v *Value) bool {
 		y_1 := y.Args[1]
 		for _i0 := 0; _i0 <= 1; _i0, y_0, y_1 = _i0+1, y_1, y_0 {
 			l := y_0
-			if l.Op != Op386MOVLload || AuxIntToInt32(l.AuxInt) != off || AuxToSym(l.Aux) != sym {
+			if l.Op != ssaop.Op386MOVLload || AuxIntToInt32(l.AuxInt) != off || AuxToSym(l.Aux) != sym {
 				continue
 			}
 			mem := l.Args[1]
@@ -4197,7 +4198,7 @@ func rewriteValue386_Op386MOVLstore(v *Value) bool {
 			if mem != v_2 || !(y.Uses == 1 && l.Uses == 1 && Clobber(y, l)) {
 				continue
 			}
-			v.Reset(Op386ADDLmodify)
+			v.Reset(ssaop.Op386ADDLmodify)
 			v.AuxInt = Int32ToAuxInt(off)
 			v.Aux = SymToAux(sym)
 			v.AddArg3(ptr, x, mem)
@@ -4213,19 +4214,19 @@ func rewriteValue386_Op386MOVLstore(v *Value) bool {
 		sym := AuxToSym(v.Aux)
 		ptr := v_0
 		y := v_1
-		if y.Op != Op386SUBL {
+		if y.Op != ssaop.Op386SUBL {
 			break
 		}
 		x := y.Args[1]
 		l := y.Args[0]
-		if l.Op != Op386MOVLload || AuxIntToInt32(l.AuxInt) != off || AuxToSym(l.Aux) != sym {
+		if l.Op != ssaop.Op386MOVLload || AuxIntToInt32(l.AuxInt) != off || AuxToSym(l.Aux) != sym {
 			break
 		}
 		mem := l.Args[1]
 		if ptr != l.Args[0] || mem != v_2 || !(y.Uses == 1 && l.Uses == 1 && Clobber(y, l)) {
 			break
 		}
-		v.Reset(Op386SUBLmodify)
+		v.Reset(ssaop.Op386SUBLmodify)
 		v.AuxInt = Int32ToAuxInt(off)
 		v.Aux = SymToAux(sym)
 		v.AddArg3(ptr, x, mem)
@@ -4239,7 +4240,7 @@ func rewriteValue386_Op386MOVLstore(v *Value) bool {
 		sym := AuxToSym(v.Aux)
 		ptr := v_0
 		y := v_1
-		if y.Op != Op386ANDL {
+		if y.Op != ssaop.Op386ANDL {
 			break
 		}
 		_ = y.Args[1]
@@ -4247,7 +4248,7 @@ func rewriteValue386_Op386MOVLstore(v *Value) bool {
 		y_1 := y.Args[1]
 		for _i0 := 0; _i0 <= 1; _i0, y_0, y_1 = _i0+1, y_1, y_0 {
 			l := y_0
-			if l.Op != Op386MOVLload || AuxIntToInt32(l.AuxInt) != off || AuxToSym(l.Aux) != sym {
+			if l.Op != ssaop.Op386MOVLload || AuxIntToInt32(l.AuxInt) != off || AuxToSym(l.Aux) != sym {
 				continue
 			}
 			mem := l.Args[1]
@@ -4258,7 +4259,7 @@ func rewriteValue386_Op386MOVLstore(v *Value) bool {
 			if mem != v_2 || !(y.Uses == 1 && l.Uses == 1 && Clobber(y, l)) {
 				continue
 			}
-			v.Reset(Op386ANDLmodify)
+			v.Reset(ssaop.Op386ANDLmodify)
 			v.AuxInt = Int32ToAuxInt(off)
 			v.Aux = SymToAux(sym)
 			v.AddArg3(ptr, x, mem)
@@ -4274,7 +4275,7 @@ func rewriteValue386_Op386MOVLstore(v *Value) bool {
 		sym := AuxToSym(v.Aux)
 		ptr := v_0
 		y := v_1
-		if y.Op != Op386ORL {
+		if y.Op != ssaop.Op386ORL {
 			break
 		}
 		_ = y.Args[1]
@@ -4282,7 +4283,7 @@ func rewriteValue386_Op386MOVLstore(v *Value) bool {
 		y_1 := y.Args[1]
 		for _i0 := 0; _i0 <= 1; _i0, y_0, y_1 = _i0+1, y_1, y_0 {
 			l := y_0
-			if l.Op != Op386MOVLload || AuxIntToInt32(l.AuxInt) != off || AuxToSym(l.Aux) != sym {
+			if l.Op != ssaop.Op386MOVLload || AuxIntToInt32(l.AuxInt) != off || AuxToSym(l.Aux) != sym {
 				continue
 			}
 			mem := l.Args[1]
@@ -4293,7 +4294,7 @@ func rewriteValue386_Op386MOVLstore(v *Value) bool {
 			if mem != v_2 || !(y.Uses == 1 && l.Uses == 1 && Clobber(y, l)) {
 				continue
 			}
-			v.Reset(Op386ORLmodify)
+			v.Reset(ssaop.Op386ORLmodify)
 			v.AuxInt = Int32ToAuxInt(off)
 			v.Aux = SymToAux(sym)
 			v.AddArg3(ptr, x, mem)
@@ -4309,7 +4310,7 @@ func rewriteValue386_Op386MOVLstore(v *Value) bool {
 		sym := AuxToSym(v.Aux)
 		ptr := v_0
 		y := v_1
-		if y.Op != Op386XORL {
+		if y.Op != ssaop.Op386XORL {
 			break
 		}
 		_ = y.Args[1]
@@ -4317,7 +4318,7 @@ func rewriteValue386_Op386MOVLstore(v *Value) bool {
 		y_1 := y.Args[1]
 		for _i0 := 0; _i0 <= 1; _i0, y_0, y_1 = _i0+1, y_1, y_0 {
 			l := y_0
-			if l.Op != Op386MOVLload || AuxIntToInt32(l.AuxInt) != off || AuxToSym(l.Aux) != sym {
+			if l.Op != ssaop.Op386MOVLload || AuxIntToInt32(l.AuxInt) != off || AuxToSym(l.Aux) != sym {
 				continue
 			}
 			mem := l.Args[1]
@@ -4328,7 +4329,7 @@ func rewriteValue386_Op386MOVLstore(v *Value) bool {
 			if mem != v_2 || !(y.Uses == 1 && l.Uses == 1 && Clobber(y, l)) {
 				continue
 			}
-			v.Reset(Op386XORLmodify)
+			v.Reset(ssaop.Op386XORLmodify)
 			v.AuxInt = Int32ToAuxInt(off)
 			v.Aux = SymToAux(sym)
 			v.AddArg3(ptr, x, mem)
@@ -4344,19 +4345,19 @@ func rewriteValue386_Op386MOVLstore(v *Value) bool {
 		sym := AuxToSym(v.Aux)
 		ptr := v_0
 		y := v_1
-		if y.Op != Op386ADDLconst {
+		if y.Op != ssaop.Op386ADDLconst {
 			break
 		}
 		c := AuxIntToInt32(y.AuxInt)
 		l := y.Args[0]
-		if l.Op != Op386MOVLload || AuxIntToInt32(l.AuxInt) != off || AuxToSym(l.Aux) != sym {
+		if l.Op != ssaop.Op386MOVLload || AuxIntToInt32(l.AuxInt) != off || AuxToSym(l.Aux) != sym {
 			break
 		}
 		mem := l.Args[1]
 		if ptr != l.Args[0] || mem != v_2 || !(y.Uses == 1 && l.Uses == 1 && Clobber(y, l)) {
 			break
 		}
-		v.Reset(Op386ADDLconstmodify)
+		v.Reset(ssaop.Op386ADDLconstmodify)
 		v.AuxInt = ValAndOffToAuxInt(MakeValAndOff(c, off))
 		v.Aux = SymToAux(sym)
 		v.AddArg2(ptr, mem)
@@ -4370,19 +4371,19 @@ func rewriteValue386_Op386MOVLstore(v *Value) bool {
 		sym := AuxToSym(v.Aux)
 		ptr := v_0
 		y := v_1
-		if y.Op != Op386ANDLconst {
+		if y.Op != ssaop.Op386ANDLconst {
 			break
 		}
 		c := AuxIntToInt32(y.AuxInt)
 		l := y.Args[0]
-		if l.Op != Op386MOVLload || AuxIntToInt32(l.AuxInt) != off || AuxToSym(l.Aux) != sym {
+		if l.Op != ssaop.Op386MOVLload || AuxIntToInt32(l.AuxInt) != off || AuxToSym(l.Aux) != sym {
 			break
 		}
 		mem := l.Args[1]
 		if ptr != l.Args[0] || mem != v_2 || !(y.Uses == 1 && l.Uses == 1 && Clobber(y, l)) {
 			break
 		}
-		v.Reset(Op386ANDLconstmodify)
+		v.Reset(ssaop.Op386ANDLconstmodify)
 		v.AuxInt = ValAndOffToAuxInt(MakeValAndOff(c, off))
 		v.Aux = SymToAux(sym)
 		v.AddArg2(ptr, mem)
@@ -4396,19 +4397,19 @@ func rewriteValue386_Op386MOVLstore(v *Value) bool {
 		sym := AuxToSym(v.Aux)
 		ptr := v_0
 		y := v_1
-		if y.Op != Op386ORLconst {
+		if y.Op != ssaop.Op386ORLconst {
 			break
 		}
 		c := AuxIntToInt32(y.AuxInt)
 		l := y.Args[0]
-		if l.Op != Op386MOVLload || AuxIntToInt32(l.AuxInt) != off || AuxToSym(l.Aux) != sym {
+		if l.Op != ssaop.Op386MOVLload || AuxIntToInt32(l.AuxInt) != off || AuxToSym(l.Aux) != sym {
 			break
 		}
 		mem := l.Args[1]
 		if ptr != l.Args[0] || mem != v_2 || !(y.Uses == 1 && l.Uses == 1 && Clobber(y, l)) {
 			break
 		}
-		v.Reset(Op386ORLconstmodify)
+		v.Reset(ssaop.Op386ORLconstmodify)
 		v.AuxInt = ValAndOffToAuxInt(MakeValAndOff(c, off))
 		v.Aux = SymToAux(sym)
 		v.AddArg2(ptr, mem)
@@ -4422,19 +4423,19 @@ func rewriteValue386_Op386MOVLstore(v *Value) bool {
 		sym := AuxToSym(v.Aux)
 		ptr := v_0
 		y := v_1
-		if y.Op != Op386XORLconst {
+		if y.Op != ssaop.Op386XORLconst {
 			break
 		}
 		c := AuxIntToInt32(y.AuxInt)
 		l := y.Args[0]
-		if l.Op != Op386MOVLload || AuxIntToInt32(l.AuxInt) != off || AuxToSym(l.Aux) != sym {
+		if l.Op != ssaop.Op386MOVLload || AuxIntToInt32(l.AuxInt) != off || AuxToSym(l.Aux) != sym {
 			break
 		}
 		mem := l.Args[1]
 		if ptr != l.Args[0] || mem != v_2 || !(y.Uses == 1 && l.Uses == 1 && Clobber(y, l)) {
 			break
 		}
-		v.Reset(Op386XORLconstmodify)
+		v.Reset(ssaop.Op386XORLconstmodify)
 		v.AuxInt = ValAndOffToAuxInt(MakeValAndOff(c, off))
 		v.Aux = SymToAux(sym)
 		v.AddArg2(ptr, mem)
@@ -4453,7 +4454,7 @@ func rewriteValue386_Op386MOVLstoreconst(v *Value) bool {
 	for {
 		sc := AuxIntToValAndOff(v.AuxInt)
 		s := AuxToSym(v.Aux)
-		if v_0.Op != Op386ADDLconst {
+		if v_0.Op != ssaop.Op386ADDLconst {
 			break
 		}
 		off := AuxIntToInt32(v_0.AuxInt)
@@ -4462,29 +4463,29 @@ func rewriteValue386_Op386MOVLstoreconst(v *Value) bool {
 		if !(sc.CanAdd32(off)) {
 			break
 		}
-		v.Reset(Op386MOVLstoreconst)
+		v.Reset(ssaop.Op386MOVLstoreconst)
 		v.AuxInt = ValAndOffToAuxInt(sc.AddOffset32(off))
 		v.Aux = SymToAux(s)
 		v.AddArg2(ptr, mem)
 		return true
 	}
 	// match: (MOVLstoreconst [sc] {sym1} (LEAL [off] {sym2} ptr) mem)
-	// cond: CanMergeSym(sym1, sym2) && sc.CanAdd32(off) && (ptr.Op != OpSB || !config.Ctxt.Flag_shared)
+	// cond: CanMergeSym(sym1, sym2) && sc.CanAdd32(off) && (ptr.Op != ssaop.OpSB || !config.Ctxt.Flag_shared)
 	// result: (MOVLstoreconst [sc.AddOffset32(off)] {MergeSym(sym1, sym2)} ptr mem)
 	for {
 		sc := AuxIntToValAndOff(v.AuxInt)
 		sym1 := AuxToSym(v.Aux)
-		if v_0.Op != Op386LEAL {
+		if v_0.Op != ssaop.Op386LEAL {
 			break
 		}
 		off := AuxIntToInt32(v_0.AuxInt)
 		sym2 := AuxToSym(v_0.Aux)
 		ptr := v_0.Args[0]
 		mem := v_1
-		if !(CanMergeSym(sym1, sym2) && sc.CanAdd32(off) && (ptr.Op != OpSB || !config.Ctxt.Flag_shared)) {
+		if !(CanMergeSym(sym1, sym2) && sc.CanAdd32(off) && (ptr.Op != ssaop.OpSB || !config.Ctxt.Flag_shared)) {
 			break
 		}
-		v.Reset(Op386MOVLstoreconst)
+		v.Reset(ssaop.Op386MOVLstoreconst)
 		v.AuxInt = ValAndOffToAuxInt(sc.AddOffset32(off))
 		v.Aux = SymToAux(MergeSym(sym1, sym2))
 		v.AddArg2(ptr, mem)
@@ -4504,8 +4505,8 @@ func rewriteValue386_Op386MOVSDconst(v *Value) bool {
 		if !(config.Ctxt.Flag_shared) {
 			break
 		}
-		v.Reset(Op386MOVSDconst2)
-		v0 := b.NewValue0(v.Pos, Op386MOVSDconst1, typ.UInt32)
+		v.Reset(ssaop.Op386MOVSDconst2)
+		v0 := b.NewValue0(v.Pos, ssaop.Op386MOVSDconst1, typ.UInt32)
 		v0.AuxInt = Float64ToAuxInt(c)
 		v.AddArg(v0)
 		return true
@@ -4523,7 +4524,7 @@ func rewriteValue386_Op386MOVSDload(v *Value) bool {
 	for {
 		off1 := AuxIntToInt32(v.AuxInt)
 		sym := AuxToSym(v.Aux)
-		if v_0.Op != Op386ADDLconst {
+		if v_0.Op != ssaop.Op386ADDLconst {
 			break
 		}
 		off2 := AuxIntToInt32(v_0.AuxInt)
@@ -4532,29 +4533,29 @@ func rewriteValue386_Op386MOVSDload(v *Value) bool {
 		if !(Is32Bit(int64(off1) + int64(off2))) {
 			break
 		}
-		v.Reset(Op386MOVSDload)
+		v.Reset(ssaop.Op386MOVSDload)
 		v.AuxInt = Int32ToAuxInt(off1 + off2)
 		v.Aux = SymToAux(sym)
 		v.AddArg2(ptr, mem)
 		return true
 	}
 	// match: (MOVSDload [off1] {sym1} (LEAL [off2] {sym2} base) mem)
-	// cond: Is32Bit(int64(off1)+int64(off2)) && CanMergeSym(sym1, sym2) && (base.Op != OpSB || !config.Ctxt.Flag_shared)
+	// cond: Is32Bit(int64(off1)+int64(off2)) && CanMergeSym(sym1, sym2) && (base.Op != ssaop.OpSB || !config.Ctxt.Flag_shared)
 	// result: (MOVSDload [off1+off2] {MergeSym(sym1,sym2)} base mem)
 	for {
 		off1 := AuxIntToInt32(v.AuxInt)
 		sym1 := AuxToSym(v.Aux)
-		if v_0.Op != Op386LEAL {
+		if v_0.Op != ssaop.Op386LEAL {
 			break
 		}
 		off2 := AuxIntToInt32(v_0.AuxInt)
 		sym2 := AuxToSym(v_0.Aux)
 		base := v_0.Args[0]
 		mem := v_1
-		if !(Is32Bit(int64(off1)+int64(off2)) && CanMergeSym(sym1, sym2) && (base.Op != OpSB || !config.Ctxt.Flag_shared)) {
+		if !(Is32Bit(int64(off1)+int64(off2)) && CanMergeSym(sym1, sym2) && (base.Op != ssaop.OpSB || !config.Ctxt.Flag_shared)) {
 			break
 		}
-		v.Reset(Op386MOVSDload)
+		v.Reset(ssaop.Op386MOVSDload)
 		v.AuxInt = Int32ToAuxInt(off1 + off2)
 		v.Aux = SymToAux(MergeSym(sym1, sym2))
 		v.AddArg2(base, mem)
@@ -4574,7 +4575,7 @@ func rewriteValue386_Op386MOVSDstore(v *Value) bool {
 	for {
 		off1 := AuxIntToInt32(v.AuxInt)
 		sym := AuxToSym(v.Aux)
-		if v_0.Op != Op386ADDLconst {
+		if v_0.Op != ssaop.Op386ADDLconst {
 			break
 		}
 		off2 := AuxIntToInt32(v_0.AuxInt)
@@ -4584,19 +4585,19 @@ func rewriteValue386_Op386MOVSDstore(v *Value) bool {
 		if !(Is32Bit(int64(off1) + int64(off2))) {
 			break
 		}
-		v.Reset(Op386MOVSDstore)
+		v.Reset(ssaop.Op386MOVSDstore)
 		v.AuxInt = Int32ToAuxInt(off1 + off2)
 		v.Aux = SymToAux(sym)
 		v.AddArg3(ptr, val, mem)
 		return true
 	}
 	// match: (MOVSDstore [off1] {sym1} (LEAL [off2] {sym2} base) val mem)
-	// cond: Is32Bit(int64(off1)+int64(off2)) && CanMergeSym(sym1, sym2) && (base.Op != OpSB || !config.Ctxt.Flag_shared)
+	// cond: Is32Bit(int64(off1)+int64(off2)) && CanMergeSym(sym1, sym2) && (base.Op != ssaop.OpSB || !config.Ctxt.Flag_shared)
 	// result: (MOVSDstore [off1+off2] {MergeSym(sym1,sym2)} base val mem)
 	for {
 		off1 := AuxIntToInt32(v.AuxInt)
 		sym1 := AuxToSym(v.Aux)
-		if v_0.Op != Op386LEAL {
+		if v_0.Op != ssaop.Op386LEAL {
 			break
 		}
 		off2 := AuxIntToInt32(v_0.AuxInt)
@@ -4604,10 +4605,10 @@ func rewriteValue386_Op386MOVSDstore(v *Value) bool {
 		base := v_0.Args[0]
 		val := v_1
 		mem := v_2
-		if !(Is32Bit(int64(off1)+int64(off2)) && CanMergeSym(sym1, sym2) && (base.Op != OpSB || !config.Ctxt.Flag_shared)) {
+		if !(Is32Bit(int64(off1)+int64(off2)) && CanMergeSym(sym1, sym2) && (base.Op != ssaop.OpSB || !config.Ctxt.Flag_shared)) {
 			break
 		}
-		v.Reset(Op386MOVSDstore)
+		v.Reset(ssaop.Op386MOVSDstore)
 		v.AuxInt = Int32ToAuxInt(off1 + off2)
 		v.Aux = SymToAux(MergeSym(sym1, sym2))
 		v.AddArg3(base, val, mem)
@@ -4627,8 +4628,8 @@ func rewriteValue386_Op386MOVSSconst(v *Value) bool {
 		if !(config.Ctxt.Flag_shared) {
 			break
 		}
-		v.Reset(Op386MOVSSconst2)
-		v0 := b.NewValue0(v.Pos, Op386MOVSSconst1, typ.UInt32)
+		v.Reset(ssaop.Op386MOVSSconst2)
+		v0 := b.NewValue0(v.Pos, ssaop.Op386MOVSSconst1, typ.UInt32)
 		v0.AuxInt = Float32ToAuxInt(c)
 		v.AddArg(v0)
 		return true
@@ -4646,7 +4647,7 @@ func rewriteValue386_Op386MOVSSload(v *Value) bool {
 	for {
 		off1 := AuxIntToInt32(v.AuxInt)
 		sym := AuxToSym(v.Aux)
-		if v_0.Op != Op386ADDLconst {
+		if v_0.Op != ssaop.Op386ADDLconst {
 			break
 		}
 		off2 := AuxIntToInt32(v_0.AuxInt)
@@ -4655,29 +4656,29 @@ func rewriteValue386_Op386MOVSSload(v *Value) bool {
 		if !(Is32Bit(int64(off1) + int64(off2))) {
 			break
 		}
-		v.Reset(Op386MOVSSload)
+		v.Reset(ssaop.Op386MOVSSload)
 		v.AuxInt = Int32ToAuxInt(off1 + off2)
 		v.Aux = SymToAux(sym)
 		v.AddArg2(ptr, mem)
 		return true
 	}
 	// match: (MOVSSload [off1] {sym1} (LEAL [off2] {sym2} base) mem)
-	// cond: Is32Bit(int64(off1)+int64(off2)) && CanMergeSym(sym1, sym2) && (base.Op != OpSB || !config.Ctxt.Flag_shared)
+	// cond: Is32Bit(int64(off1)+int64(off2)) && CanMergeSym(sym1, sym2) && (base.Op != ssaop.OpSB || !config.Ctxt.Flag_shared)
 	// result: (MOVSSload [off1+off2] {MergeSym(sym1,sym2)} base mem)
 	for {
 		off1 := AuxIntToInt32(v.AuxInt)
 		sym1 := AuxToSym(v.Aux)
-		if v_0.Op != Op386LEAL {
+		if v_0.Op != ssaop.Op386LEAL {
 			break
 		}
 		off2 := AuxIntToInt32(v_0.AuxInt)
 		sym2 := AuxToSym(v_0.Aux)
 		base := v_0.Args[0]
 		mem := v_1
-		if !(Is32Bit(int64(off1)+int64(off2)) && CanMergeSym(sym1, sym2) && (base.Op != OpSB || !config.Ctxt.Flag_shared)) {
+		if !(Is32Bit(int64(off1)+int64(off2)) && CanMergeSym(sym1, sym2) && (base.Op != ssaop.OpSB || !config.Ctxt.Flag_shared)) {
 			break
 		}
-		v.Reset(Op386MOVSSload)
+		v.Reset(ssaop.Op386MOVSSload)
 		v.AuxInt = Int32ToAuxInt(off1 + off2)
 		v.Aux = SymToAux(MergeSym(sym1, sym2))
 		v.AddArg2(base, mem)
@@ -4697,7 +4698,7 @@ func rewriteValue386_Op386MOVSSstore(v *Value) bool {
 	for {
 		off1 := AuxIntToInt32(v.AuxInt)
 		sym := AuxToSym(v.Aux)
-		if v_0.Op != Op386ADDLconst {
+		if v_0.Op != ssaop.Op386ADDLconst {
 			break
 		}
 		off2 := AuxIntToInt32(v_0.AuxInt)
@@ -4707,19 +4708,19 @@ func rewriteValue386_Op386MOVSSstore(v *Value) bool {
 		if !(Is32Bit(int64(off1) + int64(off2))) {
 			break
 		}
-		v.Reset(Op386MOVSSstore)
+		v.Reset(ssaop.Op386MOVSSstore)
 		v.AuxInt = Int32ToAuxInt(off1 + off2)
 		v.Aux = SymToAux(sym)
 		v.AddArg3(ptr, val, mem)
 		return true
 	}
 	// match: (MOVSSstore [off1] {sym1} (LEAL [off2] {sym2} base) val mem)
-	// cond: Is32Bit(int64(off1)+int64(off2)) && CanMergeSym(sym1, sym2) && (base.Op != OpSB || !config.Ctxt.Flag_shared)
+	// cond: Is32Bit(int64(off1)+int64(off2)) && CanMergeSym(sym1, sym2) && (base.Op != ssaop.OpSB || !config.Ctxt.Flag_shared)
 	// result: (MOVSSstore [off1+off2] {MergeSym(sym1,sym2)} base val mem)
 	for {
 		off1 := AuxIntToInt32(v.AuxInt)
 		sym1 := AuxToSym(v.Aux)
-		if v_0.Op != Op386LEAL {
+		if v_0.Op != ssaop.Op386LEAL {
 			break
 		}
 		off2 := AuxIntToInt32(v_0.AuxInt)
@@ -4727,10 +4728,10 @@ func rewriteValue386_Op386MOVSSstore(v *Value) bool {
 		base := v_0.Args[0]
 		val := v_1
 		mem := v_2
-		if !(Is32Bit(int64(off1)+int64(off2)) && CanMergeSym(sym1, sym2) && (base.Op != OpSB || !config.Ctxt.Flag_shared)) {
+		if !(Is32Bit(int64(off1)+int64(off2)) && CanMergeSym(sym1, sym2) && (base.Op != ssaop.OpSB || !config.Ctxt.Flag_shared)) {
 			break
 		}
-		v.Reset(Op386MOVSSstore)
+		v.Reset(ssaop.Op386MOVSSstore)
 		v.AuxInt = Int32ToAuxInt(off1 + off2)
 		v.Aux = SymToAux(MergeSym(sym1, sym2))
 		v.AddArg3(base, val, mem)
@@ -4746,7 +4747,7 @@ func rewriteValue386_Op386MOVWLSX(v *Value) bool {
 	// result: @x.Block (MOVWLSXload <v.Type> [off] {sym} ptr mem)
 	for {
 		x := v_0
-		if x.Op != Op386MOVWload {
+		if x.Op != ssaop.Op386MOVWload {
 			break
 		}
 		off := AuxIntToInt32(x.AuxInt)
@@ -4757,7 +4758,7 @@ func rewriteValue386_Op386MOVWLSX(v *Value) bool {
 			break
 		}
 		b = x.Block
-		v0 := b.NewValue0(x.Pos, Op386MOVWLSXload, v.Type)
+		v0 := b.NewValue0(x.Pos, ssaop.Op386MOVWLSXload, v.Type)
 		v.CopyOf(v0)
 		v0.AuxInt = Int32ToAuxInt(off)
 		v0.Aux = SymToAux(sym)
@@ -4768,7 +4769,7 @@ func rewriteValue386_Op386MOVWLSX(v *Value) bool {
 	// cond: c & 0x8000 == 0
 	// result: (ANDLconst [c & 0x7fff] x)
 	for {
-		if v_0.Op != Op386ANDLconst {
+		if v_0.Op != ssaop.Op386ANDLconst {
 			break
 		}
 		c := AuxIntToInt32(v_0.AuxInt)
@@ -4776,7 +4777,7 @@ func rewriteValue386_Op386MOVWLSX(v *Value) bool {
 		if !(c&0x8000 == 0) {
 			break
 		}
-		v.Reset(Op386ANDLconst)
+		v.Reset(ssaop.Op386ANDLconst)
 		v.AuxInt = Int32ToAuxInt(c & 0x7fff)
 		v.AddArg(x)
 		return true
@@ -4795,7 +4796,7 @@ func rewriteValue386_Op386MOVWLSXload(v *Value) bool {
 		off := AuxIntToInt32(v.AuxInt)
 		sym := AuxToSym(v.Aux)
 		ptr := v_0
-		if v_1.Op != Op386MOVWstore {
+		if v_1.Op != ssaop.Op386MOVWstore {
 			break
 		}
 		off2 := AuxIntToInt32(v_1.AuxInt)
@@ -4805,27 +4806,27 @@ func rewriteValue386_Op386MOVWLSXload(v *Value) bool {
 		if !(sym == sym2 && off == off2 && IsSamePtr(ptr, ptr2)) {
 			break
 		}
-		v.Reset(Op386MOVWLSX)
+		v.Reset(ssaop.Op386MOVWLSX)
 		v.AddArg(x)
 		return true
 	}
 	// match: (MOVWLSXload [off1] {sym1} (LEAL [off2] {sym2} base) mem)
-	// cond: Is32Bit(int64(off1)+int64(off2)) && CanMergeSym(sym1, sym2) && (base.Op != OpSB || !config.Ctxt.Flag_shared)
+	// cond: Is32Bit(int64(off1)+int64(off2)) && CanMergeSym(sym1, sym2) && (base.Op != ssaop.OpSB || !config.Ctxt.Flag_shared)
 	// result: (MOVWLSXload [off1+off2] {MergeSym(sym1,sym2)} base mem)
 	for {
 		off1 := AuxIntToInt32(v.AuxInt)
 		sym1 := AuxToSym(v.Aux)
-		if v_0.Op != Op386LEAL {
+		if v_0.Op != ssaop.Op386LEAL {
 			break
 		}
 		off2 := AuxIntToInt32(v_0.AuxInt)
 		sym2 := AuxToSym(v_0.Aux)
 		base := v_0.Args[0]
 		mem := v_1
-		if !(Is32Bit(int64(off1)+int64(off2)) && CanMergeSym(sym1, sym2) && (base.Op != OpSB || !config.Ctxt.Flag_shared)) {
+		if !(Is32Bit(int64(off1)+int64(off2)) && CanMergeSym(sym1, sym2) && (base.Op != ssaop.OpSB || !config.Ctxt.Flag_shared)) {
 			break
 		}
-		v.Reset(Op386MOVWLSXload)
+		v.Reset(ssaop.Op386MOVWLSXload)
 		v.AuxInt = Int32ToAuxInt(off1 + off2)
 		v.Aux = SymToAux(MergeSym(sym1, sym2))
 		v.AddArg2(base, mem)
@@ -4837,10 +4838,10 @@ func rewriteValue386_Op386MOVWLSXload(v *Value) bool {
 	for {
 		off := AuxIntToInt32(v.AuxInt)
 		sym := AuxToSym(v.Aux)
-		if v_0.Op != OpSB || !(SymIsRO(sym)) {
+		if v_0.Op != ssaop.OpSB || !(SymIsRO(sym)) {
 			break
 		}
-		v.Reset(Op386MOVLconst)
+		v.Reset(ssaop.Op386MOVLconst)
 		v.AuxInt = Int32ToAuxInt(int32(int16(Read16(sym, int64(off), config.Ctxt.Arch.ByteOrder))))
 		return true
 	}
@@ -4854,7 +4855,7 @@ func rewriteValue386_Op386MOVWLZX(v *Value) bool {
 	// result: @x.Block (MOVWload <v.Type> [off] {sym} ptr mem)
 	for {
 		x := v_0
-		if x.Op != Op386MOVWload {
+		if x.Op != ssaop.Op386MOVWload {
 			break
 		}
 		off := AuxIntToInt32(x.AuxInt)
@@ -4865,7 +4866,7 @@ func rewriteValue386_Op386MOVWLZX(v *Value) bool {
 			break
 		}
 		b = x.Block
-		v0 := b.NewValue0(x.Pos, Op386MOVWload, v.Type)
+		v0 := b.NewValue0(x.Pos, ssaop.Op386MOVWload, v.Type)
 		v.CopyOf(v0)
 		v0.AuxInt = Int32ToAuxInt(off)
 		v0.Aux = SymToAux(sym)
@@ -4875,12 +4876,12 @@ func rewriteValue386_Op386MOVWLZX(v *Value) bool {
 	// match: (MOVWLZX (ANDLconst [c] x))
 	// result: (ANDLconst [c & 0xffff] x)
 	for {
-		if v_0.Op != Op386ANDLconst {
+		if v_0.Op != ssaop.Op386ANDLconst {
 			break
 		}
 		c := AuxIntToInt32(v_0.AuxInt)
 		x := v_0.Args[0]
-		v.Reset(Op386ANDLconst)
+		v.Reset(ssaop.Op386ANDLconst)
 		v.AuxInt = Int32ToAuxInt(c & 0xffff)
 		v.AddArg(x)
 		return true
@@ -4899,7 +4900,7 @@ func rewriteValue386_Op386MOVWload(v *Value) bool {
 		off := AuxIntToInt32(v.AuxInt)
 		sym := AuxToSym(v.Aux)
 		ptr := v_0
-		if v_1.Op != Op386MOVWstore {
+		if v_1.Op != ssaop.Op386MOVWstore {
 			break
 		}
 		off2 := AuxIntToInt32(v_1.AuxInt)
@@ -4909,7 +4910,7 @@ func rewriteValue386_Op386MOVWload(v *Value) bool {
 		if !(sym == sym2 && off == off2 && IsSamePtr(ptr, ptr2)) {
 			break
 		}
-		v.Reset(Op386MOVWLZX)
+		v.Reset(ssaop.Op386MOVWLZX)
 		v.AddArg(x)
 		return true
 	}
@@ -4919,7 +4920,7 @@ func rewriteValue386_Op386MOVWload(v *Value) bool {
 	for {
 		off1 := AuxIntToInt32(v.AuxInt)
 		sym := AuxToSym(v.Aux)
-		if v_0.Op != Op386ADDLconst {
+		if v_0.Op != ssaop.Op386ADDLconst {
 			break
 		}
 		off2 := AuxIntToInt32(v_0.AuxInt)
@@ -4928,29 +4929,29 @@ func rewriteValue386_Op386MOVWload(v *Value) bool {
 		if !(Is32Bit(int64(off1) + int64(off2))) {
 			break
 		}
-		v.Reset(Op386MOVWload)
+		v.Reset(ssaop.Op386MOVWload)
 		v.AuxInt = Int32ToAuxInt(off1 + off2)
 		v.Aux = SymToAux(sym)
 		v.AddArg2(ptr, mem)
 		return true
 	}
 	// match: (MOVWload [off1] {sym1} (LEAL [off2] {sym2} base) mem)
-	// cond: Is32Bit(int64(off1)+int64(off2)) && CanMergeSym(sym1, sym2) && (base.Op != OpSB || !config.Ctxt.Flag_shared)
+	// cond: Is32Bit(int64(off1)+int64(off2)) && CanMergeSym(sym1, sym2) && (base.Op != ssaop.OpSB || !config.Ctxt.Flag_shared)
 	// result: (MOVWload [off1+off2] {MergeSym(sym1,sym2)} base mem)
 	for {
 		off1 := AuxIntToInt32(v.AuxInt)
 		sym1 := AuxToSym(v.Aux)
-		if v_0.Op != Op386LEAL {
+		if v_0.Op != ssaop.Op386LEAL {
 			break
 		}
 		off2 := AuxIntToInt32(v_0.AuxInt)
 		sym2 := AuxToSym(v_0.Aux)
 		base := v_0.Args[0]
 		mem := v_1
-		if !(Is32Bit(int64(off1)+int64(off2)) && CanMergeSym(sym1, sym2) && (base.Op != OpSB || !config.Ctxt.Flag_shared)) {
+		if !(Is32Bit(int64(off1)+int64(off2)) && CanMergeSym(sym1, sym2) && (base.Op != ssaop.OpSB || !config.Ctxt.Flag_shared)) {
 			break
 		}
-		v.Reset(Op386MOVWload)
+		v.Reset(ssaop.Op386MOVWload)
 		v.AuxInt = Int32ToAuxInt(off1 + off2)
 		v.Aux = SymToAux(MergeSym(sym1, sym2))
 		v.AddArg2(base, mem)
@@ -4962,10 +4963,10 @@ func rewriteValue386_Op386MOVWload(v *Value) bool {
 	for {
 		off := AuxIntToInt32(v.AuxInt)
 		sym := AuxToSym(v.Aux)
-		if v_0.Op != OpSB || !(SymIsRO(sym)) {
+		if v_0.Op != ssaop.OpSB || !(SymIsRO(sym)) {
 			break
 		}
-		v.Reset(Op386MOVLconst)
+		v.Reset(ssaop.Op386MOVLconst)
 		v.AuxInt = Int32ToAuxInt(int32(Read16(sym, int64(off), config.Ctxt.Arch.ByteOrder)))
 		return true
 	}
@@ -4983,12 +4984,12 @@ func rewriteValue386_Op386MOVWstore(v *Value) bool {
 		off := AuxIntToInt32(v.AuxInt)
 		sym := AuxToSym(v.Aux)
 		ptr := v_0
-		if v_1.Op != Op386MOVWLSX {
+		if v_1.Op != ssaop.Op386MOVWLSX {
 			break
 		}
 		x := v_1.Args[0]
 		mem := v_2
-		v.Reset(Op386MOVWstore)
+		v.Reset(ssaop.Op386MOVWstore)
 		v.AuxInt = Int32ToAuxInt(off)
 		v.Aux = SymToAux(sym)
 		v.AddArg3(ptr, x, mem)
@@ -5000,12 +5001,12 @@ func rewriteValue386_Op386MOVWstore(v *Value) bool {
 		off := AuxIntToInt32(v.AuxInt)
 		sym := AuxToSym(v.Aux)
 		ptr := v_0
-		if v_1.Op != Op386MOVWLZX {
+		if v_1.Op != ssaop.Op386MOVWLZX {
 			break
 		}
 		x := v_1.Args[0]
 		mem := v_2
-		v.Reset(Op386MOVWstore)
+		v.Reset(ssaop.Op386MOVWstore)
 		v.AuxInt = Int32ToAuxInt(off)
 		v.Aux = SymToAux(sym)
 		v.AddArg3(ptr, x, mem)
@@ -5017,7 +5018,7 @@ func rewriteValue386_Op386MOVWstore(v *Value) bool {
 	for {
 		off1 := AuxIntToInt32(v.AuxInt)
 		sym := AuxToSym(v.Aux)
-		if v_0.Op != Op386ADDLconst {
+		if v_0.Op != ssaop.Op386ADDLconst {
 			break
 		}
 		off2 := AuxIntToInt32(v_0.AuxInt)
@@ -5027,7 +5028,7 @@ func rewriteValue386_Op386MOVWstore(v *Value) bool {
 		if !(Is32Bit(int64(off1) + int64(off2))) {
 			break
 		}
-		v.Reset(Op386MOVWstore)
+		v.Reset(ssaop.Op386MOVWstore)
 		v.AuxInt = Int32ToAuxInt(off1 + off2)
 		v.Aux = SymToAux(sym)
 		v.AddArg3(ptr, val, mem)
@@ -5039,24 +5040,24 @@ func rewriteValue386_Op386MOVWstore(v *Value) bool {
 		off := AuxIntToInt32(v.AuxInt)
 		sym := AuxToSym(v.Aux)
 		ptr := v_0
-		if v_1.Op != Op386MOVLconst {
+		if v_1.Op != ssaop.Op386MOVLconst {
 			break
 		}
 		c := AuxIntToInt32(v_1.AuxInt)
 		mem := v_2
-		v.Reset(Op386MOVWstoreconst)
+		v.Reset(ssaop.Op386MOVWstoreconst)
 		v.AuxInt = ValAndOffToAuxInt(MakeValAndOff(c, off))
 		v.Aux = SymToAux(sym)
 		v.AddArg2(ptr, mem)
 		return true
 	}
 	// match: (MOVWstore [off1] {sym1} (LEAL [off2] {sym2} base) val mem)
-	// cond: Is32Bit(int64(off1)+int64(off2)) && CanMergeSym(sym1, sym2) && (base.Op != OpSB || !config.Ctxt.Flag_shared)
+	// cond: Is32Bit(int64(off1)+int64(off2)) && CanMergeSym(sym1, sym2) && (base.Op != ssaop.OpSB || !config.Ctxt.Flag_shared)
 	// result: (MOVWstore [off1+off2] {MergeSym(sym1,sym2)} base val mem)
 	for {
 		off1 := AuxIntToInt32(v.AuxInt)
 		sym1 := AuxToSym(v.Aux)
-		if v_0.Op != Op386LEAL {
+		if v_0.Op != ssaop.Op386LEAL {
 			break
 		}
 		off2 := AuxIntToInt32(v_0.AuxInt)
@@ -5064,10 +5065,10 @@ func rewriteValue386_Op386MOVWstore(v *Value) bool {
 		base := v_0.Args[0]
 		val := v_1
 		mem := v_2
-		if !(Is32Bit(int64(off1)+int64(off2)) && CanMergeSym(sym1, sym2) && (base.Op != OpSB || !config.Ctxt.Flag_shared)) {
+		if !(Is32Bit(int64(off1)+int64(off2)) && CanMergeSym(sym1, sym2) && (base.Op != ssaop.OpSB || !config.Ctxt.Flag_shared)) {
 			break
 		}
-		v.Reset(Op386MOVWstore)
+		v.Reset(ssaop.Op386MOVWstore)
 		v.AuxInt = Int32ToAuxInt(off1 + off2)
 		v.Aux = SymToAux(MergeSym(sym1, sym2))
 		v.AddArg3(base, val, mem)
@@ -5086,7 +5087,7 @@ func rewriteValue386_Op386MOVWstoreconst(v *Value) bool {
 	for {
 		sc := AuxIntToValAndOff(v.AuxInt)
 		s := AuxToSym(v.Aux)
-		if v_0.Op != Op386ADDLconst {
+		if v_0.Op != ssaop.Op386ADDLconst {
 			break
 		}
 		off := AuxIntToInt32(v_0.AuxInt)
@@ -5095,29 +5096,29 @@ func rewriteValue386_Op386MOVWstoreconst(v *Value) bool {
 		if !(sc.CanAdd32(off)) {
 			break
 		}
-		v.Reset(Op386MOVWstoreconst)
+		v.Reset(ssaop.Op386MOVWstoreconst)
 		v.AuxInt = ValAndOffToAuxInt(sc.AddOffset32(off))
 		v.Aux = SymToAux(s)
 		v.AddArg2(ptr, mem)
 		return true
 	}
 	// match: (MOVWstoreconst [sc] {sym1} (LEAL [off] {sym2} ptr) mem)
-	// cond: CanMergeSym(sym1, sym2) && sc.CanAdd32(off) && (ptr.Op != OpSB || !config.Ctxt.Flag_shared)
+	// cond: CanMergeSym(sym1, sym2) && sc.CanAdd32(off) && (ptr.Op != ssaop.OpSB || !config.Ctxt.Flag_shared)
 	// result: (MOVWstoreconst [sc.AddOffset32(off)] {MergeSym(sym1, sym2)} ptr mem)
 	for {
 		sc := AuxIntToValAndOff(v.AuxInt)
 		sym1 := AuxToSym(v.Aux)
-		if v_0.Op != Op386LEAL {
+		if v_0.Op != ssaop.Op386LEAL {
 			break
 		}
 		off := AuxIntToInt32(v_0.AuxInt)
 		sym2 := AuxToSym(v_0.Aux)
 		ptr := v_0.Args[0]
 		mem := v_1
-		if !(CanMergeSym(sym1, sym2) && sc.CanAdd32(off) && (ptr.Op != OpSB || !config.Ctxt.Flag_shared)) {
+		if !(CanMergeSym(sym1, sym2) && sc.CanAdd32(off) && (ptr.Op != ssaop.OpSB || !config.Ctxt.Flag_shared)) {
 			break
 		}
-		v.Reset(Op386MOVWstoreconst)
+		v.Reset(ssaop.Op386MOVWstoreconst)
 		v.AuxInt = ValAndOffToAuxInt(sc.AddOffset32(off))
 		v.Aux = SymToAux(MergeSym(sym1, sym2))
 		v.AddArg2(ptr, mem)
@@ -5133,11 +5134,11 @@ func rewriteValue386_Op386MULL(v *Value) bool {
 	for {
 		for _i0 := 0; _i0 <= 1; _i0, v_0, v_1 = _i0+1, v_1, v_0 {
 			x := v_0
-			if v_1.Op != Op386MOVLconst {
+			if v_1.Op != ssaop.Op386MOVLconst {
 				continue
 			}
 			c := AuxIntToInt32(v_1.AuxInt)
-			v.Reset(Op386MULLconst)
+			v.Reset(ssaop.Op386MULLconst)
 			v.AuxInt = Int32ToAuxInt(c)
 			v.AddArg(x)
 			return true
@@ -5151,7 +5152,7 @@ func rewriteValue386_Op386MULL(v *Value) bool {
 		for _i0 := 0; _i0 <= 1; _i0, v_0, v_1 = _i0+1, v_1, v_0 {
 			x := v_0
 			l := v_1
-			if l.Op != Op386MOVLload {
+			if l.Op != ssaop.Op386MOVLload {
 				continue
 			}
 			off := AuxIntToInt32(l.AuxInt)
@@ -5161,7 +5162,7 @@ func rewriteValue386_Op386MULL(v *Value) bool {
 			if !(CanMergeLoadClobber(v, l, x) && Clobber(l)) {
 				continue
 			}
-			v.Reset(Op386MULLload)
+			v.Reset(ssaop.Op386MULLload)
 			v.AuxInt = Int32ToAuxInt(off)
 			v.Aux = SymToAux(sym)
 			v.AddArg3(x, ptr, mem)
@@ -5178,12 +5179,12 @@ func rewriteValue386_Op386MULLconst(v *Value) bool {
 	// result: (MULLconst [c * d] x)
 	for {
 		c := AuxIntToInt32(v.AuxInt)
-		if v_0.Op != Op386MULLconst {
+		if v_0.Op != ssaop.Op386MULLconst {
 			break
 		}
 		d := AuxIntToInt32(v_0.AuxInt)
 		x := v_0.Args[0]
-		v.Reset(Op386MULLconst)
+		v.Reset(ssaop.Op386MULLconst)
 		v.AuxInt = Int32ToAuxInt(c * d)
 		v.AddArg(x)
 		return true
@@ -5195,8 +5196,8 @@ func rewriteValue386_Op386MULLconst(v *Value) bool {
 			break
 		}
 		x := v_0
-		v.Reset(Op386NEGL)
-		v0 := b.NewValue0(v.Pos, Op386LEAL8, v.Type)
+		v.Reset(ssaop.Op386NEGL)
+		v0 := b.NewValue0(v.Pos, ssaop.Op386LEAL8, v.Type)
 		v0.AddArg2(x, x)
 		v.AddArg(v0)
 		return true
@@ -5208,8 +5209,8 @@ func rewriteValue386_Op386MULLconst(v *Value) bool {
 			break
 		}
 		x := v_0
-		v.Reset(Op386NEGL)
-		v0 := b.NewValue0(v.Pos, Op386LEAL4, v.Type)
+		v.Reset(ssaop.Op386NEGL)
+		v0 := b.NewValue0(v.Pos, ssaop.Op386LEAL4, v.Type)
 		v0.AddArg2(x, x)
 		v.AddArg(v0)
 		return true
@@ -5221,8 +5222,8 @@ func rewriteValue386_Op386MULLconst(v *Value) bool {
 			break
 		}
 		x := v_0
-		v.Reset(Op386NEGL)
-		v0 := b.NewValue0(v.Pos, Op386LEAL2, v.Type)
+		v.Reset(ssaop.Op386NEGL)
+		v0 := b.NewValue0(v.Pos, ssaop.Op386LEAL2, v.Type)
 		v0.AddArg2(x, x)
 		v.AddArg(v0)
 		return true
@@ -5234,7 +5235,7 @@ func rewriteValue386_Op386MULLconst(v *Value) bool {
 			break
 		}
 		x := v_0
-		v.Reset(Op386NEGL)
+		v.Reset(ssaop.Op386NEGL)
 		v.AddArg(x)
 		return true
 	}
@@ -5244,7 +5245,7 @@ func rewriteValue386_Op386MULLconst(v *Value) bool {
 		if AuxIntToInt32(v.AuxInt) != 0 {
 			break
 		}
-		v.Reset(Op386MOVLconst)
+		v.Reset(ssaop.Op386MOVLconst)
 		v.AuxInt = Int32ToAuxInt(0)
 		return true
 	}
@@ -5265,7 +5266,7 @@ func rewriteValue386_Op386MULLconst(v *Value) bool {
 			break
 		}
 		x := v_0
-		v.Reset(Op386LEAL2)
+		v.Reset(ssaop.Op386LEAL2)
 		v.AddArg2(x, x)
 		return true
 	}
@@ -5276,7 +5277,7 @@ func rewriteValue386_Op386MULLconst(v *Value) bool {
 			break
 		}
 		x := v_0
-		v.Reset(Op386LEAL4)
+		v.Reset(ssaop.Op386LEAL4)
 		v.AddArg2(x, x)
 		return true
 	}
@@ -5287,8 +5288,8 @@ func rewriteValue386_Op386MULLconst(v *Value) bool {
 			break
 		}
 		x := v_0
-		v.Reset(Op386LEAL2)
-		v0 := b.NewValue0(v.Pos, Op386LEAL2, v.Type)
+		v.Reset(ssaop.Op386LEAL2)
+		v0 := b.NewValue0(v.Pos, ssaop.Op386LEAL2, v.Type)
 		v0.AddArg2(x, x)
 		v.AddArg2(x, v0)
 		return true
@@ -5300,7 +5301,7 @@ func rewriteValue386_Op386MULLconst(v *Value) bool {
 			break
 		}
 		x := v_0
-		v.Reset(Op386LEAL8)
+		v.Reset(ssaop.Op386LEAL8)
 		v.AddArg2(x, x)
 		return true
 	}
@@ -5311,8 +5312,8 @@ func rewriteValue386_Op386MULLconst(v *Value) bool {
 			break
 		}
 		x := v_0
-		v.Reset(Op386LEAL2)
-		v0 := b.NewValue0(v.Pos, Op386LEAL4, v.Type)
+		v.Reset(ssaop.Op386LEAL2)
+		v0 := b.NewValue0(v.Pos, ssaop.Op386LEAL4, v.Type)
 		v0.AddArg2(x, x)
 		v.AddArg2(x, v0)
 		return true
@@ -5324,8 +5325,8 @@ func rewriteValue386_Op386MULLconst(v *Value) bool {
 			break
 		}
 		x := v_0
-		v.Reset(Op386LEAL4)
-		v0 := b.NewValue0(v.Pos, Op386LEAL2, v.Type)
+		v.Reset(ssaop.Op386LEAL4)
+		v0 := b.NewValue0(v.Pos, ssaop.Op386LEAL2, v.Type)
 		v0.AddArg2(x, x)
 		v.AddArg2(x, v0)
 		return true
@@ -5337,8 +5338,8 @@ func rewriteValue386_Op386MULLconst(v *Value) bool {
 			break
 		}
 		x := v_0
-		v.Reset(Op386LEAL2)
-		v0 := b.NewValue0(v.Pos, Op386LEAL8, v.Type)
+		v.Reset(ssaop.Op386LEAL2)
+		v0 := b.NewValue0(v.Pos, ssaop.Op386LEAL8, v.Type)
 		v0.AddArg2(x, x)
 		v.AddArg2(x, v0)
 		return true
@@ -5350,8 +5351,8 @@ func rewriteValue386_Op386MULLconst(v *Value) bool {
 			break
 		}
 		x := v_0
-		v.Reset(Op386LEAL4)
-		v0 := b.NewValue0(v.Pos, Op386LEAL4, v.Type)
+		v.Reset(ssaop.Op386LEAL4)
+		v0 := b.NewValue0(v.Pos, ssaop.Op386LEAL4, v.Type)
 		v0.AddArg2(x, x)
 		v.AddArg2(x, v0)
 		return true
@@ -5363,8 +5364,8 @@ func rewriteValue386_Op386MULLconst(v *Value) bool {
 			break
 		}
 		x := v_0
-		v.Reset(Op386LEAL8)
-		v0 := b.NewValue0(v.Pos, Op386LEAL2, v.Type)
+		v.Reset(ssaop.Op386LEAL8)
+		v0 := b.NewValue0(v.Pos, ssaop.Op386LEAL2, v.Type)
 		v0.AddArg2(x, x)
 		v.AddArg2(x, v0)
 		return true
@@ -5376,8 +5377,8 @@ func rewriteValue386_Op386MULLconst(v *Value) bool {
 			break
 		}
 		x := v_0
-		v.Reset(Op386LEAL8)
-		v0 := b.NewValue0(v.Pos, Op386LEAL2, v.Type)
+		v.Reset(ssaop.Op386LEAL8)
+		v0 := b.NewValue0(v.Pos, ssaop.Op386LEAL2, v.Type)
 		v0.AddArg2(x, x)
 		v.AddArg2(v0, v0)
 		return true
@@ -5389,8 +5390,8 @@ func rewriteValue386_Op386MULLconst(v *Value) bool {
 			break
 		}
 		x := v_0
-		v.Reset(Op386LEAL4)
-		v0 := b.NewValue0(v.Pos, Op386LEAL8, v.Type)
+		v.Reset(ssaop.Op386LEAL4)
+		v0 := b.NewValue0(v.Pos, ssaop.Op386LEAL8, v.Type)
 		v0.AddArg2(x, x)
 		v.AddArg2(x, v0)
 		return true
@@ -5402,8 +5403,8 @@ func rewriteValue386_Op386MULLconst(v *Value) bool {
 			break
 		}
 		x := v_0
-		v.Reset(Op386LEAL8)
-		v0 := b.NewValue0(v.Pos, Op386LEAL4, v.Type)
+		v.Reset(ssaop.Op386LEAL8)
+		v0 := b.NewValue0(v.Pos, ssaop.Op386LEAL4, v.Type)
 		v0.AddArg2(x, x)
 		v.AddArg2(x, v0)
 		return true
@@ -5415,8 +5416,8 @@ func rewriteValue386_Op386MULLconst(v *Value) bool {
 			break
 		}
 		x := v_0
-		v.Reset(Op386LEAL8)
-		v0 := b.NewValue0(v.Pos, Op386LEAL4, v.Type)
+		v.Reset(ssaop.Op386LEAL8)
+		v0 := b.NewValue0(v.Pos, ssaop.Op386LEAL4, v.Type)
 		v0.AddArg2(x, x)
 		v.AddArg2(v0, v0)
 		return true
@@ -5428,8 +5429,8 @@ func rewriteValue386_Op386MULLconst(v *Value) bool {
 			break
 		}
 		x := v_0
-		v.Reset(Op386LEAL8)
-		v0 := b.NewValue0(v.Pos, Op386LEAL8, v.Type)
+		v.Reset(ssaop.Op386LEAL8)
+		v0 := b.NewValue0(v.Pos, ssaop.Op386LEAL8, v.Type)
 		v0.AddArg2(x, x)
 		v.AddArg2(x, v0)
 		return true
@@ -5441,8 +5442,8 @@ func rewriteValue386_Op386MULLconst(v *Value) bool {
 			break
 		}
 		x := v_0
-		v.Reset(Op386LEAL8)
-		v0 := b.NewValue0(v.Pos, Op386LEAL8, v.Type)
+		v.Reset(ssaop.Op386LEAL8)
+		v0 := b.NewValue0(v.Pos, ssaop.Op386LEAL8, v.Type)
 		v0.AddArg2(x, x)
 		v.AddArg2(v0, v0)
 		return true
@@ -5456,8 +5457,8 @@ func rewriteValue386_Op386MULLconst(v *Value) bool {
 		if !(IsPowerOfTwo(c+1) && c >= 15) {
 			break
 		}
-		v.Reset(Op386SUBL)
-		v0 := b.NewValue0(v.Pos, Op386SHLLconst, v.Type)
+		v.Reset(ssaop.Op386SUBL)
+		v0 := b.NewValue0(v.Pos, ssaop.Op386SHLLconst, v.Type)
 		v0.AuxInt = Int32ToAuxInt(int32(Log32(c + 1)))
 		v0.AddArg(x)
 		v.AddArg2(v0, x)
@@ -5472,8 +5473,8 @@ func rewriteValue386_Op386MULLconst(v *Value) bool {
 		if !(IsPowerOfTwo(c-1) && c >= 17) {
 			break
 		}
-		v.Reset(Op386LEAL1)
-		v0 := b.NewValue0(v.Pos, Op386SHLLconst, v.Type)
+		v.Reset(ssaop.Op386LEAL1)
+		v0 := b.NewValue0(v.Pos, ssaop.Op386SHLLconst, v.Type)
 		v0.AuxInt = Int32ToAuxInt(int32(Log32(c - 1)))
 		v0.AddArg(x)
 		v.AddArg2(v0, x)
@@ -5488,8 +5489,8 @@ func rewriteValue386_Op386MULLconst(v *Value) bool {
 		if !(IsPowerOfTwo(c-2) && c >= 34) {
 			break
 		}
-		v.Reset(Op386LEAL2)
-		v0 := b.NewValue0(v.Pos, Op386SHLLconst, v.Type)
+		v.Reset(ssaop.Op386LEAL2)
+		v0 := b.NewValue0(v.Pos, ssaop.Op386SHLLconst, v.Type)
 		v0.AuxInt = Int32ToAuxInt(int32(Log32(c - 2)))
 		v0.AddArg(x)
 		v.AddArg2(v0, x)
@@ -5504,8 +5505,8 @@ func rewriteValue386_Op386MULLconst(v *Value) bool {
 		if !(IsPowerOfTwo(c-4) && c >= 68) {
 			break
 		}
-		v.Reset(Op386LEAL4)
-		v0 := b.NewValue0(v.Pos, Op386SHLLconst, v.Type)
+		v.Reset(ssaop.Op386LEAL4)
+		v0 := b.NewValue0(v.Pos, ssaop.Op386SHLLconst, v.Type)
 		v0.AuxInt = Int32ToAuxInt(int32(Log32(c - 4)))
 		v0.AddArg(x)
 		v.AddArg2(v0, x)
@@ -5520,8 +5521,8 @@ func rewriteValue386_Op386MULLconst(v *Value) bool {
 		if !(IsPowerOfTwo(c-8) && c >= 136) {
 			break
 		}
-		v.Reset(Op386LEAL8)
-		v0 := b.NewValue0(v.Pos, Op386SHLLconst, v.Type)
+		v.Reset(ssaop.Op386LEAL8)
+		v0 := b.NewValue0(v.Pos, ssaop.Op386SHLLconst, v.Type)
 		v0.AuxInt = Int32ToAuxInt(int32(Log32(c - 8)))
 		v0.AddArg(x)
 		v.AddArg2(v0, x)
@@ -5536,9 +5537,9 @@ func rewriteValue386_Op386MULLconst(v *Value) bool {
 		if !(c%3 == 0 && IsPowerOfTwo(c/3)) {
 			break
 		}
-		v.Reset(Op386SHLLconst)
+		v.Reset(ssaop.Op386SHLLconst)
 		v.AuxInt = Int32ToAuxInt(int32(Log32(c / 3)))
-		v0 := b.NewValue0(v.Pos, Op386LEAL2, v.Type)
+		v0 := b.NewValue0(v.Pos, ssaop.Op386LEAL2, v.Type)
 		v0.AddArg2(x, x)
 		v.AddArg(v0)
 		return true
@@ -5552,9 +5553,9 @@ func rewriteValue386_Op386MULLconst(v *Value) bool {
 		if !(c%5 == 0 && IsPowerOfTwo(c/5)) {
 			break
 		}
-		v.Reset(Op386SHLLconst)
+		v.Reset(ssaop.Op386SHLLconst)
 		v.AuxInt = Int32ToAuxInt(int32(Log32(c / 5)))
-		v0 := b.NewValue0(v.Pos, Op386LEAL4, v.Type)
+		v0 := b.NewValue0(v.Pos, ssaop.Op386LEAL4, v.Type)
 		v0.AddArg2(x, x)
 		v.AddArg(v0)
 		return true
@@ -5568,9 +5569,9 @@ func rewriteValue386_Op386MULLconst(v *Value) bool {
 		if !(c%9 == 0 && IsPowerOfTwo(c/9)) {
 			break
 		}
-		v.Reset(Op386SHLLconst)
+		v.Reset(ssaop.Op386SHLLconst)
 		v.AuxInt = Int32ToAuxInt(int32(Log32(c / 9)))
-		v0 := b.NewValue0(v.Pos, Op386LEAL8, v.Type)
+		v0 := b.NewValue0(v.Pos, ssaop.Op386LEAL8, v.Type)
 		v0.AddArg2(x, x)
 		v.AddArg(v0)
 		return true
@@ -5579,11 +5580,11 @@ func rewriteValue386_Op386MULLconst(v *Value) bool {
 	// result: (MOVLconst [c*d])
 	for {
 		c := AuxIntToInt32(v.AuxInt)
-		if v_0.Op != Op386MOVLconst {
+		if v_0.Op != ssaop.Op386MOVLconst {
 			break
 		}
 		d := AuxIntToInt32(v_0.AuxInt)
-		v.Reset(Op386MOVLconst)
+		v.Reset(ssaop.Op386MOVLconst)
 		v.AuxInt = Int32ToAuxInt(c * d)
 		return true
 	}
@@ -5602,7 +5603,7 @@ func rewriteValue386_Op386MULLload(v *Value) bool {
 		off1 := AuxIntToInt32(v.AuxInt)
 		sym := AuxToSym(v.Aux)
 		val := v_0
-		if v_1.Op != Op386ADDLconst {
+		if v_1.Op != ssaop.Op386ADDLconst {
 			break
 		}
 		off2 := AuxIntToInt32(v_1.AuxInt)
@@ -5611,30 +5612,30 @@ func rewriteValue386_Op386MULLload(v *Value) bool {
 		if !(Is32Bit(int64(off1) + int64(off2))) {
 			break
 		}
-		v.Reset(Op386MULLload)
+		v.Reset(ssaop.Op386MULLload)
 		v.AuxInt = Int32ToAuxInt(off1 + off2)
 		v.Aux = SymToAux(sym)
 		v.AddArg3(val, base, mem)
 		return true
 	}
 	// match: (MULLload [off1] {sym1} val (LEAL [off2] {sym2} base) mem)
-	// cond: Is32Bit(int64(off1)+int64(off2)) && CanMergeSym(sym1, sym2) && (base.Op != OpSB || !config.Ctxt.Flag_shared)
+	// cond: Is32Bit(int64(off1)+int64(off2)) && CanMergeSym(sym1, sym2) && (base.Op != ssaop.OpSB || !config.Ctxt.Flag_shared)
 	// result: (MULLload [off1+off2] {MergeSym(sym1,sym2)} val base mem)
 	for {
 		off1 := AuxIntToInt32(v.AuxInt)
 		sym1 := AuxToSym(v.Aux)
 		val := v_0
-		if v_1.Op != Op386LEAL {
+		if v_1.Op != ssaop.Op386LEAL {
 			break
 		}
 		off2 := AuxIntToInt32(v_1.AuxInt)
 		sym2 := AuxToSym(v_1.Aux)
 		base := v_1.Args[0]
 		mem := v_2
-		if !(Is32Bit(int64(off1)+int64(off2)) && CanMergeSym(sym1, sym2) && (base.Op != OpSB || !config.Ctxt.Flag_shared)) {
+		if !(Is32Bit(int64(off1)+int64(off2)) && CanMergeSym(sym1, sym2) && (base.Op != ssaop.OpSB || !config.Ctxt.Flag_shared)) {
 			break
 		}
-		v.Reset(Op386MULLload)
+		v.Reset(ssaop.Op386MULLload)
 		v.AuxInt = Int32ToAuxInt(off1 + off2)
 		v.Aux = SymToAux(MergeSym(sym1, sym2))
 		v.AddArg3(val, base, mem)
@@ -5652,7 +5653,7 @@ func rewriteValue386_Op386MULSD(v *Value) bool {
 		for _i0 := 0; _i0 <= 1; _i0, v_0, v_1 = _i0+1, v_1, v_0 {
 			x := v_0
 			l := v_1
-			if l.Op != Op386MOVSDload {
+			if l.Op != ssaop.Op386MOVSDload {
 				continue
 			}
 			off := AuxIntToInt32(l.AuxInt)
@@ -5662,7 +5663,7 @@ func rewriteValue386_Op386MULSD(v *Value) bool {
 			if !(CanMergeLoadClobber(v, l, x) && Clobber(l)) {
 				continue
 			}
-			v.Reset(Op386MULSDload)
+			v.Reset(ssaop.Op386MULSDload)
 			v.AuxInt = Int32ToAuxInt(off)
 			v.Aux = SymToAux(sym)
 			v.AddArg3(x, ptr, mem)
@@ -5685,7 +5686,7 @@ func rewriteValue386_Op386MULSDload(v *Value) bool {
 		off1 := AuxIntToInt32(v.AuxInt)
 		sym := AuxToSym(v.Aux)
 		val := v_0
-		if v_1.Op != Op386ADDLconst {
+		if v_1.Op != ssaop.Op386ADDLconst {
 			break
 		}
 		off2 := AuxIntToInt32(v_1.AuxInt)
@@ -5694,30 +5695,30 @@ func rewriteValue386_Op386MULSDload(v *Value) bool {
 		if !(Is32Bit(int64(off1) + int64(off2))) {
 			break
 		}
-		v.Reset(Op386MULSDload)
+		v.Reset(ssaop.Op386MULSDload)
 		v.AuxInt = Int32ToAuxInt(off1 + off2)
 		v.Aux = SymToAux(sym)
 		v.AddArg3(val, base, mem)
 		return true
 	}
 	// match: (MULSDload [off1] {sym1} val (LEAL [off2] {sym2} base) mem)
-	// cond: Is32Bit(int64(off1)+int64(off2)) && CanMergeSym(sym1, sym2) && (base.Op != OpSB || !config.Ctxt.Flag_shared)
+	// cond: Is32Bit(int64(off1)+int64(off2)) && CanMergeSym(sym1, sym2) && (base.Op != ssaop.OpSB || !config.Ctxt.Flag_shared)
 	// result: (MULSDload [off1+off2] {MergeSym(sym1,sym2)} val base mem)
 	for {
 		off1 := AuxIntToInt32(v.AuxInt)
 		sym1 := AuxToSym(v.Aux)
 		val := v_0
-		if v_1.Op != Op386LEAL {
+		if v_1.Op != ssaop.Op386LEAL {
 			break
 		}
 		off2 := AuxIntToInt32(v_1.AuxInt)
 		sym2 := AuxToSym(v_1.Aux)
 		base := v_1.Args[0]
 		mem := v_2
-		if !(Is32Bit(int64(off1)+int64(off2)) && CanMergeSym(sym1, sym2) && (base.Op != OpSB || !config.Ctxt.Flag_shared)) {
+		if !(Is32Bit(int64(off1)+int64(off2)) && CanMergeSym(sym1, sym2) && (base.Op != ssaop.OpSB || !config.Ctxt.Flag_shared)) {
 			break
 		}
-		v.Reset(Op386MULSDload)
+		v.Reset(ssaop.Op386MULSDload)
 		v.AuxInt = Int32ToAuxInt(off1 + off2)
 		v.Aux = SymToAux(MergeSym(sym1, sym2))
 		v.AddArg3(val, base, mem)
@@ -5735,7 +5736,7 @@ func rewriteValue386_Op386MULSS(v *Value) bool {
 		for _i0 := 0; _i0 <= 1; _i0, v_0, v_1 = _i0+1, v_1, v_0 {
 			x := v_0
 			l := v_1
-			if l.Op != Op386MOVSSload {
+			if l.Op != ssaop.Op386MOVSSload {
 				continue
 			}
 			off := AuxIntToInt32(l.AuxInt)
@@ -5745,7 +5746,7 @@ func rewriteValue386_Op386MULSS(v *Value) bool {
 			if !(CanMergeLoadClobber(v, l, x) && Clobber(l)) {
 				continue
 			}
-			v.Reset(Op386MULSSload)
+			v.Reset(ssaop.Op386MULSSload)
 			v.AuxInt = Int32ToAuxInt(off)
 			v.Aux = SymToAux(sym)
 			v.AddArg3(x, ptr, mem)
@@ -5768,7 +5769,7 @@ func rewriteValue386_Op386MULSSload(v *Value) bool {
 		off1 := AuxIntToInt32(v.AuxInt)
 		sym := AuxToSym(v.Aux)
 		val := v_0
-		if v_1.Op != Op386ADDLconst {
+		if v_1.Op != ssaop.Op386ADDLconst {
 			break
 		}
 		off2 := AuxIntToInt32(v_1.AuxInt)
@@ -5777,30 +5778,30 @@ func rewriteValue386_Op386MULSSload(v *Value) bool {
 		if !(Is32Bit(int64(off1) + int64(off2))) {
 			break
 		}
-		v.Reset(Op386MULSSload)
+		v.Reset(ssaop.Op386MULSSload)
 		v.AuxInt = Int32ToAuxInt(off1 + off2)
 		v.Aux = SymToAux(sym)
 		v.AddArg3(val, base, mem)
 		return true
 	}
 	// match: (MULSSload [off1] {sym1} val (LEAL [off2] {sym2} base) mem)
-	// cond: Is32Bit(int64(off1)+int64(off2)) && CanMergeSym(sym1, sym2) && (base.Op != OpSB || !config.Ctxt.Flag_shared)
+	// cond: Is32Bit(int64(off1)+int64(off2)) && CanMergeSym(sym1, sym2) && (base.Op != ssaop.OpSB || !config.Ctxt.Flag_shared)
 	// result: (MULSSload [off1+off2] {MergeSym(sym1,sym2)} val base mem)
 	for {
 		off1 := AuxIntToInt32(v.AuxInt)
 		sym1 := AuxToSym(v.Aux)
 		val := v_0
-		if v_1.Op != Op386LEAL {
+		if v_1.Op != ssaop.Op386LEAL {
 			break
 		}
 		off2 := AuxIntToInt32(v_1.AuxInt)
 		sym2 := AuxToSym(v_1.Aux)
 		base := v_1.Args[0]
 		mem := v_2
-		if !(Is32Bit(int64(off1)+int64(off2)) && CanMergeSym(sym1, sym2) && (base.Op != OpSB || !config.Ctxt.Flag_shared)) {
+		if !(Is32Bit(int64(off1)+int64(off2)) && CanMergeSym(sym1, sym2) && (base.Op != ssaop.OpSB || !config.Ctxt.Flag_shared)) {
 			break
 		}
-		v.Reset(Op386MULSSload)
+		v.Reset(ssaop.Op386MULSSload)
 		v.AuxInt = Int32ToAuxInt(off1 + off2)
 		v.Aux = SymToAux(MergeSym(sym1, sym2))
 		v.AddArg3(val, base, mem)
@@ -5813,11 +5814,11 @@ func rewriteValue386_Op386NEGL(v *Value) bool {
 	// match: (NEGL (MOVLconst [c]))
 	// result: (MOVLconst [-c])
 	for {
-		if v_0.Op != Op386MOVLconst {
+		if v_0.Op != ssaop.Op386MOVLconst {
 			break
 		}
 		c := AuxIntToInt32(v_0.AuxInt)
-		v.Reset(Op386MOVLconst)
+		v.Reset(ssaop.Op386MOVLconst)
 		v.AuxInt = Int32ToAuxInt(-c)
 		return true
 	}
@@ -5828,11 +5829,11 @@ func rewriteValue386_Op386NOTL(v *Value) bool {
 	// match: (NOTL (MOVLconst [c]))
 	// result: (MOVLconst [^c])
 	for {
-		if v_0.Op != Op386MOVLconst {
+		if v_0.Op != ssaop.Op386MOVLconst {
 			break
 		}
 		c := AuxIntToInt32(v_0.AuxInt)
-		v.Reset(Op386MOVLconst)
+		v.Reset(ssaop.Op386MOVLconst)
 		v.AuxInt = Int32ToAuxInt(^c)
 		return true
 	}
@@ -5846,11 +5847,11 @@ func rewriteValue386_Op386ORL(v *Value) bool {
 	for {
 		for _i0 := 0; _i0 <= 1; _i0, v_0, v_1 = _i0+1, v_1, v_0 {
 			x := v_0
-			if v_1.Op != Op386MOVLconst {
+			if v_1.Op != ssaop.Op386MOVLconst {
 				continue
 			}
 			c := AuxIntToInt32(v_1.AuxInt)
-			v.Reset(Op386ORLconst)
+			v.Reset(ssaop.Op386ORLconst)
 			v.AuxInt = Int32ToAuxInt(c)
 			v.AddArg(x)
 			return true
@@ -5864,7 +5865,7 @@ func rewriteValue386_Op386ORL(v *Value) bool {
 		for _i0 := 0; _i0 <= 1; _i0, v_0, v_1 = _i0+1, v_1, v_0 {
 			x := v_0
 			l := v_1
-			if l.Op != Op386MOVLload {
+			if l.Op != ssaop.Op386MOVLload {
 				continue
 			}
 			off := AuxIntToInt32(l.AuxInt)
@@ -5874,7 +5875,7 @@ func rewriteValue386_Op386ORL(v *Value) bool {
 			if !(CanMergeLoadClobber(v, l, x) && Clobber(l)) {
 				continue
 			}
-			v.Reset(Op386ORLload)
+			v.Reset(ssaop.Op386ORLload)
 			v.AuxInt = Int32ToAuxInt(off)
 			v.Aux = SymToAux(sym)
 			v.AddArg3(x, ptr, mem)
@@ -5916,7 +5917,7 @@ func rewriteValue386_Op386ORLconst(v *Value) bool {
 		if !(c == -1) {
 			break
 		}
-		v.Reset(Op386MOVLconst)
+		v.Reset(ssaop.Op386MOVLconst)
 		v.AuxInt = Int32ToAuxInt(-1)
 		return true
 	}
@@ -5924,11 +5925,11 @@ func rewriteValue386_Op386ORLconst(v *Value) bool {
 	// result: (MOVLconst [c|d])
 	for {
 		c := AuxIntToInt32(v.AuxInt)
-		if v_0.Op != Op386MOVLconst {
+		if v_0.Op != ssaop.Op386MOVLconst {
 			break
 		}
 		d := AuxIntToInt32(v_0.AuxInt)
-		v.Reset(Op386MOVLconst)
+		v.Reset(ssaop.Op386MOVLconst)
 		v.AuxInt = Int32ToAuxInt(c | d)
 		return true
 	}
@@ -5945,7 +5946,7 @@ func rewriteValue386_Op386ORLconstmodify(v *Value) bool {
 	for {
 		valoff1 := AuxIntToValAndOff(v.AuxInt)
 		sym := AuxToSym(v.Aux)
-		if v_0.Op != Op386ADDLconst {
+		if v_0.Op != ssaop.Op386ADDLconst {
 			break
 		}
 		off2 := AuxIntToInt32(v_0.AuxInt)
@@ -5954,29 +5955,29 @@ func rewriteValue386_Op386ORLconstmodify(v *Value) bool {
 		if !(valoff1.CanAdd32(off2)) {
 			break
 		}
-		v.Reset(Op386ORLconstmodify)
+		v.Reset(ssaop.Op386ORLconstmodify)
 		v.AuxInt = ValAndOffToAuxInt(valoff1.AddOffset32(off2))
 		v.Aux = SymToAux(sym)
 		v.AddArg2(base, mem)
 		return true
 	}
 	// match: (ORLconstmodify [valoff1] {sym1} (LEAL [off2] {sym2} base) mem)
-	// cond: valoff1.CanAdd32(off2) && CanMergeSym(sym1, sym2) && (base.Op != OpSB || !config.Ctxt.Flag_shared)
+	// cond: valoff1.CanAdd32(off2) && CanMergeSym(sym1, sym2) && (base.Op != ssaop.OpSB || !config.Ctxt.Flag_shared)
 	// result: (ORLconstmodify [valoff1.AddOffset32(off2)] {MergeSym(sym1,sym2)} base mem)
 	for {
 		valoff1 := AuxIntToValAndOff(v.AuxInt)
 		sym1 := AuxToSym(v.Aux)
-		if v_0.Op != Op386LEAL {
+		if v_0.Op != ssaop.Op386LEAL {
 			break
 		}
 		off2 := AuxIntToInt32(v_0.AuxInt)
 		sym2 := AuxToSym(v_0.Aux)
 		base := v_0.Args[0]
 		mem := v_1
-		if !(valoff1.CanAdd32(off2) && CanMergeSym(sym1, sym2) && (base.Op != OpSB || !config.Ctxt.Flag_shared)) {
+		if !(valoff1.CanAdd32(off2) && CanMergeSym(sym1, sym2) && (base.Op != ssaop.OpSB || !config.Ctxt.Flag_shared)) {
 			break
 		}
-		v.Reset(Op386ORLconstmodify)
+		v.Reset(ssaop.Op386ORLconstmodify)
 		v.AuxInt = ValAndOffToAuxInt(valoff1.AddOffset32(off2))
 		v.Aux = SymToAux(MergeSym(sym1, sym2))
 		v.AddArg2(base, mem)
@@ -5997,7 +5998,7 @@ func rewriteValue386_Op386ORLload(v *Value) bool {
 		off1 := AuxIntToInt32(v.AuxInt)
 		sym := AuxToSym(v.Aux)
 		val := v_0
-		if v_1.Op != Op386ADDLconst {
+		if v_1.Op != ssaop.Op386ADDLconst {
 			break
 		}
 		off2 := AuxIntToInt32(v_1.AuxInt)
@@ -6006,30 +6007,30 @@ func rewriteValue386_Op386ORLload(v *Value) bool {
 		if !(Is32Bit(int64(off1) + int64(off2))) {
 			break
 		}
-		v.Reset(Op386ORLload)
+		v.Reset(ssaop.Op386ORLload)
 		v.AuxInt = Int32ToAuxInt(off1 + off2)
 		v.Aux = SymToAux(sym)
 		v.AddArg3(val, base, mem)
 		return true
 	}
 	// match: (ORLload [off1] {sym1} val (LEAL [off2] {sym2} base) mem)
-	// cond: Is32Bit(int64(off1)+int64(off2)) && CanMergeSym(sym1, sym2) && (base.Op != OpSB || !config.Ctxt.Flag_shared)
+	// cond: Is32Bit(int64(off1)+int64(off2)) && CanMergeSym(sym1, sym2) && (base.Op != ssaop.OpSB || !config.Ctxt.Flag_shared)
 	// result: (ORLload [off1+off2] {MergeSym(sym1,sym2)} val base mem)
 	for {
 		off1 := AuxIntToInt32(v.AuxInt)
 		sym1 := AuxToSym(v.Aux)
 		val := v_0
-		if v_1.Op != Op386LEAL {
+		if v_1.Op != ssaop.Op386LEAL {
 			break
 		}
 		off2 := AuxIntToInt32(v_1.AuxInt)
 		sym2 := AuxToSym(v_1.Aux)
 		base := v_1.Args[0]
 		mem := v_2
-		if !(Is32Bit(int64(off1)+int64(off2)) && CanMergeSym(sym1, sym2) && (base.Op != OpSB || !config.Ctxt.Flag_shared)) {
+		if !(Is32Bit(int64(off1)+int64(off2)) && CanMergeSym(sym1, sym2) && (base.Op != ssaop.OpSB || !config.Ctxt.Flag_shared)) {
 			break
 		}
-		v.Reset(Op386ORLload)
+		v.Reset(ssaop.Op386ORLload)
 		v.AuxInt = Int32ToAuxInt(off1 + off2)
 		v.Aux = SymToAux(MergeSym(sym1, sym2))
 		v.AddArg3(val, base, mem)
@@ -6049,7 +6050,7 @@ func rewriteValue386_Op386ORLmodify(v *Value) bool {
 	for {
 		off1 := AuxIntToInt32(v.AuxInt)
 		sym := AuxToSym(v.Aux)
-		if v_0.Op != Op386ADDLconst {
+		if v_0.Op != ssaop.Op386ADDLconst {
 			break
 		}
 		off2 := AuxIntToInt32(v_0.AuxInt)
@@ -6059,19 +6060,19 @@ func rewriteValue386_Op386ORLmodify(v *Value) bool {
 		if !(Is32Bit(int64(off1) + int64(off2))) {
 			break
 		}
-		v.Reset(Op386ORLmodify)
+		v.Reset(ssaop.Op386ORLmodify)
 		v.AuxInt = Int32ToAuxInt(off1 + off2)
 		v.Aux = SymToAux(sym)
 		v.AddArg3(base, val, mem)
 		return true
 	}
 	// match: (ORLmodify [off1] {sym1} (LEAL [off2] {sym2} base) val mem)
-	// cond: Is32Bit(int64(off1)+int64(off2)) && CanMergeSym(sym1, sym2) && (base.Op != OpSB || !config.Ctxt.Flag_shared)
+	// cond: Is32Bit(int64(off1)+int64(off2)) && CanMergeSym(sym1, sym2) && (base.Op != ssaop.OpSB || !config.Ctxt.Flag_shared)
 	// result: (ORLmodify [off1+off2] {MergeSym(sym1,sym2)} base val mem)
 	for {
 		off1 := AuxIntToInt32(v.AuxInt)
 		sym1 := AuxToSym(v.Aux)
-		if v_0.Op != Op386LEAL {
+		if v_0.Op != ssaop.Op386LEAL {
 			break
 		}
 		off2 := AuxIntToInt32(v_0.AuxInt)
@@ -6079,10 +6080,10 @@ func rewriteValue386_Op386ORLmodify(v *Value) bool {
 		base := v_0.Args[0]
 		val := v_1
 		mem := v_2
-		if !(Is32Bit(int64(off1)+int64(off2)) && CanMergeSym(sym1, sym2) && (base.Op != OpSB || !config.Ctxt.Flag_shared)) {
+		if !(Is32Bit(int64(off1)+int64(off2)) && CanMergeSym(sym1, sym2) && (base.Op != ssaop.OpSB || !config.Ctxt.Flag_shared)) {
 			break
 		}
-		v.Reset(Op386ORLmodify)
+		v.Reset(ssaop.Op386ORLmodify)
 		v.AuxInt = Int32ToAuxInt(off1 + off2)
 		v.Aux = SymToAux(MergeSym(sym1, sym2))
 		v.AddArg3(base, val, mem)
@@ -6097,11 +6098,11 @@ func rewriteValue386_Op386ROLB(v *Value) bool {
 	// result: (ROLBconst [int8(c&7)] x)
 	for {
 		x := v_0
-		if v_1.Op != Op386MOVLconst {
+		if v_1.Op != ssaop.Op386MOVLconst {
 			break
 		}
 		c := AuxIntToInt32(v_1.AuxInt)
-		v.Reset(Op386ROLBconst)
+		v.Reset(ssaop.Op386ROLBconst)
 		v.AuxInt = Int8ToAuxInt(int8(c & 7))
 		v.AddArg(x)
 		return true
@@ -6129,11 +6130,11 @@ func rewriteValue386_Op386ROLL(v *Value) bool {
 	// result: (ROLLconst [c&31] x)
 	for {
 		x := v_0
-		if v_1.Op != Op386MOVLconst {
+		if v_1.Op != ssaop.Op386MOVLconst {
 			break
 		}
 		c := AuxIntToInt32(v_1.AuxInt)
-		v.Reset(Op386ROLLconst)
+		v.Reset(ssaop.Op386ROLLconst)
 		v.AuxInt = Int32ToAuxInt(c & 31)
 		v.AddArg(x)
 		return true
@@ -6161,11 +6162,11 @@ func rewriteValue386_Op386ROLW(v *Value) bool {
 	// result: (ROLWconst [int16(c&15)] x)
 	for {
 		x := v_0
-		if v_1.Op != Op386MOVLconst {
+		if v_1.Op != ssaop.Op386MOVLconst {
 			break
 		}
 		c := AuxIntToInt32(v_1.AuxInt)
-		v.Reset(Op386ROLWconst)
+		v.Reset(ssaop.Op386ROLWconst)
 		v.AuxInt = Int16ToAuxInt(int16(c & 15))
 		v.AddArg(x)
 		return true
@@ -6193,11 +6194,11 @@ func rewriteValue386_Op386SARB(v *Value) bool {
 	// result: (SARBconst [int8(min(int64(c&31),7))] x)
 	for {
 		x := v_0
-		if v_1.Op != Op386MOVLconst {
+		if v_1.Op != ssaop.Op386MOVLconst {
 			break
 		}
 		c := AuxIntToInt32(v_1.AuxInt)
-		v.Reset(Op386SARBconst)
+		v.Reset(ssaop.Op386SARBconst)
 		v.AuxInt = Int8ToAuxInt(int8(min(int64(c&31), 7)))
 		v.AddArg(x)
 		return true
@@ -6220,11 +6221,11 @@ func rewriteValue386_Op386SARBconst(v *Value) bool {
 	// result: (MOVLconst [d>>uint64(c)])
 	for {
 		c := AuxIntToInt8(v.AuxInt)
-		if v_0.Op != Op386MOVLconst {
+		if v_0.Op != ssaop.Op386MOVLconst {
 			break
 		}
 		d := AuxIntToInt32(v_0.AuxInt)
-		v.Reset(Op386MOVLconst)
+		v.Reset(ssaop.Op386MOVLconst)
 		v.AuxInt = Int32ToAuxInt(d >> uint64(c))
 		return true
 	}
@@ -6237,11 +6238,11 @@ func rewriteValue386_Op386SARL(v *Value) bool {
 	// result: (SARLconst [c&31] x)
 	for {
 		x := v_0
-		if v_1.Op != Op386MOVLconst {
+		if v_1.Op != ssaop.Op386MOVLconst {
 			break
 		}
 		c := AuxIntToInt32(v_1.AuxInt)
-		v.Reset(Op386SARLconst)
+		v.Reset(ssaop.Op386SARLconst)
 		v.AuxInt = Int32ToAuxInt(c & 31)
 		v.AddArg(x)
 		return true
@@ -6250,11 +6251,11 @@ func rewriteValue386_Op386SARL(v *Value) bool {
 	// result: (SARL x y)
 	for {
 		x := v_0
-		if v_1.Op != Op386ANDLconst || AuxIntToInt32(v_1.AuxInt) != 31 {
+		if v_1.Op != ssaop.Op386ANDLconst || AuxIntToInt32(v_1.AuxInt) != 31 {
 			break
 		}
 		y := v_1.Args[0]
-		v.Reset(Op386SARL)
+		v.Reset(ssaop.Op386SARL)
 		v.AddArg2(x, y)
 		return true
 	}
@@ -6276,11 +6277,11 @@ func rewriteValue386_Op386SARLconst(v *Value) bool {
 	// result: (MOVLconst [d>>uint64(c)])
 	for {
 		c := AuxIntToInt32(v.AuxInt)
-		if v_0.Op != Op386MOVLconst {
+		if v_0.Op != ssaop.Op386MOVLconst {
 			break
 		}
 		d := AuxIntToInt32(v_0.AuxInt)
-		v.Reset(Op386MOVLconst)
+		v.Reset(ssaop.Op386MOVLconst)
 		v.AuxInt = Int32ToAuxInt(d >> uint64(c))
 		return true
 	}
@@ -6293,11 +6294,11 @@ func rewriteValue386_Op386SARW(v *Value) bool {
 	// result: (SARWconst [int16(min(int64(c&31),15))] x)
 	for {
 		x := v_0
-		if v_1.Op != Op386MOVLconst {
+		if v_1.Op != ssaop.Op386MOVLconst {
 			break
 		}
 		c := AuxIntToInt32(v_1.AuxInt)
-		v.Reset(Op386SARWconst)
+		v.Reset(ssaop.Op386SARWconst)
 		v.AuxInt = Int16ToAuxInt(int16(min(int64(c&31), 15)))
 		v.AddArg(x)
 		return true
@@ -6320,11 +6321,11 @@ func rewriteValue386_Op386SARWconst(v *Value) bool {
 	// result: (MOVLconst [d>>uint64(c)])
 	for {
 		c := AuxIntToInt16(v.AuxInt)
-		if v_0.Op != Op386MOVLconst {
+		if v_0.Op != ssaop.Op386MOVLconst {
 			break
 		}
 		d := AuxIntToInt32(v_0.AuxInt)
-		v.Reset(Op386MOVLconst)
+		v.Reset(ssaop.Op386MOVLconst)
 		v.AuxInt = Int32ToAuxInt(d >> uint64(c))
 		return true
 	}
@@ -6338,12 +6339,12 @@ func rewriteValue386_Op386SBBL(v *Value) bool {
 	// result: (SBBLconst [c] x f)
 	for {
 		x := v_0
-		if v_1.Op != Op386MOVLconst {
+		if v_1.Op != ssaop.Op386MOVLconst {
 			break
 		}
 		c := AuxIntToInt32(v_1.AuxInt)
 		f := v_2
-		v.Reset(Op386SBBLconst)
+		v.Reset(ssaop.Op386SBBLconst)
 		v.AuxInt = Int32ToAuxInt(c)
 		v.AddArg2(x, f)
 		return true
@@ -6355,50 +6356,50 @@ func rewriteValue386_Op386SBBLcarrymask(v *Value) bool {
 	// match: (SBBLcarrymask (FlagEQ))
 	// result: (MOVLconst [0])
 	for {
-		if v_0.Op != Op386FlagEQ {
+		if v_0.Op != ssaop.Op386FlagEQ {
 			break
 		}
-		v.Reset(Op386MOVLconst)
+		v.Reset(ssaop.Op386MOVLconst)
 		v.AuxInt = Int32ToAuxInt(0)
 		return true
 	}
 	// match: (SBBLcarrymask (FlagLT_ULT))
 	// result: (MOVLconst [-1])
 	for {
-		if v_0.Op != Op386FlagLT_ULT {
+		if v_0.Op != ssaop.Op386FlagLT_ULT {
 			break
 		}
-		v.Reset(Op386MOVLconst)
+		v.Reset(ssaop.Op386MOVLconst)
 		v.AuxInt = Int32ToAuxInt(-1)
 		return true
 	}
 	// match: (SBBLcarrymask (FlagLT_UGT))
 	// result: (MOVLconst [0])
 	for {
-		if v_0.Op != Op386FlagLT_UGT {
+		if v_0.Op != ssaop.Op386FlagLT_UGT {
 			break
 		}
-		v.Reset(Op386MOVLconst)
+		v.Reset(ssaop.Op386MOVLconst)
 		v.AuxInt = Int32ToAuxInt(0)
 		return true
 	}
 	// match: (SBBLcarrymask (FlagGT_ULT))
 	// result: (MOVLconst [-1])
 	for {
-		if v_0.Op != Op386FlagGT_ULT {
+		if v_0.Op != ssaop.Op386FlagGT_ULT {
 			break
 		}
-		v.Reset(Op386MOVLconst)
+		v.Reset(ssaop.Op386MOVLconst)
 		v.AuxInt = Int32ToAuxInt(-1)
 		return true
 	}
 	// match: (SBBLcarrymask (FlagGT_UGT))
 	// result: (MOVLconst [0])
 	for {
-		if v_0.Op != Op386FlagGT_UGT {
+		if v_0.Op != ssaop.Op386FlagGT_UGT {
 			break
 		}
-		v.Reset(Op386MOVLconst)
+		v.Reset(ssaop.Op386MOVLconst)
 		v.AuxInt = Int32ToAuxInt(0)
 		return true
 	}
@@ -6409,61 +6410,61 @@ func rewriteValue386_Op386SETA(v *Value) bool {
 	// match: (SETA (InvertFlags x))
 	// result: (SETB x)
 	for {
-		if v_0.Op != Op386InvertFlags {
+		if v_0.Op != ssaop.Op386InvertFlags {
 			break
 		}
 		x := v_0.Args[0]
-		v.Reset(Op386SETB)
+		v.Reset(ssaop.Op386SETB)
 		v.AddArg(x)
 		return true
 	}
 	// match: (SETA (FlagEQ))
 	// result: (MOVLconst [0])
 	for {
-		if v_0.Op != Op386FlagEQ {
+		if v_0.Op != ssaop.Op386FlagEQ {
 			break
 		}
-		v.Reset(Op386MOVLconst)
+		v.Reset(ssaop.Op386MOVLconst)
 		v.AuxInt = Int32ToAuxInt(0)
 		return true
 	}
 	// match: (SETA (FlagLT_ULT))
 	// result: (MOVLconst [0])
 	for {
-		if v_0.Op != Op386FlagLT_ULT {
+		if v_0.Op != ssaop.Op386FlagLT_ULT {
 			break
 		}
-		v.Reset(Op386MOVLconst)
+		v.Reset(ssaop.Op386MOVLconst)
 		v.AuxInt = Int32ToAuxInt(0)
 		return true
 	}
 	// match: (SETA (FlagLT_UGT))
 	// result: (MOVLconst [1])
 	for {
-		if v_0.Op != Op386FlagLT_UGT {
+		if v_0.Op != ssaop.Op386FlagLT_UGT {
 			break
 		}
-		v.Reset(Op386MOVLconst)
+		v.Reset(ssaop.Op386MOVLconst)
 		v.AuxInt = Int32ToAuxInt(1)
 		return true
 	}
 	// match: (SETA (FlagGT_ULT))
 	// result: (MOVLconst [0])
 	for {
-		if v_0.Op != Op386FlagGT_ULT {
+		if v_0.Op != ssaop.Op386FlagGT_ULT {
 			break
 		}
-		v.Reset(Op386MOVLconst)
+		v.Reset(ssaop.Op386MOVLconst)
 		v.AuxInt = Int32ToAuxInt(0)
 		return true
 	}
 	// match: (SETA (FlagGT_UGT))
 	// result: (MOVLconst [1])
 	for {
-		if v_0.Op != Op386FlagGT_UGT {
+		if v_0.Op != ssaop.Op386FlagGT_UGT {
 			break
 		}
-		v.Reset(Op386MOVLconst)
+		v.Reset(ssaop.Op386MOVLconst)
 		v.AuxInt = Int32ToAuxInt(1)
 		return true
 	}
@@ -6474,61 +6475,61 @@ func rewriteValue386_Op386SETAE(v *Value) bool {
 	// match: (SETAE (InvertFlags x))
 	// result: (SETBE x)
 	for {
-		if v_0.Op != Op386InvertFlags {
+		if v_0.Op != ssaop.Op386InvertFlags {
 			break
 		}
 		x := v_0.Args[0]
-		v.Reset(Op386SETBE)
+		v.Reset(ssaop.Op386SETBE)
 		v.AddArg(x)
 		return true
 	}
 	// match: (SETAE (FlagEQ))
 	// result: (MOVLconst [1])
 	for {
-		if v_0.Op != Op386FlagEQ {
+		if v_0.Op != ssaop.Op386FlagEQ {
 			break
 		}
-		v.Reset(Op386MOVLconst)
+		v.Reset(ssaop.Op386MOVLconst)
 		v.AuxInt = Int32ToAuxInt(1)
 		return true
 	}
 	// match: (SETAE (FlagLT_ULT))
 	// result: (MOVLconst [0])
 	for {
-		if v_0.Op != Op386FlagLT_ULT {
+		if v_0.Op != ssaop.Op386FlagLT_ULT {
 			break
 		}
-		v.Reset(Op386MOVLconst)
+		v.Reset(ssaop.Op386MOVLconst)
 		v.AuxInt = Int32ToAuxInt(0)
 		return true
 	}
 	// match: (SETAE (FlagLT_UGT))
 	// result: (MOVLconst [1])
 	for {
-		if v_0.Op != Op386FlagLT_UGT {
+		if v_0.Op != ssaop.Op386FlagLT_UGT {
 			break
 		}
-		v.Reset(Op386MOVLconst)
+		v.Reset(ssaop.Op386MOVLconst)
 		v.AuxInt = Int32ToAuxInt(1)
 		return true
 	}
 	// match: (SETAE (FlagGT_ULT))
 	// result: (MOVLconst [0])
 	for {
-		if v_0.Op != Op386FlagGT_ULT {
+		if v_0.Op != ssaop.Op386FlagGT_ULT {
 			break
 		}
-		v.Reset(Op386MOVLconst)
+		v.Reset(ssaop.Op386MOVLconst)
 		v.AuxInt = Int32ToAuxInt(0)
 		return true
 	}
 	// match: (SETAE (FlagGT_UGT))
 	// result: (MOVLconst [1])
 	for {
-		if v_0.Op != Op386FlagGT_UGT {
+		if v_0.Op != ssaop.Op386FlagGT_UGT {
 			break
 		}
-		v.Reset(Op386MOVLconst)
+		v.Reset(ssaop.Op386MOVLconst)
 		v.AuxInt = Int32ToAuxInt(1)
 		return true
 	}
@@ -6539,61 +6540,61 @@ func rewriteValue386_Op386SETB(v *Value) bool {
 	// match: (SETB (InvertFlags x))
 	// result: (SETA x)
 	for {
-		if v_0.Op != Op386InvertFlags {
+		if v_0.Op != ssaop.Op386InvertFlags {
 			break
 		}
 		x := v_0.Args[0]
-		v.Reset(Op386SETA)
+		v.Reset(ssaop.Op386SETA)
 		v.AddArg(x)
 		return true
 	}
 	// match: (SETB (FlagEQ))
 	// result: (MOVLconst [0])
 	for {
-		if v_0.Op != Op386FlagEQ {
+		if v_0.Op != ssaop.Op386FlagEQ {
 			break
 		}
-		v.Reset(Op386MOVLconst)
+		v.Reset(ssaop.Op386MOVLconst)
 		v.AuxInt = Int32ToAuxInt(0)
 		return true
 	}
 	// match: (SETB (FlagLT_ULT))
 	// result: (MOVLconst [1])
 	for {
-		if v_0.Op != Op386FlagLT_ULT {
+		if v_0.Op != ssaop.Op386FlagLT_ULT {
 			break
 		}
-		v.Reset(Op386MOVLconst)
+		v.Reset(ssaop.Op386MOVLconst)
 		v.AuxInt = Int32ToAuxInt(1)
 		return true
 	}
 	// match: (SETB (FlagLT_UGT))
 	// result: (MOVLconst [0])
 	for {
-		if v_0.Op != Op386FlagLT_UGT {
+		if v_0.Op != ssaop.Op386FlagLT_UGT {
 			break
 		}
-		v.Reset(Op386MOVLconst)
+		v.Reset(ssaop.Op386MOVLconst)
 		v.AuxInt = Int32ToAuxInt(0)
 		return true
 	}
 	// match: (SETB (FlagGT_ULT))
 	// result: (MOVLconst [1])
 	for {
-		if v_0.Op != Op386FlagGT_ULT {
+		if v_0.Op != ssaop.Op386FlagGT_ULT {
 			break
 		}
-		v.Reset(Op386MOVLconst)
+		v.Reset(ssaop.Op386MOVLconst)
 		v.AuxInt = Int32ToAuxInt(1)
 		return true
 	}
 	// match: (SETB (FlagGT_UGT))
 	// result: (MOVLconst [0])
 	for {
-		if v_0.Op != Op386FlagGT_UGT {
+		if v_0.Op != ssaop.Op386FlagGT_UGT {
 			break
 		}
-		v.Reset(Op386MOVLconst)
+		v.Reset(ssaop.Op386MOVLconst)
 		v.AuxInt = Int32ToAuxInt(0)
 		return true
 	}
@@ -6604,61 +6605,61 @@ func rewriteValue386_Op386SETBE(v *Value) bool {
 	// match: (SETBE (InvertFlags x))
 	// result: (SETAE x)
 	for {
-		if v_0.Op != Op386InvertFlags {
+		if v_0.Op != ssaop.Op386InvertFlags {
 			break
 		}
 		x := v_0.Args[0]
-		v.Reset(Op386SETAE)
+		v.Reset(ssaop.Op386SETAE)
 		v.AddArg(x)
 		return true
 	}
 	// match: (SETBE (FlagEQ))
 	// result: (MOVLconst [1])
 	for {
-		if v_0.Op != Op386FlagEQ {
+		if v_0.Op != ssaop.Op386FlagEQ {
 			break
 		}
-		v.Reset(Op386MOVLconst)
+		v.Reset(ssaop.Op386MOVLconst)
 		v.AuxInt = Int32ToAuxInt(1)
 		return true
 	}
 	// match: (SETBE (FlagLT_ULT))
 	// result: (MOVLconst [1])
 	for {
-		if v_0.Op != Op386FlagLT_ULT {
+		if v_0.Op != ssaop.Op386FlagLT_ULT {
 			break
 		}
-		v.Reset(Op386MOVLconst)
+		v.Reset(ssaop.Op386MOVLconst)
 		v.AuxInt = Int32ToAuxInt(1)
 		return true
 	}
 	// match: (SETBE (FlagLT_UGT))
 	// result: (MOVLconst [0])
 	for {
-		if v_0.Op != Op386FlagLT_UGT {
+		if v_0.Op != ssaop.Op386FlagLT_UGT {
 			break
 		}
-		v.Reset(Op386MOVLconst)
+		v.Reset(ssaop.Op386MOVLconst)
 		v.AuxInt = Int32ToAuxInt(0)
 		return true
 	}
 	// match: (SETBE (FlagGT_ULT))
 	// result: (MOVLconst [1])
 	for {
-		if v_0.Op != Op386FlagGT_ULT {
+		if v_0.Op != ssaop.Op386FlagGT_ULT {
 			break
 		}
-		v.Reset(Op386MOVLconst)
+		v.Reset(ssaop.Op386MOVLconst)
 		v.AuxInt = Int32ToAuxInt(1)
 		return true
 	}
 	// match: (SETBE (FlagGT_UGT))
 	// result: (MOVLconst [0])
 	for {
-		if v_0.Op != Op386FlagGT_UGT {
+		if v_0.Op != ssaop.Op386FlagGT_UGT {
 			break
 		}
-		v.Reset(Op386MOVLconst)
+		v.Reset(ssaop.Op386MOVLconst)
 		v.AuxInt = Int32ToAuxInt(0)
 		return true
 	}
@@ -6669,61 +6670,61 @@ func rewriteValue386_Op386SETEQ(v *Value) bool {
 	// match: (SETEQ (InvertFlags x))
 	// result: (SETEQ x)
 	for {
-		if v_0.Op != Op386InvertFlags {
+		if v_0.Op != ssaop.Op386InvertFlags {
 			break
 		}
 		x := v_0.Args[0]
-		v.Reset(Op386SETEQ)
+		v.Reset(ssaop.Op386SETEQ)
 		v.AddArg(x)
 		return true
 	}
 	// match: (SETEQ (FlagEQ))
 	// result: (MOVLconst [1])
 	for {
-		if v_0.Op != Op386FlagEQ {
+		if v_0.Op != ssaop.Op386FlagEQ {
 			break
 		}
-		v.Reset(Op386MOVLconst)
+		v.Reset(ssaop.Op386MOVLconst)
 		v.AuxInt = Int32ToAuxInt(1)
 		return true
 	}
 	// match: (SETEQ (FlagLT_ULT))
 	// result: (MOVLconst [0])
 	for {
-		if v_0.Op != Op386FlagLT_ULT {
+		if v_0.Op != ssaop.Op386FlagLT_ULT {
 			break
 		}
-		v.Reset(Op386MOVLconst)
+		v.Reset(ssaop.Op386MOVLconst)
 		v.AuxInt = Int32ToAuxInt(0)
 		return true
 	}
 	// match: (SETEQ (FlagLT_UGT))
 	// result: (MOVLconst [0])
 	for {
-		if v_0.Op != Op386FlagLT_UGT {
+		if v_0.Op != ssaop.Op386FlagLT_UGT {
 			break
 		}
-		v.Reset(Op386MOVLconst)
+		v.Reset(ssaop.Op386MOVLconst)
 		v.AuxInt = Int32ToAuxInt(0)
 		return true
 	}
 	// match: (SETEQ (FlagGT_ULT))
 	// result: (MOVLconst [0])
 	for {
-		if v_0.Op != Op386FlagGT_ULT {
+		if v_0.Op != ssaop.Op386FlagGT_ULT {
 			break
 		}
-		v.Reset(Op386MOVLconst)
+		v.Reset(ssaop.Op386MOVLconst)
 		v.AuxInt = Int32ToAuxInt(0)
 		return true
 	}
 	// match: (SETEQ (FlagGT_UGT))
 	// result: (MOVLconst [0])
 	for {
-		if v_0.Op != Op386FlagGT_UGT {
+		if v_0.Op != ssaop.Op386FlagGT_UGT {
 			break
 		}
-		v.Reset(Op386MOVLconst)
+		v.Reset(ssaop.Op386MOVLconst)
 		v.AuxInt = Int32ToAuxInt(0)
 		return true
 	}
@@ -6734,61 +6735,61 @@ func rewriteValue386_Op386SETG(v *Value) bool {
 	// match: (SETG (InvertFlags x))
 	// result: (SETL x)
 	for {
-		if v_0.Op != Op386InvertFlags {
+		if v_0.Op != ssaop.Op386InvertFlags {
 			break
 		}
 		x := v_0.Args[0]
-		v.Reset(Op386SETL)
+		v.Reset(ssaop.Op386SETL)
 		v.AddArg(x)
 		return true
 	}
 	// match: (SETG (FlagEQ))
 	// result: (MOVLconst [0])
 	for {
-		if v_0.Op != Op386FlagEQ {
+		if v_0.Op != ssaop.Op386FlagEQ {
 			break
 		}
-		v.Reset(Op386MOVLconst)
+		v.Reset(ssaop.Op386MOVLconst)
 		v.AuxInt = Int32ToAuxInt(0)
 		return true
 	}
 	// match: (SETG (FlagLT_ULT))
 	// result: (MOVLconst [0])
 	for {
-		if v_0.Op != Op386FlagLT_ULT {
+		if v_0.Op != ssaop.Op386FlagLT_ULT {
 			break
 		}
-		v.Reset(Op386MOVLconst)
+		v.Reset(ssaop.Op386MOVLconst)
 		v.AuxInt = Int32ToAuxInt(0)
 		return true
 	}
 	// match: (SETG (FlagLT_UGT))
 	// result: (MOVLconst [0])
 	for {
-		if v_0.Op != Op386FlagLT_UGT {
+		if v_0.Op != ssaop.Op386FlagLT_UGT {
 			break
 		}
-		v.Reset(Op386MOVLconst)
+		v.Reset(ssaop.Op386MOVLconst)
 		v.AuxInt = Int32ToAuxInt(0)
 		return true
 	}
 	// match: (SETG (FlagGT_ULT))
 	// result: (MOVLconst [1])
 	for {
-		if v_0.Op != Op386FlagGT_ULT {
+		if v_0.Op != ssaop.Op386FlagGT_ULT {
 			break
 		}
-		v.Reset(Op386MOVLconst)
+		v.Reset(ssaop.Op386MOVLconst)
 		v.AuxInt = Int32ToAuxInt(1)
 		return true
 	}
 	// match: (SETG (FlagGT_UGT))
 	// result: (MOVLconst [1])
 	for {
-		if v_0.Op != Op386FlagGT_UGT {
+		if v_0.Op != ssaop.Op386FlagGT_UGT {
 			break
 		}
-		v.Reset(Op386MOVLconst)
+		v.Reset(ssaop.Op386MOVLconst)
 		v.AuxInt = Int32ToAuxInt(1)
 		return true
 	}
@@ -6799,61 +6800,61 @@ func rewriteValue386_Op386SETGE(v *Value) bool {
 	// match: (SETGE (InvertFlags x))
 	// result: (SETLE x)
 	for {
-		if v_0.Op != Op386InvertFlags {
+		if v_0.Op != ssaop.Op386InvertFlags {
 			break
 		}
 		x := v_0.Args[0]
-		v.Reset(Op386SETLE)
+		v.Reset(ssaop.Op386SETLE)
 		v.AddArg(x)
 		return true
 	}
 	// match: (SETGE (FlagEQ))
 	// result: (MOVLconst [1])
 	for {
-		if v_0.Op != Op386FlagEQ {
+		if v_0.Op != ssaop.Op386FlagEQ {
 			break
 		}
-		v.Reset(Op386MOVLconst)
+		v.Reset(ssaop.Op386MOVLconst)
 		v.AuxInt = Int32ToAuxInt(1)
 		return true
 	}
 	// match: (SETGE (FlagLT_ULT))
 	// result: (MOVLconst [0])
 	for {
-		if v_0.Op != Op386FlagLT_ULT {
+		if v_0.Op != ssaop.Op386FlagLT_ULT {
 			break
 		}
-		v.Reset(Op386MOVLconst)
+		v.Reset(ssaop.Op386MOVLconst)
 		v.AuxInt = Int32ToAuxInt(0)
 		return true
 	}
 	// match: (SETGE (FlagLT_UGT))
 	// result: (MOVLconst [0])
 	for {
-		if v_0.Op != Op386FlagLT_UGT {
+		if v_0.Op != ssaop.Op386FlagLT_UGT {
 			break
 		}
-		v.Reset(Op386MOVLconst)
+		v.Reset(ssaop.Op386MOVLconst)
 		v.AuxInt = Int32ToAuxInt(0)
 		return true
 	}
 	// match: (SETGE (FlagGT_ULT))
 	// result: (MOVLconst [1])
 	for {
-		if v_0.Op != Op386FlagGT_ULT {
+		if v_0.Op != ssaop.Op386FlagGT_ULT {
 			break
 		}
-		v.Reset(Op386MOVLconst)
+		v.Reset(ssaop.Op386MOVLconst)
 		v.AuxInt = Int32ToAuxInt(1)
 		return true
 	}
 	// match: (SETGE (FlagGT_UGT))
 	// result: (MOVLconst [1])
 	for {
-		if v_0.Op != Op386FlagGT_UGT {
+		if v_0.Op != ssaop.Op386FlagGT_UGT {
 			break
 		}
-		v.Reset(Op386MOVLconst)
+		v.Reset(ssaop.Op386MOVLconst)
 		v.AuxInt = Int32ToAuxInt(1)
 		return true
 	}
@@ -6864,61 +6865,61 @@ func rewriteValue386_Op386SETL(v *Value) bool {
 	// match: (SETL (InvertFlags x))
 	// result: (SETG x)
 	for {
-		if v_0.Op != Op386InvertFlags {
+		if v_0.Op != ssaop.Op386InvertFlags {
 			break
 		}
 		x := v_0.Args[0]
-		v.Reset(Op386SETG)
+		v.Reset(ssaop.Op386SETG)
 		v.AddArg(x)
 		return true
 	}
 	// match: (SETL (FlagEQ))
 	// result: (MOVLconst [0])
 	for {
-		if v_0.Op != Op386FlagEQ {
+		if v_0.Op != ssaop.Op386FlagEQ {
 			break
 		}
-		v.Reset(Op386MOVLconst)
+		v.Reset(ssaop.Op386MOVLconst)
 		v.AuxInt = Int32ToAuxInt(0)
 		return true
 	}
 	// match: (SETL (FlagLT_ULT))
 	// result: (MOVLconst [1])
 	for {
-		if v_0.Op != Op386FlagLT_ULT {
+		if v_0.Op != ssaop.Op386FlagLT_ULT {
 			break
 		}
-		v.Reset(Op386MOVLconst)
+		v.Reset(ssaop.Op386MOVLconst)
 		v.AuxInt = Int32ToAuxInt(1)
 		return true
 	}
 	// match: (SETL (FlagLT_UGT))
 	// result: (MOVLconst [1])
 	for {
-		if v_0.Op != Op386FlagLT_UGT {
+		if v_0.Op != ssaop.Op386FlagLT_UGT {
 			break
 		}
-		v.Reset(Op386MOVLconst)
+		v.Reset(ssaop.Op386MOVLconst)
 		v.AuxInt = Int32ToAuxInt(1)
 		return true
 	}
 	// match: (SETL (FlagGT_ULT))
 	// result: (MOVLconst [0])
 	for {
-		if v_0.Op != Op386FlagGT_ULT {
+		if v_0.Op != ssaop.Op386FlagGT_ULT {
 			break
 		}
-		v.Reset(Op386MOVLconst)
+		v.Reset(ssaop.Op386MOVLconst)
 		v.AuxInt = Int32ToAuxInt(0)
 		return true
 	}
 	// match: (SETL (FlagGT_UGT))
 	// result: (MOVLconst [0])
 	for {
-		if v_0.Op != Op386FlagGT_UGT {
+		if v_0.Op != ssaop.Op386FlagGT_UGT {
 			break
 		}
-		v.Reset(Op386MOVLconst)
+		v.Reset(ssaop.Op386MOVLconst)
 		v.AuxInt = Int32ToAuxInt(0)
 		return true
 	}
@@ -6929,61 +6930,61 @@ func rewriteValue386_Op386SETLE(v *Value) bool {
 	// match: (SETLE (InvertFlags x))
 	// result: (SETGE x)
 	for {
-		if v_0.Op != Op386InvertFlags {
+		if v_0.Op != ssaop.Op386InvertFlags {
 			break
 		}
 		x := v_0.Args[0]
-		v.Reset(Op386SETGE)
+		v.Reset(ssaop.Op386SETGE)
 		v.AddArg(x)
 		return true
 	}
 	// match: (SETLE (FlagEQ))
 	// result: (MOVLconst [1])
 	for {
-		if v_0.Op != Op386FlagEQ {
+		if v_0.Op != ssaop.Op386FlagEQ {
 			break
 		}
-		v.Reset(Op386MOVLconst)
+		v.Reset(ssaop.Op386MOVLconst)
 		v.AuxInt = Int32ToAuxInt(1)
 		return true
 	}
 	// match: (SETLE (FlagLT_ULT))
 	// result: (MOVLconst [1])
 	for {
-		if v_0.Op != Op386FlagLT_ULT {
+		if v_0.Op != ssaop.Op386FlagLT_ULT {
 			break
 		}
-		v.Reset(Op386MOVLconst)
+		v.Reset(ssaop.Op386MOVLconst)
 		v.AuxInt = Int32ToAuxInt(1)
 		return true
 	}
 	// match: (SETLE (FlagLT_UGT))
 	// result: (MOVLconst [1])
 	for {
-		if v_0.Op != Op386FlagLT_UGT {
+		if v_0.Op != ssaop.Op386FlagLT_UGT {
 			break
 		}
-		v.Reset(Op386MOVLconst)
+		v.Reset(ssaop.Op386MOVLconst)
 		v.AuxInt = Int32ToAuxInt(1)
 		return true
 	}
 	// match: (SETLE (FlagGT_ULT))
 	// result: (MOVLconst [0])
 	for {
-		if v_0.Op != Op386FlagGT_ULT {
+		if v_0.Op != ssaop.Op386FlagGT_ULT {
 			break
 		}
-		v.Reset(Op386MOVLconst)
+		v.Reset(ssaop.Op386MOVLconst)
 		v.AuxInt = Int32ToAuxInt(0)
 		return true
 	}
 	// match: (SETLE (FlagGT_UGT))
 	// result: (MOVLconst [0])
 	for {
-		if v_0.Op != Op386FlagGT_UGT {
+		if v_0.Op != ssaop.Op386FlagGT_UGT {
 			break
 		}
-		v.Reset(Op386MOVLconst)
+		v.Reset(ssaop.Op386MOVLconst)
 		v.AuxInt = Int32ToAuxInt(0)
 		return true
 	}
@@ -6994,61 +6995,61 @@ func rewriteValue386_Op386SETNE(v *Value) bool {
 	// match: (SETNE (InvertFlags x))
 	// result: (SETNE x)
 	for {
-		if v_0.Op != Op386InvertFlags {
+		if v_0.Op != ssaop.Op386InvertFlags {
 			break
 		}
 		x := v_0.Args[0]
-		v.Reset(Op386SETNE)
+		v.Reset(ssaop.Op386SETNE)
 		v.AddArg(x)
 		return true
 	}
 	// match: (SETNE (FlagEQ))
 	// result: (MOVLconst [0])
 	for {
-		if v_0.Op != Op386FlagEQ {
+		if v_0.Op != ssaop.Op386FlagEQ {
 			break
 		}
-		v.Reset(Op386MOVLconst)
+		v.Reset(ssaop.Op386MOVLconst)
 		v.AuxInt = Int32ToAuxInt(0)
 		return true
 	}
 	// match: (SETNE (FlagLT_ULT))
 	// result: (MOVLconst [1])
 	for {
-		if v_0.Op != Op386FlagLT_ULT {
+		if v_0.Op != ssaop.Op386FlagLT_ULT {
 			break
 		}
-		v.Reset(Op386MOVLconst)
+		v.Reset(ssaop.Op386MOVLconst)
 		v.AuxInt = Int32ToAuxInt(1)
 		return true
 	}
 	// match: (SETNE (FlagLT_UGT))
 	// result: (MOVLconst [1])
 	for {
-		if v_0.Op != Op386FlagLT_UGT {
+		if v_0.Op != ssaop.Op386FlagLT_UGT {
 			break
 		}
-		v.Reset(Op386MOVLconst)
+		v.Reset(ssaop.Op386MOVLconst)
 		v.AuxInt = Int32ToAuxInt(1)
 		return true
 	}
 	// match: (SETNE (FlagGT_ULT))
 	// result: (MOVLconst [1])
 	for {
-		if v_0.Op != Op386FlagGT_ULT {
+		if v_0.Op != ssaop.Op386FlagGT_ULT {
 			break
 		}
-		v.Reset(Op386MOVLconst)
+		v.Reset(ssaop.Op386MOVLconst)
 		v.AuxInt = Int32ToAuxInt(1)
 		return true
 	}
 	// match: (SETNE (FlagGT_UGT))
 	// result: (MOVLconst [1])
 	for {
-		if v_0.Op != Op386FlagGT_UGT {
+		if v_0.Op != ssaop.Op386FlagGT_UGT {
 			break
 		}
-		v.Reset(Op386MOVLconst)
+		v.Reset(ssaop.Op386MOVLconst)
 		v.AuxInt = Int32ToAuxInt(1)
 		return true
 	}
@@ -7061,11 +7062,11 @@ func rewriteValue386_Op386SHLL(v *Value) bool {
 	// result: (SHLLconst [c&31] x)
 	for {
 		x := v_0
-		if v_1.Op != Op386MOVLconst {
+		if v_1.Op != ssaop.Op386MOVLconst {
 			break
 		}
 		c := AuxIntToInt32(v_1.AuxInt)
-		v.Reset(Op386SHLLconst)
+		v.Reset(ssaop.Op386SHLLconst)
 		v.AuxInt = Int32ToAuxInt(c & 31)
 		v.AddArg(x)
 		return true
@@ -7074,11 +7075,11 @@ func rewriteValue386_Op386SHLL(v *Value) bool {
 	// result: (SHLL x y)
 	for {
 		x := v_0
-		if v_1.Op != Op386ANDLconst || AuxIntToInt32(v_1.AuxInt) != 31 {
+		if v_1.Op != ssaop.Op386ANDLconst || AuxIntToInt32(v_1.AuxInt) != 31 {
 			break
 		}
 		y := v_1.Args[0]
-		v.Reset(Op386SHLL)
+		v.Reset(ssaop.Op386SHLL)
 		v.AddArg2(x, y)
 		return true
 	}
@@ -7106,14 +7107,14 @@ func rewriteValue386_Op386SHRB(v *Value) bool {
 	// result: (SHRBconst [int8(c&31)] x)
 	for {
 		x := v_0
-		if v_1.Op != Op386MOVLconst {
+		if v_1.Op != ssaop.Op386MOVLconst {
 			break
 		}
 		c := AuxIntToInt32(v_1.AuxInt)
 		if !(c&31 < 8) {
 			break
 		}
-		v.Reset(Op386SHRBconst)
+		v.Reset(ssaop.Op386SHRBconst)
 		v.AuxInt = Int8ToAuxInt(int8(c & 31))
 		v.AddArg(x)
 		return true
@@ -7122,14 +7123,14 @@ func rewriteValue386_Op386SHRB(v *Value) bool {
 	// cond: c&31 >= 8
 	// result: (MOVLconst [0])
 	for {
-		if v_1.Op != Op386MOVLconst {
+		if v_1.Op != ssaop.Op386MOVLconst {
 			break
 		}
 		c := AuxIntToInt32(v_1.AuxInt)
 		if !(c&31 >= 8) {
 			break
 		}
-		v.Reset(Op386MOVLconst)
+		v.Reset(ssaop.Op386MOVLconst)
 		v.AuxInt = Int32ToAuxInt(0)
 		return true
 	}
@@ -7156,11 +7157,11 @@ func rewriteValue386_Op386SHRL(v *Value) bool {
 	// result: (SHRLconst [c&31] x)
 	for {
 		x := v_0
-		if v_1.Op != Op386MOVLconst {
+		if v_1.Op != ssaop.Op386MOVLconst {
 			break
 		}
 		c := AuxIntToInt32(v_1.AuxInt)
-		v.Reset(Op386SHRLconst)
+		v.Reset(ssaop.Op386SHRLconst)
 		v.AuxInt = Int32ToAuxInt(c & 31)
 		v.AddArg(x)
 		return true
@@ -7169,11 +7170,11 @@ func rewriteValue386_Op386SHRL(v *Value) bool {
 	// result: (SHRL x y)
 	for {
 		x := v_0
-		if v_1.Op != Op386ANDLconst || AuxIntToInt32(v_1.AuxInt) != 31 {
+		if v_1.Op != ssaop.Op386ANDLconst || AuxIntToInt32(v_1.AuxInt) != 31 {
 			break
 		}
 		y := v_1.Args[0]
-		v.Reset(Op386SHRL)
+		v.Reset(ssaop.Op386SHRL)
 		v.AddArg2(x, y)
 		return true
 	}
@@ -7201,14 +7202,14 @@ func rewriteValue386_Op386SHRW(v *Value) bool {
 	// result: (SHRWconst [int16(c&31)] x)
 	for {
 		x := v_0
-		if v_1.Op != Op386MOVLconst {
+		if v_1.Op != ssaop.Op386MOVLconst {
 			break
 		}
 		c := AuxIntToInt32(v_1.AuxInt)
 		if !(c&31 < 16) {
 			break
 		}
-		v.Reset(Op386SHRWconst)
+		v.Reset(ssaop.Op386SHRWconst)
 		v.AuxInt = Int16ToAuxInt(int16(c & 31))
 		v.AddArg(x)
 		return true
@@ -7217,14 +7218,14 @@ func rewriteValue386_Op386SHRW(v *Value) bool {
 	// cond: c&31 >= 16
 	// result: (MOVLconst [0])
 	for {
-		if v_1.Op != Op386MOVLconst {
+		if v_1.Op != ssaop.Op386MOVLconst {
 			break
 		}
 		c := AuxIntToInt32(v_1.AuxInt)
 		if !(c&31 >= 16) {
 			break
 		}
-		v.Reset(Op386MOVLconst)
+		v.Reset(ssaop.Op386MOVLconst)
 		v.AuxInt = Int32ToAuxInt(0)
 		return true
 	}
@@ -7252,11 +7253,11 @@ func rewriteValue386_Op386SUBL(v *Value) bool {
 	// result: (SUBLconst x [c])
 	for {
 		x := v_0
-		if v_1.Op != Op386MOVLconst {
+		if v_1.Op != ssaop.Op386MOVLconst {
 			break
 		}
 		c := AuxIntToInt32(v_1.AuxInt)
-		v.Reset(Op386SUBLconst)
+		v.Reset(ssaop.Op386SUBLconst)
 		v.AuxInt = Int32ToAuxInt(c)
 		v.AddArg(x)
 		return true
@@ -7264,13 +7265,13 @@ func rewriteValue386_Op386SUBL(v *Value) bool {
 	// match: (SUBL (MOVLconst [c]) x)
 	// result: (NEGL (SUBLconst <v.Type> x [c]))
 	for {
-		if v_0.Op != Op386MOVLconst {
+		if v_0.Op != ssaop.Op386MOVLconst {
 			break
 		}
 		c := AuxIntToInt32(v_0.AuxInt)
 		x := v_1
-		v.Reset(Op386NEGL)
-		v0 := b.NewValue0(v.Pos, Op386SUBLconst, v.Type)
+		v.Reset(ssaop.Op386NEGL)
+		v0 := b.NewValue0(v.Pos, ssaop.Op386SUBLconst, v.Type)
 		v0.AuxInt = Int32ToAuxInt(c)
 		v0.AddArg(x)
 		v.AddArg(v0)
@@ -7282,7 +7283,7 @@ func rewriteValue386_Op386SUBL(v *Value) bool {
 	for {
 		x := v_0
 		l := v_1
-		if l.Op != Op386MOVLload {
+		if l.Op != ssaop.Op386MOVLload {
 			break
 		}
 		off := AuxIntToInt32(l.AuxInt)
@@ -7292,7 +7293,7 @@ func rewriteValue386_Op386SUBL(v *Value) bool {
 		if !(CanMergeLoadClobber(v, l, x) && Clobber(l)) {
 			break
 		}
-		v.Reset(Op386SUBLload)
+		v.Reset(ssaop.Op386SUBLload)
 		v.AuxInt = Int32ToAuxInt(off)
 		v.Aux = SymToAux(sym)
 		v.AddArg3(x, ptr, mem)
@@ -7305,7 +7306,7 @@ func rewriteValue386_Op386SUBL(v *Value) bool {
 		if x != v_1 {
 			break
 		}
-		v.Reset(Op386MOVLconst)
+		v.Reset(ssaop.Op386MOVLconst)
 		v.AuxInt = Int32ToAuxInt(0)
 		return true
 	}
@@ -7318,11 +7319,11 @@ func rewriteValue386_Op386SUBLcarry(v *Value) bool {
 	// result: (SUBLconstcarry [c] x)
 	for {
 		x := v_0
-		if v_1.Op != Op386MOVLconst {
+		if v_1.Op != ssaop.Op386MOVLconst {
 			break
 		}
 		c := AuxIntToInt32(v_1.AuxInt)
-		v.Reset(Op386SUBLconstcarry)
+		v.Reset(ssaop.Op386SUBLconstcarry)
 		v.AuxInt = Int32ToAuxInt(c)
 		v.AddArg(x)
 		return true
@@ -7348,7 +7349,7 @@ func rewriteValue386_Op386SUBLconst(v *Value) bool {
 	for {
 		c := AuxIntToInt32(v.AuxInt)
 		x := v_0
-		v.Reset(Op386ADDLconst)
+		v.Reset(ssaop.Op386ADDLconst)
 		v.AuxInt = Int32ToAuxInt(-c)
 		v.AddArg(x)
 		return true
@@ -7367,7 +7368,7 @@ func rewriteValue386_Op386SUBLload(v *Value) bool {
 		off1 := AuxIntToInt32(v.AuxInt)
 		sym := AuxToSym(v.Aux)
 		val := v_0
-		if v_1.Op != Op386ADDLconst {
+		if v_1.Op != ssaop.Op386ADDLconst {
 			break
 		}
 		off2 := AuxIntToInt32(v_1.AuxInt)
@@ -7376,30 +7377,30 @@ func rewriteValue386_Op386SUBLload(v *Value) bool {
 		if !(Is32Bit(int64(off1) + int64(off2))) {
 			break
 		}
-		v.Reset(Op386SUBLload)
+		v.Reset(ssaop.Op386SUBLload)
 		v.AuxInt = Int32ToAuxInt(off1 + off2)
 		v.Aux = SymToAux(sym)
 		v.AddArg3(val, base, mem)
 		return true
 	}
 	// match: (SUBLload [off1] {sym1} val (LEAL [off2] {sym2} base) mem)
-	// cond: Is32Bit(int64(off1)+int64(off2)) && CanMergeSym(sym1, sym2) && (base.Op != OpSB || !config.Ctxt.Flag_shared)
+	// cond: Is32Bit(int64(off1)+int64(off2)) && CanMergeSym(sym1, sym2) && (base.Op != ssaop.OpSB || !config.Ctxt.Flag_shared)
 	// result: (SUBLload [off1+off2] {MergeSym(sym1,sym2)} val base mem)
 	for {
 		off1 := AuxIntToInt32(v.AuxInt)
 		sym1 := AuxToSym(v.Aux)
 		val := v_0
-		if v_1.Op != Op386LEAL {
+		if v_1.Op != ssaop.Op386LEAL {
 			break
 		}
 		off2 := AuxIntToInt32(v_1.AuxInt)
 		sym2 := AuxToSym(v_1.Aux)
 		base := v_1.Args[0]
 		mem := v_2
-		if !(Is32Bit(int64(off1)+int64(off2)) && CanMergeSym(sym1, sym2) && (base.Op != OpSB || !config.Ctxt.Flag_shared)) {
+		if !(Is32Bit(int64(off1)+int64(off2)) && CanMergeSym(sym1, sym2) && (base.Op != ssaop.OpSB || !config.Ctxt.Flag_shared)) {
 			break
 		}
-		v.Reset(Op386SUBLload)
+		v.Reset(ssaop.Op386SUBLload)
 		v.AuxInt = Int32ToAuxInt(off1 + off2)
 		v.Aux = SymToAux(MergeSym(sym1, sym2))
 		v.AddArg3(val, base, mem)
@@ -7419,7 +7420,7 @@ func rewriteValue386_Op386SUBLmodify(v *Value) bool {
 	for {
 		off1 := AuxIntToInt32(v.AuxInt)
 		sym := AuxToSym(v.Aux)
-		if v_0.Op != Op386ADDLconst {
+		if v_0.Op != ssaop.Op386ADDLconst {
 			break
 		}
 		off2 := AuxIntToInt32(v_0.AuxInt)
@@ -7429,19 +7430,19 @@ func rewriteValue386_Op386SUBLmodify(v *Value) bool {
 		if !(Is32Bit(int64(off1) + int64(off2))) {
 			break
 		}
-		v.Reset(Op386SUBLmodify)
+		v.Reset(ssaop.Op386SUBLmodify)
 		v.AuxInt = Int32ToAuxInt(off1 + off2)
 		v.Aux = SymToAux(sym)
 		v.AddArg3(base, val, mem)
 		return true
 	}
 	// match: (SUBLmodify [off1] {sym1} (LEAL [off2] {sym2} base) val mem)
-	// cond: Is32Bit(int64(off1)+int64(off2)) && CanMergeSym(sym1, sym2) && (base.Op != OpSB || !config.Ctxt.Flag_shared)
+	// cond: Is32Bit(int64(off1)+int64(off2)) && CanMergeSym(sym1, sym2) && (base.Op != ssaop.OpSB || !config.Ctxt.Flag_shared)
 	// result: (SUBLmodify [off1+off2] {MergeSym(sym1,sym2)} base val mem)
 	for {
 		off1 := AuxIntToInt32(v.AuxInt)
 		sym1 := AuxToSym(v.Aux)
-		if v_0.Op != Op386LEAL {
+		if v_0.Op != ssaop.Op386LEAL {
 			break
 		}
 		off2 := AuxIntToInt32(v_0.AuxInt)
@@ -7449,10 +7450,10 @@ func rewriteValue386_Op386SUBLmodify(v *Value) bool {
 		base := v_0.Args[0]
 		val := v_1
 		mem := v_2
-		if !(Is32Bit(int64(off1)+int64(off2)) && CanMergeSym(sym1, sym2) && (base.Op != OpSB || !config.Ctxt.Flag_shared)) {
+		if !(Is32Bit(int64(off1)+int64(off2)) && CanMergeSym(sym1, sym2) && (base.Op != ssaop.OpSB || !config.Ctxt.Flag_shared)) {
 			break
 		}
-		v.Reset(Op386SUBLmodify)
+		v.Reset(ssaop.Op386SUBLmodify)
 		v.AuxInt = Int32ToAuxInt(off1 + off2)
 		v.Aux = SymToAux(MergeSym(sym1, sym2))
 		v.AddArg3(base, val, mem)
@@ -7469,7 +7470,7 @@ func rewriteValue386_Op386SUBSD(v *Value) bool {
 	for {
 		x := v_0
 		l := v_1
-		if l.Op != Op386MOVSDload {
+		if l.Op != ssaop.Op386MOVSDload {
 			break
 		}
 		off := AuxIntToInt32(l.AuxInt)
@@ -7479,7 +7480,7 @@ func rewriteValue386_Op386SUBSD(v *Value) bool {
 		if !(CanMergeLoadClobber(v, l, x) && Clobber(l)) {
 			break
 		}
-		v.Reset(Op386SUBSDload)
+		v.Reset(ssaop.Op386SUBSDload)
 		v.AuxInt = Int32ToAuxInt(off)
 		v.Aux = SymToAux(sym)
 		v.AddArg3(x, ptr, mem)
@@ -7500,7 +7501,7 @@ func rewriteValue386_Op386SUBSDload(v *Value) bool {
 		off1 := AuxIntToInt32(v.AuxInt)
 		sym := AuxToSym(v.Aux)
 		val := v_0
-		if v_1.Op != Op386ADDLconst {
+		if v_1.Op != ssaop.Op386ADDLconst {
 			break
 		}
 		off2 := AuxIntToInt32(v_1.AuxInt)
@@ -7509,30 +7510,30 @@ func rewriteValue386_Op386SUBSDload(v *Value) bool {
 		if !(Is32Bit(int64(off1) + int64(off2))) {
 			break
 		}
-		v.Reset(Op386SUBSDload)
+		v.Reset(ssaop.Op386SUBSDload)
 		v.AuxInt = Int32ToAuxInt(off1 + off2)
 		v.Aux = SymToAux(sym)
 		v.AddArg3(val, base, mem)
 		return true
 	}
 	// match: (SUBSDload [off1] {sym1} val (LEAL [off2] {sym2} base) mem)
-	// cond: Is32Bit(int64(off1)+int64(off2)) && CanMergeSym(sym1, sym2) && (base.Op != OpSB || !config.Ctxt.Flag_shared)
+	// cond: Is32Bit(int64(off1)+int64(off2)) && CanMergeSym(sym1, sym2) && (base.Op != ssaop.OpSB || !config.Ctxt.Flag_shared)
 	// result: (SUBSDload [off1+off2] {MergeSym(sym1,sym2)} val base mem)
 	for {
 		off1 := AuxIntToInt32(v.AuxInt)
 		sym1 := AuxToSym(v.Aux)
 		val := v_0
-		if v_1.Op != Op386LEAL {
+		if v_1.Op != ssaop.Op386LEAL {
 			break
 		}
 		off2 := AuxIntToInt32(v_1.AuxInt)
 		sym2 := AuxToSym(v_1.Aux)
 		base := v_1.Args[0]
 		mem := v_2
-		if !(Is32Bit(int64(off1)+int64(off2)) && CanMergeSym(sym1, sym2) && (base.Op != OpSB || !config.Ctxt.Flag_shared)) {
+		if !(Is32Bit(int64(off1)+int64(off2)) && CanMergeSym(sym1, sym2) && (base.Op != ssaop.OpSB || !config.Ctxt.Flag_shared)) {
 			break
 		}
-		v.Reset(Op386SUBSDload)
+		v.Reset(ssaop.Op386SUBSDload)
 		v.AuxInt = Int32ToAuxInt(off1 + off2)
 		v.Aux = SymToAux(MergeSym(sym1, sym2))
 		v.AddArg3(val, base, mem)
@@ -7549,7 +7550,7 @@ func rewriteValue386_Op386SUBSS(v *Value) bool {
 	for {
 		x := v_0
 		l := v_1
-		if l.Op != Op386MOVSSload {
+		if l.Op != ssaop.Op386MOVSSload {
 			break
 		}
 		off := AuxIntToInt32(l.AuxInt)
@@ -7559,7 +7560,7 @@ func rewriteValue386_Op386SUBSS(v *Value) bool {
 		if !(CanMergeLoadClobber(v, l, x) && Clobber(l)) {
 			break
 		}
-		v.Reset(Op386SUBSSload)
+		v.Reset(ssaop.Op386SUBSSload)
 		v.AuxInt = Int32ToAuxInt(off)
 		v.Aux = SymToAux(sym)
 		v.AddArg3(x, ptr, mem)
@@ -7580,7 +7581,7 @@ func rewriteValue386_Op386SUBSSload(v *Value) bool {
 		off1 := AuxIntToInt32(v.AuxInt)
 		sym := AuxToSym(v.Aux)
 		val := v_0
-		if v_1.Op != Op386ADDLconst {
+		if v_1.Op != ssaop.Op386ADDLconst {
 			break
 		}
 		off2 := AuxIntToInt32(v_1.AuxInt)
@@ -7589,30 +7590,30 @@ func rewriteValue386_Op386SUBSSload(v *Value) bool {
 		if !(Is32Bit(int64(off1) + int64(off2))) {
 			break
 		}
-		v.Reset(Op386SUBSSload)
+		v.Reset(ssaop.Op386SUBSSload)
 		v.AuxInt = Int32ToAuxInt(off1 + off2)
 		v.Aux = SymToAux(sym)
 		v.AddArg3(val, base, mem)
 		return true
 	}
 	// match: (SUBSSload [off1] {sym1} val (LEAL [off2] {sym2} base) mem)
-	// cond: Is32Bit(int64(off1)+int64(off2)) && CanMergeSym(sym1, sym2) && (base.Op != OpSB || !config.Ctxt.Flag_shared)
+	// cond: Is32Bit(int64(off1)+int64(off2)) && CanMergeSym(sym1, sym2) && (base.Op != ssaop.OpSB || !config.Ctxt.Flag_shared)
 	// result: (SUBSSload [off1+off2] {MergeSym(sym1,sym2)} val base mem)
 	for {
 		off1 := AuxIntToInt32(v.AuxInt)
 		sym1 := AuxToSym(v.Aux)
 		val := v_0
-		if v_1.Op != Op386LEAL {
+		if v_1.Op != ssaop.Op386LEAL {
 			break
 		}
 		off2 := AuxIntToInt32(v_1.AuxInt)
 		sym2 := AuxToSym(v_1.Aux)
 		base := v_1.Args[0]
 		mem := v_2
-		if !(Is32Bit(int64(off1)+int64(off2)) && CanMergeSym(sym1, sym2) && (base.Op != OpSB || !config.Ctxt.Flag_shared)) {
+		if !(Is32Bit(int64(off1)+int64(off2)) && CanMergeSym(sym1, sym2) && (base.Op != ssaop.OpSB || !config.Ctxt.Flag_shared)) {
 			break
 		}
-		v.Reset(Op386SUBSSload)
+		v.Reset(ssaop.Op386SUBSSload)
 		v.AuxInt = Int32ToAuxInt(off1 + off2)
 		v.Aux = SymToAux(MergeSym(sym1, sym2))
 		v.AddArg3(val, base, mem)
@@ -7628,11 +7629,11 @@ func rewriteValue386_Op386XORL(v *Value) bool {
 	for {
 		for _i0 := 0; _i0 <= 1; _i0, v_0, v_1 = _i0+1, v_1, v_0 {
 			x := v_0
-			if v_1.Op != Op386MOVLconst {
+			if v_1.Op != ssaop.Op386MOVLconst {
 				continue
 			}
 			c := AuxIntToInt32(v_1.AuxInt)
-			v.Reset(Op386XORLconst)
+			v.Reset(ssaop.Op386XORLconst)
 			v.AuxInt = Int32ToAuxInt(c)
 			v.AddArg(x)
 			return true
@@ -7646,7 +7647,7 @@ func rewriteValue386_Op386XORL(v *Value) bool {
 		for _i0 := 0; _i0 <= 1; _i0, v_0, v_1 = _i0+1, v_1, v_0 {
 			x := v_0
 			l := v_1
-			if l.Op != Op386MOVLload {
+			if l.Op != ssaop.Op386MOVLload {
 				continue
 			}
 			off := AuxIntToInt32(l.AuxInt)
@@ -7656,7 +7657,7 @@ func rewriteValue386_Op386XORL(v *Value) bool {
 			if !(CanMergeLoadClobber(v, l, x) && Clobber(l)) {
 				continue
 			}
-			v.Reset(Op386XORLload)
+			v.Reset(ssaop.Op386XORLload)
 			v.AuxInt = Int32ToAuxInt(off)
 			v.Aux = SymToAux(sym)
 			v.AddArg3(x, ptr, mem)
@@ -7671,7 +7672,7 @@ func rewriteValue386_Op386XORL(v *Value) bool {
 		if x != v_1 {
 			break
 		}
-		v.Reset(Op386MOVLconst)
+		v.Reset(ssaop.Op386MOVLconst)
 		v.AuxInt = Int32ToAuxInt(0)
 		return true
 	}
@@ -7683,12 +7684,12 @@ func rewriteValue386_Op386XORLconst(v *Value) bool {
 	// result: (XORLconst [c ^ d] x)
 	for {
 		c := AuxIntToInt32(v.AuxInt)
-		if v_0.Op != Op386XORLconst {
+		if v_0.Op != ssaop.Op386XORLconst {
 			break
 		}
 		d := AuxIntToInt32(v_0.AuxInt)
 		x := v_0.Args[0]
-		v.Reset(Op386XORLconst)
+		v.Reset(ssaop.Op386XORLconst)
 		v.AuxInt = Int32ToAuxInt(c ^ d)
 		v.AddArg(x)
 		return true
@@ -7709,11 +7710,11 @@ func rewriteValue386_Op386XORLconst(v *Value) bool {
 	// result: (MOVLconst [c^d])
 	for {
 		c := AuxIntToInt32(v.AuxInt)
-		if v_0.Op != Op386MOVLconst {
+		if v_0.Op != ssaop.Op386MOVLconst {
 			break
 		}
 		d := AuxIntToInt32(v_0.AuxInt)
-		v.Reset(Op386MOVLconst)
+		v.Reset(ssaop.Op386MOVLconst)
 		v.AuxInt = Int32ToAuxInt(c ^ d)
 		return true
 	}
@@ -7730,7 +7731,7 @@ func rewriteValue386_Op386XORLconstmodify(v *Value) bool {
 	for {
 		valoff1 := AuxIntToValAndOff(v.AuxInt)
 		sym := AuxToSym(v.Aux)
-		if v_0.Op != Op386ADDLconst {
+		if v_0.Op != ssaop.Op386ADDLconst {
 			break
 		}
 		off2 := AuxIntToInt32(v_0.AuxInt)
@@ -7739,29 +7740,29 @@ func rewriteValue386_Op386XORLconstmodify(v *Value) bool {
 		if !(valoff1.CanAdd32(off2)) {
 			break
 		}
-		v.Reset(Op386XORLconstmodify)
+		v.Reset(ssaop.Op386XORLconstmodify)
 		v.AuxInt = ValAndOffToAuxInt(valoff1.AddOffset32(off2))
 		v.Aux = SymToAux(sym)
 		v.AddArg2(base, mem)
 		return true
 	}
 	// match: (XORLconstmodify [valoff1] {sym1} (LEAL [off2] {sym2} base) mem)
-	// cond: valoff1.CanAdd32(off2) && CanMergeSym(sym1, sym2) && (base.Op != OpSB || !config.Ctxt.Flag_shared)
+	// cond: valoff1.CanAdd32(off2) && CanMergeSym(sym1, sym2) && (base.Op != ssaop.OpSB || !config.Ctxt.Flag_shared)
 	// result: (XORLconstmodify [valoff1.AddOffset32(off2)] {MergeSym(sym1,sym2)} base mem)
 	for {
 		valoff1 := AuxIntToValAndOff(v.AuxInt)
 		sym1 := AuxToSym(v.Aux)
-		if v_0.Op != Op386LEAL {
+		if v_0.Op != ssaop.Op386LEAL {
 			break
 		}
 		off2 := AuxIntToInt32(v_0.AuxInt)
 		sym2 := AuxToSym(v_0.Aux)
 		base := v_0.Args[0]
 		mem := v_1
-		if !(valoff1.CanAdd32(off2) && CanMergeSym(sym1, sym2) && (base.Op != OpSB || !config.Ctxt.Flag_shared)) {
+		if !(valoff1.CanAdd32(off2) && CanMergeSym(sym1, sym2) && (base.Op != ssaop.OpSB || !config.Ctxt.Flag_shared)) {
 			break
 		}
-		v.Reset(Op386XORLconstmodify)
+		v.Reset(ssaop.Op386XORLconstmodify)
 		v.AuxInt = ValAndOffToAuxInt(valoff1.AddOffset32(off2))
 		v.Aux = SymToAux(MergeSym(sym1, sym2))
 		v.AddArg2(base, mem)
@@ -7782,7 +7783,7 @@ func rewriteValue386_Op386XORLload(v *Value) bool {
 		off1 := AuxIntToInt32(v.AuxInt)
 		sym := AuxToSym(v.Aux)
 		val := v_0
-		if v_1.Op != Op386ADDLconst {
+		if v_1.Op != ssaop.Op386ADDLconst {
 			break
 		}
 		off2 := AuxIntToInt32(v_1.AuxInt)
@@ -7791,30 +7792,30 @@ func rewriteValue386_Op386XORLload(v *Value) bool {
 		if !(Is32Bit(int64(off1) + int64(off2))) {
 			break
 		}
-		v.Reset(Op386XORLload)
+		v.Reset(ssaop.Op386XORLload)
 		v.AuxInt = Int32ToAuxInt(off1 + off2)
 		v.Aux = SymToAux(sym)
 		v.AddArg3(val, base, mem)
 		return true
 	}
 	// match: (XORLload [off1] {sym1} val (LEAL [off2] {sym2} base) mem)
-	// cond: Is32Bit(int64(off1)+int64(off2)) && CanMergeSym(sym1, sym2) && (base.Op != OpSB || !config.Ctxt.Flag_shared)
+	// cond: Is32Bit(int64(off1)+int64(off2)) && CanMergeSym(sym1, sym2) && (base.Op != ssaop.OpSB || !config.Ctxt.Flag_shared)
 	// result: (XORLload [off1+off2] {MergeSym(sym1,sym2)} val base mem)
 	for {
 		off1 := AuxIntToInt32(v.AuxInt)
 		sym1 := AuxToSym(v.Aux)
 		val := v_0
-		if v_1.Op != Op386LEAL {
+		if v_1.Op != ssaop.Op386LEAL {
 			break
 		}
 		off2 := AuxIntToInt32(v_1.AuxInt)
 		sym2 := AuxToSym(v_1.Aux)
 		base := v_1.Args[0]
 		mem := v_2
-		if !(Is32Bit(int64(off1)+int64(off2)) && CanMergeSym(sym1, sym2) && (base.Op != OpSB || !config.Ctxt.Flag_shared)) {
+		if !(Is32Bit(int64(off1)+int64(off2)) && CanMergeSym(sym1, sym2) && (base.Op != ssaop.OpSB || !config.Ctxt.Flag_shared)) {
 			break
 		}
-		v.Reset(Op386XORLload)
+		v.Reset(ssaop.Op386XORLload)
 		v.AuxInt = Int32ToAuxInt(off1 + off2)
 		v.Aux = SymToAux(MergeSym(sym1, sym2))
 		v.AddArg3(val, base, mem)
@@ -7834,7 +7835,7 @@ func rewriteValue386_Op386XORLmodify(v *Value) bool {
 	for {
 		off1 := AuxIntToInt32(v.AuxInt)
 		sym := AuxToSym(v.Aux)
-		if v_0.Op != Op386ADDLconst {
+		if v_0.Op != ssaop.Op386ADDLconst {
 			break
 		}
 		off2 := AuxIntToInt32(v_0.AuxInt)
@@ -7844,19 +7845,19 @@ func rewriteValue386_Op386XORLmodify(v *Value) bool {
 		if !(Is32Bit(int64(off1) + int64(off2))) {
 			break
 		}
-		v.Reset(Op386XORLmodify)
+		v.Reset(ssaop.Op386XORLmodify)
 		v.AuxInt = Int32ToAuxInt(off1 + off2)
 		v.Aux = SymToAux(sym)
 		v.AddArg3(base, val, mem)
 		return true
 	}
 	// match: (XORLmodify [off1] {sym1} (LEAL [off2] {sym2} base) val mem)
-	// cond: Is32Bit(int64(off1)+int64(off2)) && CanMergeSym(sym1, sym2) && (base.Op != OpSB || !config.Ctxt.Flag_shared)
+	// cond: Is32Bit(int64(off1)+int64(off2)) && CanMergeSym(sym1, sym2) && (base.Op != ssaop.OpSB || !config.Ctxt.Flag_shared)
 	// result: (XORLmodify [off1+off2] {MergeSym(sym1,sym2)} base val mem)
 	for {
 		off1 := AuxIntToInt32(v.AuxInt)
 		sym1 := AuxToSym(v.Aux)
-		if v_0.Op != Op386LEAL {
+		if v_0.Op != ssaop.Op386LEAL {
 			break
 		}
 		off2 := AuxIntToInt32(v_0.AuxInt)
@@ -7864,10 +7865,10 @@ func rewriteValue386_Op386XORLmodify(v *Value) bool {
 		base := v_0.Args[0]
 		val := v_1
 		mem := v_2
-		if !(Is32Bit(int64(off1)+int64(off2)) && CanMergeSym(sym1, sym2) && (base.Op != OpSB || !config.Ctxt.Flag_shared)) {
+		if !(Is32Bit(int64(off1)+int64(off2)) && CanMergeSym(sym1, sym2) && (base.Op != ssaop.OpSB || !config.Ctxt.Flag_shared)) {
 			break
 		}
-		v.Reset(Op386XORLmodify)
+		v.Reset(ssaop.Op386XORLmodify)
 		v.AuxInt = Int32ToAuxInt(off1 + off2)
 		v.Aux = SymToAux(MergeSym(sym1, sym2))
 		v.AddArg3(base, val, mem)
@@ -7882,7 +7883,7 @@ func rewriteValue386_OpAddr(v *Value) bool {
 	for {
 		sym := AuxToSym(v.Aux)
 		base := v_0
-		v.Reset(Op386LEAL)
+		v.Reset(ssaop.Op386LEAL)
 		v.Aux = SymToAux(sym)
 		v.AddArg(base)
 		return true
@@ -7894,7 +7895,7 @@ func rewriteValue386_OpBswap16(v *Value) bool {
 	// result: (ROLWconst [8] x)
 	for {
 		x := v_0
-		v.Reset(Op386ROLWconst)
+		v.Reset(ssaop.Op386ROLWconst)
 		v.AuxInt = Int16ToAuxInt(8)
 		v.AddArg(x)
 		return true
@@ -7905,7 +7906,7 @@ func rewriteValue386_OpConst16(v *Value) bool {
 	// result: (MOVLconst [int32(c)])
 	for {
 		c := AuxIntToInt16(v.AuxInt)
-		v.Reset(Op386MOVLconst)
+		v.Reset(ssaop.Op386MOVLconst)
 		v.AuxInt = Int32ToAuxInt(int32(c))
 		return true
 	}
@@ -7915,7 +7916,7 @@ func rewriteValue386_OpConst8(v *Value) bool {
 	// result: (MOVLconst [int32(c)])
 	for {
 		c := AuxIntToInt8(v.AuxInt)
-		v.Reset(Op386MOVLconst)
+		v.Reset(ssaop.Op386MOVLconst)
 		v.AuxInt = Int32ToAuxInt(int32(c))
 		return true
 	}
@@ -7925,7 +7926,7 @@ func rewriteValue386_OpConstBool(v *Value) bool {
 	// result: (MOVLconst [B2i32(c)])
 	for {
 		c := AuxIntToBool(v.AuxInt)
-		v.Reset(Op386MOVLconst)
+		v.Reset(ssaop.Op386MOVLconst)
 		v.AuxInt = Int32ToAuxInt(B2i32(c))
 		return true
 	}
@@ -7934,7 +7935,7 @@ func rewriteValue386_OpConstNil(v *Value) bool {
 	// match: (ConstNil)
 	// result: (MOVLconst [0])
 	for {
-		v.Reset(Op386MOVLconst)
+		v.Reset(ssaop.Op386MOVLconst)
 		v.AuxInt = Int32ToAuxInt(0)
 		return true
 	}
@@ -7947,8 +7948,8 @@ func rewriteValue386_OpCtz16(v *Value) bool {
 	// result: (BSFL (ORLconst <typ.UInt32> [0x10000] x))
 	for {
 		x := v_0
-		v.Reset(Op386BSFL)
-		v0 := b.NewValue0(v.Pos, Op386ORLconst, typ.UInt32)
+		v.Reset(ssaop.Op386BSFL)
+		v0 := b.NewValue0(v.Pos, ssaop.Op386ORLconst, typ.UInt32)
 		v0.AuxInt = Int32ToAuxInt(0x10000)
 		v0.AddArg(x)
 		v.AddArg(v0)
@@ -7963,8 +7964,8 @@ func rewriteValue386_OpCtz8(v *Value) bool {
 	// result: (BSFL (ORLconst <typ.UInt32> [0x100] x))
 	for {
 		x := v_0
-		v.Reset(Op386BSFL)
-		v0 := b.NewValue0(v.Pos, Op386ORLconst, typ.UInt32)
+		v.Reset(ssaop.Op386BSFL)
+		v0 := b.NewValue0(v.Pos, ssaop.Op386ORLconst, typ.UInt32)
 		v0.AuxInt = Int32ToAuxInt(0x100)
 		v0.AddArg(x)
 		v.AddArg(v0)
@@ -7981,10 +7982,10 @@ func rewriteValue386_OpDiv8(v *Value) bool {
 	for {
 		x := v_0
 		y := v_1
-		v.Reset(Op386DIVW)
-		v0 := b.NewValue0(v.Pos, OpSignExt8to16, typ.Int16)
+		v.Reset(ssaop.Op386DIVW)
+		v0 := b.NewValue0(v.Pos, ssaop.OpSignExt8to16, typ.Int16)
 		v0.AddArg(x)
-		v1 := b.NewValue0(v.Pos, OpSignExt8to16, typ.Int16)
+		v1 := b.NewValue0(v.Pos, ssaop.OpSignExt8to16, typ.Int16)
 		v1.AddArg(y)
 		v.AddArg2(v0, v1)
 		return true
@@ -8000,10 +8001,10 @@ func rewriteValue386_OpDiv8u(v *Value) bool {
 	for {
 		x := v_0
 		y := v_1
-		v.Reset(Op386DIVWU)
-		v0 := b.NewValue0(v.Pos, OpZeroExt8to16, typ.UInt16)
+		v.Reset(ssaop.Op386DIVWU)
+		v0 := b.NewValue0(v.Pos, ssaop.OpZeroExt8to16, typ.UInt16)
 		v0.AddArg(x)
-		v1 := b.NewValue0(v.Pos, OpZeroExt8to16, typ.UInt16)
+		v1 := b.NewValue0(v.Pos, ssaop.OpZeroExt8to16, typ.UInt16)
 		v1.AddArg(y)
 		v.AddArg2(v0, v1)
 		return true
@@ -8018,8 +8019,8 @@ func rewriteValue386_OpEq16(v *Value) bool {
 	for {
 		x := v_0
 		y := v_1
-		v.Reset(Op386SETEQ)
-		v0 := b.NewValue0(v.Pos, Op386CMPW, types.TypeFlags)
+		v.Reset(ssaop.Op386SETEQ)
+		v0 := b.NewValue0(v.Pos, ssaop.Op386CMPW, types.TypeFlags)
 		v0.AddArg2(x, y)
 		v.AddArg(v0)
 		return true
@@ -8034,8 +8035,8 @@ func rewriteValue386_OpEq32(v *Value) bool {
 	for {
 		x := v_0
 		y := v_1
-		v.Reset(Op386SETEQ)
-		v0 := b.NewValue0(v.Pos, Op386CMPL, types.TypeFlags)
+		v.Reset(ssaop.Op386SETEQ)
+		v0 := b.NewValue0(v.Pos, ssaop.Op386CMPL, types.TypeFlags)
 		v0.AddArg2(x, y)
 		v.AddArg(v0)
 		return true
@@ -8050,8 +8051,8 @@ func rewriteValue386_OpEq32F(v *Value) bool {
 	for {
 		x := v_0
 		y := v_1
-		v.Reset(Op386SETEQF)
-		v0 := b.NewValue0(v.Pos, Op386UCOMISS, types.TypeFlags)
+		v.Reset(ssaop.Op386SETEQF)
+		v0 := b.NewValue0(v.Pos, ssaop.Op386UCOMISS, types.TypeFlags)
 		v0.AddArg2(x, y)
 		v.AddArg(v0)
 		return true
@@ -8066,8 +8067,8 @@ func rewriteValue386_OpEq64F(v *Value) bool {
 	for {
 		x := v_0
 		y := v_1
-		v.Reset(Op386SETEQF)
-		v0 := b.NewValue0(v.Pos, Op386UCOMISD, types.TypeFlags)
+		v.Reset(ssaop.Op386SETEQF)
+		v0 := b.NewValue0(v.Pos, ssaop.Op386UCOMISD, types.TypeFlags)
 		v0.AddArg2(x, y)
 		v.AddArg(v0)
 		return true
@@ -8082,8 +8083,8 @@ func rewriteValue386_OpEq8(v *Value) bool {
 	for {
 		x := v_0
 		y := v_1
-		v.Reset(Op386SETEQ)
-		v0 := b.NewValue0(v.Pos, Op386CMPB, types.TypeFlags)
+		v.Reset(ssaop.Op386SETEQ)
+		v0 := b.NewValue0(v.Pos, ssaop.Op386CMPB, types.TypeFlags)
 		v0.AddArg2(x, y)
 		v.AddArg(v0)
 		return true
@@ -8098,8 +8099,8 @@ func rewriteValue386_OpEqB(v *Value) bool {
 	for {
 		x := v_0
 		y := v_1
-		v.Reset(Op386SETEQ)
-		v0 := b.NewValue0(v.Pos, Op386CMPB, types.TypeFlags)
+		v.Reset(ssaop.Op386SETEQ)
+		v0 := b.NewValue0(v.Pos, ssaop.Op386CMPB, types.TypeFlags)
 		v0.AddArg2(x, y)
 		v.AddArg(v0)
 		return true
@@ -8114,8 +8115,8 @@ func rewriteValue386_OpEqPtr(v *Value) bool {
 	for {
 		x := v_0
 		y := v_1
-		v.Reset(Op386SETEQ)
-		v0 := b.NewValue0(v.Pos, Op386CMPL, types.TypeFlags)
+		v.Reset(ssaop.Op386SETEQ)
+		v0 := b.NewValue0(v.Pos, ssaop.Op386CMPL, types.TypeFlags)
 		v0.AddArg2(x, y)
 		v.AddArg(v0)
 		return true
@@ -8130,8 +8131,8 @@ func rewriteValue386_OpIsInBounds(v *Value) bool {
 	for {
 		idx := v_0
 		len := v_1
-		v.Reset(Op386SETB)
-		v0 := b.NewValue0(v.Pos, Op386CMPL, types.TypeFlags)
+		v.Reset(ssaop.Op386SETB)
+		v0 := b.NewValue0(v.Pos, ssaop.Op386CMPL, types.TypeFlags)
 		v0.AddArg2(idx, len)
 		v.AddArg(v0)
 		return true
@@ -8144,8 +8145,8 @@ func rewriteValue386_OpIsNonNil(v *Value) bool {
 	// result: (SETNE (TESTL p p))
 	for {
 		p := v_0
-		v.Reset(Op386SETNE)
-		v0 := b.NewValue0(v.Pos, Op386TESTL, types.TypeFlags)
+		v.Reset(ssaop.Op386SETNE)
+		v0 := b.NewValue0(v.Pos, ssaop.Op386TESTL, types.TypeFlags)
 		v0.AddArg2(p, p)
 		v.AddArg(v0)
 		return true
@@ -8160,8 +8161,8 @@ func rewriteValue386_OpIsSliceInBounds(v *Value) bool {
 	for {
 		idx := v_0
 		len := v_1
-		v.Reset(Op386SETBE)
-		v0 := b.NewValue0(v.Pos, Op386CMPL, types.TypeFlags)
+		v.Reset(ssaop.Op386SETBE)
+		v0 := b.NewValue0(v.Pos, ssaop.Op386CMPL, types.TypeFlags)
 		v0.AddArg2(idx, len)
 		v.AddArg(v0)
 		return true
@@ -8176,8 +8177,8 @@ func rewriteValue386_OpLeq16(v *Value) bool {
 	for {
 		x := v_0
 		y := v_1
-		v.Reset(Op386SETLE)
-		v0 := b.NewValue0(v.Pos, Op386CMPW, types.TypeFlags)
+		v.Reset(ssaop.Op386SETLE)
+		v0 := b.NewValue0(v.Pos, ssaop.Op386CMPW, types.TypeFlags)
 		v0.AddArg2(x, y)
 		v.AddArg(v0)
 		return true
@@ -8192,8 +8193,8 @@ func rewriteValue386_OpLeq16U(v *Value) bool {
 	for {
 		x := v_0
 		y := v_1
-		v.Reset(Op386SETBE)
-		v0 := b.NewValue0(v.Pos, Op386CMPW, types.TypeFlags)
+		v.Reset(ssaop.Op386SETBE)
+		v0 := b.NewValue0(v.Pos, ssaop.Op386CMPW, types.TypeFlags)
 		v0.AddArg2(x, y)
 		v.AddArg(v0)
 		return true
@@ -8208,8 +8209,8 @@ func rewriteValue386_OpLeq32(v *Value) bool {
 	for {
 		x := v_0
 		y := v_1
-		v.Reset(Op386SETLE)
-		v0 := b.NewValue0(v.Pos, Op386CMPL, types.TypeFlags)
+		v.Reset(ssaop.Op386SETLE)
+		v0 := b.NewValue0(v.Pos, ssaop.Op386CMPL, types.TypeFlags)
 		v0.AddArg2(x, y)
 		v.AddArg(v0)
 		return true
@@ -8224,8 +8225,8 @@ func rewriteValue386_OpLeq32F(v *Value) bool {
 	for {
 		x := v_0
 		y := v_1
-		v.Reset(Op386SETGEF)
-		v0 := b.NewValue0(v.Pos, Op386UCOMISS, types.TypeFlags)
+		v.Reset(ssaop.Op386SETGEF)
+		v0 := b.NewValue0(v.Pos, ssaop.Op386UCOMISS, types.TypeFlags)
 		v0.AddArg2(y, x)
 		v.AddArg(v0)
 		return true
@@ -8240,8 +8241,8 @@ func rewriteValue386_OpLeq32U(v *Value) bool {
 	for {
 		x := v_0
 		y := v_1
-		v.Reset(Op386SETBE)
-		v0 := b.NewValue0(v.Pos, Op386CMPL, types.TypeFlags)
+		v.Reset(ssaop.Op386SETBE)
+		v0 := b.NewValue0(v.Pos, ssaop.Op386CMPL, types.TypeFlags)
 		v0.AddArg2(x, y)
 		v.AddArg(v0)
 		return true
@@ -8256,8 +8257,8 @@ func rewriteValue386_OpLeq64F(v *Value) bool {
 	for {
 		x := v_0
 		y := v_1
-		v.Reset(Op386SETGEF)
-		v0 := b.NewValue0(v.Pos, Op386UCOMISD, types.TypeFlags)
+		v.Reset(ssaop.Op386SETGEF)
+		v0 := b.NewValue0(v.Pos, ssaop.Op386UCOMISD, types.TypeFlags)
 		v0.AddArg2(y, x)
 		v.AddArg(v0)
 		return true
@@ -8272,8 +8273,8 @@ func rewriteValue386_OpLeq8(v *Value) bool {
 	for {
 		x := v_0
 		y := v_1
-		v.Reset(Op386SETLE)
-		v0 := b.NewValue0(v.Pos, Op386CMPB, types.TypeFlags)
+		v.Reset(ssaop.Op386SETLE)
+		v0 := b.NewValue0(v.Pos, ssaop.Op386CMPB, types.TypeFlags)
 		v0.AddArg2(x, y)
 		v.AddArg(v0)
 		return true
@@ -8288,8 +8289,8 @@ func rewriteValue386_OpLeq8U(v *Value) bool {
 	for {
 		x := v_0
 		y := v_1
-		v.Reset(Op386SETBE)
-		v0 := b.NewValue0(v.Pos, Op386CMPB, types.TypeFlags)
+		v.Reset(ssaop.Op386SETBE)
+		v0 := b.NewValue0(v.Pos, ssaop.Op386CMPB, types.TypeFlags)
 		v0.AddArg2(x, y)
 		v.AddArg(v0)
 		return true
@@ -8304,8 +8305,8 @@ func rewriteValue386_OpLess16(v *Value) bool {
 	for {
 		x := v_0
 		y := v_1
-		v.Reset(Op386SETL)
-		v0 := b.NewValue0(v.Pos, Op386CMPW, types.TypeFlags)
+		v.Reset(ssaop.Op386SETL)
+		v0 := b.NewValue0(v.Pos, ssaop.Op386CMPW, types.TypeFlags)
 		v0.AddArg2(x, y)
 		v.AddArg(v0)
 		return true
@@ -8320,8 +8321,8 @@ func rewriteValue386_OpLess16U(v *Value) bool {
 	for {
 		x := v_0
 		y := v_1
-		v.Reset(Op386SETB)
-		v0 := b.NewValue0(v.Pos, Op386CMPW, types.TypeFlags)
+		v.Reset(ssaop.Op386SETB)
+		v0 := b.NewValue0(v.Pos, ssaop.Op386CMPW, types.TypeFlags)
 		v0.AddArg2(x, y)
 		v.AddArg(v0)
 		return true
@@ -8336,8 +8337,8 @@ func rewriteValue386_OpLess32(v *Value) bool {
 	for {
 		x := v_0
 		y := v_1
-		v.Reset(Op386SETL)
-		v0 := b.NewValue0(v.Pos, Op386CMPL, types.TypeFlags)
+		v.Reset(ssaop.Op386SETL)
+		v0 := b.NewValue0(v.Pos, ssaop.Op386CMPL, types.TypeFlags)
 		v0.AddArg2(x, y)
 		v.AddArg(v0)
 		return true
@@ -8352,8 +8353,8 @@ func rewriteValue386_OpLess32F(v *Value) bool {
 	for {
 		x := v_0
 		y := v_1
-		v.Reset(Op386SETGF)
-		v0 := b.NewValue0(v.Pos, Op386UCOMISS, types.TypeFlags)
+		v.Reset(ssaop.Op386SETGF)
+		v0 := b.NewValue0(v.Pos, ssaop.Op386UCOMISS, types.TypeFlags)
 		v0.AddArg2(y, x)
 		v.AddArg(v0)
 		return true
@@ -8368,8 +8369,8 @@ func rewriteValue386_OpLess32U(v *Value) bool {
 	for {
 		x := v_0
 		y := v_1
-		v.Reset(Op386SETB)
-		v0 := b.NewValue0(v.Pos, Op386CMPL, types.TypeFlags)
+		v.Reset(ssaop.Op386SETB)
+		v0 := b.NewValue0(v.Pos, ssaop.Op386CMPL, types.TypeFlags)
 		v0.AddArg2(x, y)
 		v.AddArg(v0)
 		return true
@@ -8384,8 +8385,8 @@ func rewriteValue386_OpLess64F(v *Value) bool {
 	for {
 		x := v_0
 		y := v_1
-		v.Reset(Op386SETGF)
-		v0 := b.NewValue0(v.Pos, Op386UCOMISD, types.TypeFlags)
+		v.Reset(ssaop.Op386SETGF)
+		v0 := b.NewValue0(v.Pos, ssaop.Op386UCOMISD, types.TypeFlags)
 		v0.AddArg2(y, x)
 		v.AddArg(v0)
 		return true
@@ -8400,8 +8401,8 @@ func rewriteValue386_OpLess8(v *Value) bool {
 	for {
 		x := v_0
 		y := v_1
-		v.Reset(Op386SETL)
-		v0 := b.NewValue0(v.Pos, Op386CMPB, types.TypeFlags)
+		v.Reset(ssaop.Op386SETL)
+		v0 := b.NewValue0(v.Pos, ssaop.Op386CMPB, types.TypeFlags)
 		v0.AddArg2(x, y)
 		v.AddArg(v0)
 		return true
@@ -8416,8 +8417,8 @@ func rewriteValue386_OpLess8U(v *Value) bool {
 	for {
 		x := v_0
 		y := v_1
-		v.Reset(Op386SETB)
-		v0 := b.NewValue0(v.Pos, Op386CMPB, types.TypeFlags)
+		v.Reset(ssaop.Op386SETB)
+		v0 := b.NewValue0(v.Pos, ssaop.Op386CMPB, types.TypeFlags)
 		v0.AddArg2(x, y)
 		v.AddArg(v0)
 		return true
@@ -8436,7 +8437,7 @@ func rewriteValue386_OpLoad(v *Value) bool {
 		if !(Is32BitInt(t) || IsPtr(t)) {
 			break
 		}
-		v.Reset(Op386MOVLload)
+		v.Reset(ssaop.Op386MOVLload)
 		v.AddArg2(ptr, mem)
 		return true
 	}
@@ -8450,7 +8451,7 @@ func rewriteValue386_OpLoad(v *Value) bool {
 		if !(Is16BitInt(t)) {
 			break
 		}
-		v.Reset(Op386MOVWload)
+		v.Reset(ssaop.Op386MOVWload)
 		v.AddArg2(ptr, mem)
 		return true
 	}
@@ -8464,7 +8465,7 @@ func rewriteValue386_OpLoad(v *Value) bool {
 		if !(t.IsBoolean() || Is8BitInt(t)) {
 			break
 		}
-		v.Reset(Op386MOVBload)
+		v.Reset(ssaop.Op386MOVBload)
 		v.AddArg2(ptr, mem)
 		return true
 	}
@@ -8478,7 +8479,7 @@ func rewriteValue386_OpLoad(v *Value) bool {
 		if !(Is32BitFloat(t)) {
 			break
 		}
-		v.Reset(Op386MOVSSload)
+		v.Reset(ssaop.Op386MOVSSload)
 		v.AddArg2(ptr, mem)
 		return true
 	}
@@ -8492,7 +8493,7 @@ func rewriteValue386_OpLoad(v *Value) bool {
 		if !(Is64BitFloat(t)) {
 			break
 		}
-		v.Reset(Op386MOVSDload)
+		v.Reset(ssaop.Op386MOVSDload)
 		v.AddArg2(ptr, mem)
 		return true
 	}
@@ -8514,9 +8515,9 @@ func rewriteValue386_OpLocalAddr(v *Value) bool {
 		if !(t.Elem().HasPointers()) {
 			break
 		}
-		v.Reset(Op386LEAL)
+		v.Reset(ssaop.Op386LEAL)
 		v.Aux = SymToAux(sym)
-		v0 := b.NewValue0(v.Pos, OpSPanchored, typ.Uintptr)
+		v0 := b.NewValue0(v.Pos, ssaop.OpSPanchored, typ.Uintptr)
 		v0.AddArg2(base, mem)
 		v.AddArg(v0)
 		return true
@@ -8531,7 +8532,7 @@ func rewriteValue386_OpLocalAddr(v *Value) bool {
 		if !(!t.Elem().HasPointers()) {
 			break
 		}
-		v.Reset(Op386LEAL)
+		v.Reset(ssaop.Op386LEAL)
 		v.Aux = SymToAux(sym)
 		v.AddArg(base)
 		return true
@@ -8552,11 +8553,11 @@ func rewriteValue386_OpLsh16x16(v *Value) bool {
 		if !(!ShiftIsBounded(v)) {
 			break
 		}
-		v.Reset(Op386ANDL)
-		v0 := b.NewValue0(v.Pos, Op386SHLL, t)
+		v.Reset(ssaop.Op386ANDL)
+		v0 := b.NewValue0(v.Pos, ssaop.Op386SHLL, t)
 		v0.AddArg2(x, y)
-		v1 := b.NewValue0(v.Pos, Op386SBBLcarrymask, t)
-		v2 := b.NewValue0(v.Pos, Op386CMPWconst, types.TypeFlags)
+		v1 := b.NewValue0(v.Pos, ssaop.Op386SBBLcarrymask, t)
+		v2 := b.NewValue0(v.Pos, ssaop.Op386CMPWconst, types.TypeFlags)
 		v2.AuxInt = Int16ToAuxInt(32)
 		v2.AddArg(y)
 		v1.AddArg(v2)
@@ -8573,7 +8574,7 @@ func rewriteValue386_OpLsh16x16(v *Value) bool {
 		if !(ShiftIsBounded(v)) {
 			break
 		}
-		v.Reset(Op386SHLL)
+		v.Reset(ssaop.Op386SHLL)
 		v.Type = t
 		v.AddArg2(x, y)
 		return true
@@ -8594,11 +8595,11 @@ func rewriteValue386_OpLsh16x32(v *Value) bool {
 		if !(!ShiftIsBounded(v)) {
 			break
 		}
-		v.Reset(Op386ANDL)
-		v0 := b.NewValue0(v.Pos, Op386SHLL, t)
+		v.Reset(ssaop.Op386ANDL)
+		v0 := b.NewValue0(v.Pos, ssaop.Op386SHLL, t)
 		v0.AddArg2(x, y)
-		v1 := b.NewValue0(v.Pos, Op386SBBLcarrymask, t)
-		v2 := b.NewValue0(v.Pos, Op386CMPLconst, types.TypeFlags)
+		v1 := b.NewValue0(v.Pos, ssaop.Op386SBBLcarrymask, t)
+		v2 := b.NewValue0(v.Pos, ssaop.Op386CMPLconst, types.TypeFlags)
 		v2.AuxInt = Int32ToAuxInt(32)
 		v2.AddArg(y)
 		v1.AddArg(v2)
@@ -8615,7 +8616,7 @@ func rewriteValue386_OpLsh16x32(v *Value) bool {
 		if !(ShiftIsBounded(v)) {
 			break
 		}
-		v.Reset(Op386SHLL)
+		v.Reset(ssaop.Op386SHLL)
 		v.Type = t
 		v.AddArg2(x, y)
 		return true
@@ -8630,14 +8631,14 @@ func rewriteValue386_OpLsh16x64(v *Value) bool {
 	// result: (SHLLconst x [int32(c)])
 	for {
 		x := v_0
-		if v_1.Op != OpConst64 {
+		if v_1.Op != ssaop.OpConst64 {
 			break
 		}
 		c := AuxIntToInt64(v_1.AuxInt)
 		if !(uint64(c) < 16) {
 			break
 		}
-		v.Reset(Op386SHLLconst)
+		v.Reset(ssaop.Op386SHLLconst)
 		v.AuxInt = Int32ToAuxInt(int32(c))
 		v.AddArg(x)
 		return true
@@ -8646,14 +8647,14 @@ func rewriteValue386_OpLsh16x64(v *Value) bool {
 	// cond: uint64(c) >= 16
 	// result: (Const16 [0])
 	for {
-		if v_1.Op != OpConst64 {
+		if v_1.Op != ssaop.OpConst64 {
 			break
 		}
 		c := AuxIntToInt64(v_1.AuxInt)
 		if !(uint64(c) >= 16) {
 			break
 		}
-		v.Reset(OpConst16)
+		v.Reset(ssaop.OpConst16)
 		v.AuxInt = Int16ToAuxInt(0)
 		return true
 	}
@@ -8673,11 +8674,11 @@ func rewriteValue386_OpLsh16x8(v *Value) bool {
 		if !(!ShiftIsBounded(v)) {
 			break
 		}
-		v.Reset(Op386ANDL)
-		v0 := b.NewValue0(v.Pos, Op386SHLL, t)
+		v.Reset(ssaop.Op386ANDL)
+		v0 := b.NewValue0(v.Pos, ssaop.Op386SHLL, t)
 		v0.AddArg2(x, y)
-		v1 := b.NewValue0(v.Pos, Op386SBBLcarrymask, t)
-		v2 := b.NewValue0(v.Pos, Op386CMPBconst, types.TypeFlags)
+		v1 := b.NewValue0(v.Pos, ssaop.Op386SBBLcarrymask, t)
+		v2 := b.NewValue0(v.Pos, ssaop.Op386CMPBconst, types.TypeFlags)
 		v2.AuxInt = Int8ToAuxInt(32)
 		v2.AddArg(y)
 		v1.AddArg(v2)
@@ -8694,7 +8695,7 @@ func rewriteValue386_OpLsh16x8(v *Value) bool {
 		if !(ShiftIsBounded(v)) {
 			break
 		}
-		v.Reset(Op386SHLL)
+		v.Reset(ssaop.Op386SHLL)
 		v.Type = t
 		v.AddArg2(x, y)
 		return true
@@ -8715,11 +8716,11 @@ func rewriteValue386_OpLsh32x16(v *Value) bool {
 		if !(!ShiftIsBounded(v)) {
 			break
 		}
-		v.Reset(Op386ANDL)
-		v0 := b.NewValue0(v.Pos, Op386SHLL, t)
+		v.Reset(ssaop.Op386ANDL)
+		v0 := b.NewValue0(v.Pos, ssaop.Op386SHLL, t)
 		v0.AddArg2(x, y)
-		v1 := b.NewValue0(v.Pos, Op386SBBLcarrymask, t)
-		v2 := b.NewValue0(v.Pos, Op386CMPWconst, types.TypeFlags)
+		v1 := b.NewValue0(v.Pos, ssaop.Op386SBBLcarrymask, t)
+		v2 := b.NewValue0(v.Pos, ssaop.Op386CMPWconst, types.TypeFlags)
 		v2.AuxInt = Int16ToAuxInt(32)
 		v2.AddArg(y)
 		v1.AddArg(v2)
@@ -8736,7 +8737,7 @@ func rewriteValue386_OpLsh32x16(v *Value) bool {
 		if !(ShiftIsBounded(v)) {
 			break
 		}
-		v.Reset(Op386SHLL)
+		v.Reset(ssaop.Op386SHLL)
 		v.Type = t
 		v.AddArg2(x, y)
 		return true
@@ -8757,11 +8758,11 @@ func rewriteValue386_OpLsh32x32(v *Value) bool {
 		if !(!ShiftIsBounded(v)) {
 			break
 		}
-		v.Reset(Op386ANDL)
-		v0 := b.NewValue0(v.Pos, Op386SHLL, t)
+		v.Reset(ssaop.Op386ANDL)
+		v0 := b.NewValue0(v.Pos, ssaop.Op386SHLL, t)
 		v0.AddArg2(x, y)
-		v1 := b.NewValue0(v.Pos, Op386SBBLcarrymask, t)
-		v2 := b.NewValue0(v.Pos, Op386CMPLconst, types.TypeFlags)
+		v1 := b.NewValue0(v.Pos, ssaop.Op386SBBLcarrymask, t)
+		v2 := b.NewValue0(v.Pos, ssaop.Op386CMPLconst, types.TypeFlags)
 		v2.AuxInt = Int32ToAuxInt(32)
 		v2.AddArg(y)
 		v1.AddArg(v2)
@@ -8778,7 +8779,7 @@ func rewriteValue386_OpLsh32x32(v *Value) bool {
 		if !(ShiftIsBounded(v)) {
 			break
 		}
-		v.Reset(Op386SHLL)
+		v.Reset(ssaop.Op386SHLL)
 		v.Type = t
 		v.AddArg2(x, y)
 		return true
@@ -8793,14 +8794,14 @@ func rewriteValue386_OpLsh32x64(v *Value) bool {
 	// result: (SHLLconst x [int32(c)])
 	for {
 		x := v_0
-		if v_1.Op != OpConst64 {
+		if v_1.Op != ssaop.OpConst64 {
 			break
 		}
 		c := AuxIntToInt64(v_1.AuxInt)
 		if !(uint64(c) < 32) {
 			break
 		}
-		v.Reset(Op386SHLLconst)
+		v.Reset(ssaop.Op386SHLLconst)
 		v.AuxInt = Int32ToAuxInt(int32(c))
 		v.AddArg(x)
 		return true
@@ -8809,14 +8810,14 @@ func rewriteValue386_OpLsh32x64(v *Value) bool {
 	// cond: uint64(c) >= 32
 	// result: (Const32 [0])
 	for {
-		if v_1.Op != OpConst64 {
+		if v_1.Op != ssaop.OpConst64 {
 			break
 		}
 		c := AuxIntToInt64(v_1.AuxInt)
 		if !(uint64(c) >= 32) {
 			break
 		}
-		v.Reset(OpConst32)
+		v.Reset(ssaop.OpConst32)
 		v.AuxInt = Int32ToAuxInt(0)
 		return true
 	}
@@ -8836,11 +8837,11 @@ func rewriteValue386_OpLsh32x8(v *Value) bool {
 		if !(!ShiftIsBounded(v)) {
 			break
 		}
-		v.Reset(Op386ANDL)
-		v0 := b.NewValue0(v.Pos, Op386SHLL, t)
+		v.Reset(ssaop.Op386ANDL)
+		v0 := b.NewValue0(v.Pos, ssaop.Op386SHLL, t)
 		v0.AddArg2(x, y)
-		v1 := b.NewValue0(v.Pos, Op386SBBLcarrymask, t)
-		v2 := b.NewValue0(v.Pos, Op386CMPBconst, types.TypeFlags)
+		v1 := b.NewValue0(v.Pos, ssaop.Op386SBBLcarrymask, t)
+		v2 := b.NewValue0(v.Pos, ssaop.Op386CMPBconst, types.TypeFlags)
 		v2.AuxInt = Int8ToAuxInt(32)
 		v2.AddArg(y)
 		v1.AddArg(v2)
@@ -8857,7 +8858,7 @@ func rewriteValue386_OpLsh32x8(v *Value) bool {
 		if !(ShiftIsBounded(v)) {
 			break
 		}
-		v.Reset(Op386SHLL)
+		v.Reset(ssaop.Op386SHLL)
 		v.Type = t
 		v.AddArg2(x, y)
 		return true
@@ -8878,11 +8879,11 @@ func rewriteValue386_OpLsh8x16(v *Value) bool {
 		if !(!ShiftIsBounded(v)) {
 			break
 		}
-		v.Reset(Op386ANDL)
-		v0 := b.NewValue0(v.Pos, Op386SHLL, t)
+		v.Reset(ssaop.Op386ANDL)
+		v0 := b.NewValue0(v.Pos, ssaop.Op386SHLL, t)
 		v0.AddArg2(x, y)
-		v1 := b.NewValue0(v.Pos, Op386SBBLcarrymask, t)
-		v2 := b.NewValue0(v.Pos, Op386CMPWconst, types.TypeFlags)
+		v1 := b.NewValue0(v.Pos, ssaop.Op386SBBLcarrymask, t)
+		v2 := b.NewValue0(v.Pos, ssaop.Op386CMPWconst, types.TypeFlags)
 		v2.AuxInt = Int16ToAuxInt(32)
 		v2.AddArg(y)
 		v1.AddArg(v2)
@@ -8899,7 +8900,7 @@ func rewriteValue386_OpLsh8x16(v *Value) bool {
 		if !(ShiftIsBounded(v)) {
 			break
 		}
-		v.Reset(Op386SHLL)
+		v.Reset(ssaop.Op386SHLL)
 		v.Type = t
 		v.AddArg2(x, y)
 		return true
@@ -8920,11 +8921,11 @@ func rewriteValue386_OpLsh8x32(v *Value) bool {
 		if !(!ShiftIsBounded(v)) {
 			break
 		}
-		v.Reset(Op386ANDL)
-		v0 := b.NewValue0(v.Pos, Op386SHLL, t)
+		v.Reset(ssaop.Op386ANDL)
+		v0 := b.NewValue0(v.Pos, ssaop.Op386SHLL, t)
 		v0.AddArg2(x, y)
-		v1 := b.NewValue0(v.Pos, Op386SBBLcarrymask, t)
-		v2 := b.NewValue0(v.Pos, Op386CMPLconst, types.TypeFlags)
+		v1 := b.NewValue0(v.Pos, ssaop.Op386SBBLcarrymask, t)
+		v2 := b.NewValue0(v.Pos, ssaop.Op386CMPLconst, types.TypeFlags)
 		v2.AuxInt = Int32ToAuxInt(32)
 		v2.AddArg(y)
 		v1.AddArg(v2)
@@ -8941,7 +8942,7 @@ func rewriteValue386_OpLsh8x32(v *Value) bool {
 		if !(ShiftIsBounded(v)) {
 			break
 		}
-		v.Reset(Op386SHLL)
+		v.Reset(ssaop.Op386SHLL)
 		v.Type = t
 		v.AddArg2(x, y)
 		return true
@@ -8956,14 +8957,14 @@ func rewriteValue386_OpLsh8x64(v *Value) bool {
 	// result: (SHLLconst x [int32(c)])
 	for {
 		x := v_0
-		if v_1.Op != OpConst64 {
+		if v_1.Op != ssaop.OpConst64 {
 			break
 		}
 		c := AuxIntToInt64(v_1.AuxInt)
 		if !(uint64(c) < 8) {
 			break
 		}
-		v.Reset(Op386SHLLconst)
+		v.Reset(ssaop.Op386SHLLconst)
 		v.AuxInt = Int32ToAuxInt(int32(c))
 		v.AddArg(x)
 		return true
@@ -8972,14 +8973,14 @@ func rewriteValue386_OpLsh8x64(v *Value) bool {
 	// cond: uint64(c) >= 8
 	// result: (Const8 [0])
 	for {
-		if v_1.Op != OpConst64 {
+		if v_1.Op != ssaop.OpConst64 {
 			break
 		}
 		c := AuxIntToInt64(v_1.AuxInt)
 		if !(uint64(c) >= 8) {
 			break
 		}
-		v.Reset(OpConst8)
+		v.Reset(ssaop.OpConst8)
 		v.AuxInt = Int8ToAuxInt(0)
 		return true
 	}
@@ -8999,11 +9000,11 @@ func rewriteValue386_OpLsh8x8(v *Value) bool {
 		if !(!ShiftIsBounded(v)) {
 			break
 		}
-		v.Reset(Op386ANDL)
-		v0 := b.NewValue0(v.Pos, Op386SHLL, t)
+		v.Reset(ssaop.Op386ANDL)
+		v0 := b.NewValue0(v.Pos, ssaop.Op386SHLL, t)
 		v0.AddArg2(x, y)
-		v1 := b.NewValue0(v.Pos, Op386SBBLcarrymask, t)
-		v2 := b.NewValue0(v.Pos, Op386CMPBconst, types.TypeFlags)
+		v1 := b.NewValue0(v.Pos, ssaop.Op386SBBLcarrymask, t)
+		v2 := b.NewValue0(v.Pos, ssaop.Op386CMPBconst, types.TypeFlags)
 		v2.AuxInt = Int8ToAuxInt(32)
 		v2.AddArg(y)
 		v1.AddArg(v2)
@@ -9020,7 +9021,7 @@ func rewriteValue386_OpLsh8x8(v *Value) bool {
 		if !(ShiftIsBounded(v)) {
 			break
 		}
-		v.Reset(Op386SHLL)
+		v.Reset(ssaop.Op386SHLL)
 		v.Type = t
 		v.AddArg2(x, y)
 		return true
@@ -9037,10 +9038,10 @@ func rewriteValue386_OpMod8(v *Value) bool {
 	for {
 		x := v_0
 		y := v_1
-		v.Reset(Op386MODW)
-		v0 := b.NewValue0(v.Pos, OpSignExt8to16, typ.Int16)
+		v.Reset(ssaop.Op386MODW)
+		v0 := b.NewValue0(v.Pos, ssaop.OpSignExt8to16, typ.Int16)
 		v0.AddArg(x)
-		v1 := b.NewValue0(v.Pos, OpSignExt8to16, typ.Int16)
+		v1 := b.NewValue0(v.Pos, ssaop.OpSignExt8to16, typ.Int16)
 		v1.AddArg(y)
 		v.AddArg2(v0, v1)
 		return true
@@ -9056,10 +9057,10 @@ func rewriteValue386_OpMod8u(v *Value) bool {
 	for {
 		x := v_0
 		y := v_1
-		v.Reset(Op386MODWU)
-		v0 := b.NewValue0(v.Pos, OpZeroExt8to16, typ.UInt16)
+		v.Reset(ssaop.Op386MODWU)
+		v0 := b.NewValue0(v.Pos, ssaop.OpZeroExt8to16, typ.UInt16)
 		v0.AddArg(x)
-		v1 := b.NewValue0(v.Pos, OpZeroExt8to16, typ.UInt16)
+		v1 := b.NewValue0(v.Pos, ssaop.OpZeroExt8to16, typ.UInt16)
 		v1.AddArg(y)
 		v.AddArg2(v0, v1)
 		return true
@@ -9090,8 +9091,8 @@ func rewriteValue386_OpMove(v *Value) bool {
 		dst := v_0
 		src := v_1
 		mem := v_2
-		v.Reset(Op386MOVBstore)
-		v0 := b.NewValue0(v.Pos, Op386MOVBload, typ.UInt8)
+		v.Reset(ssaop.Op386MOVBstore)
+		v0 := b.NewValue0(v.Pos, ssaop.Op386MOVBload, typ.UInt8)
 		v0.AddArg2(src, mem)
 		v.AddArg3(dst, v0, mem)
 		return true
@@ -9105,8 +9106,8 @@ func rewriteValue386_OpMove(v *Value) bool {
 		dst := v_0
 		src := v_1
 		mem := v_2
-		v.Reset(Op386MOVWstore)
-		v0 := b.NewValue0(v.Pos, Op386MOVWload, typ.UInt16)
+		v.Reset(ssaop.Op386MOVWstore)
+		v0 := b.NewValue0(v.Pos, ssaop.Op386MOVWload, typ.UInt16)
 		v0.AddArg2(src, mem)
 		v.AddArg3(dst, v0, mem)
 		return true
@@ -9120,8 +9121,8 @@ func rewriteValue386_OpMove(v *Value) bool {
 		dst := v_0
 		src := v_1
 		mem := v_2
-		v.Reset(Op386MOVLstore)
-		v0 := b.NewValue0(v.Pos, Op386MOVLload, typ.UInt32)
+		v.Reset(ssaop.Op386MOVLstore)
+		v0 := b.NewValue0(v.Pos, ssaop.Op386MOVLload, typ.UInt32)
 		v0.AddArg2(src, mem)
 		v.AddArg3(dst, v0, mem)
 		return true
@@ -9135,13 +9136,13 @@ func rewriteValue386_OpMove(v *Value) bool {
 		dst := v_0
 		src := v_1
 		mem := v_2
-		v.Reset(Op386MOVBstore)
+		v.Reset(ssaop.Op386MOVBstore)
 		v.AuxInt = Int32ToAuxInt(2)
-		v0 := b.NewValue0(v.Pos, Op386MOVBload, typ.UInt8)
+		v0 := b.NewValue0(v.Pos, ssaop.Op386MOVBload, typ.UInt8)
 		v0.AuxInt = Int32ToAuxInt(2)
 		v0.AddArg2(src, mem)
-		v1 := b.NewValue0(v.Pos, Op386MOVWstore, types.TypeMem)
-		v2 := b.NewValue0(v.Pos, Op386MOVWload, typ.UInt16)
+		v1 := b.NewValue0(v.Pos, ssaop.Op386MOVWstore, types.TypeMem)
+		v2 := b.NewValue0(v.Pos, ssaop.Op386MOVWload, typ.UInt16)
 		v2.AddArg2(src, mem)
 		v1.AddArg3(dst, v2, mem)
 		v.AddArg3(dst, v0, v1)
@@ -9156,13 +9157,13 @@ func rewriteValue386_OpMove(v *Value) bool {
 		dst := v_0
 		src := v_1
 		mem := v_2
-		v.Reset(Op386MOVBstore)
+		v.Reset(ssaop.Op386MOVBstore)
 		v.AuxInt = Int32ToAuxInt(4)
-		v0 := b.NewValue0(v.Pos, Op386MOVBload, typ.UInt8)
+		v0 := b.NewValue0(v.Pos, ssaop.Op386MOVBload, typ.UInt8)
 		v0.AuxInt = Int32ToAuxInt(4)
 		v0.AddArg2(src, mem)
-		v1 := b.NewValue0(v.Pos, Op386MOVLstore, types.TypeMem)
-		v2 := b.NewValue0(v.Pos, Op386MOVLload, typ.UInt32)
+		v1 := b.NewValue0(v.Pos, ssaop.Op386MOVLstore, types.TypeMem)
+		v2 := b.NewValue0(v.Pos, ssaop.Op386MOVLload, typ.UInt32)
 		v2.AddArg2(src, mem)
 		v1.AddArg3(dst, v2, mem)
 		v.AddArg3(dst, v0, v1)
@@ -9177,13 +9178,13 @@ func rewriteValue386_OpMove(v *Value) bool {
 		dst := v_0
 		src := v_1
 		mem := v_2
-		v.Reset(Op386MOVWstore)
+		v.Reset(ssaop.Op386MOVWstore)
 		v.AuxInt = Int32ToAuxInt(4)
-		v0 := b.NewValue0(v.Pos, Op386MOVWload, typ.UInt16)
+		v0 := b.NewValue0(v.Pos, ssaop.Op386MOVWload, typ.UInt16)
 		v0.AuxInt = Int32ToAuxInt(4)
 		v0.AddArg2(src, mem)
-		v1 := b.NewValue0(v.Pos, Op386MOVLstore, types.TypeMem)
-		v2 := b.NewValue0(v.Pos, Op386MOVLload, typ.UInt32)
+		v1 := b.NewValue0(v.Pos, ssaop.Op386MOVLstore, types.TypeMem)
+		v2 := b.NewValue0(v.Pos, ssaop.Op386MOVLload, typ.UInt32)
 		v2.AddArg2(src, mem)
 		v1.AddArg3(dst, v2, mem)
 		v.AddArg3(dst, v0, v1)
@@ -9198,13 +9199,13 @@ func rewriteValue386_OpMove(v *Value) bool {
 		dst := v_0
 		src := v_1
 		mem := v_2
-		v.Reset(Op386MOVLstore)
+		v.Reset(ssaop.Op386MOVLstore)
 		v.AuxInt = Int32ToAuxInt(3)
-		v0 := b.NewValue0(v.Pos, Op386MOVLload, typ.UInt32)
+		v0 := b.NewValue0(v.Pos, ssaop.Op386MOVLload, typ.UInt32)
 		v0.AuxInt = Int32ToAuxInt(3)
 		v0.AddArg2(src, mem)
-		v1 := b.NewValue0(v.Pos, Op386MOVLstore, types.TypeMem)
-		v2 := b.NewValue0(v.Pos, Op386MOVLload, typ.UInt32)
+		v1 := b.NewValue0(v.Pos, ssaop.Op386MOVLstore, types.TypeMem)
+		v2 := b.NewValue0(v.Pos, ssaop.Op386MOVLload, typ.UInt32)
 		v2.AddArg2(src, mem)
 		v1.AddArg3(dst, v2, mem)
 		v.AddArg3(dst, v0, v1)
@@ -9219,13 +9220,13 @@ func rewriteValue386_OpMove(v *Value) bool {
 		dst := v_0
 		src := v_1
 		mem := v_2
-		v.Reset(Op386MOVLstore)
+		v.Reset(ssaop.Op386MOVLstore)
 		v.AuxInt = Int32ToAuxInt(4)
-		v0 := b.NewValue0(v.Pos, Op386MOVLload, typ.UInt32)
+		v0 := b.NewValue0(v.Pos, ssaop.Op386MOVLload, typ.UInt32)
 		v0.AuxInt = Int32ToAuxInt(4)
 		v0.AddArg2(src, mem)
-		v1 := b.NewValue0(v.Pos, Op386MOVLstore, types.TypeMem)
-		v2 := b.NewValue0(v.Pos, Op386MOVLload, typ.UInt32)
+		v1 := b.NewValue0(v.Pos, ssaop.Op386MOVLstore, types.TypeMem)
+		v2 := b.NewValue0(v.Pos, ssaop.Op386MOVLload, typ.UInt32)
 		v2.AddArg2(src, mem)
 		v1.AddArg3(dst, v2, mem)
 		v.AddArg3(dst, v0, v1)
@@ -9242,16 +9243,16 @@ func rewriteValue386_OpMove(v *Value) bool {
 		if !(s > 8 && s%4 != 0) {
 			break
 		}
-		v.Reset(OpMove)
+		v.Reset(ssaop.OpMove)
 		v.AuxInt = Int64ToAuxInt(s - s%4)
-		v0 := b.NewValue0(v.Pos, Op386ADDLconst, dst.Type)
+		v0 := b.NewValue0(v.Pos, ssaop.Op386ADDLconst, dst.Type)
 		v0.AuxInt = Int32ToAuxInt(int32(s % 4))
 		v0.AddArg(dst)
-		v1 := b.NewValue0(v.Pos, Op386ADDLconst, src.Type)
+		v1 := b.NewValue0(v.Pos, ssaop.Op386ADDLconst, src.Type)
 		v1.AuxInt = Int32ToAuxInt(int32(s % 4))
 		v1.AddArg(src)
-		v2 := b.NewValue0(v.Pos, Op386MOVLstore, types.TypeMem)
-		v3 := b.NewValue0(v.Pos, Op386MOVLload, typ.UInt32)
+		v2 := b.NewValue0(v.Pos, ssaop.Op386MOVLstore, types.TypeMem)
+		v3 := b.NewValue0(v.Pos, ssaop.Op386MOVLload, typ.UInt32)
 		v3.AddArg2(src, mem)
 		v2.AddArg3(dst, v3, mem)
 		v.AddArg3(v0, v1, v2)
@@ -9268,7 +9269,7 @@ func rewriteValue386_OpMove(v *Value) bool {
 		if !(s > 8 && s <= 4*128 && s%4 == 0 && LogLargeCopyValue(v, s)) {
 			break
 		}
-		v.Reset(Op386DUFFCOPY)
+		v.Reset(ssaop.Op386DUFFCOPY)
 		v.AuxInt = Int64ToAuxInt(10 * (128 - s/4))
 		v.AddArg3(dst, src, mem)
 		return true
@@ -9284,8 +9285,8 @@ func rewriteValue386_OpMove(v *Value) bool {
 		if !(s > 4*128 && s%4 == 0 && LogLargeCopyValue(v, s)) {
 			break
 		}
-		v.Reset(Op386REPMOVSL)
-		v0 := b.NewValue0(v.Pos, Op386MOVLconst, typ.UInt32)
+		v.Reset(ssaop.Op386REPMOVSL)
+		v0 := b.NewValue0(v.Pos, ssaop.Op386MOVLconst, typ.UInt32)
 		v0.AuxInt = Int32ToAuxInt(int32(s / 4))
 		v.AddArg4(dst, src, v0, mem)
 		return true
@@ -9300,8 +9301,8 @@ func rewriteValue386_OpNeg32F(v *Value) bool {
 	// result: (PXOR x (MOVSSconst <typ.Float32> [float32(math.Copysign(0, -1))]))
 	for {
 		x := v_0
-		v.Reset(Op386PXOR)
-		v0 := b.NewValue0(v.Pos, Op386MOVSSconst, typ.Float32)
+		v.Reset(ssaop.Op386PXOR)
+		v0 := b.NewValue0(v.Pos, ssaop.Op386MOVSSconst, typ.Float32)
 		v0.AuxInt = Float32ToAuxInt(float32(math.Copysign(0, -1)))
 		v.AddArg2(x, v0)
 		return true
@@ -9315,8 +9316,8 @@ func rewriteValue386_OpNeg64F(v *Value) bool {
 	// result: (PXOR x (MOVSDconst <typ.Float64> [math.Copysign(0, -1)]))
 	for {
 		x := v_0
-		v.Reset(Op386PXOR)
-		v0 := b.NewValue0(v.Pos, Op386MOVSDconst, typ.Float64)
+		v.Reset(ssaop.Op386PXOR)
+		v0 := b.NewValue0(v.Pos, ssaop.Op386MOVSDconst, typ.Float64)
 		v0.AuxInt = Float64ToAuxInt(math.Copysign(0, -1))
 		v.AddArg2(x, v0)
 		return true
@@ -9331,8 +9332,8 @@ func rewriteValue386_OpNeq16(v *Value) bool {
 	for {
 		x := v_0
 		y := v_1
-		v.Reset(Op386SETNE)
-		v0 := b.NewValue0(v.Pos, Op386CMPW, types.TypeFlags)
+		v.Reset(ssaop.Op386SETNE)
+		v0 := b.NewValue0(v.Pos, ssaop.Op386CMPW, types.TypeFlags)
 		v0.AddArg2(x, y)
 		v.AddArg(v0)
 		return true
@@ -9347,8 +9348,8 @@ func rewriteValue386_OpNeq32(v *Value) bool {
 	for {
 		x := v_0
 		y := v_1
-		v.Reset(Op386SETNE)
-		v0 := b.NewValue0(v.Pos, Op386CMPL, types.TypeFlags)
+		v.Reset(ssaop.Op386SETNE)
+		v0 := b.NewValue0(v.Pos, ssaop.Op386CMPL, types.TypeFlags)
 		v0.AddArg2(x, y)
 		v.AddArg(v0)
 		return true
@@ -9363,8 +9364,8 @@ func rewriteValue386_OpNeq32F(v *Value) bool {
 	for {
 		x := v_0
 		y := v_1
-		v.Reset(Op386SETNEF)
-		v0 := b.NewValue0(v.Pos, Op386UCOMISS, types.TypeFlags)
+		v.Reset(ssaop.Op386SETNEF)
+		v0 := b.NewValue0(v.Pos, ssaop.Op386UCOMISS, types.TypeFlags)
 		v0.AddArg2(x, y)
 		v.AddArg(v0)
 		return true
@@ -9379,8 +9380,8 @@ func rewriteValue386_OpNeq64F(v *Value) bool {
 	for {
 		x := v_0
 		y := v_1
-		v.Reset(Op386SETNEF)
-		v0 := b.NewValue0(v.Pos, Op386UCOMISD, types.TypeFlags)
+		v.Reset(ssaop.Op386SETNEF)
+		v0 := b.NewValue0(v.Pos, ssaop.Op386UCOMISD, types.TypeFlags)
 		v0.AddArg2(x, y)
 		v.AddArg(v0)
 		return true
@@ -9395,8 +9396,8 @@ func rewriteValue386_OpNeq8(v *Value) bool {
 	for {
 		x := v_0
 		y := v_1
-		v.Reset(Op386SETNE)
-		v0 := b.NewValue0(v.Pos, Op386CMPB, types.TypeFlags)
+		v.Reset(ssaop.Op386SETNE)
+		v0 := b.NewValue0(v.Pos, ssaop.Op386CMPB, types.TypeFlags)
 		v0.AddArg2(x, y)
 		v.AddArg(v0)
 		return true
@@ -9411,8 +9412,8 @@ func rewriteValue386_OpNeqB(v *Value) bool {
 	for {
 		x := v_0
 		y := v_1
-		v.Reset(Op386SETNE)
-		v0 := b.NewValue0(v.Pos, Op386CMPB, types.TypeFlags)
+		v.Reset(ssaop.Op386SETNE)
+		v0 := b.NewValue0(v.Pos, ssaop.Op386CMPB, types.TypeFlags)
 		v0.AddArg2(x, y)
 		v.AddArg(v0)
 		return true
@@ -9427,8 +9428,8 @@ func rewriteValue386_OpNeqPtr(v *Value) bool {
 	for {
 		x := v_0
 		y := v_1
-		v.Reset(Op386SETNE)
-		v0 := b.NewValue0(v.Pos, Op386CMPL, types.TypeFlags)
+		v.Reset(ssaop.Op386SETNE)
+		v0 := b.NewValue0(v.Pos, ssaop.Op386CMPL, types.TypeFlags)
 		v0.AddArg2(x, y)
 		v.AddArg(v0)
 		return true
@@ -9440,7 +9441,7 @@ func rewriteValue386_OpNot(v *Value) bool {
 	// result: (XORLconst [1] x)
 	for {
 		x := v_0
-		v.Reset(Op386XORLconst)
+		v.Reset(ssaop.Op386XORLconst)
 		v.AuxInt = Int32ToAuxInt(1)
 		v.AddArg(x)
 		return true
@@ -9453,7 +9454,7 @@ func rewriteValue386_OpOffPtr(v *Value) bool {
 	for {
 		off := AuxIntToInt64(v.AuxInt)
 		ptr := v_0
-		v.Reset(Op386ADDLconst)
+		v.Reset(ssaop.Op386ADDLconst)
 		v.AuxInt = Int32ToAuxInt(int32(off))
 		v.AddArg(ptr)
 		return true
@@ -9473,11 +9474,11 @@ func rewriteValue386_OpRsh16Ux16(v *Value) bool {
 		if !(!ShiftIsBounded(v)) {
 			break
 		}
-		v.Reset(Op386ANDL)
-		v0 := b.NewValue0(v.Pos, Op386SHRW, t)
+		v.Reset(ssaop.Op386ANDL)
+		v0 := b.NewValue0(v.Pos, ssaop.Op386SHRW, t)
 		v0.AddArg2(x, y)
-		v1 := b.NewValue0(v.Pos, Op386SBBLcarrymask, t)
-		v2 := b.NewValue0(v.Pos, Op386CMPWconst, types.TypeFlags)
+		v1 := b.NewValue0(v.Pos, ssaop.Op386SBBLcarrymask, t)
+		v2 := b.NewValue0(v.Pos, ssaop.Op386CMPWconst, types.TypeFlags)
 		v2.AuxInt = Int16ToAuxInt(16)
 		v2.AddArg(y)
 		v1.AddArg(v2)
@@ -9494,7 +9495,7 @@ func rewriteValue386_OpRsh16Ux16(v *Value) bool {
 		if !(ShiftIsBounded(v)) {
 			break
 		}
-		v.Reset(Op386SHRW)
+		v.Reset(ssaop.Op386SHRW)
 		v.Type = t
 		v.AddArg2(x, y)
 		return true
@@ -9515,11 +9516,11 @@ func rewriteValue386_OpRsh16Ux32(v *Value) bool {
 		if !(!ShiftIsBounded(v)) {
 			break
 		}
-		v.Reset(Op386ANDL)
-		v0 := b.NewValue0(v.Pos, Op386SHRW, t)
+		v.Reset(ssaop.Op386ANDL)
+		v0 := b.NewValue0(v.Pos, ssaop.Op386SHRW, t)
 		v0.AddArg2(x, y)
-		v1 := b.NewValue0(v.Pos, Op386SBBLcarrymask, t)
-		v2 := b.NewValue0(v.Pos, Op386CMPLconst, types.TypeFlags)
+		v1 := b.NewValue0(v.Pos, ssaop.Op386SBBLcarrymask, t)
+		v2 := b.NewValue0(v.Pos, ssaop.Op386CMPLconst, types.TypeFlags)
 		v2.AuxInt = Int32ToAuxInt(16)
 		v2.AddArg(y)
 		v1.AddArg(v2)
@@ -9536,7 +9537,7 @@ func rewriteValue386_OpRsh16Ux32(v *Value) bool {
 		if !(ShiftIsBounded(v)) {
 			break
 		}
-		v.Reset(Op386SHRW)
+		v.Reset(ssaop.Op386SHRW)
 		v.Type = t
 		v.AddArg2(x, y)
 		return true
@@ -9551,14 +9552,14 @@ func rewriteValue386_OpRsh16Ux64(v *Value) bool {
 	// result: (SHRWconst x [int16(c)])
 	for {
 		x := v_0
-		if v_1.Op != OpConst64 {
+		if v_1.Op != ssaop.OpConst64 {
 			break
 		}
 		c := AuxIntToInt64(v_1.AuxInt)
 		if !(uint64(c) < 16) {
 			break
 		}
-		v.Reset(Op386SHRWconst)
+		v.Reset(ssaop.Op386SHRWconst)
 		v.AuxInt = Int16ToAuxInt(int16(c))
 		v.AddArg(x)
 		return true
@@ -9567,14 +9568,14 @@ func rewriteValue386_OpRsh16Ux64(v *Value) bool {
 	// cond: uint64(c) >= 16
 	// result: (Const16 [0])
 	for {
-		if v_1.Op != OpConst64 {
+		if v_1.Op != ssaop.OpConst64 {
 			break
 		}
 		c := AuxIntToInt64(v_1.AuxInt)
 		if !(uint64(c) >= 16) {
 			break
 		}
-		v.Reset(OpConst16)
+		v.Reset(ssaop.OpConst16)
 		v.AuxInt = Int16ToAuxInt(0)
 		return true
 	}
@@ -9594,11 +9595,11 @@ func rewriteValue386_OpRsh16Ux8(v *Value) bool {
 		if !(!ShiftIsBounded(v)) {
 			break
 		}
-		v.Reset(Op386ANDL)
-		v0 := b.NewValue0(v.Pos, Op386SHRW, t)
+		v.Reset(ssaop.Op386ANDL)
+		v0 := b.NewValue0(v.Pos, ssaop.Op386SHRW, t)
 		v0.AddArg2(x, y)
-		v1 := b.NewValue0(v.Pos, Op386SBBLcarrymask, t)
-		v2 := b.NewValue0(v.Pos, Op386CMPBconst, types.TypeFlags)
+		v1 := b.NewValue0(v.Pos, ssaop.Op386SBBLcarrymask, t)
+		v2 := b.NewValue0(v.Pos, ssaop.Op386CMPBconst, types.TypeFlags)
 		v2.AuxInt = Int8ToAuxInt(16)
 		v2.AddArg(y)
 		v1.AddArg(v2)
@@ -9615,7 +9616,7 @@ func rewriteValue386_OpRsh16Ux8(v *Value) bool {
 		if !(ShiftIsBounded(v)) {
 			break
 		}
-		v.Reset(Op386SHRW)
+		v.Reset(ssaop.Op386SHRW)
 		v.Type = t
 		v.AddArg2(x, y)
 		return true
@@ -9636,12 +9637,12 @@ func rewriteValue386_OpRsh16x16(v *Value) bool {
 		if !(!ShiftIsBounded(v)) {
 			break
 		}
-		v.Reset(Op386SARW)
+		v.Reset(ssaop.Op386SARW)
 		v.Type = t
-		v0 := b.NewValue0(v.Pos, Op386ORL, y.Type)
-		v1 := b.NewValue0(v.Pos, Op386NOTL, y.Type)
-		v2 := b.NewValue0(v.Pos, Op386SBBLcarrymask, y.Type)
-		v3 := b.NewValue0(v.Pos, Op386CMPWconst, types.TypeFlags)
+		v0 := b.NewValue0(v.Pos, ssaop.Op386ORL, y.Type)
+		v1 := b.NewValue0(v.Pos, ssaop.Op386NOTL, y.Type)
+		v2 := b.NewValue0(v.Pos, ssaop.Op386SBBLcarrymask, y.Type)
+		v3 := b.NewValue0(v.Pos, ssaop.Op386CMPWconst, types.TypeFlags)
 		v3.AuxInt = Int16ToAuxInt(16)
 		v3.AddArg(y)
 		v2.AddArg(v3)
@@ -9659,7 +9660,7 @@ func rewriteValue386_OpRsh16x16(v *Value) bool {
 		if !(ShiftIsBounded(v)) {
 			break
 		}
-		v.Reset(Op386SARW)
+		v.Reset(ssaop.Op386SARW)
 		v.AddArg2(x, y)
 		return true
 	}
@@ -9679,12 +9680,12 @@ func rewriteValue386_OpRsh16x32(v *Value) bool {
 		if !(!ShiftIsBounded(v)) {
 			break
 		}
-		v.Reset(Op386SARW)
+		v.Reset(ssaop.Op386SARW)
 		v.Type = t
-		v0 := b.NewValue0(v.Pos, Op386ORL, y.Type)
-		v1 := b.NewValue0(v.Pos, Op386NOTL, y.Type)
-		v2 := b.NewValue0(v.Pos, Op386SBBLcarrymask, y.Type)
-		v3 := b.NewValue0(v.Pos, Op386CMPLconst, types.TypeFlags)
+		v0 := b.NewValue0(v.Pos, ssaop.Op386ORL, y.Type)
+		v1 := b.NewValue0(v.Pos, ssaop.Op386NOTL, y.Type)
+		v2 := b.NewValue0(v.Pos, ssaop.Op386SBBLcarrymask, y.Type)
+		v3 := b.NewValue0(v.Pos, ssaop.Op386CMPLconst, types.TypeFlags)
 		v3.AuxInt = Int32ToAuxInt(16)
 		v3.AddArg(y)
 		v2.AddArg(v3)
@@ -9702,7 +9703,7 @@ func rewriteValue386_OpRsh16x32(v *Value) bool {
 		if !(ShiftIsBounded(v)) {
 			break
 		}
-		v.Reset(Op386SARW)
+		v.Reset(ssaop.Op386SARW)
 		v.AddArg2(x, y)
 		return true
 	}
@@ -9716,14 +9717,14 @@ func rewriteValue386_OpRsh16x64(v *Value) bool {
 	// result: (SARWconst x [int16(c)])
 	for {
 		x := v_0
-		if v_1.Op != OpConst64 {
+		if v_1.Op != ssaop.OpConst64 {
 			break
 		}
 		c := AuxIntToInt64(v_1.AuxInt)
 		if !(uint64(c) < 16) {
 			break
 		}
-		v.Reset(Op386SARWconst)
+		v.Reset(ssaop.Op386SARWconst)
 		v.AuxInt = Int16ToAuxInt(int16(c))
 		v.AddArg(x)
 		return true
@@ -9733,14 +9734,14 @@ func rewriteValue386_OpRsh16x64(v *Value) bool {
 	// result: (SARWconst x [15])
 	for {
 		x := v_0
-		if v_1.Op != OpConst64 {
+		if v_1.Op != ssaop.OpConst64 {
 			break
 		}
 		c := AuxIntToInt64(v_1.AuxInt)
 		if !(uint64(c) >= 16) {
 			break
 		}
-		v.Reset(Op386SARWconst)
+		v.Reset(ssaop.Op386SARWconst)
 		v.AuxInt = Int16ToAuxInt(15)
 		v.AddArg(x)
 		return true
@@ -9761,12 +9762,12 @@ func rewriteValue386_OpRsh16x8(v *Value) bool {
 		if !(!ShiftIsBounded(v)) {
 			break
 		}
-		v.Reset(Op386SARW)
+		v.Reset(ssaop.Op386SARW)
 		v.Type = t
-		v0 := b.NewValue0(v.Pos, Op386ORL, y.Type)
-		v1 := b.NewValue0(v.Pos, Op386NOTL, y.Type)
-		v2 := b.NewValue0(v.Pos, Op386SBBLcarrymask, y.Type)
-		v3 := b.NewValue0(v.Pos, Op386CMPBconst, types.TypeFlags)
+		v0 := b.NewValue0(v.Pos, ssaop.Op386ORL, y.Type)
+		v1 := b.NewValue0(v.Pos, ssaop.Op386NOTL, y.Type)
+		v2 := b.NewValue0(v.Pos, ssaop.Op386SBBLcarrymask, y.Type)
+		v3 := b.NewValue0(v.Pos, ssaop.Op386CMPBconst, types.TypeFlags)
 		v3.AuxInt = Int8ToAuxInt(16)
 		v3.AddArg(y)
 		v2.AddArg(v3)
@@ -9784,7 +9785,7 @@ func rewriteValue386_OpRsh16x8(v *Value) bool {
 		if !(ShiftIsBounded(v)) {
 			break
 		}
-		v.Reset(Op386SARW)
+		v.Reset(ssaop.Op386SARW)
 		v.AddArg2(x, y)
 		return true
 	}
@@ -9804,11 +9805,11 @@ func rewriteValue386_OpRsh32Ux16(v *Value) bool {
 		if !(!ShiftIsBounded(v)) {
 			break
 		}
-		v.Reset(Op386ANDL)
-		v0 := b.NewValue0(v.Pos, Op386SHRL, t)
+		v.Reset(ssaop.Op386ANDL)
+		v0 := b.NewValue0(v.Pos, ssaop.Op386SHRL, t)
 		v0.AddArg2(x, y)
-		v1 := b.NewValue0(v.Pos, Op386SBBLcarrymask, t)
-		v2 := b.NewValue0(v.Pos, Op386CMPWconst, types.TypeFlags)
+		v1 := b.NewValue0(v.Pos, ssaop.Op386SBBLcarrymask, t)
+		v2 := b.NewValue0(v.Pos, ssaop.Op386CMPWconst, types.TypeFlags)
 		v2.AuxInt = Int16ToAuxInt(32)
 		v2.AddArg(y)
 		v1.AddArg(v2)
@@ -9825,7 +9826,7 @@ func rewriteValue386_OpRsh32Ux16(v *Value) bool {
 		if !(ShiftIsBounded(v)) {
 			break
 		}
-		v.Reset(Op386SHRL)
+		v.Reset(ssaop.Op386SHRL)
 		v.Type = t
 		v.AddArg2(x, y)
 		return true
@@ -9846,11 +9847,11 @@ func rewriteValue386_OpRsh32Ux32(v *Value) bool {
 		if !(!ShiftIsBounded(v)) {
 			break
 		}
-		v.Reset(Op386ANDL)
-		v0 := b.NewValue0(v.Pos, Op386SHRL, t)
+		v.Reset(ssaop.Op386ANDL)
+		v0 := b.NewValue0(v.Pos, ssaop.Op386SHRL, t)
 		v0.AddArg2(x, y)
-		v1 := b.NewValue0(v.Pos, Op386SBBLcarrymask, t)
-		v2 := b.NewValue0(v.Pos, Op386CMPLconst, types.TypeFlags)
+		v1 := b.NewValue0(v.Pos, ssaop.Op386SBBLcarrymask, t)
+		v2 := b.NewValue0(v.Pos, ssaop.Op386CMPLconst, types.TypeFlags)
 		v2.AuxInt = Int32ToAuxInt(32)
 		v2.AddArg(y)
 		v1.AddArg(v2)
@@ -9867,7 +9868,7 @@ func rewriteValue386_OpRsh32Ux32(v *Value) bool {
 		if !(ShiftIsBounded(v)) {
 			break
 		}
-		v.Reset(Op386SHRL)
+		v.Reset(ssaop.Op386SHRL)
 		v.Type = t
 		v.AddArg2(x, y)
 		return true
@@ -9882,14 +9883,14 @@ func rewriteValue386_OpRsh32Ux64(v *Value) bool {
 	// result: (SHRLconst x [int32(c)])
 	for {
 		x := v_0
-		if v_1.Op != OpConst64 {
+		if v_1.Op != ssaop.OpConst64 {
 			break
 		}
 		c := AuxIntToInt64(v_1.AuxInt)
 		if !(uint64(c) < 32) {
 			break
 		}
-		v.Reset(Op386SHRLconst)
+		v.Reset(ssaop.Op386SHRLconst)
 		v.AuxInt = Int32ToAuxInt(int32(c))
 		v.AddArg(x)
 		return true
@@ -9898,14 +9899,14 @@ func rewriteValue386_OpRsh32Ux64(v *Value) bool {
 	// cond: uint64(c) >= 32
 	// result: (Const32 [0])
 	for {
-		if v_1.Op != OpConst64 {
+		if v_1.Op != ssaop.OpConst64 {
 			break
 		}
 		c := AuxIntToInt64(v_1.AuxInt)
 		if !(uint64(c) >= 32) {
 			break
 		}
-		v.Reset(OpConst32)
+		v.Reset(ssaop.OpConst32)
 		v.AuxInt = Int32ToAuxInt(0)
 		return true
 	}
@@ -9925,11 +9926,11 @@ func rewriteValue386_OpRsh32Ux8(v *Value) bool {
 		if !(!ShiftIsBounded(v)) {
 			break
 		}
-		v.Reset(Op386ANDL)
-		v0 := b.NewValue0(v.Pos, Op386SHRL, t)
+		v.Reset(ssaop.Op386ANDL)
+		v0 := b.NewValue0(v.Pos, ssaop.Op386SHRL, t)
 		v0.AddArg2(x, y)
-		v1 := b.NewValue0(v.Pos, Op386SBBLcarrymask, t)
-		v2 := b.NewValue0(v.Pos, Op386CMPBconst, types.TypeFlags)
+		v1 := b.NewValue0(v.Pos, ssaop.Op386SBBLcarrymask, t)
+		v2 := b.NewValue0(v.Pos, ssaop.Op386CMPBconst, types.TypeFlags)
 		v2.AuxInt = Int8ToAuxInt(32)
 		v2.AddArg(y)
 		v1.AddArg(v2)
@@ -9946,7 +9947,7 @@ func rewriteValue386_OpRsh32Ux8(v *Value) bool {
 		if !(ShiftIsBounded(v)) {
 			break
 		}
-		v.Reset(Op386SHRL)
+		v.Reset(ssaop.Op386SHRL)
 		v.Type = t
 		v.AddArg2(x, y)
 		return true
@@ -9967,12 +9968,12 @@ func rewriteValue386_OpRsh32x16(v *Value) bool {
 		if !(!ShiftIsBounded(v)) {
 			break
 		}
-		v.Reset(Op386SARL)
+		v.Reset(ssaop.Op386SARL)
 		v.Type = t
-		v0 := b.NewValue0(v.Pos, Op386ORL, y.Type)
-		v1 := b.NewValue0(v.Pos, Op386NOTL, y.Type)
-		v2 := b.NewValue0(v.Pos, Op386SBBLcarrymask, y.Type)
-		v3 := b.NewValue0(v.Pos, Op386CMPWconst, types.TypeFlags)
+		v0 := b.NewValue0(v.Pos, ssaop.Op386ORL, y.Type)
+		v1 := b.NewValue0(v.Pos, ssaop.Op386NOTL, y.Type)
+		v2 := b.NewValue0(v.Pos, ssaop.Op386SBBLcarrymask, y.Type)
+		v3 := b.NewValue0(v.Pos, ssaop.Op386CMPWconst, types.TypeFlags)
 		v3.AuxInt = Int16ToAuxInt(32)
 		v3.AddArg(y)
 		v2.AddArg(v3)
@@ -9990,7 +9991,7 @@ func rewriteValue386_OpRsh32x16(v *Value) bool {
 		if !(ShiftIsBounded(v)) {
 			break
 		}
-		v.Reset(Op386SARL)
+		v.Reset(ssaop.Op386SARL)
 		v.AddArg2(x, y)
 		return true
 	}
@@ -10010,12 +10011,12 @@ func rewriteValue386_OpRsh32x32(v *Value) bool {
 		if !(!ShiftIsBounded(v)) {
 			break
 		}
-		v.Reset(Op386SARL)
+		v.Reset(ssaop.Op386SARL)
 		v.Type = t
-		v0 := b.NewValue0(v.Pos, Op386ORL, y.Type)
-		v1 := b.NewValue0(v.Pos, Op386NOTL, y.Type)
-		v2 := b.NewValue0(v.Pos, Op386SBBLcarrymask, y.Type)
-		v3 := b.NewValue0(v.Pos, Op386CMPLconst, types.TypeFlags)
+		v0 := b.NewValue0(v.Pos, ssaop.Op386ORL, y.Type)
+		v1 := b.NewValue0(v.Pos, ssaop.Op386NOTL, y.Type)
+		v2 := b.NewValue0(v.Pos, ssaop.Op386SBBLcarrymask, y.Type)
+		v3 := b.NewValue0(v.Pos, ssaop.Op386CMPLconst, types.TypeFlags)
 		v3.AuxInt = Int32ToAuxInt(32)
 		v3.AddArg(y)
 		v2.AddArg(v3)
@@ -10033,7 +10034,7 @@ func rewriteValue386_OpRsh32x32(v *Value) bool {
 		if !(ShiftIsBounded(v)) {
 			break
 		}
-		v.Reset(Op386SARL)
+		v.Reset(ssaop.Op386SARL)
 		v.AddArg2(x, y)
 		return true
 	}
@@ -10047,14 +10048,14 @@ func rewriteValue386_OpRsh32x64(v *Value) bool {
 	// result: (SARLconst x [int32(c)])
 	for {
 		x := v_0
-		if v_1.Op != OpConst64 {
+		if v_1.Op != ssaop.OpConst64 {
 			break
 		}
 		c := AuxIntToInt64(v_1.AuxInt)
 		if !(uint64(c) < 32) {
 			break
 		}
-		v.Reset(Op386SARLconst)
+		v.Reset(ssaop.Op386SARLconst)
 		v.AuxInt = Int32ToAuxInt(int32(c))
 		v.AddArg(x)
 		return true
@@ -10064,14 +10065,14 @@ func rewriteValue386_OpRsh32x64(v *Value) bool {
 	// result: (SARLconst x [31])
 	for {
 		x := v_0
-		if v_1.Op != OpConst64 {
+		if v_1.Op != ssaop.OpConst64 {
 			break
 		}
 		c := AuxIntToInt64(v_1.AuxInt)
 		if !(uint64(c) >= 32) {
 			break
 		}
-		v.Reset(Op386SARLconst)
+		v.Reset(ssaop.Op386SARLconst)
 		v.AuxInt = Int32ToAuxInt(31)
 		v.AddArg(x)
 		return true
@@ -10092,12 +10093,12 @@ func rewriteValue386_OpRsh32x8(v *Value) bool {
 		if !(!ShiftIsBounded(v)) {
 			break
 		}
-		v.Reset(Op386SARL)
+		v.Reset(ssaop.Op386SARL)
 		v.Type = t
-		v0 := b.NewValue0(v.Pos, Op386ORL, y.Type)
-		v1 := b.NewValue0(v.Pos, Op386NOTL, y.Type)
-		v2 := b.NewValue0(v.Pos, Op386SBBLcarrymask, y.Type)
-		v3 := b.NewValue0(v.Pos, Op386CMPBconst, types.TypeFlags)
+		v0 := b.NewValue0(v.Pos, ssaop.Op386ORL, y.Type)
+		v1 := b.NewValue0(v.Pos, ssaop.Op386NOTL, y.Type)
+		v2 := b.NewValue0(v.Pos, ssaop.Op386SBBLcarrymask, y.Type)
+		v3 := b.NewValue0(v.Pos, ssaop.Op386CMPBconst, types.TypeFlags)
 		v3.AuxInt = Int8ToAuxInt(32)
 		v3.AddArg(y)
 		v2.AddArg(v3)
@@ -10115,7 +10116,7 @@ func rewriteValue386_OpRsh32x8(v *Value) bool {
 		if !(ShiftIsBounded(v)) {
 			break
 		}
-		v.Reset(Op386SARL)
+		v.Reset(ssaop.Op386SARL)
 		v.AddArg2(x, y)
 		return true
 	}
@@ -10135,11 +10136,11 @@ func rewriteValue386_OpRsh8Ux16(v *Value) bool {
 		if !(!ShiftIsBounded(v)) {
 			break
 		}
-		v.Reset(Op386ANDL)
-		v0 := b.NewValue0(v.Pos, Op386SHRB, t)
+		v.Reset(ssaop.Op386ANDL)
+		v0 := b.NewValue0(v.Pos, ssaop.Op386SHRB, t)
 		v0.AddArg2(x, y)
-		v1 := b.NewValue0(v.Pos, Op386SBBLcarrymask, t)
-		v2 := b.NewValue0(v.Pos, Op386CMPWconst, types.TypeFlags)
+		v1 := b.NewValue0(v.Pos, ssaop.Op386SBBLcarrymask, t)
+		v2 := b.NewValue0(v.Pos, ssaop.Op386CMPWconst, types.TypeFlags)
 		v2.AuxInt = Int16ToAuxInt(8)
 		v2.AddArg(y)
 		v1.AddArg(v2)
@@ -10156,7 +10157,7 @@ func rewriteValue386_OpRsh8Ux16(v *Value) bool {
 		if !(ShiftIsBounded(v)) {
 			break
 		}
-		v.Reset(Op386SHRB)
+		v.Reset(ssaop.Op386SHRB)
 		v.Type = t
 		v.AddArg2(x, y)
 		return true
@@ -10177,11 +10178,11 @@ func rewriteValue386_OpRsh8Ux32(v *Value) bool {
 		if !(!ShiftIsBounded(v)) {
 			break
 		}
-		v.Reset(Op386ANDL)
-		v0 := b.NewValue0(v.Pos, Op386SHRB, t)
+		v.Reset(ssaop.Op386ANDL)
+		v0 := b.NewValue0(v.Pos, ssaop.Op386SHRB, t)
 		v0.AddArg2(x, y)
-		v1 := b.NewValue0(v.Pos, Op386SBBLcarrymask, t)
-		v2 := b.NewValue0(v.Pos, Op386CMPLconst, types.TypeFlags)
+		v1 := b.NewValue0(v.Pos, ssaop.Op386SBBLcarrymask, t)
+		v2 := b.NewValue0(v.Pos, ssaop.Op386CMPLconst, types.TypeFlags)
 		v2.AuxInt = Int32ToAuxInt(8)
 		v2.AddArg(y)
 		v1.AddArg(v2)
@@ -10198,7 +10199,7 @@ func rewriteValue386_OpRsh8Ux32(v *Value) bool {
 		if !(ShiftIsBounded(v)) {
 			break
 		}
-		v.Reset(Op386SHRB)
+		v.Reset(ssaop.Op386SHRB)
 		v.Type = t
 		v.AddArg2(x, y)
 		return true
@@ -10213,14 +10214,14 @@ func rewriteValue386_OpRsh8Ux64(v *Value) bool {
 	// result: (SHRBconst x [int8(c)])
 	for {
 		x := v_0
-		if v_1.Op != OpConst64 {
+		if v_1.Op != ssaop.OpConst64 {
 			break
 		}
 		c := AuxIntToInt64(v_1.AuxInt)
 		if !(uint64(c) < 8) {
 			break
 		}
-		v.Reset(Op386SHRBconst)
+		v.Reset(ssaop.Op386SHRBconst)
 		v.AuxInt = Int8ToAuxInt(int8(c))
 		v.AddArg(x)
 		return true
@@ -10229,14 +10230,14 @@ func rewriteValue386_OpRsh8Ux64(v *Value) bool {
 	// cond: uint64(c) >= 8
 	// result: (Const8 [0])
 	for {
-		if v_1.Op != OpConst64 {
+		if v_1.Op != ssaop.OpConst64 {
 			break
 		}
 		c := AuxIntToInt64(v_1.AuxInt)
 		if !(uint64(c) >= 8) {
 			break
 		}
-		v.Reset(OpConst8)
+		v.Reset(ssaop.OpConst8)
 		v.AuxInt = Int8ToAuxInt(0)
 		return true
 	}
@@ -10256,11 +10257,11 @@ func rewriteValue386_OpRsh8Ux8(v *Value) bool {
 		if !(!ShiftIsBounded(v)) {
 			break
 		}
-		v.Reset(Op386ANDL)
-		v0 := b.NewValue0(v.Pos, Op386SHRB, t)
+		v.Reset(ssaop.Op386ANDL)
+		v0 := b.NewValue0(v.Pos, ssaop.Op386SHRB, t)
 		v0.AddArg2(x, y)
-		v1 := b.NewValue0(v.Pos, Op386SBBLcarrymask, t)
-		v2 := b.NewValue0(v.Pos, Op386CMPBconst, types.TypeFlags)
+		v1 := b.NewValue0(v.Pos, ssaop.Op386SBBLcarrymask, t)
+		v2 := b.NewValue0(v.Pos, ssaop.Op386CMPBconst, types.TypeFlags)
 		v2.AuxInt = Int8ToAuxInt(8)
 		v2.AddArg(y)
 		v1.AddArg(v2)
@@ -10277,7 +10278,7 @@ func rewriteValue386_OpRsh8Ux8(v *Value) bool {
 		if !(ShiftIsBounded(v)) {
 			break
 		}
-		v.Reset(Op386SHRB)
+		v.Reset(ssaop.Op386SHRB)
 		v.Type = t
 		v.AddArg2(x, y)
 		return true
@@ -10298,12 +10299,12 @@ func rewriteValue386_OpRsh8x16(v *Value) bool {
 		if !(!ShiftIsBounded(v)) {
 			break
 		}
-		v.Reset(Op386SARB)
+		v.Reset(ssaop.Op386SARB)
 		v.Type = t
-		v0 := b.NewValue0(v.Pos, Op386ORL, y.Type)
-		v1 := b.NewValue0(v.Pos, Op386NOTL, y.Type)
-		v2 := b.NewValue0(v.Pos, Op386SBBLcarrymask, y.Type)
-		v3 := b.NewValue0(v.Pos, Op386CMPWconst, types.TypeFlags)
+		v0 := b.NewValue0(v.Pos, ssaop.Op386ORL, y.Type)
+		v1 := b.NewValue0(v.Pos, ssaop.Op386NOTL, y.Type)
+		v2 := b.NewValue0(v.Pos, ssaop.Op386SBBLcarrymask, y.Type)
+		v3 := b.NewValue0(v.Pos, ssaop.Op386CMPWconst, types.TypeFlags)
 		v3.AuxInt = Int16ToAuxInt(8)
 		v3.AddArg(y)
 		v2.AddArg(v3)
@@ -10321,7 +10322,7 @@ func rewriteValue386_OpRsh8x16(v *Value) bool {
 		if !(ShiftIsBounded(v)) {
 			break
 		}
-		v.Reset(Op386SARB)
+		v.Reset(ssaop.Op386SARB)
 		v.AddArg2(x, y)
 		return true
 	}
@@ -10341,12 +10342,12 @@ func rewriteValue386_OpRsh8x32(v *Value) bool {
 		if !(!ShiftIsBounded(v)) {
 			break
 		}
-		v.Reset(Op386SARB)
+		v.Reset(ssaop.Op386SARB)
 		v.Type = t
-		v0 := b.NewValue0(v.Pos, Op386ORL, y.Type)
-		v1 := b.NewValue0(v.Pos, Op386NOTL, y.Type)
-		v2 := b.NewValue0(v.Pos, Op386SBBLcarrymask, y.Type)
-		v3 := b.NewValue0(v.Pos, Op386CMPLconst, types.TypeFlags)
+		v0 := b.NewValue0(v.Pos, ssaop.Op386ORL, y.Type)
+		v1 := b.NewValue0(v.Pos, ssaop.Op386NOTL, y.Type)
+		v2 := b.NewValue0(v.Pos, ssaop.Op386SBBLcarrymask, y.Type)
+		v3 := b.NewValue0(v.Pos, ssaop.Op386CMPLconst, types.TypeFlags)
 		v3.AuxInt = Int32ToAuxInt(8)
 		v3.AddArg(y)
 		v2.AddArg(v3)
@@ -10364,7 +10365,7 @@ func rewriteValue386_OpRsh8x32(v *Value) bool {
 		if !(ShiftIsBounded(v)) {
 			break
 		}
-		v.Reset(Op386SARB)
+		v.Reset(ssaop.Op386SARB)
 		v.AddArg2(x, y)
 		return true
 	}
@@ -10378,14 +10379,14 @@ func rewriteValue386_OpRsh8x64(v *Value) bool {
 	// result: (SARBconst x [int8(c)])
 	for {
 		x := v_0
-		if v_1.Op != OpConst64 {
+		if v_1.Op != ssaop.OpConst64 {
 			break
 		}
 		c := AuxIntToInt64(v_1.AuxInt)
 		if !(uint64(c) < 8) {
 			break
 		}
-		v.Reset(Op386SARBconst)
+		v.Reset(ssaop.Op386SARBconst)
 		v.AuxInt = Int8ToAuxInt(int8(c))
 		v.AddArg(x)
 		return true
@@ -10395,14 +10396,14 @@ func rewriteValue386_OpRsh8x64(v *Value) bool {
 	// result: (SARBconst x [7])
 	for {
 		x := v_0
-		if v_1.Op != OpConst64 {
+		if v_1.Op != ssaop.OpConst64 {
 			break
 		}
 		c := AuxIntToInt64(v_1.AuxInt)
 		if !(uint64(c) >= 8) {
 			break
 		}
-		v.Reset(Op386SARBconst)
+		v.Reset(ssaop.Op386SARBconst)
 		v.AuxInt = Int8ToAuxInt(7)
 		v.AddArg(x)
 		return true
@@ -10423,12 +10424,12 @@ func rewriteValue386_OpRsh8x8(v *Value) bool {
 		if !(!ShiftIsBounded(v)) {
 			break
 		}
-		v.Reset(Op386SARB)
+		v.Reset(ssaop.Op386SARB)
 		v.Type = t
-		v0 := b.NewValue0(v.Pos, Op386ORL, y.Type)
-		v1 := b.NewValue0(v.Pos, Op386NOTL, y.Type)
-		v2 := b.NewValue0(v.Pos, Op386SBBLcarrymask, y.Type)
-		v3 := b.NewValue0(v.Pos, Op386CMPBconst, types.TypeFlags)
+		v0 := b.NewValue0(v.Pos, ssaop.Op386ORL, y.Type)
+		v1 := b.NewValue0(v.Pos, ssaop.Op386NOTL, y.Type)
+		v2 := b.NewValue0(v.Pos, ssaop.Op386SBBLcarrymask, y.Type)
+		v3 := b.NewValue0(v.Pos, ssaop.Op386CMPBconst, types.TypeFlags)
 		v3.AuxInt = Int8ToAuxInt(8)
 		v3.AddArg(y)
 		v2.AddArg(v3)
@@ -10446,7 +10447,7 @@ func rewriteValue386_OpRsh8x8(v *Value) bool {
 		if !(ShiftIsBounded(v)) {
 			break
 		}
-		v.Reset(Op386SARB)
+		v.Reset(ssaop.Op386SARB)
 		v.AddArg2(x, y)
 		return true
 	}
@@ -10459,14 +10460,14 @@ func rewriteValue386_OpSelect0(v *Value) bool {
 	// match: (Select0 (Mul32uover x y))
 	// result: (Select0 <typ.UInt32> (MULLU x y))
 	for {
-		if v_0.Op != OpMul32uover {
+		if v_0.Op != ssaop.OpMul32uover {
 			break
 		}
 		y := v_0.Args[1]
 		x := v_0.Args[0]
-		v.Reset(OpSelect0)
+		v.Reset(ssaop.OpSelect0)
 		v.Type = typ.UInt32
-		v0 := b.NewValue0(v.Pos, Op386MULLU, types.NewTuple(typ.UInt32, types.TypeFlags))
+		v0 := b.NewValue0(v.Pos, ssaop.Op386MULLU, types.NewTuple(typ.UInt32, types.TypeFlags))
 		v0.AddArg2(x, y)
 		v.AddArg(v0)
 		return true
@@ -10480,14 +10481,14 @@ func rewriteValue386_OpSelect1(v *Value) bool {
 	// match: (Select1 (Mul32uover x y))
 	// result: (SETO (Select1 <types.TypeFlags> (MULLU x y)))
 	for {
-		if v_0.Op != OpMul32uover {
+		if v_0.Op != ssaop.OpMul32uover {
 			break
 		}
 		y := v_0.Args[1]
 		x := v_0.Args[0]
-		v.Reset(Op386SETO)
-		v0 := b.NewValue0(v.Pos, OpSelect1, types.TypeFlags)
-		v1 := b.NewValue0(v.Pos, Op386MULLU, types.NewTuple(typ.UInt32, types.TypeFlags))
+		v.Reset(ssaop.Op386SETO)
+		v0 := b.NewValue0(v.Pos, ssaop.OpSelect1, types.TypeFlags)
+		v1 := b.NewValue0(v.Pos, ssaop.Op386MULLU, types.NewTuple(typ.UInt32, types.TypeFlags))
 		v1.AddArg2(x, y)
 		v0.AddArg(v1)
 		v.AddArg(v0)
@@ -10501,7 +10502,7 @@ func rewriteValue386_OpSignmask(v *Value) bool {
 	// result: (SARLconst x [31])
 	for {
 		x := v_0
-		v.Reset(Op386SARLconst)
+		v.Reset(ssaop.Op386SARLconst)
 		v.AuxInt = Int32ToAuxInt(31)
 		v.AddArg(x)
 		return true
@@ -10515,9 +10516,9 @@ func rewriteValue386_OpSlicemask(v *Value) bool {
 	for {
 		t := v.Type
 		x := v_0
-		v.Reset(Op386SARLconst)
+		v.Reset(ssaop.Op386SARLconst)
 		v.AuxInt = Int32ToAuxInt(31)
-		v0 := b.NewValue0(v.Pos, Op386NEGL, t)
+		v0 := b.NewValue0(v.Pos, ssaop.Op386NEGL, t)
 		v0.AddArg(x)
 		v.AddArg(v0)
 		return true
@@ -10538,7 +10539,7 @@ func rewriteValue386_OpStore(v *Value) bool {
 		if !(t.Size() == 8 && t.IsFloat()) {
 			break
 		}
-		v.Reset(Op386MOVSDstore)
+		v.Reset(ssaop.Op386MOVSDstore)
 		v.AddArg3(ptr, val, mem)
 		return true
 	}
@@ -10553,7 +10554,7 @@ func rewriteValue386_OpStore(v *Value) bool {
 		if !(t.Size() == 4 && t.IsFloat()) {
 			break
 		}
-		v.Reset(Op386MOVSSstore)
+		v.Reset(ssaop.Op386MOVSSstore)
 		v.AddArg3(ptr, val, mem)
 		return true
 	}
@@ -10568,7 +10569,7 @@ func rewriteValue386_OpStore(v *Value) bool {
 		if !(t.Size() == 4 && !t.IsFloat()) {
 			break
 		}
-		v.Reset(Op386MOVLstore)
+		v.Reset(ssaop.Op386MOVLstore)
 		v.AddArg3(ptr, val, mem)
 		return true
 	}
@@ -10583,7 +10584,7 @@ func rewriteValue386_OpStore(v *Value) bool {
 		if !(t.Size() == 2) {
 			break
 		}
-		v.Reset(Op386MOVWstore)
+		v.Reset(ssaop.Op386MOVWstore)
 		v.AddArg3(ptr, val, mem)
 		return true
 	}
@@ -10598,7 +10599,7 @@ func rewriteValue386_OpStore(v *Value) bool {
 		if !(t.Size() == 1) {
 			break
 		}
-		v.Reset(Op386MOVBstore)
+		v.Reset(ssaop.Op386MOVBstore)
 		v.AddArg3(ptr, val, mem)
 		return true
 	}
@@ -10627,7 +10628,7 @@ func rewriteValue386_OpZero(v *Value) bool {
 		}
 		destptr := v_0
 		mem := v_1
-		v.Reset(Op386MOVBstoreconst)
+		v.Reset(ssaop.Op386MOVBstoreconst)
 		v.AuxInt = ValAndOffToAuxInt(0)
 		v.AddArg2(destptr, mem)
 		return true
@@ -10640,7 +10641,7 @@ func rewriteValue386_OpZero(v *Value) bool {
 		}
 		destptr := v_0
 		mem := v_1
-		v.Reset(Op386MOVWstoreconst)
+		v.Reset(ssaop.Op386MOVWstoreconst)
 		v.AuxInt = ValAndOffToAuxInt(0)
 		v.AddArg2(destptr, mem)
 		return true
@@ -10653,7 +10654,7 @@ func rewriteValue386_OpZero(v *Value) bool {
 		}
 		destptr := v_0
 		mem := v_1
-		v.Reset(Op386MOVLstoreconst)
+		v.Reset(ssaop.Op386MOVLstoreconst)
 		v.AuxInt = ValAndOffToAuxInt(0)
 		v.AddArg2(destptr, mem)
 		return true
@@ -10666,9 +10667,9 @@ func rewriteValue386_OpZero(v *Value) bool {
 		}
 		destptr := v_0
 		mem := v_1
-		v.Reset(Op386MOVBstoreconst)
+		v.Reset(ssaop.Op386MOVBstoreconst)
 		v.AuxInt = ValAndOffToAuxInt(MakeValAndOff(0, 2))
-		v0 := b.NewValue0(v.Pos, Op386MOVWstoreconst, types.TypeMem)
+		v0 := b.NewValue0(v.Pos, ssaop.Op386MOVWstoreconst, types.TypeMem)
 		v0.AuxInt = ValAndOffToAuxInt(MakeValAndOff(0, 0))
 		v0.AddArg2(destptr, mem)
 		v.AddArg2(destptr, v0)
@@ -10682,9 +10683,9 @@ func rewriteValue386_OpZero(v *Value) bool {
 		}
 		destptr := v_0
 		mem := v_1
-		v.Reset(Op386MOVBstoreconst)
+		v.Reset(ssaop.Op386MOVBstoreconst)
 		v.AuxInt = ValAndOffToAuxInt(MakeValAndOff(0, 4))
-		v0 := b.NewValue0(v.Pos, Op386MOVLstoreconst, types.TypeMem)
+		v0 := b.NewValue0(v.Pos, ssaop.Op386MOVLstoreconst, types.TypeMem)
 		v0.AuxInt = ValAndOffToAuxInt(MakeValAndOff(0, 0))
 		v0.AddArg2(destptr, mem)
 		v.AddArg2(destptr, v0)
@@ -10698,9 +10699,9 @@ func rewriteValue386_OpZero(v *Value) bool {
 		}
 		destptr := v_0
 		mem := v_1
-		v.Reset(Op386MOVWstoreconst)
+		v.Reset(ssaop.Op386MOVWstoreconst)
 		v.AuxInt = ValAndOffToAuxInt(MakeValAndOff(0, 4))
-		v0 := b.NewValue0(v.Pos, Op386MOVLstoreconst, types.TypeMem)
+		v0 := b.NewValue0(v.Pos, ssaop.Op386MOVLstoreconst, types.TypeMem)
 		v0.AuxInt = ValAndOffToAuxInt(MakeValAndOff(0, 0))
 		v0.AddArg2(destptr, mem)
 		v.AddArg2(destptr, v0)
@@ -10714,9 +10715,9 @@ func rewriteValue386_OpZero(v *Value) bool {
 		}
 		destptr := v_0
 		mem := v_1
-		v.Reset(Op386MOVLstoreconst)
+		v.Reset(ssaop.Op386MOVLstoreconst)
 		v.AuxInt = ValAndOffToAuxInt(MakeValAndOff(0, 3))
-		v0 := b.NewValue0(v.Pos, Op386MOVLstoreconst, types.TypeMem)
+		v0 := b.NewValue0(v.Pos, ssaop.Op386MOVLstoreconst, types.TypeMem)
 		v0.AuxInt = ValAndOffToAuxInt(MakeValAndOff(0, 0))
 		v0.AddArg2(destptr, mem)
 		v.AddArg2(destptr, v0)
@@ -10732,12 +10733,12 @@ func rewriteValue386_OpZero(v *Value) bool {
 		if !(s%4 != 0 && s > 4) {
 			break
 		}
-		v.Reset(OpZero)
+		v.Reset(ssaop.OpZero)
 		v.AuxInt = Int64ToAuxInt(s - s%4)
-		v0 := b.NewValue0(v.Pos, Op386ADDLconst, typ.UInt32)
+		v0 := b.NewValue0(v.Pos, ssaop.Op386ADDLconst, typ.UInt32)
 		v0.AuxInt = Int32ToAuxInt(int32(s % 4))
 		v0.AddArg(destptr)
-		v1 := b.NewValue0(v.Pos, Op386MOVLstoreconst, types.TypeMem)
+		v1 := b.NewValue0(v.Pos, ssaop.Op386MOVLstoreconst, types.TypeMem)
 		v1.AuxInt = ValAndOffToAuxInt(0)
 		v1.AddArg2(destptr, mem)
 		v.AddArg2(v0, v1)
@@ -10751,9 +10752,9 @@ func rewriteValue386_OpZero(v *Value) bool {
 		}
 		destptr := v_0
 		mem := v_1
-		v.Reset(Op386MOVLstoreconst)
+		v.Reset(ssaop.Op386MOVLstoreconst)
 		v.AuxInt = ValAndOffToAuxInt(MakeValAndOff(0, 4))
-		v0 := b.NewValue0(v.Pos, Op386MOVLstoreconst, types.TypeMem)
+		v0 := b.NewValue0(v.Pos, ssaop.Op386MOVLstoreconst, types.TypeMem)
 		v0.AuxInt = ValAndOffToAuxInt(MakeValAndOff(0, 0))
 		v0.AddArg2(destptr, mem)
 		v.AddArg2(destptr, v0)
@@ -10767,11 +10768,11 @@ func rewriteValue386_OpZero(v *Value) bool {
 		}
 		destptr := v_0
 		mem := v_1
-		v.Reset(Op386MOVLstoreconst)
+		v.Reset(ssaop.Op386MOVLstoreconst)
 		v.AuxInt = ValAndOffToAuxInt(MakeValAndOff(0, 8))
-		v0 := b.NewValue0(v.Pos, Op386MOVLstoreconst, types.TypeMem)
+		v0 := b.NewValue0(v.Pos, ssaop.Op386MOVLstoreconst, types.TypeMem)
 		v0.AuxInt = ValAndOffToAuxInt(MakeValAndOff(0, 4))
-		v1 := b.NewValue0(v.Pos, Op386MOVLstoreconst, types.TypeMem)
+		v1 := b.NewValue0(v.Pos, ssaop.Op386MOVLstoreconst, types.TypeMem)
 		v1.AuxInt = ValAndOffToAuxInt(MakeValAndOff(0, 0))
 		v1.AddArg2(destptr, mem)
 		v0.AddArg2(destptr, v1)
@@ -10786,13 +10787,13 @@ func rewriteValue386_OpZero(v *Value) bool {
 		}
 		destptr := v_0
 		mem := v_1
-		v.Reset(Op386MOVLstoreconst)
+		v.Reset(ssaop.Op386MOVLstoreconst)
 		v.AuxInt = ValAndOffToAuxInt(MakeValAndOff(0, 12))
-		v0 := b.NewValue0(v.Pos, Op386MOVLstoreconst, types.TypeMem)
+		v0 := b.NewValue0(v.Pos, ssaop.Op386MOVLstoreconst, types.TypeMem)
 		v0.AuxInt = ValAndOffToAuxInt(MakeValAndOff(0, 8))
-		v1 := b.NewValue0(v.Pos, Op386MOVLstoreconst, types.TypeMem)
+		v1 := b.NewValue0(v.Pos, ssaop.Op386MOVLstoreconst, types.TypeMem)
 		v1.AuxInt = ValAndOffToAuxInt(MakeValAndOff(0, 4))
-		v2 := b.NewValue0(v.Pos, Op386MOVLstoreconst, types.TypeMem)
+		v2 := b.NewValue0(v.Pos, ssaop.Op386MOVLstoreconst, types.TypeMem)
 		v2.AuxInt = ValAndOffToAuxInt(MakeValAndOff(0, 0))
 		v2.AddArg2(destptr, mem)
 		v1.AddArg2(destptr, v2)
@@ -10810,9 +10811,9 @@ func rewriteValue386_OpZero(v *Value) bool {
 		if !(s > 16 && s <= 4*128 && s%4 == 0) {
 			break
 		}
-		v.Reset(Op386DUFFZERO)
+		v.Reset(ssaop.Op386DUFFZERO)
 		v.AuxInt = Int64ToAuxInt(1 * (128 - s/4))
-		v0 := b.NewValue0(v.Pos, Op386MOVLconst, typ.UInt32)
+		v0 := b.NewValue0(v.Pos, ssaop.Op386MOVLconst, typ.UInt32)
 		v0.AuxInt = Int32ToAuxInt(0)
 		v.AddArg3(destptr, v0, mem)
 		return true
@@ -10827,10 +10828,10 @@ func rewriteValue386_OpZero(v *Value) bool {
 		if !(s > 4*128 && s%4 == 0) {
 			break
 		}
-		v.Reset(Op386REPSTOSL)
-		v0 := b.NewValue0(v.Pos, Op386MOVLconst, typ.UInt32)
+		v.Reset(ssaop.Op386REPSTOSL)
+		v0 := b.NewValue0(v.Pos, ssaop.Op386MOVLconst, typ.UInt32)
 		v0.AuxInt = Int32ToAuxInt(int32(s / 4))
-		v1 := b.NewValue0(v.Pos, Op386MOVLconst, typ.UInt32)
+		v1 := b.NewValue0(v.Pos, ssaop.Op386MOVLconst, typ.UInt32)
 		v1.AuxInt = Int32ToAuxInt(0)
 		v.AddArg4(destptr, v0, v1, mem)
 		return true
@@ -10845,10 +10846,10 @@ func rewriteValue386_OpZeromask(v *Value) bool {
 	for {
 		t := v.Type
 		x := v_0
-		v.Reset(Op386XORLconst)
+		v.Reset(ssaop.Op386XORLconst)
 		v.AuxInt = Int32ToAuxInt(-1)
-		v0 := b.NewValue0(v.Pos, Op386SBBLcarrymask, t)
-		v1 := b.NewValue0(v.Pos, Op386CMPLconst, types.TypeFlags)
+		v0 := b.NewValue0(v.Pos, ssaop.Op386SBBLcarrymask, t)
+		v1 := b.NewValue0(v.Pos, ssaop.Op386CMPLconst, types.TypeFlags)
 		v1.AuxInt = Int32ToAuxInt(1)
 		v1.AddArg(x)
 		v0.AddArg(v1)
@@ -10861,7 +10862,7 @@ func rewriteBlock386(b *Block) bool {
 	case block.Block386EQ:
 		// match: (EQ (InvertFlags cmp) yes no)
 		// result: (EQ cmp yes no)
-		for b.Controls[0].Op == Op386InvertFlags {
+		for b.Controls[0].Op == ssaop.Op386InvertFlags {
 			v_0 := b.Controls[0]
 			cmp := v_0.Args[0]
 			b.ResetWithControl(block.Block386EQ, cmp)
@@ -10869,34 +10870,34 @@ func rewriteBlock386(b *Block) bool {
 		}
 		// match: (EQ (FlagEQ) yes no)
 		// result: (First yes no)
-		for b.Controls[0].Op == Op386FlagEQ {
+		for b.Controls[0].Op == ssaop.Op386FlagEQ {
 			b.Reset(block.BlockFirst)
 			return true
 		}
 		// match: (EQ (FlagLT_ULT) yes no)
 		// result: (First no yes)
-		for b.Controls[0].Op == Op386FlagLT_ULT {
+		for b.Controls[0].Op == ssaop.Op386FlagLT_ULT {
 			b.Reset(block.BlockFirst)
 			b.SwapSuccessors()
 			return true
 		}
 		// match: (EQ (FlagLT_UGT) yes no)
 		// result: (First no yes)
-		for b.Controls[0].Op == Op386FlagLT_UGT {
+		for b.Controls[0].Op == ssaop.Op386FlagLT_UGT {
 			b.Reset(block.BlockFirst)
 			b.SwapSuccessors()
 			return true
 		}
 		// match: (EQ (FlagGT_ULT) yes no)
 		// result: (First no yes)
-		for b.Controls[0].Op == Op386FlagGT_ULT {
+		for b.Controls[0].Op == ssaop.Op386FlagGT_ULT {
 			b.Reset(block.BlockFirst)
 			b.SwapSuccessors()
 			return true
 		}
 		// match: (EQ (FlagGT_UGT) yes no)
 		// result: (First no yes)
-		for b.Controls[0].Op == Op386FlagGT_UGT {
+		for b.Controls[0].Op == ssaop.Op386FlagGT_UGT {
 			b.Reset(block.BlockFirst)
 			b.SwapSuccessors()
 			return true
@@ -10904,7 +10905,7 @@ func rewriteBlock386(b *Block) bool {
 	case block.Block386GE:
 		// match: (GE (InvertFlags cmp) yes no)
 		// result: (LE cmp yes no)
-		for b.Controls[0].Op == Op386InvertFlags {
+		for b.Controls[0].Op == ssaop.Op386InvertFlags {
 			v_0 := b.Controls[0]
 			cmp := v_0.Args[0]
 			b.ResetWithControl(block.Block386LE, cmp)
@@ -10912,40 +10913,40 @@ func rewriteBlock386(b *Block) bool {
 		}
 		// match: (GE (FlagEQ) yes no)
 		// result: (First yes no)
-		for b.Controls[0].Op == Op386FlagEQ {
+		for b.Controls[0].Op == ssaop.Op386FlagEQ {
 			b.Reset(block.BlockFirst)
 			return true
 		}
 		// match: (GE (FlagLT_ULT) yes no)
 		// result: (First no yes)
-		for b.Controls[0].Op == Op386FlagLT_ULT {
+		for b.Controls[0].Op == ssaop.Op386FlagLT_ULT {
 			b.Reset(block.BlockFirst)
 			b.SwapSuccessors()
 			return true
 		}
 		// match: (GE (FlagLT_UGT) yes no)
 		// result: (First no yes)
-		for b.Controls[0].Op == Op386FlagLT_UGT {
+		for b.Controls[0].Op == ssaop.Op386FlagLT_UGT {
 			b.Reset(block.BlockFirst)
 			b.SwapSuccessors()
 			return true
 		}
 		// match: (GE (FlagGT_ULT) yes no)
 		// result: (First yes no)
-		for b.Controls[0].Op == Op386FlagGT_ULT {
+		for b.Controls[0].Op == ssaop.Op386FlagGT_ULT {
 			b.Reset(block.BlockFirst)
 			return true
 		}
 		// match: (GE (FlagGT_UGT) yes no)
 		// result: (First yes no)
-		for b.Controls[0].Op == Op386FlagGT_UGT {
+		for b.Controls[0].Op == ssaop.Op386FlagGT_UGT {
 			b.Reset(block.BlockFirst)
 			return true
 		}
 	case block.Block386GT:
 		// match: (GT (InvertFlags cmp) yes no)
 		// result: (LT cmp yes no)
-		for b.Controls[0].Op == Op386InvertFlags {
+		for b.Controls[0].Op == ssaop.Op386InvertFlags {
 			v_0 := b.Controls[0]
 			cmp := v_0.Args[0]
 			b.ResetWithControl(block.Block386LT, cmp)
@@ -10953,41 +10954,41 @@ func rewriteBlock386(b *Block) bool {
 		}
 		// match: (GT (FlagEQ) yes no)
 		// result: (First no yes)
-		for b.Controls[0].Op == Op386FlagEQ {
+		for b.Controls[0].Op == ssaop.Op386FlagEQ {
 			b.Reset(block.BlockFirst)
 			b.SwapSuccessors()
 			return true
 		}
 		// match: (GT (FlagLT_ULT) yes no)
 		// result: (First no yes)
-		for b.Controls[0].Op == Op386FlagLT_ULT {
+		for b.Controls[0].Op == ssaop.Op386FlagLT_ULT {
 			b.Reset(block.BlockFirst)
 			b.SwapSuccessors()
 			return true
 		}
 		// match: (GT (FlagLT_UGT) yes no)
 		// result: (First no yes)
-		for b.Controls[0].Op == Op386FlagLT_UGT {
+		for b.Controls[0].Op == ssaop.Op386FlagLT_UGT {
 			b.Reset(block.BlockFirst)
 			b.SwapSuccessors()
 			return true
 		}
 		// match: (GT (FlagGT_ULT) yes no)
 		// result: (First yes no)
-		for b.Controls[0].Op == Op386FlagGT_ULT {
+		for b.Controls[0].Op == ssaop.Op386FlagGT_ULT {
 			b.Reset(block.BlockFirst)
 			return true
 		}
 		// match: (GT (FlagGT_UGT) yes no)
 		// result: (First yes no)
-		for b.Controls[0].Op == Op386FlagGT_UGT {
+		for b.Controls[0].Op == ssaop.Op386FlagGT_UGT {
 			b.Reset(block.BlockFirst)
 			return true
 		}
 	case block.BlockIf:
 		// match: (If (SETL cmp) yes no)
 		// result: (LT cmp yes no)
-		for b.Controls[0].Op == Op386SETL {
+		for b.Controls[0].Op == ssaop.Op386SETL {
 			v_0 := b.Controls[0]
 			cmp := v_0.Args[0]
 			b.ResetWithControl(block.Block386LT, cmp)
@@ -10995,7 +10996,7 @@ func rewriteBlock386(b *Block) bool {
 		}
 		// match: (If (SETLE cmp) yes no)
 		// result: (LE cmp yes no)
-		for b.Controls[0].Op == Op386SETLE {
+		for b.Controls[0].Op == ssaop.Op386SETLE {
 			v_0 := b.Controls[0]
 			cmp := v_0.Args[0]
 			b.ResetWithControl(block.Block386LE, cmp)
@@ -11003,7 +11004,7 @@ func rewriteBlock386(b *Block) bool {
 		}
 		// match: (If (SETG cmp) yes no)
 		// result: (GT cmp yes no)
-		for b.Controls[0].Op == Op386SETG {
+		for b.Controls[0].Op == ssaop.Op386SETG {
 			v_0 := b.Controls[0]
 			cmp := v_0.Args[0]
 			b.ResetWithControl(block.Block386GT, cmp)
@@ -11011,7 +11012,7 @@ func rewriteBlock386(b *Block) bool {
 		}
 		// match: (If (SETGE cmp) yes no)
 		// result: (GE cmp yes no)
-		for b.Controls[0].Op == Op386SETGE {
+		for b.Controls[0].Op == ssaop.Op386SETGE {
 			v_0 := b.Controls[0]
 			cmp := v_0.Args[0]
 			b.ResetWithControl(block.Block386GE, cmp)
@@ -11019,7 +11020,7 @@ func rewriteBlock386(b *Block) bool {
 		}
 		// match: (If (SETEQ cmp) yes no)
 		// result: (EQ cmp yes no)
-		for b.Controls[0].Op == Op386SETEQ {
+		for b.Controls[0].Op == ssaop.Op386SETEQ {
 			v_0 := b.Controls[0]
 			cmp := v_0.Args[0]
 			b.ResetWithControl(block.Block386EQ, cmp)
@@ -11027,7 +11028,7 @@ func rewriteBlock386(b *Block) bool {
 		}
 		// match: (If (SETNE cmp) yes no)
 		// result: (NE cmp yes no)
-		for b.Controls[0].Op == Op386SETNE {
+		for b.Controls[0].Op == ssaop.Op386SETNE {
 			v_0 := b.Controls[0]
 			cmp := v_0.Args[0]
 			b.ResetWithControl(block.Block386NE, cmp)
@@ -11035,7 +11036,7 @@ func rewriteBlock386(b *Block) bool {
 		}
 		// match: (If (SETB cmp) yes no)
 		// result: (ULT cmp yes no)
-		for b.Controls[0].Op == Op386SETB {
+		for b.Controls[0].Op == ssaop.Op386SETB {
 			v_0 := b.Controls[0]
 			cmp := v_0.Args[0]
 			b.ResetWithControl(block.Block386ULT, cmp)
@@ -11043,7 +11044,7 @@ func rewriteBlock386(b *Block) bool {
 		}
 		// match: (If (SETBE cmp) yes no)
 		// result: (ULE cmp yes no)
-		for b.Controls[0].Op == Op386SETBE {
+		for b.Controls[0].Op == ssaop.Op386SETBE {
 			v_0 := b.Controls[0]
 			cmp := v_0.Args[0]
 			b.ResetWithControl(block.Block386ULE, cmp)
@@ -11051,7 +11052,7 @@ func rewriteBlock386(b *Block) bool {
 		}
 		// match: (If (SETA cmp) yes no)
 		// result: (UGT cmp yes no)
-		for b.Controls[0].Op == Op386SETA {
+		for b.Controls[0].Op == ssaop.Op386SETA {
 			v_0 := b.Controls[0]
 			cmp := v_0.Args[0]
 			b.ResetWithControl(block.Block386UGT, cmp)
@@ -11059,7 +11060,7 @@ func rewriteBlock386(b *Block) bool {
 		}
 		// match: (If (SETAE cmp) yes no)
 		// result: (UGE cmp yes no)
-		for b.Controls[0].Op == Op386SETAE {
+		for b.Controls[0].Op == ssaop.Op386SETAE {
 			v_0 := b.Controls[0]
 			cmp := v_0.Args[0]
 			b.ResetWithControl(block.Block386UGE, cmp)
@@ -11067,7 +11068,7 @@ func rewriteBlock386(b *Block) bool {
 		}
 		// match: (If (SETO cmp) yes no)
 		// result: (OS cmp yes no)
-		for b.Controls[0].Op == Op386SETO {
+		for b.Controls[0].Op == ssaop.Op386SETO {
 			v_0 := b.Controls[0]
 			cmp := v_0.Args[0]
 			b.ResetWithControl(block.Block386OS, cmp)
@@ -11075,7 +11076,7 @@ func rewriteBlock386(b *Block) bool {
 		}
 		// match: (If (SETGF cmp) yes no)
 		// result: (UGT cmp yes no)
-		for b.Controls[0].Op == Op386SETGF {
+		for b.Controls[0].Op == ssaop.Op386SETGF {
 			v_0 := b.Controls[0]
 			cmp := v_0.Args[0]
 			b.ResetWithControl(block.Block386UGT, cmp)
@@ -11083,7 +11084,7 @@ func rewriteBlock386(b *Block) bool {
 		}
 		// match: (If (SETGEF cmp) yes no)
 		// result: (UGE cmp yes no)
-		for b.Controls[0].Op == Op386SETGEF {
+		for b.Controls[0].Op == ssaop.Op386SETGEF {
 			v_0 := b.Controls[0]
 			cmp := v_0.Args[0]
 			b.ResetWithControl(block.Block386UGE, cmp)
@@ -11091,7 +11092,7 @@ func rewriteBlock386(b *Block) bool {
 		}
 		// match: (If (SETEQF cmp) yes no)
 		// result: (EQF cmp yes no)
-		for b.Controls[0].Op == Op386SETEQF {
+		for b.Controls[0].Op == ssaop.Op386SETEQF {
 			v_0 := b.Controls[0]
 			cmp := v_0.Args[0]
 			b.ResetWithControl(block.Block386EQF, cmp)
@@ -11099,7 +11100,7 @@ func rewriteBlock386(b *Block) bool {
 		}
 		// match: (If (SETNEF cmp) yes no)
 		// result: (NEF cmp yes no)
-		for b.Controls[0].Op == Op386SETNEF {
+		for b.Controls[0].Op == ssaop.Op386SETNEF {
 			v_0 := b.Controls[0]
 			cmp := v_0.Args[0]
 			b.ResetWithControl(block.Block386NEF, cmp)
@@ -11109,7 +11110,7 @@ func rewriteBlock386(b *Block) bool {
 		// result: (NE (TESTB cond cond) yes no)
 		for {
 			cond := b.Controls[0]
-			v0 := b.NewValue0(cond.Pos, Op386TESTB, types.TypeFlags)
+			v0 := b.NewValue0(cond.Pos, ssaop.Op386TESTB, types.TypeFlags)
 			v0.AddArg2(cond, cond)
 			b.ResetWithControl(block.Block386NE, v0)
 			return true
@@ -11117,7 +11118,7 @@ func rewriteBlock386(b *Block) bool {
 	case block.Block386LE:
 		// match: (LE (InvertFlags cmp) yes no)
 		// result: (GE cmp yes no)
-		for b.Controls[0].Op == Op386InvertFlags {
+		for b.Controls[0].Op == ssaop.Op386InvertFlags {
 			v_0 := b.Controls[0]
 			cmp := v_0.Args[0]
 			b.ResetWithControl(block.Block386GE, cmp)
@@ -11125,32 +11126,32 @@ func rewriteBlock386(b *Block) bool {
 		}
 		// match: (LE (FlagEQ) yes no)
 		// result: (First yes no)
-		for b.Controls[0].Op == Op386FlagEQ {
+		for b.Controls[0].Op == ssaop.Op386FlagEQ {
 			b.Reset(block.BlockFirst)
 			return true
 		}
 		// match: (LE (FlagLT_ULT) yes no)
 		// result: (First yes no)
-		for b.Controls[0].Op == Op386FlagLT_ULT {
+		for b.Controls[0].Op == ssaop.Op386FlagLT_ULT {
 			b.Reset(block.BlockFirst)
 			return true
 		}
 		// match: (LE (FlagLT_UGT) yes no)
 		// result: (First yes no)
-		for b.Controls[0].Op == Op386FlagLT_UGT {
+		for b.Controls[0].Op == ssaop.Op386FlagLT_UGT {
 			b.Reset(block.BlockFirst)
 			return true
 		}
 		// match: (LE (FlagGT_ULT) yes no)
 		// result: (First no yes)
-		for b.Controls[0].Op == Op386FlagGT_ULT {
+		for b.Controls[0].Op == ssaop.Op386FlagGT_ULT {
 			b.Reset(block.BlockFirst)
 			b.SwapSuccessors()
 			return true
 		}
 		// match: (LE (FlagGT_UGT) yes no)
 		// result: (First no yes)
-		for b.Controls[0].Op == Op386FlagGT_UGT {
+		for b.Controls[0].Op == ssaop.Op386FlagGT_UGT {
 			b.Reset(block.BlockFirst)
 			b.SwapSuccessors()
 			return true
@@ -11158,7 +11159,7 @@ func rewriteBlock386(b *Block) bool {
 	case block.Block386LT:
 		// match: (LT (InvertFlags cmp) yes no)
 		// result: (GT cmp yes no)
-		for b.Controls[0].Op == Op386InvertFlags {
+		for b.Controls[0].Op == ssaop.Op386InvertFlags {
 			v_0 := b.Controls[0]
 			cmp := v_0.Args[0]
 			b.ResetWithControl(block.Block386GT, cmp)
@@ -11166,33 +11167,33 @@ func rewriteBlock386(b *Block) bool {
 		}
 		// match: (LT (FlagEQ) yes no)
 		// result: (First no yes)
-		for b.Controls[0].Op == Op386FlagEQ {
+		for b.Controls[0].Op == ssaop.Op386FlagEQ {
 			b.Reset(block.BlockFirst)
 			b.SwapSuccessors()
 			return true
 		}
 		// match: (LT (FlagLT_ULT) yes no)
 		// result: (First yes no)
-		for b.Controls[0].Op == Op386FlagLT_ULT {
+		for b.Controls[0].Op == ssaop.Op386FlagLT_ULT {
 			b.Reset(block.BlockFirst)
 			return true
 		}
 		// match: (LT (FlagLT_UGT) yes no)
 		// result: (First yes no)
-		for b.Controls[0].Op == Op386FlagLT_UGT {
+		for b.Controls[0].Op == ssaop.Op386FlagLT_UGT {
 			b.Reset(block.BlockFirst)
 			return true
 		}
 		// match: (LT (FlagGT_ULT) yes no)
 		// result: (First no yes)
-		for b.Controls[0].Op == Op386FlagGT_ULT {
+		for b.Controls[0].Op == ssaop.Op386FlagGT_ULT {
 			b.Reset(block.BlockFirst)
 			b.SwapSuccessors()
 			return true
 		}
 		// match: (LT (FlagGT_UGT) yes no)
 		// result: (First no yes)
-		for b.Controls[0].Op == Op386FlagGT_UGT {
+		for b.Controls[0].Op == ssaop.Op386FlagGT_UGT {
 			b.Reset(block.BlockFirst)
 			b.SwapSuccessors()
 			return true
@@ -11200,16 +11201,16 @@ func rewriteBlock386(b *Block) bool {
 	case block.Block386NE:
 		// match: (NE (TESTB (SETL cmp) (SETL cmp)) yes no)
 		// result: (LT cmp yes no)
-		for b.Controls[0].Op == Op386TESTB {
+		for b.Controls[0].Op == ssaop.Op386TESTB {
 			v_0 := b.Controls[0]
 			_ = v_0.Args[1]
 			v_0_0 := v_0.Args[0]
-			if v_0_0.Op != Op386SETL {
+			if v_0_0.Op != ssaop.Op386SETL {
 				break
 			}
 			cmp := v_0_0.Args[0]
 			v_0_1 := v_0.Args[1]
-			if v_0_1.Op != Op386SETL || cmp != v_0_1.Args[0] {
+			if v_0_1.Op != ssaop.Op386SETL || cmp != v_0_1.Args[0] {
 				break
 			}
 			b.ResetWithControl(block.Block386LT, cmp)
@@ -11217,16 +11218,16 @@ func rewriteBlock386(b *Block) bool {
 		}
 		// match: (NE (TESTB (SETLE cmp) (SETLE cmp)) yes no)
 		// result: (LE cmp yes no)
-		for b.Controls[0].Op == Op386TESTB {
+		for b.Controls[0].Op == ssaop.Op386TESTB {
 			v_0 := b.Controls[0]
 			_ = v_0.Args[1]
 			v_0_0 := v_0.Args[0]
-			if v_0_0.Op != Op386SETLE {
+			if v_0_0.Op != ssaop.Op386SETLE {
 				break
 			}
 			cmp := v_0_0.Args[0]
 			v_0_1 := v_0.Args[1]
-			if v_0_1.Op != Op386SETLE || cmp != v_0_1.Args[0] {
+			if v_0_1.Op != ssaop.Op386SETLE || cmp != v_0_1.Args[0] {
 				break
 			}
 			b.ResetWithControl(block.Block386LE, cmp)
@@ -11234,16 +11235,16 @@ func rewriteBlock386(b *Block) bool {
 		}
 		// match: (NE (TESTB (SETG cmp) (SETG cmp)) yes no)
 		// result: (GT cmp yes no)
-		for b.Controls[0].Op == Op386TESTB {
+		for b.Controls[0].Op == ssaop.Op386TESTB {
 			v_0 := b.Controls[0]
 			_ = v_0.Args[1]
 			v_0_0 := v_0.Args[0]
-			if v_0_0.Op != Op386SETG {
+			if v_0_0.Op != ssaop.Op386SETG {
 				break
 			}
 			cmp := v_0_0.Args[0]
 			v_0_1 := v_0.Args[1]
-			if v_0_1.Op != Op386SETG || cmp != v_0_1.Args[0] {
+			if v_0_1.Op != ssaop.Op386SETG || cmp != v_0_1.Args[0] {
 				break
 			}
 			b.ResetWithControl(block.Block386GT, cmp)
@@ -11251,16 +11252,16 @@ func rewriteBlock386(b *Block) bool {
 		}
 		// match: (NE (TESTB (SETGE cmp) (SETGE cmp)) yes no)
 		// result: (GE cmp yes no)
-		for b.Controls[0].Op == Op386TESTB {
+		for b.Controls[0].Op == ssaop.Op386TESTB {
 			v_0 := b.Controls[0]
 			_ = v_0.Args[1]
 			v_0_0 := v_0.Args[0]
-			if v_0_0.Op != Op386SETGE {
+			if v_0_0.Op != ssaop.Op386SETGE {
 				break
 			}
 			cmp := v_0_0.Args[0]
 			v_0_1 := v_0.Args[1]
-			if v_0_1.Op != Op386SETGE || cmp != v_0_1.Args[0] {
+			if v_0_1.Op != ssaop.Op386SETGE || cmp != v_0_1.Args[0] {
 				break
 			}
 			b.ResetWithControl(block.Block386GE, cmp)
@@ -11268,16 +11269,16 @@ func rewriteBlock386(b *Block) bool {
 		}
 		// match: (NE (TESTB (SETEQ cmp) (SETEQ cmp)) yes no)
 		// result: (EQ cmp yes no)
-		for b.Controls[0].Op == Op386TESTB {
+		for b.Controls[0].Op == ssaop.Op386TESTB {
 			v_0 := b.Controls[0]
 			_ = v_0.Args[1]
 			v_0_0 := v_0.Args[0]
-			if v_0_0.Op != Op386SETEQ {
+			if v_0_0.Op != ssaop.Op386SETEQ {
 				break
 			}
 			cmp := v_0_0.Args[0]
 			v_0_1 := v_0.Args[1]
-			if v_0_1.Op != Op386SETEQ || cmp != v_0_1.Args[0] {
+			if v_0_1.Op != ssaop.Op386SETEQ || cmp != v_0_1.Args[0] {
 				break
 			}
 			b.ResetWithControl(block.Block386EQ, cmp)
@@ -11285,16 +11286,16 @@ func rewriteBlock386(b *Block) bool {
 		}
 		// match: (NE (TESTB (SETNE cmp) (SETNE cmp)) yes no)
 		// result: (NE cmp yes no)
-		for b.Controls[0].Op == Op386TESTB {
+		for b.Controls[0].Op == ssaop.Op386TESTB {
 			v_0 := b.Controls[0]
 			_ = v_0.Args[1]
 			v_0_0 := v_0.Args[0]
-			if v_0_0.Op != Op386SETNE {
+			if v_0_0.Op != ssaop.Op386SETNE {
 				break
 			}
 			cmp := v_0_0.Args[0]
 			v_0_1 := v_0.Args[1]
-			if v_0_1.Op != Op386SETNE || cmp != v_0_1.Args[0] {
+			if v_0_1.Op != ssaop.Op386SETNE || cmp != v_0_1.Args[0] {
 				break
 			}
 			b.ResetWithControl(block.Block386NE, cmp)
@@ -11302,16 +11303,16 @@ func rewriteBlock386(b *Block) bool {
 		}
 		// match: (NE (TESTB (SETB cmp) (SETB cmp)) yes no)
 		// result: (ULT cmp yes no)
-		for b.Controls[0].Op == Op386TESTB {
+		for b.Controls[0].Op == ssaop.Op386TESTB {
 			v_0 := b.Controls[0]
 			_ = v_0.Args[1]
 			v_0_0 := v_0.Args[0]
-			if v_0_0.Op != Op386SETB {
+			if v_0_0.Op != ssaop.Op386SETB {
 				break
 			}
 			cmp := v_0_0.Args[0]
 			v_0_1 := v_0.Args[1]
-			if v_0_1.Op != Op386SETB || cmp != v_0_1.Args[0] {
+			if v_0_1.Op != ssaop.Op386SETB || cmp != v_0_1.Args[0] {
 				break
 			}
 			b.ResetWithControl(block.Block386ULT, cmp)
@@ -11319,16 +11320,16 @@ func rewriteBlock386(b *Block) bool {
 		}
 		// match: (NE (TESTB (SETBE cmp) (SETBE cmp)) yes no)
 		// result: (ULE cmp yes no)
-		for b.Controls[0].Op == Op386TESTB {
+		for b.Controls[0].Op == ssaop.Op386TESTB {
 			v_0 := b.Controls[0]
 			_ = v_0.Args[1]
 			v_0_0 := v_0.Args[0]
-			if v_0_0.Op != Op386SETBE {
+			if v_0_0.Op != ssaop.Op386SETBE {
 				break
 			}
 			cmp := v_0_0.Args[0]
 			v_0_1 := v_0.Args[1]
-			if v_0_1.Op != Op386SETBE || cmp != v_0_1.Args[0] {
+			if v_0_1.Op != ssaop.Op386SETBE || cmp != v_0_1.Args[0] {
 				break
 			}
 			b.ResetWithControl(block.Block386ULE, cmp)
@@ -11336,16 +11337,16 @@ func rewriteBlock386(b *Block) bool {
 		}
 		// match: (NE (TESTB (SETA cmp) (SETA cmp)) yes no)
 		// result: (UGT cmp yes no)
-		for b.Controls[0].Op == Op386TESTB {
+		for b.Controls[0].Op == ssaop.Op386TESTB {
 			v_0 := b.Controls[0]
 			_ = v_0.Args[1]
 			v_0_0 := v_0.Args[0]
-			if v_0_0.Op != Op386SETA {
+			if v_0_0.Op != ssaop.Op386SETA {
 				break
 			}
 			cmp := v_0_0.Args[0]
 			v_0_1 := v_0.Args[1]
-			if v_0_1.Op != Op386SETA || cmp != v_0_1.Args[0] {
+			if v_0_1.Op != ssaop.Op386SETA || cmp != v_0_1.Args[0] {
 				break
 			}
 			b.ResetWithControl(block.Block386UGT, cmp)
@@ -11353,16 +11354,16 @@ func rewriteBlock386(b *Block) bool {
 		}
 		// match: (NE (TESTB (SETAE cmp) (SETAE cmp)) yes no)
 		// result: (UGE cmp yes no)
-		for b.Controls[0].Op == Op386TESTB {
+		for b.Controls[0].Op == ssaop.Op386TESTB {
 			v_0 := b.Controls[0]
 			_ = v_0.Args[1]
 			v_0_0 := v_0.Args[0]
-			if v_0_0.Op != Op386SETAE {
+			if v_0_0.Op != ssaop.Op386SETAE {
 				break
 			}
 			cmp := v_0_0.Args[0]
 			v_0_1 := v_0.Args[1]
-			if v_0_1.Op != Op386SETAE || cmp != v_0_1.Args[0] {
+			if v_0_1.Op != ssaop.Op386SETAE || cmp != v_0_1.Args[0] {
 				break
 			}
 			b.ResetWithControl(block.Block386UGE, cmp)
@@ -11370,16 +11371,16 @@ func rewriteBlock386(b *Block) bool {
 		}
 		// match: (NE (TESTB (SETO cmp) (SETO cmp)) yes no)
 		// result: (OS cmp yes no)
-		for b.Controls[0].Op == Op386TESTB {
+		for b.Controls[0].Op == ssaop.Op386TESTB {
 			v_0 := b.Controls[0]
 			_ = v_0.Args[1]
 			v_0_0 := v_0.Args[0]
-			if v_0_0.Op != Op386SETO {
+			if v_0_0.Op != ssaop.Op386SETO {
 				break
 			}
 			cmp := v_0_0.Args[0]
 			v_0_1 := v_0.Args[1]
-			if v_0_1.Op != Op386SETO || cmp != v_0_1.Args[0] {
+			if v_0_1.Op != ssaop.Op386SETO || cmp != v_0_1.Args[0] {
 				break
 			}
 			b.ResetWithControl(block.Block386OS, cmp)
@@ -11387,16 +11388,16 @@ func rewriteBlock386(b *Block) bool {
 		}
 		// match: (NE (TESTB (SETGF cmp) (SETGF cmp)) yes no)
 		// result: (UGT cmp yes no)
-		for b.Controls[0].Op == Op386TESTB {
+		for b.Controls[0].Op == ssaop.Op386TESTB {
 			v_0 := b.Controls[0]
 			_ = v_0.Args[1]
 			v_0_0 := v_0.Args[0]
-			if v_0_0.Op != Op386SETGF {
+			if v_0_0.Op != ssaop.Op386SETGF {
 				break
 			}
 			cmp := v_0_0.Args[0]
 			v_0_1 := v_0.Args[1]
-			if v_0_1.Op != Op386SETGF || cmp != v_0_1.Args[0] {
+			if v_0_1.Op != ssaop.Op386SETGF || cmp != v_0_1.Args[0] {
 				break
 			}
 			b.ResetWithControl(block.Block386UGT, cmp)
@@ -11404,16 +11405,16 @@ func rewriteBlock386(b *Block) bool {
 		}
 		// match: (NE (TESTB (SETGEF cmp) (SETGEF cmp)) yes no)
 		// result: (UGE cmp yes no)
-		for b.Controls[0].Op == Op386TESTB {
+		for b.Controls[0].Op == ssaop.Op386TESTB {
 			v_0 := b.Controls[0]
 			_ = v_0.Args[1]
 			v_0_0 := v_0.Args[0]
-			if v_0_0.Op != Op386SETGEF {
+			if v_0_0.Op != ssaop.Op386SETGEF {
 				break
 			}
 			cmp := v_0_0.Args[0]
 			v_0_1 := v_0.Args[1]
-			if v_0_1.Op != Op386SETGEF || cmp != v_0_1.Args[0] {
+			if v_0_1.Op != ssaop.Op386SETGEF || cmp != v_0_1.Args[0] {
 				break
 			}
 			b.ResetWithControl(block.Block386UGE, cmp)
@@ -11421,16 +11422,16 @@ func rewriteBlock386(b *Block) bool {
 		}
 		// match: (NE (TESTB (SETEQF cmp) (SETEQF cmp)) yes no)
 		// result: (EQF cmp yes no)
-		for b.Controls[0].Op == Op386TESTB {
+		for b.Controls[0].Op == ssaop.Op386TESTB {
 			v_0 := b.Controls[0]
 			_ = v_0.Args[1]
 			v_0_0 := v_0.Args[0]
-			if v_0_0.Op != Op386SETEQF {
+			if v_0_0.Op != ssaop.Op386SETEQF {
 				break
 			}
 			cmp := v_0_0.Args[0]
 			v_0_1 := v_0.Args[1]
-			if v_0_1.Op != Op386SETEQF || cmp != v_0_1.Args[0] {
+			if v_0_1.Op != ssaop.Op386SETEQF || cmp != v_0_1.Args[0] {
 				break
 			}
 			b.ResetWithControl(block.Block386EQF, cmp)
@@ -11438,16 +11439,16 @@ func rewriteBlock386(b *Block) bool {
 		}
 		// match: (NE (TESTB (SETNEF cmp) (SETNEF cmp)) yes no)
 		// result: (NEF cmp yes no)
-		for b.Controls[0].Op == Op386TESTB {
+		for b.Controls[0].Op == ssaop.Op386TESTB {
 			v_0 := b.Controls[0]
 			_ = v_0.Args[1]
 			v_0_0 := v_0.Args[0]
-			if v_0_0.Op != Op386SETNEF {
+			if v_0_0.Op != ssaop.Op386SETNEF {
 				break
 			}
 			cmp := v_0_0.Args[0]
 			v_0_1 := v_0.Args[1]
-			if v_0_1.Op != Op386SETNEF || cmp != v_0_1.Args[0] {
+			if v_0_1.Op != ssaop.Op386SETNEF || cmp != v_0_1.Args[0] {
 				break
 			}
 			b.ResetWithControl(block.Block386NEF, cmp)
@@ -11455,7 +11456,7 @@ func rewriteBlock386(b *Block) bool {
 		}
 		// match: (NE (InvertFlags cmp) yes no)
 		// result: (NE cmp yes no)
-		for b.Controls[0].Op == Op386InvertFlags {
+		for b.Controls[0].Op == ssaop.Op386InvertFlags {
 			v_0 := b.Controls[0]
 			cmp := v_0.Args[0]
 			b.ResetWithControl(block.Block386NE, cmp)
@@ -11463,39 +11464,39 @@ func rewriteBlock386(b *Block) bool {
 		}
 		// match: (NE (FlagEQ) yes no)
 		// result: (First no yes)
-		for b.Controls[0].Op == Op386FlagEQ {
+		for b.Controls[0].Op == ssaop.Op386FlagEQ {
 			b.Reset(block.BlockFirst)
 			b.SwapSuccessors()
 			return true
 		}
 		// match: (NE (FlagLT_ULT) yes no)
 		// result: (First yes no)
-		for b.Controls[0].Op == Op386FlagLT_ULT {
+		for b.Controls[0].Op == ssaop.Op386FlagLT_ULT {
 			b.Reset(block.BlockFirst)
 			return true
 		}
 		// match: (NE (FlagLT_UGT) yes no)
 		// result: (First yes no)
-		for b.Controls[0].Op == Op386FlagLT_UGT {
+		for b.Controls[0].Op == ssaop.Op386FlagLT_UGT {
 			b.Reset(block.BlockFirst)
 			return true
 		}
 		// match: (NE (FlagGT_ULT) yes no)
 		// result: (First yes no)
-		for b.Controls[0].Op == Op386FlagGT_ULT {
+		for b.Controls[0].Op == ssaop.Op386FlagGT_ULT {
 			b.Reset(block.BlockFirst)
 			return true
 		}
 		// match: (NE (FlagGT_UGT) yes no)
 		// result: (First yes no)
-		for b.Controls[0].Op == Op386FlagGT_UGT {
+		for b.Controls[0].Op == ssaop.Op386FlagGT_UGT {
 			b.Reset(block.BlockFirst)
 			return true
 		}
 	case block.Block386UGE:
 		// match: (UGE (InvertFlags cmp) yes no)
 		// result: (ULE cmp yes no)
-		for b.Controls[0].Op == Op386InvertFlags {
+		for b.Controls[0].Op == ssaop.Op386InvertFlags {
 			v_0 := b.Controls[0]
 			cmp := v_0.Args[0]
 			b.ResetWithControl(block.Block386ULE, cmp)
@@ -11503,40 +11504,40 @@ func rewriteBlock386(b *Block) bool {
 		}
 		// match: (UGE (FlagEQ) yes no)
 		// result: (First yes no)
-		for b.Controls[0].Op == Op386FlagEQ {
+		for b.Controls[0].Op == ssaop.Op386FlagEQ {
 			b.Reset(block.BlockFirst)
 			return true
 		}
 		// match: (UGE (FlagLT_ULT) yes no)
 		// result: (First no yes)
-		for b.Controls[0].Op == Op386FlagLT_ULT {
+		for b.Controls[0].Op == ssaop.Op386FlagLT_ULT {
 			b.Reset(block.BlockFirst)
 			b.SwapSuccessors()
 			return true
 		}
 		// match: (UGE (FlagLT_UGT) yes no)
 		// result: (First yes no)
-		for b.Controls[0].Op == Op386FlagLT_UGT {
+		for b.Controls[0].Op == ssaop.Op386FlagLT_UGT {
 			b.Reset(block.BlockFirst)
 			return true
 		}
 		// match: (UGE (FlagGT_ULT) yes no)
 		// result: (First no yes)
-		for b.Controls[0].Op == Op386FlagGT_ULT {
+		for b.Controls[0].Op == ssaop.Op386FlagGT_ULT {
 			b.Reset(block.BlockFirst)
 			b.SwapSuccessors()
 			return true
 		}
 		// match: (UGE (FlagGT_UGT) yes no)
 		// result: (First yes no)
-		for b.Controls[0].Op == Op386FlagGT_UGT {
+		for b.Controls[0].Op == ssaop.Op386FlagGT_UGT {
 			b.Reset(block.BlockFirst)
 			return true
 		}
 	case block.Block386UGT:
 		// match: (UGT (InvertFlags cmp) yes no)
 		// result: (ULT cmp yes no)
-		for b.Controls[0].Op == Op386InvertFlags {
+		for b.Controls[0].Op == ssaop.Op386InvertFlags {
 			v_0 := b.Controls[0]
 			cmp := v_0.Args[0]
 			b.ResetWithControl(block.Block386ULT, cmp)
@@ -11544,41 +11545,41 @@ func rewriteBlock386(b *Block) bool {
 		}
 		// match: (UGT (FlagEQ) yes no)
 		// result: (First no yes)
-		for b.Controls[0].Op == Op386FlagEQ {
+		for b.Controls[0].Op == ssaop.Op386FlagEQ {
 			b.Reset(block.BlockFirst)
 			b.SwapSuccessors()
 			return true
 		}
 		// match: (UGT (FlagLT_ULT) yes no)
 		// result: (First no yes)
-		for b.Controls[0].Op == Op386FlagLT_ULT {
+		for b.Controls[0].Op == ssaop.Op386FlagLT_ULT {
 			b.Reset(block.BlockFirst)
 			b.SwapSuccessors()
 			return true
 		}
 		// match: (UGT (FlagLT_UGT) yes no)
 		// result: (First yes no)
-		for b.Controls[0].Op == Op386FlagLT_UGT {
+		for b.Controls[0].Op == ssaop.Op386FlagLT_UGT {
 			b.Reset(block.BlockFirst)
 			return true
 		}
 		// match: (UGT (FlagGT_ULT) yes no)
 		// result: (First no yes)
-		for b.Controls[0].Op == Op386FlagGT_ULT {
+		for b.Controls[0].Op == ssaop.Op386FlagGT_ULT {
 			b.Reset(block.BlockFirst)
 			b.SwapSuccessors()
 			return true
 		}
 		// match: (UGT (FlagGT_UGT) yes no)
 		// result: (First yes no)
-		for b.Controls[0].Op == Op386FlagGT_UGT {
+		for b.Controls[0].Op == ssaop.Op386FlagGT_UGT {
 			b.Reset(block.BlockFirst)
 			return true
 		}
 	case block.Block386ULE:
 		// match: (ULE (InvertFlags cmp) yes no)
 		// result: (UGE cmp yes no)
-		for b.Controls[0].Op == Op386InvertFlags {
+		for b.Controls[0].Op == ssaop.Op386InvertFlags {
 			v_0 := b.Controls[0]
 			cmp := v_0.Args[0]
 			b.ResetWithControl(block.Block386UGE, cmp)
@@ -11586,32 +11587,32 @@ func rewriteBlock386(b *Block) bool {
 		}
 		// match: (ULE (FlagEQ) yes no)
 		// result: (First yes no)
-		for b.Controls[0].Op == Op386FlagEQ {
+		for b.Controls[0].Op == ssaop.Op386FlagEQ {
 			b.Reset(block.BlockFirst)
 			return true
 		}
 		// match: (ULE (FlagLT_ULT) yes no)
 		// result: (First yes no)
-		for b.Controls[0].Op == Op386FlagLT_ULT {
+		for b.Controls[0].Op == ssaop.Op386FlagLT_ULT {
 			b.Reset(block.BlockFirst)
 			return true
 		}
 		// match: (ULE (FlagLT_UGT) yes no)
 		// result: (First no yes)
-		for b.Controls[0].Op == Op386FlagLT_UGT {
+		for b.Controls[0].Op == ssaop.Op386FlagLT_UGT {
 			b.Reset(block.BlockFirst)
 			b.SwapSuccessors()
 			return true
 		}
 		// match: (ULE (FlagGT_ULT) yes no)
 		// result: (First yes no)
-		for b.Controls[0].Op == Op386FlagGT_ULT {
+		for b.Controls[0].Op == ssaop.Op386FlagGT_ULT {
 			b.Reset(block.BlockFirst)
 			return true
 		}
 		// match: (ULE (FlagGT_UGT) yes no)
 		// result: (First no yes)
-		for b.Controls[0].Op == Op386FlagGT_UGT {
+		for b.Controls[0].Op == ssaop.Op386FlagGT_UGT {
 			b.Reset(block.BlockFirst)
 			b.SwapSuccessors()
 			return true
@@ -11619,7 +11620,7 @@ func rewriteBlock386(b *Block) bool {
 	case block.Block386ULT:
 		// match: (ULT (InvertFlags cmp) yes no)
 		// result: (UGT cmp yes no)
-		for b.Controls[0].Op == Op386InvertFlags {
+		for b.Controls[0].Op == ssaop.Op386InvertFlags {
 			v_0 := b.Controls[0]
 			cmp := v_0.Args[0]
 			b.ResetWithControl(block.Block386UGT, cmp)
@@ -11627,33 +11628,33 @@ func rewriteBlock386(b *Block) bool {
 		}
 		// match: (ULT (FlagEQ) yes no)
 		// result: (First no yes)
-		for b.Controls[0].Op == Op386FlagEQ {
+		for b.Controls[0].Op == ssaop.Op386FlagEQ {
 			b.Reset(block.BlockFirst)
 			b.SwapSuccessors()
 			return true
 		}
 		// match: (ULT (FlagLT_ULT) yes no)
 		// result: (First yes no)
-		for b.Controls[0].Op == Op386FlagLT_ULT {
+		for b.Controls[0].Op == ssaop.Op386FlagLT_ULT {
 			b.Reset(block.BlockFirst)
 			return true
 		}
 		// match: (ULT (FlagLT_UGT) yes no)
 		// result: (First no yes)
-		for b.Controls[0].Op == Op386FlagLT_UGT {
+		for b.Controls[0].Op == ssaop.Op386FlagLT_UGT {
 			b.Reset(block.BlockFirst)
 			b.SwapSuccessors()
 			return true
 		}
 		// match: (ULT (FlagGT_ULT) yes no)
 		// result: (First yes no)
-		for b.Controls[0].Op == Op386FlagGT_ULT {
+		for b.Controls[0].Op == ssaop.Op386FlagGT_ULT {
 			b.Reset(block.BlockFirst)
 			return true
 		}
 		// match: (ULT (FlagGT_UGT) yes no)
 		// result: (First no yes)
-		for b.Controls[0].Op == Op386FlagGT_UGT {
+		for b.Controls[0].Op == ssaop.Op386FlagGT_UGT {
 			b.Reset(block.BlockFirst)
 			b.SwapSuccessors()
 			return true

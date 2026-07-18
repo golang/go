@@ -4,6 +4,8 @@
 
 package ssa
 
+import "cmd/compile/internal/ssa/ssaop"
+
 // combine copyelim and phielim into a single pass.
 // copyelim removes all uses of OpCopy values from f.
 // A subsequent deadcode pass is needed to actually remove the copies.
@@ -14,7 +16,7 @@ func copyelim(f *Func) {
 	// Update block control values.
 	for _, b := range f.Blocks {
 		for i, v := range b.ControlValues() {
-			if v.Op == OpCopy {
+			if v.Op == ssaop.OpCopy {
 				b.ReplaceControl(i, v.Args[0])
 			}
 		}
@@ -24,7 +26,7 @@ func copyelim(f *Func) {
 	for _, name := range f.Names {
 		values := f.NamedValues[name]
 		for i, v := range values {
-			if v.Op == OpCopy {
+			if v.Op == ssaop.OpCopy {
 				values[i] = v.Args[0]
 			}
 		}
@@ -46,10 +48,10 @@ func copySource(v *Value) *Value {
 	// (TODO: or can they? Needs a test.)
 	slow := w
 	var advance bool
-	for w.Op == OpCopy {
+	for w.Op == ssaop.OpCopy {
 		w = w.Args[0]
 		if w == slow {
-			w.Reset(OpUnknown)
+			w.Reset(ssaop.OpUnknown)
 			break
 		}
 		if advance {
@@ -73,7 +75,7 @@ func copySource(v *Value) *Value {
 // copyelimValue ensures that no args of v are copies.
 func copyelimValue(v *Value) {
 	for i, a := range v.Args {
-		if a.Op == OpCopy {
+		if a.Op == ssaop.OpCopy {
 			v.SetArg(i, copySource(a))
 		}
 	}
@@ -105,7 +107,7 @@ func phielim(f *Func) {
 				// This is an early place in SSA where all values are examined.
 				// Rewrite all 0-sized Go values to remove accessors, dereferences, loads, etc.
 				if t := v.Type; (t.IsStruct() || t.IsArray()) && t.Size() == 0 {
-					v.Reset(OpEmpty)
+					v.Reset(ssaop.OpEmpty)
 				}
 				// Modify all values so no arg (including args
 				// of OpCopy) is a copy.
@@ -121,7 +123,7 @@ func phielim(f *Func) {
 
 // PhiElimValue tries to convert the phi v to a copy.
 func PhiElimValue(v *Value) bool {
-	if v.Op != OpPhi {
+	if v.Op != ssaop.OpPhi {
 		return false
 	}
 
@@ -147,7 +149,7 @@ func PhiElimValue(v *Value) bool {
 		// a dead code loop. Don't bother modifying it.
 		return false
 	}
-	v.Op = OpCopy
+	v.Op = ssaop.OpCopy
 	v.SetArgs1(w)
 	f := v.Block.Func
 	if f.Pass.Debug > 0 {

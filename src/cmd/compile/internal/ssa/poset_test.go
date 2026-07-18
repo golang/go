@@ -7,6 +7,8 @@ package ssa
 import (
 	"fmt"
 	"testing"
+
+	"cmd/compile/internal/ssa/ssaop"
 )
 
 const (
@@ -48,7 +50,7 @@ func testPosetOps(t *testing.T, ops []posetTestOp) {
 		v[i] = new(Value)
 		v[i].ID = ID(i)
 		if i >= 1000 && i < 1256 {
-			v[i].Op = OpConst64
+			v[i].Op = ssaop.OpConst64
 			v[i].AuxInt = int64(i - 1000 - 128)
 		}
 	}

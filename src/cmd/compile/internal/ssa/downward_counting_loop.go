@@ -4,7 +4,10 @@
 
 package ssa
 
-import "fmt"
+import (
+	"cmd/compile/internal/ssa/ssaop"
+	"fmt"
+)
 
 // maybeRewriteLoopToDownwardCountingLoop tries to rewrite the loop to a
 // downward counting loop checking against start if the loop body does
@@ -86,17 +89,17 @@ func maybeRewriteLoopToDownwardCountingLoop(f *Func, v indVar) {
 	}
 
 	switch check.Op {
-	case OpLess8, OpLess16, OpLess32, OpLess64, OpLeq8, OpLeq16, OpLeq32, OpLeq64:
+	case ssaop.OpLess8, ssaop.OpLess16, ssaop.OpLess32, ssaop.OpLess64, ssaop.OpLeq8, ssaop.OpLeq16, ssaop.OpLeq32, ssaop.OpLeq64:
 		if _, ok := SafeAdd(start.AuxInt, neededRoom, uint(start.Type.Size())*8); !ok {
 			// We lack sufficient room after start to safely land without an overflow.
 			// See go.dev/issue/78303
 			return
 		}
-	case OpLess8U, OpLess16U, OpLess32U, OpLess64U, OpLeq8U, OpLeq16U, OpLeq32U, OpLeq64U:
+	case ssaop.OpLess8U, ssaop.OpLess16U, ssaop.OpLess32U, ssaop.OpLess64U, ssaop.OpLeq8U, ssaop.OpLeq16U, ssaop.OpLeq32U, ssaop.OpLeq64U:
 		panic(`parseIndVar didn't yet support unsigned induction variables, this code doesn't yet support them either.
 If you are seeing this it is probably because you've fixed https://go.dev/issue/65918.
 You need to update this code and add tests then.`)
-	case OpEq8, OpEq16, OpEq32, OpEq64, OpNeq8, OpNeq16, OpNeq32, OpNeq64:
+	case ssaop.OpEq8, ssaop.OpEq16, ssaop.OpEq32, ssaop.OpEq64, ssaop.OpNeq8, ssaop.OpNeq16, ssaop.OpNeq32, ssaop.OpNeq64:
 		panic(`parseIndVar didn't yet support induction variables using == or !=.
 If you are seeing this it is probably because you've added support for them.
 You need to update this code and add tests then.`)
@@ -140,22 +143,22 @@ You need to update this code and add tests then.`)
 	}
 
 	switch nxt.Op {
-	case OpAdd8:
-		nxt.Op = OpSub8
-	case OpAdd16:
-		nxt.Op = OpSub16
-	case OpAdd32:
-		nxt.Op = OpSub32
-	case OpAdd64:
-		nxt.Op = OpSub64
-	case OpSub8:
-		nxt.Op = OpAdd8
-	case OpSub16:
-		nxt.Op = OpAdd16
-	case OpSub32:
-		nxt.Op = OpAdd32
-	case OpSub64:
-		nxt.Op = OpAdd64
+	case ssaop.OpAdd8:
+		nxt.Op = ssaop.OpSub8
+	case ssaop.OpAdd16:
+		nxt.Op = ssaop.OpSub16
+	case ssaop.OpAdd32:
+		nxt.Op = ssaop.OpSub32
+	case ssaop.OpAdd64:
+		nxt.Op = ssaop.OpSub64
+	case ssaop.OpSub8:
+		nxt.Op = ssaop.OpAdd8
+	case ssaop.OpSub16:
+		nxt.Op = ssaop.OpAdd16
+	case ssaop.OpSub32:
+		nxt.Op = ssaop.OpAdd32
+	case ssaop.OpSub64:
+		nxt.Op = ssaop.OpAdd64
 	default:
 		panic("unreachable")
 	}

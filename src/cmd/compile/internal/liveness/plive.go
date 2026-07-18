@@ -30,6 +30,7 @@ import (
 	"cmd/compile/internal/reflectdata"
 	"cmd/compile/internal/ssa"
 	"cmd/compile/internal/ssa/block"
+	"cmd/compile/internal/ssa/ssaop"
 	"cmd/compile/internal/typebits"
 	"cmd/compile/internal/types"
 	"cmd/internal/hash"
@@ -292,7 +293,7 @@ func (lv *Liveness) valueEffects(v *ssa.Value) (int32, liveEffect) {
 	// OpVarFoo pseudo-ops. Ignore them to prevent "lost track of
 	// variable" ICEs (issue 19632).
 	switch v.Op {
-	case ssa.OpVarDef, ssa.OpVarLive, ssa.OpKeepAlive:
+	case ssaop.OpVarDef, ssaop.OpVarLive, ssaop.OpKeepAlive:
 		if !n.Used() {
 			return -1, 0
 		}
@@ -311,11 +312,11 @@ func (lv *Liveness) valueEffects(v *ssa.Value) (int32, liveEffect) {
 	// to see all the values (including initialization) written so far.
 	// This also prevents a variable from "coming back from the dead" and presenting
 	// stale pointers to the garbage collector. See issue 28445.
-	if e&(ssa.SymRead|ssa.SymAddr) != 0 {
+	if e&(ssaop.SymRead|ssaop.SymAddr) != 0 {
 		effect |= uevar
 	}
-	if e&ssa.SymWrite != 0 {
-		if !isfat(n.Type()) || v.Op == ssa.OpVarDef {
+	if e&ssaop.SymWrite != 0 {
+		if !isfat(n.Type()) || v.Op == ssaop.OpVarDef {
 			effect |= varkill
 		} else if lv.conservativeWrites {
 			effect |= uevar
@@ -333,17 +334,17 @@ func (lv *Liveness) valueEffects(v *ssa.Value) (int32, liveEffect) {
 }
 
 // affectedVar returns the *ir.Name node affected by v.
-func affectedVar(v *ssa.Value) (*ir.Name, ssa.SymEffect) {
+func affectedVar(v *ssa.Value) (*ir.Name, ssaop.SymEffect) {
 	// Special cases.
 	switch v.Op {
-	case ssa.OpLoadReg:
+	case ssaop.OpLoadReg:
 		n, _ := ssa.AutoVar(v.Args[0])
-		return n, ssa.SymRead
-	case ssa.OpStoreReg:
+		return n, ssaop.SymRead
+	case ssaop.OpStoreReg:
 		n, _ := ssa.AutoVar(v)
-		return n, ssa.SymWrite
+		return n, ssaop.SymWrite
 
-	case ssa.OpArgIntReg:
+	case ssaop.OpArgIntReg:
 		// This forces the spill slot for the register to be live at function entry.
 		// one of the following holds for a function F with pointer-valued register arg X:
 		//  0. No GC (so an uninitialized spill slot is okay)
@@ -357,15 +358,15 @@ func affectedVar(v *ssa.Value) (*ir.Name, ssa.SymEffect) {
 		//    a. X is live at call site, therefore is spilled, to its spill slot (which is live because of subsequent LoadReg).
 		//    b. X is not live at call site -- but neither is its spill slot.
 		n, _ := ssa.AutoVar(v)
-		return n, ssa.SymRead
+		return n, ssaop.SymRead
 
-	case ssa.OpVarLive:
-		return v.Aux.(*ir.Name), ssa.SymRead
-	case ssa.OpVarDef:
-		return v.Aux.(*ir.Name), ssa.SymWrite
-	case ssa.OpKeepAlive:
+	case ssaop.OpVarLive:
+		return v.Aux.(*ir.Name), ssaop.SymRead
+	case ssaop.OpVarDef:
+		return v.Aux.(*ir.Name), ssaop.SymWrite
+	case ssaop.OpKeepAlive:
 		n, _ := ssa.AutoVar(v.Args[0])
-		return n, ssa.SymRead
+		return n, ssaop.SymRead
 	}
 
 	e := v.Op.SymEffect()
@@ -526,7 +527,7 @@ func (lv *Liveness) markUnsafePoints() {
 
 	for _, b := range lv.f.Blocks {
 		for _, v := range b.Values {
-			if v.Op != ssa.OpWBend {
+			if v.Op != ssaop.OpWBend {
 				continue
 			}
 			// WBend appears at the start of a block, like this:
@@ -551,7 +552,7 @@ func (lv *Liveness) markUnsafePoints() {
 				if m.Block != b {
 					lv.f.Fatalf("can't find Phi before write barrier end mark %v", v)
 				}
-				if m.Op == ssa.OpPhi {
+				if m.Op == ssaop.OpPhi {
 					break
 				}
 			}
@@ -634,7 +635,7 @@ func (lv *Liveness) markUnsafePoints() {
 
 			// Mark from the join point up to the WBend as unsafe.
 			for _, v := range b.Values {
-				if v.Op == ssa.OpWBend {
+				if v.Op == ssaop.OpWBend {
 					break
 				}
 				lv.unsafePoints.Set(int32(v.ID))
@@ -928,7 +929,7 @@ func (lv *Liveness) compact(b *ssa.Block) {
 			pos++
 			lv.livenessMap.set(v, objw.StackMapIndex(idx))
 		}
-		if lv.allUnsafe || v.Op != ssa.OpClobber && lv.unsafePoints.Get(int32(v.ID)) {
+		if lv.allUnsafe || v.Op != ssaop.OpClobber && lv.unsafePoints.Get(int32(v.ID)) {
 			lv.livenessMap.setUnsafeVal(v)
 		}
 	}
@@ -1100,7 +1101,7 @@ func clobberWalk(b *ssa.Block, v *ir.Name, offset int64, t *types.Type) {
 // clobberPtr generates a clobber of the pointer at offset offset in v.
 // The clobber instruction is added at the end of b.
 func clobberPtr(b *ssa.Block, v *ir.Name, offset int64) {
-	b.NewValue0IA(src.NoXPos, ssa.OpClobber, types.TypeVoid, offset, v)
+	b.NewValue0IA(src.NoXPos, ssaop.OpClobber, types.TypeVoid, offset, v)
 }
 
 func (lv *Liveness) showlive(v *ssa.Value, live bitvec.BitVec) {

@@ -6,6 +6,7 @@ package ssa
 
 import (
 	"cmd/compile/internal/ssa/block"
+	"cmd/compile/internal/ssa/ssaop"
 	"cmd/internal/src"
 	"fmt"
 )
@@ -128,7 +129,7 @@ func fuseBlockIf(b *Block) bool {
 	// (2nd, 3rd and 4th case in the figure).
 
 	for _, v := range ss.Values {
-		if v.Op == OpPhi && v.Uses > 0 && v.Args[i0] != v.Args[i1] {
+		if v.Op == ssaop.OpPhi && v.Uses > 0 && v.Args[i0] != v.Args[i1] {
 			return false
 		}
 	}
@@ -170,7 +171,7 @@ func fuseBlockIf(b *Block) bool {
 		walkValues = walkValues[:len(walkValues)-1]
 		if v.Uses == 0 && v.Removeable() {
 			walkValues = append(walkValues, v.Args...)
-			v.Reset(OpInvalid)
+			v.Reset(ssaop.OpInvalid)
 		}
 	}
 	return true
@@ -180,7 +181,7 @@ func fuseBlockIf(b *Block) bool {
 // There may be false positives.
 func isEmpty(b *Block) bool {
 	for _, v := range b.Values {
-		if v.Uses > 0 || v.Op.IsCall() || v.Op.HasSideEffects() || v.Type.IsVoid() || OpcodeTable[v.Op].NilCheck {
+		if v.Uses > 0 || v.Op.IsCall() || v.Op.HasSideEffects() || v.Type.IsVoid() || ssaop.OpcodeTable[v.Op].NilCheck {
 			return false
 		}
 	}

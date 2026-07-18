@@ -6,6 +6,7 @@ package ssa
 
 import (
 	"cmd/compile/internal/ir"
+	"cmd/compile/internal/ssa/ssaop"
 	"cmd/compile/internal/types"
 	"cmd/internal/obj"
 )
@@ -41,7 +42,7 @@ func dse(f *Func) {
 		clear(localAddrs)
 		stores = stores[:0]
 		for _, v := range b.Values {
-			if v.Op == OpPhi {
+			if v.Op == ssaop.OpPhi {
 				// Ignore phis - they will always be first and can't be eliminated
 				continue
 			}
@@ -51,13 +52,13 @@ func dse(f *Func) {
 					if a.Block == b && a.Type.IsMemory() {
 						storeUse.Add(a.ID)
 						switch v.Op {
-						case OpStore, OpZero, OpVarDef:
+						case ssaop.OpStore, ssaop.OpZero, ssaop.OpVarDef:
 							// These ops never read from their memory input.
-						case OpMove:
+						case ssaop.OpMove:
 							// This op reads from its memory argument, but
 							// we can treat it as not doing so if we know
 							// the read is from read-only memory.
-							if v.Args[1].Op == OpAddr && SymIsRO(AuxToSym(v.Args[1].Aux)) {
+							if v.Args[1].Op == ssaop.OpAddr && SymIsRO(AuxToSym(v.Args[1].Aux)) {
 								break
 							}
 							fallthrough
@@ -69,13 +70,13 @@ func dse(f *Func) {
 					}
 				}
 			} else {
-				if v.Op == OpLocalAddr {
+				if v.Op == ssaop.OpLocalAddr {
 					if _, ok := localAddrs[v.Aux]; !ok {
 						localAddrs[v.Aux] = v
 					}
 					continue
 				}
-				if v.Op == OpInlMark || v.Op == OpConvert {
+				if v.Op == ssaop.OpInlMark || v.Op == ssaop.OpConvert {
 					// Not really a use of the memory. See #67957.
 					continue
 				}
@@ -122,21 +123,21 @@ func dse(f *Func) {
 			shadowed.Clear()
 			shadowedRanges = shadowedRanges[:0]
 		}
-		if v.Op == OpStore || v.Op == OpZero || v.Op == OpMove {
+		if v.Op == ssaop.OpStore || v.Op == ssaop.OpZero || v.Op == ssaop.OpMove {
 			ptr := v.Args[0]
 			var off int64
-			for ptr.Op == OpOffPtr { // Walk to base pointer
+			for ptr.Op == ssaop.OpOffPtr { // Walk to base pointer
 				off += ptr.AuxInt
 				ptr = ptr.Args[0]
 			}
 			var sz int64
 			switch v.Op {
-			case OpStore:
+			case ssaop.OpStore:
 				sz = v.Aux.(*types.Type).Size()
-			case OpZero, OpMove:
+			case ssaop.OpZero, ssaop.OpMove:
 				sz = v.AuxInt
 			}
-			if ptr.Op == OpLocalAddr {
+			if ptr.Op == ssaop.OpLocalAddr {
 				if la, ok := localAddrs[ptr.Aux]; ok {
 					ptr = la
 				}
@@ -151,7 +152,7 @@ func dse(f *Func) {
 			if si != nil && si.contains(off, off+sz) {
 				// Modify the store/zero/move into a copy of the memory state,
 				// effectively eliding the store operation.
-				if v.Op == OpStore || v.Op == OpMove {
+				if v.Op == ssaop.OpStore || v.Op == ssaop.OpMove {
 					//    Store addr value mem
 					// or  Move dst src mem
 					v.SetArgs1(v.Args[2])
@@ -161,7 +162,7 @@ func dse(f *Func) {
 				}
 				v.Aux = nil
 				v.AuxInt = 0
-				v.Op = OpCopy
+				v.Op = ssaop.OpCopy
 			} else {
 				// Extend shadowed region.
 				if si == nil {
@@ -174,7 +175,7 @@ func dse(f *Func) {
 			}
 		}
 		// walk to previous store
-		if v.Op == OpPhi {
+		if v.Op == ssaop.OpPhi {
 			// At start of block.  Move on to next block.
 			// The memory phi, if it exists, is always
 			// the first logical store in the block.
@@ -268,7 +269,7 @@ func elimDeadAutosGeneric(f *Func) {
 	visit := func(v *Value) (changed bool) {
 		args := v.Args
 		switch v.Op {
-		case OpAddr, OpLocalAddr:
+		case ssaop.OpAddr, ssaop.OpLocalAddr:
 			// Propagate the address if it points to an auto.
 			n, ok := v.Aux.(*ir.Name)
 			if !ok || (n.Class != ir.PAUTO && !isABIInternalParam(f, n)) {
@@ -279,7 +280,7 @@ func elimDeadAutosGeneric(f *Func) {
 				changed = true
 			}
 			return
-		case OpVarDef:
+		case ssaop.OpVarDef:
 			// v should be eliminated if we eliminate the auto.
 			n, ok := v.Aux.(*ir.Name)
 			if !ok || (n.Class != ir.PAUTO && !isABIInternalParam(f, n)) {
@@ -290,7 +291,7 @@ func elimDeadAutosGeneric(f *Func) {
 				changed = true
 			}
 			return
-		case OpVarLive:
+		case ssaop.OpVarLive:
 			// Don't delete the auto if it needs to be kept alive.
 
 			// We depend on this check to keep the autotmp stack slots
@@ -303,7 +304,7 @@ func elimDeadAutosGeneric(f *Func) {
 			}
 			changed = usedAdd(n) || changed
 			return
-		case OpStore, OpMove, OpZero:
+		case ssaop.OpStore, ssaop.OpMove, ssaop.OpZero:
 			// v should be eliminated if we eliminate the auto.
 			n, ok := addr[args[0]]
 			if ok && elim[v] == nil {
@@ -317,11 +318,11 @@ func elimDeadAutosGeneric(f *Func) {
 		// The code below assumes that we have handled all the ops
 		// with sym effects already. Sanity check that here.
 		// Ignore Args since they can't be autos.
-		if v.Op.SymEffect() != SymNone && v.Op != OpArg {
+		if v.Op.SymEffect() != ssaop.SymNone && v.Op != ssaop.OpArg {
 			panic("unhandled op with sym effect")
 		}
 
-		if v.Uses == 0 && v.Op != OpNilCheck && !v.Op.IsCall() && !v.Op.HasSideEffects() || len(args) == 0 {
+		if v.Uses == 0 && v.Op != ssaop.OpNilCheck && !v.Op.IsCall() && !v.Op.HasSideEffects() || len(args) == 0 {
 			// We need to keep nil checks even if they have no use.
 			// Also keep calls and values that have side effects.
 			return
@@ -330,13 +331,13 @@ func elimDeadAutosGeneric(f *Func) {
 		// If the address of the auto reaches a memory or control
 		// operation not covered above then we probably need to keep it.
 		// We also need to keep autos if they reach Phis (issue #26153).
-		if v.Type.IsMemory() || v.Type.IsFlags() || v.Op == OpPhi || v.MemoryArg() != nil {
+		if v.Type.IsMemory() || v.Type.IsFlags() || v.Op == ssaop.OpPhi || v.MemoryArg() != nil {
 			for _, a := range args {
 				if n, ok := addr[a]; ok {
 					// If the addr of n is used by an OpMove as its source arg,
 					// and the OpMove's target arg is the addr of a unused name,
 					// then temporarily treat n as unused, and record in move map.
-					if nam, ok := elim[v]; ok && v.Op == OpMove && !used.Has(nam) {
+					if nam, ok := elim[v]; ok && v.Op == ssaop.OpMove && !used.Has(nam) {
 						if used.Has(n) {
 							continue
 						}
@@ -424,7 +425,7 @@ func elimDeadAutosGeneric(f *Func) {
 		v.SetArgs1(v.MemoryArg())
 		v.Aux = nil
 		v.AuxInt = 0
-		v.Op = OpCopy
+		v.Op = ssaop.OpCopy
 	}
 }
 
@@ -448,7 +449,7 @@ func elimUnreadAutos(f *Func) {
 
 			effect := v.Op.SymEffect()
 			switch effect {
-			case SymNone, SymWrite:
+			case ssaop.SymNone, ssaop.SymWrite:
 				// If we haven't seen the auto yet
 				// then this might be a store we can
 				// eliminate.
@@ -479,7 +480,7 @@ func elimUnreadAutos(f *Func) {
 		store.SetArgs1(store.MemoryArg())
 		store.Aux = nil
 		store.AuxInt = 0
-		store.Op = OpCopy
+		store.Op = ssaop.OpCopy
 	}
 }
 

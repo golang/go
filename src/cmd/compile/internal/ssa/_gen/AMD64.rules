@@ -909,21 +909,21 @@
 // fold ADDQ/ADDL into LEAQ/LEAL
 (ADD(Q|L)const [c] (LEA(Q|L) [d] {s} x)) && Is32Bit(int64(c)+int64(d)) => (LEA(Q|L) [c+d] {s} x)
 (LEA(Q|L) [c] {s} (ADD(Q|L)const [d] x)) && Is32Bit(int64(c)+int64(d)) => (LEA(Q|L) [c+d] {s} x)
-(LEA(Q|L) [c] {s} (ADD(Q|L) x y)) && x.Op != OpSB && y.Op != OpSB => (LEA(Q|L)1 [c] {s} x y)
-(ADD(Q|L) x (LEA(Q|L) [c] {s} y)) && x.Op != OpSB && y.Op != OpSB => (LEA(Q|L)1 [c] {s} x y)
+(LEA(Q|L) [c] {s} (ADD(Q|L) x y)) && x.Op != ssaop.OpSB && y.Op != ssaop.OpSB => (LEA(Q|L)1 [c] {s} x y)
+(ADD(Q|L) x (LEA(Q|L) [c] {s} y)) && x.Op != ssaop.OpSB && y.Op != ssaop.OpSB => (LEA(Q|L)1 [c] {s} x y)
 
 // fold ADDQconst/ADDLconst into LEAQx/LEALx
 (ADD(Q|L)const [c] (LEA(Q|L)1 [d] {s} x y)) && Is32Bit(int64(c)+int64(d)) => (LEA(Q|L)1 [c+d] {s} x y)
 (ADD(Q|L)const [c] (LEA(Q|L)2 [d] {s} x y)) && Is32Bit(int64(c)+int64(d)) => (LEA(Q|L)2 [c+d] {s} x y)
 (ADD(Q|L)const [c] (LEA(Q|L)4 [d] {s} x y)) && Is32Bit(int64(c)+int64(d)) => (LEA(Q|L)4 [c+d] {s} x y)
 (ADD(Q|L)const [c] (LEA(Q|L)8 [d] {s} x y)) && Is32Bit(int64(c)+int64(d)) => (LEA(Q|L)8 [c+d] {s} x y)
-(LEA(Q|L)1 [c] {s} (ADD(Q|L)const [d] x) y) && Is32Bit(int64(c)+int64(d))   && x.Op != OpSB => (LEA(Q|L)1 [c+d] {s} x y)
-(LEA(Q|L)2 [c] {s} (ADD(Q|L)const [d] x) y) && Is32Bit(int64(c)+int64(d))   && x.Op != OpSB => (LEA(Q|L)2 [c+d] {s} x y)
-(LEA(Q|L)2 [c] {s} x (ADD(Q|L)const [d] y)) && Is32Bit(int64(c)+2*int64(d)) && y.Op != OpSB => (LEA(Q|L)2 [c+2*d] {s} x y)
-(LEA(Q|L)4 [c] {s} (ADD(Q|L)const [d] x) y) && Is32Bit(int64(c)+int64(d))   && x.Op != OpSB => (LEA(Q|L)4 [c+d] {s} x y)
-(LEA(Q|L)4 [c] {s} x (ADD(Q|L)const [d] y)) && Is32Bit(int64(c)+4*int64(d)) && y.Op != OpSB => (LEA(Q|L)4 [c+4*d] {s} x y)
-(LEA(Q|L)8 [c] {s} (ADD(Q|L)const [d] x) y) && Is32Bit(int64(c)+int64(d))   && x.Op != OpSB => (LEA(Q|L)8 [c+d] {s} x y)
-(LEA(Q|L)8 [c] {s} x (ADD(Q|L)const [d] y)) && Is32Bit(int64(c)+8*int64(d)) && y.Op != OpSB => (LEA(Q|L)8 [c+8*d] {s} x y)
+(LEA(Q|L)1 [c] {s} (ADD(Q|L)const [d] x) y) && Is32Bit(int64(c)+int64(d))   && x.Op != ssaop.OpSB => (LEA(Q|L)1 [c+d] {s} x y)
+(LEA(Q|L)2 [c] {s} (ADD(Q|L)const [d] x) y) && Is32Bit(int64(c)+int64(d))   && x.Op != ssaop.OpSB => (LEA(Q|L)2 [c+d] {s} x y)
+(LEA(Q|L)2 [c] {s} x (ADD(Q|L)const [d] y)) && Is32Bit(int64(c)+2*int64(d)) && y.Op != ssaop.OpSB => (LEA(Q|L)2 [c+2*d] {s} x y)
+(LEA(Q|L)4 [c] {s} (ADD(Q|L)const [d] x) y) && Is32Bit(int64(c)+int64(d))   && x.Op != ssaop.OpSB => (LEA(Q|L)4 [c+d] {s} x y)
+(LEA(Q|L)4 [c] {s} x (ADD(Q|L)const [d] y)) && Is32Bit(int64(c)+4*int64(d)) && y.Op != ssaop.OpSB => (LEA(Q|L)4 [c+4*d] {s} x y)
+(LEA(Q|L)8 [c] {s} (ADD(Q|L)const [d] x) y) && Is32Bit(int64(c)+int64(d))   && x.Op != ssaop.OpSB => (LEA(Q|L)8 [c+d] {s} x y)
+(LEA(Q|L)8 [c] {s} x (ADD(Q|L)const [d] y)) && Is32Bit(int64(c)+8*int64(d)) && y.Op != ssaop.OpSB => (LEA(Q|L)8 [c+8*d] {s} x y)
 
 // fold shifts into LEAQx/LEALx
 (LEA(Q|L)1 [c] {s} x z:(ADD(Q|L) y y)) && x != z => (LEA(Q|L)2 [c] {s} x y)
@@ -1122,7 +1122,7 @@
       (LEAQ [off1+off2] {MergeSym(sym1,sym2)} x)
 
 // LEAQ into LEAQ1
-(LEAQ1 [off1] {sym1} (LEAQ [off2] {sym2} x) y) && Is32Bit(int64(off1)+int64(off2)) && CanMergeSym(sym1, sym2) && x.Op != OpSB =>
+(LEAQ1 [off1] {sym1} (LEAQ [off2] {sym2} x) y) && Is32Bit(int64(off1)+int64(off2)) && CanMergeSym(sym1, sym2) && x.Op != ssaop.OpSB =>
        (LEAQ1 [off1+off2] {MergeSym(sym1,sym2)} x y)
 
 // LEAQ1 into LEAQ
@@ -1130,11 +1130,11 @@
        (LEAQ1 [off1+off2] {MergeSym(sym1,sym2)} x y)
 
 // LEAQ into LEAQ[248]
-(LEAQ2 [off1] {sym1} (LEAQ [off2] {sym2} x) y) && Is32Bit(int64(off1)+int64(off2)) && CanMergeSym(sym1, sym2) && x.Op != OpSB =>
+(LEAQ2 [off1] {sym1} (LEAQ [off2] {sym2} x) y) && Is32Bit(int64(off1)+int64(off2)) && CanMergeSym(sym1, sym2) && x.Op != ssaop.OpSB =>
        (LEAQ2 [off1+off2] {MergeSym(sym1,sym2)} x y)
-(LEAQ4 [off1] {sym1} (LEAQ [off2] {sym2} x) y) && Is32Bit(int64(off1)+int64(off2)) && CanMergeSym(sym1, sym2) && x.Op != OpSB =>
+(LEAQ4 [off1] {sym1} (LEAQ [off2] {sym2} x) y) && Is32Bit(int64(off1)+int64(off2)) && CanMergeSym(sym1, sym2) && x.Op != ssaop.OpSB =>
        (LEAQ4 [off1+off2] {MergeSym(sym1,sym2)} x y)
-(LEAQ8 [off1] {sym1} (LEAQ [off2] {sym2} x) y) && Is32Bit(int64(off1)+int64(off2)) && CanMergeSym(sym1, sym2) && x.Op != OpSB =>
+(LEAQ8 [off1] {sym1} (LEAQ [off2] {sym2} x) y) && Is32Bit(int64(off1)+int64(off2)) && CanMergeSym(sym1, sym2) && x.Op != ssaop.OpSB =>
        (LEAQ8 [off1+off2] {MergeSym(sym1,sym2)} x y)
 
 // LEAQ[248] into LEAQ
@@ -1410,10 +1410,10 @@
 
 // TEST %reg,%reg is shorter than CMP
 (CMP(Q|L|W|B)const x [0]) => (TEST(Q|L|W|B) x x)
-(TESTQconst [-1] x) && x.Op != OpAMD64MOVQconst => (TESTQ x x)
-(TESTLconst [-1] x) && x.Op != OpAMD64MOVLconst => (TESTL x x)
-(TESTWconst [-1] x) && x.Op != OpAMD64MOVLconst => (TESTW x x)
-(TESTBconst [-1] x) && x.Op != OpAMD64MOVLconst => (TESTB x x)
+(TESTQconst [-1] x) && x.Op != ssaop.OpAMD64MOVQconst => (TESTQ x x)
+(TESTLconst [-1] x) && x.Op != ssaop.OpAMD64MOVLconst => (TESTL x x)
+(TESTWconst [-1] x) && x.Op != ssaop.OpAMD64MOVLconst => (TESTW x x)
+(TESTBconst [-1] x) && x.Op != ssaop.OpAMD64MOVLconst => (TESTB x x)
 
 // Convert LEAQ1 back to ADDQ if we can
 (LEAQ1 [0] x y) && v.Aux == nil => (ADDQ x y)
@@ -1459,11 +1459,11 @@
 // Merge ADDQconst and LEAQ into atomic stores.
 (XCHGQ [off1] {sym} val (ADDQconst [off2] ptr) mem) && Is32Bit(int64(off1)+int64(off2)) =>
 	(XCHGQ [off1+off2] {sym} val ptr mem)
-(XCHGQ [off1] {sym1} val (LEAQ [off2] {sym2} ptr) mem) && Is32Bit(int64(off1)+int64(off2)) && CanMergeSym(sym1, sym2) && ptr.Op != OpSB =>
+(XCHGQ [off1] {sym1} val (LEAQ [off2] {sym2} ptr) mem) && Is32Bit(int64(off1)+int64(off2)) && CanMergeSym(sym1, sym2) && ptr.Op != ssaop.OpSB =>
 	(XCHGQ [off1+off2] {MergeSym(sym1,sym2)} val ptr mem)
 (XCHGL [off1] {sym} val (ADDQconst [off2] ptr) mem) && Is32Bit(int64(off1)+int64(off2)) =>
 	(XCHGL [off1+off2] {sym} val ptr mem)
-(XCHGL [off1] {sym1} val (LEAQ [off2] {sym2} ptr) mem) && Is32Bit(int64(off1)+int64(off2)) && CanMergeSym(sym1, sym2) && ptr.Op != OpSB =>
+(XCHGL [off1] {sym1} val (LEAQ [off2] {sym2} ptr) mem) && Is32Bit(int64(off1)+int64(off2)) && CanMergeSym(sym1, sym2) && ptr.Op != ssaop.OpSB =>
 	(XCHGL [off1+off2] {MergeSym(sym1,sym2)} val ptr mem)
 
 // Merge ADDQconst into atomic adds.

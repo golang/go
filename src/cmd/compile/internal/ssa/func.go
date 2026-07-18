@@ -10,6 +10,7 @@ import (
 	"cmd/compile/internal/ir"
 	"cmd/compile/internal/ssa/block"
 	"cmd/compile/internal/ssa/ssabase"
+	"cmd/compile/internal/ssa/ssaop"
 	"cmd/compile/internal/typecheck"
 	"cmd/compile/internal/types"
 	"cmd/internal/obj"
@@ -281,7 +282,7 @@ func (f *Func) SplitSlot(name *LocalSlot, sfx string, offset int64, t *types.Typ
 }
 
 // NewValue allocates a new Value with the given fields and places it at the end of b.Values.
-func (f *Func) NewValue(op Op, t *types.Type, b *Block, pos src.XPos) *Value {
+func (f *Func) NewValue(op ssaop.Op, t *types.Type, b *Block, pos src.XPos) *Value {
 	var v *Value
 	if f.FreeValues != nil {
 		v = f.FreeValues
@@ -311,7 +312,7 @@ func (f *Func) NewValue(op Op, t *types.Type, b *Block, pos src.XPos) *Value {
 // The returned value is not placed in any block.  Once the caller
 // decides on a block b, it must set b.Block and append
 // the returned value to b.Values.
-func (f *Func) NewValueNoBlock(op Op, t *types.Type, pos src.XPos) *Value {
+func (f *Func) NewValueNoBlock(op ssaop.Op, t *types.Type, pos src.XPos) *Value {
 	var v *Value
 	if f.FreeValues != nil {
 		v = f.FreeValues
@@ -380,13 +381,13 @@ func (f *Func) UnCache(v *Value) {
 		}
 		if aux == 0 {
 			switch v.Op {
-			case OpConstNil:
+			case ssaop.OpConstNil:
 				aux = constNilMagic
-			case OpConstSlice:
+			case ssaop.OpConstSlice:
 				aux = constSliceMagic
-			case OpConstString:
+			case ssaop.OpConstString:
 				aux = constEmptyStringMagic
-			case OpConstInterface:
+			case ssaop.OpConstInterface:
 				aux = constInterfaceMagic
 			}
 			if aux != 0 && f.unCacheLine(v, aux) {
@@ -458,7 +459,7 @@ func (f *Func) FreeBlock(b *Block) {
 }
 
 // NewValue0 returns a new value in the block with no arguments and zero aux values.
-func (b *Block) NewValue0(pos src.XPos, op Op, t *types.Type) *Value {
+func (b *Block) NewValue0(pos src.XPos, op ssaop.Op, t *types.Type) *Value {
 	v := b.Func.NewValue(op, t, b, pos)
 	v.AuxInt = 0
 	v.Args = v.Argstorage[:0]
@@ -466,7 +467,7 @@ func (b *Block) NewValue0(pos src.XPos, op Op, t *types.Type) *Value {
 }
 
 // NewValue0I returns a new value in the block with no arguments and an auxint value.
-func (b *Block) NewValue0I(pos src.XPos, op Op, t *types.Type, auxint int64) *Value {
+func (b *Block) NewValue0I(pos src.XPos, op ssaop.Op, t *types.Type, auxint int64) *Value {
 	v := b.Func.NewValue(op, t, b, pos)
 	v.AuxInt = auxint
 	v.Args = v.Argstorage[:0]
@@ -474,7 +475,7 @@ func (b *Block) NewValue0I(pos src.XPos, op Op, t *types.Type, auxint int64) *Va
 }
 
 // NewValue0A returns a new value in the block with no arguments and an aux value.
-func (b *Block) NewValue0A(pos src.XPos, op Op, t *types.Type, aux Aux) *Value {
+func (b *Block) NewValue0A(pos src.XPos, op ssaop.Op, t *types.Type, aux Aux) *Value {
 	v := b.Func.NewValue(op, t, b, pos)
 	v.AuxInt = 0
 	v.Aux = aux
@@ -483,7 +484,7 @@ func (b *Block) NewValue0A(pos src.XPos, op Op, t *types.Type, aux Aux) *Value {
 }
 
 // NewValue0IA returns a new value in the block with no arguments and both an auxint and aux values.
-func (b *Block) NewValue0IA(pos src.XPos, op Op, t *types.Type, auxint int64, aux Aux) *Value {
+func (b *Block) NewValue0IA(pos src.XPos, op ssaop.Op, t *types.Type, auxint int64, aux Aux) *Value {
 	v := b.Func.NewValue(op, t, b, pos)
 	v.AuxInt = auxint
 	v.Aux = aux
@@ -492,7 +493,7 @@ func (b *Block) NewValue0IA(pos src.XPos, op Op, t *types.Type, auxint int64, au
 }
 
 // NewValue1 returns a new value in the block with one argument and zero aux values.
-func (b *Block) NewValue1(pos src.XPos, op Op, t *types.Type, arg *Value) *Value {
+func (b *Block) NewValue1(pos src.XPos, op ssaop.Op, t *types.Type, arg *Value) *Value {
 	v := b.Func.NewValue(op, t, b, pos)
 	v.AuxInt = 0
 	v.Args = v.Argstorage[:1]
@@ -502,7 +503,7 @@ func (b *Block) NewValue1(pos src.XPos, op Op, t *types.Type, arg *Value) *Value
 }
 
 // NewValue1I returns a new value in the block with one argument and an auxint value.
-func (b *Block) NewValue1I(pos src.XPos, op Op, t *types.Type, auxint int64, arg *Value) *Value {
+func (b *Block) NewValue1I(pos src.XPos, op ssaop.Op, t *types.Type, auxint int64, arg *Value) *Value {
 	v := b.Func.NewValue(op, t, b, pos)
 	v.AuxInt = auxint
 	v.Args = v.Argstorage[:1]
@@ -512,7 +513,7 @@ func (b *Block) NewValue1I(pos src.XPos, op Op, t *types.Type, auxint int64, arg
 }
 
 // NewValue1A returns a new value in the block with one argument and an aux value.
-func (b *Block) NewValue1A(pos src.XPos, op Op, t *types.Type, aux Aux, arg *Value) *Value {
+func (b *Block) NewValue1A(pos src.XPos, op ssaop.Op, t *types.Type, aux Aux, arg *Value) *Value {
 	v := b.Func.NewValue(op, t, b, pos)
 	v.AuxInt = 0
 	v.Aux = aux
@@ -523,7 +524,7 @@ func (b *Block) NewValue1A(pos src.XPos, op Op, t *types.Type, aux Aux, arg *Val
 }
 
 // NewValue1IA returns a new value in the block with one argument and both an auxint and aux values.
-func (b *Block) NewValue1IA(pos src.XPos, op Op, t *types.Type, auxint int64, aux Aux, arg *Value) *Value {
+func (b *Block) NewValue1IA(pos src.XPos, op ssaop.Op, t *types.Type, auxint int64, aux Aux, arg *Value) *Value {
 	v := b.Func.NewValue(op, t, b, pos)
 	v.AuxInt = auxint
 	v.Aux = aux
@@ -534,7 +535,7 @@ func (b *Block) NewValue1IA(pos src.XPos, op Op, t *types.Type, auxint int64, au
 }
 
 // NewValue2 returns a new value in the block with two arguments and zero aux values.
-func (b *Block) NewValue2(pos src.XPos, op Op, t *types.Type, arg0, arg1 *Value) *Value {
+func (b *Block) NewValue2(pos src.XPos, op ssaop.Op, t *types.Type, arg0, arg1 *Value) *Value {
 	v := b.Func.NewValue(op, t, b, pos)
 	v.AuxInt = 0
 	v.Args = v.Argstorage[:2]
@@ -546,7 +547,7 @@ func (b *Block) NewValue2(pos src.XPos, op Op, t *types.Type, arg0, arg1 *Value)
 }
 
 // NewValue2A returns a new value in the block with two arguments and one aux values.
-func (b *Block) NewValue2A(pos src.XPos, op Op, t *types.Type, aux Aux, arg0, arg1 *Value) *Value {
+func (b *Block) NewValue2A(pos src.XPos, op ssaop.Op, t *types.Type, aux Aux, arg0, arg1 *Value) *Value {
 	v := b.Func.NewValue(op, t, b, pos)
 	v.AuxInt = 0
 	v.Aux = aux
@@ -559,7 +560,7 @@ func (b *Block) NewValue2A(pos src.XPos, op Op, t *types.Type, aux Aux, arg0, ar
 }
 
 // NewValue2I returns a new value in the block with two arguments and an auxint value.
-func (b *Block) NewValue2I(pos src.XPos, op Op, t *types.Type, auxint int64, arg0, arg1 *Value) *Value {
+func (b *Block) NewValue2I(pos src.XPos, op ssaop.Op, t *types.Type, auxint int64, arg0, arg1 *Value) *Value {
 	v := b.Func.NewValue(op, t, b, pos)
 	v.AuxInt = auxint
 	v.Args = v.Argstorage[:2]
@@ -571,7 +572,7 @@ func (b *Block) NewValue2I(pos src.XPos, op Op, t *types.Type, auxint int64, arg
 }
 
 // NewValue2IA returns a new value in the block with two arguments and both an auxint and aux values.
-func (b *Block) NewValue2IA(pos src.XPos, op Op, t *types.Type, auxint int64, aux Aux, arg0, arg1 *Value) *Value {
+func (b *Block) NewValue2IA(pos src.XPos, op ssaop.Op, t *types.Type, auxint int64, aux Aux, arg0, arg1 *Value) *Value {
 	v := b.Func.NewValue(op, t, b, pos)
 	v.AuxInt = auxint
 	v.Aux = aux
@@ -584,7 +585,7 @@ func (b *Block) NewValue2IA(pos src.XPos, op Op, t *types.Type, auxint int64, au
 }
 
 // NewValue3 returns a new value in the block with three arguments and zero aux values.
-func (b *Block) NewValue3(pos src.XPos, op Op, t *types.Type, arg0, arg1, arg2 *Value) *Value {
+func (b *Block) NewValue3(pos src.XPos, op ssaop.Op, t *types.Type, arg0, arg1, arg2 *Value) *Value {
 	v := b.Func.NewValue(op, t, b, pos)
 	v.AuxInt = 0
 	v.Args = v.Argstorage[:3]
@@ -598,7 +599,7 @@ func (b *Block) NewValue3(pos src.XPos, op Op, t *types.Type, arg0, arg1, arg2 *
 }
 
 // NewValue3I returns a new value in the block with three arguments and an auxint value.
-func (b *Block) NewValue3I(pos src.XPos, op Op, t *types.Type, auxint int64, arg0, arg1, arg2 *Value) *Value {
+func (b *Block) NewValue3I(pos src.XPos, op ssaop.Op, t *types.Type, auxint int64, arg0, arg1, arg2 *Value) *Value {
 	v := b.Func.NewValue(op, t, b, pos)
 	v.AuxInt = auxint
 	v.Args = v.Argstorage[:3]
@@ -612,7 +613,7 @@ func (b *Block) NewValue3I(pos src.XPos, op Op, t *types.Type, auxint int64, arg
 }
 
 // NewValue3A returns a new value in the block with three argument and an aux value.
-func (b *Block) NewValue3A(pos src.XPos, op Op, t *types.Type, aux Aux, arg0, arg1, arg2 *Value) *Value {
+func (b *Block) NewValue3A(pos src.XPos, op ssaop.Op, t *types.Type, aux Aux, arg0, arg1, arg2 *Value) *Value {
 	v := b.Func.NewValue(op, t, b, pos)
 	v.AuxInt = 0
 	v.Aux = aux
@@ -627,7 +628,7 @@ func (b *Block) NewValue3A(pos src.XPos, op Op, t *types.Type, aux Aux, arg0, ar
 }
 
 // NewValue4 returns a new value in the block with four arguments and zero aux values.
-func (b *Block) NewValue4(pos src.XPos, op Op, t *types.Type, arg0, arg1, arg2, arg3 *Value) *Value {
+func (b *Block) NewValue4(pos src.XPos, op ssaop.Op, t *types.Type, arg0, arg1, arg2, arg3 *Value) *Value {
 	v := b.Func.NewValue(op, t, b, pos)
 	v.AuxInt = 0
 	v.Args = []*Value{arg0, arg1, arg2, arg3}
@@ -639,7 +640,7 @@ func (b *Block) NewValue4(pos src.XPos, op Op, t *types.Type, arg0, arg1, arg2, 
 }
 
 // NewValue4A returns a new value in the block with four arguments and zero aux values.
-func (b *Block) NewValue4A(pos src.XPos, op Op, t *types.Type, aux Aux, arg0, arg1, arg2, arg3 *Value) *Value {
+func (b *Block) NewValue4A(pos src.XPos, op ssaop.Op, t *types.Type, aux Aux, arg0, arg1, arg2, arg3 *Value) *Value {
 	v := b.Func.NewValue(op, t, b, pos)
 	v.AuxInt = 0
 	v.Aux = aux
@@ -652,7 +653,7 @@ func (b *Block) NewValue4A(pos src.XPos, op Op, t *types.Type, aux Aux, arg0, ar
 }
 
 // NewValue4I returns a new value in the block with four arguments and auxint value.
-func (b *Block) NewValue4I(pos src.XPos, op Op, t *types.Type, auxint int64, arg0, arg1, arg2, arg3 *Value) *Value {
+func (b *Block) NewValue4I(pos src.XPos, op ssaop.Op, t *types.Type, auxint int64, arg0, arg1, arg2, arg3 *Value) *Value {
 	v := b.Func.NewValue(op, t, b, pos)
 	v.AuxInt = auxint
 	v.Args = []*Value{arg0, arg1, arg2, arg3}
@@ -664,7 +665,7 @@ func (b *Block) NewValue4I(pos src.XPos, op Op, t *types.Type, auxint int64, arg
 }
 
 // ConstVal returns a constant value for c.
-func (f *Func) ConstVal(op Op, t *types.Type, c int64, setAuxInt bool) *Value {
+func (f *Func) ConstVal(op ssaop.Op, t *types.Type, c int64, setAuxInt bool) *Value {
 	if f.constants == nil {
 		f.constants = make(map[int64][]*Value)
 	}
@@ -705,43 +706,43 @@ func (f *Func) ConstBool(t *types.Type, c bool) *Value {
 	if c {
 		i = 1
 	}
-	return f.ConstVal(OpConstBool, t, i, true)
+	return f.ConstVal(ssaop.OpConstBool, t, i, true)
 }
 func (f *Func) ConstInt8(t *types.Type, c int8) *Value {
-	return f.ConstVal(OpConst8, t, int64(c), true)
+	return f.ConstVal(ssaop.OpConst8, t, int64(c), true)
 }
 func (f *Func) ConstInt16(t *types.Type, c int16) *Value {
-	return f.ConstVal(OpConst16, t, int64(c), true)
+	return f.ConstVal(ssaop.OpConst16, t, int64(c), true)
 }
 func (f *Func) ConstInt32(t *types.Type, c int32) *Value {
-	return f.ConstVal(OpConst32, t, int64(c), true)
+	return f.ConstVal(ssaop.OpConst32, t, int64(c), true)
 }
 func (f *Func) ConstInt64(t *types.Type, c int64) *Value {
-	return f.ConstVal(OpConst64, t, c, true)
+	return f.ConstVal(ssaop.OpConst64, t, c, true)
 }
 func (f *Func) ConstFloat32(t *types.Type, c float64) *Value {
-	return f.ConstVal(OpConst32F, t, int64(math.Float64bits(float64(float32(c)))), true)
+	return f.ConstVal(ssaop.OpConst32F, t, int64(math.Float64bits(float64(float32(c)))), true)
 }
 func (f *Func) ConstFloat64(t *types.Type, c float64) *Value {
-	return f.ConstVal(OpConst64F, t, int64(math.Float64bits(c)), true)
+	return f.ConstVal(ssaop.OpConst64F, t, int64(math.Float64bits(c)), true)
 }
 
 func (f *Func) ConstSlice(t *types.Type) *Value {
-	return f.ConstVal(OpConstSlice, t, constSliceMagic, false)
+	return f.ConstVal(ssaop.OpConstSlice, t, constSliceMagic, false)
 }
 func (f *Func) ConstInterface(t *types.Type) *Value {
-	return f.ConstVal(OpConstInterface, t, constInterfaceMagic, false)
+	return f.ConstVal(ssaop.OpConstInterface, t, constInterfaceMagic, false)
 }
 func (f *Func) ConstNil(t *types.Type) *Value {
-	return f.ConstVal(OpConstNil, t, constNilMagic, false)
+	return f.ConstVal(ssaop.OpConstNil, t, constNilMagic, false)
 }
 func (f *Func) ConstEmptyString(t *types.Type) *Value {
-	v := f.ConstVal(OpConstString, t, constEmptyStringMagic, false)
+	v := f.ConstVal(ssaop.OpConstString, t, constEmptyStringMagic, false)
 	v.Aux = StringToAux("")
 	return v
 }
 func (f *Func) ConstOffPtrSP(t *types.Type, c int64, sp *Value) *Value {
-	v := f.ConstVal(OpOffPtr, t, c, true)
+	v := f.ConstVal(ssaop.OpOffPtr, t, c, true)
 	if len(v.Args) == 0 {
 		v.AddArg(sp)
 	}
@@ -830,10 +831,10 @@ func (f *Func) DebugHashMatch() bool {
 func (f *Func) SpSb() (sp, sb *Value) {
 	initpos := src.NoXPos // These are originally created with no position in ssa.go; if they are optimized out then recreated, should be the same.
 	for _, v := range f.Entry.Values {
-		if v.Op == OpSB {
+		if v.Op == ssaop.OpSB {
 			sb = v
 		}
-		if v.Op == OpSP {
+		if v.Op == ssaop.OpSP {
 			sp = v
 		}
 		if sb != nil && sp != nil {
@@ -841,10 +842,10 @@ func (f *Func) SpSb() (sp, sb *Value) {
 		}
 	}
 	if sb == nil {
-		sb = f.Entry.NewValue0(initpos.WithNotStmt(), OpSB, f.Config.Types.Uintptr)
+		sb = f.Entry.NewValue0(initpos.WithNotStmt(), ssaop.OpSB, f.Config.Types.Uintptr)
 	}
 	if sp == nil {
-		sp = f.Entry.NewValue0(initpos.WithNotStmt(), OpSP, f.Config.Types.Uintptr)
+		sp = f.Entry.NewValue0(initpos.WithNotStmt(), ssaop.OpSP, f.Config.Types.Uintptr)
 	}
 	return
 }

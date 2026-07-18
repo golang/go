@@ -4,7 +4,10 @@
 
 package ssa
 
-import "cmd/compile/internal/ssa/block"
+import (
+	"cmd/compile/internal/ssa/block"
+	"cmd/compile/internal/ssa/ssaop"
+)
 
 // fuseBranchRedirect checks for a CFG in which the outbound branch
 // of an If block can be derived from its predecessor If block, in
@@ -80,7 +83,7 @@ func fuseBranchRedirect(f *Func) bool {
 				p.Succs[pk.I] = Edge{child, len(child.Preds)}
 				// Fix up Phi value in b to have one less argument.
 				for _, v := range b.Values {
-					if v.Op != OpPhi {
+					if v.Op != ssaop.OpPhi {
 						continue
 					}
 					b.RemovePhiArg(v, k)
@@ -89,7 +92,7 @@ func fuseBranchRedirect(f *Func) bool {
 				child.Preds = append(child.Preds, Edge{p, pk.I})
 				ai := b.Succs[out].I
 				for _, v := range child.Values {
-					if v.Op != OpPhi {
+					if v.Op != ssaop.OpPhi {
 						continue
 					}
 					v.AddArg(v.Args[ai])

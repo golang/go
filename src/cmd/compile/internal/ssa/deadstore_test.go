@@ -5,6 +5,7 @@
 package ssa
 
 import (
+	"cmd/compile/internal/ssa/ssaop"
 	"cmd/compile/internal/types"
 	"cmd/internal/src"
 	"fmt"
@@ -18,17 +19,17 @@ func TestDeadStore(t *testing.T) {
 	t.Logf("PTRTYPE %v", ptrType)
 	fun := c.Fun("entry",
 		Bloc("entry",
-			Valu("start", OpInitMem, types.TypeMem, 0, nil),
-			Valu("sb", OpSB, c.config.Types.Uintptr, 0, nil),
-			Valu("v", OpConstBool, c.config.Types.Bool, 1, nil),
-			Valu("addr1", OpAddr, ptrType, 0, nil, "sb"),
-			Valu("addr2", OpAddr, ptrType, 0, nil, "sb"),
-			Valu("addr3", OpAddr, ptrType, 0, nil, "sb"),
-			Valu("zero1", OpZero, types.TypeMem, 1, c.config.Types.Bool, "addr3", "start"),
-			Valu("store1", OpStore, types.TypeMem, 0, c.config.Types.Bool, "addr1", "v", "zero1"),
-			Valu("store2", OpStore, types.TypeMem, 0, c.config.Types.Bool, "addr2", "v", "store1"),
-			Valu("store3", OpStore, types.TypeMem, 0, c.config.Types.Bool, "addr1", "v", "store2"),
-			Valu("store4", OpStore, types.TypeMem, 0, c.config.Types.Bool, "addr3", "v", "store3"),
+			Valu("start", ssaop.OpInitMem, types.TypeMem, 0, nil),
+			Valu("sb", ssaop.OpSB, c.config.Types.Uintptr, 0, nil),
+			Valu("v", ssaop.OpConstBool, c.config.Types.Bool, 1, nil),
+			Valu("addr1", ssaop.OpAddr, ptrType, 0, nil, "sb"),
+			Valu("addr2", ssaop.OpAddr, ptrType, 0, nil, "sb"),
+			Valu("addr3", ssaop.OpAddr, ptrType, 0, nil, "sb"),
+			Valu("zero1", ssaop.OpZero, types.TypeMem, 1, c.config.Types.Bool, "addr3", "start"),
+			Valu("store1", ssaop.OpStore, types.TypeMem, 0, c.config.Types.Bool, "addr1", "v", "zero1"),
+			Valu("store2", ssaop.OpStore, types.TypeMem, 0, c.config.Types.Bool, "addr2", "v", "store1"),
+			Valu("store3", ssaop.OpStore, types.TypeMem, 0, c.config.Types.Bool, "addr1", "v", "store2"),
+			Valu("store4", ssaop.OpStore, types.TypeMem, 0, c.config.Types.Bool, "addr3", "v", "store3"),
 			Goto("exit")),
 		Bloc("exit",
 			Exit("store3")))
@@ -38,12 +39,12 @@ func TestDeadStore(t *testing.T) {
 	CheckFunc(fun.f)
 
 	v1 := fun.values["store1"]
-	if v1.Op != OpCopy {
+	if v1.Op != ssaop.OpCopy {
 		t.Errorf("dead store not removed")
 	}
 
 	v2 := fun.values["zero1"]
-	if v2.Op != OpCopy {
+	if v2.Op != ssaop.OpCopy {
 		t.Errorf("dead store (zero) not removed")
 	}
 }
@@ -54,14 +55,14 @@ func TestDeadStorePhi(t *testing.T) {
 	ptrType := c.config.Types.BytePtr
 	fun := c.Fun("entry",
 		Bloc("entry",
-			Valu("start", OpInitMem, types.TypeMem, 0, nil),
-			Valu("sb", OpSB, c.config.Types.Uintptr, 0, nil),
-			Valu("v", OpConstBool, c.config.Types.Bool, 1, nil),
-			Valu("addr", OpAddr, ptrType, 0, nil, "sb"),
+			Valu("start", ssaop.OpInitMem, types.TypeMem, 0, nil),
+			Valu("sb", ssaop.OpSB, c.config.Types.Uintptr, 0, nil),
+			Valu("v", ssaop.OpConstBool, c.config.Types.Bool, 1, nil),
+			Valu("addr", ssaop.OpAddr, ptrType, 0, nil, "sb"),
 			Goto("loop")),
 		Bloc("loop",
-			Valu("phi", OpPhi, types.TypeMem, 0, nil, "start", "store"),
-			Valu("store", OpStore, types.TypeMem, 0, c.config.Types.Bool, "addr", "v", "phi"),
+			Valu("phi", ssaop.OpPhi, types.TypeMem, 0, nil, "start", "store"),
+			Valu("store", ssaop.OpStore, types.TypeMem, 0, c.config.Types.Bool, "addr", "v", "phi"),
 			If("v", "loop", "exit")),
 		Bloc("exit",
 			Exit("store")))
@@ -81,13 +82,13 @@ func TestDeadStoreTypes(t *testing.T) {
 	t2 := c.config.Types.UInt32.PtrTo()
 	fun := c.Fun("entry",
 		Bloc("entry",
-			Valu("start", OpInitMem, types.TypeMem, 0, nil),
-			Valu("sb", OpSB, c.config.Types.Uintptr, 0, nil),
-			Valu("v", OpConstBool, c.config.Types.Bool, 1, nil),
-			Valu("addr1", OpAddr, t1, 0, nil, "sb"),
-			Valu("addr2", OpAddr, t2, 0, nil, "sb"),
-			Valu("store1", OpStore, types.TypeMem, 0, c.config.Types.Bool, "addr1", "v", "start"),
-			Valu("store2", OpStore, types.TypeMem, 0, c.config.Types.Bool, "addr2", "v", "store1"),
+			Valu("start", ssaop.OpInitMem, types.TypeMem, 0, nil),
+			Valu("sb", ssaop.OpSB, c.config.Types.Uintptr, 0, nil),
+			Valu("v", ssaop.OpConstBool, c.config.Types.Bool, 1, nil),
+			Valu("addr1", ssaop.OpAddr, t1, 0, nil, "sb"),
+			Valu("addr2", ssaop.OpAddr, t2, 0, nil, "sb"),
+			Valu("store1", ssaop.OpStore, types.TypeMem, 0, c.config.Types.Bool, "addr1", "v", "start"),
+			Valu("store2", ssaop.OpStore, types.TypeMem, 0, c.config.Types.Bool, "addr2", "v", "store1"),
 			Goto("exit")),
 		Bloc("exit",
 			Exit("store2")))
@@ -98,7 +99,7 @@ func TestDeadStoreTypes(t *testing.T) {
 	CheckFunc(fun.f)
 
 	v := fun.values["store1"]
-	if v.Op == OpCopy {
+	if v.Op == ssaop.OpCopy {
 		t.Errorf("store %s incorrectly removed", v)
 	}
 }
@@ -111,12 +112,12 @@ func TestDeadStoreUnsafe(t *testing.T) {
 	ptrType := c.config.Types.UInt64.PtrTo()
 	fun := c.Fun("entry",
 		Bloc("entry",
-			Valu("start", OpInitMem, types.TypeMem, 0, nil),
-			Valu("sb", OpSB, c.config.Types.Uintptr, 0, nil),
-			Valu("v", OpConstBool, c.config.Types.Bool, 1, nil),
-			Valu("addr1", OpAddr, ptrType, 0, nil, "sb"),
-			Valu("store1", OpStore, types.TypeMem, 0, c.config.Types.Int64, "addr1", "v", "start"), // store 8 bytes
-			Valu("store2", OpStore, types.TypeMem, 0, c.config.Types.Bool, "addr1", "v", "store1"), // store 1 byte
+			Valu("start", ssaop.OpInitMem, types.TypeMem, 0, nil),
+			Valu("sb", ssaop.OpSB, c.config.Types.Uintptr, 0, nil),
+			Valu("v", ssaop.OpConstBool, c.config.Types.Bool, 1, nil),
+			Valu("addr1", ssaop.OpAddr, ptrType, 0, nil, "sb"),
+			Valu("store1", ssaop.OpStore, types.TypeMem, 0, c.config.Types.Int64, "addr1", "v", "start"), // store 8 bytes
+			Valu("store2", ssaop.OpStore, types.TypeMem, 0, c.config.Types.Bool, "addr1", "v", "store1"), // store 1 byte
 			Goto("exit")),
 		Bloc("exit",
 			Exit("store2")))
@@ -127,7 +128,7 @@ func TestDeadStoreUnsafe(t *testing.T) {
 	CheckFunc(fun.f)
 
 	v := fun.values["store1"]
-	if v.Op == OpCopy {
+	if v.Op == ssaop.OpCopy {
 		t.Errorf("store %s incorrectly removed", v)
 	}
 }
@@ -142,19 +143,19 @@ func TestDeadStoreSmallStructInit(t *testing.T) {
 	name := c.Temp(typ)
 	fun := c.Fun("entry",
 		Bloc("entry",
-			Valu("start", OpInitMem, types.TypeMem, 0, nil),
-			Valu("sp", OpSP, c.config.Types.Uintptr, 0, nil),
-			Valu("zero", OpConst64, c.config.Types.Int, 0, nil),
-			Valu("v6", OpLocalAddr, ptrType, 0, name, "sp", "start"),
-			Valu("v3", OpOffPtr, ptrType, 8, nil, "v6"),
-			Valu("v22", OpOffPtr, ptrType, 0, nil, "v6"),
-			Valu("zerostore1", OpStore, types.TypeMem, 0, c.config.Types.Int, "v22", "zero", "start"),
-			Valu("zerostore2", OpStore, types.TypeMem, 0, c.config.Types.Int, "v3", "zero", "zerostore1"),
-			Valu("v8", OpLocalAddr, ptrType, 0, name, "sp", "zerostore2"),
-			Valu("v23", OpOffPtr, ptrType, 8, nil, "v8"),
-			Valu("v25", OpOffPtr, ptrType, 0, nil, "v8"),
-			Valu("zerostore3", OpStore, types.TypeMem, 0, c.config.Types.Int, "v25", "zero", "zerostore2"),
-			Valu("zerostore4", OpStore, types.TypeMem, 0, c.config.Types.Int, "v23", "zero", "zerostore3"),
+			Valu("start", ssaop.OpInitMem, types.TypeMem, 0, nil),
+			Valu("sp", ssaop.OpSP, c.config.Types.Uintptr, 0, nil),
+			Valu("zero", ssaop.OpConst64, c.config.Types.Int, 0, nil),
+			Valu("v6", ssaop.OpLocalAddr, ptrType, 0, name, "sp", "start"),
+			Valu("v3", ssaop.OpOffPtr, ptrType, 8, nil, "v6"),
+			Valu("v22", ssaop.OpOffPtr, ptrType, 0, nil, "v6"),
+			Valu("zerostore1", ssaop.OpStore, types.TypeMem, 0, c.config.Types.Int, "v22", "zero", "start"),
+			Valu("zerostore2", ssaop.OpStore, types.TypeMem, 0, c.config.Types.Int, "v3", "zero", "zerostore1"),
+			Valu("v8", ssaop.OpLocalAddr, ptrType, 0, name, "sp", "zerostore2"),
+			Valu("v23", ssaop.OpOffPtr, ptrType, 8, nil, "v8"),
+			Valu("v25", ssaop.OpOffPtr, ptrType, 0, nil, "v8"),
+			Valu("zerostore3", ssaop.OpStore, types.TypeMem, 0, c.config.Types.Int, "v25", "zero", "zerostore2"),
+			Valu("zerostore4", ssaop.OpStore, types.TypeMem, 0, c.config.Types.Int, "v23", "zero", "zerostore3"),
 			Goto("exit")),
 		Bloc("exit",
 			Exit("zerostore4")))
@@ -166,11 +167,11 @@ func TestDeadStoreSmallStructInit(t *testing.T) {
 	CheckFunc(fun.f)
 
 	v1 := fun.values["zerostore1"]
-	if v1.Op != OpCopy {
+	if v1.Op != ssaop.OpCopy {
 		t.Errorf("dead store not removed")
 	}
 	v2 := fun.values["zerostore2"]
-	if v2.Op != OpCopy {
+	if v2.Op != ssaop.OpCopy {
 		t.Errorf("dead store not removed")
 	}
 }
@@ -185,28 +186,28 @@ func TestDeadStoreArrayGap(t *testing.T) {
 
 	fun := c.Fun("entry",
 		Bloc("entry",
-			Valu("start", OpInitMem, types.TypeMem, 0, nil),
-			Valu("sp", OpSP, c.config.Types.Uintptr, 0, nil),
+			Valu("start", ssaop.OpInitMem, types.TypeMem, 0, nil),
+			Valu("sp", ssaop.OpSP, c.config.Types.Uintptr, 0, nil),
 
-			Valu("base", OpLocalAddr, ptr, 0, tmp, "sp", "start"),
+			Valu("base", ssaop.OpLocalAddr, ptr, 0, tmp, "sp", "start"),
 
-			Valu("p0", OpOffPtr, ptr, 0, nil, "base"),
-			Valu("p1", OpOffPtr, ptr, 8, nil, "base"),
-			Valu("p2", OpOffPtr, ptr, 16, nil, "base"),
-			Valu("p3", OpOffPtr, ptr, 24, nil, "base"),
-			Valu("p4", OpOffPtr, ptr, 32, nil, "base"),
+			Valu("p0", ssaop.OpOffPtr, ptr, 0, nil, "base"),
+			Valu("p1", ssaop.OpOffPtr, ptr, 8, nil, "base"),
+			Valu("p2", ssaop.OpOffPtr, ptr, 16, nil, "base"),
+			Valu("p3", ssaop.OpOffPtr, ptr, 24, nil, "base"),
+			Valu("p4", ssaop.OpOffPtr, ptr, 32, nil, "base"),
 
-			Valu("one", OpConst64, i64, 1, nil),
-			Valu("seven", OpConst64, i64, 7, nil),
-			Valu("zero", OpConst64, i64, 0, nil),
+			Valu("one", ssaop.OpConst64, i64, 1, nil),
+			Valu("seven", ssaop.OpConst64, i64, 7, nil),
+			Valu("zero", ssaop.OpConst64, i64, 0, nil),
 
-			Valu("mem0", OpZero, types.TypeMem, 40, typ, "base", "start"),
+			Valu("mem0", ssaop.OpZero, types.TypeMem, 40, typ, "base", "start"),
 
-			Valu("s0", OpStore, types.TypeMem, 0, i64, "p0", "one", "mem0"),
-			Valu("s1", OpStore, types.TypeMem, 0, i64, "p1", "seven", "s0"),
-			Valu("s2", OpStore, types.TypeMem, 0, i64, "p3", "one", "s1"),
-			Valu("s3", OpStore, types.TypeMem, 0, i64, "p4", "one", "s2"),
-			Valu("s4", OpStore, types.TypeMem, 0, i64, "p2", "zero", "s3"),
+			Valu("s0", ssaop.OpStore, types.TypeMem, 0, i64, "p0", "one", "mem0"),
+			Valu("s1", ssaop.OpStore, types.TypeMem, 0, i64, "p1", "seven", "s0"),
+			Valu("s2", ssaop.OpStore, types.TypeMem, 0, i64, "p3", "one", "s1"),
+			Valu("s3", ssaop.OpStore, types.TypeMem, 0, i64, "p4", "one", "s2"),
+			Valu("s4", ssaop.OpStore, types.TypeMem, 0, i64, "p2", "zero", "s3"),
 
 			Goto("exit")),
 		Bloc("exit",
@@ -216,7 +217,7 @@ func TestDeadStoreArrayGap(t *testing.T) {
 	dse(fun.f)
 	CheckFunc(fun.f)
 
-	if op := fun.values["mem0"].Op; op != OpCopy {
+	if op := fun.values["mem0"].Op; op != ssaop.OpCopy {
 		t.Fatalf("dead Zero not removed: got %s, want OpCopy", op)
 	}
 }
@@ -328,17 +329,17 @@ func BenchmarkDeadStore(b *testing.B) {
 
 	f := cfg.Fun("entry",
 		Bloc("entry",
-			Valu("start", OpInitMem, types.TypeMem, 0, nil),
-			Valu("sb", OpSB, cfg.config.Types.Uintptr, 0, nil),
-			Valu("v", OpConstBool, cfg.config.Types.Bool, 1, nil),
-			Valu("a1", OpAddr, ptr, 0, nil, "sb"),
-			Valu("a2", OpAddr, ptr, 0, nil, "sb"),
-			Valu("a3", OpAddr, ptr, 0, nil, "sb"),
-			Valu("z1", OpZero, types.TypeMem, 1, cfg.config.Types.Bool, "a3", "start"),
-			Valu("s1", OpStore, types.TypeMem, 0, cfg.config.Types.Bool, "a1", "v", "z1"),
-			Valu("s2", OpStore, types.TypeMem, 0, cfg.config.Types.Bool, "a2", "v", "s1"),
-			Valu("s3", OpStore, types.TypeMem, 0, cfg.config.Types.Bool, "a1", "v", "s2"),
-			Valu("s4", OpStore, types.TypeMem, 0, cfg.config.Types.Bool, "a3", "v", "s3"),
+			Valu("start", ssaop.OpInitMem, types.TypeMem, 0, nil),
+			Valu("sb", ssaop.OpSB, cfg.config.Types.Uintptr, 0, nil),
+			Valu("v", ssaop.OpConstBool, cfg.config.Types.Bool, 1, nil),
+			Valu("a1", ssaop.OpAddr, ptr, 0, nil, "sb"),
+			Valu("a2", ssaop.OpAddr, ptr, 0, nil, "sb"),
+			Valu("a3", ssaop.OpAddr, ptr, 0, nil, "sb"),
+			Valu("z1", ssaop.OpZero, types.TypeMem, 1, cfg.config.Types.Bool, "a3", "start"),
+			Valu("s1", ssaop.OpStore, types.TypeMem, 0, cfg.config.Types.Bool, "a1", "v", "z1"),
+			Valu("s2", ssaop.OpStore, types.TypeMem, 0, cfg.config.Types.Bool, "a2", "v", "s1"),
+			Valu("s3", ssaop.OpStore, types.TypeMem, 0, cfg.config.Types.Bool, "a1", "v", "s2"),
+			Valu("s4", ssaop.OpStore, types.TypeMem, 0, cfg.config.Types.Bool, "a3", "v", "s3"),
 			Goto("exit")),
 		Bloc("exit",
 			Exit("s3")))
@@ -354,14 +355,14 @@ func BenchmarkDeadStorePhi(b *testing.B) {
 
 	f := cfg.Fun("entry",
 		Bloc("entry",
-			Valu("start", OpInitMem, types.TypeMem, 0, nil),
-			Valu("sb", OpSB, cfg.config.Types.Uintptr, 0, nil),
-			Valu("v", OpConstBool, cfg.config.Types.Bool, 1, nil),
-			Valu("addr", OpAddr, ptr, 0, nil, "sb"),
+			Valu("start", ssaop.OpInitMem, types.TypeMem, 0, nil),
+			Valu("sb", ssaop.OpSB, cfg.config.Types.Uintptr, 0, nil),
+			Valu("v", ssaop.OpConstBool, cfg.config.Types.Bool, 1, nil),
+			Valu("addr", ssaop.OpAddr, ptr, 0, nil, "sb"),
 			Goto("loop")),
 		Bloc("loop",
-			Valu("phi", OpPhi, types.TypeMem, 0, nil, "start", "store"),
-			Valu("store", OpStore, types.TypeMem, 0, cfg.config.Types.Bool, "addr", "v", "phi"),
+			Valu("phi", ssaop.OpPhi, types.TypeMem, 0, nil, "start", "store"),
+			Valu("store", ssaop.OpStore, types.TypeMem, 0, cfg.config.Types.Bool, "addr", "v", "phi"),
 			If("v", "loop", "exit")),
 		Bloc("exit",
 			Exit("store")))
@@ -379,13 +380,13 @@ func BenchmarkDeadStoreTypes(b *testing.B) {
 
 	f := cfg.Fun("entry",
 		Bloc("entry",
-			Valu("start", OpInitMem, types.TypeMem, 0, nil),
-			Valu("sb", OpSB, cfg.config.Types.Uintptr, 0, nil),
-			Valu("v", OpConstBool, cfg.config.Types.Bool, 1, nil),
-			Valu("a1", OpAddr, t1, 0, nil, "sb"),
-			Valu("a2", OpAddr, t2, 0, nil, "sb"),
-			Valu("s1", OpStore, types.TypeMem, 0, cfg.config.Types.Bool, "a1", "v", "start"),
-			Valu("s2", OpStore, types.TypeMem, 0, cfg.config.Types.Bool, "a2", "v", "s1"),
+			Valu("start", ssaop.OpInitMem, types.TypeMem, 0, nil),
+			Valu("sb", ssaop.OpSB, cfg.config.Types.Uintptr, 0, nil),
+			Valu("v", ssaop.OpConstBool, cfg.config.Types.Bool, 1, nil),
+			Valu("a1", ssaop.OpAddr, t1, 0, nil, "sb"),
+			Valu("a2", ssaop.OpAddr, t2, 0, nil, "sb"),
+			Valu("s1", ssaop.OpStore, types.TypeMem, 0, cfg.config.Types.Bool, "a1", "v", "start"),
+			Valu("s2", ssaop.OpStore, types.TypeMem, 0, cfg.config.Types.Bool, "a2", "v", "s1"),
 			Goto("exit")),
 		Bloc("exit",
 			Exit("s2")))
@@ -401,12 +402,12 @@ func BenchmarkDeadStoreUnsafe(b *testing.B) {
 	ptr := cfg.config.Types.UInt64.PtrTo()
 	f := cfg.Fun("entry",
 		Bloc("entry",
-			Valu("start", OpInitMem, types.TypeMem, 0, nil),
-			Valu("sb", OpSB, cfg.config.Types.Uintptr, 0, nil),
-			Valu("v", OpConstBool, cfg.config.Types.Bool, 1, nil),
-			Valu("a1", OpAddr, ptr, 0, nil, "sb"),
-			Valu("s1", OpStore, types.TypeMem, 0, cfg.config.Types.Int64, "a1", "v", "start"),
-			Valu("s2", OpStore, types.TypeMem, 0, cfg.config.Types.Bool, "a1", "v", "s1"),
+			Valu("start", ssaop.OpInitMem, types.TypeMem, 0, nil),
+			Valu("sb", ssaop.OpSB, cfg.config.Types.Uintptr, 0, nil),
+			Valu("v", ssaop.OpConstBool, cfg.config.Types.Bool, 1, nil),
+			Valu("a1", ssaop.OpAddr, ptr, 0, nil, "sb"),
+			Valu("s1", ssaop.OpStore, types.TypeMem, 0, cfg.config.Types.Int64, "a1", "v", "start"),
+			Valu("s2", ssaop.OpStore, types.TypeMem, 0, cfg.config.Types.Bool, "a1", "v", "s1"),
 			Goto("exit")),
 		Bloc("exit",
 			Exit("s2")))
@@ -428,21 +429,21 @@ func BenchmarkDeadStoreSmallStructInit(b *testing.B) {
 
 	f := cfg.Fun("entry",
 		Bloc("entry",
-			Valu("start", OpInitMem, types.TypeMem, 0, nil),
-			Valu("sp", OpSP, cfg.config.Types.Uintptr, 0, nil),
-			Valu("zero", OpConst64, cfg.config.Types.Int, 0, nil),
+			Valu("start", ssaop.OpInitMem, types.TypeMem, 0, nil),
+			Valu("sp", ssaop.OpSP, cfg.config.Types.Uintptr, 0, nil),
+			Valu("zero", ssaop.OpConst64, cfg.config.Types.Int, 0, nil),
 
-			Valu("v6", OpLocalAddr, ptr, 0, tmp, "sp", "start"),
-			Valu("v3", OpOffPtr, ptr, 8, nil, "v6"),
-			Valu("v22", OpOffPtr, ptr, 0, nil, "v6"),
-			Valu("s1", OpStore, types.TypeMem, 0, cfg.config.Types.Int, "v22", "zero", "start"),
-			Valu("s2", OpStore, types.TypeMem, 0, cfg.config.Types.Int, "v3", "zero", "s1"),
+			Valu("v6", ssaop.OpLocalAddr, ptr, 0, tmp, "sp", "start"),
+			Valu("v3", ssaop.OpOffPtr, ptr, 8, nil, "v6"),
+			Valu("v22", ssaop.OpOffPtr, ptr, 0, nil, "v6"),
+			Valu("s1", ssaop.OpStore, types.TypeMem, 0, cfg.config.Types.Int, "v22", "zero", "start"),
+			Valu("s2", ssaop.OpStore, types.TypeMem, 0, cfg.config.Types.Int, "v3", "zero", "s1"),
 
-			Valu("v8", OpLocalAddr, ptr, 0, tmp, "sp", "s2"),
-			Valu("v23", OpOffPtr, ptr, 8, nil, "v8"),
-			Valu("v25", OpOffPtr, ptr, 0, nil, "v8"),
-			Valu("s3", OpStore, types.TypeMem, 0, cfg.config.Types.Int, "v25", "zero", "s2"),
-			Valu("s4", OpStore, types.TypeMem, 0, cfg.config.Types.Int, "v23", "zero", "s3"),
+			Valu("v8", ssaop.OpLocalAddr, ptr, 0, tmp, "sp", "s2"),
+			Valu("v23", ssaop.OpOffPtr, ptr, 8, nil, "v8"),
+			Valu("v25", ssaop.OpOffPtr, ptr, 0, nil, "v8"),
+			Valu("s3", ssaop.OpStore, types.TypeMem, 0, cfg.config.Types.Int, "v25", "zero", "s2"),
+			Valu("s4", ssaop.OpStore, types.TypeMem, 0, cfg.config.Types.Int, "v23", "zero", "s3"),
 			Goto("exit")),
 		Bloc("exit",
 			Exit("s4")))
@@ -465,14 +466,14 @@ func BenchmarkDeadStoreLargeBlock(b *testing.B) {
 	boolType := cfg.config.Types.Bool
 
 	items := []interface{}{
-		Valu("start", OpInitMem, types.TypeMem, 0, nil),
-		Valu("sb", OpSB, cfg.config.Types.Uintptr, 0, nil),
-		Valu("v", OpConstBool, boolType, 1, nil),
+		Valu("start", ssaop.OpInitMem, types.TypeMem, 0, nil),
+		Valu("sb", ssaop.OpSB, cfg.config.Types.Uintptr, 0, nil),
+		Valu("v", ssaop.OpConstBool, boolType, 1, nil),
 	}
 
 	for i := 0; i < addrCount; i++ {
 		items = append(items,
-			Valu(fmt.Sprintf("addr%d", i), OpAddr, ptrType, 0, nil, "sb"),
+			Valu(fmt.Sprintf("addr%d", i), ssaop.OpAddr, ptrType, 0, nil, "sb"),
 		)
 	}
 
@@ -482,7 +483,7 @@ func BenchmarkDeadStoreLargeBlock(b *testing.B) {
 			store := fmt.Sprintf("s_%03d_%d", i, round)
 			addr := fmt.Sprintf("addr%d", i)
 			items = append(items,
-				Valu(store, OpStore, types.TypeMem, 0, boolType, addr, "v", prev),
+				Valu(store, ssaop.OpStore, types.TypeMem, 0, boolType, addr, "v", prev),
 			)
 			prev = store
 		}

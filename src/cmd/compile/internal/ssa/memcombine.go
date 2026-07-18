@@ -6,6 +6,7 @@ package ssa
 
 import (
 	"cmd/compile/internal/base"
+	"cmd/compile/internal/ssa/ssaop"
 	"cmd/compile/internal/types"
 	"cmd/internal/src"
 	"cmp"
@@ -36,7 +37,7 @@ func memcombineLoads(f *Func, ptrAlignments []int8) {
 	// Mark all values that are the argument of an OR.
 	for _, b := range f.Blocks {
 		for _, v := range b.Values {
-			if v.Op == OpOr16 || v.Op == OpOr32 || v.Op == OpOr64 {
+			if v.Op == ssaop.OpOr16 || v.Op == ssaop.OpOr32 || v.Op == ssaop.OpOr64 {
 				mark.Add(v.Args[0].ID)
 				mark.Add(v.Args[1].ID)
 			}
@@ -45,7 +46,7 @@ func memcombineLoads(f *Func, ptrAlignments []int8) {
 	for _, b := range f.Blocks {
 		order = order[:0]
 		for _, v := range b.Values {
-			if v.Op != OpOr16 && v.Op != OpOr32 && v.Op != OpOr64 {
+			if v.Op != ssaop.OpOr16 && v.Op != ssaop.OpOr32 && v.Op != ssaop.OpOr64 {
 				continue
 			}
 			if mark.Contains(v.ID) {
@@ -60,7 +61,7 @@ func memcombineLoads(f *Func, ptrAlignments []int8) {
 				x := order[i]
 				for j := 0; j < 2; j++ {
 					a := x.Args[j]
-					if a.Op == OpOr16 || a.Op == OpOr32 || a.Op == OpOr64 {
+					if a.Op == ssaop.OpOr16 || a.Op == ssaop.OpOr32 || a.Op == ssaop.OpOr64 {
 						order = append(order, a)
 					}
 				}
@@ -69,10 +70,10 @@ func memcombineLoads(f *Func, ptrAlignments []int8) {
 		for _, v := range order {
 			max := f.Config.RegSize
 			switch v.Op {
-			case OpOr64:
-			case OpOr32:
+			case ssaop.OpOr64:
+			case ssaop.OpOr32:
 				max = 4
-			case OpOr16:
+			case ssaop.OpOr16:
 				max = 2
 			default:
 				continue
@@ -104,7 +105,7 @@ type Index struct {
 }
 
 func getConst(v *Value) (int64, bool) {
-	if v.Op == OpConst32 || v.Op == OpConst64 {
+	if v.Op == ssaop.OpConst32 || v.Op == ssaop.OpConst64 {
 		return v.AuxInt, true
 	}
 	return 0, false
@@ -115,7 +116,7 @@ func peelAdd(v *Value) (exp *Value, imm int64) {
 		return nil, 0
 	}
 
-	if v.Op == OpAdd32 || v.Op == OpAdd64 {
+	if v.Op == ssaop.OpAdd32 || v.Op == ssaop.OpAdd64 {
 		if imm, ok := getConst(v.Args[0]); ok {
 			return v.Args[1], imm
 		}
@@ -133,7 +134,7 @@ func peelShift(v *Value) (exp *Value, shift int64) {
 		return nil, 0
 	}
 
-	if v.Op == OpLsh64x64 || v.Op == OpLsh32x64 || v.Op == OpLsh16x64 {
+	if v.Op == ssaop.OpLsh64x64 || v.Op == ssaop.OpLsh32x64 || v.Op == ssaop.OpLsh16x64 {
 		if imm, ok := getConst(v.Args[1]); ok {
 			return v.Args[0], imm
 		}
@@ -149,13 +150,13 @@ func splitPtr(ptr *Value) (BaseAddress, int64) {
 	var idx Index
 	var off int64
 	for {
-		if ptr.Op == OpOffPtr {
+		if ptr.Op == ssaop.OpOffPtr {
 			off += ptr.AuxInt
 			ptr = ptr.Args[0]
 			continue
 		}
 
-		if ptr.Op == OpAddPtr {
+		if ptr.Op == ssaop.OpAddPtr {
 			if idx.exp != nil {
 				// We have two or more indexing values.
 				// Pick the first one we found.
@@ -223,13 +224,13 @@ func valuePtrAlignment(v *Value, ptrAlignments []int8) int64 {
 	}
 
 	switch v.Op {
-	case OpOffPtr:
+	case ssaop.OpOffPtr:
 		return offsetAlignment(ptrAlignment(v.Args[0], ptrAlignments), v.AuxInt)
-	case OpCopy, OpNilCheck:
+	case ssaop.OpCopy, ssaop.OpNilCheck:
 		return ptrAlignment(v.Args[0], ptrAlignments)
-	case OpAddr, OpLocalAddr, OpArg, OpArgIntReg:
+	case ssaop.OpAddr, ssaop.OpLocalAddr, ssaop.OpArg, ssaop.OpArgIntReg:
 		return typeAlignment(v.Type.Elem())
-	case OpPhi:
+	case ssaop.OpPhi:
 		align := ptrAlignment(v.Args[0], ptrAlignments)
 		for _, arg := range v.Args[1:] {
 			if argAlign := ptrAlignment(arg, ptrAlignments); argAlign < align {
@@ -281,14 +282,14 @@ func offsetAlignment(align, off int64) int64 {
 
 func combineLoads(root *Value, n int64, ptrAlignments []int8) bool {
 	orOp := root.Op
-	var shiftOp Op
+	var shiftOp ssaop.Op
 	switch orOp {
-	case OpOr64:
-		shiftOp = OpLsh64x64
-	case OpOr32:
-		shiftOp = OpLsh32x64
-	case OpOr16:
-		shiftOp = OpLsh16x64
+	case ssaop.OpOr64:
+		shiftOp = ssaop.OpLsh64x64
+	case ssaop.OpOr32:
+		shiftOp = ssaop.OpLsh32x64
+	case ssaop.OpOr16:
+		shiftOp = ssaop.OpLsh16x64
 	default:
 		return false
 	}
@@ -318,16 +319,16 @@ func combineLoads(root *Value, n int64, ptrAlignments []int8) bool {
 	if v.Op == shiftOp {
 		v = v.Args[0]
 	}
-	var extOp Op
-	if orOp == OpOr64 && (v.Op == OpZeroExt8to64 || v.Op == OpZeroExt16to64 || v.Op == OpZeroExt32to64) ||
-		orOp == OpOr32 && (v.Op == OpZeroExt8to32 || v.Op == OpZeroExt16to32) ||
-		orOp == OpOr16 && v.Op == OpZeroExt8to16 {
+	var extOp ssaop.Op
+	if orOp == ssaop.OpOr64 && (v.Op == ssaop.OpZeroExt8to64 || v.Op == ssaop.OpZeroExt16to64 || v.Op == ssaop.OpZeroExt32to64) ||
+		orOp == ssaop.OpOr32 && (v.Op == ssaop.OpZeroExt8to32 || v.Op == ssaop.OpZeroExt16to32) ||
+		orOp == ssaop.OpOr16 && v.Op == ssaop.OpZeroExt8to16 {
 		extOp = v.Op
 		v = v.Args[0]
 	} else {
 		return false
 	}
-	if v.Op != OpLoad {
+	if v.Op != ssaop.OpLoad {
 		return false
 	}
 	base, _ := splitPtr(v.Args[0])
@@ -336,7 +337,7 @@ func combineLoads(root *Value, n int64, ptrAlignments []int8) bool {
 
 	if root.Block.Func.Config.Arch == "S390X" {
 		// s390x can't handle unaligned accesses to global variables.
-		if base.ptr.Op == OpAddr {
+		if base.ptr.Op == ssaop.OpAddr {
 			return false
 		}
 	}
@@ -364,7 +365,7 @@ func combineLoads(root *Value, n int64, ptrAlignments []int8) bool {
 			return false
 		}
 		load := v.Args[0]
-		if load.Op != OpLoad {
+		if load.Op != ssaop.OpLoad {
 			return false
 		}
 		if load.Uses != 1 {
@@ -449,7 +450,7 @@ func combineLoads(root *Value, n int64, ptrAlignments []int8) bool {
 	// This is the commit point.
 
 	// First, issue load at lowest address.
-	v = loadBlock.NewValue2(pos, OpLoad, sizeType(n*size), r[0].load.Args[0], mem)
+	v = loadBlock.NewValue2(pos, ssaop.OpLoad, sizeType(n*size), r[0].load.Args[0], mem)
 
 	// Byte swap if needed,
 	if needSwap {
@@ -470,7 +471,7 @@ func combineLoads(root *Value, n int64, ptrAlignments []int8) bool {
 	}
 
 	// Install with (Copy v).
-	root.Reset(OpCopy)
+	root.Reset(ssaop.OpCopy)
 	root.AddArg(v)
 
 	// Clobber the loads, just to prevent additional work being done on
@@ -490,7 +491,7 @@ func memcombineStores(f *Func, ptrAlignments []int8) {
 		// Mark all stores which are not last in a store sequence.
 		mark.Clear()
 		for _, v := range b.Values {
-			if v.Op == OpStore {
+			if v.Op == ssaop.OpStore {
 				mark.Add(v.MemoryArg().ID)
 			}
 		}
@@ -499,7 +500,7 @@ func memcombineStores(f *Func, ptrAlignments []int8) {
 		// later stores come earlier in the ordering.
 		order = order[:0]
 		for _, v := range b.Values {
-			if v.Op != OpStore {
+			if v.Op != ssaop.OpStore {
 				continue
 			}
 			if mark.Contains(v.ID) {
@@ -508,7 +509,7 @@ func memcombineStores(f *Func, ptrAlignments []int8) {
 			for {
 				order = append(order, v)
 				v = v.Args[2]
-				if v.Block != b || v.Op != OpStore {
+				if v.Block != b || v.Op != ssaop.OpStore {
 					break
 				}
 			}
@@ -516,7 +517,7 @@ func memcombineStores(f *Func, ptrAlignments []int8) {
 
 		// Look for combining opportunities at each store in queue order.
 		for _, v := range order {
-			if v.Op != OpStore { // already rewritten
+			if v.Op != ssaop.OpStore { // already rewritten
 				continue
 			}
 
@@ -543,26 +544,26 @@ func combineStores(root *Value, ptrAlignments []int8) {
 		x := a[0].store.Args[1]
 		y := a[1].store.Args[1]
 		switch x.Op {
-		case OpTrunc64to8, OpTrunc64to16, OpTrunc64to32, OpTrunc32to8, OpTrunc32to16, OpTrunc16to8:
+		case ssaop.OpTrunc64to8, ssaop.OpTrunc64to16, ssaop.OpTrunc64to32, ssaop.OpTrunc32to8, ssaop.OpTrunc32to16, ssaop.OpTrunc16to8:
 			x = x.Args[0]
 		default:
 			return nil
 		}
 		switch y.Op {
-		case OpTrunc64to8, OpTrunc64to16, OpTrunc64to32, OpTrunc32to8, OpTrunc32to16, OpTrunc16to8:
+		case ssaop.OpTrunc64to8, ssaop.OpTrunc64to16, ssaop.OpTrunc64to32, ssaop.OpTrunc32to8, ssaop.OpTrunc32to16, ssaop.OpTrunc16to8:
 			y = y.Args[0]
 		default:
 			return nil
 		}
 		var x2 *Value
 		switch x.Op {
-		case OpRsh64Ux64, OpRsh32Ux64, OpRsh16Ux64:
+		case ssaop.OpRsh64Ux64, ssaop.OpRsh32Ux64, ssaop.OpRsh16Ux64:
 			x2 = x.Args[0]
 		default:
 		}
 		var y2 *Value
 		switch y.Op {
-		case OpRsh64Ux64, OpRsh32Ux64, OpRsh16Ux64:
+		case ssaop.OpRsh64Ux64, ssaop.OpRsh32Ux64, ssaop.OpRsh16Ux64:
 			y2 = y.Args[0]
 		default:
 		}
@@ -583,7 +584,7 @@ func combineStores(root *Value, ptrAlignments []int8) {
 	isShiftBase := func(v, base *Value) bool {
 		val := v.Args[1]
 		switch val.Op {
-		case OpTrunc64to8, OpTrunc64to16, OpTrunc64to32, OpTrunc32to8, OpTrunc32to16, OpTrunc16to8:
+		case ssaop.OpTrunc64to8, ssaop.OpTrunc64to16, ssaop.OpTrunc64to32, ssaop.OpTrunc32to8, ssaop.OpTrunc32to16, ssaop.OpTrunc16to8:
 			val = val.Args[0]
 		default:
 			return false
@@ -592,7 +593,7 @@ func combineStores(root *Value, ptrAlignments []int8) {
 			return true
 		}
 		switch val.Op {
-		case OpRsh64Ux64, OpRsh32Ux64, OpRsh16Ux64:
+		case ssaop.OpRsh64Ux64, ssaop.OpRsh32Ux64, ssaop.OpRsh16Ux64:
 			val = val.Args[0]
 		default:
 			return false
@@ -602,7 +603,7 @@ func combineStores(root *Value, ptrAlignments []int8) {
 	shift := func(v, base *Value) int64 {
 		val := v.Args[1]
 		switch val.Op {
-		case OpTrunc64to8, OpTrunc64to16, OpTrunc64to32, OpTrunc32to8, OpTrunc32to16, OpTrunc16to8:
+		case ssaop.OpTrunc64to8, ssaop.OpTrunc64to16, ssaop.OpTrunc64to32, ssaop.OpTrunc32to8, ssaop.OpTrunc32to16, ssaop.OpTrunc16to8:
 			val = val.Args[0]
 		default:
 			return -1
@@ -611,12 +612,12 @@ func combineStores(root *Value, ptrAlignments []int8) {
 			return 0
 		}
 		switch val.Op {
-		case OpRsh64Ux64, OpRsh32Ux64, OpRsh16Ux64:
+		case ssaop.OpRsh64Ux64, ssaop.OpRsh32Ux64, ssaop.OpRsh16Ux64:
 			val = val.Args[1]
 		default:
 			return -1
 		}
-		if val.Op != OpConst64 {
+		if val.Op != ssaop.OpConst64 {
 			return -1
 		}
 		return val.AuxInt
@@ -627,7 +628,7 @@ func combineStores(root *Value, ptrAlignments []int8) {
 	rbase, roff := splitPtr(root.Args[0])
 	if root.Block.Func.Config.Arch == "S390X" {
 		// s390x can't handle unaligned accesses to global variables.
-		if rbase.ptr.Op == OpAddr {
+		if rbase.ptr.Op == ssaop.OpAddr {
 			return
 		}
 	}
@@ -636,7 +637,7 @@ func combineStores(root *Value, ptrAlignments []int8) {
 	// TODO: this loop strictly requires stores to chain together in memory.
 	// maybe we can break this constraint and match more patterns.
 	for i, x := 1, root.Args[2]; i < 8; i, x = i+1, x.Args[2] {
-		if x.Op != OpStore {
+		if x.Op != ssaop.OpStore {
 			break
 		}
 		if x.Block != root.Block {
@@ -720,7 +721,7 @@ func combineStores(root *Value, ptrAlignments []int8) {
 	isConst := true
 	for i := range a {
 		switch a[i].store.Args[1].Op {
-		case OpConst32, OpConst16, OpConst8, OpConstBool:
+		case ssaop.OpConst32, ssaop.OpConst16, ssaop.OpConst8, ssaop.OpConstBool:
 		default:
 			isConst = false
 		}
@@ -772,7 +773,7 @@ func combineStores(root *Value, ptrAlignments []int8) {
 	var loadIdx int64
 	for i := range a {
 		load := a[i].store.Args[1]
-		if load.Op != OpLoad {
+		if load.Op != ssaop.OpLoad {
 			loadMem = nil
 			break
 		}
@@ -928,11 +929,11 @@ func sizeType(size int64) *types.Type {
 func truncate(b *Block, pos src.XPos, v *Value, from, to int64) *Value {
 	switch from*10 + to {
 	case 82:
-		return b.NewValue1(pos, OpTrunc64to16, types.Types[types.TUINT16], v)
+		return b.NewValue1(pos, ssaop.OpTrunc64to16, types.Types[types.TUINT16], v)
 	case 84:
-		return b.NewValue1(pos, OpTrunc64to32, types.Types[types.TUINT32], v)
+		return b.NewValue1(pos, ssaop.OpTrunc64to32, types.Types[types.TUINT32], v)
 	case 42:
-		return b.NewValue1(pos, OpTrunc32to16, types.Types[types.TUINT16], v)
+		return b.NewValue1(pos, ssaop.OpTrunc32to16, types.Types[types.TUINT16], v)
 	default:
 		base.Fatalf("bad sizes %d %d\n", from, to)
 		return nil
@@ -941,11 +942,11 @@ func truncate(b *Block, pos src.XPos, v *Value, from, to int64) *Value {
 func zeroExtend(b *Block, pos src.XPos, v *Value, from, to int64) *Value {
 	switch from*10 + to {
 	case 24:
-		return b.NewValue1(pos, OpZeroExt16to32, types.Types[types.TUINT32], v)
+		return b.NewValue1(pos, ssaop.OpZeroExt16to32, types.Types[types.TUINT32], v)
 	case 28:
-		return b.NewValue1(pos, OpZeroExt16to64, types.Types[types.TUINT64], v)
+		return b.NewValue1(pos, ssaop.OpZeroExt16to64, types.Types[types.TUINT64], v)
 	case 48:
-		return b.NewValue1(pos, OpZeroExt32to64, types.Types[types.TUINT64], v)
+		return b.NewValue1(pos, ssaop.OpZeroExt32to64, types.Types[types.TUINT64], v)
 	default:
 		base.Fatalf("bad sizes %d %d\n", from, to)
 		return nil
@@ -957,11 +958,11 @@ func leftShift(b *Block, pos src.XPos, v *Value, shift int64) *Value {
 	size := v.Type.Size()
 	switch size {
 	case 8:
-		return b.NewValue2(pos, OpLsh64x64, v.Type, v, s)
+		return b.NewValue2(pos, ssaop.OpLsh64x64, v.Type, v, s)
 	case 4:
-		return b.NewValue2(pos, OpLsh32x64, v.Type, v, s)
+		return b.NewValue2(pos, ssaop.OpLsh32x64, v.Type, v, s)
 	case 2:
-		return b.NewValue2(pos, OpLsh16x64, v.Type, v, s)
+		return b.NewValue2(pos, ssaop.OpLsh16x64, v.Type, v, s)
 	default:
 		base.Fatalf("bad size %d\n", size)
 		return nil
@@ -972,11 +973,11 @@ func rightShift(b *Block, pos src.XPos, v *Value, shift int64) *Value {
 	size := v.Type.Size()
 	switch size {
 	case 8:
-		return b.NewValue2(pos, OpRsh64Ux64, v.Type, v, s)
+		return b.NewValue2(pos, ssaop.OpRsh64Ux64, v.Type, v, s)
 	case 4:
-		return b.NewValue2(pos, OpRsh32Ux64, v.Type, v, s)
+		return b.NewValue2(pos, ssaop.OpRsh32Ux64, v.Type, v, s)
 	case 2:
-		return b.NewValue2(pos, OpRsh16Ux64, v.Type, v, s)
+		return b.NewValue2(pos, ssaop.OpRsh16Ux64, v.Type, v, s)
 	default:
 		base.Fatalf("bad size %d\n", size)
 		return nil
@@ -985,11 +986,11 @@ func rightShift(b *Block, pos src.XPos, v *Value, shift int64) *Value {
 func byteSwap(b *Block, pos src.XPos, v *Value) *Value {
 	switch v.Type.Size() {
 	case 8:
-		return b.NewValue1(pos, OpBswap64, v.Type, v)
+		return b.NewValue1(pos, ssaop.OpBswap64, v.Type, v)
 	case 4:
-		return b.NewValue1(pos, OpBswap32, v.Type, v)
+		return b.NewValue1(pos, ssaop.OpBswap32, v.Type, v)
 	case 2:
-		return b.NewValue1(pos, OpBswap16, v.Type, v)
+		return b.NewValue1(pos, ssaop.OpBswap16, v.Type, v)
 
 	default:
 		v.Fatalf("bad size %d\n", v.Type.Size())
