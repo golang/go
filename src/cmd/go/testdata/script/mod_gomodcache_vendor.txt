@@ -7,6 +7,7 @@ go mod vendor
 go build -mod=vendor
 go version -m example$GOEXE
 cp stdout version-m.txt
+stdout -mod=vendor
 
 env GOMODCACHE=$WORK${/}modcache
 go build -mod=vendor

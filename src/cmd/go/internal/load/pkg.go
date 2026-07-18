@@ -2449,6 +2449,13 @@ func (p *Package) setBuildInfo(ctx context.Context, f *modfetch.Fetcher, autoVCS
 	}
 	appendSetting("-buildmode", buildmode)
 	appendSetting("-compiler", cfg.BuildContext.Compiler)
+	if cfg.BuildMod == "vendor" {
+		// https://go.dev/issue/46400
+		// https://go.dev/issue/57782
+		// We can't guarantee that dependencies have been unmodified in vendor mode.
+		// -mod=readonly and -mod=mod are both trusted to the same degree.
+		appendSetting("-mod", "vendor")
+	}
 	if gccgoflags := BuildGccgoflags.String(); gccgoflags != "" && cfg.BuildContext.Compiler == "gccgo" {
 		appendSetting("-gccgoflags", gccgoflags)
 	}
