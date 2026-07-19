@@ -435,7 +435,7 @@ func TestLex(t *testing.T) {
 		items := collect(&test, "", "")
 		if !equal(items, test.items, false) {
 			t.Errorf("%s: got\n\t%+v\nexpected\n\t%v", test.name, items, test.items)
-			return // TODO
+			continue
 		}
 		t.Log(test.name, "OK")
 	}
