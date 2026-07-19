@@ -714,7 +714,7 @@ func TestIssue34919(t *testing.T) {
 		{"Sign", func(x *Rat) { x.Sign() }},
 		{"IsInt", func(x *Rat) { x.IsInt() }},
 		{"Num", func(x *Rat) { x.Num() }},
-		// {"Denom", func(x *Rat) { x.Denom() }}, TODO(gri) should we change the API? See issue #33792.
+		{"Denom", func(x *Rat) { x.Denom() }},
 	} {
 		// A denominator of length 0 is interpreted as 1. Make sure that
 		// "materialization" of the denominator doesn't lead to setting
