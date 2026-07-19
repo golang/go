@@ -175,6 +175,15 @@ func TestVet(t *testing.T) {
 	})
 }
 
+func TestEnumSyntax(t *testing.T) {
+	t.Parallel()
+	cmd := testenv.Command(t, testenv.GoToolPath(t), "vet", "-vettool="+vetPath(t), path.Join("cmd/vet/testdata", "enum"))
+	output, err := cmd.CombinedOutput()
+	if err != nil {
+		t.Fatalf("go vet failed: %v\n%s", err, output)
+	}
+}
+
 func cgoEnabled(t *testing.T) bool {
 	// Don't trust build.Default.CgoEnabled as it is false for
 	// cross-builds unless CGO_ENABLED is explicitly specified.

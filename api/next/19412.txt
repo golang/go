@@ -1,0 +1,22 @@
+pkg go/ast, method (*EnumDecl) End() token.Pos #19412
+pkg go/ast, method (*EnumDecl) Pos() token.Pos #19412
+pkg go/ast, method (*EnumVariant) End() token.Pos #19412
+pkg go/ast, method (*EnumVariant) Pos() token.Pos #19412
+pkg go/ast, type EnumDecl struct #19412
+pkg go/ast, type EnumDecl struct, Doc *CommentGroup #19412
+pkg go/ast, type EnumDecl struct, Enum token.Pos #19412
+pkg go/ast, type EnumDecl struct, Lbrace token.Pos #19412
+pkg go/ast, type EnumDecl struct, Name *Ident #19412
+pkg go/ast, type EnumDecl struct, Rbrace token.Pos #19412
+pkg go/ast, type EnumDecl struct, Type token.Pos #19412
+pkg go/ast, type EnumDecl struct, TypeParams *FieldList #19412
+pkg go/ast, type EnumDecl struct, Variants []*EnumVariant #19412
+pkg go/ast, type EnumVariant struct #19412
+pkg go/ast, type EnumVariant struct, Comment *CommentGroup #19412
+pkg go/ast, type EnumVariant struct, Doc *CommentGroup #19412
+pkg go/ast, type EnumVariant struct, Fields *FieldList #19412
+pkg go/ast, type EnumVariant struct, Name *Ident #19412
+pkg go/token, const ENUM = 89 #19412
+pkg go/token, const ENUM Token #19412
+pkg go/types, method (*Named) EnumType() *Named #19412
+pkg go/types, method (*Named) EnumVariants() []*Named #19412

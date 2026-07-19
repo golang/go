@@ -53,7 +53,10 @@ start:
 
 	case *ast.DeclStmt:
 		// Treat each var ValueSpec as a separate statement.
-		d := s.Decl.(*ast.GenDecl)
+		d, ok := s.Decl.(*ast.GenDecl)
+		if !ok {
+			break // local enum or another declaration with no control-flow effect
+		}
 		if d.Tok == token.VAR {
 			for _, spec := range d.Specs {
 				if spec, ok := spec.(*ast.ValueSpec); ok {

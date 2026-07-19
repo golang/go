@@ -50,7 +50,7 @@ func (check *Checker) isTerminating(s syntax.Stmt, label string) bool {
 		}
 
 	case *syntax.SwitchStmt:
-		return check.isTerminatingSwitch(s.Body, label)
+		return check.isTerminatingSwitch(s.Body, label, check.enumSwitches[s])
 
 	case *syntax.SelectStmt:
 		for _, cc := range s.Body {
@@ -85,8 +85,8 @@ func (check *Checker) isTerminatingList(list []syntax.Stmt, label string) bool {
 	return false // all statements are empty
 }
 
-func (check *Checker) isTerminatingSwitch(body []*syntax.CaseClause, label string) bool {
-	hasDefault := false
+func (check *Checker) isTerminatingSwitch(body []*syntax.CaseClause, label string, exhaustive bool) bool {
+	hasDefault := exhaustive
 	for _, cc := range body {
 		if cc.Cases == nil {
 			hasDefault = true

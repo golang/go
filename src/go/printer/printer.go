@@ -1062,6 +1062,10 @@ func getDoc(n ast.Node) *ast.CommentGroup {
 		return n.Doc
 	case *ast.FuncDecl:
 		return n.Doc
+	case *ast.EnumDecl:
+		return n.Doc
+	case *ast.EnumVariant:
+		return n.Doc
 	case *ast.File:
 		return n.Doc
 	}
@@ -1081,6 +1085,12 @@ func getLastComment(n ast.Node) *ast.CommentGroup {
 	case *ast.GenDecl:
 		if len(n.Specs) > 0 {
 			return getLastComment(n.Specs[len(n.Specs)-1])
+		}
+	case *ast.EnumVariant:
+		return n.Comment
+	case *ast.EnumDecl:
+		if len(n.Variants) > 0 {
+			return getLastComment(n.Variants[len(n.Variants)-1])
 		}
 	case *ast.File:
 		if len(n.Comments) > 0 {

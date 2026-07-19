@@ -309,6 +309,28 @@ func walk(v *visitor, ek edge.Kind, index int, node ast.Node) {
 		}
 		walkList(v, edge.GenDecl_Specs, n.Specs)
 
+	case *ast.EnumDecl:
+		if n.Doc != nil {
+			walk(v, edge.EnumDecl_Doc, -1, n.Doc)
+		}
+		walk(v, edge.EnumDecl_Name, -1, n.Name)
+		if n.TypeParams != nil {
+			walk(v, edge.EnumDecl_TypeParams, -1, n.TypeParams)
+		}
+		walkList(v, edge.EnumDecl_Variants, n.Variants)
+
+	case *ast.EnumVariant:
+		if n.Doc != nil {
+			walk(v, edge.EnumVariant_Doc, -1, n.Doc)
+		}
+		walk(v, edge.EnumVariant_Name, -1, n.Name)
+		if n.Fields != nil {
+			walk(v, edge.EnumVariant_Fields, -1, n.Fields)
+		}
+		if n.Comment != nil {
+			walk(v, edge.EnumVariant_Comment, -1, n.Comment)
+		}
+
 	case *ast.FuncDecl:
 		if n.Doc != nil {
 			walk(v, edge.FuncDecl_Doc, -1, n.Doc)

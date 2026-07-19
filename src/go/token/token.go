@@ -128,6 +128,7 @@ const (
 	additional_beg
 	// additional tokens, handled in an ad-hoc manner
 	TILDE
+	ENUM // contextual keyword
 	additional_end
 )
 
@@ -231,6 +232,7 @@ var tokens = [...]string{
 	VAR:    "var",
 
 	TILDE: "~",
+	ENUM:  "enum",
 }
 
 // String returns the string corresponding to the token tok.

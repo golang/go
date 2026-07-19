@@ -83,3 +83,68 @@ func TestFilterDuplicates(t *testing.T) {
 		t.Errorf("incorrect output:\n%s", output)
 	}
 }
+
+func TestFilterEnum(t *testing.T) {
+	const src = `package p
+
+type Result enum {
+	Ok {
+		Value int
+		hidden int
+	}
+	hidden
+}
+`
+	fset := token.NewFileSet()
+	file, err := parser.ParseFile(fset, "enum.go", src, 0)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !ast.FileExports(file) {
+		t.Fatal("FileExports removed exported enum")
+	}
+	decl := file.Decls[0].(*ast.EnumDecl)
+	if len(decl.Variants) != 1 || decl.Variants[0].Name.Name != "Ok" {
+		t.Fatalf("variants after export filtering = %#v", decl.Variants)
+	}
+	fields := decl.Variants[0].Fields.List
+	if len(fields) != 1 || fields[0].Names[0].Name != "Value" {
+		t.Fatalf("payload fields after export filtering = %#v", fields)
+	}
+
+	file, err = parser.ParseFile(fset, "enum2.go", src, 0)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !ast.FilterFile(file, func(name string) bool { return name == "Value" }) {
+		t.Fatal("FilterFile removed enum containing matching payload field")
+	}
+	decl = file.Decls[0].(*ast.EnumDecl)
+	if len(decl.Variants) != 1 || len(decl.Variants[0].Fields.List) != 1 {
+		t.Fatalf("filtered enum = %#v", decl)
+	}
+
+	file, err = parser.ParseFile(fset, "enum3.go", src, 0)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !ast.FilterFile(file, func(name string) bool { return name == "Result" }) {
+		t.Fatal("FilterFile removed matching enum")
+	}
+	decl = file.Decls[0].(*ast.EnumDecl)
+	if len(decl.Variants) != 0 {
+		t.Fatalf("variants matching only enum name = %#v, want none", decl.Variants)
+	}
+
+	file, err = parser.ParseFile(fset, "enum4.go", src, 0)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !ast.FilterFile(file, func(name string) bool { return name == "Ok" }) {
+		t.Fatal("FilterFile removed matching enum variant")
+	}
+	decl = file.Decls[0].(*ast.EnumDecl)
+	if len(decl.Variants) != 1 || len(decl.Variants[0].Fields.List) != 0 {
+		t.Fatalf("fields matching only variant name = %#v, want none", decl.Variants)
+	}
+}

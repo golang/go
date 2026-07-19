@@ -3151,14 +3151,22 @@ func declares(stmts []ast.Stmt) map[string]bool {
 	for _, stmt := range stmts {
 		switch stmt := stmt.(type) {
 		case *ast.DeclStmt:
-			for _, spec := range stmt.Decl.(*ast.GenDecl).Specs {
-				switch spec := spec.(type) {
-				case *ast.ValueSpec:
-					for _, id := range spec.Names {
-						names[id.Name] = true
+			switch decl := stmt.Decl.(type) {
+			case *ast.GenDecl:
+				for _, spec := range decl.Specs {
+					switch spec := spec.(type) {
+					case *ast.ValueSpec:
+						for _, id := range spec.Names {
+							names[id.Name] = true
+						}
+					case *ast.TypeSpec:
+						names[spec.Name.Name] = true
 					}
-				case *ast.TypeSpec:
-					names[spec.Name.Name] = true
+				}
+			case *ast.EnumDecl:
+				names[decl.Name.Name] = true
+				for _, variant := range decl.Variants {
+					names[variant.Name.Name] = true
 				}
 			}
 

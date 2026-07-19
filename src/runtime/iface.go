@@ -45,6 +45,13 @@ func getitab(inter *interfacetype, typ *_type, canfail bool) *itab {
 	if len(inter.Methods) == 0 {
 		throw("internal error - misuse of itab")
 	}
+	if isEnumInterface(inter) && typ.TFlag&abi.TFlagEnumVariant == 0 {
+		if canfail {
+			return nil
+		}
+		name := toRType(&inter.Type).nameOff(inter.Methods[0].Name)
+		panic(&TypeAssertionError{concrete: typ, asserted: &inter.Type, missingMethod: name.Name()})
+	}
 
 	// easy case
 	if typ.TFlag&abi.TFlagUncommon == 0 {
@@ -100,6 +107,19 @@ finish:
 	// interface function was missing, so initialize
 	// the itab again to get the missing function name.
 	panic(&TypeAssertionError{concrete: typ, asserted: &inter.Type, missingMethod: itabInit(m, false)})
+}
+
+// isEnumInterface reports whether inter contains the sealed runtime marker
+// used to represent an enum. Only concrete types carrying TFlagEnumVariant may
+// satisfy an interface containing this otherwise-unspellable marker.
+func isEnumInterface(inter *interfacetype) bool {
+	for i := range inter.Methods {
+		name := toRType(&inter.Type).nameOff(inter.Methods[i].Name).Name()
+		if len(name) > len(".enum.") && name[:len(".enum.")] == ".enum." {
+			return true
+		}
+	}
+	return false
 }
 
 // find finds the given interface/type pair in t.

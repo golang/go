@@ -505,6 +505,28 @@ func (r *resolver) Visit(node ast.Node) ast.Visitor {
 			r.declare(n, nil, r.pkgScope, ast.Fun, n.Name)
 		}
 
+	case *ast.EnumDecl:
+		// The enum name is in the enclosing scope. Variants use an enum-local
+		// scope only for duplicate detection; their constructors are namespaced.
+		r.declare(n, nil, r.topScope, ast.Typ, n.Name)
+		variantScope := ast.NewScope(nil)
+		for _, variant := range n.Variants {
+			r.declare(variant, nil, variantScope, ast.Typ, variant.Name)
+		}
+		if n.TypeParams != nil {
+			r.openScope(n.Pos())
+			defer r.closeScope()
+			r.walkTParams(n.TypeParams)
+		}
+		for _, variant := range n.Variants {
+			if variant.Fields == nil {
+				continue
+			}
+			r.openScope(variant.Pos())
+			r.walkFieldList(variant.Fields, ast.Var)
+			r.closeScope()
+		}
+
 	default:
 		return r
 	}

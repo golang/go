@@ -369,6 +369,17 @@ func (x *operand) assignableTo(check *Checker, T Type, cause *string) (bool, Cod
 		return true, 0
 	}
 
+	// Enum values are represented by a sealed interface internally. A pointer
+	// to a variant inherits its marker method, but is not itself an enum variant.
+	if named, _ := T.(*Named); named != nil && named.enumMarker() != "" {
+		if _, ok := V.(*Pointer); ok {
+			if cause != nil {
+				*cause = "pointer to enum variant is not an enum value"
+			}
+			return false, IncompatibleAssign
+		}
+	}
+
 	// T is an interface type, but not a type parameter, and V implements T.
 	// Also handle the case where T is a pointer to an interface so that we get
 	// the Checker.implements error cause.

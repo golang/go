@@ -3849,12 +3849,12 @@ func stealWork(now int64) (gp *g, inheritTime bool, rnow, pollUntil int64, newWo
 	for i := 0; i < stealTries; i++ {
 		stealTimersOrRunNextG := i == stealTries-1
 
-		for enum := stealOrder.start(cheaprand()); !enum.done(); enum.next() {
+		for iter := stealOrder.start(cheaprand()); !iter.done(); iter.next() {
 			if sched.gcwaiting.Load() {
 				// GC work may be available.
 				return nil, false, now, pollUntil, true
 			}
-			p2 := allp[enum.position()]
+			p2 := allp[iter.position()]
 			if pp == p2 {
 				continue
 			}
@@ -3872,7 +3872,7 @@ func stealWork(now int64) (gp *g, inheritTime bool, rnow, pollUntil int64, newWo
 			//
 			// timerpMask tells us whether the P may have timers at all. If it
 			// can't, no need to check at all.
-			if stealTimersOrRunNextG && timerpMask.read(enum.position()) {
+			if stealTimersOrRunNextG && timerpMask.read(iter.position()) {
 				tnow, w, ran := p2.timers.check(now, nil)
 				now = tnow
 				if w != 0 && (pollUntil == 0 || w < pollUntil) {
@@ -3895,7 +3895,7 @@ func stealWork(now int64) (gp *g, inheritTime bool, rnow, pollUntil int64, newWo
 			}
 
 			// Don't bother to attempt to steal if p2 is idle.
-			if !idlepMask.read(enum.position()) {
+			if !idlepMask.read(iter.position()) {
 				if gp := runqsteal(pp, p2, stealTimersOrRunNextG); gp != nil {
 					return gp, false, now, pollUntil, ranTimer
 				}
@@ -8077,17 +8077,17 @@ func (ord *randomOrder) start(i uint32) randomEnum {
 	}
 }
 
-func (enum *randomEnum) done() bool {
-	return enum.i == enum.count
+func (e *randomEnum) done() bool {
+	return e.i == e.count
 }
 
-func (enum *randomEnum) next() {
-	enum.i++
-	enum.pos = (enum.pos + enum.inc) % enum.count
+func (e *randomEnum) next() {
+	e.i++
+	e.pos = (e.pos + e.inc) % e.count
 }
 
-func (enum *randomEnum) position() uint32 {
-	return enum.pos
+func (e *randomEnum) position() uint32 {
+	return e.pos
 }
 
 func gcd(a, b uint32) uint32 {
