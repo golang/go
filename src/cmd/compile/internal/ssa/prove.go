@@ -570,8 +570,6 @@ func newFactsTable(f *Func) *factsTable {
 	ft := &factsTable{}
 	ft.orderS = f.newPoset()
 	ft.orderU = f.newPoset()
-	ft.orderS.SetUnsigned(false)
-	ft.orderU.SetUnsigned(true)
 	ft.orderings = make(map[ID]*ordering)
 	ft.limits = f.Cache.allocLimitSlice(f.NumValues())
 	for _, b := range f.Blocks {

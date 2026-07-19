@@ -76,12 +76,6 @@ type posetUndo struct {
 	edge posetEdge
 }
 
-const (
-	// Make poset handle values as unsigned numbers.
-	// (TODO: remove?)
-	posetFlagUnsigned = 1 << iota
-)
-
 // A poset edge. The zero value is the null/empty edge.
 // Packs target node index (31 bits) and strict flag (1 bit).
 type posetEdge uint32
@@ -150,7 +144,6 @@ type posetNode struct {
 //	   J    K
 type poset struct {
 	lastidx uint32            // last generated dense index
-	flags   uint8             // internal flags
 	values  map[ID]uint32     // map SSA values to dense indexes
 	nodes   []posetNode       // nodes (in all DAGs)
 	roots   []uint32          // list of root nodes (forest)
@@ -165,14 +158,6 @@ func newPoset() *poset {
 		roots:  make([]uint32, 0, 4),
 		noneq:  make(map[uint32]bitset),
 		undo:   make([]posetUndo, 0, 4),
-	}
-}
-
-func (po *poset) SetUnsigned(uns bool) {
-	if uns {
-		po.flags |= posetFlagUnsigned
-	} else {
-		po.flags &^= posetFlagUnsigned
 	}
 }
 
