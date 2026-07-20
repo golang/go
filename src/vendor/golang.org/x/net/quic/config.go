@@ -110,6 +110,9 @@ type Config struct {
 // Clone returns a shallow clone of c, or nil if c is nil.
 // It is safe to clone a [Config] that is being used concurrently by a QUIC endpoint.
 func (c *Config) Clone() *Config {
+	if c == nil {
+		return nil
+	}
 	n := *c
 	return &n
 }
