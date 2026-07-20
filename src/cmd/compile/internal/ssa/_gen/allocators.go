@@ -86,6 +86,17 @@ func genAllocators() {
 			maxLog:   32,
 		},
 	}
+	if splitPhase >= phase0Export {
+		allocators[1].typ = "[]Limit"
+		allocators[1].mak = "make([]Limit, %s)"
+		allocators[2].typ = "*SparseSet"
+		allocators[2].mak = "NewSparseSet(%s)"
+		allocators[2].clear = "%s.Clear()"
+		allocators[3].mak = "NewSparseMap(%s)"
+		allocators[3].clear = "%s.Clear()"
+		allocators[4].typ = "*SparseMapPos"
+		allocators[4].clear = "%s.Clear()"
+	}
 	deriveds := []derived{
 		{
 			name: "BlockSlice",
@@ -137,7 +148,7 @@ func genAllocators() {
 	w := new(bytes.Buffer)
 	fmt.Fprintf(w, "// Code generated from _gen/allocators.go using 'go generate'; DO NOT EDIT.\n")
 	fmt.Fprintln(w)
-	fmt.Fprintln(w, "package ssa")
+	fmt.Fprintf(w, "package %s\n", splitCorePkg)
 
 	fmt.Fprintln(w, "import (")
 	fmt.Fprintln(w, "\"internal/unsafeheader\"")
@@ -165,13 +176,14 @@ func genAllocators() {
 		panic(err)
 	}
 
-	if err := os.WriteFile(outFile("allocators.go"), b, 0666); err != nil {
+	mkdirOutFile(allocatorsFile)
+	if err := os.WriteFile(outFile(allocatorsFile), b, 0666); err != nil {
 		log.Fatalf("can't write output: %v\n", err)
 	}
 }
 func genAllocator(w io.Writer, a allocator) {
 	fmt.Fprintf(w, "var poolFree%s [%d]sync.Pool\n", a.name, a.maxLog-a.minLog)
-	fmt.Fprintf(w, "func (c *Cache) alloc%s(n int) %s {\n", a.name, a.typ)
+	fmt.Fprintf(w, "func (c *Cache) %s%s(n int) %s {\n", splitTitle("alloc"), a.name, a.typ)
 	fmt.Fprintf(w, "var s %s\n", a.typ)
 	fmt.Fprintf(w, "n2 := n\n")
 	fmt.Fprintf(w, "if n2 < %d { n2 = %d }\n", 1<<a.minLog, 1<<a.minLog)
@@ -194,7 +206,7 @@ func genAllocator(w io.Writer, a allocator) {
 	}
 	fmt.Fprintf(w, "return s\n")
 	fmt.Fprintf(w, "}\n")
-	fmt.Fprintf(w, "func (c *Cache) free%s(s %s) {\n", a.name, a.typ)
+	fmt.Fprintf(w, "func (c *Cache) %s%s(s %s) {\n", splitTitle("free"), a.name, a.typ)
 	fmt.Fprintf(w, "%s\n", fmt.Sprintf(a.clear, "s"))
 	fmt.Fprintf(w, "b := bits.Len(uint(%s) - 1)\n", fmt.Sprintf(a.capacity, "s"))
 	if a.typ[0] == '*' {
@@ -214,7 +226,7 @@ func genAllocator(w io.Writer, a allocator) {
 	fmt.Fprintf(w, "}\n")
 }
 func genDerived(w io.Writer, d derived, base allocator) {
-	fmt.Fprintf(w, "func (c *Cache) alloc%s(n int) %s {\n", d.name, d.typ)
+	fmt.Fprintf(w, "func (c *Cache) %s%s(n int) %s {\n", splitTitle("alloc"), d.name, d.typ)
 	if d.typ[:2] != "[]" || base.typ[:2] != "[]" {
 		panic(fmt.Sprintf("bad derived types: %s %s", d.typ, base.typ))
 	}
@@ -222,7 +234,7 @@ func genDerived(w io.Writer, d derived, base allocator) {
 	fmt.Fprintf(w, "var derived %s\n", d.typ[2:])
 	fmt.Fprintf(w, "if unsafe.Sizeof(base)%%unsafe.Sizeof(derived) != 0 { panic(\"bad\") }\n")
 	fmt.Fprintf(w, "scale := unsafe.Sizeof(base)/unsafe.Sizeof(derived)\n")
-	fmt.Fprintf(w, "b := c.alloc%s(int((uintptr(n)+scale-1)/scale))\n", base.name)
+	fmt.Fprintf(w, "b := c.%s%s(int((uintptr(n)+scale-1)/scale))\n", splitTitle("alloc"), base.name)
 	fmt.Fprintf(w, "s := unsafeheader.Slice {\n")
 	fmt.Fprintf(w, "  Data: unsafe.Pointer(&b[0]),\n")
 	fmt.Fprintf(w, "  Len: n,\n")
@@ -230,7 +242,7 @@ func genDerived(w io.Writer, d derived, base allocator) {
 	fmt.Fprintf(w, "  }\n")
 	fmt.Fprintf(w, "return *(*%s)(unsafe.Pointer(&s))\n", d.typ)
 	fmt.Fprintf(w, "}\n")
-	fmt.Fprintf(w, "func (c *Cache) free%s(s %s) {\n", d.name, d.typ)
+	fmt.Fprintf(w, "func (c *Cache) %s%s(s %s) {\n", splitTitle("free"), d.name, d.typ)
 	fmt.Fprintf(w, "var base %s\n", base.typ[2:])
 	fmt.Fprintf(w, "var derived %s\n", d.typ[2:])
 	fmt.Fprintf(w, "scale := unsafe.Sizeof(base)/unsafe.Sizeof(derived)\n")
@@ -239,6 +251,6 @@ func genDerived(w io.Writer, d derived, base allocator) {
 	fmt.Fprintf(w, "  Len: int((uintptr(len(s))+scale-1)/scale),\n")
 	fmt.Fprintf(w, "  Cap: int((uintptr(cap(s))+scale-1)/scale),\n")
 	fmt.Fprintf(w, "  }\n")
-	fmt.Fprintf(w, "c.free%s(*(*%s)(unsafe.Pointer(&b)))\n", base.name, base.typ)
+	fmt.Fprintf(w, "c.%s%s(*(*%s)(unsafe.Pointer(&b)))\n", splitTitle("free"), base.name, base.typ)
 	fmt.Fprintf(w, "}\n")
 }
