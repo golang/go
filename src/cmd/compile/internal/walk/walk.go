@@ -471,7 +471,9 @@ func analyzePreWalk(fn *ir.Func) {
 	ro.Init(fn)
 	sv := make(map[ir.Node]ir.Node)
 	scs := make(map[*ir.Name]*types.Type)
+	var numNodes int32
 	ir.Visit(fn, func(n ir.Node) {
+		numNodes++
 		switch n.Op() {
 		case ir.OCONVIFACE:
 			x := n.(*ir.ConvExpr).X
@@ -496,4 +498,5 @@ func analyzePreWalk(fn *ir.Func) {
 	})
 	staticValues = sv
 	shapeConvSources = scs
+	fn.NumPreWalkNodes = numNodes
 }
