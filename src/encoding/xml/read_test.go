@@ -8,6 +8,7 @@ import (
 	"bytes"
 	"errors"
 	"io"
+	"os"
 	"reflect"
 	"runtime"
 	"strings"
@@ -1125,4 +1126,157 @@ func TestCVE202230633(t *testing.T) {
 		Things []string
 	}
 	Unmarshal(bytes.Repeat([]byte("<a>"), 17_000_000), &example)
+}
+
+type recursiveNode struct {
+	XMLName  Name
+	Children []recursiveNode `xml:",any"`
+}
+
+func (n *recursiveNode) UnmarshalXML(d *Decoder, start StartElement) error {
+	type alias recursiveNode
+	var a alias
+	if err := d.DecodeElement(&a, &start); err != nil {
+		return err
+	}
+	*n = recursiveNode(a)
+	return nil
+}
+
+func TestDecodeElementRecursion(t *testing.T) {
+	// The wazero builder is unable to build the test binary due to its small
+	// stack size.
+	builder := os.Getenv("GO_BUILDER_NAME")
+	if testing.Short() || strings.Contains(builder, "wazero") {
+		t.Skip("test requires significant memory")
+	}
+	maxDepth := maxUnmarshalDepth
+	if runtime.GOARCH == "wasm" {
+		maxDepth = maxUnmarshalDepthWasm
+	}
+	tests := []struct {
+		name    string
+		depth   int
+		wantErr error
+	}{
+		{
+			name:    "below limit",
+			depth:   maxDepth,
+			wantErr: nil,
+		},
+		{
+			name:    "above limit",
+			depth:   maxDepth + 1,
+			wantErr: errUnmarshalDepth,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			payload := bytes.Join([][]byte{
+				bytes.Repeat([]byte("<a>"), tt.depth),
+				bytes.Repeat([]byte("</a>"), tt.depth),
+			}, nil)
+			var n recursiveNode
+			err := Unmarshal(payload, &n)
+			if err != tt.wantErr {
+				t.Fatalf("unexpected error: got %v, want %v", err, tt.wantErr)
+			}
+		})
+	}
+}
+
+type standardNode struct {
+	Sub    *standardNode          `xml:"section"`
+	Custom *customUnmarshalerNode `xml:"extension"`
+}
+
+type customUnmarshalerNode struct {
+	Body standardNode
+}
+
+func (e *customUnmarshalerNode) UnmarshalXML(d *Decoder, start StartElement) error {
+	var body standardNode
+	if err := d.DecodeElement(&body, &start); err != nil {
+		return err
+	}
+	e.Body = body
+	return nil
+}
+
+func TestDecodeElementDepthBypass(t *testing.T) {
+	// Construct a document with 3 blocks of 5,000 nested <section> tags,
+	// separated by <extension> tags.
+	// Total XML nesting depth = 15,003 tags deep (maxUnmarshalDepth is 10,000).
+	openSections := strings.Repeat("<section>", 5000)
+	closeSections := strings.Repeat("</section>", 5000)
+
+	var buf bytes.Buffer
+	for range 3 {
+		buf.WriteString(openSections)
+		buf.WriteString("<extension>")
+	}
+	for range 3 {
+		buf.WriteString("</extension>")
+		buf.WriteString(closeSections)
+	}
+
+	var node standardNode
+	err := Unmarshal(buf.Bytes(), &node)
+
+	if err != errUnmarshalDepth {
+		t.Fatalf("Unexpected error: got %q want %q", err, errUnmarshalDepth)
+	}
+}
+
+type manualNode struct {
+	Child *manualNode
+}
+
+func (m *manualNode) UnmarshalXML(d *Decoder, start StartElement) error {
+	for {
+		tok, err := d.Token()
+		if err != nil {
+			return err
+		}
+		switch t := tok.(type) {
+		case StartElement:
+			var child manualNode
+			if err := d.DecodeElement(&child, &t); err != nil {
+				return err
+			}
+			m.Child = &child
+		case EndElement:
+			return nil
+		}
+	}
+}
+
+func TestRecursiveUnmarshalInterfaceDepth(t *testing.T) {
+	depth := maxUnmarshalDepth + 1
+	payload := bytes.Join([][]byte{
+		bytes.Repeat([]byte("<a>"), depth),
+		bytes.Repeat([]byte("</a>"), depth),
+	}, nil)
+
+	var node manualNode
+	err := Unmarshal(payload, &node)
+	if err != errUnmarshalDepth {
+		t.Fatalf("Unexpected error: got %q want %q", err, errUnmarshalDepth)
+	}
+}
+
+type rawTokenNode struct{}
+
+func (r *rawTokenNode) UnmarshalXML(d *Decoder, start StartElement) error {
+	_, err := d.RawToken()
+	return err
+}
+
+func TestUnmarshalXMLRawToken(t *testing.T) {
+	var node rawTokenNode
+	err := Unmarshal([]byte("<a></a>"), &node)
+	if err != errRawToken {
+		t.Fatalf("UnmarshalXML calling RawToken: got error %v, want %v", err, errRawToken)
+	}
 }
