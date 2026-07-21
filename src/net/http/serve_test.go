@@ -4641,11 +4641,7 @@ func testTransportAndServerSharedBodyRace(t *testing.T, mode testMode) {
 			// cause the server to close req.Body. Since they are the same underlying
 			// ReadCloser, that will result in concurrent calls to Close (and possibly a
 			// Read concurrent with a Close).
-			if mode == http2Mode {
-				close(cancel)
-			} else {
-				proxy.c.Transport.(*Transport).CancelRequest(req2)
-			}
+			close(cancel)
 			rw.Write([]byte("OK"))
 		}), optRealNet)
 		defer proxy.close()

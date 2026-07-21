@@ -2787,26 +2787,6 @@ type cancelTest struct {
 	checkErr func(when string, err error)      // verify the expected error
 }
 
-// runCancelTestTransport uses Transport.CancelRequest.
-func runCancelTestTransport(t *testing.T, mode testMode, f func(t *testing.T, test cancelTest)) {
-	t.Run("TransportCancel", func(t *testing.T) {
-		f(t, cancelTest{
-			mode: mode,
-			newReq: func(req *Request) *Request {
-				return req
-			},
-			cancel: func(tr *Transport, req *Request) {
-				tr.CancelRequest(req)
-			},
-			checkErr: func(when string, err error) {
-				if !errors.Is(err, ExportErrRequestCanceled) && !errors.Is(err, ExportErrRequestCanceledConn) {
-					t.Errorf("%v error = %v, want errRequestCanceled or errRequestCanceledConn", when, err)
-				}
-			},
-		})
-	})
-}
-
 // runCancelTestChannel uses Request.Cancel.
 func runCancelTestChannel(t *testing.T, mode testMode, f func(t *testing.T, test cancelTest)) {
 	cancelc := make(chan struct{})
@@ -2849,16 +2829,18 @@ func runCancelTestContext(t *testing.T, mode testMode, f func(t *testing.T, test
 
 func runCancelTest(t *testing.T, f func(t *testing.T, test cancelTest), opts ...any) {
 	run(t, func(t *testing.T, mode testMode) {
-		if mode == http1Mode {
-			t.Run("TransportCancel", func(t *testing.T) {
-				runCancelTestTransport(t, mode, f)
-			})
-		}
 		t.Run("RequestCancel", func(t *testing.T) {
-			runCancelTestChannel(t, mode, f)
+			if mode == http3Mode {
+				t.Skip("Request.Cancel not supported for HTTP/3")
+			}
+			synctest.Test(t, func(t *testing.T) {
+				runCancelTestChannel(t, mode, f)
+			})
 		})
 		t.Run("ContextCancel", func(t *testing.T) {
-			runCancelTestContext(t, mode, f)
+			synctest.Test(t, func(t *testing.T) {
+				runCancelTestContext(t, mode, f)
+			})
 		})
 	}, opts...)
 }
@@ -2873,19 +2855,21 @@ func testTransportCancelRequest(t *testing.T, test cancelTest) {
 
 	const msg = "Hello"
 	unblockc := make(chan bool)
-	ts := newClientServerTest(t, test.mode, HandlerFunc(func(w ResponseWriter, r *Request) {
+	cst := newClientServerTest(t, test.mode, HandlerFunc(func(w ResponseWriter, r *Request) {
 		io.WriteString(w, msg)
 		w.(Flusher).Flush() // send headers and some body
 		<-unblockc
-	})).ts
+	}))
 	defer close(unblockc)
 
-	c := ts.Client()
-	tr := c.Transport.(*Transport)
+	conn, err := cst.tr.NewClientConn(t.Context(), test.mode.Scheme(), "example.tld:80")
+	if err != nil {
+		t.Fatal(err)
+	}
 
-	req, _ := NewRequest("GET", ts.URL, nil)
+	req, _ := NewRequest("GET", cst.ts.URL, nil)
 	req = test.newReq(req)
-	res, err := c.Do(req)
+	res, err := conn.RoundTrip(req)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -2894,7 +2878,11 @@ func testTransportCancelRequest(t *testing.T, test cancelTest) {
 	if n != len(body) || !bytes.Equal(body, []byte(msg)) {
 		t.Errorf("Body = %q; want %q", body[:n], msg)
 	}
-	test.cancel(tr, req)
+	synctest.Wait()
+	if got, want := conn.InFlight(), 1; got != want {
+		t.Fatalf("Before cancel: InFlight = %v, want %v", got, want)
+	}
+	test.cancel(cst.tr, req)
 
 	tail, err := io.ReadAll(res.Body)
 	res.Body.Close()
@@ -2903,18 +2891,10 @@ func testTransportCancelRequest(t *testing.T, test cancelTest) {
 		t.Errorf("Spurious bytes from Body.Read: %q", tail)
 	}
 
-	// Verify no outstanding requests after readLoop/writeLoop
-	// goroutines shut down.
-	waitCondition(t, 10*time.Millisecond, func(d time.Duration) bool {
-		n := tr.NumPendingRequestsForTesting()
-		if n > 0 {
-			if d > 0 {
-				t.Logf("pending requests = %d after %v (want 0)", n, d)
-			}
-			return false
-		}
-		return true
-	})
+	synctest.Wait()
+	if got, want := conn.InFlight(), 0; got != want {
+		t.Fatalf("After cancel: InFlight = %v, want %v", got, want)
+	}
 }
 
 func testTransportCancelRequestInDo(t *testing.T, test cancelTest, body io.Reader) {
@@ -2930,27 +2910,19 @@ func testTransportCancelRequestInDo(t *testing.T, test cancelTest, body io.Reade
 	c := ts.Client()
 	tr := c.Transport.(*Transport)
 
-	donec := make(chan bool)
 	req, _ := NewRequest("GET", ts.URL, body)
 	req = test.newReq(req)
+	done := false
 	go func() {
-		defer close(donec)
 		c.Do(req)
+		done = true
 	}()
-
-	unblockc <- true
-	waitCondition(t, 10*time.Millisecond, func(d time.Duration) bool {
-		test.cancel(tr, req)
-		select {
-		case <-donec:
-			return true
-		default:
-			if d > 0 {
-				t.Logf("Do of canceled request has not returned after %v", d)
-			}
-			return false
-		}
-	})
+	synctest.Wait()
+	test.cancel(tr, req)
+	synctest.Wait()
+	if !done {
+		t.Errorf("Do of canceled request has not returned")
+	}
 }
 
 func TestTransportCancelRequestInDo(t *testing.T) {
@@ -2991,33 +2963,26 @@ func testTransportCancelRequestInDial(t *testing.T, test cancelTest) {
 		},
 	}
 	cl := &Client{Transport: tr}
-	gotres := make(chan bool)
+	gotres := false
 	req, _ := NewRequest("GET", "http://something.no-network.tld/", nil)
 	req = test.newReq(req)
 	go func() {
 		_, err := cl.Do(req)
 		eventLog.Printf("Get error = %v", err != nil)
 		test.checkErr("Get", err)
-		gotres <- true
+		gotres = true
 	}()
 
 	inDial <- true
 
 	eventLog.Printf("canceling")
 	test.cancel(tr, req)
-	test.cancel(tr, req) // used to panic on second call to Transport.Cancel
+	test.cancel(tr, req) // used to panic on second call
 
-	if d, ok := t.Deadline(); ok {
-		// When the test's deadline is about to expire, log the pending events for
-		// better debugging.
-		timeout := time.Until(d) * 19 / 20 // Allow 5% for cleanup.
-		timer := time.AfterFunc(timeout, func() {
-			panic(fmt.Sprintf("hang in %s. events are: %s", t.Name(), logbuf.String()))
-		})
-		defer timer.Stop()
+	synctest.Wait()
+	if !gotres {
+		t.Errorf("after cancel, Do has not returned")
 	}
-	<-gotres
-
 	got := logbuf.String()
 	want := `dial: blocking
 canceling
@@ -3039,20 +3004,22 @@ func testTransportCancelRequestWithBody(t *testing.T, test cancelTest) {
 
 	const msg = "Hello"
 	unblockc := make(chan struct{})
-	ts := newClientServerTest(t, test.mode, HandlerFunc(func(w ResponseWriter, r *Request) {
+	cst := newClientServerTest(t, test.mode, HandlerFunc(func(w ResponseWriter, r *Request) {
 		io.WriteString(w, msg)
 		w.(Flusher).Flush() // send headers and some body
 		<-unblockc
-	})).ts
+	}))
 	defer close(unblockc)
 
-	c := ts.Client()
-	tr := c.Transport.(*Transport)
+	conn, err := cst.tr.NewClientConn(t.Context(), test.mode.Scheme(), "example.tld:80")
+	if err != nil {
+		t.Fatal(err)
+	}
 
-	req, _ := NewRequest("POST", ts.URL, strings.NewReader("withbody"))
+	req, _ := NewRequest("POST", cst.ts.URL, strings.NewReader("withbody"))
 	req = test.newReq(req)
 
-	res, err := c.Do(req)
+	res, err := conn.RoundTrip(req)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -3061,7 +3028,11 @@ func testTransportCancelRequestWithBody(t *testing.T, test cancelTest) {
 	if n != len(body) || !bytes.Equal(body, []byte(msg)) {
 		t.Errorf("Body = %q; want %q", body[:n], msg)
 	}
-	test.cancel(tr, req)
+	synctest.Wait()
+	if got, want := conn.InFlight(), 1; got != want {
+		t.Fatalf("Before cancel: InFlight = %v, want %v", got, want)
+	}
+	test.cancel(cst.tr, req)
 
 	tail, err := io.ReadAll(res.Body)
 	res.Body.Close()
@@ -3070,30 +3041,14 @@ func testTransportCancelRequestWithBody(t *testing.T, test cancelTest) {
 		t.Errorf("Spurious bytes from Body.Read: %q", tail)
 	}
 
-	// Verify no outstanding requests after readLoop/writeLoop
-	// goroutines shut down.
-	waitCondition(t, 10*time.Millisecond, func(d time.Duration) bool {
-		n := tr.NumPendingRequestsForTesting()
-		if n > 0 {
-			if d > 0 {
-				t.Logf("pending requests = %d after %v (want 0)", n, d)
-			}
-			return false
-		}
-		return true
-	})
+	synctest.Wait()
+	if got, want := conn.InFlight(), 0; got != want {
+		t.Fatalf("After cancel: InFlight = %v, want %v", got, want)
+	}
 }
 
 func TestTransportCancelRequestBeforeDo(t *testing.T) {
-	// We can't cancel a request that hasn't started using Transport.CancelRequest.
-	run(t, func(t *testing.T, mode testMode) {
-		t.Run("RequestCancel", func(t *testing.T) {
-			runCancelTestChannel(t, mode, testTransportCancelRequestBeforeDo)
-		})
-		t.Run("ContextCancel", func(t *testing.T) {
-			runCancelTestContext(t, mode, testTransportCancelRequestBeforeDo)
-		})
-	}, http3SkippedMode)
+	runCancelTest(t, testTransportCancelRequestBeforeDo, http3SkippedMode)
 }
 func testTransportCancelRequestBeforeDo(t *testing.T, test cancelTest) {
 	unblockc := make(chan bool)
@@ -3180,11 +3135,7 @@ func testTransportCloseResponseBody(t *testing.T, mode testMode) {
 	})
 
 	c := ts.Client()
-	tr := c.Transport.(*Transport)
-
-	req, _ := NewRequest("GET", ts.URL, nil)
-	defer tr.CancelRequest(req)
-
+	req, _ := NewRequestWithContext(t.Context(), "GET", ts.URL, nil)
 	res, err := c.Do(req)
 	if err != nil {
 		t.Fatal(err)
@@ -4675,7 +4626,8 @@ func testTransportResponseCancelRace(t *testing.T, mode testMode) {
 	})).ts
 	tr := ts.Client().Transport.(*Transport)
 
-	req, err := NewRequest("GET", ts.URL, nil)
+	ctx, cancel := context.WithCancel(t.Context())
+	req, err := NewRequestWithContext(ctx, "GET", ts.URL, nil)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -4694,7 +4646,7 @@ func testTransportResponseCancelRace(t *testing.T, mode testMode) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	tr.CancelRequest(req)
+	cancel()
 	res, err = tr.RoundTrip(req2)
 	if err != nil {
 		t.Fatal(err)
@@ -7449,63 +7401,45 @@ func testProxyAuthHeader(t *testing.T, mode testMode) {
 
 // Issue 61708
 func TestTransportReqCancelerCleanupOnRequestBodyWriteError(t *testing.T) {
-	ln := newLocalListener(t)
-	addr := ln.Addr().String()
+	synctest.Test(t, func(t *testing.T) {
+		tt := newHTTP1TransportTest(t)
 
-	done := make(chan struct{})
-	go func() {
-		conn, err := ln.Accept()
-		if err != nil {
-			t.Errorf("ln.Accept: %v", err)
-			return
+		clientConn, netConn := tt.newClientConn("http", "example.tld:80")
+
+		// TODO: We've got a useful testRequestBody type in internal/http2,
+		// either make a copy of it in net/http or put it someplace common.
+		bodyr, bodyw := io.Pipe()
+		t.Cleanup(func() {
+			bodyr.Close()
+			bodyw.Close()
+		})
+
+		// Set Content-Type and Content-Length to disable sniffing.
+		sentReq, _ := NewRequest("POST", "http://example.tld/", bodyr)
+		sentReq.ContentLength = 1000
+		sentReq.Header.Set("Content-Type", "text/plain")
+		rt := newTestRoundTrip(t, clientConn, sentReq)
+		_ = netConn.readRequest()
+
+		// Transport successfully writes a few body bytes.
+		body1 := []byte("1234")
+		go bodyw.Write(body1)
+		synctest.Wait()
+		netConn.wantBytes(body1)
+		if got, want := clientConn.InFlight(), 1; got != want {
+			t.Fatalf("with body being written: InFlight = %v, want %v", got, want)
 		}
-		// Start reading request before sending response to avoid
-		// "Unsolicited response received on idle HTTP channel" RoundTrip error.
-		if _, err := io.ReadFull(conn, make([]byte, 1)); err != nil {
-			t.Errorf("conn.Read: %v", err)
-			return
+
+		// Transport fails to write the rest of the body.
+		netConn.conn.Peer().SetWriteError(errors.New("write error"))
+		go bodyw.Write([]byte("write fails with an error"))
+		synctest.Wait()
+		if got, want := clientConn.InFlight(), 0; got != want {
+			t.Fatalf("after body write error: InFlight = %v, want %v", got, want)
 		}
-		io.WriteString(conn, "HTTP/1.1 200\r\nContent-Length: 3\r\n\r\nfoo")
-		<-done
-		conn.Close()
-	}()
-
-	didRead := make(chan bool)
-	SetReadLoopBeforeNextReadHook(func() { didRead <- true })
-	defer SetReadLoopBeforeNextReadHook(nil)
-
-	tr := &Transport{}
-
-	// Send a request with a body guaranteed to fail on write.
-	req, err := NewRequest("POST", "http://"+addr, io.LimitReader(neverEnding('x'), 1<<30))
-	if err != nil {
-		t.Fatalf("NewRequest: %v", err)
-	}
-
-	resp, err := tr.RoundTrip(req)
-	if err != nil {
-		t.Fatalf("tr.RoundTrip: %v", err)
-	}
-
-	close(done)
-
-	// Before closing response body wait for readLoopDone goroutine
-	// to complete due to closed connection by writeLoop.
-	<-didRead
-
-	resp.Body.Close()
-
-	// Verify no outstanding requests after readLoop/writeLoop
-	// goroutines shut down.
-	waitCondition(t, 10*time.Millisecond, func(d time.Duration) bool {
-		n := tr.NumPendingRequestsForTesting()
-		if n > 0 {
-			if d > 0 {
-				t.Logf("pending requests = %d after %v (want 0)", n, d)
-			}
-			return false
+		if err := rt.err(); err == nil {
+			t.Fatalf("after body write error: RoundTrip = %v, want error", err)
 		}
-		return true
 	})
 }
 

@@ -6,6 +6,7 @@ package http_test
 
 import (
 	"bufio"
+	"bytes"
 	"errors"
 	"internal/nettest"
 	"io"
@@ -168,6 +169,18 @@ func (tc *http1TestConn) writeMessage(lines ...string) {
 	}
 }
 
+// readRequest reads a request from the connection (not including the request body).
+func (tc *http1TestConn) readRequest() *http.Request {
+	t := tc.t
+	t.Helper()
+	synctest.Wait()
+	req, err := http.ReadRequest(tc.bufr)
+	if err != nil {
+		t.Fatalf("ReadRequest: %v", err)
+	}
+	return req
+}
+
 // readResponse reads a response from the connection (not including the response body).
 func (tc *http1TestConn) readResponse() *http.Response {
 	t := tc.t
@@ -218,6 +231,19 @@ func (tc *http1TestConn) wantResponse(wantStart string, wantHeaders http.Header)
 	}
 	if t.Failed() {
 		t.FailNow()
+	}
+}
+
+// wantBytes asserts that the given bytes can be read from the connection.
+func (tc *http1TestConn) wantBytes(want []byte) {
+	t := tc.t
+	t.Helper()
+	synctest.Wait()
+	got := make([]byte, len(want))
+	n, err := io.ReadFull(tc.bufr, got)
+	got = got[:n]
+	if err != nil || !bytes.Equal(want, got) {
+		t.Fatalf("want bytes %q, got %q and error %v", want, got, err)
 	}
 }
 
