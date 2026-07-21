@@ -92,6 +92,7 @@ var (
 	BuildToolchainName     string
 	BuildToolchainCompiler func() string
 	BuildToolchainLinker   func() string
+	BuildStatic            bool // -static flag
 	BuildTrimpath          bool // -trimpath flag
 	BuildV                 bool // -v flag
 	BuildWork              bool // -work flag
