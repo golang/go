@@ -16,6 +16,7 @@ import (
 	"cmd/compile/internal/liveness"
 	"cmd/compile/internal/objw"
 	"cmd/compile/internal/pgoir"
+	"cmd/compile/internal/ssa"
 	"cmd/compile/internal/ssagen"
 	"cmd/compile/internal/staticinit"
 	"cmd/compile/internal/types"
@@ -189,4 +190,6 @@ func compileFunctions(profile *pgoir.Profile) {
 
 	base.Ctxt.InParallel = false
 	types.CalcSizeDisabled = false
+
+	ssa.PostCompile()
 }
