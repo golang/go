@@ -1191,10 +1191,27 @@ func TestResolvePath(t *testing.T) {
 }
 
 func BenchmarkResolvePath(b *testing.B) {
-	b.ReportAllocs()
-	for i := 0; i < b.N; i++ {
-		resolvePath("a/b/c", ".././d")
-	}
+	b.Run("Simple", func(b *testing.B) {
+		for i := 0; i < b.N; i++ {
+			resolvePath("a/b/c", ".././d")
+		}
+	})
+	b.Run("Deep", func(b *testing.B) {
+		base := strings.Repeat("a/", 100) + "b"
+		ref := "c"
+		b.ResetTimer()
+		for b.Loop() {
+			resolvePath(base, ref)
+		}
+	})
+	b.Run("Backtrack", func(b *testing.B) {
+		base := strings.Repeat("a/", 100) + "b"
+		ref := strings.Repeat("../", 50) + "c"
+		b.ResetTimer()
+		for b.Loop() {
+			resolvePath(base, ref)
+		}
+	})
 }
 
 var resolveReferenceTests = []struct {
