@@ -284,6 +284,56 @@ func TestEscape(t *testing.T) {
 			`<script>alert(/(?:)/.test(""));</script>`,
 		},
 		{
+			"jsReAfterBlockOpen",
+			`<script>if (true) {/{{"/;alert(1)//"}}/g.test("x")}</script>`,
+			`<script>if (true) {/\/;alert\(1\)\/\//g.test("x")}</script>`,
+		},
+		{
+			"jsReAfterControlCondition",
+			`<script>if ((true)) /{{"/;alert(1)//"}}/g.test("x")</script>`,
+			`<script>if ((true)) /\/;alert\(1\)\/\//g.test("x")</script>`,
+		},
+		{
+			"jsReAfterDynamicControlCondition",
+			`<script>while ({{.T}}) /{{"/;alert(1)//"}}/g.test("x")</script>`,
+			`<script>while ( true ) /\/;alert\(1\)\/\//g.test("x")</script>`,
+		},
+		{
+			"jsReAfterCommentedControlCondition",
+			`<script>if /* comment */ (f("x")) /{{"/;alert(1)//"}}/g.test("x")</script>`,
+			`<script>if   (f("x")) /\/;alert\(1\)\/\//g.test("x")</script>`,
+		},
+		{
+			"jsReAfterForCondition",
+			`<script>for (; true; ) /{{"/;alert(1)//"}}/g.test("x")</script>`,
+			`<script>for (; true; ) /\/;alert\(1\)\/\//g.test("x")</script>`,
+		},
+		{
+			"jsReAfterForAwaitCondition",
+			`<script>async function f(xs) { for /* comment */ await (const x of xs) /{{"/;alert(1)//"}}/g.test(x) }</script>`,
+			`<script>async function f(xs) { for   await (const x of xs) /\/;alert\(1\)\/\//g.test(x) }</script>`,
+		},
+		{
+			"jsDivisionAfterCall",
+			`<script>var x = f() / {{"/"}};</script>`,
+			`<script>var x = f() / "/";</script>`,
+		},
+		{
+			"jsDivisionAfterAwaitCall",
+			`<script>async function f() { return await g() / {{"/"}} }</script>`,
+			`<script>async function f() { return await g() / "/" }</script>`,
+		},
+		{
+			"jsDivisionAfterKeywordPropertyCall",
+			`<script>var x = obj.if(true) / {{"/"}};</script>`,
+			`<script>var x = obj.if(true) / "/";</script>`,
+		},
+		{
+			"jsDivisionAfterCommentedKeywordPropertyCall",
+			`<script>var x = obj. /* comment */ if(true) / {{"/"}};</script>`,
+			`<script>var x = obj.   if(true) / "/";</script>`,
+		},
+		{
 			"jsReAmbigOk",
 			`<script>{{if true}}var x = 1{{end}}</script>`,
 			// The {if} ends in an ambiguous jsCtx but there is
@@ -1662,15 +1712,15 @@ func TestEscapeText(t *testing.T) {
 		},
 		{
 			`<script>document.write("<script>`,
-			context{state: stateJSDqStr, element: elementScript},
+			context{state: stateJSDqStr, element: elementScript, jsParenStack: []bool{false}},
 		},
 		{
 			`<script>document.write("<script>alert(1)</script>`,
-			context{state: stateJSDqStr, element: elementScript},
+			context{state: stateJSDqStr, element: elementScript, jsParenStack: []bool{false}},
 		},
 		{
 			`<script>document.write("<script>alert(1)<!--`,
-			context{state: stateJSDqStr, element: elementScript},
+			context{state: stateJSDqStr, element: elementScript, jsParenStack: []bool{false}},
 		},
 		{
 			`<script>document.write("<script>alert(1)</Script>");`,
@@ -1864,7 +1914,7 @@ func TestEscapeText(t *testing.T) {
 		},
 		{
 			"<script>function f() {`${ function f() { `${1}` } }`}",
-			context{state: stateJS, element: elementScript, jsCtx: jsCtxDivOp},
+			context{state: stateJS, element: elementScript, jsCtx: jsCtxRegexp},
 		},
 		{
 			"<script>`${ { `` }",
@@ -1876,11 +1926,11 @@ func TestEscapeText(t *testing.T) {
 		},
 		{
 			"<script>var foo = `${ foo({ a: { c: `${",
-			context{state: stateJS, element: elementScript, jsBraceDepth: []int{2, 0}},
+			context{state: stateJS, element: elementScript, jsParenStack: []bool{false}, jsBraceDepth: []int{2, 0}},
 		},
 		{
 			"<script>var foo = `${ foo({ a: { c: `${ {{.}} }` }, b: ",
-			context{state: stateJS, element: elementScript, jsBraceDepth: []int{1}},
+			context{state: stateJS, element: elementScript, jsParenStack: []bool{false}, jsBraceDepth: []int{1}},
 		},
 		{
 			"<script>`${ `}",
