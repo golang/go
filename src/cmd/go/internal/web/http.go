@@ -70,6 +70,13 @@ func checkRedirect(req *http.Request, via []*http.Request) error {
 	if len(via) >= 10 {
 		return errors.New("stopped after 10 redirects")
 	}
+	hasGoGet1 := via[len(via)-1].URL.Query().Get("go-get") == "1"
+	if hasGoGet1 {
+		if len(req.URL.RawQuery) > 0 {
+			req.URL.RawQuery += "&"
+		}
+		req.URL.RawQuery += "go-get=1"
+	}
 
 	intercept.Request(req)
 	return nil
