@@ -14,7 +14,7 @@ import (
 	"strconv"
 	"strings"
 
-	"_gen/unify"
+	"simd/archsimd/_gen/unify"
 
 	"golang.org/x/arch/x86/xeddata"
 	"gopkg.in/yaml.v3"

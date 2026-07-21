@@ -13,6 +13,7 @@ import (
 	"cmd/compile/internal/logopt"
 	"cmd/compile/internal/objw"
 	"cmd/compile/internal/ssa"
+	"cmd/compile/internal/ssa/block"
 	"cmd/compile/internal/ssagen"
 	"cmd/compile/internal/types"
 	"cmd/internal/obj"
@@ -226,7 +227,7 @@ func getgFromTLS(s *ssagen.State, r int16) {
 
 func ssaGenValue(s *ssagen.State, v *ssa.Value) {
 	switch v.Op {
-	case ssa.OpAMD64VFMADD231SD, ssa.OpAMD64VFMADD231SS:
+	case ssa.OpAMD64VFMADD231SD, ssa.OpAMD64VFMADD231SS, ssa.OpAMD64VFMSUB231SD, ssa.OpAMD64VFMSUB231SS, ssa.OpAMD64VFNMADD231SD, ssa.OpAMD64VFNMADD231SS:
 		p := s.Prog(v.Op.Asm())
 		p.From = obj.Addr{Type: obj.TYPE_REG, Reg: v.Args[2].Reg()}
 		p.To = obj.Addr{Type: obj.TYPE_REG, Reg: v.Reg()}
@@ -739,25 +740,9 @@ func ssaGenValue(s *ssagen.State, v *ssa.Value) {
 		ssa.OpAMD64LEAW1, ssa.OpAMD64LEAW2, ssa.OpAMD64LEAW4, ssa.OpAMD64LEAW8:
 		p := s.Prog(v.Op.Asm())
 		memIdx(&p.From, v)
-		o := v.Reg()
-		p.To.Type = obj.TYPE_REG
-		p.To.Reg = o
-		if v.AuxInt != 0 && v.Aux == nil {
-			// Emit an additional LEA to add the displacement instead of creating a slow 3 operand LEA.
-			switch v.Op {
-			case ssa.OpAMD64LEAQ1, ssa.OpAMD64LEAQ2, ssa.OpAMD64LEAQ4, ssa.OpAMD64LEAQ8:
-				p = s.Prog(x86.ALEAQ)
-			case ssa.OpAMD64LEAL1, ssa.OpAMD64LEAL2, ssa.OpAMD64LEAL4, ssa.OpAMD64LEAL8:
-				p = s.Prog(x86.ALEAL)
-			case ssa.OpAMD64LEAW1, ssa.OpAMD64LEAW2, ssa.OpAMD64LEAW4, ssa.OpAMD64LEAW8:
-				p = s.Prog(x86.ALEAW)
-			}
-			p.From.Type = obj.TYPE_MEM
-			p.From.Reg = o
-			p.To.Type = obj.TYPE_REG
-			p.To.Reg = o
-		}
 		ssagen.AddAux(&p.From, v)
+		p.To.Type = obj.TYPE_REG
+		p.To.Reg = v.Reg()
 	case ssa.OpAMD64LEAQ, ssa.OpAMD64LEAL, ssa.OpAMD64LEAW:
 		p := s.Prog(v.Op.Asm())
 		p.From.Type = obj.TYPE_MEM
@@ -2442,20 +2427,20 @@ func simdV31x0AtIn2ResultInArg0(s *ssagen.State, v *ssa.Value) *obj.Prog {
 var blockJump = [...]struct {
 	asm, invasm obj.As
 }{
-	ssa.BlockAMD64EQ:  {x86.AJEQ, x86.AJNE},
-	ssa.BlockAMD64NE:  {x86.AJNE, x86.AJEQ},
-	ssa.BlockAMD64LT:  {x86.AJLT, x86.AJGE},
-	ssa.BlockAMD64GE:  {x86.AJGE, x86.AJLT},
-	ssa.BlockAMD64LE:  {x86.AJLE, x86.AJGT},
-	ssa.BlockAMD64GT:  {x86.AJGT, x86.AJLE},
-	ssa.BlockAMD64OS:  {x86.AJOS, x86.AJOC},
-	ssa.BlockAMD64OC:  {x86.AJOC, x86.AJOS},
-	ssa.BlockAMD64ULT: {x86.AJCS, x86.AJCC},
-	ssa.BlockAMD64UGE: {x86.AJCC, x86.AJCS},
-	ssa.BlockAMD64UGT: {x86.AJHI, x86.AJLS},
-	ssa.BlockAMD64ULE: {x86.AJLS, x86.AJHI},
-	ssa.BlockAMD64ORD: {x86.AJPC, x86.AJPS},
-	ssa.BlockAMD64NAN: {x86.AJPS, x86.AJPC},
+	block.BlockAMD64EQ:  {x86.AJEQ, x86.AJNE},
+	block.BlockAMD64NE:  {x86.AJNE, x86.AJEQ},
+	block.BlockAMD64LT:  {x86.AJLT, x86.AJGE},
+	block.BlockAMD64GE:  {x86.AJGE, x86.AJLT},
+	block.BlockAMD64LE:  {x86.AJLE, x86.AJGT},
+	block.BlockAMD64GT:  {x86.AJGT, x86.AJLE},
+	block.BlockAMD64OS:  {x86.AJOS, x86.AJOC},
+	block.BlockAMD64OC:  {x86.AJOC, x86.AJOS},
+	block.BlockAMD64ULT: {x86.AJCS, x86.AJCC},
+	block.BlockAMD64UGE: {x86.AJCC, x86.AJCS},
+	block.BlockAMD64UGT: {x86.AJHI, x86.AJLS},
+	block.BlockAMD64ULE: {x86.AJLS, x86.AJHI},
+	block.BlockAMD64ORD: {x86.AJPC, x86.AJPS},
+	block.BlockAMD64NAN: {x86.AJPS, x86.AJPC},
 }
 
 var eqfJumps = [2][2]ssagen.IndexJump{
@@ -2469,28 +2454,28 @@ var nefJumps = [2][2]ssagen.IndexJump{
 
 func ssaGenBlock(s *ssagen.State, b, next *ssa.Block) {
 	switch b.Kind {
-	case ssa.BlockPlain, ssa.BlockDefer:
+	case block.BlockPlain, block.BlockDefer:
 		if b.Succs[0].Block() != next {
 			p := s.Prog(obj.AJMP)
 			p.To.Type = obj.TYPE_BRANCH
 			s.Branches = append(s.Branches, ssagen.Branch{P: p, B: b.Succs[0].Block()})
 		}
-	case ssa.BlockExit, ssa.BlockRetJmp:
-	case ssa.BlockRet:
+	case block.BlockExit, block.BlockRetJmp:
+	case block.BlockRet:
 		s.Prog(obj.ARET)
 
-	case ssa.BlockAMD64EQF:
+	case block.BlockAMD64EQF:
 		s.CombJump(b, next, &eqfJumps)
 
-	case ssa.BlockAMD64NEF:
+	case block.BlockAMD64NEF:
 		s.CombJump(b, next, &nefJumps)
 
-	case ssa.BlockAMD64EQ, ssa.BlockAMD64NE,
-		ssa.BlockAMD64LT, ssa.BlockAMD64GE,
-		ssa.BlockAMD64LE, ssa.BlockAMD64GT,
-		ssa.BlockAMD64OS, ssa.BlockAMD64OC,
-		ssa.BlockAMD64ULT, ssa.BlockAMD64UGT,
-		ssa.BlockAMD64ULE, ssa.BlockAMD64UGE:
+	case block.BlockAMD64EQ, block.BlockAMD64NE,
+		block.BlockAMD64LT, block.BlockAMD64GE,
+		block.BlockAMD64LE, block.BlockAMD64GT,
+		block.BlockAMD64OS, block.BlockAMD64OC,
+		block.BlockAMD64ULT, block.BlockAMD64UGT,
+		block.BlockAMD64ULE, block.BlockAMD64UGE:
 		jmp := blockJump[b.Kind]
 		switch next {
 		case b.Succs[0].Block():
@@ -2507,7 +2492,7 @@ func ssaGenBlock(s *ssagen.State, b, next *ssa.Block) {
 			}
 		}
 
-	case ssa.BlockAMD64JUMPTABLE:
+	case block.BlockAMD64JUMPTABLE:
 		// JMP      *(TABLE)(INDEX*8)
 		p := s.Prog(obj.AJMP)
 		p.To.Type = obj.TYPE_MEM

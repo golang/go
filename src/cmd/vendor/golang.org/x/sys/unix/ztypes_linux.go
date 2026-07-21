@@ -6397,3 +6397,79 @@ const (
 	MPOL_PREFERRED_MANY      = 0x5
 	MPOL_WEIGHTED_INTERLEAVE = 0x6
 )
+
+const (
+	GPIO_V2_GET_LINEINFO_IOCTL       = 0xc100b405
+	GPIO_V2_GET_LINE_IOCTL           = 0xc250b407
+	GPIO_V2_LINE_GET_VALUES_IOCTL    = 0xc010b40e
+	GPIO_V2_LINE_SET_VALUES_IOCTL    = 0xc010b40f
+	GPIO_V2_GET_LINEINFO_WATCH_IOCTL = 0xc100b406
+	GPIO_GET_LINEINFO_UNWATCH_IOCTL  = 0xc004b40c
+)
+const (
+	GPIO_V2_LINE_ATTR_ID_FLAGS         = 0x1
+	GPIO_V2_LINE_ATTR_ID_OUTPUT_VALUES = 0x2
+	GPIO_V2_LINE_ATTR_ID_DEBOUNCE      = 0x3
+	GPIO_V2_LINE_CHANGED_REQUESTED     = 0x1
+	GPIO_V2_LINE_CHANGED_RELEASED      = 0x2
+	GPIO_V2_LINE_CHANGED_CONFIG        = 0x3
+	GPIO_V2_LINE_EVENT_RISING_EDGE     = 0x1
+	GPIO_V2_LINE_EVENT_FALLING_EDGE    = 0x2
+)
+
+type GPIOChipInfo struct {
+	Name  [32]byte
+	Label [32]byte
+	Lines uint32
+}
+type GPIOV2LineValues struct {
+	Bits uint64
+	Mask uint64
+}
+type GPIOV2LineAttribute struct {
+	Id    uint32
+	_     uint32
+	Flags uint64
+}
+type GPIOV2LineConfigAttribute struct {
+	Attr GPIOV2LineAttribute
+	Mask uint64
+}
+type GPIOV2LineConfig struct {
+	Flags     uint64
+	Num_attrs uint32
+	_         [5]uint32
+	Attrs     [10]GPIOV2LineConfigAttribute
+}
+type GPIOV2LineRequest struct {
+	Offsets           [64]uint32
+	Consumer          [32]byte
+	Config            GPIOV2LineConfig
+	Num_lines         uint32
+	Event_buffer_size uint32
+	_                 [5]uint32
+	Fd                int32
+}
+type GPIOV2LineInfo struct {
+	Name      [32]byte
+	Consumer  [32]byte
+	Offset    uint32
+	Num_attrs uint32
+	Flags     uint64
+	Attrs     [10]GPIOV2LineAttribute
+	_         [4]uint32
+}
+type GPIOV2LineInfoChanged struct {
+	Info         GPIOV2LineInfo
+	Timestamp_ns uint64
+	Event_type   uint32
+	_            [5]uint32
+}
+type GPIOV2LineEvent struct {
+	Timestamp_ns uint64
+	Id           uint32
+	Offset       uint32
+	Seqno        uint32
+	Line_seqno   uint32
+	_            [6]uint32
+}

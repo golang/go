@@ -41,6 +41,7 @@ const (
 
 // Process stores the information about a process created by [StartProcess].
 type Process struct {
+	// Pid is the operating system process ID.
 	Pid int
 
 	// state contains the atomic process state.

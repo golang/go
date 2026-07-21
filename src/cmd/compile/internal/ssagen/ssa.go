@@ -27,6 +27,7 @@ import (
 	"cmd/compile/internal/reflectdata"
 	"cmd/compile/internal/rttype"
 	"cmd/compile/internal/ssa"
+	"cmd/compile/internal/ssa/block"
 	"cmd/compile/internal/staticdata"
 	"cmd/compile/internal/typecheck"
 	"cmd/compile/internal/types"
@@ -223,12 +224,11 @@ func InitTables() {
 // any ABI wrapper that is present is nosplit, hence a precise
 // stack map is not needed there (the parameters survive only long
 // enough to call the wrapped assembly function).
-// This always returns a freshly copied ABI.
 func AbiForBodylessFuncStackMap(fn *ir.Func) *abi.ABIConfig {
-	return ssaConfig.ABI0.Copy() // No idea what races will result, be safe
+	return ssaConfig.ABI0
 }
 
-// abiForFunc implements ABI policy for a function, but does not return a copy of the ABI.
+// abiForFunc implements ABI policy for a function.
 // Passing a nil function returns the default ABI based on experiment configuration.
 func abiForFunc(fn *ir.Func, abi0, abi1 *abi.ABIConfig) *abi.ABIConfig {
 	if buildcfg.Experiment.RegabiArgs {
@@ -372,7 +372,7 @@ func buildssa(fn *ir.Func, worker int, isPgoHot bool) *ssa.Func {
 	s.softFloat = s.config.SoftFloat
 
 	// Allocate starting block
-	s.f.Entry = s.f.NewBlock(ssa.BlockPlain)
+	s.f.Entry = s.f.NewBlock(block.BlockPlain)
 	s.f.Entry.Pos = fn.Pos()
 	s.f.IsPgoHot = isPgoHot
 
@@ -1701,7 +1701,7 @@ func (s *state) stmt(n ir.Node) {
 						fn == "panicrangestate") {
 				m := s.mem()
 				b := s.endBlock()
-				b.Kind = ssa.BlockExit
+				b.Kind = block.BlockExit
 				b.SetControl(m)
 				// TODO: never rewrite OPANIC to OCALLFUNC in the
 				// first place. Need to wait until all backends
@@ -1789,7 +1789,7 @@ func (s *state) stmt(n ir.Node) {
 
 		// The label might already have a target block via a goto.
 		if lab.target == nil {
-			lab.target = s.f.NewBlock(ssa.BlockPlain)
+			lab.target = s.f.NewBlock(block.BlockPlain)
 		}
 
 		// Go to that label.
@@ -1806,7 +1806,7 @@ func (s *state) stmt(n ir.Node) {
 
 		lab := s.label(sym)
 		if lab.target == nil {
-			lab.target = s.f.NewBlock(ssa.BlockPlain)
+			lab.target = s.f.NewBlock(block.BlockPlain)
 		}
 
 		b := s.endBlock()
@@ -1960,20 +1960,20 @@ func (s *state) stmt(n ir.Node) {
 			break
 		}
 
-		bEnd := s.f.NewBlock(ssa.BlockPlain)
+		bEnd := s.f.NewBlock(block.BlockPlain)
 		var likely int8
 		if n.Likely {
 			likely = 1
 		}
 		var bThen *ssa.Block
 		if len(n.Body) != 0 {
-			bThen = s.f.NewBlock(ssa.BlockPlain)
+			bThen = s.f.NewBlock(block.BlockPlain)
 		} else {
 			bThen = bEnd
 		}
 		var bElse *ssa.Block
 		if len(n.Else) != 0 {
-			bElse = s.f.NewBlock(ssa.BlockPlain)
+			bElse = s.f.NewBlock(block.BlockPlain)
 		} else {
 			bElse = bEnd
 		}
@@ -2006,7 +2006,7 @@ func (s *state) stmt(n ir.Node) {
 		s.callResult(n.Call, callTail)
 		call := s.mem()
 		b := s.endBlock()
-		b.Kind = ssa.BlockRetJmp // could use BlockExit. BlockRetJmp is mostly for clarity.
+		b.Kind = block.BlockRetJmp // could use BlockExit. BlockRetJmp is mostly for clarity.
 		b.SetControl(call)
 
 	case ir.OCONTINUE, ir.OBREAK:
@@ -2041,10 +2041,10 @@ func (s *state) stmt(n ir.Node) {
 		// cond (Left); body (Nbody); incr (Right)
 		n := n.(*ir.ForStmt)
 		base.Assert(!n.DistinctVars) // Should all be rewritten before escape analysis
-		bCond := s.f.NewBlock(ssa.BlockPlain)
-		bBody := s.f.NewBlock(ssa.BlockPlain)
-		bIncr := s.f.NewBlock(ssa.BlockPlain)
-		bEnd := s.f.NewBlock(ssa.BlockPlain)
+		bCond := s.f.NewBlock(block.BlockPlain)
+		bBody := s.f.NewBlock(block.BlockPlain)
+		bIncr := s.f.NewBlock(block.BlockPlain)
+		bEnd := s.f.NewBlock(block.BlockPlain)
 
 		// ensure empty for loops have correct position; issue #30167
 		bBody.Pos = n.Pos()
@@ -2059,7 +2059,7 @@ func (s *state) stmt(n ir.Node) {
 			s.condBranch(n.Cond, bBody, bEnd, 1)
 		} else {
 			b := s.endBlock()
-			b.Kind = ssa.BlockPlain
+			b.Kind = block.BlockPlain
 			b.AddEdgeTo(bBody)
 		}
 
@@ -2112,7 +2112,7 @@ func (s *state) stmt(n ir.Node) {
 	case ir.OSWITCH, ir.OSELECT:
 		// These have been mostly rewritten by the front end into their Nbody fields.
 		// Our main task is to correctly hook up any break statements.
-		bEnd := s.f.NewBlock(ssa.BlockPlain)
+		bEnd := s.f.NewBlock(block.BlockPlain)
 
 		prevBreak := s.breakTo
 		s.breakTo = bEnd
@@ -2148,7 +2148,7 @@ func (s *state) stmt(n ir.Node) {
 		if s.curBlock != nil {
 			m := s.mem()
 			b := s.endBlock()
-			b.Kind = ssa.BlockExit
+			b.Kind = block.BlockExit
 			b.SetControl(m)
 		}
 		s.startBlock(bEnd)
@@ -2157,8 +2157,8 @@ func (s *state) stmt(n ir.Node) {
 		n := n.(*ir.JumpTableStmt)
 
 		// Make blocks we'll need.
-		jt := s.f.NewBlock(ssa.BlockJumpTable)
-		bEnd := s.f.NewBlock(ssa.BlockPlain)
+		jt := s.f.NewBlock(block.BlockJumpTable)
+		bEnd := s.f.NewBlock(block.BlockPlain)
 
 		// The only thing that needs evaluating is the index we're looking up.
 		idx := s.expr(n.Idx)
@@ -2189,7 +2189,7 @@ func (s *state) stmt(n ir.Node) {
 		width := s.uintptrConstant(max - min)
 		cmp := s.newValue2(s.ssaOp(ir.OLE, t), types.Types[types.TBOOL], idx, width)
 		b := s.endBlock()
-		b.Kind = ssa.BlockIf
+		b.Kind = block.BlockIf
 		b.SetControl(cmp)
 		b.AddEdgeTo(jt)             // in range - use jump table
 		b.AddEdgeTo(bEnd)           // out of range - no case in the jump table will trigger
@@ -2212,7 +2212,7 @@ func (s *state) stmt(n ir.Node) {
 			c := n.Cases[i]
 			lab := s.label(n.Targets[i])
 			if lab.target == nil {
-				lab.target = s.f.NewBlock(ssa.BlockPlain)
+				lab.target = s.f.NewBlock(block.BlockPlain)
 			}
 			var val uint64
 			if unsigned {
@@ -2247,11 +2247,11 @@ func (s *state) stmt(n ir.Node) {
 			if intrinsics.lookup(Arch.LinkArch.Arch, "internal/runtime/atomic", "Loadp") == nil {
 				s.Fatalf("atomic load not available")
 			}
-			merge = s.f.NewBlock(ssa.BlockPlain)
-			cacheHit := s.f.NewBlock(ssa.BlockPlain)
-			cacheMiss := s.f.NewBlock(ssa.BlockPlain)
-			loopHead := s.f.NewBlock(ssa.BlockPlain)
-			loopBody := s.f.NewBlock(ssa.BlockPlain)
+			merge = s.f.NewBlock(block.BlockPlain)
+			cacheHit := s.f.NewBlock(block.BlockPlain)
+			cacheMiss := s.f.NewBlock(block.BlockPlain)
+			loopHead := s.f.NewBlock(block.BlockPlain)
+			loopBody := s.f.NewBlock(block.BlockPlain)
 
 			// Pick right size ops.
 			var mul, and, add, zext ssa.Op
@@ -2297,7 +2297,7 @@ func (s *state) stmt(n ir.Node) {
 			eTyp := s.newValue2(ssa.OpLoad, typs.Uintptr, e, s.mem())
 			cmp1 := s.newValue2(ssa.OpEqPtr, typs.Bool, t, eTyp)
 			b = s.endBlock()
-			b.Kind = ssa.BlockIf
+			b.Kind = block.BlockIf
 			b.SetControl(cmp1)
 			b.AddEdgeTo(cacheHit)
 			b.AddEdgeTo(loopBody)
@@ -2307,7 +2307,7 @@ func (s *state) stmt(n ir.Node) {
 			s.startBlock(loopBody)
 			cmp2 := s.newValue2(ssa.OpEqPtr, typs.Bool, eTyp, s.constNil(typs.BytePtr))
 			b = s.endBlock()
-			b.Kind = ssa.BlockIf
+			b.Kind = block.BlockIf
 			b.SetControl(cmp2)
 			b.AddEdgeTo(cacheMiss)
 			b.AddEdgeTo(loopHead)
@@ -2334,7 +2334,7 @@ func (s *state) stmt(n ir.Node) {
 		if merge != nil {
 			// Cache hits merge in here.
 			b := s.endBlock()
-			b.Kind = ssa.BlockPlain
+			b.Kind = block.BlockPlain
 			b.AddEdgeTo(merge)
 			s.startBlock(merge)
 		}
@@ -2365,7 +2365,7 @@ func (s *state) exit() *ssa.Block {
 	if s.hasdefer {
 		if s.hasOpenDefers {
 			if shareDeferExits && s.lastDeferExit != nil && len(s.openDefers) == s.lastDeferCount {
-				if s.curBlock.Kind != ssa.BlockPlain {
+				if s.curBlock.Kind != block.BlockPlain {
 					panic("Block for an exit should be BlockPlain")
 				}
 				s.curBlock.AddEdgeTo(s.lastDeferExit)
@@ -2429,7 +2429,7 @@ func (s *state) exit() *ssa.Block {
 	m.AddArgs(results...)
 
 	b := s.endBlock()
-	b.Kind = ssa.BlockRet
+	b.Kind = block.BlockRet
 	b.SetControl(m)
 	if s.hasdefer && s.hasOpenDefers {
 		s.lastDeferFinalBlock = b
@@ -3419,15 +3419,15 @@ func (s *state) exprCheckPtr(n ir.Node, checkPtrOK bool) *ssa.Value {
 		s.vars[n] = el
 
 		b := s.endBlock()
-		b.Kind = ssa.BlockIf
+		b.Kind = block.BlockIf
 		b.SetControl(el)
 		// In theory, we should set b.Likely here based on context.
 		// However, gc only gives us likeliness hints
 		// in a single place, for plain OIF statements,
 		// and passing around context is finicky, so don't bother for now.
 
-		bRight := s.f.NewBlock(ssa.BlockPlain)
-		bResult := s.f.NewBlock(ssa.BlockPlain)
+		bRight := s.f.NewBlock(block.BlockPlain)
+		bResult := s.f.NewBlock(block.BlockPlain)
 		if n.Op() == ir.OANDAND {
 			b.AddEdgeTo(bRight)
 			b.AddEdgeTo(bResult)
@@ -3893,8 +3893,8 @@ func (s *state) append(n *ir.CallExpr, inplace bool) *ssa.Value {
 	}
 
 	// Allocate new blocks
-	grow := s.f.NewBlock(ssa.BlockPlain)
-	assign := s.f.NewBlock(ssa.BlockPlain)
+	grow := s.f.NewBlock(block.BlockPlain)
+	assign := s.f.NewBlock(block.BlockPlain)
 
 	// Decomposse input slice.
 	p := s.newValue1(ssa.OpSlicePtr, pt, slice)
@@ -3917,7 +3917,7 @@ func (s *state) append(n *ir.CallExpr, inplace bool) *ssa.Value {
 	}
 
 	b := s.endBlock()
-	b.Kind = ssa.BlockIf
+	b.Kind = block.BlockIf
 	b.Likely = ssa.BranchUnlikely
 	b.SetControl(cmp)
 	b.AddEdgeTo(grow)
@@ -3977,10 +3977,10 @@ func (s *state) append(n *ir.CallExpr, inplace bool) *ssa.Value {
 		info.usedStatic = true
 		// TODO: unset usedStatic somehow?
 
-		usedTestBlock := s.f.NewBlock(ssa.BlockPlain)
-		oldLenTestBlock := s.f.NewBlock(ssa.BlockPlain)
-		bodyBlock := s.f.NewBlock(ssa.BlockPlain)
-		growSlice := s.f.NewBlock(ssa.BlockPlain)
+		usedTestBlock := s.f.NewBlock(block.BlockPlain)
+		oldLenTestBlock := s.f.NewBlock(block.BlockPlain)
+		bodyBlock := s.f.NewBlock(block.BlockPlain)
+		growSlice := s.f.NewBlock(block.BlockPlain)
 		tInt := types.Types[types.TINT]
 		tBool := types.Types[types.TBOOL]
 
@@ -3988,7 +3988,7 @@ func (s *state) append(n *ir.CallExpr, inplace bool) *ssa.Value {
 		s.startBlock(grow)
 		kTest := s.newValue2(s.ssaOp(ir.OLE, tInt), tBool, l, s.constInt(tInt, info.K))
 		b := s.endBlock()
-		b.Kind = ssa.BlockIf
+		b.Kind = block.BlockIf
 		b.SetControl(kTest)
 		b.AddEdgeTo(usedTestBlock)
 		b.AddEdgeTo(growSlice)
@@ -3998,7 +3998,7 @@ func (s *state) append(n *ir.CallExpr, inplace bool) *ssa.Value {
 		s.startBlock(usedTestBlock)
 		usedTest := s.newValue1(ssa.OpNot, tBool, s.expr(info.used))
 		b = s.endBlock()
-		b.Kind = ssa.BlockIf
+		b.Kind = block.BlockIf
 		b.SetControl(usedTest)
 		b.AddEdgeTo(oldLenTestBlock)
 		b.AddEdgeTo(growSlice)
@@ -4008,7 +4008,7 @@ func (s *state) append(n *ir.CallExpr, inplace bool) *ssa.Value {
 		s.startBlock(oldLenTestBlock)
 		oldLenTest := s.newValue2(s.ssaOp(ir.OEQ, tInt), tBool, oldLen, s.constInt(tInt, 0))
 		b = s.endBlock()
-		b.Kind = ssa.BlockIf
+		b.Kind = block.BlockIf
 		b.SetControl(oldLenTest)
 		b.AddEdgeTo(bodyBlock)
 		b.AddEdgeTo(growSlice)
@@ -4185,8 +4185,8 @@ func (s *state) move2heap(n *ir.MoveToHeapExpr) *ssa.Value {
 	l := s.newValue1(ssa.OpSliceLen, types.Types[types.TINT], slice)
 	c := s.newValue1(ssa.OpSliceCap, types.Types[types.TINT], slice)
 
-	moveBlock := s.f.NewBlock(ssa.BlockPlain)
-	mergeBlock := s.f.NewBlock(ssa.BlockPlain)
+	moveBlock := s.f.NewBlock(block.BlockPlain)
+	mergeBlock := s.f.NewBlock(block.BlockPlain)
 
 	s.vars[ptrVar] = p
 	s.vars[lenVar] = l
@@ -4207,7 +4207,7 @@ func (s *state) move2heap(n *ir.MoveToHeapExpr) *ssa.Value {
 	cond := s.newValue2(less, types.Types[types.TBOOL], off, frameSize)
 
 	b := s.endBlock()
-	b.Kind = ssa.BlockIf
+	b.Kind = block.BlockIf
 	b.Likely = ssa.BranchUnlikely // fast path is to not have to call into runtime
 	b.SetControl(cond)
 	b.AddEdgeTo(moveBlock)
@@ -4370,12 +4370,12 @@ func (s *state) ternary(cond, x, y *ssa.Value) *ssa.Value {
 	// reuse the variable) because it might have a different type every time.
 	ternaryVar := ssaMarker("ternary")
 
-	bThen := s.f.NewBlock(ssa.BlockPlain)
-	bElse := s.f.NewBlock(ssa.BlockPlain)
-	bEnd := s.f.NewBlock(ssa.BlockPlain)
+	bThen := s.f.NewBlock(block.BlockPlain)
+	bElse := s.f.NewBlock(block.BlockPlain)
+	bEnd := s.f.NewBlock(block.BlockPlain)
 
 	b := s.endBlock()
-	b.Kind = ssa.BlockIf
+	b.Kind = block.BlockIf
 	b.SetControl(cond)
 	b.AddEdgeTo(bThen)
 	b.AddEdgeTo(bElse)
@@ -4402,7 +4402,7 @@ func (s *state) condBranch(cond ir.Node, yes, no *ssa.Block, likely int8) {
 	switch cond.Op() {
 	case ir.OANDAND:
 		cond := cond.(*ir.LogicalExpr)
-		mid := s.f.NewBlock(ssa.BlockPlain)
+		mid := s.f.NewBlock(block.BlockPlain)
 		s.stmtList(cond.Init())
 		s.condBranch(cond.X, mid, no, max(likely, 0))
 		s.startBlock(mid)
@@ -4416,7 +4416,7 @@ func (s *state) condBranch(cond ir.Node, yes, no *ssa.Block, likely int8) {
 		// OANDAND and OOROR nodes (if it ever has such info).
 	case ir.OOROR:
 		cond := cond.(*ir.LogicalExpr)
-		mid := s.f.NewBlock(ssa.BlockPlain)
+		mid := s.f.NewBlock(block.BlockPlain)
 		s.stmtList(cond.Init())
 		s.condBranch(cond.X, yes, mid, min(likely, 0))
 		s.startBlock(mid)
@@ -4438,7 +4438,7 @@ func (s *state) condBranch(cond ir.Node, yes, no *ssa.Block, likely int8) {
 	}
 	c := s.expr(cond)
 	b := s.endBlock()
-	b.Kind = ssa.BlockIf
+	b.Kind = block.BlockIf
 	b.SetControl(c)
 	b.Likely = ssa.BranchPrediction(likely) // gc and ssa both use -1/0/+1 for likeliness
 	b.AddEdgeTo(yes)
@@ -4885,7 +4885,7 @@ func (s *state) openDeferSave(t *types.Type, val *ssa.Value) *ssa.Value {
 // the corresponding defer statement was executed. For each bit that is turned
 // on, the associated defer call is made.
 func (s *state) openDeferExit() {
-	deferExit := s.f.NewBlock(ssa.BlockPlain)
+	deferExit := s.f.NewBlock(block.BlockPlain)
 	s.endBlock().AddEdgeTo(deferExit)
 	s.startBlock(deferExit)
 	s.lastDeferExit = deferExit
@@ -4894,8 +4894,8 @@ func (s *state) openDeferExit() {
 	// Test for and run defers in reverse order
 	for i := len(s.openDefers) - 1; i >= 0; i-- {
 		r := s.openDefers[i]
-		bCond := s.f.NewBlock(ssa.BlockPlain)
-		bEnd := s.f.NewBlock(ssa.BlockPlain)
+		bCond := s.f.NewBlock(block.BlockPlain)
+		bEnd := s.f.NewBlock(block.BlockPlain)
 
 		deferBits := s.variable(deferBitsVar, types.Types[types.TUINT8])
 		// Generate code to check if the bit associated with the current
@@ -4904,7 +4904,7 @@ func (s *state) openDeferExit() {
 		andval := s.newValue2(ssa.OpAnd8, types.Types[types.TUINT8], deferBits, bitval)
 		eqVal := s.newValue2(ssa.OpEq8, types.Types[types.TBOOL], andval, zeroval)
 		b := s.endBlock()
-		b.Kind = ssa.BlockIf
+		b.Kind = block.BlockIf
 		b.SetControl(eqVal)
 		b.AddEdgeTo(bEnd)
 		b.AddEdgeTo(bCond)
@@ -5103,8 +5103,8 @@ func (s *state) call(n *ir.CallExpr, k callKind, returnResultAddr bool, deferExt
 		// and the call site which uses it. See #49282.
 		if s.curBlock.ID == s.f.Entry.ID && s.hasOpenDefers {
 			b := s.endBlock()
-			b.Kind = ssa.BlockPlain
-			curb := s.f.NewBlock(ssa.BlockPlain)
+			b.Kind = block.BlockPlain
+			curb := s.f.NewBlock(block.BlockPlain)
 			b.AddEdgeTo(curb)
 			s.startBlock(curb)
 		}
@@ -5191,13 +5191,13 @@ func (s *state) call(n *ir.CallExpr, k callKind, returnResultAddr bool, deferExt
 	// Finish block for defers
 	if k == callDefer || k == callDeferStack || isCallDeferRangeFunc {
 		b := s.endBlock()
-		b.Kind = ssa.BlockDefer
+		b.Kind = block.BlockDefer
 		b.SetControl(call)
-		bNext := s.f.NewBlock(ssa.BlockPlain)
+		bNext := s.f.NewBlock(block.BlockPlain)
 		b.AddEdgeTo(bNext)
 		r := s.f.DeferReturn // Share a single deferreturn among all defers
 		if r == nil {
-			r = s.f.NewBlock(ssa.BlockPlain)
+			r = s.f.NewBlock(block.BlockPlain)
 			s.startBlock(r)
 			s.exit()
 			s.f.DeferReturn = r
@@ -5492,8 +5492,8 @@ func (s *state) boundsCheck(idx, len *ssa.Value, kind ssa.BoundsKind, bounded bo
 		return idx
 	}
 
-	bNext := s.f.NewBlock(ssa.BlockPlain)
-	bPanic := s.f.NewBlock(ssa.BlockExit)
+	bNext := s.f.NewBlock(block.BlockPlain)
+	bPanic := s.f.NewBlock(block.BlockExit)
 
 	if !idx.Type.IsSigned() {
 		switch kind {
@@ -5523,7 +5523,7 @@ func (s *state) boundsCheck(idx, len *ssa.Value, kind ssa.BoundsKind, bounded bo
 		cmp = s.newValue2(ssa.OpIsSliceInBounds, types.Types[types.TBOOL], idx, len)
 	}
 	b := s.endBlock()
-	b.Kind = ssa.BlockIf
+	b.Kind = block.BlockIf
 	b.SetControl(cmp)
 	b.Likely = ssa.BranchLikely
 	b.AddEdgeTo(bNext)
@@ -5555,16 +5555,16 @@ func (s *state) boundsCheck(idx, len *ssa.Value, kind ssa.BoundsKind, bounded bo
 // If cmp (a bool) is false, panic using the given function.
 func (s *state) check(cmp *ssa.Value, fn *obj.LSym) {
 	b := s.endBlock()
-	b.Kind = ssa.BlockIf
+	b.Kind = block.BlockIf
 	b.SetControl(cmp)
 	b.Likely = ssa.BranchLikely
-	bNext := s.f.NewBlock(ssa.BlockPlain)
+	bNext := s.f.NewBlock(block.BlockPlain)
 	line := s.peekPos()
 	pos := base.Ctxt.PosTable.Pos(line)
 	fl := funcLine{f: fn, base: pos.Base(), line: pos.Line()}
 	bPanic := s.panics[fl]
 	if bPanic == nil {
-		bPanic = s.f.NewBlock(ssa.BlockPlain)
+		bPanic = s.f.NewBlock(block.BlockPlain)
 		s.panics[fl] = bPanic
 		s.startBlock(bPanic)
 		// The panic call takes/returns memory to ensure that the right
@@ -5624,7 +5624,7 @@ func (s *state) rtcall(fn *obj.LSym, returns bool, results []*types.Type, args .
 	if !returns {
 		// Finish block
 		b := s.endBlock()
-		b.Kind = ssa.BlockExit
+		b.Kind = block.BlockExit
 		b.SetControl(call)
 		call.AuxInt = off - base.Ctxt.Arch.FixedFrameSize
 		if len(results) > 0 {
@@ -5947,13 +5947,13 @@ func (s *state) uint64Tofloat(cvttab *u642fcvtTab, n ir.Node, x *ssa.Value, ft, 
 	cmp := s.newValue2(cvttab.leq, types.Types[types.TBOOL], s.zeroVal(ft), x)
 
 	b := s.endBlock()
-	b.Kind = ssa.BlockIf
+	b.Kind = block.BlockIf
 	b.SetControl(cmp)
 	b.Likely = ssa.BranchLikely
 
-	bThen := s.f.NewBlock(ssa.BlockPlain)
-	bElse := s.f.NewBlock(ssa.BlockPlain)
-	bAfter := s.f.NewBlock(ssa.BlockPlain)
+	bThen := s.f.NewBlock(block.BlockPlain)
+	bElse := s.f.NewBlock(block.BlockPlain)
+	bAfter := s.f.NewBlock(block.BlockPlain)
 
 	b.AddEdgeTo(bThen)
 	s.startBlock(bThen)
@@ -6008,13 +6008,13 @@ func (s *state) uint32Tofloat(cvttab *u322fcvtTab, n ir.Node, x *ssa.Value, ft, 
 	// }
 	cmp := s.newValue2(ssa.OpLeq32, types.Types[types.TBOOL], s.zeroVal(ft), x)
 	b := s.endBlock()
-	b.Kind = ssa.BlockIf
+	b.Kind = block.BlockIf
 	b.SetControl(cmp)
 	b.Likely = ssa.BranchLikely
 
-	bThen := s.f.NewBlock(ssa.BlockPlain)
-	bElse := s.f.NewBlock(ssa.BlockPlain)
-	bAfter := s.f.NewBlock(ssa.BlockPlain)
+	bThen := s.f.NewBlock(block.BlockPlain)
+	bElse := s.f.NewBlock(block.BlockPlain)
+	bAfter := s.f.NewBlock(block.BlockPlain)
 
 	b.AddEdgeTo(bThen)
 	s.startBlock(bThen)
@@ -6064,13 +6064,13 @@ func (s *state) referenceTypeBuiltin(n *ir.UnaryExpr, x *ssa.Value) *ssa.Value {
 	nilValue := s.constNil(types.Types[types.TUINTPTR])
 	cmp := s.newValue2(ssa.OpEqPtr, types.Types[types.TBOOL], x, nilValue)
 	b := s.endBlock()
-	b.Kind = ssa.BlockIf
+	b.Kind = block.BlockIf
 	b.SetControl(cmp)
 	b.Likely = ssa.BranchUnlikely
 
-	bThen := s.f.NewBlock(ssa.BlockPlain)
-	bElse := s.f.NewBlock(ssa.BlockPlain)
-	bAfter := s.f.NewBlock(ssa.BlockPlain)
+	bThen := s.f.NewBlock(block.BlockPlain)
+	bElse := s.f.NewBlock(block.BlockPlain)
+	bAfter := s.f.NewBlock(block.BlockPlain)
 
 	// length/capacity of a nil map/chan is zero
 	b.AddEdgeTo(bThen)
@@ -6185,7 +6185,7 @@ func (s *state) floatToUint(cvttab *f2uCvtTab, n ir.Node, x *ssa.Value, ft, tt *
 	cutoff := cvttab.floatValue(s, ft, float64(cvttab.cutoff))
 	cmp := s.newValueOrSfCall2(cvttab.ltf, types.Types[types.TBOOL], x, cutoff)
 	b := s.endBlock()
-	b.Kind = ssa.BlockIf
+	b.Kind = block.BlockIf
 	b.SetControl(cmp)
 	b.Likely = ssa.BranchLikely
 
@@ -6193,14 +6193,14 @@ func (s *state) floatToUint(cvttab *f2uCvtTab, n ir.Node, x *ssa.Value, ft, tt *
 	// use salted hash to distinguish unsigned convert at a Pos from signed convert at a Pos
 	newConversion := base.ConvertHash.MatchPosWithInfo(n.Pos(), "U", nil)
 	if newConversion {
-		bZero = s.f.NewBlock(ssa.BlockPlain)
-		bThen = s.f.NewBlock(ssa.BlockIf)
+		bZero = s.f.NewBlock(block.BlockPlain)
+		bThen = s.f.NewBlock(block.BlockIf)
 	} else {
-		bThen = s.f.NewBlock(ssa.BlockPlain)
+		bThen = s.f.NewBlock(block.BlockPlain)
 	}
 
-	bElse := s.f.NewBlock(ssa.BlockPlain)
-	bAfter := s.f.NewBlock(ssa.BlockPlain)
+	bElse := s.f.NewBlock(block.BlockPlain)
+	bAfter := s.f.NewBlock(block.BlockPlain)
 
 	b.AddEdgeTo(bThen)
 	s.startBlock(bThen)
@@ -6319,11 +6319,11 @@ func (s *state) dottype1(pos src.XPos, src, dst *types.Type, iface, source, targ
 
 			// Branch on nilness.
 			b := s.endBlock()
-			b.Kind = ssa.BlockIf
+			b.Kind = block.BlockIf
 			b.SetControl(cond)
 			b.Likely = ssa.BranchLikely
-			bOk := s.f.NewBlock(ssa.BlockPlain)
-			bFail := s.f.NewBlock(ssa.BlockPlain)
+			bOk := s.f.NewBlock(block.BlockPlain)
+			bFail := s.f.NewBlock(block.BlockPlain)
 			b.AddEdgeTo(bOk)
 			b.AddEdgeTo(bFail)
 
@@ -6359,7 +6359,7 @@ func (s *state) dottype1(pos src.XPos, src, dst *types.Type, iface, source, targ
 			s.endBlock()
 
 			// Merge point.
-			bEnd := s.f.NewBlock(ssa.BlockPlain)
+			bEnd := s.f.NewBlock(block.BlockPlain)
 			bOk.AddEdgeTo(bEnd)
 			bFail.AddEdgeTo(bEnd)
 			s.startBlock(bEnd)
@@ -6378,12 +6378,12 @@ func (s *state) dottype1(pos src.XPos, src, dst *types.Type, iface, source, targ
 		data := s.newValue1(ssa.OpIData, types.Types[types.TUNSAFEPTR], iface)
 
 		// First, check for nil.
-		bNil := s.f.NewBlock(ssa.BlockPlain)
-		bNonNil := s.f.NewBlock(ssa.BlockPlain)
-		bMerge := s.f.NewBlock(ssa.BlockPlain)
+		bNil := s.f.NewBlock(block.BlockPlain)
+		bNonNil := s.f.NewBlock(block.BlockPlain)
+		bMerge := s.f.NewBlock(block.BlockPlain)
 		cond := s.newValue2(ssa.OpNeqPtr, types.Types[types.TBOOL], itab, s.constNil(byteptr))
 		b := s.endBlock()
-		b.Kind = ssa.BlockIf
+		b.Kind = block.BlockIf
 		b.SetControl(cond)
 		b.Likely = ssa.BranchLikely
 		b.AddEdgeTo(bNonNil)
@@ -6430,10 +6430,10 @@ func (s *state) dottype1(pos src.XPos, src, dst *types.Type, iface, source, targ
 					zext = ssa.OpZeroExt32to64
 				}
 
-				loopHead := s.f.NewBlock(ssa.BlockPlain)
-				loopBody := s.f.NewBlock(ssa.BlockPlain)
-				cacheHit := s.f.NewBlock(ssa.BlockPlain)
-				cacheMiss := s.f.NewBlock(ssa.BlockPlain)
+				loopHead := s.f.NewBlock(block.BlockPlain)
+				loopBody := s.f.NewBlock(block.BlockPlain)
+				cacheHit := s.f.NewBlock(block.BlockPlain)
+				cacheMiss := s.f.NewBlock(block.BlockPlain)
 
 				// Load cache pointer out of descriptor, with an atomic load so
 				// we ensure that we see a fully written cache.
@@ -6471,7 +6471,7 @@ func (s *state) dottype1(pos src.XPos, src, dst *types.Type, iface, source, targ
 				eTyp := s.newValue2(ssa.OpLoad, typs.Uintptr, e, s.mem())
 				cmp1 := s.newValue2(ssa.OpEqPtr, typs.Bool, typ, eTyp)
 				b = s.endBlock()
-				b.Kind = ssa.BlockIf
+				b.Kind = block.BlockIf
 				b.SetControl(cmp1)
 				b.AddEdgeTo(cacheHit)
 				b.AddEdgeTo(loopBody)
@@ -6481,7 +6481,7 @@ func (s *state) dottype1(pos src.XPos, src, dst *types.Type, iface, source, targ
 				s.startBlock(loopBody)
 				cmp2 := s.newValue2(ssa.OpEqPtr, typs.Bool, eTyp, s.constNil(typs.BytePtr))
 				b = s.endBlock()
-				b.Kind = ssa.BlockIf
+				b.Kind = block.BlockIf
 				b.SetControl(cmp2)
 				b.AddEdgeTo(cacheMiss)
 				b.AddEdgeTo(loopHead)
@@ -6554,12 +6554,12 @@ func (s *state) dottype1(pos src.XPos, src, dst *types.Type, iface, source, targ
 
 	cond := s.newValue2(ssa.OpEqPtr, types.Types[types.TBOOL], itab, wantedFirstWord)
 	b := s.endBlock()
-	b.Kind = ssa.BlockIf
+	b.Kind = block.BlockIf
 	b.SetControl(cond)
 	b.Likely = ssa.BranchLikely
 
-	bOk := s.f.NewBlock(ssa.BlockPlain)
-	bFail := s.f.NewBlock(ssa.BlockPlain)
+	bOk := s.f.NewBlock(block.BlockPlain)
+	bFail := s.f.NewBlock(block.BlockPlain)
 	b.AddEdgeTo(bOk)
 	b.AddEdgeTo(bFail)
 
@@ -6587,7 +6587,7 @@ func (s *state) dottype1(pos src.XPos, src, dst *types.Type, iface, source, targ
 
 	// commaok is the more complicated case because we have
 	// a control flow merge point.
-	bEnd := s.f.NewBlock(ssa.BlockPlain)
+	bEnd := s.f.NewBlock(block.BlockPlain)
 	// Note that we need a new valVar each time (unlike okVar where we can
 	// reuse the variable) because it might have a different type every time.
 	valVar := ssaMarker("val")
@@ -6689,8 +6689,7 @@ func (s *state) addNamedValue(n *ir.Name, v *ssa.Value) {
 	loc := ssa.LocalSlot{N: n, Type: n.Type(), Off: 0}
 	values, ok := s.f.NamedValues[loc]
 	if !ok {
-		s.f.Names = append(s.f.Names, &loc)
-		s.f.CanonicalLocalSlots[loc] = &loc
+		s.f.Names = append(s.f.Names, loc)
 	}
 	s.f.NamedValues[loc] = append(values, v)
 }
@@ -7206,7 +7205,7 @@ func genssa(f *ssa.Func, pp *objw.Progs) {
 			}
 		}
 	}
-	if f.Blocks[len(f.Blocks)-1].Kind == ssa.BlockExit {
+	if f.Blocks[len(f.Blocks)-1].Kind == block.BlockExit {
 		// We need the return address of a panic call to
 		// still be inside the function in question. So if
 		// it ends in a call which doesn't return, add a
@@ -7397,6 +7396,18 @@ func genssa(f *ssa.Func, pp *objw.Progs) {
 		fi.JumpTables = append(fi.JumpTables, obj.JumpTable{Sym: jt.Aux.(*obj.LSym), Targets: targets})
 	}
 
+	// Finalize the frame, then let the backend run a final pass over the
+	// generated Progs (e.g. arm64 fuses adjacent spill/reload MOVDs into
+	// STP/LDP). Branch and jump-table targets are resolved at this point.
+	// Doing this before the debug dumps below means -S and GOSSAFUNC's genssa
+	// output reflect the instructions that are actually assembled. defframe
+	// must run first: it finalizes the frame size, which the backend pass
+	// depends on.
+	defframe(&s, e, f)
+	if Arch.SSAGenFinish != nil {
+		Arch.SSAGenFinish(s.pp)
+	}
+
 	if e.log { // spew to stdout
 		filename := ""
 		for p := s.pp.Text; p != nil; p = p.Link {
@@ -7515,8 +7526,6 @@ func genssa(f *ssa.Func, pp *objw.Progs) {
 			fi.Close()
 		}
 	}
-
-	defframe(&s, e, f)
 
 	f.HTMLWriter.Close()
 	f.HTMLWriter = nil
@@ -7720,8 +7729,8 @@ func (s *state) extendIndex(idx, len *ssa.Value, kind ssa.BoundsKind, bounded bo
 		if bounded || base.Flag.B != 0 {
 			return lo
 		}
-		bNext := s.f.NewBlock(ssa.BlockPlain)
-		bPanic := s.f.NewBlock(ssa.BlockExit)
+		bNext := s.f.NewBlock(block.BlockPlain)
+		bPanic := s.f.NewBlock(block.BlockExit)
 		hi := s.newValue1(ssa.OpInt64Hi, types.Types[types.TUINT32], idx)
 		cmp := s.newValue2(ssa.OpEq32, types.Types[types.TBOOL], hi, s.constInt32(types.Types[types.TUINT32], 0))
 		if !idx.Type.IsSigned() {
@@ -7745,7 +7754,7 @@ func (s *state) extendIndex(idx, len *ssa.Value, kind ssa.BoundsKind, bounded bo
 			}
 		}
 		b := s.endBlock()
-		b.Kind = ssa.BlockIf
+		b.Kind = block.BlockIf
 		b.SetControl(cmp)
 		b.Likely = ssa.BranchLikely
 		b.AddEdgeTo(bNext)

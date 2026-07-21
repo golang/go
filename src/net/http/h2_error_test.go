@@ -21,6 +21,8 @@ type externalStreamError struct {
 	Cause    error
 }
 
+var _ error = externalStreamError{}
+
 func (e externalStreamError) Error() string {
 	return fmt.Sprintf("ID %v, code %v", e.StreamID, e.Code)
 }

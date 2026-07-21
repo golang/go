@@ -80,18 +80,19 @@ type config struct {
 	domainMatchers []matcher
 }
 
-// FromEnvironment returns a Config instance populated from the
-// environment variables HTTP_PROXY, HTTPS_PROXY and NO_PROXY (or the
-// lowercase versions thereof).
+// FromEnvironment returns a Config instance populated from the environment
+// variables HTTP_PROXY, HTTPS_PROXY and NO_PROXY (or the lowercase versions
+// thereof). When both the uppercase and lowercase versions are provided, the
+// lowercase versions are prioritized.
 //
 // The environment values may be either a complete URL or a
 // "host[:port]", in which case the "http" scheme is assumed. An error
 // is returned if the value is a different form.
 func FromEnvironment() *Config {
 	return &Config{
-		HTTPProxy:  getEnvAny("HTTP_PROXY", "http_proxy"),
-		HTTPSProxy: getEnvAny("HTTPS_PROXY", "https_proxy"),
-		NoProxy:    getEnvAny("NO_PROXY", "no_proxy"),
+		HTTPProxy:  getEnvAny("http_proxy", "HTTP_PROXY"),
+		HTTPSProxy: getEnvAny("https_proxy", "HTTPS_PROXY"),
+		NoProxy:    getEnvAny("no_proxy", "NO_PROXY"),
 		CGI:        os.Getenv("REQUEST_METHOD") != "",
 	}
 }

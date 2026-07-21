@@ -116,6 +116,8 @@ package ssa
 import (
 	"cmd/compile/internal/base"
 	"cmd/compile/internal/ir"
+	"cmd/compile/internal/ssa/block"
+	"cmd/compile/internal/ssa/ssabase"
 	"cmd/compile/internal/types"
 	"cmd/internal/src"
 	"cmd/internal/sys"
@@ -303,7 +305,7 @@ type regAllocState struct {
 	f *Func
 
 	sdom        SparseTree
-	registers   []Register
+	registers   []ssabase.Register
 	numRegs     register
 	SPReg       register
 	SBReg       register
@@ -1447,14 +1449,14 @@ func (s *regAllocState) regalloc(f *Func) {
 				if !s.values[v.ID].needReg {
 					continue
 				}
-				rp, ok := s.f.getHome(v.ID).(*Register)
+				rp, ok := s.f.getHome(v.ID).(*ssabase.Register)
 				if !ok {
 					// If v is not assigned a register, pick a register assigned to one of v's inputs.
 					// Hopefully v will get assigned that register later.
 					// If the inputs have allocated register information, add it to desired,
 					// which may reduce spill or copy operations when the register is available.
 					for _, a := range v.Args {
-						rp, ok = s.f.getHome(a.ID).(*Register)
+						rp, ok = s.f.getHome(a.ID).(*ssabase.Register)
 						if ok {
 							break
 						}
@@ -1463,7 +1465,7 @@ func (s *regAllocState) regalloc(f *Func) {
 						continue
 					}
 				}
-				desired.add(v.Args[pidx].ID, register(rp.num))
+				desired.add(v.Args[pidx].ID, register(rp.Num))
 			}
 		}
 		// Walk values backwards computing desired register info.
@@ -1539,13 +1541,13 @@ func (s *regAllocState) regalloc(f *Func) {
 			if v.Op == OpSelect0 || v.Op == OpSelect1 || v.Op == OpSelectN {
 				if s.values[v.ID].needReg {
 					if v.Op == OpSelectN {
-						s.assignReg(register(s.f.getHome(v.Args[0].ID).(LocResults)[int(v.AuxInt)].(*Register).num), v, v)
+						s.assignReg(register(s.f.getHome(v.Args[0].ID).(LocResults)[int(v.AuxInt)].(*ssabase.Register).Num), v, v)
 					} else {
 						var i = 0
 						if v.Op == OpSelect1 {
 							i = 1
 						}
-						s.assignReg(register(s.f.getHome(v.Args[0].ID).(LocPair)[i].(*Register).num), v, v)
+						s.assignReg(register(s.f.getHome(v.Args[0].ID).(LocPair)[i].(*ssabase.Register).Num), v, v)
 					}
 				}
 				b.Values = append(b.Values, v)
@@ -1807,9 +1809,9 @@ func (s *regAllocState) regalloc(f *Func) {
 				// Normally we use the register of the old copy of input 0 as the target.
 				// However, if input 0 is already in its desired register then we use
 				// the register of the new copy instead.
-				if regspec.outputs[0].regs.hasReg(register(s.f.getHome(c.ID).(*Register).num)) {
-					if rp, ok := s.f.getHome(args[0].ID).(*Register); ok {
-						r := register(rp.num)
+				if regspec.outputs[0].regs.hasReg(register(s.f.getHome(c.ID).(*ssabase.Register).Num)) {
+					if rp, ok := s.f.getHome(args[0].ID).(*ssabase.Register); ok {
+						r := register(rp.Num)
 						for _, r2 := range dinfo[idx].in[0] {
 							if r == r2 {
 								args[0] = c
@@ -1872,10 +1874,10 @@ func (s *regAllocState) regalloc(f *Func) {
 			}
 
 			if regspec.clobbersArg0 {
-				s.freeReg(register(s.f.getHome(args[0].ID).(*Register).num))
+				s.freeReg(register(s.f.getHome(args[0].ID).(*ssabase.Register).Num))
 			}
 			if regspec.clobbersArg1 && !(regspec.clobbersArg0 && s.f.getHome(args[0].ID) == s.f.getHome(args[1].ID)) {
-				s.freeReg(register(s.f.getHome(args[1].ID).(*Register).num))
+				s.freeReg(register(s.f.getHome(args[1].ID).(*ssabase.Register).Num))
 			}
 
 			// Now that all args are in regs, we're ready to issue the value itself.
@@ -1918,15 +1920,15 @@ func (s *regAllocState) regalloc(f *Func) {
 					if opcodeTable[v.Op].resultInArg0 && out.idx == 0 {
 						if !opcodeTable[v.Op].commutative {
 							// Output must use the same register as input 0.
-							r := register(s.f.getHome(args[0].ID).(*Register).num)
+							r := register(s.f.getHome(args[0].ID).(*ssabase.Register).Num)
 							if !mask.hasReg(r) {
-								s.f.Fatalf("resultInArg0 value's input %v cannot be an output of %s", s.f.getHome(args[0].ID).(*Register), v.LongString())
+								s.f.Fatalf("resultInArg0 value's input %v cannot be an output of %s", s.f.getHome(args[0].ID).(*ssabase.Register), v.LongString())
 							}
 							mask = regMaskAt(r)
 						} else {
 							// Output must use the same register as input 0 or 1.
-							r0 := register(s.f.getHome(args[0].ID).(*Register).num)
-							r1 := register(s.f.getHome(args[1].ID).(*Register).num)
+							r0 := register(s.f.getHome(args[0].ID).(*ssabase.Register).Num)
+							r1 := register(s.f.getHome(args[1].ID).(*ssabase.Register).Num)
 							// Check r0 and r1 for desired output register.
 							found := false
 							for _, r := range dinfo[idx].out {
@@ -2005,7 +2007,7 @@ func (s *regAllocState) regalloc(f *Func) {
 				if tmpReg != noRegister {
 					// Remember the temp register allocation, if any.
 					if s.f.tempRegs == nil {
-						s.f.tempRegs = map[ID]*Register{}
+						s.f.tempRegs = map[ID]*ssabase.Register{}
 					}
 					s.f.tempRegs[v.ID] = &s.registers[tmpReg]
 				}
@@ -2616,13 +2618,13 @@ func (e *edgeState) process() {
 		}
 		e.erase(r)
 		pos := d.pos.WithNotStmt()
-		if _, isReg := loc.(*Register); isReg {
+		if _, isReg := loc.(*ssabase.Register); isReg {
 			c = e.p.NewValue1(pos, OpCopy, c.Type, c)
 		} else {
 			c = e.p.NewValue1(pos, OpLoadReg, c.Type, c)
 		}
 		e.set(r, vid, c, false, pos)
-		if c.Op == OpLoadReg && e.s.isGReg(register(r.(*Register).num)) {
+		if c.Op == OpLoadReg && e.s.isGReg(register(r.(*ssabase.Register).Num)) {
 			e.s.f.Fatalf("process.OpLoadReg targeting g: " + c.LongString())
 		}
 	}
@@ -2675,7 +2677,7 @@ func (e *edgeState) processDest(loc Location, vid ID, splice **Value, pos src.XP
 			if e.s.f.pass.debug > regDebug {
 				fmt.Printf(" %s:%s", h, w)
 			}
-			_, isreg := h.(*Register)
+			_, isreg := h.(*ssabase.Register)
 			if src == nil || isreg {
 				c = w
 				src = h
@@ -2689,7 +2691,7 @@ func (e *edgeState) processDest(loc Location, vid ID, splice **Value, pos src.XP
 			fmt.Printf(" [no source]\n")
 		}
 	}
-	_, dstReg := loc.(*Register)
+	_, dstReg := loc.(*ssabase.Register)
 
 	// Pre-clobber destination. This avoids the
 	// following situation:
@@ -2712,8 +2714,8 @@ func (e *edgeState) processDest(loc Location, vid ID, splice **Value, pos src.XP
 			// Instead of setting the wrong register for the rematerialized v, we should find the right register
 			// for it and emit an additional copy to move to the desired register.
 			// For #70451.
-			if !e.s.regspec(v).outputs[0].regs.hasReg(register(loc.(*Register).num)) {
-				_, srcReg := src.(*Register)
+			if !e.s.regspec(v).outputs[0].regs.hasReg(register(loc.(*ssabase.Register).Num)) {
+				_, srcReg := src.(*ssabase.Register)
 				if srcReg {
 					// It exists in a valid register already, so just copy it to the desired register
 					// If src is a Register, c must have already been set.
@@ -2745,7 +2747,7 @@ func (e *edgeState) processDest(loc Location, vid ID, splice **Value, pos src.XP
 		}
 	} else {
 		// Emit move from src to dst.
-		_, srcReg := src.(*Register)
+		_, srcReg := src.(*ssabase.Register)
 		if srcReg {
 			if dstReg {
 				x = e.p.NewValue1(pos, OpCopy, c.Type, c)
@@ -2766,7 +2768,7 @@ func (e *edgeState) processDest(loc Location, vid ID, splice **Value, pos src.XP
 		}
 	}
 	e.set(loc, vid, x, true, pos)
-	if x.Op == OpLoadReg && e.s.isGReg(register(loc.(*Register).num)) {
+	if x.Op == OpLoadReg && e.s.isGReg(register(loc.(*ssabase.Register).Num)) {
 		e.s.f.Fatalf("processDest.OpLoadReg targeting g: " + x.LongString())
 	}
 	if splice != nil {
@@ -2787,24 +2789,24 @@ func (e *edgeState) set(loc Location, vid ID, c *Value, final bool, pos src.XPos
 	}
 	a = append(a, c)
 	e.cache[vid] = a
-	if r, ok := loc.(*Register); ok {
-		if e.usedRegs.hasReg(register(r.num)) {
+	if r, ok := loc.(*ssabase.Register); ok {
+		if e.usedRegs.hasReg(register(r.Num)) {
 			e.s.f.Fatalf("%v is already set (v%d/%v)", r, vid, c)
 		}
-		e.usedRegs = e.usedRegs.addReg(register(r.num))
+		e.usedRegs = e.usedRegs.addReg(register(r.Num))
 		if final {
-			e.finalRegs = e.finalRegs.addReg(register(r.num))
+			e.finalRegs = e.finalRegs.addReg(register(r.Num))
 		}
 		if len(a) == 1 {
-			e.uniqueRegs = e.uniqueRegs.addReg(register(r.num))
+			e.uniqueRegs = e.uniqueRegs.addReg(register(r.Num))
 		}
 		if len(a) == 2 {
-			if t, ok := e.s.f.getHome(a[0].ID).(*Register); ok {
-				e.uniqueRegs = e.uniqueRegs.removeReg(register(t.num))
+			if t, ok := e.s.f.getHome(a[0].ID).(*ssabase.Register); ok {
+				e.uniqueRegs = e.uniqueRegs.removeReg(register(t.Num))
 			}
 		}
 		if e.s.values[vid].rematerializeable {
-			e.rematerializeableRegs = e.rematerializeableRegs.addReg(register(r.num))
+			e.rematerializeableRegs = e.rematerializeableRegs.addReg(register(r.Num))
 		}
 	}
 	if e.s.f.pass.debug > regDebug {
@@ -2842,16 +2844,16 @@ func (e *edgeState) erase(loc Location) {
 	e.cache[vid] = a
 
 	// Update register masks.
-	if r, ok := loc.(*Register); ok {
-		e.usedRegs = e.usedRegs.removeReg(register(r.num))
+	if r, ok := loc.(*ssabase.Register); ok {
+		e.usedRegs = e.usedRegs.removeReg(register(r.Num))
 		if cr.final {
-			e.finalRegs = e.finalRegs.removeReg(register(r.num))
+			e.finalRegs = e.finalRegs.removeReg(register(r.Num))
 		}
-		e.rematerializeableRegs = e.rematerializeableRegs.removeReg(register(r.num))
+		e.rematerializeableRegs = e.rematerializeableRegs.removeReg(register(r.Num))
 	}
 	if len(a) == 1 {
-		if r, ok := e.s.f.getHome(a[0].ID).(*Register); ok {
-			e.uniqueRegs = e.uniqueRegs.addReg(register(r.num))
+		if r, ok := e.s.f.getHome(a[0].ID).(*ssabase.Register); ok {
+			e.uniqueRegs = e.uniqueRegs.addReg(register(r.Num))
 		}
 	}
 }
@@ -2888,7 +2890,7 @@ func (e *edgeState) findRegFor(typ *types.Type) Location {
 	for _, vid := range e.cachedVals {
 		a := e.cache[vid]
 		for _, c := range a {
-			if r, ok := e.s.f.getHome(c.ID).(*Register); ok && m.hasReg(register(r.num)) {
+			if r, ok := e.s.f.getHome(c.ID).(*ssabase.Register); ok && m.hasReg(register(r.Num)) {
 				if !c.rematerializeable() {
 					x := e.p.NewValue1(c.Pos, OpStoreReg, c.Type, c)
 					// Allocate a temp location to spill a register to.
@@ -3611,7 +3613,7 @@ loopLoop:
 }
 
 func (b *Block) containsCall() bool {
-	if b.Kind == BlockDefer {
+	if b.Kind == block.BlockDefer {
 		return true
 	}
 	for _, v := range b.Values {

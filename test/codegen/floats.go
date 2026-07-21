@@ -89,6 +89,7 @@ func FusedSub32_a(x, y, z float32) float32 {
 	// ppc64x:"FMSUBS "
 	// riscv64:"FMSUBS "
 	// loong64:"FMSUBF "
+	// amd64/v3:"VFMSUB231SS "
 	return x*y - z
 }
 
@@ -96,6 +97,7 @@ func FusedSub32_b(x, y, z float32) float32 {
 	// arm64:"FMSUBS"
 	// loong64:"FNMSUBF "
 	// riscv64:"FNMSUBS "
+	// amd64/v3:"VFNMADD231SS "
 	return z - x*y
 }
 
@@ -114,6 +116,7 @@ func FusedSub64_a(x, y, z float64) float64 {
 	// ppc64x:"FMSUB "
 	// riscv64:"FMSUBD "
 	// loong64:"FMSUBD "
+	// amd64/v3:"VFMSUB231SD "
 	return x*y - z
 }
 
@@ -121,6 +124,7 @@ func FusedSub64_b(x, y, z float64) float64 {
 	// arm64:"FMSUBD"
 	// loong64:"FNMSUBD "
 	// riscv64:"FNMSUBD "
+	// amd64/v3:"VFNMADD231SD "
 	return z - x*y
 }
 

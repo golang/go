@@ -254,6 +254,18 @@ func maybeCloner(h hash.Hash) any {
 	return &h
 }
 
+func TestOutOfBoundsRead(t *testing.T) {
+	cryptotest.TestAllImplementations(t, "sha1", func(t *testing.T) {
+		start, end := cryptotest.BoundarySlices(t, 1000)
+		for i := range len(start) + 1 {
+			Sum(start[:i])
+			Sum(start[len(start)-i:])
+			Sum(end[:i])
+			Sum(end[len(end)-i:])
+		}
+	})
+}
+
 var bench = New()
 var buf = make([]byte, 8192)
 

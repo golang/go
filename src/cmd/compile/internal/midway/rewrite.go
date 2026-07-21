@@ -15,7 +15,7 @@ import (
 
 // "Midway" rewriting
 //
-// Go attempts to provide a package similar to the the "Highway" library
+// Go attempts to provide a package similar to the "Highway" library
 // for C++ (https://google.github.io/highway).  The library package is "simd"
 // and defines vector types with unspecified widths that are bound to particular
 // machine dependent types as late as program execution.  This is accomplished
@@ -26,7 +26,7 @@ import (
 // The rewriting takes place early in the compiler, after type checking but
 // before conversion to "unified" IR.  To ensure that types are correctly set
 // on the modified version of the code, type checking information is reset and
-// the type checking phase is re-run.  The places some limits on the shape of
+// the type checking phase is re-run.  This places some limits on the shape of
 // the rewrites, but it also ensures that the rewritten code is well-formed.
 //
 // Rewritten code does not reference "archsimd" types directly, but instead

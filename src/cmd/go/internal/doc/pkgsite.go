@@ -32,7 +32,7 @@ import (
 // To make that process easier, the exact name and file location of this constant are known
 // to the [golang.org/x/build/cmd/updatestd] command. If this constant needs to be renamed
 // or moved to another .go file, update that code too.
-const pkgsiteCmdInternalDocVersion = "v0.0.0-20260605201217-deb78785c3ce"
+const pkgsiteCmdInternalDocVersion = "v0.0.0-20260716130756-7a55b7dd9a2a"
 
 // pickUnusedPort finds an unused port by trying to listen on port 0
 // and letting the OS pick a port, then closing that connection and
@@ -93,6 +93,12 @@ func buildPkgsite(ctx context.Context) string {
 	a := b.LinkAction(loader, work.ModeBuild, work.ModeBuild, p)
 	a.CacheExecutable = true
 	b.Do(ctx, a)
+
+	// Both paths return an executable in GOCACHE: CachedExecutable is set on
+	// fresh builds, while BuiltTarget is set on cache hits.
+	if cached := a.CachedExecutable(); cached != "" {
+		return cached
+	}
 	return a.BuiltTarget()
 }
 
@@ -139,6 +145,9 @@ func doPkgsite(ctx context.Context, urlPath, fragment string) error {
 
 	pkgsite := buildPkgsite(ctx)
 	if os.Getenv("TEST_GODOC_BUILD_ONLY") != "" {
+		if _, err := os.Stat(pkgsite); err != nil {
+			return fmt.Errorf("built pkgsite binary does not exist: %w", err)
+		}
 		return nil
 	}
 	cmd := exec.Command(pkgsite, "-gorepo", cfg.GOROOT, "-http", addr, "-open", path)

@@ -48,7 +48,10 @@
 (ADCQconst x [c] (InvertFlags f)) => (ADCQconst x [c] (Select1 <types.TypeFlags> (NEGLflags (MOVBQZX <types.Types[types.TUINT32]> (SETA <types.Types[types.TUINT8]> f)))))
 (SBBQ x y (InvertFlags f)) => (SBBQ x y (Select1 <types.TypeFlags> (NEGLflags (MOVBQZX <types.Types[types.TUINT32]> (SETA <types.Types[types.TUINT8]> f)))))
 (SBBQconst x [c] (InvertFlags f)) => (SBBQconst x [c] (Select1 <types.TypeFlags> (NEGLflags (MOVBQZX <types.Types[types.TUINT32]> (SETA <types.Types[types.TUINT8]> f)))))
-
+// ADDQ/SUBQ an from a carry flag into ADCQ/SBBQ
+// TODO: maybe add ADCL and SBBL ?
+(ADDQ x (MOVBQZX (SETB flags))) => (Select0 (ADCQconst [0] x flags))
+(SUBQ x (MOVBQZX (SETB flags))) => (Select0 (SBBQconst [0] x flags))
 
 (Mul64uhilo ...) => (MULQU2 ...)
 (Div128u ...) => (DIVQU2 ...)
@@ -1499,6 +1502,8 @@
 
 // Detect FMA
 (ADDS(S|D) (MULS(S|D) x y) z) && buildcfg.GOAMD64 >= 3 && z.Block.Func.useFMA(v) => (VFMADD231S(S|D) z x y)
+(SUBS(S|D) (MULS(S|D) x y) z) && buildcfg.GOAMD64 >= 3 && z.Block.Func.useFMA(v) => (VFMSUB231S(S|D) z x y)
+(SUBS(S|D) x (MULS(S|D) y z)) && buildcfg.GOAMD64 >= 3 && z.Block.Func.useFMA(v) => (VFNMADD231S(S|D) x y z)
 
 // Redirect stores to use the other register set.
 (MOVQstore  [off] {sym} ptr (MOVQf2i val) mem) => (MOVSDstore [off] {sym} ptr val mem)

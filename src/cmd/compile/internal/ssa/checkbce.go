@@ -4,7 +4,10 @@
 
 package ssa
 
-import "cmd/compile/internal/logopt"
+import (
+	"cmd/compile/internal/logopt"
+	"cmd/compile/internal/ssa/block"
+)
 
 // checkbce prints all bounds checks that are present in the function.
 // Useful to find regressions. checkbce is only activated when with
@@ -16,7 +19,7 @@ func checkbce(f *Func) {
 	}
 
 	for _, b := range f.Blocks {
-		if b.Kind == BlockInvalid {
+		if b.Kind == block.BlockInvalid {
 			continue
 		}
 		for _, v := range b.Values {

@@ -35,22 +35,20 @@ var doc string
 var Suite = []*analysis.Analyzer{
 	AnyAnalyzer,
 	AtomicTypesAnalyzer,
-	// AppendClippedAnalyzer, // not nil-preserving!
-	// BLoopAnalyzer, // may skew benchmark results, see golang/go#74967
 	EmbedLitAnalyzer,
 	ErrorsAsTypeAnalyzer,
-	// FmtAppendfAnalyzer, // makes code less clear, see golang/go#77581
 	ForVarAnalyzer,
+	importCommentAnalyzer, // awaiting public symbol
 	MapsLoopAnalyzer,
 	MinMaxAnalyzer,
 	NewExprAnalyzer,
 	OmitZeroAnalyzer,
 	PlusBuildAnalyzer,
 	RangeIntAnalyzer,
+	reflectTypeAssertAnalyzer, // awaiting public symbol
 	ReflectTypeForAnalyzer,
-	slicesBackwardAnalyzer,
+	slicesBackwardAnalyzer, // awaiting public symbol
 	SlicesContainsAnalyzer,
-	// SlicesDeleteAnalyzer, // not nil-preserving!
 	SlicesSortAnalyzer,
 	StdIteratorsAnalyzer,
 	StringsCutAnalyzer,
@@ -58,8 +56,15 @@ var Suite = []*analysis.Analyzer{
 	StringsSeqAnalyzer,
 	StringsBuilderAnalyzer,
 	TestingContextAnalyzer,
-	unsafeFuncsAnalyzer,
+	unsafeFuncsAnalyzer, // awaiting public symbol
 	WaitGroupGoAnalyzer,
+
+	// Not included:
+	//
+	// AppendClippedAnalyzer, 	// not nil-preserving
+	// BLoopAnalyzer, 		// may skew benchmark results, see golang/go#74967
+	// FmtAppendfAnalyzer, 		// makes code less clear, see golang/go#77581
+	// SlicesDeleteAnalyzer, 	// not nil-preserving
 }
 
 // -- helpers --
@@ -132,10 +137,12 @@ var (
 	builtinMake    = types.Universe.Lookup("make")
 	builtinNew     = types.Universe.Lookup("new")
 	builtinNil     = types.Universe.Lookup("nil")
+	builtinRecover = types.Universe.Lookup("recover")
 	builtinString  = types.Universe.Lookup("string")
 	builtinTrue    = types.Universe.Lookup("true")
 	byteSliceType  = types.NewSlice(types.Typ[types.Byte])
 	omitemptyRegex = regexp.MustCompile(`(?:^json| json):"[^"]*(,omitempty)(?:"|,[^"]*")\s?`)
+	errorType      = types.Universe.Lookup("error").Type()
 )
 
 // lookup returns the symbol denoted by name at the position of the cursor.

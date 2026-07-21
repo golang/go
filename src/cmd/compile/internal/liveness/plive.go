@@ -30,6 +30,7 @@ import (
 	"cmd/compile/internal/objw"
 	"cmd/compile/internal/reflectdata"
 	"cmd/compile/internal/ssa"
+	"cmd/compile/internal/ssa/block"
 	"cmd/compile/internal/typebits"
 	"cmd/compile/internal/types"
 	"cmd/internal/hash"
@@ -707,15 +708,15 @@ func (lv *Liveness) solve() {
 
 			newliveout.Clear()
 			switch b.Kind {
-			case ssa.BlockRet:
+			case block.BlockRet:
 				for _, pos := range lv.cache.retuevar {
 					newliveout.Set(pos)
 				}
-			case ssa.BlockRetJmp:
+			case block.BlockRetJmp:
 				for _, pos := range lv.cache.tailuevar {
 					newliveout.Set(pos)
 				}
-			case ssa.BlockExit:
+			case block.BlockExit:
 				// panic exit - nothing to do
 			default:
 				// A variable is live on output from this block

@@ -7,9 +7,9 @@
 package work
 
 import (
+	"cmd/go/internal/base"
 	"cmd/go/internal/cfg"
 	"cmd/go/internal/str"
-	"cmd/internal/cov/covcmd"
 	"context"
 	"encoding/json"
 	"fmt"
@@ -42,8 +42,18 @@ func BuildActionCoverMetaFile(runAct *Action) (string, error) {
 		if pred.Mode != "build" || pred.Package == nil {
 			continue
 		}
+		var coverAction *Action
+		for _, act := range pred.Deps {
+			if act.Mode == "cover" {
+				coverAction = act
+				break
+			}
+		}
+		if coverAction == nil {
+			base.Fatalf("internal error: cover action not found for %s", p.ImportPath)
+		}
 		if pred.Package.ImportPath == p.ImportPath {
-			metaFile := pred.Objdir + covcmd.MetaFileForPackage(p.ImportPath)
+			metaFile := coverAction.Provider.(*coverProvider).covMetaFileName
 			if cfg.BuildN {
 				return metaFile, nil
 			}
@@ -118,7 +128,17 @@ func WriteCoverMetaFilesFile(b *Builder, ctx context.Context, a *Action) error {
 		if dep.Mode != "build" {
 			panic("unexpected mode " + dep.Mode)
 		}
-		metaFilesFile := dep.Objdir + covcmd.MetaFileForPackage(dep.Package.ImportPath)
+		var coverAction *Action
+		for _, act := range dep.Deps {
+			if act.Mode == "cover" {
+				coverAction = act
+			}
+		}
+		if coverAction == nil {
+			// No coverage data for this package.
+			continue
+		}
+		metaFilesFile := coverAction.Provider.(*coverProvider).covMetaFileName
 		// Check to make sure the meta-data file fragment exists
 		//  and has content (may be empty if package has no functions).
 		if fi, err := os.Stat(metaFilesFile); err != nil {

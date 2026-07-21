@@ -43,7 +43,8 @@ import (
 // used by [DefaultClient]. It establishes network connections as needed
 // and caches them for reuse by subsequent calls. It uses HTTP proxies
 // as directed by the environment variables HTTP_PROXY, HTTPS_PROXY
-// and NO_PROXY (or the lowercase versions thereof).
+// and NO_PROXY (or the lowercase versions thereof, which take
+// precedence over the uppercase versions).
 var DefaultTransport RoundTripper = &Transport{
 	Proxy: ProxyFromEnvironment,
 	DialContext: defaultTransportDialContext(&net.Dialer{
@@ -503,7 +504,8 @@ func (t *Transport) protocols() Protocols {
 // ProxyFromEnvironment returns the URL of the proxy to use for a
 // given request, as indicated by the environment variables
 // HTTP_PROXY, HTTPS_PROXY and NO_PROXY (or the lowercase versions
-// thereof). Requests use the proxy from the environment variable
+// thereof, which take precedence over the uppercase versions).
+// Requests use the proxy from the environment variable
 // matching their scheme, unless excluded by NO_PROXY.
 //
 // The environment values may be either a complete URL or a

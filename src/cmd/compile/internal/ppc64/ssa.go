@@ -10,6 +10,7 @@ import (
 	"cmd/compile/internal/logopt"
 	"cmd/compile/internal/objw"
 	"cmd/compile/internal/ssa"
+	"cmd/compile/internal/ssa/block"
 	"cmd/compile/internal/ssagen"
 	"cmd/compile/internal/types"
 	"cmd/internal/obj"
@@ -146,8 +147,7 @@ func ssaGenValue(s *ssagen.State, v *ssa.Value) {
 		r1 := v.Args[1].Reg()
 		// LWSYNC - Assuming shared data not write-through-required nor
 		// caching-inhibited. See Appendix B.2.2.2 in the ISA 2.07b.
-		plwsync := s.Prog(ppc64.ALWSYNC)
-		plwsync.To.Type = obj.TYPE_NONE
+		s.Prog(ppc64.ALWSYNC)
 		// LBAR or LWAR
 		p := s.Prog(ld)
 		p.From.Type = obj.TYPE_MEM
@@ -194,9 +194,8 @@ func ssaGenValue(s *ssagen.State, v *ssa.Value) {
 		r0 := v.Args[0].Reg()
 		r1 := v.Args[1].Reg()
 		out := v.Reg0()
-		// LWSYNC - Provide acquire ordering to pair with the
-		// release (pre-LWSYNC) above, making the operation
-		// sequentially consistent.
+		// LWSYNC - Assuming shared data not write-through-required nor
+		// caching-inhibited. See Appendix B.2.2.2 in the ISA 2.07b.
 		s.Prog(ppc64.ALWSYNC)
 		// LDAR or LWAR
 		p := s.Prog(ld)
@@ -232,8 +231,7 @@ func ssaGenValue(s *ssagen.State, v *ssa.Value) {
 		// LWSYNC - Provide acquire ordering to pair with the
 		// release (pre-LWSYNC) above, making the operation
 		// sequentially consistent.
-		plwsync2 := s.Prog(ppc64.ALWSYNC)
-		plwsync2.To.Type = obj.TYPE_NONE
+		s.Prog(ppc64.ALWSYNC)
 
 	case ssa.OpPPC64LoweredAtomicExchange8,
 		ssa.OpPPC64LoweredAtomicExchange32,
@@ -258,8 +256,7 @@ func ssaGenValue(s *ssagen.State, v *ssa.Value) {
 		out := v.Reg0()
 		// LWSYNC - Assuming shared data not write-through-required nor
 		// caching-inhibited. See Appendix B.2.2.2 in the ISA 2.07b.
-		plwsync := s.Prog(ppc64.ALWSYNC)
-		plwsync.To.Type = obj.TYPE_NONE
+		s.Prog(ppc64.ALWSYNC)
 		// L[B|W|D]AR
 		p := s.Prog(ld)
 		p.From.Type = obj.TYPE_MEM
@@ -277,8 +274,7 @@ func ssaGenValue(s *ssagen.State, v *ssa.Value) {
 		p2.To.Type = obj.TYPE_BRANCH
 		p2.To.SetTarget(p)
 		// ISYNC
-		pisync := s.Prog(ppc64.AISYNC)
-		pisync.To.Type = obj.TYPE_NONE
+		s.Prog(ppc64.AISYNC)
 
 	case ssa.OpPPC64LoweredAtomicLoad8,
 		ssa.OpPPC64LoweredAtomicLoad32,
@@ -302,8 +298,7 @@ func ssaGenValue(s *ssagen.State, v *ssa.Value) {
 		out := v.Reg0()
 		// SYNC when AuxInt == 1; otherwise, load-acquire
 		if v.AuxInt == 1 {
-			psync := s.Prog(ppc64.ASYNC)
-			psync.To.Type = obj.TYPE_NONE
+			s.Prog(ppc64.ASYNC)
 		}
 		// Load
 		p := s.Prog(ld)
@@ -322,7 +317,6 @@ func ssaGenValue(s *ssagen.State, v *ssa.Value) {
 		p2.To.Type = obj.TYPE_BRANCH
 		// ISYNC
 		pisync := s.Prog(ppc64.AISYNC)
-		pisync.To.Type = obj.TYPE_NONE
 		p2.To.SetTarget(pisync)
 
 	case ssa.OpPPC64LoweredAtomicStore8,
@@ -345,8 +339,7 @@ func ssaGenValue(s *ssagen.State, v *ssa.Value) {
 		if v.AuxInt == 0 {
 			syncOp = ppc64.ALWSYNC
 		}
-		psync := s.Prog(syncOp)
-		psync.To.Type = obj.TYPE_NONE
+		s.Prog(syncOp)
 		// Store
 		p := s.Prog(st)
 		p.To.Type = obj.TYPE_MEM
@@ -387,8 +380,7 @@ func ssaGenValue(s *ssagen.State, v *ssa.Value) {
 		p.To.Reg = out
 		// LWSYNC - Assuming shared data not write-through-required nor
 		// caching-inhibited. See Appendix B.2.2.2 in the ISA 2.07b.
-		plwsync1 := s.Prog(ppc64.ALWSYNC)
-		plwsync1.To.Type = obj.TYPE_NONE
+		s.Prog(ppc64.ALWSYNC)
 		// LDAR or LWAR
 		p0 := s.Prog(ld)
 		p0.From.Type = obj.TYPE_MEM
@@ -430,7 +422,6 @@ func ssaGenValue(s *ssagen.State, v *ssa.Value) {
 		// If the operation is a CAS-Release, then synchronization is not necessary.
 		if v.AuxInt != 0 {
 			plwsync2 := s.Prog(ppc64.ALWSYNC)
-			plwsync2.To.Type = obj.TYPE_NONE
 			p2.To.SetTarget(plwsync2)
 		} else {
 			// done (label)
@@ -2076,38 +2067,38 @@ var blockJump = [...]struct {
 	asm, invasm     obj.As
 	asmeq, invasmun bool
 }{
-	ssa.BlockPPC64EQ: {ppc64.ABEQ, ppc64.ABNE, false, false},
-	ssa.BlockPPC64NE: {ppc64.ABNE, ppc64.ABEQ, false, false},
+	block.BlockPPC64EQ: {ppc64.ABEQ, ppc64.ABNE, false, false},
+	block.BlockPPC64NE: {ppc64.ABNE, ppc64.ABEQ, false, false},
 
-	ssa.BlockPPC64LT: {ppc64.ABLT, ppc64.ABGE, false, false},
-	ssa.BlockPPC64GE: {ppc64.ABGE, ppc64.ABLT, false, false},
-	ssa.BlockPPC64LE: {ppc64.ABLE, ppc64.ABGT, false, false},
-	ssa.BlockPPC64GT: {ppc64.ABGT, ppc64.ABLE, false, false},
+	block.BlockPPC64LT: {ppc64.ABLT, ppc64.ABGE, false, false},
+	block.BlockPPC64GE: {ppc64.ABGE, ppc64.ABLT, false, false},
+	block.BlockPPC64LE: {ppc64.ABLE, ppc64.ABGT, false, false},
+	block.BlockPPC64GT: {ppc64.ABGT, ppc64.ABLE, false, false},
 
 	// TODO: need to work FP comparisons into block jumps
-	ssa.BlockPPC64FLT: {ppc64.ABLT, ppc64.ABGE, false, false},
-	ssa.BlockPPC64FGE: {ppc64.ABGT, ppc64.ABLT, true, true}, // GE = GT or EQ; !GE = LT or UN
-	ssa.BlockPPC64FLE: {ppc64.ABLT, ppc64.ABGT, true, true}, // LE = LT or EQ; !LE = GT or UN
-	ssa.BlockPPC64FGT: {ppc64.ABGT, ppc64.ABLE, false, false},
+	block.BlockPPC64FLT: {ppc64.ABLT, ppc64.ABGE, false, false},
+	block.BlockPPC64FGE: {ppc64.ABGT, ppc64.ABLT, true, true}, // GE = GT or EQ; !GE = LT or UN
+	block.BlockPPC64FLE: {ppc64.ABLT, ppc64.ABGT, true, true}, // LE = LT or EQ; !LE = GT or UN
+	block.BlockPPC64FGT: {ppc64.ABGT, ppc64.ABLE, false, false},
 }
 
 func ssaGenBlock(s *ssagen.State, b, next *ssa.Block) {
 	switch b.Kind {
-	case ssa.BlockPlain, ssa.BlockDefer:
+	case block.BlockPlain, block.BlockDefer:
 		if b.Succs[0].Block() != next {
 			p := s.Prog(obj.AJMP)
 			p.To.Type = obj.TYPE_BRANCH
 			s.Branches = append(s.Branches, ssagen.Branch{P: p, B: b.Succs[0].Block()})
 		}
-	case ssa.BlockExit, ssa.BlockRetJmp:
-	case ssa.BlockRet:
+	case block.BlockExit, block.BlockRetJmp:
+	case block.BlockRet:
 		s.Prog(obj.ARET)
 
-	case ssa.BlockPPC64EQ, ssa.BlockPPC64NE,
-		ssa.BlockPPC64LT, ssa.BlockPPC64GE,
-		ssa.BlockPPC64LE, ssa.BlockPPC64GT,
-		ssa.BlockPPC64FLT, ssa.BlockPPC64FGE,
-		ssa.BlockPPC64FLE, ssa.BlockPPC64FGT:
+	case block.BlockPPC64EQ, block.BlockPPC64NE,
+		block.BlockPPC64LT, block.BlockPPC64GE,
+		block.BlockPPC64LE, block.BlockPPC64GT,
+		block.BlockPPC64FLT, block.BlockPPC64FGE,
+		block.BlockPPC64FLE, block.BlockPPC64FGT:
 		jmp := blockJump[b.Kind]
 		switch next {
 		case b.Succs[0].Block():

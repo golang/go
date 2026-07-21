@@ -6,6 +6,7 @@ package ssa
 
 import (
 	"cmd/compile/internal/ir"
+	"cmd/compile/internal/ssa/ssabase"
 	"cmd/compile/internal/types"
 	"cmd/internal/src"
 	"fmt"
@@ -497,7 +498,7 @@ func (v *Value) ResultReg() int16 {
 	if reg == nil {
 		v.Fatalf("nil reg0 for value: %s\n%s\n", v.LongString(), v.Block.Func)
 	}
-	return reg.(*Register).objNum
+	return reg.(*ssabase.Register).ObjNum
 }
 
 // Reg returns the register assigned to v, in cmd/internal/obj/$ARCH numbering.
@@ -506,7 +507,7 @@ func (v *Value) Reg() int16 {
 	if reg == nil {
 		v.Fatalf("nil register for value: %s\n%s\n", v.LongString(), v.Block.Func)
 	}
-	return reg.(*Register).objNum
+	return reg.(*ssabase.Register).ObjNum
 }
 
 // Reg0 returns the register assigned to the first output of v, in cmd/internal/obj/$ARCH numbering.
@@ -515,7 +516,7 @@ func (v *Value) Reg0() int16 {
 	if reg == nil {
 		v.Fatalf("nil first register for value: %s\n%s\n", v.LongString(), v.Block.Func)
 	}
-	return reg.(*Register).objNum
+	return reg.(*ssabase.Register).ObjNum
 }
 
 // Reg1 returns the register assigned to the second output of v, in cmd/internal/obj/$ARCH numbering.
@@ -524,7 +525,7 @@ func (v *Value) Reg1() int16 {
 	if reg == nil {
 		v.Fatalf("nil second register for value: %s\n%s\n", v.LongString(), v.Block.Func)
 	}
-	return reg.(*Register).objNum
+	return reg.(*ssabase.Register).ObjNum
 }
 
 // RegTmp returns the temporary register assigned to v, in cmd/internal/obj/$ARCH numbering.
@@ -533,7 +534,7 @@ func (v *Value) RegTmp() int16 {
 	if reg == nil {
 		v.Fatalf("nil tmp register for value: %s\n%s\n", v.LongString(), v.Block.Func)
 	}
-	return reg.objNum
+	return reg.ObjNum
 }
 
 func (v *Value) RegName() string {
@@ -541,7 +542,7 @@ func (v *Value) RegName() string {
 	if reg == nil {
 		v.Fatalf("nil register for value: %s\n%s\n", v.LongString(), v.Block.Func)
 	}
-	return reg.(*Register).name
+	return reg.(*ssabase.Register).Name
 }
 
 // MemoryArg returns the memory argument for the Value.
@@ -664,4 +665,16 @@ func CanSSA(t *types.Type) bool {
 	default:
 		return true
 	}
+}
+
+// AddrSinkArg reports whether the idx'th argument is known
+// to not propagate to the output value.
+func (v *Value) AddrSinkArg(idx int) bool {
+	if idx == 0 {
+		return opcodeTable[v.Op].addrSinkArg0
+	}
+	if idx == 1 {
+		return opcodeTable[v.Op].addrSinkArg1
+	}
+	return false
 }

@@ -704,3 +704,7 @@ type SysvShmDesc struct {
 	_      uint64
 	_      uint64
 }
+
+const (
+	GPIO_GET_CHIPINFO_IOCTL = 0x8044b401
+)

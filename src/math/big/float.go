@@ -78,6 +78,8 @@ type ErrNaN struct {
 	msg string
 }
 
+var _ error = ErrNaN{}
+
 func (err ErrNaN) Error() string {
 	return err.msg
 }

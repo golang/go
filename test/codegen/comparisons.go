@@ -357,7 +357,7 @@ func CmpToZero_ex1(a int64, e int32) int {
 	}
 
 	// arm64:`SUB` `TBNZ`
-	// arm:`CMP|CMN` -`(ADD|SUB)` `(BMI|BPL)`
+	// arm:`SUB` -`(BMI|BPL)`
 	if e-11 >= 0 {
 		return 8
 	}
@@ -425,22 +425,22 @@ func CmpToZero_ex3(a, b, c, d int64, e, f, g, h int32) int {
 
 // var - var*var
 func CmpToZero_ex4(a, b, c, d int64, e, f, g, h int32) int {
-	// arm64:`CMP` -`MSUB` `MUL` `BEQ` `(BMI|BPL)`
+	// arm64:`MSUB`
 	if a-b*c > 0 {
 		return 1
 	}
 
-	// arm64:`CMP` -`MSUB` `MUL` `(BMI|BPL)`
+	// arm64:`MSUB`
 	if b-c*d >= 0 {
 		return 2
 	}
 
-	// arm64:`CMPW` -`MSUBW` `MULW` `(BMI|BPL)`
+	// arm64:`MSUBW`
 	if e-f*g < 0 {
 		return 5
 	}
 
-	// arm64:`CMPW` -`MSUBW` `MULW` `(BMI|BPL)`
+	// arm64:`MSUBW`
 	if f-g*h >= 0 {
 		return 6
 	}
@@ -453,7 +453,7 @@ func CmpToZero_ex5(e, f int32, u uint32) int {
 		return 1
 	}
 
-	// arm:`CMP` -`SUB` `(BMI|BPL)`
+	// arm:`SUB` -`(BMI|BPL)`
 	if f-int32(u>>2) >= 0 {
 		return 2
 	}
@@ -462,7 +462,7 @@ func CmpToZero_ex5(e, f int32, u uint32) int {
 
 func UintLtZero(a uint8, b uint16, c uint32, d uint64) int {
 	// amd64: -`(TESTB|TESTW|TESTL|TESTQ|JCC|JCS)`
-	// arm64: -`(CMPW|CMP|CCMP|CCMPW|BHS|BLO)`
+	// arm64: -`(CMPW|CMP|BHS|BLO)`
 	if a < 0 || b < 0 || c < 0 || d < 0 {
 		return 1
 	}
@@ -471,7 +471,7 @@ func UintLtZero(a uint8, b uint16, c uint32, d uint64) int {
 
 func UintGeqZero(a uint8, b uint16, c uint32, d uint64) int {
 	// amd64: -`(TESTB|TESTW|TESTL|TESTQ|JCS|JCC)`
-	// arm64: -`(CMPW|CMP|CCMP|CCMPW|BLO|BHS)`
+	// arm64: -`(CMPW|CMP|BLO|BHS)`
 	if a >= 0 || b >= 0 || c >= 0 || d >= 0 {
 		return 1
 	}
@@ -479,7 +479,7 @@ func UintGeqZero(a uint8, b uint16, c uint32, d uint64) int {
 }
 
 func UintGtZero(a uint8, b uint16, c uint32, d uint64) int {
-	// arm64: `(CMPW|CMP|CCMP|CCMPW|BNE|BEQ)`
+	// arm64: `(CBN?ZW)` `(CBN?Z[^W])` -`(CMPW|CMP|BLS|BHI)`
 	if a > 0 || b > 0 || c > 0 || d > 0 {
 		return 1
 	}
@@ -487,7 +487,7 @@ func UintGtZero(a uint8, b uint16, c uint32, d uint64) int {
 }
 
 func UintLeqZero(a uint8, b uint16, c uint32, d uint64) int {
-	// arm64: `(CMPW|CMP|CCMP|CCMPW|BNE|BEQ)`
+	// arm64: `(CBN?ZW)` `(CBN?Z[^W])` -`(CMPW|CMP|BHI|BLS)`
 	if a <= 0 || b <= 0 || c <= 0 || d <= 0 {
 		return 1
 	}
@@ -495,7 +495,7 @@ func UintLeqZero(a uint8, b uint16, c uint32, d uint64) int {
 }
 
 func UintLtOne(a uint8, b uint16, c uint32, d uint64) int {
-	// arm64: `(CMPW|CMP|CCMP|CCMPW|BNE|BEQ)`
+	// arm64: `(CBN?ZW)` `(CBN?Z[^W])` -`(CMPW|CMP|BHS|BLO)`
 	if a < 1 || b < 1 || c < 1 || d < 1 {
 		return 1
 	}
@@ -503,40 +503,8 @@ func UintLtOne(a uint8, b uint16, c uint32, d uint64) int {
 }
 
 func UintGeqOne(a uint8, b uint16, c uint32, d uint64) int {
-	// arm64: `(CMPW|CMP|CCMP|CCMPW|BNE|BEQ)`
+	// arm64: `(CBN?ZW)` `(CBN?Z[^W])` -`(CMPW|CMP|BLO|BHS)`
 	if a >= 1 || b >= 1 || c >= 1 || d >= 1 {
-		return 1
-	}
-	return 0
-}
-
-func ConditionalCompareUint8(a, b uint8) int {
-	// arm64:"CCMPW EQ, R[0-9]+, [$]1, [$]0"
-	if a == 1 && b == 1 {
-		return 1
-	}
-	return 0
-}
-
-func ConditionalCompareInt16(a, b int16) int {
-	// arm64:"CCMPW LE, R[0-9]+, R[0-9]+, [$]4"
-	if a > 3 || a == b {
-		return 1
-	}
-	return 0
-}
-
-func ConditionalCompareUint32(a, b uint32) int {
-	// arm64:"CCMPW LO, R[0-9]+, [$]28, [$]2"
-	if a > b && a < 28 {
-		return 1
-	}
-	return 0
-}
-
-func ConditionalCompareInt64(a, b int64) int {
-	// arm64:"CCMP GT, R[0-9]+, R[0-9]+, [$]0"
-	if a <= 16 || a != b {
 		return 1
 	}
 	return 0
@@ -620,6 +588,23 @@ func CmpToOneU_ex2(a uint8, b uint16, c uint32, d uint64) int {
 		return 1
 	}
 	return 0
+}
+
+func int64LtZero(x int64) bool {
+	// arm64: `LSR [$]63`
+	return x < 0
+}
+func int64GeZero(x int64) bool {
+	// arm64: `LSR [$]63` `EOR [$]1`
+	return x >= 0
+}
+func int32LtZero(x int32) bool {
+	// arm64: `UBFX [$]31, R[0-9]+, [$]1,`
+	return x < 0
+}
+func int32GeZero(x int32) bool {
+	// arm64: `UBFX [$]31, R[0-9]+, [$]1,` `EOR [$]1`
+	return x >= 0
 }
 
 // Check that small memequals are replaced with eq instructions
@@ -780,7 +765,7 @@ func cmpToCmnLessThan(a, b, c, d int) int {
 	if a*b+c < 0 {
 		c3 = 1
 	}
-	// arm64:`CMP` `CSET MI` -`CMN`
+	// arm64:`MSUB` `LSR`
 	if a-b*c < 0 {
 		c4 = 1
 	}
@@ -849,7 +834,7 @@ func cmpToCmnGreaterThanEqual(a, b, c, d int) int {
 	if a*b+c >= 0 {
 		c3 = 1
 	}
-	// arm64:`CMP` `CSET PL` -`CMN`
+	// arm64:`MSUB` `LSR` `EOR [$]1`
 	if a-b*c >= 0 {
 		c4 = 1
 	}
@@ -895,19 +880,6 @@ func cmp6[T comparable](val T) bool {
 func cmp7() {
 	cmp5[string]("") // force instantiation
 	cmp6[string]("") // force instantiation
-}
-
-type Point struct {
-	X, Y int
-}
-
-// invertLessThanNoov checks (LessThanNoov (InvertFlags x)) is lowered as
-// CMP, CSET, CSEL instruction sequence. InvertFlags are only generated under
-// certain conditions, see canonLessThan, so if the code below does not
-// generate an InvertFlags OP, this check may fail.
-func invertLessThanNoov(p1, p2, p3 Point) bool {
-	// arm64:`CMP` `CSET` `CSEL`
-	return (p1.X-p3.X)*(p2.Y-p3.Y)-(p2.X-p3.X)*(p1.Y-p3.Y) < 0
 }
 
 func cmpstring1(x, y string) int {

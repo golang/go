@@ -221,6 +221,9 @@ FindRHS:
 		return nil
 	}
 	if rhs == nil {
+		if n.AutoTemp() {
+			return nil
+		}
 		base.FatalfAt(defn.Pos(), "RHS is nil: %v", defn)
 	}
 

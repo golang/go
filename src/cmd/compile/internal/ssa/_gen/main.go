@@ -73,6 +73,8 @@ type opData struct {
 	unsafePoint       bool   // this op is an unsafe point, i.e. not safe for async preemption
 	fixedReg          bool   // this op will be assigned a fixed register
 	earlyOk           bool   // executing this op in an earlier block is ok
+	addrSinkArg0      bool   // the address in arg0 does not propagate to the result
+	addrSinkArg1      bool   // the address in arg1 does not propagate to the result
 	symEffect         string // effect this op has on symbol in aux
 	scale             uint8  // amd64/386 indexed load scale
 }
@@ -249,16 +251,7 @@ func genOp() {
 	w := new(bytes.Buffer)
 	fmt.Fprintf(w, "// Code generated from _gen/*Ops.go using 'go generate'; DO NOT EDIT.\n")
 	fmt.Fprintln(w)
-	fmt.Fprintln(w, "package ssa")
-
-	fmt.Fprintln(w, "import (")
-	fmt.Fprintln(w, "\"cmd/internal/obj\"")
-	for _, a := range archs {
-		if a.pkg != "" {
-			fmt.Fprintf(w, "%q\n", a.pkg)
-		}
-	}
-	fmt.Fprintln(w, ")")
+	fmt.Fprintln(w, "package block")
 
 	// generate Block* declarations
 	fmt.Fprintln(w, "const (")
@@ -299,6 +292,37 @@ func genOp() {
 	fmt.Fprintln(w, "}")
 
 	// generate Op* declarations
+
+	// gofmt result
+	blockb := w.Bytes()
+	var blockerr error
+	blockb, blockerr = format.Source(blockb)
+	if blockerr != nil {
+		fmt.Printf("%s\n", w.Bytes())
+		panic(blockerr)
+	}
+
+	if err := os.MkdirAll(outFile("block"), 0777); err != nil {
+		log.Fatal("can't create block diretory")
+	}
+	if err := os.WriteFile(outFile("block/opGen.go"), blockb, 0666); err != nil {
+		log.Fatalf("can't write output: %v\n", err)
+	}
+
+	w = new(bytes.Buffer)
+	fmt.Fprintf(w, "// Code generated from _gen/*Ops.go using 'go generate'; DO NOT EDIT.\n")
+	fmt.Fprintln(w)
+	fmt.Fprintln(w, "package ssa")
+
+	fmt.Fprintln(w, "import (")
+	fmt.Fprintln(w, `"cmd/compile/internal/ssa/ssabase"`)
+	fmt.Fprintln(w, `"cmd/internal/obj"`)
+	for _, a := range archs {
+		if a.pkg != "" {
+			fmt.Fprintf(w, "%q\n", a.pkg)
+		}
+	}
+	fmt.Fprintln(w, ")")
 	fmt.Fprintln(w, "const (")
 	fmt.Fprintln(w, "OpInvalid Op = iota") // make sure OpInvalid is 0.
 	for _, a := range archs {
@@ -397,6 +421,12 @@ func genOp() {
 			if v.earlyOk {
 				fmt.Fprintln(w, "earlyOk: true,")
 			}
+			if v.addrSinkArg0 {
+				fmt.Fprintln(w, "addrSinkArg0: true,")
+			}
+			if v.addrSinkArg1 {
+				fmt.Fprintln(w, "addrSinkArg1: true,")
+			}
 			if v.unsafePoint {
 				fmt.Fprintln(w, "unsafePoint: true,")
 			}
@@ -490,7 +520,7 @@ func genOp() {
 		if a.generic {
 			continue
 		}
-		fmt.Fprintf(w, "var registers%s = [...]Register {\n", a.name)
+		fmt.Fprintf(w, "var registers%s = [...]ssabase.Register {\n", a.name)
 		num := map[string]int8{}
 		for i, r := range a.regnames {
 			num[r] = int8(i)
@@ -509,7 +539,7 @@ func genOp() {
 			default:
 				objname = pkg + ".REG_" + r
 			}
-			fmt.Fprintf(w, "  {%d, %s, \"%s\"},\n", i, objname, r)
+			fmt.Fprintf(w, "  {Num: %d, ObjNum: %s, Name: \"%s\"},\n", i, objname, r)
 		}
 		parameterRegisterList := func(paramNamesString string) []int8 {
 			paramNamesString = strings.TrimSpace(paramNamesString)

@@ -24,7 +24,7 @@ func NewWeighted(n int64) *Weighted {
 }
 
 // Weighted provides a way to bound concurrent access to a resource.
-// The callers can request access with a given weight.
+// The callers can request access with a given non-negative weight.
 type Weighted struct {
 	size    int64
 	cur     int64
@@ -32,10 +32,13 @@ type Weighted struct {
 	waiters list.List
 }
 
-// Acquire acquires the semaphore with a weight of n, blocking until resources
+// Acquire acquires the semaphore with a non-negative weight of n, blocking until resources
 // are available or ctx is done. On success, returns nil. On failure, returns
 // ctx.Err() and leaves the semaphore unchanged.
 func (s *Weighted) Acquire(ctx context.Context, n int64) error {
+	if n < 0 {
+		panic("semaphore: n < 0")
+	}
 	done := ctx.Done()
 
 	s.mu.Lock()
@@ -83,7 +86,7 @@ func (s *Weighted) Acquire(ctx context.Context, n int64) error {
 		default:
 			isFront := s.waiters.Front() == elem
 			s.waiters.Remove(elem)
-			// If we're at the front and there're extra tokens left, notify other waiters.
+			// If we're at the front and there are extra tokens left, notify other waiters.
 			if isFront && s.size > s.cur {
 				s.notifyWaiters()
 			}
@@ -106,9 +109,12 @@ func (s *Weighted) Acquire(ctx context.Context, n int64) error {
 	}
 }
 
-// TryAcquire acquires the semaphore with a weight of n without blocking.
+// TryAcquire acquires the semaphore with a non-negative weight of n without blocking.
 // On success, returns true. On failure, returns false and leaves the semaphore unchanged.
 func (s *Weighted) TryAcquire(n int64) bool {
+	if n < 0 {
+		panic("semaphore: n < 0")
+	}
 	s.mu.Lock()
 	success := s.size-s.cur >= n && s.waiters.Len() == 0
 	if success {
@@ -118,8 +124,11 @@ func (s *Weighted) TryAcquire(n int64) bool {
 	return success
 }
 
-// Release releases the semaphore with a weight of n.
+// Release releases the semaphore with a non-negative weight of n.
 func (s *Weighted) Release(n int64) {
+	if n < 0 {
+		panic("semaphore: n < 0")
+	}
 	s.mu.Lock()
 	s.cur -= n
 	if s.cur < 0 {
@@ -139,15 +148,15 @@ func (s *Weighted) notifyWaiters() {
 
 		w := next.Value.(waiter)
 		if s.size-s.cur < w.n {
-			// Not enough tokens for the next waiter.  We could keep going (to try to
+			// Not enough tokens for the next waiter. We could keep going (to try to
 			// find a waiter with a smaller request), but under load that could cause
 			// starvation for large requests; instead, we leave all remaining waiters
 			// blocked.
 			//
 			// Consider a semaphore used as a read-write lock, with N tokens, N
-			// readers, and one writer.  Each reader can Acquire(1) to obtain a read
-			// lock.  The writer can Acquire(N) to obtain a write lock, excluding all
-			// of the readers.  If we allow the readers to jump ahead in the queue,
+			// readers, and one writer. Each reader can Acquire(1) to obtain a read
+			// lock. The writer can Acquire(N) to obtain a write lock, excluding all
+			// of the readers. If we allow the readers to jump ahead in the queue,
 			// the writer will starve — there is always one token available for every
 			// reader.
 			break

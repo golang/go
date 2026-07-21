@@ -1,0 +1,11 @@
+[short] skip 'builds pkgsite on clean GOCACHE'
+
+# Test that go doc -http succeeds on a clean GOCACHE (golang/go#80287).
+env TEST_GODOC_BUILD_ONLY=1
+env GOCACHE=$WORK/clean-gocache
+
+# First run with clean GOCACHE
+go doc -http fmt
+
+# Second run with existing GOCACHE
+go doc -http fmt

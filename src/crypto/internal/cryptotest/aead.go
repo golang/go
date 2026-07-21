@@ -53,6 +53,59 @@ func TestAEAD(t *testing.T, mAEAD MakeAEAD) {
 		}
 	})
 
+	t.Run("OutOfBounds", func(t *testing.T) {
+		// v1.26.0 and earlier have a harmless ciphertext overread/write in
+		// short-tag (not FIPS 140 Approved) AES-GCM.
+		MustMinimumFIPS140ModuleVersion(t, "v1.28.0")
+		// boundaryLengths covers every offset within an AES block, as well as the tail
+		// of a multi-block message, since that's where implementations handle partial
+		// blocks, and are most likely to access memory past the end of a buffer.
+		var boundaryLengths = []int{
+			0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15,
+			16, 17, 18, 127, 128, 129, 130, 131, 156, 8193,
+		}
+		for _, ptLen := range boundaryLengths {
+			t.Run(fmt.Sprintf("Plaintext-Length=%d", ptLen), func(t *testing.T) {
+				rng := newRandReader(t)
+
+				nonce := make([]byte, aead.NonceSize())
+				rng.Read(nonce)
+
+				plaintext, addData := make([]byte, ptLen), make([]byte, 16)
+				rng.Read(plaintext)
+				rng.Read(addData)
+
+				// Run a seal/open cycle with every buffer placed against an
+				// inaccessible page, so that any access past the end of a
+				// buffer (Boundary=End) or before its start (Boundary=Start)
+				// faults, rather than silently landing in adjacent memory.
+				for _, boundary := range []string{"Start", "End"} {
+					t.Run("Boundary="+boundary, func(t *testing.T) {
+						guarded := func(b []byte) []byte {
+							start, end := BoundarySlices(t, len(b))
+							if boundary == "Start" {
+								copy(start, b)
+								return start
+							}
+							copy(end, b)
+							return end
+						}
+
+						src, ad := guarded(plaintext), guarded(addData)
+						dst := guarded(make([]byte, ptLen+aead.Overhead()))
+
+						ciphertext := sealMsg(t, aead, dst[:0], nonce, src, ad)
+
+						after := openWithoutError(t, aead, guarded(plaintext)[:0], nonce, ciphertext, ad)
+						if !bytes.Equal(after, plaintext) {
+							t.Errorf("plaintext is different after a seal/open cycle; got %s, want %s", truncateHex(after), truncateHex(plaintext))
+						}
+					})
+				}
+			})
+		}
+	})
+
 	t.Run("InputNotModified", func(t *testing.T) {
 
 		// Test all combinations of plaintext and additional data lengths.

@@ -4,6 +4,8 @@
 
 package ssa
 
+import "cmd/compile/internal/ssa/block"
+
 // critical splits critical edges (those that go from a block with
 // more than one outedge to a block with more than one inedge).
 // Regalloc wants a critical-edge-free CFG so it can implement phi values.
@@ -45,7 +47,7 @@ func critical(f *Func) {
 			e := b.Preds[i]
 			p := e.b
 			pi := e.i
-			if p.Kind == BlockPlain {
+			if p.Kind == block.BlockPlain {
 				i++
 				continue // only single output block
 			}
@@ -60,7 +62,7 @@ func critical(f *Func) {
 					// splitting doesn't necessarily remove the critical edge,
 					// since we're iterating over len(f.Blocks) above, this forces
 					// the new blocks to be re-examined.
-					d = f.NewBlock(BlockPlain)
+					d = f.NewBlock(block.BlockPlain)
 					d.Pos = p.Pos
 					blocks[argID] = d
 					if f.pass.debug > 0 {
@@ -72,7 +74,7 @@ func critical(f *Func) {
 			} else {
 				// no existing block, so allocate a new block
 				// to place on the edge
-				d = f.NewBlock(BlockPlain)
+				d = f.NewBlock(block.BlockPlain)
 				d.Pos = p.Pos
 				if f.pass.debug > 0 {
 					f.Warnl(p.Pos, "split critical edge")

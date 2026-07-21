@@ -37,14 +37,14 @@ func decomposeBuiltin(f *Func) {
 	// accumulate new LocalSlots in newNames for addition after the iteration.  This decomposition is for
 	// builtin types with leaf components, and thus there is no need to reprocess the newly create LocalSlots.
 	var toDelete []namedVal
-	var newNames []*LocalSlot
+	var newNames []LocalSlot
 	for i, name := range f.Names {
 		t := name.Type
 		switch {
 		case t.IsInteger() && t.Size() > f.Config.RegSize:
-			hiName, loName := f.SplitInt64(name)
+			hiName, loName := f.SplitInt64(f.localSlotAddr(name))
 			newNames = maybeAppend2(f, newNames, hiName, loName)
-			for j, v := range f.NamedValues[*name] {
+			for j, v := range f.NamedValues[name] {
 				if v.Op != OpInt64Make {
 					continue
 				}
@@ -53,9 +53,9 @@ func decomposeBuiltin(f *Func) {
 				toDelete = append(toDelete, namedVal{i, j})
 			}
 		case t.IsComplex():
-			rName, iName := f.SplitComplex(name)
+			rName, iName := f.SplitComplex(f.localSlotAddr(name))
 			newNames = maybeAppend2(f, newNames, rName, iName)
-			for j, v := range f.NamedValues[*name] {
+			for j, v := range f.NamedValues[name] {
 				if v.Op != OpComplexMake {
 					continue
 				}
@@ -64,9 +64,9 @@ func decomposeBuiltin(f *Func) {
 				toDelete = append(toDelete, namedVal{i, j})
 			}
 		case t.IsString():
-			ptrName, lenName := f.SplitString(name)
+			ptrName, lenName := f.SplitString(f.localSlotAddr(name))
 			newNames = maybeAppend2(f, newNames, ptrName, lenName)
-			for j, v := range f.NamedValues[*name] {
+			for j, v := range f.NamedValues[name] {
 				if v.Op != OpStringMake {
 					continue
 				}
@@ -75,10 +75,10 @@ func decomposeBuiltin(f *Func) {
 				toDelete = append(toDelete, namedVal{i, j})
 			}
 		case t.IsSlice():
-			ptrName, lenName, capName := f.SplitSlice(name)
+			ptrName, lenName, capName := f.SplitSlice(f.localSlotAddr(name))
 			newNames = maybeAppend2(f, newNames, ptrName, lenName)
 			newNames = maybeAppend(f, newNames, capName)
-			for j, v := range f.NamedValues[*name] {
+			for j, v := range f.NamedValues[name] {
 				if v.Op != OpSliceMake {
 					continue
 				}
@@ -88,9 +88,9 @@ func decomposeBuiltin(f *Func) {
 				toDelete = append(toDelete, namedVal{i, j})
 			}
 		case t.IsInterface():
-			typeName, dataName := f.SplitInterface(name)
+			typeName, dataName := f.SplitInterface(f.localSlotAddr(name))
 			newNames = maybeAppend2(f, newNames, typeName, dataName)
-			for j, v := range f.NamedValues[*name] {
+			for j, v := range f.NamedValues[name] {
 				if v.Op != OpIMake {
 					continue
 				}
@@ -109,15 +109,15 @@ func decomposeBuiltin(f *Func) {
 	f.Names = append(f.Names, newNames...)
 }
 
-func maybeAppend(f *Func, ss []*LocalSlot, s *LocalSlot) []*LocalSlot {
+func maybeAppend(f *Func, ss []LocalSlot, s *LocalSlot) []LocalSlot {
 	if _, ok := f.NamedValues[*s]; !ok {
 		f.NamedValues[*s] = nil
-		return append(ss, s)
+		return append(ss, *s)
 	}
 	return ss
 }
 
-func maybeAppend2(f *Func, ss []*LocalSlot, s1, s2 *LocalSlot) []*LocalSlot {
+func maybeAppend2(f *Func, ss []LocalSlot, s1, s2 *LocalSlot) []LocalSlot {
 	return maybeAppend(f, maybeAppend(f, ss, s1), s2)
 }
 
@@ -244,14 +244,14 @@ func decomposeUser(f *Func) {
 	}
 	// Split up named values into their components.
 	i := 0
-	var newNames []*LocalSlot
+	var newNames []LocalSlot
 	for _, name := range f.Names {
 		t := name.Type
 		switch {
 		case isStructNotSIMD(t):
-			newNames = decomposeUserStructInto(f, name, newNames)
+			newNames = decomposeUserStructInto(f, f.localSlotAddr(name), newNames)
 		case t.IsArray():
-			newNames = decomposeUserArrayInto(f, name, newNames)
+			newNames = decomposeUserArrayInto(f, f.localSlotAddr(name), newNames)
 		default:
 			f.Names[i] = name
 			i++
@@ -264,7 +264,7 @@ func decomposeUser(f *Func) {
 // decomposeUserArrayInto creates names for the element(s) of arrays referenced
 // by name where possible, and appends those new names to slots, which is then
 // returned.
-func decomposeUserArrayInto(f *Func, name *LocalSlot, slots []*LocalSlot) []*LocalSlot {
+func decomposeUserArrayInto(f *Func, name *LocalSlot, slots []LocalSlot) []LocalSlot {
 	t := name.Type
 	if t.Size() == 0 {
 		// TODO(khr): Not sure what to do here.  Probably nothing.
@@ -297,13 +297,13 @@ func decomposeUserArrayInto(f *Func, name *LocalSlot, slots []*LocalSlot) []*Loc
 		return decomposeUserStructInto(f, elemName, slots)
 	}
 
-	return append(slots, elemName)
+	return append(slots, *elemName)
 }
 
 // decomposeUserStructInto creates names for the fields(s) of structs referenced
 // by name where possible, and appends those new names to slots, which is then
 // returned.
-func decomposeUserStructInto(f *Func, name *LocalSlot, slots []*LocalSlot) []*LocalSlot {
+func decomposeUserStructInto(f *Func, name *LocalSlot, slots []LocalSlot) []LocalSlot {
 	fnames := []*LocalSlot{} // slots for struct in name
 	t := name.Type
 	n := t.NumFields()
@@ -429,19 +429,19 @@ func deleteNamedVals(f *Func, toDelete []namedVal) {
 	// Get rid of obsolete names
 	for _, d := range toDelete {
 		loc := f.Names[d.locIndex]
-		vals := f.NamedValues[*loc]
+		vals := f.NamedValues[loc]
 		l := len(vals) - 1
 		if l > 0 {
 			vals[d.valIndex] = vals[l]
 		}
 		vals[l] = nil
-		f.NamedValues[*loc] = vals[:l]
+		f.NamedValues[loc] = vals[:l]
 	}
 	// Delete locations with no values attached.
 	end := len(f.Names)
 	for i := len(f.Names) - 1; i >= 0; i-- {
 		loc := f.Names[i]
-		vals := f.NamedValues[*loc]
+		vals := f.NamedValues[loc]
 		last := len(vals)
 		for j := len(vals) - 1; j >= 0; j-- {
 			if vals[j].Op == OpInvalid {
@@ -451,13 +451,13 @@ func deleteNamedVals(f *Func, toDelete []namedVal) {
 			}
 		}
 		if last < len(vals) {
-			f.NamedValues[*loc] = vals[:last]
+			f.NamedValues[loc] = vals[:last]
 		}
 		if len(vals) == 0 {
-			delete(f.NamedValues, *loc)
+			delete(f.NamedValues, loc)
 			end--
 			f.Names[i] = f.Names[end]
-			f.Names[end] = nil
+			f.Names[end] = LocalSlot{}
 		}
 	}
 	f.Names = f.Names[:end]

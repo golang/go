@@ -1,0 +1,68 @@
+[short] skip
+
+env GO111MODULE=off
+
+! go install p1
+stderr 'binary-only packages are no longer supported'
+
+mv p1_not_binary_only.go.txt p1/p1.go
+go install p1
+rm p1/p1.go
+! exists p1/p1.go
+
+! go install p2
+stderr 'no Go files'
+
+mv p1_missing.go.txt p1/missing.go
+! go install p2
+stderr 'package p2\n\timports p1: binary-only packages are no longer supported'
+
+go list -deps -e -f '{{.ImportPath}}: {{.BinaryOnly}}' p2
+stdout 'p1: true'
+stdout 'p2: false'
+
+! go install p3
+stderr 'package p3\n\timports p2\n\timports p1: binary-only packages are no longer supported'
+
+! go install p4
+stderr 'package p4\n\timports p3\n\timports p2\n\timports p1: binary-only packages are no longer supported'
+
+go list -deps -e -f '{{.ImportPath}}: {{.BinaryOnly}}' p4
+stdout 'p1: true'
+stdout 'p2: false'
+stdout 'p3: false'
+stdout 'p4: false'
+
+-- p1/p1.go --
+//go:binary-only-package
+
+package p1
+-- p2/p2.go --
+//go:binary-only-packages-are-not-great
+
+package p2
+import "p1"
+func F() { p1.F(true) }
+-- p1_not_binary_only.go.txt --
+package p1
+import "fmt"
+func F(b bool) { fmt.Printf("hello from p1\n"); if b { F(false) } }
+-- p1_missing.go.txt --
+//go:binary-only-package
+
+package p1
+import _ "fmt"
+func G()
+-- p3/p3.go --
+package p3
+
+import "p2"
+
+func G() { p2.F() }
+
+-- p4/p4.go --
+package p4
+
+import "p3"
+
+func H() { p3.G() }

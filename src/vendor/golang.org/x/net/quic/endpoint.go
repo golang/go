@@ -149,12 +149,11 @@ func (e *Endpoint) Close(ctx context.Context) error {
 	select {
 	case <-e.closec:
 	case <-ctx.Done():
-		for _, c := range conns {
-			c.exit()
-		}
-		return ctx.Err()
 	}
-	return nil
+	for _, c := range conns {
+		c.exit()
+	}
+	return ctx.Err() // nil if context hasn't expired
 }
 
 // Accept waits for and returns the next connection.

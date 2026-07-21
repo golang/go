@@ -4,6 +4,8 @@
 
 package ssa
 
+import "cmd/compile/internal/ssa/block"
+
 // fuseBranchRedirect checks for a CFG in which the outbound branch
 // of an If block can be derived from its predecessor If block, in
 // some such cases, we can redirect the predecessor If block to the
@@ -33,7 +35,7 @@ func fuseBranchRedirect(f *Func) bool {
 	changed := false
 	for i := len(f.Blocks) - 1; i >= 0; i-- {
 		b := f.Blocks[i]
-		if b.Kind != BlockIf {
+		if b.Kind != block.BlockIf {
 			continue
 		}
 		// b is either empty or only contains the control value.
@@ -47,7 +49,7 @@ func fuseBranchRedirect(f *Func) bool {
 		for k := 0; k < len(b.Preds); k++ {
 			pk := b.Preds[k]
 			p := pk.b
-			if p.Kind != BlockIf || p == b {
+			if p.Kind != block.BlockIf || p == b {
 				continue
 			}
 			pbranch := positive
@@ -103,7 +105,7 @@ func fuseBranchRedirect(f *Func) bool {
 		}
 		if len(b.Preds) == 0 && b != f.Entry {
 			// Block is now dead.
-			b.Kind = BlockInvalid
+			b.Kind = block.BlockInvalid
 		}
 	}
 	ft.restore()

@@ -85,3 +85,19 @@ func TestLimitBitlenUnsigned(t *testing.T) {
 func TestLimitPopcountUnsigned(t *testing.T) {
 	testLimitUnaryOpUnsigned8(t, "popcount", limit{-128, 127, 0, 8}, limit.popcount, func(x uint8) uint8 { return uint8(bits.OnesCount8(x)) })
 }
+
+func TestConvertIntWithBitsize(t *testing.T) {
+	if got := convertIntWithBitsize[int64, uint64](255, 8); got != -1 {
+		t.Errorf("convertIntWithBitsize(255, 8) = %d; want -1", got)
+	}
+	if got := convertIntWithBitsize[uint64, int64](-1, 8); got != 255 {
+		t.Errorf("convertIntWithBitsize(-1, 8) = %d; want 255", got)
+	}
+
+	if got := convertIntWithBitsize[int64, uint64](127, 8); got != 127 {
+		t.Errorf("convertIntWithBitsize(127, 8) = %d; want 127", got)
+	}
+	if got := convertIntWithBitsize[uint64, int64](127, 8); got != 127 {
+		t.Errorf("convertIntWithBitsize(127, 8) = %d; want 127", got)
+	}
+}

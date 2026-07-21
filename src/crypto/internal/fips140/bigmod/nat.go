@@ -640,7 +640,7 @@ func (x *Nat) shiftIn(y uint, m *Modulus) *Nat {
 		}
 		// Like in maybeSubtractModulus, we need the subtraction if either it
 		// didn't underflow (meaning 2x + b > m) or if computing 2x + b
-		// overflowed (meaning 2x + b > 2^_W*n > m).
+		// overflowed (meaning 2x + b > 2^(_W * n) > m).
 		needSubtraction = not(choice(borrow)) | choice(carry)
 	}
 	return x.assign(needSubtraction, d)
@@ -699,7 +699,7 @@ func (out *Nat) resetFor(m *Modulus) *Nat {
 // range for results computed by higher level operations.
 //
 // always is usually a carry that indicates that the operation that produced x
-// overflowed its size, meaning abstractly x > 2^_W*n > m even if x < m.
+// overflowed its size, meaning abstractly x > 2^(_W * n) > m even if x < m.
 //
 // x and m operands must have the same announced length.
 //
@@ -1096,7 +1096,8 @@ func (x *Nat) GCDVarTime(a, b *Nat) (*Nat, error) {
 	return x.set(u), nil
 }
 
-// extendedGCD computes u and A such that u = GCD(a, m) = A*a - B*m.
+// extendedGCD computes u = GCD(a, m). Additionally, if a < m, it computes A
+// such that u = A*a - B*m. If a >= m, A is undefined.
 //
 // u will have the size of the larger of a and m, and A will have the size of m.
 //
@@ -1125,6 +1126,8 @@ func extendedGCD(a, m *Nat) (u, A *Nat, err error) {
 	//    value.
 	//
 	// Note this algorithm does not handle either input being zero.
+	//
+	// See https://go.dev/issue/78218 for a Gobra proof of this implementation.
 
 	if a.IsZero() == yes || m.IsZero() == yes {
 		return nil, nil, errors.New("extendedGCD: a or m is zero")
@@ -1146,29 +1149,34 @@ func extendedGCD(a, m *Nat) (u, A *Nat, err error) {
 
 	// Before and after each loop iteration, the following hold:
 	//
-	//   u = A*a - B*m
-	//   v = D*m - C*a
-	//   0 < u <= a
-	//   0 <= v <= m
-	//   0 <= A < m
-	//   0 <= B <= a
-	//   0 <= C < m
-	//   0 <= D <= a
+	//	0 <  m
+	//	0 <  u <= a
+	//	0 <= v <= m
+	//	a or m is odd
+	//	u or v is odd
+	//	gcd(u, v) = gcd(a, m)
 	//
-	// After each loop iteration, u and v only get smaller, and at least one of
-	// them shrinks by at least a factor of two.
+	// If a < m, then the following also hold:
+	//
+	//	0 <= A <  m
+	//	0 <= B <  a
+	//	0 <= C <  m
+	//	0 <= D <= a
+	//	u = A*a - B*m
+	//	v = D*m - C*a
+	//
+	// After each loop iteration, u + v only gets smaller, and at least one of
+	// u and v shrinks by at least a factor of two.
 	for {
 		// If both u and v are odd, subtract the smaller from the larger.
 		// If u = v, we need to subtract from v to hit the modified exit condition.
 		if u.IsOdd() == yes && v.IsOdd() == yes {
 			if v.cmpGeq(u) == no {
 				u.sub(v)
-				A.Add(C, &Modulus{nat: m})
-				B.Add(D, &Modulus{nat: a})
+				syncAdd(A, C, B, D, m, a)
 			} else {
 				v.sub(u)
-				C.Add(A, &Modulus{nat: m})
-				D.Add(B, &Modulus{nat: a})
+				syncAdd(C, A, D, B, m, a)
 			}
 		}
 
@@ -1199,8 +1207,26 @@ func extendedGCD(a, m *Nat) (u, A *Nat, err error) {
 		}
 
 		if v.IsZero() == yes {
+			// Base case: v = 0 -> gcd(a, m) = gcd(u, 0) = u.
 			return u, A, nil
 		}
+	}
+}
+
+// syncAdd adds Y to X and W to Z, then subtracts m from X and a from Z if
+// X + Y >= m. This is synchronized single-subtraction modular reduction:
+// X = (X + Y) mod m, with Z tracking the same wrap/no-wrap.
+//
+//go:norace
+func syncAdd(X, Y, Z, W, m, a *Nat) {
+	c := X.add(Y)
+	Z.add(W)
+
+	// Like in maybeSubtractModulus, we need the subtraction if either
+	// X + Y >= m, or if X + Y overflowed (meaning X + Y >= 2^(_W * n) > m).
+	if choice(c) == yes || X.cmpGeq(m) == yes {
+		X.sub(m)
+		Z.sub(a)
 	}
 }
 

@@ -715,6 +715,60 @@ func TestParse(t *testing.T) {
 		if !reflect.DeepEqual(u, tt.out) {
 			t.Errorf("Parse(%q):\n\tgot  %v\n\twant %v\n", tt.in, ufmt(u), ufmt(tt.out))
 		}
+		u = MustParse(tt.in)
+		if !reflect.DeepEqual(u, tt.out) {
+			t.Errorf("MustParse(%q):\n\tgot  %v\n\twant %v\n", tt.in, ufmt(u), ufmt(tt.out))
+		}
+	}
+}
+
+func TestInvalidParse(t *testing.T) {
+	cases := []struct {
+		name string
+		in   string
+	}{
+		{
+			name: "null-character",
+			in:   "http://example.com/\x00",
+		},
+		{
+			name: "control-character",
+			in:   "http://example.com/\t",
+		},
+		{
+			name: "invalid-escape",
+			in:   "http://example.com/%zz",
+		},
+		{
+			name: "invalid-port",
+			in:   "http://example.com:port",
+		},
+		{
+			name: "malformed-ipv6",
+			in:   "http://[::1/",
+		},
+		{
+			name: "ambiguous",
+			in:   ":",
+		},
+	}
+
+	for _, tt := range cases {
+		t.Run(tt.name, func(t *testing.T) {
+			defer func() {
+				err := recover()
+				if err == nil {
+					t.Fatalf("MustParse(%q): should panic", tt.in)
+				}
+				if e, ok := err.(*Error); !ok || e.Op != "parse" {
+					t.Fatalf("MustParse(%q): unexpected panic: %#v", tt.in, err)
+				}
+			}()
+			if _, err := Parse(tt.in); err == nil {
+				t.Errorf("Parse(%q): should error", tt.in)
+			}
+			_ = MustParse(tt.in)
+		})
 	}
 }
 

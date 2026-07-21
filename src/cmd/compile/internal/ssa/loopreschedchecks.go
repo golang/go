@@ -5,6 +5,7 @@
 package ssa
 
 import (
+	"cmd/compile/internal/ssa/block"
 	"cmd/compile/internal/types"
 	"fmt"
 )
@@ -178,7 +179,7 @@ func insertLoopReschedChecks(f *Func) {
 		if p.i != 0 {
 			likely = BranchUnlikely
 		}
-		if bb.Kind != BlockPlain { // backedges can be unconditional. e.g., if x { something; continue }
+		if bb.Kind != block.BlockPlain { // backedges can be unconditional. e.g., if x { something; continue }
 			bb.Likely = likely
 		}
 
@@ -207,8 +208,8 @@ func insertLoopReschedChecks(f *Func) {
 		// the header, and the other phi functions within header are
 		// adjusted for the additional input.
 
-		test := f.NewBlock(BlockIf)
-		sched := f.NewBlock(BlockPlain)
+		test := f.NewBlock(block.BlockIf)
+		sched := f.NewBlock(block.BlockPlain)
 
 		test.Pos = bb.Pos
 		sched.Pos = bb.Pos

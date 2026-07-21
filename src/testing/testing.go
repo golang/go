@@ -1017,7 +1017,9 @@ var (
 // may be called simultaneously from multiple goroutines.
 type T struct {
 	common
-	denyParallel bool
+	// denyParallel, if non-empty, is the operation (such as "t.Setenv") that
+	// forbids a later call to t.Parallel.
+	denyParallel string
 	tstate       *testState // For running tests and subtests.
 }
 
@@ -1902,7 +1904,12 @@ func pcToName(pc uintptr) string {
 	return frame.Function
 }
 
-const parallelConflict = `testing: test using t.Setenv, t.Chdir, or cryptotest.SetGlobalRandom can not use t.Parallel`
+// parallelConflict returns the panic message for a conflict between t.Parallel
+// and op, the operation that cannot be combined with a parallel test: one of
+// "t.Setenv", "t.Chdir", or "cryptotest.SetGlobalRandom".
+func parallelConflict(op string) string {
+	return "testing: test using " + op + " can not use t.Parallel"
+}
 
 // Parallel signals that this test is to be run in parallel with (and only with)
 // other parallel tests, and pauses until all non-parallel tests have finished.
@@ -1916,8 +1923,8 @@ func (t *T) Parallel() {
 	if t.isSynctest {
 		panic("testing: t.Parallel called inside synctest bubble")
 	}
-	if t.denyParallel {
-		panic(parallelConflict)
+	if t.denyParallel != "" {
+		panic(parallelConflict(t.denyParallel))
 	}
 	if t.parent.barrier == nil {
 		// T.Parallel has no effect when fuzzing.
@@ -1978,10 +1985,10 @@ func (t *T) Parallel() {
 //
 //go:linkname checkParallel testing.checkParallel
 func checkParallel(t *T) {
-	t.checkParallel()
+	t.checkParallel("cryptotest.SetGlobalRandom")
 }
 
-func (t *T) checkParallel() {
+func (t *T) checkParallel(op string) {
 	// Non-parallel subtests that have parallel ancestors may still
 	// run in parallel with other tests: they are only non-parallel
 	// with respect to the other subtests of the same parent.
@@ -1989,11 +1996,11 @@ func (t *T) checkParallel() {
 	// to deny those if the current test or any parent is parallel.
 	for c := &t.common; c != nil; c = c.parent {
 		if c.isParallel {
-			panic(parallelConflict)
+			panic(parallelConflict(op))
 		}
 	}
 
-	t.denyParallel = true
+	t.denyParallel = op
 }
 
 // Setenv calls os.Setenv(key, value) and uses Cleanup to
@@ -2003,7 +2010,7 @@ func (t *T) checkParallel() {
 // Because Setenv affects the whole process, it cannot be used
 // in parallel tests or tests with parallel ancestors.
 func (t *T) Setenv(key, value string) {
-	t.checkParallel()
+	t.checkParallel("t.Setenv")
 	t.common.Setenv(key, value)
 }
 
@@ -2014,7 +2021,7 @@ func (t *T) Setenv(key, value string) {
 // Because Chdir affects the whole process, it cannot be used
 // in parallel tests or tests with parallel ancestors.
 func (t *T) Chdir(dir string) {
-	t.checkParallel()
+	t.checkParallel("t.Chdir")
 	t.common.Chdir(dir)
 }
 
@@ -2036,11 +2043,6 @@ func tRunner(t *T, fn func(t *T)) {
 	// a signal saying that the test is done.
 	defer func() {
 		t.checkRaces()
-
-		// TODO(#61034): This is the wrong place for this check.
-		if t.Failed() {
-			numFailed.Add(1)
-		}
 
 		// Check if the test panicked or Goexited inappropriately.
 		//
@@ -2170,6 +2172,14 @@ func tRunner(t *T, fn func(t *T)) {
 		for root := &t.common; root.parent != nil; root = root.parent {
 			root.flushPartial()
 		}
+
+		// Record this test's failure for -failfast. This must happen after the
+		// test's cleanup functions have run, since a cleanup may call t.Fail.
+		// See go.dev/issue/61034.
+		if t.Failed() {
+			numFailed.Add(1)
+		}
+
 		t.report() // Report after all subtests have finished.
 
 		// Do not lock t.done to allow race detector to detect race in case

@@ -425,7 +425,7 @@ func (check *Checker) constDecl(obj *Const, typ, init ast.Expr, inherited bool) 
 			// (see issues go.dev/issue/42991, go.dev/issue/42992).
 			check.errpos = atPos(obj.pos)
 		}
-		check.expr(nil, &x, init)
+		check.expr(nil, nil, &x, init)
 	}
 	check.initConst(obj, &x)
 }
@@ -458,7 +458,7 @@ func (check *Checker) varDecl(obj *Var, lhs []*Var, typ, init ast.Expr) {
 	if lhs == nil || len(lhs) == 1 {
 		assert(lhs == nil || lhs[0] == obj)
 		var x operand
-		check.expr(newTarget(obj.typ, obj.name), &x, init)
+		check.expr(newTarget(obj.typ, obj.name), obj.typ, &x, init)
 		check.initVar(obj, &x, "variable declaration")
 		return
 	}

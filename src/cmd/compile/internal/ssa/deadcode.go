@@ -5,6 +5,7 @@
 package ssa
 
 import (
+	"cmd/compile/internal/ssa/block"
 	"cmd/internal/src"
 )
 
@@ -30,7 +31,7 @@ func ReachableBlocks(f *Func) []bool {
 		p = p[:len(p)-1]
 		// Mark successors as reachable
 		s := b.Succs
-		if b.Kind == BlockFirst {
+		if b.Kind == block.BlockFirst {
 			s = s[:1]
 		}
 		for _, e := range s {
@@ -190,11 +191,11 @@ func deadcode(f *Func) {
 		if !reachable[b.ID] {
 			continue
 		}
-		if b.Kind != BlockFirst {
+		if b.Kind != block.BlockFirst {
 			continue
 		}
 		b.removeEdge(1)
-		b.Kind = BlockPlain
+		b.Kind = block.BlockPlain
 		b.Likely = BranchUnknown
 	}
 
@@ -213,7 +214,7 @@ func deadcode(f *Func) {
 	for _, name := range f.Names {
 		j := 0
 		s.clear()
-		values := f.NamedValues[*name]
+		values := f.NamedValues[name]
 		for _, v := range values {
 			if live[v.ID] && !s.contains(v.ID) {
 				values[j] = v
@@ -222,14 +223,14 @@ func deadcode(f *Func) {
 			}
 		}
 		if j == 0 {
-			delete(f.NamedValues, *name)
+			delete(f.NamedValues, name)
 		} else {
 			f.Names[i] = name
 			i++
 			for k := len(values) - 1; k >= j; k-- {
 				values[k] = nil
 			}
-			f.NamedValues[*name] = values[:j]
+			f.NamedValues[name] = values[:j]
 		}
 	}
 	clear(f.Names[i:])

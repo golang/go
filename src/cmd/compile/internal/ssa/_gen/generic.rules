@@ -74,6 +74,13 @@
 (PopCount32 (Const32 [c])) && config.PtrSize == 4 => (Const32 [int32(bits.OnesCount32(uint32(c)))])
 (PopCount16 (Const16 [c])) && config.PtrSize == 4 => (Const32 [int32(bits.OnesCount16(uint16(c)))])
 (PopCount8  (Const8  [c])) && config.PtrSize == 4 => (Const32 [int32(bits.OnesCount8(uint8(c)))])
+(Bswap64 (Const64 [c])) => (Const64 [int64(bits.ReverseBytes64(uint64(c)))])
+(Bswap32 (Const32 [c])) => (Const32 [int32(bits.ReverseBytes32(uint32(c)))])
+(Bswap16 (Const16 [c])) => (Const16 [int16(bits.ReverseBytes16(uint16(c)))])
+(BitRev64 (Const64 [c])) => (Const64 [int64(bits.Reverse64(uint64(c)))])
+(BitRev32 (Const32 [c])) => (Const32 [int32(bits.Reverse32(uint32(c)))])
+(BitRev16 (Const16 [c])) => (Const16 [int16(bits.Reverse16(uint16(c)))])
+(BitRev8  (Const8  [c])) => (Const8  [int8(bits.Reverse8(uint8(c)))])
 (Add64carry (Const64 <t> [x]) (Const64 [y]) (Const64 [c])) && c >= 0 && c <= 1 => (MakeTuple (Const64 <t> [bitsAdd64(x, y, c).sum]) (Const64 <t> [bitsAdd64(x, y, c).carry]))
 
 (Trunc16to8  (ZeroExt8to16  x)) => x
@@ -144,17 +151,26 @@
 (Mul32uover (Const32 [c]) (Const32 [d])) => (MakeTuple (Const32 <typ.UInt32> [bitsMulU32(c, d).lo]) (ConstBool <typ.Bool> [bitsMulU32(c,d).hi != 0]))
 (Mul64uover (Const64 [c]) (Const64 [d])) => (MakeTuple (Const64 <typ.UInt64> [bitsMulU64(c, d).lo]) (ConstBool <typ.Bool> [bitsMulU64(c,d).hi != 0]))
 
-(And8   (Const8 [c])   (Const8 [d]))   => (Const8  [c&d])
-(And16  (Const16 [c])  (Const16 [d]))  => (Const16 [c&d])
-(And32  (Const32 [c])  (Const32 [d]))  => (Const32 [c&d])
-(And64  (Const64 [c])  (Const64 [d]))  => (Const64 [c&d])
+// bits.Mul64(x, 1<<s) for 0 < s < 64.
+//   hi:lo = (x >> (64-s), x << s)
+(Mul64uhilo x (Const64 [c])) && c > 0 && isPowerOfTwo(uint64(c)) =>
+  (MakeTuple
+    (Rsh64Ux64 <typ.UInt64> x (Const64 <typ.UInt64> [64 - log64u(uint64(c))]))
+    (Lsh64x64  <typ.UInt64> x (Const64 <typ.UInt64> [log64u(uint64(c))])))
 
-(Or8   (Const8 [c])   (Const8 [d]))   => (Const8  [c|d])
-(Or16  (Const16 [c])  (Const16 [d]))  => (Const16 [c|d])
-(Or32  (Const32 [c])  (Const32 [d]))  => (Const32 [c|d])
-(Or64  (Const64 [c])  (Const64 [d]))  => (Const64 [c|d])
+(AndB  (ConstBool [c]) (ConstBool [d])) => (ConstBool [c&&d])
+(And8  (Const8    [c]) (Const8    [d])) => (Const8    [c&d])
+(And16 (Const16   [c]) (Const16   [d])) => (Const16   [c&d])
+(And32 (Const32   [c]) (Const32   [d])) => (Const32   [c&d])
+(And64 (Const64   [c]) (Const64   [d])) => (Const64   [c&d])
 
-(Xor8   (Const8 [c])   (Const8 [d]))   => (Const8  [c^d])
+(OrB  (ConstBool [c]) (ConstBool [d])) => (ConstBool [c||d])
+(Or8  (Const8    [c]) (Const8    [d])) => (Const8    [c|d])
+(Or16 (Const16   [c]) (Const16   [d])) => (Const16   [c|d])
+(Or32 (Const32   [c]) (Const32   [d])) => (Const32   [c|d])
+(Or64 (Const64   [c]) (Const64   [d])) => (Const64   [c|d])
+
+(Xor8   (Const8  [c])  (Const8  [d]))  => (Const8  [c^d])
 (Xor16  (Const16 [c])  (Const16 [d]))  => (Const16 [c^d])
 (Xor32  (Const32 [c])  (Const32 [d]))  => (Const32 [c^d])
 (Xor64  (Const64 [c])  (Const64 [d]))  => (Const64 [c^d])
@@ -265,12 +281,12 @@
 (IsInBounds (ZeroExt8to64  (Rsh8Ux64  _ (Const64 [c]))) (Const64 [d])) && 0 < c && c <  8 && 1<<uint( 8-c)-1 < d => (ConstBool [true])
 (IsInBounds (ZeroExt8to32  (Rsh8Ux64  _ (Const64 [c]))) (Const32 [d])) && 0 < c && c <  8 && 1<<uint( 8-c)-1 < d => (ConstBool [true])
 (IsInBounds (ZeroExt8to16  (Rsh8Ux64  _ (Const64 [c]))) (Const16 [d])) && 0 < c && c <  8 && 1<<uint( 8-c)-1 < d => (ConstBool [true])
-(IsInBounds                (Rsh8Ux64  _ (Const64 [c]))  (Const64 [d])) && 0 < c && c <  8 && 1<<uint( 8-c)-1 < d => (ConstBool [true])
+(IsInBounds                (Rsh8Ux64  _ (Const64 [c]))  (Const8  [d])) && 0 < c && c <  8 && 1<<uint( 8-c)-1 < d => (ConstBool [true])
 (IsInBounds (ZeroExt16to64 (Rsh16Ux64 _ (Const64 [c]))) (Const64 [d])) && 0 < c && c < 16 && 1<<uint(16-c)-1 < d => (ConstBool [true])
-(IsInBounds (ZeroExt16to32 (Rsh16Ux64 _ (Const64 [c]))) (Const64 [d])) && 0 < c && c < 16 && 1<<uint(16-c)-1 < d => (ConstBool [true])
-(IsInBounds                (Rsh16Ux64 _ (Const64 [c]))  (Const64 [d])) && 0 < c && c < 16 && 1<<uint(16-c)-1 < d => (ConstBool [true])
+(IsInBounds (ZeroExt16to32 (Rsh16Ux64 _ (Const64 [c]))) (Const32 [d])) && 0 < c && c < 16 && 1<<uint(16-c)-1 < d => (ConstBool [true])
+(IsInBounds                (Rsh16Ux64 _ (Const64 [c]))  (Const16 [d])) && 0 < c && c < 16 && 1<<uint(16-c)-1 < d => (ConstBool [true])
 (IsInBounds (ZeroExt32to64 (Rsh32Ux64 _ (Const64 [c]))) (Const64 [d])) && 0 < c && c < 32 && 1<<uint(32-c)-1 < d => (ConstBool [true])
-(IsInBounds                (Rsh32Ux64 _ (Const64 [c]))  (Const64 [d])) && 0 < c && c < 32 && 1<<uint(32-c)-1 < d => (ConstBool [true])
+(IsInBounds                (Rsh32Ux64 _ (Const64 [c]))  (Const32 [d])) && 0 < c && c < 32 && 1<<uint(32-c)-1 < d => (ConstBool [true])
 (IsInBounds                (Rsh64Ux64 _ (Const64 [c]))  (Const64 [d])) && 0 < c && c < 64 && 1<<uint(64-c)-1 < d => (ConstBool [true])
 
 (IsSliceInBounds x x) => (ConstBool [true])
@@ -659,15 +675,19 @@
 (Leq64F  (Const64F [c]) (Const64F [d])) => (ConstBool [c <= d])
 
 // simplifications
-(Or(64|32|16|8) x x) => x
+(Or(64|32|16|8|B) x x) => x
 (Or(64|32|16|8) (Const(64|32|16|8)  [0]) x) => x
 (Or(64|32|16|8) (Const(64|32|16|8) [-1]) _) => (Const(64|32|16|8) [-1])
 (Or(64|32|16|8) (Com(64|32|16|8)     x)  x) => (Const(64|32|16|8) [-1])
+(OrB (ConstBool [false]) x) => x
+(OrB (ConstBool [true])  _) => (ConstBool [true])
 
-(And(64|32|16|8) x x) => x
+(And(64|32|16|8|B) x x) => x
 (And(64|32|16|8) (Const(64|32|16|8) [-1]) x) => x
 (And(64|32|16|8) (Const(64|32|16|8)  [0]) _) => (Const(64|32|16|8) [0])
 (And(64|32|16|8) (Com(64|32|16|8)     x)  x) => (Const(64|32|16|8) [0])
+(AndB (ConstBool [true])  x) => x
+(AndB (ConstBool [false]) _) => (ConstBool [false])
 
 (Xor(64|32|16|8) x x) => (Const(64|32|16|8) [0])
 (Xor(64|32|16|8) (Const(64|32|16|8) [0]) x) => x
@@ -2535,6 +2555,14 @@
 
 // Canonicalize sext(int(bool)) => zext(int(bool))
 (SignExt8to(64|32|16) cvt:(CvtBoolToUint8 bool)) => (ZeroExt8to(64|32|16) cvt)
+
+// int(bool)^1 => int(!bool)
+(Xor8                                (CvtBoolToUint8        bool)  (Const8 [1]))          && invertibleBool(bool.Op) =>                       (CvtBoolToUint8        (Not <bool.Type> bool))
+(Xor(64|32|16) (ZeroExt8to(64|32|16) (CvtBoolToUint8 <cvtT> bool)) (Const(64|32|16) [1])) && invertibleBool(bool.Op) => (ZeroExt8to(64|32|16) (CvtBoolToUint8 <cvtT> (Not <bool.Type> bool)))
+
+// int(!bool)^c => int(bool)^(c^1)
+(Xor8                                (CvtBoolToUint8 <cvtT> (Not bool))  (Const8          <constT> [c])) && c != 1 => (Xor8                                (CvtBoolToUint8 <cvtT> bool)  (Const8          <constT> [c^1]))
+(Xor(64|32|16) (ZeroExt8to(64|32|16) (CvtBoolToUint8 <cvtT> (Not bool))) (Const(64|32|16) <constT> [c])) && c != 1 => (Xor(64|32|16) (ZeroExt8to(64|32|16) (CvtBoolToUint8 <cvtT> bool)) (Const(64|32|16) <constT> [c^1]))
 
 // ----------------------------------------------------------------------------
 // Disabled example rules (https://github.com/golang/go/issues/80320).

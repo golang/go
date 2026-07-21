@@ -314,20 +314,29 @@ func testName(pkg, variant string) string {
 // goTest represents all options to a "go test" command. The final command will
 // combine configuration from goTest and tester flags.
 type goTest struct {
-	timeout  time.Duration // If non-zero, override timeout
-	short    bool          // If true, force -short
-	tags     []string      // Build tags
-	race     bool          // Force -race
-	bench    bool          // Run benchmarks (briefly), not tests.
-	runTests string        // Regexp of tests to run
-	cpu      string        // If non-empty, -cpu flag
-	skip     string        // If non-empty, -skip flag
+	short    bool     // If true, force -short
+	tags     []string // Build tags
+	race     bool     // Force -race
+	bench    bool     // Run benchmarks (briefly), not tests.
+	runTests string   // Regexp of tests to run
+	cpu      string   // If non-empty, -cpu flag
+	skip     string   // If non-empty, -skip flag
 
 	gcflags   string // If non-empty, build with -gcflags=all=X
 	ldflags   string // If non-empty, build with -ldflags=X
 	buildmode string // If non-empty, -buildmode flag
 
 	env []string // Environment variables to add, as KEY=VAL. KEY= unsets a variable
+
+	// timeout optionally raises the per-package test timeout to be at least this long.
+	// The zero value means to stay with the default test timeout.
+	// When adding new tests, this field generally doesn't need to be set, not unless
+	// the go commmand's default test timeout proves to be insufficient.
+	//
+	// In either case, the per-package test timeout get scaled by a multiplier,
+	// and applied only if the end result is longer than the go command's default
+	// test timeout.
+	timeout time.Duration
 
 	runOnHost bool // When cross-compiling, run this test on the host instead of guest
 
@@ -357,6 +366,18 @@ type goTest struct {
 func (opts *goTest) compileOnly() bool {
 	return opts.runTests == "^$" && !opts.bench
 }
+
+// scaledTimeout reports the per-package test timeout scaled by t.timeoutScale.
+func (opts *goTest) scaledTimeout(t *tester) time.Duration {
+	d := goTestDefaultTimeout
+	if opts.timeout != 0 {
+		d = opts.timeout
+	}
+	d *= time.Duration(t.timeoutScale)
+	return d
+}
+
+const goTestDefaultTimeout = 10 * time.Minute // Default value of go test -timeout flag.
 
 // bgCommand returns a go test Cmd and a post-Run flush function. The result
 // will write its output to stdout and stderr. If stdout==stderr, bgCommand
@@ -425,13 +446,9 @@ func (opts *goTest) run(t *tester) error {
 // The caller must call setupCmd on the resulting exec.Cmd to set its directory
 // and environment.
 func (opts *goTest) buildArgs(t *tester) (build, run, pkgs, testFlags []string, setupCmd func(*exec.Cmd)) {
-	run = append(run, "-count=1") // Disallow caching
-	if opts.timeout != 0 {
-		d := opts.timeout * time.Duration(t.timeoutScale)
+	run = append(run, "-count=1") // Disallow caching.
+	if d := opts.scaledTimeout(t); d > goTestDefaultTimeout {
 		run = append(run, "-timeout="+d.String())
-	} else if t.timeoutScale != 1 {
-		const goTestDefaultTimeout = 10 * time.Minute // Default value of go test -timeout flag.
-		run = append(run, "-timeout="+(goTestDefaultTimeout*time.Duration(t.timeoutScale)).String())
 	}
 	if opts.short || t.short {
 		run = append(run, "-short")
@@ -571,26 +588,7 @@ func (t *tester) registerStdTest(pkg string) {
 		defer timelog("end", dt.name)
 		ranGoTest = true
 
-		timeoutSec := 180 * time.Second
-		for _, pkg := range stdMatches {
-			switch pkg {
-			case "cmd/go":
-				timeoutSec *= 3
-			case "cmd/cgo/internal/testshared":
-				// This package can take 2-3 minutes to test, so 3 min timeout causes
-				// flaky failures, like https://ci.chromium.org/b/8679277370961616529.
-				// Use the default timeout for it rather than the custom 3 minute one.
-				timeoutSec = 0
-			case "internal/godebugs":
-				// This package can take 5-6 minutes to test when the asan mode is on.
-				// The asan modifier scales the timeout by 2, but even 3*2 minutes is
-				// sometimes not enough. See go.dev/issue/78392.
-				// Use the default timeout for it rather than the custom 3 minute one.
-				timeoutSec = 0
-			}
-		}
 		return (&goTest{
-			timeout: timeoutSec,
 			gcflags: gcflags,
 			pkgs:    stdMatches,
 		}).run(t)
@@ -617,7 +615,7 @@ func (t *tester) registerRaceBenchTest(pkg string) {
 			// This makes the test targets distinct, allowing our build system to record
 			// elapsed time for each one, which is useful for load-balancing test shards.
 			omitVariant: false,
-			timeout:     1200 * time.Second, // longer timeout for race with benchmarks
+			timeout:     20 * time.Minute, // longer timeout for race with benchmarks
 			race:        true,
 			bench:       true,
 			cpu:         "4",
@@ -708,7 +706,6 @@ func (t *tester) registerTests() {
 		t.registerTest("os/user with tag osusergo",
 			&goTest{
 				variant: "osusergo",
-				timeout: 300 * time.Second,
 				tags:    []string{"osusergo"},
 				pkg:     "os/user",
 			})
@@ -799,7 +796,6 @@ func (t *tester) registerTests() {
 		t.registerTest("GOOS=ios on darwin/amd64",
 			&goTest{
 				variant:  "amd64ios",
-				timeout:  300 * time.Second,
 				runTests: "SystemRoots",
 				env:      []string{"GOOS=ios", "CGO_ENABLED=1"},
 				pkg:      "crypto/x509",
@@ -813,7 +809,6 @@ func (t *tester) registerTests() {
 		t.registerTest("GODEBUG=gcstoptheworld=2 archive/zip",
 			&goTest{
 				variant: "gcstoptheworld2",
-				timeout: 300 * time.Second,
 				short:   true,
 				env:     []string{"GODEBUG=gcstoptheworld=2"},
 				pkg:     "archive/zip",
@@ -821,7 +816,6 @@ func (t *tester) registerTests() {
 		t.registerTest("GODEBUG=gccheckmark=1 runtime",
 			&goTest{
 				variant: "gccheckmark",
-				timeout: 300 * time.Second,
 				short:   true,
 				env:     []string{"GODEBUG=gccheckmark=1"},
 				pkg:     "runtime",
@@ -878,7 +872,6 @@ func (t *tester) registerTests() {
 			t.registerTest("maymorestack="+hook,
 				&goTest{
 					variant: hook,
-					timeout: 600 * time.Second,
 					short:   true,
 					env:     []string{"GOFLAGS=" + goFlags},
 					pkgs:    []string{"runtime", "reflect", "sync"},
@@ -924,7 +917,6 @@ func (t *tester) registerTests() {
 		t.registerTest("internal linking, -buildmode=pie",
 			&goTest{
 				variant:   "pie_internal",
-				timeout:   60 * time.Second,
 				buildmode: "pie",
 				ldflags:   "-linkmode=internal",
 				env:       []string{"CGO_ENABLED=0"},
@@ -933,7 +925,6 @@ func (t *tester) registerTests() {
 		t.registerTest("internal linking, -buildmode=pie",
 			&goTest{
 				variant:   "pie_internal",
-				timeout:   60 * time.Second,
 				buildmode: "pie",
 				ldflags:   "-linkmode=internal",
 				env:       []string{"CGO_ENABLED=0"},
@@ -945,7 +936,6 @@ func (t *tester) registerTests() {
 			t.registerTest("internal linking, -buildmode=pie",
 				&goTest{
 					variant:   "pie_internal",
-					timeout:   60 * time.Second,
 					buildmode: "pie",
 					ldflags:   "-linkmode=internal",
 					pkg:       "os/user",
@@ -958,7 +948,6 @@ func (t *tester) registerTests() {
 			t.registerTest("external linking, -buildmode=exe",
 				&goTest{
 					variant:   "exe_external",
-					timeout:   60 * time.Second,
 					buildmode: "exe",
 					ldflags:   "-linkmode=external",
 					env:       []string{"CGO_ENABLED=1"},
@@ -970,7 +959,6 @@ func (t *tester) registerTests() {
 			t.registerTest("external linking, -buildmode=pie",
 				&goTest{
 					variant:   "pie_external",
-					timeout:   60 * time.Second,
 					buildmode: "pie",
 					ldflags:   "-linkmode=external",
 					env:       []string{"CGO_ENABLED=1"},
@@ -985,7 +973,6 @@ func (t *tester) registerTests() {
 		t.registerTest("sync -cpu=10",
 			&goTest{
 				variant: "cpu10",
-				timeout: 120 * time.Second,
 				cpu:     "10",
 				pkg:     "sync",
 			})
@@ -1001,7 +988,6 @@ func (t *tester) registerTests() {
 			&goTest{
 				variant:   "host",
 				pkg:       "internal/runtime/wasitest",
-				timeout:   1 * time.Minute,
 				runOnHost: true,
 			})
 	}
@@ -1017,7 +1003,7 @@ func (t *tester) registerTests() {
 	// TODO: remove the exclusion of goexperiment simd right before dev.simd branch is merged to master.
 	if goos == "darwin" || ((goos == "linux" || goos == "windows") && (goarch == "amd64" && !strings.Contains(goexperiment, "simd"))) {
 		t.registerTest("API release note check", &goTest{variant: "check", pkg: "cmd/relnote", testFlags: []string{"-check"}})
-		t.registerTest("API check", &goTest{variant: "check", pkg: "cmd/api", timeout: 5 * time.Minute, testFlags: []string{"-check"}})
+		t.registerTest("API check", &goTest{variant: "check", pkg: "cmd/api", testFlags: []string{"-check"}})
 	}
 
 	// Runtime CPU tests.
@@ -1026,7 +1012,6 @@ func (t *tester) registerTests() {
 			t.registerTest(fmt.Sprintf("GOMAXPROCS=2 runtime -cpu=%d -quick", i),
 				&goTest{
 					variant:   "cpu" + strconv.Itoa(i),
-					timeout:   300 * time.Second,
 					cpu:       strconv.Itoa(i),
 					gcflags:   gogcflags,
 					short:     true,

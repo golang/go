@@ -10,4 +10,4 @@ type HighPrecisionTime = highPrecisionTime
 
 var HighPrecisionTimeNow = highPrecisionTimeNow
 
-const ParallelConflict = parallelConflict
+var ParallelConflict = parallelConflict

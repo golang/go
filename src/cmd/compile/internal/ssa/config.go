@@ -8,6 +8,7 @@ import (
 	"cmd/compile/internal/abi"
 	"cmd/compile/internal/base"
 	"cmd/compile/internal/ir"
+	"cmd/compile/internal/ssa/ssabase"
 	"cmd/compile/internal/types"
 	"cmd/internal/obj"
 	"cmd/internal/src"
@@ -21,21 +22,21 @@ type Config struct {
 	PtrSize        int64  // 4 or 8; copy of cmd/internal/sys.Arch.PtrSize
 	RegSize        int64  // 4 or 8; copy of cmd/internal/sys.Arch.RegSize
 	Types          Types
-	lowerBlock     blockRewriter  // block lowering function, first round
-	lowerValue     valueRewriter  // value lowering function, first round
-	lateLowerBlock blockRewriter  // block lowering function that needs to be run after the first round; only used on some architectures
-	lateLowerValue valueRewriter  // value lowering function that needs to be run after the first round; only used on some architectures
-	splitLoad      valueRewriter  // function for splitting merged load ops; only used on some architectures
-	registers      []Register     // machine registers
-	gpRegMask      regMask        // general purpose integer register mask
-	fpRegMask      regMask        // floating point register mask
-	fp32RegMask    regMask        // floating point register mask
-	fp64RegMask    regMask        // floating point register mask
-	simdRegMask    regMask        // simd register mask; may be same as fpRegMask
-	specialRegMask regMask        // special register mask
-	intParamRegs   []int8         // register numbers of integer param (in/out) registers
-	floatParamRegs []int8         // register numbers of floating param (in/out) registers
-	ABI1           *abi.ABIConfig // "ABIInternal" under development // TODO change comment when this becomes current
+	lowerBlock     blockRewriter      // block lowering function, first round
+	lowerValue     valueRewriter      // value lowering function, first round
+	lateLowerBlock blockRewriter      // block lowering function that needs to be run after the first round; only used on some architectures
+	lateLowerValue valueRewriter      // value lowering function that needs to be run after the first round; only used on some architectures
+	splitLoad      valueRewriter      // function for splitting merged load ops; only used on some architectures
+	registers      []ssabase.Register // machine registers
+	gpRegMask      regMask            // general purpose integer register mask
+	fpRegMask      regMask            // floating point register mask
+	fp32RegMask    regMask            // floating point register mask
+	fp64RegMask    regMask            // floating point register mask
+	simdRegMask    regMask            // simd register mask; may be same as fpRegMask
+	specialRegMask regMask            // special register mask
+	intParamRegs   []int8             // register numbers of integer param (in/out) registers
+	floatParamRegs []int8             // register numbers of floating param (in/out) registers
+	ABI1           *abi.ABIConfig     // "ABIInternal" under development // TODO change comment when this becomes current
 	ABI0           *abi.ABIConfig
 	FPReg          int8      // register number of frame pointer, -1 if not used
 	LinkReg        int8      // register number of link register if it is a general purpose register, -1 if not used

@@ -53,7 +53,7 @@ func pkgPath(a *Action) string {
 	return ppath
 }
 
-func (gcToolchain) gc(b *Builder, a *Action, archive string, importcfg, embedcfg []byte, symabis string, asmhdr bool, pgoProfile string, gofiles []string) (ofile string, output []byte, err error) {
+func (gcToolchain) gc(b *Builder, a *Action, archive string, importcfg, embedcfg []byte, symabis string, asmhdr bool, pgoProfile, coverCfg string, gofiles []string) (ofile string, output []byte, err error) {
 	p := a.Package
 	sh := b.Shell(a)
 	objdir := a.Objdir
@@ -112,8 +112,8 @@ func (gcToolchain) gc(b *Builder, a *Action, archive string, importcfg, embedcfg
 	if strings.HasPrefix(ToolchainVersion, "go1") && !strings.Contains(os.Args[0], "go_bootstrap") {
 		defaultGcFlags = append(defaultGcFlags, "-goversion", ToolchainVersion)
 	}
-	if p.Internal.Cover.Cfg != "" {
-		defaultGcFlags = append(defaultGcFlags, "-coveragecfg="+p.Internal.Cover.Cfg)
+	if coverCfg != "" {
+		defaultGcFlags = append(defaultGcFlags, "-coveragecfg="+coverCfg)
 	}
 	if pgoProfile != "" {
 		defaultGcFlags = append(defaultGcFlags, "-pgoprofile="+pgoProfile)

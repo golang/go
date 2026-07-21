@@ -12,6 +12,7 @@ import (
 	"cmd/compile/internal/logopt"
 	"cmd/compile/internal/objw"
 	"cmd/compile/internal/ssa"
+	"cmd/compile/internal/ssa/block"
 	"cmd/compile/internal/ssagen"
 	"cmd/compile/internal/types"
 	"cmd/internal/obj"
@@ -466,7 +467,7 @@ func simdV11Narrow(s *ssagen.State, v *ssa.Value, arrangement int16) *obj.Prog {
 	return p
 }
 
-// simdV21Narrow2 generates a a destructive (updating upper half only) narrow "2" instruction,
+// simdV21Narrow2 generates a destructive (updating upper half only) narrow "2" instruction,
 // e.g. XTN2 V1.4S, V0.8H. The arrangement parameter specifies the source arrangement.
 func simdV21Narrow2(s *ssagen.State, v *ssa.Value, arrangement int16) *obj.Prog {
 	p := s.Prog(v.Op.Asm())
@@ -1965,31 +1966,31 @@ var condBits = map[ssa.Op]arm64.SpecialOperand{
 	ssa.OpARM64GreaterEqualNoov: arm64.SPOP_PL, // Greater than or equal to but without honoring overflow
 }
 
-var blockJump = map[ssa.BlockKind]struct {
+var blockJump = map[block.BlockKind]struct {
 	asm, invasm obj.As
 }{
-	ssa.BlockARM64EQ:     {arm64.ABEQ, arm64.ABNE},
-	ssa.BlockARM64NE:     {arm64.ABNE, arm64.ABEQ},
-	ssa.BlockARM64LT:     {arm64.ABLT, arm64.ABGE},
-	ssa.BlockARM64GE:     {arm64.ABGE, arm64.ABLT},
-	ssa.BlockARM64LE:     {arm64.ABLE, arm64.ABGT},
-	ssa.BlockARM64GT:     {arm64.ABGT, arm64.ABLE},
-	ssa.BlockARM64ULT:    {arm64.ABLO, arm64.ABHS},
-	ssa.BlockARM64UGE:    {arm64.ABHS, arm64.ABLO},
-	ssa.BlockARM64UGT:    {arm64.ABHI, arm64.ABLS},
-	ssa.BlockARM64ULE:    {arm64.ABLS, arm64.ABHI},
-	ssa.BlockARM64Z:      {arm64.ACBZ, arm64.ACBNZ},
-	ssa.BlockARM64NZ:     {arm64.ACBNZ, arm64.ACBZ},
-	ssa.BlockARM64ZW:     {arm64.ACBZW, arm64.ACBNZW},
-	ssa.BlockARM64NZW:    {arm64.ACBNZW, arm64.ACBZW},
-	ssa.BlockARM64TBZ:    {arm64.ATBZ, arm64.ATBNZ},
-	ssa.BlockARM64TBNZ:   {arm64.ATBNZ, arm64.ATBZ},
-	ssa.BlockARM64FLT:    {arm64.ABMI, arm64.ABPL},
-	ssa.BlockARM64FGE:    {arm64.ABGE, arm64.ABLT},
-	ssa.BlockARM64FLE:    {arm64.ABLS, arm64.ABHI},
-	ssa.BlockARM64FGT:    {arm64.ABGT, arm64.ABLE},
-	ssa.BlockARM64LTnoov: {arm64.ABMI, arm64.ABPL},
-	ssa.BlockARM64GEnoov: {arm64.ABPL, arm64.ABMI},
+	block.BlockARM64EQ:     {arm64.ABEQ, arm64.ABNE},
+	block.BlockARM64NE:     {arm64.ABNE, arm64.ABEQ},
+	block.BlockARM64LT:     {arm64.ABLT, arm64.ABGE},
+	block.BlockARM64GE:     {arm64.ABGE, arm64.ABLT},
+	block.BlockARM64LE:     {arm64.ABLE, arm64.ABGT},
+	block.BlockARM64GT:     {arm64.ABGT, arm64.ABLE},
+	block.BlockARM64ULT:    {arm64.ABLO, arm64.ABHS},
+	block.BlockARM64UGE:    {arm64.ABHS, arm64.ABLO},
+	block.BlockARM64UGT:    {arm64.ABHI, arm64.ABLS},
+	block.BlockARM64ULE:    {arm64.ABLS, arm64.ABHI},
+	block.BlockARM64Z:      {arm64.ACBZ, arm64.ACBNZ},
+	block.BlockARM64NZ:     {arm64.ACBNZ, arm64.ACBZ},
+	block.BlockARM64ZW:     {arm64.ACBZW, arm64.ACBNZW},
+	block.BlockARM64NZW:    {arm64.ACBNZW, arm64.ACBZW},
+	block.BlockARM64TBZ:    {arm64.ATBZ, arm64.ATBNZ},
+	block.BlockARM64TBNZ:   {arm64.ATBNZ, arm64.ATBZ},
+	block.BlockARM64FLT:    {arm64.ABMI, arm64.ABPL},
+	block.BlockARM64FGE:    {arm64.ABGE, arm64.ABLT},
+	block.BlockARM64FLE:    {arm64.ABLS, arm64.ABHI},
+	block.BlockARM64FGT:    {arm64.ABGT, arm64.ABLE},
+	block.BlockARM64LTnoov: {arm64.ABMI, arm64.ABPL},
+	block.BlockARM64GEnoov: {arm64.ABPL, arm64.ABMI},
 }
 
 // To model a 'LEnoov' ('<=' without overflow checking) branching.
@@ -2006,28 +2007,28 @@ var gtJumps = [2][2]ssagen.IndexJump{
 
 func ssaGenBlock(s *ssagen.State, b, next *ssa.Block) {
 	switch b.Kind {
-	case ssa.BlockPlain, ssa.BlockDefer:
+	case block.BlockPlain, block.BlockDefer:
 		if b.Succs[0].Block() != next {
 			p := s.Prog(obj.AJMP)
 			p.To.Type = obj.TYPE_BRANCH
 			s.Branches = append(s.Branches, ssagen.Branch{P: p, B: b.Succs[0].Block()})
 		}
 
-	case ssa.BlockExit, ssa.BlockRetJmp:
+	case block.BlockExit, block.BlockRetJmp:
 
-	case ssa.BlockRet:
+	case block.BlockRet:
 		s.Prog(obj.ARET)
 
-	case ssa.BlockARM64EQ, ssa.BlockARM64NE,
-		ssa.BlockARM64LT, ssa.BlockARM64GE,
-		ssa.BlockARM64LE, ssa.BlockARM64GT,
-		ssa.BlockARM64ULT, ssa.BlockARM64UGT,
-		ssa.BlockARM64ULE, ssa.BlockARM64UGE,
-		ssa.BlockARM64Z, ssa.BlockARM64NZ,
-		ssa.BlockARM64ZW, ssa.BlockARM64NZW,
-		ssa.BlockARM64FLT, ssa.BlockARM64FGE,
-		ssa.BlockARM64FLE, ssa.BlockARM64FGT,
-		ssa.BlockARM64LTnoov, ssa.BlockARM64GEnoov:
+	case block.BlockARM64EQ, block.BlockARM64NE,
+		block.BlockARM64LT, block.BlockARM64GE,
+		block.BlockARM64LE, block.BlockARM64GT,
+		block.BlockARM64ULT, block.BlockARM64UGT,
+		block.BlockARM64ULE, block.BlockARM64UGE,
+		block.BlockARM64Z, block.BlockARM64NZ,
+		block.BlockARM64ZW, block.BlockARM64NZW,
+		block.BlockARM64FLT, block.BlockARM64FGE,
+		block.BlockARM64FLE, block.BlockARM64FGT,
+		block.BlockARM64LTnoov, block.BlockARM64GEnoov:
 		jmp := blockJump[b.Kind]
 		var p *obj.Prog
 		switch next {
@@ -2048,7 +2049,7 @@ func ssaGenBlock(s *ssagen.State, b, next *ssa.Block) {
 			p.From.Type = obj.TYPE_REG
 			p.From.Reg = b.Controls[0].Reg()
 		}
-	case ssa.BlockARM64TBZ, ssa.BlockARM64TBNZ:
+	case block.BlockARM64TBZ, block.BlockARM64TBNZ:
 		jmp := blockJump[b.Kind]
 		var p *obj.Prog
 		switch next {
@@ -2069,12 +2070,12 @@ func ssaGenBlock(s *ssagen.State, b, next *ssa.Block) {
 		p.From.Type = obj.TYPE_CONST
 		p.Reg = b.Controls[0].Reg()
 
-	case ssa.BlockARM64LEnoov:
+	case block.BlockARM64LEnoov:
 		s.CombJump(b, next, &leJumps)
-	case ssa.BlockARM64GTnoov:
+	case block.BlockARM64GTnoov:
 		s.CombJump(b, next, &gtJumps)
 
-	case ssa.BlockARM64JUMPTABLE:
+	case block.BlockARM64JUMPTABLE:
 		// MOVD	(TABLE)(IDX<<3), Rtmp
 		// JMP	(Rtmp)
 		p := s.Prog(arm64.AMOVD)

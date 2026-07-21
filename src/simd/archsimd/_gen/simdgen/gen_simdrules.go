@@ -12,7 +12,7 @@ import (
 	"text/template"
 	"unicode"
 
-	"_gen/sgutil"
+	"simd/archsimd/_gen/sgutil"
 )
 
 type tplRuleData struct {
@@ -131,13 +131,13 @@ func compareTplRuleData(x, y tplRuleData) int {
 // lowering for an instruction which doesn't support zero immediate encoding:
 // (VUSRA4S [a] x y) && a==0 => (VADD4S x y)
 func parseAsmRule(rule string) (bool, string, string) {
-	arrowIndex := strings.Index(rule, "=>")
-	if arrowIndex == -1 {
+	before, after, ok := strings.Cut(rule, "=>")
+	if !ok {
 		return false, "", ""
 	}
 
-	condPart := rule[:arrowIndex]
-	outPart := rule[arrowIndex+len("=>"):]
+	condPart := before
+	outPart := after
 
 	// Check if condPart starts with "if" followed by at least one space.
 	cond := strings.TrimPrefix(condPart, "if")

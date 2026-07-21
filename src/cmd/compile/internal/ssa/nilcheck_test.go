@@ -5,6 +5,7 @@
 package ssa
 
 import (
+	"cmd/compile/internal/ssa/block"
 	"cmd/compile/internal/types"
 	"strconv"
 	"testing"
@@ -63,7 +64,7 @@ func ptrn(n int) string   { return "p" + strconv.Itoa(n) }
 func booln(n int) string  { return "c" + strconv.Itoa(n) }
 
 func isNilCheck(b *Block) bool {
-	return b.Kind == BlockIf && b.Controls[0].Op == OpIsNonNil
+	return b.Kind == block.BlockIf && b.Controls[0].Op == OpIsNonNil
 }
 
 // TestNilcheckSimple verifies that a second repeated nilcheck is removed.

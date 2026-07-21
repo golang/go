@@ -5,8 +5,8 @@
 package main
 
 import (
-	"_gen/sgutil"
 	"bytes"
+	"simd/archsimd/_gen/sgutil"
 )
 
 // writeSIMDGenericOps generates the generic ops for the current architecture,

@@ -337,10 +337,16 @@ func mayCall(n ir.Node) bool {
 			return true
 
 		case ir.OINDEX, ir.OSLICE, ir.OSLICEARR, ir.OSLICE3, ir.OSLICE3ARR, ir.OSLICESTR,
-			ir.ODEREF, ir.ODOTPTR, ir.ODOTTYPE, ir.ODYNAMICDOTTYPE, ir.ODIV, ir.OMOD,
+			ir.ODEREF, ir.ODOTPTR, ir.ODOTTYPE, ir.ODYNAMICDOTTYPE, ir.OMOD,
 			ir.OSLICE2ARR, ir.OSLICE2ARRPTR:
 			// These ops might panic, make sure they are done
 			// before we start marshaling args for a call. See issue 16760.
+			return true
+		case ir.ODIV:
+			n := n.(*ir.BinaryExpr)
+			if types.IsFloat[n.X.Type().Kind()] {
+				return ssagen.Arch.SoftFloat
+			}
 			return true
 
 		case ir.OANDAND, ir.OOROR:
