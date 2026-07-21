@@ -81,6 +81,7 @@ var (
 	BuildCover             bool                    // -cover flag
 	BuildCoverMode         string                  // -covermode flag
 	BuildCoverPkg          []string                // -coverpkg flag
+	BuildFullpath          bool                    // -fullpath flag
 	BuildJSON              bool                    // -json flag
 	BuildN                 bool                    // -n flag
 	BuildO                 string                  // -o flag
