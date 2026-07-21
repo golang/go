@@ -6222,26 +6222,26 @@ func rewriteValuegeneric_OpCondSelect(v *Value) bool {
 		v.copyOf(x)
 		return true
 	}
-	// match: (CondSelect op:(Add8 <t> x c:(Const8)) x bool)
-	// cond: rewriteCondSelectIntoMath(config, op.Op, c.AuxInt)
+	// match: (CondSelect op1:(Add8 <t> x c:(Const8)) x bool)
+	// cond: rewriteCondSelectIntoMath(config, op1.Op, c.AuxInt)
 	// result: (Add8 x (Mul8 <t> c (CvtBoolToUint8 <t> bool)))
 	for {
-		op := v_0
-		if op.Op != OpAdd8 {
+		op1 := v_0
+		if op1.Op != OpAdd8 {
 			break
 		}
-		t := op.Type
-		_ = op.Args[1]
-		op_0 := op.Args[0]
-		op_1 := op.Args[1]
-		for _i0 := 0; _i0 <= 1; _i0, op_0, op_1 = _i0+1, op_1, op_0 {
-			x := op_0
-			c := op_1
+		t := op1.Type
+		_ = op1.Args[1]
+		op1_0 := op1.Args[0]
+		op1_1 := op1.Args[1]
+		for _i0 := 0; _i0 <= 1; _i0, op1_0, op1_1 = _i0+1, op1_1, op1_0 {
+			x := op1_0
+			c := op1_1
 			if c.Op != OpConst8 || x != v_1 {
 				continue
 			}
 			bool := v_2
-			if !(rewriteCondSelectIntoMath(config, op.Op, c.AuxInt)) {
+			if !(rewriteCondSelectIntoMath(config, op1.Op, c.AuxInt)) {
 				continue
 			}
 			v.reset(OpAdd8)
@@ -6254,26 +6254,26 @@ func rewriteValuegeneric_OpCondSelect(v *Value) bool {
 		}
 		break
 	}
-	// match: (CondSelect op:(Add64 <t> x c:(Const64)) x bool)
-	// cond: rewriteCondSelectIntoMath(config, op.Op, c.AuxInt)
+	// match: (CondSelect op1:(Add64 <t> x c:(Const64)) x bool)
+	// cond: rewriteCondSelectIntoMath(config, op1.Op, c.AuxInt)
 	// result: (Add64 x (Mul64 <t> c (ZeroExt8to64 <t> (CvtBoolToUint8 <types.Types[types.TUINT8]> bool))))
 	for {
-		op := v_0
-		if op.Op != OpAdd64 {
+		op1 := v_0
+		if op1.Op != OpAdd64 {
 			break
 		}
-		t := op.Type
-		_ = op.Args[1]
-		op_0 := op.Args[0]
-		op_1 := op.Args[1]
-		for _i0 := 0; _i0 <= 1; _i0, op_0, op_1 = _i0+1, op_1, op_0 {
-			x := op_0
-			c := op_1
+		t := op1.Type
+		_ = op1.Args[1]
+		op1_0 := op1.Args[0]
+		op1_1 := op1.Args[1]
+		for _i0 := 0; _i0 <= 1; _i0, op1_0, op1_1 = _i0+1, op1_1, op1_0 {
+			x := op1_0
+			c := op1_1
 			if c.Op != OpConst64 || x != v_1 {
 				continue
 			}
 			bool := v_2
-			if !(rewriteCondSelectIntoMath(config, op.Op, c.AuxInt)) {
+			if !(rewriteCondSelectIntoMath(config, op1.Op, c.AuxInt)) {
 				continue
 			}
 			v.reset(OpAdd64)
@@ -6288,26 +6288,26 @@ func rewriteValuegeneric_OpCondSelect(v *Value) bool {
 		}
 		break
 	}
-	// match: (CondSelect op:(Add32 <t> x c:(Const32)) x bool)
-	// cond: rewriteCondSelectIntoMath(config, op.Op, c.AuxInt)
+	// match: (CondSelect op1:(Add32 <t> x c:(Const32)) x bool)
+	// cond: rewriteCondSelectIntoMath(config, op1.Op, c.AuxInt)
 	// result: (Add32 x (Mul32 <t> c (ZeroExt8to32 <t> (CvtBoolToUint8 <types.Types[types.TUINT8]> bool))))
 	for {
-		op := v_0
-		if op.Op != OpAdd32 {
+		op1 := v_0
+		if op1.Op != OpAdd32 {
 			break
 		}
-		t := op.Type
-		_ = op.Args[1]
-		op_0 := op.Args[0]
-		op_1 := op.Args[1]
-		for _i0 := 0; _i0 <= 1; _i0, op_0, op_1 = _i0+1, op_1, op_0 {
-			x := op_0
-			c := op_1
+		t := op1.Type
+		_ = op1.Args[1]
+		op1_0 := op1.Args[0]
+		op1_1 := op1.Args[1]
+		for _i0 := 0; _i0 <= 1; _i0, op1_0, op1_1 = _i0+1, op1_1, op1_0 {
+			x := op1_0
+			c := op1_1
 			if c.Op != OpConst32 || x != v_1 {
 				continue
 			}
 			bool := v_2
-			if !(rewriteCondSelectIntoMath(config, op.Op, c.AuxInt)) {
+			if !(rewriteCondSelectIntoMath(config, op1.Op, c.AuxInt)) {
 				continue
 			}
 			v.reset(OpAdd32)
@@ -6322,26 +6322,26 @@ func rewriteValuegeneric_OpCondSelect(v *Value) bool {
 		}
 		break
 	}
-	// match: (CondSelect op:(Add16 <t> x c:(Const16)) x bool)
-	// cond: rewriteCondSelectIntoMath(config, op.Op, c.AuxInt)
+	// match: (CondSelect op1:(Add16 <t> x c:(Const16)) x bool)
+	// cond: rewriteCondSelectIntoMath(config, op1.Op, c.AuxInt)
 	// result: (Add16 x (Mul16 <t> c (ZeroExt8to16 <t> (CvtBoolToUint8 <types.Types[types.TUINT8]> bool))))
 	for {
-		op := v_0
-		if op.Op != OpAdd16 {
+		op1 := v_0
+		if op1.Op != OpAdd16 {
 			break
 		}
-		t := op.Type
-		_ = op.Args[1]
-		op_0 := op.Args[0]
-		op_1 := op.Args[1]
-		for _i0 := 0; _i0 <= 1; _i0, op_0, op_1 = _i0+1, op_1, op_0 {
-			x := op_0
-			c := op_1
+		t := op1.Type
+		_ = op1.Args[1]
+		op1_0 := op1.Args[0]
+		op1_1 := op1.Args[1]
+		for _i0 := 0; _i0 <= 1; _i0, op1_0, op1_1 = _i0+1, op1_1, op1_0 {
+			x := op1_0
+			c := op1_1
 			if c.Op != OpConst16 || x != v_1 {
 				continue
 			}
 			bool := v_2
-			if !(rewriteCondSelectIntoMath(config, op.Op, c.AuxInt)) {
+			if !(rewriteCondSelectIntoMath(config, op1.Op, c.AuxInt)) {
 				continue
 			}
 			v.reset(OpAdd16)
@@ -6356,29 +6356,29 @@ func rewriteValuegeneric_OpCondSelect(v *Value) bool {
 		}
 		break
 	}
-	// match: (CondSelect x op:(Add8 <t> x c:(Const8)) bool)
-	// cond: rewriteCondSelectIntoMath(config, op.Op, c.AuxInt)
+	// match: (CondSelect x op1:(Add8 <t> x c:(Const8)) bool)
+	// cond: rewriteCondSelectIntoMath(config, op1.Op, c.AuxInt)
 	// result: (Add8 x (Mul8 <t> c (CvtBoolToUint8 <t> (Not <bool.Type> bool))))
 	for {
 		x := v_0
-		op := v_1
-		if op.Op != OpAdd8 {
+		op1 := v_1
+		if op1.Op != OpAdd8 {
 			break
 		}
-		t := op.Type
-		_ = op.Args[1]
-		op_0 := op.Args[0]
-		op_1 := op.Args[1]
-		for _i0 := 0; _i0 <= 1; _i0, op_0, op_1 = _i0+1, op_1, op_0 {
-			if x != op_0 {
+		t := op1.Type
+		_ = op1.Args[1]
+		op1_0 := op1.Args[0]
+		op1_1 := op1.Args[1]
+		for _i0 := 0; _i0 <= 1; _i0, op1_0, op1_1 = _i0+1, op1_1, op1_0 {
+			if x != op1_0 {
 				continue
 			}
-			c := op_1
+			c := op1_1
 			if c.Op != OpConst8 {
 				continue
 			}
 			bool := v_2
-			if !(rewriteCondSelectIntoMath(config, op.Op, c.AuxInt)) {
+			if !(rewriteCondSelectIntoMath(config, op1.Op, c.AuxInt)) {
 				continue
 			}
 			v.reset(OpAdd8)
@@ -6393,29 +6393,29 @@ func rewriteValuegeneric_OpCondSelect(v *Value) bool {
 		}
 		break
 	}
-	// match: (CondSelect x op:(Add64 <t> x c:(Const64)) bool)
-	// cond: rewriteCondSelectIntoMath(config, op.Op, c.AuxInt)
+	// match: (CondSelect x op1:(Add64 <t> x c:(Const64)) bool)
+	// cond: rewriteCondSelectIntoMath(config, op1.Op, c.AuxInt)
 	// result: (Add64 x (Mul64 <t> c (ZeroExt8to64 <t> (CvtBoolToUint8 <types.Types[types.TUINT8]> (Not <bool.Type> bool)))))
 	for {
 		x := v_0
-		op := v_1
-		if op.Op != OpAdd64 {
+		op1 := v_1
+		if op1.Op != OpAdd64 {
 			break
 		}
-		t := op.Type
-		_ = op.Args[1]
-		op_0 := op.Args[0]
-		op_1 := op.Args[1]
-		for _i0 := 0; _i0 <= 1; _i0, op_0, op_1 = _i0+1, op_1, op_0 {
-			if x != op_0 {
+		t := op1.Type
+		_ = op1.Args[1]
+		op1_0 := op1.Args[0]
+		op1_1 := op1.Args[1]
+		for _i0 := 0; _i0 <= 1; _i0, op1_0, op1_1 = _i0+1, op1_1, op1_0 {
+			if x != op1_0 {
 				continue
 			}
-			c := op_1
+			c := op1_1
 			if c.Op != OpConst64 {
 				continue
 			}
 			bool := v_2
-			if !(rewriteCondSelectIntoMath(config, op.Op, c.AuxInt)) {
+			if !(rewriteCondSelectIntoMath(config, op1.Op, c.AuxInt)) {
 				continue
 			}
 			v.reset(OpAdd64)
@@ -6432,29 +6432,29 @@ func rewriteValuegeneric_OpCondSelect(v *Value) bool {
 		}
 		break
 	}
-	// match: (CondSelect x op:(Add32 <t> x c:(Const32)) bool)
-	// cond: rewriteCondSelectIntoMath(config, op.Op, c.AuxInt)
+	// match: (CondSelect x op1:(Add32 <t> x c:(Const32)) bool)
+	// cond: rewriteCondSelectIntoMath(config, op1.Op, c.AuxInt)
 	// result: (Add32 x (Mul32 <t> c (ZeroExt8to32 <t> (CvtBoolToUint8 <types.Types[types.TUINT8]> (Not <bool.Type> bool)))))
 	for {
 		x := v_0
-		op := v_1
-		if op.Op != OpAdd32 {
+		op1 := v_1
+		if op1.Op != OpAdd32 {
 			break
 		}
-		t := op.Type
-		_ = op.Args[1]
-		op_0 := op.Args[0]
-		op_1 := op.Args[1]
-		for _i0 := 0; _i0 <= 1; _i0, op_0, op_1 = _i0+1, op_1, op_0 {
-			if x != op_0 {
+		t := op1.Type
+		_ = op1.Args[1]
+		op1_0 := op1.Args[0]
+		op1_1 := op1.Args[1]
+		for _i0 := 0; _i0 <= 1; _i0, op1_0, op1_1 = _i0+1, op1_1, op1_0 {
+			if x != op1_0 {
 				continue
 			}
-			c := op_1
+			c := op1_1
 			if c.Op != OpConst32 {
 				continue
 			}
 			bool := v_2
-			if !(rewriteCondSelectIntoMath(config, op.Op, c.AuxInt)) {
+			if !(rewriteCondSelectIntoMath(config, op1.Op, c.AuxInt)) {
 				continue
 			}
 			v.reset(OpAdd32)
@@ -6471,29 +6471,29 @@ func rewriteValuegeneric_OpCondSelect(v *Value) bool {
 		}
 		break
 	}
-	// match: (CondSelect x op:(Add16 <t> x c:(Const16)) bool)
-	// cond: rewriteCondSelectIntoMath(config, op.Op, c.AuxInt)
+	// match: (CondSelect x op1:(Add16 <t> x c:(Const16)) bool)
+	// cond: rewriteCondSelectIntoMath(config, op1.Op, c.AuxInt)
 	// result: (Add16 x (Mul16 <t> c (ZeroExt8to16 <t> (CvtBoolToUint8 <types.Types[types.TUINT8]> (Not <bool.Type> bool)))))
 	for {
 		x := v_0
-		op := v_1
-		if op.Op != OpAdd16 {
+		op1 := v_1
+		if op1.Op != OpAdd16 {
 			break
 		}
-		t := op.Type
-		_ = op.Args[1]
-		op_0 := op.Args[0]
-		op_1 := op.Args[1]
-		for _i0 := 0; _i0 <= 1; _i0, op_0, op_1 = _i0+1, op_1, op_0 {
-			if x != op_0 {
+		t := op1.Type
+		_ = op1.Args[1]
+		op1_0 := op1.Args[0]
+		op1_1 := op1.Args[1]
+		for _i0 := 0; _i0 <= 1; _i0, op1_0, op1_1 = _i0+1, op1_1, op1_0 {
+			if x != op1_0 {
 				continue
 			}
-			c := op_1
+			c := op1_1
 			if c.Op != OpConst16 {
 				continue
 			}
 			bool := v_2
-			if !(rewriteCondSelectIntoMath(config, op.Op, c.AuxInt)) {
+			if !(rewriteCondSelectIntoMath(config, op1.Op, c.AuxInt)) {
 				continue
 			}
 			v.reset(OpAdd16)
@@ -6510,21 +6510,21 @@ func rewriteValuegeneric_OpCondSelect(v *Value) bool {
 		}
 		break
 	}
-	// match: (CondSelect op:(Add8 <t> x c:(Const8 [consT])) x bool)
-	// cond: !rewriteCondSelectIntoMath(config, op.Op, c.AuxInt) && rewriteCondSelectIntoMath(config, addToSub(op.Op), -c.AuxInt)
+	// match: (CondSelect op1:(Add8 <t> x c:(Const8 [consT])) x bool)
+	// cond: !rewriteCondSelectIntoMath(config, op1.Op, c.AuxInt) && rewriteCondSelectIntoMath(config, addToSub(op1.Op), -c.AuxInt)
 	// result: (Sub8 x (Mul8 <t> (Const8 <t> [-consT]) (CvtBoolToUint8 <t> bool)))
 	for {
-		op := v_0
-		if op.Op != OpAdd8 {
+		op1 := v_0
+		if op1.Op != OpAdd8 {
 			break
 		}
-		t := op.Type
-		_ = op.Args[1]
-		op_0 := op.Args[0]
-		op_1 := op.Args[1]
-		for _i0 := 0; _i0 <= 1; _i0, op_0, op_1 = _i0+1, op_1, op_0 {
-			x := op_0
-			c := op_1
+		t := op1.Type
+		_ = op1.Args[1]
+		op1_0 := op1.Args[0]
+		op1_1 := op1.Args[1]
+		for _i0 := 0; _i0 <= 1; _i0, op1_0, op1_1 = _i0+1, op1_1, op1_0 {
+			x := op1_0
+			c := op1_1
 			if c.Op != OpConst8 {
 				continue
 			}
@@ -6533,7 +6533,7 @@ func rewriteValuegeneric_OpCondSelect(v *Value) bool {
 				continue
 			}
 			bool := v_2
-			if !(!rewriteCondSelectIntoMath(config, op.Op, c.AuxInt) && rewriteCondSelectIntoMath(config, addToSub(op.Op), -c.AuxInt)) {
+			if !(!rewriteCondSelectIntoMath(config, op1.Op, c.AuxInt) && rewriteCondSelectIntoMath(config, addToSub(op1.Op), -c.AuxInt)) {
 				continue
 			}
 			v.reset(OpSub8)
@@ -6548,21 +6548,21 @@ func rewriteValuegeneric_OpCondSelect(v *Value) bool {
 		}
 		break
 	}
-	// match: (CondSelect op:(Add64 <t> x c:(Const64 [consT])) x bool)
-	// cond: !rewriteCondSelectIntoMath(config, op.Op, c.AuxInt) && rewriteCondSelectIntoMath(config, addToSub(op.Op), -c.AuxInt)
+	// match: (CondSelect op1:(Add64 <t> x c:(Const64 [consT])) x bool)
+	// cond: !rewriteCondSelectIntoMath(config, op1.Op, c.AuxInt) && rewriteCondSelectIntoMath(config, addToSub(op1.Op), -c.AuxInt)
 	// result: (Sub64 x (Mul64 <t> (Const64 <t> [-consT]) (ZeroExt8to64 <t> (CvtBoolToUint8 <types.Types[types.TUINT8]> bool))))
 	for {
-		op := v_0
-		if op.Op != OpAdd64 {
+		op1 := v_0
+		if op1.Op != OpAdd64 {
 			break
 		}
-		t := op.Type
-		_ = op.Args[1]
-		op_0 := op.Args[0]
-		op_1 := op.Args[1]
-		for _i0 := 0; _i0 <= 1; _i0, op_0, op_1 = _i0+1, op_1, op_0 {
-			x := op_0
-			c := op_1
+		t := op1.Type
+		_ = op1.Args[1]
+		op1_0 := op1.Args[0]
+		op1_1 := op1.Args[1]
+		for _i0 := 0; _i0 <= 1; _i0, op1_0, op1_1 = _i0+1, op1_1, op1_0 {
+			x := op1_0
+			c := op1_1
 			if c.Op != OpConst64 {
 				continue
 			}
@@ -6571,7 +6571,7 @@ func rewriteValuegeneric_OpCondSelect(v *Value) bool {
 				continue
 			}
 			bool := v_2
-			if !(!rewriteCondSelectIntoMath(config, op.Op, c.AuxInt) && rewriteCondSelectIntoMath(config, addToSub(op.Op), -c.AuxInt)) {
+			if !(!rewriteCondSelectIntoMath(config, op1.Op, c.AuxInt) && rewriteCondSelectIntoMath(config, addToSub(op1.Op), -c.AuxInt)) {
 				continue
 			}
 			v.reset(OpSub64)
@@ -6588,21 +6588,21 @@ func rewriteValuegeneric_OpCondSelect(v *Value) bool {
 		}
 		break
 	}
-	// match: (CondSelect op:(Add32 <t> x c:(Const32 [consT])) x bool)
-	// cond: !rewriteCondSelectIntoMath(config, op.Op, c.AuxInt) && rewriteCondSelectIntoMath(config, addToSub(op.Op), -c.AuxInt)
+	// match: (CondSelect op1:(Add32 <t> x c:(Const32 [consT])) x bool)
+	// cond: !rewriteCondSelectIntoMath(config, op1.Op, c.AuxInt) && rewriteCondSelectIntoMath(config, addToSub(op1.Op), -c.AuxInt)
 	// result: (Sub32 x (Mul32 <t> (Const32 <t> [-consT]) (ZeroExt8to32 <t> (CvtBoolToUint8 <types.Types[types.TUINT8]> bool))))
 	for {
-		op := v_0
-		if op.Op != OpAdd32 {
+		op1 := v_0
+		if op1.Op != OpAdd32 {
 			break
 		}
-		t := op.Type
-		_ = op.Args[1]
-		op_0 := op.Args[0]
-		op_1 := op.Args[1]
-		for _i0 := 0; _i0 <= 1; _i0, op_0, op_1 = _i0+1, op_1, op_0 {
-			x := op_0
-			c := op_1
+		t := op1.Type
+		_ = op1.Args[1]
+		op1_0 := op1.Args[0]
+		op1_1 := op1.Args[1]
+		for _i0 := 0; _i0 <= 1; _i0, op1_0, op1_1 = _i0+1, op1_1, op1_0 {
+			x := op1_0
+			c := op1_1
 			if c.Op != OpConst32 {
 				continue
 			}
@@ -6611,7 +6611,7 @@ func rewriteValuegeneric_OpCondSelect(v *Value) bool {
 				continue
 			}
 			bool := v_2
-			if !(!rewriteCondSelectIntoMath(config, op.Op, c.AuxInt) && rewriteCondSelectIntoMath(config, addToSub(op.Op), -c.AuxInt)) {
+			if !(!rewriteCondSelectIntoMath(config, op1.Op, c.AuxInt) && rewriteCondSelectIntoMath(config, addToSub(op1.Op), -c.AuxInt)) {
 				continue
 			}
 			v.reset(OpSub32)
@@ -6628,21 +6628,21 @@ func rewriteValuegeneric_OpCondSelect(v *Value) bool {
 		}
 		break
 	}
-	// match: (CondSelect op:(Add16 <t> x c:(Const16 [consT])) x bool)
-	// cond: !rewriteCondSelectIntoMath(config, op.Op, c.AuxInt) && rewriteCondSelectIntoMath(config, addToSub(op.Op), -c.AuxInt)
+	// match: (CondSelect op1:(Add16 <t> x c:(Const16 [consT])) x bool)
+	// cond: !rewriteCondSelectIntoMath(config, op1.Op, c.AuxInt) && rewriteCondSelectIntoMath(config, addToSub(op1.Op), -c.AuxInt)
 	// result: (Sub16 x (Mul16 <t> (Const16 <t> [-consT]) (ZeroExt8to16 <t> (CvtBoolToUint8 <types.Types[types.TUINT8]> bool))))
 	for {
-		op := v_0
-		if op.Op != OpAdd16 {
+		op1 := v_0
+		if op1.Op != OpAdd16 {
 			break
 		}
-		t := op.Type
-		_ = op.Args[1]
-		op_0 := op.Args[0]
-		op_1 := op.Args[1]
-		for _i0 := 0; _i0 <= 1; _i0, op_0, op_1 = _i0+1, op_1, op_0 {
-			x := op_0
-			c := op_1
+		t := op1.Type
+		_ = op1.Args[1]
+		op1_0 := op1.Args[0]
+		op1_1 := op1.Args[1]
+		for _i0 := 0; _i0 <= 1; _i0, op1_0, op1_1 = _i0+1, op1_1, op1_0 {
+			x := op1_0
+			c := op1_1
 			if c.Op != OpConst16 {
 				continue
 			}
@@ -6651,7 +6651,7 @@ func rewriteValuegeneric_OpCondSelect(v *Value) bool {
 				continue
 			}
 			bool := v_2
-			if !(!rewriteCondSelectIntoMath(config, op.Op, c.AuxInt) && rewriteCondSelectIntoMath(config, addToSub(op.Op), -c.AuxInt)) {
+			if !(!rewriteCondSelectIntoMath(config, op1.Op, c.AuxInt) && rewriteCondSelectIntoMath(config, addToSub(op1.Op), -c.AuxInt)) {
 				continue
 			}
 			v.reset(OpSub16)
@@ -6668,30 +6668,30 @@ func rewriteValuegeneric_OpCondSelect(v *Value) bool {
 		}
 		break
 	}
-	// match: (CondSelect x op:(Add8 <t> x c:(Const8 [consT])) bool)
-	// cond: !rewriteCondSelectIntoMath(config, op.Op, c.AuxInt) && rewriteCondSelectIntoMath(config, addToSub(op.Op), -c.AuxInt)
+	// match: (CondSelect x op1:(Add8 <t> x c:(Const8 [consT])) bool)
+	// cond: !rewriteCondSelectIntoMath(config, op1.Op, c.AuxInt) && rewriteCondSelectIntoMath(config, addToSub(op1.Op), -c.AuxInt)
 	// result: (Sub8 x (Mul8 <t> (Const8 <t> [-consT]) (CvtBoolToUint8 <t> (Not <bool.Type> bool))))
 	for {
 		x := v_0
-		op := v_1
-		if op.Op != OpAdd8 {
+		op1 := v_1
+		if op1.Op != OpAdd8 {
 			break
 		}
-		t := op.Type
-		_ = op.Args[1]
-		op_0 := op.Args[0]
-		op_1 := op.Args[1]
-		for _i0 := 0; _i0 <= 1; _i0, op_0, op_1 = _i0+1, op_1, op_0 {
-			if x != op_0 {
+		t := op1.Type
+		_ = op1.Args[1]
+		op1_0 := op1.Args[0]
+		op1_1 := op1.Args[1]
+		for _i0 := 0; _i0 <= 1; _i0, op1_0, op1_1 = _i0+1, op1_1, op1_0 {
+			if x != op1_0 {
 				continue
 			}
-			c := op_1
+			c := op1_1
 			if c.Op != OpConst8 {
 				continue
 			}
 			consT := auxIntToInt8(c.AuxInt)
 			bool := v_2
-			if !(!rewriteCondSelectIntoMath(config, op.Op, c.AuxInt) && rewriteCondSelectIntoMath(config, addToSub(op.Op), -c.AuxInt)) {
+			if !(!rewriteCondSelectIntoMath(config, op1.Op, c.AuxInt) && rewriteCondSelectIntoMath(config, addToSub(op1.Op), -c.AuxInt)) {
 				continue
 			}
 			v.reset(OpSub8)
@@ -6708,30 +6708,30 @@ func rewriteValuegeneric_OpCondSelect(v *Value) bool {
 		}
 		break
 	}
-	// match: (CondSelect x op:(Add64 <t> x c:(Const64 [consT])) bool)
-	// cond: !rewriteCondSelectIntoMath(config, op.Op, c.AuxInt) && rewriteCondSelectIntoMath(config, addToSub(op.Op), -c.AuxInt)
+	// match: (CondSelect x op1:(Add64 <t> x c:(Const64 [consT])) bool)
+	// cond: !rewriteCondSelectIntoMath(config, op1.Op, c.AuxInt) && rewriteCondSelectIntoMath(config, addToSub(op1.Op), -c.AuxInt)
 	// result: (Sub64 x (Mul64 <t> (Const64 <t> [-consT]) (ZeroExt8to64 <t> (CvtBoolToUint8 <types.Types[types.TUINT8]> (Not <bool.Type> bool)))))
 	for {
 		x := v_0
-		op := v_1
-		if op.Op != OpAdd64 {
+		op1 := v_1
+		if op1.Op != OpAdd64 {
 			break
 		}
-		t := op.Type
-		_ = op.Args[1]
-		op_0 := op.Args[0]
-		op_1 := op.Args[1]
-		for _i0 := 0; _i0 <= 1; _i0, op_0, op_1 = _i0+1, op_1, op_0 {
-			if x != op_0 {
+		t := op1.Type
+		_ = op1.Args[1]
+		op1_0 := op1.Args[0]
+		op1_1 := op1.Args[1]
+		for _i0 := 0; _i0 <= 1; _i0, op1_0, op1_1 = _i0+1, op1_1, op1_0 {
+			if x != op1_0 {
 				continue
 			}
-			c := op_1
+			c := op1_1
 			if c.Op != OpConst64 {
 				continue
 			}
 			consT := auxIntToInt64(c.AuxInt)
 			bool := v_2
-			if !(!rewriteCondSelectIntoMath(config, op.Op, c.AuxInt) && rewriteCondSelectIntoMath(config, addToSub(op.Op), -c.AuxInt)) {
+			if !(!rewriteCondSelectIntoMath(config, op1.Op, c.AuxInt) && rewriteCondSelectIntoMath(config, addToSub(op1.Op), -c.AuxInt)) {
 				continue
 			}
 			v.reset(OpSub64)
@@ -6750,30 +6750,30 @@ func rewriteValuegeneric_OpCondSelect(v *Value) bool {
 		}
 		break
 	}
-	// match: (CondSelect x op:(Add32 <t> x c:(Const32 [consT])) bool)
-	// cond: !rewriteCondSelectIntoMath(config, op.Op, c.AuxInt) && rewriteCondSelectIntoMath(config, addToSub(op.Op), -c.AuxInt)
+	// match: (CondSelect x op1:(Add32 <t> x c:(Const32 [consT])) bool)
+	// cond: !rewriteCondSelectIntoMath(config, op1.Op, c.AuxInt) && rewriteCondSelectIntoMath(config, addToSub(op1.Op), -c.AuxInt)
 	// result: (Sub32 x (Mul32 <t> (Const32 <t> [-consT]) (ZeroExt8to32 <t> (CvtBoolToUint8 <types.Types[types.TUINT8]> (Not <bool.Type> bool)))))
 	for {
 		x := v_0
-		op := v_1
-		if op.Op != OpAdd32 {
+		op1 := v_1
+		if op1.Op != OpAdd32 {
 			break
 		}
-		t := op.Type
-		_ = op.Args[1]
-		op_0 := op.Args[0]
-		op_1 := op.Args[1]
-		for _i0 := 0; _i0 <= 1; _i0, op_0, op_1 = _i0+1, op_1, op_0 {
-			if x != op_0 {
+		t := op1.Type
+		_ = op1.Args[1]
+		op1_0 := op1.Args[0]
+		op1_1 := op1.Args[1]
+		for _i0 := 0; _i0 <= 1; _i0, op1_0, op1_1 = _i0+1, op1_1, op1_0 {
+			if x != op1_0 {
 				continue
 			}
-			c := op_1
+			c := op1_1
 			if c.Op != OpConst32 {
 				continue
 			}
 			consT := auxIntToInt32(c.AuxInt)
 			bool := v_2
-			if !(!rewriteCondSelectIntoMath(config, op.Op, c.AuxInt) && rewriteCondSelectIntoMath(config, addToSub(op.Op), -c.AuxInt)) {
+			if !(!rewriteCondSelectIntoMath(config, op1.Op, c.AuxInt) && rewriteCondSelectIntoMath(config, addToSub(op1.Op), -c.AuxInt)) {
 				continue
 			}
 			v.reset(OpSub32)
@@ -6792,30 +6792,30 @@ func rewriteValuegeneric_OpCondSelect(v *Value) bool {
 		}
 		break
 	}
-	// match: (CondSelect x op:(Add16 <t> x c:(Const16 [consT])) bool)
-	// cond: !rewriteCondSelectIntoMath(config, op.Op, c.AuxInt) && rewriteCondSelectIntoMath(config, addToSub(op.Op), -c.AuxInt)
+	// match: (CondSelect x op1:(Add16 <t> x c:(Const16 [consT])) bool)
+	// cond: !rewriteCondSelectIntoMath(config, op1.Op, c.AuxInt) && rewriteCondSelectIntoMath(config, addToSub(op1.Op), -c.AuxInt)
 	// result: (Sub16 x (Mul16 <t> (Const16 <t> [-consT]) (ZeroExt8to16 <t> (CvtBoolToUint8 <types.Types[types.TUINT8]> (Not <bool.Type> bool)))))
 	for {
 		x := v_0
-		op := v_1
-		if op.Op != OpAdd16 {
+		op1 := v_1
+		if op1.Op != OpAdd16 {
 			break
 		}
-		t := op.Type
-		_ = op.Args[1]
-		op_0 := op.Args[0]
-		op_1 := op.Args[1]
-		for _i0 := 0; _i0 <= 1; _i0, op_0, op_1 = _i0+1, op_1, op_0 {
-			if x != op_0 {
+		t := op1.Type
+		_ = op1.Args[1]
+		op1_0 := op1.Args[0]
+		op1_1 := op1.Args[1]
+		for _i0 := 0; _i0 <= 1; _i0, op1_0, op1_1 = _i0+1, op1_1, op1_0 {
+			if x != op1_0 {
 				continue
 			}
-			c := op_1
+			c := op1_1
 			if c.Op != OpConst16 {
 				continue
 			}
 			consT := auxIntToInt16(c.AuxInt)
 			bool := v_2
-			if !(!rewriteCondSelectIntoMath(config, op.Op, c.AuxInt) && rewriteCondSelectIntoMath(config, addToSub(op.Op), -c.AuxInt)) {
+			if !(!rewriteCondSelectIntoMath(config, op1.Op, c.AuxInt) && rewriteCondSelectIntoMath(config, addToSub(op1.Op), -c.AuxInt)) {
 				continue
 			}
 			v.reset(OpSub16)
@@ -7374,26 +7374,26 @@ func rewriteValuegeneric_OpCondSelect(v *Value) bool {
 		v.AddArg2(x, v0)
 		return true
 	}
-	// match: (CondSelect op:(Or8 <t> x c:(Const8)) x bool)
-	// cond: rewriteCondSelectIntoMath(config, op.Op, c.AuxInt)
+	// match: (CondSelect op1:(Or8 <t> x c:(Const8)) x bool)
+	// cond: rewriteCondSelectIntoMath(config, op1.Op, c.AuxInt)
 	// result: (Or8 x (Mul8 <t> c (CvtBoolToUint8 <t> bool)))
 	for {
-		op := v_0
-		if op.Op != OpOr8 {
+		op1 := v_0
+		if op1.Op != OpOr8 {
 			break
 		}
-		t := op.Type
-		_ = op.Args[1]
-		op_0 := op.Args[0]
-		op_1 := op.Args[1]
-		for _i0 := 0; _i0 <= 1; _i0, op_0, op_1 = _i0+1, op_1, op_0 {
-			x := op_0
-			c := op_1
+		t := op1.Type
+		_ = op1.Args[1]
+		op1_0 := op1.Args[0]
+		op1_1 := op1.Args[1]
+		for _i0 := 0; _i0 <= 1; _i0, op1_0, op1_1 = _i0+1, op1_1, op1_0 {
+			x := op1_0
+			c := op1_1
 			if c.Op != OpConst8 || x != v_1 {
 				continue
 			}
 			bool := v_2
-			if !(rewriteCondSelectIntoMath(config, op.Op, c.AuxInt)) {
+			if !(rewriteCondSelectIntoMath(config, op1.Op, c.AuxInt)) {
 				continue
 			}
 			v.reset(OpOr8)
@@ -7406,26 +7406,26 @@ func rewriteValuegeneric_OpCondSelect(v *Value) bool {
 		}
 		break
 	}
-	// match: (CondSelect op:(Or64 <t> x c:(Const64)) x bool)
-	// cond: rewriteCondSelectIntoMath(config, op.Op, c.AuxInt)
+	// match: (CondSelect op1:(Or64 <t> x c:(Const64)) x bool)
+	// cond: rewriteCondSelectIntoMath(config, op1.Op, c.AuxInt)
 	// result: (Or64 x (Mul64 <t> c (ZeroExt8to64 <t> (CvtBoolToUint8 <types.Types[types.TUINT8]> bool))))
 	for {
-		op := v_0
-		if op.Op != OpOr64 {
+		op1 := v_0
+		if op1.Op != OpOr64 {
 			break
 		}
-		t := op.Type
-		_ = op.Args[1]
-		op_0 := op.Args[0]
-		op_1 := op.Args[1]
-		for _i0 := 0; _i0 <= 1; _i0, op_0, op_1 = _i0+1, op_1, op_0 {
-			x := op_0
-			c := op_1
+		t := op1.Type
+		_ = op1.Args[1]
+		op1_0 := op1.Args[0]
+		op1_1 := op1.Args[1]
+		for _i0 := 0; _i0 <= 1; _i0, op1_0, op1_1 = _i0+1, op1_1, op1_0 {
+			x := op1_0
+			c := op1_1
 			if c.Op != OpConst64 || x != v_1 {
 				continue
 			}
 			bool := v_2
-			if !(rewriteCondSelectIntoMath(config, op.Op, c.AuxInt)) {
+			if !(rewriteCondSelectIntoMath(config, op1.Op, c.AuxInt)) {
 				continue
 			}
 			v.reset(OpOr64)
@@ -7440,26 +7440,26 @@ func rewriteValuegeneric_OpCondSelect(v *Value) bool {
 		}
 		break
 	}
-	// match: (CondSelect op:(Or32 <t> x c:(Const32)) x bool)
-	// cond: rewriteCondSelectIntoMath(config, op.Op, c.AuxInt)
+	// match: (CondSelect op1:(Or32 <t> x c:(Const32)) x bool)
+	// cond: rewriteCondSelectIntoMath(config, op1.Op, c.AuxInt)
 	// result: (Or32 x (Mul32 <t> c (ZeroExt8to32 <t> (CvtBoolToUint8 <types.Types[types.TUINT8]> bool))))
 	for {
-		op := v_0
-		if op.Op != OpOr32 {
+		op1 := v_0
+		if op1.Op != OpOr32 {
 			break
 		}
-		t := op.Type
-		_ = op.Args[1]
-		op_0 := op.Args[0]
-		op_1 := op.Args[1]
-		for _i0 := 0; _i0 <= 1; _i0, op_0, op_1 = _i0+1, op_1, op_0 {
-			x := op_0
-			c := op_1
+		t := op1.Type
+		_ = op1.Args[1]
+		op1_0 := op1.Args[0]
+		op1_1 := op1.Args[1]
+		for _i0 := 0; _i0 <= 1; _i0, op1_0, op1_1 = _i0+1, op1_1, op1_0 {
+			x := op1_0
+			c := op1_1
 			if c.Op != OpConst32 || x != v_1 {
 				continue
 			}
 			bool := v_2
-			if !(rewriteCondSelectIntoMath(config, op.Op, c.AuxInt)) {
+			if !(rewriteCondSelectIntoMath(config, op1.Op, c.AuxInt)) {
 				continue
 			}
 			v.reset(OpOr32)
@@ -7474,26 +7474,26 @@ func rewriteValuegeneric_OpCondSelect(v *Value) bool {
 		}
 		break
 	}
-	// match: (CondSelect op:(Or16 <t> x c:(Const16)) x bool)
-	// cond: rewriteCondSelectIntoMath(config, op.Op, c.AuxInt)
+	// match: (CondSelect op1:(Or16 <t> x c:(Const16)) x bool)
+	// cond: rewriteCondSelectIntoMath(config, op1.Op, c.AuxInt)
 	// result: (Or16 x (Mul16 <t> c (ZeroExt8to16 <t> (CvtBoolToUint8 <types.Types[types.TUINT8]> bool))))
 	for {
-		op := v_0
-		if op.Op != OpOr16 {
+		op1 := v_0
+		if op1.Op != OpOr16 {
 			break
 		}
-		t := op.Type
-		_ = op.Args[1]
-		op_0 := op.Args[0]
-		op_1 := op.Args[1]
-		for _i0 := 0; _i0 <= 1; _i0, op_0, op_1 = _i0+1, op_1, op_0 {
-			x := op_0
-			c := op_1
+		t := op1.Type
+		_ = op1.Args[1]
+		op1_0 := op1.Args[0]
+		op1_1 := op1.Args[1]
+		for _i0 := 0; _i0 <= 1; _i0, op1_0, op1_1 = _i0+1, op1_1, op1_0 {
+			x := op1_0
+			c := op1_1
 			if c.Op != OpConst16 || x != v_1 {
 				continue
 			}
 			bool := v_2
-			if !(rewriteCondSelectIntoMath(config, op.Op, c.AuxInt)) {
+			if !(rewriteCondSelectIntoMath(config, op1.Op, c.AuxInt)) {
 				continue
 			}
 			v.reset(OpOr16)
@@ -7508,29 +7508,29 @@ func rewriteValuegeneric_OpCondSelect(v *Value) bool {
 		}
 		break
 	}
-	// match: (CondSelect x op:(Or8 <t> x c:(Const8)) bool)
-	// cond: rewriteCondSelectIntoMath(config, op.Op, c.AuxInt)
+	// match: (CondSelect x op1:(Or8 <t> x c:(Const8)) bool)
+	// cond: rewriteCondSelectIntoMath(config, op1.Op, c.AuxInt)
 	// result: (Or8 x (Mul8 <t> c (CvtBoolToUint8 <t> (Not <bool.Type> bool))))
 	for {
 		x := v_0
-		op := v_1
-		if op.Op != OpOr8 {
+		op1 := v_1
+		if op1.Op != OpOr8 {
 			break
 		}
-		t := op.Type
-		_ = op.Args[1]
-		op_0 := op.Args[0]
-		op_1 := op.Args[1]
-		for _i0 := 0; _i0 <= 1; _i0, op_0, op_1 = _i0+1, op_1, op_0 {
-			if x != op_0 {
+		t := op1.Type
+		_ = op1.Args[1]
+		op1_0 := op1.Args[0]
+		op1_1 := op1.Args[1]
+		for _i0 := 0; _i0 <= 1; _i0, op1_0, op1_1 = _i0+1, op1_1, op1_0 {
+			if x != op1_0 {
 				continue
 			}
-			c := op_1
+			c := op1_1
 			if c.Op != OpConst8 {
 				continue
 			}
 			bool := v_2
-			if !(rewriteCondSelectIntoMath(config, op.Op, c.AuxInt)) {
+			if !(rewriteCondSelectIntoMath(config, op1.Op, c.AuxInt)) {
 				continue
 			}
 			v.reset(OpOr8)
@@ -7545,29 +7545,29 @@ func rewriteValuegeneric_OpCondSelect(v *Value) bool {
 		}
 		break
 	}
-	// match: (CondSelect x op:(Or64 <t> x c:(Const64)) bool)
-	// cond: rewriteCondSelectIntoMath(config, op.Op, c.AuxInt)
+	// match: (CondSelect x op1:(Or64 <t> x c:(Const64)) bool)
+	// cond: rewriteCondSelectIntoMath(config, op1.Op, c.AuxInt)
 	// result: (Or64 x (Mul64 <t> c (ZeroExt8to64 <t> (CvtBoolToUint8 <types.Types[types.TUINT8]> (Not <bool.Type> bool)))))
 	for {
 		x := v_0
-		op := v_1
-		if op.Op != OpOr64 {
+		op1 := v_1
+		if op1.Op != OpOr64 {
 			break
 		}
-		t := op.Type
-		_ = op.Args[1]
-		op_0 := op.Args[0]
-		op_1 := op.Args[1]
-		for _i0 := 0; _i0 <= 1; _i0, op_0, op_1 = _i0+1, op_1, op_0 {
-			if x != op_0 {
+		t := op1.Type
+		_ = op1.Args[1]
+		op1_0 := op1.Args[0]
+		op1_1 := op1.Args[1]
+		for _i0 := 0; _i0 <= 1; _i0, op1_0, op1_1 = _i0+1, op1_1, op1_0 {
+			if x != op1_0 {
 				continue
 			}
-			c := op_1
+			c := op1_1
 			if c.Op != OpConst64 {
 				continue
 			}
 			bool := v_2
-			if !(rewriteCondSelectIntoMath(config, op.Op, c.AuxInt)) {
+			if !(rewriteCondSelectIntoMath(config, op1.Op, c.AuxInt)) {
 				continue
 			}
 			v.reset(OpOr64)
@@ -7584,29 +7584,29 @@ func rewriteValuegeneric_OpCondSelect(v *Value) bool {
 		}
 		break
 	}
-	// match: (CondSelect x op:(Or32 <t> x c:(Const32)) bool)
-	// cond: rewriteCondSelectIntoMath(config, op.Op, c.AuxInt)
+	// match: (CondSelect x op1:(Or32 <t> x c:(Const32)) bool)
+	// cond: rewriteCondSelectIntoMath(config, op1.Op, c.AuxInt)
 	// result: (Or32 x (Mul32 <t> c (ZeroExt8to32 <t> (CvtBoolToUint8 <types.Types[types.TUINT8]> (Not <bool.Type> bool)))))
 	for {
 		x := v_0
-		op := v_1
-		if op.Op != OpOr32 {
+		op1 := v_1
+		if op1.Op != OpOr32 {
 			break
 		}
-		t := op.Type
-		_ = op.Args[1]
-		op_0 := op.Args[0]
-		op_1 := op.Args[1]
-		for _i0 := 0; _i0 <= 1; _i0, op_0, op_1 = _i0+1, op_1, op_0 {
-			if x != op_0 {
+		t := op1.Type
+		_ = op1.Args[1]
+		op1_0 := op1.Args[0]
+		op1_1 := op1.Args[1]
+		for _i0 := 0; _i0 <= 1; _i0, op1_0, op1_1 = _i0+1, op1_1, op1_0 {
+			if x != op1_0 {
 				continue
 			}
-			c := op_1
+			c := op1_1
 			if c.Op != OpConst32 {
 				continue
 			}
 			bool := v_2
-			if !(rewriteCondSelectIntoMath(config, op.Op, c.AuxInt)) {
+			if !(rewriteCondSelectIntoMath(config, op1.Op, c.AuxInt)) {
 				continue
 			}
 			v.reset(OpOr32)
@@ -7623,29 +7623,29 @@ func rewriteValuegeneric_OpCondSelect(v *Value) bool {
 		}
 		break
 	}
-	// match: (CondSelect x op:(Or16 <t> x c:(Const16)) bool)
-	// cond: rewriteCondSelectIntoMath(config, op.Op, c.AuxInt)
+	// match: (CondSelect x op1:(Or16 <t> x c:(Const16)) bool)
+	// cond: rewriteCondSelectIntoMath(config, op1.Op, c.AuxInt)
 	// result: (Or16 x (Mul16 <t> c (ZeroExt8to16 <t> (CvtBoolToUint8 <types.Types[types.TUINT8]> (Not <bool.Type> bool)))))
 	for {
 		x := v_0
-		op := v_1
-		if op.Op != OpOr16 {
+		op1 := v_1
+		if op1.Op != OpOr16 {
 			break
 		}
-		t := op.Type
-		_ = op.Args[1]
-		op_0 := op.Args[0]
-		op_1 := op.Args[1]
-		for _i0 := 0; _i0 <= 1; _i0, op_0, op_1 = _i0+1, op_1, op_0 {
-			if x != op_0 {
+		t := op1.Type
+		_ = op1.Args[1]
+		op1_0 := op1.Args[0]
+		op1_1 := op1.Args[1]
+		for _i0 := 0; _i0 <= 1; _i0, op1_0, op1_1 = _i0+1, op1_1, op1_0 {
+			if x != op1_0 {
 				continue
 			}
-			c := op_1
+			c := op1_1
 			if c.Op != OpConst16 {
 				continue
 			}
 			bool := v_2
-			if !(rewriteCondSelectIntoMath(config, op.Op, c.AuxInt)) {
+			if !(rewriteCondSelectIntoMath(config, op1.Op, c.AuxInt)) {
 				continue
 			}
 			v.reset(OpOr16)
@@ -7662,26 +7662,26 @@ func rewriteValuegeneric_OpCondSelect(v *Value) bool {
 		}
 		break
 	}
-	// match: (CondSelect op:(Xor8 <t> x c:(Const8)) x bool)
-	// cond: rewriteCondSelectIntoMath(config, op.Op, c.AuxInt)
+	// match: (CondSelect op1:(Xor8 <t> x c:(Const8)) x bool)
+	// cond: rewriteCondSelectIntoMath(config, op1.Op, c.AuxInt)
 	// result: (Xor8 x (Mul8 <t> c (CvtBoolToUint8 <t> bool)))
 	for {
-		op := v_0
-		if op.Op != OpXor8 {
+		op1 := v_0
+		if op1.Op != OpXor8 {
 			break
 		}
-		t := op.Type
-		_ = op.Args[1]
-		op_0 := op.Args[0]
-		op_1 := op.Args[1]
-		for _i0 := 0; _i0 <= 1; _i0, op_0, op_1 = _i0+1, op_1, op_0 {
-			x := op_0
-			c := op_1
+		t := op1.Type
+		_ = op1.Args[1]
+		op1_0 := op1.Args[0]
+		op1_1 := op1.Args[1]
+		for _i0 := 0; _i0 <= 1; _i0, op1_0, op1_1 = _i0+1, op1_1, op1_0 {
+			x := op1_0
+			c := op1_1
 			if c.Op != OpConst8 || x != v_1 {
 				continue
 			}
 			bool := v_2
-			if !(rewriteCondSelectIntoMath(config, op.Op, c.AuxInt)) {
+			if !(rewriteCondSelectIntoMath(config, op1.Op, c.AuxInt)) {
 				continue
 			}
 			v.reset(OpXor8)
@@ -7694,26 +7694,26 @@ func rewriteValuegeneric_OpCondSelect(v *Value) bool {
 		}
 		break
 	}
-	// match: (CondSelect op:(Xor64 <t> x c:(Const64)) x bool)
-	// cond: rewriteCondSelectIntoMath(config, op.Op, c.AuxInt)
+	// match: (CondSelect op1:(Xor64 <t> x c:(Const64)) x bool)
+	// cond: rewriteCondSelectIntoMath(config, op1.Op, c.AuxInt)
 	// result: (Xor64 x (Mul64 <t> c (ZeroExt8to64 <t> (CvtBoolToUint8 <types.Types[types.TUINT8]> bool))))
 	for {
-		op := v_0
-		if op.Op != OpXor64 {
+		op1 := v_0
+		if op1.Op != OpXor64 {
 			break
 		}
-		t := op.Type
-		_ = op.Args[1]
-		op_0 := op.Args[0]
-		op_1 := op.Args[1]
-		for _i0 := 0; _i0 <= 1; _i0, op_0, op_1 = _i0+1, op_1, op_0 {
-			x := op_0
-			c := op_1
+		t := op1.Type
+		_ = op1.Args[1]
+		op1_0 := op1.Args[0]
+		op1_1 := op1.Args[1]
+		for _i0 := 0; _i0 <= 1; _i0, op1_0, op1_1 = _i0+1, op1_1, op1_0 {
+			x := op1_0
+			c := op1_1
 			if c.Op != OpConst64 || x != v_1 {
 				continue
 			}
 			bool := v_2
-			if !(rewriteCondSelectIntoMath(config, op.Op, c.AuxInt)) {
+			if !(rewriteCondSelectIntoMath(config, op1.Op, c.AuxInt)) {
 				continue
 			}
 			v.reset(OpXor64)
@@ -7728,26 +7728,26 @@ func rewriteValuegeneric_OpCondSelect(v *Value) bool {
 		}
 		break
 	}
-	// match: (CondSelect op:(Xor32 <t> x c:(Const32)) x bool)
-	// cond: rewriteCondSelectIntoMath(config, op.Op, c.AuxInt)
+	// match: (CondSelect op1:(Xor32 <t> x c:(Const32)) x bool)
+	// cond: rewriteCondSelectIntoMath(config, op1.Op, c.AuxInt)
 	// result: (Xor32 x (Mul32 <t> c (ZeroExt8to32 <t> (CvtBoolToUint8 <types.Types[types.TUINT8]> bool))))
 	for {
-		op := v_0
-		if op.Op != OpXor32 {
+		op1 := v_0
+		if op1.Op != OpXor32 {
 			break
 		}
-		t := op.Type
-		_ = op.Args[1]
-		op_0 := op.Args[0]
-		op_1 := op.Args[1]
-		for _i0 := 0; _i0 <= 1; _i0, op_0, op_1 = _i0+1, op_1, op_0 {
-			x := op_0
-			c := op_1
+		t := op1.Type
+		_ = op1.Args[1]
+		op1_0 := op1.Args[0]
+		op1_1 := op1.Args[1]
+		for _i0 := 0; _i0 <= 1; _i0, op1_0, op1_1 = _i0+1, op1_1, op1_0 {
+			x := op1_0
+			c := op1_1
 			if c.Op != OpConst32 || x != v_1 {
 				continue
 			}
 			bool := v_2
-			if !(rewriteCondSelectIntoMath(config, op.Op, c.AuxInt)) {
+			if !(rewriteCondSelectIntoMath(config, op1.Op, c.AuxInt)) {
 				continue
 			}
 			v.reset(OpXor32)
@@ -7762,26 +7762,26 @@ func rewriteValuegeneric_OpCondSelect(v *Value) bool {
 		}
 		break
 	}
-	// match: (CondSelect op:(Xor16 <t> x c:(Const16)) x bool)
-	// cond: rewriteCondSelectIntoMath(config, op.Op, c.AuxInt)
+	// match: (CondSelect op1:(Xor16 <t> x c:(Const16)) x bool)
+	// cond: rewriteCondSelectIntoMath(config, op1.Op, c.AuxInt)
 	// result: (Xor16 x (Mul16 <t> c (ZeroExt8to16 <t> (CvtBoolToUint8 <types.Types[types.TUINT8]> bool))))
 	for {
-		op := v_0
-		if op.Op != OpXor16 {
+		op1 := v_0
+		if op1.Op != OpXor16 {
 			break
 		}
-		t := op.Type
-		_ = op.Args[1]
-		op_0 := op.Args[0]
-		op_1 := op.Args[1]
-		for _i0 := 0; _i0 <= 1; _i0, op_0, op_1 = _i0+1, op_1, op_0 {
-			x := op_0
-			c := op_1
+		t := op1.Type
+		_ = op1.Args[1]
+		op1_0 := op1.Args[0]
+		op1_1 := op1.Args[1]
+		for _i0 := 0; _i0 <= 1; _i0, op1_0, op1_1 = _i0+1, op1_1, op1_0 {
+			x := op1_0
+			c := op1_1
 			if c.Op != OpConst16 || x != v_1 {
 				continue
 			}
 			bool := v_2
-			if !(rewriteCondSelectIntoMath(config, op.Op, c.AuxInt)) {
+			if !(rewriteCondSelectIntoMath(config, op1.Op, c.AuxInt)) {
 				continue
 			}
 			v.reset(OpXor16)
@@ -7796,29 +7796,29 @@ func rewriteValuegeneric_OpCondSelect(v *Value) bool {
 		}
 		break
 	}
-	// match: (CondSelect x op:(Xor8 <t> x c:(Const8)) bool)
-	// cond: rewriteCondSelectIntoMath(config, op.Op, c.AuxInt)
+	// match: (CondSelect x op1:(Xor8 <t> x c:(Const8)) bool)
+	// cond: rewriteCondSelectIntoMath(config, op1.Op, c.AuxInt)
 	// result: (Xor8 x (Mul8 <t> c (CvtBoolToUint8 <t> (Not <bool.Type> bool))))
 	for {
 		x := v_0
-		op := v_1
-		if op.Op != OpXor8 {
+		op1 := v_1
+		if op1.Op != OpXor8 {
 			break
 		}
-		t := op.Type
-		_ = op.Args[1]
-		op_0 := op.Args[0]
-		op_1 := op.Args[1]
-		for _i0 := 0; _i0 <= 1; _i0, op_0, op_1 = _i0+1, op_1, op_0 {
-			if x != op_0 {
+		t := op1.Type
+		_ = op1.Args[1]
+		op1_0 := op1.Args[0]
+		op1_1 := op1.Args[1]
+		for _i0 := 0; _i0 <= 1; _i0, op1_0, op1_1 = _i0+1, op1_1, op1_0 {
+			if x != op1_0 {
 				continue
 			}
-			c := op_1
+			c := op1_1
 			if c.Op != OpConst8 {
 				continue
 			}
 			bool := v_2
-			if !(rewriteCondSelectIntoMath(config, op.Op, c.AuxInt)) {
+			if !(rewriteCondSelectIntoMath(config, op1.Op, c.AuxInt)) {
 				continue
 			}
 			v.reset(OpXor8)
@@ -7833,29 +7833,29 @@ func rewriteValuegeneric_OpCondSelect(v *Value) bool {
 		}
 		break
 	}
-	// match: (CondSelect x op:(Xor64 <t> x c:(Const64)) bool)
-	// cond: rewriteCondSelectIntoMath(config, op.Op, c.AuxInt)
+	// match: (CondSelect x op1:(Xor64 <t> x c:(Const64)) bool)
+	// cond: rewriteCondSelectIntoMath(config, op1.Op, c.AuxInt)
 	// result: (Xor64 x (Mul64 <t> c (ZeroExt8to64 <t> (CvtBoolToUint8 <types.Types[types.TUINT8]> (Not <bool.Type> bool)))))
 	for {
 		x := v_0
-		op := v_1
-		if op.Op != OpXor64 {
+		op1 := v_1
+		if op1.Op != OpXor64 {
 			break
 		}
-		t := op.Type
-		_ = op.Args[1]
-		op_0 := op.Args[0]
-		op_1 := op.Args[1]
-		for _i0 := 0; _i0 <= 1; _i0, op_0, op_1 = _i0+1, op_1, op_0 {
-			if x != op_0 {
+		t := op1.Type
+		_ = op1.Args[1]
+		op1_0 := op1.Args[0]
+		op1_1 := op1.Args[1]
+		for _i0 := 0; _i0 <= 1; _i0, op1_0, op1_1 = _i0+1, op1_1, op1_0 {
+			if x != op1_0 {
 				continue
 			}
-			c := op_1
+			c := op1_1
 			if c.Op != OpConst64 {
 				continue
 			}
 			bool := v_2
-			if !(rewriteCondSelectIntoMath(config, op.Op, c.AuxInt)) {
+			if !(rewriteCondSelectIntoMath(config, op1.Op, c.AuxInt)) {
 				continue
 			}
 			v.reset(OpXor64)
@@ -7872,29 +7872,29 @@ func rewriteValuegeneric_OpCondSelect(v *Value) bool {
 		}
 		break
 	}
-	// match: (CondSelect x op:(Xor32 <t> x c:(Const32)) bool)
-	// cond: rewriteCondSelectIntoMath(config, op.Op, c.AuxInt)
+	// match: (CondSelect x op1:(Xor32 <t> x c:(Const32)) bool)
+	// cond: rewriteCondSelectIntoMath(config, op1.Op, c.AuxInt)
 	// result: (Xor32 x (Mul32 <t> c (ZeroExt8to32 <t> (CvtBoolToUint8 <types.Types[types.TUINT8]> (Not <bool.Type> bool)))))
 	for {
 		x := v_0
-		op := v_1
-		if op.Op != OpXor32 {
+		op1 := v_1
+		if op1.Op != OpXor32 {
 			break
 		}
-		t := op.Type
-		_ = op.Args[1]
-		op_0 := op.Args[0]
-		op_1 := op.Args[1]
-		for _i0 := 0; _i0 <= 1; _i0, op_0, op_1 = _i0+1, op_1, op_0 {
-			if x != op_0 {
+		t := op1.Type
+		_ = op1.Args[1]
+		op1_0 := op1.Args[0]
+		op1_1 := op1.Args[1]
+		for _i0 := 0; _i0 <= 1; _i0, op1_0, op1_1 = _i0+1, op1_1, op1_0 {
+			if x != op1_0 {
 				continue
 			}
-			c := op_1
+			c := op1_1
 			if c.Op != OpConst32 {
 				continue
 			}
 			bool := v_2
-			if !(rewriteCondSelectIntoMath(config, op.Op, c.AuxInt)) {
+			if !(rewriteCondSelectIntoMath(config, op1.Op, c.AuxInt)) {
 				continue
 			}
 			v.reset(OpXor32)
@@ -7911,29 +7911,29 @@ func rewriteValuegeneric_OpCondSelect(v *Value) bool {
 		}
 		break
 	}
-	// match: (CondSelect x op:(Xor16 <t> x c:(Const16)) bool)
-	// cond: rewriteCondSelectIntoMath(config, op.Op, c.AuxInt)
+	// match: (CondSelect x op1:(Xor16 <t> x c:(Const16)) bool)
+	// cond: rewriteCondSelectIntoMath(config, op1.Op, c.AuxInt)
 	// result: (Xor16 x (Mul16 <t> c (ZeroExt8to16 <t> (CvtBoolToUint8 <types.Types[types.TUINT8]> (Not <bool.Type> bool)))))
 	for {
 		x := v_0
-		op := v_1
-		if op.Op != OpXor16 {
+		op1 := v_1
+		if op1.Op != OpXor16 {
 			break
 		}
-		t := op.Type
-		_ = op.Args[1]
-		op_0 := op.Args[0]
-		op_1 := op.Args[1]
-		for _i0 := 0; _i0 <= 1; _i0, op_0, op_1 = _i0+1, op_1, op_0 {
-			if x != op_0 {
+		t := op1.Type
+		_ = op1.Args[1]
+		op1_0 := op1.Args[0]
+		op1_1 := op1.Args[1]
+		for _i0 := 0; _i0 <= 1; _i0, op1_0, op1_1 = _i0+1, op1_1, op1_0 {
+			if x != op1_0 {
 				continue
 			}
-			c := op_1
+			c := op1_1
 			if c.Op != OpConst16 {
 				continue
 			}
 			bool := v_2
-			if !(rewriteCondSelectIntoMath(config, op.Op, c.AuxInt)) {
+			if !(rewriteCondSelectIntoMath(config, op1.Op, c.AuxInt)) {
 				continue
 			}
 			v.reset(OpXor16)
@@ -14228,17 +14228,17 @@ func rewriteValuegeneric_OpLoad(v *Value) bool {
 		v.copyOf(x)
 		return true
 	}
-	// match: (Load <t1> op:(OffPtr [o1] p1) move:(Move [n] p2 src mem))
+	// match: (Load <t1> op1:(OffPtr [o1] p1) move:(Move [n] p2 src mem))
 	// cond: o1 >= 0 && o1+t1.Size() <= n && isSamePtr(p1, p2) && !isVolatile(src)
-	// result: @move.Block (Load <t1> (OffPtr <op.Type> [o1] src) mem)
+	// result: @move.Block (Load <t1> (OffPtr <op1.Type> [o1] src) mem)
 	for {
 		t1 := v.Type
-		op := v_0
-		if op.Op != OpOffPtr {
+		op1 := v_0
+		if op1.Op != OpOffPtr {
 			break
 		}
-		o1 := auxIntToInt64(op.AuxInt)
-		p1 := op.Args[0]
+		o1 := auxIntToInt64(op1.AuxInt)
+		p1 := op1.Args[0]
 		move := v_1
 		if move.Op != OpMove {
 			break
@@ -14253,7 +14253,7 @@ func rewriteValuegeneric_OpLoad(v *Value) bool {
 		b = move.Block
 		v0 := b.NewValue0(v.Pos, OpLoad, t1)
 		v.copyOf(v0)
-		v1 := b.NewValue0(v.Pos, OpOffPtr, op.Type)
+		v1 := b.NewValue0(v.Pos, OpOffPtr, op1.Type)
 		v1.AuxInt = int64ToAuxInt(o1)
 		v1.AddArg(src)
 		v0.AddArg2(v1, mem)
@@ -14355,17 +14355,17 @@ func rewriteValuegeneric_OpLoad(v *Value) bool {
 		v.AuxInt = int32ToAuxInt(int32(math.Float32bits(x)))
 		return true
 	}
-	// match: (Load <t1> op:(OffPtr [o1] p1) (Store {t2} p2 _ mem:(Zero [n] p3 _)))
-	// cond: o1 >= 0 && o1+t1.Size() <= n && isSamePtr(p1, p3) && CanSSA(t1) && disjoint(op, t1.Size(), p2, t2.Size())
-	// result: @mem.Block (Load <t1> (OffPtr <op.Type> [o1] p3) mem)
+	// match: (Load <t1> op1:(OffPtr [o1] p1) (Store {t2} p2 _ mem:(Zero [n] p3 _)))
+	// cond: o1 >= 0 && o1+t1.Size() <= n && isSamePtr(p1, p3) && CanSSA(t1) && disjoint(op1, t1.Size(), p2, t2.Size())
+	// result: @mem.Block (Load <t1> (OffPtr <op1.Type> [o1] p3) mem)
 	for {
 		t1 := v.Type
-		op := v_0
-		if op.Op != OpOffPtr {
+		op1 := v_0
+		if op1.Op != OpOffPtr {
 			break
 		}
-		o1 := auxIntToInt64(op.AuxInt)
-		p1 := op.Args[0]
+		o1 := auxIntToInt64(op1.AuxInt)
+		p1 := op1.Args[0]
 		if v_1.Op != OpStore {
 			break
 		}
@@ -14378,29 +14378,29 @@ func rewriteValuegeneric_OpLoad(v *Value) bool {
 		}
 		n := auxIntToInt64(mem.AuxInt)
 		p3 := mem.Args[0]
-		if !(o1 >= 0 && o1+t1.Size() <= n && isSamePtr(p1, p3) && CanSSA(t1) && disjoint(op, t1.Size(), p2, t2.Size())) {
+		if !(o1 >= 0 && o1+t1.Size() <= n && isSamePtr(p1, p3) && CanSSA(t1) && disjoint(op1, t1.Size(), p2, t2.Size())) {
 			break
 		}
 		b = mem.Block
 		v0 := b.NewValue0(v.Pos, OpLoad, t1)
 		v.copyOf(v0)
-		v1 := b.NewValue0(v.Pos, OpOffPtr, op.Type)
+		v1 := b.NewValue0(v.Pos, OpOffPtr, op1.Type)
 		v1.AuxInt = int64ToAuxInt(o1)
 		v1.AddArg(p3)
 		v0.AddArg2(v1, mem)
 		return true
 	}
-	// match: (Load <t1> op:(OffPtr [o1] p1) (Store {t2} p2 _ (Store {t3} p3 _ mem:(Zero [n] p4 _))))
-	// cond: o1 >= 0 && o1+t1.Size() <= n && isSamePtr(p1, p4) && CanSSA(t1) && disjoint(op, t1.Size(), p2, t2.Size()) && disjoint(op, t1.Size(), p3, t3.Size())
-	// result: @mem.Block (Load <t1> (OffPtr <op.Type> [o1] p4) mem)
+	// match: (Load <t1> op1:(OffPtr [o1] p1) (Store {t2} p2 _ (Store {t3} p3 _ mem:(Zero [n] p4 _))))
+	// cond: o1 >= 0 && o1+t1.Size() <= n && isSamePtr(p1, p4) && CanSSA(t1) && disjoint(op1, t1.Size(), p2, t2.Size()) && disjoint(op1, t1.Size(), p3, t3.Size())
+	// result: @mem.Block (Load <t1> (OffPtr <op1.Type> [o1] p4) mem)
 	for {
 		t1 := v.Type
-		op := v_0
-		if op.Op != OpOffPtr {
+		op1 := v_0
+		if op1.Op != OpOffPtr {
 			break
 		}
-		o1 := auxIntToInt64(op.AuxInt)
-		p1 := op.Args[0]
+		o1 := auxIntToInt64(op1.AuxInt)
+		p1 := op1.Args[0]
 		if v_1.Op != OpStore {
 			break
 		}
@@ -14420,29 +14420,29 @@ func rewriteValuegeneric_OpLoad(v *Value) bool {
 		}
 		n := auxIntToInt64(mem.AuxInt)
 		p4 := mem.Args[0]
-		if !(o1 >= 0 && o1+t1.Size() <= n && isSamePtr(p1, p4) && CanSSA(t1) && disjoint(op, t1.Size(), p2, t2.Size()) && disjoint(op, t1.Size(), p3, t3.Size())) {
+		if !(o1 >= 0 && o1+t1.Size() <= n && isSamePtr(p1, p4) && CanSSA(t1) && disjoint(op1, t1.Size(), p2, t2.Size()) && disjoint(op1, t1.Size(), p3, t3.Size())) {
 			break
 		}
 		b = mem.Block
 		v0 := b.NewValue0(v.Pos, OpLoad, t1)
 		v.copyOf(v0)
-		v1 := b.NewValue0(v.Pos, OpOffPtr, op.Type)
+		v1 := b.NewValue0(v.Pos, OpOffPtr, op1.Type)
 		v1.AuxInt = int64ToAuxInt(o1)
 		v1.AddArg(p4)
 		v0.AddArg2(v1, mem)
 		return true
 	}
-	// match: (Load <t1> op:(OffPtr [o1] p1) (Store {t2} p2 _ (Store {t3} p3 _ (Store {t4} p4 _ mem:(Zero [n] p5 _)))))
-	// cond: o1 >= 0 && o1+t1.Size() <= n && isSamePtr(p1, p5) && CanSSA(t1) && disjoint(op, t1.Size(), p2, t2.Size()) && disjoint(op, t1.Size(), p3, t3.Size()) && disjoint(op, t1.Size(), p4, t4.Size())
-	// result: @mem.Block (Load <t1> (OffPtr <op.Type> [o1] p5) mem)
+	// match: (Load <t1> op1:(OffPtr [o1] p1) (Store {t2} p2 _ (Store {t3} p3 _ (Store {t4} p4 _ mem:(Zero [n] p5 _)))))
+	// cond: o1 >= 0 && o1+t1.Size() <= n && isSamePtr(p1, p5) && CanSSA(t1) && disjoint(op1, t1.Size(), p2, t2.Size()) && disjoint(op1, t1.Size(), p3, t3.Size()) && disjoint(op1, t1.Size(), p4, t4.Size())
+	// result: @mem.Block (Load <t1> (OffPtr <op1.Type> [o1] p5) mem)
 	for {
 		t1 := v.Type
-		op := v_0
-		if op.Op != OpOffPtr {
+		op1 := v_0
+		if op1.Op != OpOffPtr {
 			break
 		}
-		o1 := auxIntToInt64(op.AuxInt)
-		p1 := op.Args[0]
+		o1 := auxIntToInt64(op1.AuxInt)
+		p1 := op1.Args[0]
 		if v_1.Op != OpStore {
 			break
 		}
@@ -14469,29 +14469,29 @@ func rewriteValuegeneric_OpLoad(v *Value) bool {
 		}
 		n := auxIntToInt64(mem.AuxInt)
 		p5 := mem.Args[0]
-		if !(o1 >= 0 && o1+t1.Size() <= n && isSamePtr(p1, p5) && CanSSA(t1) && disjoint(op, t1.Size(), p2, t2.Size()) && disjoint(op, t1.Size(), p3, t3.Size()) && disjoint(op, t1.Size(), p4, t4.Size())) {
+		if !(o1 >= 0 && o1+t1.Size() <= n && isSamePtr(p1, p5) && CanSSA(t1) && disjoint(op1, t1.Size(), p2, t2.Size()) && disjoint(op1, t1.Size(), p3, t3.Size()) && disjoint(op1, t1.Size(), p4, t4.Size())) {
 			break
 		}
 		b = mem.Block
 		v0 := b.NewValue0(v.Pos, OpLoad, t1)
 		v.copyOf(v0)
-		v1 := b.NewValue0(v.Pos, OpOffPtr, op.Type)
+		v1 := b.NewValue0(v.Pos, OpOffPtr, op1.Type)
 		v1.AuxInt = int64ToAuxInt(o1)
 		v1.AddArg(p5)
 		v0.AddArg2(v1, mem)
 		return true
 	}
-	// match: (Load <t1> op:(OffPtr [o1] p1) (Store {t2} p2 _ (Store {t3} p3 _ (Store {t4} p4 _ (Store {t5} p5 _ mem:(Zero [n] p6 _))))))
-	// cond: o1 >= 0 && o1+t1.Size() <= n && isSamePtr(p1, p6) && CanSSA(t1) && disjoint(op, t1.Size(), p2, t2.Size()) && disjoint(op, t1.Size(), p3, t3.Size()) && disjoint(op, t1.Size(), p4, t4.Size()) && disjoint(op, t1.Size(), p5, t5.Size())
-	// result: @mem.Block (Load <t1> (OffPtr <op.Type> [o1] p6) mem)
+	// match: (Load <t1> op1:(OffPtr [o1] p1) (Store {t2} p2 _ (Store {t3} p3 _ (Store {t4} p4 _ (Store {t5} p5 _ mem:(Zero [n] p6 _))))))
+	// cond: o1 >= 0 && o1+t1.Size() <= n && isSamePtr(p1, p6) && CanSSA(t1) && disjoint(op1, t1.Size(), p2, t2.Size()) && disjoint(op1, t1.Size(), p3, t3.Size()) && disjoint(op1, t1.Size(), p4, t4.Size()) && disjoint(op1, t1.Size(), p5, t5.Size())
+	// result: @mem.Block (Load <t1> (OffPtr <op1.Type> [o1] p6) mem)
 	for {
 		t1 := v.Type
-		op := v_0
-		if op.Op != OpOffPtr {
+		op1 := v_0
+		if op1.Op != OpOffPtr {
 			break
 		}
-		o1 := auxIntToInt64(op.AuxInt)
-		p1 := op.Args[0]
+		o1 := auxIntToInt64(op1.AuxInt)
+		p1 := op1.Args[0]
 		if v_1.Op != OpStore {
 			break
 		}
@@ -14525,13 +14525,13 @@ func rewriteValuegeneric_OpLoad(v *Value) bool {
 		}
 		n := auxIntToInt64(mem.AuxInt)
 		p6 := mem.Args[0]
-		if !(o1 >= 0 && o1+t1.Size() <= n && isSamePtr(p1, p6) && CanSSA(t1) && disjoint(op, t1.Size(), p2, t2.Size()) && disjoint(op, t1.Size(), p3, t3.Size()) && disjoint(op, t1.Size(), p4, t4.Size()) && disjoint(op, t1.Size(), p5, t5.Size())) {
+		if !(o1 >= 0 && o1+t1.Size() <= n && isSamePtr(p1, p6) && CanSSA(t1) && disjoint(op1, t1.Size(), p2, t2.Size()) && disjoint(op1, t1.Size(), p3, t3.Size()) && disjoint(op1, t1.Size(), p4, t4.Size()) && disjoint(op1, t1.Size(), p5, t5.Size())) {
 			break
 		}
 		b = mem.Block
 		v0 := b.NewValue0(v.Pos, OpLoad, t1)
 		v.copyOf(v0)
-		v1 := b.NewValue0(v.Pos, OpOffPtr, op.Type)
+		v1 := b.NewValue0(v.Pos, OpOffPtr, op1.Type)
 		v1.AuxInt = int64ToAuxInt(o1)
 		v1.AddArg(p6)
 		v0.AddArg2(v1, mem)
@@ -18119,8 +18119,8 @@ func rewriteValuegeneric_OpMove(v *Value) bool {
 		v.AddArg2(dst, mem)
 		return true
 	}
-	// match: (Move {t1} [n] dst1 src1 store:(Store {t2} op:(OffPtr [o2] dst2) _ mem))
-	// cond: isSamePtr(dst1, dst2) && store.Uses == 1 && n >= o2 + t2.Size() && disjoint(src1, n, op, t2.Size()) && clobber(store)
+	// match: (Move {t1} [n] dst1 src1 store:(Store {t2} op1:(OffPtr [o2] dst2) _ mem))
+	// cond: isSamePtr(dst1, dst2) && store.Uses == 1 && n >= o2 + t2.Size() && disjoint(src1, n, op1, t2.Size()) && clobber(store)
 	// result: (Move {t1} [n] dst1 src1 mem)
 	for {
 		n := auxIntToInt64(v.AuxInt)
@@ -18133,13 +18133,13 @@ func rewriteValuegeneric_OpMove(v *Value) bool {
 		}
 		t2 := auxToType(store.Aux)
 		mem := store.Args[2]
-		op := store.Args[0]
-		if op.Op != OpOffPtr {
+		op1 := store.Args[0]
+		if op1.Op != OpOffPtr {
 			break
 		}
-		o2 := auxIntToInt64(op.AuxInt)
-		dst2 := op.Args[0]
-		if !(isSamePtr(dst1, dst2) && store.Uses == 1 && n >= o2+t2.Size() && disjoint(src1, n, op, t2.Size()) && clobber(store)) {
+		o2 := auxIntToInt64(op1.AuxInt)
+		dst2 := op1.Args[0]
+		if !(isSamePtr(dst1, dst2) && store.Uses == 1 && n >= o2+t2.Size() && disjoint(src1, n, op1, t2.Size()) && clobber(store)) {
 			break
 		}
 		v.reset(OpMove)
@@ -35128,17 +35128,17 @@ func rewriteValuegeneric_OpStore(v *Value) bool {
 		v.copyOf(mem)
 		return true
 	}
-	// match: (Store {t1} op:(OffPtr [o1] p1) x mem:(Store {t2} p2 _ (Zero [n] p3 _)))
-	// cond: isConstZero(x) && o1 >= 0 && t1.Size() + o1 <= n && isSamePtr(p1, p3) && disjoint(op, t1.Size(), p2, t2.Size())
+	// match: (Store {t1} op1:(OffPtr [o1] p1) x mem:(Store {t2} p2 _ (Zero [n] p3 _)))
+	// cond: isConstZero(x) && o1 >= 0 && t1.Size() + o1 <= n && isSamePtr(p1, p3) && disjoint(op1, t1.Size(), p2, t2.Size())
 	// result: mem
 	for {
 		t1 := auxToType(v.Aux)
-		op := v_0
-		if op.Op != OpOffPtr {
+		op1 := v_0
+		if op1.Op != OpOffPtr {
 			break
 		}
-		o1 := auxIntToInt64(op.AuxInt)
-		p1 := op.Args[0]
+		o1 := auxIntToInt64(op1.AuxInt)
+		p1 := op1.Args[0]
 		x := v_1
 		mem := v_2
 		if mem.Op != OpStore {
@@ -35153,23 +35153,23 @@ func rewriteValuegeneric_OpStore(v *Value) bool {
 		}
 		n := auxIntToInt64(mem_2.AuxInt)
 		p3 := mem_2.Args[0]
-		if !(isConstZero(x) && o1 >= 0 && t1.Size()+o1 <= n && isSamePtr(p1, p3) && disjoint(op, t1.Size(), p2, t2.Size())) {
+		if !(isConstZero(x) && o1 >= 0 && t1.Size()+o1 <= n && isSamePtr(p1, p3) && disjoint(op1, t1.Size(), p2, t2.Size())) {
 			break
 		}
 		v.copyOf(mem)
 		return true
 	}
-	// match: (Store {t1} op:(OffPtr [o1] p1) x mem:(Store {t2} p2 _ (Store {t3} p3 _ (Zero [n] p4 _))))
-	// cond: isConstZero(x) && o1 >= 0 && t1.Size() + o1 <= n && isSamePtr(p1, p4) && disjoint(op, t1.Size(), p2, t2.Size()) && disjoint(op, t1.Size(), p3, t3.Size())
+	// match: (Store {t1} op1:(OffPtr [o1] p1) x mem:(Store {t2} p2 _ (Store {t3} p3 _ (Zero [n] p4 _))))
+	// cond: isConstZero(x) && o1 >= 0 && t1.Size() + o1 <= n && isSamePtr(p1, p4) && disjoint(op1, t1.Size(), p2, t2.Size()) && disjoint(op1, t1.Size(), p3, t3.Size())
 	// result: mem
 	for {
 		t1 := auxToType(v.Aux)
-		op := v_0
-		if op.Op != OpOffPtr {
+		op1 := v_0
+		if op1.Op != OpOffPtr {
 			break
 		}
-		o1 := auxIntToInt64(op.AuxInt)
-		p1 := op.Args[0]
+		o1 := auxIntToInt64(op1.AuxInt)
+		p1 := op1.Args[0]
 		x := v_1
 		mem := v_2
 		if mem.Op != OpStore {
@@ -35191,23 +35191,23 @@ func rewriteValuegeneric_OpStore(v *Value) bool {
 		}
 		n := auxIntToInt64(mem_2_2.AuxInt)
 		p4 := mem_2_2.Args[0]
-		if !(isConstZero(x) && o1 >= 0 && t1.Size()+o1 <= n && isSamePtr(p1, p4) && disjoint(op, t1.Size(), p2, t2.Size()) && disjoint(op, t1.Size(), p3, t3.Size())) {
+		if !(isConstZero(x) && o1 >= 0 && t1.Size()+o1 <= n && isSamePtr(p1, p4) && disjoint(op1, t1.Size(), p2, t2.Size()) && disjoint(op1, t1.Size(), p3, t3.Size())) {
 			break
 		}
 		v.copyOf(mem)
 		return true
 	}
-	// match: (Store {t1} op:(OffPtr [o1] p1) x mem:(Store {t2} p2 _ (Store {t3} p3 _ (Store {t4} p4 _ (Zero [n] p5 _)))))
-	// cond: isConstZero(x) && o1 >= 0 && t1.Size() + o1 <= n && isSamePtr(p1, p5) && disjoint(op, t1.Size(), p2, t2.Size()) && disjoint(op, t1.Size(), p3, t3.Size()) && disjoint(op, t1.Size(), p4, t4.Size())
+	// match: (Store {t1} op1:(OffPtr [o1] p1) x mem:(Store {t2} p2 _ (Store {t3} p3 _ (Store {t4} p4 _ (Zero [n] p5 _)))))
+	// cond: isConstZero(x) && o1 >= 0 && t1.Size() + o1 <= n && isSamePtr(p1, p5) && disjoint(op1, t1.Size(), p2, t2.Size()) && disjoint(op1, t1.Size(), p3, t3.Size()) && disjoint(op1, t1.Size(), p4, t4.Size())
 	// result: mem
 	for {
 		t1 := auxToType(v.Aux)
-		op := v_0
-		if op.Op != OpOffPtr {
+		op1 := v_0
+		if op1.Op != OpOffPtr {
 			break
 		}
-		o1 := auxIntToInt64(op.AuxInt)
-		p1 := op.Args[0]
+		o1 := auxIntToInt64(op1.AuxInt)
+		p1 := op1.Args[0]
 		x := v_1
 		mem := v_2
 		if mem.Op != OpStore {
@@ -35236,7 +35236,7 @@ func rewriteValuegeneric_OpStore(v *Value) bool {
 		}
 		n := auxIntToInt64(mem_2_2_2.AuxInt)
 		p5 := mem_2_2_2.Args[0]
-		if !(isConstZero(x) && o1 >= 0 && t1.Size()+o1 <= n && isSamePtr(p1, p5) && disjoint(op, t1.Size(), p2, t2.Size()) && disjoint(op, t1.Size(), p3, t3.Size()) && disjoint(op, t1.Size(), p4, t4.Size())) {
+		if !(isConstZero(x) && o1 >= 0 && t1.Size()+o1 <= n && isSamePtr(p1, p5) && disjoint(op1, t1.Size(), p2, t2.Size()) && disjoint(op1, t1.Size(), p3, t3.Size()) && disjoint(op1, t1.Size(), p4, t4.Size())) {
 			break
 		}
 		v.copyOf(mem)

@@ -855,6 +855,7 @@ var reservedNames = map[string]bool{
 	"config": true, // b.Func.Config
 	"fe":     true, // b.Func.fe
 	"typ":    true, // &b.Func.Config.Types
+	"op":     true, // op.OpAMD64MOVBQZX
 }
 
 // declf constructs a simple "name := value" declaration,
