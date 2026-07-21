@@ -1431,6 +1431,9 @@ func ZeroUpper48Bits(x *Value, depth int) bool {
 		return true
 	case OpAMD64MOVQconst, OpAMD64MOVLconst:
 		return uint64(uint16(x.AuxInt)) == uint64(x.AuxInt)
+	case OpARM64MOVHUreg, OpARM64MOVHUload, OpARM64MOVHUloadidx, OpARM64MOVHUloadidx2,
+		OpARM64MOVBUreg, OpARM64MOVBUload, OpARM64MOVBUloadidx:
+		return true
 	case OpArg: // note: but not ArgIntReg
 		return x.Type.Size() == 2 && x.Block.Func.Config.arch == "amd64"
 	case OpPhi, OpSelect0, OpSelect1:
