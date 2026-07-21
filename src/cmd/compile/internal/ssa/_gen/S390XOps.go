@@ -758,6 +758,7 @@ func init() {
 			faultOnNilArg1: true,
 			addrSinkArg0:   true,
 			addrSinkArg1:   true,
+			// TODO: could use addrSinkArg2 here.
 		},
 
 		// large clear
@@ -784,6 +785,7 @@ func init() {
 			typ:            "Mem",
 			faultOnNilArg0: true,
 			addrSinkArg0:   true,
+			addrSinkArg1:   true,
 		},
 	}
 
