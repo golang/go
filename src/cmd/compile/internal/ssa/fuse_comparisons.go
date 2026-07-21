@@ -167,12 +167,17 @@ func isSignedInequality(v *Value) bool {
 }
 
 // isUnsignedInequality reports whether op represents the inequality < or ≤
-// in the unsigned domain.
+// in the unsigned domain, including "x != 0", which is equivalent to the
+// unsigned "0 < x".
 func isUnsignedInequality(v *Value) bool {
 	switch v.Op {
 	case OpLess64U, OpLess32U, OpLess16U, OpLess8U,
 		OpLeq64U, OpLeq32U, OpLeq16U, OpLeq8U:
 		return true
+	case OpNeq64, OpNeq32, OpNeq16, OpNeq8:
+		// "x != 0" is equivalent to the unsigned "0 < x", and is its
+		// canonical form; see "prefer equalities with zero" in generic.rules.
+		return isConstZero(v.Args[0]) || isConstZero(v.Args[1])
 	}
 	return false
 }

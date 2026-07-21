@@ -166,6 +166,27 @@ func ui4c(c <-chan uint8) {
 	}
 }
 
+func ui5c(c <-chan uint64) {
+	// amd64:"CMPQ .+, [$]255" "DECQ "
+	// s390x:"CLGIJ [$]4, R[0-9]+, [$]255" "ADD [$]-1,"
+	for x := <-c; x > 0 && x < 256; x = <-c {
+	}
+}
+
+func ui6c(c <-chan uint16) {
+	// amd64:"CMPW .+, [$]39" "DECL "
+	// s390x:"CLIJ [$]12, R[0-9]+, [$]39" "ADDW [$]-1,"
+	for x := <-c; x > 0 && x <= 40; x = <-c {
+	}
+}
+
+func ui7c(c <-chan uint8) {
+	// amd64:"CMPB .+, [$]39" "DECL "
+	// s390x:"CLIJ [$]12, R[0-9]+, [$]39" "ADDW [$]-1,"
+	for x := <-c; x > 0 && x <= 40; x = <-c {
+	}
+}
+
 // ------------------------------------ //
 // unsigned integer range (disjunction) //
 // ------------------------------------ //

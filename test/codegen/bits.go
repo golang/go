@@ -670,3 +670,73 @@ func absorptionOrCommuted64(x, y uint64) uint64 {
 	// amd64:-"ORQ" -"ANDQ"
 	return (x & y) | x
 }
+
+// The generic rules canonicalize the unsigned "0 < x" to "x != 0" and, for
+// provably non-negative x, the signed "x <= 0" to "x == 0", so these
+// spellings of a bit test reach the NE/EQ-keyed bit-test recognizers
+// without arch-specific rules.
+
+func bitsGtZeroPow2ConstU64(x uint64) bool {
+	// amd64:"BTL [$]27" -"TESTQ" -"MOVQ [$]134217728"
+	// arm64: "TST [$]134217728," "CSET NE" -"CSET HI"
+	return x&(1<<27) > 0
+}
+
+func bitsGtZeroPow2ConstU32(x uint32) bool {
+	// amd64:"BTL [$]3" -"TESTL"
+	// arm64: "TSTW [$]8," "CSET NE" -"CSET HI"
+	return x&8 > 0
+}
+
+func bitsGtZeroMaskU64(a []uint64, i int) bool {
+	// amd64: "BTQ" -"SHL" -"TESTQ"
+	// arm64: "TST R" "CSET NE" -"CSET HI"
+	return a[i>>6]&(1<<(uint(i)&63)) > 0
+}
+
+func bitsGtZeroU64(x uint64) bool {
+	// arm64: "CSET NE" -"CSET HI" -"CSET LS"
+	return x > 0
+}
+
+func bitsGtZeroU16(x uint16) bool {
+	// amd64:"SETNE" -"SETHI"
+	// arm64: "CSET NE" -"CSET HI"
+	return x > 0
+}
+
+func bitsGtZeroU8(x uint8) bool {
+	// amd64:"SETNE" -"SETHI"
+	// arm64: "CSET NE" -"CSET HI"
+	return x > 0
+}
+
+func bitsLeZeroPow2ConstS64(x int64) bool {
+	// amd64:"BTQ [$]40" -"TESTQ" -"SETLE"
+	// arm64: "TST [$]1099511627776," "CSET EQ" -"CSET LE"
+	return x&(1<<40) <= 0
+}
+
+func bitsLeZeroPow2ConstS32(x int32) bool {
+	// amd64:"BTL [$]3" -"TESTL" -"SETLE"
+	// arm64: "TSTW [$]8," "CSET EQ" -"CSET LE"
+	return x&8 <= 0
+}
+
+func bitsLeZeroPow2ConstS16(x int16) bool {
+	// amd64:"SETEQ" -"SETLE"
+	// arm64: "TSTW [$]8," "CSET EQ" -"CSET LE"
+	return x&8 <= 0
+}
+
+func bitsLeZeroPow2ConstS8(x int8) bool {
+	// amd64:"SETEQ" -"SETLE"
+	// arm64: "TSTW [$]8," "CSET EQ" -"CSET LE"
+	return x&8 <= 0
+}
+
+func bitsLeZeroLen(b []byte) bool {
+	// amd64:"SETEQ" -"SETLE"
+	// arm64: "CSET EQ" -"CSET LE"
+	return len(b) <= 0
+}

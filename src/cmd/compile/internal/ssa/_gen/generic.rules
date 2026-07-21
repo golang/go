@@ -367,6 +367,13 @@
 (AndB (Less16U (Const16 [c]) x) ((Less|Leq)16U x (Const16 [d]))) && uint16(d) >= uint16(c+1) && uint16(c+1) > uint16(c) => ((Less|Leq)16U (Sub16 <x.Type> x (Const16 <x.Type> [c+1])) (Const16 <x.Type> [d-c-1]))
 (AndB (Less8U  (Const8  [c]) x) ((Less|Leq)8U  x (Const8  [d]))) && uint8(d)  >= uint8(c+1)  && uint8(c+1)  > uint8(c)  => ((Less|Leq)8U  (Sub8  <x.Type> x (Const8  <x.Type> [c+1]))  (Const8  <x.Type> [d-c-1]))
 
+// unsigned integer range with a zero lower bound: ( x != 0 && x (<|<=) d ) -> ( x-1 (<|<=) d-1 )
+// "x != 0" is the canonical form of the unsigned "0 < x"; see "prefer equalities with zero" below.
+(AndB (Neq64 x (Const64 [0])) ((Less|Leq)64U x (Const64 [d]))) && uint64(d) >= 1 => ((Less|Leq)64U (Sub64 <x.Type> x (Const64 <x.Type> [1])) (Const64 <x.Type> [d-1]))
+(AndB (Neq32 x (Const32 [0])) ((Less|Leq)32U x (Const32 [d]))) && uint32(d) >= 1 => ((Less|Leq)32U (Sub32 <x.Type> x (Const32 <x.Type> [1])) (Const32 <x.Type> [d-1]))
+(AndB (Neq16 x (Const16 [0])) ((Less|Leq)16U x (Const16 [d]))) && uint16(d) >= 1 => ((Less|Leq)16U (Sub16 <x.Type> x (Const16 <x.Type> [1])) (Const16 <x.Type> [d-1]))
+(AndB (Neq8  x (Const8  [0])) ((Less|Leq)8U  x (Const8  [d]))) && uint8(d)  >= 1 => ((Less|Leq)8U  (Sub8  <x.Type> x (Const8  <x.Type> [1]))  (Const8  <x.Type> [d-1]))
+
 // signed integer range: ( c (<|<=) x || x < d ) -> ( unsigned(c-d) (<|<=) unsigned(x-d) )
 (OrB ((Less|Leq)64 (Const64 [c]) x) (Less64 x (Const64 [d]))) && c >= d => ((Less|Leq)64U (Const64 <x.Type> [c-d]) (Sub64 <x.Type> x (Const64 <x.Type> [d])))
 (OrB ((Less|Leq)32 (Const32 [c]) x) (Less32 x (Const32 [d]))) && c >= d => ((Less|Leq)32U (Const32 <x.Type> [c-d]) (Sub32 <x.Type> x (Const32 <x.Type> [d])))
@@ -634,7 +641,8 @@
 
 // prefer equalities with zero
 (Less(64|32|16|8) (Const(64|32|16|8) <t> [0]) x) && isNonNegative(x) => (Neq(64|32|16|8) (Const(64|32|16|8) <t> [0]) x)
-(Less(64|32|16|8) x (Const(64|32|16|8) <t> [1])) && isNonNegative(x) => (Eq(64|32|16|8) (Const(64|32|16|8) <t> [0]) x)
+(Less(64|32|16|8)U (Const(64|32|16|8) <t> [0]) x) => (Neq(64|32|16|8) (Const(64|32|16|8) <t> [0]) x)
+(Leq(64|32|16|8) x (Const(64|32|16|8) <t> [0])) && isNonNegative(x) => (Eq(64|32|16|8) (Const(64|32|16|8) <t> [0]) x)
 (Less(64|32|16|8)U x (Const(64|32|16|8) <t> [1])) => (Eq(64|32|16|8) (Const(64|32|16|8) <t> [0]) x)
 (Leq(64|32|16|8)U (Const(64|32|16|8) <t> [1]) x) => (Neq(64|32|16|8) (Const(64|32|16|8) <t> [0]) x)
 

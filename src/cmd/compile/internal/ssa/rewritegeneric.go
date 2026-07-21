@@ -5601,6 +5601,334 @@ func rewriteValuegeneric_OpAndB(v *Value) bool {
 		}
 		break
 	}
+	// match: (AndB (Neq64 x (Const64 [0])) (Less64U x (Const64 [d])))
+	// cond: uint64(d) >= 1
+	// result: (Less64U (Sub64 <x.Type> x (Const64 <x.Type> [1])) (Const64 <x.Type> [d-1]))
+	for {
+		for _i0 := 0; _i0 <= 1; _i0, v_0, v_1 = _i0+1, v_1, v_0 {
+			if v_0.Op != OpNeq64 {
+				continue
+			}
+			_ = v_0.Args[1]
+			v_0_0 := v_0.Args[0]
+			v_0_1 := v_0.Args[1]
+			for _i1 := 0; _i1 <= 1; _i1, v_0_0, v_0_1 = _i1+1, v_0_1, v_0_0 {
+				x := v_0_0
+				if v_0_1.Op != OpConst64 || auxIntToInt64(v_0_1.AuxInt) != 0 || v_1.Op != OpLess64U {
+					continue
+				}
+				_ = v_1.Args[1]
+				if x != v_1.Args[0] {
+					continue
+				}
+				v_1_1 := v_1.Args[1]
+				if v_1_1.Op != OpConst64 {
+					continue
+				}
+				d := auxIntToInt64(v_1_1.AuxInt)
+				if !(uint64(d) >= 1) {
+					continue
+				}
+				v.reset(OpLess64U)
+				v0 := b.NewValue0(v.Pos, OpSub64, x.Type)
+				v1 := b.NewValue0(v.Pos, OpConst64, x.Type)
+				v1.AuxInt = int64ToAuxInt(1)
+				v0.AddArg2(x, v1)
+				v2 := b.NewValue0(v.Pos, OpConst64, x.Type)
+				v2.AuxInt = int64ToAuxInt(d - 1)
+				v.AddArg2(v0, v2)
+				return true
+			}
+		}
+		break
+	}
+	// match: (AndB (Neq64 x (Const64 [0])) (Leq64U x (Const64 [d])))
+	// cond: uint64(d) >= 1
+	// result: (Leq64U (Sub64 <x.Type> x (Const64 <x.Type> [1])) (Const64 <x.Type> [d-1]))
+	for {
+		for _i0 := 0; _i0 <= 1; _i0, v_0, v_1 = _i0+1, v_1, v_0 {
+			if v_0.Op != OpNeq64 {
+				continue
+			}
+			_ = v_0.Args[1]
+			v_0_0 := v_0.Args[0]
+			v_0_1 := v_0.Args[1]
+			for _i1 := 0; _i1 <= 1; _i1, v_0_0, v_0_1 = _i1+1, v_0_1, v_0_0 {
+				x := v_0_0
+				if v_0_1.Op != OpConst64 || auxIntToInt64(v_0_1.AuxInt) != 0 || v_1.Op != OpLeq64U {
+					continue
+				}
+				_ = v_1.Args[1]
+				if x != v_1.Args[0] {
+					continue
+				}
+				v_1_1 := v_1.Args[1]
+				if v_1_1.Op != OpConst64 {
+					continue
+				}
+				d := auxIntToInt64(v_1_1.AuxInt)
+				if !(uint64(d) >= 1) {
+					continue
+				}
+				v.reset(OpLeq64U)
+				v0 := b.NewValue0(v.Pos, OpSub64, x.Type)
+				v1 := b.NewValue0(v.Pos, OpConst64, x.Type)
+				v1.AuxInt = int64ToAuxInt(1)
+				v0.AddArg2(x, v1)
+				v2 := b.NewValue0(v.Pos, OpConst64, x.Type)
+				v2.AuxInt = int64ToAuxInt(d - 1)
+				v.AddArg2(v0, v2)
+				return true
+			}
+		}
+		break
+	}
+	// match: (AndB (Neq32 x (Const32 [0])) (Less32U x (Const32 [d])))
+	// cond: uint32(d) >= 1
+	// result: (Less32U (Sub32 <x.Type> x (Const32 <x.Type> [1])) (Const32 <x.Type> [d-1]))
+	for {
+		for _i0 := 0; _i0 <= 1; _i0, v_0, v_1 = _i0+1, v_1, v_0 {
+			if v_0.Op != OpNeq32 {
+				continue
+			}
+			_ = v_0.Args[1]
+			v_0_0 := v_0.Args[0]
+			v_0_1 := v_0.Args[1]
+			for _i1 := 0; _i1 <= 1; _i1, v_0_0, v_0_1 = _i1+1, v_0_1, v_0_0 {
+				x := v_0_0
+				if v_0_1.Op != OpConst32 || auxIntToInt32(v_0_1.AuxInt) != 0 || v_1.Op != OpLess32U {
+					continue
+				}
+				_ = v_1.Args[1]
+				if x != v_1.Args[0] {
+					continue
+				}
+				v_1_1 := v_1.Args[1]
+				if v_1_1.Op != OpConst32 {
+					continue
+				}
+				d := auxIntToInt32(v_1_1.AuxInt)
+				if !(uint32(d) >= 1) {
+					continue
+				}
+				v.reset(OpLess32U)
+				v0 := b.NewValue0(v.Pos, OpSub32, x.Type)
+				v1 := b.NewValue0(v.Pos, OpConst32, x.Type)
+				v1.AuxInt = int32ToAuxInt(1)
+				v0.AddArg2(x, v1)
+				v2 := b.NewValue0(v.Pos, OpConst32, x.Type)
+				v2.AuxInt = int32ToAuxInt(d - 1)
+				v.AddArg2(v0, v2)
+				return true
+			}
+		}
+		break
+	}
+	// match: (AndB (Neq32 x (Const32 [0])) (Leq32U x (Const32 [d])))
+	// cond: uint32(d) >= 1
+	// result: (Leq32U (Sub32 <x.Type> x (Const32 <x.Type> [1])) (Const32 <x.Type> [d-1]))
+	for {
+		for _i0 := 0; _i0 <= 1; _i0, v_0, v_1 = _i0+1, v_1, v_0 {
+			if v_0.Op != OpNeq32 {
+				continue
+			}
+			_ = v_0.Args[1]
+			v_0_0 := v_0.Args[0]
+			v_0_1 := v_0.Args[1]
+			for _i1 := 0; _i1 <= 1; _i1, v_0_0, v_0_1 = _i1+1, v_0_1, v_0_0 {
+				x := v_0_0
+				if v_0_1.Op != OpConst32 || auxIntToInt32(v_0_1.AuxInt) != 0 || v_1.Op != OpLeq32U {
+					continue
+				}
+				_ = v_1.Args[1]
+				if x != v_1.Args[0] {
+					continue
+				}
+				v_1_1 := v_1.Args[1]
+				if v_1_1.Op != OpConst32 {
+					continue
+				}
+				d := auxIntToInt32(v_1_1.AuxInt)
+				if !(uint32(d) >= 1) {
+					continue
+				}
+				v.reset(OpLeq32U)
+				v0 := b.NewValue0(v.Pos, OpSub32, x.Type)
+				v1 := b.NewValue0(v.Pos, OpConst32, x.Type)
+				v1.AuxInt = int32ToAuxInt(1)
+				v0.AddArg2(x, v1)
+				v2 := b.NewValue0(v.Pos, OpConst32, x.Type)
+				v2.AuxInt = int32ToAuxInt(d - 1)
+				v.AddArg2(v0, v2)
+				return true
+			}
+		}
+		break
+	}
+	// match: (AndB (Neq16 x (Const16 [0])) (Less16U x (Const16 [d])))
+	// cond: uint16(d) >= 1
+	// result: (Less16U (Sub16 <x.Type> x (Const16 <x.Type> [1])) (Const16 <x.Type> [d-1]))
+	for {
+		for _i0 := 0; _i0 <= 1; _i0, v_0, v_1 = _i0+1, v_1, v_0 {
+			if v_0.Op != OpNeq16 {
+				continue
+			}
+			_ = v_0.Args[1]
+			v_0_0 := v_0.Args[0]
+			v_0_1 := v_0.Args[1]
+			for _i1 := 0; _i1 <= 1; _i1, v_0_0, v_0_1 = _i1+1, v_0_1, v_0_0 {
+				x := v_0_0
+				if v_0_1.Op != OpConst16 || auxIntToInt16(v_0_1.AuxInt) != 0 || v_1.Op != OpLess16U {
+					continue
+				}
+				_ = v_1.Args[1]
+				if x != v_1.Args[0] {
+					continue
+				}
+				v_1_1 := v_1.Args[1]
+				if v_1_1.Op != OpConst16 {
+					continue
+				}
+				d := auxIntToInt16(v_1_1.AuxInt)
+				if !(uint16(d) >= 1) {
+					continue
+				}
+				v.reset(OpLess16U)
+				v0 := b.NewValue0(v.Pos, OpSub16, x.Type)
+				v1 := b.NewValue0(v.Pos, OpConst16, x.Type)
+				v1.AuxInt = int16ToAuxInt(1)
+				v0.AddArg2(x, v1)
+				v2 := b.NewValue0(v.Pos, OpConst16, x.Type)
+				v2.AuxInt = int16ToAuxInt(d - 1)
+				v.AddArg2(v0, v2)
+				return true
+			}
+		}
+		break
+	}
+	// match: (AndB (Neq16 x (Const16 [0])) (Leq16U x (Const16 [d])))
+	// cond: uint16(d) >= 1
+	// result: (Leq16U (Sub16 <x.Type> x (Const16 <x.Type> [1])) (Const16 <x.Type> [d-1]))
+	for {
+		for _i0 := 0; _i0 <= 1; _i0, v_0, v_1 = _i0+1, v_1, v_0 {
+			if v_0.Op != OpNeq16 {
+				continue
+			}
+			_ = v_0.Args[1]
+			v_0_0 := v_0.Args[0]
+			v_0_1 := v_0.Args[1]
+			for _i1 := 0; _i1 <= 1; _i1, v_0_0, v_0_1 = _i1+1, v_0_1, v_0_0 {
+				x := v_0_0
+				if v_0_1.Op != OpConst16 || auxIntToInt16(v_0_1.AuxInt) != 0 || v_1.Op != OpLeq16U {
+					continue
+				}
+				_ = v_1.Args[1]
+				if x != v_1.Args[0] {
+					continue
+				}
+				v_1_1 := v_1.Args[1]
+				if v_1_1.Op != OpConst16 {
+					continue
+				}
+				d := auxIntToInt16(v_1_1.AuxInt)
+				if !(uint16(d) >= 1) {
+					continue
+				}
+				v.reset(OpLeq16U)
+				v0 := b.NewValue0(v.Pos, OpSub16, x.Type)
+				v1 := b.NewValue0(v.Pos, OpConst16, x.Type)
+				v1.AuxInt = int16ToAuxInt(1)
+				v0.AddArg2(x, v1)
+				v2 := b.NewValue0(v.Pos, OpConst16, x.Type)
+				v2.AuxInt = int16ToAuxInt(d - 1)
+				v.AddArg2(v0, v2)
+				return true
+			}
+		}
+		break
+	}
+	// match: (AndB (Neq8 x (Const8 [0])) (Less8U x (Const8 [d])))
+	// cond: uint8(d) >= 1
+	// result: (Less8U (Sub8 <x.Type> x (Const8 <x.Type> [1])) (Const8 <x.Type> [d-1]))
+	for {
+		for _i0 := 0; _i0 <= 1; _i0, v_0, v_1 = _i0+1, v_1, v_0 {
+			if v_0.Op != OpNeq8 {
+				continue
+			}
+			_ = v_0.Args[1]
+			v_0_0 := v_0.Args[0]
+			v_0_1 := v_0.Args[1]
+			for _i1 := 0; _i1 <= 1; _i1, v_0_0, v_0_1 = _i1+1, v_0_1, v_0_0 {
+				x := v_0_0
+				if v_0_1.Op != OpConst8 || auxIntToInt8(v_0_1.AuxInt) != 0 || v_1.Op != OpLess8U {
+					continue
+				}
+				_ = v_1.Args[1]
+				if x != v_1.Args[0] {
+					continue
+				}
+				v_1_1 := v_1.Args[1]
+				if v_1_1.Op != OpConst8 {
+					continue
+				}
+				d := auxIntToInt8(v_1_1.AuxInt)
+				if !(uint8(d) >= 1) {
+					continue
+				}
+				v.reset(OpLess8U)
+				v0 := b.NewValue0(v.Pos, OpSub8, x.Type)
+				v1 := b.NewValue0(v.Pos, OpConst8, x.Type)
+				v1.AuxInt = int8ToAuxInt(1)
+				v0.AddArg2(x, v1)
+				v2 := b.NewValue0(v.Pos, OpConst8, x.Type)
+				v2.AuxInt = int8ToAuxInt(d - 1)
+				v.AddArg2(v0, v2)
+				return true
+			}
+		}
+		break
+	}
+	// match: (AndB (Neq8 x (Const8 [0])) (Leq8U x (Const8 [d])))
+	// cond: uint8(d) >= 1
+	// result: (Leq8U (Sub8 <x.Type> x (Const8 <x.Type> [1])) (Const8 <x.Type> [d-1]))
+	for {
+		for _i0 := 0; _i0 <= 1; _i0, v_0, v_1 = _i0+1, v_1, v_0 {
+			if v_0.Op != OpNeq8 {
+				continue
+			}
+			_ = v_0.Args[1]
+			v_0_0 := v_0.Args[0]
+			v_0_1 := v_0.Args[1]
+			for _i1 := 0; _i1 <= 1; _i1, v_0_0, v_0_1 = _i1+1, v_0_1, v_0_0 {
+				x := v_0_0
+				if v_0_1.Op != OpConst8 || auxIntToInt8(v_0_1.AuxInt) != 0 || v_1.Op != OpLeq8U {
+					continue
+				}
+				_ = v_1.Args[1]
+				if x != v_1.Args[0] {
+					continue
+				}
+				v_1_1 := v_1.Args[1]
+				if v_1_1.Op != OpConst8 {
+					continue
+				}
+				d := auxIntToInt8(v_1_1.AuxInt)
+				if !(uint8(d) >= 1) {
+					continue
+				}
+				v.reset(OpLeq8U)
+				v0 := b.NewValue0(v.Pos, OpSub8, x.Type)
+				v1 := b.NewValue0(v.Pos, OpConst8, x.Type)
+				v1.AuxInt = int8ToAuxInt(1)
+				v0.AddArg2(x, v1)
+				v2 := b.NewValue0(v.Pos, OpConst8, x.Type)
+				v2.AuxInt = int8ToAuxInt(d - 1)
+				v.AddArg2(v0, v2)
+				return true
+			}
+		}
+		break
+	}
 	// match: (AndB (Neq64 x cv:(Const64 [c])) (Neq64 x (Const64 [d])))
 	// cond: c|d == c && oneBit(c^d)
 	// result: (Neq64 (Or64 <x.Type> x (Const64 <x.Type> [c^d])) cv)
@@ -12357,6 +12685,24 @@ func rewriteValuegeneric_OpLeq16(v *Value) bool {
 		v.AuxInt = boolToAuxInt(true)
 		return true
 	}
+	// match: (Leq16 x (Const16 <t> [0]))
+	// cond: isNonNegative(x)
+	// result: (Eq16 (Const16 <t> [0]) x)
+	for {
+		x := v_0
+		if v_1.Op != OpConst16 {
+			break
+		}
+		t := v_1.Type
+		if auxIntToInt16(v_1.AuxInt) != 0 || !(isNonNegative(x)) {
+			break
+		}
+		v.reset(OpEq16)
+		v0 := b.NewValue0(v.Pos, OpConst16, t)
+		v0.AuxInt = int16ToAuxInt(0)
+		v.AddArg2(v0, x)
+		return true
+	}
 	// match: (Leq16 x (Const16 <t> [-1]))
 	// result: (Less16 x (Const16 <t> [0]))
 	for {
@@ -12580,6 +12926,24 @@ func rewriteValuegeneric_OpLeq32(v *Value) bool {
 		}
 		v.reset(OpConstBool)
 		v.AuxInt = boolToAuxInt(true)
+		return true
+	}
+	// match: (Leq32 x (Const32 <t> [0]))
+	// cond: isNonNegative(x)
+	// result: (Eq32 (Const32 <t> [0]) x)
+	for {
+		x := v_0
+		if v_1.Op != OpConst32 {
+			break
+		}
+		t := v_1.Type
+		if auxIntToInt32(v_1.AuxInt) != 0 || !(isNonNegative(x)) {
+			break
+		}
+		v.reset(OpEq32)
+		v0 := b.NewValue0(v.Pos, OpConst32, t)
+		v0.AuxInt = int32ToAuxInt(0)
+		v.AddArg2(v0, x)
 		return true
 	}
 	// match: (Leq32 x (Const32 <t> [-1]))
@@ -12827,6 +13191,24 @@ func rewriteValuegeneric_OpLeq64(v *Value) bool {
 		v.AuxInt = boolToAuxInt(true)
 		return true
 	}
+	// match: (Leq64 x (Const64 <t> [0]))
+	// cond: isNonNegative(x)
+	// result: (Eq64 (Const64 <t> [0]) x)
+	for {
+		x := v_0
+		if v_1.Op != OpConst64 {
+			break
+		}
+		t := v_1.Type
+		if auxIntToInt64(v_1.AuxInt) != 0 || !(isNonNegative(x)) {
+			break
+		}
+		v.reset(OpEq64)
+		v0 := b.NewValue0(v.Pos, OpConst64, t)
+		v0.AuxInt = int64ToAuxInt(0)
+		v.AddArg2(v0, x)
+		return true
+	}
 	// match: (Leq64 x (Const64 <t> [-1]))
 	// result: (Less64 x (Const64 <t> [0]))
 	for {
@@ -13072,6 +13454,24 @@ func rewriteValuegeneric_OpLeq8(v *Value) bool {
 		v.AuxInt = boolToAuxInt(true)
 		return true
 	}
+	// match: (Leq8 x (Const8 <t> [0]))
+	// cond: isNonNegative(x)
+	// result: (Eq8 (Const8 <t> [0]) x)
+	for {
+		x := v_0
+		if v_1.Op != OpConst8 {
+			break
+		}
+		t := v_1.Type
+		if auxIntToInt8(v_1.AuxInt) != 0 || !(isNonNegative(x)) {
+			break
+		}
+		v.reset(OpEq8)
+		v0 := b.NewValue0(v.Pos, OpConst8, t)
+		v0.AuxInt = int8ToAuxInt(0)
+		v.AddArg2(v0, x)
+		return true
+	}
 	// match: (Leq8 x (Const8 <t> [-1]))
 	// result: (Less8 x (Const8 <t> [0]))
 	for {
@@ -13275,24 +13675,6 @@ func rewriteValuegeneric_OpLess16(v *Value) bool {
 		return true
 	}
 	// match: (Less16 x (Const16 <t> [1]))
-	// cond: isNonNegative(x)
-	// result: (Eq16 (Const16 <t> [0]) x)
-	for {
-		x := v_0
-		if v_1.Op != OpConst16 {
-			break
-		}
-		t := v_1.Type
-		if auxIntToInt16(v_1.AuxInt) != 1 || !(isNonNegative(x)) {
-			break
-		}
-		v.reset(OpEq16)
-		v0 := b.NewValue0(v.Pos, OpConst16, t)
-		v0.AuxInt = int16ToAuxInt(0)
-		v.AddArg2(v0, x)
-		return true
-	}
-	// match: (Less16 x (Const16 <t> [1]))
 	// result: (Leq16 x (Const16 <t> [0]))
 	for {
 		x := v_0
@@ -13399,6 +13781,23 @@ func rewriteValuegeneric_OpLess16U(v *Value) bool {
 		d := auxIntToInt16(v_1.AuxInt)
 		v.reset(OpConstBool)
 		v.AuxInt = boolToAuxInt(uint16(c) < uint16(d))
+		return true
+	}
+	// match: (Less16U (Const16 <t> [0]) x)
+	// result: (Neq16 (Const16 <t> [0]) x)
+	for {
+		if v_0.Op != OpConst16 {
+			break
+		}
+		t := v_0.Type
+		if auxIntToInt16(v_0.AuxInt) != 0 {
+			break
+		}
+		x := v_1
+		v.reset(OpNeq16)
+		v0 := b.NewValue0(v.Pos, OpConst16, t)
+		v0.AuxInt = int16ToAuxInt(0)
+		v.AddArg2(v0, x)
 		return true
 	}
 	// match: (Less16U x (Const16 <t> [1]))
@@ -13509,24 +13908,6 @@ func rewriteValuegeneric_OpLess32(v *Value) bool {
 			break
 		}
 		v.reset(OpNeq32)
-		v0 := b.NewValue0(v.Pos, OpConst32, t)
-		v0.AuxInt = int32ToAuxInt(0)
-		v.AddArg2(v0, x)
-		return true
-	}
-	// match: (Less32 x (Const32 <t> [1]))
-	// cond: isNonNegative(x)
-	// result: (Eq32 (Const32 <t> [0]) x)
-	for {
-		x := v_0
-		if v_1.Op != OpConst32 {
-			break
-		}
-		t := v_1.Type
-		if auxIntToInt32(v_1.AuxInt) != 1 || !(isNonNegative(x)) {
-			break
-		}
-		v.reset(OpEq32)
 		v0 := b.NewValue0(v.Pos, OpConst32, t)
 		v0.AuxInt = int32ToAuxInt(0)
 		v.AddArg2(v0, x)
@@ -13661,6 +14042,23 @@ func rewriteValuegeneric_OpLess32U(v *Value) bool {
 		v.AuxInt = boolToAuxInt(uint32(c) < uint32(d))
 		return true
 	}
+	// match: (Less32U (Const32 <t> [0]) x)
+	// result: (Neq32 (Const32 <t> [0]) x)
+	for {
+		if v_0.Op != OpConst32 {
+			break
+		}
+		t := v_0.Type
+		if auxIntToInt32(v_0.AuxInt) != 0 {
+			break
+		}
+		x := v_1
+		v.reset(OpNeq32)
+		v0 := b.NewValue0(v.Pos, OpConst32, t)
+		v0.AuxInt = int32ToAuxInt(0)
+		v.AddArg2(v0, x)
+		return true
+	}
 	// match: (Less32U x (Const32 <t> [1]))
 	// result: (Eq32 (Const32 <t> [0]) x)
 	for {
@@ -13769,24 +14167,6 @@ func rewriteValuegeneric_OpLess64(v *Value) bool {
 			break
 		}
 		v.reset(OpNeq64)
-		v0 := b.NewValue0(v.Pos, OpConst64, t)
-		v0.AuxInt = int64ToAuxInt(0)
-		v.AddArg2(v0, x)
-		return true
-	}
-	// match: (Less64 x (Const64 <t> [1]))
-	// cond: isNonNegative(x)
-	// result: (Eq64 (Const64 <t> [0]) x)
-	for {
-		x := v_0
-		if v_1.Op != OpConst64 {
-			break
-		}
-		t := v_1.Type
-		if auxIntToInt64(v_1.AuxInt) != 1 || !(isNonNegative(x)) {
-			break
-		}
-		v.reset(OpEq64)
 		v0 := b.NewValue0(v.Pos, OpConst64, t)
 		v0.AuxInt = int64ToAuxInt(0)
 		v.AddArg2(v0, x)
@@ -13921,6 +14301,23 @@ func rewriteValuegeneric_OpLess64U(v *Value) bool {
 		v.AuxInt = boolToAuxInt(uint64(c) < uint64(d))
 		return true
 	}
+	// match: (Less64U (Const64 <t> [0]) x)
+	// result: (Neq64 (Const64 <t> [0]) x)
+	for {
+		if v_0.Op != OpConst64 {
+			break
+		}
+		t := v_0.Type
+		if auxIntToInt64(v_0.AuxInt) != 0 {
+			break
+		}
+		x := v_1
+		v.reset(OpNeq64)
+		v0 := b.NewValue0(v.Pos, OpConst64, t)
+		v0.AuxInt = int64ToAuxInt(0)
+		v.AddArg2(v0, x)
+		return true
+	}
 	// match: (Less64U x (Const64 <t> [1]))
 	// result: (Eq64 (Const64 <t> [0]) x)
 	for {
@@ -14035,24 +14432,6 @@ func rewriteValuegeneric_OpLess8(v *Value) bool {
 		return true
 	}
 	// match: (Less8 x (Const8 <t> [1]))
-	// cond: isNonNegative(x)
-	// result: (Eq8 (Const8 <t> [0]) x)
-	for {
-		x := v_0
-		if v_1.Op != OpConst8 {
-			break
-		}
-		t := v_1.Type
-		if auxIntToInt8(v_1.AuxInt) != 1 || !(isNonNegative(x)) {
-			break
-		}
-		v.reset(OpEq8)
-		v0 := b.NewValue0(v.Pos, OpConst8, t)
-		v0.AuxInt = int8ToAuxInt(0)
-		v.AddArg2(v0, x)
-		return true
-	}
-	// match: (Less8 x (Const8 <t> [1]))
 	// result: (Leq8 x (Const8 <t> [0]))
 	for {
 		x := v_0
@@ -14159,6 +14538,23 @@ func rewriteValuegeneric_OpLess8U(v *Value) bool {
 		d := auxIntToInt8(v_1.AuxInt)
 		v.reset(OpConstBool)
 		v.AuxInt = boolToAuxInt(uint8(c) < uint8(d))
+		return true
+	}
+	// match: (Less8U (Const8 <t> [0]) x)
+	// result: (Neq8 (Const8 <t> [0]) x)
+	for {
+		if v_0.Op != OpConst8 {
+			break
+		}
+		t := v_0.Type
+		if auxIntToInt8(v_0.AuxInt) != 0 {
+			break
+		}
+		x := v_1
+		v.reset(OpNeq8)
+		v0 := b.NewValue0(v.Pos, OpConst8, t)
+		v0.AuxInt = int8ToAuxInt(0)
+		v.AddArg2(v0, x)
 		return true
 	}
 	// match: (Less8U x (Const8 <t> [1]))

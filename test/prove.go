@@ -440,7 +440,7 @@ func f13i(a uint) int {
 	if a == 0 {
 		return 1
 	}
-	if a > 0 { // ERROR "Proved Less64U$"
+	if a > 0 { // ERROR "Proved Neq64$"
 		return 2
 	}
 	return 3
