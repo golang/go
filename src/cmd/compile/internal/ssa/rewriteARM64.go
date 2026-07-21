@@ -25157,6 +25157,38 @@ func rewriteBlockARM64(b *Block) bool {
 			b.AuxInt = int64ToAuxInt(63)
 			return true
 		}
+		// match: (GE (CMPWconst [128] x) yes no)
+		// cond: ZeroUpper56Bits(x, 3)
+		// result: (TBNZ [7] x yes no)
+		for b.Controls[0].Op == OpARM64CMPWconst {
+			v_0 := b.Controls[0]
+			if auxIntToInt32(v_0.AuxInt) != 128 {
+				break
+			}
+			x := v_0.Args[0]
+			if !(ZeroUpper56Bits(x, 3)) {
+				break
+			}
+			b.resetWithControl(block.BlockARM64TBNZ, x)
+			b.AuxInt = int64ToAuxInt(7)
+			return true
+		}
+		// match: (GE (CMPconst [128] x) yes no)
+		// cond: ZeroUpper56Bits(x, 3)
+		// result: (TBNZ [7] x yes no)
+		for b.Controls[0].Op == OpARM64CMPconst {
+			v_0 := b.Controls[0]
+			if auxIntToInt64(v_0.AuxInt) != 128 {
+				break
+			}
+			x := v_0.Args[0]
+			if !(ZeroUpper56Bits(x, 3)) {
+				break
+			}
+			b.resetWithControl(block.BlockARM64TBNZ, x)
+			b.AuxInt = int64ToAuxInt(7)
+			return true
+		}
 		// match: (GE (FlagConstant [fc]) yes no)
 		// cond: fc.ge()
 		// result: (First yes no)
@@ -26255,6 +26287,38 @@ func rewriteBlockARM64(b *Block) bool {
 			x := v_0.Args[0]
 			b.resetWithControl(block.BlockARM64TBNZ, x)
 			b.AuxInt = int64ToAuxInt(63)
+			return true
+		}
+		// match: (LT (CMPWconst [128] x) yes no)
+		// cond: ZeroUpper56Bits(x, 3)
+		// result: (TBZ [7] x yes no)
+		for b.Controls[0].Op == OpARM64CMPWconst {
+			v_0 := b.Controls[0]
+			if auxIntToInt32(v_0.AuxInt) != 128 {
+				break
+			}
+			x := v_0.Args[0]
+			if !(ZeroUpper56Bits(x, 3)) {
+				break
+			}
+			b.resetWithControl(block.BlockARM64TBZ, x)
+			b.AuxInt = int64ToAuxInt(7)
+			return true
+		}
+		// match: (LT (CMPconst [128] x) yes no)
+		// cond: ZeroUpper56Bits(x, 3)
+		// result: (TBZ [7] x yes no)
+		for b.Controls[0].Op == OpARM64CMPconst {
+			v_0 := b.Controls[0]
+			if auxIntToInt64(v_0.AuxInt) != 128 {
+				break
+			}
+			x := v_0.Args[0]
+			if !(ZeroUpper56Bits(x, 3)) {
+				break
+			}
+			b.resetWithControl(block.BlockARM64TBZ, x)
+			b.AuxInt = int64ToAuxInt(7)
 			return true
 		}
 		// match: (LT (FlagConstant [fc]) yes no)
@@ -27419,6 +27483,38 @@ func rewriteBlockARM64(b *Block) bool {
 			return true
 		}
 	case block.BlockARM64UGE:
+		// match: (UGE (CMPWconst [128] x) yes no)
+		// cond: ZeroUpper56Bits(x, 3)
+		// result: (TBNZ [7] x yes no)
+		for b.Controls[0].Op == OpARM64CMPWconst {
+			v_0 := b.Controls[0]
+			if auxIntToInt32(v_0.AuxInt) != 128 {
+				break
+			}
+			x := v_0.Args[0]
+			if !(ZeroUpper56Bits(x, 3)) {
+				break
+			}
+			b.resetWithControl(block.BlockARM64TBNZ, x)
+			b.AuxInt = int64ToAuxInt(7)
+			return true
+		}
+		// match: (UGE (CMPconst [128] x) yes no)
+		// cond: ZeroUpper56Bits(x, 3)
+		// result: (TBNZ [7] x yes no)
+		for b.Controls[0].Op == OpARM64CMPconst {
+			v_0 := b.Controls[0]
+			if auxIntToInt64(v_0.AuxInt) != 128 {
+				break
+			}
+			x := v_0.Args[0]
+			if !(ZeroUpper56Bits(x, 3)) {
+				break
+			}
+			b.resetWithControl(block.BlockARM64TBNZ, x)
+			b.AuxInt = int64ToAuxInt(7)
+			return true
+		}
 		// match: (UGE (FlagConstant [fc]) yes no)
 		// cond: fc.uge()
 		// result: (First yes no)
@@ -27577,6 +27673,38 @@ func rewriteBlockARM64(b *Block) bool {
 			return true
 		}
 	case block.BlockARM64ULT:
+		// match: (ULT (CMPWconst [128] x) yes no)
+		// cond: ZeroUpper56Bits(x, 3)
+		// result: (TBZ [7] x yes no)
+		for b.Controls[0].Op == OpARM64CMPWconst {
+			v_0 := b.Controls[0]
+			if auxIntToInt32(v_0.AuxInt) != 128 {
+				break
+			}
+			x := v_0.Args[0]
+			if !(ZeroUpper56Bits(x, 3)) {
+				break
+			}
+			b.resetWithControl(block.BlockARM64TBZ, x)
+			b.AuxInt = int64ToAuxInt(7)
+			return true
+		}
+		// match: (ULT (CMPconst [128] x) yes no)
+		// cond: ZeroUpper56Bits(x, 3)
+		// result: (TBZ [7] x yes no)
+		for b.Controls[0].Op == OpARM64CMPconst {
+			v_0 := b.Controls[0]
+			if auxIntToInt64(v_0.AuxInt) != 128 {
+				break
+			}
+			x := v_0.Args[0]
+			if !(ZeroUpper56Bits(x, 3)) {
+				break
+			}
+			b.resetWithControl(block.BlockARM64TBZ, x)
+			b.AuxInt = int64ToAuxInt(7)
+			return true
+		}
 		// match: (ULT (FlagConstant [fc]) yes no)
 		// cond: fc.ult()
 		// result: (First yes no)

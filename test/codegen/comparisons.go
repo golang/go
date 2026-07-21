@@ -944,3 +944,63 @@ func bijectiveMul(x uint) bool {
 	// arm64: -"MUL"
 	return x*1337 == 42
 }
+
+func scanASCIILess(b []byte) int {
+	for i := range b {
+		// arm64:"TBNZ [$]7" -"CMPW [$]128"
+		if b[i] < 128 {
+			return i
+		}
+	}
+	return -1
+}
+
+func scanASCIIGeq(b []byte) int {
+	for i := range b {
+		// arm64:"TBZ [$]7" -"CMPW [$]128"
+		if b[i] >= 128 {
+			return i
+		}
+	}
+	return -1
+}
+
+func scanASCIILess64(b []byte) int {
+	for i := range b {
+		// arm64:"TBNZ [$]7" -"CMP [$]128"
+		if uint64(b[i]) < 128 {
+			return i
+		}
+	}
+	return -1
+}
+
+func scanASCIIGeq64(b []byte) int {
+	for i := range b {
+		// arm64:"TBZ [$]7" -"CMP [$]128"
+		if uint64(b[i]) >= 128 {
+			return i
+		}
+	}
+	return -1
+}
+
+func scanASCIILessSigned32(b []byte) int {
+	for i := range b {
+		// arm64:"TBNZ [$]7" -"CMPW [$]128"
+		if int32(b[i]) < 128 {
+			return i
+		}
+	}
+	return -1
+}
+
+func scanASCIIGeqSigned64(b []byte) int {
+	for i := range b {
+		// arm64:"TBZ [$]7" -"CMP [$]128"
+		if int64(b[i]) >= 128 {
+			return i
+		}
+	}
+	return -1
+}
