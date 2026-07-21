@@ -1379,21 +1379,81 @@ func ZeroUpper32Bits(x *Value, depth int) bool {
 		return false
 	}
 	switch x.Op {
-	case OpAMD64MOVLconst, OpAMD64MOVLload, OpAMD64MOVLQZX, OpAMD64MOVLloadidx1,
-		OpAMD64MOVWload, OpAMD64MOVWloadidx1, OpAMD64MOVBload, OpAMD64MOVBloadidx1,
-		OpAMD64MOVLloadidx4, OpAMD64ADDLload, OpAMD64SUBLload, OpAMD64ANDLload,
-		OpAMD64ORLload, OpAMD64XORLload, OpAMD64CVTTSD2SL,
+	// Every amd64 op below writes a 32-bit GPR result, which the
+	// hardware zero-extends into the full 64-bit register, so at the
+	// point of the write the upper 32 bits are zero. Ops whose result
+	// is memory, a flags value, or a narrower register do not qualify.
+	//
+	// 32-bit constants, zero-extensions and loads. The MOVW/MOVB
+	// loads assemble to zero-extending MOVWLZX/MOVBLZX.
+	case OpAMD64MOVLconst, OpAMD64MOVLQZX,
+		OpAMD64MOVLload, OpAMD64MOVLloadidx1, OpAMD64MOVLloadidx4, OpAMD64MOVLloadidx8,
+		OpAMD64MOVWload, OpAMD64MOVWloadidx1, OpAMD64MOVWloadidx2,
+		OpAMD64MOVBload, OpAMD64MOVBloadidx1,
+		// Byte-swapping 32-bit loads (MOVBE), zero-extending like MOVL.
+		OpAMD64MOVBELload, OpAMD64MOVBELloadidx1, OpAMD64MOVBELloadidx4, OpAMD64MOVBELloadidx8,
+		// 32-bit arithmetic and logic, register and folded-load forms.
 		OpAMD64ADDL, OpAMD64ADDLconst, OpAMD64SUBL, OpAMD64SUBLconst,
 		OpAMD64ANDL, OpAMD64ANDLconst, OpAMD64ORL, OpAMD64ORLconst,
 		OpAMD64XORL, OpAMD64XORLconst, OpAMD64NEGL, OpAMD64NOTL,
+		OpAMD64ADDLload, OpAMD64SUBLload, OpAMD64ANDLload,
+		OpAMD64ORLload, OpAMD64XORLload,
+		OpAMD64ADDLloadidx1, OpAMD64ADDLloadidx4, OpAMD64ADDLloadidx8,
+		OpAMD64SUBLloadidx1, OpAMD64SUBLloadidx4, OpAMD64SUBLloadidx8,
+		OpAMD64ANDLloadidx1, OpAMD64ANDLloadidx4, OpAMD64ANDLloadidx8,
+		OpAMD64ORLloadidx1, OpAMD64ORLloadidx4, OpAMD64ORLloadidx8,
+		OpAMD64XORLloadidx1, OpAMD64XORLloadidx4, OpAMD64XORLloadidx8,
+		// 32-bit shifts and rotates. RORLconst is absent because
+		// const-amount right rotates are canonicalized to ROLLconst.
 		OpAMD64SHRL, OpAMD64SHRLconst, OpAMD64SARL, OpAMD64SARLconst,
-		OpAMD64SHLL, OpAMD64SHLLconst:
+		OpAMD64SHLL, OpAMD64SHLLconst,
+		OpAMD64ROLL, OpAMD64ROLLconst, OpAMD64RORL,
+		// BMI2 shifts, which AMD64latelower.rules promotes SHRL/SARL/SHLL
+		// into at GOAMD64>=3 in the same pass that applies this fold,
+		// plus their folded-load forms.
+		OpAMD64SHRXL, OpAMD64SARXL, OpAMD64SHLXL,
+		OpAMD64SHRXLload, OpAMD64SARXLload, OpAMD64SHLXLload,
+		OpAMD64SHRXLloadidx1, OpAMD64SHRXLloadidx4, OpAMD64SHRXLloadidx8,
+		OpAMD64SARXLloadidx1, OpAMD64SARXLloadidx4, OpAMD64SARXLloadidx8,
+		OpAMD64SHLXLloadidx1, OpAMD64SHLXLloadidx4, OpAMD64SHLXLloadidx8,
+		// 32-bit address computations and products.
+		OpAMD64LEAL, OpAMD64LEAL1, OpAMD64LEAL2, OpAMD64LEAL4, OpAMD64LEAL8,
+		OpAMD64MULL, OpAMD64MULLconst,
+		// In 64-bit mode a 32-bit CMOV zero-extends its destination
+		// even when the condition is false.
+		OpAMD64CMOVLCC, OpAMD64CMOVLCS, OpAMD64CMOVLEQ, OpAMD64CMOVLGE,
+		OpAMD64CMOVLGT, OpAMD64CMOVLHI, OpAMD64CMOVLLE, OpAMD64CMOVLLS,
+		OpAMD64CMOVLLT, OpAMD64CMOVLNE,
+		OpAMD64CMOVLEQF, OpAMD64CMOVLGEF, OpAMD64CMOVLGTF, OpAMD64CMOVLNEF,
+		// Byte swap, bit counts and BMI1 bit manipulation.
+		OpAMD64BSWAPL, OpAMD64POPCNTL,
+		OpAMD64ANDNL, OpAMD64BLSIL, OpAMD64BLSMSKL,
+		// Register-destination bit set/reset/complement.
+		OpAMD64BTSL, OpAMD64BTRL, OpAMD64BTCL,
+		// SBBL x, x: 32-bit result, 0 or -1 depending on the carry flag.
+		OpAMD64SBBLcarrymask,
+		// float -> int32 conversions.
+		OpAMD64CVTTSD2SL, OpAMD64CVTTSS2SL,
+		// 32-bit move out of an X register (MOVD xmm, r32).
+		OpAMD64MOVLf2i:
 		return true
 	case OpAMD64MOVQconst:
 		return uint64(uint32(x.AuxInt)) == uint64(x.AuxInt)
+	// arm64 likewise zero-extends every write to a W register into
+	// the full X register.
+	//
+	// 32-bit bit-twiddling, multiplies, divides and rotates.
 	case OpARM64REV16W, OpARM64REVW, OpARM64RBITW, OpARM64CLZW, OpARM64EXTRWconst,
-		OpARM64MULW, OpARM64MNEGW, OpARM64UDIVW, OpARM64DIVW, OpARM64UMODW,
-		OpARM64MADDW, OpARM64MSUBW, OpARM64RORW, OpARM64RORWconst:
+		OpARM64MULW, OpARM64MNEGW, OpARM64MADDW, OpARM64MSUBW,
+		OpARM64DIVW, OpARM64UDIVW, OpARM64MODW, OpARM64UMODW,
+		OpARM64RORW, OpARM64RORWconst,
+		// The zero-extensions themselves and the zero-extending loads.
+		// The MOVWload forms sign-extend and are deliberately not here.
+		OpARM64MOVWUreg, OpARM64MOVWUload, OpARM64MOVWUloadidx, OpARM64MOVWUloadidx4,
+		OpARM64MOVHUreg, OpARM64MOVHUload, OpARM64MOVHUloadidx, OpARM64MOVHUloadidx2,
+		OpARM64MOVBUreg, OpARM64MOVBUload, OpARM64MOVBUloadidx,
+		// float -> 32-bit int conversions.
+		OpARM64FCVTZSSW, OpARM64FCVTZSDW, OpARM64FCVTZUSW, OpARM64FCVTZUDW:
 		return true
 	case OpArg: // note: but not ArgIntReg
 		// amd64 always loads args from the stack unsigned.
@@ -1427,7 +1487,8 @@ func ZeroUpper48Bits(x *Value, depth int) bool {
 		return false
 	}
 	switch x.Op {
-	case OpAMD64MOVWQZX, OpAMD64MOVWload, OpAMD64MOVWloadidx1, OpAMD64MOVWloadidx2:
+	case OpAMD64MOVWQZX, OpAMD64MOVWload, OpAMD64MOVWloadidx1, OpAMD64MOVWloadidx2,
+		OpAMD64MOVBQZX, OpAMD64MOVBload, OpAMD64MOVBloadidx1:
 		return true
 	case OpAMD64MOVQconst, OpAMD64MOVLconst:
 		return uint64(uint16(x.AuxInt)) == uint64(x.AuxInt)
