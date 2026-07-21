@@ -14,6 +14,14 @@ import (
 	"strings"
 )
 
+// walkPath is an immutable path from a location to the root of the current
+// walk.
+type walkPath struct {
+	dst     *location // destination of the first edge
+	edgeIdx int       // index of the first edge in dst.edges
+	next    *walkPath // path from dst to root
+}
+
 // walkAll computes the minimal dereferences between all pairs of
 // locations.
 func (b *batch) walkAll() {
@@ -74,9 +82,13 @@ func (b *batch) walkOne(root *location, walkgen uint32, enqueue func(*location),
 	// we don't have to worry about infinite negative cycles since
 	// we bound intermediate dereference counts to 0.
 
+	diagnose := base.Flag.LowerM >= 2 || logopt.Enabled()
+	var paths map[*location]*walkPath
+	if diagnose {
+		paths = make(map[*location]*walkPath)
+	}
 	root.walkgen = walkgen
 	root.derefs = 0
-	root.dst = nil
 
 	if root.hasAttr(attrCalls) {
 		if clo, ok := root.n.(*ir.ClosureExpr); ok {
@@ -115,11 +127,11 @@ func (b *batch) walkOne(root *location, walkgen uint32, enqueue func(*location),
 			// outlives it, then l needs to be heap
 			// allocated.
 			if b.outlives(root, l) {
-				if !l.hasAttr(attrEscapes) && (logopt.Enabled() || base.Flag.LowerM >= 2) {
+				if !l.hasAttr(attrEscapes) && diagnose {
 					if base.Flag.LowerM >= 2 {
 						fmt.Printf("%s: %v escapes to heap in %v:\n", base.FmtPos(l.n.Pos()), l.n, ir.FuncName(l.curfn))
 					}
-					explanation := b.explainPath(root, l)
+					explanation := b.explainPath(root, l, paths[l])
 					if logopt.Enabled() {
 						var e_curfn *ir.Func // TODO(mdempsky): Fix.
 						logopt.LogOpt(l.n.Pos(), "escape", "escape", ir.FuncName(e_curfn), fmt.Sprintf("%v escapes to heap", l.n), explanation)
@@ -145,11 +157,11 @@ func (b *batch) walkOne(root *location, walkgen uint32, enqueue func(*location),
 		// later.
 		if l.param {
 			if b.outlives(root, l) {
-				if !l.hasAttr(attrEscapes) && (logopt.Enabled() || base.Flag.LowerM >= 2) {
+				if !l.hasAttr(attrEscapes) && diagnose {
 					if base.Flag.LowerM >= 2 {
 						fmt.Printf("%s: parameter %v leaks to %s for %v with derefs=%d:\n", base.FmtPos(l.n.Pos()), l.n, b.explainLoc(root), ir.FuncName(l.curfn), derefs)
 					}
-					explanation := b.explainPath(root, l)
+					explanation := b.explainPath(root, l, paths[l])
 					if logopt.Enabled() {
 						var e_curfn *ir.Func // TODO(mdempsky): Fix.
 						logopt.LogOpt(l.n.Pos(), "leak", "escape", ir.FuncName(e_curfn),
@@ -182,8 +194,13 @@ func (b *batch) walkOne(root *location, walkgen uint32, enqueue func(*location),
 			if edge.src.walkgen != walkgen || edge.src.derefs > d {
 				edge.src.walkgen = walkgen
 				edge.src.derefs = d
-				edge.src.dst = l
-				edge.src.dstEdgeIdx = i
+				if diagnose {
+					paths[edge.src] = &walkPath{
+						dst:     l,
+						edgeIdx: i,
+						next:    paths[l],
+					}
+				}
 				// Check if already queued in todo.
 				if edge.src.queuedWalkOne != walkgen {
 					edge.src.queuedWalkOne = walkgen // Mark queued for this walkgen.
@@ -198,31 +215,31 @@ func (b *batch) walkOne(root *location, walkgen uint32, enqueue func(*location),
 }
 
 // explainPath prints an explanation of how src flows to the walk root.
-func (b *batch) explainPath(root, src *location) []*logopt.LoggedOpt {
+func (b *batch) explainPath(root, src *location, path *walkPath) []*logopt.LoggedOpt {
 	visited := make(map[*location]bool)
 	pos := base.FmtPos(src.n.Pos())
 	var explanation []*logopt.LoggedOpt
-	for {
+	for ; path != nil; path = path.next {
 		// Prevent infinite loop.
 		if visited[src] {
 			if base.Flag.LowerM >= 2 {
 				fmt.Printf("%s:   warning: truncated explanation due to assignment cycle; see golang.org/issue/35518\n", pos)
 			}
-			break
+			return explanation
 		}
 		visited[src] = true
-		dst := src.dst
-		edge := &dst.edges[src.dstEdgeIdx]
+		dst := path.dst
+		edge := &dst.edges[path.edgeIdx]
 		if edge.src != src {
 			base.Fatalf("path inconsistency: %v != %v", edge.src, src)
 		}
 
 		explanation = b.explainFlow(pos, dst, src, edge.derefs, edge.notes, explanation)
 
-		if dst == root {
-			break
-		}
 		src = dst
+	}
+	if src != root {
+		base.Fatalf("path root inconsistency: %v != %v", src, root)
 	}
 
 	return explanation

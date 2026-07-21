@@ -56,12 +56,6 @@ type location struct {
 	derefs  int // >= -1
 	walkgen uint32
 
-	// dst and dstEdgeindex track the next immediate assignment
-	// destination location during walkone, along with the index
-	// of the edge pointing back to this location.
-	dst        *location
-	dstEdgeIdx int
-
 	// queuedWalkAll is used by walkAll to track whether this location is
 	// in its work queue.
 	queuedWalkAll bool
