@@ -401,6 +401,43 @@ func TestDeleteRedirects(t *testing.T) {
 	}, http3SkippedMode)
 }
 
+func TestQueryRedirects(t *testing.T) {
+	// RFC 10008, Section 2.5: QUERY is safe and idempotent, so it is preserved
+	// (with its body) across 301, 302, 307 and 308; only 303 changes the method
+	// to GET.
+	queryRedirectTests := []redirectTest{
+		{"/", 200, "first"},
+		{"/?code=302&next=302", 200, "c302"},
+		{"/?code=301&next=302,308", 200, "c301"},
+		{"/?code=303&next=301", 200, "c303"},
+		{"/?code=307&next=303,302", 200, "c307"},
+		{"/?code=404", 404, "c404"},
+	}
+
+	wantSegments := []string{
+		`QUERY / "first"`,
+		`QUERY /?code=302&next=302 "c302"`,
+		`QUERY /?code=302 "c302"`,
+		`QUERY / "c302"`,
+		`QUERY /?code=301&next=302,308 "c301"`,
+		`QUERY /?code=302&next=308 "c301"`,
+		`QUERY /?code=308 "c301"`,
+		`QUERY / "c301"`,
+		`QUERY /?code=303&next=301 "c303"`,
+		`GET /?code=301 ""`,
+		`GET / ""`,
+		`QUERY /?code=307&next=303,302 "c307"`,
+		`QUERY /?code=303&next=302 "c307"`,
+		`GET /?code=302 ""`,
+		`GET / ""`,
+		`QUERY /?code=404 "c404"`,
+	}
+	want := strings.Join(wantSegments, "\n")
+	run(t, func(t *testing.T, mode testMode) {
+		testRedirectsByMethod(t, mode, "QUERY", queryRedirectTests, want)
+	}, http3SkippedMode)
+}
+
 func testRedirectsByMethod(t *testing.T, mode testMode, method string, table []redirectTest, want string) {
 	var log struct {
 		sync.Mutex

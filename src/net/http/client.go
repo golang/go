@@ -518,11 +518,21 @@ func redirectBehavior(reqMethod string, resp *Response, ireq *Request) (redirect
 		shouldRedirect = true
 		includeBody = false
 
-		// RFC 2616 allowed automatic redirection only with GET and
-		// HEAD requests. RFC 7231 lifts this restriction, but we still
-		// restrict other methods to GET to maintain compatibility.
-		// See Issue 18570.
-		if reqMethod != "GET" && reqMethod != "HEAD" {
+		// RFC 10008, Section 2.5: QUERY is safe and idempotent, so 301
+		// and 302 preserve the method and re-send the body (as 307 and
+		// 308 do); only 303 changes the method to GET.
+		if reqMethod == "QUERY" && resp.StatusCode != 303 {
+			includeBody = true
+			if ireq.GetBody == nil && ireq.outgoingLength() != 0 {
+				// We had a request body, and 301/302 require
+				// re-sending it, but GetBody is not defined.
+				shouldRedirect = false
+			}
+		} else if reqMethod != "GET" && reqMethod != "HEAD" {
+			// RFC 2616 allowed automatic redirection only with GET and
+			// HEAD requests. RFC 7231 lifts this restriction, but we still
+			// restrict other methods to GET to maintain compatibility.
+			// See Issue 18570.
 			redirectMethod = "GET"
 		}
 	case 307, 308:
