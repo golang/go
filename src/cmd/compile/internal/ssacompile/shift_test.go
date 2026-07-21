@@ -8,6 +8,7 @@ import (
 	"testing"
 
 	"cmd/compile/internal/ssa"
+	"cmd/compile/internal/ssa/ssahtml"
 	"cmd/compile/internal/ssa/ssaop"
 	"cmd/compile/internal/types"
 )
@@ -118,6 +119,7 @@ func runPasses(f *ssa.Func) {
 			continue
 		}
 		f.Pass = p
+		f.HTMLWriter = (*ssahtml.HTMLWriter)(nil)
 		p.Fn(f)
 	}
 }

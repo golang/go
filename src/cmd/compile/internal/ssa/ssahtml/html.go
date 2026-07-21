@@ -15,6 +15,7 @@ import (
 	"path/filepath"
 	"strconv"
 	"strings"
+	"time"
 
 	"cmd/compile/internal/ssa"
 	"cmd/compile/internal/ssa/block"
@@ -22,13 +23,15 @@ import (
 )
 
 type HTMLWriter struct {
-	w             io.WriteCloser
-	Func          *ssa.Func
-	path          string
-	dot           *dotWriter
-	prevHash      []byte
-	pendingPhases []string
-	pendingTitles []string
+	w              io.WriteCloser
+	Func           *ssa.Func
+	path           string
+	dot            *dotWriter
+	prevHash       []byte
+	pendingPhases  []string
+	pendingTitles  []string
+	debugInfo      []string
+	timeFormatting time.Duration
 }
 
 func NewHTMLWriter(path string, f *ssa.Func, cfgMask string, passes []ssa.Pass) *HTMLWriter {
@@ -202,6 +205,21 @@ li.ssa-end-block {
 
 ul.ssa-print-func {
     padding-left: 0;
+}
+
+.debug-pass-button {
+    padding: 0;
+    font-size: 10px;
+}
+
+.debug-pass {
+    text-indent: 0;
+    background-color: #FFFFEA;
+    display: none;
+}
+
+.debug-pass.darkmode {
+    background-color: #505050
 }
 
 li.ssa-start-block button {
@@ -642,6 +660,20 @@ function hideBlock(el) {
     }
 }
 
+function hideDebug(el) {
+    var es = el.parentNode.getElementsByClassName("debug-pass");
+    if (es.length===0)
+        return;
+    var e = es[0];
+    if (e.style.display === 'block') {
+        e.style.display = 'none';
+        el.innerHTML = '+';
+    } else {
+        e.style.display = 'block';
+        el.innerHTML = '-';
+    }
+}
+
 // TODO: scale the graph with the viewBox attribute.
 function graphReduce(id) {
     var node = document.getElementById(id);
@@ -719,6 +751,13 @@ function toggleDarkMode() {
 
     for (let i = 0; i < len; i++) {
         collapsedEls[i].classList.toggle('darkmode');
+    }
+
+    const debugpasses = document.getElementsByClassName('debug-pass');
+    const dplen = debugpasses.length;
+
+    for (let i = 0; i < dplen; i++) {
+        debugpasses[i].classList.toggle('darkmode');
     }
 
     // Collect and spread the appropriate elements from all of the svgs on the page into one array
@@ -804,7 +843,7 @@ func (w *HTMLWriter) WritePhase(phase, title string) {
 	hash := ssa.HashFunc(w.Func)
 	w.pendingPhases = append(w.pendingPhases, phase)
 	w.pendingTitles = append(w.pendingTitles, title)
-	if !bytes.Equal(hash, w.prevHash) {
+	if !bytes.Equal(hash, w.prevHash) || w.debugInfo != nil {
 		w.FlushPhases()
 	}
 	w.prevHash = hash
@@ -832,10 +871,12 @@ func (w *HTMLWriter) FlushPhases() {
 		phases,
 		w.pendingTitles,
 		fmt.Sprintf("hash-%x", w.prevHash),
-		HTML(w.Func, w.pendingPhases[phaseLen-1], w.dot),
+		HTML(w.Func, w.pendingPhases[phaseLen-1], w.dot, w.debugInfo),
 	)
 	w.pendingPhases = w.pendingPhases[:0]
 	w.pendingTitles = w.pendingTitles[:0]
+	w.debugInfo = nil
+	w.timeFormatting = 0
 }
 
 // FuncLines contains source code for a function to be displayed
@@ -975,13 +1016,35 @@ func (w *HTMLWriter) WriteString(s string) {
 	}
 }
 
-func HTML(f *ssa.Func, phase string, dot *dotWriter) string {
+func (w *HTMLWriter) DebugInfo(format func(*ssa.Value) string) {
+	if !w.Enabled() {
+		return
+	}
+	begin := time.Now()
+	f := w.Func
+	w.debugInfo = make([]string, f.NumValues())
+	for _, b := range f.Blocks {
+		for _, v := range b.Values {
+			w.debugInfo[v.ID] = format(v)
+		}
+	}
+	w.timeFormatting = time.Since(begin)
+}
+
+func (w *HTMLWriter) TimeFormatting() time.Duration {
+	if w == nil {
+		return 0
+	}
+	return w.timeFormatting
+}
+
+func HTML(f *ssa.Func, phase string, dot *dotWriter, debugStr []string) string {
 	buf := new(strings.Builder)
 	if dot != nil {
 		dot.writeFuncSVG(buf, phase, f)
 	}
 	fmt.Fprint(buf, "<code>")
-	p := htmlFuncPrinter{w: buf}
+	p := htmlFuncPrinter{w: buf, debugStr: debugStr}
 	ssa.FprintFunc(p, f)
 
 	// fprintFunc(&buf, f) // TODO: HTML, not text, <br> for line breaks, etc.
@@ -1102,7 +1165,8 @@ func (d *dotWriter) copyUntil(w io.Writer, buf *bytes.Buffer, sep string) error 
 }
 
 type htmlFuncPrinter struct {
-	w io.Writer
+	w        io.Writer
+	debugStr []string
 }
 
 func (p htmlFuncPrinter) Header(f *ssa.Func) {}
@@ -1147,8 +1211,12 @@ func (p htmlFuncPrinter) Value(v *ssa.Value, live bool) {
 	if !live {
 		dead = "dead-value"
 	}
+	debugStr := ""
+	if p.debugStr != nil {
+		debugStr = p.debugStr[v.ID]
+	}
 	fmt.Fprintf(p.w, "<li class=\"ssa-long-value %s\">", dead)
-	fmt.Fprint(p.w, v.LongHTML())
+	fmt.Fprint(p.w, v.LongHTML(debugStr))
 	io.WriteString(p.w, "</li>")
 }
 

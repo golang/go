@@ -74,6 +74,12 @@ func KnownBits(f *Func) {
 			v.CopyOf(c)
 		}
 	}
+	f.HTMLWriter.DebugInfo(func(v *Value) string {
+		if kb.entries[v.ID].known == 0 {
+			return ""
+		}
+		return kb.entries[v.ID].String()
+	})
 }
 
 // allPossibleValues iterates over all values that could exist.

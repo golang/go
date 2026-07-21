@@ -18,7 +18,7 @@ func (v *Value) HTML() string {
 	return fmt.Sprintf("<span class=\"%s ssa-value\">%s</span>", s, s)
 }
 
-func (v *Value) LongHTML() string {
+func (v *Value) LongHTML(debugStr string) string {
 	// TODO: Any intra-value formatting?
 	// I'm wary of adding too much visual noise,
 	// but a little bit might be valuable.
@@ -59,6 +59,10 @@ func (v *Value) LongHTML() string {
 	}
 
 	s += "</span>"
+	if debugStr != "" {
+		debugStr := html.EscapeString(debugStr)
+		s += fmt.Sprintf(` <button class="debug-pass-button" onclick="hideDebug(this);">+</button><span class="debug-pass">%s</span>`, debugStr)
+	}
 	return s
 }
 

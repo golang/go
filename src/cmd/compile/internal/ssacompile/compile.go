@@ -85,6 +85,7 @@ func (_ Compiler) Compile(f *ssa.Func, htmlWriter ssa.HTMLWriter) {
 			continue
 		}
 		f.Pass = &p
+		f.HTMLWriter = htmlWriter
 		phaseName = p.Name
 		if f.Log() {
 			f.Logf("  pass %s begin\n", p.Name)
@@ -114,6 +115,7 @@ func (_ Compiler) Compile(f *ssa.Func, htmlWriter ssa.HTMLWriter) {
 		// Need something less crude than "Log the whole intermediate result".
 		if f.Log() || htmlWriter.Enabled() {
 			time := tEnd.Sub(tStart).Nanoseconds()
+			time -= htmlWriter.TimeFormatting().Nanoseconds()
 			var stats string
 			if logMemStats {
 				var mEnd runtime.MemStats

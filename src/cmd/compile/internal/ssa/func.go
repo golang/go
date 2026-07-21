@@ -37,6 +37,7 @@ type Func struct {
 	bid IDAlloc // block ID allocator
 	vid IDAlloc // value ID allocator
 
+	HTMLWriter     HTMLWriter
 	FatalCleanup   func()         // cleanup function to run before reporting a fatal error
 	PrintOrHtmlSSA bool           // true if GOSSAFUNC matches, true even if fe.Log() (spew phase results to stdout) is false.  There's an odd dependence on this in debug.go for method logf.
 	RuleMatches    map[string]int // number of times countRule was called during compilation for any given string

@@ -11,6 +11,7 @@ import (
 	"path/filepath"
 	"strings"
 	"sync"
+	"time"
 
 	"cmd/internal/src"
 )
@@ -25,6 +26,8 @@ type HTMLWriter interface {
 	FlushPhases()
 	WritePhase(phase, title string)
 	WriteColumn(phase, title, class, html string)
+	DebugInfo(v func(*Value) string)
+	TimeFormatting() time.Duration
 	Close()
 }
 
