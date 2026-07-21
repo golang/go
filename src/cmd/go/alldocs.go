@@ -941,6 +941,8 @@
 //
 // The template function "join" calls strings.Join.
 //
+// The template function "json" marshals its arguments to JSON.
+//
 // The template function "context" returns the build context, defined as:
 //
 //	type Context struct {
@@ -956,6 +958,9 @@
 //	    ReleaseTags   []string // releases the current release is compatible with
 //	    InstallSuffix string   // suffix to use in the name of the install dir
 //	}
+//
+// The template function "module" takes a module path as a parameter,
+// and returns information about the module, defined as the Module struct below.
 //
 // For more information about the meaning of these fields see the documentation
 // for the go/build package's Context type.

@@ -145,6 +145,8 @@ of list -m below.
 
 The template function "join" calls strings.Join.
 
+The template function "json" marshals its arguments to JSON.
+
 The template function "context" returns the build context, defined as:
 
     type Context struct {
@@ -160,6 +162,9 @@ The template function "context" returns the build context, defined as:
         ReleaseTags   []string // releases the current release is compatible with
         InstallSuffix string   // suffix to use in the name of the install dir
     }
+
+The template function "module" takes a module path as a parameter,
+and returns information about the module, defined as the Module struct below.
 
 For more information about the meaning of these fields see the documentation
 for the go/build package's Context type.
@@ -484,7 +489,11 @@ func runList(ctx context.Context, cmd *base.Command, args []string) {
 			return cachedCtxt
 		}
 		fm := template.FuncMap{
-			"join":    strings.Join,
+			"join": strings.Join,
+			"json": func(v any) (string, error) {
+				b, err := json.Marshal(v)
+				return string(b), err
+			},
 			"context": context,
 			"module":  func(path string) *modinfo.ModulePublic { return modload.ModuleInfo(moduleLoader, ctx, path) },
 		}
