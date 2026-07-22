@@ -6,17 +6,17 @@
 
 package composite
 
-import "flag"
+import "cmd/vet/testdata/composite/a"
 
 // Testing is awkward because we need to reference things from a separate package
 // to trigger the warnings.
 
-var goodStructLiteral = flag.Flag{
+var goodStructLiteral = a.Flag{
 	Name:  "Name",
 	Usage: "Usage",
 }
 
-var badStructLiteral = flag.Flag{ // ERROR "unkeyed fields"
+var badStructLiteral = a.Flag{ // ERROR "unkeyed fields"
 	"Name",
 	"Usage",
 	nil, // Value
