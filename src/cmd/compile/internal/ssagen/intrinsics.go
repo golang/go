@@ -1976,6 +1976,14 @@ func opLen4_31(op ssa.Op, t *types.Type) func(s *state, n *ir.CallExpr, args []*
 }
 
 func immJumpTable(s *state, idx *ssa.Value, intrinsicCall *ir.CallExpr, genOp func(*state, int)) *ssa.Value {
+	if !idx.Type.IsKind(types.TUINT8) && !idx.Type.IsKind(types.TUINT64) {
+		panic("immJumpTable expects uint8 or uint64 value")
+	}
+	if idx.Type.IsKind(types.TUINT64) {
+		// Match the constant path and keep the jump table index in range.
+		idx = s.conv(nil, idx, idx.Type, types.Types[types.TUINT8])
+	}
+
 	if base.Ctxt.Retpoline {
 		// Note spectre=all implies retpoline which requires binary search instead of table switch.
 		return branchTableImm8(s, idx, intrinsicCall, genOp)
@@ -1983,10 +1991,6 @@ func immJumpTable(s *state, idx *ssa.Value, intrinsicCall *ir.CallExpr, genOp fu
 
 	// Make blocks we'll need.
 	bEnd := s.f.NewBlock(block.BlockPlain)
-
-	if !idx.Type.IsKind(types.TUINT8) && !idx.Type.IsKind(types.TUINT64) {
-		panic("immJumpTable expects uint8 or uint64 value")
-	}
 
 	// We will exhaust 0-255, so no need to check the bounds.
 	t := types.Types[types.TUINTPTR]
