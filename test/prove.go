@@ -685,7 +685,7 @@ func suffix(s, suffix string) bool {
 }
 
 func constsuffix(s string) bool {
-	return suffix(s, "abc") // ERROR "Proved IsSliceInBounds$" "Proved slicemask not needed$" "Proved Eq64$"
+	return suffix(s, "abc") // ERROR "Proved IsSliceInBounds$" "Proved slicemask not needed \(by limit\)$" "Proved Eq64$"
 }
 
 func atexit(foobar []func()) {
