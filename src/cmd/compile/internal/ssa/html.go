@@ -804,6 +804,14 @@ func (w *HTMLWriter) WritePhase(phase, title string) {
 	w.prevHash = hash
 }
 
+// FatalCleanup should be called to do cleanup if the complation is exiting early due to
+// a fatal error.
+func (w *HTMLWriter) FatalCleanup() {
+	const stats = "crashed"
+	w.WritePhase(w.Func.pass.name, fmt.Sprintf("%s <span class=\"stats\">%s</span>", w.Func.pass.name, stats))
+	w.flushPhases()
+}
+
 // flushPhases collects any pending phases and titles, writes them to the html, and resets the pending slices.
 func (w *HTMLWriter) flushPhases() {
 	phaseLen := len(w.pendingPhases)

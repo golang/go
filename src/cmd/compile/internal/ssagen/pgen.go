@@ -301,7 +301,7 @@ const maxStackSize = 1 << 30
 // and flushes that plist to machine code.
 // worker indicates which of the backend workers is doing the processing.
 func Compile(fn *ir.Func, worker int, profile *pgoir.Profile) {
-	f := buildssa(fn, worker, inline.IsPgoHotFunc(fn, profile) || inline.HasPgoHotInline(fn))
+	f, htmlWriter := buildssa(fn, worker, inline.IsPgoHotFunc(fn, profile) || inline.HasPgoHotInline(fn))
 	// Note: check arg size to fix issue 25507.
 	if f.Frontend().(*ssafn).stksize >= maxStackSize || f.OwnAux.ArgWidth() >= maxStackSize {
 		largeStackFramesMu.Lock()
@@ -311,7 +311,7 @@ func Compile(fn *ir.Func, worker int, profile *pgoir.Profile) {
 	}
 	pp := objw.NewProgs(fn, worker)
 	defer pp.Free()
-	genssa(f, pp)
+	genssa(htmlWriter, f, pp)
 	// Check frame size again.
 	// The check above included only the space needed for local variables.
 	// After genssa, the space needed includes local variables and the callee arg region.
