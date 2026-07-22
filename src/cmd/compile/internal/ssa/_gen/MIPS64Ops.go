@@ -339,6 +339,7 @@ func init() {
 			clobberFlags:   true,
 			faultOnNilArg0: true,
 			addrSinkArg0:   true,
+			addrSinkArg1:   true,
 		},
 
 		// large or unaligned move
@@ -367,6 +368,7 @@ func init() {
 			faultOnNilArg1: true,
 			addrSinkArg0:   true,
 			addrSinkArg1:   true,
+			// TODO: could use addrSinkArg2 here.
 		},
 
 		// atomic and/or.
