@@ -1174,6 +1174,12 @@ func (c *Conn) verifyServerCertificate(certificates [][]byte) error {
 		}
 	}
 
+	if fips140tls.Required() && !isCertificateAllowedFIPS(certs[0]) {
+		c.sendAlert(alertBadCertificate)
+		err := errors.New("server's certificate is not allowed in FIPS 140-3 mode")
+		return &CertificateVerificationError{UnverifiedCertificates: certs, Err: err}
+	}
+
 	switch certs[0].PublicKey.(type) {
 	case *rsa.PublicKey, *ecdsa.PublicKey, ed25519.PublicKey:
 	case *mldsa.PublicKey:
