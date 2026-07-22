@@ -124,7 +124,7 @@ var ignoreSuffixes = []string{
 	"~",
 }
 
-const minBootstrap = "go1.24.6"
+const minBootstrap = "go1.26.0"
 
 var tryDirs = []string{
 	"sdk/" + minBootstrap,
