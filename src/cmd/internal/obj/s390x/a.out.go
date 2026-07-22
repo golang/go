@@ -279,6 +279,11 @@ const (
 	// population count
 	APOPCNT
 
+	// prefetch data
+	APFD
+	// prefetch data relative long
+	APFDRL
+
 	// integer bitwise
 	AAND
 	AANDW

@@ -54,6 +54,10 @@ func jumpS390x(word string) bool {
 		"CALL",
 		"JMP":
 		return true
+	case "PFDRL":
+		// PFDRL is not a branch, but takes a PC-relative label or n(PC)
+		// reference that needs to be patched like a jump. See ARM64 ADR.
+		return true
 	}
 	return false
 }

@@ -136,6 +136,11 @@ TEXT main·foo(SB),DUPOK|NOSPLIT,$16-0 // TEXT main.foo(SB), DUPOK|NOSPLIT, $16-
 	NEGW	R1, R2                // b9130021
 	FLOGR	R2, R2                // b9830022
 	POPCNT	R3, R4                // b9e10043
+	PFD	$1, 4(R4)(R2)         // e31240040036
+	PFDRL	$1, 0(PC)             // c61200000000
+	PFDRL	$1, label_pfd         // PFDRL $1
+label_pfd:
+	PFDRL	$1, main·foo(SB)      // PFDRL $1, main.foo(SB)
 
 	AND	R1, R2                // b9800021
 	AND	R1, R2, R3            // b9e42031

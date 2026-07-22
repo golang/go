@@ -462,6 +462,14 @@ var optab = []Optab{
 	// VSI store rightmost with length
 	{i: 129, as: AVSTRL, a1: C_VREG, a3: C_SCON, a6: C_SOREG},
 	{i: 129, as: AVSTRL, a1: C_VREG, a3: C_SCON, a6: C_SAUTO},
+
+	// RXY-b Prefetch Data
+	{i: 130, as: APFD, a1: C_SCON, a6: C_LOREG},
+	{i: 130, as: APFD, a1: C_SCON, a6: C_LAUTO},
+
+	// RIL-c Prefetch Data Relative Long
+	{i: 130, as: APFDRL, a1: C_SCON, a6: C_ADDR},
+	{i: 130, as: APFDRL, a1: C_SCON, a6: C_SBRA},
 }
 
 var oprange [ALAST & obj.AMask][]Optab
@@ -4522,6 +4530,41 @@ func (c *ctxtz) asmout(p *obj.Prog, asm *[]byte) {
 		d2 := uint32(c.vregoff(&p.To))
 		i3 := uint32(c.vregoff(p.GetFrom3()))
 		zVSI(op, uint32(v1), uint32(b2), d2, i3, asm)
+
+	case 130:
+		m := c.regoff(&p.From)
+		switch m {
+		case 1, 2, 6, 7:
+			// Valid PFD/PFDRL function codes.
+		default:
+			c.ctxt.Diag(
+				"invalid prefetch function code: %d (must be 1, 2, 6, or 7)",
+				m,
+			)
+			return
+		}
+		switch p.As {
+		case APFD:
+			addr := &p.To
+			if addr.Reg == 0 {
+				addr.Reg = REGSP
+			}
+			d := c.regoff(addr)
+			zRXY(op_PFD, uint32(m), uint32(addr.Index),
+				uint32(addr.Reg), uint32(d), asm)
+
+		case APFDRL:
+			v := int32(0)
+			if p.To.Target() != nil {
+				// C_ADDR: sym(SB) — linker fills RI2 via R_PCRELDBL
+				v = int32((p.To.Target().Pc - p.Pc) >> 1)
+			} else if p.To.Sym != nil {
+				// C_ADDR: sym(SB) — linker fills RI2 via R_PCRELDBL
+				c.addrilreloc(p.To.Sym, p.To.Offset)
+				v = 0
+			}
+			zRIL(_c, op_PFDRL, uint32(m), uint32(v), asm)
+		}
 	}
 }
 
