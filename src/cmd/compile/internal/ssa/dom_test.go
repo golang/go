@@ -5,6 +5,7 @@
 package ssa
 
 import (
+	"cmd/compile/internal/ssa/ssacore"
 	"cmd/compile/internal/ssa/ssaop"
 	"cmd/compile/internal/types"
 	"testing"
@@ -161,7 +162,7 @@ func genMaxPredValue(size int) []bloc {
 }
 
 // sink for benchmark
-var domBenchRes []*Block
+var domBenchRes []*ssacore.Block
 
 func benchmarkDominators(b *testing.B, size int, bg blockGen) {
 	c := testConfig(b)
@@ -171,16 +172,16 @@ func benchmarkDominators(b *testing.B, size int, bg blockGen) {
 	b.SetBytes(int64(size))
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
-		domBenchRes = Dominators(fun.f)
+		domBenchRes = ssacore.Dominators(fun.f)
 	}
 }
 
-type domFunc func(f *Func) []*Block
+type domFunc func(f *ssacore.Func) []*ssacore.Block
 
 // verifyDominators verifies that the dominators of fut (function under test)
 // as determined by domFn, match the map node->dominator
 func verifyDominators(t *testing.T, fut fun, domFn domFunc, doms map[string]string) {
-	blockNames := map[*Block]string{}
+	blockNames := map[*ssacore.Block]string{}
 	for n, b := range fut.blocks {
 		blockNames[b] = n
 	}
@@ -233,8 +234,8 @@ func TestDominatorsSingleBlock(t *testing.T) {
 	doms := map[string]string{}
 
 	CheckFunc(fun.f)
-	verifyDominators(t, fun, Dominators, doms)
-	verifyDominators(t, fun, DominatorsSimple, doms)
+	verifyDominators(t, fun, ssacore.Dominators, doms)
+	verifyDominators(t, fun, ssacore.DominatorsSimple, doms)
 
 }
 
@@ -261,8 +262,8 @@ func TestDominatorsSimple(t *testing.T) {
 	}
 
 	CheckFunc(fun.f)
-	verifyDominators(t, fun, Dominators, doms)
-	verifyDominators(t, fun, DominatorsSimple, doms)
+	verifyDominators(t, fun, ssacore.Dominators, doms)
+	verifyDominators(t, fun, ssacore.DominatorsSimple, doms)
 
 }
 
@@ -290,8 +291,8 @@ func TestDominatorsMultPredFwd(t *testing.T) {
 	}
 
 	CheckFunc(fun.f)
-	verifyDominators(t, fun, Dominators, doms)
-	verifyDominators(t, fun, DominatorsSimple, doms)
+	verifyDominators(t, fun, ssacore.Dominators, doms)
+	verifyDominators(t, fun, ssacore.DominatorsSimple, doms)
 }
 
 func TestDominatorsDeadCode(t *testing.T) {
@@ -313,8 +314,8 @@ func TestDominatorsDeadCode(t *testing.T) {
 	}
 
 	CheckFunc(fun.f)
-	verifyDominators(t, fun, Dominators, doms)
-	verifyDominators(t, fun, DominatorsSimple, doms)
+	verifyDominators(t, fun, ssacore.Dominators, doms)
+	verifyDominators(t, fun, ssacore.DominatorsSimple, doms)
 }
 
 func TestDominatorsMultPredRev(t *testing.T) {
@@ -344,8 +345,8 @@ func TestDominatorsMultPredRev(t *testing.T) {
 	}
 
 	CheckFunc(fun.f)
-	verifyDominators(t, fun, Dominators, doms)
-	verifyDominators(t, fun, DominatorsSimple, doms)
+	verifyDominators(t, fun, ssacore.Dominators, doms)
+	verifyDominators(t, fun, ssacore.DominatorsSimple, doms)
 }
 
 func TestDominatorsMultPred(t *testing.T) {
@@ -372,8 +373,8 @@ func TestDominatorsMultPred(t *testing.T) {
 	}
 
 	CheckFunc(fun.f)
-	verifyDominators(t, fun, Dominators, doms)
-	verifyDominators(t, fun, DominatorsSimple, doms)
+	verifyDominators(t, fun, ssacore.Dominators, doms)
+	verifyDominators(t, fun, ssacore.DominatorsSimple, doms)
 }
 
 func TestInfiniteLoop(t *testing.T) {
@@ -392,7 +393,7 @@ func TestInfiniteLoop(t *testing.T) {
 	CheckFunc(fun.f)
 	doms := map[string]string{"a": "entry",
 		"b": "a"}
-	verifyDominators(t, fun, Dominators, doms)
+	verifyDominators(t, fun, ssacore.Dominators, doms)
 }
 
 func TestDomTricky(t *testing.T) {
@@ -436,19 +437,19 @@ func TestDomTricky(t *testing.T) {
 			Bloc("19",
 				Goto("10")))
 		CheckFunc(fun.f)
-		verifyDominators(t, fun, Dominators, doms)
-		verifyDominators(t, fun, DominatorsSimple, doms)
+		verifyDominators(t, fun, ssacore.Dominators, doms)
+		verifyDominators(t, fun, ssacore.DominatorsSimple, doms)
 	}
 }
 
 // generateDominatorMap uses dominatorsSimple to obtain a
 // reference dominator tree for testing faster algorithms.
 func generateDominatorMap(fut fun) map[string]string {
-	blockNames := map[*Block]string{}
+	blockNames := map[*ssacore.Block]string{}
 	for n, b := range fut.blocks {
 		blockNames[b] = n
 	}
-	referenceDom := DominatorsSimple(fut.f)
+	referenceDom := ssacore.DominatorsSimple(fut.f)
 	doms := make(map[string]string)
 	for _, b := range fut.f.Blocks {
 		if d := referenceDom[b.ID]; d != nil {
@@ -605,5 +606,5 @@ func testDominatorsPostTricky(t *testing.T, b7then, b7else, b12then, b12else, b1
 			Exit("mem")))
 	CheckFunc(fun.f)
 	doms := generateDominatorMap(fun)
-	verifyDominators(t, fun, Dominators, doms)
+	verifyDominators(t, fun, ssacore.Dominators, doms)
 }

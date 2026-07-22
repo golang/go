@@ -438,13 +438,13 @@
 (PanicBounds ...) => (LoweredPanicBoundsRR ...)
 (PanicExtend ...) => (LoweredPanicExtendRR ...)
 
-(LoweredPanicBoundsRR [kind] x (MOVWconst [c]) mem) => (LoweredPanicBoundsRC [kind] x {PanicBoundsC{C:int64(c)}} mem)
-(LoweredPanicBoundsRR [kind] (MOVWconst [c]) y mem) => (LoweredPanicBoundsCR [kind] {PanicBoundsC{C:int64(c)}} y mem)
-(LoweredPanicBoundsRC [kind] {p} (MOVWconst [c]) mem) => (LoweredPanicBoundsCC [kind] {PanicBoundsCC{Cx:int64(c), Cy:p.C}} mem)
+(LoweredPanicBoundsRR [kind] x (MOVWconst [c]) mem) => (LoweredPanicBoundsRC [kind] x {ssacore.PanicBoundsC{C:int64(c)}} mem)
+(LoweredPanicBoundsRR [kind] (MOVWconst [c]) y mem) => (LoweredPanicBoundsCR [kind] {ssacore.PanicBoundsC{C:int64(c)}} y mem)
+(LoweredPanicBoundsRC [kind] {p} (MOVWconst [c]) mem) => (LoweredPanicBoundsCC [kind] {ssacore.PanicBoundsCC{Cx:int64(c), Cy:p.C}} mem)
 
-(LoweredPanicExtendRR [kind] hi lo (MOVWconst [c]) mem) => (LoweredPanicExtendRC [kind] hi lo {PanicBoundsC{C:int64(c)}} mem)
-(LoweredPanicExtendRR [kind] (MOVWconst [hi]) (MOVWconst [lo]) y mem) => (LoweredPanicBoundsCR [kind] {PanicBoundsC{C:int64(hi)<<32 + int64(uint32(lo))}} y mem)
-(LoweredPanicExtendRC [kind] {p} (MOVWconst [hi]) (MOVWconst [lo]) mem) => (LoweredPanicBoundsCC [kind] {PanicBoundsCC{Cx:int64(hi)<<32+int64(uint32(lo)), Cy:p.C}} mem)
+(LoweredPanicExtendRR [kind] hi lo (MOVWconst [c]) mem) => (LoweredPanicExtendRC [kind] hi lo {ssacore.PanicBoundsC{C:int64(c)}} mem)
+(LoweredPanicExtendRR [kind] (MOVWconst [hi]) (MOVWconst [lo]) y mem) => (LoweredPanicBoundsCR [kind] {ssacore.PanicBoundsC{C:int64(hi)<<32 + int64(uint32(lo))}} y mem)
+(LoweredPanicExtendRC [kind] {p} (MOVWconst [hi]) (MOVWconst [lo]) mem) => (LoweredPanicBoundsCC [kind] {ssacore.PanicBoundsCC{Cx:int64(hi)<<32+int64(uint32(lo)), Cy:p.C}} mem)
 
 // Optimizations
 
@@ -529,13 +529,13 @@
 	(MOVWstorezero [off1+off2] {MergeSym(sym1,sym2)} ptr mem)
 
 // replace load from same location as preceding store with zero/sign extension (or copy in case of full width)
-(MOVBload [off] {sym} ptr (MOVBstore [off2] {sym2} ptr2 x _))  && sym == sym2 && off == off2 && IsSamePtr(ptr, ptr2) => (MOVBreg x)
-(MOVBUload [off] {sym} ptr (MOVBstore [off2] {sym2} ptr2 x _)) && sym == sym2 && off == off2 && IsSamePtr(ptr, ptr2) => (MOVBUreg x)
-(MOVHload [off] {sym} ptr (MOVHstore [off2] {sym2} ptr2 x _))  && sym == sym2 && off == off2 && IsSamePtr(ptr, ptr2) => (MOVHreg x)
-(MOVHUload [off] {sym} ptr (MOVHstore [off2] {sym2} ptr2 x _)) && sym == sym2 && off == off2 && IsSamePtr(ptr, ptr2) => (MOVHUreg x)
-(MOVWload [off] {sym} ptr (MOVWstore [off2] {sym2} ptr2 x _))  && sym == sym2 && off == off2 && IsSamePtr(ptr, ptr2) => x
-(MOVFload [off] {sym} ptr (MOVFstore [off2] {sym2} ptr2 x _))  && sym == sym2 && off == off2 && IsSamePtr(ptr, ptr2) => x
-(MOVDload [off] {sym} ptr (MOVDstore [off2] {sym2} ptr2 x _))  && sym == sym2 && off == off2 && IsSamePtr(ptr, ptr2) => x
+(MOVBload [off] {sym} ptr (MOVBstore [off2] {sym2} ptr2 x _))  && sym == sym2 && off == off2 && ssacore.IsSamePtr(ptr, ptr2) => (MOVBreg x)
+(MOVBUload [off] {sym} ptr (MOVBstore [off2] {sym2} ptr2 x _)) && sym == sym2 && off == off2 && ssacore.IsSamePtr(ptr, ptr2) => (MOVBUreg x)
+(MOVHload [off] {sym} ptr (MOVHstore [off2] {sym2} ptr2 x _))  && sym == sym2 && off == off2 && ssacore.IsSamePtr(ptr, ptr2) => (MOVHreg x)
+(MOVHUload [off] {sym} ptr (MOVHstore [off2] {sym2} ptr2 x _)) && sym == sym2 && off == off2 && ssacore.IsSamePtr(ptr, ptr2) => (MOVHUreg x)
+(MOVWload [off] {sym} ptr (MOVWstore [off2] {sym2} ptr2 x _))  && sym == sym2 && off == off2 && ssacore.IsSamePtr(ptr, ptr2) => x
+(MOVFload [off] {sym} ptr (MOVFstore [off2] {sym2} ptr2 x _))  && sym == sym2 && off == off2 && ssacore.IsSamePtr(ptr, ptr2) => x
+(MOVDload [off] {sym} ptr (MOVDstore [off2] {sym2} ptr2 x _))  && sym == sym2 && off == off2 && ssacore.IsSamePtr(ptr, ptr2) => x
 
 // store zero
 (MOVBstore [off] {sym} ptr (MOVWconst [0]) mem) => (MOVBstorezero [off] {sym} ptr mem)

@@ -4,8 +4,9 @@ package ssa
 
 import "internal/buildcfg"
 import "cmd/compile/internal/ssa/ssaop"
+import "cmd/compile/internal/ssa/ssacore"
 
-func rewriteValuePPC64latelower(v *Value) bool {
+func rewriteValuePPC64latelower(v *ssacore.Value) bool {
 	switch v.Op {
 	case ssaop.OpPPC64ADD:
 		return rewriteValuePPC64latelower_OpPPC64ADD(v)
@@ -28,7 +29,7 @@ func rewriteValuePPC64latelower(v *Value) bool {
 	}
 	return false
 }
-func rewriteValuePPC64latelower_OpPPC64ADD(v *Value) bool {
+func rewriteValuePPC64latelower_OpPPC64ADD(v *ssacore.Value) bool {
 	v_1 := v.Args[1]
 	v_0 := v.Args[0]
 	// match: (ADD (MOVDconst [m]) x)
@@ -53,7 +54,7 @@ func rewriteValuePPC64latelower_OpPPC64ADD(v *Value) bool {
 	}
 	return false
 }
-func rewriteValuePPC64latelower_OpPPC64AND(v *Value) bool {
+func rewriteValuePPC64latelower_OpPPC64AND(v *ssacore.Value) bool {
 	v_1 := v.Args[1]
 	v_0 := v.Args[0]
 	// match: (AND x:(MOVDconst [m]) n)
@@ -122,7 +123,7 @@ func rewriteValuePPC64latelower_OpPPC64AND(v *Value) bool {
 	}
 	return false
 }
-func rewriteValuePPC64latelower_OpPPC64ANDconst(v *Value) bool {
+func rewriteValuePPC64latelower_OpPPC64ANDconst(v *ssacore.Value) bool {
 	v_0 := v.Args[0]
 	// match: (ANDconst [m] x)
 	// cond: IsPPC64ValidShiftMask(m)
@@ -140,7 +141,7 @@ func rewriteValuePPC64latelower_OpPPC64ANDconst(v *Value) bool {
 	}
 	return false
 }
-func rewriteValuePPC64latelower_OpPPC64CMPconst(v *Value) bool {
+func rewriteValuePPC64latelower_OpPPC64CMPconst(v *ssacore.Value) bool {
 	v_0 := v.Args[0]
 	// match: (CMPconst [0] z:(ADD x y))
 	// cond: v.Block == z.Block
@@ -601,7 +602,7 @@ func rewriteValuePPC64latelower_OpPPC64CMPconst(v *Value) bool {
 	}
 	return false
 }
-func rewriteValuePPC64latelower_OpPPC64ISEL(v *Value) bool {
+func rewriteValuePPC64latelower_OpPPC64ISEL(v *ssacore.Value) bool {
 	v_2 := v.Args[2]
 	v_1 := v.Args[1]
 	v_0 := v.Args[0]
@@ -635,7 +636,7 @@ func rewriteValuePPC64latelower_OpPPC64ISEL(v *Value) bool {
 	}
 	return false
 }
-func rewriteValuePPC64latelower_OpPPC64RLDICL(v *Value) bool {
+func rewriteValuePPC64latelower_OpPPC64RLDICL(v *ssacore.Value) bool {
 	v_0 := v.Args[0]
 	// match: (RLDICL [em] x:(SRDconst [s] a))
 	// cond: (em&0xFF0000) == 0
@@ -658,7 +659,7 @@ func rewriteValuePPC64latelower_OpPPC64RLDICL(v *Value) bool {
 	}
 	return false
 }
-func rewriteValuePPC64latelower_OpPPC64RLDICLCC(v *Value) bool {
+func rewriteValuePPC64latelower_OpPPC64RLDICLCC(v *ssacore.Value) bool {
 	v_0 := v.Args[0]
 	// match: (RLDICLCC [a] x)
 	// cond: convertPPC64RldiclAndccconst(a) != 0
@@ -676,7 +677,7 @@ func rewriteValuePPC64latelower_OpPPC64RLDICLCC(v *Value) bool {
 	}
 	return false
 }
-func rewriteValuePPC64latelower_OpPPC64SETBC(v *Value) bool {
+func rewriteValuePPC64latelower_OpPPC64SETBC(v *ssacore.Value) bool {
 	v_0 := v.Args[0]
 	b := v.Block
 	typ := &b.Func.Config.Types
@@ -736,7 +737,7 @@ func rewriteValuePPC64latelower_OpPPC64SETBC(v *Value) bool {
 	}
 	return false
 }
-func rewriteValuePPC64latelower_OpPPC64SETBCR(v *Value) bool {
+func rewriteValuePPC64latelower_OpPPC64SETBCR(v *ssacore.Value) bool {
 	v_0 := v.Args[0]
 	b := v.Block
 	typ := &b.Func.Config.Types
@@ -796,6 +797,6 @@ func rewriteValuePPC64latelower_OpPPC64SETBCR(v *Value) bool {
 	}
 	return false
 }
-func rewriteBlockPPC64latelower(b *Block) bool {
+func rewriteBlockPPC64latelower(b *ssacore.Block) bool {
 	return false
 }

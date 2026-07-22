@@ -6,6 +6,7 @@ package ssa
 
 import (
 	"cmd/compile/internal/base"
+	"cmd/compile/internal/ssa/ssacore"
 	"cmd/compile/internal/ssa/ssaop"
 	"cmd/compile/internal/types"
 	"cmp"
@@ -29,7 +30,7 @@ const (
 )
 
 type ValHeap struct {
-	a           []*Value
+	a           []*ssacore.Value
 	score       []int8
 	inBlockUses []bool
 }
@@ -40,7 +41,7 @@ func (h ValHeap) Swap(i, j int) { a := h.a; a[i], a[j] = a[j], a[i] }
 func (h *ValHeap) Push(x any) {
 	// Push and Pop use pointer receivers because they modify the slice's length,
 	// not just its contents.
-	v := x.(*Value)
+	v := x.(*ssacore.Value)
 	h.a = append(h.a, v)
 }
 func (h *ValHeap) Pop() any {
@@ -95,7 +96,7 @@ func (h ValHeap) Less(i, j int) bool {
 // will appear in the assembly output. For now it generates a
 // reasonable valid schedule using a priority queue. TODO(khr):
 // schedule smarter.
-func schedule(f *Func) {
+func schedule(f *ssacore.Func) {
 	// reusable priority queue
 	priq := new(ValHeap)
 
@@ -219,7 +220,7 @@ func schedule(f *Func) {
 
 	// An edge represents a scheduling constraint that x must appear before y in the schedule.
 	type edge struct {
-		x, y *Value
+		x, y *ssacore.Value
 	}
 	edges := make([]edge, 0, 64)
 
@@ -292,7 +293,7 @@ func schedule(f *Func) {
 		b.Values = b.Values[:0]
 		for priq.Len() > 0 {
 			// Schedule the next schedulable value in priority order.
-			v := heap.Pop(priq).(*Value)
+			v := heap.Pop(priq).(*ssacore.Value)
 			b.Values = append(b.Values, v)
 
 			// Find all the scheduling edges out from this value.
@@ -385,7 +386,7 @@ func schedule(f *Func) {
 // Auxiliary data structures are passed in as arguments, so
 // that they can be allocated in the caller and be reused.
 // This function takes care of reset them.
-func storeOrder(values []*Value, sset *SparseSet, storeNumber []int32) []*Value {
+func storeOrder(values []*ssacore.Value, sset *ssacore.SparseSet, storeNumber []int32) []*ssacore.Value {
 	if len(values) == 0 {
 		return values
 	}
@@ -397,7 +398,7 @@ func storeOrder(values []*Value, sset *SparseSet, storeNumber []int32) []*Value 
 	// Members of values that are store values.
 	// A constant bound allows this to be stack-allocated. 64 is
 	// enough to cover almost every storeOrder call.
-	stores := make([]*Value, 0, 64)
+	stores := make([]*ssacore.Value, 0, 64)
 	hasNilCheck := false
 	sset.Clear() // sset is the set of stores that are used in other values
 	for _, v := range values {
@@ -418,7 +419,7 @@ func storeOrder(values []*Value, sset *SparseSet, storeNumber []int32) []*Value 
 	}
 
 	// find last store, which is the one that is not used by other stores
-	var last *Value
+	var last *ssacore.Value
 	for _, v := range stores {
 		if !sset.Contains(v.ID) {
 			if last != nil {
@@ -451,7 +452,7 @@ func storeOrder(values []*Value, sset *SparseSet, storeNumber []int32) []*Value 
 		}
 		w = w.MemoryArg()
 	}
-	var stack []*Value
+	var stack []*ssacore.Value
 	for _, v := range values {
 		if sset.Contains(v.ID) {
 			// in sset means v is a store, or already pushed to stack, or already assigned a store number
@@ -517,7 +518,7 @@ func storeOrder(values []*Value, sset *SparseSet, storeNumber []int32) []*Value 
 	}
 
 	// place values in count-indexed bins, which are in the desired store order
-	order := make([]*Value, len(values))
+	order := make([]*ssacore.Value, len(values))
 	for _, v := range values {
 		s := storeNumber[v.ID]
 		order[count[s-1]] = v
@@ -549,37 +550,7 @@ func storeOrder(values []*Value, sset *SparseSet, storeNumber []int32) []*Value 
 	return order
 }
 
-// IsFlagOp reports if v is an OP with the flag type.
-func (v *Value) IsFlagOp() bool {
-	if v.Type.IsFlags() || v.Type.IsTuple() && v.Type.FieldType(1).IsFlags() {
-		return true
-	}
-	// PPC64 carry generators put their carry in a non-flag-typed register
-	// in their output.
-	switch v.Op {
-	case ssaop.OpPPC64SUBC, ssaop.OpPPC64ADDC, ssaop.OpPPC64SUBCconst, ssaop.OpPPC64ADDCconst:
-		return true
-	}
-	return false
-}
-
-// HasFlagInput reports whether v has a flag value as any of its inputs.
-func (v *Value) HasFlagInput() bool {
-	for _, a := range v.Args {
-		if a.IsFlagOp() {
-			return true
-		}
-	}
-	// PPC64 carry dependencies are conveyed through their final argument,
-	// so we treat those operations as taking flags as well.
-	switch v.Op {
-	case ssaop.OpPPC64SUBE, ssaop.OpPPC64ADDE, ssaop.OpPPC64SUBZEzero, ssaop.OpPPC64ADDZE, ssaop.OpPPC64ADDZEzero:
-		return true
-	}
-	return false
-}
-
-func valuePosCmp(a, b *Value) int {
+func valuePosCmp(a, b *ssacore.Value) int {
 	if a.Pos.Before(b.Pos) {
 		return -1
 	}

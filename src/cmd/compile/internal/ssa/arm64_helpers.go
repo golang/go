@@ -5,6 +5,7 @@
 package ssa
 
 import (
+	"cmd/compile/internal/ssa/ssacore"
 	"cmd/compile/internal/ssa/ssaop"
 	"math/bits"
 )
@@ -115,7 +116,7 @@ func arm64Negate(op ssaop.Op) ssaop.Op {
 // evaluate an ARM64 op against a flags value
 // that is potentially constant; return 1 for true,
 // -1 for false, and 0 for not constant.
-func ccARM64Eval(op ssaop.Op, flags *Value) int {
+func ccARM64Eval(op ssaop.Op, flags *ssacore.Value) int {
 	fop := flags.Op
 	if fop == ssaop.OpARM64InvertFlags {
 		return -ccARM64Eval(op, flags.Args[0])
@@ -123,7 +124,7 @@ func ccARM64Eval(op ssaop.Op, flags *Value) int {
 	if fop != ssaop.OpARM64FlagConstant {
 		return 0
 	}
-	fc := FlagConstant(flags.AuxInt)
+	fc := ssacore.FlagConstant(flags.AuxInt)
 	b2i := func(b bool) int {
 		if b {
 			return 1

@@ -6,6 +6,7 @@ package ssa
 
 import (
 	"cmd/compile/internal/base"
+	"cmd/compile/internal/ssa/ssacore"
 	"cmd/compile/internal/ssa/ssaop"
 	"cmd/compile/internal/types"
 )
@@ -25,7 +26,7 @@ func amd64CapAVXShift(auxInt int64) uint8 {
 }
 
 // flagify rewrites v which is (X ...) to (Select0 (Xflags ...)).
-func flagify(v *Value) bool {
+func flagify(v *ssacore.Value) bool {
 	var flagVersion ssaop.Op
 	switch v.Op {
 	case ssaop.OpAMD64ADDQconst:
@@ -44,7 +45,7 @@ func flagify(v *Value) bool {
 }
 
 // sequentialAddresses reports true if it can prove that x + n == y
-func sequentialAddresses(x, y *Value, n int64) bool {
+func sequentialAddresses(x, y *ssacore.Value, n int64) bool {
 	if x == y && n == 0 {
 		return true
 	}

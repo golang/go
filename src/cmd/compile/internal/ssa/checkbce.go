@@ -7,6 +7,7 @@ package ssa
 import (
 	"cmd/compile/internal/logopt"
 	"cmd/compile/internal/ssa/block"
+	"cmd/compile/internal/ssa/ssacore"
 	"cmd/compile/internal/ssa/ssaop"
 )
 
@@ -14,7 +15,7 @@ import (
 // Useful to find regressions. checkbce is only activated when with
 // corresponding debug options, so it's off by default.
 // See test/checkbce.go
-func checkbce(f *Func) {
+func checkbce(f *ssacore.Func) {
 	if f.Pass.Debug <= 0 && !logopt.Enabled() {
 		return
 	}

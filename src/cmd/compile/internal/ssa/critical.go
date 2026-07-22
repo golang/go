@@ -6,13 +6,14 @@ package ssa
 
 import (
 	"cmd/compile/internal/ssa/block"
+	"cmd/compile/internal/ssa/ssacore"
 	"cmd/compile/internal/ssa/ssaop"
 )
 
 // critical splits critical edges (those that go from a block with
 // more than one outedge to a block with more than one inedge).
 // Regalloc wants a critical-edge-free CFG so it can implement phi values.
-func critical(f *Func) {
+func critical(f *ssacore.Func) {
 	// maps from phi arg ID to the new block created for that argument
 	blocks := f.Cache.AllocBlockSlice(f.NumValues())
 	defer f.Cache.FreeBlockSlice(blocks)
@@ -24,7 +25,7 @@ func critical(f *Func) {
 			continue
 		}
 
-		var phi *Value
+		var phi *ssacore.Value
 		// determine if we've only got a single phi in this
 		// block, this is easier to handle than the general
 		// case of a block with multiple phi values.
@@ -55,7 +56,7 @@ func critical(f *Func) {
 				continue // only single output block
 			}
 
-			var d *Block         // new block used to remove critical edge
+			var d *ssacore.Block // new block used to remove critical edge
 			reusedBlock := false // if true, then this is not the first use of this block
 			if phi != nil {
 				argID := phi.Args[i].ID
@@ -90,8 +91,8 @@ func critical(f *Func) {
 			// predecessors and phi args
 			if reusedBlock {
 				// Add p->d edge
-				p.Succs[pi] = Edge{d, len(d.Preds)}
-				d.Preds = append(d.Preds, Edge{p, pi})
+				p.Succs[pi] = ssacore.Edge{B: d, I: len(d.Preds)}
+				d.Preds = append(d.Preds, ssacore.Edge{B: p, I: pi})
 
 				// Remove p as a predecessor from b.
 				b.RemovePred(i)
@@ -105,10 +106,10 @@ func critical(f *Func) {
 				// an unprocessed predecessor down into slot i.
 			} else {
 				// splice it in
-				p.Succs[pi] = Edge{d, 0}
-				b.Preds[i] = Edge{d, 0}
-				d.Preds = append(d.Preds, Edge{p, pi})
-				d.Succs = append(d.Succs, Edge{b, i})
+				p.Succs[pi] = ssacore.Edge{B: d, I: 0}
+				b.Preds[i] = ssacore.Edge{B: d, I: 0}
+				d.Preds = append(d.Preds, ssacore.Edge{B: p, I: pi})
+				d.Succs = append(d.Succs, ssacore.Edge{B: b, I: i})
 				i++
 			}
 		}

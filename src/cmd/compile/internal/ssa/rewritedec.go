@@ -4,8 +4,9 @@ package ssa
 
 import "cmd/compile/internal/types"
 import "cmd/compile/internal/ssa/ssaop"
+import "cmd/compile/internal/ssa/ssacore"
 
-func rewriteValuedec(v *Value) bool {
+func rewriteValuedec(v *ssacore.Value) bool {
 	switch v.Op {
 	case ssaop.OpArrayMake1:
 		return rewriteValuedec_OpArrayMake1(v)
@@ -44,7 +45,7 @@ func rewriteValuedec(v *Value) bool {
 	}
 	return false
 }
-func rewriteValuedec_OpArrayMake1(v *Value) bool {
+func rewriteValuedec_OpArrayMake1(v *ssacore.Value) bool {
 	v_0 := v.Args[0]
 	// match: (ArrayMake1 x)
 	// cond: x.Type.IsPtrShaped()
@@ -59,7 +60,7 @@ func rewriteValuedec_OpArrayMake1(v *Value) bool {
 	}
 	return false
 }
-func rewriteValuedec_OpArraySelect(v *Value) bool {
+func rewriteValuedec_OpArraySelect(v *ssacore.Value) bool {
 	v_0 := v.Args[0]
 	b := v.Block
 	// match: (ArraySelect [0] x)
@@ -119,7 +120,7 @@ func rewriteValuedec_OpArraySelect(v *Value) bool {
 	}
 	return false
 }
-func rewriteValuedec_OpComplexImag(v *Value) bool {
+func rewriteValuedec_OpComplexImag(v *ssacore.Value) bool {
 	v_0 := v.Args[0]
 	b := v.Block
 	typ := &b.Func.Config.Types
@@ -181,7 +182,7 @@ func rewriteValuedec_OpComplexImag(v *Value) bool {
 	}
 	return false
 }
-func rewriteValuedec_OpComplexReal(v *Value) bool {
+func rewriteValuedec_OpComplexReal(v *ssacore.Value) bool {
 	v_0 := v.Args[0]
 	b := v.Block
 	typ := &b.Func.Config.Types
@@ -237,7 +238,7 @@ func rewriteValuedec_OpComplexReal(v *Value) bool {
 	}
 	return false
 }
-func rewriteValuedec_OpIData(v *Value) bool {
+func rewriteValuedec_OpIData(v *ssacore.Value) bool {
 	v_0 := v.Args[0]
 	b := v.Block
 	config := b.Func.Config
@@ -281,7 +282,7 @@ func rewriteValuedec_OpIData(v *Value) bool {
 	}
 	return false
 }
-func rewriteValuedec_OpIMake(v *Value) bool {
+func rewriteValuedec_OpIMake(v *ssacore.Value) bool {
 	v_1 := v.Args[1]
 	v_0 := v.Args[0]
 	// match: (IMake _typ (StructMake ___))
@@ -307,7 +308,7 @@ func rewriteValuedec_OpIMake(v *Value) bool {
 	}
 	return false
 }
-func rewriteValuedec_OpITab(v *Value) bool {
+func rewriteValuedec_OpITab(v *ssacore.Value) bool {
 	v_0 := v.Args[0]
 	b := v.Block
 	typ := &b.Func.Config.Types
@@ -343,7 +344,7 @@ func rewriteValuedec_OpITab(v *Value) bool {
 	}
 	return false
 }
-func rewriteValuedec_OpLoad(v *Value) bool {
+func rewriteValuedec_OpLoad(v *ssacore.Value) bool {
 	v_1 := v.Args[1]
 	v_0 := v.Args[0]
 	b := v.Block
@@ -461,7 +462,7 @@ func rewriteValuedec_OpLoad(v *Value) bool {
 	}
 	return false
 }
-func rewriteValuedec_OpSliceCap(v *Value) bool {
+func rewriteValuedec_OpSliceCap(v *ssacore.Value) bool {
 	v_0 := v.Args[0]
 	b := v.Block
 	config := b.Func.Config
@@ -501,7 +502,7 @@ func rewriteValuedec_OpSliceCap(v *Value) bool {
 	}
 	return false
 }
-func rewriteValuedec_OpSliceLen(v *Value) bool {
+func rewriteValuedec_OpSliceLen(v *ssacore.Value) bool {
 	v_0 := v.Args[0]
 	b := v.Block
 	config := b.Func.Config
@@ -541,7 +542,7 @@ func rewriteValuedec_OpSliceLen(v *Value) bool {
 	}
 	return false
 }
-func rewriteValuedec_OpSlicePtr(v *Value) bool {
+func rewriteValuedec_OpSlicePtr(v *ssacore.Value) bool {
 	v_0 := v.Args[0]
 	b := v.Block
 	// match: (SlicePtr (SliceMake ptr _ _ ))
@@ -576,7 +577,7 @@ func rewriteValuedec_OpSlicePtr(v *Value) bool {
 	}
 	return false
 }
-func rewriteValuedec_OpSlicePtrUnchecked(v *Value) bool {
+func rewriteValuedec_OpSlicePtrUnchecked(v *ssacore.Value) bool {
 	v_0 := v.Args[0]
 	// match: (SlicePtrUnchecked (SliceMake ptr _ _ ))
 	// result: ptr
@@ -590,7 +591,7 @@ func rewriteValuedec_OpSlicePtrUnchecked(v *Value) bool {
 	}
 	return false
 }
-func rewriteValuedec_OpStore(v *Value) bool {
+func rewriteValuedec_OpStore(v *ssacore.Value) bool {
 	v_2 := v.Args[2]
 	v_1 := v.Args[1]
 	v_0 := v.Args[0]
@@ -757,7 +758,7 @@ func rewriteValuedec_OpStore(v *Value) bool {
 	}
 	return false
 }
-func rewriteValuedec_OpStringLen(v *Value) bool {
+func rewriteValuedec_OpStringLen(v *ssacore.Value) bool {
 	v_0 := v.Args[0]
 	b := v.Block
 	config := b.Func.Config
@@ -797,7 +798,7 @@ func rewriteValuedec_OpStringLen(v *Value) bool {
 	}
 	return false
 }
-func rewriteValuedec_OpStringPtr(v *Value) bool {
+func rewriteValuedec_OpStringPtr(v *ssacore.Value) bool {
 	v_0 := v.Args[0]
 	b := v.Block
 	typ := &b.Func.Config.Types
@@ -833,7 +834,7 @@ func rewriteValuedec_OpStringPtr(v *Value) bool {
 	}
 	return false
 }
-func rewriteValuedec_OpStructMake(v *Value) bool {
+func rewriteValuedec_OpStructMake(v *ssacore.Value) bool {
 	// match: (StructMake x)
 	// cond: x.Type.IsPtrShaped()
 	// result: x
@@ -850,7 +851,7 @@ func rewriteValuedec_OpStructMake(v *Value) bool {
 	}
 	return false
 }
-func rewriteValuedec_OpStructSelect(v *Value) bool {
+func rewriteValuedec_OpStructSelect(v *ssacore.Value) bool {
 	v_0 := v.Args[0]
 	b := v.Block
 	// match: (StructSelect (IData x))
@@ -925,6 +926,6 @@ func rewriteValuedec_OpStructSelect(v *Value) bool {
 	}
 	return false
 }
-func rewriteBlockdec(b *Block) bool {
+func rewriteBlockdec(b *ssacore.Block) bool {
 	return false
 }

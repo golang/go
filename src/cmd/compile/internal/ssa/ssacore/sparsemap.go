@@ -2,17 +2,12 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-package ssa
+package ssacore
 
-// from https://research.swtch.com/sparse
-// in turn, from Briggs and Torczon
-
-// sparseKey needs to be something we can index a slice with.
-type sparseKey interface{ ~int | ~int32 }
-
-type sparseEntry[K sparseKey, V any] struct {
-	key K
-	val V
+// NewSparseMap returns a sparseMap that can map
+// integers between 0 and n-1 to int32s.
+func NewSparseMap(n int) *sparseMap {
+	return newGenericSparseMap[ID, int32](n)
 }
 
 type genericSparseMap[K sparseKey, V any] struct {
@@ -25,6 +20,19 @@ type genericSparseMap[K sparseKey, V any] struct {
 func newGenericSparseMap[K sparseKey, V any](n int) *genericSparseMap[K, V] {
 	return &genericSparseMap[K, V]{dense: nil, sparse: make([]int32, n)}
 }
+
+type sparseEntry[K sparseKey, V any] struct {
+	key K
+	val V
+}
+
+// from https://research.swtch.com/sparse
+// in turn, from Briggs and Torczon
+
+// sparseKey needs to be something we can index a slice with.
+type sparseKey interface{ ~int | ~int32 }
+
+type sparseMap = genericSparseMap[ID, int32]
 
 func (s *genericSparseMap[K, V]) cap() int {
 	return len(s.sparse)
@@ -76,12 +84,4 @@ func (s *genericSparseMap[K, V]) Clear() {
 
 func (s *genericSparseMap[K, V]) contents() []sparseEntry[K, V] {
 	return s.dense
-}
-
-type sparseMap = genericSparseMap[ID, int32]
-
-// NewSparseMap returns a sparseMap that can map
-// integers between 0 and n-1 to int32s.
-func NewSparseMap(n int) *sparseMap {
-	return newGenericSparseMap[ID, int32](n)
 }

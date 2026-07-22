@@ -2,19 +2,20 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-package ssa
+package ssacore
 
 import (
-	"cmd/compile/internal/ir"
-	"cmd/compile/internal/ssa/ssabase"
-	"cmd/compile/internal/ssa/ssaop"
-	"cmd/compile/internal/types"
-	"cmd/internal/src"
 	"fmt"
 	"internal/buildcfg"
 	"math"
 	"sort"
 	"strings"
+
+	"cmd/compile/internal/ir"
+	"cmd/compile/internal/ssa/ssabase"
+	"cmd/compile/internal/ssa/ssaop"
+	"cmd/compile/internal/types"
+	"cmd/internal/src"
 )
 
 // A Value represents a value in the SSA representation of the program.
@@ -63,6 +64,76 @@ type Value struct {
 
 	// Storage for the first three args
 	Argstorage [3]*Value
+}
+
+// CanSSA reports whether values of type t can be represented as a Value.
+func CanSSA(t *types.Type) bool {
+	types.CalcSize(t)
+	if t.IsSIMD() {
+		return true
+	}
+	if t.Size() == 0 {
+		return true
+	}
+	sizeLimit := int64(MaxStruct * types.PtrSize)
+	if t.Size() > sizeLimit {
+		// 4*Widthptr is an arbitrary constant. We want it
+		// to be at least 3*Widthptr so slices can be registerized.
+		// Too big and we'll introduce too much register pressure.
+		if !buildcfg.Experiment.SIMD {
+			return false
+		}
+	}
+	switch t.Kind() {
+	case types.TARRAY:
+		// We can't do larger arrays because dynamic indexing is
+		// not supported on SSA variables.
+		// TODO: allow if all indexes are constant.
+		if t.NumElem() <= 1 {
+			return CanSSA(t.Elem())
+		}
+		return false
+	case types.TSTRUCT:
+		if types.IsDirectIface(t) {
+			// Note: even if t.NumFields()>MaxStruct! See issue 77534.
+			return true
+		}
+		if t.NumFields() > MaxStruct {
+			return false
+		}
+		for _, t1 := range t.Fields() {
+			if !CanSSA(t1.Type) {
+				return false
+			}
+		}
+		// Special check for SIMD. If the composite type
+		// contains SIMD vectors we can return true
+		// if it pass the checks below.
+		if !buildcfg.Experiment.SIMD {
+			return true
+		}
+		if t.Size() <= sizeLimit {
+			return true
+		}
+		i, f := t.Registers()
+		return i+f <= MaxStruct
+	default:
+		return true
+	}
+}
+
+// AutoVar returns a *Name and int64 representing the auto variable and offset within it
+// where v should be spilled.
+func AutoVar(v *Value) (*ir.Name, int64) {
+	if loc, ok := v.Block.Func.RegAlloc[v.ID].(LocalSlot); ok {
+		if v.Type.Size() > loc.Type.Size() {
+			v.Fatalf("v%d: spill/restore type %v doesn't fit in slot type %v", v.ID, v.Type, loc.Type)
+		}
+		return loc.N, loc.Off
+	}
+	// Assume it is a register, return its spill slot, which needs to be live
+	nameOff := v.Aux.(*AuxNameOffset)
+	return nameOff.Name, nameOff.Offset
 }
 
 // Examples:
@@ -133,6 +204,7 @@ func (v *Value) AuxFloat() float64 {
 	}
 	return math.Float64frombits(uint64(v.AuxInt))
 }
+
 func (v *Value) AuxValAndOff() ValAndOff {
 	if ssaop.OpcodeTable[v.Op].AuxType != ssaop.AuxTypeSymValAndOff {
 		v.Fatalf("op %s doesn't have a ValAndOff aux field", v.Op)
@@ -332,26 +404,31 @@ func (v *Value) AddArgs(a ...*Value) {
 		x.Uses++
 	}
 }
+
 func (v *Value) SetArg(i int, w *Value) {
 	v.Args[i].Uses--
 	v.Args[i] = w
 	w.Uses++
 }
+
 func (v *Value) SetArgs1(a *Value) {
 	v.ResetArgs()
 	v.AddArg(a)
 }
+
 func (v *Value) SetArgs2(a, b *Value) {
 	v.ResetArgs()
 	v.AddArg(a)
 	v.AddArg(b)
 }
+
 func (v *Value) SetArgs3(a, b, c *Value) {
 	v.ResetArgs()
 	v.AddArg(a)
 	v.AddArg(b)
 	v.AddArg(c)
 }
+
 func (v *Value) SetArgs4(a, b, c, d *Value) {
 	v.ResetArgs()
 	v.AddArg(a)
@@ -475,7 +552,9 @@ func (v *Value) CopyIntoWithXPos(b *Block, pos src.XPos) *Value {
 }
 
 func (v *Value) Logf(msg string, args ...any) { v.Block.Logf(msg, args...) }
-func (v *Value) Log() bool                    { return v.Block.Log() }
+
+func (v *Value) Log() bool { return v.Block.Log() }
+
 func (v *Value) Fatalf(msg string, args ...any) {
 	v.Block.Func.FatalfWithPos(v.Pos, msg, args...)
 }
@@ -596,76 +675,6 @@ func (v *Value) Removeable() bool {
 		return false
 	}
 	return true
-}
-
-// AutoVar returns a *Name and int64 representing the auto variable and offset within it
-// where v should be spilled.
-func AutoVar(v *Value) (*ir.Name, int64) {
-	if loc, ok := v.Block.Func.RegAlloc[v.ID].(LocalSlot); ok {
-		if v.Type.Size() > loc.Type.Size() {
-			v.Fatalf("v%d: spill/restore type %v doesn't fit in slot type %v", v.ID, v.Type, loc.Type)
-		}
-		return loc.N, loc.Off
-	}
-	// Assume it is a register, return its spill slot, which needs to be live
-	nameOff := v.Aux.(*AuxNameOffset)
-	return nameOff.Name, nameOff.Offset
-}
-
-// CanSSA reports whether values of type t can be represented as a Value.
-func CanSSA(t *types.Type) bool {
-	types.CalcSize(t)
-	if t.IsSIMD() {
-		return true
-	}
-	if t.Size() == 0 {
-		return true
-	}
-	sizeLimit := int64(MaxStruct * types.PtrSize)
-	if t.Size() > sizeLimit {
-		// 4*Widthptr is an arbitrary constant. We want it
-		// to be at least 3*Widthptr so slices can be registerized.
-		// Too big and we'll introduce too much register pressure.
-		if !buildcfg.Experiment.SIMD {
-			return false
-		}
-	}
-	switch t.Kind() {
-	case types.TARRAY:
-		// We can't do larger arrays because dynamic indexing is
-		// not supported on SSA variables.
-		// TODO: allow if all indexes are constant.
-		if t.NumElem() <= 1 {
-			return CanSSA(t.Elem())
-		}
-		return false
-	case types.TSTRUCT:
-		if types.IsDirectIface(t) {
-			// Note: even if t.NumFields()>MaxStruct! See issue 77534.
-			return true
-		}
-		if t.NumFields() > MaxStruct {
-			return false
-		}
-		for _, t1 := range t.Fields() {
-			if !CanSSA(t1.Type) {
-				return false
-			}
-		}
-		// Special check for SIMD. If the composite type
-		// contains SIMD vectors we can return true
-		// if it pass the checks below.
-		if !buildcfg.Experiment.SIMD {
-			return true
-		}
-		if t.Size() <= sizeLimit {
-			return true
-		}
-		i, f := t.Registers()
-		return i+f <= MaxStruct
-	default:
-		return true
-	}
 }
 
 // AddrSinkArg reports whether the idx'th argument is known

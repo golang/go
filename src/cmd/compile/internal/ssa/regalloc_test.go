@@ -6,6 +6,7 @@ package ssa
 
 import (
 	"cmd/compile/internal/ssa/ssabase"
+	"cmd/compile/internal/ssa/ssacore"
 	"cmd/compile/internal/ssa/ssaop"
 	"cmd/compile/internal/types"
 	"cmd/internal/obj/x86"
@@ -309,13 +310,13 @@ func TestNoRematerializeDeadConstant(t *testing.T) {
 	}
 }
 
-func numSpills(b *Block) int {
+func numSpills(b *ssacore.Block) int {
 	return numOps(b, ssaop.OpStoreReg)
 }
-func numCopies(b *Block) int {
+func numCopies(b *ssacore.Block) int {
 	return numOps(b, ssaop.OpCopy)
 }
-func numOps(b *Block, op ssaop.Op) int {
+func numOps(b *ssacore.Block, op ssaop.Op) int {
 	n := 0
 	for _, v := range b.Values {
 		if v.Op == op {
@@ -355,7 +356,7 @@ func TestPreload(t *testing.T) {
 	// They all contain live values at the end of the entry block.
 	f := c.Fun("entry",
 		Bloc("entry",
-			Valu("ptr", ssaop.OpArgIntReg, c.config.Types.Int8.PtrTo(), 0, &AuxNameOffset{Name: c.Temp(c.config.Types.Int8.PtrTo()), Offset: 0}),
+			Valu("ptr", ssaop.OpArgIntReg, c.config.Types.Int8.PtrTo(), 0, &ssacore.AuxNameOffset{Name: c.Temp(c.config.Types.Int8.PtrTo()), Offset: 0}),
 			Valu("mem", ssaop.OpInitMem, types.TypeMem, 0, nil),
 			Valu("x0", ssaop.OpAMD64MOVBload, c.config.Types.Int8, 0, nil, "ptr", "mem"),
 			Valu("x1", ssaop.OpAMD64MOVBload, c.config.Types.Int8, 1, nil, "ptr", "mem"),
@@ -397,7 +398,7 @@ func TestPreload(t *testing.T) {
 			Ret("m11"),
 		),
 	)
-	f.f.Blocks[1].Likely = BranchLikely
+	f.f.Blocks[1].Likely = ssacore.BranchLikely
 	regalloc(f.f)
 	checkFunc(f.f)
 

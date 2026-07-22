@@ -12,6 +12,8 @@ package ssa
 import (
 	"runtime"
 	"testing"
+
+	"cmd/compile/internal/ssa/ssacore"
 )
 
 func TestAddFlagsNative(t *testing.T) {
@@ -20,7 +22,7 @@ func TestAddFlagsNative(t *testing.T) {
 		2, -2,
 		1<<63 - 1, -1 << 63,
 	}
-	coverage := map[FlagConstant]bool{}
+	coverage := map[ssacore.FlagConstant]bool{}
 	for _, x := range numbers {
 		for _, y := range numbers {
 			a := AddFlags64(x, y)
@@ -42,7 +44,7 @@ func TestSubFlagsNative(t *testing.T) {
 		2, -2,
 		1<<63 - 1, -1 << 63,
 	}
-	coverage := map[FlagConstant]bool{}
+	coverage := map[ssacore.FlagConstant]bool{}
 	for _, x := range numbers {
 		for _, y := range numbers {
 			a := SubFlags64(x, y)
@@ -64,7 +66,7 @@ func TestAndFlagsNative(t *testing.T) {
 		2, -2,
 		1<<63 - 1, -1 << 63,
 	}
-	coverage := map[FlagConstant]bool{}
+	coverage := map[ssacore.FlagConstant]bool{}
 	for _, x := range numbers {
 		for _, y := range numbers {
 			a := LogicFlags64(x & y)
@@ -84,7 +86,7 @@ func asmAddFlags(x, y int64) int
 func asmSubFlags(x, y int64) int
 func asmAndFlags(x, y int64) int
 
-func flagRegister2flagConstant(x int, sub bool) FlagConstant {
+func flagRegister2flagConstant(x int, sub bool) ssacore.FlagConstant {
 	var fcb FlagConstantBuilder
 	switch runtime.GOARCH {
 	case "amd64":

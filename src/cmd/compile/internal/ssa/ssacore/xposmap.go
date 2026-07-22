@@ -2,16 +2,13 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-package ssa
+package ssacore
 
 import (
-	"cmd/internal/src"
 	"fmt"
-)
 
-type LineRange struct {
-	First, Last uint32
-}
+	"cmd/internal/src"
+)
 
 // An XPosMap is a map from fileindex and line of src.XPos to int32,
 // implemented sparsely to save space (column and statement status are ignored).
@@ -34,6 +31,10 @@ func NewXPosMap(x map[int]LineRange) *XPosMap {
 		maps[int32(i)] = newBiasedSparseMap(int(p.First), int(p.Last))
 	}
 	return &XPosMap{maps: maps, lastIndex: -1} // zero for the rest is okay
+}
+
+type LineRange struct {
+	First, Last uint32
 }
 
 // Clear removes data from the map but leaves the sparse skeleton.

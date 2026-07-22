@@ -837,71 +837,71 @@
 
 // Load of store of same address, with compatibly typed value and same size
 (Load <t1> p1 (Store {t2} p2 x _))
-	&& IsSamePtr(p1, p2)
+	&& ssacore.IsSamePtr(p1, p2)
 	&& copyCompatibleType(t1, x.Type)
 	&& t1.Size() == t2.Size()
 	=> x
 (Load <t1> p1 (Store {t2} p2 _ (Store {t3} p3 x _)))
-	&& IsSamePtr(p1, p3)
+	&& ssacore.IsSamePtr(p1, p3)
 	&& copyCompatibleType(t1, x.Type)
 	&& t1.Size() == t3.Size()
-	&& Disjoint(p3, t3, p2, t2)
+	&& ssacore.Disjoint(p3, t3, p2, t2)
 	=> x
 (Load <t1> p1 (Store {t2} p2 _ (Store {t3} p3 _ (Store {t4} p4 x _))))
-	&& IsSamePtr(p1, p4)
+	&& ssacore.IsSamePtr(p1, p4)
 	&& copyCompatibleType(t1, x.Type)
 	&& t1.Size() == t4.Size()
-	&& Disjoint(p4, t4, p2, t2)
-	&& Disjoint(p4, t4, p3, t3)
+	&& ssacore.Disjoint(p4, t4, p2, t2)
+	&& ssacore.Disjoint(p4, t4, p3, t3)
 	=> x
 (Load <t1> p1 (Store {t2} p2 _ (Store {t3} p3 _ (Store {t4} p4 _ (Store {t5} p5 x _)))))
-	&& IsSamePtr(p1, p5)
+	&& ssacore.IsSamePtr(p1, p5)
 	&& copyCompatibleType(t1, x.Type)
 	&& t1.Size() == t5.Size()
-	&& Disjoint(p5, t5, p2, t2)
-	&& Disjoint(p5, t5, p3, t3)
-	&& Disjoint(p5, t5, p4, t4)
+	&& ssacore.Disjoint(p5, t5, p2, t2)
+	&& ssacore.Disjoint(p5, t5, p3, t3)
+	&& ssacore.Disjoint(p5, t5, p4, t4)
 	=> x
 
 // Load from a region just copied by Move can read directly from the source.
 (Load <t1> op1:(OffPtr [o1] p1) move:(Move [n] p2 src mem))
-	&& o1 >= 0 && o1+t1.Size() <= n && IsSamePtr(p1, p2)
+	&& o1 >= 0 && o1+t1.Size() <= n && ssacore.IsSamePtr(p1, p2)
 	&& !IsVolatile(src)
 	=> @move.Block (Load <t1> (OffPtr <op1.Type> [o1] src) mem)
 
 // Pass constants through math.Float{32,64}bits and math.Float{32,64}frombits
-(Load <t1> p1 (Store {t2} p2 (Const64  [x]) _)) && IsSamePtr(p1,p2) && t2.Size() == 8 && Is64BitFloat(t1) && !math.IsNaN(math.Float64frombits(uint64(x))) => (Const64F [math.Float64frombits(uint64(x))])
-(Load <t1> p1 (Store {t2} p2 (Const32  [x]) _)) && IsSamePtr(p1,p2) && t2.Size() == 4 && Is32BitFloat(t1) && !math.IsNaN(float64(math.Float32frombits(uint32(x)))) => (Const32F [math.Float32frombits(uint32(x))])
-(Load <t1> p1 (Store {t2} p2 (Const64F [x]) _)) && IsSamePtr(p1,p2) && t2.Size() == 8 && Is64BitInt(t1)   => (Const64  [int64(math.Float64bits(x))])
-(Load <t1> p1 (Store {t2} p2 (Const32F [x]) _)) && IsSamePtr(p1,p2) && t2.Size() == 4 && Is32BitInt(t1)   => (Const32  [int32(math.Float32bits(x))])
+(Load <t1> p1 (Store {t2} p2 (Const64  [x]) _)) && ssacore.IsSamePtr(p1,p2) && t2.Size() == 8 && Is64BitFloat(t1) && !math.IsNaN(math.Float64frombits(uint64(x))) => (Const64F [math.Float64frombits(uint64(x))])
+(Load <t1> p1 (Store {t2} p2 (Const32  [x]) _)) && ssacore.IsSamePtr(p1,p2) && t2.Size() == 4 && Is32BitFloat(t1) && !math.IsNaN(float64(math.Float32frombits(uint32(x)))) => (Const32F [math.Float32frombits(uint32(x))])
+(Load <t1> p1 (Store {t2} p2 (Const64F [x]) _)) && ssacore.IsSamePtr(p1,p2) && t2.Size() == 8 && Is64BitInt(t1)   => (Const64  [int64(math.Float64bits(x))])
+(Load <t1> p1 (Store {t2} p2 (Const32F [x]) _)) && ssacore.IsSamePtr(p1,p2) && t2.Size() == 4 && Is32BitInt(t1)   => (Const32  [int32(math.Float32bits(x))])
 
 // Float Loads up to Zeros so they can be constant folded.
 (Load <t1> op1:(OffPtr [o1] p1)
 	(Store {t2} p2 _
 		mem:(Zero [n] p3 _)))
-	&& o1 >= 0 && o1+t1.Size() <= n && IsSamePtr(p1, p3)
-	&& CanSSA(t1)
-	&& Disjoint(op1, t1, p2, t2)
+	&& o1 >= 0 && o1+t1.Size() <= n && ssacore.IsSamePtr(p1, p3)
+	&& ssacore.CanSSA(t1)
+	&& ssacore.Disjoint(op1, t1, p2, t2)
 	=> @mem.Block (Load <t1> (OffPtr <op1.Type> [o1] p3) mem)
 (Load <t1> op1:(OffPtr [o1] p1)
 	(Store {t2} p2 _
 		(Store {t3} p3 _
 			mem:(Zero [n] p4 _))))
-	&& o1 >= 0 && o1+t1.Size() <= n && IsSamePtr(p1, p4)
-	&& CanSSA(t1)
-	&& Disjoint(op1, t1, p2, t2)
-	&& Disjoint(op1, t1, p3, t3)
+	&& o1 >= 0 && o1+t1.Size() <= n && ssacore.IsSamePtr(p1, p4)
+	&& ssacore.CanSSA(t1)
+	&& ssacore.Disjoint(op1, t1, p2, t2)
+	&& ssacore.Disjoint(op1, t1, p3, t3)
 	=> @mem.Block (Load <t1> (OffPtr <op1.Type> [o1] p4) mem)
 (Load <t1> op1:(OffPtr [o1] p1)
 	(Store {t2} p2 _
 		(Store {t3} p3 _
 			(Store {t4} p4 _
 				mem:(Zero [n] p5 _)))))
-	&& o1 >= 0 && o1+t1.Size() <= n && IsSamePtr(p1, p5)
-	&& CanSSA(t1)
-	&& Disjoint(op1, t1, p2, t2)
-	&& Disjoint(op1, t1, p3, t3)
-	&& Disjoint(op1, t1, p4, t4)
+	&& o1 >= 0 && o1+t1.Size() <= n && ssacore.IsSamePtr(p1, p5)
+	&& ssacore.CanSSA(t1)
+	&& ssacore.Disjoint(op1, t1, p2, t2)
+	&& ssacore.Disjoint(op1, t1, p3, t3)
+	&& ssacore.Disjoint(op1, t1, p4, t4)
 	=> @mem.Block (Load <t1> (OffPtr <op1.Type> [o1] p5) mem)
 (Load <t1> op1:(OffPtr [o1] p1)
 	(Store {t2} p2 _
@@ -909,98 +909,98 @@
 			(Store {t4} p4 _
 				(Store {t5} p5 _
 					mem:(Zero [n] p6 _))))))
-	&& o1 >= 0 && o1+t1.Size() <= n && IsSamePtr(p1, p6)
-	&& CanSSA(t1)
-	&& Disjoint(op1, t1, p2, t2)
-	&& Disjoint(op1, t1, p3, t3)
-	&& Disjoint(op1, t1, p4, t4)
-	&& Disjoint(op1, t1, p5, t5)
+	&& o1 >= 0 && o1+t1.Size() <= n && ssacore.IsSamePtr(p1, p6)
+	&& ssacore.CanSSA(t1)
+	&& ssacore.Disjoint(op1, t1, p2, t2)
+	&& ssacore.Disjoint(op1, t1, p3, t3)
+	&& ssacore.Disjoint(op1, t1, p4, t4)
+	&& ssacore.Disjoint(op1, t1, p5, t5)
 	=> @mem.Block (Load <t1> (OffPtr <op1.Type> [o1] p6) mem)
 
 // Zero to Load forwarding.
 (Load <t1> (OffPtr [o] p1) (Zero [n] p2 _))
 	&& t1.IsBoolean()
-	&& IsSamePtr(p1, p2)
+	&& ssacore.IsSamePtr(p1, p2)
 	&& n >= o + 1
 	=> (ConstBool [false])
 (Load <t1> (OffPtr [o] p1) (Zero [n] p2 _))
 	&& Is8BitInt(t1)
-	&& IsSamePtr(p1, p2)
+	&& ssacore.IsSamePtr(p1, p2)
 	&& n >= o + 1
 	=> (Const8 [0])
 (Load <t1> (OffPtr [o] p1) (Zero [n] p2 _))
 	&& Is16BitInt(t1)
-	&& IsSamePtr(p1, p2)
+	&& ssacore.IsSamePtr(p1, p2)
 	&& n >= o + 2
 	=> (Const16 [0])
 (Load <t1> (OffPtr [o] p1) (Zero [n] p2 _))
 	&& Is32BitInt(t1)
-	&& IsSamePtr(p1, p2)
+	&& ssacore.IsSamePtr(p1, p2)
 	&& n >= o + 4
 	=> (Const32 [0])
 (Load <t1> (OffPtr [o] p1) (Zero [n] p2 _))
 	&& Is64BitInt(t1)
-	&& IsSamePtr(p1, p2)
+	&& ssacore.IsSamePtr(p1, p2)
 	&& n >= o + 8
 	=> (Const64 [0])
 (Load <t1> (OffPtr [o] p1) (Zero [n] p2 _))
 	&& Is32BitFloat(t1)
-	&& IsSamePtr(p1, p2)
+	&& ssacore.IsSamePtr(p1, p2)
 	&& n >= o + 4
 	=> (Const32F [0])
 (Load <t1> (OffPtr [o] p1) (Zero [n] p2 _))
 	&& Is64BitFloat(t1)
-	&& IsSamePtr(p1, p2)
+	&& ssacore.IsSamePtr(p1, p2)
 	&& n >= o + 8
 	=> (Const64F [0])
 
 // Eliminate stores of values that have just been loaded from the same location.
 // We also handle the common case where there are some intermediate stores.
 (Store {t1} p1 (Load <t2> p2 mem) mem)
-	&& IsSamePtr(p1, p2)
+	&& ssacore.IsSamePtr(p1, p2)
 	&& t2.Size() == t1.Size()
 	=> mem
 (Store {t1} p1 (Load <t2> p2 oldmem) mem:(Store {t3} p3 _ oldmem))
-	&& IsSamePtr(p1, p2)
+	&& ssacore.IsSamePtr(p1, p2)
 	&& t2.Size() == t1.Size()
-	&& Disjoint(p1, t1, p3, t3)
+	&& ssacore.Disjoint(p1, t1, p3, t3)
 	=> mem
 (Store {t1} p1 (Load <t2> p2 oldmem) mem:(Store {t3} p3 _ (Store {t4} p4 _ oldmem)))
-	&& IsSamePtr(p1, p2)
+	&& ssacore.IsSamePtr(p1, p2)
 	&& t2.Size() == t1.Size()
-	&& Disjoint(p1, t1, p3, t3)
-	&& Disjoint(p1, t1, p4, t4)
+	&& ssacore.Disjoint(p1, t1, p3, t3)
+	&& ssacore.Disjoint(p1, t1, p4, t4)
 	=> mem
 (Store {t1} p1 (Load <t2> p2 oldmem) mem:(Store {t3} p3 _ (Store {t4} p4 _ (Store {t5} p5 _ oldmem))))
-	&& IsSamePtr(p1, p2)
+	&& ssacore.IsSamePtr(p1, p2)
 	&& t2.Size() == t1.Size()
-	&& Disjoint(p1, t1, p3, t3)
-	&& Disjoint(p1, t1, p4, t4)
-	&& Disjoint(p1, t1, p5, t5)
+	&& ssacore.Disjoint(p1, t1, p3, t3)
+	&& ssacore.Disjoint(p1, t1, p4, t4)
+	&& ssacore.Disjoint(p1, t1, p5, t5)
 	=> mem
 
 // Don't Store zeros to cleared variables.
 (Store {t} (OffPtr [o] p1) x mem:(Zero [n] p2 _))
 	&& isConstZero(x)
-	&& o >= 0 && t.Size() + o <= n && IsSamePtr(p1, p2)
+	&& o >= 0 && t.Size() + o <= n && ssacore.IsSamePtr(p1, p2)
 	=> mem
 (Store {t1} op1:(OffPtr [o1] p1) x mem:(Store {t2} p2 _ (Zero [n] p3 _)))
 	&& isConstZero(x)
-	&& o1 >= 0 && t1.Size() + o1 <= n && IsSamePtr(p1, p3)
-	&& Disjoint(op1, t1, p2, t2)
+	&& o1 >= 0 && t1.Size() + o1 <= n && ssacore.IsSamePtr(p1, p3)
+	&& ssacore.Disjoint(op1, t1, p2, t2)
 	=> mem
 (Store {t1} op1:(OffPtr [o1] p1) x mem:(Store {t2} p2 _ (Store {t3} p3 _ (Zero [n] p4 _))))
 	&& isConstZero(x)
-	&& o1 >= 0 && t1.Size() + o1 <= n && IsSamePtr(p1, p4)
-	&& Disjoint(op1, t1, p2, t2)
-	&& Disjoint(op1, t1, p3, t3)
+	&& o1 >= 0 && t1.Size() + o1 <= n && ssacore.IsSamePtr(p1, p4)
+	&& ssacore.Disjoint(op1, t1, p2, t2)
+	&& ssacore.Disjoint(op1, t1, p3, t3)
 	=> mem
 (Store {t1} op1:(OffPtr [o1] p1) x mem:(Store {t2} p2 _ (Store {t3} p3 _ (Store {t4} p4 _ (Zero [n] p5 _)))))
 	&& isConstZero(x)
-	&& o1 >= 0 && t1.Size() + o1 <= n && IsSamePtr(p1, p5)
-	&& Disjoint(op1, t1, p2, t2)
-	&& Disjoint(op1, t1, p3, t3)
-	&& Disjoint(op1, t1, p4, t4)
+	&& o1 >= 0 && t1.Size() + o1 <= n && ssacore.IsSamePtr(p1, p5)
+	&& ssacore.Disjoint(op1, t1, p2, t2)
+	&& ssacore.Disjoint(op1, t1, p3, t3)
+	&& ssacore.Disjoint(op1, t1, p4, t4)
 	=> mem
 
 // Collapse OffPtr
@@ -1014,10 +1014,10 @@
 
 // struct operations
 (StructSelect [i] x:(StructMake ___)) => x.Args[i]
-(Load <t> _ _) && t.IsStruct() && t.Size() > 0 && CanSSA(t) && !t.IsSIMD() => rewriteStructLoad(v)
+(Load <t> _ _) && t.IsStruct() && t.Size() > 0 && ssacore.CanSSA(t) && !t.IsSIMD() => rewriteStructLoad(v)
 (Store _ (StructMake ___) _) => RewriteStructStore(v)
 
-(StructSelect [i] x:(Load <t> ptr mem)) && !CanSSA(t) =>
+(StructSelect [i] x:(Load <t> ptr mem)) && !ssacore.CanSSA(t) =>
   @x.Block (Load <v.Type> (OffPtr <v.Type.PtrTo()> [t.FieldOff(int(i))] ptr) mem)
 
 // Putting struct{*byte} and similar into direct interfaces.
@@ -1026,15 +1026,15 @@
 (StructSelect (IData x)) && v.Type.Size() == 0 => (Empty)
 
 // un-SSAable values use mem->mem copies
-(Store {t} dst (Load src mem) mem) && !CanSSA(t) =>
+(Store {t} dst (Load src mem) mem) && !ssacore.CanSSA(t) =>
 	(Move {t} [t.Size()] dst src mem)
-(Store {t} dst (Load src mem) (VarDef {x} mem)) && !CanSSA(t) =>
+(Store {t} dst (Load src mem) (VarDef {x} mem)) && !ssacore.CanSSA(t) =>
 	(Move {t} [t.Size()] dst src (VarDef {x} mem))
 
 // array ops
 (ArraySelect (ArrayMake1 x)) => x
 
-(Load <t> ptr mem) && t.IsArray() && t.NumElem() == 1 && t.Size() > 0 && CanSSA(t) =>
+(Load <t> ptr mem) && t.IsArray() && t.NumElem() == 1 && t.Size() > 0 && ssacore.CanSSA(t) =>
   (ArrayMake1 (Load <t.Elem()> ptr mem))
 
 (Store dst (ArrayMake1 e) mem) => (Store {e.Type} dst e mem)
@@ -1599,7 +1599,7 @@
 
 (Static(Call|LECall) {callAux} p q _ mem)
   && IsSameCall(callAux, "runtime.memequal")
-  && IsSamePtr(p, q)
+  && ssacore.IsSamePtr(p, q)
   => (MakeResult (ConstBool <typ.Bool> [true]) mem)
 
 (MemEq sptr tptr (Const64 [1]) mem)
@@ -1635,7 +1635,7 @@
 
 (MemEq _ _ (Const64 [0]) _) => (ConstBool <typ.Bool> [true])
 
-(MemEq p q _ _) && IsSamePtr(p, q) => (ConstBool <typ.Bool> [true])
+(MemEq p q _ _) && ssacore.IsSamePtr(p, q) => (ConstBool <typ.Bool> [true])
 
 // 3-32 bytes memeq (enabled only with support of unaligned loads and 8-byte max word size)
 
@@ -1703,10 +1703,10 @@
 (NeqPtr (LocalAddr {x} _ _) (LocalAddr {y} _ _)) => (ConstBool [x != y])
 (NeqPtr (LocalAddr {x} _ _) (OffPtr [o] (LocalAddr {y} _ _))) => (ConstBool [x != y || o != 0])
 (NeqPtr (OffPtr [o1] (LocalAddr {x} _ _)) (OffPtr [o2] (LocalAddr {y} _ _))) => (ConstBool [x != y || o1 != o2])
-(EqPtr  (OffPtr [o1] p1) p2) && IsSamePtr(p1, p2) => (ConstBool [o1 == 0])
-(NeqPtr (OffPtr [o1] p1) p2) && IsSamePtr(p1, p2) => (ConstBool [o1 != 0])
-(EqPtr  (OffPtr [o1] p1) (OffPtr [o2] p2)) && IsSamePtr(p1, p2) => (ConstBool [o1 == o2])
-(NeqPtr (OffPtr [o1] p1) (OffPtr [o2] p2)) && IsSamePtr(p1, p2) => (ConstBool [o1 != o2])
+(EqPtr  (OffPtr [o1] p1) p2) && ssacore.IsSamePtr(p1, p2) => (ConstBool [o1 == 0])
+(NeqPtr (OffPtr [o1] p1) p2) && ssacore.IsSamePtr(p1, p2) => (ConstBool [o1 != 0])
+(EqPtr  (OffPtr [o1] p1) (OffPtr [o2] p2)) && ssacore.IsSamePtr(p1, p2) => (ConstBool [o1 == o2])
+(NeqPtr (OffPtr [o1] p1) (OffPtr [o2] p2)) && ssacore.IsSamePtr(p1, p2) => (ConstBool [o1 != o2])
 (EqPtr  (Const(32|64) [c]) (Const(32|64) [d])) => (ConstBool [c == d])
 (NeqPtr (Const(32|64) [c]) (Const(32|64) [d])) => (ConstBool [c != d])
 (EqPtr  (Convert (Addr {x} _) _) (Addr {y} _)) => (ConstBool [x==y])
@@ -1722,8 +1722,8 @@
 (NeqPtr (OffPtr (LocalAddr _ _)) (OffPtr (Addr _))) => (ConstBool [true])
 
 // Simplify address comparisons.
-(EqPtr  (AddPtr p1 o1) p2) && IsSamePtr(p1, p2) => (Not (IsNonNil o1))
-(NeqPtr (AddPtr p1 o1) p2) && IsSamePtr(p1, p2) => (IsNonNil o1)
+(EqPtr  (AddPtr p1 o1) p2) && ssacore.IsSamePtr(p1, p2) => (Not (IsNonNil o1))
+(NeqPtr (AddPtr p1 o1) p2) && ssacore.IsSamePtr(p1, p2) => (IsNonNil o1)
 (EqPtr  (Const(32|64) [0]) p) => (Not (IsNonNil p))
 (NeqPtr (Const(32|64) [0]) p) => (IsNonNil p)
 (EqPtr  (ConstNil) p) => (Not (IsNonNil p))
@@ -1753,7 +1753,7 @@
 	&& sz >= 0
 	&& IsSameCall(sym, "runtime.memmove")
 	&& s1.Uses == 1 && s2.Uses == 1 && s3.Uses == 1
-	&& IsInlinableMemmove(dst, src, int64(sz), config)
+	&& ssacore.IsInlinableMemmove(dst, src, int64(sz), config)
 	&& Clobber(s1, s2, s3, call)
 	=> (Move {types.Types[types.TUINT8]} [int64(sz)] dst src mem)
 
@@ -1762,7 +1762,7 @@
 	&& sz >= 0
 	&& call.Uses == 1 // this will exclude all calls with results
 	&& IsSameCall(sym, "runtime.memmove")
-	&& IsInlinableMemmove(dst, src, int64(sz), config)
+	&& ssacore.IsInlinableMemmove(dst, src, int64(sz), config)
 	&& Clobber(call)
 	=> (Move {types.Types[types.TUINT8]} [int64(sz)] dst src mem)
 
@@ -1771,7 +1771,7 @@
 	&& sz >= 0
 	&& call.Uses == 1 // this will exclude all calls with results
 	&& IsSameCall(sym, "runtime.memmove")
-	&& IsInlinableMemmove(dst, src, int64(sz), config)
+	&& ssacore.IsInlinableMemmove(dst, src, int64(sz), config)
 	&& Clobber(call)
 	=> (Move {types.Types[types.TUINT8]} [int64(sz)] dst src mem)
 
@@ -1782,44 +1782,44 @@
 // Move source and destination may overlap.
 
 // Convert Moves into Zeros when the source is known to be zeros.
-(Move {t} [n] dst1 src mem:(Zero {t} [n] dst2 _)) && IsSamePtr(src, dst2)
+(Move {t} [n] dst1 src mem:(Zero {t} [n] dst2 _)) && ssacore.IsSamePtr(src, dst2)
 	=> (Zero {t} [n] dst1 mem)
-(Move {t} [n] dst1 src mem:(VarDef (Zero {t} [n] dst0 _))) && IsSamePtr(src, dst0)
+(Move {t} [n] dst1 src mem:(VarDef (Zero {t} [n] dst0 _))) && ssacore.IsSamePtr(src, dst0)
 	=> (Zero {t} [n] dst1 mem)
 (Move {t} [n] dst (Addr {sym} (SB)) mem) && symIsROZero(sym) => (Zero {t} [n] dst mem)
 
 // Don't Store to variables that are about to be overwritten by Move/Zero.
 (Zero {t1} [n] p1 store:(Store {t2} (OffPtr [o2] p2) _ mem))
-	&& IsSamePtr(p1, p2) && store.Uses == 1
+	&& ssacore.IsSamePtr(p1, p2) && store.Uses == 1
 	&& n >= o2 + t2.Size()
 	&& Clobber(store)
 	=> (Zero {t1} [n] p1 mem)
 (Move {t1} [n] dst1 src1 store:(Store {t2} op1:(OffPtr [o2] dst2) _ mem))
-	&& IsSamePtr(dst1, dst2) && store.Uses == 1
+	&& ssacore.IsSamePtr(dst1, dst2) && store.Uses == 1
 	&& n >= o2 + t2.Size()
-	&& Disjoint1(src1, n, op1, t2.Size())
+	&& ssacore.Disjoint1(src1, n, op1, t2.Size())
 	&& Clobber(store)
 	=> (Move {t1} [n] dst1 src1 mem)
 
 // Don't Move to variables that are immediately completely overwritten.
 (Zero {t} [n] dst1 move:(Move {t} [n] dst2 _ mem))
 	&& move.Uses == 1
-	&& IsSamePtr(dst1, dst2)
+	&& ssacore.IsSamePtr(dst1, dst2)
 	&& Clobber(move)
 	=> (Zero {t} [n] dst1 mem)
 (Move {t} [n] dst1 src1 move:(Move {t} [n] dst2 _ mem))
 	&& move.Uses == 1
-	&& IsSamePtr(dst1, dst2) && Disjoint1(src1, n, dst2, n)
+	&& ssacore.IsSamePtr(dst1, dst2) && ssacore.Disjoint1(src1, n, dst2, n)
 	&& Clobber(move)
 	=> (Move {t} [n] dst1 src1 mem)
 (Zero {t} [n] dst1 vardef:(VarDef {x} move:(Move {t} [n] dst2 _ mem)))
 	&& move.Uses == 1 && vardef.Uses == 1
-	&& IsSamePtr(dst1, dst2)
+	&& ssacore.IsSamePtr(dst1, dst2)
 	&& Clobber(move, vardef)
 	=> (Zero {t} [n] dst1 (VarDef {x} mem))
 (Move {t} [n] dst1 src1 vardef:(VarDef {x} move:(Move {t} [n] dst2 _ mem)))
 	&& move.Uses == 1 && vardef.Uses == 1
-	&& IsSamePtr(dst1, dst2) && Disjoint1(src1, n, dst2, n)
+	&& ssacore.IsSamePtr(dst1, dst2) && ssacore.Disjoint1(src1, n, dst2, n)
 	&& Clobber(move, vardef)
 	=> (Move {t} [n] dst1 src1 (VarDef {x} mem))
 (Store {t1} op1:(OffPtr [o1] p1) d1
@@ -1828,7 +1828,7 @@
 	&& m2.Uses == 1 && m3.Uses == 1
 	&& o1 == t2.Size()
 	&& n == t2.Size() + t1.Size()
-	&& IsSamePtr(p1, p2) && IsSamePtr(p2, p3)
+	&& ssacore.IsSamePtr(p1, p2) && ssacore.IsSamePtr(p2, p3)
 	&& Clobber(m2, m3)
 	=> (Store {t1} op1 d1 (Store {t2} op2 d2 mem))
 (Store {t1} op1:(OffPtr [o1] p1) d1
@@ -1839,7 +1839,7 @@
 	&& o2 == t3.Size()
 	&& o1-o2 == t2.Size()
 	&& n == t3.Size() + t2.Size() + t1.Size()
-	&& IsSamePtr(p1, p2) && IsSamePtr(p2, p3) && IsSamePtr(p3, p4)
+	&& ssacore.IsSamePtr(p1, p2) && ssacore.IsSamePtr(p2, p3) && ssacore.IsSamePtr(p3, p4)
 	&& Clobber(m2, m3, m4)
 	=> (Store {t1} op1 d1 (Store {t2} op2 d2 (Store {t3} op3 d3 mem)))
 (Store {t1} op1:(OffPtr [o1] p1) d1
@@ -1852,7 +1852,7 @@
 	&& o2-o3 == t3.Size()
 	&& o1-o2 == t2.Size()
 	&& n == t4.Size() + t3.Size() + t2.Size() + t1.Size()
-	&& IsSamePtr(p1, p2) && IsSamePtr(p2, p3) && IsSamePtr(p3, p4) && IsSamePtr(p4, p5)
+	&& ssacore.IsSamePtr(p1, p2) && ssacore.IsSamePtr(p2, p3) && ssacore.IsSamePtr(p3, p4) && ssacore.IsSamePtr(p4, p5)
 	&& Clobber(m2, m3, m4, m5)
 	=> (Store {t1} op1 d1 (Store {t2} op2 d2 (Store {t3} op3 d3 (Store {t4} op4 d4 mem))))
 
@@ -1860,12 +1860,12 @@
 // before being accessed.
 (Move {t} [n] dst1 src1 zero:(Zero {t} [n] dst2 mem))
 	&& zero.Uses == 1
-	&& IsSamePtr(dst1, dst2) && Disjoint1(src1, n, dst2, n)
+	&& ssacore.IsSamePtr(dst1, dst2) && ssacore.Disjoint1(src1, n, dst2, n)
 	&& Clobber(zero)
 	=> (Move {t} [n] dst1 src1 mem)
 (Move {t} [n] dst1 src1 vardef:(VarDef {x} zero:(Zero {t} [n] dst2 mem)))
 	&& zero.Uses == 1 && vardef.Uses == 1
-	&& IsSamePtr(dst1, dst2) && Disjoint1(src1, n, dst2, n)
+	&& ssacore.IsSamePtr(dst1, dst2) && ssacore.Disjoint1(src1, n, dst2, n)
 	&& Clobber(zero, vardef)
 	=> (Move {t} [n] dst1 src1 (VarDef {x} mem))
 (Store {t1} op1:(OffPtr [o1] p1) d1
@@ -1874,7 +1874,7 @@
 	&& m2.Uses == 1 && m3.Uses == 1
 	&& o1 == t2.Size()
 	&& n == t2.Size() + t1.Size()
-	&& IsSamePtr(p1, p2) && IsSamePtr(p2, p3)
+	&& ssacore.IsSamePtr(p1, p2) && ssacore.IsSamePtr(p2, p3)
 	&& Clobber(m2, m3)
 	=> (Store {t1} op1 d1 (Store {t2} op2 d2 mem))
 (Store {t1} op1:(OffPtr [o1] p1) d1
@@ -1885,7 +1885,7 @@
 	&& o2 == t3.Size()
 	&& o1-o2 == t2.Size()
 	&& n == t3.Size() + t2.Size() + t1.Size()
-	&& IsSamePtr(p1, p2) && IsSamePtr(p2, p3) && IsSamePtr(p3, p4)
+	&& ssacore.IsSamePtr(p1, p2) && ssacore.IsSamePtr(p2, p3) && ssacore.IsSamePtr(p3, p4)
 	&& Clobber(m2, m3, m4)
 	=> (Store {t1} op1 d1 (Store {t2} op2 d2 (Store {t3} op3 d3 mem)))
 (Store {t1} op1:(OffPtr [o1] p1) d1
@@ -1898,7 +1898,7 @@
 	&& o2-o3 == t3.Size()
 	&& o1-o2 == t2.Size()
 	&& n == t4.Size() + t3.Size() + t2.Size() + t1.Size()
-	&& IsSamePtr(p1, p2) && IsSamePtr(p2, p3) && IsSamePtr(p3, p4) && IsSamePtr(p4, p5)
+	&& ssacore.IsSamePtr(p1, p2) && ssacore.IsSamePtr(p2, p3) && ssacore.IsSamePtr(p3, p4) && ssacore.IsSamePtr(p4, p5)
 	&& Clobber(m2, m3, m4, m5)
 	=> (Store {t1} op1 d1 (Store {t2} op2 d2 (Store {t3} op3 d3 (Store {t4} op4 d4 mem))))
 
@@ -1907,7 +1907,7 @@
 (Move {t1} [n] dst p1
 	mem:(Store {t2} op2:(OffPtr <tt2> [o2] p2) d1
 		(Store {t3} op3:(OffPtr <tt3> [0] p3) d2 _)))
-	&& IsSamePtr(p1, p2) && IsSamePtr(p2, p3)
+	&& ssacore.IsSamePtr(p1, p2) && ssacore.IsSamePtr(p2, p3)
 	&& t2.Alignment() <= t1.Alignment()
 	&& t3.Alignment() <= t1.Alignment()
 	&& registerizable(b, t2)
@@ -1920,7 +1920,7 @@
 	mem:(Store {t2} op2:(OffPtr <tt2> [o2] p2) d1
 		(Store {t3} op3:(OffPtr <tt3> [o3] p3) d2
 			(Store {t4} op4:(OffPtr <tt4> [0] p4) d3 _))))
-	&& IsSamePtr(p1, p2) && IsSamePtr(p2, p3) && IsSamePtr(p3, p4)
+	&& ssacore.IsSamePtr(p1, p2) && ssacore.IsSamePtr(p2, p3) && ssacore.IsSamePtr(p3, p4)
 	&& t2.Alignment() <= t1.Alignment()
 	&& t3.Alignment() <= t1.Alignment()
 	&& t4.Alignment() <= t1.Alignment()
@@ -1938,7 +1938,7 @@
 		(Store {t3} op3:(OffPtr <tt3> [o3] p3) d2
 			(Store {t4} op4:(OffPtr <tt4> [o4] p4) d3
 				(Store {t5} op5:(OffPtr <tt5> [0] p5) d4 _)))))
-	&& IsSamePtr(p1, p2) && IsSamePtr(p2, p3) && IsSamePtr(p3, p4) && IsSamePtr(p4, p5)
+	&& ssacore.IsSamePtr(p1, p2) && ssacore.IsSamePtr(p2, p3) && ssacore.IsSamePtr(p3, p4) && ssacore.IsSamePtr(p4, p5)
 	&& t2.Alignment() <= t1.Alignment()
 	&& t3.Alignment() <= t1.Alignment()
 	&& t4.Alignment() <= t1.Alignment()
@@ -1961,7 +1961,7 @@
 	mem:(VarDef
 		(Store {t2} op2:(OffPtr <tt2> [o2] p2) d1
 			(Store {t3} op3:(OffPtr <tt3> [0] p3) d2 _))))
-	&& IsSamePtr(p1, p2) && IsSamePtr(p2, p3)
+	&& ssacore.IsSamePtr(p1, p2) && ssacore.IsSamePtr(p2, p3)
 	&& t2.Alignment() <= t1.Alignment()
 	&& t3.Alignment() <= t1.Alignment()
 	&& registerizable(b, t2)
@@ -1975,7 +1975,7 @@
 		(Store {t2} op2:(OffPtr <tt2> [o2] p2) d1
 			(Store {t3} op3:(OffPtr <tt3> [o3] p3) d2
 				(Store {t4} op4:(OffPtr <tt4> [0] p4) d3 _)))))
-	&& IsSamePtr(p1, p2) && IsSamePtr(p2, p3) && IsSamePtr(p3, p4)
+	&& ssacore.IsSamePtr(p1, p2) && ssacore.IsSamePtr(p2, p3) && ssacore.IsSamePtr(p3, p4)
 	&& t2.Alignment() <= t1.Alignment()
 	&& t3.Alignment() <= t1.Alignment()
 	&& t4.Alignment() <= t1.Alignment()
@@ -1994,7 +1994,7 @@
 			(Store {t3} op3:(OffPtr <tt3> [o3] p3) d2
 				(Store {t4} op4:(OffPtr <tt4> [o4] p4) d3
 					(Store {t5} op5:(OffPtr <tt5> [0] p5) d4 _))))))
-	&& IsSamePtr(p1, p2) && IsSamePtr(p2, p3) && IsSamePtr(p3, p4) && IsSamePtr(p4, p5)
+	&& ssacore.IsSamePtr(p1, p2) && ssacore.IsSamePtr(p2, p3) && ssacore.IsSamePtr(p3, p4) && ssacore.IsSamePtr(p4, p5)
 	&& t2.Alignment() <= t1.Alignment()
 	&& t3.Alignment() <= t1.Alignment()
 	&& t4.Alignment() <= t1.Alignment()
@@ -2016,7 +2016,7 @@
 (Move {t1} [n] dst p1
 	mem:(Store {t2} op2:(OffPtr <tt2> [o2] p2) d1
 		(Zero {t3} [n] p3 _)))
-	&& IsSamePtr(p1, p2) && IsSamePtr(p2, p3)
+	&& ssacore.IsSamePtr(p1, p2) && ssacore.IsSamePtr(p2, p3)
 	&& t2.Alignment() <= t1.Alignment()
 	&& t3.Alignment() <= t1.Alignment()
 	&& registerizable(b, t2)
@@ -2027,7 +2027,7 @@
 	mem:(Store {t2} (OffPtr <tt2> [o2] p2) d1
 		(Store {t3} (OffPtr <tt3> [o3] p3) d2
 			(Zero {t4} [n] p4 _))))
-	&& IsSamePtr(p1, p2) && IsSamePtr(p2, p3) && IsSamePtr(p3, p4)
+	&& ssacore.IsSamePtr(p1, p2) && ssacore.IsSamePtr(p2, p3) && ssacore.IsSamePtr(p3, p4)
 	&& t2.Alignment() <= t1.Alignment()
 	&& t3.Alignment() <= t1.Alignment()
 	&& t4.Alignment() <= t1.Alignment()
@@ -2043,7 +2043,7 @@
 		(Store {t3} (OffPtr <tt3> [o3] p3) d2
 			(Store {t4} (OffPtr <tt4> [o4] p4) d3
 				(Zero {t5} [n] p5 _)))))
-	&& IsSamePtr(p1, p2) && IsSamePtr(p2, p3) && IsSamePtr(p3, p4) && IsSamePtr(p4, p5)
+	&& ssacore.IsSamePtr(p1, p2) && ssacore.IsSamePtr(p2, p3) && ssacore.IsSamePtr(p3, p4) && ssacore.IsSamePtr(p4, p5)
 	&& t2.Alignment() <= t1.Alignment()
 	&& t3.Alignment() <= t1.Alignment()
 	&& t4.Alignment() <= t1.Alignment()
@@ -2064,7 +2064,7 @@
 			(Store {t4} (OffPtr <tt4> [o4] p4) d3
 				(Store {t5} (OffPtr <tt5> [o5] p5) d4
 					(Zero {t6} [n] p6 _))))))
-	&& IsSamePtr(p1, p2) && IsSamePtr(p2, p3) && IsSamePtr(p3, p4) && IsSamePtr(p4, p5) && IsSamePtr(p5, p6)
+	&& ssacore.IsSamePtr(p1, p2) && ssacore.IsSamePtr(p2, p3) && ssacore.IsSamePtr(p3, p4) && ssacore.IsSamePtr(p4, p5) && ssacore.IsSamePtr(p5, p6)
 	&& t2.Alignment() <= t1.Alignment()
 	&& t3.Alignment() <= t1.Alignment()
 	&& t4.Alignment() <= t1.Alignment()
@@ -2087,7 +2087,7 @@
 	mem:(VarDef
 		(Store {t2} op2:(OffPtr <tt2> [o2] p2) d1
 			(Zero {t3} [n] p3 _))))
-	&& IsSamePtr(p1, p2) && IsSamePtr(p2, p3)
+	&& ssacore.IsSamePtr(p1, p2) && ssacore.IsSamePtr(p2, p3)
 	&& t2.Alignment() <= t1.Alignment()
 	&& t3.Alignment() <= t1.Alignment()
 	&& registerizable(b, t2)
@@ -2099,7 +2099,7 @@
 		(Store {t2} (OffPtr <tt2> [o2] p2) d1
 			(Store {t3} (OffPtr <tt3> [o3] p3) d2
 				(Zero {t4} [n] p4 _)))))
-	&& IsSamePtr(p1, p2) && IsSamePtr(p2, p3) && IsSamePtr(p3, p4)
+	&& ssacore.IsSamePtr(p1, p2) && ssacore.IsSamePtr(p2, p3) && ssacore.IsSamePtr(p3, p4)
 	&& t2.Alignment() <= t1.Alignment()
 	&& t3.Alignment() <= t1.Alignment()
 	&& t4.Alignment() <= t1.Alignment()
@@ -2116,7 +2116,7 @@
 			(Store {t3} (OffPtr <tt3> [o3] p3) d2
 				(Store {t4} (OffPtr <tt4> [o4] p4) d3
 					(Zero {t5} [n] p5 _))))))
-	&& IsSamePtr(p1, p2) && IsSamePtr(p2, p3) && IsSamePtr(p3, p4) && IsSamePtr(p4, p5)
+	&& ssacore.IsSamePtr(p1, p2) && ssacore.IsSamePtr(p2, p3) && ssacore.IsSamePtr(p3, p4) && ssacore.IsSamePtr(p4, p5)
 	&& t2.Alignment() <= t1.Alignment()
 	&& t3.Alignment() <= t1.Alignment()
 	&& t4.Alignment() <= t1.Alignment()
@@ -2138,7 +2138,7 @@
 				(Store {t4} (OffPtr <tt4> [o4] p4) d3
 					(Store {t5} (OffPtr <tt5> [o5] p5) d4
 						(Zero {t6} [n] p6 _)))))))
-	&& IsSamePtr(p1, p2) && IsSamePtr(p2, p3) && IsSamePtr(p3, p4) && IsSamePtr(p4, p5) && IsSamePtr(p5, p6)
+	&& ssacore.IsSamePtr(p1, p2) && ssacore.IsSamePtr(p2, p3) && ssacore.IsSamePtr(p3, p4) && ssacore.IsSamePtr(p4, p5) && ssacore.IsSamePtr(p5, p6)
 	&& t2.Alignment() <= t1.Alignment()
 	&& t3.Alignment() <= t1.Alignment()
 	&& t4.Alignment() <= t1.Alignment()
@@ -2185,28 +2185,28 @@
 // see CL 145208 for discussion.
 (Move {t1} [s] dst tmp1 midmem:(Move {t2} [s] tmp2 src _))
 	&& t1.Compare(t2) == types.CMPeq
-	&& IsSamePtr(tmp1, tmp2)
+	&& ssacore.IsSamePtr(tmp1, tmp2)
 	&& isStackPtr(src) && !IsVolatile(src)
-	&& Disjoint1(src, s, tmp2, s)
-	&& (Disjoint1(src, s, dst, s) || IsInlinableMemmove(dst, src, s, config))
+	&& ssacore.Disjoint1(src, s, tmp2, s)
+	&& (ssacore.Disjoint1(src, s, dst, s) || ssacore.IsInlinableMemmove(dst, src, s, config))
 	=> (Move {t1} [s] dst src midmem)
 
 // Same, but for large types that require VarDefs.
 (Move {t1} [s] dst tmp1 midmem:(VarDef (Move {t2} [s] tmp2 src _)))
 	&& t1.Compare(t2) == types.CMPeq
-	&& IsSamePtr(tmp1, tmp2)
+	&& ssacore.IsSamePtr(tmp1, tmp2)
 	&& isStackPtr(src) && !IsVolatile(src)
-	&& Disjoint1(src, s, tmp2, s)
-	&& (Disjoint1(src, s, dst, s) || IsInlinableMemmove(dst, src, s, config))
+	&& ssacore.Disjoint1(src, s, tmp2, s)
+	&& (ssacore.Disjoint1(src, s, dst, s) || ssacore.IsInlinableMemmove(dst, src, s, config))
 	=> (Move {t1} [s] dst src midmem)
 
 // Don't zero the same bits twice.
-(Zero {t} [s] dst1 zero:(Zero {t} [s] dst2 _)) && IsSamePtr(dst1, dst2) => zero
-(Zero {t} [s] dst1 vardef:(VarDef (Zero {t} [s] dst2 _))) && IsSamePtr(dst1, dst2) => vardef
+(Zero {t} [s] dst1 zero:(Zero {t} [s] dst2 _)) && ssacore.IsSamePtr(dst1, dst2) => zero
+(Zero {t} [s] dst1 vardef:(VarDef (Zero {t} [s] dst2 _))) && ssacore.IsSamePtr(dst1, dst2) => vardef
 
 // Elide self-moves. This only happens rarely (e.g test/fixedbugs/bug277.go).
 // However, this rule is needed to prevent the previous rule from looping forever in such cases.
-(Move dst src mem) && IsSamePtr(dst, src) => mem
+(Move dst src mem) && ssacore.IsSamePtr(dst, src) => mem
 
 // Constant rotate detection.
 ((Add64|Or64|Xor64) (Lsh64x64 x z:(Const64 <t> [c])) (Rsh64Ux64 x (Const64 [d]))) && c < 64 && d == 64-c && canRotate(config, 64) => (RotateLeft64 x z)

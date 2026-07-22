@@ -568,10 +568,10 @@
 (PubBarrier ...) => (LoweredPubBarrier ...)
 
 (PanicBounds ...) => (LoweredPanicBoundsRR ...)
-(LoweredPanicBoundsRR [kind] x (MOVDconst [c]) mem) => (LoweredPanicBoundsRC [kind] x {PanicBoundsC{C:c}} mem)
-(LoweredPanicBoundsRR [kind] (MOVDconst [c]) y mem) => (LoweredPanicBoundsCR [kind] {PanicBoundsC{C:c}} y mem)
-(LoweredPanicBoundsRC [kind] {p} (MOVDconst [c]) mem) => (LoweredPanicBoundsCC [kind] {PanicBoundsCC{Cx:c, Cy:p.C}} mem)
-(LoweredPanicBoundsCR [kind] {p} (MOVDconst [c]) mem) => (LoweredPanicBoundsCC [kind] {PanicBoundsCC{Cx:p.C, Cy:c}} mem)
+(LoweredPanicBoundsRR [kind] x (MOVDconst [c]) mem) => (LoweredPanicBoundsRC [kind] x {ssacore.PanicBoundsC{C:c}} mem)
+(LoweredPanicBoundsRR [kind] (MOVDconst [c]) y mem) => (LoweredPanicBoundsCR [kind] {ssacore.PanicBoundsC{C:c}} y mem)
+(LoweredPanicBoundsRC [kind] {p} (MOVDconst [c]) mem) => (LoweredPanicBoundsCC [kind] {ssacore.PanicBoundsCC{Cx:c, Cy:p.C}} mem)
+(LoweredPanicBoundsCR [kind] {p} (MOVDconst [c]) mem) => (LoweredPanicBoundsCC [kind] {ssacore.PanicBoundsCC{Cx:p.C, Cy:c}} mem)
 
 // Optimizations
 // Note that PPC "logical" immediates come in 0:15 and 16:31 unsigned immediate forms,
@@ -1018,7 +1018,7 @@
         && sz >= 0
         && IsSameCall(sym, "runtime.memmove")
         && s1.Uses == 1 && s2.Uses == 1 && s3.Uses == 1
-        && IsInlinableMemmove(dst, src, sz, config)
+        && ssacore.IsInlinableMemmove(dst, src, sz, config)
         && Clobber(s1, s2, s3, call)
         => (Move [sz] dst src mem)
 
@@ -1027,7 +1027,7 @@
         && sz >= 0
         && IsSameCall(sym, "runtime.memmove")
         && call.Uses == 1
-        && IsInlinableMemmove(dst, src, sz, config)
+        && ssacore.IsInlinableMemmove(dst, src, sz, config)
         && Clobber(call)
         => (Move [sz] dst src mem)
 

@@ -6,6 +6,7 @@ package ssa
 
 import (
 	"cmd/compile/internal/base"
+	"cmd/compile/internal/ssa/ssacore"
 	"cmd/compile/internal/ssa/ssaop"
 )
 
@@ -14,7 +15,7 @@ import (
 // if it doesn't also create more live values.
 // A Value can be moved to any block that
 // dominates all blocks in which it is used.
-func tighten(f *Func) {
+func tighten(f *ssacore.Func) {
 	if base.Flag.N != 0 && len(f.Blocks) < 10000 {
 		// Skip the optimization in -N mode, except for huge functions.
 		// Too many values live across blocks can cause pathological
@@ -181,7 +182,7 @@ func tighten(f *Func) {
 // phiTighten moves constants closer to phi users.
 // This pass avoids having lots of constants live for lots of the program.
 // See issue 16407.
-func phiTighten(f *Func) {
+func phiTighten(f *ssacore.Func) {
 	for _, b := range f.Blocks {
 		for _, v := range b.Values {
 			if v.Op != ssaop.OpPhi {
@@ -225,14 +226,14 @@ func phiTighten(f *Func) {
 //  3. The algorithm first obtains the memory state of some blocks in the tree
 //     in the first step. Then floods the known memory state to other nodes in
 //     the second step.
-func memState(f *Func, startMem, endMem []*Value) {
+func memState(f *ssacore.Func, startMem, endMem []*ssacore.Value) {
 	// This slice contains the set of blocks that have had their startMem set but this
 	// startMem value has not yet been propagated to the endMem of its predecessors
-	changed := make([]*Block, 0)
+	changed := make([]*ssacore.Block, 0)
 	// First step, init the memory state of some blocks.
 	for _, b := range f.Blocks {
 		for _, v := range b.Values {
-			var mem *Value
+			var mem *ssacore.Value
 			if v.Op == ssaop.OpPhi {
 				if v.Type.IsMemory() {
 					mem = v

@@ -429,7 +429,7 @@ var genericOps = []opData{
 
 	// PanicBounds and PanicExtend generate a runtime panic.
 	// Their arguments provide index values to use in panic messages.
-	// Both PanicBounds and PanicExtend have an AuxInt value from the BoundsKind type (in ../op.go).
+	// Both PanicBounds and PanicExtend have an AuxInt value from the BoundsKind type (in ../ssacore/bounds.go).
 	// PanicBounds' index is int sized.
 	// PanicExtend's index is int64 sized. (PanicExtend is only used on 32-bit archs.)
 	{name: "PanicBounds", argLength: 3, aux: "Int64", typ: "Mem", call: true}, // arg0=idx, arg1=len, arg2=mem, returns memory.

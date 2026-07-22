@@ -7,6 +7,7 @@ package ssa
 import (
 	"bytes"
 	"cmd/compile/internal/ssa/block"
+	"cmd/compile/internal/ssa/ssacore"
 	"cmd/internal/src"
 	"cmp"
 	"fmt"
@@ -21,7 +22,7 @@ import (
 
 type HTMLWriter struct {
 	w             io.WriteCloser
-	Func          *Func
+	Func          *ssacore.Func
 	path          string
 	dot           *dotWriter
 	prevHash      []byte
@@ -29,7 +30,7 @@ type HTMLWriter struct {
 	pendingTitles []string
 }
 
-func NewHTMLWriter(path string, f *Func, cfgMask string) *HTMLWriter {
+func NewHTMLWriter(path string, f *ssacore.Func, cfgMask string) *HTMLWriter {
 	path = strings.ReplaceAll(path, "/", string(filepath.Separator))
 	out, err := os.OpenFile(path, os.O_WRONLY|os.O_CREATE|os.O_TRUNC, 0644)
 	if err != nil {
@@ -795,7 +796,7 @@ func (w *HTMLWriter) WritePhase(phase, title string) {
 	if w == nil {
 		return // avoid generating HTML just to discard it
 	}
-	hash := HashFunc(w.Func)
+	hash := ssacore.HashFunc(w.Func)
 	w.pendingPhases = append(w.pendingPhases, phase)
 	w.pendingTitles = append(w.pendingTitles, title)
 	if !bytes.Equal(hash, w.prevHash) {
@@ -966,114 +967,21 @@ func (w *HTMLWriter) WriteString(s string) {
 	}
 }
 
-func (v *Value) HTML() string {
-	// TODO: Using the value ID as the class ignores the fact
-	// that value IDs get recycled and that some values
-	// are transmuted into other values.
-	s := v.String()
-	return fmt.Sprintf("<span class=\"%s ssa-value\">%s</span>", s, s)
-}
-
-func (v *Value) LongHTML() string {
-	// TODO: Any intra-value formatting?
-	// I'm wary of adding too much visual noise,
-	// but a little bit might be valuable.
-	// We already have visual noise in the form of punctuation
-	// maybe we could replace some of that with formatting.
-	s := fmt.Sprintf("<span class=\"%s ssa-long-value\">", v.String())
-
-	linenumber := "<span class=\"no-line-number\">(?)</span>"
-	if v.Pos.IsKnown() {
-		linenumber = fmt.Sprintf("<span class=\"l%v line-number\">(%s)</span>", v.Pos.LineNumber(), v.Pos.LineNumberHTML())
-	}
-
-	s += fmt.Sprintf("%s %s = %s", v.HTML(), linenumber, v.Op.String())
-
-	s += " &lt;" + html.EscapeString(v.Type.String()) + "&gt;"
-	s += html.EscapeString(v.AuxString())
-	for _, a := range v.Args {
-		s += fmt.Sprintf(" %s", a.HTML())
-	}
-	r := v.Block.Func.RegAlloc
-	if int(v.ID) < len(r) && r[v.ID] != nil {
-		s += " : " + html.EscapeString(r[v.ID].String())
-	}
-	if reg := v.Block.Func.TempRegs[v.ID]; reg != nil {
-		s += " tmp=" + reg.String()
-	}
-	var names []string
-	for name, values := range v.Block.Func.NamedValues {
-		for _, value := range values {
-			if value == v {
-				names = append(names, name.String())
-				break // drop duplicates.
-			}
-		}
-	}
-	if len(names) != 0 {
-		s += " (" + strings.Join(names, ", ") + ")"
-	}
-
-	s += "</span>"
-	return s
-}
-
-func (b *Block) HTML() string {
-	// TODO: Using the value ID as the class ignores the fact
-	// that value IDs get recycled and that some values
-	// are transmuted into other values.
-	s := html.EscapeString(b.String())
-	return fmt.Sprintf("<span class=\"%s ssa-block\">%s</span>", s, s)
-}
-
-func (b *Block) LongHTML() string {
-	// TODO: improve this for HTML?
-	s := fmt.Sprintf("<span class=\"%s ssa-block\">%s</span>", html.EscapeString(b.String()), html.EscapeString(b.Kind.String()))
-	if b.Aux != nil {
-		s += html.EscapeString(fmt.Sprintf(" {%v}", b.Aux))
-	}
-	if t := b.AuxIntString(); t != "" {
-		s += html.EscapeString(fmt.Sprintf(" [%v]", t))
-	}
-	for _, c := range b.ControlValues() {
-		s += fmt.Sprintf(" %s", c.HTML())
-	}
-	if len(b.Succs) > 0 {
-		s += " &#8594;" // right arrow
-		for _, e := range b.Succs {
-			c := e.B
-			s += " " + c.HTML()
-		}
-	}
-	switch b.Likely {
-	case BranchUnlikely:
-		s += " (unlikely)"
-	case BranchLikely:
-		s += " (likely)"
-	}
-	if b.Pos.IsKnown() {
-		// TODO does not begin to deal with the full complexity of line numbers.
-		// Maybe we want a string/slice instead, of outer-inner when inlining.
-		s += fmt.Sprintf(" <span class=\"l%v line-number\">(%s)</span>", b.Pos.LineNumber(), b.Pos.LineNumberHTML())
-	}
-	return s
-}
-
-func HTML(f *Func, phase string, dot *dotWriter) string {
+func HTML(f *ssacore.Func, phase string, dot *dotWriter) string {
 	buf := new(strings.Builder)
 	if dot != nil {
 		dot.writeFuncSVG(buf, phase, f)
 	}
 	fmt.Fprint(buf, "<code>")
 	p := htmlFuncPrinter{w: buf}
-	FprintFunc(p, f)
+	ssacore.FprintFunc(p, f)
 
 	// fprintFunc(&buf, f) // TODO: HTML, not text, <br> for line breaks, etc.
 	fmt.Fprint(buf, "</code>")
 	return buf.String()
 }
 
-func (d *dotWriter) writeFuncSVG(w io.Writer, phase string, f *Func) {
+func (d *dotWriter) writeFuncSVG(w io.Writer, phase string, f *ssacore.Func) {
 	if d.broken {
 		return
 	}
@@ -1119,8 +1027,8 @@ func (d *dotWriter) writeFuncSVG(w io.Writer, phase string, f *Func) {
 	layoutDrawn := make([]bool, f.NumBlocks())
 
 	ponums := make([]int32, f.NumBlocks())
-	_ = PostorderWithNumbering(f, ponums)
-	isBackEdge := func(from, to ID) bool {
+	_ = ssacore.PostorderWithNumbering(f, ponums)
+	isBackEdge := func(from, to ssacore.ID) bool {
 		return ponums[from] <= ponums[to]
 	}
 
@@ -1176,16 +1084,6 @@ func (d *dotWriter) writeFuncSVG(w io.Writer, phase string, f *Func) {
 	io.Copy(w, buf)
 }
 
-func (b *Block) UnlikelyIndex() int {
-	switch b.Likely {
-	case BranchLikely:
-		return 1
-	case BranchUnlikely:
-		return 0
-	}
-	return -1
-}
-
 func (d *dotWriter) copyUntil(w io.Writer, buf *bytes.Buffer, sep string) error {
 	i := bytes.Index(buf.Bytes(), []byte(sep))
 	if i == -1 {
@@ -1199,9 +1097,9 @@ type htmlFuncPrinter struct {
 	w io.Writer
 }
 
-func (p htmlFuncPrinter) Header(f *Func) {}
+func (p htmlFuncPrinter) Header(f *ssacore.Func) {}
 
-func (p htmlFuncPrinter) StartBlock(b *Block, reachable bool) {
+func (p htmlFuncPrinter) StartBlock(b *ssacore.Block, reachable bool) {
 	var dead string
 	if !reachable {
 		dead = "dead-block"
@@ -1225,7 +1123,7 @@ func (p htmlFuncPrinter) StartBlock(b *Block, reachable bool) {
 	}
 }
 
-func (p htmlFuncPrinter) EndBlock(b *Block, reachable bool) {
+func (p htmlFuncPrinter) EndBlock(b *ssacore.Block, reachable bool) {
 	if len(b.Values) > 0 { // end list of values
 		io.WriteString(p.w, "</ul>")
 		io.WriteString(p.w, "</li>")
@@ -1236,7 +1134,7 @@ func (p htmlFuncPrinter) EndBlock(b *Block, reachable bool) {
 	io.WriteString(p.w, "</ul>")
 }
 
-func (p htmlFuncPrinter) Value(v *Value, live bool) {
+func (p htmlFuncPrinter) Value(v *ssacore.Value, live bool) {
 	var dead string
 	if !live {
 		dead = "dead-value"
@@ -1254,7 +1152,7 @@ func (p htmlFuncPrinter) EndDepCycle() {
 	fmt.Fprintln(p.w, "</span>")
 }
 
-func (p htmlFuncPrinter) Named(n LocalSlot, vals []*Value) {
+func (p htmlFuncPrinter) Named(n ssacore.LocalSlot, vals []*ssacore.Value) {
 	fmt.Fprintf(p.w, "<li>name %s: ", n)
 	for _, val := range vals {
 		fmt.Fprintf(p.w, "%s ", val.HTML())

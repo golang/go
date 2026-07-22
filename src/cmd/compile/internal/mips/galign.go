@@ -5,7 +5,7 @@
 package mips
 
 import (
-	"cmd/compile/internal/ssa"
+	"cmd/compile/internal/ssa/ssacore"
 	"cmd/compile/internal/ssagen"
 	"cmd/internal/obj/mips"
 	"internal/buildcfg"
@@ -21,7 +21,7 @@ func Init(arch *ssagen.ArchInfo) {
 	arch.SoftFloat = (buildcfg.GOMIPS == "softfloat")
 	arch.ZeroRange = zerorange
 	arch.Ginsnop = ginsnop
-	arch.SSAMarkMoves = func(s *ssagen.State, b *ssa.Block) {}
+	arch.SSAMarkMoves = func(s *ssagen.State, b *ssacore.Block) {}
 	arch.SSAGenValue = ssaGenValue
 	arch.SSAGenBlock = ssaGenBlock
 }

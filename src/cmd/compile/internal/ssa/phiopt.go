@@ -6,6 +6,7 @@ package ssa
 
 import (
 	"cmd/compile/internal/ssa/block"
+	"cmd/compile/internal/ssa/ssacore"
 	"cmd/compile/internal/ssa/ssaop"
 )
 
@@ -30,7 +31,7 @@ import (
 //	  x = (OpPhi (ConstBool [true]) (ConstBool [false]))
 //
 // In this case we can replace x with a copy of b.
-func phiopt(f *Func) {
+func phiopt(f *ssacore.Func) {
 	sdom := f.Sdom()
 	for _, b := range f.Blocks {
 		if len(b.Preds) != 2 || len(b.Values) == 0 {
@@ -290,7 +291,7 @@ func phiopt(f *Func) {
 	}
 }
 
-func phioptint(v *Value, b0 *Block, reverse int) {
+func phioptint(v *ssacore.Value, b0 *ssacore.Block, reverse int) {
 	a0 := v.Args[0]
 	a1 := v.Args[1]
 	if a0.Op != a1.Op {
@@ -346,7 +347,7 @@ func phioptint(v *Value, b0 *Block, reverse int) {
 // b is the If block giving the boolean value.
 // v is the phi value v = (OpPhi (ConstBool [true]) (ConstBool [false])).
 // reverse is the predecessor from which the truth value comes.
-func convertPhi(b *Block, v *Value, reverse int) {
+func convertPhi(b *ssacore.Block, v *ssacore.Value, reverse int) {
 	f := b.Func
 	ops := [2]ssaop.Op{ssaop.OpNot, ssaop.OpCopy}
 	v.Reset(ops[v.Args[reverse].AuxInt])

@@ -6,6 +6,7 @@ package ssa
 
 import (
 	"cmd/compile/internal/ssa/block"
+	"cmd/compile/internal/ssa/ssacore"
 	"cmd/compile/internal/ssa/ssaop"
 	"cmd/compile/internal/types"
 	"fmt"
@@ -15,8 +16,8 @@ import (
 // phi functions at the target of the backedge that must
 // be updated when a rescheduling check replaces the backedge.
 type edgeMem struct {
-	e Edge
-	m *Value // phi for memory at dest of e
+	e ssacore.Edge
+	m *ssacore.Value // phi for memory at dest of e
 }
 
 // a rewriteTarget is a value-argindex pair indicating
@@ -24,12 +25,12 @@ type edgeMem struct {
 // not for block controls, because block controls are not targets
 // for the rewrites performed in inserting rescheduling checks.
 type rewriteTarget struct {
-	v *Value
+	v *ssacore.Value
 	i int
 }
 
 type rewrite struct {
-	before, after *Value          // before is the expected value before rewrite, after is the new value installed.
+	before, after *ssacore.Value  // before is the expected value before rewrite, after is the new value installed.
 	rewrites      []rewriteTarget // all the targets for this rewrite.
 }
 
@@ -43,7 +44,7 @@ func (r *rewrite) String() string {
 }
 
 // insertLoopReschedChecks inserts rescheduling checks on loop backedges.
-func insertLoopReschedChecks(f *Func) {
+func insertLoopReschedChecks(f *ssacore.Func) {
 	// TODO: when split information is recorded in export data, insert checks only on backedges that can be reached on a split-call-free path.
 
 	// Loop reschedule checks compare the stack pointer with
@@ -112,7 +113,7 @@ func insertLoopReschedChecks(f *Func) {
 	}
 
 	// Maps from block to newly-inserted phi function in block.
-	newmemphis := make(map[*Block]rewrite)
+	newmemphis := make(map[*ssacore.Block]rewrite)
 
 	// Insert phi functions as necessary for future changes to flow graph.
 	for i, emc := range tofixBackedges {
@@ -120,7 +121,7 @@ func insertLoopReschedChecks(f *Func) {
 		h := e.B
 
 		// find the phi function for the memory input at "h", if there is one.
-		var headerMemPhi *Value // look for header mem phi
+		var headerMemPhi *ssacore.Value // look for header mem phi
 
 		for _, v := range h.Values {
 			if v.Op == ssaop.OpPhi && v.Type.IsMemory() {
@@ -176,9 +177,9 @@ func insertLoopReschedChecks(f *Func) {
 		// bb e->p h,
 		// Because we're going to insert a rare-call, make sure the
 		// looping edge still looks likely.
-		likely := BranchLikely
+		likely := ssacore.BranchLikely
 		if p.I != 0 {
-			likely = BranchUnlikely
+			likely = ssacore.BranchUnlikely
 		}
 		if bb.Kind != block.BlockPlain { // backedges can be unconditional. e.g., if x { something; continue }
 			bb.Likely = likely
@@ -237,23 +238,23 @@ func insertLoopReschedChecks(f *Func) {
 		// if false, rewrite edge to header.
 		// do NOT remove+add, because that will perturb all the other phi functions
 		// as well as messing up other edges to the header.
-		test.Succs = append(test.Succs, Edge{h, i})
-		h.Preds[i] = Edge{test, 1}
+		test.Succs = append(test.Succs, ssacore.Edge{B: h, I: i})
+		h.Preds[i] = ssacore.Edge{B: test, I: 1}
 		headerMemPhi.SetArg(i, mem0)
 
-		test.Likely = BranchUnlikely
+		test.Likely = ssacore.BranchUnlikely
 
 		// sched:
 		//    mem1 := call resched (mem0)
 		//    goto header
 		resched := f.Fe.Syslook("goschedguarded")
-		call := sched.NewValue1A(bb.Pos, ssaop.OpStaticCall, types.TypeResultMem, StaticAuxCall(resched, bb.Func.ABIDefault.ABIAnalyzeTypes(nil, nil)), mem0)
+		call := sched.NewValue1A(bb.Pos, ssaop.OpStaticCall, types.TypeResultMem, ssacore.StaticAuxCall(resched, bb.Func.ABIDefault.ABIAnalyzeTypes(nil, nil)), mem0)
 		mem1 := sched.NewValue1I(bb.Pos, ssaop.OpSelectN, types.TypeMem, 0, call)
 		sched.AddEdgeTo(h)
 		headerMemPhi.AddArg(mem1)
 
-		bb.Succs[p.I] = Edge{test, 0}
-		test.Preds = append(test.Preds, Edge{bb, p.I})
+		bb.Succs[p.I] = ssacore.Edge{B: test, I: 0}
+		test.Preds = append(test.Preds, ssacore.Edge{B: bb, I: p.I})
 
 		// Must correct all the other phi functions in the header for new incoming edge.
 		// Except for mem phis, it will be the same value seen on the original
@@ -268,14 +269,14 @@ func insertLoopReschedChecks(f *Func) {
 	f.InvalidateCFG()
 
 	if f.Pass.Debug > 1 {
-		sdom = NewSparseTree(f, f.Idom())
+		sdom = ssacore.NewSparseTree(f, f.Idom())
 		fmt.Printf("after %s = %s\n", f.Name, sdom.Treestructure(f.Entry))
 	}
 }
 
 // newPhiFor inserts a new Phi function into b,
 // with all inputs set to v.
-func newPhiFor(b *Block, v *Value) *Value {
+func newPhiFor(b *ssacore.Block, v *ssacore.Value) *ssacore.Value {
 	phiV := b.NewValue0(b.Pos, ssaop.OpPhi, v.Type)
 
 	for range b.Preds {
@@ -292,7 +293,7 @@ func newPhiFor(b *Block, v *Value) *Value {
 // sdom must yield a preorder of the flow graph if recursively walked, root-to-children.
 // The result of newSparseOrderedTree with order supplied by a dfs-postorder satisfies this
 // requirement.
-func rewriteNewPhis(h, b *Block, f *Func, defsForUses []*Value, newphis map[*Block]rewrite, dfPhiTargets map[rewriteTarget]bool, sdom SparseTree) {
+func rewriteNewPhis(h, b *ssacore.Block, f *ssacore.Func, defsForUses []*ssacore.Value, newphis map[*ssacore.Block]rewrite, dfPhiTargets map[rewriteTarget]bool, sdom ssacore.SparseTree) {
 	// If b is a block with a new phi, then a new rewrite applies below it in the dominator tree.
 	if _, ok := newphis[b]; ok {
 		h = b
@@ -366,7 +367,7 @@ func rewriteNewPhis(h, b *Block, f *Func, defsForUses []*Value, newphis map[*Blo
 // either b = h or h strictly dominates b.
 // These newly created phis are themselves new definitions that may require addition of their
 // own trivial phi functions in their own dominance frontier, and this is handled recursively.
-func addDFphis(x *Value, h, b *Block, f *Func, defForUses []*Value, newphis map[*Block]rewrite, sdom SparseTree) {
+func addDFphis(x *ssacore.Value, h, b *ssacore.Block, f *ssacore.Func, defForUses []*ssacore.Value, newphis map[*ssacore.Block]rewrite, sdom ssacore.SparseTree) {
 	oldv := defForUses[b.ID]
 	if oldv != x { // either a new definition replacing x, or nil if it is proven that there are no uses reachable from b
 		return
@@ -402,9 +403,9 @@ outer:
 }
 
 // findLastMems maps block ids to last memory-output op in a block, if any.
-func findLastMems(f *Func) []*Value {
+func findLastMems(f *ssacore.Func) []*ssacore.Value {
 
-	var stores []*Value
+	var stores []*ssacore.Value
 	lastMems := f.Cache.AllocValueSlice(f.NumBlocks())
 	storeUse := f.NewSparseSet(f.NumValues())
 	defer f.RetSparseSet(storeUse)
@@ -413,7 +414,7 @@ func findLastMems(f *Func) []*Value {
 		//  storeUse contains stores which are used by a subsequent store.
 		storeUse.Clear()
 		stores = stores[:0]
-		var memPhi *Value
+		var memPhi *ssacore.Value
 		for _, v := range b.Values {
 			if v.Op == ssaop.OpPhi {
 				if v.Type.IsMemory() {
@@ -436,7 +437,7 @@ func findLastMems(f *Func) []*Value {
 		}
 
 		// find last store in the block
-		var last *Value
+		var last *ssacore.Value
 		for _, v := range stores {
 			if storeUse.Contains(v.ID) {
 				continue
@@ -475,14 +476,14 @@ const (
 )
 
 type backedgesState struct {
-	b *Block
+	b *ssacore.Block
 	i int
 }
 
 // backedges returns a slice of successor edges that are back
 // edges.  For reducible loops, edge.b is the header.
-func backedges(f *Func) []Edge {
-	edges := []Edge{}
+func backedges(f *ssacore.Func) []ssacore.Edge {
+	edges := []ssacore.Edge{}
 	mark := make([]markKind, f.NumBlocks())
 	stack := []backedgesState{}
 

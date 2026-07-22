@@ -4,45 +4,45 @@ package ssagen
 
 import (
 	"cmd/compile/internal/ir"
-	"cmd/compile/internal/ssa"
+	"cmd/compile/internal/ssa/ssacore"
 	"cmd/compile/internal/ssa/ssaop"
 	"cmd/compile/internal/types"
 	"cmd/internal/sys"
 )
 
 func initWasmSIMD() {
-	makeSimdOp1 := func(op ssaop.Op) func(s *state, n *ir.CallExpr, args []*ssa.Value) *ssa.Value {
-		return func(s *state, n *ir.CallExpr, args []*ssa.Value) *ssa.Value {
+	makeSimdOp1 := func(op ssaop.Op) func(s *state, n *ir.CallExpr, args []*ssacore.Value) *ssacore.Value {
+		return func(s *state, n *ir.CallExpr, args []*ssacore.Value) *ssacore.Value {
 			return s.newValue1(op, types.TypeVec128, args[0])
 		}
 	}
-	makeSimdOp2 := func(op ssaop.Op) func(s *state, n *ir.CallExpr, args []*ssa.Value) *ssa.Value {
-		return func(s *state, n *ir.CallExpr, args []*ssa.Value) *ssa.Value {
+	makeSimdOp2 := func(op ssaop.Op) func(s *state, n *ir.CallExpr, args []*ssacore.Value) *ssacore.Value {
+		return func(s *state, n *ir.CallExpr, args []*ssacore.Value) *ssacore.Value {
 			return s.newValue2(op, types.TypeVec128, args[0], args[1])
 		}
 	}
-	makeSimdOp3 := func(op ssaop.Op) func(s *state, n *ir.CallExpr, args []*ssa.Value) *ssa.Value {
-		return func(s *state, n *ir.CallExpr, args []*ssa.Value) *ssa.Value {
+	makeSimdOp3 := func(op ssaop.Op) func(s *state, n *ir.CallExpr, args []*ssacore.Value) *ssacore.Value {
+		return func(s *state, n *ir.CallExpr, args []*ssacore.Value) *ssacore.Value {
 			return s.newValue3(op, types.TypeVec128, args[0], args[1], args[2])
 		}
 	}
 
 	// "As" is a type pun, just return the bits
-	makeAsOp := func() func(s *state, n *ir.CallExpr, args []*ssa.Value) *ssa.Value {
-		return func(s *state, n *ir.CallExpr, args []*ssa.Value) *ssa.Value {
+	makeAsOp := func() func(s *state, n *ir.CallExpr, args []*ssacore.Value) *ssacore.Value {
+		return func(s *state, n *ir.CallExpr, args []*ssacore.Value) *ssacore.Value {
 			return args[0]
 		}
 	}
 
 	// converting to a mask is an not-equals comparison with zero, zero obtained by x XOR x.
-	makeToMask := func(op, xor ssaop.Op) func(s *state, n *ir.CallExpr, args []*ssa.Value) *ssa.Value {
-		return func(s *state, n *ir.CallExpr, args []*ssa.Value) *ssa.Value {
+	makeToMask := func(op, xor ssaop.Op) func(s *state, n *ir.CallExpr, args []*ssacore.Value) *ssacore.Value {
+		return func(s *state, n *ir.CallExpr, args []*ssacore.Value) *ssacore.Value {
 			return s.newValue2(op, types.TypeVec128, args[0], s.newValue2(xor, n.Type(), args[0], args[0]))
 		}
 	}
 
-	makeSimdOp1Imm8 := func(op ssaop.Op, immLimit uint64) func(s *state, n *ir.CallExpr, args []*ssa.Value) *ssa.Value {
-		return func(s *state, n *ir.CallExpr, args []*ssa.Value) *ssa.Value {
+	makeSimdOp1Imm8 := func(op ssaop.Op, immLimit uint64) func(s *state, n *ir.CallExpr, args []*ssacore.Value) *ssacore.Value {
+		return func(s *state, n *ir.CallExpr, args []*ssacore.Value) *ssacore.Value {
 			t := n.Type()
 			if args[1].Op == ssaop.OpConst8 && uint64(args[1].AuxInt) < immLimit {
 				return s.newValue1I(op, t, args[1].AuxInt, args[0])
@@ -54,8 +54,8 @@ func initWasmSIMD() {
 		}
 	}
 
-	makeSimdOp2Imm8 := func(op ssaop.Op, immLimit uint64) func(s *state, n *ir.CallExpr, args []*ssa.Value) *ssa.Value {
-		return func(s *state, n *ir.CallExpr, args []*ssa.Value) *ssa.Value {
+	makeSimdOp2Imm8 := func(op ssaop.Op, immLimit uint64) func(s *state, n *ir.CallExpr, args []*ssacore.Value) *ssacore.Value {
+		return func(s *state, n *ir.CallExpr, args []*ssacore.Value) *ssacore.Value {
 			t := types.TypeVec128
 			if args[1].Op == ssaop.OpConst8 && uint64(args[1].AuxInt) < immLimit {
 				return s.newValue2I(op, t, args[1].AuxInt, args[0], args[2])
@@ -67,7 +67,7 @@ func initWasmSIMD() {
 		}
 	}
 
-	addWasmSIMD := func(pkg, fn string, builder func(s *state, n *ir.CallExpr, args []*ssa.Value) *ssa.Value) {
+	addWasmSIMD := func(pkg, fn string, builder func(s *state, n *ir.CallExpr, args []*ssacore.Value) *ssacore.Value) {
 		intrinsics.add(sys.ArchWasm, pkg, fn, builder)
 	}
 

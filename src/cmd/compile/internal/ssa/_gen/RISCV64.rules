@@ -376,11 +376,11 @@
 
 // Unroll zeroing in medium size (at most 192 bytes i.e. 3 cachelines)
 (Zero [s] {t} ptr mem) && s <= 24*MoveSize(t.Alignment(), config) =>
-	(LoweredZero [MakeValAndOff(int32(s),int32(t.Alignment()))] ptr mem)
+	(LoweredZero [ssacore.MakeValAndOff(int32(s),int32(t.Alignment()))] ptr mem)
 
 // Generic zeroing uses a loop
 (Zero [s] {t} ptr mem) && s > 24*MoveSize(t.Alignment(), config) =>
-	(LoweredZeroLoop [MakeValAndOff(int32(s),int32(t.Alignment()))] ptr mem)
+	(LoweredZeroLoop [ssacore.MakeValAndOff(int32(s),int32(t.Alignment()))] ptr mem)
 
 // Checks
 (IsNonNil ...) => (SNEZ ...)
@@ -400,10 +400,10 @@
 (PubBarrier ...) => (LoweredPubBarrier ...)
 
 (PanicBounds ...) => (LoweredPanicBoundsRR ...)
-(LoweredPanicBoundsRR [kind] x (MOVDconst [c]) mem) => (LoweredPanicBoundsRC [kind] x {PanicBoundsC{C:c}} mem)
-(LoweredPanicBoundsRR [kind] (MOVDconst [c]) y mem) => (LoweredPanicBoundsCR [kind] {PanicBoundsC{C:c}} y mem)
-(LoweredPanicBoundsRC [kind] {p} (MOVDconst [c]) mem) => (LoweredPanicBoundsCC [kind] {PanicBoundsCC{Cx:c, Cy:p.C}} mem)
-(LoweredPanicBoundsCR [kind] {p} (MOVDconst [c]) mem) => (LoweredPanicBoundsCC [kind] {PanicBoundsCC{Cx:p.C, Cy:c}} mem)
+(LoweredPanicBoundsRR [kind] x (MOVDconst [c]) mem) => (LoweredPanicBoundsRC [kind] x {ssacore.PanicBoundsC{C:c}} mem)
+(LoweredPanicBoundsRR [kind] (MOVDconst [c]) y mem) => (LoweredPanicBoundsCR [kind] {ssacore.PanicBoundsC{C:c}} y mem)
+(LoweredPanicBoundsRC [kind] {p} (MOVDconst [c]) mem) => (LoweredPanicBoundsCC [kind] {ssacore.PanicBoundsCC{Cx:c, Cy:p.C}} mem)
+(LoweredPanicBoundsCR [kind] {p} (MOVDconst [c]) mem) => (LoweredPanicBoundsCC [kind] {ssacore.PanicBoundsCC{Cx:p.C, Cy:c}} mem)
 
 // Small moves
 (Move [0] _ _ mem) => mem
@@ -446,12 +446,12 @@
 // Generic move
 (Move [s] {t} dst src mem) && s > 0 && s <= 3*8*MoveSize(t.Alignment(), config)
 	&& LogLargeCopyValue(v, s) =>
-	(LoweredMove [MakeValAndOff(int32(s),int32(t.Alignment()))] dst src mem)
+	(LoweredMove [ssacore.MakeValAndOff(int32(s),int32(t.Alignment()))] dst src mem)
 
 // Generic move uses a loop
 (Move [s] {t} dst src mem) && s > 3*8*MoveSize(t.Alignment(), config)
 	&& LogLargeCopyValue(v, s) =>
-	(LoweredMoveLoop [MakeValAndOff(int32(s),int32(t.Alignment()))] dst src mem)
+	(LoweredMoveLoop [ssacore.MakeValAndOff(int32(s),int32(t.Alignment()))] dst src mem)
 
 // Boolean ops; 0=false, 1=true
 (AndB ...) => (AND ...)
@@ -675,13 +675,13 @@
 (MOVWUreg <t> x:(MOVWload  [off] {sym} ptr mem)) && x.Uses == 1 && Clobber(x) => @x.Block (MOVWUload <t> [off] {sym} ptr mem)
 
 // Replace load from same location as preceding store with copy.
-(MOV(D|W|H|B)load [off] {sym} ptr1 (MOV(D|W|H|B)store [off] {sym} ptr2 x _)) && IsSamePtr(ptr1, ptr2) => (MOV(D|W|H|B)reg x)
-(MOV(W|H|B)Uload  [off] {sym} ptr1 (MOV(W|H|B)store   [off] {sym} ptr2 x _)) && IsSamePtr(ptr1, ptr2) => (MOV(W|H|B)Ureg  x)
-(MOVDload  [off] {sym} ptr1 (FMOVDstore [off] {sym} ptr2 x _)) && IsSamePtr(ptr1, ptr2) => (FMVXD x)
-(FMOVDload [off] {sym} ptr1 (MOVDstore  [off] {sym} ptr2 x _)) && IsSamePtr(ptr1, ptr2) => (FMVDX x)
-(MOVWload  [off] {sym} ptr1 (FMOVWstore [off] {sym} ptr2 x _)) && IsSamePtr(ptr1, ptr2) => (FMVXS x)
-(MOVWUload [off] {sym} ptr1 (FMOVWstore [off] {sym} ptr2 x _)) && IsSamePtr(ptr1, ptr2) => (MOVWUreg (FMVXS x))
-(FMOVWload [off] {sym} ptr1 (MOVWstore  [off] {sym} ptr2 x _)) && IsSamePtr(ptr1, ptr2) => (FMVSX x)
+(MOV(D|W|H|B)load [off] {sym} ptr1 (MOV(D|W|H|B)store [off] {sym} ptr2 x _)) && ssacore.IsSamePtr(ptr1, ptr2) => (MOV(D|W|H|B)reg x)
+(MOV(W|H|B)Uload  [off] {sym} ptr1 (MOV(W|H|B)store   [off] {sym} ptr2 x _)) && ssacore.IsSamePtr(ptr1, ptr2) => (MOV(W|H|B)Ureg  x)
+(MOVDload  [off] {sym} ptr1 (FMOVDstore [off] {sym} ptr2 x _)) && ssacore.IsSamePtr(ptr1, ptr2) => (FMVXD x)
+(FMOVDload [off] {sym} ptr1 (MOVDstore  [off] {sym} ptr2 x _)) && ssacore.IsSamePtr(ptr1, ptr2) => (FMVDX x)
+(MOVWload  [off] {sym} ptr1 (FMOVWstore [off] {sym} ptr2 x _)) && ssacore.IsSamePtr(ptr1, ptr2) => (FMVXS x)
+(MOVWUload [off] {sym} ptr1 (FMOVWstore [off] {sym} ptr2 x _)) && ssacore.IsSamePtr(ptr1, ptr2) => (MOVWUreg (FMVXS x))
+(FMOVWload [off] {sym} ptr1 (MOVWstore  [off] {sym} ptr2 x _)) && ssacore.IsSamePtr(ptr1, ptr2) => (FMVSX x)
 
 // If a register move has only 1 use, just use the same register without emitting instruction
 // MOVnop does not emit an instruction, only for ensuring the type.

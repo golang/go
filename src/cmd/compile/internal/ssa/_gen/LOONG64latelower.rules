@@ -12,6 +12,6 @@
 (MOVVconst [0]) => (ZERO)
 
 // omit unsigned extension
-(MOVBUreg x) && ZeroUpper56Bits(x) => x
-(MOVHUreg x) && ZeroUpper48Bits(x) => x
-(MOVWUreg x) && ZeroUpper32Bits(x) => x
+(MOVBUreg x) && ssacore.ZeroUpper56Bits(x) => x
+(MOVHUreg x) && ssacore.ZeroUpper48Bits(x) => x
+(MOVWUreg x) && ssacore.ZeroUpper32Bits(x) => x

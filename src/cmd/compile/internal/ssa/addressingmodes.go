@@ -4,11 +4,14 @@
 
 package ssa
 
-import "cmd/compile/internal/ssa/ssaop"
+import (
+	"cmd/compile/internal/ssa/ssacore"
+	"cmd/compile/internal/ssa/ssaop"
+)
 
 // addressingModes combines address calculations into memory operations
 // that can perform complicated addressing modes.
-func addressingModes(f *Func) {
+func addressingModes(f *ssacore.Func) {
 	isInImmediateRange := Is32Bit
 	switch f.Config.Arch {
 	default:
@@ -19,7 +22,7 @@ func addressingModes(f *Func) {
 		isInImmediateRange = Is20Bit
 	}
 
-	var tmp []*Value
+	var tmp []*ssacore.Value
 	for _, b := range f.Blocks {
 		for _, v := range b.Values {
 			if !combineFirst[v.Op] {
@@ -60,13 +63,13 @@ func addressingModes(f *Func) {
 				}
 				v.AuxInt += p.AuxInt
 			case [2]ssaop.AuxType{ssaop.AuxTypeSymValAndOff, ssaop.AuxTypeInt32}:
-				vo := ValAndOff(v.AuxInt)
+				vo := ssacore.ValAndOff(v.AuxInt)
 				if !vo.CanAdd64(p.AuxInt) {
 					continue
 				}
 				v.AuxInt = int64(vo.AddOffset64(p.AuxInt))
 			case [2]ssaop.AuxType{ssaop.AuxTypeSymValAndOff, ssaop.AuxTypeSymOff}:
-				vo := ValAndOff(v.AuxInt)
+				vo := ssacore.ValAndOff(v.AuxInt)
 				if v.Aux != nil && p.Aux != nil {
 					continue
 				}

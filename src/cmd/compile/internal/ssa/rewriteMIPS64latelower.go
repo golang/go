@@ -3,15 +3,16 @@
 package ssa
 
 import "cmd/compile/internal/ssa/ssaop"
+import "cmd/compile/internal/ssa/ssacore"
 
-func rewriteValueMIPS64latelower(v *Value) bool {
+func rewriteValueMIPS64latelower(v *ssacore.Value) bool {
 	switch v.Op {
 	case ssaop.OpMIPS64MOVVconst:
 		return rewriteValueMIPS64latelower_OpMIPS64MOVVconst(v)
 	}
 	return false
 }
-func rewriteValueMIPS64latelower_OpMIPS64MOVVconst(v *Value) bool {
+func rewriteValueMIPS64latelower_OpMIPS64MOVVconst(v *ssacore.Value) bool {
 	// match: (MOVVconst [0])
 	// result: (ZERO)
 	for {
@@ -23,6 +24,6 @@ func rewriteValueMIPS64latelower_OpMIPS64MOVVconst(v *Value) bool {
 	}
 	return false
 }
-func rewriteBlockMIPS64latelower(b *Block) bool {
+func rewriteBlockMIPS64latelower(b *ssacore.Block) bool {
 	return false
 }

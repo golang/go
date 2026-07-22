@@ -8,6 +8,6 @@
 (SHR(Q|L) x y) && buildcfg.GOAMD64 >= 3 => (SHRX(Q|L) x y)
 
 // See comments in ARM64latelower.rules for why these are here.
-(MOVLQZX x) && ZeroUpper32Bits(x) => x
-(MOVWQZX x) && ZeroUpper48Bits(x) => x
-(MOVBQZX x) && ZeroUpper56Bits(x) => x
+(MOVLQZX x) && ssacore.ZeroUpper32Bits(x) => x
+(MOVWQZX x) && ssacore.ZeroUpper48Bits(x) => x
+(MOVBQZX x) && ssacore.ZeroUpper56Bits(x) => x

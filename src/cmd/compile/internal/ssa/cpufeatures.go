@@ -6,6 +6,7 @@ package ssa
 
 import (
 	"cmd/compile/internal/ssa/block"
+	"cmd/compile/internal/ssa/ssacore"
 	"cmd/compile/internal/ssa/ssaop"
 	"cmd/compile/internal/types"
 	"cmd/internal/obj"
@@ -14,10 +15,10 @@ import (
 )
 
 type localEffect struct {
-	start    CPUfeatures    // features present at beginning of block
-	internal CPUfeatures    // features implied by execution of block
-	end      [2]CPUfeatures // for BlockIf, features present on outgoing edges
-	visited  bool           // On the first iteration this will be false for backedges.
+	start    ssacore.CPUfeatures    // features present at beginning of block
+	internal ssacore.CPUfeatures    // features implied by execution of block
+	end      [2]ssacore.CPUfeatures // for BlockIf, features present on outgoing edges
+	visited  bool                   // On the first iteration this will be false for backedges.
 }
 
 func (e localEffect) String() string {
@@ -27,7 +28,7 @@ func (e localEffect) String() string {
 // ifEffect pattern matches for a BlockIf conditional on a load
 // of a field from internal/cpu.X86 and returns the corresponding
 // effect.
-func ifEffect(b *Block) (features CPUfeatures, taken int) {
+func ifEffect(b *ssacore.Block) (features ssacore.CPUfeatures, taken int) {
 	// TODO generalize for other architectures.
 	if b.Kind != block.BlockIf {
 		return
@@ -73,34 +74,34 @@ func ifEffect(b *Block) (features CPUfeatures, taken int) {
 	switch match {
 
 	case "HasAVX":
-		features = CPUavx
+		features = ssacore.CPUavx
 	case "HasAVXVNNI":
-		features = CPUavx | CPUavxvnni
+		features = ssacore.CPUavx | ssacore.CPUavxvnni
 	case "HasAVX2":
-		features = CPUavx2 | CPUavx
+		features = ssacore.CPUavx2 | ssacore.CPUavx
 
 		// Compiler currently treats these all alike.
 	case "HasAVX512", "HasAVX512F", "HasAVX512CD", "HasAVX512BW",
 		"HasAVX512DQ", "HasAVX512VL", "HasAVX512VPCLMULQDQ":
-		features = CPUavx512 | CPUavx2 | CPUavx
+		features = ssacore.CPUavx512 | ssacore.CPUavx2 | ssacore.CPUavx
 
 	case "HasAVX512GFNI":
-		features = CPUavx512 | CPUgfni | CPUavx2 | CPUavx
+		features = ssacore.CPUavx512 | ssacore.CPUgfni | ssacore.CPUavx2 | ssacore.CPUavx
 	case "HasAVX512VNNI":
-		features = CPUavx512 | CPUavx512vnni | CPUavx2 | CPUavx
+		features = ssacore.CPUavx512 | ssacore.CPUavx512vnni | ssacore.CPUavx2 | ssacore.CPUavx
 	case "HasAVX512VBMI":
-		features = CPUavx512 | CPUvbmi | CPUavx2 | CPUavx
+		features = ssacore.CPUavx512 | ssacore.CPUvbmi | ssacore.CPUavx2 | ssacore.CPUavx
 	case "HasAVX512VBMI2":
-		features = CPUavx512 | CPUvbmi2 | CPUavx2 | CPUavx
+		features = ssacore.CPUavx512 | ssacore.CPUvbmi2 | ssacore.CPUavx2 | ssacore.CPUavx
 	case "HasAVX512BITALG":
-		features = CPUavx512 | CPUbitalg | CPUavx2 | CPUavx
+		features = ssacore.CPUavx512 | ssacore.CPUbitalg | ssacore.CPUavx2 | ssacore.CPUavx
 	case "HasAVX512VPOPCNTDQ":
-		features = CPUavx512 | CPUvpopcntdq | CPUavx2 | CPUavx
+		features = ssacore.CPUavx512 | ssacore.CPUvpopcntdq | ssacore.CPUavx2 | ssacore.CPUavx
 
 	case "HasBMI1":
-		features = CPUvbmi
+		features = ssacore.CPUvbmi
 	case "HasBMI2":
-		features = CPUvbmi2
+		features = ssacore.CPUvbmi2
 
 		// Features that are not currently interesting to the compiler.
 	case "HasAES", "HasADX", "HasERMS", "HasFSRM", "HasFMA", "HasGFNI", "HasOSXSAVE",
@@ -114,7 +115,7 @@ func ifEffect(b *Block) (features CPUfeatures, taken int) {
 	return
 }
 
-func cpufeatures(f *Func) {
+func cpufeatures(f *ssacore.Func) {
 	arch := f.Config.Ctxt.Arch.Family
 	// TODO there are other SIMD architectures
 	if arch != goarch.AMD64 {
@@ -125,16 +126,16 @@ func cpufeatures(f *Func) {
 
 	effects := make([]localEffect, 1+f.NumBlocks(), 1+f.NumBlocks())
 
-	features := func(t *types.Type) CPUfeatures {
+	features := func(t *types.Type) ssacore.CPUfeatures {
 		if t.IsSIMD() {
 			switch t.Size() {
 			case 16, 32:
-				return CPUavx
+				return ssacore.CPUavx
 			case 64:
-				return CPUavx512 | CPUavx2 | CPUavx
+				return ssacore.CPUavx512 | ssacore.CPUavx2 | ssacore.CPUavx
 			}
 		}
-		return CPUNone
+		return ssacore.CPUNone
 	}
 
 	// visit blocks in reverse post order
@@ -143,7 +144,7 @@ func cpufeatures(f *Func) {
 	for i := len(po) - 1; i >= 0; i-- {
 		b := po[i]
 
-		var feat CPUfeatures
+		var feat ssacore.CPUfeatures
 
 		if b == f.Entry {
 			// Check the types of inputs and outputs, as well as annotations.
@@ -156,7 +157,7 @@ func cpufeatures(f *Func) {
 
 		} else {
 			// Start with all and intersect over predecessors
-			feat = CPUAll
+			feat = ssacore.CPUAll
 			for _, p := range b.Preds {
 				pb := p.Block()
 				if !effects[pb.ID].visited {
@@ -175,7 +176,7 @@ func cpufeatures(f *Func) {
 		e := localEffect{start: feat, visited: true}
 
 		// Separately capture the internal effects of this block
-		var internal CPUfeatures
+		var internal ssacore.CPUfeatures
 		for _, v := range b.Values {
 			// the rule applied here is, if the block contains any
 			// instruction that would fault if the feature (avx, avx512)
@@ -194,11 +195,11 @@ func cpufeatures(f *Func) {
 		feat |= internal
 
 		branchEffect, taken := ifEffect(b)
-		e.end = [2]CPUfeatures{feat, feat}
+		e.end = [2]ssacore.CPUfeatures{feat, feat}
 		e.end[taken] |= branchEffect
 
 		effects[b.ID] = e
-		if f.Pass.Debug > 1 && feat != CPUNone {
+		if f.Pass.Debug > 1 && feat != ssacore.CPUNone {
 			f.Warnl(b.Pos, "%s, block b%v has features %v", b.Func.Name, b.ID, feat)
 		}
 
@@ -216,7 +217,7 @@ func cpufeatures(f *Func) {
 			if b == f.Entry {
 				continue // cannot change
 			}
-			feat := CPUAll
+			feat := ssacore.CPUAll
 			for _, p := range b.Preds {
 				pb := p.Block()
 				pi := p.Index()
@@ -242,7 +243,7 @@ func cpufeatures(f *Func) {
 			}
 
 			branchEffect, taken := ifEffect(b)
-			e.end = [2]CPUfeatures{feat, feat}
+			e.end = [2]ssacore.CPUfeatures{feat, feat}
 			e.end[taken] |= branchEffect
 
 			effects[b.ID] = e
@@ -255,7 +256,7 @@ func cpufeatures(f *Func) {
 	}
 	if f.Pass.Debug > 0 {
 		for _, b := range f.Blocks {
-			if b.CPUfeatures != CPUNone {
+			if b.CPUfeatures != ssacore.CPUNone {
 				f.Warnl(b.Pos, "%s, block b%v has features %v", b.Func.Name, b.ID, b.CPUfeatures)
 			}
 

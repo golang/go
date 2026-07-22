@@ -6,6 +6,7 @@ package ssa
 
 import (
 	"cmd/compile/internal/rttype"
+	"cmd/compile/internal/ssa/ssacore"
 	"math"
 	"math/rand"
 	"reflect"
@@ -170,7 +171,7 @@ func TestEncodeDecodePPC64WordRotateMask(t *testing.T) {
 		if result != v.encoded {
 			t.Errorf("encodePPC64RotateMask(%d,0x%x,%d) = 0x%x, expected 0x%x", v.rotate, v.mask, v.nbits, result, v.encoded)
 		}
-		rotate, mb, me, mask := DecodePPC64RotateMask(result)
+		rotate, mb, me, mask := ssacore.DecodePPC64RotateMask(result)
 		if rotate != v.rotate || mb != v.mb || me != v.me || mask != v.mask {
 			t.Errorf("DecodePPC64Failure(Test %d) got (%d, %d, %d, %x) expected (%d, %d, %d, %x)", i, rotate, mb, me, mask, v.rotate, v.mb, v.me, v.mask)
 		}
@@ -202,7 +203,7 @@ func TestMergePPC64ClrlsldiSrw(t *testing.T) {
 			t.Errorf("mergePPC64ClrlsldiSrw(Test %d) did not merge", i)
 		} else if !v.valid && result != 0 {
 			t.Errorf("mergePPC64ClrlsldiSrw(Test %d) should return 0", i)
-		} else if r, _, _, m := DecodePPC64RotateMask(result); v.rotate != r || v.mask != m {
+		} else if r, _, _, m := ssacore.DecodePPC64RotateMask(result); v.rotate != r || v.mask != m {
 			t.Errorf("mergePPC64ClrlsldiSrw(Test %d) got (%d,0x%x) expected (%d,0x%x)", i, r, m, v.rotate, v.mask)
 		}
 	}
@@ -235,7 +236,7 @@ func TestMergePPC64ClrlsldiRlwinm(t *testing.T) {
 			t.Errorf("mergePPC64ClrlsldiRlwinm(Test %d) did not merge", i)
 		} else if !v.valid && result != 0 {
 			t.Errorf("mergePPC64ClrlsldiRlwinm(Test %d) should return 0", i)
-		} else if r, _, _, m := DecodePPC64RotateMask(result); v.rotate != r || v.mask != m {
+		} else if r, _, _, m := ssacore.DecodePPC64RotateMask(result); v.rotate != r || v.mask != m {
 			t.Errorf("mergePPC64ClrlsldiRlwinm(Test %d) got (%d,0x%x) expected (%d,0x%x)", i, r, m, v.rotate, v.mask)
 		}
 	}
@@ -264,7 +265,7 @@ func TestMergePPC64SldiSrw(t *testing.T) {
 			t.Errorf("mergePPC64SldiSrw(Test %d) did not merge", i)
 		} else if !v.valid && result != 0 {
 			t.Errorf("mergePPC64SldiSrw(Test %d) should return 0", i)
-		} else if r, _, _, m := DecodePPC64RotateMask(result); v.rotate != r || v.mask != m {
+		} else if r, _, _, m := ssacore.DecodePPC64RotateMask(result); v.rotate != r || v.mask != m {
 			t.Errorf("mergePPC64SldiSrw(Test %d) got (%d,0x%x) expected (%d,0x%x)", i, r, m, v.rotate, v.mask)
 		}
 	}
@@ -292,7 +293,7 @@ func TestMergePPC64AndSrwi(t *testing.T) {
 			t.Errorf("mergePPC64AndSrwi(Test %d) did not merge", i)
 		} else if !v.valid && result != 0 {
 			t.Errorf("mergePPC64AndSrwi(Test %d) should return 0", i)
-		} else if r, _, _, m := DecodePPC64RotateMask(result); v.rotate != r || v.mask != m {
+		} else if r, _, _, m := ssacore.DecodePPC64RotateMask(result); v.rotate != r || v.mask != m {
 			t.Errorf("mergePPC64AndSrwi(Test %d) got (%d,0x%x) expected (%d,0x%x)", i, r, m, v.rotate, v.mask)
 		}
 	}
@@ -337,7 +338,7 @@ func TestDisjointTypes(t *testing.T) {
 	for _, tst := range tests {
 		t1 := rttype.FromReflect(reflect.TypeOf(tst.v1))
 		t2 := rttype.FromReflect(reflect.TypeOf(tst.v2))
-		result := DisjointTypes(t1, t2)
+		result := ssacore.DisjointTypes(t1, t2)
 		if result != tst.expected {
 			t.Errorf("disjointTypes(%s, %s) got %t expected %t", t1.String(), t2.String(), result, tst.expected)
 		}

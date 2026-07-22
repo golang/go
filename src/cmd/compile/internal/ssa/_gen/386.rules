@@ -267,17 +267,17 @@
 (Zero [4] destptr mem) => (MOVLstoreconst [0] destptr mem)
 
 (Zero [3] destptr mem) =>
-	(MOVBstoreconst [MakeValAndOff(0,2)] destptr
-		(MOVWstoreconst [MakeValAndOff(0,0)] destptr mem))
+	(MOVBstoreconst [ssacore.MakeValAndOff(0,2)] destptr
+		(MOVWstoreconst [ssacore.MakeValAndOff(0,0)] destptr mem))
 (Zero [5] destptr mem) =>
-	(MOVBstoreconst [MakeValAndOff(0,4)] destptr
-		(MOVLstoreconst [MakeValAndOff(0,0)] destptr mem))
+	(MOVBstoreconst [ssacore.MakeValAndOff(0,4)] destptr
+		(MOVLstoreconst [ssacore.MakeValAndOff(0,0)] destptr mem))
 (Zero [6] destptr mem) =>
-	(MOVWstoreconst [MakeValAndOff(0,4)] destptr
-		(MOVLstoreconst [MakeValAndOff(0,0)] destptr mem))
+	(MOVWstoreconst [ssacore.MakeValAndOff(0,4)] destptr
+		(MOVLstoreconst [ssacore.MakeValAndOff(0,0)] destptr mem))
 (Zero [7] destptr mem) =>
-	(MOVLstoreconst [MakeValAndOff(0,3)] destptr
-		(MOVLstoreconst [MakeValAndOff(0,0)] destptr mem))
+	(MOVLstoreconst [ssacore.MakeValAndOff(0,3)] destptr
+		(MOVLstoreconst [ssacore.MakeValAndOff(0,0)] destptr mem))
 
 // Strip off any fractional word zeroing.
 (Zero [s] destptr mem) && s%4 != 0 && s > 4 =>
@@ -286,17 +286,17 @@
 
 // Zero small numbers of words directly.
 (Zero [8] destptr mem) =>
-	(MOVLstoreconst [MakeValAndOff(0,4)] destptr
-		(MOVLstoreconst [MakeValAndOff(0,0)] destptr mem))
+	(MOVLstoreconst [ssacore.MakeValAndOff(0,4)] destptr
+		(MOVLstoreconst [ssacore.MakeValAndOff(0,0)] destptr mem))
 (Zero [12] destptr mem) =>
-	(MOVLstoreconst [MakeValAndOff(0,8)] destptr
-		(MOVLstoreconst [MakeValAndOff(0,4)] destptr
-			(MOVLstoreconst [MakeValAndOff(0,0)] destptr mem)))
+	(MOVLstoreconst [ssacore.MakeValAndOff(0,8)] destptr
+		(MOVLstoreconst [ssacore.MakeValAndOff(0,4)] destptr
+			(MOVLstoreconst [ssacore.MakeValAndOff(0,0)] destptr mem)))
 (Zero [16] destptr mem) =>
-	(MOVLstoreconst [MakeValAndOff(0,12)] destptr
-		(MOVLstoreconst [MakeValAndOff(0,8)] destptr
-			(MOVLstoreconst [MakeValAndOff(0,4)] destptr
-				(MOVLstoreconst [MakeValAndOff(0,0)] destptr mem))))
+	(MOVLstoreconst [ssacore.MakeValAndOff(0,12)] destptr
+		(MOVLstoreconst [ssacore.MakeValAndOff(0,8)] destptr
+			(MOVLstoreconst [ssacore.MakeValAndOff(0,4)] destptr
+				(MOVLstoreconst [ssacore.MakeValAndOff(0,0)] destptr mem))))
 
 // Medium zeroing uses a duff device.
 (Zero [s] destptr mem)
@@ -368,13 +368,13 @@
 (PanicBounds ...) => (LoweredPanicBoundsRR ...)
 (PanicExtend ...) => (LoweredPanicExtendRR ...)
 
-(LoweredPanicBoundsRR [kind] x (MOVLconst [c]) mem) => (LoweredPanicBoundsRC [kind] x {PanicBoundsC{C:int64(c)}} mem)
-(LoweredPanicBoundsRR [kind] (MOVLconst [c]) y mem) => (LoweredPanicBoundsCR [kind] {PanicBoundsC{C:int64(c)}} y mem)
-(LoweredPanicBoundsRC [kind] {p} (MOVLconst [c]) mem) => (LoweredPanicBoundsCC [kind] {PanicBoundsCC{Cx:int64(c), Cy:p.C}} mem)
+(LoweredPanicBoundsRR [kind] x (MOVLconst [c]) mem) => (LoweredPanicBoundsRC [kind] x {ssacore.PanicBoundsC{C:int64(c)}} mem)
+(LoweredPanicBoundsRR [kind] (MOVLconst [c]) y mem) => (LoweredPanicBoundsCR [kind] {ssacore.PanicBoundsC{C:int64(c)}} y mem)
+(LoweredPanicBoundsRC [kind] {p} (MOVLconst [c]) mem) => (LoweredPanicBoundsCC [kind] {ssacore.PanicBoundsCC{Cx:int64(c), Cy:p.C}} mem)
 
-(LoweredPanicExtendRR [kind] hi lo (MOVLconst [c]) mem) => (LoweredPanicExtendRC [kind] hi lo {PanicBoundsC{C:int64(c)}} mem)
-(LoweredPanicExtendRR [kind] (MOVLconst [hi]) (MOVLconst [lo]) y mem) => (LoweredPanicBoundsCR [kind] {PanicBoundsC{C:int64(hi)<<32 + int64(uint32(lo))}} y mem)
-(LoweredPanicExtendRC [kind] {p} (MOVLconst [hi]) (MOVLconst [lo]) mem) => (LoweredPanicBoundsCC [kind] {PanicBoundsCC{Cx:int64(hi)<<32+int64(uint32(lo)), Cy:p.C}} mem)
+(LoweredPanicExtendRR [kind] hi lo (MOVLconst [c]) mem) => (LoweredPanicExtendRC [kind] hi lo {ssacore.PanicBoundsC{C:int64(c)}} mem)
+(LoweredPanicExtendRR [kind] (MOVLconst [hi]) (MOVLconst [lo]) y mem) => (LoweredPanicBoundsCR [kind] {ssacore.PanicBoundsC{C:int64(hi)<<32 + int64(uint32(lo))}} y mem)
+(LoweredPanicExtendRC [kind] {p} (MOVLconst [hi]) (MOVLconst [lo]) mem) => (LoweredPanicBoundsCC [kind] {ssacore.PanicBoundsCC{Cx:int64(hi)<<32+int64(uint32(lo)), Cy:p.C}} mem)
 
 // ***************************
 // Above: lowering rules
@@ -572,11 +572,11 @@
 (MOVWLZX x:(MOVWload [off] {sym} ptr mem)) && x.Uses == 1 && Clobber(x) => @x.Block (MOVWload <v.Type> [off] {sym} ptr mem)
 
 // replace load from same location as preceding store with zero/sign extension (or copy in case of full width)
-(MOVBload [off] {sym} ptr (MOVBstore [off2] {sym2} ptr2 x _)) && sym == sym2 && off == off2 && IsSamePtr(ptr, ptr2) => (MOVBLZX x)
-(MOVWload [off] {sym} ptr (MOVWstore [off2] {sym2} ptr2 x _)) && sym == sym2 && off == off2 && IsSamePtr(ptr, ptr2) => (MOVWLZX x)
-(MOVLload [off] {sym} ptr (MOVLstore [off2] {sym2} ptr2 x _)) && sym == sym2 && off == off2 && IsSamePtr(ptr, ptr2) => x
-(MOVBLSXload [off] {sym} ptr (MOVBstore [off2] {sym2} ptr2 x _)) && sym == sym2 && off == off2 && IsSamePtr(ptr, ptr2) => (MOVBLSX x)
-(MOVWLSXload [off] {sym} ptr (MOVWstore [off2] {sym2} ptr2 x _)) && sym == sym2 && off == off2 && IsSamePtr(ptr, ptr2) => (MOVWLSX x)
+(MOVBload [off] {sym} ptr (MOVBstore [off2] {sym2} ptr2 x _)) && sym == sym2 && off == off2 && ssacore.IsSamePtr(ptr, ptr2) => (MOVBLZX x)
+(MOVWload [off] {sym} ptr (MOVWstore [off2] {sym2} ptr2 x _)) && sym == sym2 && off == off2 && ssacore.IsSamePtr(ptr, ptr2) => (MOVWLZX x)
+(MOVLload [off] {sym} ptr (MOVLstore [off2] {sym2} ptr2 x _)) && sym == sym2 && off == off2 && ssacore.IsSamePtr(ptr, ptr2) => x
+(MOVBLSXload [off] {sym} ptr (MOVBstore [off2] {sym2} ptr2 x _)) && sym == sym2 && off == off2 && ssacore.IsSamePtr(ptr, ptr2) => (MOVBLSX x)
+(MOVWLSXload [off] {sym} ptr (MOVWstore [off2] {sym2} ptr2 x _)) && sym == sym2 && off == off2 && ssacore.IsSamePtr(ptr, ptr2) => (MOVWLSX x)
 
 // Fold extensions and ANDs together.
 (MOVBLZX (ANDLconst [c] x)) => (ANDLconst [c & 0xff] x)
@@ -611,11 +611,11 @@
 
 // Fold constants into stores.
 (MOVLstore [off] {sym} ptr (MOVLconst [c]) mem) =>
-	(MOVLstoreconst [MakeValAndOff(c,off)] {sym} ptr mem)
+	(MOVLstoreconst [ssacore.MakeValAndOff(c,off)] {sym} ptr mem)
 (MOVWstore [off] {sym} ptr (MOVLconst [c]) mem) =>
-	(MOVWstoreconst [MakeValAndOff(c,off)] {sym} ptr mem)
+	(MOVWstoreconst [ssacore.MakeValAndOff(c,off)] {sym} ptr mem)
 (MOVBstore [off] {sym} ptr (MOVLconst [c]) mem) =>
-	(MOVBstoreconst [MakeValAndOff(c,off)] {sym} ptr mem)
+	(MOVBstoreconst [ssacore.MakeValAndOff(c,off)] {sym} ptr mem)
 
 // Fold address offsets into constant stores.
 (MOV(L|W|B)storeconst [sc] {s} (ADDLconst [off] ptr) mem) && sc.CanAdd32(off) =>
@@ -666,7 +666,7 @@
 	((ADD|SUB|AND|OR|XOR)Lmodify [off] {sym} ptr x mem)
 (MOVLstore {sym} [off] ptr y:((ADD|AND|OR|XOR)Lconst [c] l:(MOVLload [off] {sym} ptr mem)) mem)
 	&& y.Uses==1 && l.Uses==1 && Clobber(y, l) =>
-	((ADD|AND|OR|XOR)Lconstmodify [MakeValAndOff(c,off)] {sym} ptr mem)
+	((ADD|AND|OR|XOR)Lconstmodify [ssacore.MakeValAndOff(c,off)] {sym} ptr mem)
 
 // fold LEALs together
 (LEAL [off1] {sym1} (LEAL [off2] {sym2} x)) && Is32Bit(int64(off1)+int64(off2)) && CanMergeSym(sym1, sym2) =>
@@ -935,11 +935,11 @@
 (CMP(L|W|B)const l:(MOV(L|W|B)load {sym} [off] ptr mem) [c])
 	&& l.Uses == 1
 	&& Clobber(l) =>
-  @l.Block (CMP(L|W|B)constload {sym} [MakeValAndOff(int32(c),off)] ptr mem)
+  @l.Block (CMP(L|W|B)constload {sym} [ssacore.MakeValAndOff(int32(c),off)] ptr mem)
 
-(CMPLload {sym} [off] ptr (MOVLconst [c]) mem) => (CMPLconstload {sym} [MakeValAndOff(c,off)] ptr mem)
-(CMPWload {sym} [off] ptr (MOVLconst [c]) mem) => (CMPWconstload {sym} [MakeValAndOff(int32(int16(c)),off)] ptr mem)
-(CMPBload {sym} [off] ptr (MOVLconst [c]) mem) => (CMPBconstload {sym} [MakeValAndOff(int32(int8(c)),off)] ptr mem)
+(CMPLload {sym} [off] ptr (MOVLconst [c]) mem) => (CMPLconstload {sym} [ssacore.MakeValAndOff(c,off)] ptr mem)
+(CMPWload {sym} [off] ptr (MOVLconst [c]) mem) => (CMPWconstload {sym} [ssacore.MakeValAndOff(int32(int16(c)),off)] ptr mem)
+(CMPBload {sym} [off] ptr (MOVLconst [c]) mem) => (CMPBconstload {sym} [ssacore.MakeValAndOff(int32(int8(c)),off)] ptr mem)
 
 (MOVBload [off] {sym} (SB) _) && SymIsRO(sym) => (MOVLconst [int32(Read8(sym, int64(off)))])
 (MOVWload [off] {sym} (SB) _) && SymIsRO(sym) => (MOVLconst [int32(Read16(sym, int64(off), config.Ctxt.Arch.ByteOrder))])

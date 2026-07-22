@@ -6,6 +6,7 @@ package ssa
 
 import (
 	"cmd/compile/internal/ssa/block"
+	"cmd/compile/internal/ssa/ssacore"
 	"cmd/compile/internal/ssa/ssaop"
 )
 
@@ -38,9 +39,9 @@ import (
 // minus transitive closure of initial loop dependent values.
 // We remove those values from their BBs and move them to preheader.
 
-func licm(f *Func) {
+func licm(f *ssacore.Func) {
 	// See likelyadjust.go for details about loop info.
-	nest := Loopnestfor(f)
+	nest := ssacore.Loopnestfor(f)
 	if len(nest.Loops) == 0 || nest.HasIrreducible {
 		return
 	}
@@ -135,10 +136,10 @@ func licm(f *Func) {
 				mid := f.NewBlock(block.BlockPlain)
 				mid.Pos = dest.Pos
 				// Splice into graph.
-				mid.Preds = append(mid.Preds, Edge{dest, outIdx})
-				mid.Succs = append(mid.Succs, Edge{h, inIdx})
-				h.Preds[inIdx] = Edge{mid, 0}
-				dest.Succs[outIdx] = Edge{mid, 0}
+				mid.Preds = append(mid.Preds, ssacore.Edge{B: dest, I: outIdx})
+				mid.Succs = append(mid.Succs, ssacore.Edge{B: h, I: inIdx})
+				h.Preds[inIdx] = ssacore.Edge{B: mid, I: 0}
+				dest.Succs[outIdx] = ssacore.Edge{B: mid, I: 0}
 
 				dest = mid
 			}

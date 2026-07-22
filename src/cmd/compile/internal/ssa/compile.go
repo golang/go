@@ -7,21 +7,17 @@ package ssa
 import (
 	"cmd/compile/internal/base"
 	"cmd/compile/internal/ssa/ssaconfig"
-	"cmd/internal/src"
+	"cmd/compile/internal/ssa/ssacore"
 	"fmt"
 	"hash/crc32"
 	"internal/buildcfg"
-	"io"
 	"log"
 	"math/rand"
-	"os"
-	"path/filepath"
 	"regexp"
 	"runtime"
 	"sort"
 	"strconv"
 	"strings"
-	"sync"
 	"time"
 )
 
@@ -31,7 +27,7 @@ import (
 //   - the order of f.Blocks is the order to emit the Blocks
 //   - the order of b.Values is the order to emit the Values in each Block
 //   - f has a non-nil regAlloc field
-func Compile(f *Func, htmlWriter *HTMLWriter) {
+func Compile(f *ssacore.Func, htmlWriter *HTMLWriter) {
 	// TODO: debugging - set flags to control verbosity of compiler,
 	// which phases to dump IR before/after, etc.
 	if f.Log() {
@@ -61,7 +57,7 @@ func Compile(f *Func, htmlWriter *HTMLWriter) {
 
 	// Run all the passes
 	if f.Log() {
-		PrintFunc(f)
+		ssacore.PrintFunc(f)
 	}
 	htmlWriter.WritePhase("start", "start")
 	if ssaconfig.BuildDump[f.Name] {
@@ -117,7 +113,7 @@ func Compile(f *Func, htmlWriter *HTMLWriter) {
 
 			if f.Log() {
 				f.Logf("  pass %s end %s\n", p.Name, stats)
-				PrintFunc(f)
+				ssacore.PrintFunc(f)
 			}
 			htmlWriter.WritePhase(phaseName, fmt.Sprintf("%s <span class=\"stats\">%s</span>", phaseName, stats))
 		}
@@ -166,83 +162,6 @@ func Compile(f *Func, htmlWriter *HTMLWriter) {
 
 	// Squash error printing defer
 	phaseName = ""
-}
-
-// DumpFileForPhase creates a file from the function name and phase name,
-// warning and returning nil if this is not possible.
-func (f *Func) DumpFileForPhase(phaseName string) io.WriteCloser {
-	f.dumpFileSeq++
-	fname := fmt.Sprintf("%s_%02d__%s.dump", f.Name, int(f.dumpFileSeq), phaseName)
-	fname = strings.ReplaceAll(fname, " ", "_")
-	fname = strings.ReplaceAll(fname, "/", "_")
-	fname = strings.ReplaceAll(fname, ":", "_")
-
-	if ssaDir := os.Getenv("GOSSADIR"); ssaDir != "" {
-		fname = filepath.Join(ssaDir, fname)
-	}
-
-	fi, err := os.Create(fname)
-	if err != nil {
-		f.Warnl(src.NoXPos, "Unable to create after-phase dump file %s", fname)
-		return nil
-	}
-	return fi
-}
-
-// DumpFile creates a file from the phase name and function name
-// Dumping is done to files to avoid buffering huge strings before
-// output.
-func (f *Func) DumpFile(phaseName string) {
-	fi := f.DumpFileForPhase(phaseName)
-	if fi != nil {
-		p := StringFuncPrinter{w: fi}
-		FprintFunc(p, f)
-		fi.Close()
-	}
-}
-
-type Pass struct {
-	Name     string
-	Fn       func(*Func)
-	Required bool
-	Disabled bool
-	Time     bool             // report time to run pass
-	Mem      bool             // report mem stats to run pass
-	Stats    int              // pass reports own "stats" (e.g., branches removed)
-	Debug    int              // pass performs some debugging. =1 should be in error-testing-friendly Warnl format.
-	Test     int              // pass-specific ad-hoc option, perhaps useful in development
-	Dump     map[string]bool  // dump if function name matches
-	Keywords map[string]int64 // ad hoc parameters, typically for experiments/tuning
-	UsedKW   map[string]bool  // if a keyword is supplied to a phase, note that it was used.
-}
-
-func (p *Pass) AddDump(s string) {
-	if p.Dump == nil {
-		p.Dump = make(map[string]bool)
-	}
-	p.Dump[s] = true
-}
-
-func (p *Pass) String() string {
-	if p == nil {
-		return "nil pass"
-	}
-	return p.Name
-}
-
-var kwMu sync.Mutex
-
-func (p *Pass) Val(kw string, ifUnset int64) int64 {
-	if p == nil || p.Keywords == nil {
-		return ifUnset
-	}
-	if v, ok := p.Keywords[kw]; ok {
-		kwMu.Lock()
-		p.UsedKW[kw] = true
-		kwMu.Unlock()
-		return v
-	}
-	return ifUnset
 }
 
 // Run consistency checker between each phase
@@ -338,16 +257,16 @@ commas. For example:
 		switch flag {
 		case "on":
 			checkEnabled = val != 0
-			DebugPoset = checkEnabled // also turn on advanced self-checking in prove's data structure
+			ssacore.DebugPoset = checkEnabled // also turn on advanced self-checking in prove's data structure
 			return ""
 		case "off":
 			checkEnabled = val == 0
-			DebugPoset = checkEnabled
+			ssacore.DebugPoset = checkEnabled
 			return ""
 		case "seed":
 			checkEnabled = true
 			checkRandSeed = val
-			DebugPoset = checkEnabled
+			ssacore.DebugPoset = checkEnabled
 			return ""
 		}
 	}
@@ -476,7 +395,7 @@ commas. For example:
 }
 
 // list of passes for the compiler
-var passes = [...]Pass{
+var passes = [...]ssacore.Pass{
 	{Name: "number lines", Fn: numberLines, Required: true},
 	{Name: "early phielim and copyelim", Fn: copyelim},
 	{Name: "early deadcode", Fn: deadcode}, // remove generated dead code to avoid doing pointless work during opt
@@ -494,7 +413,7 @@ var passes = [...]Pass{
 	{Name: "divisible", Fn: divisible, Required: true},
 	{Name: "divmod", Fn: divmod, Required: true},
 	{Name: "middle opt", Fn: opt, Required: true},
-	{Name: "known bits", Fn: KnownBits},
+	{Name: "known bits", Fn: ssacore.KnownBits},
 	{Name: "early fuse", Fn: fuseEarly},
 	{Name: "expand calls", Fn: expandCalls, Required: true},
 	{Name: "decompose builtin", Fn: postExpandCallsDecompose, Required: true},

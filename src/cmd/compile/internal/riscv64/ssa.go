@@ -9,8 +9,8 @@ import (
 	"cmd/compile/internal/ir"
 	"cmd/compile/internal/logopt"
 	"cmd/compile/internal/objw"
-	"cmd/compile/internal/ssa"
 	"cmd/compile/internal/ssa/block"
+	"cmd/compile/internal/ssa/ssacore"
 	"cmd/compile/internal/ssa/ssaop"
 	"cmd/compile/internal/ssagen"
 	"cmd/compile/internal/types"
@@ -187,9 +187,9 @@ var fracMovOps = []obj.As{riscv.AMOVB, riscv.AMOVH, riscv.AMOVW, riscv.AMOV}
 
 // ssaMarkMoves marks any MOVXconst ops that need to avoid clobbering flags.
 // RISC-V has no flags, so this is a no-op.
-func ssaMarkMoves(s *ssagen.State, b *ssa.Block) {}
+func ssaMarkMoves(s *ssagen.State, b *ssacore.Block) {}
 
-func ssaGenValue(s *ssagen.State, v *ssa.Value) {
+func ssaGenValue(s *ssagen.State, v *ssacore.Value) {
 	s.SetPos(v.Pos)
 
 	switch v.Op {
@@ -528,7 +528,7 @@ func ssaGenValue(s *ssagen.State, v *ssa.Value) {
 
 	case ssaop.OpRISCV64LoweredPanicBoundsRR, ssaop.OpRISCV64LoweredPanicBoundsRC, ssaop.OpRISCV64LoweredPanicBoundsCR, ssaop.OpRISCV64LoweredPanicBoundsCC:
 		// Compute the constant we put in the PCData entry for this call.
-		code, signed := ssa.BoundsKind(v.AuxInt).Code()
+		code, signed := ssacore.BoundsKind(v.AuxInt).Code()
 		xIsReg := false
 		yIsReg := false
 		xVal := 0
@@ -542,7 +542,7 @@ func ssaGenValue(s *ssagen.State, v *ssa.Value) {
 		case ssaop.OpRISCV64LoweredPanicBoundsRC:
 			xIsReg = true
 			xVal = int(v.Args[0].Reg() - riscv.REG_X5)
-			c := v.Aux.(ssa.PanicBoundsC).C
+			c := v.Aux.(ssacore.PanicBoundsC).C
 			if c >= 0 && c <= abi.BoundsMaxConst {
 				yVal = int(c)
 			} else {
@@ -560,7 +560,7 @@ func ssaGenValue(s *ssagen.State, v *ssa.Value) {
 		case ssaop.OpRISCV64LoweredPanicBoundsCR:
 			yIsReg = true
 			yVal = int(v.Args[0].Reg() - riscv.REG_X5)
-			c := v.Aux.(ssa.PanicBoundsC).C
+			c := v.Aux.(ssacore.PanicBoundsC).C
 			if c >= 0 && c <= abi.BoundsMaxConst {
 				xVal = int(c)
 			} else {
@@ -575,7 +575,7 @@ func ssaGenValue(s *ssagen.State, v *ssa.Value) {
 				p.To.Reg = riscv.REG_X5 + int16(xVal)
 			}
 		case ssaop.OpRISCV64LoweredPanicBoundsCC:
-			c := v.Aux.(ssa.PanicBoundsCC).Cx
+			c := v.Aux.(ssacore.PanicBoundsCC).Cx
 			if c >= 0 && c <= abi.BoundsMaxConst {
 				xVal = int(c)
 			} else {
@@ -587,7 +587,7 @@ func ssaGenValue(s *ssagen.State, v *ssa.Value) {
 				p.To.Type = obj.TYPE_REG
 				p.To.Reg = riscv.REG_X5 + int16(xVal)
 			}
-			c = v.Aux.(ssa.PanicBoundsCC).Cy
+			c = v.Aux.(ssacore.PanicBoundsCC).Cy
 			if c >= 0 && c <= abi.BoundsMaxConst {
 				yVal = int(c)
 			} else {
@@ -1016,7 +1016,7 @@ var blockBranch = [...]obj.As{
 	block.BlockRISCV64BNEZ: riscv.ABNEZ,
 }
 
-func ssaGenBlock(s *ssagen.State, b, next *ssa.Block) {
+func ssaGenBlock(s *ssagen.State, b, next *ssacore.Block) {
 	s.SetPos(b.Pos)
 
 	switch b.Kind {
@@ -1043,7 +1043,7 @@ func ssaGenBlock(s *ssagen.State, b, next *ssa.Block) {
 		case b.Succs[1].Block():
 			p = s.Br(as, b.Succs[0].Block())
 		default:
-			if b.Likely != ssa.BranchUnlikely {
+			if b.Likely != ssacore.BranchUnlikely {
 				p = s.Br(as, b.Succs[0].Block())
 				s.Br(obj.AJMP, b.Succs[1].Block())
 			} else {
@@ -1073,7 +1073,7 @@ func ssaGenBlock(s *ssagen.State, b, next *ssa.Block) {
 	}
 }
 
-func loadRegResult(s *ssagen.State, f *ssa.Func, t *types.Type, reg int16, n *ir.Name, off int64) *obj.Prog {
+func loadRegResult(s *ssagen.State, f *ssacore.Func, t *types.Type, reg int16, n *ir.Name, off int64) *obj.Prog {
 	p := s.Prog(loadByType(t))
 	p.From.Type = obj.TYPE_MEM
 	p.From.Name = obj.NAME_AUTO
@@ -1084,7 +1084,7 @@ func loadRegResult(s *ssagen.State, f *ssa.Func, t *types.Type, reg int16, n *ir
 	return p
 }
 
-func spillArgReg(pp *objw.Progs, p *obj.Prog, f *ssa.Func, t *types.Type, reg int16, n *ir.Name, off int64) *obj.Prog {
+func spillArgReg(pp *objw.Progs, p *obj.Prog, f *ssacore.Func, t *types.Type, reg int16, n *ir.Name, off int64) *obj.Prog {
 	p = pp.Append(p, storeByType(t), obj.TYPE_REG, reg, 0, obj.TYPE_MEM, 0, n.FrameOffset()+off)
 	p.To.Name = obj.NAME_PARAM
 	p.To.Sym = n.Linksym()

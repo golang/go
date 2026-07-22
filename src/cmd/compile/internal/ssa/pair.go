@@ -7,6 +7,7 @@ package ssa
 import (
 	"cmd/compile/internal/ir"
 	"cmd/compile/internal/ssa/block"
+	"cmd/compile/internal/ssa/ssacore"
 	"cmd/compile/internal/ssa/ssaop"
 	"cmd/compile/internal/types"
 	"cmd/internal/obj"
@@ -15,7 +16,7 @@ import (
 
 // The pair pass finds memory operations that can be paired up
 // into single 2-register memory instructions.
-func pair(f *Func) {
+func pair(f *ssacore.Func) {
 	// Only arm64 for now. This pass is fairly arch-specific.
 	switch f.Config.Arch {
 	case "arm64":
@@ -63,7 +64,7 @@ var pairableStores = map[ssaop.Op]pairInfo{
 // This function is best-effort. The compiled function must
 // still work if offsetOk always returns true.
 // TODO: this is currently arm64-specific.
-func offsetOk(aux Aux, off, width int64) bool {
+func offsetOk(aux ssacore.Aux, off, width int64) bool {
 	if true {
 		// Seems to generate slightly smaller code if we just
 		// always allow this rewrite.
@@ -120,12 +121,12 @@ func offsetOk(aux Aux, off, width int64) bool {
 	return false
 }
 
-func pairLoads(f *Func) {
-	var loads []*Value
+func pairLoads(f *ssacore.Func) {
+	var loads []*ssacore.Value
 
 	// Registry of aux values for sorting.
-	auxIDs := map[Aux]int{}
-	auxID := func(aux Aux) int {
+	auxIDs := map[ssacore.Aux]int{}
+	auxID := func(aux ssacore.Aux) int {
 		id, ok := auxIDs[aux]
 		if !ok {
 			id = len(auxIDs)
@@ -153,7 +154,7 @@ func pairLoads(f *Func) {
 		}
 
 		// Sort to put pairable loads together.
-		slices.SortFunc(loads, func(x, y *Value) int {
+		slices.SortFunc(loads, func(x, y *ssacore.Value) int {
 			// First sort by op, ptr, and memory arg.
 			if x.Op != y.Op {
 				return int(x.Op - y.Op)
@@ -214,12 +215,12 @@ func pairLoads(f *Func) {
 	// (But see the memory barrier case below.)
 	type nextBlockKey struct {
 		op     ssaop.Op
-		ptr    ID
-		mem    ID
+		ptr    ssacore.ID
+		mem    ssacore.ID
 		auxInt int64
 		aux    any
 	}
-	nextBlock := map[nextBlockKey]*Value{}
+	nextBlock := map[nextBlockKey]*ssacore.Value{}
 	for _, b := range f.Blocks {
 		if memoryBarrierTest(b) {
 			// TODO: Do we really need to skip write barrier test blocks?
@@ -307,7 +308,7 @@ func pairLoads(f *Func) {
 	}
 }
 
-func memoryBarrierTest(b *Block) bool {
+func memoryBarrierTest(b *ssacore.Block) bool {
 	if b.Kind != block.BlockARM64NZW {
 		return false
 	}
@@ -325,14 +326,14 @@ func memoryBarrierTest(b *Block) bool {
 // It collects stores into a buffer where they can be freely reordered.
 // When encountering an instruction that cannot be added to the buffer,
 // it pairs the accumulated stores, flushes the buffer, and continues processing.
-func pairStores(f *Func) {
+func pairStores(f *ssacore.Func) {
 	last := f.Cache.AllocBoolSlice(f.NumValues())
 	defer f.Cache.FreeBoolSlice(last)
 
 	// memChain contains a list of stores with the same ptr/aux pair and
 	// nonoverlapping write ranges [AuxInt:AuxInt+writeSize]. All of the
 	// elements of memChain can be reordered with each other.
-	memChain := []*Value{}
+	memChain := []*ssacore.Value{}
 
 	// Limit of length of memChain array.
 	// This keeps us in O(n) territory.
@@ -347,7 +348,7 @@ func pairStores(f *Func) {
 		}
 
 		// Sort in increasing AuxInt to put pairable stores together.
-		slices.SortFunc(memChain, func(x, y *Value) int {
+		slices.SortFunc(memChain, func(x, y *ssacore.Value) int {
 			return int(x.AuxInt - y.AuxInt)
 		})
 
@@ -365,7 +366,7 @@ func pairStores(f *Func) {
 
 			if w.Op == v.Op && w.AuxInt == off+info.width {
 				// Arguments for the merged store: ptr, val1, val2, mem.
-				args := []*Value{v.Args[0], v.Args[1], w.Args[1], mem}
+				args := []*ssacore.Value{v.Args[0], v.Args[1], w.Args[1], mem}
 
 				v.Reset(info.pair)
 				v.AddArgs(args...)
@@ -387,7 +388,7 @@ func pairStores(f *Func) {
 
 	// prevStore returns the previous store in the
 	// same block, or nil if there are none.
-	prevStore := func(v *Value) *Value {
+	prevStore := func(v *ssacore.Value) *ssacore.Value {
 		if v.Op == ssaop.OpInitMem || v.Op == ssaop.OpPhi {
 			return nil
 		}
@@ -439,7 +440,7 @@ func pairStores(f *Func) {
 				}
 			}
 		}
-		var lastMem *Value
+		var lastMem *ssacore.Value
 		for _, v := range b.Values {
 			if last[v.ID] {
 				lastMem = v
@@ -480,7 +481,7 @@ func pairStores(f *Func) {
 
 			for _, w := range memChain {
 				wWriteSize := storeWidth(w.Op)
-				if Overlap(w.AuxInt, wWriteSize, v.AuxInt, writeSize) {
+				if ssacore.Overlap(w.AuxInt, wWriteSize, v.AuxInt, writeSize) {
 					// Aliases with w's location.
 					// Flush the chain and start a new one with v.
 					flushMemChain()

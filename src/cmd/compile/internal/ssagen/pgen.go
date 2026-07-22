@@ -20,6 +20,7 @@ import (
 	"cmd/compile/internal/objw"
 	"cmd/compile/internal/pgoir"
 	"cmd/compile/internal/ssa"
+	"cmd/compile/internal/ssa/ssacore"
 	"cmd/compile/internal/ssa/ssaop"
 	"cmd/compile/internal/types"
 	"cmd/internal/obj"
@@ -121,7 +122,7 @@ func needAlloc(n *ir.Name) bool {
 	}
 }
 
-func (s *ssafn) AllocFrame(f *ssa.Func) {
+func (s *ssafn) AllocFrame(f *ssacore.Func) {
 	s.stksize = 0
 	s.stkptrsize = 0
 	s.stkalign = int64(types.RegSize)
@@ -143,7 +144,7 @@ func (s *ssafn) AllocFrame(f *ssa.Func) {
 	}
 
 	for _, l := range f.RegAlloc {
-		if ls, ok := l.(ssa.LocalSlot); ok {
+		if ls, ok := l.(ssacore.LocalSlot); ok {
 			ls.N.SetUsed(true)
 		}
 	}
@@ -211,7 +212,7 @@ func (s *ssafn) AllocFrame(f *ssa.Func) {
 	if base.Debug.MergeLocalsTrace > 1 && mls != nil {
 		fmt.Fprintf(os.Stderr, "=-= sorted DCL for %v:\n", fn)
 		for i, v := range fn.Dcl {
-			if !ssa.IsMergeCandidate(v) {
+			if !ssacore.IsMergeCandidate(v) {
 				continue
 			}
 			fmt.Fprintf(os.Stderr, " %d: %q isleader=%v subsumed=%v used=%v sz=%d align=%d t=%s\n", i, v.Sym().Name, mls.IsLeader(v), mls.Subsumed(v), v.Used(), v.Type().Size(), v.Type().Alignment(), v.Type().String())
@@ -381,7 +382,7 @@ func weakenGlobalMapInitRelocs(fn *ir.Func) {
 // StackOffset returns the stack location of a LocalSlot relative to the
 // stack pointer, suitable for use in a DWARF location entry. This has nothing
 // to do with its offset in the user variable.
-func StackOffset(slot ssa.LocalSlot) int32 {
+func StackOffset(slot ssacore.LocalSlot) int32 {
 	n := slot.N
 	var off int64
 	switch n.Class {

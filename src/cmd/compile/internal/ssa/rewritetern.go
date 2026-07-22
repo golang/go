@@ -7,6 +7,8 @@ package ssa
 import (
 	"internal/goarch"
 	"slices"
+
+	"cmd/compile/internal/ssa/ssacore"
 )
 
 var truthTableValues [3]uint8 = [3]uint8{0b1111_0000, 0b1100_1100, 0b1010_1010}
@@ -34,8 +36,8 @@ func (slop SIMDLogicalOP) String() string {
 	return "wrong"
 }
 
-func rewriteTern(f *Func) {
-	if f.MaxCPUFeatures == CPUNone {
+func rewriteTern(f *ssacore.Func) {
+	if f.MaxCPUFeatures == ssacore.CPUNone {
 		return
 	}
 
@@ -45,7 +47,7 @@ func rewriteTern(f *Func) {
 		return
 	}
 
-	boolExprTrees := make(map[*Value]SIMDLogicalOP)
+	boolExprTrees := make(map[*ssacore.Value]SIMDLogicalOP)
 
 	// Find logical-expr expression trees, including leaves.
 	// interior nodes will be marked sloInterior,
@@ -69,17 +71,17 @@ func rewriteTern(f *Func) {
 	}
 
 	// get a canonical sorted set of roots
-	var roots []*Value
+	var roots []*ssacore.Value
 	for v, slo := range boolExprTrees {
 		if f.Pass.Debug > 1 {
 			f.Warnl(v.Pos, "%s has SLO %v", v.LongString(), slo)
 		}
 
-		if slo&sloInterior == 0 && v.Block.CPUfeatures.HasFeature(CPUavx512) {
+		if slo&sloInterior == 0 && v.Block.CPUfeatures.HasFeature(ssacore.CPUavx512) {
 			roots = append(roots, v)
 		}
 	}
-	slices.SortFunc(roots, func(u, v *Value) int { return int(u.ID - v.ID) }) // IDs are small enough to not care about overflow.
+	slices.SortFunc(roots, func(u, v *ssacore.Value) int { return int(u.ID - v.ID) }) // IDs are small enough to not care about overflow.
 
 	// This rewrite works by iterating over the root set.
 	// For each boolean expression, it walks the expression
@@ -101,7 +103,7 @@ func rewriteTern(f *Func) {
 	// 2) u = NOT(v) and u lacks the CPU feature
 	// 3) u = OP(v, w) and u lacks the CPU feature
 	// 4) u = OP(v, w) and u has more than 3 variable inputs.	var rewrite func(v *Value) [3]*Value
-	var rewrite func(v *Value) [3]*Value
+	var rewrite func(v *ssacore.Value) [3]*ssacore.Value
 
 	// computeTT returns the truth table for a boolean expression
 	// over the variables in vars, where vars[0] varies slowest in
@@ -111,14 +113,14 @@ func rewriteTern(f *Func) {
 	//            x: 0 0 0 0 1 1 1 1
 	//            y: 0 0 1 1 0 0 1 1
 	//            z: 0 1 0 1 0 1 0 1
-	var computeTT func(v *Value, vars [3]*Value) uint8
+	var computeTT func(v *ssacore.Value, vars [3]*ssacore.Value) uint8
 
 	// combine two sets of variables into one, returning ok/not
 	// if the two sets contained 3 or fewer elements.  Combine
 	// ensures that the sets of Values never contain duplicates.
 	// (Duplicates would create less-efficient code, not incorrect code.)
-	combine := func(a, b [3]*Value) ([3]*Value, bool) {
-		var c [3]*Value
+	combine := func(a, b [3]*ssacore.Value) ([3]*ssacore.Value, bool) {
+		var c [3]*ssacore.Value
 		i := 0
 		for _, v := range a {
 			if v == nil {
@@ -138,7 +140,7 @@ func rewriteTern(f *Func) {
 				}
 			}
 			if i == 3 {
-				return [3]*Value{}, false
+				return [3]*ssacore.Value{}, false
 			}
 			c[i] = v
 			i++
@@ -146,7 +148,7 @@ func rewriteTern(f *Func) {
 		return c, true
 	}
 
-	computeTT = func(v *Value, vars [3]*Value) uint8 {
+	computeTT = func(v *ssacore.Value, vars [3]*ssacore.Value) uint8 {
 		i := 0
 		for ; i < len(vars); i++ {
 			if vars[i] == v {
@@ -170,7 +172,7 @@ func rewriteTern(f *Func) {
 		panic("switch should have covered all cases, or unknown var in logical expression")
 	}
 
-	replace := func(a0 *Value, vars0 [3]*Value) {
+	replace := func(a0 *ssacore.Value, vars0 [3]*ssacore.Value) {
 		imm := computeTT(a0, vars0)
 		op := ternOpForLogical(a0.Op)
 		if op == a0.Op {
@@ -192,7 +194,7 @@ func rewriteTern(f *Func) {
 	// to a set that is not full.  It seems possible that a shared
 	// subexpression in tricky combination with blocks lacking the
 	// AVX512 feature might permit this.
-	addOne := func(vars [3]*Value, v *Value) [3]*Value {
+	addOne := func(vars [3]*ssacore.Value, v *ssacore.Value) [3]*ssacore.Value {
 		if vars[2] != nil {
 			panic("rewriteTern.addOne, vars[2] should be nil")
 		}
@@ -207,19 +209,19 @@ func rewriteTern(f *Func) {
 		return vars
 	}
 
-	rewrite = func(v *Value) [3]*Value {
+	rewrite = func(v *ssacore.Value) [3]*ssacore.Value {
 		slo := boolExprTrees[v]
 		if slo == sloInterior { // leaf node, i.e., a "variable"
-			return [3]*Value{v, nil, nil}
+			return [3]*ssacore.Value{v, nil, nil}
 		}
-		var vars [3]*Value
-		hasFeature := v.Block.CPUfeatures.HasFeature(CPUavx512)
+		var vars [3]*ssacore.Value
+		hasFeature := v.Block.CPUfeatures.HasFeature(ssacore.CPUavx512)
 		if slo&sloNot == sloNot {
 			vars = rewrite(v.Args[0])
 			if !hasFeature {
 				if vars[2] != nil {
 					replace(v.Args[0], vars)
-					return [3]*Value{v, nil, nil}
+					return [3]*ssacore.Value{v, nil, nil}
 				}
 				return vars
 			}
@@ -234,13 +236,13 @@ func rewriteTern(f *Func) {
 				f.Warnl(a0.Pos, "combine(%v, %v) -> %v, %v", vars0, vars1, vars, ok)
 			}
 
-			if !(ok && v.Block.CPUfeatures.HasFeature(CPUavx512)) {
+			if !(ok && v.Block.CPUfeatures.HasFeature(ssacore.CPUavx512)) {
 				// too many variables, or cannot rewrite current values.
 				// rewrite one or both subtrees if possible
-				if vars0[2] != nil && a0.Block.CPUfeatures.HasFeature(CPUavx512) {
+				if vars0[2] != nil && a0.Block.CPUfeatures.HasFeature(ssacore.CPUavx512) {
 					replace(a0, vars0)
 				}
-				if vars1[2] != nil && a1.Block.CPUfeatures.HasFeature(CPUavx512) {
+				if vars1[2] != nil && a1.Block.CPUfeatures.HasFeature(ssacore.CPUavx512) {
 					replace(a1, vars1)
 				}
 
@@ -260,7 +262,7 @@ func rewriteTern(f *Func) {
 						// and return the variable set {v, c, d}
 						//
 						// But for now, just restart with a0 and a1.
-						return [3]*Value{a0, a1, nil}
+						return [3]*ssacore.Value{a0, a1, nil}
 					} else {
 						// a1 (maybe) rewrote, a0 has room for another var
 						vars = addOne(vars0, a1)
@@ -272,7 +274,7 @@ func rewriteTern(f *Func) {
 					// both (maybe) rewrote
 					// a0 and a1 are different because otherwise their variable
 					// sets would have combined "ok".
-					return [3]*Value{a0, a1, nil}
+					return [3]*ssacore.Value{a0, a1, nil}
 				}
 				// continue with either the vars from "ok" or the updated set of vars.
 			}
@@ -280,7 +282,7 @@ func rewriteTern(f *Func) {
 		// if root and 3 vars and hasFeature, rewrite.
 		if slo&sloInterior == 0 && vars[2] != nil && hasFeature {
 			replace(v, vars)
-			return [3]*Value{v, nil, nil}
+			return [3]*ssacore.Value{v, nil, nil}
 		}
 		return vars
 	}

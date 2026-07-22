@@ -5,6 +5,7 @@
 package ssa
 
 import (
+	"cmd/compile/internal/ssa/ssacore"
 	"cmd/compile/internal/ssa/ssaop"
 	"cmd/compile/internal/types"
 	"cmp"
@@ -14,7 +15,7 @@ import (
 // decompose converts phi ops on compound builtin types into phi
 // ops on simple types, then invokes rewrite rules to decompose
 // other ops on those types.
-func decomposeBuiltin(f *Func) {
+func decomposeBuiltin(f *ssacore.Func) {
 	// Decompose phis
 	for _, b := range f.Blocks {
 		for _, v := range b.Values {
@@ -38,7 +39,7 @@ func decomposeBuiltin(f *Func) {
 	// accumulate new LocalSlots in newNames for addition after the iteration.  This decomposition is for
 	// builtin types with leaf components, and thus there is no need to reprocess the newly create LocalSlots.
 	var toDelete []namedVal
-	var newNames []LocalSlot
+	var newNames []ssacore.LocalSlot
 	for i, name := range f.Names {
 		t := name.Type
 		switch {
@@ -110,7 +111,7 @@ func decomposeBuiltin(f *Func) {
 	f.Names = append(f.Names, newNames...)
 }
 
-func maybeAppend(f *Func, ss []LocalSlot, s *LocalSlot) []LocalSlot {
+func maybeAppend(f *ssacore.Func, ss []ssacore.LocalSlot, s *ssacore.LocalSlot) []ssacore.LocalSlot {
 	if _, ok := f.NamedValues[*s]; !ok {
 		f.NamedValues[*s] = nil
 		return append(ss, *s)
@@ -118,11 +119,11 @@ func maybeAppend(f *Func, ss []LocalSlot, s *LocalSlot) []LocalSlot {
 	return ss
 }
 
-func maybeAppend2(f *Func, ss []LocalSlot, s1, s2 *LocalSlot) []LocalSlot {
+func maybeAppend2(f *ssacore.Func, ss []ssacore.LocalSlot, s1, s2 *ssacore.LocalSlot) []ssacore.LocalSlot {
 	return maybeAppend(f, maybeAppend(f, ss, s1), s2)
 }
 
-func decomposeBuiltinPhi(v *Value) {
+func decomposeBuiltinPhi(v *ssacore.Value) {
 	switch {
 	case v.Type.IsInteger() && v.Type.Size() > v.Block.Func.Config.RegSize:
 		decomposeInt64Phi(v)
@@ -141,7 +142,7 @@ func decomposeBuiltinPhi(v *Value) {
 	}
 }
 
-func decomposeStringPhi(v *Value) {
+func decomposeStringPhi(v *ssacore.Value) {
 	types := &v.Block.Func.Config.Types
 	ptrType := types.BytePtr
 	lenType := types.Int
@@ -157,7 +158,7 @@ func decomposeStringPhi(v *Value) {
 	v.AddArg(len)
 }
 
-func decomposeSlicePhi(v *Value) {
+func decomposeSlicePhi(v *ssacore.Value) {
 	types := &v.Block.Func.Config.Types
 	ptrType := v.Type.Elem().PtrTo()
 	lenType := types.Int
@@ -176,7 +177,7 @@ func decomposeSlicePhi(v *Value) {
 	v.AddArg(cap)
 }
 
-func decomposeInt64Phi(v *Value) {
+func decomposeInt64Phi(v *ssacore.Value) {
 	cfgtypes := &v.Block.Func.Config.Types
 	var partType *types.Type
 	if v.Type.IsSigned() {
@@ -196,7 +197,7 @@ func decomposeInt64Phi(v *Value) {
 	v.AddArg(lo)
 }
 
-func decomposeComplexPhi(v *Value) {
+func decomposeComplexPhi(v *ssacore.Value) {
 	cfgtypes := &v.Block.Func.Config.Types
 	var partType *types.Type
 	switch z := v.Type.Size(); z {
@@ -219,7 +220,7 @@ func decomposeComplexPhi(v *Value) {
 	v.AddArg(imag)
 }
 
-func decomposeInterfacePhi(v *Value) {
+func decomposeInterfacePhi(v *ssacore.Value) {
 	uintptrType := v.Block.Func.Config.Types.Uintptr
 	ptrType := v.Block.Func.Config.Types.BytePtr
 
@@ -234,7 +235,7 @@ func decomposeInterfacePhi(v *Value) {
 	v.AddArg(data)
 }
 
-func decomposeUser(f *Func) {
+func decomposeUser(f *ssacore.Func) {
 	for _, b := range f.Blocks {
 		for _, v := range b.Values {
 			if v.Op != ssaop.OpPhi {
@@ -245,7 +246,7 @@ func decomposeUser(f *Func) {
 	}
 	// Split up named values into their components.
 	i := 0
-	var newNames []LocalSlot
+	var newNames []ssacore.LocalSlot
 	for _, name := range f.Names {
 		t := name.Type
 		switch {
@@ -265,7 +266,7 @@ func decomposeUser(f *Func) {
 // decomposeUserArrayInto creates names for the element(s) of arrays referenced
 // by name where possible, and appends those new names to slots, which is then
 // returned.
-func decomposeUserArrayInto(f *Func, name *LocalSlot, slots []LocalSlot) []LocalSlot {
+func decomposeUserArrayInto(f *ssacore.Func, name *ssacore.LocalSlot, slots []ssacore.LocalSlot) []ssacore.LocalSlot {
 	t := name.Type
 	if t.Size() == 0 {
 		// TODO(khr): Not sure what to do here.  Probably nothing.
@@ -277,7 +278,7 @@ func decomposeUserArrayInto(f *Func, name *LocalSlot, slots []LocalSlot) []Local
 		f.Fatalf("array not of size 1")
 	}
 	elemName := f.SplitArray(name)
-	var keep []*Value
+	var keep []*ssacore.Value
 	for _, v := range f.NamedValues[*name] {
 		if v.Op != ssaop.OpArrayMake1 {
 			keep = append(keep, v)
@@ -304,8 +305,8 @@ func decomposeUserArrayInto(f *Func, name *LocalSlot, slots []LocalSlot) []Local
 // decomposeUserStructInto creates names for the fields(s) of structs referenced
 // by name where possible, and appends those new names to slots, which is then
 // returned.
-func decomposeUserStructInto(f *Func, name *LocalSlot, slots []LocalSlot) []LocalSlot {
-	fnames := []*LocalSlot{} // slots for struct in name
+func decomposeUserStructInto(f *ssacore.Func, name *ssacore.LocalSlot, slots []ssacore.LocalSlot) []ssacore.LocalSlot {
+	fnames := []*ssacore.LocalSlot{} // slots for struct in name
 	t := name.Type
 	n := t.NumFields()
 
@@ -319,7 +320,7 @@ func decomposeUserStructInto(f *Func, name *LocalSlot, slots []LocalSlot) []Loca
 		}
 	}
 
-	var keep []*Value
+	var keep []*ssacore.Value
 	// create named values for each struct field
 	for _, v := range f.NamedValues[*name] {
 		if v.Op != ssaop.OpStructMake || len(v.Args) != n {
@@ -350,7 +351,7 @@ func decomposeUserStructInto(f *Func, name *LocalSlot, slots []LocalSlot) []Loca
 	}
 	return slots
 }
-func decomposeUserPhi(v *Value) {
+func decomposeUserPhi(v *ssacore.Value) {
 	switch {
 	case isStructNotSIMD(v.Type):
 		decomposeStructPhi(v)
@@ -361,14 +362,14 @@ func decomposeUserPhi(v *Value) {
 
 // decomposeStructPhi replaces phi-of-struct with structmake(phi-for-each-field),
 // and then recursively decomposes the phis for each field.
-func decomposeStructPhi(v *Value) {
+func decomposeStructPhi(v *ssacore.Value) {
 	t := v.Type
 	if t.Size() == 0 {
 		v.Reset(ssaop.OpEmpty)
 		return
 	}
 	n := t.NumFields()
-	fields := make([]*Value, 0, MaxStruct)
+	fields := make([]*ssacore.Value, 0, ssacore.MaxStruct)
 	for i := 0; i < n; i++ {
 		fields = append(fields, v.Block.NewValue0(v.Pos, ssaop.OpPhi, t.FieldType(i)))
 	}
@@ -388,7 +389,7 @@ func decomposeStructPhi(v *Value) {
 
 // decomposeArrayPhi replaces phi-of-array with arraymake(phi-of-array-element),
 // and then recursively decomposes the element phi.
-func decomposeArrayPhi(v *Value) {
+func decomposeArrayPhi(v *ssacore.Value) {
 	t := v.Type
 	if t.Size() == 0 {
 		v.Reset(ssaop.OpEmpty)
@@ -408,17 +409,13 @@ func decomposeArrayPhi(v *Value) {
 	decomposeUserPhi(elem)
 }
 
-// MaxStruct is the maximum number of fields a struct
-// can have and still be SSAable.
-const MaxStruct = 4
-
 type namedVal struct {
 	locIndex, valIndex int // f.NamedValues[f.Names[locIndex]][valIndex] = key
 }
 
 // deleteNamedVals removes particular values with debugger names from f's naming data structures,
 // removes all values with OpInvalid, and re-sorts the list of Names.
-func deleteNamedVals(f *Func, toDelete []namedVal) {
+func deleteNamedVals(f *ssacore.Func, toDelete []namedVal) {
 	// Arrange to delete from larger indices to smaller, to ensure swap-with-end deletion does not invalidate pending indices.
 	slices.SortFunc(toDelete, func(a, b namedVal) int {
 		if a.locIndex != b.locIndex {
@@ -458,7 +455,7 @@ func deleteNamedVals(f *Func, toDelete []namedVal) {
 			delete(f.NamedValues, loc)
 			end--
 			f.Names[i] = f.Names[end]
-			f.Names[end] = LocalSlot{}
+			f.Names[end] = ssacore.LocalSlot{}
 		}
 	}
 	f.Names = f.Names[:end]

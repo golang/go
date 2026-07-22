@@ -388,13 +388,13 @@
 
 // MVC for other moves. Use up to 4 instructions (sizes up to 1024 bytes).
 (Move [s] dst src mem) && s > 0 && s <= 256 && LogLargeCopyValue(v, s) =>
-	(MVC [MakeValAndOff(int32(s), 0)] dst src mem)
+	(MVC [ssacore.MakeValAndOff(int32(s), 0)] dst src mem)
 (Move [s] dst src mem) && s > 256 && s <= 512 && LogLargeCopyValue(v, s) =>
-	(MVC [MakeValAndOff(int32(s)-256, 256)] dst src (MVC [MakeValAndOff(256, 0)] dst src mem))
+	(MVC [ssacore.MakeValAndOff(int32(s)-256, 256)] dst src (MVC [ssacore.MakeValAndOff(256, 0)] dst src mem))
 (Move [s] dst src mem) && s > 512 && s <= 768 && LogLargeCopyValue(v, s) =>
-	(MVC [MakeValAndOff(int32(s)-512, 512)] dst src (MVC [MakeValAndOff(256, 256)] dst src (MVC [MakeValAndOff(256, 0)] dst src mem)))
+	(MVC [ssacore.MakeValAndOff(int32(s)-512, 512)] dst src (MVC [ssacore.MakeValAndOff(256, 256)] dst src (MVC [ssacore.MakeValAndOff(256, 0)] dst src mem)))
 (Move [s] dst src mem) && s > 768 && s <= 1024 && LogLargeCopyValue(v, s) =>
-	(MVC [MakeValAndOff(int32(s)-768, 768)] dst src (MVC [MakeValAndOff(256, 512)] dst src (MVC [MakeValAndOff(256, 256)] dst src (MVC [MakeValAndOff(256, 0)] dst src mem))))
+	(MVC [ssacore.MakeValAndOff(int32(s)-768, 768)] dst src (MVC [ssacore.MakeValAndOff(256, 512)] dst src (MVC [ssacore.MakeValAndOff(256, 256)] dst src (MVC [ssacore.MakeValAndOff(256, 0)] dst src mem))))
 
 // Move more than 1024 bytes using a loop.
 (Move [s] dst src mem) && s > 1024 && LogLargeCopyValue(v, s) =>
@@ -407,20 +407,20 @@
 (Zero [4] destptr mem) => (MOVWstoreconst [0] destptr mem)
 (Zero [8] destptr mem) => (MOVDstoreconst [0] destptr mem)
 (Zero [3] destptr mem) =>
-	(MOVBstoreconst [MakeValAndOff(0,2)] destptr
+	(MOVBstoreconst [ssacore.MakeValAndOff(0,2)] destptr
 		(MOVHstoreconst [0] destptr mem))
 (Zero [5] destptr mem) =>
-	(MOVBstoreconst [MakeValAndOff(0,4)] destptr
+	(MOVBstoreconst [ssacore.MakeValAndOff(0,4)] destptr
 		(MOVWstoreconst [0] destptr mem))
 (Zero [6] destptr mem) =>
-	(MOVHstoreconst [MakeValAndOff(0,4)] destptr
+	(MOVHstoreconst [ssacore.MakeValAndOff(0,4)] destptr
 		(MOVWstoreconst [0] destptr mem))
 (Zero [7] destptr mem) =>
-	(MOVWstoreconst [MakeValAndOff(0,3)] destptr
+	(MOVWstoreconst [ssacore.MakeValAndOff(0,3)] destptr
 		(MOVWstoreconst [0] destptr mem))
 
 (Zero [s] destptr mem) && s > 0 && s <= 1024 =>
-	(CLEAR [MakeValAndOff(int32(s), 0)] destptr mem)
+	(CLEAR [ssacore.MakeValAndOff(int32(s), 0)] destptr mem)
 
 // Zero more than 1024 bytes using a loop.
 (Zero [s] destptr mem) && s > 1024 =>
@@ -460,10 +460,10 @@
 (WB ...) => (LoweredWB ...)
 
 (PanicBounds ...) => (LoweredPanicBoundsRR ...)
-(LoweredPanicBoundsRR [kind] x (MOVDconst [c]) mem) => (LoweredPanicBoundsRC [kind] x {PanicBoundsC{C:c}} mem)
-(LoweredPanicBoundsRR [kind] (MOVDconst [c]) y mem) => (LoweredPanicBoundsCR [kind] {PanicBoundsC{C:c}} y mem)
-(LoweredPanicBoundsRC [kind] {p} (MOVDconst [c]) mem) => (LoweredPanicBoundsCC [kind] {PanicBoundsCC{Cx:c, Cy:p.C}} mem)
-(LoweredPanicBoundsCR [kind] {p} (MOVDconst [c]) mem) => (LoweredPanicBoundsCC [kind] {PanicBoundsCC{Cx:p.C, Cy:c}} mem)
+(LoweredPanicBoundsRR [kind] x (MOVDconst [c]) mem) => (LoweredPanicBoundsRC [kind] x {ssacore.PanicBoundsC{C:c}} mem)
+(LoweredPanicBoundsRR [kind] (MOVDconst [c]) y mem) => (LoweredPanicBoundsCR [kind] {ssacore.PanicBoundsC{C:c}} y mem)
+(LoweredPanicBoundsRC [kind] {p} (MOVDconst [c]) mem) => (LoweredPanicBoundsCC [kind] {ssacore.PanicBoundsCC{Cx:c, Cy:p.C}} mem)
+(LoweredPanicBoundsCR [kind] {p} (MOVDconst [c]) mem) => (LoweredPanicBoundsCC [kind] {ssacore.PanicBoundsCC{Cx:p.C, Cy:c}} mem)
 
 // ***************************
 // Above: lowering rules
@@ -850,25 +850,25 @@
 (LOCGR {c} x y (InvertFlags cmp)) => (LOCGR {c.ReverseComparison()} x y cmp)
 
 // replace load from same location as preceding store with copy
-(MOVDload  [off] {sym} ptr1 (MOVDstore  [off] {sym} ptr2 x _)) && IsSamePtr(ptr1, ptr2) => x
-(MOVWload  [off] {sym} ptr1 (MOVWstore  [off] {sym} ptr2 x _)) && IsSamePtr(ptr1, ptr2) => (MOVWreg x)
-(MOVHload  [off] {sym} ptr1 (MOVHstore  [off] {sym} ptr2 x _)) && IsSamePtr(ptr1, ptr2) => (MOVHreg x)
-(MOVBload  [off] {sym} ptr1 (MOVBstore  [off] {sym} ptr2 x _)) && IsSamePtr(ptr1, ptr2) => (MOVBreg x)
-(MOVWZload [off] {sym} ptr1 (MOVWstore  [off] {sym} ptr2 x _)) && IsSamePtr(ptr1, ptr2) => (MOVWZreg x)
-(MOVHZload [off] {sym} ptr1 (MOVHstore  [off] {sym} ptr2 x _)) && IsSamePtr(ptr1, ptr2) => (MOVHZreg x)
-(MOVBZload [off] {sym} ptr1 (MOVBstore  [off] {sym} ptr2 x _)) && IsSamePtr(ptr1, ptr2) => (MOVBZreg x)
-(MOVDload  [off] {sym} ptr1 (FMOVDstore [off] {sym} ptr2 x _)) && IsSamePtr(ptr1, ptr2) => (LGDR x)
-(FMOVDload [off] {sym} ptr1 (MOVDstore  [off] {sym} ptr2 x _)) && IsSamePtr(ptr1, ptr2) => (LDGR x)
-(FMOVDload [off] {sym} ptr1 (FMOVDstore [off] {sym} ptr2 x _)) && IsSamePtr(ptr1, ptr2) => x
-(FMOVSload [off] {sym} ptr1 (FMOVSstore [off] {sym} ptr2 x _)) && IsSamePtr(ptr1, ptr2) => x
+(MOVDload  [off] {sym} ptr1 (MOVDstore  [off] {sym} ptr2 x _)) && ssacore.IsSamePtr(ptr1, ptr2) => x
+(MOVWload  [off] {sym} ptr1 (MOVWstore  [off] {sym} ptr2 x _)) && ssacore.IsSamePtr(ptr1, ptr2) => (MOVWreg x)
+(MOVHload  [off] {sym} ptr1 (MOVHstore  [off] {sym} ptr2 x _)) && ssacore.IsSamePtr(ptr1, ptr2) => (MOVHreg x)
+(MOVBload  [off] {sym} ptr1 (MOVBstore  [off] {sym} ptr2 x _)) && ssacore.IsSamePtr(ptr1, ptr2) => (MOVBreg x)
+(MOVWZload [off] {sym} ptr1 (MOVWstore  [off] {sym} ptr2 x _)) && ssacore.IsSamePtr(ptr1, ptr2) => (MOVWZreg x)
+(MOVHZload [off] {sym} ptr1 (MOVHstore  [off] {sym} ptr2 x _)) && ssacore.IsSamePtr(ptr1, ptr2) => (MOVHZreg x)
+(MOVBZload [off] {sym} ptr1 (MOVBstore  [off] {sym} ptr2 x _)) && ssacore.IsSamePtr(ptr1, ptr2) => (MOVBZreg x)
+(MOVDload  [off] {sym} ptr1 (FMOVDstore [off] {sym} ptr2 x _)) && ssacore.IsSamePtr(ptr1, ptr2) => (LGDR x)
+(FMOVDload [off] {sym} ptr1 (MOVDstore  [off] {sym} ptr2 x _)) && ssacore.IsSamePtr(ptr1, ptr2) => (LDGR x)
+(FMOVDload [off] {sym} ptr1 (FMOVDstore [off] {sym} ptr2 x _)) && ssacore.IsSamePtr(ptr1, ptr2) => x
+(FMOVSload [off] {sym} ptr1 (FMOVSstore [off] {sym} ptr2 x _)) && ssacore.IsSamePtr(ptr1, ptr2) => x
 
 // prefer FPR <-> GPR moves over combined load ops
-(MULLDload <t> [off] {sym} x ptr1 (FMOVDstore [off] {sym} ptr2 y _)) && IsSamePtr(ptr1, ptr2) => (MULLD x (LGDR <t> y))
-(ADDload   <t> [off] {sym} x ptr1 (FMOVDstore [off] {sym} ptr2 y _)) && IsSamePtr(ptr1, ptr2) => (ADD   x (LGDR <t> y))
-(SUBload   <t> [off] {sym} x ptr1 (FMOVDstore [off] {sym} ptr2 y _)) && IsSamePtr(ptr1, ptr2) => (SUB   x (LGDR <t> y))
-(ORload    <t> [off] {sym} x ptr1 (FMOVDstore [off] {sym} ptr2 y _)) && IsSamePtr(ptr1, ptr2) => (OR    x (LGDR <t> y))
-(ANDload   <t> [off] {sym} x ptr1 (FMOVDstore [off] {sym} ptr2 y _)) && IsSamePtr(ptr1, ptr2) => (AND   x (LGDR <t> y))
-(XORload   <t> [off] {sym} x ptr1 (FMOVDstore [off] {sym} ptr2 y _)) && IsSamePtr(ptr1, ptr2) => (XOR   x (LGDR <t> y))
+(MULLDload <t> [off] {sym} x ptr1 (FMOVDstore [off] {sym} ptr2 y _)) && ssacore.IsSamePtr(ptr1, ptr2) => (MULLD x (LGDR <t> y))
+(ADDload   <t> [off] {sym} x ptr1 (FMOVDstore [off] {sym} ptr2 y _)) && ssacore.IsSamePtr(ptr1, ptr2) => (ADD   x (LGDR <t> y))
+(SUBload   <t> [off] {sym} x ptr1 (FMOVDstore [off] {sym} ptr2 y _)) && ssacore.IsSamePtr(ptr1, ptr2) => (SUB   x (LGDR <t> y))
+(ORload    <t> [off] {sym} x ptr1 (FMOVDstore [off] {sym} ptr2 y _)) && ssacore.IsSamePtr(ptr1, ptr2) => (OR    x (LGDR <t> y))
+(ANDload   <t> [off] {sym} x ptr1 (FMOVDstore [off] {sym} ptr2 y _)) && ssacore.IsSamePtr(ptr1, ptr2) => (AND   x (LGDR <t> y))
+(XORload   <t> [off] {sym} x ptr1 (FMOVDstore [off] {sym} ptr2 y _)) && ssacore.IsSamePtr(ptr1, ptr2) => (XOR   x (LGDR <t> y))
 
 // detect attempts to set/clear the sign bit
 // may need to be reworked when NIHH/OIHH are added
@@ -951,13 +951,13 @@
 
 // Fold constants into stores.
 (MOVDstore [off] {sym} ptr (MOVDconst [c]) mem) && Is16Bit(c) && isU12Bit(int64(off)) && ptr.Op != ssaop.OpSB =>
-	(MOVDstoreconst [MakeValAndOff(int32(c),off)] {sym} ptr mem)
+	(MOVDstoreconst [ssacore.MakeValAndOff(int32(c),off)] {sym} ptr mem)
 (MOVWstore [off] {sym} ptr (MOVDconst [c]) mem) && Is16Bit(c) && isU12Bit(int64(off)) && ptr.Op != ssaop.OpSB =>
-	(MOVWstoreconst [MakeValAndOff(int32(c),off)] {sym} ptr mem)
+	(MOVWstoreconst [ssacore.MakeValAndOff(int32(c),off)] {sym} ptr mem)
 (MOVHstore [off] {sym} ptr (MOVDconst [c]) mem) && isU12Bit(int64(off)) && ptr.Op != ssaop.OpSB =>
-	(MOVHstoreconst [MakeValAndOff(int32(int16(c)),off)] {sym} ptr mem)
+	(MOVHstoreconst [ssacore.MakeValAndOff(int32(int16(c)),off)] {sym} ptr mem)
 (MOVBstore [off] {sym} ptr (MOVDconst [c]) mem) && Is20Bit(int64(off)) && ptr.Op != ssaop.OpSB =>
-	(MOVBstoreconst [MakeValAndOff(int32(int8(c)),off)] {sym} ptr mem)
+	(MOVBstoreconst [ssacore.MakeValAndOff(int32(int8(c)),off)] {sym} ptr mem)
 
 // Fold address offsets into constant stores.
 (MOVDstoreconst [sc] {s} (ADDconst [off] ptr) mem) && isU12Bit(sc.Off64()+int64(off)) =>

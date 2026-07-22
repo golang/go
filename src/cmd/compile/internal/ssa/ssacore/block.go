@@ -2,12 +2,13 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-package ssa
+package ssacore
 
 import (
+	"fmt"
+
 	"cmd/compile/internal/ssa/block"
 	"cmd/internal/src"
-	"fmt"
 )
 
 // Block represents a basic block in the control flow graph of a function.
@@ -75,6 +76,34 @@ type Block struct {
 	Valstorage  [9]*Value
 }
 
+const (
+	BranchUnlikely = BranchPrediction(-1)
+	BranchUnknown  = BranchPrediction(0)
+	BranchLikely   = BranchPrediction(+1)
+)
+
+type BranchPrediction int8
+
+const (
+	CPUNone CPUfeatures = 0
+	CPUAll  CPUfeatures = ^CPUfeatures(0)
+	CPUavx  CPUfeatures = 1 << iota
+	CPUavx2
+	CPUavxvnni
+	CPUavx512
+	CPUbitalg
+	CPUgfni
+	CPUvbmi
+	CPUvbmi2
+	CPUvpopcntdq
+	CPUavx512vnni
+
+	CPUneon
+	CPUsve2
+)
+
+type CPUfeatures uint32
+
 // Edge represents a CFG edge.
 // Example edges for b branching to either c or d.
 // (c and d have other predecessors.)
@@ -108,12 +137,29 @@ type Edge struct {
 	I int
 }
 
+const (
+	// These values are arranged in what seems to be order of increasing alignment importance.
+	// Currently only a few are relevant.  Implicitly, they are all in a loop.
+	HotNotFlowIn Hotness = 1 << iota // This block is only reached by branches
+	HotInitial                       // In the block order, the first one for a given loop.  Not necessarily topological header.
+	HotPgo                           // By PGO-based heuristics, this block occurs in a hot loop
+
+	HotNot                 = 0
+	HotInitialNotFlowIn    = HotInitial | HotNotFlowIn          // typically first block of a rotated loop, loop is entered with a branch (not to this block).  No PGO
+	HotPgoInitial          = HotPgo | HotInitial                // special case; single block loop, initial block is header block has a flow-in entry, but PGO says it is hot
+	HotPgoInitialNotFLowIn = HotPgo | HotInitial | HotNotFlowIn // PGO says it is hot, and the loop is rotated so flow enters loop with a branch
+)
+
+type Hotness int8 // Could use negative numbers for specifically non-hot blocks, but don't, yet.
+
 func (e Edge) Block() *Block {
 	return e.B
 }
+
 func (e Edge) Index() int {
 	return e.I
 }
+
 func (e Edge) String() string {
 	return fmt.Sprintf("{%v,%d}", e.B, e.I)
 }
@@ -425,51 +471,11 @@ func (b *Block) LikelyBranch() bool {
 	return true
 }
 
-func (b *Block) Logf(msg string, args ...any)   { b.Func.Logf(msg, args...) }
-func (b *Block) Log() bool                      { return b.Func.Log() }
+func (b *Block) Logf(msg string, args ...any) { b.Func.Logf(msg, args...) }
+
+func (b *Block) Log() bool { return b.Func.Log() }
+
 func (b *Block) Fatalf(msg string, args ...any) { b.Func.FatalfWithPos(b.Pos, msg, args...) }
-
-type BranchPrediction int8
-
-const (
-	BranchUnlikely = BranchPrediction(-1)
-	BranchUnknown  = BranchPrediction(0)
-	BranchLikely   = BranchPrediction(+1)
-)
-
-type Hotness int8 // Could use negative numbers for specifically non-hot blocks, but don't, yet.
-const (
-	// These values are arranged in what seems to be order of increasing alignment importance.
-	// Currently only a few are relevant.  Implicitly, they are all in a loop.
-	HotNotFlowIn Hotness = 1 << iota // This block is only reached by branches
-	HotInitial                       // In the block order, the first one for a given loop.  Not necessarily topological header.
-	HotPgo                           // By PGO-based heuristics, this block occurs in a hot loop
-
-	HotNot                 = 0
-	HotInitialNotFlowIn    = HotInitial | HotNotFlowIn          // typically first block of a rotated loop, loop is entered with a branch (not to this block).  No PGO
-	HotPgoInitial          = HotPgo | HotInitial                // special case; single block loop, initial block is header block has a flow-in entry, but PGO says it is hot
-	HotPgoInitialNotFLowIn = HotPgo | HotInitial | HotNotFlowIn // PGO says it is hot, and the loop is rotated so flow enters loop with a branch
-)
-
-type CPUfeatures uint32
-
-const (
-	CPUNone CPUfeatures = 0
-	CPUAll  CPUfeatures = ^CPUfeatures(0)
-	CPUavx  CPUfeatures = 1 << iota
-	CPUavx2
-	CPUavxvnni
-	CPUavx512
-	CPUbitalg
-	CPUgfni
-	CPUvbmi
-	CPUvbmi2
-	CPUvpopcntdq
-	CPUavx512vnni
-
-	CPUneon
-	CPUsve2
-)
 
 func (f CPUfeatures) HasFeature(x CPUfeatures) bool {
 	return f&x == x

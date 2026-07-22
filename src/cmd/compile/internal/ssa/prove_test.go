@@ -8,9 +8,11 @@ import (
 	"math"
 	"math/bits"
 	"testing"
+
+	"cmd/compile/internal/ssa/ssacore"
 )
 
-func testLimitUnaryOpSigned8(t *testing.T, opName string, initLimit Limit, op func(l Limit, bitsize uint) Limit, opImpl func(int8) int8) {
+func testLimitUnaryOpSigned8(t *testing.T, opName string, initLimit ssacore.Limit, op func(l ssacore.Limit, bitsize uint) ssacore.Limit, opImpl func(int8) int8) {
 	for min := math.MinInt8; min <= math.MaxInt8; min++ {
 		for max := min; max <= math.MaxInt8; max++ {
 			realSmallest, realBiggest := int8(math.MaxInt8), int8(math.MinInt8)
@@ -24,7 +26,7 @@ func testLimitUnaryOpSigned8(t *testing.T, opName string, initLimit Limit, op fu
 				}
 			}
 
-			l := Limit{int64(min), int64(max), 0, math.MaxUint64}
+			l := ssacore.Limit{Min: int64(min), Max: int64(max), Umin: 0, Umax: math.MaxUint64}
 			l = op(l, 8)
 			l = l.Intersect(initLimit) // We assume this is gonna be used by newLimit which is seeded by the op size already.
 
@@ -35,7 +37,7 @@ func testLimitUnaryOpSigned8(t *testing.T, opName string, initLimit Limit, op fu
 	}
 }
 
-func testLimitUnaryOpUnsigned8(t *testing.T, opName string, initLimit Limit, op func(l Limit, bitsize uint) Limit, opImpl func(uint8) uint8) {
+func testLimitUnaryOpUnsigned8(t *testing.T, opName string, initLimit ssacore.Limit, op func(l ssacore.Limit, bitsize uint) ssacore.Limit, opImpl func(uint8) uint8) {
 	for min := 0; min <= math.MaxUint8; min++ {
 		for max := min; max <= math.MaxUint8; max++ {
 			realSmallest, realBiggest := uint8(math.MaxUint8), uint8(0)
@@ -49,7 +51,7 @@ func testLimitUnaryOpUnsigned8(t *testing.T, opName string, initLimit Limit, op 
 				}
 			}
 
-			l := Limit{math.MinInt64, math.MaxInt64, uint64(min), uint64(max)}
+			l := ssacore.Limit{Min: math.MinInt64, Max: math.MaxInt64, Umin: uint64(min), Umax: uint64(max)}
 			l = op(l, 8)
 			l = l.Intersect(initLimit) // We assume this is gonna be used by newLimit which is seeded by the op size already.
 
@@ -61,43 +63,43 @@ func testLimitUnaryOpUnsigned8(t *testing.T, opName string, initLimit Limit, op 
 }
 
 func TestLimitNegSigned(t *testing.T) {
-	testLimitUnaryOpSigned8(t, "neg", NoLimitForBitsize(8), Limit.Neg, func(x int8) int8 { return -x })
+	testLimitUnaryOpSigned8(t, "neg", ssacore.NoLimitForBitsize(8), ssacore.Limit.Neg, func(x int8) int8 { return -x })
 }
 func TestLimitNegUnsigned(t *testing.T) {
-	testLimitUnaryOpUnsigned8(t, "neg", NoLimitForBitsize(8), Limit.Neg, func(x uint8) uint8 { return -x })
+	testLimitUnaryOpUnsigned8(t, "neg", ssacore.NoLimitForBitsize(8), ssacore.Limit.Neg, func(x uint8) uint8 { return -x })
 }
 
 func TestLimitComSigned(t *testing.T) {
-	testLimitUnaryOpSigned8(t, "com", NoLimitForBitsize(8), Limit.Com, func(x int8) int8 { return ^x })
+	testLimitUnaryOpSigned8(t, "com", ssacore.NoLimitForBitsize(8), ssacore.Limit.Com, func(x int8) int8 { return ^x })
 }
 func TestLimitComUnsigned(t *testing.T) {
-	testLimitUnaryOpUnsigned8(t, "com", NoLimitForBitsize(8), Limit.Com, func(x uint8) uint8 { return ^x })
+	testLimitUnaryOpUnsigned8(t, "com", ssacore.NoLimitForBitsize(8), ssacore.Limit.Com, func(x uint8) uint8 { return ^x })
 }
 
 func TestLimitCtzUnsigned(t *testing.T) {
-	testLimitUnaryOpUnsigned8(t, "ctz", Limit{-128, 127, 0, 8}, Limit.Ctz, func(x uint8) uint8 { return uint8(bits.TrailingZeros8(x)) })
+	testLimitUnaryOpUnsigned8(t, "ctz", ssacore.Limit{Min: -128, Max: 127, Umin: 0, Umax: 8}, ssacore.Limit.Ctz, func(x uint8) uint8 { return uint8(bits.TrailingZeros8(x)) })
 }
 
 func TestLimitBitlenUnsigned(t *testing.T) {
-	testLimitUnaryOpUnsigned8(t, "bitlen", Limit{-128, 127, 0, 8}, Limit.Bitlen, func(x uint8) uint8 { return uint8(bits.Len8(x)) })
+	testLimitUnaryOpUnsigned8(t, "bitlen", ssacore.Limit{Min: -128, Max: 127, Umin: 0, Umax: 8}, ssacore.Limit.Bitlen, func(x uint8) uint8 { return uint8(bits.Len8(x)) })
 }
 
 func TestLimitPopcountUnsigned(t *testing.T) {
-	testLimitUnaryOpUnsigned8(t, "popcount", Limit{-128, 127, 0, 8}, Limit.Popcount, func(x uint8) uint8 { return uint8(bits.OnesCount8(x)) })
+	testLimitUnaryOpUnsigned8(t, "popcount", ssacore.Limit{Min: -128, Max: 127, Umin: 0, Umax: 8}, ssacore.Limit.Popcount, func(x uint8) uint8 { return uint8(bits.OnesCount8(x)) })
 }
 
 func TestConvertIntWithBitsize(t *testing.T) {
-	if got := ConvertIntWithBitsize[int64, uint64](255, 8); got != -1 {
+	if got := ssacore.ConvertIntWithBitsize[int64, uint64](255, 8); got != -1 {
 		t.Errorf("convertIntWithBitsize(255, 8) = %d; want -1", got)
 	}
-	if got := ConvertIntWithBitsize[uint64, int64](-1, 8); got != 255 {
+	if got := ssacore.ConvertIntWithBitsize[uint64, int64](-1, 8); got != 255 {
 		t.Errorf("convertIntWithBitsize(-1, 8) = %d; want 255", got)
 	}
 
-	if got := ConvertIntWithBitsize[int64, uint64](127, 8); got != 127 {
+	if got := ssacore.ConvertIntWithBitsize[int64, uint64](127, 8); got != 127 {
 		t.Errorf("convertIntWithBitsize(127, 8) = %d; want 127", got)
 	}
-	if got := ConvertIntWithBitsize[uint64, int64](127, 8); got != 127 {
+	if got := ssacore.ConvertIntWithBitsize[uint64, int64](127, 8); got != 127 {
 		t.Errorf("convertIntWithBitsize(127, 8) = %d; want 127", got)
 	}
 }

@@ -2,6 +2,7 @@
 
 package ssa
 
+import "cmd/compile/internal/ssa/ssacore"
 import "cmd/compile/internal/ssa/ssaop"
 
 type SIMDLogicalOP uint8
@@ -19,7 +20,7 @@ const (
 	sloNot
 )
 
-func classifyBooleanSIMD(v *Value) SIMDLogicalOP {
+func classifyBooleanSIMD(v *ssacore.Value) SIMDLogicalOP {
 	switch v.Op {
 	case ssaop.OpAndInt8x16, ssaop.OpAndInt16x8, ssaop.OpAndInt32x4, ssaop.OpAndInt64x2, ssaop.OpAndInt8x32, ssaop.OpAndInt16x16, ssaop.OpAndInt32x8, ssaop.OpAndInt64x4, ssaop.OpAndInt8x64, ssaop.OpAndInt16x32, ssaop.OpAndInt32x16, ssaop.OpAndInt64x8:
 		return sloAnd

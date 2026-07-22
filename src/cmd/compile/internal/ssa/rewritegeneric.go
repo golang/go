@@ -9,8 +9,9 @@ import "cmd/compile/internal/types"
 import "cmd/compile/internal/ir"
 import "cmd/compile/internal/ssa/block"
 import "cmd/compile/internal/ssa/ssaop"
+import "cmd/compile/internal/ssa/ssacore"
 
-func rewriteValuegeneric(v *Value) bool {
+func rewriteValuegeneric(v *ssacore.Value) bool {
 	switch v.Op {
 	case ssaop.OpAdd16:
 		return rewriteValuegeneric_OpAdd16(v)
@@ -513,7 +514,7 @@ func rewriteValuegeneric(v *Value) bool {
 	}
 	return false
 }
-func rewriteValuegeneric_OpAdd16(v *Value) bool {
+func rewriteValuegeneric_OpAdd16(v *ssacore.Value) bool {
 	v_1 := v.Args[1]
 	v_0 := v.Args[0]
 	b := v.Block
@@ -1163,7 +1164,7 @@ func rewriteValuegeneric_OpAdd16(v *Value) bool {
 	}
 	return false
 }
-func rewriteValuegeneric_OpAdd32(v *Value) bool {
+func rewriteValuegeneric_OpAdd32(v *ssacore.Value) bool {
 	v_1 := v.Args[1]
 	v_0 := v.Args[0]
 	b := v.Block
@@ -1813,7 +1814,7 @@ func rewriteValuegeneric_OpAdd32(v *Value) bool {
 	}
 	return false
 }
-func rewriteValuegeneric_OpAdd32F(v *Value) bool {
+func rewriteValuegeneric_OpAdd32F(v *ssacore.Value) bool {
 	v_1 := v.Args[1]
 	v_0 := v.Args[0]
 	// match: (Add32F (Const32F [c]) (Const32F [d]))
@@ -1840,7 +1841,7 @@ func rewriteValuegeneric_OpAdd32F(v *Value) bool {
 	}
 	return false
 }
-func rewriteValuegeneric_OpAdd64(v *Value) bool {
+func rewriteValuegeneric_OpAdd64(v *ssacore.Value) bool {
 	v_1 := v.Args[1]
 	v_0 := v.Args[0]
 	b := v.Block
@@ -2490,7 +2491,7 @@ func rewriteValuegeneric_OpAdd64(v *Value) bool {
 	}
 	return false
 }
-func rewriteValuegeneric_OpAdd64F(v *Value) bool {
+func rewriteValuegeneric_OpAdd64F(v *ssacore.Value) bool {
 	v_1 := v.Args[1]
 	v_0 := v.Args[0]
 	// match: (Add64F (Const64F [c]) (Const64F [d]))
@@ -2517,7 +2518,7 @@ func rewriteValuegeneric_OpAdd64F(v *Value) bool {
 	}
 	return false
 }
-func rewriteValuegeneric_OpAdd64carry(v *Value) bool {
+func rewriteValuegeneric_OpAdd64carry(v *ssacore.Value) bool {
 	v_2 := v.Args[2]
 	v_1 := v.Args[1]
 	v_0 := v.Args[0]
@@ -2555,7 +2556,7 @@ func rewriteValuegeneric_OpAdd64carry(v *Value) bool {
 	}
 	return false
 }
-func rewriteValuegeneric_OpAdd8(v *Value) bool {
+func rewriteValuegeneric_OpAdd8(v *ssacore.Value) bool {
 	v_1 := v.Args[1]
 	v_0 := v.Args[0]
 	b := v.Block
@@ -3205,7 +3206,7 @@ func rewriteValuegeneric_OpAdd8(v *Value) bool {
 	}
 	return false
 }
-func rewriteValuegeneric_OpAddPtr(v *Value) bool {
+func rewriteValuegeneric_OpAddPtr(v *ssacore.Value) bool {
 	v_1 := v.Args[1]
 	v_0 := v.Args[0]
 	// match: (AddPtr <t> x (Const64 [c]))
@@ -3240,7 +3241,7 @@ func rewriteValuegeneric_OpAddPtr(v *Value) bool {
 	}
 	return false
 }
-func rewriteValuegeneric_OpAnd16(v *Value) bool {
+func rewriteValuegeneric_OpAnd16(v *ssacore.Value) bool {
 	v_1 := v.Args[1]
 	v_0 := v.Args[0]
 	b := v.Block
@@ -3497,7 +3498,7 @@ func rewriteValuegeneric_OpAnd16(v *Value) bool {
 	}
 	return false
 }
-func rewriteValuegeneric_OpAnd32(v *Value) bool {
+func rewriteValuegeneric_OpAnd32(v *ssacore.Value) bool {
 	v_1 := v.Args[1]
 	v_0 := v.Args[0]
 	b := v.Block
@@ -3754,7 +3755,7 @@ func rewriteValuegeneric_OpAnd32(v *Value) bool {
 	}
 	return false
 }
-func rewriteValuegeneric_OpAnd64(v *Value) bool {
+func rewriteValuegeneric_OpAnd64(v *ssacore.Value) bool {
 	v_1 := v.Args[1]
 	v_0 := v.Args[0]
 	b := v.Block
@@ -4011,7 +4012,7 @@ func rewriteValuegeneric_OpAnd64(v *Value) bool {
 	}
 	return false
 }
-func rewriteValuegeneric_OpAnd8(v *Value) bool {
+func rewriteValuegeneric_OpAnd8(v *ssacore.Value) bool {
 	v_1 := v.Args[1]
 	v_0 := v.Args[0]
 	b := v.Block
@@ -4268,7 +4269,7 @@ func rewriteValuegeneric_OpAnd8(v *Value) bool {
 	}
 	return false
 }
-func rewriteValuegeneric_OpAndB(v *Value) bool {
+func rewriteValuegeneric_OpAndB(v *ssacore.Value) bool {
 	v_1 := v.Args[1]
 	v_0 := v.Args[0]
 	b := v.Block
@@ -4285,7 +4286,7 @@ func rewriteValuegeneric_OpAndB(v *Value) bool {
 			}
 			d := AuxIntToBool(v_1.AuxInt)
 			v.Reset(ssaop.OpConstBool)
-			v.AuxInt = BoolToAuxInt(c && d)
+			v.AuxInt = ssacore.BoolToAuxInt(c && d)
 			return true
 		}
 		break
@@ -6137,14 +6138,14 @@ func rewriteValuegeneric_OpAndB(v *Value) bool {
 				continue
 			}
 			v.Reset(ssaop.OpConstBool)
-			v.AuxInt = BoolToAuxInt(false)
+			v.AuxInt = ssacore.BoolToAuxInt(false)
 			return true
 		}
 		break
 	}
 	return false
 }
-func rewriteValuegeneric_OpArraySelect(v *Value) bool {
+func rewriteValuegeneric_OpArraySelect(v *ssacore.Value) bool {
 	v_0 := v.Args[0]
 	// match: (ArraySelect (ArrayMake1 x))
 	// result: x
@@ -6169,7 +6170,7 @@ func rewriteValuegeneric_OpArraySelect(v *Value) bool {
 	}
 	return false
 }
-func rewriteValuegeneric_OpBitLen16(v *Value) bool {
+func rewriteValuegeneric_OpBitLen16(v *ssacore.Value) bool {
 	v_0 := v.Args[0]
 	b := v.Block
 	config := b.Func.Config
@@ -6205,7 +6206,7 @@ func rewriteValuegeneric_OpBitLen16(v *Value) bool {
 	}
 	return false
 }
-func rewriteValuegeneric_OpBitLen32(v *Value) bool {
+func rewriteValuegeneric_OpBitLen32(v *ssacore.Value) bool {
 	v_0 := v.Args[0]
 	b := v.Block
 	config := b.Func.Config
@@ -6241,7 +6242,7 @@ func rewriteValuegeneric_OpBitLen32(v *Value) bool {
 	}
 	return false
 }
-func rewriteValuegeneric_OpBitLen64(v *Value) bool {
+func rewriteValuegeneric_OpBitLen64(v *ssacore.Value) bool {
 	v_0 := v.Args[0]
 	b := v.Block
 	config := b.Func.Config
@@ -6277,7 +6278,7 @@ func rewriteValuegeneric_OpBitLen64(v *Value) bool {
 	}
 	return false
 }
-func rewriteValuegeneric_OpBitLen8(v *Value) bool {
+func rewriteValuegeneric_OpBitLen8(v *ssacore.Value) bool {
 	v_0 := v.Args[0]
 	b := v.Block
 	config := b.Func.Config
@@ -6313,7 +6314,7 @@ func rewriteValuegeneric_OpBitLen8(v *Value) bool {
 	}
 	return false
 }
-func rewriteValuegeneric_OpBitRev16(v *Value) bool {
+func rewriteValuegeneric_OpBitRev16(v *ssacore.Value) bool {
 	v_0 := v.Args[0]
 	// match: (BitRev16 (Const16 [c]))
 	// result: (Const16 [int16(bits.Reverse16(uint16(c)))])
@@ -6328,7 +6329,7 @@ func rewriteValuegeneric_OpBitRev16(v *Value) bool {
 	}
 	return false
 }
-func rewriteValuegeneric_OpBitRev32(v *Value) bool {
+func rewriteValuegeneric_OpBitRev32(v *ssacore.Value) bool {
 	v_0 := v.Args[0]
 	// match: (BitRev32 (Const32 [c]))
 	// result: (Const32 [int32(bits.Reverse32(uint32(c)))])
@@ -6343,7 +6344,7 @@ func rewriteValuegeneric_OpBitRev32(v *Value) bool {
 	}
 	return false
 }
-func rewriteValuegeneric_OpBitRev64(v *Value) bool {
+func rewriteValuegeneric_OpBitRev64(v *ssacore.Value) bool {
 	v_0 := v.Args[0]
 	// match: (BitRev64 (Const64 [c]))
 	// result: (Const64 [int64(bits.Reverse64(uint64(c)))])
@@ -6358,7 +6359,7 @@ func rewriteValuegeneric_OpBitRev64(v *Value) bool {
 	}
 	return false
 }
-func rewriteValuegeneric_OpBitRev8(v *Value) bool {
+func rewriteValuegeneric_OpBitRev8(v *ssacore.Value) bool {
 	v_0 := v.Args[0]
 	// match: (BitRev8 (Const8 [c]))
 	// result: (Const8 [int8(bits.Reverse8(uint8(c)))])
@@ -6373,7 +6374,7 @@ func rewriteValuegeneric_OpBitRev8(v *Value) bool {
 	}
 	return false
 }
-func rewriteValuegeneric_OpBswap16(v *Value) bool {
+func rewriteValuegeneric_OpBswap16(v *ssacore.Value) bool {
 	v_0 := v.Args[0]
 	// match: (Bswap16 (Const16 [c]))
 	// result: (Const16 [int16(bits.ReverseBytes16(uint16(c)))])
@@ -6388,7 +6389,7 @@ func rewriteValuegeneric_OpBswap16(v *Value) bool {
 	}
 	return false
 }
-func rewriteValuegeneric_OpBswap32(v *Value) bool {
+func rewriteValuegeneric_OpBswap32(v *ssacore.Value) bool {
 	v_0 := v.Args[0]
 	// match: (Bswap32 (Const32 [c]))
 	// result: (Const32 [int32(bits.ReverseBytes32(uint32(c)))])
@@ -6403,7 +6404,7 @@ func rewriteValuegeneric_OpBswap32(v *Value) bool {
 	}
 	return false
 }
-func rewriteValuegeneric_OpBswap64(v *Value) bool {
+func rewriteValuegeneric_OpBswap64(v *ssacore.Value) bool {
 	v_0 := v.Args[0]
 	// match: (Bswap64 (Const64 [c]))
 	// result: (Const64 [int64(bits.ReverseBytes64(uint64(c)))])
@@ -6418,7 +6419,7 @@ func rewriteValuegeneric_OpBswap64(v *Value) bool {
 	}
 	return false
 }
-func rewriteValuegeneric_OpCeil(v *Value) bool {
+func rewriteValuegeneric_OpCeil(v *ssacore.Value) bool {
 	v_0 := v.Args[0]
 	// match: (Ceil (Const64F [c]))
 	// result: (Const64F [math.Ceil(c)])
@@ -6433,7 +6434,7 @@ func rewriteValuegeneric_OpCeil(v *Value) bool {
 	}
 	return false
 }
-func rewriteValuegeneric_OpCom16(v *Value) bool {
+func rewriteValuegeneric_OpCom16(v *ssacore.Value) bool {
 	v_0 := v.Args[0]
 	// match: (Com16 (Com16 x))
 	// result: x
@@ -6478,7 +6479,7 @@ func rewriteValuegeneric_OpCom16(v *Value) bool {
 	}
 	return false
 }
-func rewriteValuegeneric_OpCom32(v *Value) bool {
+func rewriteValuegeneric_OpCom32(v *ssacore.Value) bool {
 	v_0 := v.Args[0]
 	// match: (Com32 (Com32 x))
 	// result: x
@@ -6523,7 +6524,7 @@ func rewriteValuegeneric_OpCom32(v *Value) bool {
 	}
 	return false
 }
-func rewriteValuegeneric_OpCom64(v *Value) bool {
+func rewriteValuegeneric_OpCom64(v *ssacore.Value) bool {
 	v_0 := v.Args[0]
 	// match: (Com64 (Com64 x))
 	// result: x
@@ -6568,7 +6569,7 @@ func rewriteValuegeneric_OpCom64(v *Value) bool {
 	}
 	return false
 }
-func rewriteValuegeneric_OpCom8(v *Value) bool {
+func rewriteValuegeneric_OpCom8(v *ssacore.Value) bool {
 	v_0 := v.Args[0]
 	// match: (Com8 (Com8 x))
 	// result: x
@@ -6613,7 +6614,7 @@ func rewriteValuegeneric_OpCom8(v *Value) bool {
 	}
 	return false
 }
-func rewriteValuegeneric_OpCondSelect(v *Value) bool {
+func rewriteValuegeneric_OpCondSelect(v *ssacore.Value) bool {
 	v_2 := v.Args[2]
 	v_1 := v.Args[1]
 	v_0 := v.Args[0]
@@ -7275,7 +7276,7 @@ func rewriteValuegeneric_OpCondSelect(v *Value) bool {
 		}
 		bool := v_2
 		v.Reset(ssaop.OpLsh64x8)
-		v.AuxInt = BoolToAuxInt(true)
+		v.AuxInt = ssacore.BoolToAuxInt(true)
 		v0 := b.NewValue0(v.Pos, ssaop.OpCvtBoolToUint8, types.Types[types.TUINT8])
 		v0.AddArg(bool)
 		v.AddArg2(x, v0)
@@ -7295,7 +7296,7 @@ func rewriteValuegeneric_OpCondSelect(v *Value) bool {
 		}
 		bool := v_2
 		v.Reset(ssaop.OpLsh32x8)
-		v.AuxInt = BoolToAuxInt(true)
+		v.AuxInt = ssacore.BoolToAuxInt(true)
 		v0 := b.NewValue0(v.Pos, ssaop.OpCvtBoolToUint8, types.Types[types.TUINT8])
 		v0.AddArg(bool)
 		v.AddArg2(x, v0)
@@ -7315,7 +7316,7 @@ func rewriteValuegeneric_OpCondSelect(v *Value) bool {
 		}
 		bool := v_2
 		v.Reset(ssaop.OpLsh16x8)
-		v.AuxInt = BoolToAuxInt(true)
+		v.AuxInt = ssacore.BoolToAuxInt(true)
 		v0 := b.NewValue0(v.Pos, ssaop.OpCvtBoolToUint8, types.Types[types.TUINT8])
 		v0.AddArg(bool)
 		v.AddArg2(x, v0)
@@ -7335,7 +7336,7 @@ func rewriteValuegeneric_OpCondSelect(v *Value) bool {
 		}
 		bool := v_2
 		v.Reset(ssaop.OpLsh8x8)
-		v.AuxInt = BoolToAuxInt(true)
+		v.AuxInt = ssacore.BoolToAuxInt(true)
 		v0 := b.NewValue0(v.Pos, ssaop.OpCvtBoolToUint8, types.Types[types.TUINT8])
 		v0.AddArg(bool)
 		v.AddArg2(x, v0)
@@ -7358,7 +7359,7 @@ func rewriteValuegeneric_OpCondSelect(v *Value) bool {
 		}
 		bool := v_2
 		v.Reset(ssaop.OpLsh64x8)
-		v.AuxInt = BoolToAuxInt(true)
+		v.AuxInt = ssacore.BoolToAuxInt(true)
 		v0 := b.NewValue0(v.Pos, ssaop.OpCvtBoolToUint8, types.Types[types.TUINT8])
 		v1 := b.NewValue0(v.Pos, ssaop.OpNot, bool.Type)
 		v1.AddArg(bool)
@@ -7383,7 +7384,7 @@ func rewriteValuegeneric_OpCondSelect(v *Value) bool {
 		}
 		bool := v_2
 		v.Reset(ssaop.OpLsh32x8)
-		v.AuxInt = BoolToAuxInt(true)
+		v.AuxInt = ssacore.BoolToAuxInt(true)
 		v0 := b.NewValue0(v.Pos, ssaop.OpCvtBoolToUint8, types.Types[types.TUINT8])
 		v1 := b.NewValue0(v.Pos, ssaop.OpNot, bool.Type)
 		v1.AddArg(bool)
@@ -7408,7 +7409,7 @@ func rewriteValuegeneric_OpCondSelect(v *Value) bool {
 		}
 		bool := v_2
 		v.Reset(ssaop.OpLsh16x8)
-		v.AuxInt = BoolToAuxInt(true)
+		v.AuxInt = ssacore.BoolToAuxInt(true)
 		v0 := b.NewValue0(v.Pos, ssaop.OpCvtBoolToUint8, types.Types[types.TUINT8])
 		v1 := b.NewValue0(v.Pos, ssaop.OpNot, bool.Type)
 		v1.AddArg(bool)
@@ -7433,7 +7434,7 @@ func rewriteValuegeneric_OpCondSelect(v *Value) bool {
 		}
 		bool := v_2
 		v.Reset(ssaop.OpLsh8x8)
-		v.AuxInt = BoolToAuxInt(true)
+		v.AuxInt = ssacore.BoolToAuxInt(true)
 		v0 := b.NewValue0(v.Pos, ssaop.OpCvtBoolToUint8, types.Types[types.TUINT8])
 		v1 := b.NewValue0(v.Pos, ssaop.OpNot, bool.Type)
 		v1.AddArg(bool)
@@ -7455,7 +7456,7 @@ func rewriteValuegeneric_OpCondSelect(v *Value) bool {
 		}
 		bool := v_2
 		v.Reset(ssaop.OpRsh64x8)
-		v.AuxInt = BoolToAuxInt(true)
+		v.AuxInt = ssacore.BoolToAuxInt(true)
 		v0 := b.NewValue0(v.Pos, ssaop.OpCvtBoolToUint8, types.Types[types.TUINT8])
 		v0.AddArg(bool)
 		v.AddArg2(x, v0)
@@ -7475,7 +7476,7 @@ func rewriteValuegeneric_OpCondSelect(v *Value) bool {
 		}
 		bool := v_2
 		v.Reset(ssaop.OpRsh32x8)
-		v.AuxInt = BoolToAuxInt(true)
+		v.AuxInt = ssacore.BoolToAuxInt(true)
 		v0 := b.NewValue0(v.Pos, ssaop.OpCvtBoolToUint8, types.Types[types.TUINT8])
 		v0.AddArg(bool)
 		v.AddArg2(x, v0)
@@ -7495,7 +7496,7 @@ func rewriteValuegeneric_OpCondSelect(v *Value) bool {
 		}
 		bool := v_2
 		v.Reset(ssaop.OpRsh16x8)
-		v.AuxInt = BoolToAuxInt(true)
+		v.AuxInt = ssacore.BoolToAuxInt(true)
 		v0 := b.NewValue0(v.Pos, ssaop.OpCvtBoolToUint8, types.Types[types.TUINT8])
 		v0.AddArg(bool)
 		v.AddArg2(x, v0)
@@ -7515,7 +7516,7 @@ func rewriteValuegeneric_OpCondSelect(v *Value) bool {
 		}
 		bool := v_2
 		v.Reset(ssaop.OpRsh8x8)
-		v.AuxInt = BoolToAuxInt(true)
+		v.AuxInt = ssacore.BoolToAuxInt(true)
 		v0 := b.NewValue0(v.Pos, ssaop.OpCvtBoolToUint8, types.Types[types.TUINT8])
 		v0.AddArg(bool)
 		v.AddArg2(x, v0)
@@ -7535,7 +7536,7 @@ func rewriteValuegeneric_OpCondSelect(v *Value) bool {
 		}
 		bool := v_2
 		v.Reset(ssaop.OpRsh64Ux8)
-		v.AuxInt = BoolToAuxInt(true)
+		v.AuxInt = ssacore.BoolToAuxInt(true)
 		v0 := b.NewValue0(v.Pos, ssaop.OpCvtBoolToUint8, types.Types[types.TUINT8])
 		v0.AddArg(bool)
 		v.AddArg2(x, v0)
@@ -7555,7 +7556,7 @@ func rewriteValuegeneric_OpCondSelect(v *Value) bool {
 		}
 		bool := v_2
 		v.Reset(ssaop.OpRsh32Ux8)
-		v.AuxInt = BoolToAuxInt(true)
+		v.AuxInt = ssacore.BoolToAuxInt(true)
 		v0 := b.NewValue0(v.Pos, ssaop.OpCvtBoolToUint8, types.Types[types.TUINT8])
 		v0.AddArg(bool)
 		v.AddArg2(x, v0)
@@ -7575,7 +7576,7 @@ func rewriteValuegeneric_OpCondSelect(v *Value) bool {
 		}
 		bool := v_2
 		v.Reset(ssaop.OpRsh16Ux8)
-		v.AuxInt = BoolToAuxInt(true)
+		v.AuxInt = ssacore.BoolToAuxInt(true)
 		v0 := b.NewValue0(v.Pos, ssaop.OpCvtBoolToUint8, types.Types[types.TUINT8])
 		v0.AddArg(bool)
 		v.AddArg2(x, v0)
@@ -7595,7 +7596,7 @@ func rewriteValuegeneric_OpCondSelect(v *Value) bool {
 		}
 		bool := v_2
 		v.Reset(ssaop.OpRsh8Ux8)
-		v.AuxInt = BoolToAuxInt(true)
+		v.AuxInt = ssacore.BoolToAuxInt(true)
 		v0 := b.NewValue0(v.Pos, ssaop.OpCvtBoolToUint8, types.Types[types.TUINT8])
 		v0.AddArg(bool)
 		v.AddArg2(x, v0)
@@ -7618,7 +7619,7 @@ func rewriteValuegeneric_OpCondSelect(v *Value) bool {
 		}
 		bool := v_2
 		v.Reset(ssaop.OpRsh64x8)
-		v.AuxInt = BoolToAuxInt(true)
+		v.AuxInt = ssacore.BoolToAuxInt(true)
 		v0 := b.NewValue0(v.Pos, ssaop.OpCvtBoolToUint8, types.Types[types.TUINT8])
 		v1 := b.NewValue0(v.Pos, ssaop.OpNot, bool.Type)
 		v1.AddArg(bool)
@@ -7643,7 +7644,7 @@ func rewriteValuegeneric_OpCondSelect(v *Value) bool {
 		}
 		bool := v_2
 		v.Reset(ssaop.OpRsh32x8)
-		v.AuxInt = BoolToAuxInt(true)
+		v.AuxInt = ssacore.BoolToAuxInt(true)
 		v0 := b.NewValue0(v.Pos, ssaop.OpCvtBoolToUint8, types.Types[types.TUINT8])
 		v1 := b.NewValue0(v.Pos, ssaop.OpNot, bool.Type)
 		v1.AddArg(bool)
@@ -7668,7 +7669,7 @@ func rewriteValuegeneric_OpCondSelect(v *Value) bool {
 		}
 		bool := v_2
 		v.Reset(ssaop.OpRsh16x8)
-		v.AuxInt = BoolToAuxInt(true)
+		v.AuxInt = ssacore.BoolToAuxInt(true)
 		v0 := b.NewValue0(v.Pos, ssaop.OpCvtBoolToUint8, types.Types[types.TUINT8])
 		v1 := b.NewValue0(v.Pos, ssaop.OpNot, bool.Type)
 		v1.AddArg(bool)
@@ -7693,7 +7694,7 @@ func rewriteValuegeneric_OpCondSelect(v *Value) bool {
 		}
 		bool := v_2
 		v.Reset(ssaop.OpRsh8x8)
-		v.AuxInt = BoolToAuxInt(true)
+		v.AuxInt = ssacore.BoolToAuxInt(true)
 		v0 := b.NewValue0(v.Pos, ssaop.OpCvtBoolToUint8, types.Types[types.TUINT8])
 		v1 := b.NewValue0(v.Pos, ssaop.OpNot, bool.Type)
 		v1.AddArg(bool)
@@ -7718,7 +7719,7 @@ func rewriteValuegeneric_OpCondSelect(v *Value) bool {
 		}
 		bool := v_2
 		v.Reset(ssaop.OpRsh64Ux8)
-		v.AuxInt = BoolToAuxInt(true)
+		v.AuxInt = ssacore.BoolToAuxInt(true)
 		v0 := b.NewValue0(v.Pos, ssaop.OpCvtBoolToUint8, types.Types[types.TUINT8])
 		v1 := b.NewValue0(v.Pos, ssaop.OpNot, bool.Type)
 		v1.AddArg(bool)
@@ -7743,7 +7744,7 @@ func rewriteValuegeneric_OpCondSelect(v *Value) bool {
 		}
 		bool := v_2
 		v.Reset(ssaop.OpRsh32Ux8)
-		v.AuxInt = BoolToAuxInt(true)
+		v.AuxInt = ssacore.BoolToAuxInt(true)
 		v0 := b.NewValue0(v.Pos, ssaop.OpCvtBoolToUint8, types.Types[types.TUINT8])
 		v1 := b.NewValue0(v.Pos, ssaop.OpNot, bool.Type)
 		v1.AddArg(bool)
@@ -7768,7 +7769,7 @@ func rewriteValuegeneric_OpCondSelect(v *Value) bool {
 		}
 		bool := v_2
 		v.Reset(ssaop.OpRsh16Ux8)
-		v.AuxInt = BoolToAuxInt(true)
+		v.AuxInt = ssacore.BoolToAuxInt(true)
 		v0 := b.NewValue0(v.Pos, ssaop.OpCvtBoolToUint8, types.Types[types.TUINT8])
 		v1 := b.NewValue0(v.Pos, ssaop.OpNot, bool.Type)
 		v1.AddArg(bool)
@@ -7793,7 +7794,7 @@ func rewriteValuegeneric_OpCondSelect(v *Value) bool {
 		}
 		bool := v_2
 		v.Reset(ssaop.OpRsh8Ux8)
-		v.AuxInt = BoolToAuxInt(true)
+		v.AuxInt = ssacore.BoolToAuxInt(true)
 		v0 := b.NewValue0(v.Pos, ssaop.OpCvtBoolToUint8, types.Types[types.TUINT8])
 		v1 := b.NewValue0(v.Pos, ssaop.OpNot, bool.Type)
 		v1.AddArg(bool)
@@ -8379,7 +8380,7 @@ func rewriteValuegeneric_OpCondSelect(v *Value) bool {
 	}
 	return false
 }
-func rewriteValuegeneric_OpConstInterface(v *Value) bool {
+func rewriteValuegeneric_OpConstInterface(v *ssacore.Value) bool {
 	b := v.Block
 	typ := &b.Func.Config.Types
 	// match: (ConstInterface)
@@ -8392,7 +8393,7 @@ func rewriteValuegeneric_OpConstInterface(v *Value) bool {
 		return true
 	}
 }
-func rewriteValuegeneric_OpConstSlice(v *Value) bool {
+func rewriteValuegeneric_OpConstSlice(v *ssacore.Value) bool {
 	b := v.Block
 	config := b.Func.Config
 	typ := &b.Func.Config.Types
@@ -8426,7 +8427,7 @@ func rewriteValuegeneric_OpConstSlice(v *Value) bool {
 	}
 	return false
 }
-func rewriteValuegeneric_OpConstString(v *Value) bool {
+func rewriteValuegeneric_OpConstString(v *ssacore.Value) bool {
 	b := v.Block
 	config := b.Func.Config
 	fe := b.Func.Fe
@@ -8499,7 +8500,7 @@ func rewriteValuegeneric_OpConstString(v *Value) bool {
 	}
 	return false
 }
-func rewriteValuegeneric_OpConvert(v *Value) bool {
+func rewriteValuegeneric_OpConvert(v *ssacore.Value) bool {
 	v_1 := v.Args[1]
 	v_0 := v.Args[0]
 	b := v.Block
@@ -8643,7 +8644,7 @@ func rewriteValuegeneric_OpConvert(v *Value) bool {
 	}
 	return false
 }
-func rewriteValuegeneric_OpCtz16(v *Value) bool {
+func rewriteValuegeneric_OpCtz16(v *ssacore.Value) bool {
 	v_0 := v.Args[0]
 	b := v.Block
 	config := b.Func.Config
@@ -8679,7 +8680,7 @@ func rewriteValuegeneric_OpCtz16(v *Value) bool {
 	}
 	return false
 }
-func rewriteValuegeneric_OpCtz32(v *Value) bool {
+func rewriteValuegeneric_OpCtz32(v *ssacore.Value) bool {
 	v_0 := v.Args[0]
 	b := v.Block
 	config := b.Func.Config
@@ -8715,7 +8716,7 @@ func rewriteValuegeneric_OpCtz32(v *Value) bool {
 	}
 	return false
 }
-func rewriteValuegeneric_OpCtz64(v *Value) bool {
+func rewriteValuegeneric_OpCtz64(v *ssacore.Value) bool {
 	v_0 := v.Args[0]
 	b := v.Block
 	config := b.Func.Config
@@ -8751,7 +8752,7 @@ func rewriteValuegeneric_OpCtz64(v *Value) bool {
 	}
 	return false
 }
-func rewriteValuegeneric_OpCtz8(v *Value) bool {
+func rewriteValuegeneric_OpCtz8(v *ssacore.Value) bool {
 	v_0 := v.Args[0]
 	b := v.Block
 	config := b.Func.Config
@@ -8787,7 +8788,7 @@ func rewriteValuegeneric_OpCtz8(v *Value) bool {
 	}
 	return false
 }
-func rewriteValuegeneric_OpCvt32Fto32(v *Value) bool {
+func rewriteValuegeneric_OpCvt32Fto32(v *ssacore.Value) bool {
 	v_0 := v.Args[0]
 	// match: (Cvt32Fto32 (Const32F [c]))
 	// cond: c >= -1<<31 && c < 1<<31
@@ -8806,7 +8807,7 @@ func rewriteValuegeneric_OpCvt32Fto32(v *Value) bool {
 	}
 	return false
 }
-func rewriteValuegeneric_OpCvt32Fto64(v *Value) bool {
+func rewriteValuegeneric_OpCvt32Fto64(v *ssacore.Value) bool {
 	v_0 := v.Args[0]
 	// match: (Cvt32Fto64 (Const32F [c]))
 	// cond: c >= -1<<63 && c < 1<<63
@@ -8825,7 +8826,7 @@ func rewriteValuegeneric_OpCvt32Fto64(v *Value) bool {
 	}
 	return false
 }
-func rewriteValuegeneric_OpCvt32Fto64F(v *Value) bool {
+func rewriteValuegeneric_OpCvt32Fto64F(v *ssacore.Value) bool {
 	v_0 := v.Args[0]
 	// match: (Cvt32Fto64F (Const32F [c]))
 	// result: (Const64F [float64(c)])
@@ -8840,7 +8841,7 @@ func rewriteValuegeneric_OpCvt32Fto64F(v *Value) bool {
 	}
 	return false
 }
-func rewriteValuegeneric_OpCvt32to32F(v *Value) bool {
+func rewriteValuegeneric_OpCvt32to32F(v *ssacore.Value) bool {
 	v_0 := v.Args[0]
 	// match: (Cvt32to32F (Const32 [c]))
 	// result: (Const32F [float32(c)])
@@ -8855,7 +8856,7 @@ func rewriteValuegeneric_OpCvt32to32F(v *Value) bool {
 	}
 	return false
 }
-func rewriteValuegeneric_OpCvt32to64F(v *Value) bool {
+func rewriteValuegeneric_OpCvt32to64F(v *ssacore.Value) bool {
 	v_0 := v.Args[0]
 	// match: (Cvt32to64F (Const32 [c]))
 	// result: (Const64F [float64(c)])
@@ -8870,7 +8871,7 @@ func rewriteValuegeneric_OpCvt32to64F(v *Value) bool {
 	}
 	return false
 }
-func rewriteValuegeneric_OpCvt64Fto32(v *Value) bool {
+func rewriteValuegeneric_OpCvt64Fto32(v *ssacore.Value) bool {
 	v_0 := v.Args[0]
 	// match: (Cvt64Fto32 (Const64F [c]))
 	// cond: c >= -1<<31 && c < 1<<31
@@ -8889,7 +8890,7 @@ func rewriteValuegeneric_OpCvt64Fto32(v *Value) bool {
 	}
 	return false
 }
-func rewriteValuegeneric_OpCvt64Fto32F(v *Value) bool {
+func rewriteValuegeneric_OpCvt64Fto32F(v *ssacore.Value) bool {
 	v_0 := v.Args[0]
 	// match: (Cvt64Fto32F (Const64F [c]))
 	// result: (Const32F [float32(c)])
@@ -8924,7 +8925,7 @@ func rewriteValuegeneric_OpCvt64Fto32F(v *Value) bool {
 	}
 	return false
 }
-func rewriteValuegeneric_OpCvt64Fto64(v *Value) bool {
+func rewriteValuegeneric_OpCvt64Fto64(v *ssacore.Value) bool {
 	v_0 := v.Args[0]
 	// match: (Cvt64Fto64 (Const64F [c]))
 	// cond: c >= -1<<63 && c < 1<<63
@@ -8943,7 +8944,7 @@ func rewriteValuegeneric_OpCvt64Fto64(v *Value) bool {
 	}
 	return false
 }
-func rewriteValuegeneric_OpCvt64to32F(v *Value) bool {
+func rewriteValuegeneric_OpCvt64to32F(v *ssacore.Value) bool {
 	v_0 := v.Args[0]
 	// match: (Cvt64to32F (Const64 [c]))
 	// result: (Const32F [float32(c)])
@@ -8958,7 +8959,7 @@ func rewriteValuegeneric_OpCvt64to32F(v *Value) bool {
 	}
 	return false
 }
-func rewriteValuegeneric_OpCvt64to64F(v *Value) bool {
+func rewriteValuegeneric_OpCvt64to64F(v *ssacore.Value) bool {
 	v_0 := v.Args[0]
 	// match: (Cvt64to64F (Const64 [c]))
 	// result: (Const64F [float64(c)])
@@ -8973,7 +8974,7 @@ func rewriteValuegeneric_OpCvt64to64F(v *Value) bool {
 	}
 	return false
 }
-func rewriteValuegeneric_OpCvtBoolToUint8(v *Value) bool {
+func rewriteValuegeneric_OpCvtBoolToUint8(v *ssacore.Value) bool {
 	v_0 := v.Args[0]
 	// match: (CvtBoolToUint8 (ConstBool [false]))
 	// result: (Const8 [0])
@@ -8997,7 +8998,7 @@ func rewriteValuegeneric_OpCvtBoolToUint8(v *Value) bool {
 	}
 	return false
 }
-func rewriteValuegeneric_OpDiv128u(v *Value) bool {
+func rewriteValuegeneric_OpDiv128u(v *ssacore.Value) bool {
 	v_2 := v.Args[2]
 	v_1 := v.Args[1]
 	v_0 := v.Args[0]
@@ -9049,7 +9050,7 @@ func rewriteValuegeneric_OpDiv128u(v *Value) bool {
 	}
 	return false
 }
-func rewriteValuegeneric_OpDiv16(v *Value) bool {
+func rewriteValuegeneric_OpDiv16(v *ssacore.Value) bool {
 	v_1 := v.Args[1]
 	v_0 := v.Args[0]
 	b := v.Block
@@ -9114,7 +9115,7 @@ func rewriteValuegeneric_OpDiv16(v *Value) bool {
 	}
 	return false
 }
-func rewriteValuegeneric_OpDiv16u(v *Value) bool {
+func rewriteValuegeneric_OpDiv16u(v *ssacore.Value) bool {
 	v_1 := v.Args[1]
 	v_0 := v.Args[0]
 	b := v.Block
@@ -9158,7 +9159,7 @@ func rewriteValuegeneric_OpDiv16u(v *Value) bool {
 	}
 	return false
 }
-func rewriteValuegeneric_OpDiv32(v *Value) bool {
+func rewriteValuegeneric_OpDiv32(v *ssacore.Value) bool {
 	v_1 := v.Args[1]
 	v_0 := v.Args[0]
 	b := v.Block
@@ -9223,7 +9224,7 @@ func rewriteValuegeneric_OpDiv32(v *Value) bool {
 	}
 	return false
 }
-func rewriteValuegeneric_OpDiv32F(v *Value) bool {
+func rewriteValuegeneric_OpDiv32F(v *ssacore.Value) bool {
 	v_1 := v.Args[1]
 	v_0 := v.Args[0]
 	b := v.Block
@@ -9267,7 +9268,7 @@ func rewriteValuegeneric_OpDiv32F(v *Value) bool {
 	}
 	return false
 }
-func rewriteValuegeneric_OpDiv32u(v *Value) bool {
+func rewriteValuegeneric_OpDiv32u(v *ssacore.Value) bool {
 	v_1 := v.Args[1]
 	v_0 := v.Args[0]
 	b := v.Block
@@ -9311,7 +9312,7 @@ func rewriteValuegeneric_OpDiv32u(v *Value) bool {
 	}
 	return false
 }
-func rewriteValuegeneric_OpDiv64(v *Value) bool {
+func rewriteValuegeneric_OpDiv64(v *ssacore.Value) bool {
 	v_1 := v.Args[1]
 	v_0 := v.Args[0]
 	b := v.Block
@@ -9388,7 +9389,7 @@ func rewriteValuegeneric_OpDiv64(v *Value) bool {
 	}
 	return false
 }
-func rewriteValuegeneric_OpDiv64F(v *Value) bool {
+func rewriteValuegeneric_OpDiv64F(v *ssacore.Value) bool {
 	v_1 := v.Args[1]
 	v_0 := v.Args[0]
 	b := v.Block
@@ -9432,7 +9433,7 @@ func rewriteValuegeneric_OpDiv64F(v *Value) bool {
 	}
 	return false
 }
-func rewriteValuegeneric_OpDiv64u(v *Value) bool {
+func rewriteValuegeneric_OpDiv64u(v *ssacore.Value) bool {
 	v_1 := v.Args[1]
 	v_0 := v.Args[0]
 	b := v.Block
@@ -9476,7 +9477,7 @@ func rewriteValuegeneric_OpDiv64u(v *Value) bool {
 	}
 	return false
 }
-func rewriteValuegeneric_OpDiv8(v *Value) bool {
+func rewriteValuegeneric_OpDiv8(v *ssacore.Value) bool {
 	v_1 := v.Args[1]
 	v_0 := v.Args[0]
 	b := v.Block
@@ -9541,7 +9542,7 @@ func rewriteValuegeneric_OpDiv8(v *Value) bool {
 	}
 	return false
 }
-func rewriteValuegeneric_OpDiv8u(v *Value) bool {
+func rewriteValuegeneric_OpDiv8u(v *ssacore.Value) bool {
 	v_1 := v.Args[1]
 	v_0 := v.Args[0]
 	b := v.Block
@@ -9585,7 +9586,7 @@ func rewriteValuegeneric_OpDiv8u(v *Value) bool {
 	}
 	return false
 }
-func rewriteValuegeneric_OpEq16(v *Value) bool {
+func rewriteValuegeneric_OpEq16(v *ssacore.Value) bool {
 	v_1 := v.Args[1]
 	v_0 := v.Args[0]
 	b := v.Block
@@ -9599,7 +9600,7 @@ func rewriteValuegeneric_OpEq16(v *Value) bool {
 			break
 		}
 		v.Reset(ssaop.OpConstBool)
-		v.AuxInt = BoolToAuxInt(true)
+		v.AuxInt = ssacore.BoolToAuxInt(true)
 		return true
 	}
 	// match: (Eq16 (Const16 <t> [c]) o:(Add16 (Const16 [d]) x))
@@ -9835,7 +9836,7 @@ func rewriteValuegeneric_OpEq16(v *Value) bool {
 			}
 			d := AuxIntToInt16(v_1.AuxInt)
 			v.Reset(ssaop.OpConstBool)
-			v.AuxInt = BoolToAuxInt(c == d)
+			v.AuxInt = ssacore.BoolToAuxInt(c == d)
 			return true
 		}
 		break
@@ -10001,7 +10002,7 @@ func rewriteValuegeneric_OpEq16(v *Value) bool {
 	}
 	return false
 }
-func rewriteValuegeneric_OpEq32(v *Value) bool {
+func rewriteValuegeneric_OpEq32(v *ssacore.Value) bool {
 	v_1 := v.Args[1]
 	v_0 := v.Args[0]
 	b := v.Block
@@ -10013,7 +10014,7 @@ func rewriteValuegeneric_OpEq32(v *Value) bool {
 			break
 		}
 		v.Reset(ssaop.OpConstBool)
-		v.AuxInt = BoolToAuxInt(true)
+		v.AuxInt = ssacore.BoolToAuxInt(true)
 		return true
 	}
 	// match: (Eq32 (Const32 <t> [c]) o:(Add32 (Const32 [d]) x))
@@ -10249,7 +10250,7 @@ func rewriteValuegeneric_OpEq32(v *Value) bool {
 			}
 			d := AuxIntToInt32(v_1.AuxInt)
 			v.Reset(ssaop.OpConstBool)
-			v.AuxInt = BoolToAuxInt(c == d)
+			v.AuxInt = ssacore.BoolToAuxInt(c == d)
 			return true
 		}
 		break
@@ -10351,7 +10352,7 @@ func rewriteValuegeneric_OpEq32(v *Value) bool {
 	}
 	return false
 }
-func rewriteValuegeneric_OpEq32F(v *Value) bool {
+func rewriteValuegeneric_OpEq32F(v *ssacore.Value) bool {
 	v_1 := v.Args[1]
 	v_0 := v.Args[0]
 	// match: (Eq32F (Const32F [c]) (Const32F [d]))
@@ -10367,14 +10368,14 @@ func rewriteValuegeneric_OpEq32F(v *Value) bool {
 			}
 			d := AuxIntToFloat32(v_1.AuxInt)
 			v.Reset(ssaop.OpConstBool)
-			v.AuxInt = BoolToAuxInt(c == d)
+			v.AuxInt = ssacore.BoolToAuxInt(c == d)
 			return true
 		}
 		break
 	}
 	return false
 }
-func rewriteValuegeneric_OpEq64(v *Value) bool {
+func rewriteValuegeneric_OpEq64(v *ssacore.Value) bool {
 	v_1 := v.Args[1]
 	v_0 := v.Args[0]
 	b := v.Block
@@ -10386,7 +10387,7 @@ func rewriteValuegeneric_OpEq64(v *Value) bool {
 			break
 		}
 		v.Reset(ssaop.OpConstBool)
-		v.AuxInt = BoolToAuxInt(true)
+		v.AuxInt = ssacore.BoolToAuxInt(true)
 		return true
 	}
 	// match: (Eq64 (Const64 <t> [c]) o:(Add64 (Const64 [d]) x))
@@ -10622,7 +10623,7 @@ func rewriteValuegeneric_OpEq64(v *Value) bool {
 			}
 			d := AuxIntToInt64(v_1.AuxInt)
 			v.Reset(ssaop.OpConstBool)
-			v.AuxInt = BoolToAuxInt(c == d)
+			v.AuxInt = ssacore.BoolToAuxInt(c == d)
 			return true
 		}
 		break
@@ -10724,7 +10725,7 @@ func rewriteValuegeneric_OpEq64(v *Value) bool {
 	}
 	return false
 }
-func rewriteValuegeneric_OpEq64F(v *Value) bool {
+func rewriteValuegeneric_OpEq64F(v *ssacore.Value) bool {
 	v_1 := v.Args[1]
 	v_0 := v.Args[0]
 	// match: (Eq64F (Const64F [c]) (Const64F [d]))
@@ -10740,14 +10741,14 @@ func rewriteValuegeneric_OpEq64F(v *Value) bool {
 			}
 			d := AuxIntToFloat64(v_1.AuxInt)
 			v.Reset(ssaop.OpConstBool)
-			v.AuxInt = BoolToAuxInt(c == d)
+			v.AuxInt = ssacore.BoolToAuxInt(c == d)
 			return true
 		}
 		break
 	}
 	return false
 }
-func rewriteValuegeneric_OpEq8(v *Value) bool {
+func rewriteValuegeneric_OpEq8(v *ssacore.Value) bool {
 	v_1 := v.Args[1]
 	v_0 := v.Args[0]
 	b := v.Block
@@ -10761,7 +10762,7 @@ func rewriteValuegeneric_OpEq8(v *Value) bool {
 			break
 		}
 		v.Reset(ssaop.OpConstBool)
-		v.AuxInt = BoolToAuxInt(true)
+		v.AuxInt = ssacore.BoolToAuxInt(true)
 		return true
 	}
 	// match: (Eq8 (Const8 <t> [c]) o:(Add8 (Const8 [d]) x))
@@ -10997,7 +10998,7 @@ func rewriteValuegeneric_OpEq8(v *Value) bool {
 			}
 			d := AuxIntToInt8(v_1.AuxInt)
 			v.Reset(ssaop.OpConstBool)
-			v.AuxInt = BoolToAuxInt(c == d)
+			v.AuxInt = ssacore.BoolToAuxInt(c == d)
 			return true
 		}
 		break
@@ -11155,7 +11156,7 @@ func rewriteValuegeneric_OpEq8(v *Value) bool {
 	}
 	return false
 }
-func rewriteValuegeneric_OpEqB(v *Value) bool {
+func rewriteValuegeneric_OpEqB(v *ssacore.Value) bool {
 	v_1 := v.Args[1]
 	v_0 := v.Args[0]
 	// match: (EqB x x)
@@ -11166,7 +11167,7 @@ func rewriteValuegeneric_OpEqB(v *Value) bool {
 			break
 		}
 		v.Reset(ssaop.OpConstBool)
-		v.AuxInt = BoolToAuxInt(true)
+		v.AuxInt = ssacore.BoolToAuxInt(true)
 		return true
 	}
 	// match: (EqB (ConstBool [c]) (ConstBool [d]))
@@ -11182,7 +11183,7 @@ func rewriteValuegeneric_OpEqB(v *Value) bool {
 			}
 			d := AuxIntToBool(v_1.AuxInt)
 			v.Reset(ssaop.OpConstBool)
-			v.AuxInt = BoolToAuxInt(c == d)
+			v.AuxInt = ssacore.BoolToAuxInt(c == d)
 			return true
 		}
 		break
@@ -11231,7 +11232,7 @@ func rewriteValuegeneric_OpEqB(v *Value) bool {
 	}
 	return false
 }
-func rewriteValuegeneric_OpEqInter(v *Value) bool {
+func rewriteValuegeneric_OpEqInter(v *ssacore.Value) bool {
 	v_1 := v.Args[1]
 	v_0 := v.Args[0]
 	b := v.Block
@@ -11250,7 +11251,7 @@ func rewriteValuegeneric_OpEqInter(v *Value) bool {
 		return true
 	}
 }
-func rewriteValuegeneric_OpEqPtr(v *Value) bool {
+func rewriteValuegeneric_OpEqPtr(v *ssacore.Value) bool {
 	v_1 := v.Args[1]
 	v_0 := v.Args[0]
 	b := v.Block
@@ -11263,7 +11264,7 @@ func rewriteValuegeneric_OpEqPtr(v *Value) bool {
 			break
 		}
 		v.Reset(ssaop.OpConstBool)
-		v.AuxInt = BoolToAuxInt(true)
+		v.AuxInt = ssacore.BoolToAuxInt(true)
 		return true
 	}
 	// match: (EqPtr (Addr {x} _) (Addr {y} _))
@@ -11279,7 +11280,7 @@ func rewriteValuegeneric_OpEqPtr(v *Value) bool {
 			}
 			y := AuxToSym(v_1.Aux)
 			v.Reset(ssaop.OpConstBool)
-			v.AuxInt = BoolToAuxInt(x == y)
+			v.AuxInt = ssacore.BoolToAuxInt(x == y)
 			return true
 		}
 		break
@@ -11302,7 +11303,7 @@ func rewriteValuegeneric_OpEqPtr(v *Value) bool {
 			}
 			y := AuxToSym(v_1_0.Aux)
 			v.Reset(ssaop.OpConstBool)
-			v.AuxInt = BoolToAuxInt(x == y && o == 0)
+			v.AuxInt = ssacore.BoolToAuxInt(x == y && o == 0)
 			return true
 		}
 		break
@@ -11330,7 +11331,7 @@ func rewriteValuegeneric_OpEqPtr(v *Value) bool {
 			}
 			y := AuxToSym(v_1_0.Aux)
 			v.Reset(ssaop.OpConstBool)
-			v.AuxInt = BoolToAuxInt(x == y && o1 == o2)
+			v.AuxInt = ssacore.BoolToAuxInt(x == y && o1 == o2)
 			return true
 		}
 		break
@@ -11348,7 +11349,7 @@ func rewriteValuegeneric_OpEqPtr(v *Value) bool {
 			}
 			y := AuxToSym(v_1.Aux)
 			v.Reset(ssaop.OpConstBool)
-			v.AuxInt = BoolToAuxInt(x == y)
+			v.AuxInt = ssacore.BoolToAuxInt(x == y)
 			return true
 		}
 		break
@@ -11371,7 +11372,7 @@ func rewriteValuegeneric_OpEqPtr(v *Value) bool {
 			}
 			y := AuxToSym(v_1_0.Aux)
 			v.Reset(ssaop.OpConstBool)
-			v.AuxInt = BoolToAuxInt(x == y && o == 0)
+			v.AuxInt = ssacore.BoolToAuxInt(x == y && o == 0)
 			return true
 		}
 		break
@@ -11399,13 +11400,13 @@ func rewriteValuegeneric_OpEqPtr(v *Value) bool {
 			}
 			y := AuxToSym(v_1_0.Aux)
 			v.Reset(ssaop.OpConstBool)
-			v.AuxInt = BoolToAuxInt(x == y && o1 == o2)
+			v.AuxInt = ssacore.BoolToAuxInt(x == y && o1 == o2)
 			return true
 		}
 		break
 	}
 	// match: (EqPtr (OffPtr [o1] p1) p2)
-	// cond: IsSamePtr(p1, p2)
+	// cond: ssacore.IsSamePtr(p1, p2)
 	// result: (ConstBool [o1 == 0])
 	for {
 		for _i0 := 0; _i0 <= 1; _i0, v_0, v_1 = _i0+1, v_1, v_0 {
@@ -11415,17 +11416,17 @@ func rewriteValuegeneric_OpEqPtr(v *Value) bool {
 			o1 := AuxIntToInt64(v_0.AuxInt)
 			p1 := v_0.Args[0]
 			p2 := v_1
-			if !(IsSamePtr(p1, p2)) {
+			if !(ssacore.IsSamePtr(p1, p2)) {
 				continue
 			}
 			v.Reset(ssaop.OpConstBool)
-			v.AuxInt = BoolToAuxInt(o1 == 0)
+			v.AuxInt = ssacore.BoolToAuxInt(o1 == 0)
 			return true
 		}
 		break
 	}
 	// match: (EqPtr (OffPtr [o1] p1) (OffPtr [o2] p2))
-	// cond: IsSamePtr(p1, p2)
+	// cond: ssacore.IsSamePtr(p1, p2)
 	// result: (ConstBool [o1 == o2])
 	for {
 		for _i0 := 0; _i0 <= 1; _i0, v_0, v_1 = _i0+1, v_1, v_0 {
@@ -11439,11 +11440,11 @@ func rewriteValuegeneric_OpEqPtr(v *Value) bool {
 			}
 			o2 := AuxIntToInt64(v_1.AuxInt)
 			p2 := v_1.Args[0]
-			if !(IsSamePtr(p1, p2)) {
+			if !(ssacore.IsSamePtr(p1, p2)) {
 				continue
 			}
 			v.Reset(ssaop.OpConstBool)
-			v.AuxInt = BoolToAuxInt(o1 == o2)
+			v.AuxInt = ssacore.BoolToAuxInt(o1 == o2)
 			return true
 		}
 		break
@@ -11461,7 +11462,7 @@ func rewriteValuegeneric_OpEqPtr(v *Value) bool {
 			}
 			d := AuxIntToInt32(v_1.AuxInt)
 			v.Reset(ssaop.OpConstBool)
-			v.AuxInt = BoolToAuxInt(c == d)
+			v.AuxInt = ssacore.BoolToAuxInt(c == d)
 			return true
 		}
 		break
@@ -11479,7 +11480,7 @@ func rewriteValuegeneric_OpEqPtr(v *Value) bool {
 			}
 			d := AuxIntToInt64(v_1.AuxInt)
 			v.Reset(ssaop.OpConstBool)
-			v.AuxInt = BoolToAuxInt(c == d)
+			v.AuxInt = ssacore.BoolToAuxInt(c == d)
 			return true
 		}
 		break
@@ -11501,7 +11502,7 @@ func rewriteValuegeneric_OpEqPtr(v *Value) bool {
 			}
 			y := AuxToSym(v_1.Aux)
 			v.Reset(ssaop.OpConstBool)
-			v.AuxInt = BoolToAuxInt(x == y)
+			v.AuxInt = ssacore.BoolToAuxInt(x == y)
 			return true
 		}
 		break
@@ -11514,7 +11515,7 @@ func rewriteValuegeneric_OpEqPtr(v *Value) bool {
 				continue
 			}
 			v.Reset(ssaop.OpConstBool)
-			v.AuxInt = BoolToAuxInt(false)
+			v.AuxInt = ssacore.BoolToAuxInt(false)
 			return true
 		}
 		break
@@ -11531,7 +11532,7 @@ func rewriteValuegeneric_OpEqPtr(v *Value) bool {
 				continue
 			}
 			v.Reset(ssaop.OpConstBool)
-			v.AuxInt = BoolToAuxInt(false)
+			v.AuxInt = ssacore.BoolToAuxInt(false)
 			return true
 		}
 		break
@@ -11548,7 +11549,7 @@ func rewriteValuegeneric_OpEqPtr(v *Value) bool {
 				continue
 			}
 			v.Reset(ssaop.OpConstBool)
-			v.AuxInt = BoolToAuxInt(false)
+			v.AuxInt = ssacore.BoolToAuxInt(false)
 			return true
 		}
 		break
@@ -11569,13 +11570,13 @@ func rewriteValuegeneric_OpEqPtr(v *Value) bool {
 				continue
 			}
 			v.Reset(ssaop.OpConstBool)
-			v.AuxInt = BoolToAuxInt(false)
+			v.AuxInt = ssacore.BoolToAuxInt(false)
 			return true
 		}
 		break
 	}
 	// match: (EqPtr (AddPtr p1 o1) p2)
-	// cond: IsSamePtr(p1, p2)
+	// cond: ssacore.IsSamePtr(p1, p2)
 	// result: (Not (IsNonNil o1))
 	for {
 		for _i0 := 0; _i0 <= 1; _i0, v_0, v_1 = _i0+1, v_1, v_0 {
@@ -11585,7 +11586,7 @@ func rewriteValuegeneric_OpEqPtr(v *Value) bool {
 			o1 := v_0.Args[1]
 			p1 := v_0.Args[0]
 			p2 := v_1
-			if !(IsSamePtr(p1, p2)) {
+			if !(ssacore.IsSamePtr(p1, p2)) {
 				continue
 			}
 			v.Reset(ssaop.OpNot)
@@ -11646,7 +11647,7 @@ func rewriteValuegeneric_OpEqPtr(v *Value) bool {
 	}
 	return false
 }
-func rewriteValuegeneric_OpEqSlice(v *Value) bool {
+func rewriteValuegeneric_OpEqSlice(v *ssacore.Value) bool {
 	v_1 := v.Args[1]
 	v_0 := v.Args[0]
 	b := v.Block
@@ -11665,7 +11666,7 @@ func rewriteValuegeneric_OpEqSlice(v *Value) bool {
 		return true
 	}
 }
-func rewriteValuegeneric_OpFloor(v *Value) bool {
+func rewriteValuegeneric_OpFloor(v *ssacore.Value) bool {
 	v_0 := v.Args[0]
 	// match: (Floor (Const64F [c]))
 	// result: (Const64F [math.Floor(c)])
@@ -11680,7 +11681,7 @@ func rewriteValuegeneric_OpFloor(v *Value) bool {
 	}
 	return false
 }
-func rewriteValuegeneric_OpIMake(v *Value) bool {
+func rewriteValuegeneric_OpIMake(v *ssacore.Value) bool {
 	v_1 := v.Args[1]
 	v_0 := v.Args[0]
 	// match: (IMake _typ (StructMake ___))
@@ -11706,7 +11707,7 @@ func rewriteValuegeneric_OpIMake(v *Value) bool {
 	}
 	return false
 }
-func rewriteValuegeneric_OpInterLECall(v *Value) bool {
+func rewriteValuegeneric_OpInterLECall(v *ssacore.Value) bool {
 	// match: (InterLECall [argsize] {auxCall} (Addr {fn} (SB)) ___)
 	// result: devirtLECall(v, fn.(*obj.LSym))
 	for {
@@ -11727,7 +11728,7 @@ func rewriteValuegeneric_OpInterLECall(v *Value) bool {
 	}
 	return false
 }
-func rewriteValuegeneric_OpIsInBounds(v *Value) bool {
+func rewriteValuegeneric_OpIsInBounds(v *ssacore.Value) bool {
 	v_1 := v.Args[1]
 	v_0 := v.Args[0]
 	// match: (IsInBounds (ZeroExt8to32 _) (Const32 [c]))
@@ -11742,7 +11743,7 @@ func rewriteValuegeneric_OpIsInBounds(v *Value) bool {
 			break
 		}
 		v.Reset(ssaop.OpConstBool)
-		v.AuxInt = BoolToAuxInt(true)
+		v.AuxInt = ssacore.BoolToAuxInt(true)
 		return true
 	}
 	// match: (IsInBounds (ZeroExt8to64 _) (Const64 [c]))
@@ -11757,7 +11758,7 @@ func rewriteValuegeneric_OpIsInBounds(v *Value) bool {
 			break
 		}
 		v.Reset(ssaop.OpConstBool)
-		v.AuxInt = BoolToAuxInt(true)
+		v.AuxInt = ssacore.BoolToAuxInt(true)
 		return true
 	}
 	// match: (IsInBounds (ZeroExt16to32 _) (Const32 [c]))
@@ -11772,7 +11773,7 @@ func rewriteValuegeneric_OpIsInBounds(v *Value) bool {
 			break
 		}
 		v.Reset(ssaop.OpConstBool)
-		v.AuxInt = BoolToAuxInt(true)
+		v.AuxInt = ssacore.BoolToAuxInt(true)
 		return true
 	}
 	// match: (IsInBounds (ZeroExt16to64 _) (Const64 [c]))
@@ -11787,7 +11788,7 @@ func rewriteValuegeneric_OpIsInBounds(v *Value) bool {
 			break
 		}
 		v.Reset(ssaop.OpConstBool)
-		v.AuxInt = BoolToAuxInt(true)
+		v.AuxInt = ssacore.BoolToAuxInt(true)
 		return true
 	}
 	// match: (IsInBounds x x)
@@ -11798,7 +11799,7 @@ func rewriteValuegeneric_OpIsInBounds(v *Value) bool {
 			break
 		}
 		v.Reset(ssaop.OpConstBool)
-		v.AuxInt = BoolToAuxInt(false)
+		v.AuxInt = ssacore.BoolToAuxInt(false)
 		return true
 	}
 	// match: (IsInBounds (And8 (Const8 [c]) _) (Const8 [d]))
@@ -11823,7 +11824,7 @@ func rewriteValuegeneric_OpIsInBounds(v *Value) bool {
 				continue
 			}
 			v.Reset(ssaop.OpConstBool)
-			v.AuxInt = BoolToAuxInt(true)
+			v.AuxInt = ssacore.BoolToAuxInt(true)
 			return true
 		}
 		break
@@ -11854,7 +11855,7 @@ func rewriteValuegeneric_OpIsInBounds(v *Value) bool {
 				continue
 			}
 			v.Reset(ssaop.OpConstBool)
-			v.AuxInt = BoolToAuxInt(true)
+			v.AuxInt = ssacore.BoolToAuxInt(true)
 			return true
 		}
 		break
@@ -11885,7 +11886,7 @@ func rewriteValuegeneric_OpIsInBounds(v *Value) bool {
 				continue
 			}
 			v.Reset(ssaop.OpConstBool)
-			v.AuxInt = BoolToAuxInt(true)
+			v.AuxInt = ssacore.BoolToAuxInt(true)
 			return true
 		}
 		break
@@ -11916,7 +11917,7 @@ func rewriteValuegeneric_OpIsInBounds(v *Value) bool {
 				continue
 			}
 			v.Reset(ssaop.OpConstBool)
-			v.AuxInt = BoolToAuxInt(true)
+			v.AuxInt = ssacore.BoolToAuxInt(true)
 			return true
 		}
 		break
@@ -11943,7 +11944,7 @@ func rewriteValuegeneric_OpIsInBounds(v *Value) bool {
 				continue
 			}
 			v.Reset(ssaop.OpConstBool)
-			v.AuxInt = BoolToAuxInt(true)
+			v.AuxInt = ssacore.BoolToAuxInt(true)
 			return true
 		}
 		break
@@ -11974,7 +11975,7 @@ func rewriteValuegeneric_OpIsInBounds(v *Value) bool {
 				continue
 			}
 			v.Reset(ssaop.OpConstBool)
-			v.AuxInt = BoolToAuxInt(true)
+			v.AuxInt = ssacore.BoolToAuxInt(true)
 			return true
 		}
 		break
@@ -12005,7 +12006,7 @@ func rewriteValuegeneric_OpIsInBounds(v *Value) bool {
 				continue
 			}
 			v.Reset(ssaop.OpConstBool)
-			v.AuxInt = BoolToAuxInt(true)
+			v.AuxInt = ssacore.BoolToAuxInt(true)
 			return true
 		}
 		break
@@ -12032,7 +12033,7 @@ func rewriteValuegeneric_OpIsInBounds(v *Value) bool {
 				continue
 			}
 			v.Reset(ssaop.OpConstBool)
-			v.AuxInt = BoolToAuxInt(true)
+			v.AuxInt = ssacore.BoolToAuxInt(true)
 			return true
 		}
 		break
@@ -12063,7 +12064,7 @@ func rewriteValuegeneric_OpIsInBounds(v *Value) bool {
 				continue
 			}
 			v.Reset(ssaop.OpConstBool)
-			v.AuxInt = BoolToAuxInt(true)
+			v.AuxInt = ssacore.BoolToAuxInt(true)
 			return true
 		}
 		break
@@ -12090,7 +12091,7 @@ func rewriteValuegeneric_OpIsInBounds(v *Value) bool {
 				continue
 			}
 			v.Reset(ssaop.OpConstBool)
-			v.AuxInt = BoolToAuxInt(true)
+			v.AuxInt = ssacore.BoolToAuxInt(true)
 			return true
 		}
 		break
@@ -12107,7 +12108,7 @@ func rewriteValuegeneric_OpIsInBounds(v *Value) bool {
 		}
 		d := AuxIntToInt32(v_1.AuxInt)
 		v.Reset(ssaop.OpConstBool)
-		v.AuxInt = BoolToAuxInt(0 <= c && c < d)
+		v.AuxInt = ssacore.BoolToAuxInt(0 <= c && c < d)
 		return true
 	}
 	// match: (IsInBounds (Const64 [c]) (Const64 [d]))
@@ -12122,7 +12123,7 @@ func rewriteValuegeneric_OpIsInBounds(v *Value) bool {
 		}
 		d := AuxIntToInt64(v_1.AuxInt)
 		v.Reset(ssaop.OpConstBool)
-		v.AuxInt = BoolToAuxInt(0 <= c && c < d)
+		v.AuxInt = ssacore.BoolToAuxInt(0 <= c && c < d)
 		return true
 	}
 	// match: (IsInBounds (Mod32u _ y) y)
@@ -12136,7 +12137,7 @@ func rewriteValuegeneric_OpIsInBounds(v *Value) bool {
 			break
 		}
 		v.Reset(ssaop.OpConstBool)
-		v.AuxInt = BoolToAuxInt(true)
+		v.AuxInt = ssacore.BoolToAuxInt(true)
 		return true
 	}
 	// match: (IsInBounds (Mod64u _ y) y)
@@ -12150,7 +12151,7 @@ func rewriteValuegeneric_OpIsInBounds(v *Value) bool {
 			break
 		}
 		v.Reset(ssaop.OpConstBool)
-		v.AuxInt = BoolToAuxInt(true)
+		v.AuxInt = ssacore.BoolToAuxInt(true)
 		return true
 	}
 	// match: (IsInBounds (ZeroExt8to64 (Rsh8Ux64 _ (Const64 [c]))) (Const64 [d]))
@@ -12178,7 +12179,7 @@ func rewriteValuegeneric_OpIsInBounds(v *Value) bool {
 			break
 		}
 		v.Reset(ssaop.OpConstBool)
-		v.AuxInt = BoolToAuxInt(true)
+		v.AuxInt = ssacore.BoolToAuxInt(true)
 		return true
 	}
 	// match: (IsInBounds (ZeroExt8to32 (Rsh8Ux64 _ (Const64 [c]))) (Const32 [d]))
@@ -12206,7 +12207,7 @@ func rewriteValuegeneric_OpIsInBounds(v *Value) bool {
 			break
 		}
 		v.Reset(ssaop.OpConstBool)
-		v.AuxInt = BoolToAuxInt(true)
+		v.AuxInt = ssacore.BoolToAuxInt(true)
 		return true
 	}
 	// match: (IsInBounds (ZeroExt8to16 (Rsh8Ux64 _ (Const64 [c]))) (Const16 [d]))
@@ -12234,7 +12235,7 @@ func rewriteValuegeneric_OpIsInBounds(v *Value) bool {
 			break
 		}
 		v.Reset(ssaop.OpConstBool)
-		v.AuxInt = BoolToAuxInt(true)
+		v.AuxInt = ssacore.BoolToAuxInt(true)
 		return true
 	}
 	// match: (IsInBounds (Rsh8Ux64 _ (Const64 [c])) (Const8 [d]))
@@ -12258,7 +12259,7 @@ func rewriteValuegeneric_OpIsInBounds(v *Value) bool {
 			break
 		}
 		v.Reset(ssaop.OpConstBool)
-		v.AuxInt = BoolToAuxInt(true)
+		v.AuxInt = ssacore.BoolToAuxInt(true)
 		return true
 	}
 	// match: (IsInBounds (ZeroExt16to64 (Rsh16Ux64 _ (Const64 [c]))) (Const64 [d]))
@@ -12286,7 +12287,7 @@ func rewriteValuegeneric_OpIsInBounds(v *Value) bool {
 			break
 		}
 		v.Reset(ssaop.OpConstBool)
-		v.AuxInt = BoolToAuxInt(true)
+		v.AuxInt = ssacore.BoolToAuxInt(true)
 		return true
 	}
 	// match: (IsInBounds (ZeroExt16to32 (Rsh16Ux64 _ (Const64 [c]))) (Const32 [d]))
@@ -12314,7 +12315,7 @@ func rewriteValuegeneric_OpIsInBounds(v *Value) bool {
 			break
 		}
 		v.Reset(ssaop.OpConstBool)
-		v.AuxInt = BoolToAuxInt(true)
+		v.AuxInt = ssacore.BoolToAuxInt(true)
 		return true
 	}
 	// match: (IsInBounds (Rsh16Ux64 _ (Const64 [c])) (Const16 [d]))
@@ -12338,7 +12339,7 @@ func rewriteValuegeneric_OpIsInBounds(v *Value) bool {
 			break
 		}
 		v.Reset(ssaop.OpConstBool)
-		v.AuxInt = BoolToAuxInt(true)
+		v.AuxInt = ssacore.BoolToAuxInt(true)
 		return true
 	}
 	// match: (IsInBounds (ZeroExt32to64 (Rsh32Ux64 _ (Const64 [c]))) (Const64 [d]))
@@ -12366,7 +12367,7 @@ func rewriteValuegeneric_OpIsInBounds(v *Value) bool {
 			break
 		}
 		v.Reset(ssaop.OpConstBool)
-		v.AuxInt = BoolToAuxInt(true)
+		v.AuxInt = ssacore.BoolToAuxInt(true)
 		return true
 	}
 	// match: (IsInBounds (Rsh32Ux64 _ (Const64 [c])) (Const32 [d]))
@@ -12390,7 +12391,7 @@ func rewriteValuegeneric_OpIsInBounds(v *Value) bool {
 			break
 		}
 		v.Reset(ssaop.OpConstBool)
-		v.AuxInt = BoolToAuxInt(true)
+		v.AuxInt = ssacore.BoolToAuxInt(true)
 		return true
 	}
 	// match: (IsInBounds (Rsh64Ux64 _ (Const64 [c])) (Const64 [d]))
@@ -12414,12 +12415,12 @@ func rewriteValuegeneric_OpIsInBounds(v *Value) bool {
 			break
 		}
 		v.Reset(ssaop.OpConstBool)
-		v.AuxInt = BoolToAuxInt(true)
+		v.AuxInt = ssacore.BoolToAuxInt(true)
 		return true
 	}
 	return false
 }
-func rewriteValuegeneric_OpIsNonNil(v *Value) bool {
+func rewriteValuegeneric_OpIsNonNil(v *ssacore.Value) bool {
 	v_0 := v.Args[0]
 	// match: (IsNonNil (ConstNil))
 	// result: (ConstBool [false])
@@ -12428,7 +12429,7 @@ func rewriteValuegeneric_OpIsNonNil(v *Value) bool {
 			break
 		}
 		v.Reset(ssaop.OpConstBool)
-		v.AuxInt = BoolToAuxInt(false)
+		v.AuxInt = ssacore.BoolToAuxInt(false)
 		return true
 	}
 	// match: (IsNonNil (Const32 [c]))
@@ -12439,7 +12440,7 @@ func rewriteValuegeneric_OpIsNonNil(v *Value) bool {
 		}
 		c := AuxIntToInt32(v_0.AuxInt)
 		v.Reset(ssaop.OpConstBool)
-		v.AuxInt = BoolToAuxInt(c != 0)
+		v.AuxInt = ssacore.BoolToAuxInt(c != 0)
 		return true
 	}
 	// match: (IsNonNil (Const64 [c]))
@@ -12450,7 +12451,7 @@ func rewriteValuegeneric_OpIsNonNil(v *Value) bool {
 		}
 		c := AuxIntToInt64(v_0.AuxInt)
 		v.Reset(ssaop.OpConstBool)
-		v.AuxInt = BoolToAuxInt(c != 0)
+		v.AuxInt = ssacore.BoolToAuxInt(c != 0)
 		return true
 	}
 	// match: (IsNonNil (Addr _) )
@@ -12460,7 +12461,7 @@ func rewriteValuegeneric_OpIsNonNil(v *Value) bool {
 			break
 		}
 		v.Reset(ssaop.OpConstBool)
-		v.AuxInt = BoolToAuxInt(true)
+		v.AuxInt = ssacore.BoolToAuxInt(true)
 		return true
 	}
 	// match: (IsNonNil (Convert (Addr _) _))
@@ -12474,7 +12475,7 @@ func rewriteValuegeneric_OpIsNonNil(v *Value) bool {
 			break
 		}
 		v.Reset(ssaop.OpConstBool)
-		v.AuxInt = BoolToAuxInt(true)
+		v.AuxInt = ssacore.BoolToAuxInt(true)
 		return true
 	}
 	// match: (IsNonNil (LocalAddr _ _))
@@ -12484,12 +12485,12 @@ func rewriteValuegeneric_OpIsNonNil(v *Value) bool {
 			break
 		}
 		v.Reset(ssaop.OpConstBool)
-		v.AuxInt = BoolToAuxInt(true)
+		v.AuxInt = ssacore.BoolToAuxInt(true)
 		return true
 	}
 	return false
 }
-func rewriteValuegeneric_OpIsSliceInBounds(v *Value) bool {
+func rewriteValuegeneric_OpIsSliceInBounds(v *ssacore.Value) bool {
 	v_1 := v.Args[1]
 	v_0 := v.Args[0]
 	// match: (IsSliceInBounds x x)
@@ -12500,7 +12501,7 @@ func rewriteValuegeneric_OpIsSliceInBounds(v *Value) bool {
 			break
 		}
 		v.Reset(ssaop.OpConstBool)
-		v.AuxInt = BoolToAuxInt(true)
+		v.AuxInt = ssacore.BoolToAuxInt(true)
 		return true
 	}
 	// match: (IsSliceInBounds (And32 (Const32 [c]) _) (Const32 [d]))
@@ -12525,7 +12526,7 @@ func rewriteValuegeneric_OpIsSliceInBounds(v *Value) bool {
 				continue
 			}
 			v.Reset(ssaop.OpConstBool)
-			v.AuxInt = BoolToAuxInt(true)
+			v.AuxInt = ssacore.BoolToAuxInt(true)
 			return true
 		}
 		break
@@ -12552,7 +12553,7 @@ func rewriteValuegeneric_OpIsSliceInBounds(v *Value) bool {
 				continue
 			}
 			v.Reset(ssaop.OpConstBool)
-			v.AuxInt = BoolToAuxInt(true)
+			v.AuxInt = ssacore.BoolToAuxInt(true)
 			return true
 		}
 		break
@@ -12564,7 +12565,7 @@ func rewriteValuegeneric_OpIsSliceInBounds(v *Value) bool {
 			break
 		}
 		v.Reset(ssaop.OpConstBool)
-		v.AuxInt = BoolToAuxInt(true)
+		v.AuxInt = ssacore.BoolToAuxInt(true)
 		return true
 	}
 	// match: (IsSliceInBounds (Const64 [0]) _)
@@ -12574,7 +12575,7 @@ func rewriteValuegeneric_OpIsSliceInBounds(v *Value) bool {
 			break
 		}
 		v.Reset(ssaop.OpConstBool)
-		v.AuxInt = BoolToAuxInt(true)
+		v.AuxInt = ssacore.BoolToAuxInt(true)
 		return true
 	}
 	// match: (IsSliceInBounds (Const32 [c]) (Const32 [d]))
@@ -12589,7 +12590,7 @@ func rewriteValuegeneric_OpIsSliceInBounds(v *Value) bool {
 		}
 		d := AuxIntToInt32(v_1.AuxInt)
 		v.Reset(ssaop.OpConstBool)
-		v.AuxInt = BoolToAuxInt(0 <= c && c <= d)
+		v.AuxInt = ssacore.BoolToAuxInt(0 <= c && c <= d)
 		return true
 	}
 	// match: (IsSliceInBounds (Const64 [c]) (Const64 [d]))
@@ -12604,7 +12605,7 @@ func rewriteValuegeneric_OpIsSliceInBounds(v *Value) bool {
 		}
 		d := AuxIntToInt64(v_1.AuxInt)
 		v.Reset(ssaop.OpConstBool)
-		v.AuxInt = BoolToAuxInt(0 <= c && c <= d)
+		v.AuxInt = ssacore.BoolToAuxInt(0 <= c && c <= d)
 		return true
 	}
 	// match: (IsSliceInBounds (SliceLen x) (SliceCap x))
@@ -12618,12 +12619,12 @@ func rewriteValuegeneric_OpIsSliceInBounds(v *Value) bool {
 			break
 		}
 		v.Reset(ssaop.OpConstBool)
-		v.AuxInt = BoolToAuxInt(true)
+		v.AuxInt = ssacore.BoolToAuxInt(true)
 		return true
 	}
 	return false
 }
-func rewriteValuegeneric_OpLeq16(v *Value) bool {
+func rewriteValuegeneric_OpLeq16(v *ssacore.Value) bool {
 	v_1 := v.Args[1]
 	v_0 := v.Args[0]
 	b := v.Block
@@ -12639,7 +12640,7 @@ func rewriteValuegeneric_OpLeq16(v *Value) bool {
 		}
 		d := AuxIntToInt16(v_1.AuxInt)
 		v.Reset(ssaop.OpConstBool)
-		v.AuxInt = BoolToAuxInt(c <= d)
+		v.AuxInt = ssacore.BoolToAuxInt(c <= d)
 		return true
 	}
 	// match: (Leq16 (Const16 [0]) (And16 _ (Const16 [c])))
@@ -12661,7 +12662,7 @@ func rewriteValuegeneric_OpLeq16(v *Value) bool {
 				continue
 			}
 			v.Reset(ssaop.OpConstBool)
-			v.AuxInt = BoolToAuxInt(true)
+			v.AuxInt = ssacore.BoolToAuxInt(true)
 			return true
 		}
 		break
@@ -12683,7 +12684,7 @@ func rewriteValuegeneric_OpLeq16(v *Value) bool {
 			break
 		}
 		v.Reset(ssaop.OpConstBool)
-		v.AuxInt = BoolToAuxInt(true)
+		v.AuxInt = ssacore.BoolToAuxInt(true)
 		return true
 	}
 	// match: (Leq16 x (Const16 <t> [0]))
@@ -12745,7 +12746,7 @@ func rewriteValuegeneric_OpLeq16(v *Value) bool {
 			break
 		}
 		v.Reset(ssaop.OpConstBool)
-		v.AuxInt = BoolToAuxInt(true)
+		v.AuxInt = ssacore.BoolToAuxInt(true)
 		return true
 	}
 	// match: (Leq16 _ (Const16 [math.MaxInt16]))
@@ -12755,7 +12756,7 @@ func rewriteValuegeneric_OpLeq16(v *Value) bool {
 			break
 		}
 		v.Reset(ssaop.OpConstBool)
-		v.AuxInt = BoolToAuxInt(true)
+		v.AuxInt = ssacore.BoolToAuxInt(true)
 		return true
 	}
 	// match: (Leq16 x c:(Const16 [math.MinInt16]))
@@ -12784,7 +12785,7 @@ func rewriteValuegeneric_OpLeq16(v *Value) bool {
 	}
 	return false
 }
-func rewriteValuegeneric_OpLeq16U(v *Value) bool {
+func rewriteValuegeneric_OpLeq16U(v *ssacore.Value) bool {
 	v_1 := v.Args[1]
 	v_0 := v.Args[0]
 	b := v.Block
@@ -12800,7 +12801,7 @@ func rewriteValuegeneric_OpLeq16U(v *Value) bool {
 		}
 		d := AuxIntToInt16(v_1.AuxInt)
 		v.Reset(ssaop.OpConstBool)
-		v.AuxInt = BoolToAuxInt(uint16(c) <= uint16(d))
+		v.AuxInt = ssacore.BoolToAuxInt(uint16(c) <= uint16(d))
 		return true
 	}
 	// match: (Leq16U (Const16 <t> [1]) x)
@@ -12827,7 +12828,7 @@ func rewriteValuegeneric_OpLeq16U(v *Value) bool {
 			break
 		}
 		v.Reset(ssaop.OpConstBool)
-		v.AuxInt = BoolToAuxInt(true)
+		v.AuxInt = ssacore.BoolToAuxInt(true)
 		return true
 	}
 	// match: (Leq16U _ (Const16 [-1]))
@@ -12837,7 +12838,7 @@ func rewriteValuegeneric_OpLeq16U(v *Value) bool {
 			break
 		}
 		v.Reset(ssaop.OpConstBool)
-		v.AuxInt = BoolToAuxInt(true)
+		v.AuxInt = ssacore.BoolToAuxInt(true)
 		return true
 	}
 	// match: (Leq16U x c:(Const16 [0]))
@@ -12866,7 +12867,7 @@ func rewriteValuegeneric_OpLeq16U(v *Value) bool {
 	}
 	return false
 }
-func rewriteValuegeneric_OpLeq32(v *Value) bool {
+func rewriteValuegeneric_OpLeq32(v *ssacore.Value) bool {
 	v_1 := v.Args[1]
 	v_0 := v.Args[0]
 	b := v.Block
@@ -12882,7 +12883,7 @@ func rewriteValuegeneric_OpLeq32(v *Value) bool {
 		}
 		d := AuxIntToInt32(v_1.AuxInt)
 		v.Reset(ssaop.OpConstBool)
-		v.AuxInt = BoolToAuxInt(c <= d)
+		v.AuxInt = ssacore.BoolToAuxInt(c <= d)
 		return true
 	}
 	// match: (Leq32 (Const32 [0]) (And32 _ (Const32 [c])))
@@ -12904,7 +12905,7 @@ func rewriteValuegeneric_OpLeq32(v *Value) bool {
 				continue
 			}
 			v.Reset(ssaop.OpConstBool)
-			v.AuxInt = BoolToAuxInt(true)
+			v.AuxInt = ssacore.BoolToAuxInt(true)
 			return true
 		}
 		break
@@ -12926,7 +12927,7 @@ func rewriteValuegeneric_OpLeq32(v *Value) bool {
 			break
 		}
 		v.Reset(ssaop.OpConstBool)
-		v.AuxInt = BoolToAuxInt(true)
+		v.AuxInt = ssacore.BoolToAuxInt(true)
 		return true
 	}
 	// match: (Leq32 x (Const32 <t> [0]))
@@ -12988,7 +12989,7 @@ func rewriteValuegeneric_OpLeq32(v *Value) bool {
 			break
 		}
 		v.Reset(ssaop.OpConstBool)
-		v.AuxInt = BoolToAuxInt(true)
+		v.AuxInt = ssacore.BoolToAuxInt(true)
 		return true
 	}
 	// match: (Leq32 _ (Const32 [math.MaxInt32]))
@@ -12998,7 +12999,7 @@ func rewriteValuegeneric_OpLeq32(v *Value) bool {
 			break
 		}
 		v.Reset(ssaop.OpConstBool)
-		v.AuxInt = BoolToAuxInt(true)
+		v.AuxInt = ssacore.BoolToAuxInt(true)
 		return true
 	}
 	// match: (Leq32 x c:(Const32 [math.MinInt32]))
@@ -13027,7 +13028,7 @@ func rewriteValuegeneric_OpLeq32(v *Value) bool {
 	}
 	return false
 }
-func rewriteValuegeneric_OpLeq32F(v *Value) bool {
+func rewriteValuegeneric_OpLeq32F(v *ssacore.Value) bool {
 	v_1 := v.Args[1]
 	v_0 := v.Args[0]
 	// match: (Leq32F (Const32F [c]) (Const32F [d]))
@@ -13042,12 +13043,12 @@ func rewriteValuegeneric_OpLeq32F(v *Value) bool {
 		}
 		d := AuxIntToFloat32(v_1.AuxInt)
 		v.Reset(ssaop.OpConstBool)
-		v.AuxInt = BoolToAuxInt(c <= d)
+		v.AuxInt = ssacore.BoolToAuxInt(c <= d)
 		return true
 	}
 	return false
 }
-func rewriteValuegeneric_OpLeq32U(v *Value) bool {
+func rewriteValuegeneric_OpLeq32U(v *ssacore.Value) bool {
 	v_1 := v.Args[1]
 	v_0 := v.Args[0]
 	b := v.Block
@@ -13063,7 +13064,7 @@ func rewriteValuegeneric_OpLeq32U(v *Value) bool {
 		}
 		d := AuxIntToInt32(v_1.AuxInt)
 		v.Reset(ssaop.OpConstBool)
-		v.AuxInt = BoolToAuxInt(uint32(c) <= uint32(d))
+		v.AuxInt = ssacore.BoolToAuxInt(uint32(c) <= uint32(d))
 		return true
 	}
 	// match: (Leq32U (Const32 <t> [1]) x)
@@ -13090,7 +13091,7 @@ func rewriteValuegeneric_OpLeq32U(v *Value) bool {
 			break
 		}
 		v.Reset(ssaop.OpConstBool)
-		v.AuxInt = BoolToAuxInt(true)
+		v.AuxInt = ssacore.BoolToAuxInt(true)
 		return true
 	}
 	// match: (Leq32U _ (Const32 [-1]))
@@ -13100,7 +13101,7 @@ func rewriteValuegeneric_OpLeq32U(v *Value) bool {
 			break
 		}
 		v.Reset(ssaop.OpConstBool)
-		v.AuxInt = BoolToAuxInt(true)
+		v.AuxInt = ssacore.BoolToAuxInt(true)
 		return true
 	}
 	// match: (Leq32U x c:(Const32 [0]))
@@ -13129,7 +13130,7 @@ func rewriteValuegeneric_OpLeq32U(v *Value) bool {
 	}
 	return false
 }
-func rewriteValuegeneric_OpLeq64(v *Value) bool {
+func rewriteValuegeneric_OpLeq64(v *ssacore.Value) bool {
 	v_1 := v.Args[1]
 	v_0 := v.Args[0]
 	b := v.Block
@@ -13145,7 +13146,7 @@ func rewriteValuegeneric_OpLeq64(v *Value) bool {
 		}
 		d := AuxIntToInt64(v_1.AuxInt)
 		v.Reset(ssaop.OpConstBool)
-		v.AuxInt = BoolToAuxInt(c <= d)
+		v.AuxInt = ssacore.BoolToAuxInt(c <= d)
 		return true
 	}
 	// match: (Leq64 (Const64 [0]) (And64 _ (Const64 [c])))
@@ -13167,7 +13168,7 @@ func rewriteValuegeneric_OpLeq64(v *Value) bool {
 				continue
 			}
 			v.Reset(ssaop.OpConstBool)
-			v.AuxInt = BoolToAuxInt(true)
+			v.AuxInt = ssacore.BoolToAuxInt(true)
 			return true
 		}
 		break
@@ -13189,7 +13190,7 @@ func rewriteValuegeneric_OpLeq64(v *Value) bool {
 			break
 		}
 		v.Reset(ssaop.OpConstBool)
-		v.AuxInt = BoolToAuxInt(true)
+		v.AuxInt = ssacore.BoolToAuxInt(true)
 		return true
 	}
 	// match: (Leq64 x (Const64 <t> [0]))
@@ -13251,7 +13252,7 @@ func rewriteValuegeneric_OpLeq64(v *Value) bool {
 			break
 		}
 		v.Reset(ssaop.OpConstBool)
-		v.AuxInt = BoolToAuxInt(true)
+		v.AuxInt = ssacore.BoolToAuxInt(true)
 		return true
 	}
 	// match: (Leq64 _ (Const64 [math.MaxInt64]))
@@ -13261,7 +13262,7 @@ func rewriteValuegeneric_OpLeq64(v *Value) bool {
 			break
 		}
 		v.Reset(ssaop.OpConstBool)
-		v.AuxInt = BoolToAuxInt(true)
+		v.AuxInt = ssacore.BoolToAuxInt(true)
 		return true
 	}
 	// match: (Leq64 x c:(Const64 [math.MinInt64]))
@@ -13290,7 +13291,7 @@ func rewriteValuegeneric_OpLeq64(v *Value) bool {
 	}
 	return false
 }
-func rewriteValuegeneric_OpLeq64F(v *Value) bool {
+func rewriteValuegeneric_OpLeq64F(v *ssacore.Value) bool {
 	v_1 := v.Args[1]
 	v_0 := v.Args[0]
 	// match: (Leq64F (Const64F [c]) (Const64F [d]))
@@ -13305,12 +13306,12 @@ func rewriteValuegeneric_OpLeq64F(v *Value) bool {
 		}
 		d := AuxIntToFloat64(v_1.AuxInt)
 		v.Reset(ssaop.OpConstBool)
-		v.AuxInt = BoolToAuxInt(c <= d)
+		v.AuxInt = ssacore.BoolToAuxInt(c <= d)
 		return true
 	}
 	return false
 }
-func rewriteValuegeneric_OpLeq64U(v *Value) bool {
+func rewriteValuegeneric_OpLeq64U(v *ssacore.Value) bool {
 	v_1 := v.Args[1]
 	v_0 := v.Args[0]
 	b := v.Block
@@ -13326,7 +13327,7 @@ func rewriteValuegeneric_OpLeq64U(v *Value) bool {
 		}
 		d := AuxIntToInt64(v_1.AuxInt)
 		v.Reset(ssaop.OpConstBool)
-		v.AuxInt = BoolToAuxInt(uint64(c) <= uint64(d))
+		v.AuxInt = ssacore.BoolToAuxInt(uint64(c) <= uint64(d))
 		return true
 	}
 	// match: (Leq64U (Const64 <t> [1]) x)
@@ -13353,7 +13354,7 @@ func rewriteValuegeneric_OpLeq64U(v *Value) bool {
 			break
 		}
 		v.Reset(ssaop.OpConstBool)
-		v.AuxInt = BoolToAuxInt(true)
+		v.AuxInt = ssacore.BoolToAuxInt(true)
 		return true
 	}
 	// match: (Leq64U _ (Const64 [-1]))
@@ -13363,7 +13364,7 @@ func rewriteValuegeneric_OpLeq64U(v *Value) bool {
 			break
 		}
 		v.Reset(ssaop.OpConstBool)
-		v.AuxInt = BoolToAuxInt(true)
+		v.AuxInt = ssacore.BoolToAuxInt(true)
 		return true
 	}
 	// match: (Leq64U x c:(Const64 [0]))
@@ -13392,7 +13393,7 @@ func rewriteValuegeneric_OpLeq64U(v *Value) bool {
 	}
 	return false
 }
-func rewriteValuegeneric_OpLeq8(v *Value) bool {
+func rewriteValuegeneric_OpLeq8(v *ssacore.Value) bool {
 	v_1 := v.Args[1]
 	v_0 := v.Args[0]
 	b := v.Block
@@ -13408,7 +13409,7 @@ func rewriteValuegeneric_OpLeq8(v *Value) bool {
 		}
 		d := AuxIntToInt8(v_1.AuxInt)
 		v.Reset(ssaop.OpConstBool)
-		v.AuxInt = BoolToAuxInt(c <= d)
+		v.AuxInt = ssacore.BoolToAuxInt(c <= d)
 		return true
 	}
 	// match: (Leq8 (Const8 [0]) (And8 _ (Const8 [c])))
@@ -13430,7 +13431,7 @@ func rewriteValuegeneric_OpLeq8(v *Value) bool {
 				continue
 			}
 			v.Reset(ssaop.OpConstBool)
-			v.AuxInt = BoolToAuxInt(true)
+			v.AuxInt = ssacore.BoolToAuxInt(true)
 			return true
 		}
 		break
@@ -13452,7 +13453,7 @@ func rewriteValuegeneric_OpLeq8(v *Value) bool {
 			break
 		}
 		v.Reset(ssaop.OpConstBool)
-		v.AuxInt = BoolToAuxInt(true)
+		v.AuxInt = ssacore.BoolToAuxInt(true)
 		return true
 	}
 	// match: (Leq8 x (Const8 <t> [0]))
@@ -13514,7 +13515,7 @@ func rewriteValuegeneric_OpLeq8(v *Value) bool {
 			break
 		}
 		v.Reset(ssaop.OpConstBool)
-		v.AuxInt = BoolToAuxInt(true)
+		v.AuxInt = ssacore.BoolToAuxInt(true)
 		return true
 	}
 	// match: (Leq8 _ (Const8 [math.MaxInt8 ]))
@@ -13524,7 +13525,7 @@ func rewriteValuegeneric_OpLeq8(v *Value) bool {
 			break
 		}
 		v.Reset(ssaop.OpConstBool)
-		v.AuxInt = BoolToAuxInt(true)
+		v.AuxInt = ssacore.BoolToAuxInt(true)
 		return true
 	}
 	// match: (Leq8 x c:(Const8 [math.MinInt8 ]))
@@ -13553,7 +13554,7 @@ func rewriteValuegeneric_OpLeq8(v *Value) bool {
 	}
 	return false
 }
-func rewriteValuegeneric_OpLeq8U(v *Value) bool {
+func rewriteValuegeneric_OpLeq8U(v *ssacore.Value) bool {
 	v_1 := v.Args[1]
 	v_0 := v.Args[0]
 	b := v.Block
@@ -13569,7 +13570,7 @@ func rewriteValuegeneric_OpLeq8U(v *Value) bool {
 		}
 		d := AuxIntToInt8(v_1.AuxInt)
 		v.Reset(ssaop.OpConstBool)
-		v.AuxInt = BoolToAuxInt(uint8(c) <= uint8(d))
+		v.AuxInt = ssacore.BoolToAuxInt(uint8(c) <= uint8(d))
 		return true
 	}
 	// match: (Leq8U (Const8 <t> [1]) x)
@@ -13596,7 +13597,7 @@ func rewriteValuegeneric_OpLeq8U(v *Value) bool {
 			break
 		}
 		v.Reset(ssaop.OpConstBool)
-		v.AuxInt = BoolToAuxInt(true)
+		v.AuxInt = ssacore.BoolToAuxInt(true)
 		return true
 	}
 	// match: (Leq8U _ (Const8 [-1]))
@@ -13606,7 +13607,7 @@ func rewriteValuegeneric_OpLeq8U(v *Value) bool {
 			break
 		}
 		v.Reset(ssaop.OpConstBool)
-		v.AuxInt = BoolToAuxInt(true)
+		v.AuxInt = ssacore.BoolToAuxInt(true)
 		return true
 	}
 	// match: (Leq8U x c:(Const8 [0]))
@@ -13635,7 +13636,7 @@ func rewriteValuegeneric_OpLeq8U(v *Value) bool {
 	}
 	return false
 }
-func rewriteValuegeneric_OpLess16(v *Value) bool {
+func rewriteValuegeneric_OpLess16(v *ssacore.Value) bool {
 	v_1 := v.Args[1]
 	v_0 := v.Args[0]
 	b := v.Block
@@ -13651,7 +13652,7 @@ func rewriteValuegeneric_OpLess16(v *Value) bool {
 		}
 		d := AuxIntToInt16(v_1.AuxInt)
 		v.Reset(ssaop.OpConstBool)
-		v.AuxInt = BoolToAuxInt(c < d)
+		v.AuxInt = ssacore.BoolToAuxInt(c < d)
 		return true
 	}
 	// match: (Less16 (Const16 <t> [0]) x)
@@ -13716,7 +13717,7 @@ func rewriteValuegeneric_OpLess16(v *Value) bool {
 			break
 		}
 		v.Reset(ssaop.OpConstBool)
-		v.AuxInt = BoolToAuxInt(false)
+		v.AuxInt = ssacore.BoolToAuxInt(false)
 		return true
 	}
 	// match: (Less16 (Const16 [math.MaxInt16]) _)
@@ -13726,7 +13727,7 @@ func rewriteValuegeneric_OpLess16(v *Value) bool {
 			break
 		}
 		v.Reset(ssaop.OpConstBool)
-		v.AuxInt = BoolToAuxInt(false)
+		v.AuxInt = ssacore.BoolToAuxInt(false)
 		return true
 	}
 	// match: (Less16 x (Const16 <t> [math.MinInt16+1]))
@@ -13765,7 +13766,7 @@ func rewriteValuegeneric_OpLess16(v *Value) bool {
 	}
 	return false
 }
-func rewriteValuegeneric_OpLess16U(v *Value) bool {
+func rewriteValuegeneric_OpLess16U(v *ssacore.Value) bool {
 	v_1 := v.Args[1]
 	v_0 := v.Args[0]
 	b := v.Block
@@ -13781,7 +13782,7 @@ func rewriteValuegeneric_OpLess16U(v *Value) bool {
 		}
 		d := AuxIntToInt16(v_1.AuxInt)
 		v.Reset(ssaop.OpConstBool)
-		v.AuxInt = BoolToAuxInt(uint16(c) < uint16(d))
+		v.AuxInt = ssacore.BoolToAuxInt(uint16(c) < uint16(d))
 		return true
 	}
 	// match: (Less16U (Const16 <t> [0]) x)
@@ -13825,7 +13826,7 @@ func rewriteValuegeneric_OpLess16U(v *Value) bool {
 			break
 		}
 		v.Reset(ssaop.OpConstBool)
-		v.AuxInt = BoolToAuxInt(false)
+		v.AuxInt = ssacore.BoolToAuxInt(false)
 		return true
 	}
 	// match: (Less16U (Const16 [-1]) _)
@@ -13835,7 +13836,7 @@ func rewriteValuegeneric_OpLess16U(v *Value) bool {
 			break
 		}
 		v.Reset(ssaop.OpConstBool)
-		v.AuxInt = BoolToAuxInt(false)
+		v.AuxInt = ssacore.BoolToAuxInt(false)
 		return true
 	}
 	// match: (Less16U x (Const16 <t> [1]))
@@ -13874,7 +13875,7 @@ func rewriteValuegeneric_OpLess16U(v *Value) bool {
 	}
 	return false
 }
-func rewriteValuegeneric_OpLess32(v *Value) bool {
+func rewriteValuegeneric_OpLess32(v *ssacore.Value) bool {
 	v_1 := v.Args[1]
 	v_0 := v.Args[0]
 	b := v.Block
@@ -13890,7 +13891,7 @@ func rewriteValuegeneric_OpLess32(v *Value) bool {
 		}
 		d := AuxIntToInt32(v_1.AuxInt)
 		v.Reset(ssaop.OpConstBool)
-		v.AuxInt = BoolToAuxInt(c < d)
+		v.AuxInt = ssacore.BoolToAuxInt(c < d)
 		return true
 	}
 	// match: (Less32 (Const32 <t> [0]) x)
@@ -13955,7 +13956,7 @@ func rewriteValuegeneric_OpLess32(v *Value) bool {
 			break
 		}
 		v.Reset(ssaop.OpConstBool)
-		v.AuxInt = BoolToAuxInt(false)
+		v.AuxInt = ssacore.BoolToAuxInt(false)
 		return true
 	}
 	// match: (Less32 (Const32 [math.MaxInt32]) _)
@@ -13965,7 +13966,7 @@ func rewriteValuegeneric_OpLess32(v *Value) bool {
 			break
 		}
 		v.Reset(ssaop.OpConstBool)
-		v.AuxInt = BoolToAuxInt(false)
+		v.AuxInt = ssacore.BoolToAuxInt(false)
 		return true
 	}
 	// match: (Less32 x (Const32 <t> [math.MinInt32+1]))
@@ -14004,7 +14005,7 @@ func rewriteValuegeneric_OpLess32(v *Value) bool {
 	}
 	return false
 }
-func rewriteValuegeneric_OpLess32F(v *Value) bool {
+func rewriteValuegeneric_OpLess32F(v *ssacore.Value) bool {
 	v_1 := v.Args[1]
 	v_0 := v.Args[0]
 	// match: (Less32F (Const32F [c]) (Const32F [d]))
@@ -14019,12 +14020,12 @@ func rewriteValuegeneric_OpLess32F(v *Value) bool {
 		}
 		d := AuxIntToFloat32(v_1.AuxInt)
 		v.Reset(ssaop.OpConstBool)
-		v.AuxInt = BoolToAuxInt(c < d)
+		v.AuxInt = ssacore.BoolToAuxInt(c < d)
 		return true
 	}
 	return false
 }
-func rewriteValuegeneric_OpLess32U(v *Value) bool {
+func rewriteValuegeneric_OpLess32U(v *ssacore.Value) bool {
 	v_1 := v.Args[1]
 	v_0 := v.Args[0]
 	b := v.Block
@@ -14040,7 +14041,7 @@ func rewriteValuegeneric_OpLess32U(v *Value) bool {
 		}
 		d := AuxIntToInt32(v_1.AuxInt)
 		v.Reset(ssaop.OpConstBool)
-		v.AuxInt = BoolToAuxInt(uint32(c) < uint32(d))
+		v.AuxInt = ssacore.BoolToAuxInt(uint32(c) < uint32(d))
 		return true
 	}
 	// match: (Less32U (Const32 <t> [0]) x)
@@ -14084,7 +14085,7 @@ func rewriteValuegeneric_OpLess32U(v *Value) bool {
 			break
 		}
 		v.Reset(ssaop.OpConstBool)
-		v.AuxInt = BoolToAuxInt(false)
+		v.AuxInt = ssacore.BoolToAuxInt(false)
 		return true
 	}
 	// match: (Less32U (Const32 [-1]) _)
@@ -14094,7 +14095,7 @@ func rewriteValuegeneric_OpLess32U(v *Value) bool {
 			break
 		}
 		v.Reset(ssaop.OpConstBool)
-		v.AuxInt = BoolToAuxInt(false)
+		v.AuxInt = ssacore.BoolToAuxInt(false)
 		return true
 	}
 	// match: (Less32U x (Const32 <t> [1]))
@@ -14133,7 +14134,7 @@ func rewriteValuegeneric_OpLess32U(v *Value) bool {
 	}
 	return false
 }
-func rewriteValuegeneric_OpLess64(v *Value) bool {
+func rewriteValuegeneric_OpLess64(v *ssacore.Value) bool {
 	v_1 := v.Args[1]
 	v_0 := v.Args[0]
 	b := v.Block
@@ -14149,7 +14150,7 @@ func rewriteValuegeneric_OpLess64(v *Value) bool {
 		}
 		d := AuxIntToInt64(v_1.AuxInt)
 		v.Reset(ssaop.OpConstBool)
-		v.AuxInt = BoolToAuxInt(c < d)
+		v.AuxInt = ssacore.BoolToAuxInt(c < d)
 		return true
 	}
 	// match: (Less64 (Const64 <t> [0]) x)
@@ -14214,7 +14215,7 @@ func rewriteValuegeneric_OpLess64(v *Value) bool {
 			break
 		}
 		v.Reset(ssaop.OpConstBool)
-		v.AuxInt = BoolToAuxInt(false)
+		v.AuxInt = ssacore.BoolToAuxInt(false)
 		return true
 	}
 	// match: (Less64 (Const64 [math.MaxInt64]) _)
@@ -14224,7 +14225,7 @@ func rewriteValuegeneric_OpLess64(v *Value) bool {
 			break
 		}
 		v.Reset(ssaop.OpConstBool)
-		v.AuxInt = BoolToAuxInt(false)
+		v.AuxInt = ssacore.BoolToAuxInt(false)
 		return true
 	}
 	// match: (Less64 x (Const64 <t> [math.MinInt64+1]))
@@ -14263,7 +14264,7 @@ func rewriteValuegeneric_OpLess64(v *Value) bool {
 	}
 	return false
 }
-func rewriteValuegeneric_OpLess64F(v *Value) bool {
+func rewriteValuegeneric_OpLess64F(v *ssacore.Value) bool {
 	v_1 := v.Args[1]
 	v_0 := v.Args[0]
 	// match: (Less64F (Const64F [c]) (Const64F [d]))
@@ -14278,12 +14279,12 @@ func rewriteValuegeneric_OpLess64F(v *Value) bool {
 		}
 		d := AuxIntToFloat64(v_1.AuxInt)
 		v.Reset(ssaop.OpConstBool)
-		v.AuxInt = BoolToAuxInt(c < d)
+		v.AuxInt = ssacore.BoolToAuxInt(c < d)
 		return true
 	}
 	return false
 }
-func rewriteValuegeneric_OpLess64U(v *Value) bool {
+func rewriteValuegeneric_OpLess64U(v *ssacore.Value) bool {
 	v_1 := v.Args[1]
 	v_0 := v.Args[0]
 	b := v.Block
@@ -14299,7 +14300,7 @@ func rewriteValuegeneric_OpLess64U(v *Value) bool {
 		}
 		d := AuxIntToInt64(v_1.AuxInt)
 		v.Reset(ssaop.OpConstBool)
-		v.AuxInt = BoolToAuxInt(uint64(c) < uint64(d))
+		v.AuxInt = ssacore.BoolToAuxInt(uint64(c) < uint64(d))
 		return true
 	}
 	// match: (Less64U (Const64 <t> [0]) x)
@@ -14343,7 +14344,7 @@ func rewriteValuegeneric_OpLess64U(v *Value) bool {
 			break
 		}
 		v.Reset(ssaop.OpConstBool)
-		v.AuxInt = BoolToAuxInt(false)
+		v.AuxInt = ssacore.BoolToAuxInt(false)
 		return true
 	}
 	// match: (Less64U (Const64 [-1]) _)
@@ -14353,7 +14354,7 @@ func rewriteValuegeneric_OpLess64U(v *Value) bool {
 			break
 		}
 		v.Reset(ssaop.OpConstBool)
-		v.AuxInt = BoolToAuxInt(false)
+		v.AuxInt = ssacore.BoolToAuxInt(false)
 		return true
 	}
 	// match: (Less64U x (Const64 <t> [1]))
@@ -14392,7 +14393,7 @@ func rewriteValuegeneric_OpLess64U(v *Value) bool {
 	}
 	return false
 }
-func rewriteValuegeneric_OpLess8(v *Value) bool {
+func rewriteValuegeneric_OpLess8(v *ssacore.Value) bool {
 	v_1 := v.Args[1]
 	v_0 := v.Args[0]
 	b := v.Block
@@ -14408,7 +14409,7 @@ func rewriteValuegeneric_OpLess8(v *Value) bool {
 		}
 		d := AuxIntToInt8(v_1.AuxInt)
 		v.Reset(ssaop.OpConstBool)
-		v.AuxInt = BoolToAuxInt(c < d)
+		v.AuxInt = ssacore.BoolToAuxInt(c < d)
 		return true
 	}
 	// match: (Less8 (Const8 <t> [0]) x)
@@ -14473,7 +14474,7 @@ func rewriteValuegeneric_OpLess8(v *Value) bool {
 			break
 		}
 		v.Reset(ssaop.OpConstBool)
-		v.AuxInt = BoolToAuxInt(false)
+		v.AuxInt = ssacore.BoolToAuxInt(false)
 		return true
 	}
 	// match: (Less8 (Const8 [math.MaxInt8 ]) _)
@@ -14483,7 +14484,7 @@ func rewriteValuegeneric_OpLess8(v *Value) bool {
 			break
 		}
 		v.Reset(ssaop.OpConstBool)
-		v.AuxInt = BoolToAuxInt(false)
+		v.AuxInt = ssacore.BoolToAuxInt(false)
 		return true
 	}
 	// match: (Less8 x (Const8 <t> [math.MinInt8 +1]))
@@ -14522,7 +14523,7 @@ func rewriteValuegeneric_OpLess8(v *Value) bool {
 	}
 	return false
 }
-func rewriteValuegeneric_OpLess8U(v *Value) bool {
+func rewriteValuegeneric_OpLess8U(v *ssacore.Value) bool {
 	v_1 := v.Args[1]
 	v_0 := v.Args[0]
 	b := v.Block
@@ -14538,7 +14539,7 @@ func rewriteValuegeneric_OpLess8U(v *Value) bool {
 		}
 		d := AuxIntToInt8(v_1.AuxInt)
 		v.Reset(ssaop.OpConstBool)
-		v.AuxInt = BoolToAuxInt(uint8(c) < uint8(d))
+		v.AuxInt = ssacore.BoolToAuxInt(uint8(c) < uint8(d))
 		return true
 	}
 	// match: (Less8U (Const8 <t> [0]) x)
@@ -14582,7 +14583,7 @@ func rewriteValuegeneric_OpLess8U(v *Value) bool {
 			break
 		}
 		v.Reset(ssaop.OpConstBool)
-		v.AuxInt = BoolToAuxInt(false)
+		v.AuxInt = ssacore.BoolToAuxInt(false)
 		return true
 	}
 	// match: (Less8U (Const8 [-1]) _)
@@ -14592,7 +14593,7 @@ func rewriteValuegeneric_OpLess8U(v *Value) bool {
 			break
 		}
 		v.Reset(ssaop.OpConstBool)
-		v.AuxInt = BoolToAuxInt(false)
+		v.AuxInt = ssacore.BoolToAuxInt(false)
 		return true
 	}
 	// match: (Less8U x (Const8 <t> [1]))
@@ -14631,14 +14632,14 @@ func rewriteValuegeneric_OpLess8U(v *Value) bool {
 	}
 	return false
 }
-func rewriteValuegeneric_OpLoad(v *Value) bool {
+func rewriteValuegeneric_OpLoad(v *ssacore.Value) bool {
 	v_1 := v.Args[1]
 	v_0 := v.Args[0]
 	b := v.Block
 	config := b.Func.Config
 	typ := &b.Func.Config.Types
 	// match: (Load <t1> p1 (Store {t2} p2 x _))
-	// cond: IsSamePtr(p1, p2) && copyCompatibleType(t1, x.Type) && t1.Size() == t2.Size()
+	// cond: ssacore.IsSamePtr(p1, p2) && copyCompatibleType(t1, x.Type) && t1.Size() == t2.Size()
 	// result: x
 	for {
 		t1 := v.Type
@@ -14649,14 +14650,14 @@ func rewriteValuegeneric_OpLoad(v *Value) bool {
 		t2 := AuxToType(v_1.Aux)
 		x := v_1.Args[1]
 		p2 := v_1.Args[0]
-		if !(IsSamePtr(p1, p2) && copyCompatibleType(t1, x.Type) && t1.Size() == t2.Size()) {
+		if !(ssacore.IsSamePtr(p1, p2) && copyCompatibleType(t1, x.Type) && t1.Size() == t2.Size()) {
 			break
 		}
 		v.CopyOf(x)
 		return true
 	}
 	// match: (Load <t1> p1 (Store {t2} p2 _ (Store {t3} p3 x _)))
-	// cond: IsSamePtr(p1, p3) && copyCompatibleType(t1, x.Type) && t1.Size() == t3.Size() && Disjoint(p3, t3, p2, t2)
+	// cond: ssacore.IsSamePtr(p1, p3) && copyCompatibleType(t1, x.Type) && t1.Size() == t3.Size() && ssacore.Disjoint(p3, t3, p2, t2)
 	// result: x
 	for {
 		t1 := v.Type
@@ -14674,14 +14675,14 @@ func rewriteValuegeneric_OpLoad(v *Value) bool {
 		t3 := AuxToType(v_1_2.Aux)
 		x := v_1_2.Args[1]
 		p3 := v_1_2.Args[0]
-		if !(IsSamePtr(p1, p3) && copyCompatibleType(t1, x.Type) && t1.Size() == t3.Size() && Disjoint(p3, t3, p2, t2)) {
+		if !(ssacore.IsSamePtr(p1, p3) && copyCompatibleType(t1, x.Type) && t1.Size() == t3.Size() && ssacore.Disjoint(p3, t3, p2, t2)) {
 			break
 		}
 		v.CopyOf(x)
 		return true
 	}
 	// match: (Load <t1> p1 (Store {t2} p2 _ (Store {t3} p3 _ (Store {t4} p4 x _))))
-	// cond: IsSamePtr(p1, p4) && copyCompatibleType(t1, x.Type) && t1.Size() == t4.Size() && Disjoint(p4, t4, p2, t2) && Disjoint(p4, t4, p3, t3)
+	// cond: ssacore.IsSamePtr(p1, p4) && copyCompatibleType(t1, x.Type) && t1.Size() == t4.Size() && ssacore.Disjoint(p4, t4, p2, t2) && ssacore.Disjoint(p4, t4, p3, t3)
 	// result: x
 	for {
 		t1 := v.Type
@@ -14706,14 +14707,14 @@ func rewriteValuegeneric_OpLoad(v *Value) bool {
 		t4 := AuxToType(v_1_2_2.Aux)
 		x := v_1_2_2.Args[1]
 		p4 := v_1_2_2.Args[0]
-		if !(IsSamePtr(p1, p4) && copyCompatibleType(t1, x.Type) && t1.Size() == t4.Size() && Disjoint(p4, t4, p2, t2) && Disjoint(p4, t4, p3, t3)) {
+		if !(ssacore.IsSamePtr(p1, p4) && copyCompatibleType(t1, x.Type) && t1.Size() == t4.Size() && ssacore.Disjoint(p4, t4, p2, t2) && ssacore.Disjoint(p4, t4, p3, t3)) {
 			break
 		}
 		v.CopyOf(x)
 		return true
 	}
 	// match: (Load <t1> p1 (Store {t2} p2 _ (Store {t3} p3 _ (Store {t4} p4 _ (Store {t5} p5 x _)))))
-	// cond: IsSamePtr(p1, p5) && copyCompatibleType(t1, x.Type) && t1.Size() == t5.Size() && Disjoint(p5, t5, p2, t2) && Disjoint(p5, t5, p3, t3) && Disjoint(p5, t5, p4, t4)
+	// cond: ssacore.IsSamePtr(p1, p5) && copyCompatibleType(t1, x.Type) && t1.Size() == t5.Size() && ssacore.Disjoint(p5, t5, p2, t2) && ssacore.Disjoint(p5, t5, p3, t3) && ssacore.Disjoint(p5, t5, p4, t4)
 	// result: x
 	for {
 		t1 := v.Type
@@ -14745,14 +14746,14 @@ func rewriteValuegeneric_OpLoad(v *Value) bool {
 		t5 := AuxToType(v_1_2_2_2.Aux)
 		x := v_1_2_2_2.Args[1]
 		p5 := v_1_2_2_2.Args[0]
-		if !(IsSamePtr(p1, p5) && copyCompatibleType(t1, x.Type) && t1.Size() == t5.Size() && Disjoint(p5, t5, p2, t2) && Disjoint(p5, t5, p3, t3) && Disjoint(p5, t5, p4, t4)) {
+		if !(ssacore.IsSamePtr(p1, p5) && copyCompatibleType(t1, x.Type) && t1.Size() == t5.Size() && ssacore.Disjoint(p5, t5, p2, t2) && ssacore.Disjoint(p5, t5, p3, t3) && ssacore.Disjoint(p5, t5, p4, t4)) {
 			break
 		}
 		v.CopyOf(x)
 		return true
 	}
 	// match: (Load <t1> op1:(OffPtr [o1] p1) move:(Move [n] p2 src mem))
-	// cond: o1 >= 0 && o1+t1.Size() <= n && IsSamePtr(p1, p2) && !IsVolatile(src)
+	// cond: o1 >= 0 && o1+t1.Size() <= n && ssacore.IsSamePtr(p1, p2) && !IsVolatile(src)
 	// result: @move.Block (Load <t1> (OffPtr <op1.Type> [o1] src) mem)
 	for {
 		t1 := v.Type
@@ -14770,7 +14771,7 @@ func rewriteValuegeneric_OpLoad(v *Value) bool {
 		mem := move.Args[2]
 		p2 := move.Args[0]
 		src := move.Args[1]
-		if !(o1 >= 0 && o1+t1.Size() <= n && IsSamePtr(p1, p2) && !IsVolatile(src)) {
+		if !(o1 >= 0 && o1+t1.Size() <= n && ssacore.IsSamePtr(p1, p2) && !IsVolatile(src)) {
 			break
 		}
 		b = move.Block
@@ -14783,7 +14784,7 @@ func rewriteValuegeneric_OpLoad(v *Value) bool {
 		return true
 	}
 	// match: (Load <t1> p1 (Store {t2} p2 (Const64 [x]) _))
-	// cond: IsSamePtr(p1,p2) && t2.Size() == 8 && Is64BitFloat(t1) && !math.IsNaN(math.Float64frombits(uint64(x)))
+	// cond: ssacore.IsSamePtr(p1,p2) && t2.Size() == 8 && Is64BitFloat(t1) && !math.IsNaN(math.Float64frombits(uint64(x)))
 	// result: (Const64F [math.Float64frombits(uint64(x))])
 	for {
 		t1 := v.Type
@@ -14799,7 +14800,7 @@ func rewriteValuegeneric_OpLoad(v *Value) bool {
 			break
 		}
 		x := AuxIntToInt64(v_1_1.AuxInt)
-		if !(IsSamePtr(p1, p2) && t2.Size() == 8 && Is64BitFloat(t1) && !math.IsNaN(math.Float64frombits(uint64(x)))) {
+		if !(ssacore.IsSamePtr(p1, p2) && t2.Size() == 8 && Is64BitFloat(t1) && !math.IsNaN(math.Float64frombits(uint64(x)))) {
 			break
 		}
 		v.Reset(ssaop.OpConst64F)
@@ -14807,7 +14808,7 @@ func rewriteValuegeneric_OpLoad(v *Value) bool {
 		return true
 	}
 	// match: (Load <t1> p1 (Store {t2} p2 (Const32 [x]) _))
-	// cond: IsSamePtr(p1,p2) && t2.Size() == 4 && Is32BitFloat(t1) && !math.IsNaN(float64(math.Float32frombits(uint32(x))))
+	// cond: ssacore.IsSamePtr(p1,p2) && t2.Size() == 4 && Is32BitFloat(t1) && !math.IsNaN(float64(math.Float32frombits(uint32(x))))
 	// result: (Const32F [math.Float32frombits(uint32(x))])
 	for {
 		t1 := v.Type
@@ -14823,7 +14824,7 @@ func rewriteValuegeneric_OpLoad(v *Value) bool {
 			break
 		}
 		x := AuxIntToInt32(v_1_1.AuxInt)
-		if !(IsSamePtr(p1, p2) && t2.Size() == 4 && Is32BitFloat(t1) && !math.IsNaN(float64(math.Float32frombits(uint32(x))))) {
+		if !(ssacore.IsSamePtr(p1, p2) && t2.Size() == 4 && Is32BitFloat(t1) && !math.IsNaN(float64(math.Float32frombits(uint32(x))))) {
 			break
 		}
 		v.Reset(ssaop.OpConst32F)
@@ -14831,7 +14832,7 @@ func rewriteValuegeneric_OpLoad(v *Value) bool {
 		return true
 	}
 	// match: (Load <t1> p1 (Store {t2} p2 (Const64F [x]) _))
-	// cond: IsSamePtr(p1,p2) && t2.Size() == 8 && Is64BitInt(t1)
+	// cond: ssacore.IsSamePtr(p1,p2) && t2.Size() == 8 && Is64BitInt(t1)
 	// result: (Const64 [int64(math.Float64bits(x))])
 	for {
 		t1 := v.Type
@@ -14847,7 +14848,7 @@ func rewriteValuegeneric_OpLoad(v *Value) bool {
 			break
 		}
 		x := AuxIntToFloat64(v_1_1.AuxInt)
-		if !(IsSamePtr(p1, p2) && t2.Size() == 8 && Is64BitInt(t1)) {
+		if !(ssacore.IsSamePtr(p1, p2) && t2.Size() == 8 && Is64BitInt(t1)) {
 			break
 		}
 		v.Reset(ssaop.OpConst64)
@@ -14855,7 +14856,7 @@ func rewriteValuegeneric_OpLoad(v *Value) bool {
 		return true
 	}
 	// match: (Load <t1> p1 (Store {t2} p2 (Const32F [x]) _))
-	// cond: IsSamePtr(p1,p2) && t2.Size() == 4 && Is32BitInt(t1)
+	// cond: ssacore.IsSamePtr(p1,p2) && t2.Size() == 4 && Is32BitInt(t1)
 	// result: (Const32 [int32(math.Float32bits(x))])
 	for {
 		t1 := v.Type
@@ -14871,7 +14872,7 @@ func rewriteValuegeneric_OpLoad(v *Value) bool {
 			break
 		}
 		x := AuxIntToFloat32(v_1_1.AuxInt)
-		if !(IsSamePtr(p1, p2) && t2.Size() == 4 && Is32BitInt(t1)) {
+		if !(ssacore.IsSamePtr(p1, p2) && t2.Size() == 4 && Is32BitInt(t1)) {
 			break
 		}
 		v.Reset(ssaop.OpConst32)
@@ -14879,7 +14880,7 @@ func rewriteValuegeneric_OpLoad(v *Value) bool {
 		return true
 	}
 	// match: (Load <t1> op1:(OffPtr [o1] p1) (Store {t2} p2 _ mem:(Zero [n] p3 _)))
-	// cond: o1 >= 0 && o1+t1.Size() <= n && IsSamePtr(p1, p3) && CanSSA(t1) && Disjoint(op1, t1, p2, t2)
+	// cond: o1 >= 0 && o1+t1.Size() <= n && ssacore.IsSamePtr(p1, p3) && ssacore.CanSSA(t1) && ssacore.Disjoint(op1, t1, p2, t2)
 	// result: @mem.Block (Load <t1> (OffPtr <op1.Type> [o1] p3) mem)
 	for {
 		t1 := v.Type
@@ -14901,7 +14902,7 @@ func rewriteValuegeneric_OpLoad(v *Value) bool {
 		}
 		n := AuxIntToInt64(mem.AuxInt)
 		p3 := mem.Args[0]
-		if !(o1 >= 0 && o1+t1.Size() <= n && IsSamePtr(p1, p3) && CanSSA(t1) && Disjoint(op1, t1, p2, t2)) {
+		if !(o1 >= 0 && o1+t1.Size() <= n && ssacore.IsSamePtr(p1, p3) && ssacore.CanSSA(t1) && ssacore.Disjoint(op1, t1, p2, t2)) {
 			break
 		}
 		b = mem.Block
@@ -14914,7 +14915,7 @@ func rewriteValuegeneric_OpLoad(v *Value) bool {
 		return true
 	}
 	// match: (Load <t1> op1:(OffPtr [o1] p1) (Store {t2} p2 _ (Store {t3} p3 _ mem:(Zero [n] p4 _))))
-	// cond: o1 >= 0 && o1+t1.Size() <= n && IsSamePtr(p1, p4) && CanSSA(t1) && Disjoint(op1, t1, p2, t2) && Disjoint(op1, t1, p3, t3)
+	// cond: o1 >= 0 && o1+t1.Size() <= n && ssacore.IsSamePtr(p1, p4) && ssacore.CanSSA(t1) && ssacore.Disjoint(op1, t1, p2, t2) && ssacore.Disjoint(op1, t1, p3, t3)
 	// result: @mem.Block (Load <t1> (OffPtr <op1.Type> [o1] p4) mem)
 	for {
 		t1 := v.Type
@@ -14943,7 +14944,7 @@ func rewriteValuegeneric_OpLoad(v *Value) bool {
 		}
 		n := AuxIntToInt64(mem.AuxInt)
 		p4 := mem.Args[0]
-		if !(o1 >= 0 && o1+t1.Size() <= n && IsSamePtr(p1, p4) && CanSSA(t1) && Disjoint(op1, t1, p2, t2) && Disjoint(op1, t1, p3, t3)) {
+		if !(o1 >= 0 && o1+t1.Size() <= n && ssacore.IsSamePtr(p1, p4) && ssacore.CanSSA(t1) && ssacore.Disjoint(op1, t1, p2, t2) && ssacore.Disjoint(op1, t1, p3, t3)) {
 			break
 		}
 		b = mem.Block
@@ -14956,7 +14957,7 @@ func rewriteValuegeneric_OpLoad(v *Value) bool {
 		return true
 	}
 	// match: (Load <t1> op1:(OffPtr [o1] p1) (Store {t2} p2 _ (Store {t3} p3 _ (Store {t4} p4 _ mem:(Zero [n] p5 _)))))
-	// cond: o1 >= 0 && o1+t1.Size() <= n && IsSamePtr(p1, p5) && CanSSA(t1) && Disjoint(op1, t1, p2, t2) && Disjoint(op1, t1, p3, t3) && Disjoint(op1, t1, p4, t4)
+	// cond: o1 >= 0 && o1+t1.Size() <= n && ssacore.IsSamePtr(p1, p5) && ssacore.CanSSA(t1) && ssacore.Disjoint(op1, t1, p2, t2) && ssacore.Disjoint(op1, t1, p3, t3) && ssacore.Disjoint(op1, t1, p4, t4)
 	// result: @mem.Block (Load <t1> (OffPtr <op1.Type> [o1] p5) mem)
 	for {
 		t1 := v.Type
@@ -14992,7 +14993,7 @@ func rewriteValuegeneric_OpLoad(v *Value) bool {
 		}
 		n := AuxIntToInt64(mem.AuxInt)
 		p5 := mem.Args[0]
-		if !(o1 >= 0 && o1+t1.Size() <= n && IsSamePtr(p1, p5) && CanSSA(t1) && Disjoint(op1, t1, p2, t2) && Disjoint(op1, t1, p3, t3) && Disjoint(op1, t1, p4, t4)) {
+		if !(o1 >= 0 && o1+t1.Size() <= n && ssacore.IsSamePtr(p1, p5) && ssacore.CanSSA(t1) && ssacore.Disjoint(op1, t1, p2, t2) && ssacore.Disjoint(op1, t1, p3, t3) && ssacore.Disjoint(op1, t1, p4, t4)) {
 			break
 		}
 		b = mem.Block
@@ -15005,7 +15006,7 @@ func rewriteValuegeneric_OpLoad(v *Value) bool {
 		return true
 	}
 	// match: (Load <t1> op1:(OffPtr [o1] p1) (Store {t2} p2 _ (Store {t3} p3 _ (Store {t4} p4 _ (Store {t5} p5 _ mem:(Zero [n] p6 _))))))
-	// cond: o1 >= 0 && o1+t1.Size() <= n && IsSamePtr(p1, p6) && CanSSA(t1) && Disjoint(op1, t1, p2, t2) && Disjoint(op1, t1, p3, t3) && Disjoint(op1, t1, p4, t4) && Disjoint(op1, t1, p5, t5)
+	// cond: o1 >= 0 && o1+t1.Size() <= n && ssacore.IsSamePtr(p1, p6) && ssacore.CanSSA(t1) && ssacore.Disjoint(op1, t1, p2, t2) && ssacore.Disjoint(op1, t1, p3, t3) && ssacore.Disjoint(op1, t1, p4, t4) && ssacore.Disjoint(op1, t1, p5, t5)
 	// result: @mem.Block (Load <t1> (OffPtr <op1.Type> [o1] p6) mem)
 	for {
 		t1 := v.Type
@@ -15048,7 +15049,7 @@ func rewriteValuegeneric_OpLoad(v *Value) bool {
 		}
 		n := AuxIntToInt64(mem.AuxInt)
 		p6 := mem.Args[0]
-		if !(o1 >= 0 && o1+t1.Size() <= n && IsSamePtr(p1, p6) && CanSSA(t1) && Disjoint(op1, t1, p2, t2) && Disjoint(op1, t1, p3, t3) && Disjoint(op1, t1, p4, t4) && Disjoint(op1, t1, p5, t5)) {
+		if !(o1 >= 0 && o1+t1.Size() <= n && ssacore.IsSamePtr(p1, p6) && ssacore.CanSSA(t1) && ssacore.Disjoint(op1, t1, p2, t2) && ssacore.Disjoint(op1, t1, p3, t3) && ssacore.Disjoint(op1, t1, p4, t4) && ssacore.Disjoint(op1, t1, p5, t5)) {
 			break
 		}
 		b = mem.Block
@@ -15061,7 +15062,7 @@ func rewriteValuegeneric_OpLoad(v *Value) bool {
 		return true
 	}
 	// match: (Load <t1> (OffPtr [o] p1) (Zero [n] p2 _))
-	// cond: t1.IsBoolean() && IsSamePtr(p1, p2) && n >= o + 1
+	// cond: t1.IsBoolean() && ssacore.IsSamePtr(p1, p2) && n >= o + 1
 	// result: (ConstBool [false])
 	for {
 		t1 := v.Type
@@ -15075,15 +15076,15 @@ func rewriteValuegeneric_OpLoad(v *Value) bool {
 		}
 		n := AuxIntToInt64(v_1.AuxInt)
 		p2 := v_1.Args[0]
-		if !(t1.IsBoolean() && IsSamePtr(p1, p2) && n >= o+1) {
+		if !(t1.IsBoolean() && ssacore.IsSamePtr(p1, p2) && n >= o+1) {
 			break
 		}
 		v.Reset(ssaop.OpConstBool)
-		v.AuxInt = BoolToAuxInt(false)
+		v.AuxInt = ssacore.BoolToAuxInt(false)
 		return true
 	}
 	// match: (Load <t1> (OffPtr [o] p1) (Zero [n] p2 _))
-	// cond: Is8BitInt(t1) && IsSamePtr(p1, p2) && n >= o + 1
+	// cond: Is8BitInt(t1) && ssacore.IsSamePtr(p1, p2) && n >= o + 1
 	// result: (Const8 [0])
 	for {
 		t1 := v.Type
@@ -15097,7 +15098,7 @@ func rewriteValuegeneric_OpLoad(v *Value) bool {
 		}
 		n := AuxIntToInt64(v_1.AuxInt)
 		p2 := v_1.Args[0]
-		if !(Is8BitInt(t1) && IsSamePtr(p1, p2) && n >= o+1) {
+		if !(Is8BitInt(t1) && ssacore.IsSamePtr(p1, p2) && n >= o+1) {
 			break
 		}
 		v.Reset(ssaop.OpConst8)
@@ -15105,7 +15106,7 @@ func rewriteValuegeneric_OpLoad(v *Value) bool {
 		return true
 	}
 	// match: (Load <t1> (OffPtr [o] p1) (Zero [n] p2 _))
-	// cond: Is16BitInt(t1) && IsSamePtr(p1, p2) && n >= o + 2
+	// cond: Is16BitInt(t1) && ssacore.IsSamePtr(p1, p2) && n >= o + 2
 	// result: (Const16 [0])
 	for {
 		t1 := v.Type
@@ -15119,7 +15120,7 @@ func rewriteValuegeneric_OpLoad(v *Value) bool {
 		}
 		n := AuxIntToInt64(v_1.AuxInt)
 		p2 := v_1.Args[0]
-		if !(Is16BitInt(t1) && IsSamePtr(p1, p2) && n >= o+2) {
+		if !(Is16BitInt(t1) && ssacore.IsSamePtr(p1, p2) && n >= o+2) {
 			break
 		}
 		v.Reset(ssaop.OpConst16)
@@ -15127,7 +15128,7 @@ func rewriteValuegeneric_OpLoad(v *Value) bool {
 		return true
 	}
 	// match: (Load <t1> (OffPtr [o] p1) (Zero [n] p2 _))
-	// cond: Is32BitInt(t1) && IsSamePtr(p1, p2) && n >= o + 4
+	// cond: Is32BitInt(t1) && ssacore.IsSamePtr(p1, p2) && n >= o + 4
 	// result: (Const32 [0])
 	for {
 		t1 := v.Type
@@ -15141,7 +15142,7 @@ func rewriteValuegeneric_OpLoad(v *Value) bool {
 		}
 		n := AuxIntToInt64(v_1.AuxInt)
 		p2 := v_1.Args[0]
-		if !(Is32BitInt(t1) && IsSamePtr(p1, p2) && n >= o+4) {
+		if !(Is32BitInt(t1) && ssacore.IsSamePtr(p1, p2) && n >= o+4) {
 			break
 		}
 		v.Reset(ssaop.OpConst32)
@@ -15149,7 +15150,7 @@ func rewriteValuegeneric_OpLoad(v *Value) bool {
 		return true
 	}
 	// match: (Load <t1> (OffPtr [o] p1) (Zero [n] p2 _))
-	// cond: Is64BitInt(t1) && IsSamePtr(p1, p2) && n >= o + 8
+	// cond: Is64BitInt(t1) && ssacore.IsSamePtr(p1, p2) && n >= o + 8
 	// result: (Const64 [0])
 	for {
 		t1 := v.Type
@@ -15163,7 +15164,7 @@ func rewriteValuegeneric_OpLoad(v *Value) bool {
 		}
 		n := AuxIntToInt64(v_1.AuxInt)
 		p2 := v_1.Args[0]
-		if !(Is64BitInt(t1) && IsSamePtr(p1, p2) && n >= o+8) {
+		if !(Is64BitInt(t1) && ssacore.IsSamePtr(p1, p2) && n >= o+8) {
 			break
 		}
 		v.Reset(ssaop.OpConst64)
@@ -15171,7 +15172,7 @@ func rewriteValuegeneric_OpLoad(v *Value) bool {
 		return true
 	}
 	// match: (Load <t1> (OffPtr [o] p1) (Zero [n] p2 _))
-	// cond: Is32BitFloat(t1) && IsSamePtr(p1, p2) && n >= o + 4
+	// cond: Is32BitFloat(t1) && ssacore.IsSamePtr(p1, p2) && n >= o + 4
 	// result: (Const32F [0])
 	for {
 		t1 := v.Type
@@ -15185,7 +15186,7 @@ func rewriteValuegeneric_OpLoad(v *Value) bool {
 		}
 		n := AuxIntToInt64(v_1.AuxInt)
 		p2 := v_1.Args[0]
-		if !(Is32BitFloat(t1) && IsSamePtr(p1, p2) && n >= o+4) {
+		if !(Is32BitFloat(t1) && ssacore.IsSamePtr(p1, p2) && n >= o+4) {
 			break
 		}
 		v.Reset(ssaop.OpConst32F)
@@ -15193,7 +15194,7 @@ func rewriteValuegeneric_OpLoad(v *Value) bool {
 		return true
 	}
 	// match: (Load <t1> (OffPtr [o] p1) (Zero [n] p2 _))
-	// cond: Is64BitFloat(t1) && IsSamePtr(p1, p2) && n >= o + 8
+	// cond: Is64BitFloat(t1) && ssacore.IsSamePtr(p1, p2) && n >= o + 8
 	// result: (Const64F [0])
 	for {
 		t1 := v.Type
@@ -15207,7 +15208,7 @@ func rewriteValuegeneric_OpLoad(v *Value) bool {
 		}
 		n := AuxIntToInt64(v_1.AuxInt)
 		p2 := v_1.Args[0]
-		if !(Is64BitFloat(t1) && IsSamePtr(p1, p2) && n >= o+8) {
+		if !(Is64BitFloat(t1) && ssacore.IsSamePtr(p1, p2) && n >= o+8) {
 			break
 		}
 		v.Reset(ssaop.OpConst64F)
@@ -15215,24 +15216,24 @@ func rewriteValuegeneric_OpLoad(v *Value) bool {
 		return true
 	}
 	// match: (Load <t> _ _)
-	// cond: t.IsStruct() && t.Size() > 0 && CanSSA(t) && !t.IsSIMD()
+	// cond: t.IsStruct() && t.Size() > 0 && ssacore.CanSSA(t) && !t.IsSIMD()
 	// result: rewriteStructLoad(v)
 	for {
 		t := v.Type
-		if !(t.IsStruct() && t.Size() > 0 && CanSSA(t) && !t.IsSIMD()) {
+		if !(t.IsStruct() && t.Size() > 0 && ssacore.CanSSA(t) && !t.IsSIMD()) {
 			break
 		}
 		v.CopyOf(rewriteStructLoad(v))
 		return true
 	}
 	// match: (Load <t> ptr mem)
-	// cond: t.IsArray() && t.NumElem() == 1 && t.Size() > 0 && CanSSA(t)
+	// cond: t.IsArray() && t.NumElem() == 1 && t.Size() > 0 && ssacore.CanSSA(t)
 	// result: (ArrayMake1 (Load <t.Elem()> ptr mem))
 	for {
 		t := v.Type
 		ptr := v_0
 		mem := v_1
-		if !(t.IsArray() && t.NumElem() == 1 && t.Size() > 0 && CanSSA(t)) {
+		if !(t.IsArray() && t.NumElem() == 1 && t.Size() > 0 && ssacore.CanSSA(t)) {
 			break
 		}
 		v.Reset(ssaop.OpArrayMake1)
@@ -15538,7 +15539,7 @@ func rewriteValuegeneric_OpLoad(v *Value) bool {
 	}
 	return false
 }
-func rewriteValuegeneric_OpLsh16x16(v *Value) bool {
+func rewriteValuegeneric_OpLsh16x16(v *ssacore.Value) bool {
 	v_1 := v.Args[1]
 	v_0 := v.Args[0]
 	b := v.Block
@@ -15583,13 +15584,13 @@ func rewriteValuegeneric_OpLsh16x16(v *Value) bool {
 			break
 		}
 		v.Reset(ssaop.OpLsh16x16)
-		v.AuxInt = BoolToAuxInt(true)
+		v.AuxInt = ssacore.BoolToAuxInt(true)
 		v.AddArg2(x, con)
 		return true
 	}
 	return false
 }
-func rewriteValuegeneric_OpLsh16x32(v *Value) bool {
+func rewriteValuegeneric_OpLsh16x32(v *ssacore.Value) bool {
 	v_1 := v.Args[1]
 	v_0 := v.Args[0]
 	b := v.Block
@@ -15634,13 +15635,13 @@ func rewriteValuegeneric_OpLsh16x32(v *Value) bool {
 			break
 		}
 		v.Reset(ssaop.OpLsh16x32)
-		v.AuxInt = BoolToAuxInt(true)
+		v.AuxInt = ssacore.BoolToAuxInt(true)
 		v.AddArg2(x, con)
 		return true
 	}
 	return false
 }
-func rewriteValuegeneric_OpLsh16x64(v *Value) bool {
+func rewriteValuegeneric_OpLsh16x64(v *ssacore.Value) bool {
 	v_1 := v.Args[1]
 	v_0 := v.Args[0]
 	b := v.Block
@@ -16009,13 +16010,13 @@ func rewriteValuegeneric_OpLsh16x64(v *Value) bool {
 			break
 		}
 		v.Reset(ssaop.OpLsh16x64)
-		v.AuxInt = BoolToAuxInt(true)
+		v.AuxInt = ssacore.BoolToAuxInt(true)
 		v.AddArg2(x, con)
 		return true
 	}
 	return false
 }
-func rewriteValuegeneric_OpLsh16x8(v *Value) bool {
+func rewriteValuegeneric_OpLsh16x8(v *ssacore.Value) bool {
 	v_1 := v.Args[1]
 	v_0 := v.Args[0]
 	b := v.Block
@@ -16060,13 +16061,13 @@ func rewriteValuegeneric_OpLsh16x8(v *Value) bool {
 			break
 		}
 		v.Reset(ssaop.OpLsh16x8)
-		v.AuxInt = BoolToAuxInt(true)
+		v.AuxInt = ssacore.BoolToAuxInt(true)
 		v.AddArg2(x, con)
 		return true
 	}
 	return false
 }
-func rewriteValuegeneric_OpLsh32x16(v *Value) bool {
+func rewriteValuegeneric_OpLsh32x16(v *ssacore.Value) bool {
 	v_1 := v.Args[1]
 	v_0 := v.Args[0]
 	b := v.Block
@@ -16111,13 +16112,13 @@ func rewriteValuegeneric_OpLsh32x16(v *Value) bool {
 			break
 		}
 		v.Reset(ssaop.OpLsh32x16)
-		v.AuxInt = BoolToAuxInt(true)
+		v.AuxInt = ssacore.BoolToAuxInt(true)
 		v.AddArg2(x, con)
 		return true
 	}
 	return false
 }
-func rewriteValuegeneric_OpLsh32x32(v *Value) bool {
+func rewriteValuegeneric_OpLsh32x32(v *ssacore.Value) bool {
 	v_1 := v.Args[1]
 	v_0 := v.Args[0]
 	b := v.Block
@@ -16162,13 +16163,13 @@ func rewriteValuegeneric_OpLsh32x32(v *Value) bool {
 			break
 		}
 		v.Reset(ssaop.OpLsh32x32)
-		v.AuxInt = BoolToAuxInt(true)
+		v.AuxInt = ssacore.BoolToAuxInt(true)
 		v.AddArg2(x, con)
 		return true
 	}
 	return false
 }
-func rewriteValuegeneric_OpLsh32x64(v *Value) bool {
+func rewriteValuegeneric_OpLsh32x64(v *ssacore.Value) bool {
 	v_1 := v.Args[1]
 	v_0 := v.Args[0]
 	b := v.Block
@@ -16537,13 +16538,13 @@ func rewriteValuegeneric_OpLsh32x64(v *Value) bool {
 			break
 		}
 		v.Reset(ssaop.OpLsh32x64)
-		v.AuxInt = BoolToAuxInt(true)
+		v.AuxInt = ssacore.BoolToAuxInt(true)
 		v.AddArg2(x, con)
 		return true
 	}
 	return false
 }
-func rewriteValuegeneric_OpLsh32x8(v *Value) bool {
+func rewriteValuegeneric_OpLsh32x8(v *ssacore.Value) bool {
 	v_1 := v.Args[1]
 	v_0 := v.Args[0]
 	b := v.Block
@@ -16588,13 +16589,13 @@ func rewriteValuegeneric_OpLsh32x8(v *Value) bool {
 			break
 		}
 		v.Reset(ssaop.OpLsh32x8)
-		v.AuxInt = BoolToAuxInt(true)
+		v.AuxInt = ssacore.BoolToAuxInt(true)
 		v.AddArg2(x, con)
 		return true
 	}
 	return false
 }
-func rewriteValuegeneric_OpLsh64x16(v *Value) bool {
+func rewriteValuegeneric_OpLsh64x16(v *ssacore.Value) bool {
 	v_1 := v.Args[1]
 	v_0 := v.Args[0]
 	b := v.Block
@@ -16639,13 +16640,13 @@ func rewriteValuegeneric_OpLsh64x16(v *Value) bool {
 			break
 		}
 		v.Reset(ssaop.OpLsh64x16)
-		v.AuxInt = BoolToAuxInt(true)
+		v.AuxInt = ssacore.BoolToAuxInt(true)
 		v.AddArg2(x, con)
 		return true
 	}
 	return false
 }
-func rewriteValuegeneric_OpLsh64x32(v *Value) bool {
+func rewriteValuegeneric_OpLsh64x32(v *ssacore.Value) bool {
 	v_1 := v.Args[1]
 	v_0 := v.Args[0]
 	b := v.Block
@@ -16690,13 +16691,13 @@ func rewriteValuegeneric_OpLsh64x32(v *Value) bool {
 			break
 		}
 		v.Reset(ssaop.OpLsh64x32)
-		v.AuxInt = BoolToAuxInt(true)
+		v.AuxInt = ssacore.BoolToAuxInt(true)
 		v.AddArg2(x, con)
 		return true
 	}
 	return false
 }
-func rewriteValuegeneric_OpLsh64x64(v *Value) bool {
+func rewriteValuegeneric_OpLsh64x64(v *ssacore.Value) bool {
 	v_1 := v.Args[1]
 	v_0 := v.Args[0]
 	b := v.Block
@@ -17065,13 +17066,13 @@ func rewriteValuegeneric_OpLsh64x64(v *Value) bool {
 			break
 		}
 		v.Reset(ssaop.OpLsh64x64)
-		v.AuxInt = BoolToAuxInt(true)
+		v.AuxInt = ssacore.BoolToAuxInt(true)
 		v.AddArg2(x, con)
 		return true
 	}
 	return false
 }
-func rewriteValuegeneric_OpLsh64x8(v *Value) bool {
+func rewriteValuegeneric_OpLsh64x8(v *ssacore.Value) bool {
 	v_1 := v.Args[1]
 	v_0 := v.Args[0]
 	b := v.Block
@@ -17116,13 +17117,13 @@ func rewriteValuegeneric_OpLsh64x8(v *Value) bool {
 			break
 		}
 		v.Reset(ssaop.OpLsh64x8)
-		v.AuxInt = BoolToAuxInt(true)
+		v.AuxInt = ssacore.BoolToAuxInt(true)
 		v.AddArg2(x, con)
 		return true
 	}
 	return false
 }
-func rewriteValuegeneric_OpLsh8x16(v *Value) bool {
+func rewriteValuegeneric_OpLsh8x16(v *ssacore.Value) bool {
 	v_1 := v.Args[1]
 	v_0 := v.Args[0]
 	b := v.Block
@@ -17167,13 +17168,13 @@ func rewriteValuegeneric_OpLsh8x16(v *Value) bool {
 			break
 		}
 		v.Reset(ssaop.OpLsh8x16)
-		v.AuxInt = BoolToAuxInt(true)
+		v.AuxInt = ssacore.BoolToAuxInt(true)
 		v.AddArg2(x, con)
 		return true
 	}
 	return false
 }
-func rewriteValuegeneric_OpLsh8x32(v *Value) bool {
+func rewriteValuegeneric_OpLsh8x32(v *ssacore.Value) bool {
 	v_1 := v.Args[1]
 	v_0 := v.Args[0]
 	b := v.Block
@@ -17218,13 +17219,13 @@ func rewriteValuegeneric_OpLsh8x32(v *Value) bool {
 			break
 		}
 		v.Reset(ssaop.OpLsh8x32)
-		v.AuxInt = BoolToAuxInt(true)
+		v.AuxInt = ssacore.BoolToAuxInt(true)
 		v.AddArg2(x, con)
 		return true
 	}
 	return false
 }
-func rewriteValuegeneric_OpLsh8x64(v *Value) bool {
+func rewriteValuegeneric_OpLsh8x64(v *ssacore.Value) bool {
 	v_1 := v.Args[1]
 	v_0 := v.Args[0]
 	b := v.Block
@@ -17593,13 +17594,13 @@ func rewriteValuegeneric_OpLsh8x64(v *Value) bool {
 			break
 		}
 		v.Reset(ssaop.OpLsh8x64)
-		v.AuxInt = BoolToAuxInt(true)
+		v.AuxInt = ssacore.BoolToAuxInt(true)
 		v.AddArg2(x, con)
 		return true
 	}
 	return false
 }
-func rewriteValuegeneric_OpLsh8x8(v *Value) bool {
+func rewriteValuegeneric_OpLsh8x8(v *ssacore.Value) bool {
 	v_1 := v.Args[1]
 	v_0 := v.Args[0]
 	b := v.Block
@@ -17644,13 +17645,13 @@ func rewriteValuegeneric_OpLsh8x8(v *Value) bool {
 			break
 		}
 		v.Reset(ssaop.OpLsh8x8)
-		v.AuxInt = BoolToAuxInt(true)
+		v.AuxInt = ssacore.BoolToAuxInt(true)
 		v.AddArg2(x, con)
 		return true
 	}
 	return false
 }
-func rewriteValuegeneric_OpMemEq(v *Value) bool {
+func rewriteValuegeneric_OpMemEq(v *ssacore.Value) bool {
 	v_3 := v.Args[3]
 	v_2 := v.Args[2]
 	v_1 := v.Args[1]
@@ -17746,22 +17747,22 @@ func rewriteValuegeneric_OpMemEq(v *Value) bool {
 		}
 		v.Reset(ssaop.OpConstBool)
 		v.Type = typ.Bool
-		v.AuxInt = BoolToAuxInt(true)
+		v.AuxInt = ssacore.BoolToAuxInt(true)
 		return true
 	}
 	// match: (MemEq p q _ _)
-	// cond: IsSamePtr(p, q)
+	// cond: ssacore.IsSamePtr(p, q)
 	// result: (ConstBool <typ.Bool> [true])
 	for {
 		for _i0 := 0; _i0 <= 1; _i0, v_0, v_1 = _i0+1, v_1, v_0 {
 			p := v_0
 			q := v_1
-			if !(IsSamePtr(p, q)) {
+			if !(ssacore.IsSamePtr(p, q)) {
 				continue
 			}
 			v.Reset(ssaop.OpConstBool)
 			v.Type = typ.Bool
-			v.AuxInt = BoolToAuxInt(true)
+			v.AuxInt = ssacore.BoolToAuxInt(true)
 			return true
 		}
 		break
@@ -17936,7 +17937,7 @@ func rewriteValuegeneric_OpMemEq(v *Value) bool {
 	}
 	return false
 }
-func rewriteValuegeneric_OpMod16(v *Value) bool {
+func rewriteValuegeneric_OpMod16(v *ssacore.Value) bool {
 	v_1 := v.Args[1]
 	v_0 := v.Args[0]
 	b := v.Block
@@ -18023,7 +18024,7 @@ func rewriteValuegeneric_OpMod16(v *Value) bool {
 	}
 	return false
 }
-func rewriteValuegeneric_OpMod16u(v *Value) bool {
+func rewriteValuegeneric_OpMod16u(v *ssacore.Value) bool {
 	v_1 := v.Args[1]
 	v_0 := v.Args[0]
 	b := v.Block
@@ -18090,7 +18091,7 @@ func rewriteValuegeneric_OpMod16u(v *Value) bool {
 	}
 	return false
 }
-func rewriteValuegeneric_OpMod32(v *Value) bool {
+func rewriteValuegeneric_OpMod32(v *ssacore.Value) bool {
 	v_1 := v.Args[1]
 	v_0 := v.Args[0]
 	b := v.Block
@@ -18177,7 +18178,7 @@ func rewriteValuegeneric_OpMod32(v *Value) bool {
 	}
 	return false
 }
-func rewriteValuegeneric_OpMod32u(v *Value) bool {
+func rewriteValuegeneric_OpMod32u(v *ssacore.Value) bool {
 	v_1 := v.Args[1]
 	v_0 := v.Args[0]
 	b := v.Block
@@ -18244,7 +18245,7 @@ func rewriteValuegeneric_OpMod32u(v *Value) bool {
 	}
 	return false
 }
-func rewriteValuegeneric_OpMod64(v *Value) bool {
+func rewriteValuegeneric_OpMod64(v *ssacore.Value) bool {
 	v_1 := v.Args[1]
 	v_0 := v.Args[0]
 	b := v.Block
@@ -18342,7 +18343,7 @@ func rewriteValuegeneric_OpMod64(v *Value) bool {
 	}
 	return false
 }
-func rewriteValuegeneric_OpMod64u(v *Value) bool {
+func rewriteValuegeneric_OpMod64u(v *ssacore.Value) bool {
 	v_1 := v.Args[1]
 	v_0 := v.Args[0]
 	b := v.Block
@@ -18409,7 +18410,7 @@ func rewriteValuegeneric_OpMod64u(v *Value) bool {
 	}
 	return false
 }
-func rewriteValuegeneric_OpMod8(v *Value) bool {
+func rewriteValuegeneric_OpMod8(v *ssacore.Value) bool {
 	v_1 := v.Args[1]
 	v_0 := v.Args[0]
 	b := v.Block
@@ -18496,7 +18497,7 @@ func rewriteValuegeneric_OpMod8(v *Value) bool {
 	}
 	return false
 }
-func rewriteValuegeneric_OpMod8u(v *Value) bool {
+func rewriteValuegeneric_OpMod8u(v *ssacore.Value) bool {
 	v_1 := v.Args[1]
 	v_0 := v.Args[0]
 	b := v.Block
@@ -18563,14 +18564,14 @@ func rewriteValuegeneric_OpMod8u(v *Value) bool {
 	}
 	return false
 }
-func rewriteValuegeneric_OpMove(v *Value) bool {
+func rewriteValuegeneric_OpMove(v *ssacore.Value) bool {
 	v_2 := v.Args[2]
 	v_1 := v.Args[1]
 	v_0 := v.Args[0]
 	b := v.Block
 	config := b.Func.Config
 	// match: (Move {t} [n] dst1 src mem:(Zero {t} [n] dst2 _))
-	// cond: IsSamePtr(src, dst2)
+	// cond: ssacore.IsSamePtr(src, dst2)
 	// result: (Zero {t} [n] dst1 mem)
 	for {
 		n := AuxIntToInt64(v.AuxInt)
@@ -18582,7 +18583,7 @@ func rewriteValuegeneric_OpMove(v *Value) bool {
 			break
 		}
 		dst2 := mem.Args[0]
-		if !(IsSamePtr(src, dst2)) {
+		if !(ssacore.IsSamePtr(src, dst2)) {
 			break
 		}
 		v.Reset(ssaop.OpZero)
@@ -18592,7 +18593,7 @@ func rewriteValuegeneric_OpMove(v *Value) bool {
 		return true
 	}
 	// match: (Move {t} [n] dst1 src mem:(VarDef (Zero {t} [n] dst0 _)))
-	// cond: IsSamePtr(src, dst0)
+	// cond: ssacore.IsSamePtr(src, dst0)
 	// result: (Zero {t} [n] dst1 mem)
 	for {
 		n := AuxIntToInt64(v.AuxInt)
@@ -18608,7 +18609,7 @@ func rewriteValuegeneric_OpMove(v *Value) bool {
 			break
 		}
 		dst0 := mem_0.Args[0]
-		if !(IsSamePtr(src, dst0)) {
+		if !(ssacore.IsSamePtr(src, dst0)) {
 			break
 		}
 		v.Reset(ssaop.OpZero)
@@ -18643,7 +18644,7 @@ func rewriteValuegeneric_OpMove(v *Value) bool {
 		return true
 	}
 	// match: (Move {t1} [n] dst1 src1 store:(Store {t2} op1:(OffPtr [o2] dst2) _ mem))
-	// cond: IsSamePtr(dst1, dst2) && store.Uses == 1 && n >= o2 + t2.Size() && Disjoint1(src1, n, op1, t2.Size()) && Clobber(store)
+	// cond: ssacore.IsSamePtr(dst1, dst2) && store.Uses == 1 && n >= o2 + t2.Size() && ssacore.Disjoint1(src1, n, op1, t2.Size()) && Clobber(store)
 	// result: (Move {t1} [n] dst1 src1 mem)
 	for {
 		n := AuxIntToInt64(v.AuxInt)
@@ -18662,7 +18663,7 @@ func rewriteValuegeneric_OpMove(v *Value) bool {
 		}
 		o2 := AuxIntToInt64(op1.AuxInt)
 		dst2 := op1.Args[0]
-		if !(IsSamePtr(dst1, dst2) && store.Uses == 1 && n >= o2+t2.Size() && Disjoint1(src1, n, op1, t2.Size()) && Clobber(store)) {
+		if !(ssacore.IsSamePtr(dst1, dst2) && store.Uses == 1 && n >= o2+t2.Size() && ssacore.Disjoint1(src1, n, op1, t2.Size()) && Clobber(store)) {
 			break
 		}
 		v.Reset(ssaop.OpMove)
@@ -18672,7 +18673,7 @@ func rewriteValuegeneric_OpMove(v *Value) bool {
 		return true
 	}
 	// match: (Move {t} [n] dst1 src1 move:(Move {t} [n] dst2 _ mem))
-	// cond: move.Uses == 1 && IsSamePtr(dst1, dst2) && Disjoint1(src1, n, dst2, n) && Clobber(move)
+	// cond: move.Uses == 1 && ssacore.IsSamePtr(dst1, dst2) && ssacore.Disjoint1(src1, n, dst2, n) && Clobber(move)
 	// result: (Move {t} [n] dst1 src1 mem)
 	for {
 		n := AuxIntToInt64(v.AuxInt)
@@ -18685,7 +18686,7 @@ func rewriteValuegeneric_OpMove(v *Value) bool {
 		}
 		mem := move.Args[2]
 		dst2 := move.Args[0]
-		if !(move.Uses == 1 && IsSamePtr(dst1, dst2) && Disjoint1(src1, n, dst2, n) && Clobber(move)) {
+		if !(move.Uses == 1 && ssacore.IsSamePtr(dst1, dst2) && ssacore.Disjoint1(src1, n, dst2, n) && Clobber(move)) {
 			break
 		}
 		v.Reset(ssaop.OpMove)
@@ -18695,7 +18696,7 @@ func rewriteValuegeneric_OpMove(v *Value) bool {
 		return true
 	}
 	// match: (Move {t} [n] dst1 src1 vardef:(VarDef {x} move:(Move {t} [n] dst2 _ mem)))
-	// cond: move.Uses == 1 && vardef.Uses == 1 && IsSamePtr(dst1, dst2) && Disjoint1(src1, n, dst2, n) && Clobber(move, vardef)
+	// cond: move.Uses == 1 && vardef.Uses == 1 && ssacore.IsSamePtr(dst1, dst2) && ssacore.Disjoint1(src1, n, dst2, n) && Clobber(move, vardef)
 	// result: (Move {t} [n] dst1 src1 (VarDef {x} mem))
 	for {
 		n := AuxIntToInt64(v.AuxInt)
@@ -18713,7 +18714,7 @@ func rewriteValuegeneric_OpMove(v *Value) bool {
 		}
 		mem := move.Args[2]
 		dst2 := move.Args[0]
-		if !(move.Uses == 1 && vardef.Uses == 1 && IsSamePtr(dst1, dst2) && Disjoint1(src1, n, dst2, n) && Clobber(move, vardef)) {
+		if !(move.Uses == 1 && vardef.Uses == 1 && ssacore.IsSamePtr(dst1, dst2) && ssacore.Disjoint1(src1, n, dst2, n) && Clobber(move, vardef)) {
 			break
 		}
 		v.Reset(ssaop.OpMove)
@@ -18726,7 +18727,7 @@ func rewriteValuegeneric_OpMove(v *Value) bool {
 		return true
 	}
 	// match: (Move {t} [n] dst1 src1 zero:(Zero {t} [n] dst2 mem))
-	// cond: zero.Uses == 1 && IsSamePtr(dst1, dst2) && Disjoint1(src1, n, dst2, n) && Clobber(zero)
+	// cond: zero.Uses == 1 && ssacore.IsSamePtr(dst1, dst2) && ssacore.Disjoint1(src1, n, dst2, n) && Clobber(zero)
 	// result: (Move {t} [n] dst1 src1 mem)
 	for {
 		n := AuxIntToInt64(v.AuxInt)
@@ -18739,7 +18740,7 @@ func rewriteValuegeneric_OpMove(v *Value) bool {
 		}
 		mem := zero.Args[1]
 		dst2 := zero.Args[0]
-		if !(zero.Uses == 1 && IsSamePtr(dst1, dst2) && Disjoint1(src1, n, dst2, n) && Clobber(zero)) {
+		if !(zero.Uses == 1 && ssacore.IsSamePtr(dst1, dst2) && ssacore.Disjoint1(src1, n, dst2, n) && Clobber(zero)) {
 			break
 		}
 		v.Reset(ssaop.OpMove)
@@ -18749,7 +18750,7 @@ func rewriteValuegeneric_OpMove(v *Value) bool {
 		return true
 	}
 	// match: (Move {t} [n] dst1 src1 vardef:(VarDef {x} zero:(Zero {t} [n] dst2 mem)))
-	// cond: zero.Uses == 1 && vardef.Uses == 1 && IsSamePtr(dst1, dst2) && Disjoint1(src1, n, dst2, n) && Clobber(zero, vardef)
+	// cond: zero.Uses == 1 && vardef.Uses == 1 && ssacore.IsSamePtr(dst1, dst2) && ssacore.Disjoint1(src1, n, dst2, n) && Clobber(zero, vardef)
 	// result: (Move {t} [n] dst1 src1 (VarDef {x} mem))
 	for {
 		n := AuxIntToInt64(v.AuxInt)
@@ -18767,7 +18768,7 @@ func rewriteValuegeneric_OpMove(v *Value) bool {
 		}
 		mem := zero.Args[1]
 		dst2 := zero.Args[0]
-		if !(zero.Uses == 1 && vardef.Uses == 1 && IsSamePtr(dst1, dst2) && Disjoint1(src1, n, dst2, n) && Clobber(zero, vardef)) {
+		if !(zero.Uses == 1 && vardef.Uses == 1 && ssacore.IsSamePtr(dst1, dst2) && ssacore.Disjoint1(src1, n, dst2, n) && Clobber(zero, vardef)) {
 			break
 		}
 		v.Reset(ssaop.OpMove)
@@ -18780,7 +18781,7 @@ func rewriteValuegeneric_OpMove(v *Value) bool {
 		return true
 	}
 	// match: (Move {t1} [n] dst p1 mem:(Store {t2} op2:(OffPtr <tt2> [o2] p2) d1 (Store {t3} op3:(OffPtr <tt3> [0] p3) d2 _)))
-	// cond: IsSamePtr(p1, p2) && IsSamePtr(p2, p3) && t2.Alignment() <= t1.Alignment() && t3.Alignment() <= t1.Alignment() && registerizable(b, t2) && registerizable(b, t3) && o2 == t3.Size() && n == t2.Size() + t3.Size()
+	// cond: ssacore.IsSamePtr(p1, p2) && ssacore.IsSamePtr(p2, p3) && t2.Alignment() <= t1.Alignment() && t3.Alignment() <= t1.Alignment() && registerizable(b, t2) && registerizable(b, t3) && o2 == t3.Size() && n == t2.Size() + t3.Size()
 	// result: (Store {t2} (OffPtr <tt2> [o2] dst) d1 (Store {t3} (OffPtr <tt3> [0] dst) d2 mem))
 	for {
 		n := AuxIntToInt64(v.AuxInt)
@@ -18816,7 +18817,7 @@ func rewriteValuegeneric_OpMove(v *Value) bool {
 			break
 		}
 		p3 := op3.Args[0]
-		if !(IsSamePtr(p1, p2) && IsSamePtr(p2, p3) && t2.Alignment() <= t1.Alignment() && t3.Alignment() <= t1.Alignment() && registerizable(b, t2) && registerizable(b, t3) && o2 == t3.Size() && n == t2.Size()+t3.Size()) {
+		if !(ssacore.IsSamePtr(p1, p2) && ssacore.IsSamePtr(p2, p3) && t2.Alignment() <= t1.Alignment() && t3.Alignment() <= t1.Alignment() && registerizable(b, t2) && registerizable(b, t3) && o2 == t3.Size() && n == t2.Size()+t3.Size()) {
 			break
 		}
 		v.Reset(ssaop.OpStore)
@@ -18834,7 +18835,7 @@ func rewriteValuegeneric_OpMove(v *Value) bool {
 		return true
 	}
 	// match: (Move {t1} [n] dst p1 mem:(Store {t2} op2:(OffPtr <tt2> [o2] p2) d1 (Store {t3} op3:(OffPtr <tt3> [o3] p3) d2 (Store {t4} op4:(OffPtr <tt4> [0] p4) d3 _))))
-	// cond: IsSamePtr(p1, p2) && IsSamePtr(p2, p3) && IsSamePtr(p3, p4) && t2.Alignment() <= t1.Alignment() && t3.Alignment() <= t1.Alignment() && t4.Alignment() <= t1.Alignment() && registerizable(b, t2) && registerizable(b, t3) && registerizable(b, t4) && o3 == t4.Size() && o2-o3 == t3.Size() && n == t2.Size() + t3.Size() + t4.Size()
+	// cond: ssacore.IsSamePtr(p1, p2) && ssacore.IsSamePtr(p2, p3) && ssacore.IsSamePtr(p3, p4) && t2.Alignment() <= t1.Alignment() && t3.Alignment() <= t1.Alignment() && t4.Alignment() <= t1.Alignment() && registerizable(b, t2) && registerizable(b, t3) && registerizable(b, t4) && o3 == t4.Size() && o2-o3 == t3.Size() && n == t2.Size() + t3.Size() + t4.Size()
 	// result: (Store {t2} (OffPtr <tt2> [o2] dst) d1 (Store {t3} (OffPtr <tt3> [o3] dst) d2 (Store {t4} (OffPtr <tt4> [0] dst) d3 mem)))
 	for {
 		n := AuxIntToInt64(v.AuxInt)
@@ -18884,7 +18885,7 @@ func rewriteValuegeneric_OpMove(v *Value) bool {
 			break
 		}
 		p4 := op4.Args[0]
-		if !(IsSamePtr(p1, p2) && IsSamePtr(p2, p3) && IsSamePtr(p3, p4) && t2.Alignment() <= t1.Alignment() && t3.Alignment() <= t1.Alignment() && t4.Alignment() <= t1.Alignment() && registerizable(b, t2) && registerizable(b, t3) && registerizable(b, t4) && o3 == t4.Size() && o2-o3 == t3.Size() && n == t2.Size()+t3.Size()+t4.Size()) {
+		if !(ssacore.IsSamePtr(p1, p2) && ssacore.IsSamePtr(p2, p3) && ssacore.IsSamePtr(p3, p4) && t2.Alignment() <= t1.Alignment() && t3.Alignment() <= t1.Alignment() && t4.Alignment() <= t1.Alignment() && registerizable(b, t2) && registerizable(b, t3) && registerizable(b, t4) && o3 == t4.Size() && o2-o3 == t3.Size() && n == t2.Size()+t3.Size()+t4.Size()) {
 			break
 		}
 		v.Reset(ssaop.OpStore)
@@ -18908,7 +18909,7 @@ func rewriteValuegeneric_OpMove(v *Value) bool {
 		return true
 	}
 	// match: (Move {t1} [n] dst p1 mem:(Store {t2} op2:(OffPtr <tt2> [o2] p2) d1 (Store {t3} op3:(OffPtr <tt3> [o3] p3) d2 (Store {t4} op4:(OffPtr <tt4> [o4] p4) d3 (Store {t5} op5:(OffPtr <tt5> [0] p5) d4 _)))))
-	// cond: IsSamePtr(p1, p2) && IsSamePtr(p2, p3) && IsSamePtr(p3, p4) && IsSamePtr(p4, p5) && t2.Alignment() <= t1.Alignment() && t3.Alignment() <= t1.Alignment() && t4.Alignment() <= t1.Alignment() && t5.Alignment() <= t1.Alignment() && registerizable(b, t2) && registerizable(b, t3) && registerizable(b, t4) && registerizable(b, t5) && o4 == t5.Size() && o3-o4 == t4.Size() && o2-o3 == t3.Size() && n == t2.Size() + t3.Size() + t4.Size() + t5.Size()
+	// cond: ssacore.IsSamePtr(p1, p2) && ssacore.IsSamePtr(p2, p3) && ssacore.IsSamePtr(p3, p4) && ssacore.IsSamePtr(p4, p5) && t2.Alignment() <= t1.Alignment() && t3.Alignment() <= t1.Alignment() && t4.Alignment() <= t1.Alignment() && t5.Alignment() <= t1.Alignment() && registerizable(b, t2) && registerizable(b, t3) && registerizable(b, t4) && registerizable(b, t5) && o4 == t5.Size() && o3-o4 == t4.Size() && o2-o3 == t3.Size() && n == t2.Size() + t3.Size() + t4.Size() + t5.Size()
 	// result: (Store {t2} (OffPtr <tt2> [o2] dst) d1 (Store {t3} (OffPtr <tt3> [o3] dst) d2 (Store {t4} (OffPtr <tt4> [o4] dst) d3 (Store {t5} (OffPtr <tt5> [0] dst) d4 mem))))
 	for {
 		n := AuxIntToInt64(v.AuxInt)
@@ -18972,7 +18973,7 @@ func rewriteValuegeneric_OpMove(v *Value) bool {
 			break
 		}
 		p5 := op5.Args[0]
-		if !(IsSamePtr(p1, p2) && IsSamePtr(p2, p3) && IsSamePtr(p3, p4) && IsSamePtr(p4, p5) && t2.Alignment() <= t1.Alignment() && t3.Alignment() <= t1.Alignment() && t4.Alignment() <= t1.Alignment() && t5.Alignment() <= t1.Alignment() && registerizable(b, t2) && registerizable(b, t3) && registerizable(b, t4) && registerizable(b, t5) && o4 == t5.Size() && o3-o4 == t4.Size() && o2-o3 == t3.Size() && n == t2.Size()+t3.Size()+t4.Size()+t5.Size()) {
+		if !(ssacore.IsSamePtr(p1, p2) && ssacore.IsSamePtr(p2, p3) && ssacore.IsSamePtr(p3, p4) && ssacore.IsSamePtr(p4, p5) && t2.Alignment() <= t1.Alignment() && t3.Alignment() <= t1.Alignment() && t4.Alignment() <= t1.Alignment() && t5.Alignment() <= t1.Alignment() && registerizable(b, t2) && registerizable(b, t3) && registerizable(b, t4) && registerizable(b, t5) && o4 == t5.Size() && o3-o4 == t4.Size() && o2-o3 == t3.Size() && n == t2.Size()+t3.Size()+t4.Size()+t5.Size()) {
 			break
 		}
 		v.Reset(ssaop.OpStore)
@@ -19002,7 +19003,7 @@ func rewriteValuegeneric_OpMove(v *Value) bool {
 		return true
 	}
 	// match: (Move {t1} [n] dst p1 mem:(VarDef (Store {t2} op2:(OffPtr <tt2> [o2] p2) d1 (Store {t3} op3:(OffPtr <tt3> [0] p3) d2 _))))
-	// cond: IsSamePtr(p1, p2) && IsSamePtr(p2, p3) && t2.Alignment() <= t1.Alignment() && t3.Alignment() <= t1.Alignment() && registerizable(b, t2) && registerizable(b, t3) && o2 == t3.Size() && n == t2.Size() + t3.Size()
+	// cond: ssacore.IsSamePtr(p1, p2) && ssacore.IsSamePtr(p2, p3) && t2.Alignment() <= t1.Alignment() && t3.Alignment() <= t1.Alignment() && registerizable(b, t2) && registerizable(b, t3) && o2 == t3.Size() && n == t2.Size() + t3.Size()
 	// result: (Store {t2} (OffPtr <tt2> [o2] dst) d1 (Store {t3} (OffPtr <tt3> [0] dst) d2 mem))
 	for {
 		n := AuxIntToInt64(v.AuxInt)
@@ -19042,7 +19043,7 @@ func rewriteValuegeneric_OpMove(v *Value) bool {
 			break
 		}
 		p3 := op3.Args[0]
-		if !(IsSamePtr(p1, p2) && IsSamePtr(p2, p3) && t2.Alignment() <= t1.Alignment() && t3.Alignment() <= t1.Alignment() && registerizable(b, t2) && registerizable(b, t3) && o2 == t3.Size() && n == t2.Size()+t3.Size()) {
+		if !(ssacore.IsSamePtr(p1, p2) && ssacore.IsSamePtr(p2, p3) && t2.Alignment() <= t1.Alignment() && t3.Alignment() <= t1.Alignment() && registerizable(b, t2) && registerizable(b, t3) && o2 == t3.Size() && n == t2.Size()+t3.Size()) {
 			break
 		}
 		v.Reset(ssaop.OpStore)
@@ -19060,7 +19061,7 @@ func rewriteValuegeneric_OpMove(v *Value) bool {
 		return true
 	}
 	// match: (Move {t1} [n] dst p1 mem:(VarDef (Store {t2} op2:(OffPtr <tt2> [o2] p2) d1 (Store {t3} op3:(OffPtr <tt3> [o3] p3) d2 (Store {t4} op4:(OffPtr <tt4> [0] p4) d3 _)))))
-	// cond: IsSamePtr(p1, p2) && IsSamePtr(p2, p3) && IsSamePtr(p3, p4) && t2.Alignment() <= t1.Alignment() && t3.Alignment() <= t1.Alignment() && t4.Alignment() <= t1.Alignment() && registerizable(b, t2) && registerizable(b, t3) && registerizable(b, t4) && o3 == t4.Size() && o2-o3 == t3.Size() && n == t2.Size() + t3.Size() + t4.Size()
+	// cond: ssacore.IsSamePtr(p1, p2) && ssacore.IsSamePtr(p2, p3) && ssacore.IsSamePtr(p3, p4) && t2.Alignment() <= t1.Alignment() && t3.Alignment() <= t1.Alignment() && t4.Alignment() <= t1.Alignment() && registerizable(b, t2) && registerizable(b, t3) && registerizable(b, t4) && o3 == t4.Size() && o2-o3 == t3.Size() && n == t2.Size() + t3.Size() + t4.Size()
 	// result: (Store {t2} (OffPtr <tt2> [o2] dst) d1 (Store {t3} (OffPtr <tt3> [o3] dst) d2 (Store {t4} (OffPtr <tt4> [0] dst) d3 mem)))
 	for {
 		n := AuxIntToInt64(v.AuxInt)
@@ -19114,7 +19115,7 @@ func rewriteValuegeneric_OpMove(v *Value) bool {
 			break
 		}
 		p4 := op4.Args[0]
-		if !(IsSamePtr(p1, p2) && IsSamePtr(p2, p3) && IsSamePtr(p3, p4) && t2.Alignment() <= t1.Alignment() && t3.Alignment() <= t1.Alignment() && t4.Alignment() <= t1.Alignment() && registerizable(b, t2) && registerizable(b, t3) && registerizable(b, t4) && o3 == t4.Size() && o2-o3 == t3.Size() && n == t2.Size()+t3.Size()+t4.Size()) {
+		if !(ssacore.IsSamePtr(p1, p2) && ssacore.IsSamePtr(p2, p3) && ssacore.IsSamePtr(p3, p4) && t2.Alignment() <= t1.Alignment() && t3.Alignment() <= t1.Alignment() && t4.Alignment() <= t1.Alignment() && registerizable(b, t2) && registerizable(b, t3) && registerizable(b, t4) && o3 == t4.Size() && o2-o3 == t3.Size() && n == t2.Size()+t3.Size()+t4.Size()) {
 			break
 		}
 		v.Reset(ssaop.OpStore)
@@ -19138,7 +19139,7 @@ func rewriteValuegeneric_OpMove(v *Value) bool {
 		return true
 	}
 	// match: (Move {t1} [n] dst p1 mem:(VarDef (Store {t2} op2:(OffPtr <tt2> [o2] p2) d1 (Store {t3} op3:(OffPtr <tt3> [o3] p3) d2 (Store {t4} op4:(OffPtr <tt4> [o4] p4) d3 (Store {t5} op5:(OffPtr <tt5> [0] p5) d4 _))))))
-	// cond: IsSamePtr(p1, p2) && IsSamePtr(p2, p3) && IsSamePtr(p3, p4) && IsSamePtr(p4, p5) && t2.Alignment() <= t1.Alignment() && t3.Alignment() <= t1.Alignment() && t4.Alignment() <= t1.Alignment() && t5.Alignment() <= t1.Alignment() && registerizable(b, t2) && registerizable(b, t3) && registerizable(b, t4) && registerizable(b, t5) && o4 == t5.Size() && o3-o4 == t4.Size() && o2-o3 == t3.Size() && n == t2.Size() + t3.Size() + t4.Size() + t5.Size()
+	// cond: ssacore.IsSamePtr(p1, p2) && ssacore.IsSamePtr(p2, p3) && ssacore.IsSamePtr(p3, p4) && ssacore.IsSamePtr(p4, p5) && t2.Alignment() <= t1.Alignment() && t3.Alignment() <= t1.Alignment() && t4.Alignment() <= t1.Alignment() && t5.Alignment() <= t1.Alignment() && registerizable(b, t2) && registerizable(b, t3) && registerizable(b, t4) && registerizable(b, t5) && o4 == t5.Size() && o3-o4 == t4.Size() && o2-o3 == t3.Size() && n == t2.Size() + t3.Size() + t4.Size() + t5.Size()
 	// result: (Store {t2} (OffPtr <tt2> [o2] dst) d1 (Store {t3} (OffPtr <tt3> [o3] dst) d2 (Store {t4} (OffPtr <tt4> [o4] dst) d3 (Store {t5} (OffPtr <tt5> [0] dst) d4 mem))))
 	for {
 		n := AuxIntToInt64(v.AuxInt)
@@ -19206,7 +19207,7 @@ func rewriteValuegeneric_OpMove(v *Value) bool {
 			break
 		}
 		p5 := op5.Args[0]
-		if !(IsSamePtr(p1, p2) && IsSamePtr(p2, p3) && IsSamePtr(p3, p4) && IsSamePtr(p4, p5) && t2.Alignment() <= t1.Alignment() && t3.Alignment() <= t1.Alignment() && t4.Alignment() <= t1.Alignment() && t5.Alignment() <= t1.Alignment() && registerizable(b, t2) && registerizable(b, t3) && registerizable(b, t4) && registerizable(b, t5) && o4 == t5.Size() && o3-o4 == t4.Size() && o2-o3 == t3.Size() && n == t2.Size()+t3.Size()+t4.Size()+t5.Size()) {
+		if !(ssacore.IsSamePtr(p1, p2) && ssacore.IsSamePtr(p2, p3) && ssacore.IsSamePtr(p3, p4) && ssacore.IsSamePtr(p4, p5) && t2.Alignment() <= t1.Alignment() && t3.Alignment() <= t1.Alignment() && t4.Alignment() <= t1.Alignment() && t5.Alignment() <= t1.Alignment() && registerizable(b, t2) && registerizable(b, t3) && registerizable(b, t4) && registerizable(b, t5) && o4 == t5.Size() && o3-o4 == t4.Size() && o2-o3 == t3.Size() && n == t2.Size()+t3.Size()+t4.Size()+t5.Size()) {
 			break
 		}
 		v.Reset(ssaop.OpStore)
@@ -19236,7 +19237,7 @@ func rewriteValuegeneric_OpMove(v *Value) bool {
 		return true
 	}
 	// match: (Move {t1} [n] dst p1 mem:(Store {t2} op2:(OffPtr <tt2> [o2] p2) d1 (Zero {t3} [n] p3 _)))
-	// cond: IsSamePtr(p1, p2) && IsSamePtr(p2, p3) && t2.Alignment() <= t1.Alignment() && t3.Alignment() <= t1.Alignment() && registerizable(b, t2) && n >= o2 + t2.Size()
+	// cond: ssacore.IsSamePtr(p1, p2) && ssacore.IsSamePtr(p2, p3) && t2.Alignment() <= t1.Alignment() && t3.Alignment() <= t1.Alignment() && registerizable(b, t2) && n >= o2 + t2.Size()
 	// result: (Store {t2} (OffPtr <tt2> [o2] dst) d1 (Zero {t1} [n] dst mem))
 	for {
 		n := AuxIntToInt64(v.AuxInt)
@@ -19263,7 +19264,7 @@ func rewriteValuegeneric_OpMove(v *Value) bool {
 		}
 		t3 := AuxToType(mem_2.Aux)
 		p3 := mem_2.Args[0]
-		if !(IsSamePtr(p1, p2) && IsSamePtr(p2, p3) && t2.Alignment() <= t1.Alignment() && t3.Alignment() <= t1.Alignment() && registerizable(b, t2) && n >= o2+t2.Size()) {
+		if !(ssacore.IsSamePtr(p1, p2) && ssacore.IsSamePtr(p2, p3) && t2.Alignment() <= t1.Alignment() && t3.Alignment() <= t1.Alignment() && registerizable(b, t2) && n >= o2+t2.Size()) {
 			break
 		}
 		v.Reset(ssaop.OpStore)
@@ -19279,7 +19280,7 @@ func rewriteValuegeneric_OpMove(v *Value) bool {
 		return true
 	}
 	// match: (Move {t1} [n] dst p1 mem:(Store {t2} (OffPtr <tt2> [o2] p2) d1 (Store {t3} (OffPtr <tt3> [o3] p3) d2 (Zero {t4} [n] p4 _))))
-	// cond: IsSamePtr(p1, p2) && IsSamePtr(p2, p3) && IsSamePtr(p3, p4) && t2.Alignment() <= t1.Alignment() && t3.Alignment() <= t1.Alignment() && t4.Alignment() <= t1.Alignment() && registerizable(b, t2) && registerizable(b, t3) && n >= o2 + t2.Size() && n >= o3 + t3.Size()
+	// cond: ssacore.IsSamePtr(p1, p2) && ssacore.IsSamePtr(p2, p3) && ssacore.IsSamePtr(p3, p4) && t2.Alignment() <= t1.Alignment() && t3.Alignment() <= t1.Alignment() && t4.Alignment() <= t1.Alignment() && registerizable(b, t2) && registerizable(b, t3) && n >= o2 + t2.Size() && n >= o3 + t3.Size()
 	// result: (Store {t2} (OffPtr <tt2> [o2] dst) d1 (Store {t3} (OffPtr <tt3> [o3] dst) d2 (Zero {t1} [n] dst mem)))
 	for {
 		n := AuxIntToInt64(v.AuxInt)
@@ -19320,7 +19321,7 @@ func rewriteValuegeneric_OpMove(v *Value) bool {
 		}
 		t4 := AuxToType(mem_2_2.Aux)
 		p4 := mem_2_2.Args[0]
-		if !(IsSamePtr(p1, p2) && IsSamePtr(p2, p3) && IsSamePtr(p3, p4) && t2.Alignment() <= t1.Alignment() && t3.Alignment() <= t1.Alignment() && t4.Alignment() <= t1.Alignment() && registerizable(b, t2) && registerizable(b, t3) && n >= o2+t2.Size() && n >= o3+t3.Size()) {
+		if !(ssacore.IsSamePtr(p1, p2) && ssacore.IsSamePtr(p2, p3) && ssacore.IsSamePtr(p3, p4) && t2.Alignment() <= t1.Alignment() && t3.Alignment() <= t1.Alignment() && t4.Alignment() <= t1.Alignment() && registerizable(b, t2) && registerizable(b, t3) && n >= o2+t2.Size() && n >= o3+t3.Size()) {
 			break
 		}
 		v.Reset(ssaop.OpStore)
@@ -19342,7 +19343,7 @@ func rewriteValuegeneric_OpMove(v *Value) bool {
 		return true
 	}
 	// match: (Move {t1} [n] dst p1 mem:(Store {t2} (OffPtr <tt2> [o2] p2) d1 (Store {t3} (OffPtr <tt3> [o3] p3) d2 (Store {t4} (OffPtr <tt4> [o4] p4) d3 (Zero {t5} [n] p5 _)))))
-	// cond: IsSamePtr(p1, p2) && IsSamePtr(p2, p3) && IsSamePtr(p3, p4) && IsSamePtr(p4, p5) && t2.Alignment() <= t1.Alignment() && t3.Alignment() <= t1.Alignment() && t4.Alignment() <= t1.Alignment() && t5.Alignment() <= t1.Alignment() && registerizable(b, t2) && registerizable(b, t3) && registerizable(b, t4) && n >= o2 + t2.Size() && n >= o3 + t3.Size() && n >= o4 + t4.Size()
+	// cond: ssacore.IsSamePtr(p1, p2) && ssacore.IsSamePtr(p2, p3) && ssacore.IsSamePtr(p3, p4) && ssacore.IsSamePtr(p4, p5) && t2.Alignment() <= t1.Alignment() && t3.Alignment() <= t1.Alignment() && t4.Alignment() <= t1.Alignment() && t5.Alignment() <= t1.Alignment() && registerizable(b, t2) && registerizable(b, t3) && registerizable(b, t4) && n >= o2 + t2.Size() && n >= o3 + t3.Size() && n >= o4 + t4.Size()
 	// result: (Store {t2} (OffPtr <tt2> [o2] dst) d1 (Store {t3} (OffPtr <tt3> [o3] dst) d2 (Store {t4} (OffPtr <tt4> [o4] dst) d3 (Zero {t1} [n] dst mem))))
 	for {
 		n := AuxIntToInt64(v.AuxInt)
@@ -19397,7 +19398,7 @@ func rewriteValuegeneric_OpMove(v *Value) bool {
 		}
 		t5 := AuxToType(mem_2_2_2.Aux)
 		p5 := mem_2_2_2.Args[0]
-		if !(IsSamePtr(p1, p2) && IsSamePtr(p2, p3) && IsSamePtr(p3, p4) && IsSamePtr(p4, p5) && t2.Alignment() <= t1.Alignment() && t3.Alignment() <= t1.Alignment() && t4.Alignment() <= t1.Alignment() && t5.Alignment() <= t1.Alignment() && registerizable(b, t2) && registerizable(b, t3) && registerizable(b, t4) && n >= o2+t2.Size() && n >= o3+t3.Size() && n >= o4+t4.Size()) {
+		if !(ssacore.IsSamePtr(p1, p2) && ssacore.IsSamePtr(p2, p3) && ssacore.IsSamePtr(p3, p4) && ssacore.IsSamePtr(p4, p5) && t2.Alignment() <= t1.Alignment() && t3.Alignment() <= t1.Alignment() && t4.Alignment() <= t1.Alignment() && t5.Alignment() <= t1.Alignment() && registerizable(b, t2) && registerizable(b, t3) && registerizable(b, t4) && n >= o2+t2.Size() && n >= o3+t3.Size() && n >= o4+t4.Size()) {
 			break
 		}
 		v.Reset(ssaop.OpStore)
@@ -19425,7 +19426,7 @@ func rewriteValuegeneric_OpMove(v *Value) bool {
 		return true
 	}
 	// match: (Move {t1} [n] dst p1 mem:(Store {t2} (OffPtr <tt2> [o2] p2) d1 (Store {t3} (OffPtr <tt3> [o3] p3) d2 (Store {t4} (OffPtr <tt4> [o4] p4) d3 (Store {t5} (OffPtr <tt5> [o5] p5) d4 (Zero {t6} [n] p6 _))))))
-	// cond: IsSamePtr(p1, p2) && IsSamePtr(p2, p3) && IsSamePtr(p3, p4) && IsSamePtr(p4, p5) && IsSamePtr(p5, p6) && t2.Alignment() <= t1.Alignment() && t3.Alignment() <= t1.Alignment() && t4.Alignment() <= t1.Alignment() && t5.Alignment() <= t1.Alignment() && t6.Alignment() <= t1.Alignment() && registerizable(b, t2) && registerizable(b, t3) && registerizable(b, t4) && registerizable(b, t5) && n >= o2 + t2.Size() && n >= o3 + t3.Size() && n >= o4 + t4.Size() && n >= o5 + t5.Size()
+	// cond: ssacore.IsSamePtr(p1, p2) && ssacore.IsSamePtr(p2, p3) && ssacore.IsSamePtr(p3, p4) && ssacore.IsSamePtr(p4, p5) && ssacore.IsSamePtr(p5, p6) && t2.Alignment() <= t1.Alignment() && t3.Alignment() <= t1.Alignment() && t4.Alignment() <= t1.Alignment() && t5.Alignment() <= t1.Alignment() && t6.Alignment() <= t1.Alignment() && registerizable(b, t2) && registerizable(b, t3) && registerizable(b, t4) && registerizable(b, t5) && n >= o2 + t2.Size() && n >= o3 + t3.Size() && n >= o4 + t4.Size() && n >= o5 + t5.Size()
 	// result: (Store {t2} (OffPtr <tt2> [o2] dst) d1 (Store {t3} (OffPtr <tt3> [o3] dst) d2 (Store {t4} (OffPtr <tt4> [o4] dst) d3 (Store {t5} (OffPtr <tt5> [o5] dst) d4 (Zero {t1} [n] dst mem)))))
 	for {
 		n := AuxIntToInt64(v.AuxInt)
@@ -19494,7 +19495,7 @@ func rewriteValuegeneric_OpMove(v *Value) bool {
 		}
 		t6 := AuxToType(mem_2_2_2_2.Aux)
 		p6 := mem_2_2_2_2.Args[0]
-		if !(IsSamePtr(p1, p2) && IsSamePtr(p2, p3) && IsSamePtr(p3, p4) && IsSamePtr(p4, p5) && IsSamePtr(p5, p6) && t2.Alignment() <= t1.Alignment() && t3.Alignment() <= t1.Alignment() && t4.Alignment() <= t1.Alignment() && t5.Alignment() <= t1.Alignment() && t6.Alignment() <= t1.Alignment() && registerizable(b, t2) && registerizable(b, t3) && registerizable(b, t4) && registerizable(b, t5) && n >= o2+t2.Size() && n >= o3+t3.Size() && n >= o4+t4.Size() && n >= o5+t5.Size()) {
+		if !(ssacore.IsSamePtr(p1, p2) && ssacore.IsSamePtr(p2, p3) && ssacore.IsSamePtr(p3, p4) && ssacore.IsSamePtr(p4, p5) && ssacore.IsSamePtr(p5, p6) && t2.Alignment() <= t1.Alignment() && t3.Alignment() <= t1.Alignment() && t4.Alignment() <= t1.Alignment() && t5.Alignment() <= t1.Alignment() && t6.Alignment() <= t1.Alignment() && registerizable(b, t2) && registerizable(b, t3) && registerizable(b, t4) && registerizable(b, t5) && n >= o2+t2.Size() && n >= o3+t3.Size() && n >= o4+t4.Size() && n >= o5+t5.Size()) {
 			break
 		}
 		v.Reset(ssaop.OpStore)
@@ -19528,7 +19529,7 @@ func rewriteValuegeneric_OpMove(v *Value) bool {
 		return true
 	}
 	// match: (Move {t1} [n] dst p1 mem:(VarDef (Store {t2} op2:(OffPtr <tt2> [o2] p2) d1 (Zero {t3} [n] p3 _))))
-	// cond: IsSamePtr(p1, p2) && IsSamePtr(p2, p3) && t2.Alignment() <= t1.Alignment() && t3.Alignment() <= t1.Alignment() && registerizable(b, t2) && n >= o2 + t2.Size()
+	// cond: ssacore.IsSamePtr(p1, p2) && ssacore.IsSamePtr(p2, p3) && t2.Alignment() <= t1.Alignment() && t3.Alignment() <= t1.Alignment() && registerizable(b, t2) && n >= o2 + t2.Size()
 	// result: (Store {t2} (OffPtr <tt2> [o2] dst) d1 (Zero {t1} [n] dst mem))
 	for {
 		n := AuxIntToInt64(v.AuxInt)
@@ -19559,7 +19560,7 @@ func rewriteValuegeneric_OpMove(v *Value) bool {
 		}
 		t3 := AuxToType(mem_0_2.Aux)
 		p3 := mem_0_2.Args[0]
-		if !(IsSamePtr(p1, p2) && IsSamePtr(p2, p3) && t2.Alignment() <= t1.Alignment() && t3.Alignment() <= t1.Alignment() && registerizable(b, t2) && n >= o2+t2.Size()) {
+		if !(ssacore.IsSamePtr(p1, p2) && ssacore.IsSamePtr(p2, p3) && t2.Alignment() <= t1.Alignment() && t3.Alignment() <= t1.Alignment() && registerizable(b, t2) && n >= o2+t2.Size()) {
 			break
 		}
 		v.Reset(ssaop.OpStore)
@@ -19575,7 +19576,7 @@ func rewriteValuegeneric_OpMove(v *Value) bool {
 		return true
 	}
 	// match: (Move {t1} [n] dst p1 mem:(VarDef (Store {t2} (OffPtr <tt2> [o2] p2) d1 (Store {t3} (OffPtr <tt3> [o3] p3) d2 (Zero {t4} [n] p4 _)))))
-	// cond: IsSamePtr(p1, p2) && IsSamePtr(p2, p3) && IsSamePtr(p3, p4) && t2.Alignment() <= t1.Alignment() && t3.Alignment() <= t1.Alignment() && t4.Alignment() <= t1.Alignment() && registerizable(b, t2) && registerizable(b, t3) && n >= o2 + t2.Size() && n >= o3 + t3.Size()
+	// cond: ssacore.IsSamePtr(p1, p2) && ssacore.IsSamePtr(p2, p3) && ssacore.IsSamePtr(p3, p4) && t2.Alignment() <= t1.Alignment() && t3.Alignment() <= t1.Alignment() && t4.Alignment() <= t1.Alignment() && registerizable(b, t2) && registerizable(b, t3) && n >= o2 + t2.Size() && n >= o3 + t3.Size()
 	// result: (Store {t2} (OffPtr <tt2> [o2] dst) d1 (Store {t3} (OffPtr <tt3> [o3] dst) d2 (Zero {t1} [n] dst mem)))
 	for {
 		n := AuxIntToInt64(v.AuxInt)
@@ -19620,7 +19621,7 @@ func rewriteValuegeneric_OpMove(v *Value) bool {
 		}
 		t4 := AuxToType(mem_0_2_2.Aux)
 		p4 := mem_0_2_2.Args[0]
-		if !(IsSamePtr(p1, p2) && IsSamePtr(p2, p3) && IsSamePtr(p3, p4) && t2.Alignment() <= t1.Alignment() && t3.Alignment() <= t1.Alignment() && t4.Alignment() <= t1.Alignment() && registerizable(b, t2) && registerizable(b, t3) && n >= o2+t2.Size() && n >= o3+t3.Size()) {
+		if !(ssacore.IsSamePtr(p1, p2) && ssacore.IsSamePtr(p2, p3) && ssacore.IsSamePtr(p3, p4) && t2.Alignment() <= t1.Alignment() && t3.Alignment() <= t1.Alignment() && t4.Alignment() <= t1.Alignment() && registerizable(b, t2) && registerizable(b, t3) && n >= o2+t2.Size() && n >= o3+t3.Size()) {
 			break
 		}
 		v.Reset(ssaop.OpStore)
@@ -19642,7 +19643,7 @@ func rewriteValuegeneric_OpMove(v *Value) bool {
 		return true
 	}
 	// match: (Move {t1} [n] dst p1 mem:(VarDef (Store {t2} (OffPtr <tt2> [o2] p2) d1 (Store {t3} (OffPtr <tt3> [o3] p3) d2 (Store {t4} (OffPtr <tt4> [o4] p4) d3 (Zero {t5} [n] p5 _))))))
-	// cond: IsSamePtr(p1, p2) && IsSamePtr(p2, p3) && IsSamePtr(p3, p4) && IsSamePtr(p4, p5) && t2.Alignment() <= t1.Alignment() && t3.Alignment() <= t1.Alignment() && t4.Alignment() <= t1.Alignment() && t5.Alignment() <= t1.Alignment() && registerizable(b, t2) && registerizable(b, t3) && registerizable(b, t4) && n >= o2 + t2.Size() && n >= o3 + t3.Size() && n >= o4 + t4.Size()
+	// cond: ssacore.IsSamePtr(p1, p2) && ssacore.IsSamePtr(p2, p3) && ssacore.IsSamePtr(p3, p4) && ssacore.IsSamePtr(p4, p5) && t2.Alignment() <= t1.Alignment() && t3.Alignment() <= t1.Alignment() && t4.Alignment() <= t1.Alignment() && t5.Alignment() <= t1.Alignment() && registerizable(b, t2) && registerizable(b, t3) && registerizable(b, t4) && n >= o2 + t2.Size() && n >= o3 + t3.Size() && n >= o4 + t4.Size()
 	// result: (Store {t2} (OffPtr <tt2> [o2] dst) d1 (Store {t3} (OffPtr <tt3> [o3] dst) d2 (Store {t4} (OffPtr <tt4> [o4] dst) d3 (Zero {t1} [n] dst mem))))
 	for {
 		n := AuxIntToInt64(v.AuxInt)
@@ -19701,7 +19702,7 @@ func rewriteValuegeneric_OpMove(v *Value) bool {
 		}
 		t5 := AuxToType(mem_0_2_2_2.Aux)
 		p5 := mem_0_2_2_2.Args[0]
-		if !(IsSamePtr(p1, p2) && IsSamePtr(p2, p3) && IsSamePtr(p3, p4) && IsSamePtr(p4, p5) && t2.Alignment() <= t1.Alignment() && t3.Alignment() <= t1.Alignment() && t4.Alignment() <= t1.Alignment() && t5.Alignment() <= t1.Alignment() && registerizable(b, t2) && registerizable(b, t3) && registerizable(b, t4) && n >= o2+t2.Size() && n >= o3+t3.Size() && n >= o4+t4.Size()) {
+		if !(ssacore.IsSamePtr(p1, p2) && ssacore.IsSamePtr(p2, p3) && ssacore.IsSamePtr(p3, p4) && ssacore.IsSamePtr(p4, p5) && t2.Alignment() <= t1.Alignment() && t3.Alignment() <= t1.Alignment() && t4.Alignment() <= t1.Alignment() && t5.Alignment() <= t1.Alignment() && registerizable(b, t2) && registerizable(b, t3) && registerizable(b, t4) && n >= o2+t2.Size() && n >= o3+t3.Size() && n >= o4+t4.Size()) {
 			break
 		}
 		v.Reset(ssaop.OpStore)
@@ -19729,7 +19730,7 @@ func rewriteValuegeneric_OpMove(v *Value) bool {
 		return true
 	}
 	// match: (Move {t1} [n] dst p1 mem:(VarDef (Store {t2} (OffPtr <tt2> [o2] p2) d1 (Store {t3} (OffPtr <tt3> [o3] p3) d2 (Store {t4} (OffPtr <tt4> [o4] p4) d3 (Store {t5} (OffPtr <tt5> [o5] p5) d4 (Zero {t6} [n] p6 _)))))))
-	// cond: IsSamePtr(p1, p2) && IsSamePtr(p2, p3) && IsSamePtr(p3, p4) && IsSamePtr(p4, p5) && IsSamePtr(p5, p6) && t2.Alignment() <= t1.Alignment() && t3.Alignment() <= t1.Alignment() && t4.Alignment() <= t1.Alignment() && t5.Alignment() <= t1.Alignment() && t6.Alignment() <= t1.Alignment() && registerizable(b, t2) && registerizable(b, t3) && registerizable(b, t4) && registerizable(b, t5) && n >= o2 + t2.Size() && n >= o3 + t3.Size() && n >= o4 + t4.Size() && n >= o5 + t5.Size()
+	// cond: ssacore.IsSamePtr(p1, p2) && ssacore.IsSamePtr(p2, p3) && ssacore.IsSamePtr(p3, p4) && ssacore.IsSamePtr(p4, p5) && ssacore.IsSamePtr(p5, p6) && t2.Alignment() <= t1.Alignment() && t3.Alignment() <= t1.Alignment() && t4.Alignment() <= t1.Alignment() && t5.Alignment() <= t1.Alignment() && t6.Alignment() <= t1.Alignment() && registerizable(b, t2) && registerizable(b, t3) && registerizable(b, t4) && registerizable(b, t5) && n >= o2 + t2.Size() && n >= o3 + t3.Size() && n >= o4 + t4.Size() && n >= o5 + t5.Size()
 	// result: (Store {t2} (OffPtr <tt2> [o2] dst) d1 (Store {t3} (OffPtr <tt3> [o3] dst) d2 (Store {t4} (OffPtr <tt4> [o4] dst) d3 (Store {t5} (OffPtr <tt5> [o5] dst) d4 (Zero {t1} [n] dst mem)))))
 	for {
 		n := AuxIntToInt64(v.AuxInt)
@@ -19802,7 +19803,7 @@ func rewriteValuegeneric_OpMove(v *Value) bool {
 		}
 		t6 := AuxToType(mem_0_2_2_2_2.Aux)
 		p6 := mem_0_2_2_2_2.Args[0]
-		if !(IsSamePtr(p1, p2) && IsSamePtr(p2, p3) && IsSamePtr(p3, p4) && IsSamePtr(p4, p5) && IsSamePtr(p5, p6) && t2.Alignment() <= t1.Alignment() && t3.Alignment() <= t1.Alignment() && t4.Alignment() <= t1.Alignment() && t5.Alignment() <= t1.Alignment() && t6.Alignment() <= t1.Alignment() && registerizable(b, t2) && registerizable(b, t3) && registerizable(b, t4) && registerizable(b, t5) && n >= o2+t2.Size() && n >= o3+t3.Size() && n >= o4+t4.Size() && n >= o5+t5.Size()) {
+		if !(ssacore.IsSamePtr(p1, p2) && ssacore.IsSamePtr(p2, p3) && ssacore.IsSamePtr(p3, p4) && ssacore.IsSamePtr(p4, p5) && ssacore.IsSamePtr(p5, p6) && t2.Alignment() <= t1.Alignment() && t3.Alignment() <= t1.Alignment() && t4.Alignment() <= t1.Alignment() && t5.Alignment() <= t1.Alignment() && t6.Alignment() <= t1.Alignment() && registerizable(b, t2) && registerizable(b, t3) && registerizable(b, t4) && registerizable(b, t5) && n >= o2+t2.Size() && n >= o3+t3.Size() && n >= o4+t4.Size() && n >= o5+t5.Size()) {
 			break
 		}
 		v.Reset(ssaop.OpStore)
@@ -19836,7 +19837,7 @@ func rewriteValuegeneric_OpMove(v *Value) bool {
 		return true
 	}
 	// match: (Move {t1} [s] dst tmp1 midmem:(Move {t2} [s] tmp2 src _))
-	// cond: t1.Compare(t2) == types.CMPeq && IsSamePtr(tmp1, tmp2) && isStackPtr(src) && !IsVolatile(src) && Disjoint1(src, s, tmp2, s) && (Disjoint1(src, s, dst, s) || IsInlinableMemmove(dst, src, s, config))
+	// cond: t1.Compare(t2) == types.CMPeq && ssacore.IsSamePtr(tmp1, tmp2) && isStackPtr(src) && !IsVolatile(src) && ssacore.Disjoint1(src, s, tmp2, s) && (ssacore.Disjoint1(src, s, dst, s) || ssacore.IsInlinableMemmove(dst, src, s, config))
 	// result: (Move {t1} [s] dst src midmem)
 	for {
 		s := AuxIntToInt64(v.AuxInt)
@@ -19850,7 +19851,7 @@ func rewriteValuegeneric_OpMove(v *Value) bool {
 		t2 := AuxToType(midmem.Aux)
 		src := midmem.Args[1]
 		tmp2 := midmem.Args[0]
-		if !(t1.Compare(t2) == types.CMPeq && IsSamePtr(tmp1, tmp2) && isStackPtr(src) && !IsVolatile(src) && Disjoint1(src, s, tmp2, s) && (Disjoint1(src, s, dst, s) || IsInlinableMemmove(dst, src, s, config))) {
+		if !(t1.Compare(t2) == types.CMPeq && ssacore.IsSamePtr(tmp1, tmp2) && isStackPtr(src) && !IsVolatile(src) && ssacore.Disjoint1(src, s, tmp2, s) && (ssacore.Disjoint1(src, s, dst, s) || ssacore.IsInlinableMemmove(dst, src, s, config))) {
 			break
 		}
 		v.Reset(ssaop.OpMove)
@@ -19860,7 +19861,7 @@ func rewriteValuegeneric_OpMove(v *Value) bool {
 		return true
 	}
 	// match: (Move {t1} [s] dst tmp1 midmem:(VarDef (Move {t2} [s] tmp2 src _)))
-	// cond: t1.Compare(t2) == types.CMPeq && IsSamePtr(tmp1, tmp2) && isStackPtr(src) && !IsVolatile(src) && Disjoint1(src, s, tmp2, s) && (Disjoint1(src, s, dst, s) || IsInlinableMemmove(dst, src, s, config))
+	// cond: t1.Compare(t2) == types.CMPeq && ssacore.IsSamePtr(tmp1, tmp2) && isStackPtr(src) && !IsVolatile(src) && ssacore.Disjoint1(src, s, tmp2, s) && (ssacore.Disjoint1(src, s, dst, s) || ssacore.IsInlinableMemmove(dst, src, s, config))
 	// result: (Move {t1} [s] dst src midmem)
 	for {
 		s := AuxIntToInt64(v.AuxInt)
@@ -19878,7 +19879,7 @@ func rewriteValuegeneric_OpMove(v *Value) bool {
 		t2 := AuxToType(midmem_0.Aux)
 		src := midmem_0.Args[1]
 		tmp2 := midmem_0.Args[0]
-		if !(t1.Compare(t2) == types.CMPeq && IsSamePtr(tmp1, tmp2) && isStackPtr(src) && !IsVolatile(src) && Disjoint1(src, s, tmp2, s) && (Disjoint1(src, s, dst, s) || IsInlinableMemmove(dst, src, s, config))) {
+		if !(t1.Compare(t2) == types.CMPeq && ssacore.IsSamePtr(tmp1, tmp2) && isStackPtr(src) && !IsVolatile(src) && ssacore.Disjoint1(src, s, tmp2, s) && (ssacore.Disjoint1(src, s, dst, s) || ssacore.IsInlinableMemmove(dst, src, s, config))) {
 			break
 		}
 		v.Reset(ssaop.OpMove)
@@ -19888,13 +19889,13 @@ func rewriteValuegeneric_OpMove(v *Value) bool {
 		return true
 	}
 	// match: (Move dst src mem)
-	// cond: IsSamePtr(dst, src)
+	// cond: ssacore.IsSamePtr(dst, src)
 	// result: mem
 	for {
 		dst := v_0
 		src := v_1
 		mem := v_2
-		if !(IsSamePtr(dst, src)) {
+		if !(ssacore.IsSamePtr(dst, src)) {
 			break
 		}
 		v.CopyOf(mem)
@@ -19902,7 +19903,7 @@ func rewriteValuegeneric_OpMove(v *Value) bool {
 	}
 	return false
 }
-func rewriteValuegeneric_OpMul16(v *Value) bool {
+func rewriteValuegeneric_OpMul16(v *ssacore.Value) bool {
 	v_1 := v.Args[1]
 	v_0 := v.Args[0]
 	b := v.Block
@@ -20157,7 +20158,7 @@ func rewriteValuegeneric_OpMul16(v *Value) bool {
 	}
 	return false
 }
-func rewriteValuegeneric_OpMul32(v *Value) bool {
+func rewriteValuegeneric_OpMul32(v *ssacore.Value) bool {
 	v_1 := v.Args[1]
 	v_0 := v.Args[0]
 	b := v.Block
@@ -20412,7 +20413,7 @@ func rewriteValuegeneric_OpMul32(v *Value) bool {
 	}
 	return false
 }
-func rewriteValuegeneric_OpMul32F(v *Value) bool {
+func rewriteValuegeneric_OpMul32F(v *ssacore.Value) bool {
 	v_1 := v.Args[1]
 	v_0 := v.Args[0]
 	// match: (Mul32F (Const32F [c]) (Const32F [d]))
@@ -20480,7 +20481,7 @@ func rewriteValuegeneric_OpMul32F(v *Value) bool {
 	}
 	return false
 }
-func rewriteValuegeneric_OpMul32uhilo(v *Value) bool {
+func rewriteValuegeneric_OpMul32uhilo(v *ssacore.Value) bool {
 	v_1 := v.Args[1]
 	v_0 := v.Args[0]
 	b := v.Block
@@ -20509,7 +20510,7 @@ func rewriteValuegeneric_OpMul32uhilo(v *Value) bool {
 	}
 	return false
 }
-func rewriteValuegeneric_OpMul32uover(v *Value) bool {
+func rewriteValuegeneric_OpMul32uover(v *ssacore.Value) bool {
 	v_1 := v.Args[1]
 	v_0 := v.Args[0]
 	b := v.Block
@@ -20530,7 +20531,7 @@ func rewriteValuegeneric_OpMul32uover(v *Value) bool {
 			v0 := b.NewValue0(v.Pos, ssaop.OpConst32, typ.UInt32)
 			v0.AuxInt = Int32ToAuxInt(bitsMulU32(c, d).lo)
 			v1 := b.NewValue0(v.Pos, ssaop.OpConstBool, typ.Bool)
-			v1.AuxInt = BoolToAuxInt(bitsMulU32(c, d).hi != 0)
+			v1.AuxInt = ssacore.BoolToAuxInt(bitsMulU32(c, d).hi != 0)
 			v.AddArg2(v0, v1)
 			return true
 		}
@@ -20547,7 +20548,7 @@ func rewriteValuegeneric_OpMul32uover(v *Value) bool {
 			x := v_1
 			v.Reset(ssaop.OpMakeTuple)
 			v0 := b.NewValue0(v.Pos, ssaop.OpConstBool, t.FieldType(1))
-			v0.AuxInt = BoolToAuxInt(false)
+			v0.AuxInt = ssacore.BoolToAuxInt(false)
 			v.AddArg2(x, v0)
 			return true
 		}
@@ -20565,7 +20566,7 @@ func rewriteValuegeneric_OpMul32uover(v *Value) bool {
 			v0 := b.NewValue0(v.Pos, ssaop.OpConst32, t.FieldType(0))
 			v0.AuxInt = Int32ToAuxInt(0)
 			v1 := b.NewValue0(v.Pos, ssaop.OpConstBool, t.FieldType(1))
-			v1.AuxInt = BoolToAuxInt(false)
+			v1.AuxInt = ssacore.BoolToAuxInt(false)
 			v.AddArg2(v0, v1)
 			return true
 		}
@@ -20573,7 +20574,7 @@ func rewriteValuegeneric_OpMul32uover(v *Value) bool {
 	}
 	return false
 }
-func rewriteValuegeneric_OpMul64(v *Value) bool {
+func rewriteValuegeneric_OpMul64(v *ssacore.Value) bool {
 	v_1 := v.Args[1]
 	v_0 := v.Args[0]
 	b := v.Block
@@ -20828,7 +20829,7 @@ func rewriteValuegeneric_OpMul64(v *Value) bool {
 	}
 	return false
 }
-func rewriteValuegeneric_OpMul64F(v *Value) bool {
+func rewriteValuegeneric_OpMul64F(v *ssacore.Value) bool {
 	v_1 := v.Args[1]
 	v_0 := v.Args[0]
 	// match: (Mul64F (Const64F [c]) (Const64F [d]))
@@ -20896,7 +20897,7 @@ func rewriteValuegeneric_OpMul64F(v *Value) bool {
 	}
 	return false
 }
-func rewriteValuegeneric_OpMul64uhilo(v *Value) bool {
+func rewriteValuegeneric_OpMul64uhilo(v *ssacore.Value) bool {
 	v_1 := v.Args[1]
 	v_0 := v.Args[0]
 	b := v.Block
@@ -20952,7 +20953,7 @@ func rewriteValuegeneric_OpMul64uhilo(v *Value) bool {
 	}
 	return false
 }
-func rewriteValuegeneric_OpMul64uover(v *Value) bool {
+func rewriteValuegeneric_OpMul64uover(v *ssacore.Value) bool {
 	v_1 := v.Args[1]
 	v_0 := v.Args[0]
 	b := v.Block
@@ -20973,7 +20974,7 @@ func rewriteValuegeneric_OpMul64uover(v *Value) bool {
 			v0 := b.NewValue0(v.Pos, ssaop.OpConst64, typ.UInt64)
 			v0.AuxInt = Int64ToAuxInt(bitsMulU64(c, d).lo)
 			v1 := b.NewValue0(v.Pos, ssaop.OpConstBool, typ.Bool)
-			v1.AuxInt = BoolToAuxInt(bitsMulU64(c, d).hi != 0)
+			v1.AuxInt = ssacore.BoolToAuxInt(bitsMulU64(c, d).hi != 0)
 			v.AddArg2(v0, v1)
 			return true
 		}
@@ -20990,7 +20991,7 @@ func rewriteValuegeneric_OpMul64uover(v *Value) bool {
 			x := v_1
 			v.Reset(ssaop.OpMakeTuple)
 			v0 := b.NewValue0(v.Pos, ssaop.OpConstBool, t.FieldType(1))
-			v0.AuxInt = BoolToAuxInt(false)
+			v0.AuxInt = ssacore.BoolToAuxInt(false)
 			v.AddArg2(x, v0)
 			return true
 		}
@@ -21008,7 +21009,7 @@ func rewriteValuegeneric_OpMul64uover(v *Value) bool {
 			v0 := b.NewValue0(v.Pos, ssaop.OpConst64, t.FieldType(0))
 			v0.AuxInt = Int64ToAuxInt(0)
 			v1 := b.NewValue0(v.Pos, ssaop.OpConstBool, t.FieldType(1))
-			v1.AuxInt = BoolToAuxInt(false)
+			v1.AuxInt = ssacore.BoolToAuxInt(false)
 			v.AddArg2(v0, v1)
 			return true
 		}
@@ -21016,7 +21017,7 @@ func rewriteValuegeneric_OpMul64uover(v *Value) bool {
 	}
 	return false
 }
-func rewriteValuegeneric_OpMul8(v *Value) bool {
+func rewriteValuegeneric_OpMul8(v *ssacore.Value) bool {
 	v_1 := v.Args[1]
 	v_0 := v.Args[0]
 	b := v.Block
@@ -21271,7 +21272,7 @@ func rewriteValuegeneric_OpMul8(v *Value) bool {
 	}
 	return false
 }
-func rewriteValuegeneric_OpNeg16(v *Value) bool {
+func rewriteValuegeneric_OpNeg16(v *ssacore.Value) bool {
 	v_0 := v.Args[0]
 	b := v.Block
 	// match: (Neg16 (Const16 [c]))
@@ -21368,7 +21369,7 @@ func rewriteValuegeneric_OpNeg16(v *Value) bool {
 	}
 	return false
 }
-func rewriteValuegeneric_OpNeg32(v *Value) bool {
+func rewriteValuegeneric_OpNeg32(v *ssacore.Value) bool {
 	v_0 := v.Args[0]
 	b := v.Block
 	// match: (Neg32 (Const32 [c]))
@@ -21465,7 +21466,7 @@ func rewriteValuegeneric_OpNeg32(v *Value) bool {
 	}
 	return false
 }
-func rewriteValuegeneric_OpNeg32F(v *Value) bool {
+func rewriteValuegeneric_OpNeg32F(v *ssacore.Value) bool {
 	v_0 := v.Args[0]
 	// match: (Neg32F (Const32F [c]))
 	// cond: c != 0
@@ -21484,7 +21485,7 @@ func rewriteValuegeneric_OpNeg32F(v *Value) bool {
 	}
 	return false
 }
-func rewriteValuegeneric_OpNeg64(v *Value) bool {
+func rewriteValuegeneric_OpNeg64(v *ssacore.Value) bool {
 	v_0 := v.Args[0]
 	b := v.Block
 	// match: (Neg64 (Const64 [c]))
@@ -21581,7 +21582,7 @@ func rewriteValuegeneric_OpNeg64(v *Value) bool {
 	}
 	return false
 }
-func rewriteValuegeneric_OpNeg64F(v *Value) bool {
+func rewriteValuegeneric_OpNeg64F(v *ssacore.Value) bool {
 	v_0 := v.Args[0]
 	// match: (Neg64F (Const64F [c]))
 	// cond: c != 0
@@ -21600,7 +21601,7 @@ func rewriteValuegeneric_OpNeg64F(v *Value) bool {
 	}
 	return false
 }
-func rewriteValuegeneric_OpNeg8(v *Value) bool {
+func rewriteValuegeneric_OpNeg8(v *ssacore.Value) bool {
 	v_0 := v.Args[0]
 	b := v.Block
 	// match: (Neg8 (Const8 [c]))
@@ -21697,7 +21698,7 @@ func rewriteValuegeneric_OpNeg8(v *Value) bool {
 	}
 	return false
 }
-func rewriteValuegeneric_OpNeq16(v *Value) bool {
+func rewriteValuegeneric_OpNeq16(v *ssacore.Value) bool {
 	v_1 := v.Args[1]
 	v_0 := v.Args[0]
 	b := v.Block
@@ -21709,7 +21710,7 @@ func rewriteValuegeneric_OpNeq16(v *Value) bool {
 			break
 		}
 		v.Reset(ssaop.OpConstBool)
-		v.AuxInt = BoolToAuxInt(false)
+		v.AuxInt = ssacore.BoolToAuxInt(false)
 		return true
 	}
 	// match: (Neq16 (Const16 <t> [c]) o:(Add16 (Const16 [d]) x))
@@ -21945,7 +21946,7 @@ func rewriteValuegeneric_OpNeq16(v *Value) bool {
 			}
 			d := AuxIntToInt16(v_1.AuxInt)
 			v.Reset(ssaop.OpConstBool)
-			v.AuxInt = BoolToAuxInt(c != d)
+			v.AuxInt = ssacore.BoolToAuxInt(c != d)
 			return true
 		}
 		break
@@ -22047,7 +22048,7 @@ func rewriteValuegeneric_OpNeq16(v *Value) bool {
 	}
 	return false
 }
-func rewriteValuegeneric_OpNeq32(v *Value) bool {
+func rewriteValuegeneric_OpNeq32(v *ssacore.Value) bool {
 	v_1 := v.Args[1]
 	v_0 := v.Args[0]
 	b := v.Block
@@ -22059,7 +22060,7 @@ func rewriteValuegeneric_OpNeq32(v *Value) bool {
 			break
 		}
 		v.Reset(ssaop.OpConstBool)
-		v.AuxInt = BoolToAuxInt(false)
+		v.AuxInt = ssacore.BoolToAuxInt(false)
 		return true
 	}
 	// match: (Neq32 (Const32 <t> [c]) o:(Add32 (Const32 [d]) x))
@@ -22295,7 +22296,7 @@ func rewriteValuegeneric_OpNeq32(v *Value) bool {
 			}
 			d := AuxIntToInt32(v_1.AuxInt)
 			v.Reset(ssaop.OpConstBool)
-			v.AuxInt = BoolToAuxInt(c != d)
+			v.AuxInt = ssacore.BoolToAuxInt(c != d)
 			return true
 		}
 		break
@@ -22397,7 +22398,7 @@ func rewriteValuegeneric_OpNeq32(v *Value) bool {
 	}
 	return false
 }
-func rewriteValuegeneric_OpNeq32F(v *Value) bool {
+func rewriteValuegeneric_OpNeq32F(v *ssacore.Value) bool {
 	v_1 := v.Args[1]
 	v_0 := v.Args[0]
 	// match: (Neq32F (Const32F [c]) (Const32F [d]))
@@ -22413,14 +22414,14 @@ func rewriteValuegeneric_OpNeq32F(v *Value) bool {
 			}
 			d := AuxIntToFloat32(v_1.AuxInt)
 			v.Reset(ssaop.OpConstBool)
-			v.AuxInt = BoolToAuxInt(c != d)
+			v.AuxInt = ssacore.BoolToAuxInt(c != d)
 			return true
 		}
 		break
 	}
 	return false
 }
-func rewriteValuegeneric_OpNeq64(v *Value) bool {
+func rewriteValuegeneric_OpNeq64(v *ssacore.Value) bool {
 	v_1 := v.Args[1]
 	v_0 := v.Args[0]
 	b := v.Block
@@ -22432,7 +22433,7 @@ func rewriteValuegeneric_OpNeq64(v *Value) bool {
 			break
 		}
 		v.Reset(ssaop.OpConstBool)
-		v.AuxInt = BoolToAuxInt(false)
+		v.AuxInt = ssacore.BoolToAuxInt(false)
 		return true
 	}
 	// match: (Neq64 (Const64 <t> [c]) o:(Add64 (Const64 [d]) x))
@@ -22668,7 +22669,7 @@ func rewriteValuegeneric_OpNeq64(v *Value) bool {
 			}
 			d := AuxIntToInt64(v_1.AuxInt)
 			v.Reset(ssaop.OpConstBool)
-			v.AuxInt = BoolToAuxInt(c != d)
+			v.AuxInt = ssacore.BoolToAuxInt(c != d)
 			return true
 		}
 		break
@@ -22770,7 +22771,7 @@ func rewriteValuegeneric_OpNeq64(v *Value) bool {
 	}
 	return false
 }
-func rewriteValuegeneric_OpNeq64F(v *Value) bool {
+func rewriteValuegeneric_OpNeq64F(v *ssacore.Value) bool {
 	v_1 := v.Args[1]
 	v_0 := v.Args[0]
 	// match: (Neq64F (Const64F [c]) (Const64F [d]))
@@ -22786,14 +22787,14 @@ func rewriteValuegeneric_OpNeq64F(v *Value) bool {
 			}
 			d := AuxIntToFloat64(v_1.AuxInt)
 			v.Reset(ssaop.OpConstBool)
-			v.AuxInt = BoolToAuxInt(c != d)
+			v.AuxInt = ssacore.BoolToAuxInt(c != d)
 			return true
 		}
 		break
 	}
 	return false
 }
-func rewriteValuegeneric_OpNeq8(v *Value) bool {
+func rewriteValuegeneric_OpNeq8(v *ssacore.Value) bool {
 	v_1 := v.Args[1]
 	v_0 := v.Args[0]
 	b := v.Block
@@ -22805,7 +22806,7 @@ func rewriteValuegeneric_OpNeq8(v *Value) bool {
 			break
 		}
 		v.Reset(ssaop.OpConstBool)
-		v.AuxInt = BoolToAuxInt(false)
+		v.AuxInt = ssacore.BoolToAuxInt(false)
 		return true
 	}
 	// match: (Neq8 (Const8 <t> [c]) o:(Add8 (Const8 [d]) x))
@@ -23041,7 +23042,7 @@ func rewriteValuegeneric_OpNeq8(v *Value) bool {
 			}
 			d := AuxIntToInt8(v_1.AuxInt)
 			v.Reset(ssaop.OpConstBool)
-			v.AuxInt = BoolToAuxInt(c != d)
+			v.AuxInt = ssacore.BoolToAuxInt(c != d)
 			return true
 		}
 		break
@@ -23135,7 +23136,7 @@ func rewriteValuegeneric_OpNeq8(v *Value) bool {
 	}
 	return false
 }
-func rewriteValuegeneric_OpNeqB(v *Value) bool {
+func rewriteValuegeneric_OpNeqB(v *ssacore.Value) bool {
 	v_1 := v.Args[1]
 	v_0 := v.Args[0]
 	// match: (NeqB x x)
@@ -23146,7 +23147,7 @@ func rewriteValuegeneric_OpNeqB(v *Value) bool {
 			break
 		}
 		v.Reset(ssaop.OpConstBool)
-		v.AuxInt = BoolToAuxInt(false)
+		v.AuxInt = ssacore.BoolToAuxInt(false)
 		return true
 	}
 	// match: (NeqB (ConstBool [c]) (ConstBool [d]))
@@ -23162,7 +23163,7 @@ func rewriteValuegeneric_OpNeqB(v *Value) bool {
 			}
 			d := AuxIntToBool(v_1.AuxInt)
 			v.Reset(ssaop.OpConstBool)
-			v.AuxInt = BoolToAuxInt(c != d)
+			v.AuxInt = ssacore.BoolToAuxInt(c != d)
 			return true
 		}
 		break
@@ -23211,7 +23212,7 @@ func rewriteValuegeneric_OpNeqB(v *Value) bool {
 	}
 	return false
 }
-func rewriteValuegeneric_OpNeqInter(v *Value) bool {
+func rewriteValuegeneric_OpNeqInter(v *ssacore.Value) bool {
 	v_1 := v.Args[1]
 	v_0 := v.Args[0]
 	b := v.Block
@@ -23230,7 +23231,7 @@ func rewriteValuegeneric_OpNeqInter(v *Value) bool {
 		return true
 	}
 }
-func rewriteValuegeneric_OpNeqPtr(v *Value) bool {
+func rewriteValuegeneric_OpNeqPtr(v *ssacore.Value) bool {
 	v_1 := v.Args[1]
 	v_0 := v.Args[0]
 	// match: (NeqPtr x x)
@@ -23241,7 +23242,7 @@ func rewriteValuegeneric_OpNeqPtr(v *Value) bool {
 			break
 		}
 		v.Reset(ssaop.OpConstBool)
-		v.AuxInt = BoolToAuxInt(false)
+		v.AuxInt = ssacore.BoolToAuxInt(false)
 		return true
 	}
 	// match: (NeqPtr (Addr {x} _) (Addr {y} _))
@@ -23257,7 +23258,7 @@ func rewriteValuegeneric_OpNeqPtr(v *Value) bool {
 			}
 			y := AuxToSym(v_1.Aux)
 			v.Reset(ssaop.OpConstBool)
-			v.AuxInt = BoolToAuxInt(x != y)
+			v.AuxInt = ssacore.BoolToAuxInt(x != y)
 			return true
 		}
 		break
@@ -23280,7 +23281,7 @@ func rewriteValuegeneric_OpNeqPtr(v *Value) bool {
 			}
 			y := AuxToSym(v_1_0.Aux)
 			v.Reset(ssaop.OpConstBool)
-			v.AuxInt = BoolToAuxInt(x != y || o != 0)
+			v.AuxInt = ssacore.BoolToAuxInt(x != y || o != 0)
 			return true
 		}
 		break
@@ -23308,7 +23309,7 @@ func rewriteValuegeneric_OpNeqPtr(v *Value) bool {
 			}
 			y := AuxToSym(v_1_0.Aux)
 			v.Reset(ssaop.OpConstBool)
-			v.AuxInt = BoolToAuxInt(x != y || o1 != o2)
+			v.AuxInt = ssacore.BoolToAuxInt(x != y || o1 != o2)
 			return true
 		}
 		break
@@ -23326,7 +23327,7 @@ func rewriteValuegeneric_OpNeqPtr(v *Value) bool {
 			}
 			y := AuxToSym(v_1.Aux)
 			v.Reset(ssaop.OpConstBool)
-			v.AuxInt = BoolToAuxInt(x != y)
+			v.AuxInt = ssacore.BoolToAuxInt(x != y)
 			return true
 		}
 		break
@@ -23349,7 +23350,7 @@ func rewriteValuegeneric_OpNeqPtr(v *Value) bool {
 			}
 			y := AuxToSym(v_1_0.Aux)
 			v.Reset(ssaop.OpConstBool)
-			v.AuxInt = BoolToAuxInt(x != y || o != 0)
+			v.AuxInt = ssacore.BoolToAuxInt(x != y || o != 0)
 			return true
 		}
 		break
@@ -23377,13 +23378,13 @@ func rewriteValuegeneric_OpNeqPtr(v *Value) bool {
 			}
 			y := AuxToSym(v_1_0.Aux)
 			v.Reset(ssaop.OpConstBool)
-			v.AuxInt = BoolToAuxInt(x != y || o1 != o2)
+			v.AuxInt = ssacore.BoolToAuxInt(x != y || o1 != o2)
 			return true
 		}
 		break
 	}
 	// match: (NeqPtr (OffPtr [o1] p1) p2)
-	// cond: IsSamePtr(p1, p2)
+	// cond: ssacore.IsSamePtr(p1, p2)
 	// result: (ConstBool [o1 != 0])
 	for {
 		for _i0 := 0; _i0 <= 1; _i0, v_0, v_1 = _i0+1, v_1, v_0 {
@@ -23393,17 +23394,17 @@ func rewriteValuegeneric_OpNeqPtr(v *Value) bool {
 			o1 := AuxIntToInt64(v_0.AuxInt)
 			p1 := v_0.Args[0]
 			p2 := v_1
-			if !(IsSamePtr(p1, p2)) {
+			if !(ssacore.IsSamePtr(p1, p2)) {
 				continue
 			}
 			v.Reset(ssaop.OpConstBool)
-			v.AuxInt = BoolToAuxInt(o1 != 0)
+			v.AuxInt = ssacore.BoolToAuxInt(o1 != 0)
 			return true
 		}
 		break
 	}
 	// match: (NeqPtr (OffPtr [o1] p1) (OffPtr [o2] p2))
-	// cond: IsSamePtr(p1, p2)
+	// cond: ssacore.IsSamePtr(p1, p2)
 	// result: (ConstBool [o1 != o2])
 	for {
 		for _i0 := 0; _i0 <= 1; _i0, v_0, v_1 = _i0+1, v_1, v_0 {
@@ -23417,11 +23418,11 @@ func rewriteValuegeneric_OpNeqPtr(v *Value) bool {
 			}
 			o2 := AuxIntToInt64(v_1.AuxInt)
 			p2 := v_1.Args[0]
-			if !(IsSamePtr(p1, p2)) {
+			if !(ssacore.IsSamePtr(p1, p2)) {
 				continue
 			}
 			v.Reset(ssaop.OpConstBool)
-			v.AuxInt = BoolToAuxInt(o1 != o2)
+			v.AuxInt = ssacore.BoolToAuxInt(o1 != o2)
 			return true
 		}
 		break
@@ -23439,7 +23440,7 @@ func rewriteValuegeneric_OpNeqPtr(v *Value) bool {
 			}
 			d := AuxIntToInt32(v_1.AuxInt)
 			v.Reset(ssaop.OpConstBool)
-			v.AuxInt = BoolToAuxInt(c != d)
+			v.AuxInt = ssacore.BoolToAuxInt(c != d)
 			return true
 		}
 		break
@@ -23457,7 +23458,7 @@ func rewriteValuegeneric_OpNeqPtr(v *Value) bool {
 			}
 			d := AuxIntToInt64(v_1.AuxInt)
 			v.Reset(ssaop.OpConstBool)
-			v.AuxInt = BoolToAuxInt(c != d)
+			v.AuxInt = ssacore.BoolToAuxInt(c != d)
 			return true
 		}
 		break
@@ -23479,7 +23480,7 @@ func rewriteValuegeneric_OpNeqPtr(v *Value) bool {
 			}
 			y := AuxToSym(v_1.Aux)
 			v.Reset(ssaop.OpConstBool)
-			v.AuxInt = BoolToAuxInt(x != y)
+			v.AuxInt = ssacore.BoolToAuxInt(x != y)
 			return true
 		}
 		break
@@ -23492,7 +23493,7 @@ func rewriteValuegeneric_OpNeqPtr(v *Value) bool {
 				continue
 			}
 			v.Reset(ssaop.OpConstBool)
-			v.AuxInt = BoolToAuxInt(true)
+			v.AuxInt = ssacore.BoolToAuxInt(true)
 			return true
 		}
 		break
@@ -23509,7 +23510,7 @@ func rewriteValuegeneric_OpNeqPtr(v *Value) bool {
 				continue
 			}
 			v.Reset(ssaop.OpConstBool)
-			v.AuxInt = BoolToAuxInt(true)
+			v.AuxInt = ssacore.BoolToAuxInt(true)
 			return true
 		}
 		break
@@ -23526,7 +23527,7 @@ func rewriteValuegeneric_OpNeqPtr(v *Value) bool {
 				continue
 			}
 			v.Reset(ssaop.OpConstBool)
-			v.AuxInt = BoolToAuxInt(true)
+			v.AuxInt = ssacore.BoolToAuxInt(true)
 			return true
 		}
 		break
@@ -23547,13 +23548,13 @@ func rewriteValuegeneric_OpNeqPtr(v *Value) bool {
 				continue
 			}
 			v.Reset(ssaop.OpConstBool)
-			v.AuxInt = BoolToAuxInt(true)
+			v.AuxInt = ssacore.BoolToAuxInt(true)
 			return true
 		}
 		break
 	}
 	// match: (NeqPtr (AddPtr p1 o1) p2)
-	// cond: IsSamePtr(p1, p2)
+	// cond: ssacore.IsSamePtr(p1, p2)
 	// result: (IsNonNil o1)
 	for {
 		for _i0 := 0; _i0 <= 1; _i0, v_0, v_1 = _i0+1, v_1, v_0 {
@@ -23563,7 +23564,7 @@ func rewriteValuegeneric_OpNeqPtr(v *Value) bool {
 			o1 := v_0.Args[1]
 			p1 := v_0.Args[0]
 			p2 := v_1
-			if !(IsSamePtr(p1, p2)) {
+			if !(ssacore.IsSamePtr(p1, p2)) {
 				continue
 			}
 			v.Reset(ssaop.OpIsNonNil)
@@ -23616,7 +23617,7 @@ func rewriteValuegeneric_OpNeqPtr(v *Value) bool {
 	}
 	return false
 }
-func rewriteValuegeneric_OpNeqSlice(v *Value) bool {
+func rewriteValuegeneric_OpNeqSlice(v *ssacore.Value) bool {
 	v_1 := v.Args[1]
 	v_0 := v.Args[0]
 	b := v.Block
@@ -23635,7 +23636,7 @@ func rewriteValuegeneric_OpNeqSlice(v *Value) bool {
 		return true
 	}
 }
-func rewriteValuegeneric_OpNilCheck(v *Value) bool {
+func rewriteValuegeneric_OpNilCheck(v *ssacore.Value) bool {
 	v_1 := v.Args[1]
 	v_0 := v.Args[0]
 	b := v.Block
@@ -23764,7 +23765,7 @@ func rewriteValuegeneric_OpNilCheck(v *Value) bool {
 	}
 	return false
 }
-func rewriteValuegeneric_OpNot(v *Value) bool {
+func rewriteValuegeneric_OpNot(v *ssacore.Value) bool {
 	v_0 := v.Args[0]
 	// match: (Not (ConstBool [c]))
 	// result: (ConstBool [!c])
@@ -23774,7 +23775,7 @@ func rewriteValuegeneric_OpNot(v *Value) bool {
 		}
 		c := AuxIntToBool(v_0.AuxInt)
 		v.Reset(ssaop.OpConstBool)
-		v.AuxInt = BoolToAuxInt(!c)
+		v.AuxInt = ssacore.BoolToAuxInt(!c)
 		return true
 	}
 	// match: (Not (Eq64 x y))
@@ -24163,7 +24164,7 @@ func rewriteValuegeneric_OpNot(v *Value) bool {
 	}
 	return false
 }
-func rewriteValuegeneric_OpOffPtr(v *Value) bool {
+func rewriteValuegeneric_OpOffPtr(v *ssacore.Value) bool {
 	v_0 := v.Args[0]
 	// match: (OffPtr (OffPtr p [y]) [x])
 	// result: (OffPtr p [x+y])
@@ -24195,7 +24196,7 @@ func rewriteValuegeneric_OpOffPtr(v *Value) bool {
 	}
 	return false
 }
-func rewriteValuegeneric_OpOr16(v *Value) bool {
+func rewriteValuegeneric_OpOr16(v *ssacore.Value) bool {
 	v_1 := v.Args[1]
 	v_0 := v.Args[0]
 	b := v.Block
@@ -24741,7 +24742,7 @@ func rewriteValuegeneric_OpOr16(v *Value) bool {
 	}
 	return false
 }
-func rewriteValuegeneric_OpOr32(v *Value) bool {
+func rewriteValuegeneric_OpOr32(v *ssacore.Value) bool {
 	v_1 := v.Args[1]
 	v_0 := v.Args[0]
 	b := v.Block
@@ -25287,7 +25288,7 @@ func rewriteValuegeneric_OpOr32(v *Value) bool {
 	}
 	return false
 }
-func rewriteValuegeneric_OpOr64(v *Value) bool {
+func rewriteValuegeneric_OpOr64(v *ssacore.Value) bool {
 	v_1 := v.Args[1]
 	v_0 := v.Args[0]
 	b := v.Block
@@ -25833,7 +25834,7 @@ func rewriteValuegeneric_OpOr64(v *Value) bool {
 	}
 	return false
 }
-func rewriteValuegeneric_OpOr8(v *Value) bool {
+func rewriteValuegeneric_OpOr8(v *ssacore.Value) bool {
 	v_1 := v.Args[1]
 	v_0 := v.Args[0]
 	b := v.Block
@@ -26379,7 +26380,7 @@ func rewriteValuegeneric_OpOr8(v *Value) bool {
 	}
 	return false
 }
-func rewriteValuegeneric_OpOrB(v *Value) bool {
+func rewriteValuegeneric_OpOrB(v *ssacore.Value) bool {
 	v_1 := v.Args[1]
 	v_0 := v.Args[0]
 	b := v.Block
@@ -26397,7 +26398,7 @@ func rewriteValuegeneric_OpOrB(v *Value) bool {
 			}
 			d := AuxIntToBool(v_1.AuxInt)
 			v.Reset(ssaop.OpConstBool)
-			v.AuxInt = BoolToAuxInt(c || d)
+			v.AuxInt = ssacore.BoolToAuxInt(c || d)
 			return true
 		}
 		break
@@ -28473,14 +28474,14 @@ func rewriteValuegeneric_OpOrB(v *Value) bool {
 				continue
 			}
 			v.Reset(ssaop.OpConstBool)
-			v.AuxInt = BoolToAuxInt(true)
+			v.AuxInt = ssacore.BoolToAuxInt(true)
 			return true
 		}
 		break
 	}
 	return false
 }
-func rewriteValuegeneric_OpPhi(v *Value) bool {
+func rewriteValuegeneric_OpPhi(v *ssacore.Value) bool {
 	b := v.Block
 	// match: (Phi (Const8 [c]) (Const8 [c]))
 	// result: (Const8 [c])
@@ -28592,7 +28593,7 @@ func rewriteValuegeneric_OpPhi(v *Value) bool {
 	}
 	return false
 }
-func rewriteValuegeneric_OpPopCount16(v *Value) bool {
+func rewriteValuegeneric_OpPopCount16(v *ssacore.Value) bool {
 	v_0 := v.Args[0]
 	b := v.Block
 	config := b.Func.Config
@@ -28628,7 +28629,7 @@ func rewriteValuegeneric_OpPopCount16(v *Value) bool {
 	}
 	return false
 }
-func rewriteValuegeneric_OpPopCount32(v *Value) bool {
+func rewriteValuegeneric_OpPopCount32(v *ssacore.Value) bool {
 	v_0 := v.Args[0]
 	b := v.Block
 	config := b.Func.Config
@@ -28664,7 +28665,7 @@ func rewriteValuegeneric_OpPopCount32(v *Value) bool {
 	}
 	return false
 }
-func rewriteValuegeneric_OpPopCount64(v *Value) bool {
+func rewriteValuegeneric_OpPopCount64(v *ssacore.Value) bool {
 	v_0 := v.Args[0]
 	b := v.Block
 	config := b.Func.Config
@@ -28700,7 +28701,7 @@ func rewriteValuegeneric_OpPopCount64(v *Value) bool {
 	}
 	return false
 }
-func rewriteValuegeneric_OpPopCount8(v *Value) bool {
+func rewriteValuegeneric_OpPopCount8(v *ssacore.Value) bool {
 	v_0 := v.Args[0]
 	b := v.Block
 	config := b.Func.Config
@@ -28736,7 +28737,7 @@ func rewriteValuegeneric_OpPopCount8(v *Value) bool {
 	}
 	return false
 }
-func rewriteValuegeneric_OpPtrIndex(v *Value) bool {
+func rewriteValuegeneric_OpPtrIndex(v *ssacore.Value) bool {
 	v_1 := v.Args[1]
 	v_0 := v.Args[0]
 	b := v.Block
@@ -28780,7 +28781,7 @@ func rewriteValuegeneric_OpPtrIndex(v *Value) bool {
 	}
 	return false
 }
-func rewriteValuegeneric_OpRotateLeft16(v *Value) bool {
+func rewriteValuegeneric_OpRotateLeft16(v *ssacore.Value) bool {
 	v_1 := v.Args[1]
 	v_0 := v.Args[0]
 	b := v.Block
@@ -29355,7 +29356,7 @@ func rewriteValuegeneric_OpRotateLeft16(v *Value) bool {
 	}
 	return false
 }
-func rewriteValuegeneric_OpRotateLeft32(v *Value) bool {
+func rewriteValuegeneric_OpRotateLeft32(v *ssacore.Value) bool {
 	v_1 := v.Args[1]
 	v_0 := v.Args[0]
 	b := v.Block
@@ -29930,7 +29931,7 @@ func rewriteValuegeneric_OpRotateLeft32(v *Value) bool {
 	}
 	return false
 }
-func rewriteValuegeneric_OpRotateLeft64(v *Value) bool {
+func rewriteValuegeneric_OpRotateLeft64(v *ssacore.Value) bool {
 	v_1 := v.Args[1]
 	v_0 := v.Args[0]
 	b := v.Block
@@ -30505,7 +30506,7 @@ func rewriteValuegeneric_OpRotateLeft64(v *Value) bool {
 	}
 	return false
 }
-func rewriteValuegeneric_OpRotateLeft8(v *Value) bool {
+func rewriteValuegeneric_OpRotateLeft8(v *ssacore.Value) bool {
 	v_1 := v.Args[1]
 	v_0 := v.Args[0]
 	b := v.Block
@@ -31080,7 +31081,7 @@ func rewriteValuegeneric_OpRotateLeft8(v *Value) bool {
 	}
 	return false
 }
-func rewriteValuegeneric_OpRound32F(v *Value) bool {
+func rewriteValuegeneric_OpRound32F(v *ssacore.Value) bool {
 	v_0 := v.Args[0]
 	// match: (Round32F x:(Const32F))
 	// result: x
@@ -31094,7 +31095,7 @@ func rewriteValuegeneric_OpRound32F(v *Value) bool {
 	}
 	return false
 }
-func rewriteValuegeneric_OpRound64F(v *Value) bool {
+func rewriteValuegeneric_OpRound64F(v *ssacore.Value) bool {
 	v_0 := v.Args[0]
 	// match: (Round64F x:(Const64F))
 	// result: x
@@ -31108,7 +31109,7 @@ func rewriteValuegeneric_OpRound64F(v *Value) bool {
 	}
 	return false
 }
-func rewriteValuegeneric_OpRoundToEven(v *Value) bool {
+func rewriteValuegeneric_OpRoundToEven(v *ssacore.Value) bool {
 	v_0 := v.Args[0]
 	// match: (RoundToEven (Const64F [c]))
 	// result: (Const64F [math.RoundToEven(c)])
@@ -31123,7 +31124,7 @@ func rewriteValuegeneric_OpRoundToEven(v *Value) bool {
 	}
 	return false
 }
-func rewriteValuegeneric_OpRsh16Ux16(v *Value) bool {
+func rewriteValuegeneric_OpRsh16Ux16(v *ssacore.Value) bool {
 	v_1 := v.Args[1]
 	v_0 := v.Args[0]
 	b := v.Block
@@ -31168,13 +31169,13 @@ func rewriteValuegeneric_OpRsh16Ux16(v *Value) bool {
 			break
 		}
 		v.Reset(ssaop.OpRsh16Ux16)
-		v.AuxInt = BoolToAuxInt(true)
+		v.AuxInt = ssacore.BoolToAuxInt(true)
 		v.AddArg2(x, con)
 		return true
 	}
 	return false
 }
-func rewriteValuegeneric_OpRsh16Ux32(v *Value) bool {
+func rewriteValuegeneric_OpRsh16Ux32(v *ssacore.Value) bool {
 	v_1 := v.Args[1]
 	v_0 := v.Args[0]
 	b := v.Block
@@ -31219,13 +31220,13 @@ func rewriteValuegeneric_OpRsh16Ux32(v *Value) bool {
 			break
 		}
 		v.Reset(ssaop.OpRsh16Ux32)
-		v.AuxInt = BoolToAuxInt(true)
+		v.AuxInt = ssacore.BoolToAuxInt(true)
 		v.AddArg2(x, con)
 		return true
 	}
 	return false
 }
-func rewriteValuegeneric_OpRsh16Ux64(v *Value) bool {
+func rewriteValuegeneric_OpRsh16Ux64(v *ssacore.Value) bool {
 	v_1 := v.Args[1]
 	v_0 := v.Args[0]
 	b := v.Block
@@ -31424,13 +31425,13 @@ func rewriteValuegeneric_OpRsh16Ux64(v *Value) bool {
 			break
 		}
 		v.Reset(ssaop.OpRsh16Ux64)
-		v.AuxInt = BoolToAuxInt(true)
+		v.AuxInt = ssacore.BoolToAuxInt(true)
 		v.AddArg2(x, con)
 		return true
 	}
 	return false
 }
-func rewriteValuegeneric_OpRsh16Ux8(v *Value) bool {
+func rewriteValuegeneric_OpRsh16Ux8(v *ssacore.Value) bool {
 	v_1 := v.Args[1]
 	v_0 := v.Args[0]
 	b := v.Block
@@ -31475,13 +31476,13 @@ func rewriteValuegeneric_OpRsh16Ux8(v *Value) bool {
 			break
 		}
 		v.Reset(ssaop.OpRsh16Ux8)
-		v.AuxInt = BoolToAuxInt(true)
+		v.AuxInt = ssacore.BoolToAuxInt(true)
 		v.AddArg2(x, con)
 		return true
 	}
 	return false
 }
-func rewriteValuegeneric_OpRsh16x16(v *Value) bool {
+func rewriteValuegeneric_OpRsh16x16(v *ssacore.Value) bool {
 	v_1 := v.Args[1]
 	v_0 := v.Args[0]
 	b := v.Block
@@ -31526,13 +31527,13 @@ func rewriteValuegeneric_OpRsh16x16(v *Value) bool {
 			break
 		}
 		v.Reset(ssaop.OpRsh16x16)
-		v.AuxInt = BoolToAuxInt(true)
+		v.AuxInt = ssacore.BoolToAuxInt(true)
 		v.AddArg2(x, con)
 		return true
 	}
 	return false
 }
-func rewriteValuegeneric_OpRsh16x32(v *Value) bool {
+func rewriteValuegeneric_OpRsh16x32(v *ssacore.Value) bool {
 	v_1 := v.Args[1]
 	v_0 := v.Args[0]
 	b := v.Block
@@ -31577,13 +31578,13 @@ func rewriteValuegeneric_OpRsh16x32(v *Value) bool {
 			break
 		}
 		v.Reset(ssaop.OpRsh16x32)
-		v.AuxInt = BoolToAuxInt(true)
+		v.AuxInt = ssacore.BoolToAuxInt(true)
 		v.AddArg2(x, con)
 		return true
 	}
 	return false
 }
-func rewriteValuegeneric_OpRsh16x64(v *Value) bool {
+func rewriteValuegeneric_OpRsh16x64(v *ssacore.Value) bool {
 	v_1 := v.Args[1]
 	v_0 := v.Args[0]
 	b := v.Block
@@ -31686,13 +31687,13 @@ func rewriteValuegeneric_OpRsh16x64(v *Value) bool {
 			break
 		}
 		v.Reset(ssaop.OpRsh16x64)
-		v.AuxInt = BoolToAuxInt(true)
+		v.AuxInt = ssacore.BoolToAuxInt(true)
 		v.AddArg2(x, con)
 		return true
 	}
 	return false
 }
-func rewriteValuegeneric_OpRsh16x8(v *Value) bool {
+func rewriteValuegeneric_OpRsh16x8(v *ssacore.Value) bool {
 	v_1 := v.Args[1]
 	v_0 := v.Args[0]
 	b := v.Block
@@ -31737,13 +31738,13 @@ func rewriteValuegeneric_OpRsh16x8(v *Value) bool {
 			break
 		}
 		v.Reset(ssaop.OpRsh16x8)
-		v.AuxInt = BoolToAuxInt(true)
+		v.AuxInt = ssacore.BoolToAuxInt(true)
 		v.AddArg2(x, con)
 		return true
 	}
 	return false
 }
-func rewriteValuegeneric_OpRsh32Ux16(v *Value) bool {
+func rewriteValuegeneric_OpRsh32Ux16(v *ssacore.Value) bool {
 	v_1 := v.Args[1]
 	v_0 := v.Args[0]
 	b := v.Block
@@ -31788,13 +31789,13 @@ func rewriteValuegeneric_OpRsh32Ux16(v *Value) bool {
 			break
 		}
 		v.Reset(ssaop.OpRsh32Ux16)
-		v.AuxInt = BoolToAuxInt(true)
+		v.AuxInt = ssacore.BoolToAuxInt(true)
 		v.AddArg2(x, con)
 		return true
 	}
 	return false
 }
-func rewriteValuegeneric_OpRsh32Ux32(v *Value) bool {
+func rewriteValuegeneric_OpRsh32Ux32(v *ssacore.Value) bool {
 	v_1 := v.Args[1]
 	v_0 := v.Args[0]
 	b := v.Block
@@ -31839,13 +31840,13 @@ func rewriteValuegeneric_OpRsh32Ux32(v *Value) bool {
 			break
 		}
 		v.Reset(ssaop.OpRsh32Ux32)
-		v.AuxInt = BoolToAuxInt(true)
+		v.AuxInt = ssacore.BoolToAuxInt(true)
 		v.AddArg2(x, con)
 		return true
 	}
 	return false
 }
-func rewriteValuegeneric_OpRsh32Ux64(v *Value) bool {
+func rewriteValuegeneric_OpRsh32Ux64(v *ssacore.Value) bool {
 	v_1 := v.Args[1]
 	v_0 := v.Args[0]
 	b := v.Block
@@ -32062,13 +32063,13 @@ func rewriteValuegeneric_OpRsh32Ux64(v *Value) bool {
 			break
 		}
 		v.Reset(ssaop.OpRsh32Ux64)
-		v.AuxInt = BoolToAuxInt(true)
+		v.AuxInt = ssacore.BoolToAuxInt(true)
 		v.AddArg2(x, con)
 		return true
 	}
 	return false
 }
-func rewriteValuegeneric_OpRsh32Ux8(v *Value) bool {
+func rewriteValuegeneric_OpRsh32Ux8(v *ssacore.Value) bool {
 	v_1 := v.Args[1]
 	v_0 := v.Args[0]
 	b := v.Block
@@ -32113,13 +32114,13 @@ func rewriteValuegeneric_OpRsh32Ux8(v *Value) bool {
 			break
 		}
 		v.Reset(ssaop.OpRsh32Ux8)
-		v.AuxInt = BoolToAuxInt(true)
+		v.AuxInt = ssacore.BoolToAuxInt(true)
 		v.AddArg2(x, con)
 		return true
 	}
 	return false
 }
-func rewriteValuegeneric_OpRsh32x16(v *Value) bool {
+func rewriteValuegeneric_OpRsh32x16(v *ssacore.Value) bool {
 	v_1 := v.Args[1]
 	v_0 := v.Args[0]
 	b := v.Block
@@ -32164,13 +32165,13 @@ func rewriteValuegeneric_OpRsh32x16(v *Value) bool {
 			break
 		}
 		v.Reset(ssaop.OpRsh32x16)
-		v.AuxInt = BoolToAuxInt(true)
+		v.AuxInt = ssacore.BoolToAuxInt(true)
 		v.AddArg2(x, con)
 		return true
 	}
 	return false
 }
-func rewriteValuegeneric_OpRsh32x32(v *Value) bool {
+func rewriteValuegeneric_OpRsh32x32(v *ssacore.Value) bool {
 	v_1 := v.Args[1]
 	v_0 := v.Args[0]
 	b := v.Block
@@ -32215,13 +32216,13 @@ func rewriteValuegeneric_OpRsh32x32(v *Value) bool {
 			break
 		}
 		v.Reset(ssaop.OpRsh32x32)
-		v.AuxInt = BoolToAuxInt(true)
+		v.AuxInt = ssacore.BoolToAuxInt(true)
 		v.AddArg2(x, con)
 		return true
 	}
 	return false
 }
-func rewriteValuegeneric_OpRsh32x64(v *Value) bool {
+func rewriteValuegeneric_OpRsh32x64(v *ssacore.Value) bool {
 	v_1 := v.Args[1]
 	v_0 := v.Args[0]
 	b := v.Block
@@ -32342,13 +32343,13 @@ func rewriteValuegeneric_OpRsh32x64(v *Value) bool {
 			break
 		}
 		v.Reset(ssaop.OpRsh32x64)
-		v.AuxInt = BoolToAuxInt(true)
+		v.AuxInt = ssacore.BoolToAuxInt(true)
 		v.AddArg2(x, con)
 		return true
 	}
 	return false
 }
-func rewriteValuegeneric_OpRsh32x8(v *Value) bool {
+func rewriteValuegeneric_OpRsh32x8(v *ssacore.Value) bool {
 	v_1 := v.Args[1]
 	v_0 := v.Args[0]
 	b := v.Block
@@ -32393,13 +32394,13 @@ func rewriteValuegeneric_OpRsh32x8(v *Value) bool {
 			break
 		}
 		v.Reset(ssaop.OpRsh32x8)
-		v.AuxInt = BoolToAuxInt(true)
+		v.AuxInt = ssacore.BoolToAuxInt(true)
 		v.AddArg2(x, con)
 		return true
 	}
 	return false
 }
-func rewriteValuegeneric_OpRsh64Ux16(v *Value) bool {
+func rewriteValuegeneric_OpRsh64Ux16(v *ssacore.Value) bool {
 	v_1 := v.Args[1]
 	v_0 := v.Args[0]
 	b := v.Block
@@ -32444,13 +32445,13 @@ func rewriteValuegeneric_OpRsh64Ux16(v *Value) bool {
 			break
 		}
 		v.Reset(ssaop.OpRsh64Ux16)
-		v.AuxInt = BoolToAuxInt(true)
+		v.AuxInt = ssacore.BoolToAuxInt(true)
 		v.AddArg2(x, con)
 		return true
 	}
 	return false
 }
-func rewriteValuegeneric_OpRsh64Ux32(v *Value) bool {
+func rewriteValuegeneric_OpRsh64Ux32(v *ssacore.Value) bool {
 	v_1 := v.Args[1]
 	v_0 := v.Args[0]
 	b := v.Block
@@ -32495,13 +32496,13 @@ func rewriteValuegeneric_OpRsh64Ux32(v *Value) bool {
 			break
 		}
 		v.Reset(ssaop.OpRsh64Ux32)
-		v.AuxInt = BoolToAuxInt(true)
+		v.AuxInt = ssacore.BoolToAuxInt(true)
 		v.AddArg2(x, con)
 		return true
 	}
 	return false
 }
-func rewriteValuegeneric_OpRsh64Ux64(v *Value) bool {
+func rewriteValuegeneric_OpRsh64Ux64(v *ssacore.Value) bool {
 	v_1 := v.Args[1]
 	v_0 := v.Args[0]
 	b := v.Block
@@ -32736,13 +32737,13 @@ func rewriteValuegeneric_OpRsh64Ux64(v *Value) bool {
 			break
 		}
 		v.Reset(ssaop.OpRsh64Ux64)
-		v.AuxInt = BoolToAuxInt(true)
+		v.AuxInt = ssacore.BoolToAuxInt(true)
 		v.AddArg2(x, con)
 		return true
 	}
 	return false
 }
-func rewriteValuegeneric_OpRsh64Ux8(v *Value) bool {
+func rewriteValuegeneric_OpRsh64Ux8(v *ssacore.Value) bool {
 	v_1 := v.Args[1]
 	v_0 := v.Args[0]
 	b := v.Block
@@ -32787,13 +32788,13 @@ func rewriteValuegeneric_OpRsh64Ux8(v *Value) bool {
 			break
 		}
 		v.Reset(ssaop.OpRsh64Ux8)
-		v.AuxInt = BoolToAuxInt(true)
+		v.AuxInt = ssacore.BoolToAuxInt(true)
 		v.AddArg2(x, con)
 		return true
 	}
 	return false
 }
-func rewriteValuegeneric_OpRsh64x16(v *Value) bool {
+func rewriteValuegeneric_OpRsh64x16(v *ssacore.Value) bool {
 	v_1 := v.Args[1]
 	v_0 := v.Args[0]
 	b := v.Block
@@ -32838,13 +32839,13 @@ func rewriteValuegeneric_OpRsh64x16(v *Value) bool {
 			break
 		}
 		v.Reset(ssaop.OpRsh64x16)
-		v.AuxInt = BoolToAuxInt(true)
+		v.AuxInt = ssacore.BoolToAuxInt(true)
 		v.AddArg2(x, con)
 		return true
 	}
 	return false
 }
-func rewriteValuegeneric_OpRsh64x32(v *Value) bool {
+func rewriteValuegeneric_OpRsh64x32(v *ssacore.Value) bool {
 	v_1 := v.Args[1]
 	v_0 := v.Args[0]
 	b := v.Block
@@ -32889,13 +32890,13 @@ func rewriteValuegeneric_OpRsh64x32(v *Value) bool {
 			break
 		}
 		v.Reset(ssaop.OpRsh64x32)
-		v.AuxInt = BoolToAuxInt(true)
+		v.AuxInt = ssacore.BoolToAuxInt(true)
 		v.AddArg2(x, con)
 		return true
 	}
 	return false
 }
-func rewriteValuegeneric_OpRsh64x64(v *Value) bool {
+func rewriteValuegeneric_OpRsh64x64(v *ssacore.Value) bool {
 	v_1 := v.Args[1]
 	v_0 := v.Args[0]
 	b := v.Block
@@ -33034,13 +33035,13 @@ func rewriteValuegeneric_OpRsh64x64(v *Value) bool {
 			break
 		}
 		v.Reset(ssaop.OpRsh64x64)
-		v.AuxInt = BoolToAuxInt(true)
+		v.AuxInt = ssacore.BoolToAuxInt(true)
 		v.AddArg2(x, con)
 		return true
 	}
 	return false
 }
-func rewriteValuegeneric_OpRsh64x8(v *Value) bool {
+func rewriteValuegeneric_OpRsh64x8(v *ssacore.Value) bool {
 	v_1 := v.Args[1]
 	v_0 := v.Args[0]
 	b := v.Block
@@ -33085,13 +33086,13 @@ func rewriteValuegeneric_OpRsh64x8(v *Value) bool {
 			break
 		}
 		v.Reset(ssaop.OpRsh64x8)
-		v.AuxInt = BoolToAuxInt(true)
+		v.AuxInt = ssacore.BoolToAuxInt(true)
 		v.AddArg2(x, con)
 		return true
 	}
 	return false
 }
-func rewriteValuegeneric_OpRsh8Ux16(v *Value) bool {
+func rewriteValuegeneric_OpRsh8Ux16(v *ssacore.Value) bool {
 	v_1 := v.Args[1]
 	v_0 := v.Args[0]
 	b := v.Block
@@ -33136,13 +33137,13 @@ func rewriteValuegeneric_OpRsh8Ux16(v *Value) bool {
 			break
 		}
 		v.Reset(ssaop.OpRsh8Ux16)
-		v.AuxInt = BoolToAuxInt(true)
+		v.AuxInt = ssacore.BoolToAuxInt(true)
 		v.AddArg2(x, con)
 		return true
 	}
 	return false
 }
-func rewriteValuegeneric_OpRsh8Ux32(v *Value) bool {
+func rewriteValuegeneric_OpRsh8Ux32(v *ssacore.Value) bool {
 	v_1 := v.Args[1]
 	v_0 := v.Args[0]
 	b := v.Block
@@ -33187,13 +33188,13 @@ func rewriteValuegeneric_OpRsh8Ux32(v *Value) bool {
 			break
 		}
 		v.Reset(ssaop.OpRsh8Ux32)
-		v.AuxInt = BoolToAuxInt(true)
+		v.AuxInt = ssacore.BoolToAuxInt(true)
 		v.AddArg2(x, con)
 		return true
 	}
 	return false
 }
-func rewriteValuegeneric_OpRsh8Ux64(v *Value) bool {
+func rewriteValuegeneric_OpRsh8Ux64(v *ssacore.Value) bool {
 	v_1 := v.Args[1]
 	v_0 := v.Args[0]
 	b := v.Block
@@ -33374,13 +33375,13 @@ func rewriteValuegeneric_OpRsh8Ux64(v *Value) bool {
 			break
 		}
 		v.Reset(ssaop.OpRsh8Ux64)
-		v.AuxInt = BoolToAuxInt(true)
+		v.AuxInt = ssacore.BoolToAuxInt(true)
 		v.AddArg2(x, con)
 		return true
 	}
 	return false
 }
-func rewriteValuegeneric_OpRsh8Ux8(v *Value) bool {
+func rewriteValuegeneric_OpRsh8Ux8(v *ssacore.Value) bool {
 	v_1 := v.Args[1]
 	v_0 := v.Args[0]
 	b := v.Block
@@ -33425,13 +33426,13 @@ func rewriteValuegeneric_OpRsh8Ux8(v *Value) bool {
 			break
 		}
 		v.Reset(ssaop.OpRsh8Ux8)
-		v.AuxInt = BoolToAuxInt(true)
+		v.AuxInt = ssacore.BoolToAuxInt(true)
 		v.AddArg2(x, con)
 		return true
 	}
 	return false
 }
-func rewriteValuegeneric_OpRsh8x16(v *Value) bool {
+func rewriteValuegeneric_OpRsh8x16(v *ssacore.Value) bool {
 	v_1 := v.Args[1]
 	v_0 := v.Args[0]
 	b := v.Block
@@ -33476,13 +33477,13 @@ func rewriteValuegeneric_OpRsh8x16(v *Value) bool {
 			break
 		}
 		v.Reset(ssaop.OpRsh8x16)
-		v.AuxInt = BoolToAuxInt(true)
+		v.AuxInt = ssacore.BoolToAuxInt(true)
 		v.AddArg2(x, con)
 		return true
 	}
 	return false
 }
-func rewriteValuegeneric_OpRsh8x32(v *Value) bool {
+func rewriteValuegeneric_OpRsh8x32(v *ssacore.Value) bool {
 	v_1 := v.Args[1]
 	v_0 := v.Args[0]
 	b := v.Block
@@ -33527,13 +33528,13 @@ func rewriteValuegeneric_OpRsh8x32(v *Value) bool {
 			break
 		}
 		v.Reset(ssaop.OpRsh8x32)
-		v.AuxInt = BoolToAuxInt(true)
+		v.AuxInt = ssacore.BoolToAuxInt(true)
 		v.AddArg2(x, con)
 		return true
 	}
 	return false
 }
-func rewriteValuegeneric_OpRsh8x64(v *Value) bool {
+func rewriteValuegeneric_OpRsh8x64(v *ssacore.Value) bool {
 	v_1 := v.Args[1]
 	v_0 := v.Args[0]
 	b := v.Block
@@ -33617,13 +33618,13 @@ func rewriteValuegeneric_OpRsh8x64(v *Value) bool {
 			break
 		}
 		v.Reset(ssaop.OpRsh8x64)
-		v.AuxInt = BoolToAuxInt(true)
+		v.AuxInt = ssacore.BoolToAuxInt(true)
 		v.AddArg2(x, con)
 		return true
 	}
 	return false
 }
-func rewriteValuegeneric_OpRsh8x8(v *Value) bool {
+func rewriteValuegeneric_OpRsh8x8(v *ssacore.Value) bool {
 	v_1 := v.Args[1]
 	v_0 := v.Args[0]
 	b := v.Block
@@ -33668,13 +33669,13 @@ func rewriteValuegeneric_OpRsh8x8(v *Value) bool {
 			break
 		}
 		v.Reset(ssaop.OpRsh8x8)
-		v.AuxInt = BoolToAuxInt(true)
+		v.AuxInt = ssacore.BoolToAuxInt(true)
 		v.AddArg2(x, con)
 		return true
 	}
 	return false
 }
-func rewriteValuegeneric_OpSelect0(v *Value) bool {
+func rewriteValuegeneric_OpSelect0(v *ssacore.Value) bool {
 	v_0 := v.Args[0]
 	// match: (Select0 a:(Add64carry x y (Const64 [0])))
 	// cond: a.Uses == 1
@@ -33707,7 +33708,7 @@ func rewriteValuegeneric_OpSelect0(v *Value) bool {
 	}
 	return false
 }
-func rewriteValuegeneric_OpSelect1(v *Value) bool {
+func rewriteValuegeneric_OpSelect1(v *ssacore.Value) bool {
 	v_0 := v.Args[0]
 	// match: (Select1 (MakeTuple x y))
 	// result: y
@@ -33721,7 +33722,7 @@ func rewriteValuegeneric_OpSelect1(v *Value) bool {
 	}
 	return false
 }
-func rewriteValuegeneric_OpSelectN(v *Value) bool {
+func rewriteValuegeneric_OpSelectN(v *ssacore.Value) bool {
 	v_0 := v.Args[0]
 	b := v.Block
 	config := b.Func.Config
@@ -33794,7 +33795,7 @@ func rewriteValuegeneric_OpSelectN(v *Value) bool {
 		return true
 	}
 	// match: (SelectN [0] call:(StaticCall {sym} s1:(Store _ (Const64 [sz]) s2:(Store _ src s3:(Store {t} _ dst mem)))))
-	// cond: sz >= 0 && IsSameCall(sym, "runtime.memmove") && s1.Uses == 1 && s2.Uses == 1 && s3.Uses == 1 && IsInlinableMemmove(dst, src, int64(sz), config) && Clobber(s1, s2, s3, call)
+	// cond: sz >= 0 && IsSameCall(sym, "runtime.memmove") && s1.Uses == 1 && s2.Uses == 1 && s3.Uses == 1 && ssacore.IsInlinableMemmove(dst, src, int64(sz), config) && Clobber(s1, s2, s3, call)
 	// result: (Move {types.Types[types.TUINT8]} [int64(sz)] dst src mem)
 	for {
 		if AuxIntToInt64(v.AuxInt) != 0 {
@@ -33827,7 +33828,7 @@ func rewriteValuegeneric_OpSelectN(v *Value) bool {
 		}
 		mem := s3.Args[2]
 		dst := s3.Args[1]
-		if !(sz >= 0 && IsSameCall(sym, "runtime.memmove") && s1.Uses == 1 && s2.Uses == 1 && s3.Uses == 1 && IsInlinableMemmove(dst, src, int64(sz), config) && Clobber(s1, s2, s3, call)) {
+		if !(sz >= 0 && IsSameCall(sym, "runtime.memmove") && s1.Uses == 1 && s2.Uses == 1 && s3.Uses == 1 && ssacore.IsInlinableMemmove(dst, src, int64(sz), config) && Clobber(s1, s2, s3, call)) {
 			break
 		}
 		v.Reset(ssaop.OpMove)
@@ -33837,7 +33838,7 @@ func rewriteValuegeneric_OpSelectN(v *Value) bool {
 		return true
 	}
 	// match: (SelectN [0] call:(StaticCall {sym} s1:(Store _ (Const32 [sz]) s2:(Store _ src s3:(Store {t} _ dst mem)))))
-	// cond: sz >= 0 && IsSameCall(sym, "runtime.memmove") && s1.Uses == 1 && s2.Uses == 1 && s3.Uses == 1 && IsInlinableMemmove(dst, src, int64(sz), config) && Clobber(s1, s2, s3, call)
+	// cond: sz >= 0 && IsSameCall(sym, "runtime.memmove") && s1.Uses == 1 && s2.Uses == 1 && s3.Uses == 1 && ssacore.IsInlinableMemmove(dst, src, int64(sz), config) && Clobber(s1, s2, s3, call)
 	// result: (Move {types.Types[types.TUINT8]} [int64(sz)] dst src mem)
 	for {
 		if AuxIntToInt64(v.AuxInt) != 0 {
@@ -33870,7 +33871,7 @@ func rewriteValuegeneric_OpSelectN(v *Value) bool {
 		}
 		mem := s3.Args[2]
 		dst := s3.Args[1]
-		if !(sz >= 0 && IsSameCall(sym, "runtime.memmove") && s1.Uses == 1 && s2.Uses == 1 && s3.Uses == 1 && IsInlinableMemmove(dst, src, int64(sz), config) && Clobber(s1, s2, s3, call)) {
+		if !(sz >= 0 && IsSameCall(sym, "runtime.memmove") && s1.Uses == 1 && s2.Uses == 1 && s3.Uses == 1 && ssacore.IsInlinableMemmove(dst, src, int64(sz), config) && Clobber(s1, s2, s3, call)) {
 			break
 		}
 		v.Reset(ssaop.OpMove)
@@ -33880,7 +33881,7 @@ func rewriteValuegeneric_OpSelectN(v *Value) bool {
 		return true
 	}
 	// match: (SelectN [0] call:(StaticCall {sym} dst src (Const64 [sz]) mem))
-	// cond: sz >= 0 && call.Uses == 1 && IsSameCall(sym, "runtime.memmove") && IsInlinableMemmove(dst, src, int64(sz), config) && Clobber(call)
+	// cond: sz >= 0 && call.Uses == 1 && IsSameCall(sym, "runtime.memmove") && ssacore.IsInlinableMemmove(dst, src, int64(sz), config) && Clobber(call)
 	// result: (Move {types.Types[types.TUINT8]} [int64(sz)] dst src mem)
 	for {
 		if AuxIntToInt64(v.AuxInt) != 0 {
@@ -33899,7 +33900,7 @@ func rewriteValuegeneric_OpSelectN(v *Value) bool {
 			break
 		}
 		sz := AuxIntToInt64(call_2.AuxInt)
-		if !(sz >= 0 && call.Uses == 1 && IsSameCall(sym, "runtime.memmove") && IsInlinableMemmove(dst, src, int64(sz), config) && Clobber(call)) {
+		if !(sz >= 0 && call.Uses == 1 && IsSameCall(sym, "runtime.memmove") && ssacore.IsInlinableMemmove(dst, src, int64(sz), config) && Clobber(call)) {
 			break
 		}
 		v.Reset(ssaop.OpMove)
@@ -33909,7 +33910,7 @@ func rewriteValuegeneric_OpSelectN(v *Value) bool {
 		return true
 	}
 	// match: (SelectN [0] call:(StaticCall {sym} dst src (Const32 [sz]) mem))
-	// cond: sz >= 0 && call.Uses == 1 && IsSameCall(sym, "runtime.memmove") && IsInlinableMemmove(dst, src, int64(sz), config) && Clobber(call)
+	// cond: sz >= 0 && call.Uses == 1 && IsSameCall(sym, "runtime.memmove") && ssacore.IsInlinableMemmove(dst, src, int64(sz), config) && Clobber(call)
 	// result: (Move {types.Types[types.TUINT8]} [int64(sz)] dst src mem)
 	for {
 		if AuxIntToInt64(v.AuxInt) != 0 {
@@ -33928,7 +33929,7 @@ func rewriteValuegeneric_OpSelectN(v *Value) bool {
 			break
 		}
 		sz := AuxIntToInt32(call_2.AuxInt)
-		if !(sz >= 0 && call.Uses == 1 && IsSameCall(sym, "runtime.memmove") && IsInlinableMemmove(dst, src, int64(sz), config) && Clobber(call)) {
+		if !(sz >= 0 && call.Uses == 1 && IsSameCall(sym, "runtime.memmove") && ssacore.IsInlinableMemmove(dst, src, int64(sz), config) && Clobber(call)) {
 			break
 		}
 		v.Reset(ssaop.OpMove)
@@ -33938,7 +33939,7 @@ func rewriteValuegeneric_OpSelectN(v *Value) bool {
 		return true
 	}
 	// match: (SelectN [0] call:(StaticLECall {sym} dst src (Const64 [sz]) mem))
-	// cond: sz >= 0 && call.Uses == 1 && IsSameCall(sym, "runtime.memmove") && IsInlinableMemmove(dst, src, int64(sz), config) && Clobber(call)
+	// cond: sz >= 0 && call.Uses == 1 && IsSameCall(sym, "runtime.memmove") && ssacore.IsInlinableMemmove(dst, src, int64(sz), config) && Clobber(call)
 	// result: (Move {types.Types[types.TUINT8]} [int64(sz)] dst src mem)
 	for {
 		if AuxIntToInt64(v.AuxInt) != 0 {
@@ -33957,7 +33958,7 @@ func rewriteValuegeneric_OpSelectN(v *Value) bool {
 			break
 		}
 		sz := AuxIntToInt64(call_2.AuxInt)
-		if !(sz >= 0 && call.Uses == 1 && IsSameCall(sym, "runtime.memmove") && IsInlinableMemmove(dst, src, int64(sz), config) && Clobber(call)) {
+		if !(sz >= 0 && call.Uses == 1 && IsSameCall(sym, "runtime.memmove") && ssacore.IsInlinableMemmove(dst, src, int64(sz), config) && Clobber(call)) {
 			break
 		}
 		v.Reset(ssaop.OpMove)
@@ -33967,7 +33968,7 @@ func rewriteValuegeneric_OpSelectN(v *Value) bool {
 		return true
 	}
 	// match: (SelectN [0] call:(StaticLECall {sym} dst src (Const32 [sz]) mem))
-	// cond: sz >= 0 && call.Uses == 1 && IsSameCall(sym, "runtime.memmove") && IsInlinableMemmove(dst, src, int64(sz), config) && Clobber(call)
+	// cond: sz >= 0 && call.Uses == 1 && IsSameCall(sym, "runtime.memmove") && ssacore.IsInlinableMemmove(dst, src, int64(sz), config) && Clobber(call)
 	// result: (Move {types.Types[types.TUINT8]} [int64(sz)] dst src mem)
 	for {
 		if AuxIntToInt64(v.AuxInt) != 0 {
@@ -33986,7 +33987,7 @@ func rewriteValuegeneric_OpSelectN(v *Value) bool {
 			break
 		}
 		sz := AuxIntToInt32(call_2.AuxInt)
-		if !(sz >= 0 && call.Uses == 1 && IsSameCall(sym, "runtime.memmove") && IsInlinableMemmove(dst, src, int64(sz), config) && Clobber(call)) {
+		if !(sz >= 0 && call.Uses == 1 && IsSameCall(sym, "runtime.memmove") && ssacore.IsInlinableMemmove(dst, src, int64(sz), config) && Clobber(call)) {
 			break
 		}
 		v.Reset(ssaop.OpMove)
@@ -34116,7 +34117,7 @@ func rewriteValuegeneric_OpSelectN(v *Value) bool {
 	}
 	return false
 }
-func rewriteValuegeneric_OpSignExt16to32(v *Value) bool {
+func rewriteValuegeneric_OpSignExt16to32(v *ssacore.Value) bool {
 	v_0 := v.Args[0]
 	// match: (SignExt16to32 (Const16 [c]))
 	// result: (Const32 [int32(c)])
@@ -34154,7 +34155,7 @@ func rewriteValuegeneric_OpSignExt16to32(v *Value) bool {
 	}
 	return false
 }
-func rewriteValuegeneric_OpSignExt16to64(v *Value) bool {
+func rewriteValuegeneric_OpSignExt16to64(v *ssacore.Value) bool {
 	v_0 := v.Args[0]
 	// match: (SignExt16to64 (Const16 [c]))
 	// result: (Const64 [int64(c)])
@@ -34192,7 +34193,7 @@ func rewriteValuegeneric_OpSignExt16to64(v *Value) bool {
 	}
 	return false
 }
-func rewriteValuegeneric_OpSignExt32to64(v *Value) bool {
+func rewriteValuegeneric_OpSignExt32to64(v *ssacore.Value) bool {
 	v_0 := v.Args[0]
 	// match: (SignExt32to64 (Const32 [c]))
 	// result: (Const64 [int64(c)])
@@ -34230,7 +34231,7 @@ func rewriteValuegeneric_OpSignExt32to64(v *Value) bool {
 	}
 	return false
 }
-func rewriteValuegeneric_OpSignExt8to16(v *Value) bool {
+func rewriteValuegeneric_OpSignExt8to16(v *ssacore.Value) bool {
 	v_0 := v.Args[0]
 	// match: (SignExt8to16 (Const8 [c]))
 	// result: (Const16 [int16(c)])
@@ -34279,7 +34280,7 @@ func rewriteValuegeneric_OpSignExt8to16(v *Value) bool {
 	}
 	return false
 }
-func rewriteValuegeneric_OpSignExt8to32(v *Value) bool {
+func rewriteValuegeneric_OpSignExt8to32(v *ssacore.Value) bool {
 	v_0 := v.Args[0]
 	// match: (SignExt8to32 (Const8 [c]))
 	// result: (Const32 [int32(c)])
@@ -34328,7 +34329,7 @@ func rewriteValuegeneric_OpSignExt8to32(v *Value) bool {
 	}
 	return false
 }
-func rewriteValuegeneric_OpSignExt8to64(v *Value) bool {
+func rewriteValuegeneric_OpSignExt8to64(v *ssacore.Value) bool {
 	v_0 := v.Args[0]
 	// match: (SignExt8to64 (Const8 [c]))
 	// result: (Const64 [int64(c)])
@@ -34377,7 +34378,7 @@ func rewriteValuegeneric_OpSignExt8to64(v *Value) bool {
 	}
 	return false
 }
-func rewriteValuegeneric_OpSliceCap(v *Value) bool {
+func rewriteValuegeneric_OpSliceCap(v *ssacore.Value) bool {
 	v_0 := v.Args[0]
 	// match: (SliceCap (SliceMake _ _ (Const64 <t> [c])))
 	// result: (Const64 <t> [c])
@@ -34472,7 +34473,7 @@ func rewriteValuegeneric_OpSliceCap(v *Value) bool {
 	}
 	return false
 }
-func rewriteValuegeneric_OpSliceLen(v *Value) bool {
+func rewriteValuegeneric_OpSliceLen(v *ssacore.Value) bool {
 	v_0 := v.Args[0]
 	// match: (SliceLen (SliceMake _ (Const64 <t> [c]) _))
 	// result: (Const64 <t> [c])
@@ -34591,7 +34592,7 @@ func rewriteValuegeneric_OpSliceLen(v *Value) bool {
 	}
 	return false
 }
-func rewriteValuegeneric_OpSliceMake(v *Value) bool {
+func rewriteValuegeneric_OpSliceMake(v *ssacore.Value) bool {
 	v_2 := v.Args[2]
 	v_1 := v.Args[1]
 	v_0 := v.Args[0]
@@ -34676,7 +34677,7 @@ func rewriteValuegeneric_OpSliceMake(v *Value) bool {
 	}
 	return false
 }
-func rewriteValuegeneric_OpSlicePtr(v *Value) bool {
+func rewriteValuegeneric_OpSlicePtr(v *ssacore.Value) bool {
 	v_0 := v.Args[0]
 	// match: (SlicePtr (SliceMake (SlicePtr x) _ _))
 	// result: (SlicePtr x)
@@ -34695,7 +34696,7 @@ func rewriteValuegeneric_OpSlicePtr(v *Value) bool {
 	}
 	return false
 }
-func rewriteValuegeneric_OpSlicemask(v *Value) bool {
+func rewriteValuegeneric_OpSlicemask(v *ssacore.Value) bool {
 	v_0 := v.Args[0]
 	// match: (Slicemask (Const32 [x]))
 	// cond: x > 0
@@ -34749,7 +34750,7 @@ func rewriteValuegeneric_OpSlicemask(v *Value) bool {
 	}
 	return false
 }
-func rewriteValuegeneric_OpSqrt(v *Value) bool {
+func rewriteValuegeneric_OpSqrt(v *ssacore.Value) bool {
 	v_0 := v.Args[0]
 	// match: (Sqrt (Const64F [c]))
 	// cond: !math.IsNaN(math.Sqrt(c))
@@ -34768,11 +34769,11 @@ func rewriteValuegeneric_OpSqrt(v *Value) bool {
 	}
 	return false
 }
-func rewriteValuegeneric_OpStaticCall(v *Value) bool {
+func rewriteValuegeneric_OpStaticCall(v *ssacore.Value) bool {
 	b := v.Block
 	typ := &b.Func.Config.Types
 	// match: (StaticCall {callAux} p q _ mem)
-	// cond: IsSameCall(callAux, "runtime.memequal") && IsSamePtr(p, q)
+	// cond: IsSameCall(callAux, "runtime.memequal") && ssacore.IsSamePtr(p, q)
 	// result: (MakeResult (ConstBool <typ.Bool> [true]) mem)
 	for {
 		if len(v.Args) != 4 {
@@ -34782,18 +34783,18 @@ func rewriteValuegeneric_OpStaticCall(v *Value) bool {
 		mem := v.Args[3]
 		p := v.Args[0]
 		q := v.Args[1]
-		if !(IsSameCall(callAux, "runtime.memequal") && IsSamePtr(p, q)) {
+		if !(IsSameCall(callAux, "runtime.memequal") && ssacore.IsSamePtr(p, q)) {
 			break
 		}
 		v.Reset(ssaop.OpMakeResult)
 		v0 := b.NewValue0(v.Pos, ssaop.OpConstBool, typ.Bool)
-		v0.AuxInt = BoolToAuxInt(true)
+		v0.AuxInt = ssacore.BoolToAuxInt(true)
 		v.AddArg2(v0, mem)
 		return true
 	}
 	return false
 }
-func rewriteValuegeneric_OpStaticLECall(v *Value) bool {
+func rewriteValuegeneric_OpStaticLECall(v *ssacore.Value) bool {
 	b := v.Block
 	config := b.Func.Config
 	typ := &b.Func.Config.Types
@@ -35460,12 +35461,12 @@ func rewriteValuegeneric_OpStaticLECall(v *Value) bool {
 		}
 		v.Reset(ssaop.OpMakeResult)
 		v0 := b.NewValue0(v.Pos, ssaop.OpConstBool, typ.Bool)
-		v0.AuxInt = BoolToAuxInt(true)
+		v0.AuxInt = ssacore.BoolToAuxInt(true)
 		v.AddArg2(v0, mem)
 		return true
 	}
 	// match: (StaticLECall {callAux} p q _ mem)
-	// cond: IsSameCall(callAux, "runtime.memequal") && IsSamePtr(p, q)
+	// cond: IsSameCall(callAux, "runtime.memequal") && ssacore.IsSamePtr(p, q)
 	// result: (MakeResult (ConstBool <typ.Bool> [true]) mem)
 	for {
 		if len(v.Args) != 4 {
@@ -35475,12 +35476,12 @@ func rewriteValuegeneric_OpStaticLECall(v *Value) bool {
 		mem := v.Args[3]
 		p := v.Args[0]
 		q := v.Args[1]
-		if !(IsSameCall(callAux, "runtime.memequal") && IsSamePtr(p, q)) {
+		if !(IsSameCall(callAux, "runtime.memequal") && ssacore.IsSamePtr(p, q)) {
 			break
 		}
 		v.Reset(ssaop.OpMakeResult)
 		v0 := b.NewValue0(v.Pos, ssaop.OpConstBool, typ.Bool)
-		v0.AuxInt = BoolToAuxInt(true)
+		v0.AuxInt = ssacore.BoolToAuxInt(true)
 		v.AddArg2(v0, mem)
 		return true
 	}
@@ -35649,13 +35650,13 @@ func rewriteValuegeneric_OpStaticLECall(v *Value) bool {
 	}
 	return false
 }
-func rewriteValuegeneric_OpStore(v *Value) bool {
+func rewriteValuegeneric_OpStore(v *ssacore.Value) bool {
 	v_2 := v.Args[2]
 	v_1 := v.Args[1]
 	v_0 := v.Args[0]
 	b := v.Block
 	// match: (Store {t1} p1 (Load <t2> p2 mem) mem)
-	// cond: IsSamePtr(p1, p2) && t2.Size() == t1.Size()
+	// cond: ssacore.IsSamePtr(p1, p2) && t2.Size() == t1.Size()
 	// result: mem
 	for {
 		t1 := AuxToType(v.Aux)
@@ -35666,14 +35667,14 @@ func rewriteValuegeneric_OpStore(v *Value) bool {
 		t2 := v_1.Type
 		mem := v_1.Args[1]
 		p2 := v_1.Args[0]
-		if mem != v_2 || !(IsSamePtr(p1, p2) && t2.Size() == t1.Size()) {
+		if mem != v_2 || !(ssacore.IsSamePtr(p1, p2) && t2.Size() == t1.Size()) {
 			break
 		}
 		v.CopyOf(mem)
 		return true
 	}
 	// match: (Store {t1} p1 (Load <t2> p2 oldmem) mem:(Store {t3} p3 _ oldmem))
-	// cond: IsSamePtr(p1, p2) && t2.Size() == t1.Size() && Disjoint(p1, t1, p3, t3)
+	// cond: ssacore.IsSamePtr(p1, p2) && t2.Size() == t1.Size() && ssacore.Disjoint(p1, t1, p3, t3)
 	// result: mem
 	for {
 		t1 := AuxToType(v.Aux)
@@ -35691,14 +35692,14 @@ func rewriteValuegeneric_OpStore(v *Value) bool {
 		t3 := AuxToType(mem.Aux)
 		_ = mem.Args[2]
 		p3 := mem.Args[0]
-		if oldmem != mem.Args[2] || !(IsSamePtr(p1, p2) && t2.Size() == t1.Size() && Disjoint(p1, t1, p3, t3)) {
+		if oldmem != mem.Args[2] || !(ssacore.IsSamePtr(p1, p2) && t2.Size() == t1.Size() && ssacore.Disjoint(p1, t1, p3, t3)) {
 			break
 		}
 		v.CopyOf(mem)
 		return true
 	}
 	// match: (Store {t1} p1 (Load <t2> p2 oldmem) mem:(Store {t3} p3 _ (Store {t4} p4 _ oldmem)))
-	// cond: IsSamePtr(p1, p2) && t2.Size() == t1.Size() && Disjoint(p1, t1, p3, t3) && Disjoint(p1, t1, p4, t4)
+	// cond: ssacore.IsSamePtr(p1, p2) && t2.Size() == t1.Size() && ssacore.Disjoint(p1, t1, p3, t3) && ssacore.Disjoint(p1, t1, p4, t4)
 	// result: mem
 	for {
 		t1 := AuxToType(v.Aux)
@@ -35723,14 +35724,14 @@ func rewriteValuegeneric_OpStore(v *Value) bool {
 		t4 := AuxToType(mem_2.Aux)
 		_ = mem_2.Args[2]
 		p4 := mem_2.Args[0]
-		if oldmem != mem_2.Args[2] || !(IsSamePtr(p1, p2) && t2.Size() == t1.Size() && Disjoint(p1, t1, p3, t3) && Disjoint(p1, t1, p4, t4)) {
+		if oldmem != mem_2.Args[2] || !(ssacore.IsSamePtr(p1, p2) && t2.Size() == t1.Size() && ssacore.Disjoint(p1, t1, p3, t3) && ssacore.Disjoint(p1, t1, p4, t4)) {
 			break
 		}
 		v.CopyOf(mem)
 		return true
 	}
 	// match: (Store {t1} p1 (Load <t2> p2 oldmem) mem:(Store {t3} p3 _ (Store {t4} p4 _ (Store {t5} p5 _ oldmem))))
-	// cond: IsSamePtr(p1, p2) && t2.Size() == t1.Size() && Disjoint(p1, t1, p3, t3) && Disjoint(p1, t1, p4, t4) && Disjoint(p1, t1, p5, t5)
+	// cond: ssacore.IsSamePtr(p1, p2) && t2.Size() == t1.Size() && ssacore.Disjoint(p1, t1, p3, t3) && ssacore.Disjoint(p1, t1, p4, t4) && ssacore.Disjoint(p1, t1, p5, t5)
 	// result: mem
 	for {
 		t1 := AuxToType(v.Aux)
@@ -35762,14 +35763,14 @@ func rewriteValuegeneric_OpStore(v *Value) bool {
 		t5 := AuxToType(mem_2_2.Aux)
 		_ = mem_2_2.Args[2]
 		p5 := mem_2_2.Args[0]
-		if oldmem != mem_2_2.Args[2] || !(IsSamePtr(p1, p2) && t2.Size() == t1.Size() && Disjoint(p1, t1, p3, t3) && Disjoint(p1, t1, p4, t4) && Disjoint(p1, t1, p5, t5)) {
+		if oldmem != mem_2_2.Args[2] || !(ssacore.IsSamePtr(p1, p2) && t2.Size() == t1.Size() && ssacore.Disjoint(p1, t1, p3, t3) && ssacore.Disjoint(p1, t1, p4, t4) && ssacore.Disjoint(p1, t1, p5, t5)) {
 			break
 		}
 		v.CopyOf(mem)
 		return true
 	}
 	// match: (Store {t} (OffPtr [o] p1) x mem:(Zero [n] p2 _))
-	// cond: isConstZero(x) && o >= 0 && t.Size() + o <= n && IsSamePtr(p1, p2)
+	// cond: isConstZero(x) && o >= 0 && t.Size() + o <= n && ssacore.IsSamePtr(p1, p2)
 	// result: mem
 	for {
 		t := AuxToType(v.Aux)
@@ -35785,14 +35786,14 @@ func rewriteValuegeneric_OpStore(v *Value) bool {
 		}
 		n := AuxIntToInt64(mem.AuxInt)
 		p2 := mem.Args[0]
-		if !(isConstZero(x) && o >= 0 && t.Size()+o <= n && IsSamePtr(p1, p2)) {
+		if !(isConstZero(x) && o >= 0 && t.Size()+o <= n && ssacore.IsSamePtr(p1, p2)) {
 			break
 		}
 		v.CopyOf(mem)
 		return true
 	}
 	// match: (Store {t1} op1:(OffPtr [o1] p1) x mem:(Store {t2} p2 _ (Zero [n] p3 _)))
-	// cond: isConstZero(x) && o1 >= 0 && t1.Size() + o1 <= n && IsSamePtr(p1, p3) && Disjoint(op1, t1, p2, t2)
+	// cond: isConstZero(x) && o1 >= 0 && t1.Size() + o1 <= n && ssacore.IsSamePtr(p1, p3) && ssacore.Disjoint(op1, t1, p2, t2)
 	// result: mem
 	for {
 		t1 := AuxToType(v.Aux)
@@ -35816,14 +35817,14 @@ func rewriteValuegeneric_OpStore(v *Value) bool {
 		}
 		n := AuxIntToInt64(mem_2.AuxInt)
 		p3 := mem_2.Args[0]
-		if !(isConstZero(x) && o1 >= 0 && t1.Size()+o1 <= n && IsSamePtr(p1, p3) && Disjoint(op1, t1, p2, t2)) {
+		if !(isConstZero(x) && o1 >= 0 && t1.Size()+o1 <= n && ssacore.IsSamePtr(p1, p3) && ssacore.Disjoint(op1, t1, p2, t2)) {
 			break
 		}
 		v.CopyOf(mem)
 		return true
 	}
 	// match: (Store {t1} op1:(OffPtr [o1] p1) x mem:(Store {t2} p2 _ (Store {t3} p3 _ (Zero [n] p4 _))))
-	// cond: isConstZero(x) && o1 >= 0 && t1.Size() + o1 <= n && IsSamePtr(p1, p4) && Disjoint(op1, t1, p2, t2) && Disjoint(op1, t1, p3, t3)
+	// cond: isConstZero(x) && o1 >= 0 && t1.Size() + o1 <= n && ssacore.IsSamePtr(p1, p4) && ssacore.Disjoint(op1, t1, p2, t2) && ssacore.Disjoint(op1, t1, p3, t3)
 	// result: mem
 	for {
 		t1 := AuxToType(v.Aux)
@@ -35854,14 +35855,14 @@ func rewriteValuegeneric_OpStore(v *Value) bool {
 		}
 		n := AuxIntToInt64(mem_2_2.AuxInt)
 		p4 := mem_2_2.Args[0]
-		if !(isConstZero(x) && o1 >= 0 && t1.Size()+o1 <= n && IsSamePtr(p1, p4) && Disjoint(op1, t1, p2, t2) && Disjoint(op1, t1, p3, t3)) {
+		if !(isConstZero(x) && o1 >= 0 && t1.Size()+o1 <= n && ssacore.IsSamePtr(p1, p4) && ssacore.Disjoint(op1, t1, p2, t2) && ssacore.Disjoint(op1, t1, p3, t3)) {
 			break
 		}
 		v.CopyOf(mem)
 		return true
 	}
 	// match: (Store {t1} op1:(OffPtr [o1] p1) x mem:(Store {t2} p2 _ (Store {t3} p3 _ (Store {t4} p4 _ (Zero [n] p5 _)))))
-	// cond: isConstZero(x) && o1 >= 0 && t1.Size() + o1 <= n && IsSamePtr(p1, p5) && Disjoint(op1, t1, p2, t2) && Disjoint(op1, t1, p3, t3) && Disjoint(op1, t1, p4, t4)
+	// cond: isConstZero(x) && o1 >= 0 && t1.Size() + o1 <= n && ssacore.IsSamePtr(p1, p5) && ssacore.Disjoint(op1, t1, p2, t2) && ssacore.Disjoint(op1, t1, p3, t3) && ssacore.Disjoint(op1, t1, p4, t4)
 	// result: mem
 	for {
 		t1 := AuxToType(v.Aux)
@@ -35899,7 +35900,7 @@ func rewriteValuegeneric_OpStore(v *Value) bool {
 		}
 		n := AuxIntToInt64(mem_2_2_2.AuxInt)
 		p5 := mem_2_2_2.Args[0]
-		if !(isConstZero(x) && o1 >= 0 && t1.Size()+o1 <= n && IsSamePtr(p1, p5) && Disjoint(op1, t1, p2, t2) && Disjoint(op1, t1, p3, t3) && Disjoint(op1, t1, p4, t4)) {
+		if !(isConstZero(x) && o1 >= 0 && t1.Size()+o1 <= n && ssacore.IsSamePtr(p1, p5) && ssacore.Disjoint(op1, t1, p2, t2) && ssacore.Disjoint(op1, t1, p3, t3) && ssacore.Disjoint(op1, t1, p4, t4)) {
 			break
 		}
 		v.CopyOf(mem)
@@ -35915,7 +35916,7 @@ func rewriteValuegeneric_OpStore(v *Value) bool {
 		return true
 	}
 	// match: (Store {t} dst (Load src mem) mem)
-	// cond: !CanSSA(t)
+	// cond: !ssacore.CanSSA(t)
 	// result: (Move {t} [t.Size()] dst src mem)
 	for {
 		t := AuxToType(v.Aux)
@@ -35925,7 +35926,7 @@ func rewriteValuegeneric_OpStore(v *Value) bool {
 		}
 		mem := v_1.Args[1]
 		src := v_1.Args[0]
-		if mem != v_2 || !(!CanSSA(t)) {
+		if mem != v_2 || !(!ssacore.CanSSA(t)) {
 			break
 		}
 		v.Reset(ssaop.OpMove)
@@ -35935,7 +35936,7 @@ func rewriteValuegeneric_OpStore(v *Value) bool {
 		return true
 	}
 	// match: (Store {t} dst (Load src mem) (VarDef {x} mem))
-	// cond: !CanSSA(t)
+	// cond: !ssacore.CanSSA(t)
 	// result: (Move {t} [t.Size()] dst src (VarDef {x} mem))
 	for {
 		t := AuxToType(v.Aux)
@@ -35949,7 +35950,7 @@ func rewriteValuegeneric_OpStore(v *Value) bool {
 			break
 		}
 		x := AuxToSym(v_2.Aux)
-		if mem != v_2.Args[0] || !(!CanSSA(t)) {
+		if mem != v_2.Args[0] || !(!ssacore.CanSSA(t)) {
 			break
 		}
 		v.Reset(ssaop.OpMove)
@@ -36028,7 +36029,7 @@ func rewriteValuegeneric_OpStore(v *Value) bool {
 		return true
 	}
 	// match: (Store {t1} op1:(OffPtr [o1] p1) d1 m2:(Store {t2} op2:(OffPtr [0] p2) d2 m3:(Move [n] p3 _ mem)))
-	// cond: m2.Uses == 1 && m3.Uses == 1 && o1 == t2.Size() && n == t2.Size() + t1.Size() && IsSamePtr(p1, p2) && IsSamePtr(p2, p3) && Clobber(m2, m3)
+	// cond: m2.Uses == 1 && m3.Uses == 1 && o1 == t2.Size() && n == t2.Size() + t1.Size() && ssacore.IsSamePtr(p1, p2) && ssacore.IsSamePtr(p2, p3) && Clobber(m2, m3)
 	// result: (Store {t1} op1 d1 (Store {t2} op2 d2 mem))
 	for {
 		t1 := AuxToType(v.Aux)
@@ -36058,7 +36059,7 @@ func rewriteValuegeneric_OpStore(v *Value) bool {
 		n := AuxIntToInt64(m3.AuxInt)
 		mem := m3.Args[2]
 		p3 := m3.Args[0]
-		if !(m2.Uses == 1 && m3.Uses == 1 && o1 == t2.Size() && n == t2.Size()+t1.Size() && IsSamePtr(p1, p2) && IsSamePtr(p2, p3) && Clobber(m2, m3)) {
+		if !(m2.Uses == 1 && m3.Uses == 1 && o1 == t2.Size() && n == t2.Size()+t1.Size() && ssacore.IsSamePtr(p1, p2) && ssacore.IsSamePtr(p2, p3) && Clobber(m2, m3)) {
 			break
 		}
 		v.Reset(ssaop.OpStore)
@@ -36070,7 +36071,7 @@ func rewriteValuegeneric_OpStore(v *Value) bool {
 		return true
 	}
 	// match: (Store {t1} op1:(OffPtr [o1] p1) d1 m2:(Store {t2} op2:(OffPtr [o2] p2) d2 m3:(Store {t3} op3:(OffPtr [0] p3) d3 m4:(Move [n] p4 _ mem))))
-	// cond: m2.Uses == 1 && m3.Uses == 1 && m4.Uses == 1 && o2 == t3.Size() && o1-o2 == t2.Size() && n == t3.Size() + t2.Size() + t1.Size() && IsSamePtr(p1, p2) && IsSamePtr(p2, p3) && IsSamePtr(p3, p4) && Clobber(m2, m3, m4)
+	// cond: m2.Uses == 1 && m3.Uses == 1 && m4.Uses == 1 && o2 == t3.Size() && o1-o2 == t2.Size() && n == t3.Size() + t2.Size() + t1.Size() && ssacore.IsSamePtr(p1, p2) && ssacore.IsSamePtr(p2, p3) && ssacore.IsSamePtr(p3, p4) && Clobber(m2, m3, m4)
 	// result: (Store {t1} op1 d1 (Store {t2} op2 d2 (Store {t3} op3 d3 mem)))
 	for {
 		t1 := AuxToType(v.Aux)
@@ -36113,7 +36114,7 @@ func rewriteValuegeneric_OpStore(v *Value) bool {
 		n := AuxIntToInt64(m4.AuxInt)
 		mem := m4.Args[2]
 		p4 := m4.Args[0]
-		if !(m2.Uses == 1 && m3.Uses == 1 && m4.Uses == 1 && o2 == t3.Size() && o1-o2 == t2.Size() && n == t3.Size()+t2.Size()+t1.Size() && IsSamePtr(p1, p2) && IsSamePtr(p2, p3) && IsSamePtr(p3, p4) && Clobber(m2, m3, m4)) {
+		if !(m2.Uses == 1 && m3.Uses == 1 && m4.Uses == 1 && o2 == t3.Size() && o1-o2 == t2.Size() && n == t3.Size()+t2.Size()+t1.Size() && ssacore.IsSamePtr(p1, p2) && ssacore.IsSamePtr(p2, p3) && ssacore.IsSamePtr(p3, p4) && Clobber(m2, m3, m4)) {
 			break
 		}
 		v.Reset(ssaop.OpStore)
@@ -36128,7 +36129,7 @@ func rewriteValuegeneric_OpStore(v *Value) bool {
 		return true
 	}
 	// match: (Store {t1} op1:(OffPtr [o1] p1) d1 m2:(Store {t2} op2:(OffPtr [o2] p2) d2 m3:(Store {t3} op3:(OffPtr [o3] p3) d3 m4:(Store {t4} op4:(OffPtr [0] p4) d4 m5:(Move [n] p5 _ mem)))))
-	// cond: m2.Uses == 1 && m3.Uses == 1 && m4.Uses == 1 && m5.Uses == 1 && o3 == t4.Size() && o2-o3 == t3.Size() && o1-o2 == t2.Size() && n == t4.Size() + t3.Size() + t2.Size() + t1.Size() && IsSamePtr(p1, p2) && IsSamePtr(p2, p3) && IsSamePtr(p3, p4) && IsSamePtr(p4, p5) && Clobber(m2, m3, m4, m5)
+	// cond: m2.Uses == 1 && m3.Uses == 1 && m4.Uses == 1 && m5.Uses == 1 && o3 == t4.Size() && o2-o3 == t3.Size() && o1-o2 == t2.Size() && n == t4.Size() + t3.Size() + t2.Size() + t1.Size() && ssacore.IsSamePtr(p1, p2) && ssacore.IsSamePtr(p2, p3) && ssacore.IsSamePtr(p3, p4) && ssacore.IsSamePtr(p4, p5) && Clobber(m2, m3, m4, m5)
 	// result: (Store {t1} op1 d1 (Store {t2} op2 d2 (Store {t3} op3 d3 (Store {t4} op4 d4 mem))))
 	for {
 		t1 := AuxToType(v.Aux)
@@ -36184,7 +36185,7 @@ func rewriteValuegeneric_OpStore(v *Value) bool {
 		n := AuxIntToInt64(m5.AuxInt)
 		mem := m5.Args[2]
 		p5 := m5.Args[0]
-		if !(m2.Uses == 1 && m3.Uses == 1 && m4.Uses == 1 && m5.Uses == 1 && o3 == t4.Size() && o2-o3 == t3.Size() && o1-o2 == t2.Size() && n == t4.Size()+t3.Size()+t2.Size()+t1.Size() && IsSamePtr(p1, p2) && IsSamePtr(p2, p3) && IsSamePtr(p3, p4) && IsSamePtr(p4, p5) && Clobber(m2, m3, m4, m5)) {
+		if !(m2.Uses == 1 && m3.Uses == 1 && m4.Uses == 1 && m5.Uses == 1 && o3 == t4.Size() && o2-o3 == t3.Size() && o1-o2 == t2.Size() && n == t4.Size()+t3.Size()+t2.Size()+t1.Size() && ssacore.IsSamePtr(p1, p2) && ssacore.IsSamePtr(p2, p3) && ssacore.IsSamePtr(p3, p4) && ssacore.IsSamePtr(p4, p5) && Clobber(m2, m3, m4, m5)) {
 			break
 		}
 		v.Reset(ssaop.OpStore)
@@ -36202,7 +36203,7 @@ func rewriteValuegeneric_OpStore(v *Value) bool {
 		return true
 	}
 	// match: (Store {t1} op1:(OffPtr [o1] p1) d1 m2:(Store {t2} op2:(OffPtr [0] p2) d2 m3:(Zero [n] p3 mem)))
-	// cond: m2.Uses == 1 && m3.Uses == 1 && o1 == t2.Size() && n == t2.Size() + t1.Size() && IsSamePtr(p1, p2) && IsSamePtr(p2, p3) && Clobber(m2, m3)
+	// cond: m2.Uses == 1 && m3.Uses == 1 && o1 == t2.Size() && n == t2.Size() + t1.Size() && ssacore.IsSamePtr(p1, p2) && ssacore.IsSamePtr(p2, p3) && Clobber(m2, m3)
 	// result: (Store {t1} op1 d1 (Store {t2} op2 d2 mem))
 	for {
 		t1 := AuxToType(v.Aux)
@@ -36232,7 +36233,7 @@ func rewriteValuegeneric_OpStore(v *Value) bool {
 		n := AuxIntToInt64(m3.AuxInt)
 		mem := m3.Args[1]
 		p3 := m3.Args[0]
-		if !(m2.Uses == 1 && m3.Uses == 1 && o1 == t2.Size() && n == t2.Size()+t1.Size() && IsSamePtr(p1, p2) && IsSamePtr(p2, p3) && Clobber(m2, m3)) {
+		if !(m2.Uses == 1 && m3.Uses == 1 && o1 == t2.Size() && n == t2.Size()+t1.Size() && ssacore.IsSamePtr(p1, p2) && ssacore.IsSamePtr(p2, p3) && Clobber(m2, m3)) {
 			break
 		}
 		v.Reset(ssaop.OpStore)
@@ -36244,7 +36245,7 @@ func rewriteValuegeneric_OpStore(v *Value) bool {
 		return true
 	}
 	// match: (Store {t1} op1:(OffPtr [o1] p1) d1 m2:(Store {t2} op2:(OffPtr [o2] p2) d2 m3:(Store {t3} op3:(OffPtr [0] p3) d3 m4:(Zero [n] p4 mem))))
-	// cond: m2.Uses == 1 && m3.Uses == 1 && m4.Uses == 1 && o2 == t3.Size() && o1-o2 == t2.Size() && n == t3.Size() + t2.Size() + t1.Size() && IsSamePtr(p1, p2) && IsSamePtr(p2, p3) && IsSamePtr(p3, p4) && Clobber(m2, m3, m4)
+	// cond: m2.Uses == 1 && m3.Uses == 1 && m4.Uses == 1 && o2 == t3.Size() && o1-o2 == t2.Size() && n == t3.Size() + t2.Size() + t1.Size() && ssacore.IsSamePtr(p1, p2) && ssacore.IsSamePtr(p2, p3) && ssacore.IsSamePtr(p3, p4) && Clobber(m2, m3, m4)
 	// result: (Store {t1} op1 d1 (Store {t2} op2 d2 (Store {t3} op3 d3 mem)))
 	for {
 		t1 := AuxToType(v.Aux)
@@ -36287,7 +36288,7 @@ func rewriteValuegeneric_OpStore(v *Value) bool {
 		n := AuxIntToInt64(m4.AuxInt)
 		mem := m4.Args[1]
 		p4 := m4.Args[0]
-		if !(m2.Uses == 1 && m3.Uses == 1 && m4.Uses == 1 && o2 == t3.Size() && o1-o2 == t2.Size() && n == t3.Size()+t2.Size()+t1.Size() && IsSamePtr(p1, p2) && IsSamePtr(p2, p3) && IsSamePtr(p3, p4) && Clobber(m2, m3, m4)) {
+		if !(m2.Uses == 1 && m3.Uses == 1 && m4.Uses == 1 && o2 == t3.Size() && o1-o2 == t2.Size() && n == t3.Size()+t2.Size()+t1.Size() && ssacore.IsSamePtr(p1, p2) && ssacore.IsSamePtr(p2, p3) && ssacore.IsSamePtr(p3, p4) && Clobber(m2, m3, m4)) {
 			break
 		}
 		v.Reset(ssaop.OpStore)
@@ -36302,7 +36303,7 @@ func rewriteValuegeneric_OpStore(v *Value) bool {
 		return true
 	}
 	// match: (Store {t1} op1:(OffPtr [o1] p1) d1 m2:(Store {t2} op2:(OffPtr [o2] p2) d2 m3:(Store {t3} op3:(OffPtr [o3] p3) d3 m4:(Store {t4} op4:(OffPtr [0] p4) d4 m5:(Zero [n] p5 mem)))))
-	// cond: m2.Uses == 1 && m3.Uses == 1 && m4.Uses == 1 && m5.Uses == 1 && o3 == t4.Size() && o2-o3 == t3.Size() && o1-o2 == t2.Size() && n == t4.Size() + t3.Size() + t2.Size() + t1.Size() && IsSamePtr(p1, p2) && IsSamePtr(p2, p3) && IsSamePtr(p3, p4) && IsSamePtr(p4, p5) && Clobber(m2, m3, m4, m5)
+	// cond: m2.Uses == 1 && m3.Uses == 1 && m4.Uses == 1 && m5.Uses == 1 && o3 == t4.Size() && o2-o3 == t3.Size() && o1-o2 == t2.Size() && n == t4.Size() + t3.Size() + t2.Size() + t1.Size() && ssacore.IsSamePtr(p1, p2) && ssacore.IsSamePtr(p2, p3) && ssacore.IsSamePtr(p3, p4) && ssacore.IsSamePtr(p4, p5) && Clobber(m2, m3, m4, m5)
 	// result: (Store {t1} op1 d1 (Store {t2} op2 d2 (Store {t3} op3 d3 (Store {t4} op4 d4 mem))))
 	for {
 		t1 := AuxToType(v.Aux)
@@ -36358,7 +36359,7 @@ func rewriteValuegeneric_OpStore(v *Value) bool {
 		n := AuxIntToInt64(m5.AuxInt)
 		mem := m5.Args[1]
 		p5 := m5.Args[0]
-		if !(m2.Uses == 1 && m3.Uses == 1 && m4.Uses == 1 && m5.Uses == 1 && o3 == t4.Size() && o2-o3 == t3.Size() && o1-o2 == t2.Size() && n == t4.Size()+t3.Size()+t2.Size()+t1.Size() && IsSamePtr(p1, p2) && IsSamePtr(p2, p3) && IsSamePtr(p3, p4) && IsSamePtr(p4, p5) && Clobber(m2, m3, m4, m5)) {
+		if !(m2.Uses == 1 && m3.Uses == 1 && m4.Uses == 1 && m5.Uses == 1 && o3 == t4.Size() && o2-o3 == t3.Size() && o1-o2 == t2.Size() && n == t4.Size()+t3.Size()+t2.Size()+t1.Size() && ssacore.IsSamePtr(p1, p2) && ssacore.IsSamePtr(p2, p3) && ssacore.IsSamePtr(p3, p4) && ssacore.IsSamePtr(p4, p5) && Clobber(m2, m3, m4, m5)) {
 			break
 		}
 		v.Reset(ssaop.OpStore)
@@ -36377,7 +36378,7 @@ func rewriteValuegeneric_OpStore(v *Value) bool {
 	}
 	return false
 }
-func rewriteValuegeneric_OpStringLen(v *Value) bool {
+func rewriteValuegeneric_OpStringLen(v *ssacore.Value) bool {
 	v_0 := v.Args[0]
 	// match: (StringLen (StringMake _ (Const64 <t> [c])))
 	// result: (Const64 <t> [c])
@@ -36399,7 +36400,7 @@ func rewriteValuegeneric_OpStringLen(v *Value) bool {
 	}
 	return false
 }
-func rewriteValuegeneric_OpStringPtr(v *Value) bool {
+func rewriteValuegeneric_OpStringPtr(v *ssacore.Value) bool {
 	v_0 := v.Args[0]
 	// match: (StringPtr (StringMake (Addr <t> {s} base) _))
 	// result: (Addr <t> {s} base)
@@ -36422,7 +36423,7 @@ func rewriteValuegeneric_OpStringPtr(v *Value) bool {
 	}
 	return false
 }
-func rewriteValuegeneric_OpStructSelect(v *Value) bool {
+func rewriteValuegeneric_OpStructSelect(v *ssacore.Value) bool {
 	v_0 := v.Args[0]
 	b := v.Block
 	// match: (StructSelect [i] x:(StructMake ___))
@@ -36437,7 +36438,7 @@ func rewriteValuegeneric_OpStructSelect(v *Value) bool {
 		return true
 	}
 	// match: (StructSelect [i] x:(Load <t> ptr mem))
-	// cond: !CanSSA(t)
+	// cond: !ssacore.CanSSA(t)
 	// result: @x.Block (Load <v.Type> (OffPtr <v.Type.PtrTo()> [t.FieldOff(int(i))] ptr) mem)
 	for {
 		i := AuxIntToInt64(v.AuxInt)
@@ -36448,7 +36449,7 @@ func rewriteValuegeneric_OpStructSelect(v *Value) bool {
 		t := x.Type
 		mem := x.Args[1]
 		ptr := x.Args[0]
-		if !(!CanSSA(t)) {
+		if !(!ssacore.CanSSA(t)) {
 			break
 		}
 		b = x.Block
@@ -36490,7 +36491,7 @@ func rewriteValuegeneric_OpStructSelect(v *Value) bool {
 	}
 	return false
 }
-func rewriteValuegeneric_OpSub16(v *Value) bool {
+func rewriteValuegeneric_OpSub16(v *ssacore.Value) bool {
 	v_1 := v.Args[1]
 	v_0 := v.Args[0]
 	b := v.Block
@@ -36887,7 +36888,7 @@ func rewriteValuegeneric_OpSub16(v *Value) bool {
 	}
 	return false
 }
-func rewriteValuegeneric_OpSub32(v *Value) bool {
+func rewriteValuegeneric_OpSub32(v *ssacore.Value) bool {
 	v_1 := v.Args[1]
 	v_0 := v.Args[0]
 	b := v.Block
@@ -37284,7 +37285,7 @@ func rewriteValuegeneric_OpSub32(v *Value) bool {
 	}
 	return false
 }
-func rewriteValuegeneric_OpSub32F(v *Value) bool {
+func rewriteValuegeneric_OpSub32F(v *ssacore.Value) bool {
 	v_1 := v.Args[1]
 	v_0 := v.Args[0]
 	// match: (Sub32F (Const32F [c]) (Const32F [d]))
@@ -37308,7 +37309,7 @@ func rewriteValuegeneric_OpSub32F(v *Value) bool {
 	}
 	return false
 }
-func rewriteValuegeneric_OpSub64(v *Value) bool {
+func rewriteValuegeneric_OpSub64(v *ssacore.Value) bool {
 	v_1 := v.Args[1]
 	v_0 := v.Args[0]
 	b := v.Block
@@ -37705,7 +37706,7 @@ func rewriteValuegeneric_OpSub64(v *Value) bool {
 	}
 	return false
 }
-func rewriteValuegeneric_OpSub64F(v *Value) bool {
+func rewriteValuegeneric_OpSub64F(v *ssacore.Value) bool {
 	v_1 := v.Args[1]
 	v_0 := v.Args[0]
 	// match: (Sub64F (Const64F [c]) (Const64F [d]))
@@ -37729,7 +37730,7 @@ func rewriteValuegeneric_OpSub64F(v *Value) bool {
 	}
 	return false
 }
-func rewriteValuegeneric_OpSub64borrow(v *Value) bool {
+func rewriteValuegeneric_OpSub64borrow(v *ssacore.Value) bool {
 	v_2 := v.Args[2]
 	v_1 := v.Args[1]
 	v_0 := v.Args[0]
@@ -37764,7 +37765,7 @@ func rewriteValuegeneric_OpSub64borrow(v *Value) bool {
 	}
 	return false
 }
-func rewriteValuegeneric_OpSub8(v *Value) bool {
+func rewriteValuegeneric_OpSub8(v *ssacore.Value) bool {
 	v_1 := v.Args[1]
 	v_0 := v.Args[0]
 	b := v.Block
@@ -38161,7 +38162,7 @@ func rewriteValuegeneric_OpSub8(v *Value) bool {
 	}
 	return false
 }
-func rewriteValuegeneric_OpTrunc(v *Value) bool {
+func rewriteValuegeneric_OpTrunc(v *ssacore.Value) bool {
 	v_0 := v.Args[0]
 	// match: (Trunc (Const64F [c]))
 	// result: (Const64F [math.Trunc(c)])
@@ -38176,7 +38177,7 @@ func rewriteValuegeneric_OpTrunc(v *Value) bool {
 	}
 	return false
 }
-func rewriteValuegeneric_OpTrunc16to8(v *Value) bool {
+func rewriteValuegeneric_OpTrunc16to8(v *ssacore.Value) bool {
 	v_0 := v.Args[0]
 	// match: (Trunc16to8 (Const16 [c]))
 	// result: (Const8 [int8(c)])
@@ -38236,7 +38237,7 @@ func rewriteValuegeneric_OpTrunc16to8(v *Value) bool {
 	}
 	return false
 }
-func rewriteValuegeneric_OpTrunc32to16(v *Value) bool {
+func rewriteValuegeneric_OpTrunc32to16(v *ssacore.Value) bool {
 	v_0 := v.Args[0]
 	// match: (Trunc32to16 (Const32 [c]))
 	// result: (Const16 [int16(c)])
@@ -38318,7 +38319,7 @@ func rewriteValuegeneric_OpTrunc32to16(v *Value) bool {
 	}
 	return false
 }
-func rewriteValuegeneric_OpTrunc32to8(v *Value) bool {
+func rewriteValuegeneric_OpTrunc32to8(v *ssacore.Value) bool {
 	v_0 := v.Args[0]
 	// match: (Trunc32to8 (Const32 [c]))
 	// result: (Const8 [int8(c)])
@@ -38378,7 +38379,7 @@ func rewriteValuegeneric_OpTrunc32to8(v *Value) bool {
 	}
 	return false
 }
-func rewriteValuegeneric_OpTrunc64to16(v *Value) bool {
+func rewriteValuegeneric_OpTrunc64to16(v *ssacore.Value) bool {
 	v_0 := v.Args[0]
 	// match: (Trunc64to16 (Const64 [c]))
 	// result: (Const16 [int16(c)])
@@ -38460,7 +38461,7 @@ func rewriteValuegeneric_OpTrunc64to16(v *Value) bool {
 	}
 	return false
 }
-func rewriteValuegeneric_OpTrunc64to32(v *Value) bool {
+func rewriteValuegeneric_OpTrunc64to32(v *ssacore.Value) bool {
 	v_0 := v.Args[0]
 	// match: (Trunc64to32 (Const64 [c]))
 	// result: (Const32 [int32(c)])
@@ -38564,7 +38565,7 @@ func rewriteValuegeneric_OpTrunc64to32(v *Value) bool {
 	}
 	return false
 }
-func rewriteValuegeneric_OpTrunc64to8(v *Value) bool {
+func rewriteValuegeneric_OpTrunc64to8(v *ssacore.Value) bool {
 	v_0 := v.Args[0]
 	// match: (Trunc64to8 (Const64 [c]))
 	// result: (Const8 [int8(c)])
@@ -38624,7 +38625,7 @@ func rewriteValuegeneric_OpTrunc64to8(v *Value) bool {
 	}
 	return false
 }
-func rewriteValuegeneric_OpXor16(v *Value) bool {
+func rewriteValuegeneric_OpXor16(v *ssacore.Value) bool {
 	v_1 := v.Args[1]
 	v_0 := v.Args[0]
 	b := v.Block
@@ -39161,7 +39162,7 @@ func rewriteValuegeneric_OpXor16(v *Value) bool {
 	}
 	return false
 }
-func rewriteValuegeneric_OpXor32(v *Value) bool {
+func rewriteValuegeneric_OpXor32(v *ssacore.Value) bool {
 	v_1 := v.Args[1]
 	v_0 := v.Args[0]
 	b := v.Block
@@ -39698,7 +39699,7 @@ func rewriteValuegeneric_OpXor32(v *Value) bool {
 	}
 	return false
 }
-func rewriteValuegeneric_OpXor64(v *Value) bool {
+func rewriteValuegeneric_OpXor64(v *ssacore.Value) bool {
 	v_1 := v.Args[1]
 	v_0 := v.Args[0]
 	b := v.Block
@@ -40235,7 +40236,7 @@ func rewriteValuegeneric_OpXor64(v *Value) bool {
 	}
 	return false
 }
-func rewriteValuegeneric_OpXor8(v *Value) bool {
+func rewriteValuegeneric_OpXor8(v *ssacore.Value) bool {
 	v_1 := v.Args[1]
 	v_0 := v.Args[0]
 	b := v.Block
@@ -40758,7 +40759,7 @@ func rewriteValuegeneric_OpXor8(v *Value) bool {
 	}
 	return false
 }
-func rewriteValuegeneric_OpZero(v *Value) bool {
+func rewriteValuegeneric_OpZero(v *ssacore.Value) bool {
 	v_1 := v.Args[1]
 	v_0 := v.Args[0]
 	b := v.Block
@@ -40781,7 +40782,7 @@ func rewriteValuegeneric_OpZero(v *Value) bool {
 		return true
 	}
 	// match: (Zero {t1} [n] p1 store:(Store {t2} (OffPtr [o2] p2) _ mem))
-	// cond: IsSamePtr(p1, p2) && store.Uses == 1 && n >= o2 + t2.Size() && Clobber(store)
+	// cond: ssacore.IsSamePtr(p1, p2) && store.Uses == 1 && n >= o2 + t2.Size() && Clobber(store)
 	// result: (Zero {t1} [n] p1 mem)
 	for {
 		n := AuxIntToInt64(v.AuxInt)
@@ -40799,7 +40800,7 @@ func rewriteValuegeneric_OpZero(v *Value) bool {
 		}
 		o2 := AuxIntToInt64(store_0.AuxInt)
 		p2 := store_0.Args[0]
-		if !(IsSamePtr(p1, p2) && store.Uses == 1 && n >= o2+t2.Size() && Clobber(store)) {
+		if !(ssacore.IsSamePtr(p1, p2) && store.Uses == 1 && n >= o2+t2.Size() && Clobber(store)) {
 			break
 		}
 		v.Reset(ssaop.OpZero)
@@ -40809,7 +40810,7 @@ func rewriteValuegeneric_OpZero(v *Value) bool {
 		return true
 	}
 	// match: (Zero {t} [n] dst1 move:(Move {t} [n] dst2 _ mem))
-	// cond: move.Uses == 1 && IsSamePtr(dst1, dst2) && Clobber(move)
+	// cond: move.Uses == 1 && ssacore.IsSamePtr(dst1, dst2) && Clobber(move)
 	// result: (Zero {t} [n] dst1 mem)
 	for {
 		n := AuxIntToInt64(v.AuxInt)
@@ -40821,7 +40822,7 @@ func rewriteValuegeneric_OpZero(v *Value) bool {
 		}
 		mem := move.Args[2]
 		dst2 := move.Args[0]
-		if !(move.Uses == 1 && IsSamePtr(dst1, dst2) && Clobber(move)) {
+		if !(move.Uses == 1 && ssacore.IsSamePtr(dst1, dst2) && Clobber(move)) {
 			break
 		}
 		v.Reset(ssaop.OpZero)
@@ -40831,7 +40832,7 @@ func rewriteValuegeneric_OpZero(v *Value) bool {
 		return true
 	}
 	// match: (Zero {t} [n] dst1 vardef:(VarDef {x} move:(Move {t} [n] dst2 _ mem)))
-	// cond: move.Uses == 1 && vardef.Uses == 1 && IsSamePtr(dst1, dst2) && Clobber(move, vardef)
+	// cond: move.Uses == 1 && vardef.Uses == 1 && ssacore.IsSamePtr(dst1, dst2) && Clobber(move, vardef)
 	// result: (Zero {t} [n] dst1 (VarDef {x} mem))
 	for {
 		n := AuxIntToInt64(v.AuxInt)
@@ -40848,7 +40849,7 @@ func rewriteValuegeneric_OpZero(v *Value) bool {
 		}
 		mem := move.Args[2]
 		dst2 := move.Args[0]
-		if !(move.Uses == 1 && vardef.Uses == 1 && IsSamePtr(dst1, dst2) && Clobber(move, vardef)) {
+		if !(move.Uses == 1 && vardef.Uses == 1 && ssacore.IsSamePtr(dst1, dst2) && Clobber(move, vardef)) {
 			break
 		}
 		v.Reset(ssaop.OpZero)
@@ -40861,7 +40862,7 @@ func rewriteValuegeneric_OpZero(v *Value) bool {
 		return true
 	}
 	// match: (Zero {t} [s] dst1 zero:(Zero {t} [s] dst2 _))
-	// cond: IsSamePtr(dst1, dst2)
+	// cond: ssacore.IsSamePtr(dst1, dst2)
 	// result: zero
 	for {
 		s := AuxIntToInt64(v.AuxInt)
@@ -40872,14 +40873,14 @@ func rewriteValuegeneric_OpZero(v *Value) bool {
 			break
 		}
 		dst2 := zero.Args[0]
-		if !(IsSamePtr(dst1, dst2)) {
+		if !(ssacore.IsSamePtr(dst1, dst2)) {
 			break
 		}
 		v.CopyOf(zero)
 		return true
 	}
 	// match: (Zero {t} [s] dst1 vardef:(VarDef (Zero {t} [s] dst2 _)))
-	// cond: IsSamePtr(dst1, dst2)
+	// cond: ssacore.IsSamePtr(dst1, dst2)
 	// result: vardef
 	for {
 		s := AuxIntToInt64(v.AuxInt)
@@ -40894,7 +40895,7 @@ func rewriteValuegeneric_OpZero(v *Value) bool {
 			break
 		}
 		dst2 := vardef_0.Args[0]
-		if !(IsSamePtr(dst1, dst2)) {
+		if !(ssacore.IsSamePtr(dst1, dst2)) {
 			break
 		}
 		v.CopyOf(vardef)
@@ -40902,7 +40903,7 @@ func rewriteValuegeneric_OpZero(v *Value) bool {
 	}
 	return false
 }
-func rewriteValuegeneric_OpZeroExt16to32(v *Value) bool {
+func rewriteValuegeneric_OpZeroExt16to32(v *ssacore.Value) bool {
 	v_0 := v.Args[0]
 	// match: (ZeroExt16to32 (Const16 [c]))
 	// result: (Const32 [int32(uint16(c))])
@@ -40940,7 +40941,7 @@ func rewriteValuegeneric_OpZeroExt16to32(v *Value) bool {
 	}
 	return false
 }
-func rewriteValuegeneric_OpZeroExt16to64(v *Value) bool {
+func rewriteValuegeneric_OpZeroExt16to64(v *ssacore.Value) bool {
 	v_0 := v.Args[0]
 	// match: (ZeroExt16to64 (Const16 [c]))
 	// result: (Const64 [int64(uint16(c))])
@@ -40978,7 +40979,7 @@ func rewriteValuegeneric_OpZeroExt16to64(v *Value) bool {
 	}
 	return false
 }
-func rewriteValuegeneric_OpZeroExt32to64(v *Value) bool {
+func rewriteValuegeneric_OpZeroExt32to64(v *ssacore.Value) bool {
 	v_0 := v.Args[0]
 	// match: (ZeroExt32to64 (Const32 [c]))
 	// result: (Const64 [int64(uint32(c))])
@@ -41016,7 +41017,7 @@ func rewriteValuegeneric_OpZeroExt32to64(v *Value) bool {
 	}
 	return false
 }
-func rewriteValuegeneric_OpZeroExt8to16(v *Value) bool {
+func rewriteValuegeneric_OpZeroExt8to16(v *ssacore.Value) bool {
 	v_0 := v.Args[0]
 	// match: (ZeroExt8to16 (Const8 [c]))
 	// result: (Const16 [int16( uint8(c))])
@@ -41054,7 +41055,7 @@ func rewriteValuegeneric_OpZeroExt8to16(v *Value) bool {
 	}
 	return false
 }
-func rewriteValuegeneric_OpZeroExt8to32(v *Value) bool {
+func rewriteValuegeneric_OpZeroExt8to32(v *ssacore.Value) bool {
 	v_0 := v.Args[0]
 	// match: (ZeroExt8to32 (Const8 [c]))
 	// result: (Const32 [int32( uint8(c))])
@@ -41092,7 +41093,7 @@ func rewriteValuegeneric_OpZeroExt8to32(v *Value) bool {
 	}
 	return false
 }
-func rewriteValuegeneric_OpZeroExt8to64(v *Value) bool {
+func rewriteValuegeneric_OpZeroExt8to64(v *ssacore.Value) bool {
 	v_0 := v.Args[0]
 	// match: (ZeroExt8to64 (Const8 [c]))
 	// result: (Const64 [int64( uint8(c))])
@@ -41130,7 +41131,7 @@ func rewriteValuegeneric_OpZeroExt8to64(v *Value) bool {
 	}
 	return false
 }
-func rewriteBlockgeneric(b *Block) bool {
+func rewriteBlockgeneric(b *ssacore.Block) bool {
 	switch b.Kind {
 	case block.BlockIf:
 		// match: (If (Not cond) yes no)

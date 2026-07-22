@@ -4,8 +4,9 @@ package ssa
 
 import "internal/buildcfg"
 import "cmd/compile/internal/ssa/ssaop"
+import "cmd/compile/internal/ssa/ssacore"
 
-func rewriteValueAMD64latelower(v *Value) bool {
+func rewriteValueAMD64latelower(v *ssacore.Value) bool {
 	switch v.Op {
 	case ssaop.OpAMD64MOVBQZX:
 		return rewriteValueAMD64latelower_OpAMD64MOVBQZX(v)
@@ -28,14 +29,14 @@ func rewriteValueAMD64latelower(v *Value) bool {
 	}
 	return false
 }
-func rewriteValueAMD64latelower_OpAMD64MOVBQZX(v *Value) bool {
+func rewriteValueAMD64latelower_OpAMD64MOVBQZX(v *ssacore.Value) bool {
 	v_0 := v.Args[0]
 	// match: (MOVBQZX x)
-	// cond: ZeroUpper56Bits(x)
+	// cond: ssacore.ZeroUpper56Bits(x)
 	// result: x
 	for {
 		x := v_0
-		if !(ZeroUpper56Bits(x)) {
+		if !(ssacore.ZeroUpper56Bits(x)) {
 			break
 		}
 		v.CopyOf(x)
@@ -43,14 +44,14 @@ func rewriteValueAMD64latelower_OpAMD64MOVBQZX(v *Value) bool {
 	}
 	return false
 }
-func rewriteValueAMD64latelower_OpAMD64MOVLQZX(v *Value) bool {
+func rewriteValueAMD64latelower_OpAMD64MOVLQZX(v *ssacore.Value) bool {
 	v_0 := v.Args[0]
 	// match: (MOVLQZX x)
-	// cond: ZeroUpper32Bits(x)
+	// cond: ssacore.ZeroUpper32Bits(x)
 	// result: x
 	for {
 		x := v_0
-		if !(ZeroUpper32Bits(x)) {
+		if !(ssacore.ZeroUpper32Bits(x)) {
 			break
 		}
 		v.CopyOf(x)
@@ -58,14 +59,14 @@ func rewriteValueAMD64latelower_OpAMD64MOVLQZX(v *Value) bool {
 	}
 	return false
 }
-func rewriteValueAMD64latelower_OpAMD64MOVWQZX(v *Value) bool {
+func rewriteValueAMD64latelower_OpAMD64MOVWQZX(v *ssacore.Value) bool {
 	v_0 := v.Args[0]
 	// match: (MOVWQZX x)
-	// cond: ZeroUpper48Bits(x)
+	// cond: ssacore.ZeroUpper48Bits(x)
 	// result: x
 	for {
 		x := v_0
-		if !(ZeroUpper48Bits(x)) {
+		if !(ssacore.ZeroUpper48Bits(x)) {
 			break
 		}
 		v.CopyOf(x)
@@ -73,7 +74,7 @@ func rewriteValueAMD64latelower_OpAMD64MOVWQZX(v *Value) bool {
 	}
 	return false
 }
-func rewriteValueAMD64latelower_OpAMD64SARL(v *Value) bool {
+func rewriteValueAMD64latelower_OpAMD64SARL(v *ssacore.Value) bool {
 	v_1 := v.Args[1]
 	v_0 := v.Args[0]
 	// match: (SARL x y)
@@ -91,7 +92,7 @@ func rewriteValueAMD64latelower_OpAMD64SARL(v *Value) bool {
 	}
 	return false
 }
-func rewriteValueAMD64latelower_OpAMD64SARQ(v *Value) bool {
+func rewriteValueAMD64latelower_OpAMD64SARQ(v *ssacore.Value) bool {
 	v_1 := v.Args[1]
 	v_0 := v.Args[0]
 	// match: (SARQ x y)
@@ -109,7 +110,7 @@ func rewriteValueAMD64latelower_OpAMD64SARQ(v *Value) bool {
 	}
 	return false
 }
-func rewriteValueAMD64latelower_OpAMD64SHLL(v *Value) bool {
+func rewriteValueAMD64latelower_OpAMD64SHLL(v *ssacore.Value) bool {
 	v_1 := v.Args[1]
 	v_0 := v.Args[0]
 	// match: (SHLL x y)
@@ -127,7 +128,7 @@ func rewriteValueAMD64latelower_OpAMD64SHLL(v *Value) bool {
 	}
 	return false
 }
-func rewriteValueAMD64latelower_OpAMD64SHLQ(v *Value) bool {
+func rewriteValueAMD64latelower_OpAMD64SHLQ(v *ssacore.Value) bool {
 	v_1 := v.Args[1]
 	v_0 := v.Args[0]
 	// match: (SHLQ x y)
@@ -145,7 +146,7 @@ func rewriteValueAMD64latelower_OpAMD64SHLQ(v *Value) bool {
 	}
 	return false
 }
-func rewriteValueAMD64latelower_OpAMD64SHRL(v *Value) bool {
+func rewriteValueAMD64latelower_OpAMD64SHRL(v *ssacore.Value) bool {
 	v_1 := v.Args[1]
 	v_0 := v.Args[0]
 	// match: (SHRL x y)
@@ -163,7 +164,7 @@ func rewriteValueAMD64latelower_OpAMD64SHRL(v *Value) bool {
 	}
 	return false
 }
-func rewriteValueAMD64latelower_OpAMD64SHRQ(v *Value) bool {
+func rewriteValueAMD64latelower_OpAMD64SHRQ(v *ssacore.Value) bool {
 	v_1 := v.Args[1]
 	v_0 := v.Args[0]
 	// match: (SHRQ x y)
@@ -181,6 +182,6 @@ func rewriteValueAMD64latelower_OpAMD64SHRQ(v *Value) bool {
 	}
 	return false
 }
-func rewriteBlockAMD64latelower(b *Block) bool {
+func rewriteBlockAMD64latelower(b *ssacore.Block) bool {
 	return false
 }

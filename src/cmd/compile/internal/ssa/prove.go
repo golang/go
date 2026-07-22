@@ -6,6 +6,7 @@ package ssa
 
 import (
 	"cmd/compile/internal/ssa/block"
+	"cmd/compile/internal/ssa/ssacore"
 	"cmd/compile/internal/ssa/ssaop"
 	"cmd/compile/internal/types"
 	"cmd/internal/src"
@@ -117,397 +118,17 @@ func (d domain) String() string {
 	return s
 }
 
-// a Limit records known upper and lower bounds for a value.
-//
-// If we have min>max or umin>umax, then this Limit is
-// called "unsatisfiable". When we encounter such a Limit, we
-// know that any code for which that Limit applies is unreachable.
-// We don't particularly care how unsatisfiable limits propagate,
-// including becoming satisfiable, because any optimization
-// decisions based on those limits only apply to unreachable code.
-type Limit struct {
-	Min, Max   int64  // min <= value <= max, signed
-	Umin, Umax uint64 // umin <= value <= umax, unsigned
-	// For booleans, we use 0==false, 1==true for both ranges
-	// For pointers, we use 0,0,0,0 for nil and minInt64,maxInt64,1,maxUint64 for nonnil
-}
-
-func (l Limit) String() string {
-	return fmt.Sprintf("sm,SM=%d,%d um,UM=%d,%d", l.Min, l.Max, l.Umin, l.Umax)
-}
-
-func (l Limit) Intersect(l2 Limit) Limit {
-	l.Min = max(l.Min, l2.Min)
-	l.Umin = max(l.Umin, l2.Umin)
-	l.Max = min(l.Max, l2.Max)
-	l.Umax = min(l.Umax, l2.Umax)
-	return l
-}
-
-func (l Limit) signedMin(m int64) Limit {
-	l.Min = max(l.Min, m)
-	return l
-}
-
-func (l Limit) SignedMinMax(minimum, maximum int64) Limit {
-	l.Min = max(l.Min, minimum)
-	l.Max = min(l.Max, maximum)
-	return l
-}
-
-func (l Limit) UnsignedMin(m uint64) Limit {
-	l.Umin = max(l.Umin, m)
-	return l
-}
-func (l Limit) UnsignedMax(m uint64) Limit {
-	l.Umax = min(l.Umax, m)
-	return l
-}
-func (l Limit) UnsignedMinMax(minimum, maximum uint64) Limit {
-	l.Umin = max(l.Umin, minimum)
-	l.Umax = min(l.Umax, maximum)
-	return l
-}
-
-func (l Limit) nonzero() bool {
-	return l.Min > 0 || l.Umin > 0 || l.Max < 0
-}
-func (l Limit) MaybeZero() bool {
-	return !l.nonzero()
-}
-func (l Limit) Nonnegative() bool {
-	return l.Min >= 0
-}
-func (l Limit) Unsat() bool {
-	return l.Min > l.Max || l.Umin > l.Umax
-}
-
-// If x and y can add without overflow or underflow
-// (using b bits), SafeAdd returns x+y, true.
-// Otherwise, returns 0, false.
-func SafeAdd(x, y int64, b uint) (int64, bool) {
-	s := x + y
-	if x >= 0 && y >= 0 && s < 0 {
-		return 0, false // 64-bit overflow
-	}
-	if x < 0 && y < 0 && s >= 0 {
-		return 0, false // 64-bit underflow
-	}
-	if !fitsInBits(s, b) {
-		return 0, false
-	}
-	return s, true
-}
-
-// same as safeAdd for unsigned arithmetic.
-func safeAddU(x, y uint64, b uint) (uint64, bool) {
-	s := x + y
-	if s < x || s < y {
-		return 0, false // 64-bit overflow
-	}
-	if !FitsInBitsU(s, b) {
-		return 0, false
-	}
-	return s, true
-}
-
-// same as safeAdd but for subtraction.
-func SafeSub(x, y int64, b uint) (int64, bool) {
-	if y == math.MinInt64 {
-		if x == math.MaxInt64 {
-			return 0, false // 64-bit overflow
-		}
-		x++
-		y++
-	}
-	return SafeAdd(x, -y, b)
-}
-
-// same as safeAddU but for subtraction.
-func SafeSubU(x, y uint64, b uint) (uint64, bool) {
-	if x < y {
-		return 0, false // 64-bit underflow
-	}
-	s := x - y
-	if !FitsInBitsU(s, b) {
-		return 0, false
-	}
-	return s, true
-}
-
-// fitsInBits reports whether x fits in b bits (signed).
-func fitsInBits(x int64, b uint) bool {
-	if b == 64 {
-		return true
-	}
-	m := int64(-1) << (b - 1)
-	M := -m - 1
-	return x >= m && x <= M
-}
-
-// FitsInBitsU reports whether x fits in b bits (unsigned).
-func FitsInBitsU(x uint64, b uint) bool {
-	return x>>b == 0
-}
-
-func NoLimit() Limit {
-	return NoLimitForBitsize(64)
-}
-
-func NoLimitForBitsize(bitsize uint) Limit {
-	return Limit{Min: -(1 << (bitsize - 1)), Max: 1<<(bitsize-1) - 1, Umin: 0, Umax: 1<<bitsize - 1}
-}
-
-func ConvertIntWithBitsize[Target uint64 | int64, Source uint64 | int64](x Source, bitsize uint) Target {
-	if Target(0)-1 < 0 {
-		// Signed target: sign-extend the low bitsize bits.
-		switch bitsize {
-		case 64:
-			return Target(int64(x))
-		case 32:
-			return Target(int32(x))
-		case 16:
-			return Target(int16(x))
-		case 8:
-			return Target(int8(x))
-		}
-	} else {
-		// Unsigned target: zero-extend the low bitsize bits.
-		switch bitsize {
-		case 64:
-			return Target(uint64(x))
-		case 32:
-			return Target(uint32(x))
-		case 16:
-			return Target(uint16(x))
-		case 8:
-			return Target(uint8(x))
-		}
-	}
-	panic("unreachable")
-}
-
-// UnsignedFixedLeadingBits extracts the all the most significant fixed bits from the limit.
-// fixed and count are an other way to represent a limit, you can convert them to a limit as follows:
-//
-//	umin = fixed
-//	umax = fixed | (1<<(64-count) - 1)
-//
-// In order to be useful for bitmanip analysis fixed and count are a coarser tool than a limit:
-// 1. the varying section (umax-umin) is always one less than a power of two
-// 2. that section is naturally aligned inside the 64-bit space
-func (l Limit) UnsignedFixedLeadingBits() (fixed uint64, count uint) {
-	varying := uint(bits.Len64(l.Umin ^ l.Umax))
-	count = uint(bits.LeadingZeros64(l.Umin ^ l.Umax))
-	fixed = l.Umin &^ (1<<varying - 1)
-	return
-}
-
-// Add returns the limit obtained by adding a value with limit l
-// to a value with limit l2. The result must fit in b bits.
-func (l Limit) Add(l2 Limit, b uint) Limit {
-	var isLConst, isL2Const bool
-	var lConst, l2Const uint64
-	if l.Min == l.Max {
-		isLConst = true
-		lConst = ConvertIntWithBitsize[uint64](l.Min, b)
-	} else if l.Umin == l.Umax {
-		isLConst = true
-		lConst = l.Umin
-	}
-	if l2.Min == l2.Max {
-		isL2Const = true
-		l2Const = ConvertIntWithBitsize[uint64](l2.Min, b)
-	} else if l2.Umin == l2.Umax {
-		isL2Const = true
-		l2Const = l2.Umin
-	}
-	if isLConst && isL2Const {
-		r := lConst + l2Const
-		r &= (uint64(1) << b) - 1
-		int64r := ConvertIntWithBitsize[int64](r, b)
-		return Limit{Min: int64r, Max: int64r, Umin: r, Umax: r}
-	}
-
-	r := NoLimit()
-	min, minOk := SafeAdd(l.Min, l2.Min, b)
-	max, maxOk := SafeAdd(l.Max, l2.Max, b)
-	if minOk && maxOk {
-		r.Min = min
-		r.Max = max
-	}
-	umin, uminOk := safeAddU(l.Umin, l2.Umin, b)
-	umax, umaxOk := safeAddU(l.Umax, l2.Umax, b)
-	if uminOk && umaxOk {
-		r.Umin = umin
-		r.Umax = umax
-	}
-	return r
-}
-
-// same as add but for subtraction.
-func (l Limit) Sub(l2 Limit, b uint) Limit {
-	r := NoLimit()
-	min, minOk := SafeSub(l.Min, l2.Max, b)
-	max, maxOk := SafeSub(l.Max, l2.Min, b)
-	if minOk && maxOk {
-		r.Min = min
-		r.Max = max
-	}
-	umin, uminOk := SafeSubU(l.Umin, l2.Umax, b)
-	umax, umaxOk := SafeSubU(l.Umax, l2.Umin, b)
-	if uminOk && umaxOk {
-		r.Umin = umin
-		r.Umax = umax
-	}
-	return r
-}
-
-// same as add but for multiplication.
-func (l Limit) Mul(l2 Limit, b uint) Limit {
-	r := NoLimit()
-	umaxhi, umaxlo := bits.Mul64(l.Umax, l2.Umax)
-	if umaxhi == 0 && FitsInBitsU(umaxlo, b) {
-		r.Umax = umaxlo
-		r.Umin = l.Umin * l2.Umin
-		// Note: if the code containing this multiply is
-		// unreachable, then we may have umin>umax, and this
-		// multiply may overflow.  But that's ok for
-		// unreachable code. If this code is reachable, we
-		// know umin<=umax, so this multiply will not overflow
-		// because the max multiply didn't.
-	}
-	// Signed is harder, so don't bother. The only useful
-	// case is when we know both multiplicands are nonnegative,
-	// but that case is handled above because we would have then
-	// previously propagated signed info to the unsigned domain,
-	// and will propagate it back after the multiply.
-	return r
-}
-
-// Similar to add, but compute 1 << l if it fits without overflow in b bits.
-func (l Limit) Exp2(b uint) Limit {
-	r := NoLimit()
-	if l.Umax < uint64(b) {
-		r.Umin = 1 << l.Umin
-		r.Umax = 1 << l.Umax
-		// Same as above in mul, signed<->unsigned propagation
-		// will handle the signed case for us.
-	}
-	return r
-}
-
-// Similar to add, but computes the complement of the limit for bitsize b.
-func (l Limit) Com(b uint) Limit {
-	switch b {
-	case 64:
-		return Limit{
-			Min:  ^l.Max,
-			Max:  ^l.Min,
-			Umin: ^l.Umax,
-			Umax: ^l.Umin,
-		}
-	case 32:
-		return Limit{
-			Min:  int64(^int32(l.Max)),
-			Max:  int64(^int32(l.Min)),
-			Umin: uint64(^uint32(l.Umax)),
-			Umax: uint64(^uint32(l.Umin)),
-		}
-	case 16:
-		return Limit{
-			Min:  int64(^int16(l.Max)),
-			Max:  int64(^int16(l.Min)),
-			Umin: uint64(^uint16(l.Umax)),
-			Umax: uint64(^uint16(l.Umin)),
-		}
-	case 8:
-		return Limit{
-			Min:  int64(^int8(l.Max)),
-			Max:  int64(^int8(l.Min)),
-			Umin: uint64(^uint8(l.Umax)),
-			Umax: uint64(^uint8(l.Umin)),
-		}
-	default:
-		panic("unreachable")
-	}
-}
-
-// Similar to add, but computes the negation of the limit for bitsize b.
-func (l Limit) Neg(b uint) Limit {
-	return l.Com(b).Add(Limit{Min: 1, Max: 1, Umin: 1, Umax: 1}, b)
-}
-
-// Similar to add, but computes the TrailingZeros of the limit for bitsize b.
-func (l Limit) Ctz(b uint) Limit {
-	fixed, fixedCount := l.UnsignedFixedLeadingBits()
-	if fixedCount == 64 {
-		constResult := min(uint(bits.TrailingZeros64(fixed)), b)
-		return Limit{Min: int64(constResult), Max: int64(constResult), Umin: uint64(constResult), Umax: uint64(constResult)}
-	}
-
-	varying := 64 - fixedCount
-	if l.Umin&((1<<varying)-1) != 0 {
-		// there will always be at least one non-zero bit in the varying part
-		varying--
-		return NoLimit().UnsignedMax(uint64(varying))
-	}
-	return NoLimit().UnsignedMax(uint64(min(uint(bits.TrailingZeros64(fixed)), b)))
-}
-
-// Similar to add, but computes the Len of the limit for bitsize b.
-func (l Limit) Bitlen(b uint) Limit {
-	return NoLimit().UnsignedMinMax(
-		uint64(bits.Len64(l.Umin)),
-		uint64(bits.Len64(l.Umax)),
-	)
-}
-
-// Similar to add, but computes the PopCount of the limit for bitsize b.
-func (l Limit) Popcount(b uint) Limit {
-	fixed, fixedCount := l.UnsignedFixedLeadingBits()
-	varying := 64 - fixedCount
-	fixedContribution := uint64(bits.OnesCount64(fixed))
-
-	min := fixedContribution
-	max := fixedContribution + uint64(varying)
-
-	varyingMask := uint64(1)<<varying - 1
-
-	if varyingPartOfUmax := l.Umax & varyingMask; uint(bits.OnesCount64(varyingPartOfUmax)) != varying {
-		// there is at least one zero bit in the varying part
-		max--
-	}
-	if varyingPartOfUmin := l.Umin & varyingMask; varyingPartOfUmin != 0 {
-		// there is at least one non-zero bit in the varying part
-		min++
-	}
-
-	return NoLimit().UnsignedMinMax(min, max)
-}
-
-func (l Limit) ConstValue() (_ int64, ok bool) {
-	switch {
-	case l.Min == l.Max:
-		return l.Min, true
-	case l.Umin == l.Umax:
-		return int64(l.Umin), true
-	default:
-		return 0, false
-	}
-}
-
 // a limitFact is a limit known for a particular value.
 type limitFact struct {
-	vid   ID
-	limit Limit
+	vid   ssacore.ID
+	limit ssacore.Limit
 }
 
 // An ordering encodes facts like v < w.
 type ordering struct {
 	next *ordering // linked list of all known orderings for v.
 	// Note: v is implicit here, determined by which linked list it is in.
-	w *Value
+	w *ssacore.Value
 	d domain
 	r relation // one of ==,!=,<,<=,>,>=
 	// if d is boolean or pointer, r can only be ==, !=
@@ -532,30 +153,30 @@ type factsTable struct {
 	// order* is a couple of partial order sets that record information
 	// about relations between SSA values in the signed and unsigned
 	// domain.
-	orderS *Poset
-	orderU *Poset
+	orderS *ssacore.Poset
+	orderU *ssacore.Poset
 
 	// orderings contains a list of known orderings between values.
 	// These lists are indexed by v.ID.
 	// We do not record transitive orderings. Only explicitly learned
 	// orderings are recorded. Transitive orderings can be obtained
 	// by walking along the individual orderings.
-	orderings map[ID]*ordering
+	orderings map[ssacore.ID]*ordering
 	// stack of IDs which have had an entry added in orderings.
 	// In addition, ID==0 are checkpoint markers.
-	orderingsStack []ID
+	orderingsStack []ssacore.ID
 	orderingCache  *ordering // unused ordering records
 
 	// known lower and upper constant bounds on individual values.
-	limits       []Limit     // indexed by value ID
-	limitStack   []limitFact // previous entries
-	recurseCheck []bool      // recursion detector for limit propagation
+	limits       []ssacore.Limit // indexed by value ID
+	limitStack   []limitFact     // previous entries
+	recurseCheck []bool          // recursion detector for limit propagation
 
 	// For each slice s, a map from s to a len(s)/cap(s) value (if any)
 	// TODO: check if there are cases that matter where we have
 	// more than one len(s) for a slice. We could keep a list if necessary.
-	lens map[ID]*Value
-	caps map[ID]*Value
+	lens map[ssacore.ID]*ssacore.Value
+	caps map[ssacore.ID]*ssacore.Value
 
 	// reusedTopoSortIDsToBlockIndexes recycle allocations for topo-sort
 	reusedTopoSortIDsToBlockIndexes []uint
@@ -565,15 +186,15 @@ type factsTable struct {
 // and restoring factsTable.
 var checkpointBound = limitFact{}
 
-func newFactsTable(f *Func) *factsTable {
+func newFactsTable(f *ssacore.Func) *factsTable {
 	ft := &factsTable{}
 	ft.orderS = f.NewPoset()
 	ft.orderU = f.NewPoset()
-	ft.orderings = make(map[ID]*ordering)
+	ft.orderings = make(map[ssacore.ID]*ordering)
 	ft.limits = f.Cache.AllocLimitSlice(f.NumValues())
 	for _, b := range f.Blocks {
 		for _, v := range b.Values {
-			ft.limits[v.ID] = InitLimit(v)
+			ft.limits[v.ID] = ssacore.InitLimit(v)
 		}
 	}
 	ft.limitStack = make([]limitFact, 4)
@@ -584,7 +205,7 @@ func newFactsTable(f *Func) *factsTable {
 // initLimitForNewValue initializes the limits for newly created values,
 // possibly needing to expand the limits slice. Currently used by
 // simplifyBlock when certain provably constant results are folded.
-func (ft *factsTable) initLimitForNewValue(v *Value) {
+func (ft *factsTable) initLimitForNewValue(v *ssacore.Value) {
 	if int(v.ID) >= len(ft.limits) {
 		f := v.Block.Func
 		n := f.NumValues()
@@ -597,61 +218,61 @@ func (ft *factsTable) initLimitForNewValue(v *Value) {
 			f.Cache.FreeLimitSlice(old)
 		}
 	}
-	ft.limits[v.ID] = InitLimit(v)
+	ft.limits[v.ID] = ssacore.InitLimit(v)
 }
 
 // signedMin records the fact that we know v is at least
 // min in the signed domain.
-func (ft *factsTable) signedMin(v *Value, min int64) {
-	ft.newLimit(v, Limit{Min: min, Max: math.MaxInt64, Umin: 0, Umax: math.MaxUint64})
+func (ft *factsTable) signedMin(v *ssacore.Value, min int64) {
+	ft.newLimit(v, ssacore.Limit{Min: min, Max: math.MaxInt64, Umin: 0, Umax: math.MaxUint64})
 }
 
 // signedMax records the fact that we know v is at most
 // max in the signed domain.
-func (ft *factsTable) signedMax(v *Value, max int64) {
-	ft.newLimit(v, Limit{Min: math.MinInt64, Max: max, Umin: 0, Umax: math.MaxUint64})
+func (ft *factsTable) signedMax(v *ssacore.Value, max int64) {
+	ft.newLimit(v, ssacore.Limit{Min: math.MinInt64, Max: max, Umin: 0, Umax: math.MaxUint64})
 }
-func (ft *factsTable) signedMinMax(v *Value, min, max int64) {
-	ft.newLimit(v, Limit{Min: min, Max: max, Umin: 0, Umax: math.MaxUint64})
+func (ft *factsTable) signedMinMax(v *ssacore.Value, min, max int64) {
+	ft.newLimit(v, ssacore.Limit{Min: min, Max: max, Umin: 0, Umax: math.MaxUint64})
 }
 
 // setNonNegative records the fact that v is known to be non-negative.
-func (ft *factsTable) setNonNegative(v *Value) {
+func (ft *factsTable) setNonNegative(v *ssacore.Value) {
 	ft.signedMin(v, 0)
 }
 
 // unsignedMin records the fact that we know v is at least
 // min in the unsigned domain.
-func (ft *factsTable) unsignedMin(v *Value, min uint64) {
-	ft.newLimit(v, Limit{Min: math.MinInt64, Max: math.MaxInt64, Umin: min, Umax: math.MaxUint64})
+func (ft *factsTable) unsignedMin(v *ssacore.Value, min uint64) {
+	ft.newLimit(v, ssacore.Limit{Min: math.MinInt64, Max: math.MaxInt64, Umin: min, Umax: math.MaxUint64})
 }
 
 // unsignedMax records the fact that we know v is at most
 // max in the unsigned domain.
-func (ft *factsTable) unsignedMax(v *Value, max uint64) {
-	ft.newLimit(v, Limit{Min: math.MinInt64, Max: math.MaxInt64, Umin: 0, Umax: max})
+func (ft *factsTable) unsignedMax(v *ssacore.Value, max uint64) {
+	ft.newLimit(v, ssacore.Limit{Min: math.MinInt64, Max: math.MaxInt64, Umin: 0, Umax: max})
 }
-func (ft *factsTable) unsignedMinMax(v *Value, min, max uint64) {
-	ft.newLimit(v, Limit{Min: math.MinInt64, Max: math.MaxInt64, Umin: min, Umax: max})
+func (ft *factsTable) unsignedMinMax(v *ssacore.Value, min, max uint64) {
+	ft.newLimit(v, ssacore.Limit{Min: math.MinInt64, Max: math.MaxInt64, Umin: min, Umax: max})
 }
 
-func (ft *factsTable) booleanFalse(v *Value) {
-	ft.newLimit(v, Limit{Min: 0, Max: 0, Umin: 0, Umax: 0})
+func (ft *factsTable) booleanFalse(v *ssacore.Value) {
+	ft.newLimit(v, ssacore.Limit{Min: 0, Max: 0, Umin: 0, Umax: 0})
 }
-func (ft *factsTable) booleanTrue(v *Value) {
-	ft.newLimit(v, Limit{Min: 1, Max: 1, Umin: 1, Umax: 1})
+func (ft *factsTable) booleanTrue(v *ssacore.Value) {
+	ft.newLimit(v, ssacore.Limit{Min: 1, Max: 1, Umin: 1, Umax: 1})
 }
-func (ft *factsTable) pointerNil(v *Value) {
-	ft.newLimit(v, Limit{Min: 0, Max: 0, Umin: 0, Umax: 0})
+func (ft *factsTable) pointerNil(v *ssacore.Value) {
+	ft.newLimit(v, ssacore.Limit{Min: 0, Max: 0, Umin: 0, Umax: 0})
 }
-func (ft *factsTable) pointerNonNil(v *Value) {
-	l := NoLimit()
+func (ft *factsTable) pointerNonNil(v *ssacore.Value) {
+	l := ssacore.NoLimit()
 	l.Umin = 1
 	ft.newLimit(v, l)
 }
 
 // newLimit adds new limiting information for v.
-func (ft *factsTable) newLimit(v *Value, newLim Limit) {
+func (ft *factsTable) newLimit(v *ssacore.Value, newLim ssacore.Limit) {
 	oldLim := ft.limits[v.ID]
 
 	// Merge old and new information.
@@ -661,7 +282,7 @@ func (ft *factsTable) newLimit(v *Value, newLim Limit) {
 	if lim.Min >= 0 {
 		lim = lim.UnsignedMinMax(uint64(lim.Min), uint64(lim.Max))
 	}
-	if FitsInBitsU(lim.Umax, uint(8*v.Type.Size()-1)) {
+	if ssacore.FitsInBitsU(lim.Umax, uint(8*v.Type.Size()-1)) {
 		lim = lim.SignedMinMax(int64(lim.Umin), int64(lim.Umax))
 	}
 
@@ -849,7 +470,7 @@ func (ft *factsTable) newLimit(v *Value, newLim Limit) {
 	}
 }
 
-func (ft *factsTable) addOrdering(v, w *Value, d domain, r relation) {
+func (ft *factsTable) addOrdering(v, w *ssacore.Value, d domain, r relation) {
 	o := ft.orderingCache
 	if o == nil {
 		o = &ordering{}
@@ -866,7 +487,7 @@ func (ft *factsTable) addOrdering(v, w *Value, d domain, r relation) {
 
 // update updates the set of relations between v and w in domain d
 // restricting it to r.
-func (ft *factsTable) update(parent *Block, v, w *Value, d domain, r relation) {
+func (ft *factsTable) update(parent *ssacore.Block, v, w *ssacore.Value, d domain, r relation) {
 	if parent.Func.Pass.Debug > 2 {
 		parent.Func.Warnl(parent.Pos, "parent=%s, update %s %s %s", parent, v, w, r)
 	}
@@ -1270,7 +891,7 @@ var opUMax = map[ssaop.Op]uint64{
 }
 
 // isNonNegative reports whether v is known to be non-negative.
-func (ft *factsTable) isNonNegative(v *Value) bool {
+func (ft *factsTable) isNonNegative(v *ssacore.Value) bool {
 	return ft.limits[v.ID].Min >= 0
 }
 
@@ -1366,8 +987,8 @@ var (
 )
 
 // cleanup returns the posets to the free list
-func (ft *factsTable) cleanup(f *Func) {
-	for _, po := range []*Poset{ft.orderS, ft.orderU} {
+func (ft *factsTable) cleanup(f *ssacore.Func) {
+	for _, po := range []*ssacore.Poset{ft.orderS, ft.orderU} {
 		// Make sure it's empty as it should be. A non-empty poset
 		// might cause errors and miscompilations if reused.
 		if checkEnabled {
@@ -1415,14 +1036,14 @@ func (ft *factsTable) cleanup(f *Func) {
 //			return true
 //		}
 //	}
-func addSlicesOfSameLen(ft *factsTable, b *Block) {
+func addSlicesOfSameLen(ft *factsTable, b *ssacore.Block) {
 	// Let w points to the first value we're interested in, and then we
 	// only process those values ​​that appear to be the same length as w,
 	// looping only once. This should be enough in most cases. And u is
 	// similar to w, see comment for predIndex.
-	var u, w *Value
+	var u, w *ssacore.Value
 	var i, j, k sliceInfo
-	isInterested := func(v *Value) bool {
+	isInterested := func(v *ssacore.Value) bool {
 		j = getSliceInfo(v)
 		return j.sliceWhere != sliceUnknown
 	}
@@ -1512,12 +1133,12 @@ type sliceInfo struct {
 //
 // Returns sliceInfo{0, sliceUnknown, 0} if it is not the slice
 // operation we are interested in.
-func getSliceInfo(vp *Value) (inf sliceInfo) {
+func getSliceInfo(vp *ssacore.Value) (inf sliceInfo) {
 	if vp.Op != ssaop.OpPhi || len(vp.Args) != 2 {
 		return
 	}
 	var i predIndex
-	var l *Value // length for OpSliceMake
+	var l *ssacore.Value // length for OpSliceMake
 	if vp.Args[0].Op != ssaop.OpSliceMake && vp.Args[1].Op == ssaop.OpSliceMake {
 		l = vp.Args[1].Args[1]
 		i = 1
@@ -1582,9 +1203,9 @@ func getSliceInfo(vp *Value) (inf sliceInfo) {
 // block, and then separately asserts the block's branch condition and
 // its negation. If either leads to a contradiction, it can trim that
 // successor.
-func prove(f *Func) {
+func prove(f *ssacore.Func) {
 	// Find induction variables.
-	var indVars map[*Block][]indVar
+	var indVars map[*ssacore.Block][]indVar
 	for _, v := range findIndVar(f) {
 		ind := v.ind
 		if len(ind.Args) != 2 {
@@ -1597,7 +1218,7 @@ func prove(f *Func) {
 			nxt.Uses == 1) { // 1 used by induction
 			// ind or nxt is used inside the loop, add it for the facts table
 			if indVars == nil {
-				indVars = make(map[*Block][]indVar)
+				indVars = make(map[*ssacore.Block][]indVar)
 			}
 			indVars[v.entry] = append(indVars[v.entry], v)
 			continue
@@ -1623,7 +1244,7 @@ func prove(f *Func) {
 			switch v.Op {
 			case ssaop.OpSliceLen:
 				if ft.lens == nil {
-					ft.lens = map[ID]*Value{}
+					ft.lens = map[ssacore.ID]*ssacore.Value{}
 				}
 				// Set all len Values for the same slice as equal in the poset.
 				// The poset handles transitive relations, so Values related to
@@ -1635,7 +1256,7 @@ func prove(f *Func) {
 				}
 			case ssaop.OpSliceCap:
 				if ft.caps == nil {
-					ft.caps = map[ID]*Value{}
+					ft.caps = map[ssacore.ID]*ssacore.Value{}
 				}
 				// Same as case OpSliceLen above, but for slice cap.
 				if c, ok := ft.caps[v.Args[0].ID]; ok {
@@ -1655,8 +1276,8 @@ func prove(f *Func) {
 	)
 	// work maintains the DFS stack.
 	type bp struct {
-		block *Block    // current handled block
-		state walkState // what's to do
+		block *ssacore.Block // current handled block
+		state walkState      // what's to do
 	}
 	work := make([]bp, 0, 256)
 	work = append(work, bp{
@@ -1749,106 +1370,6 @@ func prove(f *Func) {
 	ft.cleanup(f)
 }
 
-// InitLimit sets initial constant limit for v.  This limit is based
-// only on the operation itself, not any of its input arguments. This
-// method is only used in two places, once when the prove pass startup
-// and the other when a new ssa value is created, both for init. (unlike
-// flowLimit, below, which computes additional constraints based on
-// ranges of opcode arguments).
-func InitLimit(v *Value) Limit {
-	if v.Type.IsBoolean() {
-		switch v.Op {
-		case ssaop.OpConstBool:
-			b := v.AuxInt
-			return Limit{Min: b, Max: b, Umin: uint64(b), Umax: uint64(b)}
-		default:
-			return Limit{Min: 0, Max: 1, Umin: 0, Umax: 1}
-		}
-	}
-	if v.Type.IsPtrShaped() { // These are the types that EqPtr/NeqPtr operate on, except uintptr.
-		switch v.Op {
-		case ssaop.OpConstNil:
-			return Limit{Min: 0, Max: 0, Umin: 0, Umax: 0}
-		case ssaop.OpAddr, ssaop.OpLocalAddr: // TODO: others?
-			l := NoLimit()
-			l.Umin = 1
-			return l
-		default:
-			return NoLimit()
-		}
-	}
-	if !v.Type.IsInteger() {
-		return NoLimit()
-	}
-
-	// Default limits based on type.
-	lim := NoLimitForBitsize(uint(v.Type.Size()) * 8)
-
-	// Tighter limits on some opcodes.
-	switch v.Op {
-	// constants
-	case ssaop.OpConst64:
-		lim = Limit{Min: v.AuxInt, Max: v.AuxInt, Umin: uint64(v.AuxInt), Umax: uint64(v.AuxInt)}
-	case ssaop.OpConst32:
-		lim = Limit{Min: v.AuxInt, Max: v.AuxInt, Umin: uint64(uint32(v.AuxInt)), Umax: uint64(uint32(v.AuxInt))}
-	case ssaop.OpConst16:
-		lim = Limit{Min: v.AuxInt, Max: v.AuxInt, Umin: uint64(uint16(v.AuxInt)), Umax: uint64(uint16(v.AuxInt))}
-	case ssaop.OpConst8:
-		lim = Limit{Min: v.AuxInt, Max: v.AuxInt, Umin: uint64(uint8(v.AuxInt)), Umax: uint64(uint8(v.AuxInt))}
-
-	// extensions
-	case ssaop.OpZeroExt8to64, ssaop.OpZeroExt8to32, ssaop.OpZeroExt8to16:
-		lim = lim.SignedMinMax(0, 1<<8-1)
-		lim = lim.UnsignedMax(1<<8 - 1)
-	case ssaop.OpZeroExt16to64, ssaop.OpZeroExt16to32:
-		lim = lim.SignedMinMax(0, 1<<16-1)
-		lim = lim.UnsignedMax(1<<16 - 1)
-	case ssaop.OpZeroExt32to64:
-		lim = lim.SignedMinMax(0, 1<<32-1)
-		lim = lim.UnsignedMax(1<<32 - 1)
-	case ssaop.OpSignExt8to64, ssaop.OpSignExt8to32, ssaop.OpSignExt8to16:
-		lim = lim.SignedMinMax(math.MinInt8, math.MaxInt8)
-	case ssaop.OpSignExt16to64, ssaop.OpSignExt16to32:
-		lim = lim.SignedMinMax(math.MinInt16, math.MaxInt16)
-	case ssaop.OpSignExt32to64:
-		lim = lim.SignedMinMax(math.MinInt32, math.MaxInt32)
-
-	// math/bits intrinsics
-	case ssaop.OpCtz64, ssaop.OpBitLen64, ssaop.OpPopCount64,
-		ssaop.OpCtz32, ssaop.OpBitLen32, ssaop.OpPopCount32,
-		ssaop.OpCtz16, ssaop.OpBitLen16, ssaop.OpPopCount16,
-		ssaop.OpCtz8, ssaop.OpBitLen8, ssaop.OpPopCount8:
-		lim = lim.UnsignedMax(uint64(v.Args[0].Type.Size() * 8))
-
-	// bool to uint8 conversion
-	case ssaop.OpCvtBoolToUint8:
-		lim = lim.UnsignedMax(1)
-
-	// length operations
-	case ssaop.OpSliceLen, ssaop.OpSliceCap:
-		f := v.Block.Func
-		elemSize := uint64(v.Args[0].Type.Elem().Size())
-		if elemSize > 0 {
-			heapSize := uint64(1)<<(uint64(f.Config.PtrSize)*8) - 1
-			maximumElementsFittingInHeap := heapSize / elemSize
-			lim = lim.UnsignedMax(maximumElementsFittingInHeap)
-		}
-		fallthrough
-	case ssaop.OpStringLen:
-		lim = lim.signedMin(0)
-	}
-
-	// signed <-> unsigned propagation
-	if lim.Min >= 0 {
-		lim = lim.UnsignedMinMax(uint64(lim.Min), uint64(lim.Max))
-	}
-	if FitsInBitsU(lim.Umax, uint(8*v.Type.Size()-1)) {
-		lim = lim.SignedMinMax(int64(lim.Umin), int64(lim.Umax))
-	}
-
-	return lim
-}
-
 // flowLimit updates the known limits of v in ft.
 // flowLimit can use the ranges of input arguments.
 //
@@ -1862,7 +1383,7 @@ func InitLimit(v *Value) Limit {
 // block. We could recompute the range of v once we enter the block so
 // we know that it is 0 <= v <= 8, but we don't have a mechanism to do
 // that right now.
-func (ft *factsTable) flowLimit(v *Value) {
+func (ft *factsTable) flowLimit(v *ssacore.Value) {
 	if !v.Type.IsInteger() {
 		// TODO: boolean?
 		return
@@ -1985,7 +1506,7 @@ func (ft *factsTable) flowLimit(v *Value) {
 	case ssaop.OpDiv64u, ssaop.OpDiv32u, ssaop.OpDiv16u, ssaop.OpDiv8u:
 		a := ft.limits[v.Args[0].ID]
 		b := ft.limits[v.Args[1].ID]
-		lim := NoLimit()
+		lim := ssacore.NoLimit()
 		if b.Umax > 0 {
 			lim = lim.UnsignedMin(a.Umin / b.Umax)
 		}
@@ -2030,7 +1551,7 @@ func (ft *factsTable) flowLimit(v *Value) {
 //
 // Note that "index" is not used for indexing in this pattern, but
 // in the motivating example (chunked slice iteration) it is.
-func (ft *factsTable) detectSliceLenRelation(v *Value) {
+func (ft *factsTable) detectSliceLenRelation(v *ssacore.Value) {
 	if v.Op != ssaop.OpSub64 {
 		return
 	}
@@ -2057,7 +1578,7 @@ func (ft *factsTable) detectSliceLenRelation(v *Value) {
 		if ow.Op != ssaop.OpAdd64 && ow.Op != ssaop.OpSub64 {
 			continue
 		}
-		var lenOffset *Value
+		var lenOffset *ssacore.Value
 		if bound := ow.Args[0]; (bound.Op == ssaop.OpSliceLen || bound.Op == ssaop.OpStringLen) && bound.Args[0] == slice {
 			lenOffset = ow.Args[1]
 		} else if bound := ow.Args[1]; (bound.Op == ssaop.OpSliceLen || bound.Op == ssaop.OpStringLen) && bound.Args[0] == slice {
@@ -2087,7 +1608,7 @@ func (ft *factsTable) detectSliceLenRelation(v *Value) {
 }
 
 // v must be Sub{64,32,16,8}.
-func (ft *factsTable) detectSubRelations(v *Value) {
+func (ft *factsTable) detectSubRelations(v *ssacore.Value) {
 	// v = x-y
 	x := v.Args[0]
 	y := v.Args[1]
@@ -2105,9 +1626,9 @@ func (ft *factsTable) detectSubRelations(v *Value) {
 	var vSignedMinOne bool
 
 	// Signed optimizations
-	if _, ok := SafeSub(xLim.Min, yLim.Max, width); ok {
+	if _, ok := ssacore.SafeSub(xLim.Min, yLim.Max, width); ok {
 		// Large abs negative y can also overflow
-		if _, ok := SafeSub(xLim.Max, yLim.Min, width); ok {
+		if _, ok := ssacore.SafeSub(xLim.Max, yLim.Min, width); ok {
 			// x-y won't overflow
 
 			// Subtracting a positive non-zero number only makes
@@ -2135,7 +1656,7 @@ func (ft *factsTable) detectSubRelations(v *Value) {
 	}
 
 	// Unsigned optimizations
-	if _, ok := SafeSubU(xLim.Umin, yLim.Umax, width); ok {
+	if _, ok := ssacore.SafeSubU(xLim.Umin, yLim.Umax, width); ok {
 		if yLim.Umin > 0 {
 			ft.update(v.Block, v, x, unsigned, lt)
 		} else {
@@ -2154,7 +1675,7 @@ func (ft *factsTable) detectSubRelations(v *Value) {
 }
 
 // x%d has been rewritten to x - (x/d)*d.
-func (ft *factsTable) detectMod(v *Value) {
+func (ft *factsTable) detectMod(v *ssacore.Value) {
 	var opDiv, opDivU, opMul, opConst ssaop.Op
 	switch v.Op {
 	case ssaop.OpSub64:
@@ -2194,7 +1715,7 @@ func (ft *factsTable) detectMod(v *Value) {
 }
 
 // modLimit sets v with facts derived from v = p % q.
-func (ft *factsTable) modLimit(signed bool, v, p, q *Value) {
+func (ft *factsTable) modLimit(signed bool, v, p, q *ssacore.Value) {
 	a := ft.limits[p.ID]
 	b := ft.limits[q.ID]
 	if signed {
@@ -2216,7 +1737,7 @@ func (ft *factsTable) modLimit(signed bool, v, p, q *Value) {
 
 // getBranch returns the range restrictions added by p
 // when reaching b. p is the immediate dominator of b.
-func getBranch(sdom SparseTree, p *Block, b *Block) branch {
+func getBranch(sdom ssacore.SparseTree, p *ssacore.Block, b *ssacore.Block) branch {
 	if p == nil {
 		return unknown
 	}
@@ -2249,7 +1770,7 @@ func getBranch(sdom SparseTree, p *Block, b *Block) branch {
 // addIndVarRestrictions updates the factsTables ft with the facts
 // learned from the induction variable indVar which drives the loop
 // starting in Block b.
-func addIndVarRestrictions(ft *factsTable, b *Block, iv indVar) {
+func addIndVarRestrictions(ft *factsTable, b *ssacore.Block, iv indVar) {
 	d := signed
 	if ft.isNonNegative(iv.min) && ft.isNonNegative(iv.max) {
 		d |= unsigned
@@ -2270,7 +1791,7 @@ func addIndVarRestrictions(ft *factsTable, b *Block, iv indVar) {
 
 // addBranchRestrictions updates the factsTables ft with the facts learned when
 // branching from Block b in direction br.
-func addBranchRestrictions(ft *factsTable, b *Block, br branch) {
+func addBranchRestrictions(ft *factsTable, b *ssacore.Block, br branch) {
 	c := b.Controls[0]
 	switch {
 	case br == negative:
@@ -2286,7 +1807,7 @@ func addBranchRestrictions(ft *factsTable, b *Block, br branch) {
 			c = v
 			val -= off
 		}
-		ft.newLimit(c, Limit{Min: val, Max: val, Umin: uint64(val), Umax: uint64(val)})
+		ft.newLimit(c, ssacore.Limit{Min: val, Max: val, Umin: uint64(val), Umax: uint64(val)})
 	default:
 		panic("unknown branch")
 	}
@@ -2294,7 +1815,7 @@ func addBranchRestrictions(ft *factsTable, b *Block, br branch) {
 
 // addRestrictions updates restrictions from the immediate
 // dominating block (p) using r.
-func addRestrictions(parent *Block, ft *factsTable, t domain, v, w *Value, r relation) {
+func addRestrictions(parent *ssacore.Block, ft *factsTable, t domain, v, w *ssacore.Value, r relation) {
 	if t == 0 {
 		// Trivial case: nothing to do.
 		// Should not happen, but just in case.
@@ -2347,7 +1868,7 @@ func unsignedSubUnderflows(a, b uint64) bool {
 // A[i+delta] where delta < K and i <= len(A)-K.  That is, this is a chunked
 // iteration where the index is not directly compared to the length.
 // if isReslice, then delta can be equal to K.
-func checkForChunkedIndexBounds(ft *factsTable, b *Block, index, bound *Value, isReslice bool) bool {
+func checkForChunkedIndexBounds(ft *factsTable, b *ssacore.Block, index, bound *ssacore.Value, isReslice bool) bool {
 	if bound.Op != ssaop.OpSliceLen && bound.Op != ssaop.OpStringLen && bound.Op != ssaop.OpSliceCap {
 		return false
 	}
@@ -2382,7 +1903,7 @@ func checkForChunkedIndexBounds(ft *factsTable, b *Block, index, bound *Value, i
 			continue
 		}
 		if ow := o.w; ow.Op == ssaop.OpAdd64 {
-			var lenOffset *Value
+			var lenOffset *ssacore.Value
 			if bound := ow.Args[0]; (bound.Op == ssaop.OpSliceLen || bound.Op == ssaop.OpStringLen) && bound.Args[0] == slice {
 				lenOffset = ow.Args[1]
 			} else if bound := ow.Args[1]; (bound.Op == ssaop.OpSliceLen || bound.Op == ssaop.OpStringLen) && bound.Args[0] == slice {
@@ -2413,7 +1934,7 @@ func checkForChunkedIndexBounds(ft *factsTable, b *Block, index, bound *Value, i
 	return false
 }
 
-func (ft *factsTable) addValueFact(b *Block, v *Value) {
+func (ft *factsTable) addValueFact(b *ssacore.Block, v *ssacore.Value) {
 	switch v.Op {
 	case ssaop.OpAdd64, ssaop.OpAdd32, ssaop.OpAdd16, ssaop.OpAdd8:
 		x := ft.limits[v.Args[0].ID]
@@ -2582,7 +2103,7 @@ func (ft *factsTable) addValueFact(b *Block, v *Value) {
 	}
 }
 
-func addLocalFactsPhi(ft *factsTable, v *Value) {
+func addLocalFactsPhi(ft *factsTable, v *ssacore.Value) {
 	// Look for phis that implement min/max.
 	//   z:
 	//      c = Less64 x y (or other Less/Leq operation)
@@ -2605,7 +2126,7 @@ func addLocalFactsPhi(ft *factsTable, v *Value) {
 	y := v.Args[1]
 	bx := b.Preds[0].B
 	by := b.Preds[1].B
-	var z *Block // branch point
+	var z *ssacore.Block // branch point
 	switch {
 	case bx == by: // bx == by == z case
 		z = bx
@@ -2731,7 +2252,7 @@ var invertEqNeqOp = map[ssaop.Op]ssaop.Op{
 	ssaop.OpNeq64: ssaop.OpEq64,
 }
 
-func (ft *factsTable) simplifyValue(b *Block, v *Value) {
+func (ft *factsTable) simplifyValue(b *ssacore.Block, v *ssacore.Value) {
 	switch v.Op {
 	case ssaop.OpStaticLECall:
 		if b.Func.Pass.Debug > 0 && len(v.Args) == 2 {
@@ -2981,7 +2502,7 @@ func (ft *factsTable) simplifyValue(b *Block, v *Value) {
 	}
 }
 
-func (ft *factsTable) constantFoldArguments(v *Value) {
+func (ft *factsTable) constantFoldArguments(v *ssacore.Value) {
 	for i, arg := range v.Args {
 		lim := ft.limits[arg.ID]
 		constValue, ok := lim.ConstValue()
@@ -2994,7 +2515,7 @@ func (ft *factsTable) constantFoldArguments(v *Value) {
 		}
 		typ := arg.Type
 		f := v.Block.Func
-		var c *Value
+		var c *ssacore.Value
 		switch {
 		case typ.IsBoolean():
 			c = f.ConstBool(typ, constValue != 0)
@@ -3027,7 +2548,7 @@ func (ft *factsTable) constantFoldArguments(v *Value) {
 	}
 }
 
-func (ft *factsTable) simplifyBlock(sdom SparseTree, b *Block) {
+func (ft *factsTable) simplifyBlock(sdom ssacore.SparseTree, b *ssacore.Block) {
 	if b.Kind != block.BlockIf {
 		return
 	}
@@ -3061,7 +2582,7 @@ func (ft *factsTable) simplifyBlock(sdom SparseTree, b *Block) {
 	}
 }
 
-func removeBranch(b *Block, branch branch) {
+func removeBranch(b *ssacore.Block, branch branch) {
 	c := b.Controls[0]
 	if c != nil && b.Func.Pass.Debug > 0 {
 		verb := "Proved"
@@ -3090,7 +2611,7 @@ func removeBranch(b *Block, branch branch) {
 }
 
 // isConstDelta returns non-nil if v is equivalent to w+delta (signed).
-func isConstDelta(v *Value) (w *Value, delta int64) {
+func isConstDelta(v *ssacore.Value) (w *ssacore.Value, delta int64) {
 	cop := ssaop.OpConst64
 	switch v.Op {
 	case ssaop.OpAdd32, ssaop.OpSub32:
@@ -3121,7 +2642,7 @@ func isConstDelta(v *Value) (w *Value, delta int64) {
 
 // isCleanExt reports whether v is the result of a value-preserving
 // sign or zero extension.
-func isCleanExt(v *Value) bool {
+func isCleanExt(v *ssacore.Value) bool {
 	switch v.Op {
 	case ssaop.OpSignExt8to16, ssaop.OpSignExt8to32, ssaop.OpSignExt8to64,
 		ssaop.OpSignExt16to32, ssaop.OpSignExt16to64, ssaop.OpSignExt32to64:
@@ -3142,7 +2663,7 @@ func isCleanExt(v *Value) bool {
 // the first one is sorted, the second one is unsorted. (spos index the first unsorted value).
 // Then we run DFS on the graph, once we reach a value that has no unsorted dependencies we
 // swap it from the unsorted partition to the end of the sorted partition.
-func topoSortValue(b *Block, positions []uint, spos uint, v *Value) uint {
+func topoSortValue(b *ssacore.Block, positions []uint, spos uint, v *ssacore.Value) uint {
 	if v.Op == ssaop.OpPhi {
 		// phis have no dependencies as far as we care, so they are always sorted
 	} else {
@@ -3169,7 +2690,7 @@ func topoSortValue(b *Block, positions []uint, spos uint, v *Value) uint {
 
 // topoSortValuesInBlock ensure ranging over b.Values visit values before they are being used.
 // It does not consider dependencies with other blocks; thus Phi nodes are considered to not have any dependencies.
-func (ft *factsTable) topoSortValuesInBlock(b *Block) {
+func (ft *factsTable) topoSortValuesInBlock(b *ssacore.Block) {
 	f := b.Func
 	want := f.NumValues()
 

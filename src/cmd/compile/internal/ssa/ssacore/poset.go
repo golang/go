@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-package ssa
+package ssacore
 
 import (
 	"fmt"
@@ -12,95 +12,6 @@ import (
 
 // If true, check poset integrity after every mutation
 var DebugPoset = false
-
-const uintSize = 32 << (^uint(0) >> 63) // 32 or 64
-
-// bitset is a bit array for dense indexes.
-type bitset []uint
-
-func computeBitsetSize(n int) int {
-	return (n + uintSize - 1) / uintSize
-}
-
-func newBitset(n int) bitset {
-	return make(bitset, computeBitsetSize(n))
-}
-
-func (c *Cache) allocBitset(n int) bitset {
-	return bitset(c.AllocUintSlice(computeBitsetSize(n)))
-}
-
-func (c *Cache) freeBitset(bs bitset) {
-	c.FreeUintSlice([]uint(bs))
-}
-
-func (bs bitset) Reset() {
-	clear(bs)
-}
-
-func (bs bitset) Set(idx uint32) {
-	bs[idx/uintSize] |= 1 << (idx % uintSize)
-}
-
-func (bs bitset) Clear(idx uint32) {
-	bs[idx/uintSize] &^= 1 << (idx % uintSize)
-}
-
-func (bs bitset) Test(idx uint32) bool {
-	return bs[idx/uintSize]&(1<<(idx%uintSize)) != 0
-}
-
-type undoType uint8
-
-const (
-	undoInvalid    undoType = iota
-	undoCheckpoint          // a checkpoint to group undo passes
-	undoSetChl              // change back left child of undo.idx to undo.edge
-	undoSetChr              // change back right child of undo.idx to undo.edge
-	undoNonEqual            // forget that SSA value undo.ID is non-equal to undo.idx (another ID)
-	undoNewNode             // remove new node created for SSA value undo.ID
-	undoAliasNode           // unalias SSA value undo.ID so that it points back to node index undo.idx
-	undoNewRoot             // remove node undo.idx from root list
-	undoChangeRoot          // remove node undo.idx from root list, and put back undo.edge.Target instead
-	undoMergeRoot           // remove node undo.idx from root list, and put back its children instead
-)
-
-// posetUndo represents an undo pass to be performed.
-// It's a union of fields that can be used to store information,
-// and typ is the discriminant, that specifies which kind
-// of operation must be performed. Not all fields are always used.
-type posetUndo struct {
-	typ  undoType
-	idx  uint32
-	ID   ID
-	edge posetEdge
-}
-
-// A poset edge. The zero value is the null/empty edge.
-// Packs target node index (31 bits) and strict flag (1 bit).
-type posetEdge uint32
-
-func newedge(t uint32, strict bool) posetEdge {
-	s := uint32(0)
-	if strict {
-		s = 1
-	}
-	return posetEdge(t<<1 | s)
-}
-func (e posetEdge) Target() uint32 { return uint32(e) >> 1 }
-func (e posetEdge) Strict() bool   { return uint32(e)&1 != 0 }
-func (e posetEdge) String() string {
-	s := fmt.Sprint(e.Target())
-	if e.Strict() {
-		s += "*"
-	}
-	return s
-}
-
-// posetNode is a node of a DAG within the poset.
-type posetNode struct {
-	l, r posetEdge
-}
 
 // Poset is a union-find data structure that can represent a partially ordered set
 // of SSA values. Given a binary relation that creates a partial order (eg: '<'),
@@ -151,6 +62,17 @@ type Poset struct {
 	undo    []posetUndo       // undo chain
 }
 
+// bitset is a bit array for dense indexes.
+type bitset []uint
+
+func computeBitsetSize(n int) int {
+	return (n + uintSize - 1) / uintSize
+}
+
+func newBitset(n int) bitset {
+	return make(bitset, computeBitsetSize(n))
+}
+
 func newPoset() *Poset {
 	return &Poset{
 		values: make(map[ID]uint32),
@@ -161,11 +83,96 @@ func newPoset() *Poset {
 	}
 }
 
+func newedge(t uint32, strict bool) posetEdge {
+	s := uint32(0)
+	if strict {
+		s = 1
+	}
+	return posetEdge(t<<1 | s)
+}
+
+// A poset edge. The zero value is the null/empty edge.
+// Packs target node index (31 bits) and strict flag (1 bit).
+type posetEdge uint32
+
+// posetNode is a node of a DAG within the poset.
+type posetNode struct {
+	l, r posetEdge
+}
+
+// posetUndo represents an undo pass to be performed.
+// It's a union of fields that can be used to store information,
+// and typ is the discriminant, that specifies which kind
+// of operation must be performed. Not all fields are always used.
+type posetUndo struct {
+	typ  undoType
+	idx  uint32
+	ID   ID
+	edge posetEdge
+}
+
+const uintSize = 32 << (^uint(0) >> 63) // 32 or 64
+
+const (
+	undoInvalid    undoType = iota
+	undoCheckpoint          // a checkpoint to group undo passes
+	undoSetChl              // change back left child of undo.idx to undo.edge
+	undoSetChr              // change back right child of undo.idx to undo.edge
+	undoNonEqual            // forget that SSA value undo.ID is non-equal to undo.idx (another ID)
+	undoNewNode             // remove new node created for SSA value undo.ID
+	undoAliasNode           // unalias SSA value undo.ID so that it points back to node index undo.idx
+	undoNewRoot             // remove node undo.idx from root list
+	undoChangeRoot          // remove node undo.idx from root list, and put back undo.edge.Target instead
+	undoMergeRoot           // remove node undo.idx from root list, and put back its children instead
+)
+
+type undoType uint8
+
+func (c *Cache) allocBitset(n int) bitset {
+	return bitset(c.AllocUintSlice(computeBitsetSize(n)))
+}
+
+func (c *Cache) freeBitset(bs bitset) {
+	c.FreeUintSlice([]uint(bs))
+}
+
+func (bs bitset) Reset() {
+	clear(bs)
+}
+
+func (bs bitset) Set(idx uint32) {
+	bs[idx/uintSize] |= 1 << (idx % uintSize)
+}
+
+func (bs bitset) Clear(idx uint32) {
+	bs[idx/uintSize] &^= 1 << (idx % uintSize)
+}
+
+func (bs bitset) Test(idx uint32) bool {
+	return bs[idx/uintSize]&(1<<(idx%uintSize)) != 0
+}
+
+func (e posetEdge) Target() uint32 { return uint32(e) >> 1 }
+
+func (e posetEdge) Strict() bool { return uint32(e)&1 != 0 }
+
+func (e posetEdge) String() string {
+	s := fmt.Sprint(e.Target())
+	if e.Strict() {
+		s += "*"
+	}
+	return s
+}
+
 // Handle children
 func (po *Poset) setchl(i uint32, l posetEdge) { po.nodes[i].l = l }
+
 func (po *Poset) setchr(i uint32, r posetEdge) { po.nodes[i].r = r }
-func (po *Poset) chl(i uint32) uint32          { return po.nodes[i].l.Target() }
-func (po *Poset) chr(i uint32) uint32          { return po.nodes[i].r.Target() }
+
+func (po *Poset) chl(i uint32) uint32 { return po.nodes[i].l.Target() }
+
+func (po *Poset) chr(i uint32) uint32 { return po.nodes[i].r.Target() }
+
 func (po *Poset) children(i uint32) (posetEdge, posetEdge) {
 	return po.nodes[i].l, po.nodes[i].r
 }

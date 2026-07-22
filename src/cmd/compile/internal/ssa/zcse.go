@@ -5,6 +5,7 @@
 package ssa
 
 import (
+	"cmd/compile/internal/ssa/ssacore"
 	"cmd/compile/internal/ssa/ssaop"
 	"cmd/compile/internal/types"
 )
@@ -14,8 +15,8 @@ import (
 // to begin with a reduced number of values. Values are just relinked,
 // nothing is deleted. A subsequent deadcode pass is required to actually
 // remove duplicate expressions.
-func zcse(f *Func) {
-	vals := make(map[vkey]*Value)
+func zcse(f *ssacore.Func) {
+	vals := make(map[vkey]*ssacore.Value)
 
 	for _, b := range f.Blocks {
 		for i := 0; i < len(b.Values); i++ {
@@ -60,13 +61,13 @@ func zcse(f *Func) {
 type vkey struct {
 	op ssaop.Op
 	ai int64       // aux int
-	ax Aux         // aux
+	ax ssacore.Aux // aux
 	t  *types.Type // type
 }
 
 // keyFor returns the AuxInt portion of a  key structure uniquely identifying a
 // zero arg value for the supported ops.
-func keyFor(v *Value) int64 {
+func keyFor(v *ssacore.Value) int64 {
 	switch v.Op {
 	case ssaop.OpConst64, ssaop.OpConst64F, ssaop.OpConst32F:
 		return v.AuxInt

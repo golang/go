@@ -2,9 +2,13 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-package ssa
+package ssacore
 
 import (
+	"fmt"
+	"math"
+	"strings"
+
 	"cmd/compile/internal/abi"
 	"cmd/compile/internal/base"
 	"cmd/compile/internal/ir"
@@ -15,9 +19,6 @@ import (
 	"cmd/compile/internal/types"
 	"cmd/internal/obj"
 	"cmd/internal/src"
-	"fmt"
-	"math"
-	"strings"
 )
 
 // A Func represents a Go func declaration (or function literal) and its body.
@@ -90,10 +91,46 @@ type Func struct {
 	constants map[int64][]*Value // constants cache, keyed by constant value; users must check value's Op and Type
 }
 
+// FuncNameABI returns n followed by a comma and the value of a.
+// This is a separate function to allow a single point encoding
+// of the format, which is used in places where there's not a Func yet.
+func FuncNameABI(n string, a obj.ABI) string {
+	return fmt.Sprintf("%s,%d", n, a)
+}
+
 type LocalSlotSplitKey struct {
 	parent *LocalSlot
 	Off    int64       // offset of slot in N
 	Type   *types.Type // type of slot
+}
+
+// These magic auxint values let us easily cache non-numeric constants
+// using the same constants map while making collisions unlikely.
+// These values are unlikely to occur in regular code and
+// are easy to grep for in case of bugs.
+const (
+	constSliceMagic       = 1122334455
+	constInterfaceMagic   = 2233445566
+	constNilMagic         = 3344556677
+	constEmptyStringMagic = 4455667788
+)
+
+// IsMergeCandidate returns true if variable n could participate in
+// stack slot merging. For now we're restricting the set to things to
+// items larger than what CanSSA would allow (approximateky, we disallow things
+// marked as open defer slots so as to avoid complicating liveness
+// analysis.
+func IsMergeCandidate(n *ir.Name) bool {
+	if base.Debug.MergeLocals == 0 ||
+		base.Flag.N != 0 ||
+		n.Class != ir.PAUTO ||
+		n.Type().Size() <= int64(3*types.PtrSize) ||
+		n.Addrtaken() ||
+		n.NonMergeable() ||
+		n.OpenDeferSlot() {
+		return false
+	}
+	return true
 }
 
 // NewFunc returns a new, empty function object.
@@ -127,13 +164,6 @@ func (f *Func) NumValues() int {
 // and are not legal file names (for use with GOSSADIR) on Windows.
 func (f *Func) NameABI() string {
 	return FuncNameABI(f.Name, f.ABISelf.Which())
-}
-
-// FuncNameABI returns n followed by a comma and the value of a.
-// This is a separate function to allow a single point encoding
-// of the format, which is used in places where there's not a Func yet.
-func FuncNameABI(n string, a obj.ABI) string {
-	return fmt.Sprintf("%s,%d", n, a)
 }
 
 // NewSparseSet returns a sparse set that can store at least up to n integers.
@@ -258,6 +288,7 @@ func (f *Func) SplitStruct(name *LocalSlot, i int) *LocalSlot {
 	st := name.Type
 	return f.SplitSlot(name, st.FieldName(i), st.FieldOff(i), st.FieldType(i))
 }
+
 func (f *Func) SplitArray(name *LocalSlot) *LocalSlot {
 	n := name.N
 	at := name.Type
@@ -689,17 +720,6 @@ func (f *Func) ConstVal(op ssaop.Op, t *types.Type, c int64, setAuxInt bool) *Va
 	return v
 }
 
-// These magic auxint values let us easily cache non-numeric constants
-// using the same constants map while making collisions unlikely.
-// These values are unlikely to occur in regular code and
-// are easy to grep for in case of bugs.
-const (
-	constSliceMagic       = 1122334455
-	constInterfaceMagic   = 2233445566
-	constNilMagic         = 3344556677
-	constEmptyStringMagic = 4455667788
-)
-
 // ConstBool returns an int constant representing its argument.
 func (f *Func) ConstBool(t *types.Type, c bool) *Value {
 	i := int64(0)
@@ -708,21 +728,27 @@ func (f *Func) ConstBool(t *types.Type, c bool) *Value {
 	}
 	return f.ConstVal(ssaop.OpConstBool, t, i, true)
 }
+
 func (f *Func) ConstInt8(t *types.Type, c int8) *Value {
 	return f.ConstVal(ssaop.OpConst8, t, int64(c), true)
 }
+
 func (f *Func) ConstInt16(t *types.Type, c int16) *Value {
 	return f.ConstVal(ssaop.OpConst16, t, int64(c), true)
 }
+
 func (f *Func) ConstInt32(t *types.Type, c int32) *Value {
 	return f.ConstVal(ssaop.OpConst32, t, int64(c), true)
 }
+
 func (f *Func) ConstInt64(t *types.Type, c int64) *Value {
 	return f.ConstVal(ssaop.OpConst64, t, c, true)
 }
+
 func (f *Func) ConstFloat32(t *types.Type, c float64) *Value {
 	return f.ConstVal(ssaop.OpConst32F, t, int64(math.Float64bits(float64(float32(c)))), true)
 }
+
 func (f *Func) ConstFloat64(t *types.Type, c float64) *Value {
 	return f.ConstVal(ssaop.OpConst64F, t, int64(math.Float64bits(c)), true)
 }
@@ -730,17 +756,21 @@ func (f *Func) ConstFloat64(t *types.Type, c float64) *Value {
 func (f *Func) ConstSlice(t *types.Type) *Value {
 	return f.ConstVal(ssaop.OpConstSlice, t, constSliceMagic, false)
 }
+
 func (f *Func) ConstInterface(t *types.Type) *Value {
 	return f.ConstVal(ssaop.OpConstInterface, t, constInterfaceMagic, false)
 }
+
 func (f *Func) ConstNil(t *types.Type) *Value {
 	return f.ConstVal(ssaop.OpConstNil, t, constNilMagic, false)
 }
+
 func (f *Func) ConstEmptyString(t *types.Type) *Value {
 	v := f.ConstVal(ssaop.OpConstString, t, constEmptyStringMagic, false)
 	v.Aux = StringToAux("")
 	return v
 }
+
 func (f *Func) ConstOffPtrSP(t *types.Type, c int64, sp *Value) *Value {
 	v := f.ConstVal(ssaop.OpOffPtr, t, c, true)
 	if len(v.Args) == 0 {
@@ -749,10 +779,13 @@ func (f *Func) ConstOffPtrSP(t *types.Type, c int64, sp *Value) *Value {
 	return v
 }
 
-func (f *Func) Frontend() Frontend                          { return f.Fe }
+func (f *Func) Frontend() Frontend { return f.Fe }
+
 func (f *Func) Warnl(pos src.XPos, msg string, args ...any) { f.Fe.Warnl(pos, msg, args...) }
-func (f *Func) Logf(msg string, args ...any)                { f.Fe.Logf(msg, args...) }
-func (f *Func) Log() bool                                   { return f.Fe.Log() }
+
+func (f *Func) Logf(msg string, args ...any) { f.Fe.Logf(msg, args...) }
+
+func (f *Func) Log() bool { return f.Fe.Log() }
 
 func (f *Func) Fatalf(msg string, args ...any) { f.FatalfWithPos(f.Entry.Pos, msg, args...) }
 
@@ -864,22 +897,4 @@ func (f *Func) NewLocal(pos src.XPos, typ *types.Type) *ir.Name {
 	nn := typecheck.TempAt(pos, f.Fe.Func(), typ) // Note: adds new auto to fn.Dcl list
 	nn.SetNonMergeable(true)
 	return nn
-}
-
-// IsMergeCandidate returns true if variable n could participate in
-// stack slot merging. For now we're restricting the set to things to
-// items larger than what CanSSA would allow (approximateky, we disallow things
-// marked as open defer slots so as to avoid complicating liveness
-// analysis.
-func IsMergeCandidate(n *ir.Name) bool {
-	if base.Debug.MergeLocals == 0 ||
-		base.Flag.N != 0 ||
-		n.Class != ir.PAUTO ||
-		n.Type().Size() <= int64(3*types.PtrSize) ||
-		n.Addrtaken() ||
-		n.NonMergeable() ||
-		n.OpenDeferSlot() {
-		return false
-	}
-	return true
 }

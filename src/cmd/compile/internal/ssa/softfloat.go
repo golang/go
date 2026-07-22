@@ -5,12 +5,13 @@
 package ssa
 
 import (
+	"cmd/compile/internal/ssa/ssacore"
 	"cmd/compile/internal/ssa/ssaop"
 	"cmd/compile/internal/types"
 	"math"
 )
 
-func softfloat(f *Func) {
+func softfloat(f *ssacore.Func) {
 	if !f.Config.SoftFloat {
 		return
 	}

@@ -4,15 +4,17 @@
 
 package ssa
 
+import "cmd/compile/internal/ssa/ssacore"
+
 // machine-independent optimization.
-func opt(f *Func) {
+func opt(f *ssacore.Func) {
 	applyRewrite(f, rewriteBlockgeneric, rewriteValuegeneric, RemoveDeadValues)
 }
 
-func divisible(f *Func) {
+func divisible(f *ssacore.Func) {
 	applyRewrite(f, rewriteBlockdivisible, rewriteValuedivisible, RemoveDeadValues)
 }
 
-func divmod(f *Func) {
+func divmod(f *ssacore.Func) {
 	applyRewrite(f, rewriteBlockdivmod, rewriteValuedivmod, RemoveDeadValues)
 }

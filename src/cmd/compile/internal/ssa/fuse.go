@@ -6,18 +6,19 @@ package ssa
 
 import (
 	"cmd/compile/internal/ssa/block"
+	"cmd/compile/internal/ssa/ssacore"
 	"cmd/compile/internal/ssa/ssaop"
 	"cmd/internal/src"
 	"fmt"
 )
 
 // fuseEarly runs fuse(f, fuseTypePlain|fuseTypeIntInRange|fuseTypeNanCheck).
-func fuseEarly(f *Func) {
+func fuseEarly(f *ssacore.Func) {
 	fuse(f, fuseTypePlain|fuseTypeIntInRange|fuseTypeSingleBitDifference|fuseTypeNanCheck)
 }
 
 // fuseLate runs fuse(f, fuseTypePlain|fuseTypeIf|fuseTypeBranchRedirect).
-func fuseLate(f *Func) { fuse(f, fuseTypePlain|fuseTypeIf|fuseTypeBranchRedirect) }
+func fuseLate(f *ssacore.Func) { fuse(f, fuseTypePlain|fuseTypeIf|fuseTypeBranchRedirect) }
 
 type fuseType uint8
 
@@ -32,7 +33,7 @@ const (
 )
 
 // fuse simplifies control flow by joining basic blocks.
-func fuse(f *Func, typ fuseType) {
+func fuse(f *ssacore.Func, typ fuseType) {
 	for changed := true; changed; {
 		changed = false
 		// Be sure to avoid quadratic behavior in fuseBlockPlain. See issue 13554.
@@ -87,12 +88,12 @@ func fuse(f *Func, typ fuseType) {
 //	}
 //
 // TODO: If ss doesn't contain any OpPhis, are s0 and s1 dead code anyway.
-func fuseBlockIf(b *Block) bool {
+func fuseBlockIf(b *ssacore.Block) bool {
 	if b.Kind != block.BlockIf {
 		return false
 	}
 	// It doesn't matter how much Preds does s0 or s1 have.
-	var ss0, ss1 *Block
+	var ss0, ss1 *ssacore.Block
 	s0 := b.Succs[0].B
 	i0 := b.Succs[0].I
 	if s0.Kind != block.BlockPlain || !isEmpty(s0) {
@@ -153,14 +154,14 @@ func fuseBlockIf(b *Block) bool {
 	}
 
 	b.Kind = block.BlockPlain
-	b.Likely = BranchUnknown
+	b.Likely = ssacore.BranchUnknown
 	b.ResetControls()
 	// The values in b may be dead codes, and clearing them in time may
 	// obtain new optimization opportunities.
 	// First put dead values that can be deleted into a slice walkValues.
 	// Then put their arguments in walkValues before resetting the dead values
 	// in walkValues, because the arguments may also become dead values.
-	walkValues := []*Value{}
+	walkValues := []*ssacore.Value{}
 	for _, v := range b.Values {
 		if v.Uses == 0 && v.Removeable() {
 			walkValues = append(walkValues, v)
@@ -179,7 +180,7 @@ func fuseBlockIf(b *Block) bool {
 
 // isEmpty reports whether b contains any live values.
 // There may be false positives.
-func isEmpty(b *Block) bool {
+func isEmpty(b *ssacore.Block) bool {
 	for _, v := range b.Values {
 		if v.Uses > 0 || v.Op.IsCall() || v.Op.HasSideEffects() || v.Type.IsVoid() || ssaop.OpcodeTable[v.Op].NilCheck {
 			return false
@@ -193,7 +194,7 @@ func isEmpty(b *Block) bool {
 // b must be BlockPlain, allowing it to be any node except the
 // last (multiple successors means not BlockPlain).
 // Cycles are handled and merged into b's successor.
-func fuseBlockPlain(b *Block) bool {
+func fuseBlockPlain(b *ssacore.Block) bool {
 	if b.Kind != block.BlockPlain {
 		return false
 	}
@@ -224,7 +225,7 @@ func fuseBlockPlain(b *Block) bool {
 	}
 
 	// Try to preserve any statement marks on the ends of blocks; move values to C
-	var b_next *Block
+	var b_next *ssacore.Block
 	for bx := b; bx != c; bx = b_next {
 		// For each bx with an end-of-block statement marker,
 		// try to move it to a value in the next block,
@@ -287,7 +288,7 @@ func fuseBlockPlain(b *Block) bool {
 
 	// figure out what slice will hold the values,
 	// preposition the destination elements if not allocating new storage
-	var t []*Value
+	var t []*ssacore.Value
 	if total <= len(c.Valstorage) {
 		t = c.Valstorage[:total]
 		max_b = c
@@ -297,7 +298,7 @@ func fuseBlockPlain(b *Block) bool {
 		t = max_b.Values[0:total]
 		copy(t[totalBeforeMax:], max_b.Values)
 	} else {
-		t = make([]*Value, total)
+		t = make([]*ssacore.Value, total)
 		max_b = nil
 	}
 
@@ -317,7 +318,7 @@ func fuseBlockPlain(b *Block) bool {
 	c.Values = t
 
 	// replace b->c edge with preds(b) -> c
-	c.Predstorage[0] = Edge{}
+	c.Predstorage[0] = ssacore.Edge{}
 	if len(b.Preds) > len(b.Predstorage) {
 		c.Preds = b.Preds
 	} else {
@@ -325,7 +326,7 @@ func fuseBlockPlain(b *Block) bool {
 	}
 	for i, e := range c.Preds {
 		p := e.B
-		p.Succs[e.I] = Edge{c, i}
+		p.Succs[e.I] = ssacore.Edge{B: c, I: i}
 	}
 	f := b.Func
 	if f.Entry == b {

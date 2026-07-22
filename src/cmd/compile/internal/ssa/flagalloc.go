@@ -6,13 +6,14 @@ package ssa
 
 import (
 	"cmd/compile/internal/ssa/block"
+	"cmd/compile/internal/ssa/ssacore"
 	"cmd/compile/internal/ssa/ssaop"
 )
 
 // flagalloc allocates the flag register among all the flag-generating
 // instructions. Flag values are recomputed if they need to be
 // spilled/restored.
-func flagalloc(f *Func) {
+func flagalloc(f *ssacore.Func) {
 	// Compute the in-register flag value we want at the end of
 	// each block. This is basically a best-effort live variable
 	// analysis, so it can be much simpler than a full analysis.
@@ -24,7 +25,7 @@ func flagalloc(f *Func) {
 			// Walk values backwards to figure out what flag
 			// value we want in the flag register at the start
 			// of the block.
-			var flag *Value
+			var flag *ssacore.Value
 			for _, c := range b.ControlValues() {
 				if c.Type.IsFlags() {
 					if flag != nil {
@@ -76,9 +77,9 @@ func flagalloc(f *Func) {
 	}
 
 	// Compute which flags values will need to be spilled.
-	spill := map[ID]bool{}
+	spill := map[ssacore.ID]bool{}
 	for _, b := range f.Blocks {
-		var flag *Value
+		var flag *ssacore.Value
 		if len(b.Preds) > 0 {
 			flag = end[b.Preds[0].B.ID]
 		}
@@ -112,13 +113,13 @@ func flagalloc(f *Func) {
 	}
 
 	// Add flag spill and recomputation where they are needed.
-	var remove []*Value // values that should be checked for possible removal
-	var oldSched []*Value
+	var remove []*ssacore.Value // values that should be checked for possible removal
+	var oldSched []*ssacore.Value
 	for _, b := range f.Blocks {
 		oldSched = append(oldSched[:0], b.Values...)
 		b.Values = b.Values[:0]
 		// The current live flag value (the pre-flagalloc copy).
-		var flag *Value
+		var flag *ssacore.Value
 		if len(b.Preds) > 0 {
 			flag = end[b.Preds[0].B.ID]
 			// Note: the following condition depends on the lack of critical edges.
@@ -245,23 +246,10 @@ func flagalloc(f *Func) {
 	}
 }
 
-func (v *Value) ClobbersFlags() bool {
-	if ssaop.OpcodeTable[v.Op].ClobberFlags {
-		return true
-	}
-	if v.Type.IsTuple() && (v.Type.FieldType(0).IsFlags() || v.Type.FieldType(1).IsFlags()) {
-		// This case handles the possibility where a flag value is generated but never used.
-		// In that case, there's no corresponding Select to overwrite the flags value,
-		// so we must consider flags clobbered by the tuple-generating instruction.
-		return true
-	}
-	return false
-}
-
 // copyFlags copies v (flag generator) into b, returns the copy.
 // If v's arg is also flags, copy recursively.
-func copyFlags(v *Value, b *Block) *Value {
-	flagsArgs := make(map[int]*Value)
+func copyFlags(v *ssacore.Value, b *ssacore.Block) *ssacore.Value {
+	flagsArgs := make(map[int]*ssacore.Value)
 	for i, a := range v.Args {
 		if a.Type.IsFlags() || a.Type.IsTuple() {
 			flagsArgs[i] = copyFlags(a, b)

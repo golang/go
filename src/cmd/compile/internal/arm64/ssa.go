@@ -11,8 +11,8 @@ import (
 	"cmd/compile/internal/ir"
 	"cmd/compile/internal/logopt"
 	"cmd/compile/internal/objw"
-	"cmd/compile/internal/ssa"
 	"cmd/compile/internal/ssa/block"
+	"cmd/compile/internal/ssa/ssacore"
 	"cmd/compile/internal/ssa/ssaop"
 	"cmd/compile/internal/ssagen"
 	"cmd/compile/internal/types"
@@ -142,7 +142,7 @@ func storeByType2(t *types.Type) obj.As {
 }
 
 // makeshift encodes a register shifted by a constant, used as an Offset in Prog.
-func makeshift(v *ssa.Value, reg int16, typ int64, s int64) int64 {
+func makeshift(v *ssacore.Value, reg int16, typ int64, s int64) int64 {
 	if s < 0 || s >= 64 {
 		v.Fatalf("shift out of range: %d", s)
 	}
@@ -150,7 +150,7 @@ func makeshift(v *ssa.Value, reg int16, typ int64, s int64) int64 {
 }
 
 // genshift generates a Prog for r = r0 op (r1 shifted by n).
-func genshift(s *ssagen.State, v *ssa.Value, as obj.As, r0, r1, r int16, typ int64, n int64) *obj.Prog {
+func genshift(s *ssagen.State, v *ssacore.Value, as obj.As, r0, r1, r int16, typ int64, n int64) *obj.Prog {
 	p := s.Prog(as)
 	p.From.Type = obj.TYPE_SHIFT
 	p.From.Offset = makeshift(v, r1, typ, n)
@@ -297,7 +297,7 @@ func arngTwiceLanes(arng int16) int16 {
 }
 
 // simdV01Imm generates a VMOVI-like instruction, e.g. VMOVI $0, V0.B16
-func simdV01Imm(s *ssagen.State, v *ssa.Value, arrangement int16) *obj.Prog {
+func simdV01Imm(s *ssagen.State, v *ssacore.Value, arrangement int16) *obj.Prog {
 	p := s.Prog(v.Op.Asm())
 	p.From.Type = obj.TYPE_CONST
 	p.From.Offset = int64(v.AuxUInt8())
@@ -317,13 +317,13 @@ func simdV11Asm(s *ssagen.State, asm obj.As, src, dst int16, arrangement int16) 
 }
 
 // simdV11 generates element-wise unary vector operations, e.g. VCNT V1.B8, V0.B8
-func simdV11(s *ssagen.State, v *ssa.Value, arrangement int16) *obj.Prog {
+func simdV11(s *ssagen.State, v *ssacore.Value, arrangement int16) *obj.Prog {
 	return simdV11Asm(s, v.Op.Asm(), v.Args[0].Reg(), v.Reg(), arrangement)
 }
 
 // simdV11Imm generates a unary vector operation with immediate constant,
 // e.g. VUSHR $3, V1.B16, V0.B16
-func simdV11Imm(s *ssagen.State, v *ssa.Value, arrangement int16) *obj.Prog {
+func simdV11Imm(s *ssagen.State, v *ssacore.Value, arrangement int16) *obj.Prog {
 	p := s.Prog(v.Op.Asm())
 	p.From.Type = obj.TYPE_CONST
 	p.From.Offset = int64(v.AuxUInt8())
@@ -336,7 +336,7 @@ func simdV11Imm(s *ssagen.State, v *ssa.Value, arrangement int16) *obj.Prog {
 // simdV11ImmIn1 generates a broadcast1ToN instruction,
 // e.g. VDUP V1.S[0], V0.S4 (duplicate element 0 to all lanes)
 // The arrangement parameter specifies the element arrangement (e.g., ARNG_S, ARNG_D)
-func simdV11ImmIn1(s *ssagen.State, v *ssa.Value, arrangement int16) *obj.Prog {
+func simdV11ImmIn1(s *ssagen.State, v *ssacore.Value, arrangement int16) *obj.Prog {
 	p := s.Prog(v.Op.Asm())
 	p.From = simdRegElem(v.Args[0].Reg(), arrangement, int16(v.AuxUInt8()))
 	p.To.Type = obj.TYPE_REG
@@ -345,7 +345,7 @@ func simdV11ImmIn1(s *ssagen.State, v *ssa.Value, arrangement int16) *obj.Prog {
 }
 
 // simdV11Scalar generates vector-to-scalar reduction operations, e.g. VUADDLV V1.B8, V0
-func simdV11Scalar(s *ssagen.State, v *ssa.Value, arrangement int16) *obj.Prog {
+func simdV11Scalar(s *ssagen.State, v *ssacore.Value, arrangement int16) *obj.Prog {
 	p := s.Prog(v.Op.Asm())
 	p.From.Type = obj.TYPE_REG
 	p.From.Reg = simdRegArng(v.Args[0].Reg(), arrangement)
@@ -357,7 +357,7 @@ func simdV11Scalar(s *ssagen.State, v *ssa.Value, arrangement int16) *obj.Prog {
 // simdV11ScalarImmIn1 generates a SIMD instruction with indexed input and
 // scalar-in-vector-register output, e.g. VDUP V1.S[1], V0
 // The arrangement parameter specifies the source arrangement (e.g., S, D)
-func simdV11ScalarImmIn1(s *ssagen.State, v *ssa.Value, arrangement int16) *obj.Prog {
+func simdV11ScalarImmIn1(s *ssagen.State, v *ssacore.Value, arrangement int16) *obj.Prog {
 	p := s.Prog(v.Op.Asm())
 	p.From = simdRegElem(v.Args[0].Reg(), arrangement, int16(v.AuxUInt8()))
 	p.To.Type = obj.TYPE_REG
@@ -367,7 +367,7 @@ func simdV11ScalarImmIn1(s *ssagen.State, v *ssa.Value, arrangement int16) *obj.
 }
 
 // simdV21 generates element-wise binary vector operations, e.g. VFADD V1.S4, V2.S4, V0.S4
-func simdV21(s *ssagen.State, v *ssa.Value, arrangement int16) *obj.Prog {
+func simdV21(s *ssagen.State, v *ssacore.Value, arrangement int16) *obj.Prog {
 	p := s.Prog(v.Op.Asm())
 	p.From.Type = obj.TYPE_REG
 	p.From.Reg = simdRegArng(v.Args[1].Reg(), arrangement)
@@ -378,7 +378,7 @@ func simdV21(s *ssagen.State, v *ssa.Value, arrangement int16) *obj.Prog {
 }
 
 // simdV21Imm generates a binary instruction with immediate, e.g. EXT $imm, Vm.16B, Vn.16B, Vd.16B
-func simdV21Imm(s *ssagen.State, v *ssa.Value, arrangement int16) *obj.Prog {
+func simdV21Imm(s *ssagen.State, v *ssacore.Value, arrangement int16) *obj.Prog {
 	p := s.Prog(v.Op.Asm())
 	p.From.Type = obj.TYPE_CONST
 	p.From.Offset = int64(v.AuxUInt8())
@@ -391,7 +391,7 @@ func simdV21Imm(s *ssagen.State, v *ssa.Value, arrangement int16) *obj.Prog {
 
 // simdV31ResultInArg0 generates a destructive 3-register instruction,
 // e.g. VBIT Vm.16B, Vn.16B, Vd.16B.
-func simdV31ResultInArg0(s *ssagen.State, v *ssa.Value, arrangement int16) *obj.Prog {
+func simdV31ResultInArg0(s *ssagen.State, v *ssacore.Value, arrangement int16) *obj.Prog {
 	p := s.Prog(v.Op.Asm())
 	p.From.Type = obj.TYPE_REG
 	p.From.Reg = simdRegArng(v.Args[2].Reg(), arrangement)
@@ -402,7 +402,7 @@ func simdV31ResultInArg0(s *ssagen.State, v *ssa.Value, arrangement int16) *obj.
 }
 
 // simdV21List generates a binary instruction with register list, e.g. TBL Vm.Ta, {Vn.B16}, Vd.Ta.
-func simdV21List(s *ssagen.State, v *ssa.Value, arrangement int16) *obj.Prog {
+func simdV21List(s *ssagen.State, v *ssacore.Value, arrangement int16) *obj.Prog {
 	if v.Op.Asm() != arm64.AVTBL { // TODO: support other instructions as needed.
 		panic("simdV21List: expected VTBL")
 	}
@@ -421,7 +421,7 @@ func simdV21List(s *ssagen.State, v *ssa.Value, arrangement int16) *obj.Prog {
 
 // simdV31ResultInArg0List generates a destructive 3-register instruction
 // with register list, e.g. TBX Vm.Ta, {Vn.B16}, Vd.Ta.
-func simdV31ResultInArg0List(s *ssagen.State, v *ssa.Value, arrangement int16) *obj.Prog {
+func simdV31ResultInArg0List(s *ssagen.State, v *ssacore.Value, arrangement int16) *obj.Prog {
 	if v.Op.Asm() != arm64.AVTBX { // TODO: support other instructions as needed.
 		panic("simdV31ResultInArg0List: expected VTBX")
 	}
@@ -441,7 +441,7 @@ func simdV31ResultInArg0List(s *ssagen.State, v *ssa.Value, arrangement int16) *
 // simdVfpvResultInArg0ImmOutIn1 generates vector floating-point SetElem,
 // e.g. VMOV V2.S[0], V1.S[3] (INS element instruction)
 // The arrangement parameter specifies the vector element arrangement (e.g., S, D)
-func simdVfpvResultInArg0ImmOutIn1(s *ssagen.State, v *ssa.Value, arrangement int16) *obj.Prog {
+func simdVfpvResultInArg0ImmOutIn1(s *ssagen.State, v *ssacore.Value, arrangement int16) *obj.Prog {
 	p := s.Prog(v.Op.Asm())
 	p.To = simdRegElem(v.Reg(), arrangement, int16(v.AuxUInt8()))
 	p.From = simdRegElem(v.Args[1].Reg(), arrangement, 0)
@@ -450,7 +450,7 @@ func simdVfpvResultInArg0ImmOutIn1(s *ssagen.State, v *ssa.Value, arrangement in
 
 // simdVgpImmIn1 generates vector GetElem instruction VMOV V1.S[2], R0
 // The arrangement parameter specifies the vector element arrangement (e.g., S, D)
-func simdVgpImmIn1(s *ssagen.State, v *ssa.Value, arrangement int16) *obj.Prog {
+func simdVgpImmIn1(s *ssagen.State, v *ssacore.Value, arrangement int16) *obj.Prog {
 	p := s.Prog(v.Op.Asm())
 	p.From = simdRegElem(v.Args[0].Reg(), arrangement, int16(v.AuxUInt8()))
 	p.To.Reg = v.Reg()
@@ -460,7 +460,7 @@ func simdVgpImmIn1(s *ssagen.State, v *ssa.Value, arrangement int16) *obj.Prog {
 
 // simdVgpvResultInArg0ImmOutIn0 generates vector SetElem, e.g. VMOV R0, V1.S[2] (INS general instruction)
 // The arrangement parameter specifies the vector element arrangement (e.g., S, D)
-func simdVgpvResultInArg0ImmOutIn0(s *ssagen.State, v *ssa.Value, arrangement int16) *obj.Prog {
+func simdVgpvResultInArg0ImmOutIn0(s *ssagen.State, v *ssacore.Value, arrangement int16) *obj.Prog {
 	p := s.Prog(v.Op.Asm())
 	p.To = simdRegElem(v.Reg(), arrangement, int16(v.AuxUInt8()))
 	p.From.Reg = v.Args[1].Reg()
@@ -471,7 +471,7 @@ func simdVgpvResultInArg0ImmOutIn0(s *ssagen.State, v *ssa.Value, arrangement in
 // Narrow and long lowering helpers
 
 // simdV11Narrow generates a pure narrowing instruction, e.g. XTN Vn.8H, Vd.8B
-func simdV11Narrow(s *ssagen.State, v *ssa.Value, arrangement int16) *obj.Prog {
+func simdV11Narrow(s *ssagen.State, v *ssacore.Value, arrangement int16) *obj.Prog {
 	p := s.Prog(v.Op.Asm())
 	p.From.Type = obj.TYPE_REG
 	p.From.Reg = simdRegArng(v.Args[0].Reg(), arrangement)
@@ -482,7 +482,7 @@ func simdV11Narrow(s *ssagen.State, v *ssa.Value, arrangement int16) *obj.Prog {
 
 // simdV21Narrow2 generates a destructive (updating upper half only) narrow "2" instruction,
 // e.g. XTN2 V1.4S, V0.8H. The arrangement parameter specifies the source arrangement.
-func simdV21Narrow2(s *ssagen.State, v *ssa.Value, arrangement int16) *obj.Prog {
+func simdV21Narrow2(s *ssagen.State, v *ssacore.Value, arrangement int16) *obj.Prog {
 	p := s.Prog(v.Op.Asm())
 	p.From.Type = obj.TYPE_REG
 	p.From.Reg = simdRegArng(v.Args[1].Reg(), arrangement)
@@ -493,7 +493,7 @@ func simdV21Narrow2(s *ssagen.State, v *ssa.Value, arrangement int16) *obj.Prog 
 
 // simdV11ImmNarrow generates a pure narrowing instruction with immediate, e.g. SHRN $imm, V1.4S, V0.8B
 // The arrangement parameter specifies the source arrangement.
-func simdV11ImmNarrow(s *ssagen.State, v *ssa.Value, arrangement int16) *obj.Prog {
+func simdV11ImmNarrow(s *ssagen.State, v *ssacore.Value, arrangement int16) *obj.Prog {
 	p := s.Prog(v.Op.Asm())
 	p.From.Type = obj.TYPE_CONST
 	p.From.Offset = int64(v.AuxUInt8())
@@ -505,7 +505,7 @@ func simdV11ImmNarrow(s *ssagen.State, v *ssa.Value, arrangement int16) *obj.Pro
 
 // simdV21ImmNarrow2 generates a destructive (updating upper half only) narrow "2" instruction
 // with immediate, e.g. SHRN2 $imm, V1.4S, V0.16B. The arrangement parameter specifies the source arrangement.
-func simdV21ImmNarrow2(s *ssagen.State, v *ssa.Value, arrangement int16) *obj.Prog {
+func simdV21ImmNarrow2(s *ssagen.State, v *ssacore.Value, arrangement int16) *obj.Prog {
 	p := s.Prog(v.Op.Asm())
 	p.From.Type = obj.TYPE_CONST
 	p.From.Offset = int64(v.AuxUInt8())
@@ -517,7 +517,7 @@ func simdV21ImmNarrow2(s *ssagen.State, v *ssa.Value, arrangement int16) *obj.Pr
 
 // simdV11Long generates a unary long instruction, e.g. SXTL V1.4H, V0.8H
 // The instruction reads the lower half of the source, the destination has 2x element size.
-func simdV11Long(s *ssagen.State, v *ssa.Value, arrangement int16) *obj.Prog {
+func simdV11Long(s *ssagen.State, v *ssacore.Value, arrangement int16) *obj.Prog {
 	src := arngHalfLanes(arrangement)
 	p := s.Prog(v.Op.Asm())
 	p.From.Type = obj.TYPE_REG
@@ -529,7 +529,7 @@ func simdV11Long(s *ssagen.State, v *ssa.Value, arrangement int16) *obj.Prog {
 
 // simdV11Long2 generates a unary long "2" instruction, e.g. SXTL2 V1.4S, V0.2D
 // The instruction reads the upper half of the source, the destination has 2x element size.
-func simdV11Long2(s *ssagen.State, v *ssa.Value, arrangement int16) *obj.Prog {
+func simdV11Long2(s *ssagen.State, v *ssacore.Value, arrangement int16) *obj.Prog {
 	p := s.Prog(v.Op.Asm())
 	p.From.Type = obj.TYPE_REG
 	p.From.Reg = simdRegArng(v.Args[0].Reg(), arrangement)
@@ -540,7 +540,7 @@ func simdV11Long2(s *ssagen.State, v *ssa.Value, arrangement int16) *obj.Prog {
 
 // simdV11ImmLong generates a long instruction with immediate, e.g. USHLL $imm, V1.4H, V0.8H
 // The instruction reads the lower half of the source, the destination has 2x element size.
-func simdV11ImmLong(s *ssagen.State, v *ssa.Value, arrangement int16) *obj.Prog {
+func simdV11ImmLong(s *ssagen.State, v *ssacore.Value, arrangement int16) *obj.Prog {
 	src := arngHalfLanes(arrangement)
 	p := s.Prog(v.Op.Asm())
 	p.From.Type = obj.TYPE_CONST
@@ -553,7 +553,7 @@ func simdV11ImmLong(s *ssagen.State, v *ssa.Value, arrangement int16) *obj.Prog 
 
 // simdV11ImmLong2 generates a long "2" instruction with immediate, e.g. USHLL2 $imm, V1.4S, V0.2D
 // The instruction reads the upper half of the source, the destination has 2x element size.
-func simdV11ImmLong2(s *ssagen.State, v *ssa.Value, arrangement int16) *obj.Prog {
+func simdV11ImmLong2(s *ssagen.State, v *ssacore.Value, arrangement int16) *obj.Prog {
 	p := s.Prog(v.Op.Asm())
 	p.From.Type = obj.TYPE_CONST
 	p.From.Offset = int64(v.AuxUInt8())
@@ -565,7 +565,7 @@ func simdV11ImmLong2(s *ssagen.State, v *ssa.Value, arrangement int16) *obj.Prog
 
 // simdV21Long generates a binary long instruction, e.g. UMULL V1.4H, V2.4H, V0.8H
 // The instruction reads lower halves of its sources, the destination has 2x element size.
-func simdV21Long(s *ssagen.State, v *ssa.Value, arrangement int16) *obj.Prog {
+func simdV21Long(s *ssagen.State, v *ssacore.Value, arrangement int16) *obj.Prog {
 	src := arngHalfLanes(arrangement)
 	p := s.Prog(v.Op.Asm())
 	p.From.Type = obj.TYPE_REG
@@ -578,7 +578,7 @@ func simdV21Long(s *ssagen.State, v *ssa.Value, arrangement int16) *obj.Prog {
 
 // simdV21Long2 generates a binary long "2" instruction, e.g. UMULL2 V1.4S, V2.4S, V0.2D
 // The instruction reads upper halves of its sources, the destination has 2x element size.
-func simdV21Long2(s *ssagen.State, v *ssa.Value, arrangement int16) *obj.Prog {
+func simdV21Long2(s *ssagen.State, v *ssacore.Value, arrangement int16) *obj.Prog {
 	p := s.Prog(v.Op.Asm())
 	p.From.Type = obj.TYPE_REG
 	p.From.Reg = simdRegArng(v.Args[1].Reg(), arrangement)
@@ -588,7 +588,7 @@ func simdV21Long2(s *ssagen.State, v *ssa.Value, arrangement int16) *obj.Prog {
 	return p
 }
 
-func ssaGenValue(s *ssagen.State, v *ssa.Value) {
+func ssaGenValue(s *ssagen.State, v *ssacore.Value) {
 	switch v.Op {
 	case ssaop.OpCopy, ssaop.OpARM64MOVDreg:
 		if v.Type.IsMemory() {
@@ -1911,7 +1911,7 @@ func ssaGenValue(s *ssagen.State, v *ssa.Value) {
 
 	case ssaop.OpARM64LoweredPanicBoundsRR, ssaop.OpARM64LoweredPanicBoundsRC, ssaop.OpARM64LoweredPanicBoundsCR, ssaop.OpARM64LoweredPanicBoundsCC:
 		// Compute the constant we put in the PCData entry for this call.
-		code, signed := ssa.BoundsKind(v.AuxInt).Code()
+		code, signed := ssacore.BoundsKind(v.AuxInt).Code()
 		xIsReg := false
 		yIsReg := false
 		xVal := 0
@@ -1925,7 +1925,7 @@ func ssaGenValue(s *ssagen.State, v *ssa.Value) {
 		case ssaop.OpARM64LoweredPanicBoundsRC:
 			xIsReg = true
 			xVal = int(v.Args[0].Reg() - arm64.REG_R0)
-			c := v.Aux.(ssa.PanicBoundsC).C
+			c := v.Aux.(ssacore.PanicBoundsC).C
 			if c >= 0 && c <= abi.BoundsMaxConst {
 				yVal = int(c)
 			} else {
@@ -1943,7 +1943,7 @@ func ssaGenValue(s *ssagen.State, v *ssa.Value) {
 		case ssaop.OpARM64LoweredPanicBoundsCR:
 			yIsReg = true
 			yVal = int(v.Args[0].Reg() - arm64.REG_R0)
-			c := v.Aux.(ssa.PanicBoundsC).C
+			c := v.Aux.(ssacore.PanicBoundsC).C
 			if c >= 0 && c <= abi.BoundsMaxConst {
 				xVal = int(c)
 			} else {
@@ -1958,7 +1958,7 @@ func ssaGenValue(s *ssagen.State, v *ssa.Value) {
 				p.To.Reg = arm64.REG_R0 + int16(xVal)
 			}
 		case ssaop.OpARM64LoweredPanicBoundsCC:
-			c := v.Aux.(ssa.PanicBoundsCC).Cx
+			c := v.Aux.(ssacore.PanicBoundsCC).Cx
 			if c >= 0 && c <= abi.BoundsMaxConst {
 				xVal = int(c)
 			} else {
@@ -1970,7 +1970,7 @@ func ssaGenValue(s *ssagen.State, v *ssa.Value) {
 				p.To.Type = obj.TYPE_REG
 				p.To.Reg = arm64.REG_R0 + int16(xVal)
 			}
-			c = v.Aux.(ssa.PanicBoundsCC).Cy
+			c = v.Aux.(ssacore.PanicBoundsCC).Cy
 			if c >= 0 && c <= abi.BoundsMaxConst {
 				yVal = int(c)
 			} else {
@@ -2166,7 +2166,7 @@ var gtJumps = [2][2]ssagen.IndexJump{
 	{{Jump: arm64.ABEQ, Index: 1}, {Jump: arm64.ABPL, Index: 0}}, // next == b.Succs[1]
 }
 
-func ssaGenBlock(s *ssagen.State, b, next *ssa.Block) {
+func ssaGenBlock(s *ssagen.State, b, next *ssacore.Block) {
 	switch b.Kind {
 	case block.BlockPlain, block.BlockDefer:
 		if b.Succs[0].Block() != next {
@@ -2198,7 +2198,7 @@ func ssaGenBlock(s *ssagen.State, b, next *ssa.Block) {
 		case b.Succs[1].Block():
 			p = s.Br(jmp.asm, b.Succs[0].Block())
 		default:
-			if b.Likely != ssa.BranchUnlikely {
+			if b.Likely != ssacore.BranchUnlikely {
 				p = s.Br(jmp.asm, b.Succs[0].Block())
 				s.Br(obj.AJMP, b.Succs[1].Block())
 			} else {
@@ -2219,7 +2219,7 @@ func ssaGenBlock(s *ssagen.State, b, next *ssa.Block) {
 		case b.Succs[1].Block():
 			p = s.Br(jmp.asm, b.Succs[0].Block())
 		default:
-			if b.Likely != ssa.BranchUnlikely {
+			if b.Likely != ssacore.BranchUnlikely {
 				p = s.Br(jmp.asm, b.Succs[0].Block())
 				s.Br(obj.AJMP, b.Succs[1].Block())
 			} else {
@@ -2254,7 +2254,7 @@ func ssaGenBlock(s *ssagen.State, b, next *ssa.Block) {
 	}
 }
 
-func loadRegResult(s *ssagen.State, f *ssa.Func, t *types.Type, reg int16, n *ir.Name, off int64) *obj.Prog {
+func loadRegResult(s *ssagen.State, f *ssacore.Func, t *types.Type, reg int16, n *ir.Name, off int64) *obj.Prog {
 	p := s.Prog(loadByType(t))
 	p.From.Type = obj.TYPE_MEM
 	p.From.Name = obj.NAME_AUTO
@@ -2265,7 +2265,7 @@ func loadRegResult(s *ssagen.State, f *ssa.Func, t *types.Type, reg int16, n *ir
 	return p
 }
 
-func spillArgReg(pp *objw.Progs, p *obj.Prog, f *ssa.Func, t *types.Type, reg int16, n *ir.Name, off int64) *obj.Prog {
+func spillArgReg(pp *objw.Progs, p *obj.Prog, f *ssacore.Func, t *types.Type, reg int16, n *ir.Name, off int64) *obj.Prog {
 	p = pp.Append(p, storeByType(t), obj.TYPE_REG, reg, 0, obj.TYPE_MEM, 0, n.FrameOffset()+off)
 	p.To.Name = obj.NAME_PARAM
 	p.To.Sym = n.Linksym()

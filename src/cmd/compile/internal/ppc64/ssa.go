@@ -9,8 +9,8 @@ import (
 	"cmd/compile/internal/ir"
 	"cmd/compile/internal/logopt"
 	"cmd/compile/internal/objw"
-	"cmd/compile/internal/ssa"
 	"cmd/compile/internal/ssa/block"
+	"cmd/compile/internal/ssa/ssacore"
 	"cmd/compile/internal/ssa/ssaop"
 	"cmd/compile/internal/ssagen"
 	"cmd/compile/internal/types"
@@ -23,7 +23,7 @@ import (
 )
 
 // ssaMarkMoves marks any MOVXconst ops that need to avoid clobbering flags.
-func ssaMarkMoves(s *ssagen.State, b *ssa.Block) {
+func ssaMarkMoves(s *ssagen.State, b *ssacore.Block) {
 	//	flive := b.FlagsLiveAtEnd
 	//	if b.Control != nil && b.Control.Type.IsFlags() {
 	//		flive = true
@@ -105,7 +105,7 @@ func storeByType(t *types.Type) obj.As {
 	panic("bad store type")
 }
 
-func ssaGenValue(s *ssagen.State, v *ssa.Value) {
+func ssaGenValue(s *ssagen.State, v *ssacore.Value) {
 	switch v.Op {
 	case ssaop.OpCopy:
 		t := v.Type
@@ -566,8 +566,8 @@ func ssaGenValue(s *ssagen.State, v *ssa.Value) {
 		shifts := v.AuxInt
 		p := s.Prog(v.Op.Asm())
 		// clrlslwi ra,rs,mb,sh will become rlwinm ra,rs,sh,mb-sh,31-sh as described in ISA
-		p.From = obj.Addr{Type: obj.TYPE_CONST, Offset: ssa.GetPPC64Shiftmb(shifts)}
-		p.AddRestSourceConst(ssa.GetPPC64Shiftsh(shifts))
+		p.From = obj.Addr{Type: obj.TYPE_CONST, Offset: ssacore.GetPPC64Shiftmb(shifts)}
+		p.AddRestSourceConst(ssacore.GetPPC64Shiftsh(shifts))
 		p.Reg = r1
 		p.To.Type = obj.TYPE_REG
 		p.To.Reg = r
@@ -578,8 +578,8 @@ func ssaGenValue(s *ssagen.State, v *ssa.Value) {
 		shifts := v.AuxInt
 		p := s.Prog(v.Op.Asm())
 		// clrlsldi ra,rs,mb,sh will become rldic ra,rs,sh,mb-sh
-		p.From = obj.Addr{Type: obj.TYPE_CONST, Offset: ssa.GetPPC64Shiftmb(shifts)}
-		p.AddRestSourceConst(ssa.GetPPC64Shiftsh(shifts))
+		p.From = obj.Addr{Type: obj.TYPE_CONST, Offset: ssacore.GetPPC64Shiftmb(shifts)}
+		p.AddRestSourceConst(ssacore.GetPPC64Shiftsh(shifts))
 		p.Reg = r1
 		p.To.Type = obj.TYPE_REG
 		p.To.Reg = r
@@ -630,7 +630,7 @@ func ssaGenValue(s *ssagen.State, v *ssa.Value) {
 
 		// Auxint holds encoded rotate + mask
 	case ssaop.OpPPC64RLWINM, ssaop.OpPPC64RLWMI:
-		sh, mb, me, _ := ssa.DecodePPC64RotateMask(v.AuxInt)
+		sh, mb, me, _ := ssacore.DecodePPC64RotateMask(v.AuxInt)
 		p := s.Prog(v.Op.Asm())
 		p.To = obj.Addr{Type: obj.TYPE_REG, Reg: v.Reg()}
 		p.Reg = v.Args[0].Reg()
@@ -639,7 +639,7 @@ func ssaGenValue(s *ssagen.State, v *ssa.Value) {
 		// Auxint holds mask
 
 	case ssaop.OpPPC64RLDICL, ssaop.OpPPC64RLDICLCC, ssaop.OpPPC64RLDICR:
-		sh, mb, me, _ := ssa.DecodePPC64RotateMask(v.AuxInt)
+		sh, mb, me, _ := ssacore.DecodePPC64RotateMask(v.AuxInt)
 		p := s.Prog(v.Op.Asm())
 		p.From = obj.Addr{Type: obj.TYPE_CONST, Offset: sh}
 		switch v.Op {
@@ -652,7 +652,7 @@ func ssaGenValue(s *ssagen.State, v *ssa.Value) {
 		p.To = obj.Addr{Type: obj.TYPE_REG, Reg: v.ResultReg()}
 
 	case ssaop.OpPPC64RLWNM:
-		_, mb, me, _ := ssa.DecodePPC64RotateMask(v.AuxInt)
+		_, mb, me, _ := ssacore.DecodePPC64RotateMask(v.AuxInt)
 		p := s.Prog(v.Op.Asm())
 		p.To = obj.Addr{Type: obj.TYPE_REG, Reg: v.Reg()}
 		p.Reg = v.Args[0].Reg()
@@ -1919,7 +1919,7 @@ func ssaGenValue(s *ssagen.State, v *ssa.Value) {
 
 	case ssaop.OpPPC64LoweredPanicBoundsRR, ssaop.OpPPC64LoweredPanicBoundsRC, ssaop.OpPPC64LoweredPanicBoundsCR, ssaop.OpPPC64LoweredPanicBoundsCC:
 		// Compute the constant we put in the PCData entry for this call.
-		code, signed := ssa.BoundsKind(v.AuxInt).Code()
+		code, signed := ssacore.BoundsKind(v.AuxInt).Code()
 		xIsReg := false
 		yIsReg := false
 		xVal := 0
@@ -1933,7 +1933,7 @@ func ssaGenValue(s *ssagen.State, v *ssa.Value) {
 		case ssaop.OpPPC64LoweredPanicBoundsRC:
 			xIsReg = true
 			xVal = int(v.Args[0].Reg() - ppc64.REG_R3)
-			c := v.Aux.(ssa.PanicBoundsC).C
+			c := v.Aux.(ssacore.PanicBoundsC).C
 			if c >= 0 && c <= abi.BoundsMaxConst {
 				yVal = int(c)
 			} else {
@@ -1951,7 +1951,7 @@ func ssaGenValue(s *ssagen.State, v *ssa.Value) {
 		case ssaop.OpPPC64LoweredPanicBoundsCR:
 			yIsReg = true
 			yVal = int(v.Args[0].Reg() - ppc64.REG_R3)
-			c := v.Aux.(ssa.PanicBoundsC).C
+			c := v.Aux.(ssacore.PanicBoundsC).C
 			if c >= 0 && c <= abi.BoundsMaxConst {
 				xVal = int(c)
 			} else {
@@ -1966,7 +1966,7 @@ func ssaGenValue(s *ssagen.State, v *ssa.Value) {
 				p.To.Reg = ppc64.REG_R3 + int16(xVal)
 			}
 		case ssaop.OpPPC64LoweredPanicBoundsCC:
-			c := v.Aux.(ssa.PanicBoundsCC).Cx
+			c := v.Aux.(ssacore.PanicBoundsCC).Cx
 			if c >= 0 && c <= abi.BoundsMaxConst {
 				xVal = int(c)
 			} else {
@@ -1978,7 +1978,7 @@ func ssaGenValue(s *ssagen.State, v *ssa.Value) {
 				p.To.Type = obj.TYPE_REG
 				p.To.Reg = ppc64.REG_R3 + int16(xVal)
 			}
-			c = v.Aux.(ssa.PanicBoundsCC).Cy
+			c = v.Aux.(ssacore.PanicBoundsCC).Cy
 			if c >= 0 && c <= abi.BoundsMaxConst {
 				yVal = int(c)
 			} else {
@@ -2083,7 +2083,7 @@ var blockJump = [...]struct {
 	block.BlockPPC64FGT: {ppc64.ABGT, ppc64.ABLE, false, false},
 }
 
-func ssaGenBlock(s *ssagen.State, b, next *ssa.Block) {
+func ssaGenBlock(s *ssagen.State, b, next *ssacore.Block) {
 	switch b.Kind {
 	case block.BlockPlain, block.BlockDefer:
 		if b.Succs[0].Block() != next {
@@ -2114,7 +2114,7 @@ func ssaGenBlock(s *ssagen.State, b, next *ssa.Block) {
 				s.Br(ppc64.ABEQ, b.Succs[0].Block())
 			}
 		default:
-			if b.Likely != ssa.BranchUnlikely {
+			if b.Likely != ssacore.BranchUnlikely {
 				s.Br(jmp.asm, b.Succs[0].Block())
 				if jmp.asmeq {
 					s.Br(ppc64.ABEQ, b.Succs[0].Block())
@@ -2134,7 +2134,7 @@ func ssaGenBlock(s *ssagen.State, b, next *ssa.Block) {
 	}
 }
 
-func loadRegResult(s *ssagen.State, f *ssa.Func, t *types.Type, reg int16, n *ir.Name, off int64) *obj.Prog {
+func loadRegResult(s *ssagen.State, f *ssacore.Func, t *types.Type, reg int16, n *ir.Name, off int64) *obj.Prog {
 	p := s.Prog(loadByType(t))
 	p.From.Type = obj.TYPE_MEM
 	p.From.Name = obj.NAME_AUTO
@@ -2145,7 +2145,7 @@ func loadRegResult(s *ssagen.State, f *ssa.Func, t *types.Type, reg int16, n *ir
 	return p
 }
 
-func spillArgReg(pp *objw.Progs, p *obj.Prog, f *ssa.Func, t *types.Type, reg int16, n *ir.Name, off int64) *obj.Prog {
+func spillArgReg(pp *objw.Progs, p *obj.Prog, f *ssacore.Func, t *types.Type, reg int16, n *ir.Name, off int64) *obj.Prog {
 	p = pp.Append(p, storeByType(t), obj.TYPE_REG, reg, 0, obj.TYPE_MEM, 0, n.FrameOffset()+off)
 	p.To.Name = obj.NAME_PARAM
 	p.To.Sym = n.Linksym()

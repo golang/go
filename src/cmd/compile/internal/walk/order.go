@@ -12,7 +12,7 @@ import (
 	"cmd/compile/internal/base"
 	"cmd/compile/internal/ir"
 	"cmd/compile/internal/reflectdata"
-	"cmd/compile/internal/ssa"
+	"cmd/compile/internal/ssa/ssacore"
 	"cmd/compile/internal/staticinit"
 	"cmd/compile/internal/typecheck"
 	"cmd/compile/internal/types"
@@ -275,7 +275,7 @@ func (o *orderState) addrTemp(n ir.Node) ir.Node {
 	// support that (see trybot failures on go.dev/cl/541715, PS1).
 	if ir.IsAddressable(n) {
 		if name, ok := ir.OuterValue(n).(*ir.Name); ok && name.Op() == ir.ONAME {
-			if name.Class == ir.PAUTO && !name.Addrtaken() && ssa.CanSSA(name.Type()) {
+			if name.Class == ir.PAUTO && !name.Addrtaken() && ssacore.CanSSA(name.Type()) {
 				goto Copy
 			}
 		}

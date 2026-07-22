@@ -6,6 +6,8 @@ package ssa
 
 import (
 	"math/bits"
+
+	"cmd/compile/internal/ssa/ssacore"
 )
 
 // Code to compute lowest common ancestors in the dominator tree.
@@ -21,19 +23,19 @@ type lcaRange struct {
 	// Data structure for range minimum queries.
 	// rangeMin[k][i] contains the ID of the minimum depth block
 	// in the Euler tour from positions i to i+1<<k-1, inclusive.
-	rangeMin [][]ID
+	rangeMin [][]ssacore.ID
 }
 
 type lcaRangeBlock struct {
-	b          *Block
-	parent     ID    // parent in dominator tree.  0 = no parent (entry or unreachable)
-	firstChild ID    // first child in dominator tree
-	sibling    ID    // next child of parent
-	pos        int32 // an index in the Euler tour where this block appears (any one of its occurrences)
-	depth      int32 // depth in dominator tree (root=0, its children=1, etc.)
+	b          *ssacore.Block
+	parent     ssacore.ID // parent in dominator tree.  0 = no parent (entry or unreachable)
+	firstChild ssacore.ID // first child in dominator tree
+	sibling    ssacore.ID // next child of parent
+	pos        int32      // an index in the Euler tour where this block appears (any one of its occurrences)
+	depth      int32      // depth in dominator tree (root=0, its children=1, etc.)
 }
 
-func makeLCArange(f *Func) *lcaRange {
+func makeLCArange(f *ssacore.Func) *lcaRange {
 	dom := f.Idom()
 
 	// Build tree
@@ -51,10 +53,10 @@ func makeLCArange(f *Func) *lcaRange {
 
 	// Compute euler tour ordering.
 	// Each reachable block will appear #children+1 times in the tour.
-	tour := make([]ID, 0, f.NumBlocks()*2-1)
+	tour := make([]ssacore.ID, 0, f.NumBlocks()*2-1)
 	type queueEntry struct {
-		bid ID // block to work on
-		cid ID // child we're already working on (0 = haven't started yet)
+		bid ssacore.ID // block to work on
+		cid ssacore.ID // child we're already working on (0 = haven't started yet)
 	}
 	q := []queueEntry{{f.Entry.ID, 0}}
 	for len(q) > 0 {
@@ -83,10 +85,10 @@ func makeLCArange(f *Func) *lcaRange {
 	}
 
 	// Compute fast range-minimum query data structure
-	rangeMin := make([][]ID, 0, bits.Len64(uint64(len(tour))))
+	rangeMin := make([][]ssacore.ID, 0, bits.Len64(uint64(len(tour))))
 	rangeMin = append(rangeMin, tour) // 1-size windows are just the tour itself.
 	for logS, s := 1, 2; s < len(tour); logS, s = logS+1, s*2 {
-		r := make([]ID, len(tour)-s+1)
+		r := make([]ssacore.ID, len(tour)-s+1)
 		for i := 0; i < len(tour)-s+1; i++ {
 			bid := rangeMin[logS-1][i]
 			bid2 := rangeMin[logS-1][i+s/2]
@@ -102,7 +104,7 @@ func makeLCArange(f *Func) *lcaRange {
 }
 
 // find returns the lowest common ancestor of a and b.
-func (lca *lcaRange) find(a, b *Block) *Block {
+func (lca *lcaRange) find(a, b *ssacore.Block) *ssacore.Block {
 	if a == b {
 		return a
 	}

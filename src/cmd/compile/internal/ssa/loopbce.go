@@ -7,6 +7,7 @@ package ssa
 import (
 	"cmd/compile/internal/base"
 	"cmd/compile/internal/ssa/block"
+	"cmd/compile/internal/ssa/ssacore"
 	"cmd/compile/internal/ssa/ssaop"
 	"cmd/compile/internal/types"
 	"fmt"
@@ -20,12 +21,12 @@ const (
 )
 
 type indVar struct {
-	ind   *Value // induction variable
-	nxt   *Value // the incremented variable
-	min   *Value // minimum value, inclusive/exclusive depends on flags
-	max   *Value // maximum value, inclusive/exclusive depends on flags
-	entry *Block // the block where the edge from the succeeded comparison of the induction variable goes to, means when the bound check has passed.
-	step  int64  // it will always be positive.
+	ind   *ssacore.Value // induction variable
+	nxt   *ssacore.Value // the incremented variable
+	min   *ssacore.Value // minimum value, inclusive/exclusive depends on flags
+	max   *ssacore.Value // maximum value, inclusive/exclusive depends on flags
+	entry *ssacore.Block // the block where the edge from the succeeded comparison of the induction variable goes to, means when the bound check has passed.
+	step  int64          // it will always be positive.
 	flags indVarFlags
 	// Invariant: for all blocks dominated by entry:
 	//	min <= ind <  max    [if flags == 0]
@@ -44,7 +45,7 @@ type indVar struct {
 // Currently, we detect induction variables that match (Phi min nxt),
 // with nxt being (Add inc ind).
 // If it can't parse the induction variable correctly, it returns (nil, nil, nil).
-func parseIndVar(ind *Value) (min, inc, nxt *Value, loopReturn Edge) {
+func parseIndVar(ind *ssacore.Value) (min, inc, nxt *ssacore.Value, loopReturn ssacore.Edge) {
 	if ind.Op != ssaop.OpPhi {
 		return
 	}
@@ -116,7 +117,7 @@ func parseIndVar(ind *Value) (min, inc, nxt *Value, loopReturn Edge) {
 //	  goto loop
 //
 //	exit_loop:
-func findIndVar(f *Func) []indVar {
+func findIndVar(f *ssacore.Func) []indVar {
 	var iv []indVar
 	sdom := f.Sdom()
 
@@ -169,7 +170,7 @@ nextblock:
 			}
 
 			// startBody is the edge that eventually returns to the loop header.
-			var startBody Edge
+			var startBody ssacore.Edge
 			switch {
 			case sdom.IsAncestorEq(b.Succs[0].B, loopReturn.B):
 				startBody = b.Succs[0]
@@ -319,7 +320,7 @@ nextblock:
 
 			if ok() {
 				flags := indVarFlags(0)
-				var min, max *Value
+				var min, max *ssacore.Value
 				if step > 0 {
 					min = init
 					max = limit
@@ -421,8 +422,8 @@ func subU(x int64, y uint64) int64 {
 
 // if v is known to be x - c, where x is known to be nonnegative and c is a
 // constant, return x, c. Otherwise return nil, 0.
-func findKNN(v *Value) (*Value, int64) {
-	var x, y *Value
+func findKNN(v *ssacore.Value) (*ssacore.Value, int64) {
+	var x, y *ssacore.Value
 	x = v
 	switch v.Op {
 	case ssaop.OpSub64, ssaop.OpSub32, ssaop.OpSub16, ssaop.OpSub8:
@@ -453,7 +454,7 @@ func findKNN(v *Value) (*Value, int64) {
 	return x, y.AuxInt
 }
 
-func printIndVar(b *Block, i, min, max *Value, inc int64, flags indVarFlags) {
+func printIndVar(b *ssacore.Block, i, min, max *ssacore.Value, inc int64, flags indVarFlags) {
 	mb1, mb2 := "[", "]"
 	if flags&indVarMinExc != 0 {
 		mb1 = "("

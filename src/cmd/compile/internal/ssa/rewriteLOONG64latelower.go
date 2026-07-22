@@ -4,8 +4,9 @@ package ssa
 
 import "cmd/compile/internal/ssa/block"
 import "cmd/compile/internal/ssa/ssaop"
+import "cmd/compile/internal/ssa/ssacore"
 
-func rewriteValueLOONG64latelower(v *Value) bool {
+func rewriteValueLOONG64latelower(v *ssacore.Value) bool {
 	switch v.Op {
 	case ssaop.OpLOONG64MOVBUreg:
 		return rewriteValueLOONG64latelower_OpLOONG64MOVBUreg(v)
@@ -20,14 +21,14 @@ func rewriteValueLOONG64latelower(v *Value) bool {
 	}
 	return false
 }
-func rewriteValueLOONG64latelower_OpLOONG64MOVBUreg(v *Value) bool {
+func rewriteValueLOONG64latelower_OpLOONG64MOVBUreg(v *ssacore.Value) bool {
 	v_0 := v.Args[0]
 	// match: (MOVBUreg x)
-	// cond: ZeroUpper56Bits(x)
+	// cond: ssacore.ZeroUpper56Bits(x)
 	// result: x
 	for {
 		x := v_0
-		if !(ZeroUpper56Bits(x)) {
+		if !(ssacore.ZeroUpper56Bits(x)) {
 			break
 		}
 		v.CopyOf(x)
@@ -35,14 +36,14 @@ func rewriteValueLOONG64latelower_OpLOONG64MOVBUreg(v *Value) bool {
 	}
 	return false
 }
-func rewriteValueLOONG64latelower_OpLOONG64MOVHUreg(v *Value) bool {
+func rewriteValueLOONG64latelower_OpLOONG64MOVHUreg(v *ssacore.Value) bool {
 	v_0 := v.Args[0]
 	// match: (MOVHUreg x)
-	// cond: ZeroUpper48Bits(x)
+	// cond: ssacore.ZeroUpper48Bits(x)
 	// result: x
 	for {
 		x := v_0
-		if !(ZeroUpper48Bits(x)) {
+		if !(ssacore.ZeroUpper48Bits(x)) {
 			break
 		}
 		v.CopyOf(x)
@@ -50,7 +51,7 @@ func rewriteValueLOONG64latelower_OpLOONG64MOVHUreg(v *Value) bool {
 	}
 	return false
 }
-func rewriteValueLOONG64latelower_OpLOONG64MOVVconst(v *Value) bool {
+func rewriteValueLOONG64latelower_OpLOONG64MOVVconst(v *ssacore.Value) bool {
 	// match: (MOVVconst [0])
 	// result: (ZERO)
 	for {
@@ -62,14 +63,14 @@ func rewriteValueLOONG64latelower_OpLOONG64MOVVconst(v *Value) bool {
 	}
 	return false
 }
-func rewriteValueLOONG64latelower_OpLOONG64MOVWUreg(v *Value) bool {
+func rewriteValueLOONG64latelower_OpLOONG64MOVWUreg(v *ssacore.Value) bool {
 	v_0 := v.Args[0]
 	// match: (MOVWUreg x)
-	// cond: ZeroUpper32Bits(x)
+	// cond: ssacore.ZeroUpper32Bits(x)
 	// result: x
 	for {
 		x := v_0
-		if !(ZeroUpper32Bits(x)) {
+		if !(ssacore.ZeroUpper32Bits(x)) {
 			break
 		}
 		v.CopyOf(x)
@@ -77,7 +78,7 @@ func rewriteValueLOONG64latelower_OpLOONG64MOVWUreg(v *Value) bool {
 	}
 	return false
 }
-func rewriteValueLOONG64latelower_OpLOONG64SLLVconst(v *Value) bool {
+func rewriteValueLOONG64latelower_OpLOONG64SLLVconst(v *ssacore.Value) bool {
 	v_0 := v.Args[0]
 	// match: (SLLVconst [1] x)
 	// result: (ADDV x x)
@@ -92,7 +93,7 @@ func rewriteValueLOONG64latelower_OpLOONG64SLLVconst(v *Value) bool {
 	}
 	return false
 }
-func rewriteBlockLOONG64latelower(b *Block) bool {
+func rewriteBlockLOONG64latelower(b *ssacore.Block) bool {
 	switch b.Kind {
 	case block.BlockLOONG64EQZ:
 		// match: (EQZ (XOR x y) yes no)

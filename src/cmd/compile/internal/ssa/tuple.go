@@ -4,7 +4,10 @@
 
 package ssa
 
-import "cmd/compile/internal/ssa/ssaop"
+import (
+	"cmd/compile/internal/ssa/ssacore"
+	"cmd/compile/internal/ssa/ssaop"
+)
 
 // tightenTupleSelectors ensures that tuple selectors (Select0, Select1,
 // and SelectN ops) are in the same block as their tuple generator. The
@@ -13,15 +16,15 @@ import "cmd/compile/internal/ssa/ssaop"
 // been maintained by the optimization pipeline up to this point.
 //
 // See issues 16741 and 39472.
-func tightenTupleSelectors(f *Func) {
+func tightenTupleSelectors(f *ssacore.Func) {
 	selectors := make(map[struct {
-		id    ID
+		id    ssacore.ID
 		which int
-	}]*Value)
+	}]*ssacore.Value)
 	for _, b := range f.Blocks {
 		for _, selector := range b.Values {
 			// Key fields for de-duplication
-			var tuple *Value
+			var tuple *ssacore.Value
 			idx := 0
 			switch selector.Op {
 			default:
@@ -46,7 +49,7 @@ func tightenTupleSelectors(f *Func) {
 			// use that. Do this even if the selector is already in the
 			// target block to avoid duplicate tuple selectors.
 			key := struct {
-				id    ID
+				id    ssacore.ID
 				which int
 			}{tuple.ID, idx}
 			if t := selectors[key]; t != nil {

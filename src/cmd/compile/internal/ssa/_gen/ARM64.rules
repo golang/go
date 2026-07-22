@@ -518,10 +518,10 @@
 (PubBarrier mem) => (DMB [0xe] mem)
 
 (PanicBounds ...) => (LoweredPanicBoundsRR ...)
-(LoweredPanicBoundsRR [kind] x (MOVDconst [c]) mem) => (LoweredPanicBoundsRC [kind] x {PanicBoundsC{C:c}} mem)
-(LoweredPanicBoundsRR [kind] (MOVDconst [c]) y mem) => (LoweredPanicBoundsCR [kind] {PanicBoundsC{C:c}} y mem)
-(LoweredPanicBoundsRC [kind] {p} (MOVDconst [c]) mem) => (LoweredPanicBoundsCC [kind] {PanicBoundsCC{Cx:c, Cy:p.C}} mem)
-(LoweredPanicBoundsCR [kind] {p} (MOVDconst [c]) mem) => (LoweredPanicBoundsCC [kind] {PanicBoundsCC{Cx:p.C, Cy:c}} mem)
+(LoweredPanicBoundsRR [kind] x (MOVDconst [c]) mem) => (LoweredPanicBoundsRC [kind] x {ssacore.PanicBoundsC{C:c}} mem)
+(LoweredPanicBoundsRR [kind] (MOVDconst [c]) y mem) => (LoweredPanicBoundsCR [kind] {ssacore.PanicBoundsC{C:c}} y mem)
+(LoweredPanicBoundsRC [kind] {p} (MOVDconst [c]) mem) => (LoweredPanicBoundsCC [kind] {ssacore.PanicBoundsCC{Cx:c, Cy:p.C}} mem)
+(LoweredPanicBoundsCR [kind] {p} (MOVDconst [c]) mem) => (LoweredPanicBoundsCC [kind] {ssacore.PanicBoundsCC{Cx:p.C, Cy:c}} mem)
 
 // Optimizations
 
@@ -665,10 +665,10 @@
 // against 128 (=2^7) is a bit-7 test, for both compare widths and both
 // signednesses: with the value in [0,255] the signed and unsigned orderings
 // against 128 coincide.
-((UGE|ULT) (CMPWconst [128] x) yes no) && ZeroUpper56Bits(x) => ((TBNZ|TBZ) [7] x yes no)
-((UGE|ULT) (CMPconst [128] x)  yes no) && ZeroUpper56Bits(x) => ((TBNZ|TBZ) [7] x yes no)
-((GE|LT)   (CMPWconst [128] x) yes no) && ZeroUpper56Bits(x) => ((TBNZ|TBZ) [7] x yes no)
-((GE|LT)   (CMPconst [128] x)  yes no) && ZeroUpper56Bits(x) => ((TBNZ|TBZ) [7] x yes no)
+((UGE|ULT) (CMPWconst [128] x) yes no) && ssacore.ZeroUpper56Bits(x) => ((TBNZ|TBZ) [7] x yes no)
+((UGE|ULT) (CMPconst [128] x)  yes no) && ssacore.ZeroUpper56Bits(x) => ((TBNZ|TBZ) [7] x yes no)
+((GE|LT)   (CMPWconst [128] x) yes no) && ssacore.ZeroUpper56Bits(x) => ((TBNZ|TBZ) [7] x yes no)
+((GE|LT)   (CMPconst [128] x)  yes no) && ssacore.ZeroUpper56Bits(x) => ((TBNZ|TBZ) [7] x yes no)
 
 // fold offset into address
 (ADDconst [off1] (MOVDaddr [off2] {sym} ptr)) && Is32Bit(off1+int64(off2)) =>
@@ -939,16 +939,16 @@
 
 // replace load from same location as preceding store with zero/sign extension (or copy in case of full width)
 // these seem to have bad interaction with other rules, resulting in slower code
-//(MOVBload  [off] {sym} ptr (MOVBstore  [off2] {sym2} ptr2 x _)) && sym == sym2 && off == off2 && IsSamePtr(ptr, ptr2) -> (MOVBreg x)
-//(MOVBUload [off] {sym} ptr (MOVBstore  [off2] {sym2} ptr2 x _)) && sym == sym2 && off == off2 && IsSamePtr(ptr, ptr2) -> (MOVBUreg x)
-//(MOVHload  [off] {sym} ptr (MOVHstore  [off2] {sym2} ptr2 x _)) && sym == sym2 && off == off2 && IsSamePtr(ptr, ptr2) -> (MOVHreg x)
-//(MOVHUload [off] {sym} ptr (MOVHstore  [off2] {sym2} ptr2 x _)) && sym == sym2 && off == off2 && IsSamePtr(ptr, ptr2) -> (MOVHUreg x)
-//(MOVWload  [off] {sym} ptr (MOVWstore  [off2] {sym2} ptr2 x _)) && sym == sym2 && off == off2 && IsSamePtr(ptr, ptr2) -> (MOVWreg x)
-//(MOVWUload [off] {sym} ptr (MOVWstore  [off2] {sym2} ptr2 x _)) && sym == sym2 && off == off2 && IsSamePtr(ptr, ptr2) -> (MOVWUreg x)
-//(MOVDload  [off] {sym} ptr (MOVDstore  [off2] {sym2} ptr2 x _)) && sym == sym2 && off == off2 && IsSamePtr(ptr, ptr2) -> x
-//(FMOVSload [off] {sym} ptr (FMOVSstore [off2] {sym2} ptr2 x _)) && sym == sym2 && off == off2 && IsSamePtr(ptr, ptr2) -> x
-//(FMOVDload [off] {sym} ptr (FMOVDstore [off2] {sym2} ptr2 x _)) && sym == sym2 && off == off2 && IsSamePtr(ptr, ptr2) -> x
-//(LDP       [off] {sym} ptr (STP      [off2] {sym2} ptr2 x y _)) && sym == sym2 && off == off2 && IsSamePtr(ptr, ptr2) -> x y
+//(MOVBload  [off] {sym} ptr (MOVBstore  [off2] {sym2} ptr2 x _)) && sym == sym2 && off == off2 && ssacore.IsSamePtr(ptr, ptr2) -> (MOVBreg x)
+//(MOVBUload [off] {sym} ptr (MOVBstore  [off2] {sym2} ptr2 x _)) && sym == sym2 && off == off2 && ssacore.IsSamePtr(ptr, ptr2) -> (MOVBUreg x)
+//(MOVHload  [off] {sym} ptr (MOVHstore  [off2] {sym2} ptr2 x _)) && sym == sym2 && off == off2 && ssacore.IsSamePtr(ptr, ptr2) -> (MOVHreg x)
+//(MOVHUload [off] {sym} ptr (MOVHstore  [off2] {sym2} ptr2 x _)) && sym == sym2 && off == off2 && ssacore.IsSamePtr(ptr, ptr2) -> (MOVHUreg x)
+//(MOVWload  [off] {sym} ptr (MOVWstore  [off2] {sym2} ptr2 x _)) && sym == sym2 && off == off2 && ssacore.IsSamePtr(ptr, ptr2) -> (MOVWreg x)
+//(MOVWUload [off] {sym} ptr (MOVWstore  [off2] {sym2} ptr2 x _)) && sym == sym2 && off == off2 && ssacore.IsSamePtr(ptr, ptr2) -> (MOVWUreg x)
+//(MOVDload  [off] {sym} ptr (MOVDstore  [off2] {sym2} ptr2 x _)) && sym == sym2 && off == off2 && ssacore.IsSamePtr(ptr, ptr2) -> x
+//(FMOVSload [off] {sym} ptr (FMOVSstore [off2] {sym2} ptr2 x _)) && sym == sym2 && off == off2 && ssacore.IsSamePtr(ptr, ptr2) -> x
+//(FMOVDload [off] {sym} ptr (FMOVDstore [off2] {sym2} ptr2 x _)) && sym == sym2 && off == off2 && ssacore.IsSamePtr(ptr, ptr2) -> x
+//(LDP       [off] {sym} ptr (STP      [off2] {sym2} ptr2 x y _)) && sym == sym2 && off == off2 && ssacore.IsSamePtr(ptr, ptr2) -> x y
 
 // don't extend before store
 (MOVBstore [off] {sym} ptr (MOVBreg  x) mem) => (MOVBstore [off] {sym} ptr x mem)
@@ -1850,7 +1850,7 @@
 	&& sz >= 0
 	&& IsSameCall(sym, "runtime.memmove")
 	&& s1.Uses == 1 && s2.Uses == 1 && s3.Uses == 1
-	&& IsInlinableMemmove(dst, src, sz, config)
+	&& ssacore.IsInlinableMemmove(dst, src, sz, config)
 	&& Clobber(s1, s2, s3, call)
 	=> (Move [sz] dst src mem)
 
@@ -1859,7 +1859,7 @@
 	&& sz >= 0
 	&& IsSameCall(sym, "runtime.memmove")
 	&& call.Uses == 1
-	&& IsInlinableMemmove(dst, src, sz, config)
+	&& ssacore.IsInlinableMemmove(dst, src, sz, config)
 	&& Clobber(call)
 	=> (Move [sz] dst src mem)
 

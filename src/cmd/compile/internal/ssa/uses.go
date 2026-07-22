@@ -4,6 +4,8 @@
 
 package ssa
 
+import "cmd/compile/internal/ssa/ssacore"
+
 // useInfo provides a map from a value to the users of that value.
 // We do not keep track of this data in the IR directly, as it is
 // expensive to keep updated. But sometimes we need to compute it
@@ -32,12 +34,12 @@ package ssa
 // of uses between starts[v.ID] and starts[v.ID+1].
 type useInfo struct {
 	starts []int32
-	uses   []*Value
+	uses   []*ssacore.Value
 }
 
 // build useInfo for a function. Result only valid until
 // the next modification of f.
-func uses(f *Func) useInfo {
+func uses(f *ssacore.Func) useInfo {
 	// Write down number of uses of each value.
 	idx := f.Cache.AllocInt32Slice(f.NumValues())
 	for _, b := range f.Blocks {
@@ -87,7 +89,7 @@ func uses(f *Func) useInfo {
 // Every use in an argument slot is listed (e.g. for
 // w=(Add v v), w is listed twice in the uses of v).
 // Uses by Block.Controls are not reported.
-func (u useInfo) get(v *Value) []*Value {
+func (u useInfo) get(v *ssacore.Value) []*ssacore.Value {
 	i := u.starts[v.ID]
 	var j int32
 	if int(v.ID) < len(u.starts)-1 {
@@ -103,7 +105,7 @@ func (u useInfo) get(v *Value) []*Value {
 	return r
 }
 
-func (u useInfo) free(f *Func) {
+func (u useInfo) free(f *ssacore.Func) {
 	f.Cache.FreeInt32Slice(u.starts)
 	f.Cache.FreeValueSlice(u.uses)
 }

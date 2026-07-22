@@ -2,7 +2,13 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-package ssa
+package ssacore
+
+// NewSparseSet returns a sparseSet that can represent
+// integers between 0 and n-1.
+func NewSparseSet(n int) *SparseSet {
+	return &SparseSet{dense: nil, sparse: make([]int32, n)}
+}
 
 // from https://research.swtch.com/sparse
 // in turn, from Briggs and Torczon
@@ -10,12 +16,6 @@ package ssa
 type SparseSet struct {
 	dense  []ID
 	sparse []int32
-}
-
-// NewSparseSet returns a sparseSet that can represent
-// integers between 0 and n-1.
-func NewSparseSet(n int) *SparseSet {
-	return &SparseSet{dense: nil, sparse: make([]int32, n)}
 }
 
 func (s *SparseSet) cap() int {

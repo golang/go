@@ -2,11 +2,9 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-package ssa
+package ssacore
 
-import (
-	"math"
-)
+import "math"
 
 // A BiasedSparseMap is a sparseMap for integers between J and K inclusive,
 // where J might be somewhat larger than zero (and K-J is probably much smaller than J).

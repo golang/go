@@ -38,6 +38,7 @@ package ssa
 
 import (
 	"cmd/compile/internal/ssa/block"
+	"cmd/compile/internal/ssa/ssacore"
 	"cmd/compile/internal/ssa/ssaop"
 	"cmd/compile/internal/types"
 	"cmd/internal/obj"
@@ -53,10 +54,10 @@ import (
 // though Funcs could be equivalent when they are not.
 // TODO(matloob): Allow values and predecessors to be in different
 // orders if the CFG are otherwise equivalent.
-func Equiv(f, g *Func) bool {
-	valcor := make(map[*Value]*Value)
-	var checkVal func(fv, gv *Value) bool
-	checkVal = func(fv, gv *Value) bool {
+func Equiv(f, g *ssacore.Func) bool {
+	valcor := make(map[*ssacore.Value]*ssacore.Value)
+	var checkVal func(fv, gv *ssacore.Value) bool
+	checkVal = func(fv, gv *ssacore.Value) bool {
 		if fv == nil && gv == nil {
 			return true
 		}
@@ -87,9 +88,9 @@ func Equiv(f, g *Func) bool {
 		}
 		return valcor[fv] == gv && valcor[gv] == fv
 	}
-	blkcor := make(map[*Block]*Block)
-	var checkBlk func(fb, gb *Block) bool
-	checkBlk = func(fb, gb *Block) bool {
+	blkcor := make(map[*ssacore.Block]*ssacore.Block)
+	var checkBlk func(fb, gb *ssacore.Block) bool
+	checkBlk = func(fb, gb *ssacore.Block) bool {
 		if blkcor[fb] == nil && blkcor[gb] == nil {
 			blkcor[fb] = gb
 			blkcor[gb] = fb
@@ -134,19 +135,19 @@ func Equiv(f, g *Func) bool {
 // itself as well as indexes from block and value names into the
 // corresponding Blocks and Values.
 type fun struct {
-	f      *Func
-	blocks map[string]*Block
-	values map[string]*Value
+	f      *ssacore.Func
+	blocks map[string]*ssacore.Block
+	values map[string]*ssacore.Value
 }
 
-var emptyPass Pass = Pass{
+var emptyPass ssacore.Pass = ssacore.Pass{
 	Name: "empty pass",
 }
 
 // AuxCallLSym returns an AuxCall initialized with an LSym that should pass "check"
 // as the Aux of a static call.
-func AuxCallLSym(name string) *AuxCall {
-	return &AuxCall{Fn: &obj.LSym{}}
+func AuxCallLSym(name string) *ssacore.AuxCall {
+	return &ssacore.AuxCall{Fn: &obj.LSym{}}
 }
 
 // Fun takes the name of an entry bloc and a series of Bloc calls, and
@@ -157,12 +158,12 @@ func (c *Conf) Fun(entry string, blocs ...bloc) fun {
 	// TODO: Either mark some SSA tests as t.Parallel,
 	// or set up a shared Cache and Reset it between tests.
 	// But not both.
-	f := c.config.NewFunc(c.Frontend(), new(Cache))
+	f := c.config.NewFunc(c.Frontend(), new(ssacore.Cache))
 	f.Pass = &emptyPass
-	f.CachedLineStarts = NewXPosMap(map[int]LineRange{0: {0, 100}, 1: {0, 100}, 2: {0, 100}, 3: {0, 100}, 4: {0, 100}})
+	f.CachedLineStarts = ssacore.NewXPosMap(map[int]ssacore.LineRange{0: {First: 0, Last: 100}, 1: {First: 0, Last: 100}, 2: {First: 0, Last: 100}, 3: {First: 0, Last: 100}, 4: {First: 0, Last: 100}})
 
-	blocks := make(map[string]*Block)
-	values := make(map[string]*Value)
+	blocks := make(map[string]*ssacore.Block)
+	values := make(map[string]*ssacore.Value)
 	// Create all the blocks and values.
 	for _, bloc := range blocs {
 		b := f.NewBlock(bloc.control.kind)
@@ -232,7 +233,7 @@ func Bloc(name string, entries ...any) bloc {
 }
 
 // Valu defines a value in a block.
-func Valu(name string, op ssaop.Op, t *types.Type, auxint int64, aux Aux, args ...string) valu {
+func Valu(name string, op ssaop.Op, t *types.Type, auxint int64, aux ssacore.Aux, args ...string) valu {
 	return valu{name, op, t, auxint, aux, args}
 }
 
@@ -287,7 +288,7 @@ type valu struct {
 	op     ssaop.Op
 	t      *types.Type
 	auxint int64
-	aux    Aux
+	aux    ssacore.Aux
 	args   []string
 }
 
@@ -412,12 +413,12 @@ func TestEquiv(t *testing.T) {
 			cfg.Fun("entry",
 				Bloc("entry",
 					Valu("mem", ssaop.OpInitMem, types.TypeMem, 0, nil),
-					Valu("a", ssaop.OpConstString, cfg.config.Types.String, 0, StringToAux("foo")),
+					Valu("a", ssaop.OpConstString, cfg.config.Types.String, 0, ssacore.StringToAux("foo")),
 					Exit("mem"))),
 			cfg.Fun("entry",
 				Bloc("entry",
 					Valu("mem", ssaop.OpInitMem, types.TypeMem, 0, nil),
-					Valu("a", ssaop.OpConstString, cfg.config.Types.String, 0, StringToAux("bar")),
+					Valu("a", ssaop.OpConstString, cfg.config.Types.String, 0, ssacore.StringToAux("bar")),
 					Exit("mem"))),
 		},
 		// value args different
@@ -472,7 +473,7 @@ func TestConstCache(t *testing.T) {
 
 // opcodeMap returns a map from opcode to the number of times that opcode
 // appears in the function.
-func opcodeMap(f *Func) map[ssaop.Op]int {
+func opcodeMap(f *ssacore.Func) map[ssaop.Op]int {
 	m := map[ssaop.Op]int{}
 	for _, b := range f.Blocks {
 		for _, v := range b.Values {
@@ -484,7 +485,7 @@ func opcodeMap(f *Func) map[ssaop.Op]int {
 
 // checkOpcodeCounts checks that the number of opcodes listed in m agree with the
 // number of opcodes that appear in the function.
-func checkOpcodeCounts(t *testing.T, f *Func, m map[ssaop.Op]int) {
+func checkOpcodeCounts(t *testing.T, f *ssacore.Func, m map[ssaop.Op]int) {
 	n := opcodeMap(f)
 	for op, cnt := range m {
 		if n[op] != cnt {

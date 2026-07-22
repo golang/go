@@ -9,8 +9,8 @@ import (
 	"cmd/compile/internal/ir"
 	"cmd/compile/internal/logopt"
 	"cmd/compile/internal/objw"
-	"cmd/compile/internal/ssa"
 	"cmd/compile/internal/ssa/block"
+	"cmd/compile/internal/ssa/ssacore"
 	"cmd/compile/internal/ssa/ssaop"
 	"cmd/compile/internal/ssagen"
 	"cmd/compile/internal/types"
@@ -166,10 +166,10 @@ func ginsnop(pp *objw.Progs) *obj.Prog {
 	return pp.Prog(wasm.ANop)
 }
 
-func ssaMarkMoves(s *ssagen.State, b *ssa.Block) {
+func ssaMarkMoves(s *ssagen.State, b *ssacore.Block) {
 }
 
-func ssaGenBlock(s *ssagen.State, b, next *ssa.Block) {
+func ssaGenBlock(s *ssagen.State, b, next *ssacore.Block) {
 	switch b.Kind {
 	case block.BlockPlain, block.BlockDefer:
 		if next != b.Succs[0].Block() {
@@ -217,11 +217,11 @@ func ssaGenBlock(s *ssagen.State, b, next *ssa.Block) {
 	}
 }
 
-func ssaGenValue(s *ssagen.State, v *ssa.Value) {
+func ssaGenValue(s *ssagen.State, v *ssacore.Value) {
 	switch v.Op {
 	case ssaop.OpWasmLoweredStaticCall, ssaop.OpWasmLoweredClosureCall, ssaop.OpWasmLoweredInterCall, ssaop.OpWasmLoweredTailCall, ssaop.OpWasmLoweredTailCallInter:
 		s.PrepareCall(v)
-		if call, ok := v.Aux.(*ssa.AuxCall); ok && call.Fn == ir.Syms.Deferreturn {
+		if call, ok := v.Aux.(*ssacore.AuxCall); ok && call.Fn == ir.Syms.Deferreturn {
 			// The runtime needs to inject jumps to
 			// deferreturn calls using the address in
 			// _func.deferreturn. Hence, the call to
@@ -233,7 +233,7 @@ func ssaGenValue(s *ssagen.State, v *ssa.Value) {
 			getValue64(s, v.Args[1])
 			setReg(s, wasm.REG_CTXT)
 		}
-		if call, ok := v.Aux.(*ssa.AuxCall); ok && call.Fn != nil {
+		if call, ok := v.Aux.(*ssacore.AuxCall); ok && call.Fn != nil {
 			sym := call.Fn
 			p := s.Prog(obj.ACALL)
 			p.To = obj.Addr{Type: obj.TYPE_MEM, Name: obj.NAME_EXTERN, Sym: sym}
@@ -326,7 +326,7 @@ func ssaGenValue(s *ssagen.State, v *ssa.Value) {
 	}
 }
 
-func ssaGenValueOnStack(s *ssagen.State, v *ssa.Value, extend bool) {
+func ssaGenValueOnStack(s *ssagen.State, v *ssacore.Value, extend bool) {
 	switch v.Op {
 	case ssaop.OpWasmLoweredGetClosurePtr:
 		getReg(s, wasm.REG_CTXT)
@@ -494,7 +494,7 @@ func ssaGenValueOnStack(s *ssagen.State, v *ssa.Value, extend bool) {
 	}
 }
 
-func isAlready32(v *ssa.Value) bool {
+func isAlready32(v *ssacore.Value) bool {
 	switch v.Op {
 	case ssaop.OpWasmI64Eqz, ssaop.OpWasmI64Eq, ssaop.OpWasmI64Ne, ssaop.OpWasmI64LtS, ssaop.OpWasmI64LtU, ssaop.OpWasmI64GtS, ssaop.OpWasmI64GtU, ssaop.OpWasmI64LeS, ssaop.OpWasmI64LeU, ssaop.OpWasmI64GeS, ssaop.OpWasmI64GeU,
 		ssaop.OpWasmF32Eq, ssaop.OpWasmF32Ne, ssaop.OpWasmF32Lt, ssaop.OpWasmF32Gt, ssaop.OpWasmF32Le, ssaop.OpWasmF32Ge,
@@ -507,7 +507,7 @@ func isAlready32(v *ssa.Value) bool {
 	}
 }
 
-func getValue32(s *ssagen.State, v *ssa.Value) {
+func getValue32(s *ssagen.State, v *ssacore.Value) {
 	if v.OnWasmStack {
 		s.OnWasmStackSkipped--
 		ssaGenValueOnStack(s, v, false)
@@ -524,7 +524,7 @@ func getValue32(s *ssagen.State, v *ssa.Value) {
 	}
 }
 
-func getValue64(s *ssagen.State, v *ssa.Value) {
+func getValue64(s *ssagen.State, v *ssacore.Value) {
 	if v.OnWasmStack {
 		s.OnWasmStackSkipped--
 		ssaGenValueOnStack(s, v, true)
@@ -538,7 +538,7 @@ func getValue64(s *ssagen.State, v *ssa.Value) {
 	}
 }
 
-func getValue128(s *ssagen.State, v *ssa.Value) {
+func getValue128(s *ssagen.State, v *ssacore.Value) {
 	if v.OnWasmStack {
 		s.OnWasmStackSkipped--
 		ssaGenValueOnStack(s, v, true)
@@ -549,7 +549,7 @@ func getValue128(s *ssagen.State, v *ssa.Value) {
 	getReg(s, reg)
 }
 
-func getValueFxx(s *ssagen.State, v *ssa.Value) {
+func getValueFxx(s *ssagen.State, v *ssacore.Value) {
 	if v.OnWasmStack {
 		s.OnWasmStackSkipped--
 		ssaGenValueOnStack(s, v, true)

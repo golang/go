@@ -10,8 +10,8 @@ import (
 	"cmd/compile/internal/base"
 	"cmd/compile/internal/ir"
 	"cmd/compile/internal/logopt"
-	"cmd/compile/internal/ssa"
 	"cmd/compile/internal/ssa/block"
+	"cmd/compile/internal/ssa/ssacore"
 	"cmd/compile/internal/ssa/ssaop"
 	"cmd/compile/internal/ssagen"
 	"cmd/compile/internal/types"
@@ -83,7 +83,7 @@ func storeByType(t *types.Type, r int16) obj.As {
 	panic("bad store type")
 }
 
-func ssaGenValue(s *ssagen.State, v *ssa.Value) {
+func ssaGenValue(s *ssagen.State, v *ssacore.Value) {
 	switch v.Op {
 	case ssaop.OpCopy, ssaop.OpMIPS64MOVVreg:
 		if v.Type.IsMemory() {
@@ -485,7 +485,7 @@ func ssaGenValue(s *ssagen.State, v *ssa.Value) {
 
 	case ssaop.OpMIPS64LoweredPanicBoundsRR, ssaop.OpMIPS64LoweredPanicBoundsRC, ssaop.OpMIPS64LoweredPanicBoundsCR, ssaop.OpMIPS64LoweredPanicBoundsCC:
 		// Compute the constant we put in the PCData entry for this call.
-		code, signed := ssa.BoundsKind(v.AuxInt).Code()
+		code, signed := ssacore.BoundsKind(v.AuxInt).Code()
 		xIsReg := false
 		yIsReg := false
 		xVal := 0
@@ -499,7 +499,7 @@ func ssaGenValue(s *ssagen.State, v *ssa.Value) {
 		case ssaop.OpMIPS64LoweredPanicBoundsRC:
 			xIsReg = true
 			xVal = int(v.Args[0].Reg() - mips.REG_R1)
-			c := v.Aux.(ssa.PanicBoundsC).C
+			c := v.Aux.(ssacore.PanicBoundsC).C
 			if c >= 0 && c <= abi.BoundsMaxConst {
 				yVal = int(c)
 			} else {
@@ -517,7 +517,7 @@ func ssaGenValue(s *ssagen.State, v *ssa.Value) {
 		case ssaop.OpMIPS64LoweredPanicBoundsCR:
 			yIsReg = true
 			yVal = int(v.Args[0].Reg() - mips.REG_R1)
-			c := v.Aux.(ssa.PanicBoundsC).C
+			c := v.Aux.(ssacore.PanicBoundsC).C
 			if c >= 0 && c <= abi.BoundsMaxConst {
 				xVal = int(c)
 			} else {
@@ -533,7 +533,7 @@ func ssaGenValue(s *ssagen.State, v *ssa.Value) {
 				p.To.Reg = mips.REG_R1 + int16(xVal)
 			}
 		case ssaop.OpMIPS64LoweredPanicBoundsCC:
-			c := v.Aux.(ssa.PanicBoundsCC).Cx
+			c := v.Aux.(ssacore.PanicBoundsCC).Cx
 			if c >= 0 && c <= abi.BoundsMaxConst {
 				xVal = int(c)
 			} else {
@@ -545,7 +545,7 @@ func ssaGenValue(s *ssagen.State, v *ssa.Value) {
 				p.To.Type = obj.TYPE_REG
 				p.To.Reg = mips.REG_R1 + int16(xVal)
 			}
-			c = v.Aux.(ssa.PanicBoundsCC).Cy
+			c = v.Aux.(ssacore.PanicBoundsCC).Cy
 			if c >= 0 && c <= abi.BoundsMaxConst {
 				yVal = int(c)
 			} else {
@@ -892,7 +892,7 @@ var blockJump = map[block.BlockKind]struct {
 	block.BlockMIPS64FPF: {mips.ABFPF, mips.ABFPT},
 }
 
-func ssaGenBlock(s *ssagen.State, b, next *ssa.Block) {
+func ssaGenBlock(s *ssagen.State, b, next *ssacore.Block) {
 	switch b.Kind {
 	case block.BlockPlain, block.BlockDefer:
 		if b.Succs[0].Block() != next {
@@ -915,7 +915,7 @@ func ssaGenBlock(s *ssagen.State, b, next *ssa.Block) {
 		case b.Succs[1].Block():
 			p = s.Br(jmp.asm, b.Succs[0].Block())
 		default:
-			if b.Likely != ssa.BranchUnlikely {
+			if b.Likely != ssacore.BranchUnlikely {
 				p = s.Br(jmp.asm, b.Succs[0].Block())
 				s.Br(obj.AJMP, b.Succs[1].Block())
 			} else {

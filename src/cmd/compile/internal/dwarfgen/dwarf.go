@@ -17,6 +17,7 @@ import (
 	"cmd/compile/internal/ir"
 	"cmd/compile/internal/reflectdata"
 	"cmd/compile/internal/ssa"
+	"cmd/compile/internal/ssa/ssacore"
 	"cmd/compile/internal/ssagen"
 	"cmd/compile/internal/typecheck"
 	"cmd/compile/internal/types"
@@ -181,12 +182,12 @@ func createDwarfVars(fnsym *obj.LSym, complexOK bool, fn *ir.Func, apDecls []*ir
 
 	// Build a VarID lookup map for SSA debug info if available.
 	var debug *ssa.FuncDebug
-	var varIDMap map[*ir.Name]ssa.VarID
+	var varIDMap map[*ir.Name]ssacore.VarID
 	if fn.DebugInfo != nil {
 		debug = fn.DebugInfo.(*ssa.FuncDebug)
-		varIDMap = make(map[*ir.Name]ssa.VarID, len(debug.Vars))
+		varIDMap = make(map[*ir.Name]ssacore.VarID, len(debug.Vars))
 		for i, n := range debug.Vars {
-			varIDMap[n] = ssa.VarID(i)
+			varIDMap[n] = ssacore.VarID(i)
 		}
 	}
 	canUseComplex := complexOK && debug != nil
@@ -197,7 +198,7 @@ func createDwarfVars(fnsym *obj.LSym, complexOK bool, fn *ir.Func, apDecls []*ir
 	// logical variable). Without this, the dcl loop could create duplicate
 	// conservative entries for names that are already covered by a complex var.
 	seen := make(map[*ir.Name]bool)
-	markVarSeen := func(n *ir.Name, varID ssa.VarID) {
+	markVarSeen := func(n *ir.Name, varID ssacore.VarID) {
 		seen[n] = true
 		if debug != nil && int(varID) < len(debug.VarSlots) {
 			for _, slot := range debug.VarSlots[varID] {
@@ -236,10 +237,10 @@ func createDwarfVars(fnsym *obj.LSym, complexOK bool, fn *ir.Func, apDecls []*ir
 			if !shouldEmitDwarfVar(n) {
 				continue
 			}
-			if dvar := createComplexVar(fnsym, fn, ssa.VarID(i), closureVars); dvar != nil {
+			if dvar := createComplexVar(fnsym, fn, ssacore.VarID(i), closureVars); dvar != nil {
 				decls = append(decls, n)
 				vars = append(vars, dvar)
-				markVarSeen(n, ssa.VarID(i))
+				markVarSeen(n, ssacore.VarID(i))
 			}
 		}
 	}
@@ -276,7 +277,7 @@ func createDwarfVars(fnsym *obj.LSym, complexOK bool, fn *ir.Func, apDecls []*ir
 		// entries here so that we can process them properly during
 		// DWARF-gen. See issue 48573 for more details.
 		for _, n := range debug.RegOutputParams {
-			if !ssa.IsVarWantedForDebug(n) {
+			if !ssacore.IsVarWantedForDebug(n) {
 				continue
 			}
 			if n.Class != ir.PPARAMOUT || !n.IsOutputParamInRegisters() {
@@ -306,7 +307,7 @@ func createDwarfVars(fnsym *obj.LSym, complexOK bool, fn *ir.Func, apDecls []*ir
 				}
 			}
 		}
-		if n.Class == ir.PPARAM && !ssa.CanSSA(n.Type()) {
+		if n.Class == ir.PPARAM && !ssacore.CanSSA(n.Type()) {
 			decls = append(decls, n)
 			vars = append(vars, createSimpleVar(fnsym, n, closureVars))
 			continue
@@ -507,7 +508,7 @@ func createSimpleVar(fnsym *obj.LSym, n *ir.Name, closureVars map[*ir.Name]int64
 }
 
 // createComplexVar builds a single DWARF variable entry and location list.
-func createComplexVar(fnsym *obj.LSym, fn *ir.Func, varID ssa.VarID, closureVars map[*ir.Name]int64) *dwarf.Var {
+func createComplexVar(fnsym *obj.LSym, fn *ir.Func, varID ssacore.VarID, closureVars map[*ir.Name]int64) *dwarf.Var {
 	debug := fn.DebugInfo.(*ssa.FuncDebug)
 	n := debug.Vars[varID]
 
@@ -565,7 +566,7 @@ func createComplexVar(fnsym *obj.LSym, fn *ir.Func, varID ssa.VarID, closureVars
 
 // createHeapDerefLocationList creates a location list for a heap-escaped variable
 // that describes "dereference pointer at stack offset"
-func createHeapDerefLocationList(n *ir.Name, entryID ssa.ID) []ssa.LocListEntry {
+func createHeapDerefLocationList(n *ir.Name, entryID ssacore.ID) []ssacore.LocListEntry {
 	// Get the stack offset where the heap pointer is stored
 	heapPtrOffset := n.Heapaddr.FrameOffset()
 	if base.Ctxt.Arch.FixedFrameSize == 0 {
@@ -581,11 +582,11 @@ func createHeapDerefLocationList(n *ir.Name, entryID ssa.ID) []ssa.LocListEntry 
 	expr = dwarf.AppendSleb128(expr, heapPtrOffset)
 	expr = append(expr, dwarf.DW_OP_deref)
 
-	return []ssa.LocListEntry{{
+	return []ssacore.LocListEntry{{
 		StartBlock: entryID,
-		StartValue: ssa.BlockStart.ID,
+		StartValue: ssacore.BlockStart.ID,
 		EndBlock:   entryID,
-		EndValue:   ssa.FuncEnd.ID,
+		EndValue:   ssacore.FuncEnd.ID,
 		Expr:       expr,
 	}}
 }
@@ -679,7 +680,7 @@ func shouldEmitDwarfVar(n *ir.Name) bool {
 // which can race with other goroutines writing different flags during compilation.
 // Auto temps have names starting with "." so callers must filter those separately.
 func shouldEmitDwarfVarSafe(n *ir.Name) bool {
-	if !ssa.IsVarWantedForDebug(n) {
+	if !ssacore.IsVarWantedForDebug(n) {
 		return false
 	}
 	if n.Sym().Name == "_" {

@@ -5,6 +5,7 @@
 package ssa
 
 import (
+	"cmd/compile/internal/ssa/ssacore"
 	"cmd/compile/internal/ssa/ssaop"
 	"cmd/internal/src"
 	"fmt"
@@ -29,7 +30,7 @@ func isPoorStatementOp(op ssaop.Op) bool {
 // based on v's Op, the possibility of a better later operation, and
 // whether the values following i are the same line as v.
 // If a better statement index isn't found, then i is returned.
-func nextGoodStatementIndex(v *Value, i int, b *Block) int {
+func nextGoodStatementIndex(v *ssacore.Value, i int, b *ssacore.Block) int {
 	// If the value is the last one in the block, too bad, it will have to do
 	// (this assumes that the value ordering vaguely corresponds to the source
 	// program execution order, which tends to be true directly after ssa is
@@ -58,27 +59,6 @@ func nextGoodStatementIndex(v *Value, i int, b *Block) int {
 	return i
 }
 
-// NotStmtBoundary reports whether a value with opcode op can never be a statement
-// boundary. Such values don't correspond to a user's understanding of a
-// statement boundary.
-func NotStmtBoundary(op ssaop.Op) bool {
-	switch op {
-	case ssaop.OpCopy, ssaop.OpPhi, ssaop.OpVarDef, ssaop.OpVarLive, ssaop.OpUnknown, ssaop.OpFwdRef, ssaop.OpArg, ssaop.OpArgIntReg, ssaop.OpArgFloatReg:
-		return true
-	}
-	return false
-}
-
-func (b *Block) FirstPossibleStmtValue() *Value {
-	for _, v := range b.Values {
-		if NotStmtBoundary(v.Op) {
-			continue
-		}
-		return v
-	}
-	return nil
-}
-
 func flc(p src.XPos) string {
 	if p == src.NoXPos {
 		return "none"
@@ -88,7 +68,7 @@ func flc(p src.XPos) string {
 
 type fileAndPair struct {
 	f  int32
-	lp LineRange
+	lp ssacore.LineRange
 }
 
 type fileAndPairs []fileAndPair
@@ -105,10 +85,10 @@ func (fap fileAndPairs) Swap(i, j int) {
 
 // -d=ssa/number_lines/stats=1 (that bit) for line and file distribution statistics
 // -d=ssa/number_lines/debug for information about why particular values are marked as statements.
-func numberLines(f *Func) {
+func numberLines(f *ssacore.Func) {
 	po := f.Postorder()
-	endlines := make(map[ID]src.XPos)
-	ranges := make(map[int]LineRange)
+	endlines := make(map[ssacore.ID]src.XPos)
+	ranges := make(map[int]ssacore.LineRange)
 	note := func(p src.XPos) {
 		line := uint32(p.Line())
 		i := int(p.FileIndex())
@@ -259,5 +239,5 @@ func numberLines(f *Func) {
 		f.LogStat("SUM_LINE_RANGE", total, "MAXMIN_LINE_RANGE", maxline-minline, "MAXFILE", maxfile, "NFILES", len(entries))
 	}
 	// cachedLineStarts is an empty sparse map for values that are included within ranges.
-	f.CachedLineStarts = NewXPosMap(ranges)
+	f.CachedLineStarts = ssacore.NewXPosMap(ranges)
 }

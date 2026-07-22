@@ -6,6 +6,7 @@ package ssa
 
 import (
 	"cmd/compile/internal/base"
+	"cmd/compile/internal/ssa/ssacore"
 	"cmd/compile/internal/ssa/ssaop"
 	"cmd/compile/internal/types"
 	"cmd/internal/src"
@@ -17,7 +18,7 @@ import (
 // This produces good code for encoding/binary operations and may help other
 // cases too. On architectures that do not allow unaligned accesses, the pass
 // uses pointer alignment facts to avoid introducing unaligned wider operations.
-func memcombine(f *Func) {
+func memcombine(f *ssacore.Func) {
 	var ptrAlignments []int8
 	if !f.Config.UnalignedOK {
 		ptrAlignments = f.Cache.AllocInt8Slice(f.NumValues())
@@ -28,11 +29,11 @@ func memcombine(f *Func) {
 	memcombineStores(f, ptrAlignments)
 }
 
-func memcombineLoads(f *Func, ptrAlignments []int8) {
+func memcombineLoads(f *ssacore.Func, ptrAlignments []int8) {
 	// Find "OR trees" to start with.
 	mark := f.NewSparseSet(f.NumValues())
 	defer f.RetSparseSet(mark)
-	var order []*Value
+	var order []*ssacore.Value
 
 	// Mark all values that are the argument of an OR.
 	for _, b := range f.Blocks {
@@ -91,7 +92,7 @@ func memcombineLoads(f *Func, ptrAlignments []int8) {
 // ptr is a pointer type and idx is an integer type.
 // idx may be nil, in which case it is treated as 0.
 type BaseAddress struct {
-	ptr *Value
+	ptr *ssacore.Value
 	idx Index
 }
 
@@ -100,18 +101,18 @@ type BaseAddress struct {
 // The shift is typically introduced by slice indexing (log2(element size)),
 // but may also originate from shifts in the source expression.
 type Index struct {
-	exp   *Value
+	exp   *ssacore.Value
 	shift int64
 }
 
-func getConst(v *Value) (int64, bool) {
+func getConst(v *ssacore.Value) (int64, bool) {
 	if v.Op == ssaop.OpConst32 || v.Op == ssaop.OpConst64 {
 		return v.AuxInt, true
 	}
 	return 0, false
 }
 
-func peelAdd(v *Value) (exp *Value, imm int64) {
+func peelAdd(v *ssacore.Value) (exp *ssacore.Value, imm int64) {
 	if v == nil {
 		return nil, 0
 	}
@@ -129,7 +130,7 @@ func peelAdd(v *Value) (exp *Value, imm int64) {
 	return v, 0
 }
 
-func peelShift(v *Value) (exp *Value, shift int64) {
+func peelShift(v *ssacore.Value) (exp *ssacore.Value, shift int64) {
 	if v == nil {
 		return nil, 0
 	}
@@ -146,7 +147,7 @@ func peelShift(v *Value) (exp *Value, shift int64) {
 // constant offset from that base.
 // BaseAddress{ptr,nil},0 is always a valid result, but splitPtr
 // tries to peel away as many constants into off as possible.
-func splitPtr(ptr *Value) (BaseAddress, int64) {
+func splitPtr(ptr *ssacore.Value) (BaseAddress, int64) {
 	var idx Index
 	var off int64
 	for {
@@ -199,7 +200,7 @@ func splitPtr(ptr *Value) (BaseAddress, int64) {
 
 // computePtrAlignments computes pointer alignment facts from typed base pointers
 // and constant offsets.
-func computePtrAlignments(f *Func, ptrAlignments []int8) {
+func computePtrAlignments(f *ssacore.Func, ptrAlignments []int8) {
 	for _, b := range slices.Backward(f.Postorder()) {
 		for _, v := range b.Values {
 			ptrAlignments[v.ID] = int8(valuePtrAlignment(v, ptrAlignments))
@@ -209,7 +210,7 @@ func computePtrAlignments(f *Func, ptrAlignments []int8) {
 
 // ptrAlignment only reads already-computed facts. Zero/not-yet-known means
 // alignment 1, avoiding recursive Phi/cycle walks.
-func ptrAlignment(ptr *Value, ptrAlignments []int8) int64 {
+func ptrAlignment(ptr *ssacore.Value, ptrAlignments []int8) int64 {
 	if align := ptrAlignments[ptr.ID]; align > 0 {
 		return int64(align)
 	}
@@ -217,7 +218,7 @@ func ptrAlignment(ptr *Value, ptrAlignments []int8) int64 {
 }
 
 // valuePtrAlignment computes one entry in ptrAlignments.
-func valuePtrAlignment(v *Value, ptrAlignments []int8) int64 {
+func valuePtrAlignment(v *ssacore.Value, ptrAlignments []int8) int64 {
 	// computePtrAlignments visits every SSA value, not just pointer values.
 	if !v.Type.IsPtr() {
 		return 1
@@ -280,7 +281,7 @@ func offsetAlignment(align, off int64) int64 {
 	return off & -off
 }
 
-func combineLoads(root *Value, n int64, ptrAlignments []int8) bool {
+func combineLoads(root *ssacore.Value, n int64, ptrAlignments []int8) bool {
 	orOp := root.Op
 	var shiftOp ssaop.Op
 	switch orOp {
@@ -295,7 +296,7 @@ func combineLoads(root *Value, n int64, ptrAlignments []int8) bool {
 	}
 
 	// Find n values that are ORed together with the above op.
-	a := make([]*Value, 0, 8)
+	a := make([]*ssacore.Value, 0, 8)
 	a = append(a, root)
 	for i := 0; i < len(a) && int64(len(a)) < n; i++ {
 		v := a[i]
@@ -344,7 +345,7 @@ func combineLoads(root *Value, n int64, ptrAlignments []int8) bool {
 
 	// Check all the entries, extract useful info.
 	type LoadRecord struct {
-		load   *Value
+		load   *ssacore.Value
 		offset int64 // offset of load address from base
 		shift  int64
 	}
@@ -420,7 +421,7 @@ func combineLoads(root *Value, n int64, ptrAlignments []int8) bool {
 	// This is tricky, because it has to be at a point where
 	// its memory argument is live. We can't just put it in root.Block.
 	// We use the block of the latest load.
-	loads := make([]*Value, n, 8)
+	loads := make([]*ssacore.Value, n, 8)
 	for i := int64(0); i < n; i++ {
 		loads[i] = r[i].load
 	}
@@ -482,10 +483,10 @@ func combineLoads(root *Value, n int64, ptrAlignments []int8) bool {
 	return true
 }
 
-func memcombineStores(f *Func, ptrAlignments []int8) {
+func memcombineStores(f *ssacore.Func, ptrAlignments []int8) {
 	mark := f.NewSparseSet(f.NumValues())
 	defer f.RetSparseSet(mark)
-	var order []*Value
+	var order []*ssacore.Value
 
 	for _, b := range f.Blocks {
 		// Mark all stores which are not last in a store sequence.
@@ -532,15 +533,15 @@ func memcombineStores(f *Func, ptrAlignments []int8) {
 }
 
 // combineStores tries to combine the stores ending in root.
-func combineStores(root *Value, ptrAlignments []int8) {
+func combineStores(root *ssacore.Value, ptrAlignments []int8) {
 	// Helper functions.
 	maxRegSize := root.Block.Func.Config.RegSize
 	type StoreRecord struct {
-		store  *Value
+		store  *ssacore.Value
 		offset int64
 		size   int64
 	}
-	getShiftBase := func(a []StoreRecord) *Value {
+	getShiftBase := func(a []StoreRecord) *ssacore.Value {
 		x := a[0].store.Args[1]
 		y := a[1].store.Args[1]
 		switch x.Op {
@@ -555,13 +556,13 @@ func combineStores(root *Value, ptrAlignments []int8) {
 		default:
 			return nil
 		}
-		var x2 *Value
+		var x2 *ssacore.Value
 		switch x.Op {
 		case ssaop.OpRsh64Ux64, ssaop.OpRsh32Ux64, ssaop.OpRsh16Ux64:
 			x2 = x.Args[0]
 		default:
 		}
-		var y2 *Value
+		var y2 *ssacore.Value
 		switch y.Op {
 		case ssaop.OpRsh64Ux64, ssaop.OpRsh32Ux64, ssaop.OpRsh16Ux64:
 			y2 = y.Args[0]
@@ -581,7 +582,7 @@ func combineStores(root *Value, ptrAlignments []int8) {
 		}
 		return nil
 	}
-	isShiftBase := func(v, base *Value) bool {
+	isShiftBase := func(v, base *ssacore.Value) bool {
 		val := v.Args[1]
 		switch val.Op {
 		case ssaop.OpTrunc64to8, ssaop.OpTrunc64to16, ssaop.OpTrunc64to32, ssaop.OpTrunc32to8, ssaop.OpTrunc32to16, ssaop.OpTrunc16to8:
@@ -600,7 +601,7 @@ func combineStores(root *Value, ptrAlignments []int8) {
 		}
 		return val == base
 	}
-	shift := func(v, base *Value) int64 {
+	shift := func(v, base *ssacore.Value) int64 {
 		val := v.Args[1]
 		switch val.Op {
 		case ssaop.OpTrunc64to8, ssaop.OpTrunc64to16, ssaop.OpTrunc64to32, ssaop.OpTrunc32to8, ssaop.OpTrunc32to16, ssaop.OpTrunc16to8:
@@ -676,7 +677,7 @@ func combineStores(root *Value, ptrAlignments []int8) {
 	}
 	var a []StoreRecord
 	var aTotalSize int64
-	var mem *Value
+	var mem *ssacore.Value
 	var pos src.XPos
 	// Pick the largest mergeable set.
 	for _, s := range []int64{8, 4, 2} {
@@ -740,7 +741,7 @@ func combineStores(root *Value, ptrAlignments []int8) {
 			}
 			c |= (a[i].store.Args[1].AuxInt & mask) << s
 		}
-		var cv *Value
+		var cv *ssacore.Value
 		switch aTotalSize {
 		case 2:
 			cv = root.Block.Func.ConstInt16(types.Types[types.TUINT16], int16(c))
@@ -768,7 +769,7 @@ func combineStores(root *Value, ptrAlignments []int8) {
 	}
 
 	// Check for consecutive loads as the source of the stores.
-	var loadMem *Value
+	var loadMem *ssacore.Value
 	var loadBase BaseAddress
 	var loadIdx int64
 	for i := range a {
@@ -926,7 +927,7 @@ func sizeType(size int64) *types.Type {
 	}
 }
 
-func truncate(b *Block, pos src.XPos, v *Value, from, to int64) *Value {
+func truncate(b *ssacore.Block, pos src.XPos, v *ssacore.Value, from, to int64) *ssacore.Value {
 	switch from*10 + to {
 	case 82:
 		return b.NewValue1(pos, ssaop.OpTrunc64to16, types.Types[types.TUINT16], v)
@@ -939,7 +940,7 @@ func truncate(b *Block, pos src.XPos, v *Value, from, to int64) *Value {
 		return nil
 	}
 }
-func zeroExtend(b *Block, pos src.XPos, v *Value, from, to int64) *Value {
+func zeroExtend(b *ssacore.Block, pos src.XPos, v *ssacore.Value, from, to int64) *ssacore.Value {
 	switch from*10 + to {
 	case 24:
 		return b.NewValue1(pos, ssaop.OpZeroExt16to32, types.Types[types.TUINT32], v)
@@ -953,7 +954,7 @@ func zeroExtend(b *Block, pos src.XPos, v *Value, from, to int64) *Value {
 	}
 }
 
-func leftShift(b *Block, pos src.XPos, v *Value, shift int64) *Value {
+func leftShift(b *ssacore.Block, pos src.XPos, v *ssacore.Value, shift int64) *ssacore.Value {
 	s := b.Func.ConstInt64(types.Types[types.TUINT64], shift)
 	size := v.Type.Size()
 	switch size {
@@ -968,7 +969,7 @@ func leftShift(b *Block, pos src.XPos, v *Value, shift int64) *Value {
 		return nil
 	}
 }
-func rightShift(b *Block, pos src.XPos, v *Value, shift int64) *Value {
+func rightShift(b *ssacore.Block, pos src.XPos, v *ssacore.Value, shift int64) *ssacore.Value {
 	s := b.Func.ConstInt64(types.Types[types.TUINT64], shift)
 	size := v.Type.Size()
 	switch size {
@@ -983,7 +984,7 @@ func rightShift(b *Block, pos src.XPos, v *Value, shift int64) *Value {
 		return nil
 	}
 }
-func byteSwap(b *Block, pos src.XPos, v *Value) *Value {
+func byteSwap(b *ssacore.Block, pos src.XPos, v *ssacore.Value) *ssacore.Value {
 	switch v.Type.Size() {
 	case 8:
 		return b.NewValue1(pos, ssaop.OpBswap64, v.Type, v)

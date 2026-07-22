@@ -6,6 +6,7 @@ package ssa
 
 import (
 	"cmd/compile/internal/ssa/block"
+	"cmd/compile/internal/ssa/ssacore"
 	"cmd/compile/internal/ssa/ssaop"
 )
 
@@ -13,7 +14,7 @@ import (
 // are always correlated and rewrites the CFG to take
 // advantage of that fact.
 // This optimization is useful for compiling && and || expressions.
-func shortcircuit(f *Func) {
+func shortcircuit(f *ssacore.Func) {
 	// Step 1: Replace a phi arg with a constant if that arg
 	// is the control value of a preceding If block.
 	// b1:
@@ -22,7 +23,7 @@ func shortcircuit(f *Func) {
 	//    x = phi(a, ...)
 	//
 	// We can replace the "a" in the phi with the constant true.
-	var ct, cf *Value
+	var ct, cf *ssacore.Value
 	for _, b := range f.Blocks {
 		for _, v := range b.Values {
 			if v.Op != ssaop.OpPhi {
@@ -109,7 +110,7 @@ func shortcircuit(f *Func) {
 // We can do that though a combination of moving w to a different block
 // and rewriting uses of w to use a different value instead.
 // See shortcircuitPhiPlan for details.
-func shortcircuitBlock(b *Block) bool {
+func shortcircuitBlock(b *ssacore.Block) bool {
 	if b.Kind != block.BlockIf {
 		return false
 	}
@@ -149,7 +150,7 @@ func shortcircuitBlock(b *Block) bool {
 		// Check for any phi which is the argument of another phi.
 		// These cases are tricky, as substitutions done by replaceUses
 		// are no longer trivial to do in any ordering. See issue 45175.
-		m := make(map[*Value]bool, 1+nOtherPhi)
+		m := make(map[*ssacore.Value]bool, 1+nOtherPhi)
 		for _, v := range b.Values {
 			if v.Op == ssaop.OpPhi {
 				m[v] = true
@@ -190,7 +191,7 @@ func shortcircuitBlock(b *Block) bool {
 		return false
 	}
 
-	var fixPhi func(*Value, int)
+	var fixPhi func(*ssacore.Value, int)
 	if nOtherPhi > 0 {
 		fixPhi = shortcircuitPhiPlan(b, ctl, cidx, ti)
 		if fixPhi == nil {
@@ -206,10 +207,10 @@ func shortcircuitBlock(b *Block) bool {
 	b.RemovePhiArg(ctl, cidx)
 
 	// Redirect p's outgoing edge to t.
-	p.Succs[pi] = Edge{t, len(t.Preds)}
+	p.Succs[pi] = ssacore.Edge{B: t, I: len(t.Preds)}
 
 	// Fix up t to have one more predecessor.
-	t.Preds = append(t.Preds, Edge{p, pi})
+	t.Preds = append(t.Preds, ssacore.Edge{B: p, I: pi})
 	for _, v := range t.Values {
 		if v.Op != ssaop.OpPhi {
 			continue
@@ -246,7 +247,7 @@ func shortcircuitBlock(b *Block) bool {
 				}
 			}
 			if phi.Uses != 0 {
-				PhiElimValue(phi)
+				ssacore.PhiElimValue(phi)
 			} else {
 				phi.Reset(ssaop.OpInvalid)
 			}
@@ -267,7 +268,7 @@ func shortcircuitBlock(b *Block) bool {
 		b.Kind = block.BlockInvalid
 	}
 
-	PhiElimValue(ctl)
+	ssacore.PhiElimValue(ctl)
 	return true
 }
 
@@ -281,7 +282,7 @@ func shortcircuitBlock(b *Block) bool {
 // If shortcircuitPhiPlan returns nil, there is no plan available,
 // and the CFG modifications must not proceed.
 // The returned function assumes that shortcircuitBlock has completed its CFG modifications.
-func shortcircuitPhiPlan(b *Block, ctl *Value, cidx int, ti int64) func(*Value, int) {
+func shortcircuitPhiPlan(b *ssacore.Block, ctl *ssacore.Value, cidx int, ti int64) func(*ssacore.Value, int) {
 	// t is the "taken" branch: the successor we always go to when coming in from p.
 	t := b.Succs[ti].B
 	// u is the "untaken" branch: the successor we never go to when coming in from p.
@@ -323,7 +324,7 @@ func shortcircuitPhiPlan(b *Block, ctl *Value, cidx int, ti int64) func(*Value, 
 			//   m
 			//
 			// NB: t.Preds is (b, p), not (p, b).
-			return func(v *Value, i int) {
+			return func(v *ssacore.Value, i int) {
 				// Replace any uses of v in t and u with the value v must have,
 				// given that we have arrived at that block.
 				// Then move v to m and adjust its value accordingly;
@@ -370,7 +371,7 @@ func shortcircuitPhiPlan(b *Block, ctl *Value, cidx int, ti int64) func(*Value, 
 			//   t
 			//
 			// NB: t.Preds is (b or U, b or U, p).
-			return func(v *Value, i int) {
+			return func(v *ssacore.Value, i int) {
 				// Replace any uses of v in U. Then move v to t.
 				argP, argQ := v.Args[cidx], v.Args[1^cidx]
 				for bb := range visited {
@@ -402,7 +403,7 @@ func shortcircuitPhiPlan(b *Block, ctl *Value, cidx int, ti int64) func(*Value, 
 		//   u
 		//
 		// NB: t.Preds is (b, p), not (p, b).
-		return func(v *Value, i int) {
+		return func(v *ssacore.Value, i int) {
 			// Replace any uses of v in t. Then move v to u.
 			argP, argQ := v.Args[cidx], v.Args[1^cidx]
 			phi := t.Func.NewValue(ssaop.OpPhi, v.Type, t, v.Pos)
@@ -441,7 +442,7 @@ func shortcircuitPhiPlan(b *Block, ctl *Value, cidx int, ti int64) func(*Value, 
 		// t   u
 		//
 		// NB: t.Preds is (b, p), not (p, b).
-		return func(v *Value, i int) {
+		return func(v *ssacore.Value, i int) {
 			// Replace any uses of v in t and x. Then move v to u.
 			argP, argQ := v.Args[cidx], v.Args[1^cidx]
 			// If there are no uses of v in t or x, this phi will be unused.
@@ -475,7 +476,7 @@ func shortcircuitPhiPlan(b *Block, ctl *Value, cidx int, ti int64) func(*Value, 
 		// t   u
 		//
 		// NB: t.Preds is (b, p), not (p, b).
-		return func(v *Value, i int) {
+		return func(v *ssacore.Value, i int) {
 			// Replace any uses of v in u (and x). Then move v to t.
 			argP, argQ := v.Args[cidx], v.Args[1^cidx]
 			u.ReplaceUses(v, argQ)
@@ -485,117 +486,5 @@ func shortcircuitPhiPlan(b *Block, ctl *Value, cidx int, ti int64) func(*Value, 
 	}
 
 	// TODO: handle more cases; shortcircuit optimizations turn out to be reasonably high impact
-	return nil
-}
-
-// ReplaceUses replaces all uses of old in b with new.
-func (b *Block) ReplaceUses(old, new *Value) {
-	for _, v := range b.Values {
-		for i, a := range v.Args {
-			if a == old {
-				v.SetArg(i, new)
-			}
-		}
-	}
-	for i, v := range b.ControlValues() {
-		if v == old {
-			b.ReplaceControl(i, new)
-		}
-	}
-}
-
-// MoveTo moves v to dst, adjusting the appropriate Block.Values slices.
-// The caller is responsible for ensuring that this is safe.
-// i is the index of v in v.Block.Values.
-func (v *Value) MoveTo(dst *Block, i int) {
-	if dst.Func.Scheduled {
-		v.Fatalf("moveTo after scheduling")
-	}
-	src := v.Block
-	if src.Values[i] != v {
-		v.Fatalf("moveTo bad index %d", v, i)
-	}
-	if src == dst {
-		return
-	}
-	v.Block = dst
-	dst.Values = append(dst.Values, v)
-	last := len(src.Values) - 1
-	src.Values[i] = src.Values[last]
-	src.Values[last] = nil
-	src.Values = src.Values[:last]
-}
-
-// FlowsTo checks that the subgraph starting from v and ends at t is a DAG, with
-// the following constraints:
-//
-//	(1) v can reach t.
-//	(2) v's connected component removing the paths containing t is a DAG.
-//	(3) The blocks in the subgraph G defined in (2) has all their preds also in G,
-//	    except v.
-//	(4) The subgraph defined in (2) has a size smaller than cap.
-//
-//	We know that the subgraph G defined in constraint (2)(3) has the property that v
-//	dominates all the blocks in G:
-//		If there exist a block x in G that is not dominated by v, then there exist a
-//		path P from entry to x that does not contain v. Denote x's predecessor in P
-//		as x', then x' must also be in G given constraint (3), same to its pred x''
-//		in P. Given constraint (2), by going back in P we will in the end reach v,
-//		which conflicts with the definition of P.
-//
-// Constraint (2)'s DAG requirement could be further relaxed to contain "internal"
-// loops that doesn't change the dominance relation of v. But that is more subtle
-// and requires another constraint on the source block v, and a more complex proof.
-// Furthermore optimizing the branch guarding a loop might bring less gains as the
-// loop itself might be the bottleneck.
-func (v *Block) FlowsTo(t *Block, cap int) map[*Block]struct{} {
-	seen := map[*Block]struct{}{}
-	var boundedDFS func(b *Block)
-	hasPathToT := false
-	fullyExplored := true
-	isDAG := true
-	visited := map[*Block]struct{}{}
-	boundedDFS = func(b *Block) {
-		if _, ok := seen[b]; ok {
-			return
-		}
-		if _, ok := visited[b]; ok {
-			isDAG = false
-			return
-		}
-		if b == t {
-			// do not put t into seen, this way
-			// if v can reach t's connected component without going through t,
-			// it will fail the pred check after boundedDFSUntil.
-			hasPathToT = true
-			return
-		}
-		if len(seen) > cap {
-			fullyExplored = false
-			return
-		}
-		seen[b] = struct{}{}
-		visited[b] = struct{}{}
-		for _, se := range b.Succs {
-			boundedDFS(se.B)
-			if !(isDAG && fullyExplored) {
-				return
-			}
-		}
-		delete(visited, b)
-	}
-	boundedDFS(v)
-	if hasPathToT && fullyExplored && isDAG {
-		for b := range seen {
-			if b != v {
-				for _, se := range b.Preds {
-					if _, ok := seen[se.B]; !ok {
-						return nil
-					}
-				}
-			}
-		}
-		return seen
-	}
 	return nil
 }

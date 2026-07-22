@@ -4,12 +4,15 @@
 
 package ssa
 
-import "cmd/compile/internal/ssa/ssaop"
+import (
+	"cmd/compile/internal/ssa/ssacore"
+	"cmd/compile/internal/ssa/ssaop"
+)
 
 // combine copyelim and phielim into a single pass.
 // copyelim removes all uses of OpCopy values from f.
 // A subsequent deadcode pass is needed to actually remove the copies.
-func copyelim(f *Func) {
+func copyelim(f *ssacore.Func) {
 	phielim(f)
 
 	// loop of copyelimValue(v) process has been done in phielim() pass.
@@ -35,7 +38,7 @@ func copyelim(f *Func) {
 
 // copySource returns the (non-copy) op which is the
 // ultimate source of v.  v must be a copy op.
-func copySource(v *Value) *Value {
+func copySource(v *ssacore.Value) *ssacore.Value {
 	w := v.Args[0]
 
 	// This loop is just:
@@ -73,7 +76,7 @@ func copySource(v *Value) *Value {
 }
 
 // copyelimValue ensures that no args of v are copies.
-func copyelimValue(v *Value) {
+func copyelimValue(v *ssacore.Value) {
 	for i, a := range v.Args {
 		if a.Op == ssaop.OpCopy {
 			v.SetArg(i, copySource(a))
@@ -99,7 +102,7 @@ func copyelimValue(v *Value) {
 //	w = phi(v, w, x)
 //
 // and would that be useful?
-func phielim(f *Func) {
+func phielim(f *ssacore.Func) {
 	for {
 		change := false
 		for _, b := range f.Blocks {
@@ -112,48 +115,11 @@ func phielim(f *Func) {
 				// Modify all values so no arg (including args
 				// of OpCopy) is a copy.
 				copyelimValue(v)
-				change = PhiElimValue(v) || change
+				change = ssacore.PhiElimValue(v) || change
 			}
 		}
 		if !change {
 			break
 		}
 	}
-}
-
-// PhiElimValue tries to convert the phi v to a copy.
-func PhiElimValue(v *Value) bool {
-	if v.Op != ssaop.OpPhi {
-		return false
-	}
-
-	// If there are two distinct args of v which
-	// are not v itself, then the phi must remain.
-	// Otherwise, we can replace it with a copy.
-	var w *Value
-	for _, x := range v.Args {
-		if x == v {
-			continue
-		}
-		if x == w {
-			continue
-		}
-		if w != nil {
-			return false
-		}
-		w = x
-	}
-
-	if w == nil {
-		// v references only itself. It must be in
-		// a dead code loop. Don't bother modifying it.
-		return false
-	}
-	v.Op = ssaop.OpCopy
-	v.SetArgs1(w)
-	f := v.Block.Func
-	if f.Pass.Debug > 0 {
-		f.Warnl(v.Pos, "eliminated phi")
-	}
-	return true
 }

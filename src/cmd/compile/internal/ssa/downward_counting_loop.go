@@ -5,6 +5,7 @@
 package ssa
 
 import (
+	"cmd/compile/internal/ssa/ssacore"
 	"cmd/compile/internal/ssa/ssaop"
 	"fmt"
 )
@@ -46,7 +47,7 @@ import (
 // while the original form keeps ind then nxt and end alive.
 //
 // If the loop could not be rewritten, it is left unchanged.
-func maybeRewriteLoopToDownwardCountingLoop(f *Func, v indVar) {
+func maybeRewriteLoopToDownwardCountingLoop(f *ssacore.Func, v indVar) {
 	ind := v.ind
 	nxt := v.nxt
 	if !(ind.Uses == 2 && // 2 used by comparison and next
@@ -90,7 +91,7 @@ func maybeRewriteLoopToDownwardCountingLoop(f *Func, v indVar) {
 
 	switch check.Op {
 	case ssaop.OpLess8, ssaop.OpLess16, ssaop.OpLess32, ssaop.OpLess64, ssaop.OpLeq8, ssaop.OpLeq16, ssaop.OpLeq32, ssaop.OpLeq64:
-		if _, ok := SafeAdd(start.AuxInt, neededRoom, uint(start.Type.Size())*8); !ok {
+		if _, ok := ssacore.SafeAdd(start.AuxInt, neededRoom, uint(start.Type.Size())*8); !ok {
 			// We lack sufficient room after start to safely land without an overflow.
 			// See go.dev/issue/78303
 			return

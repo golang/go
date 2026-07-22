@@ -2,11 +2,12 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-package ssa
+package ssacore
 
 import (
-	"cmd/internal/obj"
 	"sort"
+
+	"cmd/internal/obj"
 )
 
 // A Cache holds reusable compiler state.

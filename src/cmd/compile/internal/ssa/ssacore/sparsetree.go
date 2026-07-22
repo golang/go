@@ -2,50 +2,12 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-package ssa
+package ssacore
 
 import (
 	"fmt"
 	"strings"
 )
-
-type SparseTreeNode struct {
-	Child   *Block
-	Sibling *Block
-	parent  *Block
-
-	// Every block has 6 numbers associated with it:
-	// Entry-1, Entry, Entry+1, Exit-1, and Exit, Exit+1.
-	// Entry and Exit are conceptually the top of the block (phi functions)
-	// Entry+1 and Exit-1 are conceptually the bottom of the block (ordinary defs)
-	// Entry-1 and Exit+1 are conceptually "just before" the block (conditions flowing in)
-	//
-	// This simplifies life if we wish to query information about x
-	// when x is both an input to and output of a block.
-	Entry, Exit int32
-}
-
-func (s *SparseTreeNode) String() string {
-	return fmt.Sprintf("[%d,%d]", s.Entry, s.Exit)
-}
-
-const (
-	// When used to lookup up definitions in a sparse tree,
-	// these adjustments to a block's entry (+adjust) and
-	// exit (-adjust) numbers allow a distinction to be made
-	// between assignments (typically branch-dependent
-	// conditionals) occurring "before" the block (e.g., as inputs
-	// to the block and its phi functions), "within" the block,
-	// and "after" the block.
-	AdjustBefore = -1 // defined before phi
-	AdjustWithin = 0  // defined by phi
-	AdjustAfter  = 1  // defined within block
-)
-
-// A SparseTree is a tree of Blocks.
-// It allows rapid ancestor queries,
-// such as whether one block dominates another.
-type SparseTree []SparseTreeNode
 
 // NewSparseTree creates a SparseTree from a block-to-parent map (array indexed by Block.ID).
 // The children of a given node are in reverse postorder.
@@ -66,12 +28,51 @@ func NewSparseTree(f *Func, parentOf []*Block) SparseTree {
 	return t
 }
 
+// A SparseTree is a tree of Blocks.
+// It allows rapid ancestor queries,
+// such as whether one block dominates another.
+type SparseTree []SparseTreeNode
+
+type SparseTreeNode struct {
+	Child   *Block
+	Sibling *Block
+	parent  *Block
+
+	// Every block has 6 numbers associated with it:
+	// Entry-1, Entry, Entry+1, Exit-1, and Exit, Exit+1.
+	// Entry and Exit are conceptually the top of the block (phi functions)
+	// Entry+1 and Exit-1 are conceptually the bottom of the block (ordinary defs)
+	// Entry-1 and Exit+1 are conceptually "just before" the block (conditions flowing in)
+	//
+	// This simplifies life if we wish to query information about x
+	// when x is both an input to and output of a block.
+	Entry, Exit int32
+}
+
+const (
+	// When used to lookup up definitions in a sparse tree,
+	// these adjustments to a block's entry (+adjust) and
+	// exit (-adjust) numbers allow a distinction to be made
+	// between assignments (typically branch-dependent
+	// conditionals) occurring "before" the block (e.g., as inputs
+	// to the block and its phi functions), "within" the block,
+	// and "after" the block.
+	AdjustBefore = -1 // defined before phi
+	AdjustWithin = 0  // defined by phi
+	AdjustAfter  = 1  // defined within block
+)
+
+func (s *SparseTreeNode) String() string {
+	return fmt.Sprintf("[%d,%d]", s.Entry, s.Exit)
+}
+
 // Treestructure provides a string description of the dominator
 // tree and flow structure of block b and all blocks that it
 // dominates.
 func (t SparseTree) Treestructure(b *Block) string {
 	return t.treestructure1(b, 0)
 }
+
 func (t SparseTree) treestructure1(b *Block, i int) string {
 	s := "\n" + strings.Repeat("\t", i) + b.String() + "->["
 	for i, e := range b.Succs {

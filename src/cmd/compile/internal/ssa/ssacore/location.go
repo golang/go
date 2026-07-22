@@ -2,18 +2,16 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-package ssa
+package ssacore
 
 import (
+	"fmt"
+
 	"cmd/compile/internal/ir"
 	"cmd/compile/internal/types"
-	"fmt"
 )
 
-// A place that an ssa variable can reside.
-type Location interface {
-	String() string // name to use in assembly templates: AX, 16(SP), ...
-}
+type LocPair [2]Location
 
 // A LocalSlot is a location in the stack frame, which identifies and stores
 // part or all of a PPARAM, PPARAMOUT, or PAUTO ONAME node.
@@ -43,14 +41,25 @@ type LocalSlot struct {
 	SplitOffset int64      // .. at this offset.
 }
 
+// A place that an ssa variable can reside.
+type Location interface {
+	String() string // name to use in assembly templates: AX, 16(SP), ...
+}
+
+type Spill struct {
+	Type   *types.Type
+	Offset int64
+	Reg    int16
+}
+
+type LocResults []Location
+
 func (s LocalSlot) String() string {
 	if s.Off == 0 {
 		return fmt.Sprintf("%v[%v]", s.N, s.Type)
 	}
 	return fmt.Sprintf("%v+%d[%v]", s.N, s.Off, s.Type)
 }
-
-type LocPair [2]Location
 
 func (t LocPair) String() string {
 	n0, n1 := "nil", "nil"
@@ -63,8 +72,6 @@ func (t LocPair) String() string {
 	return fmt.Sprintf("<%s,%s>", n0, n1)
 }
 
-type LocResults []Location
-
 func (t LocResults) String() string {
 	s := ""
 	a := "<"
@@ -75,10 +82,4 @@ func (t LocResults) String() string {
 	}
 	a += ">"
 	return a
-}
-
-type Spill struct {
-	Type   *types.Type
-	Offset int64
-	Reg    int16
 }
