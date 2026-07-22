@@ -30,7 +30,7 @@ var FmtAppendfAnalyzer = &analysis.Analyzer{
 		typeindexanalyzer.Analyzer,
 	},
 	Run: fmtappendf,
-	URL: "https://pkg.go.dev/golang.org/x/tools/go/analysis/passes/modernize#fmtappendf",
+	URL: "https://pkg.go.dev/golang.org/x/tools/go/analysis/passes/modernize#hdr-Analyzer_fmtappendf",
 }
 
 // The fmtappend function replaces []byte(fmt.Sprintf(...)) by

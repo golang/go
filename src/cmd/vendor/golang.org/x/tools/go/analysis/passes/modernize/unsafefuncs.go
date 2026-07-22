@@ -34,7 +34,7 @@ var unsafeFuncsAnalyzer = &analysis.Analyzer{
 	Doc:      analyzerutil.MustExtractDoc(doc, "unsafefuncs"),
 	Requires: []*analysis.Analyzer{inspect.Analyzer},
 	Run:      unsafefuncs,
-	URL:      "https://pkg.go.dev/golang.org/x/tools/go/analysis/passes/modernize#unsafefuncs",
+	URL:      "https://pkg.go.dev/golang.org/x/tools/go/analysis/passes/modernize#hdr-Analyzer_unsafefuncs",
 }
 
 func unsafefuncs(pass *analysis.Pass) (any, error) {

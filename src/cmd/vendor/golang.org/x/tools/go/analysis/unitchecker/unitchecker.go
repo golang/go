@@ -59,7 +59,7 @@ import (
 // whose name ends with ".cfg".
 type Config struct {
 	ID                        string // e.g. "fmt [fmt.test]"
-	Compiler                  string // gc or gccgo, provided to MakeImporter
+	Compiler                  string // gc or gccgo, provided to makeTypesImporter
 	Dir                       string // (unused)
 	ImportPath                string // package path
 	GoVersion                 string // minimum required Go version, such as "go1.21.0"
@@ -296,7 +296,7 @@ var (
 		return importerFunc(func(importPath string) (*types.Package, error) {
 			path, ok := cfg.ImportMap[importPath] // resolve vendoring, etc
 			if !ok {
-				return nil, fmt.Errorf("can't resolve import %q", path)
+				return nil, fmt.Errorf("can't resolve import %q", importPath)
 			}
 			return compilerImporter.Import(path)
 		})

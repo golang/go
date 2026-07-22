@@ -97,5 +97,8 @@ func main() {
 		}
 		fmt.Fprintf(stdout, "%s\n%s:%d\n", name, file, line)
 	}
+	if err := stdin.Err(); err != nil {
+		log.Fatalf("parsing stdin: %v", err)
+	}
 	stdout.Flush()
 }

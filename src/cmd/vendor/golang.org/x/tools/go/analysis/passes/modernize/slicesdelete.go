@@ -25,7 +25,7 @@ var SlicesDeleteAnalyzer = &analysis.Analyzer{
 	Doc:      analyzerutil.MustExtractDoc(doc, "slicesdelete"),
 	Requires: []*analysis.Analyzer{inspect.Analyzer},
 	Run:      slicesdelete,
-	URL:      "https://pkg.go.dev/golang.org/x/tools/go/analysis/passes/modernize#slicesdelete",
+	URL:      "https://pkg.go.dev/golang.org/x/tools/go/analysis/passes/modernize#hdr-Analyzer_slicesdelete",
 }
 
 // The slicesdelete pass attempts to replace instances of append(s[:i], s[i+k:]...)

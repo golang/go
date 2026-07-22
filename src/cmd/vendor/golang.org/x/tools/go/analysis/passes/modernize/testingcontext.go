@@ -33,7 +33,7 @@ var TestingContextAnalyzer = &analysis.Analyzer{
 		typeindexanalyzer.Analyzer,
 	},
 	Run: testingContext,
-	URL: "https://pkg.go.dev/golang.org/x/tools/go/analysis/passes/modernize#testingcontext",
+	URL: "https://pkg.go.dev/golang.org/x/tools/go/analysis/passes/modernize#hdr-Analyzer_testingcontext",
 }
 
 // The testingContext pass replaces calls to context.WithCancel from within

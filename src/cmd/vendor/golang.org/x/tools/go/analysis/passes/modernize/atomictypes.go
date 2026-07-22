@@ -33,7 +33,7 @@ var AtomicTypesAnalyzer = &analysis.Analyzer{
 		typeindexanalyzer.Analyzer,
 	},
 	Run: runAtomic,
-	URL: "https://pkg.go.dev/golang.org/x/tools/go/analysis/passes/modernize#atomictypes",
+	URL: "https://pkg.go.dev/golang.org/x/tools/go/analysis/passes/modernize#hdr-Analyzer_atomictypes",
 }
 
 // TODO(mkalil): support the Pointer variants.

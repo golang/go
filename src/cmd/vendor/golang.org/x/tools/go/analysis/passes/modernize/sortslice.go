@@ -28,7 +28,7 @@ var SlicesSortAnalyzer = &analysis.Analyzer{
 		typeindexanalyzer.Analyzer,
 	},
 	Run: slicessort,
-	URL: "https://pkg.go.dev/golang.org/x/tools/go/analysis/passes/modernize#slicessort",
+	URL: "https://pkg.go.dev/golang.org/x/tools/go/analysis/passes/modernize#hdr-Analyzer_slicessort",
 }
 
 // The slicessort pass replaces sort.Slice(slice, less) with

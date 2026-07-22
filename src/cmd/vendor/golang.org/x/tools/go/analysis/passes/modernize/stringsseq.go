@@ -28,7 +28,7 @@ var StringsSeqAnalyzer = &analysis.Analyzer{
 		typeindexanalyzer.Analyzer,
 	},
 	Run: stringsseq,
-	URL: "https://pkg.go.dev/golang.org/x/tools/go/analysis/passes/modernize#stringsseq",
+	URL: "https://pkg.go.dev/golang.org/x/tools/go/analysis/passes/modernize#hdr-Analyzer_stringsseq",
 }
 
 // stringsseq offers a fix to replace a call to strings.Split with

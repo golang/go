@@ -959,7 +959,7 @@ func readFuncLines(file string, start, end uint) (*ssa.FuncLines, error) {
 	if err != nil {
 		return nil, err
 	}
-	defer f.Close()
+	defer f.Close() // ignore error
 	var lines []string
 	ln := uint(1)
 	scanner := bufio.NewScanner(f)
@@ -968,6 +968,9 @@ func readFuncLines(file string, start, end uint) (*ssa.FuncLines, error) {
 			lines = append(lines, scanner.Text())
 		}
 		ln++
+	}
+	if err := scanner.Err(); err != nil {
+		return nil, fmt.Errorf("scanning %s: %v", file, err)
 	}
 	return &ssa.FuncLines{Filename: file, StartLineno: start, Lines: lines}, nil
 }
