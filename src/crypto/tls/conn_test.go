@@ -321,3 +321,37 @@ func TestRecordBadVersionTLS13(t *testing.T) {
 		t.Fatalf("unexpected error: got %q, want %q", err, expectedErr)
 	}
 }
+
+// TestKeyUpdateSpamPostHandshakeTLS13 tests that TLS 1.3 KeyUpdate messages do
+// not count as a state-advancing message after a handshake has been completed.
+func TestKeyUpdateSpamPostHandshakeTLS13(t *testing.T) {
+	client, server := localPipe(t)
+	defer server.Close()
+	defer client.Close()
+
+	go func() {
+		c := Client(client, testConfig.Clone())
+		if err := c.Handshake(); err != nil {
+			t.Error(err)
+			return
+		}
+		ku, err := (&keyUpdateMsg{}).marshal()
+		if err != nil {
+			t.Error(err)
+			return
+		}
+		cs := cipherSuiteTLS13ByID(c.cipherSuite)
+		for i := 0; i <= maxUselessRecords; i++ {
+			c.writeRecordLocked(recordTypeHandshake, ku)
+			c.setWriteTrafficSecret(cs, QUICEncryptionLevelInitial, cs.nextTrafficSecret(c.out.trafficSecret))
+		}
+	}()
+	s := Server(server, testConfig.Clone())
+	if err := s.Handshake(); err != nil {
+		t.Fatal(err)
+	}
+	expectedErr := "tls: too many non-advancing records"
+	if _, err := s.Read(make([]byte, 1)); err == nil || err.Error() != expectedErr {
+		t.Fatalf("unexpected error: got %v, want %q", err, expectedErr)
+	}
+}
