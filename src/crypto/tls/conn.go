@@ -700,7 +700,7 @@ func (c *Conn) readRecordOrCCS(expectChangeCipherSpec bool) error {
 		return c.in.setErrorLocked(c.sendAlert(alertUnexpectedMessage))
 	}
 
-	if typ != recordTypeAlert && typ != recordTypeChangeCipherSpec && len(data) > 0 {
+	if (typ == recordTypeApplicationData || (typ == recordTypeHandshake && !handshakeComplete)) && len(data) > 0 {
 		// This is a state-advancing message: reset the retry count.
 		c.retryCount = 0
 	}
