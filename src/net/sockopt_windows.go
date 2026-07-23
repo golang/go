@@ -16,7 +16,8 @@ func setDefaultSockopts(s syscall.Handle, family, sotype int, ipv6only bool) err
 		// never admit this option.
 		syscall.SetsockoptInt(s, syscall.IPPROTO_IPV6, syscall.IPV6_V6ONLY, boolint(ipv6only))
 	}
-	if (sotype == syscall.SOCK_DGRAM || sotype == syscall.SOCK_RAW) && family != syscall.AF_UNIX && family != syscall.AF_INET6 {
+	if family == syscall.AF_INET && (sotype == syscall.SOCK_DGRAM || sotype == syscall.SOCK_RAW) || // IPv4 UDP and raw sockets
+		family == syscall.AF_INET6 && sotype == syscall.SOCK_DGRAM && !ipv6only { // dual-stack IPv6 UDP sockets
 		// Allow broadcast.
 		return os.NewSyscallError("setsockopt", syscall.SetsockoptInt(s, syscall.SOL_SOCKET, syscall.SO_BROADCAST, 1))
 	}
