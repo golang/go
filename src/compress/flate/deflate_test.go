@@ -494,12 +494,9 @@ func TestWriterDict(t *testing.T) {
 	}
 }
 
-// TestWriterDictIncompressible checks that the preset dictionary is never
-// emitted into the output. Incompressible input makes the raw-window stored
-// fallback in writeBlock win over the tokens; that window used to start at
-// blockStart == 0 and leak the dictionary into the first block.
-// See https://go.dev/issue/80538
-func TestWriterDictIncompressible(t *testing.T) {
+// TestNonCompressedBlockDoesntLeakDict checks that the dictionary isn't sent when
+// sending a non-compressed block. See https://go.dev/issue/80538
+func TestNonCompressedBlockDoesntLeakDict(t *testing.T) {
 	data := make([]byte, 763)
 	rand.New(rand.NewSource(42)).Read(data)
 	dict := []byte("0123456789abcdefghij")
@@ -523,6 +520,9 @@ func TestWriterDictIncompressible(t *testing.T) {
 			if !bytes.Equal(got, data) {
 				t.Errorf("round trip mismatch: got %d bytes, want %d (dictionary emitted: %v)",
 					len(got), len(data), bytes.HasPrefix(got, dict))
+			}
+			if b.Len() != 0 {
+				t.Errorf("compressed stream not fully consumed: %d bytes left", b.Len())
 			}
 		})
 	}
