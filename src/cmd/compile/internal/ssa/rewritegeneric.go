@@ -14703,13 +14703,13 @@ func rewriteValuegeneric_OpLoad(v *Value) bool {
 		return true
 	}
 	// match: (Load <t> ptr mem)
-	// cond: t.IsArray() && t.NumElem() == 1 && CanSSA(t)
+	// cond: t.IsArray() && t.NumElem() == 1 && t.Size() > 0 && CanSSA(t)
 	// result: (ArrayMake1 (Load <t.Elem()> ptr mem))
 	for {
 		t := v.Type
 		ptr := v_0
 		mem := v_1
-		if !(t.IsArray() && t.NumElem() == 1 && CanSSA(t)) {
+		if !(t.IsArray() && t.NumElem() == 1 && t.Size() > 0 && CanSSA(t)) {
 			break
 		}
 		v.reset(OpArrayMake1)

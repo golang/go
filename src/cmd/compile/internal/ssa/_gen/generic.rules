@@ -1014,7 +1014,7 @@
 // array ops
 (ArraySelect (ArrayMake1 x)) => x
 
-(Load <t> ptr mem) && t.IsArray() && t.NumElem() == 1 && CanSSA(t) =>
+(Load <t> ptr mem) && t.IsArray() && t.NumElem() == 1 && t.Size() > 0 && CanSSA(t) =>
   (ArrayMake1 (Load <t.Elem()> ptr mem))
 
 (Store dst (ArrayMake1 e) mem) => (Store {e.Type} dst e mem)
