@@ -2122,3 +2122,5 @@ func MallocGC(size uintptr, typ *abi.Type, needzero bool) unsafe.Pointer {
 func FuncNamePiecesForPrint(name string) (string, string, string, string, string) {
 	return funcNamePiecesForPrint(name)
 }
+
+var InHeapOrStack = inHeapOrStack
