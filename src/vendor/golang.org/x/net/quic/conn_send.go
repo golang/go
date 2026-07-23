@@ -287,7 +287,7 @@ func (c *Conn) appendFrames(now time.Time, space numberSpace, pnum packetNumber,
 			return
 		}
 
-		if !c.appendKeepAlive(now) {
+		if !c.appendKeepAlive() {
 			return
 		}
 	}

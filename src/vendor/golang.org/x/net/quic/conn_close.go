@@ -105,6 +105,7 @@ func (c *Conn) setState(now time.Time, state connState) {
 		c.setFinalError(nil)
 	}
 	if state != connStateAlive {
+		c.restartIdleTimer(now) // disable idle timer
 		c.streamsCleanup()
 	}
 }

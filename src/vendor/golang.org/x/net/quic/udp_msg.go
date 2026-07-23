@@ -64,7 +64,7 @@ func (c *netUDPConn) LocalAddr() netip.AddrPort {
 	return a.AddrPort()
 }
 
-func (c *netUDPConn) Read(f func(*datagram)) {
+func (c *netUDPConn) Read(f func(*datagram)) error {
 	// We shouldn't ever see all of these messages at the same time,
 	// but the total is small so just allocate enough space for everything we use.
 	const (
@@ -83,7 +83,7 @@ func (c *netUDPConn) Read(f func(*datagram)) {
 		d := newDatagram()
 		n, controlLen, _, peerAddr, err := c.c.ReadMsgUDPAddrPort(d.b, control)
 		if err != nil {
-			return
+			return err
 		}
 		if n == 0 {
 			continue

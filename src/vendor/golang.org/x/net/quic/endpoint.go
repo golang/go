@@ -8,6 +8,7 @@ import (
 	"context"
 	"crypto/rand"
 	"errors"
+	"fmt"
 	"net"
 	"net/netip"
 	"sync"
@@ -43,7 +44,7 @@ type endpointTestHooks interface {
 type packetConn interface {
 	Close() error
 	LocalAddr() netip.AddrPort
-	Read(f func(*datagram))
+	Read(f func(*datagram)) error
 	Write(datagram) error
 }
 
@@ -230,12 +231,13 @@ func (e *Endpoint) connDrained(c *Conn) {
 
 func (e *Endpoint) listen() {
 	defer close(e.closec)
-	e.packetConn.Read(func(m *datagram) {
+	err := e.packetConn.Read(func(m *datagram) {
 		if e.connsMap.updateNeeded.Load() {
 			e.connsMap.applyUpdates()
 		}
 		e.handleDatagram(m)
 	})
+	e.acceptQueue.close(fmt.Errorf("packet connection closed: %v", err))
 }
 
 func (e *Endpoint) handleDatagram(m *datagram) {
