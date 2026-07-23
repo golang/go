@@ -31,6 +31,14 @@ type Plan struct {
 	E []Entry
 }
 
+func canWriteStatic(off int64, typ *types.Type) bool {
+	if off < 0 || off >= obj.MaxDataOffset {
+		return false
+	}
+	// Arrays and structs are checked one plan entry at a time.
+	return typ.IsArray() || typ.IsStruct() || typ.Size() <= obj.MaxDataOffset-off
+}
+
 // An Schedule is used to decompose assignment statements into
 // static and dynamic initialization parts. Static initializations are
 // handled by populating variables' linker symbol data, while dynamic
@@ -155,6 +163,9 @@ func (s *Schedule) tryStaticInit(n ir.Node) bool {
 // like staticassign but we are copying an already
 // initialized value r.
 func (s *Schedule) staticcopy(l *ir.Name, loff int64, rn *ir.Name, typ *types.Type) bool {
+	if !canWriteStatic(loff, typ) {
+		return false
+	}
 	if rn.Class == ir.PFUNC {
 		// TODO if roff != 0 { panic }
 		staticdata.InitAddr(l, loff, staticdata.FuncLinksym(rn))
@@ -255,21 +266,22 @@ func (s *Schedule) staticcopy(l *ir.Name, loff int64, rn *ir.Name, typ *types.Ty
 		p := s.Plans[r]
 		for i := range p.E {
 			e := &p.E[i]
+			off := loff + e.Xoffset
 			typ := e.Expr.Type()
-			if e.Expr.Op() == ir.OLITERAL || e.Expr.Op() == ir.ONIL {
-				staticdata.InitConst(l, loff+e.Xoffset, e.Expr, int(typ.Size()))
+			if (e.Expr.Op() == ir.OLITERAL || e.Expr.Op() == ir.ONIL) && canWriteStatic(off, typ) {
+				staticdata.InitConst(l, off, e.Expr, int(typ.Size()))
 				continue
 			}
 			x := e.Expr
 			if x.Op() == ir.OMETHEXPR {
 				x = x.(*ir.SelectorExpr).FuncName()
 			}
-			if x.Op() == ir.ONAME && s.staticcopy(l, loff+e.Xoffset, x.(*ir.Name), typ) {
+			if x.Op() == ir.ONAME && s.staticcopy(l, off, x.(*ir.Name), typ) {
 				continue
 			}
 			// Requires computation, but we're
 			// copying someone else's computation.
-			ll := ir.NewNameOffsetExpr(base.Pos, l, loff+e.Xoffset, typ)
+			ll := ir.NewNameOffsetExpr(base.Pos, l, off, typ)
 			rr := ir.NewNameOffsetExpr(base.Pos, orig, e.Xoffset, typ)
 			ir.SetPos(rr)
 			s.append(ir.NewAssignStmt(base.Pos, ll, rr))
@@ -297,6 +309,9 @@ func (s *Schedule) StaticAssign(l *ir.Name, loff int64, r ir.Node, typ *types.Ty
 	}
 	for r.Op() == ir.OCONVNOP {
 		r = r.(*ir.ConvExpr).X
+	}
+	if !canWriteStatic(loff, typ) && !ir.IsZero(r) {
+		return false
 	}
 
 	assign := func(pos src.XPos, a *ir.Name, aoff int64, v ir.Node) {
@@ -406,12 +421,13 @@ func (s *Schedule) StaticAssign(l *ir.Name, loff int64, r ir.Node, typ *types.Ty
 		p := s.Plans[r]
 		for i := range p.E {
 			e := &p.E[i]
-			if e.Expr.Op() == ir.OLITERAL && !disableGlobalAddrs || e.Expr.Op() == ir.ONIL {
-				staticdata.InitConst(l, loff+e.Xoffset, e.Expr, int(e.Expr.Type().Size()))
+			off := loff + e.Xoffset
+			if (e.Expr.Op() == ir.OLITERAL && !disableGlobalAddrs || e.Expr.Op() == ir.ONIL) && canWriteStatic(off, e.Expr.Type()) {
+				staticdata.InitConst(l, off, e.Expr, int(e.Expr.Type().Size()))
 				continue
 			}
 			ir.SetPos(e.Expr)
-			assign(base.Pos, l, loff+e.Xoffset, e.Expr)
+			assign(base.Pos, l, off, e.Expr)
 		}
 
 		return true
