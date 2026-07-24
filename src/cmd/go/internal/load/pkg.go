@@ -2443,6 +2443,9 @@ func (p *Package) setBuildInfo(ctx context.Context, f *modfetch.Fetcher, autoVCS
 	if buildmode == "default" {
 		if p.Name == "main" {
 			buildmode = "exe"
+			if platform.DefaultPIE(cfg.Goos, cfg.Goarch, cfg.BuildRace) {
+				buildmode = "pie"
+			}
 		} else {
 			buildmode = "archive"
 		}

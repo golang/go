@@ -47,14 +47,16 @@ go build -o fortune.exe rsc.io/fortune
 go version fortune.exe
 stdout '^fortune.exe: .+'
 go version -m fortune.exe
-stdout -buildmode=exe
+[!default-pie] stdout -buildmode=exe
+[default-pie] stdout -buildmode=pie
 stdout '^\tpath\trsc.io/fortune'
 stdout '^\tmod\trsc.io/fortune\tv1.0.0'
 
 # Check the build info of a binary built from $GOROOT/src/cmd
 go build -o test2json.exe cmd/test2json
 go version -m test2json.exe
-stdout -buildmode=exe
+[!default-pie] stdout -buildmode=exe
+[default-pie] stdout -buildmode=pie
 stdout '^test2json.exe: .+'
 stdout '^\tpath\tcmd/test2json$'
 ! stdout 'mod[^e]'
