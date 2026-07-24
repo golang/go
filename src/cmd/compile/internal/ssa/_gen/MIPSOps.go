@@ -125,26 +125,27 @@ func init() {
 	)
 	// Common regInfo
 	var (
-		gp01      = regInfo{inputs: nil, outputs: []regMask{gp}}
-		gp11      = regInfo{inputs: []regMask{gpg}, outputs: []regMask{gp}}
-		gp11sp    = regInfo{inputs: []regMask{gpspg}, outputs: []regMask{gp}}
-		gp21      = regInfo{inputs: []regMask{gpg, gpg}, outputs: []regMask{gp}}
-		gp31      = regInfo{inputs: []regMask{gp, gp, gp}, outputs: []regMask{gp}}
-		gp2hilo   = regInfo{inputs: []regMask{gpg, gpg}, outputs: []regMask{hi, lo}}
-		gpload    = regInfo{inputs: []regMask{gpspsbg}, outputs: []regMask{gp}}
-		gpstore   = regInfo{inputs: []regMask{gpspsbg, gpg}}
-		gpxchg    = regInfo{inputs: []regMask{gpspsbg, gpg}, outputs: []regMask{gp}}
-		gpcas     = regInfo{inputs: []regMask{gpspsbg, gpg, gpg}, outputs: []regMask{gp}}
-		gpstore0  = regInfo{inputs: []regMask{gpspsbg}}
-		fpgp      = regInfo{inputs: []regMask{fp}, outputs: []regMask{gp}}
-		gpfp      = regInfo{inputs: []regMask{gp}, outputs: []regMask{fp}}
-		fp01      = regInfo{inputs: nil, outputs: []regMask{fp}}
-		fp11      = regInfo{inputs: []regMask{fp}, outputs: []regMask{fp}}
-		fp21      = regInfo{inputs: []regMask{fp, fp}, outputs: []regMask{fp}}
-		fp2flags  = regInfo{inputs: []regMask{fp, fp}}
-		fpload    = regInfo{inputs: []regMask{gpspsbg}, outputs: []regMask{fp}}
-		fpstore   = regInfo{inputs: []regMask{gpspsbg, fp}}
-		readflags = regInfo{inputs: nil, outputs: []regMask{gp}}
+		gp01   = regInfo{inputs: nil, outputs: []regMask{gp}}
+		gp11   = regInfo{inputs: []regMask{gpg}, outputs: []regMask{gp}}
+		gp11sp = regInfo{inputs: []regMask{gpspg}, outputs: []regMask{gp}}
+		gp21   = regInfo{inputs: []regMask{gpg, gpg}, outputs: []regMask{gp}}
+		gp31   = regInfo{inputs: []regMask{gp, gp, gp}, outputs: []regMask{gp}}
+		// See MIPS64Ops.go: results must not stay homed in HI/LO.
+		gp22clobbershilo = regInfo{inputs: []regMask{gpg, gpg}, outputs: []regMask{gp, gp}, clobbers: hi | lo}
+		gpload           = regInfo{inputs: []regMask{gpspsbg}, outputs: []regMask{gp}}
+		gpstore          = regInfo{inputs: []regMask{gpspsbg, gpg}}
+		gpxchg           = regInfo{inputs: []regMask{gpspsbg, gpg}, outputs: []regMask{gp}}
+		gpcas            = regInfo{inputs: []regMask{gpspsbg, gpg, gpg}, outputs: []regMask{gp}}
+		gpstore0         = regInfo{inputs: []regMask{gpspsbg}}
+		fpgp             = regInfo{inputs: []regMask{fp}, outputs: []regMask{gp}}
+		gpfp             = regInfo{inputs: []regMask{gp}, outputs: []regMask{fp}}
+		fp01             = regInfo{inputs: nil, outputs: []regMask{fp}}
+		fp11             = regInfo{inputs: []regMask{fp}, outputs: []regMask{fp}}
+		fp21             = regInfo{inputs: []regMask{fp, fp}, outputs: []regMask{fp}}
+		fp2flags         = regInfo{inputs: []regMask{fp, fp}}
+		fpload           = regInfo{inputs: []regMask{gpspsbg}, outputs: []regMask{fp}}
+		fpstore          = regInfo{inputs: []regMask{gpspsbg, fp}}
+		readflags        = regInfo{inputs: nil, outputs: []regMask{gp}}
 	)
 	ops := []opData{
 		{name: "ADD", argLength: 2, reg: gp21, asm: "ADDU", commutative: true},                                                                           // arg0 + arg1
@@ -152,10 +153,10 @@ func init() {
 		{name: "SUB", argLength: 2, reg: gp21, asm: "SUBU"},                                                                                              // arg0 - arg1
 		{name: "SUBconst", argLength: 1, reg: gp11, asm: "SUBU", aux: "Int32"},                                                                           // arg0 - auxInt
 		{name: "MUL", argLength: 2, reg: regInfo{inputs: []regMask{gpg, gpg}, outputs: []regMask{gp}, clobbers: hi | lo}, asm: "MUL", commutative: true}, // arg0 * arg1
-		{name: "MULT", argLength: 2, reg: gp2hilo, asm: "MUL", commutative: true, typ: "(Int32,Int32)"},                                                  // arg0 * arg1, signed, results hi,lo
-		{name: "MULTU", argLength: 2, reg: gp2hilo, asm: "MULU", commutative: true, typ: "(UInt32,UInt32)"},                                              // arg0 * arg1, unsigned, results hi,lo
-		{name: "DIV", argLength: 2, reg: gp2hilo, asm: "DIV", typ: "(Int32,Int32)"},                                                                      // arg0 / arg1, signed, results hi=arg0%arg1,lo=arg0/arg1
-		{name: "DIVU", argLength: 2, reg: gp2hilo, asm: "DIVU", typ: "(UInt32,UInt32)"},                                                                  // arg0 / arg1, signed, results hi=arg0%arg1,lo=arg0/arg1
+		{name: "MULT", argLength: 2, reg: gp22clobbershilo, asm: "MUL", commutative: true, typ: "(Int32,Int32)"},                                         // arg0 * arg1, signed, results high,low
+		{name: "MULTU", argLength: 2, reg: gp22clobbershilo, asm: "MULU", commutative: true, typ: "(UInt32,UInt32)"},                                     // arg0 * arg1, unsigned, results high,low
+		{name: "DIV", argLength: 2, reg: gp22clobbershilo, asm: "DIV", typ: "(Int32,Int32)"},                                                             // arg0 / arg1, signed, results arg0%arg1,arg0/arg1
+		{name: "DIVU", argLength: 2, reg: gp22clobbershilo, asm: "DIVU", typ: "(UInt32,UInt32)"},                                                         // arg0 / arg1, signed, results arg0%arg1,arg0/arg1
 
 		{name: "ADDF", argLength: 2, reg: fp21, asm: "ADDF", commutative: true}, // arg0 + arg1
 		{name: "ADDD", argLength: 2, reg: fp21, asm: "ADDD", commutative: true}, // arg0 + arg1
