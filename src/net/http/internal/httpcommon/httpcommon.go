@@ -7,6 +7,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"net"
 	"net/http/httptrace"
 	"net/textproto"
 	"net/url"
@@ -17,6 +18,7 @@ import (
 
 	"golang.org/x/net/http/httpguts"
 	"golang.org/x/net/http2/hpack"
+	"golang.org/x/net/idna"
 )
 
 // The HTTP protocols are defined in terms of ASCII, not Unicode. This file
@@ -228,7 +230,13 @@ func EncodeHeaders(ctx context.Context, param EncodeHeadersParam, headerf func(n
 	if host == "" {
 		host = req.URL.Host
 	}
-	host, err := httpguts.PunycodeHostPort(host)
+	// Convert the host to its IDNA ASCII form using the same UTS #46
+	// processing (with mapping) used to pick the address the request is
+	// dialed to. Using a different IDNA profile here would let the
+	// :authority header disagree with the address actually dialed, which
+	// can be used to bypass SSRF filters that inspect URL.Hostname.
+	// See https://go.dev/issue/80417.
+	host, err := idnaASCIIHostPort(host)
 	if err != nil {
 		return res, err
 	}
@@ -623,4 +631,39 @@ func NewServerRequest(rp ServerRequestParam) ServerRequestResult {
 		RequestURI:    requestURI,
 		Trailer:       trailer,
 	}
+}
+
+// idnaASCIIHostPort applies UTS #46 IDNA processing (with mapping) to the host
+// portion of a "host" or "host:port" string, leaving the port unchanged. It is
+// used to compute the Host / :authority header so that it is consistent with
+// the address the request is dialed to. See https://go.dev/issue/80417.
+func idnaASCIIHostPort(v string) (string, error) {
+	if isASCII(v) {
+		return v, nil
+	}
+	host, port, err := net.SplitHostPort(v)
+	if err != nil {
+		// Assume v is a host without a port. Any error will be reported
+		// by idna.Lookup.ToASCII or by later Host header validation.
+		host = v
+		port = ""
+	}
+	host, err = idna.Lookup.ToASCII(host)
+	if err != nil {
+		return "", err
+	}
+	if port == "" {
+		return host, nil
+	}
+	return net.JoinHostPort(host, port), nil
+}
+
+// isASCII reports whether s is composed entirely of ASCII bytes.
+func isASCII(s string) bool {
+	for i := 0; i < len(s); i++ {
+		if s[i] >= 0x80 {
+			return false
+		}
+	}
+	return true
 }

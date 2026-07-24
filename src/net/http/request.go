@@ -19,6 +19,7 @@ import (
 	"math"
 	"mime"
 	"mime/multipart"
+	"net"
 	"net/http/httptrace"
 	"net/http/internal/ascii"
 	"net/textproto"
@@ -619,7 +620,13 @@ func (r *Request) write(w io.Writer, usingProxy bool, extraHeaders Header, waitF
 		}
 		host = r.URL.Host
 	}
-	host, err = httpguts.PunycodeHostPort(host)
+	// Convert the host to its IDNA ASCII form using the same UTS #46
+	// processing used to pick the address we dial (see idnaASCIIFromURL and
+	// canonicalAddr in transport.go). Using a different IDNA profile here
+	// would let the Host header disagree with the address actually dialed,
+	// which can be used to bypass SSRF filters that inspect URL.Hostname.
+	// See https://go.dev/issue/80417.
+	host, err = idnaASCIIHostPort(host)
 	if err != nil {
 		return err
 	}
@@ -802,6 +809,32 @@ func idnaASCII(v string) (string, error) {
 		return v, nil
 	}
 	return idna.Lookup.ToASCII(v)
+}
+
+// idnaASCIIHostPort applies idnaASCII (UTS #46 processing, with mapping) to
+// the host portion of a "host" or "host:port" string, leaving the port
+// unchanged. It is used to compute the Host header so that it is consistent
+// with the address the request is dialed to; see idnaASCIIFromURL and
+// canonicalAddr in transport.go, and https://go.dev/issue/80417.
+func idnaASCIIHostPort(v string) (string, error) {
+	if ascii.Is(v) {
+		return v, nil
+	}
+	host, port, err := net.SplitHostPort(v)
+	if err != nil {
+		// Assume v is a host without a port. Any error will be reported
+		// by idnaASCII or by later Host header validation.
+		host = v
+		port = ""
+	}
+	host, err = idnaASCII(host)
+	if err != nil {
+		return "", err
+	}
+	if port == "" {
+		return host, nil
+	}
+	return net.JoinHostPort(host, port), nil
 }
 
 // removeZone removes IPv6 zone identifier from host.
