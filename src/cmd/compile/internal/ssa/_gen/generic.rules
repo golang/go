@@ -228,6 +228,11 @@
 (And(8|16|32|64) x (Or(8|16|32|64) x y)) => x
 (Or(8|16|32|64) x (And(8|16|32|64) x y)) => x
 
+// dead-add-before-mask: (x + c) & m == x & m holds when adding c can't carry
+// into any bit that m keeps. That means c is 0, or c's lowest set bit sits
+// strictly above m (c == 0 || uint64(m) < uint64(c & -c)).
+(And(8|16|32|64) (Add(8|16|32|64) x (Const(8|16|32|64) [c])) mm:(Const(8|16|32|64) [m])) && (c == 0 || uint64(m) < uint64(c & -c)) => (And(8|16|32|64) x mm)
+
 (Mod8  (Const8  [c]) (Const8  [d])) && d != 0 => (Const8  [c % d])
 (Mod16 (Const16 [c]) (Const16 [d])) && d != 0 => (Const16 [c % d])
 (Mod32 (Const32 [c]) (Const32 [d])) && d != 0 => (Const32 [c % d])
@@ -586,6 +591,31 @@
 (Rsh64x64 (Lsh64x64 x (Const64 [48])) (Const64 [48])) => (SignExt16to64 (Trunc64to16 <typ.Int16> x))
 (Rsh64x64 (Lsh64x64 x (Const64 [32])) (Const64 [32])) => (SignExt32to64 (Trunc64to32 <typ.Int32> x))
 
+// redundant mask before an unsigned right shift: (x & m) >>u s == x >>u s
+// when m has all the high (W-s) bits set, since the shift discards exactly
+// the low s bits the mask may have cleared.
+(Rsh64Ux64 (And64 x (Const64 [m])) c:(Const64 [s])) && s > 0 && s < 64 && int64(m)|((int64(1)<<uint(s))-1) == -1 => (Rsh64Ux64 x c)
+(Rsh32Ux64 (And32 x (Const32 [m])) c:(Const64 [s])) && s > 0 && s < 32 && int32(m)|((int32(1)<<uint(s))-1) == -1 => (Rsh32Ux64 x c)
+(Rsh16Ux64 (And16 x (Const16 [m])) c:(Const64 [s])) && s > 0 && s < 16 && int16(m)|((int16(1)<<uint(s))-1) == -1 => (Rsh16Ux64 x c)
+(Rsh8Ux64  (And8  x (Const8  [m])) c:(Const64 [s])) && s > 0 && s < 8  && int8(m) |((int8(1) <<uint(s))-1) == -1 => (Rsh8Ux64  x c)
+
+// redundant mask before a left shift: (x & m) << s == x << s when m has all
+// the low (W-s) bits set, since the shift discards exactly the high s bits
+// the mask may have cleared.
+(Lsh64x64 (And64 x (Const64 [m])) c:(Const64 [s])) && s > 0 && s < 64 && ^m&((int64(1)<<uint(64-s))-1) == 0 => (Lsh64x64 x c)
+(Lsh32x64 (And32 x (Const32 [m])) c:(Const64 [s])) && s > 0 && s < 32 && ^m&((int32(1)<<uint(32-s))-1) == 0 => (Lsh32x64 x c)
+(Lsh16x64 (And16 x (Const16 [m])) c:(Const64 [s])) && s > 0 && s < 16 && ^m&((int16(1)<<uint(16-s))-1) == 0 => (Lsh16x64 x c)
+(Lsh8x64  (And8  x (Const8  [m])) c:(Const64 [s])) && s > 0 && s < 8  && ^m&((int8(1)<<uint(8-s))-1) == 0 => (Lsh8x64  x c)
+
+// redundant mask after a left shift: (x << s) & m == x << s when m has all
+// the high (W-s) bits set, since the shift already cleared the low s bits
+// the mask would clear. The unsigned right shift counterpart of this fold
+// is handled by the known bits pass.
+(And64 sh:(Lsh64x64 _ (Const64 [s])) (Const64 [m])) && s > 0 && s < 64 && int64(m)|((int64(1)<<uint(s))-1) == -1 => sh
+(And32 sh:(Lsh32x64 _ (Const64 [s])) (Const32 [m])) && s > 0 && s < 32 && int32(m)|((int32(1)<<uint(s))-1) == -1 => sh
+(And16 sh:(Lsh16x64 _ (Const64 [s])) (Const16 [m])) && s > 0 && s < 16 && int16(m)|((int16(1)<<uint(s))-1) == -1 => sh
+(And8  sh:(Lsh8x64  _ (Const64 [s])) (Const8  [m])) && s > 0 && s < 8  && int8(m) |((int8(1) <<uint(s))-1) == -1 => sh
+
 // ((x >> c) & d) << e
 (Lsh64x64 (And64 (Rsh(64|64U)x64 <t> x (Const64 <t2> [c])) (Const64 [d])) (Const64 [e])) && c >= e => (And64 (Rsh(64|64U)x64 <t> x (Const64 <t2> [c-e])) (Const64 <t> [d<<e]))
 (Lsh32x64 (And32 (Rsh(32|32U)x64 <t> x (Const64 <t2> [c])) (Const32 [d])) (Const64 [e])) && c >= e => (And32 (Rsh(32|32U)x64 <t> x (Const64 <t2> [c-e])) (Const32 <t> [d<<e]))
@@ -785,6 +815,11 @@
 (SignExt16to32 (Trunc32to16 x:(Rsh32x64 _ (Const64 [s])))) && s >= 16 => x
 (SignExt8to16  (Trunc16to8  x:(Rsh16x64 _ (Const64 [s])))) && s >= 8 => x
 
+// sext-trunc-mask: int64(int32(x & m)) == x & m when m clears bits 31-63,
+// because x&m already fits as a non-negative int32, so the trunc and the
+// sign-extension are both no-ops.
+(SignExt32to64 (Trunc64to32 and:(And64 x mm:(Const64 [m])))) && uint64(m)>>31 == 0 => and
+
 (Slicemask (Const32 [x])) && x > 0 => (Const32 [-1])
 (Slicemask (Const32 [0]))          => (Const32 [0])
 (Slicemask (Const64 [x])) && x > 0 => (Const64 [-1])
@@ -794,9 +829,14 @@
 (Sub(64|32|16|8) (Add(64|32|16|8) x y) x) => y
 (Sub(64|32|16|8) (Add(64|32|16|8) x y) y) => x
 (Sub(64|32|16|8) (Sub(64|32|16|8) x y) x) => (Neg(64|32|16|8) y)
+(Sub(64|32|16|8) x (Sub(64|32|16|8) x y)) => y
 (Sub(64|32|16|8) x (Add(64|32|16|8) x y)) => (Neg(64|32|16|8) y)
 (Add(64|32|16|8) x (Sub(64|32|16|8) y x)) => y
 (Add(64|32|16|8) x (Add(64|32|16|8) y (Sub(64|32|16|8) z x))) => (Add(64|32|16|8) y z)
+
+// sub-and-to-and: x - (x & m) == x & ~m, because x&m and x&~m are disjoint
+// bit-sets whose sum is x, so subtracting one recovers the other.
+(Sub(8|16|32|64) x (And(8|16|32|64) <t> x (Const(8|16|32|64) [m]))) => (And(8|16|32|64) <t> x (Const(8|16|32|64) <t> [^m]))
 
 // basic phi simplifications
 (Phi (Const8  [c]) (Const8  [c])) => (Const8  [c])
@@ -2270,6 +2310,93 @@
 (RotateLeft(64|32|16|8) (RotateLeft(64|32|16|8) x c) d) && c.Type.Size() == 2 && d.Type.Size() == 2 => (RotateLeft(64|32|16|8) x (Add16 <c.Type> c d))
 (RotateLeft(64|32|16|8) (RotateLeft(64|32|16|8) x c) d) && c.Type.Size() == 1 && d.Type.Size() == 1 => (RotateLeft(64|32|16|8) x (Add8  <c.Type> c d))
 
+// Byte swap detection: fold the shift/mask/OR idiom that reverses the bytes
+// of a value to a single Bswap op on architectures that have one.
+(Or32 (Or32 (Or32 (Lsh32x64 x (Const64 [24]))
+                  (Lsh32x64 (And32 x (Const32 [0xff00])) (Const64 [8])))
+            (Rsh32Ux64 (And32 x (Const32 [0xff0000])) (Const64 [8])))
+      (Rsh32Ux64 x (Const64 [24]))) && config.haveByteSwap(4)
+  => (Bswap32 x)
+(Or32 (Or32 (Or32 (Rsh32Ux64 x (Const64 [24]))
+                  (Rsh32Ux64 (And32 x (Const32 [0xff0000])) (Const64 [8])))
+            (Lsh32x64 (And32 x (Const32 [0xff00])) (Const64 [8])))
+      (Lsh32x64 x (Const64 [24]))) && config.haveByteSwap(4)
+  => (Bswap32 x)
+(Or32 (Or32 (Or32 (Lsh32x64 x (Const64 [24]))
+                  (And32 (Lsh32x64 x (Const64 [8])) (Const32 [0xff0000])))
+            (And32 (Rsh32Ux64 x (Const64 [8])) (Const32 [0xff00])))
+      (Rsh32Ux64 x (Const64 [24]))) && config.haveByteSwap(4)
+  => (Bswap32 x)
+(Or32 (Or32 (Or32 (Rsh32Ux64 x (Const64 [24]))
+                  (And32 (Rsh32Ux64 x (Const64 [8])) (Const32 [0xff00])))
+            (And32 (Lsh32x64 x (Const64 [8])) (Const32 [0xff0000])))
+      (Lsh32x64 x (Const64 [24]))) && config.haveByteSwap(4)
+  => (Bswap32 x)
+(Or32 (Or32 (Or32 (Lsh32x64 x (Const64 [24]))
+                  (Lsh32x64 (And32 x (Const32 [0xff00])) (Const64 [8])))
+            (And32 (Rsh32Ux64 x (Const64 [8])) (Const32 [0xff00])))
+      (Rsh32Ux64 x (Const64 [24]))) && config.haveByteSwap(4)
+  => (Bswap32 x)
+(Or32 (Or32 (Or32 (Rsh32Ux64 x (Const64 [24]))
+                  (And32 (Rsh32Ux64 x (Const64 [8])) (Const32 [0xff00])))
+            (Lsh32x64 (And32 x (Const32 [0xff00])) (Const64 [8])))
+      (Lsh32x64 x (Const64 [24]))) && config.haveByteSwap(4)
+  => (Bswap32 x)
+(Or64 (Or64 (Or64 (Or64 (Or64 (Or64 (Or64 (Lsh64x64 x (Const64 [56]))
+                                          (Lsh64x64 (And64 x (Const64 [0xff00])) (Const64 [40])))
+                                    (Lsh64x64 (And64 x (Const64 [0xff0000])) (Const64 [24])))
+                              (Lsh64x64 (And64 x (Const64 [0xff000000])) (Const64 [8])))
+                        (Rsh64Ux64 (And64 x (Const64 [0xff00000000])) (Const64 [8])))
+                  (Rsh64Ux64 (And64 x (Const64 [0xff0000000000])) (Const64 [24])))
+            (Rsh64Ux64 (And64 x (Const64 [0xff000000000000])) (Const64 [40])))
+      (Rsh64Ux64 x (Const64 [56]))) && config.haveByteSwap(8)
+  => (Bswap64 x)
+(Or64 (Or64 (Or64 (Or64 (Or64 (Or64 (Or64 (Rsh64Ux64 x (Const64 [56]))
+                                          (Rsh64Ux64 (And64 x (Const64 [0xff000000000000])) (Const64 [40])))
+                                    (Rsh64Ux64 (And64 x (Const64 [0xff0000000000])) (Const64 [24])))
+                              (Rsh64Ux64 (And64 x (Const64 [0xff00000000])) (Const64 [8])))
+                        (Lsh64x64 (And64 x (Const64 [0xff000000])) (Const64 [8])))
+                  (Lsh64x64 (And64 x (Const64 [0xff0000])) (Const64 [24])))
+            (Lsh64x64 (And64 x (Const64 [0xff00])) (Const64 [40])))
+      (Lsh64x64 x (Const64 [56]))) && config.haveByteSwap(8)
+  => (Bswap64 x)
+(Or64 (Or64 (Or64 (Or64 (Or64 (Or64 (Or64 (Lsh64x64 x (Const64 [56]))
+                                          (And64 (Lsh64x64 x (Const64 [40])) (Const64 [0xff000000000000])))
+                                    (And64 (Lsh64x64 x (Const64 [24])) (Const64 [0xff0000000000])))
+                              (And64 (Lsh64x64 x (Const64 [8])) (Const64 [0xff00000000])))
+                        (And64 (Rsh64Ux64 x (Const64 [8])) (Const64 [0xff000000])))
+                  (And64 (Rsh64Ux64 x (Const64 [24])) (Const64 [0xff0000])))
+            (And64 (Rsh64Ux64 x (Const64 [40])) (Const64 [0xff00])))
+      (Rsh64Ux64 x (Const64 [56]))) && config.haveByteSwap(8)
+  => (Bswap64 x)
+(Or64 (Or64 (Or64 (Or64 (Or64 (Or64 (Or64 (Rsh64Ux64 x (Const64 [56]))
+                                          (And64 (Rsh64Ux64 x (Const64 [40])) (Const64 [0xff00])))
+                                    (And64 (Rsh64Ux64 x (Const64 [24])) (Const64 [0xff0000])))
+                              (And64 (Rsh64Ux64 x (Const64 [8])) (Const64 [0xff000000])))
+                        (And64 (Lsh64x64 x (Const64 [8])) (Const64 [0xff00000000])))
+                  (And64 (Lsh64x64 x (Const64 [24])) (Const64 [0xff0000000000])))
+            (And64 (Lsh64x64 x (Const64 [40])) (Const64 [0xff000000000000])))
+      (Lsh64x64 x (Const64 [56]))) && config.haveByteSwap(8)
+  => (Bswap64 x)
+(Or64 (Or64 (Or64 (Or64 (Or64 (Or64 (Or64 (Lsh64x64 x (Const64 [56]))
+                                          (Lsh64x64 (And64 x (Const64 [0xff00])) (Const64 [40])))
+                                    (Lsh64x64 (And64 x (Const64 [0xff0000])) (Const64 [24])))
+                              (Lsh64x64 (And64 x (Const64 [0xff000000])) (Const64 [8])))
+                        (And64 (Rsh64Ux64 x (Const64 [8])) (Const64 [0xff000000])))
+                  (And64 (Rsh64Ux64 x (Const64 [24])) (Const64 [0xff0000])))
+            (And64 (Rsh64Ux64 x (Const64 [40])) (Const64 [0xff00])))
+      (Rsh64Ux64 x (Const64 [56]))) && config.haveByteSwap(8)
+  => (Bswap64 x)
+(Or64 (Or64 (Or64 (Or64 (Or64 (Or64 (Or64 (Rsh64Ux64 x (Const64 [56]))
+                                          (And64 (Rsh64Ux64 x (Const64 [40])) (Const64 [0xff00])))
+                                    (And64 (Rsh64Ux64 x (Const64 [24])) (Const64 [0xff0000])))
+                              (And64 (Rsh64Ux64 x (Const64 [8])) (Const64 [0xff000000])))
+                        (Lsh64x64 (And64 x (Const64 [0xff000000])) (Const64 [8])))
+                  (Lsh64x64 (And64 x (Const64 [0xff0000])) (Const64 [24])))
+            (Lsh64x64 (And64 x (Const64 [0xff00])) (Const64 [40])))
+      (Lsh64x64 x (Const64 [56]))) && config.haveByteSwap(8)
+  => (Bswap64 x)
+
 // Loading fixed addresses and constants.
 (Load                                     (Addr {s} sb)         _)  && isFixedLoad(v, s,   0) => rewriteFixedLoad(v, s, sb,   0)
 (Load                            (Convert (Addr {s} sb) _)      _)  && isFixedLoad(v, s,   0) => rewriteFixedLoad(v, s, sb,   0)
@@ -2436,3 +2563,44 @@
 // int(!bool)^c => int(bool)^(c^1)
 (Xor8                                (CvtBoolToUint8 <cvtT> (Not bool))  (Const8          <constT> [c])) && c != 1 => (Xor8                                (CvtBoolToUint8 <cvtT> bool)  (Const8          <constT> [c^1]))
 (Xor(64|32|16) (ZeroExt8to(64|32|16) (CvtBoolToUint8 <cvtT> (Not bool))) (Const(64|32|16) <constT> [c])) && c != 1 => (Xor(64|32|16) (ZeroExt8to(64|32|16) (CvtBoolToUint8 <cvtT> bool)) (Const(64|32|16) <constT> [c^1]))
+
+// ----------------------------------------------------------------------------
+// Disabled example rules (https://github.com/golang/go/issues/80320).
+//
+// The identities below are correct (SMT-verified over all inputs at every
+// width) and are implemented in the rule DSL, but they are intentionally
+// left commented out. Rules of this kind have not been proven useful in
+// practice: a survey of real Go code found no natural occurrence of these
+// patterns, and the bar for enabling a rewrite rule in this file is at
+// least one real-world Go program that demonstrably benefits. Speculative
+// rules add matching work to every compilation and a permanent maintenance
+// and testing burden without demonstrated payoff.
+//
+// They are recorded here as reference implementations. If you find Go code
+// in the wild that would naturally be improved by one of these rules, please
+// open a pull request enabling that rule, citing the motivating code and the
+// issue above.
+//
+// x | (^x & y) == x | y
+//(Or(64|32|16|8) x (And(64|32|16|8) (Com(64|32|16|8) x) y)) => (Or(64|32|16|8) x y)
+//
+// x & (^x | y) == x & y
+//(And(64|32|16|8) x (Or(64|32|16|8) (Com(64|32|16|8) x) y)) => (And(64|32|16|8) x y)
+//
+// (x & y) | (x & ^y) == x
+//(Or(64|32|16|8) (And(64|32|16|8) x y) (And(64|32|16|8) x (Com(64|32|16|8) y))) => x
+//
+// (x | y) & (x | ^y) == x
+//(And(64|32|16|8) (Or(64|32|16|8) x y) (Or(64|32|16|8) x (Com(64|32|16|8) y))) => x
+//
+// (x | y) - (x & y) == x ^ y
+//(Sub(64|32|16|8) (Or(64|32|16|8) x y) (And(64|32|16|8) x y)) => (Xor(64|32|16|8) x y)
+//
+// (x ^ y) ^ (x | y) == x & y
+//(Xor(64|32|16|8) (Xor(64|32|16|8) x y) (Or(64|32|16|8) x y)) => (And(64|32|16|8) x y)
+//
+// (x ^ y) ^ (x & y) == x | y
+//(Xor(64|32|16|8) (Xor(64|32|16|8) x y) (And(64|32|16|8) x y)) => (Or(64|32|16|8) x y)
+//
+// (x & y) + (x | y) == x + y
+//(Add(64|32|16|8) (And(64|32|16|8) x y) (Or(64|32|16|8) x y)) => (Add(64|32|16|8) x y)

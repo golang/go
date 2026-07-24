@@ -3205,6 +3205,38 @@ func rewriteValuegeneric_OpAnd16(v *Value) bool {
 		}
 		break
 	}
+	// match: (And16 (Add16 x (Const16 [c])) mm:(Const16 [m]))
+	// cond: (c == 0 || uint64(m) < uint64(c & -c))
+	// result: (And16 x mm)
+	for {
+		for _i0 := 0; _i0 <= 1; _i0, v_0, v_1 = _i0+1, v_1, v_0 {
+			if v_0.Op != OpAdd16 {
+				continue
+			}
+			_ = v_0.Args[1]
+			v_0_0 := v_0.Args[0]
+			v_0_1 := v_0.Args[1]
+			for _i1 := 0; _i1 <= 1; _i1, v_0_0, v_0_1 = _i1+1, v_0_1, v_0_0 {
+				x := v_0_0
+				if v_0_1.Op != OpConst16 {
+					continue
+				}
+				c := auxIntToInt16(v_0_1.AuxInt)
+				mm := v_1
+				if mm.Op != OpConst16 {
+					continue
+				}
+				m := auxIntToInt16(mm.AuxInt)
+				if !(c == 0 || uint64(m) < uint64(c&-c)) {
+					continue
+				}
+				v.reset(OpAnd16)
+				v.AddArg2(x, mm)
+				return true
+			}
+		}
+		break
+	}
 	// match: (And16 (Const16 [m]) (Rsh16Ux64 _ (Const64 [c])))
 	// cond: c >= int64(16-ntz16(m))
 	// result: (Const16 [0])
@@ -3255,6 +3287,33 @@ func rewriteValuegeneric_OpAnd16(v *Value) bool {
 			}
 			v.reset(OpConst16)
 			v.AuxInt = int16ToAuxInt(0)
+			return true
+		}
+		break
+	}
+	// match: (And16 sh:(Lsh16x64 _ (Const64 [s])) (Const16 [m]))
+	// cond: s > 0 && s < 16 && int16(m)|((int16(1)<<uint(s))-1) == -1
+	// result: sh
+	for {
+		for _i0 := 0; _i0 <= 1; _i0, v_0, v_1 = _i0+1, v_1, v_0 {
+			sh := v_0
+			if sh.Op != OpLsh16x64 {
+				continue
+			}
+			_ = sh.Args[1]
+			sh_1 := sh.Args[1]
+			if sh_1.Op != OpConst64 {
+				continue
+			}
+			s := auxIntToInt64(sh_1.AuxInt)
+			if v_1.Op != OpConst16 {
+				continue
+			}
+			m := auxIntToInt16(v_1.AuxInt)
+			if !(s > 0 && s < 16 && int16(m)|((int16(1)<<uint(s))-1) == -1) {
+				continue
+			}
+			v.copyOf(sh)
 			return true
 		}
 		break
@@ -3462,6 +3521,38 @@ func rewriteValuegeneric_OpAnd32(v *Value) bool {
 		}
 		break
 	}
+	// match: (And32 (Add32 x (Const32 [c])) mm:(Const32 [m]))
+	// cond: (c == 0 || uint64(m) < uint64(c & -c))
+	// result: (And32 x mm)
+	for {
+		for _i0 := 0; _i0 <= 1; _i0, v_0, v_1 = _i0+1, v_1, v_0 {
+			if v_0.Op != OpAdd32 {
+				continue
+			}
+			_ = v_0.Args[1]
+			v_0_0 := v_0.Args[0]
+			v_0_1 := v_0.Args[1]
+			for _i1 := 0; _i1 <= 1; _i1, v_0_0, v_0_1 = _i1+1, v_0_1, v_0_0 {
+				x := v_0_0
+				if v_0_1.Op != OpConst32 {
+					continue
+				}
+				c := auxIntToInt32(v_0_1.AuxInt)
+				mm := v_1
+				if mm.Op != OpConst32 {
+					continue
+				}
+				m := auxIntToInt32(mm.AuxInt)
+				if !(c == 0 || uint64(m) < uint64(c&-c)) {
+					continue
+				}
+				v.reset(OpAnd32)
+				v.AddArg2(x, mm)
+				return true
+			}
+		}
+		break
+	}
 	// match: (And32 (Const32 [m]) (Rsh32Ux64 _ (Const64 [c])))
 	// cond: c >= int64(32-ntz32(m))
 	// result: (Const32 [0])
@@ -3512,6 +3603,33 @@ func rewriteValuegeneric_OpAnd32(v *Value) bool {
 			}
 			v.reset(OpConst32)
 			v.AuxInt = int32ToAuxInt(0)
+			return true
+		}
+		break
+	}
+	// match: (And32 sh:(Lsh32x64 _ (Const64 [s])) (Const32 [m]))
+	// cond: s > 0 && s < 32 && int32(m)|((int32(1)<<uint(s))-1) == -1
+	// result: sh
+	for {
+		for _i0 := 0; _i0 <= 1; _i0, v_0, v_1 = _i0+1, v_1, v_0 {
+			sh := v_0
+			if sh.Op != OpLsh32x64 {
+				continue
+			}
+			_ = sh.Args[1]
+			sh_1 := sh.Args[1]
+			if sh_1.Op != OpConst64 {
+				continue
+			}
+			s := auxIntToInt64(sh_1.AuxInt)
+			if v_1.Op != OpConst32 {
+				continue
+			}
+			m := auxIntToInt32(v_1.AuxInt)
+			if !(s > 0 && s < 32 && int32(m)|((int32(1)<<uint(s))-1) == -1) {
+				continue
+			}
+			v.copyOf(sh)
 			return true
 		}
 		break
@@ -3719,6 +3837,38 @@ func rewriteValuegeneric_OpAnd64(v *Value) bool {
 		}
 		break
 	}
+	// match: (And64 (Add64 x (Const64 [c])) mm:(Const64 [m]))
+	// cond: (c == 0 || uint64(m) < uint64(c & -c))
+	// result: (And64 x mm)
+	for {
+		for _i0 := 0; _i0 <= 1; _i0, v_0, v_1 = _i0+1, v_1, v_0 {
+			if v_0.Op != OpAdd64 {
+				continue
+			}
+			_ = v_0.Args[1]
+			v_0_0 := v_0.Args[0]
+			v_0_1 := v_0.Args[1]
+			for _i1 := 0; _i1 <= 1; _i1, v_0_0, v_0_1 = _i1+1, v_0_1, v_0_0 {
+				x := v_0_0
+				if v_0_1.Op != OpConst64 {
+					continue
+				}
+				c := auxIntToInt64(v_0_1.AuxInt)
+				mm := v_1
+				if mm.Op != OpConst64 {
+					continue
+				}
+				m := auxIntToInt64(mm.AuxInt)
+				if !(c == 0 || uint64(m) < uint64(c&-c)) {
+					continue
+				}
+				v.reset(OpAnd64)
+				v.AddArg2(x, mm)
+				return true
+			}
+		}
+		break
+	}
 	// match: (And64 (Const64 [m]) (Rsh64Ux64 _ (Const64 [c])))
 	// cond: c >= int64(64-ntz64(m))
 	// result: (Const64 [0])
@@ -3769,6 +3919,33 @@ func rewriteValuegeneric_OpAnd64(v *Value) bool {
 			}
 			v.reset(OpConst64)
 			v.AuxInt = int64ToAuxInt(0)
+			return true
+		}
+		break
+	}
+	// match: (And64 sh:(Lsh64x64 _ (Const64 [s])) (Const64 [m]))
+	// cond: s > 0 && s < 64 && int64(m)|((int64(1)<<uint(s))-1) == -1
+	// result: sh
+	for {
+		for _i0 := 0; _i0 <= 1; _i0, v_0, v_1 = _i0+1, v_1, v_0 {
+			sh := v_0
+			if sh.Op != OpLsh64x64 {
+				continue
+			}
+			_ = sh.Args[1]
+			sh_1 := sh.Args[1]
+			if sh_1.Op != OpConst64 {
+				continue
+			}
+			s := auxIntToInt64(sh_1.AuxInt)
+			if v_1.Op != OpConst64 {
+				continue
+			}
+			m := auxIntToInt64(v_1.AuxInt)
+			if !(s > 0 && s < 64 && int64(m)|((int64(1)<<uint(s))-1) == -1) {
+				continue
+			}
+			v.copyOf(sh)
 			return true
 		}
 		break
@@ -3976,6 +4153,38 @@ func rewriteValuegeneric_OpAnd8(v *Value) bool {
 		}
 		break
 	}
+	// match: (And8 (Add8 x (Const8 [c])) mm:(Const8 [m]))
+	// cond: (c == 0 || uint64(m) < uint64(c & -c))
+	// result: (And8 x mm)
+	for {
+		for _i0 := 0; _i0 <= 1; _i0, v_0, v_1 = _i0+1, v_1, v_0 {
+			if v_0.Op != OpAdd8 {
+				continue
+			}
+			_ = v_0.Args[1]
+			v_0_0 := v_0.Args[0]
+			v_0_1 := v_0.Args[1]
+			for _i1 := 0; _i1 <= 1; _i1, v_0_0, v_0_1 = _i1+1, v_0_1, v_0_0 {
+				x := v_0_0
+				if v_0_1.Op != OpConst8 {
+					continue
+				}
+				c := auxIntToInt8(v_0_1.AuxInt)
+				mm := v_1
+				if mm.Op != OpConst8 {
+					continue
+				}
+				m := auxIntToInt8(mm.AuxInt)
+				if !(c == 0 || uint64(m) < uint64(c&-c)) {
+					continue
+				}
+				v.reset(OpAnd8)
+				v.AddArg2(x, mm)
+				return true
+			}
+		}
+		break
+	}
 	// match: (And8 (Const8 [m]) (Rsh8Ux64 _ (Const64 [c])))
 	// cond: c >= int64(8-ntz8(m))
 	// result: (Const8 [0])
@@ -4026,6 +4235,33 @@ func rewriteValuegeneric_OpAnd8(v *Value) bool {
 			}
 			v.reset(OpConst8)
 			v.AuxInt = int8ToAuxInt(0)
+			return true
+		}
+		break
+	}
+	// match: (And8 sh:(Lsh8x64 _ (Const64 [s])) (Const8 [m]))
+	// cond: s > 0 && s < 8 && int8(m) |((int8(1) <<uint(s))-1) == -1
+	// result: sh
+	for {
+		for _i0 := 0; _i0 <= 1; _i0, v_0, v_1 = _i0+1, v_1, v_0 {
+			sh := v_0
+			if sh.Op != OpLsh8x64 {
+				continue
+			}
+			_ = sh.Args[1]
+			sh_1 := sh.Args[1]
+			if sh_1.Op != OpConst64 {
+				continue
+			}
+			s := auxIntToInt64(sh_1.AuxInt)
+			if v_1.Op != OpConst8 {
+				continue
+			}
+			m := auxIntToInt8(v_1.AuxInt)
+			if !(s > 0 && s < 8 && int8(m)|((int8(1)<<uint(s))-1) == -1) {
+				continue
+			}
+			v.copyOf(sh)
 			return true
 		}
 		break
@@ -15285,6 +15521,36 @@ func rewriteValuegeneric_OpLsh16x64(v *Value) bool {
 		v.AddArg2(x, v0)
 		return true
 	}
+	// match: (Lsh16x64 (And16 x (Const16 [m])) c:(Const64 [s]))
+	// cond: s > 0 && s < 16 && ^m&((int16(1)<<uint(16-s))-1) == 0
+	// result: (Lsh16x64 x c)
+	for {
+		if v_0.Op != OpAnd16 {
+			break
+		}
+		_ = v_0.Args[1]
+		v_0_0 := v_0.Args[0]
+		v_0_1 := v_0.Args[1]
+		for _i0 := 0; _i0 <= 1; _i0, v_0_0, v_0_1 = _i0+1, v_0_1, v_0_0 {
+			x := v_0_0
+			if v_0_1.Op != OpConst16 {
+				continue
+			}
+			m := auxIntToInt16(v_0_1.AuxInt)
+			c := v_1
+			if c.Op != OpConst64 {
+				continue
+			}
+			s := auxIntToInt64(c.AuxInt)
+			if !(s > 0 && s < 16 && ^m&((int16(1)<<uint(16-s))-1) == 0) {
+				continue
+			}
+			v.reset(OpLsh16x64)
+			v.AddArg2(x, c)
+			return true
+		}
+		break
+	}
 	// match: (Lsh16x64 (And16 (Rsh16x64 <t> x (Const64 <t2> [c])) (Const16 [d])) (Const64 [e]))
 	// cond: c >= e
 	// result: (And16 (Rsh16x64 <t> x (Const64 <t2> [c-e])) (Const16 <t> [d<<e]))
@@ -15812,6 +16078,36 @@ func rewriteValuegeneric_OpLsh32x64(v *Value) bool {
 		v0.AuxInt = int64ToAuxInt(c1 - c2 + c3)
 		v.AddArg2(x, v0)
 		return true
+	}
+	// match: (Lsh32x64 (And32 x (Const32 [m])) c:(Const64 [s]))
+	// cond: s > 0 && s < 32 && ^m&((int32(1)<<uint(32-s))-1) == 0
+	// result: (Lsh32x64 x c)
+	for {
+		if v_0.Op != OpAnd32 {
+			break
+		}
+		_ = v_0.Args[1]
+		v_0_0 := v_0.Args[0]
+		v_0_1 := v_0.Args[1]
+		for _i0 := 0; _i0 <= 1; _i0, v_0_0, v_0_1 = _i0+1, v_0_1, v_0_0 {
+			x := v_0_0
+			if v_0_1.Op != OpConst32 {
+				continue
+			}
+			m := auxIntToInt32(v_0_1.AuxInt)
+			c := v_1
+			if c.Op != OpConst64 {
+				continue
+			}
+			s := auxIntToInt64(c.AuxInt)
+			if !(s > 0 && s < 32 && ^m&((int32(1)<<uint(32-s))-1) == 0) {
+				continue
+			}
+			v.reset(OpLsh32x64)
+			v.AddArg2(x, c)
+			return true
+		}
+		break
 	}
 	// match: (Lsh32x64 (And32 (Rsh32x64 <t> x (Const64 <t2> [c])) (Const32 [d])) (Const64 [e]))
 	// cond: c >= e
@@ -16341,6 +16637,36 @@ func rewriteValuegeneric_OpLsh64x64(v *Value) bool {
 		v.AddArg2(x, v0)
 		return true
 	}
+	// match: (Lsh64x64 (And64 x (Const64 [m])) c:(Const64 [s]))
+	// cond: s > 0 && s < 64 && ^m&((int64(1)<<uint(64-s))-1) == 0
+	// result: (Lsh64x64 x c)
+	for {
+		if v_0.Op != OpAnd64 {
+			break
+		}
+		_ = v_0.Args[1]
+		v_0_0 := v_0.Args[0]
+		v_0_1 := v_0.Args[1]
+		for _i0 := 0; _i0 <= 1; _i0, v_0_0, v_0_1 = _i0+1, v_0_1, v_0_0 {
+			x := v_0_0
+			if v_0_1.Op != OpConst64 {
+				continue
+			}
+			m := auxIntToInt64(v_0_1.AuxInt)
+			c := v_1
+			if c.Op != OpConst64 {
+				continue
+			}
+			s := auxIntToInt64(c.AuxInt)
+			if !(s > 0 && s < 64 && ^m&((int64(1)<<uint(64-s))-1) == 0) {
+				continue
+			}
+			v.reset(OpLsh64x64)
+			v.AddArg2(x, c)
+			return true
+		}
+		break
+	}
 	// match: (Lsh64x64 (And64 (Rsh64x64 <t> x (Const64 <t2> [c])) (Const64 [d])) (Const64 [e]))
 	// cond: c >= e
 	// result: (And64 (Rsh64x64 <t> x (Const64 <t2> [c-e])) (Const64 <t> [d<<e]))
@@ -16868,6 +17194,36 @@ func rewriteValuegeneric_OpLsh8x64(v *Value) bool {
 		v0.AuxInt = int64ToAuxInt(c1 - c2 + c3)
 		v.AddArg2(x, v0)
 		return true
+	}
+	// match: (Lsh8x64 (And8 x (Const8 [m])) c:(Const64 [s]))
+	// cond: s > 0 && s < 8 && ^m&((int8(1)<<uint(8-s))-1) == 0
+	// result: (Lsh8x64 x c)
+	for {
+		if v_0.Op != OpAnd8 {
+			break
+		}
+		_ = v_0.Args[1]
+		v_0_0 := v_0.Args[0]
+		v_0_1 := v_0.Args[1]
+		for _i0 := 0; _i0 <= 1; _i0, v_0_0, v_0_1 = _i0+1, v_0_1, v_0_0 {
+			x := v_0_0
+			if v_0_1.Op != OpConst8 {
+				continue
+			}
+			m := auxIntToInt8(v_0_1.AuxInt)
+			c := v_1
+			if c.Op != OpConst64 {
+				continue
+			}
+			s := auxIntToInt64(c.AuxInt)
+			if !(s > 0 && s < 8 && ^m&((int8(1)<<uint(8-s))-1) == 0) {
+				continue
+			}
+			v.reset(OpLsh8x64)
+			v.AddArg2(x, c)
+			return true
+		}
+		break
 	}
 	// match: (Lsh8x64 (And8 (Rsh8x64 <t> x (Const64 <t2> [c])) (Const8 [d])) (Const64 [e]))
 	// cond: c >= e
@@ -24742,6 +25098,468 @@ func rewriteValuegeneric_OpOr32(v *Value) bool {
 		}
 		break
 	}
+	// match: (Or32 (Or32 (Or32 (Lsh32x64 x (Const64 [24])) (Lsh32x64 (And32 x (Const32 [0xff00])) (Const64 [8]))) (Rsh32Ux64 (And32 x (Const32 [0xff0000])) (Const64 [8]))) (Rsh32Ux64 x (Const64 [24])))
+	// cond: config.haveByteSwap(4)
+	// result: (Bswap32 x)
+	for {
+		for _i0 := 0; _i0 <= 1; _i0, v_0, v_1 = _i0+1, v_1, v_0 {
+			if v_0.Op != OpOr32 {
+				continue
+			}
+			_ = v_0.Args[1]
+			v_0_0 := v_0.Args[0]
+			v_0_1 := v_0.Args[1]
+			for _i1 := 0; _i1 <= 1; _i1, v_0_0, v_0_1 = _i1+1, v_0_1, v_0_0 {
+				if v_0_0.Op != OpOr32 {
+					continue
+				}
+				_ = v_0_0.Args[1]
+				v_0_0_0 := v_0_0.Args[0]
+				v_0_0_1 := v_0_0.Args[1]
+				for _i2 := 0; _i2 <= 1; _i2, v_0_0_0, v_0_0_1 = _i2+1, v_0_0_1, v_0_0_0 {
+					if v_0_0_0.Op != OpLsh32x64 {
+						continue
+					}
+					_ = v_0_0_0.Args[1]
+					x := v_0_0_0.Args[0]
+					v_0_0_0_1 := v_0_0_0.Args[1]
+					if v_0_0_0_1.Op != OpConst64 || auxIntToInt64(v_0_0_0_1.AuxInt) != 24 || v_0_0_1.Op != OpLsh32x64 {
+						continue
+					}
+					_ = v_0_0_1.Args[1]
+					v_0_0_1_0 := v_0_0_1.Args[0]
+					if v_0_0_1_0.Op != OpAnd32 {
+						continue
+					}
+					_ = v_0_0_1_0.Args[1]
+					v_0_0_1_0_0 := v_0_0_1_0.Args[0]
+					v_0_0_1_0_1 := v_0_0_1_0.Args[1]
+					for _i3 := 0; _i3 <= 1; _i3, v_0_0_1_0_0, v_0_0_1_0_1 = _i3+1, v_0_0_1_0_1, v_0_0_1_0_0 {
+						if x != v_0_0_1_0_0 || v_0_0_1_0_1.Op != OpConst32 || auxIntToInt32(v_0_0_1_0_1.AuxInt) != 0xff00 {
+							continue
+						}
+						v_0_0_1_1 := v_0_0_1.Args[1]
+						if v_0_0_1_1.Op != OpConst64 || auxIntToInt64(v_0_0_1_1.AuxInt) != 8 || v_0_1.Op != OpRsh32Ux64 {
+							continue
+						}
+						_ = v_0_1.Args[1]
+						v_0_1_0 := v_0_1.Args[0]
+						if v_0_1_0.Op != OpAnd32 {
+							continue
+						}
+						_ = v_0_1_0.Args[1]
+						v_0_1_0_0 := v_0_1_0.Args[0]
+						v_0_1_0_1 := v_0_1_0.Args[1]
+						for _i4 := 0; _i4 <= 1; _i4, v_0_1_0_0, v_0_1_0_1 = _i4+1, v_0_1_0_1, v_0_1_0_0 {
+							if x != v_0_1_0_0 || v_0_1_0_1.Op != OpConst32 || auxIntToInt32(v_0_1_0_1.AuxInt) != 0xff0000 {
+								continue
+							}
+							v_0_1_1 := v_0_1.Args[1]
+							if v_0_1_1.Op != OpConst64 || auxIntToInt64(v_0_1_1.AuxInt) != 8 || v_1.Op != OpRsh32Ux64 {
+								continue
+							}
+							_ = v_1.Args[1]
+							if x != v_1.Args[0] {
+								continue
+							}
+							v_1_1 := v_1.Args[1]
+							if v_1_1.Op != OpConst64 || auxIntToInt64(v_1_1.AuxInt) != 24 || !(config.haveByteSwap(4)) {
+								continue
+							}
+							v.reset(OpBswap32)
+							v.AddArg(x)
+							return true
+						}
+					}
+				}
+			}
+		}
+		break
+	}
+	// match: (Or32 (Or32 (Or32 (Rsh32Ux64 x (Const64 [24])) (Rsh32Ux64 (And32 x (Const32 [0xff0000])) (Const64 [8]))) (Lsh32x64 (And32 x (Const32 [0xff00])) (Const64 [8]))) (Lsh32x64 x (Const64 [24])))
+	// cond: config.haveByteSwap(4)
+	// result: (Bswap32 x)
+	for {
+		for _i0 := 0; _i0 <= 1; _i0, v_0, v_1 = _i0+1, v_1, v_0 {
+			if v_0.Op != OpOr32 {
+				continue
+			}
+			_ = v_0.Args[1]
+			v_0_0 := v_0.Args[0]
+			v_0_1 := v_0.Args[1]
+			for _i1 := 0; _i1 <= 1; _i1, v_0_0, v_0_1 = _i1+1, v_0_1, v_0_0 {
+				if v_0_0.Op != OpOr32 {
+					continue
+				}
+				_ = v_0_0.Args[1]
+				v_0_0_0 := v_0_0.Args[0]
+				v_0_0_1 := v_0_0.Args[1]
+				for _i2 := 0; _i2 <= 1; _i2, v_0_0_0, v_0_0_1 = _i2+1, v_0_0_1, v_0_0_0 {
+					if v_0_0_0.Op != OpRsh32Ux64 {
+						continue
+					}
+					_ = v_0_0_0.Args[1]
+					x := v_0_0_0.Args[0]
+					v_0_0_0_1 := v_0_0_0.Args[1]
+					if v_0_0_0_1.Op != OpConst64 || auxIntToInt64(v_0_0_0_1.AuxInt) != 24 || v_0_0_1.Op != OpRsh32Ux64 {
+						continue
+					}
+					_ = v_0_0_1.Args[1]
+					v_0_0_1_0 := v_0_0_1.Args[0]
+					if v_0_0_1_0.Op != OpAnd32 {
+						continue
+					}
+					_ = v_0_0_1_0.Args[1]
+					v_0_0_1_0_0 := v_0_0_1_0.Args[0]
+					v_0_0_1_0_1 := v_0_0_1_0.Args[1]
+					for _i3 := 0; _i3 <= 1; _i3, v_0_0_1_0_0, v_0_0_1_0_1 = _i3+1, v_0_0_1_0_1, v_0_0_1_0_0 {
+						if x != v_0_0_1_0_0 || v_0_0_1_0_1.Op != OpConst32 || auxIntToInt32(v_0_0_1_0_1.AuxInt) != 0xff0000 {
+							continue
+						}
+						v_0_0_1_1 := v_0_0_1.Args[1]
+						if v_0_0_1_1.Op != OpConst64 || auxIntToInt64(v_0_0_1_1.AuxInt) != 8 || v_0_1.Op != OpLsh32x64 {
+							continue
+						}
+						_ = v_0_1.Args[1]
+						v_0_1_0 := v_0_1.Args[0]
+						if v_0_1_0.Op != OpAnd32 {
+							continue
+						}
+						_ = v_0_1_0.Args[1]
+						v_0_1_0_0 := v_0_1_0.Args[0]
+						v_0_1_0_1 := v_0_1_0.Args[1]
+						for _i4 := 0; _i4 <= 1; _i4, v_0_1_0_0, v_0_1_0_1 = _i4+1, v_0_1_0_1, v_0_1_0_0 {
+							if x != v_0_1_0_0 || v_0_1_0_1.Op != OpConst32 || auxIntToInt32(v_0_1_0_1.AuxInt) != 0xff00 {
+								continue
+							}
+							v_0_1_1 := v_0_1.Args[1]
+							if v_0_1_1.Op != OpConst64 || auxIntToInt64(v_0_1_1.AuxInt) != 8 || v_1.Op != OpLsh32x64 {
+								continue
+							}
+							_ = v_1.Args[1]
+							if x != v_1.Args[0] {
+								continue
+							}
+							v_1_1 := v_1.Args[1]
+							if v_1_1.Op != OpConst64 || auxIntToInt64(v_1_1.AuxInt) != 24 || !(config.haveByteSwap(4)) {
+								continue
+							}
+							v.reset(OpBswap32)
+							v.AddArg(x)
+							return true
+						}
+					}
+				}
+			}
+		}
+		break
+	}
+	// match: (Or32 (Or32 (Or32 (Lsh32x64 x (Const64 [24])) (And32 (Lsh32x64 x (Const64 [8])) (Const32 [0xff0000]))) (And32 (Rsh32Ux64 x (Const64 [8])) (Const32 [0xff00]))) (Rsh32Ux64 x (Const64 [24])))
+	// cond: config.haveByteSwap(4)
+	// result: (Bswap32 x)
+	for {
+		for _i0 := 0; _i0 <= 1; _i0, v_0, v_1 = _i0+1, v_1, v_0 {
+			if v_0.Op != OpOr32 {
+				continue
+			}
+			_ = v_0.Args[1]
+			v_0_0 := v_0.Args[0]
+			v_0_1 := v_0.Args[1]
+			for _i1 := 0; _i1 <= 1; _i1, v_0_0, v_0_1 = _i1+1, v_0_1, v_0_0 {
+				if v_0_0.Op != OpOr32 {
+					continue
+				}
+				_ = v_0_0.Args[1]
+				v_0_0_0 := v_0_0.Args[0]
+				v_0_0_1 := v_0_0.Args[1]
+				for _i2 := 0; _i2 <= 1; _i2, v_0_0_0, v_0_0_1 = _i2+1, v_0_0_1, v_0_0_0 {
+					if v_0_0_0.Op != OpLsh32x64 {
+						continue
+					}
+					_ = v_0_0_0.Args[1]
+					x := v_0_0_0.Args[0]
+					v_0_0_0_1 := v_0_0_0.Args[1]
+					if v_0_0_0_1.Op != OpConst64 || auxIntToInt64(v_0_0_0_1.AuxInt) != 24 || v_0_0_1.Op != OpAnd32 {
+						continue
+					}
+					_ = v_0_0_1.Args[1]
+					v_0_0_1_0 := v_0_0_1.Args[0]
+					v_0_0_1_1 := v_0_0_1.Args[1]
+					for _i3 := 0; _i3 <= 1; _i3, v_0_0_1_0, v_0_0_1_1 = _i3+1, v_0_0_1_1, v_0_0_1_0 {
+						if v_0_0_1_0.Op != OpLsh32x64 {
+							continue
+						}
+						_ = v_0_0_1_0.Args[1]
+						if x != v_0_0_1_0.Args[0] {
+							continue
+						}
+						v_0_0_1_0_1 := v_0_0_1_0.Args[1]
+						if v_0_0_1_0_1.Op != OpConst64 || auxIntToInt64(v_0_0_1_0_1.AuxInt) != 8 || v_0_0_1_1.Op != OpConst32 || auxIntToInt32(v_0_0_1_1.AuxInt) != 0xff0000 || v_0_1.Op != OpAnd32 {
+							continue
+						}
+						_ = v_0_1.Args[1]
+						v_0_1_0 := v_0_1.Args[0]
+						v_0_1_1 := v_0_1.Args[1]
+						for _i4 := 0; _i4 <= 1; _i4, v_0_1_0, v_0_1_1 = _i4+1, v_0_1_1, v_0_1_0 {
+							if v_0_1_0.Op != OpRsh32Ux64 {
+								continue
+							}
+							_ = v_0_1_0.Args[1]
+							if x != v_0_1_0.Args[0] {
+								continue
+							}
+							v_0_1_0_1 := v_0_1_0.Args[1]
+							if v_0_1_0_1.Op != OpConst64 || auxIntToInt64(v_0_1_0_1.AuxInt) != 8 || v_0_1_1.Op != OpConst32 || auxIntToInt32(v_0_1_1.AuxInt) != 0xff00 || v_1.Op != OpRsh32Ux64 {
+								continue
+							}
+							_ = v_1.Args[1]
+							if x != v_1.Args[0] {
+								continue
+							}
+							v_1_1 := v_1.Args[1]
+							if v_1_1.Op != OpConst64 || auxIntToInt64(v_1_1.AuxInt) != 24 || !(config.haveByteSwap(4)) {
+								continue
+							}
+							v.reset(OpBswap32)
+							v.AddArg(x)
+							return true
+						}
+					}
+				}
+			}
+		}
+		break
+	}
+	// match: (Or32 (Or32 (Or32 (Rsh32Ux64 x (Const64 [24])) (And32 (Rsh32Ux64 x (Const64 [8])) (Const32 [0xff00]))) (And32 (Lsh32x64 x (Const64 [8])) (Const32 [0xff0000]))) (Lsh32x64 x (Const64 [24])))
+	// cond: config.haveByteSwap(4)
+	// result: (Bswap32 x)
+	for {
+		for _i0 := 0; _i0 <= 1; _i0, v_0, v_1 = _i0+1, v_1, v_0 {
+			if v_0.Op != OpOr32 {
+				continue
+			}
+			_ = v_0.Args[1]
+			v_0_0 := v_0.Args[0]
+			v_0_1 := v_0.Args[1]
+			for _i1 := 0; _i1 <= 1; _i1, v_0_0, v_0_1 = _i1+1, v_0_1, v_0_0 {
+				if v_0_0.Op != OpOr32 {
+					continue
+				}
+				_ = v_0_0.Args[1]
+				v_0_0_0 := v_0_0.Args[0]
+				v_0_0_1 := v_0_0.Args[1]
+				for _i2 := 0; _i2 <= 1; _i2, v_0_0_0, v_0_0_1 = _i2+1, v_0_0_1, v_0_0_0 {
+					if v_0_0_0.Op != OpRsh32Ux64 {
+						continue
+					}
+					_ = v_0_0_0.Args[1]
+					x := v_0_0_0.Args[0]
+					v_0_0_0_1 := v_0_0_0.Args[1]
+					if v_0_0_0_1.Op != OpConst64 || auxIntToInt64(v_0_0_0_1.AuxInt) != 24 || v_0_0_1.Op != OpAnd32 {
+						continue
+					}
+					_ = v_0_0_1.Args[1]
+					v_0_0_1_0 := v_0_0_1.Args[0]
+					v_0_0_1_1 := v_0_0_1.Args[1]
+					for _i3 := 0; _i3 <= 1; _i3, v_0_0_1_0, v_0_0_1_1 = _i3+1, v_0_0_1_1, v_0_0_1_0 {
+						if v_0_0_1_0.Op != OpRsh32Ux64 {
+							continue
+						}
+						_ = v_0_0_1_0.Args[1]
+						if x != v_0_0_1_0.Args[0] {
+							continue
+						}
+						v_0_0_1_0_1 := v_0_0_1_0.Args[1]
+						if v_0_0_1_0_1.Op != OpConst64 || auxIntToInt64(v_0_0_1_0_1.AuxInt) != 8 || v_0_0_1_1.Op != OpConst32 || auxIntToInt32(v_0_0_1_1.AuxInt) != 0xff00 || v_0_1.Op != OpAnd32 {
+							continue
+						}
+						_ = v_0_1.Args[1]
+						v_0_1_0 := v_0_1.Args[0]
+						v_0_1_1 := v_0_1.Args[1]
+						for _i4 := 0; _i4 <= 1; _i4, v_0_1_0, v_0_1_1 = _i4+1, v_0_1_1, v_0_1_0 {
+							if v_0_1_0.Op != OpLsh32x64 {
+								continue
+							}
+							_ = v_0_1_0.Args[1]
+							if x != v_0_1_0.Args[0] {
+								continue
+							}
+							v_0_1_0_1 := v_0_1_0.Args[1]
+							if v_0_1_0_1.Op != OpConst64 || auxIntToInt64(v_0_1_0_1.AuxInt) != 8 || v_0_1_1.Op != OpConst32 || auxIntToInt32(v_0_1_1.AuxInt) != 0xff0000 || v_1.Op != OpLsh32x64 {
+								continue
+							}
+							_ = v_1.Args[1]
+							if x != v_1.Args[0] {
+								continue
+							}
+							v_1_1 := v_1.Args[1]
+							if v_1_1.Op != OpConst64 || auxIntToInt64(v_1_1.AuxInt) != 24 || !(config.haveByteSwap(4)) {
+								continue
+							}
+							v.reset(OpBswap32)
+							v.AddArg(x)
+							return true
+						}
+					}
+				}
+			}
+		}
+		break
+	}
+	// match: (Or32 (Or32 (Or32 (Lsh32x64 x (Const64 [24])) (Lsh32x64 (And32 x (Const32 [0xff00])) (Const64 [8]))) (And32 (Rsh32Ux64 x (Const64 [8])) (Const32 [0xff00]))) (Rsh32Ux64 x (Const64 [24])))
+	// cond: config.haveByteSwap(4)
+	// result: (Bswap32 x)
+	for {
+		for _i0 := 0; _i0 <= 1; _i0, v_0, v_1 = _i0+1, v_1, v_0 {
+			if v_0.Op != OpOr32 {
+				continue
+			}
+			_ = v_0.Args[1]
+			v_0_0 := v_0.Args[0]
+			v_0_1 := v_0.Args[1]
+			for _i1 := 0; _i1 <= 1; _i1, v_0_0, v_0_1 = _i1+1, v_0_1, v_0_0 {
+				if v_0_0.Op != OpOr32 {
+					continue
+				}
+				_ = v_0_0.Args[1]
+				v_0_0_0 := v_0_0.Args[0]
+				v_0_0_1 := v_0_0.Args[1]
+				for _i2 := 0; _i2 <= 1; _i2, v_0_0_0, v_0_0_1 = _i2+1, v_0_0_1, v_0_0_0 {
+					if v_0_0_0.Op != OpLsh32x64 {
+						continue
+					}
+					_ = v_0_0_0.Args[1]
+					x := v_0_0_0.Args[0]
+					v_0_0_0_1 := v_0_0_0.Args[1]
+					if v_0_0_0_1.Op != OpConst64 || auxIntToInt64(v_0_0_0_1.AuxInt) != 24 || v_0_0_1.Op != OpLsh32x64 {
+						continue
+					}
+					_ = v_0_0_1.Args[1]
+					v_0_0_1_0 := v_0_0_1.Args[0]
+					if v_0_0_1_0.Op != OpAnd32 {
+						continue
+					}
+					_ = v_0_0_1_0.Args[1]
+					v_0_0_1_0_0 := v_0_0_1_0.Args[0]
+					v_0_0_1_0_1 := v_0_0_1_0.Args[1]
+					for _i3 := 0; _i3 <= 1; _i3, v_0_0_1_0_0, v_0_0_1_0_1 = _i3+1, v_0_0_1_0_1, v_0_0_1_0_0 {
+						if x != v_0_0_1_0_0 || v_0_0_1_0_1.Op != OpConst32 || auxIntToInt32(v_0_0_1_0_1.AuxInt) != 0xff00 {
+							continue
+						}
+						v_0_0_1_1 := v_0_0_1.Args[1]
+						if v_0_0_1_1.Op != OpConst64 || auxIntToInt64(v_0_0_1_1.AuxInt) != 8 || v_0_1.Op != OpAnd32 {
+							continue
+						}
+						_ = v_0_1.Args[1]
+						v_0_1_0 := v_0_1.Args[0]
+						v_0_1_1 := v_0_1.Args[1]
+						for _i4 := 0; _i4 <= 1; _i4, v_0_1_0, v_0_1_1 = _i4+1, v_0_1_1, v_0_1_0 {
+							if v_0_1_0.Op != OpRsh32Ux64 {
+								continue
+							}
+							_ = v_0_1_0.Args[1]
+							if x != v_0_1_0.Args[0] {
+								continue
+							}
+							v_0_1_0_1 := v_0_1_0.Args[1]
+							if v_0_1_0_1.Op != OpConst64 || auxIntToInt64(v_0_1_0_1.AuxInt) != 8 || v_0_1_1.Op != OpConst32 || auxIntToInt32(v_0_1_1.AuxInt) != 0xff00 || v_1.Op != OpRsh32Ux64 {
+								continue
+							}
+							_ = v_1.Args[1]
+							if x != v_1.Args[0] {
+								continue
+							}
+							v_1_1 := v_1.Args[1]
+							if v_1_1.Op != OpConst64 || auxIntToInt64(v_1_1.AuxInt) != 24 || !(config.haveByteSwap(4)) {
+								continue
+							}
+							v.reset(OpBswap32)
+							v.AddArg(x)
+							return true
+						}
+					}
+				}
+			}
+		}
+		break
+	}
+	// match: (Or32 (Or32 (Or32 (Rsh32Ux64 x (Const64 [24])) (And32 (Rsh32Ux64 x (Const64 [8])) (Const32 [0xff00]))) (Lsh32x64 (And32 x (Const32 [0xff00])) (Const64 [8]))) (Lsh32x64 x (Const64 [24])))
+	// cond: config.haveByteSwap(4)
+	// result: (Bswap32 x)
+	for {
+		for _i0 := 0; _i0 <= 1; _i0, v_0, v_1 = _i0+1, v_1, v_0 {
+			if v_0.Op != OpOr32 {
+				continue
+			}
+			_ = v_0.Args[1]
+			v_0_0 := v_0.Args[0]
+			v_0_1 := v_0.Args[1]
+			for _i1 := 0; _i1 <= 1; _i1, v_0_0, v_0_1 = _i1+1, v_0_1, v_0_0 {
+				if v_0_0.Op != OpOr32 {
+					continue
+				}
+				_ = v_0_0.Args[1]
+				v_0_0_0 := v_0_0.Args[0]
+				v_0_0_1 := v_0_0.Args[1]
+				for _i2 := 0; _i2 <= 1; _i2, v_0_0_0, v_0_0_1 = _i2+1, v_0_0_1, v_0_0_0 {
+					if v_0_0_0.Op != OpRsh32Ux64 {
+						continue
+					}
+					_ = v_0_0_0.Args[1]
+					x := v_0_0_0.Args[0]
+					v_0_0_0_1 := v_0_0_0.Args[1]
+					if v_0_0_0_1.Op != OpConst64 || auxIntToInt64(v_0_0_0_1.AuxInt) != 24 || v_0_0_1.Op != OpAnd32 {
+						continue
+					}
+					_ = v_0_0_1.Args[1]
+					v_0_0_1_0 := v_0_0_1.Args[0]
+					v_0_0_1_1 := v_0_0_1.Args[1]
+					for _i3 := 0; _i3 <= 1; _i3, v_0_0_1_0, v_0_0_1_1 = _i3+1, v_0_0_1_1, v_0_0_1_0 {
+						if v_0_0_1_0.Op != OpRsh32Ux64 {
+							continue
+						}
+						_ = v_0_0_1_0.Args[1]
+						if x != v_0_0_1_0.Args[0] {
+							continue
+						}
+						v_0_0_1_0_1 := v_0_0_1_0.Args[1]
+						if v_0_0_1_0_1.Op != OpConst64 || auxIntToInt64(v_0_0_1_0_1.AuxInt) != 8 || v_0_0_1_1.Op != OpConst32 || auxIntToInt32(v_0_0_1_1.AuxInt) != 0xff00 || v_0_1.Op != OpLsh32x64 {
+							continue
+						}
+						_ = v_0_1.Args[1]
+						v_0_1_0 := v_0_1.Args[0]
+						if v_0_1_0.Op != OpAnd32 {
+							continue
+						}
+						_ = v_0_1_0.Args[1]
+						v_0_1_0_0 := v_0_1_0.Args[0]
+						v_0_1_0_1 := v_0_1_0.Args[1]
+						for _i4 := 0; _i4 <= 1; _i4, v_0_1_0_0, v_0_1_0_1 = _i4+1, v_0_1_0_1, v_0_1_0_0 {
+							if x != v_0_1_0_0 || v_0_1_0_1.Op != OpConst32 || auxIntToInt32(v_0_1_0_1.AuxInt) != 0xff00 {
+								continue
+							}
+							v_0_1_1 := v_0_1.Args[1]
+							if v_0_1_1.Op != OpConst64 || auxIntToInt64(v_0_1_1.AuxInt) != 8 || v_1.Op != OpLsh32x64 {
+								continue
+							}
+							_ = v_1.Args[1]
+							if x != v_1.Args[0] {
+								continue
+							}
+							v_1_1 := v_1.Args[1]
+							if v_1_1.Op != OpConst64 || auxIntToInt64(v_1_1.AuxInt) != 24 || !(config.haveByteSwap(4)) {
+								continue
+							}
+							v.reset(OpBswap32)
+							v.AddArg(x)
+							return true
+						}
+					}
+				}
+			}
+		}
+		break
+	}
 	return false
 }
 func rewriteValuegeneric_OpOr64(v *Value) bool {
@@ -25285,6 +26103,1056 @@ func rewriteValuegeneric_OpOr64(v *Value) bool {
 			v.reset(OpRotateLeft64)
 			v.AddArg2(x, z)
 			return true
+		}
+		break
+	}
+	// match: (Or64 (Or64 (Or64 (Or64 (Or64 (Or64 (Or64 (Lsh64x64 x (Const64 [56])) (Lsh64x64 (And64 x (Const64 [0xff00])) (Const64 [40]))) (Lsh64x64 (And64 x (Const64 [0xff0000])) (Const64 [24]))) (Lsh64x64 (And64 x (Const64 [0xff000000])) (Const64 [8]))) (Rsh64Ux64 (And64 x (Const64 [0xff00000000])) (Const64 [8]))) (Rsh64Ux64 (And64 x (Const64 [0xff0000000000])) (Const64 [24]))) (Rsh64Ux64 (And64 x (Const64 [0xff000000000000])) (Const64 [40]))) (Rsh64Ux64 x (Const64 [56])))
+	// cond: config.haveByteSwap(8)
+	// result: (Bswap64 x)
+	for {
+		for _i0 := 0; _i0 <= 1; _i0, v_0, v_1 = _i0+1, v_1, v_0 {
+			if v_0.Op != OpOr64 {
+				continue
+			}
+			_ = v_0.Args[1]
+			v_0_0 := v_0.Args[0]
+			v_0_1 := v_0.Args[1]
+			for _i1 := 0; _i1 <= 1; _i1, v_0_0, v_0_1 = _i1+1, v_0_1, v_0_0 {
+				if v_0_0.Op != OpOr64 {
+					continue
+				}
+				_ = v_0_0.Args[1]
+				v_0_0_0 := v_0_0.Args[0]
+				v_0_0_1 := v_0_0.Args[1]
+				for _i2 := 0; _i2 <= 1; _i2, v_0_0_0, v_0_0_1 = _i2+1, v_0_0_1, v_0_0_0 {
+					if v_0_0_0.Op != OpOr64 {
+						continue
+					}
+					_ = v_0_0_0.Args[1]
+					v_0_0_0_0 := v_0_0_0.Args[0]
+					v_0_0_0_1 := v_0_0_0.Args[1]
+					for _i3 := 0; _i3 <= 1; _i3, v_0_0_0_0, v_0_0_0_1 = _i3+1, v_0_0_0_1, v_0_0_0_0 {
+						if v_0_0_0_0.Op != OpOr64 {
+							continue
+						}
+						_ = v_0_0_0_0.Args[1]
+						v_0_0_0_0_0 := v_0_0_0_0.Args[0]
+						v_0_0_0_0_1 := v_0_0_0_0.Args[1]
+						for _i4 := 0; _i4 <= 1; _i4, v_0_0_0_0_0, v_0_0_0_0_1 = _i4+1, v_0_0_0_0_1, v_0_0_0_0_0 {
+							if v_0_0_0_0_0.Op != OpOr64 {
+								continue
+							}
+							_ = v_0_0_0_0_0.Args[1]
+							v_0_0_0_0_0_0 := v_0_0_0_0_0.Args[0]
+							v_0_0_0_0_0_1 := v_0_0_0_0_0.Args[1]
+							for _i5 := 0; _i5 <= 1; _i5, v_0_0_0_0_0_0, v_0_0_0_0_0_1 = _i5+1, v_0_0_0_0_0_1, v_0_0_0_0_0_0 {
+								if v_0_0_0_0_0_0.Op != OpOr64 {
+									continue
+								}
+								_ = v_0_0_0_0_0_0.Args[1]
+								v_0_0_0_0_0_0_0 := v_0_0_0_0_0_0.Args[0]
+								v_0_0_0_0_0_0_1 := v_0_0_0_0_0_0.Args[1]
+								for _i6 := 0; _i6 <= 1; _i6, v_0_0_0_0_0_0_0, v_0_0_0_0_0_0_1 = _i6+1, v_0_0_0_0_0_0_1, v_0_0_0_0_0_0_0 {
+									if v_0_0_0_0_0_0_0.Op != OpLsh64x64 {
+										continue
+									}
+									_ = v_0_0_0_0_0_0_0.Args[1]
+									x := v_0_0_0_0_0_0_0.Args[0]
+									v_0_0_0_0_0_0_0_1 := v_0_0_0_0_0_0_0.Args[1]
+									if v_0_0_0_0_0_0_0_1.Op != OpConst64 || auxIntToInt64(v_0_0_0_0_0_0_0_1.AuxInt) != 56 || v_0_0_0_0_0_0_1.Op != OpLsh64x64 {
+										continue
+									}
+									_ = v_0_0_0_0_0_0_1.Args[1]
+									v_0_0_0_0_0_0_1_0 := v_0_0_0_0_0_0_1.Args[0]
+									if v_0_0_0_0_0_0_1_0.Op != OpAnd64 {
+										continue
+									}
+									_ = v_0_0_0_0_0_0_1_0.Args[1]
+									v_0_0_0_0_0_0_1_0_0 := v_0_0_0_0_0_0_1_0.Args[0]
+									v_0_0_0_0_0_0_1_0_1 := v_0_0_0_0_0_0_1_0.Args[1]
+									for _i7 := 0; _i7 <= 1; _i7, v_0_0_0_0_0_0_1_0_0, v_0_0_0_0_0_0_1_0_1 = _i7+1, v_0_0_0_0_0_0_1_0_1, v_0_0_0_0_0_0_1_0_0 {
+										if x != v_0_0_0_0_0_0_1_0_0 || v_0_0_0_0_0_0_1_0_1.Op != OpConst64 || auxIntToInt64(v_0_0_0_0_0_0_1_0_1.AuxInt) != 0xff00 {
+											continue
+										}
+										v_0_0_0_0_0_0_1_1 := v_0_0_0_0_0_0_1.Args[1]
+										if v_0_0_0_0_0_0_1_1.Op != OpConst64 || auxIntToInt64(v_0_0_0_0_0_0_1_1.AuxInt) != 40 || v_0_0_0_0_0_1.Op != OpLsh64x64 {
+											continue
+										}
+										_ = v_0_0_0_0_0_1.Args[1]
+										v_0_0_0_0_0_1_0 := v_0_0_0_0_0_1.Args[0]
+										if v_0_0_0_0_0_1_0.Op != OpAnd64 {
+											continue
+										}
+										_ = v_0_0_0_0_0_1_0.Args[1]
+										v_0_0_0_0_0_1_0_0 := v_0_0_0_0_0_1_0.Args[0]
+										v_0_0_0_0_0_1_0_1 := v_0_0_0_0_0_1_0.Args[1]
+										for _i8 := 0; _i8 <= 1; _i8, v_0_0_0_0_0_1_0_0, v_0_0_0_0_0_1_0_1 = _i8+1, v_0_0_0_0_0_1_0_1, v_0_0_0_0_0_1_0_0 {
+											if x != v_0_0_0_0_0_1_0_0 || v_0_0_0_0_0_1_0_1.Op != OpConst64 || auxIntToInt64(v_0_0_0_0_0_1_0_1.AuxInt) != 0xff0000 {
+												continue
+											}
+											v_0_0_0_0_0_1_1 := v_0_0_0_0_0_1.Args[1]
+											if v_0_0_0_0_0_1_1.Op != OpConst64 || auxIntToInt64(v_0_0_0_0_0_1_1.AuxInt) != 24 || v_0_0_0_0_1.Op != OpLsh64x64 {
+												continue
+											}
+											_ = v_0_0_0_0_1.Args[1]
+											v_0_0_0_0_1_0 := v_0_0_0_0_1.Args[0]
+											if v_0_0_0_0_1_0.Op != OpAnd64 {
+												continue
+											}
+											_ = v_0_0_0_0_1_0.Args[1]
+											v_0_0_0_0_1_0_0 := v_0_0_0_0_1_0.Args[0]
+											v_0_0_0_0_1_0_1 := v_0_0_0_0_1_0.Args[1]
+											for _i9 := 0; _i9 <= 1; _i9, v_0_0_0_0_1_0_0, v_0_0_0_0_1_0_1 = _i9+1, v_0_0_0_0_1_0_1, v_0_0_0_0_1_0_0 {
+												if x != v_0_0_0_0_1_0_0 || v_0_0_0_0_1_0_1.Op != OpConst64 || auxIntToInt64(v_0_0_0_0_1_0_1.AuxInt) != 0xff000000 {
+													continue
+												}
+												v_0_0_0_0_1_1 := v_0_0_0_0_1.Args[1]
+												if v_0_0_0_0_1_1.Op != OpConst64 || auxIntToInt64(v_0_0_0_0_1_1.AuxInt) != 8 || v_0_0_0_1.Op != OpRsh64Ux64 {
+													continue
+												}
+												_ = v_0_0_0_1.Args[1]
+												v_0_0_0_1_0 := v_0_0_0_1.Args[0]
+												if v_0_0_0_1_0.Op != OpAnd64 {
+													continue
+												}
+												_ = v_0_0_0_1_0.Args[1]
+												v_0_0_0_1_0_0 := v_0_0_0_1_0.Args[0]
+												v_0_0_0_1_0_1 := v_0_0_0_1_0.Args[1]
+												for _i10 := 0; _i10 <= 1; _i10, v_0_0_0_1_0_0, v_0_0_0_1_0_1 = _i10+1, v_0_0_0_1_0_1, v_0_0_0_1_0_0 {
+													if x != v_0_0_0_1_0_0 || v_0_0_0_1_0_1.Op != OpConst64 || auxIntToInt64(v_0_0_0_1_0_1.AuxInt) != 0xff00000000 {
+														continue
+													}
+													v_0_0_0_1_1 := v_0_0_0_1.Args[1]
+													if v_0_0_0_1_1.Op != OpConst64 || auxIntToInt64(v_0_0_0_1_1.AuxInt) != 8 || v_0_0_1.Op != OpRsh64Ux64 {
+														continue
+													}
+													_ = v_0_0_1.Args[1]
+													v_0_0_1_0 := v_0_0_1.Args[0]
+													if v_0_0_1_0.Op != OpAnd64 {
+														continue
+													}
+													_ = v_0_0_1_0.Args[1]
+													v_0_0_1_0_0 := v_0_0_1_0.Args[0]
+													v_0_0_1_0_1 := v_0_0_1_0.Args[1]
+													for _i11 := 0; _i11 <= 1; _i11, v_0_0_1_0_0, v_0_0_1_0_1 = _i11+1, v_0_0_1_0_1, v_0_0_1_0_0 {
+														if x != v_0_0_1_0_0 || v_0_0_1_0_1.Op != OpConst64 || auxIntToInt64(v_0_0_1_0_1.AuxInt) != 0xff0000000000 {
+															continue
+														}
+														v_0_0_1_1 := v_0_0_1.Args[1]
+														if v_0_0_1_1.Op != OpConst64 || auxIntToInt64(v_0_0_1_1.AuxInt) != 24 || v_0_1.Op != OpRsh64Ux64 {
+															continue
+														}
+														_ = v_0_1.Args[1]
+														v_0_1_0 := v_0_1.Args[0]
+														if v_0_1_0.Op != OpAnd64 {
+															continue
+														}
+														_ = v_0_1_0.Args[1]
+														v_0_1_0_0 := v_0_1_0.Args[0]
+														v_0_1_0_1 := v_0_1_0.Args[1]
+														for _i12 := 0; _i12 <= 1; _i12, v_0_1_0_0, v_0_1_0_1 = _i12+1, v_0_1_0_1, v_0_1_0_0 {
+															if x != v_0_1_0_0 || v_0_1_0_1.Op != OpConst64 || auxIntToInt64(v_0_1_0_1.AuxInt) != 0xff000000000000 {
+																continue
+															}
+															v_0_1_1 := v_0_1.Args[1]
+															if v_0_1_1.Op != OpConst64 || auxIntToInt64(v_0_1_1.AuxInt) != 40 || v_1.Op != OpRsh64Ux64 {
+																continue
+															}
+															_ = v_1.Args[1]
+															if x != v_1.Args[0] {
+																continue
+															}
+															v_1_1 := v_1.Args[1]
+															if v_1_1.Op != OpConst64 || auxIntToInt64(v_1_1.AuxInt) != 56 || !(config.haveByteSwap(8)) {
+																continue
+															}
+															v.reset(OpBswap64)
+															v.AddArg(x)
+															return true
+														}
+													}
+												}
+											}
+										}
+									}
+								}
+							}
+						}
+					}
+				}
+			}
+		}
+		break
+	}
+	// match: (Or64 (Or64 (Or64 (Or64 (Or64 (Or64 (Or64 (Rsh64Ux64 x (Const64 [56])) (Rsh64Ux64 (And64 x (Const64 [0xff000000000000])) (Const64 [40]))) (Rsh64Ux64 (And64 x (Const64 [0xff0000000000])) (Const64 [24]))) (Rsh64Ux64 (And64 x (Const64 [0xff00000000])) (Const64 [8]))) (Lsh64x64 (And64 x (Const64 [0xff000000])) (Const64 [8]))) (Lsh64x64 (And64 x (Const64 [0xff0000])) (Const64 [24]))) (Lsh64x64 (And64 x (Const64 [0xff00])) (Const64 [40]))) (Lsh64x64 x (Const64 [56])))
+	// cond: config.haveByteSwap(8)
+	// result: (Bswap64 x)
+	for {
+		for _i0 := 0; _i0 <= 1; _i0, v_0, v_1 = _i0+1, v_1, v_0 {
+			if v_0.Op != OpOr64 {
+				continue
+			}
+			_ = v_0.Args[1]
+			v_0_0 := v_0.Args[0]
+			v_0_1 := v_0.Args[1]
+			for _i1 := 0; _i1 <= 1; _i1, v_0_0, v_0_1 = _i1+1, v_0_1, v_0_0 {
+				if v_0_0.Op != OpOr64 {
+					continue
+				}
+				_ = v_0_0.Args[1]
+				v_0_0_0 := v_0_0.Args[0]
+				v_0_0_1 := v_0_0.Args[1]
+				for _i2 := 0; _i2 <= 1; _i2, v_0_0_0, v_0_0_1 = _i2+1, v_0_0_1, v_0_0_0 {
+					if v_0_0_0.Op != OpOr64 {
+						continue
+					}
+					_ = v_0_0_0.Args[1]
+					v_0_0_0_0 := v_0_0_0.Args[0]
+					v_0_0_0_1 := v_0_0_0.Args[1]
+					for _i3 := 0; _i3 <= 1; _i3, v_0_0_0_0, v_0_0_0_1 = _i3+1, v_0_0_0_1, v_0_0_0_0 {
+						if v_0_0_0_0.Op != OpOr64 {
+							continue
+						}
+						_ = v_0_0_0_0.Args[1]
+						v_0_0_0_0_0 := v_0_0_0_0.Args[0]
+						v_0_0_0_0_1 := v_0_0_0_0.Args[1]
+						for _i4 := 0; _i4 <= 1; _i4, v_0_0_0_0_0, v_0_0_0_0_1 = _i4+1, v_0_0_0_0_1, v_0_0_0_0_0 {
+							if v_0_0_0_0_0.Op != OpOr64 {
+								continue
+							}
+							_ = v_0_0_0_0_0.Args[1]
+							v_0_0_0_0_0_0 := v_0_0_0_0_0.Args[0]
+							v_0_0_0_0_0_1 := v_0_0_0_0_0.Args[1]
+							for _i5 := 0; _i5 <= 1; _i5, v_0_0_0_0_0_0, v_0_0_0_0_0_1 = _i5+1, v_0_0_0_0_0_1, v_0_0_0_0_0_0 {
+								if v_0_0_0_0_0_0.Op != OpOr64 {
+									continue
+								}
+								_ = v_0_0_0_0_0_0.Args[1]
+								v_0_0_0_0_0_0_0 := v_0_0_0_0_0_0.Args[0]
+								v_0_0_0_0_0_0_1 := v_0_0_0_0_0_0.Args[1]
+								for _i6 := 0; _i6 <= 1; _i6, v_0_0_0_0_0_0_0, v_0_0_0_0_0_0_1 = _i6+1, v_0_0_0_0_0_0_1, v_0_0_0_0_0_0_0 {
+									if v_0_0_0_0_0_0_0.Op != OpRsh64Ux64 {
+										continue
+									}
+									_ = v_0_0_0_0_0_0_0.Args[1]
+									x := v_0_0_0_0_0_0_0.Args[0]
+									v_0_0_0_0_0_0_0_1 := v_0_0_0_0_0_0_0.Args[1]
+									if v_0_0_0_0_0_0_0_1.Op != OpConst64 || auxIntToInt64(v_0_0_0_0_0_0_0_1.AuxInt) != 56 || v_0_0_0_0_0_0_1.Op != OpRsh64Ux64 {
+										continue
+									}
+									_ = v_0_0_0_0_0_0_1.Args[1]
+									v_0_0_0_0_0_0_1_0 := v_0_0_0_0_0_0_1.Args[0]
+									if v_0_0_0_0_0_0_1_0.Op != OpAnd64 {
+										continue
+									}
+									_ = v_0_0_0_0_0_0_1_0.Args[1]
+									v_0_0_0_0_0_0_1_0_0 := v_0_0_0_0_0_0_1_0.Args[0]
+									v_0_0_0_0_0_0_1_0_1 := v_0_0_0_0_0_0_1_0.Args[1]
+									for _i7 := 0; _i7 <= 1; _i7, v_0_0_0_0_0_0_1_0_0, v_0_0_0_0_0_0_1_0_1 = _i7+1, v_0_0_0_0_0_0_1_0_1, v_0_0_0_0_0_0_1_0_0 {
+										if x != v_0_0_0_0_0_0_1_0_0 || v_0_0_0_0_0_0_1_0_1.Op != OpConst64 || auxIntToInt64(v_0_0_0_0_0_0_1_0_1.AuxInt) != 0xff000000000000 {
+											continue
+										}
+										v_0_0_0_0_0_0_1_1 := v_0_0_0_0_0_0_1.Args[1]
+										if v_0_0_0_0_0_0_1_1.Op != OpConst64 || auxIntToInt64(v_0_0_0_0_0_0_1_1.AuxInt) != 40 || v_0_0_0_0_0_1.Op != OpRsh64Ux64 {
+											continue
+										}
+										_ = v_0_0_0_0_0_1.Args[1]
+										v_0_0_0_0_0_1_0 := v_0_0_0_0_0_1.Args[0]
+										if v_0_0_0_0_0_1_0.Op != OpAnd64 {
+											continue
+										}
+										_ = v_0_0_0_0_0_1_0.Args[1]
+										v_0_0_0_0_0_1_0_0 := v_0_0_0_0_0_1_0.Args[0]
+										v_0_0_0_0_0_1_0_1 := v_0_0_0_0_0_1_0.Args[1]
+										for _i8 := 0; _i8 <= 1; _i8, v_0_0_0_0_0_1_0_0, v_0_0_0_0_0_1_0_1 = _i8+1, v_0_0_0_0_0_1_0_1, v_0_0_0_0_0_1_0_0 {
+											if x != v_0_0_0_0_0_1_0_0 || v_0_0_0_0_0_1_0_1.Op != OpConst64 || auxIntToInt64(v_0_0_0_0_0_1_0_1.AuxInt) != 0xff0000000000 {
+												continue
+											}
+											v_0_0_0_0_0_1_1 := v_0_0_0_0_0_1.Args[1]
+											if v_0_0_0_0_0_1_1.Op != OpConst64 || auxIntToInt64(v_0_0_0_0_0_1_1.AuxInt) != 24 || v_0_0_0_0_1.Op != OpRsh64Ux64 {
+												continue
+											}
+											_ = v_0_0_0_0_1.Args[1]
+											v_0_0_0_0_1_0 := v_0_0_0_0_1.Args[0]
+											if v_0_0_0_0_1_0.Op != OpAnd64 {
+												continue
+											}
+											_ = v_0_0_0_0_1_0.Args[1]
+											v_0_0_0_0_1_0_0 := v_0_0_0_0_1_0.Args[0]
+											v_0_0_0_0_1_0_1 := v_0_0_0_0_1_0.Args[1]
+											for _i9 := 0; _i9 <= 1; _i9, v_0_0_0_0_1_0_0, v_0_0_0_0_1_0_1 = _i9+1, v_0_0_0_0_1_0_1, v_0_0_0_0_1_0_0 {
+												if x != v_0_0_0_0_1_0_0 || v_0_0_0_0_1_0_1.Op != OpConst64 || auxIntToInt64(v_0_0_0_0_1_0_1.AuxInt) != 0xff00000000 {
+													continue
+												}
+												v_0_0_0_0_1_1 := v_0_0_0_0_1.Args[1]
+												if v_0_0_0_0_1_1.Op != OpConst64 || auxIntToInt64(v_0_0_0_0_1_1.AuxInt) != 8 || v_0_0_0_1.Op != OpLsh64x64 {
+													continue
+												}
+												_ = v_0_0_0_1.Args[1]
+												v_0_0_0_1_0 := v_0_0_0_1.Args[0]
+												if v_0_0_0_1_0.Op != OpAnd64 {
+													continue
+												}
+												_ = v_0_0_0_1_0.Args[1]
+												v_0_0_0_1_0_0 := v_0_0_0_1_0.Args[0]
+												v_0_0_0_1_0_1 := v_0_0_0_1_0.Args[1]
+												for _i10 := 0; _i10 <= 1; _i10, v_0_0_0_1_0_0, v_0_0_0_1_0_1 = _i10+1, v_0_0_0_1_0_1, v_0_0_0_1_0_0 {
+													if x != v_0_0_0_1_0_0 || v_0_0_0_1_0_1.Op != OpConst64 || auxIntToInt64(v_0_0_0_1_0_1.AuxInt) != 0xff000000 {
+														continue
+													}
+													v_0_0_0_1_1 := v_0_0_0_1.Args[1]
+													if v_0_0_0_1_1.Op != OpConst64 || auxIntToInt64(v_0_0_0_1_1.AuxInt) != 8 || v_0_0_1.Op != OpLsh64x64 {
+														continue
+													}
+													_ = v_0_0_1.Args[1]
+													v_0_0_1_0 := v_0_0_1.Args[0]
+													if v_0_0_1_0.Op != OpAnd64 {
+														continue
+													}
+													_ = v_0_0_1_0.Args[1]
+													v_0_0_1_0_0 := v_0_0_1_0.Args[0]
+													v_0_0_1_0_1 := v_0_0_1_0.Args[1]
+													for _i11 := 0; _i11 <= 1; _i11, v_0_0_1_0_0, v_0_0_1_0_1 = _i11+1, v_0_0_1_0_1, v_0_0_1_0_0 {
+														if x != v_0_0_1_0_0 || v_0_0_1_0_1.Op != OpConst64 || auxIntToInt64(v_0_0_1_0_1.AuxInt) != 0xff0000 {
+															continue
+														}
+														v_0_0_1_1 := v_0_0_1.Args[1]
+														if v_0_0_1_1.Op != OpConst64 || auxIntToInt64(v_0_0_1_1.AuxInt) != 24 || v_0_1.Op != OpLsh64x64 {
+															continue
+														}
+														_ = v_0_1.Args[1]
+														v_0_1_0 := v_0_1.Args[0]
+														if v_0_1_0.Op != OpAnd64 {
+															continue
+														}
+														_ = v_0_1_0.Args[1]
+														v_0_1_0_0 := v_0_1_0.Args[0]
+														v_0_1_0_1 := v_0_1_0.Args[1]
+														for _i12 := 0; _i12 <= 1; _i12, v_0_1_0_0, v_0_1_0_1 = _i12+1, v_0_1_0_1, v_0_1_0_0 {
+															if x != v_0_1_0_0 || v_0_1_0_1.Op != OpConst64 || auxIntToInt64(v_0_1_0_1.AuxInt) != 0xff00 {
+																continue
+															}
+															v_0_1_1 := v_0_1.Args[1]
+															if v_0_1_1.Op != OpConst64 || auxIntToInt64(v_0_1_1.AuxInt) != 40 || v_1.Op != OpLsh64x64 {
+																continue
+															}
+															_ = v_1.Args[1]
+															if x != v_1.Args[0] {
+																continue
+															}
+															v_1_1 := v_1.Args[1]
+															if v_1_1.Op != OpConst64 || auxIntToInt64(v_1_1.AuxInt) != 56 || !(config.haveByteSwap(8)) {
+																continue
+															}
+															v.reset(OpBswap64)
+															v.AddArg(x)
+															return true
+														}
+													}
+												}
+											}
+										}
+									}
+								}
+							}
+						}
+					}
+				}
+			}
+		}
+		break
+	}
+	// match: (Or64 (Or64 (Or64 (Or64 (Or64 (Or64 (Or64 (Lsh64x64 x (Const64 [56])) (And64 (Lsh64x64 x (Const64 [40])) (Const64 [0xff000000000000]))) (And64 (Lsh64x64 x (Const64 [24])) (Const64 [0xff0000000000]))) (And64 (Lsh64x64 x (Const64 [8])) (Const64 [0xff00000000]))) (And64 (Rsh64Ux64 x (Const64 [8])) (Const64 [0xff000000]))) (And64 (Rsh64Ux64 x (Const64 [24])) (Const64 [0xff0000]))) (And64 (Rsh64Ux64 x (Const64 [40])) (Const64 [0xff00]))) (Rsh64Ux64 x (Const64 [56])))
+	// cond: config.haveByteSwap(8)
+	// result: (Bswap64 x)
+	for {
+		for _i0 := 0; _i0 <= 1; _i0, v_0, v_1 = _i0+1, v_1, v_0 {
+			if v_0.Op != OpOr64 {
+				continue
+			}
+			_ = v_0.Args[1]
+			v_0_0 := v_0.Args[0]
+			v_0_1 := v_0.Args[1]
+			for _i1 := 0; _i1 <= 1; _i1, v_0_0, v_0_1 = _i1+1, v_0_1, v_0_0 {
+				if v_0_0.Op != OpOr64 {
+					continue
+				}
+				_ = v_0_0.Args[1]
+				v_0_0_0 := v_0_0.Args[0]
+				v_0_0_1 := v_0_0.Args[1]
+				for _i2 := 0; _i2 <= 1; _i2, v_0_0_0, v_0_0_1 = _i2+1, v_0_0_1, v_0_0_0 {
+					if v_0_0_0.Op != OpOr64 {
+						continue
+					}
+					_ = v_0_0_0.Args[1]
+					v_0_0_0_0 := v_0_0_0.Args[0]
+					v_0_0_0_1 := v_0_0_0.Args[1]
+					for _i3 := 0; _i3 <= 1; _i3, v_0_0_0_0, v_0_0_0_1 = _i3+1, v_0_0_0_1, v_0_0_0_0 {
+						if v_0_0_0_0.Op != OpOr64 {
+							continue
+						}
+						_ = v_0_0_0_0.Args[1]
+						v_0_0_0_0_0 := v_0_0_0_0.Args[0]
+						v_0_0_0_0_1 := v_0_0_0_0.Args[1]
+						for _i4 := 0; _i4 <= 1; _i4, v_0_0_0_0_0, v_0_0_0_0_1 = _i4+1, v_0_0_0_0_1, v_0_0_0_0_0 {
+							if v_0_0_0_0_0.Op != OpOr64 {
+								continue
+							}
+							_ = v_0_0_0_0_0.Args[1]
+							v_0_0_0_0_0_0 := v_0_0_0_0_0.Args[0]
+							v_0_0_0_0_0_1 := v_0_0_0_0_0.Args[1]
+							for _i5 := 0; _i5 <= 1; _i5, v_0_0_0_0_0_0, v_0_0_0_0_0_1 = _i5+1, v_0_0_0_0_0_1, v_0_0_0_0_0_0 {
+								if v_0_0_0_0_0_0.Op != OpOr64 {
+									continue
+								}
+								_ = v_0_0_0_0_0_0.Args[1]
+								v_0_0_0_0_0_0_0 := v_0_0_0_0_0_0.Args[0]
+								v_0_0_0_0_0_0_1 := v_0_0_0_0_0_0.Args[1]
+								for _i6 := 0; _i6 <= 1; _i6, v_0_0_0_0_0_0_0, v_0_0_0_0_0_0_1 = _i6+1, v_0_0_0_0_0_0_1, v_0_0_0_0_0_0_0 {
+									if v_0_0_0_0_0_0_0.Op != OpLsh64x64 {
+										continue
+									}
+									_ = v_0_0_0_0_0_0_0.Args[1]
+									x := v_0_0_0_0_0_0_0.Args[0]
+									v_0_0_0_0_0_0_0_1 := v_0_0_0_0_0_0_0.Args[1]
+									if v_0_0_0_0_0_0_0_1.Op != OpConst64 || auxIntToInt64(v_0_0_0_0_0_0_0_1.AuxInt) != 56 || v_0_0_0_0_0_0_1.Op != OpAnd64 {
+										continue
+									}
+									_ = v_0_0_0_0_0_0_1.Args[1]
+									v_0_0_0_0_0_0_1_0 := v_0_0_0_0_0_0_1.Args[0]
+									v_0_0_0_0_0_0_1_1 := v_0_0_0_0_0_0_1.Args[1]
+									for _i7 := 0; _i7 <= 1; _i7, v_0_0_0_0_0_0_1_0, v_0_0_0_0_0_0_1_1 = _i7+1, v_0_0_0_0_0_0_1_1, v_0_0_0_0_0_0_1_0 {
+										if v_0_0_0_0_0_0_1_0.Op != OpLsh64x64 {
+											continue
+										}
+										_ = v_0_0_0_0_0_0_1_0.Args[1]
+										if x != v_0_0_0_0_0_0_1_0.Args[0] {
+											continue
+										}
+										v_0_0_0_0_0_0_1_0_1 := v_0_0_0_0_0_0_1_0.Args[1]
+										if v_0_0_0_0_0_0_1_0_1.Op != OpConst64 || auxIntToInt64(v_0_0_0_0_0_0_1_0_1.AuxInt) != 40 || v_0_0_0_0_0_0_1_1.Op != OpConst64 || auxIntToInt64(v_0_0_0_0_0_0_1_1.AuxInt) != 0xff000000000000 || v_0_0_0_0_0_1.Op != OpAnd64 {
+											continue
+										}
+										_ = v_0_0_0_0_0_1.Args[1]
+										v_0_0_0_0_0_1_0 := v_0_0_0_0_0_1.Args[0]
+										v_0_0_0_0_0_1_1 := v_0_0_0_0_0_1.Args[1]
+										for _i8 := 0; _i8 <= 1; _i8, v_0_0_0_0_0_1_0, v_0_0_0_0_0_1_1 = _i8+1, v_0_0_0_0_0_1_1, v_0_0_0_0_0_1_0 {
+											if v_0_0_0_0_0_1_0.Op != OpLsh64x64 {
+												continue
+											}
+											_ = v_0_0_0_0_0_1_0.Args[1]
+											if x != v_0_0_0_0_0_1_0.Args[0] {
+												continue
+											}
+											v_0_0_0_0_0_1_0_1 := v_0_0_0_0_0_1_0.Args[1]
+											if v_0_0_0_0_0_1_0_1.Op != OpConst64 || auxIntToInt64(v_0_0_0_0_0_1_0_1.AuxInt) != 24 || v_0_0_0_0_0_1_1.Op != OpConst64 || auxIntToInt64(v_0_0_0_0_0_1_1.AuxInt) != 0xff0000000000 || v_0_0_0_0_1.Op != OpAnd64 {
+												continue
+											}
+											_ = v_0_0_0_0_1.Args[1]
+											v_0_0_0_0_1_0 := v_0_0_0_0_1.Args[0]
+											v_0_0_0_0_1_1 := v_0_0_0_0_1.Args[1]
+											for _i9 := 0; _i9 <= 1; _i9, v_0_0_0_0_1_0, v_0_0_0_0_1_1 = _i9+1, v_0_0_0_0_1_1, v_0_0_0_0_1_0 {
+												if v_0_0_0_0_1_0.Op != OpLsh64x64 {
+													continue
+												}
+												_ = v_0_0_0_0_1_0.Args[1]
+												if x != v_0_0_0_0_1_0.Args[0] {
+													continue
+												}
+												v_0_0_0_0_1_0_1 := v_0_0_0_0_1_0.Args[1]
+												if v_0_0_0_0_1_0_1.Op != OpConst64 || auxIntToInt64(v_0_0_0_0_1_0_1.AuxInt) != 8 || v_0_0_0_0_1_1.Op != OpConst64 || auxIntToInt64(v_0_0_0_0_1_1.AuxInt) != 0xff00000000 || v_0_0_0_1.Op != OpAnd64 {
+													continue
+												}
+												_ = v_0_0_0_1.Args[1]
+												v_0_0_0_1_0 := v_0_0_0_1.Args[0]
+												v_0_0_0_1_1 := v_0_0_0_1.Args[1]
+												for _i10 := 0; _i10 <= 1; _i10, v_0_0_0_1_0, v_0_0_0_1_1 = _i10+1, v_0_0_0_1_1, v_0_0_0_1_0 {
+													if v_0_0_0_1_0.Op != OpRsh64Ux64 {
+														continue
+													}
+													_ = v_0_0_0_1_0.Args[1]
+													if x != v_0_0_0_1_0.Args[0] {
+														continue
+													}
+													v_0_0_0_1_0_1 := v_0_0_0_1_0.Args[1]
+													if v_0_0_0_1_0_1.Op != OpConst64 || auxIntToInt64(v_0_0_0_1_0_1.AuxInt) != 8 || v_0_0_0_1_1.Op != OpConst64 || auxIntToInt64(v_0_0_0_1_1.AuxInt) != 0xff000000 || v_0_0_1.Op != OpAnd64 {
+														continue
+													}
+													_ = v_0_0_1.Args[1]
+													v_0_0_1_0 := v_0_0_1.Args[0]
+													v_0_0_1_1 := v_0_0_1.Args[1]
+													for _i11 := 0; _i11 <= 1; _i11, v_0_0_1_0, v_0_0_1_1 = _i11+1, v_0_0_1_1, v_0_0_1_0 {
+														if v_0_0_1_0.Op != OpRsh64Ux64 {
+															continue
+														}
+														_ = v_0_0_1_0.Args[1]
+														if x != v_0_0_1_0.Args[0] {
+															continue
+														}
+														v_0_0_1_0_1 := v_0_0_1_0.Args[1]
+														if v_0_0_1_0_1.Op != OpConst64 || auxIntToInt64(v_0_0_1_0_1.AuxInt) != 24 || v_0_0_1_1.Op != OpConst64 || auxIntToInt64(v_0_0_1_1.AuxInt) != 0xff0000 || v_0_1.Op != OpAnd64 {
+															continue
+														}
+														_ = v_0_1.Args[1]
+														v_0_1_0 := v_0_1.Args[0]
+														v_0_1_1 := v_0_1.Args[1]
+														for _i12 := 0; _i12 <= 1; _i12, v_0_1_0, v_0_1_1 = _i12+1, v_0_1_1, v_0_1_0 {
+															if v_0_1_0.Op != OpRsh64Ux64 {
+																continue
+															}
+															_ = v_0_1_0.Args[1]
+															if x != v_0_1_0.Args[0] {
+																continue
+															}
+															v_0_1_0_1 := v_0_1_0.Args[1]
+															if v_0_1_0_1.Op != OpConst64 || auxIntToInt64(v_0_1_0_1.AuxInt) != 40 || v_0_1_1.Op != OpConst64 || auxIntToInt64(v_0_1_1.AuxInt) != 0xff00 || v_1.Op != OpRsh64Ux64 {
+																continue
+															}
+															_ = v_1.Args[1]
+															if x != v_1.Args[0] {
+																continue
+															}
+															v_1_1 := v_1.Args[1]
+															if v_1_1.Op != OpConst64 || auxIntToInt64(v_1_1.AuxInt) != 56 || !(config.haveByteSwap(8)) {
+																continue
+															}
+															v.reset(OpBswap64)
+															v.AddArg(x)
+															return true
+														}
+													}
+												}
+											}
+										}
+									}
+								}
+							}
+						}
+					}
+				}
+			}
+		}
+		break
+	}
+	// match: (Or64 (Or64 (Or64 (Or64 (Or64 (Or64 (Or64 (Rsh64Ux64 x (Const64 [56])) (And64 (Rsh64Ux64 x (Const64 [40])) (Const64 [0xff00]))) (And64 (Rsh64Ux64 x (Const64 [24])) (Const64 [0xff0000]))) (And64 (Rsh64Ux64 x (Const64 [8])) (Const64 [0xff000000]))) (And64 (Lsh64x64 x (Const64 [8])) (Const64 [0xff00000000]))) (And64 (Lsh64x64 x (Const64 [24])) (Const64 [0xff0000000000]))) (And64 (Lsh64x64 x (Const64 [40])) (Const64 [0xff000000000000]))) (Lsh64x64 x (Const64 [56])))
+	// cond: config.haveByteSwap(8)
+	// result: (Bswap64 x)
+	for {
+		for _i0 := 0; _i0 <= 1; _i0, v_0, v_1 = _i0+1, v_1, v_0 {
+			if v_0.Op != OpOr64 {
+				continue
+			}
+			_ = v_0.Args[1]
+			v_0_0 := v_0.Args[0]
+			v_0_1 := v_0.Args[1]
+			for _i1 := 0; _i1 <= 1; _i1, v_0_0, v_0_1 = _i1+1, v_0_1, v_0_0 {
+				if v_0_0.Op != OpOr64 {
+					continue
+				}
+				_ = v_0_0.Args[1]
+				v_0_0_0 := v_0_0.Args[0]
+				v_0_0_1 := v_0_0.Args[1]
+				for _i2 := 0; _i2 <= 1; _i2, v_0_0_0, v_0_0_1 = _i2+1, v_0_0_1, v_0_0_0 {
+					if v_0_0_0.Op != OpOr64 {
+						continue
+					}
+					_ = v_0_0_0.Args[1]
+					v_0_0_0_0 := v_0_0_0.Args[0]
+					v_0_0_0_1 := v_0_0_0.Args[1]
+					for _i3 := 0; _i3 <= 1; _i3, v_0_0_0_0, v_0_0_0_1 = _i3+1, v_0_0_0_1, v_0_0_0_0 {
+						if v_0_0_0_0.Op != OpOr64 {
+							continue
+						}
+						_ = v_0_0_0_0.Args[1]
+						v_0_0_0_0_0 := v_0_0_0_0.Args[0]
+						v_0_0_0_0_1 := v_0_0_0_0.Args[1]
+						for _i4 := 0; _i4 <= 1; _i4, v_0_0_0_0_0, v_0_0_0_0_1 = _i4+1, v_0_0_0_0_1, v_0_0_0_0_0 {
+							if v_0_0_0_0_0.Op != OpOr64 {
+								continue
+							}
+							_ = v_0_0_0_0_0.Args[1]
+							v_0_0_0_0_0_0 := v_0_0_0_0_0.Args[0]
+							v_0_0_0_0_0_1 := v_0_0_0_0_0.Args[1]
+							for _i5 := 0; _i5 <= 1; _i5, v_0_0_0_0_0_0, v_0_0_0_0_0_1 = _i5+1, v_0_0_0_0_0_1, v_0_0_0_0_0_0 {
+								if v_0_0_0_0_0_0.Op != OpOr64 {
+									continue
+								}
+								_ = v_0_0_0_0_0_0.Args[1]
+								v_0_0_0_0_0_0_0 := v_0_0_0_0_0_0.Args[0]
+								v_0_0_0_0_0_0_1 := v_0_0_0_0_0_0.Args[1]
+								for _i6 := 0; _i6 <= 1; _i6, v_0_0_0_0_0_0_0, v_0_0_0_0_0_0_1 = _i6+1, v_0_0_0_0_0_0_1, v_0_0_0_0_0_0_0 {
+									if v_0_0_0_0_0_0_0.Op != OpRsh64Ux64 {
+										continue
+									}
+									_ = v_0_0_0_0_0_0_0.Args[1]
+									x := v_0_0_0_0_0_0_0.Args[0]
+									v_0_0_0_0_0_0_0_1 := v_0_0_0_0_0_0_0.Args[1]
+									if v_0_0_0_0_0_0_0_1.Op != OpConst64 || auxIntToInt64(v_0_0_0_0_0_0_0_1.AuxInt) != 56 || v_0_0_0_0_0_0_1.Op != OpAnd64 {
+										continue
+									}
+									_ = v_0_0_0_0_0_0_1.Args[1]
+									v_0_0_0_0_0_0_1_0 := v_0_0_0_0_0_0_1.Args[0]
+									v_0_0_0_0_0_0_1_1 := v_0_0_0_0_0_0_1.Args[1]
+									for _i7 := 0; _i7 <= 1; _i7, v_0_0_0_0_0_0_1_0, v_0_0_0_0_0_0_1_1 = _i7+1, v_0_0_0_0_0_0_1_1, v_0_0_0_0_0_0_1_0 {
+										if v_0_0_0_0_0_0_1_0.Op != OpRsh64Ux64 {
+											continue
+										}
+										_ = v_0_0_0_0_0_0_1_0.Args[1]
+										if x != v_0_0_0_0_0_0_1_0.Args[0] {
+											continue
+										}
+										v_0_0_0_0_0_0_1_0_1 := v_0_0_0_0_0_0_1_0.Args[1]
+										if v_0_0_0_0_0_0_1_0_1.Op != OpConst64 || auxIntToInt64(v_0_0_0_0_0_0_1_0_1.AuxInt) != 40 || v_0_0_0_0_0_0_1_1.Op != OpConst64 || auxIntToInt64(v_0_0_0_0_0_0_1_1.AuxInt) != 0xff00 || v_0_0_0_0_0_1.Op != OpAnd64 {
+											continue
+										}
+										_ = v_0_0_0_0_0_1.Args[1]
+										v_0_0_0_0_0_1_0 := v_0_0_0_0_0_1.Args[0]
+										v_0_0_0_0_0_1_1 := v_0_0_0_0_0_1.Args[1]
+										for _i8 := 0; _i8 <= 1; _i8, v_0_0_0_0_0_1_0, v_0_0_0_0_0_1_1 = _i8+1, v_0_0_0_0_0_1_1, v_0_0_0_0_0_1_0 {
+											if v_0_0_0_0_0_1_0.Op != OpRsh64Ux64 {
+												continue
+											}
+											_ = v_0_0_0_0_0_1_0.Args[1]
+											if x != v_0_0_0_0_0_1_0.Args[0] {
+												continue
+											}
+											v_0_0_0_0_0_1_0_1 := v_0_0_0_0_0_1_0.Args[1]
+											if v_0_0_0_0_0_1_0_1.Op != OpConst64 || auxIntToInt64(v_0_0_0_0_0_1_0_1.AuxInt) != 24 || v_0_0_0_0_0_1_1.Op != OpConst64 || auxIntToInt64(v_0_0_0_0_0_1_1.AuxInt) != 0xff0000 || v_0_0_0_0_1.Op != OpAnd64 {
+												continue
+											}
+											_ = v_0_0_0_0_1.Args[1]
+											v_0_0_0_0_1_0 := v_0_0_0_0_1.Args[0]
+											v_0_0_0_0_1_1 := v_0_0_0_0_1.Args[1]
+											for _i9 := 0; _i9 <= 1; _i9, v_0_0_0_0_1_0, v_0_0_0_0_1_1 = _i9+1, v_0_0_0_0_1_1, v_0_0_0_0_1_0 {
+												if v_0_0_0_0_1_0.Op != OpRsh64Ux64 {
+													continue
+												}
+												_ = v_0_0_0_0_1_0.Args[1]
+												if x != v_0_0_0_0_1_0.Args[0] {
+													continue
+												}
+												v_0_0_0_0_1_0_1 := v_0_0_0_0_1_0.Args[1]
+												if v_0_0_0_0_1_0_1.Op != OpConst64 || auxIntToInt64(v_0_0_0_0_1_0_1.AuxInt) != 8 || v_0_0_0_0_1_1.Op != OpConst64 || auxIntToInt64(v_0_0_0_0_1_1.AuxInt) != 0xff000000 || v_0_0_0_1.Op != OpAnd64 {
+													continue
+												}
+												_ = v_0_0_0_1.Args[1]
+												v_0_0_0_1_0 := v_0_0_0_1.Args[0]
+												v_0_0_0_1_1 := v_0_0_0_1.Args[1]
+												for _i10 := 0; _i10 <= 1; _i10, v_0_0_0_1_0, v_0_0_0_1_1 = _i10+1, v_0_0_0_1_1, v_0_0_0_1_0 {
+													if v_0_0_0_1_0.Op != OpLsh64x64 {
+														continue
+													}
+													_ = v_0_0_0_1_0.Args[1]
+													if x != v_0_0_0_1_0.Args[0] {
+														continue
+													}
+													v_0_0_0_1_0_1 := v_0_0_0_1_0.Args[1]
+													if v_0_0_0_1_0_1.Op != OpConst64 || auxIntToInt64(v_0_0_0_1_0_1.AuxInt) != 8 || v_0_0_0_1_1.Op != OpConst64 || auxIntToInt64(v_0_0_0_1_1.AuxInt) != 0xff00000000 || v_0_0_1.Op != OpAnd64 {
+														continue
+													}
+													_ = v_0_0_1.Args[1]
+													v_0_0_1_0 := v_0_0_1.Args[0]
+													v_0_0_1_1 := v_0_0_1.Args[1]
+													for _i11 := 0; _i11 <= 1; _i11, v_0_0_1_0, v_0_0_1_1 = _i11+1, v_0_0_1_1, v_0_0_1_0 {
+														if v_0_0_1_0.Op != OpLsh64x64 {
+															continue
+														}
+														_ = v_0_0_1_0.Args[1]
+														if x != v_0_0_1_0.Args[0] {
+															continue
+														}
+														v_0_0_1_0_1 := v_0_0_1_0.Args[1]
+														if v_0_0_1_0_1.Op != OpConst64 || auxIntToInt64(v_0_0_1_0_1.AuxInt) != 24 || v_0_0_1_1.Op != OpConst64 || auxIntToInt64(v_0_0_1_1.AuxInt) != 0xff0000000000 || v_0_1.Op != OpAnd64 {
+															continue
+														}
+														_ = v_0_1.Args[1]
+														v_0_1_0 := v_0_1.Args[0]
+														v_0_1_1 := v_0_1.Args[1]
+														for _i12 := 0; _i12 <= 1; _i12, v_0_1_0, v_0_1_1 = _i12+1, v_0_1_1, v_0_1_0 {
+															if v_0_1_0.Op != OpLsh64x64 {
+																continue
+															}
+															_ = v_0_1_0.Args[1]
+															if x != v_0_1_0.Args[0] {
+																continue
+															}
+															v_0_1_0_1 := v_0_1_0.Args[1]
+															if v_0_1_0_1.Op != OpConst64 || auxIntToInt64(v_0_1_0_1.AuxInt) != 40 || v_0_1_1.Op != OpConst64 || auxIntToInt64(v_0_1_1.AuxInt) != 0xff000000000000 || v_1.Op != OpLsh64x64 {
+																continue
+															}
+															_ = v_1.Args[1]
+															if x != v_1.Args[0] {
+																continue
+															}
+															v_1_1 := v_1.Args[1]
+															if v_1_1.Op != OpConst64 || auxIntToInt64(v_1_1.AuxInt) != 56 || !(config.haveByteSwap(8)) {
+																continue
+															}
+															v.reset(OpBswap64)
+															v.AddArg(x)
+															return true
+														}
+													}
+												}
+											}
+										}
+									}
+								}
+							}
+						}
+					}
+				}
+			}
+		}
+		break
+	}
+	// match: (Or64 (Or64 (Or64 (Or64 (Or64 (Or64 (Or64 (Lsh64x64 x (Const64 [56])) (Lsh64x64 (And64 x (Const64 [0xff00])) (Const64 [40]))) (Lsh64x64 (And64 x (Const64 [0xff0000])) (Const64 [24]))) (Lsh64x64 (And64 x (Const64 [0xff000000])) (Const64 [8]))) (And64 (Rsh64Ux64 x (Const64 [8])) (Const64 [0xff000000]))) (And64 (Rsh64Ux64 x (Const64 [24])) (Const64 [0xff0000]))) (And64 (Rsh64Ux64 x (Const64 [40])) (Const64 [0xff00]))) (Rsh64Ux64 x (Const64 [56])))
+	// cond: config.haveByteSwap(8)
+	// result: (Bswap64 x)
+	for {
+		for _i0 := 0; _i0 <= 1; _i0, v_0, v_1 = _i0+1, v_1, v_0 {
+			if v_0.Op != OpOr64 {
+				continue
+			}
+			_ = v_0.Args[1]
+			v_0_0 := v_0.Args[0]
+			v_0_1 := v_0.Args[1]
+			for _i1 := 0; _i1 <= 1; _i1, v_0_0, v_0_1 = _i1+1, v_0_1, v_0_0 {
+				if v_0_0.Op != OpOr64 {
+					continue
+				}
+				_ = v_0_0.Args[1]
+				v_0_0_0 := v_0_0.Args[0]
+				v_0_0_1 := v_0_0.Args[1]
+				for _i2 := 0; _i2 <= 1; _i2, v_0_0_0, v_0_0_1 = _i2+1, v_0_0_1, v_0_0_0 {
+					if v_0_0_0.Op != OpOr64 {
+						continue
+					}
+					_ = v_0_0_0.Args[1]
+					v_0_0_0_0 := v_0_0_0.Args[0]
+					v_0_0_0_1 := v_0_0_0.Args[1]
+					for _i3 := 0; _i3 <= 1; _i3, v_0_0_0_0, v_0_0_0_1 = _i3+1, v_0_0_0_1, v_0_0_0_0 {
+						if v_0_0_0_0.Op != OpOr64 {
+							continue
+						}
+						_ = v_0_0_0_0.Args[1]
+						v_0_0_0_0_0 := v_0_0_0_0.Args[0]
+						v_0_0_0_0_1 := v_0_0_0_0.Args[1]
+						for _i4 := 0; _i4 <= 1; _i4, v_0_0_0_0_0, v_0_0_0_0_1 = _i4+1, v_0_0_0_0_1, v_0_0_0_0_0 {
+							if v_0_0_0_0_0.Op != OpOr64 {
+								continue
+							}
+							_ = v_0_0_0_0_0.Args[1]
+							v_0_0_0_0_0_0 := v_0_0_0_0_0.Args[0]
+							v_0_0_0_0_0_1 := v_0_0_0_0_0.Args[1]
+							for _i5 := 0; _i5 <= 1; _i5, v_0_0_0_0_0_0, v_0_0_0_0_0_1 = _i5+1, v_0_0_0_0_0_1, v_0_0_0_0_0_0 {
+								if v_0_0_0_0_0_0.Op != OpOr64 {
+									continue
+								}
+								_ = v_0_0_0_0_0_0.Args[1]
+								v_0_0_0_0_0_0_0 := v_0_0_0_0_0_0.Args[0]
+								v_0_0_0_0_0_0_1 := v_0_0_0_0_0_0.Args[1]
+								for _i6 := 0; _i6 <= 1; _i6, v_0_0_0_0_0_0_0, v_0_0_0_0_0_0_1 = _i6+1, v_0_0_0_0_0_0_1, v_0_0_0_0_0_0_0 {
+									if v_0_0_0_0_0_0_0.Op != OpLsh64x64 {
+										continue
+									}
+									_ = v_0_0_0_0_0_0_0.Args[1]
+									x := v_0_0_0_0_0_0_0.Args[0]
+									v_0_0_0_0_0_0_0_1 := v_0_0_0_0_0_0_0.Args[1]
+									if v_0_0_0_0_0_0_0_1.Op != OpConst64 || auxIntToInt64(v_0_0_0_0_0_0_0_1.AuxInt) != 56 || v_0_0_0_0_0_0_1.Op != OpLsh64x64 {
+										continue
+									}
+									_ = v_0_0_0_0_0_0_1.Args[1]
+									v_0_0_0_0_0_0_1_0 := v_0_0_0_0_0_0_1.Args[0]
+									if v_0_0_0_0_0_0_1_0.Op != OpAnd64 {
+										continue
+									}
+									_ = v_0_0_0_0_0_0_1_0.Args[1]
+									v_0_0_0_0_0_0_1_0_0 := v_0_0_0_0_0_0_1_0.Args[0]
+									v_0_0_0_0_0_0_1_0_1 := v_0_0_0_0_0_0_1_0.Args[1]
+									for _i7 := 0; _i7 <= 1; _i7, v_0_0_0_0_0_0_1_0_0, v_0_0_0_0_0_0_1_0_1 = _i7+1, v_0_0_0_0_0_0_1_0_1, v_0_0_0_0_0_0_1_0_0 {
+										if x != v_0_0_0_0_0_0_1_0_0 || v_0_0_0_0_0_0_1_0_1.Op != OpConst64 || auxIntToInt64(v_0_0_0_0_0_0_1_0_1.AuxInt) != 0xff00 {
+											continue
+										}
+										v_0_0_0_0_0_0_1_1 := v_0_0_0_0_0_0_1.Args[1]
+										if v_0_0_0_0_0_0_1_1.Op != OpConst64 || auxIntToInt64(v_0_0_0_0_0_0_1_1.AuxInt) != 40 || v_0_0_0_0_0_1.Op != OpLsh64x64 {
+											continue
+										}
+										_ = v_0_0_0_0_0_1.Args[1]
+										v_0_0_0_0_0_1_0 := v_0_0_0_0_0_1.Args[0]
+										if v_0_0_0_0_0_1_0.Op != OpAnd64 {
+											continue
+										}
+										_ = v_0_0_0_0_0_1_0.Args[1]
+										v_0_0_0_0_0_1_0_0 := v_0_0_0_0_0_1_0.Args[0]
+										v_0_0_0_0_0_1_0_1 := v_0_0_0_0_0_1_0.Args[1]
+										for _i8 := 0; _i8 <= 1; _i8, v_0_0_0_0_0_1_0_0, v_0_0_0_0_0_1_0_1 = _i8+1, v_0_0_0_0_0_1_0_1, v_0_0_0_0_0_1_0_0 {
+											if x != v_0_0_0_0_0_1_0_0 || v_0_0_0_0_0_1_0_1.Op != OpConst64 || auxIntToInt64(v_0_0_0_0_0_1_0_1.AuxInt) != 0xff0000 {
+												continue
+											}
+											v_0_0_0_0_0_1_1 := v_0_0_0_0_0_1.Args[1]
+											if v_0_0_0_0_0_1_1.Op != OpConst64 || auxIntToInt64(v_0_0_0_0_0_1_1.AuxInt) != 24 || v_0_0_0_0_1.Op != OpLsh64x64 {
+												continue
+											}
+											_ = v_0_0_0_0_1.Args[1]
+											v_0_0_0_0_1_0 := v_0_0_0_0_1.Args[0]
+											if v_0_0_0_0_1_0.Op != OpAnd64 {
+												continue
+											}
+											_ = v_0_0_0_0_1_0.Args[1]
+											v_0_0_0_0_1_0_0 := v_0_0_0_0_1_0.Args[0]
+											v_0_0_0_0_1_0_1 := v_0_0_0_0_1_0.Args[1]
+											for _i9 := 0; _i9 <= 1; _i9, v_0_0_0_0_1_0_0, v_0_0_0_0_1_0_1 = _i9+1, v_0_0_0_0_1_0_1, v_0_0_0_0_1_0_0 {
+												if x != v_0_0_0_0_1_0_0 || v_0_0_0_0_1_0_1.Op != OpConst64 || auxIntToInt64(v_0_0_0_0_1_0_1.AuxInt) != 0xff000000 {
+													continue
+												}
+												v_0_0_0_0_1_1 := v_0_0_0_0_1.Args[1]
+												if v_0_0_0_0_1_1.Op != OpConst64 || auxIntToInt64(v_0_0_0_0_1_1.AuxInt) != 8 || v_0_0_0_1.Op != OpAnd64 {
+													continue
+												}
+												_ = v_0_0_0_1.Args[1]
+												v_0_0_0_1_0 := v_0_0_0_1.Args[0]
+												v_0_0_0_1_1 := v_0_0_0_1.Args[1]
+												for _i10 := 0; _i10 <= 1; _i10, v_0_0_0_1_0, v_0_0_0_1_1 = _i10+1, v_0_0_0_1_1, v_0_0_0_1_0 {
+													if v_0_0_0_1_0.Op != OpRsh64Ux64 {
+														continue
+													}
+													_ = v_0_0_0_1_0.Args[1]
+													if x != v_0_0_0_1_0.Args[0] {
+														continue
+													}
+													v_0_0_0_1_0_1 := v_0_0_0_1_0.Args[1]
+													if v_0_0_0_1_0_1.Op != OpConst64 || auxIntToInt64(v_0_0_0_1_0_1.AuxInt) != 8 || v_0_0_0_1_1.Op != OpConst64 || auxIntToInt64(v_0_0_0_1_1.AuxInt) != 0xff000000 || v_0_0_1.Op != OpAnd64 {
+														continue
+													}
+													_ = v_0_0_1.Args[1]
+													v_0_0_1_0 := v_0_0_1.Args[0]
+													v_0_0_1_1 := v_0_0_1.Args[1]
+													for _i11 := 0; _i11 <= 1; _i11, v_0_0_1_0, v_0_0_1_1 = _i11+1, v_0_0_1_1, v_0_0_1_0 {
+														if v_0_0_1_0.Op != OpRsh64Ux64 {
+															continue
+														}
+														_ = v_0_0_1_0.Args[1]
+														if x != v_0_0_1_0.Args[0] {
+															continue
+														}
+														v_0_0_1_0_1 := v_0_0_1_0.Args[1]
+														if v_0_0_1_0_1.Op != OpConst64 || auxIntToInt64(v_0_0_1_0_1.AuxInt) != 24 || v_0_0_1_1.Op != OpConst64 || auxIntToInt64(v_0_0_1_1.AuxInt) != 0xff0000 || v_0_1.Op != OpAnd64 {
+															continue
+														}
+														_ = v_0_1.Args[1]
+														v_0_1_0 := v_0_1.Args[0]
+														v_0_1_1 := v_0_1.Args[1]
+														for _i12 := 0; _i12 <= 1; _i12, v_0_1_0, v_0_1_1 = _i12+1, v_0_1_1, v_0_1_0 {
+															if v_0_1_0.Op != OpRsh64Ux64 {
+																continue
+															}
+															_ = v_0_1_0.Args[1]
+															if x != v_0_1_0.Args[0] {
+																continue
+															}
+															v_0_1_0_1 := v_0_1_0.Args[1]
+															if v_0_1_0_1.Op != OpConst64 || auxIntToInt64(v_0_1_0_1.AuxInt) != 40 || v_0_1_1.Op != OpConst64 || auxIntToInt64(v_0_1_1.AuxInt) != 0xff00 || v_1.Op != OpRsh64Ux64 {
+																continue
+															}
+															_ = v_1.Args[1]
+															if x != v_1.Args[0] {
+																continue
+															}
+															v_1_1 := v_1.Args[1]
+															if v_1_1.Op != OpConst64 || auxIntToInt64(v_1_1.AuxInt) != 56 || !(config.haveByteSwap(8)) {
+																continue
+															}
+															v.reset(OpBswap64)
+															v.AddArg(x)
+															return true
+														}
+													}
+												}
+											}
+										}
+									}
+								}
+							}
+						}
+					}
+				}
+			}
+		}
+		break
+	}
+	// match: (Or64 (Or64 (Or64 (Or64 (Or64 (Or64 (Or64 (Rsh64Ux64 x (Const64 [56])) (And64 (Rsh64Ux64 x (Const64 [40])) (Const64 [0xff00]))) (And64 (Rsh64Ux64 x (Const64 [24])) (Const64 [0xff0000]))) (And64 (Rsh64Ux64 x (Const64 [8])) (Const64 [0xff000000]))) (Lsh64x64 (And64 x (Const64 [0xff000000])) (Const64 [8]))) (Lsh64x64 (And64 x (Const64 [0xff0000])) (Const64 [24]))) (Lsh64x64 (And64 x (Const64 [0xff00])) (Const64 [40]))) (Lsh64x64 x (Const64 [56])))
+	// cond: config.haveByteSwap(8)
+	// result: (Bswap64 x)
+	for {
+		for _i0 := 0; _i0 <= 1; _i0, v_0, v_1 = _i0+1, v_1, v_0 {
+			if v_0.Op != OpOr64 {
+				continue
+			}
+			_ = v_0.Args[1]
+			v_0_0 := v_0.Args[0]
+			v_0_1 := v_0.Args[1]
+			for _i1 := 0; _i1 <= 1; _i1, v_0_0, v_0_1 = _i1+1, v_0_1, v_0_0 {
+				if v_0_0.Op != OpOr64 {
+					continue
+				}
+				_ = v_0_0.Args[1]
+				v_0_0_0 := v_0_0.Args[0]
+				v_0_0_1 := v_0_0.Args[1]
+				for _i2 := 0; _i2 <= 1; _i2, v_0_0_0, v_0_0_1 = _i2+1, v_0_0_1, v_0_0_0 {
+					if v_0_0_0.Op != OpOr64 {
+						continue
+					}
+					_ = v_0_0_0.Args[1]
+					v_0_0_0_0 := v_0_0_0.Args[0]
+					v_0_0_0_1 := v_0_0_0.Args[1]
+					for _i3 := 0; _i3 <= 1; _i3, v_0_0_0_0, v_0_0_0_1 = _i3+1, v_0_0_0_1, v_0_0_0_0 {
+						if v_0_0_0_0.Op != OpOr64 {
+							continue
+						}
+						_ = v_0_0_0_0.Args[1]
+						v_0_0_0_0_0 := v_0_0_0_0.Args[0]
+						v_0_0_0_0_1 := v_0_0_0_0.Args[1]
+						for _i4 := 0; _i4 <= 1; _i4, v_0_0_0_0_0, v_0_0_0_0_1 = _i4+1, v_0_0_0_0_1, v_0_0_0_0_0 {
+							if v_0_0_0_0_0.Op != OpOr64 {
+								continue
+							}
+							_ = v_0_0_0_0_0.Args[1]
+							v_0_0_0_0_0_0 := v_0_0_0_0_0.Args[0]
+							v_0_0_0_0_0_1 := v_0_0_0_0_0.Args[1]
+							for _i5 := 0; _i5 <= 1; _i5, v_0_0_0_0_0_0, v_0_0_0_0_0_1 = _i5+1, v_0_0_0_0_0_1, v_0_0_0_0_0_0 {
+								if v_0_0_0_0_0_0.Op != OpOr64 {
+									continue
+								}
+								_ = v_0_0_0_0_0_0.Args[1]
+								v_0_0_0_0_0_0_0 := v_0_0_0_0_0_0.Args[0]
+								v_0_0_0_0_0_0_1 := v_0_0_0_0_0_0.Args[1]
+								for _i6 := 0; _i6 <= 1; _i6, v_0_0_0_0_0_0_0, v_0_0_0_0_0_0_1 = _i6+1, v_0_0_0_0_0_0_1, v_0_0_0_0_0_0_0 {
+									if v_0_0_0_0_0_0_0.Op != OpRsh64Ux64 {
+										continue
+									}
+									_ = v_0_0_0_0_0_0_0.Args[1]
+									x := v_0_0_0_0_0_0_0.Args[0]
+									v_0_0_0_0_0_0_0_1 := v_0_0_0_0_0_0_0.Args[1]
+									if v_0_0_0_0_0_0_0_1.Op != OpConst64 || auxIntToInt64(v_0_0_0_0_0_0_0_1.AuxInt) != 56 || v_0_0_0_0_0_0_1.Op != OpAnd64 {
+										continue
+									}
+									_ = v_0_0_0_0_0_0_1.Args[1]
+									v_0_0_0_0_0_0_1_0 := v_0_0_0_0_0_0_1.Args[0]
+									v_0_0_0_0_0_0_1_1 := v_0_0_0_0_0_0_1.Args[1]
+									for _i7 := 0; _i7 <= 1; _i7, v_0_0_0_0_0_0_1_0, v_0_0_0_0_0_0_1_1 = _i7+1, v_0_0_0_0_0_0_1_1, v_0_0_0_0_0_0_1_0 {
+										if v_0_0_0_0_0_0_1_0.Op != OpRsh64Ux64 {
+											continue
+										}
+										_ = v_0_0_0_0_0_0_1_0.Args[1]
+										if x != v_0_0_0_0_0_0_1_0.Args[0] {
+											continue
+										}
+										v_0_0_0_0_0_0_1_0_1 := v_0_0_0_0_0_0_1_0.Args[1]
+										if v_0_0_0_0_0_0_1_0_1.Op != OpConst64 || auxIntToInt64(v_0_0_0_0_0_0_1_0_1.AuxInt) != 40 || v_0_0_0_0_0_0_1_1.Op != OpConst64 || auxIntToInt64(v_0_0_0_0_0_0_1_1.AuxInt) != 0xff00 || v_0_0_0_0_0_1.Op != OpAnd64 {
+											continue
+										}
+										_ = v_0_0_0_0_0_1.Args[1]
+										v_0_0_0_0_0_1_0 := v_0_0_0_0_0_1.Args[0]
+										v_0_0_0_0_0_1_1 := v_0_0_0_0_0_1.Args[1]
+										for _i8 := 0; _i8 <= 1; _i8, v_0_0_0_0_0_1_0, v_0_0_0_0_0_1_1 = _i8+1, v_0_0_0_0_0_1_1, v_0_0_0_0_0_1_0 {
+											if v_0_0_0_0_0_1_0.Op != OpRsh64Ux64 {
+												continue
+											}
+											_ = v_0_0_0_0_0_1_0.Args[1]
+											if x != v_0_0_0_0_0_1_0.Args[0] {
+												continue
+											}
+											v_0_0_0_0_0_1_0_1 := v_0_0_0_0_0_1_0.Args[1]
+											if v_0_0_0_0_0_1_0_1.Op != OpConst64 || auxIntToInt64(v_0_0_0_0_0_1_0_1.AuxInt) != 24 || v_0_0_0_0_0_1_1.Op != OpConst64 || auxIntToInt64(v_0_0_0_0_0_1_1.AuxInt) != 0xff0000 || v_0_0_0_0_1.Op != OpAnd64 {
+												continue
+											}
+											_ = v_0_0_0_0_1.Args[1]
+											v_0_0_0_0_1_0 := v_0_0_0_0_1.Args[0]
+											v_0_0_0_0_1_1 := v_0_0_0_0_1.Args[1]
+											for _i9 := 0; _i9 <= 1; _i9, v_0_0_0_0_1_0, v_0_0_0_0_1_1 = _i9+1, v_0_0_0_0_1_1, v_0_0_0_0_1_0 {
+												if v_0_0_0_0_1_0.Op != OpRsh64Ux64 {
+													continue
+												}
+												_ = v_0_0_0_0_1_0.Args[1]
+												if x != v_0_0_0_0_1_0.Args[0] {
+													continue
+												}
+												v_0_0_0_0_1_0_1 := v_0_0_0_0_1_0.Args[1]
+												if v_0_0_0_0_1_0_1.Op != OpConst64 || auxIntToInt64(v_0_0_0_0_1_0_1.AuxInt) != 8 || v_0_0_0_0_1_1.Op != OpConst64 || auxIntToInt64(v_0_0_0_0_1_1.AuxInt) != 0xff000000 || v_0_0_0_1.Op != OpLsh64x64 {
+													continue
+												}
+												_ = v_0_0_0_1.Args[1]
+												v_0_0_0_1_0 := v_0_0_0_1.Args[0]
+												if v_0_0_0_1_0.Op != OpAnd64 {
+													continue
+												}
+												_ = v_0_0_0_1_0.Args[1]
+												v_0_0_0_1_0_0 := v_0_0_0_1_0.Args[0]
+												v_0_0_0_1_0_1 := v_0_0_0_1_0.Args[1]
+												for _i10 := 0; _i10 <= 1; _i10, v_0_0_0_1_0_0, v_0_0_0_1_0_1 = _i10+1, v_0_0_0_1_0_1, v_0_0_0_1_0_0 {
+													if x != v_0_0_0_1_0_0 || v_0_0_0_1_0_1.Op != OpConst64 || auxIntToInt64(v_0_0_0_1_0_1.AuxInt) != 0xff000000 {
+														continue
+													}
+													v_0_0_0_1_1 := v_0_0_0_1.Args[1]
+													if v_0_0_0_1_1.Op != OpConst64 || auxIntToInt64(v_0_0_0_1_1.AuxInt) != 8 || v_0_0_1.Op != OpLsh64x64 {
+														continue
+													}
+													_ = v_0_0_1.Args[1]
+													v_0_0_1_0 := v_0_0_1.Args[0]
+													if v_0_0_1_0.Op != OpAnd64 {
+														continue
+													}
+													_ = v_0_0_1_0.Args[1]
+													v_0_0_1_0_0 := v_0_0_1_0.Args[0]
+													v_0_0_1_0_1 := v_0_0_1_0.Args[1]
+													for _i11 := 0; _i11 <= 1; _i11, v_0_0_1_0_0, v_0_0_1_0_1 = _i11+1, v_0_0_1_0_1, v_0_0_1_0_0 {
+														if x != v_0_0_1_0_0 || v_0_0_1_0_1.Op != OpConst64 || auxIntToInt64(v_0_0_1_0_1.AuxInt) != 0xff0000 {
+															continue
+														}
+														v_0_0_1_1 := v_0_0_1.Args[1]
+														if v_0_0_1_1.Op != OpConst64 || auxIntToInt64(v_0_0_1_1.AuxInt) != 24 || v_0_1.Op != OpLsh64x64 {
+															continue
+														}
+														_ = v_0_1.Args[1]
+														v_0_1_0 := v_0_1.Args[0]
+														if v_0_1_0.Op != OpAnd64 {
+															continue
+														}
+														_ = v_0_1_0.Args[1]
+														v_0_1_0_0 := v_0_1_0.Args[0]
+														v_0_1_0_1 := v_0_1_0.Args[1]
+														for _i12 := 0; _i12 <= 1; _i12, v_0_1_0_0, v_0_1_0_1 = _i12+1, v_0_1_0_1, v_0_1_0_0 {
+															if x != v_0_1_0_0 || v_0_1_0_1.Op != OpConst64 || auxIntToInt64(v_0_1_0_1.AuxInt) != 0xff00 {
+																continue
+															}
+															v_0_1_1 := v_0_1.Args[1]
+															if v_0_1_1.Op != OpConst64 || auxIntToInt64(v_0_1_1.AuxInt) != 40 || v_1.Op != OpLsh64x64 {
+																continue
+															}
+															_ = v_1.Args[1]
+															if x != v_1.Args[0] {
+																continue
+															}
+															v_1_1 := v_1.Args[1]
+															if v_1_1.Op != OpConst64 || auxIntToInt64(v_1_1.AuxInt) != 56 || !(config.haveByteSwap(8)) {
+																continue
+															}
+															v.reset(OpBswap64)
+															v.AddArg(x)
+															return true
+														}
+													}
+												}
+											}
+										}
+									}
+								}
+							}
+						}
+					}
+				}
+			}
 		}
 		break
 	}
@@ -30744,6 +32612,36 @@ func rewriteValuegeneric_OpRsh16Ux64(v *Value) bool {
 		v.AddArg(v0)
 		return true
 	}
+	// match: (Rsh16Ux64 (And16 x (Const16 [m])) c:(Const64 [s]))
+	// cond: s > 0 && s < 16 && int16(m)|((int16(1)<<uint(s))-1) == -1
+	// result: (Rsh16Ux64 x c)
+	for {
+		if v_0.Op != OpAnd16 {
+			break
+		}
+		_ = v_0.Args[1]
+		v_0_0 := v_0.Args[0]
+		v_0_1 := v_0.Args[1]
+		for _i0 := 0; _i0 <= 1; _i0, v_0_0, v_0_1 = _i0+1, v_0_1, v_0_0 {
+			x := v_0_0
+			if v_0_1.Op != OpConst16 {
+				continue
+			}
+			m := auxIntToInt16(v_0_1.AuxInt)
+			c := v_1
+			if c.Op != OpConst64 {
+				continue
+			}
+			s := auxIntToInt64(c.AuxInt)
+			if !(s > 0 && s < 16 && int16(m)|((int16(1)<<uint(s))-1) == -1) {
+				continue
+			}
+			v.reset(OpRsh16Ux64)
+			v.AddArg2(x, c)
+			return true
+		}
+		break
+	}
 	// match: (Rsh16Ux64 [false] x con:(Const64 [c]))
 	// cond: 0 < c && c < 16
 	// result: (Rsh16Ux64 [true] x con)
@@ -31381,6 +33279,36 @@ func rewriteValuegeneric_OpRsh32Ux64(v *Value) bool {
 		v0.AddArg(x)
 		v.AddArg(v0)
 		return true
+	}
+	// match: (Rsh32Ux64 (And32 x (Const32 [m])) c:(Const64 [s]))
+	// cond: s > 0 && s < 32 && int32(m)|((int32(1)<<uint(s))-1) == -1
+	// result: (Rsh32Ux64 x c)
+	for {
+		if v_0.Op != OpAnd32 {
+			break
+		}
+		_ = v_0.Args[1]
+		v_0_0 := v_0.Args[0]
+		v_0_1 := v_0.Args[1]
+		for _i0 := 0; _i0 <= 1; _i0, v_0_0, v_0_1 = _i0+1, v_0_1, v_0_0 {
+			x := v_0_0
+			if v_0_1.Op != OpConst32 {
+				continue
+			}
+			m := auxIntToInt32(v_0_1.AuxInt)
+			c := v_1
+			if c.Op != OpConst64 {
+				continue
+			}
+			s := auxIntToInt64(c.AuxInt)
+			if !(s > 0 && s < 32 && int32(m)|((int32(1)<<uint(s))-1) == -1) {
+				continue
+			}
+			v.reset(OpRsh32Ux64)
+			v.AddArg2(x, c)
+			return true
+		}
+		break
 	}
 	// match: (Rsh32Ux64 [false] x con:(Const64 [c]))
 	// cond: 0 < c && c < 32
@@ -32056,6 +33984,36 @@ func rewriteValuegeneric_OpRsh64Ux64(v *Value) bool {
 		v.AddArg(v0)
 		return true
 	}
+	// match: (Rsh64Ux64 (And64 x (Const64 [m])) c:(Const64 [s]))
+	// cond: s > 0 && s < 64 && int64(m)|((int64(1)<<uint(s))-1) == -1
+	// result: (Rsh64Ux64 x c)
+	for {
+		if v_0.Op != OpAnd64 {
+			break
+		}
+		_ = v_0.Args[1]
+		v_0_0 := v_0.Args[0]
+		v_0_1 := v_0.Args[1]
+		for _i0 := 0; _i0 <= 1; _i0, v_0_0, v_0_1 = _i0+1, v_0_1, v_0_0 {
+			x := v_0_0
+			if v_0_1.Op != OpConst64 {
+				continue
+			}
+			m := auxIntToInt64(v_0_1.AuxInt)
+			c := v_1
+			if c.Op != OpConst64 {
+				continue
+			}
+			s := auxIntToInt64(c.AuxInt)
+			if !(s > 0 && s < 64 && int64(m)|((int64(1)<<uint(s))-1) == -1) {
+				continue
+			}
+			v.reset(OpRsh64Ux64)
+			v.AddArg2(x, c)
+			return true
+		}
+		break
+	}
 	// match: (Rsh64Ux64 [false] x con:(Const64 [c]))
 	// cond: 0 < c && c < 64
 	// result: (Rsh64Ux64 [true] x con)
@@ -32693,6 +34651,36 @@ func rewriteValuegeneric_OpRsh8Ux64(v *Value) bool {
 		v0.AuxInt = int64ToAuxInt(c1 - c2 + c3)
 		v.AddArg2(x, v0)
 		return true
+	}
+	// match: (Rsh8Ux64 (And8 x (Const8 [m])) c:(Const64 [s]))
+	// cond: s > 0 && s < 8 && int8(m) |((int8(1) <<uint(s))-1) == -1
+	// result: (Rsh8Ux64 x c)
+	for {
+		if v_0.Op != OpAnd8 {
+			break
+		}
+		_ = v_0.Args[1]
+		v_0_0 := v_0.Args[0]
+		v_0_1 := v_0.Args[1]
+		for _i0 := 0; _i0 <= 1; _i0, v_0_0, v_0_1 = _i0+1, v_0_1, v_0_0 {
+			x := v_0_0
+			if v_0_1.Op != OpConst8 {
+				continue
+			}
+			m := auxIntToInt8(v_0_1.AuxInt)
+			c := v_1
+			if c.Op != OpConst64 {
+				continue
+			}
+			s := auxIntToInt64(c.AuxInt)
+			if !(s > 0 && s < 8 && int8(m)|((int8(1)<<uint(s))-1) == -1) {
+				continue
+			}
+			v.reset(OpRsh8Ux64)
+			v.AddArg2(x, c)
+			return true
+		}
+		break
 	}
 	// match: (Rsh8Ux64 [false] x con:(Const64 [c]))
 	// cond: 0 < c && c < 8
@@ -33564,6 +35552,34 @@ func rewriteValuegeneric_OpSignExt32to64(v *Value) bool {
 		}
 		v.copyOf(x)
 		return true
+	}
+	// match: (SignExt32to64 (Trunc64to32 and:(And64 x mm:(Const64 [m]))))
+	// cond: uint64(m)>>31 == 0
+	// result: and
+	for {
+		if v_0.Op != OpTrunc64to32 {
+			break
+		}
+		and := v_0.Args[0]
+		if and.Op != OpAnd64 {
+			break
+		}
+		_ = and.Args[1]
+		and_0 := and.Args[0]
+		and_1 := and.Args[1]
+		for _i0 := 0; _i0 <= 1; _i0, and_0, and_1 = _i0+1, and_1, and_0 {
+			mm := and_1
+			if mm.Op != OpConst64 {
+				continue
+			}
+			m := auxIntToInt64(mm.AuxInt)
+			if !(uint64(m)>>31 == 0) {
+				continue
+			}
+			v.copyOf(and)
+			return true
+		}
+		break
 	}
 	return false
 }
@@ -36022,6 +38038,20 @@ func rewriteValuegeneric_OpSub16(v *Value) bool {
 		v.AddArg(y)
 		return true
 	}
+	// match: (Sub16 x (Sub16 x y))
+	// result: y
+	for {
+		x := v_0
+		if v_1.Op != OpSub16 {
+			break
+		}
+		y := v_1.Args[1]
+		if x != v_1.Args[0] {
+			break
+		}
+		v.copyOf(y)
+		return true
+	}
 	// match: (Sub16 x (Add16 x y))
 	// result: (Neg16 y)
 	for {
@@ -36039,6 +38069,31 @@ func rewriteValuegeneric_OpSub16(v *Value) bool {
 			y := v_1_1
 			v.reset(OpNeg16)
 			v.AddArg(y)
+			return true
+		}
+		break
+	}
+	// match: (Sub16 x (And16 <t> x (Const16 [m])))
+	// result: (And16 <t> x (Const16 <t> [^m]))
+	for {
+		x := v_0
+		if v_1.Op != OpAnd16 {
+			break
+		}
+		t := v_1.Type
+		_ = v_1.Args[1]
+		v_1_0 := v_1.Args[0]
+		v_1_1 := v_1.Args[1]
+		for _i0 := 0; _i0 <= 1; _i0, v_1_0, v_1_1 = _i0+1, v_1_1, v_1_0 {
+			if x != v_1_0 || v_1_1.Op != OpConst16 {
+				continue
+			}
+			m := auxIntToInt16(v_1_1.AuxInt)
+			v.reset(OpAnd16)
+			v.Type = t
+			v0 := b.NewValue0(v.Pos, OpConst16, t)
+			v0.AuxInt = int16ToAuxInt(^m)
+			v.AddArg2(x, v0)
 			return true
 		}
 		break
@@ -36395,6 +38450,20 @@ func rewriteValuegeneric_OpSub32(v *Value) bool {
 		v.AddArg(y)
 		return true
 	}
+	// match: (Sub32 x (Sub32 x y))
+	// result: y
+	for {
+		x := v_0
+		if v_1.Op != OpSub32 {
+			break
+		}
+		y := v_1.Args[1]
+		if x != v_1.Args[0] {
+			break
+		}
+		v.copyOf(y)
+		return true
+	}
 	// match: (Sub32 x (Add32 x y))
 	// result: (Neg32 y)
 	for {
@@ -36412,6 +38481,31 @@ func rewriteValuegeneric_OpSub32(v *Value) bool {
 			y := v_1_1
 			v.reset(OpNeg32)
 			v.AddArg(y)
+			return true
+		}
+		break
+	}
+	// match: (Sub32 x (And32 <t> x (Const32 [m])))
+	// result: (And32 <t> x (Const32 <t> [^m]))
+	for {
+		x := v_0
+		if v_1.Op != OpAnd32 {
+			break
+		}
+		t := v_1.Type
+		_ = v_1.Args[1]
+		v_1_0 := v_1.Args[0]
+		v_1_1 := v_1.Args[1]
+		for _i0 := 0; _i0 <= 1; _i0, v_1_0, v_1_1 = _i0+1, v_1_1, v_1_0 {
+			if x != v_1_0 || v_1_1.Op != OpConst32 {
+				continue
+			}
+			m := auxIntToInt32(v_1_1.AuxInt)
+			v.reset(OpAnd32)
+			v.Type = t
+			v0 := b.NewValue0(v.Pos, OpConst32, t)
+			v0.AuxInt = int32ToAuxInt(^m)
+			v.AddArg2(x, v0)
 			return true
 		}
 		break
@@ -36792,6 +38886,20 @@ func rewriteValuegeneric_OpSub64(v *Value) bool {
 		v.AddArg(y)
 		return true
 	}
+	// match: (Sub64 x (Sub64 x y))
+	// result: y
+	for {
+		x := v_0
+		if v_1.Op != OpSub64 {
+			break
+		}
+		y := v_1.Args[1]
+		if x != v_1.Args[0] {
+			break
+		}
+		v.copyOf(y)
+		return true
+	}
 	// match: (Sub64 x (Add64 x y))
 	// result: (Neg64 y)
 	for {
@@ -36809,6 +38917,31 @@ func rewriteValuegeneric_OpSub64(v *Value) bool {
 			y := v_1_1
 			v.reset(OpNeg64)
 			v.AddArg(y)
+			return true
+		}
+		break
+	}
+	// match: (Sub64 x (And64 <t> x (Const64 [m])))
+	// result: (And64 <t> x (Const64 <t> [^m]))
+	for {
+		x := v_0
+		if v_1.Op != OpAnd64 {
+			break
+		}
+		t := v_1.Type
+		_ = v_1.Args[1]
+		v_1_0 := v_1.Args[0]
+		v_1_1 := v_1.Args[1]
+		for _i0 := 0; _i0 <= 1; _i0, v_1_0, v_1_1 = _i0+1, v_1_1, v_1_0 {
+			if x != v_1_0 || v_1_1.Op != OpConst64 {
+				continue
+			}
+			m := auxIntToInt64(v_1_1.AuxInt)
+			v.reset(OpAnd64)
+			v.Type = t
+			v0 := b.NewValue0(v.Pos, OpConst64, t)
+			v0.AuxInt = int64ToAuxInt(^m)
+			v.AddArg2(x, v0)
 			return true
 		}
 		break
@@ -37189,6 +39322,20 @@ func rewriteValuegeneric_OpSub8(v *Value) bool {
 		v.AddArg(y)
 		return true
 	}
+	// match: (Sub8 x (Sub8 x y))
+	// result: y
+	for {
+		x := v_0
+		if v_1.Op != OpSub8 {
+			break
+		}
+		y := v_1.Args[1]
+		if x != v_1.Args[0] {
+			break
+		}
+		v.copyOf(y)
+		return true
+	}
 	// match: (Sub8 x (Add8 x y))
 	// result: (Neg8 y)
 	for {
@@ -37206,6 +39353,31 @@ func rewriteValuegeneric_OpSub8(v *Value) bool {
 			y := v_1_1
 			v.reset(OpNeg8)
 			v.AddArg(y)
+			return true
+		}
+		break
+	}
+	// match: (Sub8 x (And8 <t> x (Const8 [m])))
+	// result: (And8 <t> x (Const8 <t> [^m]))
+	for {
+		x := v_0
+		if v_1.Op != OpAnd8 {
+			break
+		}
+		t := v_1.Type
+		_ = v_1.Args[1]
+		v_1_0 := v_1.Args[0]
+		v_1_1 := v_1.Args[1]
+		for _i0 := 0; _i0 <= 1; _i0, v_1_0, v_1_1 = _i0+1, v_1_1, v_1_0 {
+			if x != v_1_0 || v_1_1.Op != OpConst8 {
+				continue
+			}
+			m := auxIntToInt8(v_1_1.AuxInt)
+			v.reset(OpAnd8)
+			v.Type = t
+			v0 := b.NewValue0(v.Pos, OpConst8, t)
+			v0.AuxInt = int8ToAuxInt(^m)
+			v.AddArg2(x, v0)
 			return true
 		}
 		break
