@@ -629,10 +629,10 @@ function hideBlock(el) {
     var e = es[0];
     if (e.style.display === 'block' || e.style.display === '') {
         e.style.display = 'none';
-        el.innerHTML = '+';
+        el.textContent = '+';
     } else {
         e.style.display = 'block';
-        el.innerHTML = '-';
+        el.textContent = '-';
     }
 }
 
