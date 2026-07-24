@@ -33,6 +33,32 @@ func EpollWait(epfd int32, events []EpollEvent, maxev, waitms int32) (n int32, e
 	return int32(r1), e
 }
 
+// KernelTimespec is the __kernel_timespec type. Unlike the C struct timespec on
+// 32-bit systems, __kernel_timespec always uses 64-bit fields.
+type KernelTimespec struct {
+	Sec  int64
+	Nsec int64
+}
+
+// SetNsec sets the timespec to the given nanosecond count.
+func (ts *KernelTimespec) SetNsec(nsec int64) {
+	ts.Sec = nsec / 1e9
+	ts.Nsec = nsec % 1e9
+}
+
+// EpollPwait2 calls epoll_pwait2(2), which supports nanosecond-precision
+// timeouts. timeout may be nil to block indefinitely. Requires Linux 5.11+.
+func EpollPwait2(epfd int32, events []EpollEvent, maxev int32, timeout *KernelTimespec) (n int32, errno uintptr) {
+	var ev unsafe.Pointer
+	if len(events) > 0 {
+		ev = unsafe.Pointer(&events[0])
+	} else {
+		ev = unsafe.Pointer(&_zero)
+	}
+	r1, _, e := Syscall6(SYS_EPOLL_PWAIT2, uintptr(epfd), uintptr(ev), uintptr(maxev), uintptr(unsafe.Pointer(timeout)), 0, 0)
+	return int32(r1), e
+}
+
 func EpollCtl(epfd, op, fd int32, event *EpollEvent) (errno uintptr) {
 	_, _, e := Syscall6(SYS_EPOLL_CTL, uintptr(epfd), uintptr(op), uintptr(fd), uintptr(unsafe.Pointer(event)), 0, 0)
 	return e

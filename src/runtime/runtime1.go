@@ -309,6 +309,7 @@ var debug struct {
 	disablethp               int32
 	dontfreezetheworld       int32
 	efence                   int32
+	epollpwait2              int32
 	gccheckmark              int32
 	gcpacertrace             int32
 	gcshrinkstackoff         int32
@@ -366,6 +367,7 @@ var dbgvars = []*dbgVar{
 	{name: "dontfreezetheworld", value: &debug.dontfreezetheworld},
 	{name: "checkfinalizers", value: &debug.checkfinalizers},
 	{name: "efence", value: &debug.efence},
+	{name: "epollpwait2", value: &debug.epollpwait2},
 	{name: "gccheckmark", value: &debug.gccheckmark},
 	{name: "gcpacertrace", value: &debug.gcpacertrace},
 	{name: "gcshrinkstackoff", value: &debug.gcshrinkstackoff},

@@ -12,6 +12,5 @@ const SigeventMaxSize = _sigev_max_size
 var NewOSProc0 = newosproc0
 var Mincore = mincore
 var ParseRelease = parseRelease
-
 type Siginfo siginfo
 type Sigevent sigevent

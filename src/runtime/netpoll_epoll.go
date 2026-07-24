@@ -13,10 +13,31 @@ import (
 )
 
 var (
-	epfd           int32         = -1 // epoll descriptor
-	netpollEventFd uintptr            // eventfd for netpollBreak
-	netpollWakeSig atomic.Uint32      // used to avoid duplicate calls of netpollBreak
+	epfd             int32         = -1 // epoll descriptor
+	netpollEventFd   uintptr            // eventfd for netpollBreak
+	netpollWakeSig   atomic.Uint32      // used to avoid duplicate calls of netpollBreak
+	epollpwait2Avail bool               // true if epoll_pwait2 is available (Linux 5.11+)
 )
+
+// netpollEpollPwait2Init decides whether epoll_pwait2 is available.
+// Opt-in via GODEBUG=epollpwait2=1: precise per-timer wakeups can
+// measurably increase wakeup frequency and CPU usage for workloads
+// with many similar short-lived timers. Must run after parsedebugvars.
+//
+// Check the kernel version first. Even on a new-enough kernel, probe
+// the syscall since seccomp may block it. The probe expects EBADF from
+// an invalid epfd, treating any other result as unavailable.
+func netpollEpollPwait2Init() {
+	if debug.epollpwait2 == 0 {
+		return
+	}
+	if kv, ok := getKernelVersion(); ok && !kv.GE(5, 11) {
+		return
+	}
+	_, errno := linux.EpollPwait2(-1, nil, 0, nil)
+	const badf = 9 // EBADF
+	epollpwait2Avail = errno == badf
+}
 
 func netpollinit() {
 	var errno uintptr
@@ -88,6 +109,24 @@ func netpollBreak() {
 	}
 }
 
+// netpollCoalesceDelay rounds delay up to the nearest coalescing bucket.
+// epoll_wait's 1ms floor implicitly batches timers with nearby deadlines
+// into a single wakeup; epoll_pwait2 does not. Rounding up to a bucket
+// boundary recovers that batching: timers within the same bucket share a
+// wakeup. Delay is always rounded up, never down, so no timer fires early.
+func netpollCoalesceDelay(delay int64) int64 {
+	switch {
+	case delay < 100_000: // <100µs: 1µs buckets
+		return ((delay + 999) / 1_000) * 1_000
+	case delay < 1_000_000: // <1ms: 10µs buckets
+		return ((delay + 9_999) / 10_000) * 10_000
+	case delay < 10_000_000: // <10ms: 100µs buckets
+		return ((delay + 99_999) / 100_000) * 100_000
+	default: // ≥10ms: 1ms buckets, same as epoll_wait
+		return ((delay + 999_999) / 1_000_000) * 1_000_000
+	}
+}
+
 // netpoll checks for ready network connections.
 // Returns a list of goroutines that become runnable,
 // and a delta to add to netpollWaiters.
@@ -100,23 +139,44 @@ func netpoll(delay int64) (gList, int32) {
 	if epfd == -1 {
 		return gList{}, 0
 	}
-	var waitms int32
-	if delay < 0 {
-		waitms = -1
-	} else if delay == 0 {
-		waitms = 0
-	} else if delay < 1e6 {
-		waitms = 1
-	} else if delay < 1e15 {
-		waitms = int32(delay / 1e6)
-	} else {
-		// An arbitrary cap on how long to wait for a timer.
-		// 1e9 ms == ~11.5 days.
-		waitms = 1e9
-	}
 	var events [128]linux.EpollEvent
+	var n int32
+	var errno uintptr
 retry:
-	n, errno := linux.EpollWait(epfd, events[:], int32(len(events)), waitms)
+	if epollpwait2Avail && delay != 0 {
+		// Use epoll_pwait2 for nanosecond-precision timeouts (Linux 5.11+).
+		// This eliminates the 1ms rounding applied by epoll_wait, improving
+		// deadline accuracy for sub-millisecond timeouts. Apply graduated
+		// coalescing to recover the wakeup batching that epoll_wait's 1ms
+		// floor provided: nearby timers round into the same bucket and share
+		// a single wakeup, bounding the per-timer wakeup regression.
+		var ts *linux.KernelTimespec
+		if delay > 0 {
+			var timeout linux.KernelTimespec
+			timeout.SetNsec(netpollCoalesceDelay(delay))
+			ts = &timeout
+		}
+		// delay < 0: ts == nil, blocks indefinitely.
+		n, errno = linux.EpollPwait2(epfd, events[:], int32(len(events)), ts)
+	} else {
+		// epoll_pwait2 unavailable or delay == 0 (non-blocking): use epoll_wait.
+		// Convert delay to milliseconds for epoll_wait.
+		var waitms int32
+		if delay < 0 {
+			waitms = -1
+		} else if delay == 0 {
+			waitms = 0
+		} else if delay < 1e6 {
+			waitms = 1
+		} else if delay < 1e15 {
+			waitms = int32(delay / 1e6)
+		} else {
+			// An arbitrary cap on how long to wait for a timer.
+			// 1e9 ms == ~11.5 days.
+			waitms = 1e9
+		}
+		n, errno = linux.EpollWait(epfd, events[:], int32(len(events)), waitms)
+	}
 	if errno != 0 {
 		if errno != _EINTR {
 			println("runtime: epollwait on fd", epfd, "failed with", errno)
@@ -124,7 +184,7 @@ retry:
 		}
 		// If a timed sleep was interrupted, just return to
 		// recalculate how long we should sleep now.
-		if waitms > 0 {
+		if delay > 0 {
 			return gList{}, 0
 		}
 		goto retry
