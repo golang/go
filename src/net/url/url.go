@@ -955,6 +955,9 @@ func (vs Values) Clone() Values {
 // encountered, if any.
 //
 // Query is expected to be a list of key=value settings separated by ampersands.
+// Semicolons in query keys or values are not treated as separators and are
+// therefore rejected unless percent-encoded, so callers must provide them as
+// `%3B` when the value needs to contain a semicolon.
 // A setting without an equals sign is interpreted as a key set to an empty
 // value.
 // Settings containing a non-URL-encoded semicolon are considered invalid.
