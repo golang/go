@@ -143,18 +143,23 @@ func init() {
 	)
 	// Common regInfo
 	var (
-		gp01     = regInfo{inputs: nil, outputs: []regMask{gp}}
-		gp11     = regInfo{inputs: []regMask{gpg}, outputs: []regMask{gp}}
-		gp11sp   = regInfo{inputs: []regMask{gpspg}, outputs: []regMask{gp}}
-		gp21     = regInfo{inputs: []regMask{gpg, gpg}, outputs: []regMask{gp}}
-		gp2hilo  = regInfo{inputs: []regMask{gpg, gpg}, outputs: []regMask{hi, lo}}
-		gpload   = regInfo{inputs: []regMask{gpspsbg}, outputs: []regMask{gp}}
-		gpstore  = regInfo{inputs: []regMask{gpspsbg, gpg}}
-		gpstore0 = regInfo{inputs: []regMask{gpspsbg}}
-		gpxchg   = regInfo{inputs: []regMask{gpspsbg, gpg}, outputs: []regMask{gp}}
-		gpcas    = regInfo{inputs: []regMask{gpspsbg, gpg, gpg}, outputs: []regMask{gp}}
-		fp01     = regInfo{inputs: nil, outputs: []regMask{fp}}
-		fp11     = regInfo{inputs: []regMask{fp}, outputs: []regMask{fp}}
+		gp01   = regInfo{inputs: nil, outputs: []regMask{gp}}
+		gp11   = regInfo{inputs: []regMask{gpg}, outputs: []regMask{gp}}
+		gp11sp = regInfo{inputs: []regMask{gpspg}, outputs: []regMask{gp}}
+		gp21   = regInfo{inputs: []regMask{gpg, gpg}, outputs: []regMask{gp}}
+		// Multiply/divide move their results out of HI/LO into general
+		// registers as part of the op itself: a value living in HI/LO
+		// cannot be spilled, as spilling needs REGTMP as the data
+		// register, which collides with REGTMP-based address
+		// materialization when the frame is too large for 16-bit offsets.
+		gp22clobbershilo = regInfo{inputs: []regMask{gpg, gpg}, outputs: []regMask{gp, gp}, clobbers: hi | lo}
+		gpload           = regInfo{inputs: []regMask{gpspsbg}, outputs: []regMask{gp}}
+		gpstore          = regInfo{inputs: []regMask{gpspsbg, gpg}}
+		gpstore0         = regInfo{inputs: []regMask{gpspsbg}}
+		gpxchg           = regInfo{inputs: []regMask{gpspsbg, gpg}, outputs: []regMask{gp}}
+		gpcas            = regInfo{inputs: []regMask{gpspsbg, gpg, gpg}, outputs: []regMask{gp}}
+		fp01             = regInfo{inputs: nil, outputs: []regMask{fp}}
+		fp11             = regInfo{inputs: []regMask{fp}, outputs: []regMask{fp}}
 		//fp1flags  = regInfo{inputs: []regMask{fp}}
 		fpgp      = regInfo{inputs: []regMask{fp}, outputs: []regMask{gp}}
 		gpfp      = regInfo{inputs: []regMask{gp}, outputs: []regMask{fp}}
@@ -166,14 +171,14 @@ func init() {
 	)
 	ops := []opData{
 		// binary ops
-		{name: "ADDV", argLength: 2, reg: gp21, asm: "ADDVU", commutative: true},                             // arg0 + arg1
-		{name: "ADDVconst", argLength: 1, reg: gp11sp, asm: "ADDVU", aux: "Int64"},                           // arg0 + auxInt. auxInt is 32-bit, also in other *const ops.
-		{name: "SUBV", argLength: 2, reg: gp21, asm: "SUBVU"},                                                // arg0 - arg1
-		{name: "SUBVconst", argLength: 1, reg: gp11, asm: "SUBVU", aux: "Int64"},                             // arg0 - auxInt
-		{name: "MULV", argLength: 2, reg: gp2hilo, asm: "MULV", commutative: true, typ: "(Int64,Int64)"},     // arg0 * arg1, signed, results hi,lo
-		{name: "MULVU", argLength: 2, reg: gp2hilo, asm: "MULVU", commutative: true, typ: "(UInt64,UInt64)"}, // arg0 * arg1, unsigned, results hi,lo
-		{name: "DIVV", argLength: 2, reg: gp2hilo, asm: "DIVV", typ: "(Int64,Int64)"},                        // arg0 / arg1, signed, results hi=arg0%arg1,lo=arg0/arg1
-		{name: "DIVVU", argLength: 2, reg: gp2hilo, asm: "DIVVU", typ: "(UInt64,UInt64)"},                    // arg0 / arg1, signed, results hi=arg0%arg1,lo=arg0/arg1
+		{name: "ADDV", argLength: 2, reg: gp21, asm: "ADDVU", commutative: true},                                      // arg0 + arg1
+		{name: "ADDVconst", argLength: 1, reg: gp11sp, asm: "ADDVU", aux: "Int64"},                                    // arg0 + auxInt. auxInt is 32-bit, also in other *const ops.
+		{name: "SUBV", argLength: 2, reg: gp21, asm: "SUBVU"},                                                         // arg0 - arg1
+		{name: "SUBVconst", argLength: 1, reg: gp11, asm: "SUBVU", aux: "Int64"},                                      // arg0 - auxInt
+		{name: "MULV", argLength: 2, reg: gp22clobbershilo, asm: "MULV", commutative: true, typ: "(Int64,Int64)"},     // arg0 * arg1, signed, results high,low
+		{name: "MULVU", argLength: 2, reg: gp22clobbershilo, asm: "MULVU", commutative: true, typ: "(UInt64,UInt64)"}, // arg0 * arg1, unsigned, results high,low
+		{name: "DIVV", argLength: 2, reg: gp22clobbershilo, asm: "DIVV", typ: "(Int64,Int64)"},                        // arg0 / arg1, signed, results arg0%arg1,arg0/arg1
+		{name: "DIVVU", argLength: 2, reg: gp22clobbershilo, asm: "DIVVU", typ: "(UInt64,UInt64)"},                    // arg0 / arg1, unsigned, results arg0%arg1,arg0/arg1
 
 		{name: "ADDF", argLength: 2, reg: fp21, asm: "ADDF", commutative: true}, // arg0 + arg1
 		{name: "ADDD", argLength: 2, reg: fp21, asm: "ADDD", commutative: true}, // arg0 + arg1
