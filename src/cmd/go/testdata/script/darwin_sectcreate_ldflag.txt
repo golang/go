@@ -1,0 +1,34 @@
+[!GOOS:darwin] skip
+[!cgo] skip
+
+go build -o safe-bin ./safe
+
+! go build
+stderr '^ldflag: invalid flag in #cgo LDFLAGS: -Wl,-sectcreate,__TEXT,__info,.*info.txt'
+
+env CGO_LDFLAGS_ALLOW=-Wl,-sectcreate,.*
+go build
+
+-- go.mod --
+module ldflag
+
+go 1.26
+
+-- main.go --
+package main
+
+// #cgo LDFLAGS: -Wl,-sectcreate,__TEXT,__info,${SRCDIR}/info.txt
+import "C"
+
+func main() {}
+
+-- safe/main.go --
+package main
+
+// #cgo LDFLAGS: -Wl,-sectcreate,__RESTRICT,__restrict,/dev/null
+import "C"
+
+func main() {}
+
+-- info.txt --
+trusted local input
