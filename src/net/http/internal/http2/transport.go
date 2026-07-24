@@ -929,7 +929,7 @@ func (cc *ClientConn) closeConn() {
 // A tls.Conn.Close can hang for a long time if the peer is unresponsive.
 // Try to shut it down more aggressively.
 func (cc *ClientConn) forceCloseConn() {
-	tc, ok := cc.tconn.(*tls.Conn)
+	tc, ok := cc.tconn.(interface{ NetConn() net.Conn })
 	if !ok {
 		return
 	}
