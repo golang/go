@@ -671,15 +671,40 @@ func preprocess(ctxt *obj.Link, cursym *obj.LSym, newprog obj.ProgAlloc) {
 	const callTrampSize = 8 // 2 machine instructions.
 	maxTrampSize := int64(callCount * callTrampSize)
 
-	// Compute instruction addresses.  Once we do that, we need to check for
-	// overextended jumps and branches.  Within each iteration, Pc differences
-	// are always lower bounds (since the program gets monotonically longer,
-	// a fixed point will be reached).  No attempt to handle functions > 2GiB.
+	// Compute instruction addresses, checking for overextended jumps and branches.
+	// Compressed control transfer instructions may allow for reduced text size,
+	// hence this is handled first. Overextended jumps or branches will result in
+	// additional instructions being required. Eventually a fixed point will be
+	// reached. No attempt is made to handle functions > 2GiB.
 	for {
 		big, rescan := false, false
 		maxPC := setPCs(cursym.Func().Text, 0, ctxt.CompressInstructions)
 		if maxPC+maxTrampSize > (1 << 20) {
 			big = true
+		}
+
+		if ctxt.CompressInstructions {
+			for p := cursym.Func().Text; p != nil; p = p.Link {
+				switch p.As {
+				case ABEQ, ABNE, ABEQZ, ABNEZ:
+					if p.To.Type != obj.TYPE_BRANCH {
+						ctxt.Diag("%v: instruction with branch-like opcode lacks destination", p)
+						break
+					}
+					offset := p.To.Target().Pc - p.Pc
+					if offset != p.To.Offset {
+						p.To.Offset = offset
+						rescan = true
+					}
+				}
+			}
+
+			if ctxt.Errors > 0 {
+				return
+			}
+			if rescan {
+				continue
+			}
 		}
 
 		for p := cursym.Func().Text; p != nil; p = p.Link {
@@ -3703,6 +3728,20 @@ func (ins *instruction) compress() {
 	case AJALR:
 		if ins.rd == REG_ZERO && ins.rs1 == REG_LR && ins.imm == 0 {
 			ins.as, ins.rd = ACJR, obj.REG_NONE
+		}
+
+	case ABEQ:
+		if ins.rs1 == REG_X0 && isIntPrimeReg(ins.rs2) && ins.imm != 0 && isScaledImmI(ins.imm, 9, 2) {
+			ins.as, ins.rs1, ins.rs2 = ACBEQZ, ins.rs2, obj.REG_NONE
+		} else if isIntPrimeReg(ins.rs1) && ins.rs2 == REG_X0 && ins.imm != 0 && isScaledImmI(ins.imm, 9, 2) {
+			ins.as, ins.rs2 = ACBEQZ, obj.REG_NONE
+		}
+
+	case ABNE:
+		if ins.rs1 == REG_X0 && isIntPrimeReg(ins.rs2) && ins.imm != 0 && isScaledImmI(ins.imm, 9, 2) {
+			ins.as, ins.rs1, ins.rs2 = ACBNEZ, ins.rs2, obj.REG_NONE
+		} else if isIntPrimeReg(ins.rs1) && ins.rs2 == REG_X0 && ins.imm != 0 && isScaledImmI(ins.imm, 9, 2) {
+			ins.as, ins.rs2 = ACBNEZ, obj.REG_NONE
 		}
 
 	case AADDI:
