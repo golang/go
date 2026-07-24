@@ -598,20 +598,30 @@ func BenchmarkStackCopyWithStkobj(b *testing.B) {
 }
 
 func BenchmarkIssue18138(b *testing.B) {
-	// Channel with N "can run a goroutine" tokens
-	const N = 10
-	c := make(chan []byte, N)
-	for i := 0; i < N; i++ {
-		c <- make([]byte, 1)
-	}
+	for _, bm := range []struct {
+		name  string
+		depth int
+	}{
+		{"depth=64", 64},
+		{"depth=1000", 1000},
+	} {
+		b.Run(bm.name, func(b *testing.B) {
+			// Channel with N "can run a goroutine" tokens
+			const N = 10
+			c := make(chan []byte, N)
+			for i := 0; i < N; i++ {
+				c <- make([]byte, 1)
+			}
 
-	for i := 0; i < b.N; i++ {
-		<-c // get token
-		go func() {
-			useStackPtrs(1000, false) // uses ~1MB max
-			m := make([]byte, 8192)   // make GC trigger occasionally
-			c <- m                    // return token
-		}()
+			for i := 0; i < b.N; i++ {
+				<-c // get token
+				go func() {
+					useStackPtrs(bm.depth, false) // uses ~depth KiB max
+					m := make([]byte, 8192)       // make GC trigger occasionally
+					c <- m                        // return token
+				}()
+			}
+		})
 	}
 }
 
@@ -628,6 +638,23 @@ func useStackPtrs(n int, b bool) {
 		return
 	}
 	useStackPtrs(n-1, b)
+}
+
+// BenchmarkStackGrowthChurn measures short-lived goroutines that grow a stack and
+// die, one at a time.
+func BenchmarkStackGrowthChurn(b *testing.B) {
+	for _, depth := range []int{8, 32, 64, 128} {
+		b.Run(fmt.Sprintf("depth=%d", depth), func(b *testing.B) {
+			c := make(chan bool)
+			for i := 0; i < b.N; i++ {
+				go func() {
+					useStackPtrs(depth, false)
+					c <- true
+				}()
+				<-c
+			}
+		})
+	}
 }
 
 type structWithMethod struct{}
