@@ -275,7 +275,7 @@ func (b *Builder) gccToolIDPrefix(name, language string, prefix []string) (id, e
 		}
 	}
 	if version == "" {
-		return "", "", fmt.Errorf("%s: can not find version number in %q", name, out)
+		return "", "", fmt.Errorf("%s: cannot find version number in %q", name, out)
 	}
 
 	if !strings.Contains(version, "experimental") {
@@ -292,7 +292,7 @@ func (b *Builder) gccToolIDPrefix(name, language string, prefix []string) (id, e
 			}
 		}
 		if compiler == "" {
-			return "", "", fmt.Errorf("%s: can not find compilation command in %q", name, out)
+			return "", "", fmt.Errorf("%s: cannot find compilation command in %q", name, out)
 		}
 
 		fields, _ := quoted.Split(compiler)
@@ -324,7 +324,7 @@ func (b *Builder) gccToolIDPrefix(name, language string, prefix []string) (id, e
 	return id, exe, nil
 }
 
-// Check if assembler used by gccgo is GNU as.
+// assemblerIsGas reports whether the assembler used by gccgo is GNU as.
 func assemblerIsGas() bool {
 	cmd := exec.Command(BuildToolchain.compiler(), "-print-prog-name=as")
 	assembler, err := cmd.Output()
