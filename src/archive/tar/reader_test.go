@@ -1684,6 +1684,51 @@ func TestInsecurePaths(t *testing.T) {
 	}
 }
 
+func TestInsecureLinknames(t *testing.T) {
+	t.Setenv("GODEBUG", "tarinsecurepath=0")
+	for _, test := range []struct {
+		name     string
+		typeflag byte
+		linkname string
+	}{
+		{
+			name:     "hardlink",
+			typeflag: TypeLink,
+			linkname: "../target",
+		},
+		{
+			name:     "symlink",
+			typeflag: TypeSymlink,
+			linkname: "/target",
+		},
+	} {
+		var buf bytes.Buffer
+		tw := NewWriter(&buf)
+		if err := tw.WriteHeader(&Header{
+			Name:     test.name,
+			Typeflag: test.typeflag,
+			Linkname: test.linkname,
+		}); err != nil {
+			t.Fatalf("WriteHeader(%s): %v", test.name, err)
+		}
+		if err := tw.Close(); err != nil {
+			t.Fatalf("Close(%s): %v", test.name, err)
+		}
+
+		tr := NewReader(&buf)
+		h, err := tr.Next()
+		if err != nil {
+			t.Fatalf("Next(%s): got err %v, want nil", test.name, err)
+		}
+		if h.Name != test.name {
+			t.Errorf("Next(%s): got name %q, want %q", test.name, h.Name, test.name)
+		}
+		if h.Linkname != test.linkname {
+			t.Errorf("Next(%s): got linkname %q, want %q", test.name, h.Linkname, test.linkname)
+		}
+	}
+}
+
 func TestDisableInsecurePathCheck(t *testing.T) {
 	t.Setenv("GODEBUG", "tarinsecurepath=1")
 	var buf bytes.Buffer
