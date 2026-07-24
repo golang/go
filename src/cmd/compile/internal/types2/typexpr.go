@@ -183,7 +183,7 @@ func (check *Checker) validVarType(e syntax.Expr, typ Type) {
 func (check *Checker) declaredType(e syntax.Expr, def *TypeName) Type {
 	typ := check.typInternal(e, def)
 	assert(isTyped(typ))
-	if isGeneric(typ) {
+	if isGeneric(typ) && isValid(typ) {
 		check.errorf(e, WrongTypeArgCount, "cannot use generic type %s without instantiation", typ)
 		typ = Typ[Invalid]
 	}
