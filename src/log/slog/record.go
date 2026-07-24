@@ -5,6 +5,7 @@
 package slog
 
 import (
+	"iter"
 	"runtime"
 	"slices"
 	"time"
@@ -90,6 +91,11 @@ func (r Record) Attrs(f func(Attr) bool) {
 			return
 		}
 	}
+}
+
+// AllAttrs returns an iterator over every attribute in the [Record].
+func (r Record) AllAttrs() iter.Seq[Attr] {
+	return r.Attrs
 }
 
 // AddAttrs appends the given Attrs to the [Record]'s list of Attrs.
