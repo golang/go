@@ -79,8 +79,8 @@ var regNamesMIPS = []string{
 	"F28",
 	"F30",
 
-	"HI", // high bits of multiplication
-	"LO", // low bits of multiplication
+	// To avoid nested REGTMP issues we act as if HI LO does not exists.
+	// Operations using them output to GP and obj adds moves from HI LO to GP as needed.
 
 	// If you add registers, update asyncPreempt in runtime.
 
@@ -117,46 +117,43 @@ func init() {
 		gpspg      = gpg.union(buildReg("SP"))
 		gpspsbg    = gpspg.union(buildReg("SB"))
 		fp         = buildReg("F0 F2 F4 F6 F8 F10 F12 F14 F16 F18 F20 F22 F24 F26 F28 F30")
-		lo         = buildReg("LO")
-		hi         = buildReg("HI")
-		callerSave = gp.union(fp).union(lo).union(hi).union(buildReg("g")) // runtime.setg (and anything calling it) may clobber g
+		callerSave = gp.union(fp).union(buildReg("g")) // runtime.setg (and anything calling it) may clobber g
 		first16    = buildReg("R1 R2 R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15 R16")
 		first4     = buildReg("R1 R2 R3 R4")
 	)
 	// Common regInfo
 	var (
-		gp01   = regInfo{inputs: nil, outputs: []regMask{gp}}
-		gp11   = regInfo{inputs: []regMask{gpg}, outputs: []regMask{gp}}
-		gp11sp = regInfo{inputs: []regMask{gpspg}, outputs: []regMask{gp}}
-		gp21   = regInfo{inputs: []regMask{gpg, gpg}, outputs: []regMask{gp}}
-		gp31   = regInfo{inputs: []regMask{gp, gp, gp}, outputs: []regMask{gp}}
-		// See MIPS64Ops.go: results must not stay homed in HI/LO.
-		gp22clobbershilo = regInfo{inputs: []regMask{gpg, gpg}, outputs: []regMask{gp, gp}, clobbers: hi.union(lo)}
-		gpload           = regInfo{inputs: []regMask{gpspsbg}, outputs: []regMask{gp}}
-		gpstore          = regInfo{inputs: []regMask{gpspsbg, gpg}}
-		gpxchg           = regInfo{inputs: []regMask{gpspsbg, gpg}, outputs: []regMask{gp}}
-		gpcas            = regInfo{inputs: []regMask{gpspsbg, gpg, gpg}, outputs: []regMask{gp}}
-		gpstore0         = regInfo{inputs: []regMask{gpspsbg}}
-		fpgp             = regInfo{inputs: []regMask{fp}, outputs: []regMask{gp}}
-		gpfp             = regInfo{inputs: []regMask{gp}, outputs: []regMask{fp}}
-		fp01             = regInfo{inputs: nil, outputs: []regMask{fp}}
-		fp11             = regInfo{inputs: []regMask{fp}, outputs: []regMask{fp}}
-		fp21             = regInfo{inputs: []regMask{fp, fp}, outputs: []regMask{fp}}
-		fp2flags         = regInfo{inputs: []regMask{fp, fp}}
-		fpload           = regInfo{inputs: []regMask{gpspsbg}, outputs: []regMask{fp}}
-		fpstore          = regInfo{inputs: []regMask{gpspsbg, fp}}
-		readflags        = regInfo{inputs: nil, outputs: []regMask{gp}}
+		gp01      = regInfo{inputs: nil, outputs: []regMask{gp}}
+		gp11      = regInfo{inputs: []regMask{gpg}, outputs: []regMask{gp}}
+		gp11sp    = regInfo{inputs: []regMask{gpspg}, outputs: []regMask{gp}}
+		gp21      = regInfo{inputs: []regMask{gpg, gpg}, outputs: []regMask{gp}}
+		gp31      = regInfo{inputs: []regMask{gp, gp, gp}, outputs: []regMask{gp}}
+		gp22      = regInfo{inputs: []regMask{gpg, gpg}, outputs: []regMask{gp, gp}}
+		gpload    = regInfo{inputs: []regMask{gpspsbg}, outputs: []regMask{gp}}
+		gpstore   = regInfo{inputs: []regMask{gpspsbg, gpg}}
+		gpxchg    = regInfo{inputs: []regMask{gpspsbg, gpg}, outputs: []regMask{gp}}
+		gpcas     = regInfo{inputs: []regMask{gpspsbg, gpg, gpg}, outputs: []regMask{gp}}
+		gpstore0  = regInfo{inputs: []regMask{gpspsbg}}
+		fpgp      = regInfo{inputs: []regMask{fp}, outputs: []regMask{gp}}
+		gpfp      = regInfo{inputs: []regMask{gp}, outputs: []regMask{fp}}
+		fp01      = regInfo{inputs: nil, outputs: []regMask{fp}}
+		fp11      = regInfo{inputs: []regMask{fp}, outputs: []regMask{fp}}
+		fp21      = regInfo{inputs: []regMask{fp, fp}, outputs: []regMask{fp}}
+		fp2flags  = regInfo{inputs: []regMask{fp, fp}}
+		fpload    = regInfo{inputs: []regMask{gpspsbg}, outputs: []regMask{fp}}
+		fpstore   = regInfo{inputs: []regMask{gpspsbg, fp}}
+		readflags = regInfo{inputs: nil, outputs: []regMask{gp}}
 	)
 	ops := []opData{
-		{name: "ADD", argLength: 2, reg: gp21, asm: "ADDU", commutative: true, earlyOk: true},                                                                                // arg0 + arg1
-		{name: "ADDconst", argLength: 1, reg: gp11sp, asm: "ADDU", aux: "Int32", earlyOk: true},                                                                              // arg0 + auxInt
-		{name: "SUB", argLength: 2, reg: gp21, asm: "SUBU", earlyOk: true},                                                                                                   // arg0 - arg1
-		{name: "SUBconst", argLength: 1, reg: gp11, asm: "SUBU", aux: "Int32", earlyOk: true},                                                                                // arg0 - auxInt
-		{name: "MUL", argLength: 2, reg: regInfo{inputs: []regMask{gpg, gpg}, outputs: []regMask{gp}, clobbers: hi.union(lo)}, asm: "MUL", commutative: true, earlyOk: true}, // arg0 * arg1
-		{name: "MULT", argLength: 2, reg: gp22clobbershilo, asm: "MUL", commutative: true, typ: "(Int32,Int32)", earlyOk: true},                                              // arg0 * arg1, signed, results high,low
-		{name: "MULTU", argLength: 2, reg: gp22clobbershilo, asm: "MULU", commutative: true, typ: "(UInt32,UInt32)", earlyOk: true},                                          // arg0 * arg1, unsigned, results high,low
-		{name: "DIV", argLength: 2, reg: gp22clobbershilo, asm: "DIV", typ: "(Int32,Int32)"},                                                                                 // arg0 / arg1, signed, results arg0%arg1,arg0/arg1
-		{name: "DIVU", argLength: 2, reg: gp22clobbershilo, asm: "DIVU", typ: "(UInt32,UInt32)"},                                                                             // arg0 / arg1, signed, results arg0%arg1,arg0/arg1
+		{name: "ADD", argLength: 2, reg: gp21, asm: "ADDU", commutative: true, earlyOk: true},                           // arg0 + arg1
+		{name: "ADDconst", argLength: 1, reg: gp11sp, asm: "ADDU", aux: "Int32", earlyOk: true},                         // arg0 + auxInt
+		{name: "SUB", argLength: 2, reg: gp21, asm: "SUBU", earlyOk: true},                                              // arg0 - arg1
+		{name: "SUBconst", argLength: 1, reg: gp11, asm: "SUBU", aux: "Int32", earlyOk: true},                           // arg0 - auxInt
+		{name: "MUL", argLength: 2, reg: gp21, asm: "MUL", commutative: true, earlyOk: true},                            // arg0 * arg1
+		{name: "MULT", argLength: 2, reg: gp22, asm: "MUL", commutative: true, typ: "(Int32,Int32)", earlyOk: true},     // arg0 * arg1, signed, results high,low
+		{name: "MULTU", argLength: 2, reg: gp22, asm: "MULU", commutative: true, typ: "(UInt32,UInt32)", earlyOk: true}, // arg0 * arg1, unsigned, results high,low
+		{name: "DIV", argLength: 2, reg: gp22, asm: "DIV", typ: "(Int32,Int32)"},                                        // arg0 / arg1, signed, results arg0%arg1,arg0/arg1
+		{name: "DIVU", argLength: 2, reg: gp22, asm: "DIVU", typ: "(UInt32,UInt32)"},                                    // arg0 / arg1, signed, results arg0%arg1,arg0/arg1
 
 		{name: "ADDF", argLength: 2, reg: fp21, asm: "ADDF", commutative: true, earlyOk: true}, // arg0 + arg1
 		{name: "ADDD", argLength: 2, reg: fp21, asm: "ADDD", commutative: true, earlyOk: true}, // arg0 + arg1
@@ -449,7 +446,6 @@ func init() {
 		regnames:        regNamesMIPS,
 		gpregmask:       gp,
 		fpregmask:       fp,
-		specialregmask:  hi.union(lo),
 		framepointerreg: -1, // not used
 		linkreg:         int8(num["R31"]),
 	})
