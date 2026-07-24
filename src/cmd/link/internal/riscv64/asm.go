@@ -218,6 +218,7 @@ func genSymsLate(ctxt *ld.Link, ldr *loader.Loader) {
 				r.Type() != objabi.R_RISCV_PCREL_ITYPE &&
 				r.Type() != objabi.R_RISCV_PCREL_STYPE &&
 				r.Type() != objabi.R_RISCV_TLS_IE &&
+				r.Type() != objabi.R_RISCV_TLS_GD &&
 				r.Type() != objabi.R_RISCV_GOT_PCREL_ITYPE {
 				continue
 			}
@@ -284,6 +285,7 @@ func elfreloc1(ctxt *ld.Link, out *ld.OutBuf, ldr *loader.Loader, s loader.Sym, 
 		objabi.R_RISCV_PCREL_ITYPE,
 		objabi.R_RISCV_PCREL_STYPE,
 		objabi.R_RISCV_TLS_IE,
+		objabi.R_RISCV_TLS_GD,
 		objabi.R_RISCV_GOT_PCREL_ITYPE:
 		// Find the text symbol for the AUIPC instruction targeted
 		// by this relocation.
@@ -313,6 +315,29 @@ func elfreloc1(ctxt *ld.Link, out *ld.OutBuf, ldr *loader.Loader, s loader.Sym, 
 			hiRel, loRel = elf.R_RISCV_PCREL_HI20, elf.R_RISCV_PCREL_LO12_S
 		case objabi.R_RISCV_TLS_IE:
 			hiRel, loRel = elf.R_RISCV_TLS_GOT_HI20, elf.R_RISCV_PCREL_LO12_I
+		case objabi.R_RISCV_TLS_GD:
+			// GD TLS: emit GD_HI20 + PCREL_LO12_I for AUIPC+ADDI pair,
+			// then CALL_PLT for the __tls_get_addr AUIPC+JALR pair at +8.
+			hiRel, loRel = elf.R_RISCV_TLS_GD_HI20, elf.R_RISCV_PCREL_LO12_I
+
+			// Find __tls_get_addr symbol for the CALL relocation
+			tlsGetAddr := ldr.Lookup("__tls_get_addr", 0)
+			var tlsGetAddrElfSym elf.R_RISCV
+			if tlsGetAddr != 0 {
+				tlsGetAddrElfSym = elf.R_RISCV(ld.ElfSymForReloc(ctxt, tlsGetAddr))
+			}
+
+			// Emit the 2 GD relocations + 1 CALL_PLT relocation
+			out.Write64(uint64(sectoff))
+			out.Write64(uint64(elf.R_RISCV_TLS_GD_HI20) | uint64(elfsym)<<32)
+			out.Write64(uint64(r.Xadd))
+			out.Write64(uint64(sectoff + 4))
+			out.Write64(uint64(elf.R_RISCV_PCREL_LO12_I) | uint64(hi20ElfSym)<<32)
+			out.Write64(uint64(0))
+			out.Write64(uint64(sectoff + 8))
+			out.Write64(uint64(elf.R_RISCV_CALL_PLT) | uint64(tlsGetAddrElfSym)<<32)
+			out.Write64(uint64(0))
+			return true
 		case objabi.R_RISCV_GOT_PCREL_ITYPE:
 			hiRel, loRel = elf.R_RISCV_GOT_HI20, elf.R_RISCV_PCREL_LO12_I
 		}
@@ -481,6 +506,8 @@ func archreloc(target *ld.Target, ldr *loader.Loader, syms *ld.ArchSyms, r loade
 
 		case objabi.R_RISCV_CALL, objabi.R_RISCV_PCREL_ITYPE, objabi.R_RISCV_PCREL_STYPE, objabi.R_RISCV_TLS_IE, objabi.R_RISCV_TLS_LE, objabi.R_RISCV_GOT_PCREL_ITYPE:
 			return val, 2, true
+		case objabi.R_RISCV_TLS_GD:
+			return val, 3, true // GD_HI20 + PCREL_LO12_I + CALL_PLT
 		}
 
 		return val, 0, false
@@ -503,6 +530,8 @@ func archreloc(target *ld.Target, ldr *loader.Loader, syms *ld.ArchSyms, r loade
 
 	case objabi.R_RISCV_TLS_IE:
 		log.Fatalf("cannot handle R_RISCV_TLS_IE (sym %s) when linking internally", ldr.SymName(s))
+	case objabi.R_RISCV_TLS_GD:
+		log.Fatalf("cannot handle R_RISCV_TLS_GD (sym %s) when linking internally", ldr.SymName(s))
 		return val, 0, false
 
 	case objabi.R_RISCV_TLS_LE:
@@ -689,6 +718,8 @@ func extreloc(target *ld.Target, ldr *loader.Loader, r loader.Reloc, s loader.Sy
 
 	case objabi.R_RISCV_CALL, objabi.R_RISCV_PCREL_ITYPE, objabi.R_RISCV_PCREL_STYPE, objabi.R_RISCV_TLS_IE, objabi.R_RISCV_TLS_LE, objabi.R_RISCV_GOT_PCREL_ITYPE:
 		return ld.ExtrelocViaOuterSym(ldr, r, s), true
+	// R_RISCV_TLS_GD is handled by the generic extreloc in data.go
+	// (with TLS symbol fallback to ctxt.Tlsg)
 	}
 	return loader.ExtReloc{}, false
 }

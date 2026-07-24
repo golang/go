@@ -1,0 +1,14 @@
+FROM --platform=linux/arm/v7 golang:1.24-alpine AS bootstrap
+FROM --platform=linux/arm/v7 alpine:3.21
+RUN apk add --no-cache bash build-base linux-headers git
+COPY --from=bootstrap /usr/local/go /usr/local/go-bootstrap
+COPY . /go-src/
+ENV GOROOT_BOOTSTRAP=/usr/local/go-bootstrap
+RUN cd /go-src/src && ./make.bash
+ENV PATH="/go-src/bin:$PATH"
+ENV GOROOT="/go-src"
+WORKDIR /test
+COPY test/cshared-musl/testdata/ /test/
+RUN CGO_ENABLED=1 go build -buildmode=c-shared -o libtest.so libtest.go
+RUN gcc -o loader loader.c -ldl
+CMD ["./loader", "./libtest.so"]
