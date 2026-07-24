@@ -209,3 +209,46 @@ func TestDecoderInternalWhitespace(t *testing.T) {
 		t.Errorf("Decode failed: got %v, want %v", decoded, want)
 	}
 }
+
+func TestDecodeExactDstSize(t *testing.T) {
+	for _, src := range [][]byte{
+		[]byte("Q"),
+		[]byte("ABCDE"),
+	} {
+		enc := make([]byte, MaxEncodedLen(len(src)))
+		nenc := Encode(enc, src)
+		dec := make([]byte, len(src))
+		ndst, _, err := Decode(dec, enc[:nenc], true)
+		if err != nil {
+			t.Fatalf("Decode(%q): %v", enc[:nenc], err)
+		}
+		if ndst != len(src) {
+			t.Fatalf("Decode(%q) wrote %d bytes, want %d", enc[:nenc], ndst, len(src))
+		}
+		if !bytes.Equal(src, dec) {
+			t.Fatalf("Decode(%q) = %x, want %x", enc[:nenc], dec, src)
+		}
+	}
+}
+
+func TestDecodeRandomRoundTrip(t *testing.T) {
+	const supLen = 100
+	srcBuf := make([]byte, supLen)
+	encBuf := make([]byte, MaxEncodedLen(supLen))
+	decBuf := make([]byte, supLen)
+	for i := 0; i < 1000; i++ {
+		srcLen := 1 + i%(supLen)
+		src := srcBuf[:srcLen]
+		for j := range src {
+			src[j] = byte(i + j)
+		}
+		nenc := Encode(encBuf[:MaxEncodedLen(srcLen)], src)
+		ndst, _, err := Decode(decBuf[:srcLen], encBuf[:nenc], true)
+		if err != nil {
+			t.Fatalf("Decode failed: %v", err)
+		}
+		if ndst != srcLen || !bytes.Equal(src, decBuf[:ndst]) {
+			t.Fatalf("round-trip failed for len %d: got %x want %x", srcLen, decBuf[:ndst], src)
+		}
+	}
+}
