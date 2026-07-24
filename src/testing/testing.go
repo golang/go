@@ -729,6 +729,11 @@ type common struct {
 	lastRaceErrors  atomic.Int64 // Max value of race.Errors seen during the test or its subtests.
 	raceErrorLogged atomic.Bool
 
+	retryReason  string // set by Retry; non-empty means test requested a retry
+	maxRetries   int    // set by Retries; maximum retry attempts
+	retriesIsSet bool   // true if Retries was explicitly called
+	retryCount   int    // current retry attempt number (0 = first run)
+
 	tempDirMu  sync.Mutex
 	tempDir    string
 	tempDirErr error
@@ -1106,6 +1111,35 @@ func (c *common) FailNow() {
 	c.finished = true
 	c.mu.Unlock()
 	runtime.Goexit()
+}
+
+// Retry marks the current test as failed but eligible for retry.
+// It is analogous to [T.Fail]: it records the failure reason but does not
+// stop execution of the test function. When the test function returns,
+// the framework will re-run the test (up to the limit set by [T.Retries])
+// before reporting a permanent failure.
+//
+// Retry may only be called from the goroutine running the test function.
+func (t *T) Retry(reason string) {
+	if reason == "" {
+		reason = "retry requested"
+	}
+	t.mu.Lock()
+	t.retryReason = reason
+	t.mu.Unlock()
+	t.Fail()
+}
+
+// Retries sets the maximum number of retry attempts for the current test.
+// The default is 1: if [T.Retry] is called and Retries has not been called,
+// the test will be re-run once (for a total of two executions).
+// Retries must be called before Retry.
+// Calling Retries with n <= 0 disables retries.
+func (t *T) Retries(n int) {
+	t.mu.Lock()
+	defer t.mu.Unlock()
+	t.maxRetries = n
+	t.retriesIsSet = true
 }
 
 // log generates the output. It is always at the same stack depth. log inserts
@@ -2200,6 +2234,72 @@ func tRunner(t *T, fn func(t *T)) {
 	fn(t)
 
 	// code beyond here will not be executed when FailNow is invoked
+	//
+	// Retry logic: if Retry was called (retryReason is set) and we haven't
+	// exhausted retries, reset the test state and re-run the test function.
+	// This only triggers when the test function returns normally; if FailNow
+	// or Fatal was called, runtime.Goexit prevents reaching this code, so
+	// tests that call Fatal are never retried.
+	for {
+		t.mu.RLock()
+		reason := t.retryReason
+		maxRetries := t.maxRetries
+		retriesIsSet := t.retriesIsSet
+		count := t.retryCount
+		t.mu.RUnlock()
+
+		if reason == "" {
+			break
+		}
+
+		// Determine effective max retries.
+		// If Retries was never called, default to 1 retry attempt.
+		// If Retries was explicitly called with n <= 0, retries are disabled.
+		effectiveMax := maxRetries
+		if !retriesIsSet {
+			effectiveMax = 1
+		}
+		if effectiveMax <= 0 || count >= effectiveMax {
+			break
+		}
+
+		// Emit a retry event for JSON-aware consumers.
+		// The reason is logged separately to keep the framing line parseable
+		// by test2json (which extracts the test name from after the action).
+		if t.chatty != nil {
+			t.chatty.Updatef(t.name, "=== RETRY %s\n", t.name)
+			t.chatty.Printf(t.name, "    retry reason: %s\n", reason)
+		}
+
+		// Reset test state for the next attempt.
+		t.mu.Lock()
+		t.failed = false
+		t.skipped = false
+		t.output = t.output[:0]
+		t.cleanups = nil
+		t.sub = nil
+		t.hasSub.Store(false)
+		t.retryReason = ""
+		t.retryCount++
+		t.mu.Unlock()
+		// Re-create barrier for potential parallel subtests in the retry.
+		t.barrier = make(chan bool)
+
+		// Clear the failure propagated to parent tests by Fail().
+		// Fail() walks up the parent chain setting failed=true on each.
+		// Since we're retrying, undo that propagation. In the common case
+		// of a single failing subtest being retried, this is safe.
+		for p := t.parent; p != nil; p = p.parent {
+			p.mu.Lock()
+			p.failed = false
+			p.mu.Unlock()
+		}
+
+		t.start = highPrecisionTimeNow()
+		t.resetRaces()
+		fn(t)
+	}
+
 	t.mu.Lock()
 	t.finished = true
 	t.mu.Unlock()
