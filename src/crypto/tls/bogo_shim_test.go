@@ -19,6 +19,7 @@ import (
 	"internal/testenv"
 	"io"
 	"log"
+	"maps"
 	"net"
 	"os"
 	"path/filepath"
@@ -546,72 +547,9 @@ func orderlyShutdown(tlsConn *Conn) {
 }
 
 func TestBogoSuite(t *testing.T) {
-	if testing.Short() {
-		t.Skip("skipping in short mode")
-	}
-	if testenv.Builder() != "" && runtime.GOOS == "windows" {
-		t.Skip("#66913: windows network connections are flakey on builders")
-	}
 	skipFIPS(t)
 
-	// In order to make Go test caching work as expected, we stat the
-	// bogo_config.json file, so that the Go testing hooks know that it is
-	// important for this test and will invalidate a cached test result if the
-	// file changes.
-	if _, err := os.Stat("bogo_config.json"); err != nil {
-		t.Fatal(err)
-	}
-
-	var bogoDir string
-	if *bogoLocalDir != "" {
-		ensureLocalBogo(t, *bogoLocalDir)
-		bogoDir = *bogoLocalDir
-	} else {
-		bogoDir = cryptotest.FetchModule(t, "boringssl.googlesource.com/boringssl.git", boringsslModVer)
-	}
-
-	cwd, err := os.Getwd()
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	resultsFile := filepath.Join(t.TempDir(), "results.json")
-
-	args := []string{
-		"test",
-		".",
-		fmt.Sprintf("-shim-config=%s", filepath.Join(cwd, "bogo_config.json")),
-		fmt.Sprintf("-shim-path=%s", testenv.Executable(t)),
-		"-shim-extra-flags=-bogo-mode",
-		"-allow-unimplemented",
-		"-loose-errors", // TODO(roland): this should be removed eventually
-		fmt.Sprintf("-json-output=%s", resultsFile),
-	}
-	if *bogoFilter != "" {
-		args = append(args, fmt.Sprintf("-test=%s", *bogoFilter))
-	}
-
-	cmd := testenv.Command(t, testenv.GoToolPath(t), args...)
-	cmd.Dir = filepath.Join(bogoDir, "ssl/test/runner")
-	out, err := cmd.CombinedOutput()
-	// NOTE: we don't immediately check the error, because the failure could be either because
-	// the runner failed for some unexpected reason, or because a test case failed, and we
-	// cannot easily differentiate these cases. We check if the JSON results file was written,
-	// which should only happen if the failure was because of a test failure, and use that
-	// to determine the failure mode.
-
-	resultsJSON, jsonErr := os.ReadFile(resultsFile)
-	if jsonErr != nil {
-		if err != nil {
-			t.Fatalf("bogo failed: %s\n%s", err, out)
-		}
-		t.Fatalf("failed to read results JSON file: %s", jsonErr)
-	}
-
-	var results bogoResults
-	if err := json.Unmarshal(resultsJSON, &results); err != nil {
-		t.Fatalf("failed to parse results JSON: %s", err)
-	}
+	results := runBogoSuite(t, *bogoFilter, nil)
 
 	if *bogoReport != "" {
 		if err := generateReport(results, *bogoReport); err != nil {
@@ -668,6 +606,147 @@ func TestBogoSuite(t *testing.T) {
 			})
 		}
 	}
+}
+
+// TestBogoSuiteFIPSEMS tests the enforcement of Extended Master Secret in
+// FIPS 140-3 mode.
+//
+// In particular, it tests the fips140ems GODEBUG escape hatch against runner
+// peers that do not support EMS (which crypto/tls itself cannot be configured
+// to do).
+//
+// FIPS mode is enabled in the shim via GODEBUG, which the runner passes
+// through to the shim processes it spawns.
+func TestBogoSuiteFIPSEMS(t *testing.T) {
+	for _, tc := range []struct {
+		name    string
+		godebug string
+		// expected maps the names of the tests to run, and no others, to
+		// their required result.
+		expected map[string]string
+	}{
+		{
+			name:    "enforced",
+			godebug: "GODEBUG=fips140=on",
+			expected: map[string]string{
+				// TLS 1.2 handshakes without EMS must fail in FIPS mode. The
+				// NoToNo resumption tests fail at the initial connection,
+				// which is a full handshake without EMS.
+				"NoExtendedMasterSecret-TLS12-Client": "FAIL",
+				"NoExtendedMasterSecret-TLS12-Server": "FAIL",
+				"ExtendedMasterSecret-NoToNo-Client":  "FAIL",
+				"ExtendedMasterSecret-NoToNo-Server":  "FAIL",
+			},
+		},
+		{
+			name:    "fips140ems=0",
+			godebug: "GODEBUG=fips140=on,fips140ems=0",
+			expected: map[string]string{
+				// fips140ems=0 disables enforcement, restoring the non-FIPS
+				// results. We expect full handshakes without EMS succeed, and
+				// the NoToNo tests resume non-EMS sessions without EMS.
+				"NoExtendedMasterSecret-TLS12-Client": "PASS",
+				"NoExtendedMasterSecret-TLS12-Server": "PASS",
+				"ExtendedMasterSecret-NoToNo-Client":  "PASS",
+				"ExtendedMasterSecret-NoToNo-Server":  "PASS",
+				// The RFC 7627 mismatch checks are not FIPS-specific, and
+				// must remain enforced with fips140ems=0.
+				"ExtendedMasterSecret-NoToYes-Client": "PASS",
+				"ExtendedMasterSecret-YesToNo-Server": "PASS",
+			},
+		},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			filter := strings.Join(slices.Sorted(maps.Keys(tc.expected)), ";")
+			results := runBogoSuite(t, filter, []string{tc.godebug})
+			for name, want := range tc.expected {
+				result, ok := results.Tests[name]
+				if !ok {
+					t.Errorf("%s: expected test to run, but it was not present in the test results", name)
+					continue
+				}
+				if result.Actual != want {
+					t.Errorf("%s: got %s, want %s: %s", name, result.Actual, want, result.Error)
+				}
+			}
+		})
+	}
+}
+
+// runBogoSuite runs the BoGo test runner, limited to tests matching the
+// semicolon-separated patterns in filter if it is non-empty, and returns the
+// parsed results. extraEnv is appended to the runner's environment, which is
+// inherited by the shim processes it spawns.
+func runBogoSuite(t *testing.T, filter string, extraEnv []string) bogoResults {
+	if testing.Short() {
+		t.Skip("skipping in short mode")
+	}
+	if testenv.Builder() != "" && runtime.GOOS == "windows" {
+		t.Skip("#66913: windows network connections are flakey on builders")
+	}
+
+	// In order to make Go test caching work as expected, we stat the
+	// bogo_config.json file, so that the Go testing hooks know that it is
+	// important for this test and will invalidate a cached test result if the
+	// file changes.
+	if _, err := os.Stat("bogo_config.json"); err != nil {
+		t.Fatal(err)
+	}
+
+	var bogoDir string
+	if *bogoLocalDir != "" {
+		ensureLocalBogo(t, *bogoLocalDir)
+		bogoDir = *bogoLocalDir
+	} else {
+		bogoDir = cryptotest.FetchModule(t, "boringssl.googlesource.com/boringssl.git", boringsslModVer)
+	}
+
+	cwd, err := os.Getwd()
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	resultsFile := filepath.Join(t.TempDir(), "results.json")
+
+	args := []string{
+		"test",
+		".",
+		fmt.Sprintf("-shim-config=%s", filepath.Join(cwd, "bogo_config.json")),
+		fmt.Sprintf("-shim-path=%s", testenv.Executable(t)),
+		"-shim-extra-flags=-bogo-mode",
+		"-allow-unimplemented",
+		"-loose-errors", // TODO(roland): this should be removed eventually
+		fmt.Sprintf("-json-output=%s", resultsFile),
+	}
+	if filter != "" {
+		args = append(args, fmt.Sprintf("-test=%s", filter))
+	}
+
+	cmd := testenv.Command(t, testenv.GoToolPath(t), args...)
+	cmd.Dir = filepath.Join(bogoDir, "ssl/test/runner")
+	if extraEnv != nil {
+		cmd.Env = append(os.Environ(), extraEnv...)
+	}
+	out, err := cmd.CombinedOutput()
+	// NOTE: we don't immediately check the error, because the failure could be either because
+	// the runner failed for some unexpected reason, or because a test case failed, and we
+	// cannot easily differentiate these cases. We check if the JSON results file was written,
+	// which should only happen if the failure was because of a test failure, and use that
+	// to determine the failure mode.
+
+	resultsJSON, jsonErr := os.ReadFile(resultsFile)
+	if jsonErr != nil {
+		if err != nil {
+			t.Fatalf("bogo failed: %s\n%s", err, out)
+		}
+		t.Fatalf("failed to read results JSON file: %s", jsonErr)
+	}
+
+	var results bogoResults
+	if err := json.Unmarshal(resultsJSON, &results); err != nil {
+		t.Fatalf("failed to parse results JSON: %s", err)
+	}
+	return results
 }
 
 // ensureLocalBogo fetches BoringSSL to localBogoDir at the correct revision
