@@ -128,8 +128,10 @@ golang.org/x/tools/go/ast/astutil
 golang.org/x/tools/go/ast/edge
 golang.org/x/tools/go/ast/inspector
 golang.org/x/tools/go/cfg
+golang.org/x/tools/go/gcexportdata
 golang.org/x/tools/go/types/objectpath
 golang.org/x/tools/go/types/typeutil
+golang.org/x/tools/internal/aliases
 golang.org/x/tools/internal/analysis/analyzerutil
 golang.org/x/tools/internal/analysis/driverutil
 golang.org/x/tools/internal/analysis/typeindex
@@ -140,8 +142,10 @@ golang.org/x/tools/internal/diff
 golang.org/x/tools/internal/diff/lcs
 golang.org/x/tools/internal/facts
 golang.org/x/tools/internal/fmtstr
+golang.org/x/tools/internal/gcimporter
 golang.org/x/tools/internal/moreiters
 golang.org/x/tools/internal/packagepath
+golang.org/x/tools/internal/pkgbits
 golang.org/x/tools/internal/refactor
 golang.org/x/tools/internal/refactor/inline
 golang.org/x/tools/internal/stdlib
