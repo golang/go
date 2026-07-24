@@ -236,11 +236,17 @@ func do(ctx context.Context, writer io.Writer, flagSet *flag.FlagSet, args []str
 			// Outside a module or workspace, go to the documentation for the standard library.
 			return doPkgsite(ctx, "std", "")
 		}
+		if args := flagSet.Args(); len(args) == 1 && args[0] == "std" {
+			return doPkgsite(ctx, "std", "")
+		}
 
 		// If args are provided, we need to figure out which page to open on the pkgsite
 		// instance. Run the logic below to determine a match for a symbol, method,
 		// or field, but don't actually print the documentation to the output.
 		writer = io.Discard
+	}
+	if a := flagSet.Args(); len(a) > 0 && search.IsMetaPackage(a[0]) {
+		return fmt.Errorf("go doc does not support meta-package argument %s", a[0])
 	}
 	var paths []string
 	var symbol, method string
