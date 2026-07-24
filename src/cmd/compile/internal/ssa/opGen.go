@@ -87710,9 +87710,10 @@ var opcodeTable = [...]opInfo{
 				{0, regMask{v1: 469762046, v2: 0}}, // R1 R2 R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15 R16 R17 R18 R19 R20 R21 R22 R24 R25 R28 g R31
 				{1, regMask{v1: 469762046, v2: 0}}, // R1 R2 R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15 R16 R17 R18 R19 R20 R21 R22 R24 R25 R28 g R31
 			},
+			clobbers: regMask{v1: 105553116266496, v2: 0}, // HI LO
 			outputs: []outputInfo{
-				{0, regMask{v1: 35184372088832, v2: 0}}, // HI
-				{1, regMask{v1: 70368744177664, v2: 0}}, // LO
+				{0, regMask{v1: 335544318, v2: 0}}, // R1 R2 R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15 R16 R17 R18 R19 R20 R21 R22 R24 R25 R28 R31
+				{1, regMask{v1: 335544318, v2: 0}}, // R1 R2 R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15 R16 R17 R18 R19 R20 R21 R22 R24 R25 R28 R31
 			},
 		},
 	},
@@ -87727,9 +87728,10 @@ var opcodeTable = [...]opInfo{
 				{0, regMask{v1: 469762046, v2: 0}}, // R1 R2 R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15 R16 R17 R18 R19 R20 R21 R22 R24 R25 R28 g R31
 				{1, regMask{v1: 469762046, v2: 0}}, // R1 R2 R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15 R16 R17 R18 R19 R20 R21 R22 R24 R25 R28 g R31
 			},
+			clobbers: regMask{v1: 105553116266496, v2: 0}, // HI LO
 			outputs: []outputInfo{
-				{0, regMask{v1: 35184372088832, v2: 0}}, // HI
-				{1, regMask{v1: 70368744177664, v2: 0}}, // LO
+				{0, regMask{v1: 335544318, v2: 0}}, // R1 R2 R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15 R16 R17 R18 R19 R20 R21 R22 R24 R25 R28 R31
+				{1, regMask{v1: 335544318, v2: 0}}, // R1 R2 R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15 R16 R17 R18 R19 R20 R21 R22 R24 R25 R28 R31
 			},
 		},
 	},
@@ -87742,9 +87744,10 @@ var opcodeTable = [...]opInfo{
 				{0, regMask{v1: 469762046, v2: 0}}, // R1 R2 R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15 R16 R17 R18 R19 R20 R21 R22 R24 R25 R28 g R31
 				{1, regMask{v1: 469762046, v2: 0}}, // R1 R2 R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15 R16 R17 R18 R19 R20 R21 R22 R24 R25 R28 g R31
 			},
+			clobbers: regMask{v1: 105553116266496, v2: 0}, // HI LO
 			outputs: []outputInfo{
-				{0, regMask{v1: 35184372088832, v2: 0}}, // HI
-				{1, regMask{v1: 70368744177664, v2: 0}}, // LO
+				{0, regMask{v1: 335544318, v2: 0}}, // R1 R2 R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15 R16 R17 R18 R19 R20 R21 R22 R24 R25 R28 R31
+				{1, regMask{v1: 335544318, v2: 0}}, // R1 R2 R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15 R16 R17 R18 R19 R20 R21 R22 R24 R25 R28 R31
 			},
 		},
 	},
@@ -87757,9 +87760,10 @@ var opcodeTable = [...]opInfo{
 				{0, regMask{v1: 469762046, v2: 0}}, // R1 R2 R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15 R16 R17 R18 R19 R20 R21 R22 R24 R25 R28 g R31
 				{1, regMask{v1: 469762046, v2: 0}}, // R1 R2 R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15 R16 R17 R18 R19 R20 R21 R22 R24 R25 R28 g R31
 			},
+			clobbers: regMask{v1: 105553116266496, v2: 0}, // HI LO
 			outputs: []outputInfo{
-				{0, regMask{v1: 35184372088832, v2: 0}}, // HI
-				{1, regMask{v1: 70368744177664, v2: 0}}, // LO
+				{0, regMask{v1: 335544318, v2: 0}}, // R1 R2 R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15 R16 R17 R18 R19 R20 R21 R22 R24 R25 R28 R31
+				{1, regMask{v1: 335544318, v2: 0}}, // R1 R2 R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15 R16 R17 R18 R19 R20 R21 R22 R24 R25 R28 R31
 			},
 		},
 	},
@@ -89329,9 +89333,10 @@ var opcodeTable = [...]opInfo{
 				{0, regMask{v1: 234881022, v2: 0}}, // R1 R2 R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15 R16 R17 R18 R19 R20 R21 R22 R24 R25 g R31
 				{1, regMask{v1: 234881022, v2: 0}}, // R1 R2 R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15 R16 R17 R18 R19 R20 R21 R22 R24 R25 g R31
 			},
+			clobbers: regMask{v1: 3458764513820540928, v2: 0}, // HI LO
 			outputs: []outputInfo{
-				{0, regMask{v1: 1152921504606846976, v2: 0}}, // HI
-				{1, regMask{v1: 2305843009213693952, v2: 0}}, // LO
+				{0, regMask{v1: 167772158, v2: 0}}, // R1 R2 R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15 R16 R17 R18 R19 R20 R21 R22 R24 R25 R31
+				{1, regMask{v1: 167772158, v2: 0}}, // R1 R2 R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15 R16 R17 R18 R19 R20 R21 R22 R24 R25 R31
 			},
 		},
 	},
@@ -89346,9 +89351,10 @@ var opcodeTable = [...]opInfo{
 				{0, regMask{v1: 234881022, v2: 0}}, // R1 R2 R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15 R16 R17 R18 R19 R20 R21 R22 R24 R25 g R31
 				{1, regMask{v1: 234881022, v2: 0}}, // R1 R2 R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15 R16 R17 R18 R19 R20 R21 R22 R24 R25 g R31
 			},
+			clobbers: regMask{v1: 3458764513820540928, v2: 0}, // HI LO
 			outputs: []outputInfo{
-				{0, regMask{v1: 1152921504606846976, v2: 0}}, // HI
-				{1, regMask{v1: 2305843009213693952, v2: 0}}, // LO
+				{0, regMask{v1: 167772158, v2: 0}}, // R1 R2 R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15 R16 R17 R18 R19 R20 R21 R22 R24 R25 R31
+				{1, regMask{v1: 167772158, v2: 0}}, // R1 R2 R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15 R16 R17 R18 R19 R20 R21 R22 R24 R25 R31
 			},
 		},
 	},
@@ -89361,9 +89367,10 @@ var opcodeTable = [...]opInfo{
 				{0, regMask{v1: 234881022, v2: 0}}, // R1 R2 R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15 R16 R17 R18 R19 R20 R21 R22 R24 R25 g R31
 				{1, regMask{v1: 234881022, v2: 0}}, // R1 R2 R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15 R16 R17 R18 R19 R20 R21 R22 R24 R25 g R31
 			},
+			clobbers: regMask{v1: 3458764513820540928, v2: 0}, // HI LO
 			outputs: []outputInfo{
-				{0, regMask{v1: 1152921504606846976, v2: 0}}, // HI
-				{1, regMask{v1: 2305843009213693952, v2: 0}}, // LO
+				{0, regMask{v1: 167772158, v2: 0}}, // R1 R2 R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15 R16 R17 R18 R19 R20 R21 R22 R24 R25 R31
+				{1, regMask{v1: 167772158, v2: 0}}, // R1 R2 R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15 R16 R17 R18 R19 R20 R21 R22 R24 R25 R31
 			},
 		},
 	},
@@ -89376,9 +89383,10 @@ var opcodeTable = [...]opInfo{
 				{0, regMask{v1: 234881022, v2: 0}}, // R1 R2 R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15 R16 R17 R18 R19 R20 R21 R22 R24 R25 g R31
 				{1, regMask{v1: 234881022, v2: 0}}, // R1 R2 R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15 R16 R17 R18 R19 R20 R21 R22 R24 R25 g R31
 			},
+			clobbers: regMask{v1: 3458764513820540928, v2: 0}, // HI LO
 			outputs: []outputInfo{
-				{0, regMask{v1: 1152921504606846976, v2: 0}}, // HI
-				{1, regMask{v1: 2305843009213693952, v2: 0}}, // LO
+				{0, regMask{v1: 167772158, v2: 0}}, // R1 R2 R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15 R16 R17 R18 R19 R20 R21 R22 R24 R25 R31
+				{1, regMask{v1: 167772158, v2: 0}}, // R1 R2 R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15 R16 R17 R18 R19 R20 R21 R22 R24 R25 R31
 			},
 		},
 	},

@@ -206,11 +206,25 @@ func ssaGenValue(s *ssagen.State, v *ssa.Value) {
 		ssa.OpMIPS64MULVU,
 		ssa.OpMIPS64DIVV,
 		ssa.OpMIPS64DIVVU:
-		// result in hi,lo
+		// HI, LO results exist in low quality registers that can't
+		// be stored without using REGTMP.
+		// This used to cause corruptions since store might also need
+		// REGTMP to materialize the address.
+		// Instead we move the result into high quality registers.
 		p := s.Prog(v.Op.Asm())
 		p.From.Type = obj.TYPE_REG
 		p.From.Reg = v.Args[1].Reg()
 		p.Reg = v.Args[0].Reg()
+		p1 := s.Prog(mips.AMOVV)
+		p1.From.Type = obj.TYPE_REG
+		p1.From.Reg = mips.REG_HI
+		p1.To.Type = obj.TYPE_REG
+		p1.To.Reg = v.Reg0()
+		p2 := s.Prog(mips.AMOVV)
+		p2.From.Type = obj.TYPE_REG
+		p2.From.Reg = mips.REG_LO
+		p2.To.Type = obj.TYPE_REG
+		p2.To.Reg = v.Reg1()
 	case ssa.OpMIPS64MOVVconst:
 		r := v.Reg()
 		p := s.Prog(v.Op.Asm())
