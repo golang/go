@@ -22,6 +22,14 @@ type context struct {
 	delim   delim
 	urlPart urlPart
 	jsCtx   jsCtx
+	// jsParenStack records whether each open parenthesis starts the condition
+	// of a control statement. A slash after the matching close parenthesis can
+	// start a regular expression literal instead of a division operator.
+	jsParenStack []bool
+	// jsPreceder tracks a control keyword waiting for its opening parenthesis,
+	// or a member-access dot waiting for an identifier. It distinguishes those
+	// cases when comments separate the tokens.
+	jsPreceder jsPreceder
 	// jsBraceDepth contains the current depth, for each JS template literal
 	// string interpolation expression, of braces we've seen. This is used to
 	// determine if the next } will close a JS template literal string
@@ -38,7 +46,7 @@ func (c context) String() string {
 	if c.err != nil {
 		err = c.err
 	}
-	return fmt.Sprintf("{%v %v %v %v %v %v %v %v}", c.state, c.delim, c.urlPart, c.jsCtx, c.jsBraceDepth, c.attr, c.element, err)
+	return fmt.Sprintf("{%v %v %v %v %v %v %v %v %v %v}", c.state, c.delim, c.urlPart, c.jsCtx, c.jsParenStack, c.jsPreceder, c.jsBraceDepth, c.attr, c.element, err)
 }
 
 // eq reports whether two contexts are equal.
@@ -47,6 +55,8 @@ func (c context) eq(d context) bool {
 		c.delim == d.delim &&
 		c.urlPart == d.urlPart &&
 		c.jsCtx == d.jsCtx &&
+		slices.Equal(c.jsParenStack, d.jsParenStack) &&
+		c.jsPreceder == d.jsPreceder &&
 		slices.Equal(c.jsBraceDepth, d.jsBraceDepth) &&
 		c.attr == d.attr &&
 		c.element == d.element &&
@@ -70,6 +80,12 @@ func (c context) mangle(templateName string) string {
 	if c.jsCtx != jsCtxRegexp {
 		s += "_" + c.jsCtx.String()
 	}
+	if c.jsParenStack != nil {
+		s += fmt.Sprintf("_jsParenStack(%v)", c.jsParenStack)
+	}
+	if c.jsPreceder != jsPrecederNone {
+		s += fmt.Sprintf("_jsPreceder(%d)", c.jsPreceder)
+	}
 	if c.jsBraceDepth != nil {
 		s += fmt.Sprintf("_jsBraceDepth(%v)", c.jsBraceDepth)
 	}
@@ -85,6 +101,7 @@ func (c context) mangle(templateName string) string {
 // clone returns a copy of c with the same field values.
 func (c context) clone() context {
 	clone := c
+	clone.jsParenStack = slices.Clone(c.jsParenStack)
 	clone.jsBraceDepth = slices.Clone(c.jsBraceDepth)
 	return clone
 }
@@ -250,6 +267,16 @@ const (
 // jsCtx determines whether a '/' starts a regular expression literal or a
 // division operator.
 type jsCtx uint8
+
+// jsPreceder tracks tokens that affect how a later keyword or parenthesis is
+// interpreted, even when comments occur between the tokens.
+type jsPreceder uint8
+
+const (
+	jsPrecederNone jsPreceder = iota
+	jsPrecederControl
+	jsPrecederMember
+)
 
 //go:generate stringer -type jsCtx
 

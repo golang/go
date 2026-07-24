@@ -104,6 +104,36 @@ func TestNextJsCtx(t *testing.T) {
 	}
 }
 
+func TestNextJSCtxAndPreceder(t *testing.T) {
+	tests := []struct {
+		name              string
+		s                 string
+		precedingPreceder jsPreceder
+		wantCtx           jsCtx
+		wantPreceder      jsPreceder
+	}{
+		{"control keyword", "if", jsPrecederNone, jsCtxRegexp, jsPrecederControl},
+		{"keyword property", "obj.if", jsPrecederNone, jsCtxDivOp, jsPrecederNone},
+		{"spaced keyword property", "obj. if", jsPrecederNone, jsCtxDivOp, jsPrecederNone},
+		{"commented keyword property", "if", jsPrecederMember, jsCtxDivOp, jsPrecederNone},
+		{"for await", "for await", jsPrecederNone, jsCtxRegexp, jsPrecederControl},
+		{"commented for await", "await", jsPrecederControl, jsCtxRegexp, jsPrecederControl},
+		{"await property", "await", jsPrecederMember, jsCtxDivOp, jsPrecederNone},
+		{"regexp keyword property", "return", jsPrecederMember, jsCtxDivOp, jsPrecederNone},
+		{"whitespace", " \t", jsPrecederControl, jsCtxDivOp, jsPrecederControl},
+	}
+
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			ctx, p := nextJSCtxAndPreceder([]byte(test.s), jsCtxDivOp, test.precedingPreceder)
+			if ctx != test.wantCtx || p != test.wantPreceder {
+				t.Fatalf("nextJSCtxAndPreceder(%q, %v, %v) = (%v, %v), want (%v, %v)",
+					test.s, jsCtxDivOp, test.precedingPreceder, ctx, p, test.wantCtx, test.wantPreceder)
+			}
+		})
+	}
+}
+
 type jsonErrType struct{}
 
 func (e *jsonErrType) MarshalJSON() ([]byte, error) {

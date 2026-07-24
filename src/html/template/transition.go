@@ -282,19 +282,22 @@ func tURL(c context, s []byte) (context, int) {
 
 // tJS is the context transition function for the JS state.
 func tJS(c context, s []byte) (context, int) {
-	i := bytes.IndexAny(s, "\"`'/{}<-#")
+	i := bytes.IndexAny(s, "\"`'/{}()<-#")
 	if i == -1 {
 		// Entire input is non string, comment, regexp tokens.
-		c.jsCtx = nextJSCtx(s, c.jsCtx)
+		c.jsCtx, c.jsPreceder = nextJSCtxAndPreceder(s, c.jsCtx, c.jsPreceder)
 		return c, len(s)
 	}
-	c.jsCtx = nextJSCtx(s[:i], c.jsCtx)
+	c.jsCtx, c.jsPreceder = nextJSCtxAndPreceder(s[:i], c.jsCtx, c.jsPreceder)
 	switch s[i] {
 	case '"':
+		c.jsPreceder = jsPrecederNone
 		c.state, c.jsCtx = stateJSDqStr, jsCtxRegexp
 	case '\'':
+		c.jsPreceder = jsPrecederNone
 		c.state, c.jsCtx = stateJSSqStr, jsCtxRegexp
 	case '`':
+		c.jsPreceder = jsPrecederNone
 		c.state, c.jsCtx = stateJSTmplLit, jsCtxRegexp
 	case '/':
 		switch {
@@ -303,8 +306,10 @@ func tJS(c context, s []byte) (context, int) {
 		case i+1 < len(s) && s[i+1] == '*':
 			c.state, i = stateJSBlockCmt, i+1
 		case c.jsCtx == jsCtxRegexp:
+			c.jsPreceder = jsPrecederNone
 			c.state = stateJSRegexp
 		case c.jsCtx == jsCtxDivOp:
+			c.jsPreceder = jsPrecederNone
 			c.jsCtx = jsCtxRegexp
 		default:
 			return context{
@@ -322,25 +327,57 @@ func tJS(c context, s []byte) (context, int) {
 	case '<':
 		if i+3 < len(s) && bytes.Equal(commentStart, s[i:i+4]) {
 			c.state, i = stateJSHTMLOpenCmt, i+3
+		} else {
+			c.jsPreceder = jsPrecederNone
 		}
 	case '-':
 		if i+2 < len(s) && bytes.Equal(commentEnd, s[i:i+3]) {
 			c.state, i = stateJSHTMLCloseCmt, i+2
+		} else {
+			c.jsPreceder = jsPrecederNone
 		}
 	// ECMAScript also supports "hashbang" comment lines, see Section 12.5.
 	case '#':
 		if i+1 < len(s) && s[i+1] == '!' {
 			c.state, i = stateJSLineCmt, i+1
+		} else {
+			c.jsPreceder = jsPrecederNone
+		}
+	case '(':
+		c.jsParenStack = append(c.jsParenStack, c.jsPreceder == jsPrecederControl)
+		c.jsPreceder = jsPrecederNone
+		c.jsCtx = jsCtxRegexp
+	case ')':
+		c.jsPreceder = jsPrecederNone
+		if n := len(c.jsParenStack); n != 0 {
+			control := c.jsParenStack[n-1]
+			if n == 1 {
+				c.jsParenStack = nil
+			} else {
+				c.jsParenStack = c.jsParenStack[:n-1]
+			}
+			if control {
+				c.jsCtx = jsCtxRegexp
+			} else {
+				c.jsCtx = jsCtxDivOp
+			}
+		} else {
+			c.jsCtx = jsCtxDivOp
 		}
 	case '{':
+		c.jsPreceder = jsPrecederNone
 		// We only care about tracking brace depth if we are inside of a
 		// template literal.
 		if len(c.jsBraceDepth) == 0 {
+			c.jsCtx = jsCtxRegexp
 			return c, i + 1
 		}
 		c.jsBraceDepth[len(c.jsBraceDepth)-1]++
+		c.jsCtx = jsCtxRegexp
 	case '}':
+		c.jsPreceder = jsPrecederNone
 		if len(c.jsBraceDepth) == 0 {
+			c.jsCtx = jsCtxRegexp
 			return c, i + 1
 		}
 		// There are no cases where a brace can be escaped in the JS context
@@ -349,6 +386,7 @@ func tJS(c context, s []byte) (context, int) {
 		// fully fledged parsers will just fail anyway.
 		c.jsBraceDepth[len(c.jsBraceDepth)-1]--
 		if c.jsBraceDepth[len(c.jsBraceDepth)-1] >= 0 {
+			c.jsCtx = jsCtxRegexp
 			return c, i + 1
 		}
 		c.jsBraceDepth = c.jsBraceDepth[:len(c.jsBraceDepth)-1]
