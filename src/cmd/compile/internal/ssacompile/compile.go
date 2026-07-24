@@ -75,7 +75,12 @@ func (_ Compiler) Compile(f *ssa.Func, htmlWriter ssa.HTMLWriter) {
 		checkFunc(f)
 	}
 	const logMemStats = false
-	for _, p := range passes {
+	// use a pass variable that's shared between individual passes, but tied to
+	// this function. This lets developers set pass.Debug (and other fields) to
+	// some other value inside a pass function, without interfering with other
+	// functions
+	var p ssa.Pass
+	for _, p = range passes {
 		if !f.Config.Optimize && !p.Required || p.Disabled {
 			continue
 		}
