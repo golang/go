@@ -662,6 +662,7 @@ func (t *Transport) newClientConn(c net.Conn, singleUse bool, internalStateHook 
 	maxHeaderTableSize := uint32(conf.MaxDecoderHeaderTableSize)
 	cc.fr.ReadMetaHeaders = hpack.NewDecoder(maxHeaderTableSize, nil)
 	cc.fr.MaxHeaderListSize = t.maxHeaderListSize()
+	cc.fr.setReuseFramesFromGODEBUG()
 
 	cc.henc = hpack.NewEncoder(&cc.hbuf)
 	cc.henc.SetMaxDynamicTableSizeLimit(uint32(conf.MaxEncoderHeaderTableSize))
@@ -2627,6 +2628,13 @@ func (rl *clientConnReadLoop) processGoAway(f *GoAwayFrame) error {
 	cc.mu.Lock()
 	defer cc.mu.Unlock()
 
+	// cc.goAway retains f past this ReadFrame iteration: its
+	// LastStreamID and ErrCode are read at read-loop teardown and by
+	// later processGoAway calls. That is safe only because
+	// GoAwayFrame is not part of the Framer's frameCache; if it is
+	// ever added there, copy the fields needed here instead of
+	// retaining the frame. (DebugData is already copied below, before
+	// the next ReadFrame invalidates it.)
 	old := cc.goAway
 	cc.goAway = f
 
