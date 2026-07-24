@@ -436,15 +436,15 @@ func Pow2Mods(n1 uint, n2 int) (uint, int) {
 
 // Check that signed divisibility checks get converted to AND on low bits
 func Pow2DivisibleSigned(n1, n2 int) (bool, bool) {
-	// 386:"TESTL [$]63" -"DIVL" -"SHRL"
-	// amd64:"TESTQ [$]63" -"DIVQ" -"SHRQ"
+	// 386:"TESTB [$]63" -"DIVL" -"SHRL"
+	// amd64:"TESTB [$]63" -"TESTQ" -"DIVQ" -"SHRQ"
 	// arm:"AND [$]63" -".*udiv" -"SRA"
 	// arm64:"TST [$]63" -"UDIV" -"ASR" -"AND"
 	// ppc64x:"ANDCC" -"RLDICL" -"SRAD" -"CMP"
 	a := n1%64 == 0 // signed divisible
 
-	// 386:"TESTL [$]63" -"DIVL" -"SHRL"
-	// amd64:"TESTQ [$]63" -"DIVQ" -"SHRQ"
+	// 386:"TESTB [$]63" -"DIVL" -"SHRL"
+	// amd64:"TESTB [$]63" -"TESTQ" -"DIVQ" -"SHRQ"
 	// arm:"AND [$]63" -".*udiv" -"SRA"
 	// arm64:"TST [$]63" -"UDIV" -"ASR" -"AND"
 	// ppc64x:"ANDCC" -"RLDICL" -"SRAD" -"CMP"
