@@ -497,7 +497,16 @@ func (p *ReverseProxy) ServeHTTP(rw http.ResponseWriter, req *http.Request) {
 
 	// After stripping all the hop-by-hop connection headers above, add back any
 	// necessary for protocol upgrades, such as for websockets.
-	if reqUpType != "" {
+	//
+	// We don't forward "h2c" upgrades (RFC 8324, Appendix B), since an h2c
+	// connection multiplexes multiple requests over a single connection and
+	// cannot be safely proxied as a raw bidirectional byte stream. Forwarding
+	// an h2c upgrade would allow a client to bypass the proxy's HTTP-level
+	// controls: once the connection switches to HTTP/2, the proxy blindly copies
+	// HTTP/2 frames without any protocol awareness, and path, host, or header
+	// restrictions enforced by Rewrite or Director are not applied to the
+	// multiplexed requests.
+	if reqUpType != "" && !ascii.EqualFold(reqUpType, "h2c") {
 		outreq.Header.Set("Connection", "Upgrade")
 		outreq.Header.Set("Upgrade", reqUpType)
 	}
