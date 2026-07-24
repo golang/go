@@ -570,6 +570,12 @@
 ((Equal|NotEqual|LessThan|LessEqual|GreaterThan|GreaterEqual) (CMPconst [0]  x:(ANDconst [c] y))) && x.Uses == 1 =>
 	((Equal|NotEqual|LessThan|LessEqual|GreaterThan|GreaterEqual) (TSTconst [c] y))
 
+// A single-bit test materialized as a boolean is a bitfield extract:
+// TST $(1<<k); CSET NE is UBFX #k, #1. The flags stay for any other
+// reader; the branch form is handled by the TBZ/TBNZ rules below.
+(NotEqual (TSTconst  [c] x)) && oneBit(c) => (UBFX [armBFAuxInt(int64(ntz64(c)), 1)] x)
+(NotEqual (TSTWconst [c] x)) && oneBit(c) => (UBFX [armBFAuxInt(int64(ntz32(c)), 1)] x)
+
 ((EQ|NE|LT|LE|GT|GE) (CMPconst  [0] x:(ADDconst [c] y)) yes no) && x.Uses == 1 => ((EQ|NE|LTnoov|LEnoov|GTnoov|GEnoov) (CMNconst         [c] y) yes no)
 ((EQ|NE|LT|LE|GT|GE) (CMPWconst [0] x:(ADDconst [c] y)) yes no) && x.Uses == 1 => ((EQ|NE|LTnoov|LEnoov|GTnoov|GEnoov) (CMNWconst [int32(c)] y) yes no)
 ((EQ|NE|LT|LE|GT|GE) (CMPconst  [0] z:(ADD        x y)) yes no) && z.Uses == 1 => ((EQ|NE|LTnoov|LEnoov|GTnoov|GEnoov) (CMN                x y) yes no)
