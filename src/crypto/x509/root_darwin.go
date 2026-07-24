@@ -8,10 +8,18 @@ import (
 	"crypto/x509/internal/macos"
 	"errors"
 	"fmt"
+	"os"
+	"path/filepath"
+	"sync"
 )
 
 // macOS has no default SSL_CERT_{FILE,DIR} paths.
 var certFiles, certDirectories []string
+
+// secPolicyMu serializes SecPolicyCreateSSL against repairExecutableDir
+// cleanup so concurrent verifiers cannot remove a directory another call
+// still needs.
+var secPolicyMu sync.Mutex
 
 func (c *Certificate) systemVerify(opts *VerifyOptions) (chains [][]*Certificate, err error) {
 	certs := macos.CFArrayCreateMutable()
@@ -37,9 +45,20 @@ func (c *Certificate) systemVerify(opts *VerifyOptions) (chains [][]*Certificate
 
 	policies := macos.CFArrayCreateMutable()
 	defer macos.ReleaseCFArray(policies)
+	// SecPolicyCreateSSL returns NULL when the directory containing this
+	// process's executable is missing (macOS Security.framework quirk).
+	// That commonly happens with "go run" after the go command deletes its
+	// temporary build directory while a child process is still running.
+	// The directory must exist during the SecPolicyCreateSSL call; we recreate
+	// it temporarily if needed and remove any empty directories we created.
+	// See go.dev/issue/68557 and go.dev/issue/54590.
+	secPolicyMu.Lock()
+	cleanup := repairExecutableDir()
 	sslPolicy, err := macos.SecPolicyCreateSSL(opts.DNSName)
+	cleanup()
+	secPolicyMu.Unlock()
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("x509: %w (the directory containing this executable may be missing; see https://go.dev/issue/68557)", err)
 	}
 	macos.CFArrayAppendValue(policies, sslPolicy)
 
@@ -127,4 +146,51 @@ func exportCertificate(cert macos.CFRef) (*Certificate, error) {
 		return nil, err
 	}
 	return ParseCertificate(data)
+}
+
+// repairExecutableDir recreates the directory containing the running
+// executable if it is missing. The returned cleanup removes any empty
+// directories that were created, deepest first.
+func repairExecutableDir() (cleanup func()) {
+	cleanup = func() {}
+	exe, err := os.Executable()
+	if err != nil {
+		return cleanup
+	}
+	dir := filepath.Dir(exe)
+	if fi, err := os.Stat(dir); err == nil && fi.IsDir() {
+		return cleanup
+	}
+
+	// Record missing ancestors so cleanup only removes what we create.
+	var missing []string
+	for cur := dir; ; {
+		fi, err := os.Stat(cur)
+		if err == nil {
+			if !fi.IsDir() {
+				return cleanup
+			}
+			break
+		}
+		missing = append(missing, cur)
+		parent := filepath.Dir(cur)
+		if parent == cur {
+			break
+		}
+		cur = parent
+	}
+	if err := os.MkdirAll(dir, 0o755); err != nil {
+		return cleanup
+	}
+	return func() {
+		for _, d := range missing {
+			entries, err := os.ReadDir(d)
+			if err != nil || len(entries) > 0 {
+				return
+			}
+			if err := os.Remove(d); err != nil {
+				return
+			}
+		}
+	}
 }
