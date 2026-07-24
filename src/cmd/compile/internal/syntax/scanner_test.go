@@ -302,6 +302,7 @@ var sampleTokens = [...]struct {
 	{_Default, "default", 0, 0},
 	{_Defer, "defer", 0, 0},
 	{_Else, "else", 0, 0},
+	{_Name, "enum", 0, 0},
 	{_Fallthrough, "fallthrough", 0, 0},
 	{_For, "for", 0, 0},
 	{_Func, "func", 0, 0},

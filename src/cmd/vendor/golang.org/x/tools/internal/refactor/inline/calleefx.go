@@ -228,7 +228,10 @@ func calleefx(info *types.Info, body *ast.BlockStmt, paramInfos map[*types.Var]*
 	visitStmt = func(n ast.Stmt) bool {
 		switch n := n.(type) {
 		case *ast.DeclStmt:
-			decl := n.Decl.(*ast.GenDecl)
+			decl, ok := n.Decl.(*ast.GenDecl)
+			if !ok {
+				return true // local enum declaration has no runtime effect
+			}
 			for _, spec := range decl.Specs {
 				switch spec := spec.(type) {
 				case *ast.ValueSpec:

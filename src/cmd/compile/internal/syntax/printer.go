@@ -700,6 +700,41 @@ func (p *printer) printRawNode(n Node) {
 			p.print(blank, n.Body)
 		}
 
+	case *EnumDecl:
+		if n.Group == nil {
+			p.print(_Type, blank)
+		}
+		p.print(n.Name)
+		if n.TParamList != nil {
+			p.printParameterList(n.TParamList, _Type)
+		}
+		p.print(blank, _Enum, blank, _Lbrace)
+		if len(n.VariantList) > 0 {
+			p.print(newline, indent)
+			for _, variant := range n.VariantList {
+				p.printNode(variant)
+				p.print(_Semi, newline)
+			}
+			p.print(outdent)
+		}
+		p.print(_Rbrace)
+
+	case *EnumVariant:
+		p.print(n.Name)
+		if n.HasPayload {
+			p.print(blank, _Lbrace)
+			if len(n.FieldList) > 0 {
+				if p.linebreaks {
+					p.print(newline, indent)
+					p.printFieldList(n.FieldList, n.TagList, _Semi)
+					p.print(outdent, newline)
+				} else {
+					p.printFieldList(n.FieldList, n.TagList, _Semi)
+				}
+			}
+			p.print(_Rbrace)
+		}
+
 	case *printGroup:
 		p.print(n.Tok, blank, _Lparen)
 		if len(n.Decls) > 0 {
@@ -815,6 +850,8 @@ func groupFor(d Decl) (token, *Group) {
 		return _Var, d.Group
 	case *FuncDecl:
 		return _Func, nil
+	case *EnumDecl:
+		return _Type, d.Group
 	default:
 		panic("unreachable")
 	}

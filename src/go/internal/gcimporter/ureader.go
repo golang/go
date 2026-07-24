@@ -481,8 +481,9 @@ func (pr *pkgReader) objIdx(idx pkgbits.Index) (*types.Package, string) {
 	}
 
 	// TODO(mark): This, like the above splitVargenSuffix, is not ideal.
-	// Ignore generic methods promoted to global scope.
-	if strings.Contains(objName, ".") {
+	// Ignore generic methods promoted to global scope. Enum variants are named
+	// Parent.Variant and must remain available for contextual resolution.
+	if strings.Contains(objName, ".") && tag != pkgbits.ObjType {
 		return objPkg, objName
 	}
 

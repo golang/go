@@ -165,6 +165,14 @@ const (
 	ValueSpec_Names
 	ValueSpec_Type
 	ValueSpec_Values
+	EnumDecl_Doc
+	EnumDecl_Name
+	EnumDecl_TypeParams
+	EnumDecl_Variants
+	EnumVariant_Comment
+	EnumVariant_Doc
+	EnumVariant_Fields
+	EnumVariant_Name
 
 	maxKind
 )
@@ -296,4 +304,12 @@ var fieldInfos = [...]fieldInfo{
 	ValueSpec_Names:       info[*ast.ValueSpec]("Names"),
 	ValueSpec_Type:        info[*ast.ValueSpec]("Type"),
 	ValueSpec_Values:      info[*ast.ValueSpec]("Values"),
+	EnumDecl_Doc:          info[*ast.EnumDecl]("Doc"),
+	EnumDecl_Name:         info[*ast.EnumDecl]("Name"),
+	EnumDecl_TypeParams:   info[*ast.EnumDecl]("TypeParams"),
+	EnumDecl_Variants:     info[*ast.EnumDecl]("Variants"),
+	EnumVariant_Comment:   info[*ast.EnumVariant]("Comment"),
+	EnumVariant_Doc:       info[*ast.EnumVariant]("Doc"),
+	EnumVariant_Fields:    info[*ast.EnumVariant]("Fields"),
+	EnumVariant_Name:      info[*ast.EnumVariant]("Name"),
 }

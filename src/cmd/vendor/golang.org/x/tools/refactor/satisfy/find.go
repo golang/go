@@ -521,7 +521,10 @@ func (f *Finder) stmt(s ast.Stmt) {
 		// no-op
 
 	case *ast.DeclStmt:
-		d := s.Decl.(*ast.GenDecl)
+		d, ok := s.Decl.(*ast.GenDecl)
+		if !ok {
+			break // local enum declaration has no assignment constraints
+		}
 		if d.Tok == token.VAR { // ignore consts
 			for _, spec := range d.Specs {
 				f.valueSpec(spec.(*ast.ValueSpec))

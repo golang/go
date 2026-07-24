@@ -117,7 +117,27 @@ type (
 		Body       *BlockStmt // nil means no body (forward declaration)
 		decl
 	}
+
+	// type Name[T, ...] enum { VariantList[0]; VariantList[1]; ... }
+	EnumDecl struct {
+		Pragma      Pragma
+		Group       *Group
+		Name        *Name
+		TParamList  []*Field // nil means no type parameters
+		VariantList []*EnumVariant
+		decl
+	}
 )
+
+// EnumVariant is one variant in an algebraic enum. HasPayload distinguishes a
+// variant without a payload from one with an explicitly empty payload.
+type EnumVariant struct {
+	Name       *Name
+	FieldList  []*Field
+	TagList    []*BasicLit
+	HasPayload bool
+	node
+}
 
 func (d *FuncDecl) String() string {
 	return fmt.Sprintf("FuncDecl{Name:%v}", d.Name)

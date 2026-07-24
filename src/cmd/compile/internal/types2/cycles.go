@@ -71,7 +71,11 @@ func (check *Checker) directCycle(tname *TypeName, pathIdx map[*TypeName]int) {
 
 		// For direct cycle detection, we don't care about whether we have an alias or not.
 		// If the associated type is not a name, we're at the end of the path and we're done.
-		rhs, ok := check.objMap[tname].tdecl.Type.(*syntax.Name)
+		info := check.objMap[tname]
+		if info == nil || info.edecl != nil {
+			break
+		}
+		rhs, ok := info.tdecl.Type.(*syntax.Name)
 		if !ok {
 			break
 		}

@@ -207,10 +207,16 @@ func TestAllDependencies(t *testing.T) {
 			r.run(t, goBinCopy, "mod", "vendor") // See issue 36852.
 			pkgs := packagePattern(m.Path)
 			r.run(t, goBinCopy, "generate", `-run=^//go:generate bundle `, pkgs) // See issue 41409.
+			if m.Path == "cmd" {
+				r.run(t, goBinCopy, "generate", "-run=toolsvendor", "cmd/vet")
+			}
 			advice := "$ cd " + m.Dir + "\n" +
 				"$ go mod tidy                               # to remove extraneous dependencies\n" +
 				"$ go mod vendor                             # to vendor dependencies\n" +
 				"$ go generate -run=bundle " + pkgs + "               # to regenerate bundled packages\n"
+			if m.Path == "cmd" {
+				advice += "$ go generate -run=toolsvendor cmd/vet      # to restore enum-aware x/tools packages\n"
+			}
 			if m.Path == "std" {
 				r.run(t, goBinCopy, "generate", "syscall", "internal/syscall/...") // See issue 43440.
 				advice += "$ go generate syscall internal/syscall/...  # to regenerate syscall packages\n"
