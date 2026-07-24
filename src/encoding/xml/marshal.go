@@ -227,6 +227,7 @@ func (enc *Encoder) EncodeToken(t Token) error {
 		if bytes.Contains(t, ddBytes) {
 			return fmt.Errorf("xml: EncodeToken of Comment containing -- marker")
 		}
+    p.writeIndent(1)
 		p.WriteString("<!--")
 		p.Write(t)
 		if len(t) > 0 && t[len(t)-1] == '-' {
@@ -234,6 +235,7 @@ func (enc *Encoder) EncodeToken(t Token) error {
 			p.WriteByte(' ')
 		}
 		p.WriteString("-->")
+    p.writeIndent(-1)
 		return p.cachedWriteError()
 	case ProcInst:
 		// First token to be encoded which is also a ProcInst with target of xml
