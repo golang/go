@@ -98,6 +98,8 @@ var (
 
 	expectSessionMiss = flag.Bool("expect-session-miss", false, "")
 
+	expectEMS = flag.Bool("expect-extended-master-secret", false, "")
+
 	_ = flag.Bool("enable-early-data", false, "")
 	_ = flag.Bool("on-resume-expect-accept-early-data", false, "")
 	_ = flag.Bool("expect-ticket-supports-early-data", false, "")
@@ -493,6 +495,12 @@ func bogoShim() {
 				log.Fatal("unexpected session resumption")
 			}
 
+			// In TLS 1.3 the extension is irrelevant and reported as always
+			// negotiated.
+			if *expectEMS && !tlsConn.extMasterSecret && cs.Version < VersionTLS13 {
+				log.Fatal("expected extended master secret to be negotiated, but it was not")
+			}
+
 			if *expectedServerName != "" && cs.ServerName != *expectedServerName {
 				log.Fatalf("unexpected server name: got %q, want %q", cs.ServerName, *expectedServerName)
 			}
@@ -578,6 +586,15 @@ func TestBogoSuite(t *testing.T) {
 		"Server-TLS12-NoSign-RSA_PKCS1_MD5_SHA1": "PASS",
 		"Client-TLS13-NoSign-RSA_PKCS1_MD5_SHA1": "PASS",
 		"Server-TLS13-NoSign-RSA_PKCS1_MD5_SHA1": "PASS",
+
+		// EMS negotiation in TLS 1.2, its preservation across resumption,
+		// and its always-on reporting in TLS 1.3.
+		"ExtendedMasterSecret-TLS12-Client":    "PASS",
+		"ExtendedMasterSecret-TLS12-Server":    "PASS",
+		"NoExtendedMasterSecret-TLS13-Client":  "PASS",
+		"NoExtendedMasterSecret-TLS13-Server":  "PASS",
+		"ExtendedMasterSecret-YesToYes-Client": "PASS",
+		"ExtendedMasterSecret-YesToYes-Server": "PASS",
 	}
 
 	for name, result := range results.Tests {
@@ -636,6 +653,12 @@ func TestBogoSuiteFIPSEMS(t *testing.T) {
 				"NoExtendedMasterSecret-TLS12-Server": "FAIL",
 				"ExtendedMasterSecret-NoToNo-Client":  "FAIL",
 				"ExtendedMasterSecret-NoToNo-Server":  "FAIL",
+				// Handshakes and resumptions with EMS are not affected by
+				// the enforcement.
+				"ExtendedMasterSecret-TLS12-Client":    "PASS",
+				"ExtendedMasterSecret-TLS12-Server":    "PASS",
+				"ExtendedMasterSecret-YesToYes-Client": "PASS",
+				"ExtendedMasterSecret-YesToYes-Server": "PASS",
 			},
 		},
 		{
@@ -653,6 +676,12 @@ func TestBogoSuiteFIPSEMS(t *testing.T) {
 				// must remain enforced with fips140ems=0.
 				"ExtendedMasterSecret-NoToYes-Client": "PASS",
 				"ExtendedMasterSecret-YesToNo-Server": "PASS",
+				// Handshakes and resumptions with EMS are not affected by
+				// the GODEBUG.
+				"ExtendedMasterSecret-TLS12-Client":    "PASS",
+				"ExtendedMasterSecret-TLS12-Server":    "PASS",
+				"ExtendedMasterSecret-YesToYes-Client": "PASS",
+				"ExtendedMasterSecret-YesToYes-Server": "PASS",
 			},
 		},
 	} {
