@@ -679,7 +679,7 @@ func TestIPv6WriteMsgUDPAddrPortTargetAddrIPVersion(t *testing.T) {
 	}
 
 	switch runtime.GOOS {
-	case "dragonfly", "openbsd":
+	case "dragonfly", "openbsd", "plan9":
 		// DragonflyBSD's IPv6 sockets are always IPv6-only, according to the man page:
 		// https://www.dragonflybsd.org/cgi/web-man?command=ip6 (search for IPV6_V6ONLY).
 		// OpenBSD's IPv6 sockets are always IPv6-only, according to the man page:
