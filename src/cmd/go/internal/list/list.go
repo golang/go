@@ -890,30 +890,42 @@ func runList(ctx context.Context, cmd *base.Command, args []string) {
 
 	// Record non-identity import mappings in p.ImportMap.
 	for _, p := range pkgs {
-		nRaw := len(p.Internal.RawImports)
-		for i, path := range p.Imports {
-			var srcPath string
-			if i < nRaw {
-				srcPath = p.Internal.RawImports[i]
-			} else {
-				// This path is not within the raw imports, so it must be an import
-				// found only within CompiledGoFiles. Those paths are found in
-				// CompiledImports.
-				srcPath = p.Internal.CompiledImports[i-nRaw]
-			}
-
-			if path != srcPath {
-				if p.ImportMap == nil {
-					p.ImportMap = make(map[string]string)
-				}
-				p.ImportMap[srcPath] = path
-			}
-		}
+		p.ImportMap = packageImportMap(p.Imports, p.Internal.RawImports, p.Internal.CompiledImports)
 	}
 
 	for _, p := range pkgs {
 		do(&p.PackagePublic)
 	}
+}
+
+func packageImportMap(imports, rawImports, compiledImports []string) map[string]string {
+	var importMap map[string]string
+	compiledStart := len(imports) - len(compiledImports)
+
+	for i, path := range imports {
+		var srcPath string
+		switch {
+		case i < len(rawImports):
+			srcPath = rawImports[i]
+		case i >= compiledStart && i-compiledStart < len(compiledImports):
+			// This path is not within the raw imports, so it must be an import
+			// found only within CompiledGoFiles. Those paths are found at the
+			// end of the package imports list.
+			srcPath = compiledImports[i-compiledStart]
+		default:
+			// Synthetic imports, such as linker-induced dependencies, do not
+			// have a source import path to record in ImportMap.
+			continue
+		}
+
+		if path != srcPath {
+			if importMap == nil {
+				importMap = make(map[string]string)
+			}
+			importMap[srcPath] = path
+		}
+	}
+	return importMap
 }
 
 // loadPackageList is like load.PackageList, but prints error messages and exits
