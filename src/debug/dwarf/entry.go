@@ -562,7 +562,7 @@ func (b *buf) entry(cu *Entry, u *unit) *Entry {
 
 		// flag
 		case formFlag:
-			val = b.uint8() == 1
+			val = b.uint8() != 0
 		// New in DWARF 4.
 		case formFlagPresent:
 			// The attribute is implicitly indicated as present, and no value is
