@@ -18,6 +18,9 @@ func osInit() {
 
 	ARM64.HasDIT = sysctlEnabled([]byte("hw.optional.arm.FEAT_DIT\x00"))
 
+	// FEAT_MOPS is not exposed via sysctl on macOS; Apple Silicon does not
+	// currently implement it, so leave ARM64.HasMOPS false.
+
 	ARM64.HasSB = sysctlEnabled([]byte("hw.optional.arm.FEAT_SB\x00"))
 
 	// There are no hw.optional sysctl values for the below features on macOS 11
