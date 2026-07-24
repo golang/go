@@ -366,6 +366,7 @@ func preprocess(ctxt *obj.Link, cursym *obj.LSym, newprog obj.ProgAlloc) {
 			p.To.Name = obj.NAME_NONE // clear fields as we may modify p to other instruction
 			p.To.Sym = nil
 			p.To.Reg = obj.REG_NONE
+			p.Pos = p.Pos.WithXlogue(src.PosEpilogueBegin)
 
 			if c.cursym.Func().Text.Mark&LEAF != 0 {
 				if autosize == 0 {
