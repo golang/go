@@ -8,6 +8,7 @@ import (
 	"cmd/compile/internal/ssa/block"
 	"cmd/compile/internal/ssa/ssaop"
 	"cmd/internal/src"
+	"math"
 )
 
 // LiveValues returns the live values in f and a list of values that are eligible
@@ -29,28 +30,15 @@ func LiveValues(f *Func, reachable []bool) (live []bool, liveOrderStmts []*Value
 		return
 	}
 
-	// Record all the inline indexes we need
-	var liveInlIdx map[int]bool
-	pt := f.Config.Ctxt.PosTable
-	for _, b := range f.Blocks {
-		for _, v := range b.Values {
-			i := pt.Pos(v.Pos).Base().InliningIndex()
-			if i < 0 {
-				continue
-			}
-			if liveInlIdx == nil {
-				liveInlIdx = map[int]bool{}
-			}
-			liveInlIdx[i] = true
-		}
-		i := pt.Pos(b.Pos).Base().InliningIndex()
-		if i < 0 {
-			continue
-		}
-		if liveInlIdx == nil {
-			liveInlIdx = map[int]bool{}
-		}
-		liveInlIdx[i] = true
+	// Record all the inline indexes we need. Most functions do not have any
+	// inlining, and if they do, the indexes are sparse so it makes sense to do
+	// probing before we allocate a set.
+	maxInl := collectInlineIdx(f, nil)
+	var liveInlIdx *SparseSet
+	if maxInl != -1 {
+		liveInlIdx = f.NewSparseSet(maxInl + 1)
+		defer f.RetSparseSet(liveInlIdx)
+		collectInlineIdx(f, liveInlIdx)
 	}
 
 	// Find all live values
@@ -80,8 +68,9 @@ func LiveValues(f *Func, reachable []bool) (live []bool, liveOrderStmts []*Value
 					liveOrderStmts = append(liveOrderStmts, v)
 				}
 			}
+
 			if v.Op == ssaop.OpInlMark {
-				if !liveInlIdx[int(v.AuxInt)] {
+				if liveInlIdx == nil || int(v.AuxInt) > maxInl || !liveInlIdx.Contains(ID(v.AuxInt)) {
 					// We don't need marks for bodies that
 					// have been completely optimized away.
 					// TODO: save marks only for bodies which
@@ -157,6 +146,36 @@ func findlive(f *Func) (reachable []bool, live []bool) {
 	live, order = LiveValues(f, reachable)
 	f.Cache.FreeValueSlice(order)
 	return
+}
+
+func collectInlineIdx(f *Func, set *SparseSet) int {
+	pt := f.Config.Ctxt.PosTable
+	maxIndex := -1
+	for _, b := range f.Blocks {
+		for _, v := range b.Values {
+			i := pt.Pos(v.Pos).Base().InliningIndex()
+			if i < 0 {
+				continue
+			}
+			maxIndex = max(maxIndex, i)
+			if set != nil {
+				set.Add(ID(i))
+			}
+		}
+		i := pt.Pos(b.Pos).Base().InliningIndex()
+		if i < 0 {
+			continue
+		}
+		maxIndex = max(maxIndex, i)
+		if set != nil {
+			set.Add(ID(i))
+		}
+	}
+	if maxIndex > math.MaxInt32 {
+		// punning between ID and int, make sure we fit
+		panic("very large inline index")
+	}
+	return maxIndex
 }
 
 // RemoveEdge removes the i'th outgoing edge from b (and
