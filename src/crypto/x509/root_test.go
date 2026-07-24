@@ -6,6 +6,7 @@ package x509
 
 import (
 	"bytes"
+	"encoding/pem"
 	"fmt"
 	"internal/testenv"
 	"os"
@@ -13,7 +14,9 @@ import (
 	"runtime"
 	"slices"
 	"strings"
+	"sync"
 	"testing"
+	"time"
 )
 
 func TestFallbackPanic(t *testing.T) {
@@ -31,8 +34,8 @@ func TestFallback(t *testing.T) {
 	// manipulate systemRoots without worrying about our working being overwritten
 	systemRootsPool()
 	if systemRoots != nil {
-		originalSystemRoots := *systemRoots
-		defer func() { systemRoots = &originalSystemRoots }()
+		originalSystemRoots := systemRoots
+		defer func() { systemRoots = originalSystemRoots }()
 	}
 
 	tests := []struct {
@@ -180,12 +183,13 @@ func TestEnvVars(t *testing.T) {
 		},
 		{
 			// Environment variable empty / unset uses default locations.
+			// When a bundle file has roots, directories are skipped (see #38869).
 			name:    "empty-fall-through",
 			fileEnv: "",
 			dirEnv:  "",
 			files:   []string{testFile},
 			dirs:    []string{tmpDir},
-			cns:     []string{testFileCN, testDirCN},
+			cns:     []string{testFileCN},
 		},
 	}
 
@@ -348,6 +352,151 @@ func TestReadUniqueDirectoryEntries(t *testing.T) {
 	}
 }
 
+func TestLoadOnDiskRootsSkipsDirWhenFileHasRoots(t *testing.T) {
+	tmpDir := t.TempDir()
+
+	// Create a bundle file with a cert.
+	testCert, err := os.ReadFile("testdata/test-dir.crt")
+	if err != nil {
+		t.Fatalf("failed to read test cert: %s", err)
+	}
+	bundleFile := filepath.Join(tmpDir, "bundle.crt")
+	if err := os.WriteFile(bundleFile, testCert, 0644); err != nil {
+		t.Fatal(err)
+	}
+
+	// Create a directory with a DISTINCT cert that should NOT be loaded
+	// when the bundle already has roots and dirs are not user-provided.
+	certDir := filepath.Join(tmpDir, "certs")
+	if err := os.MkdirAll(certDir, 0755); err != nil {
+		t.Fatal(err)
+	}
+	dirCA, _, err := generateCert("Distinct Dir CA", true, nil, nil, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(certDir, "extra.pem"),
+		pem.EncodeToMemory(&pem.Block{Type: "CERTIFICATE", Bytes: dirCA.Raw}), 0644); err != nil {
+		t.Fatal(err)
+	}
+
+	// Save and override defaults.
+	origCertFiles, origCertDirectories := certFiles, certDirectories
+	defer func() {
+		certFiles = origCertFiles
+		certDirectories = origCertDirectories
+	}()
+	certFiles = []string{bundleFile}
+	certDirectories = []string{certDir}
+
+	// Load with no user-provided env vars (empty strings = use defaults).
+	roots, err := loadOnDiskRoots("", "")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	// Should have only the certs from the bundle file (1 cert).
+	// The directory cert is distinct, so if it were loaded we'd see 2.
+	if got := roots.len(); got != 1 {
+		t.Errorf("got %d certs, want 1 (directory should be skipped when bundle has roots)", got)
+	}
+	// Verify directory scan was deferred, not performed eagerly.
+	if roots.lazyRoots == nil {
+		t.Fatal("expected deferred root state")
+	}
+	if roots.lazyRoots.pool != nil {
+		t.Fatal("directory was scanned eagerly")
+	}
+}
+
+func TestLoadOnDiskRootsScansDirWhenBundleHasNoRoots(t *testing.T) {
+	tmpDir := t.TempDir()
+
+	// Create an empty bundle file (no certs) so it "succeeds" but has no roots.
+	bundleFile := filepath.Join(tmpDir, "empty-bundle.crt")
+	if err := os.WriteFile(bundleFile, []byte("not a cert"), 0644); err != nil {
+		t.Fatal(err)
+	}
+
+	// Create a real cert only in the directory.
+	certDir := filepath.Join(tmpDir, "certs")
+	if err := os.MkdirAll(certDir, 0755); err != nil {
+		t.Fatal(err)
+	}
+	testCert, err := os.ReadFile("testdata/test-dir.crt")
+	if err != nil {
+		t.Fatalf("failed to read test cert: %s", err)
+	}
+	if err := os.WriteFile(filepath.Join(certDir, "cert.pem"), testCert, 0644); err != nil {
+		t.Fatal(err)
+	}
+
+	// Save and override defaults.
+	origCertFiles, origCertDirectories := certFiles, certDirectories
+	defer func() {
+		certFiles = origCertFiles
+		certDirectories = origCertDirectories
+	}()
+	certFiles = []string{bundleFile}
+	certDirectories = []string{certDir}
+
+	// Load - bundle has no valid certs, so directories should be scanned eagerly.
+	roots, err := loadOnDiskRoots("", "")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	// Since bundle had zero roots, the directory scan should have happened eagerly.
+	if got := roots.len(); got != 1 {
+		t.Errorf("got %d certs, want 1 (dir should be scanned when bundle has no roots)", got)
+	}
+}
+
+func TestLoadOnDiskRootsScansDirWhenUserProvided(t *testing.T) {
+	tmpDir := t.TempDir()
+
+	// Create a bundle with one cert.
+	bundlePath := filepath.Join(tmpDir, "bundle.crt")
+	bundleCA, _, err := generateCert("Bundle CA", true, nil, nil, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(bundlePath,
+		pem.EncodeToMemory(&pem.Block{Type: "CERTIFICATE", Bytes: bundleCA.Raw}), 0644); err != nil {
+		t.Fatal(err)
+	}
+
+	// Create a directory with a different cert.
+	certDir := filepath.Join(tmpDir, "certs")
+	if err := os.MkdirAll(certDir, 0755); err != nil {
+		t.Fatal(err)
+	}
+	dirCA, _, err := generateCert("Dir CA", true, nil, nil, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(certDir, "cert.pem"),
+		pem.EncodeToMemory(&pem.Block{Type: "CERTIFICATE", Bytes: dirCA.Raw}), 0644); err != nil {
+		t.Fatal(err)
+	}
+
+	// When user explicitly provides SSL_CERT_DIR, directories should be
+	// scanned eagerly even though the bundle already has roots.
+	roots, err := loadOnDiskRoots(bundlePath, certDir)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	// Should have 2 certs: one from bundle + one from user-provided dir.
+	if got := roots.len(); got != 2 {
+		t.Errorf("got %d certs, want 2 (user-provided dir should be scanned eagerly)", got)
+	}
+	// User-provided dirs are scanned eagerly — no lazy state should exist.
+	if roots.lazyRoots != nil {
+		t.Error("expected lazyRoots to be nil for user-provided dirs")
+	}
+}
+
 func TestSSLCertEnvOverride(t *testing.T) {
 	testenv.SetGODEBUG(t, "x509sslcertoverrideplatform=0")
 	t.Setenv(certFileEnv, "/tmp/nope")
@@ -364,5 +513,177 @@ func TestSSLCertEnvOverride(t *testing.T) {
 		}
 	} else if p.systemPool {
 		t.Fatal("x509sslcertoverrideplatform caused a systemPool to be returned on OS other than windows or darwin")
+	}
+}
+
+func TestLazyDirFallbackVerifiesCert(t *testing.T) {
+	// CA only in directory (not bundle) — verification should trigger lazy
+	// loading and succeed.
+	bundleCA, _, err := generateCert("Bundle Dummy", true, nil, nil, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	dirCA, dirKey, _ := generateCert("Dir Only CA", true, nil, nil, nil)
+	leaf, _, err := generateCert("leaf.example.com", false, dirCA, dirKey, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	roots := setupLazyDirTest(t, bundleCA, dirCA)
+
+	if roots.len() != 1 {
+		t.Fatalf("expected 1 cert in pool, got %d", roots.len())
+	}
+	if roots.lazyRoots == nil {
+		t.Fatal("expected lazyRoots to be set")
+	}
+
+	_, err = leaf.Verify(VerifyOptions{Roots: roots, CurrentTime: time.Now()})
+	if err != nil {
+		t.Fatalf("verification failed (lazy dir fallback did not work): %v", err)
+	}
+
+	// Confirm the lazy pool was created (check directly, not via load()).
+	if roots.lazyRoots.pool == nil {
+		t.Error("expected lazyPool to be set after verification")
+	}
+}
+func TestLazyDirConcurrentAccess(t *testing.T) {
+	bundleCA, bundleKey, err := generateCert("Bundle CA", true, nil, nil, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	dirCA, dirKey, err := generateCert("Lazy CA", true, nil, nil, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	bundleLeaf, _, err := generateCert("bundle.example.com", false, bundleCA, bundleKey, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	lazyLeaf, _, err := generateCert("lazy.example.com", false, dirCA, dirKey, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	roots := setupLazyDirTest(t, bundleCA, dirCA)
+
+	// Concurrent verification: some hit bundle, some trigger lazy load.
+	var wg sync.WaitGroup
+	for i := 0; i < 10; i++ {
+		wg.Add(2)
+		go func() {
+			defer wg.Done()
+			if _, err := bundleLeaf.Verify(VerifyOptions{Roots: roots, CurrentTime: time.Now()}); err != nil {
+				t.Errorf("bundle leaf verify failed: %v", err)
+			}
+		}()
+		go func() {
+			defer wg.Done()
+			if _, err := lazyLeaf.Verify(VerifyOptions{Roots: roots, CurrentTime: time.Now()}); err != nil {
+				t.Errorf("lazy leaf verify failed: %v", err)
+			}
+		}()
+	}
+	wg.Wait()
+}
+
+// setupLazyDirTest creates a bundle with bundleCA and a directory with dirCA,
+// then calls loadOnDiskRoots with default paths. Returns the resulting pool.
+func setupLazyDirTest(t *testing.T, bundleCA, dirCA *Certificate) *CertPool {
+	t.Helper()
+	tmpDir := t.TempDir()
+
+	bundlePath := filepath.Join(tmpDir, "bundle.crt")
+	if err := os.WriteFile(bundlePath, pem.EncodeToMemory(&pem.Block{Type: "CERTIFICATE", Bytes: bundleCA.Raw}), 0644); err != nil {
+		t.Fatal(err)
+	}
+
+	certDir := filepath.Join(tmpDir, "certs")
+	if err := os.MkdirAll(certDir, 0755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(certDir, "dir-ca.pem"), pem.EncodeToMemory(&pem.Block{Type: "CERTIFICATE", Bytes: dirCA.Raw}), 0644); err != nil {
+		t.Fatal(err)
+	}
+
+	origCertFiles, origCertDirectories := certFiles, certDirectories
+	t.Cleanup(func() { certFiles = origCertFiles; certDirectories = origCertDirectories })
+	certFiles = []string{bundlePath}
+	certDirectories = []string{certDir}
+
+	roots, err := loadOnDiskRoots("", "")
+	if err != nil {
+		t.Fatal(err)
+	}
+	return roots
+}
+
+func TestLazyDirWorksAfterClone(t *testing.T) {
+	// CA only in directory, verified via Clone (simulates SystemCertPool()).
+	bundleCA, _, err := generateCert("Bundle CA", true, nil, nil, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	dirCA, dirKey, _ := generateCert("Dir CA", true, nil, nil, nil)
+	leaf, _, err := generateCert("clone.example.com", false, dirCA, dirKey, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	roots := setupLazyDirTest(t, bundleCA, dirCA)
+	cloned := roots.Clone()
+
+	// Verify the clone preserved the lazy state (not eagerly resolved).
+	if cloned.lazyRoots == nil {
+		t.Fatal("clone lost lazyRoots")
+	}
+	if cloned.lazyRoots.pool != nil {
+		t.Fatal("clone eagerly loaded lazy dirs")
+	}
+	if cloned.lazyRoots != roots.lazyRoots {
+		t.Fatal("clone does not share lazyRoots pointer with original")
+	}
+
+	if _, err := leaf.Verify(VerifyOptions{Roots: cloned, CurrentTime: time.Now()}); err != nil {
+		t.Fatalf("verification via cloned pool failed: %v", err)
+	}
+}
+
+func TestLazyDirSameSubjectDifferentKey(t *testing.T) {
+	// Bundle and directory have CAs with the same subject but different keys.
+	// Leaf is signed by the directory CA's key.
+	bundleCA, _, err := generateCert("Shared CA Name", true, nil, nil, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	dirCA, dirKey, _ := generateCert("Shared CA Name", true, nil, nil, nil)
+	leaf, _, err := generateCert("samesubject.example.com", false, dirCA, dirKey, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	roots := setupLazyDirTest(t, bundleCA, dirCA)
+
+	if _, err := leaf.Verify(VerifyOptions{Roots: roots, CurrentTime: time.Now()}); err != nil {
+		t.Fatalf("same-subject different-key verification failed: %v", err)
+	}
+}
+
+func TestLazyDirDirectTrust(t *testing.T) {
+	// A self-signed cert in the directory is directly trusted (matched via containsRoot).
+	bundleCA, _, err := generateCert("Bundle CA", true, nil, nil, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	dirCert, _, err := generateCert("Directly Trusted", true, nil, nil, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	roots := setupLazyDirTest(t, bundleCA, dirCert)
+
+	if _, err := dirCert.Verify(VerifyOptions{Roots: roots, CurrentTime: time.Now()}); err != nil {
+		t.Fatalf("directly-trusted cert from lazy dir not recognized: %v", err)
 	}
 }

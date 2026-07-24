@@ -33,6 +33,37 @@ type CertPool struct {
 	// verifications, one using the roots provided by the caller, and one using
 	// the system platform verifier.
 	systemPool bool
+
+	// lazyRoots holds deferred cert directories that are loaded on demand
+	// if primary verification fails. The pointer is shared across clones
+	// so the directory scan happens at most once across all pools derived
+	// from the same system roots.
+	// See https://go.dev/issue/38869.
+	lazyRoots *lazyRootState
+}
+
+// lazyRootState holds directories to be lazily scanned for certificates.
+// It is shared by pointer across CertPool clones.
+type lazyRootState struct {
+	once sync.Once
+	dirs []string
+	pool *CertPool
+}
+
+// load triggers the one-time directory scan and returns the resulting pool.
+// Returns nil if no directories were configured or no certificates were found.
+func (s *lazyRootState) load() *CertPool {
+	if s == nil {
+		return nil
+	}
+	s.once.Do(func() {
+		p := NewCertPool()
+		readCertsFromDirs(p, s.dirs)
+		if p.len() > 0 {
+			s.pool = p
+		}
+	})
+	return s.pool
 }
 
 // lazyCert is minimal metadata about a Cert and a func to retrieve it
@@ -90,6 +121,7 @@ func (s *CertPool) Clone() *CertPool {
 		lazyCerts:  make([]lazyCert, len(s.lazyCerts)),
 		haveSum:    make(map[sum224]bool, len(s.haveSum)),
 		systemPool: s.systemPool,
+		lazyRoots:  s.lazyRoots,
 	}
 	for k, v := range s.byName {
 		indexes := make([]int, len(v))

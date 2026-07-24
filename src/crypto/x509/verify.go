@@ -600,12 +600,39 @@ func (c *Certificate) Verify(opts VerifyOptions) ([][]*Certificate, error) {
 	}
 
 	var candidateChains [][]*Certificate
+	sigChecks := new(int)
 	if opts.Roots.contains(c) {
 		candidateChains = [][]*Certificate{{c}}
 	} else {
-		candidateChains, err = c.buildChains([]*Certificate{c}, nil, &opts)
+		candidateChains, err = c.buildChains([]*Certificate{c}, sigChecks, &opts)
 		if err != nil {
-			return nil, err
+			// If primary verification failed and there are deferred
+			// directories, load them and retry using the directory roots.
+			// This handles the case where a certificate was added to a
+			// directory without rebuilding the system bundle file.
+			//
+			// The retry occurs after chain construction fails, not after
+			// post-build filtering (EKU, policies, constraints). This
+			// follows the CAfile-first, CApath-on-demand behavior used by
+			// OpenSSL. Setting SSL_CERT_DIR explicitly restores eager loading.
+			//
+			// The retry searches only the lazy pool because the primary
+			// roots were already exhausted in the first attempt.
+			if err != errSignatureLimit && opts.Roots.lazyRoots != nil {
+				if lazyPool := opts.Roots.lazyRoots.load(); lazyPool != nil {
+					if lazyPool.contains(c) {
+						candidateChains = [][]*Certificate{{c}}
+						err = nil
+					} else {
+						lazyOpts := opts
+						lazyOpts.Roots = lazyPool
+						candidateChains, err = c.buildChains([]*Certificate{c}, sigChecks, &lazyOpts)
+					}
+				}
+			}
+			if err != nil {
+				return nil, err
+			}
 		}
 	}
 
