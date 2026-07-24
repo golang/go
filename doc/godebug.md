@@ -277,6 +277,8 @@ The possible values are:
 - "on": the Go Cryptographic Module operates in FIPS 140-3 mode.
 - "only": like "on", but cryptographic algorithms not approved by
   FIPS 140-3 return an error or panic.
+For `on` and `only`, the module version is controlled by the
+`GOFIPS140` environment variable. By default it is `GOFIPS140=latest`.
 For more information, see [FIPS 140-3 Compliance](/doc/security/fips140).
 This setting is fixed at program startup time, and can't be modified
 by changing the `GODEBUG` environment variable after the program starts.
