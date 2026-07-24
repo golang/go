@@ -30,6 +30,7 @@ import (
 	"cmd/compile/internal/ssa/block"
 	"cmd/compile/internal/ssa/ssaconfig"
 	"cmd/compile/internal/ssa/ssacore"
+	"cmd/compile/internal/ssa/ssadebug"
 	"cmd/compile/internal/ssa/ssaop"
 	"cmd/compile/internal/staticdata"
 	"cmd/compile/internal/typecheck"
@@ -473,7 +474,7 @@ func buildssa(fn *ir.Func, worker int, isPgoHot bool) (*ssacore.Func, *ssa.HTMLW
 	// params passed in registers. Walk the Dcl list and capture these
 	// nodes to a side list, so that we'll have them available during
 	// DWARF-gen later on. See issue 48573 for more details.
-	var debugInfo ssa.FuncDebug
+	var debugInfo ssadebug.FuncDebug
 	for _, n := range fn.Dcl {
 		if n.Class == ir.PPARAMOUT && n.IsOutputParamInRegisters() {
 			debugInfo.RegOutputParams = append(debugInfo.RegOutputParams, n)
@@ -7344,15 +7345,15 @@ func genssa(htmlWriter *ssa.HTMLWriter, f *ssacore.Func, pp *objw.Progs) {
 	}
 
 	if base.Ctxt.Flag_locationlists {
-		var debugInfo *ssa.FuncDebug
-		debugInfo = e.curfn.DebugInfo.(*ssa.FuncDebug)
+		var debugInfo *ssadebug.FuncDebug
+		debugInfo = e.curfn.DebugInfo.(*ssadebug.FuncDebug)
 		// Save off entry ID in case we need it later for DWARF generation
 		// for return values promoted to the heap.
 		debugInfo.EntryID = f.Entry.ID
 		if e.curfn.ABI == obj.ABIInternal && base.Flag.N != 0 {
-			ssa.BuildFuncDebugNoOptimized(base.Ctxt, f, base.Debug.LocationLists > 1, StackOffset, debugInfo)
+			ssadebug.BuildFuncDebugNoOptimized(base.Ctxt, f, base.Debug.LocationLists > 1, StackOffset, debugInfo)
 		} else {
-			ssa.BuildFuncDebug(base.Ctxt, f, base.Debug.LocationLists, StackOffset, debugInfo)
+			ssadebug.BuildFuncDebug(base.Ctxt, f, base.Debug.LocationLists, StackOffset, debugInfo)
 		}
 		bstart := s.bstart
 		idToIdx := make([]int, f.NumBlocks())

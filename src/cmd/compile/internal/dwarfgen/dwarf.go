@@ -16,8 +16,8 @@ import (
 	"cmd/compile/internal/base"
 	"cmd/compile/internal/ir"
 	"cmd/compile/internal/reflectdata"
-	"cmd/compile/internal/ssa"
 	"cmd/compile/internal/ssa/ssacore"
+	"cmd/compile/internal/ssa/ssadebug"
 	"cmd/compile/internal/ssagen"
 	"cmd/compile/internal/typecheck"
 	"cmd/compile/internal/types"
@@ -181,10 +181,10 @@ func createDwarfVars(fnsym *obj.LSym, complexOK bool, fn *ir.Func, apDecls []*ir
 	var decls []*ir.Name
 
 	// Build a VarID lookup map for SSA debug info if available.
-	var debug *ssa.FuncDebug
+	var debug *ssadebug.FuncDebug
 	var varIDMap map[*ir.Name]ssacore.VarID
 	if fn.DebugInfo != nil {
-		debug = fn.DebugInfo.(*ssa.FuncDebug)
+		debug = fn.DebugInfo.(*ssadebug.FuncDebug)
 		varIDMap = make(map[*ir.Name]ssacore.VarID, len(debug.Vars))
 		for i, n := range debug.Vars {
 			varIDMap[n] = ssacore.VarID(i)
@@ -369,7 +369,7 @@ func createConservativeVar(fnsym *obj.LSym, fn *ir.Func, n *ir.Name, closureVars
 		// marks it as heap-allocated, but SSA generation skips the dead
 		// declaration and never allocates the address. In that case fall
 		// through and emit a conservative variable with no location list.
-		debug := fn.DebugInfo.(*ssa.FuncDebug)
+		debug := fn.DebugInfo.(*ssadebug.FuncDebug)
 		list := createHeapDerefLocationList(n, debug.EntryID)
 		dvar.PutLocationList = func(listSym, startPC dwarf.Sym) {
 			debug.PutLocationList(list, base.Ctxt, listSym.(*obj.LSym), startPC.(*obj.LSym))
@@ -509,7 +509,7 @@ func createSimpleVar(fnsym *obj.LSym, n *ir.Name, closureVars map[*ir.Name]int64
 
 // createComplexVar builds a single DWARF variable entry and location list.
 func createComplexVar(fnsym *obj.LSym, fn *ir.Func, varID ssacore.VarID, closureVars map[*ir.Name]int64) *dwarf.Var {
-	debug := fn.DebugInfo.(*ssa.FuncDebug)
+	debug := fn.DebugInfo.(*ssadebug.FuncDebug)
 	n := debug.Vars[varID]
 
 	var tag int

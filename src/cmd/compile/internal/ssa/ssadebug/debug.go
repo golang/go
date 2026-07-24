@@ -2,9 +2,13 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-package ssa
+package ssadebug
 
 import (
+	"cmp"
+	"internal/buildcfg"
+	"slices"
+
 	"cmd/compile/internal/abi"
 	"cmd/compile/internal/ir"
 	"cmd/compile/internal/ssa/ssabase"
@@ -14,9 +18,6 @@ import (
 	"cmd/internal/dwarf"
 	"cmd/internal/obj"
 	"cmd/internal/src"
-	"cmp"
-	"internal/buildcfg"
-	"slices"
 )
 
 // A FuncDebug contains all the debug information for the variables in a

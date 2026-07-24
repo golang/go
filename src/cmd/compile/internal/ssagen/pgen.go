@@ -19,8 +19,8 @@ import (
 	"cmd/compile/internal/liveness"
 	"cmd/compile/internal/objw"
 	"cmd/compile/internal/pgoir"
-	"cmd/compile/internal/ssa"
 	"cmd/compile/internal/ssa/ssacore"
+	"cmd/compile/internal/ssa/ssadebug"
 	"cmd/compile/internal/ssa/ssaop"
 	"cmd/compile/internal/types"
 	"cmd/internal/obj"
@@ -230,7 +230,7 @@ func (s *ssafn) AllocFrame(f *ssacore.Func) {
 			continue
 		}
 		if !n.Used() {
-			fn.DebugInfo.(*ssa.FuncDebug).OptDcl = fn.Dcl[i:]
+			fn.DebugInfo.(*ssadebug.FuncDebug).OptDcl = fn.Dcl[i:]
 			fn.Dcl = fn.Dcl[:i]
 			break
 		}
