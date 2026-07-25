@@ -1395,6 +1395,10 @@ func ZeroUpper32Bits(x *Value, depth int) bool {
 		OpARM64MULW, OpARM64MNEGW, OpARM64UDIVW, OpARM64DIVW, OpARM64UMODW,
 		OpARM64MADDW, OpARM64MSUBW, OpARM64RORW, OpARM64RORWconst:
 		return true
+	case OpARM64MOVWUreg, OpARM64MOVWUload, OpARM64MOVWUloadidx, OpARM64MOVWUloadidx4,
+		OpARM64MOVHUreg, OpARM64MOVHUload, OpARM64MOVHUloadidx, OpARM64MOVHUloadidx2,
+		OpARM64MOVBUreg, OpARM64MOVBUload, OpARM64MOVBUloadidx:
+		return true
 	case OpArg: // note: but not ArgIntReg
 		// amd64 always loads args from the stack unsigned.
 		// most other architectures load them sign/zero extended based on the type.
