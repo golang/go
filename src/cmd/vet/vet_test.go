@@ -66,7 +66,7 @@ func TestVet(t *testing.T) {
 			case "loopclosure":
 				t.Skipf("%s is no longer needed", name)
 
-			case "cgo":
+			case "cgocall":
 				if !cgoEnabled(t) {
 					t.Skip("no cgo")
 				}
