@@ -550,13 +550,17 @@ func TypeLinksymLookup(name string) *obj.LSym {
 
 func TypeLinksym(t *types.Type) *obj.LSym {
 	lsym := TypeSym(t).Linksym()
+	setTypeInfo(lsym, t)
+	return lsym
+}
+
+func setTypeInfo(lsym *obj.LSym, t *types.Type) {
 	signatmu.Lock()
 	if lsym.Extra == nil {
 		ti := lsym.NewTypeInfo()
 		ti.Type = t
 	}
 	signatmu.Unlock()
-	return lsym
 }
 
 // TypePtrAt returns an expression that evaluates to the
@@ -697,7 +701,7 @@ func writeType(t *types.Type) *obj.LSym {
 	s.SetSiggen(true)
 
 	if !tbase.HasShape() {
-		TypeLinksym(t) // ensure lsym.Extra is set
+		setTypeInfo(lsym, t) // ensure lsym.Extra is set
 	}
 
 	if !NeedEmit(tbase) {
