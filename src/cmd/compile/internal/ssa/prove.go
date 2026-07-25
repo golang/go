@@ -8,11 +8,9 @@ import (
 	"cmd/compile/internal/ssa/block"
 	"cmd/compile/internal/types"
 	"cmd/internal/src"
-	"cmp"
 	"fmt"
 	"math"
 	"math/bits"
-	"slices"
 	"strings"
 )
 
@@ -558,8 +556,8 @@ type factsTable struct {
 	lens map[ID]*Value
 	caps map[ID]*Value
 
-	// reusedTopoSortScoresTable recycle allocations for topo-sort
-	reusedTopoSortScoresTable []uint
+	// reusedTopoSortIDsToBlockIndexes recycle allocations for topo-sort
+	reusedTopoSortIDsToBlockIndexes []uint
 }
 
 // checkpointBound is an invalid value used for checkpointing
@@ -1380,8 +1378,8 @@ func (ft *factsTable) cleanup(f *Func) {
 	}
 	f.Cache.freeLimitSlice(ft.limits)
 	f.Cache.freeBoolSlice(ft.recurseCheck)
-	if cap(ft.reusedTopoSortScoresTable) > 0 {
-		f.Cache.freeUintSlice(ft.reusedTopoSortScoresTable)
+	if cap(ft.reusedTopoSortIDsToBlockIndexes) > 0 {
+		f.Cache.freeUintSlice(ft.reusedTopoSortIDsToBlockIndexes)
 	}
 }
 
@@ -3137,54 +3135,60 @@ func isCleanExt(v *Value) bool {
 	return false
 }
 
-func getDependencyScore(scores []uint, v *Value) (score uint) {
-	if score = scores[v.ID]; score != 0 {
-		return score
-	}
-	defer func() {
-		scores[v.ID] = score
-	}()
+// topoSortValue works with an outside loop to implements an O(V + E) toposort.
+// Practically E = O(1) so it's practically O(V).
+// The algorithm works by maintaining two partitions inside b.Values:
+// the first one is sorted, the second one is unsorted. (spos index the first unsorted value).
+// Then we run DFS on the graph, once we reach a value that has no unsorted dependencies we
+// swap it from the unsorted partition to the end of the sorted partition.
+func topoSortValue(b *Block, positions []uint, spos uint, v *Value) uint {
 	if v.Op == OpPhi {
-		return 1
-	}
-	score = 2 // NIT(@Jorropo): always order phis first to make GOSSAFUNC pretty.
-	for _, a := range v.Args {
-		if a.Block != v.Block {
-			continue
+		// phis have no dependencies as far as we care, so they are always sorted
+	} else {
+		for _, arg := range v.Args {
+			if arg.Block != b {
+				continue // skip dependencies with other blocks
+			}
+			argIndex := positions[arg.ID]
+			if argIndex < spos {
+				continue // the argument is sorted so skip it
+			}
+			spos = topoSortValue(b, positions, spos, arg)
 		}
-		score = max(score, getDependencyScore(scores, a)+1)
 	}
-	return score
+
+	vpos := positions[v.ID]
+	sv := b.Values[spos]
+
+	b.Values[vpos], b.Values[spos] = sv, v
+	positions[v.ID], positions[sv.ID] = spos, vpos
+
+	return spos + 1
 }
 
 // topoSortValuesInBlock ensure ranging over b.Values visit values before they are being used.
 // It does not consider dependencies with other blocks; thus Phi nodes are considered to not have any dependencies.
-// The result is always deterministic and does not depend on the previous slice ordering.
 func (ft *factsTable) topoSortValuesInBlock(b *Block) {
 	f := b.Func
 	want := f.NumValues()
 
-	scores := ft.reusedTopoSortScoresTable
-	if want <= cap(scores) {
-		scores = scores[:want]
+	positions := ft.reusedTopoSortIDsToBlockIndexes
+	if want <= cap(positions) {
+		positions = positions[:want]
 	} else {
-		if cap(scores) > 0 {
-			f.Cache.freeUintSlice(scores)
+		if cap(positions) > 0 {
+			f.Cache.freeUintSlice(positions)
 		}
-		scores = f.Cache.allocUintSlice(want)
-		ft.reusedTopoSortScoresTable = scores
+		positions = f.Cache.allocUintSlice(want)
+		ft.reusedTopoSortIDsToBlockIndexes = positions
 	}
 
-	for _, v := range b.Values {
-		scores[v.ID] = 0 // sentinel
+	for i, v := range b.Values {
+		positions[v.ID] = uint(i)
 	}
 
-	slices.SortFunc(b.Values, func(a, b *Value) int {
-		dependencyScoreA := getDependencyScore(scores, a)
-		dependencyScoreB := getDependencyScore(scores, b)
-		if dependencyScoreA != dependencyScoreB {
-			return cmp.Compare(dependencyScoreA, dependencyScoreB)
-		}
-		return cmp.Compare(a.ID, b.ID)
-	})
+	var sorted uint
+	for sorted < uint(len(b.Values)) {
+		sorted = topoSortValue(b, positions, sorted, b.Values[sorted])
+	}
 }
