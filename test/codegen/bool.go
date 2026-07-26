@@ -345,3 +345,37 @@ func otherXorBranchlessBoolToUintRemovesNot(a bool) uint8 {
 	// amd64:"XORL [$]2" -"XORL [$]1" -"XORL [$]3"
 	return branchlessBoolToUint8(!a) ^ 3
 }
+
+// Materializing a boolean into a whole register zeroes that register ahead
+// of the comparison rather than widening the SETcc result afterwards.
+
+func setccZeroExtendUnsigned(a, b, c uint64) uint64 {
+	var d uint64
+	// amd64:"XORL" "SETLS" -"MOVBLZX"
+	if a >= b {
+		d = 1
+	}
+	return c + d
+}
+
+func setccZeroExtendSigned(a int64) int64 {
+	var d int64
+	// amd64:"XORL" "SETGT" -"MOVBLZX"
+	if a > 0 {
+		d = 1
+	}
+	return a - d
+}
+
+// A carry chain keeps the flags live in front of the flag-setting
+// instruction, so there is nowhere to put the zeroing: the widening stays,
+// and must not degrade into the longer MOVL $0 that would be needed to
+// preserve the carry.
+func setccZeroExtendCarryChain(x, y *[3]uint64) uint64 {
+	var b uint64
+	_, b = bits.Sub64(x[0], y[0], 0)
+	_, b = bits.Sub64(x[1], y[1], b)
+	// amd64:"MOVBLZX" -"MOVL [$]0,"
+	_, b = bits.Sub64(x[2], y[2], b)
+	return b
+}
