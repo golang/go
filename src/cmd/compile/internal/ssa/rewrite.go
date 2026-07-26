@@ -1459,7 +1459,35 @@ func ZeroUpper32Bits(x *Value, depth int) bool {
 		// amd64 always loads args from the stack unsigned.
 		// most other architectures load them sign/zero extended based on the type.
 		return x.Type.Size() == 4 && x.Block.Func.Config.arch == "amd64"
-	case OpPhi, OpSelect0, OpSelect1:
+	case OpSelect0, OpSelect1:
+		// A Select names one register result of a tuple-producing op, so
+		// the question is what that op's write does; recursing into the
+		// argument the way the Phi case below does would instead ask
+		// about the tuple itself, which no case above can answer.
+		s := x.Args[0].Op
+		if x.Op == OpSelect0 {
+			switch s {
+			case OpAMD64DIVL, OpAMD64DIVLU, // quotient, in a 32-bit GPR
+				OpAMD64MULLU,          // low half of the 32x32 product
+				OpAMD64NEGLflags,      // 32-bit negation
+				OpAMD64ADDLconstflags, // 32-bit add of a constant
+				OpAMD64BLSRL,          // BMI1 reset-lowest-set-bit
+				OpAMD64MOVLatomicload, // atomic 32-bit load
+				OpAMD64XCHGL,          // the old memory value, in a 32-bit GPR
+				OpAMD64XADDLlock,      // the pre-add memory value, in a 32-bit GPR
+				OpARM64LDARW,          // 32-bit load-acquire
+				OpARM64LDPW:           // first word of a zero-extending pair load
+				return true
+			}
+		} else {
+			switch s {
+			case OpAMD64DIVL, OpAMD64DIVLU, // remainder, in a 32-bit GPR
+				OpARM64LDPW: // second word of a zero-extending pair load
+				return true
+			}
+		}
+		return false
+	case OpPhi:
 		// Phis can use each-other as an arguments, instead of tracking visited values,
 		// just limit recursion depth.
 		if depth <= 0 {

@@ -9,6 +9,7 @@ package codegen
 import (
 	"math"
 	"math/bits"
+	"sync/atomic"
 )
 
 var sval64 [8]int64
@@ -789,11 +790,12 @@ func noZeroExtMSUBW(a, b, d uint32) uint64 {
 	return uint64(d - a*b)
 }
 
+// amd64 lowers this division to DIVL and selects the quotient out of
+// its tuple, recognized through the Select0 case.
 func noZeroExtUDIVW(a, b uint32) uint64 {
+	// amd64:"DIVL" -`MOVL [A-Z][A-Z0-9]*, [A-Z][A-Z0-9]*`
 	// arm64:"UDIVW" -"MOVWU R[0-9]+, R[0-9]+" -"MOVD R[0-9]+, R[0-9]+"
-	c := a / b
-	// arm64:-"MOVWU R[0-9]+, R[0-9]+" -"MOVD R[0-9]+, R[0-9]+"
-	return uint64(c)
+	return uint64(a / b)
 }
 
 // amd64 is not checked: the remainder of DIVL is fixed in DX, so a
@@ -823,4 +825,35 @@ func noZeroExt48MOVBloadidx(s *[8]uint8, i int) uint64 {
 	// amd64:`MOVBLZX \(.*\)\(.*\*1\)` -"MOVWLZX"
 	// arm64:`MOVBU \(R[0-9]+\)\(R[0-9]+\)` -"MOVHU R[0-9]+, R[0-9]+" -"MOVD R[0-9]+, R[0-9]+"
 	return uint64(uint16(s[i&(len(s)-1)]))
+}
+
+// Tuple-producing ops: a zero-extension of a Select of these folds
+// through the tuple (the Select cases in ZeroUpper32Bits). Besides the
+// divisions above, the reachable ones are BLSRL, the atomic loads,
+// XADDLlock and the arm64 pair load. XCHGL's old value and LDPW's
+// words on amd64 land in registers that must then be moved to the
+// result register, indistinguishable from an extension, so they are
+// not checked. MULLU, NEGLflags and ADDLconstflags have no producers
+// reachable from Go.
+
+func noZeroExtBLSRL(a uint32) uint64 {
+	// amd64/v3:"BLSRL"
+	// amd64:-`MOVL [A-Z][A-Z0-9]*, [A-Z][A-Z0-9]*`
+	return uint64(a & (a - 1))
+}
+
+func noZeroExtMOVLatomicload(p *uint32) uint64 {
+	// amd64:`MOVL \(` -`MOVL [A-Z][A-Z0-9]*, [A-Z][A-Z0-9]*`
+	// arm64:"LDARW" -"MOVWU R[0-9]+, R[0-9]+" -"MOVD R[0-9]+, R[0-9]+"
+	return uint64(atomic.LoadUint32(p))
+}
+
+func noZeroExtXADDLlock(p *uint32) uint64 {
+	// amd64:"XADDL" -`MOVL [A-Z][A-Z0-9]*, [A-Z][A-Z0-9]*`
+	return uint64(atomic.AddUint32(p, 1))
+}
+
+func noZeroExtLDPW(p *[2]uint32) (uint64, uint64) {
+	// arm64:"LDPW" -"MOVWU R[0-9]+, R[0-9]+" -"MOVD R[0-9]+, R[0-9]+"
+	return uint64(p[0]), uint64(p[1])
 }
