@@ -1042,6 +1042,8 @@ func ssaGenValue(s *ssagen.State, v *ssa.Value) {
 		// LDAXR	(Rarg0), Rout
 		// STLXR	Rarg1, (Rarg0), Rtmp
 		// CBNZ		Rtmp, -2(PC)
+		//
+		// If the width written to Rout changes, update zeroUpperBits in ARM64Ops.go.
 		var ld, st obj.As
 		switch v.Op {
 		case ssa.OpARM64LoweredAtomicExchange8:
@@ -1076,6 +1078,7 @@ func ssaGenValue(s *ssagen.State, v *ssa.Value) {
 	case ssa.OpARM64LoweredAtomicExchange64Variant,
 		ssa.OpARM64LoweredAtomicExchange32Variant,
 		ssa.OpARM64LoweredAtomicExchange8Variant:
+		// If the width written to Rout changes, update zeroUpperBits in ARM64Ops.go.
 		var swap obj.As
 		switch v.Op {
 		case ssa.OpARM64LoweredAtomicExchange8Variant:
@@ -1163,6 +1166,8 @@ func ssaGenValue(s *ssagen.State, v *ssa.Value) {
 		// STLXR	Rarg2, (Rarg0), Rtmp
 		// CBNZ		Rtmp, -4(PC)
 		// CSET		EQ, Rout
+		//
+		// If Rout stops being written only by CSET, update zeroUpperBits in ARM64Ops.go.
 		ld := arm64.ALDAXR
 		st := arm64.ASTLXR
 		cmp := arm64.ACMP
@@ -1212,6 +1217,8 @@ func ssaGenValue(s *ssagen.State, v *ssa.Value) {
 		// CASAL	Rtmp, (Rarg0), Rarg2
 		// CMP  	Rarg1, Rtmp
 		// CSET 	EQ, Rout
+		//
+		// If Rout stops being written only by CSET, update zeroUpperBits in ARM64Ops.go.
 		cas := arm64.ACASALD
 		cmp := arm64.ACMP
 		mov := arm64.AMOVD
@@ -1263,6 +1270,8 @@ func ssaGenValue(s *ssagen.State, v *ssa.Value) {
 		// AND/OR	Rarg1, Rout, tmp1
 		// STLXR[BW] tmp1, (Rarg0), Rtmp
 		// CBNZ		Rtmp, -3(PC)
+		//
+		// If the width written to Rout changes, update zeroUpperBits in ARM64Ops.go.
 		ld := arm64.ALDAXR
 		st := arm64.ASTLXR
 		if v.Op == ssa.OpARM64LoweredAtomicAnd32 || v.Op == ssa.OpARM64LoweredAtomicOr32 {
@@ -1303,6 +1312,7 @@ func ssaGenValue(s *ssagen.State, v *ssa.Value) {
 	case ssa.OpARM64LoweredAtomicAnd8Variant,
 		ssa.OpARM64LoweredAtomicAnd32Variant,
 		ssa.OpARM64LoweredAtomicAnd64Variant:
+		// If the width written to Rout changes, update zeroUpperBits in ARM64Ops.go.
 		atomic_clear := arm64.ALDCLRALD
 		if v.Op == ssa.OpARM64LoweredAtomicAnd32Variant {
 			atomic_clear = arm64.ALDCLRALW
@@ -1332,6 +1342,7 @@ func ssaGenValue(s *ssagen.State, v *ssa.Value) {
 	case ssa.OpARM64LoweredAtomicOr8Variant,
 		ssa.OpARM64LoweredAtomicOr32Variant,
 		ssa.OpARM64LoweredAtomicOr64Variant:
+		// If the width written to Rout changes, update zeroUpperBits in ARM64Ops.go.
 		atomic_or := arm64.ALDORALD
 		if v.Op == ssa.OpARM64LoweredAtomicOr32Variant {
 			atomic_or = arm64.ALDORALW
@@ -1870,6 +1881,8 @@ func ssaGenValue(s *ssagen.State, v *ssa.Value) {
 		ssa.OpARM64LessThanNoov,
 		ssa.OpARM64GreaterEqualNoov:
 		// generate boolean values using CSET
+		//
+		// If the result stops being a 0/1-producing CSET, update zeroUpperBits in ARM64Ops.go.
 		p := s.Prog(arm64.ACSET)
 		p.From.Type = obj.TYPE_SPECIAL // assembler encodes conditional bits in Offset
 		condCode := condBits[v.Op]

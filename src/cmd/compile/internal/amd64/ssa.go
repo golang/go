@@ -1251,7 +1251,7 @@ func ssaGenValue(s *ssagen.State, v *ssa.Value) {
 		}
 		if x != y {
 			width := v.Type.Size()
-			if width == 8 && isGPReg(y) && ssa.ZeroUpper32Bits(arg, 3) {
+			if width == 8 && isGPReg(y) && ssa.ZeroUpper32Bits(arg) {
 				// The source was naturally zext-ed from 32 to 64 bits,
 				// but we are asked to do a full 64-bit copy.
 				// Save the REX prefix byte in I-CACHE by using a 32-bit move,
@@ -1288,6 +1288,7 @@ func ssaGenValue(s *ssagen.State, v *ssa.Value) {
 		p.From.Reg = r
 		ssagen.AddrAuto(&p.To, v)
 	case ssa.OpAMD64LoweredHasCPUFeature:
+		// If this load changes width, update zeroUpperBits in AMD64Ops.go.
 		p := s.Prog(x86.AMOVBLZX)
 		p.From.Type = obj.TYPE_MEM
 		ssagen.AddAux(&p.From, v)
@@ -1669,6 +1670,8 @@ func ssaGenValue(s *ssagen.State, v *ssa.Value) {
 		// LOCK CMPXCHGQ tmp, (addr) : note that AX is implicit old value to compare against
 		// JNE loop
 		// : result in AX
+		//
+		// If the width written to AX changes, update zeroUpperBits in AMD64Ops.go.
 		mov := x86.AMOVQ
 		op := x86.AANDQ
 		cmpxchg := x86.ACMPXCHGQ

@@ -857,3 +857,43 @@ func noZeroExtLDPW(p *[2]uint32) (uint64, uint64) {
 	// arm64:"LDPW" -"MOVWU R[0-9]+, R[0-9]+" -"MOVD R[0-9]+, R[0-9]+"
 	return uint64(p[0]), uint64(p[1])
 }
+
+// Ops whose result is bounded below 2^8 regardless of input, declared
+// via zeroUpperBits: 56 — even byte-sized zero-extensions fold away.
+
+func noZeroExt56CLZ(a uint64) uint8 {
+	// arm64:"CLZ " -"MOVBU R[0-9]+, R[0-9]+" -"MOVD R[0-9]+, R[0-9]+"
+	return uint8(bits.LeadingZeros64(a))
+}
+
+func noZeroExt56CLZW(a uint32) uint8 {
+	// arm64:"CLZW" -"MOVBU R[0-9]+, R[0-9]+" -"MOVD R[0-9]+, R[0-9]+"
+	return uint8(bits.LeadingZeros32(a))
+}
+
+func noZeroExt56POPCNTL(a uint32) uint8 {
+	// amd64/v2:"POPCNTL" -`MOVBLZX [A-Z][A-Z0-9]*, [A-Z][A-Z0-9]*`
+	return uint8(bits.OnesCount32(a))
+}
+
+// The flags-to-bool pseudo-ops produce 0/1 via a single CSET, so a
+// bool-to-bool compare reads the CSET results directly.
+func noZeroExtCSET(a, b, c, d uint64) bool {
+	// arm64:"CSET" -"MOVBU R[0-9]+, R[0-9]+"
+	return (a == b) == (c == d)
+}
+
+// The 32-bit atomic exchange/and/or ops return their old value already
+// zero-extended (LDAXRW on v8.0; SWPALW/LDCLRALW/LDORALW on v8.1).
+
+func noZeroExtAtomicAnd32(p *atomic.Uint32, m uint32) uint64 {
+	// arm64/v8.0:"LDAXRW" -"MOVWU R[0-9]+, R[0-9]+"
+	// arm64/v8.1:"LDCLRALW" -"MOVWU R[0-9]+, R[0-9]+"
+	return uint64(p.And(m))
+}
+
+func noZeroExtAtomicSwap32(p *atomic.Uint32, n uint32) uint64 {
+	// arm64/v8.0:"LDAXRW" -"MOVWU R[0-9]+, R[0-9]+"
+	// arm64/v8.1:"SWPALW" -"MOVWU R[0-9]+, R[0-9]+"
+	return uint64(p.Swap(n))
+}
