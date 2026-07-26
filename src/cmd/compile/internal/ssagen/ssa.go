@@ -31,6 +31,7 @@ import (
 	"cmd/compile/internal/ssa/ssaconfig"
 	"cmd/compile/internal/ssa/ssacore"
 	"cmd/compile/internal/ssa/ssadebug"
+	"cmd/compile/internal/ssa/ssahtml"
 	"cmd/compile/internal/ssa/ssaop"
 	"cmd/compile/internal/staticdata"
 	"cmd/compile/internal/typecheck"
@@ -382,7 +383,7 @@ func buildssa(compiler ssacore.Compiler, fn *ir.Func, worker int, isPgoHot bool)
 	s.f.Entry = s.f.NewBlock(block.BlockPlain)
 	s.f.Entry.Pos = fn.Pos()
 	s.f.IsPgoHot = isPgoHot
-	var htmlWriter *ssa.HTMLWriter
+	var htmlWriter *ssahtml.HTMLWriter
 
 	if printssa {
 		ssaDF := ssaDumpFile
@@ -391,7 +392,7 @@ func buildssa(compiler ssacore.Compiler, fn *ir.Func, worker int, isPgoHot bool)
 			ssaD := filepath.Dir(ssaDF)
 			os.MkdirAll(ssaD, 0755)
 		}
-		htmlWriter = ssa.NewHTMLWriter(ssaDF, s.f, ssaDumpCFG, compiler.Passes())
+		htmlWriter = ssahtml.NewHTMLWriter(ssaDF, s.f, ssaDumpCFG, compiler.Passes())
 		// TODO: generate and print a mapping from nodes to values and blocks
 		dumpSourcesColumn(htmlWriter, fn)
 		htmlWriter.WriteAST("AST", astBuf)
@@ -936,7 +937,7 @@ func (s *state) reflectType(typ *types.Type) *ssacore.Value {
 	return s.entryNewValue1A(ssaop.OpAddr, types.NewPtr(types.Types[types.TUINT8]), lsym, s.sb)
 }
 
-func dumpSourcesColumn(writer *ssa.HTMLWriter, fn *ir.Func) {
+func dumpSourcesColumn(writer *ssahtml.HTMLWriter, fn *ir.Func) {
 	// Read sources of target function fn.
 	fname := base.Ctxt.PosTable.Pos(fn.Pos()).Filename()
 	targetFn, err := readFuncLines(fname, fn.Pos().Line(), fn.Endlineno.Line())
@@ -945,7 +946,7 @@ func dumpSourcesColumn(writer *ssa.HTMLWriter, fn *ir.Func) {
 	}
 
 	// Read sources of inlined functions.
-	var inlFns []*ssa.FuncLines
+	var inlFns []*ssahtml.FuncLines
 	for _, fi := range ssaDumpInlined {
 		elno := fi.Endlineno
 		fname := base.Ctxt.PosTable.Pos(fi.Pos()).Filename()
@@ -957,15 +958,15 @@ func dumpSourcesColumn(writer *ssa.HTMLWriter, fn *ir.Func) {
 		inlFns = append(inlFns, fnLines)
 	}
 
-	slices.SortFunc(inlFns, ssa.ByTopoCmp)
+	slices.SortFunc(inlFns, ssahtml.ByTopoCmp)
 	if targetFn != nil {
-		inlFns = append([]*ssa.FuncLines{targetFn}, inlFns...)
+		inlFns = append([]*ssahtml.FuncLines{targetFn}, inlFns...)
 	}
 
 	writer.WriteSources("sources", inlFns)
 }
 
-func readFuncLines(file string, start, end uint) (*ssa.FuncLines, error) {
+func readFuncLines(file string, start, end uint) (*ssahtml.FuncLines, error) {
 	f, err := os.Open(os.ExpandEnv(file))
 	if err != nil {
 		return nil, err
@@ -983,7 +984,7 @@ func readFuncLines(file string, start, end uint) (*ssa.FuncLines, error) {
 	if err := scanner.Err(); err != nil {
 		return nil, fmt.Errorf("scanning %s: %v", file, err)
 	}
-	return &ssa.FuncLines{Filename: file, StartLineno: start, Lines: lines}, nil
+	return &ssahtml.FuncLines{Filename: file, StartLineno: start, Lines: lines}, nil
 }
 
 // updateUnsetPredPos propagates the earliest-value position information for b

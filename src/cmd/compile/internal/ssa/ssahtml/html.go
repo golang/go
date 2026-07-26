@@ -2,13 +2,10 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-package ssa
+package ssahtml
 
 import (
 	"bytes"
-	"cmd/compile/internal/ssa/block"
-	"cmd/compile/internal/ssa/ssacore"
-	"cmd/internal/src"
 	"cmp"
 	"fmt"
 	"html"
@@ -18,6 +15,10 @@ import (
 	"path/filepath"
 	"strconv"
 	"strings"
+
+	"cmd/compile/internal/ssa/block"
+	"cmd/compile/internal/ssa/ssacore"
+	"cmd/internal/src"
 )
 
 type HTMLWriter struct {
