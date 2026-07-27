@@ -270,6 +270,58 @@ fallback:
 	MOVW	T1, nsec+8(FP)
 	RET
 
+// func vdsoRiscvHWProbe(pairs *riscvHWProbePairs, pairCount, cpusetsize uintptr, cpus *uint, flags uint) uintptr
+TEXT runtime·vdsoRiscvHWProbe<ABIInternal>(SB),NOSPLIT,$16-48
+	// The vDSO takes its arguments in A0-A4, where ABIInternal already put them.
+	MOV	X2, S2 // S2,S3,S4 are unchanged by C code
+	MOV	runtime·vdsoRiscvHWProbeSym(SB), A7
+	MOV	g_m(g), S3 // S3 = m
+
+	// Save the old values on stack for reentrant
+	MOV	m_vdsoPC(S3), T0
+	MOV	T0, 8(X2)
+	MOV	m_vdsoSP(S3), T0
+	MOV	T0, 16(X2)
+
+	MOV	RA, m_vdsoPC(S3)
+	MOV	$pairs-8(FP), T1 // caller's SP
+	MOV	T1, m_vdsoSP(S3)
+
+	MOV	m_curg(S3), T1
+	BNE	g, T1, noswitch
+
+	MOV	m_g0(S3), T1
+	MOV	(g_sched+gobuf_sp)(T1), X2
+
+noswitch:
+	ANDI	$~15, X2 // 16-byte align SP for vDSO (per RISC-V psABI)
+
+	// Store g on gsignal's stack, see walltime above for detail
+	MOVBU	runtime·iscgo(SB), S4
+	BNEZ	S4, nosaveg
+	MOV	m_gsignal(S3), S4 // g.m.gsignal
+	BEQZ	S4, nosaveg
+	BEQ	g, S4, nosaveg
+	MOV	(g_stack+stack_lo)(S4), S4 // g.m.gsignal.stack.lo
+	MOV	g, (S4)
+
+	JALR	RA, A7
+
+	MOV	ZERO, (S4)
+	JMP	finish
+
+nosaveg:
+	JALR	RA, A7
+
+finish:
+	MOV	S2, X2 // restore stack
+	MOV	8(X2), T0
+	MOV	T0, m_vdsoPC(S3)
+	MOV	16(X2), T0
+	MOV	T0, m_vdsoSP(S3)
+	ADD	$0, X10, X10 // return value from vDSO
+	RET
+
 // func nanotime1() int64
 TEXT runtime·nanotime1(SB),NOSPLIT,$40-8
 	MOV	$CLOCK_MONOTONIC, A0
