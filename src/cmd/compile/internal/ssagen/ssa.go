@@ -26,7 +26,6 @@ import (
 	"cmd/compile/internal/objw"
 	"cmd/compile/internal/reflectdata"
 	"cmd/compile/internal/rttype"
-	"cmd/compile/internal/ssa"
 	"cmd/compile/internal/ssa/block"
 	"cmd/compile/internal/ssa/ssaconfig"
 	"cmd/compile/internal/ssa/ssacore"
@@ -86,8 +85,8 @@ func InitEnv() {
 	}
 }
 
-func InitConfig() {
-	types_ := ssacore.NewTypes()
+func InitConfig(config *ssacore.Config) {
+	ssaConfig = config
 
 	if Arch.SoftFloat {
 		softfloatInit()
@@ -108,7 +107,7 @@ func InitConfig() {
 	_ = types.NewPtr(reflectdata.MapType())                                 // *internal/runtime/maps.Map
 	_ = types.NewPtr(deferstruct())                                         // *runtime._defer
 	types.NewPtrCacheEnabled = false
-	ssaConfig = ssa.NewConfig(base.Ctxt.Arch.Name, *types_, base.Ctxt, base.Flag.N == 0, Arch.SoftFloat)
+
 	ssaConfig.Race = base.Flag.Race
 	ssaCaches = make([]ssacore.Cache, base.Flag.LowerC)
 

@@ -6,13 +6,19 @@ package ssa
 
 import (
 	"cmd/compile/internal/abi"
+	"cmd/compile/internal/base"
 	"cmd/compile/internal/ssa/ssacore"
 	"cmd/compile/internal/ssa/ssaop"
 	"cmd/internal/obj"
 )
 
-// NewConfig returns a new configuration object for the given architecture.
-func NewConfig(arch string, types ssacore.Types, ctxt *obj.Link, optimize, softfloat bool) *ssacore.Config {
+func NewConfig(softFloat bool) *ssacore.Config {
+	types_ := ssacore.NewTypes()
+	return newConfig(base.Ctxt.Arch.Name, *types_, base.Ctxt, base.Flag.N == 0, softFloat)
+}
+
+// newConfig returns a new configuration object for the given architecture.
+func newConfig(arch string, types ssacore.Types, ctxt *obj.Link, optimize, softfloat bool) *ssacore.Config {
 	c := &ssacore.Config{Arch: arch, Types: types}
 	switch arch {
 	case "amd64":

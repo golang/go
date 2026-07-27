@@ -230,7 +230,7 @@ func Main(archInit func(*ssagen.ArchInfo)) {
 	dwarfgen.RecordPackageName()
 
 	// Prepare for backend processing.
-	ssagen.InitConfig()
+	ssagen.InitConfig(ssa.NewConfig(ssagen.Arch.SoftFloat))
 
 	// Apply coverage fixups, if applicable.
 	coverage.Fixup()
