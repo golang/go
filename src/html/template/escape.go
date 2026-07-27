@@ -149,16 +149,22 @@ func (e *escaper) escape(c context, n parse.Node) context {
 		e.rangeContext.continues = append(e.rangeContext.continues, c)
 		return context{state: stateDead}
 	case *parse.IfNode:
+		// A branch node cannot continue a partial attribute name,
+		// so clear the flag to avoid false positives.
+		c.partialName = false
 		return e.escapeBranch(c, &n.BranchNode, "if")
 	case *parse.ListNode:
 		return e.escapeList(c, n)
 	case *parse.RangeNode:
+		c.partialName = false
 		return e.escapeBranch(c, &n.BranchNode, "range")
 	case *parse.TemplateNode:
+		c.partialName = false
 		return e.escapeTemplate(c, n)
 	case *parse.TextNode:
 		return e.escapeText(c, n)
 	case *parse.WithNode:
+		c.partialName = false
 		return e.escapeBranch(c, &n.BranchNode, "with")
 	}
 	panic("escaping " + n.String() + " is unimplemented")
@@ -255,7 +261,24 @@ func (e *escaper) escapeAction(c context, n *parse.ActionNode) context {
 		s = append(s, "_html_template_rcdataescaper")
 	case stateAttr:
 		// Handled below in delim check.
-	case stateAttrName, stateTag:
+	case stateAttrName:
+		if c.partialName {
+			// A dynamic substring is being used to construct an HTML
+			// attribute name that started in static template text.
+			// This is unsafe because the escaper determines the security
+			// context of attributes (URL, CSS, JS, etc.) from the static
+			// prefix only. The dynamic suffix could complete the name
+			// into a security-sensitive attribute (e.g., "hre" + "f" =
+			// "href") without the proper escaping being applied.
+			// See https://go.dev/issue/19669.
+			return context{
+				state: stateError,
+				err:   errorf(ErrBadHTML, n, n.Line, "%s appears in the middle of an HTML tag or attribute name; dynamic substrings of tag and attribute names are not supported", n),
+			}
+		}
+		c.state = stateAttrName
+		s = append(s, "_html_template_htmlnamefilter")
+	case stateTag:
 		c.state = stateAttrName
 		s = append(s, "_html_template_htmlnamefilter")
 	case stateSrcset:

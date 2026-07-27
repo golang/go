@@ -31,6 +31,14 @@ type context struct {
 	element      element
 	n            parse.Node // for range break/continue
 	err          *Error
+	// partialName is true when the context is inside an attribute
+	// name that was started in static template text but was not completed
+	// before a template action. A template action must not appear in this
+	// context because the escaper determines the security context of
+	// attributes from the static text only, and a dynamic substring could
+	// complete the name into something security-sensitive.
+	// See https://go.dev/issue/19669.
+	partialName bool
 }
 
 func (c context) String() string {
@@ -43,6 +51,13 @@ func (c context) String() string {
 
 // eq reports whether two contexts are equal.
 func (c context) eq(d context) bool {
+	// partialName is intentionally excluded from comparison.
+	// It is metadata about whether the current attribute name is
+	// a split name started in static text. It does not affect the
+	// security-relevant escaping context, and including it would
+	// cause false ErrBranchEnd errors in templates like
+	// <input{{if .T}} checked{{end}}> where branches end with
+	// different partialName values but identical security contexts.
 	return c.state == d.state &&
 		c.delim == d.delim &&
 		c.urlPart == d.urlPart &&
