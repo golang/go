@@ -309,6 +309,8 @@ const (
 	OpAMD64ADDLconst
 	OpAMD64ADDQconstmodify
 	OpAMD64ADDLconstmodify
+	OpAMD64ADDWconstmodify
+	OpAMD64ADDBconstmodify
 	OpAMD64SUBQ
 	OpAMD64SUBL
 	OpAMD64SUBQconst
@@ -350,18 +352,24 @@ const (
 	OpAMD64ANDLconst
 	OpAMD64ANDQconstmodify
 	OpAMD64ANDLconstmodify
+	OpAMD64ANDWconstmodify
+	OpAMD64ANDBconstmodify
 	OpAMD64ORQ
 	OpAMD64ORL
 	OpAMD64ORQconst
 	OpAMD64ORLconst
 	OpAMD64ORQconstmodify
 	OpAMD64ORLconstmodify
+	OpAMD64ORWconstmodify
+	OpAMD64ORBconstmodify
 	OpAMD64XORQ
 	OpAMD64XORL
 	OpAMD64XORQconst
 	OpAMD64XORLconst
 	OpAMD64XORQconstmodify
 	OpAMD64XORLconstmodify
+	OpAMD64XORWconstmodify
+	OpAMD64XORBconstmodify
 	OpAMD64CMPQ
 	OpAMD64CMPL
 	OpAMD64CMPW
@@ -531,15 +539,27 @@ const (
 	OpAMD64ADDLconstmodifyidx1
 	OpAMD64ADDLconstmodifyidx4
 	OpAMD64ADDLconstmodifyidx8
+	OpAMD64ADDWconstmodifyidx1
+	OpAMD64ADDWconstmodifyidx2
+	OpAMD64ADDBconstmodifyidx1
 	OpAMD64ANDLconstmodifyidx1
 	OpAMD64ANDLconstmodifyidx4
 	OpAMD64ANDLconstmodifyidx8
+	OpAMD64ANDWconstmodifyidx1
+	OpAMD64ANDWconstmodifyidx2
+	OpAMD64ANDBconstmodifyidx1
 	OpAMD64ORLconstmodifyidx1
 	OpAMD64ORLconstmodifyidx4
 	OpAMD64ORLconstmodifyidx8
+	OpAMD64ORWconstmodifyidx1
+	OpAMD64ORWconstmodifyidx2
+	OpAMD64ORBconstmodifyidx1
 	OpAMD64XORLconstmodifyidx1
 	OpAMD64XORLconstmodifyidx4
 	OpAMD64XORLconstmodifyidx8
+	OpAMD64XORWconstmodifyidx1
+	OpAMD64XORWconstmodifyidx2
+	OpAMD64XORBconstmodifyidx1
 	OpAMD64NEGQ
 	OpAMD64NEGL
 	OpAMD64NOTQ
@@ -12926,6 +12946,36 @@ var opcodeTable = [...]opInfo{
 		},
 	},
 	{
+		name:           "ADDWconstmodify",
+		auxType:        auxSymValAndOff,
+		argLen:         2,
+		clobberFlags:   true,
+		faultOnNilArg0: true,
+		addrSinkArg0:   true,
+		symEffect:      SymRead | SymWrite,
+		asm:            x86.AADDW,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{0, regMask{v1: 72057594037993471, v2: 0}}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 g R15 SB
+			},
+		},
+	},
+	{
+		name:           "ADDBconstmodify",
+		auxType:        auxSymValAndOff,
+		argLen:         2,
+		clobberFlags:   true,
+		faultOnNilArg0: true,
+		addrSinkArg0:   true,
+		symEffect:      SymRead | SymWrite,
+		asm:            x86.AADDB,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{0, regMask{v1: 72057594037993471, v2: 0}}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 g R15 SB
+			},
+		},
+	},
+	{
 		name:         "SUBQ",
 		argLen:       2,
 		resultInArg0: true,
@@ -13623,6 +13673,36 @@ var opcodeTable = [...]opInfo{
 		},
 	},
 	{
+		name:           "ANDWconstmodify",
+		auxType:        auxSymValAndOff,
+		argLen:         2,
+		clobberFlags:   true,
+		faultOnNilArg0: true,
+		addrSinkArg0:   true,
+		symEffect:      SymRead | SymWrite,
+		asm:            x86.AANDW,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{0, regMask{v1: 72057594037993471, v2: 0}}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 g R15 SB
+			},
+		},
+	},
+	{
+		name:           "ANDBconstmodify",
+		auxType:        auxSymValAndOff,
+		argLen:         2,
+		clobberFlags:   true,
+		faultOnNilArg0: true,
+		addrSinkArg0:   true,
+		symEffect:      SymRead | SymWrite,
+		asm:            x86.AANDB,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{0, regMask{v1: 72057594037993471, v2: 0}}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 g R15 SB
+			},
+		},
+	},
+	{
 		name:         "ORQ",
 		argLen:       2,
 		commutative:  true,
@@ -13725,6 +13805,36 @@ var opcodeTable = [...]opInfo{
 		},
 	},
 	{
+		name:           "ORWconstmodify",
+		auxType:        auxSymValAndOff,
+		argLen:         2,
+		clobberFlags:   true,
+		faultOnNilArg0: true,
+		addrSinkArg0:   true,
+		symEffect:      SymRead | SymWrite,
+		asm:            x86.AORW,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{0, regMask{v1: 72057594037993471, v2: 0}}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 g R15 SB
+			},
+		},
+	},
+	{
+		name:           "ORBconstmodify",
+		auxType:        auxSymValAndOff,
+		argLen:         2,
+		clobberFlags:   true,
+		faultOnNilArg0: true,
+		addrSinkArg0:   true,
+		symEffect:      SymRead | SymWrite,
+		asm:            x86.AORB,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{0, regMask{v1: 72057594037993471, v2: 0}}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 g R15 SB
+			},
+		},
+	},
+	{
 		name:         "XORQ",
 		argLen:       2,
 		commutative:  true,
@@ -13820,6 +13930,36 @@ var opcodeTable = [...]opInfo{
 		addrSinkArg0:   true,
 		symEffect:      SymRead | SymWrite,
 		asm:            x86.AXORL,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{0, regMask{v1: 72057594037993471, v2: 0}}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 g R15 SB
+			},
+		},
+	},
+	{
+		name:           "XORWconstmodify",
+		auxType:        auxSymValAndOff,
+		argLen:         2,
+		clobberFlags:   true,
+		faultOnNilArg0: true,
+		addrSinkArg0:   true,
+		symEffect:      SymRead | SymWrite,
+		asm:            x86.AXORW,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{0, regMask{v1: 72057594037993471, v2: 0}}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 g R15 SB
+			},
+		},
+	},
+	{
+		name:           "XORBconstmodify",
+		auxType:        auxSymValAndOff,
+		argLen:         2,
+		clobberFlags:   true,
+		faultOnNilArg0: true,
+		addrSinkArg0:   true,
+		symEffect:      SymRead | SymWrite,
+		asm:            x86.AXORB,
 		reg: regInfo{
 			inputs: []inputInfo{
 				{0, regMask{v1: 72057594037993471, v2: 0}}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 g R15 SB
@@ -16684,6 +16824,54 @@ var opcodeTable = [...]opInfo{
 		},
 	},
 	{
+		name:         "ADDWconstmodifyidx1",
+		auxType:      auxSymValAndOff,
+		argLen:       3,
+		clobberFlags: true,
+		addrSinkArg0: true,
+		symEffect:    SymRead | SymWrite,
+		asm:          x86.AADDW,
+		scale:        1,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{1, regMask{v1: 49151, v2: 0}},             // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R15
+				{0, regMask{v1: 72057594037993471, v2: 0}}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 g R15 SB
+			},
+		},
+	},
+	{
+		name:         "ADDWconstmodifyidx2",
+		auxType:      auxSymValAndOff,
+		argLen:       3,
+		clobberFlags: true,
+		addrSinkArg0: true,
+		symEffect:    SymRead | SymWrite,
+		asm:          x86.AADDW,
+		scale:        2,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{1, regMask{v1: 49151, v2: 0}},             // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R15
+				{0, regMask{v1: 72057594037993471, v2: 0}}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 g R15 SB
+			},
+		},
+	},
+	{
+		name:         "ADDBconstmodifyidx1",
+		auxType:      auxSymValAndOff,
+		argLen:       3,
+		clobberFlags: true,
+		addrSinkArg0: true,
+		symEffect:    SymRead | SymWrite,
+		asm:          x86.AADDB,
+		scale:        1,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{1, regMask{v1: 49151, v2: 0}},             // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R15
+				{0, regMask{v1: 72057594037993471, v2: 0}}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 g R15 SB
+			},
+		},
+	},
+	{
 		name:         "ANDLconstmodifyidx1",
 		auxType:      auxSymValAndOff,
 		argLen:       3,
@@ -16724,6 +16912,54 @@ var opcodeTable = [...]opInfo{
 		symEffect:    SymRead | SymWrite,
 		asm:          x86.AANDL,
 		scale:        8,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{1, regMask{v1: 49151, v2: 0}},             // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R15
+				{0, regMask{v1: 72057594037993471, v2: 0}}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 g R15 SB
+			},
+		},
+	},
+	{
+		name:         "ANDWconstmodifyidx1",
+		auxType:      auxSymValAndOff,
+		argLen:       3,
+		clobberFlags: true,
+		addrSinkArg0: true,
+		symEffect:    SymRead | SymWrite,
+		asm:          x86.AANDW,
+		scale:        1,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{1, regMask{v1: 49151, v2: 0}},             // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R15
+				{0, regMask{v1: 72057594037993471, v2: 0}}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 g R15 SB
+			},
+		},
+	},
+	{
+		name:         "ANDWconstmodifyidx2",
+		auxType:      auxSymValAndOff,
+		argLen:       3,
+		clobberFlags: true,
+		addrSinkArg0: true,
+		symEffect:    SymRead | SymWrite,
+		asm:          x86.AANDW,
+		scale:        2,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{1, regMask{v1: 49151, v2: 0}},             // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R15
+				{0, regMask{v1: 72057594037993471, v2: 0}}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 g R15 SB
+			},
+		},
+	},
+	{
+		name:         "ANDBconstmodifyidx1",
+		auxType:      auxSymValAndOff,
+		argLen:       3,
+		clobberFlags: true,
+		addrSinkArg0: true,
+		symEffect:    SymRead | SymWrite,
+		asm:          x86.AANDB,
+		scale:        1,
 		reg: regInfo{
 			inputs: []inputInfo{
 				{1, regMask{v1: 49151, v2: 0}},             // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R15
@@ -16780,6 +17016,54 @@ var opcodeTable = [...]opInfo{
 		},
 	},
 	{
+		name:         "ORWconstmodifyidx1",
+		auxType:      auxSymValAndOff,
+		argLen:       3,
+		clobberFlags: true,
+		addrSinkArg0: true,
+		symEffect:    SymRead | SymWrite,
+		asm:          x86.AORW,
+		scale:        1,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{1, regMask{v1: 49151, v2: 0}},             // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R15
+				{0, regMask{v1: 72057594037993471, v2: 0}}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 g R15 SB
+			},
+		},
+	},
+	{
+		name:         "ORWconstmodifyidx2",
+		auxType:      auxSymValAndOff,
+		argLen:       3,
+		clobberFlags: true,
+		addrSinkArg0: true,
+		symEffect:    SymRead | SymWrite,
+		asm:          x86.AORW,
+		scale:        2,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{1, regMask{v1: 49151, v2: 0}},             // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R15
+				{0, regMask{v1: 72057594037993471, v2: 0}}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 g R15 SB
+			},
+		},
+	},
+	{
+		name:         "ORBconstmodifyidx1",
+		auxType:      auxSymValAndOff,
+		argLen:       3,
+		clobberFlags: true,
+		addrSinkArg0: true,
+		symEffect:    SymRead | SymWrite,
+		asm:          x86.AORB,
+		scale:        1,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{1, regMask{v1: 49151, v2: 0}},             // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R15
+				{0, regMask{v1: 72057594037993471, v2: 0}}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 g R15 SB
+			},
+		},
+	},
+	{
 		name:         "XORLconstmodifyidx1",
 		auxType:      auxSymValAndOff,
 		argLen:       3,
@@ -16820,6 +17104,54 @@ var opcodeTable = [...]opInfo{
 		symEffect:    SymRead | SymWrite,
 		asm:          x86.AXORL,
 		scale:        8,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{1, regMask{v1: 49151, v2: 0}},             // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R15
+				{0, regMask{v1: 72057594037993471, v2: 0}}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 g R15 SB
+			},
+		},
+	},
+	{
+		name:         "XORWconstmodifyidx1",
+		auxType:      auxSymValAndOff,
+		argLen:       3,
+		clobberFlags: true,
+		addrSinkArg0: true,
+		symEffect:    SymRead | SymWrite,
+		asm:          x86.AXORW,
+		scale:        1,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{1, regMask{v1: 49151, v2: 0}},             // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R15
+				{0, regMask{v1: 72057594037993471, v2: 0}}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 g R15 SB
+			},
+		},
+	},
+	{
+		name:         "XORWconstmodifyidx2",
+		auxType:      auxSymValAndOff,
+		argLen:       3,
+		clobberFlags: true,
+		addrSinkArg0: true,
+		symEffect:    SymRead | SymWrite,
+		asm:          x86.AXORW,
+		scale:        2,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{1, regMask{v1: 49151, v2: 0}},             // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R15
+				{0, regMask{v1: 72057594037993471, v2: 0}}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 g R15 SB
+			},
+		},
+	},
+	{
+		name:         "XORBconstmodifyidx1",
+		auxType:      auxSymValAndOff,
+		argLen:       3,
+		clobberFlags: true,
+		addrSinkArg0: true,
+		symEffect:    SymRead | SymWrite,
+		asm:          x86.AXORB,
+		scale:        1,
 		reg: regInfo{
 			inputs: []inputInfo{
 				{1, regMask{v1: 49151, v2: 0}},             // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R15

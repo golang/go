@@ -367,6 +367,8 @@ func init() {
 		{name: "ADDLconst", argLength: 1, reg: gp11sp, asm: "ADDL", aux: "Int32", clobberFlags: true, earlyOk: true, zeroUpperBits: 32},
 		{name: "ADDQconstmodify", argLength: 2, reg: gpstoreconst, asm: "ADDQ", aux: "SymValAndOff", clobberFlags: true, faultOnNilArg0: true, symEffect: "Read,Write", addrSinkArg0: true},
 		{name: "ADDLconstmodify", argLength: 2, reg: gpstoreconst, asm: "ADDL", aux: "SymValAndOff", clobberFlags: true, faultOnNilArg0: true, symEffect: "Read,Write", addrSinkArg0: true},
+		{name: "ADDWconstmodify", argLength: 2, reg: gpstoreconst, asm: "ADDW", aux: "SymValAndOff", clobberFlags: true, faultOnNilArg0: true, symEffect: "Read,Write", addrSinkArg0: true},
+		{name: "ADDBconstmodify", argLength: 2, reg: gpstoreconst, asm: "ADDB", aux: "SymValAndOff", clobberFlags: true, faultOnNilArg0: true, symEffect: "Read,Write", addrSinkArg0: true},
 
 		{name: "SUBQ", argLength: 2, reg: gp21sp2, asm: "SUBQ", resultInArg0: true, clobberFlags: true, earlyOk: true},
 		{name: "SUBL", argLength: 2, reg: gp21, asm: "SUBL", resultInArg0: true, clobberFlags: true, earlyOk: true, zeroUpperBits: 32},
@@ -444,6 +446,8 @@ func init() {
 		{name: "ANDLconst", argLength: 1, reg: gp11, asm: "ANDL", aux: "Int32", resultInArg0: true, clobberFlags: true, earlyOk: true, zeroUpperBits: 32},                                   // arg0 & auxint
 		{name: "ANDQconstmodify", argLength: 2, reg: gpstoreconst, asm: "ANDQ", aux: "SymValAndOff", clobberFlags: true, faultOnNilArg0: true, symEffect: "Read,Write", addrSinkArg0: true}, // and ValAndOff(AuxInt).Val() to arg0+ValAndOff(AuxInt).Off()+aux, arg1=mem
 		{name: "ANDLconstmodify", argLength: 2, reg: gpstoreconst, asm: "ANDL", aux: "SymValAndOff", clobberFlags: true, faultOnNilArg0: true, symEffect: "Read,Write", addrSinkArg0: true}, // and ValAndOff(AuxInt).Val() to arg0+ValAndOff(AuxInt).Off()+aux, arg1=mem
+		{name: "ANDWconstmodify", argLength: 2, reg: gpstoreconst, asm: "ANDW", aux: "SymValAndOff", clobberFlags: true, faultOnNilArg0: true, symEffect: "Read,Write", addrSinkArg0: true}, // and ValAndOff(AuxInt).Val() to arg0+ValAndOff(AuxInt).Off()+aux, arg1=mem
+		{name: "ANDBconstmodify", argLength: 2, reg: gpstoreconst, asm: "ANDB", aux: "SymValAndOff", clobberFlags: true, faultOnNilArg0: true, symEffect: "Read,Write", addrSinkArg0: true}, // and ValAndOff(AuxInt).Val() to arg0+ValAndOff(AuxInt).Off()+aux, arg1=mem
 
 		{name: "ORQ", argLength: 2, reg: gp21, asm: "ORQ", commutative: true, resultInArg0: true, clobberFlags: true, earlyOk: true},                                                      // arg0 | arg1
 		{name: "ORL", argLength: 2, reg: gp21, asm: "ORL", commutative: true, resultInArg0: true, clobberFlags: true, earlyOk: true, zeroUpperBits: 32},                                   // arg0 | arg1
@@ -451,6 +455,8 @@ func init() {
 		{name: "ORLconst", argLength: 1, reg: gp11, asm: "ORL", aux: "Int32", resultInArg0: true, clobberFlags: true, earlyOk: true, zeroUpperBits: 32},                                   // arg0 | auxint
 		{name: "ORQconstmodify", argLength: 2, reg: gpstoreconst, asm: "ORQ", aux: "SymValAndOff", clobberFlags: true, faultOnNilArg0: true, symEffect: "Read,Write", addrSinkArg0: true}, // or ValAndOff(AuxInt).Val() to arg0+ValAndOff(AuxInt).Off()+aux, arg1=mem
 		{name: "ORLconstmodify", argLength: 2, reg: gpstoreconst, asm: "ORL", aux: "SymValAndOff", clobberFlags: true, faultOnNilArg0: true, symEffect: "Read,Write", addrSinkArg0: true}, // or ValAndOff(AuxInt).Val() to arg0+ValAndOff(AuxInt).Off()+aux, arg1=mem
+		{name: "ORWconstmodify", argLength: 2, reg: gpstoreconst, asm: "ORW", aux: "SymValAndOff", clobberFlags: true, faultOnNilArg0: true, symEffect: "Read,Write", addrSinkArg0: true}, // or ValAndOff(AuxInt).Val() to arg0+ValAndOff(AuxInt).Off()+aux, arg1=mem
+		{name: "ORBconstmodify", argLength: 2, reg: gpstoreconst, asm: "ORB", aux: "SymValAndOff", clobberFlags: true, faultOnNilArg0: true, symEffect: "Read,Write", addrSinkArg0: true}, // or ValAndOff(AuxInt).Val() to arg0+ValAndOff(AuxInt).Off()+aux, arg1=mem
 
 		{name: "XORQ", argLength: 2, reg: gp21, asm: "XORQ", commutative: true, resultInArg0: true, clobberFlags: true, earlyOk: true},                                                      // arg0 ^ arg1
 		{name: "XORL", argLength: 2, reg: gp21, asm: "XORL", commutative: true, resultInArg0: true, clobberFlags: true, earlyOk: true, zeroUpperBits: 32},                                   // arg0 ^ arg1
@@ -458,6 +464,8 @@ func init() {
 		{name: "XORLconst", argLength: 1, reg: gp11, asm: "XORL", aux: "Int32", resultInArg0: true, clobberFlags: true, earlyOk: true, zeroUpperBits: 32},                                   // arg0 ^ auxint
 		{name: "XORQconstmodify", argLength: 2, reg: gpstoreconst, asm: "XORQ", aux: "SymValAndOff", clobberFlags: true, faultOnNilArg0: true, symEffect: "Read,Write", addrSinkArg0: true}, // xor ValAndOff(AuxInt).Val() to arg0+ValAndOff(AuxInt).Off()+aux, arg1=mem
 		{name: "XORLconstmodify", argLength: 2, reg: gpstoreconst, asm: "XORL", aux: "SymValAndOff", clobberFlags: true, faultOnNilArg0: true, symEffect: "Read,Write", addrSinkArg0: true}, // xor ValAndOff(AuxInt).Val() to arg0+ValAndOff(AuxInt).Off()+aux, arg1=mem
+		{name: "XORWconstmodify", argLength: 2, reg: gpstoreconst, asm: "XORW", aux: "SymValAndOff", clobberFlags: true, faultOnNilArg0: true, symEffect: "Read,Write", addrSinkArg0: true}, // xor ValAndOff(AuxInt).Val() to arg0+ValAndOff(AuxInt).Off()+aux, arg1=mem
+		{name: "XORBconstmodify", argLength: 2, reg: gpstoreconst, asm: "XORB", aux: "SymValAndOff", clobberFlags: true, faultOnNilArg0: true, symEffect: "Read,Write", addrSinkArg0: true}, // xor ValAndOff(AuxInt).Val() to arg0+ValAndOff(AuxInt).Off()+aux, arg1=mem
 
 		// CMPx: compare arg0 to arg1.
 		{name: "CMPQ", argLength: 2, reg: gp2flags, asm: "CMPQ", typ: "Flags"},
@@ -701,15 +709,27 @@ func init() {
 		{name: "ADDLconstmodifyidx1", argLength: 3, reg: gpstoreconstidx, asm: "ADDL", scale: 1, aux: "SymValAndOff", typ: "Mem", clobberFlags: true, symEffect: "Read,Write", addrSinkArg0: true},
 		{name: "ADDLconstmodifyidx4", argLength: 3, reg: gpstoreconstidx, asm: "ADDL", scale: 4, aux: "SymValAndOff", typ: "Mem", clobberFlags: true, symEffect: "Read,Write", addrSinkArg0: true},
 		{name: "ADDLconstmodifyidx8", argLength: 3, reg: gpstoreconstidx, asm: "ADDL", scale: 8, aux: "SymValAndOff", typ: "Mem", clobberFlags: true, symEffect: "Read,Write", addrSinkArg0: true},
+		{name: "ADDWconstmodifyidx1", argLength: 3, reg: gpstoreconstidx, asm: "ADDW", scale: 1, aux: "SymValAndOff", typ: "Mem", clobberFlags: true, symEffect: "Read,Write", addrSinkArg0: true},
+		{name: "ADDWconstmodifyidx2", argLength: 3, reg: gpstoreconstidx, asm: "ADDW", scale: 2, aux: "SymValAndOff", typ: "Mem", clobberFlags: true, symEffect: "Read,Write", addrSinkArg0: true},
+		{name: "ADDBconstmodifyidx1", argLength: 3, reg: gpstoreconstidx, asm: "ADDB", scale: 1, aux: "SymValAndOff", typ: "Mem", clobberFlags: true, symEffect: "Read,Write", addrSinkArg0: true},
 		{name: "ANDLconstmodifyidx1", argLength: 3, reg: gpstoreconstidx, asm: "ANDL", scale: 1, aux: "SymValAndOff", typ: "Mem", clobberFlags: true, symEffect: "Read,Write", addrSinkArg0: true},
 		{name: "ANDLconstmodifyidx4", argLength: 3, reg: gpstoreconstidx, asm: "ANDL", scale: 4, aux: "SymValAndOff", typ: "Mem", clobberFlags: true, symEffect: "Read,Write", addrSinkArg0: true},
 		{name: "ANDLconstmodifyidx8", argLength: 3, reg: gpstoreconstidx, asm: "ANDL", scale: 8, aux: "SymValAndOff", typ: "Mem", clobberFlags: true, symEffect: "Read,Write", addrSinkArg0: true},
+		{name: "ANDWconstmodifyidx1", argLength: 3, reg: gpstoreconstidx, asm: "ANDW", scale: 1, aux: "SymValAndOff", typ: "Mem", clobberFlags: true, symEffect: "Read,Write", addrSinkArg0: true},
+		{name: "ANDWconstmodifyidx2", argLength: 3, reg: gpstoreconstidx, asm: "ANDW", scale: 2, aux: "SymValAndOff", typ: "Mem", clobberFlags: true, symEffect: "Read,Write", addrSinkArg0: true},
+		{name: "ANDBconstmodifyidx1", argLength: 3, reg: gpstoreconstidx, asm: "ANDB", scale: 1, aux: "SymValAndOff", typ: "Mem", clobberFlags: true, symEffect: "Read,Write", addrSinkArg0: true},
 		{name: "ORLconstmodifyidx1", argLength: 3, reg: gpstoreconstidx, asm: "ORL", scale: 1, aux: "SymValAndOff", typ: "Mem", clobberFlags: true, symEffect: "Read,Write", addrSinkArg0: true},
 		{name: "ORLconstmodifyidx4", argLength: 3, reg: gpstoreconstidx, asm: "ORL", scale: 4, aux: "SymValAndOff", typ: "Mem", clobberFlags: true, symEffect: "Read,Write", addrSinkArg0: true},
 		{name: "ORLconstmodifyidx8", argLength: 3, reg: gpstoreconstidx, asm: "ORL", scale: 8, aux: "SymValAndOff", typ: "Mem", clobberFlags: true, symEffect: "Read,Write", addrSinkArg0: true},
+		{name: "ORWconstmodifyidx1", argLength: 3, reg: gpstoreconstidx, asm: "ORW", scale: 1, aux: "SymValAndOff", typ: "Mem", clobberFlags: true, symEffect: "Read,Write", addrSinkArg0: true},
+		{name: "ORWconstmodifyidx2", argLength: 3, reg: gpstoreconstidx, asm: "ORW", scale: 2, aux: "SymValAndOff", typ: "Mem", clobberFlags: true, symEffect: "Read,Write", addrSinkArg0: true},
+		{name: "ORBconstmodifyidx1", argLength: 3, reg: gpstoreconstidx, asm: "ORB", scale: 1, aux: "SymValAndOff", typ: "Mem", clobberFlags: true, symEffect: "Read,Write", addrSinkArg0: true},
 		{name: "XORLconstmodifyidx1", argLength: 3, reg: gpstoreconstidx, asm: "XORL", scale: 1, aux: "SymValAndOff", typ: "Mem", clobberFlags: true, symEffect: "Read,Write", addrSinkArg0: true},
 		{name: "XORLconstmodifyidx4", argLength: 3, reg: gpstoreconstidx, asm: "XORL", scale: 4, aux: "SymValAndOff", typ: "Mem", clobberFlags: true, symEffect: "Read,Write", addrSinkArg0: true},
 		{name: "XORLconstmodifyidx8", argLength: 3, reg: gpstoreconstidx, asm: "XORL", scale: 8, aux: "SymValAndOff", typ: "Mem", clobberFlags: true, symEffect: "Read,Write", addrSinkArg0: true},
+		{name: "XORWconstmodifyidx1", argLength: 3, reg: gpstoreconstidx, asm: "XORW", scale: 1, aux: "SymValAndOff", typ: "Mem", clobberFlags: true, symEffect: "Read,Write", addrSinkArg0: true},
+		{name: "XORWconstmodifyidx2", argLength: 3, reg: gpstoreconstidx, asm: "XORW", scale: 2, aux: "SymValAndOff", typ: "Mem", clobberFlags: true, symEffect: "Read,Write", addrSinkArg0: true},
+		{name: "XORBconstmodifyidx1", argLength: 3, reg: gpstoreconstidx, asm: "XORB", scale: 1, aux: "SymValAndOff", typ: "Mem", clobberFlags: true, symEffect: "Read,Write", addrSinkArg0: true},
 
 		// {NEG,NOT}x: unary ops
 		// computes [NEG:-,NOT:^]arg0

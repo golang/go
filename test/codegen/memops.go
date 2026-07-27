@@ -401,3 +401,107 @@ func bitOps(p *[12]uint64) {
 	// amd64: `BTCQ \$63, 88\(AX\)`
 	p[11] ^= 1 << 63
 }
+
+func constModify8(p *[8]uint8) {
+	// amd64: `INCB \([A-Z]+[0-9]*\)` -`MOVB`
+	p[0]++
+	// amd64: `DECB 1\([A-Z]+[0-9]*\)` -`MOVB`
+	p[1]--
+	// amd64: `ADDB [$]77, 2\([A-Z]+[0-9]*\)` -`MOVB`
+	p[2] += 77
+	// amd64: `ANDB [$]77, 3\([A-Z]+[0-9]*\)` -`MOVB`
+	p[3] &= 77
+	// amd64: `ORB [$]12, 4\([A-Z]+[0-9]*\)` -`MOVB`
+	p[4] |= 12
+	// amd64: `ANDB [$]-13, 5\([A-Z]+[0-9]*\)` -`MOVB`
+	p[5] &^= 12
+	// amd64: `XORB [$]12, 6\([A-Z]+[0-9]*\)` -`MOVB`
+	p[6] ^= 12
+}
+
+func constModify16(p *[8]uint16) {
+	// amd64: `INCW \([A-Z]+[0-9]*\)` -`MOVW`
+	p[0]++
+	// amd64: `DECW 2\([A-Z]+[0-9]*\)` -`MOVW`
+	p[1]--
+	// amd64: `ADDW [$]77, 4\([A-Z]+[0-9]*\)` -`MOVW`
+	p[2] += 77
+	// amd64: `ANDW [$]77, 6\([A-Z]+[0-9]*\)` -`MOVW`
+	p[3] &= 77
+	// amd64: `ORW [$]12, 8\([A-Z]+[0-9]*\)` -`MOVW`
+	p[4] |= 12
+	// amd64: `ANDW [$]-13, 10\([A-Z]+[0-9]*\)` -`MOVW`
+	p[5] &^= 12
+	// amd64: `XORW [$]12, 12\([A-Z]+[0-9]*\)` -`MOVW`
+	p[6] ^= 12
+}
+
+// Constants that do not fit in an 8-bit immediate keep the
+// load/modify/store form rather than growing a 16-bit immediate.
+func constModify16Wide(p *uint16) {
+	// amd64: -`ORW [$]`
+	*p |= 0x1234
+}
+
+func constModifyGlobal() {
+	// amd64: `ORB [$]12, command-line-arguments\.x8\+1\(SB\)` -`MOVB`
+	x8[1] |= 12
+	// amd64: `XORW [$]12, command-line-arguments\.x16\+2\(SB\)` -`MOVW`
+	x16[1] ^= 12
+}
+
+func idxStorePlusOpConst8(x []uint8, i int) {
+	// amd64: `INCB 1\([A-Z]+[0-9]*\)\([A-Z]+[0-9]*\*1\)` -`MOVB`
+	x[i+1]++
+	// amd64: `DECB 2\([A-Z]+[0-9]*\)\([A-Z]+[0-9]*\*1\)`
+	x[i+2]--
+	// amd64: `ADDB [$]77, 3\([A-Z]+[0-9]*\)\([A-Z]+[0-9]*\*1\)`
+	x[i+3] += 77
+	// amd64: `ANDB [$]77, 4\([A-Z]+[0-9]*\)\([A-Z]+[0-9]*\*1\)`
+	x[i+4] &= 77
+	// amd64: `ORB [$]77, 5\([A-Z]+[0-9]*\)\([A-Z]+[0-9]*\*1\)`
+	x[i+5] |= 77
+	// amd64: `XORB [$]77, 6\([A-Z]+[0-9]*\)\([A-Z]+[0-9]*\*1\)`
+	x[i+6] ^= 77
+}
+
+func idxStorePlusOpConst16(x []uint16, i int) {
+	// amd64: `INCW 2\([A-Z]+[0-9]*\)\([A-Z]+[0-9]*\*2\)` -`MOVW`
+	x[i+1]++
+	// amd64: `DECW 4\([A-Z]+[0-9]*\)\([A-Z]+[0-9]*\*2\)`
+	x[i+2]--
+	// amd64: `ADDW [$]77, 6\([A-Z]+[0-9]*\)\([A-Z]+[0-9]*\*2\)`
+	x[i+3] += 77
+	// amd64: `ANDW [$]77, 8\([A-Z]+[0-9]*\)\([A-Z]+[0-9]*\*2\)`
+	x[i+4] &= 77
+	// amd64: `ORW [$]77, 10\([A-Z]+[0-9]*\)\([A-Z]+[0-9]*\*2\)`
+	x[i+5] |= 77
+	// amd64: `XORW [$]77, 12\([A-Z]+[0-9]*\)\([A-Z]+[0-9]*\*2\)`
+	x[i+6] ^= 77
+}
+
+func idxStorePlusOpConst16Idx1(b []byte, i int) {
+	v := uint16(b[i]) | uint16(b[i+1])<<8
+	v += 77
+	// amd64: `ADDW [$]77, \([A-Z]+[0-9]*\)\([A-Z]+[0-9]*\*1\)` -`MOVW`
+	b[i] = byte(v)
+	b[i+1] = byte(v >> 8)
+
+	v = uint16(b[i+2]) | uint16(b[i+3])<<8
+	v &^= 12
+	// amd64: `ANDW [$]-13, 2\([A-Z]+[0-9]*\)\([A-Z]+[0-9]*\*1\)` -`MOVW`
+	b[i+2] = byte(v)
+	b[i+3] = byte(v >> 8)
+
+	v = uint16(b[i+4]) | uint16(b[i+5])<<8
+	v |= 77
+	// amd64: `ORW [$]77, 4\([A-Z]+[0-9]*\)\([A-Z]+[0-9]*\*1\)` -`MOVW`
+	b[i+4] = byte(v)
+	b[i+5] = byte(v >> 8)
+
+	v = uint16(b[i+6]) | uint16(b[i+7])<<8
+	v ^= 77
+	// amd64: `XORW [$]77, 6\([A-Z]+[0-9]*\)\([A-Z]+[0-9]*\*1\)` -`MOVW`
+	b[i+6] = byte(v)
+	b[i+7] = byte(v >> 8)
+}
