@@ -377,3 +377,44 @@ func isNegNormal(x float64) bool {
 	// riscv64:"FCLASSD"
 	return x <= -2.2250738585072014e-308
 }
+
+// ------------------------------------ //
+//    Scalar SSE false dependencies     //
+// ------------------------------------ //
+
+// These instructions write only the low element of their destination and
+// merge into the rest of it, which makes the destination a false input.
+// Zero it first, unless it is also the source.
+
+func cvtSS2SDBreaksFalseDep(x float32) (float64, float32) {
+	// amd64:"XORPS" "CVTSS2SD"
+	return float64(x), x
+}
+
+func cvtSD2SSBreaksFalseDep(x float64) (float32, float64) {
+	// amd64:"XORPS" "CVTSD2SS"
+	return float32(x), x
+}
+
+func sqrtBreaksFalseDep(x float64) (float64, float64) {
+	// amd64:"XORPS" "SQRTSD"
+	return math.Sqrt(x), x
+}
+
+func floorBreaksFalseDep(x float64) (float64, float64) {
+	// amd64:"XORPS" "ROUNDSD"
+	return math.Floor(x), x
+}
+
+// Converting in place, the destination is the source: the dependency is real
+// and zeroing would destroy the input.
+
+func cvtSS2SDInPlaceKeepsDep(x float32) float64 {
+	// amd64:"CVTSS2SD" -"XORPS"
+	return float64(x)
+}
+
+func sqrtInPlaceKeepsDep(x float64) float64 {
+	// amd64:"SQRTSD" -"XORPS"
+	return math.Sqrt(x)
+}

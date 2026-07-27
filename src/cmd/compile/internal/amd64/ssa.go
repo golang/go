@@ -983,13 +983,24 @@ func ssaGenValue(s *ssagen.State, v *ssa.Value) {
 		ssagen.AddAux2(&p.To, v, sc.Off64())
 	case ssa.OpAMD64MOVLQSX, ssa.OpAMD64MOVWQSX, ssa.OpAMD64MOVBQSX, ssa.OpAMD64MOVLQZX, ssa.OpAMD64MOVWQZX, ssa.OpAMD64MOVBQZX,
 		ssa.OpAMD64CVTTSS2SL, ssa.OpAMD64CVTTSD2SL, ssa.OpAMD64CVTTSS2SQ, ssa.OpAMD64CVTTSD2SQ,
-		ssa.OpAMD64CVTSS2SD, ssa.OpAMD64CVTSD2SS, ssa.OpAMD64VPBROADCASTB, ssa.OpAMD64PMOVMSKB:
+		ssa.OpAMD64VPBROADCASTB, ssa.OpAMD64PMOVMSKB:
 		opregreg(s, v.Op.Asm(), v.Reg(), v.Args[0].Reg())
-	case ssa.OpAMD64CVTSL2SD, ssa.OpAMD64CVTSQ2SD, ssa.OpAMD64CVTSQ2SS, ssa.OpAMD64CVTSL2SS:
+	case ssa.OpAMD64CVTSL2SD, ssa.OpAMD64CVTSQ2SD, ssa.OpAMD64CVTSQ2SS, ssa.OpAMD64CVTSL2SS,
+		ssa.OpAMD64CVTSS2SD, ssa.OpAMD64CVTSD2SS, ssa.OpAMD64SQRTSD, ssa.OpAMD64SQRTSS:
 		r := v.Reg()
-		// Break false dependency on destination register.
-		opregreg(s, x86.AXORPS, r, r)
-		opregreg(s, v.Op.Asm(), r, v.Args[0].Reg())
+		x := v.Args[0].Reg()
+		if r != x {
+			// These instructions write only the low element of the destination
+			// and leave the rest of the register alone, so the destination is an
+			// input to that merge. We never want those upper bits, which makes
+			// the dependency false: it serializes the instruction behind whatever
+			// wrote the register last. Break it with a zero idiom, as the
+			// POPCNT family below does.
+			// A source in an integer register can never equal the destination,
+			// so the conversions from integers always break the dependency.
+			opregreg(s, x86.AXORPS, r, r)
+		}
+		opregreg(s, v.Op.Asm(), r, x)
 	case ssa.OpAMD64MOVQi2f, ssa.OpAMD64MOVQf2i, ssa.OpAMD64MOVLi2f, ssa.OpAMD64MOVLf2i:
 		var p *obj.Prog
 		switch v.Op {
@@ -1491,7 +1502,10 @@ func ssaGenValue(s *ssagen.State, v *ssa.Value) {
 		p.To.Type = obj.TYPE_REG
 		p.To.Reg = v.Reg0()
 
-	case ssa.OpAMD64BSFQ, ssa.OpAMD64BSRQ, ssa.OpAMD64BSFL, ssa.OpAMD64BSRL, ssa.OpAMD64SQRTSD, ssa.OpAMD64SQRTSS:
+	case ssa.OpAMD64BSFQ, ssa.OpAMD64BSRQ, ssa.OpAMD64BSFL, ssa.OpAMD64BSRL:
+		// Note that BSF/BSR leave the destination alone when the source is
+		// zero, so unlike the scalar SSE merges above their dependency on it
+		// is real and must not be broken.
 		p := s.Prog(v.Op.Asm())
 		p.From.Type = obj.TYPE_REG
 		p.From.Reg = v.Args[0].Reg()
@@ -1499,12 +1513,17 @@ func ssaGenValue(s *ssagen.State, v *ssa.Value) {
 		switch v.Op {
 		case ssa.OpAMD64BSFQ, ssa.OpAMD64BSRQ:
 			p.To.Reg = v.Reg0()
-		case ssa.OpAMD64BSFL, ssa.OpAMD64BSRL, ssa.OpAMD64SQRTSD, ssa.OpAMD64SQRTSS:
+		case ssa.OpAMD64BSFL, ssa.OpAMD64BSRL:
 			p.To.Reg = v.Reg()
 		}
 	case ssa.OpAMD64LoweredRound32F, ssa.OpAMD64LoweredRound64F:
 		// input is already rounded
 	case ssa.OpAMD64ROUNDSD, ssa.OpAMD64ROUNDSS:
+		if r := v.Reg(); r != v.Args[0].Reg() {
+			// Merges into the destination's upper bits like the conversions
+			// above; break the false dependency that creates.
+			opregreg(s, x86.AXORPS, r, r)
+		}
 		p := s.Prog(v.Op.Asm())
 		val := v.AuxInt
 		// 0 means math.RoundToEven, 1 Floor, 2 Ceil, 3 Trunc
