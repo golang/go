@@ -299,7 +299,7 @@ func (s *state) emitOpenDeferInfo() {
 
 // buildssa builds an SSA function for fn.
 // worker indicates which of the backend workers is doing the processing.
-func buildssa(fn *ir.Func, worker int, isPgoHot bool) (*ssacore.Func, *ssa.HTMLWriter) {
+func buildssa(compiler ssacore.Compiler, fn *ir.Func, worker int, isPgoHot bool) (*ssacore.Func, ssacore.HTMLWriter) {
 	name := ir.FuncName(fn)
 
 	abiSelf := abiForFunc(fn, ssaConfig.ABI0, ssaConfig.ABI1)
@@ -391,7 +391,7 @@ func buildssa(fn *ir.Func, worker int, isPgoHot bool) (*ssacore.Func, *ssa.HTMLW
 			ssaD := filepath.Dir(ssaDF)
 			os.MkdirAll(ssaD, 0755)
 		}
-		htmlWriter = ssa.NewHTMLWriter(ssaDF, s.f, ssaDumpCFG)
+		htmlWriter = ssa.NewHTMLWriter(ssaDF, s.f, ssaDumpCFG, compiler.Passes())
 		// TODO: generate and print a mapping from nodes to values and blocks
 		dumpSourcesColumn(htmlWriter, fn)
 		htmlWriter.WriteAST("AST", astBuf)
@@ -595,12 +595,14 @@ func buildssa(fn *ir.Func, worker int, isPgoHot bool) (*ssacore.Func, *ssa.HTMLW
 		}
 	}
 
-	htmlWriter.WritePhase("before insert phis", "before insert phis")
+	if htmlWriter.Enabled() {
+		htmlWriter.WritePhase("before insert phis", "before insert phis")
+	}
 
 	s.insertPhis()
 
 	// Main call to ssa package to compile function
-	ssa.Compile(s.f, htmlWriter)
+	compiler.Compile(s.f, htmlWriter)
 
 	fe.AllocFrame(s.f)
 
@@ -6987,7 +6989,7 @@ func emitWrappedFuncInfo(e *ssafn, pp *objw.Progs) {
 }
 
 // genssa appends entries to pp for each instruction in f.
-func genssa(htmlWriter *ssa.HTMLWriter, f *ssacore.Func, pp *objw.Progs) {
+func genssa(htmlWriter ssacore.HTMLWriter, f *ssacore.Func, pp *objw.Progs) {
 	var s State
 	s.ABI = f.OwnAux.Fn.ABI()
 
@@ -7439,7 +7441,7 @@ func genssa(htmlWriter *ssa.HTMLWriter, f *ssacore.Func, pp *objw.Progs) {
 			f.Logf(" %-6s\t%.5d (%s)\t%s\n", s, p.Pc, p.InnermostLineNumber(), p.InstructionString())
 		}
 	}
-	if htmlWriter != nil { // spew to ssa.html
+	if htmlWriter.Enabled() { // spew to ssa.html
 		var buf strings.Builder
 		buf.WriteString("<code>")
 		buf.WriteString("<dl class=\"ssa-gen\">")

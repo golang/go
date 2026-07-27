@@ -21,13 +21,20 @@ import (
 	"time"
 )
 
+// Compiler satisfies the ssacore.Compiler interface.
+type Compiler struct{}
+
+func (_ Compiler) Passes() []ssacore.Pass {
+	return passes[:]
+}
+
 // Compile is the main entry point for this package.
 // Compile modifies f so that on return:
 //   - all Values in f map to 0 or 1 assembly instructions of the target architecture
 //   - the order of f.Blocks is the order to emit the Blocks
 //   - the order of b.Values is the order to emit the Values in each Block
 //   - f has a non-nil regAlloc field
-func Compile(f *ssacore.Func, htmlWriter *HTMLWriter) {
+func (_ Compiler) Compile(f *ssacore.Func, htmlWriter ssacore.HTMLWriter) {
 	// TODO: debugging - set flags to control verbosity of compiler,
 	// which phases to dump IR before/after, etc.
 	if f.Log() {
@@ -49,7 +56,7 @@ func Compile(f *ssacore.Func, htmlWriter *HTMLWriter) {
 			n := runtime.Stack(stack, false)
 			stack = stack[:n]
 			if htmlWriter != nil {
-				htmlWriter.flushPhases()
+				htmlWriter.FlushPhases()
 			}
 			f.Fatalf("panic during %s while compiling %s:\n\n%v\n\n%s\n", phaseName, f.Name, err, stack)
 		}
@@ -142,7 +149,7 @@ func Compile(f *ssacore.Func, htmlWriter *HTMLWriter) {
 
 	if htmlWriter != nil {
 		// Ensure we write any pending phases to the html
-		htmlWriter.flushPhases()
+		htmlWriter.FlushPhases()
 	}
 
 	if f.RuleMatches != nil {

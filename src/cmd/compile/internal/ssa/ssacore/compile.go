@@ -15,6 +15,19 @@ import (
 	"cmd/internal/src"
 )
 
+type Compiler interface {
+	Compile(f *Func, htmlWriter HTMLWriter)
+	Passes() []Pass
+}
+
+type HTMLWriter interface {
+	Enabled() bool
+	FlushPhases()
+	WritePhase(phase, title string)
+	WriteColumn(phase, title, class, html string)
+	Close()
+}
+
 type Pass struct {
 	Name     string
 	Fn       func(*Func)

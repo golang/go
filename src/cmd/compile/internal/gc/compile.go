@@ -171,7 +171,7 @@ func compileFunctions(profile *pgoir.Profile) {
 				fn := compilequeue[len(compilequeue)-1]
 				compilequeue = compilequeue[:len(compilequeue)-1]
 				mu.Unlock()
-				ssagen.Compile(fn, workerId, profile)
+				ssagen.Compile(ssa.Compiler{}, fn, workerId, profile)
 				closures = fn.Closures
 			}
 		})

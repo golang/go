@@ -30,7 +30,7 @@ type HTMLWriter struct {
 	pendingTitles []string
 }
 
-func NewHTMLWriter(path string, f *ssacore.Func, cfgMask string) *HTMLWriter {
+func NewHTMLWriter(path string, f *ssacore.Func, cfgMask string, passes []ssacore.Pass) *HTMLWriter {
 	path = strings.ReplaceAll(path, "/", string(filepath.Separator))
 	out, err := os.OpenFile(path, os.O_WRONLY|os.O_CREATE|os.O_TRUNC, 0644)
 	if err != nil {
@@ -48,10 +48,14 @@ func NewHTMLWriter(path string, f *ssacore.Func, cfgMask string) *HTMLWriter {
 		w:    out,
 		Func: f,
 		path: reportPath,
-		dot:  newDotWriter(cfgMask),
+		dot:  newDotWriter(cfgMask, passes),
 	}
 	html.start()
 	return &html
+}
+
+func (w *HTMLWriter) Enabled() bool {
+	return w != nil
 }
 
 // Fatalf reports an error and exits.
@@ -800,7 +804,7 @@ func (w *HTMLWriter) WritePhase(phase, title string) {
 	w.pendingPhases = append(w.pendingPhases, phase)
 	w.pendingTitles = append(w.pendingTitles, title)
 	if !bytes.Equal(hash, w.prevHash) {
-		w.flushPhases()
+		w.FlushPhases()
 	}
 	w.prevHash = hash
 }
@@ -810,11 +814,14 @@ func (w *HTMLWriter) WritePhase(phase, title string) {
 func (w *HTMLWriter) FatalCleanup() {
 	const stats = "crashed"
 	w.WritePhase(w.Func.Pass.Name, fmt.Sprintf("%s <span class=\"stats\">%s</span>", w.Func.Pass.Name, stats))
-	w.flushPhases()
+	w.FlushPhases()
 }
 
-// flushPhases collects any pending phases and titles, writes them to the html, and resets the pending slices.
-func (w *HTMLWriter) flushPhases() {
+// FlushPhases collects any pending phases and titles, writes them to the html, and resets the pending slices.
+func (w *HTMLWriter) FlushPhases() {
+	if w == nil {
+		return
+	}
 	phaseLen := len(w.pendingPhases)
 	if phaseLen == 0 {
 		return
@@ -1172,7 +1179,7 @@ type dotWriter struct {
 // *   - all of them;
 // x-y - x through y, inclusive;
 // x,y - x and y, but not the passes between.
-func newDotWriter(mask string) *dotWriter {
+func newDotWriter(mask string, passes []ssacore.Pass) *dotWriter {
 	if mask == "" {
 		return nil
 	}
@@ -1191,8 +1198,8 @@ func newDotWriter(mask string) *dotWriter {
 			first = 0
 			last = len(passes) - 1
 		} else {
-			first = passIdxByName(spl[0])
-			last = passIdxByName(spl[len(spl)-1])
+			first = passIdxByName(passes, spl[0])
+			last = passIdxByName(passes, spl[len(spl)-1])
 		}
 		if first < 0 || last < 0 || first > last {
 			fmt.Printf("range is not valid: %v\n", r)
@@ -1211,7 +1218,7 @@ func newDotWriter(mask string) *dotWriter {
 	return &dotWriter{path: path, phases: ph}
 }
 
-func passIdxByName(name string) int {
+func passIdxByName(passes []ssacore.Pass, name string) int {
 	for i, p := range passes {
 		if p.Name == name {
 			return i
