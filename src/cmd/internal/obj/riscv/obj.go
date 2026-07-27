@@ -3660,6 +3660,11 @@ func (ins *instruction) compress() {
 			ins.as, ins.rd, ins.rs1, ins.rs2 = ACFSD, obj.REG_NONE, ins.rd, ins.rs1
 		}
 
+	case AJALR:
+		if ins.rd == REG_ZERO && ins.rs1 == REG_LR && ins.imm == 0 {
+			ins.as, ins.rd = ACJR, obj.REG_NONE
+		}
+
 	case AADDI:
 		if ins.rd == REG_SP && ins.rs1 == REG_SP && ins.imm != 0 && isScaledImmI(ins.imm, 10, 16) {
 			ins.as = ACADDI16SP
