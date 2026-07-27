@@ -24,9 +24,25 @@ func doinit() {
 		{Name: "zvksh", Feature: &RISCV64.HasZvksh},
 		{Name: "zvkt", Feature: &RISCV64.HasZvkt},
 	}
+
+	doDerived = func() {
+		// If the vector extension is disabled by GODEBUG, then the VLENB is zero.
+		if !RISCV64.HasV {
+			RISCV64.VLENB = 0
+		}
+	}
+
 	osInit()
+	if RISCV64.HasV {
+		RISCV64.VLENB = readVLENB()
+	}
 }
 
 func isSet(hwc uint, value uint) bool {
 	return hwc&value != 0
 }
+
+// Read the vector register length in bytes from the vlenb CSR.
+// May only be called when the vector extension is present.
+// Implemented in cpu_riscv64.s.
+func readVLENB() uint
