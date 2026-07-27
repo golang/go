@@ -424,6 +424,25 @@ func (o *orderState) stmtList(l ir.Nodes) {
 	}
 }
 
+// nonAddrTakenName returns n if it's a simple variable (ir.Name) whose
+// address was not taken, otherwise nil.
+func nonAddrTakenName(n ir.Node) *ir.Name {
+	if n.Op() == ir.ONAME {
+		if v := n.(*ir.Name); !v.Addrtaken() {
+			return v
+		}
+	}
+
+	return nil
+}
+
+// containsName reports whether target appears anywhere in root's AST subtree.
+func containsName(root ir.Node, target *ir.Name) bool {
+	return ir.Any(root, func(n ir.Node) bool {
+		return n.Op() == ir.ONAME && n.(*ir.Name) == target
+	})
+}
+
 // orderMakeSliceCopy matches the pattern:
 //
 //	m = OMAKESLICE([]T, x); OCOPY(m, s)
@@ -442,11 +461,27 @@ func orderMakeSliceCopy(s []ir.Node) {
 	as := s[0].(*ir.AssignStmt)
 	cp := s[1].(*ir.BinaryExpr)
 	if as.Y == nil || as.Y.Op() != ir.OMAKESLICE || ir.IsBlank(as.X) ||
-		as.X.Op() != ir.ONAME || cp.X.Op() != ir.ONAME || cp.Y.Op() != ir.ONAME ||
-		as.X.Name() != cp.X.Name() || cp.X.Name() == cp.Y.Name() {
+		!ir.SameSafeExpr(as.X, cp.X) || ir.SameSafeExpr(cp.X, cp.Y) {
 		// The line above this one is correct with the differing equality operators:
 		// we want as.X and cp.X to be the same name,
 		// but we want the initial data to be coming from a different name.
+		return
+	}
+
+	safe := false
+	if dst := nonAddrTakenName(as.X); dst != nil {
+		safe = !containsName(cp.Y, dst)
+	}
+	if !safe {
+		if src := nonAddrTakenName(cp.Y); src != nil {
+			safe = !containsName(as.X, src)
+		}
+	}
+	if !safe {
+		// We can rewrite make+copy into runtime.makeslicecopy when one side is
+		// a non-address-taken local variable and the other expression cannot
+		// refer to that variable. Otherwise the transformation may observe a
+		// different slice due to aliasing.
 		return
 	}
 

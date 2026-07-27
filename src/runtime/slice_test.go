@@ -95,6 +95,85 @@ func BenchmarkMakeSliceCopy(b *testing.B) {
 	})
 }
 
+type sliceHolder[T any] struct {
+	data [1][]T
+}
+
+// Benchmarks optimization when the source is a non-trivial expression.
+func benchmarkComplexSrc[T any](b *testing.B, typeName string, size int) {
+	var src = &sliceHolder[T]{}
+	(*src).data[0] = make([]T, size)
+
+	b.Run(typeName, func(b *testing.B) {
+		b.Run("mallocmove", func(b *testing.B) {
+			var dst []T
+			for i := 0; i < b.N; i++ {
+				dst = make([]T, len((*src).data[0]))
+				copy(dst, (*src).data[0])
+			}
+		})
+		b.Run("makecopy", func(b *testing.B) {
+			var dst []T
+			for i := 0; i < b.N; i++ {
+				dst = make([]T, size)
+				copy(dst, (*src).data[0])
+			}
+		})
+		b.Run("nilappend", func(b *testing.B) {
+			var dst []T
+			for i := 0; i < b.N; i++ {
+				dst = append([]T(nil), (*src).data[0]...)
+				_ = dst
+			}
+		})
+	})
+}
+
+// Benchmarks optimization when the destination is a non-trivial expression.
+func benchmarkComplexDst[T any](b *testing.B, typeName string, size int) {
+	var src = make([]T, size)
+
+	b.Run(typeName, func(b *testing.B) {
+		b.Run("mallocmove", func(b *testing.B) {
+			var dst = &sliceHolder[T]{}
+			for i := 0; i < b.N; i++ {
+				(*dst).data[0] = make([]T, len(src))
+				copy((*dst).data[0], src)
+			}
+		})
+		b.Run("makecopy", func(b *testing.B) {
+			var dst = &sliceHolder[T]{}
+			for i := 0; i < b.N; i++ {
+				(*dst).data[0] = make([]T, size)
+				copy((*dst).data[0], src)
+			}
+		})
+		b.Run("nilappend", func(b *testing.B) {
+			var dst = &sliceHolder[T]{}
+			for i := 0; i < b.N; i++ {
+				(*dst).data[0] = append([]T(nil), src...)
+				_ = (*dst).data[0]
+			}
+		})
+	})
+}
+
+func BenchmarkMakeSliceCopyComplexExpressions(b *testing.B) {
+	const length = 32
+
+	b.Run("Src", func(b *testing.B) {
+		benchmarkComplexSrc[byte](b, "Byte", 8*length)
+		benchmarkComplexSrc[int](b, "Int", length)
+		benchmarkComplexSrc[*byte](b, "Ptr", length)
+	})
+
+	b.Run("Dst", func(b *testing.B) {
+		benchmarkComplexDst[byte](b, "Byte", 8*length)
+		benchmarkComplexDst[int](b, "Int", length)
+		benchmarkComplexDst[*byte](b, "Ptr", length)
+	})
+}
+
 type (
 	struct24 struct{ a, b, c int64 }
 	struct32 struct{ a, b, c, d int64 }
