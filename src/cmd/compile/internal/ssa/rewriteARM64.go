@@ -19185,6 +19185,226 @@ func rewriteValueARM64_OpARM64XOR(v *Value) bool {
 }
 func rewriteValueARM64_OpARM64XORconst(v *Value) bool {
 	v_0 := v.Args[0]
+	// match: (XORconst [1] (Equal cc))
+	// result: (NotEqual cc)
+	for {
+		if auxIntToInt64(v.AuxInt) != 1 || v_0.Op != OpARM64Equal {
+			break
+		}
+		cc := v_0.Args[0]
+		v.reset(OpARM64NotEqual)
+		v.AddArg(cc)
+		return true
+	}
+	// match: (XORconst [1] (NotEqual cc))
+	// result: (Equal cc)
+	for {
+		if auxIntToInt64(v.AuxInt) != 1 || v_0.Op != OpARM64NotEqual {
+			break
+		}
+		cc := v_0.Args[0]
+		v.reset(OpARM64Equal)
+		v.AddArg(cc)
+		return true
+	}
+	// match: (XORconst [1] (LessThan cc))
+	// result: (GreaterEqual cc)
+	for {
+		if auxIntToInt64(v.AuxInt) != 1 || v_0.Op != OpARM64LessThan {
+			break
+		}
+		cc := v_0.Args[0]
+		v.reset(OpARM64GreaterEqual)
+		v.AddArg(cc)
+		return true
+	}
+	// match: (XORconst [1] (GreaterEqual cc))
+	// result: (LessThan cc)
+	for {
+		if auxIntToInt64(v.AuxInt) != 1 || v_0.Op != OpARM64GreaterEqual {
+			break
+		}
+		cc := v_0.Args[0]
+		v.reset(OpARM64LessThan)
+		v.AddArg(cc)
+		return true
+	}
+	// match: (XORconst [1] (LessThanU cc))
+	// result: (GreaterEqualU cc)
+	for {
+		if auxIntToInt64(v.AuxInt) != 1 || v_0.Op != OpARM64LessThanU {
+			break
+		}
+		cc := v_0.Args[0]
+		v.reset(OpARM64GreaterEqualU)
+		v.AddArg(cc)
+		return true
+	}
+	// match: (XORconst [1] (GreaterEqualU cc))
+	// result: (LessThanU cc)
+	for {
+		if auxIntToInt64(v.AuxInt) != 1 || v_0.Op != OpARM64GreaterEqualU {
+			break
+		}
+		cc := v_0.Args[0]
+		v.reset(OpARM64LessThanU)
+		v.AddArg(cc)
+		return true
+	}
+	// match: (XORconst [1] (LessEqual cc))
+	// result: (GreaterThan cc)
+	for {
+		if auxIntToInt64(v.AuxInt) != 1 || v_0.Op != OpARM64LessEqual {
+			break
+		}
+		cc := v_0.Args[0]
+		v.reset(OpARM64GreaterThan)
+		v.AddArg(cc)
+		return true
+	}
+	// match: (XORconst [1] (GreaterThan cc))
+	// result: (LessEqual cc)
+	for {
+		if auxIntToInt64(v.AuxInt) != 1 || v_0.Op != OpARM64GreaterThan {
+			break
+		}
+		cc := v_0.Args[0]
+		v.reset(OpARM64LessEqual)
+		v.AddArg(cc)
+		return true
+	}
+	// match: (XORconst [1] (LessEqualU cc))
+	// result: (GreaterThanU cc)
+	for {
+		if auxIntToInt64(v.AuxInt) != 1 || v_0.Op != OpARM64LessEqualU {
+			break
+		}
+		cc := v_0.Args[0]
+		v.reset(OpARM64GreaterThanU)
+		v.AddArg(cc)
+		return true
+	}
+	// match: (XORconst [1] (GreaterThanU cc))
+	// result: (LessEqualU cc)
+	for {
+		if auxIntToInt64(v.AuxInt) != 1 || v_0.Op != OpARM64GreaterThanU {
+			break
+		}
+		cc := v_0.Args[0]
+		v.reset(OpARM64LessEqualU)
+		v.AddArg(cc)
+		return true
+	}
+	// match: (XORconst [1] (LessThanF cc))
+	// result: (NotLessThanF cc)
+	for {
+		if auxIntToInt64(v.AuxInt) != 1 || v_0.Op != OpARM64LessThanF {
+			break
+		}
+		cc := v_0.Args[0]
+		v.reset(OpARM64NotLessThanF)
+		v.AddArg(cc)
+		return true
+	}
+	// match: (XORconst [1] (NotLessThanF cc))
+	// result: (LessThanF cc)
+	for {
+		if auxIntToInt64(v.AuxInt) != 1 || v_0.Op != OpARM64NotLessThanF {
+			break
+		}
+		cc := v_0.Args[0]
+		v.reset(OpARM64LessThanF)
+		v.AddArg(cc)
+		return true
+	}
+	// match: (XORconst [1] (LessEqualF cc))
+	// result: (NotLessEqualF cc)
+	for {
+		if auxIntToInt64(v.AuxInt) != 1 || v_0.Op != OpARM64LessEqualF {
+			break
+		}
+		cc := v_0.Args[0]
+		v.reset(OpARM64NotLessEqualF)
+		v.AddArg(cc)
+		return true
+	}
+	// match: (XORconst [1] (NotLessEqualF cc))
+	// result: (LessEqualF cc)
+	for {
+		if auxIntToInt64(v.AuxInt) != 1 || v_0.Op != OpARM64NotLessEqualF {
+			break
+		}
+		cc := v_0.Args[0]
+		v.reset(OpARM64LessEqualF)
+		v.AddArg(cc)
+		return true
+	}
+	// match: (XORconst [1] (GreaterThanF cc))
+	// result: (NotGreaterThanF cc)
+	for {
+		if auxIntToInt64(v.AuxInt) != 1 || v_0.Op != OpARM64GreaterThanF {
+			break
+		}
+		cc := v_0.Args[0]
+		v.reset(OpARM64NotGreaterThanF)
+		v.AddArg(cc)
+		return true
+	}
+	// match: (XORconst [1] (NotGreaterThanF cc))
+	// result: (GreaterThanF cc)
+	for {
+		if auxIntToInt64(v.AuxInt) != 1 || v_0.Op != OpARM64NotGreaterThanF {
+			break
+		}
+		cc := v_0.Args[0]
+		v.reset(OpARM64GreaterThanF)
+		v.AddArg(cc)
+		return true
+	}
+	// match: (XORconst [1] (GreaterEqualF cc))
+	// result: (NotGreaterEqualF cc)
+	for {
+		if auxIntToInt64(v.AuxInt) != 1 || v_0.Op != OpARM64GreaterEqualF {
+			break
+		}
+		cc := v_0.Args[0]
+		v.reset(OpARM64NotGreaterEqualF)
+		v.AddArg(cc)
+		return true
+	}
+	// match: (XORconst [1] (NotGreaterEqualF cc))
+	// result: (GreaterEqualF cc)
+	for {
+		if auxIntToInt64(v.AuxInt) != 1 || v_0.Op != OpARM64NotGreaterEqualF {
+			break
+		}
+		cc := v_0.Args[0]
+		v.reset(OpARM64GreaterEqualF)
+		v.AddArg(cc)
+		return true
+	}
+	// match: (XORconst [1] (LessThanNoov cc))
+	// result: (GreaterEqualNoov cc)
+	for {
+		if auxIntToInt64(v.AuxInt) != 1 || v_0.Op != OpARM64LessThanNoov {
+			break
+		}
+		cc := v_0.Args[0]
+		v.reset(OpARM64GreaterEqualNoov)
+		v.AddArg(cc)
+		return true
+	}
+	// match: (XORconst [1] (GreaterEqualNoov cc))
+	// result: (LessThanNoov cc)
+	for {
+		if auxIntToInt64(v.AuxInt) != 1 || v_0.Op != OpARM64GreaterEqualNoov {
+			break
+		}
+		cc := v_0.Args[0]
+		v.reset(OpARM64LessThanNoov)
+		v.AddArg(cc)
+		return true
+	}
 	// match: (XORconst [0] x)
 	// result: x
 	for {

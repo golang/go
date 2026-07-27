@@ -555,6 +555,18 @@
 
 (TB(Z|NZ) [0] (XORconst [1] x) yes no) => (TB(NZ|Z) [0] x yes no)
 
+// Fold !eq(cc) into ne(cc) and all similar others.
+(XORconst [1] ((Equal|NotEqual) cc))                       => ((NotEqual|Equal) cc)
+(XORconst [1] ((LessThan|GreaterEqual) cc))                => ((GreaterEqual|LessThan) cc)
+(XORconst [1] ((LessThanU|GreaterEqualU) cc))              => ((GreaterEqualU|LessThanU) cc)
+(XORconst [1] ((LessEqual|GreaterThan) cc))                => ((GreaterThan|LessEqual) cc)
+(XORconst [1] ((LessEqualU|GreaterThanU) cc))              => ((GreaterThanU|LessEqualU) cc)
+(XORconst [1] ((LessThanF|NotLessThanF) cc))               => ((NotLessThanF|LessThanF) cc)
+(XORconst [1] ((LessEqualF|NotLessEqualF) cc))             => ((NotLessEqualF|LessEqualF) cc)
+(XORconst [1] ((GreaterThanF|NotGreaterThanF) cc))         => ((NotGreaterThanF|GreaterThanF) cc)
+(XORconst [1] ((GreaterEqualF|NotGreaterEqualF) cc))       => ((NotGreaterEqualF|GreaterEqualF) cc)
+(XORconst [1] ((LessThanNoov|GreaterEqualNoov) cc))        => ((GreaterEqualNoov|LessThanNoov) cc)
+
 ((EQ|NE|LT|LE|GT|GE) (CMPconst  [0] z:(AND        x y)) yes no) && z.Uses == 1 => ((EQ|NE|LT|LE|GT|GE) (TST                x y) yes no)
 ((EQ|NE|LT|LE|GT|GE) (CMPconst  [0] x:(ANDconst [c] y)) yes no) && x.Uses == 1 => ((EQ|NE|LT|LE|GT|GE) (TSTconst         [c] y) yes no)
 ((EQ|NE|LT|LE|GT|GE) (CMPWconst [0] z:(AND        x y)) yes no) && z.Uses == 1 => ((EQ|NE|LT|LE|GT|GE) (TSTW               x y) yes no)
