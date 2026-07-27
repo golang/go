@@ -2067,12 +2067,29 @@ func rewriteValue_OpLsh16x16(v *ssa.Value) bool {
 	v_0 := v.Args[0]
 	b := v.Block
 	typ := &b.Func.Config.Types
+	// match: (Lsh16x16 x y)
+	// cond: ssa.ShiftIsBounded(v)
+	// result: (SLLV x y)
+	for {
+		x := v_0
+		y := v_1
+		if !(ssa.ShiftIsBounded(v)) {
+			break
+		}
+		v.Reset(ssaop.OpMIPS64SLLV)
+		v.AddArg2(x, y)
+		return true
+	}
 	// match: (Lsh16x16 <t> x y)
+	// cond: !ssa.ShiftIsBounded(v)
 	// result: (AND (NEGV <t> (SGTU (MOVVconst <typ.UInt64> [64]) (ZeroExt16to64 y))) (SLLV <t> x (ZeroExt16to64 y)))
 	for {
 		t := v.Type
 		x := v_0
 		y := v_1
+		if !(!ssa.ShiftIsBounded(v)) {
+			break
+		}
 		v.Reset(ssaop.OpMIPS64AND)
 		v0 := b.NewValue0(v.Pos, ssaop.OpMIPS64NEGV, t)
 		v1 := b.NewValue0(v.Pos, ssaop.OpMIPS64SGTU, typ.Bool)
@@ -2087,18 +2104,36 @@ func rewriteValue_OpLsh16x16(v *ssa.Value) bool {
 		v.AddArg2(v0, v4)
 		return true
 	}
+	return false
 }
 func rewriteValue_OpLsh16x32(v *ssa.Value) bool {
 	v_1 := v.Args[1]
 	v_0 := v.Args[0]
 	b := v.Block
 	typ := &b.Func.Config.Types
+	// match: (Lsh16x32 x y)
+	// cond: ssa.ShiftIsBounded(v)
+	// result: (SLLV x y)
+	for {
+		x := v_0
+		y := v_1
+		if !(ssa.ShiftIsBounded(v)) {
+			break
+		}
+		v.Reset(ssaop.OpMIPS64SLLV)
+		v.AddArg2(x, y)
+		return true
+	}
 	// match: (Lsh16x32 <t> x y)
+	// cond: !ssa.ShiftIsBounded(v)
 	// result: (AND (NEGV <t> (SGTU (MOVVconst <typ.UInt64> [64]) (ZeroExt32to64 y))) (SLLV <t> x (ZeroExt32to64 y)))
 	for {
 		t := v.Type
 		x := v_0
 		y := v_1
+		if !(!ssa.ShiftIsBounded(v)) {
+			break
+		}
 		v.Reset(ssaop.OpMIPS64AND)
 		v0 := b.NewValue0(v.Pos, ssaop.OpMIPS64NEGV, t)
 		v1 := b.NewValue0(v.Pos, ssaop.OpMIPS64SGTU, typ.Bool)
@@ -2113,18 +2148,36 @@ func rewriteValue_OpLsh16x32(v *ssa.Value) bool {
 		v.AddArg2(v0, v4)
 		return true
 	}
+	return false
 }
 func rewriteValue_OpLsh16x64(v *ssa.Value) bool {
 	v_1 := v.Args[1]
 	v_0 := v.Args[0]
 	b := v.Block
 	typ := &b.Func.Config.Types
+	// match: (Lsh16x64 x y)
+	// cond: ssa.ShiftIsBounded(v)
+	// result: (SLLV x y)
+	for {
+		x := v_0
+		y := v_1
+		if !(ssa.ShiftIsBounded(v)) {
+			break
+		}
+		v.Reset(ssaop.OpMIPS64SLLV)
+		v.AddArg2(x, y)
+		return true
+	}
 	// match: (Lsh16x64 <t> x y)
+	// cond: !ssa.ShiftIsBounded(v)
 	// result: (AND (NEGV <t> (SGTU (MOVVconst <typ.UInt64> [64]) y)) (SLLV <t> x y))
 	for {
 		t := v.Type
 		x := v_0
 		y := v_1
+		if !(!ssa.ShiftIsBounded(v)) {
+			break
+		}
 		v.Reset(ssaop.OpMIPS64AND)
 		v0 := b.NewValue0(v.Pos, ssaop.OpMIPS64NEGV, t)
 		v1 := b.NewValue0(v.Pos, ssaop.OpMIPS64SGTU, typ.Bool)
@@ -2137,18 +2190,36 @@ func rewriteValue_OpLsh16x64(v *ssa.Value) bool {
 		v.AddArg2(v0, v3)
 		return true
 	}
+	return false
 }
 func rewriteValue_OpLsh16x8(v *ssa.Value) bool {
 	v_1 := v.Args[1]
 	v_0 := v.Args[0]
 	b := v.Block
 	typ := &b.Func.Config.Types
+	// match: (Lsh16x8 x y)
+	// cond: ssa.ShiftIsBounded(v)
+	// result: (SLLV x y)
+	for {
+		x := v_0
+		y := v_1
+		if !(ssa.ShiftIsBounded(v)) {
+			break
+		}
+		v.Reset(ssaop.OpMIPS64SLLV)
+		v.AddArg2(x, y)
+		return true
+	}
 	// match: (Lsh16x8 <t> x y)
+	// cond: !ssa.ShiftIsBounded(v)
 	// result: (AND (NEGV <t> (SGTU (MOVVconst <typ.UInt64> [64]) (ZeroExt8to64 y))) (SLLV <t> x (ZeroExt8to64 y)))
 	for {
 		t := v.Type
 		x := v_0
 		y := v_1
+		if !(!ssa.ShiftIsBounded(v)) {
+			break
+		}
 		v.Reset(ssaop.OpMIPS64AND)
 		v0 := b.NewValue0(v.Pos, ssaop.OpMIPS64NEGV, t)
 		v1 := b.NewValue0(v.Pos, ssaop.OpMIPS64SGTU, typ.Bool)
@@ -2163,18 +2234,36 @@ func rewriteValue_OpLsh16x8(v *ssa.Value) bool {
 		v.AddArg2(v0, v4)
 		return true
 	}
+	return false
 }
 func rewriteValue_OpLsh32x16(v *ssa.Value) bool {
 	v_1 := v.Args[1]
 	v_0 := v.Args[0]
 	b := v.Block
 	typ := &b.Func.Config.Types
+	// match: (Lsh32x16 x y)
+	// cond: ssa.ShiftIsBounded(v)
+	// result: (SLLV x y)
+	for {
+		x := v_0
+		y := v_1
+		if !(ssa.ShiftIsBounded(v)) {
+			break
+		}
+		v.Reset(ssaop.OpMIPS64SLLV)
+		v.AddArg2(x, y)
+		return true
+	}
 	// match: (Lsh32x16 <t> x y)
+	// cond: !ssa.ShiftIsBounded(v)
 	// result: (AND (NEGV <t> (SGTU (MOVVconst <typ.UInt64> [64]) (ZeroExt16to64 y))) (SLLV <t> x (ZeroExt16to64 y)))
 	for {
 		t := v.Type
 		x := v_0
 		y := v_1
+		if !(!ssa.ShiftIsBounded(v)) {
+			break
+		}
 		v.Reset(ssaop.OpMIPS64AND)
 		v0 := b.NewValue0(v.Pos, ssaop.OpMIPS64NEGV, t)
 		v1 := b.NewValue0(v.Pos, ssaop.OpMIPS64SGTU, typ.Bool)
@@ -2189,18 +2278,36 @@ func rewriteValue_OpLsh32x16(v *ssa.Value) bool {
 		v.AddArg2(v0, v4)
 		return true
 	}
+	return false
 }
 func rewriteValue_OpLsh32x32(v *ssa.Value) bool {
 	v_1 := v.Args[1]
 	v_0 := v.Args[0]
 	b := v.Block
 	typ := &b.Func.Config.Types
+	// match: (Lsh32x32 x y)
+	// cond: ssa.ShiftIsBounded(v)
+	// result: (SLLV x y)
+	for {
+		x := v_0
+		y := v_1
+		if !(ssa.ShiftIsBounded(v)) {
+			break
+		}
+		v.Reset(ssaop.OpMIPS64SLLV)
+		v.AddArg2(x, y)
+		return true
+	}
 	// match: (Lsh32x32 <t> x y)
+	// cond: !ssa.ShiftIsBounded(v)
 	// result: (AND (NEGV <t> (SGTU (MOVVconst <typ.UInt64> [64]) (ZeroExt32to64 y))) (SLLV <t> x (ZeroExt32to64 y)))
 	for {
 		t := v.Type
 		x := v_0
 		y := v_1
+		if !(!ssa.ShiftIsBounded(v)) {
+			break
+		}
 		v.Reset(ssaop.OpMIPS64AND)
 		v0 := b.NewValue0(v.Pos, ssaop.OpMIPS64NEGV, t)
 		v1 := b.NewValue0(v.Pos, ssaop.OpMIPS64SGTU, typ.Bool)
@@ -2215,18 +2322,36 @@ func rewriteValue_OpLsh32x32(v *ssa.Value) bool {
 		v.AddArg2(v0, v4)
 		return true
 	}
+	return false
 }
 func rewriteValue_OpLsh32x64(v *ssa.Value) bool {
 	v_1 := v.Args[1]
 	v_0 := v.Args[0]
 	b := v.Block
 	typ := &b.Func.Config.Types
+	// match: (Lsh32x64 x y)
+	// cond: ssa.ShiftIsBounded(v)
+	// result: (SLLV x y)
+	for {
+		x := v_0
+		y := v_1
+		if !(ssa.ShiftIsBounded(v)) {
+			break
+		}
+		v.Reset(ssaop.OpMIPS64SLLV)
+		v.AddArg2(x, y)
+		return true
+	}
 	// match: (Lsh32x64 <t> x y)
+	// cond: !ssa.ShiftIsBounded(v)
 	// result: (AND (NEGV <t> (SGTU (MOVVconst <typ.UInt64> [64]) y)) (SLLV <t> x y))
 	for {
 		t := v.Type
 		x := v_0
 		y := v_1
+		if !(!ssa.ShiftIsBounded(v)) {
+			break
+		}
 		v.Reset(ssaop.OpMIPS64AND)
 		v0 := b.NewValue0(v.Pos, ssaop.OpMIPS64NEGV, t)
 		v1 := b.NewValue0(v.Pos, ssaop.OpMIPS64SGTU, typ.Bool)
@@ -2239,18 +2364,36 @@ func rewriteValue_OpLsh32x64(v *ssa.Value) bool {
 		v.AddArg2(v0, v3)
 		return true
 	}
+	return false
 }
 func rewriteValue_OpLsh32x8(v *ssa.Value) bool {
 	v_1 := v.Args[1]
 	v_0 := v.Args[0]
 	b := v.Block
 	typ := &b.Func.Config.Types
+	// match: (Lsh32x8 x y)
+	// cond: ssa.ShiftIsBounded(v)
+	// result: (SLLV x y)
+	for {
+		x := v_0
+		y := v_1
+		if !(ssa.ShiftIsBounded(v)) {
+			break
+		}
+		v.Reset(ssaop.OpMIPS64SLLV)
+		v.AddArg2(x, y)
+		return true
+	}
 	// match: (Lsh32x8 <t> x y)
+	// cond: !ssa.ShiftIsBounded(v)
 	// result: (AND (NEGV <t> (SGTU (MOVVconst <typ.UInt64> [64]) (ZeroExt8to64 y))) (SLLV <t> x (ZeroExt8to64 y)))
 	for {
 		t := v.Type
 		x := v_0
 		y := v_1
+		if !(!ssa.ShiftIsBounded(v)) {
+			break
+		}
 		v.Reset(ssaop.OpMIPS64AND)
 		v0 := b.NewValue0(v.Pos, ssaop.OpMIPS64NEGV, t)
 		v1 := b.NewValue0(v.Pos, ssaop.OpMIPS64SGTU, typ.Bool)
@@ -2265,18 +2408,36 @@ func rewriteValue_OpLsh32x8(v *ssa.Value) bool {
 		v.AddArg2(v0, v4)
 		return true
 	}
+	return false
 }
 func rewriteValue_OpLsh64x16(v *ssa.Value) bool {
 	v_1 := v.Args[1]
 	v_0 := v.Args[0]
 	b := v.Block
 	typ := &b.Func.Config.Types
+	// match: (Lsh64x16 x y)
+	// cond: ssa.ShiftIsBounded(v)
+	// result: (SLLV x y)
+	for {
+		x := v_0
+		y := v_1
+		if !(ssa.ShiftIsBounded(v)) {
+			break
+		}
+		v.Reset(ssaop.OpMIPS64SLLV)
+		v.AddArg2(x, y)
+		return true
+	}
 	// match: (Lsh64x16 <t> x y)
+	// cond: !ssa.ShiftIsBounded(v)
 	// result: (AND (NEGV <t> (SGTU (MOVVconst <typ.UInt64> [64]) (ZeroExt16to64 y))) (SLLV <t> x (ZeroExt16to64 y)))
 	for {
 		t := v.Type
 		x := v_0
 		y := v_1
+		if !(!ssa.ShiftIsBounded(v)) {
+			break
+		}
 		v.Reset(ssaop.OpMIPS64AND)
 		v0 := b.NewValue0(v.Pos, ssaop.OpMIPS64NEGV, t)
 		v1 := b.NewValue0(v.Pos, ssaop.OpMIPS64SGTU, typ.Bool)
@@ -2291,18 +2452,36 @@ func rewriteValue_OpLsh64x16(v *ssa.Value) bool {
 		v.AddArg2(v0, v4)
 		return true
 	}
+	return false
 }
 func rewriteValue_OpLsh64x32(v *ssa.Value) bool {
 	v_1 := v.Args[1]
 	v_0 := v.Args[0]
 	b := v.Block
 	typ := &b.Func.Config.Types
+	// match: (Lsh64x32 x y)
+	// cond: ssa.ShiftIsBounded(v)
+	// result: (SLLV x y)
+	for {
+		x := v_0
+		y := v_1
+		if !(ssa.ShiftIsBounded(v)) {
+			break
+		}
+		v.Reset(ssaop.OpMIPS64SLLV)
+		v.AddArg2(x, y)
+		return true
+	}
 	// match: (Lsh64x32 <t> x y)
+	// cond: !ssa.ShiftIsBounded(v)
 	// result: (AND (NEGV <t> (SGTU (MOVVconst <typ.UInt64> [64]) (ZeroExt32to64 y))) (SLLV <t> x (ZeroExt32to64 y)))
 	for {
 		t := v.Type
 		x := v_0
 		y := v_1
+		if !(!ssa.ShiftIsBounded(v)) {
+			break
+		}
 		v.Reset(ssaop.OpMIPS64AND)
 		v0 := b.NewValue0(v.Pos, ssaop.OpMIPS64NEGV, t)
 		v1 := b.NewValue0(v.Pos, ssaop.OpMIPS64SGTU, typ.Bool)
@@ -2317,18 +2496,36 @@ func rewriteValue_OpLsh64x32(v *ssa.Value) bool {
 		v.AddArg2(v0, v4)
 		return true
 	}
+	return false
 }
 func rewriteValue_OpLsh64x64(v *ssa.Value) bool {
 	v_1 := v.Args[1]
 	v_0 := v.Args[0]
 	b := v.Block
 	typ := &b.Func.Config.Types
+	// match: (Lsh64x64 x y)
+	// cond: ssa.ShiftIsBounded(v)
+	// result: (SLLV x y)
+	for {
+		x := v_0
+		y := v_1
+		if !(ssa.ShiftIsBounded(v)) {
+			break
+		}
+		v.Reset(ssaop.OpMIPS64SLLV)
+		v.AddArg2(x, y)
+		return true
+	}
 	// match: (Lsh64x64 <t> x y)
+	// cond: !ssa.ShiftIsBounded(v)
 	// result: (AND (NEGV <t> (SGTU (MOVVconst <typ.UInt64> [64]) y)) (SLLV <t> x y))
 	for {
 		t := v.Type
 		x := v_0
 		y := v_1
+		if !(!ssa.ShiftIsBounded(v)) {
+			break
+		}
 		v.Reset(ssaop.OpMIPS64AND)
 		v0 := b.NewValue0(v.Pos, ssaop.OpMIPS64NEGV, t)
 		v1 := b.NewValue0(v.Pos, ssaop.OpMIPS64SGTU, typ.Bool)
@@ -2341,18 +2538,36 @@ func rewriteValue_OpLsh64x64(v *ssa.Value) bool {
 		v.AddArg2(v0, v3)
 		return true
 	}
+	return false
 }
 func rewriteValue_OpLsh64x8(v *ssa.Value) bool {
 	v_1 := v.Args[1]
 	v_0 := v.Args[0]
 	b := v.Block
 	typ := &b.Func.Config.Types
+	// match: (Lsh64x8 x y)
+	// cond: ssa.ShiftIsBounded(v)
+	// result: (SLLV x y)
+	for {
+		x := v_0
+		y := v_1
+		if !(ssa.ShiftIsBounded(v)) {
+			break
+		}
+		v.Reset(ssaop.OpMIPS64SLLV)
+		v.AddArg2(x, y)
+		return true
+	}
 	// match: (Lsh64x8 <t> x y)
+	// cond: !ssa.ShiftIsBounded(v)
 	// result: (AND (NEGV <t> (SGTU (MOVVconst <typ.UInt64> [64]) (ZeroExt8to64 y))) (SLLV <t> x (ZeroExt8to64 y)))
 	for {
 		t := v.Type
 		x := v_0
 		y := v_1
+		if !(!ssa.ShiftIsBounded(v)) {
+			break
+		}
 		v.Reset(ssaop.OpMIPS64AND)
 		v0 := b.NewValue0(v.Pos, ssaop.OpMIPS64NEGV, t)
 		v1 := b.NewValue0(v.Pos, ssaop.OpMIPS64SGTU, typ.Bool)
@@ -2367,18 +2582,36 @@ func rewriteValue_OpLsh64x8(v *ssa.Value) bool {
 		v.AddArg2(v0, v4)
 		return true
 	}
+	return false
 }
 func rewriteValue_OpLsh8x16(v *ssa.Value) bool {
 	v_1 := v.Args[1]
 	v_0 := v.Args[0]
 	b := v.Block
 	typ := &b.Func.Config.Types
+	// match: (Lsh8x16 x y)
+	// cond: ssa.ShiftIsBounded(v)
+	// result: (SLLV x y)
+	for {
+		x := v_0
+		y := v_1
+		if !(ssa.ShiftIsBounded(v)) {
+			break
+		}
+		v.Reset(ssaop.OpMIPS64SLLV)
+		v.AddArg2(x, y)
+		return true
+	}
 	// match: (Lsh8x16 <t> x y)
+	// cond: !ssa.ShiftIsBounded(v)
 	// result: (AND (NEGV <t> (SGTU (MOVVconst <typ.UInt64> [64]) (ZeroExt16to64 y))) (SLLV <t> x (ZeroExt16to64 y)))
 	for {
 		t := v.Type
 		x := v_0
 		y := v_1
+		if !(!ssa.ShiftIsBounded(v)) {
+			break
+		}
 		v.Reset(ssaop.OpMIPS64AND)
 		v0 := b.NewValue0(v.Pos, ssaop.OpMIPS64NEGV, t)
 		v1 := b.NewValue0(v.Pos, ssaop.OpMIPS64SGTU, typ.Bool)
@@ -2393,18 +2626,36 @@ func rewriteValue_OpLsh8x16(v *ssa.Value) bool {
 		v.AddArg2(v0, v4)
 		return true
 	}
+	return false
 }
 func rewriteValue_OpLsh8x32(v *ssa.Value) bool {
 	v_1 := v.Args[1]
 	v_0 := v.Args[0]
 	b := v.Block
 	typ := &b.Func.Config.Types
+	// match: (Lsh8x32 x y)
+	// cond: ssa.ShiftIsBounded(v)
+	// result: (SLLV x y)
+	for {
+		x := v_0
+		y := v_1
+		if !(ssa.ShiftIsBounded(v)) {
+			break
+		}
+		v.Reset(ssaop.OpMIPS64SLLV)
+		v.AddArg2(x, y)
+		return true
+	}
 	// match: (Lsh8x32 <t> x y)
+	// cond: !ssa.ShiftIsBounded(v)
 	// result: (AND (NEGV <t> (SGTU (MOVVconst <typ.UInt64> [64]) (ZeroExt32to64 y))) (SLLV <t> x (ZeroExt32to64 y)))
 	for {
 		t := v.Type
 		x := v_0
 		y := v_1
+		if !(!ssa.ShiftIsBounded(v)) {
+			break
+		}
 		v.Reset(ssaop.OpMIPS64AND)
 		v0 := b.NewValue0(v.Pos, ssaop.OpMIPS64NEGV, t)
 		v1 := b.NewValue0(v.Pos, ssaop.OpMIPS64SGTU, typ.Bool)
@@ -2419,18 +2670,36 @@ func rewriteValue_OpLsh8x32(v *ssa.Value) bool {
 		v.AddArg2(v0, v4)
 		return true
 	}
+	return false
 }
 func rewriteValue_OpLsh8x64(v *ssa.Value) bool {
 	v_1 := v.Args[1]
 	v_0 := v.Args[0]
 	b := v.Block
 	typ := &b.Func.Config.Types
+	// match: (Lsh8x64 x y)
+	// cond: ssa.ShiftIsBounded(v)
+	// result: (SLLV x y)
+	for {
+		x := v_0
+		y := v_1
+		if !(ssa.ShiftIsBounded(v)) {
+			break
+		}
+		v.Reset(ssaop.OpMIPS64SLLV)
+		v.AddArg2(x, y)
+		return true
+	}
 	// match: (Lsh8x64 <t> x y)
+	// cond: !ssa.ShiftIsBounded(v)
 	// result: (AND (NEGV <t> (SGTU (MOVVconst <typ.UInt64> [64]) y)) (SLLV <t> x y))
 	for {
 		t := v.Type
 		x := v_0
 		y := v_1
+		if !(!ssa.ShiftIsBounded(v)) {
+			break
+		}
 		v.Reset(ssaop.OpMIPS64AND)
 		v0 := b.NewValue0(v.Pos, ssaop.OpMIPS64NEGV, t)
 		v1 := b.NewValue0(v.Pos, ssaop.OpMIPS64SGTU, typ.Bool)
@@ -2443,18 +2712,36 @@ func rewriteValue_OpLsh8x64(v *ssa.Value) bool {
 		v.AddArg2(v0, v3)
 		return true
 	}
+	return false
 }
 func rewriteValue_OpLsh8x8(v *ssa.Value) bool {
 	v_1 := v.Args[1]
 	v_0 := v.Args[0]
 	b := v.Block
 	typ := &b.Func.Config.Types
+	// match: (Lsh8x8 x y)
+	// cond: ssa.ShiftIsBounded(v)
+	// result: (SLLV x y)
+	for {
+		x := v_0
+		y := v_1
+		if !(ssa.ShiftIsBounded(v)) {
+			break
+		}
+		v.Reset(ssaop.OpMIPS64SLLV)
+		v.AddArg2(x, y)
+		return true
+	}
 	// match: (Lsh8x8 <t> x y)
+	// cond: !ssa.ShiftIsBounded(v)
 	// result: (AND (NEGV <t> (SGTU (MOVVconst <typ.UInt64> [64]) (ZeroExt8to64 y))) (SLLV <t> x (ZeroExt8to64 y)))
 	for {
 		t := v.Type
 		x := v_0
 		y := v_1
+		if !(!ssa.ShiftIsBounded(v)) {
+			break
+		}
 		v.Reset(ssaop.OpMIPS64AND)
 		v0 := b.NewValue0(v.Pos, ssaop.OpMIPS64NEGV, t)
 		v1 := b.NewValue0(v.Pos, ssaop.OpMIPS64SGTU, typ.Bool)
@@ -2469,6 +2756,7 @@ func rewriteValue_OpLsh8x8(v *ssa.Value) bool {
 		v.AddArg2(v0, v4)
 		return true
 	}
+	return false
 }
 func rewriteValue_OpMIPS64ADDV(v *ssa.Value) bool {
 	v_1 := v.Args[1]
@@ -6424,12 +6712,31 @@ func rewriteValue_OpRsh16Ux16(v *ssa.Value) bool {
 	v_0 := v.Args[0]
 	b := v.Block
 	typ := &b.Func.Config.Types
+	// match: (Rsh16Ux16 x y)
+	// cond: ssa.ShiftIsBounded(v)
+	// result: (SRLV (ZeroExt16to64 x) y)
+	for {
+		x := v_0
+		y := v_1
+		if !(ssa.ShiftIsBounded(v)) {
+			break
+		}
+		v.Reset(ssaop.OpMIPS64SRLV)
+		v0 := b.NewValue0(v.Pos, ssaop.OpZeroExt16to64, typ.UInt64)
+		v0.AddArg(x)
+		v.AddArg2(v0, y)
+		return true
+	}
 	// match: (Rsh16Ux16 <t> x y)
+	// cond: !ssa.ShiftIsBounded(v)
 	// result: (AND (NEGV <t> (SGTU (MOVVconst <typ.UInt64> [64]) (ZeroExt16to64 y))) (SRLV <t> (ZeroExt16to64 x) (ZeroExt16to64 y)))
 	for {
 		t := v.Type
 		x := v_0
 		y := v_1
+		if !(!ssa.ShiftIsBounded(v)) {
+			break
+		}
 		v.Reset(ssaop.OpMIPS64AND)
 		v0 := b.NewValue0(v.Pos, ssaop.OpMIPS64NEGV, t)
 		v1 := b.NewValue0(v.Pos, ssaop.OpMIPS64SGTU, typ.Bool)
@@ -6446,18 +6753,38 @@ func rewriteValue_OpRsh16Ux16(v *ssa.Value) bool {
 		v.AddArg2(v0, v4)
 		return true
 	}
+	return false
 }
 func rewriteValue_OpRsh16Ux32(v *ssa.Value) bool {
 	v_1 := v.Args[1]
 	v_0 := v.Args[0]
 	b := v.Block
 	typ := &b.Func.Config.Types
+	// match: (Rsh16Ux32 x y)
+	// cond: ssa.ShiftIsBounded(v)
+	// result: (SRLV (ZeroExt16to64 x) y)
+	for {
+		x := v_0
+		y := v_1
+		if !(ssa.ShiftIsBounded(v)) {
+			break
+		}
+		v.Reset(ssaop.OpMIPS64SRLV)
+		v0 := b.NewValue0(v.Pos, ssaop.OpZeroExt16to64, typ.UInt64)
+		v0.AddArg(x)
+		v.AddArg2(v0, y)
+		return true
+	}
 	// match: (Rsh16Ux32 <t> x y)
+	// cond: !ssa.ShiftIsBounded(v)
 	// result: (AND (NEGV <t> (SGTU (MOVVconst <typ.UInt64> [64]) (ZeroExt32to64 y))) (SRLV <t> (ZeroExt16to64 x) (ZeroExt32to64 y)))
 	for {
 		t := v.Type
 		x := v_0
 		y := v_1
+		if !(!ssa.ShiftIsBounded(v)) {
+			break
+		}
 		v.Reset(ssaop.OpMIPS64AND)
 		v0 := b.NewValue0(v.Pos, ssaop.OpMIPS64NEGV, t)
 		v1 := b.NewValue0(v.Pos, ssaop.OpMIPS64SGTU, typ.Bool)
@@ -6474,18 +6801,38 @@ func rewriteValue_OpRsh16Ux32(v *ssa.Value) bool {
 		v.AddArg2(v0, v4)
 		return true
 	}
+	return false
 }
 func rewriteValue_OpRsh16Ux64(v *ssa.Value) bool {
 	v_1 := v.Args[1]
 	v_0 := v.Args[0]
 	b := v.Block
 	typ := &b.Func.Config.Types
+	// match: (Rsh16Ux64 x y)
+	// cond: ssa.ShiftIsBounded(v)
+	// result: (SRLV (ZeroExt16to64 x) y)
+	for {
+		x := v_0
+		y := v_1
+		if !(ssa.ShiftIsBounded(v)) {
+			break
+		}
+		v.Reset(ssaop.OpMIPS64SRLV)
+		v0 := b.NewValue0(v.Pos, ssaop.OpZeroExt16to64, typ.UInt64)
+		v0.AddArg(x)
+		v.AddArg2(v0, y)
+		return true
+	}
 	// match: (Rsh16Ux64 <t> x y)
+	// cond: !ssa.ShiftIsBounded(v)
 	// result: (AND (NEGV <t> (SGTU (MOVVconst <typ.UInt64> [64]) y)) (SRLV <t> (ZeroExt16to64 x) y))
 	for {
 		t := v.Type
 		x := v_0
 		y := v_1
+		if !(!ssa.ShiftIsBounded(v)) {
+			break
+		}
 		v.Reset(ssaop.OpMIPS64AND)
 		v0 := b.NewValue0(v.Pos, ssaop.OpMIPS64NEGV, t)
 		v1 := b.NewValue0(v.Pos, ssaop.OpMIPS64SGTU, typ.Bool)
@@ -6500,18 +6847,38 @@ func rewriteValue_OpRsh16Ux64(v *ssa.Value) bool {
 		v.AddArg2(v0, v3)
 		return true
 	}
+	return false
 }
 func rewriteValue_OpRsh16Ux8(v *ssa.Value) bool {
 	v_1 := v.Args[1]
 	v_0 := v.Args[0]
 	b := v.Block
 	typ := &b.Func.Config.Types
+	// match: (Rsh16Ux8 x y)
+	// cond: ssa.ShiftIsBounded(v)
+	// result: (SRLV (ZeroExt16to64 x) y)
+	for {
+		x := v_0
+		y := v_1
+		if !(ssa.ShiftIsBounded(v)) {
+			break
+		}
+		v.Reset(ssaop.OpMIPS64SRLV)
+		v0 := b.NewValue0(v.Pos, ssaop.OpZeroExt16to64, typ.UInt64)
+		v0.AddArg(x)
+		v.AddArg2(v0, y)
+		return true
+	}
 	// match: (Rsh16Ux8 <t> x y)
+	// cond: !ssa.ShiftIsBounded(v)
 	// result: (AND (NEGV <t> (SGTU (MOVVconst <typ.UInt64> [64]) (ZeroExt8to64 y))) (SRLV <t> (ZeroExt16to64 x) (ZeroExt8to64 y)))
 	for {
 		t := v.Type
 		x := v_0
 		y := v_1
+		if !(!ssa.ShiftIsBounded(v)) {
+			break
+		}
 		v.Reset(ssaop.OpMIPS64AND)
 		v0 := b.NewValue0(v.Pos, ssaop.OpMIPS64NEGV, t)
 		v1 := b.NewValue0(v.Pos, ssaop.OpMIPS64SGTU, typ.Bool)
@@ -6528,18 +6895,38 @@ func rewriteValue_OpRsh16Ux8(v *ssa.Value) bool {
 		v.AddArg2(v0, v4)
 		return true
 	}
+	return false
 }
 func rewriteValue_OpRsh16x16(v *ssa.Value) bool {
 	v_1 := v.Args[1]
 	v_0 := v.Args[0]
 	b := v.Block
 	typ := &b.Func.Config.Types
+	// match: (Rsh16x16 x y)
+	// cond: ssa.ShiftIsBounded(v)
+	// result: (SRAV (SignExt16to64 x) y)
+	for {
+		x := v_0
+		y := v_1
+		if !(ssa.ShiftIsBounded(v)) {
+			break
+		}
+		v.Reset(ssaop.OpMIPS64SRAV)
+		v0 := b.NewValue0(v.Pos, ssaop.OpSignExt16to64, typ.Int64)
+		v0.AddArg(x)
+		v.AddArg2(v0, y)
+		return true
+	}
 	// match: (Rsh16x16 <t> x y)
+	// cond: !ssa.ShiftIsBounded(v)
 	// result: (SRAV (SignExt16to64 x) (OR <t> (NEGV <t> (SGTU (ZeroExt16to64 y) (MOVVconst <typ.UInt64> [63]))) (ZeroExt16to64 y)))
 	for {
 		t := v.Type
 		x := v_0
 		y := v_1
+		if !(!ssa.ShiftIsBounded(v)) {
+			break
+		}
 		v.Reset(ssaop.OpMIPS64SRAV)
 		v0 := b.NewValue0(v.Pos, ssaop.OpSignExt16to64, typ.Int64)
 		v0.AddArg(x)
@@ -6556,18 +6943,38 @@ func rewriteValue_OpRsh16x16(v *ssa.Value) bool {
 		v.AddArg2(v0, v1)
 		return true
 	}
+	return false
 }
 func rewriteValue_OpRsh16x32(v *ssa.Value) bool {
 	v_1 := v.Args[1]
 	v_0 := v.Args[0]
 	b := v.Block
 	typ := &b.Func.Config.Types
+	// match: (Rsh16x32 x y)
+	// cond: ssa.ShiftIsBounded(v)
+	// result: (SRAV (SignExt16to64 x) y)
+	for {
+		x := v_0
+		y := v_1
+		if !(ssa.ShiftIsBounded(v)) {
+			break
+		}
+		v.Reset(ssaop.OpMIPS64SRAV)
+		v0 := b.NewValue0(v.Pos, ssaop.OpSignExt16to64, typ.Int64)
+		v0.AddArg(x)
+		v.AddArg2(v0, y)
+		return true
+	}
 	// match: (Rsh16x32 <t> x y)
+	// cond: !ssa.ShiftIsBounded(v)
 	// result: (SRAV (SignExt16to64 x) (OR <t> (NEGV <t> (SGTU (ZeroExt32to64 y) (MOVVconst <typ.UInt64> [63]))) (ZeroExt32to64 y)))
 	for {
 		t := v.Type
 		x := v_0
 		y := v_1
+		if !(!ssa.ShiftIsBounded(v)) {
+			break
+		}
 		v.Reset(ssaop.OpMIPS64SRAV)
 		v0 := b.NewValue0(v.Pos, ssaop.OpSignExt16to64, typ.Int64)
 		v0.AddArg(x)
@@ -6584,18 +6991,38 @@ func rewriteValue_OpRsh16x32(v *ssa.Value) bool {
 		v.AddArg2(v0, v1)
 		return true
 	}
+	return false
 }
 func rewriteValue_OpRsh16x64(v *ssa.Value) bool {
 	v_1 := v.Args[1]
 	v_0 := v.Args[0]
 	b := v.Block
 	typ := &b.Func.Config.Types
+	// match: (Rsh16x64 x y)
+	// cond: ssa.ShiftIsBounded(v)
+	// result: (SRAV (SignExt16to64 x) y)
+	for {
+		x := v_0
+		y := v_1
+		if !(ssa.ShiftIsBounded(v)) {
+			break
+		}
+		v.Reset(ssaop.OpMIPS64SRAV)
+		v0 := b.NewValue0(v.Pos, ssaop.OpSignExt16to64, typ.Int64)
+		v0.AddArg(x)
+		v.AddArg2(v0, y)
+		return true
+	}
 	// match: (Rsh16x64 <t> x y)
+	// cond: !ssa.ShiftIsBounded(v)
 	// result: (SRAV (SignExt16to64 x) (OR <t> (NEGV <t> (SGTU y (MOVVconst <typ.UInt64> [63]))) y))
 	for {
 		t := v.Type
 		x := v_0
 		y := v_1
+		if !(!ssa.ShiftIsBounded(v)) {
+			break
+		}
 		v.Reset(ssaop.OpMIPS64SRAV)
 		v0 := b.NewValue0(v.Pos, ssaop.OpSignExt16to64, typ.Int64)
 		v0.AddArg(x)
@@ -6610,18 +7037,38 @@ func rewriteValue_OpRsh16x64(v *ssa.Value) bool {
 		v.AddArg2(v0, v1)
 		return true
 	}
+	return false
 }
 func rewriteValue_OpRsh16x8(v *ssa.Value) bool {
 	v_1 := v.Args[1]
 	v_0 := v.Args[0]
 	b := v.Block
 	typ := &b.Func.Config.Types
+	// match: (Rsh16x8 x y)
+	// cond: ssa.ShiftIsBounded(v)
+	// result: (SRAV (SignExt16to64 x) y)
+	for {
+		x := v_0
+		y := v_1
+		if !(ssa.ShiftIsBounded(v)) {
+			break
+		}
+		v.Reset(ssaop.OpMIPS64SRAV)
+		v0 := b.NewValue0(v.Pos, ssaop.OpSignExt16to64, typ.Int64)
+		v0.AddArg(x)
+		v.AddArg2(v0, y)
+		return true
+	}
 	// match: (Rsh16x8 <t> x y)
+	// cond: !ssa.ShiftIsBounded(v)
 	// result: (SRAV (SignExt16to64 x) (OR <t> (NEGV <t> (SGTU (ZeroExt8to64 y) (MOVVconst <typ.UInt64> [63]))) (ZeroExt8to64 y)))
 	for {
 		t := v.Type
 		x := v_0
 		y := v_1
+		if !(!ssa.ShiftIsBounded(v)) {
+			break
+		}
 		v.Reset(ssaop.OpMIPS64SRAV)
 		v0 := b.NewValue0(v.Pos, ssaop.OpSignExt16to64, typ.Int64)
 		v0.AddArg(x)
@@ -6638,18 +7085,38 @@ func rewriteValue_OpRsh16x8(v *ssa.Value) bool {
 		v.AddArg2(v0, v1)
 		return true
 	}
+	return false
 }
 func rewriteValue_OpRsh32Ux16(v *ssa.Value) bool {
 	v_1 := v.Args[1]
 	v_0 := v.Args[0]
 	b := v.Block
 	typ := &b.Func.Config.Types
+	// match: (Rsh32Ux16 x y)
+	// cond: ssa.ShiftIsBounded(v)
+	// result: (SRLV (ZeroExt32to64 x) y)
+	for {
+		x := v_0
+		y := v_1
+		if !(ssa.ShiftIsBounded(v)) {
+			break
+		}
+		v.Reset(ssaop.OpMIPS64SRLV)
+		v0 := b.NewValue0(v.Pos, ssaop.OpZeroExt32to64, typ.UInt64)
+		v0.AddArg(x)
+		v.AddArg2(v0, y)
+		return true
+	}
 	// match: (Rsh32Ux16 <t> x y)
+	// cond: !ssa.ShiftIsBounded(v)
 	// result: (AND (NEGV <t> (SGTU (MOVVconst <typ.UInt64> [64]) (ZeroExt16to64 y))) (SRLV <t> (ZeroExt32to64 x) (ZeroExt16to64 y)))
 	for {
 		t := v.Type
 		x := v_0
 		y := v_1
+		if !(!ssa.ShiftIsBounded(v)) {
+			break
+		}
 		v.Reset(ssaop.OpMIPS64AND)
 		v0 := b.NewValue0(v.Pos, ssaop.OpMIPS64NEGV, t)
 		v1 := b.NewValue0(v.Pos, ssaop.OpMIPS64SGTU, typ.Bool)
@@ -6666,18 +7133,38 @@ func rewriteValue_OpRsh32Ux16(v *ssa.Value) bool {
 		v.AddArg2(v0, v4)
 		return true
 	}
+	return false
 }
 func rewriteValue_OpRsh32Ux32(v *ssa.Value) bool {
 	v_1 := v.Args[1]
 	v_0 := v.Args[0]
 	b := v.Block
 	typ := &b.Func.Config.Types
+	// match: (Rsh32Ux32 x y)
+	// cond: ssa.ShiftIsBounded(v)
+	// result: (SRLV (ZeroExt32to64 x) y)
+	for {
+		x := v_0
+		y := v_1
+		if !(ssa.ShiftIsBounded(v)) {
+			break
+		}
+		v.Reset(ssaop.OpMIPS64SRLV)
+		v0 := b.NewValue0(v.Pos, ssaop.OpZeroExt32to64, typ.UInt64)
+		v0.AddArg(x)
+		v.AddArg2(v0, y)
+		return true
+	}
 	// match: (Rsh32Ux32 <t> x y)
+	// cond: !ssa.ShiftIsBounded(v)
 	// result: (AND (NEGV <t> (SGTU (MOVVconst <typ.UInt64> [64]) (ZeroExt32to64 y))) (SRLV <t> (ZeroExt32to64 x) (ZeroExt32to64 y)))
 	for {
 		t := v.Type
 		x := v_0
 		y := v_1
+		if !(!ssa.ShiftIsBounded(v)) {
+			break
+		}
 		v.Reset(ssaop.OpMIPS64AND)
 		v0 := b.NewValue0(v.Pos, ssaop.OpMIPS64NEGV, t)
 		v1 := b.NewValue0(v.Pos, ssaop.OpMIPS64SGTU, typ.Bool)
@@ -6694,18 +7181,38 @@ func rewriteValue_OpRsh32Ux32(v *ssa.Value) bool {
 		v.AddArg2(v0, v4)
 		return true
 	}
+	return false
 }
 func rewriteValue_OpRsh32Ux64(v *ssa.Value) bool {
 	v_1 := v.Args[1]
 	v_0 := v.Args[0]
 	b := v.Block
 	typ := &b.Func.Config.Types
+	// match: (Rsh32Ux64 x y)
+	// cond: ssa.ShiftIsBounded(v)
+	// result: (SRLV (ZeroExt32to64 x) y)
+	for {
+		x := v_0
+		y := v_1
+		if !(ssa.ShiftIsBounded(v)) {
+			break
+		}
+		v.Reset(ssaop.OpMIPS64SRLV)
+		v0 := b.NewValue0(v.Pos, ssaop.OpZeroExt32to64, typ.UInt64)
+		v0.AddArg(x)
+		v.AddArg2(v0, y)
+		return true
+	}
 	// match: (Rsh32Ux64 <t> x y)
+	// cond: !ssa.ShiftIsBounded(v)
 	// result: (AND (NEGV <t> (SGTU (MOVVconst <typ.UInt64> [64]) y)) (SRLV <t> (ZeroExt32to64 x) y))
 	for {
 		t := v.Type
 		x := v_0
 		y := v_1
+		if !(!ssa.ShiftIsBounded(v)) {
+			break
+		}
 		v.Reset(ssaop.OpMIPS64AND)
 		v0 := b.NewValue0(v.Pos, ssaop.OpMIPS64NEGV, t)
 		v1 := b.NewValue0(v.Pos, ssaop.OpMIPS64SGTU, typ.Bool)
@@ -6720,18 +7227,38 @@ func rewriteValue_OpRsh32Ux64(v *ssa.Value) bool {
 		v.AddArg2(v0, v3)
 		return true
 	}
+	return false
 }
 func rewriteValue_OpRsh32Ux8(v *ssa.Value) bool {
 	v_1 := v.Args[1]
 	v_0 := v.Args[0]
 	b := v.Block
 	typ := &b.Func.Config.Types
+	// match: (Rsh32Ux8 x y)
+	// cond: ssa.ShiftIsBounded(v)
+	// result: (SRLV (ZeroExt32to64 x) y)
+	for {
+		x := v_0
+		y := v_1
+		if !(ssa.ShiftIsBounded(v)) {
+			break
+		}
+		v.Reset(ssaop.OpMIPS64SRLV)
+		v0 := b.NewValue0(v.Pos, ssaop.OpZeroExt32to64, typ.UInt64)
+		v0.AddArg(x)
+		v.AddArg2(v0, y)
+		return true
+	}
 	// match: (Rsh32Ux8 <t> x y)
+	// cond: !ssa.ShiftIsBounded(v)
 	// result: (AND (NEGV <t> (SGTU (MOVVconst <typ.UInt64> [64]) (ZeroExt8to64 y))) (SRLV <t> (ZeroExt32to64 x) (ZeroExt8to64 y)))
 	for {
 		t := v.Type
 		x := v_0
 		y := v_1
+		if !(!ssa.ShiftIsBounded(v)) {
+			break
+		}
 		v.Reset(ssaop.OpMIPS64AND)
 		v0 := b.NewValue0(v.Pos, ssaop.OpMIPS64NEGV, t)
 		v1 := b.NewValue0(v.Pos, ssaop.OpMIPS64SGTU, typ.Bool)
@@ -6748,18 +7275,38 @@ func rewriteValue_OpRsh32Ux8(v *ssa.Value) bool {
 		v.AddArg2(v0, v4)
 		return true
 	}
+	return false
 }
 func rewriteValue_OpRsh32x16(v *ssa.Value) bool {
 	v_1 := v.Args[1]
 	v_0 := v.Args[0]
 	b := v.Block
 	typ := &b.Func.Config.Types
+	// match: (Rsh32x16 x y)
+	// cond: ssa.ShiftIsBounded(v)
+	// result: (SRAV (SignExt32to64 x) y)
+	for {
+		x := v_0
+		y := v_1
+		if !(ssa.ShiftIsBounded(v)) {
+			break
+		}
+		v.Reset(ssaop.OpMIPS64SRAV)
+		v0 := b.NewValue0(v.Pos, ssaop.OpSignExt32to64, typ.Int64)
+		v0.AddArg(x)
+		v.AddArg2(v0, y)
+		return true
+	}
 	// match: (Rsh32x16 <t> x y)
+	// cond: !ssa.ShiftIsBounded(v)
 	// result: (SRAV (SignExt32to64 x) (OR <t> (NEGV <t> (SGTU (ZeroExt16to64 y) (MOVVconst <typ.UInt64> [63]))) (ZeroExt16to64 y)))
 	for {
 		t := v.Type
 		x := v_0
 		y := v_1
+		if !(!ssa.ShiftIsBounded(v)) {
+			break
+		}
 		v.Reset(ssaop.OpMIPS64SRAV)
 		v0 := b.NewValue0(v.Pos, ssaop.OpSignExt32to64, typ.Int64)
 		v0.AddArg(x)
@@ -6776,18 +7323,38 @@ func rewriteValue_OpRsh32x16(v *ssa.Value) bool {
 		v.AddArg2(v0, v1)
 		return true
 	}
+	return false
 }
 func rewriteValue_OpRsh32x32(v *ssa.Value) bool {
 	v_1 := v.Args[1]
 	v_0 := v.Args[0]
 	b := v.Block
 	typ := &b.Func.Config.Types
+	// match: (Rsh32x32 x y)
+	// cond: ssa.ShiftIsBounded(v)
+	// result: (SRAV (SignExt32to64 x) y)
+	for {
+		x := v_0
+		y := v_1
+		if !(ssa.ShiftIsBounded(v)) {
+			break
+		}
+		v.Reset(ssaop.OpMIPS64SRAV)
+		v0 := b.NewValue0(v.Pos, ssaop.OpSignExt32to64, typ.Int64)
+		v0.AddArg(x)
+		v.AddArg2(v0, y)
+		return true
+	}
 	// match: (Rsh32x32 <t> x y)
+	// cond: !ssa.ShiftIsBounded(v)
 	// result: (SRAV (SignExt32to64 x) (OR <t> (NEGV <t> (SGTU (ZeroExt32to64 y) (MOVVconst <typ.UInt64> [63]))) (ZeroExt32to64 y)))
 	for {
 		t := v.Type
 		x := v_0
 		y := v_1
+		if !(!ssa.ShiftIsBounded(v)) {
+			break
+		}
 		v.Reset(ssaop.OpMIPS64SRAV)
 		v0 := b.NewValue0(v.Pos, ssaop.OpSignExt32to64, typ.Int64)
 		v0.AddArg(x)
@@ -6804,18 +7371,38 @@ func rewriteValue_OpRsh32x32(v *ssa.Value) bool {
 		v.AddArg2(v0, v1)
 		return true
 	}
+	return false
 }
 func rewriteValue_OpRsh32x64(v *ssa.Value) bool {
 	v_1 := v.Args[1]
 	v_0 := v.Args[0]
 	b := v.Block
 	typ := &b.Func.Config.Types
+	// match: (Rsh32x64 x y)
+	// cond: ssa.ShiftIsBounded(v)
+	// result: (SRAV (SignExt32to64 x) y)
+	for {
+		x := v_0
+		y := v_1
+		if !(ssa.ShiftIsBounded(v)) {
+			break
+		}
+		v.Reset(ssaop.OpMIPS64SRAV)
+		v0 := b.NewValue0(v.Pos, ssaop.OpSignExt32to64, typ.Int64)
+		v0.AddArg(x)
+		v.AddArg2(v0, y)
+		return true
+	}
 	// match: (Rsh32x64 <t> x y)
+	// cond: !ssa.ShiftIsBounded(v)
 	// result: (SRAV (SignExt32to64 x) (OR <t> (NEGV <t> (SGTU y (MOVVconst <typ.UInt64> [63]))) y))
 	for {
 		t := v.Type
 		x := v_0
 		y := v_1
+		if !(!ssa.ShiftIsBounded(v)) {
+			break
+		}
 		v.Reset(ssaop.OpMIPS64SRAV)
 		v0 := b.NewValue0(v.Pos, ssaop.OpSignExt32to64, typ.Int64)
 		v0.AddArg(x)
@@ -6830,18 +7417,38 @@ func rewriteValue_OpRsh32x64(v *ssa.Value) bool {
 		v.AddArg2(v0, v1)
 		return true
 	}
+	return false
 }
 func rewriteValue_OpRsh32x8(v *ssa.Value) bool {
 	v_1 := v.Args[1]
 	v_0 := v.Args[0]
 	b := v.Block
 	typ := &b.Func.Config.Types
+	// match: (Rsh32x8 x y)
+	// cond: ssa.ShiftIsBounded(v)
+	// result: (SRAV (SignExt32to64 x) y)
+	for {
+		x := v_0
+		y := v_1
+		if !(ssa.ShiftIsBounded(v)) {
+			break
+		}
+		v.Reset(ssaop.OpMIPS64SRAV)
+		v0 := b.NewValue0(v.Pos, ssaop.OpSignExt32to64, typ.Int64)
+		v0.AddArg(x)
+		v.AddArg2(v0, y)
+		return true
+	}
 	// match: (Rsh32x8 <t> x y)
+	// cond: !ssa.ShiftIsBounded(v)
 	// result: (SRAV (SignExt32to64 x) (OR <t> (NEGV <t> (SGTU (ZeroExt8to64 y) (MOVVconst <typ.UInt64> [63]))) (ZeroExt8to64 y)))
 	for {
 		t := v.Type
 		x := v_0
 		y := v_1
+		if !(!ssa.ShiftIsBounded(v)) {
+			break
+		}
 		v.Reset(ssaop.OpMIPS64SRAV)
 		v0 := b.NewValue0(v.Pos, ssaop.OpSignExt32to64, typ.Int64)
 		v0.AddArg(x)
@@ -6858,18 +7465,36 @@ func rewriteValue_OpRsh32x8(v *ssa.Value) bool {
 		v.AddArg2(v0, v1)
 		return true
 	}
+	return false
 }
 func rewriteValue_OpRsh64Ux16(v *ssa.Value) bool {
 	v_1 := v.Args[1]
 	v_0 := v.Args[0]
 	b := v.Block
 	typ := &b.Func.Config.Types
+	// match: (Rsh64Ux16 x y)
+	// cond: ssa.ShiftIsBounded(v)
+	// result: (SRLV x y)
+	for {
+		x := v_0
+		y := v_1
+		if !(ssa.ShiftIsBounded(v)) {
+			break
+		}
+		v.Reset(ssaop.OpMIPS64SRLV)
+		v.AddArg2(x, y)
+		return true
+	}
 	// match: (Rsh64Ux16 <t> x y)
+	// cond: !ssa.ShiftIsBounded(v)
 	// result: (AND (NEGV <t> (SGTU (MOVVconst <typ.UInt64> [64]) (ZeroExt16to64 y))) (SRLV <t> x (ZeroExt16to64 y)))
 	for {
 		t := v.Type
 		x := v_0
 		y := v_1
+		if !(!ssa.ShiftIsBounded(v)) {
+			break
+		}
 		v.Reset(ssaop.OpMIPS64AND)
 		v0 := b.NewValue0(v.Pos, ssaop.OpMIPS64NEGV, t)
 		v1 := b.NewValue0(v.Pos, ssaop.OpMIPS64SGTU, typ.Bool)
@@ -6884,18 +7509,36 @@ func rewriteValue_OpRsh64Ux16(v *ssa.Value) bool {
 		v.AddArg2(v0, v4)
 		return true
 	}
+	return false
 }
 func rewriteValue_OpRsh64Ux32(v *ssa.Value) bool {
 	v_1 := v.Args[1]
 	v_0 := v.Args[0]
 	b := v.Block
 	typ := &b.Func.Config.Types
+	// match: (Rsh64Ux32 x y)
+	// cond: ssa.ShiftIsBounded(v)
+	// result: (SRLV x y)
+	for {
+		x := v_0
+		y := v_1
+		if !(ssa.ShiftIsBounded(v)) {
+			break
+		}
+		v.Reset(ssaop.OpMIPS64SRLV)
+		v.AddArg2(x, y)
+		return true
+	}
 	// match: (Rsh64Ux32 <t> x y)
+	// cond: !ssa.ShiftIsBounded(v)
 	// result: (AND (NEGV <t> (SGTU (MOVVconst <typ.UInt64> [64]) (ZeroExt32to64 y))) (SRLV <t> x (ZeroExt32to64 y)))
 	for {
 		t := v.Type
 		x := v_0
 		y := v_1
+		if !(!ssa.ShiftIsBounded(v)) {
+			break
+		}
 		v.Reset(ssaop.OpMIPS64AND)
 		v0 := b.NewValue0(v.Pos, ssaop.OpMIPS64NEGV, t)
 		v1 := b.NewValue0(v.Pos, ssaop.OpMIPS64SGTU, typ.Bool)
@@ -6910,18 +7553,36 @@ func rewriteValue_OpRsh64Ux32(v *ssa.Value) bool {
 		v.AddArg2(v0, v4)
 		return true
 	}
+	return false
 }
 func rewriteValue_OpRsh64Ux64(v *ssa.Value) bool {
 	v_1 := v.Args[1]
 	v_0 := v.Args[0]
 	b := v.Block
 	typ := &b.Func.Config.Types
+	// match: (Rsh64Ux64 x y)
+	// cond: ssa.ShiftIsBounded(v)
+	// result: (SRLV x y)
+	for {
+		x := v_0
+		y := v_1
+		if !(ssa.ShiftIsBounded(v)) {
+			break
+		}
+		v.Reset(ssaop.OpMIPS64SRLV)
+		v.AddArg2(x, y)
+		return true
+	}
 	// match: (Rsh64Ux64 <t> x y)
+	// cond: !ssa.ShiftIsBounded(v)
 	// result: (AND (NEGV <t> (SGTU (MOVVconst <typ.UInt64> [64]) y)) (SRLV <t> x y))
 	for {
 		t := v.Type
 		x := v_0
 		y := v_1
+		if !(!ssa.ShiftIsBounded(v)) {
+			break
+		}
 		v.Reset(ssaop.OpMIPS64AND)
 		v0 := b.NewValue0(v.Pos, ssaop.OpMIPS64NEGV, t)
 		v1 := b.NewValue0(v.Pos, ssaop.OpMIPS64SGTU, typ.Bool)
@@ -6934,18 +7595,36 @@ func rewriteValue_OpRsh64Ux64(v *ssa.Value) bool {
 		v.AddArg2(v0, v3)
 		return true
 	}
+	return false
 }
 func rewriteValue_OpRsh64Ux8(v *ssa.Value) bool {
 	v_1 := v.Args[1]
 	v_0 := v.Args[0]
 	b := v.Block
 	typ := &b.Func.Config.Types
+	// match: (Rsh64Ux8 x y)
+	// cond: ssa.ShiftIsBounded(v)
+	// result: (SRLV x y)
+	for {
+		x := v_0
+		y := v_1
+		if !(ssa.ShiftIsBounded(v)) {
+			break
+		}
+		v.Reset(ssaop.OpMIPS64SRLV)
+		v.AddArg2(x, y)
+		return true
+	}
 	// match: (Rsh64Ux8 <t> x y)
+	// cond: !ssa.ShiftIsBounded(v)
 	// result: (AND (NEGV <t> (SGTU (MOVVconst <typ.UInt64> [64]) (ZeroExt8to64 y))) (SRLV <t> x (ZeroExt8to64 y)))
 	for {
 		t := v.Type
 		x := v_0
 		y := v_1
+		if !(!ssa.ShiftIsBounded(v)) {
+			break
+		}
 		v.Reset(ssaop.OpMIPS64AND)
 		v0 := b.NewValue0(v.Pos, ssaop.OpMIPS64NEGV, t)
 		v1 := b.NewValue0(v.Pos, ssaop.OpMIPS64SGTU, typ.Bool)
@@ -6960,18 +7639,36 @@ func rewriteValue_OpRsh64Ux8(v *ssa.Value) bool {
 		v.AddArg2(v0, v4)
 		return true
 	}
+	return false
 }
 func rewriteValue_OpRsh64x16(v *ssa.Value) bool {
 	v_1 := v.Args[1]
 	v_0 := v.Args[0]
 	b := v.Block
 	typ := &b.Func.Config.Types
+	// match: (Rsh64x16 x y)
+	// cond: ssa.ShiftIsBounded(v)
+	// result: (SRAV x y)
+	for {
+		x := v_0
+		y := v_1
+		if !(ssa.ShiftIsBounded(v)) {
+			break
+		}
+		v.Reset(ssaop.OpMIPS64SRAV)
+		v.AddArg2(x, y)
+		return true
+	}
 	// match: (Rsh64x16 <t> x y)
+	// cond: !ssa.ShiftIsBounded(v)
 	// result: (SRAV x (OR <t> (NEGV <t> (SGTU (ZeroExt16to64 y) (MOVVconst <typ.UInt64> [63]))) (ZeroExt16to64 y)))
 	for {
 		t := v.Type
 		x := v_0
 		y := v_1
+		if !(!ssa.ShiftIsBounded(v)) {
+			break
+		}
 		v.Reset(ssaop.OpMIPS64SRAV)
 		v0 := b.NewValue0(v.Pos, ssaop.OpMIPS64OR, t)
 		v1 := b.NewValue0(v.Pos, ssaop.OpMIPS64NEGV, t)
@@ -6986,18 +7683,36 @@ func rewriteValue_OpRsh64x16(v *ssa.Value) bool {
 		v.AddArg2(x, v0)
 		return true
 	}
+	return false
 }
 func rewriteValue_OpRsh64x32(v *ssa.Value) bool {
 	v_1 := v.Args[1]
 	v_0 := v.Args[0]
 	b := v.Block
 	typ := &b.Func.Config.Types
+	// match: (Rsh64x32 x y)
+	// cond: ssa.ShiftIsBounded(v)
+	// result: (SRAV x y)
+	for {
+		x := v_0
+		y := v_1
+		if !(ssa.ShiftIsBounded(v)) {
+			break
+		}
+		v.Reset(ssaop.OpMIPS64SRAV)
+		v.AddArg2(x, y)
+		return true
+	}
 	// match: (Rsh64x32 <t> x y)
+	// cond: !ssa.ShiftIsBounded(v)
 	// result: (SRAV x (OR <t> (NEGV <t> (SGTU (ZeroExt32to64 y) (MOVVconst <typ.UInt64> [63]))) (ZeroExt32to64 y)))
 	for {
 		t := v.Type
 		x := v_0
 		y := v_1
+		if !(!ssa.ShiftIsBounded(v)) {
+			break
+		}
 		v.Reset(ssaop.OpMIPS64SRAV)
 		v0 := b.NewValue0(v.Pos, ssaop.OpMIPS64OR, t)
 		v1 := b.NewValue0(v.Pos, ssaop.OpMIPS64NEGV, t)
@@ -7012,18 +7727,36 @@ func rewriteValue_OpRsh64x32(v *ssa.Value) bool {
 		v.AddArg2(x, v0)
 		return true
 	}
+	return false
 }
 func rewriteValue_OpRsh64x64(v *ssa.Value) bool {
 	v_1 := v.Args[1]
 	v_0 := v.Args[0]
 	b := v.Block
 	typ := &b.Func.Config.Types
+	// match: (Rsh64x64 x y)
+	// cond: ssa.ShiftIsBounded(v)
+	// result: (SRAV x y)
+	for {
+		x := v_0
+		y := v_1
+		if !(ssa.ShiftIsBounded(v)) {
+			break
+		}
+		v.Reset(ssaop.OpMIPS64SRAV)
+		v.AddArg2(x, y)
+		return true
+	}
 	// match: (Rsh64x64 <t> x y)
+	// cond: !ssa.ShiftIsBounded(v)
 	// result: (SRAV x (OR <t> (NEGV <t> (SGTU y (MOVVconst <typ.UInt64> [63]))) y))
 	for {
 		t := v.Type
 		x := v_0
 		y := v_1
+		if !(!ssa.ShiftIsBounded(v)) {
+			break
+		}
 		v.Reset(ssaop.OpMIPS64SRAV)
 		v0 := b.NewValue0(v.Pos, ssaop.OpMIPS64OR, t)
 		v1 := b.NewValue0(v.Pos, ssaop.OpMIPS64NEGV, t)
@@ -7036,18 +7769,36 @@ func rewriteValue_OpRsh64x64(v *ssa.Value) bool {
 		v.AddArg2(x, v0)
 		return true
 	}
+	return false
 }
 func rewriteValue_OpRsh64x8(v *ssa.Value) bool {
 	v_1 := v.Args[1]
 	v_0 := v.Args[0]
 	b := v.Block
 	typ := &b.Func.Config.Types
+	// match: (Rsh64x8 x y)
+	// cond: ssa.ShiftIsBounded(v)
+	// result: (SRAV x y)
+	for {
+		x := v_0
+		y := v_1
+		if !(ssa.ShiftIsBounded(v)) {
+			break
+		}
+		v.Reset(ssaop.OpMIPS64SRAV)
+		v.AddArg2(x, y)
+		return true
+	}
 	// match: (Rsh64x8 <t> x y)
+	// cond: !ssa.ShiftIsBounded(v)
 	// result: (SRAV x (OR <t> (NEGV <t> (SGTU (ZeroExt8to64 y) (MOVVconst <typ.UInt64> [63]))) (ZeroExt8to64 y)))
 	for {
 		t := v.Type
 		x := v_0
 		y := v_1
+		if !(!ssa.ShiftIsBounded(v)) {
+			break
+		}
 		v.Reset(ssaop.OpMIPS64SRAV)
 		v0 := b.NewValue0(v.Pos, ssaop.OpMIPS64OR, t)
 		v1 := b.NewValue0(v.Pos, ssaop.OpMIPS64NEGV, t)
@@ -7062,18 +7813,38 @@ func rewriteValue_OpRsh64x8(v *ssa.Value) bool {
 		v.AddArg2(x, v0)
 		return true
 	}
+	return false
 }
 func rewriteValue_OpRsh8Ux16(v *ssa.Value) bool {
 	v_1 := v.Args[1]
 	v_0 := v.Args[0]
 	b := v.Block
 	typ := &b.Func.Config.Types
+	// match: (Rsh8Ux16 x y)
+	// cond: ssa.ShiftIsBounded(v)
+	// result: (SRLV (ZeroExt8to64 x) y)
+	for {
+		x := v_0
+		y := v_1
+		if !(ssa.ShiftIsBounded(v)) {
+			break
+		}
+		v.Reset(ssaop.OpMIPS64SRLV)
+		v0 := b.NewValue0(v.Pos, ssaop.OpZeroExt8to64, typ.UInt64)
+		v0.AddArg(x)
+		v.AddArg2(v0, y)
+		return true
+	}
 	// match: (Rsh8Ux16 <t> x y)
+	// cond: !ssa.ShiftIsBounded(v)
 	// result: (AND (NEGV <t> (SGTU (MOVVconst <typ.UInt64> [64]) (ZeroExt16to64 y))) (SRLV <t> (ZeroExt8to64 x) (ZeroExt16to64 y)))
 	for {
 		t := v.Type
 		x := v_0
 		y := v_1
+		if !(!ssa.ShiftIsBounded(v)) {
+			break
+		}
 		v.Reset(ssaop.OpMIPS64AND)
 		v0 := b.NewValue0(v.Pos, ssaop.OpMIPS64NEGV, t)
 		v1 := b.NewValue0(v.Pos, ssaop.OpMIPS64SGTU, typ.Bool)
@@ -7090,18 +7861,38 @@ func rewriteValue_OpRsh8Ux16(v *ssa.Value) bool {
 		v.AddArg2(v0, v4)
 		return true
 	}
+	return false
 }
 func rewriteValue_OpRsh8Ux32(v *ssa.Value) bool {
 	v_1 := v.Args[1]
 	v_0 := v.Args[0]
 	b := v.Block
 	typ := &b.Func.Config.Types
+	// match: (Rsh8Ux32 x y)
+	// cond: ssa.ShiftIsBounded(v)
+	// result: (SRLV (ZeroExt8to64 x) y)
+	for {
+		x := v_0
+		y := v_1
+		if !(ssa.ShiftIsBounded(v)) {
+			break
+		}
+		v.Reset(ssaop.OpMIPS64SRLV)
+		v0 := b.NewValue0(v.Pos, ssaop.OpZeroExt8to64, typ.UInt64)
+		v0.AddArg(x)
+		v.AddArg2(v0, y)
+		return true
+	}
 	// match: (Rsh8Ux32 <t> x y)
+	// cond: !ssa.ShiftIsBounded(v)
 	// result: (AND (NEGV <t> (SGTU (MOVVconst <typ.UInt64> [64]) (ZeroExt32to64 y))) (SRLV <t> (ZeroExt8to64 x) (ZeroExt32to64 y)))
 	for {
 		t := v.Type
 		x := v_0
 		y := v_1
+		if !(!ssa.ShiftIsBounded(v)) {
+			break
+		}
 		v.Reset(ssaop.OpMIPS64AND)
 		v0 := b.NewValue0(v.Pos, ssaop.OpMIPS64NEGV, t)
 		v1 := b.NewValue0(v.Pos, ssaop.OpMIPS64SGTU, typ.Bool)
@@ -7118,18 +7909,38 @@ func rewriteValue_OpRsh8Ux32(v *ssa.Value) bool {
 		v.AddArg2(v0, v4)
 		return true
 	}
+	return false
 }
 func rewriteValue_OpRsh8Ux64(v *ssa.Value) bool {
 	v_1 := v.Args[1]
 	v_0 := v.Args[0]
 	b := v.Block
 	typ := &b.Func.Config.Types
+	// match: (Rsh8Ux64 x y)
+	// cond: ssa.ShiftIsBounded(v)
+	// result: (SRLV (ZeroExt8to64 x) y)
+	for {
+		x := v_0
+		y := v_1
+		if !(ssa.ShiftIsBounded(v)) {
+			break
+		}
+		v.Reset(ssaop.OpMIPS64SRLV)
+		v0 := b.NewValue0(v.Pos, ssaop.OpZeroExt8to64, typ.UInt64)
+		v0.AddArg(x)
+		v.AddArg2(v0, y)
+		return true
+	}
 	// match: (Rsh8Ux64 <t> x y)
+	// cond: !ssa.ShiftIsBounded(v)
 	// result: (AND (NEGV <t> (SGTU (MOVVconst <typ.UInt64> [64]) y)) (SRLV <t> (ZeroExt8to64 x) y))
 	for {
 		t := v.Type
 		x := v_0
 		y := v_1
+		if !(!ssa.ShiftIsBounded(v)) {
+			break
+		}
 		v.Reset(ssaop.OpMIPS64AND)
 		v0 := b.NewValue0(v.Pos, ssaop.OpMIPS64NEGV, t)
 		v1 := b.NewValue0(v.Pos, ssaop.OpMIPS64SGTU, typ.Bool)
@@ -7144,18 +7955,38 @@ func rewriteValue_OpRsh8Ux64(v *ssa.Value) bool {
 		v.AddArg2(v0, v3)
 		return true
 	}
+	return false
 }
 func rewriteValue_OpRsh8Ux8(v *ssa.Value) bool {
 	v_1 := v.Args[1]
 	v_0 := v.Args[0]
 	b := v.Block
 	typ := &b.Func.Config.Types
+	// match: (Rsh8Ux8 x y)
+	// cond: ssa.ShiftIsBounded(v)
+	// result: (SRLV (ZeroExt8to64 x) y)
+	for {
+		x := v_0
+		y := v_1
+		if !(ssa.ShiftIsBounded(v)) {
+			break
+		}
+		v.Reset(ssaop.OpMIPS64SRLV)
+		v0 := b.NewValue0(v.Pos, ssaop.OpZeroExt8to64, typ.UInt64)
+		v0.AddArg(x)
+		v.AddArg2(v0, y)
+		return true
+	}
 	// match: (Rsh8Ux8 <t> x y)
+	// cond: !ssa.ShiftIsBounded(v)
 	// result: (AND (NEGV <t> (SGTU (MOVVconst <typ.UInt64> [64]) (ZeroExt8to64 y))) (SRLV <t> (ZeroExt8to64 x) (ZeroExt8to64 y)))
 	for {
 		t := v.Type
 		x := v_0
 		y := v_1
+		if !(!ssa.ShiftIsBounded(v)) {
+			break
+		}
 		v.Reset(ssaop.OpMIPS64AND)
 		v0 := b.NewValue0(v.Pos, ssaop.OpMIPS64NEGV, t)
 		v1 := b.NewValue0(v.Pos, ssaop.OpMIPS64SGTU, typ.Bool)
@@ -7172,18 +8003,38 @@ func rewriteValue_OpRsh8Ux8(v *ssa.Value) bool {
 		v.AddArg2(v0, v4)
 		return true
 	}
+	return false
 }
 func rewriteValue_OpRsh8x16(v *ssa.Value) bool {
 	v_1 := v.Args[1]
 	v_0 := v.Args[0]
 	b := v.Block
 	typ := &b.Func.Config.Types
+	// match: (Rsh8x16 x y)
+	// cond: ssa.ShiftIsBounded(v)
+	// result: (SRAV (SignExt8to64 x) y)
+	for {
+		x := v_0
+		y := v_1
+		if !(ssa.ShiftIsBounded(v)) {
+			break
+		}
+		v.Reset(ssaop.OpMIPS64SRAV)
+		v0 := b.NewValue0(v.Pos, ssaop.OpSignExt8to64, typ.Int64)
+		v0.AddArg(x)
+		v.AddArg2(v0, y)
+		return true
+	}
 	// match: (Rsh8x16 <t> x y)
+	// cond: !ssa.ShiftIsBounded(v)
 	// result: (SRAV (SignExt8to64 x) (OR <t> (NEGV <t> (SGTU (ZeroExt16to64 y) (MOVVconst <typ.UInt64> [63]))) (ZeroExt16to64 y)))
 	for {
 		t := v.Type
 		x := v_0
 		y := v_1
+		if !(!ssa.ShiftIsBounded(v)) {
+			break
+		}
 		v.Reset(ssaop.OpMIPS64SRAV)
 		v0 := b.NewValue0(v.Pos, ssaop.OpSignExt8to64, typ.Int64)
 		v0.AddArg(x)
@@ -7200,18 +8051,38 @@ func rewriteValue_OpRsh8x16(v *ssa.Value) bool {
 		v.AddArg2(v0, v1)
 		return true
 	}
+	return false
 }
 func rewriteValue_OpRsh8x32(v *ssa.Value) bool {
 	v_1 := v.Args[1]
 	v_0 := v.Args[0]
 	b := v.Block
 	typ := &b.Func.Config.Types
+	// match: (Rsh8x32 x y)
+	// cond: ssa.ShiftIsBounded(v)
+	// result: (SRAV (SignExt8to64 x) y)
+	for {
+		x := v_0
+		y := v_1
+		if !(ssa.ShiftIsBounded(v)) {
+			break
+		}
+		v.Reset(ssaop.OpMIPS64SRAV)
+		v0 := b.NewValue0(v.Pos, ssaop.OpSignExt8to64, typ.Int64)
+		v0.AddArg(x)
+		v.AddArg2(v0, y)
+		return true
+	}
 	// match: (Rsh8x32 <t> x y)
+	// cond: !ssa.ShiftIsBounded(v)
 	// result: (SRAV (SignExt8to64 x) (OR <t> (NEGV <t> (SGTU (ZeroExt32to64 y) (MOVVconst <typ.UInt64> [63]))) (ZeroExt32to64 y)))
 	for {
 		t := v.Type
 		x := v_0
 		y := v_1
+		if !(!ssa.ShiftIsBounded(v)) {
+			break
+		}
 		v.Reset(ssaop.OpMIPS64SRAV)
 		v0 := b.NewValue0(v.Pos, ssaop.OpSignExt8to64, typ.Int64)
 		v0.AddArg(x)
@@ -7228,18 +8099,38 @@ func rewriteValue_OpRsh8x32(v *ssa.Value) bool {
 		v.AddArg2(v0, v1)
 		return true
 	}
+	return false
 }
 func rewriteValue_OpRsh8x64(v *ssa.Value) bool {
 	v_1 := v.Args[1]
 	v_0 := v.Args[0]
 	b := v.Block
 	typ := &b.Func.Config.Types
+	// match: (Rsh8x64 x y)
+	// cond: ssa.ShiftIsBounded(v)
+	// result: (SRAV (SignExt8to64 x) y)
+	for {
+		x := v_0
+		y := v_1
+		if !(ssa.ShiftIsBounded(v)) {
+			break
+		}
+		v.Reset(ssaop.OpMIPS64SRAV)
+		v0 := b.NewValue0(v.Pos, ssaop.OpSignExt8to64, typ.Int64)
+		v0.AddArg(x)
+		v.AddArg2(v0, y)
+		return true
+	}
 	// match: (Rsh8x64 <t> x y)
+	// cond: !ssa.ShiftIsBounded(v)
 	// result: (SRAV (SignExt8to64 x) (OR <t> (NEGV <t> (SGTU y (MOVVconst <typ.UInt64> [63]))) y))
 	for {
 		t := v.Type
 		x := v_0
 		y := v_1
+		if !(!ssa.ShiftIsBounded(v)) {
+			break
+		}
 		v.Reset(ssaop.OpMIPS64SRAV)
 		v0 := b.NewValue0(v.Pos, ssaop.OpSignExt8to64, typ.Int64)
 		v0.AddArg(x)
@@ -7254,18 +8145,38 @@ func rewriteValue_OpRsh8x64(v *ssa.Value) bool {
 		v.AddArg2(v0, v1)
 		return true
 	}
+	return false
 }
 func rewriteValue_OpRsh8x8(v *ssa.Value) bool {
 	v_1 := v.Args[1]
 	v_0 := v.Args[0]
 	b := v.Block
 	typ := &b.Func.Config.Types
+	// match: (Rsh8x8 x y)
+	// cond: ssa.ShiftIsBounded(v)
+	// result: (SRAV (SignExt8to64 x) y)
+	for {
+		x := v_0
+		y := v_1
+		if !(ssa.ShiftIsBounded(v)) {
+			break
+		}
+		v.Reset(ssaop.OpMIPS64SRAV)
+		v0 := b.NewValue0(v.Pos, ssaop.OpSignExt8to64, typ.Int64)
+		v0.AddArg(x)
+		v.AddArg2(v0, y)
+		return true
+	}
 	// match: (Rsh8x8 <t> x y)
+	// cond: !ssa.ShiftIsBounded(v)
 	// result: (SRAV (SignExt8to64 x) (OR <t> (NEGV <t> (SGTU (ZeroExt8to64 y) (MOVVconst <typ.UInt64> [63]))) (ZeroExt8to64 y)))
 	for {
 		t := v.Type
 		x := v_0
 		y := v_1
+		if !(!ssa.ShiftIsBounded(v)) {
+			break
+		}
 		v.Reset(ssaop.OpMIPS64SRAV)
 		v0 := b.NewValue0(v.Pos, ssaop.OpSignExt8to64, typ.Int64)
 		v0.AddArg(x)
@@ -7282,6 +8193,7 @@ func rewriteValue_OpRsh8x8(v *ssa.Value) bool {
 		v.AddArg2(v0, v1)
 		return true
 	}
+	return false
 }
 func rewriteValue_OpSelect0(v *ssa.Value) bool {
 	v_0 := v.Args[0]
