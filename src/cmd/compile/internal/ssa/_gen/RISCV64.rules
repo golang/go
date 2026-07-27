@@ -622,17 +622,19 @@
 (MOVBUreg x:(Select0 (LoweredAtomicCas64 _ _ _ _))) => (MOVDreg x)
 
 // Avoid sign extension after word arithmetic.
-(MOVWreg x:(ADDIW   _)) => (MOVDreg x)
-(MOVWreg x:(SUBW  _ _)) => (MOVDreg x)
-(MOVWreg x:(NEGW    _)) => (MOVDreg x)
-(MOVWreg x:(MULW  _ _)) => (MOVDreg x)
-(MOVWreg x:(DIVW  _ _)) => (MOVDreg x)
-(MOVWreg x:(DIVUW _ _)) => (MOVDreg x)
-(MOVWreg x:(REMW  _ _)) => (MOVDreg x)
-(MOVWreg x:(REMUW _ _)) => (MOVDreg x)
-(MOVWreg x:(ROLW  _ _)) => (MOVDreg x)
-(MOVWreg x:(RORW  _ _)) => (MOVDreg x)
-(MOVWreg x:(RORIW   _)) => (MOVDreg x)
+// Careful to not omit the sign extension in cases where regalloc
+// might restore without it, see issue 80577.
+(MOVWreg x:(ADDIW   _)) && (x.Type.Size() == 8 || (x.Type.Size() == 4 && x.Type.IsSigned())) => (MOVDreg x)
+(MOVWreg x:(SUBW  _ _)) && (x.Type.Size() == 8 || (x.Type.Size() == 4 && x.Type.IsSigned())) => (MOVDreg x)
+(MOVWreg x:(NEGW    _)) && (x.Type.Size() == 8 || (x.Type.Size() == 4 && x.Type.IsSigned())) => (MOVDreg x)
+(MOVWreg x:(MULW  _ _)) && (x.Type.Size() == 8 || (x.Type.Size() == 4 && x.Type.IsSigned())) => (MOVDreg x)
+(MOVWreg x:(DIVW  _ _)) && (x.Type.Size() == 8 || (x.Type.Size() == 4 && x.Type.IsSigned())) => (MOVDreg x)
+(MOVWreg x:(DIVUW _ _)) && (x.Type.Size() == 8 || (x.Type.Size() == 4 && x.Type.IsSigned())) => (MOVDreg x)
+(MOVWreg x:(REMW  _ _)) && (x.Type.Size() == 8 || (x.Type.Size() == 4 && x.Type.IsSigned())) => (MOVDreg x)
+(MOVWreg x:(REMUW _ _)) && (x.Type.Size() == 8 || (x.Type.Size() == 4 && x.Type.IsSigned())) => (MOVDreg x)
+(MOVWreg x:(ROLW  _ _)) && (x.Type.Size() == 8 || (x.Type.Size() == 4 && x.Type.IsSigned())) => (MOVDreg x)
+(MOVWreg x:(RORW  _ _)) && (x.Type.Size() == 8 || (x.Type.Size() == 4 && x.Type.IsSigned())) => (MOVDreg x)
+(MOVWreg x:(RORIW   _)) && (x.Type.Size() == 8 || (x.Type.Size() == 4 && x.Type.IsSigned())) => (MOVDreg x)
 
 // Fold double extensions.
 (MOVBreg  x:(MOVBreg  _)) => (MOVDreg x)
