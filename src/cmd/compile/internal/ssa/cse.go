@@ -535,7 +535,7 @@ func skipDisjointMemDefs(user *Value, idxUserPtr, idxUserMem int, useWidth int64
 				continue
 			}
 			defPtr := mem.Args[idxPtr]
-			if disjoint(defPtr, width, usePtr, useWidth) {
+			if disjoint1(defPtr, width, usePtr, useWidth) {
 				mem = mem.Args[idxMem]
 				continue
 			}

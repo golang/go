@@ -896,10 +896,17 @@ func isStackPtr(v *Value) bool {
 	return v.Op == OpSP || v.Op == OpLocalAddr
 }
 
-// disjoint reports whether the memory region specified by [p1:p1+n1)
+// disjoint reports whether the memory region specified by [p1:p1+t1.Size())
+// does not overlap with [p2:p2+t2.Size()).
+// A return value of false does not imply the regions overlap.
+func disjoint(p1 *Value, t1 *types.Type, p2 *Value, t2 *types.Type) bool {
+	return disjoint1(p1, t1.Size(), p2, t2.Size())
+}
+
+// disjoint1 reports whether the memory region specified by [p1:p1+n1)
 // does not overlap with [p2:p2+n2).
 // A return value of false does not imply the regions overlap.
-func disjoint(p1 *Value, n1 int64, p2 *Value, n2 int64) bool {
+func disjoint1(p1 *Value, n1 int64, p2 *Value, n2 int64) bool {
 	if n1 == 0 || n2 == 0 {
 		return true
 	}
@@ -1612,15 +1619,15 @@ func isInlinableMemmove(dst, src *Value, sz int64, c *Config) bool {
 	// have fast Move ops.
 	switch c.arch {
 	case "amd64":
-		return sz <= 16 || (sz < 1024 && disjoint(dst, sz, src, sz))
+		return sz <= 16 || (sz < 1024 && disjoint1(dst, sz, src, sz))
 	case "arm64":
-		return sz <= 64 || (sz <= 1024 && disjoint(dst, sz, src, sz))
+		return sz <= 64 || (sz <= 1024 && disjoint1(dst, sz, src, sz))
 	case "loong64":
-		return sz <= 16 || (sz <= 64 && disjoint(dst, sz, src, sz))
+		return sz <= 16 || (sz <= 64 && disjoint1(dst, sz, src, sz))
 	case "386":
 		return sz <= 8
 	case "s390x", "ppc64", "ppc64le":
-		return sz <= 8 || disjoint(dst, sz, src, sz)
+		return sz <= 8 || disjoint1(dst, sz, src, sz)
 	case "arm", "mips", "mips64", "mipsle", "mips64le":
 		return sz <= 4
 	}
