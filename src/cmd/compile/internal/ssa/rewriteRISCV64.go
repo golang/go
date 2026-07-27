@@ -6670,10 +6670,11 @@ func rewriteValueRISCV64_OpRISCV64MOVWreg(v *Value) bool {
 		return true
 	}
 	// match: (MOVWreg x:(ADDIW _))
+	// cond: (x.Type.Size() == 8 || (x.Type.Size() == 4 && x.Type.IsSigned()))
 	// result: (MOVDreg x)
 	for {
 		x := v_0
-		if x.Op != OpRISCV64ADDIW {
+		if x.Op != OpRISCV64ADDIW || !(x.Type.Size() == 8 || (x.Type.Size() == 4 && x.Type.IsSigned())) {
 			break
 		}
 		v.reset(OpRISCV64MOVDreg)
@@ -6681,10 +6682,11 @@ func rewriteValueRISCV64_OpRISCV64MOVWreg(v *Value) bool {
 		return true
 	}
 	// match: (MOVWreg x:(SUBW _ _))
+	// cond: (x.Type.Size() == 8 || (x.Type.Size() == 4 && x.Type.IsSigned()))
 	// result: (MOVDreg x)
 	for {
 		x := v_0
-		if x.Op != OpRISCV64SUBW {
+		if x.Op != OpRISCV64SUBW || !(x.Type.Size() == 8 || (x.Type.Size() == 4 && x.Type.IsSigned())) {
 			break
 		}
 		v.reset(OpRISCV64MOVDreg)
@@ -6692,10 +6694,11 @@ func rewriteValueRISCV64_OpRISCV64MOVWreg(v *Value) bool {
 		return true
 	}
 	// match: (MOVWreg x:(NEGW _))
+	// cond: (x.Type.Size() == 8 || (x.Type.Size() == 4 && x.Type.IsSigned()))
 	// result: (MOVDreg x)
 	for {
 		x := v_0
-		if x.Op != OpRISCV64NEGW {
+		if x.Op != OpRISCV64NEGW || !(x.Type.Size() == 8 || (x.Type.Size() == 4 && x.Type.IsSigned())) {
 			break
 		}
 		v.reset(OpRISCV64MOVDreg)
@@ -6703,10 +6706,11 @@ func rewriteValueRISCV64_OpRISCV64MOVWreg(v *Value) bool {
 		return true
 	}
 	// match: (MOVWreg x:(MULW _ _))
+	// cond: (x.Type.Size() == 8 || (x.Type.Size() == 4 && x.Type.IsSigned()))
 	// result: (MOVDreg x)
 	for {
 		x := v_0
-		if x.Op != OpRISCV64MULW {
+		if x.Op != OpRISCV64MULW || !(x.Type.Size() == 8 || (x.Type.Size() == 4 && x.Type.IsSigned())) {
 			break
 		}
 		v.reset(OpRISCV64MOVDreg)
@@ -6714,10 +6718,11 @@ func rewriteValueRISCV64_OpRISCV64MOVWreg(v *Value) bool {
 		return true
 	}
 	// match: (MOVWreg x:(DIVW _ _))
+	// cond: (x.Type.Size() == 8 || (x.Type.Size() == 4 && x.Type.IsSigned()))
 	// result: (MOVDreg x)
 	for {
 		x := v_0
-		if x.Op != OpRISCV64DIVW {
+		if x.Op != OpRISCV64DIVW || !(x.Type.Size() == 8 || (x.Type.Size() == 4 && x.Type.IsSigned())) {
 			break
 		}
 		v.reset(OpRISCV64MOVDreg)
@@ -6725,10 +6730,11 @@ func rewriteValueRISCV64_OpRISCV64MOVWreg(v *Value) bool {
 		return true
 	}
 	// match: (MOVWreg x:(DIVUW _ _))
+	// cond: (x.Type.Size() == 8 || (x.Type.Size() == 4 && x.Type.IsSigned()))
 	// result: (MOVDreg x)
 	for {
 		x := v_0
-		if x.Op != OpRISCV64DIVUW {
+		if x.Op != OpRISCV64DIVUW || !(x.Type.Size() == 8 || (x.Type.Size() == 4 && x.Type.IsSigned())) {
 			break
 		}
 		v.reset(OpRISCV64MOVDreg)
@@ -6736,10 +6742,11 @@ func rewriteValueRISCV64_OpRISCV64MOVWreg(v *Value) bool {
 		return true
 	}
 	// match: (MOVWreg x:(REMW _ _))
+	// cond: (x.Type.Size() == 8 || (x.Type.Size() == 4 && x.Type.IsSigned()))
 	// result: (MOVDreg x)
 	for {
 		x := v_0
-		if x.Op != OpRISCV64REMW {
+		if x.Op != OpRISCV64REMW || !(x.Type.Size() == 8 || (x.Type.Size() == 4 && x.Type.IsSigned())) {
 			break
 		}
 		v.reset(OpRISCV64MOVDreg)
@@ -6747,10 +6754,11 @@ func rewriteValueRISCV64_OpRISCV64MOVWreg(v *Value) bool {
 		return true
 	}
 	// match: (MOVWreg x:(REMUW _ _))
+	// cond: (x.Type.Size() == 8 || (x.Type.Size() == 4 && x.Type.IsSigned()))
 	// result: (MOVDreg x)
 	for {
 		x := v_0
-		if x.Op != OpRISCV64REMUW {
+		if x.Op != OpRISCV64REMUW || !(x.Type.Size() == 8 || (x.Type.Size() == 4 && x.Type.IsSigned())) {
 			break
 		}
 		v.reset(OpRISCV64MOVDreg)
@@ -6758,10 +6766,11 @@ func rewriteValueRISCV64_OpRISCV64MOVWreg(v *Value) bool {
 		return true
 	}
 	// match: (MOVWreg x:(ROLW _ _))
+	// cond: (x.Type.Size() == 8 || (x.Type.Size() == 4 && x.Type.IsSigned()))
 	// result: (MOVDreg x)
 	for {
 		x := v_0
-		if x.Op != OpRISCV64ROLW {
+		if x.Op != OpRISCV64ROLW || !(x.Type.Size() == 8 || (x.Type.Size() == 4 && x.Type.IsSigned())) {
 			break
 		}
 		v.reset(OpRISCV64MOVDreg)
@@ -6769,10 +6778,11 @@ func rewriteValueRISCV64_OpRISCV64MOVWreg(v *Value) bool {
 		return true
 	}
 	// match: (MOVWreg x:(RORW _ _))
+	// cond: (x.Type.Size() == 8 || (x.Type.Size() == 4 && x.Type.IsSigned()))
 	// result: (MOVDreg x)
 	for {
 		x := v_0
-		if x.Op != OpRISCV64RORW {
+		if x.Op != OpRISCV64RORW || !(x.Type.Size() == 8 || (x.Type.Size() == 4 && x.Type.IsSigned())) {
 			break
 		}
 		v.reset(OpRISCV64MOVDreg)
@@ -6780,10 +6790,11 @@ func rewriteValueRISCV64_OpRISCV64MOVWreg(v *Value) bool {
 		return true
 	}
 	// match: (MOVWreg x:(RORIW _))
+	// cond: (x.Type.Size() == 8 || (x.Type.Size() == 4 && x.Type.IsSigned()))
 	// result: (MOVDreg x)
 	for {
 		x := v_0
-		if x.Op != OpRISCV64RORIW {
+		if x.Op != OpRISCV64RORIW || !(x.Type.Size() == 8 || (x.Type.Size() == 4 && x.Type.IsSigned())) {
 			break
 		}
 		v.reset(OpRISCV64MOVDreg)
