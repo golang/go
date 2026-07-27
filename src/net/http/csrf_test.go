@@ -45,6 +45,14 @@ func TestCrossOriginProtectionSecFetchSite(t *testing.T) {
 		{"no header with mismatched origin", "POST", "", "https://attacker.example", http.StatusForbidden},
 		{"no header with null origin", "POST", "", "null", http.StatusForbidden},
 
+		// RFC 6454 §6.2: userinfo is not part of the Origin serialization.
+		// url.Parse("http://attacker@example.com").Host == "example.com", so
+		// without an explicit userinfo check the host comparison passes and the
+		// CSRF protection is bypassed.
+		{"userinfo bypass attempt (http)", "POST", "", "http://attacker@example.com", http.StatusForbidden},
+		{"userinfo bypass attempt (https)", "POST", "", "https://evil@example.com", http.StatusForbidden},
+		{"userinfo with password bypass attempt", "POST", "", "https://evil:pass@example.com", http.StatusForbidden},
+
 		{"GET allowed", "GET", "cross-site", "", http.StatusOK},
 		{"HEAD allowed", "HEAD", "cross-site", "", http.StatusOK},
 		{"OPTIONS allowed", "OPTIONS", "cross-site", "", http.StatusOK},

@@ -158,13 +158,20 @@ func (c *CrossOriginProtection) Check(req *Request) error {
 		return nil
 	}
 
-	if o, err := url.Parse(origin); err == nil && o.Host == req.Host {
+	if o, err := url.Parse(origin); err == nil && o.User == nil && o.Host == req.Host {
 		// The Origin header matches the Host header. Note that the Host header
 		// doesn't include the scheme, so we don't know if this might be an
 		// HTTP→HTTPS cross-origin request. We fail open, since all modern
 		// browsers support Sec-Fetch-Site since 2023, and running an older
 		// browser makes a clear security trade-off already. Sites can mitigate
 		// this with HTTP Strict Transport Security (HSTS).
+		//
+		// We also reject any Origin containing userinfo (e.g., "http://user@host").
+		// RFC 6454 §6.2 explicitly excludes userinfo from the Origin serialization,
+		// so a well-formed Origin header never carries userinfo. url.Parse strips
+		// userinfo from Host but preserves it in the User field, so without the
+		// o.User == nil guard an attacker could send "Origin: http://attacker@victim.com"
+		// and have o.Host == "victim.com" pass the check.
 		return nil
 	}
 
