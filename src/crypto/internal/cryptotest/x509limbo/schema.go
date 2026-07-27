@@ -44,6 +44,7 @@ type Feature string
 const FeatureDenialOfService Feature = "denial-of-service"
 const FeatureHasCertPolicies Feature = "has-cert-policies"
 const FeatureHasCrl Feature = "has-crl"
+const FeatureHasMldsa Feature = "has-mldsa"
 const FeatureHasPolicyConstraints Feature = "has-policy-constraints"
 const FeatureMaxChainDepth Feature = "max-chain-depth"
 const FeatureNameConstraintDn Feature = "name-constraint-dn"
@@ -69,6 +70,7 @@ var enumValues_Feature = []interface{}{
 	"rfc5280-incompatible-with-webpki",
 	"denial-of-service",
 	"has-crl",
+	"has-mldsa",
 }
 
 // UnmarshalJSON implements json.Unmarshaler.
@@ -327,6 +329,9 @@ const SignatureAlgorithmED448 SignatureAlgorithm = "ED448"
 const SignatureAlgorithmGOSTR34102012WITH34112012256 SignatureAlgorithm = "GOSTR3410_2012_WITH_3411_2012_256"
 const SignatureAlgorithmGOSTR34102012WITH34112012512 SignatureAlgorithm = "GOSTR3410_2012_WITH_3411_2012_512"
 const SignatureAlgorithmGOSTR341194WITH34102001 SignatureAlgorithm = "GOSTR3411_94_WITH_3410_2001"
+const SignatureAlgorithmMLDSA44 SignatureAlgorithm = "ML_DSA_44"
+const SignatureAlgorithmMLDSA65 SignatureAlgorithm = "ML_DSA_65"
+const SignatureAlgorithmMLDSA87 SignatureAlgorithm = "ML_DSA_87"
 const SignatureAlgorithmRSASSAPSS SignatureAlgorithm = "RSASSA_PSS"
 const SignatureAlgorithmRSAWITHMD5 SignatureAlgorithm = "RSA_WITH_MD5"
 const SignatureAlgorithmRSAWITHSHA1 SignatureAlgorithm = "RSA_WITH_SHA1"
@@ -367,6 +372,9 @@ var enumValues_SignatureAlgorithm = []interface{}{
 	"DSA_WITH_SHA512",
 	"ED25519",
 	"ED448",
+	"ML_DSA_44",
+	"ML_DSA_65",
+	"ML_DSA_87",
 	"GOSTR3411_94_WITH_3410_2001",
 	"GOSTR3410_2012_WITH_3411_2012_256",
 	"GOSTR3410_2012_WITH_3411_2012_512",
