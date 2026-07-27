@@ -13,6 +13,7 @@ import (
 	"cmd/compile/internal/ir"
 	"cmd/compile/internal/ssa"
 	"cmd/compile/internal/ssa/block"
+	"cmd/compile/internal/ssa/ssaconfig"
 	"cmd/compile/internal/typecheck"
 	"cmd/compile/internal/types"
 	"cmd/internal/sys"
@@ -2413,7 +2414,7 @@ func findIntrinsic(sym *types.Sym) intrinsicBuilder {
 	}
 
 	fn := sym.Name
-	if ssa.IntrinsicsDisable {
+	if ssaconfig.IntrinsicsDisable {
 		if pkg == "internal/runtime/sys" && (fn == "GetCallerPC" || fn == "GetCallerSP" || fn == "GetClosurePtr") ||
 			pkg == simdPackage {
 			// These runtime functions don't have definitions, must be intrinsics.

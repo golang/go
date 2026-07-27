@@ -6,6 +6,7 @@ package ssa
 
 import (
 	"cmd/compile/internal/base"
+	"cmd/compile/internal/ssa/ssaconfig"
 	"cmd/internal/src"
 	"fmt"
 	"hash/crc32"
@@ -63,7 +64,7 @@ func Compile(f *Func, htmlWriter *HTMLWriter) {
 		printFunc(f)
 	}
 	htmlWriter.WritePhase("start", "start")
-	if BuildDump[f.Name] {
+	if ssaconfig.BuildDump[f.Name] {
 		f.dumpFile("build")
 	}
 	if checkEnabled {
@@ -250,17 +251,6 @@ var (
 	checkRandSeed = 0
 )
 
-// Debug output
-var IntrinsicsDebug int
-var IntrinsicsDisable bool
-
-var BuildDebug int
-var BuildTest int
-var BuildStats int
-var BuildDump map[string]bool = make(map[string]bool) // names of functions to dump after initial build of ssa
-
-var GenssaDump map[string]bool = make(map[string]bool) // names of functions to dump after ssa has been converted to asm
-
 // PhaseOption sets the specified flag in the specified ssa phase,
 // returning empty string if this was successful or a string explaining
 // the error if it was not.
@@ -374,8 +364,8 @@ commas. For example:
 		case "dump":
 			alldump = val != 0
 			if alldump {
-				BuildDump[valString] = true
-				GenssaDump[valString] = true
+				ssaconfig.BuildDump[valString] = true
+				ssaconfig.GenssaDump[valString] = true
 			}
 		default:
 			return fmt.Sprintf("Did not find a flag matching %s in -d=ssa/%s debug option (expected ssa/all/{time,mem,dump=function_name})", flag, phase)
@@ -385,11 +375,11 @@ commas. For example:
 	if phase == "intrinsics" {
 		switch flag {
 		case "on":
-			IntrinsicsDisable = val == 0
+			ssaconfig.IntrinsicsDisable = val == 0
 		case "off":
-			IntrinsicsDisable = val != 0
+			ssaconfig.IntrinsicsDisable = val != 0
 		case "debug":
-			IntrinsicsDebug = val
+			ssaconfig.IntrinsicsDebug = val
 		default:
 			return fmt.Sprintf("Did not find a flag matching %s in -d=ssa/%s debug option (expected ssa/intrinsics/{on,off,debug})", flag, phase)
 		}
@@ -398,13 +388,13 @@ commas. For example:
 	if phase == "build" {
 		switch flag {
 		case "debug":
-			BuildDebug = val
+			ssaconfig.BuildDebug = val
 		case "test":
-			BuildTest = val
+			ssaconfig.BuildTest = val
 		case "stats":
-			BuildStats = val
+			ssaconfig.BuildStats = val
 		case "dump":
-			BuildDump[valString] = true
+			ssaconfig.BuildDump[valString] = true
 		default:
 			return fmt.Sprintf("Did not find a flag matching %s in -d=ssa/%s debug option (expected ssa/build/{debug,test,stats,dump=function_name})", flag, phase)
 		}
@@ -413,7 +403,7 @@ commas. For example:
 	if phase == "genssa" {
 		switch flag {
 		case "dump":
-			GenssaDump[valString] = true
+			ssaconfig.GenssaDump[valString] = true
 		default:
 			return fmt.Sprintf("Did not find a flag matching %s in -d=ssa/%s debug option (expected ssa/genssa/dump=function_name)", flag, phase)
 		}

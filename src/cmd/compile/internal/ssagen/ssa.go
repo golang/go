@@ -28,6 +28,7 @@ import (
 	"cmd/compile/internal/rttype"
 	"cmd/compile/internal/ssa"
 	"cmd/compile/internal/ssa/block"
+	"cmd/compile/internal/ssa/ssaconfig"
 	"cmd/compile/internal/staticdata"
 	"cmd/compile/internal/typecheck"
 	"cmd/compile/internal/types"
@@ -4781,7 +4782,7 @@ func (s *state) split(v *ssa.Value) (*ssa.Value, *ssa.Value) {
 // intrinsicCall converts a call to a recognized intrinsic function into the intrinsic SSA operation.
 func (s *state) intrinsicCall(n *ir.CallExpr) *ssa.Value {
 	v := findIntrinsic(n.Fun.Sym())(s, n, s.intrinsicArgs(n))
-	if ssa.IntrinsicsDebug > 0 {
+	if ssaconfig.IntrinsicsDebug > 0 {
 		x := v
 		if x == nil {
 			x = s.mem()
@@ -6989,7 +6990,7 @@ func genssa(htmlWriter *ssa.HTMLWriter, f *ssa.Func, pp *objw.Progs) {
 
 	e := f.Frontend().(*ssafn)
 
-	gatherPrintInfo := f.PrintOrHtmlSSA || ssa.GenssaDump[f.Name]
+	gatherPrintInfo := f.PrintOrHtmlSSA || ssaconfig.GenssaDump[f.Name]
 
 	var lv *liveness.Liveness
 	s.livenessMap, s.partLiveArgs, lv = liveness.Compute(e.curfn, f, e.stkptrsize, pp, gatherPrintInfo)
@@ -7486,7 +7487,7 @@ func genssa(htmlWriter *ssa.HTMLWriter, f *ssa.Func, pp *objw.Progs) {
 		buf.WriteString("</code>")
 		htmlWriter.WriteColumn("genssa", "genssa", "ssa-prog", buf.String())
 	}
-	if ssa.GenssaDump[f.Name] {
+	if ssaconfig.GenssaDump[f.Name] {
 		fi := f.DumpFileForPhase("genssa")
 		if fi != nil {
 
