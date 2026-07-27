@@ -462,7 +462,7 @@ type Testcase struct {
 	ValidationKind ValidationKind `json:"validation_kind"`
 
 	// The time at which to perform the validation
-	ValidationTime interface{} `json:"validation_time,omitempty,omitzero"`
+	ValidationTime *time.Time `json:"validation_time,omitempty,omitzero"`
 }
 
 // For server (i.e. client-side) validation: the expected peer name, if any
@@ -500,8 +500,6 @@ func (j *TestcaseExpectedPeerName) UnmarshalJSON(value []byte) error {
 type TestcaseMaxChainDepth_0 *int
 
 type TestcasePeerCertificateKey_0 *string
-
-type TestcaseValidationTime_0 *time.Time
 
 // UnmarshalJSON implements json.Unmarshaler.
 func (j *Testcase) UnmarshalJSON(value []byte) error {

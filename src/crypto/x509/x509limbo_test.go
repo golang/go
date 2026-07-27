@@ -267,15 +267,7 @@ func TestX509Limbo(t *testing.T) {
 
 			validationTime := time.Now()
 			if tc.ValidationTime != nil {
-				vtStr, ok := tc.ValidationTime.(string)
-				if !ok {
-					t.Fatalf("validation time is not a string: %T %v", tc.ValidationTime, tc.ValidationTime)
-				}
-				parsed, err := time.Parse(time.RFC3339, vtStr)
-				if err != nil {
-					t.Fatalf("invalid validation time %q: %v", vtStr, err)
-				}
-				validationTime = parsed
+				validationTime = *tc.ValidationTime
 			}
 
 			var ekus []ExtKeyUsage

@@ -2,7 +2,7 @@ module crypto/internal/cryptotest/x509limbo/_schema
 
 go 1.26
 
-require github.com/atombender/go-jsonschema v0.23.1
+require github.com/atombender/go-jsonschema v0.24.1
 
 require (
 	dario.cat/mergo v1.0.2 // indirect
