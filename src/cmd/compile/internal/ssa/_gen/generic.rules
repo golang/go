@@ -834,10 +834,6 @@
 (Add(64|32|16|8) x (Sub(64|32|16|8) y x)) => y
 (Add(64|32|16|8) x (Add(64|32|16|8) y (Sub(64|32|16|8) z x))) => (Add(64|32|16|8) y z)
 
-// sub-and-to-and: x - (x & m) == x & ~m, because x&m and x&~m are disjoint
-// bit-sets whose sum is x, so subtracting one recovers the other.
-(Sub(8|16|32|64) x (And(8|16|32|64) <t> x (Const(8|16|32|64) [m]))) => (And(8|16|32|64) <t> x (Const(8|16|32|64) <t> [^m]))
-
 // basic phi simplifications
 (Phi (Const8  [c]) (Const8  [c])) => (Const8  [c])
 (Phi (Const16 [c]) (Const16 [c])) => (Const16 [c])
