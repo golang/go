@@ -817,7 +817,7 @@ type Config struct {
 	// From Go 1.26, the default includes the [SecP256r1MLKEM768] and
 	// [SecP384r1MLKEM1024] hybrid post-quantum key exchanges, too. To disable
 	// them, set CurvePreferences explicitly or use either the
-	// GODEBUG=tlsmlkem=0 or the GODEBUG=tlssecpmlkem=0 environment variable.
+	// GODEBUG=tlssecpmlkem=0 or the GODEBUG=tlssecpmlkem=0 environment variable.
 	CurvePreferences []CurveID
 
 	// DynamicRecordSizingDisabled disables adaptive sizing of TLS records.
