@@ -838,7 +838,7 @@ func (s *state) sizeSpecializedMallocEnabled() bool {
 		return false
 	}
 
-	return buildcfg.Experiment.SizeSpecializedMalloc && !base.Flag.Cfg.Instrumenting
+	return !base.Flag.Cfg.Instrumenting
 }
 
 // setHeapaddr allocates a new PAUTO variable to store ptr (which must be non-nil)

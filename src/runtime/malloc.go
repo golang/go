@@ -1033,10 +1033,10 @@ func (c *mcache) nextFree(spc spanClass) (v gclinkptr, s *mspan, checkGCTrigger 
 const doubleCheckMalloc = false
 
 // sizeSpecializedMallocEnabled is the set of conditions where we enable the size-specialized
-// mallocgc implementation: the experiment must be enabled, and none of the sanitizers should
-// be enabled. The tables used to select the size-specialized malloc function do not compile
-// properly on plan9, so size-specialized malloc is also disabled on plan9.
-const sizeSpecializedMallocEnabled = goexperiment.SizeSpecializedMalloc && GOOS != "plan9" && !asanenabled && !raceenabled && !msanenabled && !valgrindenabled
+// mallocgc implementation: none of the sanitizers should be enabled. The tables used to select
+// the size-specialized malloc function do not compile properly on plan9, so
+// size-specialized malloc is also disabled on plan9.
+const sizeSpecializedMallocEnabled = GOOS != "plan9" && !asanenabled && !raceenabled && !msanenabled && !valgrindenabled
 
 // runtimeFreegcEnabled is the set of conditions where we enable the runtime.freegc
 // implementation and the corresponding allocation-related changes: the experiment must be
