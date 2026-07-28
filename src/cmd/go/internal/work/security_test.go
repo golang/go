@@ -308,6 +308,33 @@ func TestCheckLinkerFlags(t *testing.T) {
 	}
 }
 
+func TestCheckPkgConfigFlags(t *testing.T) {
+	good := [][]string{
+		{"--define-variable=A=b-c"},
+		{"--define-variable=A=b@c"},
+		{"--define-variable=prefix=/opt/my-pkg/lib"},
+	}
+	for _, f := range good {
+		if err := checkPkgConfigFlags("test", "test", f); err != nil {
+			t.Errorf("unexpected error for %q: %v", f, err)
+		}
+	}
+
+	bad := [][]string{
+		{"--define-variable=A=-b"},
+		{"--define-variable=A=@b"},
+		{"--define-variable=A="},
+		{"--define-variable=1A=b"},
+		{"--define-variable=A"},
+		{"--log-file=/tmp/log"},
+	}
+	for _, f := range bad {
+		if err := checkPkgConfigFlags("test", "test", f); err == nil {
+			t.Errorf("missing error for %q", f)
+		}
+	}
+}
+
 func TestCheckFlagAllowDisallow(t *testing.T) {
 	if err := checkCompilerFlags("TEST", "test", []string{"-disallow"}); err == nil {
 		t.Fatalf("missing error for -disallow")
