@@ -88,3 +88,18 @@ func TestCredentialCacheTrailingSlash(t *testing.T) {
 		t.Errorf("parseNetrc:\nhave %q\nwant %q", got2.Header, want.Header)
 	}
 }
+
+func TestCredentialCacheURLQuery(t *testing.T) {
+	want := http.Request{Header: make(http.Header)}
+	want.SetBasicAuth("user", "password")
+	storeCredential("example.com/api", want.Header)
+
+	got := &http.Request{Header: make(http.Header)}
+	ok := loadCredential(got, "https://example.com/api?version=1")
+	if !ok {
+		t.Fatal("loadCredential returned false")
+	}
+	if !reflect.DeepEqual(got.Header, want.Header) {
+		t.Fatalf("got %v, want %v", got.Header, want.Header)
+	}
+}

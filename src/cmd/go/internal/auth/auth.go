@@ -11,6 +11,7 @@ import (
 	"fmt"
 	"log"
 	"net/http"
+	"net/url"
 	"os"
 	"path/filepath"
 	"slices"
@@ -140,8 +141,13 @@ func runGoAuth(client *http.Client, res *http.Response, url string) {
 
 // loadCredential retrieves cached credentials for the given url and adds
 // them to the request headers.
-func loadCredential(req *http.Request, url string) bool {
-	currentPrefix := strings.TrimPrefix(url, "https://")
+func loadCredential(req *http.Request, rawURL string) bool {
+	u, err := url.Parse(rawURL)
+	if err != nil {
+		return false
+	}
+	// Match credentials by host and path, excluding userinfo, query, and fragment.
+	currentPrefix := u.Host + u.EscapedPath()
 	currentPrefix = strings.TrimSuffix(currentPrefix, "/")
 
 	// Iteratively try prefixes, moving up the path hierarchy.
