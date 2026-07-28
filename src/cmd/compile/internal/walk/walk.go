@@ -17,8 +17,11 @@ import (
 	"cmd/internal/src"
 )
 
-// The constant is known to runtime.
-const tmpstringbufsize = 32
+// These constants are known to runtime (see runtime.tmpStringBufSize).
+const (
+	tmpstringbufsize = 64
+	tmprunebufsize   = 32
+)
 
 func Walk(fn *ir.Func) {
 	ir.CurFunc = fn
@@ -471,7 +474,9 @@ func analyzePreWalk(fn *ir.Func) {
 	ro.Init(fn)
 	sv := make(map[ir.Node]ir.Node)
 	scs := make(map[*ir.Name]*types.Type)
+	var numNodes int32
 	ir.Visit(fn, func(n ir.Node) {
+		numNodes++
 		switch n.Op() {
 		case ir.OCONVIFACE:
 			x := n.(*ir.ConvExpr).X
@@ -496,4 +501,5 @@ func analyzePreWalk(fn *ir.Func) {
 	})
 	staticValues = sv
 	shapeConvSources = scs
+	fn.NumPreWalkNodes = numNodes
 }

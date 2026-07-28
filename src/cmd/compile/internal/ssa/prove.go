@@ -2755,7 +2755,7 @@ func simplifyBlock(sdom SparseTree, ft *factsTable, b *Block) {
 				// if x is larger than -y (y is negative), then slicemask is -1.
 				lim := ft.limits[x.ID]
 				if lim.umin > uint64(-delta) {
-					if cap.Op == OpAdd64 {
+					if v.Type.Size() == 8 {
 						v.reset(OpConst64)
 					} else {
 						v.reset(OpConst32)
@@ -2769,7 +2769,7 @@ func simplifyBlock(sdom SparseTree, ft *factsTable, b *Block) {
 			}
 			lim := ft.limits[cap.ID]
 			if lim.umin > 0 {
-				if cap.Type.Size() == 8 {
+				if v.Type.Size() == 8 {
 					v.reset(OpConst64)
 				} else {
 					v.reset(OpConst32)

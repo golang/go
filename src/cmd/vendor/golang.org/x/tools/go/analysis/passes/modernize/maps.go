@@ -28,7 +28,7 @@ var MapsLoopAnalyzer = &analysis.Analyzer{
 	Doc:      analyzerutil.MustExtractDoc(doc, "mapsloop"),
 	Requires: []*analysis.Analyzer{inspect.Analyzer},
 	Run:      mapsloop,
-	URL:      "https://pkg.go.dev/golang.org/x/tools/go/analysis/passes/modernize#mapsloop",
+	URL:      "https://pkg.go.dev/golang.org/x/tools/go/analysis/passes/modernize#hdr-Analyzer_mapsloop",
 }
 
 // The mapsloop pass offers to simplify a loop of map insertions:

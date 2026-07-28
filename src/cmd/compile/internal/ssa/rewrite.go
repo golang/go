@@ -1418,7 +1418,12 @@ func ZeroUpper32Bits(x *Value, depth int) bool {
 
 // ZeroUpper48Bits is similar to ZeroUpper32Bits, but for upper 48 bits.
 func ZeroUpper48Bits(x *Value, depth int) bool {
-	if x.Type.IsSigned() && x.Type.Size() < 8 {
+	if x.Type.IsSigned() && x.Type.Size() <= 2 {
+		// A spill/restore sign-extends from the type's width (issue 68227).
+		// An int8/int16 may have its sign bit set, so a restore can write
+		// ones into the upper 48 bits. Wider signed types are safe: their
+		// value is below 2^16, so their sign bit is zero and a restore
+		// zero-extends.
 		return false
 	}
 	switch x.Op {
@@ -1426,6 +1431,9 @@ func ZeroUpper48Bits(x *Value, depth int) bool {
 		return true
 	case OpAMD64MOVQconst, OpAMD64MOVLconst:
 		return uint64(uint16(x.AuxInt)) == uint64(x.AuxInt)
+	case OpARM64MOVHUreg, OpARM64MOVHUload, OpARM64MOVHUloadidx, OpARM64MOVHUloadidx2,
+		OpARM64MOVBUreg, OpARM64MOVBUload, OpARM64MOVBUloadidx:
+		return true
 	case OpArg: // note: but not ArgIntReg
 		return x.Type.Size() == 2 && x.Block.Func.Config.arch == "amd64"
 	case OpPhi, OpSelect0, OpSelect1:
@@ -1447,7 +1455,11 @@ func ZeroUpper48Bits(x *Value, depth int) bool {
 
 // ZeroUpper56Bits is similar to ZeroUpper32Bits, but for upper 56 bits.
 func ZeroUpper56Bits(x *Value, depth int) bool {
-	if x.Type.IsSigned() && x.Type.Size() < 8 {
+	if x.Type.IsSigned() && x.Type.Size() == 1 {
+		// As in ZeroUpper48Bits: an int8 may have its sign bit set, so a
+		// spill/restore can write ones into the upper 56 bits. Wider
+		// signed types are safe: their value is below 2^8, so their sign
+		// bit is zero and a restore zero-extends.
 		return false
 	}
 	switch x.Op {
@@ -1455,6 +1467,8 @@ func ZeroUpper56Bits(x *Value, depth int) bool {
 		return true
 	case OpAMD64MOVQconst, OpAMD64MOVLconst:
 		return uint64(uint8(x.AuxInt)) == uint64(x.AuxInt)
+	case OpARM64MOVBUreg, OpARM64MOVBUload, OpARM64MOVBUloadidx:
+		return true
 	case OpArg: // note: but not ArgIntReg
 		return x.Type.Size() == 1 && x.Block.Func.Config.arch == "amd64"
 	case OpPhi, OpSelect0, OpSelect1:

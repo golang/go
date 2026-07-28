@@ -27,7 +27,7 @@ import (
 var ErrorsAsTypeAnalyzer = &analysis.Analyzer{
 	Name:     "errorsastype",
 	Doc:      analyzerutil.MustExtractDoc(doc, "errorsastype"),
-	URL:      "https://pkg.go.dev/golang.org/x/tools/go/analysis/passes/modernize#errorsastype",
+	URL:      "https://pkg.go.dev/golang.org/x/tools/go/analysis/passes/modernize#hdr-Analyzer_errorsastype",
 	Requires: []*analysis.Analyzer{typeindexanalyzer.Analyzer},
 	Run:      errorsastype,
 }

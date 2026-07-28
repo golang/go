@@ -73,7 +73,7 @@ golang.org/x/text/internal/tag
 golang.org/x/text/language
 golang.org/x/text/transform
 golang.org/x/text/unicode/norm
-# golang.org/x/tools v0.48.1-0.20260715233119-591dfa620de7
+# golang.org/x/tools v0.48.1-0.20260722200531-749de1fc71ed
 ## explicit; go 1.25.0
 golang.org/x/tools/cmd/bisect
 golang.org/x/tools/cover
@@ -104,9 +104,11 @@ golang.org/x/tools/go/analysis/passes/lostcancel
 golang.org/x/tools/go/analysis/passes/modernize
 golang.org/x/tools/go/analysis/passes/nilfunc
 golang.org/x/tools/go/analysis/passes/printf
+golang.org/x/tools/go/analysis/passes/scannererr
 golang.org/x/tools/go/analysis/passes/shift
 golang.org/x/tools/go/analysis/passes/sigchanyzer
 golang.org/x/tools/go/analysis/passes/slog
+golang.org/x/tools/go/analysis/passes/sqlrowserr
 golang.org/x/tools/go/analysis/passes/stdmethods
 golang.org/x/tools/go/analysis/passes/stdversion
 golang.org/x/tools/go/analysis/passes/stringintconv

@@ -21,7 +21,7 @@ var ForVarAnalyzer = &analysis.Analyzer{
 	Doc:      analyzerutil.MustExtractDoc(doc, "forvar"),
 	Requires: []*analysis.Analyzer{inspect.Analyzer},
 	Run:      forvar,
-	URL:      "https://pkg.go.dev/golang.org/x/tools/go/analysis/passes/modernize#forvar",
+	URL:      "https://pkg.go.dev/golang.org/x/tools/go/analysis/passes/modernize#hdr-Analyzer_forvar",
 }
 
 // forvar offers to fix unnecessary copying of a for variable

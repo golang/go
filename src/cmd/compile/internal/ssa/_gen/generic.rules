@@ -708,6 +708,9 @@
 (Or(64|32|16|8) x (Or(64|32|16|8) x y)) => (Or(64|32|16|8) x y)
 (Xor(64|32|16|8) x (Xor(64|32|16|8) x y)) => y
 
+// x-(x&y) == x&^y
+(Sub(64|32|16|8) x (And(64|32|16|8) <t> x y)) => (And(64|32|16|8) x (Com(64|32|16|8) <t> y))
+
 // Fold comparisons with numeric bounds
 (Less(64|32|16|8)U _ (Const(64|32|16|8) [0]))  => (ConstBool [false])
 (Leq(64|32|16|8)U (Const(64|32|16|8) [0]) _)   => (ConstBool [true])
@@ -841,10 +844,10 @@
 	=> x
 
 // Load from a region just copied by Move can read directly from the source.
-(Load <t1> op:(OffPtr [o1] p1) move:(Move [n] p2 src mem))
+(Load <t1> op1:(OffPtr [o1] p1) move:(Move [n] p2 src mem))
 	&& o1 >= 0 && o1+t1.Size() <= n && isSamePtr(p1, p2)
 	&& !isVolatile(src)
-	=> @move.Block (Load <t1> (OffPtr <op.Type> [o1] src) mem)
+	=> @move.Block (Load <t1> (OffPtr <op1.Type> [o1] src) mem)
 
 // Pass constants through math.Float{32,64}bits and math.Float{32,64}frombits
 (Load <t1> p1 (Store {t2} p2 (Const64  [x]) _)) && isSamePtr(p1,p2) && t2.Size() == 8 && is64BitFloat(t1) && !math.IsNaN(math.Float64frombits(uint64(x))) => (Const64F [math.Float64frombits(uint64(x))])
@@ -853,34 +856,34 @@
 (Load <t1> p1 (Store {t2} p2 (Const32F [x]) _)) && isSamePtr(p1,p2) && t2.Size() == 4 && is32BitInt(t1)   => (Const32  [int32(math.Float32bits(x))])
 
 // Float Loads up to Zeros so they can be constant folded.
-(Load <t1> op:(OffPtr [o1] p1)
+(Load <t1> op1:(OffPtr [o1] p1)
 	(Store {t2} p2 _
 		mem:(Zero [n] p3 _)))
 	&& o1 >= 0 && o1+t1.Size() <= n && isSamePtr(p1, p3)
 	&& CanSSA(t1)
-	&& disjoint(op, t1.Size(), p2, t2.Size())
-	=> @mem.Block (Load <t1> (OffPtr <op.Type> [o1] p3) mem)
-(Load <t1> op:(OffPtr [o1] p1)
+	&& disjoint(op1, t1.Size(), p2, t2.Size())
+	=> @mem.Block (Load <t1> (OffPtr <op1.Type> [o1] p3) mem)
+(Load <t1> op1:(OffPtr [o1] p1)
 	(Store {t2} p2 _
 		(Store {t3} p3 _
 			mem:(Zero [n] p4 _))))
 	&& o1 >= 0 && o1+t1.Size() <= n && isSamePtr(p1, p4)
 	&& CanSSA(t1)
-	&& disjoint(op, t1.Size(), p2, t2.Size())
-	&& disjoint(op, t1.Size(), p3, t3.Size())
-	=> @mem.Block (Load <t1> (OffPtr <op.Type> [o1] p4) mem)
-(Load <t1> op:(OffPtr [o1] p1)
+	&& disjoint(op1, t1.Size(), p2, t2.Size())
+	&& disjoint(op1, t1.Size(), p3, t3.Size())
+	=> @mem.Block (Load <t1> (OffPtr <op1.Type> [o1] p4) mem)
+(Load <t1> op1:(OffPtr [o1] p1)
 	(Store {t2} p2 _
 		(Store {t3} p3 _
 			(Store {t4} p4 _
 				mem:(Zero [n] p5 _)))))
 	&& o1 >= 0 && o1+t1.Size() <= n && isSamePtr(p1, p5)
 	&& CanSSA(t1)
-	&& disjoint(op, t1.Size(), p2, t2.Size())
-	&& disjoint(op, t1.Size(), p3, t3.Size())
-	&& disjoint(op, t1.Size(), p4, t4.Size())
-	=> @mem.Block (Load <t1> (OffPtr <op.Type> [o1] p5) mem)
-(Load <t1> op:(OffPtr [o1] p1)
+	&& disjoint(op1, t1.Size(), p2, t2.Size())
+	&& disjoint(op1, t1.Size(), p3, t3.Size())
+	&& disjoint(op1, t1.Size(), p4, t4.Size())
+	=> @mem.Block (Load <t1> (OffPtr <op1.Type> [o1] p5) mem)
+(Load <t1> op1:(OffPtr [o1] p1)
 	(Store {t2} p2 _
 		(Store {t3} p3 _
 			(Store {t4} p4 _
@@ -888,11 +891,11 @@
 					mem:(Zero [n] p6 _))))))
 	&& o1 >= 0 && o1+t1.Size() <= n && isSamePtr(p1, p6)
 	&& CanSSA(t1)
-	&& disjoint(op, t1.Size(), p2, t2.Size())
-	&& disjoint(op, t1.Size(), p3, t3.Size())
-	&& disjoint(op, t1.Size(), p4, t4.Size())
-	&& disjoint(op, t1.Size(), p5, t5.Size())
-	=> @mem.Block (Load <t1> (OffPtr <op.Type> [o1] p6) mem)
+	&& disjoint(op1, t1.Size(), p2, t2.Size())
+	&& disjoint(op1, t1.Size(), p3, t3.Size())
+	&& disjoint(op1, t1.Size(), p4, t4.Size())
+	&& disjoint(op1, t1.Size(), p5, t5.Size())
+	=> @mem.Block (Load <t1> (OffPtr <op1.Type> [o1] p6) mem)
 
 // Zero to Load forwarding.
 (Load <t1> (OffPtr [o] p1) (Zero [n] p2 _))
@@ -961,23 +964,23 @@
 	&& isConstZero(x)
 	&& o >= 0 && t.Size() + o <= n && isSamePtr(p1, p2)
 	=> mem
-(Store {t1} op:(OffPtr [o1] p1) x mem:(Store {t2} p2 _ (Zero [n] p3 _)))
+(Store {t1} op1:(OffPtr [o1] p1) x mem:(Store {t2} p2 _ (Zero [n] p3 _)))
 	&& isConstZero(x)
 	&& o1 >= 0 && t1.Size() + o1 <= n && isSamePtr(p1, p3)
-	&& disjoint(op, t1.Size(), p2, t2.Size())
+	&& disjoint(op1, t1.Size(), p2, t2.Size())
 	=> mem
-(Store {t1} op:(OffPtr [o1] p1) x mem:(Store {t2} p2 _ (Store {t3} p3 _ (Zero [n] p4 _))))
+(Store {t1} op1:(OffPtr [o1] p1) x mem:(Store {t2} p2 _ (Store {t3} p3 _ (Zero [n] p4 _))))
 	&& isConstZero(x)
 	&& o1 >= 0 && t1.Size() + o1 <= n && isSamePtr(p1, p4)
-	&& disjoint(op, t1.Size(), p2, t2.Size())
-	&& disjoint(op, t1.Size(), p3, t3.Size())
+	&& disjoint(op1, t1.Size(), p2, t2.Size())
+	&& disjoint(op1, t1.Size(), p3, t3.Size())
 	=> mem
-(Store {t1} op:(OffPtr [o1] p1) x mem:(Store {t2} p2 _ (Store {t3} p3 _ (Store {t4} p4 _ (Zero [n] p5 _)))))
+(Store {t1} op1:(OffPtr [o1] p1) x mem:(Store {t2} p2 _ (Store {t3} p3 _ (Store {t4} p4 _ (Zero [n] p5 _)))))
 	&& isConstZero(x)
 	&& o1 >= 0 && t1.Size() + o1 <= n && isSamePtr(p1, p5)
-	&& disjoint(op, t1.Size(), p2, t2.Size())
-	&& disjoint(op, t1.Size(), p3, t3.Size())
-	&& disjoint(op, t1.Size(), p4, t4.Size())
+	&& disjoint(op1, t1.Size(), p2, t2.Size())
+	&& disjoint(op1, t1.Size(), p3, t3.Size())
+	&& disjoint(op1, t1.Size(), p4, t4.Size())
 	=> mem
 
 // Collapse OffPtr
@@ -1768,10 +1771,10 @@
 	&& n >= o2 + t2.Size()
 	&& clobber(store)
 	=> (Zero {t1} [n] p1 mem)
-(Move {t1} [n] dst1 src1 store:(Store {t2} op:(OffPtr [o2] dst2) _ mem))
+(Move {t1} [n] dst1 src1 store:(Store {t2} op1:(OffPtr [o2] dst2) _ mem))
 	&& isSamePtr(dst1, dst2) && store.Uses == 1
 	&& n >= o2 + t2.Size()
-	&& disjoint(src1, n, op, t2.Size())
+	&& disjoint(src1, n, op1, t2.Size())
 	&& clobber(store)
 	=> (Move {t1} [n] dst1 src1 mem)
 
@@ -2341,37 +2344,37 @@
 
 // Transform some CondSelect into math operations.
 // if b { x += c } => x += b * c
-(CondSelect op:(Add8 <t> x c:(Const8)) x bool) &&
-	rewriteCondSelectIntoMath(config, op.Op, c.AuxInt) =>
+(CondSelect op1:(Add8 <t> x c:(Const8)) x bool) &&
+	rewriteCondSelectIntoMath(config, op1.Op, c.AuxInt) =>
 	(Add8 x (Mul8 <t> c (CvtBoolToUint8 <t> bool)))
-(CondSelect op:(Add(64|32|16) <t> x c:(Const(64|32|16))) x bool) &&
-	rewriteCondSelectIntoMath(config, op.Op, c.AuxInt) =>
+(CondSelect op1:(Add(64|32|16) <t> x c:(Const(64|32|16))) x bool) &&
+	rewriteCondSelectIntoMath(config, op1.Op, c.AuxInt) =>
 	(Add(64|32|16) x (Mul(64|32|16) <t> c (ZeroExt8to(64|32|16) <t> (CvtBoolToUint8 <types.Types[types.TUINT8]> bool))))
 // if !b { x += c } => x += !b * c
-(CondSelect x op:(Add8 <t> x c:(Const8)) bool) &&
-	rewriteCondSelectIntoMath(config, op.Op, c.AuxInt) =>
+(CondSelect x op1:(Add8 <t> x c:(Const8)) bool) &&
+	rewriteCondSelectIntoMath(config, op1.Op, c.AuxInt) =>
 	(Add8 x (Mul8 <t> c (CvtBoolToUint8 <t> (Not <bool.Type> bool))))
-(CondSelect x op:(Add(64|32|16) <t> x c:(Const(64|32|16))) bool) &&
-	rewriteCondSelectIntoMath(config, op.Op, c.AuxInt) =>
+(CondSelect x op1:(Add(64|32|16) <t> x c:(Const(64|32|16))) bool) &&
+	rewriteCondSelectIntoMath(config, op1.Op, c.AuxInt) =>
 	(Add(64|32|16) x (Mul(64|32|16) <t> c (ZeroExt8to(64|32|16) <t> (CvtBoolToUint8 <types.Types[types.TUINT8]> (Not <bool.Type> bool)))))
 
 // if b { x += c } => x -= b * -c // looks redundant but useful if the arch can inline materialize -c but not c
-(CondSelect op:(Add8 <t> x c:(Const8 [consT])) x bool) &&
-	!rewriteCondSelectIntoMath(config, op.Op, c.AuxInt) &&
-	rewriteCondSelectIntoMath(config, addToSub(op.Op), -c.AuxInt) =>
+(CondSelect op1:(Add8 <t> x c:(Const8 [consT])) x bool) &&
+	!rewriteCondSelectIntoMath(config, op1.Op, c.AuxInt) &&
+	rewriteCondSelectIntoMath(config, addToSub(op1.Op), -c.AuxInt) =>
 	(Sub8 x (Mul8 <t> (Const8 <t> [-consT]) (CvtBoolToUint8 <t> bool)))
-(CondSelect op:(Add(64|32|16) <t> x c:(Const(64|32|16) [consT])) x bool) &&
-	!rewriteCondSelectIntoMath(config, op.Op, c.AuxInt) &&
-	rewriteCondSelectIntoMath(config, addToSub(op.Op), -c.AuxInt) =>
+(CondSelect op1:(Add(64|32|16) <t> x c:(Const(64|32|16) [consT])) x bool) &&
+	!rewriteCondSelectIntoMath(config, op1.Op, c.AuxInt) &&
+	rewriteCondSelectIntoMath(config, addToSub(op1.Op), -c.AuxInt) =>
 	(Sub(64|32|16) x (Mul(64|32|16) <t> (Const(64|32|16) <t> [-consT]) (ZeroExt8to(64|32|16) <t> (CvtBoolToUint8 <types.Types[types.TUINT8]> bool))))
 // if !b { x += c } => x -= !b * -c // looks redundant but useful if the arch can inline materialize -c but not c
-(CondSelect x op:(Add8 <t> x c:(Const8 [consT])) bool) &&
-	!rewriteCondSelectIntoMath(config, op.Op, c.AuxInt) &&
-	rewriteCondSelectIntoMath(config, addToSub(op.Op), -c.AuxInt) =>
+(CondSelect x op1:(Add8 <t> x c:(Const8 [consT])) bool) &&
+	!rewriteCondSelectIntoMath(config, op1.Op, c.AuxInt) &&
+	rewriteCondSelectIntoMath(config, addToSub(op1.Op), -c.AuxInt) =>
 	(Sub8 x (Mul8 <t> (Const8 <t> [-consT]) (CvtBoolToUint8 <t> (Not <bool.Type> bool))))
-(CondSelect x op:(Add(64|32|16) <t> x c:(Const(64|32|16) [consT])) bool) &&
-	!rewriteCondSelectIntoMath(config, op.Op, c.AuxInt) &&
-	rewriteCondSelectIntoMath(config, addToSub(op.Op), -c.AuxInt) =>
+(CondSelect x op1:(Add(64|32|16) <t> x c:(Const(64|32|16) [consT])) bool) &&
+	!rewriteCondSelectIntoMath(config, op1.Op, c.AuxInt) &&
+	rewriteCondSelectIntoMath(config, addToSub(op1.Op), -c.AuxInt) =>
 	(Sub(64|32|16) x (Mul(64|32|16) <t> (Const(64|32|16) <t> [-consT]) (ZeroExt8to(64|32|16) <t> (CvtBoolToUint8 <types.Types[types.TUINT8]> (Not <bool.Type> bool)))))
 
 // if b { x <<= 1 } => x <<= b
@@ -2387,33 +2390,33 @@
 (CondSelect x (Rsh(64|32|16|8)Ux64 x (Const64 [1])) bool) => (Rsh(64|32|16|8)Ux8 [true] x (CvtBoolToUint8 <types.Types[types.TUINT8]> (Not <bool.Type> bool)))
 
 // if b { x |= c } => x |= b * c
-(CondSelect op:(Or8 <t> x c:(Const8)) x bool) &&
-	rewriteCondSelectIntoMath(config, op.Op, c.AuxInt) =>
+(CondSelect op1:(Or8 <t> x c:(Const8)) x bool) &&
+	rewriteCondSelectIntoMath(config, op1.Op, c.AuxInt) =>
 	(Or8 x (Mul8 <t> c (CvtBoolToUint8 <t> bool)))
-(CondSelect op:(Or(64|32|16) <t> x c:(Const(64|32|16))) x bool) &&
-	rewriteCondSelectIntoMath(config, op.Op, c.AuxInt) =>
+(CondSelect op1:(Or(64|32|16) <t> x c:(Const(64|32|16))) x bool) &&
+	rewriteCondSelectIntoMath(config, op1.Op, c.AuxInt) =>
 	(Or(64|32|16) x (Mul(64|32|16) <t> c (ZeroExt8to(64|32|16) <t> (CvtBoolToUint8 <types.Types[types.TUINT8]> bool))))
 // if !b { x |= c } => x |= !b * c
-(CondSelect x op:(Or8 <t> x c:(Const8)) bool) &&
-	rewriteCondSelectIntoMath(config, op.Op, c.AuxInt) =>
+(CondSelect x op1:(Or8 <t> x c:(Const8)) bool) &&
+	rewriteCondSelectIntoMath(config, op1.Op, c.AuxInt) =>
 	(Or8 x (Mul8 <t> c (CvtBoolToUint8 <t> (Not <bool.Type> bool))))
-(CondSelect x op:(Or(64|32|16) <t> x c:(Const(64|32|16))) bool) &&
-	rewriteCondSelectIntoMath(config, op.Op, c.AuxInt) =>
+(CondSelect x op1:(Or(64|32|16) <t> x c:(Const(64|32|16))) bool) &&
+	rewriteCondSelectIntoMath(config, op1.Op, c.AuxInt) =>
 	(Or(64|32|16) x (Mul(64|32|16) <t> c (ZeroExt8to(64|32|16) <t> (CvtBoolToUint8 <types.Types[types.TUINT8]> (Not <bool.Type> bool)))))
 
 // if b { x ^= c } => x ^= b * c
-(CondSelect op:(Xor8 <t> x c:(Const8)) x bool) &&
-	rewriteCondSelectIntoMath(config, op.Op, c.AuxInt) =>
+(CondSelect op1:(Xor8 <t> x c:(Const8)) x bool) &&
+	rewriteCondSelectIntoMath(config, op1.Op, c.AuxInt) =>
 	(Xor8 x (Mul8 <t> c (CvtBoolToUint8 <t> bool)))
-(CondSelect op:(Xor(64|32|16) <t> x c:(Const(64|32|16))) x bool) &&
-	rewriteCondSelectIntoMath(config, op.Op, c.AuxInt) =>
+(CondSelect op1:(Xor(64|32|16) <t> x c:(Const(64|32|16))) x bool) &&
+	rewriteCondSelectIntoMath(config, op1.Op, c.AuxInt) =>
 	(Xor(64|32|16) x (Mul(64|32|16) <t> c (ZeroExt8to(64|32|16) <t> (CvtBoolToUint8 <types.Types[types.TUINT8]> bool))))
 // if !b { x ^= c } => x ^= !b * c
-(CondSelect x op:(Xor8 <t> x c:(Const8)) bool) &&
-	rewriteCondSelectIntoMath(config, op.Op, c.AuxInt) =>
+(CondSelect x op1:(Xor8 <t> x c:(Const8)) bool) &&
+	rewriteCondSelectIntoMath(config, op1.Op, c.AuxInt) =>
 	(Xor8 x (Mul8 <t> c (CvtBoolToUint8 <t> (Not <bool.Type> bool))))
-(CondSelect x op:(Xor(64|32|16) <t> x c:(Const(64|32|16))) bool) &&
-	rewriteCondSelectIntoMath(config, op.Op, c.AuxInt) =>
+(CondSelect x op1:(Xor(64|32|16) <t> x c:(Const(64|32|16))) bool) &&
+	rewriteCondSelectIntoMath(config, op1.Op, c.AuxInt) =>
 	(Xor(64|32|16) x (Mul(64|32|16) <t> c (ZeroExt8to(64|32|16) <t> (CvtBoolToUint8 <types.Types[types.TUINT8]> (Not <bool.Type> bool)))))
 
 // bool(int(x)) => x

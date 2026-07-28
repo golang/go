@@ -14,7 +14,7 @@ import (
 var importCommentAnalyzer = &analysis.Analyzer{
 	Name: "importcomment",
 	Doc:  analyzerutil.MustExtractDoc(doc, "importcomment"),
-	URL:  "https://pkg.go.dev/golang.org/x/tools/go/analysis/passes/modernize#importcomment",
+	URL:  "https://pkg.go.dev/golang.org/x/tools/go/analysis/passes/modernize#hdr-Analyzer_importcomment",
 	Run:  importcomment,
 }
 

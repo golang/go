@@ -10,7 +10,7 @@
 
 package testdata
 
-// ERRORNEXT "misplaced \+build comment"
+// ERRORNEXT `misplaced \+build comment`
 // +build toolate
 
 var _ = 3

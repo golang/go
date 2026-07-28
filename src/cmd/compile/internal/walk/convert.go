@@ -252,10 +252,10 @@ func walkBytesRunesToString(n *ir.ConvExpr, init *ir.Nodes) ir.Node {
 		a = stackBufAddr(tmpstringbufsize, types.Types[types.TUINT8])
 	}
 	if n.Op() == ir.ORUNES2STR {
-		// slicerunetostring(*[32]byte, []rune) string
+		// slicerunetostring(*[64]byte, []rune) string
 		return mkcall("slicerunetostring", n.Type(), init, a, n.X)
 	}
-	// slicebytetostring(*[32]byte, ptr *byte, n int) string
+	// slicebytetostring(*[64]byte, ptr *byte, n int) string
 	n.X = cheapExpr(n.X, init)
 	ptr, len := backingArrayPtrLen(n.X)
 	return mkcall("slicebytetostring", n.Type(), init, a, ptr, len)
@@ -353,7 +353,7 @@ func walkStringToRunes(n *ir.ConvExpr, init *ir.Nodes) ir.Node {
 	a := typecheck.NodNil()
 	if n.Esc() == ir.EscNone {
 		// Create temporary buffer for slice on stack.
-		a = stackBufAddr(tmpstringbufsize, types.Types[types.TINT32])
+		a = stackBufAddr(tmprunebufsize, types.Types[types.TINT32])
 	}
 	// stringtoslicerune(*[32]rune, string) []rune
 	return mkcall("stringtoslicerune", n.Type(), init, a, typecheck.Conv(n.X, types.Types[types.TSTRING]))

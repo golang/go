@@ -8,6 +8,7 @@ package bytes
 
 import (
 	"internal/bytealg"
+	"internal/stringslite"
 	"math/bits"
 	"unicode"
 	"unicode/utf8"
@@ -1106,6 +1107,38 @@ func trimRightUnicode(s []byte, cutset string) []byte {
 	return s
 }
 
+func trimSpaceUnicode(s []byte) []byte {
+	for len(s) > 0 {
+		r, n := rune(s[0]), 1
+		if r >= utf8.RuneSelf {
+			r, n = utf8.DecodeRune(s)
+		}
+		if !stringslite.IsSpace(r) {
+			break
+		}
+		s = s[n:]
+	}
+	if len(s) == 0 {
+		// This is what we've historically done.
+		return nil
+	}
+	return trimRightSpaceUnicode(s)
+}
+
+func trimRightSpaceUnicode(s []byte) []byte {
+	for len(s) > 0 {
+		r, n := rune(s[len(s)-1]), 1
+		if r >= utf8.RuneSelf {
+			r, n = utf8.DecodeLastRune(s)
+		}
+		if !stringslite.IsSpace(r) {
+			break
+		}
+		s = s[:len(s)-n]
+	}
+	return s
+}
+
 // TrimSpace returns a subslice of s by slicing off all leading and
 // trailing white space, as defined by Unicode.
 func TrimSpace(s []byte) []byte {
@@ -1114,7 +1147,7 @@ func TrimSpace(s []byte) []byte {
 		if c >= utf8.RuneSelf {
 			// If we run into a non-ASCII byte, fall back to the
 			// slower unicode-aware method on the remaining bytes.
-			return TrimFunc(s[lo:], unicode.IsSpace)
+			return trimSpaceUnicode(s[lo:])
 		}
 		if asciiSpace[c] != 0 {
 			continue
@@ -1124,7 +1157,7 @@ func TrimSpace(s []byte) []byte {
 		for hi := len(s) - 1; hi >= 0; hi-- {
 			c := s[hi]
 			if c >= utf8.RuneSelf {
-				return TrimFunc(s[:hi+1], unicode.IsSpace)
+				return trimRightSpaceUnicode(s[:hi+1])
 			}
 			if asciiSpace[c] == 0 {
 				// At this point, s[:hi+1] starts and ends with ASCII

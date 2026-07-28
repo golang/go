@@ -32,7 +32,7 @@ var SlicesContainsAnalyzer = &analysis.Analyzer{
 		typeindexanalyzer.Analyzer,
 	},
 	Run: slicescontains,
-	URL: "https://pkg.go.dev/golang.org/x/tools/go/analysis/passes/modernize#slicescontains",
+	URL: "https://pkg.go.dev/golang.org/x/tools/go/analysis/passes/modernize#hdr-Analyzer_slicescontains",
 }
 
 // The slicescontains pass identifies loops that can be replaced by a

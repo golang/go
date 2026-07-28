@@ -95,8 +95,8 @@ var regNamesMIPS64 = []string{
 	"F30",
 	"F31",
 
-	"HI", // high bits of multiplication
-	"LO", // low bits of multiplication
+	// To avoid nested REGTMP issues we act as if HI LO does not exists.
+	// Operations using them output to GP and obj adds moves from HI LO to GP as needed.
 
 	// If you add registers, update asyncPreempt in runtime.
 
@@ -133,9 +133,7 @@ func init() {
 		gpspg      = gpg.union(buildReg("SP"))
 		gpspsbg    = gpspg.union(buildReg("SB"))
 		fp         = buildReg("F0 F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15 F16 F17 F18 F19 F20 F21 F22 F23 F24 F25 F26 F27 F28 F29 F30 F31")
-		lo         = buildReg("LO")
-		hi         = buildReg("HI")
-		callerSave = gp.union(fp).union(lo).union(hi).union(buildReg("g")) // runtime.setg (and anything calling it) may clobber g
+		callerSave = gp.union(fp).union(buildReg("g")) // runtime.setg (and anything calling it) may clobber g
 		first16    = buildReg("R1 R2 R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15 R16")
 		rz         = buildReg("ZERO")
 	)
@@ -145,7 +143,7 @@ func init() {
 		gp11     = regInfo{inputs: []regMask{gpg}, outputs: []regMask{gp}}
 		gp11sp   = regInfo{inputs: []regMask{gpspg}, outputs: []regMask{gp}}
 		gp21     = regInfo{inputs: []regMask{gpg, gpg.union(rz)}, outputs: []regMask{gp}}
-		gp2hilo  = regInfo{inputs: []regMask{gpg, gpg}, outputs: []regMask{hi, lo}}
+		gp22     = regInfo{inputs: []regMask{gpg, gpg}, outputs: []regMask{gp, gp}}
 		gpload   = regInfo{inputs: []regMask{gpspsbg}, outputs: []regMask{gp}}
 		gpstore  = regInfo{inputs: []regMask{gpspsbg, gpg.union(rz)}}
 		gpstore0 = regInfo{inputs: []regMask{gpspsbg}}
@@ -164,14 +162,14 @@ func init() {
 	)
 	ops := []opData{
 		// binary ops
-		{name: "ADDV", argLength: 2, reg: gp21, asm: "ADDVU", commutative: true, earlyOk: true},                             // arg0 + arg1
-		{name: "ADDVconst", argLength: 1, reg: gp11sp, asm: "ADDVU", aux: "Int64", earlyOk: true},                           // arg0 + auxInt. auxInt is 32-bit, also in other *const ops.
-		{name: "SUBV", argLength: 2, reg: gp21, asm: "SUBVU", earlyOk: true},                                                // arg0 - arg1
-		{name: "SUBVconst", argLength: 1, reg: gp11, asm: "SUBVU", aux: "Int64", earlyOk: true},                             // arg0 - auxInt
-		{name: "MULV", argLength: 2, reg: gp2hilo, asm: "MULV", commutative: true, typ: "(Int64,Int64)", earlyOk: true},     // arg0 * arg1, signed, results hi,lo
-		{name: "MULVU", argLength: 2, reg: gp2hilo, asm: "MULVU", commutative: true, typ: "(UInt64,UInt64)", earlyOk: true}, // arg0 * arg1, unsigned, results hi,lo
-		{name: "DIVV", argLength: 2, reg: gp2hilo, asm: "DIVV", typ: "(Int64,Int64)"},                                       // arg0 / arg1, signed, results hi=arg0%arg1,lo=arg0/arg1
-		{name: "DIVVU", argLength: 2, reg: gp2hilo, asm: "DIVVU", typ: "(UInt64,UInt64)"},                                   // arg0 / arg1, signed, results hi=arg0%arg1,lo=arg0/arg1
+		{name: "ADDV", argLength: 2, reg: gp21, asm: "ADDVU", commutative: true, earlyOk: true},                          // arg0 + arg1
+		{name: "ADDVconst", argLength: 1, reg: gp11sp, asm: "ADDVU", aux: "Int64", earlyOk: true},                        // arg0 + auxInt. auxInt is 32-bit, also in other *const ops.
+		{name: "SUBV", argLength: 2, reg: gp21, asm: "SUBVU", earlyOk: true},                                             // arg0 - arg1
+		{name: "SUBVconst", argLength: 1, reg: gp11, asm: "SUBVU", aux: "Int64", earlyOk: true},                          // arg0 - auxInt
+		{name: "MULV", argLength: 2, reg: gp22, asm: "MULV", commutative: true, typ: "(Int64,Int64)", earlyOk: true},     // arg0 * arg1, signed, results high,low
+		{name: "MULVU", argLength: 2, reg: gp22, asm: "MULVU", commutative: true, typ: "(UInt64,UInt64)", earlyOk: true}, // arg0 * arg1, unsigned, results high,low
+		{name: "DIVV", argLength: 2, reg: gp22, asm: "DIVV", typ: "(Int64,Int64)"},                                       // arg0 / arg1, signed, results arg0%arg1,arg0/arg1
+		{name: "DIVVU", argLength: 2, reg: gp22, asm: "DIVVU", typ: "(UInt64,UInt64)"},                                   // arg0 / arg1, unsigned, results arg0%arg1,arg0/arg1
 
 		{name: "ADDF", argLength: 2, reg: fp21, asm: "ADDF", commutative: true, earlyOk: true}, // arg0 + arg1
 		{name: "ADDD", argLength: 2, reg: fp21, asm: "ADDD", commutative: true, earlyOk: true}, // arg0 + arg1
@@ -504,7 +502,6 @@ func init() {
 		regnames:        regNamesMIPS64,
 		gpregmask:       gp,
 		fpregmask:       fp,
-		specialregmask:  hi.union(lo),
 		framepointerreg: -1, // not used
 		linkreg:         int8(num["R31"]),
 	})

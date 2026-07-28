@@ -32,7 +32,7 @@ var BLoopAnalyzer = &analysis.Analyzer{
 		typeindexanalyzer.Analyzer,
 	},
 	Run: bloop,
-	URL: "https://pkg.go.dev/golang.org/x/tools/go/analysis/passes/modernize#bloop",
+	URL: "https://pkg.go.dev/golang.org/x/tools/go/analysis/passes/modernize#hdr-Analyzer_bloop",
 }
 
 // bloop updates benchmarks that use "for range b.N", replacing it

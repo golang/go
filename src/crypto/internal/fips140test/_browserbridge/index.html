@@ -1,0 +1,311 @@
+<!doctype html>
+<!-- Copyright 2026 The Go Authors. All rights reserved.
+     Use of this source code is governed by a BSD-style
+     license that can be found in the LICENSE file. -->
+<html lang="en">
+<meta charset="utf-8">
+<title>Go FIPS 140-3 ACVP bridge</title>
+<style>
+	body { font: 14px/1.5 system-ui, sans-serif; margin: 2rem; max-width: 60rem; }
+	#status { font-weight: 600; margin: 1rem 0; }
+	pre { background: #f4f4f4; padding: 1rem; overflow: auto; max-height: 70vh; white-space: pre-wrap; }
+</style>
+<script>
+// The standard input and output of the module are routed through this fs
+// shim, installed before wasm_exec.js runs, as it only provides its own
+// stub when globalThis.fs is not already defined. Reads and writes are
+// delegated to the active session, see Session below.
+(() => {
+	const enosys = () => {
+		const err = new Error("not implemented");
+		err.code = "ENOSYS";
+		return err;
+	};
+	globalThis.bridge = { session: null };
+	globalThis.fs = {
+		constants: { O_WRONLY: -1, O_RDWR: -1, O_CREAT: -1, O_TRUNC: -1, O_APPEND: -1, O_EXCL: -1, O_DIRECTORY: -1 }, // unused
+		writeSync(fd, buf) {
+			const s = bridge.session;
+			if (!s || (fd !== 1 && fd !== 2)) {
+				// The runtime prints panics and post-exit diagnostics
+				// through writeSync directly, with no error path; surface
+				// them in the console rather than dropping them. fs.write
+				// rejects these cases with ENOSYS before delegating here.
+				console.log(new TextDecoder().decode(buf));
+				return buf.length;
+			}
+			// buf is a view into the module's memory; copy it before queueing.
+			s.write(fd, buf.slice());
+			return buf.length;
+		},
+		write(fd, buf, offset, length, position, callback) {
+			if (offset !== 0 || length !== buf.length || position !== null) {
+				callback(enosys());
+				return;
+			}
+			if (!bridge.session || (fd !== 1 && fd !== 2)) {
+				callback(enosys());
+				return;
+			}
+			const n = this.writeSync(fd, buf);
+			callback(null, n);
+		},
+		read(fd, buffer, offset, length, position, callback) {
+			const s = bridge.session;
+			if (fd !== 0 || position !== null || !s) {
+				callback(enosys());
+				return;
+			}
+			s.read({ buffer, offset, length, callback });
+		},
+		chmod(path, mode, callback) { callback(enosys()); },
+		chown(path, uid, gid, callback) { callback(enosys()); },
+		close(fd, callback) { callback(enosys()); },
+		fchmod(fd, mode, callback) { callback(enosys()); },
+		fchown(fd, uid, gid, callback) { callback(enosys()); },
+		fstat(fd, callback) { callback(enosys()); },
+		fsync(fd, callback) { callback(null); },
+		ftruncate(fd, length, callback) { callback(enosys()); },
+		lchown(path, uid, gid, callback) { callback(enosys()); },
+		link(path, link, callback) { callback(enosys()); },
+		lstat(path, callback) { callback(enosys()); },
+		mkdir(path, perm, callback) { callback(enosys()); },
+		open(path, flags, mode, callback) { callback(enosys()); },
+		readdir(path, callback) { callback(enosys()); },
+		readlink(path, callback) { callback(enosys()); },
+		rename(from, to, callback) { callback(enosys()); },
+		rmdir(path, callback) { callback(enosys()); },
+		stat(path, callback) { callback(enosys()); },
+		symlink(path, link, callback) { callback(enosys()); },
+		truncate(path, length, callback) { callback(enosys()); },
+		unlink(path, callback) { callback(enosys()); },
+		utimes(path, atime, mtime, callback) { callback(enosys()); },
+	};
+})();
+</script>
+<script src="wasm_exec.js"></script>
+<body>
+<h1>Go FIPS 140-3 ACVP bridge</h1>
+<div id="status">loading…</div>
+<pre id="out"></pre>
+<script type="module">
+const statusEl = document.getElementById("status");
+const outEl = document.getElementById("out");
+const status = (text) => { statusEl.textContent = text; };
+const append = (text) => {
+	outEl.textContent += text;
+	if (outEl.textContent.length > 4 << 20) {
+		outEl.textContent = outEl.textContent.slice(-(2 << 20));
+	}
+	outEl.scrollTop = outEl.scrollHeight;
+};
+
+status("fetching module…");
+// Keep the raw bytes: go.run needs them to load the fipsrelocinfo section
+// for the FIPS 140-3 integrity check.
+const wasmBytes = await (await fetch("module.wasm")).arrayBuffer();
+const module = await WebAssembly.compile(wasmBytes);
+status("module compiled — waiting for first session…");
+
+// Report the browser environment to the server once, as evidence for
+// operational environment qualification. The host hardware model and CPU
+// aren't available from JS; capture those on the host running the browser.
+(async () => {
+	const ua = navigator.userAgent;
+	const info = { userAgent: ua, hardwareConcurrency: navigator.hardwareConcurrency };
+	if (navigator.deviceMemory) info.deviceMemory = navigator.deviceMemory;
+	let list = null;
+	// userAgentData exists only on Chromium, and only in a secure context
+	// (open the page via http://localhost to get it).
+	if (navigator.userAgentData) {
+		info.brands = navigator.userAgentData.brands;
+		info.uaPlatform = navigator.userAgentData.platform;
+		try {
+			info.highEntropy = await navigator.userAgentData.getHighEntropyValues(
+				["platform", "platformVersion", "architecture", "bitness",
+					"model", "uaFullVersion", "fullVersionList"]);
+			list = info.highEntropy.fullVersionList;
+		} catch (e) {}
+		list ||= navigator.userAgentData.brands;
+	}
+	try {
+		const gl = document.createElement("canvas").getContext("webgl");
+		const dbg = gl && gl.getExtension("WEBGL_debug_renderer_info");
+		if (dbg) {
+			info.webglVendor = gl.getParameter(dbg.UNMASKED_VENDOR_WEBGL);
+			info.webglRenderer = gl.getParameter(dbg.UNMASKED_RENDERER_WEBGL);
+		}
+	} catch (e) {}
+	// Inferred for convenience; the validator should confirm against the raw
+	// fields above, especially the engine, which has no API.
+	let name = "unknown", version = "", m;
+	const brand = list && list.find((x) => !/Not.?A.?Brand|^Chromium$/i.test(x.brand));
+	if (brand) { name = brand.brand; version = brand.version; }
+	else if ((m = ua.match(/Firefox\/([\d.]+)/))) { name = "Mozilla Firefox"; version = m[1]; }
+	else if (/Safari/.test(ua) && !/Chrome/.test(ua) && (m = ua.match(/Version\/([\d.]+)/))) { name = "Apple Safari"; version = m[1]; }
+	else if ((m = ua.match(/Edg\/([\d.]+)/))) { name = "Microsoft Edge"; version = m[1]; }
+	else if ((m = ua.match(/Chrome\/([\d.]+)/))) { name = "Google Chrome"; version = m[1]; }
+	info.inferredBrowser = `${name} ${version}`.trim();
+	info.inferredWasmEngine = /Edge|Chrome|Chromium/i.test(name) ? "V8"
+		: /Safari/i.test(name) ? "JavaScriptCore"
+		: /Firefox/i.test(name) ? "SpiderMonkey" : "unknown";
+	await fetch("clientinfo", {
+		method: "POST",
+		headers: { "Content-Type": "application/json" },
+		body: JSON.stringify(info),
+	}).catch(() => {});
+})();
+
+// A Session adapts the fs shim above to the bridge server's HTTP API for
+// one module execution: standard input is polled from /stdin a chunk at a
+// time, and output is POSTed to /io in order.
+class Session {
+	constructor(meta) {
+		this.meta = meta;
+		this.queue = [];   // pending stdin chunks (Uint8Array)
+		this.eof = false;
+		this.pending = null;
+		this.ioChain = Promise.resolve();
+		this.bytesIn = 0;
+		this.bytesOut = 0;
+		// The wrapper protocol is binary; display progress instead of output.
+		this.binary = meta.env["ACVP_WRAPPER"] === "1";
+		this.decoders = { 1: new TextDecoder(), 2: new TextDecoder() };
+	}
+
+	write(fd, bytes) {
+		this.bytesOut += bytes.length;
+		if (this.binary) {
+			this.progress();
+		} else {
+			append(this.decoders[fd].decode(bytes, { stream: true }));
+		}
+		this.ioChain = this.ioChain
+			.then(() => fetch(`io?s=${this.meta.id}&fd=${fd}`, { method: "POST", body: bytes }))
+			.catch(() => {});
+	}
+
+	read(req) {
+		this.pending = req;
+		this.service();
+	}
+
+	// service completes the pending read if input is available. The Go
+	// runtime's fs.read callback may be held indefinitely; it is invoked
+	// when the /stdin stream delivers bytes or ends.
+	service() {
+		const req = this.pending;
+		if (!req) return;
+		if (this.queue.length === 0) {
+			if (this.eof) {
+				this.pending = null;
+				req.callback(null, 0);
+			}
+			return;
+		}
+		const src = this.queue[0];
+		const n = Math.min(src.length, req.length);
+		req.buffer.set(src.subarray(0, n), req.offset);
+		if (n === src.length) {
+			this.queue.shift();
+		} else {
+			this.queue[0] = src.subarray(n);
+		}
+		this.pending = null;
+		this.bytesIn += n;
+		if (this.binary) this.progress();
+		req.callback(null, n);
+	}
+
+	progress() {
+		const now = performance.now();
+		if (this.lastProgress && now - this.lastProgress < 100) return;
+		this.lastProgress = now;
+		status(`session ${this.meta.id}: ${this.meta.argv.join(" ")} — ` +
+			`${this.bytesIn} bytes in, ${this.bytesOut} bytes out`);
+	}
+}
+
+async function runSession(meta) {
+	const s = new Session(meta);
+	bridge.session = s;
+	const argv = meta.argv.join(" ");
+	status(`session ${meta.id}: ${argv}`);
+	if (!s.binary) append(`=== session ${meta.id}: ${argv} ===\n`);
+
+	(async () => {
+		// Poll for standard input a chunk at a time. Each response completes,
+		// so Safari delivers it in full; the body of a single long-lived
+		// streaming response is buffered by Safari and never surfaced, which
+		// starves the module of input that has already arrived.
+		try {
+			for (;;) {
+				const resp = await fetch(`stdin?s=${meta.id}`);
+				if (!resp.ok || resp.headers.get("Stdin-Eof")) break;
+				const buf = new Uint8Array(await resp.arrayBuffer());
+				if (buf.length) {
+					s.queue.push(buf);
+					s.service();
+				}
+			}
+		} catch (err) {
+			console.error("stdin poll:", err);
+		}
+		s.eof = true;
+		s.service();
+	})();
+
+	const go = new Go();
+	go.argv = meta.argv.slice();
+	go.env = meta.env;
+	let exitCode = 0;
+	go.exit = (code) => { exitCode = code; };
+	try {
+		// A corrupt session is served, at a per-session URL, a module whose
+		// integrity checksum has been overwritten; compile it fresh instead of
+		// reusing the cached good module, so its load-time check fails.
+		let sessionModule = module, sessionBytes = wasmBytes;
+		if (meta.corrupt) {
+			sessionBytes = await (await fetch(`module.wasm?s=${meta.id}`)).arrayBuffer();
+			sessionModule = await WebAssembly.compile(sessionBytes);
+		}
+		const instance = await WebAssembly.instantiate(sessionModule, go.importObject);
+		await go.run(instance, sessionModule, sessionBytes);
+	} catch (err) {
+		console.error(err);
+		exitCode = 2;
+		const msg = new TextEncoder().encode(`browserbridge: module crashed: ${err}\n`);
+		if (!s.binary) append(`module crashed: ${err}\n`);
+		s.ioChain = s.ioChain
+			.then(() => fetch(`io?s=${meta.id}&fd=2`, { method: "POST", body: msg }))
+			.catch(() => {});
+	}
+	// The Go runtime can leave scheduler wake-up timers pending at exit; a
+	// stale one firing later would call _resume on the exited instance and
+	// throw. Pending timers can't run before this microtask continuation.
+	for (const t of go._scheduledTimeouts.values()) clearTimeout(t);
+	go._scheduledTimeouts.clear();
+	await s.ioChain;
+	await fetch(`exit?s=${meta.id}`, {
+		method: "POST",
+		headers: { "Content-Type": "application/json" },
+		body: JSON.stringify({ code: exitCode }),
+	}).catch(() => {});
+	bridge.session = null;
+	if (!s.binary) append(`=== session ${meta.id}: exit ${exitCode} ===\n`);
+	status(`session ${meta.id} done (exit ${exitCode}, ` +
+		`${s.bytesIn} bytes in, ${s.bytesOut} bytes out) — waiting for next session…`);
+}
+
+for (;;) {
+	try {
+		const resp = await fetch("session");
+		if (resp.status === 204) continue; // long-poll timeout
+		if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
+		await runSession(await resp.json());
+	} catch (err) {
+		status(`bridge server unreachable (${err}) — retrying…`);
+		await new Promise((resolve) => setTimeout(resolve, 2000));
+	}
+}
+</script>

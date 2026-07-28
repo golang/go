@@ -6,6 +6,7 @@ package gccgoimporter
 
 import (
 	"bufio"
+	"fmt"
 	"go/types"
 	"os"
 	"os/exec"
@@ -55,6 +56,9 @@ func (inst *GccgoInstallation) InitFromDriver(gccgoPath string, args ...string) 
 				}
 			}
 		}
+	}
+	if err := scanner.Err(); err != nil {
+		return fmt.Errorf("failed to parse target triple from gccgo stderr: %v", err)
 	}
 
 	argv = append([]string{"-dumpversion"}, args...)

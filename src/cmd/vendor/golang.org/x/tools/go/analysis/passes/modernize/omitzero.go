@@ -24,7 +24,7 @@ var OmitZeroAnalyzer = &analysis.Analyzer{
 	Doc:      analyzerutil.MustExtractDoc(doc, "omitzero"),
 	Requires: []*analysis.Analyzer{inspect.Analyzer},
 	Run:      omitzero,
-	URL:      "https://pkg.go.dev/golang.org/x/tools/go/analysis/passes/modernize#omitzero",
+	URL:      "https://pkg.go.dev/golang.org/x/tools/go/analysis/passes/modernize#hdr-Analyzer_omitzero",
 }
 
 // The omitzero pass searches for instances of "omitempty" in a json field tag on a

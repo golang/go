@@ -33,7 +33,7 @@ var EmbedLitAnalyzer = &analysis.Analyzer{
 		typeindexanalyzer.Analyzer,
 	},
 	Run: runEmbedLit,
-	URL: "https://pkg.go.dev/golang.org/x/tools/go/analysis/passes/modernize#embedlit",
+	URL: "https://pkg.go.dev/golang.org/x/tools/go/analysis/passes/modernize#hdr-Analyzer_embedlit",
 }
 
 // Go1.27 introduced the ability to directly access embedded struct fields.

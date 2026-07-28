@@ -187,3 +187,16 @@ func isLocal(obj types.Object) bool {
 	}
 	return depth >= 4
 }
+
+func is[T any](x any) bool {
+	_, ok := x.(T)
+	return ok
+}
+
+func cond[T any](cond bool, t, f T) T {
+	if cond {
+		return t
+	} else {
+		return f
+	}
+}

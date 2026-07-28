@@ -944,3 +944,110 @@ func bijectiveMul(x uint) bool {
 	// arm64: -"MUL"
 	return x*1337 == 42
 }
+
+func scanASCIILess(b []byte) int {
+	for i := range b {
+		// arm64:"TBNZ [$]7" -"CMPW [$]128"
+		if b[i] < 128 {
+			return i
+		}
+	}
+	return -1
+}
+
+func scanASCIIGeq(b []byte) int {
+	for i := range b {
+		// arm64:"TBZ [$]7" -"CMPW [$]128"
+		if b[i] >= 128 {
+			return i
+		}
+	}
+	return -1
+}
+
+func scanASCIILess64(b []byte) int {
+	for i := range b {
+		// arm64:"TBNZ [$]7" -"CMP [$]128"
+		if uint64(b[i]) < 128 {
+			return i
+		}
+	}
+	return -1
+}
+
+func scanASCIIGeq64(b []byte) int {
+	for i := range b {
+		// arm64:"TBZ [$]7" -"CMP [$]128"
+		if uint64(b[i]) >= 128 {
+			return i
+		}
+	}
+	return -1
+}
+
+func scanASCIILessSigned32(b []byte) int {
+	for i := range b {
+		// arm64:"TBNZ [$]7" -"CMPW [$]128"
+		if int32(b[i]) < 128 {
+			return i
+		}
+	}
+	return -1
+}
+
+func scanASCIIGeqSigned64(b []byte) int {
+	for i := range b {
+		// arm64:"TBZ [$]7" -"CMP [$]128"
+		if int64(b[i]) >= 128 {
+			return i
+		}
+	}
+	return -1
+}
+
+// A loaded byte that is both compared and used a second time (here as a table
+// index) must not be copied with a MOVD register move just to feed the
+// comparison: the compare reads the loaded register directly
+// (go.dev/issue/43357). Before the fix, arm64's unsigned narrow comparison
+// inserted a ZeroExt8to32 that the register allocator realized as a redundant
+// MOVD Rx,Ry copy whenever the loaded byte had a second consumer. These are
+// LEAF, bool-return loops so the only reg-reg MOVD that could appear is that
+// copy: a single-consumer compare emits no copy (the extension is elided to a
+// MOVDnop), and a return-value or morestack MOVD would mask the assertion,
+// which is why the natural a[i] < a[j] shape does not exercise this.
+
+var escByteTab [256]bool
+
+// c is compared for equality against a byte constant and then used again as a
+// table index (the second consumer keeps c live). The compare must read the
+// loaded register, not a copy of it.
+func scanByteCmpReuse(b []byte) bool {
+	for i := range b {
+		c := b[i]
+		// arm64:-"MOVD R[0-9]+, R[0-9]+"
+		if c == '"' {
+			return true
+		}
+		if escByteTab[c] {
+			return true
+		}
+	}
+	return false
+}
+
+// The scanner ASCII fast path: c is range-compared (c >= 128) and then reused
+// as a table index. The unsigned compare must read the loaded register
+// directly rather than a copy of it.
+func scanByteHighReuse(b []byte) bool {
+	for i := range b {
+		c := b[i]
+		// arm64:-"MOVD R[0-9]+, R[0-9]+"
+		if c >= 128 {
+			return true
+		}
+		if escByteTab[c] {
+			return true
+		}
+	}
+	return false
+}

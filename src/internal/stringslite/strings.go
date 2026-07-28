@@ -5,7 +5,7 @@
 // Package stringslite implements a subset of strings,
 // only using packages that may be imported by "os".
 //
-// Tests for these functions are in the strings package.
+// Most tests for these functions are in the strings package.
 package stringslite
 
 import (
@@ -110,6 +110,35 @@ func TrimSuffix(s, suffix string) string {
 		return s[:len(s)-len(suffix)]
 	}
 	return s
+}
+
+// IsSpace reports whether r is a space character as defined by
+// Unicode's White Space property.
+func IsSpace(r rune) bool {
+	switch r {
+	case '\t', '\n', '\v', '\f', '\r', ' ',
+		0x0085, // NEXT LINE
+		0x00A0, // NO-BREAK SPACE
+		0x1680, // OGHAM SPACE MARK
+		0x2000, // EN QUAD
+		0x2001, // EM QUAD
+		0x2002, // EN SPACE
+		0x2003, // EM SPACE
+		0x2004, // THREE-PER-EM SPACE
+		0x2005, // FOUR-PER-EM SPACE
+		0x2006, // SIX-PER-EM SPACE
+		0x2007, // FIGURE SPACE
+		0x2008, // PUNCTUATION SPACE
+		0x2009, // THIN SPACE
+		0x200A, // HAIR SPACE
+		0x2028, // LINE SEPARATOR
+		0x2029, // PARAGRAPH SEPARATOR
+		0x202F, // NARROW NO-BREAK SPACE
+		0x205F, // MEDIUM MATHEMATICAL SPACE
+		0x3000: // IDEOGRAPHIC SPACE
+		return true
+	}
+	return false
 }
 
 func Clone(s string) string {

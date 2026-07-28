@@ -653,6 +653,15 @@
 (LT (CMPWconst [0] x) yes no) => (TBNZ [31] x yes no)
 (LT (CMPconst [0] x)  yes no) => (TBNZ [63] x yes no)
 
+// A byte value (a zero-extended-byte op, so provably in [0,255]) compared
+// against 128 (=2^7) is a bit-7 test, for both compare widths and both
+// signednesses: with the value in [0,255] the signed and unsigned orderings
+// against 128 coincide.
+((UGE|ULT) (CMPWconst [128] x) yes no) && ZeroUpper56Bits(x, 3) => ((TBNZ|TBZ) [7] x yes no)
+((UGE|ULT) (CMPconst [128] x)  yes no) && ZeroUpper56Bits(x, 3) => ((TBNZ|TBZ) [7] x yes no)
+((GE|LT)   (CMPWconst [128] x) yes no) && ZeroUpper56Bits(x, 3) => ((TBNZ|TBZ) [7] x yes no)
+((GE|LT)   (CMPconst [128] x)  yes no) && ZeroUpper56Bits(x, 3) => ((TBNZ|TBZ) [7] x yes no)
+
 // fold offset into address
 (ADDconst [off1] (MOVDaddr [off2] {sym} ptr)) && is32Bit(off1+int64(off2)) =>
 	 (MOVDaddr [int32(off1)+off2] {sym} ptr)

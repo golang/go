@@ -149,7 +149,7 @@ func compileFunctions(profile *pgoir.Profile) {
 		// Since we remove from the end of the slice queue,
 		// that means shortest to longest.
 		slices.SortFunc(compilequeue, func(a, b *ir.Func) int {
-			return cmp.Compare(len(a.Body), len(b.Body))
+			return cmp.Compare(a.NumPreWalkNodes, b.NumPreWalkNodes)
 		})
 	}
 

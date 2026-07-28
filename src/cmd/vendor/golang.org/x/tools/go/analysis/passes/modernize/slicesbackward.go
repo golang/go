@@ -19,6 +19,7 @@ import (
 	typeindexanalyzer "golang.org/x/tools/internal/analysis/typeindex"
 	"golang.org/x/tools/internal/astutil"
 	"golang.org/x/tools/internal/refactor"
+	"golang.org/x/tools/internal/typesinternal"
 	"golang.org/x/tools/internal/typesinternal/typeindex"
 	"golang.org/x/tools/internal/versions"
 )
@@ -32,7 +33,7 @@ var slicesBackwardAnalyzer = &analysis.Analyzer{
 		typeindexanalyzer.Analyzer,
 	},
 	Run: slicesbackward,
-	URL: "https://pkg.go.dev/golang.org/x/tools/go/analysis/passes/modernize#slicesbackward",
+	URL: "https://pkg.go.dev/golang.org/x/tools/go/analysis/passes/modernize#hdr-Analyzer_slicesbackward",
 }
 
 // slicesbackward offers a fix to replace a manually-written backward loop:
@@ -128,7 +129,7 @@ func slicesbackward(pass *analysis.Pass) (any, error) {
 			// (e.g. &i before the loop).
 			bodyCur := curLoop.Child(loop.Body)
 			for curUse := range index.Uses(indexObj) {
-				if !isScalarLvalue(info, curUse) {
+				if !typesinternal.IsAssignedOrAddressTaken(info, curUse) {
 					continue
 				}
 				if bodyCur.Contains(curUse) {
@@ -160,20 +161,25 @@ func slicesbackward(pass *analysis.Pass) (any, error) {
 				// If so, we also need to check whether s[i] is an lvalue. If we're
 				// mutating the slice or taking an element's address, a fix will not
 				// be offered.
+				// Modernization to "for _, v := range slices.Backward(s)" is unsafe if
+				// s[i] is mutated or address-taken (since v would be a local copy of
+				// the element so s[i] wouldn't get mutated).
+				// We don't need to worry about indirect selections (e.g. s[i].n++ where
+				// s is []*item) or indirect references like indexing a slice of slices.
 				if curUse.ParentEdgeKind() == edge.IndexExpr_Index {
-					if isScalarLvalue(pass.TypesInfo, curUse.Parent()) {
+					curIdx := curUse.Parent()
+					if typesinternal.IsAssignedOrAddressTaken(info, curIdx) {
 						continue nextLoop
 					}
-					idxCur := curUse.Parent()
-					idxExpr := idxCur.Node().(*ast.IndexExpr)
+					idxExpr := curIdx.Node().(*ast.IndexExpr)
 					if astutil.EqualSyntax(idxExpr.X, sliceExpr) {
 						sliceIdxs++
 						// If the current statement is the first in the body of the form
 						// "name := s[i]", save it so we can use "name" as the value
 						// variable in slices.Backward. We can also remove the entire assign
 						// statement.
-						if firstSliceIdxAssign == nil && idxCur.ParentEdgeKind() == edge.AssignStmt_Rhs {
-							assignStmt := idxCur.Parent().Node().(*ast.AssignStmt)
+						if firstSliceIdxAssign == nil && curIdx.ParentEdgeKind() == edge.AssignStmt_Rhs {
+							assignStmt := curIdx.Parent().Node().(*ast.AssignStmt)
 							if len(assignStmt.Lhs) == 1 && assignStmt.Tok == token.DEFINE {
 								// The condition above implies that assignStmt.Lhs[0] is a valid
 								// identifier.

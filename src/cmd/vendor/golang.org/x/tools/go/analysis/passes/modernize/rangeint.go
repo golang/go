@@ -13,8 +13,6 @@ import (
 
 	"golang.org/x/tools/go/analysis"
 	"golang.org/x/tools/go/analysis/passes/inspect"
-	"golang.org/x/tools/go/ast/edge"
-	"golang.org/x/tools/go/ast/inspector"
 	"golang.org/x/tools/go/types/typeutil"
 	"golang.org/x/tools/internal/analysis/analyzerutil"
 	typeindexanalyzer "golang.org/x/tools/internal/analysis/typeindex"
@@ -33,7 +31,7 @@ var RangeIntAnalyzer = &analysis.Analyzer{
 		typeindexanalyzer.Analyzer,
 	},
 	Run: rangeint,
-	URL: "https://pkg.go.dev/golang.org/x/tools/go/analysis/passes/modernize#rangeint",
+	URL: "https://pkg.go.dev/golang.org/x/tools/go/analysis/passes/modernize#hdr-Analyzer_rangeint",
 }
 
 // rangeint offers a fix to replace a 3-clause 'for' loop:
@@ -112,7 +110,7 @@ func rangeint(pass *analysis.Pass) (any, error) {
 							// limit is a local or unexported global var.
 							// (An exported global may have uses we can't see.)
 							for cur := range typeindex.Uses(v) {
-								if isScalarLvalue(info, cur) {
+								if typesinternal.IsAssignedOrAddressTaken(info, cur) {
 									// Limit var is assigned or address-taken.
 									continue nextLoop
 								}
@@ -161,7 +159,7 @@ func rangeint(pass *analysis.Pass) (any, error) {
 								// Reject if any is an l-value (assigned or address-taken):
 								// a "for range int" loop does not respect assignments to
 								// the loop variable.
-								if isScalarLvalue(info, curId) {
+								if typesinternal.IsAssignedOrAddressTaken(info, curId) {
 									continue nextLoop
 								}
 							}
@@ -344,41 +342,4 @@ func rangeint(pass *analysis.Pass) (any, error) {
 		}
 	}
 	return nil, nil
-}
-
-// isScalarLvalue reports whether the specified identifier is
-// address-taken or appears on the left side of an assignment.
-//
-// This function is valid only for scalars (x = ...),
-// not for aggregates (x.a[i] = ...)
-func isScalarLvalue(info *types.Info, curId inspector.Cursor) bool {
-	// Unfortunately we can't simply use info.Types[e].Assignable()
-	// as it is always true for a variable even when that variable is
-	// used only as an r-value. So we must inspect enclosing syntax.
-
-	cur := astutil.UnparenEnclosingCursor(curId)
-
-	switch cur.ParentEdgeKind() {
-	case edge.AssignStmt_Lhs:
-		assign := cur.Parent().Node().(*ast.AssignStmt)
-		if assign.Tok != token.DEFINE {
-			return true // i = j or i += j
-		}
-		id := curId.Node().(*ast.Ident)
-		if v, ok := info.Defs[id]; ok && v.Pos() != id.Pos() {
-			return true // reassignment of i (i, j := 1, 2)
-		}
-	case edge.RangeStmt_Key:
-		rng := cur.Parent().Node().(*ast.RangeStmt)
-		if rng.Tok == token.ASSIGN {
-			return true // "for k, v = range x" is like an AssignStmt to k, v
-		}
-	case edge.IncDecStmt_X:
-		return true // i++, i--
-	case edge.UnaryExpr_X:
-		if cur.Parent().Node().(*ast.UnaryExpr).Op == token.AND {
-			return true // &i
-		}
-	}
-	return false
 }

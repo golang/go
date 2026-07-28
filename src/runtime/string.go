@@ -15,9 +15,15 @@ import (
 	"unsafe"
 )
 
-// The constant is known to the compiler.
-// There is no fundamental theory behind this number.
-const tmpStringBufSize = 32
+// These constants are known to the compiler (see cmd/compile/internal/walk).
+// tmpStringBufSize bounds the stack buffer for string results (concatenation
+// and []byte/[]rune->string). tmpRuneBufSize bounds the string->[]rune buffer;
+// it is kept smaller because rune buffers cost 4 bytes per element while
+// exceeding 32 runes is rare, so a larger size would grow frames for no gain.
+const (
+	tmpStringBufSize = 64
+	tmpRuneBufSize   = 32
+)
 
 type tmpBuf [tmpStringBufSize]byte
 
@@ -234,7 +240,7 @@ func stringtoslicebyte(buf *tmpBuf, s string) []byte {
 	return b
 }
 
-func stringtoslicerune(buf *[tmpStringBufSize]rune, s string) []rune {
+func stringtoslicerune(buf *[tmpRuneBufSize]rune, s string) []rune {
 	// two passes.
 	// unlike slicerunetostring, no race because strings are immutable.
 	n := 0
@@ -244,7 +250,7 @@ func stringtoslicerune(buf *[tmpStringBufSize]rune, s string) []rune {
 
 	var a []rune
 	if buf != nil && n <= len(buf) {
-		*buf = [tmpStringBufSize]rune{}
+		*buf = [tmpRuneBufSize]rune{}
 		a = buf[:n]
 	} else {
 		a = rawruneslice(n)
