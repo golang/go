@@ -1260,6 +1260,7 @@ func TestAddressFormattingAndParsing(t *testing.T) {
 		{Name: "Böb ???", Address: "bob@example.com"},
 		{Name: "Böb (Jacöb)", Address: "bob@example.com"},
 		{Name: "à#$%&'(),.:;<>@[]^`{|}~'", Address: "bob@example.com"},
+		{Name: `é\`, Address: "user@example.com"},
 		// https://golang.org/issue/11292
 		{Name: "\"\\\x1f,\"", Address: "0@0"},
 		// https://golang.org/issue/12782
