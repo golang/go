@@ -641,6 +641,7 @@ var passOrder = [...]constraint{
 	// known bits does very little except some fancy constant folding and we need opt to clean it up.
 	{"known bits", "late opt"},
 	// known bits does a better job once prove cleaned up some always taken and never taken branches.
+	// known bits also relies on the output to be mostly topo-sorted (for recursion limit purposes) which prove does.
 	{"prove", "known bits"},
 }
 
