@@ -34,8 +34,9 @@ package types2
 
 import (
 	"bytes"
+	"cmp"
 	"fmt"
-	"sort"
+	"slices"
 	"strings"
 )
 
@@ -151,13 +152,15 @@ func (u *unifier) tracef(format string, args ...any) {
 // from type parameters to types.
 func (u *unifier) String() string {
 	// sort type parameters for reproducible strings
-	tparams := make(typeParamsById, len(u.handles))
+	tparams := make([]*TypeParam, len(u.handles))
 	i := 0
 	for tpar := range u.handles {
 		tparams[i] = tpar
 		i++
 	}
-	sort.Sort(tparams)
+	slices.SortFunc(tparams, func(a, b *TypeParam) int {
+		return cmp.Compare(a.id, b.id)
+	})
 
 	var buf bytes.Buffer
 	w := newTypeWriter(&buf, nil)
@@ -173,12 +176,6 @@ func (u *unifier) String() string {
 	w.byte(']')
 	return buf.String()
 }
-
-type typeParamsById []*TypeParam
-
-func (s typeParamsById) Len() int           { return len(s) }
-func (s typeParamsById) Less(i, j int) bool { return s[i].id < s[j].id }
-func (s typeParamsById) Swap(i, j int)      { s[i], s[j] = s[j], s[i] }
 
 // join unifies the given type parameters x and y.
 // If both type parameters already have a type associated with them

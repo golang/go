@@ -20,7 +20,6 @@ import (
 	"math"
 	"os"
 	"slices"
-	"sort"
 	"strings"
 
 	"cmd/compile/internal/abi"
@@ -1165,7 +1164,7 @@ func (lv *Liveness) format(v *ssa.Value, live bitvec.BitVec) (src.XPos, string) 
 			names = append(names, n.Sym().Name)
 		}
 	}
-	sort.Strings(names)
+	slices.Sort(names)
 	for _, v := range names {
 		s += " " + v
 	}

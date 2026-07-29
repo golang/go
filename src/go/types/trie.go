@@ -7,7 +7,7 @@
 
 package types
 
-import "sort"
+import "slices"
 
 // A trie[V] maps keys to values V, similar to a map.
 // A key is a list of integers; two keys collide if one of them is a prefix of the other.
@@ -88,6 +88,6 @@ func (tr trie[V]) pickValue() any {
 	for k := range tr {
 		keys = append(keys, k)
 	}
-	sort.Ints(keys) // guarantee deterministic element pick
+	slices.Sort(keys) // guarantee deterministic element pick
 	return tr[keys[0]]
 }
