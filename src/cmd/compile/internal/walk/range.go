@@ -482,6 +482,44 @@ func mapClear(m, rtyp ir.Node) ir.Node {
 	return typecheck.Stmt(n)
 }
 
+// arrayRangeClearTargetSafe reports whether evaluating n once before the loop
+// produces the same clear target as evaluating it on every loop iteration.
+func arrayRangeClearTargetSafe(n ir.Node) bool {
+	if !n.Type().IsArray() {
+		return !ir.Any(n, readsMemory)
+	}
+
+	return arrayRangeClearAddressSafe(n)
+}
+
+// arrayRangeClearAddressSafe reports whether n's address is stable. Pointer
+// and slice values used to compute the address must not be reloadable from
+// memory that an earlier loop iteration could overwrite.
+func arrayRangeClearAddressSafe(n ir.Node) bool {
+	switch n.Op() {
+	case ir.ONAME:
+		return true
+	case ir.ODOT:
+		return arrayRangeClearAddressSafe(n.(*ir.SelectorExpr).X)
+	case ir.ODOTPTR:
+		return !ir.Any(n.(*ir.SelectorExpr).X, readsMemory)
+	case ir.ODEREF:
+		return !ir.Any(n.(*ir.StarExpr).X, readsMemory)
+	case ir.OINDEX:
+		n := n.(*ir.IndexExpr)
+		var baseSafe bool
+		if n.X.Type().IsArray() {
+			baseSafe = arrayRangeClearAddressSafe(n.X)
+		} else {
+			baseSafe = !ir.Any(n.X, readsMemory)
+		}
+		return baseSafe && !ir.Any(n.Index, readsMemory)
+	case ir.OCONVNOP:
+		return arrayRangeClearAddressSafe(n.(*ir.ConvExpr).X)
+	}
+	return false
+}
+
 // Lower n into runtime·memclr if possible, for
 // fast zeroing of slices and arrays (issue 5373).
 // Look for instances of
@@ -511,11 +549,28 @@ func arrayRangeClear(loop *ir.RangeStmt, v1, v2, a ir.Node) ir.Node {
 		return nil
 	}
 	stmt := stmt1.(*ir.AssignStmt)
+	if !ir.IsZero(stmt.Y) {
+		return nil
+	}
 	if stmt.X.Op() != ir.OINDEX {
 		return nil
 	}
 	lhs := stmt.X.(*ir.IndexExpr)
 	x := lhs.X
+	if !ir.SameSafeExpr(lhs.Index, v1) {
+		return nil
+	}
+	// arrayClear evaluates x only once. Reject side effects and target selectors
+	// that could be modified by one of the loop assignments.
+	if !ir.SameSafeExpr(x, x) || !arrayRangeClearTargetSafe(x) {
+		return nil
+	}
+	// The range loop assigns a new value to v1 before each iteration, so the
+	// clear target must not use v1 directly or indirectly (issue 80519).
+	name, ok := v1.(*ir.Name)
+	if !ok || !name.OnStack() || name.Addrtaken() || ir.Any(x, func(n ir.Node) bool { return ir.Uses(n, name) }) {
+		return nil
+	}
 
 	// Get constant number of iterations for int and array cases.
 	n := int64(-1)
@@ -540,14 +595,6 @@ func arrayRangeClear(loop *ir.RangeStmt, v1, v2, a ir.Node) ir.Node {
 		if !ir.SameSafeExpr(x, a) {
 			return nil
 		}
-	}
-
-	if !ir.SameSafeExpr(lhs.Index, v1) {
-		return nil
-	}
-
-	if !ir.IsZero(stmt.Y) {
-		return nil
 	}
 
 	return arrayClear(stmt.Pos(), x, loop)
