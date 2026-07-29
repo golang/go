@@ -6,6 +6,7 @@ package http2
 
 import (
 	"bytes"
+	"errors"
 	"fmt"
 	"io"
 	"reflect"
@@ -1586,6 +1587,74 @@ func TestReadFrameForHeaderUnexpectedEOF(t *testing.T) {
 	_, err = fr.ReadFrameForHeader(fh)
 	if err != io.ErrUnexpectedEOF {
 		t.Fatalf("ReadFrameForHeader with short body = %v; want io.ErrUnexpectedEOF", err)
+	}
+}
+
+type returningErrorReader struct {
+	err error
+}
+
+func (r returningErrorReader) Read([]byte) (int, error) {
+	return 0, r.err
+}
+
+func TestFramerWrapsReaderStreamError(t *testing.T) {
+	streamErr := StreamError{StreamID: 1, Code: ErrCodeInternal}
+	frameHeader := []byte{
+		0, 0, 1, // payload length
+		byte(FrameData),
+		0,          // flags
+		0, 0, 0, 1, // stream ID
+	}
+	tests := []struct {
+		name string
+		r    io.Reader
+	}{
+		{
+			name: "header",
+			r:    returningErrorReader{streamErr},
+		},
+		{
+			name: "payload",
+			r:    io.MultiReader(bytes.NewReader(frameHeader), returningErrorReader{streamErr}),
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			_, err := NewFramer(nil, tt.r).ReadFrame()
+			if _, ok := err.(StreamError); ok {
+				t.Fatalf("ReadFrame error has type StreamError; want wrapped error")
+			}
+			var got StreamError
+			if !errors.As(err, &got) {
+				t.Fatalf("ReadFrame error = %T %v; want error wrapping StreamError", err, err)
+			}
+			if got != streamErr {
+				t.Fatalf("ReadFrame error wraps %v; want %v", got, streamErr)
+			}
+			if !terminalReadFrameError(err) {
+				t.Fatalf("terminalReadFrameError(%v) = false; want true", err)
+			}
+		})
+	}
+}
+
+func TestFramerLeavesParsedStreamErrorUnwrapped(t *testing.T) {
+	// A WINDOW_UPDATE with a zero increment is a stream error when its
+	// stream ID is non-zero.
+	frame := []byte{
+		0, 0, 4, // payload length
+		byte(FrameWindowUpdate),
+		0,          // flags
+		0, 0, 0, 1, // stream ID
+		0, 0, 0, 0, // increment
+	}
+	_, err := NewFramer(nil, bytes.NewReader(frame)).ReadFrame()
+	if _, ok := err.(StreamError); !ok {
+		t.Fatalf("ReadFrame error = %T %v; want StreamError", err, err)
+	}
+	if terminalReadFrameError(err) {
+		t.Fatalf("terminalReadFrameError(%v) = true; want false", err)
 	}
 }
 
