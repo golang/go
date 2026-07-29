@@ -9,6 +9,9 @@ go build ./cmd/mytool
 # TODO(#27628): This should not be necessary.
 env GOCACHE=$WORK/gocache
 
+# mytool records here if it is ever run for a C-family compiler's -### probe.
+env TOOLEXEC_CDRIVER_LOG=$WORK/cdriver.log
+
 # Build the main package with our toolexec program. For each action, it will
 # print the tool's name and the TOOLEXEC_IMPORTPATH value. We expect to compile
 # each package once, and link the main package once.
@@ -23,6 +26,11 @@ stderr -count=1 '^compile'${GOEXE}' TOOLEXEC_IMPORTPATH="test/main/withasm"$'
 [cgo] stderr -count=1 '^compile'${GOEXE}' TOOLEXEC_IMPORTPATH="test/main/withcgo"$'
 stderr -count=1 '^compile'${GOEXE}' TOOLEXEC_IMPORTPATH="test/main"$'
 stderr -count=1 '^link'${GOEXE}' TOOLEXEC_IMPORTPATH="test/main"$'
+
+# The C compiler used by cgo is not run under -toolexec, so the -### probe
+# used to compute its tool ID must not be run under -toolexec either.
+# See go.dev/issue/64580.
+[cgo] ! exists $WORK/cdriver.log
 
 # Test packages are a little bit trickier.
 # We have four variants of test/main, as reported by 'go list -test':
@@ -112,6 +120,23 @@ func main() {
 	toolName := filepath.Base(tool)
 	if len(args) > 0 && args[0] == "-V=full" {
 		// We can't alter the version output.
+	} else if len(args) > 0 && args[0] == "-###" {
+		// The C, C++, and Fortran compilers driven by cgo are probed with
+		// -### to compute their tool ID. They are not otherwise run under
+		// -toolexec, so they must not be probed under -toolexec either.
+		// See go.dev/issue/64580.
+		//
+		// The probe's output is captured by the go command rather than
+		// streamed, so record the invocation in a file the test can inspect.
+		if log := os.Getenv("TOOLEXEC_CDRIVER_LOG"); log != "" {
+			f, err := os.OpenFile(log, os.O_CREATE|os.O_APPEND|os.O_WRONLY, 0o666)
+			if err != nil {
+				fmt.Fprintln(os.Stderr, err)
+				os.Exit(1)
+			}
+			fmt.Fprintf(f, "%s -###\n", toolName)
+			f.Close()
+		}
 	} else {
 		// Print which tool we're running, and on what package.
 		fmt.Fprintf(os.Stdout, "%s TOOLEXEC_IMPORTPATH=%q\n", toolName, os.Getenv("TOOLEXEC_IMPORTPATH"))

@@ -5,8 +5,10 @@
 package http3
 
 import (
+	"encoding/binary"
 	"errors"
 	"io"
+	"math"
 
 	"golang.org/x/net/http/httpguts"
 	"golang.org/x/net/http2/hpack"
@@ -225,25 +227,19 @@ func (st *stream) readPrefixedInt(prefixLen uint8) (firstByte byte, v int64, err
 
 // readPrefixedIntWithByte reads an RFC 7541 prefixed integer from st.
 // The first byte has already been read from the stream.
-func (st *stream) readPrefixedIntWithByte(firstByte byte, prefixLen uint8) (v int64, err error) {
+func (st *stream) readPrefixedIntWithByte(firstByte byte, prefixLen uint8) (int64, error) {
 	prefixMask := (byte(1) << prefixLen) - 1
-	v = int64(firstByte & prefixMask)
-	if v != int64(prefixMask) {
-		return v, nil
+	if v := firstByte & prefixMask; v != prefixMask {
+		return int64(v), nil
 	}
-	m := 0
-	for {
-		b, err := st.ReadByte()
-		if err != nil {
-			return 0, errQPACKDecompressionFailed
-		}
-		v += int64(b&127) << m
-		m += 7
-		if b&128 == 0 {
-			break
-		}
+	v, err := binary.ReadUvarint(st)
+	if err != nil {
+		return 0, errQPACKDecompressionFailed
 	}
-	return v, err
+	if v > math.MaxInt64-uint64(prefixMask) {
+		return 0, errQPACKDecompressionFailed
+	}
+	return int64(v + uint64(prefixMask)), nil
 }
 
 // appendPrefixedInt appends an RFC 7541 prefixed integer to b.
@@ -258,11 +254,7 @@ func appendPrefixedInt(b []byte, firstByte byte, prefixLen uint8, i int64) []byt
 	}
 	b = append(b, firstByte|byte(prefixMask))
 	u -= prefixMask
-	for u >= 128 {
-		b = append(b, 0x80|byte(u&0x7f))
-		u >>= 7
-	}
-	return append(b, byte(u))
+	return binary.AppendUvarint(b, u)
 }
 
 // String literal encoding from RFC 7541, section 5.2
@@ -289,6 +281,9 @@ func (st *stream) readPrefixedString(prefixLen uint8) (firstByte byte, s string,
 func (st *stream) readPrefixedStringWithByte(firstByte byte, prefixLen uint8) (s string, err error) {
 	size, err := st.readPrefixedIntWithByte(firstByte, prefixLen)
 	if err != nil {
+		return "", errQPACKDecompressionFailed
+	}
+	if st.lim >= 0 && size > st.lim {
 		return "", errQPACKDecompressionFailed
 	}
 

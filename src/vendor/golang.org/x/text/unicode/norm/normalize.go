@@ -148,7 +148,7 @@ func (f Form) IsNormalString(s string) bool {
 // patched buffer and whether the decomposition is still in progress.
 func patchTail(rb *reorderBuffer) bool {
 	info, p := lastRuneStart(&rb.f, rb.out)
-	if p == -1 || info.size == 0 {
+	if p == -1 || info.isInvalid() {
 		return true
 	}
 	end := p + int(info.size)
@@ -225,7 +225,7 @@ func doAppend(rb *reorderBuffer, out []byte, p int) []byte {
 	}
 	fd := &rb.f
 	if doMerge {
-		var info Properties
+		info := Properties{flags: 0x80, size: 1} // invalid rune
 		if p < n {
 			info = fd.info(src, p)
 			if !info.BoundaryBefore() || info.nLeadingNonStarters() > 0 {
@@ -235,7 +235,7 @@ func doAppend(rb *reorderBuffer, out []byte, p int) []byte {
 				p = decomposeSegment(rb, p, true)
 			}
 		}
-		if info.size == 0 {
+		if info.isInvalid() {
 			rb.doFlush()
 			// Append incomplete UTF-8 encoding.
 			return src.appendSlice(rb.out, p, n)
@@ -314,7 +314,7 @@ func (f *formInfo) quickSpan(src input, i, end int, atEOF bool) (n int, ok bool)
 			continue
 		}
 		info := f.info(src, i)
-		if info.size == 0 {
+		if info.isInvalid() {
 			if atEOF {
 				// include incomplete runes
 				return n, true
@@ -379,7 +379,7 @@ func (f Form) firstBoundary(src input, nsrc int) int {
 	// CGJ insertion points correctly. Luckily it doesn't have to.
 	for {
 		info := fd.info(src, i)
-		if info.size == 0 {
+		if info.isInvalid() {
 			return -1
 		}
 		if s := ss.next(info); s != ssSuccess {
@@ -424,7 +424,7 @@ func (f Form) nextBoundary(src input, nsrc int, atEOF bool) int {
 	}
 	fd := formTable[f]
 	info := fd.info(src, 0)
-	if info.size == 0 {
+	if info.isInvalid() {
 		if atEOF {
 			return 1
 		}
@@ -435,7 +435,7 @@ func (f Form) nextBoundary(src input, nsrc int, atEOF bool) int {
 
 	for i := int(info.size); i < nsrc; i += int(info.size) {
 		info = fd.info(src, i)
-		if info.size == 0 {
+		if info.isInvalid() {
 			if atEOF {
 				return i
 			}
@@ -465,7 +465,7 @@ func lastBoundary(fd *formInfo, b []byte) int {
 	if p == -1 {
 		return -1
 	}
-	if info.size == 0 { // ends with incomplete rune
+	if info.isInvalid() { // ends with incomplete rune
 		if p == 0 { // starts with incomplete rune
 			return -1
 		}
@@ -504,7 +504,7 @@ func lastBoundary(fd *formInfo, b []byte) int {
 func decomposeSegment(rb *reorderBuffer, sp int, atEOF bool) int {
 	// Force one character to be consumed.
 	info := rb.f.info(rb.src, sp)
-	if info.size == 0 {
+	if info.isInvalid() {
 		return 0
 	}
 	if s := rb.ss.next(info); s == ssStarter {
@@ -528,7 +528,7 @@ func decomposeSegment(rb *reorderBuffer, sp int, atEOF bool) int {
 			break
 		}
 		info = rb.f.info(rb.src, sp)
-		if info.size == 0 {
+		if info.isInvalid() {
 			if !atEOF {
 				return int(iShortSrc)
 			}

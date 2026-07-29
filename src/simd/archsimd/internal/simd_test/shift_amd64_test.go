@@ -127,6 +127,13 @@ func TestShiftAllConcat(t *testing.T) {
 		func(x, y archsimd.Int32x4) archsimd.Int32x4 { return x.ShiftAllRightConcatMod32(y, hide(128)) },
 		map2(sarc(hide(128))))
 
+	testInt32x4Binary(t,
+		func(x, y archsimd.Int32x4) archsimd.Int32x4 { return x.ShiftAllRightConcatMod32(y, 256) },
+		map2(sarc(256)))
+	testInt32x4Binary(t,
+		func(x, y archsimd.Int32x4) archsimd.Int32x4 { return x.ShiftAllRightConcatMod32(y, hide(256)) },
+		map2(sarc(hide(256))))
+
 	// Unsigned ShiftAllRightConcat
 	usarc := func(shift uint64) func(x, y uint32) uint32 {
 		return func(x, y uint32) uint32 {

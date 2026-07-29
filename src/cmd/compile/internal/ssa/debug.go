@@ -8,6 +8,7 @@ import (
 	"cmd/compile/internal/abi"
 	"cmd/compile/internal/abt"
 	"cmd/compile/internal/ir"
+	"cmd/compile/internal/ssa/ssabase"
 	"cmd/compile/internal/types"
 	"cmd/internal/dwarf"
 	"cmd/internal/obj"
@@ -222,7 +223,7 @@ type debugState struct {
 	f             *Func
 	loggingLevel  int
 	convergeCount int // testing; iterate over block debug state this many times
-	registers     []Register
+	registers     []ssabase.Register
 	stackOffset   func(LocalSlot) int32
 	ctxt          *obj.Link
 
@@ -441,7 +442,7 @@ func PopulateABIInRegArgOps(f *Func) {
 	// slots that is type-insenstitive.
 	sc := newSlotCanonicalizer()
 	for _, sl := range f.Names {
-		sc.lookup(*sl)
+		sc.lookup(sl)
 	}
 
 	// Add slot -> value entry to f.NamedValues if not already present.
@@ -449,8 +450,7 @@ func PopulateABIInRegArgOps(f *Func) {
 		values, ok := f.NamedValues[sl]
 		if !ok {
 			// Haven't seen this slot yet.
-			sla := f.localSlotAddr(sl)
-			f.Names = append(f.Names, sla)
+			f.Names = append(f.Names, sl)
 		} else {
 			for _, ev := range values {
 				if v == ev {
@@ -592,14 +592,14 @@ func BuildFuncDebug(ctxt *obj.Link, f *Func, loggingLevel int, stackOffset func(
 	state.slots = state.slots[:0]
 	state.vars = state.vars[:0]
 	for i, slot := range f.Names {
-		state.slots = append(state.slots, *slot)
+		state.slots = append(state.slots, slot)
 		if ir.IsSynthetic(slot.N) || !IsVarWantedForDebug(slot.N) {
 			continue
 		}
 
 		topSlot := slot
 		for topSlot.SplitOf != nil {
-			topSlot = topSlot.SplitOf
+			topSlot = *topSlot.SplitOf
 		}
 		if _, ok := state.varParts[topSlot.N]; !ok {
 			state.vars = append(state.vars, topSlot.N)
@@ -660,7 +660,7 @@ func BuildFuncDebug(ctxt *obj.Link, f *Func, loggingLevel int, stackOffset func(
 		if ir.IsSynthetic(slot.N) || !IsVarWantedForDebug(slot.N) {
 			continue
 		}
-		for _, value := range f.NamedValues[*slot] {
+		for _, value := range f.NamedValues[slot] {
 			state.valueNames[value.ID] = append(state.valueNames[value.ID], SlotID(i))
 		}
 	}
@@ -754,7 +754,7 @@ func (state *debugState) liveness() []*BlockDebug {
 						state.valueNames[v.ID] = slots
 					}
 
-					reg, _ := state.f.getHome(v.ID).(*Register)
+					reg, _ := state.f.getHome(v.ID).(*ssabase.Register)
 					c := state.processValue(v, slots, reg)
 					changed = changed || c
 				}
@@ -1038,7 +1038,7 @@ func (state *debugState) mergePredecessors(b *Block, blockLocs []*BlockDebug, pr
 // value with the names in vSlots and homed in vReg.  "v" becomes
 // visible after execution of the instructions evaluating it. It
 // returns which VarIDs were modified by the Value's execution.
-func (state *debugState) processValue(v *Value, vSlots []SlotID, vReg *Register) bool {
+func (state *debugState) processValue(v *Value, vSlots []SlotID, vReg *ssabase.Register) bool {
 	locs := state.currentState
 	changed := false
 	setSlot := func(slot SlotID, loc VarLoc) {
@@ -1136,26 +1136,26 @@ func (state *debugState) processValue(v *Value, vSlots []SlotID, vReg *Register)
 				newSlots[slot] = true
 			}
 
-			for _, slot := range locs.registers[vReg.num] {
+			for _, slot := range locs.registers[vReg.Num] {
 				if !newSlots[slot] {
 					state.logf("at %v: overwrote %v in register %v\n", v, state.slots[slot], vReg)
 				}
 			}
 		}
 
-		for _, slot := range locs.registers[vReg.num] {
+		for _, slot := range locs.registers[vReg.Num] {
 			last := locs.slots[slot]
-			setSlot(slot, VarLoc{last.Registers &^ (1 << uint8(vReg.num)), last.StackOffset})
+			setSlot(slot, VarLoc{last.Registers &^ (1 << uint8(vReg.Num)), last.StackOffset})
 		}
-		locs.registers[vReg.num] = locs.registers[vReg.num][:0]
-		locs.registers[vReg.num] = append(locs.registers[vReg.num], vSlots...)
+		locs.registers[vReg.Num] = locs.registers[vReg.Num][:0]
+		locs.registers[vReg.Num] = append(locs.registers[vReg.Num], vSlots...)
 		for _, slot := range vSlots {
 			if state.loggingLevel > 1 {
 				state.logf("at %v: %v now in %s\n", v, state.slots[slot], vReg)
 			}
 
 			last := locs.slots[slot]
-			setSlot(slot, VarLoc{1<<uint8(vReg.num) | last.Registers, last.StackOffset})
+			setSlot(slot, VarLoc{1<<uint8(vReg.Num) | last.Registers, last.StackOffset})
 		}
 	}
 	return changed
@@ -1290,7 +1290,7 @@ func (state *debugState) buildLocationLists(blockLocs []*BlockDebug) {
 				continue
 			}
 			slots := state.valueNames[v.ID]
-			reg, _ := state.f.getHome(v.ID).(*Register)
+			reg, _ := state.f.getHome(v.ID).(*ssabase.Register)
 			changed := state.processValue(v, slots, reg) // changed == added to state.changedVars
 			if changed {
 				for _, varID := range state.changedVars.contents() {
@@ -1310,7 +1310,7 @@ func (state *debugState) buildLocationLists(blockLocs []*BlockDebug) {
 				prologComplete = true
 			}
 			slots := state.valueNames[v.ID]
-			reg, _ := state.f.getHome(v.ID).(*Register)
+			reg, _ := state.f.getHome(v.ID).(*ssabase.Register)
 			changed := state.processValue(v, slots, reg) // changed == added to state.changedVars
 
 			if opcodeTable[v.Op].zeroWidth {
@@ -1444,7 +1444,7 @@ func (state *debugState) writePendingEntry(varID VarID, endBlock, endValue ID) {
 					expr = dwarf.AppendSleb128(expr, int64(loc.stackOffsetValue()))
 				}
 			} else {
-				regnum := state.ctxt.Arch.DWARFRegisters[state.registers[firstReg(loc.Registers)].ObjNum()]
+				regnum := state.ctxt.Arch.DWARFRegisters[state.registers[firstReg(loc.Registers)].ObjNum]
 				if regnum < 32 {
 					expr = append(expr, dwarf.DW_OP_reg0+byte(regnum))
 				} else {
@@ -1727,8 +1727,8 @@ func BuildFuncDebugNoOptimized(ctxt *obj.Link, f *Func, loggingEnabled bool, sta
 	afterPrologVal, cloRegStore := locatePrologEnd(f, needCloCtx)
 
 	if needCloCtx {
-		reg, _ := state.f.getHome(cloRegStore.ID).(*Register)
-		cloReg = reg.ObjNum()
+		reg, _ := state.f.getHome(cloRegStore.ID).(*ssabase.Register)
+		cloReg = reg.ObjNum
 		if loggingEnabled {
 			state.logf("needCloCtx is true for func %q, cloreg=%v\n",
 				f.Name, reg)

@@ -8,8 +8,10 @@ import (
 	"bytes"
 	"fmt"
 	"internal/testenv"
+	"io/fs"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 )
 
@@ -38,7 +40,16 @@ func TestGeneratedFilesUpToDate(t *testing.T) {
 	// generated into tmpdir.
 	genFiles := make(map[string]bool)
 	genPrefix := []byte(expectedHeader)
-	ssaFiles, err := filepath.Glob(filepath.Join(wd, "*.go"))
+	var ssaFiles []string
+	err = filepath.WalkDir(wd, func(path string, d fs.DirEntry, err error) error {
+		if base := filepath.Base(path); base == "_gen" || base == "testdata" {
+			return filepath.SkipDir
+		}
+		if !d.IsDir() && strings.HasSuffix(path, ".go") {
+			ssaFiles = append(ssaFiles, path)
+		}
+		return nil
+	})
 	if err != nil {
 		t.Fatalf("could not glob for .go files in ssa directory: %v", err)
 	}

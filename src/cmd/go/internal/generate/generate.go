@@ -177,8 +177,8 @@ var (
 
 func init() {
 	work.AddBuildFlags(CmdGenerate, work.OmitBuildOnlyFlags)
-	CmdGenerate.Flag.StringVar(&generateRunFlag, "run", "", "")
-	CmdGenerate.Flag.StringVar(&generateSkipFlag, "skip", "", "")
+	CmdGenerate.Flag.StringVar(&generateRunFlag, "run", "", "process only those directives matching the regular `expression`")
+	CmdGenerate.Flag.StringVar(&generateSkipFlag, "skip", "", "skip directives matching the regular `expression`")
 }
 
 func runGenerate(ctx context.Context, cmd *base.Command, args []string) {
@@ -436,7 +436,7 @@ Words:
 		// Force a copy of the command definition to
 		// ensure words doesn't end up as a reference
 		// to the g.commands content.
-		tmpCmdWords := append([]string(nil), (g.commands[words[0]])...)
+		tmpCmdWords := append([]string(nil), g.commands[words[0]]...)
 		words = append(tmpCmdWords, words[1:]...)
 	}
 	// Substitute environment variables.

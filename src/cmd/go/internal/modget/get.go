@@ -211,13 +211,13 @@ variable for future go command invocations.
 
 var (
 	getD        dFlag
-	getF        = CmdGet.Flag.Bool("f", false, "")
-	getFix      = CmdGet.Flag.Bool("fix", false, "")
-	getM        = CmdGet.Flag.Bool("m", false, "")
-	getT        = CmdGet.Flag.Bool("t", false, "")
+	getF        = CmdGet.Flag.Bool("f", false, "no-op; formerly forced get of package even if it did not appear to be used")
+	getFix      = CmdGet.Flag.Bool("fix", false, "no-op; formerly ran 'go fix' on downloaded packages")
+	getM        = CmdGet.Flag.Bool("m", false, "no-op; flag is no longer supported")
+	getT        = CmdGet.Flag.Bool("t", false, "consider modules needed to build tests of packages specified on the command line")
 	getU        upgradeFlag
-	getTool     = CmdGet.Flag.Bool("tool", false, "")
-	getInsecure = CmdGet.Flag.Bool("insecure", false, "")
+	getTool     = CmdGet.Flag.Bool("tool", false, "add a matching tool line to go.mod for each listed package")
+	getInsecure = CmdGet.Flag.Bool("insecure", false, "no-op; use GOINSECURE instead")
 )
 
 // upgradeFlag is a custom flag.Value for -u.
@@ -269,8 +269,8 @@ func (b *dFlag) String() string { return "" }
 func init() {
 	work.AddBuildFlags(CmdGet, work.OmitModFlag)
 	CmdGet.Run = runGet // break init loop
-	CmdGet.Flag.Var(&getD, "d", "")
-	CmdGet.Flag.Var(&getU, "u", "")
+	CmdGet.Flag.Var(&getD, "d", "deprecated flag; is a no-op")
+	CmdGet.Flag.Var(&getU, "u", "update modules providing dependencies to use newer minor or patch releases when available; -u=patch selects patch releases")
 }
 
 func runGet(ctx context.Context, cmd *base.Command, args []string) {
@@ -1635,10 +1635,9 @@ func (r *resolver) checkPackageProblems(ld *modload.Loader, ctx context.Context,
 	// We'll also report issues for retracted and deprecated modules using the workspace
 	// info, but switch back to single module mode when fetching sums so that we update
 	// the single module's go.sum file.
-	var exitWorkspace func()
 	if r.workspace != nil && r.workspace.hasModule(ld.MainModules.Versions()[0].Path) {
 		var err error
-		exitWorkspace, err = modload.EnterWorkspace(ld, ctx)
+		ld, err = ld.NewForWorkspace(ctx)
 		if err != nil {
 			// A TooNewError can happen for
 			// go get go@newversion when all the required modules
@@ -1767,16 +1766,6 @@ func (r *resolver) checkPackageProblems(ld *modload.Loader, ctx context.Context,
 			}
 			deprecations[i].message = modload.ShortMessage(deprecation, "")
 		})
-	}
-
-	// exit the workspace if we had entered it earlier. We want to add the sums
-	// to the go.sum file for the module we're running go get from.
-	if exitWorkspace != nil {
-		// Wait for retraction and deprecation checks (that depend on the global
-		// modload state containing the workspace) to finish before we reset the
-		// state back to single module mode.
-		<-r.work.Idle()
-		exitWorkspace()
 	}
 
 	// Load sums for updated modules that had sums before. When we update a

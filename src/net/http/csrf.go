@@ -65,8 +65,8 @@ func (c *CrossOriginProtection) AddTrustedOrigin(origin string) error {
 	if u.Host == "" {
 		return fmt.Errorf("invalid origin %q: host is required", origin)
 	}
-	if u.Path != "" || u.RawQuery != "" || u.Fragment != "" {
-		return fmt.Errorf("invalid origin %q: path, query, and fragment are not allowed", origin)
+	if u.User != nil || u.Path != "" || u.RawQuery != "" || u.Fragment != "" {
+		return fmt.Errorf("invalid origin %q: userinfo, path, query, and fragment are not allowed", origin)
 	}
 	c.trustedMu.Lock()
 	defer c.trustedMu.Unlock()

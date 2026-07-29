@@ -501,6 +501,7 @@ func (u *unwinder) next() {
 	// before faking a call.
 	if usesLR && injectedCall {
 		x := *(*uintptr)(unsafe.Pointer(frame.sp))
+		// same as the size bump used in scanframeworker.
 		frame.sp += alignUp(sys.MinFrameSize, sys.StackAlign)
 		f = findfunc(frame.pc)
 		frame.fn = f

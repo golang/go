@@ -235,6 +235,8 @@ func TestCrossOriginProtectionAddTrustedOriginErrors(t *testing.T) {
 		{"http origin", "http://example.com", false},
 		{"missing scheme", "example.com", true},
 		{"missing host", "https://", true},
+		{"with empty userinfo", "https://@example.com", true},
+		{"with nonempty userinfo", "https://foo:bar@example.com", true},
 		{"trailing slash", "https://example.com/", true},
 		{"with path", "https://example.com/path", true},
 		{"with query", "https://example.com?query=value", true},

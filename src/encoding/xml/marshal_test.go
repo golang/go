@@ -2006,7 +2006,19 @@ var encodeTokenTests = []struct {
 	toks: []Token{
 		Comment("foo-->"),
 	},
-	err: "xml: EncodeToken of Comment containing --> marker",
+	err: "xml: EncodeToken of Comment containing -- marker",
+}, {
+	desc: "comment with double hyphen",
+	toks: []Token{
+		Comment("foo--bar"),
+	},
+	err: "xml: EncodeToken of Comment containing -- marker",
+}, {
+	desc: "comment ending in hyphen",
+	toks: []Token{
+		Comment("foo-"),
+	},
+	want: `<!--foo- -->`,
 }, {
 	desc: "proc instruction",
 	toks: []Token{

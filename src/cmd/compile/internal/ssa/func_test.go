@@ -37,6 +37,7 @@ package ssa
 // the parser can be used instead of Fun.
 
 import (
+	"cmd/compile/internal/ssa/block"
 	"cmd/compile/internal/types"
 	"cmd/internal/obj"
 	"cmd/internal/src"
@@ -237,32 +238,32 @@ func Valu(name string, op Op, t *types.Type, auxint int64, aux Aux, args ...stri
 // Goto specifies that this is a BlockPlain and names the single successor.
 // TODO(matloob): choose a better name.
 func Goto(succ string) ctrl {
-	return ctrl{BlockPlain, "", []string{succ}}
+	return ctrl{block.BlockPlain, "", []string{succ}}
 }
 
 // If specifies a BlockIf.
 func If(cond, sub, alt string) ctrl {
-	return ctrl{BlockIf, cond, []string{sub, alt}}
+	return ctrl{block.BlockIf, cond, []string{sub, alt}}
 }
 
 // Exit specifies a BlockExit.
 func Exit(arg string) ctrl {
-	return ctrl{BlockExit, arg, []string{}}
+	return ctrl{block.BlockExit, arg, []string{}}
 }
 
 // Ret specifies a BlockRet.
 func Ret(arg string) ctrl {
-	return ctrl{BlockRet, arg, []string{}}
+	return ctrl{block.BlockRet, arg, []string{}}
 }
 
 // Eq specifies a BlockAMD64EQ.
 func Eq(cond, sub, alt string) ctrl {
-	return ctrl{BlockAMD64EQ, cond, []string{sub, alt}}
+	return ctrl{block.BlockAMD64EQ, cond, []string{sub, alt}}
 }
 
 // Lt specifies a BlockAMD64LT.
 func Lt(cond, yes, no string) ctrl {
-	return ctrl{BlockAMD64LT, cond, []string{yes, no}}
+	return ctrl{block.BlockAMD64LT, cond, []string{yes, no}}
 }
 
 // bloc, ctrl, and valu are internal structures used by Bloc, Valu, Goto,
@@ -275,7 +276,7 @@ type bloc struct {
 }
 
 type ctrl struct {
-	kind    BlockKind
+	kind    block.BlockKind
 	control string
 	succs   []string
 }

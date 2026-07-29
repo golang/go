@@ -260,3 +260,29 @@ func ExampleValue_Methods() {
 	//   UnreadRune
 	//   WriteTo
 }
+
+func ExampleTypeAssert() {
+	reader := bytes.NewReader([]byte("Hello, Gophers!"))
+	v := reflect.ValueOf(reader)
+
+	if br, ok := reflect.TypeAssert[*bytes.Reader](v); ok {
+		fmt.Printf("Remaining bytes: %d\n", br.Len())
+	}
+
+	if _, ok := reflect.TypeAssert[*os.File](v); !ok {
+		fmt.Println("Cannot assert to *os.File")
+	}
+
+	if r, ok := reflect.TypeAssert[io.Reader](v); ok {
+		data, err := io.ReadAll(r)
+		if err != nil {
+			panic(err)
+		}
+		fmt.Printf("Read through io.Reader: %s\n", data)
+	}
+
+	// Output:
+	// Remaining bytes: 15
+	// Cannot assert to *os.File
+	// Read through io.Reader: Hello, Gophers!
+}

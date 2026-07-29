@@ -6,6 +6,7 @@ package ssa
 
 import (
 	"bytes"
+	"cmd/compile/internal/ssa/block"
 	"cmd/internal/src"
 	"cmp"
 	"fmt"
@@ -1094,7 +1095,7 @@ func (d *dotWriter) writeFuncSVG(w io.Writer, phase string, f *Func) {
 	fmt.Fprintf(pipe, `node [style=filled,fillcolor=white,fontsize=16,fontname="Menlo,Times,serif",margin="0.01,0.03"];`)
 	fmt.Fprintf(pipe, `edge [fontsize=16,fontname="Menlo,Times,serif"];`)
 	for i, b := range f.Blocks {
-		if b.Kind == BlockInvalid {
+		if b.Kind == block.BlockInvalid {
 			continue
 		}
 		layout := ""

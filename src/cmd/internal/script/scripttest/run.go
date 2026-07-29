@@ -103,17 +103,11 @@ func NewEngine(t *testing.T, repls []ToolReplacement) (*script.Engine, []string)
 		return env
 	}
 
-	interrupt := func(cmd *exec.Cmd) error {
-		// TODO(thepudds): currently cmd/go/script_test.go uses a platform-specific cancel
-		// that we could consider emulating here.
-		return cmd.Process.Signal(os.Interrupt)
-	}
-
 	// Customize the subprocess termination grace period to reduce flakes on busy builders (#76685).
 	// The grace period is the max of 100ms or 5% of the time remaining until any t.Deadline.
 	gracePeriod := subprocessGracePeriod(t.Deadline())
 
-	cmdExec := script.Exec(interrupt, gracePeriod)
+	cmdExec := script.Exec(script.InterruptCmd, gracePeriod)
 	cmds["exec"] = cmdExec
 
 	// Set up an alternate go root for running script tests, since it
@@ -130,7 +124,7 @@ func NewEngine(t *testing.T, repls []ToolReplacement) (*script.Engine, []string)
 
 	// Add in commands for "go" and "cc".
 	testgo := filepath.Join(tgr, "bin", "go")
-	gocmd := script.Program(testgo, interrupt, gracePeriod)
+	gocmd := script.Program(testgo, script.InterruptCmd, gracePeriod)
 	addcmd("go", gocmd)
 	addcmd("cc", scriptCC(cmdExec, goEnv("CC")))
 

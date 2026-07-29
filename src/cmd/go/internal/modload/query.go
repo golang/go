@@ -1320,7 +1320,7 @@ type QueryUpgradesAllError struct {
 }
 
 func (e *QueryUpgradesAllError) Error() string {
-	var plural string = ""
+	plural := ""
 	if len(e.MainModules) != 1 {
 		plural = "s"
 	}

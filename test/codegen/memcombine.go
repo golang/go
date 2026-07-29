@@ -17,6 +17,7 @@ import (
 
 func load_le64(b []byte) uint64 {
 	// amd64:`MOVQ \(.*\),` -`MOV[BWL] [^$]` -`OR`
+	// riscv64:-`MOV \(X[0-9]+\), X[0-9]+`
 	// s390x:`MOVDBR \(.*\),`
 	// arm64:`MOVD \(R[0-9]+\),` -`MOV[BHW]`
 	// loong64:`MOVV \(R[0-9]+\),`
@@ -184,6 +185,225 @@ func load_le_byte8_uint64_inv(s []byte) uint64 {
 	return uint64(s[7])<<56 | uint64(s[6])<<48 | uint64(s[5])<<40 | uint64(s[4])<<32 | uint64(s[3])<<24 | uint64(s[2])<<16 | uint64(s[1])<<8 | uint64(s[0])
 }
 
+type memCombineAligned struct {
+	x uint64
+	b [16]byte
+}
+
+func load_le_byte8_uint64_aligned(s *memCombineAligned) uint64 {
+	// riscv64:`MOV 8\(X[0-9]+\), X[0-9]+` -`MOVBU` -`OR`
+	return binary.LittleEndian.Uint64(s.b[:])
+}
+
+func load_le_byte8_uint64_aligned_offset1(s *memCombineAligned) uint64 {
+	// riscv64:`MOVBU` -`MOV `
+	return binary.LittleEndian.Uint64(s.b[1:])
+}
+
+func load_le_byte8_uint64_aligned_offset2(s *memCombineAligned) uint64 {
+	// riscv64:`MOVBU` -`MOV `
+	return binary.LittleEndian.Uint64(s.b[2:])
+}
+
+func load_le_byte8_uint64_aligned_offset3(s *memCombineAligned) uint64 {
+	// riscv64:`MOVBU` -`MOV `
+	return binary.LittleEndian.Uint64(s.b[3:])
+}
+
+func load_le_byte8_uint64_aligned_offset4(s *memCombineAligned) uint64 {
+	// riscv64:`MOVBU` -`MOV `
+	return binary.LittleEndian.Uint64(s.b[4:])
+}
+
+func load_le_byte8_uint64_aligned_offset5(s *memCombineAligned) uint64 {
+	// riscv64:`MOVBU` -`MOV `
+	return binary.LittleEndian.Uint64(s.b[5:])
+}
+
+func load_le_byte8_uint64_aligned_offset6(s *memCombineAligned) uint64 {
+	// riscv64:`MOVBU` -`MOV `
+	return binary.LittleEndian.Uint64(s.b[6:])
+}
+
+func load_le_byte8_uint64_aligned_offset7(s *memCombineAligned) uint64 {
+	// riscv64:`MOVBU` -`MOV `
+	return binary.LittleEndian.Uint64(s.b[7:])
+}
+
+func load_le_byte8_uint64_aligned_offset8(s *memCombineAligned) uint64 {
+	// riscv64:`MOV 16\(X[0-9]+\), X[0-9]+` -`MOVBU` -`OR`
+	return binary.LittleEndian.Uint64(s.b[8:])
+}
+
+func load_le_byte4_uint32_aligned(s *memCombineAligned) uint32 {
+	// riscv64:`MOVWU 8\(X[0-9]+\), X[0-9]+` -`MOVBU` -`OR`
+	return binary.LittleEndian.Uint32(s.b[:])
+}
+
+func load_le_byte4_uint32_aligned_offset2(s *memCombineAligned) uint32 {
+	// riscv64:`MOVBU` -`MOVWU`
+	return binary.LittleEndian.Uint32(s.b[2:])
+}
+
+func load_le_byte4_uint32_aligned_offset4(s *memCombineAligned) uint32 {
+	// riscv64:`MOVWU 12\(X[0-9]+\), X[0-9]+` -`MOVBU` -`OR`
+	return binary.LittleEndian.Uint32(s.b[4:])
+}
+
+func load_le_byte2_uint16_aligned(s *memCombineAligned) uint16 {
+	// riscv64:`MOVHU 8\(X[0-9]+\), X[0-9]+` -`MOVBU` -`OR`
+	return binary.LittleEndian.Uint16(s.b[:])
+}
+
+func load_le_byte2_uint16_aligned_offset1(s *memCombineAligned) uint16 {
+	// riscv64:`MOVBU` -`MOVHU`
+	return binary.LittleEndian.Uint16(s.b[1:])
+}
+
+type memCombineUnaligned08 struct {
+	x byte
+	_ [0]byte
+	b [8]byte
+}
+
+type memCombineUnaligned18 struct {
+	x byte
+	_ [1]byte
+	b [8]byte
+}
+
+type memCombineUnaligned28 struct {
+	x byte
+	_ [2]byte
+	b [8]byte
+}
+
+type memCombineUnaligned38 struct {
+	x byte
+	_ [3]byte
+	b [8]byte
+}
+
+type memCombineUnaligned48 struct {
+	x byte
+	_ [4]byte
+	b [8]byte
+}
+
+type memCombineUnaligned58 struct {
+	x byte
+	_ [5]byte
+	b [8]byte
+}
+
+type memCombineUnaligned68 struct {
+	x byte
+	_ [6]byte
+	b [8]byte
+}
+
+type memCombineUnaligned78 struct {
+	x byte
+	_ [7]byte
+	b [8]byte
+}
+
+type memCombineUnaligned88 struct {
+	x byte
+	_ [8]byte
+	b [8]byte
+}
+
+type memCombineUnaligned16 struct {
+	x byte
+	b [16]byte
+}
+
+func load_le_byte8_uint64_unaligned_offset0(s *memCombineUnaligned08) uint64 {
+	// riscv64:`MOVBU` -`MOV `
+	return binary.LittleEndian.Uint64(s.b[:])
+}
+
+func load_le_byte8_uint64_unaligned_offset1(s *memCombineUnaligned18) uint64 {
+	// riscv64:`MOVBU` -`MOV `
+	return binary.LittleEndian.Uint64(s.b[:])
+}
+
+func load_le_byte8_uint64_unaligned_offset2(s *memCombineUnaligned28) uint64 {
+	// riscv64:`MOVBU` -`MOV `
+	return binary.LittleEndian.Uint64(s.b[:])
+}
+
+func load_le_byte8_uint64_unaligned_offset3(s *memCombineUnaligned38) uint64 {
+	// riscv64:`MOVBU` -`MOV `
+	return binary.LittleEndian.Uint64(s.b[:])
+}
+
+func load_le_byte8_uint64_unaligned_offset4(s *memCombineUnaligned48) uint64 {
+	// riscv64:`MOVBU` -`MOV `
+	return binary.LittleEndian.Uint64(s.b[:])
+}
+
+func load_le_byte8_uint64_unaligned_offset5(s *memCombineUnaligned58) uint64 {
+	// riscv64:`MOVBU` -`MOV `
+	return binary.LittleEndian.Uint64(s.b[:])
+}
+
+func load_le_byte8_uint64_unaligned_offset6(s *memCombineUnaligned68) uint64 {
+	// riscv64:`MOVBU` -`MOV `
+	return binary.LittleEndian.Uint64(s.b[:])
+}
+
+func load_le_byte8_uint64_unaligned_offset7(s *memCombineUnaligned78) uint64 {
+	// riscv64:`MOVBU` -`MOV `
+	return binary.LittleEndian.Uint64(s.b[:])
+}
+
+func load_le_byte8_uint64_unaligned_offset8(s *memCombineUnaligned88) uint64 {
+	// riscv64:`MOVBU` -`MOV `
+	return binary.LittleEndian.Uint64(s.b[:])
+}
+
+func load_le_byte8_uint64_unaligned_slice_offset1(s *memCombineUnaligned16) uint64 {
+	// riscv64:`MOVBU` -`MOV `
+	return binary.LittleEndian.Uint64(s.b[1:])
+}
+
+func load_le_byte8_uint64_unaligned_slice_offset2(s *memCombineUnaligned16) uint64 {
+	// riscv64:`MOVBU` -`MOV `
+	return binary.LittleEndian.Uint64(s.b[2:])
+}
+
+func load_le_byte8_uint64_unaligned_slice_offset3(s *memCombineUnaligned16) uint64 {
+	// riscv64:`MOVBU` -`MOV `
+	return binary.LittleEndian.Uint64(s.b[3:])
+}
+
+func load_le_byte8_uint64_unaligned_slice_offset4(s *memCombineUnaligned16) uint64 {
+	// riscv64:`MOVBU` -`MOV `
+	return binary.LittleEndian.Uint64(s.b[4:])
+}
+
+func load_le_byte8_uint64_unaligned_slice_offset5(s *memCombineUnaligned16) uint64 {
+	// riscv64:`MOVBU` -`MOV `
+	return binary.LittleEndian.Uint64(s.b[5:])
+}
+
+func load_le_byte8_uint64_unaligned_slice_offset6(s *memCombineUnaligned16) uint64 {
+	// riscv64:`MOVBU` -`MOV `
+	return binary.LittleEndian.Uint64(s.b[6:])
+}
+
+func load_le_byte8_uint64_unaligned_slice_offset7(s *memCombineUnaligned16) uint64 {
+	// riscv64:`MOVBU` -`MOV `
+	return binary.LittleEndian.Uint64(s.b[7:])
+}
+
+func load_le_byte8_uint64_unaligned_slice_offset8(s *memCombineUnaligned16) uint64 {
+	// riscv64:`MOVBU` -`MOV `
+	return binary.LittleEndian.Uint64(s.b[8:])
+}
+
 func load_be_byte2_uint16(s []byte) uint16 {
 	// arm64:`MOVHU \(R[0-9]+\)` `REV16W` -`ORR` -`MOVB`
 	// amd64:`MOVWLZX \([A-Z]+\)` `ROLW` -`MOVB` -`OR`
@@ -344,6 +564,52 @@ func load_be_byte8_uint64_idx8(s []byte, idx int) uint64 {
 	return uint64(s[idx<<3])<<56 | uint64(s[(idx<<3)+1])<<48 | uint64(s[(idx<<3)+2])<<40 | uint64(s[(idx<<3)+3])<<32 | uint64(s[(idx<<3)+4])<<24 | uint64(s[(idx<<3)+5])<<16 | uint64(s[(idx<<3)+6])<<8 | uint64(s[(idx<<3)+7])
 }
 
+// Check combining of different int types
+
+func load_le_2uint16_uint32(s []uint16) uint32 {
+	// arm64:`MOVWU \(R[0-9]+\)` -`ORR` -`MOVHU`
+	// 386:`MOVL \([A-Z]+\)` -`MOVWLZX` -`ORL`
+	// amd64:`MOVL \([A-Z]+\)` -`MOVWLZX` -`ORL`
+	// ppc64le:`MOVWZ \(R[0-9]+\)` -`MOVHZ`
+	return uint32(s[0]) | uint32(s[1])<<16
+}
+
+func load_le_2uint16_uint32_idx(s []uint16, idx int) uint32 {
+	// arm64:`MOVWU \(R[0-9]+\)` -`ORR` -`MOVHU`
+	// 386:`MOVL \([A-Z]+\)` -`MOVWLZX` -`ORL`
+	// amd64:`MOVL \([A-Z]+\)` -`MOVWLZX` -`ORL`
+	// ppc64le:`MOVWZ \(R[0-9]+\)` -`MOVHZ`
+	return uint32(s[idx]) | uint32(s[idx+1])<<16
+}
+
+func load_le_4uint16_uint64(s []uint16) uint64 {
+	// arm64:`MOVD \(R[0-9]+\)` -`ORR` -`MOVHU`
+	// amd64:`MOVQ \([A-Z]+\)` -`ORQ` -`MOVWLZX`
+	// ppc64le:`MOVD \(R[0-9]+\)` -`MOVHZ`
+	return uint64(s[0]) | uint64(s[1])<<16 | uint64(s[2])<<32 | uint64(s[3])<<48
+}
+
+func load_le_4uint16_uint64_idx(s []uint16, idx int) uint64 {
+	// arm64:`MOVD \(R[0-9]+\)` -`ORR` -`MOVHU`
+	// amd64:`MOVQ \([A-Z]+\)` -`ORQ` -`MOVWLZX`
+	// ppc64le:`MOVD \(R[0-9]+\)` -`MOVHZ`
+	return uint64(s[idx]) | uint64(s[idx+1])<<16 | uint64(s[idx+2])<<32 | uint64(s[idx+3])<<48
+}
+
+func load_le_2uint32_uint64(s []uint32) uint64 {
+	// arm64:`MOVD \(R[0-9]+\)` -`ORR` -`LDPW` -`MOVWU`
+	// amd64:`MOVQ \([A-Z]+\)` -`ORQ` -`MOVL`
+	// ppc64le:`MOVD \(R[0-9]+\)` -`MOVWZ`
+	return uint64(s[0]) | uint64(s[1])<<32
+}
+
+func load_le_2uint32_uint64_idx(s []uint32, idx int) uint64 {
+	// arm64:`MOVD \(R[0-9]+\)` -`ORR` -`LDPW` -`MOVWU`
+	// amd64:`MOVQ \([A-Z]+\)` -`ORQ` -`MOVL`
+	// ppc64le:`MOVD \(R[0-9]+\)` -`MOVWZ`
+	return uint64(s[idx]) | uint64(s[idx+1])<<32
+}
+
 // Some tougher cases for the memcombine pass.
 
 func reassoc_load_uint32(b []byte) uint32 {
@@ -464,6 +730,126 @@ func store_le64_load(b []byte, x *[8]byte) {
 	// ppc64:`MOVDBR`
 	// s390x:-`MOVB` -`MOV[WH]BR`
 	binary.LittleEndian.PutUint64(b, binary.LittleEndian.Uint64(x[:]))
+}
+
+func store_le_byte8_uint64_aligned(s *memCombineAligned, x uint64) {
+	// riscv64:`MOV X[0-9]+, 8\(X[0-9]+\)` -`MOVB`
+	binary.LittleEndian.PutUint64(s.b[:], x)
+}
+
+func store_le_byte8_uint64_aligned_offset1(s *memCombineAligned, x uint64) {
+	// riscv64:`MOVB` -`MOV `
+	binary.LittleEndian.PutUint64(s.b[1:], x)
+}
+
+func store_le_byte8_uint64_aligned_offset2(s *memCombineAligned, x uint64) {
+	// riscv64:`MOVB` -`MOV `
+	binary.LittleEndian.PutUint64(s.b[2:], x)
+}
+
+func store_le_byte8_uint64_aligned_offset3(s *memCombineAligned, x uint64) {
+	// riscv64:`MOVB` -`MOV `
+	binary.LittleEndian.PutUint64(s.b[3:], x)
+}
+
+func store_le_byte8_uint64_aligned_offset4(s *memCombineAligned, x uint64) {
+	// riscv64:`MOVB` -`MOV `
+	binary.LittleEndian.PutUint64(s.b[4:], x)
+}
+
+func store_le_byte8_uint64_aligned_offset5(s *memCombineAligned, x uint64) {
+	// riscv64:`MOVB` -`MOV `
+	binary.LittleEndian.PutUint64(s.b[5:], x)
+}
+
+func store_le_byte8_uint64_aligned_offset6(s *memCombineAligned, x uint64) {
+	// riscv64:`MOVB` -`MOV `
+	binary.LittleEndian.PutUint64(s.b[6:], x)
+}
+
+func store_le_byte8_uint64_aligned_offset7(s *memCombineAligned, x uint64) {
+	// riscv64:`MOVB` -`MOV `
+	binary.LittleEndian.PutUint64(s.b[7:], x)
+}
+
+func store_le_byte8_uint64_aligned_offset8(s *memCombineAligned, x uint64) {
+	// riscv64:`MOV X[0-9]+, 16\(X[0-9]+\)` -`MOVB`
+	binary.LittleEndian.PutUint64(s.b[8:], x)
+}
+
+func store_le_byte4_uint32_aligned(s *memCombineAligned, x uint32) {
+	// riscv64:`MOVW X[0-9]+, 8\(X[0-9]+\)` -`MOVB`
+	binary.LittleEndian.PutUint32(s.b[:], x)
+}
+
+func store_le_byte4_uint32_aligned_offset2(s *memCombineAligned, x uint32) {
+	// riscv64:`MOVB` -`MOVW`
+	binary.LittleEndian.PutUint32(s.b[2:], x)
+}
+
+func store_le_byte4_uint32_aligned_offset4(s *memCombineAligned, x uint32) {
+	// riscv64:`MOVW X[0-9]+, 12\(X[0-9]+\)` -`MOVB`
+	binary.LittleEndian.PutUint32(s.b[4:], x)
+}
+
+func store_le_byte2_uint16_aligned(s *memCombineAligned, x uint16) {
+	// riscv64:`MOVH X[0-9]+, 8\(X[0-9]+\)` -`MOVB`
+	binary.LittleEndian.PutUint16(s.b[:], x)
+}
+
+func store_le_byte2_uint16_aligned_offset1(s *memCombineAligned, x uint16) {
+	// riscv64:`MOVB` -`MOVH`
+	binary.LittleEndian.PutUint16(s.b[1:], x)
+}
+
+func store_le_byte8_uint64_unaligned(s *memCombineUnaligned08, x uint64) {
+	// riscv64:`MOVB` -`MOV `
+	binary.LittleEndian.PutUint64(s.b[:], x)
+}
+
+func store_le_byte8_uint64_unaligned_offset7(s *memCombineUnaligned78, x uint64) {
+	// riscv64:`MOVB` -`MOV `
+	binary.LittleEndian.PutUint64(s.b[:], x)
+}
+
+func store_le_byte8_uint64_unaligned_slice_offset1(s *memCombineUnaligned16, x uint64) {
+	// riscv64:`MOVB` -`MOV `
+	binary.LittleEndian.PutUint64(s.b[1:], x)
+}
+
+func store_le_byte8_uint64_unaligned_slice_offset2(s *memCombineUnaligned16, x uint64) {
+	// riscv64:`MOVB` -`MOV `
+	binary.LittleEndian.PutUint64(s.b[2:], x)
+}
+
+func store_le_byte8_uint64_unaligned_slice_offset3(s *memCombineUnaligned16, x uint64) {
+	// riscv64:`MOVB` -`MOV `
+	binary.LittleEndian.PutUint64(s.b[3:], x)
+}
+
+func store_le_byte8_uint64_unaligned_slice_offset4(s *memCombineUnaligned16, x uint64) {
+	// riscv64:`MOVB` -`MOV `
+	binary.LittleEndian.PutUint64(s.b[4:], x)
+}
+
+func store_le_byte8_uint64_unaligned_slice_offset5(s *memCombineUnaligned16, x uint64) {
+	// riscv64:`MOVB` -`MOV `
+	binary.LittleEndian.PutUint64(s.b[5:], x)
+}
+
+func store_le_byte8_uint64_unaligned_slice_offset6(s *memCombineUnaligned16, x uint64) {
+	// riscv64:`MOVB` -`MOV `
+	binary.LittleEndian.PutUint64(s.b[6:], x)
+}
+
+func store_le_byte8_uint64_unaligned_slice_offset7(s *memCombineUnaligned16, x uint64) {
+	// riscv64:`MOVB` -`MOV `
+	binary.LittleEndian.PutUint64(s.b[7:], x)
+}
+
+func store_le_byte8_uint64_unaligned_slice_offset8(s *memCombineUnaligned16, x uint64) {
+	// riscv64:`MOVB` -`MOV `
+	binary.LittleEndian.PutUint64(s.b[8:], x)
 }
 
 func store_le32(b []byte, x uint32) {
@@ -1103,4 +1489,29 @@ func dwstoreOrder(p *struct {
 	p.c = true
 	p.e = true
 	p.b = b
+}
+
+// --------------------------------------------------- //
+//    arm64 spill/reload pair coalescing               //
+// --------------------------------------------------- //
+
+// Spills and reloads do not exist when the SSA pair pass runs: regalloc
+// inserts them later, so they never get a chance to be fused by that pass.
+// A late Prog-level pass in cmd/compile/internal/arm64 catches adjacent
+// spill/reload pairs that target the same base register at consecutive
+// 8-byte offsets. These tests pin down that behavior.
+
+//go:noinline
+func dwpairClobber() {}
+
+// Two distinct values that need to survive a call: regalloc spills both,
+// and the late pass coalesces the adjacent reloads into a single LDP. The
+// pattern requires a spill-slot (SP) base so that a frame-pointer epilogue
+// LDP, which uses (RSP), cannot satisfy it.
+func dwpairSpillReloadDistinct(p, q *int) (int, int) {
+	a := *p
+	b := *q
+	dwpairClobber()
+	// arm64:`LDP\s.+\(SP\), \(R[0-9]+, R[0-9]+\)`
+	return a, b
 }

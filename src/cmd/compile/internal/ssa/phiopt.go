@@ -4,6 +4,8 @@
 
 package ssa
 
+import "cmd/compile/internal/ssa/block"
+
 // phiopt eliminates boolean Phis based on the previous if.
 //
 // Main use case is to transform:
@@ -37,7 +39,7 @@ func phiopt(f *Func) {
 		for len(b0.Succs) == 1 && len(b0.Preds) == 1 {
 			pb0, b0 = b0, b0.Preds[0].b
 		}
-		if b0.Kind != BlockIf {
+		if b0.Kind != block.BlockIf {
 			continue
 		}
 		pb1, b1 := b, b.Preds[1].b
@@ -213,7 +215,7 @@ func phiopt(f *Func) {
 
 			pb0 := b.Preds[0].b
 			pb1 := b.Preds[1].b
-			if pb0.Kind == BlockIf && pb0 == sdom.Parent(b) {
+			if pb0.Kind == block.BlockIf && pb0 == sdom.Parent(b) {
 				// special case: pb0 is the dominator block b0.
 				//     b0(pb0)
 				//    |  \
@@ -229,7 +231,7 @@ func phiopt(f *Func) {
 					convertPhi(pb0, v, ei)
 					break
 				}
-			} else if pb1.Kind == BlockIf && pb1 == sdom.Parent(b) {
+			} else if pb1.Kind == block.BlockIf && pb1 == sdom.Parent(b) {
 				// special case: pb1 is the dominator block b0.
 				//       b0(pb1)
 				//     /   |
@@ -259,7 +261,7 @@ func phiopt(f *Func) {
 					lca = makeLCArange(f)
 				}
 				b0 := lca.find(pb0, pb1)
-				if b0.Kind != BlockIf {
+				if b0.Kind != block.BlockIf {
 					break
 				}
 				sb0 := b0.Succs[0].b

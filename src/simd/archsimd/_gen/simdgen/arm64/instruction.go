@@ -7,6 +7,7 @@ package arm64
 import (
 	"fmt"
 	"regexp"
+	"slices"
 	"sort"
 	"strconv"
 	"strings"
@@ -132,10 +133,8 @@ func (instruction *Instruction) ResultInArg0() bool {
 	// Check pseudocode for reading destination register
 	for _, PsSection := range instruction.PsSections {
 		for _, Ps := range PsSection.Ps {
-			for _, pstext := range Ps.PSText {
-				if resultInArg0Re.MatchString(pstext) {
-					return true
-				}
+			if slices.ContainsFunc(Ps.PSText, resultInArg0Re.MatchString) {
+				return true
 			}
 		}
 	}
@@ -257,16 +256,16 @@ func (instruction *Instruction) extractFixedArrangements() []string {
 
 	for _, class := range instruction.Classes.Iclass {
 		for _, encoding := range class.Encodings {
-			var templateStr string
+			var templateStr strings.Builder
 			for _, content := range encoding.AsmTemplate.TextA {
 				if content.Link == "sa_t" || content.Link == "sa_ta" {
 					return []string{}
 				}
-				templateStr += content.Value
+				templateStr.WriteString(content.Value)
 			}
 
 			// Extract hardcoded arrangements like ".16B", ".4S", ".8H", ".2D"
-			matches := fixedArrangementRe.FindAllStringSubmatch(templateStr, -1)
+			matches := fixedArrangementRe.FindAllStringSubmatch(templateStr.String(), -1)
 			for _, match := range matches {
 				if len(match) > 1 {
 					arrangement := match[1]

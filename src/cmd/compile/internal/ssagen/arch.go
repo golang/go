@@ -53,4 +53,11 @@ type ArchInfo struct {
 
 	// SpillArgReg emits instructions that spill reg to n+off.
 	SpillArgReg func(pp *objw.Progs, p *obj.Prog, f *ssa.Func, t *types.Type, reg int16, n *ir.Name, off int64) *obj.Prog
+
+	// SSAGenFinish, if non-nil, is called after all of a function's Progs
+	// have been generated and defframe has run: branch and jump-table
+	// targets are resolved and the frame size is final. It allows the
+	// backend to run a last Prog-level pass. Used on arm64 to fuse adjacent
+	// spill/reload MOVDs into STP/LDP.
+	SSAGenFinish func(pp *objw.Progs)
 }

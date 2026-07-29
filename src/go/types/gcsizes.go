@@ -35,6 +35,16 @@ func (s *gcSizes) Alignof(T Type) (result int64) {
 			// cmd/compile/internal/types/size.go:calcStructOffset
 			return 8
 		}
+		if len(t.fields) == 0 && _IsSyncAtomicAlign128(T) {
+			// Special case: sync/atomic.align128 is an
+			// empty struct we recognize as a signal that
+			// the struct it contains must be
+			// 128-bit-aligned.
+			//
+			// This logic is equivalent to the logic in
+			// cmd/compile/internal/types/size.go:calcStructOffset
+			return 16
+		}
 
 		// spec: "For a variable x of struct type: unsafe.Alignof(x)
 		// is the largest of the values unsafe.Alignof(x.f) for each

@@ -31,7 +31,7 @@ var StringsCutPrefixAnalyzer = &analysis.Analyzer{
 		typeindexanalyzer.Analyzer,
 	},
 	Run: stringscutprefix,
-	URL: "https://pkg.go.dev/golang.org/x/tools/go/analysis/passes/modernize#stringscutprefix",
+	URL: "https://pkg.go.dev/golang.org/x/tools/go/analysis/passes/modernize#hdr-Analyzer_stringscutprefix",
 }
 
 // stringscutprefix offers a fix to replace an if statement which

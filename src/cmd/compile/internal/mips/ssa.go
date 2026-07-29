@@ -11,6 +11,7 @@ import (
 	"cmd/compile/internal/ir"
 	"cmd/compile/internal/logopt"
 	"cmd/compile/internal/ssa"
+	"cmd/compile/internal/ssa/block"
 	"cmd/compile/internal/ssagen"
 	"cmd/compile/internal/types"
 	"cmd/internal/obj"
@@ -21,11 +22,6 @@ import (
 // isFPreg reports whether r is an FP register.
 func isFPreg(r int16) bool {
 	return mips.REG_F0 <= r && r <= mips.REG_F31
-}
-
-// isHILO reports whether r is HI or LO register.
-func isHILO(r int16) bool {
-	return r == mips.REG_HI || r == mips.REG_LO
 }
 
 // loadByType returns the load instruction of the given type.
@@ -103,15 +99,6 @@ func ssaGenValue(s *ssagen.State, v *ssa.Value) {
 		p.From.Reg = x
 		p.To.Type = obj.TYPE_REG
 		p.To.Reg = y
-		if isHILO(x) && isHILO(y) || isHILO(x) && isFPreg(y) || isFPreg(x) && isHILO(y) {
-			// cannot move between special registers, use TMP as intermediate
-			p.To.Reg = mips.REGTMP
-			p = s.Prog(mips.AMOVW)
-			p.From.Type = obj.TYPE_REG
-			p.From.Reg = mips.REGTMP
-			p.To.Type = obj.TYPE_REG
-			p.To.Reg = y
-		}
 	case ssa.OpMIPSMOVWnop:
 		// nothing to do
 	case ssa.OpLoadReg:
@@ -124,30 +111,12 @@ func ssaGenValue(s *ssagen.State, v *ssa.Value) {
 		ssagen.AddrAuto(&p.From, v.Args[0])
 		p.To.Type = obj.TYPE_REG
 		p.To.Reg = r
-		if isHILO(r) {
-			// cannot directly load, load to TMP and move
-			p.To.Reg = mips.REGTMP
-			p = s.Prog(mips.AMOVW)
-			p.From.Type = obj.TYPE_REG
-			p.From.Reg = mips.REGTMP
-			p.To.Type = obj.TYPE_REG
-			p.To.Reg = r
-		}
 	case ssa.OpStoreReg:
 		if v.Type.IsFlags() {
 			v.Fatalf("store flags not implemented: %v", v.LongString())
 			return
 		}
 		r := v.Args[0].Reg()
-		if isHILO(r) {
-			// cannot directly store, move to TMP and store
-			p := s.Prog(mips.AMOVW)
-			p.From.Type = obj.TYPE_REG
-			p.From.Reg = r
-			p.To.Type = obj.TYPE_REG
-			p.To.Reg = mips.REGTMP
-			r = mips.REGTMP
-		}
 		p := s.Prog(storeByType(v.Type, r))
 		p.From.Type = obj.TYPE_REG
 		p.From.Reg = r
@@ -212,11 +181,25 @@ func ssaGenValue(s *ssagen.State, v *ssa.Value) {
 		ssa.OpMIPSMULTU,
 		ssa.OpMIPSDIV,
 		ssa.OpMIPSDIVU:
-		// result in hi,lo
+		// HI, LO results exist in low quality registers that can't
+		// be stored without using REGTMP.
+		// This used to cause corruptions due to nested REGTMP issues
+		// since store might also need REGTMP to materialize the address.
+		// Instead we move the result into high quality registers.
 		p := s.Prog(v.Op.Asm())
 		p.From.Type = obj.TYPE_REG
 		p.From.Reg = v.Args[1].Reg()
 		p.Reg = v.Args[0].Reg()
+		p1 := s.Prog(mips.AMOVW)
+		p1.From.Type = obj.TYPE_REG
+		p1.From.Reg = mips.REG_HI
+		p1.To.Type = obj.TYPE_REG
+		p1.To.Reg = v.Reg0()
+		p2 := s.Prog(mips.AMOVW)
+		p2.From.Type = obj.TYPE_REG
+		p2.From.Reg = mips.REG_LO
+		p2.To.Type = obj.TYPE_REG
+		p2.To.Reg = v.Reg1()
 	case ssa.OpMIPSMOVWconst:
 		r := v.Reg()
 		p := s.Prog(v.Op.Asm())
@@ -224,8 +207,8 @@ func ssaGenValue(s *ssagen.State, v *ssa.Value) {
 		p.From.Offset = v.AuxInt
 		p.To.Type = obj.TYPE_REG
 		p.To.Reg = r
-		if isFPreg(r) || isHILO(r) {
-			// cannot move into FP or special registers, use TMP as intermediate
+		if isFPreg(r) {
+			// cannot move into FP registers, use TMP as intermediate
 			p.To.Reg = mips.REGTMP
 			p = s.Prog(mips.AMOVW)
 			p.From.Type = obj.TYPE_REG
@@ -963,34 +946,34 @@ func ssaGenValue(s *ssagen.State, v *ssa.Value) {
 	}
 }
 
-var blockJump = map[ssa.BlockKind]struct {
+var blockJump = map[block.BlockKind]struct {
 	asm, invasm obj.As
 }{
-	ssa.BlockMIPSEQ:  {mips.ABEQ, mips.ABNE},
-	ssa.BlockMIPSNE:  {mips.ABNE, mips.ABEQ},
-	ssa.BlockMIPSLTZ: {mips.ABLTZ, mips.ABGEZ},
-	ssa.BlockMIPSGEZ: {mips.ABGEZ, mips.ABLTZ},
-	ssa.BlockMIPSLEZ: {mips.ABLEZ, mips.ABGTZ},
-	ssa.BlockMIPSGTZ: {mips.ABGTZ, mips.ABLEZ},
-	ssa.BlockMIPSFPT: {mips.ABFPT, mips.ABFPF},
-	ssa.BlockMIPSFPF: {mips.ABFPF, mips.ABFPT},
+	block.BlockMIPSEQ:  {mips.ABEQ, mips.ABNE},
+	block.BlockMIPSNE:  {mips.ABNE, mips.ABEQ},
+	block.BlockMIPSLTZ: {mips.ABLTZ, mips.ABGEZ},
+	block.BlockMIPSGEZ: {mips.ABGEZ, mips.ABLTZ},
+	block.BlockMIPSLEZ: {mips.ABLEZ, mips.ABGTZ},
+	block.BlockMIPSGTZ: {mips.ABGTZ, mips.ABLEZ},
+	block.BlockMIPSFPT: {mips.ABFPT, mips.ABFPF},
+	block.BlockMIPSFPF: {mips.ABFPF, mips.ABFPT},
 }
 
 func ssaGenBlock(s *ssagen.State, b, next *ssa.Block) {
 	switch b.Kind {
-	case ssa.BlockPlain, ssa.BlockDefer:
+	case block.BlockPlain, block.BlockDefer:
 		if b.Succs[0].Block() != next {
 			p := s.Prog(obj.AJMP)
 			p.To.Type = obj.TYPE_BRANCH
 			s.Branches = append(s.Branches, ssagen.Branch{P: p, B: b.Succs[0].Block()})
 		}
-	case ssa.BlockExit, ssa.BlockRetJmp:
-	case ssa.BlockRet:
+	case block.BlockExit, block.BlockRetJmp:
+	case block.BlockRet:
 		s.Prog(obj.ARET)
-	case ssa.BlockMIPSEQ, ssa.BlockMIPSNE,
-		ssa.BlockMIPSLTZ, ssa.BlockMIPSGEZ,
-		ssa.BlockMIPSLEZ, ssa.BlockMIPSGTZ,
-		ssa.BlockMIPSFPT, ssa.BlockMIPSFPF:
+	case block.BlockMIPSEQ, block.BlockMIPSNE,
+		block.BlockMIPSLTZ, block.BlockMIPSGEZ,
+		block.BlockMIPSLEZ, block.BlockMIPSGTZ,
+		block.BlockMIPSFPT, block.BlockMIPSFPF:
 		jmp := blockJump[b.Kind]
 		var p *obj.Prog
 		switch next {

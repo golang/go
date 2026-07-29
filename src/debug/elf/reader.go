@@ -11,7 +11,7 @@ import (
 
 // errorReader returns error from all operations.
 type errorReader struct {
-	error
+	error error
 }
 
 func (r errorReader) Read(p []byte) (n int, err error) {

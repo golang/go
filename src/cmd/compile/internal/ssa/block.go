@@ -5,6 +5,7 @@
 package ssa
 
 import (
+	"cmd/compile/internal/ssa/block"
 	"cmd/internal/src"
 	"fmt"
 )
@@ -22,7 +23,7 @@ type Block struct {
 	CPUfeatures CPUfeatures
 
 	// The kind of block this is.
-	Kind BlockKind
+	Kind block.BlockKind
 
 	// Likely direction for branches.
 	// If BranchLikely, Succs[0] is the most likely branch taken.
@@ -116,9 +117,6 @@ func (e Edge) Index() int {
 func (e Edge) String() string {
 	return fmt.Sprintf("{%v,%d}", e.b, e.i)
 }
-
-// BlockKind is the kind of SSA block.
-type BlockKind uint8
 
 // short form print
 func (b *Block) String() string {
@@ -228,7 +226,7 @@ func (b *Block) CopyControls(from *Block) {
 // Reset sets the block to the provided kind and clears all the blocks control
 // and auxiliary values. Other properties of the block, such as its successors,
 // predecessors and values are left unmodified.
-func (b *Block) Reset(kind BlockKind) {
+func (b *Block) Reset(kind block.BlockKind) {
 	b.Kind = kind
 	b.ResetControls()
 	b.Aux = nil
@@ -239,7 +237,7 @@ func (b *Block) Reset(kind BlockKind) {
 // It is equivalent to b.Reset(kind); b.AddControl(v),
 // except that it is one call instead of two and avoids a bounds check.
 // It is intended for use by rewrite rules, where this matters.
-func (b *Block) resetWithControl(kind BlockKind, v *Value) {
+func (b *Block) resetWithControl(kind block.BlockKind, v *Value) {
 	b.Kind = kind
 	b.ResetControls()
 	b.Aux = nil
@@ -252,7 +250,7 @@ func (b *Block) resetWithControl(kind BlockKind, v *Value) {
 // It is equivalent to b.Reset(kind); b.AddControl(v); b.AddControl(w),
 // except that it is one call instead of three and avoids two bounds checks.
 // It is intended for use by rewrite rules, where this matters.
-func (b *Block) resetWithControl2(kind BlockKind, v, w *Value) {
+func (b *Block) resetWithControl2(kind block.BlockKind, v, w *Value) {
 	b.Kind = kind
 	b.ResetControls()
 	b.Aux = nil
@@ -383,7 +381,7 @@ func (b *Block) LackingPos() bool {
 	// Non-plain predecessors are If or Defer, which both (1) have two successors,
 	// which might have different line numbers and (2) correspond to statements
 	// in the source code that have positions, so this case ought not occur anyway.
-	if b.Kind != BlockPlain {
+	if b.Kind != block.BlockPlain {
 		return false
 	}
 	if b.Pos != src.NoXPos {

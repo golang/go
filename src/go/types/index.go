@@ -115,7 +115,7 @@ func (check *Checker) indexExpr(x *operand, e *indexedExpr) (isFuncInst bool) {
 			return false
 		}
 		var key operand
-		check.genericExpr(&key, index, nil)
+		check.genericExpr(typ.key, &key, index, nil)
 		check.assignment(&key, typ.key, "map index")
 		// ok to continue even if indexing failed - map element type is known
 		x.mode_ = mapindex
@@ -189,7 +189,7 @@ func (check *Checker) indexExpr(x *operand, e *indexedExpr) (isFuncInst bool) {
 					return false
 				}
 				var k operand
-				check.genericExpr(&k, index, nil)
+				check.genericExpr(key, &k, index, nil)
 				check.assignment(&k, key, "map index")
 				// ok to continue even if indexing failed - map element type is known
 				x.mode_ = mapindex
@@ -231,7 +231,7 @@ func (check *Checker) indexExpr(x *operand, e *indexedExpr) (isFuncInst bool) {
 }
 
 func (check *Checker) sliceExpr(x *operand, e *ast.SliceExpr) {
-	check.expr(nil, x, e.X)
+	check.expr(nil, nil, x, e.X)
 	if !x.isValid() {
 		check.use(e.Low, e.High, e.Max)
 		return
@@ -240,12 +240,11 @@ func (check *Checker) sliceExpr(x *operand, e *ast.SliceExpr) {
 	// determine common underlying type cu
 	var ct, cu Type // type and respective common underlying type
 	var hasString bool
-	// TODO(adonovan): use go1.23 "range typeset()".
-	typeset(x.typ())(func(t, u Type) bool {
+	for t, u := range typeset(x.typ()) {
 		if u == nil {
 			check.errorf(x, NonSliceableOperand, "cannot slice %s: no specific type in %s", x, x.typ())
 			cu = nil
-			return false
+			break
 		}
 
 		// Treat strings like byte slices but remember that we saw a string.
@@ -257,18 +256,16 @@ func (check *Checker) sliceExpr(x *operand, e *ast.SliceExpr) {
 		// If this is the first type we're seeing, we're done.
 		if cu == nil {
 			ct, cu = t, u
-			return true
+			continue
 		}
 
 		// Otherwise, the current type must have the same underlying type as all previous types.
 		if !Identical(cu, u) {
 			check.errorf(x, NonSliceableOperand, "cannot slice %s: %s and %s have different underlying types", x, ct, t)
 			cu = nil
-			return false
+			break
 		}
-
-		return true
-	})
+	}
 	if hasString {
 		// If we saw a string, proceed with string type,
 		// but don't go from untyped string to string.
@@ -422,7 +419,7 @@ func (check *Checker) index(index ast.Expr, max int64) (typ Type, val int64) {
 	val = -1
 
 	var x operand
-	check.expr(nil, &x, index)
+	check.expr(nil, nil, &x, index)
 	if !check.isValidIndex(&x, InvalidIndex, "index", false) {
 		return
 	}

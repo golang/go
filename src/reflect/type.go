@@ -1821,6 +1821,7 @@ var funcLookupCache struct {
 // If t's size is equal to or exceeds this limit, ChanOf panics.
 func ChanOf(dir ChanDir, t Type) Type {
 	typ := t.common()
+	t = toType(typ) // for #80332, ensure t's exported methods are not shadowed
 
 	// Look in cache.
 	ckey := cacheKey{Chan, typ, nil, uintptr(dir)}
@@ -1912,7 +1913,7 @@ func initFuncTypes(n int) Type {
 // panics if the in[len(in)-1] does not represent a slice and variadic is
 // true.
 func FuncOf(in, out []Type, variadic bool) Type {
-	if variadic && (len(in) == 0 || in[len(in)-1].Kind() != Slice) {
+	if variadic && (len(in) == 0 || toType(in[len(in)-1].common()).Kind() != Slice) {
 		panic("reflect.FuncOf: last arg of variadic func must be slice")
 	}
 
@@ -2128,6 +2129,7 @@ func emitGCMask(out []byte, base uintptr, typ *abi.Type, n uintptr) {
 // For example, if t represents int, SliceOf(t) represents []int.
 func SliceOf(t Type) Type {
 	typ := t.common()
+	t = toType(typ) // for #80332, ensure t's exported methods are not shadowed
 
 	// Look in cache.
 	ckey := cacheKey{Slice, typ, nil, 0}
@@ -2656,6 +2658,7 @@ func ArrayOf(length int, elem Type) Type {
 	}
 
 	typ := elem.common()
+	elem = toType(typ) // for #80332, ensure elem's exported methods are not shadowed
 
 	// Look in cache.
 	ckey := cacheKey{Array, typ, nil, uintptr(length)}

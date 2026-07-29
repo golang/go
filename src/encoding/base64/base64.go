@@ -8,6 +8,7 @@ package base64
 import (
 	"internal/byteorder"
 	"io"
+	"math"
 	"slices"
 	"strconv"
 )
@@ -282,9 +283,17 @@ func NewEncoder(enc *Encoding, w io.Writer) io.WriteCloser {
 
 // EncodedLen returns the length in bytes of the base64 encoding
 // of an input buffer of length n.
+// It panics if the encoded length overflows int,
+// which can happen only if n > [math.MaxInt]/4*3.
 func (enc *Encoding) EncodedLen(n int) int {
 	if enc.padChar == NoPadding {
+		if n > math.MaxInt/4*3+2 {
+			panic("encoded length overflows int")
+		}
 		return n/3*4 + (n%3*8+5)/6 // minimum # chars at 6 bits per char
+	}
+	if n > math.MaxInt/4*3 {
+		panic("encoded length overflows int")
 	}
 	return (n + 2) / 3 * 4 // minimum # 4-char quanta, 3 bytes each
 }

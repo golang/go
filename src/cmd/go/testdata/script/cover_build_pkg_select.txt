@@ -36,6 +36,31 @@ rm $WORK/modex.exe
 
 #-------------------------------------------
 
+# Build with coverage limited to a dependency. The main package still needs
+# registration hooks so that the dependency can emit coverage data.
+go build -mod=mod -coverpkg=rsc.io/quote -o $WORK/modex.exe mod.example/main
+
+# Execute.
+mkdir $WORK/covdata
+env GOCOVERDIR=$WORK/covdata
+exec $WORK/modex.exe
+
+# Restore previous GOCOVERDIR setting
+env GOCOVERDIR=$SAVEGOCOVERDIR
+
+# Only the selected dependency should be covered.
+go tool covdata textfmt -i=$WORK/covdata -o=$WORK/covdata/out.txt
+! stderr 'warning: no applicable files found'
+grep 'mode: set' $WORK/covdata/out.txt
+grep 'rsc.io/quote' $WORK/covdata/out.txt
+! grep 'mod.example/main/main.go:' $WORK/covdata/out.txt
+! grep 'mod.example/sub/sub.go:' $WORK/covdata/out.txt
+
+rm $WORK/covdata
+rm $WORK/modex.exe
+
+#-------------------------------------------
+
 # Repeat the build but with -coverpkg=all
 
 go build -mod=mod -coverpkg=all -o $WORK/modex.exe -cover mod.example/main
@@ -84,7 +109,7 @@ module mod.example
 
 go 1.20
 
-require rsc.io/quote/v3 v3.0.0
+require rsc.io/quote v1.5.2
 
 -- main/main.go --
 package main
@@ -107,5 +132,3 @@ package sub
 func F() int {
 	return 42
 }
-
-

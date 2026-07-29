@@ -6,6 +6,7 @@ package ssa
 
 import (
 	"cmd/compile/internal/ir"
+	"cmd/compile/internal/ssa/block"
 	"cmd/compile/internal/types"
 	"cmd/internal/obj"
 	"slices"
@@ -24,14 +25,14 @@ func pair(f *Func) {
 	pairStores(f)
 }
 
-type pairableLoadInfo struct {
+type pairInfo struct {
 	width int64 // width of one element in the pair, in bytes
 	pair  Op
 }
 
 // All pairableLoad ops must take 2 arguments, a pointer and a memory.
 // They must also take an offset in Aux/AuxInt.
-var pairableLoads = map[Op]pairableLoadInfo{
+var pairableLoads = map[Op]pairInfo{
 	OpARM64MOVDload:  {8, OpARM64LDP},
 	OpARM64MOVWUload: {4, OpARM64LDPW},
 	OpARM64MOVWload:  {4, OpARM64LDPSW},
@@ -39,21 +40,20 @@ var pairableLoads = map[Op]pairableLoadInfo{
 	// if we knew the upper bits of one of them weren't being used.
 	OpARM64FMOVDload: {8, OpARM64FLDPD},
 	OpARM64FMOVSload: {4, OpARM64FLDPS},
-}
-
-type pairableStoreInfo struct {
-	width int64 // width of one element in the pair, in bytes
-	pair  Op
+	// NEON loads
+	OpARM64FMOVQload: {16, OpARM64FLDPQ},
 }
 
 // All pairableStore keys must take 3 arguments, a pointer, a value, and a memory.
 // All pairableStore values must take 4 arguments, a pointer, 2 values, and a memory.
 // They must also take an offset in Aux/AuxInt.
-var pairableStores = map[Op]pairableStoreInfo{
+var pairableStores = map[Op]pairInfo{
 	OpARM64MOVDstore:  {8, OpARM64STP},
 	OpARM64MOVWstore:  {4, OpARM64STPW},
 	OpARM64FMOVDstore: {8, OpARM64FSTPD},
 	OpARM64FMOVSstore: {4, OpARM64FSTPS},
+	// NEON stores
+	OpARM64FMOVQstore: {16, OpARM64FSTPQ},
 }
 
 // offsetOk returns true if a pair instruction should be used
@@ -102,17 +102,17 @@ func offsetOk(aux Aux, off, width int64) bool {
 		// might need to issue fixup instructions.
 		// Assume some small frame size.
 		if off >= 0 {
-			off += 120
+			off += 128 // This should be multiple of 4, 8 and 16 for later off%width check
 		}
 		// TODO: figure out how often this helps vs. hurts.
 	}
 	switch width {
-	case 4:
-		if off >= -256 && off <= 252 && off%4 == 0 {
-			return true
-		}
-	case 8:
-		if off >= -512 && off <= 504 && off%8 == 0 {
+	case 4, 8, 16:
+		// Offset is encoded as signed 7 bit imm * width
+		const simm7Min = -64
+		const simm7Max = 63
+
+		if off >= simm7Min*width && off <= simm7Max*width && off%width == 0 {
 			return true
 		}
 	}
@@ -307,7 +307,7 @@ func pairLoads(f *Func) {
 }
 
 func memoryBarrierTest(b *Block) bool {
-	if b.Kind != BlockARM64NZW {
+	if b.Kind != block.BlockARM64NZW {
 		return false
 	}
 	c := b.Controls[0]
@@ -400,12 +400,14 @@ func pairStores(f *Func) {
 	// storeWidth returns the width of store,
 	// or 0 if it is not a store this pass understands.
 	storeWidth := func(op Op) int64 {
+		if info, ok := pairableStores[op]; ok {
+			return info.width
+		}
+
+		// We don't pair these stores, but returning zero here
+		// would flush the memory chain.
 		var width int64
 		switch op {
-		case OpARM64MOVDstore, OpARM64FMOVDstore:
-			width = 8
-		case OpARM64MOVWstore, OpARM64FMOVSstore:
-			width = 4
 		case OpARM64MOVHstore:
 			width = 2
 		case OpARM64MOVBstore:
@@ -413,6 +415,7 @@ func pairStores(f *Func) {
 		default:
 			width = 0
 		}
+
 		return width
 	}
 
@@ -457,12 +460,15 @@ func pairStores(f *Func) {
 			if v.Uses != 1 && len(memChain) > 0 ||
 				len(memChain) > 0 && (v.Args[0] != memChain[0].Args[0] || v.Aux != memChain[0].Aux) ||
 				len(memChain) == limit {
-				// If v has multiple uses and it is not the latest store in the chain,
+				// 1. If v has multiple uses and it is not the latest store in the chain,
 				// we cannot merge it with other store instructions.
-				// If v has a different base pointer or Aux value from the current chain,
+				//
+				// 2. If v has a different base pointer or Aux value from the current chain,
 				// we need to flush memChain and start a new one with v.
-				// If memChain length limit is exceeded, we also need to flush the chain
+				//
+				// 3. If memChain length limit is exceeded, we also need to flush the chain
 				// and start a new one with v.
+				//
 				// Only look back so far.
 				// This keeps us in O(n) territory, and it
 				// also prevents us from keeping values

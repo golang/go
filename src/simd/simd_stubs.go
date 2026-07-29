@@ -6,13 +6,13 @@
 
 package simd
 
-// LoadInt8 loads a slice of int8 into an Int8s vector.
+// LoadInt8s loads a slice of int8 into an Int8s vector.
 func LoadInt8s([]int8) Int8s
 
-// LoadInt8Part loads a partial slice of int8 into an Int8s vector, returning the vector and the number of elements loaded.
+// LoadInt8sPart loads a partial slice of int8 into an Int8s vector, returning the vector and the number of elements loaded.
 func LoadInt8sPart([]int8) (Int8s, int)
 
-// BroadcastInt8 fills the elements of a slice with its argument value.
+// BroadcastInt8s fills the elements of a slice with its argument value.
 func BroadcastInt8s(int8) Int8s
 
 // Abs returns the element-wise absolute value of x.
@@ -102,13 +102,13 @@ func (x Int8s) ToMask() (to Mask8s)
 // Xor returns the bitwise XOR of x and y.
 func (x Int8s) Xor(y Int8s) Int8s
 
-// LoadInt16 loads a slice of int16 into an Int16s vector.
+// LoadInt16s loads a slice of int16 into an Int16s vector.
 func LoadInt16s([]int16) Int16s
 
-// LoadInt16Part loads a partial slice of int16 into an Int16s vector, returning the vector and the number of elements loaded.
+// LoadInt16sPart loads a partial slice of int16 into an Int16s vector, returning the vector and the number of elements loaded.
 func LoadInt16sPart([]int16) (Int16s, int)
 
-// BroadcastInt16 fills the elements of a slice with its argument value.
+// BroadcastInt16s fills the elements of a slice with its argument value.
 func BroadcastInt16s(int16) Int16s
 
 // Abs returns the element-wise absolute value of x.
@@ -210,13 +210,13 @@ func (x Int16s) ToMask() (to Mask16s)
 // Xor returns the bitwise XOR of x and y.
 func (x Int16s) Xor(y Int16s) Int16s
 
-// LoadInt32 loads a slice of int32 into an Int32s vector.
+// LoadInt32s loads a slice of int32 into an Int32s vector.
 func LoadInt32s([]int32) Int32s
 
-// LoadInt32Part loads a partial slice of int32 into an Int32s vector, returning the vector and the number of elements loaded.
+// LoadInt32sPart loads a partial slice of int32 into an Int32s vector, returning the vector and the number of elements loaded.
 func LoadInt32sPart([]int32) (Int32s, int)
 
-// BroadcastInt32 fills the elements of a slice with its argument value.
+// BroadcastInt32s fills the elements of a slice with its argument value.
 func BroadcastInt32s(int32) Int32s
 
 // Abs returns the element-wise absolute value of x.
@@ -315,13 +315,13 @@ func (x Int32s) ToMask() (to Mask32s)
 // Xor returns the bitwise XOR of x and y.
 func (x Int32s) Xor(y Int32s) Int32s
 
-// LoadInt64 loads a slice of int64 into an Int64s vector.
+// LoadInt64s loads a slice of int64 into an Int64s vector.
 func LoadInt64s([]int64) Int64s
 
-// LoadInt64Part loads a partial slice of int64 into an Int64s vector, returning the vector and the number of elements loaded.
+// LoadInt64sPart loads a partial slice of int64 into an Int64s vector, returning the vector and the number of elements loaded.
 func LoadInt64sPart([]int64) (Int64s, int)
 
-// BroadcastInt64 fills the elements of a slice with its argument value.
+// BroadcastInt64s fills the elements of a slice with its argument value.
 func BroadcastInt64s(int64) Int64s
 
 // Add returns the element-wise sum of x and y.
@@ -402,13 +402,13 @@ func (x Int64s) ToMask() (to Mask64s)
 // Xor returns the bitwise XOR of x and y.
 func (x Int64s) Xor(y Int64s) Int64s
 
-// LoadUint8 loads a slice of uint8 into an Uint8s vector.
+// LoadUint8s loads a slice of uint8 into an Uint8s vector.
 func LoadUint8s([]uint8) Uint8s
 
-// LoadUint8Part loads a partial slice of uint8 into an Uint8s vector, returning the vector and the number of elements loaded.
+// LoadUint8sPart loads a partial slice of uint8 into an Uint8s vector, returning the vector and the number of elements loaded.
 func LoadUint8sPart([]uint8) (Uint8s, int)
 
-// BroadcastUint8 fills the elements of a slice with its argument value.
+// BroadcastUint8s fills the elements of a slice with its argument value.
 func BroadcastUint8s(uint8) Uint8s
 
 // Add returns the element-wise sum of x and y.
@@ -489,13 +489,13 @@ func (x Uint8s) SubSaturated(y Uint8s) Uint8s
 // Xor returns the bitwise XOR of x and y.
 func (x Uint8s) Xor(y Uint8s) Uint8s
 
-// LoadUint16 loads a slice of uint16 into an Uint16s vector.
+// LoadUint16s loads a slice of uint16 into an Uint16s vector.
 func LoadUint16s([]uint16) Uint16s
 
-// LoadUint16Part loads a partial slice of uint16 into an Uint16s vector, returning the vector and the number of elements loaded.
+// LoadUint16sPart loads a partial slice of uint16 into an Uint16s vector, returning the vector and the number of elements loaded.
 func LoadUint16sPart([]uint16) (Uint16s, int)
 
-// BroadcastUint16 fills the elements of a slice with its argument value.
+// BroadcastUint16s fills the elements of a slice with its argument value.
 func BroadcastUint16s(uint16) Uint16s
 
 // Add returns the element-wise sum of x and y.
@@ -600,13 +600,13 @@ func (x Uint16s) SubSaturated(y Uint16s) Uint16s
 // Xor returns the bitwise XOR of x and y.
 func (x Uint16s) Xor(y Uint16s) Uint16s
 
-// LoadUint32 loads a slice of uint32 into an Uint32s vector.
+// LoadUint32s loads a slice of uint32 into an Uint32s vector.
 func LoadUint32s([]uint32) Uint32s
 
-// LoadUint32Part loads a partial slice of uint32 into an Uint32s vector, returning the vector and the number of elements loaded.
+// LoadUint32sPart loads a partial slice of uint32 into an Uint32s vector, returning the vector and the number of elements loaded.
 func LoadUint32sPart([]uint32) (Uint32s, int)
 
-// BroadcastUint32 fills the elements of a slice with its argument value.
+// BroadcastUint32s fills the elements of a slice with its argument value.
 func BroadcastUint32s(uint32) Uint32s
 
 // Add returns the element-wise sum of x and y.
@@ -705,13 +705,13 @@ func (x Uint32s) Sub(y Uint32s) Uint32s
 // Xor returns the bitwise XOR of x and y.
 func (x Uint32s) Xor(y Uint32s) Uint32s
 
-// LoadUint64 loads a slice of uint64 into an Uint64s vector.
+// LoadUint64s loads a slice of uint64 into an Uint64s vector.
 func LoadUint64s([]uint64) Uint64s
 
-// LoadUint64Part loads a partial slice of uint64 into an Uint64s vector, returning the vector and the number of elements loaded.
+// LoadUint64sPart loads a partial slice of uint64 into an Uint64s vector, returning the vector and the number of elements loaded.
 func LoadUint64sPart([]uint64) (Uint64s, int)
 
-// BroadcastUint64 fills the elements of a slice with its argument value.
+// BroadcastUint64s fills the elements of a slice with its argument value.
 func BroadcastUint64s(uint64) Uint64s
 
 // Add returns the element-wise sum of x and y.
@@ -833,13 +833,13 @@ func (x Uint64s) Sub(y Uint64s) Uint64s
 // Xor returns the bitwise XOR of x and y.
 func (x Uint64s) Xor(y Uint64s) Uint64s
 
-// LoadFloat32 loads a slice of float32 into an Float32s vector.
+// LoadFloat32s loads a slice of float32 into an Float32s vector.
 func LoadFloat32s([]float32) Float32s
 
-// LoadFloat32Part loads a partial slice of float32 into an Float32s vector, returning the vector and the number of elements loaded.
+// LoadFloat32sPart loads a partial slice of float32 into an Float32s vector, returning the vector and the number of elements loaded.
 func LoadFloat32sPart([]float32) (Float32s, int)
 
-// BroadcastFloat32 fills the elements of a slice with its argument value.
+// BroadcastFloat32s fills the elements of a slice with its argument value.
 func BroadcastFloat32s(float32) Float32s
 
 // Abs returns the element-wise absolute value of x.
@@ -914,13 +914,13 @@ func (x Float32s) Sub(y Float32s) Float32s
 // ToBits reinterprets the vector bits as an unsigned integer vector.
 func (x Float32s) ToBits() Uint32s
 
-// LoadFloat64 loads a slice of float64 into an Float64s vector.
+// LoadFloat64s loads a slice of float64 into an Float64s vector.
 func LoadFloat64s([]float64) Float64s
 
-// LoadFloat64Part loads a partial slice of float64 into an Float64s vector, returning the vector and the number of elements loaded.
+// LoadFloat64sPart loads a partial slice of float64 into an Float64s vector, returning the vector and the number of elements loaded.
 func LoadFloat64sPart([]float64) (Float64s, int)
 
-// BroadcastFloat64 fills the elements of a slice with its argument value.
+// BroadcastFloat64s fills the elements of a slice with its argument value.
 func BroadcastFloat64s(float64) Float64s
 
 // Abs returns the element-wise absolute value of x.

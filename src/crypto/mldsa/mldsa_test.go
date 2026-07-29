@@ -593,6 +593,154 @@ func TestInvalidSize(t *testing.T) {
 	}
 }
 
+func TestUninitialized(t *testing.T) {
+	t.Run("Verify", func(t *testing.T) {
+		msg := []byte("attacker-controlled message")
+		sig := make([]byte, MLDSA44SignatureSize)
+
+		cases := []struct {
+			name string
+			fn   func() error
+		}{
+			{"empty signature/nil opts", func() error {
+				var pk PublicKey
+				return Verify(&pk, msg, nil, nil)
+			}},
+			{"empty signature/empty opts", func() error {
+				var pk PublicKey
+				return Verify(&pk, msg, nil, &Options{})
+			}},
+			{"zero length signature", func() error {
+				var pk PublicKey
+				return Verify(&pk, msg, []byte{}, nil)
+			}},
+			{"full length signature", func() error {
+				var pk PublicKey
+				return Verify(&pk, msg, sig, nil)
+			}},
+			{"full length signature/with context", func() error {
+				var pk PublicKey
+				return Verify(&pk, msg, sig, &Options{Context: "ctx"})
+			}},
+		}
+		for _, c := range cases {
+			t.Run(c.name, func(t *testing.T) {
+				err, panicked := call(c.fn)
+				if panicked != nil {
+					t.Errorf("Verify panicked: %v", panicked)
+				}
+				if err == nil {
+					t.Error("Verify accepted uninitialized PublicKey, want error")
+				}
+			})
+		}
+	})
+
+	signFuncs := []struct {
+		name string
+		sign func(sk *PrivateKey, msg []byte, opts crypto.SignerOpts) ([]byte, error)
+	}{
+		{"Sign", func(sk *PrivateKey, msg []byte, opts crypto.SignerOpts) ([]byte, error) {
+			return sk.Sign(nil, msg, opts)
+		}},
+		{"SignDeterministic", func(sk *PrivateKey, msg []byte, opts crypto.SignerOpts) ([]byte, error) {
+			return sk.SignDeterministic(msg, opts)
+		}},
+	}
+	for _, f := range signFuncs {
+		t.Run(f.name, func(t *testing.T) {
+			msg := []byte("message")
+
+			cases := []struct {
+				name string
+				fn   func() error
+			}{
+				{"nil opts", func() error {
+					var sk PrivateKey
+					_, err := sk.Sign(nil, msg, nil)
+					return err
+				}},
+				{"empty opts", func() error {
+					var sk PrivateKey
+					_, err := sk.Sign(nil, msg, &Options{})
+					return err
+				}},
+				{"typed nil opts", func() error {
+					var sk PrivateKey
+					_, err := sk.Sign(nil, msg, (*Options)(nil))
+					return err
+				}},
+				{"mu opts", func() error {
+					var sk PrivateKey
+					_, err := sk.Sign(nil, msg, muOptions{})
+					return err
+				}},
+			}
+			for _, c := range cases {
+				t.Run(c.name, func(t *testing.T) {
+					err, panicked := call(c.fn)
+					if panicked != nil {
+						t.Errorf("panicked: %v", panicked)
+					}
+					if err == nil {
+						t.Error("accepted zero-value PrivateKey, want error")
+					}
+				})
+			}
+		})
+	}
+
+	t.Run("TypedNilOptions", func(t *testing.T) {
+		sk, err := GenerateKey(MLDSA44())
+		if err != nil {
+			t.Fatal(err)
+		}
+		msg := []byte("message")
+
+		t.Run("SignDeterministic", func(t *testing.T) {
+			want, err := sk.SignDeterministic(msg, nil)
+			if err != nil {
+				t.Fatalf("SignDeterministic(nil opts): %v", err)
+			}
+			var got []byte
+			_, panicked := call(func() (err error) {
+				got, err = sk.SignDeterministic(msg, (*Options)(nil))
+				return err
+			})
+			if panicked != nil {
+				t.Fatalf("SignDeterministic(typed-nil opts) panicked: %v", panicked)
+			}
+			if !bytes.Equal(got, want) {
+				t.Error("SignDeterministic(typed-nil opts) != SignDeterministic(nil opts)")
+			}
+		})
+
+		t.Run("Sign", func(t *testing.T) {
+			var sig []byte
+			_, panicked := call(func() (err error) {
+				sig, err = sk.Sign(nil, msg, (*Options)(nil))
+				return err
+			})
+			if panicked != nil {
+				t.Fatalf("Sign(typed-nil opts) panicked: %v", panicked)
+			}
+			if err := Verify(sk.PublicKey(), msg, sig, nil); err != nil {
+				t.Errorf("signature made with typed-nil opts does not verify under empty context: %v", err)
+			}
+		})
+	})
+}
+
+func call(fn func() error) (err error, panicked any) {
+	defer func() { panicked = recover() }()
+	err = fn()
+	return err, nil
+}
+
+type muOptions struct{}
+
+func (muOptions) HashFunc() crypto.Hash { return crypto.MLDSAMu }
+
 func BenchmarkSign(b *testing.B) {
 	// Signing works by rejection sampling, which introduces massive variance in
 	// individual signing times. To get stable but correct results, we benchmark

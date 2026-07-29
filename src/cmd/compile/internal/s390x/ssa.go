@@ -12,6 +12,7 @@ import (
 	"cmd/compile/internal/logopt"
 	"cmd/compile/internal/objw"
 	"cmd/compile/internal/ssa"
+	"cmd/compile/internal/ssa/block"
 	"cmd/compile/internal/ssagen"
 	"cmd/compile/internal/types"
 	"cmd/internal/obj"
@@ -960,23 +961,23 @@ func ssaGenValue(s *ssagen.State, v *ssa.Value) {
 
 func blockAsm(b *ssa.Block) obj.As {
 	switch b.Kind {
-	case ssa.BlockS390XBRC:
+	case block.BlockS390XBRC:
 		return s390x.ABRC
-	case ssa.BlockS390XCRJ:
+	case block.BlockS390XCRJ:
 		return s390x.ACRJ
-	case ssa.BlockS390XCGRJ:
+	case block.BlockS390XCGRJ:
 		return s390x.ACGRJ
-	case ssa.BlockS390XCLRJ:
+	case block.BlockS390XCLRJ:
 		return s390x.ACLRJ
-	case ssa.BlockS390XCLGRJ:
+	case block.BlockS390XCLGRJ:
 		return s390x.ACLGRJ
-	case ssa.BlockS390XCIJ:
+	case block.BlockS390XCIJ:
 		return s390x.ACIJ
-	case ssa.BlockS390XCGIJ:
+	case block.BlockS390XCGIJ:
 		return s390x.ACGIJ
-	case ssa.BlockS390XCLIJ:
+	case block.BlockS390XCLIJ:
 		return s390x.ACLIJ
-	case ssa.BlockS390XCLGIJ:
+	case block.BlockS390XCLGIJ:
 		return s390x.ACLGIJ
 	}
 	b.Fatalf("blockAsm not implemented: %s", b.LongString())
@@ -986,16 +987,16 @@ func blockAsm(b *ssa.Block) obj.As {
 func ssaGenBlock(s *ssagen.State, b, next *ssa.Block) {
 	// Handle generic blocks first.
 	switch b.Kind {
-	case ssa.BlockPlain, ssa.BlockDefer:
+	case block.BlockPlain, block.BlockDefer:
 		if b.Succs[0].Block() != next {
 			p := s.Prog(s390x.ABR)
 			p.To.Type = obj.TYPE_BRANCH
 			s.Branches = append(s.Branches, ssagen.Branch{P: p, B: b.Succs[0].Block()})
 		}
 		return
-	case ssa.BlockExit, ssa.BlockRetJmp:
+	case block.BlockExit, block.BlockRetJmp:
 		return
-	case ssa.BlockRet:
+	case block.BlockRet:
 		s.Prog(obj.ARET)
 		return
 	}
@@ -1017,21 +1018,21 @@ func ssaGenBlock(s *ssagen.State, b, next *ssa.Block) {
 
 	p := s.Br(blockAsm(b), succs[0])
 	switch b.Kind {
-	case ssa.BlockS390XBRC:
+	case block.BlockS390XBRC:
 		p.From.Type = obj.TYPE_CONST
 		p.From.Offset = int64(mask)
-	case ssa.BlockS390XCGRJ, ssa.BlockS390XCRJ,
-		ssa.BlockS390XCLGRJ, ssa.BlockS390XCLRJ:
+	case block.BlockS390XCGRJ, block.BlockS390XCRJ,
+		block.BlockS390XCLGRJ, block.BlockS390XCLRJ:
 		p.From.Type = obj.TYPE_CONST
 		p.From.Offset = int64(mask & s390x.NotUnordered) // unordered is not possible
 		p.Reg = b.Controls[0].Reg()
 		p.AddRestSourceReg(b.Controls[1].Reg())
-	case ssa.BlockS390XCGIJ, ssa.BlockS390XCIJ:
+	case block.BlockS390XCGIJ, block.BlockS390XCIJ:
 		p.From.Type = obj.TYPE_CONST
 		p.From.Offset = int64(mask & s390x.NotUnordered) // unordered is not possible
 		p.Reg = b.Controls[0].Reg()
 		p.AddRestSourceConst(int64(int8(b.AuxInt)))
-	case ssa.BlockS390XCLGIJ, ssa.BlockS390XCLIJ:
+	case block.BlockS390XCLGIJ, block.BlockS390XCLIJ:
 		p.From.Type = obj.TYPE_CONST
 		p.From.Offset = int64(mask & s390x.NotUnordered) // unordered is not possible
 		p.Reg = b.Controls[0].Reg()

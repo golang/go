@@ -4,6 +4,8 @@
 
 package ssa
 
+import "cmd/compile/internal/ssa/block"
+
 // fuseIntInRange transforms integer range checks to remove the short-circuit operator. For example,
 // it would convert `if 1 <= x && x < 5 { ... }` into `if (1 <= x) & (x < 5) { ... }`. Rewrite rules
 // can then optimize these into unsigned range checks, `if unsigned(x-1) < 4 { ... }` in this case.
@@ -59,7 +61,7 @@ func fuseComparisons(b *Block, canOptControls func(a, b *Value, op Op) bool) boo
 		return false
 	}
 	p := b.Preds[0].Block()
-	if b.Kind != BlockIf || p.Kind != BlockIf {
+	if b.Kind != block.BlockIf || p.Kind != block.BlockIf {
 		return false
 	}
 
@@ -95,6 +97,13 @@ func fuseComparisons(b *Block, canOptControls func(a, b *Value, op Op) bool) boo
 			return false
 		}
 
+		// if the destination block has any phis that are differentiated between
+		// the edge being removed and the other edge, removing it will change
+		// the behavior of the program
+		if hasDifferentiatedPhi(p.Succs[i], b.Succs[i]) {
+			continue
+		}
+
 		// Logically combine the control values for p and b.
 		v := b.NewValue0(bc.Pos, op, bc.Type)
 		v.AddArg(pc)
@@ -105,7 +114,7 @@ func fuseComparisons(b *Block, canOptControls func(a, b *Value, op Op) bool) boo
 
 		// Modify p so that it jumps directly to b.
 		p.removeEdge(i)
-		p.Kind = BlockPlain
+		p.Kind = block.BlockPlain
 		p.Likely = BranchUnknown
 		p.ResetControls()
 
@@ -113,6 +122,24 @@ func fuseComparisons(b *Block, canOptControls func(a, b *Value, op Op) bool) boo
 	}
 
 	// TODO: could negate condition(s) to merge controls.
+	return false
+}
+
+func hasDifferentiatedPhi(x Edge, y Edge) bool {
+	b := x.Block()
+	if y.Block() != b {
+		panic("non matching edges")
+	}
+	xi := x.i
+	yi := y.i
+	for _, v := range b.Values {
+		if v.Op != OpPhi {
+			continue
+		}
+		if v.Args[xi] != v.Args[yi] {
+			return true
+		}
+	}
 	return false
 }
 

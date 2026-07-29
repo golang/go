@@ -400,6 +400,18 @@ func (s *Server) StartTLS() {
 	if s.Listener == nil {
 		return
 	}
+	if _, ok := s.Listener.(interface{ HTTP3PacketConn() net.PacketConn }); ok {
+		// s.Listener has been set to a net.Listener which wraps the net.PacketConn
+		// we're actually going to serve from. Pass this along to Server.ServeTLS
+		//
+		// This path is only used by net/http tests.
+		s.URL = "https://" + s.Listener.Addr().String()
+		s.Config.TLSConfig = s.TLS
+		s.wg.Go(func() {
+			s.Config.ServeTLS(s.Listener, "", "")
+		})
+		return
+	}
 	dialer := net.Dialer{}
 	tr.DialContext = func(ctx context.Context, network, addr string) (net.Conn, error) {
 		if tr.Dial != nil {

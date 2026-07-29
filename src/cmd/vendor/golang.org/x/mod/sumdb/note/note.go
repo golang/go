@@ -238,7 +238,7 @@ func isValidName(name string) bool {
 	return name != "" && utf8.ValidString(name) && strings.IndexFunc(name, unicode.IsSpace) < 0 && !strings.Contains(name, "+")
 }
 
-// NewVerifier construct a new [Verifier] from an encoded verifier key.
+// NewVerifier constructs a new [Verifier] from an encoded verifier key.
 func NewVerifier(vkey string) (Verifier, error) {
 	name, vkey, _ := strings.Cut(vkey, "+")
 	hash16, key64, _ := strings.Cut(vkey, "+")

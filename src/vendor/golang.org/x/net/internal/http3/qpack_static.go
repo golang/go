@@ -13,7 +13,7 @@ type tableEntry struct {
 
 // staticTableEntry returns the static table entry with the given index.
 func staticTableEntry(index int64) (tableEntry, error) {
-	if index >= int64(len(staticTableEntries)) {
+	if index < 0 || index >= int64(len(staticTableEntries)) {
 		return tableEntry{}, errQPACKDecompressionFailed
 	}
 	return staticTableEntries[index], nil

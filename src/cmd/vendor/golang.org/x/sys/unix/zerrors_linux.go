@@ -1359,6 +1359,7 @@ const (
 	FAN_UNLIMITED_MARKS                         = 0x20
 	FAN_UNLIMITED_QUEUE                         = 0x10
 	FD_CLOEXEC                                  = 0x1
+	FD_PIDFS_ROOT                               = -0x2712
 	FD_SETSIZE                                  = 0x400
 	FF0                                         = 0x0
 	FIB_RULE_DEV_DETACHED                       = 0x8
@@ -1970,6 +1971,8 @@ const (
 	MADV_DONTNEED                               = 0x4
 	MADV_DONTNEED_LOCKED                        = 0x18
 	MADV_FREE                                   = 0x8
+	MADV_GUARD_INSTALL                          = 0x66
+	MADV_GUARD_REMOVE                           = 0x67
 	MADV_HUGEPAGE                               = 0xe
 	MADV_HWPOISON                               = 0x64
 	MADV_KEEPONFORK                             = 0x13
@@ -2114,7 +2117,7 @@ const (
 	MS_NOSEC                                    = 0x10000000
 	MS_NOSUID                                   = 0x2
 	MS_NOSYMFOLLOW                              = 0x100
-	MS_NOUSER                                   = -0x80000000
+	MS_NOUSER                                   = 0x80000000
 	MS_POSIXACL                                 = 0x10000
 	MS_PRIVATE                                  = 0x40000
 	MS_RDONLY                                   = 0x1
@@ -3786,6 +3789,9 @@ const (
 	TCPOPT_TIMESTAMP                            = 0x8
 	TCPOPT_TSTAMP_HDR                           = 0x101080a
 	TCPOPT_WINDOW                               = 0x3
+	TCP_AO_KEYF_EXCLUDE_OPT                     = 0x2
+	TCP_AO_KEYF_IFINDEX                         = 0x1
+	TCP_AO_MAXKEYLEN                            = 0x50
 	TCP_CC_INFO                                 = 0x1a
 	TCP_CM_INQ                                  = 0x24
 	TCP_CONGESTION                              = 0xd

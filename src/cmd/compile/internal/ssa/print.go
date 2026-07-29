@@ -187,6 +187,6 @@ func fprintFunc(p funcPrinter, f *Func) {
 		p.endBlock(b, reachable[b.ID])
 	}
 	for _, name := range f.Names {
-		p.named(*name, f.NamedValues[*name])
+		p.named(name, f.NamedValues[name])
 	}
 }

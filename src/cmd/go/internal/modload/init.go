@@ -55,22 +55,18 @@ var (
 	gopath string
 )
 
-// EnterModule resets MainModules and requirements to refer to just this one module.
-func EnterModule(ld *Loader, ctx context.Context, enterModroot string) {
-	ld.MainModules = nil // reset MainModules
-	ld.requirements = nil
-	ld.workFilePath = "" // Force module mode
-	ld.Fetcher().Reset()
-
-	ld.modRoots = []string{enterModroot}
+// NewForModroot creates a new module loader in single-module mode for the module at
+// the given modroot..
+func NewForModroot(ctx context.Context, modroot string) *Loader {
+	ld := NewLoader()
+	ld.modRoots = []string{modroot}
 	LoadModFile(ld, ctx)
+	return ld
 }
 
-// EnterWorkspace enters workspace mode from module mode, applying the updated requirements to the main
-// module to that module in the workspace. There should be no calls to any of the exported
-// functions of the modload package running concurrently with a call to EnterWorkspace as
-// EnterWorkspace will modify the global state they depend on in a non-thread-safe way.
-func EnterWorkspace(ld *Loader, ctx context.Context) (exit func(), err error) {
+// NewForWorkspace creates a new loader for workspace mode from the given module mode loader ld,
+// applying ld's updated requirements to the main module to the corresponding module in the workspace.
+func (ld *Loader) NewForWorkspace(ctx context.Context) (*Loader, error) {
 	// Find the identity of the main module that will be updated before we reset modload state.
 	mm := ld.MainModules.mustGetSingleMainModule(ld)
 	// Get the updated modfile we will use for that module.
@@ -79,8 +75,8 @@ func EnterWorkspace(ld *Loader, ctx context.Context) (exit func(), err error) {
 		return nil, err
 	}
 
-	// Reset the state to a clean state.
-	oldstate := ld.setState(NewLoader())
+	// Create a new loader in workspace mode
+	ld = NewLoader()
 	ld.ForceUseModules = true
 
 	// Load in workspace mode.
@@ -89,11 +85,9 @@ func EnterWorkspace(ld *Loader, ctx context.Context) (exit func(), err error) {
 
 	// Update the content of the previous main module, and recompute the requirements.
 	*ld.MainModules.ModFile(mm) = *updatedmodfile
-	ld.requirements = requirementsFromModFiles(ld, ctx, ld.MainModules.workFile, slices.Collect(maps.Values(ld.MainModules.modFiles)), nil)
+	ld.requirements = requirementsFromModFiles(ld, ld.MainModules.workFile, slices.Collect(maps.Values(ld.MainModules.modFiles)))
 
-	return func() {
-		ld.setState(oldstate)
-	}, nil
+	return ld, err
 }
 
 type MainModuleSet struct {
@@ -399,6 +393,7 @@ func (ld *Loader) setState(new *Loader) (old *Loader) {
 		requirements:    ld.requirements,
 		workFilePath:    ld.workFilePath,
 		fetcher:         ld.fetcher,
+		packageCache:    ld.packageCache,
 	}
 	ld.initialized = new.initialized
 	ld.ForceUseModules = new.ForceUseModules
@@ -412,6 +407,7 @@ func (ld *Loader) setState(new *Loader) (old *Loader) {
 	// the go.sum file, so save and restore it along with the
 	// modload state.
 	old.fetcher = ld.fetcher.SetState(new.fetcher)
+	ld.packageCache = new.packageCache
 
 	return old
 }
@@ -460,22 +456,30 @@ type Loader struct {
 	// disabled
 	workFilePath string
 	fetcher      *modfetch.Fetcher
+
+	// PackageCache is a lookup cache for LoadImport,
+	// so that if we look up a package multiple times
+	// we return the same pointer each time.
+	packageCache map[string]any
 }
 
 func NewLoader() *Loader {
 	s := new(Loader)
 	s.fetcher = modfetch.NewFetcher()
+	s.packageCache = make(map[string]any)
 	return s
 }
 
 func NewDisabledState() *Loader {
 	fips140.Init()
-	return &Loader{initialized: true, modulesEnabled: false}
+	return &Loader{initialized: true, modulesEnabled: false, packageCache: make(map[string]any)}
 }
 
 func (ld *Loader) Fetcher() *modfetch.Fetcher {
 	return ld.fetcher
 }
+
+func (ld *Loader) PackageCache() map[string]any { return ld.packageCache }
 
 // Init determines whether module mode is enabled, locates the root of the
 // current module (if any), sets environment variables for Git subprocesses, and
@@ -1086,20 +1090,18 @@ func loadModFile(ld *Loader, ctx context.Context, opts *PackageOpts) (*Requireme
 
 	ld.MainModules = makeMainModules(ld, mainModules, ld.modRoots, modFiles, indices, workFile)
 	setDefaultBuildMod(ld) // possibly enable automatic vendoring
-	rs := requirementsFromModFiles(ld, ctx, workFile, modFiles, opts)
+	rs := requirementsFromModFiles(ld, workFile, modFiles)
 
 	if cfg.BuildMod == "vendor" {
 		readVendorList(VendorDir(ld))
 		versions := ld.MainModules.Versions()
 		indexes := make([]*modFileIndex, 0, len(versions))
 		modFiles := make([]*modfile.File, 0, len(versions))
-		modRoots := make([]string, 0, len(versions))
 		for _, m := range versions {
 			indexes = append(indexes, ld.MainModules.Index(m))
 			modFiles = append(modFiles, ld.MainModules.ModFile(m))
-			modRoots = append(modRoots, ld.MainModules.ModRoot(m))
 		}
-		checkVendorConsistency(ld, indexes, modFiles, modRoots)
+		checkVendorConsistency(ld, indexes, modFiles)
 		rs.initVendor(ld, vendorList)
 	}
 
@@ -1213,7 +1215,7 @@ func CreateModFile(ld *Loader, ctx context.Context, modPath string) {
 	ld.MainModules = makeMainModules(ld, []module.Version{modFile.Module.Mod}, []string{modRoot}, []*modfile.File{modFile}, []*modFileIndex{nil}, nil)
 	addGoStmt(modFile, modFile.Module.Mod, gover.Local()) // Add the go directive before converted module requirements.
 
-	rs := requirementsFromModFiles(ld, ctx, nil, []*modfile.File{modFile}, nil)
+	rs := requirementsFromModFiles(ld, nil, []*modfile.File{modFile})
 	rs, err := updateRoots(ld, ctx, rs.direct, rs, nil, nil, false)
 	if err != nil {
 		base.Fatal(err)
@@ -1410,7 +1412,7 @@ func makeMainModules(ld *Loader, ms []module.Version, rootDirs []string, modFile
 				if replacedByWorkFile[r.Old.Path] {
 					continue
 				}
-				var newV module.Version = r.New
+				newV := r.New
 				if WorkFilePath(ld) != "" && newV.Version == "" && !filepath.IsAbs(newV.Path) {
 					// Since we are in a workspace, we may be loading replacements from
 					// multiple go.mod files. Relative paths in those replacement are
@@ -1453,7 +1455,7 @@ func makeMainModules(ld *Loader, ms []module.Version, rootDirs []string, modFile
 
 // requirementsFromModFiles returns the set of non-excluded requirements from
 // the global modFile.
-func requirementsFromModFiles(ld *Loader, ctx context.Context, workFile *modfile.WorkFile, modFiles []*modfile.File, opts *PackageOpts) *Requirements {
+func requirementsFromModFiles(ld *Loader, workFile *modfile.WorkFile, modFiles []*modfile.File) *Requirements {
 	var roots []module.Version
 	direct := map[string]bool{}
 	var pruning modPruning

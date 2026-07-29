@@ -37,7 +37,7 @@ The report includes useful system information.
 }
 
 func init() {
-	CmdBug.Flag.BoolVar(&cfg.BuildV, "v", false, "")
+	CmdBug.Flag.BoolVar(&cfg.BuildV, "v", false, "print warnings about failures to gather information")
 	base.AddChdirFlag(&CmdBug.Flag)
 }
 

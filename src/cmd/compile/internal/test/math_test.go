@@ -169,3 +169,31 @@ func BenchmarkMod64NegBoth(b *testing.B) {
 	}
 	Output = int(r)
 }
+
+// BenchmarkDiv32UnsignedConstOdd benchmarks uint32 division by odd constants
+// whose magic multiplier is truly 33-bit (m&1 != 0): divisors 7, 19, 107.
+// On 64-bit targets this exercises the pre-shifted Hmul64u optimization.
+func BenchmarkDiv32UnsignedConstOdd(b *testing.B) {
+	var ret uint32 = 1
+	for i := 0; i < b.N; i++ {
+		x := uint32(i) ^ ret
+		ret ^= x / 7
+		ret ^= x / 19
+		ret ^= x / 107
+	}
+	Output = int(ret)
+}
+
+// BenchmarkDiv32UnsignedConstEven benchmarks uint32 division by even constants
+// whose magic multiplier is truly 33-bit (m&1 != 0): divisors 14, 38, 214.
+// These are of the form 2*d where d is an odd divisor with 33-bit magic.
+func BenchmarkDiv32UnsignedConstEven(b *testing.B) {
+	var ret uint32 = 1
+	for i := 0; i < b.N; i++ {
+		x := uint32(i) ^ ret
+		ret ^= x / 14
+		ret ^= x / 38
+		ret ^= x / 214
+	}
+	Output = int(ret)
+}

@@ -424,7 +424,7 @@ func (s *Stream) Write(b []byte) (n int, err error) {
 		// We automatically flush if:
 		//   - We have enough data to consume the send window.
 		//     Sending this data may cause the peer to extend the window.
-		//   - We have buffered as much data as we're willing do.
+		//   - We have buffered as much data as we're willing to.
 		//     We need to send data to clear out buffer space.
 		//   - We have enough data to fill a 1-RTT packet using the smallest
 		//     possible maximum datagram size (1200 bytes, less header byte,

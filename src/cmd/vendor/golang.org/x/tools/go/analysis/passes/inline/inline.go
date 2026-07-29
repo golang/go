@@ -150,11 +150,11 @@ func (a *analyzer) inline() {
 			a.inlineCall(n, cur)
 
 		case *ast.Ident:
-			switch t := a.pass.TypesInfo.Uses[n].(type) {
+			switch obj := a.pass.TypesInfo.Uses[n].(type) {
 			case *types.TypeName:
-				a.inlineAlias(t, cur)
+				a.inlineAlias(obj, cur)
 			case *types.Const:
-				a.inlineConst(t, cur)
+				a.inlineConst(obj, cur)
 			}
 		}
 	}
@@ -252,11 +252,22 @@ func (a *analyzer) inlineCall(call *ast.CallExpr, cur inspector.Cursor) {
 	}
 }
 
-// withinTestOf reports whether cur is within a dedicated test
-// function for the inlinable target function.
+// withinTestOf reports whether curUse is within a dedicated test
+// function for the inlinable target symbol.
 // A call within its dedicated test should not be inlined.
-func (a *analyzer) withinTestOf(cur inspector.Cursor, target *types.Func) bool {
-	curFuncDecl, ok := moreiters.First(cur.Enclosing((*ast.FuncDecl)(nil)))
+func (a *analyzer) withinTestOf(curUse inspector.Cursor, target types.Object) bool {
+	// x_test.go -> x
+	useFileBase, isTest := strings.CutSuffix(a.pass.Fset.File(curUse.Node().Pos()).Name(), "_test.go")
+	if !isTest {
+		return false // not a test file
+	}
+
+	// Suppress fixes for uses in x_test.go of target symbol defined in x.go (#79272).
+	if useFileBase == strings.TrimSuffix(a.pass.Fset.File(target.Pos()).Name(), ".go") {
+		return true
+	}
+
+	curFuncDecl, ok := moreiters.First(curUse.Enclosing((*ast.FuncDecl)(nil)))
 	if !ok {
 		return false // not in a function
 	}
@@ -267,23 +278,22 @@ func (a *analyzer) withinTestOf(cur inspector.Cursor, target *types.Func) bool {
 	if strings.TrimSuffix(a.pass.Pkg.Path(), "_test") != target.Pkg().Path() {
 		return false // different package
 	}
-	if !strings.HasSuffix(a.pass.Fset.File(funcDecl.Pos()).Name(), "_test.go") {
-		return false // not a test file
-	}
 
-	// Computed expected SYMBOL portion of "TestSYMBOL_comment"
-	// for the target symbol.
-	symbol := target.Name()
-	if recv := target.Signature().Recv(); recv != nil {
-		_, named := typesinternal.ReceiverNamed(recv)
-		symbol = named.Obj().Name() + "_" + symbol
-	}
-
+	// Computed expected SYMBOL portion of "ExampleSYMBOL_comment"
+	// for the target symbol. (Strictly, this convention applies
+	// only to Example functions.)
 	// TODO(adonovan): use a proper Test function parser.
+	symbol := target.Name()
+	if fn, ok := target.(*types.Func); ok {
+		if recv := fn.Signature().Recv(); recv != nil {
+			_, named := typesinternal.ReceiverNamed(recv)
+			symbol = named.Obj().Name() + "_" + symbol
+		}
+	}
 	fname := funcDecl.Name.Name
-	for _, pre := range []string{"Test", "Example", "Bench"} {
+	for _, pre := range []string{"Test", "Example", "Bench", "Fuzz"} {
 		if fname == pre+symbol || strings.HasPrefix(fname, pre+symbol+"_") {
-			return true
+			return true // use of X within TestX
 		}
 	}
 
@@ -302,6 +312,10 @@ func (a *analyzer) inlineAlias(tn *types.TypeName, curId inspector.Cursor) {
 	}
 	if inalias == nil {
 		return // nope
+	}
+
+	if a.withinTestOf(curId, tn) {
+		return // don't inline a type alias from within its own test
 	}
 
 	alias := tn.Type().(*types.Alias)
@@ -506,6 +520,10 @@ func (a *analyzer) inlineConst(con *types.Const, cur inspector.Cursor) {
 	}
 	if incon == nil {
 		return // nope
+	}
+
+	if a.withinTestOf(cur, con) {
+		return // don't inline a type alias from within its own test
 	}
 
 	// If n is qualified by a package identifier, we'll need the full selector expression.

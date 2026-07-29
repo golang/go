@@ -291,6 +291,15 @@ func BenchmarkPool(b *testing.B) {
 	})
 }
 
+func BenchmarkPoolGetEmpty(b *testing.B) {
+	var p Pool
+	b.RunParallel(func(pb *testing.PB) {
+		for pb.Next() {
+			_ = p.Get()
+		}
+	})
+}
+
 func BenchmarkPoolOverflow(b *testing.B) {
 	var p Pool
 	b.RunParallel(func(pb *testing.PB) {

@@ -32,7 +32,7 @@ var MinMaxAnalyzer = &analysis.Analyzer{
 		typeindexanalyzer.Analyzer,
 	},
 	Run: minmax,
-	URL: "https://pkg.go.dev/golang.org/x/tools/go/analysis/passes/modernize#minmax",
+	URL: "https://pkg.go.dev/golang.org/x/tools/go/analysis/passes/modernize#hdr-Analyzer_minmax",
 }
 
 // The minmax pass replaces if/else statements with calls to min or max,
@@ -450,19 +450,4 @@ func checkMinMaxPattern(ifStmt *ast.IfStmt, falseResult ast.Expr, funcName, para
 
 	// Check if the sign matches the function name
 	return cond(sign < 0, "min", "max") == funcName
-}
-
-// -- utils --
-
-func is[T any](x any) bool {
-	_, ok := x.(T)
-	return ok
-}
-
-func cond[T any](cond bool, t, f T) T {
-	if cond {
-		return t
-	} else {
-		return f
-	}
 }

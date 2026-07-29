@@ -924,7 +924,7 @@ var (
 	moduleStr  = []byte("module")
 )
 
-// ModulePath returns the module path from the gomod file text.
+// ModulePath returns the module path from the go.mod file text.
 // If it cannot find a module path, it returns an empty string.
 // It is tolerant of unrelated problems in the go.mod file.
 func ModulePath(mod []byte) string {

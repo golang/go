@@ -144,6 +144,16 @@ func Merge(fsys fs.FS) (*md.Document, error) {
 			// of a file acts as a blank line.
 			lastLine := lastBlock(doc).Pos().EndLine
 			delta := lastLine + 2 - newdoc.Blocks[0].Pos().StartLine
+			if pkg != "" {
+				// For stdlib minor changes, include the file name as a comment, as
+				// it often contains the issue number which is helpful.
+				comment := &md.HTMLBlock{
+					Position: md.Position{StartLine: lastLine + 2, EndLine: lastLine + 2},
+					Text:     []string{"<!-- " + filename + " -->"},
+				}
+				delta++
+				doc.Blocks = append(doc.Blocks, comment)
+			}
 			for _, b := range newdoc.Blocks {
 				addLines(b, delta)
 			}

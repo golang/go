@@ -113,6 +113,7 @@ func main() {
 		".gitattributes",
 		".github/**",
 		".gitignore",
+		".jj/**",
 		"VERSION.cache",
 		"misc/cgo/*/_obj/**",
 		"**/.DS_Store",

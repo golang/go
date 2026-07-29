@@ -200,9 +200,8 @@ type Type struct {
 
 	intRegs, floatRegs uint8 // registers needed for ABIInternal
 
-	flags             bitset8
-	alg               AlgKind // valid if Align > 0
-	isSIMDTag, isSIMD bool    // tag is the marker type, isSIMD means has marker type
+	flags bitset16
+	alg   AlgKind // valid if Align > 0
 
 	// size of prefix of object that contains all pointers. valid if Align > 0.
 	// Note that for pointers, this is always PtrSize even if the element type
@@ -233,6 +232,8 @@ const (
 	// typeIsFullyInstantiated reports whether a type is fully instantiated generic type; i.e.
 	// an instantiated generic type where all type arguments are non-generic or fully instantiated generic types.
 	typeIsFullyInstantiated
+	typeIsSIMDTag // type is the SIMD marker type
+	typeIsSIMD    // type contains the SIMD marker type
 )
 
 func (t *Type) NotInHeap() bool           { return t.flags&typeNotInHeap != 0 }
@@ -597,7 +598,7 @@ func newSSA(name string) *Type {
 
 func newSIMD(name string) *Type {
 	t := newSSA(name)
-	t.isSIMD = true
+	t.flags |= typeIsSIMD
 	return t
 }
 
@@ -1683,8 +1684,8 @@ func (t *Type) SetUnderlying(underlying *Type) {
 	if underlying.HasShape() {
 		t.SetHasShape(true)
 	}
-	if underlying.isSIMD {
-		simdify(t, underlying.isSIMDTag)
+	if underlying.flags&typeIsSIMD != 0 {
+		simdify(t, underlying.flags&typeIsSIMDTag != 0)
 	}
 
 	// spec: "The declared type does not inherit any methods bound
@@ -1988,5 +1989,5 @@ var SimType [NTYPE]Kind
 var ShapePkg = NewPkg("go.shape", "go.shape")
 
 func (t *Type) IsSIMD() bool {
-	return t.isSIMD
+	return t.flags&typeIsSIMD != 0
 }

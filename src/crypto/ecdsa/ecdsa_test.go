@@ -235,6 +235,11 @@ func testSignHashLength(t *testing.T, c elliptic.Curve) {
 	if _, err := priv.Sign(rand.Reader, nil, crypto.SHA256); err == nil {
 		t.Error("Sign with empty digest should fail")
 	}
+
+	// opts.HashFunc() == 0 errors cleanly.
+	if _, err := priv.Sign(rand.Reader, digest[:], crypto.Hash(0)); err == nil {
+		t.Error("Sign with crypto.Hash(0) should fail")
+	}
 }
 
 func TestNonceSafety(t *testing.T) {

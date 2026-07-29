@@ -228,6 +228,9 @@ func parseTestData(r io.Reader) (flows [][]byte, err error) {
 			currentFlow = append(currentFlow, byte(val))
 		}
 	}
+	if err := scanner.Err(); err != nil {
+		return nil, fmt.Errorf("failed to parse test data: %v", err)
+	}
 
 	if len(currentFlow) > 0 {
 		flows = append(flows, currentFlow)

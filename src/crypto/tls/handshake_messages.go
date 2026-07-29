@@ -1107,6 +1107,16 @@ func (m *encryptedExtensionsMsg) unmarshal(data []byte) bool {
 				return false
 			}
 			m.serverNameAck = true
+		case extensionStatusRequest, extensionSupportedPoints,
+			extensionSignatureAlgorithms, extensionSCT,
+			extensionExtendedMasterSecret, extensionSessionTicket,
+			extensionPreSharedKey, extensionSupportedVersions,
+			extensionCookie, extensionPSKModes,
+			extensionCertificateAuthorities, extensionSignatureAlgorithmsCert,
+			extensionKeyShare, extensionRenegotiationInfo,
+			extensionECHOuterExtensions:
+			// Not allowed in EncryptedExtensions.
+			return false
 		default:
 			// Ignore unknown extensions.
 			continue
@@ -1231,6 +1241,18 @@ func (m *newSessionTicketMsgTLS13) unmarshal(data []byte) bool {
 			if !extData.ReadUint32(&m.maxEarlyData) {
 				return false
 			}
+		case extensionServerName, extensionStatusRequest,
+			extensionSupportedCurves, extensionSupportedPoints,
+			extensionSignatureAlgorithms, extensionALPN, extensionSCT,
+			extensionExtendedMasterSecret, extensionSessionTicket,
+			extensionPreSharedKey, extensionSupportedVersions,
+			extensionCookie, extensionPSKModes,
+			extensionCertificateAuthorities, extensionSignatureAlgorithmsCert,
+			extensionKeyShare, extensionQUICTransportParameters,
+			extensionRenegotiationInfo, extensionECHOuterExtensions,
+			extensionEncryptedClientHello:
+			// Not allowed in TLS 1.3 NewSessionTicket.
+			return false
 		default:
 			// Ignore unknown extensions.
 			continue
@@ -1375,6 +1397,15 @@ func (m *certificateRequestMsgTLS13) unmarshal(data []byte) bool {
 				}
 				m.certificateAuthorities = append(m.certificateAuthorities, ca)
 			}
+		case extensionSupportedCurves, extensionSupportedPoints,
+			extensionALPN, extensionExtendedMasterSecret,
+			extensionSessionTicket, extensionPreSharedKey,
+			extensionEarlyData, extensionSupportedVersions,
+			extensionCookie, extensionPSKModes, extensionKeyShare,
+			extensionQUICTransportParameters, extensionRenegotiationInfo,
+			extensionECHOuterExtensions, extensionEncryptedClientHello:
+			// Not allowed in TLS 1.3 CertificateRequest.
+			return false
 		default:
 			// Ignore unknown extensions.
 			continue
@@ -1585,6 +1616,18 @@ func unmarshalCertificate(s *cryptobyte.String, certificate *Certificate) bool {
 					certificate.SignedCertificateTimestamps = append(
 						certificate.SignedCertificateTimestamps, sct)
 				}
+			case extensionServerName, extensionSupportedCurves,
+				extensionSupportedPoints, extensionSignatureAlgorithms,
+				extensionALPN, extensionExtendedMasterSecret,
+				extensionSessionTicket, extensionPreSharedKey,
+				extensionEarlyData, extensionSupportedVersions,
+				extensionCookie, extensionPSKModes,
+				extensionCertificateAuthorities, extensionSignatureAlgorithmsCert,
+				extensionKeyShare, extensionQUICTransportParameters,
+				extensionRenegotiationInfo, extensionECHOuterExtensions,
+				extensionEncryptedClientHello:
+				// Not allowed in Certificate.
+				return false
 			default:
 				// Ignore unknown extensions.
 				continue

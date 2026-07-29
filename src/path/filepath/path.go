@@ -225,6 +225,11 @@ func Rel(basePath, targPath string) (string, error) {
 		if ti < tl {
 			ti++
 		}
+		// If the last elements matched and both paths are now exhausted,
+		// the paths are equivalent. Without this check, Rel can loop forever.
+		if bi == bl && ti == tl {
+			return ".", nil
+		}
 		b0 = bi
 		t0 = ti
 	}

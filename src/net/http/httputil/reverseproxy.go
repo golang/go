@@ -104,12 +104,18 @@ func (r *ProxyRequest) SetXForwarded() {
 // 1xx responses are forwarded to the client if the underlying
 // transport supports ClientTrace.Got1xxResponse.
 //
+// Upgrade requests (RFC 9110, section 7.8) are forwarded.
+// If the server responds with a 101 Switching Protocols response,
+// the subsequent data from client and server are forwarded
+// unmodified. For example, ReverseProxy forwards WebSocket connections.
+// Upgrades to "h2c" (unencrypted HTTP/2) are not forwarded.
+//
 // Hop-by-hop headers (see RFC 9110, section 7.6.1), including
 // Connection, Proxy-Connection, Keep-Alive, Proxy-Authenticate,
-// Proxy-Authorization, TE, Trailer, Transfer-Encoding, and Upgrade,
+// Proxy-Authorization, TE, Trailer, and Transfer-Encoding
 // are removed from client requests and backend responses.
-// The Rewrite function may be used to add hop-by-hop headers to the request,
-// and the ModifyResponse function may be used to remove them from the response.
+// Hop-by-hop Upgrade headers are preserved as described above.
+// The Rewrite function may be used to add hop-by-hop headers to the request.
 type ReverseProxy struct {
 	// Rewrite must be a function which modifies
 	// the request into a new request to be sent
@@ -371,6 +377,7 @@ var hopHeaders = []string{
 	"Trailer", // not Trailers per URL above; https://www.rfc-editor.org/errata_search.php?eid=4522
 	"Transfer-Encoding",
 	"Upgrade",
+	"HTTP2-Settings", // RFC 7540
 }
 
 func (p *ReverseProxy) defaultErrorHandler(rw http.ResponseWriter, req *http.Request, err error) {
@@ -466,6 +473,17 @@ func (p *ReverseProxy) ServeHTTP(rw http.ResponseWriter, req *http.Request) {
 		p.getErrorHandler()(rw, req, fmt.Errorf("client tried to switch to invalid protocol %q", reqUpType))
 		return
 	}
+	if reqUpType != "" {
+		if req.ProtoMajor != 1 || req.ProtoMinor != 1 {
+			p.getErrorHandler()(rw, req, fmt.Errorf("client tried to use Upgrade header on non-HTTP/1 connection"))
+			return
+		}
+		if httpguts.HeaderValuesContainsToken([]string{reqUpType}, "h2c") {
+			// Don't allow clients to switch the connection to unencrypted HTTP/2,
+			// which allows sending further requests that bypass ReverseProxy's hooks.
+			reqUpType = ""
+		}
+	}
 	removeHopByHopHeaders(outreq.Header)
 
 	// Issue 21096: tell backend applications that care about trailer support
@@ -557,7 +575,7 @@ func (p *ReverseProxy) ServeHTTP(rw http.ResponseWriter, req *http.Request) {
 		return
 	}
 
-	// Deal with 101 Switching Protocols responses: (WebSocket, h2c, etc)
+	// Deal with 101 Switching Protocols responses: (WebSocket, etc.)
 	if res.StatusCode == http.StatusSwitchingProtocols {
 		if !p.modifyResponse(rw, res, outreq) {
 			return

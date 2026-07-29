@@ -182,7 +182,20 @@
     (Hmul64u <typ.UInt64> x (Const64 <typ.UInt64> [int64(1<<63 + umagic64(c).m/2)]))
     (Const64 <typ.UInt64> [umagic64(c).s - 1]))
 
-// Case 7. Unsigned divide where c is even.
+// Case 7. Pre-shifted: on non-wasm 64-bit targets, when m is odd (magic is truly 33-bit and cannot
+// be halved to fit in 32 bits). This covers odd divisors (Case 3) and even divisors whose
+// underlying magic is 33-bit (e.g. d=14=2x7 shares the same m as d=7).
+// When m is even (Case 6), the 32-bit constant path above is preferred to avoid loading
+// a large 64-bit constant on aarch64/riscv64.
+(Div32u <t> x (Const32 [c])) && umagicOK32(c) && config.RegSize == 8 && config.ctxt.Arch.Name != "wasm" && umagic32(c).m&1 != 0 =>
+  (Trunc64to32 <t>
+    (Hmul64u <typ.UInt64>
+      (ZeroExt32to64 x)
+      (Const64 <typ.UInt64> [int64(umagic32PreShifted(c))])))
+
+// Case 8. Unsigned divide where c is even.
+// For non-wasm 64-bit with m odd, the pre-shifted rule above takes priority.
+// This rule handles wasm (m odd) and 32-bit targets.
 (Div16u <t> x (Const16 [c])) && umagicOK16(c) && config.RegSize == 4 && c&1 == 0 =>
   (Trunc32to16 <t>
     (Rsh32Ux64 <typ.UInt32>
@@ -210,7 +223,7 @@
       (Const64 <typ.UInt64> [int64(1<<63 + (umagic64(c).m+1)/2)]))
     (Const64 <typ.UInt64> [umagic64(c).s - 2]))
 
-// Case 8. Unsigned divide using avg.
+// Case 9. Unsigned divide using avg.
 (Div16u <t> x (Const16 [c])) && umagicOK16(c) && config.RegSize == 4 =>
   (Trunc32to16 <t>
     (Rsh32Ux64 <typ.UInt32>
@@ -218,7 +231,7 @@
         (Lsh32x64 <typ.UInt32> (ZeroExt16to32 x) (Const64 <typ.UInt64> [16]))
         (Mul32 <typ.UInt32> (ZeroExt16to32 x) (Const32 <typ.UInt32> [int32(umagic16(c).m)])))
       (Const64 <typ.UInt64> [16 + umagic16(c).s - 1])))
-(Div32u <t> x (Const32 [c])) && umagicOK32(c) && config.RegSize == 8 =>
+(Div32u <t> x (Const32 [c])) && umagicOK32(c) && config.RegSize == 8 && config.ctxt.Arch.Name == "wasm" =>
   (Trunc64to32 <t>
     (Rsh64Ux64 <typ.UInt64>
       (Avg64u

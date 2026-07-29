@@ -204,6 +204,37 @@ func containsLeft(strs []string, str string) bool {
 	return false
 }
 
+//go:noinline
+func benchSpillReloadSink() {}
+
+// benchSpillReloadDistinctAutos loads two values from independent pointers,
+// spills both across a call, and returns them as a pair. The spills and
+// reloads do not exist when the SSA pair pass runs (regalloc inserts them
+// later), so only the late pair pass in cmd/compile/internal/arm64 can fuse
+// the reloads into a single LDP.
+//
+//go:noinline
+func benchSpillReloadDistinctAutos(p, q *int) (int, int) {
+	a := *p
+	b := *q
+	benchSpillReloadSink()
+	return a, b
+}
+
+// BenchmarkSpillReloadPair exercises the spill/reload pattern the late
+// arm64 pair pass fuses but the SSA pair pass cannot. The numbers are not
+// meaningful in absolute terms; the benchmark exists so builds with and
+// without the pass can be compared.
+func BenchmarkSpillReloadPair(b *testing.B) {
+	x, y := 1, 2
+	var s int
+	for b.Loop() {
+		a, c := benchSpillReloadDistinctAutos(&x, &y)
+		s += a + c
+	}
+	globl = int64(s)
+}
+
 // BenchmarkStringEqParamOrder tests that the operand order of string
 // equality comparisons does not affect performance. See issue #74471.
 func BenchmarkStringEqParamOrder(b *testing.B) {

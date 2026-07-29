@@ -35,7 +35,7 @@ var StringsCutAnalyzer = &analysis.Analyzer{
 		typeindexanalyzer.Analyzer,
 	},
 	Run: stringscut,
-	URL: "https://pkg.go.dev/golang.org/x/tools/go/analysis/passes/modernize#stringscut",
+	URL: "https://pkg.go.dev/golang.org/x/tools/go/analysis/passes/modernize#hdr-Analyzer_stringscut",
 }
 
 // stringscut offers a fix to replace an occurrence of strings.Index{,Byte} with
@@ -513,9 +513,12 @@ func indexArgValid(info *types.Info, index *typeindex.Index, expr ast.Expr, afte
 			info.Types[expr.Fun].IsType() && // make sure this isn't a function that returns a byte slice
 			indexArgValid(info, index, expr.Args[0], afterPos) // check s in []byte(s)
 	case *ast.Ident:
-		sObj := info.Uses[expr]
-		sUses := index.Uses(sObj)
-		return !hasModifyingUses(sUses, afterPos)
+		for use := range index.Uses(info.Uses[expr]) {
+			if typesinternal.IsAssignedOrAddressTaken(info, use) {
+				return false
+			}
+		}
+		return true
 	default:
 		// For now, skip instances where s or substr are not
 		// identifiers, basic lits, or call expressions of the form
@@ -610,30 +613,6 @@ func checkIdxUses(info *types.Info, uses iter.Seq[inspector.Cursor], s, substr a
 		}
 	}
 	return negative, nonnegative, beforeSlice, afterSlice
-}
-
-// hasModifyingUses reports whether any of the uses involve potential
-// modifications. Uses involving assignments before the "afterPos" won't be
-// considered.
-func hasModifyingUses(uses iter.Seq[inspector.Cursor], afterPos token.Pos) bool {
-	for curUse := range uses {
-		ek := curUse.ParentEdgeKind()
-		if ek == edge.AssignStmt_Lhs {
-			if curUse.Node().Pos() <= afterPos {
-				continue
-			}
-			// Any use on the LHS is a modifying use.
-			return true
-		} else if ek == edge.UnaryExpr_X &&
-			curUse.Parent().Node().(*ast.UnaryExpr).Op == token.AND {
-			// Modifying use because we might be passing the object by reference (an explicit &).
-			// We can ignore the case where we have a method call on the expression (which
-			// has an implicit &) because we know the type of s and substr are strings
-			// which cannot have methods on them.
-			return true
-		}
-	}
-	return false
 }
 
 // checkIdxComparison reports whether the check is equivalent to i < 0 or its negation, or neither.

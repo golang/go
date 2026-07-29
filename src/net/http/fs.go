@@ -784,6 +784,12 @@ func toHTTPError(err error) (msg string, httpStatus int) {
 // localRedirect gives a Moved Permanently response.
 // It does not convert relative paths to absolute paths like Redirect does.
 func localRedirect(w ResponseWriter, r *Request, newPath string) {
+	// There is no reliable way for us to redirect correctly when the path has
+	// escaped slashes, since StripPrefix might be in use. Just return 404.
+	if p := r.URL.EscapedPath(); strings.Contains(p, "%2f") || strings.Contains(p, "%2F") {
+		NotFound(w, r)
+		return
+	}
 	if q := r.URL.RawQuery; q != "" {
 		newPath += "?" + q
 	}

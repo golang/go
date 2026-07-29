@@ -7,6 +7,9 @@ package http3
 import (
 	"context"
 	"io"
+	"os"
+	"sync"
+	"time"
 
 	"golang.org/x/net/quic"
 )
@@ -21,6 +24,9 @@ type stream struct {
 	// results in an error.
 	// -1 indicates no limit.
 	lim int64
+
+	readDeadline  deadline
+	writeDeadline deadline
 }
 
 // newConnStream creates a new stream on a connection.
@@ -42,10 +48,7 @@ func newConnStream(ctx context.Context, qconn *quic.Conn, stype streamType) (*st
 	if err != nil {
 		return nil, err
 	}
-	st := &stream{
-		stream: qs,
-		lim:    -1, // no limit
-	}
+	st := newStream(qs)
 	if stype != streamTypeRequest {
 		// Unidirectional stream header.
 		st.writeVarint(int64(stype))
@@ -54,9 +57,121 @@ func newConnStream(ctx context.Context, qconn *quic.Conn, stype streamType) (*st
 }
 
 func newStream(qs *quic.Stream) *stream {
-	return &stream{
+	readCtx, readCancel := context.WithCancelCause(context.Background())
+	writeCtx, writeCancel := context.WithCancelCause(context.Background())
+	st := &stream{
 		stream: qs,
 		lim:    -1, // no limit
+		readDeadline: deadline{
+			ctx:    readCtx,
+			cancel: readCancel,
+		},
+		writeDeadline: deadline{
+			ctx:    writeCtx,
+			cancel: writeCancel,
+		},
+	}
+	qs.SetReadContext(readCtx)
+	qs.SetWriteContext(writeCtx)
+	return st
+}
+
+func (st *stream) Close() error {
+	st.readDeadline.stop()
+	st.writeDeadline.stop()
+	return st.stream.Close()
+}
+
+func (st *stream) CloseRead() {
+	st.readDeadline.stop()
+	st.stream.CloseRead()
+}
+
+func (st *stream) CloseWrite() {
+	st.writeDeadline.stop()
+	st.stream.CloseWrite()
+}
+
+func (st *stream) Reset(code uint64) {
+	st.readDeadline.stop()
+	st.writeDeadline.stop()
+	st.stream.Reset(code)
+}
+
+// deadline manages ctx, and cancels it when timer expires, with
+// [os.ErrDeadlineExceeded] as the cause. If the deadline is manually stopped
+// before timer expires, the context will be canceled with [context.Canceled]
+// as the cause. Once a deadline is exceeded, its timer can no longer be
+// extended.
+// Practically, this lets the http3 package support time-based deadlines by
+// utilizing the quic package's support for context-based deadlines.
+type deadline struct {
+	ctx    context.Context
+	cancel context.CancelCauseFunc
+
+	mu    sync.Mutex // Guards below.
+	timer *time.Timer
+}
+
+// stopTimerLocked stops the deadline timer and sets it to nil.
+// The caller must hold d.mu.
+func (d *deadline) stopTimerLocked() {
+	if d.timer != nil {
+		d.timer.Stop()
+		d.timer = nil
+	}
+}
+
+// stop stops the deadline timer and cancels the context with
+// [context.Canceled] as the cause.
+func (d *deadline) stop() {
+	d.mu.Lock()
+	d.stopTimerLocked()
+	d.mu.Unlock()
+	d.cancel(context.Canceled)
+}
+
+// err returns the deadline's context cancelation cause, if any.
+func (d *deadline) err() error {
+	return context.Cause(d.ctx)
+}
+
+// errOf returns the deadline's context cancelation cause if the given err is
+// non-nil. This can be used to check whether an error value returned by I/O
+// operations at the QUIC layer is non-nil because the deadline has expired.
+func (d *deadline) errOf(err error) error {
+	if dErr := d.err(); err != nil && dErr != nil {
+		return dErr
+	}
+	return err
+}
+
+// set configures a new deadline using the given deadlineTime.
+// Once deadline is exceeded, it remains in the expired (sticky) state, and
+// subsequent attempts to extend or reset the deadline are ignored.
+func (d *deadline) set(deadlineTime time.Time) {
+	d.mu.Lock()
+	defer d.mu.Unlock()
+
+	if d.ctx.Err() != nil { // Already expired, sticky error.
+		return
+	}
+	if deadlineTime.IsZero() {
+		d.stopTimerLocked()
+		return
+	}
+	dur := time.Until(deadlineTime)
+	if dur <= 0 {
+		d.stopTimerLocked()
+		d.cancel(os.ErrDeadlineExceeded)
+		return
+	}
+	if d.timer == nil {
+		d.timer = time.AfterFunc(dur, func() {
+			d.cancel(os.ErrDeadlineExceeded)
+		})
+	} else {
+		d.timer.Reset(dur)
 	}
 }
 
@@ -110,21 +225,36 @@ func (st *stream) readFrameData() ([]byte, error) {
 
 // ReadByte reads one byte from the stream.
 func (st *stream) ReadByte() (b byte, err error) {
+	// Check the deadline before doing I/O operations on the QUIC layer. We do
+	// this because the QUIC layer implements a fast path for I/O operations,
+	// allowing Read & Write to succeed depending on the state of buffer, even
+	// if its context has been canceled. By always checking the deadline here,
+	// we make it so that I/O operations fail as soon as its relevant deadline
+	// has been exceeded.
+	if err := st.readDeadline.err(); err != nil {
+		return 0, err
+	}
 	if err := st.recordBytesRead(1); err != nil {
 		return 0, err
 	}
 	b, err = st.stream.ReadByte()
-	if err != nil {
-		if err == io.EOF && st.lim < 0 {
-			return 0, io.EOF
-		}
+	if err == io.EOF && st.lim >= 0 {
 		return 0, errH3FrameError
 	}
-	return b, nil
+	return b, st.readDeadline.errOf(err)
 }
 
 // Read reads from the stream.
 func (st *stream) Read(b []byte) (int, error) {
+	// Check the deadline before doing I/O operations on the QUIC layer. We do
+	// this because the QUIC layer implements a fast path for I/O operations,
+	// allowing Read & Write to succeed depending on the state of buffer, even
+	// if its context has been canceled. By always checking the deadline here,
+	// we make it so that I/O operations fail as soon as its relevant deadline
+	// has been exceeded.
+	if err := st.readDeadline.err(); err != nil {
+		return 0, err
+	}
 	n, err := st.stream.Read(b)
 	if e2 := st.recordBytesRead(n); e2 != nil {
 		return 0, e2
@@ -141,10 +271,7 @@ func (st *stream) Read(b []byte) (int, error) {
 			return n, io.EOF
 		}
 	}
-	if err != nil {
-		return 0, errH3FrameError
-	}
-	return n, nil
+	return n, st.readDeadline.errOf(err)
 }
 
 // discardUnknownFrame discards an unknown frame.
@@ -173,7 +300,7 @@ func (st *stream) discardUnknownFrame(ftype frameType) error {
 func (st *stream) discardFrame() error {
 	// TODO: Consider adding a *quic.Stream method to discard some amount of data.
 	for range st.lim {
-		_, err := st.stream.ReadByte()
+		_, err := st.ReadByte()
 		if err != nil {
 			return &streamError{errH3FrameError, err.Error()}
 		}
@@ -183,28 +310,65 @@ func (st *stream) discardFrame() error {
 }
 
 // Write writes to the stream.
-func (st *stream) Write(b []byte) (int, error) { return st.stream.Write(b) }
+func (st *stream) Write(b []byte) (int, error) {
+	// Check the deadline before doing I/O operations on the QUIC layer. We do
+	// this because the QUIC layer implements a fast path for I/O operations,
+	// allowing Read & Write to succeed depending on the state of buffer, even
+	// if its context has been canceled. By always checking the deadline here,
+	// we make it so that I/O operations fail as soon as its relevant deadline
+	// has been exceeded.
+	if err := st.writeDeadline.err(); err != nil {
+		return 0, err
+	}
+	n, err := st.stream.Write(b)
+	return n, st.writeDeadline.errOf(err)
+}
 
 // Flush commits data written to the stream.
-func (st *stream) Flush() error { return st.stream.Flush() }
+func (st *stream) Flush() error {
+	// Check the deadline before doing I/O operations on the QUIC layer. We do
+	// this because the QUIC layer implements a fast path for I/O operations,
+	// allowing Read & Write to succeed depending on the state of buffer, even
+	// if its context has been canceled. By always checking the deadline here,
+	// we make it so that I/O operations fail as soon as its relevant deadline
+	// has been exceeded.
+	if err := st.writeDeadline.err(); err != nil {
+		return err
+	}
+	return st.writeDeadline.errOf(st.stream.Flush())
+}
+
+// WriteByte writes one byte to the stream.
+func (st *stream) WriteByte(c byte) error {
+	// Check the deadline before doing I/O operations on the QUIC layer. We do
+	// this because the QUIC layer implements a fast path for I/O operations,
+	// allowing Read & Write to succeed depending on the state of buffer, even
+	// if its context has been canceled. By always checking the deadline here,
+	// we make it so that I/O operations fail as soon as its relevant deadline
+	// has been exceeded.
+	if err := st.writeDeadline.err(); err != nil {
+		return err
+	}
+	return st.writeDeadline.errOf(st.stream.WriteByte(c))
+}
 
 // readVarint reads a QUIC variable-length integer from the stream.
 func (st *stream) readVarint() (v int64, err error) {
-	b, err := st.stream.ReadByte()
+	b, err := st.ReadByte()
 	if err != nil {
 		return 0, err
 	}
 	v = int64(b & 0x3f)
 	n := 1 << (b >> 6)
 	for i := 1; i < n; i++ {
-		b, err := st.stream.ReadByte()
+		b, err := st.ReadByte()
 		if err != nil {
-			return 0, errH3FrameError
+			if err == io.EOF {
+				return 0, errH3FrameError
+			}
+			return 0, err
 		}
 		v = (v << 8) | int64(b)
-	}
-	if err := st.recordBytesRead(n); err != nil {
-		return 0, err
 	}
 	return v, nil
 }
@@ -219,24 +383,24 @@ func readVarint[T ~int64 | ~uint64](st *stream) (T, error) {
 func (st *stream) writeVarint(v int64) {
 	switch {
 	case v <= (1<<6)-1:
-		st.stream.WriteByte(byte(v))
+		st.WriteByte(byte(v))
 	case v <= (1<<14)-1:
-		st.stream.WriteByte((1 << 6) | byte(v>>8))
-		st.stream.WriteByte(byte(v))
+		st.WriteByte((1 << 6) | byte(v>>8))
+		st.WriteByte(byte(v))
 	case v <= (1<<30)-1:
-		st.stream.WriteByte((2 << 6) | byte(v>>24))
-		st.stream.WriteByte(byte(v >> 16))
-		st.stream.WriteByte(byte(v >> 8))
-		st.stream.WriteByte(byte(v))
+		st.WriteByte((2 << 6) | byte(v>>24))
+		st.WriteByte(byte(v >> 16))
+		st.WriteByte(byte(v >> 8))
+		st.WriteByte(byte(v))
 	case v <= (1<<62)-1:
-		st.stream.WriteByte((3 << 6) | byte(v>>56))
-		st.stream.WriteByte(byte(v >> 48))
-		st.stream.WriteByte(byte(v >> 40))
-		st.stream.WriteByte(byte(v >> 32))
-		st.stream.WriteByte(byte(v >> 24))
-		st.stream.WriteByte(byte(v >> 16))
-		st.stream.WriteByte(byte(v >> 8))
-		st.stream.WriteByte(byte(v))
+		st.WriteByte((3 << 6) | byte(v>>56))
+		st.WriteByte(byte(v >> 48))
+		st.WriteByte(byte(v >> 40))
+		st.WriteByte(byte(v >> 32))
+		st.WriteByte(byte(v >> 24))
+		st.WriteByte(byte(v >> 16))
+		st.WriteByte(byte(v >> 8))
+		st.WriteByte(byte(v))
 	default:
 		panic("varint too large")
 	}

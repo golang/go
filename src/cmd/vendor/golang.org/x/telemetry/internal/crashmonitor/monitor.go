@@ -202,19 +202,26 @@ func parseStackPCs(crash string) ([]uintptr, error) {
 		return strconv.ParseUint(pcstr, 0, 64) // 0 => allow 0x prefix
 	}
 
+	type goroutine struct {
+		id     uint64
+		pcs    []uintptr
+		system bool // stack starts with runtime.systemstack_switch
+	}
+
 	var (
-		pcs            []uintptr
+		glist          []*goroutine
 		parentSentinel uint64
 		childSentinel  = sentinel()
-		on             = false // are we in the first running goroutine?
 		lines          = strings.Split(crash, "\n")
-		symLine        = true // within a goroutine, every other line is a symbol or file/line/pc location, starting with symbol.
-		currSymbol     string
-		prevSymbol     string // symbol of the most recent previous frame with a PC.
-	)
-	for i := 0; i < len(lines); i++ {
-		line := lines[i]
 
+		// Parsing state for the current goroutine.
+		g          *goroutine
+		symLine    = true // a symbol (not a filename) is expected on this line
+		currSymbol string
+		prevSymbol string
+	)
+
+	for _, line := range lines {
 		// Read sentinel value.
 		if parentSentinel == 0 && strings.HasPrefix(line, "sentinel ") {
 			_, err := fmt.Sscanf(line, "sentinel %x", &parentSentinel)
@@ -224,27 +231,37 @@ func parseStackPCs(crash string) ([]uintptr, error) {
 			continue
 		}
 
-		// Search for "goroutine GID [STATUS]"
-		if !on {
-			if strings.HasPrefix(line, "goroutine ") &&
-				strings.Contains(line, " [running]:") {
-				on = true
-
-				if parentSentinel == 0 {
-					return nil, fmt.Errorf("no sentinel value in crash report")
+		// Check for a "goroutine GID [STATUS]" header.
+		if strings.HasPrefix(line, "goroutine ") {
+			if parentSentinel == 0 {
+				return nil, fmt.Errorf("no sentinel value in crash report")
+			}
+			isG0 := strings.HasPrefix(line, "goroutine 0 ")
+			isRunning := strings.Contains(line, " [running]:")
+			if isG0 || isRunning {
+				var id uint64
+				if parts := strings.Fields(line); len(parts) > 1 {
+					id, _ = strconv.ParseUint(parts[1], 10, 64)
 				}
+				g = &goroutine{id: id}
+				glist = append(glist, g)
+				symLine = true
+				currSymbol = ""
+				prevSymbol = ""
+			} else {
+				g = nil
 			}
 			continue
 		}
 
-		// A blank line marks end of a goroutine stack.
-		if line == "" {
-			break
+		if g == nil {
+			continue
 		}
 
-		// Skip the final "created by SYMBOL in goroutine GID" part.
-		if strings.HasPrefix(line, "created by ") {
-			break
+		// A blank line or "created by " marks the end of the goroutine stack.
+		if line == "" || strings.HasPrefix(line, "created by ") {
+			g = nil
+			continue
 		}
 
 		// Expect a pair of lines:
@@ -316,7 +333,10 @@ func parseStackPCs(crash string) ([]uintptr, error) {
 				pc++
 			}
 
-			pcs = append(pcs, uintptr(pc))
+			if len(g.pcs) == 0 && currSymbol == "runtime.systemstack_switch" {
+				g.system = true
+			}
+			g.pcs = append(g.pcs, uintptr(pc))
 
 			// Done with this frame. Next line is a new frame.
 			prevSymbol = currSymbol
@@ -324,5 +344,24 @@ func parseStackPCs(crash string) ([]uintptr, error) {
 			symLine = true
 		}
 	}
-	return pcs, nil
+
+	if len(glist) == 0 {
+		return nil, nil
+	}
+
+	// The first goroutine in the dump is the one that crashed.
+	firstG := glist[0]
+
+	// If the first goroutine is g0 (the system stack), we want to find the user
+	// goroutine that called it, which will start with systemstack_switch.
+	if firstG.id == 0 {
+		for _, g := range glist[1:] {
+			if g.system && len(g.pcs) > 0 {
+				// Stitch the g0 stack and user stack (skipping systemstack_switch).
+				return append(firstG.pcs, g.pcs[1:]...), nil
+			}
+		}
+	}
+
+	return firstG.pcs, nil
 }

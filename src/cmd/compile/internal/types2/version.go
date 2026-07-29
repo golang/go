@@ -45,6 +45,7 @@ var (
 	go1_23 = asGoVersion("go1.23")
 	go1_26 = asGoVersion("go1.26")
 	go1_27 = asGoVersion("go1.27")
+	go1_28 = asGoVersion("go1.28")
 
 	// current (deployed) Go version
 	go_current = asGoVersion(fmt.Sprintf("go1.%d", goversion.Version))

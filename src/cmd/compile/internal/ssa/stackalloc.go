@@ -157,7 +157,7 @@ func (s *stackAllocState) stackalloc() {
 	for _, name := range f.Names {
 		// Note: not "range f.NamedValues" above, because
 		// that would be nondeterministic.
-		for _, v := range f.NamedValues[*name] {
+		for _, v := range f.NamedValues[name] {
 			if v.Op == OpArgIntReg || v.Op == OpArgFloatReg {
 				aux := v.Aux.(*AuxNameOffset)
 				// Never let an arg be bound to a differently named thing.
@@ -177,9 +177,9 @@ func (s *stackAllocState) stackalloc() {
 
 			if names[v.ID] == empty {
 				if f.pass.debug > stackDebug {
-					fmt.Printf("stackalloc value %s to name %s\n", v, *name)
+					fmt.Printf("stackalloc value %s to name %s\n", v, name)
 				}
-				names[v.ID] = *name
+				names[v.ID] = name
 			}
 		}
 	}

@@ -15,6 +15,7 @@ import (
 	"crypto/tls"
 	"fmt"
 	"hash"
+	"internal/nettest"
 	"io"
 	"log"
 	"maps"
@@ -24,13 +25,13 @@ import (
 	"net/http/httptest"
 	"net/http/httptrace"
 	"net/http/httputil"
+	"net/netip"
 	"net/textproto"
 	"net/url"
 	"os"
 	"reflect"
 	"runtime"
 	"slices"
-	"strconv"
 	"strings"
 	"sync"
 	"sync/atomic"
@@ -38,18 +39,16 @@ import (
 	"testing/synctest"
 	"time"
 
-	"golang.org/x/net/quic"
-
 	_ "unsafe" // for linkname
 
 	_ "golang.org/x/net/http3"
 )
 
 //go:linkname registerHTTP3Transport
-func registerHTTP3Transport(*http.Transport) <-chan *quic.Endpoint
+func registerHTTP3Transport(*http.Transport, any) error
 
 //go:linkname registerHTTP3Server
-func registerHTTP3Server(*http.Server) <-chan *quic.Endpoint
+func registerHTTP3Server(*http.Server, any) error
 
 type testMode string
 
@@ -217,9 +216,18 @@ func newClientServerTest(t testing.TB, mode testMode, h Handler, opts ...any) *c
 
 	var transportFuncs []func(*Transport)
 
-	switch idx := slices.Index(opts, any(optFakeNet)); {
-	case idx >= 0:
+	type HTTP3TransportOpts struct {
+		ListenPacket func(network, addr string) (net.PacketConn, error)
+	}
+	var http3TransportOpts HTTP3TransportOpts
+
+	fakeNet := false
+	if idx := slices.Index(opts, any(optFakeNet)); idx >= 0 {
 		opts = slices.Delete(opts, idx, idx+1)
+		fakeNet = true
+	}
+	switch {
+	case fakeNet && mode != http3Mode:
 		cst.li = fakeNetListen()
 		cst.ts = &httptest.Server{
 			Config:   &Server{Handler: h},
@@ -231,9 +239,21 @@ func newClientServerTest(t testing.TB, mode testMode, h Handler, opts ...any) *c
 			}
 		})
 	case mode == http3Mode:
-		// TODO: support testing HTTP/3 using fakenet.
 		cst.ts = &httptest.Server{
 			Config: &Server{Handler: h},
+		}
+		if fakeNet {
+			pnet := nettest.NewPacketNet()
+			srvAddr := net.UDPAddrFromAddrPort(netip.MustParseAddrPort("127.0.0.1:443"))
+			cliAddr := net.UDPAddrFromAddrPort(netip.MustParseAddrPort("127.0.0.1:100"))
+			pconn, _ := pnet.NewConn(srvAddr)
+			cst.ts.Listener = http3ServeConn{conn: pconn}
+			http3TransportOpts.ListenPacket = func(network, addr string) (net.PacketConn, error) {
+				return pnet.NewConn(cliAddr)
+			}
+		} else {
+			pconn := newLocalPacketConn(t)
+			cst.ts.Listener = http3ServeConn{conn: pconn}
 		}
 	default:
 		cst.ts = httptest.NewUnstartedServer(h)
@@ -278,34 +298,16 @@ func newClientServerTest(t testing.TB, mode testMode, h Handler, opts ...any) *c
 	case http3Mode:
 		http.ProtocolSetHTTP3(p)
 		cst.ts.TLS = cst.ts.Config.TLSConfig
-		cst.ts.StartTLS()
-		endpointCh := registerHTTP3Server(cst.ts.Config)
-
-		cst.ts.Config.TLSConfig = cst.ts.TLS
-		cst.ts.Config.Addr = ":0"
-		go cst.ts.Config.ListenAndServeTLS("", "")
-
-		endpoint := <-endpointCh
-		port := strconv.Itoa(int(endpoint.LocalAddr().Port()))
-		switch addr := endpoint.LocalAddr().Addr(); {
-		case !addr.IsUnspecified():
-			cst.ts.URL = "https://" + endpoint.LocalAddr().String()
-		case addr.Is4():
-			cst.ts.URL = "https://" + net.JoinHostPort("127.0.0.1", port)
-		case addr.Is6():
-			cst.ts.URL = "https://" + net.JoinHostPort("::1", port)
-		default:
-			t.Fatalf("unknown address family for %v", endpoint.LocalAddr())
+		type HTTP3ServerOpts struct{}
+		if err := registerHTTP3Server(cst.ts.Config, HTTP3ServerOpts{}); err != nil {
+			t.Fatal(err)
 		}
-		t.Cleanup(func() {
-			// Give a relatively generous timeout. If the timeout is too short,
-			// the test might return before QUIC connections can finish closing
-			// asynchronously in some builders. The open connections will cause
-			// TestMain to detect a goroutine leak and fail.
-			ctx, cancel := context.WithTimeout(context.Background(), time.Second)
-			defer cancel()
-			cst.ts.Config.Shutdown(ctx)
-		})
+		cst.ts.StartTLS()
+
+		tr := cst.ts.Client().Transport.(*Transport)
+		if err := registerHTTP3Transport(tr, http3TransportOpts); err != nil {
+			t.Fatal(err)
+		}
 	default:
 		t.Fatalf("unknown test mode %v", mode)
 	}
@@ -317,36 +319,35 @@ func newClientServerTest(t testing.TB, mode testMode, h Handler, opts ...any) *c
 	if cst.tr.Protocols == nil {
 		cst.tr.Protocols = p
 	}
-	if mode == http3Mode {
-		endpointCh := registerHTTP3Transport(cst.tr)
-		testDoneCh := make(chan any)
-		var wg sync.WaitGroup
-		t.Cleanup(func() {
-			close(testDoneCh)
-			wg.Wait()
-		})
-		wg.Go(func() {
-			for {
-				select {
-				case e := <-endpointCh:
-					t.Cleanup(func() {
-						ctx, cancel := context.WithTimeout(context.Background(), time.Second)
-						defer cancel()
-						if e != nil {
-							e.Close(ctx)
-						}
-					})
-				case <-testDoneCh:
-					return
-				}
-			}
-		})
-	}
 
 	t.Cleanup(func() {
 		cst.close()
 	})
 	return cst
+}
+
+func newLocalPacketConn(t testing.TB) net.PacketConn {
+	t.Helper()
+	pc, err := net.ListenPacket("udp", "127.0.0.1:0")
+	if err != nil {
+		if pc, err = net.ListenPacket("udp6", "[::1]:0"); err != nil {
+			t.Fatalf("failed to listen on a port: %v", err)
+		}
+	}
+	return pc
+}
+
+// http3ServeConn provides a HTTP/3 PacketConn to Server.ServeTLS.
+type http3ServeConn struct {
+	conn net.PacketConn
+}
+
+func (c http3ServeConn) Accept() (net.Conn, error) { return nil, net.ErrClosed }
+func (c http3ServeConn) Close() error              { return c.conn.Close() }
+func (c http3ServeConn) Addr() net.Addr            { return c.conn.LocalAddr() }
+
+func (c http3ServeConn) HTTP3PacketConn() net.PacketConn {
+	return c.conn
 }
 
 type testLogWriter struct {

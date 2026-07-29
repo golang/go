@@ -110,7 +110,10 @@ func (c *Command) Name() string {
 
 func (c *Command) Usage() {
 	fmt.Fprintf(os.Stderr, "usage: %s\n", c.UsageLine)
-	fmt.Fprintf(os.Stderr, "Run 'go help %s' for details.\n", c.LongName())
+	fmt.Fprintf(os.Stderr, "\nFlags:\n")
+	c.Flag.SetOutput(os.Stderr)
+	c.Flag.PrintDefaults()
+	fmt.Fprintf(os.Stderr, "\nRun 'go help %s' for details.\n", c.LongName())
 	SetExitStatus(2)
 	Exit()
 }
@@ -172,8 +175,10 @@ func Fatal(err error) {
 	Exit()
 }
 
-var exitStatus = 0
-var exitMu sync.Mutex
+var (
+	exitStatus = 0
+	exitMu     sync.Mutex
+)
 
 // SetExitStatus sets exit status to n if
 // n is higher than the current exit status.
@@ -199,7 +204,7 @@ func Run(cmdargs ...any) {
 	}
 }
 
-// Run runs the command, with stdout and stderr
+// RunErr runs the command, with stdout and stderr
 // connected to the go command's own stdout and stderr.
 // If the command fails, RunErr returns the error, which
 // may be an *exec.ExitError.

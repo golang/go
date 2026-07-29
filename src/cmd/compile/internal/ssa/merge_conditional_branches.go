@@ -5,6 +5,8 @@
 package ssa
 
 import (
+	"cmd/compile/internal/ssa/block"
+	blockpkg "cmd/compile/internal/ssa/block"
 	"cmd/compile/internal/types"
 )
 
@@ -95,7 +97,7 @@ func findFirstNonEmptyPlainBlock(parentBlock *Block, childIndex int) *Block {
 // predecessor and is of kind BlockPlain. Such blocks are typically
 // artifacts of previous optimizations and can be safely removed or bypassed.
 func isEmptyPlainBlock(block *Block) bool {
-	return block.Kind == BlockPlain &&
+	return block.Kind == blockpkg.BlockPlain &&
 		len(block.Values) == 0 &&
 		len(block.Preds) == 1
 }
@@ -126,7 +128,7 @@ func removeEmptyPlainBlock(block *Block) {
 
 	block.removePred(0)
 	block.removeSucc(0)
-	block.Reset(BlockInvalid)
+	block.Reset(blockpkg.BlockInvalid)
 }
 
 // detectNestedIfPattern detects nested if patterns that can be transformed to conditional comparisons.
@@ -347,21 +349,21 @@ func canValueBeMoved(v *Value) bool {
 // and zero/non-zero test blocks (Z, NZ, ZW, NZW).
 func isIfBlock(b *Block) bool {
 	switch b.Kind {
-	case BlockARM64EQ,
-		BlockARM64NE,
-		BlockARM64LT,
-		BlockARM64LE,
-		BlockARM64GT,
-		BlockARM64GE,
-		BlockARM64ULT,
-		BlockARM64ULE,
-		BlockARM64UGT,
-		BlockARM64UGE:
+	case block.BlockARM64EQ,
+		block.BlockARM64NE,
+		block.BlockARM64LT,
+		block.BlockARM64LE,
+		block.BlockARM64GT,
+		block.BlockARM64GE,
+		block.BlockARM64ULT,
+		block.BlockARM64ULE,
+		block.BlockARM64UGT,
+		block.BlockARM64UGE:
 		return isComparisonOperation(b.Controls[0])
-	case BlockARM64Z,
-		BlockARM64NZ,
-		BlockARM64ZW,
-		BlockARM64NZW:
+	case block.BlockARM64Z,
+		block.BlockARM64NZ,
+		block.BlockARM64ZW,
+		block.BlockARM64NZW:
 		return true
 	default:
 		return false
@@ -459,7 +461,7 @@ func elimNestedBlock(b *Block, index int) {
 	}
 
 	b.Func.invalidateCFG()
-	b.Reset(BlockPlain)
+	b.Reset(block.BlockPlain)
 	b.Likely = BranchUnknown
 }
 
@@ -490,22 +492,22 @@ func isBranchLikelyConsistentWithIndex(b *Block, index int) bool {
 // and need to be converted to explicit comparisons with zero for conditional execution.
 func transformPrimaryComparisonValue(block *Block) {
 	switch block.Kind {
-	case BlockARM64Z:
+	case blockpkg.BlockARM64Z:
 		arg0 := block.Controls[0]
 		controlValue := block.NewValue1I(arg0.Pos, OpARM64CMPconst, types.TypeFlags, 0, arg0)
-		block.resetWithControl(BlockARM64EQ, controlValue)
-	case BlockARM64NZ:
+		block.resetWithControl(blockpkg.BlockARM64EQ, controlValue)
+	case blockpkg.BlockARM64NZ:
 		arg0 := block.Controls[0]
 		controlValue := block.NewValue1I(arg0.Pos, OpARM64CMPconst, types.TypeFlags, 0, arg0)
-		block.resetWithControl(BlockARM64NE, controlValue)
-	case BlockARM64ZW:
+		block.resetWithControl(blockpkg.BlockARM64NE, controlValue)
+	case blockpkg.BlockARM64ZW:
 		arg0 := block.Controls[0]
 		controlValue := block.NewValue1I(arg0.Pos, OpARM64CMPWconst, types.TypeFlags, 0, arg0)
-		block.resetWithControl(BlockARM64EQ, controlValue)
-	case BlockARM64NZW:
+		block.resetWithControl(blockpkg.BlockARM64EQ, controlValue)
+	case blockpkg.BlockARM64NZW:
 		arg0 := block.Controls[0]
 		controlValue := block.NewValue1I(arg0.Pos, OpARM64CMPWconst, types.TypeFlags, 0, arg0)
-		block.resetWithControl(BlockARM64NE, controlValue)
+		block.resetWithControl(blockpkg.BlockARM64NE, controlValue)
 	default:
 		return
 	}
@@ -518,16 +520,16 @@ func transformDependentComparisonValue(block *Block) {
 	typ := &block.Func.Config.Types
 
 	switch block.Kind {
-	case BlockARM64EQ,
-		BlockARM64NE,
-		BlockARM64LT,
-		BlockARM64LE,
-		BlockARM64GT,
-		BlockARM64GE,
-		BlockARM64ULT,
-		BlockARM64ULE,
-		BlockARM64UGT,
-		BlockARM64UGE:
+	case blockpkg.BlockARM64EQ,
+		blockpkg.BlockARM64NE,
+		blockpkg.BlockARM64LT,
+		blockpkg.BlockARM64LE,
+		blockpkg.BlockARM64GT,
+		blockpkg.BlockARM64GE,
+		blockpkg.BlockARM64ULT,
+		blockpkg.BlockARM64ULE,
+		blockpkg.BlockARM64UGT,
+		blockpkg.BlockARM64UGE:
 		value := block.Controls[0]
 
 		switch value.Op {
@@ -558,26 +560,26 @@ func transformDependentComparisonValue(block *Block) {
 		default:
 			return
 		}
-	case BlockARM64Z:
+	case blockpkg.BlockARM64Z:
 		arg0 := block.Controls[0]
 		arg1 := block.Func.constVal(OpARM64MOVDconst, typ.UInt64, 0, true)
 		comparisonValue := block.NewValue2(arg0.Pos, OpARM64CMP, types.TypeFlags, arg0, arg1)
-		block.resetWithControl(BlockARM64EQ, comparisonValue)
-	case BlockARM64NZ:
+		block.resetWithControl(blockpkg.BlockARM64EQ, comparisonValue)
+	case blockpkg.BlockARM64NZ:
 		arg0 := block.Controls[0]
 		arg1 := block.Func.constVal(OpARM64MOVDconst, typ.UInt64, 0, true)
 		comparisonValue := block.NewValue2(arg0.Pos, OpARM64CMP, types.TypeFlags, arg0, arg1)
-		block.resetWithControl(BlockARM64NE, comparisonValue)
-	case BlockARM64ZW:
+		block.resetWithControl(blockpkg.BlockARM64NE, comparisonValue)
+	case blockpkg.BlockARM64ZW:
 		arg0 := block.Controls[0]
 		arg1 := block.Func.constVal(OpARM64MOVDconst, typ.UInt64, 0, true)
 		comparisonValue := block.NewValue2(arg0.Pos, OpARM64CMPW, types.TypeFlags, arg0, arg1)
-		block.resetWithControl(BlockARM64EQ, comparisonValue)
-	case BlockARM64NZW:
+		block.resetWithControl(blockpkg.BlockARM64EQ, comparisonValue)
+	case blockpkg.BlockARM64NZW:
 		arg0 := block.Controls[0]
 		arg1 := block.Func.constVal(OpARM64MOVDconst, typ.UInt64, 0, true)
 		comparisonValue := block.NewValue2(arg0.Pos, OpARM64CMPW, types.TypeFlags, arg0, arg1)
-		block.resetWithControl(BlockARM64NE, comparisonValue)
+		block.resetWithControl(blockpkg.BlockARM64NE, comparisonValue)
 	default:
 		panic("Wrong block kind")
 	}
@@ -733,7 +735,7 @@ func transformOpToConditionalComparisonOperation(op Op) Op {
 // - outerKind specifies the main condition (e.g., LT, GT) to be evaluated.
 // - innerKind determines the NZCV flag pattern to be used when the main condition is FALSE.
 // The resulting parameters are typically used by conditional comparison operations (CCMP, CCMN).
-func createConditionalParamsByBlockKind(outerKind, innerKind BlockKind) arm64ConditionalParams {
+func createConditionalParamsByBlockKind(outerKind, innerKind block.BlockKind) arm64ConditionalParams {
 	cond := condByBlockKind(outerKind) // the condition code for the primary comparison
 	nzcv := nzcvByBlockKind(innerKind) // NZCV flags to apply when the condition is false
 	return arm64ConditionalParamsAuxInt(cond, nzcv)
@@ -741,27 +743,27 @@ func createConditionalParamsByBlockKind(outerKind, innerKind BlockKind) arm64Con
 
 // condByBlockKind maps block kinds to their corresponding condition codes
 // for ARM64 conditional execution.
-func condByBlockKind(kind BlockKind) Op {
+func condByBlockKind(kind block.BlockKind) Op {
 	switch kind {
-	case BlockARM64EQ:
+	case block.BlockARM64EQ:
 		return OpARM64Equal
-	case BlockARM64NE:
+	case block.BlockARM64NE:
 		return OpARM64NotEqual
-	case BlockARM64LT:
+	case block.BlockARM64LT:
 		return OpARM64LessThan
-	case BlockARM64LE:
+	case block.BlockARM64LE:
 		return OpARM64LessEqual
-	case BlockARM64GT:
+	case block.BlockARM64GT:
 		return OpARM64GreaterThan
-	case BlockARM64GE:
+	case block.BlockARM64GE:
 		return OpARM64GreaterEqual
-	case BlockARM64ULT:
+	case block.BlockARM64ULT:
 		return OpARM64LessThanU
-	case BlockARM64ULE:
+	case block.BlockARM64ULE:
 		return OpARM64LessEqualU
-	case BlockARM64UGT:
+	case block.BlockARM64UGT:
 		return OpARM64GreaterThanU
-	case BlockARM64UGE:
+	case block.BlockARM64UGE:
 		return OpARM64GreaterEqualU
 	default:
 		panic("Incorrect kind of Block")
@@ -775,36 +777,36 @@ func condByBlockKind(kind BlockKind) Op {
 // Each case constructs the flag pattern for the inverse condition:
 //
 //	EQ -> NE, LT -> GE, GT -> LE, etc.
-func nzcvByBlockKind(kind BlockKind) uint8 {
+func nzcvByBlockKind(kind block.BlockKind) uint8 {
 	switch kind {
-	case BlockARM64EQ:
+	case block.BlockARM64EQ:
 		// Encode NE : Z == 0
 		return packNZCV(false, false, false, false) // N=0,Z=0,C=0,V=0
-	case BlockARM64NE:
+	case block.BlockARM64NE:
 		// Encode EQ : Z == 1
 		return packNZCV(false, true, false, false) // N=0,Z=1,C=0,V=0
-	case BlockARM64LT:
+	case block.BlockARM64LT:
 		// Encode GE : N == V
 		return packNZCV(false, false, false, false) // N=0,Z=0,C=0,V=0
-	case BlockARM64LE:
+	case block.BlockARM64LE:
 		// Encode GT : (Z == 0) && (N == V)
 		return packNZCV(false, false, false, false) // N=0,Z=0,C=0,V=0
-	case BlockARM64GT:
+	case block.BlockARM64GT:
 		// Encode LE : (Z == 1) || (N != V)
 		return packNZCV(false, true, false, false) // N=0,Z=1,C=0,V=0
-	case BlockARM64GE:
+	case block.BlockARM64GE:
 		// Encode LT : N != V
 		return packNZCV(false, false, false, true) // N=0,Z=0,C=0,V=1
-	case BlockARM64ULT:
+	case block.BlockARM64ULT:
 		// Encode UGE : C == 1
 		return packNZCV(false, false, true, false) // N=0,Z=0,C=1,V=0
-	case BlockARM64ULE:
+	case block.BlockARM64ULE:
 		// Encode UGT : (C == 1) && (Z == 0)
 		return packNZCV(false, false, true, false) // N=0,Z=0,C=1,V=0
-	case BlockARM64UGT:
+	case block.BlockARM64UGT:
 		// Encode ULE : (C == 0) || (Z == 1)
 		return packNZCV(false, false, false, false) // N=0,Z=0,C=0,V=0
-	case BlockARM64UGE:
+	case block.BlockARM64UGE:
 		// Encode ULT : C == 0
 		return packNZCV(false, false, false, false) // N=0,Z=0,C=0,V=0
 	default:
@@ -833,28 +835,28 @@ func packNZCV(N, Z, C, V bool) uint8 {
 
 // negateBlockKind returns the logical negation of a block kind
 // (e.g., EQ becomes NE, LT becomes GE).
-func negateBlockKind(kind BlockKind) BlockKind {
+func negateBlockKind(kind block.BlockKind) block.BlockKind {
 	switch kind {
-	case BlockARM64EQ:
-		return BlockARM64NE
-	case BlockARM64NE:
-		return BlockARM64EQ
-	case BlockARM64LT:
-		return BlockARM64GE
-	case BlockARM64LE:
-		return BlockARM64GT
-	case BlockARM64GT:
-		return BlockARM64LE
-	case BlockARM64GE:
-		return BlockARM64LT
-	case BlockARM64ULT:
-		return BlockARM64UGE
-	case BlockARM64ULE:
-		return BlockARM64UGT
-	case BlockARM64UGT:
-		return BlockARM64ULE
-	case BlockARM64UGE:
-		return BlockARM64ULT
+	case block.BlockARM64EQ:
+		return block.BlockARM64NE
+	case block.BlockARM64NE:
+		return block.BlockARM64EQ
+	case block.BlockARM64LT:
+		return block.BlockARM64GE
+	case block.BlockARM64LE:
+		return block.BlockARM64GT
+	case block.BlockARM64GT:
+		return block.BlockARM64LE
+	case block.BlockARM64GE:
+		return block.BlockARM64LT
+	case block.BlockARM64ULT:
+		return block.BlockARM64UGE
+	case block.BlockARM64ULE:
+		return block.BlockARM64UGT
+	case block.BlockARM64UGT:
+		return block.BlockARM64ULE
+	case block.BlockARM64UGE:
+		return block.BlockARM64ULT
 	default:
 		panic("Incorrect kind of Block")
 	}
@@ -862,28 +864,28 @@ func negateBlockKind(kind BlockKind) BlockKind {
 
 // invertBlockKind inverts the operands of a comparison block kind
 // (e.g., LT becomes GT, LE becomes GE).
-func invertBlockKind(kind BlockKind) BlockKind {
+func invertBlockKind(kind block.BlockKind) block.BlockKind {
 	switch kind {
-	case BlockARM64EQ:
-		return BlockARM64EQ
-	case BlockARM64NE:
-		return BlockARM64NE
-	case BlockARM64LT:
-		return BlockARM64GT
-	case BlockARM64LE:
-		return BlockARM64GE
-	case BlockARM64GT:
-		return BlockARM64LT
-	case BlockARM64GE:
-		return BlockARM64LE
-	case BlockARM64ULT:
-		return BlockARM64UGT
-	case BlockARM64ULE:
-		return BlockARM64UGE
-	case BlockARM64UGT:
-		return BlockARM64ULT
-	case BlockARM64UGE:
-		return BlockARM64ULE
+	case block.BlockARM64EQ:
+		return block.BlockARM64EQ
+	case block.BlockARM64NE:
+		return block.BlockARM64NE
+	case block.BlockARM64LT:
+		return block.BlockARM64GT
+	case block.BlockARM64LE:
+		return block.BlockARM64GE
+	case block.BlockARM64GT:
+		return block.BlockARM64LT
+	case block.BlockARM64GE:
+		return block.BlockARM64LE
+	case block.BlockARM64ULT:
+		return block.BlockARM64UGT
+	case block.BlockARM64ULE:
+		return block.BlockARM64UGE
+	case block.BlockARM64UGT:
+		return block.BlockARM64ULT
+	case block.BlockARM64UGE:
+		return block.BlockARM64ULE
 	default:
 		panic("Incorrect kind of Block")
 	}

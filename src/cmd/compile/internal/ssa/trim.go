@@ -4,7 +4,10 @@
 
 package ssa
 
-import "cmd/internal/src"
+import (
+	"cmd/compile/internal/ssa/block"
+	"cmd/internal/src"
+)
 
 // trim removes blocks with no code in them.
 // These blocks were inserted to remove critical edges.
@@ -133,7 +136,7 @@ func emptyBlock(b *Block) bool {
 //   - it either is the single predecessor of the successor block or
 //     contains no actual instructions.
 func trimmableBlock(b *Block) bool {
-	if b.Kind != BlockPlain || b == b.Func.Entry {
+	if b.Kind != block.BlockPlain || b == b.Func.Entry {
 		return false
 	}
 	s := b.Succs[0].b

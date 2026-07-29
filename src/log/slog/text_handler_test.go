@@ -11,12 +11,21 @@ import (
 	"fmt"
 	"internal/testenv"
 	"io"
+	"strconv"
 	"strings"
 	"testing"
 	"time"
 )
 
 var testTime = time.Date(2000, 1, 2, 3, 4, 5, 0, time.UTC)
+
+var marshalerASCII = func() string {
+	b := make([]byte, 128)
+	for i := range b {
+		b[i] = byte(i)
+	}
+	return string(b)
+}()
 
 func TestTextHandler(t *testing.T) {
 	for _, test := range []struct {
@@ -48,6 +57,11 @@ func TestTextHandler(t *testing.T) {
 			"TextMarshaler",
 			Any("t", text{"abc"}),
 			`t`, `"text{\"abc\"}"`,
+		},
+		{
+			"TextMarshaler escapes",
+			Any("t", text{marshalerASCII}),
+			`t`, strconv.Quote(fmt.Sprintf("text{%q}", marshalerASCII)),
 		},
 		{
 			"TextMarshaler error",

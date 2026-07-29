@@ -33,49 +33,49 @@ func init() {
 	work.AddBuildFlags(CmdTest, work.OmitVFlag|work.OmitJSONFlag)
 
 	cf := CmdTest.Flag
-	cf.BoolVar(&testC, "c", false, "")
-	cf.StringVar(&testO, "o", "", "")
+	cf.BoolVar(&testC, "c", false, "compile the test binary to pkg.test but do not run it")
+	cf.StringVar(&testO, "o", "", "save a copy of the test binary to the named `file`")
 	work.AddCoverFlags(CmdTest, &testCoverProfile)
-	cf.Var((*base.StringsFlag)(&work.ExecCmd), "exec", "")
-	cf.BoolVar(&testJSON, "json", false, "")
-	cf.Var(&testVet, "vet", "")
+	cf.Var((*base.StringsFlag)(&work.ExecCmd), "exec", "run the test binary using `xprog`; see 'go help run' for details")
+	cf.BoolVar(&testJSON, "json", false, "log verbose output and test results in JSON")
+	cf.Var(&testVet, "vet", "comma-separated list of vet `checks` to apply; \"off\" to disable, \"all\" to run all checks")
 
 	// Register flags to be forwarded to the test binary. We retain variables for
 	// some of them so that cmd/go knows what to do with the test output, or knows
 	// to build the test in a way that supports the use of the flag.
 
-	cf.BoolVar(&testArtifacts, "artifacts", false, "")
-	cf.StringVar(&testBench, "bench", "", "")
-	cf.Bool("benchmem", false, "")
-	cf.String("benchtime", "", "")
-	cf.StringVar(&testBlockProfile, "blockprofile", "", "")
-	cf.String("blockprofilerate", "", "")
-	cf.Int("count", 0, "")
-	cf.String("cpu", "", "")
-	cf.StringVar(&testCPUProfile, "cpuprofile", "", "")
-	cf.BoolVar(&testFailFast, "failfast", false, "")
-	cf.StringVar(&testFuzz, "fuzz", "", "")
-	cf.Bool("fullpath", false, "")
-	cf.StringVar(&testList, "list", "", "")
-	cf.StringVar(&testMemProfile, "memprofile", "", "")
-	cf.String("memprofilerate", "", "")
-	cf.StringVar(&testMutexProfile, "mutexprofile", "", "")
-	cf.String("mutexprofilefraction", "", "")
-	cf.Var(&testOutputDir, "outputdir", "")
-	cf.Int("parallel", 0, "")
-	cf.String("run", "", "")
-	cf.Bool("short", false, "")
-	cf.String("skip", "", "")
-	cf.DurationVar(&testTimeout, "timeout", 10*time.Minute, "") // known to cmd/dist
-	cf.String("fuzztime", "", "")
-	cf.String("fuzzminimizetime", "", "")
-	cf.StringVar(&testTrace, "trace", "", "")
-	cf.Var(&testV, "v", "")
-	cf.Var(&testShuffle, "shuffle", "")
+	cf.BoolVar(&testArtifacts, "artifacts", false, "save test artifacts in the directory specified by -outputdir")
+	cf.StringVar(&testBench, "bench", "", "run only those benchmarks matching a regular `expression`")
+	cf.Bool("benchmem", false, "print memory allocation statistics for benchmarks")
+	cf.String("benchtime", "", "run enough `iterations` of each benchmark to take t, specified as a time.Duration")
+	cf.StringVar(&testBlockProfile, "blockprofile", "", "write a goroutine blocking profile to `file`")
+	cf.String("blockprofilerate", "", "set blocking profile `rate`")
+	cf.Int("count", 0, "run each test, benchmark, and fuzz seed n times (default 1)")
+	cf.String("cpu", "", "specify a list of `GOMAXPROCS` values for which the tests, benchmarks or fuzz tests should be executed")
+	cf.StringVar(&testCPUProfile, "cpuprofile", "", "write a CPU profile to `file`")
+	cf.BoolVar(&testFailFast, "failfast", false, "do not start new tests after the first test failure")
+	cf.StringVar(&testFuzz, "fuzz", "", "run the fuzz test matching the regular `expression`")
+	cf.Bool("fullpath", false, "show full file names in error messages")
+	cf.StringVar(&testList, "list", "", "list tests, benchmarks, fuzz tests, or examples matching the regular `expression`")
+	cf.StringVar(&testMemProfile, "memprofile", "", "write an allocation profile to `file`")
+	cf.String("memprofilerate", "", "set memory allocation profiling `rate`")
+	cf.StringVar(&testMutexProfile, "mutexprofile", "", "write a mutex contention profile to `file`")
+	cf.String("mutexprofilefraction", "", "set mutex profile `fraction`")
+	cf.Var(&testOutputDir, "outputdir", "place output files from profiling and test artifacts in the specified `directory`")
+	cf.Int("parallel", 0, "allow parallel execution of test functions that call t.Parallel")
+	cf.String("run", "", "run only those tests and examples matching the regular `expression`")
+	cf.Bool("short", false, "tell long-running tests to shorten their run time")
+	cf.String("skip", "", "skip tests and examples matching the regular `expression`")
+	cf.DurationVar(&testTimeout, "timeout", 10*time.Minute, "if a test binary runs longer than duration d, panic") // known to cmd/dist
+	cf.String("fuzztime", "", "run enough `iterations` of the fuzz target during fuzzing to take t")
+	cf.String("fuzzminimizetime", "", "run enough `iterations` of the fuzz target during each minimization attempt to take t")
+	cf.StringVar(&testTrace, "trace", "", "write an execution trace to `file`")
+	cf.Var(&testV, "v", "verbose output: log all tests as they are run")
+	cf.Var(&testShuffle, "shuffle", "randomize the execution order of tests and benchmarks")
 
 	for name, ok := range passFlagToTest {
 		if ok {
-			cf.Var(cf.Lookup(name).Value, "test."+name, "")
+			cf.Var(cf.Lookup(name).Value, "test."+name, "test binary flag; same as -"+name)
 		}
 	}
 }
@@ -418,7 +418,9 @@ helpLoop:
 
 func exitWithUsage() {
 	fmt.Fprintf(os.Stderr, "usage: %s\n", CmdTest.UsageLine)
-	fmt.Fprintf(os.Stderr, "Run 'go help %s' and 'go help %s' for details.\n", CmdTest.LongName(), HelpTestflag.LongName())
+	fmt.Fprintf(os.Stderr, "\nFlags:\n")
+	CmdTest.Flag.PrintDefaults()
+	fmt.Fprintf(os.Stderr, "\nRun 'go help %s' and 'go help %s' for details.\n", CmdTest.LongName(), HelpTestflag.LongName())
 
 	base.SetExitStatus(2)
 	base.Exit()

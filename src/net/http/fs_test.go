@@ -269,10 +269,19 @@ func TestServeContentWithEmptyContentIgnoreRanges(t *testing.T) {
 
 var fsRedirectTestData = []struct {
 	original, redirect string
+	status             int
 }{
-	{"/test/index.html", "/test/"},
-	{"/test/testdata", "/test/testdata/"},
-	{"/test/testdata/file/", "/test/testdata/file"},
+	{"/test/index.html", "/test/", 200},
+	{"/test/testdata", "/test/testdata/", 200},
+	{"/test/testdata/file/", "/test/testdata/file", 200},
+	// Redirect attempts for path with escaped slashes should result in 404.
+	// However, escaped paths are okay if they do not trigger a redirect.
+	// See https://go.dev/issue/80289.
+	{"/test%2ftestdata", "/test/testdata", 404},
+	{"/test/testdata%2ffile/", "/test/testdata/file/", 404},
+	{"/test/testdata%2Findex.html", "/test/testdata/index.html", 404},
+	{"/test/testdata%2ffile", "/test/testdata/file", 200},
+	{"/test/testdata%2F", "/test/testdata/", 200},
 }
 
 func TestFSRedirect(t *testing.T) { run(t, testFSRedirect) }
@@ -287,6 +296,9 @@ func testFSRedirect(t *testing.T, mode testMode) {
 		res.Body.Close()
 		if g, e := res.Request.URL.Path, data.redirect; g != e {
 			t.Errorf("redirect from %s: got %s, want %s", data.original, g, e)
+		}
+		if res.StatusCode != data.status {
+			t.Errorf("redirect from %s: got status %d, want %d", data.original, res.StatusCode, data.status)
 		}
 	}
 }

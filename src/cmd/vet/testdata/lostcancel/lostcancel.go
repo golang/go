@@ -7,7 +7,7 @@ package lostcancel
 import "context"
 
 func _() {
-	var _, cancel = context.WithCancel(context.Background()) // ERROR "the cancel function is not used on all paths \(possible context leak\)"
+	var _, cancel = context.WithCancel(context.Background()) // ERROR `the cancel function is not used on all paths \(possible context leak\)`
 	if false {
 		_ = cancel
 	}

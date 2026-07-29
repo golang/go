@@ -396,36 +396,46 @@ TEXT runtime·cgoSigtramp(SB),NOSPLIT,$0
 	MOV	$runtime·sigtramp(SB), T1
 	JALR	ZERO, T1
 
+// func callCgoSigaction(sig uintptr, new, old *sigactiont) int32
+TEXT runtime·callCgoSigaction<ABIInternal>(SB),NOSPLIT,$0
+	MOV	_cgo_sigaction(SB), A7
+	JALR	X1, A7
+	MOV	X10, X10 // return value from C, NOP OP
+	RET
+
 // func mmap(addr unsafe.Pointer, n uintptr, prot, flags, fd int32, off uint32) (p unsafe.Pointer, err int)
-TEXT runtime·mmap(SB),NOSPLIT|NOFRAME,$0
-	MOV	addr+0(FP), A0
-	MOV	n+8(FP), A1
-	MOVW	prot+16(FP), A2
-	MOVW	flags+20(FP), A3
-	MOVW	fd+24(FP), A4
-	MOVW	off+28(FP), A5
+TEXT runtime·sysMmap<ABIInternal>(SB),NOSPLIT|NOFRAME,$0
 	MOV	$SYS_mmap, A7
 	ECALL
 	MOV	$-4096, T0
-	BGEU	T0, A0, 5(PC)
-	SUB	A0, ZERO, A0
-	MOV	ZERO, p+32(FP)
-	MOV	A0, err+40(FP)
+	BGEU	T0, A0, ok
+	SUB	A0, ZERO, A1
+	MOV	ZERO, A0
 	RET
 ok:
-	MOV	A0, p+32(FP)
-	MOV	ZERO, err+40(FP)
+	MOV	ZERO, A1
 	RET
 
 // func munmap(addr unsafe.Pointer, n uintptr)
-TEXT runtime·munmap(SB),NOSPLIT|NOFRAME,$0
-	MOV	addr+0(FP), A0
-	MOV	n+8(FP), A1
+TEXT runtime·sysMunmap<ABIInternal>(SB),NOSPLIT|NOFRAME,$0
 	MOV	$SYS_munmap, A7
 	ECALL
 	MOV	$-4096, T0
 	BLTU	A0, T0, 2(PC)
 	WORD	$0	// crash
+	RET
+
+// func callCgoMmap(addr unsafe.Pointer, n uintptr, prot, flags, fd int32, off uint32) uintptr
+TEXT runtime·callCgoMmap<ABIInternal>(SB),NOSPLIT,$0
+	MOV	_cgo_mmap(SB), A7
+	JALR	X1, A7
+	MOV	X10, X10 // return value from C, NOP OP
+	RET
+
+// func callCgoMunmap(addr unsafe.Pointer, n uintptr)
+TEXT runtime·callCgoMunmap<ABIInternal>(SB),NOSPLIT,$0
+	MOV	_cgo_munmap(SB), A7
+	JALR	X1, A7
 	RET
 
 // func madvise(addr unsafe.Pointer, n uintptr, flags int32)
@@ -488,6 +498,7 @@ good:
 	// In child, set up new stack
 	MOV	T0, g_m(T1)
 	MOV	T1, g
+	CALL	runtime·stackcheck(SB)	// fault if stack check is wrong
 
 nog:
 	// Call fn

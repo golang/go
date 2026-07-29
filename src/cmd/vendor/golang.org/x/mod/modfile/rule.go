@@ -1477,7 +1477,7 @@ func (f *File) setRequireSeparateIndirect(req []*Require, simplify bool) {
 	// Delete requirements we don't want anymore.
 	// Update versions and indirect comments on requirements we want to keep.
 	// If a requirement is in last{Direct,Indirect}Block with the wrong
-	// indirect marking after this, or if the requirement is in an single
+	// indirect marking after this, or if the requirement is in a single
 	// uncommented mixed block (oneFlatUncommentedBlock), move it to the
 	// correct block.
 	//
@@ -1537,7 +1537,7 @@ func (f *File) DropRequire(path string) error {
 	return nil
 }
 
-// AddExclude adds a exclude statement to the mod file. Errors if the provided
+// AddExclude adds an exclude statement to the mod file. Errors if the provided
 // version is not a canonical version string
 func (f *File) AddExclude(path, vers string) error {
 	if err := checkCanonicalVersion(path, vers); err != nil {
@@ -1708,7 +1708,7 @@ func (f *File) AddIgnore(path string) error {
 	return nil
 }
 
-// DropIgnore removes a ignore directive with the given path.
+// DropIgnore removes an ignore directive with the given path.
 // It does nothing if no such ignore directive exists.
 func (f *File) DropIgnore(path string) error {
 	for _, t := range f.Ignore {

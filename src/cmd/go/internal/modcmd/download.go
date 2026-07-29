@@ -78,15 +78,15 @@ See https://go.dev/ref/mod#version-queries for more about version queries.
 }
 
 var (
-	downloadJSON  = cmdDownload.Flag.Bool("json", false, "")
-	downloadReuse = cmdDownload.Flag.String("reuse", "", "")
+	downloadJSON  = cmdDownload.Flag.Bool("json", false, "print a sequence of JSON objects describing each downloaded module (or failure)")
+	downloadReuse = cmdDownload.Flag.String("reuse", "", "reuse output from a previous download run stored in the named `file`")
 )
 
 func init() {
 	cmdDownload.Run = runDownload // break init cycle
 
 	// TODO(jayconrod): https://golang.org/issue/35849 Apply -x to other 'go mod' commands.
-	cmdDownload.Flag.BoolVar(&cfg.BuildX, "x", false, "")
+	cmdDownload.Flag.BoolVar(&cfg.BuildX, "x", false, "print the commands")
 	base.AddChdirFlag(&cmdDownload.Flag)
 	base.AddModCommonFlags(&cmdDownload.Flag)
 }

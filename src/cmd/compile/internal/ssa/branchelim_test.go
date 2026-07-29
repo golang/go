@@ -5,6 +5,7 @@
 package ssa
 
 import (
+	"cmd/compile/internal/ssa/block"
 	"cmd/compile/internal/types"
 	"testing"
 )
@@ -67,7 +68,7 @@ func TestBranchElimIf(t *testing.T) {
 				if fun.values["phi"].Args[2] != fun.values["cond"] {
 					t.Errorf("expected CondSelect condition to be %s; found %s", fun.values["cond"], fun.values["phi"].Args[2])
 				}
-				if fun.blocks["entry"].Kind != BlockExit {
+				if fun.blocks["entry"].Kind != block.BlockExit {
 					t.Errorf("expected entry to be BlockExit; found kind %s", fun.blocks["entry"].Kind.String())
 				}
 			} else {
@@ -119,7 +120,7 @@ func TestBranchElimIfElse(t *testing.T) {
 			if fun.values["phi"].Args[2] != fun.values["cond"] {
 				t.Errorf("expected CondSelect condition to be %s; found %s", fun.values["cond"], fun.values["phi"].Args[2])
 			}
-			if fun.blocks["entry"].Kind != BlockExit {
+			if fun.blocks["entry"].Kind != block.BlockExit {
 				t.Errorf("expected entry to be BlockExit; found kind %s", fun.blocks["entry"].Kind.String())
 			}
 		})

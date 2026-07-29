@@ -16,7 +16,6 @@ package unusedresult
 import (
 	_ "embed"
 	"go/ast"
-	"go/token"
 	"go/types"
 	"sort"
 	"strings"
@@ -27,6 +26,7 @@ import (
 	"golang.org/x/tools/go/types/typeutil"
 	"golang.org/x/tools/internal/analysis/analyzerutil"
 	"golang.org/x/tools/internal/astutil"
+	"golang.org/x/tools/internal/typesinternal"
 )
 
 //go:embed doc.go
@@ -172,7 +172,7 @@ func run(pass *analysis.Pass) (any, error) {
 }
 
 // func() string
-var sigNoArgsStringResult = types.NewSignatureType(nil, nil, nil, nil, types.NewTuple(types.NewParam(token.NoPos, nil, "", types.Typ[types.String])), false)
+var sigNoArgsStringResult = types.NewSignatureType(nil, nil, nil, nil, typesinternal.TupleOf(types.Typ[types.String]), false)
 
 type stringSetFlag map[string]bool
 

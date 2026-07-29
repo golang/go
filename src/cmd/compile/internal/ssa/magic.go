@@ -136,6 +136,19 @@ func umagic16(c int16) umagicData { return umagic(16, int64(c)) }
 func umagic32(c int32) umagicData { return umagic(32, int64(c)) }
 func umagic64(c int64) umagicData { return umagic(64, c) }
 
+// umagic32PreShifted returns the pre-shifted 64-bit magic constant for unsigned 32-bit
+// division by c on 64-bit targets that have a native 64x64->128-bit multiply instruction
+// (amd64 MULQ, arm64 UMULH, riscv64 MULHU, etc.), enabling:
+//
+//	x / c = Hmul64u(ZeroExt32to64(x), umagic32PreShifted(c))
+//
+// Given umagic32(c) returning m and s, the constant is (2^32 + m) << (32 - s).
+// Valid when umagicOK32(c) is true. Result always fits in uint64.
+func umagic32PreShifted(c int32) uint64 {
+	magic := umagic32(c)
+	return (1<<32 + magic.m) << uint(32-magic.s)
+}
+
 // For signed division, we use a similar strategy.
 // First, we enforce a positive c.
 //   x / c = -(x / (-c))

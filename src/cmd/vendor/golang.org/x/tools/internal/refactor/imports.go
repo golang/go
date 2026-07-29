@@ -99,19 +99,28 @@ func AddImportEdits(file *ast.File, name, pkgpath string) []Edit {
 	}
 
 	// Create a new import declaration either before the first existing
-	// declaration (which must exist), including its comments; or
-	// inside the declaration, if it is an import group.
-	decl0 := file.Decls[0]
-	before := decl0.Pos()
-	switch decl0 := decl0.(type) {
-	case *ast.GenDecl:
-		if decl0.Doc != nil {
-			before = decl0.Doc.Pos()
+	// declaration (if it exists), including its comments; or at the end of the
+	// file (if there are no decls); or inside the declaration, if it is an
+	// import group.
+	var (
+		before token.Pos
+		decl0  ast.Decl
+	)
+	if len(file.Decls) > 0 {
+		decl0 = file.Decls[0]
+		before = decl0.Pos()
+		switch decl0 := decl0.(type) {
+		case *ast.GenDecl:
+			if decl0.Doc != nil {
+				before = decl0.Doc.Pos()
+			}
+		case *ast.FuncDecl:
+			if decl0.Doc != nil {
+				before = decl0.Doc.Pos()
+			}
 		}
-	case *ast.FuncDecl:
-		if decl0.Doc != nil {
-			before = decl0.Doc.Pos()
-		}
+	} else {
+		before = file.FileEnd
 	}
 	var pos token.Pos
 	if gd, ok := decl0.(*ast.GenDecl); ok && gd.Tok == token.IMPORT && gd.Rparen.IsValid() {

@@ -2240,7 +2240,7 @@ func testClientCallsCloseOnlyOnce(t *testing.T, mode testMode) {
 	// Issue occurred non-deterministically: needed to occur after a successful
 	// write (into TCP buffer) but before end of body.
 	for i := 0; i < 50 && !t.Failed(); i++ {
-		body := &issue40382Body{t: t, n: 300000}
+		body := &issue40382Body{t: t, n: 256 << 10} // maxPostHandlerReadBytes large
 		req, err := NewRequest(MethodPost, cst.ts.URL, body)
 		if err != nil {
 			t.Fatal(err)

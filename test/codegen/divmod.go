@@ -311,25 +311,43 @@ func div3_uint64(i uint64) uint64 {
 	return i / 3
 }
 
-// Case 7. Unsigned divide where c is even.
+// Case 7. Unsigned divide by pre-shifted magic constant.
+// The 386 and wasm checks below exercise the Case 8 path instead.
+
+func div14_uint32(i uint32) uint32 {
+	// 386: "SHRL [$]1,"
+	// 386: "MOVL [$]-1840700269,"
+	// 386: "SHRL [$]2,"
+	// amd64: "MOVQ [$]1317624576808583168,"
+	// amd64: "MULQ"
+	// amd64: -"SHRQ"
+	// arm64: "MOVD [$]1317624576808583168,"
+	// arm64: "UMULH"
+	// arm64: -"UBFX"
+	// arm64: -"LSR"
+	// wasm: "I64Const [$]2454267027"
+	return i / 14
+}
+
+func div28_uint32(i uint32) uint32 {
+	// amd64: "MOVQ [$]658812288404291584,"
+	// amd64: "MULQ"
+	// amd64: -"SHRQ"
+	// arm64: "MOVD [$]658812288404291584,"
+	// arm64: "UMULH"
+	// arm64: -"UBFX"
+	// arm64: -"LSR"
+	// wasm: "I64Const [$]2454267027"
+	return i / 28
+}
+
+// Case 8. Unsigned divide where c is even.
 
 func div14_uint16(i uint16) uint16 {
 	// 32-bit only
 	// 386: "SHRL [$]1,"
 	// 386: "IMUL3L [$]37450,"
 	// 386: "SHRL [$]18,"
-	return i / 14
-}
-
-func div14_uint32(i uint32) uint32 {
-	// 386: "SHRL [$]1,"
-	// 386: "MOVL [$]-1840700269,"
-	// 386: "SHRL [$]2,"
-	// arm64: "UBFX [$]1, R[0-9]+, [$]31,"
-	// arm64: "MOVD [$]2454267027,"
-	// arm64: "MUL"
-	// arm64: "LSR [$]34,"
-	// wasm: "I64Const [$]2454267027"
 	return i / 14
 }
 
@@ -346,7 +364,7 @@ func div14_uint64(i uint64) uint64 {
 	return i / 14
 }
 
-// Case 8. Unsigned divide on systems with avg.
+// Case 9. Unsigned divide on systems with avg.
 
 func div7_uint16a(i uint16) uint16 {
 	// only 32-bit
@@ -364,12 +382,13 @@ func div7_uint32(i uint32) uint32 {
 	// 386: "ADDL"
 	// 386: "RCRL [$]1,"
 	// 386: "SHRL [$]2,"
-	// arm64: "UBFIZ [$]32, R[0-9]+, [$]32,"
-	// arm64: "MOVD [$]613566757,"
-	// arm64: "MUL"
-	// arm64: "SUB"
-	// arm64: "ADD R[0-9]+>>1,"
-	// arm64: "LSR [$]34,"
+	// amd64: "MOVQ [$]2635249153617166336,"
+	// amd64: "MULQ"
+	// amd64: -"RCR"
+	// arm64: "MOVD [$]2635249153617166336,"
+	// arm64: "UMULH"
+	// arm64: -"UBFIZ"
+	// arm64: -"LSR"
 	// wasm: "I64Const [$]613566757"
 	return i / 7
 }

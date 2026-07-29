@@ -4,6 +4,8 @@
 
 package ssa
 
+import "cmd/compile/internal/ssa/block"
+
 // layout orders basic blocks in f with the goal of minimizing control flow instructions.
 // After this phase returns, the order of f.Blocks matters and is the order
 // in which those blocks will appear in the assembly output.
@@ -41,7 +43,7 @@ func layoutOrder(f *Func) []*Block {
 	// Populate idToBlock and find exit blocks.
 	for _, b := range f.Blocks {
 		idToBlock[b.ID] = b
-		if b.Kind == BlockExit {
+		if b.Kind == block.BlockExit {
 			exit.add(b.ID)
 		}
 	}

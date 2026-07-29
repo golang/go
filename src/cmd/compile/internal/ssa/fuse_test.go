@@ -5,6 +5,7 @@
 package ssa
 
 import (
+	"cmd/compile/internal/ssa/block"
 	"cmd/compile/internal/types"
 	"fmt"
 	"strconv"
@@ -33,7 +34,7 @@ func TestFuseEliminatesOneBranch(t *testing.T) {
 	fuseLate(fun.f)
 
 	for _, b := range fun.f.Blocks {
-		if b == fun.blocks["then"] && b.Kind != BlockInvalid {
+		if b == fun.blocks["then"] && b.Kind != block.BlockInvalid {
 			t.Errorf("then was not eliminated, but should have")
 		}
 	}
@@ -63,10 +64,10 @@ func TestFuseEliminatesBothBranches(t *testing.T) {
 	fuseLate(fun.f)
 
 	for _, b := range fun.f.Blocks {
-		if b == fun.blocks["then"] && b.Kind != BlockInvalid {
+		if b == fun.blocks["then"] && b.Kind != block.BlockInvalid {
 			t.Errorf("then was not eliminated, but should have")
 		}
-		if b == fun.blocks["else"] && b.Kind != BlockInvalid {
+		if b == fun.blocks["else"] && b.Kind != block.BlockInvalid {
 			t.Errorf("else was not eliminated, but should have")
 		}
 	}
@@ -97,10 +98,10 @@ func TestFuseHandlesPhis(t *testing.T) {
 	fuseLate(fun.f)
 
 	for _, b := range fun.f.Blocks {
-		if b == fun.blocks["then"] && b.Kind != BlockInvalid {
+		if b == fun.blocks["then"] && b.Kind != block.BlockInvalid {
 			t.Errorf("then was not eliminated, but should have")
 		}
-		if b == fun.blocks["else"] && b.Kind != BlockInvalid {
+		if b == fun.blocks["else"] && b.Kind != block.BlockInvalid {
 			t.Errorf("else was not eliminated, but should have")
 		}
 	}
@@ -141,7 +142,7 @@ func TestFuseEliminatesEmptyBlocks(t *testing.T) {
 	fuseLate(fun.f)
 
 	for k, b := range fun.blocks {
-		if k[:1] == "z" && b.Kind != BlockInvalid {
+		if k[:1] == "z" && b.Kind != block.BlockInvalid {
 			t.Errorf("case1 %s was not eliminated, but should have", k)
 		}
 	}
@@ -169,7 +170,7 @@ func TestFuseEliminatesEmptyBlocks(t *testing.T) {
 	fuseLate(fun.f)
 
 	for k, b := range fun.blocks {
-		if k[:1] == "z" && b.Kind != BlockInvalid {
+		if k[:1] == "z" && b.Kind != block.BlockInvalid {
 			t.Errorf("case2 %s was not eliminated, but should have", k)
 		}
 	}
@@ -202,7 +203,7 @@ func TestFuseEliminatesEmptyBlocks(t *testing.T) {
 	fuseLate(fun.f)
 
 	for k, b := range fun.blocks {
-		if k[:1] == "z" && b.Kind != BlockInvalid {
+		if k[:1] == "z" && b.Kind != block.BlockInvalid {
 			t.Errorf("case3 %s was not eliminated, but should have", k)
 		}
 	}
@@ -233,10 +234,10 @@ func TestFuseSideEffects(t *testing.T) {
 	fuseLate(fun.f)
 
 	for _, b := range fun.f.Blocks {
-		if b == fun.blocks["then"] && b.Kind == BlockInvalid {
+		if b == fun.blocks["then"] && b.Kind == block.BlockInvalid {
 			t.Errorf("then is eliminated, but should not")
 		}
-		if b == fun.blocks["else"] && b.Kind == BlockInvalid {
+		if b == fun.blocks["else"] && b.Kind == block.BlockInvalid {
 			t.Errorf("else is eliminated, but should not")
 		}
 	}
@@ -262,8 +263,40 @@ func TestFuseSideEffects(t *testing.T) {
 	CheckFunc(fun.f)
 	fuseLate(fun.f)
 	z0, ok := fun.blocks["z0"]
-	if !ok || z0.Kind == BlockInvalid {
+	if !ok || z0.Kind == block.BlockInvalid {
 		t.Errorf("case2 z0 is eliminated, but should not")
+	}
+}
+
+func TestFuseHandlesDifferentiatedPhi(t *testing.T) {
+	c := testConfig(t)
+	fun := c.Fun("entry",
+		Bloc("entry",
+			Valu("mem", OpInitMem, types.TypeMem, 0, nil),
+			Valu("a1", OpArg, c.config.Types.UInt64, 0, nil),
+			Valu("sb", OpSB, c.config.Types.Uintptr, 0, nil),
+			Valu("constTrue", OpConstBool, c.config.Types.Bool, 1, nil),
+			Valu("lower", OpConst64, c.config.Types.UInt64, 16, nil),
+			Valu("upper", OpConst64, c.config.Types.UInt64, 512, nil),
+			Goto("checkUpper")),
+		Bloc("checkUpper",
+			Valu("bool1", OpLeq64U, c.config.Types.Bool, 0, nil, "a1", "upper"),
+			If("bool1", "checkLower", "exit")),
+		Bloc("checkLower",
+			Valu("bool2", OpLeq64U, c.config.Types.Bool, 0, nil, "lower", "a1"),
+			If("bool2", "empty", "exit")),
+		Bloc("empty",
+			Goto("exit")),
+		Bloc("exit",
+			Valu("phi", OpPhi, c.config.Types.Bool, 0, nil, "bool1", "constTrue", "constTrue"),
+			Exit("mem")))
+
+	CheckFunc(fun.f)
+	fuse(fun.f, fuseTypeIntInRange)
+	phi := fun.values["phi"]
+	cTrue := fun.values["constTrue"]
+	if phi.Op == OpCopy && phi.Args[0] == cTrue {
+		t.Errorf("phi mangled into always true")
 	}
 }
 

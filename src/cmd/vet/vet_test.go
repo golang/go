@@ -19,9 +19,12 @@ import (
 	"path"
 	"path/filepath"
 	"regexp"
+	"slices"
 	"strconv"
 	"strings"
 	"testing"
+
+	"golang.org/x/tools/go/analysis/suite/vet"
 )
 
 // TestMain executes the test binary as the vet command if
@@ -48,52 +51,48 @@ func vetCmd(t *testing.T, arg, pkg string) *exec.Cmd {
 	return cmd
 }
 
+// TestVet ensures that each analyzer is at least minimally working.
+// It fails if we add a new analyzer to vet.Suite without a test.
 func TestVet(t *testing.T) {
-	t.Parallel()
-	for _, pkg := range []string{
-		"appends",
-		"asm",
-		"assign",
-		"atomic",
-		"bool",
-		"buildtag",
-		"cgo",
-		"composite",
-		"copylock",
-		"deadcode",
-		"directive",
-		"hostport",
-		"httpresponse",
-		"lostcancel",
-		"method",
-		"nilfunc",
-		"print",
-		"shift",
-		"slog",
-		"structtag",
-		"testingpkg",
-		// "testtag" has its own test
-		"unmarshal",
-		"unsafeptr",
-		"unused",
-		"waitgroup",
-	} {
-		t.Run(pkg, func(t *testing.T) {
+	for _, a := range vet.Suite {
+		name := a.Name
+		t.Run(name, func(t *testing.T) {
 			t.Parallel()
 
-			// Skip cgo test on platforms without cgo.
-			if pkg == "cgo" && !cgoEnabled(t) {
-				return
+			switch name {
+			case "testtag", "stdversion":
+				t.Skipf("%s has its own test", name)
+
+			case "loopclosure":
+				t.Skipf("%s is no longer needed", name)
+
+			case "cgocall":
+				if !cgoEnabled(t) {
+					t.Skip("no cgo")
+				}
 			}
 
-			cmd := vetCmd(t, "-printfuncs=Warn,Warnf", pkg)
+			cmd := vetCmd(t, "-printfuncs=Warn,Warnf", name)
 
-			// The asm test assumes amd64.
-			if pkg == "asm" {
+			// The asmdecl and framepointer tests assume amd64.
+			if name == "asmdecl" || name == "framepointer" {
 				cmd.Env = append(cmd.Env, "GOOS=linux", "GOARCH=amd64")
 			}
 
-			dir := filepath.Join("testdata", pkg)
+			// Run vet.
+			output, err := cmd.CombinedOutput()
+			if _, ok := err.(*exec.ExitError); !ok {
+				// failed to start, or succeeded (=> no diagnostics).
+				t.Logf("vet output:\n<<%s>>", output)
+				if err != nil {
+					t.Fatal(err)
+				} else {
+					t.Fatalf("vet exited 0, wanted diagnostics and non-zero exit")
+				}
+			}
+
+			// Check the expectations.
+			dir := filepath.Join("testdata/", name)
 			gos, err := filepath.Glob(filepath.Join(dir, "*.go"))
 			if err != nil {
 				t.Fatal(err)
@@ -102,77 +101,16 @@ func TestVet(t *testing.T) {
 			if err != nil {
 				t.Fatal(err)
 			}
-			var files []string
-			files = append(files, gos...)
-			files = append(files, asms...)
-
-			errchk(cmd, files, t)
+			files := slices.Concat(gos, asms)
+			fullshort := make([]string, 0, len(files)*2)
+			for _, f := range files {
+				fullshort = append(fullshort, f, filepath.Base(f))
+			}
+			if err := errorCheck(string(output), false, fullshort...); err != nil {
+				t.Errorf("error check failed: %s", err)
+			}
 		})
 	}
-
-	// The loopclosure analyzer (aka "rangeloop" before CL 140578)
-	// is a no-op for files whose version >= go1.22, so we use a
-	// go.mod file in the rangeloop directory to "downgrade".
-	//
-	// TODO(adonovan): delete when go1.21 goes away.
-	t.Run("loopclosure", func(t *testing.T) {
-		cmd := testenv.Command(t, testenv.GoToolPath(t), "vet", "-vettool="+vetPath(t), ".")
-		cmd.Env = append(os.Environ(), "GOWORK=off")
-		cmd.Dir = "testdata/rangeloop"
-		cmd.Stderr = new(strings.Builder) // all vet output goes to stderr
-		cmd.Run()                         // ignore error
-		stderr := cmd.Stderr.(fmt.Stringer).String()
-
-		filename := filepath.FromSlash("testdata/rangeloop/rangeloop.go")
-
-		// Unlike the tests above, which runs vet in cmd/vet/, this one
-		// runs it in subdirectory, so the "full names" in the output
-		// are in fact short "./rangeloop.go".
-		// But we can't just pass "./rangeloop.go" as the "full name"
-		// argument to errorCheck as it does double duty as both a
-		// string that appears in the output, and as file name
-		// openable relative to the test directory, containing text
-		// expectations.
-		//
-		// So, we munge the file.
-		stderr = strings.ReplaceAll(stderr, filepath.FromSlash("./rangeloop.go"), filename)
-
-		if err := errorCheck(stderr, false, filename, filepath.Base(filename)); err != nil {
-			t.Errorf("error check failed: %s", err)
-			t.Logf("vet stderr:\n<<%s>>", cmd.Stderr)
-		}
-	})
-
-	// The stdversion analyzer requires a lower-than-tip go
-	// version in its go.mod file for it to report anything.
-	// So again we use a testdata go.mod file to "downgrade".
-	t.Run("stdversion", func(t *testing.T) {
-		cmd := testenv.Command(t, testenv.GoToolPath(t), "vet", "-vettool="+vetPath(t), ".")
-		cmd.Env = append(os.Environ(), "GOWORK=off")
-		cmd.Dir = "testdata/stdversion"
-		cmd.Stderr = new(strings.Builder) // all vet output goes to stderr
-		cmd.Run()                         // ignore error
-		stderr := cmd.Stderr.(fmt.Stringer).String()
-
-		filename := filepath.FromSlash("testdata/stdversion/stdversion.go")
-
-		// Unlike the tests above, which runs vet in cmd/vet/, this one
-		// runs it in subdirectory, so the "full names" in the output
-		// are in fact short "./rangeloop.go".
-		// But we can't just pass "./rangeloop.go" as the "full name"
-		// argument to errorCheck as it does double duty as both a
-		// string that appears in the output, and as file name
-		// openable relative to the test directory, containing text
-		// expectations.
-		//
-		// So, we munge the file.
-		stderr = strings.ReplaceAll(stderr, filepath.FromSlash("./stdversion.go"), filename)
-
-		if err := errorCheck(stderr, false, filename, filepath.Base(filename)); err != nil {
-			t.Errorf("error check failed: %s", err)
-			t.Logf("vet stderr:\n<<%s>>", cmd.Stderr)
-		}
-	})
 }
 
 func cgoEnabled(t *testing.T) bool {
@@ -186,19 +124,36 @@ func cgoEnabled(t *testing.T) bool {
 	return string(out) == "true\n"
 }
 
-func errchk(c *exec.Cmd, files []string, t *testing.T) {
-	output, err := c.CombinedOutput()
-	if _, ok := err.(*exec.ExitError); !ok {
-		t.Logf("vet output:\n<<%s>>", output)
-		t.Fatal(err)
-	}
-	fullshort := make([]string, 0, len(files)*2)
-	for _, f := range files {
-		fullshort = append(fullshort, f, filepath.Base(f))
-	}
-	err = errorCheck(string(output), false, fullshort...)
-	if err != nil {
+func TestStdVersion(t *testing.T) {
+	t.Parallel()
+
+	// The stdversion analyzer requires a lower-than-tip go
+	// version in its go.mod file for it to report anything.
+	// So again we use a testdata go.mod file to "downgrade".
+	cmd := testenv.Command(t, testenv.GoToolPath(t), "vet", "-vettool="+vetPath(t), ".")
+	cmd.Env = append(os.Environ(), "GOWORK=off")
+	cmd.Dir = "testdata/stdversion"
+	cmd.Stderr = new(strings.Builder) // all vet output goes to stderr
+	cmd.Run()                         // ignore error
+	stderr := cmd.Stderr.(fmt.Stringer).String()
+
+	filename := filepath.FromSlash("testdata/stdversion/stdversion.go")
+
+	// Unlike the other tests, which run vet in cmd/vet/, this one
+	// runs it in subdirectory, so the "full names" in the output
+	// are in fact short "./rangeloop.go".
+	// But we can't just pass "./rangeloop.go" as the "full name"
+	// argument to errorCheck as it does double duty as both a
+	// string that appears in the output, and as file name
+	// openable relative to the test directory, containing text
+	// expectations.
+	//
+	// So, we munge the file.
+	stderr = strings.ReplaceAll(stderr, filepath.FromSlash("./stdversion.go"), filename)
+
+	if err := errorCheck(stderr, false, filename, filepath.Base(filename)); err != nil {
 		t.Errorf("error check failed: %s", err)
+		t.Logf("vet stderr:\n<<%s>>", cmd.Stderr)
 	}
 }
 
@@ -372,10 +327,11 @@ type wantedError struct {
 }
 
 var (
-	errRx       = regexp.MustCompile(`// (?:GC_)?ERROR(NEXT)? (.*)`)
-	errAutoRx   = regexp.MustCompile(`// (?:GC_)?ERRORAUTO(NEXT)? (.*)`)
-	errQuotesRx = regexp.MustCompile(`"([^"]*)"`)
-	lineRx      = regexp.MustCompile(`LINE(([+-])(\d+))?`)
+	// Unlike the compiler's errchk notation,
+	// ours uses true Go string literals in Go comments.
+	errRx     = regexp.MustCompile(`// (?:GC_)?ERROR(NEXT)? (.*)`)
+	errAutoRx = regexp.MustCompile(`// (?:GC_)?ERRORAUTO(NEXT)? (.*)`)
+	lineRx    = regexp.MustCompile(`LINE(([+-])(\d+))?`)
 )
 
 // wantedErrors parses expected errors from comments in a file.
@@ -405,14 +361,28 @@ func wantedErrors(file, short string) (errs []wantedError) {
 		if m[1] == "NEXT" {
 			lineNum++
 		}
-		all := m[2]
-		mm := errQuotesRx.FindAllStringSubmatch(all, -1)
-		if mm == nil {
-			log.Fatalf("%s:%d: invalid errchk line: %s", file, lineNum, line)
-		}
-		for _, m := range mm {
+		rest := m[2]
+
+		// Consume a sequence of string literals from the rest of the line.
+		// e.g. // ERROR "one" `two .*` "three"
+		for {
+			rest = strings.TrimSpace(rest)
+			if rest == "" {
+				break
+			}
+
+			prefix, err := strconv.QuotedPrefix(rest)
+			if err != nil {
+				log.Fatalf("%s:%d: invalid string literal in errchk line: %s: %v", file, lineNum, line, err)
+			}
+			rest = rest[len(prefix):]
+			pattern, err := strconv.Unquote(prefix)
+			if err != nil {
+				log.Fatalf("%s:%d: invalid string literal in errchk line: %s: %v", file, lineNum, line, err)
+			}
+
 			replacedOnce := false
-			rx := lineRx.ReplaceAllStringFunc(m[1], func(m string) string {
+			rx := lineRx.ReplaceAllStringFunc(pattern, func(m string) string {
 				if replacedOnce {
 					return m
 				}
@@ -432,15 +402,14 @@ func wantedErrors(file, short string) (errs []wantedError) {
 				var err error
 				re, err = regexp.Compile(rx)
 				if err != nil {
-					log.Fatalf("%s:%d: invalid regexp \"%#q\" in ERROR line: %v", file, lineNum, rx, err)
+					log.Fatalf("%s:%d: invalid regexp %q in ERROR line: %v", file, lineNum, rx, err)
 				}
 				cache[rx] = re
 			}
-			prefix := fmt.Sprintf("%s:%d", short, lineNum)
 			errs = append(errs, wantedError{
 				reStr:   rx,
 				re:      re,
-				prefix:  prefix,
+				prefix:  fmt.Sprintf("%s:%d", short, lineNum),
 				auto:    auto,
 				lineNum: lineNum,
 				file:    short,

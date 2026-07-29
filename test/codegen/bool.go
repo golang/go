@@ -328,3 +328,20 @@ func boolCompare2(p, q *bool) int {
 	}
 	return 7
 }
+
+func branchlessBoolToUint8(b bool) (r uint8) {
+	if b {
+		r = 1
+	}
+	return
+}
+
+func xorBranchlessBoolToUintFoldsIntoCompare(x, y int) uint8 {
+	// amd64:"SETNE" "CMPQ" -"XOR"
+	return branchlessBoolToUint8(x == y) ^ 1
+}
+
+func otherXorBranchlessBoolToUintRemovesNot(a bool) uint8 {
+	// amd64:"XORL [$]2" -"XORL [$]1" -"XORL [$]3"
+	return branchlessBoolToUint8(!a) ^ 3
+}

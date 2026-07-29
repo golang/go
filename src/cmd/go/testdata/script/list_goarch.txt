@@ -1,0 +1,33 @@
+env GOARCH=amd64
+env GOAMD64=
+go env GOAMD64
+
+# Check that the default doesn't match.
+# For the purposes of this test, we use v99 which should
+# never match any real systems for quite a few years.
+! go list -f '{{ range $f := .GoFiles }}{{ $f }}{{ end }}'
+! go build
+
+# settable from the environment
+env GOAMD64=v99
+go list -f '{{ range $f := .GoFiles }}{{ $f }}{{ end }}'
+stdout main.go
+go build
+
+# settable from the config file
+env GOAMD64=
+env GOENV=$WORK/env
+go env -w GOAMD64=v99
+go list -f '{{ range $f := .GoFiles }}{{ $f }}{{ end }}'
+stdout main.go
+go build
+
+-- go.mod --
+module test
+
+-- main.go --
+//go:build amd64.v99
+
+package main
+
+func main() {}

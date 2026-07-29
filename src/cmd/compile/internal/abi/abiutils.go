@@ -278,13 +278,6 @@ func NewABIConfig(iRegsCount, fRegsCount int, offsetForLocals int64, which uint8
 	return &ABIConfig{offsetForLocals: offsetForLocals, regAmounts: RegAmounts{iRegsCount, fRegsCount}, which: obj.ABI(which)}
 }
 
-// Copy returns config.
-//
-// TODO(mdempsky): Remove.
-func (config *ABIConfig) Copy() *ABIConfig {
-	return config
-}
-
 // Which returns the ABI number
 func (config *ABIConfig) Which() obj.ABI {
 	return config.which

@@ -1874,7 +1874,6 @@ func (ctxt *Link) hostlink() {
 		// We want to have C files after Go files to remove
 		// trampolines csects made by ld.
 		argv = append(argv, "-nostartfiles")
-		argv = append(argv, "/lib/crt0_64.o")
 
 		extld := ctxt.extld()
 		name, args := extld[0], extld[1:]
@@ -1887,6 +1886,7 @@ func (ctxt *Link) hostlink() {
 			}
 			return strings.Trim(string(out), "\n")
 		}
+		argv = append(argv, getPathFile("crt0_64.o"))
 		// Since GCC version 11, the 64-bit version of GCC starting files
 		// are now suffixed by "_64". Even under "-maix64" multilib directory
 		// "crtcxa.o" is 32-bit.

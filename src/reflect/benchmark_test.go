@@ -296,7 +296,7 @@ func BenchmarkCall(b *testing.B) {
 
 type myint int64
 
-func (i *myint) inc() {
+func (i *myint) Inc() {
 	*i = *i + 1
 }
 
@@ -304,7 +304,7 @@ func BenchmarkCallMethod(b *testing.B) {
 	b.ReportAllocs()
 	z := new(myint)
 
-	v := ValueOf(z.inc)
+	v := ValueOf(z.Inc)
 	for i := 0; i < b.N; i++ {
 		v.Call(nil)
 	}
@@ -491,5 +491,14 @@ func BenchmarkMapIterNext(b *testing.B) {
 		for it.Next() {
 		}
 		it.Reset(m)
+	}
+}
+
+func BenchmarkMethodValueCall(b *testing.B) {
+	b.ReportAllocs()
+	z := new(myint)
+	v := ValueOf(z)
+	for i := 0; i < b.N; i++ {
+		v.Method(0).Call(nil)
 	}
 }

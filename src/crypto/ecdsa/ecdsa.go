@@ -321,13 +321,17 @@ func privateKeyBytes[P ecdsa.Point[P]](c *ecdsa.Curve[P], priv *PrivateKey) ([]b
 // function used to produce digest and priv.Curve must be one of
 // [elliptic.P224], [elliptic.P256], [elliptic.P384], or [elliptic.P521].
 func (priv *PrivateKey) Sign(random io.Reader, digest []byte, opts crypto.SignerOpts) ([]byte, error) {
-	if random == nil {
-		return signRFC6979(priv, digest, opts)
-	}
 	if opts != nil {
-		if hashSize := opts.HashFunc().Size(); hashSize != len(digest) {
+		h := opts.HashFunc()
+		if h == 0 {
+			return nil, errors.New("ecdsa: Sign must be called with a hash, not with crypto.Hash(0)")
+		}
+		if h.Size() != len(digest) {
 			return nil, errors.New("ecdsa: hash length does not match hash function")
 		}
+	}
+	if random == nil {
+		return signRFC6979(priv, digest, opts)
 	}
 	random = rand.CustomReader(random)
 	return SignASN1(random, priv, digest)
@@ -434,12 +438,9 @@ func signFIPS[P ecdsa.Point[P]](c *ecdsa.Curve[P], priv *PrivateKey, rand io.Rea
 
 func signRFC6979(priv *PrivateKey, hash []byte, opts crypto.SignerOpts) ([]byte, error) {
 	if opts == nil {
-		return nil, errors.New("ecdsa: Sign called with nil opts")
+		return nil, errors.New("ecdsa: Sign called with nil random and nil opts")
 	}
 	h := opts.HashFunc()
-	if h.Size() != len(hash) {
-		return nil, errors.New("ecdsa: hash length does not match hash function")
-	}
 	switch priv.Curve.Params() {
 	case elliptic.P224().Params():
 		return signFIPSDeterministic(ecdsa.P224(), h, priv, hash)

@@ -4,6 +4,8 @@
 
 package ssa
 
+import "cmd/compile/internal/ssa/block"
+
 // flagalloc allocates the flag register among all the flag-generating
 // instructions. Flag values are recomputed if they need to be
 // spilled/restored.
@@ -58,7 +60,7 @@ func flagalloc(f *Func) {
 	// we can leave in the flags register at the end of the block. (There
 	// is no place to put a flag regeneration instruction.)
 	for _, b := range f.Blocks {
-		if b.Kind == BlockDefer {
+		if b.Kind == block.BlockDefer {
 			// Defer blocks internally use/clobber the flags value.
 			end[b.ID] = nil
 			continue

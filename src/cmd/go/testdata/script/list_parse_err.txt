@@ -13,6 +13,10 @@ stderr '^go: can''t load test package: t[/\\]t_test.go:8:1: expected declaration
 go list -e -f '{{range .Imports}}{{.}} {{end}}' ./p
 stdout '^fmt '
 
+# Local wildcard patterns should still match packages with invalid Go files.
+go list -e -f '{{.ImportPath}}: {{if .Error}}{{.Error.Err}}{{end}}' ./...
+stdout '^m/p: expected ''package'', found ''EOF'''
+
 # 'go list' should report the position of the error if there's only one.
 go list -e -f '{{.Error.Pos}} => {{.Error.Err}}' ./p
 stdout 'b.go:[0-9:]+ => expected ''package'', found ''EOF'''

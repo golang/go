@@ -25,6 +25,14 @@ go test -v .
 stdout '^skipping\n'
 stdout '^ok\s+example/skip'
 
+# In package list mode without -v, a passing test's output is discarded, so the
+# 'ok' line must not be preceded by a spurious blank line, even when the
+# discarded output ended without a newline (https://go.dev/issue/79786).
+go test -count=1 .
+! stderr .
+! stdout '^\n'
+stdout '^ok\s+example/skip'
+
 # If the output is streamed and the test passes, we can't tell whether it ended
 # in a partial line, and don't want to emit any extra output in the
 # overwhelmingly common case that it did not.

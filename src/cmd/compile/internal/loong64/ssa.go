@@ -12,6 +12,7 @@ import (
 	"cmd/compile/internal/logopt"
 	"cmd/compile/internal/objw"
 	"cmd/compile/internal/ssa"
+	"cmd/compile/internal/ssa/block"
 	"cmd/compile/internal/ssagen"
 	"cmd/compile/internal/types"
 	"cmd/internal/obj"
@@ -1251,43 +1252,43 @@ func ssaGenValue(s *ssagen.State, v *ssa.Value) {
 	}
 }
 
-var blockJump = map[ssa.BlockKind]struct {
+var blockJump = map[block.BlockKind]struct {
 	asm, invasm obj.As
 }{
-	ssa.BlockLOONG64EQZ:  {loong64.ABEQ, loong64.ABNE},
-	ssa.BlockLOONG64NEZ:  {loong64.ABNE, loong64.ABEQ},
-	ssa.BlockLOONG64LTZ:  {loong64.ABLTZ, loong64.ABGEZ},
-	ssa.BlockLOONG64GEZ:  {loong64.ABGEZ, loong64.ABLTZ},
-	ssa.BlockLOONG64LEZ:  {loong64.ABLEZ, loong64.ABGTZ},
-	ssa.BlockLOONG64GTZ:  {loong64.ABGTZ, loong64.ABLEZ},
-	ssa.BlockLOONG64FPT:  {loong64.ABFPT, loong64.ABFPF},
-	ssa.BlockLOONG64FPF:  {loong64.ABFPF, loong64.ABFPT},
-	ssa.BlockLOONG64BEQ:  {loong64.ABEQ, loong64.ABNE},
-	ssa.BlockLOONG64BNE:  {loong64.ABNE, loong64.ABEQ},
-	ssa.BlockLOONG64BGE:  {loong64.ABGE, loong64.ABLT},
-	ssa.BlockLOONG64BLT:  {loong64.ABLT, loong64.ABGE},
-	ssa.BlockLOONG64BLTU: {loong64.ABLTU, loong64.ABGEU},
-	ssa.BlockLOONG64BGEU: {loong64.ABGEU, loong64.ABLTU},
+	block.BlockLOONG64EQZ:  {loong64.ABEQ, loong64.ABNE},
+	block.BlockLOONG64NEZ:  {loong64.ABNE, loong64.ABEQ},
+	block.BlockLOONG64LTZ:  {loong64.ABLTZ, loong64.ABGEZ},
+	block.BlockLOONG64GEZ:  {loong64.ABGEZ, loong64.ABLTZ},
+	block.BlockLOONG64LEZ:  {loong64.ABLEZ, loong64.ABGTZ},
+	block.BlockLOONG64GTZ:  {loong64.ABGTZ, loong64.ABLEZ},
+	block.BlockLOONG64FPT:  {loong64.ABFPT, loong64.ABFPF},
+	block.BlockLOONG64FPF:  {loong64.ABFPF, loong64.ABFPT},
+	block.BlockLOONG64BEQ:  {loong64.ABEQ, loong64.ABNE},
+	block.BlockLOONG64BNE:  {loong64.ABNE, loong64.ABEQ},
+	block.BlockLOONG64BGE:  {loong64.ABGE, loong64.ABLT},
+	block.BlockLOONG64BLT:  {loong64.ABLT, loong64.ABGE},
+	block.BlockLOONG64BLTU: {loong64.ABLTU, loong64.ABGEU},
+	block.BlockLOONG64BGEU: {loong64.ABGEU, loong64.ABLTU},
 }
 
 func ssaGenBlock(s *ssagen.State, b, next *ssa.Block) {
 	switch b.Kind {
-	case ssa.BlockPlain, ssa.BlockDefer:
+	case block.BlockPlain, block.BlockDefer:
 		if b.Succs[0].Block() != next {
 			p := s.Prog(obj.AJMP)
 			p.To.Type = obj.TYPE_BRANCH
 			s.Branches = append(s.Branches, ssagen.Branch{P: p, B: b.Succs[0].Block()})
 		}
-	case ssa.BlockExit, ssa.BlockRetJmp:
-	case ssa.BlockRet:
+	case block.BlockExit, block.BlockRetJmp:
+	case block.BlockRet:
 		s.Prog(obj.ARET)
-	case ssa.BlockLOONG64EQZ, ssa.BlockLOONG64NEZ,
-		ssa.BlockLOONG64LTZ, ssa.BlockLOONG64GEZ,
-		ssa.BlockLOONG64LEZ, ssa.BlockLOONG64GTZ,
-		ssa.BlockLOONG64BEQ, ssa.BlockLOONG64BNE,
-		ssa.BlockLOONG64BLT, ssa.BlockLOONG64BGE,
-		ssa.BlockLOONG64BLTU, ssa.BlockLOONG64BGEU,
-		ssa.BlockLOONG64FPT, ssa.BlockLOONG64FPF:
+	case block.BlockLOONG64EQZ, block.BlockLOONG64NEZ,
+		block.BlockLOONG64LTZ, block.BlockLOONG64GEZ,
+		block.BlockLOONG64LEZ, block.BlockLOONG64GTZ,
+		block.BlockLOONG64BEQ, block.BlockLOONG64BNE,
+		block.BlockLOONG64BLT, block.BlockLOONG64BGE,
+		block.BlockLOONG64BLTU, block.BlockLOONG64BGEU,
+		block.BlockLOONG64FPT, block.BlockLOONG64FPF:
 		jmp := blockJump[b.Kind]
 		var p *obj.Prog
 		switch next {
@@ -1305,22 +1306,22 @@ func ssaGenBlock(s *ssagen.State, b, next *ssa.Block) {
 			}
 		}
 		switch b.Kind {
-		case ssa.BlockLOONG64BEQ, ssa.BlockLOONG64BNE,
-			ssa.BlockLOONG64BGE, ssa.BlockLOONG64BLT,
-			ssa.BlockLOONG64BGEU, ssa.BlockLOONG64BLTU:
+		case block.BlockLOONG64BEQ, block.BlockLOONG64BNE,
+			block.BlockLOONG64BGE, block.BlockLOONG64BLT,
+			block.BlockLOONG64BGEU, block.BlockLOONG64BLTU:
 			p.From.Type = obj.TYPE_REG
 			p.From.Reg = b.Controls[0].Reg()
 			p.Reg = b.Controls[1].Reg()
-		case ssa.BlockLOONG64EQZ, ssa.BlockLOONG64NEZ,
-			ssa.BlockLOONG64LTZ, ssa.BlockLOONG64GEZ,
-			ssa.BlockLOONG64LEZ, ssa.BlockLOONG64GTZ,
-			ssa.BlockLOONG64FPT, ssa.BlockLOONG64FPF:
+		case block.BlockLOONG64EQZ, block.BlockLOONG64NEZ,
+			block.BlockLOONG64LTZ, block.BlockLOONG64GEZ,
+			block.BlockLOONG64LEZ, block.BlockLOONG64GTZ,
+			block.BlockLOONG64FPT, block.BlockLOONG64FPF:
 			if !b.Controls[0].Type.IsFlags() {
 				p.From.Type = obj.TYPE_REG
 				p.From.Reg = b.Controls[0].Reg()
 			}
 		}
-	case ssa.BlockLOONG64JUMPTABLE:
+	case block.BlockLOONG64JUMPTABLE:
 		// ALSLV $3, Rarg0, Rarg1, REGTMP
 		// MOVV (REGTMP), REGTMP
 		// JMP	(REGTMP)

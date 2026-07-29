@@ -42,7 +42,7 @@ var (
 )
 
 func main() {
-	Package("crypto/aes")
+	Package("crypto/internal/fips140/aes/gcm")
 	ConstraintExpr("!purego")
 
 	gcmAesFinish()
@@ -1031,17 +1031,29 @@ func encLast4(ptx, ptxLen, aluCTR, aluTMP GPPhysical) {
 	PXOR(B0, B0)
 }
 
+// loadLoop loads count bytes from src into the low bytes of dst, one byte at a
+// time, to avoid reading past the end of a partial block. dst must be zeroed
+// and src must point at the last byte to load. Bytes are read in increasing
+// memory order into increasing byte positions, like a MOVOU of a full block,
+// leaving the upper 16-count bytes of dst zero. It clobbers src and count.
+func loadLoop(label string, dst VecPhysical, src, count Register) {
+	Label(label)
+	PSLLDQ(Imm(1), dst)
+	PINSRB(Imm(0), Mem{Base: src}, dst)
+	LEAQ(Mem{Base: src}.Offset(-1), src)
+	DECQ(count)
+	JNE(LabelRef(label))
+}
+
 func ptxLoadLoop(pTbl, ctx, ptx, ptxLen GPPhysical) {
-	Label("ptxLoadLoop")
-	PSLLDQ(Imm(1), B0)
-	PINSRB(Imm(0), Mem{Base: ptx}, B0)
-	LEAQ(Mem{Base: ptx}.Offset(-1), ptx)
-	DECQ(ptxLen)
-	JNE(LabelRef("ptxLoadLoop"))
+	tailLen := GP64()
+	MOVQ(ptxLen, tailLen)
+	loadLoop("ptxLoadLoop", B0, ptx, ptxLen)
 
 	PXOR(T0, B0)
 	PAND(T1, B0)
-	MOVOU(B0, Mem{Base: ctx})
+	MOVOU(B0, T1)
+	storeLoop("ctxStoreLoop", T1, ctx, tailLen)
 
 	PSHUFB(BSWAP, B0)
 	PXOR(ACC0, B0)
@@ -1151,7 +1163,7 @@ func gcmAesDec() {
 	decLast2(ctx, ptx)
 	gcmAesDecTail(pTbl, ctx, ks, ptxLen, aluCTR, aluTMP, aluK, NR)
 	decLast3()
-	ptxStoreLoop(ptx, ptxLen)
+	storeLoop("ptxStoreLoop", B0, ptx, ptxLen)
 	gcmAesDecDone(tPtr)
 }
 
@@ -1399,21 +1411,11 @@ func gcmAesDecTail(pTbl, ctx, ks, ptxLen, aluCTR, aluTMP, aluK, NR GPPhysical) {
 	TESTQ(ptxLen, ptxLen)
 	JE(LabelRef("gcmAesDecDone"))
 
-	// Hack to get Avo to emit:
-	// 	MOVQ ptxLen, aluTMP
-	Instruction(&ir.Instruction{Opcode: "MOVQ", Operands: []Op{ptxLen, aluTMP}})
-	// Hack to get Avo to emit:
-	// 	SHLQ $4, aluTMP
-	Instruction(&ir.Instruction{Opcode: "SHLQ", Operands: []Op{Imm(4), aluTMP}})
-
-	andMask := andMask_DATA()
-	// Hack to get Avo to emit:
-	// 	LEAQ andMask<>(SB), aluCTR
-	Instruction(&ir.Instruction{Opcode: "LEAQ", Operands: []Op{andMask, aluCTR}})
-	MOVOU(Mem{Base: aluCTR, Index: aluTMP, Scale: 1}.Offset(-16), T1)
-
-	MOVOU(Mem{Base: ctx}, B0)
-	PAND(T1, B0)
+	tailLen := GP64()
+	MOVQ(ptxLen, tailLen)
+	LEAQ(Mem{Base: ctx, Index: ptxLen, Scale: 1}.Offset(-1), ctx)
+	PXOR(B0, B0)
+	loadLoop("ctxLoadLoop", B0, ctx, tailLen)
 
 	MOVOU(B0, T1)
 	PSHUFB(BSWAP, B0)
@@ -1474,14 +1476,16 @@ func decLast3() {
 	PXOR(T1, B0)
 }
 
-func ptxStoreLoop(ptx, ptxLen GPPhysical) {
-	Label("ptxStoreLoop")
-	PEXTRB(Imm(0), B0, Mem{Base: ptx})
-	PSRLDQ(Imm(1), B0)
-	LEAQ(Mem{Base: ptx}.Offset(1), ptx)
-	DECQ(ptxLen)
-
-	JNE(LabelRef("ptxStoreLoop"))
+// storeLoop stores the low count bytes of src at dst, one byte at a time, to
+// avoid writing past the end of a partial block. It clobbers src, dst, and
+// count.
+func storeLoop(label string, src VecPhysical, dst, count Register) {
+	Label(label)
+	PEXTRB(Imm(0), src, Mem{Base: dst})
+	PSRLDQ(Imm(1), src)
+	LEAQ(Mem{Base: dst}.Offset(1), dst)
+	DECQ(count)
+	JNE(LabelRef(label))
 }
 
 func gcmAesDecDone(tPtr GPPhysical) {

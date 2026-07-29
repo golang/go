@@ -6,6 +6,7 @@ package ssa
 
 import (
 	"cmd/compile/internal/ir"
+	"cmd/compile/internal/ssa/block"
 	"cmd/internal/src"
 	"internal/buildcfg"
 )
@@ -105,7 +106,7 @@ func nilcheckelim(f *Func) {
 			// First, see if we're dominated by an explicit nil check.
 			if len(b.Preds) == 1 {
 				p := b.Preds[0].b
-				if p.Kind == BlockIf && p.Controls[0].Op == OpIsNonNil && p.Succs[0].b == b {
+				if p.Kind == block.BlockIf && p.Controls[0].Op == OpIsNonNil && p.Succs[0].b == b {
 					if ptr := p.Controls[0].Args[0]; nonNilValues[ptr.ID] == nil {
 						nonNilValues[ptr.ID] = ptr
 						work = append(work, bp{op: ClearPtr, ptr: ptr})

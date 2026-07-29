@@ -105,8 +105,7 @@ func runSync(ctx context.Context, cmd *base.Command, args []string) {
 		}
 
 		// Use EnterModule to make a loader with a single work module.
-		loader := modload.NewLoader()
-		modload.EnterModule(loader, ctx, mms.ModRoot(m))
+		loader := modload.NewForModroot(ctx, mms.ModRoot(m))
 
 		// Edit the build list in the same way that 'go get' would if we
 		// requested the relevant module versions explicitly.

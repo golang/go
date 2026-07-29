@@ -4,6 +4,8 @@
 
 package ssa
 
+import "cmd/compile/internal/ssa/block"
+
 // shortcircuit finds situations where branch directions
 // are always correlated and rewrites the CFG to take
 // advantage of that fact.
@@ -29,7 +31,7 @@ func shortcircuit(f *Func) {
 			for i, a := range v.Args {
 				e := b.Preds[i]
 				p := e.b
-				if p.Kind != BlockIf {
+				if p.Kind != block.BlockIf {
 					continue
 				}
 				if p.Controls[0] != a {
@@ -105,7 +107,7 @@ func shortcircuit(f *Func) {
 // and rewriting uses of w to use a different value instead.
 // See shortcircuitPhiPlan for details.
 func shortcircuitBlock(b *Block) bool {
-	if b.Kind != BlockIf {
+	if b.Kind != block.BlockIf {
 		return false
 	}
 	// Look for control values of the form Copy(Not(Copy(Phi(const, ...)))).
@@ -259,7 +261,7 @@ func shortcircuitBlock(b *Block) bool {
 
 	if len(b.Preds) == 0 {
 		// Block is now dead.
-		b.Kind = BlockInvalid
+		b.Kind = block.BlockInvalid
 	}
 
 	phielimValue(ctl)

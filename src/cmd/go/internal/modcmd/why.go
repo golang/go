@@ -52,8 +52,8 @@ See https://go.dev/ref/mod#go-mod-why for more about 'go mod why'.
 }
 
 var (
-	whyM      = cmdWhy.Flag.Bool("m", false, "")
-	whyVendor = cmdWhy.Flag.Bool("vendor", false, "")
+	whyM      = cmdWhy.Flag.Bool("m", false, "treat arguments as a list of modules")
+	whyVendor = cmdWhy.Flag.Bool("vendor", false, "exclude tests of dependencies")
 )
 
 func init() {

@@ -666,7 +666,7 @@ func (sd *sysDialer) dialParallel(ctx context.Context, primaries, fallbacks addr
 
 	type dialResult struct {
 		Conn
-		error
+		error   error
 		primary bool
 		done    bool
 	}

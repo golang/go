@@ -307,8 +307,12 @@ func Encode(out io.Writer, b *Block) error {
 	if _, err := b64.Write(b.Bytes); err != nil {
 		return err
 	}
-	b64.Close()
-	breaker.Close()
+	if err := b64.Close(); err != nil {
+		return err
+	}
+	if err := breaker.Close(); err != nil {
+		return err
+	}
 
 	if _, err := out.Write(pemEnd[1:]); err != nil {
 		return err

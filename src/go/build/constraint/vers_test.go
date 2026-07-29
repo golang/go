@@ -23,6 +23,8 @@ var tests = []struct {
 	{"//go:build !go1.60", -1},
 	{"//go:build linux && go1.50 || darwin && go1.60", 50},
 	{"//go:build linux && go1.50 || !(!darwin || !go1.60)", 50},
+	{"//go:build notgo1.21", -1},
+	{"//go:build ago1.20", -1},
 }
 
 func TestGoVersion(t *testing.T) {

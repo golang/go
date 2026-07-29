@@ -45,11 +45,12 @@ type makeFuncImpl struct {
 // The Examples section of the documentation includes an illustration
 // of how to use MakeFunc to build a swap function for different types.
 func MakeFunc(typ Type, fn func(args []Value) (results []Value)) Value {
+	t := typ.common()
+	typ = toType(t) // for #80332, ensure t's exported methods are not shadowed
 	if typ.Kind() != Func {
 		panic("reflect: call of MakeFunc with non-Func type")
 	}
 
-	t := typ.common()
 	ftyp := (*funcType)(unsafe.Pointer(t))
 
 	code := abi.FuncPCABI0(makeFuncStub)
@@ -87,25 +88,28 @@ type methodValue struct {
 	rcvr   Value
 }
 
-// makeMethodValue converts v from the rcvr+method index representation
-// of a method value to an actual method func value, which is
-// basically the receiver value with a special bit set, into a true
-// func value - a value holding an actual func. The output is
-// semantically equivalent to the input as far as the user of package
-// reflect can tell, but the true func representation can be handled
-// by code like Convert and Interface and Assign.
-func makeMethodValue(op string, v Value) Value {
-	if v.flag&flagMethod == 0 {
-		panic("reflect: internal error: invalid use of makeMethodValue")
+// makeMethodValue implements Value.Method(i). It creates a method func
+// value closure containing the receiver v and method index i, with the
+// flagMethod bit set so that direct calls via reflect can use a fast path.
+func makeMethodValue(v Value, i int) Value {
+	var mtyp *abi.Type
+	typ := v.typ()
+	if typ.Kind() == abi.Interface {
+		tt := (*interfaceType)(unsafe.Pointer(typ))
+		if uint(i) >= uint(len(tt.Methods)) {
+			panic("reflect: internal error: invalid method index")
+		}
+		m := &tt.Methods[i]
+		mtyp = typeOffFor(typ, m.Typ)
+	} else {
+		ms := typ.ExportedMethods()
+		if uint(i) >= uint(len(ms)) {
+			panic("reflect: internal error: invalid method index")
+		}
+		m := ms[i]
+		mtyp = typeOffFor(typ, m.Mtyp)
 	}
-
-	// Ignoring the flagMethod bit, v describes the receiver, not the method type.
-	fl := v.flag & (flagRO | flagAddr | flagIndir)
-	fl |= flag(v.typ().Kind())
-	rcvr := Value{v.typ(), v.ptr, fl}
-
-	// v.Type returns the actual type of the method value.
-	ftyp := (*funcType)(unsafe.Pointer(v.Type().(*rtype)))
+	ftyp := mtyp.FuncType()
 
 	code := methodValueCallCodePtr()
 
@@ -118,16 +122,11 @@ func makeMethodValue(op string, v Value) Value {
 			argLen:  abid.stackCallArgsSize,
 			regPtrs: abid.inRegPtrs,
 		},
-		method: int(v.flag) >> flagMethodShift,
-		rcvr:   rcvr,
+		method: i,
+		rcvr:   v,
 	}
 
-	// Cause panic if method is not appropriate.
-	// The panic would still happen during the call if we omit this,
-	// but we want Interface() and other operations to fail early.
-	methodReceiver(op, fv.rcvr, fv.method)
-
-	return Value{ftyp.Common(), unsafe.Pointer(fv), v.flag&flagRO | flag(Func)}
+	return Value{ftyp.Common(), unsafe.Pointer(fv), v.flag.ro() | flagMethod | flag(Func)}
 }
 
 func methodValueCallCodePtr() uintptr {

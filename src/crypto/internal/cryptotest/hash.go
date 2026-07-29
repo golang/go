@@ -20,6 +20,20 @@ type MakeHash func() hash.Hash
 // TestHash performs a set of tests on hash.Hash implementations, checking the
 // documented requirements of Write, Sum, Reset, Size, and BlockSize.
 func TestHash(t *testing.T, mh MakeHash) {
+	t.Run("OutOfBounds", func(t *testing.T) {
+		start, end := BoundarySlices(t, 1000)
+		h := mh()
+		for i := range len(start) + 1 {
+			h.Write(start[:i])
+			h.Write(start[len(start)-i:])
+			h.Write(end[:i])
+			h.Write(end[len(end)-i:])
+		}
+		start, end = BoundarySlices(t, h.Size())
+		h.Sum(start[:0])
+		h.Sum(end[:0])
+	})
+
 	if boring.Enabled || fips140.Version() == "v1.0.0" {
 		testhash.TestHashWithoutClone(t, testhash.MakeHash(mh))
 		return

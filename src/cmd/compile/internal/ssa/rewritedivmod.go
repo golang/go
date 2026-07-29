@@ -487,6 +487,30 @@ func rewriteValuedivmod_OpDiv32u(v *Value) bool {
 		return true
 	}
 	// match: (Div32u <t> x (Const32 [c]))
+	// cond: umagicOK32(c) && config.RegSize == 8 && config.ctxt.Arch.Name != "wasm" && umagic32(c).m&1 != 0
+	// result: (Trunc64to32 <t> (Hmul64u <typ.UInt64> (ZeroExt32to64 x) (Const64 <typ.UInt64> [int64(umagic32PreShifted(c))])))
+	for {
+		t := v.Type
+		x := v_0
+		if v_1.Op != OpConst32 {
+			break
+		}
+		c := auxIntToInt32(v_1.AuxInt)
+		if !(umagicOK32(c) && config.RegSize == 8 && config.ctxt.Arch.Name != "wasm" && umagic32(c).m&1 != 0) {
+			break
+		}
+		v.reset(OpTrunc64to32)
+		v.Type = t
+		v0 := b.NewValue0(v.Pos, OpHmul64u, typ.UInt64)
+		v1 := b.NewValue0(v.Pos, OpZeroExt32to64, typ.UInt64)
+		v1.AddArg(x)
+		v2 := b.NewValue0(v.Pos, OpConst64, typ.UInt64)
+		v2.AuxInt = int64ToAuxInt(int64(umagic32PreShifted(c)))
+		v0.AddArg2(v1, v2)
+		v.AddArg(v0)
+		return true
+	}
+	// match: (Div32u <t> x (Const32 [c]))
 	// cond: umagicOK32(c) && config.RegSize == 8 && c&1 == 0
 	// result: (Trunc64to32 <t> (Rsh64Ux64 <typ.UInt64> (Mul64 <typ.UInt64> (Rsh64Ux64 <typ.UInt64> (ZeroExt32to64 x) (Const64 <typ.UInt64> [1])) (Const64 <typ.UInt64> [int64(1<<31 + (umagic32(c).m+1)/2)])) (Const64 <typ.UInt64> [32 + umagic32(c).s - 2])))
 	for {
@@ -547,7 +571,7 @@ func rewriteValuedivmod_OpDiv32u(v *Value) bool {
 		return true
 	}
 	// match: (Div32u <t> x (Const32 [c]))
-	// cond: umagicOK32(c) && config.RegSize == 8
+	// cond: umagicOK32(c) && config.RegSize == 8 && config.ctxt.Arch.Name == "wasm"
 	// result: (Trunc64to32 <t> (Rsh64Ux64 <typ.UInt64> (Avg64u (Lsh64x64 <typ.UInt64> (ZeroExt32to64 x) (Const64 <typ.UInt64> [32])) (Mul64 <typ.UInt64> (ZeroExt32to64 x) (Const64 <typ.UInt64> [int64(umagic32(c).m)]))) (Const64 <typ.UInt64> [32 + umagic32(c).s - 1])))
 	for {
 		t := v.Type
@@ -556,7 +580,7 @@ func rewriteValuedivmod_OpDiv32u(v *Value) bool {
 			break
 		}
 		c := auxIntToInt32(v_1.AuxInt)
-		if !(umagicOK32(c) && config.RegSize == 8) {
+		if !(umagicOK32(c) && config.RegSize == 8 && config.ctxt.Arch.Name == "wasm") {
 			break
 		}
 		v.reset(OpTrunc64to32)

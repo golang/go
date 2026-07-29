@@ -5,6 +5,7 @@
 package ssa
 
 import (
+	"cmd/compile/internal/base"
 	"cmd/internal/src"
 	"fmt"
 	"hash/crc32"
@@ -17,7 +18,9 @@ import (
 	"regexp"
 	"runtime"
 	"sort"
+	"strconv"
 	"strings"
+	"sync"
 	"time"
 )
 
@@ -202,12 +205,14 @@ type pass struct {
 	fn       func(*Func)
 	required bool
 	disabled bool
-	time     bool            // report time to run pass
-	mem      bool            // report mem stats to run pass
-	stats    int             // pass reports own "stats" (e.g., branches removed)
-	debug    int             // pass performs some debugging. =1 should be in error-testing-friendly Warnl format.
-	test     int             // pass-specific ad-hoc option, perhaps useful in development
-	dump     map[string]bool // dump if function name matches
+	time     bool             // report time to run pass
+	mem      bool             // report mem stats to run pass
+	stats    int              // pass reports own "stats" (e.g., branches removed)
+	debug    int              // pass performs some debugging. =1 should be in error-testing-friendly Warnl format.
+	test     int              // pass-specific ad-hoc option, perhaps useful in development
+	dump     map[string]bool  // dump if function name matches
+	keywords map[string]int64 // ad hoc parameters, typically for experiments/tuning
+	usedKW   map[string]bool  // if a keyword is supplied to a phase, note that it was used.
 }
 
 func (p *pass) addDump(s string) {
@@ -222,6 +227,21 @@ func (p *pass) String() string {
 		return "nil pass"
 	}
 	return p.name
+}
+
+var kwMu sync.Mutex
+
+func (p *pass) Val(kw string, ifUnset int64) int64 {
+	if p == nil || p.keywords == nil {
+		return ifUnset
+	}
+	if v, ok := p.keywords[kw]; ok {
+		kwMu.Lock()
+		p.usedKW[kw] = true
+		kwMu.Unlock()
+		return v
+	}
+	return ifUnset
 }
 
 // Run consistency checker between each phase
@@ -283,7 +303,7 @@ where:
 ` + phasenames + `
 
 - <flag> is one of:
-    on, off, debug, mem, time, test, stats, dump, seed
+    on, off, debug, mem, time, test, stats, dump, seed, @<keyword>
 
 - <value> defaults to 1
 
@@ -438,7 +458,19 @@ commas. For example:
 			case "dump":
 				p.addDump(valString)
 			default:
-				return fmt.Sprintf("Did not find a flag matching %s in -d=ssa/%s debug option", flag, phase)
+				if flag != "" && flag[0] == '@' {
+					if p.keywords == nil {
+						p.keywords = make(map[string]int64)
+						p.usedKW = make(map[string]bool)
+					}
+					val64, err := strconv.ParseInt(valString, 10, 64)
+					if err != nil {
+						return fmt.Sprintf("Failed to parse %s as integer value in -d=ssa/%s/%s=%s option", valString, phase, flag, valString)
+					}
+					p.keywords[flag[1:]] = int64(val64)
+				} else {
+					return fmt.Sprintf("Did not find a flag matching %s in -d=ssa/%s debug option", flag, phase)
+				}
 			}
 			if p.disabled && p.required {
 				return fmt.Sprintf("Cannot disable required SSA phase %s using -d=ssa/%s debug option", phase, phase)
@@ -503,8 +535,9 @@ var passes = [...]pass{
 	{name: "checkLower", fn: checkLower, required: true},
 	{name: "loop invariant", fn: licm},
 	{name: "late phielim and copyelim", fn: copyelim},
-	{name: "tighten", fn: tighten, required: true},                     // move values closer to their uses
-	{name: "merge conditional branches", fn: mergeConditionalBranches}, // generate conditional comparison instructions on ARM64 architecture
+	{name: "tighten", fn: tighten, required: true}, // move values closer to their uses
+	// TODO: fix 80102 and re-enable.
+	//{name: "merge conditional branches", fn: mergeConditionalBranches}, // generate conditional comparison instructions on ARM64 architecture
 	{name: "late deadcode", fn: deadcode},
 	{name: "critical", fn: critical, required: true}, // remove critical edges
 	{name: "phi tighten", fn: phiTighten},            // place rematerializable phi args near uses to reduce value lifetimes
@@ -609,6 +642,20 @@ var passOrder = [...]constraint{
 	{"known bits", "late opt"},
 	// known bits does a better job once prove cleaned up some always taken and never taken branches.
 	{"prove", "known bits"},
+}
+
+func PostCompile() {
+	for _, c := range passes {
+		if c.keywords != nil {
+			for k := range c.keywords {
+				if !c.usedKW[k] {
+					// If someone specified a debugging keyword that was not
+					// consumed, they might want to know about this.
+					base.Warn("Keyword %s for pass %s was not used", k, c.name)
+				}
+			}
+		}
+	}
 }
 
 func init() {

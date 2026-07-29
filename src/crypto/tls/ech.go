@@ -65,7 +65,7 @@ func parseECHConfig(enc []byte) (skip bool, ec echConfig, err error) {
 	if len(ec.raw) < int(ec.Length)+4 {
 		return false, echConfig{}, &echConfigErr{"length"}
 	}
-	ec.raw = ec.raw[:ec.Length+4]
+	ec.raw = ec.raw[:int(ec.Length)+4]
 	if ec.Version != extensionEncryptedClientHello {
 		s.Skip(int(ec.Length))
 		return true, echConfig{}, nil
@@ -128,7 +128,7 @@ func parseECHConfigList(data []byte) ([]echConfig, error) {
 	if !s.ReadUint16(&length) {
 		return nil, errMalformedECHConfigList
 	}
-	if length != uint16(len(data)-2) {
+	if int(length) != len(data)-2 {
 		return nil, errMalformedECHConfigList
 	}
 	var configs []echConfig
@@ -136,7 +136,7 @@ func parseECHConfigList(data []byte) ([]echConfig, error) {
 		if len(s) < 4 {
 			return nil, errors.New("tls: malformed ECHConfig")
 		}
-		configLen := uint16(s[2])<<8 | uint16(s[3])
+		configLen := int(s[2])<<8 | int(s[3])
 		skip, ec, err := parseECHConfig(s)
 		if err != nil {
 			return nil, err

@@ -694,11 +694,11 @@ func maybeSwitchForGoInstallVersion(ld *modload.Loader, minVers string) {
 	// and may end up being common in self-contained "go install" or "go run"
 	// command lines if we add new flags in the future.
 
-	// Set up modules without an explicit go.mod, to download go.mod.
+	// Use a fresh module loader without an explicit go.mod, to download go.mod.
+	ld = modload.NewLoader()
 	ld.ForceUseModules = true
 	ld.RootMode = modload.NoRoot
 	modload.Init(ld)
-	defer ld.Reset()
 
 	// See internal/load.PackagesAndErrorsOutsideModule
 	ctx := context.Background()

@@ -259,13 +259,13 @@ func TypeExpr(t types.Type, qual types.Qualifier) ast.Expr {
 	case *types.Signature:
 		var params []*ast.Field
 		for v := range t.Params().Variables() {
+			var names []*ast.Ident
+			if v.Name() != "" {
+				names = []*ast.Ident{ast.NewIdent(v.Name())}
+			}
 			params = append(params, &ast.Field{
-				Type: TypeExpr(v.Type(), qual),
-				Names: []*ast.Ident{
-					{
-						Name: v.Name(),
-					},
-				},
+				Type:  TypeExpr(v.Type(), qual),
+				Names: names,
 			})
 		}
 		if t.Variadic() {
@@ -328,10 +328,10 @@ func TypeExpr(t types.Type, qual types.Qualifier) ast.Expr {
 		return expr
 
 	case *types.Struct:
-		return ast.NewIdent(t.String())
+		return ast.NewIdent(types.TypeString(t, qual))
 
 	case *types.Interface:
-		return ast.NewIdent(t.String())
+		return ast.NewIdent(types.TypeString(t, qual))
 
 	case *types.Union:
 		if t.Len() == 0 {

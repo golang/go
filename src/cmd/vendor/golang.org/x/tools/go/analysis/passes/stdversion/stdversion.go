@@ -15,6 +15,7 @@ import (
 	"golang.org/x/tools/go/analysis"
 	"golang.org/x/tools/go/analysis/passes/inspect"
 	"golang.org/x/tools/go/ast/inspector"
+	"golang.org/x/tools/internal/stdlib"
 	"golang.org/x/tools/internal/typesinternal"
 	"golang.org/x/tools/internal/versions"
 )
@@ -64,8 +65,8 @@ func run(pass *analysis.Pass) (any, error) {
 		pkg     *types.Package
 		version string
 	}
-	memo := make(map[key]map[types.Object]string) // records symbol's minimum Go version
-	disallowedSymbols := func(pkg *types.Package, version string) map[types.Object]string {
+	memo := make(map[key]map[types.Object]stdlib.Symbol)
+	disallowedSymbols := func(pkg *types.Package, version string) map[types.Object]stdlib.Symbol {
 		k := key{pkg, version}
 		disallowed, ok := memo[k]
 		if !ok {
@@ -98,20 +99,12 @@ func run(pass *analysis.Pass) (any, error) {
 			if fileVersion != "" {
 				if obj, ok := pass.TypesInfo.Uses[n]; ok && obj.Pkg() != nil {
 					disallowed := disallowedSymbols(obj.Pkg(), fileVersion)
-					if minVersion, ok := disallowed[origin(obj)]; ok {
-						// Some symbols are accessible before their release but
-						// only with specific build tags unknown to us here.
-						// Avoid false positives in such cases.
-						// TODO(mkalil): move this check into typesinternal.TooNewStdSymbols.
-						if obj.Pkg().Path() == "testing/synctest" && versions.AtLeast(fileVersion, "go1.24") {
-							break // requires go1.24 && goexperiment.synctest || go1.25
-						}
-						noun := "module"
-						if fileVersion != pkgVersion {
-							noun = "file"
-						}
+					if sym, ok := disallowed[origin(obj)]; ok {
 						pass.ReportRangef(n, "%s.%s requires %v or later (%s is %s)",
-							obj.Pkg().Name(), obj.Name(), minVersion, noun, fileVersion)
+							obj.Pkg().Name(), sym.Name,
+							sym.Version,
+							cond(fileVersion != pkgVersion, "file", "module"),
+							fileVersion)
 					}
 				}
 			}
@@ -133,4 +126,12 @@ func origin(obj types.Object) types.Object {
 		}
 	}
 	return obj
+}
+
+func cond[T any](cond bool, t, f T) T {
+	if cond {
+		return t
+	} else {
+		return f
+	}
 }

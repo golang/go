@@ -332,8 +332,7 @@ func (f *File) codeRanges(start, end token.Pos) []Range {
 		endLine := startLine
 		if tok == token.STRING {
 			// Only string literals can span multiple lines.
-			// TODO(adonovan): simplify when https://go.dev/issue/74958 is resolved.
-			endLine = scanFile.PositionFor(pos+token.Pos(len(lit)), false).Line
+			endLine = scanFile.PositionFor(s.End(), false).Line
 		}
 
 		if prevEndLine == 0 {

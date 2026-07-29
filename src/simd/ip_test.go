@@ -170,7 +170,7 @@ func ipNosimd(x, y []float32) float32 {
 	return z
 }
 
-// BenchmarkIPnosimd1 is serial, just a vanilla inner product.
+// BenchmarkIPnosimd0 is serial, just a vanilla inner product.
 func BenchmarkIPnosimd0(b *testing.B) {
 	x := make([]float32, ipBenchLen)
 	y := make([]float32, ipBenchLen)

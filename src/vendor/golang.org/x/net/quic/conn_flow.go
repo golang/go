@@ -17,7 +17,7 @@ import (
 //   - bytes read by the user
 //   - bytes received from the peer
 //   - limit sent to the peer in a MAX_DATA frame
-//   - potential new limit to sent to the peer
+//   - potential new limit to send to the peer
 //
 // We maintain a flow control window, so as bytes are read by the user
 // the potential limit is extended correspondingly.

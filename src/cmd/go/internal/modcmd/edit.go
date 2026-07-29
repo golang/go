@@ -175,12 +175,12 @@ See https://go.dev/ref/mod#go-mod-edit for more about 'go mod edit'.
 }
 
 var (
-	editFmt       = cmdEdit.Flag.Bool("fmt", false, "")
-	editGo        = cmdEdit.Flag.String("go", "", "")
-	editToolchain = cmdEdit.Flag.String("toolchain", "", "")
-	editJSON      = cmdEdit.Flag.Bool("json", false, "")
-	editPrint     = cmdEdit.Flag.Bool("print", false, "")
-	editModule    = cmdEdit.Flag.String("module", "", "")
+	editFmt       = cmdEdit.Flag.Bool("fmt", false, "reformat the go.mod file without making other changes")
+	editGo        = cmdEdit.Flag.String("go", "", "set the expected Go language version")
+	editToolchain = cmdEdit.Flag.String("toolchain", "", "set the expected Go toolchain name")
+	editJSON      = cmdEdit.Flag.Bool("json", false, "print the final go.mod file in JSON format")
+	editPrint     = cmdEdit.Flag.Bool("print", false, "print the final go.mod in its text format")
+	editModule    = cmdEdit.Flag.String("module", "", "change the module path")
 	edits         []func(*modfile.File) // edits specified in flags
 )
 
@@ -192,20 +192,20 @@ func (f flagFunc) Set(s string) error { f(s); return nil }
 func init() {
 	cmdEdit.Run = runEdit // break init cycle
 
-	cmdEdit.Flag.Var(flagFunc(flagGodebug), "godebug", "")
-	cmdEdit.Flag.Var(flagFunc(flagDropGodebug), "dropgodebug", "")
-	cmdEdit.Flag.Var(flagFunc(flagRequire), "require", "")
-	cmdEdit.Flag.Var(flagFunc(flagDropRequire), "droprequire", "")
-	cmdEdit.Flag.Var(flagFunc(flagExclude), "exclude", "")
-	cmdEdit.Flag.Var(flagFunc(flagDropExclude), "dropexclude", "")
-	cmdEdit.Flag.Var(flagFunc(flagReplace), "replace", "")
-	cmdEdit.Flag.Var(flagFunc(flagDropReplace), "dropreplace", "")
-	cmdEdit.Flag.Var(flagFunc(flagRetract), "retract", "")
-	cmdEdit.Flag.Var(flagFunc(flagDropRetract), "dropretract", "")
-	cmdEdit.Flag.Var(flagFunc(flagTool), "tool", "")
-	cmdEdit.Flag.Var(flagFunc(flagDropTool), "droptool", "")
-	cmdEdit.Flag.Var(flagFunc(flagIgnore), "ignore", "")
-	cmdEdit.Flag.Var(flagFunc(flagDropIgnore), "dropignore", "")
+	cmdEdit.Flag.Var(flagFunc(flagGodebug), "godebug", "add a godebug `key=value` line")
+	cmdEdit.Flag.Var(flagFunc(flagDropGodebug), "dropgodebug", "drop godebug lines with the given `key`")
+	cmdEdit.Flag.Var(flagFunc(flagRequire), "require", "add a require directive: `path@version`")
+	cmdEdit.Flag.Var(flagFunc(flagDropRequire), "droprequire", "drop a require directive with the given `key`")
+	cmdEdit.Flag.Var(flagFunc(flagExclude), "exclude", "add an exclude directive: `path@version`")
+	cmdEdit.Flag.Var(flagFunc(flagDropExclude), "dropexclude", "drop an exclude directive with the given `key`")
+	cmdEdit.Flag.Var(flagFunc(flagReplace), "replace", "add a replace directive: `old[@v]=new[@v]`")
+	cmdEdit.Flag.Var(flagFunc(flagDropReplace), "dropreplace", "drop a replace directive with the give `key`")
+	cmdEdit.Flag.Var(flagFunc(flagRetract), "retract", "add a retract directive: `version` or `[start, end]")
+	cmdEdit.Flag.Var(flagFunc(flagDropRetract), "dropretract", "drop a retract directive")
+	cmdEdit.Flag.Var(flagFunc(flagTool), "tool", "add a tool directive: `path`")
+	cmdEdit.Flag.Var(flagFunc(flagDropTool), "droptool", "drop a tool directive: `path`")
+	cmdEdit.Flag.Var(flagFunc(flagIgnore), "ignore", "add an ignore directive: `path`")
+	cmdEdit.Flag.Var(flagFunc(flagDropIgnore), "dropignore", "drop an ignore directive: `path`")
 
 	base.AddBuildFlagsNX(&cmdEdit.Flag)
 	base.AddChdirFlag(&cmdEdit.Flag)

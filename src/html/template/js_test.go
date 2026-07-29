@@ -180,6 +180,31 @@ func TestJSValEscaper(t *testing.T) {
 	}
 }
 
+func TestJSValEscaperCycles(t *testing.T) {
+	mapCycle := map[string]any{}
+	mapCycle["self"] = mapCycle
+	sliceCycle := []any{nil}
+	sliceCycle[0] = sliceCycle
+
+	for _, test := range []struct {
+		name  string
+		value any
+	}{
+		{"map", mapCycle},
+		{"slice", sliceCycle},
+	} {
+		t.Run(test.name, func(t *testing.T) {
+			got := jsValEscaper(test.value)
+			if !strings.Contains(strings.ToLower(got), "cycle") {
+				t.Errorf("got %q, want cycle error", got)
+			}
+			if want := "*/null "; !strings.HasSuffix(got, want) {
+				t.Errorf("got %q, want %q", got, want)
+			}
+		})
+	}
+}
+
 func TestJSStrEscaper(t *testing.T) {
 	tests := []struct {
 		x   any

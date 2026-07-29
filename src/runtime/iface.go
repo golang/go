@@ -201,6 +201,11 @@ func (t *itabTableType) add(m *itab) {
 // If !firstTime, itabInit will not write anything to m.Fun (see issue 65962).
 // It is ok to call this multiple times on the same m, even concurrently
 // (although it will only be called once with firstTime==true).
+//
+// itabInit stores only code pointers, so it must not emit a write barrier;
+// //go:nowritebarrier enforces that (see the methods store below).
+//
+//go:nowritebarrier
 func itabInit(m *itab, firstTime bool) string {
 	inter := m.Inter
 	typ := m.Type
@@ -214,7 +219,10 @@ func itabInit(m *itab, firstTime bool) string {
 	nt := int(x.Mcount)
 	xmhdr := unsafe.Slice((*abi.Method)(add(unsafe.Pointer(x), uintptr(x.Moff))), nt)
 	j := 0
-	methods := unsafe.Slice((*unsafe.Pointer)(unsafe.Pointer(&m.Fun[0])), ni)
+	// These are code pointers, not heap pointers. Use a uintptr slice so the
+	// store emits no write barrier: on wasm a code pointer can look like a
+	// heap pointer and make the GC crash (see issue 80472).
+	methods := unsafe.Slice(&m.Fun[0], ni)
 	var fun0 unsafe.Pointer
 imethods:
 	for k := 0; k < ni; k++ {
@@ -240,7 +248,7 @@ imethods:
 					if k == 0 {
 						fun0 = ifn // we'll set m.Fun[0] at the end
 					} else if firstTime {
-						methods[k] = ifn
+						methods[k] = uintptr(ifn)
 					}
 					continue imethods
 				}

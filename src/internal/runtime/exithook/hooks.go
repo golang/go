@@ -79,7 +79,3 @@ func Run(code int) {
 		h.F()
 	}
 }
-
-type exitError string
-
-func (e exitError) Error() string { return string(e) }

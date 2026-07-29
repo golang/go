@@ -71,7 +71,7 @@ func init() {
 
 	work.AddBuildFlags(CmdRun, work.DefaultBuildFlags)
 	work.AddCoverFlags(CmdRun, nil)
-	CmdRun.Flag.Var((*base.StringsFlag)(&work.ExecCmd), "exec", "")
+	CmdRun.Flag.Var((*base.StringsFlag)(&work.ExecCmd), "exec", "invoke the binary using `xprog`; see 'go help run' for details")
 }
 
 func runRun(ctx context.Context, cmd *base.Command, args []string) {
@@ -151,7 +151,7 @@ func runRun(ctx context.Context, cmd *base.Command, args []string) {
 	p.Internal.OmitDebug = true
 	p.Target = "" // must build - not up to date
 	if p.Internal.CmdlineFiles {
-		//set executable name if go file is given as cmd-argument
+		// set executable name if go file is given as cmd-argument
 		var src string
 		if len(p.GoFiles) > 0 {
 			src = p.GoFiles[0]

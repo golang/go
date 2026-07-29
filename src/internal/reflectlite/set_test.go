@@ -59,6 +59,8 @@ type mapError map[string]string
 
 func (mapError) Error() string { return "mapError" }
 
+// For this test, both mapError and *mapError implement error,
+// though in general this leads to ambiguity.
 var _ error = mapError{}
 var _ error = new(mapError)
 

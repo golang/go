@@ -5,6 +5,7 @@
 package ssa
 
 import (
+	"cmd/compile/internal/ssa/block"
 	"cmd/compile/internal/types"
 	"cmd/internal/obj"
 	"fmt"
@@ -27,7 +28,7 @@ func (e localEffect) String() string {
 // effect.
 func ifEffect(b *Block) (features CPUfeatures, taken int) {
 	// TODO generalize for other architectures.
-	if b.Kind != BlockIf {
+	if b.Kind != block.BlockIf {
 		return
 	}
 	c := b.Controls[0]
@@ -162,7 +163,7 @@ func cpufeatures(f *Func) {
 					continue
 				}
 				pi := p.Index()
-				if pb.Kind != BlockIf {
+				if pb.Kind != block.BlockIf {
 					pi = 0
 				}
 
@@ -218,7 +219,7 @@ func cpufeatures(f *Func) {
 			for _, p := range b.Preds {
 				pb := p.Block()
 				pi := p.Index()
-				if pb.Kind != BlockIf {
+				if pb.Kind != block.BlockIf {
 					pi = 0
 				}
 				feat &= effects[pb.ID].end[pi]

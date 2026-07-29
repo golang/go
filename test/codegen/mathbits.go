@@ -261,6 +261,28 @@ func Reverse8(n uint8) uint8 {
 	return bits.Reverse8(n)
 }
 
+func Reverse64Const() uint64 {
+	// arm64:-"RBIT"
+	// loong64:-"BITREV"
+	return bits.Reverse64(0x0102030405060708)
+}
+
+func Reverse32Const() uint32 {
+	// arm64:-"RBITW"
+	// loong64:-"BITREV"
+	return bits.Reverse32(0x01020304)
+}
+
+func Reverse16Const() uint16 {
+	// loong64:-"BITREV"
+	return bits.Reverse16(0x0102)
+}
+
+func Reverse8Const() uint8 {
+	// loong64:-"BITREV"
+	return bits.Reverse8(0x12)
+}
+
 // ----------------------- //
 //    bits.ReverseBytes    //
 // ----------------------- //
@@ -307,6 +329,26 @@ func ReverseBytes16(n uint16) uint16 {
 	// ppc64x/power10: "BRH"
 	// riscv64/rva22u64,riscv64/rva23u64:"REV8" "SRLI [$]48"
 	return bits.ReverseBytes16(n)
+}
+
+func ReverseBytes64Const() uint64 {
+	// amd64:-"BSWAPQ"
+	// arm64:-"REV"
+	// s390x:-"MOVDBR"
+	return bits.ReverseBytes64(0x0102030405060708)
+}
+
+func ReverseBytes32Const() uint32 {
+	// amd64:-"BSWAPL"
+	// arm64:-"REVW"
+	// s390x:-"MOVWBR"
+	return bits.ReverseBytes32(0x01020304)
+}
+
+func ReverseBytes16Const() uint16 {
+	// amd64:-"ROLW"
+	// arm64:-"REV16W"
+	return bits.ReverseBytes16(0x0102)
 }
 
 // --------------------- //
@@ -721,6 +763,19 @@ func Add64MPanicOnOverflowGT(a, b [2]uint64) [2]uint64 {
 	return r
 }
 
+func issue80399add(a, b [2]uint64, s uint64) uint64 {
+	_, c := bits.Add64(a[0], b[0], 0)
+	_, c2 := bits.Add64(a[1], b[1], c)
+	// amd64:-"SET" -"MOVBLZX" "ADCQ"
+	return s + c2
+}
+func issue80399sub(a, b [2]uint64, s uint64) uint64 {
+	_, c := bits.Add64(a[0], b[0], 0)
+	_, c2 := bits.Add64(a[1], b[1], c)
+	// amd64:-"SET" -"MOVBLZX" "SBBQ"
+	return s - c2
+}
+
 // Verify independent carry chain operations are scheduled efficiently
 // and do not cause unnecessary save/restore of the CA bit.
 //
@@ -937,7 +992,7 @@ func Sub64MPanicOnOverflowGT(a, b [2]uint64) [2]uint64 {
 // --------------- //
 
 func Mul(x, y uint) (hi, lo uint) {
-	// amd64:"MULQ"
+	// amd64:`MULX?Q`
 	// arm64:"UMULH" "MUL"
 	// loong64:"MULV" "MULHVU"
 	// ppc64x:"MULHDU" "MULLD"
@@ -948,7 +1003,9 @@ func Mul(x, y uint) (hi, lo uint) {
 }
 
 func Mul64(x, y uint64) (hi, lo uint64) {
-	// amd64:"MULQ"
+	// amd64:`MULX?Q`
+	// amd64/v3:"MULXQ"
+	// amd64/v4:"MULXQ"
 	// arm64:"UMULH" "MUL"
 	// loong64:"MULV" "MULHVU"
 	// ppc64x:"MULHDU" "MULLD"
@@ -979,6 +1036,12 @@ func Mul64Const() (uint64, uint64) {
 	// arm64:"MOVD [$]7133701809754865664, R1" "MOVD [$]88, R0"
 	// loong64:"MOVV [$]88, R4" "MOVV [$]7133701809754865664, R5" -"MUL"
 	return bits.Mul64(99+88<<8, 1<<56)
+}
+
+func Mul64ConstPow2(x uint64) (uint64, uint64) {
+	// amd64:-"MULQ"
+	// arm64:-"UMULH" -"\tMUL\t"
+	return bits.Mul64(x, 1<<40)
 }
 
 func MulUintOverflow(p *uint64) []uint64 {

@@ -6,6 +6,8 @@ package ssa
 
 import (
 	"fmt"
+
+	"cmd/compile/internal/ssa/block"
 )
 
 type loop struct {
@@ -96,20 +98,20 @@ func likelyadjust(f *Func) {
 
 	for _, b := range po {
 		switch b.Kind {
-		case BlockExit:
+		case block.BlockExit:
 			// Very unlikely.
 			local[b.ID] = blEXIT
 			certain[b.ID] = blEXIT
 
 			// Ret, it depends.
-		case BlockRet, BlockRetJmp:
+		case block.BlockRet, block.BlockRetJmp:
 			local[b.ID] = blRET
 			certain[b.ID] = blRET
 
 			// Calls. TODO not all calls are equal, names give useful clues.
 			// Any name-based heuristics are only relative to other calls,
 			// and less influential than inferences from loop structure.
-		case BlockDefer:
+		case block.BlockDefer:
 			local[b.ID] = blCALL
 			certain[b.ID] = max(blCALL, certain[b.Succs[0].b.ID])
 

@@ -237,43 +237,43 @@ func TestSetenv(t *testing.T) {
 	}
 }
 
-func expectParallelConflict(t *testing.T) {
-	want := testing.ParallelConflict
+func expectParallelConflict(t *testing.T, op string) {
+	want := testing.ParallelConflict(op)
 	if got := recover(); got != want {
 		t.Fatalf("expected panic; got %#v want %q", got, want)
 	}
 }
 
-func testWithParallelAfter(t *testing.T, fn func(*testing.T)) {
-	defer expectParallelConflict(t)
+func testWithParallelAfter(t *testing.T, op string, fn func(*testing.T)) {
+	defer expectParallelConflict(t, op)
 
 	fn(t)
 	t.Parallel()
 }
 
-func testWithParallelBefore(t *testing.T, fn func(*testing.T)) {
-	defer expectParallelConflict(t)
+func testWithParallelBefore(t *testing.T, op string, fn func(*testing.T)) {
+	defer expectParallelConflict(t, op)
 
 	t.Parallel()
 	fn(t)
 }
 
-func testWithParallelParentBefore(t *testing.T, fn func(*testing.T)) {
+func testWithParallelParentBefore(t *testing.T, op string, fn func(*testing.T)) {
 	t.Parallel()
 
 	t.Run("child", func(t *testing.T) {
-		defer expectParallelConflict(t)
+		defer expectParallelConflict(t, op)
 
 		fn(t)
 	})
 }
 
-func testWithParallelGrandParentBefore(t *testing.T, fn func(*testing.T)) {
+func testWithParallelGrandParentBefore(t *testing.T, op string, fn func(*testing.T)) {
 	t.Parallel()
 
 	t.Run("child", func(t *testing.T) {
 		t.Run("grand-child", func(t *testing.T) {
-			defer expectParallelConflict(t)
+			defer expectParallelConflict(t, op)
 
 			fn(t)
 		})
@@ -285,19 +285,19 @@ func tSetenv(t *testing.T) {
 }
 
 func TestSetenvWithParallelAfter(t *testing.T) {
-	testWithParallelAfter(t, tSetenv)
+	testWithParallelAfter(t, "t.Setenv", tSetenv)
 }
 
 func TestSetenvWithParallelBefore(t *testing.T) {
-	testWithParallelBefore(t, tSetenv)
+	testWithParallelBefore(t, "t.Setenv", tSetenv)
 }
 
 func TestSetenvWithParallelParentBefore(t *testing.T) {
-	testWithParallelParentBefore(t, tSetenv)
+	testWithParallelParentBefore(t, "t.Setenv", tSetenv)
 }
 
 func TestSetenvWithParallelGrandParentBefore(t *testing.T) {
-	testWithParallelGrandParentBefore(t, tSetenv)
+	testWithParallelGrandParentBefore(t, "t.Setenv", tSetenv)
 }
 
 func tChdir(t *testing.T) {
@@ -305,19 +305,19 @@ func tChdir(t *testing.T) {
 }
 
 func TestChdirWithParallelAfter(t *testing.T) {
-	testWithParallelAfter(t, tChdir)
+	testWithParallelAfter(t, "t.Chdir", tChdir)
 }
 
 func TestChdirWithParallelBefore(t *testing.T) {
-	testWithParallelBefore(t, tChdir)
+	testWithParallelBefore(t, "t.Chdir", tChdir)
 }
 
 func TestChdirWithParallelParentBefore(t *testing.T) {
-	testWithParallelParentBefore(t, tChdir)
+	testWithParallelParentBefore(t, "t.Chdir", tChdir)
 }
 
 func TestChdirWithParallelGrandParentBefore(t *testing.T) {
-	testWithParallelGrandParentBefore(t, tChdir)
+	testWithParallelGrandParentBefore(t, "t.Chdir", tChdir)
 }
 
 func TestChdir(t *testing.T) {

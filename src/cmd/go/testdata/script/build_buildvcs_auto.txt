@@ -74,7 +74,7 @@ go version -m example.exe
 # Other flag values should be rejected with a useful error message.
 
 ! go build -buildvcs=hg -o example.exe .
-stderr '\Ainvalid boolean value "hg" for -buildvcs: value is neither ''auto'' nor a valid bool\nusage: go build .*\nRun ''go help build'' for details.\n\z'
+stderr '\Ainvalid boolean value "hg" for -buildvcs: value is neither ''auto'' nor a valid bool\nusage: go build .*'
 
 
 -- go.mod --

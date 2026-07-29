@@ -823,21 +823,31 @@ func preprocess(ctxt *obj.Link, cursym *obj.LSym, newprog obj.ProgAlloc) {
 		if autoffset != 0 {
 			to := p.To // Keep To attached to RET for retjmp below
 			p.To = obj.Addr{}
-			if localoffset != 0 {
-				p.As = AADJSP
-				p.From.Type = obj.TYPE_CONST
-				p.From.Offset = int64(-localoffset)
-				p.Spadj = -localoffset
-				p = obj.Appendp(p, newprog)
-			}
 
-			if bpsize > 0 {
-				// Restore caller's BP
-				p.As = APOPQ
-				p.To.Type = obj.TYPE_REG
-				p.To.Reg = REG_BP
-				p.Spadj = -int32(bpsize)
+			needSpRestore, needBpRestore := localoffset != 0, bpsize > 0
+			// We can't use LEAVE with ABI0 assembly because the go
+			// asm promise it will insert save and restores for BP.
+			// Thus many pieces of code use BP as a scratch register.
+			asmSafe := !ctxt.IsAsm || cursym.ABI() == obj.ABIInternal
+			if asmSafe && needSpRestore && needBpRestore {
+				p.As = ALEAVEQ
+				p.Spadj = -localoffset - int32(bpsize)
 				p = obj.Appendp(p, newprog)
+			} else {
+				if needSpRestore {
+					p.As = AADJSP
+					p.From.Type = obj.TYPE_CONST
+					p.From.Offset = int64(-localoffset)
+					p.Spadj = -localoffset
+					p = obj.Appendp(p, newprog)
+				}
+				if needBpRestore {
+					p.As = APOPQ
+					p.To.Type = obj.TYPE_REG
+					p.To.Reg = REG_BP
+					p.Spadj = -int32(bpsize)
+					p = obj.Appendp(p, newprog)
+				}
 			}
 
 			p.As = obj.ARET

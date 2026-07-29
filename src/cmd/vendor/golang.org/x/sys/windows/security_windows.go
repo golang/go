@@ -1109,17 +1109,53 @@ const (
 )
 
 // This type is the union inside of TRUSTEE and must be created using one of the TrusteeValueFrom* functions.
+//
+// Go pointers stored in a TrusteeValue must be pinned using [runtime.Pinner]
+// for the lifetime of the TrusteeValue.
 type TrusteeValue uintptr
 
+// TrusteeValueFromString is unsafe and should not be used.
+//
+// It returns a uintptr containing a reference to newly-allocated memory
+// which will be freed by the garbage collector.
+// There is no way for the caller to safely reference this memory.
+//
+// To create a [TrusteeValue] from a string, use:
+//
+//	p, err := windows.UTF16PtrFromString(s)
+//	if err != nil {
+//		// handle error
+//	}
+//
+//	// Pin the string for as long as it is used.
+//	var pinner runtime.Pinner
+//	pinner.Pin(p)
+//	defer pinner.Unpin()
+//
+//	tv := TrusteeValue(unsafe.Pointer(p))
+//
+// Deprecated: TrusteeValueFromString is unsafe and should not be used.
 func TrusteeValueFromString(str string) TrusteeValue {
 	return TrusteeValue(unsafe.Pointer(StringToUTF16Ptr(str)))
 }
+
+// TrusteeValueFromSID returns a [TrusteeValue] referencing sid.
+//
+// The caller must pin sid using a [runtime.Pinner] for the lifetime of the TrusteeValue.
 func TrusteeValueFromSID(sid *SID) TrusteeValue {
 	return TrusteeValue(unsafe.Pointer(sid))
 }
+
+// TrusteeValueFromObjectsAndSid returns a [TrusteeValue] referencing objectsAndSid.
+//
+// The caller must pin objectsAndSid using a [runtime.Pinner] for the lifetime of the TrusteeValue.
 func TrusteeValueFromObjectsAndSid(objectsAndSid *OBJECTS_AND_SID) TrusteeValue {
 	return TrusteeValue(unsafe.Pointer(objectsAndSid))
 }
+
+// TrusteeValueFromObjectsAndName returns a [TrusteeValue] referencing objectsAndName.
+//
+// The caller must pin objectsAndName using a [runtime.Pinner] for the lifetime of the TrusteeValue.
 func TrusteeValueFromObjectsAndName(objectsAndName *OBJECTS_AND_NAME) TrusteeValue {
 	return TrusteeValue(unsafe.Pointer(objectsAndName))
 }

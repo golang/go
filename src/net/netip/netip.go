@@ -967,22 +967,22 @@ func (ip Addr) AppendText(b []byte) ([]byte, error) {
 // The encoding is the same as returned by [Addr.String], with one exception:
 // If ip is the zero [Addr], the encoding is the empty string.
 func (ip Addr) MarshalText() ([]byte, error) {
-	buf := []byte{}
+	var b []byte
 	switch ip.z {
 	case z0:
 	case z4:
-		const maxCap = len("255.255.255.255")
-		buf = make([]byte, 0, maxCap)
+		const max = len("255.255.255.255")
+		b = make([]byte, 0, max)
 	default:
 		if ip.Is4In6() {
-			const maxCap = len("::ffff:255.255.255.255%enp5s0")
-			buf = make([]byte, 0, maxCap)
-			break
+			const max = len("::ffff:255.255.255.255%enp5s0")
+			b = make([]byte, 0, max)
+		} else {
+			const max = len("ffff:ffff:ffff:ffff:ffff:ffff:ffff:ffff%enp5s0")
+			b = make([]byte, 0, max)
 		}
-		const maxCap = len("ffff:ffff:ffff:ffff:ffff:ffff:ffff:ffff%enp5s0")
-		buf = make([]byte, 0, maxCap)
 	}
-	return ip.AppendText(buf)
+	return ip.AppendText(b)
 }
 
 // UnmarshalText implements the [encoding.TextUnmarshaler] interface.
@@ -1211,17 +1211,22 @@ func (p AddrPort) AppendText(b []byte) ([]byte, error) {
 // The encoding is the same as returned by [AddrPort.String], with one exception:
 // If p.Addr() is the zero [Addr], the encoding is the empty string.
 func (p AddrPort) MarshalText() ([]byte, error) {
-	buf := []byte{}
+	var b []byte
 	switch p.ip.z {
 	case z0:
 	case z4:
-		const maxCap = len("255.255.255.255:65535")
-		buf = make([]byte, 0, maxCap)
+		const max = len("255.255.255.255:65535")
+		b = make([]byte, 0, max)
 	default:
-		const maxCap = len("[ffff:ffff:ffff:ffff:ffff:ffff:ffff:ffff%enp5s0]:65535")
-		buf = make([]byte, 0, maxCap)
+		if p.ip.Is4In6() {
+			const max = len("[::ffff:255.255.255.255%enp5s0]:65535")
+			b = make([]byte, 0, max)
+		} else {
+			const max = len("[ffff:ffff:ffff:ffff:ffff:ffff:ffff:ffff%enp5s0]:65535")
+			b = make([]byte, 0, max)
+		}
 	}
-	return p.AppendText(buf)
+	return p.AppendText(b)
 }
 
 // UnmarshalText implements the [encoding.TextUnmarshaler] interface.

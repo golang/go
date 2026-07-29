@@ -55,6 +55,11 @@ type Func struct {
 	// if you add or remove a field, don't forget to update sizeof_test.go
 
 	miniNode
+
+	// NumPreWalkNodes is the number of IR nodes before Walk.
+	// It is used as an estimate of backend compilation cost.
+	NumPreWalkNodes int32
+
 	Body Nodes
 
 	Nname    *Name        // ONAME node

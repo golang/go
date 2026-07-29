@@ -17,8 +17,11 @@ import (
 	"cmd/internal/src"
 )
 
-// The constant is known to runtime.
-const tmpstringbufsize = 32
+// These constants are known to runtime (see runtime.tmpStringBufSize).
+const (
+	tmpstringbufsize = 64
+	tmprunebufsize   = 32
+)
 
 func Walk(fn *ir.Func) {
 	ir.CurFunc = fn
@@ -337,10 +340,16 @@ func mayCall(n ir.Node) bool {
 			return true
 
 		case ir.OINDEX, ir.OSLICE, ir.OSLICEARR, ir.OSLICE3, ir.OSLICE3ARR, ir.OSLICESTR,
-			ir.ODEREF, ir.ODOTPTR, ir.ODOTTYPE, ir.ODYNAMICDOTTYPE, ir.ODIV, ir.OMOD,
+			ir.ODEREF, ir.ODOTPTR, ir.ODOTTYPE, ir.ODYNAMICDOTTYPE, ir.OMOD,
 			ir.OSLICE2ARR, ir.OSLICE2ARRPTR:
 			// These ops might panic, make sure they are done
 			// before we start marshaling args for a call. See issue 16760.
+			return true
+		case ir.ODIV:
+			n := n.(*ir.BinaryExpr)
+			if types.IsFloat[n.X.Type().Kind()] {
+				return ssagen.Arch.SoftFloat
+			}
 			return true
 
 		case ir.OANDAND, ir.OOROR:
@@ -465,7 +474,9 @@ func analyzePreWalk(fn *ir.Func) {
 	ro.Init(fn)
 	sv := make(map[ir.Node]ir.Node)
 	scs := make(map[*ir.Name]*types.Type)
+	var numNodes int32
 	ir.Visit(fn, func(n ir.Node) {
+		numNodes++
 		switch n.Op() {
 		case ir.OCONVIFACE:
 			x := n.(*ir.ConvExpr).X
@@ -490,4 +501,5 @@ func analyzePreWalk(fn *ir.Func) {
 	})
 	staticValues = sv
 	shapeConvSources = scs
+	fn.NumPreWalkNodes = numNodes
 }

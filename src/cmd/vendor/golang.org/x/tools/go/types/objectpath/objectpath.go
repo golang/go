@@ -30,6 +30,7 @@ import (
 	"slices"
 	"strconv"
 	"strings"
+	"sync"
 
 	"golang.org/x/tools/internal/typesinternal"
 )
@@ -126,7 +127,8 @@ func For(obj types.Object) (Path, error) {
 // An Encoder amortizes the cost of encoding the paths of multiple objects.
 // The zero value of an Encoder is ready to use.
 type Encoder struct {
-	pkgIndex map[*types.Package]*pkgIndex
+	pkgIndexMu sync.Mutex
+	pkgIndex   map[*types.Package]*pkgIndex
 }
 
 // A traversal encapsulates the state of a single traversal of the object/type graph.
@@ -190,6 +192,8 @@ type pkgIndex struct {
 
 // For returns the path to an object relative to its package,
 // or an error if the object is not accessible from the package's Scope.
+//
+// For is safe for concurrent use.
 //
 // The For function guarantees to return a path only for the following objects:
 // - package-level types
@@ -319,6 +323,9 @@ func (enc *Encoder) For(obj types.Object) (Path, error) {
 	default:
 		panic(obj)
 	}
+
+	enc.pkgIndexMu.Lock()
+	defer enc.pkgIndexMu.Unlock()
 
 	// 4. Search the object/type graph for the path to
 	//    the var (field/param/result) or method.

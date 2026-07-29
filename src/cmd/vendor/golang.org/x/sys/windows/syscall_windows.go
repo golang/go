@@ -1728,11 +1728,15 @@ func (s *NTUnicodeString) String() string {
 // the more common *uint16 string type.
 func NewNTString(s string) (*NTString, error) {
 	var nts NTString
-	s8, err := BytePtrFromString(s)
+	s8, err := ByteSliceFromString(s)
 	if err != nil {
 		return nil, err
 	}
-	RtlInitString(&nts, s8)
+	// The source string plus its terminating NUL must fit within MAX_USHORT.
+	if len(s8) > MAX_USHORT {
+		return nil, syscall.EINVAL
+	}
+	RtlInitString(&nts, &s8[0])
 	return &nts, nil
 }
 

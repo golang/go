@@ -27,7 +27,7 @@ var AppendClippedAnalyzer = &analysis.Analyzer{
 	Doc:      analyzerutil.MustExtractDoc(doc, "appendclipped"),
 	Requires: []*analysis.Analyzer{inspect.Analyzer},
 	Run:      appendclipped,
-	URL:      "https://pkg.go.dev/golang.org/x/tools/go/analysis/passes/modernize#appendclipped",
+	URL:      "https://pkg.go.dev/golang.org/x/tools/go/analysis/passes/modernize#hdr-Analyzer_appendclipped",
 }
 
 // The appendclipped pass offers to simplify a tower of append calls:

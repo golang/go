@@ -7,6 +7,7 @@ package base32
 
 import (
 	"io"
+	"math"
 	"slices"
 	"strconv"
 )
@@ -279,9 +280,17 @@ func NewEncoder(enc *Encoding, w io.Writer) io.WriteCloser {
 
 // EncodedLen returns the length in bytes of the base32 encoding
 // of an input buffer of length n.
+// It panics if the encoded length overflows int,
+// which can happen only if n > [math.MaxInt]/8*5.
 func (enc *Encoding) EncodedLen(n int) int {
 	if enc.padChar == NoPadding {
+		if n > math.MaxInt/8*5+4 {
+			panic("encoded length overflows int")
+		}
 		return n/5*8 + (n%5*8+4)/5
+	}
+	if n > math.MaxInt/8*5 {
+		panic("encoded length overflows int")
 	}
 	return (n + 4) / 5 * 8
 }

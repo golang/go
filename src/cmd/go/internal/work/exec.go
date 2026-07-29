@@ -272,35 +272,7 @@ func (b *Builder) buildActionID(a *Action) cache.ActionID {
 	// If not, the reason is already recorded in buildGcflags.
 	fmt.Fprintf(h, "compile\n")
 
-	// Include information about the origin of the package that
-	// may be embedded in the debug info for the object file.
-	if cfg.BuildTrimpath {
-		// When -trimpath is used with a package built from the module cache,
-		// its debug information refers to the module path and version
-		// instead of the directory.
-		if p.Module != nil {
-			fmt.Fprintf(h, "module %s@%s\n", p.Module.Path, p.Module.Version)
-		}
-	} else if p.Goroot {
-		// The Go compiler always hides the exact value of $GOROOT
-		// when building things in GOROOT.
-		//
-		// The C compiler does not, but for packages in GOROOT we rewrite the path
-		// as though -trimpath were set. This used to be so that we did not invalidate
-		// the build cache (and especially precompiled archive files) when changing
-		// GOROOT_FINAL, but we no longer ship precompiled archive files as of Go 1.20
-		// (https://go.dev/issue/47257) and no longer support GOROOT_FINAL
-		// (https://go.dev/issue/62047).
-		// TODO(bcmills): Figure out whether this behavior is still useful.
-		//
-		// b.WorkDir is always either trimmed or rewritten to
-		// the literal string "/tmp/go-build".
-	} else if !strings.HasPrefix(p.Dir, b.WorkDir) {
-		// -trimpath is not set and no other rewrite rules apply,
-		// so the object file may refer to the absolute directory
-		// containing the package.
-		fmt.Fprintf(h, "dir %s\n", p.Dir)
-	}
+	b.addPackageOrigin(h, p)
 
 	if p.Module != nil {
 		fmt.Fprintf(h, "go %s\n", p.Module.GoVersion)
@@ -314,39 +286,7 @@ func (b *Builder) buildActionID(a *Action) cache.ActionID {
 	if p.Internal.ForceLibrary {
 		fmt.Fprintf(h, "forcelibrary\n")
 	}
-	if len(p.CgoFiles)+len(p.SwigFiles)+len(p.SwigCXXFiles) > 0 {
-		fmt.Fprintf(h, "cgo %q\n", b.toolID("cgo"))
-		cppflags, cflags, cxxflags, fflags, ldflags, _ := b.CFlags(p)
-
-		ccExe := b.ccExe()
-		fmt.Fprintf(h, "CC=%q %q %q %q\n", ccExe, cppflags, cflags, ldflags)
-		// Include the C compiler tool ID so that if the C
-		// compiler changes we rebuild the package.
-		if ccID, _, err := b.gccToolID(ccExe[0], "c"); err == nil {
-			fmt.Fprintf(h, "CC ID=%q\n", ccID)
-		} else {
-			fmt.Fprintf(h, "CC ID ERROR=%q\n", err)
-		}
-		if len(p.CXXFiles)+len(p.SwigCXXFiles) > 0 {
-			cxxExe := b.cxxExe()
-			fmt.Fprintf(h, "CXX=%q %q\n", cxxExe, cxxflags)
-			if cxxID, _, err := b.gccToolID(cxxExe[0], "c++"); err == nil {
-				fmt.Fprintf(h, "CXX ID=%q\n", cxxID)
-			} else {
-				fmt.Fprintf(h, "CXX ID ERROR=%q\n", err)
-			}
-		}
-		if len(p.FFiles) > 0 {
-			fcExe := b.fcExe()
-			fmt.Fprintf(h, "FC=%q %q\n", fcExe, fflags)
-			if fcID, _, err := b.gccToolID(fcExe[0], "f95"); err == nil {
-				fmt.Fprintf(h, "FC ID=%q\n", fcID)
-			} else {
-				fmt.Fprintf(h, "FC ID ERROR=%q\n", err)
-			}
-		}
-		// TODO(rsc): Should we include the SWIG version?
-	}
+	b.addCToolchainIDs(h, p)
 	if p.Internal.Cover.Mode != "" {
 		fmt.Fprintf(h, "cover %q %q\n", p.Internal.Cover.Mode, b.toolID("cover"))
 	}
@@ -395,7 +335,7 @@ func (b *Builder) buildActionID(a *Action) cache.ActionID {
 		}
 
 	case "gccgo":
-		id, _, err := b.gccToolID(BuildToolchain.compiler(), "go")
+		id, _, err := b.gccgoToolID(BuildToolchain.compiler(), "go")
 		if err != nil {
 			base.Fatalf("%v", err)
 		}
@@ -403,7 +343,7 @@ func (b *Builder) buildActionID(a *Action) cache.ActionID {
 		fmt.Fprintf(h, "pkgpath %s\n", gccgoPkgpath(p))
 		fmt.Fprintf(h, "ar %q\n", BuildToolchain.(gccgoToolchain).ar())
 		if len(p.SFiles) > 0 {
-			id, _, _ = b.gccToolID(BuildToolchain.compiler(), "assembler-with-cpp")
+			id, _, _ = b.gccgoToolID(BuildToolchain.compiler(), "assembler-with-cpp")
 			// Ignore error; different assembler versions
 			// are unlikely to make any difference anyhow.
 			fmt.Fprintf(h, "asm %q\n", id)
@@ -439,6 +379,77 @@ func (b *Builder) buildActionID(a *Action) cache.ActionID {
 	}
 
 	return h.Sum()
+}
+
+// addPackageOrigin writes information about the origin of the package that
+// may be embedded in the debug info for the object file. It is used by
+// buildActionID.
+func (b *Builder) addPackageOrigin(h io.Writer, p *load.Package) {
+	if cfg.BuildTrimpath {
+		// When -trimpath is used with a package built from the module cache,
+		// its debug information refers to the module path and version
+		// instead of the directory.
+		if p.Module != nil {
+			fmt.Fprintf(h, "module %s@%s\n", p.Module.Path, p.Module.Version)
+		}
+	} else if p.Goroot {
+		// The Go compiler always hides the exact value of $GOROOT
+		// when building things in GOROOT.
+		//
+		// The C compiler does not, but for packages in GOROOT we rewrite the path
+		// as though -trimpath were set. This used to be so that we did not invalidate
+		// the build cache (and especially precompiled archive files) when changing
+		// GOROOT_FINAL, but we no longer ship precompiled archive files as of Go 1.20
+		// (https://go.dev/issue/47257) and no longer support GOROOT_FINAL
+		// (https://go.dev/issue/62047).
+		// TODO(bcmills): Figure out whether this behavior is still useful.
+		//
+		// b.WorkDir is always either trimmed or rewritten to
+		// the literal string "/tmp/go-build".
+	} else if !strings.HasPrefix(p.Dir, b.WorkDir) {
+		// -trimpath is not set and no other rewrite rules apply,
+		// so the object file may refer to the absolute directory
+		// containing the package.
+		fmt.Fprintf(h, "dir %s\n", p.Dir)
+	}
+}
+
+// addCToolchainIDs adds the C toolchain hashes and flags to the hash writer.
+// It is used by buildActionID.
+func (b *Builder) addCToolchainIDs(h io.Writer, p *load.Package) {
+	if len(p.CgoFiles)+len(p.SwigFiles)+len(p.SwigCXXFiles) > 0 {
+		fmt.Fprintf(h, "cgo %q\n", b.toolID("cgo"))
+		cppflags, cflags, cxxflags, fflags, ldflags, _ := b.CFlags(p)
+
+		ccExe := b.ccExe()
+		fmt.Fprintf(h, "CC=%q %q %q %q\n", ccExe, cppflags, cflags, ldflags)
+		// Include the C compiler tool ID so that if the C
+		// compiler changes we rebuild the package.
+		if ccID, _, err := b.gccToolID(ccExe[0], "c"); err == nil {
+			fmt.Fprintf(h, "CC ID=%q\n", ccID)
+		} else {
+			fmt.Fprintf(h, "CC ID ERROR=%q\n", err)
+		}
+		if len(p.CXXFiles)+len(p.SwigCXXFiles) > 0 {
+			cxxExe := b.cxxExe()
+			fmt.Fprintf(h, "CXX=%q %q\n", cxxExe, cxxflags)
+			if cxxID, _, err := b.gccToolID(cxxExe[0], "c++"); err == nil {
+				fmt.Fprintf(h, "CXX ID=%q\n", cxxID)
+			} else {
+				fmt.Fprintf(h, "CXX ID ERROR=%q\n", err)
+			}
+		}
+		if len(p.FFiles) > 0 {
+			fcExe := b.fcExe()
+			fmt.Fprintf(h, "FC=%q %q\n", fcExe, fflags)
+			if fcID, _, err := b.gccToolID(fcExe[0], "f95"); err == nil {
+				fmt.Fprintf(h, "FC ID=%q\n", fcID)
+			} else {
+				fmt.Fprintf(h, "FC ID ERROR=%q\n", err)
+			}
+		}
+		// TODO(rsc): Should we include the SWIG version?
+	}
 }
 
 // needCgoHdr reports whether the actions triggered by this one
@@ -510,15 +521,13 @@ const (
 	needCgoHdr
 	needVet
 	needCompiledGoFiles
-	needCovMetaFile
-	needStale
 )
 
 // checkCacheForBuild checks the cache for the outputs of the buildAction to determine
 // what work needs to be done by it and the actions preceding it. a is the action
 // currently being run, which has an actor of type *checkCacheActor and is a dependency
 // of the buildAction.
-func (b *Builder) checkCacheForBuild(a, buildAction *Action, covMetaFileName string) (_ *checkCacheProvider, err error) {
+func (b *Builder) checkCacheForBuild(a, buildAction *Action) (_ *checkCacheProvider, err error) {
 	p := buildAction.Package
 	sh := b.Shell(a)
 
@@ -530,50 +539,46 @@ func (b *Builder) checkCacheForBuild(a, buildAction *Action, covMetaFileName str
 	}
 
 	cachedBuild := false
-	needCovMeta := p.Internal.Cover.GenMeta
 	need := bit(needBuild, !b.IsCmdList && buildAction.needBuild || b.NeedExport) |
 		bit(needCgoHdr, b.needCgoHdr(buildAction)) |
 		bit(needVet, buildAction.needVet) |
-		bit(needCovMetaFile, needCovMeta) |
 		bit(needCompiledGoFiles, b.NeedCompiledGoFiles)
 
-	if !p.BinaryOnly {
-		// We pass 'a' (this checkCacheAction) to buildActionID so that we use its dependencies,
-		// which are the actual package dependencies, rather than the buildAction's dependencies
-		// which also includes this action and the cover action.
-		if b.useCache(buildAction, b.buildActionID(a), p.Target, need&needBuild != 0) {
-			// We found the main output in the cache.
-			// If we don't need any other outputs, we can stop.
-			// Otherwise, we need to write files to a.Objdir (needVet, needCgoHdr).
-			// Remember that we might have them in cache
-			// and check again after we create a.Objdir.
-			cachedBuild = true
-			buildAction.output = []byte{} // start saving output in case we miss any cache results
-			need &^= needBuild
-			if b.NeedExport {
-				p.Export = buildAction.built
-				p.BuildID = buildAction.buildID
-			}
-			if need&needCompiledGoFiles != 0 {
-				if err := b.loadCachedCompiledGoFiles(buildAction); err == nil {
-					need &^= needCompiledGoFiles
-				}
-			}
+	// We pass 'a' (this checkCacheAction) to buildActionID so that we use its dependencies,
+	// which are the actual package dependencies, rather than the buildAction's dependencies
+	// which also includes this action and the cover action.
+	if b.useCache(buildAction, b.buildActionID(a), p.Target, need&needBuild != 0) {
+		// We found the main output in the cache.
+		// If we don't need any other outputs, we can stop.
+		// Otherwise, we need to write files to a.Objdir (needVet, needCgoHdr).
+		// Remember that we might have them in cache
+		// and check again after we create a.Objdir.
+		cachedBuild = true
+		buildAction.output = []byte{} // start saving output in case we miss any cache results
+		need &^= needBuild
+		if b.NeedExport {
+			p.Export = buildAction.built
+			p.BuildID = buildAction.buildID
 		}
-
-		// Source files might be cached, even if the full action is not
-		// (e.g., go list -compiled -find).
-		if !cachedBuild && need&needCompiledGoFiles != 0 {
+		if need&needCompiledGoFiles != 0 {
 			if err := b.loadCachedCompiledGoFiles(buildAction); err == nil {
 				need &^= needCompiledGoFiles
 			}
 		}
-
-		if need == 0 {
-			return &checkCacheProvider{need: need}, nil
-		}
-		defer b.flushOutput(a)
 	}
+
+	// Source files might be cached, even if the full action is not
+	// (e.g., go list -compiled -find).
+	if !cachedBuild && need&needCompiledGoFiles != 0 {
+		if err := b.loadCachedCompiledGoFiles(buildAction); err == nil {
+			need &^= needCompiledGoFiles
+		}
+	}
+
+	if need == 0 {
+		return &checkCacheProvider{need: need}, nil
+	}
+	defer b.flushOutput(a)
 
 	defer func() {
 		if err != nil && b.IsCmdList && b.NeedError && p.Error == nil {
@@ -585,17 +590,6 @@ func (b *Builder) checkCacheForBuild(a, buildAction *Action, covMetaFileName str
 		// Don't try to build anything for packages with errors. There may be a
 		// problem with the inputs that makes the package unsafe to build.
 		return nil, p.Error
-	}
-
-	// TODO(matloob): return early for binary-only packages so that we don't need to indent
-	// the core of this function in the if !p.BinaryOnly block above.
-	if p.BinaryOnly {
-		p.Stale = true
-		p.StaleReason = "binary-only packages are no longer supported"
-		if b.IsCmdList {
-			return &checkCacheProvider{need: 0}, nil
-		}
-		return nil, errors.New("binary-only packages are no longer supported")
 	}
 
 	if p.Module != nil && !allowedVersion(p.Module.GoVersion) {
@@ -617,14 +611,6 @@ func (b *Builder) checkCacheForBuild(a, buildAction *Action, covMetaFileName str
 		}
 	}
 
-	// Load cached coverage meta-data file fragment, but only if we're
-	// skipping the main build (cachedBuild==true).
-	if cachedBuild && need&needCovMetaFile != 0 {
-		if err := b.loadCachedObjdirFile(buildAction, cache.Default(), covMetaFileName); err == nil {
-			need &^= needCovMetaFile
-		}
-	}
-
 	// Load cached vet config, but only if that's all we have left
 	// (need == needVet, not testing just the one bit).
 	// If we are going to do a full build anyway,
@@ -638,31 +624,28 @@ func (b *Builder) checkCacheForBuild(a, buildAction *Action, covMetaFileName str
 	return &checkCacheProvider{need: need}, nil
 }
 
-func (b *Builder) runCover(a, buildAction *Action, objdir string, gofiles, cgofiles []string) (*coverProvider, error) {
+func (b *Builder) runCover(ctx context.Context, a *Action) error {
 	p := a.Package
 	sh := b.Shell(a)
 
-	var cacheProvider *checkCacheProvider
-	for _, dep := range a.Deps {
-		if pr, ok := dep.Provider.(*checkCacheProvider); ok {
-			cacheProvider = pr
-		}
-	}
-	if cacheProvider == nil {
-		base.Fatalf("internal error: could not find checkCacheProvider")
-	}
-	need := cacheProvider.need
-
-	if need == 0 {
-		return nil, nil
+	// Determine the covmeta file name.
+	var covMetaFileName string
+	if a.Package.Internal.Cover.GenMeta {
+		covMetaFileName = a.Objdir + covcmd.MetaFileForPackage(a.Package.ImportPath)
 	}
 
 	if err := sh.Mkdir(a.Objdir); err != nil {
-		return nil, err
+		return err
 	}
 
-	gofiles = slices.Clone(gofiles)
-	cgofiles = slices.Clone(cgofiles)
+	a.actionID = b.coverActionID(a, covMetaFileName)
+	if pr, err := b.loadCachedCoverOutputs(a); err == nil {
+		a.Provider = pr
+		return nil
+	}
+
+	gofiles := slices.Clone(a.Package.GoFiles)
+	cgofiles := slices.Clone(a.Package.CgoFiles)
 
 	outfiles := []string{}
 	infiles := []string{}
@@ -677,10 +660,10 @@ func (b *Builder) runCover(a, buildAction *Action, objdir string, gofiles, cgofi
 			// cgo files have absolute paths
 			base = filepath.Base(base)
 			sourceFile = file
-			coverFile = objdir + base + ".cgo1.go"
+			coverFile = a.Objdir + base + ".cgo1.go"
 		} else {
 			sourceFile = filepath.Join(p.Dir, file)
-			coverFile = objdir + file
+			coverFile = a.Objdir + file
 		}
 		coverFile = strings.TrimSuffix(coverFile, ".go") + ".cover.go"
 		infiles = append(infiles, sourceFile)
@@ -692,6 +675,7 @@ func (b *Builder) runCover(a, buildAction *Action, objdir string, gofiles, cgofi
 		}
 	}
 
+	var coverCfg string
 	if len(infiles) != 0 {
 		// Coverage instrumentation creates new top level
 		// variables in the target package for things like
@@ -708,17 +692,25 @@ func (b *Builder) runCover(a, buildAction *Action, objdir string, gofiles, cgofi
 		if mode == "" {
 			panic("covermode should be set at this point")
 		}
-		if newoutfiles, err := b.cover(a, infiles, outfiles, coverVar, mode); err != nil {
-			return nil, err
+		coverCfg = a.Objdir + "coveragecfg"
+		if newoutfiles, err := b.cover(a, infiles, outfiles, coverVar, mode, covMetaFileName, coverCfg); err != nil {
+			return err
 		} else {
 			outfiles = newoutfiles
 			gofiles = append([]string{newoutfiles[0]}, gofiles...)
 		}
-		if ca, ok := a.Actor.(*coverActor); ok && ca.covMetaFileName != "" {
-			b.cacheObjdirFile(buildAction, cache.Default(), ca.covMetaFileName)
+	}
+
+	pr := &coverProvider{covMetaFileName, coverCfg, gofiles, cgofiles}
+	a.Provider = pr
+
+	if !cfg.BuildN {
+		if err := b.cacheCoverOutputs(a, pr); err != nil {
+			return err
 		}
 	}
-	return &coverProvider{gofiles, cgofiles}, nil
+
+	return nil
 }
 
 // build is the action for building a single package.
@@ -745,8 +737,7 @@ func (b *Builder) build(ctx context.Context, a *Action) (err error) {
 	}
 
 	need := cacheProvider.need
-	need &^= needCovMetaFile // handled by cover action
-	need &^= needCgoHdr      // handled by run cgo action // TODO: accumulate "negative" need bits from actions
+	need &^= needCgoHdr // handled by run cgo action // TODO: accumulate "negative" need bits from actions
 
 	if need == 0 {
 		return
@@ -918,6 +909,11 @@ func (b *Builder) build(ctx context.Context, a *Action) (err error) {
 		pgoProfile = a1.built
 	}
 
+	var coverageConfig string
+	if coverPr != nil {
+		coverageConfig = coverPr.coverageConfig
+	}
+
 	if p.Internal.BuildInfo != nil && cfg.ModulesEnabled {
 		prog := modload.ModInfoProg(p.Internal.BuildInfo.String(), cfg.BuildToolchainName == "gccgo")
 		if len(prog) > 0 {
@@ -930,7 +926,7 @@ func (b *Builder) build(ctx context.Context, a *Action) (err error) {
 
 	// Compile Go.
 	objpkg := objdir + "_pkg_.a"
-	ofile, out, err := BuildToolchain.gc(b, a, objpkg, icfg.Bytes(), embedcfg, symabis, len(sfiles) > 0, pgoProfile, gofiles)
+	ofile, out, err := BuildToolchain.gc(b, a, objpkg, icfg.Bytes(), embedcfg, symabis, len(sfiles) > 0, pgoProfile, coverageConfig, gofiles)
 	if len(out) > 0 && (p.UsesCgo() || p.UsesSwig()) && !cfg.BuildX {
 		// Fix up output referring to cgo-generated code to be more readable.
 		// Replace *[100]_Ctype_foo with *[100]C.foo.
@@ -1132,11 +1128,134 @@ func (b *Builder) cacheSrcFiles(a *Action, srcfiles []string) {
 	cache.PutBytes(c, cache.Subkey(a.actionID, "srcfiles"), buf.Bytes())
 }
 
-func (b *Builder) loadCachedVet(a *Action, vetDeps []*Action) error {
+// coverProviderCached is the structure we'll use to represent a coverProvider
+// in the action cache. It has the same fields as a coverProvider but they'll contain
+// different contents: we replace the acutal objdir name with $OBJDIR so that
+// the cached provider doesn't depend on the objdir used.
+type coverProviderCached struct {
+	CovMetaFile           string
+	CoverageConfig        string
+	GoSources, CgoSources []string
+}
+
+func (b *Builder) cacheCoverOutputs(a *Action, pr *coverProvider) error {
+	c := cache.Default()
+
+	cacheSrcFileName := func(a *Action, file string) string {
+		if name, ok := strings.CutPrefix(file, a.Objdir); ok {
+			return name
+		}
+		return "./" + file
+	}
+
+	b.cacheSrcFiles(a, str.StringList(pr.goSources, pr.cgoSources))
+	var cached coverProviderCached
+	if pr.covMetaFileName != "" {
+		cached.CovMetaFile = strings.TrimPrefix(pr.covMetaFileName, a.Objdir)
+		if err := b.cacheObjdirFile(a, c, cached.CovMetaFile); err != nil {
+			return err
+		}
+	}
+	if pr.coverageConfig != "" {
+		cached.CoverageConfig = strings.TrimPrefix(pr.coverageConfig, a.Objdir)
+		if err := b.cacheObjdirFile(a, c, cached.CoverageConfig); err != nil {
+			return err
+		}
+	}
+
+	for _, fn := range pr.goSources {
+		cached.GoSources = append(cached.GoSources, cacheSrcFileName(a, fn))
+	}
+	for _, fn := range pr.cgoSources {
+		cached.CgoSources = append(cached.CgoSources, cacheSrcFileName(a, fn))
+	}
+	js, err := json.Marshal(cached)
+	if err != nil {
+		return err
+	}
+	cache.PutBytes(c, cache.Subkey(a.actionID, "coverprovider"), js)
+
+	return nil
+}
+
+func (b *Builder) loadCachedCoverOutputs(a *Action) (*coverProvider, error) {
+	c := cache.Default()
+
+	if _, err := b.loadCachedSrcFiles(a); err != nil {
+		return nil, err
+	}
+
+	var cached coverProviderCached
+	if js, _, err := cache.GetBytes(c, cache.Subkey(a.actionID, "coverprovider")); err != nil {
+		return nil, err
+	} else if err := json.Unmarshal(js, &cached); err != nil {
+		return nil, err
+	}
+
+	covMetaFile := cached.CovMetaFile
+	if covMetaFile != "" {
+		if err := b.loadCachedObjdirFile(a, c, covMetaFile); err != nil {
+			return nil, err
+		}
+		covMetaFile = a.Objdir + covMetaFile
+	}
+	coverageConfig := cached.CoverageConfig
+	if coverageConfig != "" {
+		if err := b.loadCachedObjdirFile(a, c, coverageConfig); err != nil {
+			return nil, err
+		}
+		coverageConfig = a.Objdir + coverageConfig
+	}
+
+	var goSources, cgoSources []string
+	for _, file := range cached.GoSources {
+		name, ok := strings.CutPrefix(file, "./")
+		if !ok {
+			name = a.Objdir + name
+		}
+		goSources = append(goSources, name)
+	}
+	for _, file := range cached.CgoSources {
+		name, ok := strings.CutPrefix(file, "./")
+		if !ok {
+			name = a.Objdir + name
+		}
+		cgoSources = append(cgoSources, name)
+	}
+
+	pr := &coverProvider{
+		covMetaFileName: covMetaFile,
+		coverageConfig:  coverageConfig,
+		goSources:       goSources,
+		cgoSources:      cgoSources,
+	}
+
+	return pr, nil
+}
+
+func (b *Builder) coverActionID(a *Action, covMetaFileName string) cache.ActionID {
+	p := a.Package
+	h := cache.NewHash("cover " + p.ImportPath)
+	fmt.Fprintf(h, "cover %q\n", b.toolID("cover"))
+
+	// Input files for cover.
+	fmt.Fprintf(h, "setup %s %v\n", p.Internal.Cover.Mode, p.Internal.Cover.GenMeta)
+	fmt.Fprintf(h, "config ")
+	if err := json.NewEncoder(h).Encode(coverConfig(p, filepath.Base(covMetaFileName), "")); err != nil {
+		base.Fatal(err)
+	}
+	for _, file := range str.StringList(p.GoFiles, p.CgoFiles) {
+		fmt.Fprintf(h, "file %s %s\n", file, b.fileHash(filepath.Join(p.Dir, file)))
+	}
+
+	return h.Sum()
+}
+
+func (b *Builder) loadCachedSrcFiles(a *Action) ([]string, error) {
 	c := cache.Default()
 	list, _, err := cache.GetBytes(c, cache.Subkey(a.actionID, "srcfiles"))
 	if err != nil {
-		return fmt.Errorf("reading srcfiles list: %w", err)
+		return nil, fmt.Errorf("reading srcfiles list: %w", err)
 	}
 	var srcfiles []string
 	for name := range strings.SplitSeq(string(list), "\n") {
@@ -1148,9 +1267,17 @@ func (b *Builder) loadCachedVet(a *Action, vetDeps []*Action) error {
 			continue
 		}
 		if err := b.loadCachedObjdirFile(a, c, name); err != nil {
-			return err
+			return nil, err
 		}
 		srcfiles = append(srcfiles, a.Objdir+name)
+	}
+	return srcfiles, nil
+}
+
+func (b *Builder) loadCachedVet(a *Action, vetDeps []*Action) error {
+	srcfiles, err := b.loadCachedSrcFiles(a)
+	if err != nil {
+		return err
 	}
 	buildVetConfig(a, srcfiles, vetDeps)
 	return nil
@@ -1614,7 +1741,7 @@ func (b *Builder) printLinkerConfig(h io.Writer, p *load.Package) {
 		// Or external linker settings and flags?
 
 	case "gccgo":
-		id, _, err := b.gccToolID(BuildToolchain.linker(), "go")
+		id, _, err := b.gccgoToolID(BuildToolchain.linker(), "go")
 		if err != nil {
 			base.Fatalf("%v", err)
 		}
@@ -2090,13 +2217,13 @@ func (b *Builder) installHeader(ctx context.Context, a *Action) error {
 // regular outputs (instrumented source files) the cover tool also
 // writes a separate file (appearing first in the list of outputs)
 // that will contain coverage counters and meta-data.
-func (b *Builder) cover(a *Action, infiles, outfiles []string, varName string, mode string) ([]string, error) {
+func (b *Builder) cover(a *Action, infiles, outfiles []string, varName, mode, covMetaFileName, coverCfg string) ([]string, error) {
 	pkgcfg := a.Objdir + "pkgcfg.txt"
 	covoutputs := a.Objdir + "coveroutfiles.txt"
 	odir := filepath.Dir(outfiles[0])
 	cv := filepath.Join(odir, "covervars.go")
 	outfiles = append([]string{cv}, outfiles...)
-	if err := b.writeCoverPkgInputs(a, pkgcfg, covoutputs, outfiles); err != nil {
+	if err := b.writeCoverPkgInputs(a, pkgcfg, covMetaFileName, coverCfg, covoutputs, outfiles); err != nil {
 		return nil, err
 	}
 	args := []string{base.Tool("cover"),
@@ -2113,10 +2240,7 @@ func (b *Builder) cover(a *Action, infiles, outfiles []string, varName string, m
 	return outfiles, nil
 }
 
-func (b *Builder) writeCoverPkgInputs(a *Action, pconfigfile string, covoutputsfile string, outfiles []string) error {
-	sh := b.Shell(a)
-	p := a.Package
-	p.Internal.Cover.Cfg = a.Objdir + "coveragecfg"
+func coverConfig(p *load.Package, covMetaFileName, outConfig string) covcmd.CoverPkgConfig {
 	pcfg := covcmd.CoverPkgConfig{
 		PkgPath: p.ImportPath,
 		PkgName: p.Name,
@@ -2124,16 +2248,21 @@ func (b *Builder) writeCoverPkgInputs(a *Action, pconfigfile string, covoutputsf
 		// 'perblock'; there isn't a way using "go build -cover" or "go
 		// test -cover" to select it. This may change in the future
 		// depending on user demand.
-		Granularity: "perblock",
-		OutConfig:   p.Internal.Cover.Cfg,
-		Local:       p.Internal.Local,
+		Granularity:  "perblock",
+		OutConfig:    outConfig,
+		Local:        p.Internal.Local,
+		EmitMetaFile: covMetaFileName,
 	}
-	if ca, ok := a.Actor.(*coverActor); ok && ca.covMetaFileName != "" {
-		pcfg.EmitMetaFile = a.Objdir + ca.covMetaFileName
+	if p.Module != nil {
+		pcfg.ModulePath = p.Module.Path
 	}
-	if a.Package.Module != nil {
-		pcfg.ModulePath = a.Package.Module.Path
-	}
+	return pcfg
+}
+
+func (b *Builder) writeCoverPkgInputs(a *Action, pconfigfile, covMetaFileName, coverCfg, covoutputsfile string, outfiles []string) error {
+	sh := b.Shell(a)
+	p := a.Package
+	pcfg := coverConfig(p, covMetaFileName, coverCfg)
 	data, err := json.Marshal(pcfg)
 	if err != nil {
 		return err
@@ -2209,7 +2338,7 @@ func mkAbs(dir, f string) string {
 type toolchain interface {
 	// gc runs the compiler in a specific directory on a set of files
 	// and returns the name of the generated output file.
-	gc(b *Builder, a *Action, archive string, importcfg, embedcfg []byte, symabis string, asmhdr bool, pgoProfile string, gofiles []string) (ofile string, out []byte, err error)
+	gc(b *Builder, a *Action, archive string, importcfg, embedcfg []byte, symabis string, asmhdr bool, pgoProfile, coverCfg string, gofiles []string) (ofile string, out []byte, err error)
 	// cc runs the toolchain's C compiler in a directory on a C file
 	// to produce an output file.
 	cc(b *Builder, a *Action, ofile, cfile string) error
@@ -2249,7 +2378,7 @@ func (noToolchain) linker() string {
 	return ""
 }
 
-func (noToolchain) gc(b *Builder, a *Action, archive string, importcfg, embedcfg []byte, symabis string, asmhdr bool, pgoProfile string, gofiles []string) (ofile string, out []byte, err error) {
+func (noToolchain) gc(b *Builder, a *Action, archive string, importcfg, embedcfg []byte, symabis string, asmhdr bool, pgoProfile, coverCfg string, gofiles []string) (ofile string, out []byte, err error) {
 	return "", nil, noCompiler()
 }
 
@@ -2482,12 +2611,7 @@ func (b *Builder) compilerCmd(compiler []string, incdir, workdir string) []strin
 	// gcc-4.5 and beyond require explicit "-pthread" flag
 	// for multithreading with pthread library.
 	if cfg.BuildContext.CgoEnabled {
-		switch cfg.Goos {
-		case "windows":
-			a = append(a, "-mthreads")
-		default:
-			a = append(a, "-pthread")
-		}
+		a = append(a, "-pthread")
 	}
 
 	if cfg.Goos == "aix" {
@@ -2742,7 +2866,7 @@ func (b *Builder) gccCompilerID(compiler string) (id cache.ActionID, ok bool) {
 	// For now, there are only at most two filenames in the stat information.
 	// The first one is the compiler executable we invoke.
 	// The second is the underlying compiler as reported by -v -###
-	// (see b.gccToolID implementation in buildid.go).
+	// (see b.gccToolIDPrefix implementation in buildid.go).
 	toolID, exe2, err := b.gccToolID(compiler, "c")
 	if err != nil {
 		return cache.ActionID{}, false
@@ -3482,7 +3606,7 @@ func (b *Builder) swigDoIntSize(objdir string) (intsize string, err error) {
 
 	p := load.GoFilesPackage(modload.NewLoader(), context.TODO(), load.PackageOpts{}, srcs)
 
-	if _, _, e := BuildToolchain.gc(b, &Action{Mode: "swigDoIntSize", Package: p, Objdir: objdir}, "", nil, nil, "", false, "", srcs); e != nil {
+	if _, _, e := BuildToolchain.gc(b, &Action{Mode: "swigDoIntSize", Package: p, Objdir: objdir}, "", nil, nil, "", false, "", "", srcs); e != nil {
 		return "32", nil
 	}
 	return "64", nil
