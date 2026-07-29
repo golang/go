@@ -1349,7 +1349,7 @@ func prove(f *Func) {
 	type walkState int
 	const (
 		descend walkState = iota
-		simplify
+		restore
 	)
 	// work maintains the DFS stack.
 	type bp struct {
@@ -1409,12 +1409,23 @@ func prove(f *Func) {
 			// taking this branch. We'll restore
 			// ft when we unwind.
 
-			// Add facts about the values in the current block.
-			addLocalFacts(ft, node.block)
+			ft.topoSortValuesInBlock(node.block)
+
+			for _, v := range node.block.Values {
+				ft.flowLimit(v)
+				// constant fold arguments before addValueFact to avoid v's v.Args learned facts time traveling into v's arguments.
+				// in other words if v teaches us something about it's arguments,
+				// we can't use that to optimize v's arguments since v hasn't ran yet.
+				ft.constantFoldArguments(v)
+				ft.addValueFact(node.block, v)
+				ft.simplifyValue(node.block, v)
+			}
+
+			ft.simplifyBlock(sdom, node.block)
 
 			work = append(work, bp{
 				block: node.block,
-				state: simplify,
+				state: restore,
 			})
 			for s := sdom.Child(node.block); s != nil; s = sdom.Sibling(s) {
 				work = append(work, bp{
@@ -1423,8 +1434,7 @@ func prove(f *Func) {
 				})
 			}
 
-		case simplify:
-			simplifyBlock(sdom, ft, node.block)
+		case restore:
 			ft.restore()
 		}
 	}
@@ -2022,52 +2032,44 @@ func addRestrictions(parent *Block, ft *factsTable, t domain, v, w *Value, r rel
 	}
 }
 
-func addLocalFacts(ft *factsTable, b *Block) {
-	ft.topoSortValuesInBlock(b)
-
-	for _, v := range b.Values {
-		// Propagate constant ranges before relative relations to get
-		// the most up-to-date constant bounds for isNonNegative calls.
-		ft.flowLimit(v)
-
-		switch v.Op {
-		case OpAnd64, OpAnd32, OpAnd16, OpAnd8:
-			ft.update(b, v, v.Args[0], unsigned, lt|eq)
-			ft.update(b, v, v.Args[1], unsigned, lt|eq)
-			if ft.isNonNegative(v.Args[0]) {
-				ft.update(b, v, v.Args[0], signed, lt|eq)
-			}
-			if ft.isNonNegative(v.Args[1]) {
-				ft.update(b, v, v.Args[1], signed, lt|eq)
-			}
-		case OpOr64, OpOr32, OpOr16, OpOr8:
-			// TODO: investigate how to always add facts without much slowdown, see issue #57959
-			//ft.update(b, v, v.Args[0], unsigned, gt|eq)
-			//ft.update(b, v, v.Args[1], unsigned, gt|eq)
-		case OpDiv64u, OpDiv32u, OpDiv16u, OpDiv8u,
-			OpRsh8Ux64, OpRsh8Ux32, OpRsh8Ux16, OpRsh8Ux8,
-			OpRsh16Ux64, OpRsh16Ux32, OpRsh16Ux16, OpRsh16Ux8,
-			OpRsh32Ux64, OpRsh32Ux32, OpRsh32Ux16, OpRsh32Ux8,
-			OpRsh64Ux64, OpRsh64Ux32, OpRsh64Ux16, OpRsh64Ux8:
-			ft.update(b, v, v.Args[0], unsigned, lt|eq)
-		case OpMod64u, OpMod32u, OpMod16u, OpMod8u:
-			ft.update(b, v, v.Args[0], unsigned, lt|eq)
-			// Note: we have to be careful that this doesn't imply
-			// that the modulus is >0, which isn't true until *after*
-			// the mod instruction executes (and thus panics if the
-			// modulus is 0). See issue 67625.
-			ft.update(b, v, v.Args[1], unsigned, lt)
-		case OpSliceLen:
-			if v.Args[0].Op == OpSliceMake {
-				ft.update(b, v, v.Args[0].Args[1], signed, eq)
-			}
-		case OpSliceCap:
-			if v.Args[0].Op == OpSliceMake {
-				ft.update(b, v, v.Args[0].Args[2], signed, eq)
-			}
-		case OpPhi:
-			addLocalFactsPhi(ft, v)
+func (ft *factsTable) addValueFact(b *Block, v *Value) {
+	switch v.Op {
+	case OpAnd64, OpAnd32, OpAnd16, OpAnd8:
+		ft.update(b, v, v.Args[0], unsigned, lt|eq)
+		ft.update(b, v, v.Args[1], unsigned, lt|eq)
+		if ft.isNonNegative(v.Args[0]) {
+			ft.update(b, v, v.Args[0], signed, lt|eq)
 		}
+		if ft.isNonNegative(v.Args[1]) {
+			ft.update(b, v, v.Args[1], signed, lt|eq)
+		}
+	case OpOr64, OpOr32, OpOr16, OpOr8:
+		// TODO: investigate how to always add facts without much slowdown, see issue #57959
+		//ft.update(b, v, v.Args[0], unsigned, gt|eq)
+		//ft.update(b, v, v.Args[1], unsigned, gt|eq)
+	case OpDiv64u, OpDiv32u, OpDiv16u, OpDiv8u,
+		OpRsh8Ux64, OpRsh8Ux32, OpRsh8Ux16, OpRsh8Ux8,
+		OpRsh16Ux64, OpRsh16Ux32, OpRsh16Ux16, OpRsh16Ux8,
+		OpRsh32Ux64, OpRsh32Ux32, OpRsh32Ux16, OpRsh32Ux8,
+		OpRsh64Ux64, OpRsh64Ux32, OpRsh64Ux16, OpRsh64Ux8:
+		ft.update(b, v, v.Args[0], unsigned, lt|eq)
+	case OpMod64u, OpMod32u, OpMod16u, OpMod8u:
+		ft.update(b, v, v.Args[0], unsigned, lt|eq)
+		// Note: we have to be careful that this doesn't imply
+		// that the modulus is >0, which isn't true until *after*
+		// the mod instruction executes (and thus panics if the
+		// modulus is 0). See issue 67625.
+		ft.update(b, v, v.Args[1], unsigned, lt)
+	case OpSliceLen:
+		if v.Args[0].Op == OpSliceMake {
+			ft.update(b, v, v.Args[0].Args[1], signed, eq)
+		}
+	case OpSliceCap:
+		if v.Args[0].Op == OpSliceMake {
+			ft.update(b, v, v.Args[0].Args[2], signed, eq)
+		}
+	case OpPhi:
+		addLocalFactsPhi(ft, v)
 	}
 }
 
@@ -2155,166 +2157,165 @@ var mostNegativeDividend = map[Op]int64{
 	OpDiv64: -1 << 63,
 	OpMod64: -1 << 63}
 
-// simplifyBlock simplifies some constant values in b and evaluates
-// branches to non-uniquely dominated successors of b.
-func simplifyBlock(sdom SparseTree, ft *factsTable, b *Block) {
-	for _, v := range b.Values {
-		switch v.Op {
-		case OpSlicemask:
-			// Replace OpSlicemask operations in b with constants where possible.
-			x, delta := isConstDelta(v.Args[0])
-			if x == nil {
-				break
+func (ft *factsTable) simplifyValue(b *Block, v *Value) {
+	switch v.Op {
+	case OpSlicemask:
+		// Replace OpSlicemask operations in b with constants where possible.
+		x, delta := isConstDelta(v.Args[0])
+		if x == nil {
+			break
+		}
+		// slicemask(x + y)
+		// if x is larger than -y (y is negative), then slicemask is -1.
+		lim := ft.limits[x.ID]
+		if lim.umin > uint64(-delta) {
+			if v.Type.Size() == 8 {
+				v.reset(OpConst64)
+			} else {
+				v.reset(OpConst32)
 			}
-			// slicemask(x + y)
-			// if x is larger than -y (y is negative), then slicemask is -1.
-			lim := ft.limits[x.ID]
-			if lim.umin > uint64(-delta) {
-				if v.Type.Size() == 8 {
-					v.reset(OpConst64)
-				} else {
-					v.reset(OpConst32)
-				}
-				if b.Func.pass.debug > 0 {
-					b.Func.Warnl(v.Pos, "Proved slicemask not needed")
-				}
-				v.AuxInt = -1
+			if b.Func.pass.debug > 0 {
+				b.Func.Warnl(v.Pos, "Proved slicemask not needed")
 			}
-		case OpCtz8, OpCtz16, OpCtz32, OpCtz64:
-			// On some architectures, notably amd64, we can generate much better
-			// code for CtzNN if we know that the argument is non-zero.
-			// Capture that information here for use in arch-specific optimizations.
-			x := v.Args[0]
-			lim := ft.limits[x.ID]
-			if lim.umin > 0 || lim.min > 0 || lim.max < 0 {
-				if b.Func.pass.debug > 0 {
-					b.Func.Warnl(v.Pos, "Proved %v non-zero", v.Op)
-				}
-				v.Op = ctzNonZeroOp[v.Op]
+			v.AuxInt = -1
+		}
+	case OpCtz8, OpCtz16, OpCtz32, OpCtz64:
+		// On some architectures, notably amd64, we can generate much better
+		// code for CtzNN if we know that the argument is non-zero.
+		// Capture that information here for use in arch-specific optimizations.
+		x := v.Args[0]
+		lim := ft.limits[x.ID]
+		if lim.umin > 0 || lim.min > 0 || lim.max < 0 {
+			if b.Func.pass.debug > 0 {
+				b.Func.Warnl(v.Pos, "Proved %v non-zero", v.Op)
 			}
-		case OpRsh8x8, OpRsh8x16, OpRsh8x32, OpRsh8x64,
-			OpRsh16x8, OpRsh16x16, OpRsh16x32, OpRsh16x64,
-			OpRsh32x8, OpRsh32x16, OpRsh32x32, OpRsh32x64,
-			OpRsh64x8, OpRsh64x16, OpRsh64x32, OpRsh64x64:
-			// Check whether, for a >> b, we know that a is non-negative
-			// and b is all of a's bits except the MSB. If so, a is shifted to zero.
-			bits := 8 * v.Args[0].Type.Size()
-			if v.Args[1].isGenericIntConst() && v.Args[1].AuxInt >= bits-1 && ft.isNonNegative(v.Args[0]) {
-				if b.Func.pass.debug > 0 {
-					b.Func.Warnl(v.Pos, "Proved %v shifts to zero", v.Op)
-				}
-				switch bits {
-				case 64:
-					v.reset(OpConst64)
-				case 32:
-					v.reset(OpConst32)
-				case 16:
-					v.reset(OpConst16)
-				case 8:
-					v.reset(OpConst8)
-				default:
-					panic("unexpected integer size")
-				}
-				v.AuxInt = 0
-				break // Be sure not to fallthrough - this is no longer OpRsh.
+			v.Op = ctzNonZeroOp[v.Op]
+		}
+	case OpRsh8x8, OpRsh8x16, OpRsh8x32, OpRsh8x64,
+		OpRsh16x8, OpRsh16x16, OpRsh16x32, OpRsh16x64,
+		OpRsh32x8, OpRsh32x16, OpRsh32x32, OpRsh32x64,
+		OpRsh64x8, OpRsh64x16, OpRsh64x32, OpRsh64x64:
+		// Check whether, for a >> b, we know that a is non-negative
+		// and b is all of a's bits except the MSB. If so, a is shifted to zero.
+		bits := 8 * v.Args[0].Type.Size()
+		if v.Args[1].isGenericIntConst() && v.Args[1].AuxInt >= bits-1 && ft.isNonNegative(v.Args[0]) {
+			if b.Func.pass.debug > 0 {
+				b.Func.Warnl(v.Pos, "Proved %v shifts to zero", v.Op)
 			}
-			// If the Rsh hasn't been replaced with 0, still check if it is bounded.
-			fallthrough
-		case OpLsh8x8, OpLsh8x16, OpLsh8x32, OpLsh8x64,
-			OpLsh16x8, OpLsh16x16, OpLsh16x32, OpLsh16x64,
-			OpLsh32x8, OpLsh32x16, OpLsh32x32, OpLsh32x64,
-			OpLsh64x8, OpLsh64x16, OpLsh64x32, OpLsh64x64,
-			OpRsh8Ux8, OpRsh8Ux16, OpRsh8Ux32, OpRsh8Ux64,
-			OpRsh16Ux8, OpRsh16Ux16, OpRsh16Ux32, OpRsh16Ux64,
-			OpRsh32Ux8, OpRsh32Ux16, OpRsh32Ux32, OpRsh32Ux64,
-			OpRsh64Ux8, OpRsh64Ux16, OpRsh64Ux32, OpRsh64Ux64:
-			// Check whether, for a << b, we know that b
-			// is strictly less than the number of bits in a.
-			by := v.Args[1]
-			lim := ft.limits[by.ID]
-			bits := 8 * v.Args[0].Type.Size()
-			if lim.umax < uint64(bits) || (lim.max < bits && ft.isNonNegative(by)) {
-				v.AuxInt = 1 // see shiftIsBounded
-				if b.Func.pass.debug > 0 && !by.isGenericIntConst() {
-					b.Func.Warnl(v.Pos, "Proved %v bounded", v.Op)
-				}
+			switch bits {
+			case 64:
+				v.reset(OpConst64)
+			case 32:
+				v.reset(OpConst32)
+			case 16:
+				v.reset(OpConst16)
+			case 8:
+				v.reset(OpConst8)
+			default:
+				panic("unexpected integer size")
 			}
-		case OpDiv16, OpDiv32, OpDiv64, OpMod16, OpMod32, OpMod64:
-			// On amd64 and 386 fix-up code can be avoided if we know
-			//  the divisor is not -1 or the dividend > MinIntNN.
-			// Don't modify AuxInt on other architectures,
-			// as that can interfere with CSE.
-			// TODO: add other architectures?
-			if b.Func.Config.arch != "386" && b.Func.Config.arch != "amd64" {
-				break
-			}
-			divr := v.Args[1]
-			divrLim := ft.limits[divr.ID]
-			divd := v.Args[0]
-			divdLim := ft.limits[divd.ID]
-			if divrLim.max < -1 || divrLim.min > -1 || divdLim.min > mostNegativeDividend[v.Op] {
-				// See DivisionNeedsFixUp in rewrite.go.
-				// v.AuxInt = 1 means we have proved both that the divisor is not -1
-				// and that the dividend is not the most negative integer,
-				// so we do not need to add fix-up code.
-				v.AuxInt = 1
-				if b.Func.pass.debug > 0 {
-					b.Func.Warnl(v.Pos, "Proved %v does not need fix-up", v.Op)
-				}
+			v.AuxInt = 0
+			break // Be sure not to fallthrough - this is no longer OpRsh.
+		}
+		// If the Rsh hasn't been replaced with 0, still check if it is bounded.
+		fallthrough
+	case OpLsh8x8, OpLsh8x16, OpLsh8x32, OpLsh8x64,
+		OpLsh16x8, OpLsh16x16, OpLsh16x32, OpLsh16x64,
+		OpLsh32x8, OpLsh32x16, OpLsh32x32, OpLsh32x64,
+		OpLsh64x8, OpLsh64x16, OpLsh64x32, OpLsh64x64,
+		OpRsh8Ux8, OpRsh8Ux16, OpRsh8Ux32, OpRsh8Ux64,
+		OpRsh16Ux8, OpRsh16Ux16, OpRsh16Ux32, OpRsh16Ux64,
+		OpRsh32Ux8, OpRsh32Ux16, OpRsh32Ux32, OpRsh32Ux64,
+		OpRsh64Ux8, OpRsh64Ux16, OpRsh64Ux32, OpRsh64Ux64:
+		// Check whether, for a << b, we know that b
+		// is strictly less than the number of bits in a.
+		by := v.Args[1]
+		lim := ft.limits[by.ID]
+		bits := 8 * v.Args[0].Type.Size()
+		if lim.umax < uint64(bits) || (lim.max < bits && ft.isNonNegative(by)) {
+			v.AuxInt = 1 // see shiftIsBounded
+			if b.Func.pass.debug > 0 && !by.isGenericIntConst() {
+				b.Func.Warnl(v.Pos, "Proved %v bounded", v.Op)
 			}
 		}
-		// Fold provable constant results.
-		// Helps in cases where we reuse a value after branching on its equality.
-		for i, arg := range v.Args {
-			lim := ft.limits[arg.ID]
-			var constValue int64
-			switch {
-			case lim.min == lim.max:
-				constValue = lim.min
-			case lim.umin == lim.umax:
-				constValue = int64(lim.umin)
-			default:
-				continue
+	case OpDiv16, OpDiv32, OpDiv64, OpMod16, OpMod32, OpMod64:
+		// On amd64 and 386 fix-up code can be avoided if we know
+		//  the divisor is not -1 or the dividend > MinIntNN.
+		// Don't modify AuxInt on other architectures,
+		// as that can interfere with CSE.
+		// TODO: add other architectures?
+		if b.Func.Config.arch != "386" && b.Func.Config.arch != "amd64" {
+			break
+		}
+		divr := v.Args[1]
+		divrLim := ft.limits[divr.ID]
+		divd := v.Args[0]
+		divdLim := ft.limits[divd.ID]
+		if divrLim.max < -1 || divrLim.min > -1 || divdLim.min > mostNegativeDividend[v.Op] {
+			// See DivisionNeedsFixUp in rewrite.go.
+			// v.AuxInt = 1 means we have proved both that the divisor is not -1
+			// and that the dividend is not the most negative integer,
+			// so we do not need to add fix-up code.
+			v.AuxInt = 1
+			if b.Func.pass.debug > 0 {
+				b.Func.Warnl(v.Pos, "Proved %v does not need fix-up", v.Op)
 			}
-			switch arg.Op {
-			case OpConst64, OpConst32, OpConst16, OpConst8, OpConstBool, OpConstNil:
-				continue
-			}
-			typ := arg.Type
-			f := b.Func
-			var c *Value
-			switch {
-			case typ.IsBoolean():
-				c = f.ConstBool(typ, constValue != 0)
-			case typ.IsInteger() && typ.Size() == 1:
-				c = f.ConstInt8(typ, int8(constValue))
-			case typ.IsInteger() && typ.Size() == 2:
-				c = f.ConstInt16(typ, int16(constValue))
-			case typ.IsInteger() && typ.Size() == 4:
-				c = f.ConstInt32(typ, int32(constValue))
-			case typ.IsInteger() && typ.Size() == 8:
-				c = f.ConstInt64(typ, constValue)
-			case typ.IsPtrShaped():
-				if constValue == 0 {
-					c = f.ConstNil(typ)
-				} else {
-					// Not sure how this might happen, but if it
-					// does, just skip it.
-					continue
-				}
-			default:
+		}
+	}
+}
+
+func (ft *factsTable) constantFoldArguments(v *Value) {
+	for i, arg := range v.Args {
+		lim := ft.limits[arg.ID]
+		var constValue int64
+		switch {
+		case lim.min == lim.max:
+			constValue = lim.min
+		case lim.umin == lim.umax:
+			constValue = int64(lim.umin)
+		default:
+			continue
+		}
+		switch arg.Op {
+		case OpConst64, OpConst32, OpConst16, OpConst8, OpConstBool, OpConstNil:
+			continue
+		}
+		typ := arg.Type
+		f := v.Block.Func
+		var c *Value
+		switch {
+		case typ.IsBoolean():
+			c = f.ConstBool(typ, constValue != 0)
+		case typ.IsInteger() && typ.Size() == 1:
+			c = f.ConstInt8(typ, int8(constValue))
+		case typ.IsInteger() && typ.Size() == 2:
+			c = f.ConstInt16(typ, int16(constValue))
+		case typ.IsInteger() && typ.Size() == 4:
+			c = f.ConstInt32(typ, int32(constValue))
+		case typ.IsInteger() && typ.Size() == 8:
+			c = f.ConstInt64(typ, constValue)
+		case typ.IsPtrShaped():
+			if constValue == 0 {
+				c = f.ConstNil(typ)
+			} else {
 				// Not sure how this might happen, but if it
 				// does, just skip it.
 				continue
 			}
-			v.SetArg(i, c)
-			ft.initLimitForNewValue(c)
-			if b.Func.pass.debug > 1 {
-				b.Func.Warnl(v.Pos, "Proved %v's arg %d (%v) is constant %d", v, i, arg, constValue)
-			}
+		default:
+			// Not sure how this might happen, but if it
+			// does, just skip it.
+			continue
+		}
+		v.SetArg(i, c)
+		ft.initLimitForNewValue(c)
+		if f.pass.debug > 1 {
+			f.Warnl(v.Pos, "Proved %v's arg %d (%v) is constant %d", v, i, arg, constValue)
 		}
 	}
+}
 
+func (ft *factsTable) simplifyBlock(sdom SparseTree, b *Block) {
 	if b.Kind != BlockIf {
 		return
 	}
