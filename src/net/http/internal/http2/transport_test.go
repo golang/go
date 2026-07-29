@@ -26,6 +26,7 @@ import (
 	"net/url"
 	"os"
 	"reflect"
+	"runtime"
 	"sort"
 	"strconv"
 	"strings"
@@ -5650,4 +5651,129 @@ func testExtendedConnectReadFrameError(t *testing.T) {
 	if rt.err() == nil {
 		t.Fatalf("after connection closed: RoundTrip succeeded; want error")
 	}
+}
+
+// TestTransportRequestGoroutineExits verifies that the goroutine spawned to
+// write a request exits once the request has been fully sent, rather than
+// parking for the lifetime of the response stream. For clients with many
+// concurrent long-lived streams (long polls), a parked goroutine and its
+// stack per stream is a significant memory cost.
+func TestTransportRequestGoroutineExits(t *testing.T) {
+	synctest.Test(t, testTransportRequestGoroutineExits)
+}
+func testTransportRequestGoroutineExits(t *testing.T) {
+	tc := newTestClientConn(t)
+	tc.greet()
+
+	// Count the goroutines net/http has parked (the connection's read
+	// loop, etc.) before any request is in flight.
+	synctest.Wait()
+	base := bubbleNetHTTPGoroutines(t)
+
+	req, _ := http.NewRequest("GET", "https://dummy.tld/", nil)
+	rt := tc.roundTrip(req)
+
+	tc.wantFrameType(FrameHeaders)
+	tc.writeHeaders(HeadersFrameParam{
+		StreamID:      rt.streamID(),
+		EndHeaders:    true,
+		EndStream:     false,
+		BlockFragment: tc.makeHeaderBlockFragment(":status", "200"),
+	})
+	rt.wantStatus(200)
+
+	// The request is fully sent and the response is streaming with no
+	// end in sight. The request-writing goroutine should be gone,
+	// leaving only the goroutines that predate the request.
+	synctest.Wait()
+	if n := bubbleNetHTTPGoroutines(t); n != base {
+		t.Errorf("got %d net/http goroutines parked during long-lived response stream; want %d (the pre-request baseline)", n, base)
+	}
+
+	// The stream still works and still cleans up at END_STREAM.
+	tc.writeData(rt.streamID(), false, []byte("hello, "))
+	tc.writeData(rt.streamID(), true, []byte("world"))
+	rt.wantBody([]byte("hello, world"))
+}
+
+// bubbleNetHTTPGoroutines returns the number of goroutines in the calling
+// test's synctest bubble that were created by non-test functions under
+// net/http. The caller must be running in a synctest bubble.
+func bubbleNetHTTPGoroutines(t *testing.T) int {
+	buf := make([]byte, 1<<20)
+	buf = buf[:runtime.Stack(buf, true)]
+	// The first record is the calling goroutine, whose header names the
+	// test's bubble: "goroutine 8 [running, synctest bubble 3]:".
+	head, _, _ := strings.Cut(string(buf), "\n")
+	_, id, ok := strings.Cut(head, ", synctest bubble ")
+	if !ok {
+		t.Fatalf("calling goroutine is not in a synctest bubble: %s", head)
+	}
+	bubble := ", synctest bubble " + strings.TrimSuffix(id, "]:") + "]:"
+	n := 0
+	for g := range strings.SplitSeq(string(buf), "\n\n") {
+		header, _, _ := strings.Cut(g, "\n")
+		if !strings.HasSuffix(header, bubble) {
+			continue
+		}
+		i := strings.LastIndex(g, "\ncreated by ")
+		if i < 0 {
+			continue
+		}
+		fn, loc, _ := strings.Cut(g[i+len("\ncreated by "):], "\n")
+		if strings.HasPrefix(fn, "net/http") && !strings.Contains(loc, "_test.go:") {
+			n++
+		}
+	}
+	return n
+}
+
+// TestTransportRequestGoroutineExitsRespHeaderTimeout is like
+// TestTransportRequestGoroutineExits, but with a ResponseHeaderTimeout
+// configured: the timeout is enforced by a timer rather than a parked
+// goroutine, and once response headers arrive the timer is disarmed and
+// must not fire even long after the timeout elapses.
+func TestTransportRequestGoroutineExitsRespHeaderTimeout(t *testing.T) {
+	synctest.Test(t, testTransportRequestGoroutineExitsRespHeaderTimeout)
+}
+func testTransportRequestGoroutineExitsRespHeaderTimeout(t *testing.T) {
+	const timeout = 1 * time.Second
+	tc := newTestClientConn(t, func(t1 *http.Transport) {
+		t1.ResponseHeaderTimeout = timeout
+	})
+	tc.greet()
+
+	// Count the goroutines net/http has parked (the connection's read
+	// loop, etc.) before any request is in flight.
+	synctest.Wait()
+	base := bubbleNetHTTPGoroutines(t)
+
+	req, _ := http.NewRequest("GET", "https://dummy.tld/", nil)
+	rt := tc.roundTrip(req)
+
+	tc.wantFrameType(FrameHeaders)
+
+	// The request-writing goroutine should be gone even before response
+	// headers arrive; the response header timeout is enforced by a timer.
+	synctest.Wait()
+	if n := bubbleNetHTTPGoroutines(t); n != base {
+		t.Errorf("got %d net/http goroutines parked awaiting response headers; want %d (the pre-request baseline)", n, base)
+	}
+
+	// Response headers arrive within the timeout.
+	time.Sleep(timeout / 2)
+	tc.writeHeaders(HeadersFrameParam{
+		StreamID:      rt.streamID(),
+		EndHeaders:    true,
+		EndStream:     false,
+		BlockFragment: tc.makeHeaderBlockFragment(":status", "200"),
+	})
+	rt.wantStatus(200)
+
+	// Long after the response header timeout has elapsed, the
+	// still-streaming response must be unaffected.
+	time.Sleep(10 * timeout)
+	synctest.Wait()
+	tc.writeData(rt.streamID(), true, []byte("hello"))
+	rt.wantBody([]byte("hello"))
 }

@@ -247,6 +247,27 @@ type clientStream struct {
 	donec      chan struct{} // closed after the stream is in the closed state
 	on100      chan struct{} // buffered; written to if a 100 is received
 
+	// detached, guarded by cc.mu, indicates that the writeRequest
+	// goroutine has exited without waiting for the stream to end, and
+	// that cleanupWriteRequest should instead be run (on a new goroutine)
+	// by whichever of abortStreamLocked or clientConnReadLoop.endStream
+	// ends the stream. It is cleared when that cleanup is scheduled.
+	// See clientStream.detach.
+	detached bool
+
+	// stopCtxWatch, if non-nil, cancels the context.AfterFunc watching
+	// for request context cancellation on behalf of a detached stream.
+	// It is set (under cc.mu) at most once, by detach, before detached
+	// is set, and is called by cleanupWriteRequest.
+	stopCtxWatch func() bool
+
+	// respHeaderTimeoutTimer, guarded by cc.mu, is a timer enforcing
+	// Transport.ResponseHeaderTimeout on behalf of a detached stream.
+	// It is armed by detach if response headers haven't yet arrived, and
+	// stopped when they do (clientConnReadLoop.processHeaders) or when
+	// the stream ends (cleanupWriteRequest).
+	respHeaderTimeoutTimer *time.Timer
+
 	respHeaderRecv chan struct{}   // closed when headers are received
 	res            *ClientResponse // set if respHeaderRecv is closed
 
@@ -299,6 +320,10 @@ func (cs *clientStream) abortStreamLocked(err error) {
 		cs.abortErr = err
 		close(cs.abort)
 	})
+	if cs.detached {
+		cs.detached = false
+		go cs.cleanupWriteRequest(cs.abortErr)
+	}
 	if cs.reqBody != nil {
 		cs.closeReqBodyLocked()
 	}
@@ -1211,10 +1236,81 @@ func (cc *ClientConn) roundTrip(req *ClientRequest, streamf func(*clientStream))
 
 // doRequest runs for the duration of the request lifetime.
 //
-// It sends the request and performs post-request cleanup (closing Request.Body, etc.).
+// It sends the request and performs post-request cleanup (closing Request.Body, etc.),
+// except when writeRequest detaches from the stream, in which case cleanup is
+// performed at stream end by whoever ends it. See clientStream.detach.
 func (cs *clientStream) doRequest(req *ClientRequest, streamf func(*clientStream)) {
 	err := cs.writeRequest(req, streamf)
+	if err == errStreamDetached {
+		return
+	}
 	cs.cleanupWriteRequest(err)
+}
+
+// errStreamDetached is a sentinel returned by writeRequest to tell doRequest
+// that the stream detached and cleanupWriteRequest will be called at stream
+// end by whoever ends it. It is never returned to users.
+var errStreamDetached = errors.New("http2: internal sentinel; stream detached from writeRequest goroutine")
+
+// detach arranges for cleanupWriteRequest to run when the stream ends (the
+// peer half-closes it, it's aborted, or the request context is canceled),
+// letting the writeRequest goroutine exit instead of parking until then.
+//
+// This matters for servers and proxies with many concurrent long-lived
+// response streams (long polls): without it, each in-flight request pins a
+// goroutine and its stack for the stream's lifetime doing nothing but
+// waiting.
+//
+// respHeaderTimeout, if non-zero, gives the Transport.ResponseHeaderTimeout
+// to enforce on the detached stream if response headers haven't arrived yet.
+//
+// It reports whether the stream was detached. It returns false if the stream
+// has already ended, in which case the caller should wait for the stream end
+// events itself (they're already pending).
+func (cs *clientStream) detach(respHeaderTimeout time.Duration) bool {
+	cc := cs.cc
+	cc.mu.Lock()
+	defer cc.mu.Unlock()
+	select {
+	case <-cs.peerClosed:
+		return false
+	case <-cs.abort:
+		return false
+	default:
+	}
+	if respHeaderTimeout != 0 {
+		select {
+		case <-cs.respHeaderRecv:
+			// Headers already arrived; nothing to enforce.
+		default:
+			cs.respHeaderTimeoutTimer = time.AfterFunc(respHeaderTimeout, func() {
+				cc.mu.Lock()
+				defer cc.mu.Unlock()
+				select {
+				case <-cs.respHeaderRecv:
+					// Headers arrived after all; we lost a race
+					// with the Stop in processHeaders. Not a
+					// timeout.
+					return
+				default:
+				}
+				cs.abortStreamLocked(errTimeout)
+			})
+		}
+	}
+	// Watch for request context cancellation without parking a goroutine
+	// on ctx.Done(). If the context was canceled already, AfterFunc runs
+	// the func in a new goroutine, which blocks acquiring cc.mu until we
+	// return.
+	//
+	// stopCtxWatch must be assigned before detached is set: once detached
+	// is set, an abort or peer close can schedule cleanupWriteRequest
+	// (which calls stopCtxWatch) as soon as we release cc.mu.
+	cs.stopCtxWatch = context.AfterFunc(cs.ctx, func() {
+		cs.abortStream(cs.ctx.Err())
+	})
+	cs.detached = true
+	return true
 }
 
 var errExtendedConnectNotSupported = errors.New("net/http: extended connect not supported by peer")
@@ -1340,6 +1436,24 @@ func (cs *clientStream) writeRequest(req *ClientRequest, streamf func(*clientStr
 
 	traceWroteRequest(cs.trace, err)
 
+	// If the request is fully sent and there's nothing left for this
+	// goroutine to do but wait for the stream to end, detach from the
+	// stream and exit rather than pinning this goroutine (and its stack)
+	// for the lifetime of what may be a very long-lived response stream.
+	// The remaining cases below then run cleanupWriteRequest from the
+	// stream-end event sites instead:
+	//   - peerClosed and abort schedule it directly
+	//     (abortStreamLocked, clientConnReadLoop.endStream)
+	//   - ctx.Done is handled via context.AfterFunc in detach
+	//   - ResponseHeaderTimeout is enforced by a time.AfterFunc timer,
+	//     armed in detach and stopped when headers arrive
+	// The deprecated Request.Cancel channel can only be watched by a
+	// goroutine, so that (rare) case keeps the historical behavior of
+	// waiting here.
+	if cs.sentEndStream && cs.reqCancel == nil && cs.detach(cc.responseHeaderTimeout()) {
+		return errStreamDetached
+	}
+
 	var respHeaderTimer <-chan time.Time
 	var respHeaderRecv chan struct{}
 	if d := cc.responseHeaderTimeout(); d != 0 {
@@ -1348,6 +1462,7 @@ func (cs *clientStream) writeRequest(req *ClientRequest, streamf func(*clientStr
 		respHeaderTimer = timer.C
 		respHeaderRecv = cs.respHeaderRecv
 	}
+
 	// Wait until the peer half-closes its end of the stream,
 	// or until the request is aborted (via context, error, or otherwise),
 	// whichever comes first.
@@ -1433,6 +1548,10 @@ func encodeRequestHeaders(req *ClientRequest, addGzipHeader bool, peerMaxHeaderL
 func (cs *clientStream) cleanupWriteRequest(err error) {
 	cc := cs.cc
 
+	if cs.stopCtxWatch != nil {
+		cs.stopCtxWatch()
+	}
+
 	if cs.ID == 0 {
 		// We were canceled before creating the stream, so return our reservation.
 		cc.decrStreamReservations()
@@ -1443,6 +1562,10 @@ func (cs *clientStream) cleanupWriteRequest(err error) {
 	// and in multiple cases: server replies <=299 and >299
 	// while still writing request body
 	cc.mu.Lock()
+	if t := cs.respHeaderTimeoutTimer; t != nil {
+		t.Stop()
+		cs.respHeaderTimeoutTimer = nil
+	}
 	mustCloseBody := false
 	if cs.reqBody != nil && cs.reqBodyClosed == nil {
 		mustCloseBody = true
@@ -2154,6 +2277,13 @@ func (rl *clientConnReadLoop) processHeaders(f *MetaHeadersFrame) error {
 	}
 	cs.res = res
 	close(cs.respHeaderRecv)
+	// Stop a detached stream's response header timeout, if armed.
+	rl.cc.mu.Lock()
+	if t := cs.respHeaderTimeoutTimer; t != nil {
+		t.Stop()
+		cs.respHeaderTimeoutTimer = nil
+	}
+	rl.cc.mu.Unlock()
 	if f.StreamEnded() {
 		rl.endStream(cs)
 	}
@@ -2566,6 +2696,10 @@ func (rl *clientConnReadLoop) endStream(cs *clientStream) {
 		defer rl.cc.mu.Unlock()
 		cs.bufPipe.closeWithErrorAndCode(io.EOF, cs.copyTrailers)
 		close(cs.peerClosed)
+		if cs.detached {
+			cs.detached = false
+			go cs.cleanupWriteRequest(nil)
+		}
 	}
 }
 
