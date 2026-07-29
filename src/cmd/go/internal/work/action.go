@@ -861,6 +861,24 @@ func (b *Builder) vetAction(s *modload.Loader, mode, depMode BuildMode, p *load.
 	return a
 }
 
+// ExportAction returns an action to export the type information of p.
+func (b *Builder) ExportAction(p *load.Package) *Action {
+	return b.cacheAction("export", p, func() *Action {
+		a := &Action{
+			Mode:    "export",
+			Package: p,
+			Deps:    make([]*Action, len(p.Internal.Imports)),
+			Actor:   ActorFunc((*Builder).export),
+			Objdir:  b.NewObjdir(),
+		}
+		a.Target = a.Objdir + "export"
+		for i, imp := range p.Internal.Imports {
+			a.Deps[i] = b.ExportAction(imp)
+		}
+		return a
+	})
+}
+
 // LinkAction returns the action for linking p into an executable
 // and possibly installing the result (according to mode).
 // depMode is the action (build or install) to use when compiling dependencies.

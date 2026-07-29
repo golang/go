@@ -1454,6 +1454,17 @@ type vetConfig struct {
 	SucceedOnTypecheckFailure bool // awful hack; see #18395 and below
 }
 
+// exportConfig is the configuration passed to the export tool describing a single package.
+type exportConfig struct {
+	ImportPath  string            // package path
+	Compiler    string            // gc or gccgo, provided to makeTypesImporter
+	GoVersion   string            // minimum required Go version, such as "go1.21.0"
+	GoFiles     []string          // absolute paths to package source files
+	ImportMap   map[string]string // maps import path to package path
+	PackageFile map[string]string // maps package path to file of type information
+	Output      string            // where to write file of type information
+}
+
 // analysisModuleFromModulePublic converts a modinfo.ModulePublic to a analysis.Module.
 func analysisModuleFromModulePublic(m *modinfo.ModulePublic) *analysis.Module {
 	if m == nil {
@@ -1768,6 +1779,98 @@ cachemiss:
 	}
 
 	return nil
+}
+
+func (b *Builder) export(ctx context.Context, a *Action) error {
+	if err := b.doExport(a); err != nil {
+		return err
+	}
+	// Propagate artifacts to package on success.
+	a.Package.Export = a.built
+	a.Package.BuildID = a.buildID
+	return nil
+}
+
+func (b *Builder) doExport(a *Action) error {
+	// Build input, hash it, and check for cache hit.
+	ecfg := b.buildExportConfig(a)
+	if b.useCache(a, b.exportActionID(a, ecfg), a.Target, !b.IsCmdList) {
+		return nil
+	}
+	// Miss.
+	sh := b.Shell(a)
+	if err := sh.Mkdir(a.Objdir); err != nil {
+		return err
+	}
+	// Serialize input, call tool, and update build ID.
+	js, err := json.MarshalIndent(ecfg, "", "\t")
+	if err != nil {
+		return err
+	}
+	js = append(js, '\n')
+	in := a.Objdir + "export.cfg"
+	if err := sh.writeFile(in, js); err != nil {
+		return err
+	}
+	tool := base.Tool("export")
+	if err := sh.run(a.Package.Dir, a.Package.ImportPath, nil, cfg.BuildToolexec, tool, in); err != nil {
+		return err
+	}
+	if err := b.updateBuildID(a, a.Target); err != nil {
+		return err
+	}
+	a.built = a.Target
+	return nil
+}
+
+func (b *Builder) buildExportConfig(a *Action) *exportConfig {
+	v := gover.Local()
+	if a.Package.Module != nil {
+		v = a.Package.Module.GoVersion
+		if v == "" {
+			v = gover.DefaultGoModVersion
+		}
+	}
+
+	srcs := str.StringList(a.Package.GoFiles, a.Package.CgoFiles)
+	ecfg := &exportConfig{
+		ImportPath:  a.Package.ImportPath,
+		Compiler:    cfg.BuildToolchainName,
+		GoVersion:   "go" + v,
+		GoFiles:     make([]string, len(srcs)),
+		ImportMap:   make(map[string]string),
+		PackageFile: make(map[string]string),
+		Output:      a.Target,
+	}
+	for i, f := range srcs {
+		ecfg.GoFiles[i] = filepath.Join(a.Package.Dir, f)
+	}
+	for i, r := range a.Package.Internal.RawImports {
+		ecfg.ImportMap[r] = a.Package.Imports[i]
+	}
+	for _, dep := range a.Deps {
+		ecfg.PackageFile[dep.Package.ImportPath] = dep.built
+	}
+	return ecfg
+}
+
+func (b *Builder) exportActionID(a *Action, ecfg *exportConfig) cache.ActionID {
+	h := cache.NewHash("export " + a.Package.ImportPath)
+	// The tool binary itself.
+	fmt.Fprintf(h, "export %s\n", b.toolID("export"))
+	// Flags.
+	fmt.Fprintf(h, "importPath %s\n", ecfg.ImportPath)
+	fmt.Fprintf(h, "compiler %s\n", ecfg.Compiler)
+	fmt.Fprintf(h, "goVersion %s\n", ecfg.GoVersion)
+	// Source file contents.
+	for _, file := range ecfg.GoFiles {
+		fmt.Fprintf(h, "goFile %s %s\n", file, b.fileHash(file))
+	}
+	// Any dependencies.
+	for _, dep := range a.Deps {
+		fmt.Fprintf(h, "packageFile %s=%s\n", dep.Package.ImportPath, contentID(dep.buildID))
+	}
+	return cache.ActionID(h.Sum())
 }
 
 var stdoutMu sync.Mutex // serializes concurrent writes (of e.g. JSON values) to stdout
