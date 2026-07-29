@@ -73,7 +73,7 @@ to -f '{{.ImportPath}}'. The struct being passed to the template is:
         BinaryOnly     bool     // binary-only package (no longer supported)
         ForTest        string   // package is only for use in named test
         Export         string   // file containing export data (when using -export)
-        BuildID        string   // build ID of the compiled package (when using -export)
+        BuildID        string   // build ID of the exported package (when using -export)
         Module         *Module  // info about package's containing module, if any (can be nil)
         Match          []string // command-line patterns matching this package
         DepOnly        bool     // package is only a dependency, not explicitly listed
@@ -198,8 +198,11 @@ a non-nil Error field; other information may or may not be missing
 (zeroed).
 
 The -export flag causes list to set the Export field to the name of a
-file containing up-to-date export information for the given package,
-and the BuildID field to the build ID of the compiled package.
+file containing up-to-date export data for the given package,
+and the BuildID field to the build ID of the exported package.
+The Export file encodes complete type information for the package's
+public API. To decode it, use the golang.org/x/tools/go/gcexportdata
+package.
 
 The -find flag causes list to identify the named packages but not
 resolve their dependencies: the Imports and Deps lists will be empty.
