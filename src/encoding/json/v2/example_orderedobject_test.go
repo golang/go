@@ -102,9 +102,10 @@ func Example_orderedObject() {
 		log.Fatalf("roundtrip mismatch: got %v, want %v", got, want)
 	}
 
-	// Print the serialized JSON object.
-	(*jsontext.Value)(&b).Indent() // indent for readability
-	fmt.Println(string(b))
+	// Indent output for readability.
+	v := jsontext.Value(b)
+	v.Indent()
+	fmt.Println(string(v))
 
 	// Output:
 	// {
