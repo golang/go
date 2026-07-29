@@ -15,7 +15,7 @@ import (
 
 // "Midway" rewriting
 //
-// Go attempts to provide a package similar to the the "Highway" library
+// Go attempts to provide a package similar to the "Highway" library
 // for C++ (https://google.github.io/highway).  The library package is "simd"
 // and defines vector types with unspecified widths that are bound to particular
 // machine dependent types as late as program execution.  This is accomplished
