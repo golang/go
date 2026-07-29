@@ -63,7 +63,6 @@
         "SendEmptyRecords*": "crypto/tls doesn't implement spam protections",
         "SendWarningAlerts*": "crypto/tls doesn't implement spam protections",
         "SendUserCanceledAlerts-TooMany-TLS13": "crypto/tls doesn't implement spam protections",
-        "TooManyKeyUpdates": "crypto/tls doesn't implement spam protections (TODO: I think?)",
         "KyberNotEnabledByDefaultInClients": "crypto/tls intentionally enables it",
         "JustConfiguringKyberWorks": "we always send a X25519 key share with Kyber",
         "KyberKeyShareIncludedSecond": "we always send the Kyber key share first",

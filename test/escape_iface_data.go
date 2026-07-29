@@ -82,37 +82,37 @@ func string11() {
 }
 
 func integer1() {
-	sink = 42 // ERROR "using global for interface value"
+	sink = 42 // ERROR "using global for small integer/boolean interface value"
 }
 
 func integer2() {
 	v := 42
-	sink = v // ERROR "using global for interface value"
+	sink = v // ERROR "using global for small integer/boolean interface value"
 }
 
 func integer3() {
-	sink = 0 // ERROR "using global for interface value"
+	sink = 0 // ERROR "using global for small integer/boolean interface value"
 }
 
 func integer4a() {
 	v := 0
-	sink = v // ERROR "using global for interface value"
+	sink = v // ERROR "using global for small integer/boolean interface value"
 }
 
 func integer4b() {
 	v := uint8(0)
-	sink = v // ERROR "using global for single-byte interface value"
+	sink = v // ERROR "using global for small integer/boolean interface value"
 }
 
 func integer5() {
-	var a any = 42 // ERROR "using global for interface value"
+	var a any = 42 // ERROR "using global for small integer/boolean interface value"
 	_ = a
 }
 
 func integer6() {
 	var a any
 	v := 42
-	a = v // ERROR "using global for interface value"
+	a = v // ERROR "using global for small integer/boolean interface value"
 	_ = a
 }
 
@@ -131,69 +131,69 @@ func escapes(m M) {
 }
 
 func named1a() {
-	sink = MyInt(42) // ERROR "using global for interface value"
+	sink = MyInt(42) // ERROR "using global for small integer/boolean interface value"
 }
 
 func named1b() {
-	escapes(MyInt(42)) // ERROR "using global for interface value"
+	escapes(MyInt(42)) // ERROR "using global for small integer/boolean interface value"
 }
 
 func named2a() {
 	v := MyInt(0)
-	sink = v // ERROR "using global for interface value"
+	sink = v // ERROR "using global for small integer/boolean interface value"
 }
 
 func named2b() {
 	v := MyInt(42)
-	escapes(v) // ERROR "using global for interface value"
+	escapes(v) // ERROR "using global for small integer/boolean interface value"
 }
 
 func named2c() {
 	v := 42
-	sink = MyInt(v) // ERROR "using global for interface value"
+	sink = MyInt(v) // ERROR "using global for small integer/boolean interface value"
 }
 
 func named2d() {
 	v := 42
-	escapes(MyInt(v)) // ERROR "using global for interface value"
+	escapes(MyInt(v)) // ERROR "using global for small integer/boolean interface value"
 }
 func named3a() {
-	sink = MyInt(42) // ERROR "using global for interface value"
+	sink = MyInt(42) // ERROR "using global for small integer/boolean interface value"
 }
 
 func named3b() {
-	escapes(MyInt(0)) // ERROR "using global for interface value"
+	escapes(MyInt(0)) // ERROR "using global for small integer/boolean interface value"
 }
 
 func named4a() {
 	v := MyInt(0)
-	sink = v // ERROR "using global for interface value"
+	sink = v // ERROR "using global for small integer/boolean interface value"
 }
 
 func named4b() {
 	v := MyInt(0)
-	escapes(v) // ERROR "using global for interface value"
+	escapes(v) // ERROR "using global for small integer/boolean interface value"
 }
 
 func named4c() {
 	v := 0
-	sink = MyInt(v) // ERROR "using global for interface value"
+	sink = MyInt(v) // ERROR "using global for small integer/boolean interface value"
 }
 
 func named4d() {
 	v := 0
-	escapes(MyInt(v)) // ERROR "using global for interface value"
+	escapes(MyInt(v)) // ERROR "using global for small integer/boolean interface value"
 }
 
 func named5() {
-	var a any = MyInt(42) // ERROR "using global for interface value"
+	var a any = MyInt(42) // ERROR "using global for small integer/boolean interface value"
 	_ = a
 }
 
 func named6() {
 	var a any
 	v := MyInt(42)
-	a = v // ERROR "using global for interface value"
+	a = v // ERROR "using global for small integer/boolean interface value"
 	_ = a
 }
 
