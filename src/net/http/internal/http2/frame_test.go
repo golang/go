@@ -764,6 +764,728 @@ func TestWriteWindowUpdate(t *testing.T) {
 	}
 }
 
+// TestReadFrameReusesWindowUpdate verifies that ReadFrame returns the
+// same *WindowUpdateFrame pointer for every WINDOW_UPDATE parsed when
+// SetReuseFrames is in effect, so the parse path does not allocate a
+// fresh struct each time.
+func TestReadFrameReusesWindowUpdate(t *testing.T) {
+	fr, buf := testFramer()
+	fr.SetReuseFrames()
+
+	// First read populates the cached struct.
+	if err := fr.WriteWindowUpdate(1, 5); err != nil {
+		t.Fatal(err)
+	}
+	first, err := fr.ReadFrame()
+	if err != nil {
+		t.Fatal(err)
+	}
+	firstWU, ok := first.(*WindowUpdateFrame)
+	if !ok {
+		t.Fatalf("first frame is %T, want *WindowUpdateFrame", first)
+	}
+	if firstWU.StreamID != 1 || firstWU.Increment != 5 {
+		t.Fatalf("first WINDOW_UPDATE = %+v; want StreamID=1 Increment=5", firstWU)
+	}
+
+	// Subsequent WINDOW_UPDATEs return the same pointer with the new
+	// values. Because the pointer is reused, the originally-returned
+	// firstWU also reflects the latest fields after each ReadFrame.
+	cases := []struct {
+		streamID, increment uint32
+	}{
+		{streamID: 3, increment: 7},
+		{streamID: 1, increment: 1024},
+		{streamID: 1, increment: 1},
+	}
+	for i, tc := range cases {
+		buf.Reset()
+		if err := fr.WriteWindowUpdate(tc.streamID, tc.increment); err != nil {
+			t.Fatal(err)
+		}
+		f, err := fr.ReadFrame()
+		if err != nil {
+			t.Fatal(err)
+		}
+		wu, ok := f.(*WindowUpdateFrame)
+		if !ok {
+			t.Fatalf("iter %d: frame is %T, want *WindowUpdateFrame", i, f)
+		}
+		if wu != firstWU {
+			t.Errorf("iter %d: pointer changed: have %p, want %p", i, wu, firstWU)
+		}
+		if wu.StreamID != tc.streamID || wu.Increment != tc.increment {
+			t.Errorf("iter %d: got %+v; want StreamID=%d Increment=%d",
+				i, wu, tc.streamID, tc.increment)
+		}
+		if firstWU.StreamID != tc.streamID || firstWU.Increment != tc.increment {
+			t.Errorf("iter %d: firstWU = %+v; want StreamID=%d Increment=%d (reuse contract violated)",
+				i, firstWU, tc.streamID, tc.increment)
+		}
+	}
+
+	// Interleaving WINDOW_UPDATE with a different frame type does not
+	// disturb reuse: the cached struct is re-validated when the next
+	// WINDOW_UPDATE is parsed.
+	buf.Reset()
+	if err := fr.WritePing(false, [8]byte{1, 2, 3, 4, 5, 6, 7, 8}); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := fr.ReadFrame(); err != nil {
+		t.Fatal(err)
+	}
+	buf.Reset()
+	if err := fr.WriteWindowUpdate(5, 9000); err != nil {
+		t.Fatal(err)
+	}
+	f, err := fr.ReadFrame()
+	if err != nil {
+		t.Fatal(err)
+	}
+	wu, ok := f.(*WindowUpdateFrame)
+	if !ok {
+		t.Fatalf("after PING, frame is %T, want *WindowUpdateFrame", f)
+	}
+	if wu != firstWU {
+		t.Errorf("after PING, pointer changed: have %p, want %p", wu, firstWU)
+	}
+	if wu.StreamID != 5 || wu.Increment != 9000 {
+		t.Errorf("after PING, got %+v; want StreamID=5 Increment=9000", wu)
+	}
+}
+
+// TestReadFrameWindowUpdateNoAllocsWhenReused locks in the
+// zero-allocation invariant for the WINDOW_UPDATE parse path when
+// SetReuseFrames is in effect. If a regression makes
+// parseWindowUpdateFrame allocate, this fails rather than only showing
+// up in benchmarks.
+func TestReadFrameWindowUpdateNoAllocsWhenReused(t *testing.T) {
+	// Pre-encode a WINDOW_UPDATE frame.
+	var enc bytes.Buffer
+	if err := NewFramer(&enc, nil).WriteWindowUpdate(1, 7); err != nil {
+		t.Fatal(err)
+	}
+	encoded := enc.Bytes()
+
+	rbuf := bytes.NewReader(encoded)
+	fr := NewFramer(io.Discard, rbuf)
+	fr.SetReuseFrames()
+
+	// Warm up the read buffer so its growth does not count toward the
+	// measurement.
+	rbuf.Reset(encoded)
+	if _, err := fr.ReadFrame(); err != nil {
+		t.Fatal(err)
+	}
+
+	allocs := testing.AllocsPerRun(50, func() {
+		rbuf.Reset(encoded)
+		if _, err := fr.ReadFrame(); err != nil {
+			t.Fatal(err)
+		}
+	})
+	if allocs != 0 {
+		t.Errorf("ReadFrame for WINDOW_UPDATE allocates %v objects/op; want 0", allocs)
+	}
+}
+
+// TestReadFrameWindowUpdateOverwrites is a defensive test against
+// future maintenance hazards. When SetReuseFrames is in effect, the
+// cached *WindowUpdateFrame is reused across ReadFrame calls.
+// parseWindowUpdateFrame resets the whole struct with a composite
+// literal, so no field can survive from a previous frame; this test
+// guards that property against a future regression to field-by-field
+// assignment (which could silently leak stale data if a field were
+// added).
+//
+// The test poisons every byte of the cached struct, parses a fresh
+// WINDOW_UPDATE, and then verifies every field reflects the new frame
+// rather than the poison.
+func TestReadFrameWindowUpdateOverwrites(t *testing.T) {
+	fr, buf := testFramer()
+	fr.SetReuseFrames()
+
+	// First read to obtain the cached struct pointer.
+	if err := fr.WriteWindowUpdate(1, 5); err != nil {
+		t.Fatal(err)
+	}
+	first, err := fr.ReadFrame()
+	if err != nil {
+		t.Fatal(err)
+	}
+	wuf, ok := first.(*WindowUpdateFrame)
+	if !ok {
+		t.Fatalf("first frame is %T, want *WindowUpdateFrame", first)
+	}
+
+	// Fill every byte of the cached struct with 0xFF. If any field is
+	// left unassigned by the next parse, it will keep this poison value.
+	//
+	// valid is a bool, and any non-zero byte reads as true; bulk 0xFF
+	// poison would therefore mask a parser that forgets to reassign
+	// valid. Set valid to false separately so the post-parse
+	// expectation (valid == true) genuinely tests a fresh write.
+	poison := unsafe.Slice((*byte)(unsafe.Pointer(wuf)), unsafe.Sizeof(*wuf))
+	for i := range poison {
+		poison[i] = 0xFF
+	}
+	wuf.valid = false
+
+	// Parse a fresh WINDOW_UPDATE. The poison must be fully gone.
+	buf.Reset()
+	const wantStreamID = 42
+	const wantIncrement = 100
+	if err := fr.WriteWindowUpdate(wantStreamID, wantIncrement); err != nil {
+		t.Fatal(err)
+	}
+	f, err := fr.ReadFrame()
+	if err != nil {
+		t.Fatal(err)
+	}
+	wu, ok := f.(*WindowUpdateFrame)
+	if !ok {
+		t.Fatalf("frame is %T, want *WindowUpdateFrame", f)
+	}
+	if wu != wuf {
+		t.Fatalf("pointer changed after poison: have %p, want %p", wu, wuf)
+	}
+
+	// Check every field. Failure on any of these means
+	// parseWindowUpdateFrame left a field unassigned, which would leak
+	// data from a previous frame to the next consumer.
+	if wu.Type != FrameWindowUpdate {
+		t.Errorf("Type = %v (poison leak); want %v", wu.Type, FrameWindowUpdate)
+	}
+	if wu.Flags != 0 {
+		t.Errorf("Flags = %#x (poison leak); want 0", wu.Flags)
+	}
+	if wu.Length != 4 {
+		t.Errorf("Length = %d (poison leak); want 4", wu.Length)
+	}
+	if wu.StreamID != wantStreamID {
+		t.Errorf("StreamID = %d (poison leak); want %d", wu.StreamID, wantStreamID)
+	}
+	if !wu.valid {
+		t.Errorf("valid = false (poison leak); want true")
+	}
+	if wu.Increment != wantIncrement {
+		t.Errorf("Increment = %d (poison leak); want %d", wu.Increment, wantIncrement)
+	}
+}
+
+// TestReadFrameWindowUpdateDistinctWithoutReuse asserts the
+// pre-SetReuseFrames contract: without opting in, each parsed
+// WINDOW_UPDATE returns a distinct *WindowUpdateFrame whose fields
+// remain valid even after a subsequent ReadFrame.
+func TestReadFrameWindowUpdateDistinctWithoutReuse(t *testing.T) {
+	fr, buf := testFramer()
+
+	if err := fr.WriteWindowUpdate(1, 5); err != nil {
+		t.Fatal(err)
+	}
+	first, err := fr.ReadFrame()
+	if err != nil {
+		t.Fatal(err)
+	}
+	firstWU, ok := first.(*WindowUpdateFrame)
+	if !ok {
+		t.Fatalf("first frame is %T, want *WindowUpdateFrame", first)
+	}
+
+	buf.Reset()
+	if err := fr.WriteWindowUpdate(3, 7); err != nil {
+		t.Fatal(err)
+	}
+	second, err := fr.ReadFrame()
+	if err != nil {
+		t.Fatal(err)
+	}
+	secondWU, ok := second.(*WindowUpdateFrame)
+	if !ok {
+		t.Fatalf("second frame is %T, want *WindowUpdateFrame", second)
+	}
+
+	if firstWU == secondWU {
+		t.Errorf("without SetReuseFrames, expected distinct pointers; got same: %p", firstWU)
+	}
+	if firstWU.StreamID != 1 || firstWU.Increment != 5 {
+		t.Errorf("first WU mutated after second ReadFrame: %+v; want StreamID=1 Increment=5", firstWU)
+	}
+	if secondWU.StreamID != 3 || secondWU.Increment != 7 {
+		t.Errorf("second WU = %+v; want StreamID=3 Increment=7", secondWU)
+	}
+}
+
+// TestReadFrameReusesHeadersFrame verifies that ReadFrame returns
+// the same *HeadersFrame pointer for every HEADERS parsed when
+// SetReuseFrames is in effect.
+func TestReadFrameReusesHeadersFrame(t *testing.T) {
+	fr, buf := testFramer()
+	fr.SetReuseFrames()
+
+	write := func(streamID uint32) {
+		t.Helper()
+		if err := fr.WriteHeaders(HeadersFrameParam{
+			StreamID:      streamID,
+			BlockFragment: []byte("abc"),
+			EndHeaders:    true,
+		}); err != nil {
+			t.Fatal(err)
+		}
+	}
+
+	write(1)
+	first, err := fr.ReadFrame()
+	if err != nil {
+		t.Fatal(err)
+	}
+	firstHF, ok := first.(*HeadersFrame)
+	if !ok {
+		t.Fatalf("first frame is %T, want *HeadersFrame", first)
+	}
+
+	for i, streamID := range []uint32{3, 5, 7} {
+		buf.Reset()
+		write(streamID)
+		f, err := fr.ReadFrame()
+		if err != nil {
+			t.Fatal(err)
+		}
+		hf, ok := f.(*HeadersFrame)
+		if !ok {
+			t.Fatalf("iter %d: frame is %T, want *HeadersFrame", i, f)
+		}
+		if hf != firstHF {
+			t.Errorf("iter %d: pointer changed: have %p, want %p", i, hf, firstHF)
+		}
+		if hf.StreamID != streamID {
+			t.Errorf("iter %d: StreamID = %d, want %d", i, hf.StreamID, streamID)
+		}
+	}
+}
+
+// TestReadFrameHeadersOverwrites is a defensive test against future
+// maintenance hazards. When SetReuseFrames is in effect, the cached
+// *HeadersFrame is reused across ReadFrame calls; any field that
+// parseHeadersFrame forgets to assign would leak from the previous
+// frame to the next caller.
+//
+// The test parses a HEADERS frame WITH Priority and padding to
+// populate all fields, then parses a second frame WITHOUT either
+// flag and asserts the previous Priority and headerFragBuf-related
+// state do not bleed through.
+func TestReadFrameHeadersOverwrites(t *testing.T) {
+	fr, buf := testFramer()
+	fr.SetReuseFrames()
+
+	// First frame: priority + padding to populate every field.
+	if err := fr.WriteHeaders(HeadersFrameParam{
+		StreamID:      9,
+		BlockFragment: []byte("xyz"),
+		EndHeaders:    true,
+		PadLength:     3,
+		Priority: PriorityParam{
+			StreamDep: 7,
+			Exclusive: true,
+			Weight:    100,
+		},
+	}); err != nil {
+		t.Fatal(err)
+	}
+	first, err := fr.ReadFrame()
+	if err != nil {
+		t.Fatal(err)
+	}
+	hf1 := first.(*HeadersFrame)
+	if hf1.Priority.StreamDep != 7 || !hf1.Priority.Exclusive || hf1.Priority.Weight != 100 {
+		t.Fatalf("test setup: first frame priority = %+v; want StreamDep=7 Exclusive=true Weight=100", hf1.Priority)
+	}
+
+	// Second frame: no priority, no padding. Priority must reset.
+	buf.Reset()
+	if err := fr.WriteHeaders(HeadersFrameParam{
+		StreamID:      11,
+		BlockFragment: []byte("ab"),
+		EndHeaders:    true,
+	}); err != nil {
+		t.Fatal(err)
+	}
+	second, err := fr.ReadFrame()
+	if err != nil {
+		t.Fatal(err)
+	}
+	hf2 := second.(*HeadersFrame)
+	if hf2 != hf1 {
+		t.Fatalf("expected same pointer (cached); have %p, want %p", hf2, hf1)
+	}
+	if (hf2.Priority != PriorityParam{}) {
+		t.Errorf("Priority leak: %+v (want zero)", hf2.Priority)
+	}
+	if hf2.Flags.Has(FlagHeadersPriority) || hf2.Flags.Has(FlagHeadersPadded) {
+		t.Errorf("Flags leak: %x", hf2.Flags)
+	}
+	if hf2.StreamID != 11 {
+		t.Errorf("StreamID = %d, want 11", hf2.StreamID)
+	}
+}
+
+// TestReadFrameHeadersDistinctWithoutReuse asserts the
+// pre-SetReuseFrames contract: without opting in, each parsed
+// HEADERS returns a distinct *HeadersFrame whose Priority and
+// FrameHeader remain stable after a subsequent ReadFrame.
+func TestReadFrameHeadersDistinctWithoutReuse(t *testing.T) {
+	fr, buf := testFramer()
+
+	if err := fr.WriteHeaders(HeadersFrameParam{
+		StreamID:      1,
+		BlockFragment: []byte("abc"),
+		EndHeaders:    true,
+		Priority: PriorityParam{
+			StreamDep: 7,
+			Exclusive: true,
+			Weight:    100,
+		},
+	}); err != nil {
+		t.Fatal(err)
+	}
+	first, err := fr.ReadFrame()
+	if err != nil {
+		t.Fatal(err)
+	}
+	hf1 := first.(*HeadersFrame)
+
+	buf.Reset()
+	if err := fr.WriteHeaders(HeadersFrameParam{
+		StreamID:      3,
+		BlockFragment: []byte("xy"),
+		EndHeaders:    true,
+	}); err != nil {
+		t.Fatal(err)
+	}
+	second, err := fr.ReadFrame()
+	if err != nil {
+		t.Fatal(err)
+	}
+	hf2 := second.(*HeadersFrame)
+
+	if hf1 == hf2 {
+		t.Errorf("without SetReuseFrames, expected distinct pointers; got same: %p", hf1)
+	}
+	if hf1.StreamID != 1 || hf1.Priority.StreamDep != 7 {
+		t.Errorf("first HF mutated after second ReadFrame: StreamID=%d Priority=%+v", hf1.StreamID, hf1.Priority)
+	}
+	if hf2.StreamID != 3 {
+		t.Errorf("second HF StreamID = %d, want 3", hf2.StreamID)
+	}
+}
+
+// TestReadMetaFrameReusesMetaHeadersFrame verifies that every
+// ReadFrame call returning a *MetaHeadersFrame returns the same
+// cached pointer when SetReuseFrames is in effect.
+func TestReadMetaFrameReusesMetaHeadersFrame(t *testing.T) {
+	fr, buf := testFramer()
+	fr.SetReuseFrames()
+	fr.ReadMetaHeaders = hpack.NewDecoder(initialHeaderTableSize, nil)
+
+	writeMetaHeaders(t, fr, 1, ":method", "GET", ":path", "/", ":scheme", "http", ":authority", "x")
+	first, err := fr.ReadFrame()
+	if err != nil {
+		t.Fatal(err)
+	}
+	firstMH, ok := first.(*MetaHeadersFrame)
+	if !ok {
+		t.Fatalf("first frame is %T, want *MetaHeadersFrame", first)
+	}
+
+	for i, streamID := range []uint32{3, 5, 7} {
+		buf.Reset()
+		writeMetaHeaders(t, fr, streamID, ":method", "POST", ":path", "/p", ":scheme", "http", ":authority", "y")
+		f, err := fr.ReadFrame()
+		if err != nil {
+			t.Fatal(err)
+		}
+		mh, ok := f.(*MetaHeadersFrame)
+		if !ok {
+			t.Fatalf("iter %d: frame is %T, want *MetaHeadersFrame", i, f)
+		}
+		if mh != firstMH {
+			t.Errorf("iter %d: *MetaHeadersFrame pointer changed: have %p, want %p", i, mh, firstMH)
+		}
+		if mh.StreamID != streamID {
+			t.Errorf("iter %d: StreamID = %d, want %d", i, mh.StreamID, streamID)
+		}
+	}
+}
+
+// TestReadMetaFrameMetaHeadersOverwrites verifies the cached
+// MetaHeadersFrame's Truncated flag (and any future-added field)
+// does not leak from a prior parse: the explicit
+// `*mh = MetaHeadersFrame{...}` reset at the start of readMetaFrame
+// must zero every field.
+func TestReadMetaFrameMetaHeadersOverwrites(t *testing.T) {
+	fr, buf := testFramer()
+	fr.SetReuseFrames()
+	fr.ReadMetaHeaders = hpack.NewDecoder(initialHeaderTableSize, nil)
+	// MaxHeaderListSize that fits the first two HPACK fields (each
+	// encodes as size = name + value + 32 = 42 for the pseudo-headers
+	// used below) but truncates from the third onward. The block of
+	// hpack-encoded bytes stays well under 2*MaxHeaderListSize so the
+	// early "header list too large" abort doesn't fire.
+	fr.MaxHeaderListSize = 100
+
+	// First parse: too-many headers -> Truncated.
+	writeMetaHeaders(t, fr, 1, ":method", "GET", ":path", "/a", ":scheme", "http", ":authority", "x")
+	first, err := fr.ReadFrame()
+	if err != nil {
+		t.Fatal(err)
+	}
+	mh1 := first.(*MetaHeadersFrame)
+	if !mh1.Truncated {
+		t.Fatalf("test setup: first parse not marked Truncated as expected")
+	}
+
+	// Raise the limit, parse a fitting frame, and confirm Truncated
+	// did not bleed into the second result.
+	fr.MaxHeaderListSize = 1 << 16
+	buf.Reset()
+	writeMetaHeaders(t, fr, 3, ":method", "GET", ":path", "/b", ":scheme", "http", ":authority", "y")
+	second, err := fr.ReadFrame()
+	if err != nil {
+		t.Fatal(err)
+	}
+	mh2 := second.(*MetaHeadersFrame)
+	if mh2 != mh1 {
+		t.Fatalf("expected same cached *MetaHeadersFrame; have %p, want %p", mh2, mh1)
+	}
+	if mh2.Truncated {
+		t.Errorf("Truncated leaked from prior parse")
+	}
+}
+
+// TestReadMetaFrameDistinctWithoutReuse asserts the pre-SetReuseFrames
+// contract for the meta-headers path: without opting in, each
+// readMetaFrame returns a distinct *MetaHeadersFrame.
+func TestReadMetaFrameDistinctWithoutReuse(t *testing.T) {
+	fr, buf := testFramer()
+	fr.ReadMetaHeaders = hpack.NewDecoder(initialHeaderTableSize, nil)
+
+	writeMetaHeaders(t, fr, 1, ":method", "GET", ":path", "/", ":scheme", "http", ":authority", "x")
+	first, err := fr.ReadFrame()
+	if err != nil {
+		t.Fatal(err)
+	}
+	mh1 := first.(*MetaHeadersFrame)
+
+	buf.Reset()
+	writeMetaHeaders(t, fr, 3, ":method", "POST", ":path", "/p", ":scheme", "http", ":authority", "y")
+	second, err := fr.ReadFrame()
+	if err != nil {
+		t.Fatal(err)
+	}
+	mh2 := second.(*MetaHeadersFrame)
+
+	if mh1 == mh2 {
+		t.Errorf("without SetReuseFrames, expected distinct *MetaHeadersFrame pointers; got same: %p", mh1)
+	}
+	if mh1.StreamID != 1 {
+		t.Errorf("first MH mutated after second ReadFrame: StreamID=%d, want 1", mh1.StreamID)
+	}
+	if mh2.StreamID != 3 {
+		t.Errorf("second MH StreamID = %d, want 3", mh2.StreamID)
+	}
+}
+
+// TestMetaHeadersFrameAccessorPanicsWhenStale verifies the ownership
+// guard on MetaHeadersFrame's accessor methods: once the next
+// ReadFrame call has been made, PseudoValue (and the other Fields
+// accessors) on a retained frame panic — mirroring DataFrame.Data —
+// instead of silently returning fields that a later parse may have
+// overwritten in place. The guard applies with and without
+// SetReuseFrames. An intervening non-HEADERS frame is read because a
+// subsequent meta parse would repopulate the cached struct and
+// re-mark it owned, which the guard (like DataFrame's) does not
+// detect.
+func TestMetaHeadersFrameAccessorPanicsWhenStale(t *testing.T) {
+	for _, reuse := range []bool{true, false} {
+		t.Run(fmt.Sprintf("reuse=%v", reuse), func(t *testing.T) {
+			fr, buf := testFramer()
+			if reuse {
+				fr.SetReuseFrames()
+			}
+			fr.ReadMetaHeaders = hpack.NewDecoder(initialHeaderTableSize, nil)
+
+			writeMetaHeaders(t, fr, 1, ":method", "GET", ":path", "/", ":scheme", "http", ":authority", "x")
+			f, err := fr.ReadFrame()
+			if err != nil {
+				t.Fatal(err)
+			}
+			mh := f.(*MetaHeadersFrame)
+			if got := mh.PseudoValue("method"); got != "GET" {
+				t.Fatalf(`PseudoValue("method") = %q, want "GET"`, got)
+			}
+
+			buf.Reset()
+			if err := fr.WriteWindowUpdate(1, 5); err != nil {
+				t.Fatal(err)
+			}
+			if _, err := fr.ReadFrame(); err != nil {
+				t.Fatal(err)
+			}
+
+			defer func() {
+				if recover() == nil {
+					t.Errorf("PseudoValue on a stale MetaHeadersFrame did not panic")
+				}
+			}()
+			mh.PseudoValue("method")
+		})
+	}
+}
+
+// TestReadMetaFrameReusesFieldsSlice verifies that, when
+// SetReuseFrames is in effect, readMetaFrame reuses the backing array
+// of MetaHeadersFrame.Fields across parses instead of growing a fresh
+// slice from nil each time. The Fields documentation already forbids
+// retaining the slice past the next ReadFrame, and the package's
+// consumers copy field strings into their own header maps
+// synchronously, so the in-place overwrite is within contract.
+func TestReadMetaFrameReusesFieldsSlice(t *testing.T) {
+	fr, buf := testFramer()
+	fr.SetReuseFrames()
+	fr.ReadMetaHeaders = hpack.NewDecoder(initialHeaderTableSize, nil)
+
+	readMeta := func() *MetaHeadersFrame {
+		t.Helper()
+		f, err := fr.ReadFrame()
+		if err != nil {
+			t.Fatal(err)
+		}
+		mh, ok := f.(*MetaHeadersFrame)
+		if !ok {
+			t.Fatalf("got %T, want *MetaHeadersFrame", f)
+		}
+		return mh
+	}
+
+	// First read populates the cached slice.
+	writeMetaHeaders(t, fr, 1, ":method", "GET", ":path", "/a", ":scheme", "http", ":authority", "x")
+	mh := readMeta()
+	if len(mh.Fields) != 4 {
+		t.Fatalf("first parse: got %d fields, want 4", len(mh.Fields))
+	}
+	backing1 := unsafe.SliceData(mh.Fields)
+
+	// A second read of the same shape must reuse the backing array.
+	buf.Reset()
+	writeMetaHeaders(t, fr, 3, ":method", "POST", ":path", "/b", ":scheme", "https", ":authority", "y")
+	mh = readMeta()
+	if len(mh.Fields) != 4 {
+		t.Fatalf("second parse: got %d fields, want 4", len(mh.Fields))
+	}
+	if backing := unsafe.SliceData(mh.Fields); backing != backing1 {
+		t.Errorf("Fields backing array changed between equal-size reads: have %p, want %p", backing, backing1)
+	}
+
+	// A larger read may grow the slice; a subsequent equal-size read
+	// must then reuse the grown array.
+	buf.Reset()
+	writeMetaHeaders(t, fr, 5,
+		":method", "GET", ":path", "/c", ":scheme", "http", ":authority", "z",
+		"x-a", "1", "x-b", "2", "x-c", "3", "x-d", "4")
+	mh = readMeta()
+	if len(mh.Fields) != 8 {
+		t.Fatalf("third parse: got %d fields, want 8", len(mh.Fields))
+	}
+	backing3 := unsafe.SliceData(mh.Fields)
+
+	buf.Reset()
+	writeMetaHeaders(t, fr, 7,
+		":method", "GET", ":path", "/d", ":scheme", "http", ":authority", "z",
+		"x-a", "5", "x-b", "6", "x-c", "7", "x-d", "8")
+	mh = readMeta()
+	if backing := unsafe.SliceData(mh.Fields); backing != backing3 {
+		t.Errorf("Fields backing array changed after equal-size read: have %p, want %p", backing, backing3)
+	}
+}
+
+// TestReadMetaFrameFieldsClearsSensitiveTail verifies the memory
+// hygiene of the Fields reuse: header values can hold secrets, so the
+// retained backing array must be cleared before reuse. After a parse
+// shorter than its predecessor, no slot beyond the new length may
+// still reference the earlier parse's strings.
+func TestReadMetaFrameFieldsClearsSensitiveTail(t *testing.T) {
+	fr, buf := testFramer()
+	fr.SetReuseFrames()
+	fr.ReadMetaHeaders = hpack.NewDecoder(initialHeaderTableSize, nil)
+
+	const secret = "secret-cookie-value-do-not-retain"
+	writeMetaHeaders(t, fr, 1,
+		":method", "GET", ":path", "/", ":scheme", "http", ":authority", "x",
+		"cookie", secret)
+	if _, err := fr.ReadFrame(); err != nil {
+		t.Fatal(err)
+	}
+
+	// Shorter second parse: the slots beyond its length must have
+	// been cleared, not merely left beyond the slice length.
+	buf.Reset()
+	writeMetaHeaders(t, fr, 3, ":method", "GET", ":path", "/", ":scheme", "http", ":authority", "x")
+	f, err := fr.ReadFrame()
+	if err != nil {
+		t.Fatal(err)
+	}
+	mh := f.(*MetaHeadersFrame)
+
+	full := mh.Fields[:cap(mh.Fields)]
+	for i := len(mh.Fields); i < len(full); i++ {
+		if full[i] != (hpack.HeaderField{}) {
+			t.Errorf("Fields slot %d beyond len not cleared: %+v", i, full[i])
+		}
+		if full[i].Value == secret {
+			t.Errorf("Fields slot %d still references the previous parse's secret", i)
+		}
+	}
+}
+
+// TestReadMetaFrameFieldsRetentionCap verifies that a single large
+// HEADERS frame does not permanently inflate the per-Framer Fields
+// cache: an array grown past maxRetainedMetaFields is dropped at the
+// start of the next parse.
+func TestReadMetaFrameFieldsRetentionCap(t *testing.T) {
+	fr, buf := testFramer()
+	fr.SetReuseFrames()
+	fr.ReadMetaHeaders = hpack.NewDecoder(initialHeaderTableSize, nil)
+
+	big := []string{":method", "GET", ":path", "/", ":scheme", "http", ":authority", "x"}
+	for i := 0; i < 2*maxRetainedMetaFields; i++ {
+		big = append(big, fmt.Sprintf("x-h-%03d", i), "v")
+	}
+	writeMetaHeaders(t, fr, 1, big...)
+	f, err := fr.ReadFrame()
+	if err != nil {
+		t.Fatal(err)
+	}
+	mh := f.(*MetaHeadersFrame)
+	if cap(mh.Fields) <= maxRetainedMetaFields {
+		t.Fatalf("test setup: large parse cap = %d, want > %d", cap(mh.Fields), maxRetainedMetaFields)
+	}
+	bigBacking := unsafe.SliceData(mh.Fields)
+
+	buf.Reset()
+	writeMetaHeaders(t, fr, 3, ":method", "GET", ":path", "/", ":scheme", "http", ":authority", "x")
+	f, err = fr.ReadFrame()
+	if err != nil {
+		t.Fatal(err)
+	}
+	mh = f.(*MetaHeadersFrame)
+	if backing := unsafe.SliceData(mh.Fields); backing == bigBacking {
+		t.Errorf("oversized Fields backing array was retained across parses")
+	}
+	if cap(mh.Fields) > maxRetainedMetaFields {
+		t.Errorf("cap(Fields) = %d after small parse, want <= %d", cap(mh.Fields), maxRetainedMetaFields)
+	}
+}
+
 func TestWritePing(t *testing.T)    { testWritePing(t, false) }
 func TestWritePingAck(t *testing.T) { testWritePing(t, true) }
 
@@ -1110,6 +1832,7 @@ func TestMetaFrameHeader(t *testing.T) {
 				},
 			},
 			Fields: []hpack.HeaderField(nil),
+			owned:  true,
 		}
 		for len(pairs) > 0 {
 			mh.Fields = append(mh.Fields, hpack.HeaderField{
@@ -1321,8 +2044,7 @@ func TestSetReuseFrames(t *testing.T) {
 	fr, buf := testFramer()
 	fr.SetReuseFrames()
 
-	// Check that DataFrames are reused. Note that
-	// SetReuseFrames only currently implements reuse of DataFrames.
+	// Check that DataFrames are reused.
 	firstDf := readAndVerifyDataFrame("ABC", 3, fr, buf, t)
 
 	for range 10 {
@@ -1370,7 +2092,6 @@ func TestNoSetReuseFrames(t *testing.T) {
 	dfSoFar := make([]any, numNewDataFrames)
 
 	// Check that DataFrames are not reused if SetReuseFrames wasn't called.
-	// SetReuseFrames only currently implements reuse of DataFrames.
 	for i := range numNewDataFrames {
 		df := readAndVerifyDataFrame("XYZ", 3, fr, buf, t)
 		for _, item := range dfSoFar {
@@ -1418,6 +2139,20 @@ func encodeHeaderRaw(t testing.TB, headers ...string) []byte {
 		headers = headers[2:]
 	}
 	return buf.Bytes()
+}
+
+// writeMetaHeaders HPACK-encodes the name/value pairs and writes them
+// to fr as a single HEADERS frame with EndHeaders set.
+func writeMetaHeaders(t testing.TB, fr *Framer, streamID uint32, pairs ...string) {
+	t.Helper()
+	block := encodeHeaderRaw(t, pairs...)
+	if err := fr.WriteHeaders(HeadersFrameParam{
+		StreamID:      streamID,
+		BlockFragment: block,
+		EndHeaders:    true,
+	}); err != nil {
+		t.Fatal(err)
+	}
 }
 
 func TestSettingsDuplicates(t *testing.T) {
@@ -1604,4 +2339,93 @@ func TestTypeFrameParserHolePanic(t *testing.T) {
 	if _, ok := f.(*UnknownFrame); !ok {
 		t.Errorf("got %T; want *UnknownFrame", f)
 	}
+}
+
+// benchmarkReadFrameReuse measures the per-parse cost of repeatedly
+// reading the single pre-encoded frame in encoded, in Default
+// (allocate per parse) and Reused (SetReuseFrames) variants. When
+// meta is set, the Framer decodes HEADERS via ReadMetaHeaders. One
+// warm-up read keeps the Framer's read-buffer growth out of the
+// measurement.
+func benchmarkReadFrameReuse(b *testing.B, meta bool, encoded []byte) {
+	run := func(b *testing.B, reuse bool) {
+		rbuf := bytes.NewReader(encoded)
+		fr := NewFramer(io.Discard, rbuf)
+		if meta {
+			fr.ReadMetaHeaders = hpack.NewDecoder(initialHeaderTableSize, nil)
+		}
+		if reuse {
+			fr.SetReuseFrames()
+		}
+		rbuf.Reset(encoded)
+		if _, err := fr.ReadFrame(); err != nil {
+			b.Fatal(err)
+		}
+		b.ReportAllocs()
+		b.ResetTimer()
+		for i := 0; i < b.N; i++ {
+			rbuf.Reset(encoded)
+			if _, err := fr.ReadFrame(); err != nil {
+				b.Fatal(err)
+			}
+		}
+	}
+	b.Run("Default", func(b *testing.B) { run(b, false) })
+	b.Run("Reused", func(b *testing.B) { run(b, true) })
+}
+
+// BenchmarkParseDataFrame measures the per-parse cost of DATA
+// frames with and without SetReuseFrames. The DataFrame cache is the
+// preexisting one; this exists so its contribution can be compared
+// directly against the WindowUpdate/Headers/MetaHeaders caches added
+// in this stack.
+func BenchmarkParseDataFrame(b *testing.B) {
+	var enc bytes.Buffer
+	if err := NewFramer(&enc, nil).WriteData(1, false, []byte("abc")); err != nil {
+		b.Fatal(err)
+	}
+	benchmarkReadFrameReuse(b, false, enc.Bytes())
+}
+
+// BenchmarkParseWindowUpdateFrame measures the per-parse cost of
+// WINDOW_UPDATE frames with and without SetReuseFrames. The Default
+// case allocates a fresh *WindowUpdateFrame each call; Reused uses
+// the cached one.
+func BenchmarkParseWindowUpdateFrame(b *testing.B) {
+	var enc bytes.Buffer
+	if err := NewFramer(&enc, nil).WriteWindowUpdate(1, 7); err != nil {
+		b.Fatal(err)
+	}
+	benchmarkReadFrameReuse(b, false, enc.Bytes())
+}
+
+// BenchmarkParseHeadersFrame measures HEADERS parsing with and
+// without SetReuseFrames.
+func BenchmarkParseHeadersFrame(b *testing.B) {
+	var enc bytes.Buffer
+	if err := NewFramer(&enc, nil).WriteHeaders(HeadersFrameParam{
+		StreamID:      1,
+		BlockFragment: []byte("abc"),
+		EndHeaders:    true,
+	}); err != nil {
+		b.Fatal(err)
+	}
+	benchmarkReadFrameReuse(b, false, enc.Bytes())
+}
+
+// BenchmarkReadMetaFrame measures HEADERS+HPACK decoding via
+// readMetaFrame with and without SetReuseFrames. With reuse, the
+// cached *HeadersFrame and *MetaHeadersFrame wrappers and the Fields
+// backing array are all eliminated from the allocation count.
+func BenchmarkReadMetaFrame(b *testing.B) {
+	block := encodeHeaderRaw(b, ":method", "GET", ":path", "/", ":scheme", "http", ":authority", "x")
+	var enc bytes.Buffer
+	if err := NewFramer(&enc, nil).WriteHeaders(HeadersFrameParam{
+		StreamID:      1,
+		BlockFragment: block,
+		EndHeaders:    true,
+	}); err != nil {
+		b.Fatal(err)
+	}
+	benchmarkReadFrameReuse(b, true, enc.Bytes())
 }

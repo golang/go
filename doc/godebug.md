@@ -190,6 +190,15 @@ Setting `x509sslcertoverrideplatform=0` disables this behavior in favor of using
 the platform certificate store instead of honoring the environment variables. We
 plan to remove this setting in Go 1.31.
 
+Go 1.27 added a new `http2reuseframes` setting that controls whether the
+net/http HTTP/2 server and Transport opt in to `Framer.SetReuseFrames`,
+which reuses parsed `*DataFrame`, `*WindowUpdateFrame`, `*HeadersFrame`,
+and `*MetaHeadersFrame` structs across `ReadFrame` calls to reduce
+per-frame heap allocation. The default is reuse on. Setting
+`http2reuseframes=0` reverts to allocating each parsed frame fresh,
+matching the pre-Go 1.27 behavior. As usual, programs in modules whose
+go.mod declares a Go version below 1.27 default to `http2reuseframes=0`.
+
 ### Go 1.26
 
 Go 1.26 added a new `httpcookiemaxnum` setting that controls the maximum number
