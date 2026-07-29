@@ -696,6 +696,17 @@ func preprocess(ctxt *obj.Link, cursym *obj.LSym, newprog obj.ProgAlloc) {
 						p.To.Offset = offset
 						rescan = true
 					}
+
+				case AJAL:
+					// Linker will handle the intersymbol case and trampolines.
+					if p.To.Target() == nil {
+						break
+					}
+					offset := p.To.Target().Pc - p.Pc
+					if offset != p.To.Offset {
+						p.To.Offset = offset
+						rescan = true
+					}
 				}
 			}
 
@@ -3723,6 +3734,11 @@ func (ins *instruction) compress() {
 			ins.as, ins.rs1, ins.rs2 = ACFSDSP, obj.REG_NONE, ins.rs1
 		} else if isIntPrimeReg(ins.rd) && isFloatPrimeReg(ins.rs1) && isScaledImmU(ins.imm, 8, 8) {
 			ins.as, ins.rd, ins.rs1, ins.rs2 = ACFSD, obj.REG_NONE, ins.rd, ins.rs1
+		}
+
+	case AJAL:
+		if ins.rd == REG_ZERO && ins.imm != 0 && isScaledImmI(ins.imm, 12, 2) {
+			ins.as, ins.rd = ACJ, obj.REG_NONE
 		}
 
 	case AJALR:
