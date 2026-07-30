@@ -235,10 +235,16 @@ func (b *block) setFormat(format Format) {
 // signed byte values.
 // We compute and return both.
 func (b *block) computeChecksum() (unsigned, signed int64) {
-	for i, c := range b {
-		if 148 <= i && i < 156 {
-			c = ' ' // Treat the checksum field itself as all spaces.
-		}
+	for _, c := range b[:148] {
+		unsigned += int64(c)
+		signed += int64(int8(c))
+	}
+	// Treat the checksum field itself (bytes 148 to 155, inclusive)
+	// as if it were all spaces.
+	const chksumSpaces = 8 * int64(' ')
+	unsigned += chksumSpaces
+	signed += chksumSpaces
+	for _, c := range b[156:] {
 		unsigned += int64(c)
 		signed += int64(int8(c))
 	}
