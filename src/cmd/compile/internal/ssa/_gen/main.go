@@ -29,7 +29,7 @@ import (
 // TODO: capitalize these types, so that we can more easily tell variable names
 // apart from type names, and avoid awkward func parameters like "arch arch".
 
-var splitPhase = phase2Core
+var splitPhase = phase3Compile
 
 var splitTitle = identity
 

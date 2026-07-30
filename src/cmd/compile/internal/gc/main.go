@@ -25,7 +25,7 @@ import (
 	"cmd/compile/internal/rewriteresults"
 	"cmd/compile/internal/rttype"
 	"cmd/compile/internal/slice"
-	"cmd/compile/internal/ssa"
+	"cmd/compile/internal/ssacompile"
 	"cmd/compile/internal/ssagen"
 	"cmd/compile/internal/staticinit"
 	"cmd/compile/internal/typecheck"
@@ -83,7 +83,7 @@ func Main(archInit func(*ssagen.ArchInfo)) {
 	// See bugs 31188 and 21945 (CLs 170638, 98075, 72371).
 	base.Ctxt.UseBASEntries = base.Ctxt.Headtype != objabi.Hdarwin
 
-	base.DebugSSA = ssa.PhaseOption
+	base.DebugSSA = ssacompile.PhaseOption
 	base.ParseFlags()
 
 	if flagGCStart := base.Debug.GCStart; flagGCStart > 0 || // explicit flags overrides environment variable disable of GC boost
@@ -230,7 +230,7 @@ func Main(archInit func(*ssagen.ArchInfo)) {
 	dwarfgen.RecordPackageName()
 
 	// Prepare for backend processing.
-	ssagen.InitConfig(ssa.NewConfig(ssagen.Arch.SoftFloat))
+	ssagen.InitConfig(ssacompile.NewConfig(ssagen.Arch.SoftFloat))
 
 	// Apply coverage fixups, if applicable.
 	coverage.Fixup()

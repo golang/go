@@ -273,10 +273,10 @@ func bootstrapBuildTools() {
 	}
 }
 
-var ssaRewriteFileSubstring = filepath.FromSlash("src/cmd/compile/internal/ssa/rewrite")
+var ssaRewriteFileSubstring = filepath.FromSlash("src/cmd/compile/internal/ssacompile/rewrite")
 
 // isUnneededSSARewriteFile reports whether srcFile is a
-// src/cmd/compile/internal/ssa/rewriteARCHNAME.go file for an
+// src/cmd/compile/internal/ssacompile/rewriteARCHNAME.go file for an
 // architecture that isn't for the given GOARCH.
 //
 // When unneeded is true archCaps is the rewrite base filename without
@@ -312,7 +312,7 @@ func bootstrapRewriteFile(srcFile string) string {
 	// binary that works for the current gohostarch.
 	// This saves 6+ seconds of bootstrap.
 	if archCaps, ok := isUnneededSSARewriteFile(srcFile, gohostarch); ok {
-		return fmt.Sprintf(`%spackage ssa
+		return fmt.Sprintf(`%spackage ssacompile
 
 import "bootstrap/cmd/compile/internal/ssa/ssacore"
 
