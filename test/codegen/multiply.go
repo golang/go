@@ -180,7 +180,7 @@ func m28(x int64) int64 {
 func m29(x int64) int64 {
 	// amd64: "IMUL3Q [$]29,"
 	// arm64: "MOVD [$]29," "MUL"
-	// loong64: "ALSLV [$]1," "SLLV [$]5," "SUBVU"
+	// loong64: "ALSLV [$]1," "ALSLV [$]2," "ALSLV [$]3,"
 	return x * 29
 }
 func m30(x int64) int64 {
@@ -307,7 +307,7 @@ func mn9(x int64) int64 {
 func mn10(x int64) int64 {
 	// amd64: "IMUL3Q [$]-10,"
 	// arm64: "MOVD [$]-10," "MUL"
-	// loong64: "ADDVU" "ALSLV [$]3" "SUBVU"
+	// loong64: "ALSLV [$]2," "SUBVU" "ADDVU"
 	return x * -10
 }
 func mn11(x int64) int64 {
@@ -319,13 +319,13 @@ func mn11(x int64) int64 {
 func mn12(x int64) int64 {
 	// amd64: "IMUL3Q [$]-12,"
 	// arm64: "LSL [$]2," "SUB R[0-9]+<<2,"
-	// loong64: "SUBVU" "SLLV [$]2," "ALSLV [$]4,"
+	// loong64: "ALSLV [$]2," "ALSLV [$]4," "SUBVU"
 	return x * -12
 }
 func mn13(x int64) int64 {
 	// amd64: "IMUL3Q [$]-13,"
 	// arm64: "MOVD [$]-13," "MUL"
-	// loong64: "ALSLV [$]4," "SLLV [$]2, " "SUBVU"
+	// loong64: "ALSLV [$]1," "SUBVU" "ALSLV [$]4,"
 	return x * -13
 }
 func mn14(x int64) int64 {
@@ -355,7 +355,7 @@ func mn17(x int64) int64 {
 func mn18(x int64) int64 {
 	// amd64: "IMUL3Q [$]-18,"
 	// arm64: "MOVD [$]-18," "MUL"
-	// loong64: "ADDVU" "ALSLV [$]4," "SUBVU"
+	// loong64: "ALSLV [$]3," "SUBVU" "ADDVU"
 	return x * -18
 }
 func mn19(x int64) int64 {
@@ -367,6 +367,6 @@ func mn19(x int64) int64 {
 func mn20(x int64) int64 {
 	// amd64: "IMUL3Q [$]-20,"
 	// arm64: "MOVD [$]-20," "MUL"
-	// loong64: "SLLV [$]2," "ALSLV [$]4," "SUBVU"
+	// loong64: "ALSLV [$]2," "SUBVU" "SLLV [$]2,"
 	return x * -20
 }

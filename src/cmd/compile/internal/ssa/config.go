@@ -538,20 +538,6 @@ func (c *Config) buildRecipes(arch string) {
 			func(m, x, y *Value) *Value {
 				return m.Block.NewValue2(m.Pos, OpARM64SUB, m.Type, x, y)
 			})
-		// regular shifts
-		for i := 1; i < 64; i++ {
-			c := 10
-			if i == 1 {
-				// Prefer x<<1 over x+x.
-				// Note that we eventually reverse this decision in ARM64latelower.rules,
-				// but this makes shift combining rules in ARM64.rules simpler.
-				c--
-			}
-			r(1<<i, 0, c,
-				func(m, x, y *Value) *Value {
-					return m.Block.NewValue1I(m.Pos, OpARM64SLLconst, m.Type, int64(i), x)
-				})
-		}
 		// ADDshiftLL
 		for i := 1; i < 64; i++ {
 			c := 20
@@ -585,6 +571,20 @@ func (c *Config) buildRecipes(arch string) {
 					return m.Block.NewValue2I(m.Pos, OpARM64SUBshiftLL, m.Type, int64(i), x, y)
 				})
 		}
+		// regular shifts
+		for i := 1; i < 64; i++ {
+			c := 10
+			if i == 1 {
+				// Prefer x<<1 over x+x.
+				// Note that we eventually reverse this decision in ARM64latelower.rules,
+				// but this makes shift combining rules in ARM64.rules simpler.
+				c--
+			}
+			r(1<<i, 0, c,
+				func(m, x, y *Value) *Value {
+					return m.Block.NewValue1I(m.Pos, OpARM64SLLconst, m.Type, int64(i), x)
+				})
+		}
 	case "loong64":
 		// - multiply is 4 cycles.
 		// - add/sub/shift/alsl are 1 cycle.
@@ -608,6 +608,15 @@ func (c *Config) buildRecipes(arch string) {
 				return m.Block.NewValue2(m.Pos, OpLOONG64SUBV, m.Type, x, y)
 			})
 
+		// ADDshiftLLV
+		for i := 1; i < 5; i++ {
+			c := 10
+			r(1, 1<<i, c,
+				func(m, x, y *Value) *Value {
+					return m.Block.NewValue2I(m.Pos, OpLOONG64ADDshiftLLV, m.Type, int64(i), x, y)
+				})
+		}
+
 		// regular shifts
 		for i := 1; i < 64; i++ {
 			c := 10
@@ -620,15 +629,6 @@ func (c *Config) buildRecipes(arch string) {
 			r(1<<i, 0, c,
 				func(m, x, y *Value) *Value {
 					return m.Block.NewValue1I(m.Pos, OpLOONG64SLLVconst, m.Type, int64(i), x)
-				})
-		}
-
-		// ADDshiftLLV
-		for i := 1; i < 5; i++ {
-			c := 10
-			r(1, 1<<i, c,
-				func(m, x, y *Value) *Value {
-					return m.Block.NewValue2I(m.Pos, OpLOONG64ADDshiftLLV, m.Type, int64(i), x, y)
 				})
 		}
 	}
