@@ -10,7 +10,7 @@ import (
 	"runtime"
 	"testing"
 
-	"cmd/compile/internal/ssa/ssacore"
+	"cmd/compile/internal/ssa"
 )
 
 // This file tests the functions addFlags64 and subFlags64 by comparing their
@@ -22,7 +22,7 @@ func TestAddFlagsNative(t *testing.T) {
 		2, -2,
 		1<<63 - 1, -1 << 63,
 	}
-	coverage := map[ssacore.FlagConstant]bool{}
+	coverage := map[ssa.FlagConstant]bool{}
 	for _, x := range numbers {
 		for _, y := range numbers {
 			a := AddFlags64(x, y)
@@ -44,7 +44,7 @@ func TestSubFlagsNative(t *testing.T) {
 		2, -2,
 		1<<63 - 1, -1 << 63,
 	}
-	coverage := map[ssacore.FlagConstant]bool{}
+	coverage := map[ssa.FlagConstant]bool{}
 	for _, x := range numbers {
 		for _, y := range numbers {
 			a := SubFlags64(x, y)
@@ -66,7 +66,7 @@ func TestAndFlagsNative(t *testing.T) {
 		2, -2,
 		1<<63 - 1, -1 << 63,
 	}
-	coverage := map[ssacore.FlagConstant]bool{}
+	coverage := map[ssa.FlagConstant]bool{}
 	for _, x := range numbers {
 		for _, y := range numbers {
 			a := LogicFlags64(x & y)
@@ -86,7 +86,7 @@ func asmAddFlags(x, y int64) int
 func asmSubFlags(x, y int64) int
 func asmAndFlags(x, y int64) int
 
-func flagRegister2flagConstant(x int, sub bool) ssacore.FlagConstant {
+func flagRegister2flagConstant(x int, sub bool) ssa.FlagConstant {
 	var fcb FlagConstantBuilder
 	switch runtime.GOARCH {
 	case "amd64":

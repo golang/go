@@ -5,15 +5,15 @@
 package ssacompile
 
 import (
+	"cmd/compile/internal/ssa"
 	"cmd/compile/internal/ssa/block"
-	"cmd/compile/internal/ssa/ssacore"
 	"cmd/compile/internal/ssa/ssaop"
 )
 
 // critical splits critical edges (those that go from a block with
 // more than one outedge to a block with more than one inedge).
 // Regalloc wants a critical-edge-free CFG so it can implement phi values.
-func critical(f *ssacore.Func) {
+func critical(f *ssa.Func) {
 	// maps from phi arg ID to the new block created for that argument
 	blocks := f.Cache.AllocBlockSlice(f.NumValues())
 	defer f.Cache.FreeBlockSlice(blocks)
@@ -25,7 +25,7 @@ func critical(f *ssacore.Func) {
 			continue
 		}
 
-		var phi *ssacore.Value
+		var phi *ssa.Value
 		// determine if we've only got a single phi in this
 		// block, this is easier to handle than the general
 		// case of a block with multiple phi values.
@@ -56,7 +56,7 @@ func critical(f *ssacore.Func) {
 				continue // only single output block
 			}
 
-			var d *ssacore.Block // new block used to remove critical edge
+			var d *ssa.Block     // new block used to remove critical edge
 			reusedBlock := false // if true, then this is not the first use of this block
 			if phi != nil {
 				argID := phi.Args[i].ID
@@ -91,8 +91,8 @@ func critical(f *ssacore.Func) {
 			// predecessors and phi args
 			if reusedBlock {
 				// Add p->d edge
-				p.Succs[pi] = ssacore.Edge{B: d, I: len(d.Preds)}
-				d.Preds = append(d.Preds, ssacore.Edge{B: p, I: pi})
+				p.Succs[pi] = ssa.Edge{B: d, I: len(d.Preds)}
+				d.Preds = append(d.Preds, ssa.Edge{B: p, I: pi})
 
 				// Remove p as a predecessor from b.
 				b.RemovePred(i)
@@ -106,10 +106,10 @@ func critical(f *ssacore.Func) {
 				// an unprocessed predecessor down into slot i.
 			} else {
 				// splice it in
-				p.Succs[pi] = ssacore.Edge{B: d, I: 0}
-				b.Preds[i] = ssacore.Edge{B: d, I: 0}
-				d.Preds = append(d.Preds, ssacore.Edge{B: p, I: pi})
-				d.Succs = append(d.Succs, ssacore.Edge{B: b, I: i})
+				p.Succs[pi] = ssa.Edge{B: d, I: 0}
+				b.Preds[i] = ssa.Edge{B: d, I: 0}
+				d.Preds = append(d.Preds, ssa.Edge{B: p, I: pi})
+				d.Succs = append(d.Succs, ssa.Edge{B: b, I: i})
 				i++
 			}
 		}

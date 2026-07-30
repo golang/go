@@ -8,15 +8,15 @@ import (
 	"internal/buildcfg"
 
 	"cmd/compile/internal/ir"
+	"cmd/compile/internal/ssa"
 	"cmd/compile/internal/ssa/block"
-	"cmd/compile/internal/ssa/ssacore"
 	"cmd/compile/internal/ssa/ssaop"
 	"cmd/internal/src"
 )
 
 // nilcheckelim eliminates unnecessary nil checks.
 // runs on machine-independent code.
-func nilcheckelim(f *ssacore.Func) {
+func nilcheckelim(f *ssa.Func) {
 	// A nil check is redundant if the same nil check was successful in a
 	// dominating block. The efficacy of this pass depends heavily on the
 	// efficacy of the cse pass.
@@ -34,8 +34,8 @@ func nilcheckelim(f *ssacore.Func) {
 	)
 
 	type bp struct {
-		block *ssacore.Block // block, or nil in ClearPtr state
-		ptr   *ssacore.Value // if non-nil, ptr that is to be cleared in ClearPtr state
+		block *ssa.Block // block, or nil in ClearPtr state
+		ptr   *ssa.Value // if non-nil, ptr that is to be cleared in ClearPtr state
 		op    walkState
 	}
 
@@ -200,7 +200,7 @@ var faultOnLoad = buildcfg.GOOS != "aix"
 
 // nilcheckelim2 eliminates unnecessary nil checks.
 // Runs after lowering and scheduling.
-func nilcheckelim2(f *ssacore.Func) {
+func nilcheckelim2(f *ssa.Func) {
 	unnecessary := f.NewSparseMap(f.NumValues()) // map from pointer that will be dereferenced to index of dereferencing value in b.Values[]
 	defer f.RetSparseMap(unnecessary)
 
@@ -273,7 +273,7 @@ func nilcheckelim2(f *ssacore.Func) {
 			}
 
 			// Find any pointers that this op is guaranteed to fault on if nil.
-			var ptrstore [2]*ssacore.Value
+			var ptrstore [2]*ssa.Value
 			ptrs := ptrstore[:0]
 			if ssaop.OpcodeTable[v.Op].FaultOnNilArg0 && (faultOnLoad || v.Type.IsMemory()) {
 				// On AIX, only writing will fault.
@@ -297,7 +297,7 @@ func nilcheckelim2(f *ssacore.Func) {
 						continue
 					}
 				case ssaop.AuxTypeSymValAndOff:
-					off := ssacore.ValAndOff(v.AuxInt).Off()
+					off := ssa.ValAndOff(v.AuxInt).Off()
 					if v.Aux != nil || off < 0 || off >= minZeroPage {
 						continue
 					}
@@ -321,7 +321,7 @@ func nilcheckelim2(f *ssacore.Func) {
 		for j := i; j < len(b.Values); j++ {
 			v := b.Values[j]
 			if v.Op != ssaop.OpUnknown {
-				if !ssacore.NotStmtBoundary(v.Op) && pendingLines.Contains(v.Pos) { // Late in compilation, so any remaining NotStmt values are probably okay now.
+				if !ssa.NotStmtBoundary(v.Op) && pendingLines.Contains(v.Pos) { // Late in compilation, so any remaining NotStmt values are probably okay now.
 					v.Pos = v.Pos.WithIsStmt()
 					pendingLines.Remove(v.Pos)
 				}

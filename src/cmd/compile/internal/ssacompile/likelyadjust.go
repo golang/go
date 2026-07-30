@@ -5,8 +5,8 @@
 package ssacompile
 
 import (
+	"cmd/compile/internal/ssa"
 	"cmd/compile/internal/ssa/block"
-	"cmd/compile/internal/ssa/ssacore"
 	"cmd/compile/internal/ssa/ssaop"
 )
 
@@ -20,22 +20,22 @@ const (
 
 var bllikelies = [4]string{"default", "call", "ret", "exit"}
 
-func describePredictionAgrees(b *ssacore.Block, prediction ssacore.BranchPrediction) string {
+func describePredictionAgrees(b *ssa.Block, prediction ssa.BranchPrediction) string {
 	s := ""
 	if prediction == b.Likely {
 		s = " (agrees with previous)"
-	} else if b.Likely != ssacore.BranchUnknown {
+	} else if b.Likely != ssa.BranchUnknown {
 		s = " (disagrees with previous, ignored)"
 	}
 	return s
 }
 
-func describeBranchPrediction(f *ssacore.Func, b *ssacore.Block, likely, not int8, prediction ssacore.BranchPrediction) {
+func describeBranchPrediction(f *ssa.Func, b *ssa.Block, likely, not int8, prediction ssa.BranchPrediction) {
 	f.Warnl(b.Pos, "Branch prediction rule %s < %s%s",
 		bllikelies[likely-blMin], bllikelies[not-blMin], describePredictionAgrees(b, prediction))
 }
 
-func likelyadjust(f *ssacore.Func) {
+func likelyadjust(f *ssa.Func) {
 	// The values assigned to certain and local only matter
 	// in their rank order.  0 is default, more positive
 	// is less likely. It's possible to assign a negative
@@ -95,15 +95,15 @@ func likelyadjust(f *ssacore.Func) {
 					switch {
 					// prefer not to exit loops
 					case l1 == nil:
-						prediction = ssacore.BranchLikely
+						prediction = ssa.BranchLikely
 					case l0 == nil:
-						prediction = ssacore.BranchUnlikely
+						prediction = ssa.BranchUnlikely
 
 						// prefer to stay in loop, not exit to outer.
 					case l == l0:
-						prediction = ssacore.BranchLikely
+						prediction = ssa.BranchLikely
 					case l == l1:
-						prediction = ssacore.BranchUnlikely
+						prediction = ssa.BranchUnlikely
 					default:
 						noprediction = true
 					}
@@ -115,29 +115,29 @@ func likelyadjust(f *ssacore.Func) {
 				} else {
 					// Lacking loop structure, fall back on heuristics.
 					if certain[b1] > certain[b0] {
-						prediction = ssacore.BranchLikely
+						prediction = ssa.BranchLikely
 						if f.Pass.Debug > 0 {
 							describeBranchPrediction(f, b, certain[b0], certain[b1], prediction)
 						}
 					} else if certain[b0] > certain[b1] {
-						prediction = ssacore.BranchUnlikely
+						prediction = ssa.BranchUnlikely
 						if f.Pass.Debug > 0 {
 							describeBranchPrediction(f, b, certain[b1], certain[b0], prediction)
 						}
 					} else if local[b1] > local[b0] {
-						prediction = ssacore.BranchLikely
+						prediction = ssa.BranchLikely
 						if f.Pass.Debug > 0 {
 							describeBranchPrediction(f, b, local[b0], local[b1], prediction)
 						}
 					} else if local[b0] > local[b1] {
-						prediction = ssacore.BranchUnlikely
+						prediction = ssa.BranchUnlikely
 						if f.Pass.Debug > 0 {
 							describeBranchPrediction(f, b, local[b1], local[b0], prediction)
 						}
 					}
 				}
 				if b.Likely != prediction {
-					if b.Likely == ssacore.BranchUnknown {
+					if b.Likely == ssa.BranchUnknown {
 						b.Likely = prediction
 					}
 				}

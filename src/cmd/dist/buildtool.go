@@ -314,10 +314,10 @@ func bootstrapRewriteFile(srcFile string) string {
 	if archCaps, ok := isUnneededSSARewriteFile(srcFile, gohostarch); ok {
 		return fmt.Sprintf(`%spackage ssacompile
 
-import "bootstrap/cmd/compile/internal/ssa/ssacore"
+import "bootstrap/cmd/compile/internal/ssa"
 
-func rewriteValue%s(v *ssacore.Value) bool { panic("unused during bootstrap") }
-func rewriteBlock%s(b *ssacore.Block) bool { panic("unused during bootstrap") }
+func rewriteValue%s(v *ssa.Value) bool { panic("unused during bootstrap") }
+func rewriteBlock%s(b *ssa.Block) bool { panic("unused during bootstrap") }
 `, generatedHeader, archCaps, archCaps)
 	}
 

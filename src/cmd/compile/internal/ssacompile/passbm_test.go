@@ -8,7 +8,7 @@ import (
 	"fmt"
 	"testing"
 
-	"cmd/compile/internal/ssa/ssacore"
+	"cmd/compile/internal/ssa"
 	"cmd/compile/internal/ssa/ssaop"
 	"cmd/compile/internal/types"
 )
@@ -18,7 +18,7 @@ const (
 	passCount  = 15000
 )
 
-type passFunc func(*ssacore.Func)
+type passFunc func(*ssa.Func)
 
 func BenchmarkDSEPass(b *testing.B)           { benchFnPass(b, dse, blockCount, genFunction) }
 func BenchmarkDSEPassBlock(b *testing.B)      { benchFnBlock(b, dse, genFunction) }
@@ -27,7 +27,7 @@ func BenchmarkCSEPassBlock(b *testing.B)      { benchFnBlock(b, cse, genFunction
 func BenchmarkDeadcodePass(b *testing.B)      { benchFnPass(b, deadcode, blockCount, genFunction) }
 func BenchmarkDeadcodePassBlock(b *testing.B) { benchFnBlock(b, deadcode, genFunction) }
 
-func multi(f *ssacore.Func) {
+func multi(f *ssa.Func) {
 	cse(f)
 	dse(f)
 	deadcode(f)

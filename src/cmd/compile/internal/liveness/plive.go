@@ -28,8 +28,8 @@ import (
 	"cmd/compile/internal/ir"
 	"cmd/compile/internal/objw"
 	"cmd/compile/internal/reflectdata"
+	"cmd/compile/internal/ssa"
 	"cmd/compile/internal/ssa/block"
-	"cmd/compile/internal/ssa/ssacore"
 	"cmd/compile/internal/ssa/ssaop"
 	"cmd/compile/internal/typebits"
 	"cmd/compile/internal/types"
@@ -107,7 +107,7 @@ type blockEffects struct {
 // A collection of global state used by Liveness analysis.
 type Liveness struct {
 	fn         *ir.Func
-	f          *ssacore.Func
+	f          *ssa.Func
 	vars       []*ir.Name
 	idx        map[*ir.Name]int32
 	stkptrsize int64
@@ -158,9 +158,9 @@ type Liveness struct {
 // Also keeps track of unsafe ssa.Values and ssa.Blocks.
 // (unsafe = can't be interrupted during GC.)
 type Map struct {
-	Vals         map[ssacore.ID]objw.StackMapIndex
-	UnsafeVals   map[ssacore.ID]bool
-	UnsafeBlocks map[ssacore.ID]bool
+	Vals         map[ssa.ID]objw.StackMapIndex
+	UnsafeVals   map[ssa.ID]bool
+	UnsafeBlocks map[ssa.ID]bool
 	// The set of live, pointer-containing variables at the DeferReturn
 	// call (only set when open-coded defers are used).
 	DeferReturn objw.StackMapIndex
@@ -168,9 +168,9 @@ type Map struct {
 
 func (m *Map) reset() {
 	if m.Vals == nil {
-		m.Vals = make(map[ssacore.ID]objw.StackMapIndex)
-		m.UnsafeVals = make(map[ssacore.ID]bool)
-		m.UnsafeBlocks = make(map[ssacore.ID]bool)
+		m.Vals = make(map[ssa.ID]objw.StackMapIndex)
+		m.UnsafeVals = make(map[ssa.ID]bool)
+		m.UnsafeBlocks = make(map[ssa.ID]bool)
 	} else {
 		clear(m.Vals)
 		clear(m.UnsafeVals)
@@ -179,28 +179,28 @@ func (m *Map) reset() {
 	m.DeferReturn = objw.StackMapDontCare
 }
 
-func (m *Map) set(v *ssacore.Value, i objw.StackMapIndex) {
+func (m *Map) set(v *ssa.Value, i objw.StackMapIndex) {
 	m.Vals[v.ID] = i
 }
-func (m *Map) setUnsafeVal(v *ssacore.Value) {
+func (m *Map) setUnsafeVal(v *ssa.Value) {
 	m.UnsafeVals[v.ID] = true
 }
-func (m *Map) setUnsafeBlock(b *ssacore.Block) {
+func (m *Map) setUnsafeBlock(b *ssa.Block) {
 	m.UnsafeBlocks[b.ID] = true
 }
 
-func (m Map) Get(v *ssacore.Value) objw.StackMapIndex {
+func (m Map) Get(v *ssa.Value) objw.StackMapIndex {
 	// If v isn't in the map, then it's a "don't care".
 	if idx, ok := m.Vals[v.ID]; ok {
 		return idx
 	}
 	return objw.StackMapDontCare
 }
-func (m Map) GetUnsafe(v *ssacore.Value) bool {
+func (m Map) GetUnsafe(v *ssa.Value) bool {
 	// default is safe
 	return m.UnsafeVals[v.ID]
 }
-func (m Map) GetUnsafeBlock(b *ssacore.Block) bool {
+func (m Map) GetUnsafeBlock(b *ssa.Block) bool {
 	// default is safe
 	return m.UnsafeBlocks[b.ID]
 }
@@ -283,7 +283,7 @@ const (
 // valueEffects returns the index of a variable in lv.vars and the
 // liveness effects v has on that variable.
 // If v does not affect any tracked variables, it returns -1, 0.
-func (lv *Liveness) valueEffects(v *ssacore.Value) (int32, liveEffect) {
+func (lv *Liveness) valueEffects(v *ssa.Value) (int32, liveEffect) {
 	n, e := affectedVar(v)
 	if e == 0 || n == nil { // cheapest checks first
 		return -1, 0
@@ -334,14 +334,14 @@ func (lv *Liveness) valueEffects(v *ssacore.Value) (int32, liveEffect) {
 }
 
 // affectedVar returns the *ir.Name node affected by v.
-func affectedVar(v *ssacore.Value) (*ir.Name, ssaop.SymEffect) {
+func affectedVar(v *ssa.Value) (*ir.Name, ssaop.SymEffect) {
 	// Special cases.
 	switch v.Op {
 	case ssaop.OpLoadReg:
-		n, _ := ssacore.AutoVar(v.Args[0])
+		n, _ := ssa.AutoVar(v.Args[0])
 		return n, ssaop.SymRead
 	case ssaop.OpStoreReg:
-		n, _ := ssacore.AutoVar(v)
+		n, _ := ssa.AutoVar(v)
 		return n, ssaop.SymWrite
 
 	case ssaop.OpArgIntReg:
@@ -357,7 +357,7 @@ func affectedVar(v *ssacore.Value) (*ir.Name, ssaop.SymEffect) {
 		//  4. GC within G, transitively called from F
 		//    a. X is live at call site, therefore is spilled, to its spill slot (which is live because of subsequent LoadReg).
 		//    b. X is not live at call site -- but neither is its spill slot.
-		n, _ := ssacore.AutoVar(v)
+		n, _ := ssa.AutoVar(v)
 		return n, ssaop.SymRead
 
 	case ssaop.OpVarLive:
@@ -365,7 +365,7 @@ func affectedVar(v *ssacore.Value) (*ir.Name, ssaop.SymEffect) {
 	case ssaop.OpVarDef:
 		return v.Aux.(*ir.Name), ssaop.SymWrite
 	case ssaop.OpKeepAlive:
-		n, _ := ssacore.AutoVar(v.Args[0])
+		n, _ := ssa.AutoVar(v.Args[0])
 		return n, ssaop.SymRead
 	}
 
@@ -394,7 +394,7 @@ type livenessFuncCache struct {
 // Constructs a new liveness structure used to hold the global state of the
 // liveness computation. The cfg argument is a slice of *BasicBlocks and the
 // vars argument is a slice of *Nodes.
-func newliveness(fn *ir.Func, f *ssacore.Func, vars []*ir.Name, idx map[*ir.Name]int32, stkptrsize int64) *Liveness {
+func newliveness(fn *ir.Func, f *ssa.Func, vars []*ir.Name, idx map[*ir.Name]int32, stkptrsize int64) *Liveness {
 	lv := &Liveness{
 		fn:         fn,
 		f:          f,
@@ -449,7 +449,7 @@ func newliveness(fn *ir.Func, f *ssacore.Func, vars []*ir.Name, idx map[*ir.Name
 	return lv
 }
 
-func (lv *Liveness) blockEffects(b *ssacore.Block) *blockEffects {
+func (lv *Liveness) blockEffects(b *ssa.Block) *blockEffects {
 	return &lv.be[b.ID]
 }
 
@@ -492,7 +492,7 @@ func (lv *Liveness) pointerMap(liveout bitvec.BitVec, vars []*ir.Name, args, loc
 
 // IsUnsafe indicates that all points in this function are
 // unsafe-points.
-func IsUnsafe(f *ssacore.Func) bool {
+func IsUnsafe(f *ssa.Func) bool {
 	// The runtime assumes the only safe-points are function
 	// prologues (because that's how it used to be). We could and
 	// should improve that, but for now keep consider all points
@@ -566,7 +566,7 @@ func (lv *Liveness) markUnsafePoints() {
 			// Find their common predecessor block (the one that branches based on wb on/off).
 			// It might be a diamond pattern, or one of the blocks in the diamond pattern might
 			// be missing.
-			var decisionBlock *ssacore.Block
+			var decisionBlock *ssa.Block
 			if len(c.Preds) == 1 && c.Preds[0].Block() == d {
 				decisionBlock = d
 			} else if len(d.Preds) == 1 && d.Preds[0].Block() == c {
@@ -585,7 +585,7 @@ func (lv *Liveness) markUnsafePoints() {
 			// looking for, but all current arches produce a
 			// single op that does the memory load from the flag
 			// address, so we look for that.
-			var load *ssacore.Value
+			var load *ssa.Value
 			v := decisionBlock.Controls[0]
 			for {
 				if v.MemoryArg() != nil {
@@ -649,14 +649,14 @@ func (lv *Liveness) markUnsafePoints() {
 // This does not necessarily mean the instruction is a safe-point. In
 // particular, call Values can have a stack map in case the callee
 // grows the stack, but not themselves be a safe-point.
-func (lv *Liveness) hasStackMap(v *ssacore.Value) bool {
+func (lv *Liveness) hasStackMap(v *ssa.Value) bool {
 	if !v.Op.IsCall() {
 		return false
 	}
 	// wbZero and wbCopy are write barriers and
 	// deeply non-preemptible. They are unsafe points and
 	// hence should not have liveness maps.
-	if sym, ok := v.Aux.(*ssacore.AuxCall); ok && (sym.Fn == ir.Syms.WBZero || sym.Fn == ir.Syms.WBMove) {
+	if sym, ok := v.Aux.(*ssa.AuxCall); ok && (sym.Fn == ir.Syms.WBZero || sym.Fn == ir.Syms.WBMove) {
 		return false
 	}
 	return true
@@ -916,7 +916,7 @@ func (lv *Liveness) epilogue() {
 // is actually a net loss: we save about 50k of argument bitmaps but the new
 // PCDATA tables cost about 100k. So for now we keep using a single index for
 // both bitmap lists.
-func (lv *Liveness) compact(b *ssacore.Block) {
+func (lv *Liveness) compact(b *ssa.Block) {
 	pos := 0
 	if b == lv.f.Entry {
 		// Handle entry stack map.
@@ -996,9 +996,9 @@ func (lv *Liveness) enableClobber() {
 
 // Inserts code to clobber pointer slots in all the dead variables (locals and args)
 // at every synchronous safepoint in b.
-func (lv *Liveness) clobber(b *ssacore.Block) {
+func (lv *Liveness) clobber(b *ssa.Block) {
 	// Copy block's values to a temporary.
-	oldSched := append([]*ssacore.Value{}, b.Values...)
+	oldSched := append([]*ssa.Value{}, b.Values...)
 	b.Values = b.Values[:0]
 	idx := 0
 
@@ -1031,7 +1031,7 @@ func (lv *Liveness) clobber(b *ssacore.Block) {
 // clobber generates code to clobber pointer slots in all dead variables
 // (those not marked in live). Clobbering instructions are added to the end
 // of b.Values.
-func clobber(lv *Liveness, b *ssacore.Block, live bitvec.BitVec) {
+func clobber(lv *Liveness, b *ssa.Block, live bitvec.BitVec) {
 	for i, n := range lv.vars {
 		if !live.Get(int32(i)) && !n.Addrtaken() && !n.OpenDeferSlot() && !n.IsOutputParamHeapAddr() {
 			// Don't clobber stack objects (address-taken). They are
@@ -1048,7 +1048,7 @@ func clobber(lv *Liveness, b *ssacore.Block, live bitvec.BitVec) {
 
 // clobberVar generates code to trash the pointers in v.
 // Clobbering instructions are added to the end of b.Values.
-func clobberVar(b *ssacore.Block, v *ir.Name) {
+func clobberVar(b *ssa.Block, v *ir.Name) {
 	clobberWalk(b, v, 0, v.Type())
 }
 
@@ -1056,7 +1056,7 @@ func clobberVar(b *ssacore.Block, v *ir.Name) {
 // v = variable
 // offset = offset of (sub-portion of) variable to clobber (in bytes)
 // t = type of sub-portion of v.
-func clobberWalk(b *ssacore.Block, v *ir.Name, offset int64, t *types.Type) {
+func clobberWalk(b *ssa.Block, v *ir.Name, offset int64, t *types.Type) {
 	if !t.HasPointers() {
 		return
 	}
@@ -1100,11 +1100,11 @@ func clobberWalk(b *ssacore.Block, v *ir.Name, offset int64, t *types.Type) {
 
 // clobberPtr generates a clobber of the pointer at offset offset in v.
 // The clobber instruction is added at the end of b.
-func clobberPtr(b *ssacore.Block, v *ir.Name, offset int64) {
+func clobberPtr(b *ssa.Block, v *ir.Name, offset int64) {
 	b.NewValue0IA(src.NoXPos, ssaop.OpClobber, types.TypeVoid, offset, v)
 }
 
-func (lv *Liveness) showlive(v *ssacore.Value, live bitvec.BitVec) {
+func (lv *Liveness) showlive(v *ssa.Value, live bitvec.BitVec) {
 	if base.Flag.Live == 0 || ir.FuncName(lv.fn) == "init" || strings.HasPrefix(ir.FuncName(lv.fn), ".") {
 		return
 	}
@@ -1126,7 +1126,7 @@ func (lv *Liveness) showlive(v *ssacore.Value, live bitvec.BitVec) {
 	base.WarnfAt(pos, "%s", s)
 }
 
-func (lv *Liveness) Format(v *ssacore.Value) string {
+func (lv *Liveness) Format(v *ssa.Value) string {
 	if v == nil {
 		_, s := lv.format(nil, lv.stackMaps[0])
 		return s
@@ -1138,7 +1138,7 @@ func (lv *Liveness) Format(v *ssacore.Value) string {
 	return ""
 }
 
-func (lv *Liveness) format(v *ssacore.Value, live bitvec.BitVec) (src.XPos, string) {
+func (lv *Liveness) format(v *ssa.Value, live bitvec.BitVec) (src.XPos, string) {
 	pos := lv.fn.Nname.Pos()
 	if v != nil {
 		pos = v.Pos
@@ -1147,7 +1147,7 @@ func (lv *Liveness) format(v *ssacore.Value, live bitvec.BitVec) (src.XPos, stri
 	s := "live at "
 	if v == nil {
 		s += fmt.Sprintf("entry to %s:", ir.FuncName(lv.fn))
-	} else if sym, ok := v.Aux.(*ssacore.AuxCall); ok && sym.Fn != nil {
+	} else if sym, ok := v.Aux.(*ssa.AuxCall); ok && sym.Fn != nil {
 		fn := sym.Fn.Name
 		if pos := strings.Index(fn, "."); pos >= 0 {
 			fn = fn[pos+1:]
@@ -1393,7 +1393,7 @@ func (lv *Liveness) emit() (argsSym, liveSym *obj.LSym) {
 // structure read by the garbage collector.
 // Returns a map from GC safe points to their corresponding stack map index,
 // and a map that contains all input parameters that may be partially live.
-func Compute(curfn *ir.Func, f *ssacore.Func, stkptrsize int64, pp *objw.Progs, retLiveness bool) (Map, map[*ir.Name]bool, *Liveness) {
+func Compute(curfn *ir.Func, f *ssa.Func, stkptrsize int64, pp *objw.Progs, retLiveness bool) (Map, map[*ir.Name]bool, *Liveness) {
 	// Construct the global liveness state.
 	vars, idx := getvariables(curfn)
 	lv := newliveness(curfn, f, vars, idx, stkptrsize)

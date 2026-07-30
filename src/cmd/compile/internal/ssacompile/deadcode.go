@@ -5,13 +5,13 @@
 package ssacompile
 
 import (
+	"cmd/compile/internal/ssa"
 	"cmd/compile/internal/ssa/block"
-	"cmd/compile/internal/ssa/ssacore"
 	"cmd/internal/src"
 )
 
 // deadcode removes dead code from f.
-func deadcode(f *ssacore.Func) {
+func deadcode(f *ssa.Func) {
 	// deadcode after regalloc is forbidden for now. Regalloc
 	// doesn't quite generate legal SSA which will lead to some
 	// required moves being eliminated. See the comment at the
@@ -21,7 +21,7 @@ func deadcode(f *ssacore.Func) {
 	}
 
 	// Find reachable blocks.
-	reachable := ssacore.ReachableBlocks(f)
+	reachable := ssa.ReachableBlocks(f)
 
 	// Get rid of edges from dead to live code.
 	for _, b := range f.Blocks {
@@ -48,14 +48,14 @@ func deadcode(f *ssacore.Func) {
 		}
 		b.RemoveEdge(1)
 		b.Kind = block.BlockPlain
-		b.Likely = ssacore.BranchUnknown
+		b.Likely = ssa.BranchUnknown
 	}
 
 	// Splice out any copies introduced during dead block removal.
 	copyelim(f)
 
 	// Find live values.
-	live, order := ssacore.LiveValues(f, reachable)
+	live, order := ssa.LiveValues(f, reachable)
 	defer func() { f.Cache.FreeBoolSlice(live) }()
 	defer func() { f.Cache.FreeValueSlice(order) }()
 

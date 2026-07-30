@@ -3,9 +3,9 @@
 package ssacompile
 
 import "cmd/compile/internal/ssa/ssaop"
-import "cmd/compile/internal/ssa/ssacore"
+import "cmd/compile/internal/ssa"
 
-func rewriteValueRISCV64latelower(v *ssacore.Value) bool {
+func rewriteValueRISCV64latelower(v *ssa.Value) bool {
 	switch v.Op {
 	case ssaop.OpRISCV64AND:
 		return rewriteValueRISCV64latelower_OpRISCV64AND(v)
@@ -24,7 +24,7 @@ func rewriteValueRISCV64latelower(v *ssacore.Value) bool {
 	}
 	return false
 }
-func rewriteValueRISCV64latelower_OpRISCV64AND(v *ssacore.Value) bool {
+func rewriteValueRISCV64latelower_OpRISCV64AND(v *ssa.Value) bool {
 	v_1 := v.Args[1]
 	v_0 := v.Args[0]
 	// match: (AND x (NOT y))
@@ -44,7 +44,7 @@ func rewriteValueRISCV64latelower_OpRISCV64AND(v *ssacore.Value) bool {
 	}
 	return false
 }
-func rewriteValueRISCV64latelower_OpRISCV64NOT(v *ssacore.Value) bool {
+func rewriteValueRISCV64latelower_OpRISCV64NOT(v *ssa.Value) bool {
 	v_0 := v.Args[0]
 	// match: (NOT (XOR x y))
 	// result: (XNOR x y)
@@ -60,7 +60,7 @@ func rewriteValueRISCV64latelower_OpRISCV64NOT(v *ssacore.Value) bool {
 	}
 	return false
 }
-func rewriteValueRISCV64latelower_OpRISCV64OR(v *ssacore.Value) bool {
+func rewriteValueRISCV64latelower_OpRISCV64OR(v *ssa.Value) bool {
 	v_1 := v.Args[1]
 	v_0 := v.Args[0]
 	// match: (OR x (NOT y))
@@ -80,7 +80,7 @@ func rewriteValueRISCV64latelower_OpRISCV64OR(v *ssacore.Value) bool {
 	}
 	return false
 }
-func rewriteValueRISCV64latelower_OpRISCV64SLLI(v *ssacore.Value) bool {
+func rewriteValueRISCV64latelower_OpRISCV64SLLI(v *ssa.Value) bool {
 	v_0 := v.Args[0]
 	b := v.Block
 	typ := &b.Func.Config.Types
@@ -156,7 +156,7 @@ func rewriteValueRISCV64latelower_OpRISCV64SLLI(v *ssacore.Value) bool {
 	}
 	return false
 }
-func rewriteValueRISCV64latelower_OpRISCV64SRAI(v *ssacore.Value) bool {
+func rewriteValueRISCV64latelower_OpRISCV64SRAI(v *ssa.Value) bool {
 	v_0 := v.Args[0]
 	b := v.Block
 	typ := &b.Func.Config.Types
@@ -232,7 +232,7 @@ func rewriteValueRISCV64latelower_OpRISCV64SRAI(v *ssacore.Value) bool {
 	}
 	return false
 }
-func rewriteValueRISCV64latelower_OpRISCV64SRLI(v *ssacore.Value) bool {
+func rewriteValueRISCV64latelower_OpRISCV64SRLI(v *ssa.Value) bool {
 	v_0 := v.Args[0]
 	b := v.Block
 	typ := &b.Func.Config.Types
@@ -308,7 +308,7 @@ func rewriteValueRISCV64latelower_OpRISCV64SRLI(v *ssacore.Value) bool {
 	}
 	return false
 }
-func rewriteValueRISCV64latelower_OpRISCV64XOR(v *ssacore.Value) bool {
+func rewriteValueRISCV64latelower_OpRISCV64XOR(v *ssa.Value) bool {
 	v_1 := v.Args[1]
 	v_0 := v.Args[0]
 	// match: (XOR x (NOT y))
@@ -328,6 +328,6 @@ func rewriteValueRISCV64latelower_OpRISCV64XOR(v *ssacore.Value) bool {
 	}
 	return false
 }
-func rewriteBlockRISCV64latelower(b *ssacore.Block) bool {
+func rewriteBlockRISCV64latelower(b *ssa.Block) bool {
 	return false
 }

@@ -16,7 +16,7 @@ import (
 
 	"cmd/compile/internal/base"
 	"cmd/compile/internal/logopt"
-	"cmd/compile/internal/ssa/ssacore"
+	"cmd/compile/internal/ssa"
 	"cmd/compile/internal/ssa/ssaop"
 	"cmd/compile/internal/types"
 	"cmd/internal/obj"
@@ -36,7 +36,7 @@ const (
 )
 
 // deadcode indicates whether rewrite should try to remove any values that become dead.
-func applyRewrite(f *ssacore.Func, rb ssacore.BlockRewriter, rv ssacore.ValueRewriter, deadcode DeadValueChoice) {
+func applyRewrite(f *ssa.Func, rb ssa.BlockRewriter, rv ssa.ValueRewriter, deadcode DeadValueChoice) {
 	// repeat rewrites until we find no more rewrites
 	pendingLines := f.CachedLineStarts // Holds statement boundaries that need to be moved to a new value/block
 	pendingLines.Clear()
@@ -61,12 +61,12 @@ func applyRewrite(f *ssacore.Func, rb ssacore.BlockRewriter, rv ssacore.ValueRew
 		change := false
 		deadChange := false
 		for _, b := range f.Blocks {
-			var b0 *ssacore.Block
+			var b0 *ssa.Block
 			if debug > 1 {
 				fmt.Printf("%s: start block\n", f.Pass.Name)
-				b0 = new(ssacore.Block)
+				b0 = new(ssa.Block)
 				*b0 = *b
-				b0.Succs = append([]ssacore.Edge{}, b.Succs...) // make a new copy, not aliasing
+				b0.Succs = append([]ssa.Edge{}, b.Succs...) // make a new copy, not aliasing
 			}
 			for i, c := range b.ControlValues() {
 				for c.Op == ssaop.OpCopy {
@@ -84,11 +84,11 @@ func applyRewrite(f *ssacore.Func, rb ssacore.BlockRewriter, rv ssacore.ValueRew
 				if debug > 1 {
 					fmt.Printf("%s: consider %v\n", f.Pass.Name, v.LongString())
 				}
-				var v0 *ssacore.Value
+				var v0 *ssa.Value
 				if debug > 1 {
-					v0 = new(ssacore.Value)
+					v0 = new(ssa.Value)
 					*v0 = *v
-					v0.Args = append([]*ssacore.Value{}, v.Args...) // make a new copy, not aliasing
+					v0.Args = append([]*ssa.Value{}, v.Args...) // make a new copy, not aliasing
 				}
 				if v.Uses == 0 && v.Removeable() {
 					if v.Op != ssaop.OpInvalid && deadcode == RemoveDeadValues {
@@ -103,7 +103,7 @@ func applyRewrite(f *ssacore.Func, rb ssacore.BlockRewriter, rv ssacore.ValueRew
 					continue
 				}
 
-				vchange := ssacore.PhiElimValue(v)
+				vchange := ssa.PhiElimValue(v)
 				if vchange && debug > 1 {
 					fmt.Printf("rewriting %s  ->  %s\n", v0.LongString(), v.LongString())
 				}
@@ -210,7 +210,7 @@ func applyRewrite(f *ssacore.Func, rb ssacore.BlockRewriter, rv ssacore.ValueRew
 				f.FreeValue(v)
 				continue
 			}
-			if v.Pos.IsStmt() != src.PosNotStmt && !ssacore.NotStmtBoundary(v.Op) {
+			if v.Pos.IsStmt() != src.PosNotStmt && !ssa.NotStmtBoundary(v.Op) {
 				if pl, ok := pendingLines.Get(vl); ok && pl == int32(b.ID) {
 					pendingLines.Remove(vl)
 					v.Pos = v.Pos.WithIsStmt()
@@ -261,7 +261,7 @@ func IsPtr(t *types.Type) bool {
 
 // MergeSym merges two symbolic offsets. There is no real merging of
 // offsets, we just pick the non-nil one.
-func MergeSym(x, y ssacore.Sym) ssacore.Sym {
+func MergeSym(x, y ssa.Sym) ssa.Sym {
 	if x == nil {
 		return y
 	}
@@ -271,7 +271,7 @@ func MergeSym(x, y ssacore.Sym) ssacore.Sym {
 	panic(fmt.Sprintf("mergeSym with two non-nil syms %v %v", x, y))
 }
 
-func CanMergeSym(x, y ssacore.Sym) bool {
+func CanMergeSym(x, y ssa.Sym) bool {
 	return x == nil || y == nil
 }
 
@@ -279,7 +279,7 @@ func CanMergeSym(x, y ssacore.Sym) bool {
 // invalidating the schedule.
 // It also checks that the other non-load argument x is something we
 // are ok with clobbering.
-func CanMergeLoadClobber(target, load, x *ssacore.Value) bool {
+func CanMergeLoadClobber(target, load, x *ssa.Value) bool {
 	// The register containing x is going to get clobbered.
 	// Don't merge if we still need the value of x.
 	// We don't have liveness information here, but we can
@@ -309,7 +309,7 @@ func CanMergeLoadClobber(target, load, x *ssacore.Value) bool {
 
 // CanMergeLoad reports whether the load can be merged into target without
 // invalidating the schedule.
-func CanMergeLoad(target, load *ssacore.Value) bool {
+func CanMergeLoad(target, load *ssa.Value) bool {
 	if target.Block.ID != load.Block.ID {
 		// If the load is in a different block do not merge it.
 		return false
@@ -338,7 +338,7 @@ func CanMergeLoad(target, load *ssacore.Value) bool {
 	// If the argument comes from a different block then we can exclude
 	// it immediately because it must dominate load (which is in the
 	// same block as target).
-	var args []*ssacore.Value
+	var args []*ssa.Value
 	for _, a := range target.Args {
 		if a != load && a.Block.ID == target.Block.ID {
 			args = append(args, a)
@@ -351,7 +351,7 @@ func CanMergeLoad(target, load *ssacore.Value) bool {
 
 	// memPreds contains memory states known to be predecessors of load's
 	// memory state. It is lazily initialized.
-	var memPreds map[*ssacore.Value]bool
+	var memPreds map[*ssa.Value]bool
 	for len(args) > 0 {
 		const limit = 2048 // enough to comfortably cover unrolled crypto blocks
 		if visited.Size() >= limit {
@@ -399,7 +399,7 @@ func CanMergeLoad(target, load *ssacore.Value) bool {
 				// Initialise a map containing memory states
 				// known to be predecessors of load's memory
 				// state.
-				memPreds = make(map[*ssacore.Value]bool)
+				memPreds = make(map[*ssa.Value]bool)
 				m := mem
 				const limit = 50
 				for i := 0; i < limit; i++ {
@@ -451,8 +451,8 @@ func CanMergeLoad(target, load *ssacore.Value) bool {
 }
 
 // IsSameCall reports whether aux is the same as the given named symbol.
-func IsSameCall(aux ssacore.Aux, name string) bool {
-	fn := aux.(*ssacore.AuxCall).Fn
+func IsSameCall(aux ssa.Aux, name string) bool {
+	fn := aux.(*ssa.AuxCall).Fn
 	return fn != nil && fn.String() == name
 }
 
@@ -521,11 +521,11 @@ func B2i32(b bool) int32 {
 	return 0
 }
 
-func CanMulStrengthReduce(config *ssacore.Config, x int64) bool {
+func CanMulStrengthReduce(config *ssa.Config, x int64) bool {
 	_, ok := config.MulRecipes[x]
 	return ok
 }
-func CanMulStrengthReduce32(config *ssacore.Config, x int32) bool {
+func CanMulStrengthReduce32(config *ssa.Config, x int32) bool {
 	_, ok := config.MulRecipes[int64(x)]
 	return ok
 }
@@ -533,7 +533,7 @@ func CanMulStrengthReduce32(config *ssacore.Config, x int32) bool {
 // MulStrengthReduce returns v*x evaluated at the location
 // (block and source position) of m.
 // canMulStrengthReduce must have returned true.
-func MulStrengthReduce(m *ssacore.Value, v *ssacore.Value, x int64) *ssacore.Value {
+func MulStrengthReduce(m *ssa.Value, v *ssa.Value, x int64) *ssa.Value {
 	return v.Block.Func.Config.MulRecipes[x].Build(m, v)
 }
 
@@ -541,19 +541,19 @@ func MulStrengthReduce(m *ssacore.Value, v *ssacore.Value, x int64) *ssacore.Val
 // (block and source position) of m.
 // canMulStrengthReduce32 must have returned true.
 // The upper 32 bits of m might be set to junk.
-func MulStrengthReduce32(m *ssacore.Value, v *ssacore.Value, x int32) *ssacore.Value {
+func MulStrengthReduce32(m *ssa.Value, v *ssa.Value, x int32) *ssa.Value {
 	return v.Block.Func.Config.MulRecipes[int64(x)].Build(m, v)
 }
 
 // ShiftIsBounded reports whether (left/right) shift Value v is known to be bounded.
 // A shift is bounded if it is shifting by less than the width of the shifted value.
-func ShiftIsBounded(v *ssacore.Value) bool {
+func ShiftIsBounded(v *ssa.Value) bool {
 	return v.AuxInt != 0
 }
 
 // CanonLessThan returns whether x is "ordered" less than y, for purposes of normalizing
 // generated code as much as possible.
-func CanonLessThan(x, y *ssacore.Value) bool {
+func CanonLessThan(x, y *ssa.Value) bool {
 	if x.Op != y.Op {
 		return x.Op < y.Op
 	}
@@ -616,14 +616,14 @@ func AuxIntToFloat32(i int64) float32 {
 func AuxIntToFloat64(i int64) float64 {
 	return math.Float64frombits(uint64(i))
 }
-func AuxIntToValAndOff(i int64) ssacore.ValAndOff {
-	return ssacore.ValAndOff(i)
+func AuxIntToValAndOff(i int64) ssa.ValAndOff {
+	return ssa.ValAndOff(i)
 }
-func AuxIntToArm64BitField(i int64) ssacore.Arm64BitField {
-	return ssacore.Arm64BitField(i)
+func AuxIntToArm64BitField(i int64) ssa.Arm64BitField {
+	return ssa.Arm64BitField(i)
 }
-func AuxIntToFlagConstant(x int64) ssacore.FlagConstant {
-	return ssacore.FlagConstant(x)
+func AuxIntToFlagConstant(x int64) ssa.FlagConstant {
+	return ssa.FlagConstant(x)
 }
 
 func AuxIntToOp(cc int64) ssaop.Op {
@@ -654,13 +654,13 @@ func Float32ToAuxInt(f float32) int64 {
 func Float64ToAuxInt(f float64) int64 {
 	return int64(math.Float64bits(f))
 }
-func ValAndOffToAuxInt(v ssacore.ValAndOff) int64 {
+func ValAndOffToAuxInt(v ssa.ValAndOff) int64 {
 	return int64(v)
 }
-func Arm64BitFieldToAuxInt(v ssacore.Arm64BitField) int64 {
+func Arm64BitFieldToAuxInt(v ssa.Arm64BitField) int64 {
 	return int64(v)
 }
-func Arm64ConditionalParamsToAuxInt(v ssacore.Arm64ConditionalParams) int64 {
+func Arm64ConditionalParamsToAuxInt(v ssa.Arm64ConditionalParams) int64 {
 	if v.Cond&^0xffff != 0 {
 		panic("condition value exceeds 16 bits")
 	}
@@ -675,7 +675,7 @@ func Arm64ConditionalParamsToAuxInt(v ssacore.Arm64ConditionalParams) int64 {
 	return i
 }
 
-func FlagConstantToAuxInt(x ssacore.FlagConstant) int64 {
+func FlagConstantToAuxInt(x ssa.FlagConstant) int64 {
 	return int64(x)
 }
 
@@ -683,45 +683,45 @@ func OpToAuxInt(o ssaop.Op) int64 {
 	return int64(o)
 }
 
-func AuxToString(i ssacore.Aux) string {
-	return string(i.(ssacore.StringAux))
+func AuxToString(i ssa.Aux) string {
+	return string(i.(ssa.StringAux))
 }
-func AuxToSym(i ssacore.Aux) ssacore.Sym {
+func AuxToSym(i ssa.Aux) ssa.Sym {
 	// TODO: kind of a hack - allows nil interface through
-	s, _ := i.(ssacore.Sym)
+	s, _ := i.(ssa.Sym)
 	return s
 }
-func AuxToType(i ssacore.Aux) *types.Type {
+func AuxToType(i ssa.Aux) *types.Type {
 	return i.(*types.Type)
 }
-func AuxToCall(i ssacore.Aux) *ssacore.AuxCall {
-	return i.(*ssacore.AuxCall)
+func AuxToCall(i ssa.Aux) *ssa.AuxCall {
+	return i.(*ssa.AuxCall)
 }
-func AuxToS390xCCMask(i ssacore.Aux) s390x.CCMask {
+func AuxToS390xCCMask(i ssa.Aux) s390x.CCMask {
 	return i.(s390x.CCMask)
 }
-func AuxToS390xRotateParams(i ssacore.Aux) s390x.RotateParams {
+func AuxToS390xRotateParams(i ssa.Aux) s390x.RotateParams {
 	return i.(s390x.RotateParams)
 }
 
-func SymToAux(s ssacore.Sym) ssacore.Aux {
+func SymToAux(s ssa.Sym) ssa.Aux {
 	return s
 }
-func CallToAux(s *ssacore.AuxCall) ssacore.Aux {
+func CallToAux(s *ssa.AuxCall) ssa.Aux {
 	return s
 }
-func TypeToAux(t *types.Type) ssacore.Aux {
+func TypeToAux(t *types.Type) ssa.Aux {
 	return t
 }
-func S390xCCMaskToAux(c s390x.CCMask) ssacore.Aux {
+func S390xCCMaskToAux(c s390x.CCMask) ssa.Aux {
 	return c
 }
-func S390xRotateParamsToAux(r s390x.RotateParams) ssacore.Aux {
+func S390xRotateParamsToAux(r s390x.RotateParams) ssa.Aux {
 	return r
 }
 
 // MoveSize returns the number of bytes an aligned MOV instruction moves.
-func MoveSize(align int64, c *ssacore.Config) int64 {
+func MoveSize(align int64, c *ssa.Config) int64 {
 	switch {
 	case align%8 == 0 && c.PtrSize == 8:
 		return 8
@@ -736,7 +736,7 @@ func MoveSize(align int64, c *ssacore.Config) int64 {
 // mergePoint finds a block among a's blocks which dominates b and is itself
 // dominated by all of a's blocks. Returns nil if it can't find one.
 // Might return nil even if one does exist.
-func mergePoint(b *ssacore.Block, a ...*ssacore.Value) *ssacore.Block {
+func mergePoint(b *ssa.Block, a ...*ssa.Value) *ssa.Block {
 	// Walk backward from b looking for one of the a's blocks.
 
 	// Max distance
@@ -788,7 +788,7 @@ found:
 //
 //	A) make sure the values are really dead and never used again.
 //	B) decrement use counts of the values' args.
-func Clobber(vv ...*ssacore.Value) bool {
+func Clobber(vv ...*ssa.Value) bool {
 	for _, v := range vv {
 		v.Reset(ssaop.OpInvalid)
 		// Note: leave v.Block intact.  The Block field is used after clobber.
@@ -799,7 +799,7 @@ func Clobber(vv ...*ssacore.Value) bool {
 // ClobberIfDead resets v when use count is 1. Returns true.
 // ClobberIfDead is used by rewrite rules to decrement
 // use counts of v's args when v is dead and never used.
-func ClobberIfDead(v *ssacore.Value) bool {
+func ClobberIfDead(v *ssa.Value) bool {
 	if v.Uses == 1 {
 		v.Reset(ssaop.OpInvalid)
 	}
@@ -823,7 +823,7 @@ func NoteRule(s string) bool {
 // of compilation, it will be printed to stdout.
 // This is intended to make it easier to find which functions
 // which contain lots of rules matches when developing new rules.
-func CountRule(v *ssacore.Value, key string) bool {
+func CountRule(v *ssa.Value, key string) bool {
 	f := v.Block.Func
 	if f.RuleMatches == nil {
 		f.RuleMatches = make(map[string]int)
@@ -833,7 +833,7 @@ func CountRule(v *ssacore.Value, key string) bool {
 }
 
 // for a pseudo-op like (LessThan x), extract x.
-func FlagArg(v *ssacore.Value) *ssacore.Value {
+func FlagArg(v *ssa.Value) *ssa.Value {
 	if len(v.Args) != 1 || !v.Args[0].Type.IsFlags() {
 		return nil
 	}
@@ -866,7 +866,7 @@ var ruleFile io.Writer
 // LogLargeCopyValue logs the occurrence of a large copy.
 // The best place to do this is in the rewrite rules where the size of the move is easy to find.
 // "Large" is arbitrarily chosen to be 128 bytes; this may change.
-func LogLargeCopyValue(v *ssacore.Value, s int64) bool {
+func LogLargeCopyValue(v *ssa.Value, s int64) bool {
 	if s < 128 {
 		return true
 	}
@@ -973,13 +973,13 @@ func MergePPC64AndSrwi(m, s int64) int64 {
 func MergePPC64ClrlsldiSrw(sld, srw int64) int64 {
 	mask_1 := uint64(0xFFFFFFFF >> uint(srw))
 	// for CLRLSLDI, it's more convenient to think of it as a mask left bits then rotate left.
-	mask_2 := uint64(0xFFFFFFFFFFFFFFFF) >> uint(ssacore.GetPPC64Shiftmb(sld))
+	mask_2 := uint64(0xFFFFFFFFFFFFFFFF) >> uint(ssa.GetPPC64Shiftmb(sld))
 
 	// Rewrite mask to apply after the final left shift.
-	mask_3 := (mask_1 & mask_2) << uint(ssacore.GetPPC64Shiftsh(sld))
+	mask_3 := (mask_1 & mask_2) << uint(ssa.GetPPC64Shiftsh(sld))
 
 	r_1 := 32 - srw
-	r_2 := ssacore.GetPPC64Shiftsh(sld)
+	r_2 := ssa.GetPPC64Shiftsh(sld)
 	r_3 := (r_1 + r_2) & 31 // This can wrap.
 
 	if uint64(uint32(mask_3)) != mask_3 || mask_3 == 0 {
@@ -991,13 +991,13 @@ func MergePPC64ClrlsldiSrw(sld, srw int64) int64 {
 // Test if a RLWINM feeding into a CLRLSLDI can be merged into RLWINM.  Return
 // the encoded RLWINM constant, or 0 if they cannot be merged.
 func MergePPC64ClrlsldiRlwinm(sld int32, rlw int64) int64 {
-	r_1, _, _, mask_1 := ssacore.DecodePPC64RotateMask(rlw)
+	r_1, _, _, mask_1 := ssa.DecodePPC64RotateMask(rlw)
 	// for CLRLSLDI, it's more convenient to think of it as a mask left bits then rotate left.
-	mask_2 := uint64(0xFFFFFFFFFFFFFFFF) >> uint(ssacore.GetPPC64Shiftmb(int64(sld)))
+	mask_2 := uint64(0xFFFFFFFFFFFFFFFF) >> uint(ssa.GetPPC64Shiftmb(int64(sld)))
 
 	// combine the masks, and adjust for the final left shift.
-	mask_3 := (mask_1 & mask_2) << uint(ssacore.GetPPC64Shiftsh(int64(sld)))
-	r_2 := ssacore.GetPPC64Shiftsh(int64(sld))
+	mask_3 := (mask_1 & mask_2) << uint(ssa.GetPPC64Shiftsh(int64(sld)))
+	r_2 := ssa.GetPPC64Shiftsh(int64(sld))
 	r_3 := (r_1 + r_2) & 31 // This can wrap.
 
 	// Verify the result is still a valid bitmask of <= 32 bits.
@@ -1020,29 +1020,29 @@ func MergePPC64SldiSrw(sld, srw int64) int64 {
 }
 
 // encodes the lsb and width for arm(64) bitfield ops into the expected auxInt format.
-func ArmBFAuxInt(lsb, width int64) ssacore.Arm64BitField {
+func ArmBFAuxInt(lsb, width int64) ssa.Arm64BitField {
 	if lsb < 0 || lsb > 63 {
 		panic("ARM(64) bit field lsb constant out of range")
 	}
 	if width < 1 || lsb+width > 64 {
 		panic("ARM(64) bit field width constant out of range")
 	}
-	return ssacore.Arm64BitField(width | lsb<<8)
+	return ssa.Arm64BitField(width | lsb<<8)
 }
 
 // encodes condition code and NZCV flags into result.
-func arm64ConditionalParamsAuxInt(cond ssaop.Op, nzcv uint8) ssacore.Arm64ConditionalParams {
+func arm64ConditionalParamsAuxInt(cond ssaop.Op, nzcv uint8) ssa.Arm64ConditionalParams {
 	if cond < ssaop.OpARM64Equal || cond > ssaop.OpARM64GreaterEqualU {
 		panic("Wrong conditional operation")
 	}
 	if nzcv&0x0f != nzcv {
 		panic("Wrong value of NZCV flag")
 	}
-	return ssacore.Arm64ConditionalParams{Cond: cond, NzcvVal: nzcv, ConstVal: 0, Ind: false}
+	return ssa.Arm64ConditionalParams{Cond: cond, NzcvVal: nzcv, ConstVal: 0, Ind: false}
 }
 
 // encodes condition code, NZCV flags and constant value into auxint.
-func arm64ConditionalParamsAuxIntWithValue(cond ssaop.Op, nzcv uint8, value uint8) ssacore.Arm64ConditionalParams {
+func arm64ConditionalParamsAuxIntWithValue(cond ssaop.Op, nzcv uint8, value uint8) ssa.Arm64ConditionalParams {
 	if value&0x1f != value {
 		panic("Wrong value of constant")
 	}
@@ -1053,13 +1053,13 @@ func arm64ConditionalParamsAuxIntWithValue(cond ssaop.Op, nzcv uint8, value uint
 }
 
 // SymIsRO reports whether sym is a read-only global.
-func SymIsRO(sym ssacore.Sym) bool {
+func SymIsRO(sym ssa.Sym) bool {
 	lsym := sym.(*obj.LSym)
 	return lsym.Type == objabi.SRODATA && len(lsym.R) == 0
 }
 
 // Read8 reads one byte from the read-only global sym at offset off.
-func Read8(sym ssacore.Sym, off int64) uint8 {
+func Read8(sym ssa.Sym, off int64) uint8 {
 	lsym := sym.(*obj.LSym)
 	if off >= int64(len(lsym.P)) || off < 0 {
 		// Invalid index into the global sym.
@@ -1072,7 +1072,7 @@ func Read8(sym ssacore.Sym, off int64) uint8 {
 }
 
 // Read16 reads two bytes from the read-only global sym at offset off.
-func Read16(sym ssacore.Sym, off int64, byteorder binary.ByteOrder) uint16 {
+func Read16(sym ssa.Sym, off int64, byteorder binary.ByteOrder) uint16 {
 	lsym := sym.(*obj.LSym)
 	// lsym.P is written lazily.
 	// Bytes requested after the end of lsym.P are 0.
@@ -1086,7 +1086,7 @@ func Read16(sym ssacore.Sym, off int64, byteorder binary.ByteOrder) uint16 {
 }
 
 // Read32 reads four bytes from the read-only global sym at offset off.
-func Read32(sym ssacore.Sym, off int64, byteorder binary.ByteOrder) uint32 {
+func Read32(sym ssa.Sym, off int64, byteorder binary.ByteOrder) uint32 {
 	lsym := sym.(*obj.LSym)
 	var src []byte
 	if 0 <= off && off < int64(len(lsym.P)) {
@@ -1098,7 +1098,7 @@ func Read32(sym ssacore.Sym, off int64, byteorder binary.ByteOrder) uint32 {
 }
 
 // Read64 reads eight bytes from the read-only global sym at offset off.
-func Read64(sym ssacore.Sym, off int64, byteorder binary.ByteOrder) uint64 {
+func Read64(sym ssa.Sym, off int64, byteorder binary.ByteOrder) uint64 {
 	lsym := sym.(*obj.LSym)
 	var src []byte
 	if 0 <= off && off < int64(len(lsym.P)) {
@@ -1116,8 +1116,8 @@ type FlagConstantBuilder struct {
 	V bool
 }
 
-func (fcs FlagConstantBuilder) Encode() ssacore.FlagConstant {
-	var fc ssacore.FlagConstant
+func (fcs FlagConstantBuilder) Encode() ssa.FlagConstant {
+	var fc ssa.FlagConstant
 	if fcs.N {
 		fc |= 1
 	}
@@ -1138,7 +1138,7 @@ func (fcs FlagConstantBuilder) Encode() ssacore.FlagConstant {
 //  - the results of the V flag when y==minint are different
 
 // AddFlags64 returns the flags that would be set from computing x+y.
-func AddFlags64(x, y int64) ssacore.FlagConstant {
+func AddFlags64(x, y int64) ssa.FlagConstant {
 	var fcb FlagConstantBuilder
 	fcb.Z = x+y == 0
 	fcb.N = x+y < 0
@@ -1148,7 +1148,7 @@ func AddFlags64(x, y int64) ssacore.FlagConstant {
 }
 
 // SubFlags64 returns the flags that would be set from computing x-y.
-func SubFlags64(x, y int64) ssacore.FlagConstant {
+func SubFlags64(x, y int64) ssa.FlagConstant {
 	var fcb FlagConstantBuilder
 	fcb.Z = x-y == 0
 	fcb.N = x-y < 0
@@ -1158,7 +1158,7 @@ func SubFlags64(x, y int64) ssacore.FlagConstant {
 }
 
 // AddFlags32 returns the flags that would be set from computing x+y.
-func AddFlags32(x, y int32) ssacore.FlagConstant {
+func AddFlags32(x, y int32) ssa.FlagConstant {
 	var fcb FlagConstantBuilder
 	fcb.Z = x+y == 0
 	fcb.N = x+y < 0
@@ -1168,7 +1168,7 @@ func AddFlags32(x, y int32) ssacore.FlagConstant {
 }
 
 // SubFlags32 returns the flags that would be set from computing x-y.
-func SubFlags32(x, y int32) ssacore.FlagConstant {
+func SubFlags32(x, y int32) ssa.FlagConstant {
 	var fcb FlagConstantBuilder
 	fcb.Z = x-y == 0
 	fcb.N = x-y < 0
@@ -1179,7 +1179,7 @@ func SubFlags32(x, y int32) ssacore.FlagConstant {
 
 // LogicFlags64 returns flags set to the sign/zeroness of x.
 // C and V are set to false.
-func LogicFlags64(x int64) ssacore.FlagConstant {
+func LogicFlags64(x int64) ssa.FlagConstant {
 	var fcb FlagConstantBuilder
 	fcb.Z = x == 0
 	fcb.N = x < 0
@@ -1188,14 +1188,14 @@ func LogicFlags64(x int64) ssacore.FlagConstant {
 
 // LogicFlags32 returns flags set to the sign/zeroness of x.
 // C and V are set to false.
-func LogicFlags32(x int32) ssacore.FlagConstant {
+func LogicFlags32(x int32) ssa.FlagConstant {
 	var fcb FlagConstantBuilder
 	fcb.Z = x == 0
 	fcb.N = x < 0
 	return fcb.Encode()
 }
 
-func MakeJumpTableSym(b *ssacore.Block) *obj.LSym {
+func MakeJumpTableSym(b *ssa.Block) *obj.LSym {
 	s := base.Ctxt.Lookup(fmt.Sprintf("%s.jump%d", b.Func.Fe.Func().LSym.Name, b.ID))
 	// The jump table symbol is accessed only from the function symbol.
 	s.Set(obj.AttrStatic, true)
@@ -1205,12 +1205,12 @@ func MakeJumpTableSym(b *ssacore.Block) *obj.LSym {
 // SetPos sets the position of v to pos, then returns true.
 // Useful for setting the result of a rewrite's position to
 // something other than the default.
-func SetPos(v *ssacore.Value, pos src.XPos) bool {
+func SetPos(v *ssa.Value, pos src.XPos) bool {
 	v.Pos = pos
 	return true
 }
 
-func RewriteStructStore(v *ssacore.Value) *ssacore.Value {
+func RewriteStructStore(v *ssa.Value) *ssa.Value {
 	b := v.Block
 	dst := v.Args[0]
 	x := v.Args[1]
@@ -1230,24 +1230,24 @@ func RewriteStructStore(v *ssacore.Value) *ssacore.Value {
 	return mem
 }
 
-func AuxToPanicBoundsC(i ssacore.Aux) ssacore.PanicBoundsC {
-	return i.(ssacore.PanicBoundsC)
+func AuxToPanicBoundsC(i ssa.Aux) ssa.PanicBoundsC {
+	return i.(ssa.PanicBoundsC)
 }
-func AuxToPanicBoundsCC(i ssacore.Aux) ssacore.PanicBoundsCC {
-	return i.(ssacore.PanicBoundsCC)
+func AuxToPanicBoundsCC(i ssa.Aux) ssa.PanicBoundsCC {
+	return i.(ssa.PanicBoundsCC)
 }
-func PanicBoundsCToAux(p ssacore.PanicBoundsC) ssacore.Aux {
+func PanicBoundsCToAux(p ssa.PanicBoundsC) ssa.Aux {
 	return p
 }
-func PanicBoundsCCToAux(p ssacore.PanicBoundsCC) ssacore.Aux {
+func PanicBoundsCCToAux(p ssa.PanicBoundsCC) ssa.Aux {
 	return p
 }
 
 // When v is (IMake typ (StructMake ...)), convert to
 // (IMake typ arg) where arg is the pointer-y argument to
 // the StructMake (there must be exactly one).
-func ImakeOfStructMake(v *ssacore.Value) *ssacore.Value {
-	var arg *ssacore.Value
+func ImakeOfStructMake(v *ssa.Value) *ssa.Value {
+	var arg *ssa.Value
 	for _, a := range v.Args[1].Args {
 		if a.Type.Size() > 0 {
 			arg = a

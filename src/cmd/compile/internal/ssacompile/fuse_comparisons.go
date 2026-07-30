@@ -5,15 +5,15 @@
 package ssacompile
 
 import (
+	"cmd/compile/internal/ssa"
 	"cmd/compile/internal/ssa/block"
-	"cmd/compile/internal/ssa/ssacore"
 	"cmd/compile/internal/ssa/ssaop"
 )
 
 // fuseIntInRange transforms integer range checks to remove the short-circuit operator. For example,
 // it would convert `if 1 <= x && x < 5 { ... }` into `if (1 <= x) & (x < 5) { ... }`. Rewrite rules
 // can then optimize these into unsigned range checks, `if unsigned(x-1) < 4 { ... }` in this case.
-func fuseIntInRange(b *ssacore.Block) bool {
+func fuseIntInRange(b *ssa.Block) bool {
 	return fuseComparisons(b, canOptIntInRange)
 }
 
@@ -21,7 +21,7 @@ func fuseIntInRange(b *ssacore.Block) bool {
 // constants. For example, it would transform `if x != x || x > 1.0 { ... }` into
 // `if (x != x) | (x > 1.0) { ... }`. Rewrite rules can then merge the NaN check with the comparison,
 // in this case generating `if !(x <= 1.0) { ... }`.
-func fuseNanCheck(b *ssacore.Block) bool {
+func fuseNanCheck(b *ssa.Block) bool {
 	return fuseComparisons(b, canOptNanCheck)
 }
 
@@ -29,7 +29,7 @@ func fuseNanCheck(b *ssacore.Block) bool {
 // constants that only differ by a single bit. For example, it would convert
 // `if x == 4 || x == 6 { ... }` into `if (x == 4) | (x == 6) { ... }`. Rewrite rules can
 // then optimize these using a bitwise operation, in this case generating `if x|2 == 6 { ... }`.
-func fuseSingleBitDifference(b *ssacore.Block) bool {
+func fuseSingleBitDifference(b *ssa.Block) bool {
 	return fuseComparisons(b, canOptSingleBitDifference)
 }
 
@@ -60,7 +60,7 @@ func fuseSingleBitDifference(b *ssacore.Block) bool {
 // In other words `if x || y { ... }` will become `if x | y { ... }` and `if x && y { ... }` will
 // become `if x & y { ... }`. This is a useful transformation because we can then use rewrite
 // rules to optimize `x | y` and `x & y`.
-func fuseComparisons(b *ssacore.Block, canOptControls func(a, b *ssacore.Value, op ssaop.Op) bool) bool {
+func fuseComparisons(b *ssa.Block, canOptControls func(a, b *ssa.Value, op ssaop.Op) bool) bool {
 	if len(b.Preds) != 1 {
 		return false
 	}
@@ -70,10 +70,10 @@ func fuseComparisons(b *ssacore.Block, canOptControls func(a, b *ssacore.Value, 
 	}
 
 	// Don't merge control values if b is likely to be bypassed anyway.
-	if p.Likely == ssacore.BranchLikely && p.Succs[0].Block() != b {
+	if p.Likely == ssa.BranchLikely && p.Succs[0].Block() != b {
 		return false
 	}
-	if p.Likely == ssacore.BranchUnlikely && p.Succs[1].Block() != b {
+	if p.Likely == ssa.BranchUnlikely && p.Succs[1].Block() != b {
 		return false
 	}
 
@@ -119,7 +119,7 @@ func fuseComparisons(b *ssacore.Block, canOptControls func(a, b *ssacore.Value, 
 		// Modify p so that it jumps directly to b.
 		p.RemoveEdge(i)
 		p.Kind = block.BlockPlain
-		p.Likely = ssacore.BranchUnknown
+		p.Likely = ssa.BranchUnknown
 		p.ResetControls()
 
 		return true
@@ -129,7 +129,7 @@ func fuseComparisons(b *ssacore.Block, canOptControls func(a, b *ssacore.Value, 
 	return false
 }
 
-func hasDifferentiatedPhi(x ssacore.Edge, y ssacore.Edge) bool {
+func hasDifferentiatedPhi(x ssa.Edge, y ssa.Edge) bool {
 	b := x.Block()
 	if y.Block() != b {
 		panic("non matching edges")
@@ -149,7 +149,7 @@ func hasDifferentiatedPhi(x ssacore.Edge, y ssacore.Edge) bool {
 
 // getConstIntArgIndex returns the index of the first argument that is a
 // constant integer or -1 if no such argument exists.
-func getConstIntArgIndex(v *ssacore.Value) int {
+func getConstIntArgIndex(v *ssa.Value) int {
 	for i, a := range v.Args {
 		switch a.Op {
 		case ssaop.OpConst8, ssaop.OpConst16, ssaop.OpConst32, ssaop.OpConst64:
@@ -161,7 +161,7 @@ func getConstIntArgIndex(v *ssacore.Value) int {
 
 // isSignedInequality reports whether op represents the inequality < or ≤
 // in the signed domain.
-func isSignedInequality(v *ssacore.Value) bool {
+func isSignedInequality(v *ssa.Value) bool {
 	switch v.Op {
 	case ssaop.OpLess64, ssaop.OpLess32, ssaop.OpLess16, ssaop.OpLess8,
 		ssaop.OpLeq64, ssaop.OpLeq32, ssaop.OpLeq16, ssaop.OpLeq8:
@@ -173,7 +173,7 @@ func isSignedInequality(v *ssacore.Value) bool {
 // isUnsignedInequality reports whether op represents the inequality < or ≤
 // in the unsigned domain, including "x != 0", which is equivalent to the
 // unsigned "0 < x".
-func isUnsignedInequality(v *ssacore.Value) bool {
+func isUnsignedInequality(v *ssa.Value) bool {
 	switch v.Op {
 	case ssaop.OpLess64U, ssaop.OpLess32U, ssaop.OpLess16U, ssaop.OpLess8U,
 		ssaop.OpLeq64U, ssaop.OpLeq32U, ssaop.OpLeq16U, ssaop.OpLeq8U:
@@ -186,12 +186,12 @@ func isUnsignedInequality(v *ssacore.Value) bool {
 	return false
 }
 
-func canOptIntInRange(x, y *ssacore.Value, op ssaop.Op) bool {
+func canOptIntInRange(x, y *ssa.Value, op ssaop.Op) bool {
 	// We need both inequalities to be either in the signed or unsigned domain.
 	// TODO(mundaym): it would also be good to merge when we have an Eq op that
 	// could be transformed into a Less/Leq. For example in the unsigned
 	// domain 'x == 0 || 3 < x' is equivalent to 'x <= 0 || 3 < x'
-	inequalityChecks := [...]func(*ssacore.Value) bool{
+	inequalityChecks := [...]func(*ssa.Value) bool{
 		isSignedInequality,
 		isUnsignedInequality,
 	}
@@ -226,7 +226,7 @@ func canOptIntInRange(x, y *ssacore.Value, op ssaop.Op) bool {
 //	v != v || v <= c => !(c <  v)
 //	v != v || c <  v => !(v <= c)
 //	v != v || c <= v => !(v <  c)
-func canOptNanCheck(x, y *ssacore.Value, op ssaop.Op) bool {
+func canOptNanCheck(x, y *ssa.Value, op ssaop.Op) bool {
 	if op != ssaop.OpOrB {
 		return false
 	}
@@ -280,7 +280,7 @@ func canOptNanCheck(x, y *ssacore.Value, op ssaop.Op) bool {
 //	v != c && v != d
 //
 // Where c and d are constant values that differ by a single bit.
-func canOptSingleBitDifference(x, y *ssacore.Value, op ssaop.Op) bool {
+func canOptSingleBitDifference(x, y *ssa.Value, op ssaop.Op) bool {
 	if x.Op != y.Op {
 		return false
 	}

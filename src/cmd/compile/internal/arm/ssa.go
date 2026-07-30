@@ -13,8 +13,8 @@ import (
 	"cmd/compile/internal/base"
 	"cmd/compile/internal/ir"
 	"cmd/compile/internal/logopt"
+	"cmd/compile/internal/ssa"
 	"cmd/compile/internal/ssa/block"
-	"cmd/compile/internal/ssa/ssacore"
 	"cmd/compile/internal/ssa/ssaop"
 	"cmd/compile/internal/ssagen"
 	"cmd/compile/internal/types"
@@ -91,7 +91,7 @@ func (v shift) String() string {
 }
 
 // makeshift encodes a register shifted by a constant.
-func makeshift(v *ssacore.Value, reg int16, typ int64, s int64) shift {
+func makeshift(v *ssa.Value, reg int16, typ int64, s int64) shift {
 	if s < 0 || s >= 32 {
 		v.Fatalf("shift out of range: %d", s)
 	}
@@ -99,7 +99,7 @@ func makeshift(v *ssacore.Value, reg int16, typ int64, s int64) shift {
 }
 
 // genshift generates a Prog for r = r0 op (r1 shifted by n).
-func genshift(s *ssagen.State, v *ssacore.Value, as obj.As, r0, r1, r int16, typ int64, n int64) *obj.Prog {
+func genshift(s *ssagen.State, v *ssa.Value, as obj.As, r0, r1, r int16, typ int64, n int64) *obj.Prog {
 	p := s.Prog(as)
 	p.From.Type = obj.TYPE_SHIFT
 	p.From.Offset = int64(makeshift(v, r1, typ, n))
@@ -151,7 +151,7 @@ func getBFC(v uint32) (uint32, uint32) {
 	return 0xffffffff, 0
 }
 
-func ssaGenValue(s *ssagen.State, v *ssacore.Value) {
+func ssaGenValue(s *ssagen.State, v *ssa.Value) {
 	switch v.Op {
 	case ssaop.OpCopy, ssaop.OpARMMOVWreg:
 		if v.Type.IsMemory() {
@@ -720,7 +720,7 @@ func ssaGenValue(s *ssagen.State, v *ssacore.Value) {
 	case ssaop.OpARMLoweredPanicBoundsRR, ssaop.OpARMLoweredPanicBoundsRC, ssaop.OpARMLoweredPanicBoundsCR, ssaop.OpARMLoweredPanicBoundsCC,
 		ssaop.OpARMLoweredPanicExtendRR, ssaop.OpARMLoweredPanicExtendRC:
 		// Compute the constant we put in the PCData entry for this call.
-		code, signed := ssacore.BoundsKind(v.AuxInt).Code()
+		code, signed := ssa.BoundsKind(v.AuxInt).Code()
 		xIsReg := false
 		yIsReg := false
 		xVal := 0
@@ -743,7 +743,7 @@ func ssaGenValue(s *ssagen.State, v *ssacore.Value) {
 		case ssaop.OpARMLoweredPanicBoundsRC:
 			xIsReg = true
 			xVal = int(v.Args[0].Reg() - arm.REG_R0)
-			c := v.Aux.(ssacore.PanicBoundsC).C
+			c := v.Aux.(ssa.PanicBoundsC).C
 			if c >= 0 && c <= abi.BoundsMaxConst {
 				yVal = int(c)
 			} else {
@@ -764,7 +764,7 @@ func ssaGenValue(s *ssagen.State, v *ssacore.Value) {
 			hi := int(v.Args[0].Reg() - arm.REG_R0)
 			lo := int(v.Args[1].Reg() - arm.REG_R0)
 			xVal = hi<<2 + lo // encode 2 register numbers
-			c := v.Aux.(ssacore.PanicBoundsC).C
+			c := v.Aux.(ssa.PanicBoundsC).C
 			if c >= 0 && c <= abi.BoundsMaxConst {
 				yVal = int(c)
 			} else {
@@ -781,7 +781,7 @@ func ssaGenValue(s *ssagen.State, v *ssacore.Value) {
 		case ssaop.OpARMLoweredPanicBoundsCR:
 			yIsReg = true
 			yVal = int(v.Args[0].Reg() - arm.REG_R0)
-			c := v.Aux.(ssacore.PanicBoundsC).C
+			c := v.Aux.(ssa.PanicBoundsC).C
 			if c >= 0 && c <= abi.BoundsMaxConst {
 				xVal = int(c)
 			} else if signed && int64(int32(c)) == c || !signed && int64(uint32(c)) == c {
@@ -820,7 +820,7 @@ func ssaGenValue(s *ssagen.State, v *ssacore.Value) {
 				p.To.Reg = arm.REG_R0 + int16(lo)
 			}
 		case ssaop.OpARMLoweredPanicBoundsCC:
-			c := v.Aux.(ssacore.PanicBoundsCC).Cx
+			c := v.Aux.(ssa.PanicBoundsCC).Cx
 			if c >= 0 && c <= abi.BoundsMaxConst {
 				xVal = int(c)
 			} else if signed && int64(int32(c)) == c || !signed && int64(uint32(c)) == c {
@@ -849,7 +849,7 @@ func ssaGenValue(s *ssagen.State, v *ssacore.Value) {
 				p.To.Type = obj.TYPE_REG
 				p.To.Reg = arm.REG_R0 + int16(lo)
 			}
-			c = v.Aux.(ssacore.PanicBoundsCC).Cy
+			c = v.Aux.(ssa.PanicBoundsCC).Cy
 			if c >= 0 && c <= abi.BoundsMaxConst {
 				yVal = int(c)
 			} else {
@@ -1069,7 +1069,7 @@ var gtJumps = [2][2]ssagen.IndexJump{
 	{{Jump: arm.ABEQ, Index: 1}, {Jump: arm.ABPL, Index: 0}}, // next == b.Succs[1]
 }
 
-func ssaGenBlock(s *ssagen.State, b, next *ssacore.Block) {
+func ssaGenBlock(s *ssagen.State, b, next *ssa.Block) {
 	switch b.Kind {
 	case block.BlockPlain, block.BlockDefer:
 		if b.Succs[0].Block() != next {
@@ -1096,7 +1096,7 @@ func ssaGenBlock(s *ssagen.State, b, next *ssacore.Block) {
 		case b.Succs[1].Block():
 			s.Br(jmp.asm, b.Succs[0].Block())
 		default:
-			if b.Likely != ssacore.BranchUnlikely {
+			if b.Likely != ssa.BranchUnlikely {
 				s.Br(jmp.asm, b.Succs[0].Block())
 				s.Br(obj.AJMP, b.Succs[1].Block())
 			} else {

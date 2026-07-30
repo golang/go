@@ -9,7 +9,7 @@ import (
 
 	"cmd/compile/internal/base"
 	"cmd/compile/internal/ir"
-	"cmd/compile/internal/ssa/ssacore"
+	"cmd/compile/internal/ssa"
 	"cmd/compile/internal/typecheck"
 	"cmd/compile/internal/types"
 	"cmd/internal/obj"
@@ -51,12 +51,12 @@ func testConfigArch(tb testing.TB, arch string) *Conf {
 }
 
 type Conf struct {
-	config *ssacore.Config
+	config *ssa.Config
 	tb     testing.TB
-	fe     ssacore.Frontend
+	fe     ssa.Frontend
 }
 
-func (c *Conf) Frontend() ssacore.Frontend {
+func (c *Conf) Frontend() ssa.Frontend {
 	if c.fe == nil {
 		pkg := types.NewPkg("my/import/path", "path")
 		fn := ir.NewFunc(src.NoXPos, src.NoXPos, pkg.Lookup("function"), types.NewSignature(nil, nil, nil))
@@ -89,8 +89,8 @@ type TestFrontend struct {
 func (TestFrontend) StringData(s string) *obj.LSym {
 	return nil
 }
-func (d TestFrontend) SplitSlot(parent *ssacore.LocalSlot, suffix string, offset int64, t *types.Type) ssacore.LocalSlot {
-	return ssacore.LocalSlot{N: parent.N, Type: t, Off: offset}
+func (d TestFrontend) SplitSlot(parent *ssa.LocalSlot, suffix string, offset int64, t *types.Type) ssa.LocalSlot {
+	return ssa.LocalSlot{N: parent.N, Type: t, Off: offset}
 }
 func (d TestFrontend) Syslook(s string) *obj.LSym {
 	return d.ctxt.Lookup(s)
@@ -110,7 +110,7 @@ func (d TestFrontend) Func() *ir.Func {
 	return d.f
 }
 
-var testTypes ssacore.Types
+var testTypes ssa.Types
 
 func init() {
 	// TODO(mdempsky): Push into types.InitUniverse or typecheck.InitUniverse.

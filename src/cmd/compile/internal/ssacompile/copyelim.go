@@ -5,14 +5,14 @@
 package ssacompile
 
 import (
-	"cmd/compile/internal/ssa/ssacore"
+	"cmd/compile/internal/ssa"
 	"cmd/compile/internal/ssa/ssaop"
 )
 
 // combine copyelim and phielim into a single pass.
 // copyelim removes all uses of OpCopy values from f.
 // A subsequent deadcode pass is needed to actually remove the copies.
-func copyelim(f *ssacore.Func) {
+func copyelim(f *ssa.Func) {
 	phielim(f)
 
 	// loop of copyelimValue(v) process has been done in phielim() pass.
@@ -38,7 +38,7 @@ func copyelim(f *ssacore.Func) {
 
 // copySource returns the (non-copy) op which is the
 // ultimate source of v.  v must be a copy op.
-func copySource(v *ssacore.Value) *ssacore.Value {
+func copySource(v *ssa.Value) *ssa.Value {
 	w := v.Args[0]
 
 	// This loop is just:
@@ -76,7 +76,7 @@ func copySource(v *ssacore.Value) *ssacore.Value {
 }
 
 // copyelimValue ensures that no args of v are copies.
-func copyelimValue(v *ssacore.Value) {
+func copyelimValue(v *ssa.Value) {
 	for i, a := range v.Args {
 		if a.Op == ssaop.OpCopy {
 			v.SetArg(i, copySource(a))
@@ -102,7 +102,7 @@ func copyelimValue(v *ssacore.Value) {
 //	w = phi(v, w, x)
 //
 // and would that be useful?
-func phielim(f *ssacore.Func) {
+func phielim(f *ssa.Func) {
 	for {
 		change := false
 		for _, b := range f.Blocks {
@@ -115,7 +115,7 @@ func phielim(f *ssacore.Func) {
 				// Modify all values so no arg (including args
 				// of OpCopy) is a copy.
 				copyelimValue(v)
-				change = ssacore.PhiElimValue(v) || change
+				change = ssa.PhiElimValue(v) || change
 			}
 		}
 		if !change {

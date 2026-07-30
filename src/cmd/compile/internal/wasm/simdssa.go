@@ -3,14 +3,14 @@
 package wasm
 
 import (
-	"cmd/compile/internal/ssa/ssacore"
+	"cmd/compile/internal/ssa"
 	"cmd/compile/internal/ssa/ssaop"
 	"cmd/compile/internal/ssagen"
 	"cmd/internal/obj"
 	"cmd/internal/obj/wasm"
 )
 
-func ssaGenSIMDValue(s *ssagen.State, v *ssacore.Value, extend bool) bool {
+func ssaGenSIMDValue(s *ssagen.State, v *ssa.Value, extend bool) bool {
 	switch v.Op {
 	case ssaop.OpWasmF32x4ExtractLane, ssaop.OpWasmI64x2ExtractLane, ssaop.OpWasmF64x2ExtractLane:
 		getValue128(s, v.Args[0])

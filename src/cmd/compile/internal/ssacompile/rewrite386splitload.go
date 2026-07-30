@@ -3,9 +3,9 @@
 package ssacompile
 
 import "cmd/compile/internal/ssa/ssaop"
-import "cmd/compile/internal/ssa/ssacore"
+import "cmd/compile/internal/ssa"
 
-func rewriteValue386splitload(v *ssacore.Value) bool {
+func rewriteValue386splitload(v *ssa.Value) bool {
 	switch v.Op {
 	case ssaop.Op386CMPBconstload:
 		return rewriteValue386splitload_Op386CMPBconstload(v)
@@ -22,7 +22,7 @@ func rewriteValue386splitload(v *ssacore.Value) bool {
 	}
 	return false
 }
-func rewriteValue386splitload_Op386CMPBconstload(v *ssacore.Value) bool {
+func rewriteValue386splitload_Op386CMPBconstload(v *ssa.Value) bool {
 	v_1 := v.Args[1]
 	v_0 := v.Args[0]
 	b := v.Block
@@ -44,7 +44,7 @@ func rewriteValue386splitload_Op386CMPBconstload(v *ssacore.Value) bool {
 		return true
 	}
 }
-func rewriteValue386splitload_Op386CMPBload(v *ssacore.Value) bool {
+func rewriteValue386splitload_Op386CMPBload(v *ssa.Value) bool {
 	v_2 := v.Args[2]
 	v_1 := v.Args[1]
 	v_0 := v.Args[0]
@@ -66,7 +66,7 @@ func rewriteValue386splitload_Op386CMPBload(v *ssacore.Value) bool {
 		return true
 	}
 }
-func rewriteValue386splitload_Op386CMPLconstload(v *ssacore.Value) bool {
+func rewriteValue386splitload_Op386CMPLconstload(v *ssa.Value) bool {
 	v_1 := v.Args[1]
 	v_0 := v.Args[0]
 	b := v.Block
@@ -88,7 +88,7 @@ func rewriteValue386splitload_Op386CMPLconstload(v *ssacore.Value) bool {
 		return true
 	}
 }
-func rewriteValue386splitload_Op386CMPLload(v *ssacore.Value) bool {
+func rewriteValue386splitload_Op386CMPLload(v *ssa.Value) bool {
 	v_2 := v.Args[2]
 	v_1 := v.Args[1]
 	v_0 := v.Args[0]
@@ -110,7 +110,7 @@ func rewriteValue386splitload_Op386CMPLload(v *ssacore.Value) bool {
 		return true
 	}
 }
-func rewriteValue386splitload_Op386CMPWconstload(v *ssacore.Value) bool {
+func rewriteValue386splitload_Op386CMPWconstload(v *ssa.Value) bool {
 	v_1 := v.Args[1]
 	v_0 := v.Args[0]
 	b := v.Block
@@ -132,7 +132,7 @@ func rewriteValue386splitload_Op386CMPWconstload(v *ssacore.Value) bool {
 		return true
 	}
 }
-func rewriteValue386splitload_Op386CMPWload(v *ssacore.Value) bool {
+func rewriteValue386splitload_Op386CMPWload(v *ssa.Value) bool {
 	v_2 := v.Args[2]
 	v_1 := v.Args[1]
 	v_0 := v.Args[0]
@@ -154,6 +154,6 @@ func rewriteValue386splitload_Op386CMPWload(v *ssacore.Value) bool {
 		return true
 	}
 }
-func rewriteBlock386splitload(b *ssacore.Block) bool {
+func rewriteBlock386splitload(b *ssa.Block) bool {
 	return false
 }

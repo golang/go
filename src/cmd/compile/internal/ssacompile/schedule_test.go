@@ -7,7 +7,7 @@ package ssacompile
 import (
 	"testing"
 
-	"cmd/compile/internal/ssa/ssacore"
+	"cmd/compile/internal/ssa"
 	"cmd/compile/internal/ssa/ssaop"
 	"cmd/compile/internal/types"
 )
@@ -34,14 +34,14 @@ func TestSchedule(t *testing.T) {
 		schedule(c.f)
 		if !isSingleLiveMem(c.f) {
 			t.Error("single-live-mem restriction not enforced by schedule for func:")
-			ssacore.PrintFunc(c.f)
+			ssa.PrintFunc(c.f)
 		}
 	}
 }
 
-func isSingleLiveMem(f *ssacore.Func) bool {
+func isSingleLiveMem(f *ssa.Func) bool {
 	for _, b := range f.Blocks {
-		var liveMem *ssacore.Value
+		var liveMem *ssa.Value
 		for _, v := range b.Values {
 			for _, w := range v.Args {
 				if w.Type.IsMemory() {

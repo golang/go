@@ -3,9 +3,9 @@
 package ssacompile
 
 import "cmd/compile/internal/ssa/ssaop"
-import "cmd/compile/internal/ssa/ssacore"
+import "cmd/compile/internal/ssa"
 
-func rewriteValueARM64latelower(v *ssacore.Value) bool {
+func rewriteValueARM64latelower(v *ssa.Value) bool {
 	switch v.Op {
 	case ssaop.OpARM64ADDSconstflags:
 		return rewriteValueARM64latelower_OpARM64ADDSconstflags(v)
@@ -54,7 +54,7 @@ func rewriteValueARM64latelower(v *ssacore.Value) bool {
 	}
 	return false
 }
-func rewriteValueARM64latelower_OpARM64ADDSconstflags(v *ssacore.Value) bool {
+func rewriteValueARM64latelower_OpARM64ADDSconstflags(v *ssa.Value) bool {
 	v_0 := v.Args[0]
 	b := v.Block
 	typ := &b.Func.Config.Types
@@ -75,7 +75,7 @@ func rewriteValueARM64latelower_OpARM64ADDSconstflags(v *ssacore.Value) bool {
 	}
 	return false
 }
-func rewriteValueARM64latelower_OpARM64ADDconst(v *ssacore.Value) bool {
+func rewriteValueARM64latelower_OpARM64ADDconst(v *ssa.Value) bool {
 	v_0 := v.Args[0]
 	b := v.Block
 	typ := &b.Func.Config.Types
@@ -96,7 +96,7 @@ func rewriteValueARM64latelower_OpARM64ADDconst(v *ssacore.Value) bool {
 	}
 	return false
 }
-func rewriteValueARM64latelower_OpARM64ANDconst(v *ssacore.Value) bool {
+func rewriteValueARM64latelower_OpARM64ANDconst(v *ssa.Value) bool {
 	v_0 := v.Args[0]
 	b := v.Block
 	typ := &b.Func.Config.Types
@@ -117,7 +117,7 @@ func rewriteValueARM64latelower_OpARM64ANDconst(v *ssacore.Value) bool {
 	}
 	return false
 }
-func rewriteValueARM64latelower_OpARM64CMNWconst(v *ssacore.Value) bool {
+func rewriteValueARM64latelower_OpARM64CMNWconst(v *ssa.Value) bool {
 	v_0 := v.Args[0]
 	b := v.Block
 	typ := &b.Func.Config.Types
@@ -138,7 +138,7 @@ func rewriteValueARM64latelower_OpARM64CMNWconst(v *ssacore.Value) bool {
 	}
 	return false
 }
-func rewriteValueARM64latelower_OpARM64CMNconst(v *ssacore.Value) bool {
+func rewriteValueARM64latelower_OpARM64CMNconst(v *ssa.Value) bool {
 	v_0 := v.Args[0]
 	b := v.Block
 	typ := &b.Func.Config.Types
@@ -159,7 +159,7 @@ func rewriteValueARM64latelower_OpARM64CMNconst(v *ssacore.Value) bool {
 	}
 	return false
 }
-func rewriteValueARM64latelower_OpARM64CMPWconst(v *ssacore.Value) bool {
+func rewriteValueARM64latelower_OpARM64CMPWconst(v *ssa.Value) bool {
 	v_0 := v.Args[0]
 	b := v.Block
 	typ := &b.Func.Config.Types
@@ -180,7 +180,7 @@ func rewriteValueARM64latelower_OpARM64CMPWconst(v *ssacore.Value) bool {
 	}
 	return false
 }
-func rewriteValueARM64latelower_OpARM64CMPconst(v *ssacore.Value) bool {
+func rewriteValueARM64latelower_OpARM64CMPconst(v *ssa.Value) bool {
 	v_0 := v.Args[0]
 	b := v.Block
 	typ := &b.Func.Config.Types
@@ -201,7 +201,7 @@ func rewriteValueARM64latelower_OpARM64CMPconst(v *ssacore.Value) bool {
 	}
 	return false
 }
-func rewriteValueARM64latelower_OpARM64MOVBUreg(v *ssacore.Value) bool {
+func rewriteValueARM64latelower_OpARM64MOVBUreg(v *ssa.Value) bool {
 	v_0 := v.Args[0]
 	// match: (MOVBUreg x:(Equal _))
 	// result: x
@@ -344,11 +344,11 @@ func rewriteValueARM64latelower_OpARM64MOVBUreg(v *ssacore.Value) bool {
 		return true
 	}
 	// match: (MOVBUreg x)
-	// cond: ssacore.ZeroUpper56Bits(x)
+	// cond: ssa.ZeroUpper56Bits(x)
 	// result: x
 	for {
 		x := v_0
-		if !(ssacore.ZeroUpper56Bits(x)) {
+		if !(ssa.ZeroUpper56Bits(x)) {
 			break
 		}
 		v.CopyOf(x)
@@ -389,7 +389,7 @@ func rewriteValueARM64latelower_OpARM64MOVBUreg(v *ssacore.Value) bool {
 	}
 	return false
 }
-func rewriteValueARM64latelower_OpARM64MOVBreg(v *ssacore.Value) bool {
+func rewriteValueARM64latelower_OpARM64MOVBreg(v *ssa.Value) bool {
 	v_0 := v.Args[0]
 	// match: (MOVBreg x:(MOVBload _ _))
 	// result: (MOVDreg x)
@@ -426,7 +426,7 @@ func rewriteValueARM64latelower_OpARM64MOVBreg(v *ssacore.Value) bool {
 	}
 	return false
 }
-func rewriteValueARM64latelower_OpARM64MOVDconst(v *ssacore.Value) bool {
+func rewriteValueARM64latelower_OpARM64MOVDconst(v *ssa.Value) bool {
 	// match: (MOVDconst [0])
 	// result: (ZERO)
 	for {
@@ -438,7 +438,7 @@ func rewriteValueARM64latelower_OpARM64MOVDconst(v *ssacore.Value) bool {
 	}
 	return false
 }
-func rewriteValueARM64latelower_OpARM64MOVDnop(v *ssacore.Value) bool {
+func rewriteValueARM64latelower_OpARM64MOVDnop(v *ssa.Value) bool {
 	v_0 := v.Args[0]
 	// match: (MOVDnop (MOVDconst [c]))
 	// result: (MOVDconst [c])
@@ -453,7 +453,7 @@ func rewriteValueARM64latelower_OpARM64MOVDnop(v *ssacore.Value) bool {
 	}
 	return false
 }
-func rewriteValueARM64latelower_OpARM64MOVDreg(v *ssacore.Value) bool {
+func rewriteValueARM64latelower_OpARM64MOVDreg(v *ssa.Value) bool {
 	v_0 := v.Args[0]
 	// match: (MOVDreg x)
 	// cond: x.Uses == 1
@@ -469,14 +469,14 @@ func rewriteValueARM64latelower_OpARM64MOVDreg(v *ssacore.Value) bool {
 	}
 	return false
 }
-func rewriteValueARM64latelower_OpARM64MOVHUreg(v *ssacore.Value) bool {
+func rewriteValueARM64latelower_OpARM64MOVHUreg(v *ssa.Value) bool {
 	v_0 := v.Args[0]
 	// match: (MOVHUreg x)
-	// cond: ssacore.ZeroUpper48Bits(x)
+	// cond: ssa.ZeroUpper48Bits(x)
 	// result: x
 	for {
 		x := v_0
-		if !(ssacore.ZeroUpper48Bits(x)) {
+		if !(ssa.ZeroUpper48Bits(x)) {
 			break
 		}
 		v.CopyOf(x)
@@ -561,7 +561,7 @@ func rewriteValueARM64latelower_OpARM64MOVHUreg(v *ssacore.Value) bool {
 	}
 	return false
 }
-func rewriteValueARM64latelower_OpARM64MOVHreg(v *ssacore.Value) bool {
+func rewriteValueARM64latelower_OpARM64MOVHreg(v *ssa.Value) bool {
 	v_0 := v.Args[0]
 	// match: (MOVHreg x:(MOVBload _ _))
 	// result: (MOVDreg x)
@@ -675,14 +675,14 @@ func rewriteValueARM64latelower_OpARM64MOVHreg(v *ssacore.Value) bool {
 	}
 	return false
 }
-func rewriteValueARM64latelower_OpARM64MOVWUreg(v *ssacore.Value) bool {
+func rewriteValueARM64latelower_OpARM64MOVWUreg(v *ssa.Value) bool {
 	v_0 := v.Args[0]
 	// match: (MOVWUreg x)
-	// cond: ssacore.ZeroUpper32Bits(x)
+	// cond: ssa.ZeroUpper32Bits(x)
 	// result: x
 	for {
 		x := v_0
-		if !(ssacore.ZeroUpper32Bits(x)) {
+		if !(ssa.ZeroUpper32Bits(x)) {
 			break
 		}
 		v.CopyOf(x)
@@ -811,7 +811,7 @@ func rewriteValueARM64latelower_OpARM64MOVWUreg(v *ssacore.Value) bool {
 	}
 	return false
 }
-func rewriteValueARM64latelower_OpARM64MOVWreg(v *ssacore.Value) bool {
+func rewriteValueARM64latelower_OpARM64MOVWreg(v *ssa.Value) bool {
 	v_0 := v.Args[0]
 	// match: (MOVWreg x:(MOVBload _ _))
 	// result: (MOVDreg x)
@@ -1002,7 +1002,7 @@ func rewriteValueARM64latelower_OpARM64MOVWreg(v *ssacore.Value) bool {
 	}
 	return false
 }
-func rewriteValueARM64latelower_OpARM64ORconst(v *ssacore.Value) bool {
+func rewriteValueARM64latelower_OpARM64ORconst(v *ssa.Value) bool {
 	v_0 := v.Args[0]
 	b := v.Block
 	typ := &b.Func.Config.Types
@@ -1023,7 +1023,7 @@ func rewriteValueARM64latelower_OpARM64ORconst(v *ssacore.Value) bool {
 	}
 	return false
 }
-func rewriteValueARM64latelower_OpARM64SLLconst(v *ssacore.Value) bool {
+func rewriteValueARM64latelower_OpARM64SLLconst(v *ssa.Value) bool {
 	v_0 := v.Args[0]
 	// match: (SLLconst [1] x)
 	// result: (ADD x x)
@@ -1038,7 +1038,7 @@ func rewriteValueARM64latelower_OpARM64SLLconst(v *ssacore.Value) bool {
 	}
 	return false
 }
-func rewriteValueARM64latelower_OpARM64SUBconst(v *ssacore.Value) bool {
+func rewriteValueARM64latelower_OpARM64SUBconst(v *ssa.Value) bool {
 	v_0 := v.Args[0]
 	b := v.Block
 	typ := &b.Func.Config.Types
@@ -1059,7 +1059,7 @@ func rewriteValueARM64latelower_OpARM64SUBconst(v *ssacore.Value) bool {
 	}
 	return false
 }
-func rewriteValueARM64latelower_OpARM64TSTWconst(v *ssacore.Value) bool {
+func rewriteValueARM64latelower_OpARM64TSTWconst(v *ssa.Value) bool {
 	v_0 := v.Args[0]
 	b := v.Block
 	typ := &b.Func.Config.Types
@@ -1080,7 +1080,7 @@ func rewriteValueARM64latelower_OpARM64TSTWconst(v *ssacore.Value) bool {
 	}
 	return false
 }
-func rewriteValueARM64latelower_OpARM64TSTconst(v *ssacore.Value) bool {
+func rewriteValueARM64latelower_OpARM64TSTconst(v *ssa.Value) bool {
 	v_0 := v.Args[0]
 	b := v.Block
 	typ := &b.Func.Config.Types
@@ -1101,7 +1101,7 @@ func rewriteValueARM64latelower_OpARM64TSTconst(v *ssacore.Value) bool {
 	}
 	return false
 }
-func rewriteValueARM64latelower_OpARM64XORconst(v *ssacore.Value) bool {
+func rewriteValueARM64latelower_OpARM64XORconst(v *ssa.Value) bool {
 	v_0 := v.Args[0]
 	b := v.Block
 	typ := &b.Func.Config.Types
@@ -1122,6 +1122,6 @@ func rewriteValueARM64latelower_OpARM64XORconst(v *ssacore.Value) bool {
 	}
 	return false
 }
-func rewriteBlockARM64latelower(b *ssacore.Block) bool {
+func rewriteBlockARM64latelower(b *ssa.Block) bool {
 	return false
 }

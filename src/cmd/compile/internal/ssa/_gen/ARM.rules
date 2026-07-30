@@ -400,13 +400,13 @@
 (PanicBounds ...) => (LoweredPanicBoundsRR ...)
 (PanicExtend ...) => (LoweredPanicExtendRR ...)
 
-(LoweredPanicBoundsRR [kind] x (MOVWconst [c]) mem) => (LoweredPanicBoundsRC [kind] x {ssacore.PanicBoundsC{C:int64(c)}} mem)
-(LoweredPanicBoundsRR [kind] (MOVWconst [c]) y mem) => (LoweredPanicBoundsCR [kind] {ssacore.PanicBoundsC{C:int64(c)}} y mem)
-(LoweredPanicBoundsRC [kind] {p} (MOVWconst [c]) mem) => (LoweredPanicBoundsCC [kind] {ssacore.PanicBoundsCC{Cx:int64(c), Cy:p.C}} mem)
+(LoweredPanicBoundsRR [kind] x (MOVWconst [c]) mem) => (LoweredPanicBoundsRC [kind] x {ssa.PanicBoundsC{C:int64(c)}} mem)
+(LoweredPanicBoundsRR [kind] (MOVWconst [c]) y mem) => (LoweredPanicBoundsCR [kind] {ssa.PanicBoundsC{C:int64(c)}} y mem)
+(LoweredPanicBoundsRC [kind] {p} (MOVWconst [c]) mem) => (LoweredPanicBoundsCC [kind] {ssa.PanicBoundsCC{Cx:int64(c), Cy:p.C}} mem)
 
-(LoweredPanicExtendRR [kind] hi lo (MOVWconst [c]) mem) => (LoweredPanicExtendRC [kind] hi lo {ssacore.PanicBoundsC{C:int64(c)}} mem)
-(LoweredPanicExtendRR [kind] (MOVWconst [hi]) (MOVWconst [lo]) y mem) => (LoweredPanicBoundsCR [kind] {ssacore.PanicBoundsC{C:int64(hi)<<32 + int64(uint32(lo))}} y mem)
-(LoweredPanicExtendRC [kind] {p} (MOVWconst [hi]) (MOVWconst [lo]) mem) => (LoweredPanicBoundsCC [kind] {ssacore.PanicBoundsCC{Cx:int64(hi)<<32+int64(uint32(lo)), Cy:p.C}} mem)
+(LoweredPanicExtendRR [kind] hi lo (MOVWconst [c]) mem) => (LoweredPanicExtendRC [kind] hi lo {ssa.PanicBoundsC{C:int64(c)}} mem)
+(LoweredPanicExtendRR [kind] (MOVWconst [hi]) (MOVWconst [lo]) y mem) => (LoweredPanicBoundsCR [kind] {ssa.PanicBoundsC{C:int64(hi)<<32 + int64(uint32(lo))}} y mem)
+(LoweredPanicExtendRC [kind] {p} (MOVWconst [hi]) (MOVWconst [lo]) mem) => (LoweredPanicBoundsCC [kind] {ssa.PanicBoundsCC{Cx:int64(hi)<<32+int64(uint32(lo)), Cy:p.C}} mem)
 
 // Optimizations
 
@@ -468,23 +468,23 @@
 	(MOVDstore [off1+off2] {MergeSym(sym1,sym2)} ptr val mem)
 
 // replace load from same location as preceding store with zero/sign extension (or copy in case of full width)
-(MOVBload [off] {sym} ptr (MOVBstore [off2] {sym2} ptr2 x _)) && sym == sym2 && off == off2 && ssacore.IsSamePtr(ptr, ptr2) => (MOVBreg x)
-(MOVBUload [off] {sym} ptr (MOVBstore [off2] {sym2} ptr2 x _)) && sym == sym2 && off == off2 && ssacore.IsSamePtr(ptr, ptr2) => (MOVBUreg x)
-(MOVHload [off] {sym} ptr (MOVHstore [off2] {sym2} ptr2 x _)) && sym == sym2 && off == off2 && ssacore.IsSamePtr(ptr, ptr2) => (MOVHreg x)
-(MOVHUload [off] {sym} ptr (MOVHstore [off2] {sym2} ptr2 x _)) && sym == sym2 && off == off2 && ssacore.IsSamePtr(ptr, ptr2) => (MOVHUreg x)
-(MOVWload [off] {sym} ptr (MOVWstore [off2] {sym2} ptr2 x _)) && sym == sym2 && off == off2 && ssacore.IsSamePtr(ptr, ptr2) => x
+(MOVBload [off] {sym} ptr (MOVBstore [off2] {sym2} ptr2 x _)) && sym == sym2 && off == off2 && ssa.IsSamePtr(ptr, ptr2) => (MOVBreg x)
+(MOVBUload [off] {sym} ptr (MOVBstore [off2] {sym2} ptr2 x _)) && sym == sym2 && off == off2 && ssa.IsSamePtr(ptr, ptr2) => (MOVBUreg x)
+(MOVHload [off] {sym} ptr (MOVHstore [off2] {sym2} ptr2 x _)) && sym == sym2 && off == off2 && ssa.IsSamePtr(ptr, ptr2) => (MOVHreg x)
+(MOVHUload [off] {sym} ptr (MOVHstore [off2] {sym2} ptr2 x _)) && sym == sym2 && off == off2 && ssa.IsSamePtr(ptr, ptr2) => (MOVHUreg x)
+(MOVWload [off] {sym} ptr (MOVWstore [off2] {sym2} ptr2 x _)) && sym == sym2 && off == off2 && ssa.IsSamePtr(ptr, ptr2) => x
 
-(MOVFload [off] {sym} ptr (MOVFstore [off2] {sym2} ptr2 x _)) && sym == sym2 && off == off2 && ssacore.IsSamePtr(ptr, ptr2) => x
-(MOVDload [off] {sym} ptr (MOVDstore [off2] {sym2} ptr2 x _)) && sym == sym2 && off == off2 && ssacore.IsSamePtr(ptr, ptr2) => x
+(MOVFload [off] {sym} ptr (MOVFstore [off2] {sym2} ptr2 x _)) && sym == sym2 && off == off2 && ssa.IsSamePtr(ptr, ptr2) => x
+(MOVDload [off] {sym} ptr (MOVDstore [off2] {sym2} ptr2 x _)) && sym == sym2 && off == off2 && ssa.IsSamePtr(ptr, ptr2) => x
 
-(MOVWloadidx ptr idx (MOVWstoreidx ptr2 idx x _)) && ssacore.IsSamePtr(ptr, ptr2) => x
-(MOVWloadshiftLL ptr idx [c] (MOVWstoreshiftLL ptr2 idx [d] x _)) && c==d && ssacore.IsSamePtr(ptr, ptr2) => x
-(MOVWloadshiftRL ptr idx [c] (MOVWstoreshiftRL ptr2 idx [d] x _)) && c==d && ssacore.IsSamePtr(ptr, ptr2) => x
-(MOVWloadshiftRA ptr idx [c] (MOVWstoreshiftRA ptr2 idx [d] x _)) && c==d && ssacore.IsSamePtr(ptr, ptr2) => x
-(MOVBUloadidx ptr idx (MOVBstoreidx ptr2 idx x _)) && ssacore.IsSamePtr(ptr, ptr2) => (MOVBUreg x)
-(MOVBloadidx ptr idx (MOVBstoreidx ptr2 idx x _)) && ssacore.IsSamePtr(ptr, ptr2) => (MOVBreg x)
-(MOVHUloadidx ptr idx (MOVHstoreidx ptr2 idx x _)) && ssacore.IsSamePtr(ptr, ptr2) => (MOVHUreg x)
-(MOVHloadidx ptr idx (MOVHstoreidx ptr2 idx x _)) && ssacore.IsSamePtr(ptr, ptr2) => (MOVHreg x)
+(MOVWloadidx ptr idx (MOVWstoreidx ptr2 idx x _)) && ssa.IsSamePtr(ptr, ptr2) => x
+(MOVWloadshiftLL ptr idx [c] (MOVWstoreshiftLL ptr2 idx [d] x _)) && c==d && ssa.IsSamePtr(ptr, ptr2) => x
+(MOVWloadshiftRL ptr idx [c] (MOVWstoreshiftRL ptr2 idx [d] x _)) && c==d && ssa.IsSamePtr(ptr, ptr2) => x
+(MOVWloadshiftRA ptr idx [c] (MOVWstoreshiftRA ptr2 idx [d] x _)) && c==d && ssa.IsSamePtr(ptr, ptr2) => x
+(MOVBUloadidx ptr idx (MOVBstoreidx ptr2 idx x _)) && ssa.IsSamePtr(ptr, ptr2) => (MOVBUreg x)
+(MOVBloadidx ptr idx (MOVBstoreidx ptr2 idx x _)) && ssa.IsSamePtr(ptr, ptr2) => (MOVBreg x)
+(MOVHUloadidx ptr idx (MOVHstoreidx ptr2 idx x _)) && ssa.IsSamePtr(ptr, ptr2) => (MOVHUreg x)
+(MOVHloadidx ptr idx (MOVHstoreidx ptr2 idx x _)) && ssa.IsSamePtr(ptr, ptr2) => (MOVHreg x)
 
 // fold constant into arithmetic ops
 (ADD x (MOVWconst <t> [c])) && !t.IsPtr() => (ADDconst [c] x)

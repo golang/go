@@ -4,7 +4,7 @@
 
 package ssacompile
 
-import "cmd/compile/internal/ssa/ssacore"
+import "cmd/compile/internal/ssa"
 
 // useInfo provides a map from a value to the users of that value.
 // We do not keep track of this data in the IR directly, as it is
@@ -34,12 +34,12 @@ import "cmd/compile/internal/ssa/ssacore"
 // of uses between starts[v.ID] and starts[v.ID+1].
 type useInfo struct {
 	starts []int32
-	uses   []*ssacore.Value
+	uses   []*ssa.Value
 }
 
 // build useInfo for a function. Result only valid until
 // the next modification of f.
-func uses(f *ssacore.Func) useInfo {
+func uses(f *ssa.Func) useInfo {
 	// Write down number of uses of each value.
 	idx := f.Cache.AllocInt32Slice(f.NumValues())
 	for _, b := range f.Blocks {
@@ -89,7 +89,7 @@ func uses(f *ssacore.Func) useInfo {
 // Every use in an argument slot is listed (e.g. for
 // w=(Add v v), w is listed twice in the uses of v).
 // Uses by Block.Controls are not reported.
-func (u useInfo) get(v *ssacore.Value) []*ssacore.Value {
+func (u useInfo) get(v *ssa.Value) []*ssa.Value {
 	i := u.starts[v.ID]
 	var j int32
 	if int(v.ID) < len(u.starts)-1 {
@@ -105,7 +105,7 @@ func (u useInfo) get(v *ssacore.Value) []*ssacore.Value {
 	return r
 }
 
-func (u useInfo) free(f *ssacore.Func) {
+func (u useInfo) free(f *ssa.Func) {
 	f.Cache.FreeInt32Slice(u.starts)
 	f.Cache.FreeValueSlice(u.uses)
 }

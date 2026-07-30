@@ -29,9 +29,9 @@
 (MOVBUreg x:((Equal|NotEqual|LessThan|LessThanU|LessThanF|LessEqual|LessEqualU|LessEqualF|GreaterThan|GreaterThanU|GreaterThanF|GreaterEqual|GreaterEqualU|GreaterEqualF) _)) => x
 
 // omit unsigned extension
-(MOVBUreg x) && ssacore.ZeroUpper56Bits(x) => x
-(MOVHUreg x) && ssacore.ZeroUpper48Bits(x) => x
-(MOVWUreg x) && ssacore.ZeroUpper32Bits(x) => x
+(MOVBUreg x) && ssa.ZeroUpper56Bits(x) => x
+(MOVHUreg x) && ssa.ZeroUpper48Bits(x) => x
+(MOVWUreg x) && ssa.ZeroUpper32Bits(x) => x
 
 // don't extend after proper load
 (MOVBreg  x:(MOVBload  _ _)) => (MOVDreg x)

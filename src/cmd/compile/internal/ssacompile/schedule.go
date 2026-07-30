@@ -11,7 +11,7 @@ import (
 	"sort"
 
 	"cmd/compile/internal/base"
-	"cmd/compile/internal/ssa/ssacore"
+	"cmd/compile/internal/ssa"
 	"cmd/compile/internal/ssa/ssaop"
 	"cmd/compile/internal/types"
 )
@@ -31,7 +31,7 @@ const (
 )
 
 type ValHeap struct {
-	a           []*ssacore.Value
+	a           []*ssa.Value
 	score       []int8
 	inBlockUses []bool
 }
@@ -42,7 +42,7 @@ func (h ValHeap) Swap(i, j int) { a := h.a; a[i], a[j] = a[j], a[i] }
 func (h *ValHeap) Push(x any) {
 	// Push and Pop use pointer receivers because they modify the slice's length,
 	// not just its contents.
-	v := x.(*ssacore.Value)
+	v := x.(*ssa.Value)
 	h.a = append(h.a, v)
 }
 func (h *ValHeap) Pop() any {
@@ -97,7 +97,7 @@ func (h ValHeap) Less(i, j int) bool {
 // will appear in the assembly output. For now it generates a
 // reasonable valid schedule using a priority queue. TODO(khr):
 // schedule smarter.
-func schedule(f *ssacore.Func) {
+func schedule(f *ssa.Func) {
 	// reusable priority queue
 	priq := new(ValHeap)
 
@@ -221,7 +221,7 @@ func schedule(f *ssacore.Func) {
 
 	// An edge represents a scheduling constraint that x must appear before y in the schedule.
 	type edge struct {
-		x, y *ssacore.Value
+		x, y *ssa.Value
 	}
 	edges := make([]edge, 0, 64)
 
@@ -294,7 +294,7 @@ func schedule(f *ssacore.Func) {
 		b.Values = b.Values[:0]
 		for priq.Len() > 0 {
 			// Schedule the next schedulable value in priority order.
-			v := heap.Pop(priq).(*ssacore.Value)
+			v := heap.Pop(priq).(*ssa.Value)
 			b.Values = append(b.Values, v)
 
 			// Find all the scheduling edges out from this value.
@@ -387,7 +387,7 @@ func schedule(f *ssacore.Func) {
 // Auxiliary data structures are passed in as arguments, so
 // that they can be allocated in the caller and be reused.
 // This function takes care of reset them.
-func storeOrder(values []*ssacore.Value, sset *ssacore.SparseSet, storeNumber []int32) []*ssacore.Value {
+func storeOrder(values []*ssa.Value, sset *ssa.SparseSet, storeNumber []int32) []*ssa.Value {
 	if len(values) == 0 {
 		return values
 	}
@@ -399,7 +399,7 @@ func storeOrder(values []*ssacore.Value, sset *ssacore.SparseSet, storeNumber []
 	// Members of values that are store values.
 	// A constant bound allows this to be stack-allocated. 64 is
 	// enough to cover almost every storeOrder call.
-	stores := make([]*ssacore.Value, 0, 64)
+	stores := make([]*ssa.Value, 0, 64)
 	hasNilCheck := false
 	sset.Clear() // sset is the set of stores that are used in other values
 	for _, v := range values {
@@ -420,7 +420,7 @@ func storeOrder(values []*ssacore.Value, sset *ssacore.SparseSet, storeNumber []
 	}
 
 	// find last store, which is the one that is not used by other stores
-	var last *ssacore.Value
+	var last *ssa.Value
 	for _, v := range stores {
 		if !sset.Contains(v.ID) {
 			if last != nil {
@@ -453,7 +453,7 @@ func storeOrder(values []*ssacore.Value, sset *ssacore.SparseSet, storeNumber []
 		}
 		w = w.MemoryArg()
 	}
-	var stack []*ssacore.Value
+	var stack []*ssa.Value
 	for _, v := range values {
 		if sset.Contains(v.ID) {
 			// in sset means v is a store, or already pushed to stack, or already assigned a store number
@@ -519,7 +519,7 @@ func storeOrder(values []*ssacore.Value, sset *ssacore.SparseSet, storeNumber []
 	}
 
 	// place values in count-indexed bins, which are in the desired store order
-	order := make([]*ssacore.Value, len(values))
+	order := make([]*ssa.Value, len(values))
 	for _, v := range values {
 		s := storeNumber[v.ID]
 		order[count[s-1]] = v
@@ -551,7 +551,7 @@ func storeOrder(values []*ssacore.Value, sset *ssacore.SparseSet, storeNumber []
 	return order
 }
 
-func valuePosCmp(a, b *ssacore.Value) int {
+func valuePosCmp(a, b *ssa.Value) int {
 	if a.Pos.Before(b.Pos) {
 		return -1
 	}

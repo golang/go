@@ -5,8 +5,8 @@
 package ssacompile
 
 import (
+	"cmd/compile/internal/ssa"
 	"cmd/compile/internal/ssa/block"
-	"cmd/compile/internal/ssa/ssacore"
 	"cmd/compile/internal/ssa/ssaop"
 	"cmd/internal/src"
 )
@@ -24,7 +24,7 @@ import (
 //
 // where the intermediate blocks are mostly empty (with no side-effects);
 // rewrite Phis in the postdominator as CondSelects.
-func branchelim(f *ssacore.Func) {
+func branchelim(f *ssa.Func) {
 	// FIXME: add support for lowering CondSelects on more architectures
 	if !f.Config.HaveCondSelect {
 		return
@@ -74,7 +74,7 @@ func branchelim(f *ssacore.Func) {
 	}
 }
 
-func canCondSelect(v *ssacore.Value, arch string, loadAddr *ssacore.SparseSet) bool {
+func canCondSelect(v *ssa.Value, arch string, loadAddr *ssa.SparseSet) bool {
 	if loadAddr != nil && // prove calls this on some multiplies and doesn't take care of loadAddrs
 		loadAddr.Contains(v.ID) {
 		// The result of the soon-to-be conditional move is used to compute a load address.
@@ -121,7 +121,7 @@ func canCondSelect(v *ssacore.Value, arch string, loadAddr *ssacore.SparseSet) b
 // there is no risk of an unlowerable value. Greater comparisons are
 // canonicalized to Less with swapped operands during SSA building, so only Less
 // needs to be matched here.
-func floatMinMaxSelOp(cond, trueVal, falseVal *ssacore.Value) ssaop.Op {
+func floatMinMaxSelOp(cond, trueVal, falseVal *ssa.Value) ssaop.Op {
 	switch trueVal.Block.Func.Config.Arch {
 	case "amd64", "arm64":
 	default:
@@ -150,7 +150,7 @@ func floatMinMaxSelOp(cond, trueVal, falseVal *ssacore.Value) ssaop.Op {
 // canSelectPhi reports whether phi v can be rewritten as a CondSelect or a
 // float min/max-select op. cond is the branch condition. When !swap, v.Args[0]
 // is chosen when cond is true; otherwise v.Args[1] is chosen.
-func canSelectPhi(v *ssacore.Value, loadAddr *ssacore.SparseSet, cond *ssacore.Value, swap bool) bool {
+func canSelectPhi(v *ssa.Value, loadAddr *ssa.SparseSet, cond *ssa.Value, swap bool) bool {
 	if canCondSelect(v, v.Block.Func.Config.Arch, loadAddr) {
 		return true
 	}
@@ -165,7 +165,7 @@ func canSelectPhi(v *ssacore.Value, loadAddr *ssacore.SparseSet, cond *ssacore.V
 // CondSelect or a float min/max-select op. When !swap, v.Args[0] is chosen
 // when cond is true; otherwise v.Args[1] is chosen. The arguments are swapped
 // first if needed so that Args[0] is the value chosen when cond is true.
-func rewritePhiAsSelect(v *ssacore.Value, swap bool, cond *ssacore.Value) {
+func rewritePhiAsSelect(v *ssa.Value, swap bool, cond *ssa.Value) {
 	if swap {
 		v.Args[0], v.Args[1] = v.Args[1], v.Args[0]
 	}
@@ -180,14 +180,14 @@ func rewritePhiAsSelect(v *ssacore.Value, swap bool, cond *ssacore.Value) {
 // elimIf converts the one-way branch starting at dom in f to a conditional move if possible.
 // loadAddr is a set of values which are used to compute the address of a load.
 // Those values are exempt from CMOV generation.
-func elimIf(f *ssacore.Func, loadAddr *ssacore.SparseSet, dom *ssacore.Block) bool {
+func elimIf(f *ssa.Func, loadAddr *ssa.SparseSet, dom *ssa.Block) bool {
 	// See if dom is an If with one arm that
 	// is trivial and succeeded by the other
 	// successor of dom.
-	if dom.Kind != block.BlockIf || dom.Likely != ssacore.BranchUnknown {
+	if dom.Kind != block.BlockIf || dom.Likely != ssa.BranchUnknown {
 		return false
 	}
-	var simple, post *ssacore.Block
+	var simple, post *ssa.Block
 	for i := range dom.Succs {
 		bb, other := dom.Succs[i].Block(), dom.Succs[i^1].Block()
 		if isLeafPlain(bb) && bb.Succs[0].Block() == other {
@@ -265,7 +265,7 @@ func elimIf(f *ssacore.Func, loadAddr *ssacore.SparseSet, dom *ssacore.Block) bo
 	// findBlockPos determines if b contains a stmt-marked value
 	// that has the same line number as the Pos for b itself.
 	// (i.e. is the position on b actually redundant?)
-	findBlockPos := func(b *ssacore.Block) bool {
+	findBlockPos := func(b *ssa.Block) bool {
 		pos := b.Pos
 		for _, v := range b.Values {
 			// See if there is a stmt-marked value already that matches simple.Pos (and perhaps post.Pos)
@@ -293,7 +293,7 @@ func elimIf(f *ssacore.Func, loadAddr *ssacore.SparseSet, dom *ssacore.Block) bo
 	// that has the same line number as the Pos for b itself, and
 	// puts a statement mark on it, and returns whether it succeeded
 	// in this operation.
-	setBlockPos := func(b *ssacore.Block) bool {
+	setBlockPos := func(b *ssa.Block) bool {
 		pos := b.Pos
 		for _, v := range b.Values {
 			if pos.SameFileAndLine(v.Pos) && !isPoorStatementOp(v.Op) {
@@ -353,28 +353,28 @@ func elimIf(f *ssacore.Func, loadAddr *ssacore.SparseSet, dom *ssacore.Block) bo
 }
 
 // is this a BlockPlain with one predecessor?
-func isLeafPlain(b *ssacore.Block) bool {
+func isLeafPlain(b *ssa.Block) bool {
 	return b.Kind == block.BlockPlain && len(b.Preds) == 1
 }
 
-func clobberBlock(b *ssacore.Block) {
+func clobberBlock(b *ssa.Block) {
 	b.Values = nil
 	b.Preds = nil
 	b.Succs = nil
 	b.Aux = nil
 	b.ResetControls()
-	b.Likely = ssacore.BranchUnknown
+	b.Likely = ssa.BranchUnknown
 	b.Kind = block.BlockInvalid
 }
 
 // elimIfElse converts the two-way branch starting at dom in f to a conditional move if possible.
 // loadAddr is a set of values which are used to compute the address of a load.
 // Those values are exempt from CMOV generation.
-func elimIfElse(f *ssacore.Func, loadAddr *ssacore.SparseSet, b *ssacore.Block) bool {
+func elimIfElse(f *ssa.Func, loadAddr *ssa.SparseSet, b *ssa.Block) bool {
 	// See if 'b' ends in an if/else: it should
 	// have two successors, both of which are BlockPlain
 	// and succeeded by the same block.
-	if b.Kind != block.BlockIf || b.Likely != ssacore.BranchUnknown {
+	if b.Kind != block.BlockIf || b.Likely != ssa.BranchUnknown {
 		return false
 	}
 	yes, no := b.Succs[0].Block(), b.Succs[1].Block()
@@ -453,7 +453,7 @@ func elimIfElse(f *ssacore.Func, loadAddr *ssacore.SparseSet, b *ssacore.Block) 
 
 // shouldElimIfElse reports whether estimated cost of eliminating branch
 // is lower than threshold.
-func shouldElimIfElse(no, yes, post *ssacore.Block, arch string) bool {
+func shouldElimIfElse(no, yes, post *ssa.Block, arch string) bool {
 	switch arch {
 	default:
 		return true
@@ -492,7 +492,7 @@ func shouldElimIfElse(no, yes, post *ssacore.Block, arch string) bool {
 // Warning: this function cannot currently detect values that represent
 // instructions the execution of which need to be guarded with CPU
 // hardware feature checks. See issue #34950.
-func canSpeculativelyExecute(b *ssacore.Block) bool {
+func canSpeculativelyExecute(b *ssa.Block) bool {
 	// don't fuse memory ops, Phi ops, divides (can panic),
 	// or anything else with side-effects
 	for _, v := range b.Values {

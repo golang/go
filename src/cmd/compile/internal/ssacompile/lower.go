@@ -5,18 +5,18 @@
 package ssacompile
 
 import (
-	"cmd/compile/internal/ssa/ssacore"
+	"cmd/compile/internal/ssa"
 	"cmd/compile/internal/ssa/ssaop"
 )
 
 // convert to machine-dependent ops.
-func lower(f *ssacore.Func) {
+func lower(f *ssa.Func) {
 	// repeat rewrites until we find no more rewrites
 	applyRewrite(f, f.Config.LowerBlock, f.Config.LowerValue, RemoveDeadValues)
 }
 
 // lateLower applies those rules that need to be run after the general lower rules.
-func lateLower(f *ssacore.Func) {
+func lateLower(f *ssa.Func) {
 	// repeat rewrites until we find no more rewrites
 	if f.Config.LateLowerValue != nil {
 		applyRewrite(f, f.Config.LateLowerBlock, f.Config.LateLowerValue, RemoveDeadValues)
@@ -24,7 +24,7 @@ func lateLower(f *ssacore.Func) {
 }
 
 // checkLower checks for unlowered opcodes and fails if we find one.
-func checkLower(f *ssacore.Func) {
+func checkLower(f *ssa.Func) {
 	// Needs to be a separate phase because it must run after both
 	// lowering and a subsequent dead code elimination (because lowering
 	// rules may leave dead generic ops behind).

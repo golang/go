@@ -8,18 +8,18 @@ import (
 	"fmt"
 	"internal/goarch"
 
+	"cmd/compile/internal/ssa"
 	"cmd/compile/internal/ssa/block"
-	"cmd/compile/internal/ssa/ssacore"
 	"cmd/compile/internal/ssa/ssaop"
 	"cmd/compile/internal/types"
 	"cmd/internal/obj"
 )
 
 type localEffect struct {
-	start    ssacore.CPUfeatures    // features present at beginning of block
-	internal ssacore.CPUfeatures    // features implied by execution of block
-	end      [2]ssacore.CPUfeatures // for BlockIf, features present on outgoing edges
-	visited  bool                   // On the first iteration this will be false for backedges.
+	start    ssa.CPUfeatures    // features present at beginning of block
+	internal ssa.CPUfeatures    // features implied by execution of block
+	end      [2]ssa.CPUfeatures // for BlockIf, features present on outgoing edges
+	visited  bool               // On the first iteration this will be false for backedges.
 }
 
 func (e localEffect) String() string {
@@ -29,7 +29,7 @@ func (e localEffect) String() string {
 // ifEffect pattern matches for a BlockIf conditional on a load
 // of a field from internal/cpu.X86 and returns the corresponding
 // effect.
-func ifEffect(b *ssacore.Block) (features ssacore.CPUfeatures, taken int) {
+func ifEffect(b *ssa.Block) (features ssa.CPUfeatures, taken int) {
 	// TODO generalize for other architectures.
 	if b.Kind != block.BlockIf {
 		return
@@ -75,34 +75,34 @@ func ifEffect(b *ssacore.Block) (features ssacore.CPUfeatures, taken int) {
 	switch match {
 
 	case "HasAVX":
-		features = ssacore.CPUavx
+		features = ssa.CPUavx
 	case "HasAVXVNNI":
-		features = ssacore.CPUavx | ssacore.CPUavxvnni
+		features = ssa.CPUavx | ssa.CPUavxvnni
 	case "HasAVX2":
-		features = ssacore.CPUavx2 | ssacore.CPUavx
+		features = ssa.CPUavx2 | ssa.CPUavx
 
 		// Compiler currently treats these all alike.
 	case "HasAVX512", "HasAVX512F", "HasAVX512CD", "HasAVX512BW",
 		"HasAVX512DQ", "HasAVX512VL", "HasAVX512VPCLMULQDQ":
-		features = ssacore.CPUavx512 | ssacore.CPUavx2 | ssacore.CPUavx
+		features = ssa.CPUavx512 | ssa.CPUavx2 | ssa.CPUavx
 
 	case "HasAVX512GFNI":
-		features = ssacore.CPUavx512 | ssacore.CPUgfni | ssacore.CPUavx2 | ssacore.CPUavx
+		features = ssa.CPUavx512 | ssa.CPUgfni | ssa.CPUavx2 | ssa.CPUavx
 	case "HasAVX512VNNI":
-		features = ssacore.CPUavx512 | ssacore.CPUavx512vnni | ssacore.CPUavx2 | ssacore.CPUavx
+		features = ssa.CPUavx512 | ssa.CPUavx512vnni | ssa.CPUavx2 | ssa.CPUavx
 	case "HasAVX512VBMI":
-		features = ssacore.CPUavx512 | ssacore.CPUvbmi | ssacore.CPUavx2 | ssacore.CPUavx
+		features = ssa.CPUavx512 | ssa.CPUvbmi | ssa.CPUavx2 | ssa.CPUavx
 	case "HasAVX512VBMI2":
-		features = ssacore.CPUavx512 | ssacore.CPUvbmi2 | ssacore.CPUavx2 | ssacore.CPUavx
+		features = ssa.CPUavx512 | ssa.CPUvbmi2 | ssa.CPUavx2 | ssa.CPUavx
 	case "HasAVX512BITALG":
-		features = ssacore.CPUavx512 | ssacore.CPUbitalg | ssacore.CPUavx2 | ssacore.CPUavx
+		features = ssa.CPUavx512 | ssa.CPUbitalg | ssa.CPUavx2 | ssa.CPUavx
 	case "HasAVX512VPOPCNTDQ":
-		features = ssacore.CPUavx512 | ssacore.CPUvpopcntdq | ssacore.CPUavx2 | ssacore.CPUavx
+		features = ssa.CPUavx512 | ssa.CPUvpopcntdq | ssa.CPUavx2 | ssa.CPUavx
 
 	case "HasBMI1":
-		features = ssacore.CPUvbmi
+		features = ssa.CPUvbmi
 	case "HasBMI2":
-		features = ssacore.CPUvbmi2
+		features = ssa.CPUvbmi2
 
 		// Features that are not currently interesting to the compiler.
 	case "HasAES", "HasADX", "HasERMS", "HasFSRM", "HasFMA", "HasGFNI", "HasOSXSAVE",
@@ -116,7 +116,7 @@ func ifEffect(b *ssacore.Block) (features ssacore.CPUfeatures, taken int) {
 	return
 }
 
-func cpufeatures(f *ssacore.Func) {
+func cpufeatures(f *ssa.Func) {
 	arch := f.Config.Ctxt.Arch.Family
 	// TODO there are other SIMD architectures
 	if arch != goarch.AMD64 {
@@ -127,16 +127,16 @@ func cpufeatures(f *ssacore.Func) {
 
 	effects := make([]localEffect, 1+f.NumBlocks(), 1+f.NumBlocks())
 
-	features := func(t *types.Type) ssacore.CPUfeatures {
+	features := func(t *types.Type) ssa.CPUfeatures {
 		if t.IsSIMD() {
 			switch t.Size() {
 			case 16, 32:
-				return ssacore.CPUavx
+				return ssa.CPUavx
 			case 64:
-				return ssacore.CPUavx512 | ssacore.CPUavx2 | ssacore.CPUavx
+				return ssa.CPUavx512 | ssa.CPUavx2 | ssa.CPUavx
 			}
 		}
-		return ssacore.CPUNone
+		return ssa.CPUNone
 	}
 
 	// visit blocks in reverse post order
@@ -145,7 +145,7 @@ func cpufeatures(f *ssacore.Func) {
 	for i := len(po) - 1; i >= 0; i-- {
 		b := po[i]
 
-		var feat ssacore.CPUfeatures
+		var feat ssa.CPUfeatures
 
 		if b == f.Entry {
 			// Check the types of inputs and outputs, as well as annotations.
@@ -158,7 +158,7 @@ func cpufeatures(f *ssacore.Func) {
 
 		} else {
 			// Start with all and intersect over predecessors
-			feat = ssacore.CPUAll
+			feat = ssa.CPUAll
 			for _, p := range b.Preds {
 				pb := p.Block()
 				if !effects[pb.ID].visited {
@@ -177,7 +177,7 @@ func cpufeatures(f *ssacore.Func) {
 		e := localEffect{start: feat, visited: true}
 
 		// Separately capture the internal effects of this block
-		var internal ssacore.CPUfeatures
+		var internal ssa.CPUfeatures
 		for _, v := range b.Values {
 			// the rule applied here is, if the block contains any
 			// instruction that would fault if the feature (avx, avx512)
@@ -196,11 +196,11 @@ func cpufeatures(f *ssacore.Func) {
 		feat |= internal
 
 		branchEffect, taken := ifEffect(b)
-		e.end = [2]ssacore.CPUfeatures{feat, feat}
+		e.end = [2]ssa.CPUfeatures{feat, feat}
 		e.end[taken] |= branchEffect
 
 		effects[b.ID] = e
-		if f.Pass.Debug > 1 && feat != ssacore.CPUNone {
+		if f.Pass.Debug > 1 && feat != ssa.CPUNone {
 			f.Warnl(b.Pos, "%s, block b%v has features %v", b.Func.Name, b.ID, feat)
 		}
 
@@ -218,7 +218,7 @@ func cpufeatures(f *ssacore.Func) {
 			if b == f.Entry {
 				continue // cannot change
 			}
-			feat := ssacore.CPUAll
+			feat := ssa.CPUAll
 			for _, p := range b.Preds {
 				pb := p.Block()
 				pi := p.Index()
@@ -244,7 +244,7 @@ func cpufeatures(f *ssacore.Func) {
 			}
 
 			branchEffect, taken := ifEffect(b)
-			e.end = [2]ssacore.CPUfeatures{feat, feat}
+			e.end = [2]ssa.CPUfeatures{feat, feat}
 			e.end[taken] |= branchEffect
 
 			effects[b.ID] = e
@@ -257,7 +257,7 @@ func cpufeatures(f *ssacore.Func) {
 	}
 	if f.Pass.Debug > 0 {
 		for _, b := range f.Blocks {
-			if b.CPUfeatures != ssacore.CPUNone {
+			if b.CPUfeatures != ssa.CPUNone {
 				f.Warnl(b.Pos, "%s, block b%v has features %v", b.Func.Name, b.ID, b.CPUfeatures)
 			}
 

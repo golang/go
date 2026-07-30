@@ -14,7 +14,7 @@ import (
 	"cmd/compile/internal/ir"
 	"cmd/compile/internal/reflectdata"
 	"cmd/compile/internal/rttype"
-	"cmd/compile/internal/ssa/ssacore"
+	"cmd/compile/internal/ssa"
 	"cmd/compile/internal/ssa/ssaop"
 	"cmd/compile/internal/typecheck"
 	"cmd/compile/internal/types"
@@ -71,13 +71,13 @@ func bool2int(x bool) int {
 }
 
 // canLoadUnaligned reports if the architecture supports unaligned load operations.
-func canLoadUnaligned(c *ssacore.Config) bool {
+func canLoadUnaligned(c *ssa.Config) bool {
 	return c.Ctxt.Arch.Alignment == 1
 }
 
 // canRotate reports whether the architecture supports
 // rotates of integer registers with the given number of bits.
-func canRotate(c *ssacore.Config, bits int64) bool {
+func canRotate(c *ssa.Config, bits int64) bool {
 	if bits > c.PtrSize*8 {
 		// Don't rewrite to rotates bigger than the machine word.
 		return false
@@ -105,9 +105,9 @@ func copyCompatibleType(t1, t2 *types.Type) bool {
 	return t1.Compare(t2) == types.CMPeq
 }
 
-func devirtLECall(v *ssacore.Value, sym *obj.LSym) *ssacore.Value {
+func devirtLECall(v *ssa.Value, sym *obj.LSym) *ssa.Value {
 	v.Op = ssaop.OpStaticLECall
-	auxcall := v.Aux.(*ssacore.AuxCall)
+	auxcall := v.Aux.(*ssa.AuxCall)
 	auxcall.Fn = sym
 	// Remove first arg
 	v.Args[0].Uses--
@@ -122,7 +122,7 @@ func devirtLECall(v *ssacore.Value, sym *obj.LSym) *ssacore.Value {
 
 // hasSmallRotate reports whether the architecture has rotate instructions
 // for sizes < 32-bit.  This is used to decide whether to promote some rotations.
-func hasSmallRotate(c *ssacore.Config) bool {
+func hasSmallRotate(c *ssa.Config) bool {
 	switch c.Arch {
 	case "amd64", "386":
 		return true
@@ -146,7 +146,7 @@ func invertibleBool(op ssaop.Op) bool {
 	}
 }
 
-func isConstZero(v *ssacore.Value) bool {
+func isConstZero(v *ssa.Value) bool {
 	switch v.Op {
 	case ssaop.OpConstNil:
 		return true
@@ -162,19 +162,19 @@ func isConstZero(v *ssacore.Value) bool {
 	return false
 }
 
-func isDictArgSym(sym ssacore.Sym) bool {
+func isDictArgSym(sym ssa.Sym) bool {
 	return sym.(*ir.Name).Sym().Name == typecheck.LocalDictName
 }
 
 // isDirectAndComparableIface reports whether v represents an itab
 // (a *runtime._itab) for a type whose value is stored directly
 // in an interface (i.e., is pointer or pointer-like) and is comparable.
-func isDirectAndComparableIface(v *ssacore.Value) bool {
+func isDirectAndComparableIface(v *ssa.Value) bool {
 	return isDirectAndComparableIface1(v, 9)
 }
 
 // v is an itab
-func isDirectAndComparableIface1(v *ssacore.Value, depth int) bool {
+func isDirectAndComparableIface1(v *ssa.Value, depth int) bool {
 	if depth == 0 {
 		return false
 	}
@@ -196,7 +196,7 @@ func isDirectAndComparableIface1(v *ssacore.Value, depth int) bool {
 }
 
 // v is an interface
-func isDirectAndComparableIface2(v *ssacore.Value, depth int) bool {
+func isDirectAndComparableIface2(v *ssa.Value, depth int) bool {
 	if depth == 0 {
 		return false
 	}
@@ -217,12 +217,12 @@ func isDirectAndComparableIface2(v *ssacore.Value, depth int) bool {
 // isDirectAndComparableType reports whether v represents a type
 // (a *runtime._type) whose value is stored directly in an
 // interface (i.e., is pointer or pointer-like) and is comparable.
-func isDirectAndComparableType(v *ssacore.Value) bool {
+func isDirectAndComparableType(v *ssa.Value) bool {
 	return isDirectAndComparableType1(v)
 }
 
 // v is a type
-func isDirectAndComparableType1(v *ssacore.Value) bool {
+func isDirectAndComparableType1(v *ssa.Value) bool {
 	switch v.Op {
 	case ssaop.OpITab:
 		return isDirectAndComparableType2(v.Args[0])
@@ -237,7 +237,7 @@ func isDirectAndComparableType1(v *ssacore.Value) bool {
 }
 
 // v is an empty interface
-func isDirectAndComparableType2(v *ssacore.Value) bool {
+func isDirectAndComparableType2(v *ssa.Value) bool {
 	switch v.Op {
 	case ssaop.OpIMake:
 		return isDirectAndComparableType1(v.Args[0])
@@ -247,7 +247,7 @@ func isDirectAndComparableType2(v *ssacore.Value) bool {
 
 // isFixedLoad returns true if the load can be resolved to fixed address or constant,
 // and can be rewritten by rewriteFixedLoad.
-func isFixedLoad(v *ssacore.Value, sym ssacore.Sym, off int64) bool {
+func isFixedLoad(v *ssa.Value, sym ssa.Sym, off int64) bool {
 	lsym := sym.(*obj.LSym)
 	if (v.Type.IsPtrShaped() || v.Type.IsUintptr()) && lsym.Type == objabi.SRODATA {
 		for _, r := range lsym.R {
@@ -287,7 +287,7 @@ func isFixedLoad(v *ssacore.Value, sym ssacore.Sym, off int64) bool {
 	return false
 }
 
-func isInlinableMemclr(c *ssacore.Config, sz int64) bool {
+func isInlinableMemclr(c *ssa.Config, sz int64) bool {
 	if sz < 0 {
 		return false
 	}
@@ -302,14 +302,14 @@ func isInlinableMemclr(c *ssacore.Config, sz int64) bool {
 	return false
 }
 
-func isMalloc(aux ssacore.Aux) bool {
-	return ssacore.IsNewObjectCall(aux) || ssacore.IsSpecializedMalloc(aux)
+func isMalloc(aux ssa.Aux) bool {
+	return ssa.IsNewObjectCall(aux) || ssa.IsSpecializedMalloc(aux)
 }
 
 // isNonNegative reports whether v is known to be greater or equal to zero.
 // Note that this is pretty simplistic. The prove pass generates more detailed
 // nonnegative information about values.
-func isNonNegative(v *ssacore.Value) bool {
+func isNonNegative(v *ssa.Value) bool {
 	if !v.Type.IsInteger() {
 		v.Fatalf("isNonNegative bad type: %v", v.Type)
 	}
@@ -361,7 +361,7 @@ func isNonNegative(v *ssacore.Value) bool {
 	return false
 }
 
-func isStackPtr(v *ssacore.Value) bool {
+func isStackPtr(v *ssa.Value) bool {
 	for v.Op == ssaop.OpOffPtr || v.Op == ssaop.OpAddPtr {
 		v = v.Args[0]
 	}
@@ -369,7 +369,7 @@ func isStackPtr(v *ssacore.Value) bool {
 }
 
 // needRaceCleanup reports whether this call to racefuncenter/exit isn't needed.
-func needRaceCleanup(sym *ssacore.AuxCall, v *ssacore.Value) bool {
+func needRaceCleanup(sym *ssa.AuxCall, v *ssa.Value) bool {
 	f := v.Block.Func
 	if !f.Config.Race {
 		return false
@@ -383,7 +383,7 @@ func needRaceCleanup(sym *ssacore.AuxCall, v *ssacore.Value) bool {
 			case ssaop.OpStaticCall, ssaop.OpStaticLECall:
 				// Check for racefuncenter will encounter racefuncexit and vice versa.
 				// Allow calls to panic*
-				s := v.Aux.(*ssacore.AuxCall).Fn.String()
+				s := v.Aux.(*ssa.AuxCall).Fn.String()
 				switch s {
 				case "runtime.racefuncenter", "runtime.racefuncexit",
 					"runtime.panicdivide", "runtime.panicwrap",
@@ -480,7 +480,7 @@ func reciprocalExact64(c float64) bool {
 // registerizable reports whether t is a primitive type that fits in
 // a register. It assumes float64 values will always fit into registers
 // even if that isn't strictly true.
-func registerizable(b *ssacore.Block, typ *types.Type) bool {
+func registerizable(b *ssa.Block, typ *types.Type) bool {
 	if typ.IsPtrShaped() || typ.IsFloat() || typ.IsBoolean() {
 		return true
 	}
@@ -492,7 +492,7 @@ func registerizable(b *ssacore.Block, typ *types.Type) bool {
 
 // resetCopy resets v to be a copy of arg.
 // Always returns true.
-func resetCopy(v *ssacore.Value, arg *ssacore.Value) bool {
+func resetCopy(v *ssa.Value, arg *ssa.Value) bool {
 	v.Reset(ssaop.OpCopy)
 	v.AddArg(arg)
 	return true
@@ -500,7 +500,7 @@ func resetCopy(v *ssacore.Value, arg *ssacore.Value) bool {
 
 // rewriteCondSelectIntoMath reports whether x OP (y * constant) should be used instead of a CondSelect.
 // x arbitrary, y in [0,1]
-func rewriteCondSelectIntoMath(config *ssacore.Config, op ssaop.Op, constant int64) bool {
+func rewriteCondSelectIntoMath(config *ssa.Config, op ssaop.Op, constant int64) bool {
 	switch config.Arch {
 	case "amd64":
 		// constant=1 becomes zext, add 2/4/8 becomes lea, rest becomes shl.
@@ -532,7 +532,7 @@ func rewriteCondSelectIntoMath(config *ssacore.Config, op ssaop.Op, constant int
 }
 
 // rewriteFixedLoad rewrites a load to a fixed address or constant, if isFixedLoad returns true.
-func rewriteFixedLoad(v *ssacore.Value, sym ssacore.Sym, sb *ssacore.Value, off int64) *ssacore.Value {
+func rewriteFixedLoad(v *ssa.Value, sym ssa.Sym, sb *ssa.Value, off int64) *ssa.Value {
 	b := v.Block
 	f := b.Func
 
@@ -624,13 +624,13 @@ func rewriteFixedLoad(v *ssacore.Value, sym ssacore.Sym, sb *ssacore.Value, off 
 	return nil
 }
 
-func rewriteStructLoad(v *ssacore.Value) *ssacore.Value {
+func rewriteStructLoad(v *ssa.Value) *ssa.Value {
 	b := v.Block
 	ptr := v.Args[0]
 	mem := v.Args[1]
 
 	t := v.Type
-	args := make([]*ssacore.Value, t.NumFields())
+	args := make([]*ssa.Value, t.NumFields())
 	for i := range args {
 		ft := t.FieldType(i)
 		addr := b.NewValue1I(v.Pos, ssaop.OpOffPtr, ft.PtrTo(), t.FieldOff(i), ptr)
@@ -643,7 +643,7 @@ func rewriteStructLoad(v *ssacore.Value) *ssacore.Value {
 }
 
 // symIsROZero reports whether sym is a read-only global whose data contains all zeros.
-func symIsROZero(sym ssacore.Sym) bool {
+func symIsROZero(sym ssa.Sym) bool {
 	lsym := sym.(*obj.LSym)
 	if lsym.Type != objabi.SRODATA || len(lsym.R) != 0 {
 		return false
@@ -663,7 +663,7 @@ func uaddOvf(a, b int64) bool {
 
 // warnRule generates compiler debug output with string s when
 // v is not in autogenerated code, cond is true and the rule has fired.
-func warnRule(cond bool, v *ssacore.Value, s string) bool {
+func warnRule(cond bool, v *ssa.Value, s string) bool {
 	if pos := v.Pos; pos.Line() > 1 && cond {
 		v.Block.Func.Warnl(pos, s)
 	}

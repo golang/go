@@ -9,14 +9,14 @@ import (
 	"math/bits"
 
 	"cmd/compile/internal/ir"
+	"cmd/compile/internal/ssa"
 	"cmd/compile/internal/ssa/block"
-	"cmd/compile/internal/ssa/ssacore"
 	"cmd/compile/internal/ssa/ssaop"
 	"cmd/internal/obj/s390x"
 )
 
 // checkFunc checks invariants of f.
-func checkFunc(f *ssacore.Func) {
+func checkFunc(f *ssa.Func) {
 	blockMark := make([]bool, f.NumBlocks())
 	valueMark := make([]bool, f.NumValues())
 
@@ -110,7 +110,7 @@ func checkFunc(f *ssacore.Func) {
 				f.Fatalf("jumpTable block %s has no control value", b)
 			}
 		}
-		if len(b.Succs) != 2 && b.Likely != ssacore.BranchUnknown {
+		if len(b.Succs) != 2 && b.Likely != ssa.BranchUnknown {
 			f.Fatalf("likeliness prediction %d for block %s with %d successors", b.Likely, b, len(b.Succs))
 		}
 
@@ -173,7 +173,7 @@ func checkFunc(f *ssacore.Func) {
 					f.Fatalf("value %v has an AuxInt that encodes a NaN", v)
 				}
 			case ssaop.AuxTypeString:
-				if _, ok := v.Aux.(ssacore.StringAux); !ok {
+				if _, ok := v.Aux.(ssa.StringAux); !ok {
 					f.Fatalf("value %v has Aux type %T, want string", v, v.Aux)
 				}
 				canHaveAux = true
@@ -181,7 +181,7 @@ func checkFunc(f *ssacore.Func) {
 				canHaveAuxInt = true
 				fallthrough
 			case ssaop.AuxTypeCall:
-				if ac, ok := v.Aux.(*ssacore.AuxCall); ok {
+				if ac, ok := v.Aux.(*ssa.AuxCall); ok {
 					if v.Op == ssaop.OpStaticCall && ac.Fn == nil {
 						f.Fatalf("value %v has *AuxCall with nil Fn", v)
 					}
@@ -190,7 +190,7 @@ func checkFunc(f *ssacore.Func) {
 				}
 				canHaveAux = true
 			case ssaop.AuxTypeNameOffsetInt8:
-				if _, ok := v.Aux.(*ssacore.AuxNameOffset); !ok {
+				if _, ok := v.Aux.(*ssa.AuxNameOffset); !ok {
 					f.Fatalf("value %v has Aux type %T, want *AuxNameOffset", v, v.Aux)
 				}
 				canHaveAux = true
@@ -327,7 +327,7 @@ func checkFunc(f *ssacore.Func) {
 				}
 			case ssaop.OpVarDef:
 				n := v.Aux.(*ir.Name)
-				if !n.Type().HasPointers() && !ssacore.IsMergeCandidate(n) {
+				if !n.Type().HasPointers() && !ssa.IsMergeCandidate(n) {
 					f.Fatalf("vardef must be merge candidate or have pointer type %s", v.Aux.(*ir.Name).Type().String())
 				}
 			case ssaop.OpNilCheck:
@@ -514,7 +514,7 @@ func checkFunc(f *ssacore.Func) {
 	memCheck(f)
 }
 
-func memCheck(f *ssacore.Func) {
+func memCheck(f *ssa.Func) {
 	// Check that if a tuple has a memory type, it is second.
 	for _, b := range f.Blocks {
 		for _, v := range b.Values {
@@ -541,8 +541,8 @@ func memCheck(f *ssacore.Func) {
 	}
 
 	// Compute live memory at the end of each block.
-	lastmem := make([]*ssacore.Value, f.NumBlocks())
-	ss := ssacore.NewSparseSet(f.NumValues())
+	lastmem := make([]*ssa.Value, f.NumBlocks())
+	ss := ssa.NewSparseSet(f.NumValues())
 	for _, b := range f.Blocks {
 		// Mark overwritten memory values. Those are args of other
 		// ops that generate memory values.
@@ -622,7 +622,7 @@ func memCheck(f *ssacore.Func) {
 	// Check that only one memory is live at any point.
 	if f.Scheduled {
 		for _, b := range f.Blocks {
-			var mem *ssacore.Value // the current live memory in the block
+			var mem *ssa.Value // the current live memory in the block
 			for _, v := range b.Values {
 				if v.Op == ssaop.OpPhi {
 					if v.Type.IsMemory() {
@@ -665,7 +665,7 @@ func memCheck(f *ssacore.Func) {
 }
 
 // domCheck reports whether x dominates y (including x==y).
-func domCheck(f *ssacore.Func, sdom ssacore.SparseTree, x, y *ssacore.Block) bool {
+func domCheck(f *ssa.Func, sdom ssa.SparseTree, x, y *ssa.Block) bool {
 	if !sdom.IsAncestorEq(f.Entry, y) {
 		// unreachable - ignore
 		return true

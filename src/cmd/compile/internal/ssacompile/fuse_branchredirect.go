@@ -5,8 +5,8 @@
 package ssacompile
 
 import (
+	"cmd/compile/internal/ssa"
 	"cmd/compile/internal/ssa/block"
-	"cmd/compile/internal/ssa/ssacore"
 	"cmd/compile/internal/ssa/ssaop"
 )
 
@@ -32,7 +32,7 @@ import (
 //	4,     Traverse all successors of b.
 //	5,       For any successor s of b, try to update relationship b->s, if a
 //	         contradiction is found then redirect p to another successor of b.
-func fuseBranchRedirect(f *ssacore.Func) bool {
+func fuseBranchRedirect(f *ssa.Func) bool {
 	ft := newFactsTable(f)
 	ft.checkpoint()
 
@@ -81,7 +81,7 @@ func fuseBranchRedirect(f *ssacore.Func) bool {
 					continue
 				}
 				b.RemovePred(k)
-				p.Succs[pk.I] = ssacore.Edge{B: child, I: len(child.Preds)}
+				p.Succs[pk.I] = ssa.Edge{B: child, I: len(child.Preds)}
 				// Fix up Phi value in b to have one less argument.
 				for _, v := range b.Values {
 					if v.Op != ssaop.OpPhi {
@@ -90,7 +90,7 @@ func fuseBranchRedirect(f *ssacore.Func) bool {
 					b.RemovePhiArg(v, k)
 				}
 				// Fix up child to have one more predecessor.
-				child.Preds = append(child.Preds, ssacore.Edge{B: p, I: pk.I})
+				child.Preds = append(child.Preds, ssa.Edge{B: p, I: pk.I})
 				ai := b.Succs[out].I
 				for _, v := range child.Values {
 					if v.Op != ssaop.OpPhi {

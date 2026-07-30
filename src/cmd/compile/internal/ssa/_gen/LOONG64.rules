@@ -524,10 +524,10 @@
 (PubBarrier ...) => (LoweredPubBarrier ...)
 
 (PanicBounds ...) => (LoweredPanicBoundsRR ...)
-(LoweredPanicBoundsRR [kind] x (MOVVconst [c]) mem) => (LoweredPanicBoundsRC [kind] x {ssacore.PanicBoundsC{C:c}} mem)
-(LoweredPanicBoundsRR [kind] (MOVVconst [c]) y mem) => (LoweredPanicBoundsCR [kind] {ssacore.PanicBoundsC{C:c}} y mem)
-(LoweredPanicBoundsRC [kind] {p} (MOVVconst [c]) mem) => (LoweredPanicBoundsCC [kind] {ssacore.PanicBoundsCC{Cx:c, Cy:p.C}} mem)
-(LoweredPanicBoundsCR [kind] {p} (MOVVconst [c]) mem) => (LoweredPanicBoundsCC [kind] {ssacore.PanicBoundsCC{Cx:p.C, Cy:c}} mem)
+(LoweredPanicBoundsRR [kind] x (MOVVconst [c]) mem) => (LoweredPanicBoundsRC [kind] x {ssa.PanicBoundsC{C:c}} mem)
+(LoweredPanicBoundsRR [kind] (MOVVconst [c]) y mem) => (LoweredPanicBoundsCR [kind] {ssa.PanicBoundsC{C:c}} y mem)
+(LoweredPanicBoundsRC [kind] {p} (MOVVconst [c]) mem) => (LoweredPanicBoundsCC [kind] {ssa.PanicBoundsCC{Cx:c, Cy:p.C}} mem)
+(LoweredPanicBoundsCR [kind] {p} (MOVVconst [c]) mem) => (LoweredPanicBoundsCC [kind] {ssa.PanicBoundsCC{Cx:p.C, Cy:c}} mem)
 
 (CondSelect <t> x y cond) => (OR (MASKEQZ <t> x cond) (MASKNEZ <t> y cond))
 
@@ -983,7 +983,7 @@
 	&& sz >= 0
 	&& IsSameCall(sym, "runtime.memmove")
 	&& call.Uses == 1
-	&& ssacore.IsInlinableMemmove(dst, src, sz, config)
+	&& ssa.IsInlinableMemmove(dst, src, sz, config)
 	&& Clobber(call)
 	=> (Move [sz] dst src mem)
 

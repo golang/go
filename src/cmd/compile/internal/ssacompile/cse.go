@@ -9,7 +9,7 @@ import (
 	"fmt"
 	"slices"
 
-	"cmd/compile/internal/ssa/ssacore"
+	"cmd/compile/internal/ssa"
 	"cmd/compile/internal/ssa/ssaop"
 	"cmd/compile/internal/types"
 	"cmd/internal/src"
@@ -18,7 +18,7 @@ import (
 // cse does common-subexpression elimination on the Function.
 // Values are just relinked, nothing is deleted. A subsequent deadcode
 // pass is required to actually remove duplicate expressions.
-func cse(f *ssacore.Func) {
+func cse(f *ssa.Func) {
 	// Two values are equivalent if they satisfy the following definition:
 	// equivalent(v, w):
 	//   v.op == w.op
@@ -41,7 +41,7 @@ func cse(f *ssacore.Func) {
 	o := f.Cache.AllocInt32Slice(f.NumValues()) // the ordering score for stores
 	defer func() { f.Cache.FreeInt32Slice(o) }()
 	if f.Auxmap == nil {
-		f.Auxmap = ssacore.AuxMap{}
+		f.Auxmap = ssa.AuxMap{}
 	}
 	for _, b := range f.Blocks {
 		for _, v := range b.Values {
@@ -65,7 +65,7 @@ func cse(f *ssacore.Func) {
 			valueEqClass[v.ID] = -v.ID
 		}
 	}
-	var pNum ssacore.ID = 1
+	var pNum ssa.ID = 1
 	for _, e := range partition {
 		if f.Pass.Debug > 1 && len(e) > 500 {
 			fmt.Printf("CSE.large partition (%d): ", len(e))
@@ -115,10 +115,10 @@ func cse(f *ssacore.Func) {
 			}
 
 			// Sort by eq class of arguments.
-			slices.SortFunc(e, func(v, w *ssacore.Value) int {
+			slices.SortFunc(e, func(v, w *ssa.Value) int {
 				_, idxMem, _, _ := isMemUser(v)
 				for i, a := range v.Args {
-					var aId, bId ssacore.ID
+					var aId, bId ssa.ID
 					if i != idxMem {
 						b := w.Args[i]
 						aId = a.ID
@@ -150,7 +150,7 @@ func cse(f *ssacore.Func) {
 					if v.Op == ssaop.OpLocalAddr && k == 1 {
 						continue
 					}
-					var aId, bId ssacore.ID
+					var aId, bId ssa.ID
 					if k != idxMem {
 						b := w.Args[k]
 						aId = a.ID
@@ -209,7 +209,7 @@ func cse(f *ssacore.Func) {
 	rewrite := f.Cache.AllocValueSlice(f.NumValues())
 	defer f.Cache.FreeValueSlice(rewrite)
 	for _, e := range partition {
-		slices.SortFunc(e, func(v, w *ssacore.Value) int {
+		slices.SortFunc(e, func(v, w *ssa.Value) int {
 			if c := cmp.Compare(sdom.DomOrder(v.Block), sdom.DomOrder(w.Block)); c != 0 {
 				return c
 			}
@@ -328,7 +328,7 @@ func cse(f *ssacore.Func) {
 // chain, assigns a score to each store. The scores only make sense for
 // stores within the same block, and the first store by store order has
 // the lowest score. The cache was used to ensure only compute once.
-func storeOrdering(v *ssacore.Value, cache []int32) int32 {
+func storeOrdering(v *ssa.Value, cache []int32) int32 {
 	const minScore int32 = 1
 	score := minScore
 	w := v
@@ -362,7 +362,7 @@ func storeOrdering(v *ssacore.Value, cache []int32) int32 {
 // An eqclass approximates an equivalence class. During the
 // algorithm it may represent the union of several of the
 // final equivalence classes.
-type eqclass []*ssacore.Value
+type eqclass []*ssa.Value
 
 // partitionValues partitions the values into equivalence classes
 // based on having all the following features match:
@@ -379,8 +379,8 @@ type eqclass []*ssacore.Value
 // being a sorted by ID list of *Values. The eqclass slices are
 // backed by the same storage as the input slice.
 // Equivalence classes of size 1 are ignored.
-func partitionValues(a []*ssacore.Value, auxIDs ssacore.AuxMap) []eqclass {
-	slices.SortFunc(a, func(v, w *ssacore.Value) int {
+func partitionValues(a []*ssa.Value, auxIDs ssa.AuxMap) []eqclass {
+	slices.SortFunc(a, func(v, w *ssa.Value) int {
 		switch cmpVal(v, w, auxIDs) {
 		case types.CMPlt:
 			return -1
@@ -417,7 +417,7 @@ func lt2Cmp(isLt bool) types.Cmp {
 	return types.CMPgt
 }
 
-func cmpVal(v, w *ssacore.Value, auxIDs ssacore.AuxMap) types.Cmp {
+func cmpVal(v, w *ssa.Value, auxIDs ssa.AuxMap) types.Cmp {
 	// Try to order these comparison by cost (cheaper first)
 	if v.Op != w.Op {
 		return lt2Cmp(v.Op < w.Op)
@@ -460,7 +460,7 @@ func cmpVal(v, w *ssacore.Value, auxIDs ssacore.AuxMap) types.Cmp {
 
 // Query if the given instruction only uses "memory" argument and we may try to skip some memory "defs" if they do not alias with its address.
 // Return index of pointer argument, index of "memory" argument, the access width and true on such instructions, otherwise return (-1, -1, 0, false).
-func isMemUser(v *ssacore.Value) (int, int, int64, bool) {
+func isMemUser(v *ssa.Value) (int, int, int64, bool) {
 	switch v.Op {
 	case ssaop.OpLoad:
 		return 0, 1, v.Type.Size(), true
@@ -474,7 +474,7 @@ func isMemUser(v *ssacore.Value) (int, int, int64, bool) {
 // Query if the given "memory"-defining instruction's memory destination can be analyzed for aliasing with a memory "user" instructions.
 // Return index of pointer argument, index of "memory" argument, the access width and true on such instructions, otherwise return (-1, -1, 0, false).
 // If the access width is 0, the pointer index may be -1 (no pointer operand is needed).
-func isMemDef(v *ssacore.Value) (int, int, int64, bool) {
+func isMemDef(v *ssa.Value) (int, int, int64, bool) {
 	switch v.Op {
 	case ssaop.OpStore:
 		return 0, 2, AuxToType(v.Aux).Size(), true
@@ -492,12 +492,12 @@ func isMemDef(v *ssacore.Value) (int, int, int64, bool) {
 const memTableSkipBits = 8
 
 // The maximum ID value we are able to store in the memTable, otherwise fall back to v.ID
-const maxId = ssacore.ID(1<<(31-memTableSkipBits)) - 1
+const maxId = ssa.ID(1<<(31-memTableSkipBits)) - 1
 
 // Return the first possibly-aliased store along the memory chain starting at v's memory argument and the number of not-aliased stores skipped.
-func getEffectiveMemoryArg(memTable []int32, v *ssacore.Value) (ssacore.ID, uint32) {
+func getEffectiveMemoryArg(memTable []int32, v *ssa.Value) (ssa.ID, uint32) {
 	if code := uint32(memTable[v.ID]); code != 0 {
-		return ssacore.ID(code >> memTableSkipBits), code & ((1 << memTableSkipBits) - 1)
+		return ssa.ID(code >> memTableSkipBits), code & ((1 << memTableSkipBits) - 1)
 	}
 	if idxPtr, idxMem, width, ok := isMemUser(v); ok {
 		// TODO: We could early return some predefined value if width==0
@@ -521,7 +521,7 @@ func getEffectiveMemoryArg(memTable []int32, v *ssacore.Value) (ssacore.ID, uint
 
 // Find a memory def that's not trivially disjoint with the user instruction, count the number
 // of "skips" along the path. Return the corresponding memory def's value and the number of skips.
-func skipDisjointMemDefs(user *ssacore.Value, idxUserPtr, idxUserMem int, useWidth int64) (*ssacore.Value, uint32) {
+func skipDisjointMemDefs(user *ssa.Value, idxUserPtr, idxUserMem int, useWidth int64) (*ssa.Value, uint32) {
 	usePtr, mem := user.Args[idxUserPtr], user.Args[idxUserMem]
 	const maxSkips = (1 << memTableSkipBits) - 1
 	var skips uint32
@@ -536,7 +536,7 @@ func skipDisjointMemDefs(user *ssacore.Value, idxUserPtr, idxUserMem int, useWid
 				continue
 			}
 			defPtr := mem.Args[idxPtr]
-			if ssacore.Disjoint1(defPtr, width, usePtr, useWidth) {
+			if ssa.Disjoint1(defPtr, width, usePtr, useWidth) {
 				mem = mem.Args[idxMem]
 				continue
 			}

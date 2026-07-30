@@ -11,8 +11,8 @@ import (
 	"cmd/compile/internal/ir"
 	"cmd/compile/internal/logopt"
 	"cmd/compile/internal/objw"
+	"cmd/compile/internal/ssa"
 	"cmd/compile/internal/ssa/block"
-	"cmd/compile/internal/ssa/ssacore"
 	"cmd/compile/internal/ssa/ssaop"
 	"cmd/compile/internal/ssagen"
 	"cmd/compile/internal/types"
@@ -22,7 +22,7 @@ import (
 )
 
 // ssaMarkMoves marks any MOVXconst ops that need to avoid clobbering flags.
-func ssaMarkMoves(s *ssagen.State, b *ssacore.Block) {
+func ssaMarkMoves(s *ssagen.State, b *ssa.Block) {
 	flive := b.FlagsLiveAtEnd
 	for _, c := range b.ControlValues() {
 		flive = c.Type.IsFlags() || flive
@@ -31,7 +31,7 @@ func ssaMarkMoves(s *ssagen.State, b *ssacore.Block) {
 		v := b.Values[i]
 		if flive && v.Op == ssaop.OpS390XMOVDconst {
 			// The "mark" is any non-nil Aux value.
-			v.Aux = ssacore.AuxMark
+			v.Aux = ssa.AuxMark
 		}
 		if v.Type.IsFlags() {
 			flive = false
@@ -167,7 +167,7 @@ func opregregimm(s *ssagen.State, op obj.As, dest, src int16, off int64) *obj.Pr
 	return p
 }
 
-func ssaGenValue(s *ssagen.State, v *ssacore.Value) {
+func ssaGenValue(s *ssagen.State, v *ssa.Value) {
 	switch v.Op {
 	case ssaop.OpS390XSLD, ssaop.OpS390XSLW,
 		ssaop.OpS390XSRD, ssaop.OpS390XSRW,
@@ -593,7 +593,7 @@ func ssaGenValue(s *ssagen.State, v *ssacore.Value) {
 
 	case ssaop.OpS390XLoweredPanicBoundsRR, ssaop.OpS390XLoweredPanicBoundsRC, ssaop.OpS390XLoweredPanicBoundsCR, ssaop.OpS390XLoweredPanicBoundsCC:
 		// Compute the constant we put in the PCData entry for this call.
-		code, signed := ssacore.BoundsKind(v.AuxInt).Code()
+		code, signed := ssa.BoundsKind(v.AuxInt).Code()
 		xIsReg := false
 		yIsReg := false
 		xVal := 0
@@ -607,7 +607,7 @@ func ssaGenValue(s *ssagen.State, v *ssacore.Value) {
 		case ssaop.OpS390XLoweredPanicBoundsRC:
 			xIsReg = true
 			xVal = int(v.Args[0].Reg() - s390x.REG_R0)
-			c := v.Aux.(ssacore.PanicBoundsC).C
+			c := v.Aux.(ssa.PanicBoundsC).C
 			if c >= 0 && c <= abi.BoundsMaxConst {
 				yVal = int(c)
 			} else {
@@ -625,7 +625,7 @@ func ssaGenValue(s *ssagen.State, v *ssacore.Value) {
 		case ssaop.OpS390XLoweredPanicBoundsCR:
 			yIsReg = true
 			yVal = int(v.Args[0].Reg() - s390x.REG_R0)
-			c := v.Aux.(ssacore.PanicBoundsC).C
+			c := v.Aux.(ssa.PanicBoundsC).C
 			if c >= 0 && c <= abi.BoundsMaxConst {
 				xVal = int(c)
 			} else {
@@ -640,7 +640,7 @@ func ssaGenValue(s *ssagen.State, v *ssacore.Value) {
 				p.To.Reg = s390x.REG_R0 + int16(xVal)
 			}
 		case ssaop.OpS390XLoweredPanicBoundsCC:
-			c := v.Aux.(ssacore.PanicBoundsCC).Cx
+			c := v.Aux.(ssa.PanicBoundsCC).Cx
 			if c >= 0 && c <= abi.BoundsMaxConst {
 				xVal = int(c)
 			} else {
@@ -652,7 +652,7 @@ func ssaGenValue(s *ssagen.State, v *ssacore.Value) {
 				p.To.Type = obj.TYPE_REG
 				p.To.Reg = s390x.REG_R0 + int16(xVal)
 			}
-			c = v.Aux.(ssacore.PanicBoundsCC).Cy
+			c = v.Aux.(ssa.PanicBoundsCC).Cy
 			if c >= 0 && c <= abi.BoundsMaxConst {
 				yVal = int(c)
 			} else {
@@ -960,7 +960,7 @@ func ssaGenValue(s *ssagen.State, v *ssacore.Value) {
 	}
 }
 
-func blockAsm(b *ssacore.Block) obj.As {
+func blockAsm(b *ssa.Block) obj.As {
 	switch b.Kind {
 	case block.BlockS390XBRC:
 		return s390x.ABRC
@@ -985,7 +985,7 @@ func blockAsm(b *ssacore.Block) obj.As {
 	panic("unreachable")
 }
 
-func ssaGenBlock(s *ssagen.State, b, next *ssacore.Block) {
+func ssaGenBlock(s *ssagen.State, b, next *ssa.Block) {
 	// Handle generic blocks first.
 	switch b.Kind {
 	case block.BlockPlain, block.BlockDefer:
@@ -1004,7 +1004,7 @@ func ssaGenBlock(s *ssagen.State, b, next *ssacore.Block) {
 
 	// Handle s390x-specific blocks. These blocks all have a
 	// condition code mask in the Aux value and 2 successors.
-	succs := [...]*ssacore.Block{b.Succs[0].Block(), b.Succs[1].Block()}
+	succs := [...]*ssa.Block{b.Succs[0].Block(), b.Succs[1].Block()}
 	mask := b.Aux.(s390x.CCMask)
 
 	// TODO: take into account Likely property for forward/backward
@@ -1046,7 +1046,7 @@ func ssaGenBlock(s *ssagen.State, b, next *ssacore.Block) {
 	}
 }
 
-func loadRegResult(s *ssagen.State, f *ssacore.Func, t *types.Type, reg int16, n *ir.Name, off int64) *obj.Prog {
+func loadRegResult(s *ssagen.State, f *ssa.Func, t *types.Type, reg int16, n *ir.Name, off int64) *obj.Prog {
 	p := s.Prog(loadByType(t))
 	p.From.Type = obj.TYPE_MEM
 	p.From.Name = obj.NAME_AUTO
@@ -1057,7 +1057,7 @@ func loadRegResult(s *ssagen.State, f *ssacore.Func, t *types.Type, reg int16, n
 	return p
 }
 
-func spillArgReg(pp *objw.Progs, p *obj.Prog, f *ssacore.Func, t *types.Type, reg int16, n *ir.Name, off int64) *obj.Prog {
+func spillArgReg(pp *objw.Progs, p *obj.Prog, f *ssa.Func, t *types.Type, reg int16, n *ir.Name, off int64) *obj.Prog {
 	p = pp.Append(p, storeByType(t), obj.TYPE_REG, reg, 0, obj.TYPE_MEM, 0, n.FrameOffset()+off)
 	p.To.Name = obj.NAME_PARAM
 	p.To.Sym = n.Linksym()

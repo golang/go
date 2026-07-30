@@ -5,7 +5,7 @@
 package ssacompile
 
 import (
-	"cmd/compile/internal/ssa/ssacore"
+	"cmd/compile/internal/ssa"
 	"cmd/compile/internal/ssa/ssaop"
 )
 
@@ -16,15 +16,15 @@ import (
 // been maintained by the optimization pipeline up to this point.
 //
 // See issues 16741 and 39472.
-func tightenTupleSelectors(f *ssacore.Func) {
+func tightenTupleSelectors(f *ssa.Func) {
 	selectors := make(map[struct {
-		id    ssacore.ID
+		id    ssa.ID
 		which int
-	}]*ssacore.Value)
+	}]*ssa.Value)
 	for _, b := range f.Blocks {
 		for _, selector := range b.Values {
 			// Key fields for de-duplication
-			var tuple *ssacore.Value
+			var tuple *ssa.Value
 			idx := 0
 			switch selector.Op {
 			default:
@@ -49,7 +49,7 @@ func tightenTupleSelectors(f *ssacore.Func) {
 			// use that. Do this even if the selector is already in the
 			// target block to avoid duplicate tuple selectors.
 			key := struct {
-				id    ssacore.ID
+				id    ssa.ID
 				which int
 			}{tuple.ID, idx}
 			if t := selectors[key]; t != nil {

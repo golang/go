@@ -11,9 +11,9 @@ import (
 
 	"cmd/compile/internal/base"
 	"cmd/compile/internal/ir"
+	"cmd/compile/internal/ssa"
 	"cmd/compile/internal/ssa/block"
 	"cmd/compile/internal/ssa/ssaconfig"
-	"cmd/compile/internal/ssa/ssacore"
 	"cmd/compile/internal/ssa/ssaop"
 	"cmd/compile/internal/typecheck"
 	"cmd/compile/internal/types"
@@ -24,7 +24,7 @@ var intrinsics intrinsicBuilders
 
 // An intrinsicBuilder converts a call node n into an ssa value that
 // implements that call as an intrinsic. args is a list of arguments to the func.
-type intrinsicBuilder func(s *state, n *ir.CallExpr, args []*ssacore.Value) *ssacore.Value
+type intrinsicBuilder func(s *state, n *ir.CallExpr, args []*ssa.Value) *ssa.Value
 
 type intrinsicKey struct {
 	arch *sys.Arch
@@ -138,7 +138,7 @@ func initIntrinsics(cfg *intrinsicBuildConfig) {
 	/******** runtime ********/
 	if !cfg.instrumenting {
 		add("runtime", "slicebytetostringtmp",
-			func(s *state, n *ir.CallExpr, args []*ssacore.Value) *ssacore.Value {
+			func(s *state, n *ir.CallExpr, args []*ssa.Value) *ssa.Value {
 				// Compiler frontend optimizations emit OBYTES2STRTMP nodes
 				// for the backend instead of slicebytetostringtmp calls
 				// when not instrumenting.
@@ -147,7 +147,7 @@ func initIntrinsics(cfg *intrinsicBuildConfig) {
 			all...)
 	}
 	addF("internal/runtime/math", "MulUintptr",
-		func(s *state, n *ir.CallExpr, args []*ssacore.Value) *ssacore.Value {
+		func(s *state, n *ir.CallExpr, args []*ssa.Value) *ssa.Value {
 			if s.config.PtrSize == 4 {
 				return s.newValue2(ssaop.OpMul32uover, types.NewTuple(types.Types[types.TUINT], types.Types[types.TUINT]), args[0], args[1])
 			}
@@ -155,7 +155,7 @@ func initIntrinsics(cfg *intrinsicBuildConfig) {
 		},
 		sys.AMD64, sys.I386, sys.Loong64, sys.MIPS64, sys.PPC64, sys.RISCV64, sys.ARM64)
 	add("runtime", "KeepAlive",
-		func(s *state, n *ir.CallExpr, args []*ssacore.Value) *ssacore.Value {
+		func(s *state, n *ir.CallExpr, args []*ssa.Value) *ssa.Value {
 			data := s.newValue1(ssaop.OpIData, s.f.Config.Types.BytePtr, args[0])
 			s.vars[memVar] = s.newValue2(ssaop.OpKeepAlive, types.TypeMem, data, s.mem())
 			return nil
@@ -163,7 +163,7 @@ func initIntrinsics(cfg *intrinsicBuildConfig) {
 		all...)
 
 	addF("runtime", "publicationBarrier",
-		func(s *state, n *ir.CallExpr, args []*ssacore.Value) *ssacore.Value {
+		func(s *state, n *ir.CallExpr, args []*ssa.Value) *ssa.Value {
 			s.vars[memVar] = s.newValue1(ssaop.OpPubBarrier, types.TypeMem, s.mem())
 			return nil
 		},
@@ -171,36 +171,36 @@ func initIntrinsics(cfg *intrinsicBuildConfig) {
 
 	/******** internal/runtime/sys ********/
 	add("internal/runtime/sys", "GetCallerPC",
-		func(s *state, n *ir.CallExpr, args []*ssacore.Value) *ssacore.Value {
+		func(s *state, n *ir.CallExpr, args []*ssa.Value) *ssa.Value {
 			return s.newValue0(ssaop.OpGetCallerPC, s.f.Config.Types.Uintptr)
 		},
 		all...)
 
 	add("internal/runtime/sys", "GetCallerSP",
-		func(s *state, n *ir.CallExpr, args []*ssacore.Value) *ssacore.Value {
+		func(s *state, n *ir.CallExpr, args []*ssa.Value) *ssa.Value {
 			return s.newValue1(ssaop.OpGetCallerSP, s.f.Config.Types.Uintptr, s.mem())
 		},
 		all...)
 
 	add("internal/runtime/sys", "GetClosurePtr",
-		func(s *state, n *ir.CallExpr, args []*ssacore.Value) *ssacore.Value {
+		func(s *state, n *ir.CallExpr, args []*ssa.Value) *ssa.Value {
 			return s.newValue0(ssaop.OpGetClosurePtr, s.f.Config.Types.Uintptr)
 		},
 		all...)
 
 	addF("internal/runtime/sys", "Bswap32",
-		func(s *state, n *ir.CallExpr, args []*ssacore.Value) *ssacore.Value {
+		func(s *state, n *ir.CallExpr, args []*ssa.Value) *ssa.Value {
 			return s.newValue1(ssaop.OpBswap32, types.Types[types.TUINT32], args[0])
 		},
 		sys.AMD64, sys.I386, sys.ARM64, sys.ARM, sys.Loong64, sys.S390X)
 	addF("internal/runtime/sys", "Bswap64",
-		func(s *state, n *ir.CallExpr, args []*ssacore.Value) *ssacore.Value {
+		func(s *state, n *ir.CallExpr, args []*ssa.Value) *ssa.Value {
 			return s.newValue1(ssaop.OpBswap64, types.Types[types.TUINT64], args[0])
 		},
 		sys.AMD64, sys.I386, sys.ARM64, sys.ARM, sys.Loong64, sys.S390X)
 
 	addF("runtime", "memequal",
-		func(s *state, n *ir.CallExpr, args []*ssacore.Value) *ssacore.Value {
+		func(s *state, n *ir.CallExpr, args []*ssa.Value) *ssa.Value {
 			return s.newValue4(ssaop.OpMemEq, s.f.Config.Types.Bool, args[0], args[1], args[2], s.mem())
 		},
 		sys.ARM64)
@@ -209,12 +209,12 @@ func initIntrinsics(cfg *intrinsicBuildConfig) {
 		// Use only on Power10 as the new byte reverse instructions that Power10 provide
 		// make it worthwhile as an intrinsic
 		addF("internal/runtime/sys", "Bswap32",
-			func(s *state, n *ir.CallExpr, args []*ssacore.Value) *ssacore.Value {
+			func(s *state, n *ir.CallExpr, args []*ssa.Value) *ssa.Value {
 				return s.newValue1(ssaop.OpBswap32, types.Types[types.TUINT32], args[0])
 			},
 			sys.PPC64)
 		addF("internal/runtime/sys", "Bswap64",
-			func(s *state, n *ir.CallExpr, args []*ssacore.Value) *ssacore.Value {
+			func(s *state, n *ir.CallExpr, args []*ssa.Value) *ssa.Value {
 				return s.newValue1(ssaop.OpBswap64, types.Types[types.TUINT64], args[0])
 			},
 			sys.PPC64)
@@ -222,20 +222,20 @@ func initIntrinsics(cfg *intrinsicBuildConfig) {
 
 	if cfg.goriscv64 >= 22 {
 		addF("internal/runtime/sys", "Bswap32",
-			func(s *state, n *ir.CallExpr, args []*ssacore.Value) *ssacore.Value {
+			func(s *state, n *ir.CallExpr, args []*ssa.Value) *ssa.Value {
 				return s.newValue1(ssaop.OpBswap32, types.Types[types.TUINT32], args[0])
 			},
 			sys.RISCV64)
 		addF("internal/runtime/sys", "Bswap64",
-			func(s *state, n *ir.CallExpr, args []*ssacore.Value) *ssacore.Value {
+			func(s *state, n *ir.CallExpr, args []*ssa.Value) *ssa.Value {
 				return s.newValue1(ssaop.OpBswap64, types.Types[types.TUINT64], args[0])
 			},
 			sys.RISCV64)
 	}
 
 	/****** Prefetch ******/
-	makePrefetchFunc := func(op ssaop.Op) func(s *state, n *ir.CallExpr, args []*ssacore.Value) *ssacore.Value {
-		return func(s *state, n *ir.CallExpr, args []*ssacore.Value) *ssacore.Value {
+	makePrefetchFunc := func(op ssaop.Op) func(s *state, n *ir.CallExpr, args []*ssa.Value) *ssa.Value {
+		return func(s *state, n *ir.CallExpr, args []*ssa.Value) *ssa.Value {
 			s.vars[memVar] = s.newValue2(op, types.TypeMem, args[0], s.mem())
 			return nil
 		}
@@ -249,45 +249,45 @@ func initIntrinsics(cfg *intrinsicBuildConfig) {
 		sys.AMD64, sys.ARM64, sys.Loong64, sys.PPC64)
 
 	/******** internal/runtime/atomic ********/
-	type atomicOpEmitter func(s *state, n *ir.CallExpr, args []*ssacore.Value, op ssaop.Op, typ types.Kind, needReturn bool)
+	type atomicOpEmitter func(s *state, n *ir.CallExpr, args []*ssa.Value, op ssaop.Op, typ types.Kind, needReturn bool)
 
 	addF("internal/runtime/atomic", "Load",
-		func(s *state, n *ir.CallExpr, args []*ssacore.Value) *ssacore.Value {
+		func(s *state, n *ir.CallExpr, args []*ssa.Value) *ssa.Value {
 			v := s.newValue2(ssaop.OpAtomicLoad32, types.NewTuple(types.Types[types.TUINT32], types.TypeMem), args[0], s.mem())
 			s.vars[memVar] = s.newValue1(ssaop.OpSelect1, types.TypeMem, v)
 			return s.newValue1(ssaop.OpSelect0, types.Types[types.TUINT32], v)
 		},
 		sys.AMD64, sys.ARM64, sys.Loong64, sys.MIPS, sys.MIPS64, sys.PPC64, sys.RISCV64, sys.S390X)
 	addF("internal/runtime/atomic", "Load8",
-		func(s *state, n *ir.CallExpr, args []*ssacore.Value) *ssacore.Value {
+		func(s *state, n *ir.CallExpr, args []*ssa.Value) *ssa.Value {
 			v := s.newValue2(ssaop.OpAtomicLoad8, types.NewTuple(types.Types[types.TUINT8], types.TypeMem), args[0], s.mem())
 			s.vars[memVar] = s.newValue1(ssaop.OpSelect1, types.TypeMem, v)
 			return s.newValue1(ssaop.OpSelect0, types.Types[types.TUINT8], v)
 		},
 		sys.AMD64, sys.ARM64, sys.Loong64, sys.MIPS, sys.MIPS64, sys.PPC64, sys.RISCV64, sys.S390X)
 	addF("internal/runtime/atomic", "Load64",
-		func(s *state, n *ir.CallExpr, args []*ssacore.Value) *ssacore.Value {
+		func(s *state, n *ir.CallExpr, args []*ssa.Value) *ssa.Value {
 			v := s.newValue2(ssaop.OpAtomicLoad64, types.NewTuple(types.Types[types.TUINT64], types.TypeMem), args[0], s.mem())
 			s.vars[memVar] = s.newValue1(ssaop.OpSelect1, types.TypeMem, v)
 			return s.newValue1(ssaop.OpSelect0, types.Types[types.TUINT64], v)
 		},
 		sys.AMD64, sys.ARM64, sys.Loong64, sys.MIPS64, sys.PPC64, sys.RISCV64, sys.S390X)
 	addF("internal/runtime/atomic", "LoadAcq",
-		func(s *state, n *ir.CallExpr, args []*ssacore.Value) *ssacore.Value {
+		func(s *state, n *ir.CallExpr, args []*ssa.Value) *ssa.Value {
 			v := s.newValue2(ssaop.OpAtomicLoadAcq32, types.NewTuple(types.Types[types.TUINT32], types.TypeMem), args[0], s.mem())
 			s.vars[memVar] = s.newValue1(ssaop.OpSelect1, types.TypeMem, v)
 			return s.newValue1(ssaop.OpSelect0, types.Types[types.TUINT32], v)
 		},
 		sys.PPC64)
 	addF("internal/runtime/atomic", "LoadAcq64",
-		func(s *state, n *ir.CallExpr, args []*ssacore.Value) *ssacore.Value {
+		func(s *state, n *ir.CallExpr, args []*ssa.Value) *ssa.Value {
 			v := s.newValue2(ssaop.OpAtomicLoadAcq64, types.NewTuple(types.Types[types.TUINT64], types.TypeMem), args[0], s.mem())
 			s.vars[memVar] = s.newValue1(ssaop.OpSelect1, types.TypeMem, v)
 			return s.newValue1(ssaop.OpSelect0, types.Types[types.TUINT64], v)
 		},
 		sys.PPC64)
 	addF("internal/runtime/atomic", "Loadp",
-		func(s *state, n *ir.CallExpr, args []*ssacore.Value) *ssacore.Value {
+		func(s *state, n *ir.CallExpr, args []*ssa.Value) *ssa.Value {
 			v := s.newValue2(ssaop.OpAtomicLoadPtr, types.NewTuple(s.f.Config.Types.BytePtr, types.TypeMem), args[0], s.mem())
 			s.vars[memVar] = s.newValue1(ssaop.OpSelect1, types.TypeMem, v)
 			return s.newValue1(ssaop.OpSelect0, s.f.Config.Types.BytePtr, v)
@@ -295,44 +295,44 @@ func initIntrinsics(cfg *intrinsicBuildConfig) {
 		sys.AMD64, sys.ARM64, sys.Loong64, sys.MIPS, sys.MIPS64, sys.PPC64, sys.RISCV64, sys.S390X)
 
 	addF("internal/runtime/atomic", "Store",
-		func(s *state, n *ir.CallExpr, args []*ssacore.Value) *ssacore.Value {
+		func(s *state, n *ir.CallExpr, args []*ssa.Value) *ssa.Value {
 			s.vars[memVar] = s.newValue3(ssaop.OpAtomicStore32, types.TypeMem, args[0], args[1], s.mem())
 			return nil
 		},
 		sys.AMD64, sys.ARM64, sys.MIPS, sys.MIPS64, sys.PPC64, sys.RISCV64, sys.S390X)
 	addF("internal/runtime/atomic", "Store8",
-		func(s *state, n *ir.CallExpr, args []*ssacore.Value) *ssacore.Value {
+		func(s *state, n *ir.CallExpr, args []*ssa.Value) *ssa.Value {
 			s.vars[memVar] = s.newValue3(ssaop.OpAtomicStore8, types.TypeMem, args[0], args[1], s.mem())
 			return nil
 		},
 		sys.AMD64, sys.ARM64, sys.Loong64, sys.MIPS, sys.MIPS64, sys.PPC64, sys.RISCV64, sys.S390X)
 	addF("internal/runtime/atomic", "Store64",
-		func(s *state, n *ir.CallExpr, args []*ssacore.Value) *ssacore.Value {
+		func(s *state, n *ir.CallExpr, args []*ssa.Value) *ssa.Value {
 			s.vars[memVar] = s.newValue3(ssaop.OpAtomicStore64, types.TypeMem, args[0], args[1], s.mem())
 			return nil
 		},
 		sys.AMD64, sys.ARM64, sys.MIPS64, sys.PPC64, sys.RISCV64, sys.S390X)
 	addF("internal/runtime/atomic", "StorepNoWB",
-		func(s *state, n *ir.CallExpr, args []*ssacore.Value) *ssacore.Value {
+		func(s *state, n *ir.CallExpr, args []*ssa.Value) *ssa.Value {
 			s.vars[memVar] = s.newValue3(ssaop.OpAtomicStorePtrNoWB, types.TypeMem, args[0], args[1], s.mem())
 			return nil
 		},
 		sys.AMD64, sys.ARM64, sys.Loong64, sys.MIPS, sys.MIPS64, sys.RISCV64, sys.S390X)
 	addF("internal/runtime/atomic", "StoreRel",
-		func(s *state, n *ir.CallExpr, args []*ssacore.Value) *ssacore.Value {
+		func(s *state, n *ir.CallExpr, args []*ssa.Value) *ssa.Value {
 			s.vars[memVar] = s.newValue3(ssaop.OpAtomicStoreRel32, types.TypeMem, args[0], args[1], s.mem())
 			return nil
 		},
 		sys.PPC64)
 	addF("internal/runtime/atomic", "StoreRel64",
-		func(s *state, n *ir.CallExpr, args []*ssacore.Value) *ssacore.Value {
+		func(s *state, n *ir.CallExpr, args []*ssa.Value) *ssa.Value {
 			s.vars[memVar] = s.newValue3(ssaop.OpAtomicStoreRel64, types.TypeMem, args[0], args[1], s.mem())
 			return nil
 		},
 		sys.PPC64)
 
 	makeAtomicStoreGuardedIntrinsicLoong64 := func(op0, op1 ssaop.Op, typ types.Kind, emit atomicOpEmitter) intrinsicBuilder {
-		return func(s *state, n *ir.CallExpr, args []*ssacore.Value) *ssacore.Value {
+		return func(s *state, n *ir.CallExpr, args []*ssa.Value) *ssa.Value {
 			// Target Atomic feature is identified by dynamic detection
 			addr := s.entryNewValue1A(ssaop.OpAddr, types.Types[types.TBOOL].PtrTo(), ir.Syms.Loong64HasDBAR_HINTS, s.sb)
 			v := s.load(types.Types[types.TBOOL], addr)
@@ -344,7 +344,7 @@ func initIntrinsics(cfg *intrinsicBuildConfig) {
 			bEnd := s.f.NewBlock(block.BlockPlain)
 			b.AddEdgeTo(bTrue)
 			b.AddEdgeTo(bFalse)
-			b.Likely = ssacore.BranchLikely
+			b.Likely = ssa.BranchLikely
 
 			// most loong64 machines support the finer-grained DBAR hints
 			s.startBlock(bTrue)
@@ -363,7 +363,7 @@ func initIntrinsics(cfg *intrinsicBuildConfig) {
 		}
 	}
 
-	atomicStoreEmitterLoong64 := func(s *state, n *ir.CallExpr, args []*ssacore.Value, op ssaop.Op, typ types.Kind, needReturn bool) {
+	atomicStoreEmitterLoong64 := func(s *state, n *ir.CallExpr, args []*ssa.Value, op ssaop.Op, typ types.Kind, needReturn bool) {
 		v := s.newValue3(op, types.NewTuple(types.Types[typ], types.TypeMem), args[0], args[1], s.mem())
 		s.vars[memVar] = s.newValue1(ssaop.OpSelect1, types.TypeMem, v)
 		if needReturn {
@@ -379,21 +379,21 @@ func initIntrinsics(cfg *intrinsicBuildConfig) {
 		sys.Loong64)
 
 	addF("internal/runtime/atomic", "Xchg8",
-		func(s *state, n *ir.CallExpr, args []*ssacore.Value) *ssacore.Value {
+		func(s *state, n *ir.CallExpr, args []*ssa.Value) *ssa.Value {
 			v := s.newValue3(ssaop.OpAtomicExchange8, types.NewTuple(types.Types[types.TUINT8], types.TypeMem), args[0], args[1], s.mem())
 			s.vars[memVar] = s.newValue1(ssaop.OpSelect1, types.TypeMem, v)
 			return s.newValue1(ssaop.OpSelect0, types.Types[types.TUINT8], v)
 		},
 		sys.AMD64, sys.PPC64)
 	addF("internal/runtime/atomic", "Xchg",
-		func(s *state, n *ir.CallExpr, args []*ssacore.Value) *ssacore.Value {
+		func(s *state, n *ir.CallExpr, args []*ssa.Value) *ssa.Value {
 			v := s.newValue3(ssaop.OpAtomicExchange32, types.NewTuple(types.Types[types.TUINT32], types.TypeMem), args[0], args[1], s.mem())
 			s.vars[memVar] = s.newValue1(ssaop.OpSelect1, types.TypeMem, v)
 			return s.newValue1(ssaop.OpSelect0, types.Types[types.TUINT32], v)
 		},
 		sys.AMD64, sys.Loong64, sys.MIPS, sys.MIPS64, sys.PPC64, sys.RISCV64, sys.S390X)
 	addF("internal/runtime/atomic", "Xchg64",
-		func(s *state, n *ir.CallExpr, args []*ssacore.Value) *ssacore.Value {
+		func(s *state, n *ir.CallExpr, args []*ssa.Value) *ssa.Value {
 			v := s.newValue3(ssaop.OpAtomicExchange64, types.NewTuple(types.Types[types.TUINT64], types.TypeMem), args[0], args[1], s.mem())
 			s.vars[memVar] = s.newValue1(ssaop.OpSelect1, types.TypeMem, v)
 			return s.newValue1(ssaop.OpSelect0, types.Types[types.TUINT64], v)
@@ -402,7 +402,7 @@ func initIntrinsics(cfg *intrinsicBuildConfig) {
 
 	makeAtomicGuardedIntrinsicARM64common := func(op0, op1 ssaop.Op, typ types.Kind, emit atomicOpEmitter, needReturn bool) intrinsicBuilder {
 
-		return func(s *state, n *ir.CallExpr, args []*ssacore.Value) *ssacore.Value {
+		return func(s *state, n *ir.CallExpr, args []*ssa.Value) *ssa.Value {
 			if cfg.goarm64.LSE {
 				emit(s, n, args, op1, typ, needReturn)
 			} else {
@@ -417,7 +417,7 @@ func initIntrinsics(cfg *intrinsicBuildConfig) {
 				bEnd := s.f.NewBlock(block.BlockPlain)
 				b.AddEdgeTo(bTrue)
 				b.AddEdgeTo(bFalse)
-				b.Likely = ssacore.BranchLikely
+				b.Likely = ssa.BranchLikely
 
 				// We have atomic instructions - use it directly.
 				s.startBlock(bTrue)
@@ -446,7 +446,7 @@ func initIntrinsics(cfg *intrinsicBuildConfig) {
 		return makeAtomicGuardedIntrinsicARM64common(op0, op1, typ, emit, false)
 	}
 
-	atomicEmitterARM64 := func(s *state, n *ir.CallExpr, args []*ssacore.Value, op ssaop.Op, typ types.Kind, needReturn bool) {
+	atomicEmitterARM64 := func(s *state, n *ir.CallExpr, args []*ssa.Value, op ssaop.Op, typ types.Kind, needReturn bool) {
 		v := s.newValue3(op, types.NewTuple(types.Types[typ], types.TypeMem), args[0], args[1], s.mem())
 		s.vars[memVar] = s.newValue1(ssaop.OpSelect1, types.TypeMem, v)
 		if needReturn {
@@ -463,8 +463,8 @@ func initIntrinsics(cfg *intrinsicBuildConfig) {
 		makeAtomicGuardedIntrinsicARM64(ssaop.OpAtomicExchange64, ssaop.OpAtomicExchange64Variant, types.TUINT64, atomicEmitterARM64),
 		sys.ARM64)
 
-	makeAtomicXchg8GuardedIntrinsicLoong64 := func(op ssaop.Op) func(s *state, n *ir.CallExpr, args []*ssacore.Value) *ssacore.Value {
-		return func(s *state, n *ir.CallExpr, args []*ssacore.Value) *ssacore.Value {
+	makeAtomicXchg8GuardedIntrinsicLoong64 := func(op ssaop.Op) func(s *state, n *ir.CallExpr, args []*ssa.Value) *ssa.Value {
+		return func(s *state, n *ir.CallExpr, args []*ssa.Value) *ssa.Value {
 			addr := s.entryNewValue1A(ssaop.OpAddr, types.Types[types.TBOOL].PtrTo(), ir.Syms.Loong64HasLAM_BH, s.sb)
 			v := s.load(types.Types[types.TBOOL], addr)
 			b := s.endBlock()
@@ -475,7 +475,7 @@ func initIntrinsics(cfg *intrinsicBuildConfig) {
 			bEnd := s.f.NewBlock(block.BlockPlain)
 			b.AddEdgeTo(bTrue)
 			b.AddEdgeTo(bFalse)
-			b.Likely = ssacore.BranchLikely // most loong64 machines support the amswapdb.b
+			b.Likely = ssa.BranchLikely // most loong64 machines support the amswapdb.b
 
 			// We have the intrinsic - use it directly.
 			s.startBlock(bTrue)
@@ -499,14 +499,14 @@ func initIntrinsics(cfg *intrinsicBuildConfig) {
 		sys.Loong64)
 
 	addF("internal/runtime/atomic", "Xadd",
-		func(s *state, n *ir.CallExpr, args []*ssacore.Value) *ssacore.Value {
+		func(s *state, n *ir.CallExpr, args []*ssa.Value) *ssa.Value {
 			v := s.newValue3(ssaop.OpAtomicAdd32, types.NewTuple(types.Types[types.TUINT32], types.TypeMem), args[0], args[1], s.mem())
 			s.vars[memVar] = s.newValue1(ssaop.OpSelect1, types.TypeMem, v)
 			return s.newValue1(ssaop.OpSelect0, types.Types[types.TUINT32], v)
 		},
 		sys.AMD64, sys.Loong64, sys.MIPS, sys.MIPS64, sys.PPC64, sys.RISCV64, sys.S390X)
 	addF("internal/runtime/atomic", "Xadd64",
-		func(s *state, n *ir.CallExpr, args []*ssacore.Value) *ssacore.Value {
+		func(s *state, n *ir.CallExpr, args []*ssa.Value) *ssa.Value {
 			v := s.newValue3(ssaop.OpAtomicAdd64, types.NewTuple(types.Types[types.TUINT64], types.TypeMem), args[0], args[1], s.mem())
 			s.vars[memVar] = s.newValue1(ssaop.OpSelect1, types.TypeMem, v)
 			return s.newValue1(ssaop.OpSelect0, types.Types[types.TUINT64], v)
@@ -521,28 +521,28 @@ func initIntrinsics(cfg *intrinsicBuildConfig) {
 		sys.ARM64)
 
 	addF("internal/runtime/atomic", "Cas",
-		func(s *state, n *ir.CallExpr, args []*ssacore.Value) *ssacore.Value {
+		func(s *state, n *ir.CallExpr, args []*ssa.Value) *ssa.Value {
 			v := s.newValue4(ssaop.OpAtomicCompareAndSwap32, types.NewTuple(types.Types[types.TBOOL], types.TypeMem), args[0], args[1], args[2], s.mem())
 			s.vars[memVar] = s.newValue1(ssaop.OpSelect1, types.TypeMem, v)
 			return s.newValue1(ssaop.OpSelect0, types.Types[types.TBOOL], v)
 		},
 		sys.AMD64, sys.MIPS, sys.MIPS64, sys.PPC64, sys.RISCV64, sys.S390X)
 	addF("internal/runtime/atomic", "Cas64",
-		func(s *state, n *ir.CallExpr, args []*ssacore.Value) *ssacore.Value {
+		func(s *state, n *ir.CallExpr, args []*ssa.Value) *ssa.Value {
 			v := s.newValue4(ssaop.OpAtomicCompareAndSwap64, types.NewTuple(types.Types[types.TBOOL], types.TypeMem), args[0], args[1], args[2], s.mem())
 			s.vars[memVar] = s.newValue1(ssaop.OpSelect1, types.TypeMem, v)
 			return s.newValue1(ssaop.OpSelect0, types.Types[types.TBOOL], v)
 		},
 		sys.AMD64, sys.MIPS64, sys.PPC64, sys.RISCV64, sys.S390X)
 	addF("internal/runtime/atomic", "CasRel",
-		func(s *state, n *ir.CallExpr, args []*ssacore.Value) *ssacore.Value {
+		func(s *state, n *ir.CallExpr, args []*ssa.Value) *ssa.Value {
 			v := s.newValue4(ssaop.OpAtomicCompareAndSwap32, types.NewTuple(types.Types[types.TBOOL], types.TypeMem), args[0], args[1], args[2], s.mem())
 			s.vars[memVar] = s.newValue1(ssaop.OpSelect1, types.TypeMem, v)
 			return s.newValue1(ssaop.OpSelect0, types.Types[types.TBOOL], v)
 		},
 		sys.PPC64)
 
-	atomicCasEmitterARM64 := func(s *state, n *ir.CallExpr, args []*ssacore.Value, op ssaop.Op, typ types.Kind, needReturn bool) {
+	atomicCasEmitterARM64 := func(s *state, n *ir.CallExpr, args []*ssa.Value, op ssaop.Op, typ types.Kind, needReturn bool) {
 		v := s.newValue4(op, types.NewTuple(types.Types[types.TBOOL], types.TypeMem), args[0], args[1], args[2], s.mem())
 		s.vars[memVar] = s.newValue1(ssaop.OpSelect1, types.TypeMem, v)
 		if needReturn {
@@ -557,7 +557,7 @@ func initIntrinsics(cfg *intrinsicBuildConfig) {
 		makeAtomicGuardedIntrinsicARM64(ssaop.OpAtomicCompareAndSwap64, ssaop.OpAtomicCompareAndSwap64Variant, types.TBOOL, atomicCasEmitterARM64),
 		sys.ARM64)
 
-	atomicCasEmitterLoong64 := func(s *state, n *ir.CallExpr, args []*ssacore.Value, op ssaop.Op, typ types.Kind, needReturn bool) {
+	atomicCasEmitterLoong64 := func(s *state, n *ir.CallExpr, args []*ssa.Value, op ssaop.Op, typ types.Kind, needReturn bool) {
 		v := s.newValue4(op, types.NewTuple(types.Types[types.TBOOL], types.TypeMem), args[0], args[1], args[2], s.mem())
 		s.vars[memVar] = s.newValue1(ssaop.OpSelect1, types.TypeMem, v)
 		if needReturn {
@@ -566,7 +566,7 @@ func initIntrinsics(cfg *intrinsicBuildConfig) {
 	}
 
 	makeAtomicCasGuardedIntrinsicLoong64 := func(op0, op1 ssaop.Op, emit atomicOpEmitter) intrinsicBuilder {
-		return func(s *state, n *ir.CallExpr, args []*ssacore.Value) *ssacore.Value {
+		return func(s *state, n *ir.CallExpr, args []*ssa.Value) *ssa.Value {
 			// Target Atomic feature is identified by dynamic detection
 			addr := s.entryNewValue1A(ssaop.OpAddr, types.Types[types.TBOOL].PtrTo(), ir.Syms.Loong64HasLAMCAS, s.sb)
 			v := s.load(types.Types[types.TBOOL], addr)
@@ -578,7 +578,7 @@ func initIntrinsics(cfg *intrinsicBuildConfig) {
 			bEnd := s.f.NewBlock(block.BlockPlain)
 			b.AddEdgeTo(bTrue)
 			b.AddEdgeTo(bFalse)
-			b.Likely = ssacore.BranchLikely
+			b.Likely = ssa.BranchLikely
 
 			// We have atomic instructions - use it directly.
 			s.startBlock(bTrue)
@@ -606,25 +606,25 @@ func initIntrinsics(cfg *intrinsicBuildConfig) {
 
 	// Old-style atomic logical operation API (all supported archs except arm64).
 	addF("internal/runtime/atomic", "And8",
-		func(s *state, n *ir.CallExpr, args []*ssacore.Value) *ssacore.Value {
+		func(s *state, n *ir.CallExpr, args []*ssa.Value) *ssa.Value {
 			s.vars[memVar] = s.newValue3(ssaop.OpAtomicAnd8, types.TypeMem, args[0], args[1], s.mem())
 			return nil
 		},
 		sys.AMD64, sys.Loong64, sys.MIPS, sys.MIPS64, sys.PPC64, sys.RISCV64, sys.S390X)
 	addF("internal/runtime/atomic", "And",
-		func(s *state, n *ir.CallExpr, args []*ssacore.Value) *ssacore.Value {
+		func(s *state, n *ir.CallExpr, args []*ssa.Value) *ssa.Value {
 			s.vars[memVar] = s.newValue3(ssaop.OpAtomicAnd32, types.TypeMem, args[0], args[1], s.mem())
 			return nil
 		},
 		sys.AMD64, sys.Loong64, sys.MIPS, sys.MIPS64, sys.PPC64, sys.RISCV64, sys.S390X)
 	addF("internal/runtime/atomic", "Or8",
-		func(s *state, n *ir.CallExpr, args []*ssacore.Value) *ssacore.Value {
+		func(s *state, n *ir.CallExpr, args []*ssa.Value) *ssa.Value {
 			s.vars[memVar] = s.newValue3(ssaop.OpAtomicOr8, types.TypeMem, args[0], args[1], s.mem())
 			return nil
 		},
 		sys.AMD64, sys.Loong64, sys.MIPS, sys.MIPS64, sys.PPC64, sys.RISCV64, sys.S390X)
 	addF("internal/runtime/atomic", "Or",
-		func(s *state, n *ir.CallExpr, args []*ssacore.Value) *ssacore.Value {
+		func(s *state, n *ir.CallExpr, args []*ssa.Value) *ssa.Value {
 			s.vars[memVar] = s.newValue3(ssaop.OpAtomicOr32, types.TypeMem, args[0], args[1], s.mem())
 			return nil
 		},
@@ -659,7 +659,7 @@ func initIntrinsics(cfg *intrinsicBuildConfig) {
 
 	// New-style atomic logical operations, which return the old memory value.
 	addF("internal/runtime/atomic", "And64",
-		func(s *state, n *ir.CallExpr, args []*ssacore.Value) *ssacore.Value {
+		func(s *state, n *ir.CallExpr, args []*ssa.Value) *ssa.Value {
 			v := s.newValue3(ssaop.OpAtomicAnd64value, types.NewTuple(types.Types[types.TUINT64], types.TypeMem), args[0], args[1], s.mem())
 			p0, p1 := s.split(v)
 			s.vars[memVar] = p1
@@ -667,7 +667,7 @@ func initIntrinsics(cfg *intrinsicBuildConfig) {
 		},
 		sys.AMD64, sys.Loong64)
 	addF("internal/runtime/atomic", "And32",
-		func(s *state, n *ir.CallExpr, args []*ssacore.Value) *ssacore.Value {
+		func(s *state, n *ir.CallExpr, args []*ssa.Value) *ssa.Value {
 			v := s.newValue3(ssaop.OpAtomicAnd32value, types.NewTuple(types.Types[types.TUINT32], types.TypeMem), args[0], args[1], s.mem())
 			p0, p1 := s.split(v)
 			s.vars[memVar] = p1
@@ -675,7 +675,7 @@ func initIntrinsics(cfg *intrinsicBuildConfig) {
 		},
 		sys.AMD64, sys.Loong64)
 	addF("internal/runtime/atomic", "Or64",
-		func(s *state, n *ir.CallExpr, args []*ssacore.Value) *ssacore.Value {
+		func(s *state, n *ir.CallExpr, args []*ssa.Value) *ssa.Value {
 			v := s.newValue3(ssaop.OpAtomicOr64value, types.NewTuple(types.Types[types.TUINT64], types.TypeMem), args[0], args[1], s.mem())
 			p0, p1 := s.split(v)
 			s.vars[memVar] = p1
@@ -683,7 +683,7 @@ func initIntrinsics(cfg *intrinsicBuildConfig) {
 		},
 		sys.AMD64, sys.Loong64)
 	addF("internal/runtime/atomic", "Or32",
-		func(s *state, n *ir.CallExpr, args []*ssacore.Value) *ssacore.Value {
+		func(s *state, n *ir.CallExpr, args []*ssa.Value) *ssa.Value {
 			v := s.newValue3(ssaop.OpAtomicOr32value, types.NewTuple(types.Types[types.TUINT32], types.TypeMem), args[0], args[1], s.mem())
 			p0, p1 := s.split(v)
 			s.vars[memVar] = p1
@@ -740,52 +740,52 @@ func initIntrinsics(cfg *intrinsicBuildConfig) {
 
 	/******** math ********/
 	addF("math", "sqrt",
-		func(s *state, n *ir.CallExpr, args []*ssacore.Value) *ssacore.Value {
+		func(s *state, n *ir.CallExpr, args []*ssa.Value) *ssa.Value {
 			return s.newValue1(ssaop.OpSqrt, types.Types[types.TFLOAT64], args[0])
 		},
 		sys.I386, sys.AMD64, sys.ARM, sys.ARM64, sys.Loong64, sys.MIPS, sys.MIPS64, sys.PPC64, sys.RISCV64, sys.S390X, sys.Wasm)
 	addF("math", "Trunc",
-		func(s *state, n *ir.CallExpr, args []*ssacore.Value) *ssacore.Value {
+		func(s *state, n *ir.CallExpr, args []*ssa.Value) *ssa.Value {
 			return s.newValue1(ssaop.OpTrunc, types.Types[types.TFLOAT64], args[0])
 		},
 		sys.ARM64, sys.PPC64, sys.S390X, sys.Wasm)
 	addF("math", "Ceil",
-		func(s *state, n *ir.CallExpr, args []*ssacore.Value) *ssacore.Value {
+		func(s *state, n *ir.CallExpr, args []*ssa.Value) *ssa.Value {
 			return s.newValue1(ssaop.OpCeil, types.Types[types.TFLOAT64], args[0])
 		},
 		sys.ARM64, sys.PPC64, sys.S390X, sys.Wasm)
 	addF("math", "Floor",
-		func(s *state, n *ir.CallExpr, args []*ssacore.Value) *ssacore.Value {
+		func(s *state, n *ir.CallExpr, args []*ssa.Value) *ssa.Value {
 			return s.newValue1(ssaop.OpFloor, types.Types[types.TFLOAT64], args[0])
 		},
 		sys.ARM64, sys.PPC64, sys.S390X, sys.Wasm)
 	addF("math", "Round",
-		func(s *state, n *ir.CallExpr, args []*ssacore.Value) *ssacore.Value {
+		func(s *state, n *ir.CallExpr, args []*ssa.Value) *ssa.Value {
 			return s.newValue1(ssaop.OpRound, types.Types[types.TFLOAT64], args[0])
 		},
 		sys.ARM64, sys.PPC64, sys.S390X)
 	addF("math", "RoundToEven",
-		func(s *state, n *ir.CallExpr, args []*ssacore.Value) *ssacore.Value {
+		func(s *state, n *ir.CallExpr, args []*ssa.Value) *ssa.Value {
 			return s.newValue1(ssaop.OpRoundToEven, types.Types[types.TFLOAT64], args[0])
 		},
 		sys.ARM64, sys.S390X, sys.Wasm)
 	addF("math", "Abs",
-		func(s *state, n *ir.CallExpr, args []*ssacore.Value) *ssacore.Value {
+		func(s *state, n *ir.CallExpr, args []*ssa.Value) *ssa.Value {
 			return s.newValue1(ssaop.OpAbs, types.Types[types.TFLOAT64], args[0])
 		},
 		sys.ARM64, sys.ARM, sys.Loong64, sys.PPC64, sys.RISCV64, sys.Wasm, sys.MIPS, sys.MIPS64)
 	addF("math", "Copysign",
-		func(s *state, n *ir.CallExpr, args []*ssacore.Value) *ssacore.Value {
+		func(s *state, n *ir.CallExpr, args []*ssa.Value) *ssa.Value {
 			return s.newValue2(ssaop.OpCopysign, types.Types[types.TFLOAT64], args[0], args[1])
 		},
 		sys.Loong64, sys.PPC64, sys.RISCV64, sys.Wasm)
 	addF("math", "FMA",
-		func(s *state, n *ir.CallExpr, args []*ssacore.Value) *ssacore.Value {
+		func(s *state, n *ir.CallExpr, args []*ssa.Value) *ssa.Value {
 			return s.newValue3(ssaop.OpFMA, types.Types[types.TFLOAT64], args[0], args[1], args[2])
 		},
 		sys.ARM64, sys.Loong64, sys.PPC64, sys.RISCV64, sys.S390X)
 	addF("math", "FMA",
-		func(s *state, n *ir.CallExpr, args []*ssacore.Value) *ssacore.Value {
+		func(s *state, n *ir.CallExpr, args []*ssa.Value) *ssa.Value {
 			if cfg.goamd64 >= 3 {
 				return s.newValue3(ssaop.OpFMA, types.Types[types.TFLOAT64], args[0], args[1], args[2])
 			}
@@ -799,7 +799,7 @@ func initIntrinsics(cfg *intrinsicBuildConfig) {
 			bEnd := s.f.NewBlock(block.BlockPlain)
 			b.AddEdgeTo(bTrue)
 			b.AddEdgeTo(bFalse)
-			b.Likely = ssacore.BranchLikely // >= haswell cpus are common
+			b.Likely = ssa.BranchLikely // >= haswell cpus are common
 
 			// We have the intrinsic - use it directly.
 			s.startBlock(bTrue)
@@ -817,7 +817,7 @@ func initIntrinsics(cfg *intrinsicBuildConfig) {
 		},
 		sys.AMD64)
 	addF("math", "FMA",
-		func(s *state, n *ir.CallExpr, args []*ssacore.Value) *ssacore.Value {
+		func(s *state, n *ir.CallExpr, args []*ssa.Value) *ssa.Value {
 			addr := s.entryNewValue1A(ssaop.OpAddr, types.Types[types.TBOOL].PtrTo(), ir.Syms.ARMHasVFPv4, s.sb)
 			v := s.load(types.Types[types.TBOOL], addr)
 			b := s.endBlock()
@@ -828,7 +828,7 @@ func initIntrinsics(cfg *intrinsicBuildConfig) {
 			bEnd := s.f.NewBlock(block.BlockPlain)
 			b.AddEdgeTo(bTrue)
 			b.AddEdgeTo(bFalse)
-			b.Likely = ssacore.BranchLikely
+			b.Likely = ssa.BranchLikely
 
 			// We have the intrinsic - use it directly.
 			s.startBlock(bTrue)
@@ -846,8 +846,8 @@ func initIntrinsics(cfg *intrinsicBuildConfig) {
 		},
 		sys.ARM)
 
-	makeRoundAMD64 := func(op ssaop.Op) func(s *state, n *ir.CallExpr, args []*ssacore.Value) *ssacore.Value {
-		return func(s *state, n *ir.CallExpr, args []*ssacore.Value) *ssacore.Value {
+	makeRoundAMD64 := func(op ssaop.Op) func(s *state, n *ir.CallExpr, args []*ssa.Value) *ssa.Value {
+		return func(s *state, n *ir.CallExpr, args []*ssa.Value) *ssa.Value {
 			if cfg.goamd64 >= 2 {
 				return s.newValue1(op, types.Types[types.TFLOAT64], args[0])
 			}
@@ -861,7 +861,7 @@ func initIntrinsics(cfg *intrinsicBuildConfig) {
 			bEnd := s.f.NewBlock(block.BlockPlain)
 			b.AddEdgeTo(bTrue)
 			b.AddEdgeTo(bFalse)
-			b.Likely = ssacore.BranchLikely // most machines have sse4.1 nowadays
+			b.Likely = ssa.BranchLikely // most machines have sse4.1 nowadays
 
 			// We have the intrinsic - use it directly.
 			s.startBlock(bTrue)
@@ -891,8 +891,8 @@ func initIntrinsics(cfg *intrinsicBuildConfig) {
 		makeRoundAMD64(ssaop.OpTrunc),
 		sys.AMD64)
 
-	makeRoundLoong64 := func(op ssaop.Op) func(s *state, n *ir.CallExpr, args []*ssacore.Value) *ssacore.Value {
-		return func(s *state, n *ir.CallExpr, args []*ssacore.Value) *ssacore.Value {
+	makeRoundLoong64 := func(op ssaop.Op) func(s *state, n *ir.CallExpr, args []*ssa.Value) *ssa.Value {
+		return func(s *state, n *ir.CallExpr, args []*ssa.Value) *ssa.Value {
 			addr := s.entryNewValue1A(ssaop.OpAddr, types.Types[types.TBOOL].PtrTo(), ir.Syms.Loong64HasLSX, s.sb)
 			v := s.load(types.Types[types.TBOOL], addr)
 			b := s.endBlock()
@@ -903,7 +903,7 @@ func initIntrinsics(cfg *intrinsicBuildConfig) {
 			bEnd := s.f.NewBlock(block.BlockPlain)
 			b.AddEdgeTo(bTrue)
 			b.AddEdgeTo(bFalse)
-			b.Likely = ssacore.BranchLikely // most loong64 machines support the LSX
+			b.Likely = ssa.BranchLikely // most loong64 machines support the LSX
 
 			// We have the intrinsic - use it directly.
 			s.startBlock(bTrue)
@@ -935,51 +935,51 @@ func initIntrinsics(cfg *intrinsicBuildConfig) {
 
 	/******** math/bits ********/
 	addF("math/bits", "TrailingZeros64",
-		func(s *state, n *ir.CallExpr, args []*ssacore.Value) *ssacore.Value {
+		func(s *state, n *ir.CallExpr, args []*ssa.Value) *ssa.Value {
 			return s.newValue1(ssaop.OpCtz64, types.Types[types.TINT], args[0])
 		},
 		sys.AMD64, sys.ARM64, sys.ARM, sys.Loong64, sys.S390X, sys.MIPS, sys.PPC64, sys.Wasm)
 	addF("math/bits", "TrailingZeros64",
-		func(s *state, n *ir.CallExpr, args []*ssacore.Value) *ssacore.Value {
+		func(s *state, n *ir.CallExpr, args []*ssa.Value) *ssa.Value {
 			lo := s.newValue1(ssaop.OpInt64Lo, types.Types[types.TUINT32], args[0])
 			hi := s.newValue1(ssaop.OpInt64Hi, types.Types[types.TUINT32], args[0])
 			return s.newValue2(ssaop.OpCtz64On32, types.Types[types.TINT], lo, hi)
 		},
 		sys.I386)
 	addF("math/bits", "TrailingZeros32",
-		func(s *state, n *ir.CallExpr, args []*ssacore.Value) *ssacore.Value {
+		func(s *state, n *ir.CallExpr, args []*ssa.Value) *ssa.Value {
 			return s.newValue1(ssaop.OpCtz32, types.Types[types.TINT], args[0])
 		},
 		sys.AMD64, sys.I386, sys.ARM64, sys.ARM, sys.Loong64, sys.S390X, sys.MIPS, sys.PPC64, sys.Wasm)
 	addF("math/bits", "TrailingZeros16",
-		func(s *state, n *ir.CallExpr, args []*ssacore.Value) *ssacore.Value {
+		func(s *state, n *ir.CallExpr, args []*ssa.Value) *ssa.Value {
 			return s.newValue1(ssaop.OpCtz16, types.Types[types.TINT], args[0])
 		},
 		sys.AMD64, sys.ARM, sys.ARM64, sys.I386, sys.MIPS, sys.Loong64, sys.PPC64, sys.S390X, sys.Wasm)
 	addF("math/bits", "TrailingZeros8",
-		func(s *state, n *ir.CallExpr, args []*ssacore.Value) *ssacore.Value {
+		func(s *state, n *ir.CallExpr, args []*ssa.Value) *ssa.Value {
 			return s.newValue1(ssaop.OpCtz8, types.Types[types.TINT], args[0])
 		},
 		sys.AMD64, sys.ARM, sys.ARM64, sys.I386, sys.MIPS, sys.Loong64, sys.PPC64, sys.S390X, sys.Wasm)
 
 	if cfg.goriscv64 >= 22 {
 		addF("math/bits", "TrailingZeros64",
-			func(s *state, n *ir.CallExpr, args []*ssacore.Value) *ssacore.Value {
+			func(s *state, n *ir.CallExpr, args []*ssa.Value) *ssa.Value {
 				return s.newValue1(ssaop.OpCtz64, types.Types[types.TINT], args[0])
 			},
 			sys.RISCV64)
 		addF("math/bits", "TrailingZeros32",
-			func(s *state, n *ir.CallExpr, args []*ssacore.Value) *ssacore.Value {
+			func(s *state, n *ir.CallExpr, args []*ssa.Value) *ssa.Value {
 				return s.newValue1(ssaop.OpCtz32, types.Types[types.TINT], args[0])
 			},
 			sys.RISCV64)
 		addF("math/bits", "TrailingZeros16",
-			func(s *state, n *ir.CallExpr, args []*ssacore.Value) *ssacore.Value {
+			func(s *state, n *ir.CallExpr, args []*ssa.Value) *ssa.Value {
 				return s.newValue1(ssaop.OpCtz16, types.Types[types.TINT], args[0])
 			},
 			sys.RISCV64)
 		addF("math/bits", "TrailingZeros8",
-			func(s *state, n *ir.CallExpr, args []*ssacore.Value) *ssacore.Value {
+			func(s *state, n *ir.CallExpr, args []*ssa.Value) *ssa.Value {
 				return s.newValue1(ssaop.OpCtz8, types.Types[types.TINT], args[0])
 			},
 			sys.RISCV64)
@@ -990,65 +990,65 @@ func initIntrinsics(cfg *intrinsicBuildConfig) {
 	alias("math/bits", "ReverseBytes32", "internal/runtime/sys", "Bswap32", all...)
 	// Nothing special is needed for targets where ReverseBytes16 lowers to a rotate
 	addF("math/bits", "ReverseBytes16",
-		func(s *state, n *ir.CallExpr, args []*ssacore.Value) *ssacore.Value {
+		func(s *state, n *ir.CallExpr, args []*ssa.Value) *ssa.Value {
 			return s.newValue1(ssaop.OpBswap16, types.Types[types.TUINT16], args[0])
 		},
 		sys.Loong64)
 	if cfg.goppc64 >= 10 {
 		// On Power10, 16-bit rotate is not available so use BRH instruction
 		addF("math/bits", "ReverseBytes16",
-			func(s *state, n *ir.CallExpr, args []*ssacore.Value) *ssacore.Value {
+			func(s *state, n *ir.CallExpr, args []*ssa.Value) *ssa.Value {
 				return s.newValue1(ssaop.OpBswap16, types.Types[types.TUINT], args[0])
 			},
 			sys.PPC64)
 	}
 	if cfg.goriscv64 >= 22 {
 		addF("math/bits", "ReverseBytes16",
-			func(s *state, n *ir.CallExpr, args []*ssacore.Value) *ssacore.Value {
+			func(s *state, n *ir.CallExpr, args []*ssa.Value) *ssa.Value {
 				return s.newValue1(ssaop.OpBswap16, types.Types[types.TUINT16], args[0])
 			},
 			sys.RISCV64)
 	}
 
 	addF("math/bits", "Len64",
-		func(s *state, n *ir.CallExpr, args []*ssacore.Value) *ssacore.Value {
+		func(s *state, n *ir.CallExpr, args []*ssa.Value) *ssa.Value {
 			return s.newValue1(ssaop.OpBitLen64, types.Types[types.TINT], args[0])
 		},
 		sys.AMD64, sys.ARM, sys.ARM64, sys.Loong64, sys.MIPS, sys.PPC64, sys.S390X, sys.Wasm)
 	addF("math/bits", "Len32",
-		func(s *state, n *ir.CallExpr, args []*ssacore.Value) *ssacore.Value {
+		func(s *state, n *ir.CallExpr, args []*ssa.Value) *ssa.Value {
 			return s.newValue1(ssaop.OpBitLen32, types.Types[types.TINT], args[0])
 		},
 		sys.AMD64, sys.ARM, sys.ARM64, sys.Loong64, sys.MIPS, sys.PPC64, sys.S390X, sys.Wasm)
 	addF("math/bits", "Len16",
-		func(s *state, n *ir.CallExpr, args []*ssacore.Value) *ssacore.Value {
+		func(s *state, n *ir.CallExpr, args []*ssa.Value) *ssa.Value {
 			return s.newValue1(ssaop.OpBitLen16, types.Types[types.TINT], args[0])
 		},
 		sys.AMD64, sys.ARM, sys.ARM64, sys.Loong64, sys.MIPS, sys.PPC64, sys.S390X, sys.Wasm)
 	addF("math/bits", "Len8",
-		func(s *state, n *ir.CallExpr, args []*ssacore.Value) *ssacore.Value {
+		func(s *state, n *ir.CallExpr, args []*ssa.Value) *ssa.Value {
 			return s.newValue1(ssaop.OpBitLen8, types.Types[types.TINT], args[0])
 		},
 		sys.AMD64, sys.ARM, sys.ARM64, sys.Loong64, sys.MIPS, sys.PPC64, sys.S390X, sys.Wasm)
 
 	if cfg.goriscv64 >= 22 {
 		addF("math/bits", "Len64",
-			func(s *state, n *ir.CallExpr, args []*ssacore.Value) *ssacore.Value {
+			func(s *state, n *ir.CallExpr, args []*ssa.Value) *ssa.Value {
 				return s.newValue1(ssaop.OpBitLen64, types.Types[types.TINT], args[0])
 			},
 			sys.RISCV64)
 		addF("math/bits", "Len32",
-			func(s *state, n *ir.CallExpr, args []*ssacore.Value) *ssacore.Value {
+			func(s *state, n *ir.CallExpr, args []*ssa.Value) *ssa.Value {
 				return s.newValue1(ssaop.OpBitLen32, types.Types[types.TINT], args[0])
 			},
 			sys.RISCV64)
 		addF("math/bits", "Len16",
-			func(s *state, n *ir.CallExpr, args []*ssacore.Value) *ssacore.Value {
+			func(s *state, n *ir.CallExpr, args []*ssa.Value) *ssa.Value {
 				return s.newValue1(ssaop.OpBitLen16, types.Types[types.TINT], args[0])
 			},
 			sys.RISCV64)
 		addF("math/bits", "Len8",
-			func(s *state, n *ir.CallExpr, args []*ssacore.Value) *ssacore.Value {
+			func(s *state, n *ir.CallExpr, args []*ssa.Value) *ssa.Value {
 				return s.newValue1(ssaop.OpBitLen8, types.Types[types.TINT], args[0])
 			},
 			sys.RISCV64)
@@ -1059,54 +1059,54 @@ func initIntrinsics(cfg *intrinsicBuildConfig) {
 
 	// LeadingZeros is handled because it trivially calls Len.
 	addF("math/bits", "Reverse64",
-		func(s *state, n *ir.CallExpr, args []*ssacore.Value) *ssacore.Value {
+		func(s *state, n *ir.CallExpr, args []*ssa.Value) *ssa.Value {
 			return s.newValue1(ssaop.OpBitRev64, types.Types[types.TUINT64], args[0])
 		},
 		sys.ARM64, sys.Loong64)
 	addF("math/bits", "Reverse32",
-		func(s *state, n *ir.CallExpr, args []*ssacore.Value) *ssacore.Value {
+		func(s *state, n *ir.CallExpr, args []*ssa.Value) *ssa.Value {
 			return s.newValue1(ssaop.OpBitRev32, types.Types[types.TUINT32], args[0])
 		},
 		sys.ARM64, sys.Loong64)
 	addF("math/bits", "Reverse16",
-		func(s *state, n *ir.CallExpr, args []*ssacore.Value) *ssacore.Value {
+		func(s *state, n *ir.CallExpr, args []*ssa.Value) *ssa.Value {
 			return s.newValue1(ssaop.OpBitRev16, types.Types[types.TUINT16], args[0])
 		},
 		sys.ARM64, sys.Loong64)
 	addF("math/bits", "Reverse8",
-		func(s *state, n *ir.CallExpr, args []*ssacore.Value) *ssacore.Value {
+		func(s *state, n *ir.CallExpr, args []*ssa.Value) *ssa.Value {
 			return s.newValue1(ssaop.OpBitRev8, types.Types[types.TUINT8], args[0])
 		},
 		sys.ARM64, sys.Loong64)
 	addF("math/bits", "Reverse",
-		func(s *state, n *ir.CallExpr, args []*ssacore.Value) *ssacore.Value {
+		func(s *state, n *ir.CallExpr, args []*ssa.Value) *ssa.Value {
 			return s.newValue1(ssaop.OpBitRev64, types.Types[types.TUINT], args[0])
 		},
 		sys.ARM64, sys.Loong64)
 	addF("math/bits", "RotateLeft8",
-		func(s *state, n *ir.CallExpr, args []*ssacore.Value) *ssacore.Value {
+		func(s *state, n *ir.CallExpr, args []*ssa.Value) *ssa.Value {
 			return s.newValue2(ssaop.OpRotateLeft8, types.Types[types.TUINT8], args[0], args[1])
 		},
 		sys.AMD64, sys.RISCV64)
 	addF("math/bits", "RotateLeft16",
-		func(s *state, n *ir.CallExpr, args []*ssacore.Value) *ssacore.Value {
+		func(s *state, n *ir.CallExpr, args []*ssa.Value) *ssa.Value {
 			return s.newValue2(ssaop.OpRotateLeft16, types.Types[types.TUINT16], args[0], args[1])
 		},
 		sys.AMD64, sys.RISCV64)
 	addF("math/bits", "RotateLeft32",
-		func(s *state, n *ir.CallExpr, args []*ssacore.Value) *ssacore.Value {
+		func(s *state, n *ir.CallExpr, args []*ssa.Value) *ssa.Value {
 			return s.newValue2(ssaop.OpRotateLeft32, types.Types[types.TUINT32], args[0], args[1])
 		},
 		sys.AMD64, sys.ARM, sys.ARM64, sys.Loong64, sys.PPC64, sys.RISCV64, sys.S390X, sys.Wasm)
 	addF("math/bits", "RotateLeft64",
-		func(s *state, n *ir.CallExpr, args []*ssacore.Value) *ssacore.Value {
+		func(s *state, n *ir.CallExpr, args []*ssa.Value) *ssa.Value {
 			return s.newValue2(ssaop.OpRotateLeft64, types.Types[types.TUINT64], args[0], args[1])
 		},
 		sys.AMD64, sys.ARM64, sys.Loong64, sys.PPC64, sys.RISCV64, sys.S390X, sys.Wasm)
 	alias("math/bits", "RotateLeft", "math/bits", "RotateLeft64", p8...)
 
-	makeOnesCountAMD64 := func(op ssaop.Op) func(s *state, n *ir.CallExpr, args []*ssacore.Value) *ssacore.Value {
-		return func(s *state, n *ir.CallExpr, args []*ssacore.Value) *ssacore.Value {
+	makeOnesCountAMD64 := func(op ssaop.Op) func(s *state, n *ir.CallExpr, args []*ssa.Value) *ssa.Value {
+		return func(s *state, n *ir.CallExpr, args []*ssa.Value) *ssa.Value {
 			if cfg.goamd64 >= 2 {
 				return s.newValue1(op, types.Types[types.TINT], args[0])
 			}
@@ -1120,7 +1120,7 @@ func initIntrinsics(cfg *intrinsicBuildConfig) {
 			bEnd := s.f.NewBlock(block.BlockPlain)
 			b.AddEdgeTo(bTrue)
 			b.AddEdgeTo(bFalse)
-			b.Likely = ssacore.BranchLikely // most machines have popcnt nowadays
+			b.Likely = ssa.BranchLikely // most machines have popcnt nowadays
 
 			// We have the intrinsic - use it directly.
 			s.startBlock(bTrue)
@@ -1138,8 +1138,8 @@ func initIntrinsics(cfg *intrinsicBuildConfig) {
 		}
 	}
 
-	makeOnesCountLoong64 := func(op ssaop.Op) func(s *state, n *ir.CallExpr, args []*ssacore.Value) *ssacore.Value {
-		return func(s *state, n *ir.CallExpr, args []*ssacore.Value) *ssacore.Value {
+	makeOnesCountLoong64 := func(op ssaop.Op) func(s *state, n *ir.CallExpr, args []*ssa.Value) *ssa.Value {
+		return func(s *state, n *ir.CallExpr, args []*ssa.Value) *ssa.Value {
 			addr := s.entryNewValue1A(ssaop.OpAddr, types.Types[types.TBOOL].PtrTo(), ir.Syms.Loong64HasLSX, s.sb)
 			v := s.load(types.Types[types.TBOOL], addr)
 			b := s.endBlock()
@@ -1150,7 +1150,7 @@ func initIntrinsics(cfg *intrinsicBuildConfig) {
 			bEnd := s.f.NewBlock(block.BlockPlain)
 			b.AddEdgeTo(bTrue)
 			b.AddEdgeTo(bFalse)
-			b.Likely = ssacore.BranchLikely // most loong64 machines support the LSX
+			b.Likely = ssa.BranchLikely // most loong64 machines support the LSX
 
 			// We have the intrinsic - use it directly.
 			s.startBlock(bTrue)
@@ -1168,8 +1168,8 @@ func initIntrinsics(cfg *intrinsicBuildConfig) {
 		}
 	}
 
-	makeOnesCountRISCV64 := func(op ssaop.Op) func(s *state, n *ir.CallExpr, args []*ssacore.Value) *ssacore.Value {
-		return func(s *state, n *ir.CallExpr, args []*ssacore.Value) *ssacore.Value {
+	makeOnesCountRISCV64 := func(op ssaop.Op) func(s *state, n *ir.CallExpr, args []*ssa.Value) *ssa.Value {
+		return func(s *state, n *ir.CallExpr, args []*ssa.Value) *ssa.Value {
 			if cfg.goriscv64 >= 22 {
 				return s.newValue1(op, types.Types[types.TINT], args[0])
 			}
@@ -1184,7 +1184,7 @@ func initIntrinsics(cfg *intrinsicBuildConfig) {
 			bEnd := s.f.NewBlock(block.BlockPlain)
 			b.AddEdgeTo(bTrue)
 			b.AddEdgeTo(bFalse)
-			b.Likely = ssacore.BranchLikely // Majority of RISC-V support Zbb.
+			b.Likely = ssa.BranchLikely // Majority of RISC-V support Zbb.
 
 			// We have the intrinsic - use it directly.
 			s.startBlock(bTrue)
@@ -1212,7 +1212,7 @@ func initIntrinsics(cfg *intrinsicBuildConfig) {
 		makeOnesCountRISCV64(ssaop.OpPopCount64),
 		sys.RISCV64)
 	addF("math/bits", "OnesCount64",
-		func(s *state, n *ir.CallExpr, args []*ssacore.Value) *ssacore.Value {
+		func(s *state, n *ir.CallExpr, args []*ssa.Value) *ssa.Value {
 			return s.newValue1(ssaop.OpPopCount64, types.Types[types.TINT], args[0])
 		},
 		sys.PPC64, sys.ARM64, sys.S390X, sys.Wasm)
@@ -1226,7 +1226,7 @@ func initIntrinsics(cfg *intrinsicBuildConfig) {
 		makeOnesCountRISCV64(ssaop.OpPopCount32),
 		sys.RISCV64)
 	addF("math/bits", "OnesCount32",
-		func(s *state, n *ir.CallExpr, args []*ssacore.Value) *ssacore.Value {
+		func(s *state, n *ir.CallExpr, args []*ssa.Value) *ssa.Value {
 			return s.newValue1(ssaop.OpPopCount32, types.Types[types.TINT], args[0])
 		},
 		sys.PPC64, sys.ARM64, sys.S390X, sys.Wasm)
@@ -1240,12 +1240,12 @@ func initIntrinsics(cfg *intrinsicBuildConfig) {
 		makeOnesCountRISCV64(ssaop.OpPopCount16),
 		sys.RISCV64)
 	addF("math/bits", "OnesCount16",
-		func(s *state, n *ir.CallExpr, args []*ssacore.Value) *ssacore.Value {
+		func(s *state, n *ir.CallExpr, args []*ssa.Value) *ssa.Value {
 			return s.newValue1(ssaop.OpPopCount16, types.Types[types.TINT], args[0])
 		},
 		sys.ARM64, sys.S390X, sys.PPC64, sys.Wasm)
 	addF("math/bits", "OnesCount8",
-		func(s *state, n *ir.CallExpr, args []*ssacore.Value) *ssacore.Value {
+		func(s *state, n *ir.CallExpr, args []*ssa.Value) *ssa.Value {
 			return s.newValue1(ssaop.OpPopCount8, types.Types[types.TINT], args[0])
 		},
 		sys.S390X, sys.PPC64, sys.Wasm)
@@ -1259,26 +1259,26 @@ func initIntrinsics(cfg *intrinsicBuildConfig) {
 	alias("math/bits", "OnesCount", "math/bits", "OnesCount64", p8...)
 
 	add("math/bits", "Mul64",
-		func(s *state, n *ir.CallExpr, args []*ssacore.Value) *ssacore.Value {
+		func(s *state, n *ir.CallExpr, args []*ssa.Value) *ssa.Value {
 			return s.newValue2(ssaop.OpMul64uhilo, types.NewTuple(types.Types[types.TUINT64], types.Types[types.TUINT64]), args[0], args[1])
 		},
 		all...)
 	alias("math/bits", "Mul", "math/bits", "Mul64", p8...)
 	addF("math/bits", "Add64",
-		func(s *state, n *ir.CallExpr, args []*ssacore.Value) *ssacore.Value {
+		func(s *state, n *ir.CallExpr, args []*ssa.Value) *ssa.Value {
 			return s.newValue3(ssaop.OpAdd64carry, types.NewTuple(types.Types[types.TUINT64], types.Types[types.TUINT64]), args[0], args[1], args[2])
 		},
 		sys.AMD64, sys.ARM64, sys.PPC64, sys.S390X, sys.RISCV64, sys.Loong64, sys.MIPS64)
 	alias("math/bits", "Add", "math/bits", "Add64", p8...)
 	alias("internal/runtime/math", "Add64", "math/bits", "Add64", all...)
 	addF("math/bits", "Sub64",
-		func(s *state, n *ir.CallExpr, args []*ssacore.Value) *ssacore.Value {
+		func(s *state, n *ir.CallExpr, args []*ssa.Value) *ssa.Value {
 			return s.newValue3(ssaop.OpSub64borrow, types.NewTuple(types.Types[types.TUINT64], types.Types[types.TUINT64]), args[0], args[1], args[2])
 		},
 		sys.AMD64, sys.ARM64, sys.PPC64, sys.S390X, sys.RISCV64, sys.Loong64, sys.MIPS64)
 	alias("math/bits", "Sub", "math/bits", "Sub64", p8...)
 	addF("math/bits", "Div64",
-		func(s *state, n *ir.CallExpr, args []*ssacore.Value) *ssacore.Value {
+		func(s *state, n *ir.CallExpr, args []*ssa.Value) *ssa.Value {
 			// check for divide-by-zero/overflow and panic with appropriate message
 			cmpZero := s.newValue2(s.ssaOp(ir.ONE, types.Types[types.TUINT64]), types.Types[types.TBOOL], args[2], s.zeroVal(types.Types[types.TUINT64]))
 			s.check(cmpZero, ir.Syms.Panicdivide)
@@ -1368,7 +1368,7 @@ func initIntrinsics(cfg *intrinsicBuildConfig) {
 	alias("internal/runtime/maps", "bitsetFirst", "internal/runtime/sys", "TrailingZeros64", sys.ArchAMD64)
 
 	addF("internal/runtime/maps", "bitsetRemoveBelow",
-		func(s *state, n *ir.CallExpr, args []*ssacore.Value) *ssacore.Value {
+		func(s *state, n *ir.CallExpr, args []*ssa.Value) *ssa.Value {
 			b := args[0]
 			i := args[1]
 
@@ -1387,7 +1387,7 @@ func initIntrinsics(cfg *intrinsicBuildConfig) {
 		sys.AMD64)
 
 	addF("internal/runtime/maps", "bitsetLowestSet",
-		func(s *state, n *ir.CallExpr, args []*ssacore.Value) *ssacore.Value {
+		func(s *state, n *ir.CallExpr, args []*ssa.Value) *ssa.Value {
 			b := args[0]
 
 			// Test the lowest bit in b.
@@ -1401,7 +1401,7 @@ func initIntrinsics(cfg *intrinsicBuildConfig) {
 		sys.AMD64)
 
 	addF("internal/runtime/maps", "bitsetShiftOutLowest",
-		func(s *state, n *ir.CallExpr, args []*ssacore.Value) *ssacore.Value {
+		func(s *state, n *ir.CallExpr, args []*ssa.Value) *ssa.Value {
 			b := args[0]
 
 			// Right shift out the lowest bit in b.
@@ -1414,7 +1414,7 @@ func initIntrinsics(cfg *intrinsicBuildConfig) {
 		sys.AMD64)
 
 	addF("internal/runtime/maps", "ctrlGroupMatchH2",
-		func(s *state, n *ir.CallExpr, args []*ssacore.Value) *ssacore.Value {
+		func(s *state, n *ir.CallExpr, args []*ssa.Value) *ssa.Value {
 			g := args[0]
 			h := args[1]
 
@@ -1424,7 +1424,7 @@ func initIntrinsics(cfg *intrinsicBuildConfig) {
 			hfp := s.newValue1(ssaop.OpAMD64MOVQi2f, types.TypeInt128, h)
 
 			// Broadcast h2 into each byte of a word.
-			var broadcast *ssacore.Value
+			var broadcast *ssa.Value
 			if buildcfg.GOAMD64 >= 4 {
 				// VPBROADCASTB saves 1 instruction vs PSHUFB
 				// because the input can come from a GP
@@ -1486,7 +1486,7 @@ func initIntrinsics(cfg *intrinsicBuildConfig) {
 		sys.AMD64)
 
 	addF("internal/runtime/maps", "ctrlGroupMatchEmpty",
-		func(s *state, n *ir.CallExpr, args []*ssacore.Value) *ssacore.Value {
+		func(s *state, n *ir.CallExpr, args []*ssa.Value) *ssa.Value {
 			// An empty slot is   1000 0000
 			// A deleted slot is  1111 1110
 			// A full slot is     0??? ????
@@ -1575,7 +1575,7 @@ func initIntrinsics(cfg *intrinsicBuildConfig) {
 		sys.AMD64)
 
 	addF("internal/runtime/maps", "ctrlGroupMatchEmptyOrDeleted",
-		func(s *state, n *ir.CallExpr, args []*ssacore.Value) *ssacore.Value {
+		func(s *state, n *ir.CallExpr, args []*ssa.Value) *ssa.Value {
 			// An empty slot is   1000 0000
 			// A deleted slot is  1111 1110
 			// A full slot is     0??? ????
@@ -1608,7 +1608,7 @@ func initIntrinsics(cfg *intrinsicBuildConfig) {
 		sys.AMD64)
 
 	addF("internal/runtime/maps", "ctrlGroupMatchFull",
-		func(s *state, n *ir.CallExpr, args []*ssacore.Value) *ssacore.Value {
+		func(s *state, n *ir.CallExpr, args []*ssa.Value) *ssa.Value {
 			// An empty slot is   1000 0000
 			// A deleted slot is  1111 1110
 			// A full slot is     0??? ????
@@ -1649,11 +1649,11 @@ func initIntrinsics(cfg *intrinsicBuildConfig) {
 		hasCMOV = append(hasCMOV, sys.ArchRISCV64)
 	}
 	add("crypto/internal/constanttime", "Select",
-		func(s *state, n *ir.CallExpr, args []*ssacore.Value) *ssacore.Value {
+		func(s *state, n *ir.CallExpr, args []*ssa.Value) *ssa.Value {
 			v, x, y := args[0], args[1], args[2]
 
 			var checkOp ssaop.Op
-			var zero *ssacore.Value
+			var zero *ssa.Value
 			switch s.config.PtrSize {
 			case 8:
 				checkOp = ssaop.OpNeq64
@@ -1669,7 +1669,7 @@ func initIntrinsics(cfg *intrinsicBuildConfig) {
 			return s.newValue3(ssaop.OpCondSelect, types.Types[types.TINT], x, y, check)
 		}, hasCMOV...) // all with CMOV support.
 	add("crypto/internal/constanttime", "boolToUint8",
-		func(s *state, n *ir.CallExpr, args []*ssacore.Value) *ssacore.Value {
+		func(s *state, n *ir.CallExpr, args []*ssa.Value) *ssa.Value {
 			return s.newValue1(ssaop.OpCvtBoolToUint8, types.Types[types.TUINT8], args[0])
 		},
 		all...)
@@ -1682,7 +1682,7 @@ func initIntrinsics(cfg *intrinsicBuildConfig) {
 		sveIntrinsics(addF)
 
 		addF(simdPackage, "ClearAVXUpperBits",
-			func(s *state, n *ir.CallExpr, args []*ssacore.Value) *ssacore.Value {
+			func(s *state, n *ir.CallExpr, args []*ssa.Value) *ssa.Value {
 				s.vars[memVar] = s.newValue1(ssaop.OpAMD64VZEROUPPER, types.TypeMem, s.mem())
 				return nil
 			},
@@ -1714,7 +1714,7 @@ func initIntrinsics(cfg *intrinsicBuildConfig) {
 		// sfp4 is intrinsic-if-constant, but otherwise it's complicated enough to just implement in Go.
 		sfp4 := func(method string, hwop ssaop.Op, vectype *types.Type) {
 			addF(simdPackage, method,
-				func(s *state, n *ir.CallExpr, args []*ssacore.Value) *ssacore.Value {
+				func(s *state, n *ir.CallExpr, args []*ssa.Value) *ssa.Value {
 					x, a, b, c, d, y := args[0], args[1], args[2], args[3], args[4], args[5]
 					if a.Op == ssaop.OpConst8 && b.Op == ssaop.OpConst8 && c.Op == ssaop.OpConst8 && d.Op == ssaop.OpConst8 {
 						z := select4FromPair(x, a, b, c, d, y, s, hwop, vectype)
@@ -1742,7 +1742,7 @@ func initIntrinsics(cfg *intrinsicBuildConfig) {
 		// sfp2 is intrinsic-if-constant, but otherwise it's complicated enough to just implement in Go.
 		sfp2 := func(method string, hwop ssaop.Op, vectype *types.Type, cscimm func(i, j uint8) int64) {
 			addF(simdPackage, method,
-				func(s *state, n *ir.CallExpr, args []*ssacore.Value) *ssacore.Value {
+				func(s *state, n *ir.CallExpr, args []*ssa.Value) *ssa.Value {
 					x, a, b, y := args[0], args[1], args[2], args[3]
 					if a.Op == ssaop.OpConst8 && b.Op == ssaop.OpConst8 {
 						z := select2FromPair(x, a, b, y, s, hwop, vectype, cscimm)
@@ -1816,7 +1816,7 @@ const (
 	_HH
 )
 
-func select2FromPair(x, _a, _b, y *ssacore.Value, s *state, op ssaop.Op, t *types.Type, csc func(a, b uint8) int64) *ssacore.Value {
+func select2FromPair(x, _a, _b, y *ssa.Value, s *state, op ssaop.Op, t *types.Type, csc func(a, b uint8) int64) *ssa.Value {
 	a, b := uint8(_a.AuxInt8()), uint8(_b.AuxInt8())
 	if a > 3 || b > 3 {
 		return nil
@@ -1837,7 +1837,7 @@ func select2FromPair(x, _a, _b, y *ssacore.Value, s *state, op ssaop.Op, t *type
 	panic("The preceding switch should have been exhaustive")
 }
 
-func select4FromPair(x, _a, _b, _c, _d, y *ssacore.Value, s *state, op ssaop.Op, t *types.Type) *ssacore.Value {
+func select4FromPair(x, _a, _b, _c, _d, y *ssa.Value, s *state, op ssaop.Op, t *types.Type) *ssa.Value {
 	a, b, c, d := uint8(_a.AuxInt8()), uint8(_b.AuxInt8()), uint8(_c.AuxInt8()), uint8(_d.AuxInt8())
 	if a > 7 || b > 7 || c > 7 || d > 7 {
 		return nil
@@ -1908,32 +1908,32 @@ func se(x uint8) int64 {
 	return int64(int8(x))
 }
 
-func opLen0(op ssaop.Op, t *types.Type) func(s *state, n *ir.CallExpr, args []*ssacore.Value) *ssacore.Value {
-	return func(s *state, n *ir.CallExpr, args []*ssacore.Value) *ssacore.Value {
+func opLen0(op ssaop.Op, t *types.Type) func(s *state, n *ir.CallExpr, args []*ssa.Value) *ssa.Value {
+	return func(s *state, n *ir.CallExpr, args []*ssa.Value) *ssa.Value {
 		return s.newValue0(op, t)
 	}
 }
 
-func opLen1(op ssaop.Op, t *types.Type) func(s *state, n *ir.CallExpr, args []*ssacore.Value) *ssacore.Value {
-	return func(s *state, n *ir.CallExpr, args []*ssacore.Value) *ssacore.Value {
+func opLen1(op ssaop.Op, t *types.Type) func(s *state, n *ir.CallExpr, args []*ssa.Value) *ssa.Value {
+	return func(s *state, n *ir.CallExpr, args []*ssa.Value) *ssa.Value {
 		return s.newValue1(op, t, args[0])
 	}
 }
 
-func opLen2(op ssaop.Op, t *types.Type) func(s *state, n *ir.CallExpr, args []*ssacore.Value) *ssacore.Value {
-	return func(s *state, n *ir.CallExpr, args []*ssacore.Value) *ssacore.Value {
+func opLen2(op ssaop.Op, t *types.Type) func(s *state, n *ir.CallExpr, args []*ssa.Value) *ssa.Value {
+	return func(s *state, n *ir.CallExpr, args []*ssa.Value) *ssa.Value {
 		return s.newValue2(op, t, args[0], args[1])
 	}
 }
 
-func opLen2_21(op ssaop.Op, t *types.Type) func(s *state, n *ir.CallExpr, args []*ssacore.Value) *ssacore.Value {
-	return func(s *state, n *ir.CallExpr, args []*ssacore.Value) *ssacore.Value {
+func opLen2_21(op ssaop.Op, t *types.Type) func(s *state, n *ir.CallExpr, args []*ssa.Value) *ssa.Value {
+	return func(s *state, n *ir.CallExpr, args []*ssa.Value) *ssa.Value {
 		return s.newValue2(op, t, args[1], args[0])
 	}
 }
 
-func opLen3(op ssaop.Op, t *types.Type) func(s *state, n *ir.CallExpr, args []*ssacore.Value) *ssacore.Value {
-	return func(s *state, n *ir.CallExpr, args []*ssacore.Value) *ssacore.Value {
+func opLen3(op ssaop.Op, t *types.Type) func(s *state, n *ir.CallExpr, args []*ssa.Value) *ssa.Value {
+	return func(s *state, n *ir.CallExpr, args []*ssa.Value) *ssa.Value {
 		return s.newValue3(op, t, args[0], args[1], args[2])
 	}
 }
@@ -1944,8 +1944,8 @@ var ssaVecBySize = map[int64]*types.Type{
 	64: types.TypeVec512,
 }
 
-func opLen3_31Zero3(op ssaop.Op, t *types.Type) func(s *state, n *ir.CallExpr, args []*ssacore.Value) *ssacore.Value {
-	return func(s *state, n *ir.CallExpr, args []*ssacore.Value) *ssacore.Value {
+func opLen3_31Zero3(op ssaop.Op, t *types.Type) func(s *state, n *ir.CallExpr, args []*ssa.Value) *ssa.Value {
+	return func(s *state, n *ir.CallExpr, args []*ssa.Value) *ssa.Value {
 		if t, ok := ssaVecBySize[args[1].Type.Size()]; !ok {
 			panic("unknown simd vector size")
 		} else {
@@ -1954,37 +1954,37 @@ func opLen3_31Zero3(op ssaop.Op, t *types.Type) func(s *state, n *ir.CallExpr, a
 	}
 }
 
-func opLen3_21(op ssaop.Op, t *types.Type) func(s *state, n *ir.CallExpr, args []*ssacore.Value) *ssacore.Value {
-	return func(s *state, n *ir.CallExpr, args []*ssacore.Value) *ssacore.Value {
+func opLen3_21(op ssaop.Op, t *types.Type) func(s *state, n *ir.CallExpr, args []*ssa.Value) *ssa.Value {
+	return func(s *state, n *ir.CallExpr, args []*ssa.Value) *ssa.Value {
 		return s.newValue3(op, t, args[1], args[0], args[2])
 	}
 }
 
-func opLen3_231(op ssaop.Op, t *types.Type) func(s *state, n *ir.CallExpr, args []*ssacore.Value) *ssacore.Value {
-	return func(s *state, n *ir.CallExpr, args []*ssacore.Value) *ssacore.Value {
+func opLen3_231(op ssaop.Op, t *types.Type) func(s *state, n *ir.CallExpr, args []*ssa.Value) *ssa.Value {
+	return func(s *state, n *ir.CallExpr, args []*ssa.Value) *ssa.Value {
 		return s.newValue3(op, t, args[2], args[0], args[1])
 	}
 }
 
-func opLen4(op ssaop.Op, t *types.Type) func(s *state, n *ir.CallExpr, args []*ssacore.Value) *ssacore.Value {
-	return func(s *state, n *ir.CallExpr, args []*ssacore.Value) *ssacore.Value {
+func opLen4(op ssaop.Op, t *types.Type) func(s *state, n *ir.CallExpr, args []*ssa.Value) *ssa.Value {
+	return func(s *state, n *ir.CallExpr, args []*ssa.Value) *ssa.Value {
 		return s.newValue4(op, t, args[0], args[1], args[2], args[3])
 	}
 }
 
-func opLen4_231(op ssaop.Op, t *types.Type) func(s *state, n *ir.CallExpr, args []*ssacore.Value) *ssacore.Value {
-	return func(s *state, n *ir.CallExpr, args []*ssacore.Value) *ssacore.Value {
+func opLen4_231(op ssaop.Op, t *types.Type) func(s *state, n *ir.CallExpr, args []*ssa.Value) *ssa.Value {
+	return func(s *state, n *ir.CallExpr, args []*ssa.Value) *ssa.Value {
 		return s.newValue4(op, t, args[2], args[0], args[1], args[3])
 	}
 }
 
-func opLen4_31(op ssaop.Op, t *types.Type) func(s *state, n *ir.CallExpr, args []*ssacore.Value) *ssacore.Value {
-	return func(s *state, n *ir.CallExpr, args []*ssacore.Value) *ssacore.Value {
+func opLen4_31(op ssaop.Op, t *types.Type) func(s *state, n *ir.CallExpr, args []*ssa.Value) *ssa.Value {
+	return func(s *state, n *ir.CallExpr, args []*ssa.Value) *ssa.Value {
 		return s.newValue4(op, t, args[2], args[1], args[0], args[3])
 	}
 }
 
-func immJumpTable(s *state, idx *ssacore.Value, intrinsicCall *ir.CallExpr, genOp func(*state, int)) *ssacore.Value {
+func immJumpTable(s *state, idx *ssa.Value, intrinsicCall *ir.CallExpr, genOp func(*state, int)) *ssa.Value {
 	if !idx.Type.IsKind(types.TUINT8) && !idx.Type.IsKind(types.TUINT64) {
 		panic("immJumpTable expects uint8 or uint64 value")
 	}
@@ -2010,7 +2010,7 @@ func immJumpTable(s *state, idx *ssacore.Value, intrinsicCall *ir.CallExpr, genO
 	b.Pos = intrinsicCall.Pos()
 
 	b.SetControl(idx)
-	targets := [256]*ssacore.Block{}
+	targets := [256]*ssa.Block{}
 	for i := range 256 {
 		t := s.f.NewBlock(block.BlockPlain)
 		targets[i] = t
@@ -2032,11 +2032,11 @@ func immJumpTable(s *state, idx *ssacore.Value, intrinsicCall *ir.CallExpr, genO
 	return ret
 }
 
-func branchTableImm8(s *state, idx *ssacore.Value, intrinsicCall *ir.CallExpr, genOp func(*state, int)) *ssacore.Value {
+func branchTableImm8(s *state, idx *ssa.Value, intrinsicCall *ir.CallExpr, genOp func(*state, int)) *ssa.Value {
 	return branchTableN(s, idx, intrinsicCall, genOp, 256, true)
 }
 
-func branchTableN(s *state, idx *ssacore.Value, intrinsicCall *ir.CallExpr, genOp func(*state, int), immLimit uint64, preChecked bool) *ssacore.Value {
+func branchTableN(s *state, idx *ssa.Value, intrinsicCall *ir.CallExpr, genOp func(*state, int), immLimit uint64, preChecked bool) *ssa.Value {
 	// Make blocks we'll need.
 	bEnd := s.f.NewBlock(block.BlockPlain)
 	bPanic := s.f.NewBlock(block.BlockPlain)
@@ -2053,9 +2053,9 @@ func branchTableN(s *state, idx *ssacore.Value, intrinsicCall *ir.CallExpr, genO
 		bb := s.endBlock()
 		bb.Kind = block.BlockIf
 		bb.SetControl(cmp)
-		bb.AddEdgeTo(jt)                 // in range - use jump table
-		bb.AddEdgeTo(bPanic)             // out of range - panic
-		bb.Likely = ssacore.BranchLikely // panic is unlikely
+		bb.AddEdgeTo(jt)             // in range - use jump table
+		bb.AddEdgeTo(bPanic)         // out of range - panic
+		bb.Likely = ssa.BranchLikely // panic is unlikely
 
 		s.startBlock(bPanic)
 		s.rtcall(ir.Syms.PanicSimdImm, false, nil)
@@ -2076,7 +2076,7 @@ func branchTableN(s *state, idx *ssacore.Value, intrinsicCall *ir.CallExpr, genO
 	return ret
 }
 
-func branchTableNInner(s *state, idx *ssacore.Value, lowInclusive, len uint64, genOp func(*state, int), bEnd *ssacore.Block) {
+func branchTableNInner(s *state, idx *ssa.Value, lowInclusive, len uint64, genOp func(*state, int), bEnd *ssa.Block) {
 	t := types.Types[types.TUINTPTR]
 	if len == 0 {
 		panic("empty branch table")
@@ -2109,7 +2109,7 @@ func branchTableNInner(s *state, idx *ssacore.Value, lowInclusive, len uint64, g
 
 // immJumpTableN emits a jump table to one of a number of indexed cases, from zero to n-1.
 // an index of n or larger will panic
-func immJumpTableN(s *state, idx *ssacore.Value, intrinsicCall *ir.CallExpr, immLimit uint64, genOp func(*state, int)) *ssacore.Value {
+func immJumpTableN(s *state, idx *ssa.Value, intrinsicCall *ir.CallExpr, immLimit uint64, genOp func(*state, int)) *ssa.Value {
 
 	if !idx.Type.IsKind(types.TUINT8) && !idx.Type.IsKind(types.TUINT64) {
 		s.Fatalf("immJumpTable expects uint8 or uint64 value, saw %v instead, val=%s", idx.Type.String(), idx.LongString())
@@ -2134,9 +2134,9 @@ func immJumpTableN(s *state, idx *ssacore.Value, intrinsicCall *ir.CallExpr, imm
 	bb := s.endBlock()
 	bb.Kind = block.BlockIf
 	bb.SetControl(cmp)
-	bb.AddEdgeTo(jt)                 // in range - use jump table
-	bb.AddEdgeTo(bPanic)             // out of range - panic
-	bb.Likely = ssacore.BranchLikely // panic is unlikely
+	bb.AddEdgeTo(jt)             // in range - use jump table
+	bb.AddEdgeTo(bPanic)         // out of range - panic
+	bb.Likely = ssa.BranchLikely // panic is unlikely
 
 	s.startBlock(bPanic)
 	s.rtcall(ir.Syms.PanicSimdImm, false, nil)
@@ -2150,7 +2150,7 @@ func immJumpTableN(s *state, idx *ssacore.Value, intrinsicCall *ir.CallExpr, imm
 		idx = s.newValue2(ssaop.OpSpectreSliceIndex, t, idx, s.uintptrConstant(immLimit-1))
 	}
 	jt.SetControl(idx)
-	targets := make([]*ssacore.Block, immLimit, immLimit)
+	targets := make([]*ssa.Block, immLimit, immLimit)
 	for i := range immLimit {
 		t := s.f.NewBlock(block.BlockPlain)
 		targets[i] = t
@@ -2172,8 +2172,8 @@ func immJumpTableN(s *state, idx *ssacore.Value, intrinsicCall *ir.CallExpr, imm
 	return ret
 }
 
-func opLen1Imm8(op ssaop.Op, t *types.Type, offset int) func(s *state, n *ir.CallExpr, args []*ssacore.Value) *ssacore.Value {
-	return func(s *state, n *ir.CallExpr, args []*ssacore.Value) *ssacore.Value {
+func opLen1Imm8(op ssaop.Op, t *types.Type, offset int) func(s *state, n *ir.CallExpr, args []*ssa.Value) *ssa.Value {
+	return func(s *state, n *ir.CallExpr, args []*ssa.Value) *ssa.Value {
 		if args[1].Op == ssaop.OpConst8 || args[1].Op == ssaop.OpConst64 {
 			return s.newValue1I(op, t, int64(int8(args[1].AuxInt<<int64(offset))), args[0])
 		}
@@ -2184,8 +2184,8 @@ func opLen1Imm8(op ssaop.Op, t *types.Type, offset int) func(s *state, n *ir.Cal
 	}
 }
 
-func opLen2Imm8(op ssaop.Op, t *types.Type, offset int) func(s *state, n *ir.CallExpr, args []*ssacore.Value) *ssacore.Value {
-	return func(s *state, n *ir.CallExpr, args []*ssacore.Value) *ssacore.Value {
+func opLen2Imm8(op ssaop.Op, t *types.Type, offset int) func(s *state, n *ir.CallExpr, args []*ssa.Value) *ssa.Value {
+	return func(s *state, n *ir.CallExpr, args []*ssa.Value) *ssa.Value {
 		if args[1].Op == ssaop.OpConst8 || args[1].Op == ssaop.OpConst64 {
 			return s.newValue2I(op, t, int64(int8(args[1].AuxInt<<int64(offset))), args[0], args[2])
 		}
@@ -2196,8 +2196,8 @@ func opLen2Imm8(op ssaop.Op, t *types.Type, offset int) func(s *state, n *ir.Cal
 	}
 }
 
-func opLen3Imm8(op ssaop.Op, t *types.Type, offset int) func(s *state, n *ir.CallExpr, args []*ssacore.Value) *ssacore.Value {
-	return func(s *state, n *ir.CallExpr, args []*ssacore.Value) *ssacore.Value {
+func opLen3Imm8(op ssaop.Op, t *types.Type, offset int) func(s *state, n *ir.CallExpr, args []*ssa.Value) *ssa.Value {
+	return func(s *state, n *ir.CallExpr, args []*ssa.Value) *ssa.Value {
 		if args[1].Op == ssaop.OpConst8 || args[1].Op == ssaop.OpConst64 {
 			return s.newValue3I(op, t, int64(int8(args[1].AuxInt<<int64(offset))), args[0], args[2], args[3])
 		}
@@ -2208,8 +2208,8 @@ func opLen3Imm8(op ssaop.Op, t *types.Type, offset int) func(s *state, n *ir.Cal
 	}
 }
 
-func opLen2Imm8_2I(op ssaop.Op, t *types.Type, offset int) func(s *state, n *ir.CallExpr, args []*ssacore.Value) *ssacore.Value {
-	return func(s *state, n *ir.CallExpr, args []*ssacore.Value) *ssacore.Value {
+func opLen2Imm8_2I(op ssaop.Op, t *types.Type, offset int) func(s *state, n *ir.CallExpr, args []*ssa.Value) *ssa.Value {
+	return func(s *state, n *ir.CallExpr, args []*ssa.Value) *ssa.Value {
 		if args[2].Op == ssaop.OpConst8 || args[2].Op == ssaop.OpConst64 {
 			return s.newValue2I(op, t, int64(int8(args[2].AuxInt<<int64(offset))), args[0], args[1])
 		}
@@ -2221,8 +2221,8 @@ func opLen2Imm8_2I(op ssaop.Op, t *types.Type, offset int) func(s *state, n *ir.
 }
 
 // Two immediates instead of just 1.  Offset is ignored, so it is a _ parameter instead.
-func opLen2Imm8_II(op ssaop.Op, t *types.Type, _ int) func(s *state, n *ir.CallExpr, args []*ssacore.Value) *ssacore.Value {
-	return func(s *state, n *ir.CallExpr, args []*ssacore.Value) *ssacore.Value {
+func opLen2Imm8_II(op ssaop.Op, t *types.Type, _ int) func(s *state, n *ir.CallExpr, args []*ssa.Value) *ssa.Value {
+	return func(s *state, n *ir.CallExpr, args []*ssa.Value) *ssa.Value {
 		if (args[1].Op == ssaop.OpConst8 || args[1].Op == ssaop.OpConst64) && (args[2].Op == ssaop.OpConst8 || args[2].Op == ssaop.OpConst64) && args[1].AuxInt & ^3 == 0 && args[2].AuxInt & ^3 == 0 {
 			i1, i2 := args[1].AuxInt, args[2].AuxInt
 			return s.newValue2I(op, t, int64(int8(i1+i2<<4)), args[0], args[3])
@@ -2243,8 +2243,8 @@ func opLen2Imm8_II(op ssaop.Op, t *types.Type, _ int) func(s *state, n *ir.CallE
 }
 
 // The assembler requires the imm value of a SHA1RNDS4 instruction to be one of 0,1,2,3...
-func opLen2Imm8_SHA1RNDS4(op ssaop.Op, t *types.Type, offset int) func(s *state, n *ir.CallExpr, args []*ssacore.Value) *ssacore.Value {
-	return func(s *state, n *ir.CallExpr, args []*ssacore.Value) *ssacore.Value {
+func opLen2Imm8_SHA1RNDS4(op ssaop.Op, t *types.Type, offset int) func(s *state, n *ir.CallExpr, args []*ssa.Value) *ssa.Value {
+	return func(s *state, n *ir.CallExpr, args []*ssa.Value) *ssa.Value {
 		if args[1].Op == ssaop.OpConst8 || args[1].Op == ssaop.OpConst64 {
 			return s.newValue2I(op, t, int64(int8((args[1].AuxInt<<int64(offset))&0b11)), args[0], args[2])
 		}
@@ -2255,8 +2255,8 @@ func opLen2Imm8_SHA1RNDS4(op ssaop.Op, t *types.Type, offset int) func(s *state,
 	}
 }
 
-func opLen1Imm(op ssaop.Op, t *types.Type, offset int, immMax uint64) func(s *state, n *ir.CallExpr, args []*ssacore.Value) *ssacore.Value {
-	return func(s *state, n *ir.CallExpr, args []*ssacore.Value) *ssacore.Value {
+func opLen1Imm(op ssaop.Op, t *types.Type, offset int, immMax uint64) func(s *state, n *ir.CallExpr, args []*ssa.Value) *ssa.Value {
+	return func(s *state, n *ir.CallExpr, args []*ssa.Value) *ssa.Value {
 		if (args[1].Op == ssaop.OpConst8 || args[1].Op == ssaop.OpConst64) && uint64(args[1].AuxInt) <= immMax {
 			return s.newValue1I(op, t, int64(int8(args[1].AuxInt<<int64(offset))), args[0])
 		}
@@ -2267,8 +2267,8 @@ func opLen1Imm(op ssaop.Op, t *types.Type, offset int, immMax uint64) func(s *st
 	}
 }
 
-func opLen2Imm(op ssaop.Op, t *types.Type, offset int, immMax uint64) func(s *state, n *ir.CallExpr, args []*ssacore.Value) *ssacore.Value {
-	return func(s *state, n *ir.CallExpr, args []*ssacore.Value) *ssacore.Value {
+func opLen2Imm(op ssaop.Op, t *types.Type, offset int, immMax uint64) func(s *state, n *ir.CallExpr, args []*ssa.Value) *ssa.Value {
+	return func(s *state, n *ir.CallExpr, args []*ssa.Value) *ssa.Value {
 		if (args[1].Op == ssaop.OpConst8 || args[1].Op == ssaop.OpConst64) && uint64(args[1].AuxInt) <= immMax {
 			return s.newValue2I(op, t, int64(int8(args[1].AuxInt<<int64(offset))), args[0], args[2])
 		}
@@ -2279,8 +2279,8 @@ func opLen2Imm(op ssaop.Op, t *types.Type, offset int, immMax uint64) func(s *st
 	}
 }
 
-func opLen3Imm(op ssaop.Op, t *types.Type, offset int, immMax uint64) func(s *state, n *ir.CallExpr, args []*ssacore.Value) *ssacore.Value {
-	return func(s *state, n *ir.CallExpr, args []*ssacore.Value) *ssacore.Value {
+func opLen3Imm(op ssaop.Op, t *types.Type, offset int, immMax uint64) func(s *state, n *ir.CallExpr, args []*ssa.Value) *ssa.Value {
+	return func(s *state, n *ir.CallExpr, args []*ssa.Value) *ssa.Value {
 		if (args[1].Op == ssaop.OpConst8 || args[1].Op == ssaop.OpConst64) && uint64(args[1].AuxInt) <= immMax {
 			return s.newValue3I(op, t, int64(int8(args[1].AuxInt<<int64(offset))), args[0], args[2], args[3])
 		}
@@ -2291,8 +2291,8 @@ func opLen3Imm(op ssaop.Op, t *types.Type, offset int, immMax uint64) func(s *st
 	}
 }
 
-func opLen2Imm_2I(op ssaop.Op, t *types.Type, offset int, immMax uint64) func(s *state, n *ir.CallExpr, args []*ssacore.Value) *ssacore.Value {
-	return func(s *state, n *ir.CallExpr, args []*ssacore.Value) *ssacore.Value {
+func opLen2Imm_2I(op ssaop.Op, t *types.Type, offset int, immMax uint64) func(s *state, n *ir.CallExpr, args []*ssa.Value) *ssa.Value {
+	return func(s *state, n *ir.CallExpr, args []*ssa.Value) *ssa.Value {
 		if (args[2].Op == ssaop.OpConst8 || args[2].Op == ssaop.OpConst64) && uint64(args[2].AuxInt) <= immMax {
 			return s.newValue2I(op, t, int64(int8(args[2].AuxInt<<int64(offset))), args[0], args[1])
 		}
@@ -2303,8 +2303,8 @@ func opLen2Imm_2I(op ssaop.Op, t *types.Type, offset int, immMax uint64) func(s 
 	}
 }
 
-func opLen3Imm8_2I(op ssaop.Op, t *types.Type, offset int) func(s *state, n *ir.CallExpr, args []*ssacore.Value) *ssacore.Value {
-	return func(s *state, n *ir.CallExpr, args []*ssacore.Value) *ssacore.Value {
+func opLen3Imm8_2I(op ssaop.Op, t *types.Type, offset int) func(s *state, n *ir.CallExpr, args []*ssa.Value) *ssa.Value {
+	return func(s *state, n *ir.CallExpr, args []*ssa.Value) *ssa.Value {
 		if args[2].Op == ssaop.OpConst8 || args[2].Op == ssaop.OpConst64 {
 			return s.newValue3I(op, t, int64(int8(args[2].AuxInt<<int64(offset))), args[0], args[1], args[3])
 		}
@@ -2315,8 +2315,8 @@ func opLen3Imm8_2I(op ssaop.Op, t *types.Type, offset int) func(s *state, n *ir.
 	}
 }
 
-func opLen4Imm8(op ssaop.Op, t *types.Type, offset int) func(s *state, n *ir.CallExpr, args []*ssacore.Value) *ssacore.Value {
-	return func(s *state, n *ir.CallExpr, args []*ssacore.Value) *ssacore.Value {
+func opLen4Imm8(op ssaop.Op, t *types.Type, offset int) func(s *state, n *ir.CallExpr, args []*ssa.Value) *ssa.Value {
+	return func(s *state, n *ir.CallExpr, args []*ssa.Value) *ssa.Value {
 		if args[1].Op == ssaop.OpConst8 || args[1].Op == ssaop.OpConst64 {
 			return s.newValue4I(op, t, int64(int8(args[1].AuxInt<<int64(offset))), args[0], args[2], args[3], args[4])
 		}
@@ -2327,20 +2327,20 @@ func opLen4Imm8(op ssaop.Op, t *types.Type, offset int) func(s *state, n *ir.Cal
 	}
 }
 
-func simdBroadcast(op ssaop.Op) func(s *state, n *ir.CallExpr, args []*ssacore.Value) *ssacore.Value {
-	return func(s *state, n *ir.CallExpr, args []*ssacore.Value) *ssacore.Value {
+func simdBroadcast(op ssaop.Op) func(s *state, n *ir.CallExpr, args []*ssa.Value) *ssa.Value {
+	return func(s *state, n *ir.CallExpr, args []*ssa.Value) *ssa.Value {
 		return s.newValue2(op, n.Type(), args[0], s.mem())
 	}
 }
 
-func simdLoad() func(s *state, n *ir.CallExpr, args []*ssacore.Value) *ssacore.Value {
-	return func(s *state, n *ir.CallExpr, args []*ssacore.Value) *ssacore.Value {
+func simdLoad() func(s *state, n *ir.CallExpr, args []*ssa.Value) *ssa.Value {
+	return func(s *state, n *ir.CallExpr, args []*ssa.Value) *ssa.Value {
 		return s.newValue2(ssaop.OpLoad, n.Type(), args[0], s.mem())
 	}
 }
 
-func simdStore() func(s *state, n *ir.CallExpr, args []*ssacore.Value) *ssacore.Value {
-	return func(s *state, n *ir.CallExpr, args []*ssacore.Value) *ssacore.Value {
+func simdStore() func(s *state, n *ir.CallExpr, args []*ssa.Value) *ssa.Value {
+	return func(s *state, n *ir.CallExpr, args []*ssa.Value) *ssa.Value {
 		s.store(args[0].Type, args[1], args[0])
 		return nil
 	}
@@ -2360,8 +2360,8 @@ var cvtMaskToVOpcodes = map[int]map[int]ssaop.Op{
 	64: {2: ssaop.OpCvtMask64x2to8, 4: ssaop.OpCvtMask64x4to8, 8: ssaop.OpCvtMask64x8to8},
 }
 
-func simdCvtVToMask(elemBits, lanes int) func(s *state, n *ir.CallExpr, args []*ssacore.Value) *ssacore.Value {
-	return func(s *state, n *ir.CallExpr, args []*ssacore.Value) *ssacore.Value {
+func simdCvtVToMask(elemBits, lanes int) func(s *state, n *ir.CallExpr, args []*ssa.Value) *ssa.Value {
+	return func(s *state, n *ir.CallExpr, args []*ssa.Value) *ssa.Value {
 		op := cvtVToMaskOpcodes[elemBits][lanes]
 		if op == 0 {
 			panic(fmt.Sprintf("Unknown mask shape: Mask%dx%d", elemBits, lanes))
@@ -2370,8 +2370,8 @@ func simdCvtVToMask(elemBits, lanes int) func(s *state, n *ir.CallExpr, args []*
 	}
 }
 
-func simdCvtMaskToV(elemBits, lanes int) func(s *state, n *ir.CallExpr, args []*ssacore.Value) *ssacore.Value {
-	return func(s *state, n *ir.CallExpr, args []*ssacore.Value) *ssacore.Value {
+func simdCvtMaskToV(elemBits, lanes int) func(s *state, n *ir.CallExpr, args []*ssa.Value) *ssa.Value {
+	return func(s *state, n *ir.CallExpr, args []*ssa.Value) *ssa.Value {
 		op := cvtMaskToVOpcodes[elemBits][lanes]
 		if op == 0 {
 			panic(fmt.Sprintf("Unknown mask shape: Mask%dx%d", elemBits, lanes))
@@ -2380,14 +2380,14 @@ func simdCvtMaskToV(elemBits, lanes int) func(s *state, n *ir.CallExpr, args []*
 	}
 }
 
-func simdMaskedLoad(op ssaop.Op) func(s *state, n *ir.CallExpr, args []*ssacore.Value) *ssacore.Value {
-	return func(s *state, n *ir.CallExpr, args []*ssacore.Value) *ssacore.Value {
+func simdMaskedLoad(op ssaop.Op) func(s *state, n *ir.CallExpr, args []*ssa.Value) *ssa.Value {
+	return func(s *state, n *ir.CallExpr, args []*ssa.Value) *ssa.Value {
 		return s.newValue3(op, n.Type(), args[0], args[1], s.mem())
 	}
 }
 
-func simdMaskedStore(op ssaop.Op) func(s *state, n *ir.CallExpr, args []*ssacore.Value) *ssacore.Value {
-	return func(s *state, n *ir.CallExpr, args []*ssacore.Value) *ssacore.Value {
+func simdMaskedStore(op ssaop.Op) func(s *state, n *ir.CallExpr, args []*ssa.Value) *ssa.Value {
+	return func(s *state, n *ir.CallExpr, args []*ssa.Value) *ssa.Value {
 		s.vars[memVar] = s.newValue4A(op, types.TypeMem, args[0].Type, args[1], args[2], args[0], s.mem())
 		return nil
 	}

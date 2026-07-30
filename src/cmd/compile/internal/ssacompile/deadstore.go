@@ -6,7 +6,7 @@ package ssacompile
 
 import (
 	"cmd/compile/internal/ir"
-	"cmd/compile/internal/ssa/ssacore"
+	"cmd/compile/internal/ssa"
 	"cmd/compile/internal/ssa/ssaop"
 	"cmd/compile/internal/types"
 	"cmd/internal/obj"
@@ -20,8 +20,8 @@ const maxShadowRanges = 64
 // Dead stores are those which are unconditionally followed by
 // another store to the same location, with no intervening load.
 // This implementation only works within a basic block. TODO: use something more global.
-func dse(f *ssacore.Func) {
-	var stores []*ssacore.Value
+func dse(f *ssa.Func) {
+	var stores []*ssa.Value
 	loadUse := f.NewSparseSet(f.NumValues())
 	defer f.RetSparseSet(loadUse)
 	storeUse := f.NewSparseSet(f.NumValues())
@@ -29,7 +29,7 @@ func dse(f *ssacore.Func) {
 	shadowed := f.NewSparseMap(f.NumValues())
 	defer f.RetSparseMap(shadowed)
 	// localAddrs maps from a local variable (the Aux field of a LocalAddr value) to an instance of a LocalAddr value for that variable in the current block.
-	localAddrs := map[any]*ssacore.Value{}
+	localAddrs := map[any]*ssa.Value{}
 
 	// shadowedRanges stores the actual range data. The 'shadowed' sparseMap stores a 1-based index into this slice.
 	var shadowedRanges []*shadowRanges
@@ -93,7 +93,7 @@ func dse(f *ssacore.Func) {
 		}
 
 		// find last store in the block
-		var last *ssacore.Value
+		var last *ssa.Value
 		for _, v := range stores {
 			if storeUse.Contains(v.ID) {
 				continue
@@ -243,11 +243,11 @@ func (sr *shadowRanges) add(lo, hi int64) {
 // we track the operations that the address of each auto reaches and if it only
 // reaches stores then we delete all the stores. The other operations will then
 // be eliminated by the dead code elimination pass.
-func elimDeadAutosGeneric(f *ssacore.Func) {
-	addr := make(map[*ssacore.Value]*ir.Name) // values that the address of the auto reaches
-	elim := make(map[*ssacore.Value]*ir.Name) // values that could be eliminated if the auto is
-	move := make(map[*ir.Name]ir.NameSet)     // for a (Move &y &x _) and y is unused, move[y].Add(x)
-	var used ir.NameSet                       // used autos that must be kept
+func elimDeadAutosGeneric(f *ssa.Func) {
+	addr := make(map[*ssa.Value]*ir.Name) // values that the address of the auto reaches
+	elim := make(map[*ssa.Value]*ir.Name) // values that could be eliminated if the auto is
+	move := make(map[*ir.Name]ir.NameSet) // for a (Move &y &x _) and y is unused, move[y].Add(x)
+	var used ir.NameSet                   // used autos that must be kept
 
 	// Adds a name to used and, when it is the target of a move, also
 	// propagates the used state to its source.
@@ -267,7 +267,7 @@ func elimDeadAutosGeneric(f *ssacore.Func) {
 	}
 
 	// visit the value and report whether any of the maps are updated
-	visit := func(v *ssacore.Value) (changed bool) {
+	visit := func(v *ssa.Value) (changed bool) {
 		args := v.Args
 		switch v.Op {
 		case ssaop.OpAddr, ssaop.OpLocalAddr:
@@ -432,12 +432,12 @@ func elimDeadAutosGeneric(f *ssacore.Func) {
 
 // elimUnreadAutos deletes stores (and associated bookkeeping ops VarDef and VarKill)
 // to autos that are never read from.
-func elimUnreadAutos(f *ssacore.Func) {
+func elimUnreadAutos(f *ssa.Func) {
 	// Loop over all ops that affect autos taking note of which
 	// autos we need and also stores that we might be able to
 	// eliminate.
 	var seen ir.NameSet
-	var stores []*ssacore.Value
+	var stores []*ssa.Value
 	for _, b := range f.Blocks {
 		for _, v := range b.Values {
 			n, ok := v.Aux.(*ir.Name)
@@ -494,6 +494,6 @@ func elimUnreadAutos(f *ssacore.Func) {
 // all the args are effectively address-taken, but not necessarily have
 // an Addr or LocalAddr op. We could probably just check for cgo_unsafe_arg,
 // but ABIInternal is mostly what matters.
-func isABIInternalParam(f *ssacore.Func, n *ir.Name) bool {
+func isABIInternalParam(f *ssa.Func, n *ir.Name) bool {
 	return n.Class == ir.PPARAM && f.ABISelf.Which() == obj.ABIInternal
 }

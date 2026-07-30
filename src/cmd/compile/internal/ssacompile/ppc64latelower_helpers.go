@@ -5,7 +5,7 @@
 package ssacompile
 
 import (
-	"cmd/compile/internal/ssa/ssacore"
+	"cmd/compile/internal/ssa"
 	"cmd/compile/internal/ssa/ssaop"
 	"cmd/compile/internal/types"
 )
@@ -35,7 +35,7 @@ import (
 // c  = (OR a z)
 //
 // Which makes it trivial to rewrite b using a lowering rule.
-func convertPPC64OpToOpCC(op *ssacore.Value) *ssacore.Value {
+func convertPPC64OpToOpCC(op *ssa.Value) *ssa.Value {
 	ccOpMap := map[ssaop.Op]ssaop.Op{
 		ssaop.OpPPC64ADD:      ssaop.OpPPC64ADDCC,
 		ssaop.OpPPC64ADDconst: ssaop.OpPPC64ADDCCconst,
@@ -61,7 +61,7 @@ func convertPPC64OpToOpCC(op *ssacore.Value) *ssacore.Value {
 
 // Try converting a RLDICL to ANDCC. If successful, return the mask otherwise 0.
 func convertPPC64RldiclAndccconst(sauxint int64) int64 {
-	r, _, _, mask := ssacore.DecodePPC64RotateMask(sauxint)
+	r, _, _, mask := ssa.DecodePPC64RotateMask(sauxint)
 	if r != 0 || mask&0xFFFF != mask {
 		return 0
 	}

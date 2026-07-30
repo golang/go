@@ -4,9 +4,9 @@ package ssacompile
 
 import "cmd/compile/internal/types"
 import "cmd/compile/internal/ssa/ssaop"
-import "cmd/compile/internal/ssa/ssacore"
+import "cmd/compile/internal/ssa"
 
-func rewriteValuedec64(v *ssacore.Value) bool {
+func rewriteValuedec64(v *ssa.Value) bool {
 	switch v.Op {
 	case ssaop.OpAdd64:
 		return rewriteValuedec64_OpAdd64(v)
@@ -144,7 +144,7 @@ func rewriteValuedec64(v *ssacore.Value) bool {
 	}
 	return false
 }
-func rewriteValuedec64_OpAdd64(v *ssacore.Value) bool {
+func rewriteValuedec64_OpAdd64(v *ssa.Value) bool {
 	v_1 := v.Args[1]
 	v_0 := v.Args[0]
 	b := v.Block
@@ -179,7 +179,7 @@ func rewriteValuedec64_OpAdd64(v *ssacore.Value) bool {
 		return true
 	}
 }
-func rewriteValuedec64_OpAnd64(v *ssacore.Value) bool {
+func rewriteValuedec64_OpAnd64(v *ssa.Value) bool {
 	v_1 := v.Args[1]
 	v_0 := v.Args[0]
 	b := v.Block
@@ -206,7 +206,7 @@ func rewriteValuedec64_OpAnd64(v *ssacore.Value) bool {
 		return true
 	}
 }
-func rewriteValuedec64_OpArg(v *ssacore.Value) bool {
+func rewriteValuedec64_OpArg(v *ssa.Value) bool {
 	b := v.Block
 	config := b.Func.Config
 	typ := &b.Func.Config.Types
@@ -288,7 +288,7 @@ func rewriteValuedec64_OpArg(v *ssacore.Value) bool {
 	}
 	return false
 }
-func rewriteValuedec64_OpAvg64u(v *ssacore.Value) bool {
+func rewriteValuedec64_OpAvg64u(v *ssa.Value) bool {
 	v_1 := v.Args[1]
 	v_0 := v.Args[0]
 	b := v.Block
@@ -310,7 +310,7 @@ func rewriteValuedec64_OpAvg64u(v *ssacore.Value) bool {
 		return true
 	}
 }
-func rewriteValuedec64_OpBitLen64(v *ssacore.Value) bool {
+func rewriteValuedec64_OpBitLen64(v *ssa.Value) bool {
 	v_0 := v.Args[0]
 	b := v.Block
 	typ := &b.Func.Config.Types
@@ -336,7 +336,7 @@ func rewriteValuedec64_OpBitLen64(v *ssacore.Value) bool {
 		return true
 	}
 }
-func rewriteValuedec64_OpBswap64(v *ssacore.Value) bool {
+func rewriteValuedec64_OpBswap64(v *ssa.Value) bool {
 	v_0 := v.Args[0]
 	b := v.Block
 	typ := &b.Func.Config.Types
@@ -357,7 +357,7 @@ func rewriteValuedec64_OpBswap64(v *ssacore.Value) bool {
 		return true
 	}
 }
-func rewriteValuedec64_OpCom64(v *ssacore.Value) bool {
+func rewriteValuedec64_OpCom64(v *ssa.Value) bool {
 	v_0 := v.Args[0]
 	b := v.Block
 	typ := &b.Func.Config.Types
@@ -378,7 +378,7 @@ func rewriteValuedec64_OpCom64(v *ssacore.Value) bool {
 		return true
 	}
 }
-func rewriteValuedec64_OpConst64(v *ssacore.Value) bool {
+func rewriteValuedec64_OpConst64(v *ssa.Value) bool {
 	b := v.Block
 	typ := &b.Func.Config.Types
 	// match: (Const64 <t> [c])
@@ -417,7 +417,7 @@ func rewriteValuedec64_OpConst64(v *ssacore.Value) bool {
 	}
 	return false
 }
-func rewriteValuedec64_OpCtz64(v *ssacore.Value) bool {
+func rewriteValuedec64_OpCtz64(v *ssa.Value) bool {
 	v_0 := v.Args[0]
 	b := v.Block
 	typ := &b.Func.Config.Types
@@ -445,7 +445,7 @@ func rewriteValuedec64_OpCtz64(v *ssacore.Value) bool {
 		return true
 	}
 }
-func rewriteValuedec64_OpEq64(v *ssacore.Value) bool {
+func rewriteValuedec64_OpEq64(v *ssa.Value) bool {
 	v_1 := v.Args[1]
 	v_0 := v.Args[0]
 	b := v.Block
@@ -472,7 +472,7 @@ func rewriteValuedec64_OpEq64(v *ssacore.Value) bool {
 		return true
 	}
 }
-func rewriteValuedec64_OpHmul64(v *ssacore.Value) bool {
+func rewriteValuedec64_OpHmul64(v *ssa.Value) bool {
 	v_1 := v.Args[1]
 	v_0 := v.Args[0]
 	b := v.Block
@@ -511,7 +511,7 @@ func rewriteValuedec64_OpHmul64(v *ssacore.Value) bool {
 		return true
 	}
 }
-func rewriteValuedec64_OpHmul64u(v *ssacore.Value) bool {
+func rewriteValuedec64_OpHmul64u(v *ssa.Value) bool {
 	v_1 := v.Args[1]
 	v_0 := v.Args[0]
 	b := v.Block
@@ -528,7 +528,7 @@ func rewriteValuedec64_OpHmul64u(v *ssacore.Value) bool {
 		return true
 	}
 }
-func rewriteValuedec64_OpInt64Hi(v *ssacore.Value) bool {
+func rewriteValuedec64_OpInt64Hi(v *ssa.Value) bool {
 	v_0 := v.Args[0]
 	// match: (Int64Hi (Int64Make hi _))
 	// result: hi
@@ -542,7 +542,7 @@ func rewriteValuedec64_OpInt64Hi(v *ssacore.Value) bool {
 	}
 	return false
 }
-func rewriteValuedec64_OpInt64Lo(v *ssacore.Value) bool {
+func rewriteValuedec64_OpInt64Lo(v *ssa.Value) bool {
 	v_0 := v.Args[0]
 	// match: (Int64Lo (Int64Make _ lo))
 	// result: lo
@@ -556,7 +556,7 @@ func rewriteValuedec64_OpInt64Lo(v *ssacore.Value) bool {
 	}
 	return false
 }
-func rewriteValuedec64_OpLast(v *ssacore.Value) bool {
+func rewriteValuedec64_OpLast(v *ssa.Value) bool {
 	// match: (Last ___)
 	// result: v.Args[len(v.Args)-1]
 	for {
@@ -564,7 +564,7 @@ func rewriteValuedec64_OpLast(v *ssacore.Value) bool {
 		return true
 	}
 }
-func rewriteValuedec64_OpLeq64(v *ssacore.Value) bool {
+func rewriteValuedec64_OpLeq64(v *ssa.Value) bool {
 	v_1 := v.Args[1]
 	v_0 := v.Args[0]
 	b := v.Block
@@ -595,7 +595,7 @@ func rewriteValuedec64_OpLeq64(v *ssacore.Value) bool {
 		return true
 	}
 }
-func rewriteValuedec64_OpLeq64U(v *ssacore.Value) bool {
+func rewriteValuedec64_OpLeq64U(v *ssa.Value) bool {
 	v_1 := v.Args[1]
 	v_0 := v.Args[0]
 	b := v.Block
@@ -626,7 +626,7 @@ func rewriteValuedec64_OpLeq64U(v *ssacore.Value) bool {
 		return true
 	}
 }
-func rewriteValuedec64_OpLess64(v *ssacore.Value) bool {
+func rewriteValuedec64_OpLess64(v *ssa.Value) bool {
 	v_1 := v.Args[1]
 	v_0 := v.Args[0]
 	b := v.Block
@@ -657,7 +657,7 @@ func rewriteValuedec64_OpLess64(v *ssacore.Value) bool {
 		return true
 	}
 }
-func rewriteValuedec64_OpLess64U(v *ssacore.Value) bool {
+func rewriteValuedec64_OpLess64U(v *ssa.Value) bool {
 	v_1 := v.Args[1]
 	v_0 := v.Args[0]
 	b := v.Block
@@ -688,7 +688,7 @@ func rewriteValuedec64_OpLess64U(v *ssacore.Value) bool {
 		return true
 	}
 }
-func rewriteValuedec64_OpLoad(v *ssacore.Value) bool {
+func rewriteValuedec64_OpLoad(v *ssa.Value) bool {
 	v_1 := v.Args[1]
 	v_0 := v.Args[0]
 	b := v.Block
@@ -780,7 +780,7 @@ func rewriteValuedec64_OpLoad(v *ssacore.Value) bool {
 	}
 	return false
 }
-func rewriteValuedec64_OpLsh16x64(v *ssacore.Value) bool {
+func rewriteValuedec64_OpLsh16x64(v *ssa.Value) bool {
 	v_1 := v.Args[1]
 	v_0 := v.Args[0]
 	b := v.Block
@@ -818,7 +818,7 @@ func rewriteValuedec64_OpLsh16x64(v *ssacore.Value) bool {
 			break
 		}
 		v.Reset(ssaop.OpLsh16x32)
-		v.AuxInt = ssacore.BoolToAuxInt(c)
+		v.AuxInt = ssa.BoolToAuxInt(c)
 		v.AddArg2(x, lo)
 		return true
 	}
@@ -861,7 +861,7 @@ func rewriteValuedec64_OpLsh16x64(v *ssacore.Value) bool {
 		return true
 	}
 }
-func rewriteValuedec64_OpLsh32x64(v *ssacore.Value) bool {
+func rewriteValuedec64_OpLsh32x64(v *ssa.Value) bool {
 	v_1 := v.Args[1]
 	v_0 := v.Args[0]
 	b := v.Block
@@ -899,7 +899,7 @@ func rewriteValuedec64_OpLsh32x64(v *ssacore.Value) bool {
 			break
 		}
 		v.Reset(ssaop.OpLsh32x32)
-		v.AuxInt = ssacore.BoolToAuxInt(c)
+		v.AuxInt = ssa.BoolToAuxInt(c)
 		v.AddArg2(x, lo)
 		return true
 	}
@@ -942,7 +942,7 @@ func rewriteValuedec64_OpLsh32x64(v *ssacore.Value) bool {
 		return true
 	}
 }
-func rewriteValuedec64_OpLsh64x16(v *ssacore.Value) bool {
+func rewriteValuedec64_OpLsh64x16(v *ssa.Value) bool {
 	v_1 := v.Args[1]
 	v_0 := v.Args[0]
 	b := v.Block
@@ -979,7 +979,7 @@ func rewriteValuedec64_OpLsh64x16(v *ssacore.Value) bool {
 		return true
 	}
 }
-func rewriteValuedec64_OpLsh64x32(v *ssacore.Value) bool {
+func rewriteValuedec64_OpLsh64x32(v *ssa.Value) bool {
 	v_1 := v.Args[1]
 	v_0 := v.Args[0]
 	b := v.Block
@@ -1016,7 +1016,7 @@ func rewriteValuedec64_OpLsh64x32(v *ssacore.Value) bool {
 		return true
 	}
 }
-func rewriteValuedec64_OpLsh64x64(v *ssacore.Value) bool {
+func rewriteValuedec64_OpLsh64x64(v *ssa.Value) bool {
 	v_1 := v.Args[1]
 	v_0 := v.Args[0]
 	b := v.Block
@@ -1054,7 +1054,7 @@ func rewriteValuedec64_OpLsh64x64(v *ssacore.Value) bool {
 			break
 		}
 		v.Reset(ssaop.OpLsh64x32)
-		v.AuxInt = ssacore.BoolToAuxInt(c)
+		v.AuxInt = ssa.BoolToAuxInt(c)
 		v.AddArg2(x, lo)
 		return true
 	}
@@ -1097,7 +1097,7 @@ func rewriteValuedec64_OpLsh64x64(v *ssacore.Value) bool {
 		return true
 	}
 }
-func rewriteValuedec64_OpLsh64x8(v *ssacore.Value) bool {
+func rewriteValuedec64_OpLsh64x8(v *ssa.Value) bool {
 	v_1 := v.Args[1]
 	v_0 := v.Args[0]
 	b := v.Block
@@ -1134,7 +1134,7 @@ func rewriteValuedec64_OpLsh64x8(v *ssacore.Value) bool {
 		return true
 	}
 }
-func rewriteValuedec64_OpLsh8x64(v *ssacore.Value) bool {
+func rewriteValuedec64_OpLsh8x64(v *ssa.Value) bool {
 	v_1 := v.Args[1]
 	v_0 := v.Args[0]
 	b := v.Block
@@ -1172,7 +1172,7 @@ func rewriteValuedec64_OpLsh8x64(v *ssacore.Value) bool {
 			break
 		}
 		v.Reset(ssaop.OpLsh8x32)
-		v.AuxInt = ssacore.BoolToAuxInt(c)
+		v.AuxInt = ssa.BoolToAuxInt(c)
 		v.AddArg2(x, lo)
 		return true
 	}
@@ -1215,7 +1215,7 @@ func rewriteValuedec64_OpLsh8x64(v *ssacore.Value) bool {
 		return true
 	}
 }
-func rewriteValuedec64_OpMul64(v *ssacore.Value) bool {
+func rewriteValuedec64_OpMul64(v *ssa.Value) bool {
 	v_1 := v.Args[1]
 	v_0 := v.Args[0]
 	b := v.Block
@@ -1256,7 +1256,7 @@ func rewriteValuedec64_OpMul64(v *ssacore.Value) bool {
 		return true
 	}
 }
-func rewriteValuedec64_OpMul64uhilo(v *ssacore.Value) bool {
+func rewriteValuedec64_OpMul64uhilo(v *ssa.Value) bool {
 	v_1 := v.Args[1]
 	v_0 := v.Args[0]
 	b := v.Block
@@ -1341,7 +1341,7 @@ func rewriteValuedec64_OpMul64uhilo(v *ssacore.Value) bool {
 		return true
 	}
 }
-func rewriteValuedec64_OpNeg64(v *ssacore.Value) bool {
+func rewriteValuedec64_OpNeg64(v *ssa.Value) bool {
 	v_0 := v.Args[0]
 	b := v.Block
 	// match: (Neg64 <t> x)
@@ -1356,7 +1356,7 @@ func rewriteValuedec64_OpNeg64(v *ssacore.Value) bool {
 		return true
 	}
 }
-func rewriteValuedec64_OpNeq64(v *ssacore.Value) bool {
+func rewriteValuedec64_OpNeq64(v *ssa.Value) bool {
 	v_1 := v.Args[1]
 	v_0 := v.Args[0]
 	b := v.Block
@@ -1383,7 +1383,7 @@ func rewriteValuedec64_OpNeq64(v *ssacore.Value) bool {
 		return true
 	}
 }
-func rewriteValuedec64_OpOr32(v *ssacore.Value) bool {
+func rewriteValuedec64_OpOr32(v *ssa.Value) bool {
 	v_1 := v.Args[1]
 	v_0 := v.Args[0]
 	b := v.Block
@@ -1441,7 +1441,7 @@ func rewriteValuedec64_OpOr32(v *ssacore.Value) bool {
 	}
 	return false
 }
-func rewriteValuedec64_OpOr64(v *ssacore.Value) bool {
+func rewriteValuedec64_OpOr64(v *ssa.Value) bool {
 	v_1 := v.Args[1]
 	v_0 := v.Args[0]
 	b := v.Block
@@ -1468,7 +1468,7 @@ func rewriteValuedec64_OpOr64(v *ssacore.Value) bool {
 		return true
 	}
 }
-func rewriteValuedec64_OpRotateLeft16(v *ssacore.Value) bool {
+func rewriteValuedec64_OpRotateLeft16(v *ssa.Value) bool {
 	v_1 := v.Args[1]
 	v_0 := v.Args[0]
 	// match: (RotateLeft16 x (Int64Make hi lo))
@@ -1485,7 +1485,7 @@ func rewriteValuedec64_OpRotateLeft16(v *ssacore.Value) bool {
 	}
 	return false
 }
-func rewriteValuedec64_OpRotateLeft32(v *ssacore.Value) bool {
+func rewriteValuedec64_OpRotateLeft32(v *ssa.Value) bool {
 	v_1 := v.Args[1]
 	v_0 := v.Args[0]
 	// match: (RotateLeft32 x (Int64Make hi lo))
@@ -1502,7 +1502,7 @@ func rewriteValuedec64_OpRotateLeft32(v *ssacore.Value) bool {
 	}
 	return false
 }
-func rewriteValuedec64_OpRotateLeft64(v *ssacore.Value) bool {
+func rewriteValuedec64_OpRotateLeft64(v *ssa.Value) bool {
 	v_1 := v.Args[1]
 	v_0 := v.Args[0]
 	b := v.Block
@@ -1973,7 +1973,7 @@ func rewriteValuedec64_OpRotateLeft64(v *ssacore.Value) bool {
 	}
 	return false
 }
-func rewriteValuedec64_OpRotateLeft8(v *ssacore.Value) bool {
+func rewriteValuedec64_OpRotateLeft8(v *ssa.Value) bool {
 	v_1 := v.Args[1]
 	v_0 := v.Args[0]
 	// match: (RotateLeft8 x (Int64Make hi lo))
@@ -1990,7 +1990,7 @@ func rewriteValuedec64_OpRotateLeft8(v *ssacore.Value) bool {
 	}
 	return false
 }
-func rewriteValuedec64_OpRsh16Ux64(v *ssacore.Value) bool {
+func rewriteValuedec64_OpRsh16Ux64(v *ssa.Value) bool {
 	v_1 := v.Args[1]
 	v_0 := v.Args[0]
 	b := v.Block
@@ -2028,7 +2028,7 @@ func rewriteValuedec64_OpRsh16Ux64(v *ssacore.Value) bool {
 			break
 		}
 		v.Reset(ssaop.OpRsh16Ux32)
-		v.AuxInt = ssacore.BoolToAuxInt(c)
+		v.AuxInt = ssa.BoolToAuxInt(c)
 		v.AddArg2(x, lo)
 		return true
 	}
@@ -2071,7 +2071,7 @@ func rewriteValuedec64_OpRsh16Ux64(v *ssacore.Value) bool {
 		return true
 	}
 }
-func rewriteValuedec64_OpRsh16x64(v *ssacore.Value) bool {
+func rewriteValuedec64_OpRsh16x64(v *ssa.Value) bool {
 	v_1 := v.Args[1]
 	v_0 := v.Args[0]
 	b := v.Block
@@ -2112,7 +2112,7 @@ func rewriteValuedec64_OpRsh16x64(v *ssacore.Value) bool {
 			break
 		}
 		v.Reset(ssaop.OpRsh16x32)
-		v.AuxInt = ssacore.BoolToAuxInt(c)
+		v.AuxInt = ssa.BoolToAuxInt(c)
 		v.AddArg2(x, lo)
 		return true
 	}
@@ -2155,7 +2155,7 @@ func rewriteValuedec64_OpRsh16x64(v *ssacore.Value) bool {
 		return true
 	}
 }
-func rewriteValuedec64_OpRsh32Ux64(v *ssacore.Value) bool {
+func rewriteValuedec64_OpRsh32Ux64(v *ssa.Value) bool {
 	v_1 := v.Args[1]
 	v_0 := v.Args[0]
 	b := v.Block
@@ -2193,7 +2193,7 @@ func rewriteValuedec64_OpRsh32Ux64(v *ssacore.Value) bool {
 			break
 		}
 		v.Reset(ssaop.OpRsh32Ux32)
-		v.AuxInt = ssacore.BoolToAuxInt(c)
+		v.AuxInt = ssa.BoolToAuxInt(c)
 		v.AddArg2(x, lo)
 		return true
 	}
@@ -2236,7 +2236,7 @@ func rewriteValuedec64_OpRsh32Ux64(v *ssacore.Value) bool {
 		return true
 	}
 }
-func rewriteValuedec64_OpRsh32x64(v *ssacore.Value) bool {
+func rewriteValuedec64_OpRsh32x64(v *ssa.Value) bool {
 	v_1 := v.Args[1]
 	v_0 := v.Args[0]
 	b := v.Block
@@ -2275,7 +2275,7 @@ func rewriteValuedec64_OpRsh32x64(v *ssacore.Value) bool {
 			break
 		}
 		v.Reset(ssaop.OpRsh32x32)
-		v.AuxInt = ssacore.BoolToAuxInt(c)
+		v.AuxInt = ssa.BoolToAuxInt(c)
 		v.AddArg2(x, lo)
 		return true
 	}
@@ -2318,7 +2318,7 @@ func rewriteValuedec64_OpRsh32x64(v *ssacore.Value) bool {
 		return true
 	}
 }
-func rewriteValuedec64_OpRsh64Ux16(v *ssacore.Value) bool {
+func rewriteValuedec64_OpRsh64Ux16(v *ssa.Value) bool {
 	v_1 := v.Args[1]
 	v_0 := v.Args[0]
 	b := v.Block
@@ -2355,7 +2355,7 @@ func rewriteValuedec64_OpRsh64Ux16(v *ssacore.Value) bool {
 		return true
 	}
 }
-func rewriteValuedec64_OpRsh64Ux32(v *ssacore.Value) bool {
+func rewriteValuedec64_OpRsh64Ux32(v *ssa.Value) bool {
 	v_1 := v.Args[1]
 	v_0 := v.Args[0]
 	b := v.Block
@@ -2392,7 +2392,7 @@ func rewriteValuedec64_OpRsh64Ux32(v *ssacore.Value) bool {
 		return true
 	}
 }
-func rewriteValuedec64_OpRsh64Ux64(v *ssacore.Value) bool {
+func rewriteValuedec64_OpRsh64Ux64(v *ssa.Value) bool {
 	v_1 := v.Args[1]
 	v_0 := v.Args[0]
 	b := v.Block
@@ -2430,7 +2430,7 @@ func rewriteValuedec64_OpRsh64Ux64(v *ssacore.Value) bool {
 			break
 		}
 		v.Reset(ssaop.OpRsh64Ux32)
-		v.AuxInt = ssacore.BoolToAuxInt(c)
+		v.AuxInt = ssa.BoolToAuxInt(c)
 		v.AddArg2(x, lo)
 		return true
 	}
@@ -2473,7 +2473,7 @@ func rewriteValuedec64_OpRsh64Ux64(v *ssacore.Value) bool {
 		return true
 	}
 }
-func rewriteValuedec64_OpRsh64Ux8(v *ssacore.Value) bool {
+func rewriteValuedec64_OpRsh64Ux8(v *ssa.Value) bool {
 	v_1 := v.Args[1]
 	v_0 := v.Args[0]
 	b := v.Block
@@ -2510,7 +2510,7 @@ func rewriteValuedec64_OpRsh64Ux8(v *ssacore.Value) bool {
 		return true
 	}
 }
-func rewriteValuedec64_OpRsh64x16(v *ssacore.Value) bool {
+func rewriteValuedec64_OpRsh64x16(v *ssa.Value) bool {
 	v_1 := v.Args[1]
 	v_0 := v.Args[0]
 	b := v.Block
@@ -2557,7 +2557,7 @@ func rewriteValuedec64_OpRsh64x16(v *ssacore.Value) bool {
 		return true
 	}
 }
-func rewriteValuedec64_OpRsh64x32(v *ssacore.Value) bool {
+func rewriteValuedec64_OpRsh64x32(v *ssa.Value) bool {
 	v_1 := v.Args[1]
 	v_0 := v.Args[0]
 	b := v.Block
@@ -2602,7 +2602,7 @@ func rewriteValuedec64_OpRsh64x32(v *ssacore.Value) bool {
 		return true
 	}
 }
-func rewriteValuedec64_OpRsh64x64(v *ssacore.Value) bool {
+func rewriteValuedec64_OpRsh64x64(v *ssa.Value) bool {
 	v_1 := v.Args[1]
 	v_0 := v.Args[0]
 	b := v.Block
@@ -2645,7 +2645,7 @@ func rewriteValuedec64_OpRsh64x64(v *ssacore.Value) bool {
 			break
 		}
 		v.Reset(ssaop.OpRsh64x32)
-		v.AuxInt = ssacore.BoolToAuxInt(c)
+		v.AuxInt = ssa.BoolToAuxInt(c)
 		v.AddArg2(x, lo)
 		return true
 	}
@@ -2688,7 +2688,7 @@ func rewriteValuedec64_OpRsh64x64(v *ssacore.Value) bool {
 		return true
 	}
 }
-func rewriteValuedec64_OpRsh64x8(v *ssacore.Value) bool {
+func rewriteValuedec64_OpRsh64x8(v *ssa.Value) bool {
 	v_1 := v.Args[1]
 	v_0 := v.Args[0]
 	b := v.Block
@@ -2735,7 +2735,7 @@ func rewriteValuedec64_OpRsh64x8(v *ssacore.Value) bool {
 		return true
 	}
 }
-func rewriteValuedec64_OpRsh8Ux64(v *ssacore.Value) bool {
+func rewriteValuedec64_OpRsh8Ux64(v *ssa.Value) bool {
 	v_1 := v.Args[1]
 	v_0 := v.Args[0]
 	b := v.Block
@@ -2773,7 +2773,7 @@ func rewriteValuedec64_OpRsh8Ux64(v *ssacore.Value) bool {
 			break
 		}
 		v.Reset(ssaop.OpRsh8Ux32)
-		v.AuxInt = ssacore.BoolToAuxInt(c)
+		v.AuxInt = ssa.BoolToAuxInt(c)
 		v.AddArg2(x, lo)
 		return true
 	}
@@ -2816,7 +2816,7 @@ func rewriteValuedec64_OpRsh8Ux64(v *ssacore.Value) bool {
 		return true
 	}
 }
-func rewriteValuedec64_OpRsh8x64(v *ssacore.Value) bool {
+func rewriteValuedec64_OpRsh8x64(v *ssa.Value) bool {
 	v_1 := v.Args[1]
 	v_0 := v.Args[0]
 	b := v.Block
@@ -2857,7 +2857,7 @@ func rewriteValuedec64_OpRsh8x64(v *ssacore.Value) bool {
 			break
 		}
 		v.Reset(ssaop.OpRsh8x32)
-		v.AuxInt = ssacore.BoolToAuxInt(c)
+		v.AuxInt = ssa.BoolToAuxInt(c)
 		v.AddArg2(x, lo)
 		return true
 	}
@@ -2900,7 +2900,7 @@ func rewriteValuedec64_OpRsh8x64(v *ssacore.Value) bool {
 		return true
 	}
 }
-func rewriteValuedec64_OpSelect0(v *ssacore.Value) bool {
+func rewriteValuedec64_OpSelect0(v *ssa.Value) bool {
 	v_0 := v.Args[0]
 	// match: (Select0 (MakeTuple x y))
 	// result: x
@@ -2914,7 +2914,7 @@ func rewriteValuedec64_OpSelect0(v *ssacore.Value) bool {
 	}
 	return false
 }
-func rewriteValuedec64_OpSelect1(v *ssacore.Value) bool {
+func rewriteValuedec64_OpSelect1(v *ssa.Value) bool {
 	v_0 := v.Args[0]
 	// match: (Select1 (MakeTuple x y))
 	// result: y
@@ -2928,7 +2928,7 @@ func rewriteValuedec64_OpSelect1(v *ssacore.Value) bool {
 	}
 	return false
 }
-func rewriteValuedec64_OpSignExt16to64(v *ssacore.Value) bool {
+func rewriteValuedec64_OpSignExt16to64(v *ssa.Value) bool {
 	v_0 := v.Args[0]
 	b := v.Block
 	typ := &b.Func.Config.Types
@@ -2943,7 +2943,7 @@ func rewriteValuedec64_OpSignExt16to64(v *ssacore.Value) bool {
 		return true
 	}
 }
-func rewriteValuedec64_OpSignExt32to64(v *ssacore.Value) bool {
+func rewriteValuedec64_OpSignExt32to64(v *ssa.Value) bool {
 	v_0 := v.Args[0]
 	b := v.Block
 	typ := &b.Func.Config.Types
@@ -2958,7 +2958,7 @@ func rewriteValuedec64_OpSignExt32to64(v *ssacore.Value) bool {
 		return true
 	}
 }
-func rewriteValuedec64_OpSignExt8to64(v *ssacore.Value) bool {
+func rewriteValuedec64_OpSignExt8to64(v *ssa.Value) bool {
 	v_0 := v.Args[0]
 	b := v.Block
 	typ := &b.Func.Config.Types
@@ -2973,7 +2973,7 @@ func rewriteValuedec64_OpSignExt8to64(v *ssacore.Value) bool {
 		return true
 	}
 }
-func rewriteValuedec64_OpStore(v *ssacore.Value) bool {
+func rewriteValuedec64_OpStore(v *ssa.Value) bool {
 	v_2 := v.Args[2]
 	v_1 := v.Args[1]
 	v_0 := v.Args[0]
@@ -3033,7 +3033,7 @@ func rewriteValuedec64_OpStore(v *ssacore.Value) bool {
 	}
 	return false
 }
-func rewriteValuedec64_OpSub64(v *ssacore.Value) bool {
+func rewriteValuedec64_OpSub64(v *ssa.Value) bool {
 	v_1 := v.Args[1]
 	v_0 := v.Args[0]
 	b := v.Block
@@ -3068,7 +3068,7 @@ func rewriteValuedec64_OpSub64(v *ssacore.Value) bool {
 		return true
 	}
 }
-func rewriteValuedec64_OpTrunc64to16(v *ssacore.Value) bool {
+func rewriteValuedec64_OpTrunc64to16(v *ssa.Value) bool {
 	v_0 := v.Args[0]
 	b := v.Block
 	typ := &b.Func.Config.Types
@@ -3094,7 +3094,7 @@ func rewriteValuedec64_OpTrunc64to16(v *ssacore.Value) bool {
 		return true
 	}
 }
-func rewriteValuedec64_OpTrunc64to32(v *ssacore.Value) bool {
+func rewriteValuedec64_OpTrunc64to32(v *ssa.Value) bool {
 	v_0 := v.Args[0]
 	// match: (Trunc64to32 (Int64Make _ lo))
 	// result: lo
@@ -3115,7 +3115,7 @@ func rewriteValuedec64_OpTrunc64to32(v *ssacore.Value) bool {
 		return true
 	}
 }
-func rewriteValuedec64_OpTrunc64to8(v *ssacore.Value) bool {
+func rewriteValuedec64_OpTrunc64to8(v *ssa.Value) bool {
 	v_0 := v.Args[0]
 	b := v.Block
 	typ := &b.Func.Config.Types
@@ -3141,7 +3141,7 @@ func rewriteValuedec64_OpTrunc64to8(v *ssacore.Value) bool {
 		return true
 	}
 }
-func rewriteValuedec64_OpXor64(v *ssacore.Value) bool {
+func rewriteValuedec64_OpXor64(v *ssa.Value) bool {
 	v_1 := v.Args[1]
 	v_0 := v.Args[0]
 	b := v.Block
@@ -3168,7 +3168,7 @@ func rewriteValuedec64_OpXor64(v *ssacore.Value) bool {
 		return true
 	}
 }
-func rewriteValuedec64_OpZeroExt16to64(v *ssacore.Value) bool {
+func rewriteValuedec64_OpZeroExt16to64(v *ssa.Value) bool {
 	v_0 := v.Args[0]
 	b := v.Block
 	typ := &b.Func.Config.Types
@@ -3183,7 +3183,7 @@ func rewriteValuedec64_OpZeroExt16to64(v *ssacore.Value) bool {
 		return true
 	}
 }
-func rewriteValuedec64_OpZeroExt32to64(v *ssacore.Value) bool {
+func rewriteValuedec64_OpZeroExt32to64(v *ssa.Value) bool {
 	v_0 := v.Args[0]
 	b := v.Block
 	typ := &b.Func.Config.Types
@@ -3198,7 +3198,7 @@ func rewriteValuedec64_OpZeroExt32to64(v *ssacore.Value) bool {
 		return true
 	}
 }
-func rewriteValuedec64_OpZeroExt8to64(v *ssacore.Value) bool {
+func rewriteValuedec64_OpZeroExt8to64(v *ssa.Value) bool {
 	v_0 := v.Args[0]
 	b := v.Block
 	typ := &b.Func.Config.Types
@@ -3213,6 +3213,6 @@ func rewriteValuedec64_OpZeroExt8to64(v *ssacore.Value) bool {
 		return true
 	}
 }
-func rewriteBlockdec64(b *ssacore.Block) bool {
+func rewriteBlockdec64(b *ssa.Block) bool {
 	return false
 }

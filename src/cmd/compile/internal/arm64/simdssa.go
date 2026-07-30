@@ -3,14 +3,14 @@
 package arm64
 
 import (
-	"cmd/compile/internal/ssa/ssacore"
+	"cmd/compile/internal/ssa"
 	"cmd/compile/internal/ssa/ssaop"
 	"cmd/compile/internal/ssagen"
 	"cmd/internal/obj"
 	"cmd/internal/obj/arm64"
 )
 
-func ssaGenSIMDValue(s *ssagen.State, v *ssacore.Value) bool {
+func ssaGenSIMDValue(s *ssagen.State, v *ssa.Value) bool {
 	var p *obj.Prog
 	switch v.Op {
 	case ssaop.OpARM64VABS16B,

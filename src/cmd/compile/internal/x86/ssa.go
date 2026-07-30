@@ -11,8 +11,8 @@ import (
 	"cmd/compile/internal/base"
 	"cmd/compile/internal/ir"
 	"cmd/compile/internal/logopt"
+	"cmd/compile/internal/ssa"
 	"cmd/compile/internal/ssa/block"
-	"cmd/compile/internal/ssa/ssacore"
 	"cmd/compile/internal/ssa/ssaop"
 	"cmd/compile/internal/ssagen"
 	"cmd/compile/internal/types"
@@ -22,7 +22,7 @@ import (
 )
 
 // ssaMarkMoves marks any MOVXconst ops that need to avoid clobbering flags.
-func ssaMarkMoves(s *ssagen.State, b *ssacore.Block) {
+func ssaMarkMoves(s *ssagen.State, b *ssa.Block) {
 	flive := b.FlagsLiveAtEnd
 	for _, c := range b.ControlValues() {
 		flive = c.Type.IsFlags() || flive
@@ -31,7 +31,7 @@ func ssaMarkMoves(s *ssagen.State, b *ssacore.Block) {
 		v := b.Values[i]
 		if flive && v.Op == ssaop.Op386MOVLconst {
 			// The "mark" is any non-nil Aux value.
-			v.Aux = ssacore.AuxMark
+			v.Aux = ssa.AuxMark
 		}
 		if v.Type.IsFlags() {
 			flive = false
@@ -123,7 +123,7 @@ func opregreg(s *ssagen.State, op obj.As, dest, src int16) *obj.Prog {
 	return p
 }
 
-func ssaGenValue(s *ssagen.State, v *ssacore.Value) {
+func ssaGenValue(s *ssagen.State, v *ssa.Value) {
 	switch v.Op {
 	case ssaop.Op386ADDL:
 		r := v.Reg()
@@ -196,7 +196,7 @@ func ssaGenValue(s *ssagen.State, v *ssacore.Value) {
 		if v.Op == ssaop.Op386DIVL || v.Op == ssaop.Op386DIVW ||
 			v.Op == ssaop.Op386MODL || v.Op == ssaop.Op386MODW {
 
-			if ssacore.DivisionNeedsFixUp(v) {
+			if ssa.DivisionNeedsFixUp(v) {
 				var c *obj.Prog
 				switch v.Op {
 				case ssaop.Op386DIVL, ssaop.Op386MODL:
@@ -746,7 +746,7 @@ func ssaGenValue(s *ssagen.State, v *ssacore.Value) {
 	case ssaop.Op386LoweredPanicBoundsRR, ssaop.Op386LoweredPanicBoundsRC, ssaop.Op386LoweredPanicBoundsCR, ssaop.Op386LoweredPanicBoundsCC,
 		ssaop.Op386LoweredPanicExtendRR, ssaop.Op386LoweredPanicExtendRC:
 		// Compute the constant we put in the PCData entry for this call.
-		code, signed := ssacore.BoundsKind(v.AuxInt).Code()
+		code, signed := ssa.BoundsKind(v.AuxInt).Code()
 		xIsReg := false
 		yIsReg := false
 		xVal := 0
@@ -769,7 +769,7 @@ func ssaGenValue(s *ssagen.State, v *ssacore.Value) {
 		case ssaop.Op386LoweredPanicBoundsRC:
 			xIsReg = true
 			xVal = int(v.Args[0].Reg() - x86.REG_AX)
-			c := v.Aux.(ssacore.PanicBoundsC).C
+			c := v.Aux.(ssa.PanicBoundsC).C
 			if c >= 0 && c <= abi.BoundsMaxConst {
 				yVal = int(c)
 			} else {
@@ -790,7 +790,7 @@ func ssaGenValue(s *ssagen.State, v *ssacore.Value) {
 			hi := int(v.Args[0].Reg() - x86.REG_AX)
 			lo := int(v.Args[1].Reg() - x86.REG_AX)
 			xVal = hi<<2 + lo // encode 2 register numbers
-			c := v.Aux.(ssacore.PanicBoundsC).C
+			c := v.Aux.(ssa.PanicBoundsC).C
 			if c >= 0 && c <= abi.BoundsMaxConst {
 				yVal = int(c)
 			} else {
@@ -807,7 +807,7 @@ func ssaGenValue(s *ssagen.State, v *ssacore.Value) {
 		case ssaop.Op386LoweredPanicBoundsCR:
 			yIsReg = true
 			yVal = int(v.Args[0].Reg() - x86.REG_AX)
-			c := v.Aux.(ssacore.PanicBoundsC).C
+			c := v.Aux.(ssa.PanicBoundsC).C
 			if c >= 0 && c <= abi.BoundsMaxConst {
 				xVal = int(c)
 			} else if signed && int64(int32(c)) == c || !signed && int64(uint32(c)) == c {
@@ -846,7 +846,7 @@ func ssaGenValue(s *ssagen.State, v *ssacore.Value) {
 				p.To.Reg = x86.REG_AX + int16(lo)
 			}
 		case ssaop.Op386LoweredPanicBoundsCC:
-			c := v.Aux.(ssacore.PanicBoundsCC).Cx
+			c := v.Aux.(ssa.PanicBoundsCC).Cx
 			if c >= 0 && c <= abi.BoundsMaxConst {
 				xVal = int(c)
 			} else if signed && int64(int32(c)) == c || !signed && int64(uint32(c)) == c {
@@ -875,7 +875,7 @@ func ssaGenValue(s *ssagen.State, v *ssacore.Value) {
 				p.To.Type = obj.TYPE_REG
 				p.To.Reg = x86.REG_AX + int16(lo)
 			}
-			c = v.Aux.(ssacore.PanicBoundsCC).Cy
+			c = v.Aux.(ssa.PanicBoundsCC).Cy
 			if c >= 0 && c <= abi.BoundsMaxConst {
 				yVal = int(c)
 			} else {
@@ -1093,7 +1093,7 @@ var nefJumps = [2][2]ssagen.IndexJump{
 	{{Jump: x86.AJNE, Index: 0}, {Jump: x86.AJPS, Index: 0}}, // next == b.Succs[1]
 }
 
-func ssaGenBlock(s *ssagen.State, b, next *ssacore.Block) {
+func ssaGenBlock(s *ssagen.State, b, next *ssa.Block) {
 	switch b.Kind {
 	case block.BlockPlain, block.BlockDefer:
 		if b.Succs[0].Block() != next {
@@ -1124,7 +1124,7 @@ func ssaGenBlock(s *ssagen.State, b, next *ssacore.Block) {
 		case b.Succs[1].Block():
 			s.Br(jmp.asm, b.Succs[0].Block())
 		default:
-			if b.Likely != ssacore.BranchUnlikely {
+			if b.Likely != ssa.BranchUnlikely {
 				s.Br(jmp.asm, b.Succs[0].Block())
 				s.Br(obj.AJMP, b.Succs[1].Block())
 			} else {

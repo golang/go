@@ -34,7 +34,7 @@ var (
 	list = flag.Bool("list", false, "list all the opcodes")
 )
 
-var splitPhase = phase3Compile
+var splitPhase = phase4CoreRename
 
 var (
 	splitOpPath = "cmd/compile/internal/ssa"

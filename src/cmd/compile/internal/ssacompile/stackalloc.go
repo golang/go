@@ -9,20 +9,20 @@ package ssacompile
 import (
 	"fmt"
 
-	"cmd/compile/internal/ssa/ssacore"
+	"cmd/compile/internal/ssa"
 )
 
 // stackalloc allocates storage in the stack frame for
 // all Values that did not get a register.
 // Returns a map from block ID to the stack values live at the end of that block.
-func stackalloc(f *ssacore.Func, spillLive [][]ssacore.ID) [][]ssacore.ID {
-	if f.Pass.Debug > ssacore.StackDebug {
+func stackalloc(f *ssa.Func, spillLive [][]ssa.ID) [][]ssa.ID {
+	if f.Pass.Debug > ssa.StackDebug {
 		fmt.Println("before stackalloc")
 		fmt.Println(f.String())
 	}
-	s := ssacore.NewStackAllocState(f)
+	s := ssa.NewStackAllocState(f)
 	s.Init(f, spillLive)
-	defer ssacore.PutStackAllocState(s)
+	defer ssa.PutStackAllocState(s)
 
 	s.Stackalloc()
 	if f.Pass.Stats > 0 {

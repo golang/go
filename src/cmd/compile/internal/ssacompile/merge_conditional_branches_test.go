@@ -7,8 +7,8 @@ package ssacompile
 import (
 	"testing"
 
+	"cmd/compile/internal/ssa"
 	"cmd/compile/internal/ssa/block"
-	"cmd/compile/internal/ssa/ssacore"
 	"cmd/compile/internal/ssa/ssaop"
 	"cmd/compile/internal/types"
 )
@@ -42,7 +42,7 @@ func ARM64Eq(cond, sub, alt string) ctrl {
 // - The NZCV flags are set to 1
 // - The constant value being compared is 4
 // Returns true if all conditions match the expected transformation pattern
-func isNewConditionCorrect(b *ssacore.Block) bool {
+func isNewConditionCorrect(b *ssa.Block) bool {
 	if b.Kind != block.BlockARM64LT {
 		return false
 	}
@@ -71,7 +71,7 @@ func isNewConditionCorrect(b *ssacore.Block) bool {
 // operations (CCMP or CCMPconst). This is used in tests to verify that the
 // if-conversion optimization successfully generated conditional comparison
 // instructions or to ensure they were not generated when inappropriate.
-func containsOpARM64CCMP(b *ssacore.Block) bool {
+func containsOpARM64CCMP(b *ssa.Block) bool {
 	for _, v := range b.Values {
 		if v.Op == ssaop.OpARM64CCMP || v.Op == ssaop.OpARM64CCMPconst {
 			return true

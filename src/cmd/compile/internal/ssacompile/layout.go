@@ -5,26 +5,26 @@
 package ssacompile
 
 import (
+	"cmd/compile/internal/ssa"
 	"cmd/compile/internal/ssa/block"
-	"cmd/compile/internal/ssa/ssacore"
 )
 
 // layout orders basic blocks in f with the goal of minimizing control flow instructions.
 // After this phase returns, the order of f.Blocks matters and is the order
 // in which those blocks will appear in the assembly output.
-func layout(f *ssacore.Func) {
+func layout(f *ssa.Func) {
 	f.Blocks = layoutOrder(f)
 }
 
 // Register allocation may use a different order which has constraints
 // imposed by the linear-scan algorithm.
-func layoutRegallocOrder(f *ssacore.Func) []*ssacore.Block {
+func layoutRegallocOrder(f *ssa.Func) []*ssa.Block {
 	// remnant of an experiment; perhaps there will be another.
 	return f.Blocks
 }
 
-func layoutOrder(f *ssacore.Func) []*ssacore.Block {
-	order := make([]*ssacore.Block, 0, f.NumBlocks())
+func layoutOrder(f *ssa.Func) []*ssa.Block {
+	order := make([]*ssa.Block, 0, f.NumBlocks())
 	scheduled := f.Cache.AllocBoolSlice(f.NumBlocks())
 	defer f.Cache.FreeBoolSlice(scheduled)
 	idToBlock := f.Cache.AllocBlockSlice(f.NumBlocks())
@@ -35,11 +35,11 @@ func layoutOrder(f *ssacore.Func) []*ssacore.Block {
 	defer f.RetSparseSet(posdegree)
 	// blocks with zero remaining degree. Use slice to simulate a LIFO queue to implement
 	// the depth-first topology sorting algorithm.
-	var zerodegree []ssacore.ID
+	var zerodegree []ssa.ID
 	// LIFO queue. Track the successor blocks of the scheduled block so that when we
 	// encounter loops, we choose to schedule the successor block of the most recently
 	// scheduled block.
-	var succs []ssacore.ID
+	var succs []ssa.ID
 	exit := f.NewSparseSet(f.NumBlocks()) // exit blocks
 	defer f.RetSparseSet(exit)
 
@@ -128,11 +128,11 @@ blockloop:
 		// Pick among the successor blocks that have not been scheduled yet.
 
 		// Use likely direction if we have it.
-		var likely *ssacore.Block
+		var likely *ssa.Block
 		switch b.Likely {
-		case ssacore.BranchLikely:
+		case ssa.BranchLikely:
 			likely = b.Succs[0].B
-		case ssacore.BranchUnlikely:
+		case ssa.BranchUnlikely:
 			likely = b.Succs[1].B
 		}
 		if likely != nil && !scheduled[likely.ID] {

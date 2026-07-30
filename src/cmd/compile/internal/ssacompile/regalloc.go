@@ -124,8 +124,8 @@ import (
 
 	"cmd/compile/internal/base"
 	"cmd/compile/internal/ir"
+	"cmd/compile/internal/ssa"
 	"cmd/compile/internal/ssa/ssabase"
-	"cmd/compile/internal/ssa/ssacore"
 	"cmd/compile/internal/ssa/ssaop"
 	"cmd/compile/internal/types"
 	"cmd/internal/src"
@@ -142,7 +142,7 @@ const (
 
 // regalloc performs register allocation on f. It sets f.RegAlloc
 // to the resulting allocation.
-func regalloc(f *ssacore.Func) {
+func regalloc(f *ssa.Func) {
 	var s regAllocState
 	s.init(f)
 	s.regalloc(f)
@@ -192,15 +192,15 @@ func (s *regAllocState) pickReg(rm ssaop.RegMask) ssaop.Register {
 }
 
 type regState struct {
-	v *ssacore.Value // Original (preregalloc) Value stored in this register.
-	c *ssacore.Value // A Value equal to v which is currently in a register.  Might be v or a copy of it.
+	v *ssa.Value // Original (preregalloc) Value stored in this register.
+	c *ssa.Value // A Value equal to v which is currently in a register.  Might be v or a copy of it.
 	// If a register is unused, v==c==nil
 }
 
 type regAllocState struct {
-	f *ssacore.Func
+	f *ssa.Func
 
-	sdom        ssacore.SparseTree
+	sdom        ssa.SparseTree
 	registers   []ssabase.Register
 	numRegs     ssaop.Register
 	SPReg       ssaop.Register
@@ -220,14 +220,14 @@ type regAllocState struct {
 	desired []desiredState
 
 	// current state of each (preregalloc) Value
-	values []ssacore.ValState
+	values []ssa.ValState
 
 	// ID of SP, SB values
-	sp, sb ssacore.ID
+	sp, sb ssa.ID
 
 	// For each Value, map from its value ID back to the
 	// preregalloc Value it was derived from.
-	orig []*ssacore.Value
+	orig []*ssa.Value
 
 	// current state of each register.
 	// Includes only registers in allocatable.
@@ -246,10 +246,10 @@ type regAllocState struct {
 	tmpused ssaop.RegMask
 
 	// current block we're working on
-	curBlock *ssacore.Block
+	curBlock *ssa.Block
 
 	// cache of use records
-	freeUseRecords *ssacore.Use
+	freeUseRecords *ssa.Use
 
 	// endRegs[blockid] is the register state at the end of each block.
 	// encoded as a set of endReg records.
@@ -265,16 +265,16 @@ type regAllocState struct {
 	startRegsMask ssaop.RegMask
 
 	// spillLive[blockid] is the set of live spills at the end of each block
-	spillLive [][]ssacore.ID
+	spillLive [][]ssa.ID
 
 	// a set of copies we generated to move things around, and
 	// whether it is used in shuffle. Unused copies will be deleted.
-	copies map[*ssacore.Value]bool
+	copies map[*ssa.Value]bool
 
-	loopnest *ssacore.LoopNest
+	loopnest *ssa.LoopNest
 
 	// choose a good order in which to visit blocks for allocation purposes.
-	visitOrder []*ssacore.Block
+	visitOrder []*ssa.Block
 
 	// blockOrder[b.ID] corresponds to the index of block b in visitOrder.
 	blockOrder []int32
@@ -296,15 +296,15 @@ type regAllocState struct {
 
 type endReg struct {
 	r ssaop.Register
-	v *ssacore.Value // pre-regalloc value held in this register (TODO: can we use ID here?)
-	c *ssacore.Value // cached version of the value
+	v *ssa.Value // pre-regalloc value held in this register (TODO: can we use ID here?)
+	c *ssa.Value // cached version of the value
 }
 
 type startReg struct {
 	r   ssaop.Register
-	v   *ssacore.Value // pre-regalloc value needed in this register
-	c   *ssacore.Value // cached version of the value
-	pos src.XPos       // source position of use of this register
+	v   *ssa.Value // pre-regalloc value needed in this register
+	c   *ssa.Value // cached version of the value
+	pos src.XPos   // source position of use of this register
 }
 
 // freeReg frees up register r. Any current user of r is kicked out.
@@ -318,7 +318,7 @@ func (s *regAllocState) freeReg(r ssaop.Register) {
 	}
 
 	// Mark r as unused.
-	if s.f.Pass.Debug > ssacore.RegDebug {
+	if s.f.Pass.Debug > ssa.RegDebug {
 		fmt.Printf("freeReg %s (dump %s/%s)\n", &s.registers[r], v, s.regs[r].c)
 	}
 	s.regs[r] = regState{}
@@ -346,7 +346,7 @@ func (s *regAllocState) clobberRegs(m ssaop.RegMask) {
 
 // setOrig records that c's original value is the same as
 // v's original value.
-func (s *regAllocState) setOrig(c *ssacore.Value, v *ssacore.Value) {
+func (s *regAllocState) setOrig(c *ssa.Value, v *ssa.Value) {
 	if int(c.ID) >= cap(s.orig) {
 		x := s.f.Cache.AllocValueSlice(int(c.ID) + 1)
 		copy(x, s.orig)
@@ -364,8 +364,8 @@ func (s *regAllocState) setOrig(c *ssacore.Value, v *ssacore.Value) {
 
 // assignReg assigns register r to hold c, a copy of v.
 // r must be unused.
-func (s *regAllocState) assignReg(r ssaop.Register, v *ssacore.Value, c *ssacore.Value) {
-	if s.f.Pass.Debug > ssacore.RegDebug {
+func (s *regAllocState) assignReg(r ssaop.Register, v *ssa.Value, c *ssa.Value) {
+	if s.f.Pass.Debug > ssa.RegDebug {
 		fmt.Printf("assignReg %s %s/%s\n", &s.registers[r], v, c)
 	}
 	// Allocate v to r.
@@ -386,7 +386,7 @@ func (s *regAllocState) assignReg(r ssaop.Register, v *ssacore.Value, c *ssacore
 // allocReg chooses a register from the set of registers in mask.
 // If there is no unused register, a Value will be kicked out of
 // a register to make room.
-func (s *regAllocState) allocReg(mask ssaop.RegMask, v *ssacore.Value) ssaop.Register {
+func (s *regAllocState) allocReg(mask ssaop.RegMask, v *ssa.Value) ssaop.Register {
 	if v.OnWasmStack {
 		return noRegister
 	}
@@ -449,7 +449,7 @@ func (s *regAllocState) allocReg(mask ssaop.RegMask, v *ssacore.Value) ssaop.Reg
 		r2 := s.pickReg(m)
 		c := s.curBlock.NewValue1(v2.Pos, ssaop.OpCopy, v2.Type, s.regs[r].c)
 		s.copies[c] = false
-		if s.f.Pass.Debug > ssacore.RegDebug {
+		if s.f.Pass.Debug > ssa.RegDebug {
 			fmt.Printf("copy %s to %s : %s\n", v2, c, &s.registers[r2])
 		}
 		s.setOrig(c, v2)
@@ -461,7 +461,7 @@ func (s *regAllocState) allocReg(mask ssaop.RegMask, v *ssacore.Value) ssaop.Reg
 	// drop from startRegs in that case.
 	if !s.usedSinceBlockStart.HasReg(r) {
 		if s.startRegsMask.HasReg(r) {
-			if s.f.Pass.Debug > ssacore.RegDebug {
+			if s.f.Pass.Debug > ssa.RegDebug {
 				fmt.Printf("dropped from startRegs: %s\n", &s.registers[r])
 			}
 			s.startRegsMask = s.startRegsMask.RemoveReg(r)
@@ -475,7 +475,7 @@ func (s *regAllocState) allocReg(mask ssaop.RegMask, v *ssacore.Value) ssaop.Reg
 
 // makeSpill returns a Value which represents the spilled value of v.
 // b is the block in which the spill is used.
-func (s *regAllocState) makeSpill(v *ssacore.Value, b *ssacore.Block) *ssacore.Value {
+func (s *regAllocState) makeSpill(v *ssa.Value, b *ssa.Block) *ssa.Value {
 	vi := &s.values[v.ID]
 	if vi.Spill != nil {
 		// Final block not known - keep track of subtree where restores reside.
@@ -501,7 +501,7 @@ func (s *regAllocState) makeSpill(v *ssacore.Value, b *ssacore.Block) *ssacore.V
 // allocated register is marked nospill so the assignment cannot be
 // undone until the caller allows it by clearing nospill. Returns a
 // *Value which is either v or a copy of v allocated to the chosen register.
-func (s *regAllocState) allocValToReg(v *ssacore.Value, mask ssaop.RegMask, nospill bool, pos src.XPos) *ssacore.Value {
+func (s *regAllocState) allocValToReg(v *ssa.Value, mask ssaop.RegMask, nospill bool, pos src.XPos) *ssa.Value {
 	if s.f.Config.Ctxt.Arch.Arch == sys.ArchWasm && v.Rematerializeable() {
 		c := v.CopyIntoWithXPos(s.curBlock, pos)
 		c.OnWasmStack = true
@@ -546,10 +546,10 @@ func (s *regAllocState) allocValToReg(v *ssacore.Value, mask ssaop.RegMask, nosp
 	}
 
 	// Allocate v to the new register.
-	var c *ssacore.Value
+	var c *ssa.Value
 	if !vi.Regs.Empty() {
 		// Copy from a register that v is already in.
-		var current *ssacore.Value
+		var current *ssa.Value
 		if !vi.Regs.Minus(s.allocatable).Empty() {
 			// v is in a fixed register, prefer that
 			current = v
@@ -591,7 +591,7 @@ func (s *regAllocState) allocValToReg(v *ssacore.Value, mask ssaop.RegMask, nosp
 	} else {
 		// Load v from its spill location.
 		spill := s.makeSpill(v, s.curBlock)
-		if s.f.Pass.Debug > ssacore.LogSpills {
+		if s.f.Pass.Debug > ssa.LogSpills {
 			s.f.Warnl(vi.Spill.Pos, "load spill for %v from %v", v, spill)
 		}
 		c = s.curBlock.NewValue1(pos, ssaop.OpLoadReg, v.Type, spill)
@@ -624,7 +624,7 @@ func (s *regAllocState) allocValToReg(v *ssacore.Value, mask ssaop.RegMask, nosp
 }
 
 // isLeaf reports whether f performs any calls.
-func isLeaf(f *ssacore.Func) bool {
+func isLeaf(f *ssa.Func) bool {
 	for _, b := range f.Blocks {
 		for _, v := range b.Values {
 			if v.Op.IsCall() && !v.Op.IsTailCall() {
@@ -636,7 +636,7 @@ func isLeaf(f *ssacore.Func) bool {
 	return true
 }
 
-func (s *regAllocState) init(f *ssacore.Func) {
+func (s *regAllocState) init(f *ssa.Func) {
 	s.f = f
 	s.f.RegAlloc = s.f.Cache.Locs[:0]
 	s.registers = f.Config.Registers
@@ -737,11 +737,11 @@ func (s *regAllocState) init(f *ssacore.Func) {
 	if cap(s.f.Cache.RegallocValues) >= nv {
 		s.f.Cache.RegallocValues = s.f.Cache.RegallocValues[:nv]
 	} else {
-		s.f.Cache.RegallocValues = make([]ssacore.ValState, nv)
+		s.f.Cache.RegallocValues = make([]ssa.ValState, nv)
 	}
 	s.values = s.f.Cache.RegallocValues
 	s.orig = s.f.Cache.AllocValueSlice(nv)
-	s.copies = make(map[*ssacore.Value]bool)
+	s.copies = make(map[*ssa.Value]bool)
 	for _, b := range s.visitOrder {
 		for _, v := range b.Values {
 			if v.NeedRegister() {
@@ -757,7 +757,7 @@ func (s *regAllocState) init(f *ssacore.Func) {
 
 	s.endRegs = make([][]endReg, f.NumBlocks())
 	s.startRegs = make([][]startReg, f.NumBlocks())
-	s.spillLive = make([][]ssacore.ID, f.NumBlocks())
+	s.spillLive = make([][]ssa.ID, f.NumBlocks())
 	s.sdom = f.Sdom()
 
 	// wasm: Mark instructions that can be optimized to have their values only on the WebAssembly stack.
@@ -810,12 +810,12 @@ func (s *regAllocState) close() {
 
 // Adds a use record for id at distance dist from the start of the block.
 // All calls to addUse must happen with nonincreasing dist.
-func (s *regAllocState) addUse(id ssacore.ID, dist int32, pos src.XPos) {
+func (s *regAllocState) addUse(id ssa.ID, dist int32, pos src.XPos) {
 	r := s.freeUseRecords
 	if r != nil {
 		s.freeUseRecords = r.Next
 	} else {
-		r = &ssacore.Use{}
+		r = &ssa.Use{}
 	}
 	r.Dist = dist
 	r.Pos = pos
@@ -828,7 +828,7 @@ func (s *regAllocState) addUse(id ssacore.ID, dist int32, pos src.XPos) {
 
 // advanceUses advances the uses of v's args from the state before v to the state after v.
 // Any values which have no more uses are deallocated from registers.
-func (s *regAllocState) advanceUses(v *ssacore.Value) {
+func (s *regAllocState) advanceUses(v *ssa.Value) {
 	for _, a := range v.Args {
 		if !s.values[a.ID].NeedReg {
 			continue
@@ -848,7 +848,7 @@ func (s *regAllocState) advanceUses(v *ssacore.Value) {
 
 // Drop v from registers if it isn't used again, or its only uses are after
 // a call instruction.
-func (s *regAllocState) dropIfUnused(v *ssacore.Value) {
+func (s *regAllocState) dropIfUnused(v *ssa.Value) {
 	if !s.values[v.ID].NeedReg {
 		return
 	}
@@ -870,7 +870,7 @@ func (s *regAllocState) dropIfUnused(v *ssacore.Value) {
 // liveAfterCurrentInstruction reports whether v is live after
 // the current instruction is completed.  v must be used by the
 // current instruction.
-func (s *regAllocState) liveAfterCurrentInstruction(v *ssacore.Value) bool {
+func (s *regAllocState) liveAfterCurrentInstruction(v *ssa.Value) bool {
 	u := s.values[v.ID].Uses
 	if u == nil {
 		panic(fmt.Errorf("u is nil, v = %s, s.values[v.ID] = %v", v.LongString(), s.values[v.ID]))
@@ -925,7 +925,7 @@ func (s *regAllocState) compatRegs(t *types.Type) ssaop.RegMask {
 }
 
 // regspec returns the regInfo for operation op.
-func (s *regAllocState) regspec(v *ssacore.Value) ssaop.RegInfo {
+func (s *regAllocState) regspec(v *ssa.Value) ssaop.RegInfo {
 	op := v.Op
 	if op == ssaop.OpConvert {
 		// OpConvert is a generic op, so it doesn't have a
@@ -936,14 +936,14 @@ func (s *regAllocState) regspec(v *ssacore.Value) ssaop.RegInfo {
 	}
 	if op == ssaop.OpArgIntReg {
 		reg := v.Block.Func.Config.IntParamRegs[v.AuxInt8()]
-		return ssaop.RegInfo{Outputs: []ssaop.OutputInfo{{Regs: ssacore.RegMaskAt(ssaop.Register(reg))}}}
+		return ssaop.RegInfo{Outputs: []ssaop.OutputInfo{{Regs: ssa.RegMaskAt(ssaop.Register(reg))}}}
 	}
 	if op == ssaop.OpArgFloatReg {
 		reg := v.Block.Func.Config.FloatParamRegs[v.AuxInt8()]
-		return ssaop.RegInfo{Outputs: []ssaop.OutputInfo{{Regs: ssacore.RegMaskAt(ssaop.Register(reg))}}}
+		return ssaop.RegInfo{Outputs: []ssaop.OutputInfo{{Regs: ssa.RegMaskAt(ssaop.Register(reg))}}}
 	}
 	if op.IsCall() {
-		if ac, ok := v.Aux.(*ssacore.AuxCall); ok && ac.RegCache != nil {
+		if ac, ok := v.Aux.(*ssa.AuxCall); ok && ac.RegCache != nil {
 			return *ac.Reg(&ssaop.OpcodeTable[op].Reg, s.f.Config)
 		}
 	}
@@ -958,19 +958,19 @@ func (s *regAllocState) isGReg(r ssaop.Register) bool {
 }
 
 // Dummy value used to represent the value being held in a temporary register.
-var tmpVal ssacore.Value
+var tmpVal ssa.Value
 
-func (s *regAllocState) regalloc(f *ssacore.Func) {
+func (s *regAllocState) regalloc(f *ssa.Func) {
 	regValLiveSet := f.NewSparseSet(f.NumValues()) // set of values that may be live in register
 	defer f.RetSparseSet(regValLiveSet)
-	var oldSched []*ssacore.Value
-	var phis []*ssacore.Value
+	var oldSched []*ssa.Value
+	var phis []*ssa.Value
 	var phiRegs []ssaop.Register
-	var args []*ssacore.Value
+	var args []*ssa.Value
 
 	// Data structure used for computing desired registers.
 	var desired desiredState
-	desiredSecondReg := map[ssacore.ID][4]ssaop.Register{} // desired register allocation for 2nd part of a tuple
+	desiredSecondReg := map[ssa.ID][4]ssaop.Register{} // desired register allocation for 2nd part of a tuple
 
 	// Desired registers for inputs & outputs for each instruction in the block.
 	type dentry struct {
@@ -984,7 +984,7 @@ func (s *regAllocState) regalloc(f *ssacore.Func) {
 	}
 
 	for _, b := range s.visitOrder {
-		if s.f.Pass.Debug > ssacore.RegDebug {
+		if s.f.Pass.Debug > ssa.RegDebug {
 			fmt.Printf("Begin processing block %v\n", b)
 		}
 		s.curBlock = b
@@ -1044,7 +1044,7 @@ func (s *regAllocState) regalloc(f *ssacore.Func) {
 			}
 			s.nextCall[i] = nextCall
 		}
-		if s.f.Pass.Debug > ssacore.RegDebug {
+		if s.f.Pass.Debug > ssa.RegDebug {
 			fmt.Printf("use distances for %s\n", b)
 			for i := range s.values {
 				vi := &s.values[i]
@@ -1146,7 +1146,7 @@ func (s *regAllocState) regalloc(f *ssacore.Func) {
 			p := b.Preds[idx].B
 			s.setState(s.endRegs[p.ID])
 
-			if s.f.Pass.Debug > ssacore.RegDebug {
+			if s.f.Pass.Debug > ssa.RegDebug {
 				fmt.Printf("starting merge block %s with end state of %s:\n", b, p)
 				for _, x := range s.endRegs[p.ID] {
 					fmt.Printf("  %s: orig:%s cache:%s\n", &s.registers[x.r], x.v, x.c)
@@ -1202,7 +1202,7 @@ func (s *regAllocState) regalloc(f *ssacore.Func) {
 						r2 := s.pickReg(m)
 						c := p.NewValue1(a.Pos, ssaop.OpCopy, a.Type, s.regs[r].c)
 						s.copies[c] = false
-						if s.f.Pass.Debug > ssacore.RegDebug {
+						if s.f.Pass.Debug > ssa.RegDebug {
 							fmt.Printf("copy %s to %s : %s\n", a, c, &s.registers[r2])
 						}
 						s.setOrig(c, a)
@@ -1240,7 +1240,7 @@ func (s *regAllocState) regalloc(f *ssacore.Func) {
 						}
 					}
 					if ri != noRegister && m.HasReg(ri) {
-						m = ssacore.RegMaskAt(ri)
+						m = ssa.RegMaskAt(ri)
 						break
 					}
 				}
@@ -1326,7 +1326,7 @@ func (s *regAllocState) regalloc(f *ssacore.Func) {
 			s.startRegs[b.ID] = make([]startReg, len(regList))
 			copy(s.startRegs[b.ID], regList)
 
-			if s.f.Pass.Debug > ssacore.RegDebug {
+			if s.f.Pass.Debug > ssa.RegDebug {
 				fmt.Printf("after phis\n")
 				for _, x := range s.startRegs[b.ID] {
 					fmt.Printf("  %s: v%d\n", &s.registers[x.r], x.v.ID)
@@ -1431,7 +1431,7 @@ func (s *regAllocState) regalloc(f *ssacore.Func) {
 		for idx, v := range oldSched {
 			s.curIdx = nphi + idx
 			tmpReg := noRegister
-			if s.f.Pass.Debug > ssacore.RegDebug {
+			if s.f.Pass.Debug > ssa.RegDebug {
 				fmt.Printf("  processing %s\n", v.LongString())
 			}
 			regspec := s.regspec(v)
@@ -1465,13 +1465,13 @@ func (s *regAllocState) regalloc(f *ssacore.Func) {
 			if v.Op == ssaop.OpSelect0 || v.Op == ssaop.OpSelect1 || v.Op == ssaop.OpSelectN {
 				if s.values[v.ID].NeedReg {
 					if v.Op == ssaop.OpSelectN {
-						s.assignReg(ssaop.Register(s.f.GetHome(v.Args[0].ID).(ssacore.LocResults)[int(v.AuxInt)].(*ssabase.Register).Num), v, v)
+						s.assignReg(ssaop.Register(s.f.GetHome(v.Args[0].ID).(ssa.LocResults)[int(v.AuxInt)].(*ssabase.Register).Num), v, v)
 					} else {
 						var i = 0
 						if v.Op == ssaop.OpSelect1 {
 							i = 1
 						}
-						s.assignReg(ssaop.Register(s.f.GetHome(v.Args[0].ID).(ssacore.LocPair)[i].(*ssabase.Register).Num), v, v)
+						s.assignReg(ssaop.Register(s.f.GetHome(v.Args[0].ID).(ssa.LocPair)[i].(*ssabase.Register).Num), v, v)
 					}
 				}
 				b.Values = append(b.Values, v)
@@ -1546,7 +1546,7 @@ func (s *regAllocState) regalloc(f *ssacore.Func) {
 				continue
 			}
 
-			if s.f.Pass.Debug > ssacore.RegDebug {
+			if s.f.Pass.Debug > ssa.RegDebug {
 				fmt.Printf("value %s\n", v.LongString())
 				fmt.Printf("  out:")
 				for _, r := range dinfo[idx].out {
@@ -1569,7 +1569,7 @@ func (s *regAllocState) regalloc(f *ssacore.Func) {
 			// Move arguments to registers.
 			// First, if an arg must be in a specific register and it is already
 			// in place, keep it.
-			args = append(args[:0], make([]*ssacore.Value, len(v.Args))...)
+			args = append(args[:0], make([]*ssa.Value, len(v.Args))...)
 			for i, a := range v.Args {
 				if !s.values[a.ID].NeedReg {
 					args[i] = a
@@ -1626,7 +1626,7 @@ func (s *regAllocState) regalloc(f *ssacore.Func) {
 						for _, r := range dinfo[idx].in[i.Idx] {
 							if r != noRegister && mask.Minus(s.used).HasReg(r) {
 								// Desired register is allowed and unused.
-								mask = ssacore.RegMaskAt(r)
+								mask = ssa.RegMaskAt(r)
 								break
 							}
 						}
@@ -1640,7 +1640,7 @@ func (s *regAllocState) regalloc(f *ssacore.Func) {
 					// Prefer SP register. This ensures that local variables
 					// use SP as their base register (instead of a copy of the
 					// stack pointer living in another register). See issue 74836.
-					mask = ssacore.RegMaskAt(s.SPReg)
+					mask = ssa.RegMaskAt(s.SPReg)
 				}
 				args[i.Idx] = s.allocValToReg(v.Args[i.Idx], mask, true, v.Pos)
 			}
@@ -1691,7 +1691,7 @@ func (s *regAllocState) regalloc(f *ssacore.Func) {
 				// Try to move an input to the desired output, if allowed.
 				for _, r := range dinfo[idx].out {
 					if r != noRegister && m.Intersect(regspec.Outputs[0].Regs).HasReg(r) {
-						m = ssacore.RegMaskAt(r)
+						m = ssa.RegMaskAt(r)
 						args[0] = s.allocValToReg(v.Args[0], m, true, v.Pos)
 						// Note: we update args[0] so the instruction will
 						// use the register copy we just made.
@@ -1702,7 +1702,7 @@ func (s *regAllocState) regalloc(f *ssacore.Func) {
 				// location as the result register.
 				for _, r := range dinfo[idx].in[0] {
 					if r != noRegister && m.HasReg(r) {
-						m = ssacore.RegMaskAt(r)
+						m = ssa.RegMaskAt(r)
 						c := s.allocValToReg(v.Args[0], m, true, v.Pos)
 						s.copies[c] = false
 						// Note: no update to args[0] so the instruction will
@@ -1713,7 +1713,7 @@ func (s *regAllocState) regalloc(f *ssacore.Func) {
 				if ssaop.OpcodeTable[v.Op].Commutative {
 					for _, r := range dinfo[idx].in[1] {
 						if r != noRegister && m.HasReg(r) {
-							m = ssacore.RegMaskAt(r)
+							m = ssa.RegMaskAt(r)
 							c := s.allocValToReg(v.Args[1], m, true, v.Pos)
 							s.copies[c] = false
 							args[0], args[1] = args[1], args[0]
@@ -1848,7 +1848,7 @@ func (s *regAllocState) regalloc(f *ssacore.Func) {
 							if !mask.HasReg(r) {
 								s.f.Fatalf("resultInArg0 value's input %v cannot be an output of %s", s.f.GetHome(args[0].ID).(*ssabase.Register), v.LongString())
 							}
-							mask = ssacore.RegMaskAt(r)
+							mask = ssa.RegMaskAt(r)
 						} else {
 							// Output must use the same register as input 0 or 1.
 							r0 := ssaop.Register(s.f.GetHome(args[0].ID).(*ssabase.Register).Num)
@@ -1857,7 +1857,7 @@ func (s *regAllocState) regalloc(f *ssacore.Func) {
 							found := false
 							for _, r := range dinfo[idx].out {
 								if (r == r0 || r == r1) && mask.Minus(s.used).HasReg(r) {
-									mask = ssacore.RegMaskAt(r)
+									mask = ssa.RegMaskAt(r)
 									found = true
 									if r == r1 {
 										args[0], args[1] = args[1], args[0]
@@ -1867,7 +1867,7 @@ func (s *regAllocState) regalloc(f *ssacore.Func) {
 							}
 							if !found {
 								// Neither are desired, pick r0.
-								mask = ssacore.RegMaskAt(r0)
+								mask = ssa.RegMaskAt(r0)
 							}
 						}
 					}
@@ -1875,7 +1875,7 @@ func (s *regAllocState) regalloc(f *ssacore.Func) {
 						for _, r := range dinfo[idx].out {
 							if r != noRegister && mask.Minus(s.used).HasReg(r) {
 								// Desired register is allowed and unused.
-								mask = ssacore.RegMaskAt(r)
+								mask = ssa.RegMaskAt(r)
 								break
 							}
 						}
@@ -1885,7 +1885,7 @@ func (s *regAllocState) regalloc(f *ssacore.Func) {
 							for _, r := range prefs {
 								if r != noRegister && mask.Minus(s.used).HasReg(r) {
 									// Desired register is allowed and unused.
-									mask = ssacore.RegMaskAt(r)
+									mask = ssa.RegMaskAt(r)
 									break
 								}
 							}
@@ -1905,7 +1905,7 @@ func (s *regAllocState) regalloc(f *ssacore.Func) {
 				}
 				// Record register choices
 				if v.Type.IsTuple() {
-					var outLocs ssacore.LocPair
+					var outLocs ssa.LocPair
 					if r := outRegs[0]; r != noRegister {
 						outLocs[0] = &s.registers[r]
 					}
@@ -1916,7 +1916,7 @@ func (s *regAllocState) regalloc(f *ssacore.Func) {
 					// Note that subsequent SelectX instructions will do the assignReg calls.
 				} else if v.Type.IsResults() {
 					// preallocate outLocs to the right size, which is maxOutIdx+1
-					outLocs := make(ssacore.LocResults, maxOutIdx+1, maxOutIdx+1)
+					outLocs := make(ssa.LocResults, maxOutIdx+1, maxOutIdx+1)
 					for i := 0; i <= maxOutIdx; i++ {
 						if r := outRegs[i]; r != noRegister {
 							outLocs[i] = &s.registers[r]
@@ -1931,7 +1931,7 @@ func (s *regAllocState) regalloc(f *ssacore.Func) {
 				if tmpReg != noRegister {
 					// Remember the temp register allocation, if any.
 					if s.f.TempRegs == nil {
-						s.f.TempRegs = map[ssacore.ID]*ssabase.Register{}
+						s.f.TempRegs = map[ssa.ID]*ssabase.Register{}
 					}
 					s.f.TempRegs[v.ID] = &s.registers[tmpReg]
 				}
@@ -1954,14 +1954,14 @@ func (s *regAllocState) regalloc(f *ssacore.Func) {
 
 		// Copy the control values - we need this so we can reduce the
 		// uses property of these values later.
-		controls := append(make([]*ssacore.Value, 0, 2), b.ControlValues()...)
+		controls := append(make([]*ssa.Value, 0, 2), b.ControlValues()...)
 
 		// Load control values into registers.
 		for i, v := range b.ControlValues() {
 			if !s.values[v.ID].NeedReg {
 				continue
 			}
-			if s.f.Pass.Debug > ssacore.RegDebug {
+			if s.f.Pass.Debug > ssa.RegDebug {
 				fmt.Printf("  processing control %s\n", v.LongString())
 			}
 			// We assume that a control input can be passed in any
@@ -2076,7 +2076,7 @@ func (s *regAllocState) regalloc(f *ssacore.Func) {
 					}
 					for _, r := range e.regs {
 						if r != noRegister && m.HasReg(r) {
-							m = ssacore.RegMaskAt(r)
+							m = ssa.RegMaskAt(r)
 							break outerloop
 						}
 					}
@@ -2144,7 +2144,7 @@ func (s *regAllocState) regalloc(f *ssacore.Func) {
 					// we'll rematerialize during the merge.
 					continue
 				}
-				if s.f.Pass.Debug > ssacore.RegDebug {
+				if s.f.Pass.Debug > ssa.RegDebug {
 					fmt.Printf("live-at-end spill for %s at %s\n", s.orig[e.ID], b)
 				}
 				spill := s.makeSpill(s.orig[e.ID], b)
@@ -2203,7 +2203,7 @@ func (s *regAllocState) regalloc(f *ssacore.Func) {
 		progress := false
 		for c, used := range s.copies {
 			if !used && c.Uses == 0 {
-				if s.f.Pass.Debug > ssacore.RegDebug {
+				if s.f.Pass.Debug > ssa.RegDebug {
 					fmt.Printf("delete copied value %s\n", c.LongString())
 				}
 				c.ResetArgs()
@@ -2237,10 +2237,10 @@ func (s *regAllocState) placeSpills() {
 
 	// Start maps block IDs to the list of spills
 	// that go at the start of the block (but after any phis).
-	start := map[ssacore.ID][]*ssacore.Value{}
+	start := map[ssa.ID][]*ssa.Value{}
 	// After maps value IDs to the list of spills
 	// that go immediately after that value ID.
-	after := map[ssacore.ID][]*ssacore.Value{}
+	after := map[ssa.ID][]*ssa.Value{}
 
 	for i := range s.values {
 		vi := s.values[i]
@@ -2334,7 +2334,7 @@ func (s *regAllocState) placeSpills() {
 	}
 
 	// Insert spill instructions into the block schedules.
-	var oldSched []*ssacore.Value
+	var oldSched []*ssa.Value
 	for _, b := range s.visitOrder {
 		nfirst := 0
 		for _, v := range b.Values {
@@ -2354,12 +2354,12 @@ func (s *regAllocState) placeSpills() {
 }
 
 // shuffle fixes up all the merge edges (those going into blocks of indegree > 1).
-func (s *regAllocState) shuffle(stacklive [][]ssacore.ID) {
+func (s *regAllocState) shuffle(stacklive [][]ssa.ID) {
 	var e edgeState
 	e.s = s
-	e.cache = map[ssacore.ID][]*ssacore.Value{}
-	e.contents = map[ssacore.Location]contentRecord{}
-	if s.f.Pass.Debug > ssacore.RegDebug {
+	e.cache = map[ssa.ID][]*ssa.Value{}
+	e.contents = map[ssa.Location]contentRecord{}
+	if s.f.Pass.Debug > ssa.RegDebug {
 		fmt.Printf("shuffle %s\n", s.f.Name)
 		fmt.Println(s.f.String())
 	}
@@ -2377,7 +2377,7 @@ func (s *regAllocState) shuffle(stacklive [][]ssacore.ID) {
 		}
 	}
 
-	if s.f.Pass.Debug > ssacore.RegDebug {
+	if s.f.Pass.Debug > ssa.RegDebug {
 		fmt.Printf("post shuffle %s\n", s.f.Name)
 		fmt.Println(s.f.String())
 	}
@@ -2385,14 +2385,14 @@ func (s *regAllocState) shuffle(stacklive [][]ssacore.ID) {
 
 type edgeState struct {
 	s    *regAllocState
-	p, b *ssacore.Block // edge goes from p->b.
+	p, b *ssa.Block // edge goes from p->b.
 
 	// for each pre-regalloc value, a list of equivalent cached values
-	cache      map[ssacore.ID][]*ssacore.Value
-	cachedVals []ssacore.ID // (superset of) keys of the above map, for deterministic iteration
+	cache      map[ssa.ID][]*ssa.Value
+	cachedVals []ssa.ID // (superset of) keys of the above map, for deterministic iteration
 
 	// map from location to the value it contains
-	contents map[ssacore.Location]contentRecord
+	contents map[ssa.Location]contentRecord
 
 	// desired destination locations
 	destinations []dstRecord
@@ -2405,22 +2405,22 @@ type edgeState struct {
 }
 
 type contentRecord struct {
-	vid   ssacore.ID     // pre-regalloc value
-	c     *ssacore.Value // cached value
-	final bool           // this is a satisfied destination
-	pos   src.XPos       // source position of use of the value
+	vid   ssa.ID     // pre-regalloc value
+	c     *ssa.Value // cached value
+	final bool       // this is a satisfied destination
+	pos   src.XPos   // source position of use of the value
 }
 
 type dstRecord struct {
-	loc    ssacore.Location // register or stack slot
-	vid    ssacore.ID       // pre-regalloc value it should contain
-	splice **ssacore.Value  // place to store reference to the generating instruction
-	pos    src.XPos         // source position of use of this location
+	loc    ssa.Location // register or stack slot
+	vid    ssa.ID       // pre-regalloc value it should contain
+	splice **ssa.Value  // place to store reference to the generating instruction
+	pos    src.XPos     // source position of use of this location
 }
 
 // setup initializes the edge state for shuffling.
-func (e *edgeState) setup(idx int, srcReg []endReg, dstReg []startReg, stacklive []ssacore.ID) {
-	if e.s.f.Pass.Debug > ssacore.RegDebug {
+func (e *edgeState) setup(idx int, srcReg []endReg, dstReg []startReg, stacklive []ssa.ID) {
+	if e.s.f.Pass.Debug > ssa.RegDebug {
 		fmt.Printf("edge %s->%s\n", e.p, e.b)
 	}
 
@@ -2473,7 +2473,7 @@ func (e *edgeState) setup(idx int, srcReg []endReg, dstReg []startReg, stacklive
 	}
 	e.destinations = dsts
 
-	if e.s.f.Pass.Debug > ssacore.RegDebug {
+	if e.s.f.Pass.Debug > ssa.RegDebug {
 		for _, vid := range e.cachedVals {
 			a := e.cache[vid]
 			for _, c := range a {
@@ -2537,7 +2537,7 @@ func (e *edgeState) process() {
 		vid := e.contents[loc].vid
 		c := e.contents[loc].c
 		r := e.findRegFor(c.Type)
-		if e.s.f.Pass.Debug > ssacore.RegDebug {
+		if e.s.f.Pass.Debug > ssa.RegDebug {
 			fmt.Printf("breaking cycle with v%d in %s:%s\n", vid, loc, c)
 		}
 		e.erase(r)
@@ -2556,7 +2556,7 @@ func (e *edgeState) process() {
 
 // processDest generates code to put value vid into location loc. Returns true
 // if progress was made.
-func (e *edgeState) processDest(loc ssacore.Location, vid ssacore.ID, splice **ssacore.Value, pos src.XPos) bool {
+func (e *edgeState) processDest(loc ssa.Location, vid ssa.ID, splice **ssa.Value, pos src.XPos) bool {
 	pos = pos.WithNotStmt()
 	occupant := e.contents[loc]
 	if occupant.vid == vid {
@@ -2586,9 +2586,9 @@ func (e *edgeState) processDest(loc ssacore.Location, vid ssacore.ID, splice **s
 
 	// Copy from a source of v, register preferred.
 	v := e.s.orig[vid]
-	var c *ssacore.Value
-	var src ssacore.Location
-	if e.s.f.Pass.Debug > ssacore.RegDebug {
+	var c *ssa.Value
+	var src ssa.Location
+	if e.s.f.Pass.Debug > ssa.RegDebug {
 		fmt.Printf("moving v%d to %s\n", vid, loc)
 		fmt.Printf("sources of v%d:", vid)
 	}
@@ -2598,7 +2598,7 @@ func (e *edgeState) processDest(loc ssacore.Location, vid ssacore.ID, splice **s
 	} else {
 		for _, w := range e.cache[vid] {
 			h := e.s.f.GetHome(w.ID)
-			if e.s.f.Pass.Debug > ssacore.RegDebug {
+			if e.s.f.Pass.Debug > ssa.RegDebug {
 				fmt.Printf(" %s:%s", h, w)
 			}
 			_, isreg := h.(*ssabase.Register)
@@ -2608,7 +2608,7 @@ func (e *edgeState) processDest(loc ssacore.Location, vid ssacore.ID, splice **s
 			}
 		}
 	}
-	if e.s.f.Pass.Debug > ssacore.RegDebug {
+	if e.s.f.Pass.Debug > ssa.RegDebug {
 		if src != nil {
 			fmt.Printf(" [use %s]\n", src)
 		} else {
@@ -2628,7 +2628,7 @@ func (e *edgeState) processDest(loc ssacore.Location, vid ssacore.ID, splice **s
 	// be chosen as the temp register, as it will then
 	// be the last copy of v.
 	e.erase(loc)
-	var x *ssacore.Value
+	var x *ssa.Value
 	if c == nil || e.s.values[vid].Rematerializeable {
 		if !e.s.values[vid].Rematerializeable {
 			e.s.f.Fatalf("can't find source for %s->%s: %s\n", e.p, e.b, v.LongString())
@@ -2667,7 +2667,7 @@ func (e *edgeState) processDest(loc ssacore.Location, vid ssacore.ID, splice **s
 			// Make sure we spill with the size of the slot, not the
 			// size of x (which might be wider due to our dropping
 			// of narrowing conversions).
-			x = e.p.NewValue1(pos, ssaop.OpStoreReg, loc.(ssacore.LocalSlot).Type, x)
+			x = e.p.NewValue1(pos, ssaop.OpStoreReg, loc.(ssa.LocalSlot).Type, x)
 		}
 	} else {
 		// Emit move from src to dst.
@@ -2676,7 +2676,7 @@ func (e *edgeState) processDest(loc ssacore.Location, vid ssacore.ID, splice **s
 			if dstReg {
 				x = e.p.NewValue1(pos, ssaop.OpCopy, c.Type, c)
 			} else {
-				x = e.p.NewValue1(pos, ssaop.OpStoreReg, loc.(ssacore.LocalSlot).Type, c)
+				x = e.p.NewValue1(pos, ssaop.OpStoreReg, loc.(ssa.LocalSlot).Type, c)
 			}
 		} else {
 			if dstReg {
@@ -2687,7 +2687,7 @@ func (e *edgeState) processDest(loc ssacore.Location, vid ssacore.ID, splice **s
 				e.erase(r)
 				t := e.p.NewValue1(pos, ssaop.OpLoadReg, c.Type, c)
 				e.set(r, vid, t, false, pos)
-				x = e.p.NewValue1(pos, ssaop.OpStoreReg, loc.(ssacore.LocalSlot).Type, t)
+				x = e.p.NewValue1(pos, ssaop.OpStoreReg, loc.(ssa.LocalSlot).Type, t)
 			}
 		}
 	}
@@ -2704,7 +2704,7 @@ func (e *edgeState) processDest(loc ssacore.Location, vid ssacore.ID, splice **s
 }
 
 // set changes the contents of location loc to hold the given value and its cached representative.
-func (e *edgeState) set(loc ssacore.Location, vid ssacore.ID, c *ssacore.Value, final bool, pos src.XPos) {
+func (e *edgeState) set(loc ssa.Location, vid ssa.ID, c *ssa.Value, final bool, pos src.XPos) {
 	e.s.f.SetHome(c, loc)
 	e.contents[loc] = contentRecord{vid, c, final, pos}
 	a := e.cache[vid]
@@ -2733,14 +2733,14 @@ func (e *edgeState) set(loc ssacore.Location, vid ssacore.ID, c *ssacore.Value, 
 			e.rematerializeableRegs = e.rematerializeableRegs.AddReg(ssaop.Register(r.Num))
 		}
 	}
-	if e.s.f.Pass.Debug > ssacore.RegDebug {
+	if e.s.f.Pass.Debug > ssa.RegDebug {
 		fmt.Printf("%s\n", c.LongString())
 		fmt.Printf("v%d now available in %s:%s\n", vid, loc, c)
 	}
 }
 
 // erase removes any user of loc.
-func (e *edgeState) erase(loc ssacore.Location) {
+func (e *edgeState) erase(loc ssa.Location) {
 	cr := e.contents[loc]
 	if cr.c == nil {
 		return
@@ -2758,7 +2758,7 @@ func (e *edgeState) erase(loc ssacore.Location) {
 	a := e.cache[vid]
 	for i, c := range a {
 		if e.s.f.GetHome(c.ID) == loc {
-			if e.s.f.Pass.Debug > ssacore.RegDebug {
+			if e.s.f.Pass.Debug > ssa.RegDebug {
 				fmt.Printf("v%d no longer available in %s:%s\n", vid, loc, c)
 			}
 			a[i], a = a[len(a)-1], a[:len(a)-1]
@@ -2783,7 +2783,7 @@ func (e *edgeState) erase(loc ssacore.Location) {
 }
 
 // findRegFor finds a register we can use to make a temp copy of type typ.
-func (e *edgeState) findRegFor(typ *types.Type) ssacore.Location {
+func (e *edgeState) findRegFor(typ *types.Type) ssa.Location {
 	// Which registers are possibilities.
 	m := e.s.compatRegs(typ)
 
@@ -2818,10 +2818,10 @@ func (e *edgeState) findRegFor(typ *types.Type) ssacore.Location {
 				if !c.Rematerializeable() {
 					x := e.p.NewValue1(c.Pos, ssaop.OpStoreReg, c.Type, c)
 					// Allocate a temp location to spill a register to.
-					t := ssacore.LocalSlot{N: e.s.f.NewLocal(c.Pos, c.Type), Type: c.Type}
+					t := ssa.LocalSlot{N: e.s.f.NewLocal(c.Pos, c.Type), Type: c.Type}
 					// TODO: reuse these slots. They'll need to be erased first.
 					e.set(t, vid, x, false, c.Pos)
-					if e.s.f.Pass.Debug > ssacore.RegDebug {
+					if e.s.f.Pass.Debug > ssa.RegDebug {
 						fmt.Printf("  SPILL %s->%s %s\n", r, t, x.LongString())
 					}
 				}
@@ -2845,9 +2845,9 @@ func (e *edgeState) findRegFor(typ *types.Type) ssacore.Location {
 }
 
 type liveInfo struct {
-	ID   ssacore.ID // ID of value
-	dist int32      // # of instructions before next use
-	pos  src.XPos   // source position of next use
+	ID   ssa.ID   // ID of value
+	dist int32    // # of instructions before next use
+	pos  src.XPos // source position of next use
 }
 
 // computeLive computes a map from block ID to a list of value IDs live at the end
@@ -2865,7 +2865,7 @@ func (s *regAllocState) computeLive() {
 	s.desired = make([]desiredState, f.NumBlocks())
 	s.loopnest = f.Loopnest()
 
-	rematIDs := make([]ssacore.ID, 0, 64)
+	rematIDs := make([]ssa.ID, 0, 64)
 
 	live := f.NewSparseMapPos(f.NumValues())
 	defer f.RetSparseMapPos(live)
@@ -2888,10 +2888,10 @@ func (s *regAllocState) computeLive() {
 	// we compute the liveout as the union of all successors. This larger liveout set is a subset
 	// of the final liveout for the block and adding this information in the DFS phase means that
 	// we get slightly more accurate distance information.
-	var loopLiveIn map[*ssacore.Loop][]liveInfo
+	var loopLiveIn map[*ssa.Loop][]liveInfo
 	var numCalls []int32
 	if len(s.loopnest.Loops) > 0 && !s.loopnest.HasIrreducible {
-		loopLiveIn = make(map[*ssacore.Loop][]liveInfo)
+		loopLiveIn = make(map[*ssa.Loop][]liveInfo)
 		numCalls = f.Cache.AllocInt32Slice(f.NumBlocks())
 		defer f.Cache.FreeInt32Slice(numCalls)
 	}
@@ -3025,7 +3025,7 @@ func (s *regAllocState) computeLive() {
 			break
 		}
 	}
-	if f.Pass.Debug > ssacore.RegDebug {
+	if f.Pass.Debug > ssa.RegDebug {
 		s.debugPrintLive("after dfs walk", f, s.live, s.desired)
 	}
 
@@ -3041,7 +3041,7 @@ func (s *regAllocState) computeLive() {
 	// a recursive algorithm, iterate in depth order.
 	// TODO(dmo): can we permute the loopnest? can we avoid this copy?
 	loops := slices.Clone(s.loopnest.Loops)
-	slices.SortFunc(loops, func(a, b *ssacore.Loop) int {
+	slices.SortFunc(loops, func(a, b *ssa.Loop) int {
 		return cmp.Compare(a.Depth, b.Depth)
 	})
 
@@ -3096,7 +3096,7 @@ func (s *regAllocState) computeLive() {
 			s.live[b.ID] = updateLive(loopset, s.live[b.ID])
 		}
 	}
-	if f.Pass.Debug > ssacore.RegDebug {
+	if f.Pass.Debug > ssa.RegDebug {
 		s.debugPrintLive("after live loop prop", f, s.live, s.desired)
 	}
 	// Filling in liveness from loops leaves some blocks with no distance information
@@ -3162,7 +3162,7 @@ func (s *regAllocState) computeLive() {
 
 	s.computeDesired()
 
-	if f.Pass.Debug > ssacore.RegDebug {
+	if f.Pass.Debug > ssa.RegDebug {
 		s.debugPrintLive("final", f, s.live, s.desired)
 	}
 }
@@ -3190,7 +3190,7 @@ func (s *regAllocState) computeDesired() {
 			for i := range b.Preds {
 				phiPrefs[i].reset()
 			}
-			var headerLoop *ssacore.Loop // loop whose header is b, if any
+			var headerLoop *ssa.Loop // loop whose header is b, if any
 			if l := s.loopnest.B2L[b.ID]; l != nil && l.Header == b {
 				headerLoop = l
 			}
@@ -3236,7 +3236,7 @@ func (s *regAllocState) computeDesired() {
 				// The merge below re-adds any bits other entries still need.
 				for _, r := range prefs {
 					if r != noRegister {
-						desired.avoid = desired.avoid.Minus(ssacore.RegMaskAt(r))
+						desired.avoid = desired.avoid.Minus(ssa.RegMaskAt(r))
 					}
 				}
 				// Propagate v's desired registers back to its args.
@@ -3262,7 +3262,7 @@ func (s *regAllocState) computeDesired() {
 }
 
 // updateLive updates a given liveInfo slice with the contents of t
-func updateLive(t *ssacore.SparseMapPos, live []liveInfo) []liveInfo {
+func updateLive(t *ssa.SparseMapPos, live []liveInfo) []liveInfo {
 	live = live[:0]
 	if cap(live) < t.Size() {
 		live = make([]liveInfo, 0, t.Size())
@@ -3276,14 +3276,14 @@ func updateLive(t *ssacore.SparseMapPos, live []liveInfo) []liveInfo {
 // branchDistance calculates the distance between a block and a
 // successor in pseudo-instructions. This is used to indicate
 // likeliness
-func branchDistance(b *ssacore.Block, s *ssacore.Block) int32 {
+func branchDistance(b *ssa.Block, s *ssa.Block) int32 {
 	if len(b.Succs) == 2 {
-		if b.Succs[0].B == s && b.Likely == ssacore.BranchLikely ||
-			b.Succs[1].B == s && b.Likely == ssacore.BranchUnlikely {
+		if b.Succs[0].B == s && b.Likely == ssa.BranchLikely ||
+			b.Succs[1].B == s && b.Likely == ssa.BranchUnlikely {
 			return likelyDistance
 		}
-		if b.Succs[0].B == s && b.Likely == ssacore.BranchUnlikely ||
-			b.Succs[1].B == s && b.Likely == ssacore.BranchLikely {
+		if b.Succs[0].B == s && b.Likely == ssa.BranchUnlikely ||
+			b.Succs[1].B == s && b.Likely == ssa.BranchLikely {
 			return unlikelyDistance
 		}
 	}
@@ -3292,14 +3292,14 @@ func branchDistance(b *ssacore.Block, s *ssacore.Block) int32 {
 	return normalDistance
 }
 
-func (s *regAllocState) debugPrintLive(stage string, f *ssacore.Func, live [][]liveInfo, desired []desiredState) {
+func (s *regAllocState) debugPrintLive(stage string, f *ssa.Func, live [][]liveInfo, desired []desiredState) {
 	fmt.Printf("%s: live values at end of each block: %s\n", stage, f.Name)
 	for _, b := range f.Blocks {
 		s.debugPrintLiveBlock(b, live[b.ID], &desired[b.ID])
 	}
 }
 
-func (s *regAllocState) debugPrintLiveBlock(b *ssacore.Block, live []liveInfo, desired *desiredState) {
+func (s *regAllocState) debugPrintLiveBlock(b *ssa.Block, live []liveInfo, desired *desiredState) {
 	fmt.Printf("  %s:", b)
 	slices.SortFunc(live, func(a, b liveInfo) int {
 		return cmp.Compare(a.ID, b.ID)
@@ -3344,7 +3344,7 @@ type desiredState struct {
 }
 type desiredStateEntry struct {
 	// (pre-regalloc) value
-	ID ssacore.ID
+	ID ssa.ID
 	// Registers it would like to be in, in priority order.
 	// Unused slots are filled with noRegister.
 	// For opcodes that return tuples, we track desired registers only
@@ -3354,7 +3354,7 @@ type desiredStateEntry struct {
 }
 
 // get returns a list of desired registers for value vid.
-func (d *desiredState) get(vid ssacore.ID) [4]ssaop.Register {
+func (d *desiredState) get(vid ssa.ID) [4]ssaop.Register {
 	for _, e := range d.entries {
 		if e.ID == vid {
 			return e.regs
@@ -3364,7 +3364,7 @@ func (d *desiredState) get(vid ssacore.ID) [4]ssaop.Register {
 }
 
 // add records that we'd like value vid to be in register r.
-func (d *desiredState) add(vid ssacore.ID, r ssaop.Register) {
+func (d *desiredState) add(vid ssa.ID, r ssaop.Register) {
 	d.avoid = d.avoid.AddReg(r)
 	for i := range d.entries {
 		e := &d.entries[i]
@@ -3390,7 +3390,7 @@ func (d *desiredState) add(vid ssacore.ID, r ssaop.Register) {
 	d.entries = append(d.entries, desiredStateEntry{vid, [4]ssaop.Register{r, noRegister, noRegister, noRegister}})
 }
 
-func (d *desiredState) addList(vid ssacore.ID, regs [4]ssaop.Register) {
+func (d *desiredState) addList(vid ssa.ID, regs [4]ssaop.Register) {
 	// regs is in priority order, so iterate in reverse order.
 	for i := len(regs) - 1; i >= 0; i-- {
 		r := regs[i]
@@ -3438,7 +3438,7 @@ func (d *desiredState) copy(x *desiredState) {
 }
 
 // remove removes the desired registers for vid and returns them.
-func (d *desiredState) remove(vid ssacore.ID) [4]ssaop.Register {
+func (d *desiredState) remove(vid ssa.ID) [4]ssaop.Register {
 	for i := range d.entries {
 		if d.entries[i].ID == vid {
 			regs := d.entries[i].regs

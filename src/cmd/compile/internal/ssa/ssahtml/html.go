@@ -16,14 +16,14 @@ import (
 	"strconv"
 	"strings"
 
+	"cmd/compile/internal/ssa"
 	"cmd/compile/internal/ssa/block"
-	"cmd/compile/internal/ssa/ssacore"
 	"cmd/internal/src"
 )
 
 type HTMLWriter struct {
 	w             io.WriteCloser
-	Func          *ssacore.Func
+	Func          *ssa.Func
 	path          string
 	dot           *dotWriter
 	prevHash      []byte
@@ -31,7 +31,7 @@ type HTMLWriter struct {
 	pendingTitles []string
 }
 
-func NewHTMLWriter(path string, f *ssacore.Func, cfgMask string, passes []ssacore.Pass) *HTMLWriter {
+func NewHTMLWriter(path string, f *ssa.Func, cfgMask string, passes []ssa.Pass) *HTMLWriter {
 	path = strings.ReplaceAll(path, "/", string(filepath.Separator))
 	out, err := os.OpenFile(path, os.O_WRONLY|os.O_CREATE|os.O_TRUNC, 0644)
 	if err != nil {
@@ -801,7 +801,7 @@ func (w *HTMLWriter) WritePhase(phase, title string) {
 	if w == nil {
 		return // avoid generating HTML just to discard it
 	}
-	hash := ssacore.HashFunc(w.Func)
+	hash := ssa.HashFunc(w.Func)
 	w.pendingPhases = append(w.pendingPhases, phase)
 	w.pendingTitles = append(w.pendingTitles, title)
 	if !bytes.Equal(hash, w.prevHash) {
@@ -975,21 +975,21 @@ func (w *HTMLWriter) WriteString(s string) {
 	}
 }
 
-func HTML(f *ssacore.Func, phase string, dot *dotWriter) string {
+func HTML(f *ssa.Func, phase string, dot *dotWriter) string {
 	buf := new(strings.Builder)
 	if dot != nil {
 		dot.writeFuncSVG(buf, phase, f)
 	}
 	fmt.Fprint(buf, "<code>")
 	p := htmlFuncPrinter{w: buf}
-	ssacore.FprintFunc(p, f)
+	ssa.FprintFunc(p, f)
 
 	// fprintFunc(&buf, f) // TODO: HTML, not text, <br> for line breaks, etc.
 	fmt.Fprint(buf, "</code>")
 	return buf.String()
 }
 
-func (d *dotWriter) writeFuncSVG(w io.Writer, phase string, f *ssacore.Func) {
+func (d *dotWriter) writeFuncSVG(w io.Writer, phase string, f *ssa.Func) {
 	if d.broken {
 		return
 	}
@@ -1035,8 +1035,8 @@ func (d *dotWriter) writeFuncSVG(w io.Writer, phase string, f *ssacore.Func) {
 	layoutDrawn := make([]bool, f.NumBlocks())
 
 	ponums := make([]int32, f.NumBlocks())
-	_ = ssacore.PostorderWithNumbering(f, ponums)
-	isBackEdge := func(from, to ssacore.ID) bool {
+	_ = ssa.PostorderWithNumbering(f, ponums)
+	isBackEdge := func(from, to ssa.ID) bool {
 		return ponums[from] <= ponums[to]
 	}
 
@@ -1105,9 +1105,9 @@ type htmlFuncPrinter struct {
 	w io.Writer
 }
 
-func (p htmlFuncPrinter) Header(f *ssacore.Func) {}
+func (p htmlFuncPrinter) Header(f *ssa.Func) {}
 
-func (p htmlFuncPrinter) StartBlock(b *ssacore.Block, reachable bool) {
+func (p htmlFuncPrinter) StartBlock(b *ssa.Block, reachable bool) {
 	var dead string
 	if !reachable {
 		dead = "dead-block"
@@ -1131,7 +1131,7 @@ func (p htmlFuncPrinter) StartBlock(b *ssacore.Block, reachable bool) {
 	}
 }
 
-func (p htmlFuncPrinter) EndBlock(b *ssacore.Block, reachable bool) {
+func (p htmlFuncPrinter) EndBlock(b *ssa.Block, reachable bool) {
 	if len(b.Values) > 0 { // end list of values
 		io.WriteString(p.w, "</ul>")
 		io.WriteString(p.w, "</li>")
@@ -1142,7 +1142,7 @@ func (p htmlFuncPrinter) EndBlock(b *ssacore.Block, reachable bool) {
 	io.WriteString(p.w, "</ul>")
 }
 
-func (p htmlFuncPrinter) Value(v *ssacore.Value, live bool) {
+func (p htmlFuncPrinter) Value(v *ssa.Value, live bool) {
 	var dead string
 	if !live {
 		dead = "dead-value"
@@ -1160,7 +1160,7 @@ func (p htmlFuncPrinter) EndDepCycle() {
 	fmt.Fprintln(p.w, "</span>")
 }
 
-func (p htmlFuncPrinter) Named(n ssacore.LocalSlot, vals []*ssacore.Value) {
+func (p htmlFuncPrinter) Named(n ssa.LocalSlot, vals []*ssa.Value) {
 	fmt.Fprintf(p.w, "<li>name %s: ", n)
 	for _, val := range vals {
 		fmt.Fprintf(p.w, "%s ", val.HTML())
@@ -1180,7 +1180,7 @@ type dotWriter struct {
 // *   - all of them;
 // x-y - x through y, inclusive;
 // x,y - x and y, but not the passes between.
-func newDotWriter(mask string, passes []ssacore.Pass) *dotWriter {
+func newDotWriter(mask string, passes []ssa.Pass) *dotWriter {
 	if mask == "" {
 		return nil
 	}
@@ -1219,7 +1219,7 @@ func newDotWriter(mask string, passes []ssacore.Pass) *dotWriter {
 	return &dotWriter{path: path, phases: ph}
 }
 
-func passIdxByName(passes []ssacore.Pass, name string) int {
+func passIdxByName(passes []ssa.Pass, name string) int {
 	for i, p := range passes {
 		if p.Name == name {
 			return i

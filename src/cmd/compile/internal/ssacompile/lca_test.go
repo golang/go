@@ -7,7 +7,7 @@ package ssacompile
 import (
 	"testing"
 
-	"cmd/compile/internal/ssa/ssacore"
+	"cmd/compile/internal/ssa"
 )
 
 func testLCAgen(t *testing.T, bg blockGen, size int) {
@@ -57,14 +57,14 @@ func TestLCAMaxPredValue(t *testing.T) {
 
 // Simple implementation of LCA to compare against.
 type lcaEasy struct {
-	parent []*ssacore.Block
+	parent []*ssa.Block
 }
 
-func makeLCAeasy(f *ssacore.Func) *lcaEasy {
-	return &lcaEasy{parent: ssacore.Dominators(f)}
+func makeLCAeasy(f *ssa.Func) *lcaEasy {
+	return &lcaEasy{parent: ssa.Dominators(f)}
 }
 
-func (lca *lcaEasy) find(a, b *ssacore.Block) *ssacore.Block {
+func (lca *lcaEasy) find(a, b *ssa.Block) *ssa.Block {
 	da := lca.depth(a)
 	db := lca.depth(b)
 	for da > db {
@@ -82,7 +82,7 @@ func (lca *lcaEasy) find(a, b *ssacore.Block) *ssacore.Block {
 	return a
 }
 
-func (lca *lcaEasy) depth(b *ssacore.Block) int {
+func (lca *lcaEasy) depth(b *ssa.Block) int {
 	n := 0
 	for b != nil {
 		b = lca.parent[b.ID]

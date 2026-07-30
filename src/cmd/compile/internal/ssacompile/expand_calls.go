@@ -10,19 +10,19 @@ import (
 	"cmd/compile/internal/abi"
 	"cmd/compile/internal/base"
 	"cmd/compile/internal/ir"
+	"cmd/compile/internal/ssa"
 	"cmd/compile/internal/ssa/block"
-	"cmd/compile/internal/ssa/ssacore"
 	"cmd/compile/internal/ssa/ssaop"
 	"cmd/compile/internal/types"
 	"cmd/internal/src"
 )
 
-func postExpandCallsDecompose(f *ssacore.Func) {
+func postExpandCallsDecompose(f *ssa.Func) {
 	decomposeUser(f)    // redo user decompose to cleanup after expand calls
 	decomposeBuiltin(f) // handles both regular decomposition and cleanup.
 }
 
-func expandCalls(f *ssacore.Func) {
+func expandCalls(f *ssa.Func) {
 	// Convert each aggregate arg to a call into "dismantle aggregate, store/pass parts"
 	// Convert each aggregate result from a call into "assemble aggregate from parts"
 	// Convert each multivalue exit into "dismantle aggregate, store/return parts"
@@ -37,10 +37,10 @@ func expandCalls(f *ssacore.Func) {
 		regSize:         f.Config.RegSize,
 		sp:              sp,
 		typs:            &f.Config.Types,
-		wideSelects:     make(map[*ssacore.Value]*ssacore.Value),
-		commonArgs:      make(map[selKey]*ssacore.Value),
-		commonSelectors: make(map[selKey]*ssacore.Value),
-		memForCall:      make(map[ssacore.ID]*ssacore.Value),
+		wideSelects:     make(map[*ssa.Value]*ssa.Value),
+		commonArgs:      make(map[selKey]*ssa.Value),
+		commonSelectors: make(map[selKey]*ssa.Value),
+		memForCall:      make(map[ssa.ID]*ssa.Value),
 	}
 
 	// For 32-bit, need to deal with decomposition of 64-bit integers, which depends on endianness.
@@ -57,12 +57,12 @@ func expandCalls(f *ssacore.Func) {
 	}
 
 	// Defer select processing until after all calls and selects are seen.
-	var selects []*ssacore.Value
-	var calls []*ssacore.Value
-	var args []*ssacore.Value
-	var exitBlocks []*ssacore.Block
+	var selects []*ssa.Value
+	var calls []*ssa.Value
+	var args []*ssa.Value
+	var exitBlocks []*ssa.Block
 
-	var m0 *ssacore.Value
+	var m0 *ssa.Value
 
 	// Accumulate lists of calls, args, selects, and exit blocks to process,
 	// note "wide" selects consumed by stores,
@@ -81,7 +81,7 @@ func expandCalls(f *ssacore.Func) {
 				args = append(args, v)
 
 			case ssaop.OpStore:
-				if a := v.Args[1]; a.Op == ssaop.OpSelectN && !ssacore.CanSSA(a.Type) {
+				if a := v.Args[1]; a.Op == ssaop.OpSelectN && !ssa.CanSSA(a.Type) {
 					if a.Uses > 1 {
 						panic(fmt.Errorf("Saw double use of wide SelectN %s operand of Store %s",
 							a.LongString(), v.LongString()))
@@ -93,7 +93,7 @@ func expandCalls(f *ssacore.Func) {
 				if v.Type == types.TypeMem {
 					// rewrite the mem selector in place
 					call := v.Args[0]
-					aux := call.Aux.(*ssacore.AuxCall)
+					aux := call.Aux.(*ssa.AuxCall)
 					mem := x.memForCall[call.ID]
 					if mem == nil {
 						v.AuxInt = int64(aux.AbiInfo.OutRegistersUsed())
@@ -108,7 +108,7 @@ func expandCalls(f *ssacore.Func) {
 			case ssaop.OpSelectNAddr:
 				call := v.Args[0]
 				which := v.AuxInt
-				aux := call.Aux.(*ssacore.AuxCall)
+				aux := call.Aux.(*ssa.AuxCall)
 				pt := v.Type
 				off := x.offsetFrom(x.f.Entry, x.sp, aux.OffsetOfResult(which), pt)
 				v.CopyOf(off)
@@ -144,7 +144,7 @@ func expandCalls(f *ssacore.Func) {
 		}
 
 		call := v.Args[0]
-		aux := call.Aux.(*ssacore.AuxCall)
+		aux := call.Aux.(*ssa.AuxCall)
 		mem := x.memForCall[call.ID]
 		if mem == nil {
 			mem = call.Block.NewValue1I(call.Pos, ssaop.OpSelectN, types.TypeMem, int64(aux.AbiInfo.OutRegistersUsed()), call)
@@ -178,7 +178,7 @@ func expandCalls(f *ssacore.Func) {
 			continue
 		}
 
-		var auxBase *ssacore.Value
+		var auxBase *ssa.Value
 		if len(regs) == 0 {
 			offset := aux.OffsetOfResult(i)
 			auxBase = x.offsetFrom(x.f.Entry, x.sp, offset, types.NewPtr(v.Type))
@@ -188,11 +188,11 @@ func expandCalls(f *ssacore.Func) {
 		x.rewriteSelectOrArg(call.Pos, call.Block, v, v, mem, v.Type, rc)
 	}
 
-	rewriteCall := func(v *ssacore.Value, newOp ssaop.Op, argStart int) {
+	rewriteCall := func(v *ssa.Value, newOp ssaop.Op, argStart int) {
 		// Break aggregate args passed to call into smaller pieces.
 		x.rewriteCallArgs(v, argStart)
 		v.Op = newOp
-		rts := abi.RegisterTypes(v.Aux.(*ssacore.AuxCall).AbiInfo.OutParams())
+		rts := abi.RegisterTypes(v.Aux.(*ssa.AuxCall).AbiInfo.OutParams())
 		v.Type = types.NewResults(append(rts, types.TypeMem))
 	}
 
@@ -221,7 +221,7 @@ func expandCalls(f *ssacore.Func) {
 
 }
 
-func (x *expandState) rewriteFuncResults(v *ssacore.Value, b *ssacore.Block, aux *ssacore.AuxCall) {
+func (x *expandState) rewriteFuncResults(v *ssa.Value, b *ssa.Block, aux *ssa.AuxCall) {
 	// This is very similar to rewriteCallArgs
 	// differences:
 	// firstArg + preArgs
@@ -230,8 +230,8 @@ func (x *expandState) rewriteFuncResults(v *ssacore.Value, b *ssacore.Block, aux
 	m0 := v.MemoryArg()
 	mem := m0
 
-	allResults := []*ssacore.Value{}
-	var oldArgs []*ssacore.Value
+	allResults := []*ssa.Value{}
+	var oldArgs []*ssa.Value
 	argsWithoutMem := v.Args[:len(v.Args)-1]
 
 	for j, a := range argsWithoutMem {
@@ -245,7 +245,7 @@ func (x *expandState) rewriteFuncResults(v *ssacore.Value, b *ssacore.Block, aux
 			a.Op = ssaop.OpLoad
 		}
 		var rc registerCursor
-		var result *[]*ssacore.Value
+		var result *[]*ssa.Value
 		if len(aRegs) > 0 {
 			result = &allResults
 		} else {
@@ -271,18 +271,18 @@ func (x *expandState) rewriteFuncResults(v *ssacore.Value, b *ssacore.Block, aux
 	return
 }
 
-func (x *expandState) rewriteCallArgs(v *ssacore.Value, firstArg int) {
+func (x *expandState) rewriteCallArgs(v *ssa.Value, firstArg int) {
 	if x.debug > 1 {
 		x.indent(3)
 		defer x.indent(-3)
 		x.Printf("rewriteCallArgs(%s; %d)\n", v.LongString(), firstArg)
 	}
 	// Thread the stores on the memory arg
-	aux := v.Aux.(*ssacore.AuxCall)
+	aux := v.Aux.(*ssa.AuxCall)
 	m0 := v.MemoryArg()
 	mem := m0
-	allResults := []*ssacore.Value{}
-	oldArgs := []*ssacore.Value{}
+	allResults := []*ssa.Value{}
+	oldArgs := []*ssa.Value{}
 	argsWithoutMem := v.Args[firstArg : len(v.Args)-1] // Also strip closure/interface Op-specific args
 
 	sp := x.sp
@@ -302,7 +302,7 @@ func (x *expandState) rewriteCallArgs(v *ssacore.Value, firstArg int) {
 			a.Op = ssaop.OpLoad
 		}
 		var rc registerCursor
-		var result *[]*ssacore.Value
+		var result *[]*ssa.Value
 		var aOffset int64
 		if len(aRegs) > 0 {
 			result = &allResults
@@ -324,7 +324,7 @@ func (x *expandState) rewriteCallArgs(v *ssacore.Value, firstArg int) {
 		rc.init(aRegs, aux.AbiInfo, result, sp, aOffset)
 		mem = x.decomposeAsNecessary(v.Pos, v.Block, a, mem, rc)
 	}
-	var preArgStore [2]*ssacore.Value
+	var preArgStore [2]*ssa.Value
 	preArgs := append(preArgStore[:0], v.Args[0:firstArg]...)
 	v.ResetArgs()
 	v.AddArgs(preArgs...)
@@ -339,7 +339,7 @@ func (x *expandState) rewriteCallArgs(v *ssacore.Value, firstArg int) {
 	return
 }
 
-func (x *expandState) decomposePair(pos src.XPos, b *ssacore.Block, a, mem *ssacore.Value, t0, t1 *types.Type, o0, o1 ssaop.Op, rc *registerCursor) *ssacore.Value {
+func (x *expandState) decomposePair(pos src.XPos, b *ssa.Block, a, mem *ssa.Value, t0, t1 *types.Type, o0, o1 ssaop.Op, rc *registerCursor) *ssa.Value {
 	e := b.NewValue1(pos, o0, t0, a)
 	pos = pos.WithNotStmt()
 	mem = x.decomposeAsNecessary(pos, b, e, mem, rc.next(t0))
@@ -348,7 +348,7 @@ func (x *expandState) decomposePair(pos src.XPos, b *ssacore.Block, a, mem *ssac
 	return mem
 }
 
-func (x *expandState) decomposeOne(pos src.XPos, b *ssacore.Block, a, mem *ssacore.Value, t0 *types.Type, o0 ssaop.Op, rc *registerCursor) *ssacore.Value {
+func (x *expandState) decomposeOne(pos src.XPos, b *ssa.Block, a, mem *ssa.Value, t0 *types.Type, o0 ssaop.Op, rc *registerCursor) *ssa.Value {
 	e := b.NewValue1(pos, o0, t0, a)
 	pos = pos.WithNotStmt()
 	mem = x.decomposeAsNecessary(pos, b, e, mem, rc.next(t0))
@@ -363,7 +363,7 @@ func (x *expandState) decomposeOne(pos src.XPos, b *ssacore.Block, a, mem *ssaco
 // 'a' is the value to decompose
 // 'm0' is the input memory arg used for the first store (or returned if there are no stores)
 // 'rc' is a registerCursor which identifies the register/memory destination for the value
-func (x *expandState) decomposeAsNecessary(pos src.XPos, b *ssacore.Block, a, m0 *ssacore.Value, rc registerCursor) *ssacore.Value {
+func (x *expandState) decomposeAsNecessary(pos src.XPos, b *ssa.Block, a, m0 *ssa.Value, rc registerCursor) *ssa.Value {
 	if x.debug > 1 {
 		x.indent(3)
 		defer x.indent(-3)
@@ -376,7 +376,7 @@ func (x *expandState) decomposeAsNecessary(pos src.XPos, b *ssacore.Block, a, m0
 		a.Op = ssaop.OpLoad // For purposes of parameter passing expansion, a Dereference is a Load.
 	}
 
-	if !rc.hasRegs() && !ssacore.CanSSA(at) {
+	if !rc.hasRegs() && !ssa.CanSSA(at) {
 		dst := x.offsetFrom(b, rc.storeDest, rc.storeOffset, types.NewPtr(at))
 		if x.debug > 1 {
 			x.Printf("...recur store %s at %s\n", a.LongString(), dst.LongString())
@@ -492,14 +492,14 @@ func (x *expandState) decomposeAsNecessary(pos src.XPos, b *ssacore.Block, a, m0
 //   - "m0" the memory arg for any loads that are necessary
 //   - "at" the type of the Arg/part
 //   - "rc" the register/memory cursor locating the various parts of the Arg.
-func (x *expandState) rewriteSelectOrArg(pos src.XPos, b *ssacore.Block, container, a, m0 *ssacore.Value, at *types.Type, rc registerCursor) *ssacore.Value {
+func (x *expandState) rewriteSelectOrArg(pos src.XPos, b *ssa.Block, container, a, m0 *ssa.Value, at *types.Type, rc registerCursor) *ssa.Value {
 
 	if at == types.TypeMem {
 		a.CopyOf(m0)
 		return a
 	}
 
-	makeOf := func(a *ssacore.Value, op ssaop.Op, args []*ssacore.Value) *ssacore.Value {
+	makeOf := func(a *ssa.Value, op ssaop.Op, args []*ssa.Value) *ssa.Value {
 		if a == nil {
 			a = b.NewValue0(pos, op, at)
 			a.AddArgs(args...)
@@ -527,10 +527,10 @@ func (x *expandState) rewriteSelectOrArg(pos src.XPos, b *ssacore.Block, contain
 		return a
 	}
 
-	var argStore [10]*ssacore.Value
+	var argStore [10]*ssa.Value
 	args := argStore[:0]
 
-	addArg := func(a0 *ssacore.Value) {
+	addArg := func(a0 *ssa.Value) {
 		if a0 == nil {
 			as := "<nil>"
 			if a != nil {
@@ -566,7 +566,7 @@ func (x *expandState) rewriteSelectOrArg(pos src.XPos, b *ssacore.Block, contain
 			addArg(e)
 			pos = pos.WithNotStmt()
 		}
-		if at.NumFields() > ssacore.MaxStruct && !types.IsDirectIface(at) {
+		if at.NumFields() > ssa.MaxStruct && !types.IsDirectIface(at) {
 			panic(fmt.Errorf("Too many fields (%d, %d bytes), container=%s", at.NumFields(), at.Size(), container.LongString()))
 		}
 		a = makeOf(a, ssaop.OpStructMake, args)
@@ -652,7 +652,7 @@ func (x *expandState) rewriteSelectOrArg(pos src.XPos, b *ssacore.Block, contain
 			name := container.Aux.(*ir.Name)
 			a = makeOf(a, op, nil)
 			a.AuxInt = i
-			a.Aux = &ssacore.AuxNameOffset{Name: name, Offset: rc.storeOffset}
+			a.Aux = &ssa.AuxNameOffset{Name: name, Offset: rc.storeOffset}
 		} else {
 			key := selKey{container, rc.storeOffset, at.Size(), at}
 			w := x.commonArgs[key]
@@ -675,7 +675,7 @@ func (x *expandState) rewriteSelectOrArg(pos src.XPos, b *ssacore.Block, contain
 		}
 	} else if container.Op == ssaop.OpSelectN {
 		call := container.Args[0]
-		aux := call.Aux.(*ssacore.AuxCall)
+		aux := call.Aux.(*ssa.AuxCall)
 		which := container.AuxInt
 
 		if at == types.TypeMem {
@@ -688,11 +688,11 @@ func (x *expandState) rewriteSelectOrArg(pos src.XPos, b *ssacore.Block, contain
 				firstReg += uint32(len(aux.AbiInfo.OutParam(i).Registers))
 			}
 			reg := int64(rc.nextSlice + Abi1RO(firstReg))
-			a = makeOf(a, ssaop.OpSelectN, []*ssacore.Value{call})
+			a = makeOf(a, ssaop.OpSelectN, []*ssa.Value{call})
 			a.AuxInt = reg
 		} else {
 			off := x.offsetFrom(x.f.Entry, x.sp, rc.storeOffset+aux.OffsetOfResult(which), types.NewPtr(at))
-			a = makeOf(a, ssaop.OpLoad, []*ssacore.Value{off, m0})
+			a = makeOf(a, ssaop.OpLoad, []*ssa.Value{off, m0})
 		}
 
 	} else {
@@ -707,7 +707,7 @@ func (x *expandState) rewriteSelectOrArg(pos src.XPos, b *ssacore.Block, contain
 // but is transferred in registers.  In this case the register cursor tracks both operands; the register sources and
 // the memory destinations.
 // This returns the memory flowing out of the last store
-func (x *expandState) rewriteWideSelectToStores(pos src.XPos, b *ssacore.Block, container, m0 *ssacore.Value, at *types.Type, rc registerCursor) *ssacore.Value {
+func (x *expandState) rewriteWideSelectToStores(pos src.XPos, b *ssa.Block, container, m0 *ssa.Value, at *types.Type, rc registerCursor) *ssa.Value {
 
 	if at.Size() == 0 {
 		return m0
@@ -783,7 +783,7 @@ func (x *expandState) rewriteWideSelectToStores(pos src.XPos, b *ssacore.Block, 
 	// TODO could change treatment of too-large OpArg, would deal with it here.
 	if container.Op == ssaop.OpSelectN {
 		call := container.Args[0]
-		aux := call.Aux.(*ssacore.AuxCall)
+		aux := call.Aux.(*ssa.AuxCall)
 		which := container.AuxInt
 
 		if rc.hasRegs() {
@@ -804,7 +804,7 @@ func (x *expandState) rewriteWideSelectToStores(pos src.XPos, b *ssacore.Block, 
 	return m0
 }
 
-func isBlockMultiValueExit(b *ssacore.Block) bool {
+func isBlockMultiValueExit(b *ssa.Block) bool {
 	return (b.Kind == block.BlockRet || b.Kind == block.BlockRetJmp) && b.Controls[0] != nil && b.Controls[0].Op == ssaop.OpMakeResult
 }
 
@@ -812,12 +812,12 @@ type Abi1RO uint8 // An offset within a parameter's slice of register indices, f
 
 // A registerCursor tracks which register is used for an Arg or regValues, or a piece of such.
 type registerCursor struct {
-	storeDest   *ssacore.Value // if there are no register targets, then this is the base of the store.
+	storeDest   *ssa.Value // if there are no register targets, then this is the base of the store.
 	storeOffset int64
 	regs        []abi.RegIndex // the registers available for this Arg/result (which is all in registers or not at all)
 	nextSlice   Abi1RO         // the next register/register-slice offset
 	config      *abi.ABIConfig
-	regValues   *[]*ssacore.Value // values assigned to registers accumulate here
+	regValues   *[]*ssa.Value // values assigned to registers accumulate here
 }
 
 func (c *registerCursor) String() string {
@@ -860,7 +860,7 @@ func (c *registerCursor) plus(regWidth Abi1RO) registerCursor {
 	return rc
 }
 
-func (c *registerCursor) init(regs []abi.RegIndex, info *abi.ABIParamResultInfo, result *[]*ssacore.Value, storeDest *ssacore.Value, storeOffset int64) {
+func (c *registerCursor) init(regs []abi.RegIndex, info *abi.ABIParamResultInfo, result *[]*ssa.Value, storeDest *ssa.Value, storeOffset int64) {
 	c.regs = regs
 	c.nextSlice = 0
 	c.storeOffset = storeOffset
@@ -869,7 +869,7 @@ func (c *registerCursor) init(regs []abi.RegIndex, info *abi.ABIParamResultInfo,
 	c.regValues = result
 }
 
-func (c *registerCursor) addArg(v *ssacore.Value) {
+func (c *registerCursor) addArg(v *ssa.Value) {
 	*c.regValues = append(*c.regValues, v)
 }
 
@@ -879,37 +879,37 @@ func (c *registerCursor) hasRegs() bool {
 
 func (c *registerCursor) ArgOpAndRegisterFor() (ssaop.Op, int64) {
 	r := c.regs[c.nextSlice]
-	return ssacore.ArgOpAndRegisterFor(r, c.config)
+	return ssa.ArgOpAndRegisterFor(r, c.config)
 }
 
 type selKey struct {
-	from          *ssacore.Value // what is selected from
-	offsetOrIndex int64          // whatever is appropriate for the selector
+	from          *ssa.Value // what is selected from
+	offsetOrIndex int64      // whatever is appropriate for the selector
 	size          int64
 	typ           *types.Type
 }
 
 type expandState struct {
-	f       *ssacore.Func
+	f       *ssa.Func
 	debug   int // odd values log lost statement markers, so likely settings are 1 (stmts), 2 (expansion), and 3 (both)
 	regSize int64
-	sp      *ssacore.Value
-	typs    *ssacore.Types
+	sp      *ssa.Value
+	typs    *ssa.Types
 
 	firstOp    ssaop.Op    // for 64-bit integers on 32-bit machines, first word in memory
 	secondOp   ssaop.Op    // for 64-bit integers on 32-bit machines, second word in memory
 	firstType  *types.Type // first half type, for Int64
 	secondType *types.Type // second half type, for Int64
 
-	wideSelects     map[*ssacore.Value]*ssacore.Value // Selects that are not SSA-able, mapped to consuming stores.
-	commonSelectors map[selKey]*ssacore.Value         // used to de-dupe selectors
-	commonArgs      map[selKey]*ssacore.Value         // used to de-dupe OpArg/OpArgIntReg/OpArgFloatReg
-	memForCall      map[ssacore.ID]*ssacore.Value     // For a call, need to know the unique selector that gets the mem.
-	indentLevel     int                               // Indentation for debugging recursion
+	wideSelects     map[*ssa.Value]*ssa.Value // Selects that are not SSA-able, mapped to consuming stores.
+	commonSelectors map[selKey]*ssa.Value     // used to de-dupe selectors
+	commonArgs      map[selKey]*ssa.Value     // used to de-dupe OpArg/OpArgIntReg/OpArgFloatReg
+	memForCall      map[ssa.ID]*ssa.Value     // For a call, need to know the unique selector that gets the mem.
+	indentLevel     int                       // Indentation for debugging recursion
 }
 
 // offsetFrom creates an offset from a pointer, simplifying chained offsets and offsets from SP
-func (x *expandState) offsetFrom(b *ssacore.Block, from *ssacore.Value, offset int64, pt *types.Type) *ssacore.Value {
+func (x *expandState) offsetFrom(b *ssa.Block, from *ssa.Value, offset int64, pt *types.Type) *ssa.Value {
 	ft := from.Type
 	if offset == 0 {
 		if ft == pt {
@@ -932,11 +932,11 @@ func (x *expandState) offsetFrom(b *ssacore.Block, from *ssacore.Value, offset i
 }
 
 // prAssignForArg returns the ABIParamAssignment for v, assumed to be an OpArg.
-func (x *expandState) prAssignForArg(v *ssacore.Value) *abi.ABIParamAssignment {
+func (x *expandState) prAssignForArg(v *ssa.Value) *abi.ABIParamAssignment {
 	if v.Op != ssaop.OpArg {
 		panic(fmt.Errorf("Wanted OpArg, instead saw %s", v.LongString()))
 	}
-	return ssacore.ParamAssignmentForArgName(x.f, v.Aux.(*ir.Name))
+	return ssa.ParamAssignmentForArgName(x.f, v.Aux.(*ir.Name))
 }
 
 // indent increments (or decrements) the indentation.
@@ -952,7 +952,7 @@ func (x *expandState) Printf(format string, a ...any) (n int, err error) {
 	return fmt.Printf(format, a...)
 }
 
-func (x *expandState) invalidateRecursively(a *ssacore.Value) {
+func (x *expandState) invalidateRecursively(a *ssa.Value) {
 	var s string
 	if x.debug > 0 {
 		plus := " "

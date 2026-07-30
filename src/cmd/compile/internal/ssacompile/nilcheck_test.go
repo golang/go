@@ -8,8 +8,8 @@ import (
 	"strconv"
 	"testing"
 
+	"cmd/compile/internal/ssa"
 	"cmd/compile/internal/ssa/block"
-	"cmd/compile/internal/ssa/ssacore"
 	"cmd/compile/internal/ssa/ssaop"
 	"cmd/compile/internal/types"
 )
@@ -66,7 +66,7 @@ func blockn(n int) string { return "b" + strconv.Itoa(n) }
 func ptrn(n int) string   { return "p" + strconv.Itoa(n) }
 func booln(n int) string  { return "c" + strconv.Itoa(n) }
 
-func isNilCheck(b *ssacore.Block) bool {
+func isNilCheck(b *ssa.Block) bool {
 	return b.Kind == block.BlockIf && b.Controls[0].Op == ssaop.OpIsNonNil
 }
 
@@ -220,7 +220,7 @@ func TestNilcheckPhi(t *testing.T) {
 			Valu("mem", ssaop.OpInitMem, types.TypeMem, 0, nil),
 			Valu("sb", ssaop.OpSB, c.config.Types.Uintptr, 0, nil),
 			Valu("sp", ssaop.OpSP, c.config.Types.Uintptr, 0, nil),
-			Valu("baddr", ssaop.OpLocalAddr, c.config.Types.Bool, 0, ssacore.StringToAux("b"), "sp", "mem"),
+			Valu("baddr", ssaop.OpLocalAddr, c.config.Types.Bool, 0, ssa.StringToAux("b"), "sp", "mem"),
 			Valu("bool1", ssaop.OpLoad, c.config.Types.Bool, 0, nil, "baddr", "mem"),
 			If("bool1", "b1", "b2")),
 		Bloc("b1",

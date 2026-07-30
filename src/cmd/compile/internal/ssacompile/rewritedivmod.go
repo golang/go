@@ -3,9 +3,9 @@
 package ssacompile
 
 import "cmd/compile/internal/ssa/ssaop"
-import "cmd/compile/internal/ssa/ssacore"
+import "cmd/compile/internal/ssa"
 
-func rewriteValuedivmod(v *ssacore.Value) bool {
+func rewriteValuedivmod(v *ssa.Value) bool {
 	switch v.Op {
 	case ssaop.OpDiv16:
 		return rewriteValuedivmod_OpDiv16(v)
@@ -26,7 +26,7 @@ func rewriteValuedivmod(v *ssacore.Value) bool {
 	}
 	return false
 }
-func rewriteValuedivmod_OpDiv16(v *ssacore.Value) bool {
+func rewriteValuedivmod_OpDiv16(v *ssa.Value) bool {
 	v_1 := v.Args[1]
 	v_0 := v.Args[0]
 	b := v.Block
@@ -94,7 +94,7 @@ func rewriteValuedivmod_OpDiv16(v *ssacore.Value) bool {
 	}
 	return false
 }
-func rewriteValuedivmod_OpDiv16u(v *ssacore.Value) bool {
+func rewriteValuedivmod_OpDiv16u(v *ssa.Value) bool {
 	v_1 := v.Args[1]
 	v_0 := v.Args[0]
 	b := v.Block
@@ -250,7 +250,7 @@ func rewriteValuedivmod_OpDiv16u(v *ssacore.Value) bool {
 	}
 	return false
 }
-func rewriteValuedivmod_OpDiv32(v *ssacore.Value) bool {
+func rewriteValuedivmod_OpDiv32(v *ssa.Value) bool {
 	v_1 := v.Args[1]
 	v_0 := v.Args[0]
 	b := v.Block
@@ -381,7 +381,7 @@ func rewriteValuedivmod_OpDiv32(v *ssacore.Value) bool {
 	}
 	return false
 }
-func rewriteValuedivmod_OpDiv32u(v *ssacore.Value) bool {
+func rewriteValuedivmod_OpDiv32u(v *ssa.Value) bool {
 	v_1 := v.Args[1]
 	v_0 := v.Args[0]
 	b := v.Block
@@ -635,7 +635,7 @@ func rewriteValuedivmod_OpDiv32u(v *ssacore.Value) bool {
 	}
 	return false
 }
-func rewriteValuedivmod_OpDiv64(v *ssacore.Value) bool {
+func rewriteValuedivmod_OpDiv64(v *ssa.Value) bool {
 	v_1 := v.Args[1]
 	v_0 := v.Args[0]
 	b := v.Block
@@ -733,7 +733,7 @@ func rewriteValuedivmod_OpDiv64(v *ssacore.Value) bool {
 	}
 	return false
 }
-func rewriteValuedivmod_OpDiv64u(v *ssacore.Value) bool {
+func rewriteValuedivmod_OpDiv64u(v *ssa.Value) bool {
 	v_1 := v.Args[1]
 	v_0 := v.Args[0]
 	b := v.Block
@@ -842,7 +842,7 @@ func rewriteValuedivmod_OpDiv64u(v *ssacore.Value) bool {
 	}
 	return false
 }
-func rewriteValuedivmod_OpDiv8(v *ssacore.Value) bool {
+func rewriteValuedivmod_OpDiv8(v *ssa.Value) bool {
 	v_1 := v.Args[1]
 	v_0 := v.Args[0]
 	b := v.Block
@@ -910,7 +910,7 @@ func rewriteValuedivmod_OpDiv8(v *ssacore.Value) bool {
 	}
 	return false
 }
-func rewriteValuedivmod_OpDiv8u(v *ssacore.Value) bool {
+func rewriteValuedivmod_OpDiv8u(v *ssa.Value) bool {
 	v_1 := v.Args[1]
 	v_0 := v.Args[0]
 	b := v.Block
@@ -945,6 +945,6 @@ func rewriteValuedivmod_OpDiv8u(v *ssacore.Value) bool {
 	}
 	return false
 }
-func rewriteBlockdivmod(b *ssacore.Block) bool {
+func rewriteBlockdivmod(b *ssa.Block) bool {
 	return false
 }

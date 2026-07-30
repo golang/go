@@ -11,8 +11,8 @@ import (
 
 	"cmd/compile/internal/abi"
 	"cmd/compile/internal/ir"
+	"cmd/compile/internal/ssa"
 	"cmd/compile/internal/ssa/ssabase"
-	"cmd/compile/internal/ssa/ssacore"
 	"cmd/compile/internal/ssa/ssaop"
 	"cmd/compile/internal/types"
 	"cmd/internal/dwarf"
@@ -25,13 +25,13 @@ import (
 // the result of decomposing a larger variable.
 type FuncDebug struct {
 	// Slots is all the slots used in the debug info, indexed by their SlotID.
-	Slots []ssacore.LocalSlot
+	Slots []ssa.LocalSlot
 	// The user variables, indexed by VarID.
 	Vars []*ir.Name
 	// The slots that make up each variable, indexed by VarID.
-	VarSlots [][]ssacore.SlotID
+	VarSlots [][]ssa.SlotID
 	// The location list data, indexed by VarID. Must be processed by PutLocationList.
-	LocationLists [][]ssacore.LocListEntry
+	LocationLists [][]ssa.LocListEntry
 	// Register-resident output parameters for the function. This is filled in at
 	// SSA generation time.
 	RegOutputParams []*ir.Name
@@ -39,13 +39,13 @@ type FuncDebug struct {
 	OptDcl []*ir.Name
 	// The ssa.Func.EntryID value, used to build location lists for
 	// return values promoted to heap in later DWARF generation.
-	EntryID ssacore.ID
+	EntryID ssa.ID
 
 	// Filled in by the user. Translates Block and Value ID to PC.
 	//
 	// NOTE: block is only used if value is BlockStart.ID or BlockEnd.ID.
 	// Otherwise, it is ignored.
-	GetPC func(block, value ssacore.ID) int64
+	GetPC func(block, value ssa.ID) int64
 }
 
 // slotCanonicalizer is a table used to lookup and canonicalize
@@ -54,13 +54,13 @@ type FuncDebug struct {
 // type).
 type slotCanonicalizer struct {
 	slmap  map[slotKey]SlKeyIdx
-	slkeys []ssacore.LocalSlot
+	slkeys []ssa.LocalSlot
 }
 
 func newSlotCanonicalizer() *slotCanonicalizer {
 	return &slotCanonicalizer{
 		slmap:  make(map[slotKey]SlKeyIdx),
-		slkeys: []ssacore.LocalSlot{ssacore.LocalSlot{N: nil}},
+		slkeys: []ssa.LocalSlot{ssa.LocalSlot{N: nil}},
 	}
 }
 
@@ -82,7 +82,7 @@ type slotKey struct {
 // a canonical index for the slot, and adding it to the table if need
 // be. Return value is the canonical slot index, and a boolean indicating
 // whether the slot was found in the table already (TRUE => found).
-func (sc *slotCanonicalizer) lookup(ls ssacore.LocalSlot) (SlKeyIdx, bool) {
+func (sc *slotCanonicalizer) lookup(ls ssa.LocalSlot) (SlKeyIdx, bool) {
 	split := noSlot
 	if ls.SplitOf != nil {
 		split, _ = sc.lookup(*ls.SplitOf)
@@ -100,7 +100,7 @@ func (sc *slotCanonicalizer) lookup(ls ssacore.LocalSlot) (SlKeyIdx, bool) {
 	return rv, false
 }
 
-func (sc *slotCanonicalizer) canonSlot(idx SlKeyIdx) ssacore.LocalSlot {
+func (sc *slotCanonicalizer) canonSlot(idx SlKeyIdx) ssa.LocalSlot {
 	return sc.slkeys[idx]
 }
 
@@ -135,7 +135,7 @@ func (sc *slotCanonicalizer) canonSlot(idx SlKeyIdx) ssacore.LocalSlot {
 // This function examines the live OpArg{Int,Float}Reg values and
 // synthesizes new (dead) values for the non-live params or the
 // non-live pieces of partially live params.
-func PopulateABIInRegArgOps(f *ssacore.Func) {
+func PopulateABIInRegArgOps(f *ssa.Func) {
 	pri := f.ABISelf.ABIAnalyzeFuncType(f.Type)
 
 	// When manufacturing new slots that correspond to splits of
@@ -150,7 +150,7 @@ func PopulateABIInRegArgOps(f *ssacore.Func) {
 	}
 
 	// Add slot -> value entry to f.NamedValues if not already present.
-	addToNV := func(v *ssacore.Value, sl ssacore.LocalSlot) {
+	addToNV := func(v *ssa.Value, sl ssa.LocalSlot) {
 		values, ok := f.NamedValues[sl]
 		if !ok {
 			// Haven't seen this slot yet.
@@ -166,7 +166,7 @@ func PopulateABIInRegArgOps(f *ssacore.Func) {
 		f.NamedValues[sl] = values
 	}
 
-	newValues := []*ssacore.Value{}
+	newValues := []*ssa.Value{}
 
 	abiRegIndexToRegister := func(reg abi.RegIndex) int8 {
 		i := f.ABISelf.FloatIndexFor(reg)
@@ -182,9 +182,9 @@ func PopulateABIInRegArgOps(f *ssacore.Func) {
 	if len(f.Entry.Values) != 0 {
 		pos = f.Entry.Values[0].Pos
 	}
-	synthesizeOpIntFloatArg := func(n *ir.Name, t *types.Type, reg abi.RegIndex, sl ssacore.LocalSlot) *ssacore.Value {
-		aux := &ssacore.AuxNameOffset{Name: n, Offset: sl.Off}
-		op, auxInt := ssacore.ArgOpAndRegisterFor(reg, f.ABISelf)
+	synthesizeOpIntFloatArg := func(n *ir.Name, t *types.Type, reg abi.RegIndex, sl ssa.LocalSlot) *ssa.Value {
+		aux := &ssa.AuxNameOffset{Name: n, Offset: sl.Off}
+		op, auxInt := ssa.ArgOpAndRegisterFor(reg, f.ABISelf)
 		v := f.NewValueNoBlock(op, t, pos)
 		v.AuxInt = auxInt
 		v.Aux = aux
@@ -203,8 +203,8 @@ func PopulateABIInRegArgOps(f *ssacore.Func) {
 	// what the compiler uses when creating OpArg{Int,Float}Reg ops.
 	for _, v := range f.Entry.Values {
 		if v.Op == ssaop.OpArgIntReg || v.Op == ssaop.OpArgFloatReg {
-			aux := v.Aux.(*ssacore.AuxNameOffset)
-			sl := ssacore.LocalSlot{N: aux.Name, Type: v.Type, Off: aux.Offset}
+			aux := v.Aux.(*ssa.AuxNameOffset)
+			sl := ssa.LocalSlot{N: aux.Name, Type: v.Type, Off: aux.Offset}
 			// install slot in lookup table
 			idx, _ := sc.lookup(sl)
 			// add to f.NamedValues if not already present
@@ -236,7 +236,7 @@ func PopulateABIInRegArgOps(f *ssacore.Func) {
 			// LocalSlot object with "Off" set to zero, but with
 			// SplitOf pointing to a parent slot, and SplitOffset
 			// holding the offset into the parent object.
-			pieceSlot := ssacore.LocalSlot{N: n, Type: t, Off: offsets[k]}
+			pieceSlot := ssa.LocalSlot{N: n, Type: t, Off: offsets[k]}
 
 			// Look up this piece to see if we've seen a reg op
 			// for it. If not, create one.
@@ -259,7 +259,7 @@ func PopulateABIInRegArgOps(f *ssacore.Func) {
 // BuildFuncDebug builds debug information for f, placing the results
 // in "rval". f must be fully processed, so that each Value is where it
 // will be when machine code is emitted.
-func BuildFuncDebug(ctxt *obj.Link, f *ssacore.Func, loggingLevel int, stackOffset func(ssacore.LocalSlot) int32, rval *FuncDebug) {
+func BuildFuncDebug(ctxt *obj.Link, f *ssa.Func, loggingLevel int, stackOffset func(ssa.LocalSlot) int32, rval *FuncDebug) {
 	if f.RegAlloc == nil {
 		f.Fatalf("BuildFuncDebug on func %v that has not been fully processed", f)
 	}
@@ -285,7 +285,7 @@ func BuildFuncDebug(ctxt *obj.Link, f *ssacore.Func, loggingLevel int, stackOffs
 	}
 
 	if state.VarParts == nil {
-		state.VarParts = make(map[*ir.Name][]ssacore.SlotID)
+		state.VarParts = make(map[*ir.Name][]ssa.SlotID)
 	} else {
 		clear(state.VarParts)
 	}
@@ -297,7 +297,7 @@ func BuildFuncDebug(ctxt *obj.Link, f *ssacore.Func, loggingLevel int, stackOffs
 	state.Vars = state.Vars[:0]
 	for i, slot := range f.Names {
 		state.Slots = append(state.Slots, slot)
-		if ir.IsSynthetic(slot.N) || !ssacore.IsVarWantedForDebug(slot.N) {
+		if ir.IsSynthetic(slot.N) || !ssa.IsVarWantedForDebug(slot.N) {
 			continue
 		}
 
@@ -308,7 +308,7 @@ func BuildFuncDebug(ctxt *obj.Link, f *ssacore.Func, loggingLevel int, stackOffs
 		if _, ok := state.VarParts[topSlot.N]; !ok {
 			state.Vars = append(state.Vars, topSlot.N)
 		}
-		state.VarParts[topSlot.N] = append(state.VarParts[topSlot.N], ssacore.SlotID(i))
+		state.VarParts[topSlot.N] = append(state.VarParts[topSlot.N], ssa.SlotID(i))
 	}
 
 	// Recreate the LocalSlot for each stack-only variable.
@@ -317,14 +317,14 @@ func BuildFuncDebug(ctxt *obj.Link, f *ssacore.Func, loggingLevel int, stackOffs
 		for _, v := range b.Values {
 			if v.Op == ssaop.OpVarDef {
 				n := v.Aux.(*ir.Name)
-				if ir.IsSynthetic(n) || !ssacore.IsVarWantedForDebug(n) {
+				if ir.IsSynthetic(n) || !ssa.IsVarWantedForDebug(n) {
 					continue
 				}
 
 				if _, ok := state.VarParts[n]; !ok {
-					slot := ssacore.LocalSlot{N: n, Type: v.Type, Off: 0}
+					slot := ssa.LocalSlot{N: n, Type: v.Type, Off: 0}
 					state.Slots = append(state.Slots, slot)
-					state.VarParts[n] = []ssacore.SlotID{ssacore.SlotID(len(state.Slots) - 1)}
+					state.VarParts[n] = []ssa.SlotID{ssa.SlotID(len(state.Slots) - 1)}
 					state.Vars = append(state.Vars, n)
 				}
 			}
@@ -333,7 +333,7 @@ func BuildFuncDebug(ctxt *obj.Link, f *ssacore.Func, loggingLevel int, stackOffs
 
 	// Fill in the var<->slot mappings.
 	if cap(state.VarSlots) < len(state.Vars) {
-		state.VarSlots = make([][]ssacore.SlotID, len(state.Vars))
+		state.VarSlots = make([][]ssa.SlotID, len(state.Vars))
 	} else {
 		state.VarSlots = state.VarSlots[:len(state.Vars)]
 		for i := range state.VarSlots {
@@ -341,31 +341,31 @@ func BuildFuncDebug(ctxt *obj.Link, f *ssacore.Func, loggingLevel int, stackOffs
 		}
 	}
 	if cap(state.SlotVars) < len(state.Slots) {
-		state.SlotVars = make([]ssacore.VarID, len(state.Slots))
+		state.SlotVars = make([]ssa.VarID, len(state.Slots))
 	} else {
 		state.SlotVars = state.SlotVars[:len(state.Slots)]
 	}
 
 	for varID, n := range state.Vars {
 		parts := state.VarParts[n]
-		slices.SortFunc(parts, func(a, b ssacore.SlotID) int {
+		slices.SortFunc(parts, func(a, b ssa.SlotID) int {
 			return cmp.Compare(varOffset(state.Slots[a]), varOffset(state.Slots[b]))
 		})
 
 		state.VarSlots[varID] = parts
 		for _, slotID := range parts {
-			state.SlotVars[slotID] = ssacore.VarID(varID)
+			state.SlotVars[slotID] = ssa.VarID(varID)
 		}
 	}
 
 	state.InitializeCache(f, len(state.VarParts), len(state.Slots))
 
 	for i, slot := range f.Names {
-		if ir.IsSynthetic(slot.N) || !ssacore.IsVarWantedForDebug(slot.N) {
+		if ir.IsSynthetic(slot.N) || !ssa.IsVarWantedForDebug(slot.N) {
 			continue
 		}
 		for _, value := range f.NamedValues[slot] {
-			state.ValueNames[value.ID] = append(state.ValueNames[value.ID], ssacore.SlotID(i))
+			state.ValueNames[value.ID] = append(state.ValueNames[value.ID], ssa.SlotID(i))
 		}
 	}
 
@@ -381,7 +381,7 @@ func BuildFuncDebug(ctxt *obj.Link, f *ssacore.Func, loggingLevel int, stackOffs
 
 // varOffset returns the offset of slot within the user variable it was
 // decomposed from. This has nothing to do with its stack offset.
-func varOffset(slot ssacore.LocalSlot) int64 {
+func varOffset(slot ssa.LocalSlot) int64 {
 	offset := slot.Off
 	s := &slot
 	for ; s.SplitOf != nil; s = s.SplitOf {
@@ -392,7 +392,7 @@ func varOffset(slot ssacore.LocalSlot) int64 {
 
 // PutLocationList adds entries (a location list in structured form)
 // to listSym, encoding it in the appropriate DWARF format.
-func (debugInfo *FuncDebug) PutLocationList(entries []ssacore.LocListEntry, ctxt *obj.Link, listSym, startPC *obj.LSym) {
+func (debugInfo *FuncDebug) PutLocationList(entries []ssa.LocListEntry, ctxt *obj.Link, listSym, startPC *obj.LSym) {
 	if buildcfg.Experiment.Dwarf5 {
 		debugInfo.PutLocationListDwarf5(entries, ctxt, listSym, startPC)
 	} else {
@@ -402,7 +402,7 @@ func (debugInfo *FuncDebug) PutLocationList(entries []ssacore.LocListEntry, ctxt
 
 // PutLocationListDwarf5 adds entries (a location list in structured form)
 // to listSym in DWARF 5 format.
-func (debugInfo *FuncDebug) PutLocationListDwarf5(entries []ssacore.LocListEntry, ctxt *obj.Link, listSym, startPC *obj.LSym) {
+func (debugInfo *FuncDebug) PutLocationListDwarf5(entries []ssa.LocListEntry, ctxt *obj.Link, listSym, startPC *obj.LSym) {
 	getPC := debugInfo.GetPC
 
 	// base address entry
@@ -437,7 +437,7 @@ func (debugInfo *FuncDebug) PutLocationListDwarf5(entries []ssacore.LocListEntry
 
 // PutLocationListDwarf4 adds entries (a location list in structured form)
 // to listSym in DWARF 4 format.
-func (debugInfo *FuncDebug) PutLocationListDwarf4(entries []ssacore.LocListEntry, ctxt *obj.Link, listSym, startPC *obj.LSym) {
+func (debugInfo *FuncDebug) PutLocationListDwarf4(entries []ssa.LocListEntry, ctxt *obj.Link, listSym, startPC *obj.LSym) {
 	getPC := debugInfo.GetPC
 
 	if ctxt.UseBASEntries {
@@ -495,14 +495,14 @@ func (debugInfo *FuncDebug) PutLocationListDwarf4(entries []ssacore.LocListEntry
 // optimization turned off (e.g. "-N"). If optimization is enabled
 // we can't be assured of finding all input arguments spilled in the
 // entry block prolog.
-func locatePrologEnd(f *ssacore.Func, needCloCtx bool) (ssacore.ID, *ssacore.Value) {
+func locatePrologEnd(f *ssa.Func, needCloCtx bool) (ssa.ID, *ssa.Value) {
 
 	// returns true if this instruction looks like it moves an ABI
 	// register (or context register for rangefunc bodies) to the
 	// stack, along with the value being stored.
-	isRegMoveLike := func(v *ssacore.Value) (bool, ssacore.ID) {
+	isRegMoveLike := func(v *ssa.Value) (bool, ssa.ID) {
 		n, ok := v.Aux.(*ir.Name)
-		var r ssacore.ID
+		var r ssa.ID
 		if (!ok || n.Class != ir.PPARAM) && !needCloCtx {
 			return false, r
 		}
@@ -526,11 +526,11 @@ func locatePrologEnd(f *ssacore.Func, needCloCtx bool) (ssacore.ID, *ssacore.Val
 
 	// OpArg*Reg values we've seen so far on our forward walk,
 	// for which we have not yet seen a corresponding spill.
-	regArgs := make([]ssacore.ID, 0, 32)
+	regArgs := make([]ssa.ID, 0, 32)
 
 	// removeReg tries to remove a value from regArgs, returning true
 	// if found and removed, or false otherwise.
-	removeReg := func(r ssacore.ID) bool {
+	removeReg := func(r ssa.ID) bool {
 		for i := 0; i < len(regArgs); i++ {
 			if regArgs[i] == r {
 				regArgs = slices.Delete(regArgs, i, i+1)
@@ -544,7 +544,7 @@ func locatePrologEnd(f *ssacore.Func, needCloCtx bool) (ssacore.ID, *ssacore.Val
 	// the value it produces in the regArgs list. When see a store that uses
 	// the value, remove the entry. When we hit the last store (use)
 	// then we've arrived at the end of the prolog.
-	var cloRegStore *ssacore.Value
+	var cloRegStore *ssa.Value
 	for k, v := range f.Entry.Values {
 		if v.Op == ssaop.OpArgIntReg || v.Op == ssaop.OpArgFloatReg {
 			regArgs = append(regArgs, v.ID)
@@ -565,7 +565,7 @@ func locatePrologEnd(f *ssacore.Func, needCloCtx bool) (ssacore.ID, *ssacore.Val
 					if k < len(f.Entry.Values)-1 {
 						return f.Entry.Values[k+1].ID, cloRegStore
 					}
-					return ssacore.BlockEnd.ID, cloRegStore
+					return ssa.BlockEnd.ID, cloRegStore
 				}
 			}
 		}
@@ -575,7 +575,7 @@ func locatePrologEnd(f *ssacore.Func, needCloCtx bool) (ssacore.ID, *ssacore.Val
 		}
 	}
 	// nothing found
-	return ssacore.ID(-1), cloRegStore
+	return ssa.ID(-1), cloRegStore
 }
 
 // isNamedRegParam returns true if the param corresponding to "p"
@@ -606,7 +606,7 @@ func isNamedRegParam(p abi.ABIParamAssignment) bool {
 // to the register params, here we also build location lists (where
 // appropriate for the ".closureptr" compiler-synthesized variable
 // needed by the debugger for range func bodies.
-func BuildFuncDebugNoOptimized(ctxt *obj.Link, f *ssacore.Func, loggingEnabled bool, stackOffset func(ssacore.LocalSlot) int32, rval *FuncDebug) {
+func BuildFuncDebugNoOptimized(ctxt *obj.Link, f *ssa.Func, loggingEnabled bool, stackOffset func(ssa.LocalSlot) int32, rval *FuncDebug) {
 	needCloCtx := f.CloSlot != nil
 	pri := f.ABISelf.ABIAnalyzeFuncType(f.Type)
 
@@ -624,7 +624,7 @@ func BuildFuncDebugNoOptimized(ctxt *obj.Link, f *ssacore.Func, loggingEnabled b
 		return
 	}
 
-	state := ssacore.DebugState{F: f}
+	state := ssa.DebugState{F: f}
 
 	if loggingEnabled {
 		state.Logf("generating -N reg param loc lists for func %q\n", f.Name)
@@ -640,7 +640,7 @@ func BuildFuncDebugNoOptimized(ctxt *obj.Link, f *ssacore.Func, loggingEnabled b
 	}
 
 	// Allocate location lists.
-	rval.LocationLists = make([][]ssacore.LocListEntry, numRegParams+extraForCloCtx)
+	rval.LocationLists = make([][]ssa.LocListEntry, numRegParams+extraForCloCtx)
 
 	// Locate the value corresponding to the last spill of
 	// an input register.
@@ -656,11 +656,11 @@ func BuildFuncDebugNoOptimized(ctxt *obj.Link, f *ssacore.Func, loggingEnabled b
 	}
 
 	addVarSlot := func(name *ir.Name, typ *types.Type) {
-		sl := ssacore.LocalSlot{N: name, Type: typ, Off: 0}
+		sl := ssa.LocalSlot{N: name, Type: typ, Off: 0}
 		rval.Vars = append(rval.Vars, name)
 		rval.Slots = append(rval.Slots, sl)
 		slid := len(rval.VarSlots)
-		rval.VarSlots = append(rval.VarSlots, []ssacore.SlotID{ssacore.SlotID(slid)})
+		rval.VarSlots = append(rval.VarSlots, []ssa.SlotID{ssa.SlotID(slid)})
 	}
 
 	// Make an initial pass to populate the vars/slots for our return
@@ -672,7 +672,7 @@ func BuildFuncDebugNoOptimized(ctxt *obj.Link, f *ssacore.Func, loggingEnabled b
 			// will be sorted out elsewhere
 			continue
 		}
-		if !ssacore.IsVarWantedForDebug(inp.Name) {
+		if !ssa.IsVarWantedForDebug(inp.Name) {
 			continue
 		}
 		addVarSlot(inp.Name, inp.Type)
@@ -695,14 +695,14 @@ func BuildFuncDebugNoOptimized(ctxt *obj.Link, f *ssacore.Func, loggingEnabled b
 			// will be sorted out elsewhere
 			continue
 		}
-		if !ssacore.IsVarWantedForDebug(inp.Name) {
+		if !ssa.IsVarWantedForDebug(inp.Name) {
 			continue
 		}
 
 		sl := rval.Slots[pidx]
 		n := rval.Vars[pidx]
 
-		if afterPrologVal == ssacore.ID(-1) {
+		if afterPrologVal == ssa.ID(-1) {
 			// This can happen for degenerate functions with infinite
 			// loops such as that in issue 45948. In such cases, leave
 			// the var/slot set up for the param, but don't try to
@@ -729,7 +729,7 @@ func BuildFuncDebugNoOptimized(ctxt *obj.Link, f *ssacore.Func, loggingEnabled b
 			if n == f.CloSlot {
 				reg = cloReg
 			} else {
-				reg = ssacore.ObjRegForAbiReg(r, f.Config)
+				reg = ssa.ObjRegForAbiReg(r, f.Config)
 			}
 			dwreg := ctxt.Arch.DWARFRegisters[reg]
 			if dwreg < 32 {
@@ -757,9 +757,9 @@ func BuildFuncDebugNoOptimized(ctxt *obj.Link, f *ssacore.Func, loggingEnabled b
 				state.Logf("\n")
 			}
 		}
-		rval.LocationLists[pidx] = append(rval.LocationLists[pidx], ssacore.LocListEntry{
+		rval.LocationLists[pidx] = append(rval.LocationLists[pidx], ssa.LocListEntry{
 			StartBlock: f.Entry.ID,
-			StartValue: ssacore.BlockStart.ID,
+			StartValue: ssa.BlockStart.ID,
 			EndBlock:   f.Entry.ID,
 			EndValue:   afterPrologVal,
 			Expr:       regExpr,
@@ -779,11 +779,11 @@ func BuildFuncDebugNoOptimized(ctxt *obj.Link, f *ssacore.Func, loggingEnabled b
 			state.Logf("  [%d, <end>): stackOffset=%d\n", afterPrologVal, soff)
 		}
 
-		rval.LocationLists[pidx] = append(rval.LocationLists[pidx], ssacore.LocListEntry{
+		rval.LocationLists[pidx] = append(rval.LocationLists[pidx], ssa.LocListEntry{
 			StartBlock: f.Entry.ID,
 			StartValue: afterPrologVal,
 			EndBlock:   f.Entry.ID,
-			EndValue:   ssacore.FuncEnd.ID,
+			EndValue:   ssa.FuncEnd.ID,
 			Expr:       stackExpr,
 		})
 

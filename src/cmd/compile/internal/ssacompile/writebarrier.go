@@ -8,8 +8,8 @@ import (
 	"internal/buildcfg"
 
 	"cmd/compile/internal/reflectdata"
+	"cmd/compile/internal/ssa"
 	"cmd/compile/internal/ssa/block"
-	"cmd/compile/internal/ssa/ssacore"
 	"cmd/compile/internal/ssa/ssaop"
 	"cmd/compile/internal/types"
 	"cmd/internal/obj"
@@ -19,7 +19,7 @@ import (
 
 // mightBeHeapPointer reports whether v might point to the heap.
 // v must have pointer type.
-func mightBeHeapPointer(v *ssacore.Value) bool {
+func mightBeHeapPointer(v *ssa.Value) bool {
 	if IsGlobalAddr(v) {
 		return false
 	}
@@ -29,7 +29,7 @@ func mightBeHeapPointer(v *ssacore.Value) bool {
 // mightContainHeapPointer reports whether the data currently at addresses
 // [ptr,ptr+size) might contain heap pointers. "currently" means at memory state mem.
 // zeroes contains ZeroRegion data to help make that decision (see computeZeroMap).
-func mightContainHeapPointer(ptr *ssacore.Value, size int64, mem *ssacore.Value, zeroes map[ssacore.ID]ssacore.ZeroRegion) bool {
+func mightContainHeapPointer(ptr *ssa.Value, size int64, mem *ssa.Value, zeroes map[ssa.ID]ssa.ZeroRegion) bool {
 	if IsReadOnlyGlobalAddr(ptr) {
 		// The read-only globals section cannot contain any heap pointers.
 		return false
@@ -73,7 +73,7 @@ func mightContainHeapPointer(ptr *ssacore.Value, size int64, mem *ssacore.Value,
 // needwb reports whether we need write barrier for store op v.
 // v must be Store/Move/Zero.
 // zeroes provides known zero information (keyed by ID of memory-type values).
-func needwb(v *ssacore.Value, zeroes map[ssacore.ID]ssacore.ZeroRegion) bool {
+func needwb(v *ssa.Value, zeroes map[ssa.ID]ssa.ZeroRegion) bool {
 	t, ok := v.Aux.(*types.Type)
 	if !ok {
 		v.Fatalf("store aux is not a type: %s", v.LongString())
@@ -82,7 +82,7 @@ func needwb(v *ssacore.Value, zeroes map[ssacore.ID]ssacore.ZeroRegion) bool {
 		return false
 	}
 	dst := v.Args[0]
-	if ssacore.IsStackAddr(dst) {
+	if ssa.IsStackAddr(dst) {
 		return false // writes into the stack don't need write barrier
 	}
 	// If we're writing to a place that might have heap pointers, we need
@@ -110,13 +110,13 @@ func needwb(v *ssacore.Value, zeroes map[ssacore.ID]ssacore.ZeroRegion) bool {
 }
 
 // needWBsrc reports whether GC needs to see v when it is the source of a store.
-func needWBsrc(v *ssacore.Value) bool {
+func needWBsrc(v *ssa.Value) bool {
 	return !IsGlobalAddr(v)
 }
 
 // needWBdst reports whether GC needs to see what used to be in *ptr when ptr is
 // the target of a pointer store.
-func needWBdst(ptr, mem *ssacore.Value, zeroes map[ssacore.ID]ssacore.ZeroRegion) bool {
+func needWBdst(ptr, mem *ssa.Value, zeroes map[ssa.ID]ssa.ZeroRegion) bool {
 	// Detect storing to zeroed memory.
 	var off int64
 	for ptr.Op == ssaop.OpOffPtr {
@@ -153,7 +153,7 @@ func needWBdst(ptr, mem *ssacore.Value, zeroes map[ssacore.ID]ssacore.ZeroRegion
 //
 // A sequence of WB stores for many pointer fields of a single type will
 // be emitted together, with a single branch.
-func writebarrier(f *ssacore.Func) {
+func writebarrier(f *ssa.Func) {
 	if !f.Fe.UseWriteBarrier() {
 		return
 	}
@@ -163,11 +163,11 @@ func writebarrier(f *ssacore.Func) {
 	// It must also match the number of instances of runtime.gcWriteBarrier{X}.
 	const maxEntries = 8
 
-	var sb, sp, wbaddr, const0 *ssacore.Value
+	var sb, sp, wbaddr, const0 *ssa.Value
 	var cgoCheckPtrWrite, cgoCheckMemmove *obj.LSym
 	var wbZero, wbMove *obj.LSym
-	var stores, after []*ssacore.Value
-	var sset, sset2 *ssacore.SparseSet
+	var stores, after []*ssa.Value
+	var sset, sset2 *ssa.SparseSet
 	var storeNumber []int32
 
 	// Compute map from a value to the SelectN [1] value that uses it.
@@ -240,7 +240,7 @@ func writebarrier(f *ssacore.Func) {
 		// find the start and end of the last contiguous WB store sequence.
 		// a branch will be inserted there. values after it will be moved
 		// to a new block.
-		var last *ssacore.Value
+		var last *ssa.Value
 		var start, end int
 		var nonPtrStores int
 		values := b.Values
@@ -299,7 +299,7 @@ func writebarrier(f *ssacore.Func) {
 		// the two branches, where the store and the WB load occur. So
 		// they are more likely be removed by late nilcheck removal (which
 		// is block-local).
-		var nilcheck, nilcheckThen, nilcheckEnd *ssacore.Value
+		var nilcheck, nilcheckThen, nilcheckEnd *ssa.Value
 		if a := stores[0].Args[0]; a.Op == ssaop.OpNilCheck && a.Args[1] == mem {
 			nilcheck = a
 		}
@@ -314,8 +314,8 @@ func writebarrier(f *ssacore.Func) {
 		// search instead of using a map.
 		// See issue 15854.
 		type volatileCopy struct {
-			src *ssacore.Value // address of original volatile value
-			tmp *ssacore.Value // address of temporary we've copied the volatile value into
+			src *ssa.Value // address of original volatile value
+			tmp *ssa.Value // address of temporary we've copied the volatile value into
 		}
 		var volatiles []volatileCopy
 	copyLoop:
@@ -363,7 +363,7 @@ func writebarrier(f *ssacore.Func) {
 		flag = b.NewValue2(pos, ssaop.OpNeq32, cfgtypes.Bool, flag, const0)
 		b.Kind = block.BlockIf
 		b.SetControl(flag)
-		b.Likely = ssacore.BranchUnlikely
+		b.Likely = ssa.BranchUnlikely
 		b.Succs = b.Succs[:0]
 		b.AddEdgeTo(bThen)
 		b.AddEdgeTo(bEnd)
@@ -396,8 +396,8 @@ func writebarrier(f *ssacore.Func) {
 
 		// Buffer up entries that we need to put in the write barrier buffer.
 		type write struct {
-			ptr *ssacore.Value // value to put in write barrier buffer
-			pos src.XPos       // location to use for the write
+			ptr *ssa.Value // value to put in write barrier buffer
+			pos src.XPos   // location to use for the write
 		}
 		var writeStore [maxEntries]write
 		writes := writeStore[:0]
@@ -418,7 +418,7 @@ func writebarrier(f *ssacore.Func) {
 			}
 			writes = writes[:0]
 		}
-		addEntry := func(pos src.XPos, ptr *ssacore.Value) {
+		addEntry := func(pos src.XPos, ptr *ssa.Value) {
 			writes = append(writes, write{ptr: ptr, pos: pos})
 			if len(writes) == maxEntries {
 				flush()
@@ -583,7 +583,7 @@ func writebarrier(f *ssacore.Func) {
 }
 
 // wbcall emits write barrier runtime call in b, returns memory.
-func wbcall(pos src.XPos, b *ssacore.Block, fn *obj.LSym, sp, mem *ssacore.Value, args ...*ssacore.Value) *ssacore.Value {
+func wbcall(pos src.XPos, b *ssa.Block, fn *obj.LSym, sp, mem *ssa.Value, args ...*ssa.Value) *ssa.Value {
 	config := b.Func.Config
 	typ := config.Types.Uintptr // type of all argument values
 	nargs := len(args)
@@ -609,14 +609,14 @@ func wbcall(pos src.XPos, b *ssacore.Block, fn *obj.LSym, sp, mem *ssacore.Value
 	for i := 0; i < nargs; i++ {
 		argTypes[i] = typ
 	}
-	call := b.NewValue0A(pos, ssaop.OpStaticCall, types.TypeResultMem, ssacore.StaticAuxCall(fn, b.Func.ABIDefault.ABIAnalyzeTypes(argTypes, nil)))
+	call := b.NewValue0A(pos, ssaop.OpStaticCall, types.TypeResultMem, ssa.StaticAuxCall(fn, b.Func.ABIDefault.ABIAnalyzeTypes(argTypes, nil)))
 	call.AddArgs(args...)
 	call.AuxInt = int64(nargs) * typ.Size()
 	return b.NewValue1I(pos, ssaop.OpSelectN, types.TypeMem, 0, call)
 }
 
 // IsGlobalAddr reports whether v is known to be an address of a global (or nil).
-func IsGlobalAddr(v *ssacore.Value) bool {
+func IsGlobalAddr(v *ssa.Value) bool {
 	for v.Op == ssaop.OpOffPtr || v.Op == ssaop.OpAddPtr || v.Op == ssaop.OpPtrIndex || v.Op == ssaop.OpCopy {
 		v = v.Args[0]
 	}
@@ -633,7 +633,7 @@ func IsGlobalAddr(v *ssacore.Value) bool {
 }
 
 // IsReadOnlyGlobalAddr reports whether v is known to be an address of a read-only global.
-func IsReadOnlyGlobalAddr(v *ssacore.Value) bool {
+func IsReadOnlyGlobalAddr(v *ssa.Value) bool {
 	if v.Op == ssaop.OpConstNil {
 		// Nil pointers are read only. See issue 33438.
 		return true
@@ -646,7 +646,7 @@ func IsReadOnlyGlobalAddr(v *ssacore.Value) bool {
 
 // IsVolatile reports whether v is a pointer to argument region on stack which
 // will be clobbered by a function call.
-func IsVolatile(v *ssacore.Value) bool {
+func IsVolatile(v *ssa.Value) bool {
 	for v.Op == ssaop.OpOffPtr || v.Op == ssaop.OpAddPtr || v.Op == ssaop.OpPtrIndex || v.Op == ssaop.OpCopy || v.Op == ssaop.OpSelectNAddr {
 		v = v.Args[0]
 	}

@@ -7,8 +7,8 @@ package ssacompile
 import (
 	"slices"
 
+	"cmd/compile/internal/ssa"
 	"cmd/compile/internal/ssa/block"
-	"cmd/compile/internal/ssa/ssacore"
 )
 
 // loopRotate converts loops with a check-loop-condition-at-beginning
@@ -28,7 +28,7 @@ import (
 //	entry:
 //	  CMPQ ...
 //	  JLT loop
-func loopRotate(f *ssacore.Func) {
+func loopRotate(f *ssa.Func) {
 	loopnest := f.Loopnest()
 	if loopnest.HasIrreducible {
 		return
@@ -44,7 +44,7 @@ func loopRotate(f *ssacore.Func) {
 	}
 
 	// Set of blocks we're moving, by ID.
-	move := map[ssacore.ID]struct{}{}
+	move := map[ssa.ID]struct{}{}
 
 	// Map from block ID to the moving blocks that should
 	// come right after it.
@@ -78,10 +78,10 @@ func loopRotate(f *ssacore.Func) {
 	// We build the 'after' lists for each of the top blocks Ot and It:
 	//   after[Ot]: Oh, It, Ie
 	//   after[It]: Ih, Ib
-	after := map[ssacore.ID][]*ssacore.Block{}
+	after := map[ssa.ID][]*ssa.Block{}
 
 	// Map from loop header ID to the new top block for the loop.
-	tops := map[ssacore.ID]*ssacore.Block{}
+	tops := map[ssa.ID]*ssa.Block{}
 
 	// Order loops to rotate any child loop before adding its top block
 	// to the parent loop's 'after' list.
@@ -107,7 +107,7 @@ func loopRotate(f *ssacore.Func) {
 	for _, loopIdx := range loopOrder {
 		loop := loopnest.Loops[loopIdx]
 		b := loop.Header
-		var p *ssacore.Block // b's in-loop predecessor
+		var p *ssa.Block // b's in-loop predecessor
 		for _, e := range b.Preds {
 			if e.B.Kind != block.BlockPlain {
 				continue
@@ -121,18 +121,18 @@ func loopRotate(f *ssacore.Func) {
 			continue
 		}
 		tops[loop.Header.ID] = p
-		p.Hotness |= ssacore.HotInitial
+		p.Hotness |= ssa.HotInitial
 		if f.IsPgoHot {
-			p.Hotness |= ssacore.HotPgo
+			p.Hotness |= ssa.HotPgo
 		}
 		// blocks will be arranged so that p is ordered first, if it isn't already.
 		if p == b { // p is header, already first (and also, only block in the loop)
 			continue
 		}
-		p.Hotness |= ssacore.HotNotFlowIn
+		p.Hotness |= ssa.HotNotFlowIn
 
 		// the loop header b follows p
-		after[p.ID] = []*ssacore.Block{b}
+		after[p.ID] = []*ssa.Block{b}
 		for {
 			nextIdx := idToIdx[b.ID] + 1
 			if nextIdx >= len(f.Blocks) { // reached end of function (maybe impossible?)
@@ -171,8 +171,8 @@ func loopRotate(f *ssacore.Func) {
 	oldOrder := f.Cache.AllocBlockSlice(len(f.Blocks))
 	defer f.Cache.FreeBlockSlice(oldOrder)
 	copy(oldOrder, f.Blocks)
-	var moveBlocks func(bs []*ssacore.Block)
-	moveBlocks = func(blocks []*ssacore.Block) {
+	var moveBlocks func(bs []*ssa.Block)
+	moveBlocks = func(blocks []*ssa.Block) {
 		for _, a := range blocks {
 			f.Blocks[j] = a
 			j++

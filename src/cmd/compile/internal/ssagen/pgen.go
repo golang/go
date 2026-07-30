@@ -19,7 +19,7 @@ import (
 	"cmd/compile/internal/liveness"
 	"cmd/compile/internal/objw"
 	"cmd/compile/internal/pgoir"
-	"cmd/compile/internal/ssa/ssacore"
+	"cmd/compile/internal/ssa"
 	"cmd/compile/internal/ssa/ssadebug"
 	"cmd/compile/internal/ssa/ssaop"
 	"cmd/compile/internal/types"
@@ -122,7 +122,7 @@ func needAlloc(n *ir.Name) bool {
 	}
 }
 
-func (s *ssafn) AllocFrame(f *ssacore.Func) {
+func (s *ssafn) AllocFrame(f *ssa.Func) {
 	s.stksize = 0
 	s.stkptrsize = 0
 	s.stkalign = int64(types.RegSize)
@@ -144,7 +144,7 @@ func (s *ssafn) AllocFrame(f *ssacore.Func) {
 	}
 
 	for _, l := range f.RegAlloc {
-		if ls, ok := l.(ssacore.LocalSlot); ok {
+		if ls, ok := l.(ssa.LocalSlot); ok {
 			ls.N.SetUsed(true)
 		}
 	}
@@ -212,7 +212,7 @@ func (s *ssafn) AllocFrame(f *ssacore.Func) {
 	if base.Debug.MergeLocalsTrace > 1 && mls != nil {
 		fmt.Fprintf(os.Stderr, "=-= sorted DCL for %v:\n", fn)
 		for i, v := range fn.Dcl {
-			if !ssacore.IsMergeCandidate(v) {
+			if !ssa.IsMergeCandidate(v) {
 				continue
 			}
 			fmt.Fprintf(os.Stderr, " %d: %q isleader=%v subsumed=%v used=%v sz=%d align=%d t=%s\n", i, v.Sym().Name, mls.IsLeader(v), mls.Subsumed(v), v.Used(), v.Type().Size(), v.Type().Alignment(), v.Type().String())
@@ -302,7 +302,7 @@ const maxStackSize = 1 << 30
 // uses it to generate a plist,
 // and flushes that plist to machine code.
 // worker indicates which of the backend workers is doing the processing.
-func Compile(ssacompiler ssacore.Compiler, fn *ir.Func, worker int, profile *pgoir.Profile) {
+func Compile(ssacompiler ssa.Compiler, fn *ir.Func, worker int, profile *pgoir.Profile) {
 	f, htmlWriter := buildssa(ssacompiler, fn, worker, inline.IsPgoHotFunc(fn, profile) || inline.HasPgoHotInline(fn))
 	// Note: check arg size to fix issue 25507.
 	if f.Frontend().(*ssafn).stksize >= maxStackSize || f.OwnAux.ArgWidth() >= maxStackSize {
@@ -382,7 +382,7 @@ func weakenGlobalMapInitRelocs(fn *ir.Func) {
 // StackOffset returns the stack location of a LocalSlot relative to the
 // stack pointer, suitable for use in a DWARF location entry. This has nothing
 // to do with its offset in the user variable.
-func StackOffset(slot ssacore.LocalSlot) int32 {
+func StackOffset(slot ssa.LocalSlot) int32 {
 	n := slot.N
 	var off int64
 	switch n.Class {

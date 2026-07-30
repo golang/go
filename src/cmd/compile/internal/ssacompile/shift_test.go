@@ -7,7 +7,7 @@ package ssacompile
 import (
 	"testing"
 
-	"cmd/compile/internal/ssa/ssacore"
+	"cmd/compile/internal/ssa"
 	"cmd/compile/internal/ssa/ssaop"
 	"cmd/compile/internal/types"
 )
@@ -111,7 +111,7 @@ func makeShiftExtensionFunc(c *Conf, amount int64, lshift, rshift ssaop.Op, typ 
 
 // runPasses is a simplified version of Compile that runs the passes
 // for the tests in this file.
-func runPasses(f *ssacore.Func) {
+func runPasses(f *ssa.Func) {
 	for i := range passes {
 		p := &passes[i]
 		if !f.Config.Optimize && !p.Required || p.Disabled {

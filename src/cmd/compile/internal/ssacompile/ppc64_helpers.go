@@ -7,7 +7,7 @@ package ssacompile
 import (
 	"math/bits"
 
-	"cmd/compile/internal/ssa/ssacore"
+	"cmd/compile/internal/ssa"
 )
 
 func getPPC64ShiftMaskLength(v int64) int64 {
@@ -32,7 +32,7 @@ func isU16Bit(n int64) bool {
 // Test if RLWINM feeding into an ANDconst can be merged. Return the encoded RLWINM constant,
 // or 0 if they cannot be merged.
 func mergePPC64AndRlwinm(mask uint32, rlw int64) int64 {
-	r, _, _, mask_rlw := ssacore.DecodePPC64RotateMask(rlw)
+	r, _, _, mask_rlw := ssa.DecodePPC64RotateMask(rlw)
 	mask_out := (mask_rlw & uint64(mask))
 
 	// Verify the result is still a valid bitmask of <= 32 bits.
@@ -77,13 +77,13 @@ func mergePPC64AndSrdi(m, s int64) int64 {
 func mergePPC64ClrlsldiSrd(sld, srd int64) int64 {
 	mask_1 := uint64(0xFFFFFFFFFFFFFFFF) >> uint(srd)
 	// for CLRLSLDI, it's more convenient to think of it as a mask left bits then rotate left.
-	mask_2 := uint64(0xFFFFFFFFFFFFFFFF) >> uint(ssacore.GetPPC64Shiftmb(sld))
+	mask_2 := uint64(0xFFFFFFFFFFFFFFFF) >> uint(ssa.GetPPC64Shiftmb(sld))
 
 	// Rewrite mask to apply after the final left shift.
-	mask_3 := (mask_1 & mask_2) << uint(ssacore.GetPPC64Shiftsh(sld))
+	mask_3 := (mask_1 & mask_2) << uint(ssa.GetPPC64Shiftsh(sld))
 
 	r_1 := 64 - srd
-	r_2 := ssacore.GetPPC64Shiftsh(sld)
+	r_2 := ssa.GetPPC64Shiftsh(sld)
 	r_3 := (r_1 + r_2) & 63 // This can wrap.
 
 	if uint64(uint32(mask_3)) != mask_3 || mask_3 == 0 {
@@ -100,7 +100,7 @@ func mergePPC64ClrlsldiSrd(sld, srd int64) int64 {
 // Test if RLWINM opcode rlw clears the upper 32 bits of the
 // result. Return rlw if it does, 0 otherwise.
 func mergePPC64MovwzregRlwinm(rlw int64) int64 {
-	_, mb, me, _ := ssacore.DecodePPC64RotateMask(rlw)
+	_, mb, me, _ := ssa.DecodePPC64RotateMask(rlw)
 	if mb > me {
 		return 0
 	}
@@ -110,7 +110,7 @@ func mergePPC64MovwzregRlwinm(rlw int64) int64 {
 // Test if AND feeding into an ANDconst can be merged. Return the encoded RLWINM constant,
 // or 0 if they cannot be merged.
 func mergePPC64RlwinmAnd(rlw int64, mask uint32) int64 {
-	r, _, _, mask_rlw := ssacore.DecodePPC64RotateMask(rlw)
+	r, _, _, mask_rlw := ssa.DecodePPC64RotateMask(rlw)
 
 	// Rotate the input mask, combine with the rlwnm mask, and test if it is still a valid rlwinm mask.
 	r_mask := bits.RotateLeft32(mask, int(r))
@@ -127,7 +127,7 @@ func mergePPC64RlwinmAnd(rlw int64, mask uint32) int64 {
 // Test if RLWINM feeding into SRDconst can be merged. Return the encoded RLIWNM constant,
 // or 0 if they cannot be merged.
 func mergePPC64SldiRlwinm(sldi, rlw int64) int64 {
-	r_1, mb, me, mask_1 := ssacore.DecodePPC64RotateMask(rlw)
+	r_1, mb, me, mask_1 := ssa.DecodePPC64RotateMask(rlw)
 	if mb > me || mb < sldi {
 		// Wrapping masks cannot be merged as the upper 32 bits are effectively undefined in this case.
 		// Likewise, if mb is less than the shift amount, it cannot be merged.

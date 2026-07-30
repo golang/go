@@ -3,9 +3,9 @@
 package ssacompile
 
 import "cmd/compile/internal/ssa/ssaop"
-import "cmd/compile/internal/ssa/ssacore"
+import "cmd/compile/internal/ssa"
 
-func rewriteValuedivisible(v *ssacore.Value) bool {
+func rewriteValuedivisible(v *ssa.Value) bool {
 	switch v.Op {
 	case ssaop.OpEq16:
 		return rewriteValuedivisible_OpEq16(v)
@@ -26,7 +26,7 @@ func rewriteValuedivisible(v *ssacore.Value) bool {
 	}
 	return false
 }
-func rewriteValuedivisible_OpEq16(v *ssacore.Value) bool {
+func rewriteValuedivisible_OpEq16(v *ssa.Value) bool {
 	v_1 := v.Args[1]
 	v_0 := v.Args[0]
 	b := v.Block
@@ -214,7 +214,7 @@ func rewriteValuedivisible_OpEq16(v *ssacore.Value) bool {
 	}
 	return false
 }
-func rewriteValuedivisible_OpEq32(v *ssacore.Value) bool {
+func rewriteValuedivisible_OpEq32(v *ssa.Value) bool {
 	v_1 := v.Args[1]
 	v_0 := v.Args[0]
 	b := v.Block
@@ -402,7 +402,7 @@ func rewriteValuedivisible_OpEq32(v *ssacore.Value) bool {
 	}
 	return false
 }
-func rewriteValuedivisible_OpEq64(v *ssacore.Value) bool {
+func rewriteValuedivisible_OpEq64(v *ssa.Value) bool {
 	v_1 := v.Args[1]
 	v_0 := v.Args[0]
 	b := v.Block
@@ -590,7 +590,7 @@ func rewriteValuedivisible_OpEq64(v *ssacore.Value) bool {
 	}
 	return false
 }
-func rewriteValuedivisible_OpEq8(v *ssacore.Value) bool {
+func rewriteValuedivisible_OpEq8(v *ssa.Value) bool {
 	v_1 := v.Args[1]
 	v_0 := v.Args[0]
 	b := v.Block
@@ -778,7 +778,7 @@ func rewriteValuedivisible_OpEq8(v *ssacore.Value) bool {
 	}
 	return false
 }
-func rewriteValuedivisible_OpNeq16(v *ssacore.Value) bool {
+func rewriteValuedivisible_OpNeq16(v *ssa.Value) bool {
 	v_1 := v.Args[1]
 	v_0 := v.Args[0]
 	b := v.Block
@@ -966,7 +966,7 @@ func rewriteValuedivisible_OpNeq16(v *ssacore.Value) bool {
 	}
 	return false
 }
-func rewriteValuedivisible_OpNeq32(v *ssacore.Value) bool {
+func rewriteValuedivisible_OpNeq32(v *ssa.Value) bool {
 	v_1 := v.Args[1]
 	v_0 := v.Args[0]
 	b := v.Block
@@ -1154,7 +1154,7 @@ func rewriteValuedivisible_OpNeq32(v *ssacore.Value) bool {
 	}
 	return false
 }
-func rewriteValuedivisible_OpNeq64(v *ssacore.Value) bool {
+func rewriteValuedivisible_OpNeq64(v *ssa.Value) bool {
 	v_1 := v.Args[1]
 	v_0 := v.Args[0]
 	b := v.Block
@@ -1342,7 +1342,7 @@ func rewriteValuedivisible_OpNeq64(v *ssacore.Value) bool {
 	}
 	return false
 }
-func rewriteValuedivisible_OpNeq8(v *ssacore.Value) bool {
+func rewriteValuedivisible_OpNeq8(v *ssa.Value) bool {
 	v_1 := v.Args[1]
 	v_0 := v.Args[0]
 	b := v.Block
@@ -1530,6 +1530,6 @@ func rewriteValuedivisible_OpNeq8(v *ssacore.Value) bool {
 	}
 	return false
 }
-func rewriteBlockdivisible(b *ssacore.Block) bool {
+func rewriteBlockdivisible(b *ssa.Block) bool {
 	return false
 }

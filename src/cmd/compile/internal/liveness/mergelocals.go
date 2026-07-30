@@ -8,7 +8,7 @@ import (
 	"cmd/compile/internal/base"
 	"cmd/compile/internal/bitvec"
 	"cmd/compile/internal/ir"
-	"cmd/compile/internal/ssa/ssacore"
+	"cmd/compile/internal/ssa"
 	"cmd/compile/internal/ssa/ssaop"
 	"cmd/internal/src"
 	"fmt"
@@ -56,12 +56,12 @@ type candRegion struct {
 // is done.
 type cstate struct {
 	fn             *ir.Func
-	f              *ssacore.Func
+	f              *ssa.Func
 	lv             *Liveness
 	cands          []*ir.Name
 	nameToSlot     map[*ir.Name]int32
 	regions        []candRegion
-	indirectUE     map[ssacore.ID][]*ir.Name
+	indirectUE     map[ssa.ID][]*ir.Name
 	ivs            []Intervals
 	hashDeselected map[*ir.Name]bool
 	trace          int // debug trace level
@@ -70,7 +70,7 @@ type cstate struct {
 // MergeLocals analyzes the specified ssa function f to determine which
 // of its auto variables can safely share the same stack slot, returning
 // a state object that describes how the overlap should be done.
-func MergeLocals(fn *ir.Func, f *ssacore.Func) *MergeLocalsState {
+func MergeLocals(fn *ir.Func, f *ssa.Func) *MergeLocalsState {
 
 	// Create a container object for useful state info and then
 	// call collectMergeCandidates to see if there are vars suitable
@@ -304,7 +304,7 @@ func (cs *cstate) collectMergeCandidates() {
 		if !n.Used() {
 			continue
 		}
-		if !ssacore.IsMergeCandidate(n) {
+		if !ssa.IsMergeCandidate(n) {
 			continue
 		}
 		cands = append(cands, n)
@@ -471,7 +471,7 @@ func (cs *cstate) setupHashBisection(cands []*ir.Name) {
 func (cs *cstate) populateIndirectUseTable(cands []*ir.Name) ([]*ir.Name, []candRegion) {
 
 	// main indirect UE table, this is what we're producing in this func
-	indirectUE := make(map[ssacore.ID][]*ir.Name)
+	indirectUE := make(map[ssa.ID][]*ir.Name)
 
 	// this map holds the current set of candidates; the set may
 	// shrink if we have to evict any candidates.
@@ -479,11 +479,11 @@ func (cs *cstate) populateIndirectUseTable(cands []*ir.Name) ([]*ir.Name, []cand
 
 	// maps ssa value V to the ir.Name it is taking the addr of,
 	// plus a count of the uses we've seen of V during a block walk.
-	pendingUses := make(map[ssacore.ID]nameCount)
+	pendingUses := make(map[ssa.ID]nameCount)
 
 	// A temporary indirect UE tab just for the current block
 	// being processed; used to help with evictions.
-	blockIndirectUE := make(map[ssacore.ID][]*ir.Name)
+	blockIndirectUE := make(map[ssa.ID][]*ir.Name)
 
 	// temporary map used to record evictions in a given block.
 	evicted := make(map[*ir.Name]bool)
@@ -596,7 +596,7 @@ func (cs *cstate) populateIndirectUseTable(cands []*ir.Name) ([]*ir.Name, []cand
 	cs.indirectUE = indirectUE
 	if cs.trace > 2 {
 		fmt.Fprintf(os.Stderr, "=-= iuetab:\n")
-		ids := make([]ssacore.ID, 0, len(indirectUE))
+		ids := make([]ssa.ID, 0, len(indirectUE))
 		for k := range indirectUE {
 			ids = append(ids, k)
 		}

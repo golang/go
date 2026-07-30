@@ -18,14 +18,14 @@ import (
 	"time"
 
 	"cmd/compile/internal/base"
+	"cmd/compile/internal/ssa"
 	"cmd/compile/internal/ssa/ssaconfig"
-	"cmd/compile/internal/ssa/ssacore"
 )
 
 // Compiler satisfies the ssacore.Compiler interface.
 type Compiler struct{}
 
-func (_ Compiler) Passes() []ssacore.Pass {
+func (_ Compiler) Passes() []ssa.Pass {
 	return passes[:]
 }
 
@@ -35,7 +35,7 @@ func (_ Compiler) Passes() []ssacore.Pass {
 //   - the order of f.Blocks is the order to emit the Blocks
 //   - the order of b.Values is the order to emit the Values in each Block
 //   - f has a non-nil regAlloc field
-func (_ Compiler) Compile(f *ssacore.Func, htmlWriter ssacore.HTMLWriter) {
+func (_ Compiler) Compile(f *ssa.Func, htmlWriter ssa.HTMLWriter) {
 	// TODO: debugging - set flags to control verbosity of compiler,
 	// which phases to dump IR before/after, etc.
 	if f.Log() {
@@ -65,7 +65,7 @@ func (_ Compiler) Compile(f *ssacore.Func, htmlWriter ssacore.HTMLWriter) {
 
 	// Run all the passes
 	if f.Log() {
-		ssacore.PrintFunc(f)
+		ssa.PrintFunc(f)
 	}
 	htmlWriter.WritePhase("start", "start")
 	if ssaconfig.BuildDump[f.Name] {
@@ -121,7 +121,7 @@ func (_ Compiler) Compile(f *ssacore.Func, htmlWriter ssacore.HTMLWriter) {
 
 			if f.Log() {
 				f.Logf("  pass %s end %s\n", p.Name, stats)
-				ssacore.PrintFunc(f)
+				ssa.PrintFunc(f)
 			}
 			htmlWriter.WritePhase(phaseName, fmt.Sprintf("%s <span class=\"stats\">%s</span>", phaseName, stats))
 		}
@@ -265,16 +265,16 @@ commas. For example:
 		switch flag {
 		case "on":
 			checkEnabled = val != 0
-			ssacore.DebugPoset = checkEnabled // also turn on advanced self-checking in prove's data structure
+			ssa.DebugPoset = checkEnabled // also turn on advanced self-checking in prove's data structure
 			return ""
 		case "off":
 			checkEnabled = val == 0
-			ssacore.DebugPoset = checkEnabled
+			ssa.DebugPoset = checkEnabled
 			return ""
 		case "seed":
 			checkEnabled = true
 			checkRandSeed = val
-			ssacore.DebugPoset = checkEnabled
+			ssa.DebugPoset = checkEnabled
 			return ""
 		}
 	}
@@ -403,7 +403,7 @@ commas. For example:
 }
 
 // list of passes for the compiler
-var passes = [...]ssacore.Pass{
+var passes = [...]ssa.Pass{
 	{Name: "number lines", Fn: numberLines, Required: true},
 	{Name: "early phielim and copyelim", Fn: copyelim},
 	{Name: "early deadcode", Fn: deadcode}, // remove generated dead code to avoid doing pointless work during opt
@@ -421,7 +421,7 @@ var passes = [...]ssacore.Pass{
 	{Name: "divisible", Fn: divisible, Required: true},
 	{Name: "divmod", Fn: divmod, Required: true},
 	{Name: "middle opt", Fn: opt, Required: true},
-	{Name: "known bits", Fn: ssacore.KnownBits},
+	{Name: "known bits", Fn: ssa.KnownBits},
 	{Name: "early fuse", Fn: fuseEarly},
 	{Name: "expand calls", Fn: expandCalls, Required: true},
 	{Name: "decompose builtin", Fn: postExpandCallsDecompose, Required: true},

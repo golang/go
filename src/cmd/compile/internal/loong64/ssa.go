@@ -11,8 +11,8 @@ import (
 	"cmd/compile/internal/ir"
 	"cmd/compile/internal/logopt"
 	"cmd/compile/internal/objw"
+	"cmd/compile/internal/ssa"
 	"cmd/compile/internal/ssa/block"
-	"cmd/compile/internal/ssa/ssacore"
 	"cmd/compile/internal/ssa/ssaop"
 	"cmd/compile/internal/ssagen"
 	"cmd/compile/internal/types"
@@ -106,7 +106,7 @@ func largestMove(alignment int64) (obj.As, int64) {
 	}
 }
 
-func ssaGenValue(s *ssagen.State, v *ssacore.Value) {
+func ssaGenValue(s *ssagen.State, v *ssa.Value) {
 	switch v.Op {
 	case ssaop.OpCopy, ssaop.OpLOONG64MOVVreg:
 		if v.Type.IsMemory() {
@@ -836,7 +836,7 @@ func ssaGenValue(s *ssagen.State, v *ssacore.Value) {
 
 	case ssaop.OpLOONG64LoweredPanicBoundsRR, ssaop.OpLOONG64LoweredPanicBoundsRC, ssaop.OpLOONG64LoweredPanicBoundsCR, ssaop.OpLOONG64LoweredPanicBoundsCC:
 		// Compute the constant we put in the PCData entry for this call.
-		code, signed := ssacore.BoundsKind(v.AuxInt).Code()
+		code, signed := ssa.BoundsKind(v.AuxInt).Code()
 		xIsReg := false
 		yIsReg := false
 		xVal := 0
@@ -850,7 +850,7 @@ func ssaGenValue(s *ssagen.State, v *ssacore.Value) {
 		case ssaop.OpLOONG64LoweredPanicBoundsRC:
 			xIsReg = true
 			xVal = int(v.Args[0].Reg() - loong64.REG_R4)
-			c := v.Aux.(ssacore.PanicBoundsC).C
+			c := v.Aux.(ssa.PanicBoundsC).C
 			if c >= 0 && c <= abi.BoundsMaxConst {
 				yVal = int(c)
 			} else {
@@ -868,7 +868,7 @@ func ssaGenValue(s *ssagen.State, v *ssacore.Value) {
 		case ssaop.OpLOONG64LoweredPanicBoundsCR:
 			yIsReg = true
 			yVal = int(v.Args[0].Reg() - loong64.REG_R4)
-			c := v.Aux.(ssacore.PanicBoundsC).C
+			c := v.Aux.(ssa.PanicBoundsC).C
 			if c >= 0 && c <= abi.BoundsMaxConst {
 				xVal = int(c)
 			} else {
@@ -884,7 +884,7 @@ func ssaGenValue(s *ssagen.State, v *ssacore.Value) {
 				p.To.Reg = loong64.REG_R4 + int16(xVal)
 			}
 		case ssaop.OpLOONG64LoweredPanicBoundsCC:
-			c := v.Aux.(ssacore.PanicBoundsCC).Cx
+			c := v.Aux.(ssa.PanicBoundsCC).Cx
 			if c >= 0 && c <= abi.BoundsMaxConst {
 				xVal = int(c)
 			} else {
@@ -896,7 +896,7 @@ func ssaGenValue(s *ssagen.State, v *ssacore.Value) {
 				p.To.Type = obj.TYPE_REG
 				p.To.Reg = loong64.REG_R4 + int16(xVal)
 			}
-			c = v.Aux.(ssacore.PanicBoundsCC).Cy
+			c = v.Aux.(ssa.PanicBoundsCC).Cy
 			if c >= 0 && c <= abi.BoundsMaxConst {
 				yVal = int(c)
 			} else {
@@ -1272,7 +1272,7 @@ var blockJump = map[block.BlockKind]struct {
 	block.BlockLOONG64BGEU: {loong64.ABGEU, loong64.ABLTU},
 }
 
-func ssaGenBlock(s *ssagen.State, b, next *ssacore.Block) {
+func ssaGenBlock(s *ssagen.State, b, next *ssa.Block) {
 	switch b.Kind {
 	case block.BlockPlain, block.BlockDefer:
 		if b.Succs[0].Block() != next {
@@ -1298,7 +1298,7 @@ func ssaGenBlock(s *ssagen.State, b, next *ssacore.Block) {
 		case b.Succs[1].Block():
 			p = s.Br(jmp.asm, b.Succs[0].Block())
 		default:
-			if b.Likely != ssacore.BranchUnlikely {
+			if b.Likely != ssa.BranchUnlikely {
 				p = s.Br(jmp.asm, b.Succs[0].Block())
 				s.Br(obj.AJMP, b.Succs[1].Block())
 			} else {
@@ -1350,7 +1350,7 @@ func ssaGenBlock(s *ssagen.State, b, next *ssacore.Block) {
 	}
 }
 
-func loadRegResult(s *ssagen.State, f *ssacore.Func, t *types.Type, reg int16, n *ir.Name, off int64) *obj.Prog {
+func loadRegResult(s *ssagen.State, f *ssa.Func, t *types.Type, reg int16, n *ir.Name, off int64) *obj.Prog {
 	p := s.Prog(loadByType(t, reg))
 	p.From.Type = obj.TYPE_MEM
 	p.From.Name = obj.NAME_AUTO
@@ -1361,7 +1361,7 @@ func loadRegResult(s *ssagen.State, f *ssacore.Func, t *types.Type, reg int16, n
 	return p
 }
 
-func spillArgReg(pp *objw.Progs, p *obj.Prog, f *ssacore.Func, t *types.Type, reg int16, n *ir.Name, off int64) *obj.Prog {
+func spillArgReg(pp *objw.Progs, p *obj.Prog, f *ssa.Func, t *types.Type, reg int16, n *ir.Name, off int64) *obj.Prog {
 	p = pp.Append(p, storeByType(t, reg), obj.TYPE_REG, reg, 0, obj.TYPE_MEM, 0, n.FrameOffset()+off)
 	p.To.Name = obj.NAME_PARAM
 	p.To.Sym = n.Linksym()

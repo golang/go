@@ -5,15 +5,15 @@
 package ssacompile
 
 import (
+	"cmd/compile/internal/ssa"
 	"cmd/compile/internal/ssa/block"
-	"cmd/compile/internal/ssa/ssacore"
 	"cmd/compile/internal/ssa/ssaop"
 	"cmd/internal/src"
 )
 
 // trim removes blocks with no code in them.
 // These blocks were inserted to remove critical edges.
-func trim(f *ssacore.Func) {
+func trim(f *ssa.Func) {
 	n := 0
 	for _, b := range f.Blocks {
 		if !trimmableBlock(b) {
@@ -30,13 +30,13 @@ func trim(f *ssacore.Func) {
 		p, i := b.Preds[0].B, b.Preds[0].I
 		s, j := b.Succs[0].B, b.Succs[0].I
 		ns := len(s.Preds)
-		p.Succs[i] = ssacore.Edge{B: s, I: j}
-		s.Preds[j] = ssacore.Edge{B: p, I: i}
+		p.Succs[i] = ssa.Edge{B: s, I: j}
+		s.Preds[j] = ssa.Edge{B: p, I: i}
 
 		for _, e := range b.Preds[1:] {
 			p, i := e.B, e.I
-			p.Succs[i] = ssacore.Edge{B: s, I: len(s.Preds)}
-			s.Preds = append(s.Preds, ssacore.Edge{B: p, I: i})
+			p.Succs[i] = ssa.Edge{B: s, I: len(s.Preds)}
+			s.Preds = append(s.Preds, ssa.Edge{B: p, I: i})
 		}
 
 		// Attempt to preserve a statement boundary
@@ -80,7 +80,7 @@ func trim(f *ssacore.Func) {
 					// the phi op in b, the other edges coming into s
 					// must be loopback edges from s, so v is the right
 					// argument to v!
-					args := make([]*ssacore.Value, len(v.Args))
+					args := make([]*ssa.Value, len(v.Args))
 					copy(args, v.Args)
 					v.ResetArgs()
 					for x := 0; x < j; x++ {
@@ -121,7 +121,7 @@ func trim(f *ssacore.Func) {
 
 // emptyBlock reports whether the block does not contain actual
 // instructions.
-func emptyBlock(b *ssacore.Block) bool {
+func emptyBlock(b *ssa.Block) bool {
 	for _, v := range b.Values {
 		if v.Op != ssaop.OpPhi {
 			return false
@@ -137,7 +137,7 @@ func emptyBlock(b *ssacore.Block) bool {
 //   - it should not loop back to itself.
 //   - it either is the single predecessor of the successor block or
 //     contains no actual instructions.
-func trimmableBlock(b *ssacore.Block) bool {
+func trimmableBlock(b *ssa.Block) bool {
 	if b.Kind != block.BlockPlain || b == b.Func.Entry {
 		return false
 	}
@@ -147,7 +147,7 @@ func trimmableBlock(b *ssacore.Block) bool {
 
 // mergePhi adjusts the number of `v`s arguments to account for merge
 // of `b`, which was `i`th predecessor of the `v`s block.
-func mergePhi(v *ssacore.Value, i int, b *ssacore.Block) {
+func mergePhi(v *ssa.Value, i int, b *ssa.Block) {
 	u := v.Args[i]
 	if u.Block == b {
 		if u.Op != ssaop.OpPhi {

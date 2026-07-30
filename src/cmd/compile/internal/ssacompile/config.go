@@ -7,19 +7,19 @@ package ssacompile
 import (
 	"cmd/compile/internal/abi"
 	"cmd/compile/internal/base"
-	"cmd/compile/internal/ssa/ssacore"
+	"cmd/compile/internal/ssa"
 	"cmd/compile/internal/ssa/ssaop"
 	"cmd/internal/obj"
 )
 
-func NewConfig(softFloat bool) *ssacore.Config {
-	types_ := ssacore.NewTypes()
+func NewConfig(softFloat bool) *ssa.Config {
+	types_ := ssa.NewTypes()
 	return newConfig(base.Ctxt.Arch.Name, *types_, base.Ctxt, base.Flag.N == 0, softFloat)
 }
 
 // newConfig returns a new configuration object for the given architecture.
-func newConfig(arch string, types ssacore.Types, ctxt *obj.Link, optimize, softfloat bool) *ssacore.Config {
-	c := &ssacore.Config{Arch: arch, Types: types}
+func newConfig(arch string, types ssa.Types, ctxt *obj.Link, optimize, softfloat bool) *ssa.Config {
+	c := &ssa.Config{Arch: arch, Types: types}
 	switch arch {
 	case "amd64":
 		c.PtrSize = 8

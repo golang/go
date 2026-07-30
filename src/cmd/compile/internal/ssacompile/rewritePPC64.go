@@ -7,9 +7,9 @@ import "math"
 import "cmd/compile/internal/types"
 import "cmd/compile/internal/ssa/block"
 import "cmd/compile/internal/ssa/ssaop"
-import "cmd/compile/internal/ssa/ssacore"
+import "cmd/compile/internal/ssa"
 
-func rewriteValuePPC64(v *ssacore.Value) bool {
+func rewriteValuePPC64(v *ssa.Value) bool {
 	switch v.Op {
 	case ssaop.OpAbs:
 		v.Op = ssaop.OpPPC64FABS
@@ -894,7 +894,7 @@ func rewriteValuePPC64(v *ssacore.Value) bool {
 	}
 	return false
 }
-func rewriteValuePPC64_OpAddr(v *ssacore.Value) bool {
+func rewriteValuePPC64_OpAddr(v *ssa.Value) bool {
 	v_0 := v.Args[0]
 	// match: (Addr {sym} base)
 	// result: (MOVDaddr {sym} [0] base)
@@ -908,7 +908,7 @@ func rewriteValuePPC64_OpAddr(v *ssacore.Value) bool {
 		return true
 	}
 }
-func rewriteValuePPC64_OpAtomicCompareAndSwap32(v *ssacore.Value) bool {
+func rewriteValuePPC64_OpAtomicCompareAndSwap32(v *ssa.Value) bool {
 	v_3 := v.Args[3]
 	v_2 := v.Args[2]
 	v_1 := v.Args[1]
@@ -926,7 +926,7 @@ func rewriteValuePPC64_OpAtomicCompareAndSwap32(v *ssacore.Value) bool {
 		return true
 	}
 }
-func rewriteValuePPC64_OpAtomicCompareAndSwap64(v *ssacore.Value) bool {
+func rewriteValuePPC64_OpAtomicCompareAndSwap64(v *ssa.Value) bool {
 	v_3 := v.Args[3]
 	v_2 := v.Args[2]
 	v_1 := v.Args[1]
@@ -944,7 +944,7 @@ func rewriteValuePPC64_OpAtomicCompareAndSwap64(v *ssacore.Value) bool {
 		return true
 	}
 }
-func rewriteValuePPC64_OpAtomicCompareAndSwapRel32(v *ssacore.Value) bool {
+func rewriteValuePPC64_OpAtomicCompareAndSwapRel32(v *ssa.Value) bool {
 	v_3 := v.Args[3]
 	v_2 := v.Args[2]
 	v_1 := v.Args[1]
@@ -962,7 +962,7 @@ func rewriteValuePPC64_OpAtomicCompareAndSwapRel32(v *ssacore.Value) bool {
 		return true
 	}
 }
-func rewriteValuePPC64_OpAtomicLoad32(v *ssacore.Value) bool {
+func rewriteValuePPC64_OpAtomicLoad32(v *ssa.Value) bool {
 	v_1 := v.Args[1]
 	v_0 := v.Args[0]
 	// match: (AtomicLoad32 ptr mem)
@@ -976,7 +976,7 @@ func rewriteValuePPC64_OpAtomicLoad32(v *ssacore.Value) bool {
 		return true
 	}
 }
-func rewriteValuePPC64_OpAtomicLoad64(v *ssacore.Value) bool {
+func rewriteValuePPC64_OpAtomicLoad64(v *ssa.Value) bool {
 	v_1 := v.Args[1]
 	v_0 := v.Args[0]
 	// match: (AtomicLoad64 ptr mem)
@@ -990,7 +990,7 @@ func rewriteValuePPC64_OpAtomicLoad64(v *ssacore.Value) bool {
 		return true
 	}
 }
-func rewriteValuePPC64_OpAtomicLoad8(v *ssacore.Value) bool {
+func rewriteValuePPC64_OpAtomicLoad8(v *ssa.Value) bool {
 	v_1 := v.Args[1]
 	v_0 := v.Args[0]
 	// match: (AtomicLoad8 ptr mem)
@@ -1004,7 +1004,7 @@ func rewriteValuePPC64_OpAtomicLoad8(v *ssacore.Value) bool {
 		return true
 	}
 }
-func rewriteValuePPC64_OpAtomicLoadAcq32(v *ssacore.Value) bool {
+func rewriteValuePPC64_OpAtomicLoadAcq32(v *ssa.Value) bool {
 	v_1 := v.Args[1]
 	v_0 := v.Args[0]
 	// match: (AtomicLoadAcq32 ptr mem)
@@ -1018,7 +1018,7 @@ func rewriteValuePPC64_OpAtomicLoadAcq32(v *ssacore.Value) bool {
 		return true
 	}
 }
-func rewriteValuePPC64_OpAtomicLoadAcq64(v *ssacore.Value) bool {
+func rewriteValuePPC64_OpAtomicLoadAcq64(v *ssa.Value) bool {
 	v_1 := v.Args[1]
 	v_0 := v.Args[0]
 	// match: (AtomicLoadAcq64 ptr mem)
@@ -1032,7 +1032,7 @@ func rewriteValuePPC64_OpAtomicLoadAcq64(v *ssacore.Value) bool {
 		return true
 	}
 }
-func rewriteValuePPC64_OpAtomicLoadPtr(v *ssacore.Value) bool {
+func rewriteValuePPC64_OpAtomicLoadPtr(v *ssa.Value) bool {
 	v_1 := v.Args[1]
 	v_0 := v.Args[0]
 	// match: (AtomicLoadPtr ptr mem)
@@ -1046,7 +1046,7 @@ func rewriteValuePPC64_OpAtomicLoadPtr(v *ssacore.Value) bool {
 		return true
 	}
 }
-func rewriteValuePPC64_OpAtomicStore32(v *ssacore.Value) bool {
+func rewriteValuePPC64_OpAtomicStore32(v *ssa.Value) bool {
 	v_2 := v.Args[2]
 	v_1 := v.Args[1]
 	v_0 := v.Args[0]
@@ -1062,7 +1062,7 @@ func rewriteValuePPC64_OpAtomicStore32(v *ssacore.Value) bool {
 		return true
 	}
 }
-func rewriteValuePPC64_OpAtomicStore64(v *ssacore.Value) bool {
+func rewriteValuePPC64_OpAtomicStore64(v *ssa.Value) bool {
 	v_2 := v.Args[2]
 	v_1 := v.Args[1]
 	v_0 := v.Args[0]
@@ -1078,7 +1078,7 @@ func rewriteValuePPC64_OpAtomicStore64(v *ssacore.Value) bool {
 		return true
 	}
 }
-func rewriteValuePPC64_OpAtomicStore8(v *ssacore.Value) bool {
+func rewriteValuePPC64_OpAtomicStore8(v *ssa.Value) bool {
 	v_2 := v.Args[2]
 	v_1 := v.Args[1]
 	v_0 := v.Args[0]
@@ -1094,7 +1094,7 @@ func rewriteValuePPC64_OpAtomicStore8(v *ssacore.Value) bool {
 		return true
 	}
 }
-func rewriteValuePPC64_OpAtomicStoreRel32(v *ssacore.Value) bool {
+func rewriteValuePPC64_OpAtomicStoreRel32(v *ssa.Value) bool {
 	v_2 := v.Args[2]
 	v_1 := v.Args[1]
 	v_0 := v.Args[0]
@@ -1110,7 +1110,7 @@ func rewriteValuePPC64_OpAtomicStoreRel32(v *ssacore.Value) bool {
 		return true
 	}
 }
-func rewriteValuePPC64_OpAtomicStoreRel64(v *ssacore.Value) bool {
+func rewriteValuePPC64_OpAtomicStoreRel64(v *ssa.Value) bool {
 	v_2 := v.Args[2]
 	v_1 := v.Args[1]
 	v_0 := v.Args[0]
@@ -1126,7 +1126,7 @@ func rewriteValuePPC64_OpAtomicStoreRel64(v *ssacore.Value) bool {
 		return true
 	}
 }
-func rewriteValuePPC64_OpAvg64u(v *ssacore.Value) bool {
+func rewriteValuePPC64_OpAvg64u(v *ssa.Value) bool {
 	v_1 := v.Args[1]
 	v_0 := v.Args[0]
 	b := v.Block
@@ -1146,7 +1146,7 @@ func rewriteValuePPC64_OpAvg64u(v *ssacore.Value) bool {
 		return true
 	}
 }
-func rewriteValuePPC64_OpBitLen16(v *ssacore.Value) bool {
+func rewriteValuePPC64_OpBitLen16(v *ssa.Value) bool {
 	v_0 := v.Args[0]
 	b := v.Block
 	typ := &b.Func.Config.Types
@@ -1161,7 +1161,7 @@ func rewriteValuePPC64_OpBitLen16(v *ssacore.Value) bool {
 		return true
 	}
 }
-func rewriteValuePPC64_OpBitLen32(v *ssacore.Value) bool {
+func rewriteValuePPC64_OpBitLen32(v *ssa.Value) bool {
 	v_0 := v.Args[0]
 	b := v.Block
 	typ := &b.Func.Config.Types
@@ -1177,7 +1177,7 @@ func rewriteValuePPC64_OpBitLen32(v *ssacore.Value) bool {
 		return true
 	}
 }
-func rewriteValuePPC64_OpBitLen64(v *ssacore.Value) bool {
+func rewriteValuePPC64_OpBitLen64(v *ssa.Value) bool {
 	v_0 := v.Args[0]
 	b := v.Block
 	typ := &b.Func.Config.Types
@@ -1193,7 +1193,7 @@ func rewriteValuePPC64_OpBitLen64(v *ssacore.Value) bool {
 		return true
 	}
 }
-func rewriteValuePPC64_OpBitLen8(v *ssacore.Value) bool {
+func rewriteValuePPC64_OpBitLen8(v *ssa.Value) bool {
 	v_0 := v.Args[0]
 	b := v.Block
 	typ := &b.Func.Config.Types
@@ -1208,7 +1208,7 @@ func rewriteValuePPC64_OpBitLen8(v *ssacore.Value) bool {
 		return true
 	}
 }
-func rewriteValuePPC64_OpBswap16(v *ssacore.Value) bool {
+func rewriteValuePPC64_OpBswap16(v *ssa.Value) bool {
 	v_0 := v.Args[0]
 	b := v.Block
 	typ := &b.Func.Config.Types
@@ -1263,7 +1263,7 @@ func rewriteValuePPC64_OpBswap16(v *ssacore.Value) bool {
 	}
 	return false
 }
-func rewriteValuePPC64_OpBswap32(v *ssacore.Value) bool {
+func rewriteValuePPC64_OpBswap32(v *ssa.Value) bool {
 	v_0 := v.Args[0]
 	b := v.Block
 	typ := &b.Func.Config.Types
@@ -1318,7 +1318,7 @@ func rewriteValuePPC64_OpBswap32(v *ssacore.Value) bool {
 	}
 	return false
 }
-func rewriteValuePPC64_OpBswap64(v *ssacore.Value) bool {
+func rewriteValuePPC64_OpBswap64(v *ssa.Value) bool {
 	v_0 := v.Args[0]
 	b := v.Block
 	typ := &b.Func.Config.Types
@@ -1373,7 +1373,7 @@ func rewriteValuePPC64_OpBswap64(v *ssacore.Value) bool {
 	}
 	return false
 }
-func rewriteValuePPC64_OpCom16(v *ssacore.Value) bool {
+func rewriteValuePPC64_OpCom16(v *ssa.Value) bool {
 	v_0 := v.Args[0]
 	// match: (Com16 x)
 	// result: (NOR x x)
@@ -1384,7 +1384,7 @@ func rewriteValuePPC64_OpCom16(v *ssacore.Value) bool {
 		return true
 	}
 }
-func rewriteValuePPC64_OpCom32(v *ssacore.Value) bool {
+func rewriteValuePPC64_OpCom32(v *ssa.Value) bool {
 	v_0 := v.Args[0]
 	// match: (Com32 x)
 	// result: (NOR x x)
@@ -1395,7 +1395,7 @@ func rewriteValuePPC64_OpCom32(v *ssacore.Value) bool {
 		return true
 	}
 }
-func rewriteValuePPC64_OpCom64(v *ssacore.Value) bool {
+func rewriteValuePPC64_OpCom64(v *ssa.Value) bool {
 	v_0 := v.Args[0]
 	// match: (Com64 x)
 	// result: (NOR x x)
@@ -1406,7 +1406,7 @@ func rewriteValuePPC64_OpCom64(v *ssacore.Value) bool {
 		return true
 	}
 }
-func rewriteValuePPC64_OpCom8(v *ssacore.Value) bool {
+func rewriteValuePPC64_OpCom8(v *ssa.Value) bool {
 	v_0 := v.Args[0]
 	// match: (Com8 x)
 	// result: (NOR x x)
@@ -1417,7 +1417,7 @@ func rewriteValuePPC64_OpCom8(v *ssacore.Value) bool {
 		return true
 	}
 }
-func rewriteValuePPC64_OpCondSelect(v *ssacore.Value) bool {
+func rewriteValuePPC64_OpCondSelect(v *ssa.Value) bool {
 	v_2 := v.Args[2]
 	v_1 := v.Args[1]
 	v_0 := v.Args[0]
@@ -1476,7 +1476,7 @@ func rewriteValuePPC64_OpCondSelect(v *ssacore.Value) bool {
 	}
 	return false
 }
-func rewriteValuePPC64_OpConst16(v *ssacore.Value) bool {
+func rewriteValuePPC64_OpConst16(v *ssa.Value) bool {
 	// match: (Const16 [val])
 	// result: (MOVDconst [int64(val)])
 	for {
@@ -1486,7 +1486,7 @@ func rewriteValuePPC64_OpConst16(v *ssacore.Value) bool {
 		return true
 	}
 }
-func rewriteValuePPC64_OpConst32(v *ssacore.Value) bool {
+func rewriteValuePPC64_OpConst32(v *ssa.Value) bool {
 	// match: (Const32 [val])
 	// result: (MOVDconst [int64(val)])
 	for {
@@ -1496,7 +1496,7 @@ func rewriteValuePPC64_OpConst32(v *ssacore.Value) bool {
 		return true
 	}
 }
-func rewriteValuePPC64_OpConst64(v *ssacore.Value) bool {
+func rewriteValuePPC64_OpConst64(v *ssa.Value) bool {
 	// match: (Const64 [val])
 	// result: (MOVDconst [int64(val)])
 	for {
@@ -1506,7 +1506,7 @@ func rewriteValuePPC64_OpConst64(v *ssacore.Value) bool {
 		return true
 	}
 }
-func rewriteValuePPC64_OpConst8(v *ssacore.Value) bool {
+func rewriteValuePPC64_OpConst8(v *ssa.Value) bool {
 	// match: (Const8 [val])
 	// result: (MOVDconst [int64(val)])
 	for {
@@ -1516,7 +1516,7 @@ func rewriteValuePPC64_OpConst8(v *ssacore.Value) bool {
 		return true
 	}
 }
-func rewriteValuePPC64_OpConstBool(v *ssacore.Value) bool {
+func rewriteValuePPC64_OpConstBool(v *ssa.Value) bool {
 	// match: (ConstBool [t])
 	// result: (MOVDconst [B2i(t)])
 	for {
@@ -1526,7 +1526,7 @@ func rewriteValuePPC64_OpConstBool(v *ssacore.Value) bool {
 		return true
 	}
 }
-func rewriteValuePPC64_OpConstNil(v *ssacore.Value) bool {
+func rewriteValuePPC64_OpConstNil(v *ssa.Value) bool {
 	// match: (ConstNil)
 	// result: (MOVDconst [0])
 	for {
@@ -1535,7 +1535,7 @@ func rewriteValuePPC64_OpConstNil(v *ssacore.Value) bool {
 		return true
 	}
 }
-func rewriteValuePPC64_OpCopysign(v *ssacore.Value) bool {
+func rewriteValuePPC64_OpCopysign(v *ssa.Value) bool {
 	v_1 := v.Args[1]
 	v_0 := v.Args[0]
 	// match: (Copysign x y)
@@ -1548,7 +1548,7 @@ func rewriteValuePPC64_OpCopysign(v *ssacore.Value) bool {
 		return true
 	}
 }
-func rewriteValuePPC64_OpCtz16(v *ssacore.Value) bool {
+func rewriteValuePPC64_OpCtz16(v *ssa.Value) bool {
 	v_0 := v.Args[0]
 	b := v.Block
 	typ := &b.Func.Config.Types
@@ -1589,7 +1589,7 @@ func rewriteValuePPC64_OpCtz16(v *ssacore.Value) bool {
 	}
 	return false
 }
-func rewriteValuePPC64_OpCtz32(v *ssacore.Value) bool {
+func rewriteValuePPC64_OpCtz32(v *ssa.Value) bool {
 	v_0 := v.Args[0]
 	b := v.Block
 	typ := &b.Func.Config.Types
@@ -1628,7 +1628,7 @@ func rewriteValuePPC64_OpCtz32(v *ssacore.Value) bool {
 	}
 	return false
 }
-func rewriteValuePPC64_OpCtz64(v *ssacore.Value) bool {
+func rewriteValuePPC64_OpCtz64(v *ssa.Value) bool {
 	v_0 := v.Args[0]
 	b := v.Block
 	typ := &b.Func.Config.Types
@@ -1663,7 +1663,7 @@ func rewriteValuePPC64_OpCtz64(v *ssacore.Value) bool {
 	}
 	return false
 }
-func rewriteValuePPC64_OpCtz8(v *ssacore.Value) bool {
+func rewriteValuePPC64_OpCtz8(v *ssa.Value) bool {
 	v_0 := v.Args[0]
 	b := v.Block
 	typ := &b.Func.Config.Types
@@ -1704,7 +1704,7 @@ func rewriteValuePPC64_OpCtz8(v *ssacore.Value) bool {
 	}
 	return false
 }
-func rewriteValuePPC64_OpCvt32Fto32(v *ssacore.Value) bool {
+func rewriteValuePPC64_OpCvt32Fto32(v *ssa.Value) bool {
 	v_0 := v.Args[0]
 	b := v.Block
 	typ := &b.Func.Config.Types
@@ -1719,7 +1719,7 @@ func rewriteValuePPC64_OpCvt32Fto32(v *ssacore.Value) bool {
 		return true
 	}
 }
-func rewriteValuePPC64_OpCvt32Fto64(v *ssacore.Value) bool {
+func rewriteValuePPC64_OpCvt32Fto64(v *ssa.Value) bool {
 	v_0 := v.Args[0]
 	b := v.Block
 	typ := &b.Func.Config.Types
@@ -1734,7 +1734,7 @@ func rewriteValuePPC64_OpCvt32Fto64(v *ssacore.Value) bool {
 		return true
 	}
 }
-func rewriteValuePPC64_OpCvt32to32F(v *ssacore.Value) bool {
+func rewriteValuePPC64_OpCvt32to32F(v *ssa.Value) bool {
 	v_0 := v.Args[0]
 	b := v.Block
 	typ := &b.Func.Config.Types
@@ -1751,7 +1751,7 @@ func rewriteValuePPC64_OpCvt32to32F(v *ssacore.Value) bool {
 		return true
 	}
 }
-func rewriteValuePPC64_OpCvt32to64F(v *ssacore.Value) bool {
+func rewriteValuePPC64_OpCvt32to64F(v *ssa.Value) bool {
 	v_0 := v.Args[0]
 	b := v.Block
 	typ := &b.Func.Config.Types
@@ -1768,7 +1768,7 @@ func rewriteValuePPC64_OpCvt32to64F(v *ssacore.Value) bool {
 		return true
 	}
 }
-func rewriteValuePPC64_OpCvt64Fto32(v *ssacore.Value) bool {
+func rewriteValuePPC64_OpCvt64Fto32(v *ssa.Value) bool {
 	v_0 := v.Args[0]
 	b := v.Block
 	typ := &b.Func.Config.Types
@@ -1783,7 +1783,7 @@ func rewriteValuePPC64_OpCvt64Fto32(v *ssacore.Value) bool {
 		return true
 	}
 }
-func rewriteValuePPC64_OpCvt64Fto64(v *ssacore.Value) bool {
+func rewriteValuePPC64_OpCvt64Fto64(v *ssa.Value) bool {
 	v_0 := v.Args[0]
 	b := v.Block
 	typ := &b.Func.Config.Types
@@ -1798,7 +1798,7 @@ func rewriteValuePPC64_OpCvt64Fto64(v *ssacore.Value) bool {
 		return true
 	}
 }
-func rewriteValuePPC64_OpCvt64to32F(v *ssacore.Value) bool {
+func rewriteValuePPC64_OpCvt64to32F(v *ssa.Value) bool {
 	v_0 := v.Args[0]
 	b := v.Block
 	typ := &b.Func.Config.Types
@@ -1813,7 +1813,7 @@ func rewriteValuePPC64_OpCvt64to32F(v *ssacore.Value) bool {
 		return true
 	}
 }
-func rewriteValuePPC64_OpCvt64to64F(v *ssacore.Value) bool {
+func rewriteValuePPC64_OpCvt64to64F(v *ssa.Value) bool {
 	v_0 := v.Args[0]
 	b := v.Block
 	typ := &b.Func.Config.Types
@@ -1828,7 +1828,7 @@ func rewriteValuePPC64_OpCvt64to64F(v *ssacore.Value) bool {
 		return true
 	}
 }
-func rewriteValuePPC64_OpDiv16(v *ssacore.Value) bool {
+func rewriteValuePPC64_OpDiv16(v *ssa.Value) bool {
 	v_1 := v.Args[1]
 	v_0 := v.Args[0]
 	b := v.Block
@@ -1851,7 +1851,7 @@ func rewriteValuePPC64_OpDiv16(v *ssacore.Value) bool {
 	}
 	return false
 }
-func rewriteValuePPC64_OpDiv16u(v *ssacore.Value) bool {
+func rewriteValuePPC64_OpDiv16u(v *ssa.Value) bool {
 	v_1 := v.Args[1]
 	v_0 := v.Args[0]
 	b := v.Block
@@ -1870,7 +1870,7 @@ func rewriteValuePPC64_OpDiv16u(v *ssacore.Value) bool {
 		return true
 	}
 }
-func rewriteValuePPC64_OpDiv32(v *ssacore.Value) bool {
+func rewriteValuePPC64_OpDiv32(v *ssa.Value) bool {
 	v_1 := v.Args[1]
 	v_0 := v.Args[0]
 	// match: (Div32 [false] x y)
@@ -1887,7 +1887,7 @@ func rewriteValuePPC64_OpDiv32(v *ssacore.Value) bool {
 	}
 	return false
 }
-func rewriteValuePPC64_OpDiv64(v *ssacore.Value) bool {
+func rewriteValuePPC64_OpDiv64(v *ssa.Value) bool {
 	v_1 := v.Args[1]
 	v_0 := v.Args[0]
 	// match: (Div64 [false] x y)
@@ -1904,7 +1904,7 @@ func rewriteValuePPC64_OpDiv64(v *ssacore.Value) bool {
 	}
 	return false
 }
-func rewriteValuePPC64_OpDiv8(v *ssacore.Value) bool {
+func rewriteValuePPC64_OpDiv8(v *ssa.Value) bool {
 	v_1 := v.Args[1]
 	v_0 := v.Args[0]
 	b := v.Block
@@ -1923,7 +1923,7 @@ func rewriteValuePPC64_OpDiv8(v *ssacore.Value) bool {
 		return true
 	}
 }
-func rewriteValuePPC64_OpDiv8u(v *ssacore.Value) bool {
+func rewriteValuePPC64_OpDiv8u(v *ssa.Value) bool {
 	v_1 := v.Args[1]
 	v_0 := v.Args[0]
 	b := v.Block
@@ -1942,7 +1942,7 @@ func rewriteValuePPC64_OpDiv8u(v *ssacore.Value) bool {
 		return true
 	}
 }
-func rewriteValuePPC64_OpEq16(v *ssacore.Value) bool {
+func rewriteValuePPC64_OpEq16(v *ssa.Value) bool {
 	v_1 := v.Args[1]
 	v_0 := v.Args[0]
 	b := v.Block
@@ -1985,7 +1985,7 @@ func rewriteValuePPC64_OpEq16(v *ssacore.Value) bool {
 		return true
 	}
 }
-func rewriteValuePPC64_OpEq32(v *ssacore.Value) bool {
+func rewriteValuePPC64_OpEq32(v *ssa.Value) bool {
 	v_1 := v.Args[1]
 	v_0 := v.Args[0]
 	b := v.Block
@@ -2001,7 +2001,7 @@ func rewriteValuePPC64_OpEq32(v *ssacore.Value) bool {
 		return true
 	}
 }
-func rewriteValuePPC64_OpEq32F(v *ssacore.Value) bool {
+func rewriteValuePPC64_OpEq32F(v *ssa.Value) bool {
 	v_1 := v.Args[1]
 	v_0 := v.Args[0]
 	b := v.Block
@@ -2017,7 +2017,7 @@ func rewriteValuePPC64_OpEq32F(v *ssacore.Value) bool {
 		return true
 	}
 }
-func rewriteValuePPC64_OpEq64(v *ssacore.Value) bool {
+func rewriteValuePPC64_OpEq64(v *ssa.Value) bool {
 	v_1 := v.Args[1]
 	v_0 := v.Args[0]
 	b := v.Block
@@ -2033,7 +2033,7 @@ func rewriteValuePPC64_OpEq64(v *ssacore.Value) bool {
 		return true
 	}
 }
-func rewriteValuePPC64_OpEq64F(v *ssacore.Value) bool {
+func rewriteValuePPC64_OpEq64F(v *ssa.Value) bool {
 	v_1 := v.Args[1]
 	v_0 := v.Args[0]
 	b := v.Block
@@ -2049,7 +2049,7 @@ func rewriteValuePPC64_OpEq64F(v *ssacore.Value) bool {
 		return true
 	}
 }
-func rewriteValuePPC64_OpEq8(v *ssacore.Value) bool {
+func rewriteValuePPC64_OpEq8(v *ssa.Value) bool {
 	v_1 := v.Args[1]
 	v_0 := v.Args[0]
 	b := v.Block
@@ -2092,7 +2092,7 @@ func rewriteValuePPC64_OpEq8(v *ssacore.Value) bool {
 		return true
 	}
 }
-func rewriteValuePPC64_OpEqB(v *ssacore.Value) bool {
+func rewriteValuePPC64_OpEqB(v *ssa.Value) bool {
 	v_1 := v.Args[1]
 	v_0 := v.Args[0]
 	b := v.Block
@@ -2110,7 +2110,7 @@ func rewriteValuePPC64_OpEqB(v *ssacore.Value) bool {
 		return true
 	}
 }
-func rewriteValuePPC64_OpEqPtr(v *ssacore.Value) bool {
+func rewriteValuePPC64_OpEqPtr(v *ssa.Value) bool {
 	v_1 := v.Args[1]
 	v_0 := v.Args[0]
 	b := v.Block
@@ -2126,7 +2126,7 @@ func rewriteValuePPC64_OpEqPtr(v *ssacore.Value) bool {
 		return true
 	}
 }
-func rewriteValuePPC64_OpIsInBounds(v *ssacore.Value) bool {
+func rewriteValuePPC64_OpIsInBounds(v *ssa.Value) bool {
 	v_1 := v.Args[1]
 	v_0 := v.Args[0]
 	b := v.Block
@@ -2142,7 +2142,7 @@ func rewriteValuePPC64_OpIsInBounds(v *ssacore.Value) bool {
 		return true
 	}
 }
-func rewriteValuePPC64_OpIsNonNil(v *ssacore.Value) bool {
+func rewriteValuePPC64_OpIsNonNil(v *ssa.Value) bool {
 	v_0 := v.Args[0]
 	b := v.Block
 	// match: (IsNonNil ptr)
@@ -2157,7 +2157,7 @@ func rewriteValuePPC64_OpIsNonNil(v *ssacore.Value) bool {
 		return true
 	}
 }
-func rewriteValuePPC64_OpIsSliceInBounds(v *ssacore.Value) bool {
+func rewriteValuePPC64_OpIsSliceInBounds(v *ssa.Value) bool {
 	v_1 := v.Args[1]
 	v_0 := v.Args[0]
 	b := v.Block
@@ -2173,7 +2173,7 @@ func rewriteValuePPC64_OpIsSliceInBounds(v *ssacore.Value) bool {
 		return true
 	}
 }
-func rewriteValuePPC64_OpLeq16(v *ssacore.Value) bool {
+func rewriteValuePPC64_OpLeq16(v *ssa.Value) bool {
 	v_1 := v.Args[1]
 	v_0 := v.Args[0]
 	b := v.Block
@@ -2194,7 +2194,7 @@ func rewriteValuePPC64_OpLeq16(v *ssacore.Value) bool {
 		return true
 	}
 }
-func rewriteValuePPC64_OpLeq16U(v *ssacore.Value) bool {
+func rewriteValuePPC64_OpLeq16U(v *ssa.Value) bool {
 	v_1 := v.Args[1]
 	v_0 := v.Args[0]
 	b := v.Block
@@ -2215,7 +2215,7 @@ func rewriteValuePPC64_OpLeq16U(v *ssacore.Value) bool {
 		return true
 	}
 }
-func rewriteValuePPC64_OpLeq32(v *ssacore.Value) bool {
+func rewriteValuePPC64_OpLeq32(v *ssa.Value) bool {
 	v_1 := v.Args[1]
 	v_0 := v.Args[0]
 	b := v.Block
@@ -2231,7 +2231,7 @@ func rewriteValuePPC64_OpLeq32(v *ssacore.Value) bool {
 		return true
 	}
 }
-func rewriteValuePPC64_OpLeq32F(v *ssacore.Value) bool {
+func rewriteValuePPC64_OpLeq32F(v *ssa.Value) bool {
 	v_1 := v.Args[1]
 	v_0 := v.Args[0]
 	b := v.Block
@@ -2247,7 +2247,7 @@ func rewriteValuePPC64_OpLeq32F(v *ssacore.Value) bool {
 		return true
 	}
 }
-func rewriteValuePPC64_OpLeq32U(v *ssacore.Value) bool {
+func rewriteValuePPC64_OpLeq32U(v *ssa.Value) bool {
 	v_1 := v.Args[1]
 	v_0 := v.Args[0]
 	b := v.Block
@@ -2263,7 +2263,7 @@ func rewriteValuePPC64_OpLeq32U(v *ssacore.Value) bool {
 		return true
 	}
 }
-func rewriteValuePPC64_OpLeq64(v *ssacore.Value) bool {
+func rewriteValuePPC64_OpLeq64(v *ssa.Value) bool {
 	v_1 := v.Args[1]
 	v_0 := v.Args[0]
 	b := v.Block
@@ -2279,7 +2279,7 @@ func rewriteValuePPC64_OpLeq64(v *ssacore.Value) bool {
 		return true
 	}
 }
-func rewriteValuePPC64_OpLeq64F(v *ssacore.Value) bool {
+func rewriteValuePPC64_OpLeq64F(v *ssa.Value) bool {
 	v_1 := v.Args[1]
 	v_0 := v.Args[0]
 	b := v.Block
@@ -2295,7 +2295,7 @@ func rewriteValuePPC64_OpLeq64F(v *ssacore.Value) bool {
 		return true
 	}
 }
-func rewriteValuePPC64_OpLeq64U(v *ssacore.Value) bool {
+func rewriteValuePPC64_OpLeq64U(v *ssa.Value) bool {
 	v_1 := v.Args[1]
 	v_0 := v.Args[0]
 	b := v.Block
@@ -2311,7 +2311,7 @@ func rewriteValuePPC64_OpLeq64U(v *ssacore.Value) bool {
 		return true
 	}
 }
-func rewriteValuePPC64_OpLeq8(v *ssacore.Value) bool {
+func rewriteValuePPC64_OpLeq8(v *ssa.Value) bool {
 	v_1 := v.Args[1]
 	v_0 := v.Args[0]
 	b := v.Block
@@ -2332,7 +2332,7 @@ func rewriteValuePPC64_OpLeq8(v *ssacore.Value) bool {
 		return true
 	}
 }
-func rewriteValuePPC64_OpLeq8U(v *ssacore.Value) bool {
+func rewriteValuePPC64_OpLeq8U(v *ssa.Value) bool {
 	v_1 := v.Args[1]
 	v_0 := v.Args[0]
 	b := v.Block
@@ -2353,7 +2353,7 @@ func rewriteValuePPC64_OpLeq8U(v *ssacore.Value) bool {
 		return true
 	}
 }
-func rewriteValuePPC64_OpLess16(v *ssacore.Value) bool {
+func rewriteValuePPC64_OpLess16(v *ssa.Value) bool {
 	v_1 := v.Args[1]
 	v_0 := v.Args[0]
 	b := v.Block
@@ -2374,7 +2374,7 @@ func rewriteValuePPC64_OpLess16(v *ssacore.Value) bool {
 		return true
 	}
 }
-func rewriteValuePPC64_OpLess16U(v *ssacore.Value) bool {
+func rewriteValuePPC64_OpLess16U(v *ssa.Value) bool {
 	v_1 := v.Args[1]
 	v_0 := v.Args[0]
 	b := v.Block
@@ -2395,7 +2395,7 @@ func rewriteValuePPC64_OpLess16U(v *ssacore.Value) bool {
 		return true
 	}
 }
-func rewriteValuePPC64_OpLess32(v *ssacore.Value) bool {
+func rewriteValuePPC64_OpLess32(v *ssa.Value) bool {
 	v_1 := v.Args[1]
 	v_0 := v.Args[0]
 	b := v.Block
@@ -2411,7 +2411,7 @@ func rewriteValuePPC64_OpLess32(v *ssacore.Value) bool {
 		return true
 	}
 }
-func rewriteValuePPC64_OpLess32F(v *ssacore.Value) bool {
+func rewriteValuePPC64_OpLess32F(v *ssa.Value) bool {
 	v_1 := v.Args[1]
 	v_0 := v.Args[0]
 	b := v.Block
@@ -2427,7 +2427,7 @@ func rewriteValuePPC64_OpLess32F(v *ssacore.Value) bool {
 		return true
 	}
 }
-func rewriteValuePPC64_OpLess32U(v *ssacore.Value) bool {
+func rewriteValuePPC64_OpLess32U(v *ssa.Value) bool {
 	v_1 := v.Args[1]
 	v_0 := v.Args[0]
 	b := v.Block
@@ -2443,7 +2443,7 @@ func rewriteValuePPC64_OpLess32U(v *ssacore.Value) bool {
 		return true
 	}
 }
-func rewriteValuePPC64_OpLess64(v *ssacore.Value) bool {
+func rewriteValuePPC64_OpLess64(v *ssa.Value) bool {
 	v_1 := v.Args[1]
 	v_0 := v.Args[0]
 	b := v.Block
@@ -2459,7 +2459,7 @@ func rewriteValuePPC64_OpLess64(v *ssacore.Value) bool {
 		return true
 	}
 }
-func rewriteValuePPC64_OpLess64F(v *ssacore.Value) bool {
+func rewriteValuePPC64_OpLess64F(v *ssa.Value) bool {
 	v_1 := v.Args[1]
 	v_0 := v.Args[0]
 	b := v.Block
@@ -2475,7 +2475,7 @@ func rewriteValuePPC64_OpLess64F(v *ssacore.Value) bool {
 		return true
 	}
 }
-func rewriteValuePPC64_OpLess64U(v *ssacore.Value) bool {
+func rewriteValuePPC64_OpLess64U(v *ssa.Value) bool {
 	v_1 := v.Args[1]
 	v_0 := v.Args[0]
 	b := v.Block
@@ -2491,7 +2491,7 @@ func rewriteValuePPC64_OpLess64U(v *ssacore.Value) bool {
 		return true
 	}
 }
-func rewriteValuePPC64_OpLess8(v *ssacore.Value) bool {
+func rewriteValuePPC64_OpLess8(v *ssa.Value) bool {
 	v_1 := v.Args[1]
 	v_0 := v.Args[0]
 	b := v.Block
@@ -2512,7 +2512,7 @@ func rewriteValuePPC64_OpLess8(v *ssacore.Value) bool {
 		return true
 	}
 }
-func rewriteValuePPC64_OpLess8U(v *ssacore.Value) bool {
+func rewriteValuePPC64_OpLess8U(v *ssa.Value) bool {
 	v_1 := v.Args[1]
 	v_0 := v.Args[0]
 	b := v.Block
@@ -2533,7 +2533,7 @@ func rewriteValuePPC64_OpLess8U(v *ssacore.Value) bool {
 		return true
 	}
 }
-func rewriteValuePPC64_OpLoad(v *ssacore.Value) bool {
+func rewriteValuePPC64_OpLoad(v *ssa.Value) bool {
 	v_1 := v.Args[1]
 	v_0 := v.Args[0]
 	b := v.Block
@@ -2682,7 +2682,7 @@ func rewriteValuePPC64_OpLoad(v *ssacore.Value) bool {
 	}
 	return false
 }
-func rewriteValuePPC64_OpLocalAddr(v *ssacore.Value) bool {
+func rewriteValuePPC64_OpLocalAddr(v *ssa.Value) bool {
 	v_1 := v.Args[1]
 	v_0 := v.Args[0]
 	b := v.Block
@@ -2722,7 +2722,7 @@ func rewriteValuePPC64_OpLocalAddr(v *ssacore.Value) bool {
 	}
 	return false
 }
-func rewriteValuePPC64_OpLsh16x16(v *ssacore.Value) bool {
+func rewriteValuePPC64_OpLsh16x16(v *ssa.Value) bool {
 	v_1 := v.Args[1]
 	v_0 := v.Args[0]
 	b := v.Block
@@ -2764,7 +2764,7 @@ func rewriteValuePPC64_OpLsh16x16(v *ssacore.Value) bool {
 		return true
 	}
 }
-func rewriteValuePPC64_OpLsh16x32(v *ssacore.Value) bool {
+func rewriteValuePPC64_OpLsh16x32(v *ssa.Value) bool {
 	v_1 := v.Args[1]
 	v_0 := v.Args[0]
 	b := v.Block
@@ -2803,7 +2803,7 @@ func rewriteValuePPC64_OpLsh16x32(v *ssacore.Value) bool {
 		return true
 	}
 }
-func rewriteValuePPC64_OpLsh16x64(v *ssacore.Value) bool {
+func rewriteValuePPC64_OpLsh16x64(v *ssa.Value) bool {
 	v_1 := v.Args[1]
 	v_0 := v.Args[0]
 	b := v.Block
@@ -2859,7 +2859,7 @@ func rewriteValuePPC64_OpLsh16x64(v *ssacore.Value) bool {
 		return true
 	}
 }
-func rewriteValuePPC64_OpLsh16x8(v *ssacore.Value) bool {
+func rewriteValuePPC64_OpLsh16x8(v *ssa.Value) bool {
 	v_1 := v.Args[1]
 	v_0 := v.Args[0]
 	b := v.Block
@@ -2901,7 +2901,7 @@ func rewriteValuePPC64_OpLsh16x8(v *ssacore.Value) bool {
 		return true
 	}
 }
-func rewriteValuePPC64_OpLsh32x16(v *ssacore.Value) bool {
+func rewriteValuePPC64_OpLsh32x16(v *ssa.Value) bool {
 	v_1 := v.Args[1]
 	v_0 := v.Args[0]
 	b := v.Block
@@ -2941,7 +2941,7 @@ func rewriteValuePPC64_OpLsh32x16(v *ssacore.Value) bool {
 		return true
 	}
 }
-func rewriteValuePPC64_OpLsh32x32(v *ssacore.Value) bool {
+func rewriteValuePPC64_OpLsh32x32(v *ssa.Value) bool {
 	v_1 := v.Args[1]
 	v_0 := v.Args[0]
 	b := v.Block
@@ -2978,7 +2978,7 @@ func rewriteValuePPC64_OpLsh32x32(v *ssacore.Value) bool {
 		return true
 	}
 }
-func rewriteValuePPC64_OpLsh32x64(v *ssacore.Value) bool {
+func rewriteValuePPC64_OpLsh32x64(v *ssa.Value) bool {
 	v_1 := v.Args[1]
 	v_0 := v.Args[0]
 	b := v.Block
@@ -3032,7 +3032,7 @@ func rewriteValuePPC64_OpLsh32x64(v *ssacore.Value) bool {
 		return true
 	}
 }
-func rewriteValuePPC64_OpLsh32x8(v *ssacore.Value) bool {
+func rewriteValuePPC64_OpLsh32x8(v *ssa.Value) bool {
 	v_1 := v.Args[1]
 	v_0 := v.Args[0]
 	b := v.Block
@@ -3072,7 +3072,7 @@ func rewriteValuePPC64_OpLsh32x8(v *ssacore.Value) bool {
 		return true
 	}
 }
-func rewriteValuePPC64_OpLsh64x16(v *ssacore.Value) bool {
+func rewriteValuePPC64_OpLsh64x16(v *ssa.Value) bool {
 	v_1 := v.Args[1]
 	v_0 := v.Args[0]
 	b := v.Block
@@ -3112,7 +3112,7 @@ func rewriteValuePPC64_OpLsh64x16(v *ssacore.Value) bool {
 		return true
 	}
 }
-func rewriteValuePPC64_OpLsh64x32(v *ssacore.Value) bool {
+func rewriteValuePPC64_OpLsh64x32(v *ssa.Value) bool {
 	v_1 := v.Args[1]
 	v_0 := v.Args[0]
 	b := v.Block
@@ -3149,7 +3149,7 @@ func rewriteValuePPC64_OpLsh64x32(v *ssacore.Value) bool {
 		return true
 	}
 }
-func rewriteValuePPC64_OpLsh64x64(v *ssacore.Value) bool {
+func rewriteValuePPC64_OpLsh64x64(v *ssa.Value) bool {
 	v_1 := v.Args[1]
 	v_0 := v.Args[0]
 	b := v.Block
@@ -3203,7 +3203,7 @@ func rewriteValuePPC64_OpLsh64x64(v *ssacore.Value) bool {
 		return true
 	}
 }
-func rewriteValuePPC64_OpLsh64x8(v *ssacore.Value) bool {
+func rewriteValuePPC64_OpLsh64x8(v *ssa.Value) bool {
 	v_1 := v.Args[1]
 	v_0 := v.Args[0]
 	b := v.Block
@@ -3243,7 +3243,7 @@ func rewriteValuePPC64_OpLsh64x8(v *ssacore.Value) bool {
 		return true
 	}
 }
-func rewriteValuePPC64_OpLsh8x16(v *ssacore.Value) bool {
+func rewriteValuePPC64_OpLsh8x16(v *ssa.Value) bool {
 	v_1 := v.Args[1]
 	v_0 := v.Args[0]
 	b := v.Block
@@ -3285,7 +3285,7 @@ func rewriteValuePPC64_OpLsh8x16(v *ssacore.Value) bool {
 		return true
 	}
 }
-func rewriteValuePPC64_OpLsh8x32(v *ssacore.Value) bool {
+func rewriteValuePPC64_OpLsh8x32(v *ssa.Value) bool {
 	v_1 := v.Args[1]
 	v_0 := v.Args[0]
 	b := v.Block
@@ -3324,7 +3324,7 @@ func rewriteValuePPC64_OpLsh8x32(v *ssacore.Value) bool {
 		return true
 	}
 }
-func rewriteValuePPC64_OpLsh8x64(v *ssacore.Value) bool {
+func rewriteValuePPC64_OpLsh8x64(v *ssa.Value) bool {
 	v_1 := v.Args[1]
 	v_0 := v.Args[0]
 	b := v.Block
@@ -3380,7 +3380,7 @@ func rewriteValuePPC64_OpLsh8x64(v *ssacore.Value) bool {
 		return true
 	}
 }
-func rewriteValuePPC64_OpLsh8x8(v *ssacore.Value) bool {
+func rewriteValuePPC64_OpLsh8x8(v *ssa.Value) bool {
 	v_1 := v.Args[1]
 	v_0 := v.Args[0]
 	b := v.Block
@@ -3422,7 +3422,7 @@ func rewriteValuePPC64_OpLsh8x8(v *ssacore.Value) bool {
 		return true
 	}
 }
-func rewriteValuePPC64_OpMax32F(v *ssacore.Value) bool {
+func rewriteValuePPC64_OpMax32F(v *ssa.Value) bool {
 	v_1 := v.Args[1]
 	v_0 := v.Args[0]
 	// match: (Max32F x y)
@@ -3440,7 +3440,7 @@ func rewriteValuePPC64_OpMax32F(v *ssacore.Value) bool {
 	}
 	return false
 }
-func rewriteValuePPC64_OpMax64F(v *ssacore.Value) bool {
+func rewriteValuePPC64_OpMax64F(v *ssa.Value) bool {
 	v_1 := v.Args[1]
 	v_0 := v.Args[0]
 	// match: (Max64F x y)
@@ -3458,7 +3458,7 @@ func rewriteValuePPC64_OpMax64F(v *ssacore.Value) bool {
 	}
 	return false
 }
-func rewriteValuePPC64_OpMin32F(v *ssacore.Value) bool {
+func rewriteValuePPC64_OpMin32F(v *ssa.Value) bool {
 	v_1 := v.Args[1]
 	v_0 := v.Args[0]
 	// match: (Min32F x y)
@@ -3476,7 +3476,7 @@ func rewriteValuePPC64_OpMin32F(v *ssacore.Value) bool {
 	}
 	return false
 }
-func rewriteValuePPC64_OpMin64F(v *ssacore.Value) bool {
+func rewriteValuePPC64_OpMin64F(v *ssa.Value) bool {
 	v_1 := v.Args[1]
 	v_0 := v.Args[0]
 	// match: (Min64F x y)
@@ -3494,7 +3494,7 @@ func rewriteValuePPC64_OpMin64F(v *ssacore.Value) bool {
 	}
 	return false
 }
-func rewriteValuePPC64_OpMod16(v *ssacore.Value) bool {
+func rewriteValuePPC64_OpMod16(v *ssa.Value) bool {
 	v_1 := v.Args[1]
 	v_0 := v.Args[0]
 	b := v.Block
@@ -3513,7 +3513,7 @@ func rewriteValuePPC64_OpMod16(v *ssacore.Value) bool {
 		return true
 	}
 }
-func rewriteValuePPC64_OpMod16u(v *ssacore.Value) bool {
+func rewriteValuePPC64_OpMod16u(v *ssa.Value) bool {
 	v_1 := v.Args[1]
 	v_0 := v.Args[0]
 	b := v.Block
@@ -3532,7 +3532,7 @@ func rewriteValuePPC64_OpMod16u(v *ssacore.Value) bool {
 		return true
 	}
 }
-func rewriteValuePPC64_OpMod32(v *ssacore.Value) bool {
+func rewriteValuePPC64_OpMod32(v *ssa.Value) bool {
 	v_1 := v.Args[1]
 	v_0 := v.Args[0]
 	b := v.Block
@@ -3569,7 +3569,7 @@ func rewriteValuePPC64_OpMod32(v *ssacore.Value) bool {
 	}
 	return false
 }
-func rewriteValuePPC64_OpMod32u(v *ssacore.Value) bool {
+func rewriteValuePPC64_OpMod32u(v *ssa.Value) bool {
 	v_1 := v.Args[1]
 	v_0 := v.Args[0]
 	b := v.Block
@@ -3606,7 +3606,7 @@ func rewriteValuePPC64_OpMod32u(v *ssacore.Value) bool {
 	}
 	return false
 }
-func rewriteValuePPC64_OpMod64(v *ssacore.Value) bool {
+func rewriteValuePPC64_OpMod64(v *ssa.Value) bool {
 	v_1 := v.Args[1]
 	v_0 := v.Args[0]
 	b := v.Block
@@ -3643,7 +3643,7 @@ func rewriteValuePPC64_OpMod64(v *ssacore.Value) bool {
 	}
 	return false
 }
-func rewriteValuePPC64_OpMod64u(v *ssacore.Value) bool {
+func rewriteValuePPC64_OpMod64u(v *ssa.Value) bool {
 	v_1 := v.Args[1]
 	v_0 := v.Args[0]
 	b := v.Block
@@ -3680,7 +3680,7 @@ func rewriteValuePPC64_OpMod64u(v *ssacore.Value) bool {
 	}
 	return false
 }
-func rewriteValuePPC64_OpMod8(v *ssacore.Value) bool {
+func rewriteValuePPC64_OpMod8(v *ssa.Value) bool {
 	v_1 := v.Args[1]
 	v_0 := v.Args[0]
 	b := v.Block
@@ -3699,7 +3699,7 @@ func rewriteValuePPC64_OpMod8(v *ssacore.Value) bool {
 		return true
 	}
 }
-func rewriteValuePPC64_OpMod8u(v *ssacore.Value) bool {
+func rewriteValuePPC64_OpMod8u(v *ssa.Value) bool {
 	v_1 := v.Args[1]
 	v_0 := v.Args[0]
 	b := v.Block
@@ -3718,7 +3718,7 @@ func rewriteValuePPC64_OpMod8u(v *ssacore.Value) bool {
 		return true
 	}
 }
-func rewriteValuePPC64_OpMove(v *ssacore.Value) bool {
+func rewriteValuePPC64_OpMove(v *ssa.Value) bool {
 	v_2 := v.Args[2]
 	v_1 := v.Args[1]
 	v_0 := v.Args[0]
@@ -3934,7 +3934,7 @@ func rewriteValuePPC64_OpMove(v *ssacore.Value) bool {
 	}
 	return false
 }
-func rewriteValuePPC64_OpNeq16(v *ssacore.Value) bool {
+func rewriteValuePPC64_OpNeq16(v *ssa.Value) bool {
 	v_1 := v.Args[1]
 	v_0 := v.Args[0]
 	b := v.Block
@@ -3977,7 +3977,7 @@ func rewriteValuePPC64_OpNeq16(v *ssacore.Value) bool {
 		return true
 	}
 }
-func rewriteValuePPC64_OpNeq32(v *ssacore.Value) bool {
+func rewriteValuePPC64_OpNeq32(v *ssa.Value) bool {
 	v_1 := v.Args[1]
 	v_0 := v.Args[0]
 	b := v.Block
@@ -3993,7 +3993,7 @@ func rewriteValuePPC64_OpNeq32(v *ssacore.Value) bool {
 		return true
 	}
 }
-func rewriteValuePPC64_OpNeq32F(v *ssacore.Value) bool {
+func rewriteValuePPC64_OpNeq32F(v *ssa.Value) bool {
 	v_1 := v.Args[1]
 	v_0 := v.Args[0]
 	b := v.Block
@@ -4009,7 +4009,7 @@ func rewriteValuePPC64_OpNeq32F(v *ssacore.Value) bool {
 		return true
 	}
 }
-func rewriteValuePPC64_OpNeq64(v *ssacore.Value) bool {
+func rewriteValuePPC64_OpNeq64(v *ssa.Value) bool {
 	v_1 := v.Args[1]
 	v_0 := v.Args[0]
 	b := v.Block
@@ -4025,7 +4025,7 @@ func rewriteValuePPC64_OpNeq64(v *ssacore.Value) bool {
 		return true
 	}
 }
-func rewriteValuePPC64_OpNeq64F(v *ssacore.Value) bool {
+func rewriteValuePPC64_OpNeq64F(v *ssa.Value) bool {
 	v_1 := v.Args[1]
 	v_0 := v.Args[0]
 	b := v.Block
@@ -4041,7 +4041,7 @@ func rewriteValuePPC64_OpNeq64F(v *ssacore.Value) bool {
 		return true
 	}
 }
-func rewriteValuePPC64_OpNeq8(v *ssacore.Value) bool {
+func rewriteValuePPC64_OpNeq8(v *ssa.Value) bool {
 	v_1 := v.Args[1]
 	v_0 := v.Args[0]
 	b := v.Block
@@ -4084,7 +4084,7 @@ func rewriteValuePPC64_OpNeq8(v *ssacore.Value) bool {
 		return true
 	}
 }
-func rewriteValuePPC64_OpNeqPtr(v *ssacore.Value) bool {
+func rewriteValuePPC64_OpNeqPtr(v *ssa.Value) bool {
 	v_1 := v.Args[1]
 	v_0 := v.Args[0]
 	b := v.Block
@@ -4100,7 +4100,7 @@ func rewriteValuePPC64_OpNeqPtr(v *ssacore.Value) bool {
 		return true
 	}
 }
-func rewriteValuePPC64_OpNot(v *ssacore.Value) bool {
+func rewriteValuePPC64_OpNot(v *ssa.Value) bool {
 	v_0 := v.Args[0]
 	// match: (Not x)
 	// result: (XORconst [1] x)
@@ -4112,7 +4112,7 @@ func rewriteValuePPC64_OpNot(v *ssacore.Value) bool {
 		return true
 	}
 }
-func rewriteValuePPC64_OpOffPtr(v *ssacore.Value) bool {
+func rewriteValuePPC64_OpOffPtr(v *ssa.Value) bool {
 	v_0 := v.Args[0]
 	b := v.Block
 	typ := &b.Func.Config.Types
@@ -4128,7 +4128,7 @@ func rewriteValuePPC64_OpOffPtr(v *ssacore.Value) bool {
 		return true
 	}
 }
-func rewriteValuePPC64_OpPPC64ADD(v *ssacore.Value) bool {
+func rewriteValuePPC64_OpPPC64ADD(v *ssa.Value) bool {
 	v_1 := v.Args[1]
 	v_0 := v.Args[0]
 	b := v.Block
@@ -4200,7 +4200,7 @@ func rewriteValuePPC64_OpPPC64ADD(v *ssacore.Value) bool {
 	}
 	return false
 }
-func rewriteValuePPC64_OpPPC64ADDC(v *ssacore.Value) bool {
+func rewriteValuePPC64_OpPPC64ADDC(v *ssa.Value) bool {
 	v_1 := v.Args[1]
 	v_0 := v.Args[0]
 	// match: (ADDC x (MOVDconst [y]))
@@ -4225,7 +4225,7 @@ func rewriteValuePPC64_OpPPC64ADDC(v *ssacore.Value) bool {
 	}
 	return false
 }
-func rewriteValuePPC64_OpPPC64ADDE(v *ssacore.Value) bool {
+func rewriteValuePPC64_OpPPC64ADDE(v *ssa.Value) bool {
 	v_2 := v.Args[2]
 	v_1 := v.Args[1]
 	v_0 := v.Args[0]
@@ -4268,7 +4268,7 @@ func rewriteValuePPC64_OpPPC64ADDE(v *ssacore.Value) bool {
 	}
 	return false
 }
-func rewriteValuePPC64_OpPPC64ADDconst(v *ssacore.Value) bool {
+func rewriteValuePPC64_OpPPC64ADDconst(v *ssa.Value) bool {
 	v_0 := v.Args[0]
 	b := v.Block
 	// match: (ADDconst <at> [z] l:(MULLD x y))
@@ -4398,7 +4398,7 @@ func rewriteValuePPC64_OpPPC64ADDconst(v *ssacore.Value) bool {
 	}
 	return false
 }
-func rewriteValuePPC64_OpPPC64AND(v *ssacore.Value) bool {
+func rewriteValuePPC64_OpPPC64AND(v *ssa.Value) bool {
 	v_1 := v.Args[1]
 	v_0 := v.Args[0]
 	// match: (AND <t> x (MOVDconst [m]))
@@ -4711,7 +4711,7 @@ func rewriteValuePPC64_OpPPC64AND(v *ssacore.Value) bool {
 	}
 	return false
 }
-func rewriteValuePPC64_OpPPC64ANDN(v *ssacore.Value) bool {
+func rewriteValuePPC64_OpPPC64ANDN(v *ssa.Value) bool {
 	v_1 := v.Args[1]
 	v_0 := v.Args[0]
 	// match: (ANDN (MOVDconst [c]) (MOVDconst [d]))
@@ -4731,7 +4731,7 @@ func rewriteValuePPC64_OpPPC64ANDN(v *ssacore.Value) bool {
 	}
 	return false
 }
-func rewriteValuePPC64_OpPPC64ANDconst(v *ssacore.Value) bool {
+func rewriteValuePPC64_OpPPC64ANDconst(v *ssa.Value) bool {
 	v_0 := v.Args[0]
 	// match: (ANDconst [m] (ROTLWconst [r] x))
 	// cond: IsPPC64WordRotateMask(m)
@@ -4998,7 +4998,7 @@ func rewriteValuePPC64_OpPPC64ANDconst(v *ssacore.Value) bool {
 	}
 	return false
 }
-func rewriteValuePPC64_OpPPC64BRD(v *ssacore.Value) bool {
+func rewriteValuePPC64_OpPPC64BRD(v *ssa.Value) bool {
 	v_0 := v.Args[0]
 	b := v.Block
 	typ := &b.Func.Config.Types
@@ -5049,7 +5049,7 @@ func rewriteValuePPC64_OpPPC64BRD(v *ssacore.Value) bool {
 	}
 	return false
 }
-func rewriteValuePPC64_OpPPC64BRH(v *ssacore.Value) bool {
+func rewriteValuePPC64_OpPPC64BRH(v *ssa.Value) bool {
 	v_0 := v.Args[0]
 	b := v.Block
 	typ := &b.Func.Config.Types
@@ -5100,7 +5100,7 @@ func rewriteValuePPC64_OpPPC64BRH(v *ssacore.Value) bool {
 	}
 	return false
 }
-func rewriteValuePPC64_OpPPC64BRW(v *ssacore.Value) bool {
+func rewriteValuePPC64_OpPPC64BRW(v *ssa.Value) bool {
 	v_0 := v.Args[0]
 	b := v.Block
 	typ := &b.Func.Config.Types
@@ -5151,7 +5151,7 @@ func rewriteValuePPC64_OpPPC64BRW(v *ssacore.Value) bool {
 	}
 	return false
 }
-func rewriteValuePPC64_OpPPC64CLRLSLDI(v *ssacore.Value) bool {
+func rewriteValuePPC64_OpPPC64CLRLSLDI(v *ssa.Value) bool {
 	v_0 := v.Args[0]
 	// match: (CLRLSLDI [c] (SRWconst [s] x))
 	// cond: MergePPC64ClrlsldiSrw(int64(c),s) != 0
@@ -5210,7 +5210,7 @@ func rewriteValuePPC64_OpPPC64CLRLSLDI(v *ssacore.Value) bool {
 	}
 	return false
 }
-func rewriteValuePPC64_OpPPC64CMP(v *ssacore.Value) bool {
+func rewriteValuePPC64_OpPPC64CMP(v *ssa.Value) bool {
 	v_1 := v.Args[1]
 	v_0 := v.Args[0]
 	b := v.Block
@@ -5267,7 +5267,7 @@ func rewriteValuePPC64_OpPPC64CMP(v *ssacore.Value) bool {
 	}
 	return false
 }
-func rewriteValuePPC64_OpPPC64CMPU(v *ssacore.Value) bool {
+func rewriteValuePPC64_OpPPC64CMPU(v *ssa.Value) bool {
 	v_1 := v.Args[1]
 	v_0 := v.Args[0]
 	b := v.Block
@@ -5324,7 +5324,7 @@ func rewriteValuePPC64_OpPPC64CMPU(v *ssacore.Value) bool {
 	}
 	return false
 }
-func rewriteValuePPC64_OpPPC64CMPUconst(v *ssacore.Value) bool {
+func rewriteValuePPC64_OpPPC64CMPUconst(v *ssa.Value) bool {
 	v_0 := v.Args[0]
 	// match: (CMPUconst [d] (ANDconst z [c]))
 	// cond: uint64(d) > uint64(c)
@@ -5403,7 +5403,7 @@ func rewriteValuePPC64_OpPPC64CMPUconst(v *ssacore.Value) bool {
 	}
 	return false
 }
-func rewriteValuePPC64_OpPPC64CMPW(v *ssacore.Value) bool {
+func rewriteValuePPC64_OpPPC64CMPW(v *ssa.Value) bool {
 	v_1 := v.Args[1]
 	v_0 := v.Args[0]
 	b := v.Block
@@ -5484,7 +5484,7 @@ func rewriteValuePPC64_OpPPC64CMPW(v *ssacore.Value) bool {
 	}
 	return false
 }
-func rewriteValuePPC64_OpPPC64CMPWU(v *ssacore.Value) bool {
+func rewriteValuePPC64_OpPPC64CMPWU(v *ssa.Value) bool {
 	v_1 := v.Args[1]
 	v_0 := v.Args[0]
 	b := v.Block
@@ -5565,7 +5565,7 @@ func rewriteValuePPC64_OpPPC64CMPWU(v *ssacore.Value) bool {
 	}
 	return false
 }
-func rewriteValuePPC64_OpPPC64CMPWUconst(v *ssacore.Value) bool {
+func rewriteValuePPC64_OpPPC64CMPWUconst(v *ssa.Value) bool {
 	v_0 := v.Args[0]
 	// match: (CMPWUconst [d] (ANDconst z [c]))
 	// cond: uint64(d) > uint64(c)
@@ -5644,7 +5644,7 @@ func rewriteValuePPC64_OpPPC64CMPWUconst(v *ssacore.Value) bool {
 	}
 	return false
 }
-func rewriteValuePPC64_OpPPC64CMPWconst(v *ssacore.Value) bool {
+func rewriteValuePPC64_OpPPC64CMPWconst(v *ssa.Value) bool {
 	v_0 := v.Args[0]
 	// match: (CMPWconst (MOVDconst [x]) [y])
 	// cond: int32(x)==int32(y)
@@ -5708,7 +5708,7 @@ func rewriteValuePPC64_OpPPC64CMPWconst(v *ssacore.Value) bool {
 	}
 	return false
 }
-func rewriteValuePPC64_OpPPC64CMPconst(v *ssacore.Value) bool {
+func rewriteValuePPC64_OpPPC64CMPconst(v *ssa.Value) bool {
 	v_0 := v.Args[0]
 	// match: (CMPconst (MOVDconst [x]) [y])
 	// cond: x==y
@@ -5757,7 +5757,7 @@ func rewriteValuePPC64_OpPPC64CMPconst(v *ssacore.Value) bool {
 	}
 	return false
 }
-func rewriteValuePPC64_OpPPC64Equal(v *ssacore.Value) bool {
+func rewriteValuePPC64_OpPPC64Equal(v *ssa.Value) bool {
 	v_0 := v.Args[0]
 	// match: (Equal (FlagEQ))
 	// result: (MOVDconst [1])
@@ -5810,7 +5810,7 @@ func rewriteValuePPC64_OpPPC64Equal(v *ssacore.Value) bool {
 		return true
 	}
 }
-func rewriteValuePPC64_OpPPC64FABS(v *ssacore.Value) bool {
+func rewriteValuePPC64_OpPPC64FABS(v *ssa.Value) bool {
 	v_0 := v.Args[0]
 	// match: (FABS (FMOVDconst [x]))
 	// result: (FMOVDconst [math.Abs(x)])
@@ -5825,7 +5825,7 @@ func rewriteValuePPC64_OpPPC64FABS(v *ssacore.Value) bool {
 	}
 	return false
 }
-func rewriteValuePPC64_OpPPC64FADD(v *ssacore.Value) bool {
+func rewriteValuePPC64_OpPPC64FADD(v *ssa.Value) bool {
 	v_1 := v.Args[1]
 	v_0 := v.Args[0]
 	// match: (FADD (FMUL x y) z)
@@ -5855,7 +5855,7 @@ func rewriteValuePPC64_OpPPC64FADD(v *ssacore.Value) bool {
 	}
 	return false
 }
-func rewriteValuePPC64_OpPPC64FADDS(v *ssacore.Value) bool {
+func rewriteValuePPC64_OpPPC64FADDS(v *ssa.Value) bool {
 	v_1 := v.Args[1]
 	v_0 := v.Args[0]
 	// match: (FADDS (FMULS x y) z)
@@ -5885,7 +5885,7 @@ func rewriteValuePPC64_OpPPC64FADDS(v *ssacore.Value) bool {
 	}
 	return false
 }
-func rewriteValuePPC64_OpPPC64FCEIL(v *ssacore.Value) bool {
+func rewriteValuePPC64_OpPPC64FCEIL(v *ssa.Value) bool {
 	v_0 := v.Args[0]
 	// match: (FCEIL (FMOVDconst [x]))
 	// result: (FMOVDconst [math.Ceil(x)])
@@ -5900,7 +5900,7 @@ func rewriteValuePPC64_OpPPC64FCEIL(v *ssacore.Value) bool {
 	}
 	return false
 }
-func rewriteValuePPC64_OpPPC64FFLOOR(v *ssacore.Value) bool {
+func rewriteValuePPC64_OpPPC64FFLOOR(v *ssa.Value) bool {
 	v_0 := v.Args[0]
 	// match: (FFLOOR (FMOVDconst [x]))
 	// result: (FMOVDconst [math.Floor(x)])
@@ -5915,7 +5915,7 @@ func rewriteValuePPC64_OpPPC64FFLOOR(v *ssacore.Value) bool {
 	}
 	return false
 }
-func rewriteValuePPC64_OpPPC64FGreaterEqual(v *ssacore.Value) bool {
+func rewriteValuePPC64_OpPPC64FGreaterEqual(v *ssa.Value) bool {
 	v_0 := v.Args[0]
 	b := v.Block
 	typ := &b.Func.Config.Types
@@ -5934,7 +5934,7 @@ func rewriteValuePPC64_OpPPC64FGreaterEqual(v *ssacore.Value) bool {
 		return true
 	}
 }
-func rewriteValuePPC64_OpPPC64FGreaterThan(v *ssacore.Value) bool {
+func rewriteValuePPC64_OpPPC64FGreaterThan(v *ssa.Value) bool {
 	v_0 := v.Args[0]
 	// match: (FGreaterThan cmp)
 	// result: (SETBC [1] cmp)
@@ -5946,7 +5946,7 @@ func rewriteValuePPC64_OpPPC64FGreaterThan(v *ssacore.Value) bool {
 		return true
 	}
 }
-func rewriteValuePPC64_OpPPC64FLessEqual(v *ssacore.Value) bool {
+func rewriteValuePPC64_OpPPC64FLessEqual(v *ssa.Value) bool {
 	v_0 := v.Args[0]
 	b := v.Block
 	typ := &b.Func.Config.Types
@@ -5965,7 +5965,7 @@ func rewriteValuePPC64_OpPPC64FLessEqual(v *ssacore.Value) bool {
 		return true
 	}
 }
-func rewriteValuePPC64_OpPPC64FLessThan(v *ssacore.Value) bool {
+func rewriteValuePPC64_OpPPC64FLessThan(v *ssa.Value) bool {
 	v_0 := v.Args[0]
 	// match: (FLessThan cmp)
 	// result: (SETBC [0] cmp)
@@ -5977,7 +5977,7 @@ func rewriteValuePPC64_OpPPC64FLessThan(v *ssacore.Value) bool {
 		return true
 	}
 }
-func rewriteValuePPC64_OpPPC64FMOVDload(v *ssacore.Value) bool {
+func rewriteValuePPC64_OpPPC64FMOVDload(v *ssa.Value) bool {
 	v_1 := v.Args[1]
 	v_0 := v.Args[0]
 	// match: (FMOVDload [off] {sym} ptr (MOVDstore [off] {sym} ptr x _))
@@ -6043,7 +6043,7 @@ func rewriteValuePPC64_OpPPC64FMOVDload(v *ssacore.Value) bool {
 	}
 	return false
 }
-func rewriteValuePPC64_OpPPC64FMOVDstore(v *ssacore.Value) bool {
+func rewriteValuePPC64_OpPPC64FMOVDstore(v *ssa.Value) bool {
 	v_2 := v.Args[2]
 	v_1 := v.Args[1]
 	v_0 := v.Args[0]
@@ -6112,7 +6112,7 @@ func rewriteValuePPC64_OpPPC64FMOVDstore(v *ssacore.Value) bool {
 	}
 	return false
 }
-func rewriteValuePPC64_OpPPC64FMOVSload(v *ssacore.Value) bool {
+func rewriteValuePPC64_OpPPC64FMOVSload(v *ssa.Value) bool {
 	v_1 := v.Args[1]
 	v_0 := v.Args[0]
 	// match: (FMOVSload [off1] {sym1} p:(MOVDaddr [off2] {sym2} ptr) mem)
@@ -6161,7 +6161,7 @@ func rewriteValuePPC64_OpPPC64FMOVSload(v *ssacore.Value) bool {
 	}
 	return false
 }
-func rewriteValuePPC64_OpPPC64FMOVSstore(v *ssacore.Value) bool {
+func rewriteValuePPC64_OpPPC64FMOVSstore(v *ssa.Value) bool {
 	v_2 := v.Args[2]
 	v_1 := v.Args[1]
 	v_0 := v.Args[0]
@@ -6213,7 +6213,7 @@ func rewriteValuePPC64_OpPPC64FMOVSstore(v *ssacore.Value) bool {
 	}
 	return false
 }
-func rewriteValuePPC64_OpPPC64FNEG(v *ssacore.Value) bool {
+func rewriteValuePPC64_OpPPC64FNEG(v *ssa.Value) bool {
 	v_0 := v.Args[0]
 	// match: (FNEG (FABS x))
 	// result: (FNABS x)
@@ -6239,7 +6239,7 @@ func rewriteValuePPC64_OpPPC64FNEG(v *ssacore.Value) bool {
 	}
 	return false
 }
-func rewriteValuePPC64_OpPPC64FSQRT(v *ssacore.Value) bool {
+func rewriteValuePPC64_OpPPC64FSQRT(v *ssa.Value) bool {
 	v_0 := v.Args[0]
 	// match: (FSQRT (FMOVDconst [x]))
 	// cond: x >= 0
@@ -6258,7 +6258,7 @@ func rewriteValuePPC64_OpPPC64FSQRT(v *ssacore.Value) bool {
 	}
 	return false
 }
-func rewriteValuePPC64_OpPPC64FSUB(v *ssacore.Value) bool {
+func rewriteValuePPC64_OpPPC64FSUB(v *ssa.Value) bool {
 	v_1 := v.Args[1]
 	v_0 := v.Args[0]
 	// match: (FSUB (FMUL x y) z)
@@ -6286,7 +6286,7 @@ func rewriteValuePPC64_OpPPC64FSUB(v *ssacore.Value) bool {
 	}
 	return false
 }
-func rewriteValuePPC64_OpPPC64FSUBS(v *ssacore.Value) bool {
+func rewriteValuePPC64_OpPPC64FSUBS(v *ssa.Value) bool {
 	v_1 := v.Args[1]
 	v_0 := v.Args[0]
 	// match: (FSUBS (FMULS x y) z)
@@ -6314,7 +6314,7 @@ func rewriteValuePPC64_OpPPC64FSUBS(v *ssacore.Value) bool {
 	}
 	return false
 }
-func rewriteValuePPC64_OpPPC64FTRUNC(v *ssacore.Value) bool {
+func rewriteValuePPC64_OpPPC64FTRUNC(v *ssa.Value) bool {
 	v_0 := v.Args[0]
 	// match: (FTRUNC (FMOVDconst [x]))
 	// result: (FMOVDconst [math.Trunc(x)])
@@ -6329,7 +6329,7 @@ func rewriteValuePPC64_OpPPC64FTRUNC(v *ssacore.Value) bool {
 	}
 	return false
 }
-func rewriteValuePPC64_OpPPC64GreaterEqual(v *ssacore.Value) bool {
+func rewriteValuePPC64_OpPPC64GreaterEqual(v *ssa.Value) bool {
 	v_0 := v.Args[0]
 	// match: (GreaterEqual (FlagEQ))
 	// result: (MOVDconst [1])
@@ -6382,7 +6382,7 @@ func rewriteValuePPC64_OpPPC64GreaterEqual(v *ssacore.Value) bool {
 		return true
 	}
 }
-func rewriteValuePPC64_OpPPC64GreaterThan(v *ssacore.Value) bool {
+func rewriteValuePPC64_OpPPC64GreaterThan(v *ssa.Value) bool {
 	v_0 := v.Args[0]
 	// match: (GreaterThan (FlagEQ))
 	// result: (MOVDconst [0])
@@ -6435,7 +6435,7 @@ func rewriteValuePPC64_OpPPC64GreaterThan(v *ssacore.Value) bool {
 		return true
 	}
 }
-func rewriteValuePPC64_OpPPC64ISEL(v *ssacore.Value) bool {
+func rewriteValuePPC64_OpPPC64ISEL(v *ssa.Value) bool {
 	v_2 := v.Args[2]
 	v_1 := v.Args[1]
 	v_0 := v.Args[0]
@@ -6846,7 +6846,7 @@ func rewriteValuePPC64_OpPPC64ISEL(v *ssacore.Value) bool {
 	}
 	return false
 }
-func rewriteValuePPC64_OpPPC64LessEqual(v *ssacore.Value) bool {
+func rewriteValuePPC64_OpPPC64LessEqual(v *ssa.Value) bool {
 	v_0 := v.Args[0]
 	// match: (LessEqual (FlagEQ))
 	// result: (MOVDconst [1])
@@ -6899,7 +6899,7 @@ func rewriteValuePPC64_OpPPC64LessEqual(v *ssacore.Value) bool {
 		return true
 	}
 }
-func rewriteValuePPC64_OpPPC64LessThan(v *ssacore.Value) bool {
+func rewriteValuePPC64_OpPPC64LessThan(v *ssa.Value) bool {
 	v_0 := v.Args[0]
 	// match: (LessThan (FlagEQ))
 	// result: (MOVDconst [0])
@@ -6952,11 +6952,11 @@ func rewriteValuePPC64_OpPPC64LessThan(v *ssacore.Value) bool {
 		return true
 	}
 }
-func rewriteValuePPC64_OpPPC64LoweredPanicBoundsCR(v *ssacore.Value) bool {
+func rewriteValuePPC64_OpPPC64LoweredPanicBoundsCR(v *ssa.Value) bool {
 	v_1 := v.Args[1]
 	v_0 := v.Args[0]
 	// match: (LoweredPanicBoundsCR [kind] {p} (MOVDconst [c]) mem)
-	// result: (LoweredPanicBoundsCC [kind] {ssacore.PanicBoundsCC{Cx:p.C, Cy:c}} mem)
+	// result: (LoweredPanicBoundsCC [kind] {ssa.PanicBoundsCC{Cx:p.C, Cy:c}} mem)
 	for {
 		kind := AuxIntToInt64(v.AuxInt)
 		p := AuxToPanicBoundsC(v.Aux)
@@ -6967,17 +6967,17 @@ func rewriteValuePPC64_OpPPC64LoweredPanicBoundsCR(v *ssacore.Value) bool {
 		mem := v_1
 		v.Reset(ssaop.OpPPC64LoweredPanicBoundsCC)
 		v.AuxInt = Int64ToAuxInt(kind)
-		v.Aux = PanicBoundsCCToAux(ssacore.PanicBoundsCC{Cx: p.C, Cy: c})
+		v.Aux = PanicBoundsCCToAux(ssa.PanicBoundsCC{Cx: p.C, Cy: c})
 		v.AddArg(mem)
 		return true
 	}
 	return false
 }
-func rewriteValuePPC64_OpPPC64LoweredPanicBoundsRC(v *ssacore.Value) bool {
+func rewriteValuePPC64_OpPPC64LoweredPanicBoundsRC(v *ssa.Value) bool {
 	v_1 := v.Args[1]
 	v_0 := v.Args[0]
 	// match: (LoweredPanicBoundsRC [kind] {p} (MOVDconst [c]) mem)
-	// result: (LoweredPanicBoundsCC [kind] {ssacore.PanicBoundsCC{Cx:c, Cy:p.C}} mem)
+	// result: (LoweredPanicBoundsCC [kind] {ssa.PanicBoundsCC{Cx:c, Cy:p.C}} mem)
 	for {
 		kind := AuxIntToInt64(v.AuxInt)
 		p := AuxToPanicBoundsC(v.Aux)
@@ -6988,18 +6988,18 @@ func rewriteValuePPC64_OpPPC64LoweredPanicBoundsRC(v *ssacore.Value) bool {
 		mem := v_1
 		v.Reset(ssaop.OpPPC64LoweredPanicBoundsCC)
 		v.AuxInt = Int64ToAuxInt(kind)
-		v.Aux = PanicBoundsCCToAux(ssacore.PanicBoundsCC{Cx: c, Cy: p.C})
+		v.Aux = PanicBoundsCCToAux(ssa.PanicBoundsCC{Cx: c, Cy: p.C})
 		v.AddArg(mem)
 		return true
 	}
 	return false
 }
-func rewriteValuePPC64_OpPPC64LoweredPanicBoundsRR(v *ssacore.Value) bool {
+func rewriteValuePPC64_OpPPC64LoweredPanicBoundsRR(v *ssa.Value) bool {
 	v_2 := v.Args[2]
 	v_1 := v.Args[1]
 	v_0 := v.Args[0]
 	// match: (LoweredPanicBoundsRR [kind] x (MOVDconst [c]) mem)
-	// result: (LoweredPanicBoundsRC [kind] x {ssacore.PanicBoundsC{C:c}} mem)
+	// result: (LoweredPanicBoundsRC [kind] x {ssa.PanicBoundsC{C:c}} mem)
 	for {
 		kind := AuxIntToInt64(v.AuxInt)
 		x := v_0
@@ -7010,12 +7010,12 @@ func rewriteValuePPC64_OpPPC64LoweredPanicBoundsRR(v *ssacore.Value) bool {
 		mem := v_2
 		v.Reset(ssaop.OpPPC64LoweredPanicBoundsRC)
 		v.AuxInt = Int64ToAuxInt(kind)
-		v.Aux = PanicBoundsCToAux(ssacore.PanicBoundsC{C: c})
+		v.Aux = PanicBoundsCToAux(ssa.PanicBoundsC{C: c})
 		v.AddArg2(x, mem)
 		return true
 	}
 	// match: (LoweredPanicBoundsRR [kind] (MOVDconst [c]) y mem)
-	// result: (LoweredPanicBoundsCR [kind] {ssacore.PanicBoundsC{C:c}} y mem)
+	// result: (LoweredPanicBoundsCR [kind] {ssa.PanicBoundsC{C:c}} y mem)
 	for {
 		kind := AuxIntToInt64(v.AuxInt)
 		if v_0.Op != ssaop.OpPPC64MOVDconst {
@@ -7026,13 +7026,13 @@ func rewriteValuePPC64_OpPPC64LoweredPanicBoundsRR(v *ssacore.Value) bool {
 		mem := v_2
 		v.Reset(ssaop.OpPPC64LoweredPanicBoundsCR)
 		v.AuxInt = Int64ToAuxInt(kind)
-		v.Aux = PanicBoundsCToAux(ssacore.PanicBoundsC{C: c})
+		v.Aux = PanicBoundsCToAux(ssa.PanicBoundsC{C: c})
 		v.AddArg2(y, mem)
 		return true
 	}
 	return false
 }
-func rewriteValuePPC64_OpPPC64MFVSRD(v *ssacore.Value) bool {
+func rewriteValuePPC64_OpPPC64MFVSRD(v *ssa.Value) bool {
 	v_0 := v.Args[0]
 	b := v.Block
 	typ := &b.Func.Config.Types
@@ -7072,7 +7072,7 @@ func rewriteValuePPC64_OpPPC64MFVSRD(v *ssacore.Value) bool {
 	}
 	return false
 }
-func rewriteValuePPC64_OpPPC64MOVBZload(v *ssacore.Value) bool {
+func rewriteValuePPC64_OpPPC64MOVBZload(v *ssa.Value) bool {
 	v_1 := v.Args[1]
 	v_0 := v.Args[0]
 	// match: (MOVBZload [off1] {sym1} p:(MOVDaddr [off2] {sym2} ptr) mem)
@@ -7143,7 +7143,7 @@ func rewriteValuePPC64_OpPPC64MOVBZload(v *ssacore.Value) bool {
 	}
 	return false
 }
-func rewriteValuePPC64_OpPPC64MOVBZloadidx(v *ssacore.Value) bool {
+func rewriteValuePPC64_OpPPC64MOVBZloadidx(v *ssa.Value) bool {
 	v_2 := v.Args[2]
 	v_1 := v.Args[1]
 	v_0 := v.Args[0]
@@ -7185,7 +7185,7 @@ func rewriteValuePPC64_OpPPC64MOVBZloadidx(v *ssacore.Value) bool {
 	}
 	return false
 }
-func rewriteValuePPC64_OpPPC64MOVBZreg(v *ssacore.Value) bool {
+func rewriteValuePPC64_OpPPC64MOVBZreg(v *ssa.Value) bool {
 	v_0 := v.Args[0]
 	b := v.Block
 	typ := &b.Func.Config.Types
@@ -7640,7 +7640,7 @@ func rewriteValuePPC64_OpPPC64MOVBZreg(v *ssacore.Value) bool {
 	}
 	return false
 }
-func rewriteValuePPC64_OpPPC64MOVBreg(v *ssacore.Value) bool {
+func rewriteValuePPC64_OpPPC64MOVBreg(v *ssa.Value) bool {
 	v_0 := v.Args[0]
 	b := v.Block
 	typ := &b.Func.Config.Types
@@ -7846,7 +7846,7 @@ func rewriteValuePPC64_OpPPC64MOVBreg(v *ssacore.Value) bool {
 	}
 	return false
 }
-func rewriteValuePPC64_OpPPC64MOVBstore(v *ssacore.Value) bool {
+func rewriteValuePPC64_OpPPC64MOVBstore(v *ssa.Value) bool {
 	v_2 := v.Args[2]
 	v_1 := v.Args[1]
 	v_0 := v.Args[0]
@@ -8157,7 +8157,7 @@ func rewriteValuePPC64_OpPPC64MOVBstore(v *ssacore.Value) bool {
 	}
 	return false
 }
-func rewriteValuePPC64_OpPPC64MOVBstoreidx(v *ssacore.Value) bool {
+func rewriteValuePPC64_OpPPC64MOVBstoreidx(v *ssa.Value) bool {
 	v_3 := v.Args[3]
 	v_2 := v.Args[2]
 	v_1 := v.Args[1]
@@ -8392,7 +8392,7 @@ func rewriteValuePPC64_OpPPC64MOVBstoreidx(v *ssacore.Value) bool {
 	}
 	return false
 }
-func rewriteValuePPC64_OpPPC64MOVBstorezero(v *ssacore.Value) bool {
+func rewriteValuePPC64_OpPPC64MOVBstorezero(v *ssa.Value) bool {
 	v_1 := v.Args[1]
 	v_0 := v.Args[0]
 	// match: (MOVBstorezero [off1] {sym} (ADDconst [off2] x) mem)
@@ -8441,7 +8441,7 @@ func rewriteValuePPC64_OpPPC64MOVBstorezero(v *ssacore.Value) bool {
 	}
 	return false
 }
-func rewriteValuePPC64_OpPPC64MOVDaddr(v *ssacore.Value) bool {
+func rewriteValuePPC64_OpPPC64MOVDaddr(v *ssa.Value) bool {
 	v_0 := v.Args[0]
 	// match: (MOVDaddr {sym} [n] p:(ADD x y))
 	// cond: sym == nil && n == 0
@@ -8474,7 +8474,7 @@ func rewriteValuePPC64_OpPPC64MOVDaddr(v *ssacore.Value) bool {
 	}
 	return false
 }
-func rewriteValuePPC64_OpPPC64MOVDload(v *ssacore.Value) bool {
+func rewriteValuePPC64_OpPPC64MOVDload(v *ssa.Value) bool {
 	v_1 := v.Args[1]
 	v_0 := v.Args[0]
 	// match: (MOVDload [off] {sym} ptr (FMOVDstore [off] {sym} ptr x _))
@@ -8562,7 +8562,7 @@ func rewriteValuePPC64_OpPPC64MOVDload(v *ssacore.Value) bool {
 	}
 	return false
 }
-func rewriteValuePPC64_OpPPC64MOVDloadidx(v *ssacore.Value) bool {
+func rewriteValuePPC64_OpPPC64MOVDloadidx(v *ssa.Value) bool {
 	v_2 := v.Args[2]
 	v_1 := v.Args[1]
 	v_0 := v.Args[0]
@@ -8604,7 +8604,7 @@ func rewriteValuePPC64_OpPPC64MOVDloadidx(v *ssacore.Value) bool {
 	}
 	return false
 }
-func rewriteValuePPC64_OpPPC64MOVDstore(v *ssacore.Value) bool {
+func rewriteValuePPC64_OpPPC64MOVDstore(v *ssa.Value) bool {
 	v_2 := v.Args[2]
 	v_1 := v.Args[1]
 	v_0 := v.Args[0]
@@ -8756,7 +8756,7 @@ func rewriteValuePPC64_OpPPC64MOVDstore(v *ssacore.Value) bool {
 	}
 	return false
 }
-func rewriteValuePPC64_OpPPC64MOVDstoreidx(v *ssacore.Value) bool {
+func rewriteValuePPC64_OpPPC64MOVDstoreidx(v *ssa.Value) bool {
 	v_3 := v.Args[3]
 	v_2 := v.Args[2]
 	v_1 := v.Args[1]
@@ -8834,7 +8834,7 @@ func rewriteValuePPC64_OpPPC64MOVDstoreidx(v *ssacore.Value) bool {
 	}
 	return false
 }
-func rewriteValuePPC64_OpPPC64MOVDstorezero(v *ssacore.Value) bool {
+func rewriteValuePPC64_OpPPC64MOVDstorezero(v *ssa.Value) bool {
 	v_1 := v.Args[1]
 	v_0 := v.Args[0]
 	// match: (MOVDstorezero [off1] {sym} (ADDconst [off2] x) mem)
@@ -8883,7 +8883,7 @@ func rewriteValuePPC64_OpPPC64MOVDstorezero(v *ssacore.Value) bool {
 	}
 	return false
 }
-func rewriteValuePPC64_OpPPC64MOVHBRstore(v *ssacore.Value) bool {
+func rewriteValuePPC64_OpPPC64MOVHBRstore(v *ssa.Value) bool {
 	v_2 := v.Args[2]
 	v_1 := v.Args[1]
 	v_0 := v.Args[0]
@@ -8941,7 +8941,7 @@ func rewriteValuePPC64_OpPPC64MOVHBRstore(v *ssacore.Value) bool {
 	}
 	return false
 }
-func rewriteValuePPC64_OpPPC64MOVHZload(v *ssacore.Value) bool {
+func rewriteValuePPC64_OpPPC64MOVHZload(v *ssa.Value) bool {
 	v_1 := v.Args[1]
 	v_0 := v.Args[0]
 	// match: (MOVHZload [off1] {sym1} p:(MOVDaddr [off2] {sym2} ptr) mem)
@@ -9012,7 +9012,7 @@ func rewriteValuePPC64_OpPPC64MOVHZload(v *ssacore.Value) bool {
 	}
 	return false
 }
-func rewriteValuePPC64_OpPPC64MOVHZloadidx(v *ssacore.Value) bool {
+func rewriteValuePPC64_OpPPC64MOVHZloadidx(v *ssa.Value) bool {
 	v_2 := v.Args[2]
 	v_1 := v.Args[1]
 	v_0 := v.Args[0]
@@ -9054,7 +9054,7 @@ func rewriteValuePPC64_OpPPC64MOVHZloadidx(v *ssacore.Value) bool {
 	}
 	return false
 }
-func rewriteValuePPC64_OpPPC64MOVHZreg(v *ssacore.Value) bool {
+func rewriteValuePPC64_OpPPC64MOVHZreg(v *ssa.Value) bool {
 	v_0 := v.Args[0]
 	b := v.Block
 	typ := &b.Func.Config.Types
@@ -9480,7 +9480,7 @@ func rewriteValuePPC64_OpPPC64MOVHZreg(v *ssacore.Value) bool {
 	}
 	return false
 }
-func rewriteValuePPC64_OpPPC64MOVHload(v *ssacore.Value) bool {
+func rewriteValuePPC64_OpPPC64MOVHload(v *ssa.Value) bool {
 	v_1 := v.Args[1]
 	v_0 := v.Args[0]
 	// match: (MOVHload [off1] {sym1} p:(MOVDaddr [off2] {sym2} ptr) mem)
@@ -9551,7 +9551,7 @@ func rewriteValuePPC64_OpPPC64MOVHload(v *ssacore.Value) bool {
 	}
 	return false
 }
-func rewriteValuePPC64_OpPPC64MOVHloadidx(v *ssacore.Value) bool {
+func rewriteValuePPC64_OpPPC64MOVHloadidx(v *ssa.Value) bool {
 	v_2 := v.Args[2]
 	v_1 := v.Args[1]
 	v_0 := v.Args[0]
@@ -9593,7 +9593,7 @@ func rewriteValuePPC64_OpPPC64MOVHloadidx(v *ssacore.Value) bool {
 	}
 	return false
 }
-func rewriteValuePPC64_OpPPC64MOVHreg(v *ssacore.Value) bool {
+func rewriteValuePPC64_OpPPC64MOVHreg(v *ssa.Value) bool {
 	v_0 := v.Args[0]
 	b := v.Block
 	typ := &b.Func.Config.Types
@@ -9849,7 +9849,7 @@ func rewriteValuePPC64_OpPPC64MOVHreg(v *ssacore.Value) bool {
 	}
 	return false
 }
-func rewriteValuePPC64_OpPPC64MOVHstore(v *ssacore.Value) bool {
+func rewriteValuePPC64_OpPPC64MOVHstore(v *ssa.Value) bool {
 	v_2 := v.Args[2]
 	v_1 := v.Args[1]
 	v_0 := v.Args[0]
@@ -10052,7 +10052,7 @@ func rewriteValuePPC64_OpPPC64MOVHstore(v *ssacore.Value) bool {
 	}
 	return false
 }
-func rewriteValuePPC64_OpPPC64MOVHstoreidx(v *ssacore.Value) bool {
+func rewriteValuePPC64_OpPPC64MOVHstoreidx(v *ssa.Value) bool {
 	v_3 := v.Args[3]
 	v_2 := v.Args[2]
 	v_1 := v.Args[1]
@@ -10186,7 +10186,7 @@ func rewriteValuePPC64_OpPPC64MOVHstoreidx(v *ssacore.Value) bool {
 	}
 	return false
 }
-func rewriteValuePPC64_OpPPC64MOVHstorezero(v *ssacore.Value) bool {
+func rewriteValuePPC64_OpPPC64MOVHstorezero(v *ssa.Value) bool {
 	v_1 := v.Args[1]
 	v_0 := v.Args[0]
 	// match: (MOVHstorezero [off1] {sym} (ADDconst [off2] x) mem)
@@ -10235,7 +10235,7 @@ func rewriteValuePPC64_OpPPC64MOVHstorezero(v *ssacore.Value) bool {
 	}
 	return false
 }
-func rewriteValuePPC64_OpPPC64MOVWBRstore(v *ssacore.Value) bool {
+func rewriteValuePPC64_OpPPC64MOVWBRstore(v *ssa.Value) bool {
 	v_2 := v.Args[2]
 	v_1 := v.Args[1]
 	v_0 := v.Args[0]
@@ -10267,7 +10267,7 @@ func rewriteValuePPC64_OpPPC64MOVWBRstore(v *ssacore.Value) bool {
 	}
 	return false
 }
-func rewriteValuePPC64_OpPPC64MOVWZload(v *ssacore.Value) bool {
+func rewriteValuePPC64_OpPPC64MOVWZload(v *ssa.Value) bool {
 	v_1 := v.Args[1]
 	v_0 := v.Args[0]
 	// match: (MOVWZload [off1] {sym1} p:(MOVDaddr [off2] {sym2} ptr) mem)
@@ -10338,7 +10338,7 @@ func rewriteValuePPC64_OpPPC64MOVWZload(v *ssacore.Value) bool {
 	}
 	return false
 }
-func rewriteValuePPC64_OpPPC64MOVWZloadidx(v *ssacore.Value) bool {
+func rewriteValuePPC64_OpPPC64MOVWZloadidx(v *ssa.Value) bool {
 	v_2 := v.Args[2]
 	v_1 := v.Args[1]
 	v_0 := v.Args[0]
@@ -10380,7 +10380,7 @@ func rewriteValuePPC64_OpPPC64MOVWZloadidx(v *ssacore.Value) bool {
 	}
 	return false
 }
-func rewriteValuePPC64_OpPPC64MOVWZreg(v *ssacore.Value) bool {
+func rewriteValuePPC64_OpPPC64MOVWZreg(v *ssa.Value) bool {
 	v_0 := v.Args[0]
 	b := v.Block
 	typ := &b.Func.Config.Types
@@ -10837,7 +10837,7 @@ func rewriteValuePPC64_OpPPC64MOVWZreg(v *ssacore.Value) bool {
 	}
 	return false
 }
-func rewriteValuePPC64_OpPPC64MOVWload(v *ssacore.Value) bool {
+func rewriteValuePPC64_OpPPC64MOVWload(v *ssa.Value) bool {
 	v_1 := v.Args[1]
 	v_0 := v.Args[0]
 	// match: (MOVWload [off1] {sym1} p:(MOVDaddr [off2] {sym2} ptr) mem)
@@ -10908,7 +10908,7 @@ func rewriteValuePPC64_OpPPC64MOVWload(v *ssacore.Value) bool {
 	}
 	return false
 }
-func rewriteValuePPC64_OpPPC64MOVWloadidx(v *ssacore.Value) bool {
+func rewriteValuePPC64_OpPPC64MOVWloadidx(v *ssa.Value) bool {
 	v_2 := v.Args[2]
 	v_1 := v.Args[1]
 	v_0 := v.Args[0]
@@ -10950,7 +10950,7 @@ func rewriteValuePPC64_OpPPC64MOVWloadidx(v *ssacore.Value) bool {
 	}
 	return false
 }
-func rewriteValuePPC64_OpPPC64MOVWreg(v *ssacore.Value) bool {
+func rewriteValuePPC64_OpPPC64MOVWreg(v *ssa.Value) bool {
 	v_0 := v.Args[0]
 	b := v.Block
 	typ := &b.Func.Config.Types
@@ -11227,7 +11227,7 @@ func rewriteValuePPC64_OpPPC64MOVWreg(v *ssacore.Value) bool {
 	}
 	return false
 }
-func rewriteValuePPC64_OpPPC64MOVWstore(v *ssacore.Value) bool {
+func rewriteValuePPC64_OpPPC64MOVWstore(v *ssa.Value) bool {
 	v_2 := v.Args[2]
 	v_1 := v.Args[1]
 	v_0 := v.Args[0]
@@ -11396,7 +11396,7 @@ func rewriteValuePPC64_OpPPC64MOVWstore(v *ssacore.Value) bool {
 	}
 	return false
 }
-func rewriteValuePPC64_OpPPC64MOVWstoreidx(v *ssacore.Value) bool {
+func rewriteValuePPC64_OpPPC64MOVWstoreidx(v *ssa.Value) bool {
 	v_3 := v.Args[3]
 	v_2 := v.Args[2]
 	v_1 := v.Args[1]
@@ -11502,7 +11502,7 @@ func rewriteValuePPC64_OpPPC64MOVWstoreidx(v *ssacore.Value) bool {
 	}
 	return false
 }
-func rewriteValuePPC64_OpPPC64MOVWstorezero(v *ssacore.Value) bool {
+func rewriteValuePPC64_OpPPC64MOVWstorezero(v *ssa.Value) bool {
 	v_1 := v.Args[1]
 	v_0 := v.Args[0]
 	// match: (MOVWstorezero [off1] {sym} (ADDconst [off2] x) mem)
@@ -11551,7 +11551,7 @@ func rewriteValuePPC64_OpPPC64MOVWstorezero(v *ssacore.Value) bool {
 	}
 	return false
 }
-func rewriteValuePPC64_OpPPC64MTVSRD(v *ssacore.Value) bool {
+func rewriteValuePPC64_OpPPC64MTVSRD(v *ssa.Value) bool {
 	v_0 := v.Args[0]
 	b := v.Block
 	typ := &b.Func.Config.Types
@@ -11595,7 +11595,7 @@ func rewriteValuePPC64_OpPPC64MTVSRD(v *ssacore.Value) bool {
 	}
 	return false
 }
-func rewriteValuePPC64_OpPPC64MULLD(v *ssacore.Value) bool {
+func rewriteValuePPC64_OpPPC64MULLD(v *ssa.Value) bool {
 	v_1 := v.Args[1]
 	v_0 := v.Args[0]
 	// match: (MULLD x (MOVDconst [c]))
@@ -11620,7 +11620,7 @@ func rewriteValuePPC64_OpPPC64MULLD(v *ssacore.Value) bool {
 	}
 	return false
 }
-func rewriteValuePPC64_OpPPC64MULLW(v *ssacore.Value) bool {
+func rewriteValuePPC64_OpPPC64MULLW(v *ssa.Value) bool {
 	v_1 := v.Args[1]
 	v_0 := v.Args[0]
 	// match: (MULLW x (MOVDconst [c]))
@@ -11645,7 +11645,7 @@ func rewriteValuePPC64_OpPPC64MULLW(v *ssacore.Value) bool {
 	}
 	return false
 }
-func rewriteValuePPC64_OpPPC64NEG(v *ssacore.Value) bool {
+func rewriteValuePPC64_OpPPC64NEG(v *ssa.Value) bool {
 	v_0 := v.Args[0]
 	// match: (NEG (ADDconst [c] x))
 	// cond: Is32Bit(-c)
@@ -11705,7 +11705,7 @@ func rewriteValuePPC64_OpPPC64NEG(v *ssacore.Value) bool {
 	}
 	return false
 }
-func rewriteValuePPC64_OpPPC64NOR(v *ssacore.Value) bool {
+func rewriteValuePPC64_OpPPC64NOR(v *ssa.Value) bool {
 	v_1 := v.Args[1]
 	v_0 := v.Args[0]
 	// match: (NOR (MOVDconst [c]) (MOVDconst [d]))
@@ -11728,7 +11728,7 @@ func rewriteValuePPC64_OpPPC64NOR(v *ssacore.Value) bool {
 	}
 	return false
 }
-func rewriteValuePPC64_OpPPC64NotEqual(v *ssacore.Value) bool {
+func rewriteValuePPC64_OpPPC64NotEqual(v *ssa.Value) bool {
 	v_0 := v.Args[0]
 	// match: (NotEqual (FlagEQ))
 	// result: (MOVDconst [0])
@@ -11781,7 +11781,7 @@ func rewriteValuePPC64_OpPPC64NotEqual(v *ssacore.Value) bool {
 		return true
 	}
 }
-func rewriteValuePPC64_OpPPC64OR(v *ssacore.Value) bool {
+func rewriteValuePPC64_OpPPC64OR(v *ssa.Value) bool {
 	v_1 := v.Args[1]
 	v_0 := v.Args[0]
 	// match: (OR <t> x (MOVDconst [m]))
@@ -11884,7 +11884,7 @@ func rewriteValuePPC64_OpPPC64OR(v *ssacore.Value) bool {
 	}
 	return false
 }
-func rewriteValuePPC64_OpPPC64ORN(v *ssacore.Value) bool {
+func rewriteValuePPC64_OpPPC64ORN(v *ssa.Value) bool {
 	v_1 := v.Args[1]
 	v_0 := v.Args[0]
 	// match: (ORN x (MOVDconst [-1]))
@@ -11914,7 +11914,7 @@ func rewriteValuePPC64_OpPPC64ORN(v *ssacore.Value) bool {
 	}
 	return false
 }
-func rewriteValuePPC64_OpPPC64ORconst(v *ssacore.Value) bool {
+func rewriteValuePPC64_OpPPC64ORconst(v *ssa.Value) bool {
 	v_0 := v.Args[0]
 	// match: (ORconst [c] (ORconst [d] x))
 	// result: (ORconst [c|d] x)
@@ -11952,7 +11952,7 @@ func rewriteValuePPC64_OpPPC64ORconst(v *ssacore.Value) bool {
 	}
 	return false
 }
-func rewriteValuePPC64_OpPPC64RLWINM(v *ssacore.Value) bool {
+func rewriteValuePPC64_OpPPC64RLWINM(v *ssa.Value) bool {
 	v_0 := v.Args[0]
 	// match: (RLWINM [r] (MOVHZreg u))
 	// cond: mergePPC64RlwinmAnd(r,0xFFFF) != 0
@@ -11991,7 +11991,7 @@ func rewriteValuePPC64_OpPPC64RLWINM(v *ssacore.Value) bool {
 	}
 	return false
 }
-func rewriteValuePPC64_OpPPC64ROTL(v *ssacore.Value) bool {
+func rewriteValuePPC64_OpPPC64ROTL(v *ssa.Value) bool {
 	v_1 := v.Args[1]
 	v_0 := v.Args[0]
 	// match: (ROTL x (MOVDconst [c]))
@@ -12009,7 +12009,7 @@ func rewriteValuePPC64_OpPPC64ROTL(v *ssacore.Value) bool {
 	}
 	return false
 }
-func rewriteValuePPC64_OpPPC64ROTLW(v *ssacore.Value) bool {
+func rewriteValuePPC64_OpPPC64ROTLW(v *ssa.Value) bool {
 	v_1 := v.Args[1]
 	v_0 := v.Args[0]
 	// match: (ROTLW x (MOVDconst [c]))
@@ -12027,7 +12027,7 @@ func rewriteValuePPC64_OpPPC64ROTLW(v *ssacore.Value) bool {
 	}
 	return false
 }
-func rewriteValuePPC64_OpPPC64ROTLWconst(v *ssacore.Value) bool {
+func rewriteValuePPC64_OpPPC64ROTLWconst(v *ssa.Value) bool {
 	v_0 := v.Args[0]
 	// match: (ROTLWconst [r] (AND (MOVDconst [m]) x))
 	// cond: IsPPC64WordRotateMask(m)
@@ -12076,7 +12076,7 @@ func rewriteValuePPC64_OpPPC64ROTLWconst(v *ssacore.Value) bool {
 	}
 	return false
 }
-func rewriteValuePPC64_OpPPC64SETBC(v *ssacore.Value) bool {
+func rewriteValuePPC64_OpPPC64SETBC(v *ssa.Value) bool {
 	v_0 := v.Args[0]
 	b := v.Block
 	typ := &b.Func.Config.Types
@@ -12311,7 +12311,7 @@ func rewriteValuePPC64_OpPPC64SETBC(v *ssacore.Value) bool {
 	}
 	return false
 }
-func rewriteValuePPC64_OpPPC64SETBCR(v *ssacore.Value) bool {
+func rewriteValuePPC64_OpPPC64SETBCR(v *ssa.Value) bool {
 	v_0 := v.Args[0]
 	b := v.Block
 	typ := &b.Func.Config.Types
@@ -12544,7 +12544,7 @@ func rewriteValuePPC64_OpPPC64SETBCR(v *ssacore.Value) bool {
 	}
 	return false
 }
-func rewriteValuePPC64_OpPPC64SLD(v *ssacore.Value) bool {
+func rewriteValuePPC64_OpPPC64SLD(v *ssa.Value) bool {
 	v_1 := v.Args[1]
 	v_0 := v.Args[0]
 	// match: (SLD x (MOVDconst [c]))
@@ -12562,7 +12562,7 @@ func rewriteValuePPC64_OpPPC64SLD(v *ssacore.Value) bool {
 	}
 	return false
 }
-func rewriteValuePPC64_OpPPC64SLDconst(v *ssacore.Value) bool {
+func rewriteValuePPC64_OpPPC64SLDconst(v *ssa.Value) bool {
 	v_0 := v.Args[0]
 	// match: (SLDconst [l] (SRWconst [r] x))
 	// cond: MergePPC64SldiSrw(l,r) != 0
@@ -12738,7 +12738,7 @@ func rewriteValuePPC64_OpPPC64SLDconst(v *ssacore.Value) bool {
 	}
 	return false
 }
-func rewriteValuePPC64_OpPPC64SLW(v *ssacore.Value) bool {
+func rewriteValuePPC64_OpPPC64SLW(v *ssa.Value) bool {
 	v_1 := v.Args[1]
 	v_0 := v.Args[0]
 	// match: (SLW x (MOVDconst [c]))
@@ -12756,7 +12756,7 @@ func rewriteValuePPC64_OpPPC64SLW(v *ssacore.Value) bool {
 	}
 	return false
 }
-func rewriteValuePPC64_OpPPC64SLWconst(v *ssacore.Value) bool {
+func rewriteValuePPC64_OpPPC64SLWconst(v *ssa.Value) bool {
 	v_0 := v.Args[0]
 	// match: (SLWconst [s] (MOVWZreg w))
 	// result: (SLWconst [s] w)
@@ -12891,7 +12891,7 @@ func rewriteValuePPC64_OpPPC64SLWconst(v *ssacore.Value) bool {
 	}
 	return false
 }
-func rewriteValuePPC64_OpPPC64SRAD(v *ssacore.Value) bool {
+func rewriteValuePPC64_OpPPC64SRAD(v *ssa.Value) bool {
 	v_1 := v.Args[1]
 	v_0 := v.Args[0]
 	// match: (SRAD x (MOVDconst [c]))
@@ -12909,7 +12909,7 @@ func rewriteValuePPC64_OpPPC64SRAD(v *ssacore.Value) bool {
 	}
 	return false
 }
-func rewriteValuePPC64_OpPPC64SRAW(v *ssacore.Value) bool {
+func rewriteValuePPC64_OpPPC64SRAW(v *ssa.Value) bool {
 	v_1 := v.Args[1]
 	v_0 := v.Args[0]
 	// match: (SRAW x (MOVDconst [c]))
@@ -12927,7 +12927,7 @@ func rewriteValuePPC64_OpPPC64SRAW(v *ssacore.Value) bool {
 	}
 	return false
 }
-func rewriteValuePPC64_OpPPC64SRD(v *ssacore.Value) bool {
+func rewriteValuePPC64_OpPPC64SRD(v *ssa.Value) bool {
 	v_1 := v.Args[1]
 	v_0 := v.Args[0]
 	// match: (SRD x (MOVDconst [c]))
@@ -12945,7 +12945,7 @@ func rewriteValuePPC64_OpPPC64SRD(v *ssacore.Value) bool {
 	}
 	return false
 }
-func rewriteValuePPC64_OpPPC64SRW(v *ssacore.Value) bool {
+func rewriteValuePPC64_OpPPC64SRW(v *ssa.Value) bool {
 	v_1 := v.Args[1]
 	v_0 := v.Args[0]
 	// match: (SRW x (MOVDconst [c]))
@@ -12963,7 +12963,7 @@ func rewriteValuePPC64_OpPPC64SRW(v *ssacore.Value) bool {
 	}
 	return false
 }
-func rewriteValuePPC64_OpPPC64SRWconst(v *ssacore.Value) bool {
+func rewriteValuePPC64_OpPPC64SRWconst(v *ssa.Value) bool {
 	v_0 := v.Args[0]
 	// match: (SRWconst (ANDconst [m] x) [s])
 	// cond: MergePPC64RShiftMask(m>>uint(s),s,32) == 0
@@ -13053,7 +13053,7 @@ func rewriteValuePPC64_OpPPC64SRWconst(v *ssacore.Value) bool {
 	}
 	return false
 }
-func rewriteValuePPC64_OpPPC64SUB(v *ssacore.Value) bool {
+func rewriteValuePPC64_OpPPC64SUB(v *ssa.Value) bool {
 	v_1 := v.Args[1]
 	v_0 := v.Args[0]
 	// match: (SUB x (MOVDconst [c]))
@@ -13092,7 +13092,7 @@ func rewriteValuePPC64_OpPPC64SUB(v *ssacore.Value) bool {
 	}
 	return false
 }
-func rewriteValuePPC64_OpPPC64SUBE(v *ssacore.Value) bool {
+func rewriteValuePPC64_OpPPC64SUBE(v *ssa.Value) bool {
 	v_2 := v.Args[2]
 	v_1 := v.Args[1]
 	v_0 := v.Args[0]
@@ -13120,7 +13120,7 @@ func rewriteValuePPC64_OpPPC64SUBE(v *ssacore.Value) bool {
 	}
 	return false
 }
-func rewriteValuePPC64_OpPPC64SUBFCconst(v *ssacore.Value) bool {
+func rewriteValuePPC64_OpPPC64SUBFCconst(v *ssa.Value) bool {
 	v_0 := v.Args[0]
 	// match: (SUBFCconst [c] (NEG x))
 	// result: (ADDconst [c] x)
@@ -13166,7 +13166,7 @@ func rewriteValuePPC64_OpPPC64SUBFCconst(v *ssacore.Value) bool {
 	}
 	return false
 }
-func rewriteValuePPC64_OpPPC64XOR(v *ssacore.Value) bool {
+func rewriteValuePPC64_OpPPC64XOR(v *ssa.Value) bool {
 	v_1 := v.Args[1]
 	v_0 := v.Args[0]
 	// match: (XOR <t> x (MOVDconst [m]))
@@ -13251,7 +13251,7 @@ func rewriteValuePPC64_OpPPC64XOR(v *ssacore.Value) bool {
 	}
 	return false
 }
-func rewriteValuePPC64_OpPPC64XORconst(v *ssacore.Value) bool {
+func rewriteValuePPC64_OpPPC64XORconst(v *ssa.Value) bool {
 	v_0 := v.Args[0]
 	// match: (XORconst [c] (XORconst [d] x))
 	// result: (XORconst [c^d] x)
@@ -13305,7 +13305,7 @@ func rewriteValuePPC64_OpPPC64XORconst(v *ssacore.Value) bool {
 	}
 	return false
 }
-func rewriteValuePPC64_OpPopCount16(v *ssacore.Value) bool {
+func rewriteValuePPC64_OpPopCount16(v *ssa.Value) bool {
 	v_0 := v.Args[0]
 	b := v.Block
 	typ := &b.Func.Config.Types
@@ -13320,7 +13320,7 @@ func rewriteValuePPC64_OpPopCount16(v *ssacore.Value) bool {
 		return true
 	}
 }
-func rewriteValuePPC64_OpPopCount32(v *ssacore.Value) bool {
+func rewriteValuePPC64_OpPopCount32(v *ssa.Value) bool {
 	v_0 := v.Args[0]
 	b := v.Block
 	typ := &b.Func.Config.Types
@@ -13335,7 +13335,7 @@ func rewriteValuePPC64_OpPopCount32(v *ssacore.Value) bool {
 		return true
 	}
 }
-func rewriteValuePPC64_OpPopCount8(v *ssacore.Value) bool {
+func rewriteValuePPC64_OpPopCount8(v *ssa.Value) bool {
 	v_0 := v.Args[0]
 	b := v.Block
 	typ := &b.Func.Config.Types
@@ -13350,7 +13350,7 @@ func rewriteValuePPC64_OpPopCount8(v *ssacore.Value) bool {
 		return true
 	}
 }
-func rewriteValuePPC64_OpPrefetchCache(v *ssacore.Value) bool {
+func rewriteValuePPC64_OpPrefetchCache(v *ssa.Value) bool {
 	v_1 := v.Args[1]
 	v_0 := v.Args[0]
 	// match: (PrefetchCache ptr mem)
@@ -13364,7 +13364,7 @@ func rewriteValuePPC64_OpPrefetchCache(v *ssacore.Value) bool {
 		return true
 	}
 }
-func rewriteValuePPC64_OpPrefetchCacheStreamed(v *ssacore.Value) bool {
+func rewriteValuePPC64_OpPrefetchCacheStreamed(v *ssa.Value) bool {
 	v_1 := v.Args[1]
 	v_0 := v.Args[0]
 	// match: (PrefetchCacheStreamed ptr mem)
@@ -13378,7 +13378,7 @@ func rewriteValuePPC64_OpPrefetchCacheStreamed(v *ssacore.Value) bool {
 		return true
 	}
 }
-func rewriteValuePPC64_OpRotateLeft16(v *ssacore.Value) bool {
+func rewriteValuePPC64_OpRotateLeft16(v *ssa.Value) bool {
 	v_1 := v.Args[1]
 	v_0 := v.Args[0]
 	b := v.Block
@@ -13406,7 +13406,7 @@ func rewriteValuePPC64_OpRotateLeft16(v *ssacore.Value) bool {
 	}
 	return false
 }
-func rewriteValuePPC64_OpRotateLeft8(v *ssacore.Value) bool {
+func rewriteValuePPC64_OpRotateLeft8(v *ssa.Value) bool {
 	v_1 := v.Args[1]
 	v_0 := v.Args[0]
 	b := v.Block
@@ -13434,7 +13434,7 @@ func rewriteValuePPC64_OpRotateLeft8(v *ssacore.Value) bool {
 	}
 	return false
 }
-func rewriteValuePPC64_OpRsh16Ux16(v *ssacore.Value) bool {
+func rewriteValuePPC64_OpRsh16Ux16(v *ssa.Value) bool {
 	v_1 := v.Args[1]
 	v_0 := v.Args[0]
 	b := v.Block
@@ -13478,7 +13478,7 @@ func rewriteValuePPC64_OpRsh16Ux16(v *ssacore.Value) bool {
 		return true
 	}
 }
-func rewriteValuePPC64_OpRsh16Ux32(v *ssacore.Value) bool {
+func rewriteValuePPC64_OpRsh16Ux32(v *ssa.Value) bool {
 	v_1 := v.Args[1]
 	v_0 := v.Args[0]
 	b := v.Block
@@ -13519,7 +13519,7 @@ func rewriteValuePPC64_OpRsh16Ux32(v *ssacore.Value) bool {
 		return true
 	}
 }
-func rewriteValuePPC64_OpRsh16Ux64(v *ssacore.Value) bool {
+func rewriteValuePPC64_OpRsh16Ux64(v *ssa.Value) bool {
 	v_1 := v.Args[1]
 	v_0 := v.Args[0]
 	b := v.Block
@@ -13579,7 +13579,7 @@ func rewriteValuePPC64_OpRsh16Ux64(v *ssacore.Value) bool {
 		return true
 	}
 }
-func rewriteValuePPC64_OpRsh16Ux8(v *ssacore.Value) bool {
+func rewriteValuePPC64_OpRsh16Ux8(v *ssa.Value) bool {
 	v_1 := v.Args[1]
 	v_0 := v.Args[0]
 	b := v.Block
@@ -13623,7 +13623,7 @@ func rewriteValuePPC64_OpRsh16Ux8(v *ssacore.Value) bool {
 		return true
 	}
 }
-func rewriteValuePPC64_OpRsh16x16(v *ssacore.Value) bool {
+func rewriteValuePPC64_OpRsh16x16(v *ssa.Value) bool {
 	v_1 := v.Args[1]
 	v_0 := v.Args[0]
 	b := v.Block
@@ -13668,7 +13668,7 @@ func rewriteValuePPC64_OpRsh16x16(v *ssacore.Value) bool {
 		return true
 	}
 }
-func rewriteValuePPC64_OpRsh16x32(v *ssacore.Value) bool {
+func rewriteValuePPC64_OpRsh16x32(v *ssa.Value) bool {
 	v_1 := v.Args[1]
 	v_0 := v.Args[0]
 	b := v.Block
@@ -13710,7 +13710,7 @@ func rewriteValuePPC64_OpRsh16x32(v *ssacore.Value) bool {
 		return true
 	}
 }
-func rewriteValuePPC64_OpRsh16x64(v *ssacore.Value) bool {
+func rewriteValuePPC64_OpRsh16x64(v *ssa.Value) bool {
 	v_1 := v.Args[1]
 	v_0 := v.Args[0]
 	b := v.Block
@@ -13790,7 +13790,7 @@ func rewriteValuePPC64_OpRsh16x64(v *ssacore.Value) bool {
 		return true
 	}
 }
-func rewriteValuePPC64_OpRsh16x8(v *ssacore.Value) bool {
+func rewriteValuePPC64_OpRsh16x8(v *ssa.Value) bool {
 	v_1 := v.Args[1]
 	v_0 := v.Args[0]
 	b := v.Block
@@ -13835,7 +13835,7 @@ func rewriteValuePPC64_OpRsh16x8(v *ssacore.Value) bool {
 		return true
 	}
 }
-func rewriteValuePPC64_OpRsh32Ux16(v *ssacore.Value) bool {
+func rewriteValuePPC64_OpRsh32Ux16(v *ssa.Value) bool {
 	v_1 := v.Args[1]
 	v_0 := v.Args[0]
 	b := v.Block
@@ -13875,7 +13875,7 @@ func rewriteValuePPC64_OpRsh32Ux16(v *ssacore.Value) bool {
 		return true
 	}
 }
-func rewriteValuePPC64_OpRsh32Ux32(v *ssacore.Value) bool {
+func rewriteValuePPC64_OpRsh32Ux32(v *ssa.Value) bool {
 	v_1 := v.Args[1]
 	v_0 := v.Args[0]
 	b := v.Block
@@ -13912,7 +13912,7 @@ func rewriteValuePPC64_OpRsh32Ux32(v *ssacore.Value) bool {
 		return true
 	}
 }
-func rewriteValuePPC64_OpRsh32Ux64(v *ssacore.Value) bool {
+func rewriteValuePPC64_OpRsh32Ux64(v *ssa.Value) bool {
 	v_1 := v.Args[1]
 	v_0 := v.Args[0]
 	b := v.Block
@@ -13966,7 +13966,7 @@ func rewriteValuePPC64_OpRsh32Ux64(v *ssacore.Value) bool {
 		return true
 	}
 }
-func rewriteValuePPC64_OpRsh32Ux8(v *ssacore.Value) bool {
+func rewriteValuePPC64_OpRsh32Ux8(v *ssa.Value) bool {
 	v_1 := v.Args[1]
 	v_0 := v.Args[0]
 	b := v.Block
@@ -14006,7 +14006,7 @@ func rewriteValuePPC64_OpRsh32Ux8(v *ssacore.Value) bool {
 		return true
 	}
 }
-func rewriteValuePPC64_OpRsh32x16(v *ssacore.Value) bool {
+func rewriteValuePPC64_OpRsh32x16(v *ssa.Value) bool {
 	v_1 := v.Args[1]
 	v_0 := v.Args[0]
 	b := v.Block
@@ -14047,7 +14047,7 @@ func rewriteValuePPC64_OpRsh32x16(v *ssacore.Value) bool {
 		return true
 	}
 }
-func rewriteValuePPC64_OpRsh32x32(v *ssacore.Value) bool {
+func rewriteValuePPC64_OpRsh32x32(v *ssa.Value) bool {
 	v_1 := v.Args[1]
 	v_0 := v.Args[0]
 	b := v.Block
@@ -14084,7 +14084,7 @@ func rewriteValuePPC64_OpRsh32x32(v *ssacore.Value) bool {
 		return true
 	}
 }
-func rewriteValuePPC64_OpRsh32x64(v *ssacore.Value) bool {
+func rewriteValuePPC64_OpRsh32x64(v *ssa.Value) bool {
 	v_1 := v.Args[1]
 	v_0 := v.Args[0]
 	b := v.Block
@@ -14155,7 +14155,7 @@ func rewriteValuePPC64_OpRsh32x64(v *ssacore.Value) bool {
 		return true
 	}
 }
-func rewriteValuePPC64_OpRsh32x8(v *ssacore.Value) bool {
+func rewriteValuePPC64_OpRsh32x8(v *ssa.Value) bool {
 	v_1 := v.Args[1]
 	v_0 := v.Args[0]
 	b := v.Block
@@ -14196,7 +14196,7 @@ func rewriteValuePPC64_OpRsh32x8(v *ssacore.Value) bool {
 		return true
 	}
 }
-func rewriteValuePPC64_OpRsh64Ux16(v *ssacore.Value) bool {
+func rewriteValuePPC64_OpRsh64Ux16(v *ssa.Value) bool {
 	v_1 := v.Args[1]
 	v_0 := v.Args[0]
 	b := v.Block
@@ -14236,7 +14236,7 @@ func rewriteValuePPC64_OpRsh64Ux16(v *ssacore.Value) bool {
 		return true
 	}
 }
-func rewriteValuePPC64_OpRsh64Ux32(v *ssacore.Value) bool {
+func rewriteValuePPC64_OpRsh64Ux32(v *ssa.Value) bool {
 	v_1 := v.Args[1]
 	v_0 := v.Args[0]
 	b := v.Block
@@ -14273,7 +14273,7 @@ func rewriteValuePPC64_OpRsh64Ux32(v *ssacore.Value) bool {
 		return true
 	}
 }
-func rewriteValuePPC64_OpRsh64Ux64(v *ssacore.Value) bool {
+func rewriteValuePPC64_OpRsh64Ux64(v *ssa.Value) bool {
 	v_1 := v.Args[1]
 	v_0 := v.Args[0]
 	b := v.Block
@@ -14327,7 +14327,7 @@ func rewriteValuePPC64_OpRsh64Ux64(v *ssacore.Value) bool {
 		return true
 	}
 }
-func rewriteValuePPC64_OpRsh64Ux8(v *ssacore.Value) bool {
+func rewriteValuePPC64_OpRsh64Ux8(v *ssa.Value) bool {
 	v_1 := v.Args[1]
 	v_0 := v.Args[0]
 	b := v.Block
@@ -14367,7 +14367,7 @@ func rewriteValuePPC64_OpRsh64Ux8(v *ssacore.Value) bool {
 		return true
 	}
 }
-func rewriteValuePPC64_OpRsh64x16(v *ssacore.Value) bool {
+func rewriteValuePPC64_OpRsh64x16(v *ssa.Value) bool {
 	v_1 := v.Args[1]
 	v_0 := v.Args[0]
 	b := v.Block
@@ -14408,7 +14408,7 @@ func rewriteValuePPC64_OpRsh64x16(v *ssacore.Value) bool {
 		return true
 	}
 }
-func rewriteValuePPC64_OpRsh64x32(v *ssacore.Value) bool {
+func rewriteValuePPC64_OpRsh64x32(v *ssa.Value) bool {
 	v_1 := v.Args[1]
 	v_0 := v.Args[0]
 	b := v.Block
@@ -14445,7 +14445,7 @@ func rewriteValuePPC64_OpRsh64x32(v *ssacore.Value) bool {
 		return true
 	}
 }
-func rewriteValuePPC64_OpRsh64x64(v *ssacore.Value) bool {
+func rewriteValuePPC64_OpRsh64x64(v *ssa.Value) bool {
 	v_1 := v.Args[1]
 	v_0 := v.Args[0]
 	b := v.Block
@@ -14516,7 +14516,7 @@ func rewriteValuePPC64_OpRsh64x64(v *ssacore.Value) bool {
 		return true
 	}
 }
-func rewriteValuePPC64_OpRsh64x8(v *ssacore.Value) bool {
+func rewriteValuePPC64_OpRsh64x8(v *ssa.Value) bool {
 	v_1 := v.Args[1]
 	v_0 := v.Args[0]
 	b := v.Block
@@ -14557,7 +14557,7 @@ func rewriteValuePPC64_OpRsh64x8(v *ssacore.Value) bool {
 		return true
 	}
 }
-func rewriteValuePPC64_OpRsh8Ux16(v *ssacore.Value) bool {
+func rewriteValuePPC64_OpRsh8Ux16(v *ssa.Value) bool {
 	v_1 := v.Args[1]
 	v_0 := v.Args[0]
 	b := v.Block
@@ -14601,7 +14601,7 @@ func rewriteValuePPC64_OpRsh8Ux16(v *ssacore.Value) bool {
 		return true
 	}
 }
-func rewriteValuePPC64_OpRsh8Ux32(v *ssacore.Value) bool {
+func rewriteValuePPC64_OpRsh8Ux32(v *ssa.Value) bool {
 	v_1 := v.Args[1]
 	v_0 := v.Args[0]
 	b := v.Block
@@ -14642,7 +14642,7 @@ func rewriteValuePPC64_OpRsh8Ux32(v *ssacore.Value) bool {
 		return true
 	}
 }
-func rewriteValuePPC64_OpRsh8Ux64(v *ssacore.Value) bool {
+func rewriteValuePPC64_OpRsh8Ux64(v *ssa.Value) bool {
 	v_1 := v.Args[1]
 	v_0 := v.Args[0]
 	b := v.Block
@@ -14702,7 +14702,7 @@ func rewriteValuePPC64_OpRsh8Ux64(v *ssacore.Value) bool {
 		return true
 	}
 }
-func rewriteValuePPC64_OpRsh8Ux8(v *ssacore.Value) bool {
+func rewriteValuePPC64_OpRsh8Ux8(v *ssa.Value) bool {
 	v_1 := v.Args[1]
 	v_0 := v.Args[0]
 	b := v.Block
@@ -14746,7 +14746,7 @@ func rewriteValuePPC64_OpRsh8Ux8(v *ssacore.Value) bool {
 		return true
 	}
 }
-func rewriteValuePPC64_OpRsh8x16(v *ssacore.Value) bool {
+func rewriteValuePPC64_OpRsh8x16(v *ssa.Value) bool {
 	v_1 := v.Args[1]
 	v_0 := v.Args[0]
 	b := v.Block
@@ -14791,7 +14791,7 @@ func rewriteValuePPC64_OpRsh8x16(v *ssacore.Value) bool {
 		return true
 	}
 }
-func rewriteValuePPC64_OpRsh8x32(v *ssacore.Value) bool {
+func rewriteValuePPC64_OpRsh8x32(v *ssa.Value) bool {
 	v_1 := v.Args[1]
 	v_0 := v.Args[0]
 	b := v.Block
@@ -14833,7 +14833,7 @@ func rewriteValuePPC64_OpRsh8x32(v *ssacore.Value) bool {
 		return true
 	}
 }
-func rewriteValuePPC64_OpRsh8x64(v *ssacore.Value) bool {
+func rewriteValuePPC64_OpRsh8x64(v *ssa.Value) bool {
 	v_1 := v.Args[1]
 	v_0 := v.Args[0]
 	b := v.Block
@@ -14913,7 +14913,7 @@ func rewriteValuePPC64_OpRsh8x64(v *ssacore.Value) bool {
 		return true
 	}
 }
-func rewriteValuePPC64_OpRsh8x8(v *ssacore.Value) bool {
+func rewriteValuePPC64_OpRsh8x8(v *ssa.Value) bool {
 	v_1 := v.Args[1]
 	v_0 := v.Args[0]
 	b := v.Block
@@ -14958,7 +14958,7 @@ func rewriteValuePPC64_OpRsh8x8(v *ssacore.Value) bool {
 		return true
 	}
 }
-func rewriteValuePPC64_OpSelect0(v *ssacore.Value) bool {
+func rewriteValuePPC64_OpSelect0(v *ssa.Value) bool {
 	v_0 := v.Args[0]
 	b := v.Block
 	typ := &b.Func.Config.Types
@@ -15030,7 +15030,7 @@ func rewriteValuePPC64_OpSelect0(v *ssacore.Value) bool {
 	}
 	return false
 }
-func rewriteValuePPC64_OpSelect1(v *ssacore.Value) bool {
+func rewriteValuePPC64_OpSelect1(v *ssa.Value) bool {
 	v_0 := v.Args[0]
 	b := v.Block
 	typ := &b.Func.Config.Types
@@ -15152,12 +15152,12 @@ func rewriteValuePPC64_OpSelect1(v *ssacore.Value) bool {
 	}
 	return false
 }
-func rewriteValuePPC64_OpSelectN(v *ssacore.Value) bool {
+func rewriteValuePPC64_OpSelectN(v *ssa.Value) bool {
 	v_0 := v.Args[0]
 	b := v.Block
 	config := b.Func.Config
 	// match: (SelectN [0] call:(CALLstatic {sym} s1:(MOVDstore _ (MOVDconst [sz]) s2:(MOVDstore _ src s3:(MOVDstore {t} _ dst mem)))))
-	// cond: sz >= 0 && IsSameCall(sym, "runtime.memmove") && s1.Uses == 1 && s2.Uses == 1 && s3.Uses == 1 && ssacore.IsInlinableMemmove(dst, src, sz, config) && Clobber(s1, s2, s3, call)
+	// cond: sz >= 0 && IsSameCall(sym, "runtime.memmove") && s1.Uses == 1 && s2.Uses == 1 && s3.Uses == 1 && ssa.IsInlinableMemmove(dst, src, sz, config) && Clobber(s1, s2, s3, call)
 	// result: (Move [sz] dst src mem)
 	for {
 		if AuxIntToInt64(v.AuxInt) != 0 {
@@ -15190,7 +15190,7 @@ func rewriteValuePPC64_OpSelectN(v *ssacore.Value) bool {
 		}
 		mem := s3.Args[2]
 		dst := s3.Args[1]
-		if !(sz >= 0 && IsSameCall(sym, "runtime.memmove") && s1.Uses == 1 && s2.Uses == 1 && s3.Uses == 1 && ssacore.IsInlinableMemmove(dst, src, sz, config) && Clobber(s1, s2, s3, call)) {
+		if !(sz >= 0 && IsSameCall(sym, "runtime.memmove") && s1.Uses == 1 && s2.Uses == 1 && s3.Uses == 1 && ssa.IsInlinableMemmove(dst, src, sz, config) && Clobber(s1, s2, s3, call)) {
 			break
 		}
 		v.Reset(ssaop.OpMove)
@@ -15199,7 +15199,7 @@ func rewriteValuePPC64_OpSelectN(v *ssacore.Value) bool {
 		return true
 	}
 	// match: (SelectN [0] call:(CALLstatic {sym} dst src (MOVDconst [sz]) mem))
-	// cond: sz >= 0 && IsSameCall(sym, "runtime.memmove") && call.Uses == 1 && ssacore.IsInlinableMemmove(dst, src, sz, config) && Clobber(call)
+	// cond: sz >= 0 && IsSameCall(sym, "runtime.memmove") && call.Uses == 1 && ssa.IsInlinableMemmove(dst, src, sz, config) && Clobber(call)
 	// result: (Move [sz] dst src mem)
 	for {
 		if AuxIntToInt64(v.AuxInt) != 0 {
@@ -15218,7 +15218,7 @@ func rewriteValuePPC64_OpSelectN(v *ssacore.Value) bool {
 			break
 		}
 		sz := AuxIntToInt64(call_2.AuxInt)
-		if !(sz >= 0 && IsSameCall(sym, "runtime.memmove") && call.Uses == 1 && ssacore.IsInlinableMemmove(dst, src, sz, config) && Clobber(call)) {
+		if !(sz >= 0 && IsSameCall(sym, "runtime.memmove") && call.Uses == 1 && ssa.IsInlinableMemmove(dst, src, sz, config) && Clobber(call)) {
 			break
 		}
 		v.Reset(ssaop.OpMove)
@@ -15228,7 +15228,7 @@ func rewriteValuePPC64_OpSelectN(v *ssacore.Value) bool {
 	}
 	return false
 }
-func rewriteValuePPC64_OpSlicemask(v *ssacore.Value) bool {
+func rewriteValuePPC64_OpSlicemask(v *ssa.Value) bool {
 	v_0 := v.Args[0]
 	b := v.Block
 	// match: (Slicemask <t> x)
@@ -15244,7 +15244,7 @@ func rewriteValuePPC64_OpSlicemask(v *ssacore.Value) bool {
 		return true
 	}
 }
-func rewriteValuePPC64_OpStore(v *ssacore.Value) bool {
+func rewriteValuePPC64_OpStore(v *ssa.Value) bool {
 	v_2 := v.Args[2]
 	v_1 := v.Args[1]
 	v_0 := v.Args[0]
@@ -15340,7 +15340,7 @@ func rewriteValuePPC64_OpStore(v *ssacore.Value) bool {
 	}
 	return false
 }
-func rewriteValuePPC64_OpTrunc16to8(v *ssacore.Value) bool {
+func rewriteValuePPC64_OpTrunc16to8(v *ssa.Value) bool {
 	v_0 := v.Args[0]
 	// match: (Trunc16to8 <t> x)
 	// cond: t.IsSigned()
@@ -15364,7 +15364,7 @@ func rewriteValuePPC64_OpTrunc16to8(v *ssacore.Value) bool {
 		return true
 	}
 }
-func rewriteValuePPC64_OpTrunc32to16(v *ssacore.Value) bool {
+func rewriteValuePPC64_OpTrunc32to16(v *ssa.Value) bool {
 	v_0 := v.Args[0]
 	// match: (Trunc32to16 <t> x)
 	// cond: t.IsSigned()
@@ -15388,7 +15388,7 @@ func rewriteValuePPC64_OpTrunc32to16(v *ssacore.Value) bool {
 		return true
 	}
 }
-func rewriteValuePPC64_OpTrunc32to8(v *ssacore.Value) bool {
+func rewriteValuePPC64_OpTrunc32to8(v *ssa.Value) bool {
 	v_0 := v.Args[0]
 	// match: (Trunc32to8 <t> x)
 	// cond: t.IsSigned()
@@ -15412,7 +15412,7 @@ func rewriteValuePPC64_OpTrunc32to8(v *ssacore.Value) bool {
 		return true
 	}
 }
-func rewriteValuePPC64_OpTrunc64to16(v *ssacore.Value) bool {
+func rewriteValuePPC64_OpTrunc64to16(v *ssa.Value) bool {
 	v_0 := v.Args[0]
 	// match: (Trunc64to16 <t> x)
 	// cond: t.IsSigned()
@@ -15436,7 +15436,7 @@ func rewriteValuePPC64_OpTrunc64to16(v *ssacore.Value) bool {
 		return true
 	}
 }
-func rewriteValuePPC64_OpTrunc64to32(v *ssacore.Value) bool {
+func rewriteValuePPC64_OpTrunc64to32(v *ssa.Value) bool {
 	v_0 := v.Args[0]
 	// match: (Trunc64to32 <t> x)
 	// cond: t.IsSigned()
@@ -15460,7 +15460,7 @@ func rewriteValuePPC64_OpTrunc64to32(v *ssacore.Value) bool {
 		return true
 	}
 }
-func rewriteValuePPC64_OpTrunc64to8(v *ssacore.Value) bool {
+func rewriteValuePPC64_OpTrunc64to8(v *ssa.Value) bool {
 	v_0 := v.Args[0]
 	// match: (Trunc64to8 <t> x)
 	// cond: t.IsSigned()
@@ -15484,7 +15484,7 @@ func rewriteValuePPC64_OpTrunc64to8(v *ssacore.Value) bool {
 		return true
 	}
 }
-func rewriteValuePPC64_OpZero(v *ssacore.Value) bool {
+func rewriteValuePPC64_OpZero(v *ssa.Value) bool {
 	v_1 := v.Args[1]
 	v_0 := v.Args[0]
 	b := v.Block
@@ -15744,7 +15744,7 @@ func rewriteValuePPC64_OpZero(v *ssacore.Value) bool {
 	}
 	return false
 }
-func rewriteBlockPPC64(b *ssacore.Block) bool {
+func rewriteBlockPPC64(b *ssa.Block) bool {
 	typ := &b.Func.Config.Types
 	switch b.Kind {
 	case block.BlockPPC64EQ:

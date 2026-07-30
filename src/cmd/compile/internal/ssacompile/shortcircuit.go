@@ -5,8 +5,8 @@
 package ssacompile
 
 import (
+	"cmd/compile/internal/ssa"
 	"cmd/compile/internal/ssa/block"
-	"cmd/compile/internal/ssa/ssacore"
 	"cmd/compile/internal/ssa/ssaop"
 )
 
@@ -14,7 +14,7 @@ import (
 // are always correlated and rewrites the CFG to take
 // advantage of that fact.
 // This optimization is useful for compiling && and || expressions.
-func shortcircuit(f *ssacore.Func) {
+func shortcircuit(f *ssa.Func) {
 	// Step 1: Replace a phi arg with a constant if that arg
 	// is the control value of a preceding If block.
 	// b1:
@@ -23,7 +23,7 @@ func shortcircuit(f *ssacore.Func) {
 	//    x = phi(a, ...)
 	//
 	// We can replace the "a" in the phi with the constant true.
-	var ct, cf *ssacore.Value
+	var ct, cf *ssa.Value
 	for _, b := range f.Blocks {
 		for _, v := range b.Values {
 			if v.Op != ssaop.OpPhi {
@@ -110,7 +110,7 @@ func shortcircuit(f *ssacore.Func) {
 // We can do that though a combination of moving w to a different block
 // and rewriting uses of w to use a different value instead.
 // See shortcircuitPhiPlan for details.
-func shortcircuitBlock(b *ssacore.Block) bool {
+func shortcircuitBlock(b *ssa.Block) bool {
 	if b.Kind != block.BlockIf {
 		return false
 	}
@@ -150,7 +150,7 @@ func shortcircuitBlock(b *ssacore.Block) bool {
 		// Check for any phi which is the argument of another phi.
 		// These cases are tricky, as substitutions done by replaceUses
 		// are no longer trivial to do in any ordering. See issue 45175.
-		m := make(map[*ssacore.Value]bool, 1+nOtherPhi)
+		m := make(map[*ssa.Value]bool, 1+nOtherPhi)
 		for _, v := range b.Values {
 			if v.Op == ssaop.OpPhi {
 				m[v] = true
@@ -191,7 +191,7 @@ func shortcircuitBlock(b *ssacore.Block) bool {
 		return false
 	}
 
-	var fixPhi func(*ssacore.Value, int)
+	var fixPhi func(*ssa.Value, int)
 	if nOtherPhi > 0 {
 		fixPhi = shortcircuitPhiPlan(b, ctl, cidx, ti)
 		if fixPhi == nil {
@@ -207,10 +207,10 @@ func shortcircuitBlock(b *ssacore.Block) bool {
 	b.RemovePhiArg(ctl, cidx)
 
 	// Redirect p's outgoing edge to t.
-	p.Succs[pi] = ssacore.Edge{B: t, I: len(t.Preds)}
+	p.Succs[pi] = ssa.Edge{B: t, I: len(t.Preds)}
 
 	// Fix up t to have one more predecessor.
-	t.Preds = append(t.Preds, ssacore.Edge{B: p, I: pi})
+	t.Preds = append(t.Preds, ssa.Edge{B: p, I: pi})
 	for _, v := range t.Values {
 		if v.Op != ssaop.OpPhi {
 			continue
@@ -247,7 +247,7 @@ func shortcircuitBlock(b *ssacore.Block) bool {
 				}
 			}
 			if phi.Uses != 0 {
-				ssacore.PhiElimValue(phi)
+				ssa.PhiElimValue(phi)
 			} else {
 				phi.Reset(ssaop.OpInvalid)
 			}
@@ -268,7 +268,7 @@ func shortcircuitBlock(b *ssacore.Block) bool {
 		b.Kind = block.BlockInvalid
 	}
 
-	ssacore.PhiElimValue(ctl)
+	ssa.PhiElimValue(ctl)
 	return true
 }
 
@@ -282,7 +282,7 @@ func shortcircuitBlock(b *ssacore.Block) bool {
 // If shortcircuitPhiPlan returns nil, there is no plan available,
 // and the CFG modifications must not proceed.
 // The returned function assumes that shortcircuitBlock has completed its CFG modifications.
-func shortcircuitPhiPlan(b *ssacore.Block, ctl *ssacore.Value, cidx int, ti int64) func(*ssacore.Value, int) {
+func shortcircuitPhiPlan(b *ssa.Block, ctl *ssa.Value, cidx int, ti int64) func(*ssa.Value, int) {
 	// t is the "taken" branch: the successor we always go to when coming in from p.
 	t := b.Succs[ti].B
 	// u is the "untaken" branch: the successor we never go to when coming in from p.
@@ -324,7 +324,7 @@ func shortcircuitPhiPlan(b *ssacore.Block, ctl *ssacore.Value, cidx int, ti int6
 			//   m
 			//
 			// NB: t.Preds is (b, p), not (p, b).
-			return func(v *ssacore.Value, i int) {
+			return func(v *ssa.Value, i int) {
 				// Replace any uses of v in t and u with the value v must have,
 				// given that we have arrived at that block.
 				// Then move v to m and adjust its value accordingly;
@@ -371,7 +371,7 @@ func shortcircuitPhiPlan(b *ssacore.Block, ctl *ssacore.Value, cidx int, ti int6
 			//   t
 			//
 			// NB: t.Preds is (b or U, b or U, p).
-			return func(v *ssacore.Value, i int) {
+			return func(v *ssa.Value, i int) {
 				// Replace any uses of v in U. Then move v to t.
 				argP, argQ := v.Args[cidx], v.Args[1^cidx]
 				for bb := range visited {
@@ -403,7 +403,7 @@ func shortcircuitPhiPlan(b *ssacore.Block, ctl *ssacore.Value, cidx int, ti int6
 		//   u
 		//
 		// NB: t.Preds is (b, p), not (p, b).
-		return func(v *ssacore.Value, i int) {
+		return func(v *ssa.Value, i int) {
 			// Replace any uses of v in t. Then move v to u.
 			argP, argQ := v.Args[cidx], v.Args[1^cidx]
 			phi := t.Func.NewValue(ssaop.OpPhi, v.Type, t, v.Pos)
@@ -442,7 +442,7 @@ func shortcircuitPhiPlan(b *ssacore.Block, ctl *ssacore.Value, cidx int, ti int6
 		// t   u
 		//
 		// NB: t.Preds is (b, p), not (p, b).
-		return func(v *ssacore.Value, i int) {
+		return func(v *ssa.Value, i int) {
 			// Replace any uses of v in t and x. Then move v to u.
 			argP, argQ := v.Args[cidx], v.Args[1^cidx]
 			// If there are no uses of v in t or x, this phi will be unused.
@@ -476,7 +476,7 @@ func shortcircuitPhiPlan(b *ssacore.Block, ctl *ssacore.Value, cidx int, ti int6
 		// t   u
 		//
 		// NB: t.Preds is (b, p), not (p, b).
-		return func(v *ssacore.Value, i int) {
+		return func(v *ssa.Value, i int) {
 			// Replace any uses of v in u (and x). Then move v to t.
 			argP, argQ := v.Args[cidx], v.Args[1^cidx]
 			u.ReplaceUses(v, argQ)

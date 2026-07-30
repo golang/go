@@ -3,9 +3,9 @@
 package ssacompile
 
 import "cmd/compile/internal/ssa/ssaop"
-import "cmd/compile/internal/ssa/ssacore"
+import "cmd/compile/internal/ssa"
 
-func rewriteValueAMD64splitload(v *ssacore.Value) bool {
+func rewriteValueAMD64splitload(v *ssa.Value) bool {
 	switch v.Op {
 	case ssaop.OpAMD64CMPBconstload:
 		return rewriteValueAMD64splitload_OpAMD64CMPBconstload(v)
@@ -54,7 +54,7 @@ func rewriteValueAMD64splitload(v *ssacore.Value) bool {
 	}
 	return false
 }
-func rewriteValueAMD64splitload_OpAMD64CMPBconstload(v *ssacore.Value) bool {
+func rewriteValueAMD64splitload_OpAMD64CMPBconstload(v *ssa.Value) bool {
 	v_1 := v.Args[1]
 	v_0 := v.Args[0]
 	b := v.Block
@@ -100,7 +100,7 @@ func rewriteValueAMD64splitload_OpAMD64CMPBconstload(v *ssacore.Value) bool {
 	}
 	return false
 }
-func rewriteValueAMD64splitload_OpAMD64CMPBconstloadidx1(v *ssacore.Value) bool {
+func rewriteValueAMD64splitload_OpAMD64CMPBconstloadidx1(v *ssa.Value) bool {
 	v_2 := v.Args[2]
 	v_1 := v.Args[1]
 	v_0 := v.Args[0]
@@ -149,7 +149,7 @@ func rewriteValueAMD64splitload_OpAMD64CMPBconstloadidx1(v *ssacore.Value) bool 
 	}
 	return false
 }
-func rewriteValueAMD64splitload_OpAMD64CMPBload(v *ssacore.Value) bool {
+func rewriteValueAMD64splitload_OpAMD64CMPBload(v *ssa.Value) bool {
 	v_2 := v.Args[2]
 	v_1 := v.Args[1]
 	v_0 := v.Args[0]
@@ -171,7 +171,7 @@ func rewriteValueAMD64splitload_OpAMD64CMPBload(v *ssacore.Value) bool {
 		return true
 	}
 }
-func rewriteValueAMD64splitload_OpAMD64CMPBloadidx1(v *ssacore.Value) bool {
+func rewriteValueAMD64splitload_OpAMD64CMPBloadidx1(v *ssa.Value) bool {
 	v_3 := v.Args[3]
 	v_2 := v.Args[2]
 	v_1 := v.Args[1]
@@ -195,7 +195,7 @@ func rewriteValueAMD64splitload_OpAMD64CMPBloadidx1(v *ssacore.Value) bool {
 		return true
 	}
 }
-func rewriteValueAMD64splitload_OpAMD64CMPLconstload(v *ssacore.Value) bool {
+func rewriteValueAMD64splitload_OpAMD64CMPLconstload(v *ssa.Value) bool {
 	v_1 := v.Args[1]
 	v_0 := v.Args[0]
 	b := v.Block
@@ -241,7 +241,7 @@ func rewriteValueAMD64splitload_OpAMD64CMPLconstload(v *ssacore.Value) bool {
 	}
 	return false
 }
-func rewriteValueAMD64splitload_OpAMD64CMPLconstloadidx1(v *ssacore.Value) bool {
+func rewriteValueAMD64splitload_OpAMD64CMPLconstloadidx1(v *ssa.Value) bool {
 	v_2 := v.Args[2]
 	v_1 := v.Args[1]
 	v_0 := v.Args[0]
@@ -290,7 +290,7 @@ func rewriteValueAMD64splitload_OpAMD64CMPLconstloadidx1(v *ssacore.Value) bool 
 	}
 	return false
 }
-func rewriteValueAMD64splitload_OpAMD64CMPLconstloadidx4(v *ssacore.Value) bool {
+func rewriteValueAMD64splitload_OpAMD64CMPLconstloadidx4(v *ssa.Value) bool {
 	v_2 := v.Args[2]
 	v_1 := v.Args[1]
 	v_0 := v.Args[0]
@@ -339,7 +339,7 @@ func rewriteValueAMD64splitload_OpAMD64CMPLconstloadidx4(v *ssacore.Value) bool 
 	}
 	return false
 }
-func rewriteValueAMD64splitload_OpAMD64CMPLload(v *ssacore.Value) bool {
+func rewriteValueAMD64splitload_OpAMD64CMPLload(v *ssa.Value) bool {
 	v_2 := v.Args[2]
 	v_1 := v.Args[1]
 	v_0 := v.Args[0]
@@ -361,7 +361,7 @@ func rewriteValueAMD64splitload_OpAMD64CMPLload(v *ssacore.Value) bool {
 		return true
 	}
 }
-func rewriteValueAMD64splitload_OpAMD64CMPLloadidx1(v *ssacore.Value) bool {
+func rewriteValueAMD64splitload_OpAMD64CMPLloadidx1(v *ssa.Value) bool {
 	v_3 := v.Args[3]
 	v_2 := v.Args[2]
 	v_1 := v.Args[1]
@@ -385,7 +385,7 @@ func rewriteValueAMD64splitload_OpAMD64CMPLloadidx1(v *ssacore.Value) bool {
 		return true
 	}
 }
-func rewriteValueAMD64splitload_OpAMD64CMPLloadidx4(v *ssacore.Value) bool {
+func rewriteValueAMD64splitload_OpAMD64CMPLloadidx4(v *ssa.Value) bool {
 	v_3 := v.Args[3]
 	v_2 := v.Args[2]
 	v_1 := v.Args[1]
@@ -409,7 +409,7 @@ func rewriteValueAMD64splitload_OpAMD64CMPLloadidx4(v *ssacore.Value) bool {
 		return true
 	}
 }
-func rewriteValueAMD64splitload_OpAMD64CMPQconstload(v *ssacore.Value) bool {
+func rewriteValueAMD64splitload_OpAMD64CMPQconstload(v *ssa.Value) bool {
 	v_1 := v.Args[1]
 	v_0 := v.Args[0]
 	b := v.Block
@@ -455,7 +455,7 @@ func rewriteValueAMD64splitload_OpAMD64CMPQconstload(v *ssacore.Value) bool {
 	}
 	return false
 }
-func rewriteValueAMD64splitload_OpAMD64CMPQconstloadidx1(v *ssacore.Value) bool {
+func rewriteValueAMD64splitload_OpAMD64CMPQconstloadidx1(v *ssa.Value) bool {
 	v_2 := v.Args[2]
 	v_1 := v.Args[1]
 	v_0 := v.Args[0]
@@ -504,7 +504,7 @@ func rewriteValueAMD64splitload_OpAMD64CMPQconstloadidx1(v *ssacore.Value) bool 
 	}
 	return false
 }
-func rewriteValueAMD64splitload_OpAMD64CMPQconstloadidx8(v *ssacore.Value) bool {
+func rewriteValueAMD64splitload_OpAMD64CMPQconstloadidx8(v *ssa.Value) bool {
 	v_2 := v.Args[2]
 	v_1 := v.Args[1]
 	v_0 := v.Args[0]
@@ -553,7 +553,7 @@ func rewriteValueAMD64splitload_OpAMD64CMPQconstloadidx8(v *ssacore.Value) bool 
 	}
 	return false
 }
-func rewriteValueAMD64splitload_OpAMD64CMPQload(v *ssacore.Value) bool {
+func rewriteValueAMD64splitload_OpAMD64CMPQload(v *ssa.Value) bool {
 	v_2 := v.Args[2]
 	v_1 := v.Args[1]
 	v_0 := v.Args[0]
@@ -575,7 +575,7 @@ func rewriteValueAMD64splitload_OpAMD64CMPQload(v *ssacore.Value) bool {
 		return true
 	}
 }
-func rewriteValueAMD64splitload_OpAMD64CMPQloadidx1(v *ssacore.Value) bool {
+func rewriteValueAMD64splitload_OpAMD64CMPQloadidx1(v *ssa.Value) bool {
 	v_3 := v.Args[3]
 	v_2 := v.Args[2]
 	v_1 := v.Args[1]
@@ -599,7 +599,7 @@ func rewriteValueAMD64splitload_OpAMD64CMPQloadidx1(v *ssacore.Value) bool {
 		return true
 	}
 }
-func rewriteValueAMD64splitload_OpAMD64CMPQloadidx8(v *ssacore.Value) bool {
+func rewriteValueAMD64splitload_OpAMD64CMPQloadidx8(v *ssa.Value) bool {
 	v_3 := v.Args[3]
 	v_2 := v.Args[2]
 	v_1 := v.Args[1]
@@ -623,7 +623,7 @@ func rewriteValueAMD64splitload_OpAMD64CMPQloadidx8(v *ssacore.Value) bool {
 		return true
 	}
 }
-func rewriteValueAMD64splitload_OpAMD64CMPWconstload(v *ssacore.Value) bool {
+func rewriteValueAMD64splitload_OpAMD64CMPWconstload(v *ssa.Value) bool {
 	v_1 := v.Args[1]
 	v_0 := v.Args[0]
 	b := v.Block
@@ -669,7 +669,7 @@ func rewriteValueAMD64splitload_OpAMD64CMPWconstload(v *ssacore.Value) bool {
 	}
 	return false
 }
-func rewriteValueAMD64splitload_OpAMD64CMPWconstloadidx1(v *ssacore.Value) bool {
+func rewriteValueAMD64splitload_OpAMD64CMPWconstloadidx1(v *ssa.Value) bool {
 	v_2 := v.Args[2]
 	v_1 := v.Args[1]
 	v_0 := v.Args[0]
@@ -718,7 +718,7 @@ func rewriteValueAMD64splitload_OpAMD64CMPWconstloadidx1(v *ssacore.Value) bool 
 	}
 	return false
 }
-func rewriteValueAMD64splitload_OpAMD64CMPWconstloadidx2(v *ssacore.Value) bool {
+func rewriteValueAMD64splitload_OpAMD64CMPWconstloadidx2(v *ssa.Value) bool {
 	v_2 := v.Args[2]
 	v_1 := v.Args[1]
 	v_0 := v.Args[0]
@@ -767,7 +767,7 @@ func rewriteValueAMD64splitload_OpAMD64CMPWconstloadidx2(v *ssacore.Value) bool 
 	}
 	return false
 }
-func rewriteValueAMD64splitload_OpAMD64CMPWload(v *ssacore.Value) bool {
+func rewriteValueAMD64splitload_OpAMD64CMPWload(v *ssa.Value) bool {
 	v_2 := v.Args[2]
 	v_1 := v.Args[1]
 	v_0 := v.Args[0]
@@ -789,7 +789,7 @@ func rewriteValueAMD64splitload_OpAMD64CMPWload(v *ssacore.Value) bool {
 		return true
 	}
 }
-func rewriteValueAMD64splitload_OpAMD64CMPWloadidx1(v *ssacore.Value) bool {
+func rewriteValueAMD64splitload_OpAMD64CMPWloadidx1(v *ssa.Value) bool {
 	v_3 := v.Args[3]
 	v_2 := v.Args[2]
 	v_1 := v.Args[1]
@@ -813,7 +813,7 @@ func rewriteValueAMD64splitload_OpAMD64CMPWloadidx1(v *ssacore.Value) bool {
 		return true
 	}
 }
-func rewriteValueAMD64splitload_OpAMD64CMPWloadidx2(v *ssacore.Value) bool {
+func rewriteValueAMD64splitload_OpAMD64CMPWloadidx2(v *ssa.Value) bool {
 	v_3 := v.Args[3]
 	v_2 := v.Args[2]
 	v_1 := v.Args[1]
@@ -837,6 +837,6 @@ func rewriteValueAMD64splitload_OpAMD64CMPWloadidx2(v *ssacore.Value) bool {
 		return true
 	}
 }
-func rewriteBlockAMD64splitload(b *ssacore.Block) bool {
+func rewriteBlockAMD64splitload(b *ssa.Block) bool {
 	return false
 }

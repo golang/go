@@ -5,9 +5,9 @@ package ssacompile
 import "cmd/compile/internal/types"
 import "cmd/compile/internal/ssa/block"
 import "cmd/compile/internal/ssa/ssaop"
-import "cmd/compile/internal/ssa/ssacore"
+import "cmd/compile/internal/ssa"
 
-func rewriteValueMIPS(v *ssacore.Value) bool {
+func rewriteValueMIPS(v *ssa.Value) bool {
 	switch v.Op {
 	case ssaop.OpAbs:
 		v.Op = ssaop.OpMIPSABSD
@@ -615,7 +615,7 @@ func rewriteValueMIPS(v *ssacore.Value) bool {
 	}
 	return false
 }
-func rewriteValueMIPS_OpAdd32withcarry(v *ssacore.Value) bool {
+func rewriteValueMIPS_OpAdd32withcarry(v *ssa.Value) bool {
 	v_2 := v.Args[2]
 	v_1 := v.Args[1]
 	v_0 := v.Args[0]
@@ -634,7 +634,7 @@ func rewriteValueMIPS_OpAdd32withcarry(v *ssacore.Value) bool {
 		return true
 	}
 }
-func rewriteValueMIPS_OpAddr(v *ssacore.Value) bool {
+func rewriteValueMIPS_OpAddr(v *ssa.Value) bool {
 	v_0 := v.Args[0]
 	// match: (Addr {sym} base)
 	// result: (MOVWaddr {sym} base)
@@ -647,7 +647,7 @@ func rewriteValueMIPS_OpAddr(v *ssacore.Value) bool {
 		return true
 	}
 }
-func rewriteValueMIPS_OpAtomicAnd8(v *ssacore.Value) bool {
+func rewriteValueMIPS_OpAtomicAnd8(v *ssa.Value) bool {
 	v_2 := v.Args[2]
 	v_1 := v.Args[1]
 	v_0 := v.Args[0]
@@ -735,7 +735,7 @@ func rewriteValueMIPS_OpAtomicAnd8(v *ssacore.Value) bool {
 	}
 	return false
 }
-func rewriteValueMIPS_OpAtomicOr8(v *ssacore.Value) bool {
+func rewriteValueMIPS_OpAtomicOr8(v *ssa.Value) bool {
 	v_2 := v.Args[2]
 	v_1 := v.Args[1]
 	v_0 := v.Args[0]
@@ -803,7 +803,7 @@ func rewriteValueMIPS_OpAtomicOr8(v *ssacore.Value) bool {
 	}
 	return false
 }
-func rewriteValueMIPS_OpAvg32u(v *ssacore.Value) bool {
+func rewriteValueMIPS_OpAvg32u(v *ssa.Value) bool {
 	v_1 := v.Args[1]
 	v_0 := v.Args[0]
 	b := v.Block
@@ -823,7 +823,7 @@ func rewriteValueMIPS_OpAvg32u(v *ssacore.Value) bool {
 		return true
 	}
 }
-func rewriteValueMIPS_OpBitLen16(v *ssacore.Value) bool {
+func rewriteValueMIPS_OpBitLen16(v *ssa.Value) bool {
 	v_0 := v.Args[0]
 	b := v.Block
 	typ := &b.Func.Config.Types
@@ -838,7 +838,7 @@ func rewriteValueMIPS_OpBitLen16(v *ssacore.Value) bool {
 		return true
 	}
 }
-func rewriteValueMIPS_OpBitLen32(v *ssacore.Value) bool {
+func rewriteValueMIPS_OpBitLen32(v *ssa.Value) bool {
 	v_0 := v.Args[0]
 	b := v.Block
 	typ := &b.Func.Config.Types
@@ -856,7 +856,7 @@ func rewriteValueMIPS_OpBitLen32(v *ssacore.Value) bool {
 		return true
 	}
 }
-func rewriteValueMIPS_OpBitLen8(v *ssacore.Value) bool {
+func rewriteValueMIPS_OpBitLen8(v *ssa.Value) bool {
 	v_0 := v.Args[0]
 	b := v.Block
 	typ := &b.Func.Config.Types
@@ -871,7 +871,7 @@ func rewriteValueMIPS_OpBitLen8(v *ssacore.Value) bool {
 		return true
 	}
 }
-func rewriteValueMIPS_OpCom16(v *ssacore.Value) bool {
+func rewriteValueMIPS_OpCom16(v *ssa.Value) bool {
 	v_0 := v.Args[0]
 	b := v.Block
 	typ := &b.Func.Config.Types
@@ -886,7 +886,7 @@ func rewriteValueMIPS_OpCom16(v *ssacore.Value) bool {
 		return true
 	}
 }
-func rewriteValueMIPS_OpCom32(v *ssacore.Value) bool {
+func rewriteValueMIPS_OpCom32(v *ssa.Value) bool {
 	v_0 := v.Args[0]
 	b := v.Block
 	typ := &b.Func.Config.Types
@@ -901,7 +901,7 @@ func rewriteValueMIPS_OpCom32(v *ssacore.Value) bool {
 		return true
 	}
 }
-func rewriteValueMIPS_OpCom8(v *ssacore.Value) bool {
+func rewriteValueMIPS_OpCom8(v *ssa.Value) bool {
 	v_0 := v.Args[0]
 	b := v.Block
 	typ := &b.Func.Config.Types
@@ -916,7 +916,7 @@ func rewriteValueMIPS_OpCom8(v *ssacore.Value) bool {
 		return true
 	}
 }
-func rewriteValueMIPS_OpConst16(v *ssacore.Value) bool {
+func rewriteValueMIPS_OpConst16(v *ssa.Value) bool {
 	// match: (Const16 [val])
 	// result: (MOVWconst [int32(val)])
 	for {
@@ -926,7 +926,7 @@ func rewriteValueMIPS_OpConst16(v *ssacore.Value) bool {
 		return true
 	}
 }
-func rewriteValueMIPS_OpConst32(v *ssacore.Value) bool {
+func rewriteValueMIPS_OpConst32(v *ssa.Value) bool {
 	// match: (Const32 [val])
 	// result: (MOVWconst [int32(val)])
 	for {
@@ -936,7 +936,7 @@ func rewriteValueMIPS_OpConst32(v *ssacore.Value) bool {
 		return true
 	}
 }
-func rewriteValueMIPS_OpConst8(v *ssacore.Value) bool {
+func rewriteValueMIPS_OpConst8(v *ssa.Value) bool {
 	// match: (Const8 [val])
 	// result: (MOVWconst [int32(val)])
 	for {
@@ -946,7 +946,7 @@ func rewriteValueMIPS_OpConst8(v *ssacore.Value) bool {
 		return true
 	}
 }
-func rewriteValueMIPS_OpConstBool(v *ssacore.Value) bool {
+func rewriteValueMIPS_OpConstBool(v *ssa.Value) bool {
 	// match: (ConstBool [t])
 	// result: (MOVWconst [B2i32(t)])
 	for {
@@ -956,7 +956,7 @@ func rewriteValueMIPS_OpConstBool(v *ssacore.Value) bool {
 		return true
 	}
 }
-func rewriteValueMIPS_OpConstNil(v *ssacore.Value) bool {
+func rewriteValueMIPS_OpConstNil(v *ssa.Value) bool {
 	// match: (ConstNil)
 	// result: (MOVWconst [0])
 	for {
@@ -965,7 +965,7 @@ func rewriteValueMIPS_OpConstNil(v *ssacore.Value) bool {
 		return true
 	}
 }
-func rewriteValueMIPS_OpCtz16(v *ssacore.Value) bool {
+func rewriteValueMIPS_OpCtz16(v *ssa.Value) bool {
 	v_0 := v.Args[0]
 	b := v.Block
 	typ := &b.Func.Config.Types
@@ -982,7 +982,7 @@ func rewriteValueMIPS_OpCtz16(v *ssacore.Value) bool {
 		return true
 	}
 }
-func rewriteValueMIPS_OpCtz32(v *ssacore.Value) bool {
+func rewriteValueMIPS_OpCtz32(v *ssa.Value) bool {
 	v_0 := v.Args[0]
 	b := v.Block
 	typ := &b.Func.Config.Types
@@ -1007,7 +1007,7 @@ func rewriteValueMIPS_OpCtz32(v *ssacore.Value) bool {
 		return true
 	}
 }
-func rewriteValueMIPS_OpCtz8(v *ssacore.Value) bool {
+func rewriteValueMIPS_OpCtz8(v *ssa.Value) bool {
 	v_0 := v.Args[0]
 	b := v.Block
 	typ := &b.Func.Config.Types
@@ -1024,7 +1024,7 @@ func rewriteValueMIPS_OpCtz8(v *ssacore.Value) bool {
 		return true
 	}
 }
-func rewriteValueMIPS_OpDiv16(v *ssacore.Value) bool {
+func rewriteValueMIPS_OpDiv16(v *ssa.Value) bool {
 	v_1 := v.Args[1]
 	v_0 := v.Args[0]
 	b := v.Block
@@ -1045,7 +1045,7 @@ func rewriteValueMIPS_OpDiv16(v *ssacore.Value) bool {
 		return true
 	}
 }
-func rewriteValueMIPS_OpDiv16u(v *ssacore.Value) bool {
+func rewriteValueMIPS_OpDiv16u(v *ssa.Value) bool {
 	v_1 := v.Args[1]
 	v_0 := v.Args[0]
 	b := v.Block
@@ -1066,7 +1066,7 @@ func rewriteValueMIPS_OpDiv16u(v *ssacore.Value) bool {
 		return true
 	}
 }
-func rewriteValueMIPS_OpDiv32(v *ssacore.Value) bool {
+func rewriteValueMIPS_OpDiv32(v *ssa.Value) bool {
 	v_1 := v.Args[1]
 	v_0 := v.Args[0]
 	b := v.Block
@@ -1083,7 +1083,7 @@ func rewriteValueMIPS_OpDiv32(v *ssacore.Value) bool {
 		return true
 	}
 }
-func rewriteValueMIPS_OpDiv32u(v *ssacore.Value) bool {
+func rewriteValueMIPS_OpDiv32u(v *ssa.Value) bool {
 	v_1 := v.Args[1]
 	v_0 := v.Args[0]
 	b := v.Block
@@ -1100,7 +1100,7 @@ func rewriteValueMIPS_OpDiv32u(v *ssacore.Value) bool {
 		return true
 	}
 }
-func rewriteValueMIPS_OpDiv8(v *ssacore.Value) bool {
+func rewriteValueMIPS_OpDiv8(v *ssa.Value) bool {
 	v_1 := v.Args[1]
 	v_0 := v.Args[0]
 	b := v.Block
@@ -1121,7 +1121,7 @@ func rewriteValueMIPS_OpDiv8(v *ssacore.Value) bool {
 		return true
 	}
 }
-func rewriteValueMIPS_OpDiv8u(v *ssacore.Value) bool {
+func rewriteValueMIPS_OpDiv8u(v *ssa.Value) bool {
 	v_1 := v.Args[1]
 	v_0 := v.Args[0]
 	b := v.Block
@@ -1142,7 +1142,7 @@ func rewriteValueMIPS_OpDiv8u(v *ssacore.Value) bool {
 		return true
 	}
 }
-func rewriteValueMIPS_OpEq16(v *ssacore.Value) bool {
+func rewriteValueMIPS_OpEq16(v *ssa.Value) bool {
 	v_1 := v.Args[1]
 	v_0 := v.Args[0]
 	b := v.Block
@@ -1164,7 +1164,7 @@ func rewriteValueMIPS_OpEq16(v *ssacore.Value) bool {
 		return true
 	}
 }
-func rewriteValueMIPS_OpEq32(v *ssacore.Value) bool {
+func rewriteValueMIPS_OpEq32(v *ssa.Value) bool {
 	v_1 := v.Args[1]
 	v_0 := v.Args[0]
 	b := v.Block
@@ -1182,7 +1182,7 @@ func rewriteValueMIPS_OpEq32(v *ssacore.Value) bool {
 		return true
 	}
 }
-func rewriteValueMIPS_OpEq32F(v *ssacore.Value) bool {
+func rewriteValueMIPS_OpEq32F(v *ssa.Value) bool {
 	v_1 := v.Args[1]
 	v_0 := v.Args[0]
 	b := v.Block
@@ -1198,7 +1198,7 @@ func rewriteValueMIPS_OpEq32F(v *ssacore.Value) bool {
 		return true
 	}
 }
-func rewriteValueMIPS_OpEq64F(v *ssacore.Value) bool {
+func rewriteValueMIPS_OpEq64F(v *ssa.Value) bool {
 	v_1 := v.Args[1]
 	v_0 := v.Args[0]
 	b := v.Block
@@ -1214,7 +1214,7 @@ func rewriteValueMIPS_OpEq64F(v *ssacore.Value) bool {
 		return true
 	}
 }
-func rewriteValueMIPS_OpEq8(v *ssacore.Value) bool {
+func rewriteValueMIPS_OpEq8(v *ssa.Value) bool {
 	v_1 := v.Args[1]
 	v_0 := v.Args[0]
 	b := v.Block
@@ -1236,7 +1236,7 @@ func rewriteValueMIPS_OpEq8(v *ssacore.Value) bool {
 		return true
 	}
 }
-func rewriteValueMIPS_OpEqB(v *ssacore.Value) bool {
+func rewriteValueMIPS_OpEqB(v *ssa.Value) bool {
 	v_1 := v.Args[1]
 	v_0 := v.Args[0]
 	b := v.Block
@@ -1254,7 +1254,7 @@ func rewriteValueMIPS_OpEqB(v *ssacore.Value) bool {
 		return true
 	}
 }
-func rewriteValueMIPS_OpEqPtr(v *ssacore.Value) bool {
+func rewriteValueMIPS_OpEqPtr(v *ssa.Value) bool {
 	v_1 := v.Args[1]
 	v_0 := v.Args[0]
 	b := v.Block
@@ -1272,7 +1272,7 @@ func rewriteValueMIPS_OpEqPtr(v *ssacore.Value) bool {
 		return true
 	}
 }
-func rewriteValueMIPS_OpHmul32(v *ssacore.Value) bool {
+func rewriteValueMIPS_OpHmul32(v *ssa.Value) bool {
 	v_1 := v.Args[1]
 	v_0 := v.Args[0]
 	b := v.Block
@@ -1289,7 +1289,7 @@ func rewriteValueMIPS_OpHmul32(v *ssacore.Value) bool {
 		return true
 	}
 }
-func rewriteValueMIPS_OpHmul32u(v *ssacore.Value) bool {
+func rewriteValueMIPS_OpHmul32u(v *ssa.Value) bool {
 	v_1 := v.Args[1]
 	v_0 := v.Args[0]
 	b := v.Block
@@ -1306,7 +1306,7 @@ func rewriteValueMIPS_OpHmul32u(v *ssacore.Value) bool {
 		return true
 	}
 }
-func rewriteValueMIPS_OpIsInBounds(v *ssacore.Value) bool {
+func rewriteValueMIPS_OpIsInBounds(v *ssa.Value) bool {
 	v_1 := v.Args[1]
 	v_0 := v.Args[0]
 	// match: (IsInBounds idx len)
@@ -1319,7 +1319,7 @@ func rewriteValueMIPS_OpIsInBounds(v *ssacore.Value) bool {
 		return true
 	}
 }
-func rewriteValueMIPS_OpIsNonNil(v *ssacore.Value) bool {
+func rewriteValueMIPS_OpIsNonNil(v *ssa.Value) bool {
 	v_0 := v.Args[0]
 	b := v.Block
 	typ := &b.Func.Config.Types
@@ -1334,7 +1334,7 @@ func rewriteValueMIPS_OpIsNonNil(v *ssacore.Value) bool {
 		return true
 	}
 }
-func rewriteValueMIPS_OpIsSliceInBounds(v *ssacore.Value) bool {
+func rewriteValueMIPS_OpIsSliceInBounds(v *ssa.Value) bool {
 	v_1 := v.Args[1]
 	v_0 := v.Args[0]
 	b := v.Block
@@ -1352,7 +1352,7 @@ func rewriteValueMIPS_OpIsSliceInBounds(v *ssacore.Value) bool {
 		return true
 	}
 }
-func rewriteValueMIPS_OpLeq16(v *ssacore.Value) bool {
+func rewriteValueMIPS_OpLeq16(v *ssa.Value) bool {
 	v_1 := v.Args[1]
 	v_0 := v.Args[0]
 	b := v.Block
@@ -1374,7 +1374,7 @@ func rewriteValueMIPS_OpLeq16(v *ssacore.Value) bool {
 		return true
 	}
 }
-func rewriteValueMIPS_OpLeq16U(v *ssacore.Value) bool {
+func rewriteValueMIPS_OpLeq16U(v *ssa.Value) bool {
 	v_1 := v.Args[1]
 	v_0 := v.Args[0]
 	b := v.Block
@@ -1396,7 +1396,7 @@ func rewriteValueMIPS_OpLeq16U(v *ssacore.Value) bool {
 		return true
 	}
 }
-func rewriteValueMIPS_OpLeq32(v *ssacore.Value) bool {
+func rewriteValueMIPS_OpLeq32(v *ssa.Value) bool {
 	v_1 := v.Args[1]
 	v_0 := v.Args[0]
 	b := v.Block
@@ -1414,7 +1414,7 @@ func rewriteValueMIPS_OpLeq32(v *ssacore.Value) bool {
 		return true
 	}
 }
-func rewriteValueMIPS_OpLeq32F(v *ssacore.Value) bool {
+func rewriteValueMIPS_OpLeq32F(v *ssa.Value) bool {
 	v_1 := v.Args[1]
 	v_0 := v.Args[0]
 	b := v.Block
@@ -1430,7 +1430,7 @@ func rewriteValueMIPS_OpLeq32F(v *ssacore.Value) bool {
 		return true
 	}
 }
-func rewriteValueMIPS_OpLeq32U(v *ssacore.Value) bool {
+func rewriteValueMIPS_OpLeq32U(v *ssa.Value) bool {
 	v_1 := v.Args[1]
 	v_0 := v.Args[0]
 	b := v.Block
@@ -1448,7 +1448,7 @@ func rewriteValueMIPS_OpLeq32U(v *ssacore.Value) bool {
 		return true
 	}
 }
-func rewriteValueMIPS_OpLeq64F(v *ssacore.Value) bool {
+func rewriteValueMIPS_OpLeq64F(v *ssa.Value) bool {
 	v_1 := v.Args[1]
 	v_0 := v.Args[0]
 	b := v.Block
@@ -1464,7 +1464,7 @@ func rewriteValueMIPS_OpLeq64F(v *ssacore.Value) bool {
 		return true
 	}
 }
-func rewriteValueMIPS_OpLeq8(v *ssacore.Value) bool {
+func rewriteValueMIPS_OpLeq8(v *ssa.Value) bool {
 	v_1 := v.Args[1]
 	v_0 := v.Args[0]
 	b := v.Block
@@ -1486,7 +1486,7 @@ func rewriteValueMIPS_OpLeq8(v *ssacore.Value) bool {
 		return true
 	}
 }
-func rewriteValueMIPS_OpLeq8U(v *ssacore.Value) bool {
+func rewriteValueMIPS_OpLeq8U(v *ssa.Value) bool {
 	v_1 := v.Args[1]
 	v_0 := v.Args[0]
 	b := v.Block
@@ -1508,7 +1508,7 @@ func rewriteValueMIPS_OpLeq8U(v *ssacore.Value) bool {
 		return true
 	}
 }
-func rewriteValueMIPS_OpLess16(v *ssacore.Value) bool {
+func rewriteValueMIPS_OpLess16(v *ssa.Value) bool {
 	v_1 := v.Args[1]
 	v_0 := v.Args[0]
 	b := v.Block
@@ -1527,7 +1527,7 @@ func rewriteValueMIPS_OpLess16(v *ssacore.Value) bool {
 		return true
 	}
 }
-func rewriteValueMIPS_OpLess16U(v *ssacore.Value) bool {
+func rewriteValueMIPS_OpLess16U(v *ssa.Value) bool {
 	v_1 := v.Args[1]
 	v_0 := v.Args[0]
 	b := v.Block
@@ -1546,7 +1546,7 @@ func rewriteValueMIPS_OpLess16U(v *ssacore.Value) bool {
 		return true
 	}
 }
-func rewriteValueMIPS_OpLess32(v *ssacore.Value) bool {
+func rewriteValueMIPS_OpLess32(v *ssa.Value) bool {
 	v_1 := v.Args[1]
 	v_0 := v.Args[0]
 	// match: (Less32 x y)
@@ -1559,7 +1559,7 @@ func rewriteValueMIPS_OpLess32(v *ssacore.Value) bool {
 		return true
 	}
 }
-func rewriteValueMIPS_OpLess32F(v *ssacore.Value) bool {
+func rewriteValueMIPS_OpLess32F(v *ssa.Value) bool {
 	v_1 := v.Args[1]
 	v_0 := v.Args[0]
 	b := v.Block
@@ -1575,7 +1575,7 @@ func rewriteValueMIPS_OpLess32F(v *ssacore.Value) bool {
 		return true
 	}
 }
-func rewriteValueMIPS_OpLess32U(v *ssacore.Value) bool {
+func rewriteValueMIPS_OpLess32U(v *ssa.Value) bool {
 	v_1 := v.Args[1]
 	v_0 := v.Args[0]
 	// match: (Less32U x y)
@@ -1588,7 +1588,7 @@ func rewriteValueMIPS_OpLess32U(v *ssacore.Value) bool {
 		return true
 	}
 }
-func rewriteValueMIPS_OpLess64F(v *ssacore.Value) bool {
+func rewriteValueMIPS_OpLess64F(v *ssa.Value) bool {
 	v_1 := v.Args[1]
 	v_0 := v.Args[0]
 	b := v.Block
@@ -1604,7 +1604,7 @@ func rewriteValueMIPS_OpLess64F(v *ssacore.Value) bool {
 		return true
 	}
 }
-func rewriteValueMIPS_OpLess8(v *ssacore.Value) bool {
+func rewriteValueMIPS_OpLess8(v *ssa.Value) bool {
 	v_1 := v.Args[1]
 	v_0 := v.Args[0]
 	b := v.Block
@@ -1623,7 +1623,7 @@ func rewriteValueMIPS_OpLess8(v *ssacore.Value) bool {
 		return true
 	}
 }
-func rewriteValueMIPS_OpLess8U(v *ssacore.Value) bool {
+func rewriteValueMIPS_OpLess8U(v *ssa.Value) bool {
 	v_1 := v.Args[1]
 	v_0 := v.Args[0]
 	b := v.Block
@@ -1642,7 +1642,7 @@ func rewriteValueMIPS_OpLess8U(v *ssacore.Value) bool {
 		return true
 	}
 }
-func rewriteValueMIPS_OpLoad(v *ssacore.Value) bool {
+func rewriteValueMIPS_OpLoad(v *ssa.Value) bool {
 	v_1 := v.Args[1]
 	v_0 := v.Args[0]
 	// match: (Load <t> ptr mem)
@@ -1759,7 +1759,7 @@ func rewriteValueMIPS_OpLoad(v *ssacore.Value) bool {
 	}
 	return false
 }
-func rewriteValueMIPS_OpLocalAddr(v *ssacore.Value) bool {
+func rewriteValueMIPS_OpLocalAddr(v *ssa.Value) bool {
 	v_1 := v.Args[1]
 	v_0 := v.Args[0]
 	b := v.Block
@@ -1799,7 +1799,7 @@ func rewriteValueMIPS_OpLocalAddr(v *ssacore.Value) bool {
 	}
 	return false
 }
-func rewriteValueMIPS_OpLsh16x16(v *ssacore.Value) bool {
+func rewriteValueMIPS_OpLsh16x16(v *ssa.Value) bool {
 	v_1 := v.Args[1]
 	v_0 := v.Args[0]
 	b := v.Block
@@ -1824,7 +1824,7 @@ func rewriteValueMIPS_OpLsh16x16(v *ssacore.Value) bool {
 		return true
 	}
 }
-func rewriteValueMIPS_OpLsh16x32(v *ssacore.Value) bool {
+func rewriteValueMIPS_OpLsh16x32(v *ssa.Value) bool {
 	v_1 := v.Args[1]
 	v_0 := v.Args[0]
 	b := v.Block
@@ -1847,7 +1847,7 @@ func rewriteValueMIPS_OpLsh16x32(v *ssacore.Value) bool {
 		return true
 	}
 }
-func rewriteValueMIPS_OpLsh16x64(v *ssacore.Value) bool {
+func rewriteValueMIPS_OpLsh16x64(v *ssa.Value) bool {
 	v_1 := v.Args[1]
 	v_0 := v.Args[0]
 	// match: (Lsh16x64 x (Const64 [c]))
@@ -1884,7 +1884,7 @@ func rewriteValueMIPS_OpLsh16x64(v *ssacore.Value) bool {
 	}
 	return false
 }
-func rewriteValueMIPS_OpLsh16x8(v *ssacore.Value) bool {
+func rewriteValueMIPS_OpLsh16x8(v *ssa.Value) bool {
 	v_1 := v.Args[1]
 	v_0 := v.Args[0]
 	b := v.Block
@@ -1909,7 +1909,7 @@ func rewriteValueMIPS_OpLsh16x8(v *ssacore.Value) bool {
 		return true
 	}
 }
-func rewriteValueMIPS_OpLsh32x16(v *ssacore.Value) bool {
+func rewriteValueMIPS_OpLsh32x16(v *ssa.Value) bool {
 	v_1 := v.Args[1]
 	v_0 := v.Args[0]
 	b := v.Block
@@ -1934,7 +1934,7 @@ func rewriteValueMIPS_OpLsh32x16(v *ssacore.Value) bool {
 		return true
 	}
 }
-func rewriteValueMIPS_OpLsh32x32(v *ssacore.Value) bool {
+func rewriteValueMIPS_OpLsh32x32(v *ssa.Value) bool {
 	v_1 := v.Args[1]
 	v_0 := v.Args[0]
 	b := v.Block
@@ -1957,7 +1957,7 @@ func rewriteValueMIPS_OpLsh32x32(v *ssacore.Value) bool {
 		return true
 	}
 }
-func rewriteValueMIPS_OpLsh32x64(v *ssacore.Value) bool {
+func rewriteValueMIPS_OpLsh32x64(v *ssa.Value) bool {
 	v_1 := v.Args[1]
 	v_0 := v.Args[0]
 	// match: (Lsh32x64 x (Const64 [c]))
@@ -1994,7 +1994,7 @@ func rewriteValueMIPS_OpLsh32x64(v *ssacore.Value) bool {
 	}
 	return false
 }
-func rewriteValueMIPS_OpLsh32x8(v *ssacore.Value) bool {
+func rewriteValueMIPS_OpLsh32x8(v *ssa.Value) bool {
 	v_1 := v.Args[1]
 	v_0 := v.Args[0]
 	b := v.Block
@@ -2019,7 +2019,7 @@ func rewriteValueMIPS_OpLsh32x8(v *ssacore.Value) bool {
 		return true
 	}
 }
-func rewriteValueMIPS_OpLsh8x16(v *ssacore.Value) bool {
+func rewriteValueMIPS_OpLsh8x16(v *ssa.Value) bool {
 	v_1 := v.Args[1]
 	v_0 := v.Args[0]
 	b := v.Block
@@ -2044,7 +2044,7 @@ func rewriteValueMIPS_OpLsh8x16(v *ssacore.Value) bool {
 		return true
 	}
 }
-func rewriteValueMIPS_OpLsh8x32(v *ssacore.Value) bool {
+func rewriteValueMIPS_OpLsh8x32(v *ssa.Value) bool {
 	v_1 := v.Args[1]
 	v_0 := v.Args[0]
 	b := v.Block
@@ -2067,7 +2067,7 @@ func rewriteValueMIPS_OpLsh8x32(v *ssacore.Value) bool {
 		return true
 	}
 }
-func rewriteValueMIPS_OpLsh8x64(v *ssacore.Value) bool {
+func rewriteValueMIPS_OpLsh8x64(v *ssa.Value) bool {
 	v_1 := v.Args[1]
 	v_0 := v.Args[0]
 	// match: (Lsh8x64 x (Const64 [c]))
@@ -2104,7 +2104,7 @@ func rewriteValueMIPS_OpLsh8x64(v *ssacore.Value) bool {
 	}
 	return false
 }
-func rewriteValueMIPS_OpLsh8x8(v *ssacore.Value) bool {
+func rewriteValueMIPS_OpLsh8x8(v *ssa.Value) bool {
 	v_1 := v.Args[1]
 	v_0 := v.Args[0]
 	b := v.Block
@@ -2129,7 +2129,7 @@ func rewriteValueMIPS_OpLsh8x8(v *ssacore.Value) bool {
 		return true
 	}
 }
-func rewriteValueMIPS_OpMIPSADD(v *ssacore.Value) bool {
+func rewriteValueMIPS_OpMIPSADD(v *ssa.Value) bool {
 	v_1 := v.Args[1]
 	v_0 := v.Args[0]
 	// match: (ADD x (MOVWconst <t> [c]))
@@ -2170,7 +2170,7 @@ func rewriteValueMIPS_OpMIPSADD(v *ssacore.Value) bool {
 	}
 	return false
 }
-func rewriteValueMIPS_OpMIPSADDconst(v *ssacore.Value) bool {
+func rewriteValueMIPS_OpMIPSADDconst(v *ssa.Value) bool {
 	v_0 := v.Args[0]
 	// match: (ADDconst [off1] (MOVWaddr [off2] {sym} ptr))
 	// result: (MOVWaddr [off1+off2] {sym} ptr)
@@ -2240,7 +2240,7 @@ func rewriteValueMIPS_OpMIPSADDconst(v *ssacore.Value) bool {
 	}
 	return false
 }
-func rewriteValueMIPS_OpMIPSAND(v *ssacore.Value) bool {
+func rewriteValueMIPS_OpMIPSAND(v *ssa.Value) bool {
 	v_1 := v.Args[1]
 	v_0 := v.Args[0]
 	b := v.Block
@@ -2293,7 +2293,7 @@ func rewriteValueMIPS_OpMIPSAND(v *ssacore.Value) bool {
 	}
 	return false
 }
-func rewriteValueMIPS_OpMIPSANDconst(v *ssacore.Value) bool {
+func rewriteValueMIPS_OpMIPSANDconst(v *ssa.Value) bool {
 	v_0 := v.Args[0]
 	// match: (ANDconst [0] _)
 	// result: (MOVWconst [0])
@@ -2343,7 +2343,7 @@ func rewriteValueMIPS_OpMIPSANDconst(v *ssacore.Value) bool {
 	}
 	return false
 }
-func rewriteValueMIPS_OpMIPSCMOVZ(v *ssacore.Value) bool {
+func rewriteValueMIPS_OpMIPSCMOVZ(v *ssa.Value) bool {
 	v_2 := v.Args[2]
 	v_1 := v.Args[1]
 	v_0 := v.Args[0]
@@ -2386,7 +2386,7 @@ func rewriteValueMIPS_OpMIPSCMOVZ(v *ssacore.Value) bool {
 	}
 	return false
 }
-func rewriteValueMIPS_OpMIPSCMOVZzero(v *ssacore.Value) bool {
+func rewriteValueMIPS_OpMIPSCMOVZzero(v *ssa.Value) bool {
 	v_1 := v.Args[1]
 	v_0 := v.Args[0]
 	// match: (CMOVZzero _ (MOVWconst [0]))
@@ -2416,7 +2416,7 @@ func rewriteValueMIPS_OpMIPSCMOVZzero(v *ssacore.Value) bool {
 	}
 	return false
 }
-func rewriteValueMIPS_OpMIPSLoweredAtomicAdd(v *ssacore.Value) bool {
+func rewriteValueMIPS_OpMIPSLoweredAtomicAdd(v *ssa.Value) bool {
 	v_2 := v.Args[2]
 	v_1 := v.Args[1]
 	v_0 := v.Args[0]
@@ -2440,7 +2440,7 @@ func rewriteValueMIPS_OpMIPSLoweredAtomicAdd(v *ssacore.Value) bool {
 	}
 	return false
 }
-func rewriteValueMIPS_OpMIPSLoweredAtomicStore32(v *ssacore.Value) bool {
+func rewriteValueMIPS_OpMIPSLoweredAtomicStore32(v *ssa.Value) bool {
 	v_2 := v.Args[2]
 	v_1 := v.Args[1]
 	v_0 := v.Args[0]
@@ -2458,11 +2458,11 @@ func rewriteValueMIPS_OpMIPSLoweredAtomicStore32(v *ssacore.Value) bool {
 	}
 	return false
 }
-func rewriteValueMIPS_OpMIPSLoweredPanicBoundsRC(v *ssacore.Value) bool {
+func rewriteValueMIPS_OpMIPSLoweredPanicBoundsRC(v *ssa.Value) bool {
 	v_1 := v.Args[1]
 	v_0 := v.Args[0]
 	// match: (LoweredPanicBoundsRC [kind] {p} (MOVWconst [c]) mem)
-	// result: (LoweredPanicBoundsCC [kind] {ssacore.PanicBoundsCC{Cx:int64(c), Cy:p.C}} mem)
+	// result: (LoweredPanicBoundsCC [kind] {ssa.PanicBoundsCC{Cx:int64(c), Cy:p.C}} mem)
 	for {
 		kind := AuxIntToInt64(v.AuxInt)
 		p := AuxToPanicBoundsC(v.Aux)
@@ -2473,18 +2473,18 @@ func rewriteValueMIPS_OpMIPSLoweredPanicBoundsRC(v *ssacore.Value) bool {
 		mem := v_1
 		v.Reset(ssaop.OpMIPSLoweredPanicBoundsCC)
 		v.AuxInt = Int64ToAuxInt(kind)
-		v.Aux = PanicBoundsCCToAux(ssacore.PanicBoundsCC{Cx: int64(c), Cy: p.C})
+		v.Aux = PanicBoundsCCToAux(ssa.PanicBoundsCC{Cx: int64(c), Cy: p.C})
 		v.AddArg(mem)
 		return true
 	}
 	return false
 }
-func rewriteValueMIPS_OpMIPSLoweredPanicBoundsRR(v *ssacore.Value) bool {
+func rewriteValueMIPS_OpMIPSLoweredPanicBoundsRR(v *ssa.Value) bool {
 	v_2 := v.Args[2]
 	v_1 := v.Args[1]
 	v_0 := v.Args[0]
 	// match: (LoweredPanicBoundsRR [kind] x (MOVWconst [c]) mem)
-	// result: (LoweredPanicBoundsRC [kind] x {ssacore.PanicBoundsC{C:int64(c)}} mem)
+	// result: (LoweredPanicBoundsRC [kind] x {ssa.PanicBoundsC{C:int64(c)}} mem)
 	for {
 		kind := AuxIntToInt64(v.AuxInt)
 		x := v_0
@@ -2495,12 +2495,12 @@ func rewriteValueMIPS_OpMIPSLoweredPanicBoundsRR(v *ssacore.Value) bool {
 		mem := v_2
 		v.Reset(ssaop.OpMIPSLoweredPanicBoundsRC)
 		v.AuxInt = Int64ToAuxInt(kind)
-		v.Aux = PanicBoundsCToAux(ssacore.PanicBoundsC{C: int64(c)})
+		v.Aux = PanicBoundsCToAux(ssa.PanicBoundsC{C: int64(c)})
 		v.AddArg2(x, mem)
 		return true
 	}
 	// match: (LoweredPanicBoundsRR [kind] (MOVWconst [c]) y mem)
-	// result: (LoweredPanicBoundsCR [kind] {ssacore.PanicBoundsC{C:int64(c)}} y mem)
+	// result: (LoweredPanicBoundsCR [kind] {ssa.PanicBoundsC{C:int64(c)}} y mem)
 	for {
 		kind := AuxIntToInt64(v.AuxInt)
 		if v_0.Op != ssaop.OpMIPSMOVWconst {
@@ -2511,18 +2511,18 @@ func rewriteValueMIPS_OpMIPSLoweredPanicBoundsRR(v *ssacore.Value) bool {
 		mem := v_2
 		v.Reset(ssaop.OpMIPSLoweredPanicBoundsCR)
 		v.AuxInt = Int64ToAuxInt(kind)
-		v.Aux = PanicBoundsCToAux(ssacore.PanicBoundsC{C: int64(c)})
+		v.Aux = PanicBoundsCToAux(ssa.PanicBoundsC{C: int64(c)})
 		v.AddArg2(y, mem)
 		return true
 	}
 	return false
 }
-func rewriteValueMIPS_OpMIPSLoweredPanicExtendRC(v *ssacore.Value) bool {
+func rewriteValueMIPS_OpMIPSLoweredPanicExtendRC(v *ssa.Value) bool {
 	v_2 := v.Args[2]
 	v_1 := v.Args[1]
 	v_0 := v.Args[0]
 	// match: (LoweredPanicExtendRC [kind] {p} (MOVWconst [hi]) (MOVWconst [lo]) mem)
-	// result: (LoweredPanicBoundsCC [kind] {ssacore.PanicBoundsCC{Cx:int64(hi)<<32+int64(uint32(lo)), Cy:p.C}} mem)
+	// result: (LoweredPanicBoundsCC [kind] {ssa.PanicBoundsCC{Cx:int64(hi)<<32+int64(uint32(lo)), Cy:p.C}} mem)
 	for {
 		kind := AuxIntToInt64(v.AuxInt)
 		p := AuxToPanicBoundsC(v.Aux)
@@ -2537,19 +2537,19 @@ func rewriteValueMIPS_OpMIPSLoweredPanicExtendRC(v *ssacore.Value) bool {
 		mem := v_2
 		v.Reset(ssaop.OpMIPSLoweredPanicBoundsCC)
 		v.AuxInt = Int64ToAuxInt(kind)
-		v.Aux = PanicBoundsCCToAux(ssacore.PanicBoundsCC{Cx: int64(hi)<<32 + int64(uint32(lo)), Cy: p.C})
+		v.Aux = PanicBoundsCCToAux(ssa.PanicBoundsCC{Cx: int64(hi)<<32 + int64(uint32(lo)), Cy: p.C})
 		v.AddArg(mem)
 		return true
 	}
 	return false
 }
-func rewriteValueMIPS_OpMIPSLoweredPanicExtendRR(v *ssacore.Value) bool {
+func rewriteValueMIPS_OpMIPSLoweredPanicExtendRR(v *ssa.Value) bool {
 	v_3 := v.Args[3]
 	v_2 := v.Args[2]
 	v_1 := v.Args[1]
 	v_0 := v.Args[0]
 	// match: (LoweredPanicExtendRR [kind] hi lo (MOVWconst [c]) mem)
-	// result: (LoweredPanicExtendRC [kind] hi lo {ssacore.PanicBoundsC{C:int64(c)}} mem)
+	// result: (LoweredPanicExtendRC [kind] hi lo {ssa.PanicBoundsC{C:int64(c)}} mem)
 	for {
 		kind := AuxIntToInt64(v.AuxInt)
 		hi := v_0
@@ -2561,12 +2561,12 @@ func rewriteValueMIPS_OpMIPSLoweredPanicExtendRR(v *ssacore.Value) bool {
 		mem := v_3
 		v.Reset(ssaop.OpMIPSLoweredPanicExtendRC)
 		v.AuxInt = Int64ToAuxInt(kind)
-		v.Aux = PanicBoundsCToAux(ssacore.PanicBoundsC{C: int64(c)})
+		v.Aux = PanicBoundsCToAux(ssa.PanicBoundsC{C: int64(c)})
 		v.AddArg3(hi, lo, mem)
 		return true
 	}
 	// match: (LoweredPanicExtendRR [kind] (MOVWconst [hi]) (MOVWconst [lo]) y mem)
-	// result: (LoweredPanicBoundsCR [kind] {ssacore.PanicBoundsC{C:int64(hi)<<32 + int64(uint32(lo))}} y mem)
+	// result: (LoweredPanicBoundsCR [kind] {ssa.PanicBoundsC{C:int64(hi)<<32 + int64(uint32(lo))}} y mem)
 	for {
 		kind := AuxIntToInt64(v.AuxInt)
 		if v_0.Op != ssaop.OpMIPSMOVWconst {
@@ -2581,13 +2581,13 @@ func rewriteValueMIPS_OpMIPSLoweredPanicExtendRR(v *ssacore.Value) bool {
 		mem := v_3
 		v.Reset(ssaop.OpMIPSLoweredPanicBoundsCR)
 		v.AuxInt = Int64ToAuxInt(kind)
-		v.Aux = PanicBoundsCToAux(ssacore.PanicBoundsC{C: int64(hi)<<32 + int64(uint32(lo))})
+		v.Aux = PanicBoundsCToAux(ssa.PanicBoundsC{C: int64(hi)<<32 + int64(uint32(lo))})
 		v.AddArg2(y, mem)
 		return true
 	}
 	return false
 }
-func rewriteValueMIPS_OpMIPSMOVBUload(v *ssacore.Value) bool {
+func rewriteValueMIPS_OpMIPSMOVBUload(v *ssa.Value) bool {
 	v_1 := v.Args[1]
 	v_0 := v.Args[0]
 	// match: (MOVBUload [off] {sym} ptr (MOVBstore [off] {sym} ptr x _))
@@ -2652,7 +2652,7 @@ func rewriteValueMIPS_OpMIPSMOVBUload(v *ssacore.Value) bool {
 		return true
 	}
 	// match: (MOVBUload [off] {sym} ptr (MOVBstore [off2] {sym2} ptr2 x _))
-	// cond: sym == sym2 && off == off2 && ssacore.IsSamePtr(ptr, ptr2)
+	// cond: sym == sym2 && off == off2 && ssa.IsSamePtr(ptr, ptr2)
 	// result: (MOVBUreg x)
 	for {
 		off := AuxIntToInt32(v.AuxInt)
@@ -2665,7 +2665,7 @@ func rewriteValueMIPS_OpMIPSMOVBUload(v *ssacore.Value) bool {
 		sym2 := AuxToSym(v_1.Aux)
 		x := v_1.Args[1]
 		ptr2 := v_1.Args[0]
-		if !(sym == sym2 && off == off2 && ssacore.IsSamePtr(ptr, ptr2)) {
+		if !(sym == sym2 && off == off2 && ssa.IsSamePtr(ptr, ptr2)) {
 			break
 		}
 		v.Reset(ssaop.OpMIPSMOVBUreg)
@@ -2674,7 +2674,7 @@ func rewriteValueMIPS_OpMIPSMOVBUload(v *ssacore.Value) bool {
 	}
 	return false
 }
-func rewriteValueMIPS_OpMIPSMOVBUreg(v *ssacore.Value) bool {
+func rewriteValueMIPS_OpMIPSMOVBUreg(v *ssa.Value) bool {
 	v_0 := v.Args[0]
 	b := v.Block
 	// match: (MOVBUreg x:(MOVBUload _ _))
@@ -2749,7 +2749,7 @@ func rewriteValueMIPS_OpMIPSMOVBUreg(v *ssacore.Value) bool {
 	}
 	return false
 }
-func rewriteValueMIPS_OpMIPSMOVBload(v *ssacore.Value) bool {
+func rewriteValueMIPS_OpMIPSMOVBload(v *ssa.Value) bool {
 	v_1 := v.Args[1]
 	v_0 := v.Args[0]
 	// match: (MOVBload [off] {sym} ptr (MOVBstore [off] {sym} ptr x _))
@@ -2814,7 +2814,7 @@ func rewriteValueMIPS_OpMIPSMOVBload(v *ssacore.Value) bool {
 		return true
 	}
 	// match: (MOVBload [off] {sym} ptr (MOVBstore [off2] {sym2} ptr2 x _))
-	// cond: sym == sym2 && off == off2 && ssacore.IsSamePtr(ptr, ptr2)
+	// cond: sym == sym2 && off == off2 && ssa.IsSamePtr(ptr, ptr2)
 	// result: (MOVBreg x)
 	for {
 		off := AuxIntToInt32(v.AuxInt)
@@ -2827,7 +2827,7 @@ func rewriteValueMIPS_OpMIPSMOVBload(v *ssacore.Value) bool {
 		sym2 := AuxToSym(v_1.Aux)
 		x := v_1.Args[1]
 		ptr2 := v_1.Args[0]
-		if !(sym == sym2 && off == off2 && ssacore.IsSamePtr(ptr, ptr2)) {
+		if !(sym == sym2 && off == off2 && ssa.IsSamePtr(ptr, ptr2)) {
 			break
 		}
 		v.Reset(ssaop.OpMIPSMOVBreg)
@@ -2836,7 +2836,7 @@ func rewriteValueMIPS_OpMIPSMOVBload(v *ssacore.Value) bool {
 	}
 	return false
 }
-func rewriteValueMIPS_OpMIPSMOVBreg(v *ssacore.Value) bool {
+func rewriteValueMIPS_OpMIPSMOVBreg(v *ssa.Value) bool {
 	v_0 := v.Args[0]
 	b := v.Block
 	// match: (MOVBreg x:(MOVBload _ _))
@@ -2915,7 +2915,7 @@ func rewriteValueMIPS_OpMIPSMOVBreg(v *ssacore.Value) bool {
 	}
 	return false
 }
-func rewriteValueMIPS_OpMIPSMOVBstore(v *ssacore.Value) bool {
+func rewriteValueMIPS_OpMIPSMOVBstore(v *ssa.Value) bool {
 	v_2 := v.Args[2]
 	v_1 := v.Args[1]
 	v_0 := v.Args[0]
@@ -3068,7 +3068,7 @@ func rewriteValueMIPS_OpMIPSMOVBstore(v *ssacore.Value) bool {
 	}
 	return false
 }
-func rewriteValueMIPS_OpMIPSMOVBstorezero(v *ssacore.Value) bool {
+func rewriteValueMIPS_OpMIPSMOVBstorezero(v *ssa.Value) bool {
 	v_1 := v.Args[1]
 	v_0 := v.Args[0]
 	// match: (MOVBstorezero [off1] {sym} x:(ADDconst [off2] ptr) mem)
@@ -3117,7 +3117,7 @@ func rewriteValueMIPS_OpMIPSMOVBstorezero(v *ssacore.Value) bool {
 	}
 	return false
 }
-func rewriteValueMIPS_OpMIPSMOVDload(v *ssacore.Value) bool {
+func rewriteValueMIPS_OpMIPSMOVDload(v *ssa.Value) bool {
 	v_1 := v.Args[1]
 	v_0 := v.Args[0]
 	// match: (MOVDload [off1] {sym} x:(ADDconst [off2] ptr) mem)
@@ -3165,7 +3165,7 @@ func rewriteValueMIPS_OpMIPSMOVDload(v *ssacore.Value) bool {
 		return true
 	}
 	// match: (MOVDload [off] {sym} ptr (MOVDstore [off2] {sym2} ptr2 x _))
-	// cond: sym == sym2 && off == off2 && ssacore.IsSamePtr(ptr, ptr2)
+	// cond: sym == sym2 && off == off2 && ssa.IsSamePtr(ptr, ptr2)
 	// result: x
 	for {
 		off := AuxIntToInt32(v.AuxInt)
@@ -3178,7 +3178,7 @@ func rewriteValueMIPS_OpMIPSMOVDload(v *ssacore.Value) bool {
 		sym2 := AuxToSym(v_1.Aux)
 		x := v_1.Args[1]
 		ptr2 := v_1.Args[0]
-		if !(sym == sym2 && off == off2 && ssacore.IsSamePtr(ptr, ptr2)) {
+		if !(sym == sym2 && off == off2 && ssa.IsSamePtr(ptr, ptr2)) {
 			break
 		}
 		v.CopyOf(x)
@@ -3186,7 +3186,7 @@ func rewriteValueMIPS_OpMIPSMOVDload(v *ssacore.Value) bool {
 	}
 	return false
 }
-func rewriteValueMIPS_OpMIPSMOVDstore(v *ssacore.Value) bool {
+func rewriteValueMIPS_OpMIPSMOVDstore(v *ssa.Value) bool {
 	v_2 := v.Args[2]
 	v_1 := v.Args[1]
 	v_0 := v.Args[0]
@@ -3238,7 +3238,7 @@ func rewriteValueMIPS_OpMIPSMOVDstore(v *ssacore.Value) bool {
 	}
 	return false
 }
-func rewriteValueMIPS_OpMIPSMOVFload(v *ssacore.Value) bool {
+func rewriteValueMIPS_OpMIPSMOVFload(v *ssa.Value) bool {
 	v_1 := v.Args[1]
 	v_0 := v.Args[0]
 	// match: (MOVFload [off] {sym} ptr (MOVWstore [off] {sym} ptr val _))
@@ -3303,7 +3303,7 @@ func rewriteValueMIPS_OpMIPSMOVFload(v *ssacore.Value) bool {
 		return true
 	}
 	// match: (MOVFload [off] {sym} ptr (MOVFstore [off2] {sym2} ptr2 x _))
-	// cond: sym == sym2 && off == off2 && ssacore.IsSamePtr(ptr, ptr2)
+	// cond: sym == sym2 && off == off2 && ssa.IsSamePtr(ptr, ptr2)
 	// result: x
 	for {
 		off := AuxIntToInt32(v.AuxInt)
@@ -3316,7 +3316,7 @@ func rewriteValueMIPS_OpMIPSMOVFload(v *ssacore.Value) bool {
 		sym2 := AuxToSym(v_1.Aux)
 		x := v_1.Args[1]
 		ptr2 := v_1.Args[0]
-		if !(sym == sym2 && off == off2 && ssacore.IsSamePtr(ptr, ptr2)) {
+		if !(sym == sym2 && off == off2 && ssa.IsSamePtr(ptr, ptr2)) {
 			break
 		}
 		v.CopyOf(x)
@@ -3324,7 +3324,7 @@ func rewriteValueMIPS_OpMIPSMOVFload(v *ssacore.Value) bool {
 	}
 	return false
 }
-func rewriteValueMIPS_OpMIPSMOVFstore(v *ssacore.Value) bool {
+func rewriteValueMIPS_OpMIPSMOVFstore(v *ssa.Value) bool {
 	v_2 := v.Args[2]
 	v_1 := v.Args[1]
 	v_0 := v.Args[0]
@@ -3393,7 +3393,7 @@ func rewriteValueMIPS_OpMIPSMOVFstore(v *ssacore.Value) bool {
 	}
 	return false
 }
-func rewriteValueMIPS_OpMIPSMOVHUload(v *ssacore.Value) bool {
+func rewriteValueMIPS_OpMIPSMOVHUload(v *ssa.Value) bool {
 	v_1 := v.Args[1]
 	v_0 := v.Args[0]
 	// match: (MOVHUload [off] {sym} ptr (MOVHstore [off] {sym} ptr x _))
@@ -3458,7 +3458,7 @@ func rewriteValueMIPS_OpMIPSMOVHUload(v *ssacore.Value) bool {
 		return true
 	}
 	// match: (MOVHUload [off] {sym} ptr (MOVHstore [off2] {sym2} ptr2 x _))
-	// cond: sym == sym2 && off == off2 && ssacore.IsSamePtr(ptr, ptr2)
+	// cond: sym == sym2 && off == off2 && ssa.IsSamePtr(ptr, ptr2)
 	// result: (MOVHUreg x)
 	for {
 		off := AuxIntToInt32(v.AuxInt)
@@ -3471,7 +3471,7 @@ func rewriteValueMIPS_OpMIPSMOVHUload(v *ssacore.Value) bool {
 		sym2 := AuxToSym(v_1.Aux)
 		x := v_1.Args[1]
 		ptr2 := v_1.Args[0]
-		if !(sym == sym2 && off == off2 && ssacore.IsSamePtr(ptr, ptr2)) {
+		if !(sym == sym2 && off == off2 && ssa.IsSamePtr(ptr, ptr2)) {
 			break
 		}
 		v.Reset(ssaop.OpMIPSMOVHUreg)
@@ -3480,7 +3480,7 @@ func rewriteValueMIPS_OpMIPSMOVHUload(v *ssacore.Value) bool {
 	}
 	return false
 }
-func rewriteValueMIPS_OpMIPSMOVHUreg(v *ssacore.Value) bool {
+func rewriteValueMIPS_OpMIPSMOVHUreg(v *ssa.Value) bool {
 	v_0 := v.Args[0]
 	b := v.Block
 	// match: (MOVHUreg x:(MOVBUload _ _))
@@ -3577,7 +3577,7 @@ func rewriteValueMIPS_OpMIPSMOVHUreg(v *ssacore.Value) bool {
 	}
 	return false
 }
-func rewriteValueMIPS_OpMIPSMOVHload(v *ssacore.Value) bool {
+func rewriteValueMIPS_OpMIPSMOVHload(v *ssa.Value) bool {
 	v_1 := v.Args[1]
 	v_0 := v.Args[0]
 	// match: (MOVHload [off] {sym} ptr (MOVHstore [off] {sym} ptr x _))
@@ -3642,7 +3642,7 @@ func rewriteValueMIPS_OpMIPSMOVHload(v *ssacore.Value) bool {
 		return true
 	}
 	// match: (MOVHload [off] {sym} ptr (MOVHstore [off2] {sym2} ptr2 x _))
-	// cond: sym == sym2 && off == off2 && ssacore.IsSamePtr(ptr, ptr2)
+	// cond: sym == sym2 && off == off2 && ssa.IsSamePtr(ptr, ptr2)
 	// result: (MOVHreg x)
 	for {
 		off := AuxIntToInt32(v.AuxInt)
@@ -3655,7 +3655,7 @@ func rewriteValueMIPS_OpMIPSMOVHload(v *ssacore.Value) bool {
 		sym2 := AuxToSym(v_1.Aux)
 		x := v_1.Args[1]
 		ptr2 := v_1.Args[0]
-		if !(sym == sym2 && off == off2 && ssacore.IsSamePtr(ptr, ptr2)) {
+		if !(sym == sym2 && off == off2 && ssa.IsSamePtr(ptr, ptr2)) {
 			break
 		}
 		v.Reset(ssaop.OpMIPSMOVHreg)
@@ -3664,7 +3664,7 @@ func rewriteValueMIPS_OpMIPSMOVHload(v *ssacore.Value) bool {
 	}
 	return false
 }
-func rewriteValueMIPS_OpMIPSMOVHreg(v *ssacore.Value) bool {
+func rewriteValueMIPS_OpMIPSMOVHreg(v *ssa.Value) bool {
 	v_0 := v.Args[0]
 	b := v.Block
 	// match: (MOVHreg x:(MOVBload _ _))
@@ -3787,7 +3787,7 @@ func rewriteValueMIPS_OpMIPSMOVHreg(v *ssacore.Value) bool {
 	}
 	return false
 }
-func rewriteValueMIPS_OpMIPSMOVHstore(v *ssacore.Value) bool {
+func rewriteValueMIPS_OpMIPSMOVHstore(v *ssa.Value) bool {
 	v_2 := v.Args[2]
 	v_1 := v.Args[1]
 	v_0 := v.Args[0]
@@ -3906,7 +3906,7 @@ func rewriteValueMIPS_OpMIPSMOVHstore(v *ssacore.Value) bool {
 	}
 	return false
 }
-func rewriteValueMIPS_OpMIPSMOVHstorezero(v *ssacore.Value) bool {
+func rewriteValueMIPS_OpMIPSMOVHstorezero(v *ssa.Value) bool {
 	v_1 := v.Args[1]
 	v_0 := v.Args[0]
 	// match: (MOVHstorezero [off1] {sym} x:(ADDconst [off2] ptr) mem)
@@ -3955,7 +3955,7 @@ func rewriteValueMIPS_OpMIPSMOVHstorezero(v *ssacore.Value) bool {
 	}
 	return false
 }
-func rewriteValueMIPS_OpMIPSMOVWload(v *ssacore.Value) bool {
+func rewriteValueMIPS_OpMIPSMOVWload(v *ssa.Value) bool {
 	v_1 := v.Args[1]
 	v_0 := v.Args[0]
 	// match: (MOVWload [off] {sym} ptr (MOVFstore [off] {sym} ptr val _))
@@ -4037,7 +4037,7 @@ func rewriteValueMIPS_OpMIPSMOVWload(v *ssacore.Value) bool {
 		return true
 	}
 	// match: (MOVWload [off] {sym} ptr (MOVWstore [off2] {sym2} ptr2 x _))
-	// cond: sym == sym2 && off == off2 && ssacore.IsSamePtr(ptr, ptr2)
+	// cond: sym == sym2 && off == off2 && ssa.IsSamePtr(ptr, ptr2)
 	// result: x
 	for {
 		off := AuxIntToInt32(v.AuxInt)
@@ -4050,7 +4050,7 @@ func rewriteValueMIPS_OpMIPSMOVWload(v *ssacore.Value) bool {
 		sym2 := AuxToSym(v_1.Aux)
 		x := v_1.Args[1]
 		ptr2 := v_1.Args[0]
-		if !(sym == sym2 && off == off2 && ssacore.IsSamePtr(ptr, ptr2)) {
+		if !(sym == sym2 && off == off2 && ssa.IsSamePtr(ptr, ptr2)) {
 			break
 		}
 		v.CopyOf(x)
@@ -4058,7 +4058,7 @@ func rewriteValueMIPS_OpMIPSMOVWload(v *ssacore.Value) bool {
 	}
 	return false
 }
-func rewriteValueMIPS_OpMIPSMOVWnop(v *ssacore.Value) bool {
+func rewriteValueMIPS_OpMIPSMOVWnop(v *ssa.Value) bool {
 	v_0 := v.Args[0]
 	// match: (MOVWnop (MOVWconst [c]))
 	// result: (MOVWconst [c])
@@ -4073,7 +4073,7 @@ func rewriteValueMIPS_OpMIPSMOVWnop(v *ssacore.Value) bool {
 	}
 	return false
 }
-func rewriteValueMIPS_OpMIPSMOVWreg(v *ssacore.Value) bool {
+func rewriteValueMIPS_OpMIPSMOVWreg(v *ssa.Value) bool {
 	v_0 := v.Args[0]
 	// match: (MOVWreg x)
 	// cond: x.Uses == 1
@@ -4100,7 +4100,7 @@ func rewriteValueMIPS_OpMIPSMOVWreg(v *ssacore.Value) bool {
 	}
 	return false
 }
-func rewriteValueMIPS_OpMIPSMOVWstore(v *ssacore.Value) bool {
+func rewriteValueMIPS_OpMIPSMOVWstore(v *ssa.Value) bool {
 	v_2 := v.Args[2]
 	v_1 := v.Args[1]
 	v_0 := v.Args[0]
@@ -4202,7 +4202,7 @@ func rewriteValueMIPS_OpMIPSMOVWstore(v *ssacore.Value) bool {
 	}
 	return false
 }
-func rewriteValueMIPS_OpMIPSMOVWstorezero(v *ssacore.Value) bool {
+func rewriteValueMIPS_OpMIPSMOVWstorezero(v *ssa.Value) bool {
 	v_1 := v.Args[1]
 	v_0 := v.Args[0]
 	// match: (MOVWstorezero [off1] {sym} x:(ADDconst [off2] ptr) mem)
@@ -4251,7 +4251,7 @@ func rewriteValueMIPS_OpMIPSMOVWstorezero(v *ssacore.Value) bool {
 	}
 	return false
 }
-func rewriteValueMIPS_OpMIPSMUL(v *ssacore.Value) bool {
+func rewriteValueMIPS_OpMIPSMUL(v *ssa.Value) bool {
 	v_1 := v.Args[1]
 	v_0 := v.Args[0]
 	// match: (MUL (MOVWconst [0]) _ )
@@ -4334,7 +4334,7 @@ func rewriteValueMIPS_OpMIPSMUL(v *ssacore.Value) bool {
 	}
 	return false
 }
-func rewriteValueMIPS_OpMIPSNEG(v *ssacore.Value) bool {
+func rewriteValueMIPS_OpMIPSNEG(v *ssa.Value) bool {
 	v_0 := v.Args[0]
 	// match: (NEG (SUB x y))
 	// result: (SUB y x)
@@ -4371,7 +4371,7 @@ func rewriteValueMIPS_OpMIPSNEG(v *ssacore.Value) bool {
 	}
 	return false
 }
-func rewriteValueMIPS_OpMIPSOR(v *ssacore.Value) bool {
+func rewriteValueMIPS_OpMIPSOR(v *ssa.Value) bool {
 	v_1 := v.Args[1]
 	v_0 := v.Args[0]
 	b := v.Block
@@ -4423,7 +4423,7 @@ func rewriteValueMIPS_OpMIPSOR(v *ssacore.Value) bool {
 	}
 	return false
 }
-func rewriteValueMIPS_OpMIPSORconst(v *ssacore.Value) bool {
+func rewriteValueMIPS_OpMIPSORconst(v *ssa.Value) bool {
 	v_0 := v.Args[0]
 	// match: (ORconst [0] x)
 	// result: x
@@ -4473,7 +4473,7 @@ func rewriteValueMIPS_OpMIPSORconst(v *ssacore.Value) bool {
 	}
 	return false
 }
-func rewriteValueMIPS_OpMIPSSGT(v *ssacore.Value) bool {
+func rewriteValueMIPS_OpMIPSSGT(v *ssa.Value) bool {
 	v_1 := v.Args[1]
 	v_0 := v.Args[0]
 	// match: (SGT (MOVWconst [c]) x)
@@ -4502,7 +4502,7 @@ func rewriteValueMIPS_OpMIPSSGT(v *ssacore.Value) bool {
 	}
 	return false
 }
-func rewriteValueMIPS_OpMIPSSGTU(v *ssacore.Value) bool {
+func rewriteValueMIPS_OpMIPSSGTU(v *ssa.Value) bool {
 	v_1 := v.Args[1]
 	v_0 := v.Args[0]
 	// match: (SGTU (MOVWconst [c]) x)
@@ -4531,7 +4531,7 @@ func rewriteValueMIPS_OpMIPSSGTU(v *ssacore.Value) bool {
 	}
 	return false
 }
-func rewriteValueMIPS_OpMIPSSGTUconst(v *ssacore.Value) bool {
+func rewriteValueMIPS_OpMIPSSGTUconst(v *ssa.Value) bool {
 	v_0 := v.Args[0]
 	// match: (SGTUconst [c] (MOVWconst [d]))
 	// cond: uint32(c) > uint32(d)
@@ -4623,7 +4623,7 @@ func rewriteValueMIPS_OpMIPSSGTUconst(v *ssacore.Value) bool {
 	}
 	return false
 }
-func rewriteValueMIPS_OpMIPSSGTUzero(v *ssacore.Value) bool {
+func rewriteValueMIPS_OpMIPSSGTUzero(v *ssa.Value) bool {
 	v_0 := v.Args[0]
 	// match: (SGTUzero (MOVWconst [d]))
 	// cond: d != 0
@@ -4657,7 +4657,7 @@ func rewriteValueMIPS_OpMIPSSGTUzero(v *ssacore.Value) bool {
 	}
 	return false
 }
-func rewriteValueMIPS_OpMIPSSGTconst(v *ssacore.Value) bool {
+func rewriteValueMIPS_OpMIPSSGTconst(v *ssa.Value) bool {
 	v_0 := v.Args[0]
 	// match: (SGTconst [c] (MOVWconst [d]))
 	// cond: c > d
@@ -4821,7 +4821,7 @@ func rewriteValueMIPS_OpMIPSSGTconst(v *ssacore.Value) bool {
 	}
 	return false
 }
-func rewriteValueMIPS_OpMIPSSGTzero(v *ssacore.Value) bool {
+func rewriteValueMIPS_OpMIPSSGTzero(v *ssa.Value) bool {
 	v_0 := v.Args[0]
 	// match: (SGTzero (MOVWconst [d]))
 	// cond: d > 0
@@ -4855,7 +4855,7 @@ func rewriteValueMIPS_OpMIPSSGTzero(v *ssacore.Value) bool {
 	}
 	return false
 }
-func rewriteValueMIPS_OpMIPSSLL(v *ssacore.Value) bool {
+func rewriteValueMIPS_OpMIPSSLL(v *ssa.Value) bool {
 	v_1 := v.Args[1]
 	v_0 := v.Args[0]
 	// match: (SLL x (MOVWconst [c]))
@@ -4873,7 +4873,7 @@ func rewriteValueMIPS_OpMIPSSLL(v *ssacore.Value) bool {
 	}
 	return false
 }
-func rewriteValueMIPS_OpMIPSSLLconst(v *ssacore.Value) bool {
+func rewriteValueMIPS_OpMIPSSLLconst(v *ssa.Value) bool {
 	v_0 := v.Args[0]
 	// match: (SLLconst [c] (MOVWconst [d]))
 	// result: (MOVWconst [d<<uint32(c)])
@@ -4889,7 +4889,7 @@ func rewriteValueMIPS_OpMIPSSLLconst(v *ssacore.Value) bool {
 	}
 	return false
 }
-func rewriteValueMIPS_OpMIPSSRA(v *ssacore.Value) bool {
+func rewriteValueMIPS_OpMIPSSRA(v *ssa.Value) bool {
 	v_1 := v.Args[1]
 	v_0 := v.Args[0]
 	// match: (SRA x (MOVWconst [c]))
@@ -4907,7 +4907,7 @@ func rewriteValueMIPS_OpMIPSSRA(v *ssacore.Value) bool {
 	}
 	return false
 }
-func rewriteValueMIPS_OpMIPSSRAconst(v *ssacore.Value) bool {
+func rewriteValueMIPS_OpMIPSSRAconst(v *ssa.Value) bool {
 	v_0 := v.Args[0]
 	// match: (SRAconst [c] (MOVWconst [d]))
 	// result: (MOVWconst [d>>uint32(c)])
@@ -4923,7 +4923,7 @@ func rewriteValueMIPS_OpMIPSSRAconst(v *ssacore.Value) bool {
 	}
 	return false
 }
-func rewriteValueMIPS_OpMIPSSRL(v *ssacore.Value) bool {
+func rewriteValueMIPS_OpMIPSSRL(v *ssa.Value) bool {
 	v_1 := v.Args[1]
 	v_0 := v.Args[0]
 	// match: (SRL x (MOVWconst [c]))
@@ -4941,7 +4941,7 @@ func rewriteValueMIPS_OpMIPSSRL(v *ssacore.Value) bool {
 	}
 	return false
 }
-func rewriteValueMIPS_OpMIPSSRLconst(v *ssacore.Value) bool {
+func rewriteValueMIPS_OpMIPSSRLconst(v *ssa.Value) bool {
 	v_0 := v.Args[0]
 	// match: (SRLconst [c] (MOVWconst [d]))
 	// result: (MOVWconst [int32(uint32(d)>>uint32(c))])
@@ -4957,7 +4957,7 @@ func rewriteValueMIPS_OpMIPSSRLconst(v *ssacore.Value) bool {
 	}
 	return false
 }
-func rewriteValueMIPS_OpMIPSSUB(v *ssacore.Value) bool {
+func rewriteValueMIPS_OpMIPSSUB(v *ssa.Value) bool {
 	v_1 := v.Args[1]
 	v_0 := v.Args[0]
 	// match: (SUB x (MOVWconst [c]))
@@ -5009,7 +5009,7 @@ func rewriteValueMIPS_OpMIPSSUB(v *ssacore.Value) bool {
 	}
 	return false
 }
-func rewriteValueMIPS_OpMIPSSUBconst(v *ssacore.Value) bool {
+func rewriteValueMIPS_OpMIPSSUBconst(v *ssa.Value) bool {
 	v_0 := v.Args[0]
 	// match: (SUBconst [0] x)
 	// result: x
@@ -5063,7 +5063,7 @@ func rewriteValueMIPS_OpMIPSSUBconst(v *ssacore.Value) bool {
 	}
 	return false
 }
-func rewriteValueMIPS_OpMIPSXOR(v *ssacore.Value) bool {
+func rewriteValueMIPS_OpMIPSXOR(v *ssa.Value) bool {
 	v_1 := v.Args[1]
 	v_0 := v.Args[0]
 	// match: (XOR x (MOVWconst [c]))
@@ -5095,7 +5095,7 @@ func rewriteValueMIPS_OpMIPSXOR(v *ssacore.Value) bool {
 	}
 	return false
 }
-func rewriteValueMIPS_OpMIPSXORconst(v *ssacore.Value) bool {
+func rewriteValueMIPS_OpMIPSXORconst(v *ssa.Value) bool {
 	v_0 := v.Args[0]
 	// match: (XORconst [0] x)
 	// result: x
@@ -5135,7 +5135,7 @@ func rewriteValueMIPS_OpMIPSXORconst(v *ssacore.Value) bool {
 	}
 	return false
 }
-func rewriteValueMIPS_OpMod16(v *ssacore.Value) bool {
+func rewriteValueMIPS_OpMod16(v *ssa.Value) bool {
 	v_1 := v.Args[1]
 	v_0 := v.Args[0]
 	b := v.Block
@@ -5156,7 +5156,7 @@ func rewriteValueMIPS_OpMod16(v *ssacore.Value) bool {
 		return true
 	}
 }
-func rewriteValueMIPS_OpMod16u(v *ssacore.Value) bool {
+func rewriteValueMIPS_OpMod16u(v *ssa.Value) bool {
 	v_1 := v.Args[1]
 	v_0 := v.Args[0]
 	b := v.Block
@@ -5177,7 +5177,7 @@ func rewriteValueMIPS_OpMod16u(v *ssacore.Value) bool {
 		return true
 	}
 }
-func rewriteValueMIPS_OpMod32(v *ssacore.Value) bool {
+func rewriteValueMIPS_OpMod32(v *ssa.Value) bool {
 	v_1 := v.Args[1]
 	v_0 := v.Args[0]
 	b := v.Block
@@ -5194,7 +5194,7 @@ func rewriteValueMIPS_OpMod32(v *ssacore.Value) bool {
 		return true
 	}
 }
-func rewriteValueMIPS_OpMod32u(v *ssacore.Value) bool {
+func rewriteValueMIPS_OpMod32u(v *ssa.Value) bool {
 	v_1 := v.Args[1]
 	v_0 := v.Args[0]
 	b := v.Block
@@ -5211,7 +5211,7 @@ func rewriteValueMIPS_OpMod32u(v *ssacore.Value) bool {
 		return true
 	}
 }
-func rewriteValueMIPS_OpMod8(v *ssacore.Value) bool {
+func rewriteValueMIPS_OpMod8(v *ssa.Value) bool {
 	v_1 := v.Args[1]
 	v_0 := v.Args[0]
 	b := v.Block
@@ -5232,7 +5232,7 @@ func rewriteValueMIPS_OpMod8(v *ssacore.Value) bool {
 		return true
 	}
 }
-func rewriteValueMIPS_OpMod8u(v *ssacore.Value) bool {
+func rewriteValueMIPS_OpMod8u(v *ssa.Value) bool {
 	v_1 := v.Args[1]
 	v_0 := v.Args[0]
 	b := v.Block
@@ -5253,7 +5253,7 @@ func rewriteValueMIPS_OpMod8u(v *ssacore.Value) bool {
 		return true
 	}
 }
-func rewriteValueMIPS_OpMove(v *ssacore.Value) bool {
+func rewriteValueMIPS_OpMove(v *ssa.Value) bool {
 	v_2 := v.Args[2]
 	v_1 := v.Args[1]
 	v_0 := v.Args[0]
@@ -5620,7 +5620,7 @@ func rewriteValueMIPS_OpMove(v *ssacore.Value) bool {
 	}
 	return false
 }
-func rewriteValueMIPS_OpNeq16(v *ssacore.Value) bool {
+func rewriteValueMIPS_OpNeq16(v *ssa.Value) bool {
 	v_1 := v.Args[1]
 	v_0 := v.Args[0]
 	b := v.Block
@@ -5643,7 +5643,7 @@ func rewriteValueMIPS_OpNeq16(v *ssacore.Value) bool {
 		return true
 	}
 }
-func rewriteValueMIPS_OpNeq32(v *ssacore.Value) bool {
+func rewriteValueMIPS_OpNeq32(v *ssa.Value) bool {
 	v_1 := v.Args[1]
 	v_0 := v.Args[0]
 	b := v.Block
@@ -5662,7 +5662,7 @@ func rewriteValueMIPS_OpNeq32(v *ssacore.Value) bool {
 		return true
 	}
 }
-func rewriteValueMIPS_OpNeq32F(v *ssacore.Value) bool {
+func rewriteValueMIPS_OpNeq32F(v *ssa.Value) bool {
 	v_1 := v.Args[1]
 	v_0 := v.Args[0]
 	b := v.Block
@@ -5678,7 +5678,7 @@ func rewriteValueMIPS_OpNeq32F(v *ssacore.Value) bool {
 		return true
 	}
 }
-func rewriteValueMIPS_OpNeq64F(v *ssacore.Value) bool {
+func rewriteValueMIPS_OpNeq64F(v *ssa.Value) bool {
 	v_1 := v.Args[1]
 	v_0 := v.Args[0]
 	b := v.Block
@@ -5694,7 +5694,7 @@ func rewriteValueMIPS_OpNeq64F(v *ssacore.Value) bool {
 		return true
 	}
 }
-func rewriteValueMIPS_OpNeq8(v *ssacore.Value) bool {
+func rewriteValueMIPS_OpNeq8(v *ssa.Value) bool {
 	v_1 := v.Args[1]
 	v_0 := v.Args[0]
 	b := v.Block
@@ -5717,7 +5717,7 @@ func rewriteValueMIPS_OpNeq8(v *ssacore.Value) bool {
 		return true
 	}
 }
-func rewriteValueMIPS_OpNeqPtr(v *ssacore.Value) bool {
+func rewriteValueMIPS_OpNeqPtr(v *ssa.Value) bool {
 	v_1 := v.Args[1]
 	v_0 := v.Args[0]
 	b := v.Block
@@ -5736,7 +5736,7 @@ func rewriteValueMIPS_OpNeqPtr(v *ssacore.Value) bool {
 		return true
 	}
 }
-func rewriteValueMIPS_OpNot(v *ssacore.Value) bool {
+func rewriteValueMIPS_OpNot(v *ssa.Value) bool {
 	v_0 := v.Args[0]
 	// match: (Not x)
 	// result: (XORconst [1] x)
@@ -5748,7 +5748,7 @@ func rewriteValueMIPS_OpNot(v *ssacore.Value) bool {
 		return true
 	}
 }
-func rewriteValueMIPS_OpOffPtr(v *ssacore.Value) bool {
+func rewriteValueMIPS_OpOffPtr(v *ssa.Value) bool {
 	v_0 := v.Args[0]
 	// match: (OffPtr [off] ptr:(SP))
 	// result: (MOVWaddr [int32(off)] ptr)
@@ -5774,7 +5774,7 @@ func rewriteValueMIPS_OpOffPtr(v *ssacore.Value) bool {
 		return true
 	}
 }
-func rewriteValueMIPS_OpRotateLeft16(v *ssacore.Value) bool {
+func rewriteValueMIPS_OpRotateLeft16(v *ssa.Value) bool {
 	v_1 := v.Args[1]
 	v_0 := v.Args[0]
 	b := v.Block
@@ -5802,7 +5802,7 @@ func rewriteValueMIPS_OpRotateLeft16(v *ssacore.Value) bool {
 	}
 	return false
 }
-func rewriteValueMIPS_OpRotateLeft32(v *ssacore.Value) bool {
+func rewriteValueMIPS_OpRotateLeft32(v *ssa.Value) bool {
 	v_1 := v.Args[1]
 	v_0 := v.Args[0]
 	b := v.Block
@@ -5830,7 +5830,7 @@ func rewriteValueMIPS_OpRotateLeft32(v *ssacore.Value) bool {
 	}
 	return false
 }
-func rewriteValueMIPS_OpRotateLeft64(v *ssacore.Value) bool {
+func rewriteValueMIPS_OpRotateLeft64(v *ssa.Value) bool {
 	v_1 := v.Args[1]
 	v_0 := v.Args[0]
 	b := v.Block
@@ -5858,7 +5858,7 @@ func rewriteValueMIPS_OpRotateLeft64(v *ssacore.Value) bool {
 	}
 	return false
 }
-func rewriteValueMIPS_OpRotateLeft8(v *ssacore.Value) bool {
+func rewriteValueMIPS_OpRotateLeft8(v *ssa.Value) bool {
 	v_1 := v.Args[1]
 	v_0 := v.Args[0]
 	b := v.Block
@@ -5886,7 +5886,7 @@ func rewriteValueMIPS_OpRotateLeft8(v *ssacore.Value) bool {
 	}
 	return false
 }
-func rewriteValueMIPS_OpRsh16Ux16(v *ssacore.Value) bool {
+func rewriteValueMIPS_OpRsh16Ux16(v *ssa.Value) bool {
 	v_1 := v.Args[1]
 	v_0 := v.Args[0]
 	b := v.Block
@@ -5913,7 +5913,7 @@ func rewriteValueMIPS_OpRsh16Ux16(v *ssacore.Value) bool {
 		return true
 	}
 }
-func rewriteValueMIPS_OpRsh16Ux32(v *ssacore.Value) bool {
+func rewriteValueMIPS_OpRsh16Ux32(v *ssa.Value) bool {
 	v_1 := v.Args[1]
 	v_0 := v.Args[0]
 	b := v.Block
@@ -5938,7 +5938,7 @@ func rewriteValueMIPS_OpRsh16Ux32(v *ssacore.Value) bool {
 		return true
 	}
 }
-func rewriteValueMIPS_OpRsh16Ux64(v *ssacore.Value) bool {
+func rewriteValueMIPS_OpRsh16Ux64(v *ssa.Value) bool {
 	v_1 := v.Args[1]
 	v_0 := v.Args[0]
 	b := v.Block
@@ -5980,7 +5980,7 @@ func rewriteValueMIPS_OpRsh16Ux64(v *ssacore.Value) bool {
 	}
 	return false
 }
-func rewriteValueMIPS_OpRsh16Ux8(v *ssacore.Value) bool {
+func rewriteValueMIPS_OpRsh16Ux8(v *ssa.Value) bool {
 	v_1 := v.Args[1]
 	v_0 := v.Args[0]
 	b := v.Block
@@ -6007,7 +6007,7 @@ func rewriteValueMIPS_OpRsh16Ux8(v *ssacore.Value) bool {
 		return true
 	}
 }
-func rewriteValueMIPS_OpRsh16x16(v *ssacore.Value) bool {
+func rewriteValueMIPS_OpRsh16x16(v *ssa.Value) bool {
 	v_1 := v.Args[1]
 	v_0 := v.Args[0]
 	b := v.Block
@@ -6033,7 +6033,7 @@ func rewriteValueMIPS_OpRsh16x16(v *ssacore.Value) bool {
 		return true
 	}
 }
-func rewriteValueMIPS_OpRsh16x32(v *ssacore.Value) bool {
+func rewriteValueMIPS_OpRsh16x32(v *ssa.Value) bool {
 	v_1 := v.Args[1]
 	v_0 := v.Args[0]
 	b := v.Block
@@ -6057,7 +6057,7 @@ func rewriteValueMIPS_OpRsh16x32(v *ssacore.Value) bool {
 		return true
 	}
 }
-func rewriteValueMIPS_OpRsh16x64(v *ssacore.Value) bool {
+func rewriteValueMIPS_OpRsh16x64(v *ssa.Value) bool {
 	v_1 := v.Args[1]
 	v_0 := v.Args[0]
 	b := v.Block
@@ -6104,7 +6104,7 @@ func rewriteValueMIPS_OpRsh16x64(v *ssacore.Value) bool {
 	}
 	return false
 }
-func rewriteValueMIPS_OpRsh16x8(v *ssacore.Value) bool {
+func rewriteValueMIPS_OpRsh16x8(v *ssa.Value) bool {
 	v_1 := v.Args[1]
 	v_0 := v.Args[0]
 	b := v.Block
@@ -6130,7 +6130,7 @@ func rewriteValueMIPS_OpRsh16x8(v *ssacore.Value) bool {
 		return true
 	}
 }
-func rewriteValueMIPS_OpRsh32Ux16(v *ssacore.Value) bool {
+func rewriteValueMIPS_OpRsh32Ux16(v *ssa.Value) bool {
 	v_1 := v.Args[1]
 	v_0 := v.Args[0]
 	b := v.Block
@@ -6155,7 +6155,7 @@ func rewriteValueMIPS_OpRsh32Ux16(v *ssacore.Value) bool {
 		return true
 	}
 }
-func rewriteValueMIPS_OpRsh32Ux32(v *ssacore.Value) bool {
+func rewriteValueMIPS_OpRsh32Ux32(v *ssa.Value) bool {
 	v_1 := v.Args[1]
 	v_0 := v.Args[0]
 	b := v.Block
@@ -6178,7 +6178,7 @@ func rewriteValueMIPS_OpRsh32Ux32(v *ssacore.Value) bool {
 		return true
 	}
 }
-func rewriteValueMIPS_OpRsh32Ux64(v *ssacore.Value) bool {
+func rewriteValueMIPS_OpRsh32Ux64(v *ssa.Value) bool {
 	v_1 := v.Args[1]
 	v_0 := v.Args[0]
 	// match: (Rsh32Ux64 x (Const64 [c]))
@@ -6215,7 +6215,7 @@ func rewriteValueMIPS_OpRsh32Ux64(v *ssacore.Value) bool {
 	}
 	return false
 }
-func rewriteValueMIPS_OpRsh32Ux8(v *ssacore.Value) bool {
+func rewriteValueMIPS_OpRsh32Ux8(v *ssa.Value) bool {
 	v_1 := v.Args[1]
 	v_0 := v.Args[0]
 	b := v.Block
@@ -6240,7 +6240,7 @@ func rewriteValueMIPS_OpRsh32Ux8(v *ssacore.Value) bool {
 		return true
 	}
 }
-func rewriteValueMIPS_OpRsh32x16(v *ssacore.Value) bool {
+func rewriteValueMIPS_OpRsh32x16(v *ssa.Value) bool {
 	v_1 := v.Args[1]
 	v_0 := v.Args[0]
 	b := v.Block
@@ -6264,7 +6264,7 @@ func rewriteValueMIPS_OpRsh32x16(v *ssacore.Value) bool {
 		return true
 	}
 }
-func rewriteValueMIPS_OpRsh32x32(v *ssacore.Value) bool {
+func rewriteValueMIPS_OpRsh32x32(v *ssa.Value) bool {
 	v_1 := v.Args[1]
 	v_0 := v.Args[0]
 	b := v.Block
@@ -6286,7 +6286,7 @@ func rewriteValueMIPS_OpRsh32x32(v *ssacore.Value) bool {
 		return true
 	}
 }
-func rewriteValueMIPS_OpRsh32x64(v *ssacore.Value) bool {
+func rewriteValueMIPS_OpRsh32x64(v *ssa.Value) bool {
 	v_1 := v.Args[1]
 	v_0 := v.Args[0]
 	// match: (Rsh32x64 x (Const64 [c]))
@@ -6325,7 +6325,7 @@ func rewriteValueMIPS_OpRsh32x64(v *ssacore.Value) bool {
 	}
 	return false
 }
-func rewriteValueMIPS_OpRsh32x8(v *ssacore.Value) bool {
+func rewriteValueMIPS_OpRsh32x8(v *ssa.Value) bool {
 	v_1 := v.Args[1]
 	v_0 := v.Args[0]
 	b := v.Block
@@ -6349,7 +6349,7 @@ func rewriteValueMIPS_OpRsh32x8(v *ssacore.Value) bool {
 		return true
 	}
 }
-func rewriteValueMIPS_OpRsh8Ux16(v *ssacore.Value) bool {
+func rewriteValueMIPS_OpRsh8Ux16(v *ssa.Value) bool {
 	v_1 := v.Args[1]
 	v_0 := v.Args[0]
 	b := v.Block
@@ -6376,7 +6376,7 @@ func rewriteValueMIPS_OpRsh8Ux16(v *ssacore.Value) bool {
 		return true
 	}
 }
-func rewriteValueMIPS_OpRsh8Ux32(v *ssacore.Value) bool {
+func rewriteValueMIPS_OpRsh8Ux32(v *ssa.Value) bool {
 	v_1 := v.Args[1]
 	v_0 := v.Args[0]
 	b := v.Block
@@ -6401,7 +6401,7 @@ func rewriteValueMIPS_OpRsh8Ux32(v *ssacore.Value) bool {
 		return true
 	}
 }
-func rewriteValueMIPS_OpRsh8Ux64(v *ssacore.Value) bool {
+func rewriteValueMIPS_OpRsh8Ux64(v *ssa.Value) bool {
 	v_1 := v.Args[1]
 	v_0 := v.Args[0]
 	b := v.Block
@@ -6443,7 +6443,7 @@ func rewriteValueMIPS_OpRsh8Ux64(v *ssacore.Value) bool {
 	}
 	return false
 }
-func rewriteValueMIPS_OpRsh8Ux8(v *ssacore.Value) bool {
+func rewriteValueMIPS_OpRsh8Ux8(v *ssa.Value) bool {
 	v_1 := v.Args[1]
 	v_0 := v.Args[0]
 	b := v.Block
@@ -6470,7 +6470,7 @@ func rewriteValueMIPS_OpRsh8Ux8(v *ssacore.Value) bool {
 		return true
 	}
 }
-func rewriteValueMIPS_OpRsh8x16(v *ssacore.Value) bool {
+func rewriteValueMIPS_OpRsh8x16(v *ssa.Value) bool {
 	v_1 := v.Args[1]
 	v_0 := v.Args[0]
 	b := v.Block
@@ -6496,7 +6496,7 @@ func rewriteValueMIPS_OpRsh8x16(v *ssacore.Value) bool {
 		return true
 	}
 }
-func rewriteValueMIPS_OpRsh8x32(v *ssacore.Value) bool {
+func rewriteValueMIPS_OpRsh8x32(v *ssa.Value) bool {
 	v_1 := v.Args[1]
 	v_0 := v.Args[0]
 	b := v.Block
@@ -6520,7 +6520,7 @@ func rewriteValueMIPS_OpRsh8x32(v *ssacore.Value) bool {
 		return true
 	}
 }
-func rewriteValueMIPS_OpRsh8x64(v *ssacore.Value) bool {
+func rewriteValueMIPS_OpRsh8x64(v *ssa.Value) bool {
 	v_1 := v.Args[1]
 	v_0 := v.Args[0]
 	b := v.Block
@@ -6567,7 +6567,7 @@ func rewriteValueMIPS_OpRsh8x64(v *ssacore.Value) bool {
 	}
 	return false
 }
-func rewriteValueMIPS_OpRsh8x8(v *ssacore.Value) bool {
+func rewriteValueMIPS_OpRsh8x8(v *ssa.Value) bool {
 	v_1 := v.Args[1]
 	v_0 := v.Args[0]
 	b := v.Block
@@ -6593,7 +6593,7 @@ func rewriteValueMIPS_OpRsh8x8(v *ssacore.Value) bool {
 		return true
 	}
 }
-func rewriteValueMIPS_OpSelect0(v *ssacore.Value) bool {
+func rewriteValueMIPS_OpSelect0(v *ssa.Value) bool {
 	v_0 := v.Args[0]
 	b := v.Block
 	typ := &b.Func.Config.Types
@@ -6805,7 +6805,7 @@ func rewriteValueMIPS_OpSelect0(v *ssacore.Value) bool {
 	}
 	return false
 }
-func rewriteValueMIPS_OpSelect1(v *ssacore.Value) bool {
+func rewriteValueMIPS_OpSelect1(v *ssa.Value) bool {
 	v_0 := v.Args[0]
 	b := v.Block
 	typ := &b.Func.Config.Types
@@ -7024,7 +7024,7 @@ func rewriteValueMIPS_OpSelect1(v *ssacore.Value) bool {
 	}
 	return false
 }
-func rewriteValueMIPS_OpSignmask(v *ssacore.Value) bool {
+func rewriteValueMIPS_OpSignmask(v *ssa.Value) bool {
 	v_0 := v.Args[0]
 	// match: (Signmask x)
 	// result: (SRAconst x [31])
@@ -7036,7 +7036,7 @@ func rewriteValueMIPS_OpSignmask(v *ssacore.Value) bool {
 		return true
 	}
 }
-func rewriteValueMIPS_OpSlicemask(v *ssacore.Value) bool {
+func rewriteValueMIPS_OpSlicemask(v *ssa.Value) bool {
 	v_0 := v.Args[0]
 	b := v.Block
 	// match: (Slicemask <t> x)
@@ -7052,7 +7052,7 @@ func rewriteValueMIPS_OpSlicemask(v *ssacore.Value) bool {
 		return true
 	}
 }
-func rewriteValueMIPS_OpStore(v *ssacore.Value) bool {
+func rewriteValueMIPS_OpStore(v *ssa.Value) bool {
 	v_2 := v.Args[2]
 	v_1 := v.Args[1]
 	v_0 := v.Args[0]
@@ -7133,7 +7133,7 @@ func rewriteValueMIPS_OpStore(v *ssacore.Value) bool {
 	}
 	return false
 }
-func rewriteValueMIPS_OpSub32withcarry(v *ssacore.Value) bool {
+func rewriteValueMIPS_OpSub32withcarry(v *ssa.Value) bool {
 	v_2 := v.Args[2]
 	v_1 := v.Args[1]
 	v_0 := v.Args[0]
@@ -7152,7 +7152,7 @@ func rewriteValueMIPS_OpSub32withcarry(v *ssacore.Value) bool {
 		return true
 	}
 }
-func rewriteValueMIPS_OpZero(v *ssacore.Value) bool {
+func rewriteValueMIPS_OpZero(v *ssa.Value) bool {
 	v_1 := v.Args[1]
 	v_0 := v.Args[0]
 	b := v.Block
@@ -7431,7 +7431,7 @@ func rewriteValueMIPS_OpZero(v *ssacore.Value) bool {
 	}
 	return false
 }
-func rewriteValueMIPS_OpZeromask(v *ssacore.Value) bool {
+func rewriteValueMIPS_OpZeromask(v *ssa.Value) bool {
 	v_0 := v.Args[0]
 	b := v.Block
 	typ := &b.Func.Config.Types
@@ -7448,7 +7448,7 @@ func rewriteValueMIPS_OpZeromask(v *ssacore.Value) bool {
 		return true
 	}
 }
-func rewriteBlockMIPS(b *ssacore.Block) bool {
+func rewriteBlockMIPS(b *ssa.Block) bool {
 	switch b.Kind {
 	case block.BlockMIPSEQ:
 		// match: (EQ (FPFlagTrue cmp) yes no)

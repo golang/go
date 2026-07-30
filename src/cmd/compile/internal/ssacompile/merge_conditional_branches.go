@@ -5,8 +5,8 @@
 package ssacompile
 
 import (
+	"cmd/compile/internal/ssa"
 	blockpkg "cmd/compile/internal/ssa/block"
-	"cmd/compile/internal/ssa/ssacore"
 	"cmd/compile/internal/ssa/ssaop"
 	"cmd/compile/internal/types"
 )
@@ -58,7 +58,7 @@ const (
 // parallelism by leveraging ARM64's conditional execution capabilities.
 // The resulting code uses conditional comparison instructions that test the second
 // condition only if the first condition evaluates to a specific value.
-func mergeConditionalBranches(f *ssacore.Func) {
+func mergeConditionalBranches(f *ssa.Func) {
 	if f.Config.Arch != "arm64" {
 		return
 	}
@@ -86,7 +86,7 @@ func mergeConditionalBranches(f *ssacore.Func) {
 // findFirstNonEmptyPlainBlock finds the first non-empty block in a chain of empty plain blocks
 // starting from the specified child index of the parent block. It skips over empty blocks
 // that serve only as pass-through nodes in the control flow graph.
-func findFirstNonEmptyPlainBlock(parentBlock *ssacore.Block, childIndex int) *ssacore.Block {
+func findFirstNonEmptyPlainBlock(parentBlock *ssa.Block, childIndex int) *ssa.Block {
 	childBlock := parentBlock.Succs[childIndex].Block()
 	for isEmptyPlainBlock(childBlock) {
 		childBlock = childBlock.Succs[0].Block()
@@ -97,7 +97,7 @@ func findFirstNonEmptyPlainBlock(parentBlock *ssacore.Block, childIndex int) *ss
 // isEmptyPlainBlock checks if a block is empty (contains no values), has exactly one
 // predecessor and is of kind BlockPlain. Such blocks are typically
 // artifacts of previous optimizations and can be safely removed or bypassed.
-func isEmptyPlainBlock(block *ssacore.Block) bool {
+func isEmptyPlainBlock(block *ssa.Block) bool {
 	return block.Kind == blockpkg.BlockPlain &&
 		len(block.Values) == 0 &&
 		len(block.Preds) == 1
@@ -107,7 +107,7 @@ func isEmptyPlainBlock(block *ssacore.Block) bool {
 // the specified child index of the parent block. It traverses through consecutive
 // empty blocks and deletes them from the control flow graph, connecting the parent
 // directly to the first non-empty block in the chain.
-func removeEmptyPlainBlockChain(parentBlock *ssacore.Block, childIndex int) *ssacore.Block {
+func removeEmptyPlainBlockChain(parentBlock *ssa.Block, childIndex int) *ssa.Block {
 	childBlock := parentBlock.Succs[childIndex].Block()
 	for isEmptyPlainBlock(childBlock) {
 		nextBlock := childBlock.Succs[0].Block()
@@ -120,7 +120,7 @@ func removeEmptyPlainBlockChain(parentBlock *ssacore.Block, childIndex int) *ssa
 // removeEmptyPlainBlock removes a single empty plain block from the control flow graph.
 // It connects the block's predecessor directly to its successor, effectively bypassing
 // the empty block, and then marks the block as invalid for future cleanup.
-func removeEmptyPlainBlock(block *ssacore.Block) {
+func removeEmptyPlainBlock(block *ssa.Block) {
 	prevEdge := block.Preds[0]
 	nextEdge := block.Succs[0]
 
@@ -137,7 +137,7 @@ func removeEmptyPlainBlock(block *ssacore.Block) {
 // the pattern for if-conversion. Returns the outer successor index (which branch contains the
 // nested condition) and internal successor index (which branch of the nested condition leads to
 // the common merge point), or InvalidIndex if no pattern is detected.
-func detectNestedIfPattern(outerBlock *ssacore.Block) (int, int) {
+func detectNestedIfPattern(outerBlock *ssa.Block) (int, int) {
 	if !isIfBlock(outerBlock) {
 		// outerBlock doesn't contain comparison
 		return InvalidIndex, InvalidIndex
@@ -231,7 +231,7 @@ func detectNestedIfPattern(outerBlock *ssacore.Block) (int, int) {
 // detectCyclePattern detects cyclic patterns where a conditional block's successor
 // refers back to the original block. This handles special cases where the control
 // flow forms a loop-like structure that can still be optimized with conditional comparisons.
-func detectCyclePattern(outerBlock *ssacore.Block, outSuccIndex int) (int, int) {
+func detectCyclePattern(outerBlock *ssa.Block, outSuccIndex int) (int, int) {
 	secondCondBlock := findFirstNonEmptyPlainBlock(outerBlock, outSuccIndex)
 
 	if len(secondCondBlock.Preds) != 1 ||
@@ -273,7 +273,7 @@ func detectCyclePattern(outerBlock *ssacore.Block, outSuccIndex int) (int, int) 
 // for the given successor indices. This ensures that after transformation, phi nodes
 // will receive the correct values from both paths. Returns true if all phi nodes
 // have consistent arguments for the specified paths.
-func checkSameValuesInPhiNodes(outerBlock, innerBlock *ssacore.Block, outToCommonIndex, inToCommonIndex int) bool {
+func checkSameValuesInPhiNodes(outerBlock, innerBlock *ssa.Block, outToCommonIndex, inToCommonIndex int) bool {
 	// Skip empty blocks to find actual phi-containing merge blocks
 	// Empty blocks don't affect phi nodes but complicate path tracking
 	for isEmptyPlainBlock(outerBlock.Succs[outToCommonIndex].Block()) {
@@ -314,7 +314,7 @@ func checkSameValuesInPhiNodes(outerBlock, innerBlock *ssacore.Block, outToCommo
 // This is necessary because during transformation, values from the inner conditional
 // block are moved to the outer block. Values with side effects, memory operations,
 // or phi nodes cannot be moved.
-func canValuesBeMoved(b *ssacore.Block) bool {
+func canValuesBeMoved(b *ssa.Block) bool {
 	for _, v := range b.Values {
 		if !canValueBeMoved(v) {
 			return false
@@ -326,7 +326,7 @@ func canValuesBeMoved(b *ssacore.Block) bool {
 // canValueBeMoved checks if a single value can be safely moved to another block.
 // Returns false for values that have side effects, are memory operations, phi nodes,
 // or nil checks, as moving these could change program semantics.
-func canValueBeMoved(v *ssacore.Value) bool {
+func canValueBeMoved(v *ssa.Value) bool {
 	if v.Op == ssaop.OpPhi {
 		return false
 	}
@@ -348,7 +348,7 @@ func canValueBeMoved(v *ssacore.Value) bool {
 // isIfBlock checks if a block is a conditional block that can participate in
 // if-conversion. This includes all ARM64 conditional block kinds (EQ, NE, LT, etc.)
 // and zero/non-zero test blocks (Z, NZ, ZW, NZW).
-func isIfBlock(b *ssacore.Block) bool {
+func isIfBlock(b *ssa.Block) bool {
 	switch b.Kind {
 	case blockpkg.BlockARM64EQ,
 		blockpkg.BlockARM64NE,
@@ -374,7 +374,7 @@ func isIfBlock(b *ssacore.Block) bool {
 // isComparisonOperation checks if a value represents a comparison operation
 // that can be used in conditional execution. Also ensures the value has only
 // one use to prevent unexpected side effects from transformation.
-func isComparisonOperation(value *ssacore.Value) bool {
+func isComparisonOperation(value *ssa.Value) bool {
 	if value.Uses != 1 {
 		// This value can be transformed to another value.
 		// New value can get another results, not which are expected.
@@ -401,7 +401,7 @@ func isComparisonOperation(value *ssacore.Value) bool {
 // conditional comparison. This is the main transformation function that
 // coordinates all the steps needed to convert the nested conditionals into
 // a single conditional comparison instruction.
-func transformNestedIfPattern(outerBlock *ssacore.Block, outSuccIndex, inSuccIndex int) {
+func transformNestedIfPattern(outerBlock *ssa.Block, outSuccIndex, inSuccIndex int) {
 	clearPatternFromEmptyPlainBlocks(outerBlock, outSuccIndex)
 	innerBlock := outerBlock.Succs[outSuccIndex].Block()
 
@@ -424,7 +424,7 @@ func transformNestedIfPattern(outerBlock *ssacore.Block, outSuccIndex, inSuccInd
 
 // clearPatternFromEmptyPlainBlocks removes all empty plain blocks from the
 // detected pattern to simplify the control flow graph before transformation.
-func clearPatternFromEmptyPlainBlocks(outerBlock *ssacore.Block, outSuccIndex int) {
+func clearPatternFromEmptyPlainBlocks(outerBlock *ssa.Block, outSuccIndex int) {
 	innerBlock := removeEmptyPlainBlockChain(outerBlock, outSuccIndex)
 	removeEmptyPlainBlockChain(outerBlock, outSuccIndex^1)
 
@@ -435,7 +435,7 @@ func clearPatternFromEmptyPlainBlocks(outerBlock *ssacore.Block, outSuccIndex in
 // moveAllValues moves all values from the source block to the destination block.
 // This is used to consolidate the computations from the inner conditional block
 // into the outer block as part of the if-conversion process.
-func moveAllValues(dest, src *ssacore.Block) {
+func moveAllValues(dest, src *ssa.Block) {
 	for _, value := range src.Values {
 		value.Block = dest
 		dest.Values = append(dest.Values, value)
@@ -446,7 +446,7 @@ func moveAllValues(dest, src *ssacore.Block) {
 // elimNestedBlock eliminates a nested block that has been incorporated into
 // the outer block through if-conversion. It removes the specified successor
 // edge and updates phi nodes in the target block to remove the corresponding argument.
-func elimNestedBlock(b *ssacore.Block, index int) {
+func elimNestedBlock(b *ssa.Block, index int) {
 	removedEdge := b.Succs[index^1]
 
 	notBothMetBlock := removedEdge.Block()
@@ -463,26 +463,26 @@ func elimNestedBlock(b *ssacore.Block, index int) {
 
 	b.Func.InvalidateCFG()
 	b.Reset(blockpkg.BlockPlain)
-	b.Likely = ssacore.BranchUnknown
+	b.Likely = ssa.BranchUnknown
 }
 
 // setNewControlValue sets the new control value for the transformed block
 // based on the inner block's control value. It also updates the branch
 // likelihood based on the original block's branch prediction.
-func setNewControlValue(outerBlock, innerBlock *ssacore.Block, outSuccIndex, inSuccIndex int) {
+func setNewControlValue(outerBlock, innerBlock *ssa.Block, outSuccIndex, inSuccIndex int) {
 	outerBlock.ResetWithControl(innerBlock.Kind, innerBlock.Controls[0])
 	if !isBranchLikelyConsistentWithIndex(outerBlock, outSuccIndex) ||
 		!isBranchLikelyConsistentWithIndex(innerBlock, inSuccIndex) {
-		outerBlock.Likely = ssacore.BranchUnknown
+		outerBlock.Likely = ssa.BranchUnknown
 	}
 }
 
 // isBranchLikelyConsistentWithIndex checks if the branch likelihood matches the expected
 // index. Returns true if the likelihood is consistent with the branch direction.
-func isBranchLikelyConsistentWithIndex(b *ssacore.Block, index int) bool {
-	if index == TrueConditionSuccIndex && b.Likely == ssacore.BranchLikely {
+func isBranchLikelyConsistentWithIndex(b *ssa.Block, index int) bool {
+	if index == TrueConditionSuccIndex && b.Likely == ssa.BranchLikely {
 		return true
-	} else if index == FalseConditionSuccIndex && b.Likely == ssacore.BranchUnlikely {
+	} else if index == FalseConditionSuccIndex && b.Likely == ssa.BranchUnlikely {
 		return true
 	}
 	return false
@@ -491,7 +491,7 @@ func isBranchLikelyConsistentWithIndex(b *ssacore.Block, index int) bool {
 // transformPrimaryComparisonValue transforms special block kinds (Z, NZ, ZW, NZW)
 // into standard comparison operations. These block kinds test for zero/non-zero
 // and need to be converted to explicit comparisons with zero for conditional execution.
-func transformPrimaryComparisonValue(block *ssacore.Block) {
+func transformPrimaryComparisonValue(block *ssa.Block) {
 	switch block.Kind {
 	case blockpkg.BlockARM64Z:
 		arg0 := block.Controls[0]
@@ -517,7 +517,7 @@ func transformPrimaryComparisonValue(block *ssacore.Block) {
 // transformDependentComparisonValue transforms the comparison in the dependent
 // (inner) block to prepare it for conditional execution. This involves converting
 // constant comparisons to register comparisons and handling special block kinds.
-func transformDependentComparisonValue(block *ssacore.Block) {
+func transformDependentComparisonValue(block *ssa.Block) {
 	typ := &block.Func.Config.Types
 
 	switch block.Kind {
@@ -589,7 +589,7 @@ func transformDependentComparisonValue(block *ssacore.Block) {
 // fixComparisonWithConstant optimizes conditional comparisons by converting
 // them to constant forms when one operand is a small constant. This generates
 // more efficient CCMPconst/CCMNconst instructions.
-func fixComparisonWithConstant(block *ssacore.Block, index int) {
+func fixComparisonWithConstant(block *ssa.Block, index int) {
 	// Helper function to extract 5-bit immediate from int64 constant (0-31 range)
 	getImm64 := func(auxInt int64) (uint8, bool) {
 		imm := AuxIntToInt64(auxInt)
@@ -613,7 +613,7 @@ func fixComparisonWithConstant(block *ssacore.Block, index int) {
 	// 1. Convert operation to constant form (CCMP -> CCMPconst, etc.)
 	// 2. Set the 'ind' flag for immediate mode
 	// 3. When constant is first operand (arg0), swap operands and invert condition
-	tryConvertToConstForm := func(value *ssacore.Value, newOp ssaop.Op, getImm func(int64) (uint8, bool)) {
+	tryConvertToConstForm := func(value *ssa.Value, newOp ssaop.Op, getImm func(int64) (uint8, bool)) {
 		params := value.AuxArm64ConditionalParams()
 		arg0 := value.Args[0]
 		arg1 := value.Args[1]
@@ -663,7 +663,7 @@ func fixComparisonWithConstant(block *ssacore.Block, index int) {
 // invertConditionsInBlock inverts the condition in a block and returns updated
 // conditional parameters. This is used when swapping operands in constant
 // optimizations to maintain correct semantics.
-func invertConditionsInBlock(block *ssacore.Block, params *ssacore.Arm64ConditionalParams, index int) {
+func invertConditionsInBlock(block *ssa.Block, params *ssa.Arm64ConditionalParams, index int) {
 	invertKind := invertBlockKind(block.Kind)
 	block.Kind = invertKind
 	if index == FalseConditionSuccIndex {
@@ -676,7 +676,7 @@ func invertConditionsInBlock(block *ssacore.Block, params *ssacore.Arm64Conditio
 // to conditional comparison operations (CCMP/CCMN). This is the core transformation
 // that creates the conditional execution pattern by combining the outer and inner
 // conditions into a single conditional comparison instruction.
-func transformToConditionalComparisonValue(outerBlock *ssacore.Block, outSuccIndex, inSuccIndex int) {
+func transformToConditionalComparisonValue(outerBlock *ssa.Block, outSuccIndex, inSuccIndex int) {
 	innerBlock := outerBlock.Succs[outSuccIndex].Block()
 
 	// Adjust block kinds and successors if needed to match expected pattern
@@ -736,7 +736,7 @@ func transformOpToConditionalComparisonOperation(op ssaop.Op) ssaop.Op {
 // - outerKind specifies the main condition (e.g., LT, GT) to be evaluated.
 // - innerKind determines the NZCV flag pattern to be used when the main condition is FALSE.
 // The resulting parameters are typically used by conditional comparison operations (CCMP, CCMN).
-func createConditionalParamsByBlockKind(outerKind, innerKind blockpkg.BlockKind) ssacore.Arm64ConditionalParams {
+func createConditionalParamsByBlockKind(outerKind, innerKind blockpkg.BlockKind) ssa.Arm64ConditionalParams {
 	cond := condByBlockKind(outerKind) // the condition code for the primary comparison
 	nzcv := nzcvByBlockKind(innerKind) // NZCV flags to apply when the condition is false
 	return arm64ConditionalParamsAuxInt(cond, nzcv)

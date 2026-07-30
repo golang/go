@@ -5,7 +5,7 @@
 package loong64
 
 import (
-	"cmd/compile/internal/ssa/ssacore"
+	"cmd/compile/internal/ssa"
 	"cmd/compile/internal/ssagen"
 	"cmd/internal/obj/loong64"
 )
@@ -17,7 +17,7 @@ func Init(arch *ssagen.ArchInfo) {
 	arch.ZeroRange = zerorange
 	arch.Ginsnop = ginsnop
 
-	arch.SSAMarkMoves = func(s *ssagen.State, b *ssacore.Block) {}
+	arch.SSAMarkMoves = func(s *ssagen.State, b *ssa.Block) {}
 	arch.SSAGenValue = ssaGenValue
 	arch.SSAGenBlock = ssaGenBlock
 	arch.LoadRegResult = loadRegResult

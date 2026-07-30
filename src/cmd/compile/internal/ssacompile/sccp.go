@@ -5,8 +5,8 @@
 package ssacompile
 
 import (
+	"cmd/compile/internal/ssa"
 	blockpkg "cmd/compile/internal/ssa/block"
-	"cmd/compile/internal/ssa/ssacore"
 	"cmd/compile/internal/ssa/ssaop"
 )
 
@@ -49,34 +49,34 @@ const (
 )
 
 type lattice struct {
-	tag int8           // lattice type
-	val *ssacore.Value // constant value
+	tag int8       // lattice type
+	val *ssa.Value // constant value
 }
 
 type worklist struct {
-	f            *ssacore.Func                       // the target function to be optimized out
-	edges        []ssacore.Edge                      // propagate constant facts through edges
-	inUses       *ssacore.SparseSet                  // IDs already in uses, for duplicate check
-	uses         []*ssacore.Value                    // re-visiting set
-	visited      map[ssacore.Edge]bool               // visited edges
-	latticeCells map[*ssacore.Value]lattice          // constant lattices
-	defUse       map[*ssacore.Value][]*ssacore.Value // def-use chains for some values
-	defBlock     map[*ssacore.Value][]*ssacore.Block // use blocks of def
-	visitedBlock []bool                              // visited block
+	f            *ssa.Func                   // the target function to be optimized out
+	edges        []ssa.Edge                  // propagate constant facts through edges
+	inUses       *ssa.SparseSet              // IDs already in uses, for duplicate check
+	uses         []*ssa.Value                // re-visiting set
+	visited      map[ssa.Edge]bool           // visited edges
+	latticeCells map[*ssa.Value]lattice      // constant lattices
+	defUse       map[*ssa.Value][]*ssa.Value // def-use chains for some values
+	defBlock     map[*ssa.Value][]*ssa.Block // use blocks of def
+	visitedBlock []bool                      // visited block
 }
 
 // sccp stands for sparse conditional constant propagation, it propagates constants
 // through CFG conditionally and applies constant folding, constant replacement and
 // dead code elimination all together.
-func sccp(f *ssacore.Func) {
+func sccp(f *ssa.Func) {
 	var t worklist
 	t.f = f
-	t.edges = make([]ssacore.Edge, 0)
-	t.visited = make(map[ssacore.Edge]bool)
-	t.edges = append(t.edges, ssacore.Edge{B: f.Entry, I: 0})
-	t.defUse = make(map[*ssacore.Value][]*ssacore.Value)
-	t.defBlock = make(map[*ssacore.Value][]*ssacore.Block)
-	t.latticeCells = make(map[*ssacore.Value]lattice)
+	t.edges = make([]ssa.Edge, 0)
+	t.visited = make(map[ssa.Edge]bool)
+	t.edges = append(t.edges, ssa.Edge{B: f.Entry, I: 0})
+	t.defUse = make(map[*ssa.Value][]*ssa.Value)
+	t.defBlock = make(map[*ssa.Value][]*ssa.Block)
+	t.latticeCells = make(map[*ssa.Value]lattice)
 	t.visitedBlock = f.Cache.AllocBoolSlice(f.NumBlocks())
 	t.inUses = f.NewSparseSet(f.NumValues())
 	defer f.RetSparseSet(t.inUses)
@@ -153,7 +153,7 @@ func equals(a, b lattice) bool {
 
 // possibleConst checks if Value can be folded to const. For those Values that can
 // never become constants(e.g. StaticCall), we don't make futile efforts.
-func possibleConst(val *ssacore.Value) bool {
+func possibleConst(val *ssa.Value) bool {
 	if isConst(val) {
 		return true
 	}
@@ -228,7 +228,7 @@ func possibleConst(val *ssacore.Value) bool {
 	}
 }
 
-func (t *worklist) getLatticeCell(val *ssacore.Value) lattice {
+func (t *worklist) getLatticeCell(val *ssa.Value) lattice {
 	if !possibleConst(val) {
 		// they are always worst
 		return lattice{bottom, nil}
@@ -240,7 +240,7 @@ func (t *worklist) getLatticeCell(val *ssacore.Value) lattice {
 	return lt
 }
 
-func isConst(val *ssacore.Value) bool {
+func isConst(val *ssa.Value) bool {
 	switch val.Op {
 	case ssaop.OpConst64, ssaop.OpConst32, ssaop.OpConst16, ssaop.OpConst8,
 		ssaop.OpConstBool, ssaop.OpConst32F, ssaop.OpConst64F:
@@ -266,7 +266,7 @@ func (t *worklist) buildDefUses() {
 						continue
 					}
 					if _, exist := t.defUse[arg]; !exist {
-						t.defUse[arg] = make([]*ssacore.Value, 0, arg.Uses)
+						t.defUse[arg] = make([]*ssa.Value, 0, arg.Uses)
 					}
 					t.defUse[arg] = append(t.defUse[arg], val)
 				}
@@ -282,7 +282,7 @@ func (t *worklist) buildDefUses() {
 }
 
 // addUses finds all uses of value and appends them into work list for further process
-func (t *worklist) addUses(val *ssacore.Value) {
+func (t *worklist) addUses(val *ssa.Value) {
 	for _, use := range t.defUse[val] {
 		// Provenly not a constant, ignore
 		useLt := t.getLatticeCell(use)
@@ -303,10 +303,10 @@ func (t *worklist) addUses(val *ssacore.Value) {
 }
 
 // meet meets all of phi arguments and computes result lattice
-func (t *worklist) meet(val *ssacore.Value) lattice {
+func (t *worklist) meet(val *ssa.Value) lattice {
 	optimisticLt := lattice{top, nil}
 	for i := 0; i < len(val.Args); i++ {
-		edge := ssacore.Edge{B: val.Block, I: i}
+		edge := ssa.Edge{B: val.Block, I: i}
 		// If incoming edge for phi is not visited, assume top optimistically.
 		// According to rules of meet:
 		// 		Top ∩ any = any
@@ -338,7 +338,7 @@ func (t *worklist) meet(val *ssacore.Value) lattice {
 	return optimisticLt
 }
 
-func computeLattice(f *ssacore.Func, val *ssacore.Value, args ...*ssacore.Value) lattice {
+func computeLattice(f *ssa.Func, val *ssa.Value, args ...*ssa.Value) lattice {
 	// In general, we need to perform constant evaluation based on constant args:
 	//
 	//  res := lattice{constant, nil}
@@ -379,7 +379,7 @@ func computeLattice(f *ssacore.Func, val *ssacore.Value, args ...*ssacore.Value)
 	return lattice{bottom, nil}
 }
 
-func (t *worklist) visitValue(val *ssacore.Value) {
+func (t *worklist) visitValue(val *ssa.Value) {
 	// Impossible to be a constant, fast fail
 	if !possibleConst(val) {
 		return
@@ -504,7 +504,7 @@ func (t *worklist) visitValue(val *ssacore.Value) {
 // propagate propagates constants facts through CFG. If the block has single successor,
 // add the successor anyway. If the block has multiple successors, only add the
 // branch destination corresponding to lattice value of condition value.
-func (t *worklist) propagate(block *ssacore.Block) {
+func (t *worklist) propagate(block *ssa.Block) {
 	switch block.Kind {
 	case blockpkg.BlockExit, blockpkg.BlockRet, blockpkg.BlockRetJmp, blockpkg.BlockInvalid:
 		// control flow ends, do nothing then
@@ -546,12 +546,12 @@ func (t *worklist) propagate(block *ssacore.Block) {
 // rewireSuccessor rewires corresponding successors according to constant value
 // discovered by previous analysis. As the result, some successors become unreachable
 // and thus can be removed in further deadcode phase
-func rewireSuccessor(block *ssacore.Block, constVal *ssacore.Value) bool {
+func rewireSuccessor(block *ssa.Block, constVal *ssa.Value) bool {
 	switch block.Kind {
 	case blockpkg.BlockIf:
 		block.RemoveEdge(int(constVal.AuxInt))
 		block.Kind = blockpkg.BlockPlain
-		block.Likely = ssacore.BranchUnknown
+		block.Likely = ssa.BranchUnknown
 		block.ResetControls()
 		return true
 	case blockpkg.BlockJumpTable:
@@ -569,7 +569,7 @@ func rewireSuccessor(block *ssacore.Block, constVal *ssacore.Value) bool {
 			block.RemoveEdge(1)
 		}
 		block.Kind = blockpkg.BlockPlain
-		block.Likely = ssacore.BranchUnknown
+		block.Likely = ssa.BranchUnknown
 		block.ResetControls()
 		return true
 	default:
