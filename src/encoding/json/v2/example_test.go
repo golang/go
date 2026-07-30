@@ -598,3 +598,35 @@ func ExampleUnmarshalDecode_stream() {
 	// Quoll: Dasyuromorphia
 	// Gopher: Rodentia
 }
+
+// Use [jsontext.Multiline] to create multiline, idented output for more
+// readable output for human consumption.
+//
+// See [jsontext.Multiline] for additional options that customize the multiline
+// output.
+func ExampleMarshal_multiline() {
+	type Pet struct {
+		Name    string
+		Species string
+		Breed   string
+	}
+
+	p := Pet{
+		Name:    "Oliver",
+		Species: "Dog",
+		Breed:   "Goldendoodle",
+	}
+
+	b, err := json.Marshal(p, jsontext.Multiline(true))
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	fmt.Println(string(b))
+	// Output:
+	// {
+	// 	"Name": "Oliver",
+	// 	"Species": "Dog",
+	// 	"Breed": "Goldendoodle"
+	// }
+}
