@@ -224,8 +224,8 @@ TEXT runtime·walltime(SB),NOSPLIT,$40-12
 	MOV	(g_sched+gobuf_sp)(T1), X2
 
 noswitch:
-	SUB	$24, X2 // Space for result
-	ANDI	$~7, X2 // Align for C code
+	SUB	$24, X2  // Space for result
+	ANDI	$~15, X2 // Align for C code (16-byte alignment per C ABI)
 	MOV	$8(X2), A1
 
 	// Store g on gsignal's stack, see sys_linux_arm64.s for detail
@@ -296,8 +296,8 @@ TEXT runtime·nanotime1(SB),NOSPLIT,$40-8
 	MOV	(g_sched+gobuf_sp)(T1), X2
 
 noswitch:
-	SUB	$24, X2 // Space for result
-	ANDI	$~7, X2 // Align for C code
+	SUB	$24, X2  // Space for result
+	ANDI	$~15, X2 // Align for C code (16-byte alignment per C ABI)
 	MOV	$8(X2), A1
 
 	// Store g on gsignal's stack, see sys_linux_arm64.s for detail
@@ -398,8 +398,12 @@ TEXT runtime·cgoSigtramp(SB),NOSPLIT,$0
 
 // func callCgoSigaction(sig uintptr, new, old *sigactiont) int32
 TEXT runtime·callCgoSigaction<ABIInternal>(SB),NOSPLIT,$0
+	MOV	X2, X9		// save SP in X9 (callee-saved in C ABI)
+	ANDI	$~15, X2	// align SP to 16 bytes per C ABI
+	MOV	X0, X8		// clear frame pointer (see asmcgocall)
 	MOV	_cgo_sigaction(SB), A7
 	JALR	X1, A7
+	MOV	X9, X2
 	MOV	X10, X10 // return value from C, NOP OP
 	RET
 
@@ -427,15 +431,23 @@ TEXT runtime·sysMunmap<ABIInternal>(SB),NOSPLIT|NOFRAME,$0
 
 // func callCgoMmap(addr unsafe.Pointer, n uintptr, prot, flags, fd int32, off uint32) uintptr
 TEXT runtime·callCgoMmap<ABIInternal>(SB),NOSPLIT,$0
+	MOV	X2, X9		// save SP in X9 (callee-saved in C ABI)
+	ANDI	$~15, X2	// align SP to 16 bytes per C ABI
+	MOV	X0, X8		// clear frame pointer (see asmcgocall)
 	MOV	_cgo_mmap(SB), A7
 	JALR	X1, A7
+	MOV	X9, X2
 	MOV	X10, X10 // return value from C, NOP OP
 	RET
 
 // func callCgoMunmap(addr unsafe.Pointer, n uintptr)
 TEXT runtime·callCgoMunmap<ABIInternal>(SB),NOSPLIT,$0
+	MOV	X2, X9		// save SP in X9 (callee-saved in C ABI)
+	ANDI	$~15, X2	// align SP to 16 bytes per C ABI
+	MOV	X0, X8		// clear frame pointer (see asmcgocall)
 	MOV	_cgo_munmap(SB), A7
 	JALR	X1, A7
+	MOV	X9, X2
 	RET
 
 // func madvise(addr unsafe.Pointer, n uintptr, flags int32)
