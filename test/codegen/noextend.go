@@ -6,7 +6,10 @@
 
 package codegen
 
-import "math/bits"
+import (
+	"math/bits"
+	"unsafe"
+)
 
 var sval64 [8]int64
 var sval32 [8]int32
@@ -282,4 +285,50 @@ func shouldSignEXT(x int) int64 {
 func noIntermediateExtension(a, b, c uint32) uint32 {
 	// arm64:-"MOVWU"
 	return a*b*9 + c
+}
+
+// When a sign-extending load feeds a single zero-extension, the load itself
+// can be switched to its unsigned form, eliminating the extension instruction.
+
+func zextSignLoadInt8(p *int8) bool {
+	// arm64:-`MOVBU\sR[0-9]+, R[0-9]+`
+	return *p == 0x5d
+}
+
+func zextSignLoadInt16(p *int16) bool {
+	// arm64:-`MOVHU\sR[0-9]+, R[0-9]+`
+	return *p == 0x5d
+}
+
+func zextSignLoadInt32(p *int32) uint64 {
+	// arm64:-`MOVWU\sR[0-9]+, R[0-9]+`
+	return uint64(uint32(*p))
+}
+
+func zextSignLoadIdxInt8(s []int8, i int) bool {
+	// arm64:-`MOVBU\sR[0-9]+, R[0-9]+`
+	return s[i] == 0x5d
+}
+
+func zextSignLoadIdxInt16(s []int16, i int) bool {
+	// arm64:-`MOVHU\sR[0-9]+, R[0-9]+`
+	return s[i] == 0x5d
+}
+
+func zextSignLoadIdxInt32(s []int32, i int) uint64 {
+	// arm64:-`MOVWU\sR[0-9]+, R[0-9]+`
+	return uint64(uint32(s[i]))
+}
+
+// Unscaled (byte-offset) indexed loads, which slice indexing does not
+// produce, cover the MOVHloadidx/MOVWloadidx variants of the rewrite.
+
+func zextSignLoadIdxUnscaledInt16(p *int16, i int) bool {
+	// arm64:-`MOVHU\sR[0-9]+, R[0-9]+`
+	return *(*int16)(unsafe.Add(unsafe.Pointer(p), i)) == 0x5d
+}
+
+func zextSignLoadIdxUnscaledInt32(p *int32, i int) uint64 {
+	// arm64:-`MOVWU\sR[0-9]+, R[0-9]+`
+	return uint64(uint32(*(*int32)(unsafe.Add(unsafe.Pointer(p), i))))
 }
