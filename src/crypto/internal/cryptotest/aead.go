@@ -98,18 +98,37 @@ func TestAEAD(t *testing.T, mAEAD MakeAEAD) {
 		// boundaryLengths covers every offset within an AES block, as well as the tail
 		// of a multi-block message, since that's where implementations handle partial
 		// blocks, and are most likely to access memory past the end of a buffer.
+		// Lengths around multiples of 64 target ChaCha20 block boundaries and the
+		// specialized short-input paths of chacha20poly1305 assembly.
 		var boundaryLengths = []int{
 			0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15,
-			16, 17, 18, 127, 128, 129, 130, 131, 156, 8193,
+			16, 17, 18, 63, 64, 65, 127, 128, 129, 130, 131, 156,
+			191, 192, 193, 255, 256, 257, 319, 320, 321, 8193,
 		}
+		// Sweep the plaintext length with a fixed additional data length, and
+		// vice versa. The sealed message always ends with the tag, so the
+		// ciphertext processed by the authenticator can never be placed flush
+		// against a guard page; the additional data can, making its sweep the
+		// one that catches authenticator overreads at every length.
+		type boundarySizes struct{ ptLen, adLen int }
+		var sizes []boundarySizes
 		for _, ptLen := range boundaryLengths {
-			t.Run(fmt.Sprintf("Plaintext-Length=%d", ptLen), func(t *testing.T) {
+			sizes = append(sizes, boundarySizes{ptLen, 16})
+		}
+		for _, adLen := range boundaryLengths {
+			if adLen == 16 {
+				continue // covered by the plaintext length sweep
+			}
+			sizes = append(sizes, boundarySizes{156, adLen})
+		}
+		for _, size := range sizes {
+			t.Run(fmt.Sprintf("Plaintext-Length=%d,AddData-Length=%d", size.ptLen, size.adLen), func(t *testing.T) {
 				rng := newRandReader(t)
 
 				nonce := make([]byte, aead.NonceSize())
 				rng.Read(nonce)
 
-				plaintext, addData := make([]byte, ptLen), make([]byte, 16)
+				plaintext, addData := make([]byte, size.ptLen), make([]byte, size.adLen)
 				rng.Read(plaintext)
 				rng.Read(addData)
 
@@ -130,7 +149,7 @@ func TestAEAD(t *testing.T, mAEAD MakeAEAD) {
 						}
 
 						src, ad := guarded(plaintext), guarded(addData)
-						dst := guarded(make([]byte, ptLen+aead.Overhead()))
+						dst := guarded(make([]byte, size.ptLen+aead.Overhead()))
 
 						ciphertext := sealMsg(t, aead, dst[:0], nonce, src, ad)
 

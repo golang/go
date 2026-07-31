@@ -136,6 +136,23 @@ func TestStream(t *testing.T, ms MakeStream) {
 		}
 	})
 
+	t.Run("OutOfBounds", func(t *testing.T) {
+		const size = 1000
+		// Process buffers of every length placed against inaccessible pages,
+		// so that any access beyond the boundaries of src or dst faults,
+		// rather than silently landing in adjacent memory.
+		for _, src := range boundarySlicers(t, size) {
+			for _, dst := range boundarySlicers(t, size) {
+				t.Run("Src="+src.name+",Dst="+dst.name, func(t *testing.T) {
+					stream := ms()
+					for i := 0; i <= size; i++ {
+						stream.XORKeyStream(dst.slice(i), src.slice(i))
+					}
+				})
+			}
+		}
+	})
+
 	t.Run("OutOfBoundsWrite", func(t *testing.T) { // Issue 21104
 		rng := newRandReader(t)
 
@@ -242,6 +259,24 @@ func TestStreamFromBlock(t *testing.T, block cipher.Block, blockMode func(b ciph
 
 		TestStream(t, func() cipher.Stream { return blockMode(block, iv) })
 	})
+}
+
+type boundarySlicer struct {
+	name  string
+	slice func(i int) []byte
+}
+
+// boundarySlicers returns a pair of slice generators backed by
+// [BoundarySlices] buffers of the given size: "Start" slices of length i begin
+// right after an inaccessible page, so accesses before the buffer fault, while
+// "End" slices of length i stop right before an inaccessible page, so accesses
+// past the buffer fault.
+func boundarySlicers(t *testing.T, size int) []boundarySlicer {
+	start, end := BoundarySlices(t, size)
+	return []boundarySlicer{
+		{"Start", func(i int) []byte { return start[:i] }},
+		{"End", func(i int) []byte { return end[len(end)-i:] }},
+	}
 }
 
 func truncateHex(b []byte) string {

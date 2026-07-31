@@ -103,6 +103,25 @@ func testCipher(t *testing.T, cipher func(dst, src []byte), blockSize int) {
 		}
 	})
 
+	t.Run("OutOfBounds", func(t *testing.T) {
+		rng := newRandReader(t)
+
+		// Encrypt or decrypt a block with src and dst each placed against an
+		// inaccessible page, so that any access beyond the boundaries of
+		// either buffer faults, rather than silently landing in adjacent
+		// memory.
+		srcStart, srcEnd := BoundarySlices(t, blockSize)
+		rng.Read(srcStart)
+		rng.Read(srcEnd)
+		dstStart, dstEnd := BoundarySlices(t, blockSize)
+
+		for _, src := range [][]byte{srcStart, srcEnd} {
+			for _, dst := range [][]byte{dstStart, dstEnd} {
+				cipher(dst, src)
+			}
+		}
+	})
+
 	t.Run("OutOfBoundsWrite", func(t *testing.T) {
 		rng := newRandReader(t)
 

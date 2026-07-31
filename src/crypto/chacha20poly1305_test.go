@@ -2,16 +2,36 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-package cryptotest_test
+package crypto_test
 
 import (
 	"bytes"
 	"crypto/cipher"
+	"crypto/internal/cryptotest"
 	"crypto/internal/cryptotest/wycheproof"
 	"testing"
 
 	"golang.org/x/crypto/chacha20poly1305"
 )
+
+func TestChaCha20Poly1305(t *testing.T) {
+	key := make([]byte, chacha20poly1305.KeySize)
+	for i := range key {
+		key[i] = byte(i)
+	}
+
+	t.Run("ChaCha20Poly1305", func(t *testing.T) {
+		cryptotest.TestAEAD(t, func() (cipher.AEAD, error) {
+			return chacha20poly1305.New(key)
+		})
+	})
+
+	t.Run("XChaCha20Poly1305", func(t *testing.T) {
+		cryptotest.TestAEAD(t, func() (cipher.AEAD, error) {
+			return chacha20poly1305.NewX(key)
+		})
+	})
+}
 
 func TestChaCha20Poly1305Wycheproof(t *testing.T) {
 	for _, tc := range []struct {
