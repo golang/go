@@ -6,9 +6,10 @@
 
 #include "textflag.h"
 
-// func keccakF1600NEON(a *[200]byte)
-TEXT ·keccakF1600NEON(SB), $200-8
-	MOVD	a+0(FP), R0
+// func keccakF1600x2NEON(a0, a1 *[200]byte)
+TEXT ·keccakF1600x2NEON(SB), NOSPLIT, $0-16
+	MOVD	a0+0(FP), R0
+	MOVD	a1+8(FP), R3
 	MOVD	$round_consts<>(SB), R1
 	MOVD	$24, R2 // counter for loop
 
@@ -27,6 +28,36 @@ TEXT ·keccakF1600NEON(SB), $200-8
 	VLD1	(R0), [V24.D1]
 
 	SUB	$192, R0, R0
+
+	CBZ	R3, loop
+
+	VLD1.P	8(R3), V0.D[1]
+	VLD1.P	8(R3), V1.D[1]
+	VLD1.P	8(R3), V2.D[1]
+	VLD1.P	8(R3), V3.D[1]
+	VLD1.P	8(R3), V4.D[1]
+	VLD1.P	8(R3), V5.D[1]
+	VLD1.P	8(R3), V6.D[1]
+	VLD1.P	8(R3), V7.D[1]
+	VLD1.P	8(R3), V8.D[1]
+	VLD1.P	8(R3), V9.D[1]
+	VLD1.P	8(R3), V10.D[1]
+	VLD1.P	8(R3), V11.D[1]
+	VLD1.P	8(R3), V12.D[1]
+	VLD1.P	8(R3), V13.D[1]
+	VLD1.P	8(R3), V14.D[1]
+	VLD1.P	8(R3), V15.D[1]
+	VLD1.P	8(R3), V16.D[1]
+	VLD1.P	8(R3), V17.D[1]
+	VLD1.P	8(R3), V18.D[1]
+	VLD1.P	8(R3), V19.D[1]
+	VLD1.P	8(R3), V20.D[1]
+	VLD1.P	8(R3), V21.D[1]
+	VLD1.P	8(R3), V22.D[1]
+	VLD1.P	8(R3), V23.D[1]
+	VLD1	(R3), V24.D[1]
+
+	SUB	$192, R3, R3
 
 loop:
 	// theta
@@ -136,6 +167,35 @@ loop:
 	VST1.P	[V22.D1, V23.D1], 16(R0)
 	VST1	[V24.D1], (R0)
 
+	CBZ	R3, done
+
+	VST1.P	V0.D[1], 8(R3)
+	VST1.P	V1.D[1], 8(R3)
+	VST1.P	V2.D[1], 8(R3)
+	VST1.P	V3.D[1], 8(R3)
+	VST1.P	V4.D[1], 8(R3)
+	VST1.P	V5.D[1], 8(R3)
+	VST1.P	V6.D[1], 8(R3)
+	VST1.P	V7.D[1], 8(R3)
+	VST1.P	V8.D[1], 8(R3)
+	VST1.P	V9.D[1], 8(R3)
+	VST1.P	V10.D[1], 8(R3)
+	VST1.P	V11.D[1], 8(R3)
+	VST1.P	V12.D[1], 8(R3)
+	VST1.P	V13.D[1], 8(R3)
+	VST1.P	V14.D[1], 8(R3)
+	VST1.P	V15.D[1], 8(R3)
+	VST1.P	V16.D[1], 8(R3)
+	VST1.P	V17.D[1], 8(R3)
+	VST1.P	V18.D[1], 8(R3)
+	VST1.P	V19.D[1], 8(R3)
+	VST1.P	V20.D[1], 8(R3)
+	VST1.P	V21.D[1], 8(R3)
+	VST1.P	V22.D[1], 8(R3)
+	VST1.P	V23.D[1], 8(R3)
+	VST1	V24.D[1], (R3)
+
+done:
 	RET
 
 DATA	round_consts<>+0x00(SB)/8, $0x0000000000000001
