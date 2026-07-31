@@ -140,7 +140,7 @@ var (
 
 const simdPackage = "simd/archsimd"
 
-var splitPhase = phase5Conv
+var splitPhase = phase6Rewrites
 
 var (
 	title = identity

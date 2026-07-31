@@ -981,22 +981,22 @@
 
 // Don't Store zeros to cleared variables.
 (Store {t} (OffPtr [o] p1) x mem:(Zero [n] p2 _))
-	&& isConstZero(x)
+	&& ssa.IsConstZero(x)
 	&& o >= 0 && t.Size() + o <= n && ssa.IsSamePtr(p1, p2)
 	=> mem
 (Store {t1} op1:(OffPtr [o1] p1) x mem:(Store {t2} p2 _ (Zero [n] p3 _)))
-	&& isConstZero(x)
+	&& ssa.IsConstZero(x)
 	&& o1 >= 0 && t1.Size() + o1 <= n && ssa.IsSamePtr(p1, p3)
 	&& ssa.Disjoint(op1, t1, p2, t2)
 	=> mem
 (Store {t1} op1:(OffPtr [o1] p1) x mem:(Store {t2} p2 _ (Store {t3} p3 _ (Zero [n] p4 _))))
-	&& isConstZero(x)
+	&& ssa.IsConstZero(x)
 	&& o1 >= 0 && t1.Size() + o1 <= n && ssa.IsSamePtr(p1, p4)
 	&& ssa.Disjoint(op1, t1, p2, t2)
 	&& ssa.Disjoint(op1, t1, p3, t3)
 	=> mem
 (Store {t1} op1:(OffPtr [o1] p1) x mem:(Store {t2} p2 _ (Store {t3} p3 _ (Store {t4} p4 _ (Zero [n] p5 _)))))
-	&& isConstZero(x)
+	&& ssa.IsConstZero(x)
 	&& o1 >= 0 && t1.Size() + o1 <= n && ssa.IsSamePtr(p1, p5)
 	&& ssa.Disjoint(op1, t1, p2, t2)
 	&& ssa.Disjoint(op1, t1, p3, t3)
@@ -1398,12 +1398,12 @@
 	=> mem
 
 (Store (SelectN [0] call:(StaticLECall ___)) x mem:(SelectN [1] call))
-	&& isConstZero(x)
+	&& ssa.IsConstZero(x)
 	&& isMalloc(call.Aux)
 	=> mem
 
 (Store (OffPtr (SelectN [0] call:(StaticLECall ___))) x mem:(SelectN [1] call))
-	&& isConstZero(x)
+	&& ssa.IsConstZero(x)
 	&& isMalloc(call.Aux)
 	=> mem
 

@@ -418,8 +418,8 @@ var passes = [...]ssa.Pass{
 	{Name: "gcse deadcode", Fn: deadcode, Required: true}, // clean out after cse and phiopt
 	{Name: "nilcheckelim", Fn: nilcheckelim},
 	{Name: "prove", Fn: prove},
-	{Name: "divisible", Fn: divisible, Required: true},
-	{Name: "divmod", Fn: divmod, Required: true},
+	{Name: "divisible", Fn: divisiblePass, Required: true},
+	{Name: "divmod", Fn: divmodPass, Required: true},
 	{Name: "middle opt", Fn: opt, Required: true},
 	{Name: "known bits", Fn: ssa.KnownBits},
 	{Name: "early fuse", Fn: fuseEarly},

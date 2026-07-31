@@ -8,6 +8,7 @@ import (
 	"cmd/compile/internal/ssa"
 	blockpkg "cmd/compile/internal/ssa/block"
 	"cmd/compile/internal/ssa/ssaop"
+	"cmd/compile/internal/ssarewrite/rewritegeneric"
 )
 
 // ----------------------------------------------------------------------------
@@ -366,7 +367,7 @@ func computeLattice(f *ssa.Func, val *ssa.Value, args ...*ssa.Value) lattice {
 	// edges may still not be visited at this moment.
 	constValue := f.NewValue(val.Op, val.Type, f.Entry, val.Pos)
 	constValue.AddArgs(args...)
-	matched := rewriteValuegeneric(constValue)
+	matched := rewritegeneric.RewriteValue(constValue)
 	if matched {
 		if isConst(constValue) {
 			return lattice{constant, constValue}

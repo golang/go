@@ -181,7 +181,7 @@ func isUnsignedInequality(v *ssa.Value) bool {
 	case ssaop.OpNeq64, ssaop.OpNeq32, ssaop.OpNeq16, ssaop.OpNeq8:
 		// "x != 0" is equivalent to the unsigned "0 < x", and is its
 		// canonical form; see "prefer equalities with zero" in generic.rules.
-		return isConstZero(v.Args[0]) || isConstZero(v.Args[1])
+		return ssa.IsConstZero(v.Args[0]) || ssa.IsConstZero(v.Args[1])
 	}
 	return false
 }

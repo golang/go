@@ -343,7 +343,7 @@ func %sBlock%s(b *ssa.Block) bool { panic("unused during bootstrap") }
 	return bootstrapFixImports(srcFile)
 }
 
-var ssaRewriteSplitPackages = false
+var ssaRewriteSplitPackages = true
 
 var (
 	importRE      = regexp.MustCompile(`\Aimport\s+(\.|[A-Za-z0-9_]+)?\s*"([^"]+)"\s*(//.*)?\n\z`)

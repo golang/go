@@ -9,6 +9,25 @@ import (
 	"cmd/compile/internal/base"
 	"cmd/compile/internal/ssa"
 	"cmd/compile/internal/ssa/ssaop"
+	"cmd/compile/internal/ssarewrite/rewrite386"
+	"cmd/compile/internal/ssarewrite/rewrite386splitload"
+	"cmd/compile/internal/ssarewrite/rewriteamd64"
+	"cmd/compile/internal/ssarewrite/rewriteamd64latelower"
+	"cmd/compile/internal/ssarewrite/rewriteamd64splitload"
+	"cmd/compile/internal/ssarewrite/rewritearm"
+	"cmd/compile/internal/ssarewrite/rewritearm64"
+	"cmd/compile/internal/ssarewrite/rewritearm64latelower"
+	"cmd/compile/internal/ssarewrite/rewriteloong64"
+	"cmd/compile/internal/ssarewrite/rewriteloong64latelower"
+	"cmd/compile/internal/ssarewrite/rewritemips"
+	"cmd/compile/internal/ssarewrite/rewritemips64"
+	"cmd/compile/internal/ssarewrite/rewritemips64latelower"
+	"cmd/compile/internal/ssarewrite/rewriteppc64"
+	"cmd/compile/internal/ssarewrite/rewriteppc64latelower"
+	"cmd/compile/internal/ssarewrite/rewriteriscv64"
+	"cmd/compile/internal/ssarewrite/rewriteriscv64latelower"
+	"cmd/compile/internal/ssarewrite/rewrites390x"
+	"cmd/compile/internal/ssarewrite/rewritewasm"
 	"cmd/internal/obj"
 )
 
@@ -24,11 +43,11 @@ func newConfig(arch string, types ssa.Types, ctxt *obj.Link, optimize, softfloat
 	case "amd64":
 		c.PtrSize = 8
 		c.RegSize = 8
-		c.LowerBlock = rewriteBlockAMD64
-		c.LowerValue = rewriteValueAMD64
-		c.LateLowerBlock = rewriteBlockAMD64latelower
-		c.LateLowerValue = rewriteValueAMD64latelower
-		c.SplitLoad = rewriteValueAMD64splitload
+		c.LowerBlock = rewriteamd64.RewriteBlock
+		c.LowerValue = rewriteamd64.RewriteValue
+		c.LateLowerBlock = rewriteamd64latelower.RewriteBlock
+		c.LateLowerValue = rewriteamd64latelower.RewriteValue
+		c.SplitLoad = rewriteamd64splitload.RewriteValue
 		c.Registers = registersAMD64[:]
 		c.GpRegMask = gpRegMaskAMD64
 		c.FpRegMask = fpRegMaskAMD64
@@ -47,9 +66,9 @@ func newConfig(arch string, types ssa.Types, ctxt *obj.Link, optimize, softfloat
 	case "386":
 		c.PtrSize = 4
 		c.RegSize = 4
-		c.LowerBlock = rewriteBlock386
-		c.LowerValue = rewriteValue386
-		c.SplitLoad = rewriteValue386splitload
+		c.LowerBlock = rewrite386.RewriteBlock
+		c.LowerValue = rewrite386.RewriteValue
+		c.SplitLoad = rewrite386splitload.RewriteValue
 		c.Registers = registers386[:]
 		c.GpRegMask = gpRegMask386
 		c.FpRegMask = fpRegMask386
@@ -62,8 +81,8 @@ func newConfig(arch string, types ssa.Types, ctxt *obj.Link, optimize, softfloat
 	case "arm":
 		c.PtrSize = 4
 		c.RegSize = 4
-		c.LowerBlock = rewriteBlockARM
-		c.LowerValue = rewriteValueARM
+		c.LowerBlock = rewritearm.RewriteBlock
+		c.LowerValue = rewritearm.RewriteValue
 		c.Registers = registersARM[:]
 		c.GpRegMask = gpRegMaskARM
 		c.FpRegMask = fpRegMaskARM
@@ -73,10 +92,10 @@ func newConfig(arch string, types ssa.Types, ctxt *obj.Link, optimize, softfloat
 	case "arm64":
 		c.PtrSize = 8
 		c.RegSize = 8
-		c.LowerBlock = rewriteBlockARM64
-		c.LowerValue = rewriteValueARM64
-		c.LateLowerBlock = rewriteBlockARM64latelower
-		c.LateLowerValue = rewriteValueARM64latelower
+		c.LowerBlock = rewritearm64.RewriteBlock
+		c.LowerValue = rewritearm64.RewriteValue
+		c.LateLowerBlock = rewritearm64latelower.RewriteBlock
+		c.LateLowerValue = rewritearm64latelower.RewriteValue
 		c.Registers = registersARM64[:]
 		c.GpRegMask = gpRegMaskARM64
 		c.FpRegMask = fpRegMaskARM64
@@ -98,10 +117,10 @@ func newConfig(arch string, types ssa.Types, ctxt *obj.Link, optimize, softfloat
 	case "ppc64le":
 		c.PtrSize = 8
 		c.RegSize = 8
-		c.LowerBlock = rewriteBlockPPC64
-		c.LowerValue = rewriteValuePPC64
-		c.LateLowerBlock = rewriteBlockPPC64latelower
-		c.LateLowerValue = rewriteValuePPC64latelower
+		c.LowerBlock = rewriteppc64.RewriteBlock
+		c.LowerValue = rewriteppc64.RewriteValue
+		c.LateLowerBlock = rewriteppc64latelower.RewriteBlock
+		c.LateLowerValue = rewriteppc64latelower.RewriteValue
 		c.Registers = registersPPC64[:]
 		c.GpRegMask = gpRegMaskPPC64
 		c.FpRegMask = fpRegMaskPPC64
@@ -126,10 +145,10 @@ func newConfig(arch string, types ssa.Types, ctxt *obj.Link, optimize, softfloat
 	case "mips64le":
 		c.PtrSize = 8
 		c.RegSize = 8
-		c.LowerBlock = rewriteBlockMIPS64
-		c.LowerValue = rewriteValueMIPS64
-		c.LateLowerBlock = rewriteBlockMIPS64latelower
-		c.LateLowerValue = rewriteValueMIPS64latelower
+		c.LowerBlock = rewritemips64.RewriteBlock
+		c.LowerValue = rewritemips64.RewriteValue
+		c.LateLowerBlock = rewritemips64latelower.RewriteBlock
+		c.LateLowerValue = rewritemips64latelower.RewriteValue
 		c.Registers = registersMIPS64[:]
 		c.GpRegMask = gpRegMaskMIPS64
 		c.FpRegMask = fpRegMaskMIPS64
@@ -140,10 +159,10 @@ func newConfig(arch string, types ssa.Types, ctxt *obj.Link, optimize, softfloat
 	case "loong64":
 		c.PtrSize = 8
 		c.RegSize = 8
-		c.LowerBlock = rewriteBlockLOONG64
-		c.LowerValue = rewriteValueLOONG64
-		c.LateLowerBlock = rewriteBlockLOONG64latelower
-		c.LateLowerValue = rewriteValueLOONG64latelower
+		c.LowerBlock = rewriteloong64.RewriteBlock
+		c.LowerValue = rewriteloong64.RewriteValue
+		c.LateLowerBlock = rewriteloong64latelower.RewriteBlock
+		c.LateLowerValue = rewriteloong64latelower.RewriteValue
 		c.Registers = registersLOONG64[:]
 		c.GpRegMask = gpRegMaskLOONG64
 		c.FpRegMask = fpRegMaskLOONG64
@@ -160,8 +179,8 @@ func newConfig(arch string, types ssa.Types, ctxt *obj.Link, optimize, softfloat
 	case "s390x":
 		c.PtrSize = 8
 		c.RegSize = 8
-		c.LowerBlock = rewriteBlockS390X
-		c.LowerValue = rewriteValueS390X
+		c.LowerBlock = rewrites390x.RewriteBlock
+		c.LowerValue = rewrites390x.RewriteValue
 		c.Registers = registersS390X[:]
 		c.GpRegMask = gpRegMaskS390X
 		c.FpRegMask = fpRegMaskS390X
@@ -181,8 +200,8 @@ func newConfig(arch string, types ssa.Types, ctxt *obj.Link, optimize, softfloat
 	case "mipsle":
 		c.PtrSize = 4
 		c.RegSize = 4
-		c.LowerBlock = rewriteBlockMIPS
-		c.LowerValue = rewriteValueMIPS
+		c.LowerBlock = rewritemips.RewriteBlock
+		c.LowerValue = rewritemips.RewriteValue
 		c.Registers = registersMIPS[:]
 		c.GpRegMask = gpRegMaskMIPS
 		c.FpRegMask = fpRegMaskMIPS
@@ -193,10 +212,10 @@ func newConfig(arch string, types ssa.Types, ctxt *obj.Link, optimize, softfloat
 	case "riscv64":
 		c.PtrSize = 8
 		c.RegSize = 8
-		c.LowerBlock = rewriteBlockRISCV64
-		c.LowerValue = rewriteValueRISCV64
-		c.LateLowerBlock = rewriteBlockRISCV64latelower
-		c.LateLowerValue = rewriteValueRISCV64latelower
+		c.LowerBlock = rewriteriscv64.RewriteBlock
+		c.LowerValue = rewriteriscv64.RewriteValue
+		c.LateLowerBlock = rewriteriscv64latelower.RewriteBlock
+		c.LateLowerValue = rewriteriscv64latelower.RewriteValue
 		c.Registers = registersRISCV64[:]
 		c.GpRegMask = gpRegMaskRISCV64
 		c.FpRegMask = fpRegMaskRISCV64
@@ -207,8 +226,8 @@ func newConfig(arch string, types ssa.Types, ctxt *obj.Link, optimize, softfloat
 	case "wasm":
 		c.PtrSize = 8
 		c.RegSize = 8
-		c.LowerBlock = rewriteBlockWasm
-		c.LowerValue = rewriteValueWasm
+		c.LowerBlock = rewritewasm.RewriteBlock
+		c.LowerValue = rewritewasm.RewriteValue
 		c.Registers = registersWasm[:]
 		c.GpRegMask = gpRegMaskWasm
 		c.FpRegMask = fpRegMaskWasm

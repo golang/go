@@ -10,6 +10,8 @@ import (
 
 	"cmd/compile/internal/ssa"
 	"cmd/compile/internal/ssa/ssaop"
+	"cmd/compile/internal/ssarewrite/rewritedec"
+	"cmd/compile/internal/ssarewrite/rewritedec64"
 	"cmd/compile/internal/types"
 )
 
@@ -30,9 +32,9 @@ func decomposeBuiltin(f *ssa.Func) {
 	// Decompose other values
 	// Note: Leave dead values because we need to keep the original
 	// values around so the name component resolution below can still work.
-	applyRewrite(f, rewriteBlockdec, rewriteValuedec, ssa.LeaveDeadValues)
+	applyRewrite(f, rewritedec.RewriteBlock, rewritedec.RewriteValue, ssa.LeaveDeadValues)
 	if f.Config.RegSize == 4 {
-		applyRewrite(f, rewriteBlockdec64, rewriteValuedec64, ssa.LeaveDeadValues)
+		applyRewrite(f, rewritedec64.RewriteBlock, rewritedec64.RewriteValue, ssa.LeaveDeadValues)
 	}
 
 	// Split up named values into their components.

@@ -4,17 +4,22 @@
 
 package ssacompile
 
-import "cmd/compile/internal/ssa"
+import (
+	"cmd/compile/internal/ssa"
+	"cmd/compile/internal/ssarewrite/rewritedivisible"
+	"cmd/compile/internal/ssarewrite/rewritedivmod"
+	"cmd/compile/internal/ssarewrite/rewritegeneric"
+)
 
 // machine-independent optimization.
 func opt(f *ssa.Func) {
-	applyRewrite(f, rewriteBlockgeneric, rewriteValuegeneric, ssa.RemoveDeadValues)
+	applyRewrite(f, rewritegeneric.RewriteBlock, rewritegeneric.RewriteValue, ssa.RemoveDeadValues)
 }
 
-func divisible(f *ssa.Func) {
-	applyRewrite(f, rewriteBlockdivisible, rewriteValuedivisible, ssa.RemoveDeadValues)
+func divisiblePass(f *ssa.Func) {
+	applyRewrite(f, rewritedivisible.RewriteBlock, rewritedivisible.RewriteValue, ssa.RemoveDeadValues)
 }
 
-func divmod(f *ssa.Func) {
-	applyRewrite(f, rewriteBlockdivmod, rewriteValuedivmod, ssa.RemoveDeadValues)
+func divmodPass(f *ssa.Func) {
+	applyRewrite(f, rewritedivmod.RewriteBlock, rewritedivmod.RewriteValue, ssa.RemoveDeadValues)
 }

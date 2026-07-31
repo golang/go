@@ -1491,3 +1491,19 @@ func (fcs FlagConstantBuilder) Encode() FlagConstant {
 	}
 	return fc
 }
+
+func IsConstZero(v *Value) bool {
+	switch v.Op {
+	case ssaop.OpConstNil:
+		return true
+	case ssaop.OpConst64, ssaop.OpConst32, ssaop.OpConst16, ssaop.OpConst8, ssaop.OpConstBool, ssaop.OpConst32F, ssaop.OpConst64F:
+		return v.AuxInt == 0
+	case ssaop.OpStringMake, ssaop.OpIMake, ssaop.OpComplexMake:
+		return IsConstZero(v.Args[0]) && IsConstZero(v.Args[1])
+	case ssaop.OpSliceMake:
+		return IsConstZero(v.Args[0]) && IsConstZero(v.Args[1]) && IsConstZero(v.Args[2])
+	case ssaop.OpStringPtr, ssaop.OpStringLen, ssaop.OpSlicePtr, ssaop.OpSliceLen, ssaop.OpSliceCap, ssaop.OpITab, ssaop.OpIData, ssaop.OpComplexReal, ssaop.OpComplexImag:
+		return IsConstZero(v.Args[0])
+	}
+	return false
+}

@@ -9,6 +9,7 @@ import (
 
 	"cmd/compile/internal/ssa"
 	"cmd/compile/internal/ssa/ssaop"
+	"cmd/compile/internal/ssarewrite/rewritedec64"
 	"cmd/compile/internal/types"
 )
 
@@ -77,7 +78,7 @@ func softfloat(f *ssa.Func) {
 	if newInt64 && f.Config.RegSize == 4 {
 		// On 32bit arch, decompose Uint64 introduced in the switch above.
 		decomposeBuiltin(f)
-		applyRewrite(f, rewriteBlockdec64, rewriteValuedec64, ssa.RemoveDeadValues)
+		applyRewrite(f, rewritedec64.RewriteBlock, rewritedec64.RewriteValue, ssa.RemoveDeadValues)
 	}
 
 }
