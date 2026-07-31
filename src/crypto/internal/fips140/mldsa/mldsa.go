@@ -226,12 +226,48 @@ func newPrivateKey(seed *[32]byte, p parameters) *PrivateKey {
 	return priv
 }
 
+// computeMatrixA fills A so that A[r*l+s] is drawn from the XOF seeded with
+// ρ, s, and r, sampling the underlying streams in parallel with
+// sha3.ReadMulti.
+//
+// It implements ExpandA from FIPS 204.
 func computeMatrixA(A []nttElement, ρ []byte, p parameters) {
 	k, l := p.k, p.l
-	for r := range k {
-		for s := range l {
-			A[r*l+s] = sampleNTT(ρ, byte(s), byte(r))
+	// Compute up to four elements at a time in parallel.
+	for len(A) > 0 {
+		lanesCount := min(4, len(A))
+		lanes := [4]*sha3.SHAKE{
+			sha3.NewShake128(), sha3.NewShake128(),
+			sha3.NewShake128(), sha3.NewShake128(),
 		}
+		// Squeeze 5 blocks (each of 168 bytes, the rate of SHAKE-128) at once
+		// from each lane, the minimum to draw 256 values, which is enough to
+		// fill a full nttElement almost always due to the 2⁻¹⁰ rejection rate.
+		var bufs [4][5 * 168]byte
+		var outs [4][]byte
+		for i := range lanesCount {
+			// The index of A[i] in the full k×l matrix.
+			m := k*l - len(A) + i
+			lanes[i].Write(ρ)
+			lanes[i].Write([]byte{byte(m % l), byte(m / l)}) // s, r
+			outs[i] = bufs[i][:]
+		}
+		sha3.ReadMulti(lanes[:lanesCount], outs[:lanesCount])
+		for i := range lanesCount {
+			a := &A[i]
+			j := parseSampleNTT(a, 0, bufs[i][:])
+			// The probability of more than 24 rejections in 5 * 168 / 3 = 280
+			// samples is less than 2⁻¹³², so it is less likely than a cosmic
+			// ray flipping a CPU register while this for is evaluated.
+			// Unfortunately, FIPS 204 still has a "shall" for at least 894
+			// bytes of XOF output, so we have this unreachable, untestable code
+			// sitting here, instead of a much more reasonable panic.
+			for j < n {
+				lanes[i].Read(bufs[i][:168])
+				j = parseSampleNTT(a, j, bufs[i][:168])
+			}
+		}
+		A = A[lanesCount:]
 	}
 }
 

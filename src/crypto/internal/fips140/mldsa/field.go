@@ -295,25 +295,14 @@ func nttMul(a, b nttElement) (p nttElement) {
 	return p
 }
 
-// sampleNTT samples an nttElement uniformly at random from the seed rho and the
-// indices s and r. It implements Step 3 of ExpandA, RejNTTPoly, and
-// CoeffFromThreeBytes from FIPS 204, passing in ρ, s, and r instead of ρ'.
-func sampleNTT(rho []byte, s, r byte) nttElement {
-	G := sha3.NewShake128()
-	G.Write(rho)
-	G.Write([]byte{s, r})
-
-	var a nttElement
-	var j int         // index into a
-	var buf [168]byte // buffered reads from B, matching the rate of SHAKE-128
-	off := len(buf)   // index into buf, starts in a "buffer fully consumed" state
-	for j < n {
-		if off >= len(buf) {
-			G.Read(buf[:])
-			off = 0
-		}
+// parseSampleNTT consumes buf, whose length must be a multiple of three,
+// filling a from index j on with accepted values, and returns the updated
+// index. It implements RejNTTPoly and CoeffFromThreeBytes from FIPS 204.
+//
+// On return, coefficients at or beyond the updated index may be clobbered.
+func parseSampleNTT(a *nttElement, j int, buf []byte) int {
+	for off := 0; off < len(buf) && j < n; off += 3 {
 		v := uint32(buf[off]) | uint32(buf[off+1])<<8 | uint32(buf[off+2])<<16
-		off += 3
 		f, err := fieldToMontgomery(v & 0b01111111_11111111_11111111) // 23 bits
 		if err != nil {
 			continue
@@ -321,7 +310,7 @@ func sampleNTT(rho []byte, s, r byte) nttElement {
 		a[j] = f
 		j++
 	}
-	return a
+	return j
 }
 
 // sampleBoundedPoly samples a ringElement with coefficients in [−η, η] from the
