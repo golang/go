@@ -108,6 +108,7 @@ func main() {
 	Package("crypto/internal/fips140/sha3")
 	ConstraintExpr("!purego")
 	keccakF1600()
+	keccakF1600x4()
 	Generate()
 }
 
